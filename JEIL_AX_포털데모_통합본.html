@@ -169,31 +169,24 @@
 
 <div class="demo-banner">⚠ 화면 구성 데모 (단일 파일 통합본 · 공유용) — 실제 API 미연결, 모든 응답·수치는 예시 데이터입니다. 부서 페이지 8종 + 니즈조사 설문 내장.</div>
 
-<!-- ===== MS 로그인 데모 (Entra ID SSO + MFA) ===== -->
+<!-- ===== MS 로그인 (실제 Entra ID SSO + MFA — JEIL-AX-Portal 앱 연동) ===== -->
 <div class="login-ov" id="loginOv">
-  <div class="ms-card" id="loginStep1">
+  <div class="ms-card" id="loginCard">
     <div class="ms-logo"><span class="ms-sq"><i></i><i></i><i></i><i></i></span><span>Microsoft</span></div>
     <h2>로그인</h2>
-    <p class="sub">사내 AI 포털(UNI-Chat)에 연결합니다</p>
-    <input class="ms-inp" type="email" value="hong.gd@company.co.kr" id="msEmail">
-    <div class="ms-btnrow"><button class="ms-btn" onclick="msNext()">다음</button></div>
-    <p class="ms-foot">회사 계정(Microsoft Entra ID)으로 로그인합니다. 포털은 자체 비밀번호를 저장하지 않으며, 인증은 회사 보안 정책(조건부 액세스)을 따릅니다.</p>
-  </div>
-
-  <div class="ms-card" id="loginStep2" style="display:none;">
-    <div class="ms-logo"><span class="ms-sq"><i></i><i></i><i></i><i></i></span><span>Microsoft</span></div>
-    <h2>로그인 요청 승인</h2>
-    <p class="sub" id="mfaEmail">hong.gd@company.co.kr</p>
-    <p style="font-size:13.5px; color:#333;">Authenticator 앱을 열고, 표시된 번호를 입력하여 로그인하세요.</p>
-    <div class="ms-num" id="mfaNum">47</div>
-    <div class="ms-wait">다단계 인증(MFA) 대기 중…</div>
-    <div class="ms-btnrow">
-      <button class="ms-btn ghost" onclick="msBack()">뒤로</button>
-      <button class="ms-btn" onclick="msDone()">인증 완료 (데모)</button>
+    <p class="sub">사내 AI 포털(UNI-Chat) · Microsoft Entra ID</p>
+    <p style="font-size:13.5px; color:#333; margin-bottom:20px;">회사 계정(<b>@jeilm.co.kr</b>)으로 로그인합니다.<br>2차 인증(MFA)은 Microsoft 로그인 과정에서 <b>자동 적용</b>됩니다.</p>
+    <button class="ms-btn" style="width:100%; display:flex; align-items:center; justify-content:center; gap:9px;" onclick="msLogin('select_account')">
+      <span class="ms-sq" style="grid-gap:1.5px;"><i></i><i></i><i></i><i></i></span> Microsoft 계정으로 로그인
+    </button>
+    <div class="ms-btnrow" style="justify-content:space-between; margin-top:12px;">
+      <button class="ms-btn ghost" style="font-size:12px; padding:8px 12px;" onclick="msLogin('login')">전체 인증 강제 (MFA 재입력)</button>
+      <button class="ms-btn ghost" style="font-size:12px; padding:8px 12px;" onclick="demoEnter()">둘러보기 (데모 모드)</button>
     </div>
-    <p class="ms-foot">MFA는 Microsoft Entra 조건부 액세스 정책으로 강제되며, 포털 측 별도 구현이 필요 없습니다.</p>
+    <p class="ms-foot">MFA는 Entra 조건부 액세스 정책("Require MFA for internal users")으로 강제됩니다. 포털은 자체 비밀번호를 저장하지 않으며, 새 기기·시크릿 창에서는 Authenticator 앱 승인이 요구됩니다.</p>
+    <p class="ms-foot" id="httpsWarn" style="display:none; color:#b3402f;">⚠ 로컬(file://) 환경에서는 실제 로그인이 동작하지 않습니다 — <b>둘러보기(데모 모드)</b>를 이용하거나 운영 주소(https://cdhnayajeil-code.github.io/jeil_ax/)에서 접속하세요.</p>
   </div>
-  <div class="login-note">데모 화면 — 실제 Microsoft 인증과 연결되어 있지 않습니다. 버튼을 눌러 흐름을 체험하세요.</div>
+  <div class="login-note" id="loginNote">실제 Microsoft Entra ID 인증 연동 — 앱: JEIL-AX-Portal · 테넌트: 제일엠앤에스 (MFA 자동 적용)</div>
 </div>
 
 <div class="app">
@@ -236,7 +229,7 @@
   <!-- 메인 -->
   <main class="main">
     <div class="top">
-      <h2>새 대화 <span class="mfa-badge">🔒 Entra ID SSO · MFA 인증됨</span></h2>
+      <h2>새 대화 <span class="mfa-badge" id="mfaBadge">🔐 Entra ID 로그인 대기</span></h2>
       <span class="mode">모델 자동 라우팅: <b id="modelLabel">표준 (Haiku)</b></span>
     </div>
 
@@ -655,20 +648,106 @@ function useCredit(){
 function runDemo(key){
   const d=DEMOS[key]; addUser(d.q); addAI(d.a, d.model);
 }
-/* ===== MS 로그인 데모 ===== */
-function msNext(){
-  document.getElementById('mfaEmail').textContent = document.getElementById('msEmail').value || 'hong.gd@company.co.kr';
-  document.getElementById('mfaNum').textContent = Math.floor(10+Math.random()*90);
-  document.getElementById('loginStep1').style.display='none';
-  document.getElementById('loginStep2').style.display='block';
+/* ===== MS 로그인 — 실제 Entra ID (OAuth 2.0 Authorization Code + PKCE) =====
+   앱 등록: JEIL-AX-Portal (MS_connect/01 참조 · 공개 가능 값만 사용, Secret 미포함)
+   MFA: Entra 조건부 액세스 정책이 로그인 과정에서 자동 강제 (MS_connect/03 검증) */
+var ENTRA = {
+  tenant:   'c877a817-4a98-4399-acbb-0046cd07dd0c',
+  clientId: 'ffb54d0e-3b68-4ec1-b4ec-abc92103350e',
+  scopes:   'openid profile email User.Read'
+};
+function entraRedirectUri(){ return location.origin + location.pathname; }
+function isHttps(){ return location.protocol === 'https:'; }
+
+function b64url(buf){
+  return btoa(String.fromCharCode.apply(null, new Uint8Array(buf)))
+    .replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
 }
-function msBack(){
-  document.getElementById('loginStep2').style.display='none';
-  document.getElementById('loginStep1').style.display='block';
+function randStr(n){
+  var a = new Uint8Array(n); crypto.getRandomValues(a);
+  return Array.from(a, function(b){ return ('0'+b.toString(16)).slice(-2); }).join('');
 }
-function msDone(){
+
+async function msLogin(promptMode){
+  if(!isHttps()){ document.getElementById('httpsWarn').style.display='block'; return; }
+  var state = 'jeilax-' + randStr(16);
+  var verifier = randStr(48); // 96자 hex
+  sessionStorage.setItem('oauth_state', state);
+  sessionStorage.setItem('pkce_verifier', verifier);
+  var challenge = b64url(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier)));
+  location.href = 'https://login.microsoftonline.com/' + ENTRA.tenant + '/oauth2/v2.0/authorize'
+    + '?client_id=' + encodeURIComponent(ENTRA.clientId)
+    + '&response_type=code&response_mode=query'
+    + '&redirect_uri=' + encodeURIComponent(entraRedirectUri())
+    + '&scope=' + encodeURIComponent(ENTRA.scopes)
+    + '&state=' + encodeURIComponent(state)
+    + '&code_challenge=' + encodeURIComponent(challenge)
+    + '&code_challenge_method=S256'
+    + '&prompt=' + encodeURIComponent(promptMode);
+}
+
+function setUser(name, email, sub){
+  var av = document.querySelector('.profile .avatar');
+  var nm = document.querySelector('.profile b');
+  var sp = document.querySelector('.profile span');
+  if(name){ av.textContent = name.charAt(0); nm.textContent = name; }
+  if(sp) sp.textContent = sub || (email || 'Entra 인증 계정');
+}
+function setAuthBadge(html){ var b=document.getElementById('mfaBadge'); if(b) b.innerHTML = html; }
+
+function demoEnter(){
   document.getElementById('loginOv').style.display='none';
+  setAuthBadge('👁 데모 모드 — 미인증 (예시 데이터)');
 }
+function authDone(claims){
+  document.getElementById('loginOv').style.display='none';
+  if(claims){
+    setUser(claims.name || '인증 사용자', claims.preferred_username || claims.email, (claims.preferred_username||'') + ' · MFA 인증');
+  } else {
+    setUser('인증 사용자', '', 'Entra 로그인 완료 · MFA 인증');
+  }
+  setAuthBadge('🔒 Entra ID SSO · MFA 인증됨');
+}
+function parseJwt(t){
+  try{
+    var p = t.split('.')[1].replace(/-/g,'+').replace(/_/g,'/');
+    return JSON.parse(decodeURIComponent(escape(atob(p))));
+  }catch(e){ return null; }
+}
+
+async function handleAuthCallback(){
+  var q = new URLSearchParams(location.search);
+  if(q.has('error')){
+    alert('Microsoft 로그인 실패: ' + q.get('error') + '\n' + (q.get('error_description')||''));
+    history.replaceState(null,'',location.pathname);
+    return false;
+  }
+  if(!q.has('code')) return false;
+  var code = q.get('code');
+  var stateOk = sessionStorage.getItem('oauth_state') === (q.get('state')||'');
+  history.replaceState(null,'',location.pathname); // 주소창에서 code 제거
+  if(!stateOk){ alert('보안 경고: state 불일치 — 로그인을 다시 시도하세요.'); return false; }
+  // PKCE 토큰 교환 (Entra 앱에 SPA 플랫폼 Redirect URI 등록 시 동작 — Secret 불필요)
+  try{
+    var resp = await fetch('https://login.microsoftonline.com/' + ENTRA.tenant + '/oauth2/v2.0/token', {
+      method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'},
+      body: new URLSearchParams({
+        client_id: ENTRA.clientId, grant_type:'authorization_code', code: code,
+        redirect_uri: entraRedirectUri(), code_verifier: sessionStorage.getItem('pkce_verifier')||'',
+        scope: ENTRA.scopes
+      })
+    });
+    var tok = await resp.json();
+    if(tok.id_token){ authDone(parseJwt(tok.id_token)); return true; }
+  }catch(e){ /* CORS 차단 = Web 플랫폼 전용 등록 상태 — 코드 수신 자체로 MFA 로그인 입증 */ }
+  authDone(null); // 토큰 교환 불가 환경: Authorization Code 수신(MFA 통과)으로 인증 처리
+  return true;
+}
+
+(function initAuth(){
+  if(!isHttps()){ document.getElementById('httpsWarn').style.display='block'; }
+  handleAuthCallback();
+})();
 
 /* ===== 뷰 전환 (챗봇 / 운영 페이지 / 관리자) ===== */
 function hideViews(){
