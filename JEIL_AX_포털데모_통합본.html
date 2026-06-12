@@ -249,7 +249,7 @@
           <div class="suggest">
             <button onclick="runDemo('cost')">2025-095-SUL-EC 원가 요약 보여줘</button>
             <button onclick="runDemo('report')">주간보고 초안 작성해줘</button>
-            <button onclick="runDemo('rule')">경조사 휴가 규정 알려줘</button>
+            <button onclick="runDemo('rule')">연차휴가 규정 알려줘</button>
           </div>
         </div>
       </div>
@@ -598,18 +598,20 @@ const DEMOS = {
       초안이므로 금액·일정은 ERP 원본 확인 후 확정해 주세요.`
   },
   rule: {
-    q: "경조사 휴가 규정 알려줘",
+    q: "연차휴가 규정 알려줘",
     model: "표준 (Haiku)",
-    a: `사내 취업규칙 기준 <b>경조사 휴가</b>는 다음과 같습니다. (예시 데이터)
+    a: `사내 취업규칙 기준 <b>연차유급휴가</b>는 다음과 같습니다.
       <table>
-        <tr><th>구분</th><th class="r">휴가일수</th></tr>
-        <tr><td>본인 결혼</td><td class="r">5일</td></tr>
-        <tr><td>자녀 결혼</td><td class="r">1일</td></tr>
-        <tr><td>배우자·본인/배우자 부모 사망</td><td class="r">5일</td></tr>
-        <tr><td>조부모·형제자매 사망</td><td class="r">3일</td></tr>
+        <tr><th>구분</th><th>내용</th></tr>
+        <tr><td>기본 부여</td><td>1년간 8할 이상 출근 시 <b>15일</b> (제26조①)</td></tr>
+        <tr><td>1년 미만·8할 미만</td><td>1개월 개근 시 1일 (제26조②)</td></tr>
+        <tr><td>근속 가산</td><td>3년 이상 근속 시 2년마다 +1일, <b>최대 25일</b> (제26조③)</td></tr>
+        <tr><td>부여 기준</td><td>회계연도 기준 부여 가능 (제26조⑤)</td></tr>
+        <tr><td>소멸·촉진</td><td>1년 내 미사용 시 소멸, 사용촉진제 운영 — 촉진 후 미사용분 금전 보상 없음 (제26조의2)</td></tr>
       </table>
-      신청은 그룹웨어 &gt; 근태신청에서 증빙과 함께 제출하시면 됩니다.
-      <br><span class="src">✓ 출처: 취업규칙 (2025.07.30 개정) — 사내규정 원본 기준 · 휴가일수는 예시</span>`
+      <b>그 밖의 휴가</b> — 리프레시 휴가 3일(제30조) · 보건휴가 월 1일 무급(제32조) · 배우자 출산휴가 20일(제36조) · 출산전후휴가 90일(제35조)<br>
+      휴가는 <b>사전 신청·허가</b>가 필요합니다(제34조). 그룹웨어 &gt; 근태신청에서 제출하세요.
+      <br><span class="src">✓ 출처: 취업규칙 제26조 외 (Jeil-사규-인사-01 · 개정번호 4 · 2025.07.30 개정)</span>`
   },
   mail: {
     q: "대한상사에 납기 1주 지연 안내 메일 초안 써줘",
@@ -688,7 +690,7 @@ function send(){
   const inp=document.getElementById('inp'); const v=inp.value.trim(); if(!v) return;
   inp.value='';
   addUser(v.replace(/</g,'&lt;'));
-  const hit = v.includes('원가')||v.includes('수지')||v.includes('095')||v.includes('프로젝트')||v.includes('매출')?'cost' : v.includes('주간')||v.includes('보고')?'report' : v.includes('규정')||v.includes('휴가')?'rule' : v.includes('메일')?'mail' : null;
+  const hit = v.includes('원가')||v.includes('수지')||v.includes('095')||v.includes('프로젝트')||v.includes('매출')?'cost' : v.includes('주간')||v.includes('보고')?'report' : v.includes('규정')||v.includes('휴가')||v.includes('연차')?'rule' : v.includes('메일')?'mail' : null;
   const d = hit?DEMOS[hit]:DEMOS.fallback;
   addAI(d.a, d.model);
 }
