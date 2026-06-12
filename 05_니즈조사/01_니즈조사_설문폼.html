@@ -39,7 +39,9 @@
             <li>수요예측·이상치 탐지 — 데이터 품질·검증 전제</li>
             <li>거래처·계약 문서 검토 — 최종 판단은 담당자</li>
             <li>개인정보 포함 업무 — 마스킹·내부 처리 전제</li>
-            <li>ERP 데이터 입력 — 표준 인터페이스 경유 시</li>
+            <li>ERP 데이터 입력용 자료 작성 — Excel·서식을 ERP 기준으로 생성</li>
+            <li>내부관리 자료 가공·관리 — 시스템 미관리 자료는 별도 취합 후 <b>표준화 검토·기준 정립</b> 시 가능</li>
+            <li>그룹웨어 데이터 가공·적용 — 전자결재 자료 및 기준 정의 시 적용</li>
           </ul>
         </div>
         <div class="tcard no"><header>✕ 부적합 / 불가</header>
@@ -150,6 +152,13 @@
       <textarea id="q7" style="min-height:54px;" placeholder="예) ChatGPT — 영문 메일 번역 / 없음"></textarea>
     </div>
 
+    <h2><span class="num">4</span>기타 요청·제안</h2>
+
+    <div class="qcard">
+      <div class="qhead"><span class="qno">Q8</span><span class="qtitle">위 내용에 포함되지 않은 요청사항이나 제안이 있다면 자유롭게 기입해 주세요. <span class="hint">(선택 — 업무 개선 아이디어, 필요한 데이터·기능, 교육 요청 등 무엇이든)</span></span></div>
+      <textarea id="q8" placeholder="예) 설문에는 없지만 ○○ 업무도 AI로 개선되면 좋겠다 / △△ 데이터가 정리되어 있지 않아 먼저 표준화가 필요하다 / 사용법 교육을 부서별로 해주면 좋겠다"></textarea>
+    </div>
+
     <!-- 액션 -->
     <div class="toolbar no-print" style="margin:22px 0 8px;">
       <button type="button" class="btn" id="btnSubmit">✓ 응답 저장 (JSON 다운로드)</button>
@@ -225,6 +234,7 @@ function collect(){
   r.answers.q5 = document.getElementById('q5').value.trim();
   r.answers.q6 = { selected:getChecked('q6'), 기타:document.getElementById('q6etc').value.trim() };
   r.answers.q7 = document.getElementById('q7').value.trim();
+  r.answers.q8 = document.getElementById('q8').value.trim();
   return r;
 }
 
@@ -243,6 +253,7 @@ function apply(r){
   document.getElementById('q5').value = r.answers.q5||'';
   setChecks('q6', r.answers.q6); document.getElementById('q6etc').value=(r.answers.q6&&r.answers.q6.기타)||'';
   document.getElementById('q7').value = r.answers.q7||'';
+  document.getElementById('q8').value = r.answers.q8||'';
   document.querySelectorAll('.opt input').forEach(function(i){ i.dispatchEvent(new Event('change')); });
   updateProgress();
 }
