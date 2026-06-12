@@ -161,14 +161,16 @@
 
     <!-- 액션 -->
     <div class="toolbar no-print" style="margin:22px 0 8px;">
-      <button type="button" class="btn" id="btnSubmit">✓ 응답 저장 (JSON 다운로드)</button>
+      <button type="button" class="btn" id="btnOneDrive" style="background:#0067b8; border-color:#0067b8;">☁ OneDrive에 저장</button>
+      <button type="button" class="btn ghost" id="btnSubmit">JSON 다운로드</button>
       <button type="button" class="btn ghost" id="btnLocal">임시저장</button>
       <button type="button" class="btn gray" id="btnLoad">불러오기</button>
       <button type="button" class="btn gray" id="btnPrint">인쇄</button>
       <button type="button" class="btn danger" id="btnReset">초기화</button>
       <input type="file" id="fileLoad" accept="application/json" style="display:none;">
     </div>
-    <p class="small no-print">저장 시 응답이 <b>JSON 파일</b>로 내려받아집니다. 부서 취합 창구에 전달(또는 OneDrive 지정 폴더 업로드)하면 집계 대시보드에서 자동 합산됩니다. ‘임시저장’은 이 브라우저에만 보관됩니다.</p>
+    <div id="odBar" class="small no-print" style="margin:6px 0 4px; padding:9px 14px; background:#f4f7fb; border:1px solid #dbe4f0; border-radius:8px; line-height:1.7;">☁ OneDrive 저장 상태 확인 중…</div>
+    <p class="small no-print">[OneDrive에 저장]은 회사 계정 로그인 후 <b>사용자명_사용자ID_작성일자.json</b> 파일로 관리자 OneDrive(JEIL_AX 폴더)에 자동 저장되며, 같은 날 다시 저장하면 수정 내용으로 덮어써집니다. JSON 다운로드는 보조 수단입니다.</p>
   </form>
 
   <div class="footer">
@@ -297,6 +299,52 @@ function validate(r){
   return true;
 }
 
+/* ---- OneDrive 자동 저장 ---- */
+var OD_LAST_KEY = 'jeilax_od_last';
+var odDirty = false;
+var PORTAL_URL = 'https://cdhnayajeil-code.github.io/jeil_ax/';
+
+function fmtNow(){
+  var d=new Date(); function p(n){return n<10?'0'+n:n;}
+  return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+' '+p(d.getHours())+':'+p(d.getMinutes())+':'+p(d.getSeconds());
+}
+function odSetBar(html){ var b=document.getElementById('odBar'); if(b) b.innerHTML = html; }
+function odRefreshBar(extra){
+  var last=null; try{ last=JSON.parse(localStorage.getItem(OD_LAST_KEY)||'null'); }catch(e){}
+  var auth = (S.authInfo && S.authInfo()) || null;
+  var left = last
+    ? '☁ <b>마지막 저장:</b> ' + last.time + ' · ' + last.fn + (odDirty ? ' <span style="color:#b3402f;"><b>(이후 수정됨 — 다시 저장 필요)</b></span>' : ' <span style="color:#1a8f3c;">✓ 저장 완료</span>')
+    : '☁ 아직 OneDrive에 저장되지 않았습니다.';
+  var right = auth
+    ? '계정: <b>' + (auth.name || auth.upn) + '</b>' + (auth.valid || auth.canRefresh ? '' : ' <span style="color:#b3402f;">(세션 만료 — 포털 재로그인)</span>')
+    : '<span style="color:#b3402f;">미로그인 — <a href="' + PORTAL_URL + '" target="_blank"><b>포털에서 Microsoft 로그인</b></a> 후 저장 가능</span>';
+  odSetBar(left + ' &nbsp;·&nbsp; ' + right + (extra ? '<br>' + extra : ''));
+}
+document.getElementById('btnOneDrive').addEventListener('click', function(){
+  var r=collect(); if(!validate(r)) return;
+  r.meta.제출시각 = S.nowStamp();
+  S.saveLocal(r);
+  var btn=this; btn.disabled=true; btn.textContent='저장 중…';
+  S.saveToOneDrive(r).then(function(res){
+    btn.disabled=false; btn.textContent='☁ OneDrive에 저장';
+    if(res.ok){
+      odDirty=false;
+      var rec={fn:res.fileName, time:fmtNow()};
+      try{ localStorage.setItem(OD_LAST_KEY, JSON.stringify(rec)); }catch(e){}
+      toast('OneDrive 저장 완료 · ' + res.fileName);
+      odRefreshBar(res.fallbackOwnDrive
+        ? '<span style="color:#9a6b1f;">ℹ 공유 폴더가 아직 연결되지 않아 <b>본인 OneDrive</b>의 ' + S.ONEDRIVE.folder + ' 경로에 저장되었습니다. (관리자가 JEIL_AX 폴더를 공유하면 자동으로 관리자 폴더에 저장됩니다)</span>'
+        : '');
+    } else if(res.needLogin){
+      toast('Microsoft 로그인이 필요합니다.');
+      odRefreshBar('<span style="color:#b3402f;">⚠ 로그인 필요 — <a href="' + PORTAL_URL + '" target="_blank"><b>포털 열어 로그인</b></a> 후 이 화면으로 돌아와 다시 [OneDrive에 저장]을 누르세요. 작성 내용은 그대로 유지됩니다.</span>');
+    } else {
+      toast('저장 실패');
+      odRefreshBar('<span style="color:#b3402f;">❌ 저장 실패: ' + (res.error || '알 수 없는 오류') + '</span>');
+    }
+  });
+});
+
 /* ---- 액션 ---- */
 document.getElementById('btnSubmit').addEventListener('click', function(){
   var r=collect(); if(!validate(r)) return;
@@ -327,6 +375,8 @@ function todayStr(){ var d=new Date(); function p(n){return n<10?'0'+n:n;} retur
 
 /* ---- init ---- */
 fillSelect(); renderOpts(); bindOptVisual();
+odRefreshBar();
+(function(){ var f=document.querySelector('form'); if(f){ f.addEventListener('input', function(){ if(!odDirty){ odDirty=true; odRefreshBar(); } }); f.addEventListener('change', function(){ if(!odDirty){ odDirty=true; odRefreshBar(); } }); } })();
 ['m_부서','m_작성자','m_직책','m_익명'].forEach(function(id){ document.getElementById(id).addEventListener('change', updateProgress); });
 ['q3etc','q4etc','q6etc','q5','q7'].forEach(function(id){ document.getElementById(id).addEventListener('input', updateProgress); });
 document.querySelectorAll('.q1').forEach(function(i){ i.addEventListener('input', updateProgress); });
