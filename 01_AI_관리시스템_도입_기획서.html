@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI 활용 관리시스템 도입 기획(안) — 경영진 보고용</title>
+<style>
+  :root{
+    --navy:#1a2f4e; --navy2:#27457a; --accent:#2f6fb3;
+    --red:#b3402f; --green:#2e7d52; --amber:#9a6b1f;
+    --ink:#222; --muted:#666; --line:#d8dee8; --bg:#f4f6f9;
+    --soft:#eef2f8; --softred:#fbeeec; --softgreen:#ecf5f0; --softamber:#faf3e4;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif; color:var(--ink); background:var(--bg); line-height:1.65; font-size:15px;}
+  .page{max-width:920px; margin:0 auto; background:#fff; padding:56px 64px; box-shadow:0 2px 14px rgba(0,0,0,.08);}
+  /* 표지 헤더 */
+  .doc-label{display:inline-block; background:var(--navy); color:#fff; font-size:12px; letter-spacing:.18em; padding:5px 14px; border-radius:3px; margin-bottom:18px;}
+  h1{font-size:30px; color:var(--navy); line-height:1.35; margin-bottom:10px; letter-spacing:-.01em;}
+  .subtitle{font-size:16px; color:var(--muted); margin-bottom:26px;}
+  .meta{display:flex; flex-wrap:wrap; gap:0; border:1px solid var(--line); border-radius:6px; overflow:hidden; margin-bottom:44px;}
+  .meta div{flex:1 1 25%; padding:10px 16px; font-size:13px; border-right:1px solid var(--line); background:var(--soft);}
+  .meta div:last-child{border-right:none;}
+  .meta b{display:block; color:var(--navy); font-size:12px; margin-bottom:2px;}
+  /* 섹션 */
+  h2{font-size:21px; color:var(--navy); margin:48px 0 16px; padding-bottom:10px; border-bottom:3px solid var(--navy); display:flex; align-items:center; gap:10px;}
+  h2 .num{background:var(--navy); color:#fff; font-size:14px; width:28px; height:28px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; flex:none;}
+  h3{font-size:16.5px; color:var(--navy2); margin:26px 0 10px;}
+  p{margin-bottom:12px;}
+  /* 요약 박스 */
+  .exec{background:var(--soft); border-left:5px solid var(--navy); border-radius:0 8px 8px 0; padding:22px 26px; margin-bottom:8px;}
+  .exec h3{margin-top:0; font-size:15px; letter-spacing:.06em; color:var(--navy);}
+  .exec ul{margin:8px 0 0 18px;}
+  .exec li{margin-bottom:8px;}
+  /* 콜아웃 */
+  .callout{border-radius:8px; padding:16px 20px; margin:14px 0;}
+  .callout.red{background:var(--softred); border-left:5px solid var(--red);}
+  .callout.green{background:var(--softgreen); border-left:5px solid var(--green);}
+  .callout.amber{background:var(--softamber); border-left:5px solid var(--amber);}
+  .callout b.tag{display:block; font-size:13px; margin-bottom:6px;}
+  .callout.red b.tag{color:var(--red);} .callout.green b.tag{color:var(--green);} .callout.amber b.tag{color:var(--amber);}
+  /* 테이블 */
+  table{width:100%; border-collapse:collapse; margin:14px 0 20px; font-size:13.5px;}
+  th{background:var(--navy); color:#fff; padding:10px 12px; text-align:left; font-weight:600;}
+  td{padding:10px 12px; border-bottom:1px solid var(--line); vertical-align:top;}
+  tr:nth-child(even) td{background:#fafbfd;}
+  td.ok{color:var(--green); font-weight:700;} td.no{color:var(--red); font-weight:700;} td.mid{color:var(--amber); font-weight:700;}
+  /* 아키텍처 다이어그램 */
+  .arch{display:flex; align-items:stretch; gap:0; margin:20px 0; flex-wrap:wrap;}
+  .arch .box{flex:1; min-width:180px; border:2px solid var(--navy2); border-radius:10px; padding:16px 14px; text-align:center; background:#fff;}
+  .arch .box.hl{background:var(--soft); border-color:var(--accent);}
+  .arch .box h4{color:var(--navy); font-size:14.5px; margin-bottom:6px;}
+  .arch .box p{font-size:12.5px; color:var(--muted); margin:0;}
+  .arch .arrow{display:flex; flex-direction:column; justify-content:center; align-items:center; padding:0 10px; color:var(--accent); font-size:12px; font-weight:700; min-width:86px; text-align:center;}
+  .arch .arrow .line{font-size:22px; line-height:1;}
+  .principle{display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin:16px 0;}
+  .principle .card{border:1px solid var(--line); border-top:4px solid var(--accent); border-radius:8px; padding:14px 16px; background:#fff;}
+  .principle .card b{color:var(--navy); display:block; margin-bottom:6px; font-size:14px;}
+  .principle .card p{font-size:12.5px; color:var(--muted); margin:0;}
+  /* 로드맵 */
+  .roadmap{display:flex; gap:12px; margin:18px 0; flex-wrap:wrap;}
+  .phase{flex:1; min-width:200px; border:1px solid var(--line); border-radius:10px; overflow:hidden; background:#fff;}
+  .phase header{background:var(--navy2); color:#fff; padding:10px 14px; font-size:14px; font-weight:700;}
+  .phase.p1 header{background:var(--navy);} .phase.p3 header{background:var(--accent);}
+  .phase .body{padding:12px 14px;}
+  .phase .body span{display:block; font-size:11.5px; color:var(--accent); font-weight:700; margin-bottom:6px;}
+  .phase ul{margin-left:16px; font-size:12.8px;}
+  .phase li{margin-bottom:5px;}
+  .footer{margin-top:56px; padding-top:16px; border-top:1px solid var(--line); font-size:12px; color:var(--muted); display:flex; justify-content:space-between;}
+  .small{font-size:12.5px; color:var(--muted);}
+  @media print{
+    body{background:#fff;} .page{box-shadow:none; padding:20px 0; max-width:100%;}
+    h2{break-after:avoid;} table,.callout,.arch,.phase{break-inside:avoid;}
+  }
+  @media (max-width:720px){ .page{padding:32px 22px;} .principle{grid-template-columns:1fr;} .arch{flex-direction:column;} .arch .arrow{transform:rotate(90deg); min-width:auto; padding:6px 0;} }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <span class="doc-label">경영진 보고 · 대외비</span>
+  <h1>AI 활용 관리시스템 도입 기획(안)</h1>
+  <p class="subtitle">현행 ERP(UNIERP) 데이터 연계 기반의 AI 업무지원 시스템 구축 방향</p>
+
+  <div class="meta">
+    <div><b>작성일</b>2026. 06. 11.</div>
+    <div><b>관리자</b>최동혁</div>
+    <div><b>보고대상</b>경영진</div>
+    <div><b>문서상태</b>검토 요청(안)</div>
+  </div>
+
+  <div class="exec">
+    <h3>EXECUTIVE SUMMARY</h3>
+    <ul>
+      <li><b>ERP를 AI로 직접 개발·수정하여 비개발자가 관리하는 방안은 권고하지 않습니다.</b> ERP는 회계·재고·생산 원장을 다루는 기간계 시스템으로, DB 보안·트랜잭션 무결성·법적 책임 측면의 리스크가 기대효과를 크게 상회합니다.</li>
+      <li><b>현행 UNIERP는 그대로 유지하고, ERP가 제공하는 표준 인터페이스(Web Service, PDW)를 통해 데이터를 "읽기 전용"으로 연계</b>하는 별도 AI 관리시스템 구축은 기술적으로 가능하며, 리스크가 통제 가능한 수준입니다.</li>
+      <li>도입 1단계로 <b>전 부서 대상 AI 활용 니즈조사</b>를 실시하여 효과가 크고 리스크가 낮은 과제부터 선별 추진할 것을 제안합니다. (별첨: 부서별 니즈조사 실행 기획)</li>
+    </ul>
+  </div>
+
+  <h2><span class="num">1</span>추진 배경 및 목적</h2>
+  <p>생성형 AI의 업무 적용이 보편화되면서, 사내에서도 보고서 작성·데이터 조회·반복 업무 처리 등에 AI를 활용하려는 수요가 부서별로 증가하고 있습니다. 그러나 개별 직원이 각자 외부 AI 서비스를 사용할 경우 <b>사내 데이터 유출, 결과물 품질 편차, 중복 투자</b>의 문제가 발생합니다.</p>
+  <p>이에 회사 차원에서 (1) AI를 어디에, 어떻게 적용할지 원칙을 정하고 (2) 현행 ERP 데이터와 안전하게 연계되는 공용 AI 관리시스템을 기획하며 (3) 그 출발점으로 부서별 니즈를 체계적으로 취합하고자 합니다.</p>
+
+  <h2><span class="num">2</span>핵심 검토: "AI로 ERP를 직접 개발·관리"가 어려운 이유</h2>
+  <p>검토 과정에서 "AI 코딩 도구로 ERP 자체를 개발(또는 수정)하고 비개발자가 운영하면 되지 않는가"라는 안이 제기될 수 있습니다. 아래와 같은 이유로 <b>이 방안은 채택하지 않을 것을 권고</b>합니다.</p>
+
+  <h3>2-1. DB 보안 측면</h3>
+  <div class="callout red">
+    <b class="tag">RISK — 데이터 보안</b>
+    ERP DB에는 재무원장, 급여, 거래처 단가, 개인정보가 집적되어 있습니다. AI로 생성한 코드가 ERP DB에 직접 읽기/쓰기 권한을 갖는 순간, 권한 통제·SQL 인젝션·데이터 유출의 공격 표면이 ERP 전체로 확대됩니다. 비개발자는 생성된 코드의 보안 취약점을 식별·검증할 수 없어, 사고 발생 전까지 위험이 드러나지 않습니다.
+  </div>
+  <ul style="margin:0 0 8px 20px;">
+    <li><b>권한 관리 부재</b> — ERP는 사용자·메뉴·데이터 단위의 정교한 권한체계를 갖추고 있으나, 별도 개발된 코드가 DB에 직접 접근하면 이 권한체계를 우회하게 됨</li>
+    <li><b>감사추적(Audit Trail) 단절</b> — 누가 언제 무엇을 변경했는지 ERP 로그에 남지 않아 내부회계관리제도·세무조사 대응 시 입증 불가</li>
+    <li><b>개인정보보호법·정보보안 규정 위반 소지</b> — 검증되지 않은 경로로 개인정보가 처리·이동될 경우 법적 제재 대상</li>
+  </ul>
+
+  <h3>2-2. 시스템 안정성 측면</h3>
+  <div class="callout red">
+    <b class="tag">RISK — 데이터 무결성</b>
+    ERP의 핵심 가치는 "전 모듈이 하나의 원장으로 정합성 있게 맞물려 있다"는 점입니다. 영업·구매·생산·재고·회계가 트랜잭션 단위로 연동되므로, 검증 없이 생성된 코드가 한 테이블만 잘못 갱신해도 재고 수불, 채권·채무, 결산 전체가 틀어집니다. 한 번 오염된 원장 데이터는 복구 비용이 막대하며, 결산·세무신고 오류로 직결됩니다.
+  </div>
+
+  <h3>2-3. 운영·책임 측면 (비개발자 관리의 한계)</h3>
+  <table>
+    <tr><th style="width:24%;">항목</th><th>문제점</th></tr>
+    <tr><td><b>장애 대응</b></td><td>AI가 만든 코드에 장애가 나면 원인 분석·복구 모두 개발 역량이 필요. 비개발자는 "AI에게 다시 물어보는 것" 외 대응 수단이 없고, 그 수정이 또 다른 오류를 낳는 악순환 발생</td></tr>
+    <tr><td><b>변경관리 부재</b></td><td>테스트 환경·형상관리·배포 절차 없이 운영계를 직접 수정하게 되어, 기간계 시스템 운영의 기본 통제가 무너짐</td></tr>
+    <tr><td><b>벤더 유지보수 무효화</b></td><td>표준 모듈을 임의 수정하면 비젠트로(UNIERP 공급사)의 유지보수·패치·업그레이드 보증 범위에서 제외될 수 있음</td></tr>
+    <tr><td><b>책임 소재 불명확</b></td><td>회계·세무 수치 오류 발생 시 책임 주체(작성자? AI? 관리자?)를 특정할 수 없어 내부통제상 치명적</td></tr>
+    <tr><td><b>속인화(屬人化)</b></td><td>특정 담당자만 아는 시스템이 되어 퇴사·이동 시 유지 불가</td></tr>
+  </table>
+  <p class="small">※ 요약: AI 코딩 도구는 "개발자의 생산성 도구"이지 "개발자를 대체하는 도구"가 아니며, 특히 기간계(ERP) 영역에서는 전문 개발·보안·DBA 검증 없는 운영이 불가능합니다.</p>
+
+  <h2><span class="num">3</span>권고안: 현행 ERP 유지 + 데이터 연계형 AI 시스템</h2>
+  <div class="callout green">
+    <b class="tag">FEASIBLE — 권고 방안</b>
+    UNIERP는 SOA 기반으로 설계되어 Web Service 인터페이스와 연계 도구(PDW, Process Data Works)를 표준 제공합니다. 즉, <b>ERP 내부를 건드리지 않고도 데이터를 안전하게 꺼내 쓸 수 있는 공식 통로</b>가 이미 존재하며, 실제 비즈플레이 등 외부 솔루션과의 연동 사례도 다수 있습니다. AI 관리시스템은 이 통로를 통해서만 ERP와 만나도록 설계합니다.
+  </div>
+
+  <h3>3-1. 연계 아키텍처 (개념도)</h3>
+  <div class="arch">
+    <div class="box">
+      <h4>UNIERP (기간계)</h4>
+      <p>원장·트랜잭션 처리<br>현행 그대로 유지<br><b>AI의 직접 접근 차단</b></p>
+    </div>
+    <div class="arrow"><span class="line">→</span>읽기 전용 연계<br><span class="small">Web Service / PDW /<br>읽기전용 복제DB</span></div>
+    <div class="box hl">
+      <h4>중간 데이터 영역 (DW/스테이징)</h4>
+      <p>필요 데이터만 선별 적재<br>개인정보 마스킹·권한 통제<br>원본과 물리적 분리</p>
+    </div>
+    <div class="arrow"><span class="line">→</span>조회·분석</div>
+    <div class="box hl">
+      <h4>AI 관리시스템 (신규)</h4>
+      <p>조회·요약·리포트·알림<br>부서별 업무지원 기능<br>사용 이력 로깅</p>
+    </div>
+  </div>
+
+  <h3>3-2. 설계 3원칙</h3>
+  <div class="principle">
+    <div class="card"><b>① ERP 원장 무수정 (Read-Only)</b><p>AI 시스템은 ERP 데이터를 "읽기만" 합니다. 원장 생성·수정·삭제는 지금처럼 ERP 화면과 표준 인터페이스를 통해서만 수행합니다.</p></div>
+    <div class="card"><b>② 표준 인터페이스만 사용</b><p>벤더가 공식 제공하는 Web Service·PDW·읽기전용 계정만 사용하여 유지보수 보증과 감사추적을 유지합니다.</p></div>
+    <div class="card"><b>③ 데이터 최소화·통제</b><p>AI가 접근하는 데이터는 업무에 필요한 최소 범위로 한정하고, 개인정보는 마스킹하며, 모든 조회 이력을 기록합니다.</p></div>
+  </div>
+
+  <h3>3-3. 방식별 비교</h3>
+  <table>
+    <tr><th>구분</th><th>① ERP를 AI로 직접 개발·수정</th><th>② 데이터 연계형 AI 시스템 (권고)</th></tr>
+    <tr><td><b>DB 보안</b></td><td class="no">취약 — 권한체계 우회, 유출 표면 확대</td><td class="ok">양호 — 읽기전용·마스킹·분리 영역</td></tr>
+    <tr><td><b>원장 무결성</b></td><td class="no">위험 — 결산·재고 오염 가능</td><td class="ok">안전 — 원장 접근 차단</td></tr>
+    <tr><td><b>장애 영향범위</b></td><td class="no">전사 (ERP 중단 = 업무 중단)</td><td class="ok">AI 시스템에 국한, ERP 무영향</td></tr>
+    <tr><td><b>벤더 유지보수</b></td><td class="no">보증 제외 가능</td><td class="ok">유지 (표준 인터페이스 사용)</td></tr>
+    <tr><td><b>비개발자 운영</b></td><td class="no">사실상 불가</td><td class="mid">가능 — 단, 초기 구축·보안설계는 전문가 필요</td></tr>
+    <tr><td><b>구축 난이도·기간</b></td><td class="no">높음 / 장기</td><td class="ok">중간 / 단계적 추진 가능</td></tr>
+  </table>
+  <div class="callout amber">
+    <b class="tag">유의사항</b>
+    "연계형"이라 해도 초기 구축 단계(연계 설계, 보안 설정, 권한·마스킹 정책)는 IT 전문 인력 또는 외부 전문사의 참여가 필요합니다. 비개발자가 담당하는 범위는 <b>구축 이후의 일상 운영·활용</b>(질의, 리포트 템플릿 관리, 사용자 관리 등)으로 한정하는 것이 안전합니다. 또한 사내 데이터를 외부 AI API로 전송할 경우 데이터 처리 위치·보존 정책을 계약으로 확정해야 합니다.
+  </div>
+
+  <h2><span class="num">4</span>단계별 추진 로드맵</h2>
+  <div class="roadmap">
+    <div class="phase p1">
+      <header>1단계 — 니즈조사·과제선정</header>
+      <div class="body"><span>약 1개월</span>
+        <ul>
+          <li>전 부서 AI 활용 니즈 설문·인터뷰</li>
+          <li>가능/불가능 영역 가이드 배포</li>
+          <li>효과×난이도 평가로 우선과제 3~5건 선정</li>
+        </ul>
+      </div>
+    </div>
+    <div class="phase p2">
+      <header>2단계 — 파일럿(PoC)</header>
+      <div class="body"><span>약 2~3개월</span>
+        <ul>
+          <li>UNIERP 연계 환경 구성 (읽기전용)</li>
+          <li>우선과제 1~2건 시범 구축</li>
+          <li>보안성 검토·효과 측정</li>
+        </ul>
+      </div>
+    </div>
+    <div class="phase p3">
+      <header>3단계 — 확산·정착</header>
+      <div class="body"><span>이후 단계적</span>
+        <ul>
+          <li>부서별 기능 확대 적용</li>
+          <li>사용 가이드라인·교육</li>
+          <li>운영체계(담당·보안점검) 정례화</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <h2><span class="num">5</span>기대효과 및 리스크 관리</h2>
+  <h3>기대효과</h3>
+  <ul style="margin-left:20px;">
+    <li><b>업무 효율</b> — 반복 조회·취합·보고서 초안 작성 자동화로 부서별 단순업무 시간 절감</li>
+    <li><b>데이터 활용도 제고</b> — ERP에 쌓여 있으나 활용되지 못하던 데이터를 현업이 자연어로 조회·분석</li>
+    <li><b>보안 통제 강화</b> — 개인별 외부 AI 무분별 사용을 사내 통제된 채널로 흡수</li>
+    <li><b>투자 보호</b> — 기존 UNIERP 투자·프로세스를 그대로 유지하면서 AI 효과만 부가</li>
+  </ul>
+  <h3>리스크 및 대응</h3>
+  <table>
+    <tr><th style="width:30%;">리스크</th><th>대응 방안</th></tr>
+    <tr><td>AI 답변 오류(환각)로 잘못된 의사결정</td><td>수치는 원본 데이터 출처 병기, 중요 의사결정은 ERP 원본 재확인 절차 의무화</td></tr>
+    <tr><td>연계 데이터 유출</td><td>읽기전용 계정·필드 단위 권한·개인정보 마스킹·전 조회 로깅</td></tr>
+    <tr><td>외부 AI API 데이터 처리 우려</td><td>학습 미사용·데이터 잔존 정책 계약 명시, 필요 시 프라이빗/온프레미스 옵션 검토</td></tr>
+    <tr><td>현업 미활용(정착 실패)</td><td>니즈조사 기반 과제 선정으로 "현장이 원하는 것"부터 구축, 부서별 챔피언 지정</td></tr>
+  </table>
+
+  <h2><span class="num">6</span>의사결정 요청사항</h2>
+  <table>
+    <tr><th style="width:8%;">No.</th><th>요청사항</th><th style="width:22%;">비고</th></tr>
+    <tr><td>1</td><td>AI 관리시스템 추진 방향을 <b>"ERP 직접 개발 불채택, 데이터 연계형"</b>으로 확정</td><td>본 문서 2~3장</td></tr>
+    <tr><td>2</td><td>1단계 <b>전 부서 니즈조사 실시</b> 승인 (별첨 기획안)</td><td>약 1개월 소요</td></tr>
+    <tr><td>3</td><td>추진 TF 구성 승인 (주관부서 + IT/보안 담당 + 부서별 창구 1인)</td><td>겸직 가능</td></tr>
+    <tr><td>4</td><td>UNIERP 공급사(비젠트로) 대상 연계 인터페이스 기술 협의 착수 승인</td><td>Web Service/PDW 범위 확인</td></tr>
+  </table>
+
+  <div class="footer">
+    <span>AI 활용 관리시스템 도입 기획(안) · 2026. 06. 11.</span>
+    <span>별첨: 부서별 AI 니즈조사 실행 기획(안)</span>
+  </div>
+</div>
+</body>
+</html>

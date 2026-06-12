@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>자금팀 — 자금일보 대시보드</title>
+<style>
+  :root{
+    --navy:#1a2f4e; --navy2:#27457a; --accent:#2f6fb3; --accent2:#4a8ed0;
+    --red:#b3402f; --green:#2e7d52; --amber:#9a6b1f;
+    --ink:#222; --muted:#666; --line:#d8dee8; --bg:#f4f6f9;
+    --soft:#eef2f8; --softred:#fbeeec; --softgreen:#ecf5f0; --softamber:#faf3e4;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif; color:var(--ink); background:var(--bg); line-height:1.6; font-size:14px;}
+  .demo-banner{background:var(--amber); color:#fff; text-align:center; font-size:12px; padding:6px 10px;}
+  .page{max-width:1100px; margin:0 auto; background:#fff; padding:34px 44px; box-shadow:0 2px 14px rgba(0,0,0,.08); min-height:100vh;}
+  .head{display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:10px; border-bottom:3px solid var(--navy); padding-bottom:14px; margin-bottom:20px;}
+  .head h1{font-size:22px; color:var(--navy);}
+  .head .sub{font-size:12.5px; color:var(--muted); margin-top:3px;}
+  .head .right{text-align:right; font-size:12px; color:var(--muted);}
+  .badge{display:inline-block; font-size:11px; border-radius:10px; padding:2px 9px; font-weight:600;}
+  .badge.g{background:var(--softgreen); color:var(--green);} .badge.a{background:var(--softamber); color:var(--amber);}
+  .badge.b{background:var(--soft); color:var(--navy2);} .badge.r{background:var(--softred); color:var(--red);}
+  .kpis{display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:12px; margin:14px 0;}
+  .kpi{background:#fff; border:1px solid var(--line); border-radius:11px; padding:14px 16px; border-top:4px solid var(--accent);}
+  .kpi.gr{border-top-color:var(--green);} .kpi.rd{border-top-color:var(--red);} .kpi.am{border-top-color:var(--amber);}
+  .kpi .lb{font-size:11.5px; color:var(--muted);}
+  .kpi .v{font-size:22px; font-weight:800; color:var(--navy); margin-top:3px;}
+  .kpi .v small{font-size:12px; color:var(--muted); font-weight:500;}
+  .kpi .delta{font-size:11px; margin-top:2px; color:var(--muted);}
+  .kpi .delta.up{color:var(--green);} .kpi .delta.dn{color:var(--red);}
+  .grid2{display:grid; grid-template-columns:1fr 1fr; gap:16px;}
+  .sec{background:#fff; border:1px solid var(--line); border-radius:11px; padding:16px 18px; margin-bottom:14px;}
+  .sec h3{font-size:13.5px; color:var(--navy); margin-bottom:10px;}
+  table{width:100%; border-collapse:collapse; font-size:12.5px;}
+  th{background:var(--navy); color:#fff; padding:7px 10px; text-align:left; font-weight:600;}
+  td{padding:6px 10px; border-bottom:1px solid var(--line);}
+  tr:nth-child(even) td{background:#fafbfd;}
+  td.r,th.r{text-align:right;} td.c,th.c{text-align:center;}
+  td.plus{color:var(--green); font-weight:700;} td.minus{color:var(--red); font-weight:700;}
+  /* 수금/지출 듀얼 차트 */
+  .dual{display:flex; align-items:flex-end; gap:10px; height:180px; padding:8px 4px 0; border-bottom:2px solid var(--navy); margin:6px 0 4px;}
+  .dgroup{flex:1; display:flex; align-items:flex-end; justify-content:center; gap:3px; height:100%; position:relative;}
+  .dgroup .gin,.dgroup .gout{width:34%; border-radius:4px 4px 0 0; position:relative;}
+  .dgroup .gin{background:linear-gradient(180deg,#5da27e,var(--green));}
+  .dgroup .gout{background:linear-gradient(180deg,#d98a7d,var(--red));}
+  .dgroup .lab{position:absolute; bottom:-22px; left:0; right:0; text-align:center; font-size:10.5px; color:var(--muted);}
+  .dwrap{padding-bottom:26px;}
+  .legend{display:flex; gap:14px; font-size:11px; color:var(--muted); margin-top:6px; flex-wrap:wrap;}
+  .legend i{display:inline-block; width:10px; height:10px; border-radius:3px; margin-right:4px; vertical-align:-1px;}
+  .src{margin-top:18px; background:var(--soft); border:1px solid var(--line); border-radius:9px; padding:11px 16px; font-size:11.5px; color:var(--muted);}
+  .src b{color:var(--navy2);}
+  code{font-family:Consolas,monospace; font-size:11px; background:#fff; border:1px solid var(--line); border-radius:4px; padding:0 5px;}
+  .callout{border-radius:8px; padding:11px 15px; margin:10px 0; font-size:12.5px;}
+  .callout.amber{background:var(--softamber); border-left:4px solid var(--amber);}
+  .callout.blue{background:var(--soft); border-left:4px solid var(--accent);}
+  .foot{margin-top:24px; padding-top:12px; border-top:1px solid var(--line); font-size:11px; color:var(--muted); display:flex; justify-content:space-between;}
+  @media print{ .demo-banner{display:none;} .page{box-shadow:none; max-width:100%;} }
+  @media (max-width:760px){ .page{padding:22px 16px;} .grid2{grid-template-columns:1fr;} }
+</style>
+</head>
+<body>
+<div class="demo-banner">⚠ 목업 데모 — UNIERP DB 구조·계정체계 기반 샘플입니다. 수치는 검증 전 참고용이며 최종 확인은 자금팀(재무·회계) 책임입니다.</div>
+<div class="page">
+
+  <div class="head">
+    <div>
+      <h1>💰 자금일보 대시보드</h1>
+      <div class="sub">자금팀(재무·회계) 운영 페이지 · <span class="badge b">부서 전용</span> <span class="badge r">민감 — 임원·자금팀 한정</span> <span class="badge a">읽기전용 추출</span></div>
+    </div>
+    <div class="right">기준일: <b>2026-06-12 (금)</b><br>확정 전표 기준 (A_GL · CONF_FG=1)</div>
+  </div>
+
+  <!-- KPI : 자금 포지션 -->
+  <div class="kpis">
+    <div class="kpi gr"><div class="lb">현금성 자산 합계</div><div class="v">4,581<small> 백만원</small></div><div class="delta">현금 12 + 보통예금 4,569</div></div>
+    <div class="kpi"><div class="lb">당일 순변동</div><div class="v" style="color:var(--green);">+102<small> 백만원</small></div><div class="delta up">입금 348 − 출금 246</div></div>
+    <div class="kpi am"><div class="lb">매출채권 (외상+어음)</div><div class="v">2,672<small> 백만원</small></div><div class="delta">외상 1,820 + 받을어음 852</div></div>
+    <div class="kpi rd"><div class="lb">매입채무</div><div class="v">1,264<small> 백만원</small></div><div class="delta">외상매입+미지급금</div></div>
+    <div class="kpi rd"><div class="lb">차입금 잔액</div><div class="v">4,500<small> 백만원</small></div><div class="delta">단기 3,000 + 장기 1,500</div></div>
+  </div>
+
+  <!-- 당일 자금 이동 + 은행별 -->
+  <div class="grid2">
+    <div class="sec">
+      <h3>당일 자금 이동 (2026-06-12) <span class="badge b">A_GL_ITEM 일계</span></h3>
+      <table>
+        <tr><th>구분</th><th>내역</th><th class="r">금액(백만원)</th></tr>
+        <tr><td rowspan="3" style="vertical-align:middle;"><b style="color:var(--green);">입금</b></td><td>매출 수금 — 엔시스 중도금 (S0001)</td><td class="r plus">+290</td></tr>
+        <tr><td>매출 수금 — 삼성SDI CS (S0001)</td><td class="r plus">+50</td></tr>
+        <tr><td>이자수익 등 기타</td><td class="r plus">+8</td></tr>
+        <tr><td rowspan="4" style="vertical-align:middle;"><b style="color:var(--red);">출금</b></td><td>매입대금 — 대신스텐레스 외 (M0001)</td><td class="r minus">−147</td></tr>
+        <tr><td>외주가공비 — 외주 정산 (M0008/0011)</td><td class="r minus">−62</td></tr>
+        <tr><td>차입금 이자 (FI006 미지급이자 결제)</td><td class="r minus">−19</td></tr>
+        <tr><td>경비·기타 지출</td><td class="r minus">−18</td></tr>
+        <tr style="font-weight:700;"><td colspan="2">당일 순변동</td><td class="r" style="color:var(--green);">+102</td></tr>
+        <tr style="font-weight:700;"><td colspan="2">금일 말 현금성 잔액 (예상)</td><td class="r" style="color:var(--navy);">4,581</td></tr>
+      </table>
+    </div>
+    <div class="sec">
+      <h3>은행별 예금·차입 현황 <span class="badge b">B_BANK × B_BANK_ACCT</span></h3>
+      <table>
+        <tr><th>금융기관</th><th class="r">예금 잔액</th><th class="r">차입 잔액</th><th>비고</th></tr>
+        <tr><td>KB국민은행 (004)</td><td class="r">1,842</td><td class="r">2,000</td><td>주거래 · 운전자금</td></tr>
+        <tr><td>중소기업은행 (307)</td><td class="r">1,164</td><td class="r">1,500</td><td>시설자금 (장기)</td></tr>
+        <tr><td>우리은행 (020)</td><td class="r">872</td><td class="r">1,000</td><td>무역금융 한도</td></tr>
+        <tr><td>SC제일은행 (003)</td><td class="r">486</td><td class="r">—</td><td>외화계좌 (USD)</td></tr>
+        <tr><td>농협 (011)</td><td class="r">205</td><td class="r">—</td><td>급여·경비 계좌</td></tr>
+        <tr style="font-weight:700;"><td>합계 (백만원)</td><td class="r">4,569</td><td class="r">4,500</td><td>순현금 +69</td></tr>
+      </table>
+      <p style="font-size:11px; color:var(--muted); margin-top:6px;">※ 은행코드는 ERP 은행 마스터(B_BANK · 36행) 기준. 외화예금은 기준일 환율 환산.</p>
+    </div>
+  </div>
+
+  <!-- 월별 수금/지출 흐름 -->
+  <div class="sec">
+    <h3>월별 수금 · 지출 흐름 (2026 · 백만원) <span class="badge b">S계열(수금) vs M·E계열(지출)</span></h3>
+    <div class="dwrap">
+      <div class="dual">
+        <div class="dgroup"><div class="gin" style="height:35%"></div><div class="gout" style="height:30%"></div><span class="lab">1월<br>+62</span></div>
+        <div class="dgroup"><div class="gin" style="height:95%"></div><div class="gout" style="height:58%"></div><span class="lab">2월<br>+430</span></div>
+        <div class="dgroup"><div class="gin" style="height:42%"></div><div class="gout" style="height:52%"></div><span class="lab">3월<br>−118</span></div>
+        <div class="dgroup"><div class="gin" style="height:72%"></div><div class="gout" style="height:55%"></div><span class="lab">4월<br>+204</span></div>
+        <div class="dgroup"><div class="gin" style="height:55%"></div><div class="gout" style="height:63%"></div><span class="lab">5월<br>−92</span></div>
+        <div class="dgroup"><div class="gin" style="height:38%"></div><div class="gout" style="height:28%"></div><span class="lab">6월(진행)<br>+115</span></div>
+      </div>
+      <div class="legend"><span><i style="background:var(--green)"></i>수금 (매출수금·이자수익)</span><span><i style="background:var(--red)"></i>지출 (매입·외주·급여·이자)</span><span>막대 하단 수치 = 월 순변동</span></div>
+    </div>
+    <div class="callout blue">
+      <b>흐름 해석</b> — 2월 대형 수주 계약금(엔시스 22.7억 건) 유입으로 순+430. 3·5월은 외주 정산·급여 집중으로 순유출. 6월 중도금 수금 예정(엔시스 2026-032) 반영 시 상반기 누적 <b>+701백만원</b> 전망.
+    </div>
+  </div>
+
+  <!-- 채권채무 / 차입 상세 -->
+  <div class="grid2">
+    <div class="sec">
+      <h3>채권·채무 현황 (계정과목 기준)</h3>
+      <table>
+        <tr><th>계정</th><th>계정코드</th><th class="r">잔액(백만원)</th></tr>
+        <tr><td>외상매출금</td><td><code>11100901</code></td><td class="r">1,820</td></tr>
+        <tr><td>받을어음</td><td><code>11100905</code></td><td class="r">852</td></tr>
+        <tr><td>할인어음 (차감)</td><td><code>11100906</code></td><td class="r">−300</td></tr>
+        <tr><td>미수금</td><td><code>11101701</code></td><td class="r">95</td></tr>
+        <tr style="border-top:2px solid var(--navy);"><td>외상매입금</td><td><code>21100101</code></td><td class="r">986</td></tr>
+        <tr><td>미지급금</td><td><code>21101501</code></td><td class="r">278</td></tr>
+        <tr><td>선수금 (수주 계약금)</td><td><code>21102701</code></td><td class="r">1,393</td></tr>
+        <tr><td>미지급이자</td><td><code>22101701</code></td><td class="r">19</td></tr>
+      </table>
+      <p style="font-size:11px; color:var(--muted);">매출채권 회전: 영업팀 미수금 18.2억과 정합 (수주현황 페이지 연계). 받을어음 만기 3건 — 6월 내 1건(2.1억).</p>
+    </div>
+    <div class="sec">
+      <h3>차입금 상세 <span class="badge b">F_LN_INFO</span></h3>
+      <table>
+        <tr><th>구분</th><th>은행</th><th class="r">잔액</th><th class="r">금리</th><th>만기</th></tr>
+        <tr><td><span class="badge a">단기</span> 운전</td><td>KB국민</td><td class="r">2,000</td><td class="r">5.2%</td><td>2026-10</td></tr>
+        <tr><td><span class="badge a">단기</span> 무역</td><td>우리</td><td class="r">1,000</td><td class="r">4.9%</td><td>2026-09</td></tr>
+        <tr><td><span class="badge b">장기</span> 시설</td><td>기업은행</td><td class="r">1,500</td><td class="r">4.3%</td><td>2028-03</td></tr>
+        <tr style="font-weight:700;"><td colspan="2">합계 (백만원)</td><td class="r">4,500</td><td class="r">평균 4.8%</td><td>—</td></tr>
+      </table>
+      <table style="margin-top:10px;">
+        <tr><th>월 이자 부담</th><th class="r">금액(백만원)</th><th>처리</th></tr>
+        <tr><td>이자비용 월결산</td><td class="r">약 18.0</td><td>FI005 선급 / FI006 미지급</td></tr>
+        <tr><td>만기 관리</td><td class="r">—</td><td>FI007 만기연장 · 2건 4Q 도래</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <div class="callout amber">
+    <b>자금팀 관리 포인트</b> — ① 단기차입 3,000 중 2건이 3·4Q 만기 도래 → 연장(FI007) 또는 상환(FI002) 의사결정 9월 내 필요. ② 수주 집중(엔시스 92%)으로 중도금 수금 일정이 자금 계획의 핵심 변수 — 영업팀 수주현황 페이지와 주간 연동 점검. ③ 받을어음 852 중 할인 300 — 할인료 비용과 자금 여력 균형 관리(FN002).
+  </div>
+
+  <div class="src">
+    <b>데이터 원천 (UNIERP · 읽기전용)</b> — 확정전표 <code>A_GL/A_GL_ITEM</code>(305,864행) · 기초잔액 <code>A_OPEN_ACCT/A_OPEN_AR/A_OPEN_AP</code> · 차입금 <code>F_LN_INFO</code> · 어음 <code>F_NOTE</code> · 예금 <code>F_DPST</code> · 은행 <code>B_BANK/B_BANK_ACCT</code>(36행). 계정: 현금 <code>11100101</code> · 보통예금 <code>11100105</code> · 단기차입 <code>22101101</code> · 장기차입 <code>23101101</code>. 자금 거래유형: FI001~FI007(차입), FN001~FN006(어음). 추출 경로: ERP_DB\회계, doc\modules\09_Cash_Budget_Analysis.
+  </div>
+
+  <div class="foot">
+    <span>자금팀 운영 페이지 · 자금일보 대시보드 (일 단위 갱신)</span>
+    <span>등록: 재무·회계팀 · 공개범위: 부서 전용+임원 (관리자 콘솔 권한 적용)</span>
+  </div>
+</div>
+</body>
+</html>

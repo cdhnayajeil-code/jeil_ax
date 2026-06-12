@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>니즈조사 응답 집계 대시보드</title>
+<link rel="stylesheet" href="assets/survey-style.css">
+</head>
+<body>
+<div class="page wide">
+
+  <a class="backlink" href="../04_챗봇_포털_데모UI.html">← 사내 AI 포털</a>
+  <span class="doc-label">1단계 · 집계</span>
+  <h1>니즈조사 응답 집계 대시보드</h1>
+  <p class="subtitle">부서별 회신을 합산하여 수요·우려·절감효과를 한눈에 보고, 우선 추진과제 후보를 도출합니다.</p>
+
+  <!-- 데이터 소스 -->
+  <div class="sec no-print">
+    <h3>데이터 불러오기
+      <span class="small" id="srcInfo">불러온 응답 0건</span>
+    </h3>
+    <div class="toolbar">
+      <button class="btn" id="btnFiles">📂 JSON 불러오기 (다중 선택)</button>
+      <button class="btn ghost" id="btnLocal">이 브라우저 저장분</button>
+      <button class="btn gray" id="btnSample">샘플 데이터</button>
+      <button class="btn gray" id="btnOneDrive" title="Chrome/Edge에서 OneDrive 동기화 폴더를 직접 읽습니다(차기 기능)">🗂 OneDrive 폴더 연결</button>
+      <button class="btn danger" id="btnClear">초기화</button>
+      <input type="file" id="filesInp" accept="application/json" multiple style="display:none;">
+    </div>
+    <div class="field" style="margin:12px 0 0; max-width:320px;">
+      <label class="lb" style="font-size:12.5px;">목표 회신 부서 수 <span class="hint">(회신율 계산용)</span></label>
+      <input type="text" id="targetDept" value="8" inputmode="numeric" style="max-width:120px;">
+    </div>
+    <p class="small" style="margin:8px 0 0;">여러 부서의 응답 JSON을 한꺼번에 선택해 합산할 수 있습니다. 같은 사람(부서·작성자·작성일)의 재제출은 중복 없이 최신본으로 반영됩니다.</p>
+  </div>
+
+  <div id="dashboard"></div>
+
+  <div class="footer">
+    <span>니즈조사 응답 집계 · 효과×난이도 평가는 <a href="03_과제평가_시트.html">과제평가 시트</a>에서</span>
+    <span>주관: 관리자(최동혁)</span>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="assets/datastore.js"></script>
+<script>
+var S = window.SurveyStore;
+var DATA = [];
+
+/* ---- 토스트 ---- */
+var tt; function toast(m){ var t=document.getElementById('toast'); t.textContent=m; t.classList.add('show'); clearTimeout(tt); tt=setTimeout(function(){t.classList.remove('show');},2200); }
+
+function setData(list, how){
+  DATA = S.mergeUnique(list);
+  document.getElementById('srcInfo').textContent = '불러온 응답 ' + DATA.length + '건' + (how?(' · '+how):'');
+  render();
+}
+
+/* ---- 막대 컴포넌트 ---- */
+function barlist(obj, total){
+  var rows = Object.keys(obj.counts).map(function(k){ return {k:k, v:obj.counts[k]}; });
+  if(obj.기타) rows.push({k:'기타', v:obj.기타});
+  rows.sort(function(a,b){ return b.v-a.v; });
+  var max = Math.max(1, rows.reduce(function(m,r){return Math.max(m,r.v);},0));
+  return '<div class="barlist">' + rows.map(function(r){
+    var w = Math.round(r.v/max*100);
+    var pct = total? Math.round(r.v/total*100):0;
+    return '<div class="barrow"><div class="lab" title="'+r.k+'">'+r.k+'</div>'+
+      '<div class="track"><i style="width:'+w+'%"></i></div>'+
+      '<div class="cnt">'+r.v+'<span class="small" style="font-weight:400"> ('+pct+'%)</span></div></div>';
+  }).join('') + '</div>';
+}
+
+/* ---- 부서별 표 ---- */
+function deptTable(agg, target){
+  var depts = S.부서목록.slice();
+  if(agg.부서별['미지정']) depts.push('미지정'); // 미지정은 응답 있을 때만 표시
+  var rows = depts.map(function(d){
+    var n = agg.부서별[d]||0;
+    return '<tr><td>'+d+'</td><td class="r">'+(n||'<span style="color:var(--red)">0</span>')+'</td>'+
+      '<td class="c">'+(n? '<span class="badge g">회신</span>':'<span class="badge r">미회신</span>')+'</td></tr>';
+  }).join('');
+  return '<table><tr><th>부서</th><th class="r">응답 수</th><th class="c">상태</th></tr>'+rows+'</table>';
+}
+
+/* ---- 효과×난이도 매트릭스 (집계 수요 → 4사분면 예시 배치) ---- */
+// 기능 수요를 빈도(효과 대용)와 난이도(데이터 위치 기반 가중)로 배치
+var FUNC_난이도 = {
+  '보고서·문서 초안 작성':20, '문서 요약·번역':15, '규정·매뉴얼 검색 챗봇':30,
+  '정기 리포트 자동화':45, '알림·점검(재고·미수금·기한 등)':55,
+  '데이터 조회·취합(ERP 포함)':70, '데이터 분석·시각화':75
+};
+function matrix(agg){
+  var counts = agg.q3.counts;
+  var max = Math.max(1, Object.keys(counts).reduce(function(m,k){return Math.max(m,counts[k]);},0));
+  var dots = Object.keys(counts).map(function(k,idx){
+    var v = counts[k]; if(!v) return '';
+    var effort = FUNC_난이도[k]!=null?FUNC_난이도[k]:50;       // 0(쉬움)~100
+    var effect = v/max*100;                                    // 빈도 → 효과 대용
+    var x = 4 + effort/100*92;                                 // 좌=쉬움
+    var y = 4 + (100-effect)/100*92;                           // 위=효과 큼
+    var quad = effect>=50 ? (effort<50?'q1':'q2') : (effort<50?'q3':'q4');
+    return '<div class="dot '+quad+'" style="left:'+x+'%; top:'+y+'%;" title="'+k+' · '+v+'건">'+v+'</div>';
+  }).join('');
+  return '<div class="matrix2">'+
+      '<div class="mid-h"></div><div class="mid-v"></div>'+
+      '<div class="quad q1">① 우선 추진<br><span class="small" style="font-weight:400">효과↑·쉬움</span></div>'+
+      '<div class="quad q2">② 중기 추진<br><span class="small" style="font-weight:400">효과↑·어려움</span></div>'+
+      '<div class="quad q3">③ 여유 시<br><span class="small" style="font-weight:400">효과↓·쉬움</span></div>'+
+      '<div class="quad q4">④ 보류<br><span class="small" style="font-weight:400">효과↓·어려움</span></div>'+
+      '<div class="axis-y">◀ 기대효과(응답 빈도) ▶</div>'+
+      '<div class="axis-x">◀ 쉬움 ──── 구현 난이도 ──── 어려움 ▶</div>'+
+      dots+
+    '</div>'+
+    '<div class="legend">'+
+      '<span><i style="background:var(--green)"></i>① 우선</span>'+
+      '<span><i style="background:var(--navy2)"></i>② 중기</span>'+
+      '<span><i style="background:var(--amber)"></i>③ 여유</span>'+
+      '<span><i style="background:var(--red)"></i>④ 보류</span>'+
+    '</div>';
+}
+
+/* ---- 렌더 ---- */
+function render(){
+  var host = document.getElementById('dashboard');
+  if(!DATA.length){
+    host.innerHTML = '<div class="sec"><div class="empty">아직 불러온 응답이 없습니다.<br>위에서 <b>JSON 불러오기</b> 또는 <b>샘플 데이터</b>를 눌러 시작하세요.</div></div>';
+    return;
+  }
+  var agg = S.aggregate(DATA);
+  var target = parseInt(document.getElementById('targetDept').value,10)||0;
+  var rate = target? Math.round(agg.부서수/target*100):0;
+  var avgSave = agg.총응답? Math.round(agg.총절감시간/agg.총응답*10)/10 : 0;
+
+  host.innerHTML =
+    '<div class="kpis">'+
+      kpi('응답 부서 수', agg.부서수 + (target?(' <small>/ '+target+'</small>'):''), '') +
+      kpi('총 응답 수', agg.총응답+'건', '') +
+      kpi('회신율', (target?rate+'%':'—'), rate>=70?'green':(rate>=40?'':'warn')) +
+      kpi('주당 절감가능시간(합)', agg.총절감시간+'h', 'green', '응답당 평균 '+avgSave+'h') +
+    '</div>'+
+
+    '<div class="sec"><h3>부서별 응답 현황 <span class="small">미회신 부서 독려 대상</span></h3>'+ deptTable(agg, target) +'</div>'+
+
+    '<div class="sec"><h3>희망 기능 수요 (Q3) <span class="small">전체 '+agg.총응답+'건 기준</span></h3>'+ barlist(agg.q3, agg.총응답) +'</div>'+
+
+    '<div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;" class="grid2">'+
+      '<div class="sec"><h3>데이터 위치 (Q4)</h3>'+ barlist(agg.q4, agg.총응답) +'</div>'+
+      '<div class="sec"><h3>우려 사항 (Q6)</h3>'+ barlist(agg.q6, agg.총응답) +'</div>'+
+    '</div>'+
+
+    '<div class="sec"><h3>효과 × 난이도 매트릭스 <a class="small" href="03_과제평가_시트.html" style="color:var(--accent)">→ 과제평가 시트에서 점수화</a></h3>'+
+      '<p class="small">희망 기능을 <b>응답 빈도(효과 대용)</b>와 <b>데이터 위치 기반 구현 난이도</b>로 배치한 참고 분포입니다. 정밀 우선순위는 과제평가 시트에서 절감시간×인원으로 산출하세요.</p>'+
+      matrix(agg) +'</div>'+
+
+    '<div class="callout blue"><b class="tag">자동 도출 — 우선 추진 후보 (①사분면)</b>'+ topCandidates(agg) +'</div>';
+
+  // 반응형 grid2
+  if(window.innerWidth<760){ var g=host.querySelector('.grid2'); if(g) g.style.gridTemplateColumns='1fr'; }
+}
+function kpi(lb, v, cls, sub){
+  return '<div class="kpi '+(cls||'')+'"><div class="lb">'+lb+'</div><div class="v">'+v+'</div>'+(sub?'<div class="small">'+sub+'</div>':'')+'</div>';
+}
+function topCandidates(agg){
+  var counts = agg.q3.counts;
+  var arr = Object.keys(counts).map(function(k){return {k:k,v:counts[k],e:FUNC_난이도[k]!=null?FUNC_난이도[k]:50};})
+    .filter(function(o){return o.v>0 && o.e<50;})
+    .sort(function(a,b){return b.v-a.v;});
+  if(!arr.length) return ' 현재 ①사분면(효과↑·쉬움)에 해당하는 수요가 없습니다. 응답을 더 모아 주세요.';
+  return ' ' + arr.slice(0,5).map(function(o,i){return (i+1)+'. '+o.k+' ('+o.v+'건)';}).join(' &nbsp;·&nbsp; ');
+}
+
+/* ---- 액션 ---- */
+document.getElementById('btnFiles').addEventListener('click', function(){ document.getElementById('filesInp').click(); });
+document.getElementById('filesInp').addEventListener('change', function(e){
+  S.parseFiles(e.target.files).then(function(list){
+    if(!list.length){ toast('읽을 수 있는 응답 JSON이 없습니다.'); return; }
+    setData(DATA.concat(list), '파일 추가'); toast(list.length+'건 추가했습니다.');
+  });
+  e.target.value='';
+});
+document.getElementById('btnLocal').addEventListener('click', function(){
+  var l = S.loadLocal(); if(!l.length){ toast('이 브라우저에 저장된 응답이 없습니다.'); return; }
+  setData(DATA.concat(l), '브라우저 저장분'); toast(l.length+'건 불러왔습니다.');
+});
+document.getElementById('btnSample').addEventListener('click', function(){ setData(SAMPLE.slice(), '샘플'); toast('샘플 '+SAMPLE.length+'건 로드'); });
+document.getElementById('btnClear').addEventListener('click', function(){ DATA=[]; document.getElementById('srcInfo').textContent='불러온 응답 0건'; render(); });
+document.getElementById('targetDept').addEventListener('input', render);
+document.getElementById('btnOneDrive').addEventListener('click', function(){
+  if(!S.isOneDriveReadable()){ toast('이 브라우저는 폴더 직접 읽기를 지원하지 않습니다(Chrome/Edge 권장).'); return; }
+  S.loadAllFromOneDrive().then(function(list){
+    if(!list.length){ toast('폴더에서 응답 JSON을 찾지 못했습니다.'); return; }
+    setData(DATA.concat(list), 'OneDrive 폴더'); toast('OneDrive 폴더에서 '+list.length+'건 로드');
+  }).catch(function(err){ toast(err.message||'폴더 연결이 취소되었습니다.'); });
+});
+
+/* ---- 샘플 데이터 (시연용) ---- */
+function R(부서,작성자,q1,q2,q3,q4,q5,q6,q7){
+  var r=S.emptyResponse();
+  r.meta.부서=부서; r.meta.작성자=작성자; r.meta.작성일='2026-06-15'; r.meta.제출시각='2026-06-15 10:00';
+  r.answers.q1=q1; r.answers.q2=q2;
+  r.answers.q3={selected:q3,기타:''}; r.answers.q4={selected:q4,기타:''};
+  r.answers.q5=q5; r.answers.q6={selected:q6,기타:''}; r.answers.q7=q7;
+  return r;
+}
+var SAMPLE = [
+  R('영업','김영업',['거래처 매출/채권 조회','견적서 작성','수주 동향 정리'],'5~10시간',
+    ['데이터 조회·취합(ERP 포함)','보고서·문서 초안 작성','정기 리포트 자동화'],['ERP(UNIERP)','엑셀 파일'],
+    '거래처별 미수금을 매주 자동으로 요약·알림 받고 싶다','보안·정보유출 답변 정확성','ChatGPT — 영문메일'),
+  R('영업','이세일',['주간 영업보고','단가표 갱신'],'2~5시간',
+    ['보고서·문서 초안 작성','알림·점검(재고·미수금·기한 등)'],['엑셀 파일','그룹웨어·메일'],
+    '주간보고 초안을 자동으로','업무 책임 소재',''),
+  R('구매·자재','박구매',['발주-입고 대사','재고 점검'],'10시간 이상',
+    ['데이터 조회·취합(ERP 포함)','데이터 분석·시각화','알림·점검(재고·미수금·기한 등)'],['ERP(UNIERP)','엑셀 파일'],
+    '재고 부족/과잉을 미리 알려주면','답변 정확성','없음'),
+  R('생산','최생산',['생산일보 요약','불량 데이터 정리'],'5~10시간',
+    ['보고서·문서 초안 작성','데이터 분석·시각화','규정·매뉴얼 검색 챗봇'],['엑셀 파일','종이·스캔 문서'],
+    '흩어진 일보를 한 번에 요약','사용법 어려움',''),
+  R('품질','정품질',['클레임 정리','시정조치 보고서'],'2~5시간',
+    ['문서 요약·번역','보고서·문서 초안 작성'],['그룹웨어·메일','엑셀 파일'],
+    '클레임 내용을 유형별로 자동 분류','답변 정확성','ChatGPT'),
+  R('재무·회계','한재무',['월 결산 취합','비용 점검'],'10시간 이상',
+    ['데이터 조회·취합(ERP 포함)','정기 리포트 자동화'],['ERP(UNIERP)','엑셀 파일'],
+    '예산 대비 실적을 자동 요약','보안·정보유출 업무 책임 소재',''),
+  R('인사·총무','조인사',['규정 문의 응대','공지문 작성'],'2~5시간',
+    ['규정·매뉴얼 검색 챗봇','보고서·문서 초안 작성','문서 요약·번역'],['그룹웨어·메일','종이·스캔 문서'],
+    '규정 질문에 자동 답변하는 챗봇','보안·정보유출',''),
+  R('경영기획','윤기획',['부서 실적 취합','회의자료 작성'],'5~10시간',
+    ['보고서·문서 초안 작성','데이터 분석·시각화','정기 리포트 자동화'],['엑셀 파일','ERP(UNIERP)'],
+    '부서 실적을 모아 회의자료 초안','답변 정확성','Claude, ChatGPT — 자료 정리')
+];
+
+render();
+window.addEventListener('resize', function(){ if(DATA.length) render(); });
+</script>
+</body>
+</html>

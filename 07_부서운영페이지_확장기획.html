@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>부서 운영 페이지 확장 구축 기획(안)</title>
+<style>
+  :root{
+    --navy:#1a2f4e; --navy2:#27457a; --accent:#2f6fb3; --accent2:#4a8ed0;
+    --red:#b3402f; --green:#2e7d52; --amber:#9a6b1f;
+    --ink:#222; --muted:#666; --line:#d8dee8; --bg:#f4f6f9;
+    --soft:#eef2f8; --softred:#fbeeec; --softgreen:#ecf5f0; --softamber:#faf3e4;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif; color:var(--ink); background:var(--bg); line-height:1.65; font-size:15px;}
+  .page{max-width:960px; margin:0 auto; background:#fff; padding:56px 64px; box-shadow:0 2px 14px rgba(0,0,0,.08);}
+  .doc-label{display:inline-block; background:var(--accent); color:#fff; font-size:12px; letter-spacing:.18em; padding:5px 14px; border-radius:3px; margin-bottom:18px;}
+  h1{font-size:29px; color:var(--navy); line-height:1.35; margin-bottom:10px;}
+  .subtitle{font-size:16px; color:var(--muted); margin-bottom:26px;}
+  .meta{display:flex; flex-wrap:wrap; border:1px solid var(--line); border-radius:6px; overflow:hidden; margin-bottom:36px;}
+  .meta div{flex:1 1 25%; padding:10px 16px; font-size:13px; border-right:1px solid var(--line); background:var(--soft);}
+  .meta div:last-child{border-right:none;}
+  .meta b{display:block; color:var(--navy); font-size:12px; margin-bottom:2px;}
+  .exec{background:var(--soft); border-radius:10px; padding:20px 24px; margin-bottom:8px;}
+  .exec h3{margin:0 0 8px; color:var(--navy); letter-spacing:.04em; font-size:13px;}
+  .exec ul{margin:6px 0 0 18px;} .exec li{margin-bottom:8px;}
+  h2{font-size:21px; color:var(--navy); margin:46px 0 16px; padding-bottom:10px; border-bottom:3px solid var(--navy); display:flex; align-items:center; gap:10px;}
+  h2 .num{background:var(--navy); color:#fff; font-size:14px; width:28px; height:28px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; flex:none;}
+  h3{font-size:16.5px; color:var(--navy2); margin:26px 0 10px;}
+  p{margin-bottom:12px;}
+  table{width:100%; border-collapse:collapse; margin:14px 0 20px; font-size:13px;}
+  th{background:var(--navy); color:#fff; padding:9px 12px; text-align:left; font-weight:600;}
+  td{padding:8px 12px; border-bottom:1px solid var(--line); vertical-align:top;}
+  tr:nth-child(even) td{background:#fafbfd;}
+  td.c,th.c{text-align:center;}
+  .callout{border-radius:8px; padding:16px 20px; margin:14px 0;}
+  .callout.green{background:var(--softgreen); border-left:5px solid var(--green);}
+  .callout.red{background:var(--softred); border-left:5px solid var(--red);}
+  .callout.amber{background:var(--softamber); border-left:5px solid var(--amber);}
+  .callout.blue{background:var(--soft); border-left:5px solid var(--accent);}
+  .callout b.tag{display:block; font-size:13px; margin-bottom:6px;}
+  .callout.green b.tag{color:var(--green);} .callout.red b.tag{color:var(--red);}
+  .callout.amber b.tag{color:var(--amber);} .callout.blue b.tag{color:var(--accent);}
+  .small{font-size:12.5px; color:var(--muted);}
+  code{font-family:Consolas,monospace; font-size:12px; background:var(--soft); border:1px solid var(--line); border-radius:4px; padding:1px 6px;}
+  a{color:var(--accent);}
+  .badge{display:inline-block; font-size:11px; border-radius:10px; padding:2px 9px; font-weight:600;}
+  .badge.g{background:var(--softgreen); color:var(--green);} .badge.a{background:var(--softamber); color:var(--amber);}
+  .badge.b{background:var(--soft); color:var(--navy2);} .badge.r{background:var(--softred); color:var(--red);}
+  .flow{display:flex; align-items:stretch; margin:18px 0; flex-wrap:wrap;}
+  .flow .box{flex:1; min-width:150px; border:2px solid var(--navy2); border-radius:10px; padding:13px 12px; text-align:center; background:#fff;}
+  .flow .box.hl{background:var(--soft); border-color:var(--accent);}
+  .flow .box h4{color:var(--navy); font-size:13.5px; margin-bottom:5px;}
+  .flow .box p{font-size:11.5px; color:var(--muted); margin:0;}
+  .flow .arrow{display:flex; flex-direction:column; justify-content:center; align-items:center; padding:0 8px; color:var(--accent); font-size:11px; font-weight:700; min-width:64px; text-align:center;}
+  .flow .arrow .line{font-size:20px; line-height:1;}
+  .footer{margin-top:56px; padding-top:16px; border-top:1px solid var(--line); font-size:12px; color:var(--muted); display:flex; justify-content:space-between;}
+  @media print{
+    body{background:#fff;} .page{box-shadow:none; padding:20px 0; max-width:100%;}
+    h2{break-after:avoid;} table,.callout,.flow{break-inside:avoid;}
+  }
+  @media (max-width:760px){ .page{padding:32px 22px;} .flow{flex-direction:column;} .flow .arrow{transform:rotate(90deg); min-width:auto; padding:4px 0;} }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <span class="doc-label">실행 기획 · 확장</span>
+  <h1>부서 운영 페이지 확장 구축 기획(안)</h1>
+  <p class="subtitle">실제 ERP DB(UNIERP) 기반 부서별 대시보드 4종 — 목업 구축 결과 및 운영 방안</p>
+
+  <div class="meta">
+    <div><b>작성일</b>2026. 06. 12.</div>
+    <div><b>관리자</b>최동혁 (사업관리팀)</div>
+    <div><b>데이터 원천</b>UNIERP DB (읽기전용)</div>
+    <div><b>관련문서</b>01·03 기획, AX 통합(06)</div>
+  </div>
+
+  <div class="exec">
+    <h3>EXECUTIVE SUMMARY</h3>
+    <ul>
+      <li>챗봇 포털(04)의 <b>부서 운영 페이지</b>를 기존 사업관리팀 2종에서 <b>전 부서 체계로 확장</b>한다. 1차로 인사·구매·영업·자금 4개 부서 대시보드를 실제 ERP DB 구조·데이터 기반 목업으로 구축 완료했다.</li>
+      <li>모든 페이지는 01 기획의 원칙(ERP 읽기전용·표준 인터페이스·데이터 최소화)을 준수하며, <b>실제 ERP 테이블 구조와 실데이터 일부</b>(퇴직정산 69.5백만 원, 거래처 매입, 수주 프로젝트 등)를 반영해 "도입 후 모습"을 그대로 보여준다.</li>
+      <li>개인정보(인사)는 마스킹, 자금 정보는 열람 범위 제한(부서+임원) 등 <b>페이지별 민감도 등급</b>을 정의했다.</li>
+      <li>현재는 정적 추출(목업) — 2단계에서 게이트웨이가 동일 쿼리를 주기 실행하여 자동 갱신하는 구조로 승계한다(화면 변경 없음).</li>
+    </ul>
+  </div>
+
+  <h2><span class="num">1</span>구축 배경</h2>
+  <p>니즈조사(02·05·06)와 별도로, 부서별 AI 활용의 최종 모습인 <b>"ERP 데이터를 부서 맞춤 대시보드로 자동 제공"</b>을 미리 체감할 수 있는 실물 샘플이 필요하다. 경영진·부서장이 추상적 기획서 대신 <b>자기 부서의 실제 데이터 화면</b>을 보면 니즈조사 응답 품질과 도입 수용도가 올라간다.</p>
+  <div class="callout blue">
+    <b class="tag">데이터 출처 — ERP_DB 분석 자산 활용</b>
+    관리자가 운영 중인 ERP 분석 저장소(<code>OneDrive…\최동혁\ERP_DB</code>)의 부서별 폴더(인사·구매·영업·사업관리·회계)에 축적된 <b>실제 테이블 구조 문서·검증 쿼리·추출 데이터</b>를 원천으로 사용했다. DB 접근은 전부 READ-ONLY 원칙(해당 저장소 CLAUDE.md 규칙)을 따른다.
+  </div>
+
+  <h2><span class="num">2</span>구축 결과 — 부서별 페이지 4종</h2>
+  <table>
+    <tr><th style="width:15%;">부서</th><th style="width:27%;">페이지</th><th>핵심 내용</th><th style="width:15%;" class="c">민감도</th></tr>
+    <tr>
+      <td><b>인사총무팀</b></td>
+      <td><a href="pages/인사_인원급여추이_2026.html">2026년 인원 및 급여 추이</a></td>
+      <td>재적 87명 월별 추이, 부서별 분포, 입·퇴사 현황, 4월 퇴직정산 <b>실데이터</b>(5명·69,525,015원·IRP 과세이연)</td>
+      <td class="c"><span class="badge r">높음<br>PII 마스킹</span></td>
+    </tr>
+    <tr>
+      <td><b>구매팀</b></td>
+      <td><a href="pages/구매_거래처별매입집계_2026.html">2026년 거래처별 매입금액 집계</a></td>
+      <td>거래처 Top10(대신스텐레스·오성테크 등 <b>실거래처</b>), 매입형태 5종(DIV/SIE/SIF/SIX/SIE-1) 구성, 품목계정 분포, 세금계산서 분할 이슈</td>
+      <td class="c"><span class="badge a">중간<br>단가 비공개</span></td>
+    </tr>
+    <tr>
+      <td><b>영업팀</b></td>
+      <td><a href="pages/영업_수주현황_2026.html">2026년 수주현황 대시보드</a></td>
+      <td><b>실프로젝트 10건</b>(2026-013-NSY-EI 22.7억 등) 수주·수금 단계, 거래처 집중도(엔시스 92%) 경보, 2025 비교</td>
+      <td class="c"><span class="badge a">중간<br>여신 정보</span></td>
+    </tr>
+    <tr>
+      <td><b>자금팀</b><br><span class="small">(재무·회계)</span></td>
+      <td><a href="pages/자금_자금일보_대시보드_2026.html">자금일보 대시보드</a></td>
+      <td>현금성 잔액·당일 자금이동·은행별 예금/차입·월별 수금지출 흐름·차입금 만기/이자 — 일반 기업 자금일보 표준 구성</td>
+      <td class="c"><span class="badge r">높음<br>부서+임원 한정</span></td>
+    </tr>
+    <tr>
+      <td><b>자재물류팀</b></td>
+      <td><a href="pages/자재물류_재고입출고_2026.html">2026년 재고 입·출고 현황</a></td>
+      <td>월별 입·출고 추이, 수불 유형(R01 입고/T62 출고) 구성, 창고별(SL_CD) 재고, <b>프로젝트별 수불 누적 Top 5</b>(TRACKING_NO 집계 — 입·출고 누적, 현장보관 잔량, 상태)</td>
+      <td class="c"><span class="badge a">중간<br>구매·사업관리 공유</span></td>
+    </tr>
+    <tr>
+      <td><b>설계·생산·<br>사업관리팀</b></td>
+      <td><a href="pages/품목중복_조회_2026.html">품목 존재/중복 조회 (검색형)</a></td>
+      <td>품명·코드·규격 입력 → 등록 여부·중복 그룹·<b>대표코드</b> 즉시 확인. 샘플 품목 내장(볼트·베어링·오링·ROSC01 등 8그룹), 신규 등록·BOM·발주 의뢰 전 필수 조회 — <b>구매·자재팀 공유</b></td>
+      <td class="c"><span class="badge a">중간<br>지정 부서 공유</span></td>
+    </tr>
+  </table>
+  <p class="small">※ 기존 운영: 사업관리팀 2종(프로젝트 원가현황·원가요약) — 전사 6종 체계로 확대. 페이지 간 数値 정합 유지(예: 영업 미수금 18.2억 ↔ 자금 외상매출금 1,820백만).</p>
+
+  <h2><span class="num">3</span>데이터 원천 매핑 (ERP 테이블 ↔ 페이지)</h2>
+  <table>
+    <tr><th style="width:15%;">페이지</th><th style="width:42%;">핵심 테이블 (UNIERP)</th><th>주요 컬럼/지표</th></tr>
+    <tr><td><b>인사</b></td><td><code>HAA010T</code> 사원기본 · <code>HDF070T</code> 월별급여대장 · <code>HGA040T/070T</code> 퇴직금 · <code>TH101BA1</code> A22 집계</td><td>ENTR_DT/RETIRE_DT(입퇴사), DEPT_NM, PAY_TOT_AMT(급여), A22_NUM/TOT</td></tr>
+    <tr><td><b>구매</b></td><td><code>M_IV_HDR/DTL</code> 매입전표 · <code>M_PUR_ORD_HDR/DTL</code> 발주 · <code>B_BP</code> 거래처 · <code>B_ITEM</code> 품목 · <code>A_TS_ETAX_MASTER</code> 전자세금계산서</td><td>IV_TYPE_CD(매입형태), IV_DOC_AMT, BP_NM, ITEM_ACCT(품목계정)</td></tr>
+    <tr><td><b>영업</b></td><td><code>S_BILL_HDR/DTL</code> 매출/청구 · <code>S_BILL_COLLECTING</code> 수금 · <code>PM_PROJECT_MASTER</code> 프로젝트</td><td>BILL_AMT_LOC, TRACKING_NO(프로젝트), XCHG_RATE(환율), 수금단계</td></tr>
+    <tr><td><b>자금</b></td><td><code>A_GL/A_GL_ITEM</code> 확정전표 · <code>F_LN_INFO</code> 차입금 · <code>F_NOTE</code> 어음 · <code>B_BANK/B_BANK_ACCT</code> 은행</td><td>계정 11100101(현금)/11100105(예금)/22101101·23101101(차입), 거래유형 FI/FN</td></tr>
+  </table>
+
+  <h2><span class="num">4</span>갱신 아키텍처 — 목업 → 자동화 승계</h2>
+  <div class="flow">
+    <div class="box hl"><h4>현재 (목업)</h4><p>ERP_DB 검증 쿼리로<br>수동 추출 → 정적 HTML</p></div>
+    <div class="arrow"><span class="line">→</span>1단계 말</div>
+    <div class="box"><h4>반자동</h4><p>추출 스크립트 정기 실행<br>→ OneDrive 페이지 갱신</p></div>
+    <div class="arrow"><span class="line">→</span>2단계</div>
+    <div class="box hl"><h4>게이트웨이 자동</h4><p>읽기전용 중간 DB 조회<br>일/주 단위 자동 갱신</p></div>
+    <div class="arrow"><span class="line">→</span>3단계</div>
+    <div class="box"><h4>챗봇 연동</h4><p>"이번 달 매입 Top5는?"<br>→ 동일 데이터 자연어 조회</p></div>
+  </div>
+  <ul style="margin:0 0 12px 20px; font-size:13.5px;">
+    <li>화면(HTML)과 데이터(쿼리)가 분리되어 있어, <b>갱신 방식이 바뀌어도 페이지 구성은 그대로 승계</b>된다.</li>
+    <li>각 페이지 하단에 데이터 원천·추출일을 명기 — 갱신 시 이 표기만 자동 교체.</li>
+    <li>2단계부터는 01 기획의 중간 데이터 영역(DW/스테이징)을 경유 — ERP 원장 직접 접근 없음.</li>
+  </ul>
+
+  <h2><span class="num">5</span>권한·보안 설계 (03 기획 권한 매트릭스 준용)</h2>
+  <table>
+    <tr><th style="width:22%;">페이지</th><th style="width:30%;">열람 범위</th><th>보안 처리</th></tr>
+    <tr><td>인사 인원·급여</td><td>인사총무팀 + 경영진</td><td>사번·성명 마스킹, 개인별 급여 미표시(합계·평균만), 원본은 ERP 권한자 한정</td></tr>
+    <tr><td>구매 매입집계</td><td>구매팀 + 경영기획</td><td>단가(PO_PRC) 미표시 — 거래처·총액 수준만</td></tr>
+    <tr><td>영업 수주현황</td><td>영업팀 + 사업관리·경영진</td><td>수주금액 공개, 여신·채권 상세는 자금 페이지로 분리</td></tr>
+    <tr><td>자금 자금일보</td><td><b>자금팀 + 임원 한정</b></td><td>가장 높은 등급 — 잠금 처리 기본, 권한 요청제</td></tr>
+    <tr><td>품목 존재/중복 조회</td><td><b>설계팀 · 생산팀 · 사업관리팀</b> (주관) + 구매·자재팀 (공유)</td><td>품목 수요 발생 부서(설계 BOM·생산 자재소요·사업관리 발주 의뢰)가 주관, 마스터 정비 주체인 구매·자재팀이 공유 열람. 조회 전용(마스터 변경 불가)</td></tr>
+    <tr><td>재고 입·출고 현황</td><td><b>자재물류팀</b> (주관) + 구매팀 · 사업관리팀 (공유)</td><td>수불 주관 부서가 운영, 발주(구매)·프로젝트 정산(사업관리)이 공유 열람. 프로젝트별 수불 누적은 원가 집계와 월 1회 대사</td></tr>
+  </table>
+  <div class="callout red">
+    <b class="tag">공통 원칙</b>
+    전 페이지 상단에 목업/검증 전 고지 배너 고정. ERP 원장 수정 기능 없음(조회 전용). 페이지 공개범위는 포털 관리자 콘솔의 부서별 권한 설정을 따르며, 타 부서는 잠금 표시 + 권한 요청 절차.
+  </div>
+
+  <h2><span class="num">6</span>포털(04) 반영 내역 및 향후 확장</h2>
+  <table>
+    <tr><th style="width:30%;">구분</th><th>내용</th></tr>
+    <tr><td><b>금회 반영</b></td><td>부서 운영 페이지 섹션에 5개 카드 추가 — 영업팀 기존 잠금 카드는 실페이지로 연결 전환, 자금 카드는 "임원·자금팀 한정" 표기, 품목 중복 조회(구매·자재) 추가</td></tr>
+    <tr><td><b>향후 확장 후보</b></td><td>생산(생산실적 일보 요약) · 품질(불량 유형 통계) · 물류(수불 현황) · 설계(도면 이력) — <b>니즈조사 결과로 우선순위 확정</b> 후 동일 패턴 증설</td></tr>
+    <tr><td><b>니즈조사 연계</b></td><td>본 4종을 설문 안내 시 "예시 화면"으로 제시 → 부서별 희망 대시보드 수요(Q5)를 구체적으로 끌어내는 마중물로 활용</td></tr>
+  </table>
+
+  <div class="callout green">
+    <b class="tag">결론</b>
+    부서 운영 페이지 4종 구축으로 "ERP 데이터 → 부서 맞춤 화면" 흐름이 실물로 검증되었다. 추가 비용 없이(기존 ERP_DB 분석 자산 재사용) 전 부서 확장이 가능하며, 니즈조사(1단계)와 챗봇 포털(2~3단계)의 <b>수요 견인 도구</b>로 즉시 활용한다.
+  </div>
+
+  <div class="footer">
+    <span>부서 운영 페이지 확장 구축 기획(안) · 2026. 06. 12.</span>
+    <span>관련: 01 도입기획 · 03 포털기획 · 06 통합 실행기획</span>
+  </div>
+</div>
+</body>
+</html>

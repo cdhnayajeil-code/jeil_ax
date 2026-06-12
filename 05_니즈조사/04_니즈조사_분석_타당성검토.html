@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>부서별 AI 니즈조사 — 분석 · 타당성 검토</title>
+<link rel="stylesheet" href="assets/survey-style.css">
+<style>
+  .exec{background:var(--soft); border-radius:10px; padding:20px 24px; margin-bottom:8px;}
+  .exec h3{margin-top:0; color:var(--navy); letter-spacing:.04em; font-size:13px;}
+  .exec ul{margin:6px 0 0 18px;} .exec li{margin-bottom:8px;}
+  .timeline{margin:16px 0;}
+  .titem{display:flex; gap:16px; position:relative; padding-bottom:18px;}
+  .titem:before{content:''; position:absolute; left:69px; top:26px; bottom:0; width:2px; background:var(--line);}
+  .titem:last-child:before{display:none;}
+  .twhen{flex:0 0 56px; font-size:12.5px; font-weight:700; color:var(--accent); padding-top:2px; text-align:right;}
+  .tdot{flex:0 0 12px; width:12px; height:12px; border-radius:50%; background:var(--accent); margin-top:5px; z-index:1;}
+  .tbody{flex:1; font-size:13.5px;} .tbody b{color:var(--navy);}
+  .flow{display:flex; align-items:stretch; margin:18px 0; flex-wrap:wrap; gap:0;}
+  .flow .box{flex:1; min-width:150px; border:2px solid var(--navy2); border-radius:10px; padding:13px 12px; text-align:center; background:#fff;}
+  .flow .box.hl{background:var(--soft); border-color:var(--accent);}
+  .flow .box h4{color:var(--navy); font-size:13.5px; margin-bottom:5px;} .flow .box p{font-size:11.5px; color:var(--muted); margin:0;}
+  .flow .arrow{display:flex; align-items:center; padding:0 8px; color:var(--accent); font-size:20px; font-weight:700;}
+</style>
+</head>
+<body>
+<div class="page">
+
+  <a class="backlink" href="../04_챗봇_포털_데모UI.html">← 사내 AI 포털</a>
+  <span class="doc-label">실행 기획 · 검토</span>
+  <h1>부서별 AI 니즈조사 — 분석 · 타당성 검토</h1>
+  <p class="subtitle">02 종이 기획(안)의 현실 적용성 진단 및 디지털 전환 설계</p>
+
+  <div class="meta">
+    <div><b>작성일</b>2026. 06. 12.</div>
+    <div><b>관리자</b>최동혁</div>
+    <div><b>대상문서</b>02 니즈조사 실행기획(안)</div>
+    <div><b>연계</b>04 챗봇 포털 데모</div>
+  </div>
+
+  <div class="exec">
+    <h3>EXECUTIVE SUMMARY</h3>
+    <ul>
+      <li>02 기획(안)은 내용·구조가 충실하나 <b>종이 양식</b>이어서 작성·취합·집계가 전부 수작업이다. 회신율·정량화·우선순위 산출에 한계가 있어 <b>그대로는 실무 적용이 비효율적</b>이다.</li>
+      <li>이를 <b>디지털 도구 4종(설문폼 · 집계 대시보드 · 과제평가 시트 · 배포 안내문)</b>으로 전환하면, 추가 서버·비용 없이 "작성 → 자동 집계 → 효과×난이도 우선순위 → 보고"가 한 흐름으로 동작한다.</li>
+      <li>데이터는 우선 <b>JSON 파일</b>로 주고받고, 이후 <b>OneDrive 누적 폴더</b>를 대시보드가 직접 읽는 방식으로 무중단 고도화한다(03 포털 게이트웨이 구축 전까지 유효).</li>
+      <li>산출물은 <b>04 챗봇 포털의 ‘사내 운영 페이지’</b>에 카드로 연결되어, 직원이 포털 안에서 바로 작성·열람하고 관리자가 보고에 활용한다.</li>
+    </ul>
+  </div>
+
+  <h2><span class="num">1</span>02 기획(안) 현황 진단</h2>
+  <table>
+    <tr><th style="width:20%;">항목</th><th>평가</th></tr>
+    <tr><td><b>강점 (유지)</b></td><td>가능/조건부/부적합 3분류 가이드, ERP 읽기전용 원칙, 효과×난이도 2축 평가, 4주 일정 — 현실적이며 그대로 활용 가능</td></tr>
+    <tr><td><b>형식 한계</b></td><td>체크박스가 CSS 장식(<code>span</code>), 기입란이 빈 <code>div</code> → 화면에서 입력 불가. 인쇄·수기·재취합 전제</td></tr>
+    <tr><td><b>운영 한계</b></td><td>부서별 회신을 사람이 엑셀로 옮겨 집계 → 시간 소요·오류·지연. 우선순위는 회의 정성판단에 의존</td></tr>
+  </table>
+
+  <h2><span class="num">2</span>개선 사항 (디지털화로 해결)</h2>
+  <table>
+    <tr><th style="width:5%;">#</th><th style="width:34%;">02의 한계</th><th>개선 (적용 산출물)</th></tr>
+    <tr><td>1</td><td>종이 양식 — 입력·취합 불가</td><td class="ok">디지털 설문폼 + 자동 집계 대시보드 <span class="badge b">01·02</span></td></tr>
+    <tr><td>2</td><td>자유서술 위주 → 회신율 부담</td><td>객관식 중심 재구성 + 진행률 표시 + 부서별 회신현황 가시화로 독려</td></tr>
+    <tr><td>3</td><td>정량화 약함(Q2와 효과 미연결)</td><td>주당 시간 → <b>절감가능시간 자동 환산</b>, 효과=절감시간×인원으로 ROI화 <span class="badge b">02·03</span></td></tr>
+    <tr><td>4</td><td>우선순위가 회의 의존</td><td>점수 입력 시 <b>사분면 자동 배치 + 우선과제 3~5건 자동 추출</b> <span class="badge b">03</span></td></tr>
+    <tr><td>5</td><td>부서장·실무자 동시 응답 → 솔직도↓</td><td>작성자 <b>선택적 익명 제출</b> 옵션(부서 단위 집계는 유지)</td></tr>
+    <tr><td>6</td><td>데이터 누적·이력 부재</td><td>응답 JSON 누적(OneDrive) → 차년도 재조사 시 <b>전년 대비 비교</b> 가능</td></tr>
+  </table>
+
+  <h2><span class="num">3</span>타당성 검토</h2>
+  <div class="triple" style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px;">
+    <div class="callout green" style="margin:0;"><b class="tag">비용 타당성</b><span class="small">서버·라이선스 0원. 브라우저 + 사내 OneDrive만으로 동작. 외부 CDN 의존 없어 폐쇄망·오프라인에서도 사용 가능.</span></div>
+    <div class="callout blue" style="margin:0;"><b class="tag">효과 타당성</b><span class="small">수작업 취합·집계 시간 제거, 우선순위 산출 자동화. 정량 근거(절감시간×인원)로 경영진 보고·2단계 품의 설득력 확보.</span></div>
+    <div class="callout amber" style="margin:0;"><b class="tag">리스크 / 보완</b><span class="small">민감정보는 설문에 담지 않음(업무 유형만 수집). 익명 옵션으로 응답 부담 완화. 유일 장벽은 ‘작성 안내’ → 배포 안내문으로 흡수.</span></div>
+  </div>
+  <div class="callout red">
+    <b class="tag">03 기획과의 정합성</b>
+    본 도구는 03 ‘챗봇 포털 구축’의 <b>1단계 산출물(부서별 수요·프롬프트 템플릿 입력)</b>에 해당한다. 게이트웨이 구축 전이라도 즉시 운영 가능하며, 구축 후에는 응답 저장소를 OneDrive → 사내 DB로 옮기는 것만으로 승계된다.
+  </div>
+
+  <h2><span class="num">4</span>디지털 전환 — 데이터 흐름</h2>
+  <div class="flow">
+    <div class="box hl"><h4>① 설문폼</h4><p>직원 작성<br>JSON 저장</p></div>
+    <div class="arrow">→</div>
+    <div class="box"><h4>② OneDrive</h4><p>부서별 응답<br>누적 폴더</p></div>
+    <div class="arrow">→</div>
+    <div class="box hl"><h4>③ 대시보드</h4><p>자동 집계<br>수요·회신율</p></div>
+    <div class="arrow">→</div>
+    <div class="box"><h4>④ 평가시트</h4><p>효과×난이도<br>우선과제 선정</p></div>
+    <div class="arrow">→</div>
+    <div class="box hl"><h4>⑤ 보고</h4><p>경영진 보고<br>2단계 PoC</p></div>
+  </div>
+  <table>
+    <tr><th style="width:22%;">단계</th><th>현재(목업)</th><th>이후(고도화)</th></tr>
+    <tr><td><b>응답 저장</b></td><td>JSON 파일 다운로드 + 브라우저 임시저장</td><td class="ok">OneDrive 지정 폴더에 누적(<code>…/05_니즈조사/responses</code>)</td></tr>
+    <tr><td><b>집계 입력</b></td><td>대시보드에서 JSON 다중 선택</td><td class="ok">File System Access API로 OneDrive 폴더 직접 읽기 / 또는 게이트웨이가 사내 DB 적재</td></tr>
+    <tr><td><b>화면 코드</b></td><td colspan="2">데이터 어댑터(<code>datastore.js</code>)만 교체 — 폼·대시보드·평가시트 화면은 무변경</td></tr>
+  </table>
+  <div class="callout amber">
+    <b class="tag">OneDrive 누적 적용 메모</b>
+    설문폼이 내려주는 응답 JSON을 사내 공유 OneDrive 폴더에 모으면(직원 업로드 또는 부서 취합 창구), 대시보드의 <b>[OneDrive 폴더 연결]</b>(Chrome/Edge)로 그 폴더 전체를 한 번에 집계할 수 있다. 포털 데이터의 OneDrive 일원화 방침과 동일한 패턴이다.
+  </div>
+
+  <h2><span class="num">5</span>04 포털 연계 및 적용 로드맵</h2>
+  <p>완성된 산출물은 <b>04 챗봇 포털 → 사내 운영 페이지</b>에 ‘1단계 · AI 니즈조사’ 카드 그룹으로 등록되어, 직원은 포털 안에서 설문을 작성하고 관리자는 집계·평가 결과를 열람·보고한다.</p>
+  <div class="timeline">
+    <div class="titem"><div class="twhen">1주차</div><div class="tdot"></div><div class="tbody"><b>배포</b> — 포털 카드 공개 + 배포 안내문(공문) 발송, 부서별 취합 창구 지정</div></div>
+    <div class="titem"><div class="twhen">2주차</div><div class="tdot"></div><div class="tbody"><b>회신·취합</b> — 대시보드로 회신율 점검, 미회신 부서 독려</div></div>
+    <div class="titem"><div class="twhen">3주차</div><div class="tdot"></div><div class="tbody"><b>심층 인터뷰</b> — 수요 상위 3~4개 부서 인터뷰, 업무흐름·데이터 위치 구체화</div></div>
+    <div class="titem"><div class="twhen">4주차</div><div class="tdot"></div><div class="tbody"><b>평가·보고</b> — 과제평가 시트로 우선과제 3~5건 선정 → 경영진 보고 및 2단계(PoC) 품의</div></div>
+  </div>
+
+  <div class="footer">
+    <span>부서별 AI 니즈조사 분석·타당성 검토 · 2026. 06. 12.</span>
+    <span>본첨: 02 니즈조사 실행기획(안)</span>
+  </div>
+</div>
+</body>
+</html>

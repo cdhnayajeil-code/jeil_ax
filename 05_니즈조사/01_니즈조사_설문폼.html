@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI 업무 활용 니즈조사 — 설문 작성</title>
+<link rel="stylesheet" href="assets/survey-style.css">
+</head>
+<body>
+<div class="page">
+
+  <a class="backlink" href="../04_챗봇_포털_데모UI.html">← 사내 AI 포털</a>
+  <span class="doc-label">1단계 · 니즈조사</span>
+  <h1>AI 업무 활용 니즈조사</h1>
+  <p class="subtitle">담당 업무 중 AI로 덜고 싶은 일을 알려주세요. 회신 내용은 우선 추진과제 선정에만 활용됩니다.</p>
+
+  <!-- 진행률 -->
+  <div class="progress-wrap">
+    <div class="progress-row"><span>작성 진행률</span><span><b id="pctText">0%</b> · 필수 항목 <span id="reqText">미완료</span></span></div>
+    <div class="pbar"><i id="pbar" style="width:0%"></i></div>
+  </div>
+
+  <!-- 작성 가이드(접이식) -->
+  <details class="guide">
+    <summary>📌 작성 전 참고 — AI 적용 가능 / 조건부 / 부적합 영역</summary>
+    <div class="gbody">
+      <div class="triple">
+        <div class="tcard ok"><header>◎ 즉시 적용 가능</header>
+          <ul>
+            <li>회의록·보고서·이메일 초안, 문서 요약·번역</li>
+            <li>ERP 데이터 조회·요약 리포트(읽기전용)</li>
+            <li>매출·재고 등 정기 보고서 자동 생성</li>
+            <li>사내 규정·매뉴얼 질의응답 챗봇</li>
+            <li>엑셀 데이터 정리·시각화 보조</li>
+          </ul>
+        </div>
+        <div class="tcard cond"><header>△ 조건부 가능</header>
+          <ul>
+            <li>수요예측·이상치 탐지 — 데이터 품질·검증 전제</li>
+            <li>거래처·계약 문서 검토 — 최종 판단은 담당자</li>
+            <li>개인정보 포함 업무 — 마스킹·내부 처리 전제</li>
+            <li>ERP 데이터 입력 — 표준 인터페이스 경유 시</li>
+          </ul>
+        </div>
+        <div class="tcard no"><header>✕ 부적합 / 불가</header>
+          <ul>
+            <li>ERP 원장 직접 수정·삭제</li>
+            <li>결산·세무 수치 무검증 자동 확정</li>
+            <li>인사평가·급여 등 최종 판단</li>
+            <li>기밀을 통제 안 된 외부 AI에 입력</li>
+          </ul>
+        </div>
+      </div>
+      <div class="callout red" style="margin-bottom:0;">
+        <b class="tag">전사 공통 원칙</b>
+        AI는 <b>초안·조회·요약·분석 보조</b>까지 수행하고, <b>최종 확인과 책임은 담당자</b>에게 있습니다. ERP 원장은 읽기전용입니다.
+      </div>
+    </div>
+  </details>
+
+  <details class="guide">
+    <summary>💡 우리 부서는 뭘 적을 수 있을까? — 부서별 활용 예시</summary>
+    <div class="gbody">
+      <table style="margin-bottom:0;">
+        <tr><th style="width:16%;">부서</th><th>활용 예시</th></tr>
+        <tr><td><b>영업</b></td><td>거래처별 매출/채권 자연어 조회, 견적·제안서 초안, 수주 동향 주간 리포트, 미수금 알림</td></tr>
+        <tr><td><b>구매·자재</b></td><td>발주 대비 입고 요약, 단가 추이 분석, 재고 부족·과잉 알림</td></tr>
+        <tr><td><b>생산</b></td><td>생산실적 일보 자동 요약, 불량 데이터 정리·추이, 작업표준서 검색 챗봇</td></tr>
+        <tr><td><b>품질</b></td><td>불량 유형 분류·통계, 클레임 요약·유형화, 시정조치 보고서 초안</td></tr>
+        <tr><td><b>재무·회계</b></td><td>월 결산 자료 취합 보조, 비용·예산 대비 실적 요약, 증빙 누락 점검(최종 확정은 담당자)</td></tr>
+        <tr><td><b>인사·총무</b></td><td>규정·복리후생 챗봇, 공지문·품의서 초안, 교육자료 제작(평가·급여 제외)</td></tr>
+        <tr><td><b>경영기획</b></td><td>부서별 실적 취합·회의자료 초안, 시장·경쟁사 조사 요약, KPI 코멘트</td></tr>
+        <tr><td><b>IT·전산</b></td><td>헬프데스크 1차 응대 챗봇, 장애 이력 요약, 매뉴얼 문서화 보조</td></tr>
+      </table>
+    </div>
+  </details>
+
+  <!-- ===== 폼 ===== -->
+  <form id="surveyForm" autocomplete="off">
+
+    <h2><span class="num">0</span>작성자 정보</h2>
+    <div class="qcard">
+      <div class="inline-grid">
+        <div class="field">
+          <label class="lb">소속 부서 <span class="req">*</span></label>
+          <select id="m_부서" required><option value="">— 선택 —</option></select>
+        </div>
+        <div class="field">
+          <label class="lb">작성자 <span class="req">*</span></label>
+          <input type="text" id="m_작성자" placeholder="홍길동">
+        </div>
+        <div class="field">
+          <label class="lb">직책 <span class="hint">(선택)</span></label>
+          <input type="text" id="m_직책" placeholder="대리 / 팀장 등">
+        </div>
+        <div class="field">
+          <label class="lb">작성일</label>
+          <input type="date" id="m_작성일">
+        </div>
+      </div>
+      <label class="opt" id="anonWrap" style="margin-top:4px; flex:1 1 100%;">
+        <input type="checkbox" id="m_익명">
+        <span><b>익명으로 제출</b> — 솔직한 의견을 위해 작성자명을 집계에서 가립니다(부서 단위 집계는 유지).</span>
+      </label>
+    </div>
+
+    <h2><span class="num">1</span>업무 진단</h2>
+
+    <div class="qcard">
+      <div class="qhead"><span class="qno">Q1</span><span class="qtitle">담당 업무 중 시간이 가장 많이 드는 반복 업무는? <span class="hint">(최대 3가지)</span></span></div>
+      <div class="field"><input type="text" class="q1" placeholder="1순위 — 예) 주간보고 취합·작성"></div>
+      <div class="field"><input type="text" class="q1" placeholder="2순위"></div>
+      <div class="field" style="margin-bottom:0;"><input type="text" class="q1" placeholder="3순위"></div>
+    </div>
+
+    <div class="qcard">
+      <div class="qhead"><span class="qno">Q2</span><span class="qtitle">그 업무에 매주 대략 몇 시간을 사용하나요?</span></div>
+      <div class="opts-wrap" id="q2wrap"></div>
+    </div>
+
+    <h2><span class="num">2</span>희망 기능</h2>
+
+    <div class="qcard">
+      <div class="qhead"><span class="qno">Q3</span><span class="qtitle">AI가 도와주면 좋겠다고 생각하는 업무를 모두 선택하세요.</span></div>
+      <div class="opts-wrap" id="q3wrap"></div>
+      <div class="field" style="margin:10px 0 0;"><input type="text" id="q3etc" placeholder="기타 — 직접 입력"></div>
+    </div>
+
+    <div class="qcard">
+      <div class="qhead"><span class="qno">Q4</span><span class="qtitle">위 업무에서 주로 다루는 데이터는 어디에 있나요?</span></div>
+      <div class="opts-wrap" id="q4wrap"></div>
+      <div class="field" style="margin:10px 0 0;"><input type="text" id="q4etc" placeholder="기타 — 직접 입력"></div>
+    </div>
+
+    <div class="qcard">
+      <div class="qhead"><span class="qno">Q5</span><span class="qtitle">희망 기능을 자유롭게 적어주세요. <span class="hint">("어떤 업무가 → 어떻게 되면 좋겠다" 형식)</span></span></div>
+      <textarea id="q5" placeholder="예) 매주 흩어진 현장 일보를 → 한 번에 요약해서 주간보고 초안으로 만들어 주면 좋겠다."></textarea>
+    </div>
+
+    <h2><span class="num">3</span>우려 사항 · 현황</h2>
+
+    <div class="qcard">
+      <div class="qhead"><span class="qno">Q6</span><span class="qtitle">AI 활용 시 우려되는 점을 모두 선택하세요.</span></div>
+      <div class="opts-wrap" id="q6wrap"></div>
+      <div class="field" style="margin:10px 0 0;"><input type="text" id="q6etc" placeholder="기타 — 직접 입력"></div>
+    </div>
+
+    <div class="qcard">
+      <div class="qhead"><span class="qno">Q7</span><span class="qtitle">현재 개인적으로 사용 중인 AI 도구가 있다면 적어주세요. <span class="hint">(활용 용도 포함)</span></span></div>
+      <textarea id="q7" style="min-height:54px;" placeholder="예) ChatGPT — 영문 메일 번역 / 없음"></textarea>
+    </div>
+
+    <!-- 액션 -->
+    <div class="toolbar no-print" style="margin:22px 0 8px;">
+      <button type="button" class="btn" id="btnSubmit">✓ 응답 저장 (JSON 다운로드)</button>
+      <button type="button" class="btn ghost" id="btnLocal">임시저장</button>
+      <button type="button" class="btn gray" id="btnLoad">불러오기</button>
+      <button type="button" class="btn gray" id="btnPrint">인쇄</button>
+      <button type="button" class="btn danger" id="btnReset">초기화</button>
+      <input type="file" id="fileLoad" accept="application/json" style="display:none;">
+    </div>
+    <p class="small no-print">저장 시 응답이 <b>JSON 파일</b>로 내려받아집니다. 부서 취합 창구에 전달(또는 OneDrive 지정 폴더 업로드)하면 집계 대시보드에서 자동 합산됩니다. ‘임시저장’은 이 브라우저에만 보관됩니다.</p>
+  </form>
+
+  <div class="footer">
+    <span>AI 업무 활용 니즈조사 · 1단계 수요 취합</span>
+    <span>주관: 관리자(최동혁)</span>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="assets/datastore.js"></script>
+<script>
+var S = window.SurveyStore;
+
+/* ---- 옵션 렌더 ---- */
+function optHTML(name, val, type){
+  return '<label class="opt"><input type="'+type+'" name="'+name+'" value="'+val+'"><span>'+val+'</span></label>';
+}
+function fillSelect(){
+  var sel = document.getElementById('m_부서');
+  S.부서목록.forEach(function(d){ var o=document.createElement('option'); o.value=d; o.textContent=d; sel.appendChild(o); });
+}
+function renderOpts(){
+  document.getElementById('q2wrap').innerHTML = S.Q2_옵션.map(function(v){return optHTML('q2',v,'radio');}).join('');
+  document.getElementById('q3wrap').innerHTML = S.Q3_옵션.map(function(v){return optHTML('q3',v,'checkbox');}).join('');
+  document.getElementById('q4wrap').innerHTML = S.Q4_옵션.map(function(v){return optHTML('q4',v,'checkbox');}).join('');
+  document.getElementById('q6wrap').innerHTML = S.Q6_옵션.map(function(v){return optHTML('q6',v,'checkbox');}).join('');
+}
+
+/* ---- 선택 시 카드 강조 + 진행률 ---- */
+function bindOptVisual(){
+  document.querySelectorAll('.opt input').forEach(function(inp){
+    function sync(){
+      if(inp.type==='radio'){
+        document.querySelectorAll('input[name="'+inp.name+'"]').forEach(function(i){ i.closest('.opt').classList.toggle('checked', i.checked); });
+      } else {
+        inp.closest('.opt').classList.toggle('checked', inp.checked);
+      }
+      updateProgress();
+    }
+    inp.addEventListener('change', sync);
+  });
+}
+
+/* ---- 폼 ↔ 객체 ---- */
+function getChecked(name){
+  return Array.prototype.map.call(document.querySelectorAll('input[name="'+name+'"]:checked'), function(i){return i.value;});
+}
+function getRadio(name){ var c=document.querySelector('input[name="'+name+'"]:checked'); return c?c.value:''; }
+
+function collect(){
+  var r = S.emptyResponse();
+  r.meta.부서 = document.getElementById('m_부서').value;
+  r.meta.작성자 = document.getElementById('m_작성자').value.trim();
+  r.meta.직책 = document.getElementById('m_직책').value.trim();
+  r.meta.작성일 = document.getElementById('m_작성일').value;
+  r.meta.익명 = document.getElementById('m_익명').checked;
+  if(r.meta.익명) r.meta.작성자 = ''; // 집계에서 익명
+  r.answers.q1 = Array.prototype.map.call(document.querySelectorAll('.q1'), function(i){return i.value.trim();});
+  r.answers.q2 = getRadio('q2');
+  r.answers.q3 = { selected:getChecked('q3'), 기타:document.getElementById('q3etc').value.trim() };
+  r.answers.q4 = { selected:getChecked('q4'), 기타:document.getElementById('q4etc').value.trim() };
+  r.answers.q5 = document.getElementById('q5').value.trim();
+  r.answers.q6 = { selected:getChecked('q6'), 기타:document.getElementById('q6etc').value.trim() };
+  r.answers.q7 = document.getElementById('q7').value.trim();
+  return r;
+}
+
+function apply(r){
+  r = r || S.emptyResponse();
+  document.getElementById('m_부서').value = r.meta.부서||'';
+  document.getElementById('m_작성자').value = r.meta.작성자||'';
+  document.getElementById('m_직책').value = r.meta.직책||'';
+  document.getElementById('m_작성일').value = r.meta.작성일||'';
+  document.getElementById('m_익명').checked = !!r.meta.익명;
+  var q1 = document.querySelectorAll('.q1');
+  (r.answers.q1||[]).forEach(function(v,i){ if(q1[i]) q1[i].value=v||''; });
+  setRadio('q2', r.answers.q2);
+  setChecks('q3', r.answers.q3); document.getElementById('q3etc').value=(r.answers.q3&&r.answers.q3.기타)||'';
+  setChecks('q4', r.answers.q4); document.getElementById('q4etc').value=(r.answers.q4&&r.answers.q4.기타)||'';
+  document.getElementById('q5').value = r.answers.q5||'';
+  setChecks('q6', r.answers.q6); document.getElementById('q6etc').value=(r.answers.q6&&r.answers.q6.기타)||'';
+  document.getElementById('q7').value = r.answers.q7||'';
+  document.querySelectorAll('.opt input').forEach(function(i){ i.dispatchEvent(new Event('change')); });
+  updateProgress();
+}
+function setRadio(name,val){ document.querySelectorAll('input[name="'+name+'"]').forEach(function(i){ i.checked=(i.value===val); }); }
+function setChecks(name,obj){ var arr=(obj&&obj.selected)||[]; document.querySelectorAll('input[name="'+name+'"]').forEach(function(i){ i.checked=arr.indexOf(i.value)>=0; }); }
+
+/* ---- 진행률 ---- */
+function updateProgress(){
+  var checks = [
+    document.getElementById('m_부서').value,
+    document.getElementById('m_작성자').value.trim() || document.getElementById('m_익명').checked,
+    Array.prototype.some.call(document.querySelectorAll('.q1'), function(i){return i.value.trim();}),
+    getRadio('q2'),
+    getChecked('q3').length || document.getElementById('q3etc').value.trim(),
+    getChecked('q4').length || document.getElementById('q4etc').value.trim(),
+    document.getElementById('q5').value.trim(),
+    getChecked('q6').length || document.getElementById('q6etc').value.trim(),
+    document.getElementById('q7').value.trim()
+  ];
+  var done = checks.filter(Boolean).length;
+  var pct = Math.round(done/checks.length*100);
+  document.getElementById('pbar').style.width = pct+'%';
+  document.getElementById('pctText').textContent = pct+'%';
+  var reqOk = document.getElementById('m_부서').value && (document.getElementById('m_작성자').value.trim()||document.getElementById('m_익명').checked);
+  var rt = document.getElementById('reqText');
+  rt.textContent = reqOk ? '완료 ✓' : '미완료';
+  rt.style.color = reqOk ? 'var(--green)' : 'var(--red)';
+}
+
+/* ---- 토스트 ---- */
+var toastT;
+function toast(msg){
+  var t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show');
+  clearTimeout(toastT); toastT=setTimeout(function(){t.classList.remove('show');},2200);
+}
+
+/* ---- 검증 ---- */
+function validate(r){
+  if(!r.meta.부서){ toast('소속 부서를 선택해 주세요.'); document.getElementById('m_부서').focus(); return false; }
+  if(!r.meta.익명 && !r.meta.작성자){ toast('작성자명을 입력하거나 익명 제출을 선택해 주세요.'); document.getElementById('m_작성자').focus(); return false; }
+  return true;
+}
+
+/* ---- 액션 ---- */
+document.getElementById('btnSubmit').addEventListener('click', function(){
+  var r=collect(); if(!validate(r)) return;
+  r.meta.제출시각 = S.nowStamp();
+  S.saveLocal(r);
+  var fn = S.downloadJSON(r);
+  toast('저장됨 · ' + fn);
+});
+document.getElementById('btnLocal').addEventListener('click', function(){
+  var r=collect(); if(!validate(r)) return;
+  r.meta.제출시각 = S.nowStamp();
+  S.saveLocal(r); toast('이 브라우저에 임시저장했습니다.');
+});
+document.getElementById('btnLoad').addEventListener('click', function(){ document.getElementById('fileLoad').click(); });
+document.getElementById('fileLoad').addEventListener('change', function(e){
+  S.parseFiles(e.target.files).then(function(list){
+    if(!list.length){ toast('읽을 수 있는 응답 JSON이 아닙니다.'); return; }
+    apply(list[0]); toast('불러왔습니다. 내용을 수정 후 다시 저장하세요.');
+  });
+  e.target.value='';
+});
+document.getElementById('btnPrint').addEventListener('click', function(){ window.print(); });
+document.getElementById('btnReset').addEventListener('click', function(){
+  if(confirm('작성 중인 내용을 모두 지울까요?')){ apply(S.emptyResponse()); document.getElementById('m_작성일').value=todayStr(); toast('초기화했습니다.'); }
+});
+
+function todayStr(){ var d=new Date(); function p(n){return n<10?'0'+n:n;} return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate()); }
+
+/* ---- init ---- */
+fillSelect(); renderOpts(); bindOptVisual();
+['m_부서','m_작성자','m_직책','m_익명'].forEach(function(id){ document.getElementById(id).addEventListener('change', updateProgress); });
+['q3etc','q4etc','q6etc','q5','q7'].forEach(function(id){ document.getElementById(id).addEventListener('input', updateProgress); });
+document.querySelectorAll('.q1').forEach(function(i){ i.addEventListener('input', updateProgress); });
+document.getElementById('m_작성일').value = todayStr();
+updateProgress();
+</script>
+</body>
+</html>

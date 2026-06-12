@@ -1,0 +1,697 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>사내 AI 챗봇 포털 — 화면 데모</title>
+<style>
+  :root{
+    --navy:#1a2f4e; --navy2:#27457a; --accent:#2f6fb3; --accent2:#4a8ed0;
+    --green:#2e7d52; --amber:#9a6b1f; --red:#b3402f;
+    --ink:#222; --muted:#777; --line:#dde3ec; --bg:#eef1f6; --side:#1d3354;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html,body{height:100%;}
+  body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif; color:var(--ink); background:var(--bg); display:flex; flex-direction:column; font-size:14.5px;}
+  /* 데모 배너 */
+  .demo-banner{background:var(--amber); color:#fff; text-align:center; font-size:12.5px; padding:6px 10px; letter-spacing:.04em; flex:none;}
+  .app{flex:1; display:flex; min-height:0;}
+  /* 사이드바 */
+  .side{width:264px; background:var(--side); color:#e7edf6; display:flex; flex-direction:column; flex:none;}
+  .brand{padding:18px 20px 14px; border-bottom:1px solid rgba(255,255,255,.12);}
+  .brand h1{font-size:16px; letter-spacing:.02em;}
+  .brand h1 span{color:#9cc3ec;}
+  .brand p{font-size:11px; color:#9fb1ca; margin-top:2px;}
+  .profile{padding:14px 20px; border-bottom:1px solid rgba(255,255,255,.12); display:flex; gap:10px; align-items:center;}
+  .avatar{width:36px; height:36px; border-radius:50%; background:var(--accent2); display:flex; align-items:center; justify-content:center; font-weight:700; color:#fff; flex:none;}
+  .profile b{display:block; font-size:13.5px;}
+  .profile span{font-size:11.5px; color:#9fb1ca;}
+  .quota{padding:14px 20px; border-bottom:1px solid rgba(255,255,255,.12);}
+  .quota .row{display:flex; justify-content:space-between; font-size:12px; margin-bottom:6px; color:#c9d6e8;}
+  .quota .row b{color:#fff;}
+  .bar{height:8px; background:rgba(255,255,255,.15); border-radius:4px; overflow:hidden;}
+  .bar i{display:block; height:100%; background:linear-gradient(90deg,#4a8ed0,#7db8ea); border-radius:4px; transition:width .4s;}
+  .quota .hint{font-size:10.5px; color:#9fb1ca; margin-top:6px;}
+  .quota button{margin-top:8px; width:100%; background:transparent; border:1px solid rgba(255,255,255,.3); color:#cfe0f3; font-size:11.5px; padding:5px; border-radius:6px; cursor:pointer;}
+  .quota button:hover{background:rgba(255,255,255,.08);}
+  .tpl{padding:14px 14px 8px; flex:1; overflow-y:auto;}
+  .tpl h3{font-size:11px; color:#9fb1ca; letter-spacing:.1em; padding:0 6px 8px;}
+  .tpl button{display:block; width:100%; text-align:left; background:rgba(255,255,255,.06); border:none; color:#e7edf6; font-size:12.5px; padding:9px 12px; border-radius:8px; margin-bottom:6px; cursor:pointer; font-family:inherit; line-height:1.4;}
+  .tpl button:hover{background:rgba(255,255,255,.14);}
+  .tpl button small{display:block; color:#9fb1ca; font-size:10.5px;}
+  .side-foot{padding:12px 20px; border-top:1px solid rgba(255,255,255,.12); font-size:11px; color:#9fb1ca;}
+  /* 메인 */
+  .main{flex:1; display:flex; flex-direction:column; min-width:0;}
+  .top{background:#fff; border-bottom:1px solid var(--line); padding:12px 24px; display:flex; align-items:center; justify-content:space-between; flex:none;}
+  .top h2{font-size:15px; color:var(--navy);}
+  .top .mode{font-size:11.5px; color:var(--muted); background:var(--bg); border:1px solid var(--line); border-radius:20px; padding:4px 12px;}
+  .top .mode b{color:var(--accent);}
+  .chat{flex:1; overflow-y:auto; padding:26px 8%;}
+  .msg{display:flex; gap:12px; margin-bottom:22px; max-width:780px;}
+  .msg .who{width:34px; height:34px; border-radius:50%; flex:none; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; color:#fff;}
+  .msg.ai .who{background:var(--navy);}
+  .msg.user{flex-direction:row-reverse; margin-left:auto;}
+  .msg.user .who{background:var(--accent2);}
+  .bubble{background:#fff; border:1px solid var(--line); border-radius:12px; padding:13px 16px; line-height:1.7; font-size:13.8px; box-shadow:0 1px 3px rgba(0,0,0,.04); max-width:100%; overflow-x:auto;}
+  .msg.user .bubble{background:var(--accent); color:#fff; border-color:var(--accent);}
+  .bubble table{border-collapse:collapse; margin:10px 0 6px; font-size:12.5px; width:100%;}
+  .bubble th{background:var(--navy); color:#fff; padding:6px 10px; text-align:left; font-weight:600;}
+  .bubble td{border-bottom:1px solid var(--line); padding:6px 10px;}
+  .bubble td.r{text-align:right;}
+  .bubble .src{display:inline-block; margin-top:8px; font-size:11px; color:var(--green); background:#ecf5f0; border:1px solid #cde3d6; border-radius:14px; padding:3px 10px;}
+  .bubble ul{margin:6px 0 4px 18px;}
+  .bubble li{margin-bottom:4px;}
+  .bubble h4{font-size:13.5px; color:var(--navy); margin:8px 0 4px;}
+  .typing i{display:inline-block; width:7px; height:7px; border-radius:50%; background:#a9b8cc; margin-right:4px; animation:blink 1.2s infinite;}
+  .typing i:nth-child(2){animation-delay:.2s;} .typing i:nth-child(3){animation-delay:.4s;}
+  @keyframes blink{0%,80%,100%{opacity:.25;} 40%{opacity:1;}}
+  /* 추천 프롬프트 */
+  .suggest{display:flex; flex-wrap:wrap; gap:8px; margin-top:10px;}
+  .suggest button{background:#fff; border:1px solid var(--accent); color:var(--accent); font-size:12px; padding:7px 14px; border-radius:18px; cursor:pointer; font-family:inherit;}
+  .suggest button:hover{background:var(--accent); color:#fff;}
+  /* 입력영역 */
+  .input-area{flex:none; background:#fff; border-top:1px solid var(--line); padding:14px 8% 10px;}
+  .input-box{display:flex; gap:10px; max-width:880px; margin:0 auto;}
+  .input-box textarea{flex:1; border:1.5px solid var(--line); border-radius:12px; padding:11px 14px; font-family:inherit; font-size:14px; resize:none; height:48px; outline:none;}
+  .input-box textarea:focus{border-color:var(--accent);}
+  .input-box button{background:var(--navy); color:#fff; border:none; border-radius:12px; padding:0 22px; font-size:14px; font-weight:600; cursor:pointer; font-family:inherit;}
+  .input-box button:hover{background:var(--navy2);}
+  .input-box button:disabled{background:#b8c2d2; cursor:not-allowed;}
+  .notice{text-align:center; font-size:11px; color:var(--muted); padding:8px 4px 2px;}
+  /* ===== 관리자 콘솔 ===== */
+  .admin{flex:1; display:none; flex-direction:column; min-width:0; overflow-y:auto;}
+  .admin-top{background:#fff; border-bottom:1px solid var(--line); padding:0 24px; display:flex; align-items:center; justify-content:space-between; flex:none;}
+  .admin-top h2{font-size:15px; color:var(--navy); padding:14px 0;}
+  .tabs{display:flex; gap:4px;}
+  .tabs button{background:none; border:none; border-bottom:3px solid transparent; padding:14px 16px; font-size:13.5px; color:var(--muted); cursor:pointer; font-family:inherit; font-weight:600;}
+  .tabs button.on{color:var(--navy); border-bottom-color:var(--accent);}
+  .back-chat{background:var(--navy); color:#fff; border:none; border-radius:8px; padding:7px 14px; font-size:12.5px; cursor:pointer; font-family:inherit;}
+  .panel{display:none; padding:24px 28px; max-width:980px;}
+  .panel.on{display:block;}
+  .cards{display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr)); gap:12px; margin-bottom:18px;}
+  .card{background:#fff; border:1px solid var(--line); border-radius:12px; padding:16px 18px;}
+  .card .lb{font-size:11.5px; color:var(--muted); letter-spacing:.04em;}
+  .card .v{font-size:20px; font-weight:700; color:var(--navy); margin-top:4px;}
+  .card .v small{font-size:12px; color:var(--muted); font-weight:400;}
+  .card .v .dot{display:inline-block; width:9px; height:9px; border-radius:50%; background:var(--green); margin-right:6px;}
+  .sec{background:#fff; border:1px solid var(--line); border-radius:12px; padding:18px 20px; margin-bottom:16px;}
+  .sec h3{font-size:14px; color:var(--navy); margin-bottom:12px; display:flex; justify-content:space-between; align-items:center;}
+  .sec h3 .save{background:var(--accent); color:#fff; border:none; border-radius:7px; padding:5px 14px; font-size:12px; cursor:pointer; font-family:inherit;}
+  .sec table{width:100%; border-collapse:collapse; font-size:13px;}
+  .sec th{background:var(--soft); color:var(--navy); padding:8px 10px; text-align:left; font-weight:600; font-size:12px;}
+  .sec td{padding:8px 10px; border-bottom:1px solid var(--line); vertical-align:middle;}
+  .sec td.r, .sec th.r{text-align:right;}
+  .keychip{font-family:Consolas,monospace; font-size:12px; background:var(--soft); border:1px solid var(--line); border-radius:6px; padding:3px 8px;}
+  .badge{display:inline-block; font-size:11px; border-radius:10px; padding:2px 9px; font-weight:600;}
+  .badge.g{background:#ecf5f0; color:var(--green);} .badge.a{background:#faf3e4; color:var(--amber);} .badge.r{background:#fbeeec; color:var(--red);} .badge.b{background:var(--soft); color:var(--navy2);}
+  .mini{background:#fff; border:1px solid var(--line); color:var(--navy2); border-radius:6px; padding:4px 10px; font-size:11.5px; cursor:pointer; font-family:inherit; margin-left:4px;}
+  .mini:hover{background:var(--soft);}
+  .mini.ok{border-color:var(--green); color:var(--green);} .mini.no{border-color:var(--red); color:var(--red);}
+  .sw{position:relative; display:inline-block; width:38px; height:21px; vertical-align:middle;}
+  .sw input{opacity:0; width:0; height:0;}
+  .sw i{position:absolute; inset:0; background:#c3ccd9; border-radius:21px; transition:.2s; cursor:pointer;}
+  .sw i:before{content:''; position:absolute; width:15px; height:15px; left:3px; top:3px; background:#fff; border-radius:50%; transition:.2s;}
+  .sw input:checked + i{background:var(--green);}
+  .sw input:checked + i:before{transform:translateX(17px);}
+  .num-inp{width:84px; border:1px solid var(--line); border-radius:6px; padding:5px 8px; font-size:13px; text-align:right; font-family:inherit;}
+  select.sel{border:1px solid var(--line); border-radius:6px; padding:5px 8px; font-size:12.5px; font-family:inherit; background:#fff;}
+  .bar2{height:7px; background:var(--bg); border-radius:4px; overflow:hidden; min-width:90px;}
+  .bar2 i{display:block; height:100%; background:var(--accent2); border-radius:4px;}
+  .bar2 i.warn{background:var(--amber);} .bar2 i.full{background:var(--red);}
+  .admin-note{font-size:11.5px; color:var(--muted); margin-top:8px;}
+  textarea.sys{width:100%; border:1px solid var(--line); border-radius:8px; padding:10px 12px; font-family:inherit; font-size:13px; min-height:88px; resize:vertical;}
+  .admin-open{display:block; width:calc(100% - 28px); margin:0 14px 10px; background:rgba(255,255,255,.1); border:1px solid rgba(255,255,255,.25); color:#e7edf6; font-size:12.5px; padding:9px; border-radius:8px; cursor:pointer; font-family:inherit;}
+  .admin-open:hover{background:rgba(255,255,255,.2);}
+  /* ===== 부서 운영 페이지 ===== */
+  .pgview{flex:1; display:none; flex-direction:column; min-width:0; overflow-y:auto;}
+  .pg-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(270px,1fr)); gap:14px;}
+  .pgcard{background:#fff; border:1px solid var(--line); border-radius:12px; padding:18px; display:flex; flex-direction:column; gap:8px;}
+  .pgcard .ic{font-size:22px;}
+  .pgcard h4{font-size:14.5px; color:var(--navy); line-height:1.4;}
+  .pgcard p{font-size:12px; color:var(--muted); flex:1; line-height:1.6;}
+  .pgcard .metarow{display:flex; gap:6px; flex-wrap:wrap; align-items:center;}
+  .pgcard .open-btn{display:block; background:var(--navy); color:#fff; border:none; border-radius:8px; padding:8px 0; font-size:12.5px; cursor:pointer; font-family:inherit; text-align:center; text-decoration:none;}
+  .pgcard .open-btn:hover{background:var(--navy2);}
+  .pgcard.locked{opacity:.78; background:#fafbfd;}
+  .pgcard .open-btn.lock{background:#b8c2d2; cursor:not-allowed;}
+  .pg-sect{margin:22px 0 10px; font-size:14px; color:var(--navy); border-left:4px solid var(--accent); padding-left:10px; font-weight:700;}
+  .pg-sect.first{margin-top:0;}
+  .pg-sect small{font-weight:400; color:var(--muted); margin-left:6px; font-size:11.5px;}
+  /* 권한 매트릭스 */
+  .mat-y{color:var(--green); font-weight:700;} .mat-p{color:var(--amber); font-weight:700;} .mat-n{color:var(--red); font-weight:700;}
+  .sec td.c, .sec th.c{text-align:center;}
+  /* ===== MS 로그인 (데모) ===== */
+  .login-ov{position:fixed; inset:0; background:#f2f2f2; z-index:100; display:flex; align-items:center; justify-content:center; flex-direction:column;}
+  .ms-card{background:#fff; width:400px; max-width:92vw; padding:44px 44px 36px; box-shadow:0 2px 12px rgba(0,0,0,.18);}
+  .ms-logo{display:flex; align-items:center; gap:8px; margin-bottom:22px;}
+  .ms-sq{display:grid; grid-template-columns:10px 10px; grid-gap:2px;}
+  .ms-sq i{width:10px; height:10px; display:block;}
+  .ms-sq i:nth-child(1){background:#f25022;} .ms-sq i:nth-child(2){background:#7fba00;}
+  .ms-sq i:nth-child(3){background:#00a4ef;} .ms-sq i:nth-child(4){background:#ffb900;}
+  .ms-logo span{font-size:15px; color:#5e5e5e; font-weight:600;}
+  .ms-card h2{font-size:21px; color:#1b1b1b; font-weight:600; margin-bottom:4px;}
+  .ms-card .sub{font-size:13px; color:#666; margin-bottom:20px;}
+  .ms-inp{width:100%; border:none; border-bottom:1.5px solid #666; padding:8px 2px; font-size:15px; font-family:inherit; outline:none; margin-bottom:24px;}
+  .ms-inp:focus{border-bottom-color:#0067b8;}
+  .ms-btnrow{display:flex; justify-content:flex-end; gap:10px;}
+  .ms-btn{background:#0067b8; color:#fff; border:none; padding:9px 30px; font-size:14px; cursor:pointer; font-family:inherit;}
+  .ms-btn:hover{background:#005da6;}
+  .ms-btn.ghost{background:#e6e6e6; color:#1b1b1b;}
+  .ms-num{font-size:42px; font-weight:700; color:#1b1b1b; text-align:center; margin:18px 0 6px;}
+  .ms-wait{text-align:center; font-size:12.5px; color:#666; margin-bottom:18px;}
+  .ms-foot{margin-top:18px; font-size:11.5px; color:#888; line-height:1.6;}
+  .login-note{margin-top:14px; font-size:11.5px; color:#9a6b1f; background:#faf3e4; border:1px solid #e3d3ad; border-radius:6px; padding:6px 14px;}
+  .mfa-badge{display:inline-flex; align-items:center; gap:6px; font-size:11px; color:var(--green); background:#ecf5f0; border:1px solid #cde3d6; border-radius:12px; padding:2px 10px; margin-left:8px; vertical-align:2px;}
+  @media (max-width:760px){ .side{display:none;} .chat,.input-area{padding-left:4%; padding-right:4%;} .panel{padding:16px;} }
+</style>
+</head>
+<body>
+
+<div class="demo-banner">⚠ 화면 구성 데모 — 실제 API 미연결 상태이며, 모든 응답·수치는 예시 데이터입니다.</div>
+
+<!-- ===== MS 로그인 데모 (Entra ID SSO + MFA) ===== -->
+<div class="login-ov" id="loginOv">
+  <div class="ms-card" id="loginStep1">
+    <div class="ms-logo"><span class="ms-sq"><i></i><i></i><i></i><i></i></span><span>Microsoft</span></div>
+    <h2>로그인</h2>
+    <p class="sub">사내 AI 포털(UNI-Chat)에 연결합니다</p>
+    <input class="ms-inp" type="email" value="hong.gd@company.co.kr" id="msEmail">
+    <div class="ms-btnrow"><button class="ms-btn" onclick="msNext()">다음</button></div>
+    <p class="ms-foot">회사 계정(Microsoft Entra ID)으로 로그인합니다. 포털은 자체 비밀번호를 저장하지 않으며, 인증은 회사 보안 정책(조건부 액세스)을 따릅니다.</p>
+  </div>
+
+  <div class="ms-card" id="loginStep2" style="display:none;">
+    <div class="ms-logo"><span class="ms-sq"><i></i><i></i><i></i><i></i></span><span>Microsoft</span></div>
+    <h2>로그인 요청 승인</h2>
+    <p class="sub" id="mfaEmail">hong.gd@company.co.kr</p>
+    <p style="font-size:13.5px; color:#333;">Authenticator 앱을 열고, 표시된 번호를 입력하여 로그인하세요.</p>
+    <div class="ms-num" id="mfaNum">47</div>
+    <div class="ms-wait">다단계 인증(MFA) 대기 중…</div>
+    <div class="ms-btnrow">
+      <button class="ms-btn ghost" onclick="msBack()">뒤로</button>
+      <button class="ms-btn" onclick="msDone()">인증 완료 (데모)</button>
+    </div>
+    <p class="ms-foot">MFA는 Microsoft Entra 조건부 액세스 정책으로 강제되며, 포털 측 별도 구현이 필요 없습니다.</p>
+  </div>
+  <div class="login-note">데모 화면 — 실제 Microsoft 인증과 연결되어 있지 않습니다. 버튼을 눌러 흐름을 체험하세요.</div>
+</div>
+
+<div class="app">
+  <!-- 사이드바 -->
+  <aside class="side">
+    <div class="brand">
+      <h1>사내 AI 포털 <span>· UNI-Chat</span></h1>
+      <p>Claude API 기반 업무지원 챗봇</p>
+    </div>
+    <div class="profile">
+      <div class="avatar">홍</div>
+      <div><b>홍길동</b><span>사업관리팀 · 스탠다드 등급</span></div>
+    </div>
+    <div class="quota">
+      <div class="row"><span>이번 달 크레딧</span><b><span id="used">582</span> / 800회</b></div>
+      <div class="bar"><i id="quotaBar" style="width:72.75%;"></i></div>
+      <div class="hint">잔여 <span id="remain">218</span>회 · 매월 1일 리셋 · 예상 소진일 6/27</div>
+      <button onclick="alert('데모: 부서장 승인 요청이 발송됩니다. (실제 미동작)')">+ 추가 크레딧 신청</button>
+    </div>
+    <div class="tpl">
+      <h3>사업관리팀 업무 템플릿</h3>
+      <button onclick="runDemo('cost')">📊 프로젝트 원가 요약 조회<small>UNIERP DB 추출 · 읽기전용</small></button>
+      <button onclick="runDemo('report')">📝 주간보고 초안 작성<small>금주 활동 입력 → 초안 생성</small></button>
+      <button onclick="runDemo('rule')">📚 사내규정 질의응답<small>인사·총무 규정 검색</small></button>
+      <button onclick="runDemo('mail')">✉️ 거래처 메일 초안<small>상황 입력 → 격식 메일</small></button>
+      <h3 style="padding-top:10px;">최근 대화</h3>
+      <button onclick="runDemo('cost')">2025-095-SUL-EC 수지 분석</button>
+      <button>헝가리 현장 출장비 정리</button>
+      <button>기성 청구 일정 확인</button>
+    </div>
+    <a id="surveyLink" href="05_니즈조사/01_니즈조사_설문폼.html" target="_blank" style="display:block; width:calc(100% - 28px); margin:0 14px 10px; background:linear-gradient(135deg,#2f6fb3,#4a8ed0); border:1px solid rgba(255,255,255,.4); color:#fff; border-radius:11px; padding:14px 15px; font-family:inherit; text-align:left; box-shadow:0 3px 12px rgba(0,0,0,.35); text-decoration:none;">
+      <span style="font-size:14.5px; font-weight:800; letter-spacing:-.01em;">📋 AI 니즈조사 설문 참여</span>
+      <small style="display:block; font-size:11px; color:#e2eefb; margin-top:4px; line-height:1.5;">전 부서 · 약 5~7분 · 익명 가능 · 회신 ~6/26(금)</small>
+    </a>
+    <button class="admin-open" onclick="showPages()">📁 사내 운영 페이지</button>
+    <button class="admin-open" onclick="showAdmin()">⚙ 관리자 콘솔 (데모)</button>
+    <div class="side-foot">관리자: 최동혁<br>사용 가이드 보기</div>
+  </aside>
+
+  <!-- 메인 -->
+  <main class="main">
+    <div class="top">
+      <h2>새 대화 <span class="mfa-badge">🔒 Entra ID SSO · MFA 인증됨</span></h2>
+      <span class="mode">모델 자동 라우팅: <b id="modelLabel">표준 (Haiku)</b></span>
+    </div>
+
+    <div class="chat" id="chat">
+      <div class="msg ai">
+        <div class="who">AI</div>
+        <div class="bubble">
+          안녕하세요, <b>홍길동</b>님. 사내 AI 포털입니다. 🙂<br>
+          문서 초안, 데이터 조회·요약, 규정 검색 등을 도와드립니다. 왼쪽 템플릿을 누르거나 자유롭게 입력해 보세요.
+          <div class="suggest">
+            <button onclick="runDemo('cost')">2025-095-SUL-EC 원가 요약 보여줘</button>
+            <button onclick="runDemo('report')">주간보고 초안 작성해줘</button>
+            <button onclick="runDemo('rule')">경조사 휴가 규정 알려줘</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="input-area">
+      <div class="input-box">
+        <textarea id="inp" placeholder="메시지를 입력하세요… (데모: 아무 내용이나 입력해 보세요)" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();send();}"></textarea>
+        <button id="sendBtn" onclick="send()">보내기</button>
+      </div>
+      <div class="notice">AI 답변은 참고용입니다. 중요한 수치·결정은 반드시 원본(ERP)과 담당자 확인을 거치세요. · 개인정보 입력 금지 (자동 마스킹 적용)</div>
+    </div>
+  </main>
+
+  <!-- ===== 부서 운영 페이지 (데모) ===== -->
+  <main class="pgview" id="pagesView">
+    <div class="admin-top">
+      <h2>📁 IT 자산관리 <span style="font-weight:400;color:var(--muted);font-size:12px;">· 내 권한: 부서 관리자 (사업관리팀)</span></h2>
+      <div style="display:flex; gap:8px; align-items:center;">
+        <select class="sel" onchange="alert('데모: 부서 필터 적용 (실제 미동작)')"><option>전체 부서</option><option selected>사업관리팀</option><option>영업팀</option><option>구매팀</option><option>재무팀</option></select>
+        <button class="back-chat" style="background:var(--accent);" onclick="alert('데모: 페이지 등록 — 부서 관리자가 HTML 파일 또는 링크를 등록하고 공개 범위를 지정합니다. (실제 미동작)')">+ 페이지 등록</button>
+        <button class="back-chat" onclick="showChat()">← 챗봇으로</button>
+      </div>
+    </div>
+    <div class="panel on">
+      <p class="admin-note" style="margin:0 0 14px;">사내에서 별도 운영하는 보고서·대시보드·관리 페이지를 등록하고 링크로 공유하는 공간입니다. <b>전사 공유</b> 페이지는 전 직원이 열람할 수 있으며, <b>부서 운영</b> 페이지는 관리자 콘솔의 권한 설정을 따릅니다(권한이 없으면 잠금 표시).</p>
+
+      <div class="pg-sect first">🌐 전사 공유 페이지 <small>전 직원 열람 가능</small></div>
+      <div class="pg-grid">
+        <div class="pgcard">
+          <span class="ic">🖥️</span>
+          <h4>IT 자산관리 시스템<br>장비·자산 현황</h4>
+          <div class="metarow"><span class="badge b">IT팀 운영</span><span class="badge g">전사 공개</span><span class="badge a">실서버 링크</span></div>
+          <p>사내 IT 자산(PC·서버·SW 라이선스 등) 등록·현황 관리 시스템 — 회사 계정으로 로그인하여 사용합니다.</p>
+          <a class="open-btn" href="http://jeilmns-it.duckdns.org:8080/login" target="_blank">자산관리 로그인 ↗</a>
+        </div>
+        <div class="pgcard">
+          <span class="ic">🔑</span>
+          <h4>ERP 권한정보 (Role 현황)<br>변경내역 모니터링</h4>
+          <div class="metarow"><span class="badge b">사업관리팀 등록</span><span class="badge g">전사 공개</span><span class="badge a">웹 링크</span></div>
+          <p>UNIERP Role(권한) 현황 조회 — 메뉴·사용자·부서별 권한 검색, Matrix 뷰, 변경내역 모니터링, 엑셀 내보내기</p>
+          <a class="open-btn" href="https://cdhnayajeil-code.github.io/erp_role" target="_blank">페이지 열기 ↗</a>
+        </div>
+      </div>
+
+      <div class="pg-sect">🏢 부서 운영 페이지 <small>부서별 권한 적용</small></div>
+      <div class="pg-grid">
+        <div class="pgcard">
+          <span class="ic">📊</span>
+          <h4>프로젝트 원가관리 시스템<br>2025-095-SUL-EC</h4>
+          <div class="metarow"><span class="badge b">사업관리팀</span><span class="badge g">부서 전용</span><span class="badge a">별도 운영</span></div>
+          <p>완성형 원가 대시보드 — 실행원가·공수 반영, 수금/지출/매입 통합 현황 (2026-05-14 기준)</p>
+          <a class="open-btn" href="pages/2025-095-SUL-EC_원가현황_20260514.html" target="_blank">페이지 열기 ↗</a>
+        </div>
+        <div class="pgcard">
+          <span class="ic">📑</span>
+          <h4>프로젝트 원가 요약 (ERP DB 추출)<br>2025-095-SUL-EC</h4>
+          <div class="metarow"><span class="badge b">사업관리팀</span><span class="badge g">부서 전용</span></div>
+          <p>UNIERP DB 추출 원가요약 보고서 — 지출 47건 · 매입 101라인 · 수금 2건, 총 152행 (2026-05-22 생성)</p>
+          <a class="open-btn" href="pages/프로젝트원가_요약_2025-095-SUL-EC.html" target="_blank">페이지 열기 ↗</a>
+        </div>
+        <div class="pgcard">
+          <span class="ic">📈</span>
+          <h4>수주현황 대시보드<br>2026년 (ERP DB 연계)</h4>
+          <div class="metarow"><span class="badge b">영업팀</span><span class="badge g">부서 전용</span><span class="badge a">UNIERP 추출</span></div>
+          <p>수주 10건·49.4억 — 프로젝트별 수금 단계, 거래처 집중도 경보, 월별 추이 (S_BILL·수금데이터 기반)</p>
+          <a class="open-btn" href="pages/영업_수주현황_2026.html" target="_blank">페이지 열기 ↗</a>
+        </div>
+        <div class="pgcard">
+          <span class="ic">📦</span>
+          <h4>거래처별 매입금액 집계<br>2026년 (ERP DB 연계)</h4>
+          <div class="metarow"><span class="badge b">구매팀</span><span class="badge g">부서 전용</span><span class="badge a">UNIERP 추출</span></div>
+          <p>거래처 Top10·매입형태(DIV/SIE/SIF) 구성·품목계정 분포·세금계산서 분할 이슈 (M_IV·B_BP 기반)</p>
+          <a class="open-btn" href="pages/구매_거래처별매입집계_2026.html" target="_blank">페이지 열기 ↗</a>
+        </div>
+        <div class="pgcard">
+          <span class="ic">👥</span>
+          <h4>인원 및 급여 추이<br>2026년 (ERP DB 연계)</h4>
+          <div class="metarow"><span class="badge b">인사총무팀</span><span class="badge g">부서 전용</span><span class="badge r">PII 마스킹</span></div>
+          <p>재적 87명 월별 추이·부서별 분포·입퇴사·4월 퇴직정산 실데이터 (HDF070T·HAA010T·A22 기반)</p>
+          <a class="open-btn" href="pages/인사_인원급여추이_2026.html" target="_blank">페이지 열기 ↗</a>
+        </div>
+        <div class="pgcard">
+          <span class="ic">💰</span>
+          <h4>자금일보 대시보드<br>일 단위 (ERP DB 연계)</h4>
+          <div class="metarow"><span class="badge b">자금팀</span><span class="badge r">임원·자금팀 한정</span><span class="badge a">UNIERP 추출</span></div>
+          <p>현금성 잔액·당일 자금이동·은행별 예금/차입·월별 수금지출 흐름 (A_GL·F_LN_INFO·B_BANK 기반)</p>
+          <a class="open-btn" href="pages/자금_자금일보_대시보드_2026.html" target="_blank">페이지 열기 ↗</a>
+        </div>
+        <div class="pgcard">
+          <span class="ic">🚚</span>
+          <h4>재고 입·출고 현황<br>2026년 (ERP DB 연계)</h4>
+          <div class="metarow"><span class="badge b">자재물류팀</span><span class="badge g">구매·사업관리 공유</span><span class="badge a">UNIERP 추출</span></div>
+          <p>월별 입출고 추이·수불 유형(R01/T62)·창고별 재고·프로젝트별 수불 누적 Top5 — 수불 원장 기반</p>
+          <a class="open-btn" href="pages/자재물류_재고입출고_2026.html" target="_blank">페이지 열기 ↗</a>
+        </div>
+        <div class="pgcard">
+          <span class="ic">🔍</span>
+          <h4>품목 존재/중복 조회<br>검색형 (ERP DB 연계)</h4>
+          <div class="metarow"><span class="badge b">설계·생산·사업관리팀</span><span class="badge g">구매·자재 공유</span><span class="badge a">UNIERP 추출</span></div>
+          <p>품명·코드·규격 입력 → 등록 여부·중복 그룹·대표코드 즉시 확인 — 신규 등록·BOM·발주 의뢰 전 필수 조회 (B_ITEM 기반)</p>
+          <a class="open-btn" href="pages/품목중복_조회_2026.html" target="_blank">페이지 열기 ↗</a>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- ===== 관리자 콘솔 (데모) ===== -->
+  <main class="admin" id="adminView">
+    <div class="admin-top">
+      <h2>⚙ 관리자 콘솔 <span style="font-weight:400;color:var(--muted);font-size:12px;">· 관리자: 최동혁</span></h2>
+      <div class="tabs">
+        <button id="tab-api" class="on" onclick="showTab('api')">API 설정</button>
+        <button id="tab-usage" onclick="showTab('usage')">사용량 설정</button>
+        <button id="tab-model" onclick="showTab('model')">모델 설정</button>
+        <button id="tab-perm" onclick="showTab('perm')">권한 설정</button>
+      </div>
+      <button class="back-chat" onclick="showChat()">← 챗봇으로</button>
+    </div>
+
+    <!-- 패널 1: API 설정 -->
+    <div class="panel on" id="panel-api">
+      <div class="cards">
+        <div class="card"><div class="lb">API 연결 상태</div><div class="v"><span class="dot"></span>정상 <small>· 응답 0.8s</small></div></div>
+        <div class="card"><div class="lb">활성 Workspace</div><div class="v">3개</div></div>
+        <div class="card"><div class="lb">기본 키 최종 교체</div><div class="v">2026-05-02 <small>· 40일 경과</small></div></div>
+      </div>
+
+      <div class="sec">
+        <h3>API 키 관리 <button class="save" onclick="alert('데모: 신규 키가 발급되고 기존 키는 7일 후 만료 처리됩니다. (실제 미동작)')">키 교체(Rotation)</button></h3>
+        <table>
+          <tr><th>용도</th><th>키 (마스킹)</th><th>Workspace</th><th>상태</th><th class="r">관리</th></tr>
+          <tr><td>운영 (게이트웨이 전용)</td><td><span class="keychip">sk-ant-****…****3f7a</span></td><td>chatbot-prod</td><td><span class="badge g">활성</span></td>
+            <td class="r"><button class="mini" onclick="alert('데모: 연결 테스트 성공 — claude-haiku-4-5 응답 확인 (실제 미동작)')">연결 테스트</button><button class="mini no" onclick="alert('데모: 키 비활성화 (실제 미동작)')">비활성화</button></td></tr>
+          <tr><td>테스트</td><td><span class="keychip">sk-ant-****…****9c21</span></td><td>chatbot-test</td><td><span class="badge g">활성</span></td>
+            <td class="r"><button class="mini" onclick="alert('데모 (실제 미동작)')">연결 테스트</button><button class="mini no" onclick="alert('데모 (실제 미동작)')">비활성화</button></td></tr>
+          <tr><td>정기 리포트 (Batch)</td><td><span class="keychip">sk-ant-****…****b8e4</span></td><td>system-batch</td><td><span class="badge a">야간만 사용</span></td>
+            <td class="r"><button class="mini" onclick="alert('데모 (실제 미동작)')">연결 테스트</button><button class="mini no" onclick="alert('데모 (실제 미동작)')">비활성화</button></td></tr>
+          <tr><td>보조 모델 (OpenAI)</td><td><span class="keychip">sk-proj-****…****7d2c</span></td><td>openai: chatbot-prod (프로젝트)</td><td><span class="badge g">활성</span></td>
+            <td class="r"><button class="mini" onclick="alert('데모: 연결 테스트 성공 — gpt-5.4 응답 확인 (실제 미동작)')">연결 테스트</button><button class="mini no" onclick="alert('데모 (실제 미동작)')">비활성화</button></td></tr>
+        </table>
+        <p class="admin-note">키는 게이트웨이 서버 환경변수로만 보관되며 직원에게 노출되지 않습니다. 90일 주기 교체 권장 (다음 교체 예정: 2026-08-01).</p>
+      </div>
+
+      <div class="sec">
+        <h3>Workspace 및 지출한도 <button class="save" onclick="alert('데모: Anthropic Console과 동기화되었습니다. (실제 미동작)')">저장</button></h3>
+        <table>
+          <tr><th>Workspace</th><th>용도</th><th class="r">월 지출한도(USD)</th><th class="r">이번 달 사용</th><th>소진율</th></tr>
+          <tr><td>chatbot-prod</td><td>전사 챗봇 운영</td><td class="r"><input class="num-inp" value="400"></td><td class="r">$182.40</td><td><div class="bar2"><i style="width:46%;"></i></div></td></tr>
+          <tr><td>chatbot-test</td><td>신기능 테스트</td><td class="r"><input class="num-inp" value="50"></td><td class="r">$11.20</td><td><div class="bar2"><i style="width:22%;"></i></div></td></tr>
+          <tr><td>system-batch</td><td>정기 리포트 자동화</td><td class="r"><input class="num-inp" value="100"></td><td class="r">$38.75</td><td><div class="bar2"><i style="width:39%;"></i></div></td></tr>
+        </table>
+        <p class="admin-note">한도 도달 시 해당 Workspace 호출이 자동 차단됩니다 (Anthropic Console Spend Limit 연동).</p>
+      </div>
+
+      <div class="sec">
+        <h3>게이트웨이 보안 설정</h3>
+        <table>
+          <tr><td>개인정보 자동 마스킹 (주민번호·계좌·전화번호 패턴)</td><td class="r"><label class="sw"><input type="checkbox" checked><i></i></label></td></tr>
+          <tr><td>금칙어 필터 (기밀 키워드 차단 및 경고)</td><td class="r"><label class="sw"><input type="checkbox" checked><i></i></label></td></tr>
+          <tr><td>전 대화 로깅 (감사용 · 보존 3년)</td><td class="r"><label class="sw"><input type="checkbox" checked><i></i></label></td></tr>
+          <tr><td>파일 업로드 허용 (xlsx·pdf·docx, 최대 20MB)</td><td class="r"><label class="sw"><input type="checkbox" checked><i></i></label></td></tr>
+        </table>
+      </div>
+    </div>
+
+    <!-- 패널 2: 사용량 설정 -->
+    <div class="panel" id="panel-usage">
+      <div class="cards">
+        <div class="card"><div class="lb">이번 달 전사 사용액</div><div class="v">$232.35 <small>/ 한도 $550</small></div></div>
+        <div class="card"><div class="lb">활성 사용자 (이번 주)</div><div class="v">61명 <small>/ 87명</small></div></div>
+        <div class="card"><div class="lb">총 질의 수 (6월)</div><div class="v">14,820회</div></div>
+        <div class="card"><div class="lb">크레딧 추가 승인 대기</div><div class="v" style="color:var(--amber);">2건</div></div>
+      </div>
+
+      <div class="sec">
+        <h3>등급별 크레딧 정책 <button class="save" onclick="alert('데모: 정책이 저장되어 다음 달 1일부터 적용됩니다. (실제 미동작)')">정책 저장</button></h3>
+        <table>
+          <tr><th>등급</th><th>대상</th><th class="r">월 크레딧(회)</th><th>사용 모델</th><th class="r">인원</th></tr>
+          <tr><td><span class="badge b">라이트</span></td><td>일반 직원 (기본)</td><td class="r"><input class="num-inp" value="300"></td><td>Haiku 중심</td><td class="r">52명</td></tr>
+          <tr><td><span class="badge b">스탠다드</span></td><td>실무 빈번 사용 (부서장 추천)</td><td class="r"><input class="num-inp" value="800"></td><td>Haiku + Sonnet</td><td class="r">28명</td></tr>
+          <tr><td><span class="badge b">프로</span></td><td>헤비유저 (승인제)</td><td class="r"><input class="num-inp" value="2000"></td><td>Sonnet 중심</td><td class="r">7명</td></tr>
+        </table>
+        <p class="admin-note">미사용분 이월 없음 · 매월 1일 자동 리셋 · 1크레딧 = 평균 질의 1회(입력 2,000/출력 800토큰 기준 환산)</p>
+      </div>
+
+      <div class="sec">
+        <h3>직원별 사용 현황</h3>
+        <table>
+          <tr><th>이름</th><th>부서</th><th>등급</th><th class="r">사용 / 한도</th><th>소진율</th><th class="r">관리</th></tr>
+          <tr><td>홍길동</td><td>사업관리</td><td><select class="sel"><option>라이트</option><option selected>스탠다드</option><option>프로</option></select></td><td class="r">582 / 800</td><td><div class="bar2"><i class="warn" style="width:73%;"></i></div></td><td class="r"><button class="mini" onclick="alert('데모: 상세 사용 이력 (실제 미동작)')">이력</button></td></tr>
+          <tr><td>이민정</td><td>재무</td><td><select class="sel"><option>라이트</option><option>스탠다드</option><option selected>프로</option></select></td><td class="r">1,450 / 2,000</td><td><div class="bar2"><i class="warn" style="width:72%;"></i></div></td><td class="r"><button class="mini" onclick="alert('데모 (실제 미동작)')">이력</button></td></tr>
+          <tr><td>김영희</td><td>구매</td><td><select class="sel"><option>라이트</option><option selected>스탠다드</option><option>프로</option></select></td><td class="r">214 / 800</td><td><div class="bar2"><i style="width:27%;"></i></div></td><td class="r"><button class="mini" onclick="alert('데모 (실제 미동작)')">이력</button></td></tr>
+          <tr><td>박철수</td><td>생산</td><td><select class="sel"><option selected>라이트</option><option>스탠다드</option><option>프로</option></select></td><td class="r">298 / 300</td><td><div class="bar2"><i class="full" style="width:99%;"></i></div></td><td class="r"><button class="mini" onclick="alert('데모 (실제 미동작)')">이력</button></td></tr>
+          <tr><td>정수진</td><td>인사</td><td><select class="sel"><option selected>라이트</option><option>스탠다드</option><option>프로</option></select></td><td class="r">45 / 300</td><td><div class="bar2"><i style="width:15%;"></i></div></td><td class="r"><button class="mini" onclick="alert('데모 (실제 미동작)')">이력</button></td></tr>
+        </table>
+      </div>
+
+      <div class="sec">
+        <h3>추가 크레딧 승인 대기</h3>
+        <table>
+          <tr><th>신청자</th><th>부서</th><th class="r">신청량</th><th>사유</th><th class="r">처리</th></tr>
+          <tr><td>박철수</td><td>생산</td><td class="r">+200회</td><td>월말 생산실적 보고 집중 작성</td><td class="r"><button class="mini ok" onclick="alert('데모: 승인 — 즉시 반영됩니다. (실제 미동작)')">승인</button><button class="mini no" onclick="alert('데모: 반려 (실제 미동작)')">반려</button></td></tr>
+          <tr><td>홍길동</td><td>사업관리</td><td class="r">+200회</td><td>프로젝트 기성 청구·정산 자료 집중 작성</td><td class="r"><button class="mini ok" onclick="alert('데모: 승인 (실제 미동작)')">승인</button><button class="mini no" onclick="alert('데모: 반려 (실제 미동작)')">반려</button></td></tr>
+        </table>
+      </div>
+    </div>
+
+    <!-- 패널 3: 모델 설정 -->
+    <div class="panel" id="panel-model">
+      <div class="sec">
+        <h3>사용 모델 관리 <button class="save" onclick="alert('데모: 모델 설정 저장 (실제 미동작)')">저장</button></h3>
+        <table>
+          <tr><th>모델</th><th>용도</th><th class="r">단가 (입력/출력, MTok)</th><th>상태</th><th class="r">활성화</th></tr>
+          <tr><td><b>Claude Haiku 4.5</b> <span class="badge b">Anthropic</span></td><td>일반 질의 · 규정 검색 (기본)</td><td class="r">$1 / $5</td><td><span class="badge g">운영 중</span></td><td class="r"><label class="sw"><input type="checkbox" checked><i></i></label></td></tr>
+          <tr><td><b>Claude Sonnet 4.6</b> <span class="badge b">Anthropic</span></td><td>문서 초안 · 데이터 분석 · 파일 처리</td><td class="r">$3 / $15</td><td><span class="badge g">운영 중</span></td><td class="r"><label class="sw"><input type="checkbox" checked><i></i></label></td></tr>
+          <tr><td><b>Claude Opus 4.8</b> <span class="badge b">Anthropic</span></td><td>(예비) 고난도 분석 — 프로 등급 한정 검토</td><td class="r">$5 / $25</td><td><span class="badge a">비활성</span></td><td class="r"><label class="sw"><input type="checkbox"><i></i></label></td></tr>
+          <tr><td><b>GPT-5.4</b> <span class="badge a">OpenAI</span></td><td>보조 모델 — 교차 검증 · 벤더 이중화</td><td class="r">$2.50 / $15</td><td><span class="badge g">운영 중</span></td><td class="r"><label class="sw"><input type="checkbox" checked><i></i></label></td></tr>
+          <tr><td><b>GPT-5.4 Nano</b> <span class="badge a">OpenAI</span></td><td>(예비) 초경량 — 대량 단순 처리용</td><td class="r">$0.20 / $1.25</td><td><span class="badge a">비활성</span></td><td class="r"><label class="sw"><input type="checkbox"><i></i></label></td></tr>
+        </table>
+        <p class="admin-note">단가는 2026년 6월 기준(변동 시 갱신). 멀티 벤더 운영 시 게이트웨이가 벤더별 API 키와 호출을 통합 관리하며, 직원 크레딧은 벤더 구분 없이 동일 기준으로 환산·차감됩니다.</p>
+      </div>
+
+      <div class="sec">
+        <h3>모델 자동 라우팅 규칙 <button class="save" onclick="alert('데모: 라우팅 규칙 저장 (실제 미동작)')">저장</button></h3>
+        <table>
+          <tr><th style="width:8%;">순서</th><th>조건</th><th>배정 모델</th></tr>
+          <tr><td>1</td><td>파일 업로드 포함 질의</td><td><select class="sel"><option>Haiku 4.5</option><option selected>Sonnet 4.6</option><option>GPT-5.4</option></select></td></tr>
+          <tr><td>2</td><td>입력 2,000자 이상 또는 키워드: "분석", "보고서", "기획"</td><td><select class="sel"><option>Haiku 4.5</option><option selected>Sonnet 4.6</option><option>GPT-5.4</option></select></td></tr>
+          <tr><td>3</td><td>ERP 데이터 조회 (2단계 기능)</td><td><select class="sel"><option selected>Haiku 4.5</option><option>Sonnet 4.6</option><option>GPT-5.4</option></select></td></tr>
+          <tr><td>4</td><td>기본값 (그 외 모든 질의)</td><td><select class="sel"><option selected>Haiku 4.5</option><option>Sonnet 4.6</option><option>GPT-5.4</option></select></td></tr>
+          <tr><td>5</td><td>(옵션) 중요 보고서 교차 검증 — 동일 질의를 두 벤더 모델에 보내 비교</td><td><select class="sel"><option>Haiku 4.5</option><option>Sonnet 4.6</option><option selected>GPT-5.4</option></select></td></tr>
+        </table>
+      </div>
+
+      <div class="sec">
+        <h3>응답 파라미터</h3>
+        <table>
+          <tr><td>최대 응답 길이 (max_tokens)</td><td class="r"><input class="num-inp" value="2048"></td></tr>
+          <tr><td>창의성 (temperature, 0~1)</td><td class="r"><input class="num-inp" value="0.3"></td></tr>
+          <tr><td>프롬프트 캐싱 (반복 시스템 프롬프트 비용 절감)</td><td class="r"><label class="sw"><input type="checkbox" checked><i></i></label></td></tr>
+        </table>
+      </div>
+
+      <div class="sec">
+        <h3>공통 시스템 프롬프트 <button class="save" onclick="alert('데모: 시스템 프롬프트 저장 — 다음 대화부터 적용 (실제 미동작)')">저장</button></h3>
+        <textarea class="sys">당신은 ○○사의 사내 업무지원 AI입니다. 정중한 한국어 경어체로 답하고, 수치 답변에는 출처(시스템·기준일)를 표기합니다. 확실하지 않은 내용은 추정임을 명시하고, 인사평가·급여 등 민감 주제는 담당 부서 안내로 대체합니다. 모든 답변 마지막에 고지: "본 답변은 참고용이며 최종 확인은 담당자 책임입니다."</textarea>
+      </div>
+    </div>
+
+    <!-- 패널 4: 권한 설정 -->
+    <div class="panel" id="panel-perm">
+      <div class="cards">
+        <div class="card"><div class="lb">전체 관리자</div><div class="v">1명 <small>· 최동혁</small></div></div>
+        <div class="card"><div class="lb">부서 관리자</div><div class="v">8명 <small>· 부서별 1인</small></div></div>
+        <div class="card"><div class="lb">일반 사용자</div><div class="v">78명</div></div>
+        <div class="card"><div class="lb">권한 요청 대기</div><div class="v" style="color:var(--amber);">1건</div></div>
+      </div>
+
+      <div class="sec">
+        <h3>역할별 권한 매트릭스 <button class="save" onclick="alert('데모: 권한 매트릭스 저장 — 즉시 적용됩니다. (실제 미동작)')">저장</button></h3>
+        <table>
+          <tr><th>기능 영역</th><th class="c">전체 관리자</th><th class="c">부서 관리자</th><th class="c">일반 사용자</th></tr>
+          <tr><td>챗봇 사용 · 파일 분석</td><td class="c mat-y">●</td><td class="c mat-y">●</td><td class="c mat-y">●</td></tr>
+          <tr><td>부서 운영 페이지 열람</td><td class="c mat-y">● 전체</td><td class="c mat-p">▲ 소속 부서 + 전사공개</td><td class="c mat-p">▲ 소속 부서 + 전사공개</td></tr>
+          <tr><td>운영 페이지 등록·수정·공개범위 지정</td><td class="c mat-y">● 전체</td><td class="c mat-p">▲ 소속 부서만</td><td class="c mat-n">✕</td></tr>
+          <tr><td>ERP 연계 데이터 조회 범위</td><td class="c mat-y">● 전체 모듈</td><td class="c mat-p">▲ 부서 매핑 모듈</td><td class="c mat-p">▲ 부서 매핑 모듈 (조회만)</td></tr>
+          <tr><td>크레딧 추가 승인 · 등급 변경</td><td class="c mat-y">● 전체</td><td class="c mat-p">▲ 소속 부서만</td><td class="c mat-n">✕ (신청만 가능)</td></tr>
+          <tr><td>대화 로그 감사 조회</td><td class="c mat-y">●</td><td class="c mat-n">✕</td><td class="c mat-n">✕</td></tr>
+          <tr><td>API 키 · 지출한도 · 모델 · 보안 설정</td><td class="c mat-y">●</td><td class="c mat-n">✕</td><td class="c mat-n">✕</td></tr>
+          <tr><td>권한 부여 · 역할 변경</td><td class="c mat-y">●</td><td class="c mat-n">✕</td><td class="c mat-n">✕</td></tr>
+        </table>
+        <p class="admin-note">● 전체 허용 · ▲ 범위 제한 허용 · ✕ 불가. 역할은 Microsoft Entra 보안그룹과 연동되어 자동 부여됩니다 (예: AI-Portal-Admins → 전체 관리자).</p>
+      </div>
+
+      <div class="sec">
+        <h3>부서별 권한 설정 <span><button class="save" style="background:#fff;color:var(--accent);border:1px solid var(--accent);" onclick="alert('데모: 부서 행 추가 (실제 미동작)')">+ 부서 추가</button> <button class="save" onclick="alert('데모: 부서별 권한 저장 (실제 미동작)')">저장</button></span></h3>
+        <table>
+          <tr><th>부서</th><th>부서 관리자</th><th class="c">운영 페이지</th><th>ERP 데이터 접근 범위</th><th>페이지 기본 공개범위</th></tr>
+          <tr><td><b>사업관리팀</b></td><td>홍길동</td><td class="c">3개 (전사공개 1)</td><td>프로젝트 원가 · 수금 · 외주/매입 (읽기전용)</td><td><select class="sel"><option selected>부서 전용</option><option>전사 공개</option><option>지정 부서 공유</option></select></td></tr>
+          <tr><td><b>영업팀</b></td><td>김영희</td><td class="c">1개</td><td>매출 · 수주 · 채권 (읽기전용)</td><td><select class="sel"><option selected>부서 전용</option><option>전사 공개</option><option>지정 부서 공유</option></select></td></tr>
+          <tr><td><b>구매팀</b></td><td>박철수</td><td class="c">0개</td><td>발주 · 매입 · 재고 (읽기전용)</td><td><select class="sel"><option selected>부서 전용</option><option>전사 공개</option><option>지정 부서 공유</option></select></td></tr>
+          <tr><td><b>재무팀</b></td><td>이민정</td><td class="c">0개</td><td>회계 요약 (상세 원장 제외 · 읽기전용)</td><td><select class="sel"><option selected>부서 전용</option><option>전사 공개</option><option>지정 부서 공유</option></select></td></tr>
+          <tr><td><b>인사총무팀</b></td><td>정수진</td><td class="c">0개</td><td>규정 · 공지 (개인정보 제외)</td><td><select class="sel"><option>부서 전용</option><option selected>전사 공개</option><option>지정 부서 공유</option></select></td></tr>
+        </table>
+        <p class="admin-note">부서 관리자는 소속 부서의 사용자·운영 페이지·크레딧 신청만 관리합니다. ERP 접근 범위는 게이트웨이에서 모듈 단위로 차단됩니다.</p>
+      </div>
+
+      <div class="sec">
+        <h3>권한별 제한영역 정리 <span><button class="save" style="background:#fff;color:var(--accent);border:1px solid var(--accent);" onclick="alert('데모: 제한 항목 추가 (실제 미동작)')">+ 항목 추가</button> <button class="save" onclick="alert('데모: 제한영역 정리 저장 (실제 미동작)')">저장</button></span></h3>
+        <table>
+          <tr><th style="width:14%;">역할</th><th style="width:22%;">제한 영역</th><th>제한 내용</th><th class="r" style="width:10%;">관리</th></tr>
+          <tr><td><span class="badge b">일반 사용자</span></td><td>ERP 데이터</td><td>소속 부서에 매핑된 모듈만 조회 가능. 원장 수정·삭제 불가(전 역할 공통, 읽기전용 원칙)</td><td class="r"><button class="mini" onclick="alert('데모: 항목 수정 (실제 미동작)')">수정</button></td></tr>
+          <tr><td><span class="badge b">일반 사용자</span></td><td>운영 페이지</td><td>타 부서 전용 페이지 접근 불가(잠금 표시). 열람 필요 시 해당 부서 관리자에게 권한 요청</td><td class="r"><button class="mini" onclick="alert('데모 (실제 미동작)')">수정</button></td></tr>
+          <tr><td><span class="badge b">일반 사용자</span></td><td>개인정보·기밀</td><td>주민번호·계좌 등 자동 마스킹, 인사평가·급여 데이터 질의 차단(담당 부서 안내로 대체)</td><td class="r"><button class="mini" onclick="alert('데모 (실제 미동작)')">수정</button></td></tr>
+          <tr><td><span class="badge a">부서 관리자</span></td><td>관리 범위</td><td>소속 부서 구성원·페이지·크레딧만 관리. 전사 설정(API·모델·지출한도) 변경 불가</td><td class="r"><button class="mini" onclick="alert('데모 (실제 미동작)')">수정</button></td></tr>
+          <tr><td><span class="badge g">전체 관리자</span></td><td>변경 통제</td><td>API 키·지출한도·권한 변경 시 변경 이력 자동 기록(감사 로그). 백업 관리자 1인 지정 권장</td><td class="r"><button class="mini" onclick="alert('데모 (실제 미동작)')">수정</button></td></tr>
+        </table>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+let remain = 218, used = 582, total = 800;
+
+const DEMOS = {
+  cost: {
+    q: "2025-095-SUL-EC 프로젝트 원가 요약 보여줘",
+    model: "표준 (Haiku)",
+    a: `<b>프로젝트 원가 요약 — 2025-095-SUL-EC</b><br>
+      삼성SDI(주) 헝가리 1공장 #3 350L 이송탱크·펌프 설치 공사<br>
+      <span style="color:#777;font-size:12px;">수주 2025-09-03 · 거래처 삼성에스디아이(주)</span>
+      <table>
+        <tr><th>구분</th><th class="r">금액(원)</th><th class="r">건수</th></tr>
+        <tr><td>수금 (매출정보)</td><td class="r">218,000,000</td><td class="r">2건</td></tr>
+        <tr><td>지출 (총 · 중복 0)</td><td class="r">126,526,245</td><td class="r">47건</td></tr>
+        <tr><td><b>수지차 (수금−지출)</b></td><td class="r"><b>91,473,755 (42.0%)</b></td><td class="r">—</td></tr>
+        <tr><td>매입 (구매팀, 참고)</td><td class="r">68,073,850</td><td class="r">101라인</td></tr>
+        <tr><td>수불 (물류팀출고)</td><td class="r">35,000</td><td class="r">2건</td></tr>
+      </table>
+      <b>주요 지출처</b>
+      <ul>
+        <li>Apromann Kft.(헝가리) — 76,848,750원 · 현지 설치공사</li>
+        <li>(주)인텍어드밴스 — 16,000,000원 · 절연액 배관 (2건)</li>
+        <li>(주)파인드림 — 13,045,811원 · 용역비 (10~11월)</li>
+        <li>매입 최대: (주)지아이텍 TACMINA 펌프 — 52,000,000원</li>
+      </ul>
+      출장비 등 경비성 지출은 약 1,286만 원입니다. 상세 152행은 원가요약 보고서에서 확인할 수 있습니다.
+      <br><span class="src">✓ 출처: UNIERP DB 추출 — 프로젝트원가_요약_2025-095-SUL-EC (2026-05-22 생성 · 읽기전용)</span>`
+  },
+  report: {
+    q: "이번 주 주간보고 초안 작성해줘. 헝가리 현장 설치 마무리 점검, 기성 2차 청구 준비, 1월 출장비 정산 완료했어.",
+    model: "고급 (Sonnet)",
+    a: `<h4>사업관리팀 주간보고 초안 (6/8 ~ 6/12)</h4>
+      <b>1. 주요 활동 — 2025-095-SUL-EC (삼성SDI 헝가리 1공장)</b>
+      <ul>
+        <li>현지 설치공사 마무리 점검 — 잔여 펀치리스트 확인, 협력사(Apromann Kft.) 정산 협의</li>
+        <li>기성 2차 청구 준비 — 청구 근거자료 취합, 수금 일정 협의 예정</li>
+        <li>출장비 정산 완료 — 1월분 정산 반영 (누계 경비성 지출 약 1,286만 원)</li>
+      </ul>
+      <b>2. 수지 현황</b>
+      <ul><li>수금 218.0백만 / 지출 126.5백만 — 수지차 91.5백만 (42.0%)</li></ul>
+      <b>3. 차주 계획</b>
+      <ul><li>기성 청구서 제출 및 잔여 정산 항목 확정</li><li>준공 서류 준비 착수</li></ul>
+      초안이므로 금액·일정은 ERP 원본 확인 후 확정해 주세요.`
+  },
+  rule: {
+    q: "경조사 휴가 규정 알려줘",
+    model: "표준 (Haiku)",
+    a: `사내 취업규칙 기준 <b>경조사 휴가</b>는 다음과 같습니다. (예시 데이터)
+      <table>
+        <tr><th>구분</th><th class="r">휴가일수</th></tr>
+        <tr><td>본인 결혼</td><td class="r">5일</td></tr>
+        <tr><td>자녀 결혼</td><td class="r">1일</td></tr>
+        <tr><td>배우자·본인/배우자 부모 사망</td><td class="r">5일</td></tr>
+        <tr><td>조부모·형제자매 사망</td><td class="r">3일</td></tr>
+      </table>
+      신청은 그룹웨어 &gt; 근태신청에서 증빙과 함께 제출하시면 됩니다.
+      <br><span class="src">✓ 출처: 취업규칙 제24조 (2025.01 개정본)</span>`
+  },
+  mail: {
+    q: "대한상사에 납기 1주 지연 안내 메일 초안 써줘",
+    model: "고급 (Sonnet)",
+    a: `<h4>메일 초안</h4>
+      <b>제목:</b> [○○사] 납품 일정 조정 안내 및 양해 요청<br><br>
+      대한상사 김○○ 부장님께,<br><br>
+      안녕하세요, ○○사 사업관리팀 홍길동입니다.<br>
+      금번 발주분(PO-2606-014)의 납품 일정 관련하여 안내드립니다. 원자재 수급 일정으로 인해 당초 6/19(금) 예정이던 납기를 <b>6/26(금)로 1주 조정</b> 부탁드리고자 합니다.<br><br>
+      일정 변경으로 불편을 드려 죄송하며, 품질 검수를 강화하여 차질 없이 납품하겠습니다. 조정 가능 여부 회신 주시면 감사하겠습니다.<br><br>
+      감사합니다.<br>홍길동 드림<br><br>
+      <i style="color:#888;font-size:12px;">※ 발송 전 PO번호·일자를 실제 정보로 확인하세요.</i>`
+  },
+  fallback: {
+    model: "표준 (Haiku)",
+    a: `(데모 응답) 실제 서비스에서는 이 질문이 게이트웨이를 거쳐 Claude API로 전달되고, 답변이 이 자리에 표시됩니다.<br>
+      현재 데모에서 체험 가능한 시나리오: <b>프로젝트 원가 요약 / 주간보고 초안 / 규정 질의 / 메일 초안</b> — 왼쪽 템플릿 버튼을 눌러보세요.`
+  }
+};
+
+function el(html){ const d=document.createElement('div'); d.innerHTML=html.trim(); return d.firstChild; }
+function scrollBottom(){ const c=document.getElementById('chat'); c.scrollTop=c.scrollHeight; }
+
+function addUser(text){
+  document.getElementById('chat').appendChild(el(
+    `<div class="msg user"><div class="who">홍</div><div class="bubble">${text}</div></div>`));
+  scrollBottom();
+}
+function addAI(html, model){
+  document.getElementById('modelLabel').textContent = model || '표준 (Haiku)';
+  const typing = el(`<div class="msg ai"><div class="who">AI</div><div class="bubble typing"><i></i><i></i><i></i></div></div>`);
+  document.getElementById('chat').appendChild(typing); scrollBottom();
+  setTimeout(()=>{ typing.querySelector('.bubble').classList.remove('typing'); typing.querySelector('.bubble').innerHTML=html; scrollBottom(); useCredit(); }, 900);
+}
+function useCredit(){
+  if(remain>0){ remain--; used++; }
+  document.getElementById('remain').textContent=remain;
+  document.getElementById('used').textContent=used;
+  document.getElementById('quotaBar').style.width=(used/total*100)+'%';
+}
+function runDemo(key){
+  const d=DEMOS[key]; addUser(d.q); addAI(d.a, d.model);
+}
+/* ===== MS 로그인 데모 ===== */
+function msNext(){
+  document.getElementById('mfaEmail').textContent = document.getElementById('msEmail').value || 'hong.gd@company.co.kr';
+  document.getElementById('mfaNum').textContent = Math.floor(10+Math.random()*90);
+  document.getElementById('loginStep1').style.display='none';
+  document.getElementById('loginStep2').style.display='block';
+}
+function msBack(){
+  document.getElementById('loginStep2').style.display='none';
+  document.getElementById('loginStep1').style.display='block';
+}
+function msDone(){
+  document.getElementById('loginOv').style.display='none';
+}
+
+/* ===== 뷰 전환 (챗봇 / 운영 페이지 / 관리자) ===== */
+function hideViews(){
+  document.querySelector('.main').style.display='none';
+  document.getElementById('adminView').style.display='none';
+  document.getElementById('pagesView').style.display='none';
+}
+function showChat(){ hideViews(); document.querySelector('.main').style.display='flex'; }
+function showAdmin(){ hideViews(); document.getElementById('adminView').style.display='flex'; }
+function showPages(){ hideViews(); document.getElementById('pagesView').style.display='flex'; }
+function showTab(key){
+  ['api','usage','model','perm'].forEach(k=>{
+    document.getElementById('panel-'+k).classList.toggle('on', k===key);
+    document.getElementById('tab-'+k).classList.toggle('on', k===key);
+  });
+}
+
+function send(){
+  const inp=document.getElementById('inp'); const v=inp.value.trim(); if(!v) return;
+  inp.value='';
+  addUser(v.replace(/</g,'&lt;'));
+  const hit = v.includes('원가')||v.includes('수지')||v.includes('095')||v.includes('프로젝트')||v.includes('매출')?'cost' : v.includes('주간')||v.includes('보고')?'report' : v.includes('규정')||v.includes('휴가')?'rule' : v.includes('메일')?'mail' : null;
+  const d = hit?DEMOS[hit]:DEMOS.fallback;
+  addAI(d.a, d.model);
+}
+</script>
+</body>
+</html>

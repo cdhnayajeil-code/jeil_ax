@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>영업팀 — 2026년 수주현황 대시보드</title>
+<style>
+  :root{
+    --navy:#1a2f4e; --navy2:#27457a; --accent:#2f6fb3; --accent2:#4a8ed0;
+    --red:#b3402f; --green:#2e7d52; --amber:#9a6b1f;
+    --ink:#222; --muted:#666; --line:#d8dee8; --bg:#f4f6f9;
+    --soft:#eef2f8; --softred:#fbeeec; --softgreen:#ecf5f0; --softamber:#faf3e4;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif; color:var(--ink); background:var(--bg); line-height:1.6; font-size:14px;}
+  .demo-banner{background:var(--amber); color:#fff; text-align:center; font-size:12px; padding:6px 10px;}
+  .page{max-width:1100px; margin:0 auto; background:#fff; padding:34px 44px; box-shadow:0 2px 14px rgba(0,0,0,.08); min-height:100vh;}
+  .head{display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:10px; border-bottom:3px solid var(--navy); padding-bottom:14px; margin-bottom:20px;}
+  .head h1{font-size:22px; color:var(--navy);}
+  .head .sub{font-size:12.5px; color:var(--muted); margin-top:3px;}
+  .head .right{text-align:right; font-size:12px; color:var(--muted);}
+  .badge{display:inline-block; font-size:11px; border-radius:10px; padding:2px 9px; font-weight:600;}
+  .badge.g{background:var(--softgreen); color:var(--green);} .badge.a{background:var(--softamber); color:var(--amber);}
+  .badge.b{background:var(--soft); color:var(--navy2);} .badge.r{background:var(--softred); color:var(--red);}
+  .kpis{display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:12px; margin:14px 0;}
+  .kpi{background:#fff; border:1px solid var(--line); border-radius:11px; padding:14px 16px; border-top:4px solid var(--accent);}
+  .kpi .lb{font-size:11.5px; color:var(--muted);}
+  .kpi .v{font-size:23px; font-weight:800; color:var(--navy); margin-top:3px;}
+  .kpi .v small{font-size:12px; color:var(--muted); font-weight:500;}
+  .kpi .delta{font-size:11px; margin-top:2px; color:var(--muted);}
+  .kpi .delta.up{color:var(--green);}
+  .grid2{display:grid; grid-template-columns:1fr 1fr; gap:16px;}
+  .sec{background:#fff; border:1px solid var(--line); border-radius:11px; padding:16px 18px; margin-bottom:14px;}
+  .sec h3{font-size:13.5px; color:var(--navy); margin-bottom:10px;}
+  table{width:100%; border-collapse:collapse; font-size:12.5px;}
+  th{background:var(--navy); color:#fff; padding:7px 10px; text-align:left; font-weight:600;}
+  td{padding:6px 10px; border-bottom:1px solid var(--line);}
+  tr:nth-child(even) td{background:#fafbfd;}
+  td.r,th.r{text-align:right;} td.c,th.c{text-align:center;}
+  .chart{display:flex; align-items:flex-end; gap:8px; height:170px; padding:8px 4px 0; border-bottom:2px solid var(--navy); margin:6px 0 4px;}
+  .cbar{flex:1; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; gap:4px; height:100%;}
+  .cbar .bar{width:68%; background:linear-gradient(180deg,var(--accent2),var(--accent)); border-radius:4px 4px 0 0;}
+  .cbar .bar.fcst{background:repeating-linear-gradient(45deg,#b9cfe6,#b9cfe6 5px,#d6e4f2 5px,#d6e4f2 10px);}
+  .cbar .val{font-size:10px; font-weight:700; color:var(--navy2);}
+  .cbar .lab{font-size:10.5px; color:var(--muted); padding:4px 0 0;}
+  .legend{display:flex; gap:14px; font-size:11px; color:var(--muted); margin-top:6px; flex-wrap:wrap;}
+  .barlist{display:flex; flex-direction:column; gap:7px;}
+  .brow{display:grid; grid-template-columns:150px 1fr 110px; align-items:center; gap:8px; font-size:12px;}
+  .brow .lab{color:var(--navy2); text-align:right; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .brow .track{height:15px; background:var(--soft); border-radius:4px; overflow:hidden;}
+  .brow .track i{display:block; height:100%; background:linear-gradient(90deg,var(--accent),var(--accent2)); border-radius:4px; min-width:2px;}
+  .brow .cnt{font-weight:700; color:var(--navy); text-align:right; font-size:11.5px;}
+  .src{margin-top:18px; background:var(--soft); border:1px solid var(--line); border-radius:9px; padding:11px 16px; font-size:11.5px; color:var(--muted);}
+  .src b{color:var(--navy2);}
+  code{font-family:Consolas,monospace; font-size:11px; background:#fff; border:1px solid var(--line); border-radius:4px; padding:0 5px;}
+  .callout{border-radius:8px; padding:11px 15px; margin:10px 0; font-size:12.5px;}
+  .callout.blue{background:var(--soft); border-left:4px solid var(--accent);}
+  .foot{margin-top:24px; padding-top:12px; border-top:1px solid var(--line); font-size:11px; color:var(--muted); display:flex; justify-content:space-between;}
+  .pj{font-family:Consolas,monospace; font-size:11.5px; color:var(--navy2); font-weight:700;}
+  @media print{ .demo-banner{display:none;} .page{box-shadow:none; max-width:100%;} }
+  @media (max-width:760px){ .page{padding:22px 16px;} .grid2{grid-template-columns:1fr;} .brow{grid-template-columns:100px 1fr 90px;} }
+</style>
+</head>
+<body>
+<div class="demo-banner">⚠ 목업 데모 — UNIERP DB 구조·일부 실데이터 기반 샘플입니다. 수치는 검증 전 참고용이며 최종 확인은 영업팀 책임입니다.</div>
+<div class="page">
+
+  <div class="head">
+    <div>
+      <h1>📈 2026년 수주현황 대시보드</h1>
+      <div class="sub">영업팀 운영 페이지 · <span class="badge b">부서 전용</span> <span class="badge a">읽기전용 추출</span> · 기간: 2026-01-01 ~ 2026-06-12</div>
+    </div>
+    <div class="right">기준일: 2026-06-12<br>전표 기준: 매출/수금 확정(S_BILL)</div>
+  </div>
+
+  <!-- KPI -->
+  <div class="kpis">
+    <div class="kpi"><div class="lb">2026 수주 총액</div><div class="v">49.4<small> 억원</small></div><div class="delta up">▲ 전년 동기 대비 +12%</div></div>
+    <div class="kpi"><div class="lb">수주 건수</div><div class="v">10<small> 건</small></div><div class="delta">진행 8 · 완료 2</div></div>
+    <div class="kpi"><div class="lb">누적 수금액</div><div class="v">31.2<small> 억원</small></div><div class="delta">수금률 63%</div></div>
+    <div class="kpi"><div class="lb">미수금 잔액</div><div class="v">18.2<small> 억원</small></div><div class="delta">중도금·잔금 일정 관리</div></div>
+    <div class="kpi"><div class="lb">주요 거래처</div><div class="v">6<small> 개사</small></div><div class="delta">엔시스·삼성SDI 계열 중심</div></div>
+  </div>
+
+  <!-- 월별 + 거래처별 -->
+  <div class="grid2">
+    <div class="sec">
+      <h3>월별 수주금액 추이 (억원) <span class="badge b">S_BILL_HDR · BILL_DT</span></h3>
+      <div class="chart">
+        <div class="cbar"><span class="val">2.2</span><div class="bar" style="height:12%"></div><span class="lab">1월</span></div>
+        <div class="cbar"><span class="val">24.1</span><div class="bar" style="height:95%"></div><span class="lab">2월</span></div>
+        <div class="cbar"><span class="val">3.3</span><div class="bar" style="height:17%"></div><span class="lab">3월</span></div>
+        <div class="cbar"><span class="val">17.5</span><div class="bar" style="height:70%"></div><span class="lab">4월</span></div>
+        <div class="cbar"><span class="val">1.5</span><div class="bar" style="height:9%"></div><span class="lab">5월</span></div>
+        <div class="cbar"><span class="val">0.8</span><div class="bar fcst" style="height:6%"></div><span class="lab">6월(진행)</span></div>
+      </div>
+      <div class="legend"><span>2월: 2026-013-NSY-EI(22.7억) · 4월: 2026-032-NSY-EI(17.0억) 대형 수주 반영</span></div>
+    </div>
+    <div class="sec">
+      <h3>거래처별 수주 비중 (2026 누적 · 억원)</h3>
+      <div class="barlist">
+        <div class="brow"><span class="lab">(주)엔시스</span><div class="track"><i style="width:100%"></i></div><span class="cnt">45.4 (92%)</span></div>
+        <div class="brow"><span class="lab">삼성SDI(국내)</span><div class="track"><i style="width:4%"></i></div><span class="cnt">1.66 (3.4%)</span></div>
+        <div class="brow"><span class="lab">SDIEM(말련)</span><div class="track"><i style="width:2%"></i></div><span class="cnt">0.87 (1.8%)</span></div>
+        <div class="brow"><span class="lab">삼성SDI 천안</span><div class="track"><i style="width:2%"></i></div><span class="cnt">0.82 (1.7%)</span></div>
+        <div class="brow"><span class="lab">LG엔솔 계열</span><div class="track"><i style="width:1%"></i></div><span class="cnt">0.40 (0.8%)</span></div>
+      </div>
+      <div class="callout blue" style="margin:12px 0 0;">
+        <b>집중도 경보</b> — 엔시스 비중 92%: 단일 거래처 의존도가 높아 수금 일정·여신 관리 중요. 참고: 2025년은 TSI(48.5억)·삼성SDI(24.2억) 등 분산 구조였음.
+      </div>
+    </div>
+  </div>
+
+  <!-- 프로젝트별 수주 현황 -->
+  <div class="sec">
+    <h3>프로젝트별 수주 현황 <span class="badge g">실데이터 기반</span> <span class="badge b">TRACKING_NO 연계</span></h3>
+    <table>
+      <tr><th>프로젝트 No.</th><th>거래처</th><th class="r">수주금액(억원)</th><th class="c">수금 단계</th><th class="r">수금액(억원)</th><th class="c">상태</th></tr>
+      <tr><td class="pj">2026-013-NSY-EI</td><td>(주)엔시스</td><td class="r">22.72</td><td class="c"><span class="badge a">중도금</span></td><td class="r">15.90</td><td class="c"><span class="badge g">진행</span></td></tr>
+      <tr><td class="pj">2026-032-NSY-EI</td><td>(주)엔시스</td><td class="r">17.00</td><td class="c"><span class="badge b">계약금</span></td><td class="r">5.10</td><td class="c"><span class="badge g">진행</span></td></tr>
+      <tr><td class="pj">2026-042-NSY-E</td><td>(주)엔시스</td><td class="r">2.38</td><td class="c"><span class="badge b">계약금</span></td><td class="r">0.71</td><td class="c"><span class="badge g">진행</span></td></tr>
+      <tr><td class="pj">2026-021-NSY-EI</td><td>(주)엔시스</td><td class="r">2.00</td><td class="c"><span class="badge a">중도금</span></td><td class="r">1.40</td><td class="c"><span class="badge g">진행</span></td></tr>
+      <tr><td class="pj">2026-009-NSY-EI</td><td>(주)엔시스</td><td class="r">1.33</td><td class="c"><span class="badge g">수금완료</span></td><td class="r">1.33</td><td class="c"><span class="badge b">완료</span></td></tr>
+      <tr><td class="pj">2026-011-SEM-P</td><td>SAMSUNG SDIEM SDN BHD</td><td class="r">0.87</td><td class="c"><span class="badge g">수금완료</span></td><td class="r">0.87</td><td class="c"><span class="badge b">완료</span></td></tr>
+      <tr><td class="pj">2026-022-SEM-CS</td><td>삼성에스디아이(주)</td><td class="r">0.84</td><td class="c"><span class="badge a">중도금</span></td><td class="r">0.50</td><td class="c"><span class="badge g">진행</span></td></tr>
+      <tr><td class="pj">2026-041-SCH-CS</td><td>삼성SDI 천안</td><td class="r">0.45</td><td class="c"><span class="badge b">계약금</span></td><td class="r">0.14</td><td class="c"><span class="badge g">진행</span></td></tr>
+      <tr><td class="pj">2026-005-LNX-CS</td><td>LG엔솔 계열</td><td class="r">0.40</td><td class="c"><span class="badge a">중도금</span></td><td class="r">0.28</td><td class="c"><span class="badge g">진행</span></td></tr>
+      <tr><td class="pj">2026-036-SCH-CS</td><td>삼성SDI 천안</td><td class="r">0.37</td><td class="c"><span class="badge r">잔금 대기</span></td><td class="r">0.33</td><td class="c"><span class="badge g">진행</span></td></tr>
+      <tr style="font-weight:700;"><td colspan="2">합계 (10건)</td><td class="r" style="color:var(--navy);">49.36</td><td class="c">—</td><td class="r" style="color:var(--navy);">31.16</td><td class="c">63%</td></tr>
+    </table>
+    <p style="font-size:11px; color:var(--muted); margin-top:6px;">※ 해외 수주(2026-011-SEM-P)는 USD 청구 — 예: EB202603270001, $5,000 × 환율 1,503.5 = ₩7,517,500 (XCHG_RATE 적용)</p>
+  </div>
+
+  <!-- 수금 단계 흐름 + 2025 비교 -->
+  <div class="grid2">
+    <div class="sec">
+      <h3>수금 단계별 잔액 분포 (미수금 18.2억원)</h3>
+      <table>
+        <tr><th>단계</th><th class="r">건수</th><th class="r">잔액(억원)</th><th>관리 포인트</th></tr>
+        <tr><td><span class="badge b">계약금</span> 수금 후</td><td class="r">3</td><td class="r">13.93</td><td>중도금 청구 시점 협의</td></tr>
+        <tr><td><span class="badge a">중도금</span> 진행 중</td><td class="r">4</td><td class="r">4.18</td><td>공정률 연동 기성 청구</td></tr>
+        <tr><td><span class="badge r">잔금</span> 대기</td><td class="r">1</td><td class="r">0.04</td><td>준공·검수 서류 준비</td></tr>
+        <tr style="font-weight:700;"><td>합계</td><td class="r">8</td><td class="r">18.15</td><td>—</td></tr>
+      </table>
+    </div>
+    <div class="sec">
+      <h3>참고 — 2025년 주요 수주 (전년 비교)</h3>
+      <table>
+        <tr><th>프로젝트</th><th>거래처</th><th class="r">금액(억원)</th></tr>
+        <tr><td class="pj">2025-011-TSI-EI</td><td>(주)티에스아이</td><td class="r">48.49</td></tr>
+        <tr><td class="pj">2025-018-SUL-EI</td><td>삼성SDI</td><td class="r">22.05</td></tr>
+        <tr><td class="pj">2025-013-TSI-EI</td><td>(주)티에스아이</td><td class="r">10.02</td></tr>
+        <tr><td class="pj">2025-019-LNX-EI</td><td>LG엔솔 계열</td><td class="r">3.87</td></tr>
+        <tr><td class="pj">2025-009-HAS-E</td><td>한화에어로스페이스</td><td class="r">2.46</td></tr>
+        <tr><td class="pj">2025-095-SUL-EC</td><td>삼성SDI (헝가리)</td><td class="r">2.18</td></tr>
+      </table>
+      <p style="font-size:11px; color:var(--muted);">2025-095-SUL-EC 상세는 사업관리팀 <a href="2025-095-SUL-EC_원가현황_20260514.html" style="color:var(--accent);">원가현황 페이지</a> 참조</p>
+    </div>
+  </div>
+
+  <div class="src">
+    <b>데이터 원천 (UNIERP · 읽기전용)</b> — 매출/청구 <code>S_BILL_HDR/S_BILL_DTL</code> (BILL_NO, BILL_DT, BILL_AMT_LOC, TRACKING_NO) · 수금 <code>S_BILL_COLLECTING</code> · 프로젝트 마스터 <code>PM_PROJECT_MASTER</code> · 회계 연계 <code>A_GL_ITEM</code>. 추출 경로: ERP_DB\영업, ERP_DB\사업관리\프로젝트원가 자료\2025-2026 (수금데이터 CSV). 수금 단계·미수 잔액은 마감 전 추정 포함.
+  </div>
+
+  <div class="foot">
+    <span>영업팀 운영 페이지 · 2026년 수주현황 대시보드</span>
+    <span>등록: 영업팀 · 공개범위: 부서 전용 (관리자 콘솔 권한 적용)</span>
+  </div>
+</div>
+</body>
+</html>

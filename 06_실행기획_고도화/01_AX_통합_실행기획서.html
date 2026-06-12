@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JEIL AX — 통합 실행 기획서 (고도화)</title>
+<style>
+  :root{
+    --navy:#1a2f4e; --navy2:#27457a; --accent:#2f6fb3; --accent2:#4a8ed0;
+    --red:#b3402f; --green:#2e7d52; --amber:#9a6b1f;
+    --ink:#222; --muted:#666; --line:#d8dee8; --bg:#f4f6f9;
+    --soft:#eef2f8; --softred:#fbeeec; --softgreen:#ecf5f0; --softamber:#faf3e4;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif; color:var(--ink); background:var(--bg); line-height:1.65; font-size:15px;}
+  .page{max-width:960px; margin:0 auto; background:#fff; padding:56px 64px; box-shadow:0 2px 14px rgba(0,0,0,.08);}
+  .doc-label{display:inline-block; background:var(--navy); color:#fff; font-size:12px; letter-spacing:.18em; padding:5px 14px; border-radius:3px; margin-bottom:18px;}
+  h1{font-size:29px; color:var(--navy); line-height:1.35; margin-bottom:10px; letter-spacing:-.01em;}
+  .subtitle{font-size:16px; color:var(--muted); margin-bottom:26px;}
+  .meta{display:flex; flex-wrap:wrap; border:1px solid var(--line); border-radius:6px; overflow:hidden; margin-bottom:36px;}
+  .meta div{flex:1 1 25%; padding:10px 16px; font-size:13px; border-right:1px solid var(--line); background:var(--soft);}
+  .meta div:last-child{border-right:none;}
+  .meta b{display:block; color:var(--navy); font-size:12px; margin-bottom:2px;}
+  .exec{background:var(--soft); border-radius:10px; padding:20px 24px; margin-bottom:8px;}
+  .exec h3{margin:0 0 8px; color:var(--navy); letter-spacing:.04em; font-size:13px;}
+  .exec ul{margin:6px 0 0 18px;} .exec li{margin-bottom:8px;}
+  h2{font-size:21px; color:var(--navy); margin:46px 0 16px; padding-bottom:10px; border-bottom:3px solid var(--navy); display:flex; align-items:center; gap:10px;}
+  h2 .num{background:var(--navy); color:#fff; font-size:14px; width:28px; height:28px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; flex:none;}
+  h3{font-size:16.5px; color:var(--navy2); margin:26px 0 10px;}
+  p{margin-bottom:12px;}
+  table{width:100%; border-collapse:collapse; margin:14px 0 20px; font-size:13.5px;}
+  th{background:var(--navy); color:#fff; padding:9px 12px; text-align:left; font-weight:600;}
+  td{padding:9px 12px; border-bottom:1px solid var(--line); vertical-align:top;}
+  tr:nth-child(even) td{background:#fafbfd;}
+  td.ok{color:var(--green); font-weight:700;} td.no{color:var(--red); font-weight:700;} td.mid{color:var(--amber); font-weight:700;}
+  td.c,th.c{text-align:center;} td.r,th.r{text-align:right;}
+  .callout{border-radius:8px; padding:16px 20px; margin:14px 0;}
+  .callout.green{background:var(--softgreen); border-left:5px solid var(--green);}
+  .callout.red{background:var(--softred); border-left:5px solid var(--red);}
+  .callout.amber{background:var(--softamber); border-left:5px solid var(--amber);}
+  .callout.blue{background:var(--soft); border-left:5px solid var(--accent);}
+  .callout b.tag{display:block; font-size:13px; margin-bottom:6px;}
+  .callout.green b.tag{color:var(--green);} .callout.red b.tag{color:var(--red);}
+  .callout.amber b.tag{color:var(--amber);} .callout.blue b.tag{color:var(--accent);}
+  .small{font-size:12.5px; color:var(--muted);}
+  code{font-family:Consolas,monospace; font-size:12.5px; background:var(--soft); border:1px solid var(--line); border-radius:4px; padding:1px 6px;}
+  /* 산출물 맵 */
+  .map{display:grid; grid-template-columns:repeat(auto-fill,minmax(265px,1fr)); gap:12px; margin:16px 0;}
+  .mapcard{border:1px solid var(--line); border-left:5px solid var(--accent); border-radius:9px; padding:13px 16px; background:#fff;}
+  .mapcard.doc{border-left-color:var(--navy2);} .mapcard.tool{border-left-color:var(--green);} .mapcard.infra{border-left-color:var(--amber);}
+  .mapcard b{display:block; color:var(--navy); font-size:13.5px; margin-bottom:3px;}
+  .mapcard span{font-size:12px; color:var(--muted); display:block; line-height:1.55;}
+  .mapcard a{font-size:11.5px; color:var(--accent); text-decoration:none;}
+  .mapcard a:hover{text-decoration:underline;}
+  /* 아키텍처 흐름 */
+  .flow{display:flex; align-items:stretch; margin:18px 0; flex-wrap:wrap;}
+  .flow .box{flex:1; min-width:155px; border:2px solid var(--navy2); border-radius:10px; padding:13px 12px; text-align:center; background:#fff;}
+  .flow .box.hl{background:var(--soft); border-color:var(--accent);}
+  .flow .box.ext{border-style:dashed;}
+  .flow .box h4{color:var(--navy); font-size:13.5px; margin-bottom:5px;}
+  .flow .box p{font-size:11.5px; color:var(--muted); margin:0;}
+  .flow .arrow{display:flex; flex-direction:column; justify-content:center; align-items:center; padding:0 8px; color:var(--accent); font-size:11px; font-weight:700; min-width:64px; text-align:center;}
+  .flow .arrow .line{font-size:20px; line-height:1;}
+  /* 로드맵 */
+  .roadmap{display:flex; gap:12px; margin:18px 0; flex-wrap:wrap;}
+  .phase{flex:1; min-width:215px; border:1px solid var(--line); border-radius:10px; overflow:hidden; background:#fff;}
+  .phase header{background:var(--navy2); color:#fff; padding:10px 14px; font-size:14px; font-weight:700;}
+  .phase.p1 header{background:var(--navy);} .phase.p3 header{background:var(--accent);}
+  .phase .body{padding:12px 14px;}
+  .phase .body span{display:block; font-size:11.5px; color:var(--accent); font-weight:700; margin-bottom:6px;}
+  .phase ul{margin-left:16px; font-size:12.8px;}
+  .phase li{margin-bottom:5px;}
+  /* 타임라인 */
+  .timeline{margin:16px 0;}
+  .titem{display:flex; gap:16px; position:relative; padding-bottom:18px;}
+  .titem:before{content:''; position:absolute; left:97px; top:26px; bottom:0; width:2px; background:var(--line);}
+  .titem:last-child:before{display:none;}
+  .twhen{flex:0 0 84px; font-size:12.5px; font-weight:700; color:var(--accent); padding-top:2px; text-align:right;}
+  .tdot{flex:0 0 12px; width:12px; height:12px; border-radius:50%; background:var(--accent); margin-top:5px; z-index:1;}
+  .tbody{flex:1; font-size:13.5px;} .tbody b{color:var(--navy);}
+  .badge{display:inline-block; font-size:11px; border-radius:10px; padding:2px 9px; font-weight:600;}
+  .badge.g{background:var(--softgreen); color:var(--green);} .badge.a{background:var(--softamber); color:var(--amber);}
+  .badge.r{background:var(--softred); color:var(--red);} .badge.b{background:var(--soft); color:var(--navy2);}
+  .footer{margin-top:56px; padding-top:16px; border-top:1px solid var(--line); font-size:12px; color:var(--muted); display:flex; justify-content:space-between;}
+  @media print{
+    body{background:#fff;} .page{box-shadow:none; padding:20px 0; max-width:100%;}
+    h2{break-after:avoid;} table,.callout,.mapcard,.phase,.flow{break-inside:avoid;}
+  }
+  @media (max-width:760px){ .page{padding:32px 22px;} .flow{flex-direction:column;} .flow .arrow{transform:rotate(90deg); min-width:auto; padding:4px 0;} }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <span class="doc-label">실행 기획 · 고도화 · 대외비</span>
+  <h1>JEIL AX — 통합 실행 기획서</h1>
+  <p class="subtitle">AI 관리시스템 도입 프로젝트 전체 현황 정리 및 실전 추진 계획 (1단계 니즈조사 실행 착수)</p>
+
+  <div class="meta">
+    <div><b>작성일</b>2026. 06. 12.</div>
+    <div><b>관리자</b>최동혁 (사업관리팀)</div>
+    <div><b>문서상태</b>실행 착수(안)</div>
+    <div><b>관련문서</b>01~05 전체 통합</div>
+  </div>
+
+  <div class="exec">
+    <h3>EXECUTIVE SUMMARY</h3>
+    <ul>
+      <li>본 프로젝트는 <b>"ERP(UNIERP)를 건드리지 않는 읽기전용 연계형 AI 관리시스템"</b>을 목표로, 기획 문서 3종(01~03)·포털 데모(04)·니즈조사 디지털 도구 6종(05)을 완성한 상태다. <b>이제 기획 단계를 마치고 1단계(전사 니즈조사) 실전 실행에 착수한다.</b></li>
+      <li>실행 인프라는 이미 확보되어 있다 — ① 니즈조사 디지털 도구(설문폼·집계·평가, 서버 불요) ② OneDrive 데이터 일원화 체계 ③ 운영 중 실서버(IT 자산관리 시스템, <code>jeilmns-it.duckdns.org:8080</code>) ④ 포털 데모(경영진 시연용).</li>
+      <li>1단계 니즈조사는 <b>승인 후 4주</b>(배포→회신→인터뷰→평가보고)로 운영하며, 상세 실행 절차는 별첨 <b>「니즈조사 실전 운영계획(02)」</b>을 따른다.</li>
+      <li>1단계 산출물(우선과제 3~5건)이 2단계 PoC와 챗봇 포털(03 기획)의 부서 템플릿 입력물이 되므로, <b>니즈조사의 품질이 전체 프로젝트의 성패를 좌우한다.</b></li>
+    </ul>
+  </div>
+
+  <h2><span class="num">1</span>프로젝트 전체 구조 — 한 장 정리</h2>
+  <p>프로젝트는 <b>「원칙 수립(01) → 수요 취합(02·05) → 서비스 구축(03·04) → 확산」</b>의 구조로 설계되어 있으며, 모든 산출물은 OneDrive 프로젝트 폴더(<code>E:\OneDrive\1.JOB\JEIL_AX</code>)에서 일원 관리한다.</p>
+
+  <div class="flow">
+    <div class="box hl"><h4>① 원칙 수립</h4><p>01 도입 기획<br>ERP 읽기전용 연계<br>설계 3원칙</p></div>
+    <div class="arrow"><span class="line">→</span>근거</div>
+    <div class="box hl"><h4>② 수요 취합</h4><p>02 니즈조사 기획<br>05 디지털 도구 6종<br><b>← 현재 실행 착수</b></p></div>
+    <div class="arrow"><span class="line">→</span>우선과제<br>3~5건</div>
+    <div class="box"><h4>③ 서비스 구축</h4><p>03 챗봇 포털 기획<br>04 화면 데모<br>2단계 PoC</p></div>
+    <div class="arrow"><span class="line">→</span>검증 후</div>
+    <div class="box ext"><h4>④ 확산·정착</h4><p>전사 오픈<br>ERP 연계 고도화<br>운영 정례화</p></div>
+  </div>
+
+  <h2><span class="num">2</span>현재 보유 자산 현황 (전수 정리)</h2>
+
+  <h3>2-1. 기획 문서 (경영진 보고용)</h3>
+  <div class="map">
+    <div class="mapcard doc"><b>01 · AI 관리시스템 도입 기획(안)</b>
+      <span>ERP 직접 개발 불채택 근거(보안·무결성·책임), 읽기전용 연계 아키텍처, 설계 3원칙, 3단계 로드맵</span>
+      <a href="../01_AI_관리시스템_도입_기획서.html">문서 열기 →</a></div>
+    <div class="mapcard doc"><b>02 · 부서별 니즈조사 실행 기획(안)</b>
+      <span>조사 개요, 가능/조건부/부적합 가이드, 부서별 예시 8종, 설문 Q1~Q7, 효과×난이도 평가, 4주 일정</span>
+      <a href="../02_부서별_AI_니즈조사_실행기획.html">문서 열기 →</a></div>
+    <div class="mapcard doc"><b>03 · 사내 AI 챗봇 포털 구축 기획(안)</b>
+      <span>B안(Claude API+게이트웨이) 권고, 크레딧 3등급(300/800/2,000회), 비용 시뮬레이션($210~400/월·100명), Entra ID SSO+MFA, 의사결정 4건</span>
+      <a href="../03_사내_AI챗봇_포털_구축_기획서.html">문서 열기 →</a></div>
+    <div class="mapcard doc"><b>05-④ · 니즈조사 분석·타당성 검토</b>
+      <span>02 종이 기획의 한계 진단, 개선 6항, 디지털 전환 설계, OneDrive 누적 로드맵</span>
+      <a href="../05_니즈조사/04_니즈조사_분석_타당성검토.html">문서 열기 →</a></div>
+  </div>
+
+  <h3>2-2. 실행 도구 (서버 불요 · 즉시 사용 가능)</h3>
+  <div class="map">
+    <div class="mapcard tool"><b>05-홈 · 니즈조사 통합 홈</b>
+      <span>도구 3종+문서 3종을 한 화면으로 취합한 허브 — 포털 정식 등록 전 단일 진입점</span>
+      <a href="../05_니즈조사/00_니즈조사_홈.html">열기 →</a></div>
+    <div class="mapcard tool"><b>05-① 디지털 설문폼</b>
+      <span>Q1~Q7 입력, 익명 옵션, 진행률, 가이드 동봉, 응답 JSON 저장 + 브라우저 임시저장</span>
+      <a href="../05_니즈조사/01_니즈조사_설문폼.html">열기 →</a></div>
+    <div class="mapcard tool"><b>05-② 집계 대시보드</b>
+      <span>JSON 다중 합산 — KPI·회신율·기능수요·우려·절감시간, 효과×난이도 분포, 우선후보 자동 도출</span>
+      <a href="../05_니즈조사/02_니즈조사_집계_대시보드.html">열기 →</a></div>
+    <div class="mapcard tool"><b>05-③ 과제평가 시트</b>
+      <span>효과·난이도 점수 → 사분면 자동 배치, 우선과제 3~5건 선정·JSON 내보내기(PoC 입력물)</span>
+      <a href="../05_니즈조사/03_과제평가_시트.html">열기 →</a></div>
+    <div class="mapcard tool"><b>05-⑤ 배포 안내문(공문)</b>
+      <span>전 부서장 수신 공문 — 목적·기간·참여방법·후속일정, 인쇄/PDF 최적화</span>
+      <a href="../05_니즈조사/05_니즈조사_배포_안내문.html">열기 →</a></div>
+    <div class="mapcard tool"><b>05-assets · 공통 기반</b>
+      <span><code>datastore.js</code>(데이터 어댑터 — OneDrive 전환 지점 내장) + <code>survey-style.css</code>(공통 스타일)</span></div>
+  </div>
+
+  <h3>2-3. 인프라 · 운영 시스템</h3>
+  <div class="map">
+    <div class="mapcard infra"><b>04 · 챗봇 포털 화면 데모</b>
+      <span>MS 로그인(SSO+MFA) 흐름, 챗봇 4시나리오, 관리자 콘솔(API·사용량·모델·권한), IT 자산관리 뷰 — 경영진 시연·요구사항 확정용</span>
+      <a href="../04_챗봇_포털_데모UI.html">열기 →</a></div>
+    <div class="mapcard infra"><b>실서버 · IT 자산관리 시스템</b>
+      <span>운영 중 — <code>http://jeilmns-it.duckdns.org:8080/login</code> (IT팀, 전사 공개). 포털 전사 공유 페이지에 연결 완료</span></div>
+    <div class="mapcard infra"><b>ERP Role 현황 페이지</b>
+      <span>UNIERP 권한 조회·Matrix·변경내역 모니터링 (GitHub Pages 운영) — 전사 공유 등록 완료</span></div>
+    <div class="mapcard infra"><b>pages/ · 부서 운영 페이지 2종</b>
+      <span>프로젝트 원가현황(2025-095-SUL-EC)·ERP DB 추출 원가요약 — 부서 전용 페이지 운영 사례</span></div>
+  </div>
+
+  <div class="callout blue">
+    <b class="tag">자산 정리의 시사점</b>
+    기획(01~03)·도구(05)·시연(04)·운영 사례(실서버·pages)가 모두 갖춰져 있어, <b>추가 투자 없이 1단계 니즈조사를 즉시 실행할 수 있는 상태</b>다. 남은 것은 ① 경영진 승인 ② 배포 ③ 운영 규율(회신율·취합 규칙)뿐이며, 이를 본 문서와 별첨 02(실전 운영계획)로 확정한다.
+  </div>
+
+  <h2><span class="num">3</span>추진 체계 (역할과 책임)</h2>
+  <table>
+    <tr><th style="width:18%;">역할</th><th style="width:22%;">담당</th><th>책임 범위</th></tr>
+    <tr><td><b>총괄 관리자</b></td><td>최동혁 (사업관리팀)</td><td>프로젝트 총괄, 니즈조사 주관, 집계·평가·경영진 보고, 포털 기획 창구</td></tr>
+    <tr><td><b>부서 취합 창구</b></td><td>부서별 1인 지정 (부서장 추천)</td><td>설문 배포·독려, 응답 JSON 취합 → OneDrive 업로드, 인터뷰 일정 조율</td></tr>
+    <tr><td><b>IT 협조</b></td><td>IT·전산팀</td><td>OneDrive 공유 폴더 권한 설정, 실서버(자산관리) 운영, 2단계 게이트웨이 구축 검토</td></tr>
+    <tr><td><b>경영진</b></td><td>대표·임원</td><td>1단계 착수 승인, 우선과제·2단계 예산 의사결정(03 기획 4건)</td></tr>
+    <tr><td><b>부서장</b></td><td>전 부서</td><td>부서 응답 품질 책임(부서별 1부 이상), 평가회의 참여(수요 상위 부서)</td></tr>
+  </table>
+
+  <h2><span class="num">4</span>통합 로드맵 (실행 일정)</h2>
+  <div class="roadmap">
+    <div class="phase p1">
+      <header>1단계 — 니즈조사·과제선정</header>
+      <div class="body"><span>2026. 06. 15. ~ 07. 10. (4주)</span>
+        <ul>
+          <li>배포 안내문 발송 + 05 도구로 조사 실행</li>
+          <li>집계 대시보드로 회신율 주간 관리</li>
+          <li>수요 상위 부서 심층 인터뷰</li>
+          <li>효과×난이도 평가 → 우선과제 3~5건</li>
+          <li><b>경영진 보고 (07. 10. 목표)</b></li>
+        </ul>
+      </div>
+    </div>
+    <div class="phase">
+      <header>2단계 — PoC·포털 구축</header>
+      <div class="body"><span>2026. 07. ~ 09. (약 2~3개월)</span>
+        <ul>
+          <li>우선과제 1~2건 시범 구축</li>
+          <li>게이트웨이·Workspace·한도 설정</li>
+          <li>챗봇 포털 개발(자체/외주 결정)</li>
+          <li>핵심 인원 5~10명 Team 플랜 병행</li>
+          <li>UNIERP 읽기전용 연계 환경 구성</li>
+        </ul>
+      </div>
+    </div>
+    <div class="phase p3">
+      <header>3단계 — 전사 오픈·정착</header>
+      <div class="body"><span>2026. 4Q ~</span>
+        <ul>
+          <li>전 직원 오픈·크레딧 운영(3등급)</li>
+          <li>부서 템플릿 탑재(니즈조사 반영)</li>
+          <li>ERP 조회 기능 추가(2단계 기능)</li>
+          <li>월간 사용 리포트 정례화</li>
+          <li>차년도 니즈 재조사(전년 비교)</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <h3>1단계 상세 (니즈조사 — 별첨 02에서 일자별 운영)</h3>
+  <div class="timeline">
+    <div class="titem"><div class="twhen">6/15~6/19</div><div class="tdot"></div><div class="tbody"><b>1주차 · 배포</b> — 부서장 회의 취지 안내, 공문+설문폼 링크 배포, 부서 창구 지정, OneDrive 취합 폴더 오픈</div></div>
+    <div class="titem"><div class="twhen">6/22~6/26</div><div class="tdot"></div><div class="tbody"><b>2주차 · 회신·취합</b> — 대시보드 회신율 점검(수·금), 미회신 부서 독려, <b>6/26(금) 회신 마감</b></div></div>
+    <div class="titem"><div class="twhen">6/29~7/3</div><div class="tdot"></div><div class="tbody"><b>3주차 · 심층 인터뷰</b> — 수요 상위 3~4개 부서 30분 인터뷰, 업무 흐름·데이터 위치 구체화</div></div>
+    <div class="titem"><div class="twhen">7/6~7/10</div><div class="tdot"></div><div class="tbody"><b>4주차 · 평가·보고</b> — 과제평가 시트로 우선과제 3~5건 확정, <b>7/10(금) 경영진 보고 + 2단계 품의</b></div></div>
+  </div>
+
+  <h2><span class="num">5</span>데이터·인프라 전략 (OneDrive 일원화)</h2>
+  <p>포털 데이터 대부분을 <b>OneDrive 저장·누적</b>으로 관리한다는 방침에 따라, 니즈조사부터 이 패턴을 적용한다.</p>
+  <table>
+    <tr><th style="width:22%;">단계</th><th>저장·취합 방식</th><th style="width:30%;">비고</th></tr>
+    <tr><td><b>지금 (1단계)</b></td><td>설문폼 → 응답 JSON 저장 → 부서 창구가 <code>05_니즈조사\responses\</code>(OneDrive 공유)에 업로드 → 대시보드 [OneDrive 폴더 연결]로 일괄 집계</td><td>서버·비용 0, 즉시 실행 가능</td></tr>
+    <tr><td><b>2단계 (PoC)</b></td><td>게이트웨이 구축 후 응답·대화 로그를 사내 DB(또는 MS Graph API 경유 OneDrive)에 자동 적재</td><td><code>datastore.js</code> 어댑터만 교체, 화면 무변경</td></tr>
+    <tr><td><b>3단계 (정착)</b></td><td>포털 내 모든 운영 페이지·자료가 동일 패턴(OneDrive/사내 DB) 누적 — 차년도 비교 분석 가능</td><td>IT 자산관리 등 기존 실서버와 병행</td></tr>
+  </table>
+  <div class="callout amber">
+    <b class="tag">운영 규칙 (확정)</b>
+    ① 응답 파일명: <code>니즈조사_부서_작성자_날짜.json</code> (설문폼이 자동 생성 — 변경 금지) &nbsp;② 취합 폴더는 부서 창구·관리자만 쓰기 권한 &nbsp;③ 동일인 재제출은 최신본만 집계(도구가 자동 처리) &nbsp;④ 개인정보는 설문에 수집하지 않음(업무 유형만).
+  </div>
+
+  <h2><span class="num">6</span>예산 (03 기획 준용 — 1단계 비용 0)</h2>
+  <table>
+    <tr><th style="width:22%;">구분</th><th>내용</th><th class="r" style="width:22%;">비용</th></tr>
+    <tr><td><b>1단계 니즈조사</b></td><td>05 디지털 도구 + OneDrive (기존 인프라)</td><td class="r ok">0원</td></tr>
+    <tr><td><b>2단계 Team 병행</b></td><td>핵심 인원 5~10명 Claude Team 플랜 (구축 기간 한정)</td><td class="r">월 $125~300</td></tr>
+    <tr><td><b>2단계 PoC API</b></td><td>chatbot-test Workspace 지출한도</td><td class="r">월 $50 내</td></tr>
+    <tr><td><b>3단계 전사 운영</b></td><td>100명 기준 사용량 과금 (Workspace 한도로 강제)</td><td class="r">월 $210~400<br><span class="small">(약 30~56만 원)</span></td></tr>
+    <tr><td><b>구축비</b></td><td>게이트웨이·포털 개발 — IT팀 자체 vs 외주 견적 비교 후 별도 품의</td><td class="r mid">미정 (2단계 결정)</td></tr>
+  </table>
+
+  <h2><span class="num">7</span>리스크 관리 (통합)</h2>
+  <table>
+    <tr><th style="width:24%;">리스크</th><th>통제 방안</th><th class="c" style="width:12%;">등급</th></tr>
+    <tr><td>ERP 원장 오염</td><td>읽기전용 원칙(01 설계 3원칙) — AI의 원장 수정·삭제 원천 차단, 표준 인터페이스만 사용</td><td class="c"><span class="badge g">통제됨</span></td></tr>
+    <tr><td>니즈조사 회신율 저조</td><td>부서장 회의 안내 + 부서 창구 책임제 + 대시보드 주 2회 점검·독려 (별첨 02의 4-2)</td><td class="c"><span class="badge a">관리 필요</span></td></tr>
+    <tr><td>수요 과대·비현실 니즈</td><td>가능/조건부/부적합 가이드 동봉 배포, 평가 단계에서 부적합 사유 회신</td><td class="c"><span class="badge g">통제됨</span></td></tr>
+    <tr><td>기밀·개인정보 유출</td><td>1단계: 설문에 개인정보 미수집 / 2~3단계: 게이트웨이 마스킹·금칙어·전 대화 로깅(03 기획 7장)</td><td class="c"><span class="badge g">통제됨</span></td></tr>
+    <tr><td>예산 초과</td><td>개인 크레딧 + Workspace 월 지출한도 이중 차단</td><td class="c"><span class="badge g">통제됨</span></td></tr>
+    <tr><td>속인화(담당자 의존)</td><td>전 산출물 OneDrive 일원화 + 본 통합 기획서로 구조 문서화 + 백업 관리자 1인 지정(권고)</td><td class="c"><span class="badge a">관리 필요</span></td></tr>
+  </table>
+
+  <h2><span class="num">8</span>의사결정 요청 및 즉시 실행 항목</h2>
+  <table>
+    <tr><th style="width:8%;">No.</th><th>항목</th><th style="width:24%;">비고</th></tr>
+    <tr><td class="c">1</td><td><b>1단계 니즈조사 실행 승인</b> — 06/15 배포 착수 (비용 0)</td><td>본 문서 + 별첨 02</td></tr>
+    <tr><td class="c">2</td><td>부서별 취합 창구 1인 지정 요청 (부서장)</td><td>1주차 내</td></tr>
+    <tr><td class="c">3</td><td>OneDrive 취합 폴더(<code>responses</code>) 공유 권한 설정 (IT 협조)</td><td>배포 전 완료</td></tr>
+    <tr><td class="c">4</td><td>2단계 의사결정 4건(03 기획 9장)은 <b>1단계 보고(7/10)와 함께 상정</b></td><td>B안 확정·예산·구축방식·Team 병행</td></tr>
+  </table>
+
+  <div class="callout green">
+    <b class="tag">결론</b>
+    기획·도구·인프라가 완비된 상태로, <b>의사결정 1건(1단계 실행 승인)만으로 즉시 착수 가능</b>하다. 1단계는 비용이 들지 않고 리스크가 낮으며, 그 산출물(우선과제 3~5건)이 2단계 이후 투자 판단의 정량 근거가 된다. 상세 실행 절차는 별첨 <b>「니즈조사 실전 운영계획」</b>을 따른다.
+  </div>
+
+  <div class="footer">
+    <span>JEIL AX 통합 실행 기획서 · 2026. 06. 12.</span>
+    <span>별첨: 니즈조사 실전 운영계획(02)</span>
+  </div>
+</div>
+</body>
+</html>

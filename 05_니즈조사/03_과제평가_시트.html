@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI 과제 평가 시트 — 효과 × 난이도</title>
+<link rel="stylesheet" href="assets/survey-style.css">
+<style>
+  .evtable input.num{width:100%; text-align:center; padding:6px 4px; border-radius:6px;}
+  .evtable input.txt{padding:6px 8px;}
+  .evtable td{vertical-align:middle;}
+  .evtable .del{color:var(--red); cursor:pointer; border:none; background:none; font-size:16px;}
+  .quadtag{font-weight:700; white-space:nowrap;}
+  .quadtag.q1{color:var(--green);} .quadtag.q2{color:var(--navy2);} .quadtag.q3{color:var(--amber);} .quadtag.q4{color:var(--red);}
+  .score-help{display:grid; grid-template-columns:1fr 1fr; gap:14px; margin:10px 0;}
+  @media (max-width:760px){ .score-help{grid-template-columns:1fr;} }
+</style>
+</head>
+<body>
+<div class="page wide">
+
+  <a class="backlink" href="02_니즈조사_집계_대시보드.html">← 집계 대시보드</a>
+  <span class="doc-label">1단계 · 과제 평가</span>
+  <h1>AI 과제 평가 시트 <span class="small" style="font-weight:400">효과 × 난이도</span></h1>
+  <p class="subtitle">니즈조사로 도출된 과제 후보를 점수화하여 사분면에 배치하고, 우선 추진과제 3~5건을 선정합니다.</p>
+
+  <!-- 평가 기준 안내 -->
+  <details class="guide" open>
+    <summary>📐 점수 기준 — 입력 방법</summary>
+    <div class="gbody">
+      <div class="score-help">
+        <div class="callout green" style="margin:0;">
+          <b class="tag">기대효과 (0~100, 클수록 좋음)</b>
+          <span class="small">절감시간(주당) × 수혜 인원으로 환산. 예) 주 5h × 4명 = 20 → 보통, 주 8h × 10명 = 80 → 큼.
+          여러 부서 공통 수요·측정 가능한 효과는 <b>가점</b>.</span>
+        </div>
+        <div class="callout amber" style="margin:0;">
+          <b class="tag">구현 난이도 (0~100, 작을수록 쉬움)</b>
+          <span class="small">데이터 위치·보안 민감도 기준. 예) 문서 초안·규정 챗봇 = 10~30(쉬움), ERP 연계 분석 = 60~80(어려움).
+          개인정보·법적 검토 필요 시 <b>가산</b>.</span>
+        </div>
+      </div>
+      <p class="small" style="margin:0;"><b>사분면 자동 배치</b> — 효과≥50 &amp; 난이도&lt;50 → <span class="quadtag q1">① 우선 추진(PoC)</span> · 효과≥50 &amp; 난이도≥50 → <span class="quadtag q2">② 중기</span> · 효과&lt;50 &amp; 난이도&lt;50 → <span class="quadtag q3">③ 여유 시</span> · 효과&lt;50 &amp; 난이도≥50 → <span class="quadtag q4">④ 보류</span>. <b>우선순위 점수 = 효과 − 난이도</b>(높을수록 우선).</p>
+    </div>
+  </details>
+
+  <div class="sec">
+    <h3>과제 목록
+      <span class="toolbar no-print">
+        <button class="btn ghost" id="btnAdd">+ 과제 추가</button>
+        <button class="btn gray" id="btnSeed">예시 채우기</button>
+        <button class="btn gray" id="btnLoad">불러오기</button>
+        <button class="btn" id="btnExport">우선과제 내보내기(JSON)</button>
+        <input type="file" id="fileInp" accept="application/json" style="display:none;">
+      </span>
+    </h3>
+    <table class="evtable">
+      <thead>
+        <tr>
+          <th style="width:24%;">과제명</th><th style="width:13%;">주관 부서</th>
+          <th class="c" style="width:9%;">기대효과<br><span class="small" style="font-weight:400">0~100</span></th>
+          <th class="c" style="width:9%;">난이도<br><span class="small" style="font-weight:400">0~100</span></th>
+          <th class="c" style="width:9%;">가점<br><span class="small" style="font-weight:400">±</span></th>
+          <th class="c" style="width:11%;">우선순위<br><span class="small" style="font-weight:400">효과−난이도</span></th>
+          <th class="c" style="width:14%;">사분면</th>
+          <th class="c" style="width:5%;"></th>
+        </tr>
+      </thead>
+      <tbody id="rows"></tbody>
+    </table>
+    <p class="small">가점은 ‘여러 부서 공통 수요 +10 / 개인정보·법적검토 −10’ 등 가감점을 직접 입력하세요(우선순위에 합산).</p>
+  </div>
+
+  <div class="sec">
+    <h3>효과 × 난이도 매트릭스</h3>
+    <div id="matrixHost"></div>
+  </div>
+
+  <div class="callout blue">
+    <b class="tag">선정 결과 — 우선 추진과제(①사분면, 우선순위 상위)</b>
+    <div id="result"> 과제를 입력하면 자동으로 정리됩니다.</div>
+  </div>
+
+  <div class="footer">
+    <span>AI 과제 평가 시트 · 효과×난이도 우선순위</span>
+    <span>2단계(PoC) 착수 입력물</span>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="assets/datastore.js"></script>
+<script>
+var rowsEl = document.getElementById('rows');
+var tt; function toast(m){ var t=document.getElementById('toast'); t.textContent=m; t.classList.add('show'); clearTimeout(tt); tt=setTimeout(function(){t.classList.remove('show');},2200); }
+
+function quadOf(effect, effort){
+  if(effect>=50 && effort<50) return {k:'q1', label:'① 우선 추진'};
+  if(effect>=50 && effort>=50) return {k:'q2', label:'② 중기 추진'};
+  if(effect<50 && effort<50) return {k:'q3', label:'③ 여유 시'};
+  return {k:'q4', label:'④ 보류'};
+}
+function num(v){ var n=parseFloat(v); return isNaN(n)?0:n; }
+
+function addRow(d){
+  d = d||{name:'',dept:'',effect:'',effort:'',bonus:''};
+  var tr=document.createElement('tr');
+  tr.innerHTML =
+    '<td><input class="txt name" type="text" value="'+esc(d.name)+'" placeholder="예) 주간보고 자동 초안"></td>'+
+    '<td><input class="txt dept" type="text" value="'+esc(d.dept)+'" placeholder="부서"></td>'+
+    '<td><input class="num effect" inputmode="numeric" value="'+esc(d.effect)+'"></td>'+
+    '<td><input class="num effort" inputmode="numeric" value="'+esc(d.effort)+'"></td>'+
+    '<td><input class="num bonus" inputmode="numeric" value="'+esc(d.bonus)+'" placeholder="0"></td>'+
+    '<td class="c pri"><b>—</b></td>'+
+    '<td class="c quad">—</td>'+
+    '<td class="c"><button class="del" title="삭제">×</button></td>';
+  rowsEl.appendChild(tr);
+  tr.querySelectorAll('input').forEach(function(i){ i.addEventListener('input', recompute); });
+  tr.querySelector('.del').addEventListener('click', function(){ tr.remove(); recompute(); });
+  recompute();
+}
+function esc(s){ return String(s==null?'':s).replace(/"/g,'&quot;'); }
+
+function readRows(){
+  return Array.prototype.map.call(rowsEl.children, function(tr){
+    return {
+      el:tr,
+      name:tr.querySelector('.name').value.trim(),
+      dept:tr.querySelector('.dept').value.trim(),
+      effect:num(tr.querySelector('.effect').value),
+      effort:num(tr.querySelector('.effort').value),
+      bonus:num(tr.querySelector('.bonus').value)
+    };
+  });
+}
+
+function recompute(){
+  var rows = readRows();
+  rows.forEach(function(r){
+    var pri = r.effect - r.effort + r.bonus;
+    var q = quadOf(r.effect, r.effort);
+    r.el.querySelector('.pri').innerHTML = '<b>'+pri+'</b>';
+    var qc = r.el.querySelector('.quad');
+    qc.innerHTML = (r.name||r.effect||r.effort) ? '<span class="quadtag '+q.k+'">'+q.label+'</span>' : '—';
+    r.pri = pri; r.quad = q;
+  });
+  renderMatrix(rows);
+  renderResult(rows);
+}
+
+function renderMatrix(rows){
+  var dots = rows.map(function(r,idx){
+    if(!(r.name||r.effect||r.effort)) return '';
+    var x = 4 + Math.min(100,Math.max(0,r.effort))/100*92;
+    var y = 4 + (100-Math.min(100,Math.max(0,r.effect)))/100*92;
+    return '<div class="dot '+r.quad.k+'" style="left:'+x+'%; top:'+y+'%;" title="'+esc(r.name||('과제'+(idx+1)))+' · 효과 '+r.effect+'/난이도 '+r.effort+'">'+(idx+1)+'</div>';
+  }).join('');
+  document.getElementById('matrixHost').innerHTML =
+    '<div class="matrix2">'+
+      '<div class="mid-h"></div><div class="mid-v"></div>'+
+      '<div class="quad q1">① 우선 추진</div>'+
+      '<div class="quad q2">② 중기 추진</div>'+
+      '<div class="quad q3">③ 여유 시</div>'+
+      '<div class="quad q4">④ 보류</div>'+
+      '<div class="axis-y">◀ 기대효과 ▶</div>'+
+      '<div class="axis-x">◀ 쉬움 ──── 구현 난이도 ──── 어려움 ▶</div>'+
+      dots+
+    '</div>'+
+    '<div class="legend">'+
+      '<span><i style="background:var(--green)"></i>① 우선</span>'+
+      '<span><i style="background:var(--navy2)"></i>② 중기</span>'+
+      '<span><i style="background:var(--amber)"></i>③ 여유</span>'+
+      '<span><i style="background:var(--red)"></i>④ 보류</span>'+
+    '</div>';
+}
+
+function priorityList(rows){
+  return rows.filter(function(r){ return r.name && r.quad && r.quad.k==='q1'; })
+    .sort(function(a,b){ return b.pri-a.pri; });
+}
+function renderResult(rows){
+  var top = priorityList(rows).slice(0,5);
+  if(!top.length){ document.getElementById('result').innerHTML=' 아직 ①사분면(효과↑·쉬움) 과제가 없습니다. 효과·난이도 점수를 입력해 주세요.'; return; }
+  document.getElementById('result').innerHTML = '<ol style="margin:6px 0 0 20px;">'+
+    top.map(function(r){ return '<li><b>'+esc(r.name)+'</b>'+(r.dept?' <span class="badge b">'+esc(r.dept)+'</span>':'')+' — 우선순위 '+r.pri+' (효과 '+r.effect+' / 난이도 '+r.effort+')</li>'; }).join('')+
+    '</ol>';
+}
+
+/* ---- 액션 ---- */
+document.getElementById('btnAdd').addEventListener('click', function(){ addRow(); });
+document.getElementById('btnSeed').addEventListener('click', function(){
+  rowsEl.innerHTML='';
+  SEED.forEach(addRow); toast('예시 과제를 채웠습니다.');
+});
+document.getElementById('btnExport').addEventListener('click', function(){
+  var rows = readRows().filter(function(r){return r.name;});
+  if(!rows.length){ toast('내보낼 과제가 없습니다.'); return; }
+  var out = {
+    구분:'AI 우선추진과제 선정안', 생성:S.nowStamp(),
+    우선과제: priorityList(readRows()).slice(0,5).map(function(r){return {과제명:r.name,부서:r.dept,효과:r.effect,난이도:r.effort,우선순위:r.pri};}),
+    전체: rows.map(function(r){return {과제명:r.name,부서:r.dept,효과:r.effect,난이도:r.effort,가점:r.bonus,우선순위:r.pri,사분면:r.quad.label};})
+  };
+  var blob=new Blob([JSON.stringify(out,null,2)],{type:'application/json'});
+  var url=URL.createObjectURL(blob); var a=document.createElement('a');
+  a.href=url; a.download='AI_우선추진과제_선정안.json'; document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(function(){URL.revokeObjectURL(url);},1500);
+  toast('우선과제 선정안을 내보냈습니다.');
+});
+document.getElementById('btnLoad').addEventListener('click', function(){ document.getElementById('fileInp').click(); });
+document.getElementById('fileInp').addEventListener('change', function(e){
+  var f=e.target.files[0]; if(!f) return;
+  var fr=new FileReader();
+  fr.onload=function(){
+    try{
+      var j=JSON.parse(fr.result);
+      var list = j.전체 || j.우선과제 || (Array.isArray(j)?j:[]);
+      if(!list.length){ toast('과제 데이터를 찾지 못했습니다.'); return; }
+      rowsEl.innerHTML='';
+      list.forEach(function(r){ addRow({name:r.과제명||r.name,dept:r.부서||r.dept,effect:r.효과!=null?r.효과:r.effect,effort:r.난이도!=null?r.난이도:r.effort,bonus:r.가점||0}); });
+      toast(list.length+'건 불러왔습니다.');
+    }catch(err){ toast('JSON을 읽을 수 없습니다.'); }
+  };
+  fr.readAsText(f); e.target.value='';
+});
+
+/* ---- 예시 (집계 대시보드 결과와 정합) ---- */
+var SEED = [
+  {name:'주간보고 자동 초안', dept:'전사', effect:75, effort:20, bonus:10},
+  {name:'사내 규정·매뉴얼 챗봇', dept:'인사·총무', effect:60, effort:30, bonus:10},
+  {name:'정기 리포트 자동화', dept:'경영기획', effect:80, effort:45, bonus:10},
+  {name:'재고 부족·과잉 알림', dept:'구매·자재', effect:65, effort:55, bonus:0},
+  {name:'ERP 매출/채권 자연어 조회', dept:'영업', effect:85, effort:70, bonus:0},
+  {name:'클레임 자동 분류·통계', dept:'품질', effect:45, effort:40, bonus:0},
+  {name:'결산 자료 취합 보조', dept:'재무·회계', effect:70, effort:65, bonus:-10}
+];
+
+addRow(); addRow(); addRow();
+</script>
+</body>
+</html>

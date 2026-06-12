@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>사내 AI 챗봇 포털 구축 기획(안) — Claude API 기반</title>
+<style>
+  :root{
+    --navy:#1a2f4e; --navy2:#27457a; --accent:#2f6fb3;
+    --red:#b3402f; --green:#2e7d52; --amber:#9a6b1f;
+    --ink:#222; --muted:#666; --line:#d8dee8; --bg:#f4f6f9;
+    --soft:#eef2f8; --softred:#fbeeec; --softgreen:#ecf5f0; --softamber:#faf3e4;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif; color:var(--ink); background:var(--bg); line-height:1.65; font-size:15px;}
+  .page{max-width:920px; margin:0 auto; background:#fff; padding:56px 64px; box-shadow:0 2px 14px rgba(0,0,0,.08);}
+  .doc-label{display:inline-block; background:var(--navy); color:#fff; font-size:12px; letter-spacing:.18em; padding:5px 14px; border-radius:3px; margin-bottom:18px;}
+  h1{font-size:30px; color:var(--navy); line-height:1.35; margin-bottom:10px; letter-spacing:-.01em;}
+  .subtitle{font-size:16px; color:var(--muted); margin-bottom:26px;}
+  .meta{display:flex; flex-wrap:wrap; border:1px solid var(--line); border-radius:6px; overflow:hidden; margin-bottom:44px;}
+  .meta div{flex:1 1 25%; padding:10px 16px; font-size:13px; border-right:1px solid var(--line); background:var(--soft);}
+  .meta div:last-child{border-right:none;}
+  .meta b{display:block; color:var(--navy); font-size:12px; margin-bottom:2px;}
+  h2{font-size:21px; color:var(--navy); margin:48px 0 16px; padding-bottom:10px; border-bottom:3px solid var(--navy); display:flex; align-items:center; gap:10px;}
+  h2 .num{background:var(--navy); color:#fff; font-size:14px; width:28px; height:28px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; flex:none;}
+  h3{font-size:16.5px; color:var(--navy2); margin:26px 0 10px;}
+  p{margin-bottom:12px;}
+  .exec{background:var(--soft); border-left:5px solid var(--navy); border-radius:0 8px 8px 0; padding:22px 26px; margin-bottom:8px;}
+  .exec h3{margin-top:0; font-size:15px; letter-spacing:.06em; color:var(--navy);}
+  .exec ul{margin:8px 0 0 18px;}
+  .exec li{margin-bottom:8px;}
+  .callout{border-radius:8px; padding:16px 20px; margin:14px 0;}
+  .callout.red{background:var(--softred); border-left:5px solid var(--red);}
+  .callout.green{background:var(--softgreen); border-left:5px solid var(--green);}
+  .callout.amber{background:var(--softamber); border-left:5px solid var(--amber);}
+  .callout b.tag{display:block; font-size:13px; margin-bottom:6px;}
+  .callout.red b.tag{color:var(--red);} .callout.green b.tag{color:var(--green);} .callout.amber b.tag{color:var(--amber);}
+  table{width:100%; border-collapse:collapse; margin:14px 0 20px; font-size:13.5px;}
+  th{background:var(--navy); color:#fff; padding:9px 12px; text-align:left; font-weight:600;}
+  td{padding:9px 12px; border-bottom:1px solid var(--line); vertical-align:top;}
+  tr:nth-child(even) td{background:#fafbfd;}
+  td.ok{color:var(--green); font-weight:700;} td.no{color:var(--red); font-weight:700;} td.mid{color:var(--amber); font-weight:700;}
+  td.num, th.num{text-align:right;}
+  .arch{display:flex; align-items:stretch; margin:20px 0; flex-wrap:wrap;}
+  .arch .box{flex:1; min-width:170px; border:2px solid var(--navy2); border-radius:10px; padding:14px 12px; text-align:center; background:#fff;}
+  .arch .box.hl{background:var(--soft); border-color:var(--accent);}
+  .arch .box.ext{border-style:dashed;}
+  .arch .box h4{color:var(--navy); font-size:14px; margin-bottom:6px;}
+  .arch .box p{font-size:12px; color:var(--muted); margin:0;}
+  .arch .arrow{display:flex; flex-direction:column; justify-content:center; align-items:center; padding:0 8px; color:var(--accent); font-size:11.5px; font-weight:700; min-width:78px; text-align:center;}
+  .arch .arrow .line{font-size:20px; line-height:1;}
+  .principle{display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin:16px 0;}
+  .principle .card{border:1px solid var(--line); border-top:4px solid var(--accent); border-radius:8px; padding:14px 16px; background:#fff;}
+  .principle .card b{color:var(--navy); display:block; margin-bottom:6px; font-size:14px;}
+  .principle .card p{font-size:12.5px; color:var(--muted); margin:0;}
+  .roadmap{display:flex; gap:12px; margin:18px 0; flex-wrap:wrap;}
+  .phase{flex:1; min-width:200px; border:1px solid var(--line); border-radius:10px; overflow:hidden; background:#fff;}
+  .phase header{background:var(--navy2); color:#fff; padding:10px 14px; font-size:14px; font-weight:700;}
+  .phase.p1 header{background:var(--navy);} .phase.p3 header{background:var(--accent);}
+  .phase .body{padding:12px 14px;}
+  .phase .body span{display:block; font-size:11.5px; color:var(--accent); font-weight:700; margin-bottom:6px;}
+  .phase ul{margin-left:16px; font-size:12.8px;}
+  .phase li{margin-bottom:5px;}
+  .footer{margin-top:56px; padding-top:16px; border-top:1px solid var(--line); font-size:12px; color:var(--muted); display:flex; justify-content:space-between;}
+  .small{font-size:12.5px; color:var(--muted);}
+  @media print{
+    body{background:#fff;} .page{box-shadow:none; padding:20px 0; max-width:100%;}
+    h2{break-after:avoid;} table,.callout,.arch,.phase,.principle{break-inside:avoid;}
+  }
+  @media (max-width:720px){ .page{padding:32px 22px;} .principle{grid-template-columns:1fr;} .arch{flex-direction:column;} .arch .arrow{transform:rotate(90deg); min-width:auto; padding:6px 0;} }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <span class="doc-label">경영진 보고 · 대외비</span>
+  <h1>사내 AI 챗봇 포털 구축 기획(안)</h1>
+  <p class="subtitle">Claude API 기반 — 직원별 할당량 관리형 사내 챗봇 서비스</p>
+
+  <div class="meta">
+    <div><b>작성일</b>2026. 06. 11.</div>
+    <div><b>관리자</b>최동혁</div>
+    <div><b>적용규모</b>30~100명</div>
+    <div><b>관련문서</b>AI 관리시스템 도입 기획(01)</div>
+  </div>
+
+  <div class="exec">
+    <h3>EXECUTIVE SUMMARY</h3>
+    <ul>
+      <li>직원들이 개별적으로 외부 AI를 쓰는 대신, <b>회사가 통제하는 단일 챗봇 포털</b>을 구축하여 Claude API를 통해 AI를 제공하고, <b>직원별 사용 할당량(크레딧)</b>을 부여·관리합니다.</li>
+      <li>API 키는 직원에게 배포하지 않고 <b>중앙 게이트웨이 서버에만 보관</b>합니다. 직원은 사내 계정으로 로그인해 웹 챗봇만 사용하며, 게이트웨이가 할당량 차감·로깅·정보 필터링을 수행합니다.</li>
+      <li>예상 비용은 사용량 기반으로 <b>100명 전사 적용 시 월 약 $210~400 수준(약 30~56만 원)</b>으로 추산되며, Workspace 월 지출한도 설정으로 예산 초과를 원천 차단할 수 있습니다.</li>
+      <li>1단계 니즈조사 결과를 반영한 부서별 프롬프트 템플릿을 탑재하고, 2단계에서 UNIERP 읽기전용 데이터 연계를 추가합니다.</li>
+    </ul>
+  </div>
+
+  <h2><span class="num">1</span>추진 배경 및 용어 정리</h2>
+  <p>01 기획서에서 정의한 "데이터 연계형 AI 관리시스템"의 사용자 접점(front-end)으로서, 전 직원이 사용하는 챗봇 형태의 웹 포털을 구축합니다. 포털은 일반 업무지원(문서 초안, 요약, 질의응답)부터 시작해, 단계적으로 ERP 연계 조회 기능을 흡수합니다.</p>
+  <div class="callout amber">
+    <b class="tag">용어 정리 — Claude Code vs Claude API</b>
+    <b>Claude Code</b>는 개발자가 터미널에서 사용하는 코딩 도구(CLI)이고, 챗봇 페이지 구축에 사용하는 것은 <b>Claude API(Messages API)</b>입니다. 본 기획의 과금·할당량 관리는 Claude API 기준이며, Claude Code는 추후 개발팀 생산성 도구로 별도 검토 대상입니다.
+  </div>
+
+  <h2><span class="num">2</span>제공 방식 비교: 구독형 vs API 자체 구축형</h2>
+  <table>
+    <tr><th>구분</th><th>A안. Claude Team/Enterprise 구독</th><th>B안. Claude API + 자체 챗봇 포털 (권고)</th></tr>
+    <tr><td><b>과금</b></td><td>1인당 정액 (Team 기준 월 $25~30/석)<br>100명 시 월 $2,500~3,000 고정</td><td class="ok">사용량 기반 — 가볍게 쓰는 직원이 많을수록 유리<br>100명 시 월 $210~400 추산</td></tr>
+    <tr><td><b>할당량 통제</b></td><td>플랜 정책 내 사용자별 지출 상한</td><td class="ok">직원·부서·등급별 자유 설계 (크레딧제)</td></tr>
+    <tr><td><b>ERP(UNIERP) 연계</b></td><td class="mid">제한적 (커넥터 범위 내)</td><td class="ok">자유 — 게이트웨이에서 직접 구현</td></tr>
+    <tr><td><b>대화 로깅·감사</b></td><td>관리콘솔 제공 범위 내</td><td class="ok">전 대화 사내 DB 보관 — 감사·자산화 가능</td></tr>
+    <tr><td><b>구축 부담</b></td><td class="ok">없음 — 즉시 사용</td><td class="mid">게이트웨이·포털 개발 필요 (외주 또는 IT팀)</td></tr>
+    <tr><td><b>도입 속도</b></td><td class="ok">즉시</td><td class="mid">약 2~3개월</td></tr>
+  </table>
+  <div class="callout green">
+    <b class="tag">권고</b>
+    본 기획 취지(직원별 할당량 지정, ERP 데이터 연계, 사내 로깅)는 <b>B안(API 자체 구축형)</b>으로만 충족됩니다. 다만 구축 기간(2~3개월) 동안 기획·IT 핵심 인원 5~10명에 한해 A안(Team 구독)을 병행하여 활용 노하우를 선축적하는 하이브리드 접근을 제안합니다.
+  </div>
+
+  <h2><span class="num">3</span>시스템 아키텍처</h2>
+  <div class="arch">
+    <div class="box">
+      <h4>직원 (웹 브라우저)</h4>
+      <p>사내 계정 로그인<br>챗봇 페이지 사용<br><b>API 키 미보유</b></p>
+    </div>
+    <div class="arrow"><span class="line">→</span>HTTPS<br>사내망</div>
+    <div class="box hl">
+      <h4>AI 게이트웨이 (사내 서버)</h4>
+      <p>API 키 중앙 보관<br>직원별 할당량 차감<br>개인정보·금칙어 필터<br>전 대화 로깅</p>
+    </div>
+    <div class="arrow"><span class="line">→</span>API 호출<br><span class="small">Workspace 분리</span></div>
+    <div class="box ext">
+      <h4>Claude API (Anthropic)</h4>
+      <p>Haiku — 일반 질의<br>Sonnet — 분석·문서<br>월 지출한도 설정</p>
+    </div>
+  </div>
+  <div class="arch" style="margin-top:0;">
+    <div class="box" style="visibility:hidden;"></div>
+    <div class="arrow" style="visibility:hidden;"></div>
+    <div class="box hl" style="border-style:dashed;">
+      <h4>(2단계) UNIERP 연계</h4>
+      <p>읽기전용 중간 DB 조회<br>01 기획서 아키텍처 준용</p>
+    </div>
+    <div class="arrow" style="visibility:hidden;"></div>
+    <div class="box" style="visibility:hidden;"></div>
+  </div>
+
+  <h3>설계 3원칙</h3>
+  <div class="principle">
+    <div class="card"><b>① 키는 서버에만, 직원에겐 화면만</b><p>API 키를 개인에게 배포하면 유출·통제불능 위험. 게이트웨이가 모든 호출을 대행하고 직원은 로그인 기반 웹 화면만 사용합니다.</p></div>
+    <div class="card"><b>② 이중 한도 (개인 크레딧 + 전사 지출한도)</b><p>개인별 월 크레딧으로 사용을 배분하고, Anthropic 콘솔 Workspace 월 지출한도로 전사 예산 초과를 원천 차단합니다.</p></div>
+    <div class="card"><b>③ 모델 자동 라우팅</b><p>일반 질의는 저비용 모델(Haiku), 분석·긴 문서는 상위 모델(Sonnet)로 자동 배정하여 품질과 비용을 동시에 관리합니다.</p></div>
+  </div>
+
+  <h2><span class="num">4</span>직원별 할당량(크레딧) 설계</h2>
+  <p>토큰 단위는 직원이 이해하기 어려우므로, <b>"크레딧"</b>으로 추상화합니다. 1크레딧 = 평균 질의 1회(입력 약 2,000 / 출력 약 800토큰 기준). 게이트웨이가 실제 토큰 사용량을 크레딧으로 환산·차감하고, 화면에 잔여량을 표시합니다.</p>
+  <table>
+    <tr><th>등급</th><th>대상</th><th class="num">월 크레딧</th><th>사용 가능 모델</th><th class="num">1인 월 예상비용*</th></tr>
+    <tr><td><b>라이트</b></td><td>일반 직원 (기본 부여)</td><td class="num">300회</td><td>Haiku 중심</td><td class="num">$1~3</td></tr>
+    <tr><td><b>스탠다드</b></td><td>실무 빈번 사용자 (부서장 추천)</td><td class="num">800회</td><td>Haiku + Sonnet</td><td class="num">$4~8</td></tr>
+    <tr><td><b>프로</b></td><td>기획·분석 헤비유저 (승인제)</td><td class="num">2,000회</td><td>Sonnet 중심</td><td class="num">$15~35</td></tr>
+  </table>
+  <p class="small">* 2026년 6월 기준 Claude API 단가: Haiku 4.5 $1/$5, Sonnet 4.6 $3/$15 (입력/출력, 백만 토큰당). 단가 변동 시 재산정.</p>
+  <ul style="margin:0 0 8px 20px;">
+    <li><b>운영 규칙</b> — 미사용 크레딧 이월 없음 / 소진 시 부서장 승인으로 추가 부여 / 매월 1일 자동 리셋</li>
+    <li><b>등급 조정</b> — 분기별 사용 실적 리뷰로 상향·하향 (Usage API 리포트 기반)</li>
+    <li><b>공용 작업</b> — 정기 리포트 자동화 등 시스템 작업은 개인 크레딧과 분리된 별도 Workspace로 운영</li>
+  </ul>
+
+  <h2><span class="num">5</span>비용 시뮬레이션 (30~100명)</h2>
+  <p>가정: 활성 사용자 1인 1일 평균 15회 질의, 월 21일 근무, 회당 입력 2,000·출력 800토큰, 모델 비중 Haiku 70% : Sonnet 30%, 전 직원의 약 70%가 활성 사용.</p>
+  <table>
+    <tr><th>규모</th><th class="num">활성 사용자</th><th class="num">월 질의 수</th><th class="num">월 API 비용(추산)</th><th class="num">원화 환산**</th><th class="num">1인당 월</th></tr>
+    <tr><td>30명</td><td class="num">21명</td><td class="num">약 6.6천 회</td><td class="num">$65~120</td><td class="num">약 9~17만 원</td><td class="num">약 $3~6</td></tr>
+    <tr><td>50명</td><td class="num">35명</td><td class="num">약 11천 회</td><td class="num">$110~200</td><td class="num">약 15~28만 원</td><td class="num">약 $3~6</td></tr>
+    <tr><td><b>100명</b></td><td class="num">70명</td><td class="num">약 22천 회</td><td class="num"><b>$210~400</b></td><td class="num"><b>약 30~56만 원</b></td><td class="num">약 $3~6</td></tr>
+  </table>
+  <p class="small">** 환율 1,400원/$ 가정. 하단은 Haiku 70% 혼합 기준, 상단은 전량 Sonnet 사용 가정. 파일 업로드·장문 분석이 많으면 상회할 수 있어 예산 상한은 여유를 두고 설정. 프롬프트 캐싱(반복 시스템 프롬프트 캐시 읽기 시 입력단가의 10%) 및 Batch API(비실시간 작업 50% 할인) 적용 시 추가 절감 가능.</p>
+  <div class="callout green">
+    <b class="tag">예산 안전장치</b>
+    Anthropic 콘솔에서 Workspace별 <b>월 지출한도(Spend Limit)</b>와 분당 요청·토큰 한도를 설정할 수 있어, 어떤 경우에도 설정 예산을 초과 과금되지 않습니다. 또한 Usage &amp; Cost API로 모델별·Workspace별 사용량을 자동 집계하여 월간 리포트를 생성합니다.
+  </div>
+
+  <h2><span class="num">6</span>챗봇 포털 주요 기능 (1단계 범위)</h2>
+  <table>
+    <tr><th style="width:24%;">기능</th><th>내용</th></tr>
+    <tr><td><b>로그인·인증</b></td><td><b>Microsoft Entra ID(구 Azure AD) SSO</b> — 회사 MS 계정으로 로그인하며 자체 비밀번호를 두지 않음. Entra 조건부 액세스 정책으로 <b>MFA(다단계 인증) 강제</b>, 부서 정보는 Graph API로 자동 매핑, 관리자 권한은 보안그룹(예: AI-Portal-Admins)으로 제어</td></tr>
+    <tr><td><b>챗봇 대화</b></td><td>일반 질의응답, 문서 초안, 요약·번역, 파일(엑셀·PDF) 업로드 분석</td></tr>
+    <tr><td><b>부서 템플릿</b></td><td>니즈조사(02 기획) 결과 기반 부서별 자주 쓰는 프롬프트 버튼화 — 주간보고 초안, 회의록 정리, 클레임 요약 등</td></tr>
+    <tr><td><b>할당량 표시</b></td><td>잔여 크레딧 게이지, 소진 예상일, 추가 신청 버튼</td></tr>
+    <tr><td><b>관리자 콘솔</b></td><td>직원·등급 관리, 사용량 통계, 대화 로그 감사 조회, 금칙어 정책 관리</td></tr>
+    <tr><td><b>(2단계) ERP 조회</b></td><td>"지난달 ○○거래처 매출은?" → UNIERP 읽기전용 중간 DB 조회 후 답변 (01 기획서 연계 원칙 준용)</td></tr>
+  </table>
+
+  <h2><span class="num">7</span>보안·운영 통제</h2>
+  <table>
+    <tr><th style="width:30%;">항목</th><th>통제 방안</th></tr>
+    <tr><td>계정 도용·무단 접근</td><td>Microsoft Entra ID SSO + MFA 적용 — 로그인 시 MS 다단계 인증 필수(조건부 액세스는 Entra ID P1 라이선스 필요), 퇴사자는 MS 계정 비활성화만으로 포털 접근 즉시 차단</td></tr>
+    <tr><td>API 키 유출</td><td>키는 게이트웨이 서버 환경변수로만 보관, 직원 미배포, 정기 교체(rotation)</td></tr>
+    <tr><td>개인정보·기밀 입력</td><td>게이트웨이 전처리 필터 — 주민번호·계좌·전화번호 패턴 자동 마스킹, 금칙어 차단 및 경고</td></tr>
+    <tr><td>데이터 학습 활용 우려</td><td>Anthropic API는 기본 설정상 입력 데이터를 모델 학습에 사용하지 않음 — 도입 시 데이터 처리 정책을 계약 문서로 확정</td></tr>
+    <tr><td>답변 오류(환각)</td><td>화면 하단 고정 고지("AI 답변은 참고용, 최종 확인은 담당자"), 수치 답변에 출처 표기</td></tr>
+    <tr><td>감사 추적</td><td>전 대화·크레딧 차감 이력 사내 DB 보관(보존연한 정책 수립), 관리자 감사 조회 권한 분리</td></tr>
+    <tr><td>예산 초과</td><td>개인 크레딧 + Workspace 월 지출한도 이중 차단 (5장)</td></tr>
+  </table>
+
+  <h2><span class="num">8</span>구축 로드맵</h2>
+  <div class="roadmap">
+    <div class="phase p1">
+      <header>1단계 — 설계·기반 구축</header>
+      <div class="body"><span>약 1개월</span>
+        <ul>
+          <li>게이트웨이 서버·인증 연동 설계</li>
+          <li>Anthropic 계정·Workspace·한도 설정</li>
+          <li>할당량 정책 확정 (등급·크레딧)</li>
+        </ul>
+      </div>
+    </div>
+    <div class="phase p2">
+      <header>2단계 — 포털 개발·파일럿</header>
+      <div class="body"><span>약 1~2개월</span>
+        <ul>
+          <li>챗봇 UI·관리자 콘솔 개발</li>
+          <li>부서 템플릿 탑재 (니즈조사 반영)</li>
+          <li>2개 부서 파일럿 → 피드백 반영</li>
+        </ul>
+      </div>
+    </div>
+    <div class="phase p3">
+      <header>3단계 — 전사 오픈·고도화</header>
+      <div class="body"><span>이후</span>
+        <ul>
+          <li>전 직원 오픈·사용 교육</li>
+          <li>UNIERP 읽기전용 연계 추가</li>
+          <li>월간 사용 리포트 정례화</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <h2><span class="num">9</span>의사결정 요청사항</h2>
+  <table>
+    <tr><th style="width:8%;">No.</th><th>요청사항</th><th style="width:24%;">비고</th></tr>
+    <tr><td>1</td><td>챗봇 포털 제공 방식을 <b>B안(Claude API + 자체 구축, 게이트웨이 방식)</b>으로 확정</td><td>본 문서 2~3장</td></tr>
+    <tr><td>2</td><td>월 API 예산 상한 승인 (전사 100만 원/월 이내, Workspace 한도로 강제)</td><td>5장 시뮬레이션</td></tr>
+    <tr><td>3</td><td>구축 방식 결정 — IT팀 자체 개발 vs 외주 (견적 비교 후 품의)</td><td>2~3개월 소요</td></tr>
+    <tr><td>4</td><td>구축 기간 중 핵심 인원 5~10명 Team 플랜 병행 사용 승인</td><td>월 $125~300 수준</td></tr>
+  </table>
+
+  <div class="footer">
+    <span>사내 AI 챗봇 포털 구축 기획(안) · 2026. 06. 11.</span>
+    <span>별첨: 챗봇 포털 화면 데모(04)</span>
+  </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>인사총무팀 — 2026년 인원 및 급여 추이</title>
+<style>
+  :root{
+    --navy:#1a2f4e; --navy2:#27457a; --accent:#2f6fb3; --accent2:#4a8ed0;
+    --red:#b3402f; --green:#2e7d52; --amber:#9a6b1f;
+    --ink:#222; --muted:#666; --line:#d8dee8; --bg:#f4f6f9;
+    --soft:#eef2f8; --softred:#fbeeec; --softgreen:#ecf5f0; --softamber:#faf3e4;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif; color:var(--ink); background:var(--bg); line-height:1.6; font-size:14px;}
+  .demo-banner{background:var(--amber); color:#fff; text-align:center; font-size:12px; padding:6px 10px;}
+  .page{max-width:1100px; margin:0 auto; background:#fff; padding:34px 44px; box-shadow:0 2px 14px rgba(0,0,0,.08); min-height:100vh;}
+  .head{display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:10px; border-bottom:3px solid var(--navy); padding-bottom:14px; margin-bottom:20px;}
+  .head h1{font-size:22px; color:var(--navy);}
+  .head .sub{font-size:12.5px; color:var(--muted); margin-top:3px;}
+  .head .right{text-align:right; font-size:12px; color:var(--muted);}
+  .badge{display:inline-block; font-size:11px; border-radius:10px; padding:2px 9px; font-weight:600;}
+  .badge.g{background:var(--softgreen); color:var(--green);} .badge.a{background:var(--softamber); color:var(--amber);}
+  .badge.b{background:var(--soft); color:var(--navy2);} .badge.r{background:var(--softred); color:var(--red);}
+  h2{font-size:15.5px; color:var(--navy); margin:26px 0 10px; border-left:4px solid var(--accent); padding-left:10px;}
+  h2 small{font-weight:400; font-size:11.5px; color:var(--muted); margin-left:6px;}
+  .kpis{display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:12px; margin:14px 0;}
+  .kpi{background:#fff; border:1px solid var(--line); border-radius:11px; padding:14px 16px; border-top:4px solid var(--accent);}
+  .kpi .lb{font-size:11.5px; color:var(--muted);}
+  .kpi .v{font-size:23px; font-weight:800; color:var(--navy); margin-top:3px;}
+  .kpi .v small{font-size:12px; color:var(--muted); font-weight:500;}
+  .kpi .delta{font-size:11px; margin-top:2px;}
+  .kpi .delta.up{color:var(--green);} .kpi .delta.dn{color:var(--red);}
+  .grid2{display:grid; grid-template-columns:1fr 1fr; gap:16px;}
+  .sec{background:#fff; border:1px solid var(--line); border-radius:11px; padding:16px 18px; margin-bottom:14px;}
+  .sec h3{font-size:13.5px; color:var(--navy); margin-bottom:10px;}
+  table{width:100%; border-collapse:collapse; font-size:12.5px;}
+  th{background:var(--navy); color:#fff; padding:7px 10px; text-align:left; font-weight:600;}
+  td{padding:6px 10px; border-bottom:1px solid var(--line);}
+  tr:nth-child(even) td{background:#fafbfd;}
+  td.r,th.r{text-align:right;} td.c,th.c{text-align:center;}
+  /* 콤보 차트 (CSS) */
+  .chart{display:flex; align-items:flex-end; gap:8px; height:170px; padding:8px 4px 0; border-bottom:2px solid var(--navy); margin:6px 0 4px;}
+  .cbar{flex:1; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; gap:4px; position:relative; height:100%;}
+  .cbar .bar{width:68%; background:linear-gradient(180deg,var(--accent2),var(--accent)); border-radius:4px 4px 0 0; position:relative;}
+  .cbar .bar.fcst{background:repeating-linear-gradient(45deg,#b9cfe6,#b9cfe6 5px,#d6e4f2 5px,#d6e4f2 10px);}
+  .cbar .val{font-size:10px; font-weight:700; color:var(--navy2);}
+  .cbar .lab{font-size:10.5px; color:var(--muted); padding:4px 0 0;}
+  .legend{display:flex; gap:14px; font-size:11px; color:var(--muted); margin-top:6px; flex-wrap:wrap;}
+  .legend i{display:inline-block; width:10px; height:10px; border-radius:3px; margin-right:4px; vertical-align:-1px;}
+  .barlist{display:flex; flex-direction:column; gap:7px;}
+  .brow{display:grid; grid-template-columns:90px 1fr 76px; align-items:center; gap:8px; font-size:12px;}
+  .brow .lab{color:var(--navy2); text-align:right;}
+  .brow .track{height:15px; background:var(--soft); border-radius:4px; overflow:hidden;}
+  .brow .track i{display:block; height:100%; background:linear-gradient(90deg,var(--accent),var(--accent2)); border-radius:4px;}
+  .brow .cnt{font-weight:700; color:var(--navy); text-align:right;}
+  .src{margin-top:18px; background:var(--soft); border:1px solid var(--line); border-radius:9px; padding:11px 16px; font-size:11.5px; color:var(--muted);}
+  .src b{color:var(--navy2);}
+  code{font-family:Consolas,monospace; font-size:11px; background:#fff; border:1px solid var(--line); border-radius:4px; padding:0 5px;}
+  .callout{border-radius:8px; padding:11px 15px; margin:10px 0; font-size:12.5px;}
+  .callout.red{background:var(--softred); border-left:4px solid var(--red);}
+  .callout.amber{background:var(--softamber); border-left:4px solid var(--amber);}
+  .foot{margin-top:24px; padding-top:12px; border-top:1px solid var(--line); font-size:11px; color:var(--muted); display:flex; justify-content:space-between;}
+  @media print{ .demo-banner{display:none;} .page{box-shadow:none; max-width:100%;} }
+  @media (max-width:760px){ .page{padding:22px 16px;} .grid2{grid-template-columns:1fr;} }
+</style>
+</head>
+<body>
+<div class="demo-banner">⚠ 목업 데모 — UNIERP DB 구조·일부 실데이터 기반 샘플입니다. 수치는 검증 전 참고용이며 최종 확인은 인사총무팀 책임입니다.</div>
+<div class="page">
+
+  <div class="head">
+    <div>
+      <h1>👥 2026년 인원 및 급여 추이</h1>
+      <div class="sub">인사총무팀 운영 페이지 · <span class="badge b">부서 전용</span> <span class="badge r">개인정보 마스킹 적용</span> <span class="badge a">읽기전용 추출</span></div>
+    </div>
+    <div class="right">기준일: 2026-06-12<br>최종 추출: 2026-05-22 (급여 4월분 마감)</div>
+  </div>
+
+  <!-- KPI -->
+  <div class="kpis">
+    <div class="kpi"><div class="lb">현재 재적 인원</div><div class="v">87명</div><div class="delta up">▲ 전년말 대비 +2</div></div>
+    <div class="kpi"><div class="lb">2026 누적 입사</div><div class="v">7명</div><div class="delta">신입 3 · 경력 4</div></div>
+    <div class="kpi"><div class="lb">2026 누적 퇴사</div><div class="v">5명</div><div class="delta dn">4월 집중 (A22 신고분)</div></div>
+    <div class="kpi"><div class="lb">월평균 급여총액</div><div class="v">412<small> 백만원</small></div><div class="delta up">▲ 전년 대비 +3.1%</div></div>
+    <div class="kpi"><div class="lb">4월 퇴직급여 정산</div><div class="v">69.5<small> 백만원</small></div><div class="delta">IRP 과세이연 · 소득세 0</div></div>
+  </div>
+
+  <!-- 월별 추이 -->
+  <div class="grid2">
+    <div class="sec">
+      <h3>월별 재적 인원 추이 (명) <span class="badge b">HDF070T 급여대상 기준</span></h3>
+      <div class="chart">
+        <div class="cbar"><span class="val">85</span><div class="bar" style="height:80%"></div><span class="lab">1월</span></div>
+        <div class="cbar"><span class="val">86</span><div class="bar" style="height:84%"></div><span class="lab">2월</span></div>
+        <div class="cbar"><span class="val">88</span><div class="bar" style="height:92%"></div><span class="lab">3월</span></div>
+        <div class="cbar"><span class="val">87</span><div class="bar" style="height:88%"></div><span class="lab">4월</span></div>
+        <div class="cbar"><span class="val">87</span><div class="bar" style="height:88%"></div><span class="lab">5월</span></div>
+        <div class="cbar"><span class="val">87</span><div class="bar fcst" style="height:88%"></div><span class="lab">6월(진행)</span></div>
+      </div>
+      <div class="legend"><span><i style="background:var(--accent)"></i>마감</span><span><i style="background:#b9cfe6"></i>진행 중(미마감)</span></div>
+    </div>
+    <div class="sec">
+      <h3>월별 급여총액 추이 (백만원) <span class="badge b">SUM(PAY_TOT_AMT)</span></h3>
+      <div class="chart">
+        <div class="cbar"><span class="val">398</span><div class="bar" style="height:72%"></div><span class="lab">1월</span></div>
+        <div class="cbar"><span class="val">405</span><div class="bar" style="height:75%"></div><span class="lab">2월</span></div>
+        <div class="cbar"><span class="val">486</span><div class="bar" style="height:95%"></div><span class="lab">3월<br>(상여)</span></div>
+        <div class="cbar"><span class="val">421</span><div class="bar" style="height:80%"></div><span class="lab">4월</span></div>
+        <div class="cbar"><span class="val">409</span><div class="bar" style="height:77%"></div><span class="lab">5월</span></div>
+        <div class="cbar"><span class="val">—</span><div class="bar fcst" style="height:77%"></div><span class="lab">6월(예정)</span></div>
+      </div>
+      <div class="legend"><span>3월 정기상여 포함 · 퇴직급여 별도(HGA070T)</span></div>
+    </div>
+  </div>
+
+  <!-- 부서별 / 입퇴사 -->
+  <div class="grid2">
+    <div class="sec">
+      <h3>부서별 인원 분포 (2026-06 기준 87명)</h3>
+      <div class="barlist">
+        <div class="brow"><span class="lab">생산</span><div class="track"><i style="width:100%"></i></div><span class="cnt">24명 (28%)</span></div>
+        <div class="brow"><span class="lab">영업</span><div class="track"><i style="width:50%"></i></div><span class="cnt">12명 (14%)</span></div>
+        <div class="brow"><span class="lab">구매·자재</span><div class="track"><i style="width:38%"></i></div><span class="cnt">9명 (10%)</span></div>
+        <div class="brow"><span class="lab">품질</span><div class="track"><i style="width:33%"></i></div><span class="cnt">8명 (9%)</span></div>
+        <div class="brow"><span class="lab">사업관리</span><div class="track"><i style="width:33%"></i></div><span class="cnt">8명 (9%)</span></div>
+        <div class="brow"><span class="lab">설계</span><div class="track"><i style="width:33%"></i></div><span class="cnt">8명 (9%)</span></div>
+        <div class="brow"><span class="lab">재무·회계</span><div class="track"><i style="width:25%"></i></div><span class="cnt">6명 (7%)</span></div>
+        <div class="brow"><span class="lab">인사·총무</span><div class="track"><i style="width:21%"></i></div><span class="cnt">5명 (6%)</span></div>
+        <div class="brow"><span class="lab">경영기획</span><div class="track"><i style="width:17%"></i></div><span class="cnt">4명 (5%)</span></div>
+        <div class="brow"><span class="lab">IT·전산</span><div class="track"><i style="width:13%"></i></div><span class="cnt">3명 (3%)</span></div>
+      </div>
+    </div>
+    <div class="sec">
+      <h3>2026년 입·퇴사 현황 (HAA010T: ENTR_DT / RETIRE_DT)</h3>
+      <table>
+        <tr><th>월</th><th class="c">입사</th><th class="c">퇴사</th><th class="c">순증감</th><th>비고</th></tr>
+        <tr><td>1월</td><td class="c">1</td><td class="c">0</td><td class="c" style="color:var(--green); font-weight:700;">+1</td><td>경력 1 (설계)</td></tr>
+        <tr><td>2월</td><td class="c">1</td><td class="c">0</td><td class="c" style="color:var(--green); font-weight:700;">+1</td><td>신입 1 (생산)</td></tr>
+        <tr><td>3월</td><td class="c">2</td><td class="c">0</td><td class="c" style="color:var(--green); font-weight:700;">+2</td><td>신입 2 (생산·품질)</td></tr>
+        <tr><td>4월</td><td class="c">4</td><td class="c" style="color:var(--red); font-weight:700;">5</td><td class="c" style="color:var(--red); font-weight:700;">−1</td><td>퇴직정산 5건 (하단 상세)</td></tr>
+        <tr><td>5월</td><td class="c">0</td><td class="c">0</td><td class="c">—</td><td></td></tr>
+        <tr><td>6월(진행)</td><td class="c">0</td><td class="c">0</td><td class="c">—</td><td></td></tr>
+      </table>
+    </div>
+  </div>
+
+  <!-- 퇴직 정산 실데이터 -->
+  <div class="sec">
+    <h3>2026년 4월 퇴직급여 정산 내역 <span class="badge g">실데이터 · A22 신고 완료</span> <span class="badge r">성명 마스킹</span></h3>
+    <table>
+      <tr><th>사번</th><th>성명</th><th>퇴사일</th><th class="r">총지급액 (원)</th><th class="r">소득세</th><th class="r">지방세</th><th class="c">가입유형</th></tr>
+      <tr><td>5214***</td><td>이○영</td><td>2026-04-22</td><td class="r">18,030,106</td><td class="r">0</td><td class="r">0</td><td class="c"><span class="badge b">DB</span></td></tr>
+      <tr><td>5223***</td><td>차○우</td><td>2026-04-06</td><td class="r">19,250,352</td><td class="r">0</td><td class="r">0</td><td class="c"><span class="badge b">DB</span></td></tr>
+      <tr><td>5224***</td><td>박○림</td><td>2026-04-24</td><td class="r">16,673,227</td><td class="r">0</td><td class="r">0</td><td class="c"><span class="badge b">DB</span></td></tr>
+      <tr><td>5241***</td><td>임○호</td><td>2026-04-17</td><td class="r">6,791,807</td><td class="r">0</td><td class="r">0</td><td class="c"><span class="badge b">DB</span></td></tr>
+      <tr><td>5244***</td><td>최○열</td><td>2026-04-24</td><td class="r">8,779,523</td><td class="r">0</td><td class="r">0</td><td class="c"><span class="badge b">DB</span></td></tr>
+      <tr style="font-weight:700;"><td colspan="3">합계 — A22 신고 (2026-04 귀속)</td><td class="r" style="color:var(--navy);">69,525,015</td><td class="r">0</td><td class="r">0</td><td class="c">DB 5건</td></tr>
+    </table>
+    <div class="callout amber">
+      <b>처리 메모</b> — ① 소득세 0원은 IRP 과세이연 처리(실세액은 <code>DEFER_INCOME_TAX</code> 컬럼 참조) ② DC형 가입자 2명은 금융기관 신고(A21)로 본 집계(A22)에서 제외 ③ 집계 헤더: <code>TH101BA1_AUTOCREATE</code> (귀속 202604 · 인원 5 · 작성 2026-05-22, 인사팀)
+    </div>
+  </div>
+
+  <div class="callout red">
+    <b>개인정보 보호</b> — 본 페이지는 사번 뒷자리·성명을 마스킹하여 표시하며, 원본 식별 데이터는 ERP 권한자만 조회할 수 있습니다. 급여 개인별 상세는 본 페이지에서 제공하지 않습니다(부서 합계·평균만).
+  </div>
+
+  <div class="src">
+    <b>데이터 원천 (UNIERP · 읽기전용)</b> — 사원기본 <code>HAA010T</code> · 월별급여대장 <code>HDF070T</code> (PAY_YYMM, DEPT_NM, PAY_TOT_AMT) · 퇴직금 <code>HGA040T/HGA070T</code> · 원천징수 A22 집계 <code>TH101BA1_AUTOCREATE</code>. 추출 경로: ERP_DB\인사\원천징수이행상황신고서 (2026-05-26 검증). 월별 인원·급여 합계는 마감 전 수치로 결산 시 변동될 수 있음.
+  </div>
+
+  <div class="foot">
+    <span>인사총무팀 운영 페이지 · 2026년 인원 및 급여 추이</span>
+    <span>등록: 인사총무팀 · 공개범위: 부서 전용 (관리자 콘솔 권한 적용)</span>
+  </div>
+</div>
+</body>
+</html>

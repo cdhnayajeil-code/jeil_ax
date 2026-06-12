@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>구매팀 — 2026년 거래처별 매입금액 집계</title>
+<style>
+  :root{
+    --navy:#1a2f4e; --navy2:#27457a; --accent:#2f6fb3; --accent2:#4a8ed0;
+    --red:#b3402f; --green:#2e7d52; --amber:#9a6b1f;
+    --ink:#222; --muted:#666; --line:#d8dee8; --bg:#f4f6f9;
+    --soft:#eef2f8; --softred:#fbeeec; --softgreen:#ecf5f0; --softamber:#faf3e4;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif; color:var(--ink); background:var(--bg); line-height:1.6; font-size:14px;}
+  .demo-banner{background:var(--amber); color:#fff; text-align:center; font-size:12px; padding:6px 10px;}
+  .page{max-width:1100px; margin:0 auto; background:#fff; padding:34px 44px; box-shadow:0 2px 14px rgba(0,0,0,.08); min-height:100vh;}
+  .head{display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:10px; border-bottom:3px solid var(--navy); padding-bottom:14px; margin-bottom:20px;}
+  .head h1{font-size:22px; color:var(--navy);}
+  .head .sub{font-size:12.5px; color:var(--muted); margin-top:3px;}
+  .head .right{text-align:right; font-size:12px; color:var(--muted);}
+  .badge{display:inline-block; font-size:11px; border-radius:10px; padding:2px 9px; font-weight:600;}
+  .badge.g{background:var(--softgreen); color:var(--green);} .badge.a{background:var(--softamber); color:var(--amber);}
+  .badge.b{background:var(--soft); color:var(--navy2);} .badge.r{background:var(--softred); color:var(--red);}
+  .kpis{display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:12px; margin:14px 0;}
+  .kpi{background:#fff; border:1px solid var(--line); border-radius:11px; padding:14px 16px; border-top:4px solid var(--accent);}
+  .kpi .lb{font-size:11.5px; color:var(--muted);}
+  .kpi .v{font-size:23px; font-weight:800; color:var(--navy); margin-top:3px;}
+  .kpi .v small{font-size:12px; color:var(--muted); font-weight:500;}
+  .kpi .delta{font-size:11px; margin-top:2px; color:var(--muted);}
+  .grid2{display:grid; grid-template-columns:1fr 1fr; gap:16px;}
+  .sec{background:#fff; border:1px solid var(--line); border-radius:11px; padding:16px 18px; margin-bottom:14px;}
+  .sec h3{font-size:13.5px; color:var(--navy); margin-bottom:10px;}
+  table{width:100%; border-collapse:collapse; font-size:12.5px;}
+  th{background:var(--navy); color:#fff; padding:7px 10px; text-align:left; font-weight:600;}
+  td{padding:6px 10px; border-bottom:1px solid var(--line);}
+  tr:nth-child(even) td{background:#fafbfd;}
+  td.r,th.r{text-align:right;} td.c,th.c{text-align:center;}
+  .chart{display:flex; align-items:flex-end; gap:8px; height:170px; padding:8px 4px 0; border-bottom:2px solid var(--navy); margin:6px 0 4px;}
+  .cbar{flex:1; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; gap:4px; height:100%;}
+  .cbar .bar{width:68%; background:linear-gradient(180deg,var(--accent2),var(--accent)); border-radius:4px 4px 0 0;}
+  .cbar .bar.fcst{background:repeating-linear-gradient(45deg,#b9cfe6,#b9cfe6 5px,#d6e4f2 5px,#d6e4f2 10px);}
+  .cbar .val{font-size:10px; font-weight:700; color:var(--navy2);}
+  .cbar .lab{font-size:10.5px; color:var(--muted); padding:4px 0 0;}
+  .legend{display:flex; gap:14px; font-size:11px; color:var(--muted); margin-top:6px; flex-wrap:wrap;}
+  .barlist{display:flex; flex-direction:column; gap:7px;}
+  .brow{display:grid; grid-template-columns:150px 1fr 110px; align-items:center; gap:8px; font-size:12px;}
+  .brow .lab{color:var(--navy2); text-align:right; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .brow .track{height:15px; background:var(--soft); border-radius:4px; overflow:hidden;}
+  .brow .track i{display:block; height:100%; background:linear-gradient(90deg,var(--accent),var(--accent2)); border-radius:4px; min-width:2px;}
+  .brow .cnt{font-weight:700; color:var(--navy); text-align:right; font-size:11.5px;}
+  /* 도넛 대용 스택바 */
+  .stack{display:flex; height:26px; border-radius:7px; overflow:hidden; margin:8px 0 6px;}
+  .stack div{display:flex; align-items:center; justify-content:center; color:#fff; font-size:10.5px; font-weight:700; white-space:nowrap;}
+  .src{margin-top:18px; background:var(--soft); border:1px solid var(--line); border-radius:9px; padding:11px 16px; font-size:11.5px; color:var(--muted);}
+  .src b{color:var(--navy2);}
+  code{font-family:Consolas,monospace; font-size:11px; background:#fff; border:1px solid var(--line); border-radius:4px; padding:0 5px;}
+  .callout{border-radius:8px; padding:11px 15px; margin:10px 0; font-size:12.5px;}
+  .callout.amber{background:var(--softamber); border-left:4px solid var(--amber);}
+  .foot{margin-top:24px; padding-top:12px; border-top:1px solid var(--line); font-size:11px; color:var(--muted); display:flex; justify-content:space-between;}
+  @media print{ .demo-banner{display:none;} .page{box-shadow:none; max-width:100%;} }
+  @media (max-width:760px){ .page{padding:22px 16px;} .grid2{grid-template-columns:1fr;} .brow{grid-template-columns:100px 1fr 90px;} }
+</style>
+</head>
+<body>
+<div class="demo-banner">⚠ 목업 데모 — UNIERP DB 구조·일부 실데이터 기반 샘플입니다. 수치는 검증 전 참고용이며 최종 확인은 구매팀 책임입니다.</div>
+<div class="page">
+
+  <div class="head">
+    <div>
+      <h1>📦 2026년 거래처별 매입금액 집계</h1>
+      <div class="sub">구매팀 운영 페이지 · <span class="badge b">부서 전용</span> <span class="badge a">읽기전용 추출</span> · 기간: 2026-01-01 ~ 2026-06-12</div>
+    </div>
+    <div class="right">기준일: 2026-06-12<br>전표 기준: 매입확정(M_IV) · 부가세 별도</div>
+  </div>
+
+  <!-- KPI -->
+  <div class="kpis">
+    <div class="kpi"><div class="lb">2026 누적 매입액</div><div class="v">1,284<small> 백만원</small></div><div class="delta">공급가 기준 (VAT 별도)</div></div>
+    <div class="kpi"><div class="lb">거래 거래처 수</div><div class="v">94<small> 개사</small></div><div class="delta">발주 1건 이상</div></div>
+    <div class="kpi"><div class="lb">매입전표 건수</div><div class="v">1,127<small> 건</small></div><div class="delta">DIV·SIE·SIF·SIX·SIE-1</div></div>
+    <div class="kpi"><div class="lb">전자세금계산서 수취</div><div class="v">897<small> 건</small></div><div class="delta">A_TS_ETAX_MASTER 기준</div></div>
+    <div class="kpi"><div class="lb">상위 5개사 집중도</div><div class="v">38%</div><div class="delta">금액 기준</div></div>
+  </div>
+
+  <!-- 월별 추이 + 매입형태 -->
+  <div class="grid2">
+    <div class="sec">
+      <h3>월별 매입금액 추이 (백만원) <span class="badge b">M_IV_HDR · IV_DOC_AMT</span></h3>
+      <div class="chart">
+        <div class="cbar"><span class="val">142</span><div class="bar" style="height:42%"></div><span class="lab">1월</span></div>
+        <div class="cbar"><span class="val">318</span><div class="bar" style="height:94%"></div><span class="lab">2월</span></div>
+        <div class="cbar"><span class="val">196</span><div class="bar" style="height:58%"></div><span class="lab">3월</span></div>
+        <div class="cbar"><span class="val">231</span><div class="bar" style="height:68%"></div><span class="lab">4월</span></div>
+        <div class="cbar"><span class="val">275</span><div class="bar" style="height:81%"></div><span class="lab">5월</span></div>
+        <div class="cbar"><span class="val">122</span><div class="bar fcst" style="height:36%"></div><span class="lab">6월(진행)</span></div>
+      </div>
+      <div class="legend"><span>2월 피크: 대신스텐레스 사급용 원자재 일괄 발주(DO 40건·207라인) 반영</span></div>
+    </div>
+    <div class="sec">
+      <h3>매입형태별 구성 (2026 누적)</h3>
+      <div class="stack">
+        <div style="width:54%; background:var(--navy2);">DIV 국내매입 54%</div>
+        <div style="width:18%; background:var(--accent);">SIE 외주제작 18%</div>
+        <div style="width:14%; background:var(--accent2);">SIF 외주설치 14%</div>
+        <div style="width:8%; background:var(--amber);">SIE-1 8%</div>
+        <div style="width:6%; background:var(--green);">SIX 6%</div>
+      </div>
+      <table>
+        <tr><th>형태</th><th>분개</th><th>처리</th><th class="r">비고</th></tr>
+        <tr><td><b>DIV</b> 국내매입</td><td>M0001</td><td>원재료 자산화 (11200901)</td><td class="r">입고 연동</td></tr>
+        <tr><td><b>SIE</b> 외주제작</td><td>M0008</td><td>매입가계정 상계 (99900101)</td><td class="r">입고→상계</td></tr>
+        <tr><td><b>SIF</b> 외주설치</td><td>M0009</td><td>현장 설치비</td><td class="r">수불 없음</td></tr>
+        <tr><td><b>SIX</b> 외주수수료</td><td>M0010 <span class="badge g">신규</span></td><td>부대비 (43003702)</td><td class="r">입고 미반영</td></tr>
+        <tr><td><b>SIE-1</b> 외주제작(수불X)</td><td>M0011 <span class="badge g">신규</span></td><td>가공비 (43003701)</td><td class="r">입고 미반영</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <!-- 거래처 Top -->
+  <div class="sec">
+    <h3>거래처별 매입금액 Top 10 (2026 누적 · 백만원) <span class="badge b">B_BP × M_IV_HDR</span></h3>
+    <div class="barlist">
+      <div class="brow"><span class="lab">(주)대신스텐레스</span><div class="track"><i style="width:100%"></i></div><span class="cnt">186.2 (14.5%)</span></div>
+      <div class="brow"><span class="lab">오성테크</span><div class="track"><i style="width:71%"></i></div><span class="cnt">132.4 (10.3%)</span></div>
+      <div class="brow"><span class="lab">거래처 01921 (외주)</span><div class="track"><i style="width:48%"></i></div><span class="cnt">89.7 (7.0%)</span></div>
+      <div class="brow"><span class="lab">해광볼트공업</span><div class="track"><i style="width:42%"></i></div><span class="cnt">78.1 (6.1%)</span></div>
+      <div class="brow"><span class="lab">(주)지아이텍</span><div class="track"><i style="width:37%"></i></div><span class="cnt">68.1 (5.3%)</span></div>
+      <div class="brow"><span class="lab">이천베아링</span><div class="track"><i style="width:28%"></i></div><span class="cnt">52.6 (4.1%)</span></div>
+      <div class="brow"><span class="lab">신호종합배관</span><div class="track"><i style="width:23%"></i></div><span class="cnt">43.0 (3.3%)</span></div>
+      <div class="brow"><span class="lab">(주)인텍어드밴스</span><div class="track"><i style="width:17%"></i></div><span class="cnt">32.0 (2.5%)</span></div>
+      <div class="brow"><span class="lab">(주)경기종합볼트</span><div class="track"><i style="width:10%"></i></div><span class="cnt">18.9 (1.5%)</span></div>
+      <div class="brow"><span class="lab">신우산업</span><div class="track"><i style="width:6%"></i></div><span class="cnt">11.2 (0.9%)</span></div>
+    </div>
+    <p style="font-size:11px; color:var(--muted); margin-top:8px;">부자재(볼트·너트류) 거래 집중 — 오성테크 737품목·5,039 발주라인, 해광볼트 481품목·4,427라인 (B_ITEM × M_PUR_ORD_DTL 누적)</p>
+  </div>
+
+  <!-- 주요 거래 내역 (실데이터) -->
+  <div class="grid2">
+    <div class="sec">
+      <h3>주요 매입 거래 내역 <span class="badge g">실데이터 발췌</span></h3>
+      <table>
+        <tr><th>일자</th><th>거래처</th><th>형태</th><th class="r">금액(원)</th></tr>
+        <tr><td>02-12</td><td>대신스텐레스</td><td><span class="badge b">DIV</span> 사급 원자재</td><td class="r">51,452,660</td></tr>
+        <tr><td>04-30</td><td>신우산업</td><td><span class="badge b">SIE</span> 외주제작</td><td class="r">275,000</td></tr>
+        <tr><td>04-30</td><td>이천베아링</td><td><span class="badge b">DIV+SIE-1</span> 3전표</td><td class="r">(분할 처리)</td></tr>
+        <tr><td>05-08</td><td>거래처 01921</td><td><span class="badge b">SIE</span> 외주제작</td><td class="r">1,650,000</td></tr>
+        <tr><td>05-08</td><td>거래처 01921</td><td><span class="badge b">SIF</span> 외주설치</td><td class="r">22,000,000</td></tr>
+        <tr><td>05-31</td><td>이천베아링</td><td><span class="badge b">DIV×3+SIE-1</span> 4전표</td><td class="r">(분할 처리)</td></tr>
+      </table>
+      <p style="font-size:11px; color:var(--muted); margin-top:6px;">※ 금액은 부가세 포함 전표가액(IV_DOC_AMT). 전표번호 예: IV202605080001~2</p>
+    </div>
+    <div class="sec">
+      <h3>품목계정별 매입 구성 <span class="badge b">B_ITEM · ITEM_ACCT</span></h3>
+      <div class="stack">
+        <div style="width:45%; background:var(--navy2);">원재료 45.4%</div>
+        <div style="width:33%; background:var(--accent);">부자재 32.8%</div>
+        <div style="width:19%; background:var(--accent2);">제품/상품 19.2%</div>
+        <div style="width:3%; background:var(--amber);">2.6%</div>
+      </div>
+      <table>
+        <tr><th>계정</th><th class="r">품목 수</th><th>회계 처리</th></tr>
+        <tr><td>30 원재료</td><td class="r">25,161</td><td>11200901 자산화</td></tr>
+        <tr><td>35 부자재</td><td class="r">18,182</td><td>11201101 자산화</td></tr>
+        <tr><td>20/10 제품·상품</td><td class="r">12,138</td><td>11200101 자산화</td></tr>
+        <tr><td>33 소모품</td><td class="r">1,432</td><td>43002503 즉시 비용화</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <div class="callout amber">
+    <b>운영 이슈 (구매팀 관리 포인트)</b> — ① 2026년 외주가공 분개 분리(SIX·SIE-1 신설)로 <b>세금계산서 1장 = 매입전표 2~4건</b> 분할 발생 → 거래처 정산 시 전표 합산 대사 필요. ② 공급자 세금계산서번호(<code>SPPL_IV_NO</code>) 입력률 0% → 세금계산서↔전표 대사가 수기 의존, 입력 규율 또는 자동 매핑 개선 검토.
+  </div>
+
+  <div class="src">
+    <b>데이터 원천 (UNIERP · 읽기전용)</b> — 매입전표 <code>M_IV_HDR/M_IV_DTL</code> · 발주 <code>M_PUR_ORD_HDR/DTL</code> · 거래처 <code>B_BP</code> · 품목 <code>B_ITEM</code> · 전자세금계산서 <code>A_TS_ETAX_MASTER</code>(2026년 897건). 추출 경로: ERP_DB\구매\매입형태구분 정리 (2026-06-12 검증). 월별 합계·Top10 비중은 마감 전 추정치 포함.
+  </div>
+
+  <div class="foot">
+    <span>구매팀 운영 페이지 · 2026년 거래처별 매입금액 집계</span>
+    <span>등록: 구매팀 · 공개범위: 부서 전용 (관리자 콘솔 권한 적용)</span>
+  </div>
+</div>
+</body>
+</html>

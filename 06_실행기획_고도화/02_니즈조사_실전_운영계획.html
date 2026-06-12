@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI 니즈조사 — 실전 운영계획 (고도화)</title>
+<style>
+  :root{
+    --navy:#1a2f4e; --navy2:#27457a; --accent:#2f6fb3; --accent2:#4a8ed0;
+    --red:#b3402f; --green:#2e7d52; --amber:#9a6b1f;
+    --ink:#222; --muted:#666; --line:#d8dee8; --bg:#f4f6f9;
+    --soft:#eef2f8; --softred:#fbeeec; --softgreen:#ecf5f0; --softamber:#faf3e4;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif; color:var(--ink); background:var(--bg); line-height:1.65; font-size:15px;}
+  .page{max-width:960px; margin:0 auto; background:#fff; padding:56px 64px; box-shadow:0 2px 14px rgba(0,0,0,.08);}
+  .doc-label{display:inline-block; background:var(--accent); color:#fff; font-size:12px; letter-spacing:.18em; padding:5px 14px; border-radius:3px; margin-bottom:18px;}
+  h1{font-size:29px; color:var(--navy); line-height:1.35; margin-bottom:10px; letter-spacing:-.01em;}
+  .subtitle{font-size:16px; color:var(--muted); margin-bottom:26px;}
+  .meta{display:flex; flex-wrap:wrap; border:1px solid var(--line); border-radius:6px; overflow:hidden; margin-bottom:36px;}
+  .meta div{flex:1 1 25%; padding:10px 16px; font-size:13px; border-right:1px solid var(--line); background:var(--soft);}
+  .meta div:last-child{border-right:none;}
+  .meta b{display:block; color:var(--navy); font-size:12px; margin-bottom:2px;}
+  h2{font-size:21px; color:var(--navy); margin:46px 0 16px; padding-bottom:10px; border-bottom:3px solid var(--navy); display:flex; align-items:center; gap:10px;}
+  h2 .num{background:var(--navy); color:#fff; font-size:14px; width:28px; height:28px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; flex:none;}
+  h3{font-size:16.5px; color:var(--navy2); margin:26px 0 10px;}
+  p{margin-bottom:12px;}
+  table{width:100%; border-collapse:collapse; margin:14px 0 20px; font-size:13.5px;}
+  th{background:var(--navy); color:#fff; padding:9px 12px; text-align:left; font-weight:600;}
+  td{padding:9px 12px; border-bottom:1px solid var(--line); vertical-align:top;}
+  tr:nth-child(even) td{background:#fafbfd;}
+  td.c,th.c{text-align:center;} td.r,th.r{text-align:right;}
+  td.ok{color:var(--green); font-weight:700;}
+  .callout{border-radius:8px; padding:16px 20px; margin:14px 0;}
+  .callout.green{background:var(--softgreen); border-left:5px solid var(--green);}
+  .callout.red{background:var(--softred); border-left:5px solid var(--red);}
+  .callout.amber{background:var(--softamber); border-left:5px solid var(--amber);}
+  .callout.blue{background:var(--soft); border-left:5px solid var(--accent);}
+  .callout b.tag{display:block; font-size:13px; margin-bottom:6px;}
+  .callout.green b.tag{color:var(--green);} .callout.red b.tag{color:var(--red);}
+  .callout.amber b.tag{color:var(--amber);} .callout.blue b.tag{color:var(--accent);}
+  .small{font-size:12.5px; color:var(--muted);}
+  code{font-family:Consolas,monospace; font-size:12.5px; background:var(--soft); border:1px solid var(--line); border-radius:4px; padding:1px 6px;}
+  .badge{display:inline-block; font-size:11px; border-radius:10px; padding:2px 9px; font-weight:600;}
+  .badge.g{background:var(--softgreen); color:var(--green);} .badge.a{background:var(--softamber); color:var(--amber);}
+  .badge.r{background:var(--softred); color:var(--red);} .badge.b{background:var(--soft); color:var(--navy2);}
+  /* 절차 스텝 */
+  .steps{counter-reset:st; margin:16px 0;}
+  .step{display:flex; gap:14px; margin-bottom:12px; align-items:flex-start;}
+  .step:before{counter-increment:st; content:counter(st); flex:0 0 30px; height:30px; border-radius:50%; background:var(--accent); color:#fff; font-weight:700; font-size:14px; display:flex; align-items:center; justify-content:center;}
+  .step .sb{flex:1; border:1px solid var(--line); border-radius:9px; padding:11px 15px; background:#fff; font-size:13.5px;}
+  .step .sb b{color:var(--navy);}
+  /* 인터뷰 스크립트 */
+  .script{border:1px solid var(--line); border-left:5px solid var(--navy2); border-radius:8px; padding:14px 18px; margin:10px 0; background:#fafbfd; font-size:13.5px;}
+  .script b{color:var(--navy2); display:block; margin-bottom:4px;}
+  /* 체크리스트 */
+  .chk{list-style:none; margin:10px 0;}
+  .chk li{position:relative; padding:7px 0 7px 32px; border-bottom:1px dashed var(--line); font-size:13.5px;}
+  .chk li:before{content:''; position:absolute; left:4px; top:9px; width:15px; height:15px; border:1.6px solid var(--accent); border-radius:4px; background:#fff;}
+  .chk li.head{padding-left:0; font-weight:700; color:var(--navy); border-bottom:2px solid var(--navy); margin-top:14px;}
+  .chk li.head:before{display:none;}
+  /* 보고서 골격 */
+  .toc{border:1.5px solid var(--navy2); border-radius:10px; padding:18px 24px; background:#fff; margin:14px 0;}
+  .toc ol{margin-left:20px;} .toc li{margin-bottom:7px; font-size:13.8px;}
+  .toc li b{color:var(--navy);}
+  .toc li .small{display:block;}
+  .footer{margin-top:56px; padding-top:16px; border-top:1px solid var(--line); font-size:12px; color:var(--muted); display:flex; justify-content:space-between;}
+  a{color:var(--accent);}
+  @media print{
+    body{background:#fff;} .page{box-shadow:none; padding:20px 0; max-width:100%;}
+    h2{break-after:avoid;} table,.callout,.script,.step,.toc{break-inside:avoid;}
+  }
+  @media (max-width:760px){ .page{padding:32px 22px;} }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <span class="doc-label">실전 운영 · 별첨</span>
+  <h1>AI 니즈조사 — 실전 운영계획</h1>
+  <p class="subtitle">전사 수요조사 실행 매뉴얼 — 배포부터 경영진 보고까지 4주 운영의 모든 절차</p>
+
+  <div class="meta">
+    <div><b>작성일</b>2026. 06. 12.</div>
+    <div><b>주관</b>최동혁 (사업관리팀)</div>
+    <div><b>조사기간</b>2026. 06. 15. ~ 07. 10.</div>
+    <div><b>본첨</b>AX 통합 실행 기획서(01)</div>
+  </div>
+
+  <h2><span class="num">1</span>조사 개요 (확정안)</h2>
+  <table>
+    <tr><th style="width:18%;">항목</th><th>내용</th></tr>
+    <tr><td><b>목적</b></td><td>① 부서별 AI 활용 수요 파악 ② 적용 가능/불가 영역 공통 이해 형성 ③ 효과×난이도 기준 <b>우선 추진과제 3~5건 선정</b> → 2단계 PoC·챗봇 포털 템플릿 입력물</td></tr>
+    <tr><td><b>대상</b></td><td>전 부서 8개(영업/구매·자재/생산/품질/재무·회계/인사·총무/경영기획/IT·전산) — 부서별 <b>최소 2부</b>(부서장 1 + 실무자 1 이상), 익명 제출 허용</td></tr>
+    <tr><td><b>방법</b></td><td>디지털 설문폼(05-①) → OneDrive 취합 → 집계 대시보드(05-②) → 심층 인터뷰 → 과제평가 시트(05-③)</td></tr>
+    <tr><td><b>회신 목표</b></td><td>부서 회신율 100% (8/8), 응답 수 16부 이상 (전 직원 약 87명 기준 참여율 18%+)</td></tr>
+    <tr><td><b>산출물</b></td><td>부서별 니즈 목록, 우선과제 선정안(JSON+보고서), 2단계 PoC 추진계획(품의)</td></tr>
+  </table>
+
+  <h2><span class="num">2</span>조사 설계 — 02 기획 대비 고도화 포인트</h2>
+  <table>
+    <tr><th style="width:26%;">항목</th><th style="width:34%;">02 원안 (종이)</th><th>실전 적용 (디지털)</th></tr>
+    <tr><td>작성 방식</td><td>인쇄 양식 수기 작성</td><td class="ok">웹 설문폼 — 진행률 표시, 필수값 검증, 약 5~7분</td></tr>
+    <tr><td>취합 방식</td><td>부서별 종이/파일 회수 → 수작업 전사</td><td class="ok">응답 JSON 자동 생성 → OneDrive 폴더 누적 → 일괄 집계</td></tr>
+    <tr><td>익명성</td><td>없음 (실명 양식)</td><td class="ok">선택적 익명 제출 — 부서 단위 집계는 유지</td></tr>
+    <tr><td>정량화</td><td>Q2 시간은 참고용</td><td class="ok">주당 시간 → 절감가능시간 자동 환산(중앙값), 효과=절감시간×인원</td></tr>
+    <tr><td>우선순위</td><td>평가회의 정성 판단</td><td class="ok">점수 입력 → 사분면 자동 배치 + 우선순위 점수(효과−난이도+가점)</td></tr>
+    <tr><td>이력 관리</td><td>없음</td><td class="ok">응답 JSON 영구 보존 → 차년도 재조사 시 전년 대비 비교</td></tr>
+  </table>
+  <div class="callout blue">
+    <b class="tag">문항 구성 (Q1~Q7 — 05-① 설문폼 탑재 완료)</b>
+    Q1 반복 업무 최대 3건(자유) · Q2 주당 소요시간(4구간) · Q3 희망 기능(7+기타 복수) · Q4 데이터 위치(4+기타 복수) · Q5 희망 기능 자유서술("어떤 업무가→어떻게") · Q6 우려사항(4+기타 복수) · Q7 개인 사용 중 AI 도구. 설문폼에 가능/조건부/부적합 가이드와 부서별 예시 8종이 접이식으로 동봉되어 있어 별도 교육 없이 작성 가능.
+  </div>
+
+  <h2><span class="num">3</span>배포·회신 절차 (운영 표준)</h2>
+
+  <h3>3-1. 사전 준비 (배포 전 — 6/12~6/14)</h3>
+  <div class="steps">
+    <div class="step"><div class="sb"><b>OneDrive 취합 폴더 생성·권한 설정</b> — <code>…\JEIL_AX\05_니즈조사\responses\</code> 공유 링크 생성. 쓰기: 부서 창구 8인+관리자 / 읽기: 관리자. (IT 협조)</div></div>
+    <div class="step"><div class="sb"><b>부서장 회의 안내</b> — 통합 기획서(본첨)로 취지 5분 보고, 부서별 취합 창구 1인 지정 요청.</div></div>
+    <div class="step"><div class="sb"><b>리허설</b> — 사업관리팀 내부에서 설문폼 작성→JSON 저장→responses 업로드→대시보드 집계 왕복 1회 검증.</div></div>
+  </div>
+
+  <h3>3-2. 배포 (6/15 월)</h3>
+  <div class="steps">
+    <div class="step"><div class="sb"><b>공문 발송</b> — 배포 안내문(05-⑤)을 그룹웨어 전체 공지 + 부서장·창구 메일 발송. 설문폼 링크(또는 니즈조사 홈 05-홈) 첨부.</div></div>
+    <div class="step"><div class="sb"><b>작성 안내 핵심 3줄</b> — ① 약 5~7분, 익명 가능 ② 작성 후 [응답 저장] 누르면 JSON 파일 다운로드 ③ 그 파일을 부서 창구에게 전달(창구가 responses 폴더 업로드).</div></div>
+  </div>
+
+  <h3>3-3. 취합 규칙 (부서 창구용)</h3>
+  <table>
+    <tr><th style="width:24%;">규칙</th><th>내용</th></tr>
+    <tr><td>파일명</td><td>설문폼 자동 생성명 유지 — <code>니즈조사_부서_작성자_날짜.json</code> (익명 시 작성자=익명). <b>이름 변경 금지</b></td></tr>
+    <tr><td>업로드 위치</td><td><code>responses</code> 폴더 바로 아래 (하위 폴더 만들지 않음 — 대시보드가 폴더 단위로 읽음)</td></tr>
+    <tr><td>재제출</td><td>같은 파일명 덮어쓰기 — 집계 도구가 동일인(부서·작성자·작성일) 최신본만 반영</td></tr>
+    <tr><td>마감</td><td><b>6/26(금) 17:00</b> — 마감 후 추가분은 관리자에게 별도 전달</td></tr>
+  </table>
+
+  <h2><span class="num">4</span>회신율 관리 (주간 운영 리듬)</h2>
+
+  <h3>4-1. 점검 주기</h3>
+  <table>
+    <tr><th style="width:20%;">시점</th><th>활동</th><th style="width:26%;">도구</th></tr>
+    <tr><td>매주 수·금 오전</td><td>대시보드 [OneDrive 폴더 연결]로 responses 일괄 집계 → 부서별 회신현황 확인</td><td>05-② 집계 대시보드</td></tr>
+    <tr><td>2주차 수 (6/24)</td><td>중간 점검 — 미회신 부서 창구에 1차 독려(메일)</td><td>부서별 현황 표(미회신 강조)</td></tr>
+    <tr><td>2주차 금 (6/26)</td><td>마감 — 최종 회신율 확정, 미회신 부서는 부서장 직접 요청(2차 독려)</td><td>〃</td></tr>
+  </table>
+
+  <h3>4-2. 독려 시나리오</h3>
+  <table>
+    <tr><th style="width:22%;">상황</th><th>조치</th></tr>
+    <tr><td>부서 0건 (마감 D-3)</td><td>창구에 독려 메일 — "부서별 1부 이상 필수, 작성 5분" + 설문폼 링크 재전달</td></tr>
+    <tr><td>부서 0건 (마감일)</td><td>부서장에게 직접 요청 — 부서장 회의 합의사항 상기, 마감 연장 없음 안내</td></tr>
+    <tr><td>응답 1건뿐 (실무자 누락)</td><td>창구 통해 실무자 1인 이상 추가 요청 — 익명 제출 가능 강조</td></tr>
+    <tr><td>비현실 니즈 다수</td><td>해당 부서 인터뷰 대상에 포함 — 가이드 기준으로 함께 재정의</td></tr>
+  </table>
+
+  <h2><span class="num">5</span>심층 인터뷰 가이드 (3주차 · 수요 상위 3~4개 부서)</h2>
+  <p>대상 선정: 대시보드 집계에서 <b>① 응답 수 많은 부서 ② 절감가능시간 큰 부서 ③ ERP 데이터 수요 부서</b> 순으로 3~4곳. 부서당 30분, 창구+실무자 동석.</p>
+
+  <div class="script"><b>도입 (5분)</b>조사 응답 요약을 보여주며 — "이 업무에 주 ○시간을 쓰신다고 응답하셨는데, 구체적으로 어떤 흐름인지 들려주세요."</div>
+  <div class="script"><b>업무 흐름 구체화 (10분)</b>① 그 업무의 시작~끝 단계는? ② 어느 단계가 가장 오래 걸리나? ③ 그 단계에서 쓰는 데이터/화면/파일은? (ERP 메뉴명, 엑셀 파일 위치까지 특정)</div>
+  <div class="script"><b>기대 수준 확인 (10분)</b>① AI가 초안까지만 해주면 충분한가, 완성까지 기대하는가? ② 결과 검증은 누가·어떻게? ③ 주 몇 회·몇 명이 쓰게 되나? (효과 점수 산정 근거)</div>
+  <div class="script"><b>제약 확인 (5분)</b>① 이 데이터에 개인정보·기밀이 포함되나? ② 지금 외부 AI에 이 업무를 시켜본 적 있나, 결과는? ③ 도입 시 우려는?</div>
+
+  <div class="callout amber">
+    <b class="tag">인터뷰 기록 규칙</b>
+    부서당 1장 메모로 정리해 <code>responses</code> 폴더 옆 <code>interviews</code>에 보관 — 항목: 업무명 / 주당시간×인원 / 데이터 위치(ERP 모듈·파일 경로) / 기대 수준 / 민감도 / 과제화 가능 여부. 이 메모가 과제평가 시트의 효과·난이도 점수 근거가 된다.
+  </div>
+
+  <h2><span class="num">6</span>평가·우선과제 선정 (4주차)</h2>
+
+  <h3>6-1. 점수 기준 (과제평가 시트 05-③ 입력)</h3>
+  <table>
+    <tr><th style="width:24%;">축</th><th>산정 기준</th></tr>
+    <tr><td><b>기대효과 (0~100)</b></td><td>주당 절감시간 × 수혜 인원 환산 — 20 미만(소) / 20~50(중) / 50 이상(대). 인터뷰로 검증된 수치 우선</td></tr>
+    <tr><td><b>구현 난이도 (0~100)</b></td><td>문서 초안·요약·규정 챗봇 10~30 / 정기 리포트 자동화 40~50 / 알림·점검 50~60 / ERP 연계 조회·분석 60~80 / 신규 데이터 확보 필요 80+</td></tr>
+    <tr><td><b>가점 (+)</b></td><td>여러 부서 공통 수요 +10 / 기존 데이터(ERP·엑셀)만으로 구현 +5 / 효과 측정 가능 +5</td></tr>
+    <tr><td><b>감점 (−)</b></td><td>개인정보·기밀 민감도 높음 −10 / 외부 데이터 신규 확보 −10 / 법적 검토 필요 −10</td></tr>
+  </table>
+
+  <h3>6-2. 평가회의 운영 (7/7 화 권장 · 60분)</h3>
+  <div class="steps">
+    <div class="step"><div class="sb"><b>사전(관리자)</b> — 대시보드 집계 + 인터뷰 메모로 후보과제 7~10건을 평가시트에 미리 입력, 가배점까지 작성.</div></div>
+    <div class="step"><div class="sb"><b>회의(관리자+수요 상위 부서장)</b> — 화면 공유로 점수 합의 조정 → 사분면 자동 배치 확인 → ①사분면 상위 3~5건 확정.</div></div>
+    <div class="step"><div class="sb"><b>회의 후</b> — [우선과제 내보내기]로 <code>AI_우선추진과제_선정안.json</code> 생성 → responses 폴더 보관 + 보고서 작성 착수. ④사분면(보류)·부적합 과제는 제외 사유를 부서에 회신.</div></div>
+  </div>
+
+  <h2><span class="num">7</span>경영진 보고서 골격 (7/10 금)</h2>
+  <div class="toc">
+    <ol>
+      <li><b>조사 결과 요약</b> — 회신율, 총 응답, 주당 절감가능시간 합계 <span class="small">(대시보드 KPI 캡처)</span></li>
+      <li><b>수요 분석</b> — 기능별 수요 순위, 데이터 위치 분포, 우려사항 <span class="small">(대시보드 막대 집계)</span></li>
+      <li><b>우선 추진과제 3~5건</b> — 과제별 효과·난이도·담당 부서·기대 ROI <span class="small">(평가시트 사분면+선정 결과)</span></li>
+      <li><b>2단계 PoC 추진계획</b> — 우선과제 중 1~2건 시범 구축 범위·기간·예산 <span class="small">(03 기획 로드맵 준용)</span></li>
+      <li><b>의사결정 요청</b> — ① PoC 착수 승인 ② 챗봇 포털 B안 확정 ③ 월 예산 상한 ④ 구축 방식(자체/외주) <span class="small">(03 기획 9장 4건)</span></li>
+    </ol>
+  </div>
+  <p class="small">보고 형식: 대시보드·평가시트 화면을 직접 시연(04 포털 데모와 함께)하면 별도 장표 제작을 최소화할 수 있다.</p>
+
+  <h2><span class="num">8</span>주차별 실행 체크리스트</h2>
+  <ul class="chk">
+    <li class="head">사전 준비 (6/12 ~ 6/14)</li>
+    <li>OneDrive <code>responses</code> 폴더 생성 + 공유 권한(창구 쓰기/관리자 읽기) 설정</li>
+    <li>부서장 회의 안내 + 부서별 취합 창구 8인 지정 확정</li>
+    <li>설문폼→JSON→responses→대시보드 왕복 리허설 1회 완료</li>
+    <li class="head">1주차 — 배포 (6/15 ~ 6/19)</li>
+    <li>배포 안내문(공문) 그룹웨어 전체 공지 + 창구 메일 발송</li>
+    <li>창구별 취합 규칙(3-3) 전달 확인</li>
+    <li>금요일 1차 집계 — 초기 회신 확인</li>
+    <li class="head">2주차 — 회신·취합 (6/22 ~ 6/26)</li>
+    <li>수(6/24) 중간 집계 + 미회신 부서 1차 독려</li>
+    <li>금(6/26) 17:00 마감 — 최종 회신율 확정, 필요 시 부서장 2차 독려</li>
+    <li>인터뷰 대상 3~4개 부서 선정 + 일정 협의</li>
+    <li class="head">3주차 — 심층 인터뷰 (6/29 ~ 7/3)</li>
+    <li>부서당 30분 인터뷰 (5장 스크립트) + 메모 <code>interviews</code> 보관</li>
+    <li>후보과제 7~10건 목록화 (효과·난이도 근거 포함)</li>
+    <li class="head">4주차 — 평가·보고 (7/6 ~ 7/10)</li>
+    <li>평가시트 사전 입력 → 평가회의(7/7) → 우선과제 3~5건 확정</li>
+    <li>우선과제 JSON 내보내기 + 보류·부적합 사유 부서 회신</li>
+    <li>경영진 보고(7/10) — 보고서 골격(7장) + 도구 시연, 2단계 품의 상정</li>
+  </ul>
+
+  <h2><span class="num">9</span>도구·자료 바로가기</h2>
+  <table>
+    <tr><th style="width:30%;">자료</th><th>경로</th></tr>
+    <tr><td>니즈조사 통합 홈</td><td><a href="../05_니즈조사/00_니즈조사_홈.html">05_니즈조사/00_니즈조사_홈.html</a></td></tr>
+    <tr><td>디지털 설문폼 (배포 링크)</td><td><a href="../05_니즈조사/01_니즈조사_설문폼.html">05_니즈조사/01_니즈조사_설문폼.html</a></td></tr>
+    <tr><td>집계 대시보드 (관리자)</td><td><a href="../05_니즈조사/02_니즈조사_집계_대시보드.html">05_니즈조사/02_니즈조사_집계_대시보드.html</a></td></tr>
+    <tr><td>과제평가 시트 (평가회의)</td><td><a href="../05_니즈조사/03_과제평가_시트.html">05_니즈조사/03_과제평가_시트.html</a></td></tr>
+    <tr><td>배포 안내문 (공문)</td><td><a href="../05_니즈조사/05_니즈조사_배포_안내문.html">05_니즈조사/05_니즈조사_배포_안내문.html</a></td></tr>
+    <tr><td>응답 취합 폴더</td><td><code>…\JEIL_AX\05_니즈조사\responses\</code> (OneDrive 공유)</td></tr>
+    <tr><td>통합 실행 기획서 (본첨)</td><td><a href="01_AX_통합_실행기획서.html">06_실행기획_고도화/01_AX_통합_실행기획서.html</a></td></tr>
+  </table>
+
+  <div class="callout green">
+    <b class="tag">운영 원칙 요약</b>
+    ① 도구는 이미 완성 — 운영의 성패는 <b>회신율 관리(주 2회 점검)와 인터뷰 품질</b>에 달려 있다. ② 모든 데이터는 OneDrive 한 폴더(<code>responses</code>)에 누적 — 수작업 전사 금지. ③ 평가는 점수 근거(절감시간×인원)를 남겨 경영진 보고의 정량 설득력을 확보한다.
+  </div>
+
+  <div class="footer">
+    <span>AI 니즈조사 실전 운영계획 · 2026. 06. 12.</span>
+    <span>본첨: AX 통합 실행 기획서(01)</span>
+  </div>
+</div>
+</body>
+</html>

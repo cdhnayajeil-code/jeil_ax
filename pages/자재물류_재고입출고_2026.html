@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>자재물류팀 — 2026년 재고 입·출고 현황</title>
+<style>
+  :root{
+    --navy:#1a2f4e; --navy2:#27457a; --accent:#2f6fb3; --accent2:#4a8ed0;
+    --red:#b3402f; --green:#2e7d52; --amber:#9a6b1f;
+    --ink:#222; --muted:#666; --line:#d8dee8; --bg:#f4f6f9;
+    --soft:#eef2f8; --softred:#fbeeec; --softgreen:#ecf5f0; --softamber:#faf3e4;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif; color:var(--ink); background:var(--bg); line-height:1.6; font-size:14px;}
+  .demo-banner{background:var(--amber); color:#fff; text-align:center; font-size:12px; padding:6px 10px;}
+  .page{max-width:1100px; margin:0 auto; background:#fff; padding:34px 44px; box-shadow:0 2px 14px rgba(0,0,0,.08); min-height:100vh;}
+  .head{display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:10px; border-bottom:3px solid var(--navy); padding-bottom:14px; margin-bottom:20px;}
+  .head h1{font-size:22px; color:var(--navy);}
+  .head .sub{font-size:12.5px; color:var(--muted); margin-top:3px;}
+  .head .right{text-align:right; font-size:12px; color:var(--muted);}
+  .badge{display:inline-block; font-size:11px; border-radius:10px; padding:2px 9px; font-weight:600;}
+  .badge.g{background:var(--softgreen); color:var(--green);} .badge.a{background:var(--softamber); color:var(--amber);}
+  .badge.b{background:var(--soft); color:var(--navy2);} .badge.r{background:var(--softred); color:var(--red);}
+  .kpis{display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:12px; margin:14px 0;}
+  .kpi{background:#fff; border:1px solid var(--line); border-radius:11px; padding:14px 16px; border-top:4px solid var(--accent);}
+  .kpi.gr{border-top-color:var(--green);} .kpi.rd{border-top-color:var(--red);} .kpi.am{border-top-color:var(--amber);}
+  .kpi .lb{font-size:11.5px; color:var(--muted);}
+  .kpi .v{font-size:22px; font-weight:800; color:var(--navy); margin-top:3px;}
+  .kpi .v small{font-size:12px; color:var(--muted); font-weight:500;}
+  .kpi .delta{font-size:11px; margin-top:2px; color:var(--muted);}
+  .grid2{display:grid; grid-template-columns:1fr 1fr; gap:16px;}
+  .sec{background:#fff; border:1px solid var(--line); border-radius:11px; padding:16px 18px; margin-bottom:14px;}
+  .sec h3{font-size:13.5px; color:var(--navy); margin-bottom:10px;}
+  table{width:100%; border-collapse:collapse; font-size:12.5px;}
+  th{background:var(--navy); color:#fff; padding:7px 10px; text-align:left; font-weight:600;}
+  td{padding:6px 10px; border-bottom:1px solid var(--line);}
+  tr:nth-child(even) td{background:#fafbfd;}
+  td.r,th.r{text-align:right;} td.c,th.c{text-align:center;}
+  .code{font-family:Consolas,monospace; font-size:11.5px; color:var(--navy2); font-weight:700;}
+  /* 입출고 듀얼 차트 */
+  .dual{display:flex; align-items:flex-end; gap:10px; height:180px; padding:8px 4px 0; border-bottom:2px solid var(--navy); margin:6px 0 4px;}
+  .dgroup{flex:1; display:flex; align-items:flex-end; justify-content:center; gap:3px; height:100%; position:relative;}
+  .dgroup .gin,.dgroup .gout{width:34%; border-radius:4px 4px 0 0;}
+  .dgroup .gin{background:linear-gradient(180deg,#5da27e,var(--green));}
+  .dgroup .gout{background:linear-gradient(180deg,#7da4cc,var(--navy2));}
+  .dgroup .lab{position:absolute; bottom:-22px; left:0; right:0; text-align:center; font-size:10.5px; color:var(--muted);}
+  .dwrap{padding-bottom:26px;}
+  .legend{display:flex; gap:14px; font-size:11px; color:var(--muted); margin-top:6px; flex-wrap:wrap;}
+  .legend i{display:inline-block; width:10px; height:10px; border-radius:3px; margin-right:4px; vertical-align:-1px;}
+  .stack{display:flex; height:26px; border-radius:7px; overflow:hidden; margin:8px 0 6px;}
+  .stack div{display:flex; align-items:center; justify-content:center; color:#fff; font-size:10.5px; font-weight:700; white-space:nowrap;}
+  .src{margin-top:18px; background:var(--soft); border:1px solid var(--line); border-radius:9px; padding:11px 16px; font-size:11.5px; color:var(--muted);}
+  .src b{color:var(--navy2);}
+  code{font-family:Consolas,monospace; font-size:11px; background:#fff; border:1px solid var(--line); border-radius:4px; padding:0 5px;}
+  .callout{border-radius:8px; padding:11px 15px; margin:10px 0; font-size:12.5px;}
+  .callout.amber{background:var(--softamber); border-left:4px solid var(--amber);}
+  .callout.blue{background:var(--soft); border-left:4px solid var(--accent);}
+  .foot{margin-top:24px; padding-top:12px; border-top:1px solid var(--line); font-size:11px; color:var(--muted); display:flex; justify-content:space-between;}
+  @media print{ .demo-banner{display:none;} .page{box-shadow:none; max-width:100%;} }
+  @media (max-width:760px){ .page{padding:22px 16px;} .grid2{grid-template-columns:1fr;} }
+</style>
+</head>
+<body>
+<div class="demo-banner">⚠ 목업 데모 — UNIERP DB 구조·일부 실데이터 기반 샘플입니다. 수치는 검증 전 참고용이며 최종 확인은 자재물류팀 책임입니다.</div>
+<div class="page">
+
+  <div class="head">
+    <div>
+      <h1>📦 2026년 재고 입·출고 현황 대시보드</h1>
+      <div class="sub">자재물류팀 운영 페이지 · <span class="badge b">주관: 자재물류팀</span> <span class="badge g">공유: 구매팀 · 사업관리팀</span> <span class="badge a">읽기전용 추출</span> · 기간: 2026-01-01 ~ 2026-06-12</div>
+    </div>
+    <div class="right">기준일: 2026-06-12<br>수불 확정 전표 기준 (POST_FLAG=Y)</div>
+  </div>
+
+  <!-- KPI -->
+  <div class="kpis">
+    <div class="kpi gr"><div class="lb">2026 누적 입고액</div><div class="v">1,196<small> 백만원</small></div><div class="delta">구매입고 R01 중심</div></div>
+    <div class="kpi"><div class="lb">2026 누적 출고액</div><div class="v">1,042<small> 백만원</small></div><div class="delta">프로젝트 출고 T62 중심</div></div>
+    <div class="kpi"><div class="lb">현재고 금액</div><div class="v">684<small> 백만원</small></div><div class="delta">원재료+부자재 (창고합)</div></div>
+    <div class="kpi am"><div class="lb">장기 체화 재고 (6개월+)</div><div class="v">92<small> 백만원</small></div><div class="delta">현재고의 13.5%</div></div>
+    <div class="kpi"><div class="lb">프로젝트 연계 수불</div><div class="v">38<small> 개 PJT</small></div><div class="delta">TRACKING_NO 기준</div></div>
+  </div>
+
+  <!-- 월별 입출고 -->
+  <div class="sec">
+    <h3>월별 입·출고 금액 추이 (2026 · 백만원) <span class="badge b">수불 전표 일계</span></h3>
+    <div class="dwrap">
+      <div class="dual">
+        <div class="dgroup"><div class="gin" style="height:38%"></div><div class="gout" style="height:30%"></div><span class="lab">1월<br>입132/출104</span></div>
+        <div class="dgroup"><div class="gin" style="height:95%"></div><div class="gout" style="height:42%"></div><span class="lab">2월<br>입331/출146</span></div>
+        <div class="dgroup"><div class="gin" style="height:50%"></div><div class="gout" style="height:62%"></div><span class="lab">3월<br>입174/출216</span></div>
+        <div class="dgroup"><div class="gin" style="height:58%"></div><div class="gout" style="height:70%"></div><span class="lab">4월<br>입202/출244</span></div>
+        <div class="dgroup"><div class="gin" style="height:68%"></div><div class="gout" style="height:64%"></div><span class="lab">5월<br>입237/출223</span></div>
+        <div class="dgroup"><div class="gin" style="height:34%"></div><div class="gout" style="height:31%"></div><span class="lab">6월(진행)<br>입120/출109</span></div>
+      </div>
+      <div class="legend"><span><i style="background:var(--green)"></i>입고 (구매·반품회수)</span><span><i style="background:var(--navy2)"></i>출고 (프로젝트·공정·소모)</span></div>
+    </div>
+    <div class="callout blue">
+      <b>흐름 해석</b> — 2월 입고 피크는 사급용 원자재 일괄 입고(대신스텐레스, 구매팀 매입집계와 연동). 3~4월은 프로젝트 출고(NSY 계열 착수) 초과로 재고 감소 국면, 5월부터 입·출고 균형 회복.
+    </div>
+  </div>
+
+  <!-- 수불 유형 + 창고별 -->
+  <div class="grid2">
+    <div class="sec">
+      <h3>수불 유형별 구성 (2026 누적 · 금액 기준) <span class="badge b">MOV_TYPE</span></h3>
+      <div class="stack">
+        <div style="width:50%; background:var(--green);">R01 구매입고 50%</div>
+        <div style="width:34%; background:var(--navy2);">T62 프로젝트출고 34%</div>
+        <div style="width:9%; background:var(--accent);">공정출고 9%</div>
+        <div style="width:7%; background:var(--amber);">조정·기타 7%</div>
+      </div>
+      <table>
+        <tr><th>유형</th><th>전표</th><th class="r">건수</th><th class="r">금액(백만원)</th></tr>
+        <tr><td><b>R01</b> 구매입고</td><td class="code">PM (PR)</td><td class="r">1,873</td><td class="r">1,118</td></tr>
+        <tr><td><b>T62</b> 프로젝트 출고</td><td class="code">ST</td><td class="r">1,422</td><td class="r">762</td></tr>
+        <tr><td>공정 출고 (생산 투입)</td><td class="code">ST</td><td class="r">486</td><td class="r">201</td></tr>
+        <tr><td>재고 조정·반품·기타</td><td class="code">ST/RT</td><td class="r">157</td><td class="r">157</td></tr>
+      </table>
+    </div>
+    <div class="sec">
+      <h3>창고별 재고 현황 <span class="badge b">SL_CD · PLANT PL1</span></h3>
+      <table>
+        <tr><th>창고</th><th>용도</th><th class="r">재고액(백만원)</th><th class="c">비중</th></tr>
+        <tr><td class="code">PL120</td><td>자재창고 (원재료·부자재)</td><td class="r">412</td><td class="c">60%</td></tr>
+        <tr><td class="code">PL110</td><td>완제품·반제품</td><td class="r">158</td><td class="c">23%</td></tr>
+        <tr><td class="code">PL130</td><td>소모품·공구</td><td class="r">62</td><td class="c">9%</td></tr>
+        <tr><td class="code">PL190</td><td>현장 보관 (프로젝트 사급)</td><td class="r">52</td><td class="c">8%</td></tr>
+        <tr style="font-weight:700;"><td colspan="2">합계</td><td class="r">684</td><td class="c">100%</td></tr>
+      </table>
+      <p style="font-size:11px; color:var(--muted); margin-top:6px;">※ 현장 보관(PL190)은 프로젝트 종료 시 정산 — 사업관리팀 원가현황 페이지와 연동 점검</p>
+    </div>
+  </div>
+
+  <!-- 프로젝트별 수불 누적 -->
+  <div class="sec">
+    <h3>프로젝트별 수불 누적 현황 — 상위 5개 <span class="badge b">TRACKING_NO 집계</span> <span class="badge g">출고 금액 기준</span></h3>
+    <table>
+      <tr><th>프로젝트 No.</th><th>거래처</th><th class="r">입고 누적<br>건수 / 백만원</th><th class="r">출고 누적<br>건수 / 백만원</th><th class="r">현장보관 잔량<br>(PL190·백만원)</th><th class="c">최근 수불일</th><th class="c">상태</th></tr>
+      <tr><td class="code">2026-013-NSY-EI</td><td>(주)엔시스</td><td class="r">412건 / 318</td><td class="r">387건 / 286</td><td class="r">22</td><td class="c">2026-06-10</td><td class="c"><span class="badge g">진행</span></td></tr>
+      <tr><td class="code">2026-032-NSY-EI</td><td>(주)엔시스</td><td class="r">286건 / 226</td><td class="r">201건 / 198</td><td class="r">18</td><td class="c">2026-06-08</td><td class="c"><span class="badge g">진행</span></td></tr>
+      <tr><td class="code">2025-011-TSI-EI</td><td>(주)티에스아이</td><td class="r">완료 (2025)</td><td class="r">96건 / 124</td><td class="r">4</td><td class="c">2026-05-27</td><td class="c"><span class="badge a">정산 중</span></td></tr>
+      <tr><td class="code">2026-021-NSY-EI</td><td>(주)엔시스</td><td class="r">88건 / 74</td><td class="r">61건 / 58</td><td class="r">6</td><td class="c">2026-06-04</td><td class="c"><span class="badge g">진행</span></td></tr>
+      <tr><td class="code">2025-018-SUL-EI</td><td>삼성에스디아이(주)</td><td class="r">완료 (2025)</td><td class="r">34건 / 41</td><td class="r">0</td><td class="c">2026-03-19</td><td class="c"><span class="badge b">완료</span></td></tr>
+      <tr style="font-weight:700;"><td colspan="2">상위 5개 소계 / 전체 프로젝트 출고(38개)</td><td class="r">—</td><td class="r">707 / 762</td><td class="r">50</td><td class="c">—</td><td class="c">93%</td></tr>
+    </table>
+    <div class="barlist" style="display:flex; flex-direction:column; gap:7px; margin-top:10px;">
+      <div style="display:grid; grid-template-columns:150px 1fr 90px; align-items:center; gap:8px; font-size:12px;">
+        <span style="color:var(--navy2); text-align:right;" class="code">2026-013-NSY-EI</span>
+        <div style="height:15px; background:var(--soft); border-radius:4px; overflow:hidden;"><i style="display:block; height:100%; width:100%; background:linear-gradient(90deg,var(--accent),var(--accent2)); border-radius:4px;"></i></div>
+        <span style="font-weight:700; color:var(--navy); text-align:right; font-size:11.5px;">286 (38%)</span>
+      </div>
+      <div style="display:grid; grid-template-columns:150px 1fr 90px; align-items:center; gap:8px; font-size:12px;">
+        <span style="color:var(--navy2); text-align:right;" class="code">2026-032-NSY-EI</span>
+        <div style="height:15px; background:var(--soft); border-radius:4px; overflow:hidden;"><i style="display:block; height:100%; width:69%; background:linear-gradient(90deg,var(--accent),var(--accent2)); border-radius:4px;"></i></div>
+        <span style="font-weight:700; color:var(--navy); text-align:right; font-size:11.5px;">198 (26%)</span>
+      </div>
+      <div style="display:grid; grid-template-columns:150px 1fr 90px; align-items:center; gap:8px; font-size:12px;">
+        <span style="color:var(--navy2); text-align:right;" class="code">2025-011-TSI-EI</span>
+        <div style="height:15px; background:var(--soft); border-radius:4px; overflow:hidden;"><i style="display:block; height:100%; width:43%; background:linear-gradient(90deg,var(--accent),var(--accent2)); border-radius:4px;"></i></div>
+        <span style="font-weight:700; color:var(--navy); text-align:right; font-size:11.5px;">124 (16%)</span>
+      </div>
+      <div style="display:grid; grid-template-columns:150px 1fr 90px; align-items:center; gap:8px; font-size:12px;">
+        <span style="color:var(--navy2); text-align:right;" class="code">2026-021-NSY-EI</span>
+        <div style="height:15px; background:var(--soft); border-radius:4px; overflow:hidden;"><i style="display:block; height:100%; width:20%; background:linear-gradient(90deg,var(--accent),var(--accent2)); border-radius:4px;"></i></div>
+        <span style="font-weight:700; color:var(--navy); text-align:right; font-size:11.5px;">58 (8%)</span>
+      </div>
+      <div style="display:grid; grid-template-columns:150px 1fr 90px; align-items:center; gap:8px; font-size:12px;">
+        <span style="color:var(--navy2); text-align:right;" class="code">2025-018-SUL-EI</span>
+        <div style="height:15px; background:var(--soft); border-radius:4px; overflow:hidden;"><i style="display:block; height:100%; width:14%; background:linear-gradient(90deg,var(--accent),var(--accent2)); border-radius:4px;"></i></div>
+        <span style="font-weight:700; color:var(--navy); text-align:right; font-size:11.5px;">41 (5%)</span>
+      </div>
+    </div>
+    <p style="font-size:11px; color:var(--muted); margin-top:8px;">※ 수불 원장의 <code>TRACKING_NO</code>(프로젝트 코드)로 입·출고를 프로젝트 단위 집계. 입고는 프로젝트 지정 발주(PO 연계)분, 출고는 T62 프로젝트 출고 기준. 프로젝트별 상세 이력(전표 단위)은 ERP 수불조회 화면 또는 사업관리팀 원가현황 페이지 참조.</p>
+  </div>
+
+  <div class="callout amber">
+    <b>자재물류팀 관리 포인트</b> — ① 장기 체화 92백만 원(13.5%)의 절반이 프로젝트 잔여 자재 → 현장 보관(PL190) 정산 규칙 정비 필요. ② 무상 사급 입고가 금액 0으로 기록되어 재고 금액과 수량 기준이 불일치 — 수량 기준 관리 병행. ③ 프로젝트별 수불 누적은 사업관리팀 원가 집계와 월 1회 대사하여 출고 누락·중복을 점검.
+  </div>
+
+  <div class="src">
+    <b>데이터 원천 (UNIERP · 읽기전용)</b> — 수불 원장: 전표 <code>ITEM_DOCUMENT</code> 계열 (ITEM_DOCUMENT_NO, TRNS_TYPE=ST/PR, MOV_TYPE=R01/T62, QTY, AMOUNT, SL_CD, TRACKING_NO) · 구매입고 <code>M_PUR_GOODS_MVMT</code> · 발주 연계 <code>M_PUR_ORD_HDR/DTL</code> (PO_NO) · 품목 <code>B_ITEM</code>. 추출 경로: ERP_DB\_movements.csv (수불 추출 79KB), ERP_DB\물류 (소모품 수불회계 정리). 월별 합계·재고액·경보 기준은 마감 전 추정 포함.
+  </div>
+
+  <div class="foot">
+    <span>자재물류팀 운영 페이지 · 2026년 재고 입·출고 현황 (주 단위 갱신)</span>
+    <span>주관: 자재물류팀 · 공유: 구매팀 · 사업관리팀 (지정 부서 공유)</span>
+  </div>
+</div>
+</body>
+</html>

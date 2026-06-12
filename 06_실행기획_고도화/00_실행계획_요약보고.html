@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI 도입 1단계 실행계획 — 요약 보고</title>
+<style>
+  :root{
+    --navy:#1a2f4e; --navy2:#27457a; --accent:#2f6fb3; --accent2:#4a8ed0;
+    --red:#b3402f; --green:#2e7d52; --amber:#9a6b1f;
+    --ink:#222; --muted:#666; --line:#d8dee8; --bg:#f4f6f9;
+    --soft:#eef2f8; --softred:#fbeeec; --softgreen:#ecf5f0; --softamber:#faf3e4;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif; color:var(--ink); background:var(--bg); line-height:1.6; font-size:14.5px;}
+  .page{max-width:980px; margin:0 auto; background:#fff; padding:46px 56px; box-shadow:0 2px 14px rgba(0,0,0,.08);}
+
+  /* ===== 보고서 표제부 ===== */
+  .rpt-head{border:2.5px solid var(--navy); border-radius:4px; margin-bottom:10px;}
+  .rpt-title{background:var(--navy); color:#fff; text-align:center; padding:16px 20px;}
+  .rpt-title .cat{font-size:12px; letter-spacing:.3em; color:#9cc3ec; display:block; margin-bottom:4px;}
+  .rpt-title h1{font-size:24px; letter-spacing:.02em;}
+  .rpt-info{display:flex; flex-wrap:wrap;}
+  .rpt-info div{flex:1 1 25%; padding:8px 14px; font-size:12.5px; border-right:1px solid var(--line); display:flex; gap:8px; align-items:baseline;}
+  .rpt-info div:last-child{border-right:none;}
+  .rpt-info b{color:var(--navy); font-size:11.5px; flex:none;}
+  .one-line{background:var(--soft); border-left:5px solid var(--accent); padding:13px 18px; border-radius:0 6px 6px 0; margin:16px 0 6px; font-size:15px;}
+  .one-line b{color:var(--navy);}
+
+  /* ===== 섹션 ===== */
+  h2{font-size:17.5px; color:var(--navy); margin:30px 0 12px; display:flex; align-items:center; gap:9px;}
+  h2:before{content:'■'; color:var(--accent); font-size:13px;}
+  h2 small{font-weight:400; font-size:12px; color:var(--muted); margin-left:2px;}
+
+  /* 개조식 */
+  .brief{margin:0 0 6px 6px;}
+  .brief li{list-style:none; position:relative; padding:3px 0 3px 18px; font-size:14px;}
+  .brief li:before{content:'○'; position:absolute; left:0; color:var(--accent); font-size:11px; top:6px;}
+  .brief li b{color:var(--navy);}
+  .brief li.sub{padding-left:36px; font-size:13px; color:#444;}
+  .brief li.sub:before{content:'−'; left:20px; color:var(--muted); top:3px; font-size:13px;}
+
+  table{width:100%; border-collapse:collapse; margin:8px 0 14px; font-size:13px;}
+  th{background:var(--navy); color:#fff; padding:7px 11px; text-align:left; font-weight:600;}
+  td{padding:7px 11px; border-bottom:1px solid var(--line); vertical-align:top;}
+  tr:nth-child(even) td{background:#fafbfd;}
+  td.c,th.c{text-align:center;} td.r,th.r{text-align:right;}
+  .badge{display:inline-block; font-size:10.5px; border-radius:9px; padding:1px 8px; font-weight:700;}
+  .badge.g{background:var(--softgreen); color:var(--green);} .badge.a{background:var(--softamber); color:var(--amber);}
+  .badge.r{background:var(--softred); color:var(--red);} .badge.b{background:var(--soft); color:var(--navy2);}
+  code{font-family:Consolas,monospace; font-size:12px; background:var(--soft); border:1px solid var(--line); border-radius:4px; padding:0 5px;}
+  a{color:var(--accent);}
+
+  /* ===== 현황 3박스 ===== */
+  .status3{display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin:10px 0 4px;}
+  .stbox{border:1px solid var(--line); border-radius:9px; overflow:hidden;}
+  .stbox header{padding:7px 13px; font-size:12.5px; font-weight:700; color:#fff;}
+  .stbox.done header{background:var(--green);} .stbox.now header{background:var(--accent);} .stbox.next header{background:var(--muted);}
+  .stbox .bd{padding:9px 13px; font-size:12.3px; line-height:1.7;}
+  .stbox .bd b{color:var(--navy);}
+
+  /* ===== 간트 ===== */
+  .gantt{margin:10px 0 4px; border:1px solid var(--line); border-radius:9px; overflow:hidden;}
+  .g-head{display:grid; grid-template-columns:170px repeat(4,1fr); background:var(--soft); font-size:11.5px; font-weight:700; color:var(--navy);}
+  .g-head div{padding:6px 8px; border-right:1px solid var(--line); text-align:center;}
+  .g-head div:first-child{text-align:left;}
+  .g-row{display:grid; grid-template-columns:170px repeat(4,1fr); border-top:1px solid var(--line); font-size:12px; align-items:center;}
+  .g-row .lb{padding:7px 10px; font-weight:600; color:var(--navy); border-right:1px solid var(--line);}
+  .g-row .lb small{display:block; font-weight:400; color:var(--muted); font-size:10.5px;}
+  .g-cell{height:100%; min-height:34px; border-right:1px solid #eef1f6; position:relative;}
+  .g-bar{position:absolute; top:50%; transform:translateY(-50%); height:16px; border-radius:8px; left:6%; right:6%; display:flex; align-items:center; justify-content:center; color:#fff; font-size:10px; font-weight:700; white-space:nowrap;}
+  .g1 .g-bar{background:var(--accent);} .g2 .g-bar{background:var(--navy2);} .g3 .g-bar{background:var(--green);} .g4 .g-bar{background:var(--amber);}
+  .g-mile{position:absolute; top:50%; transform:translate(-50%,-50%); width:13px; height:13px; background:var(--red); rotate:45deg; left:82%;}
+
+  /* ===== 흐름 ===== */
+  .pipe{display:flex; align-items:center; gap:0; margin:10px 0 4px; flex-wrap:wrap;}
+  .pipe .pbox{flex:1; min-width:130px; border:1.6px solid var(--navy2); border-radius:8px; padding:9px 8px; text-align:center; background:#fff;}
+  .pipe .pbox.hl{background:var(--soft); border-color:var(--accent);}
+  .pipe .pbox b{display:block; color:var(--navy); font-size:12.5px;}
+  .pipe .pbox span{font-size:10.8px; color:var(--muted); line-height:1.45; display:block;}
+  .pipe .par{padding:0 7px; color:var(--accent); font-weight:700; font-size:16px;}
+
+  /* ===== 결론 ===== */
+  .decide{border:2px solid var(--red); border-radius:9px; overflow:hidden; margin:12px 0 4px;}
+  .decide header{background:var(--red); color:#fff; padding:8px 16px; font-size:13.5px; font-weight:700;}
+  .decide .bd{padding:11px 16px; font-size:13.5px;}
+  .decide .bd b{color:var(--red);}
+
+  .footer{margin-top:36px; padding-top:13px; border-top:1px solid var(--line); font-size:11.5px; color:var(--muted); display:flex; justify-content:space-between;}
+  .toolbar{margin-bottom:14px; display:flex; gap:8px;}
+  .btn{border:1px solid var(--line); background:#fff; color:var(--muted); font-family:inherit; font-size:12.5px; padding:7px 14px; border-radius:7px; cursor:pointer; text-decoration:none;}
+  .btn:hover{background:var(--soft); color:var(--navy2);}
+
+  @media print{
+    body{background:#fff;} .page{box-shadow:none; padding:8px 0; max-width:100%;}
+    .toolbar{display:none;}
+    h2{break-after:avoid;} table,.stbox,.gantt,.pipe,.decide,.one-line{break-inside:avoid;}
+    body{font-size:13px;}
+  }
+  @media (max-width:760px){
+    .page{padding:26px 18px;}
+    .status3{grid-template-columns:1fr;}
+    .g-head,.g-row{grid-template-columns:110px repeat(4,1fr);}
+    .pipe{flex-direction:column;} .pipe .par{rotate:90deg; padding:2px 0;}
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="toolbar">
+    <button class="btn" onclick="window.print()">🖨 인쇄 / PDF</button>
+    <a class="btn" href="01_AX_통합_실행기획서.html">상세 ① 통합 실행 기획서</a>
+    <a class="btn" href="02_니즈조사_실전_운영계획.html">상세 ② 니즈조사 운영계획</a>
+  </div>
+
+  <!-- 표제부 -->
+  <div class="rpt-head">
+    <div class="rpt-title">
+      <span class="cat">경 영 보 고</span>
+      <h1>AI 도입 1단계 실행계획 — 요약 보고</h1>
+    </div>
+    <div class="rpt-info">
+      <div><b>보고일</b>2026. 06. 12.</div>
+      <div><b>보고자</b>최동혁 (사업관리팀)</div>
+      <div><b>구분</b>실행 착수 승인 요청</div>
+      <div><b>첨부</b>상세 기획 2부 + 도구 6종</div>
+    </div>
+  </div>
+
+  <div class="one-line">
+    <b>한 줄 요약</b> — 기획·도구·인프라 준비가 끝났습니다. <b>비용 0원</b>으로 4주간(6/15~7/10) 전사 AI 니즈조사를 실행하여 <b>우선 추진과제 3~5건</b>을 선정하고, 그 결과로 2단계(PoC·챗봇 포털) 투자 판단의 정량 근거를 확보하고자 합니다.
+  </div>
+
+  <!-- 1. 추진 현황 -->
+  <h2>1. 추진 현황 <small>— 무엇이 준비되었나</small></h2>
+  <div class="status3">
+    <div class="stbox done">
+      <header>✓ 완료 — 기획·도구</header>
+      <div class="bd">
+        <b>기획 문서 3종</b> — 도입 원칙(ERP 읽기전용 연계)·니즈조사·챗봇 포털<br>
+        <b>디지털 도구 6종</b> — 설문폼·집계 대시보드·과제평가 시트 등 (서버 불요)<br>
+        <b>포털 화면 데모</b> — 경영진 시연용
+      </div>
+    </div>
+    <div class="stbox now">
+      <header>▶ 착수 — 1단계 니즈조사</header>
+      <div class="bd">
+        <b>본 보고의 승인 대상</b><br>
+        전 부서 8개 수요조사 (4주)<br>
+        OneDrive 자동 취합·집계<br>
+        우선과제 3~5건 선정 → 7/10 결과 보고
+      </div>
+    </div>
+    <div class="stbox next">
+      <header>○ 예정 — 2·3단계</header>
+      <div class="bd">
+        PoC 시범 구축 (7~9월)<br>
+        챗봇 포털 개발 (자체/외주)<br>
+        전사 오픈·ERP 조회 연계 (4Q~)<br>
+        <span style="color:var(--muted);">※ 1단계 보고 시 투자 의사결정</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2. 핵심 원칙 -->
+  <h2>2. 핵심 원칙 <small>— 왜 안전한가</small></h2>
+  <ul class="brief">
+    <li><b>ERP 원장 무수정(읽기전용)</b> — AI는 조회·요약·초안까지만, 원장 변경은 기존 ERP 절차 유지</li>
+    <li><b>최종 책임은 담당자</b> — AI 답변은 참고용 고지, 수치는 원본(ERP) 확인 후 확정</li>
+    <li><b>데이터 통제</b> — 승인 채널만 사용, 개인정보 미수집(1단계)·마스킹(2단계~), 전 이력 기록</li>
+  </ul>
+
+  <!-- 3. 실행 방법 -->
+  <h2>3. 실행 방법 <small>— 니즈조사 운영 흐름 (비용 0원)</small></h2>
+  <div class="pipe">
+    <div class="pbox hl"><b>① 설문 작성</b><span>직원 5~7분<br>익명 가능</span></div>
+    <div class="par">→</div>
+    <div class="pbox"><b>② 자동 취합</b><span>OneDrive 폴더<br>부서 창구 업로드</span></div>
+    <div class="par">→</div>
+    <div class="pbox hl"><b>③ 자동 집계</b><span>회신율·수요·절감시간<br>대시보드</span></div>
+    <div class="par">→</div>
+    <div class="pbox"><b>④ 인터뷰</b><span>수요 상위 3~4부서<br>30분 스크립트</span></div>
+    <div class="par">→</div>
+    <div class="pbox hl"><b>⑤ 과제 선정</b><span>효과×난이도 점수<br>사분면 자동 배치</span></div>
+  </div>
+  <ul class="brief" style="margin-top:8px;">
+    <li>수작업 전사·집계 없음 — 응답이 파일로 누적되고 도구가 자동 합산 <b>(차년도 비교 가능)</b></li>
+    <li>회신 목표: <b>부서 회신율 100% (8/8) · 16부 이상</b>, 주 2회(수·금) 회신율 점검·독려</li>
+  </ul>
+
+  <!-- 4. 일정 -->
+  <h2>4. 일정 <small>— 4주 (2026. 06. 15. ~ 07. 10.)</small></h2>
+  <div class="gantt">
+    <div class="g-head"><div>구분</div><div>1주차<br>6/15~19</div><div>2주차<br>6/22~26</div><div>3주차<br>6/29~7/3</div><div>4주차<br>7/6~10</div></div>
+    <div class="g-row g1"><div class="lb">배포<small>공문+설문 링크</small></div><div class="g-cell"><div class="g-bar">배포·창구 지정</div></div><div class="g-cell"></div><div class="g-cell"></div><div class="g-cell"></div></div>
+    <div class="g-row g2"><div class="lb">회신·취합<small>마감 6/26(금)</small></div><div class="g-cell"></div><div class="g-cell"><div class="g-bar">독려 → 마감</div></div><div class="g-cell"></div><div class="g-cell"></div></div>
+    <div class="g-row g3"><div class="lb">심층 인터뷰<small>상위 3~4부서</small></div><div class="g-cell"></div><div class="g-cell"></div><div class="g-cell"><div class="g-bar">30분×4회</div></div><div class="g-cell"></div></div>
+    <div class="g-row g4"><div class="lb">평가·보고<small>평가회의 7/7</small></div><div class="g-cell"></div><div class="g-cell"></div><div class="g-cell"></div><div class="g-cell"><div class="g-bar">선정 → 보고</div><div class="g-mile" title="7/10 경영진 보고"></div></div></div>
+  </div>
+  <p style="font-size:11.5px; color:var(--muted); margin:4px 0 0;">◆ 마일스톤: <b style="color:var(--red);">7/10(금) 경영진 결과 보고</b> — 우선과제 3~5건 + 2단계 품의 동시 상정</p>
+
+  <!-- 5. 산출물과 활용 -->
+  <h2>5. 산출물과 활용</h2>
+  <table>
+    <tr><th style="width:30%;">산출물</th><th>활용처</th></tr>
+    <tr><td><b>부서별 니즈 목록</b> (집계 데이터)</td><td>부서 템플릿 설계(챗봇 포털), 차년도 재조사 비교 기준</td></tr>
+    <tr><td><b>우선 추진과제 3~5건</b> (점수 근거 포함)</td><td>2단계 PoC 대상 확정 — 절감시간×인원의 정량 ROI 근거</td></tr>
+    <tr><td><b>2단계 추진계획(품의)</b></td><td>PoC 범위·기간·예산 + 챗봇 포털 구축 의사결정 4건 상정</td></tr>
+  </table>
+
+  <!-- 6. 예산·리스크 -->
+  <h2>6. 예산 · 리스크</h2>
+  <table>
+    <tr><th style="width:30%;">구분</th><th style="width:28%;">내용</th><th>비고</th></tr>
+    <tr><td><b>1단계 (본 보고)</b></td><td class="c"><b style="color:var(--green); font-size:15px;">0원</b></td><td>기존 OneDrive + 자체 제작 도구만 사용</td></tr>
+    <tr><td>2단계 (참고)</td><td class="c">월 $175~350 수준</td><td>Team 플랜 병행 + PoC API — 1단계 보고 시 별도 승인</td></tr>
+    <tr><td>3단계 (참고)</td><td class="c">월 $210~400 (100명)</td><td>지출한도 설정으로 초과 과금 원천 차단</td></tr>
+  </table>
+  <ul class="brief">
+    <li><b>주요 리스크는 회신율 1건</b> — 부서장 회의 안내 + 부서 창구 책임제 + 주 2회 점검으로 관리 <span class="badge a">관리 필요</span></li>
+    <li>보안·무결성·예산 리스크는 설계로 통제 완료 (읽기전용·개인정보 미수집·이중 한도) <span class="badge g">통제됨</span></li>
+  </ul>
+
+  <!-- 7. 요청사항 -->
+  <h2>7. 의사결정 요청</h2>
+  <div class="decide">
+    <header>승인 요청 — 1건</header>
+    <div class="bd"><b>1단계 니즈조사 실행 승인</b> (6/15 배포 착수, 비용 0원, 기간 4주)</div>
+  </div>
+  <table>
+    <tr><th style="width:8%;">No.</th><th>협조 요청 (승인 시 즉시 진행)</th><th style="width:22%;">기한</th></tr>
+    <tr><td class="c">1</td><td>부서별 취합 창구 1인 지정 (각 부서장)</td><td>6/15(월)까지</td></tr>
+    <tr><td class="c">2</td><td>OneDrive 취합 폴더 공유 권한 설정 (IT팀)</td><td>배포 전</td></tr>
+    <tr><td class="c">3</td><td>2단계 의사결정 4건은 <b>7/10 결과 보고와 함께</b> 상정</td><td>7/10(금)</td></tr>
+  </table>
+
+  <div class="footer">
+    <span>AI 도입 1단계 실행계획 요약 보고 · 2026. 06. 12. · 사업관리팀 최동혁</span>
+    <span>상세: 통합 실행 기획서(01) · 니즈조사 실전 운영계획(02)</span>
+  </div>
+</div>
+</body>
+</html>
