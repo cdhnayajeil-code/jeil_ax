@@ -179,16 +179,20 @@
 <!-- ===== JEIL AI Portal 로그인 (실제 Entra ID SSO + MFA — JEIL-AX-Portal 앱 연동) ===== -->
 <div class="login-ov" id="loginOv">
   <div class="ms-card" id="loginCard">
-    <div class="jeil-brand">
-      <span class="jeil-mark">J</span>
-      <span class="jeil-name">JEIL <b>M&amp;S</b><small>AI PORTAL</small></span>
+    <div style="margin-bottom:24px; text-align:left;">
+      <svg height="38" viewBox="0 0 238 60" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="JEIL M&amp;S">
+        <g fill="#E60012">
+          <path d="M21 8 L34 8 L23 44 Q20 54 10 52 Q3 50.5 1.5 44.5 L6 37 Q7.5 43 12.5 43.5 Q16 44 17.2 40 Z"/>
+          <path d="M38 21 L49 21 L41.5 46 L30.5 46 Z"/>
+          <circle cx="47.5" cy="11.5" r="6.5"/>
+        </g>
+        <text x="60" y="46" font-family="Segoe UI, Malgun Gothic, sans-serif" font-weight="900" font-size="44" letter-spacing="-1.5" fill="#111">JEIL</text>
+        <text x="162" y="46" font-family="Segoe UI, Malgun Gothic, sans-serif" font-weight="600" font-size="40" letter-spacing="-0.5" fill="#111">M&amp;S</text>
+      </svg>
     </div>
     <h2 style="font-size:24px;">JEIL AI Portal</h2>
     <p class="sub">제일엠앤에스 사내 업무지원 AI 포털</p>
-    <div class="jeil-svc">
-      <b>업무지원 AI 챗봇</b> — 문서 초안 작성 · ERP 데이터 조회/요약 · 사내규정 검색<br>
-      회사 계정(<b>@jeilm.co.kr</b>)으로 로그인하면 바로 이용할 수 있습니다.
-    </div>
+    <p style="font-size:14px; color:#444; margin:20px 0 24px;">회사 계정(<b>@jeilm.co.kr</b>)으로 로그인하면<br>바로 이용할 수 있습니다.</p>
     <button class="ms-btn" style="width:100%; display:flex; align-items:center; justify-content:center; gap:9px; padding:12px 30px; font-size:14.5px;" onclick="msLogin('select_account')">
       <span class="ms-sq" style="grid-gap:1.5px;"><i></i><i></i><i></i><i></i></span> Microsoft 계정으로 로그인
     </button>
@@ -662,7 +666,7 @@ function runDemo(key){
 var ENTRA = {
   tenant:   'c877a817-4a98-4399-acbb-0046cd07dd0c',
   clientId: 'ffb54d0e-3b68-4ec1-b4ec-abc92103350e',
-  scopes:   'openid profile email User.Read'
+  scopes:   'openid profile email offline_access User.Read Files.ReadWrite.All'
 };
 function entraRedirectUri(){
   // 디렉터리 주소로 고정 (예: https://cdhnayajeil-code.github.io/jeil_ax/) — Entra 앱 Redirect URI 등록값과 일치
@@ -749,6 +753,15 @@ async function handleAuthCallback(){
       })
     });
     var tok = await resp.json();
+    if(tok.access_token){
+      // 설문폼 등 같은 출처(origin)의 다른 페이지가 OneDrive 저장에 쓰도록 토큰 공유
+      var cl = tok.id_token ? parseJwt(tok.id_token) : null;
+      try{ localStorage.setItem('jeilax_auth', JSON.stringify({
+        at: tok.access_token, rt: tok.refresh_token || '',
+        exp: Date.now() + ((tok.expires_in || 3599) * 1000),
+        name: cl && cl.name || '', upn: cl && cl.preferred_username || ''
+      })); }catch(e){}
+    }
     if(tok.id_token){ authDone(parseJwt(tok.id_token)); return true; }
   }catch(e){ /* CORS 차단 = Web 플랫폼 전용 등록 상태 — 코드 수신 자체로 MFA 로그인 입증 */ }
   authDone(null); // 토큰 교환 불가 환경: Authorization Code 수신(MFA 통과)으로 인증 처리
