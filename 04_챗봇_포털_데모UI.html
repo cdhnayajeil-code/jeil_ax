@@ -656,7 +656,10 @@ var ENTRA = {
   clientId: 'ffb54d0e-3b68-4ec1-b4ec-abc92103350e',
   scopes:   'openid profile email User.Read'
 };
-function entraRedirectUri(){ return location.origin + location.pathname; }
+function entraRedirectUri(){
+  // 디렉터리 주소로 고정 (예: https://cdhnayajeil-code.github.io/jeil_ax/) — Entra 앱 Redirect URI 등록값과 일치
+  return location.origin + location.pathname.replace(/[^/]*$/, '');
+}
 function isHttps(){ return location.protocol === 'https:'; }
 
 function b64url(buf){
