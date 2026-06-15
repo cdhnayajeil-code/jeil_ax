@@ -218,6 +218,213 @@
     };
   }
 
+  /* =================================================================
+   * OneDrive 자동 저장 (Microsoft Graph — Entra 앱 JEIL-AX-Portal)
+   * -----------------------------------------------------------------
+   *  - 토큰: 포털(04) 로그인 시 localStorage('jeilax_auth')에 공유됨
+   *  - 권한: Files.ReadWrite.All (위임) — 2026-06-12 관리자 동의 완료
+   *  - 파일명: 사용자명_사용자ID_작성일자.json (같은 날 재저장 = 덮어쓰기 = 수정 저장)
+   *  - 저장 위치: 최동혁 OneDrive /최동혁/JEIL_AX
+   *      · 소유자(dh.choi) 로그인  → 본인 드라이브에 직접 저장
+   *      · 타 직원 로그인          → 공유받은 'JEIL_AX' 폴더 탐색 후 저장
+   *                                  (공유 미설정 시 본인 드라이브 동일 경로에 폴백 저장)
+   * ================================================================= */
+  var ENTRA = {
+    tenant:   'c877a817-4a98-4399-acbb-0046cd07dd0c',
+    clientId: 'ffb54d0e-3b68-4ec1-b4ec-abc92103350e',
+    scopes:   'openid profile email offline_access User.Read Files.ReadWrite.All'
+  };
+  var ONEDRIVE = {
+    folder:    '/최동혁/JEIL_AX',
+    ownerUpn:  'dh.choi@jeilm.co.kr',
+    sharedName:'JEIL_AX'
+  };
+  var AUTH_KEY = 'jeilax_auth';
+
+  function getAuth() {
+    try { var a = JSON.parse(localStorage.getItem(AUTH_KEY) || 'null'); return (a && a.at) ? a : null; }
+    catch (e) { return null; }
+  }
+  function setAuthStore(a) { try { localStorage.setItem(AUTH_KEY, JSON.stringify(a)); } catch (e) {} }
+
+  function refreshToken(a) {
+    if (!a || !a.rt) return Promise.resolve(null);
+    return fetch('https://login.microsoftonline.com/' + ENTRA.tenant + '/oauth2/v2.0/token', {
+      method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ client_id: ENTRA.clientId, grant_type: 'refresh_token', refresh_token: a.rt, scope: ENTRA.scopes })
+    }).then(function (r) { return r.json(); }).then(function (tok) {
+      if (!tok.access_token) return null;
+      var n = { at: tok.access_token, rt: tok.refresh_token || a.rt, exp: Date.now() + ((tok.expires_in || 3599) * 1000), name: a.name, upn: a.upn };
+      setAuthStore(n); return n;
+    }).catch(function () { return null; });
+  }
+
+  function ensureToken() {
+    var a = getAuth();
+    if (!a) return Promise.resolve(null);
+    if (Date.now() < a.exp - 60000) return Promise.resolve(a);
+    return refreshToken(a);
+  }
+
+  function authInfo() {
+    var a = getAuth();
+    return a ? { name: a.name || '', upn: a.upn || '', valid: Date.now() < a.exp, canRefresh: !!a.rt } : null;
+  }
+
+  function odFileName(a, dateStr) {
+    var nm = (a.name || '사용자').replace(/[\\\/:*?"<>|\s]/g, '');
+    var id = (a.upn || 'unknown').split('@')[0];
+    return nm + '_' + id + '_' + dateStr + '.json';
+  }
+  function odFilePrefix(a) {
+    var nm = (a.name || '사용자').replace(/[\\\/:*?"<>|\s]/g, '');
+    var id = (a.upn || 'unknown').split('@')[0];
+    return nm + '_' + id + '_';
+  }
+
+  /* 저장/조회 대상 폴더 해석 (소유자 본인 드라이브 또는 공유받은 JEIL_AX 폴더) */
+  function resolveTarget(a) {
+    var isOwner = (a.upn || '').toLowerCase() === ONEDRIVE.ownerUpn.toLowerCase();
+    var findShared = isOwner ? Promise.resolve(null)
+      : fetch('https://graph.microsoft.com/v1.0/me/drive/sharedWithMe', { headers: { Authorization: 'Bearer ' + a.at } })
+          .then(function (r) { return r.ok ? r.json() : { value: [] }; })
+          .then(function (j) {
+            return (j.value || []).find(function (v) { return v.name === ONEDRIVE.sharedName && v.remoteItem; }) || null;
+          }).catch(function () { return null; });
+    return findShared.then(function (shared) {
+      if (shared) {
+        var base = 'https://graph.microsoft.com/v1.0/drives/' + shared.remoteItem.parentReference.driveId
+          + '/items/' + shared.remoteItem.id;
+        return {
+          shared: true, isOwner: isOwner,
+          childrenUrl: base + '/children?$top=200',
+          contentUrl: function (fn) { return base + ':/' + encodeURIComponent(fn) + ':/content'; }
+        };
+      }
+      var root = 'https://graph.microsoft.com/v1.0/me/drive/root:' + encodeURI(ONEDRIVE.folder);
+      return {
+        shared: false, isOwner: isOwner,
+        childrenUrl: root + ':/children?$top=200',
+        contentUrl: function (fn) { return root + '/' + encodeURIComponent(fn) + ':/content'; }
+      };
+    });
+  }
+
+  /* 로그인 계정 프로필 (작성자 정보 자동 반영용) — User.Read 스코프로 조회 */
+  function getProfile() {
+    return ensureToken().then(function (a) {
+      if (!a) return null;
+      return fetch('https://graph.microsoft.com/v1.0/me?$select=displayName,department,jobTitle,mail,userPrincipalName',
+        { headers: { Authorization: 'Bearer ' + a.at } })
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (j) {
+          if (!j) return { 작성자: a.name || '', 부서: '', 직책: '', upn: a.upn || '' };
+          return {
+            작성자: j.displayName || a.name || '',
+            부서: j.department || '',
+            직책: j.jobTitle || '',
+            upn: j.userPrincipalName || j.mail || a.upn || ''
+          };
+        }).catch(function () { return { 작성자: a.name || '', 부서: '', 직책: '', upn: a.upn || '' }; });
+    });
+  }
+
+  function saveToOneDrive(resp) {
+    return ensureToken().then(function (a) {
+      if (!a) return { ok: false, needLogin: true };
+      var date = (resp.meta && resp.meta.작성일) || new Date().toISOString().slice(0, 10);
+      var fn = odFileName(a, date);
+      var body = JSON.stringify(resp, null, 2);
+      return resolveTarget(a).then(function (t) {
+        return fetch(t.contentUrl(fn), { method: 'PUT', headers: { Authorization: 'Bearer ' + a.at, 'Content-Type': 'application/json' }, body: body })
+          .then(function (r) {
+            if (r.ok) return r.json().then(function (j) {
+              return { ok: true, fileName: fn, webUrl: j.webUrl || '', viaShared: t.shared, fallbackOwnDrive: (!t.isOwner && !t.shared) };
+            });
+            if (r.status === 401) return { ok: false, needLogin: true };
+            return r.text().then(function (tx) { return { ok: false, error: 'HTTP ' + r.status + ' — ' + tx.slice(0, 180) }; });
+          });
+      });
+    }).catch(function (e) { return { ok: false, error: String(e) }; });
+  }
+
+  /* 본인이 저장했던 최신 응답을 OneDrive에서 직접 불러오기 (파일 선택 없이) */
+  function loadMineFromOneDrive() {
+    return ensureToken().then(function (a) {
+      if (!a) return { ok: false, needLogin: true };
+      var prefix = odFilePrefix(a);
+      return resolveTarget(a).then(function (t) {
+        return fetch(t.childrenUrl, { headers: { Authorization: 'Bearer ' + a.at } })
+          .then(function (r) {
+            if (r.status === 401) return { __need: true };
+            return r.ok ? r.json() : { value: [] };
+          })
+          .then(function (j) {
+            if (j.__need) return { ok: false, needLogin: true };
+            var mine = (j.value || []).filter(function (it) {
+              return it.file && it.name && it.name.indexOf(prefix) === 0 && /\.json$/i.test(it.name);
+            });
+            if (!mine.length) return { ok: true, empty: true };
+            mine.sort(function (x, y) { return x.name < y.name ? 1 : (x.name > y.name ? -1 : 0); }); // 파일명에 날짜 → 최신 우선
+            var top = mine[0];
+            var dl = top['@microsoft.graph.downloadUrl'];
+            var getUrl = dl || t.contentUrl(top.name);
+            return fetch(getUrl, dl ? {} : { headers: { Authorization: 'Bearer ' + a.at } })
+              .then(function (r) { return r.ok ? r.json() : null; })
+              .then(function (data) {
+                return (data && isResponse(data))
+                  ? { ok: true, response: data, fileName: top.name }
+                  : { ok: false, error: '응답 파일을 읽을 수 없습니다.' };
+              });
+          });
+      });
+    }).catch(function (e) { return { ok: false, error: String(e) }; });
+  }
+
+  /* =================================================================
+   * [집계용] 공유 폴더의 모든 응답을 Graph로 자동 수집
+   * -----------------------------------------------------------------
+   *  - 관리자(또는 폴더 접근 권한 보유자) 로그인 토큰으로 호출.
+   *  - resolveTarget()이 가리키는 폴더(소유자 본인 드라이브 또는 공유 JEIL_AX)
+   *    의 *.json 전체를 내려받아 유효 응답만 병합 반환.
+   *  - 대시보드는 이 함수를 진입 시 자동 호출 → 직원이 저장하면 새로고침만으로 반영.
+   *  - 파일명 규칙과 무관하게 isResponse() 통과분만 집계(구·신 파일명 모두 호환).
+   * ================================================================= */
+  function loadAllResponsesFromOneDrive() {
+    return ensureToken().then(function (a) {
+      if (!a) return { ok: false, needLogin: true };
+      return resolveTarget(a).then(function (t) {
+        return fetch(t.childrenUrl, { headers: { Authorization: 'Bearer ' + a.at } })
+          .then(function (r) {
+            if (r.status === 401) return { __need: true };
+            return r.ok ? r.json() : { value: [] };
+          })
+          .then(function (j) {
+            if (j.__need) return { ok: false, needLogin: true };
+            var jsons = (j.value || []).filter(function (it) {
+              return it.file && it.name && /\.json$/i.test(it.name);
+            });
+            if (!jsons.length) return { ok: true, list: [], viaShared: t.shared };
+            return Promise.all(jsons.map(function (it) {
+              var dl = it['@microsoft.graph.downloadUrl'];
+              var getUrl = dl || t.contentUrl(it.name);
+              return fetch(getUrl, dl ? {} : { headers: { Authorization: 'Bearer ' + a.at } })
+                .then(function (r) { return r.ok ? r.json() : null; })
+                .catch(function () { return null; });
+            })).then(function (datas) {
+              var out = [];
+              datas.forEach(function (d) {
+                if (!d) return;
+                if (Array.isArray(d)) out = out.concat(d.filter(isResponse));
+                else if (isResponse(d)) out.push(d);
+              });
+              return { ok: true, list: mergeUnique(out), viaShared: t.shared, fileCount: jsons.length };
+            });
+          });
+      });
+    }).catch(function (e) { return { ok: false, error: String(e) }; });
+  }
+
   /* ---- 공개 API ---- */
   global.SurveyStore = {
     SCHEMA_VERSION: SCHEMA_VERSION,
@@ -241,7 +448,14 @@
     parseFiles: parseFiles,
     mergeUnique: mergeUnique,
     loadAll: loadAll,
-    // 차기(OneDrive)
+    // OneDrive 자동 저장 (Graph API)
+    saveToOneDrive: saveToOneDrive,
+    loadMineFromOneDrive: loadMineFromOneDrive,
+    loadAllResponsesFromOneDrive: loadAllResponsesFromOneDrive,
+    getProfile: getProfile,
+    authInfo: authInfo,
+    ONEDRIVE: ONEDRIVE,
+    // 차기(OneDrive 읽기)
     isOneDriveReadable: isOneDriveReadable,
     loadAllFromOneDrive: loadAllFromOneDrive,
     // 집계

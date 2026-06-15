@@ -104,6 +104,7 @@
         <input type="checkbox" id="m_익명">
         <span><b>익명으로 제출</b> — 솔직한 의견을 위해 작성자명을 집계에서 가립니다(부서 단위 집계는 유지).</span>
       </label>
+      <p class="small" id="authNote" style="display:none; margin:8px 0 0; color:#1a6fb0;">🔒 회사 계정 정보로 자동 입력되었습니다.</p>
     </div>
 
     <h2><span class="num">1</span>업무 진단</h2>
@@ -161,14 +162,12 @@
 
     <!-- 액션 -->
     <div class="toolbar no-print" style="margin:22px 0 8px;">
-      <button type="button" class="btn" id="btnSubmit">✓ 응답 저장 (JSON 다운로드)</button>
-      <button type="button" class="btn ghost" id="btnLocal">임시저장</button>
+      <button type="button" class="btn" id="btnSave" style="background:#0067b8; border-color:#0067b8;">💾 저장</button>
       <button type="button" class="btn gray" id="btnLoad">불러오기</button>
-      <button type="button" class="btn gray" id="btnPrint">인쇄</button>
       <button type="button" class="btn danger" id="btnReset">초기화</button>
-      <input type="file" id="fileLoad" accept="application/json" style="display:none;">
     </div>
-    <p class="small no-print">저장 시 응답이 <b>JSON 파일</b>로 내려받아집니다. 부서 취합 창구에 전달(또는 OneDrive 지정 폴더 업로드)하면 집계 대시보드에서 자동 합산됩니다. ‘임시저장’은 이 브라우저에만 보관됩니다.</p>
+    <div id="odBar" class="small no-print" style="margin:6px 0 4px; padding:9px 14px; background:#f4f7fb; border:1px solid #dbe4f0; border-radius:8px; line-height:1.7;">저장 상태 확인 중…</div>
+    <p class="small no-print">작성 내용은 [저장]을 누르면 회사 계정으로 자동 보관되며, 같은 작성일에 다시 저장하면 최신 내용으로 갱신됩니다. [불러오기]는 직전에 저장한 내 응답을 다시 불러옵니다.</p>
   </form>
 
   <div class="footer">
@@ -297,36 +296,109 @@ function validate(r){
   return true;
 }
 
-/* ---- 액션 ---- */
-document.getElementById('btnSubmit').addEventListener('click', function(){
+/* ---- 저장 상태 표시 (경로·파일명 비노출) ---- */
+var odDirty = false;
+var odSavedOnce = false;
+var PORTAL_URL = 'https://cdhnayajeil-code.github.io/jeil_ax/';
+
+function odSetBar(html){ var b=document.getElementById('odBar'); if(b) b.innerHTML = html; }
+function odRefreshBar(extra){
+  var auth = (S.authInfo && S.authInfo()) || null;
+  var state = odSavedOnce
+    ? (odDirty ? '<span style="color:#b3402f;"><b>수정됨 — 다시 저장하세요</b></span>' : '<span style="color:#1a8f3c;">✓ 저장됨</span>')
+    : '작성 후 [저장]을 눌러 주세요';
+  var right = auth
+    ? '회사 계정: <b>' + (auth.name || '연결됨') + '</b>' + (auth.valid || auth.canRefresh ? '' : ' <span style="color:#b3402f;">(세션 만료 — 포털 재로그인)</span>')
+    : '<span style="color:#b3402f;">미로그인 — <a href="' + PORTAL_URL + '" target="_blank"><b>포털에서 Microsoft 로그인</b></a> 후 저장됩니다</span>';
+  odSetBar('💾 ' + state + ' &nbsp;·&nbsp; ' + right + (extra ? '<br>' + extra : ''));
+}
+
+/* ---- 저장 ---- */
+document.getElementById('btnSave').addEventListener('click', function(){
   var r=collect(); if(!validate(r)) return;
   r.meta.제출시각 = S.nowStamp();
   S.saveLocal(r);
-  var fn = S.downloadJSON(r);
-  toast('저장됨 · ' + fn);
-});
-document.getElementById('btnLocal').addEventListener('click', function(){
-  var r=collect(); if(!validate(r)) return;
-  r.meta.제출시각 = S.nowStamp();
-  S.saveLocal(r); toast('이 브라우저에 임시저장했습니다.');
-});
-document.getElementById('btnLoad').addEventListener('click', function(){ document.getElementById('fileLoad').click(); });
-document.getElementById('fileLoad').addEventListener('change', function(e){
-  S.parseFiles(e.target.files).then(function(list){
-    if(!list.length){ toast('읽을 수 있는 응답 JSON이 아닙니다.'); return; }
-    apply(list[0]); toast('불러왔습니다. 내용을 수정 후 다시 저장하세요.');
+  var btn=this; btn.disabled=true; btn.textContent='저장 중…';
+  S.saveToOneDrive(r).then(function(res){
+    btn.disabled=false; btn.textContent='💾 저장';
+    if(res.ok){
+      odSavedOnce=true; odDirty=false;
+      toast('저장되었습니다.');
+      odRefreshBar('');
+    } else if(res.needLogin){
+      toast('회사 계정 로그인이 필요합니다.');
+      odRefreshBar('<span style="color:#b3402f;">⚠ 로그인 필요 — <a href="' + PORTAL_URL + '" target="_blank"><b>포털 열어 로그인</b></a> 후 다시 [저장]을 눌러 주세요. 작성 내용은 그대로 유지됩니다.</span>');
+    } else {
+      toast('저장에 실패했습니다. 잠시 후 다시 시도해 주세요.');
+      odRefreshBar('<span style="color:#b3402f;">❌ 저장 실패 — 네트워크/로그인 상태를 확인해 주세요.</span>');
+    }
   });
-  e.target.value='';
 });
-document.getElementById('btnPrint').addEventListener('click', function(){ window.print(); });
+
+/* ---- 불러오기 (본인 최신 응답, 파일 선택 없이) ---- */
+document.getElementById('btnLoad').addEventListener('click', function(){
+  var btn=this; btn.disabled=true; var old=btn.textContent; btn.textContent='불러오는 중…';
+  S.loadMineFromOneDrive().then(function(res){
+    btn.disabled=false; btn.textContent=old;
+    if(res.ok && res.response){
+      apply(res.response); odSavedOnce=true; odDirty=false; odRefreshBar('');
+      toast('직전에 저장한 내용을 불러왔습니다.');
+    } else if(res.ok && res.empty){
+      toast('저장된 내 응답이 없습니다.');
+    } else if(res.needLogin){
+      toast('회사 계정 로그인이 필요합니다.');
+      odRefreshBar('<span style="color:#b3402f;">⚠ 로그인 필요 — <a href="' + PORTAL_URL + '" target="_blank"><b>포털 열어 로그인</b></a> 후 다시 시도해 주세요.</span>');
+    } else {
+      toast('불러오기에 실패했습니다.');
+    }
+  });
+});
 document.getElementById('btnReset').addEventListener('click', function(){
-  if(confirm('작성 중인 내용을 모두 지울까요?')){ apply(S.emptyResponse()); document.getElementById('m_작성일').value=todayStr(); toast('초기화했습니다.'); }
+  if(confirm('작성 중인 내용을 모두 지울까요?')){
+    apply(S.emptyResponse());
+    document.getElementById('m_작성일').value=todayStr();
+    autofillAuthor();
+    odSavedOnce=false; odDirty=false; odRefreshBar('');
+    toast('초기화했습니다.');
+  }
 });
 
 function todayStr(){ var d=new Date(); function p(n){return n<10?'0'+n:n;} return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate()); }
 
+/* ---- 작성자 정보 자동 반영 (로그인 계정 기준) ---- */
+function ensureDeptOption(sel, val){
+  var found=Array.prototype.some.call(sel.options, function(o){ return o.value===val; });
+  if(!found){ var o=document.createElement('option'); o.value=val; o.textContent=val; sel.appendChild(o); }
+}
+function lockAuthorFields(){
+  var sel=document.getElementById('m_부서');
+  if(sel.value){ sel.setAttribute('disabled','disabled'); }
+  ['m_작성자','m_직책'].forEach(function(id){
+    var el=document.getElementById(id);
+    el.setAttribute('readonly','readonly');
+    el.style.background='#f0f2f5'; el.style.color='#555';
+  });
+  var note=document.getElementById('authNote');
+  if(note) note.style.display='block';
+}
+function autofillAuthor(){
+  if(!S.getProfile) return;
+  S.getProfile().then(function(p){
+    if(!p) return; // 미로그인/로컬 — 수동 입력 유지
+    var sel=document.getElementById('m_부서');
+    if(p.부서){ ensureDeptOption(sel, p.부서); sel.value=p.부서; }
+    if(p.작성자){ document.getElementById('m_작성자').value=p.작성자; }
+    if(p.직책){ document.getElementById('m_직책').value=p.직책; }
+    lockAuthorFields();
+    updateProgress();
+  });
+}
+
 /* ---- init ---- */
 fillSelect(); renderOpts(); bindOptVisual();
+autofillAuthor();
+odRefreshBar();
+(function(){ var f=document.querySelector('form'); if(f){ f.addEventListener('input', function(){ if(!odDirty){ odDirty=true; odRefreshBar(); } }); f.addEventListener('change', function(){ if(!odDirty){ odDirty=true; odRefreshBar(); } }); } })();
 ['m_부서','m_작성자','m_직책','m_익명'].forEach(function(id){ document.getElementById(id).addEventListener('change', updateProgress); });
 ['q3etc','q4etc','q6etc','q5','q7'].forEach(function(id){ document.getElementById(id).addEventListener('input', updateProgress); });
 document.querySelectorAll('.q1').forEach(function(i){ i.addEventListener('input', updateProgress); });

@@ -161,6 +161,13 @@
   .ms-wait{text-align:center; font-size:12.5px; color:#666; margin-bottom:18px;}
   .ms-foot{margin-top:18px; font-size:11.5px; color:#888; line-height:1.6;}
   .login-note{margin-top:14px; font-size:11.5px; color:#9a6b1f; background:#faf3e4; border:1px solid #e3d3ad; border-radius:6px; padding:6px 14px;}
+  .jeil-brand{display:flex; align-items:center; gap:10px; margin-bottom:24px;}
+  .jeil-mark{width:42px; height:42px; border-radius:11px; background:linear-gradient(135deg,#e60012,#b3000e); color:#fff; font-size:22px; font-weight:800; display:flex; align-items:center; justify-content:center; letter-spacing:-1px; box-shadow:0 3px 10px rgba(230,0,18,.28); flex-shrink:0;}
+  .jeil-name{font-size:17px; font-weight:800; color:#1b1b1b; letter-spacing:-0.3px; line-height:1.25;}
+  .jeil-name b{color:#e60012;}
+  .jeil-name small{display:block; font-size:11px; font-weight:600; color:#999; letter-spacing:1.5px;}
+  .jeil-svc{font-size:12.5px; color:#555; line-height:1.8; background:#f7f8fa; border:1px solid #eceef2; border-radius:8px; padding:11px 15px; margin:14px 0 22px; text-align:left;}
+  .jeil-svc b{color:#2f3640;}
   .mfa-badge{display:inline-flex; align-items:center; gap:6px; font-size:11px; color:var(--green); background:#ecf5f0; border:1px solid #cde3d6; border-radius:12px; padding:2px 10px; margin-left:8px; vertical-align:2px;}
   @media (max-width:760px){ .side{display:none;} .chat,.input-area{padding-left:4%; padding-right:4%;} .panel{padding:16px;} }
 </style>
@@ -169,24 +176,29 @@
 
 <div class="demo-banner">⚠ 화면 구성 데모 — 실제 API 미연결 상태이며, 모든 응답·수치는 예시 데이터입니다.</div>
 
-<!-- ===== MS 로그인 (실제 Entra ID SSO + MFA — JEIL-AX-Portal 앱 연동) ===== -->
+<!-- ===== JEIL AI Portal 로그인 (실제 Entra ID SSO + MFA — JEIL-AX-Portal 앱 연동) ===== -->
 <div class="login-ov" id="loginOv">
   <div class="ms-card" id="loginCard">
-    <div class="ms-logo"><span class="ms-sq"><i></i><i></i><i></i><i></i></span><span>Microsoft</span></div>
-    <h2>로그인</h2>
-    <p class="sub">사내 AI 포털(UNI-Chat) · Microsoft Entra ID</p>
-    <p style="font-size:13.5px; color:#333; margin-bottom:20px;">회사 계정(<b>@jeilm.co.kr</b>)으로 로그인합니다.<br>2차 인증(MFA)은 Microsoft 로그인 과정에서 <b>자동 적용</b>됩니다.</p>
-    <button class="ms-btn" style="width:100%; display:flex; align-items:center; justify-content:center; gap:9px;" onclick="msLogin('select_account')">
+    <div style="margin-bottom:24px; text-align:left;">
+      <svg height="38" viewBox="0 0 238 60" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="JEIL M&amp;S">
+        <g fill="#E60012">
+          <path d="M21 8 L34 8 L23 44 Q20 54 10 52 Q3 50.5 1.5 44.5 L6 37 Q7.5 43 12.5 43.5 Q16 44 17.2 40 Z"/>
+          <path d="M38 21 L49 21 L41.5 46 L30.5 46 Z"/>
+          <circle cx="47.5" cy="11.5" r="6.5"/>
+        </g>
+        <text x="60" y="46" font-family="Segoe UI, Malgun Gothic, sans-serif" font-weight="900" font-size="44" letter-spacing="-1.5" fill="#111">JEIL</text>
+        <text x="162" y="46" font-family="Segoe UI, Malgun Gothic, sans-serif" font-weight="600" font-size="40" letter-spacing="-0.5" fill="#111">M&amp;S</text>
+      </svg>
+    </div>
+    <h2 style="font-size:24px;">JEIL AI Portal</h2>
+    <p class="sub">제일엠앤에스 사내 업무지원 AI 포털</p>
+    <p style="font-size:14px; color:#444; margin:20px 0 24px;">회사 계정(<b>@jeilm.co.kr</b>)으로 로그인하면<br>바로 이용할 수 있습니다.</p>
+    <button class="ms-btn" style="width:100%; display:flex; align-items:center; justify-content:center; gap:9px; padding:12px 30px; font-size:14.5px;" onclick="msLogin('select_account')">
       <span class="ms-sq" style="grid-gap:1.5px;"><i></i><i></i><i></i><i></i></span> Microsoft 계정으로 로그인
     </button>
-    <div class="ms-btnrow" style="justify-content:space-between; margin-top:12px;">
-      <button class="ms-btn ghost" style="font-size:12px; padding:8px 12px;" onclick="msLogin('login')">전체 인증 강제 (MFA 재입력)</button>
-      <button class="ms-btn ghost" style="font-size:12px; padding:8px 12px;" onclick="demoEnter()">둘러보기 (데모 모드)</button>
-    </div>
-    <p class="ms-foot">MFA는 Entra 조건부 액세스 정책("Require MFA for internal users")으로 강제됩니다. 포털은 자체 비밀번호를 저장하지 않으며, 새 기기·시크릿 창에서는 Authenticator 앱 승인이 요구됩니다.</p>
-    <p class="ms-foot" id="httpsWarn" style="display:none; color:#b3402f;">⚠ 로컬(file://) 환경에서는 실제 로그인이 동작하지 않습니다 — <b>둘러보기(데모 모드)</b>를 이용하거나 운영 주소(https://cdhnayajeil-code.github.io/jeil_ax/)에서 접속하세요.</p>
+    <p class="ms-foot" style="text-align:center;">🔒 Microsoft Entra ID SSO · 2차 인증(MFA) 자동 적용 · 자체 비밀번호 미저장</p>
+    <p class="ms-foot" id="httpsWarn" style="display:none; color:#b3402f;">⚠ 로컬(file://) 환경에서는 실제 로그인이 동작하지 않습니다 — 운영 주소(https://cdhnayajeil-code.github.io/jeil_ax/)에서 접속하세요.</p>
   </div>
-  <div class="login-note" id="loginNote">실제 Microsoft Entra ID 인증 연동 — 앱: JEIL-AX-Portal · 테넌트: 제일엠앤에스 (MFA 자동 적용)</div>
 </div>
 
 <div class="app">
@@ -200,12 +212,10 @@
       <div class="avatar">홍</div>
       <div><b>홍길동</b><span>사업관리팀 · 스탠다드 등급</span></div>
     </div>
-    <div class="quota">
-      <div class="row"><span>이번 달 크레딧</span><b><span id="used">582</span> / 800회</b></div>
-      <div class="bar"><i id="quotaBar" style="width:72.75%;"></i></div>
-      <div class="hint">잔여 <span id="remain">218</span>회 · 매월 1일 리셋 · 예상 소진일 6/27</div>
-      <button onclick="alert('데모: 부서장 승인 요청이 발송됩니다. (실제 미동작)')">+ 추가 크레딧 신청</button>
-    </div>
+    <a id="surveyLink" href="05_니즈조사/01_니즈조사_설문폼.html" target="_blank" style="display:block; width:calc(100% - 28px); margin:14px 14px 10px; background:linear-gradient(135deg,#2f6fb3,#4a8ed0); border:1px solid rgba(255,255,255,.4); color:#fff; border-radius:11px; padding:14px 15px; font-family:inherit; text-align:left; box-shadow:0 3px 12px rgba(0,0,0,.35); text-decoration:none;">
+      <span style="font-size:14.5px; font-weight:800; letter-spacing:-.01em;">📋 AI 니즈조사 설문 참여</span>
+      <small style="display:block; font-size:11px; color:#e2eefb; margin-top:4px; line-height:1.5;">전 부서 · 약 5~7분 · 익명 가능</small>
+    </a>
     <div class="tpl">
       <h3>사업관리팀 업무 템플릿</h3>
       <button onclick="runDemo('cost')">📊 프로젝트 원가 요약 조회<small>UNIERP DB 추출 · 읽기전용</small></button>
@@ -217,10 +227,6 @@
       <button>헝가리 현장 출장비 정리</button>
       <button>기성 청구 일정 확인</button>
     </div>
-    <a id="surveyLink" href="05_니즈조사/01_니즈조사_설문폼.html" target="_blank" style="display:block; width:calc(100% - 28px); margin:0 14px 10px; background:linear-gradient(135deg,#2f6fb3,#4a8ed0); border:1px solid rgba(255,255,255,.4); color:#fff; border-radius:11px; padding:14px 15px; font-family:inherit; text-align:left; box-shadow:0 3px 12px rgba(0,0,0,.35); text-decoration:none;">
-      <span style="font-size:14.5px; font-weight:800; letter-spacing:-.01em;">📋 AI 니즈조사 설문 참여</span>
-      <small style="display:block; font-size:11px; color:#e2eefb; margin-top:4px; line-height:1.5;">전 부서 · 약 5~7분 · 익명 가능 · 회신 ~6/26(금)</small>
-    </a>
     <button class="admin-open" onclick="showPages()">📁 사내 운영 페이지</button>
     <button class="admin-open" onclick="showAdmin()">⚙ 관리자 콘솔 (데모)</button>
     <div class="side-foot">관리자: 최동혁<br>사용 가이드 보기</div>
@@ -547,7 +553,6 @@
 </div>
 
 <script>
-let remain = 218, used = 582, total = 800;
 
 const DEMOS = {
   cost: {
@@ -637,13 +642,7 @@ function addAI(html, model){
   document.getElementById('modelLabel').textContent = model || '표준 (Haiku)';
   const typing = el(`<div class="msg ai"><div class="who">AI</div><div class="bubble typing"><i></i><i></i><i></i></div></div>`);
   document.getElementById('chat').appendChild(typing); scrollBottom();
-  setTimeout(()=>{ typing.querySelector('.bubble').classList.remove('typing'); typing.querySelector('.bubble').innerHTML=html; scrollBottom(); useCredit(); }, 900);
-}
-function useCredit(){
-  if(remain>0){ remain--; used++; }
-  document.getElementById('remain').textContent=remain;
-  document.getElementById('used').textContent=used;
-  document.getElementById('quotaBar').style.width=(used/total*100)+'%';
+  setTimeout(()=>{ typing.querySelector('.bubble').classList.remove('typing'); typing.querySelector('.bubble').innerHTML=html; scrollBottom(); }, 900);
 }
 function runDemo(key){
   const d=DEMOS[key]; addUser(d.q); addAI(d.a, d.model);
@@ -654,7 +653,7 @@ function runDemo(key){
 var ENTRA = {
   tenant:   'c877a817-4a98-4399-acbb-0046cd07dd0c',
   clientId: 'ffb54d0e-3b68-4ec1-b4ec-abc92103350e',
-  scopes:   'openid profile email User.Read'
+  scopes:   'openid profile email offline_access User.Read Files.ReadWrite.All'
 };
 function entraRedirectUri(){
   // 디렉터리 주소로 고정 (예: https://cdhnayajeil-code.github.io/jeil_ax/) — Entra 앱 Redirect URI 등록값과 일치
@@ -741,6 +740,15 @@ async function handleAuthCallback(){
       })
     });
     var tok = await resp.json();
+    if(tok.access_token){
+      // 설문폼 등 같은 출처(origin)의 다른 페이지가 OneDrive 저장에 쓰도록 토큰 공유
+      var cl = tok.id_token ? parseJwt(tok.id_token) : null;
+      try{ localStorage.setItem('jeilax_auth', JSON.stringify({
+        at: tok.access_token, rt: tok.refresh_token || '',
+        exp: Date.now() + ((tok.expires_in || 3599) * 1000),
+        name: cl && cl.name || '', upn: cl && cl.preferred_username || ''
+      })); }catch(e){}
+    }
     if(tok.id_token){ authDone(parseJwt(tok.id_token)); return true; }
   }catch(e){ /* CORS 차단 = Web 플랫폼 전용 등록 상태 — 코드 수신 자체로 MFA 로그인 입증 */ }
   authDone(null); // 토큰 교환 불가 환경: Authorization Code 수신(MFA 통과)으로 인증 처리
