@@ -212,12 +212,10 @@
       <div class="avatar">홍</div>
       <div><b>홍길동</b><span>사업관리팀 · 스탠다드 등급</span></div>
     </div>
-    <div class="quota">
-      <div class="row"><span>이번 달 크레딧</span><b><span id="used">582</span> / 800회</b></div>
-      <div class="bar"><i id="quotaBar" style="width:72.75%;"></i></div>
-      <div class="hint">잔여 <span id="remain">218</span>회 · 매월 1일 리셋 · 예상 소진일 6/27</div>
-      <button onclick="alert('데모: 부서장 승인 요청이 발송됩니다. (실제 미동작)')">+ 추가 크레딧 신청</button>
-    </div>
+    <a id="surveyLink" href="05_니즈조사/01_니즈조사_설문폼.html" target="_blank" style="display:block; width:calc(100% - 28px); margin:14px 14px 10px; background:linear-gradient(135deg,#2f6fb3,#4a8ed0); border:1px solid rgba(255,255,255,.4); color:#fff; border-radius:11px; padding:14px 15px; font-family:inherit; text-align:left; box-shadow:0 3px 12px rgba(0,0,0,.35); text-decoration:none;">
+      <span style="font-size:14.5px; font-weight:800; letter-spacing:-.01em;">📋 AI 니즈조사 설문 참여</span>
+      <small style="display:block; font-size:11px; color:#e2eefb; margin-top:4px; line-height:1.5;">전 부서 · 약 5~7분 · 익명 가능</small>
+    </a>
     <div class="tpl">
       <h3>사업관리팀 업무 템플릿</h3>
       <button onclick="runDemo('cost')">📊 프로젝트 원가 요약 조회<small>UNIERP DB 추출 · 읽기전용</small></button>
@@ -229,10 +227,6 @@
       <button>헝가리 현장 출장비 정리</button>
       <button>기성 청구 일정 확인</button>
     </div>
-    <a id="surveyLink" href="05_니즈조사/01_니즈조사_설문폼.html" target="_blank" style="display:block; width:calc(100% - 28px); margin:0 14px 10px; background:linear-gradient(135deg,#2f6fb3,#4a8ed0); border:1px solid rgba(255,255,255,.4); color:#fff; border-radius:11px; padding:14px 15px; font-family:inherit; text-align:left; box-shadow:0 3px 12px rgba(0,0,0,.35); text-decoration:none;">
-      <span style="font-size:14.5px; font-weight:800; letter-spacing:-.01em;">📋 AI 니즈조사 설문 참여</span>
-      <small style="display:block; font-size:11px; color:#e2eefb; margin-top:4px; line-height:1.5;">전 부서 · 약 5~7분 · 익명 가능 · 회신 ~6/26(금)</small>
-    </a>
     <button class="admin-open" onclick="showPages()">📁 사내 운영 페이지</button>
     <button class="admin-open" onclick="showAdmin()">⚙ 관리자 콘솔 (데모)</button>
     <div class="side-foot">관리자: 최동혁<br>사용 가이드 보기</div>
@@ -559,7 +553,6 @@
 </div>
 
 <script>
-let remain = 218, used = 582, total = 800;
 
 const DEMOS = {
   cost: {
@@ -649,13 +642,7 @@ function addAI(html, model){
   document.getElementById('modelLabel').textContent = model || '표준 (Haiku)';
   const typing = el(`<div class="msg ai"><div class="who">AI</div><div class="bubble typing"><i></i><i></i><i></i></div></div>`);
   document.getElementById('chat').appendChild(typing); scrollBottom();
-  setTimeout(()=>{ typing.querySelector('.bubble').classList.remove('typing'); typing.querySelector('.bubble').innerHTML=html; scrollBottom(); useCredit(); }, 900);
-}
-function useCredit(){
-  if(remain>0){ remain--; used++; }
-  document.getElementById('remain').textContent=remain;
-  document.getElementById('used').textContent=used;
-  document.getElementById('quotaBar').style.width=(used/total*100)+'%';
+  setTimeout(()=>{ typing.querySelector('.bubble').classList.remove('typing'); typing.querySelector('.bubble').innerHTML=html; scrollBottom(); }, 900);
 }
 function runDemo(key){
   const d=DEMOS[key]; addUser(d.q); addAI(d.a, d.model);
