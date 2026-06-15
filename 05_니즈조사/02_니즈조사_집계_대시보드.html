@@ -20,18 +20,18 @@
       <span class="small" id="srcInfo">불러온 응답 0건</span>
     </h3>
     <div class="toolbar">
-      <button class="btn" id="btnFiles">📂 JSON 불러오기 (다중 선택)</button>
-      <button class="btn ghost" id="btnLocal">이 브라우저 저장분</button>
+      <button class="btn" id="btnSync">🔄 OneDrive에서 새로고침</button>
+      <button class="btn ghost" id="btnFiles">📂 JSON 불러오기 (수동)</button>
       <button class="btn gray" id="btnSample">샘플 데이터</button>
-      <button class="btn gray" id="btnOneDrive" title="Chrome/Edge에서 OneDrive 동기화 폴더를 직접 읽습니다(차기 기능)">🗂 OneDrive 폴더 연결</button>
       <button class="btn danger" id="btnClear">초기화</button>
       <input type="file" id="filesInp" accept="application/json" multiple style="display:none;">
     </div>
+    <p class="small" id="syncInfo" style="margin:10px 0 0;">로그인 상태를 확인하는 중…</p>
     <div class="field" style="margin:12px 0 0; max-width:320px;">
       <label class="lb" style="font-size:12.5px;">목표 회신 부서 수 <span class="hint">(회신율 계산용)</span></label>
       <input type="text" id="targetDept" value="8" inputmode="numeric" style="max-width:120px;">
     </div>
-    <p class="small" style="margin:8px 0 0;">여러 부서의 응답 JSON을 한꺼번에 선택해 합산할 수 있습니다. 같은 사람(부서·작성자·작성일)의 재제출은 중복 없이 최신본으로 반영됩니다.</p>
+    <p class="small" style="margin:8px 0 0;">회사 계정으로 로그인하면 OneDrive 공유 폴더의 응답이 <b>자동으로 합산</b>됩니다. 직원이 설문을 저장한 뒤 <b>새로고침</b>만 누르면 바로 반영됩니다. 같은 사람(부서·작성자·작성일)의 재제출은 중복 없이 최신본으로 집계됩니다.</p>
   </div>
 
   <div id="dashboard"></div>
@@ -126,7 +126,7 @@ function matrix(agg){
 function render(){
   var host = document.getElementById('dashboard');
   if(!DATA.length){
-    host.innerHTML = '<div class="sec"><div class="empty">아직 불러온 응답이 없습니다.<br>위에서 <b>JSON 불러오기</b> 또는 <b>샘플 데이터</b>를 눌러 시작하세요.</div></div>';
+    host.innerHTML = '<div class="sec"><div class="empty">아직 불러온 응답이 없습니다.<br>회사 계정 로그인 시 <b>🔄 OneDrive에서 새로고침</b>으로 자동 합산되며, 로그인 전에는 <b>샘플 데이터</b>로 미리 볼 수 있습니다.</div></div>';
     return;
   }
   var agg = S.aggregate(DATA);
@@ -181,20 +181,48 @@ document.getElementById('filesInp').addEventListener('change', function(e){
   });
   e.target.value='';
 });
-document.getElementById('btnLocal').addEventListener('click', function(){
-  var l = S.loadLocal(); if(!l.length){ toast('이 브라우저에 저장된 응답이 없습니다.'); return; }
-  setData(DATA.concat(l), '브라우저 저장분'); toast(l.length+'건 불러왔습니다.');
-});
 document.getElementById('btnSample').addEventListener('click', function(){ setData(SAMPLE.slice(), '샘플'); toast('샘플 '+SAMPLE.length+'건 로드'); });
 document.getElementById('btnClear').addEventListener('click', function(){ DATA=[]; document.getElementById('srcInfo').textContent='불러온 응답 0건'; render(); });
 document.getElementById('targetDept').addEventListener('input', render);
-document.getElementById('btnOneDrive').addEventListener('click', function(){
-  if(!S.isOneDriveReadable()){ toast('이 브라우저는 폴더 직접 읽기를 지원하지 않습니다(Chrome/Edge 권장).'); return; }
-  S.loadAllFromOneDrive().then(function(list){
-    if(!list.length){ toast('폴더에서 응답 JSON을 찾지 못했습니다.'); return; }
-    setData(DATA.concat(list), 'OneDrive 폴더'); toast('OneDrive 폴더에서 '+list.length+'건 로드');
-  }).catch(function(err){ toast(err.message||'폴더 연결이 취소되었습니다.'); });
-});
+
+/* ---- OneDrive 자동 동기화(Graph) ---- */
+var btnSync = document.getElementById('btnSync');
+var syncInfo = document.getElementById('syncInfo');
+function setSyncMsg(m){ if(syncInfo) syncInfo.innerHTML = m; }
+
+function syncFromOneDrive(isAuto){
+  var info = S.authInfo && S.authInfo();
+  if(!info || !info.valid){
+    setSyncMsg('🔒 회사 계정 로그인이 필요합니다. <a href="../04_챗봇_포털_데모UI.html">포털에서 로그인</a> 후 다시 열어 주세요.' +
+      ' <span class="small">(로그인 전에는 수동 불러오기·샘플로 확인 가능)</span>');
+    if(!isAuto) toast('로그인이 필요합니다. 포털에서 로그인 후 이용하세요.');
+    return;
+  }
+  setSyncMsg('⏳ OneDrive에서 응답을 불러오는 중…');
+  btnSync.disabled = true;
+  S.loadAllResponsesFromOneDrive().then(function(res){
+    btnSync.disabled = false;
+    if(!res || !res.ok){
+      if(res && res.needLogin){ setSyncMsg('🔒 로그인이 만료되었습니다. <a href="../04_챗봇_포털_데모UI.html">포털에서 다시 로그인</a> 해 주세요.'); }
+      else { setSyncMsg('⚠️ 불러오기 실패: ' + ((res&&res.error)||'알 수 없는 오류')); }
+      return;
+    }
+    var via = res.viaShared ? '공유 폴더' : '내 드라이브';
+    if(!res.list.length){
+      setSyncMsg('✅ 연결됨('+via+') · 아직 저장된 응답이 없습니다. 직원 저장 후 새로고침하세요.');
+      if(!isAuto) toast('응답이 아직 없습니다.');
+      return;
+    }
+    setData(res.list, 'OneDrive 자동');
+    setSyncMsg('✅ ' + (info.name? info.name+' 계정 · ':'') + via + '에서 ' + res.list.length + '건 동기화됨 · '
+      + new Date().toLocaleTimeString('ko-KR') + ' 기준');
+    if(!isAuto) toast('OneDrive에서 '+res.list.length+'건 동기화');
+  }).catch(function(err){
+    btnSync.disabled = false;
+    setSyncMsg('⚠️ 동기화 오류: ' + (err && err.message ? err.message : String(err)));
+  });
+}
+btnSync.addEventListener('click', function(){ syncFromOneDrive(false); });
 
 /* ---- 샘플 데이터 (시연용) ---- */
 function R(부서,작성자,q1,q2,q3,q4,q5,q6,q7){
@@ -234,6 +262,9 @@ var SAMPLE = [
 
 render();
 window.addEventListener('resize', function(){ if(DATA.length) render(); });
+
+/* 진입 시: 로그인되어 있으면 OneDrive에서 자동 동기화 (직원 저장분 즉시 반영) */
+syncFromOneDrive(true);
 </script>
 </body>
 </html>
