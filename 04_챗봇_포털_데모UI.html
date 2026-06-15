@@ -39,6 +39,13 @@
   .tpl button{display:block; width:100%; text-align:left; background:rgba(255,255,255,.06); border:none; color:#e7edf6; font-size:12.5px; padding:9px 12px; border-radius:8px; margin-bottom:6px; cursor:pointer; font-family:inherit; line-height:1.4;}
   .tpl button:hover{background:rgba(255,255,255,.14);}
   .tpl button small{display:block; color:#9fb1ca; font-size:10.5px;}
+  .tpl .dept-sel{width:100%; box-sizing:border-box; background:rgba(255,255,255,.10); color:#e7edf6; border:1px solid rgba(255,255,255,.20); border-radius:8px; padding:9px 10px; font-size:12.5px; font-family:inherit; cursor:pointer;}
+  .tpl .dept-sel:focus{outline:none; border-color:#4a8ed0;}
+  .tpl .dept-sel option{color:#1a2f4e;}
+  .bubble .pglink{margin-top:12px; padding-top:11px; border-top:1px dashed var(--line);}
+  .bubble .pglink-lb{display:block; font-size:11px; color:var(--muted); margin-bottom:7px; font-weight:700; letter-spacing:.02em;}
+  .bubble .pglink-btn{display:inline-block; background:var(--navy); color:#fff !important; text-decoration:none; border-radius:8px; padding:8px 15px; font-size:12.5px; font-weight:700;}
+  .bubble .pglink-btn:hover{background:var(--navy2);}
   .side-foot{padding:12px 20px; border-top:1px solid rgba(255,255,255,.12); font-size:11px; color:#9fb1ca;}
   /* 메인 */
   .main{flex:1; display:flex; flex-direction:column; min-width:0;}
@@ -217,11 +224,16 @@
       <small style="display:block; font-size:11px; color:#e2eefb; margin-top:4px; line-height:1.5;">전 부서 · 약 5~7분 · 익명 가능</small>
     </a>
     <div class="tpl">
-      <h3>사업관리팀 업무 템플릿</h3>
-      <button onclick="runDemo('cost')">📊 프로젝트 원가 요약 조회<small>UNIERP DB 추출 · 읽기전용</small></button>
-      <button onclick="runDemo('report')">📝 주간보고 초안 작성<small>금주 활동 입력 → 초안 생성</small></button>
-      <button onclick="runDemo('rule')">📚 사내규정 질의응답<small>인사·총무 규정 검색</small></button>
-      <button onclick="runDemo('mail')">✉️ 거래처 메일 초안<small>상황 입력 → 격식 메일</small></button>
+      <h3>부서 선택</h3>
+      <select id="deptSel" class="dept-sel" onchange="switchDept(this.value)">
+        <option value="biz">사업관리팀</option>
+        <option value="hr">인사총무팀</option>
+        <option value="fin">자금팀</option>
+        <option value="sales">영업팀</option>
+        <option value="pur">구매팀</option>
+      </select>
+      <h3 id="tplTitle" style="padding-top:12px;">사업관리팀 업무 템플릿</h3>
+      <div id="tplBox"></div>
       <h3 style="padding-top:10px;">최근 대화</h3>
       <button onclick="runDemo('cost')">2025-095-SUL-EC 수지 분석</button>
       <button>헝가리 현장 출장비 정리</button>
@@ -229,7 +241,6 @@
     </div>
     <button class="admin-open" onclick="showPages()">📁 사내 운영 페이지</button>
     <button class="admin-open" onclick="showAdmin()">⚙ 관리자 콘솔 (데모)</button>
-    <div class="side-foot">관리자: 최동혁<br>사용 가이드 보기</div>
   </aside>
 
   <!-- 메인 -->
@@ -644,8 +655,206 @@ function addAI(html, model){
   document.getElementById('chat').appendChild(typing); scrollBottom();
   setTimeout(()=>{ typing.querySelector('.bubble').classList.remove('typing'); typing.querySelector('.bubble').innerHTML=html; scrollBottom(); }, 900);
 }
+/* ===== 부서별 업무 템플릿 + 연결 운영 페이지 ===== */
+var DEPTS = {
+  biz: { name:"사업관리팀", tpls:[
+    {k:'cost',   t:'📊 프로젝트 원가 요약 조회', s:'UNIERP DB 추출 · 읽기전용'},
+    {k:'report', t:'📝 주간보고 초안 작성',     s:'금주 활동 입력 → 초안 생성'},
+    {k:'rule',   t:'📚 사내규정 질의응답',       s:'인사·총무 규정 검색'},
+    {k:'mail',   t:'✉️ 거래처 메일 초안',        s:'상황 입력 → 격식 메일'}
+  ]},
+  hr: { name:"인사총무팀", tpls:[
+    {k:'hr_sum',    t:'👥 인원·급여 현황 요약',  s:'재적/입퇴사/급여 추이'},
+    {k:'rule',      t:'📚 인사규정 질의응답',     s:'연차·휴가·근태 규정'},
+    {k:'hr_report', t:'📝 인사 월간보고 초안',    s:'인원 변동 → 초안 생성'}
+  ]},
+  fin: { name:"자금팀", tpls:[
+    {k:'fin_sum',    t:'💰 자금일보 요약',         s:'잔액·자금이동·은행별'},
+    {k:'fin_plan',   t:'📈 주간 자금수지 점검',    s:'수금/지출 흐름 요약'},
+    {k:'fin_report', t:'📝 자금현황 보고 초안',    s:'당일 자금현황 → 초안'}
+  ]},
+  sales: { name:"영업팀", tpls:[
+    {k:'sales_sum',    t:'📈 수주현황 요약',        s:'수주/수금단계/집중도'},
+    {k:'sales_mail',   t:'✉️ 거래처 메일 초안',     s:'상황 입력 → 격식 메일'},
+    {k:'sales_report', t:'📝 영업 주간보고 초안',   s:'수주 활동 → 초안 생성'}
+  ]},
+  pur: { name:"구매팀", tpls:[
+    {k:'pur_sum',    t:'📦 거래처별 매입 집계 요약', s:'Top10·매입형태·이슈'},
+    {k:'pur_item',   t:'🔍 품목 존재/중복 조회',    s:'품명 입력 → 등록 여부'},
+    {k:'pur_report', t:'📝 구매 주간보고 초안',     s:'발주/매입 → 초안 생성'}
+  ]}
+};
+var DEMO_PAGES = {
+  cost:      {href:'pages/프로젝트원가_요약_2025-095-SUL-EC.html', title:'프로젝트 원가 요약 (2025-095-SUL-EC)'},
+  hr_sum:    {href:'pages/인사_인원급여추이_2026.html',           title:'인원 및 급여 추이 대시보드 (2026)'},
+  fin_sum:   {href:'pages/자금_자금일보_대시보드_2026.html',       title:'자금일보 대시보드'},
+  fin_plan:  {href:'pages/자금_자금일보_대시보드_2026.html',       title:'자금일보 대시보드'},
+  sales_sum: {href:'pages/영업_수주현황_2026.html',               title:'수주현황 대시보드 (2026)'},
+  pur_sum:   {href:'pages/구매_거래처별매입집계_2026.html',         title:'거래처별 매입금액 집계 (2026)'},
+  pur_item:  {href:'pages/품목중복_조회_2026.html',               title:'품목 존재/중복 조회'}
+};
+
+Object.assign(DEMOS, {
+  hr_sum: {
+    q: "현재 인원 현황이랑 급여 추이 요약해줘",
+    model: "표준 (Haiku)",
+    a: `<b>인원 및 급여 현황 요약 — 2026년</b>
+      <table>
+        <tr><th>구분</th><th class="r">값</th></tr>
+        <tr><td>재적 인원</td><td class="r">87명</td></tr>
+        <tr><td>금년 입사 / 퇴사</td><td class="r">5명 / 3명</td></tr>
+        <tr><td>4월 퇴직정산</td><td class="r">반영 완료</td></tr>
+      </table>
+      부서별 인원 분포와 월별 급여 추이, 입·퇴사 상세는 운영 페이지에서 확인하세요. 주민번호·계좌 등 PII는 자동 마스킹됩니다.
+      <br><span class="src">✓ 출처: UNIERP DB 추출 — 인사_인원급여추이_2026 (HDF070T·HAA010T·A22 기반)</span>`
+  },
+  hr_report: {
+    q: "이번 달 인사 월간보고 초안 써줘. 입사 2명, 퇴사 1명, 4월 퇴직정산 마무리했어.",
+    model: "고급 (Sonnet)",
+    a: `<h4>인사총무팀 월간보고 초안</h4>
+      <b>1. 인원 변동</b>
+      <ul><li>입사 2명 · 퇴사 1명 — 재적 87명 유지</li><li>4월 퇴직정산 마무리 (지급·신고 완료)</li></ul>
+      <b>2. 급여·근태</b>
+      <ul><li>월 급여 지급 정상 처리, 연장근로·연차 사용 현황 점검</li></ul>
+      <b>3. 차월 계획</b>
+      <ul><li>상반기 인사평가 일정 안내, 채용 진행 현황 정리</li></ul>
+      초안이므로 인원수·일정은 ERP 원본 확인 후 확정해 주세요.`
+  },
+  fin_sum: {
+    q: "오늘 자금일보 요약해줘",
+    model: "표준 (Haiku)",
+    a: `<b>자금일보 요약 — 금일</b>
+      <table>
+        <tr><th>구분</th><th class="r">값</th></tr>
+        <tr><td>현금성 가용 잔액</td><td class="r">약 701백만원</td></tr>
+        <tr><td>당일 자금이동</td><td class="r">3건</td></tr>
+        <tr><td>예금 / 차입</td><td class="r">은행별 집계</td></tr>
+      </table>
+      당일 입·출금 내역, 은행별 예금/차입, 월별 수금·지출 흐름은 운영 페이지에서 확인하세요.
+      <br><span class="src">✓ 출처: UNIERP DB 추출 — 자금_자금일보_대시보드_2026 (A_GL·F_LN_INFO·B_BANK 기반)</span>`
+  },
+  fin_plan: {
+    q: "이번 주 자금수지 점검해줘",
+    model: "고급 (Sonnet)",
+    a: `<b>주간 자금수지 점검</b>
+      <ul>
+        <li>금주 예상 수금 vs 지출 — 순흐름 점검, 만기 도래 차입 확인</li>
+        <li>은행별 잔액 분산 및 가용 한도 여유 확인</li>
+        <li>대량 지출 예정 건은 자금이동 사전 스케줄링 권장</li>
+      </ul>
+      일자별 수금·지출 흐름과 잔액 추이는 운영 페이지에서 확인하세요.
+      <br><span class="src">✓ 출처: UNIERP DB 추출 — 자금_자금일보_대시보드_2026</span>`
+  },
+  fin_report: {
+    q: "자금현황 보고 초안 써줘",
+    model: "고급 (Sonnet)",
+    a: `<h4>자금현황 보고 초안</h4>
+      <b>1. 자금 현황</b>
+      <ul><li>현금성 가용 잔액 약 701백만원 — 정상 운용</li><li>당일 자금이동 3건 처리</li></ul>
+      <b>2. 자금 수지</b>
+      <ul><li>수금·지출 흐름 안정적, 만기 차입 일정 점검 중</li></ul>
+      <b>3. 특이사항 / 차주 계획</b>
+      <ul><li>대량 지출 예정 건 사전 자금배치, 은행별 잔액 분산 유지</li></ul>
+      금액은 ERP 원본·통장 잔액 대조 후 확정해 주세요.`
+  },
+  sales_sum: {
+    q: "올해 수주현황 요약해줘",
+    model: "표준 (Haiku)",
+    a: `<b>수주현황 요약 — 2026년</b>
+      <table>
+        <tr><th>구분</th><th class="r">값</th></tr>
+        <tr><td>수주 건수</td><td class="r">10건</td></tr>
+        <tr><td>수주 금액</td><td class="r">약 49.4억원</td></tr>
+        <tr><td>거래처 집중도</td><td class="r">상위 집중 — 경보</td></tr>
+      </table>
+      프로젝트별 수금 단계, 거래처 집중도 경보, 월별 수주 추이는 운영 페이지에서 확인하세요.
+      <br><span class="src">✓ 출처: UNIERP DB 추출 — 영업_수주현황_2026 (S_BILL·수금데이터 기반)</span>`
+  },
+  sales_mail: {
+    q: "삼성에스디아이에 기성 2차 청구 안내 메일 초안 써줘",
+    model: "고급 (Sonnet)",
+    a: `<h4>메일 초안</h4>
+      <b>제목:</b> [○○사] 2025-095-SUL-EC 기성 2차 청구 안내<br><br>
+      삼성에스디아이(주) 담당자님께,<br><br>
+      안녕하세요, ○○사 영업팀입니다.<br>
+      헝가리 1공장 #3 이송탱크·펌프 설치 공사(2025-095-SUL-EC)의 <b>기성 2차 청구</b> 관련 안내드립니다. 진척 기준 청구 근거자료를 첨부드리며, 수금 일정 협의를 요청드립니다.<br><br>
+      검토 후 회신 주시면 감사하겠습니다.<br><br>
+      감사합니다.<br>영업팀 드림<br><br>
+      <i style="color:#888;font-size:12px;">※ 발송 전 프로젝트번호·청구금액을 실제 정보로 확인하세요.</i>`
+  },
+  sales_report: {
+    q: "이번 주 영업 주간보고 초안 써줘. 신규 수주 1건, 기성 2차 청구 준비 중이야.",
+    model: "고급 (Sonnet)",
+    a: `<h4>영업팀 주간보고 초안</h4>
+      <b>1. 수주 활동</b>
+      <ul><li>신규 수주 1건 확보 — 누계 10건 · 약 49.4억원</li><li>기성 2차 청구 준비 — 근거자료 취합, 수금 일정 협의 예정</li></ul>
+      <b>2. 거래처 관리</b>
+      <ul><li>상위 거래처 집중도 경보 — 신규 거래처 발굴 병행</li></ul>
+      <b>3. 차주 계획</b>
+      <ul><li>견적·계약 진행 건 점검, 수금 단계 업데이트</li></ul>
+      수주·수금 수치는 ERP 원본 확인 후 확정해 주세요.`
+  },
+  pur_sum: {
+    q: "거래처별 매입 집계 요약해줘",
+    model: "표준 (Haiku)",
+    a: `<b>거래처별 매입금액 집계 요약 — 2026년</b>
+      <table>
+        <tr><th>구분</th><th class="r">값</th></tr>
+        <tr><td>매입 라인</td><td class="r">897건</td></tr>
+        <tr><td>거래처 집중</td><td class="r">상위 Top10 중심</td></tr>
+        <tr><td>매입 형태</td><td class="r">DIV / SIE / SIF</td></tr>
+      </table>
+      거래처 Top10, 품목계정 분포, 세금계산서 분할 이슈는 운영 페이지에서 확인하세요.
+      <br><span class="src">✓ 출처: UNIERP DB 추출 — 구매_거래처별매입집계_2026 (M_IV·B_BP 기반)</span>`
+  },
+  pur_item: {
+    q: "PT100 온도센서가 이미 품목 등록돼 있는지 확인해줘",
+    model: "표준 (Haiku)",
+    a: `<b>품목 존재/중복 조회 — "PT100 온도센서"</b>
+      <table>
+        <tr><th>구분</th><th>결과</th></tr>
+        <tr><td>등록 여부</td><td>유사 품목 다수 — 중복 가능</td></tr>
+        <tr><td>대표코드 권장</td><td>대표코드로 통합 사용 권장</td></tr>
+        <tr><td>조치</td><td>신규 등록 전 중복 그룹 확인 필수</td></tr>
+      </table>
+      품명·코드·규격으로 정확한 등록 여부와 중복 그룹·대표코드를 운영 페이지에서 즉시 조회하세요. (BOM·발주 의뢰 전 필수)
+      <br><span class="src">✓ 출처: UNIERP DB 추출 — 품목중복_조회_2026 (B_ITEM 기반)</span>`
+  },
+  pur_report: {
+    q: "이번 주 구매 주간보고 초안 써줘. 신규 발주 처리, 매입 정산 진행 중이야.",
+    model: "고급 (Sonnet)",
+    a: `<h4>구매팀 주간보고 초안</h4>
+      <b>1. 발주·매입</b>
+      <ul><li>신규 발주 처리 및 납기 점검</li><li>거래처 매입 정산 진행 — 세금계산서 분할 건 확인</li></ul>
+      <b>2. 거래처 관리</b>
+      <ul><li>상위 거래처 매입 집중 모니터링, 단가 협의</li></ul>
+      <b>3. 차주 계획</b>
+      <ul><li>품목 중복 정리, 발주 의뢰 건 처리</li></ul>
+      매입 금액·건수는 ERP 원본 확인 후 확정해 주세요.`
+  }
+});
+
+function renderTpls(dept){
+  var ds = DEPTS[dept] || DEPTS.biz;
+  var title = document.getElementById('tplTitle');
+  var box = document.getElementById('tplBox');
+  if(title) title.textContent = ds.name + ' 업무 템플릿';
+  if(box) box.innerHTML = ds.tpls.map(function(t){
+    return '<button onclick="runDemo(\'' + t.k + '\')">' + t.t + '<small>' + t.s + '</small></button>';
+  }).join('');
+}
+function switchDept(dept){ renderTpls(dept); }
+
 function runDemo(key){
-  const d=DEMOS[key]; addUser(d.q); addAI(d.a, d.model);
+  var d = DEMOS[key]; if(!d) return;
+  addUser(d.q);
+  var html = d.a;
+  var pg = DEMO_PAGES[key];
+  if(pg){
+    html += '<div class="pglink"><span class="pglink-lb">🔗 연결된 사내 운영 페이지</span>'
+          + '<a class="pglink-btn" href="' + pg.href + '" target="_blank">' + pg.title + ' 열기 ↗</a></div>';
+  }
+  addAI(html, d.model);
 }
 /* ===== MS 로그인 — 실제 Entra ID (OAuth 2.0 Authorization Code + PKCE) =====
    앱 등록: JEIL-AX-Portal (MS_connect/01 참조 · 공개 가능 값만 사용, Secret 미포함)
@@ -754,6 +963,8 @@ async function handleAuthCallback(){
   authDone(null); // 토큰 교환 불가 환경: Authorization Code 수신(MFA 통과)으로 인증 처리
   return true;
 }
+
+renderTpls('biz');
 
 (function initAuth(){
   if(!isHttps()){ document.getElementById('httpsWarn').style.display='block'; }

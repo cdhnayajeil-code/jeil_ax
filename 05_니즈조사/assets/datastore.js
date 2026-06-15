@@ -36,7 +36,7 @@
     '문서 요약·번역', '규정·매뉴얼 검색 챗봇', '데이터 분석·시각화',
     '알림·점검(재고·미수금·기한 등)'
   ];
-  var Q4_옵션 = ['ERP(UNIERP)', '엑셀 파일', '그룹웨어·메일', '종이·스캔 문서'];
+  var Q4_옵션 = ['ERP(UNIERP)', '엑셀 파일', '그룹웨어·메일', '문서중앙화서버', '종이·스캔 문서'];
   var Q6_옵션 = ['답변 정확성', '보안·정보유출', '사용법 어려움', '업무 책임 소재'];
 
   /* ---- 빈 응답 골격 ---- */
@@ -425,7 +425,7 @@
     }).catch(function (e) { return { ok: false, error: String(e) }; });
   }
 
-  /* ---- 공개 API ---- */
+  /* ---- 공개 API (SurveyStore) ---- */
   global.SurveyStore = {
     SCHEMA_VERSION: SCHEMA_VERSION,
     STORAGE_KEY: STORAGE_KEY,
@@ -459,6 +459,4 @@
     isOneDriveReadable: isOneDriveReadable,
     loadAllFromOneDrive: loadAllFromOneDrive,
     // 집계
-    aggregate: aggregate
-  };
-})(window);
+    aggregate: ag
