@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>01. 도메인·DNS·인프라 구성 — ai.jeilm.co.kr</title>
+<style>
+  :root{
+    --navy:#1a2f4e; --navy2:#27457a; --accent:#2f6fb3;
+    --red:#b3402f; --green:#2e7d52; --amber:#9a6b1f;
+    --ink:#222; --muted:#666; --line:#d8dee8; --bg:#f4f6f9;
+    --soft:#eef2f8; --softred:#fbeeec; --softgreen:#ecf5f0; --softamber:#faf3e4;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif; color:var(--ink); background:var(--bg); line-height:1.65; font-size:15px;}
+  .page{max-width:960px; margin:0 auto; background:#fff; padding:56px 64px; box-shadow:0 2px 14px rgba(0,0,0,.08);}
+  .doc-label{display:inline-block; background:var(--navy); color:#fff; font-size:12px; letter-spacing:.18em; padding:5px 14px; border-radius:3px; margin-bottom:18px;}
+  h1{font-size:28px; color:var(--navy); line-height:1.35; margin-bottom:10px;}
+  .subtitle{font-size:15.5px; color:var(--muted); margin-bottom:22px;}
+  .docnav{display:flex; flex-wrap:wrap; gap:6px; margin-bottom:26px;}
+  .docnav a{font-size:12px; color:var(--navy2); border:1px solid var(--line); border-radius:20px; padding:4px 12px; text-decoration:none; background:var(--soft);}
+  .docnav a:hover{background:var(--navy); color:#fff;}
+  .docnav a.cur{background:var(--navy); color:#fff; border-color:var(--navy);}
+  .meta{display:flex; flex-wrap:wrap; border:1px solid var(--line); border-radius:6px; overflow:hidden; margin-bottom:40px;}
+  .meta div{flex:1 1 25%; padding:10px 16px; font-size:13px; border-right:1px solid var(--line); background:var(--soft);}
+  .meta div:last-child{border-right:none;}
+  .meta b{display:block; color:var(--navy); font-size:12px; margin-bottom:2px;}
+  h2{font-size:20px; color:var(--navy); margin:46px 0 16px; padding-bottom:10px; border-bottom:3px solid var(--navy); display:flex; align-items:center; gap:10px;}
+  h2 .num{background:var(--navy); color:#fff; font-size:14px; width:28px; height:28px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; flex:none;}
+  h3{font-size:16px; color:var(--navy2); margin:26px 0 10px;}
+  p{margin-bottom:12px;}
+  .callout{border-radius:8px; padding:16px 20px; margin:14px 0;}
+  .callout.red{background:var(--softred); border-left:5px solid var(--red);}
+  .callout.green{background:var(--softgreen); border-left:5px solid var(--green);}
+  .callout.amber{background:var(--softamber); border-left:5px solid var(--amber);}
+  .callout b.tag{display:block; font-size:13px; margin-bottom:6px;}
+  .callout.red b.tag{color:var(--red);} .callout.green b.tag{color:var(--green);} .callout.amber b.tag{color:var(--amber);}
+  table{width:100%; border-collapse:collapse; margin:14px 0 20px; font-size:13.5px;}
+  th{background:var(--navy); color:#fff; padding:9px 12px; text-align:left; font-weight:600;}
+  td{padding:9px 12px; border-bottom:1px solid var(--line); vertical-align:top;}
+  tr:nth-child(even) td{background:#fafbfd;}
+  td.ok{color:var(--green); font-weight:700;} td.no{color:var(--red); font-weight:700;} td.mid{color:var(--amber); font-weight:700;}
+  td.num, th.num{text-align:right;}
+  a{color:var(--accent);}
+  code{background:var(--soft); border:1px solid var(--line); border-radius:4px; padding:1px 6px; font-size:12.5px; font-family:Consolas,'Courier New',monospace;}
+  pre{background:#21252e; color:#e8eaf0; border-radius:8px; padding:16px 18px; font-size:12.5px; font-family:Consolas,'Courier New',monospace; overflow-x:auto; margin:12px 0 18px; line-height:1.55;}
+  pre .c{color:#8a93a5;}
+  .arch{display:flex; align-items:stretch; margin:20px 0; flex-wrap:wrap;}
+  .arch .box{flex:1; min-width:160px; border:2px solid var(--navy2); border-radius:10px; padding:14px 12px; text-align:center; background:#fff;}
+  .arch .box.hl{background:var(--soft); border-color:var(--accent);}
+  .arch .box.ext{border-style:dashed;}
+  .arch .box h4{color:var(--navy); font-size:14px; margin-bottom:6px;}
+  .arch .box p{font-size:12px; color:var(--muted); margin:0;}
+  .arch .arrow{display:flex; flex-direction:column; justify-content:center; align-items:center; padding:0 8px; color:var(--accent); font-size:11.5px; font-weight:700; min-width:70px; text-align:center;}
+  .arch .arrow .line{font-size:20px; line-height:1;}
+  .footer{margin-top:56px; padding-top:16px; border-top:1px solid var(--line); font-size:12px; color:var(--muted); display:flex; justify-content:space-between;}
+  .small{font-size:12.5px; color:var(--muted);}
+  @media print{ body{background:#fff;} .page{box-shadow:none; padding:20px 0; max-width:100%;} h2{break-after:avoid;} table,.callout,.arch,pre{break-inside:avoid;} .docnav{display:none;} }
+  @media (max-width:720px){ .page{padding:32px 22px;} .arch{flex-direction:column;} .arch .arrow{transform:rotate(90deg); min-width:auto; padding:6px 0;} }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <span class="doc-label">실제 구축 준비 01 · 대외비</span>
+  <h1>도메인 · DNS · 인프라 구성</h1>
+  <p class="subtitle">ai.jeilm.co.kr 신설 절차 — DNS 레코드 · SSL · 호스팅 3안 비교 · 네트워크 보안 · 접속 정책</p>
+
+  <div class="docnav">
+    <a href="00_실제구축_종합기획서.html">00 종합기획</a>
+    <a class="cur" href="01_도메인_DNS_인프라구성.html">01 도메인·인프라</a>
+    <a href="02_MS연동_OneDrive_데이터연계.html">02 MS·OneDrive</a>
+    <a href="03_ERP_UNIERP_데이터연계.html">03 ERP 연계</a>
+    <a href="04_챗봇전환_데이터관리_운영.html">04 챗봇·데이터관리</a>
+    <a href="05_실행체크리스트_로드맵.html">05 체크리스트</a>
+    <a href="06_사이버다임_Cloudium_연계검토.html">06 사이버다임 연계</a>
+  </div>
+
+  <div class="meta">
+    <div><b>작성일</b>2026. 06. 12.</div>
+    <div><b>담당</b>최동혁</div>
+    <div><b>대상 단계</b>STEP 0~1 (W1~4)</div>
+    <div><b>선행 결정</b>호스팅 위치 · 접속 정책</div>
+  </div>
+
+  <h2><span class="num">1</span>도메인 체계 설계</h2>
+  <p>회사 도메인 <b>jeilm.co.kr</b>은 이미 Microsoft 365 테넌트의 주 도메인으로 검증되어 있습니다(메일·계정 사용 중). 포털은 이 도메인 아래 서브도메인을 신설하며, <b>기존 웹사이트·메일에는 어떤 영향도 없습니다.</b></p>
+  <table>
+    <tr><th style="width:30%;">주소</th><th style="width:16%;">용도</th><th>설명</th></tr>
+    <tr><td><b>ai.jeilm.co.kr</b></td><td><b>운영</b></td><td>전 직원 접속 주소. 그룹웨어처럼 즐겨찾기·사내 공지로 안내</td></tr>
+    <tr><td><code>ai-dev.jeilm.co.kr</code></td><td>스테이징</td><td>배포 전 검증·테스트. 검색엔진 차단(robots.txt + noindex), 관리자·파일럿만 접근. 선택이지만 운영 중 수정사고 방지를 위해 권장</td></tr>
+    <tr><td colspan="3" class="small">확장 예약(지금은 미생성): <code>api.ai.jeilm.co.kr</code>(게이트웨이 분리 시), <code>admin.ai.jeilm.co.kr</code>(관리 콘솔 분리 시) — 초기에는 단일 서버에서 경로(/admin)로 충분</td></tr>
+  </table>
+  <div class="callout amber">
+    <b class="tag">사전 확인 (STEP 0 첫 작업) — jeilm.co.kr DNS는 누가 관리하는가</b>
+    .co.kr 도메인의 등록 대행사(가비아·후이즈·카페24 등)와 DNS 관리 콘솔 접근 권한자를 확인해야 합니다. 확인 방법: ① 사내 총무/IT 자산 문서, ② <code>whois jeilm.co.kr</code> 조회(등록대행자 표시), ③ 네임서버 확인(<code>nslookup -type=ns jeilm.co.kr</code>) — 네임서버가 <code>ns.gabia.co.kr</code>형이면 가비아 콘솔, Azure DNS형이면 Azure 포털에서 관리. 레코드 추가 권한만 있으면 작업은 10분 내 완료됩니다.
+  </div>
+
+  <h2><span class="num">2</span>DNS 레코드 설정 (실작업 값)</h2>
+  <p>호스팅 결정에 따라 두 유형 중 하나로 등록합니다. 둘 다 "레코드 2건 추가"가 전부입니다.</p>
+  <h3>유형 A — Azure App Service 선택 시 (CNAME 방식)</h3>
+  <pre><span class="c"># DNS 관리 콘솔에 추가할 레코드</span>
+호스트: ai        타입: CNAME   값: jeil-ax-portal.azurewebsites.net   TTL: 3600
+호스트: ai-dev    타입: CNAME   값: jeil-ax-dev.azurewebsites.net      TTL: 3600
+
+<span class="c"># Azure 커스텀 도메인 검증용 (Azure 포털이 안내하는 값 그대로)</span>
+호스트: asuid.ai  타입: TXT     값: (Azure가 발급하는 도메인 검증 ID)</pre>
+  <h3>유형 B — 사내 서버 / IDC VM 선택 시 (A 레코드 방식)</h3>
+  <pre><span class="c"># 고정 공인 IP가 부여된 경우</span>
+호스트: ai        타입: A       값: (서버 공인 IP, 예: 211.xxx.xxx.xxx)   TTL: 3600
+호스트: ai-dev    타입: A       값: (스테이징 IP 또는 동일 IP)            TTL: 3600</pre>
+  <table>
+    <tr><th style="width:26%;">절차</th><th>내용</th></tr>
+    <tr><td>1. 레코드 등록</td><td>위 값 입력 — 대행사 콘솔 기준 즉시 저장</td></tr>
+    <tr><td>2. 전파 확인</td><td>TTL 3600초 기준 보통 10분~1시간 내 전파. <code>nslookup ai.jeilm.co.kr</code>로 확인</td></tr>
+    <tr><td>3. 서버 바인딩</td><td>Azure: 포털에서 커스텀 도메인 추가 → 검증 → 바인딩 / 자체 서버: 웹서버(Nginx 등) server_name 설정</td></tr>
+    <tr><td>4. SSL 적용</td><td>3장 절차 — 바인딩 후 즉시</td></tr>
+    <tr><td>5. Entra URI 교체</td><td>Redirect URI를 <code>https://ai.jeilm.co.kr/auth/callback</code>으로 — 02 문서 2장</td></tr>
+  </table>
+
+  <h2><span class="num">3</span>SSL/TLS 인증서</h2>
+  <table>
+    <tr><th style="width:24%;">방식</th><th style="width:18%;">비용</th><th>적용·갱신</th></tr>
+    <tr><td><b>Azure 관리형 인증서</b> (App Service 선택 시)</td><td>무료</td><td>포털에서 클릭 한 번으로 발급·바인딩, <b>자동 갱신</b> — 관리 부담 0. 권장</td></tr>
+    <tr><td><b>Let's Encrypt</b> (자체 서버 시)</td><td>무료</td><td>certbot 설치 → 90일 주기 <b>자동 갱신</b>(cron). 갱신 실패 알림만 모니터링</td></tr>
+    <tr><td>유료 인증서 (대행사 판매)</td><td>연 5~20만 원</td><td>불필요 — 위 무료 방식과 보안 수준 동일. 구매하지 않음</td></tr>
+  </table>
+  <p>공통 정책: <b>HTTPS 강제</b>(HTTP 접속 시 자동 리디렉션), TLS 1.2 이상만 허용, HSTS 헤더 적용. Entra 로그인이 HTTPS를 요구하므로 인증서 없이는 운영 자체가 불가합니다.</p>
+
+  <h2><span class="num">4</span>호스팅 3안 비교 (STEP 0 의사결정 ①)</h2>
+  <p>전제: 포털은 인터넷에서 접속 가능해야 하고(그룹웨어 모델), Claude API·Microsoft Graph(외부)와 UNIERP IDC의 MS SQL(사외) 모두에 연결되어야 합니다.</p>
+  <table>
+    <tr><th style="width:16%;">기준</th><th>A안. Azure 클라우드 (권장)</th><th>B안. ERP IDC 동일구역 VM</th><th>C안. 사내 서버</th></tr>
+    <tr><td><b>구성</b></td><td>App Service(웹+게이트웨이) + Azure DB(PostgreSQL) + Key Vault, 한국 중부 리전</td><td>UNIERP가 입주한 IDC에 VM 1~2대 임차 (호스팅사 상품)</td><td>사무실 내 물리 서버 + 공인 IP + 방화벽</td></tr>
+    <tr><td><b>MS 연동</b></td><td class="ok">최적 — Entra·Graph와 같은 생태계, 관리형 ID로 Secret 없는 인증 가능</td><td class="mid">보통 — 외부 API 호출로 동일 기능, 구성 수동</td><td class="mid">보통 — 동일</td></tr>
+    <tr><td><b>ERP(IDC MSSQL) 연결</b></td><td class="mid">VPN 또는 IP 허용 + TLS 필요 (03 문서)</td><td class="ok">최적 — 같은 IDC 내부망 연결, 지연 최소·방화벽 단순</td><td class="mid">VPN 필요 + 사내 인터넷 회선 품질 의존</td></tr>
+    <tr><td><b>보안·운영 부담</b></td><td class="ok">낮음 — OS 패치·이중화·백업 관리형, DDoS 기본 방어</td><td class="mid">중간 — OS·보안 직접 관리 (호스팅사 부분 지원)</td><td class="no">높음 — 외부 공개 서버를 사내에 두는 부담: 방화벽·패치·정전·침입 대응 전부 자체</td></tr>
+    <tr><td><b>장애·가용성</b></td><td class="ok">SLA 99.9%+, 스케일업 즉시</td><td class="mid">호스팅사 SLA 의존</td><td class="no">정전·회선 장애 = 전사 포털 중단</td></tr>
+    <tr><td><b>월 비용(추산)</b></td><td class="num">15~30만 원</td><td class="num">10~25만 원 (IDC 상품별)</td><td class="num">전기·회선 외 0 (초기 장비 300만 원±)</td></tr>
+    <tr><td><b>종합</b></td><td class="ok">◎ 권장</td><td class="mid">○ ERP 연계가 핵심이 되면 유력</td><td class="no">△ 비권장 (외부 공개 리스크)</td></tr>
+  </table>
+  <div class="callout green">
+    <b class="tag">권고 — A안(Azure)으로 시작, ERP 트래픽이 커지면 B안 병행 재검토</b>
+    1~2년 차 포털의 ERP 조회는 야간 배치 1회 + 소량 조회 수준이라 VPN/IP 허용 연결로 충분합니다. MS 365 중심 회사에서 Azure는 Entra(로그인)·Graph(OneDrive)·Key Vault(비밀 관리)가 한 콘솔에서 관리되는 이점이 가장 큽니다. 반면 ERP 실시간 연계가 포털의 중심 기능으로 커지는 시점에는 B안(동일 IDC)이 비용·지연 면에서 유리해질 수 있으므로 연 1회 재평가 항목으로 둡니다.
+  </div>
+  <h3>A안 선택 시 Azure 구성 상세 (착수 견적용)</h3>
+  <table>
+    <tr><th style="width:28%;">리소스</th><th style="width:30%;">사양(시작 기준)</th><th>비고</th></tr>
+    <tr><td>App Service (Linux)</td><td>P0v3 또는 B 시리즈 1대</td><td>웹 포털+게이트웨이 동거. 사용자 100명 동시접속 수십 명 수준이면 충분, 부족 시 슬라이더로 즉시 증설</td></tr>
+    <tr><td>Azure Database for PostgreSQL</td><td>Flexible Server 최소 사양(B1ms)</td><td>포털 DB(사용자·크레딧·대화로그) + ERP 중간 DB 스키마 동거 시작 → 분리 가능</td></tr>
+    <tr><td>Key Vault</td><td>표준</td><td>Client Secret·API 키·DB 암호 보관 (월 수백 원 수준)</td></tr>
+    <tr><td>스테이징 슬롯</td><td>App Service 기본 기능</td><td>ai-dev용 — 추가 비용 없이 슬롯 또는 저사양 1대</td></tr>
+    <tr><td colspan="3" class="small">합계 추산 월 15~30만 원. 정확 금액은 Azure 가격 계산기(azure.microsoft.com/ko-kr/pricing/calculator)에서 한국 중부 리전 기준 산출 — STEP 0 품의 첨부용 견적서 1장 출력. 첫 구축은 종량제로 시작하고, 안정화 후 1년 예약(약 30~40% 절감) 전환.</td></tr>
+  </table>
+
+  <h2><span class="num">5</span>네트워크·서버 보안 구성</h2>
+  <table>
+    <tr><th style="width:26%;">항목</th><th>설정</th></tr>
+    <tr><td>인바운드(들어오는 연결)</td><td>443(HTTPS)만 공개. 80은 443 리디렉션 전용. SSH/원격관리 포트는 관리자 IP만 허용 또는 Azure 기본 차단</td></tr>
+    <tr><td>아웃바운드(나가는 연결)</td><td>Claude API(api.anthropic.com), Microsoft(login.microsoftonline.com, graph.microsoft.com), UNIERP IDC IP:1433(TLS) — 필요 목적지만 기록·관리</td></tr>
+    <tr><td>관리 콘솔 접근</td><td>Azure 포털·DNS 콘솔·Anthropic 콘솔 모두 MFA 적용 계정으로만 — 콘솔 권한자 명부 유지(최소 2인)</td></tr>
+    <tr><td>웹 보안 헤더</td><td>HSTS, X-Content-Type-Options, CSP(스크립트 출처 제한), 쿠키 Secure+HttpOnly+SameSite</td></tr>
+    <tr><td>요청 제한(Rate Limit)</td><td>로그인 시도·API 호출 IP당 제한 — 무차별 대입·크롤링 방어</td></tr>
+    <tr><td>검색엔진 노출 차단</td><td>robots.txt 전체 차단 + noindex 메타 — 사내 전용 포털이 검색에 노출되지 않도록 (로그인 페이지 포함)</td></tr>
+    <tr><td>백업</td><td>DB 일 1회 자동 백업(보존 30일), 인프라 구성 코드/문서화 — 상세 정책은 04 문서 5장</td></tr>
+  </table>
+
+  <h2><span class="num">6</span>접속 정책 (STEP 0 의사결정 ②)</h2>
+  <table>
+    <tr><th style="width:18%;">기준</th><th>1안. 인터넷 공개 + Entra SSO/MFA (권장)</th><th>2안. 사내 IP·VPN 제한</th></tr>
+    <tr><td>접속 경험</td><td class="ok">그룹웨어와 동일 — 어디서나 주소 입력 → MS 로그인 → 사용. 외근·재택 지원</td><td class="mid">사내에서만 — 외부는 VPN 접속 후 가능 (VPN 인프라·교육 필요)</td></tr>
+    <tr><td>보안 모델</td><td class="ok">제로 트러스트 — 신원(MFA)이 경계. MS 365·그룹웨어와 동일한 노출 수준. 로그인 페이지만 공개되며 데이터는 인증 후에만</td><td class="ok">네트워크 경계 — 노출 자체가 없음</td></tr>
+    <tr><td>운영 부담</td><td class="ok">없음</td><td class="no">VPN 서버 운영, 직원 단말 설정, 접속 장애 응대</td></tr>
+    <tr><td>판단</td><td class="ok">◎ 권장 — 이미 메일·OneDrive를 같은 모델로 쓰는 중</td><td>△ 급여·자금 데이터 연계 확대 시 관리자 메뉴 한정 IP 제한을 부분 적용하는 절충 가능</td></tr>
+  </table>
+  <div class="callout amber">
+    <b class="tag">절충 옵션 (2단계에서 적용 가능)</b>
+    전체 포털은 1안(공개+SSO)으로 운영하되, <b>관리자 콘솔(/admin)과 민감 데이터 메뉴만 사내 IP 또는 지정 IP에서만 열리도록</b> 애플리케이션 레벨에서 제한할 수 있습니다. 도메인·인프라 변경 없이 코드 설정만으로 가능하므로, 오픈 후 데이터 개방 범위가 넓어질 때 적용을 검토합니다.
+  </div>
+
+  <h2><span class="num">7</span>배포 파이프라인 (데모 → 운영의 일상 흐름)</h2>
+  <div class="arch">
+    <div class="box"><h4>개발 (로컬)</h4><p>Claude Code로 수정<br>localhost:3000 테스트</p></div>
+    <div class="arrow"><span class="line">→</span>git push</div>
+    <div class="box"><h4>GitHub 저장소</h4><p>기존 jeil_ax 저장소 활용<br>(코드에 비밀값 절대 금지)</p></div>
+    <div class="arrow"><span class="line">→</span>자동 배포</div>
+    <div class="box hl"><h4>스테이징 ai-dev</h4><p>관리자 검증<br>SSO·챗봇 동작 확인</p></div>
+    <div class="arrow"><span class="line">→</span>승인 배포</div>
+    <div class="box hl"><h4>운영 ai.jeilm.co.kr</h4><p>전 직원 서비스<br>슬롯 스왑 시 무중단</p></div>
+  </div>
+  <table>
+    <tr><th style="width:26%;">항목</th><th>내용</th></tr>
+    <tr><td>저장소 운영</td><td>기존 GitHub 저장소(jeil_ax)를 운영 코드용으로 정리 — 데모 전용 파일과 운영 코드 디렉터리 분리, <code>.env</code>·비밀값은 .gitignore 유지</td></tr>
+    <tr><td>자동 배포</td><td>GitHub Actions → Azure App Service 배포 (Azure가 연결 마법사 제공). 수동 배포 대비 실수 감소</td></tr>
+    <tr><td>롤백</td><td>App Service 배포 슬롯 스왑 — 문제 시 직전 버전으로 1분 내 복귀</td></tr>
+    <tr><td>데모 페이지 처리</td><td>운영 오픈 후: github.io 데모는 안내문("운영 포털로 이전")으로 교체 → 1개월 후 저장소 비공개 전환, Entra의 임시 Redirect URI 제거(02 문서)</td></tr>
+  </table>
+
+  <h2><span class="num">8</span>이 문서의 산출물 체크</h2>
+  <table>
+    <tr><th style="width:8%;">No.</th><th>완료 기준</th><th style="width:22%;">담당</th></tr>
+    <tr><td>1</td><td>jeilm.co.kr DNS 관리처·접근 권한 확인 완료</td><td>최동혁·총무</td></tr>
+    <tr><td>2</td><td>호스팅 안 확정·품의 승인 (Azure 권고)</td><td>경영진</td></tr>
+    <tr><td>3</td><td>서버 프로비저닝 + ai-dev 스테이징 가동</td><td>최동혁</td></tr>
+    <tr><td>4</td><td>ai.jeilm.co.kr DNS 등록·전파·SSL 적용, https 접속 확인</td><td>최동혁·DNS 관리처</td></tr>
+    <tr><td>5</td><td>보안 설정(5장 표) 적용·점검 기록</td><td>최동혁</td></tr>
+    <tr><td>6</td><td>GitHub → 스테이징 → 운영 자동 배포 1회 성공</td><td>최동혁</td></tr>
+  </table>
+
+  <div class="footer">
+    <span>JEIL AX 실제 구축 준비 · 01 도메인·DNS·인프라</span>
+    <span>2026. 06. 12. · 작성 최동혁</span>
+  </div>
+</div>
+</body>
+</html>

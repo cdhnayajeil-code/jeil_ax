@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>06. 사이버다임 Cloudium(문서중앙화) 연계 검토 — AX 포털 직접 연결 방안</title>
+<style>
+  :root{
+    --navy:#1a2f4e; --navy2:#27457a; --accent:#2f6fb3;
+    --red:#b3402f; --green:#2e7d52; --amber:#9a6b1f;
+    --ink:#222; --muted:#666; --line:#d8dee8; --bg:#f4f6f9;
+    --soft:#eef2f8; --softred:#fbeeec; --softgreen:#ecf5f0; --softamber:#faf3e4;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif; color:var(--ink); background:var(--bg); line-height:1.65; font-size:15px;}
+  .page{max-width:960px; margin:0 auto; background:#fff; padding:56px 64px; box-shadow:0 2px 14px rgba(0,0,0,.08);}
+  .doc-label{display:inline-block; background:var(--navy); color:#fff; font-size:12px; letter-spacing:.18em; padding:5px 14px; border-radius:3px; margin-bottom:18px;}
+  h1{font-size:28px; color:var(--navy); line-height:1.35; margin-bottom:10px;}
+  .subtitle{font-size:15.5px; color:var(--muted); margin-bottom:22px;}
+  .docnav{display:flex; flex-wrap:wrap; gap:6px; margin-bottom:26px;}
+  .docnav a{font-size:12px; color:var(--navy2); border:1px solid var(--line); border-radius:20px; padding:4px 12px; text-decoration:none; background:var(--soft);}
+  .docnav a:hover{background:var(--navy); color:#fff;}
+  .docnav a.cur{background:var(--navy); color:#fff; border-color:var(--navy);}
+  .meta{display:flex; flex-wrap:wrap; border:1px solid var(--line); border-radius:6px; overflow:hidden; margin-bottom:40px;}
+  .meta div{flex:1 1 25%; padding:10px 16px; font-size:13px; border-right:1px solid var(--line); background:var(--soft);}
+  .meta div:last-child{border-right:none;}
+  .meta b{display:block; color:var(--navy); font-size:12px; margin-bottom:2px;}
+  h2{font-size:20px; color:var(--navy); margin:46px 0 16px; padding-bottom:10px; border-bottom:3px solid var(--navy); display:flex; align-items:center; gap:10px;}
+  h2 .num{background:var(--navy); color:#fff; font-size:14px; width:28px; height:28px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; flex:none;}
+  h3{font-size:16px; color:var(--navy2); margin:26px 0 10px;}
+  p{margin-bottom:12px;}
+  .exec{background:var(--soft); border-left:5px solid var(--navy); border-radius:0 8px 8px 0; padding:22px 26px; margin-bottom:8px;}
+  .exec h3{margin-top:0; font-size:15px; letter-spacing:.06em; color:var(--navy);}
+  .exec ul{margin:8px 0 0 18px;}
+  .exec li{margin-bottom:8px;}
+  .callout{border-radius:8px; padding:16px 20px; margin:14px 0;}
+  .callout.red{background:var(--softred); border-left:5px solid var(--red);}
+  .callout.green{background:var(--softgreen); border-left:5px solid var(--green);}
+  .callout.amber{background:var(--softamber); border-left:5px solid var(--amber);}
+  .callout b.tag{display:block; font-size:13px; margin-bottom:6px;}
+  .callout.red b.tag{color:var(--red);} .callout.green b.tag{color:var(--green);} .callout.amber b.tag{color:var(--amber);}
+  table{width:100%; border-collapse:collapse; margin:14px 0 20px; font-size:13.5px;}
+  th{background:var(--navy); color:#fff; padding:9px 12px; text-align:left; font-weight:600;}
+  td{padding:9px 12px; border-bottom:1px solid var(--line); vertical-align:top;}
+  tr:nth-child(even) td{background:#fafbfd;}
+  td.ok{color:var(--green); font-weight:700;} td.no{color:var(--red); font-weight:700;} td.mid{color:var(--amber); font-weight:700;}
+  a{color:var(--accent);}
+  code{background:var(--soft); border:1px solid var(--line); border-radius:4px; padding:1px 6px; font-size:12.5px; font-family:Consolas,'Courier New',monospace;}
+  .arch{display:flex; align-items:stretch; margin:20px 0; flex-wrap:wrap;}
+  .arch .box{flex:1; min-width:150px; border:2px solid var(--navy2); border-radius:10px; padding:14px 12px; text-align:center; background:#fff;}
+  .arch .box.hl{background:var(--soft); border-color:var(--accent);}
+  .arch .box.ext{border-style:dashed;}
+  .arch .box h4{color:var(--navy); font-size:14px; margin-bottom:6px;}
+  .arch .box p{font-size:12px; color:var(--muted); margin:0;}
+  .arch .arrow{display:flex; flex-direction:column; justify-content:center; align-items:center; padding:0 8px; color:var(--accent); font-size:11.5px; font-weight:700; min-width:70px; text-align:center;}
+  .arch .arrow .line{font-size:20px; line-height:1;}
+  .footer{margin-top:56px; padding-top:16px; border-top:1px solid var(--line); font-size:12px; color:var(--muted); display:flex; justify-content:space-between;}
+  .small{font-size:12.5px; color:var(--muted);}
+  .src{font-size:12px; color:var(--muted); margin-top:6px;}
+  @media print{ body{background:#fff;} .page{box-shadow:none; padding:20px 0; max-width:100%;} h2{break-after:avoid;} table,.callout,.arch{break-inside:avoid;} .docnav{display:none;} }
+  @media (max-width:720px){ .page{padding:32px 22px;} .arch{flex-direction:column;} .arch .arrow{transform:rotate(90deg); min-width:auto; padding:6px 0;} }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <span class="doc-label">실제 구축 준비 06 · 대외비</span>
+  <h1>사이버다임 Cloudium(문서중앙화) 연계 검토</h1>
+  <p class="subtitle">사내 문서중앙화 데이터의 AX 포털 직접 연결 가능성 — 연계 경로 5안 평가 · 벤더 질의서 · 권고 로드맵</p>
+
+  <div class="docnav">
+    <a href="00_실제구축_종합기획서.html">00 종합기획</a>
+    <a href="01_도메인_DNS_인프라구성.html">01 도메인·인프라</a>
+    <a href="02_MS연동_OneDrive_데이터연계.html">02 MS·OneDrive</a>
+    <a href="03_ERP_UNIERP_데이터연계.html">03 ERP 연계</a>
+    <a href="04_챗봇전환_데이터관리_운영.html">04 챗봇·데이터관리</a>
+    <a href="05_실행체크리스트_로드맵.html">05 체크리스트</a>
+    <a class="cur" href="06_사이버다임_Cloudium_연계검토.html">06 사이버다임 연계</a>
+  </div>
+
+  <div class="meta">
+    <div><b>작성일</b>2026. 06. 12.</div>
+    <div><b>담당</b>최동혁 + 사이버다임(벤더)</div>
+    <div><b>전제 환경</b>구축형/구축과금형 (사내·IDC 서버)</div>
+    <div><b>문서 원천</b>Cloudium + OneDrive 혼재</div>
+  </div>
+
+  <div class="exec">
+    <h3>검토 결론 (요약)</h3>
+    <ul>
+      <li>Cloudium 자체의 공개 API 문서는 확인되지 않으나, 같은 회사 상위 제품 <b>Destiny ECM이 Open API·외부 시스템 연동을 공식 지원</b>하므로(그룹웨어·ERP·검색엔진 연동 실적 다수) 구축형 Cloudium에서도 연동 경로가 열려 있을 가능성이 높습니다. <b>"직접 연결이 되느냐"의 최종 답은 사이버다임 공식 질의로만 확정 가능</b>합니다 — 본 문서 4장의 질의서를 발송하는 것이 첫 행동입니다.</li>
+      <li>벤더 회신과 무관하게 <b>즉시 실행 가능한 안전 경로</b>가 있습니다: Cloudium의 "외부 반출 승인" 절차를 통해 규정·양식 등 공개 가능 문서를 AI 지식 라이브러리(02 문서)로 <b>큐레이션 반출</b>하는 방식 — 문서중앙화 보안 정책을 그대로 준수하면서 규정 Q&A를 먼저 가동할 수 있습니다.</li>
+      <li>사이버다임이 자체 <b>AI Assistant</b>(문서 기반 챗봇, 구축형 지원)를 출시했으므로, "Cloudium 문서 Q&A는 벤더 기능, AX 포털은 ERP·OneDrive·범용 AI"로 역할을 나누는 대안도 비용·도입 속도에 따라 유효합니다. 단, 챗봇 창구가 둘로 나뉘는 단점이 있어 <b>비교 견적 후 결정</b>을 권고합니다.</li>
+      <li>가상 드라이브 우회 읽기, DB 직접 조회는 <b>벤더 승인 없이는 금지</b> — 문서중앙화 도입 취지(유출 통제)와 유지보수 계약을 훼손합니다.</li>
+    </ul>
+  </div>
+
+  <h2><span class="num">1</span>조사로 확인된 사실 (2026-06-12 기준)</h2>
+  <table>
+    <tr><th style="width:30%;">항목</th><th>확인 내용</th></tr>
+    <tr><td>제품 구조</td><td>사이버다임은 <b>Destiny ECM</b>(대기업·공공, 연동 중심)과 <b>cloudium</b>(중소·중견, 패키지형) 2개 제품 운영. Cloudium은 Windows 탐색기(가상 드라이브)·웹 UI·모바일 앱 제공</td></tr>
+    <tr><td>당사 도입 형태</td><td><b>구축형/구축과금형</b> — 자체(사내·IDC) 서버 설치형. 클라우드 과금형 대비 서버 측 구성·연동 옵션 폭이 넓고, AI Assistant 지원 대상</td></tr>
+    <tr><td>보안 통제 기능</td><td>로컬 PC 저장 차단, 직급·부서별 접근 권한, <b>외부 반출 승인 절차</b>, 저장매체 제어, 전 활동 이력 기록 — 연계 설계 시 이 통제들을 우회가 아니라 <b>활용</b>해야 함</td></tr>
+    <tr><td>외부 연동 단서</td><td>Destiny ECM: <b>"Open API를 통한 외부사이트 연동"</b>, Iframe·SQL·API·RSS 포틀릿, 그룹웨어·메신저·검색엔진 연동 공식 지원. Cloudium: <b>MS Teams 연동</b> 기능 보유(외부 시스템 연동 역량의 방증), 내부/외부 URL 공유 제공</td></tr>
+    <tr><td>AI Assistant (벤더 자체 AI)</td><td>2026년 업데이트로 탑재 — 중앙화 문서 기반 질의응답·요약·의미 검색, 업무 카테고리별 Assistant 구성(개인/공용), 단일 파일 AI 채팅. <b>접근 권한에 따라 답변 범위 자동 조정</b>. 과금형(클라우드)에서는 미지원 — 당사(구축형)는 지원 대상</td></tr>
+    <tr><td>미확인 (질의 필요)</td><td>Cloudium의 API 제공 여부·범위·인증 방식, AI Assistant의 LLM 구조(온프레미스 sLLM인지 외부 API인지)·추가 비용, 시스템 계정 정책, 반출 자동화 가능성</td></tr>
+  </table>
+  <p class="src">출처: 사이버다임 cloudium 제품 페이지, AI Assistant 공식 블로그(Product), Destiny ECM 제품 페이지·소개자료 — 말미 참고 링크</p>
+
+  <h2><span class="num">2</span>문서 원천 지도 — Cloudium·OneDrive 혼재 환경의 교통정리</h2>
+  <p>당사는 업무문서가 Cloudium과 OneDrive에 나뉘어 있습니다. AI 연계 설계 전에 "무엇이 어디 있고, AI에는 어떤 경로로 보여줄지"를 먼저 고정합니다.</p>
+  <table>
+    <tr><th style="width:22%;">원천</th><th style="width:30%;">담긴 문서(통상)</th><th>AI 연계 경로</th></tr>
+    <tr><td><b>Cloudium</b> (문서중앙화)</td><td>부서 업무문서 원본 — 보고서·계약·도면·품의 등 <b>통제 대상 핵심 문서</b></td><td>본 문서의 검토 대상 — ① 벤더 API(확인 중) ② 큐레이션 반출 ③ AI Assistant(벤더 기능)</td></tr>
+    <tr><td><b>OneDrive/SharePoint</b></td><td>MS365 협업 문서, 개인 작업 문서, Teams 공유 파일</td><td>02 문서 확정 설계 — 위임 권한 실시간 검색(방식 A)</td></tr>
+    <tr><td><b>AI 지식 라이브러리</b> (신설, SharePoint)</td><td>전 직원 공개 가능한 규정·양식·지침의 <b>AI용 사본</b></td><td>02 문서 방식 B(사전 인덱싱) — <b>원본 출처가 Cloudium이든 OneDrive든 여기로 모아 단일 인덱스</b></td></tr>
+  </table>
+  <div class="callout green">
+    <b class="tag">설계 원칙 — "AI용 단일 창구는 지식 라이브러리"</b>
+    규정·양식처럼 전 직원 대상 문서는 원천이 어디든 <b>AI 지식 라이브러리 한 곳에 사본을 모아</b> 인덱싱합니다(출처 메타데이터에 Cloudium 경로 기록). 이렇게 하면 Cloudium API 확보 여부와 무관하게 규정 Q&A가 먼저 가동되고, 추후 API가 열리면 "라이브러리 사본 동기화"만 자동화로 바꾸면 됩니다 — 설계 변경 없이 수작업이 자동화로 진화하는 구조입니다.
+  </div>
+
+  <h2><span class="num">3</span>연계 경로 5안 평가</h2>
+  <table>
+    <tr><th style="width:20%;">경로</th><th style="width:34%;">방식</th><th style="width:14%;">실행 가능성</th><th>평가</th></tr>
+    <tr>
+      <td><b>① 벤더 공식 API 연동</b></td>
+      <td>사이버다임 제공 API/연동 모듈로 포털 게이트웨이가 문서 검색·메타데이터·본문 조회 (Destiny ECM의 Open API에 준하는 기능을 Cloudium 구축형에 적용 가능한지 질의)</td>
+      <td class="mid">질의 필요</td>
+      <td class="ok"><b>1순위 목표</b> — 권한 체계를 살린 정식 연동. 검색·본문 추출이 되면 ERP처럼 Tool Use 도구화. 비용·개발 범위는 회신 후 판단</td>
+    </tr>
+    <tr>
+      <td><b>② 큐레이션 반출 → AI 라이브러리</b></td>
+      <td>Cloudium <b>외부 반출 승인 절차</b>로 공개 가능 문서만 SharePoint 라이브러리로 사본 등재 → 02 문서 방식 B 인덱싱</td>
+      <td class="ok">즉시 가능</td>
+      <td class="ok"><b>단기 실행안</b> — 반출 통제 정책 100% 준수, 추가 비용 0. 단점: 수동 등재·개정 시 교체 부담 (분기 점검으로 관리)</td>
+    </tr>
+    <tr>
+      <td><b>③ 벤더 AI Assistant 활용</b></td>
+      <td>Cloudium 안에 탑재된 AI 챗봇을 별도 도입 — 중앙화 문서 Q&A는 이 기능이, AX 포털은 ERP·OneDrive·범용 AI 담당</td>
+      <td class="ok">견적 필요</td>
+      <td class="mid"><b>보완재</b> — 권한 연동·문서 커버리지는 최상이나 챗봇 창구 이원화(직원 혼선), 추가 라이선스 비용, Claude 포털과 대화이력·크레딧 통합 불가. 비용이 합리적이면 "Cloudium 전용 Q&A"로 병행 가치</td>
+    </tr>
+    <tr>
+      <td><b>④ 가상 드라이브 인덱싱</b></td>
+      <td>전용 Windows 머신에 Cloudium 에이전트+시스템 계정 → 탐색기 드라이브를 인덱서가 직접 읽음</td>
+      <td class="mid">기술적 가능</td>
+      <td class="no"><b>벤더 서면 승인 없이 금지</b> — 반출 통제 우회 소지, 에이전트 보안정책 충돌, 유지보수 계약 위반 리스크. 승인 시에도 ②의 자동화 수단으로만 한정</td>
+    </tr>
+    <tr>
+      <td><b>⑤ 서버 DB·스토리지 직접 조회</b></td>
+      <td>Cloudium 서버의 DB/파일 저장소를 직접 읽기</td>
+      <td class="no">불가 간주</td>
+      <td class="no"><b>금지</b> — 저장 암호화·비공개 스키마, 패치 시 파손, 계약 위반. 검토 대상에서 제외</td>
+    </tr>
+  </table>
+
+  <h2><span class="num">4</span>사이버다임 공식 질의서 (발송용 초안)</h2>
+  <p>아래 표를 그대로 기술지원 문의(또는 담당 영업)로 발송합니다. 회신 결과가 경로 ①·③·④의 실행 여부를 확정합니다.</p>
+  <table>
+    <tr><th style="width:8%;">No.</th><th>질의 내용</th><th style="width:26%;">판단 목적</th></tr>
+    <tr><td>1</td><td>당사 구축형 Cloudium에서 외부 시스템(사내 AI 포털)이 사용할 수 있는 <b>API(검색·메타데이터·문서 본문 조회)</b>가 제공됩니까? (Destiny ECM의 Open API에 준하는 기능 여부)</td><td>경로 ① 가능성</td></tr>
+    <tr><td>2</td><td>제공된다면 인증 방식(토큰·계정), <b>사용자별 권한 반영 여부</b>(조회자가 볼 수 없는 문서는 API에서도 차단되는지), 라이선스·기술지원 비용은?</td><td>경로 ① 설계·예산</td></tr>
+    <tr><td>3</td><td><b>AI Assistant</b>의 도입 조건 — 추가 비용, LLM 구동 방식(온프레미스 sLLM/외부 API, 외부 API라면 데이터 처리 정책), 당사 서버 사양 요구</td><td>경로 ③ 견적 비교</td></tr>
+    <tr><td>4</td><td>지정 폴더의 문서를 외부 저장소(SharePoint)로 <b>주기 반출(동기화)하는 기능 또는 승인된 자동화 방안</b>이 있습니까? (반출 승인 절차와 연계된 형태)</td><td>경로 ② 자동화</td></tr>
+    <tr><td>5</td><td>시스템 계정(비인격 계정)에 특정 폴더 읽기 권한을 부여해 에이전트 경유로 색인하는 구성을 <b>공식 지원·승인</b>합니까?</td><td>경로 ④ 허용 여부</td></tr>
+    <tr><td>6</td><td>MS Teams 연동처럼 외부 협업 도구와의 연동 모듈 중 <b>웹 포털 임베드/URL 연동</b>(문서 뷰어 링크를 포털에서 여는 방식)이 가능합니까?</td><td>경량 연계(뷰어 링크) 대안</td></tr>
+  </table>
+  <div class="callout amber">
+    <b class="tag">질의 시 함께 전달할 당사 맥락</b>
+    "사내 AI 포털(자체 구축, 사내 도메인)에서 직원이 챗봇으로 질문하면 <b>본인 권한 범위의 중앙화 문서</b>를 검색·요약하게 하려는 목적이며, 문서 원본의 외부 저장은 최소화(공개 규정류만 사본)하고자 함" — 목적을 명확히 해야 벤더가 정확한 옵션(API vs AI Assistant vs 반출)을 제시할 수 있습니다.
+  </div>
+
+  <h2><span class="num">5</span>권고 로드맵 — 기존 일정(STEP 4)에 통합</h2>
+  <div class="arch">
+    <div class="box hl"><h4>지금 (W1)</h4><p>4장 질의서 발송<br>+ 반출 대상 문서 목록화<br>(규정·양식·지침)</p></div>
+    <div class="arrow"><span class="line">→</span>병행</div>
+    <div class="box hl"><h4>단기 (W8~10, STEP 4)</h4><p>경로 ② 가동 —<br>큐레이션 반출 → 라이브러리<br>규정 Q&A 오픈</p></div>
+    <div class="arrow"><span class="line">→</span>회신 후 분기</div>
+    <div class="box"><h4>중기 (회신 기준)</h4><p>API 제공 시: 경로 ① 개발<br>(2단계 고도화)<br>미제공 시: ② 유지 + ③ 견적 비교</p></div>
+  </div>
+  <table>
+    <tr><th style="width:14%;">시점</th><th>작업</th><th style="width:20%;">담당</th></tr>
+    <tr><td>W1</td><td>질의서 발송(4장) + Cloudium 내 "AI 공개 가능 문서" 후보 목록화 (부서별 규정·양식·지침)</td><td>최동혁·각 부서</td></tr>
+    <tr><td>W8</td><td>반출 승인 절차로 1차 문서(30건 내외) AI 지식 라이브러리 등재 — 출처 메타데이터에 Cloudium 경로 기록</td><td>최동혁·반출 승인권자</td></tr>
+    <tr><td>W9~10</td><td>인덱싱·규정 Q&A 가동 (02 문서 방식 B와 동일 파이프라인 — 추가 개발 없음)</td><td>최동혁</td></tr>
+    <tr><td>회신 후</td><td>경로 ① 가능 시: 연동 범위·견적 품의 → 2단계(오픈 후) 개발 착수 / ③ AI Assistant는 견적·LLM 구조 확인 후 병행 여부 결정</td><td>최동혁·경영진</td></tr>
+    <tr><td>분기 운영</td><td>라이브러리 사본 최신성 점검(개정 문서 재반출) — API 자동화 전까지 유지</td><td>문서 담당 부서</td></tr>
+  </table>
+
+  <h2><span class="num">6</span>보안·정책 점검 (문서중앙화 취지와의 정합)</h2>
+  <table>
+    <tr><th style="width:30%;">쟁점</th><th>정리</th></tr>
+    <tr><td>반출 통제와 AI 연계의 충돌</td><td>충돌하지 않게 설계 — 모든 사본 이동은 <b>기존 반출 승인 절차를 통과</b>시키고, 승인 이력이 Cloudium에 남게 함. "AI를 위해 통제를 푼다"가 아니라 "통제된 문만 통과한다"</td></tr>
+    <tr><td>권한 매핑 (직접 연계 시 최대 난제)</td><td>Cloudium 권한(직급·부서)과 포털 권한(Entra 그룹)은 별개 체계 — 경로 ① 채택 시 <b>API가 사용자별 권한을 반영하는지</b>(질의 2번)가 핵심. 반영 안 되면 공개 등급 문서만 연계(라이브러리와 동일 효과)로 범위 축소</td></tr>
+    <tr><td>민감 문서</td><td>계약서·인사·원가 원본은 어떤 경로로도 AI 인덱스에 넣지 않음 — 02 문서 등재 금지 기준, 03 문서 민감도 분류와 동일 원칙 적용</td></tr>
+    <tr><td>외부 API 전송 고지</td><td>반출·연계된 문서가 Claude API로 전송될 수 있음을 이용 수칙에 포함 (04 문서 7장) — AI Assistant 채택 시에도 LLM 데이터 처리 방식 확인(질의 3번)</td></tr>
+    <tr><td>이력·감사</td><td>포털 측 문서 조회도 tool_audit(04 문서)에 전건 기록 — Cloudium 이력과 포털 이력이 양쪽에 남는 이중 감사 구조</td></tr>
+  </table>
+
+  <h2><span class="num">7</span>이 문서의 산출물 체크</h2>
+  <table>
+    <tr><th style="width:8%;">No.</th><th>완료 기준</th><th style="width:24%;">담당</th></tr>
+    <tr><td>1</td><td>사이버다임 질의서 발송 + 회신 수령 (4장 6개 항목)</td><td>최동혁 ↔ 사이버다임</td></tr>
+    <tr><td>2</td><td>AI 공개 가능 문서 목록 확정 (부서 취합)</td><td>각 부서·최동혁</td></tr>
+    <tr><td>3</td><td>1차 반출 승인·라이브러리 등재 → 규정 Q&A에 Cloudium 출처 문서 포함 확인</td><td>최동혁</td></tr>
+    <tr><td>4</td><td>회신 기반 경로 결정 품의 (① 개발 / ③ 병행 / ② 유지) — 비용 비교표 첨부</td><td>경영진</td></tr>
+    <tr><td>5</td><td>00 종합기획서·05 체크리스트에 결정 결과 반영</td><td>최동혁</td></tr>
+  </table>
+
+  <h2><span class="num">8</span>참고 자료</h2>
+  <table>
+    <tr><th style="width:34%;">자료</th><th>링크</th></tr>
+    <tr><td>cloudium 제품 페이지 (도입형태·기능)</td><td><a href="https://www.cyberdigm.co.kr/cloudium">cyberdigm.co.kr/cloudium</a></td></tr>
+    <tr><td>AI Assistant 공식 소개 (블로그)</td><td><a href="https://www.cyberdigm.co.kr/blog/?bmode=view&idx=170054862">cyberdigm.co.kr/blog — AI Assistant 업데이트</a></td></tr>
+    <tr><td>Destiny ECM (Open API·시스템 연동)</td><td><a href="https://www.cyberdigm.co.kr/destinyEcm">cyberdigm.co.kr/destinyEcm</a></td></tr>
+    <tr><td>기술지원 문의 (질의서 발송 창구)</td><td><a href="https://www.cyberdigm.co.kr/technical">cyberdigm.co.kr/technical</a></td></tr>
+  </table>
+
+  <div class="footer">
+    <span>JEIL AX 실제 구축 준비 · 06 사이버다임 Cloudium 연계 검토</span>
+    <span>2026. 06. 12. · 작성 최동혁</span>
+  </div>
+</div>
+</body>
+</html>

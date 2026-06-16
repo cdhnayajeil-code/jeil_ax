@@ -459,4 +459,6 @@
     isOneDriveReadable: isOneDriveReadable,
     loadAllFromOneDrive: loadAllFromOneDrive,
     // 집계
-    aggregate: ag
+    aggregate: aggregate
+  };
+})(window);

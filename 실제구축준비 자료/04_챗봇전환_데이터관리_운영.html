@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>04. 챗봇 전환·데이터 관리·운영 — 데모 → 실서비스</title>
+<style>
+  :root{
+    --navy:#1a2f4e; --navy2:#27457a; --accent:#2f6fb3;
+    --red:#b3402f; --green:#2e7d52; --amber:#9a6b1f;
+    --ink:#222; --muted:#666; --line:#d8dee8; --bg:#f4f6f9;
+    --soft:#eef2f8; --softred:#fbeeec; --softgreen:#ecf5f0; --softamber:#faf3e4;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif; color:var(--ink); background:var(--bg); line-height:1.65; font-size:15px;}
+  .page{max-width:960px; margin:0 auto; background:#fff; padding:56px 64px; box-shadow:0 2px 14px rgba(0,0,0,.08);}
+  .doc-label{display:inline-block; background:var(--navy); color:#fff; font-size:12px; letter-spacing:.18em; padding:5px 14px; border-radius:3px; margin-bottom:18px;}
+  h1{font-size:28px; color:var(--navy); line-height:1.35; margin-bottom:10px;}
+  .subtitle{font-size:15.5px; color:var(--muted); margin-bottom:22px;}
+  .docnav{display:flex; flex-wrap:wrap; gap:6px; margin-bottom:26px;}
+  .docnav a{font-size:12px; color:var(--navy2); border:1px solid var(--line); border-radius:20px; padding:4px 12px; text-decoration:none; background:var(--soft);}
+  .docnav a:hover{background:var(--navy); color:#fff;}
+  .docnav a.cur{background:var(--navy); color:#fff; border-color:var(--navy);}
+  .meta{display:flex; flex-wrap:wrap; border:1px solid var(--line); border-radius:6px; overflow:hidden; margin-bottom:40px;}
+  .meta div{flex:1 1 25%; padding:10px 16px; font-size:13px; border-right:1px solid var(--line); background:var(--soft);}
+  .meta div:last-child{border-right:none;}
+  .meta b{display:block; color:var(--navy); font-size:12px; margin-bottom:2px;}
+  h2{font-size:20px; color:var(--navy); margin:46px 0 16px; padding-bottom:10px; border-bottom:3px solid var(--navy); display:flex; align-items:center; gap:10px;}
+  h2 .num{background:var(--navy); color:#fff; font-size:14px; width:28px; height:28px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; flex:none;}
+  h3{font-size:16px; color:var(--navy2); margin:26px 0 10px;}
+  p{margin-bottom:12px;}
+  .callout{border-radius:8px; padding:16px 20px; margin:14px 0;}
+  .callout.red{background:var(--softred); border-left:5px solid var(--red);}
+  .callout.green{background:var(--softgreen); border-left:5px solid var(--green);}
+  .callout.amber{background:var(--softamber); border-left:5px solid var(--amber);}
+  .callout b.tag{display:block; font-size:13px; margin-bottom:6px;}
+  .callout.red b.tag{color:var(--red);} .callout.green b.tag{color:var(--green);} .callout.amber b.tag{color:var(--amber);}
+  table{width:100%; border-collapse:collapse; margin:14px 0 20px; font-size:13.5px;}
+  th{background:var(--navy); color:#fff; padding:9px 12px; text-align:left; font-weight:600;}
+  td{padding:9px 12px; border-bottom:1px solid var(--line); vertical-align:top;}
+  tr:nth-child(even) td{background:#fafbfd;}
+  td.ok{color:var(--green); font-weight:700;} td.no{color:var(--red); font-weight:700;} td.mid{color:var(--amber); font-weight:700;}
+  a{color:var(--accent);}
+  code{background:var(--soft); border:1px solid var(--line); border-radius:4px; padding:1px 6px; font-size:12.5px; font-family:Consolas,'Courier New',monospace;}
+  pre{background:#21252e; color:#e8eaf0; border-radius:8px; padding:16px 18px; font-size:12.5px; font-family:Consolas,'Courier New',monospace; overflow-x:auto; margin:12px 0 18px; line-height:1.55;}
+  pre .c{color:#8a93a5;}
+  .footer{margin-top:56px; padding-top:16px; border-top:1px solid var(--line); font-size:12px; color:var(--muted); display:flex; justify-content:space-between;}
+  .small{font-size:12.5px; color:var(--muted);}
+  @media print{ body{background:#fff;} .page{box-shadow:none; padding:20px 0; max-width:100%;} h2{break-after:avoid;} table,.callout,pre{break-inside:avoid;} .docnav{display:none;} }
+  @media (max-width:720px){ .page{padding:32px 22px;} }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <span class="doc-label">실제 구축 준비 04 · 대외비</span>
+  <h1>챗봇 전환 · 데이터 관리 · 운영</h1>
+  <p class="subtitle">데모 UI → Claude API 게이트웨이 실서비스 — 기술 스택 · 데이터 4계층 정책 · 로그/백업/보존 · 모니터링</p>
+
+  <div class="docnav">
+    <a href="00_실제구축_종합기획서.html">00 종합기획</a>
+    <a href="01_도메인_DNS_인프라구성.html">01 도메인·인프라</a>
+    <a href="02_MS연동_OneDrive_데이터연계.html">02 MS·OneDrive</a>
+    <a href="03_ERP_UNIERP_데이터연계.html">03 ERP 연계</a>
+    <a class="cur" href="04_챗봇전환_데이터관리_운영.html">04 챗봇·데이터관리</a>
+    <a href="05_실행체크리스트_로드맵.html">05 체크리스트</a>
+    <a href="06_사이버다임_Cloudium_연계검토.html">06 사이버다임 연계</a>
+  </div>
+
+  <div class="meta">
+    <div><b>작성일</b>2026. 06. 12.</div>
+    <div><b>담당</b>최동혁</div>
+    <div><b>대상 단계</b>STEP 3 · 6 (W5~13)</div>
+    <div><b>기능 원본</b>03 챗봇 포털 기획서</div>
+  </div>
+
+  <h2><span class="num">1</span>데모 → 실서비스 전환 항목</h2>
+  <p>크레딧 등급(라이트 300/스탠다드 800/프로 2,000회), 모델 라우팅(Haiku/Sonnet), 비용 시뮬레이션은 <b>03_사내_AI챗봇_포털_구축_기획서</b>의 확정 내용을 그대로 구현합니다. 본 문서는 "무엇을 새로 만들어야 데모가 실서비스가 되는가"를 다룹니다.</p>
+  <table>
+    <tr><th style="width:24%;">데모 (현재)</th><th style="width:30%;">실서비스 (전환 후)</th><th>구현 작업</th></tr>
+    <tr><td>버튼 누르면 준비된 답변 표시</td><td>실제 Claude API 호출·스트리밍 응답</td><td>게이트웨이 서버: Messages API 연동, SSE 스트리밍, 모델 라우팅</td></tr>
+    <tr><td>로그인 화면만 (인증 없음)</td><td>Entra SSO 필수 + 세션</td><td>02 문서 2장 — 로그인 없이는 어떤 API도 응답하지 않음</td></tr>
+    <tr><td>크레딧 게이지 고정값</td><td>실사용량 환산·차감·월 리셋</td><td>토큰→크레딧 환산기, 차감 트랜잭션, 월 1일 리셋 배치, 소진 시 차단·신청 흐름</td></tr>
+    <tr><td>대화 휘발 (저장 없음)</td><td>대화 이력 저장·이어가기</td><td>대화·메시지 테이블, 사용자별 이력 화면, 마스킹 필터 통과 후 저장</td></tr>
+    <tr><td>부서 페이지 수치 하드코딩</td><td>ERP 중간 DB 실데이터</td><td>03 문서 — 조회 API 연결</td></tr>
+    <tr><td>관리자 화면 없음</td><td>관리자 콘솔</td><td>사용자·등급 관리, 사용량 통계, 감사 조회, 금칙어 관리 (AI-Portal-Admins만)</td></tr>
+  </table>
+
+  <h2><span class="num">2</span>게이트웨이 기술 명세 (개발 기준)</h2>
+  <table>
+    <tr><th style="width:26%;">항목</th><th>권고</th></tr>
+    <tr><td>런타임·프레임워크</td><td><b>Node.js + Express</b> (또는 Python + FastAPI — 개발자 친숙도로 선택). 단일 앱에 포털 화면+게이트웨이 API 동거로 시작</td></tr>
+    <tr><td>DB</td><td><b>PostgreSQL</b> 1대 — 스키마 분리: <code>portal</code>(사용자·크레딧·대화), <code>erp_ro/erp_secure</code>(03 문서), <code>knowledge</code>(문서 인덱스, pgvector)</td></tr>
+    <tr><td>Claude API 연동</td><td>공식 SDK 사용, 모델 라우팅(일반→Haiku, 분석·장문→Sonnet), 프롬프트 캐싱(시스템 프롬프트·부서 템플릿), 타임아웃·재시도 표준화</td></tr>
+    <tr><td>도구(Tool Use) 구성</td><td>① 문서검색(02 문서 방식 A) ② 규정Q&A(방식 B) ③ ERP 조회 템플릿(03 문서 7장) — 도구별 권한·로그 일원화</td></tr>
+    <tr><td>전처리 필터</td><td>개인정보 패턴(주민·계좌·전화) 마스킹, 금칙어 차단·경고 — 03 기획서 보안표 구현. 필터는 API 전송 <b>전</b>에 적용</td></tr>
+    <tr><td>Anthropic 콘솔 설정</td><td>운영 Workspace 분리(포털용/시스템 작업용), <b>월 지출한도</b>·분당 한도 설정, Usage API로 월간 리포트 자동화</td></tr>
+    <tr><td>API 키 관리</td><td>Key Vault 보관, 운영·스테이징 키 분리, 분기 1회 교체</td></tr>
+  </table>
+
+  <h2><span class="num">3</span>데이터 4계층 관리 정책표 (전체 데이터 지도)</h2>
+  <table>
+    <tr><th style="width:13%;">계층</th><th style="width:21%;">데이터</th><th style="width:17%;">위치</th><th style="width:13%;">접근</th><th style="width:18%;">백업</th><th>보존·파기</th></tr>
+    <tr><td rowspan="2"><b>① 원천</b><br><span class="small">(포털 비보관)</span></td><td>UNIERP 운영 DB</td><td>사외 IDC</td><td>배치 계정만 (읽기)</td><td>유니포인트 체계</td><td>해당 없음 (원천 정책)</td></tr>
+    <tr><td>OneDrive/SharePoint 원본</td><td>MS 클라우드</td><td>사용자 본인 권한</td><td>MS 365 체계</td><td>해당 없음</td></tr>
+    <tr><td rowspan="2"><b>② 연계 사본</b></td><td>ERP 중간 DB (erp_ro/secure)</td><td>포털 DB</td><td>앱 역할 분리 (RBAC)</td><td>일 1회 (재동기화로도 복구 가능)</td><td>최신 상태만 유지 — 이력 불요 시 기간 데이터 롤링 삭제</td></tr>
+    <tr><td>지식 라이브러리 인덱스</td><td>포털 DB (knowledge)</td><td>앱 내부 전용</td><td>일 1회</td><td>원본 삭제 시 인덱스 동시 삭제</td></tr>
+    <tr><td rowspan="3"><b>③ 생성</b></td><td>대화 로그·메시지</td><td>포털 DB</td><td>본인 + 감사 권한자</td><td>일 1회 (보존 30일분)</td><td><b>1년 보존 후 자동 파기</b> (권고 — 사규로 확정)</td></tr>
+    <tr><td>크레딧·사용량·조회 감사로그</td><td>포털 DB</td><td>관리자</td><td>일 1회</td><td>3년 (비용·감사 근거)</td></tr>
+    <tr><td>업로드 파일 (분석용)</td><td>서버 임시 저장소</td><td>본인 세션</td><td>없음 (임시)</td><td><b>처리 후 24시간 내 삭제</b> — 파일 보관소가 되지 않게</td></tr>
+    <tr><td><b>④ 비밀</b></td><td>API 키·Secret·DB 계정</td><td>Key Vault</td><td>관리자 2인</td><td>Vault 자체 이중화</td><td>교체 시 구버전 즉시 폐기 (Secret 갱신 2026-11월)</td></tr>
+  </table>
+  <div class="callout amber">
+    <b class="tag">대화 로그 운영 원칙 (개인정보·신뢰 균형)</b>
+    ① 저장 전 마스킹 필터 통과(주민·계좌 등 패턴은 저장 자체가 안 됨) ② OneDrive 문서 본문은 로그에 원문 저장하지 않음(파일명·요약만) ③ 감사 열람은 관리자 2인 동시 원칙 + 열람 사유 기록 ④ "대화가 기록·감사될 수 있음"을 첫 로그인 안내문에 명시 — 직원 신뢰를 위해 몰래 하지 않고 공개적으로 운영.
+  </div>
+
+  <h2><span class="num">4</span>포털 DB 핵심 스키마 (구현 시작점)</h2>
+  <pre><span class="c">-- portal 스키마 (요지)</span>
+users        (id, entra_oid, email, name, dept, grade, is_admin, groups[], last_login, active)
+credits      (user_id, month, granted, used, model_breakdown, reset_at)
+conversations(id, user_id, title, created_at, archived)
+messages     (id, conv_id, role, content_masked, model, tokens_in, tokens_out, credit_cost, created_at)
+tool_audit   (id, user_id, tool, params, row_count, allowed, created_at)   <span class="c">-- ERP·문서 조회 감사</span>
+admin_audit  (id, admin_id, action, target, reason, created_at)            <span class="c">-- 관리 행위 감사</span>
+settings     (key, value)                                                  <span class="c">-- 금칙어·정책 버전 등</span></pre>
+
+  <h2><span class="num">5</span>백업·복구</h2>
+  <table>
+    <tr><th style="width:26%;">항목</th><th>정책</th></tr>
+    <tr><td>DB 백업</td><td>일 1회 자동(Azure 관리형 — 보존 30일) + 월 1회 장기 보관본. 복구 목표: RPO 24시간 / RTO 4시간</td></tr>
+    <tr><td>복구 리허설</td><td>오픈 전 1회 + 연 1회 — 백업본에서 스테이징 복원, 로그인·챗봇 동작 확인 기록</td></tr>
+    <tr><td>코드·설정</td><td>코드 GitHub, 인프라 구성·환경변수 목록 문서화(값 제외) — 서버 유실 시 재구축 반나절 목표</td></tr>
+    <tr><td>장애 시 우선순위</td><td>① 로그인(전 기능 전제) ② 챗봇 일반 대화 ③ ERP·문서 연계(중간 DB라 재동기화 가능) — 부분 장애 시 해당 도구만 비활성화하는 기능 플래그 구현</td></tr>
+  </table>
+
+  <h2><span class="num">6</span>모니터링·운영 체계</h2>
+  <table>
+    <tr><th style="width:26%;">항목</th><th style="width:18%;">도구·주기</th><th>기준·행동</th></tr>
+    <tr><td>가동 상태</td><td>Azure 모니터 + 외부 핑(5분)</td><td>다운 5분 지속 시 관리자 알림 → 슬롯 롤백 판단</td></tr>
+    <tr><td>오류율·응답속도</td><td>앱 로그, 주 1회 리뷰</td><td>API 오류 급증·평균 응답 5초 초과 시 원인 분석</td></tr>
+    <tr><td>API 비용</td><td>Usage API, <b>월간 리포트 자동화</b></td><td>월 예산 70% 도달 시 알림, 100%는 Workspace 한도가 차단 — 등급 조정 검토</td></tr>
+    <tr><td>크레딧 사용 분포</td><td>관리자 콘솔, 월 1회</td><td>소진자·미사용자 파악 → 분기 등급 조정 (03 기획서 운영규칙)</td></tr>
+    <tr><td>배치 상태 (ERP·인덱싱)</td><td>배치 로그, 일 확인</td><td>실패 알림 자동 — 03 문서 6장</td></tr>
+    <tr><td>보안 점검</td><td>분기 1회</td><td>Entra 로그인 로그, 권한그룹 정합성, 의존성 패치, 02 문서 6장 병행</td></tr>
+  </table>
+
+  <h2><span class="num">7</span>사용자 운영 (오픈 후 정착)</h2>
+  <table>
+    <tr><th style="width:26%;">항목</th><th>내용</th></tr>
+    <tr><td>이용 안내·교육</td><td>오픈 주간 부서별 30분 교육(접속·MFA 등록·기본 사용법·부서 템플릿), 포털 내 도움말 페이지 상시</td></tr>
+    <tr><td>문의 채널</td><td>포털 내 "문의·제안" 버튼 → 관리자 큐. 자주 묻는 질문은 지식 라이브러리에 역반영</td></tr>
+    <tr><td>이용 수칙 (1페이지)</td><td>해도 되는 것/안 되는 것(개인정보 입력 금지 등), AI 답변 검증 책임, 로그 정책 고지 — 첫 로그인 시 동의</td></tr>
+    <tr><td>월간 리포트</td><td>사용량·비용·인기 기능·개선 항목 1페이지 — 경영진 보고 정례화 (Usage API 자동 집계 기반)</td></tr>
+    <tr><td>개선 사이클</td><td>분기: 니즈조사 후속 미니 설문 → 부서 템플릿·ERP 조회 범위 확장 우선순위 갱신</td></tr>
+  </table>
+
+  <div class="footer">
+    <span>JEIL AX 실제 구축 준비 · 04 챗봇·데이터관리·운영</span>
+    <span>2026. 06. 12. · 작성 최동혁</span>
+  </div>
+</div>
+</body>
+</html>

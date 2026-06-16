@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>05. 실행 체크리스트·로드맵 — 16주 A to Z</title>
+<style>
+  :root{
+    --navy:#1a2f4e; --navy2:#27457a; --accent:#2f6fb3;
+    --red:#b3402f; --green:#2e7d52; --amber:#9a6b1f;
+    --ink:#222; --muted:#666; --line:#d8dee8; --bg:#f4f6f9;
+    --soft:#eef2f8; --softred:#fbeeec; --softgreen:#ecf5f0; --softamber:#faf3e4;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif; color:var(--ink); background:var(--bg); line-height:1.65; font-size:15px;}
+  .page{max-width:960px; margin:0 auto; background:#fff; padding:56px 64px; box-shadow:0 2px 14px rgba(0,0,0,.08);}
+  .doc-label{display:inline-block; background:var(--navy); color:#fff; font-size:12px; letter-spacing:.18em; padding:5px 14px; border-radius:3px; margin-bottom:18px;}
+  h1{font-size:28px; color:var(--navy); line-height:1.35; margin-bottom:10px;}
+  .subtitle{font-size:15.5px; color:var(--muted); margin-bottom:22px;}
+  .docnav{display:flex; flex-wrap:wrap; gap:6px; margin-bottom:26px;}
+  .docnav a{font-size:12px; color:var(--navy2); border:1px solid var(--line); border-radius:20px; padding:4px 12px; text-decoration:none; background:var(--soft);}
+  .docnav a:hover{background:var(--navy); color:#fff;}
+  .docnav a.cur{background:var(--navy); color:#fff; border-color:var(--navy);}
+  .meta{display:flex; flex-wrap:wrap; border:1px solid var(--line); border-radius:6px; overflow:hidden; margin-bottom:40px;}
+  .meta div{flex:1 1 25%; padding:10px 16px; font-size:13px; border-right:1px solid var(--line); background:var(--soft);}
+  .meta div:last-child{border-right:none;}
+  .meta b{display:block; color:var(--navy); font-size:12px; margin-bottom:2px;}
+  h2{font-size:20px; color:var(--navy); margin:46px 0 16px; padding-bottom:10px; border-bottom:3px solid var(--navy); display:flex; align-items:center; gap:10px;}
+  h2 .num{background:var(--navy); color:#fff; font-size:14px; width:28px; height:28px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; flex:none;}
+  h3{font-size:16px; color:var(--navy2); margin:26px 0 10px;}
+  p{margin-bottom:12px;}
+  .callout{border-radius:8px; padding:16px 20px; margin:14px 0;}
+  .callout.red{background:var(--softred); border-left:5px solid var(--red);}
+  .callout.green{background:var(--softgreen); border-left:5px solid var(--green);}
+  .callout.amber{background:var(--softamber); border-left:5px solid var(--amber);}
+  .callout b.tag{display:block; font-size:13px; margin-bottom:6px;}
+  .callout.red b.tag{color:var(--red);} .callout.green b.tag{color:var(--green);} .callout.amber b.tag{color:var(--amber);}
+  table{width:100%; border-collapse:collapse; margin:14px 0 20px; font-size:13px;}
+  th{background:var(--navy); color:#fff; padding:8px 11px; text-align:left; font-weight:600;}
+  td{padding:8px 11px; border-bottom:1px solid var(--line); vertical-align:top;}
+  tr:nth-child(even) td{background:#fafbfd;}
+  td.ok{color:var(--green); font-weight:700;} td.no{color:var(--red); font-weight:700;} td.mid{color:var(--amber); font-weight:700;}
+  a{color:var(--accent);}
+  code{background:var(--soft); border:1px solid var(--line); border-radius:4px; padding:1px 6px; font-size:12px; font-family:Consolas,'Courier New',monospace;}
+  .gantt td{font-size:11.5px; padding:6px 6px; text-align:center;}
+  .gantt td.label{text-align:left; font-size:12.5px; white-space:nowrap;}
+  .gantt .bar{background:var(--accent); color:#fff; border-radius:4px; font-weight:700;}
+  .gantt .bar.p{background:var(--navy2);}
+  .gantt .bar.g{background:var(--green);}
+  .chk td:first-child{width:34px; text-align:center; color:var(--muted); font-size:15px;}
+  .footer{margin-top:56px; padding-top:16px; border-top:1px solid var(--line); font-size:12px; color:var(--muted); display:flex; justify-content:space-between;}
+  .small{font-size:12.5px; color:var(--muted);}
+  @media print{ body{background:#fff;} .page{box-shadow:none; padding:20px 0; max-width:100%;} h2{break-after:avoid;} table,.callout{break-inside:avoid;} .docnav{display:none;} }
+  @media (max-width:720px){ .page{padding:32px 22px;} }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <span class="doc-label">실제 구축 준비 05 · 대외비</span>
+  <h1>실행 체크리스트 · 로드맵</h1>
+  <p class="subtitle">16주 주차별 일정 · 담당 매트릭스 · 품의 목록 · STEP별 점검표 · 오픈 최종 점검 · 운영 캘린더</p>
+
+  <div class="docnav">
+    <a href="00_실제구축_종합기획서.html">00 종합기획</a>
+    <a href="01_도메인_DNS_인프라구성.html">01 도메인·인프라</a>
+    <a href="02_MS연동_OneDrive_데이터연계.html">02 MS·OneDrive</a>
+    <a href="03_ERP_UNIERP_데이터연계.html">03 ERP 연계</a>
+    <a href="04_챗봇전환_데이터관리_운영.html">04 챗봇·데이터관리</a>
+    <a class="cur" href="05_실행체크리스트_로드맵.html">05 체크리스트</a>
+    <a href="06_사이버다임_Cloudium_연계검토.html">06 사이버다임 연계</a>
+  </div>
+
+  <div class="meta">
+    <div><b>작성일</b>2026. 06. 12.</div>
+    <div><b>기준 일정</b>착수 시점부터 16주</div>
+    <div><b>예시 일정</b>7월 착수 → 10월 말 오픈</div>
+    <div><b>고정 기한</b>Secret 갱신 2026-11월</div>
+  </div>
+
+  <h2><span class="num">1</span>16주 로드맵 (주차 × 단계)</h2>
+  <table class="gantt">
+    <tr><th style="text-align:left;">단계</th><th>W1</th><th>W2</th><th>W3</th><th>W4</th><th>W5</th><th>W6</th><th>W7</th><th>W8</th><th>W9</th><th>W10</th><th>W11</th><th>W12</th><th>W13</th><th>W14</th><th>W15</th><th>W16</th></tr>
+    <tr><td class="label">STEP 0 의사결정·품의</td><td class="bar p">●</td><td class="bar p">●</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+    <tr><td class="label">STEP 1 도메인·인프라</td><td></td><td class="bar">●</td><td class="bar">●</td><td class="bar">●</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+    <tr><td class="label">STEP 2 포털 기반·SSO</td><td></td><td></td><td class="bar">●</td><td class="bar">●</td><td class="bar">●</td><td class="bar">●</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+    <tr><td class="label">STEP 3 챗봇 게이트웨이</td><td></td><td></td><td></td><td></td><td class="bar">●</td><td class="bar">●</td><td class="bar">●</td><td class="bar">●</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+    <tr><td class="label">STEP 4 OneDrive 연계</td><td></td><td></td><td></td><td></td><td></td><td></td><td class="bar">●</td><td class="bar">●</td><td class="bar">●</td><td class="bar">●</td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+    <tr><td class="label">STEP 5 ERP 연계 <span class="small">(협의는 W1 착수)</span></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td class="bar">●</td><td class="bar">●</td><td class="bar">●</td><td class="bar">●</td><td></td><td></td><td></td><td></td></tr>
+    <tr><td class="label">STEP 6 보안·거버넌스</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td class="bar">●</td><td class="bar">●</td><td class="bar">●</td><td></td><td></td><td></td></tr>
+    <tr><td class="label">STEP 7 파일럿→오픈</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td class="bar g">파일럿</td><td class="bar g">파일럿</td><td class="bar g">반영</td><td class="bar g">오픈</td></tr>
+  </table>
+  <p class="small">※ 1인 구축 기준 병행 일정. 유니포인트 협의(STEP 5 선행조건)는 W1에 요청 발송 — 회신 지연이 전체 일정을 막지 않도록 ERP만 독립 트랙. 7월 첫 주 착수 시 10월 말 전사 오픈, 11월 Secret 갱신과 자연 연결.</p>
+
+  <h2><span class="num">2</span>담당 매트릭스</h2>
+  <table>
+    <tr><th style="width:22%;">담당</th><th>해야 할 일</th><th style="width:18%;">시점</th></tr>
+    <tr><td><b>경영진</b></td><td>의사결정 4건 승인(00 문서 9장: 호스팅·접속정책·구축방식·예산), 민감 데이터(자금·인사) 개방 승인</td><td>W1~2, W11</td></tr>
+    <tr><td><b>최동혁 (PM·구축)</b></td><td>전 단계 실행 — 인프라·개발·Entra·Anthropic 콘솔, 문서 갱신, 교육</td><td>전 기간</td></tr>
+    <tr><td><b>총무/IT 자산 담당</b></td><td>jeilm.co.kr DNS 관리처·콘솔 권한 확인 지원</td><td>W1</td></tr>
+    <tr><td><b>유니포인트</b></td><td>03 문서 4장 협의 8건 — 읽기전용 계정·뷰·방화벽·견적</td><td>W1 요청 → W8 내 회신</td></tr>
+    <tr><td><b>파일럿 부서 2곳</b></td><td>2주 실사용·피드백 (니즈조사 적극 부서로 선정)</td><td>W13~14</td></tr>
+    <tr><td><b>전 부서</b></td><td>지식 라이브러리 초기 문서 제출(규정·양식), 교육 참석</td><td>W8, W15~16</td></tr>
+  </table>
+
+  <h2><span class="num">3</span>품의·승인 목록 (결재 필요 항목)</h2>
+  <table>
+    <tr><th style="width:8%;">No.</th><th>품의 건</th><th style="width:22%;">근거 문서</th><th style="width:14%;">시점</th></tr>
+    <tr><td>1</td><td>실구축 착수 + 호스팅·접속정책·구축방식 확정</td><td>00 문서 9장</td><td>W1</td></tr>
+    <tr><td>2</td><td>월 운영 예산 (인프라 15~30 + API 상한 등 총 100만 원/월 이내)</td><td>00 문서 6장</td><td>W1</td></tr>
+    <tr><td>3</td><td>Azure 구독 개설·법인카드 등록 (또는 사내 서버 장비)</td><td>01 문서 4장</td><td>W2</td></tr>
+    <tr><td>4</td><td>Anthropic 운영 계정·Workspace 결제 등록</td><td>03 기획서 5장</td><td>W5</td></tr>
+    <tr><td>5</td><td>유니포인트 기술지원 견적 승인</td><td>03 문서 4장</td><td>견적 수령 후</td></tr>
+    <tr><td>6</td><td>민감 데이터(자금일보·인사 집계) 연계 개방</td><td>03 문서 5장</td><td>W11</td></tr>
+    <tr><td>7</td><td>이용 수칙·로그 보존(1년) 정책 사규 반영</td><td>04 문서 3·7장</td><td>W12</td></tr>
+  </table>
+
+  <h2><span class="num">4</span>STEP별 점검 체크리스트 (실행용)</h2>
+  <h3>STEP 0 — 의사결정·준비 (W1~2)</h3>
+  <table class="chk">
+    <tr><td>☐</td><td>00 문서 9장 의사결정 4건 — 경영진 승인 기록</td></tr>
+    <tr><td>☐</td><td>jeilm.co.kr DNS 관리처·콘솔 접근 확인 (01 문서 1장 방법)</td></tr>
+    <tr><td>☐</td><td>유니포인트에 협의 요청서 발송 (03 문서 4장 표 그대로)</td></tr>
+    <tr><td>☐</td><td>사이버다임에 Cloudium 연계 질의서 발송 (06 문서 4장) + AI 공개 가능 문서 목록화 착수</td></tr>
+    <tr><td>☐</td><td>예산 품의 1~2번 승인 / Azure 구독 준비</td></tr>
+    <tr><td>☐</td><td>파일럿 부서 2곳 내정 (니즈조사 응답 기반)</td></tr>
+  </table>
+  <h3>STEP 1 — 도메인·인프라 (W2~4)</h3>
+  <table class="chk">
+    <tr><td>☐</td><td>서버 프로비저닝 (App Service + PostgreSQL + Key Vault)</td></tr>
+    <tr><td>☐</td><td>DNS 레코드 등록 → <code>nslookup ai.jeilm.co.kr</code> 전파 확인</td></tr>
+    <tr><td>☐</td><td>SSL 적용, https 접속·자동갱신 확인 / HTTP→HTTPS 리디렉션</td></tr>
+    <tr><td>☐</td><td>보안 설정(01 문서 5장 표 7개 항목) 적용 기록</td></tr>
+    <tr><td>☐</td><td>GitHub → 스테이징(ai-dev) → 운영 자동 배포 1회 성공</td></tr>
+  </table>
+  <h3>STEP 2 — 포털 기반·SSO (W3~6)</h3>
+  <table class="chk">
+    <tr><td>☐</td><td>Entra Redirect URI 추가 (운영·스테이징·로컬) — 02 문서 2-1</td></tr>
+    <tr><td>☐</td><td>Secret → Key Vault 이관 + MS_connect 문서 마스킹</td></tr>
+    <tr><td>☐</td><td>로그인/콜백/로그아웃 + 세션 정책 구현, MFA 프롬프트 확인</td></tr>
+    <tr><td>☐</td><td>보안그룹 3개 생성(Admins/Finance/HR) + 부서 자동 매핑 동작</td></tr>
+    <tr><td>☐</td><td>포털 DB 스키마 생성 (04 문서 4장)</td></tr>
+  </table>
+  <h3>STEP 3 — 챗봇 게이트웨이 (W5~8)</h3>
+  <table class="chk">
+    <tr><td>☐</td><td>Anthropic Workspace 분리 + 월 지출한도·분당 한도 설정</td></tr>
+    <tr><td>☐</td><td>Messages API 스트리밍 + 모델 라우팅(Haiku/Sonnet) 동작</td></tr>
+    <tr><td>☐</td><td>크레딧 환산·차감·소진 차단·월 리셋 검증 (테스트 계정)</td></tr>
+    <tr><td>☐</td><td>마스킹·금칙어 필터 — 테스트 케이스 통과(주민번호 등)</td></tr>
+    <tr><td>☐</td><td>대화 이력 저장·이어가기 + 데모 UI 이식 + 부서 템플릿 탑재</td></tr>
+    <tr><td>☐</td><td>관리자 콘솔 1차 (사용자·등급·사용량·감사 조회)</td></tr>
+  </table>
+  <h3>STEP 4 — OneDrive 연계 (W7~10)</h3>
+  <table class="chk">
+    <tr><td>☐</td><td>Graph 위임 권한 추가·관리자 동의 (Files.Read, Sites.Read.All)</td></tr>
+    <tr><td>☐</td><td>"내 문서 검색·요약" 도구 E2E (본인 권한 범위 확인 — 타인 문서 불가 테스트 포함)</td></tr>
+    <tr><td>☐</td><td>JEIL-AI-Library 사이트 신설 + 초기 문서 등재 + Sites.Selected 허용</td></tr>
+    <tr><td>☐</td><td>인덱싱 배치 가동 → 규정 Q&A 출처 표기 답변 확인</td></tr>
+    <tr><td>☐</td><td>문서 등재 기준·절차 공지문 작성 (02 문서 4장)</td></tr>
+  </table>
+  <h3>STEP 5 — ERP 연계 (W9~12)</h3>
+  <table class="chk">
+    <tr><td>☐</td><td>읽기전용 계정 수령·접속 테스트 (TLS 확인)</td></tr>
+    <tr><td>☐</td><td>연결 방식 가동 — 파일럿 IP허용 → 오픈 전 VPN 전환</td></tr>
+    <tr><td>☐</td><td>중간 DB 스키마 + 1차 영역(영업·구매·재고) 야간 배치 안정 가동(연속 5일 무오류)</td></tr>
+    <tr><td>☐</td><td>대시보드(pages) 실데이터 전환 + 챗봇 ERP 조회 도구 3종</td></tr>
+    <tr><td>☐</td><td>조회 감사 로그·행 수 상한·권한 차단 테스트 (권한 없는 계정으로 자금 조회 시도 → 차단 확인)</td></tr>
+    <tr><td>☐</td><td>2차 민감 영역 — 품의 6번 승인 후 erp_secure 적용</td></tr>
+  </table>
+  <h3>STEP 6 — 보안·거버넌스 (W11~13)</h3>
+  <table class="chk">
+    <tr><td>☐</td><td>데이터 4계층 정책표(04 문서 3장) 대조 점검 — 실제 구성과 일치</td></tr>
+    <tr><td>☐</td><td>백업 복구 리허설 1회 (스테이징 복원 → 동작 확인 기록)</td></tr>
+    <tr><td>☐</td><td>모의 점검: 비로그인 접근, 만료 세션, 권한 우회, 업로드 파일 24시간 삭제</td></tr>
+    <tr><td>☐</td><td>이용 수칙 1페이지 + 첫 로그인 동의 화면 + 사규 반영(품의 7번)</td></tr>
+    <tr><td>☐</td><td>모니터링·알림 가동 (다운·배치 실패·예산 70%)</td></tr>
+  </table>
+  <h3>STEP 7 — 파일럿·오픈 (W13~16)</h3>
+  <table class="chk">
+    <tr><td>☐</td><td>파일럿 2개 부서 2주 — 주간 피드백 2회 수집·반영</td></tr>
+    <tr><td>☐</td><td>전사 공지 + 부서별 교육 (Authenticator 등록 포함)</td></tr>
+    <tr><td>☐</td><td>오픈 최종 점검 (5장) 전 항목 통과</td></tr>
+    <tr><td>☐</td><td>오픈 후 1주 집중 모니터링 — 일일 상태 확인</td></tr>
+    <tr><td>☐</td><td>오픈 보고 1페이지 (사용률·이슈·다음 분기 계획)</td></tr>
+  </table>
+
+  <h2><span class="num">5</span>오픈 전 최종 점검 (Go-Live 게이트)</h2>
+  <table>
+    <tr><th style="width:8%;">No.</th><th>항목</th><th style="width:36%;">통과 기준</th></tr>
+    <tr><td>1</td><td>시크릿 브라우저 전체 흐름</td><td>ai.jeilm.co.kr → MS 로그인 → MFA → 챗봇 응답까지 무오류</td></tr>
+    <tr><td>2</td><td>권한 차단 3종</td><td>비로그인 API 차단 / 일반직원 관리자콘솔 차단 / 일반직원 자금데이터 차단</td></tr>
+    <tr><td>3</td><td>임시 자산 제거</td><td>Entra의 github.io Redirect URI 삭제, 데모 페이지 이전 안내 게시</td></tr>
+    <tr><td>4</td><td>비밀값 위치</td><td>코드·Git·문서에 Secret/키 전무 (저장소 스캔), Key Vault만 존재</td></tr>
+    <tr><td>5</td><td>한도 동작</td><td>크레딧 소진 차단 + Workspace 지출한도 설정값 확인</td></tr>
+    <tr><td>6</td><td>백업·롤백</td><td>전일 백업 존재 + 슬롯 롤백 절차 1회 검증</td></tr>
+    <tr><td>7</td><td>데이터 기준 표시</td><td>ERP 화면·답변에 동기화 기준 시각 표기</td></tr>
+    <tr><td>8</td><td>운영 연락 체계</td><td>장애 시 공지 경로(그룹웨어/Teams)와 담당 백업 1인 지정</td></tr>
+  </table>
+
+  <h2><span class="num">6</span>오픈 후 운영 캘린더 (반복 일정)</h2>
+  <table>
+    <tr><th style="width:18%;">주기</th><th>작업</th><th style="width:24%;">근거</th></tr>
+    <tr><td>일</td><td>배치(ERP·인덱싱) 성공 확인 — 실패 알림 대응</td><td>03 문서 6장</td></tr>
+    <tr><td>주</td><td>오류 로그·응답속도 리뷰</td><td>04 문서 6장</td></tr>
+    <tr><td>월</td><td>사용량·비용 리포트(경영진), Entra 로그인 로그 점검, 미사용 크레딧 분포</td><td>04 문서 6·7장</td></tr>
+    <tr><td>분기</td><td>등급 조정, MFA 등록·권한그룹 정합성, 지식 라이브러리 최신성, 보안 패치</td><td>02·04 문서</td></tr>
+    <tr><td class="no"><b>2026-11월 (고정)</b></td><td><b>Client Secret 갱신</b> — 신규 발급 → Key Vault 교체 → 구 Secret 삭제 → 로그인 확인. 이후 180일 주기</td><td>02 문서 2-2 / MS_connect 04</td></tr>
+    <tr><td>연</td><td>복구 리허설, 호스팅 재평가(Azure vs IDC — ERP 트래픽 기준), 보존연한 경과 로그 파기 확인</td><td>01·04 문서</td></tr>
+  </table>
+
+  <div class="callout green">
+    <b class="tag">착수 후 첫 1주에 할 일 (요약)</b>
+    ① 경영진 의사결정 4건 상신(00 문서 지참) ② DNS 관리처 확인 ③ 유니포인트 협의서 발송 ④ 사이버다임 Cloudium 연계 질의서 발송(06 문서) ⑤ Azure 구독 준비 — 이 5가지가 끝나면 나머지는 본 체크리스트 순서대로 진행하면 됩니다.
+  </div>
+
+  <div class="footer">
+    <span>JEIL AX 실제 구축 준비 · 05 체크리스트·로드맵</span>
+    <span>2026. 06. 12. · 작성 최동혁</span>
+  </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>03. ERP(UNIERP) 데이터 연계 설계 — 사외 IDC MS SQL → 읽기전용 중간 DB</title>
+<style>
+  :root{
+    --navy:#1a2f4e; --navy2:#27457a; --accent:#2f6fb3;
+    --red:#b3402f; --green:#2e7d52; --amber:#9a6b1f;
+    --ink:#222; --muted:#666; --line:#d8dee8; --bg:#f4f6f9;
+    --soft:#eef2f8; --softred:#fbeeec; --softgreen:#ecf5f0; --softamber:#faf3e4;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif; color:var(--ink); background:var(--bg); line-height:1.65; font-size:15px;}
+  .page{max-width:960px; margin:0 auto; background:#fff; padding:56px 64px; box-shadow:0 2px 14px rgba(0,0,0,.08);}
+  .doc-label{display:inline-block; background:var(--navy); color:#fff; font-size:12px; letter-spacing:.18em; padding:5px 14px; border-radius:3px; margin-bottom:18px;}
+  h1{font-size:28px; color:var(--navy); line-height:1.35; margin-bottom:10px;}
+  .subtitle{font-size:15.5px; color:var(--muted); margin-bottom:22px;}
+  .docnav{display:flex; flex-wrap:wrap; gap:6px; margin-bottom:26px;}
+  .docnav a{font-size:12px; color:var(--navy2); border:1px solid var(--line); border-radius:20px; padding:4px 12px; text-decoration:none; background:var(--soft);}
+  .docnav a:hover{background:var(--navy); color:#fff;}
+  .docnav a.cur{background:var(--navy); color:#fff; border-color:var(--navy);}
+  .meta{display:flex; flex-wrap:wrap; border:1px solid var(--line); border-radius:6px; overflow:hidden; margin-bottom:40px;}
+  .meta div{flex:1 1 25%; padding:10px 16px; font-size:13px; border-right:1px solid var(--line); background:var(--soft);}
+  .meta div:last-child{border-right:none;}
+  .meta b{display:block; color:var(--navy); font-size:12px; margin-bottom:2px;}
+  h2{font-size:20px; color:var(--navy); margin:46px 0 16px; padding-bottom:10px; border-bottom:3px solid var(--navy); display:flex; align-items:center; gap:10px;}
+  h2 .num{background:var(--navy); color:#fff; font-size:14px; width:28px; height:28px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; flex:none;}
+  h3{font-size:16px; color:var(--navy2); margin:26px 0 10px;}
+  p{margin-bottom:12px;}
+  .callout{border-radius:8px; padding:16px 20px; margin:14px 0;}
+  .callout.red{background:var(--softred); border-left:5px solid var(--red);}
+  .callout.green{background:var(--softgreen); border-left:5px solid var(--green);}
+  .callout.amber{background:var(--softamber); border-left:5px solid var(--amber);}
+  .callout b.tag{display:block; font-size:13px; margin-bottom:6px;}
+  .callout.red b.tag{color:var(--red);} .callout.green b.tag{color:var(--green);} .callout.amber b.tag{color:var(--amber);}
+  table{width:100%; border-collapse:collapse; margin:14px 0 20px; font-size:13.5px;}
+  th{background:var(--navy); color:#fff; padding:9px 12px; text-align:left; font-weight:600;}
+  td{padding:9px 12px; border-bottom:1px solid var(--line); vertical-align:top;}
+  tr:nth-child(even) td{background:#fafbfd;}
+  td.ok{color:var(--green); font-weight:700;} td.no{color:var(--red); font-weight:700;} td.mid{color:var(--amber); font-weight:700;}
+  a{color:var(--accent);}
+  code{background:var(--soft); border:1px solid var(--line); border-radius:4px; padding:1px 6px; font-size:12.5px; font-family:Consolas,'Courier New',monospace;}
+  pre{background:#21252e; color:#e8eaf0; border-radius:8px; padding:16px 18px; font-size:12.5px; font-family:Consolas,'Courier New',monospace; overflow-x:auto; margin:12px 0 18px; line-height:1.55;}
+  pre .c{color:#8a93a5;}
+  .arch{display:flex; align-items:stretch; margin:20px 0; flex-wrap:wrap;}
+  .arch .box{flex:1; min-width:150px; border:2px solid var(--navy2); border-radius:10px; padding:14px 12px; text-align:center; background:#fff;}
+  .arch .box.hl{background:var(--soft); border-color:var(--accent);}
+  .arch .box.ext{border-style:dashed;}
+  .arch .box h4{color:var(--navy); font-size:14px; margin-bottom:6px;}
+  .arch .box p{font-size:12px; color:var(--muted); margin:0;}
+  .arch .arrow{display:flex; flex-direction:column; justify-content:center; align-items:center; padding:0 8px; color:var(--accent); font-size:11.5px; font-weight:700; min-width:70px; text-align:center;}
+  .arch .arrow .line{font-size:20px; line-height:1;}
+  .footer{margin-top:56px; padding-top:16px; border-top:1px solid var(--line); font-size:12px; color:var(--muted); display:flex; justify-content:space-between;}
+  .small{font-size:12.5px; color:var(--muted);}
+  @media print{ body{background:#fff;} .page{box-shadow:none; padding:20px 0; max-width:100%;} h2{break-after:avoid;} table,.callout,.arch,pre{break-inside:avoid;} .docnav{display:none;} }
+  @media (max-width:720px){ .page{padding:32px 22px;} .arch{flex-direction:column;} .arch .arrow{transform:rotate(90deg); min-width:auto; padding:6px 0;} }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <span class="doc-label">실제 구축 준비 03 · 대외비</span>
+  <h1>ERP(UNIERP) 데이터 연계 설계</h1>
+  <p class="subtitle">사외 IDC의 MS SQL → 읽기전용 중간 DB → 챗봇·대시보드 조회 — 연결 방식 · 동기화 · 보안 · 유니포인트 협의안</p>
+
+  <div class="docnav">
+    <a href="00_실제구축_종합기획서.html">00 종합기획</a>
+    <a href="01_도메인_DNS_인프라구성.html">01 도메인·인프라</a>
+    <a href="02_MS연동_OneDrive_데이터연계.html">02 MS·OneDrive</a>
+    <a class="cur" href="03_ERP_UNIERP_데이터연계.html">03 ERP 연계</a>
+    <a href="04_챗봇전환_데이터관리_운영.html">04 챗봇·데이터관리</a>
+    <a href="05_실행체크리스트_로드맵.html">05 체크리스트</a>
+    <a href="06_사이버다임_Cloudium_연계검토.html">06 사이버다임 연계</a>
+  </div>
+
+  <div class="meta">
+    <div><b>작성일</b>2026. 06. 12.</div>
+    <div><b>담당</b>최동혁 + 유니포인트(벤더)</div>
+    <div><b>대상 단계</b>STEP 5 (W9~12)</div>
+    <div><b>전제</b>UNIERP · MS SQL · 사외 IDC</div>
+  </div>
+
+  <h2><span class="num">1</span>연계 원칙 — 운영 ERP를 지키는 구조</h2>
+  <table>
+    <tr><th style="width:32%;">원칙</th><th>이유</th></tr>
+    <tr><td><b>① 운영 DB 직접 조회 금지</b></td><td>챗봇·대시보드 조회가 ERP 운영 성능에 영향을 주면 안 됨. 잘못된 쿼리 한 번이 전사 ERP를 느리게 만드는 구조를 원천 차단</td></tr>
+    <tr><td><b>② 읽기전용, 필요한 테이블만</b></td><td>포털용 DB 계정은 SELECT 전용 + 지정 테이블/뷰만. 쓰기 권한은 어떤 경우에도 부여하지 않음</td></tr>
+    <tr><td><b>③ 중간 DB(사본)를 조회 대상으로</b></td><td>포털·챗봇은 포털 측 중간 DB만 바라봄 — ERP와 포털이 서로의 장애에서 격리됨. 유실돼도 재동기화로 복구</td></tr>
+    <tr><td><b>④ 자유 SQL 생성 금지</b></td><td>AI가 임의 SQL을 만들어 실행하는 방식은 금지. 사전 검증된 조회 템플릿(화이트리스트)만 실행 (7장)</td></tr>
+  </table>
+
+  <h2><span class="num">2</span>전체 구조</h2>
+  <div class="arch">
+    <div class="box ext"><h4>UNIERP 운영 DB</h4><p>MS SQL · 사외 IDC<br>유니포인트 관리<br><b>접촉 최소화 영역</b></p></div>
+    <div class="arrow"><span class="line">→</span>야간 배치<br>읽기전용 계정</div>
+    <div class="box hl"><h4>동기화 배치</h4><p>새벽 1회 (필요 영역만)<br>증분 추출 → 적재<br>실패 시 알림·재시도</p></div>
+    <div class="arrow"><span class="line">→</span>적재</div>
+    <div class="box hl"><h4>중간 DB (포털 측)</h4><p>erp_ro 스키마<br>요약·집계 테이블<br>민감 영역 분리 스키마</p></div>
+    <div class="arrow"><span class="line">→</span>조회 API<br>(RBAC)</div>
+    <div class="box"><h4>포털·챗봇</h4><p>부서 대시보드<br>챗봇 Tool Use 조회<br>"지난달 ○○ 매출은?"</p></div>
+  </div>
+  <p class="small">기존 pages/ 데모 대시보드(수주현황·자금일보 등)가 그대로 이 중간 DB를 데이터 소스로 사용하게 됩니다 — 데모에서 하드코딩했던 수치가 실데이터로 바뀌는 구조.</p>
+
+  <h2><span class="num">3</span>IDC 연결 방식 3안 (호스팅 결정과 연동)</h2>
+  <table>
+    <tr><th style="width:16%;">기준</th><th>1안. IP 허용 + TLS (최소 구성)</th><th>2안. IPSec VPN (권장)</th><th>3안. 동일 IDC 배치</th></tr>
+    <tr><td><b>방식</b></td><td>IDC 방화벽에서 포털 서버 고정 IP만 1433 포트 허용, MSSQL TLS 암호화 강제</td><td>포털 서버 ↔ IDC 간 사이트 VPN 터널 — DB 포트가 인터넷에 노출되지 않음</td><td>포털 서버를 ERP와 같은 IDC에 두어 내부망 연결 (01 문서 B안)</td></tr>
+    <tr><td><b>보안</b></td><td class="mid">중 — 포트가 특정 IP에만이라도 인터넷 경유. 계정 유출 시 방어선 약함</td><td class="ok">높음 — 터널 내부로만 DB 통신</td><td class="ok">높음 — 인터넷 비경유</td></tr>
+    <tr><td><b>구축 난이도</b></td><td class="ok">낮음 — 방화벽 규칙 1건</td><td class="mid">중 — 양측 VPN 장비/게이트웨이 설정 (Azure VPN Gateway 월 5~15만 원 추가)</td><td class="mid">중 — 호스팅 이전 수반</td></tr>
+    <tr><td><b>판단</b></td><td>파일럿·초기 검증용으로 허용</td><td class="ok">◎ 운영 표준 — Azure 호스팅 시 이 방식</td><td>ERP 연계가 핵심 기능화되면</td></tr>
+  </table>
+  <div class="callout green">
+    <b class="tag">권고 경로</b>
+    파일럿(W9~10)은 <b>1안(IP 허용+TLS)</b>으로 빠르게 검증 → 전사 오픈 전(W12)까지 <b>2안(VPN)</b>으로 전환. 어느 안이든 야간 배치 1회 + 소량 조회 트래픽이라 회선 부담은 미미합니다. IDC 측 방화벽 작업은 유니포인트 협조 필수 — 4장 협의 체크리스트에 포함.
+  </div>
+
+  <h2><span class="num">4</span>유니포인트(벤더) 협의 체크리스트 — STEP 0에서 조기 발송</h2>
+  <table>
+    <tr><th style="width:8%;">No.</th><th>요청 사항</th><th style="width:34%;">비고</th></tr>
+    <tr><td>1</td><td><b>읽기전용 DB 계정 발급</b> — SELECT 전용, 합의된 테이블/뷰 한정</td><td>계정명 예: <code>jeilax_ro</code>. 비밀번호는 Key Vault 보관</td></tr>
+    <tr><td>2</td><td><b>대상 테이블 스키마 자료</b> — 영업·구매·재고·원가·인사·자금 관련 테이블 정의서(컬럼·코드값)</td><td>5장 데이터 범위 기준. UNIERP 표준 스키마 문서면 충분</td></tr>
+    <tr><td>3</td><td>읽기전용 <b>뷰(View) 생성 협의</b> — 원테이블 직접 접근 대신 필요한 컬럼만 노출하는 뷰 권장</td><td>민감 컬럼(주민번호 등) 뷰에서 제외 — 원천에서 차단하는 효과</td></tr>
+    <tr><td>4</td><td><b>IDC 방화벽 정책</b> — 포털 서버 IP 허용(1안) 또는 VPN 연결(2안) 지원 여부·절차</td><td>3장 연결 방식 결정과 연동</td></tr>
+    <tr><td>5</td><td>야간 배치 조회 <b>허용 시간대·부하 가이드</b> — 권장 새벽 시간, 동시 세션 제한값</td><td>운영 영향 0 확약을 위한 합의</td></tr>
+    <tr><td>6</td><td>TLS 암호화 연결 지원 버전 확인 (MSSQL Encrypt 옵션)</td><td>구버전이면 VPN(2안) 필수</td></tr>
+    <tr><td>7</td><td>기술지원 <b>비용 견적</b> — 계정 발급·뷰 생성·방화벽 작업 공수</td><td>STEP 0 품의에 포함</td></tr>
+    <tr><td>8</td><td>(확인) DB 버전·패치 수준, 백업·유지보수 시간대</td><td>배치 일정이 ERP 백업과 겹치지 않게</td></tr>
+  </table>
+
+  <h2><span class="num">5</span>연계 데이터 범위 — 단계별 개방</h2>
+  <p>데모(pages/)로 검증한 부서 화면을 기준으로 하되, 민감도에 따라 개방 시기를 나눕니다. 최종 범위는 니즈조사 결과로 확정합니다.</p>
+  <table>
+    <tr><th style="width:14%;">영역</th><th style="width:26%;">대상 데이터(요약 수준)</th><th style="width:12%;">민감도</th><th style="width:12%;">개방 단계</th><th>접근 권한</th></tr>
+    <tr><td>영업</td><td>수주현황 — 거래처·프로젝트별 수주액·진행 상태 (월 집계)</td><td class="ok">일반</td><td>1차 (W10)</td><td>전 직원 (대시보드) / 챗봇 조회</td></tr>
+    <tr><td>구매</td><td>거래처별 매입 집계 — 월별·품목군별</td><td class="ok">일반</td><td>1차 (W10)</td><td>전 직원</td></tr>
+    <tr><td>자재/물류</td><td>재고 입출고 — 품목별 재고 수량·입출고 추이, 품목 중복 조회</td><td class="ok">일반</td><td>1차 (W10)</td><td>전 직원</td></tr>
+    <tr><td>프로젝트 원가</td><td>프로젝트별 원가 집계 (실행 대비)</td><td class="mid">중</td><td>2차 (W12)</td><td>해당 PM·경영진 그룹</td></tr>
+    <tr><td>자금</td><td>자금일보 — 일자별 수지·잔고 요약</td><td class="no">높음</td><td>2차 (W12, 승인 후)</td><td><b>AI-Portal-Finance</b> 그룹만</td></tr>
+    <tr><td>인사</td><td>인원·급여 <b>총액 추이만</b> (개인별 급여 미연계)</td><td class="no">높음</td><td>2차 (W12, 승인 후)</td><td><b>AI-Portal-HR</b> 그룹만</td></tr>
+  </table>
+  <div class="callout red">
+    <b class="tag">개인 단위 민감정보는 연계 대상에서 원천 제외</b>
+    개인별 급여·주민등록번호·계좌번호·인사평가는 <b>중간 DB로 가져오지 않습니다</b>(추출 쿼리 자체에서 제외, 가능하면 유니포인트 뷰 단계에서 차단). 인사 영역은 집계값(인원 수·급여 총액·평균)만 취급합니다. 추후 개인 단위 데이터가 필요해지면 별도 보안성 검토와 경영진 승인을 거쳐 설계를 다시 합니다.
+  </div>
+
+  <h2><span class="num">6</span>중간 DB·동기화 설계</h2>
+  <h3>6-1. 중간 DB 구성 (포털 DB 내 스키마 분리)</h3>
+  <pre><span class="c">-- PostgreSQL 기준 (포털 DB와 동거 시작, 필요 시 분리)</span>
+스키마 erp_ro       : 일반 등급 — sales_orders_m(월 수주), purchase_m(매입),
+                      inventory_d(재고 일별), project_cost_m(프로젝트 원가)
+스키마 erp_secure   : 민감 등급 — cash_daily(자금일보), hr_payroll_m(급여 총액 추이)
+                      → DB 권한도 분리: 포털 앱의 일반 역할은 erp_secure 접근 불가
+공통 컬럼           : synced_at(동기화 시각), src_updated(원천 기준 시각)</pre>
+  <h3>6-2. 동기화 배치 정책</h3>
+  <table>
+    <tr><th style="width:26%;">항목</th><th>정책</th></tr>
+    <tr><td>주기</td><td>기본 <b>일 1회 (새벽 03:00)</b>. 자금일보 등 당일성 필요 영역만 추후 시간 단위(업무시간 매시) 검토</td></tr>
+    <tr><td>방식</td><td>증분 추출 — 원천의 수정일시 컬럼 기준 변경분만. 증분 기준 없는 테이블은 전체 재적재(소량 집계 테이블이라 부담 없음)</td></tr>
+    <tr><td>변환</td><td>코드값 → 명칭 변환(부서·거래처 코드), 집계 수준 정리 — "챗봇이 바로 답할 수 있는 형태"로 적재</td></tr>
+    <tr><td>실패 처리</td><td>실패 시 관리자 알림(메일/Teams) + 1시간 후 자동 재시도 1회. 포털 화면에는 "데이터 기준 시각" 항상 표시 — 동기화 지연이 사용자에게 보이게</td></tr>
+    <tr><td>이력</td><td>배치 실행 로그(시작·종료·건수·오류) 90일 보관 — 감사·장애 분석용</td></tr>
+  </table>
+
+  <h2><span class="num">7</span>챗봇 ERP 조회 — 안전한 Tool Use 설계</h2>
+  <div class="arch">
+    <div class="box"><h4>직원 질문</h4><p>"지난달 A거래처<br>매출 얼마야?"</p></div>
+    <div class="arrow"><span class="line">→</span>의도 분석</div>
+    <div class="box hl"><h4>Claude (Tool Use)</h4><p>조회 도구 선택 +<br>파라미터 추출<br>(기간·거래처)</p></div>
+    <div class="arrow"><span class="line">→</span>화이트리스트<br>템플릿 실행</div>
+    <div class="box hl"><h4>조회 API</h4><p>권한 검사(RBAC)<br>사전 정의 SQL만<br>행 수 상한 적용</p></div>
+    <div class="arrow"><span class="line">→</span>결과 주입</div>
+    <div class="box"><h4>답변</h4><p>수치 + 기준 시각<br>+ 대시보드 링크</p></div>
+  </div>
+  <table>
+    <tr><th style="width:30%;">보안 장치</th><th>내용</th></tr>
+    <tr><td>조회 템플릿 화이트리스트</td><td>도구당 1개의 파라미터화된 SQL(예: 월별 거래처 매출) — AI는 파라미터만 채울 수 있고 SQL 문장은 변경 불가. SQL 인젝션·임의 조회 원천 차단</td></tr>
+    <tr><td>권한 검사 위치</td><td>조회 API가 세션 사용자(Entra 그룹)를 확인 — 챗봇 단이 아니라 <b>서버 단에서</b> 차단. 권한 없는 질문엔 "권한이 없는 데이터입니다" 응답</td></tr>
+    <tr><td>응답 상한</td><td>1회 조회 최대 행 수 제한(예: 200행) — 대량 유출 방지, 대량 분석은 대시보드로 유도</td></tr>
+    <tr><td>조회 감사 로그</td><td>누가·언제·어떤 템플릿·어떤 파라미터 — 전건 기록 (04 문서 로그 정책)</td></tr>
+    <tr><td>답변 신뢰성</td><td>모든 수치 답변에 "기준: 6/11 03:00 동기화" 표기 + 해당 대시보드 링크 — 환각이 아닌 DB 값임을 보장</td></tr>
+  </table>
+
+  <h2><span class="num">8</span>이 문서의 산출물 체크</h2>
+  <table>
+    <tr><th style="width:8%;">No.</th><th>완료 기준</th><th style="width:24%;">담당</th></tr>
+    <tr><td>1</td><td>유니포인트 협의 회신 (4장 8개 항목) + 견적 확보</td><td>최동혁 ↔ 유니포인트</td></tr>
+    <tr><td>2</td><td>연결 방식 확정(1안→2안 경로) + 방화벽/VPN 개통</td><td>최동혁·유니포인트</td></tr>
+    <tr><td>3</td><td>중간 DB 스키마 생성 + 1차 영역(영업·구매·재고) 배치 가동</td><td>최동혁</td></tr>
+    <tr><td>4</td><td>pages/ 대시보드 실데이터 전환 (데모 수치 → 중간 DB)</td><td>최동혁</td></tr>
+    <tr><td>5</td><td>챗봇 ERP 조회 도구 3종 이상 가동 (수주·매입·재고)</td><td>최동혁</td></tr>
+    <tr><td>6</td><td>2차 민감 영역(자금·인사 집계) 경영진 승인 + 권한그룹 적용</td><td>경영진·최동혁</td></tr>
+  </table>
+
+  <div class="footer">
+    <span>JEIL AX 실제 구축 준비 · 03 ERP 데이터 연계</span>
+    <span>2026. 06. 12. · 작성 최동혁</span>
+  </div>
+</div>
+</body>
+</html>

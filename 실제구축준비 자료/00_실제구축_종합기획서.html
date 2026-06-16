@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JEIL AX 포털 실제 구축 종합기획서 — ai.jeilm.co.kr (A to Z)</title>
+<style>
+  :root{
+    --navy:#1a2f4e; --navy2:#27457a; --accent:#2f6fb3;
+    --red:#b3402f; --green:#2e7d52; --amber:#9a6b1f;
+    --ink:#222; --muted:#666; --line:#d8dee8; --bg:#f4f6f9;
+    --soft:#eef2f8; --softred:#fbeeec; --softgreen:#ecf5f0; --softamber:#faf3e4;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif; color:var(--ink); background:var(--bg); line-height:1.65; font-size:15px;}
+  .page{max-width:960px; margin:0 auto; background:#fff; padding:56px 64px; box-shadow:0 2px 14px rgba(0,0,0,.08);}
+  .doc-label{display:inline-block; background:var(--navy); color:#fff; font-size:12px; letter-spacing:.18em; padding:5px 14px; border-radius:3px; margin-bottom:18px;}
+  h1{font-size:29px; color:var(--navy); line-height:1.35; margin-bottom:10px; letter-spacing:-.01em;}
+  .subtitle{font-size:16px; color:var(--muted); margin-bottom:22px;}
+  .docnav{display:flex; flex-wrap:wrap; gap:6px; margin-bottom:26px;}
+  .docnav a{font-size:12px; color:var(--navy2); border:1px solid var(--line); border-radius:20px; padding:4px 12px; text-decoration:none; background:var(--soft);}
+  .docnav a:hover{background:var(--navy); color:#fff;}
+  .docnav a.cur{background:var(--navy); color:#fff; border-color:var(--navy);}
+  .meta{display:flex; flex-wrap:wrap; border:1px solid var(--line); border-radius:6px; overflow:hidden; margin-bottom:40px;}
+  .meta div{flex:1 1 25%; padding:10px 16px; font-size:13px; border-right:1px solid var(--line); background:var(--soft);}
+  .meta div:last-child{border-right:none;}
+  .meta b{display:block; color:var(--navy); font-size:12px; margin-bottom:2px;}
+  h2{font-size:21px; color:var(--navy); margin:46px 0 16px; padding-bottom:10px; border-bottom:3px solid var(--navy); display:flex; align-items:center; gap:10px;}
+  h2 .num{background:var(--navy); color:#fff; font-size:14px; width:28px; height:28px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; flex:none;}
+  h3{font-size:16.5px; color:var(--navy2); margin:26px 0 10px;}
+  p{margin-bottom:12px;}
+  .exec{background:var(--soft); border-left:5px solid var(--navy); border-radius:0 8px 8px 0; padding:22px 26px; margin-bottom:8px;}
+  .exec h3{margin-top:0; font-size:15px; letter-spacing:.06em; color:var(--navy);}
+  .exec ul{margin:8px 0 0 18px;}
+  .exec li{margin-bottom:8px;}
+  .callout{border-radius:8px; padding:16px 20px; margin:14px 0;}
+  .callout.red{background:var(--softred); border-left:5px solid var(--red);}
+  .callout.green{background:var(--softgreen); border-left:5px solid var(--green);}
+  .callout.amber{background:var(--softamber); border-left:5px solid var(--amber);}
+  .callout b.tag{display:block; font-size:13px; margin-bottom:6px;}
+  .callout.red b.tag{color:var(--red);} .callout.green b.tag{color:var(--green);} .callout.amber b.tag{color:var(--amber);}
+  table{width:100%; border-collapse:collapse; margin:14px 0 20px; font-size:13.5px;}
+  th{background:var(--navy); color:#fff; padding:9px 12px; text-align:left; font-weight:600;}
+  td{padding:9px 12px; border-bottom:1px solid var(--line); vertical-align:top;}
+  tr:nth-child(even) td{background:#fafbfd;}
+  td.ok{color:var(--green); font-weight:700;} td.no{color:var(--red); font-weight:700;} td.mid{color:var(--amber); font-weight:700;}
+  td.num, th.num{text-align:right;}
+  a{color:var(--accent);}
+  .arch{display:flex; align-items:stretch; margin:20px 0; flex-wrap:wrap; gap:0;}
+  .arch .box{flex:1; min-width:160px; border:2px solid var(--navy2); border-radius:10px; padding:14px 12px; text-align:center; background:#fff;}
+  .arch .box.hl{background:var(--soft); border-color:var(--accent);}
+  .arch .box.ext{border-style:dashed;}
+  .arch .box h4{color:var(--navy); font-size:14px; margin-bottom:6px;}
+  .arch .box p{font-size:12px; color:var(--muted); margin:0;}
+  .arch .arrow{display:flex; flex-direction:column; justify-content:center; align-items:center; padding:0 8px; color:var(--accent); font-size:11.5px; font-weight:700; min-width:72px; text-align:center;}
+  .arch .arrow .line{font-size:20px; line-height:1;}
+  .steps{display:grid; grid-template-columns:repeat(2,1fr); gap:12px; margin:18px 0;}
+  .step{border:1px solid var(--line); border-radius:10px; background:#fff; overflow:hidden;}
+  .step header{background:var(--navy2); color:#fff; padding:9px 14px; font-size:13.5px; font-weight:700; display:flex; justify-content:space-between; align-items:center;}
+  .step header .wk{font-size:11px; font-weight:400; opacity:.85;}
+  .step .body{padding:11px 14px; font-size:12.8px;}
+  .step ul{margin-left:15px;}
+  .step li{margin-bottom:4px;}
+  .step .docref{display:block; margin-top:8px; font-size:11.5px;}
+  .footer{margin-top:56px; padding-top:16px; border-top:1px solid var(--line); font-size:12px; color:var(--muted); display:flex; justify-content:space-between;}
+  .small{font-size:12.5px; color:var(--muted);}
+  code{background:var(--soft); border:1px solid var(--line); border-radius:4px; padding:1px 6px; font-size:12.5px; font-family:Consolas,'Courier New',monospace;}
+  @media print{
+    body{background:#fff;} .page{box-shadow:none; padding:20px 0; max-width:100%;}
+    h2{break-after:avoid;} table,.callout,.arch,.step,.steps{break-inside:avoid;} .docnav{display:none;}
+  }
+  @media (max-width:720px){ .page{padding:32px 22px;} .steps{grid-template-columns:1fr;} .arch{flex-direction:column;} .arch .arrow{transform:rotate(90deg); min-width:auto; padding:6px 0;} }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <span class="doc-label">실제 구축 준비 · 대외비</span>
+  <h1>JEIL AX 포털 실제 구축 종합기획서</h1>
+  <p class="subtitle">GitHub Pages 데모 → <b>ai.jeilm.co.kr</b> 운영 전환 — 도메인 · MS 연동 · OneDrive · ERP · 챗봇 A to Z</p>
+
+  <div class="docnav">
+    <a class="cur" href="00_실제구축_종합기획서.html">00 종합기획</a>
+    <a href="01_도메인_DNS_인프라구성.html">01 도메인·인프라</a>
+    <a href="02_MS연동_OneDrive_데이터연계.html">02 MS·OneDrive</a>
+    <a href="03_ERP_UNIERP_데이터연계.html">03 ERP 연계</a>
+    <a href="04_챗봇전환_데이터관리_운영.html">04 챗봇·데이터관리</a>
+    <a href="05_실행체크리스트_로드맵.html">05 체크리스트</a>
+    <a href="06_사이버다임_Cloudium_연계검토.html">06 사이버다임 연계</a>
+  </div>
+
+  <div class="meta">
+    <div><b>작성일</b>2026. 06. 12.</div>
+    <div><b>작성·관리</b>최동혁</div>
+    <div><b>대상 규모</b>임직원 30~100명</div>
+    <div><b>관련문서</b>01~05 분권 + 기존 기획서(01~07)</div>
+  </div>
+
+  <div class="exec">
+    <h3>EXECUTIVE SUMMARY</h3>
+    <ul>
+      <li>데모(GitHub Pages)로 검증한 AX 포털을 <b>회사 도메인 ai.jeilm.co.kr</b>로 이전하여 그룹웨어처럼 별도 주소로 접속하는 <b>운영 서비스</b>로 전환합니다. 사내·사외 어디서든 웹 접속이 가능하되, <b>Microsoft Entra SSO + MFA</b>가 출입문 역할을 합니다(제로 트러스트 방식 — 그룹웨어와 동일한 접근 모델).</li>
+      <li>구축 범위는 4대 축 — ① 도메인·서버 인프라, ② MS 연동(로그인은 완료, OneDrive/SharePoint 문서 연계 추가), ③ UNIERP(사외 IDC, MS SQL) 읽기전용 데이터 연계, ④ Claude API 챗봇 게이트웨이.</li>
+      <li>데이터는 <b>원천(ERP·OneDrive)에 직접 손대지 않고</b>, 포털 측에 읽기전용 사본(중간 DB)과 큐레이션된 문서 라이브러리만 두는 "원천 보호" 원칙으로 관리합니다.</li>
+      <li>총 일정 약 <b>16주(4개월)</b>, 운영비 월 <b>약 50~90만 원</b>(인프라+API, 100명 기준 추산) 수준. 호스팅 위치(Azure 권장)와 ERP 연결 방식 등 <b>의사결정 3건</b>을 먼저 확정해야 착수할 수 있습니다(9장).</li>
+    </ul>
+  </div>
+
+  <h2><span class="num">1</span>현재 위치 (As-Is) — 무엇이 끝났고 무엇이 남았나</h2>
+  <table>
+    <tr><th style="width:22%;">영역</th><th style="width:12%;">상태</th><th>내용</th></tr>
+    <tr><td><b>포털 데모 UI</b></td><td class="ok">완료</td><td>챗봇·부서 페이지·니즈조사 데모를 GitHub Pages에 배포, 경영진·부서 시연 완료 (저장소: cdhnayajeil-code/jeil_ax)</td></tr>
+    <tr><td><b>MS 로그인(SSO+MFA)</b></td><td class="ok">완료</td><td>Entra 앱 등록(JEIL-AX-Portal), OAuth 인증 코드 플로우 + Authenticator MFA 실제 E2E 테스트 통과 (2026-06-12, MS_connect 폴더)</td></tr>
+    <tr><td><b>니즈조사</b></td><td class="mid">진행 중</td><td>부서별 설문·인터뷰 도구 배포 — 결과는 부서 템플릿·ERP 연계 우선순위에 반영</td></tr>
+    <tr><td><b>운영 도메인</b></td><td class="no">미착수</td><td>현재 임시 주소(github.io) — <b>ai.jeilm.co.kr</b> 신설 필요</td></tr>
+    <tr><td><b>운영 서버</b></td><td class="no">미정</td><td>호스팅 위치 미결정 (Azure / 사내 / ERP IDC 동일구역 — 01 문서 비교)</td></tr>
+    <tr><td><b>챗봇 실연결</b></td><td class="no">미착수</td><td>데모는 화면만 동작 — Claude API 게이트웨이(키 보관·크레딧·로깅) 서버 개발 필요</td></tr>
+    <tr><td><b>OneDrive 연계</b></td><td class="no">미착수</td><td>로그인용 Graph 권한만 부여됨 — 문서 검색·참조 권한 및 설계 필요</td></tr>
+    <tr><td><b>ERP 연계</b></td><td class="no">미착수</td><td>UNIERP는 사외 IDC의 MS SQL — 유니포인트 협의·읽기전용 중간 DB 구축 필요</td></tr>
+  </table>
+  <div class="callout amber">
+    <b class="tag">기한 있는 항목</b>
+    Entra 앱의 Client Secret이 <b>2026-12-09 만료</b>됩니다. 운영 전환과 무관하게 <b>2026년 11월 중 갱신</b>이 필요하며, 운영 서버 구축 시 Key Vault 보관·인증서 전환을 함께 적용하는 것이 효율적입니다(02 문서).
+  </div>
+
+  <h2><span class="num">2</span>목표 아키텍처 (To-Be)</h2>
+  <div class="arch">
+    <div class="box">
+      <h4>임직원 브라우저</h4>
+      <p>사내망·자택·외근 어디서나<br><b>https://ai.jeilm.co.kr</b><br>접속 (그룹웨어 방식)</p>
+    </div>
+    <div class="arrow"><span class="line">→</span>HTTPS<br>+ Entra SSO·MFA</div>
+    <div class="box hl">
+      <h4>AX 포털 + AI 게이트웨이</h4>
+      <p>호스팅: Azure 권장(01 문서)<br>챗봇 UI·부서 페이지<br>크레딧 차감·필터·전 대화 로깅<br>포털 DB(사용자·로그·크레딧)</p>
+    </div>
+    <div class="arrow"><span class="line">→</span>외부 API</div>
+    <div class="box ext">
+      <h4>Claude API</h4>
+      <p>Haiku/Sonnet 라우팅<br>Workspace 지출한도</p>
+    </div>
+  </div>
+  <div class="arch" style="margin-top:4px;">
+    <div class="box ext">
+      <h4>Microsoft 365</h4>
+      <p>Entra ID (로그인·MFA)<br>Graph API — OneDrive·<br>SharePoint 문서 검색</p>
+    </div>
+    <div class="arrow"><span class="line">↑</span>위임 권한<br>(사용자 권한 준수)</div>
+    <div class="box hl" style="border-style:dashed;">
+      <h4>읽기전용 중간 DB</h4>
+      <p>ERP 요약 데이터 사본<br>야간 배치 동기화<br>민감 테이블 권한 분리</p>
+    </div>
+    <div class="arrow"><span class="line">←</span>배치 복제<br>읽기전용 계정</div>
+    <div class="box ext">
+      <h4>UNIERP (사외 IDC)</h4>
+      <p>MS SQL Server<br>운영 DB — 직접 조회 금지<br>유니포인트 협의 대상</p>
+    </div>
+  </div>
+  <h3>설계 4원칙</h3>
+  <table>
+    <tr><th style="width:30%;">원칙</th><th>의미</th></tr>
+    <tr><td><b>① 출입문은 Entra 하나</b></td><td>자체 비밀번호 없음. 입사·퇴사·권한이 MS 계정 하나로 통제되고, MFA·로그인 로그도 Entra가 담당</td></tr>
+    <tr><td><b>② 원천 데이터 무접촉</b></td><td>ERP 운영 DB·OneDrive 원본을 쓰기 접근하지 않음. 포털은 읽기전용 사본·검색만 사용 — 장애·오염 원천 차단</td></tr>
+    <tr><td><b>③ 키와 비밀은 서버에만</b></td><td>Claude API 키, DB 계정, Client Secret은 서버 환경변수/Key Vault에만 존재. 브라우저·Git에 절대 미포함</td></tr>
+    <tr><td><b>④ 권한은 직무 따라(RBAC)</b></td><td>인사급여·자금 데이터는 해당 부서·결재권자만. Entra 보안그룹으로 포털 메뉴·데이터 접근 통제</td></tr>
+  </table>
+
+  <h2><span class="num">3</span>A to Z 실행 단계 (STEP 0~7)</h2>
+  <p>전체 약 16주. 단계는 일부 병행 가능하며, 상세 작업·체크리스트는 05 문서에 주차별로 정리되어 있습니다.</p>
+  <div class="steps">
+    <div class="step"><header>STEP 0 — 의사결정·품의 <span class="wk">W1~2</span></header><div class="body"><ul><li>호스팅 위치 확정 (9장 결정 ①)</li><li>예산 품의 (구축비·월 운영비)</li><li>구축 방식 확정 (자체/외주) · 담당 지정</li><li>접속 정책 확정 (공개+SSO vs IP 제한)</li></ul><span class="docref">→ <a href="01_도메인_DNS_인프라구성.html">01 문서</a>, <a href="05_실행체크리스트_로드맵.html">05 문서</a></span></div></div>
+    <div class="step"><header>STEP 1 — 도메인·인프라 <span class="wk">W2~4</span></header><div class="body"><ul><li>서버 프로비저닝 (운영+스테이징)</li><li>DNS: ai.jeilm.co.kr 레코드 등록</li><li>SSL 인증서 적용·자동갱신</li><li>방화벽·HTTPS 강제·백업 설정</li></ul><span class="docref">→ <a href="01_도메인_DNS_인프라구성.html">01 문서</a></span></div></div>
+    <div class="step"><header>STEP 2 — 포털 기반·SSO 운영 전환 <span class="wk">W3~6</span></header><div class="body"><ul><li>앱 서버 골격 (로그인·세션·권한)</li><li>Entra Redirect URI 운영 주소로 교체</li><li>부서·관리자 매핑 (Graph + 보안그룹)</li><li>포털 DB 스키마 (사용자·크레딧·로그)</li></ul><span class="docref">→ <a href="02_MS연동_OneDrive_데이터연계.html">02 문서</a></span></div></div>
+    <div class="step"><header>STEP 3 — 챗봇 게이트웨이 <span class="wk">W5~8</span></header><div class="body"><ul><li>Claude API 연동·모델 라우팅·스트리밍</li><li>크레딧 차감·금칙어/개인정보 필터</li><li>데모 UI 이식 + 부서 프롬프트 템플릿</li><li>Anthropic Workspace·지출한도 설정</li></ul><span class="docref">→ <a href="04_챗봇전환_데이터관리_운영.html">04 문서</a></span></div></div>
+    <div class="step"><header>STEP 4 — OneDrive/SharePoint 연계 <span class="wk">W7~10</span></header><div class="body"><ul><li>Graph 권한 추가·관리자 동의</li><li>"내 문서 검색·요약" (위임 권한 — 본인 권한 범위만)</li><li>AI 지식 라이브러리(규정·양식) 신설·큐레이션</li><li>(2차) 지식 라이브러리 RAG 인덱싱</li></ul><span class="docref">→ <a href="02_MS연동_OneDrive_데이터연계.html">02 문서</a></span></div></div>
+    <div class="step"><header>STEP 5 — ERP(UNIERP) 연계 <span class="wk">W9~12</span></header><div class="body"><ul><li>유니포인트 협의 (읽기전용 계정·스키마·방화벽)</li><li>중간 DB 구축 + 야간 배치 동기화</li><li>조회 API + 챗봇 Tool Use 연결</li><li>민감 영역(급여·자금) 권한 분리</li></ul><span class="docref">→ <a href="03_ERP_UNIERP_데이터연계.html">03 문서</a></span></div></div>
+    <div class="step"><header>STEP 6 — 보안·데이터 거버넌스 <span class="wk">W11~13</span></header><div class="body"><ul><li>데이터 4계층 관리체계 적용 (5장)</li><li>백업·복구 리허설, 보존연한 정책</li><li>감사 로그·관리자 콘솔 점검</li><li>모의 점검 (외부 접속·권한 우회 시도)</li></ul><span class="docref">→ <a href="04_챗봇전환_데이터관리_운영.html">04 문서</a></span></div></div>
+    <div class="step"><header>STEP 7 — 파일럿 → 전사 오픈 <span class="wk">W13~16</span></header><div class="body"><ul><li>2개 부서 파일럿 2주 → 피드백 반영</li><li>전사 오픈·사용 교육·헬프 채널</li><li>임시 자산 정리 (github.io URI 제거 등)</li><li>월간 운영 캘린더 가동 (Secret 갱신 11월)</li></ul><span class="docref">→ <a href="05_실행체크리스트_로드맵.html">05 문서</a></span></div></div>
+  </div>
+
+  <h2><span class="num">4</span>도메인·접속 체계 (요약)</h2>
+  <table>
+    <tr><th style="width:26%;">항목</th><th>내용</th></tr>
+    <tr><td>운영 주소</td><td><b>https://ai.jeilm.co.kr</b> — 그룹웨어처럼 독립 주소로 접속. 회사 대표 사이트(jeilm.co.kr)와 완전 분리 운영</td></tr>
+    <tr><td>스테이징(검증) 주소</td><td><code>ai-dev.jeilm.co.kr</code> — 외부 검색 차단·접근 제한, 배포 전 검증용 (선택이지만 권장)</td></tr>
+    <tr><td>DNS 작업</td><td>jeilm.co.kr DNS 관리처(등록 대행사 또는 사내)에 A/CNAME 레코드 2건 추가 — 절차·레코드 값은 01 문서</td></tr>
+    <tr><td>SSL</td><td>Let's Encrypt 무료 자동갱신 또는 Azure 관리형 인증서 — 추가 비용 없음</td></tr>
+    <tr><td>접속 정책 (권장)</td><td><b>인터넷 공개 + Entra SSO/MFA 필수</b> — 그룹웨어와 동일 모델. 사외에서도 업무 가능, 보안은 MFA·로그인 로그로 통제. 더 보수적으로 가려면 사내 IP+VPN 제한 옵션(01 문서 비교)</td></tr>
+    <tr><td>이메일 영향</td><td>없음 — 서브도메인 신설은 기존 MX(메일)·웹사이트 레코드에 영향을 주지 않음</td></tr>
+  </table>
+
+  <h2><span class="num">5</span>데이터 관리 종합 원칙 — "실제 데이터는 어디에, 어떻게"</h2>
+  <p>포털이 다루는 데이터를 4계층으로 나누고, 계층마다 보관 위치·접근권한·백업·보존을 다르게 적용합니다. 상세 정책표는 04 문서 3장에 있습니다.</p>
+  <table>
+    <tr><th style="width:17%;">계층</th><th style="width:28%;">데이터</th><th style="width:27%;">보관 위치</th><th>관리 원칙</th></tr>
+    <tr><td><b>① 원천</b></td><td>UNIERP 운영 DB, OneDrive/SharePoint 원본 문서</td><td>현 위치 그대로 (사외 IDC, MS 클라우드)</td><td>포털은 읽기만. 복사·이동·변경 없음. 원천 장애가 포털로, 포털 장애가 원천으로 전파되지 않는 구조</td></tr>
+    <tr><td><b>② 연계 사본</b></td><td>ERP 요약 중간 DB, AI 지식 라이브러리 인덱스</td><td>포털 서버 측 DB</td><td>야간 배치로 갱신되는 읽기전용 사본. 민감 테이블(급여·자금)은 별도 스키마+권한. 유실돼도 재동기화로 복구 가능</td></tr>
+    <tr><td><b>③ 생성 데이터</b></td><td>대화 로그, 크레딧·사용량, 업로드 파일</td><td>포털 DB (대화는 보존연한 적용)</td><td>개인정보 마스킹 후 저장, 보존 1년(권고) 후 파기, 감사 열람은 관리자 2인 원칙, 일일 백업</td></tr>
+    <tr><td><b>④ 비밀·설정</b></td><td>API 키, Client Secret, DB 계정</td><td>Key Vault / 서버 환경변수</td><td>Git·문서·메일에 절대 미포함, 정기 교체(Secret 2026-11월), 접근자 최소화</td></tr>
+  </table>
+  <div class="callout green">
+    <b class="tag">핵심 — "AI에게 보여줄 데이터만 선별해서 준다"</b>
+    전사 문서·전체 ERP를 통째로 연결하지 않습니다. OneDrive는 <b>본인 권한 범위 검색</b>(남의 문서는 안 보임) + <b>회사가 선별한 지식 라이브러리</b>(규정·양식·공지)만, ERP는 <b>부서별 필요 요약 테이블</b>만 단계적으로 개방합니다. 데이터 사고를 구조적으로 차단하면서 니즈조사 결과에 따라 범위를 넓혀가는 방식입니다.
+  </div>
+
+  <h2><span class="num">6</span>예산 총괄 (추산)</h2>
+  <table>
+    <tr><th style="width:30%;">구분</th><th class="num" style="width:22%;">금액(월)</th><th>비고</th></tr>
+    <tr><td>서버 인프라 (Azure 기준)</td><td class="num">약 15~30만 원</td><td>앱 서버+DB+Key Vault, 규모에 따라 — 01 문서 견적 상세. 사내 서버 안은 초기 장비비로 대체</td></tr>
+    <tr><td>Claude API 사용료</td><td class="num">약 30~56만 원</td><td>100명 전사 기준 $210~400 (03 기획서 시뮬레이션 준용, Workspace 한도로 상한 강제)</td></tr>
+    <tr><td>도메인·SSL</td><td class="num">0원</td><td>기존 jeilm.co.kr 서브도메인 + 무료 인증서</td></tr>
+    <tr><td>ERP 연계 (유니포인트)</td><td class="num">별도 견적</td><td>읽기전용 계정·인터페이스 협의 시 기술지원비 발생 가능 — STEP 0에서 견적 요청</td></tr>
+    <tr><td><b>월 운영비 합계</b></td><td class="num"><b>약 50~90만 원</b></td><td>전사 100명 기준. 파일럿 단계(소수 인원)는 월 20~40만 원 수준</td></tr>
+    <tr><td>구축 인건비 (1회성)</td><td class="num">자체 0 / 외주 별도</td><td>Claude Code 활용 자체 구축 시 내부 공수로 흡수. 외주 병행 시 범위 정의 후 견적 비교 (STEP 0 결정 ③)</td></tr>
+  </table>
+  <p class="small">※ 환율 1,400원/$ 가정. Azure 요금은 구성·약정에 따라 변동 — 착수 시 Azure 가격 계산기로 확정 견적 산출(01 문서 절차 포함).</p>
+
+  <h2><span class="num">7</span>추진 체계</h2>
+  <table>
+    <tr><th style="width:24%;">역할</th><th style="width:24%;">담당</th><th>책임</th></tr>
+    <tr><td>총괄·구축 PM</td><td>최동혁</td><td>일정·예산 관리, 개발(Claude Code 활용), Entra·Anthropic 콘솔 관리</td></tr>
+    <tr><td>경영진</td><td>대표/임원</td><td>의사결정 3건 승인(9장), 예산 품의, 데이터 개방 범위 승인</td></tr>
+    <tr><td>ERP 벤더</td><td>유니포인트</td><td>읽기전용 계정 발급, 스키마 자료, IDC 방화벽 협조 (03 문서 협의 체크리스트)</td></tr>
+    <tr><td>DNS 관리처</td><td>도메인 등록 대행사<br>(STEP 0에서 확인)</td><td>ai.jeilm.co.kr 레코드 등록 — 사내에서 직접 관리 시 자체 처리</td></tr>
+    <tr><td>부서 파일럿</td><td>2개 부서 (니즈조사 기반 선정)</td><td>2주 실사용 피드백, 부서 템플릿 검증</td></tr>
+  </table>
+
+  <h2><span class="num">8</span>리스크와 대응</h2>
+  <table>
+    <tr><th style="width:28%;">리스크</th><th style="width:10%;">수준</th><th>대응</th></tr>
+    <tr><td>유니포인트 협의 지연</td><td class="mid">중</td><td>ERP 연계(STEP 5)는 독립 단계 — 지연돼도 챗봇·OneDrive까지 먼저 오픈 가능. 협의는 STEP 0에서 조기 착수</td></tr>
+    <tr><td>Client Secret 만료(12-09) 미갱신</td><td class="no">고</td><td>11월 갱신을 운영 캘린더 고정 일정으로 등록 (05 문서). 갱신 누락 시 전 직원 로그인 불가</td></tr>
+    <tr><td>민감 데이터(급여·자금) 노출</td><td class="no">고</td><td>해당 테이블은 기본 미연계. 연계 시에도 별도 스키마+보안그룹+행 단위 권한, 경영진 승인 후 개방</td></tr>
+    <tr><td>Entra ID Free 한계 (조건부 액세스 신규 편집 불가)</td><td class="mid">중</td><td>기존 전사 MFA 정책이 동작 중이라 당장 문제없음. 앱별 세밀 제어 필요 시 P1 라이선스(1인 월 약 $6) 도입 검토</td></tr>
+    <tr><td>API 비용 초과</td><td class="ok">저</td><td>개인 크레딧 + Workspace 월 지출한도 이중 차단 (03 기획서 체계 준용)</td></tr>
+    <tr><td>1인 운영 의존(담당자 부재 리스크)</td><td class="mid">중</td><td>본 문서 세트(00~05)로 구축·운영 절차 문서화, 관리자 권한 백업 계정 1인 추가 지정</td></tr>
+  </table>
+
+  <h2><span class="num">9</span>의사결정 요청 (STEP 0)</h2>
+  <table>
+    <tr><th style="width:8%;">No.</th><th>결정 사항</th><th style="width:30%;">권고안</th></tr>
+    <tr><td>①</td><td><b>호스팅 위치</b> — Azure / 사내 서버 / ERP IDC 동일구역 (01 문서 4장 비교)</td><td>Azure (MS 생태계 일치, 관리 부담 최소) — ERP 연계 빈도가 매우 높아지면 IDC 안 재검토</td></tr>
+    <tr><td>②</td><td><b>접속 정책</b> — 인터넷 공개+SSO/MFA vs 사내 IP·VPN 제한 (01 문서 6장)</td><td>인터넷 공개 + SSO/MFA (그룹웨어와 동일 모델, 외근·재택 지원)</td></tr>
+    <tr><td>③</td><td><b>구축 방식</b> — 자체(Claude Code 활용) / 외주 / 혼합</td><td>자체 우선, ERP 배치 등 전문 영역만 부분 외주 검토</td></tr>
+    <tr><td>④</td><td>예산 승인 — 월 운영비 상한 100만 원 + ERP 연계 견적 별도</td><td>6장 추산 기준</td></tr>
+  </table>
+
+  <h2><span class="num">10</span>문서 안내</h2>
+  <table>
+    <tr><th style="width:34%;">문서</th><th>내용</th></tr>
+    <tr><td><a href="01_도메인_DNS_인프라구성.html"><b>01 도메인·DNS·인프라 구성</b></a></td><td>ai.jeilm.co.kr 설정 절차(레코드 값 포함), SSL, 호스팅 3안 비교·견적, 네트워크 보안, 접속 정책</td></tr>
+    <tr><td><a href="02_MS연동_OneDrive_데이터연계.html"><b>02 MS 연동·OneDrive 데이터 연계</b></a></td><td>Entra SSO 운영 전환(URI 교체·Secret 관리), Graph 권한 설계, OneDrive/SharePoint 문서 연계 2방식, AI 지식 라이브러리 거버넌스</td></tr>
+    <tr><td><a href="03_ERP_UNIERP_데이터연계.html"><b>03 ERP(UNIERP) 데이터 연계 설계</b></a></td><td>사외 IDC MS SQL 연결 3안, 읽기전용 중간 DB·배치 설계, 유니포인트 협의 체크리스트, 데이터 범위·민감도 분류</td></tr>
+    <tr><td><a href="04_챗봇전환_데이터관리_운영.html"><b>04 챗봇 전환·데이터 관리·운영</b></a></td><td>데모→실서비스 게이트웨이 전환, 데이터 4계층 정책표, 대화로그·백업·보존, 모니터링·운영 체계</td></tr>
+    <tr><td><a href="05_실행체크리스트_로드맵.html"><b>05 실행 체크리스트·로드맵</b></a></td><td>16주 주차별 일정, 담당 매트릭스, 품의 목록, STEP 0~7 점검 체크리스트, 오픈 전 최종 점검, 운영 캘린더</td></tr>
+    <tr><td><a href="06_사이버다임_Cloudium_연계검토.html"><b>06 사이버다임 Cloudium 연계 검토</b></a></td><td>사내 문서중앙화(구축형) 데이터의 포털 연계 경로 5안 평가, 벤더 질의서, 큐레이션 반출 단기안·API 연동 중기안 로드맵</td></tr>
+  </table>
+  <div class="callout amber">
+    <b class="tag">참고 — 기존 문서와의 관계</b>
+    챗봇 기능·크레딧 체계·비용 시뮬레이션은 <b>03_사내_AI챗봇_포털_구축_기획서</b>를, Entra 연동 기술 값은 <b>MS_connect 폴더(01~04)</b>를 원본으로 하며, 본 문서 세트는 이를 "실제 구축 실행" 관점에서 통합·구체화한 것입니다. 값 충돌 시 MS_connect가 기술 원본입니다.
+  </div>
+
+  <div class="footer">
+    <span>JEIL AX 실제 구축 준비 · 00 종합기획서</span>
+    <span>2026. 06. 12. · 작성 최동혁</span>
+  </div>
+</div>
+</body>
+</html>

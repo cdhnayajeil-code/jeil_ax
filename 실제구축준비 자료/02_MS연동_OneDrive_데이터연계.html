@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>02. MS 연동·OneDrive 데이터 연계 — Entra SSO 운영 전환 + Graph API</title>
+<style>
+  :root{
+    --navy:#1a2f4e; --navy2:#27457a; --accent:#2f6fb3;
+    --red:#b3402f; --green:#2e7d52; --amber:#9a6b1f;
+    --ink:#222; --muted:#666; --line:#d8dee8; --bg:#f4f6f9;
+    --soft:#eef2f8; --softred:#fbeeec; --softgreen:#ecf5f0; --softamber:#faf3e4;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif; color:var(--ink); background:var(--bg); line-height:1.65; font-size:15px;}
+  .page{max-width:960px; margin:0 auto; background:#fff; padding:56px 64px; box-shadow:0 2px 14px rgba(0,0,0,.08);}
+  .doc-label{display:inline-block; background:var(--navy); color:#fff; font-size:12px; letter-spacing:.18em; padding:5px 14px; border-radius:3px; margin-bottom:18px;}
+  h1{font-size:28px; color:var(--navy); line-height:1.35; margin-bottom:10px;}
+  .subtitle{font-size:15.5px; color:var(--muted); margin-bottom:22px;}
+  .docnav{display:flex; flex-wrap:wrap; gap:6px; margin-bottom:26px;}
+  .docnav a{font-size:12px; color:var(--navy2); border:1px solid var(--line); border-radius:20px; padding:4px 12px; text-decoration:none; background:var(--soft);}
+  .docnav a:hover{background:var(--navy); color:#fff;}
+  .docnav a.cur{background:var(--navy); color:#fff; border-color:var(--navy);}
+  .meta{display:flex; flex-wrap:wrap; border:1px solid var(--line); border-radius:6px; overflow:hidden; margin-bottom:40px;}
+  .meta div{flex:1 1 25%; padding:10px 16px; font-size:13px; border-right:1px solid var(--line); background:var(--soft);}
+  .meta div:last-child{border-right:none;}
+  .meta b{display:block; color:var(--navy); font-size:12px; margin-bottom:2px;}
+  h2{font-size:20px; color:var(--navy); margin:46px 0 16px; padding-bottom:10px; border-bottom:3px solid var(--navy); display:flex; align-items:center; gap:10px;}
+  h2 .num{background:var(--navy); color:#fff; font-size:14px; width:28px; height:28px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; flex:none;}
+  h3{font-size:16px; color:var(--navy2); margin:26px 0 10px;}
+  p{margin-bottom:12px;}
+  .callout{border-radius:8px; padding:16px 20px; margin:14px 0;}
+  .callout.red{background:var(--softred); border-left:5px solid var(--red);}
+  .callout.green{background:var(--softgreen); border-left:5px solid var(--green);}
+  .callout.amber{background:var(--softamber); border-left:5px solid var(--amber);}
+  .callout b.tag{display:block; font-size:13px; margin-bottom:6px;}
+  .callout.red b.tag{color:var(--red);} .callout.green b.tag{color:var(--green);} .callout.amber b.tag{color:var(--amber);}
+  table{width:100%; border-collapse:collapse; margin:14px 0 20px; font-size:13.5px;}
+  th{background:var(--navy); color:#fff; padding:9px 12px; text-align:left; font-weight:600;}
+  td{padding:9px 12px; border-bottom:1px solid var(--line); vertical-align:top;}
+  tr:nth-child(even) td{background:#fafbfd;}
+  td.ok{color:var(--green); font-weight:700;} td.no{color:var(--red); font-weight:700;} td.mid{color:var(--amber); font-weight:700;}
+  a{color:var(--accent);}
+  code{background:var(--soft); border:1px solid var(--line); border-radius:4px; padding:1px 6px; font-size:12.5px; font-family:Consolas,'Courier New',monospace;}
+  pre{background:#21252e; color:#e8eaf0; border-radius:8px; padding:16px 18px; font-size:12.5px; font-family:Consolas,'Courier New',monospace; overflow-x:auto; margin:12px 0 18px; line-height:1.55;}
+  pre .c{color:#8a93a5;}
+  .arch{display:flex; align-items:stretch; margin:20px 0; flex-wrap:wrap;}
+  .arch .box{flex:1; min-width:160px; border:2px solid var(--navy2); border-radius:10px; padding:14px 12px; text-align:center; background:#fff;}
+  .arch .box.hl{background:var(--soft); border-color:var(--accent);}
+  .arch .box.ext{border-style:dashed;}
+  .arch .box h4{color:var(--navy); font-size:14px; margin-bottom:6px;}
+  .arch .box p{font-size:12px; color:var(--muted); margin:0;}
+  .arch .arrow{display:flex; flex-direction:column; justify-content:center; align-items:center; padding:0 8px; color:var(--accent); font-size:11.5px; font-weight:700; min-width:70px; text-align:center;}
+  .arch .arrow .line{font-size:20px; line-height:1;}
+  .footer{margin-top:56px; padding-top:16px; border-top:1px solid var(--line); font-size:12px; color:var(--muted); display:flex; justify-content:space-between;}
+  .small{font-size:12.5px; color:var(--muted);}
+  @media print{ body{background:#fff;} .page{box-shadow:none; padding:20px 0; max-width:100%;} h2{break-after:avoid;} table,.callout,.arch,pre{break-inside:avoid;} .docnav{display:none;} }
+  @media (max-width:720px){ .page{padding:32px 22px;} .arch{flex-direction:column;} .arch .arrow{transform:rotate(90deg); min-width:auto; padding:6px 0;} }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <span class="doc-label">실제 구축 준비 02 · 대외비</span>
+  <h1>MS 연동 · OneDrive 데이터 연계</h1>
+  <p class="subtitle">Entra SSO 운영 전환(완료분 계승) · Microsoft Graph 권한 설계 · OneDrive/SharePoint 문서 연계 · AI 지식 라이브러리 거버넌스</p>
+
+  <div class="docnav">
+    <a href="00_실제구축_종합기획서.html">00 종합기획</a>
+    <a href="01_도메인_DNS_인프라구성.html">01 도메인·인프라</a>
+    <a class="cur" href="02_MS연동_OneDrive_데이터연계.html">02 MS·OneDrive</a>
+    <a href="03_ERP_UNIERP_데이터연계.html">03 ERP 연계</a>
+    <a href="04_챗봇전환_데이터관리_운영.html">04 챗봇·데이터관리</a>
+    <a href="05_실행체크리스트_로드맵.html">05 체크리스트</a>
+    <a href="06_사이버다임_Cloudium_연계검토.html">06 사이버다임 연계</a>
+  </div>
+
+  <div class="meta">
+    <div><b>작성일</b>2026. 06. 12.</div>
+    <div><b>담당</b>최동혁 (Entra 전역 관리자)</div>
+    <div><b>대상 단계</b>STEP 2 · 4 (W3~10)</div>
+    <div><b>기술 원본</b>MS_connect 폴더 01~04</div>
+  </div>
+
+  <h2><span class="num">1</span>완료된 것 (MS_connect 결과 계승)</h2>
+  <table>
+    <tr><th style="width:30%;">항목</th><th>값/상태</th></tr>
+    <tr><td>Entra 앱 등록</td><td><b>JEIL-AX-Portal</b> (2026-06-12 등록, 등록자 dh.choi@jeilm.co.kr)</td></tr>
+    <tr><td>테넌트</td><td>제일엠앤에스 — jeilm.co.kr, 단일 테넌트 (Tenant ID는 MS_connect/01 참조)</td></tr>
+    <tr><td>인증 방식</td><td>OAuth 2.0 / OIDC Authorization Code Flow (Web + Client Secret)</td></tr>
+    <tr><td>승인된 권한 (위임)</td><td>openid, profile, email, offline_access, User.Read — 관리자 동의 완료</td></tr>
+    <tr><td>MFA</td><td>기존 조건부 액세스 "Require MFA for internal users"가 전체 앱 대상 → 자동 적용, E2E 테스트 통과</td></tr>
+    <tr><td>Client Secret</td><td>발급 완료 — <b>만료 2026-12-09</b>, 값은 MS_connect/01 (운영 전환 시 Key Vault로 이관 후 문서에서 마스킹)</td></tr>
+    <tr><td>Redirect URI</td><td>임시: github.io 데모 주소 — <b>운영 전환의 첫 변경 대상</b></td></tr>
+  </table>
+
+  <h2><span class="num">2</span>SSO 운영 전환 작업 (STEP 2)</h2>
+  <h3>2-1. Entra 앱 등록 변경 (관리센터 작업, 30분)</h3>
+  <table>
+    <tr><th style="width:8%;">순서</th><th>작업</th><th style="width:34%;">값</th></tr>
+    <tr><td>1</td><td>Redirect URI 추가 (인증 → 웹)</td><td><code>https://ai.jeilm.co.kr/auth/callback</code></td></tr>
+    <tr><td>2</td><td>스테이징·로컬 URI 추가</td><td><code>https://ai-dev.jeilm.co.kr/auth/callback</code><br><code>http://localhost:3000/auth/callback</code> (개발 중에만)</td></tr>
+    <tr><td>3</td><td>프런트채널 로그아웃 URL</td><td><code>https://ai.jeilm.co.kr/auth/logout</code></td></tr>
+    <tr><td>4</td><td><b>운영 오픈 후</b> 임시 URI 제거</td><td>github.io 주소 삭제 (보안 — 05 문서 오픈 체크리스트 포함)</td></tr>
+  </table>
+  <h3>2-2. 비밀값 보관 체계 전환</h3>
+  <table>
+    <tr><th style="width:24%;">단계</th><th>내용</th></tr>
+    <tr><td>현재</td><td>Secret 값이 OneDrive 문서(MS_connect/01)에 기록됨 — 구축 단계 한시 허용</td></tr>
+    <tr><td>전환 (서버 구축 직후)</td><td>① Key Vault(또는 서버 환경변수)에 등록 → ② 문서의 Secret 라인 마스킹 처리 → ③ 접근 권한자 기록</td></tr>
+    <tr><td>갱신 일정</td><td><b>2026-11월 중</b> 새 Secret 발급 → 서버 교체 → 구 Secret 삭제 (만료 12-09 전). 이후 180일 주기 반복 — 운영 캘린더 등록(05 문서)</td></tr>
+    <tr><td>중기 개선</td><td>Client Secret → <b>인증서 자격증명</b> 전환(MS 권장), Azure 호스팅 시 <b>관리 ID(Managed Identity)</b>로 Secret 자체를 제거 가능 — 안정화 후 적용</td></tr>
+  </table>
+  <h3>2-3. 포털 로그인 구현 구조 (개발 명세)</h3>
+  <pre><span class="c"># 라우트 구성 (MSAL Node 또는 MSAL Python — MS_connect/02 가이드 준용)</span>
+GET  /auth/login     → Entra authorize로 리디렉션 (state·PKCE 생성)
+GET  /auth/callback  → code 수신 → token 교환 → 세션 발급 → 포털 홈으로
+GET  /auth/logout    → 세션 파기 → Entra logout → 안내 페이지
+미들웨어              → 모든 페이지·API에 세션 검사 (없으면 /auth/login)
+
+<span class="c"># 세션 정책</span>
+서버 세션 (httpOnly 쿠키, Secure, SameSite=Lax), 유휴 8시간 만료
+Refresh Token은 서버 측 토큰 캐시에만 — 브라우저 저장 금지</pre>
+  <h3>2-4. 부서·권한 자동 매핑</h3>
+  <table>
+    <tr><th style="width:30%;">데이터</th><th style="width:36%;">출처 (Graph API)</th><th>용도</th></tr>
+    <tr><td>이름·이메일·부서·직책</td><td><code>GET /me</code> (User.Read — 승인 완료)</td><td>로그인 시 포털 사용자 테이블 자동 생성·갱신 — 별도 가입 절차 없음</td></tr>
+    <tr><td>관리자 여부</td><td><code>GET /me/memberOf</code> — 보안그룹 <b>AI-Portal-Admins</b> 소속 확인</td><td>관리자 콘솔 접근. 그룹은 Entra에서 생성, 인사이동 시 그룹만 조정</td></tr>
+    <tr><td>민감데이터 열람권한</td><td>보안그룹 <b>AI-Portal-Finance</b>, <b>AI-Portal-HR</b> (신설)</td><td>자금·인사 ERP 데이터 메뉴 통제 (03 문서 6장과 연동)</td></tr>
+    <tr><td colspan="3" class="small">※ memberOf 조회는 User.Read 범위로 본인 그룹 확인 가능. 그룹 3개는 STEP 2에서 Entra 관리센터 → 그룹 → 새 그룹(보안)으로 생성, 소유자 최동혁.</td></tr>
+  </table>
+  <div class="callout green">
+    <b class="tag">퇴사자 처리 자동화 효과</b>
+    포털 계정·비밀번호가 따로 없으므로, 인사팀이 MS 계정을 비활성화하는 순간 포털 접근도 차단됩니다. 포털 DB의 사용자 레코드는 "최종 로그인 90일 경과 시 비활성" 배치로 정리합니다.
+  </div>
+
+  <h2><span class="num">3</span>OneDrive/SharePoint 데이터 연계 — 설계 원리</h2>
+  <p>"OneDrive 데이터 적용"은 두 가지 성격이 다른 요구를 포함하므로 분리 설계합니다.</p>
+  <table>
+    <tr><th style="width:22%;">요구</th><th>예시 질문</th><th style="width:30%;">적용 방식</th></tr>
+    <tr><td><b>A. 내 문서 작업</b></td><td>"내 OneDrive에서 지난주 회의록 찾아 요약해줘", "이 견적서 초안 검토해줘"</td><td><b>위임 권한 실시간 검색</b> — 로그인한 사용자의 권한으로 Graph 검색 → 결과를 챗봇 컨텍스트에 주입</td></tr>
+    <tr><td><b>B. 회사 공통 지식</b></td><td>"연차 규정 알려줘", "출장비 한도는?", "품의서 양식 어디 있어?"</td><td><b>AI 지식 라이브러리</b>(전용 SharePoint) 사전 인덱싱 — 전 직원 동일 답변, 출처 링크 제공</td></tr>
+  </table>
+  <div class="callout amber">
+    <b class="tag">문서 원천 참고 — 사내 문서중앙화(Cloudium)와의 관계</b>
+    당사 업무문서는 OneDrive와 사이버다임 Cloudium(문서중앙화)에 혼재합니다. 본 장의 방식 A/B는 OneDrive·SharePoint 영역을 다루며, <b>Cloudium 문서의 연계 경로(벤더 API·큐레이션 반출·AI Assistant 비교)는 <a href="06_사이버다임_Cloudium_연계검토.html">06 문서</a></b>에서 별도 검토합니다. 규정·양식류는 원천이 어디든 AI 지식 라이브러리로 모아 단일 인덱싱하는 원칙(06 문서 2장)을 따릅니다.
+  </div>
+  <h3>방식 A — 위임 권한 실시간 검색 (1차 적용)</h3>
+  <div class="arch">
+    <div class="box"><h4>직원 질문</h4><p>"OO 문서 찾아서 요약"</p></div>
+    <div class="arrow"><span class="line">→</span>사용자 토큰<br>(OBO)</div>
+    <div class="box hl"><h4>게이트웨이</h4><p>Graph 검색 호출<br>본문 추출 → 프롬프트 주입</p></div>
+    <div class="arrow"><span class="line">→</span>Graph API</div>
+    <div class="box ext"><h4>OneDrive/SharePoint</h4><p><b>본인 권한 범위만</b> 검색됨<br>(남의 문서 원천 불가)</p></div>
+  </div>
+  <table>
+    <tr><th style="width:30%;">항목</th><th>내용</th></tr>
+    <tr><td>추가 필요 권한 (위임)</td><td><code>Files.Read</code> (본인 OneDrive), <code>Sites.Read.All</code> (접근 가능한 SharePoint 읽기) — Entra 앱 등록 → API 권한 → 추가 → <b>관리자 동의</b></td></tr>
+    <tr><td>호출 API</td><td>Graph Search API <code>POST /v1.0/search/query</code> (entityType: driveItem) — 통합 검색 / 파일 본문은 <code>GET /drives/{id}/items/{id}/content</code></td></tr>
+    <tr><td>구현 방식</td><td>On-Behalf-Of 플로우 — 포털 세션의 사용자 토큰으로 Graph 호출. 챗봇에는 Tool Use(도구 호출)로 "문서검색" 도구 노출</td></tr>
+    <tr><td>보안 특성</td><td class="ok">권한 위반이 구조적으로 불가능 — Microsoft가 사용자 권한으로 검색 결과를 필터링하므로 포털이 권한 로직을 직접 구현하지 않음</td></tr>
+    <tr><td>제약 (검증된 사실)</td><td class="mid">Graph Search API의 driveItem 검색은 <b>위임 권한 전용</b> — 앱 단독(application) 권한으로는 전사 문서 검색 불가. 따라서 "전 직원 문서 일괄 인덱싱" 같은 접근은 이 API로는 안 되며, 그래서도 안 됨(권한 통제 상실). 방식 B가 그 자리를 대신함</td></tr>
+  </table>
+  <h3>방식 B — AI 지식 라이브러리 사전 인덱싱 (2차 적용, RAG)</h3>
+  <div class="arch">
+    <div class="box ext"><h4>AI 지식 라이브러리</h4><p>전용 SharePoint 사이트<br>규정·양식·공지만 큐레이션</p></div>
+    <div class="arrow"><span class="line">→</span>야간 동기화<br>(Sites.Selected)</div>
+    <div class="box hl"><h4>인덱서 (배치)</h4><p>신규·변경 문서 텍스트 추출<br>임베딩 → 벡터 인덱스 저장</p></div>
+    <div class="arrow"><span class="line">→</span>질문 시 유사 검색</div>
+    <div class="box hl"><h4>챗봇 답변</h4><p>관련 조각 + 출처 링크<br>"취업규칙 제12조에 따르면…"</p></div>
+  </div>
+  <table>
+    <tr><th style="width:30%;">항목</th><th>내용</th></tr>
+    <tr><td>전용 사이트 신설</td><td>SharePoint 사이트 "JEIL-AI-Library" — 문서 라이브러리 구조: 01_사내규정 / 02_업무양식 / 03_공지·지침 / 04_부서매뉴얼. 기존 보유 자료(예: 취업규칙 2025.07.30 개정본)부터 등재</td></tr>
+    <tr><td>앱 권한 (최소화)</td><td><code>Sites.Selected</code> (application) — <b>이 사이트 하나에만</b> 읽기 허용. 전사 문서 접근 권한(Files.Read.All 등)은 부여하지 않음 — 최소권한 원칙의 핵심</td></tr>
+    <tr><td>인덱싱 파이프라인</td><td>야간 배치: 변경 감지(delta) → 텍스트 추출(PDF·docx) → 조각화(chunk) → 임베딩 → 포털 DB(pgvector)에 저장. 삭제 문서는 인덱스에서도 제거</td></tr>
+    <tr><td>답변 품질 장치</td><td>답변에 반드시 출처(문서명·조항·SharePoint 링크) 표기, 인덱스에 없는 질문은 "등재된 규정에서 찾지 못함"으로 정직하게 응답 (환각 방지)</td></tr>
+    <tr><td>왜 사전 인덱싱인가</td><td>규정 질문은 전 직원이 반복 — 매번 원문 전체를 읽히면 느리고 비용 증가. 1회 인덱싱 후 관련 조각만 주입하면 응답 1~2초·비용 절감</td></tr>
+  </table>
+
+  <h2><span class="num">4</span>데이터 거버넌스 — "어떤 문서를 AI에 보여줄 것인가"</h2>
+  <table>
+    <tr><th style="width:26%;">구분</th><th>정책</th></tr>
+    <tr><td>지식 라이브러리 등재 기준</td><td>전 직원 열람 가능 문서만 (규정·양식·공지·매뉴얼). <b>개인정보 포함 문서, 인사평가, 계약서, 원가·견적 원본은 등재 금지</b></td></tr>
+    <tr><td>등재 절차</td><td>부서 → 등재 요청 → 관리자(최동혁) 검토 → 라이브러리 업로드. 사이트 쓰기 권한은 관리자만, 일반 직원은 읽기 전용</td></tr>
+    <tr><td>문서 책임자</td><td>문서별 메타데이터(담당 부서·개정일) 기록 — 개정 시 교체 책임을 부서에 부여, 분기 1회 최신성 점검</td></tr>
+    <tr><td>개인 문서(방식 A) 보호</td><td>검색·요약은 사용자 본인 세션에서만 수행, 문서 본문은 <b>대화 로그에 원문 저장하지 않음</b>(요약 결과만 저장) — 04 문서 로그 정책과 연동</td></tr>
+    <tr><td>외부 전송 고지</td><td>문서 내용이 Claude API(Anthropic)로 전송됨을 이용 안내에 명시 — API는 기본적으로 입력을 모델 학습에 사용하지 않음(03 기획서 보안 표 준용)</td></tr>
+  </table>
+  <div class="callout red">
+    <b class="tag">금지 사항 — 설계로 강제</b>
+    ① 앱 단독 권한으로 전 직원 OneDrive를 읽는 권한(Files.Read.All application)은 <b>신청하지 않는다</b> — 사고 시 전사 문서 유출 경로가 됨. ② 지식 라이브러리 외 사이트는 Sites.Selected 허용 목록에 추가하지 않는다. ③ Graph 권한 추가는 반드시 본 문서 갱신 + 관리자 동의 기록과 함께.
+  </div>
+
+  <h2><span class="num">5</span>단계별 적용 순서 (STEP 4 상세)</h2>
+  <table>
+    <tr><th style="width:10%;">주차</th><th>작업</th><th style="width:30%;">완료 기준</th></tr>
+    <tr><td>W7</td><td>Graph 권한 추가(Files.Read, Sites.Read.All 위임) + 관리자 동의, OBO 플로우 구현</td><td>본인 OneDrive 파일 검색 API 응답 확인</td></tr>
+    <tr><td>W7~8</td><td>챗봇에 "문서 검색·요약" 도구 연결 (방식 A)</td><td>"내 문서에서 ○○ 찾아줘" E2E 동작</td></tr>
+    <tr><td>W8</td><td>JEIL-AI-Library 사이트 신설, 초기 문서 등재(규정·양식 30건 내외), Sites.Selected 승인</td><td>사이트 가동 + 앱 읽기 확인</td></tr>
+    <tr><td>W9~10</td><td>인덱싱 배치 + 규정 Q&A (방식 B) — 출처 표기 포함</td><td>"연차 규정?" 질문에 조항·링크 포함 답변</td></tr>
+    <tr><td>W10</td><td>거버넌스 문서화 — 등재 기준·절차 사내 공지 초안</td><td>4장 정책 공지본</td></tr>
+  </table>
+
+  <h2><span class="num">6</span>운영 점검 항목 (오픈 후)</h2>
+  <table>
+    <tr><th style="width:30%;">점검</th><th style="width:16%;">주기</th><th>방법</th></tr>
+    <tr><td>로그인 로그 (실패·이상 접속)</td><td>월 1회</td><td>Entra ID → 모니터링 → 로그인 로그, 앱 필터: JEIL-AX-Portal</td></tr>
+    <tr><td>MFA 등록 현황</td><td>분기 1회</td><td>미등록자 안내 (입사자 온보딩 절차에 Authenticator 등록 포함)</td></tr>
+    <tr><td>Graph 권한·동의 현황</td><td>분기 1회</td><td>앱 등록 → API 권한 — 본 문서 3장 표와 일치 확인 (불필요 권한 제거)</td></tr>
+    <tr><td>Secret/인증서 만료</td><td>캘린더 고정</td><td><b>2026-11월 갱신</b> → 이후 180일 주기 (05 문서 운영 캘린더)</td></tr>
+    <tr><td>지식 라이브러리 최신성</td><td>분기 1회</td><td>부서별 개정 문서 교체 확인, 인덱스 재생성 로그 점검</td></tr>
+  </table>
+
+  <div class="footer">
+    <span>JEIL AX 실제 구축 준비 · 02 MS 연동·OneDrive</span>
+    <span>2026. 06. 12. · 작성 최동혁</span>
+  </div>
+</div>
+</body>
+</html>
