@@ -100,6 +100,10 @@
           <input type="date" id="m_작성일">
         </div>
       </div>
+      <label class="opt" id="anonWrap" style="margin-top:4px; flex:1 1 100%;">
+        <input type="checkbox" id="m_익명">
+        <span><b>익명으로 제출</b> — 솔직한 의견을 위해 작성자명을 집계에서 가립니다(부서 단위 집계는 유지).</span>
+      </label>
       <p class="small" id="authNote" style="display:none; margin:8px 0 0; color:#1a6fb0;">🔒 회사 계정 정보로 자동 입력되었습니다.</p>
     </div>
 
@@ -376,7 +380,7 @@ function lockAuthorFields(){
 function autofillAuthor(){
   // 1) 로그인 토큰의 표시이름으로 작성자명 '즉시' 자동입력 (Graph 호출 지연/실패와 무관하게 보장)
   var info = (S.authInfo && S.authInfo()) || null;
-  if(info && info.valid && info.name){
+  if(info && info.valid && info.name && !document.getElementById('m_익명').checked){
     document.getElementById('m_작성자').value = info.name;
     lockAuthorFields();
     updateProgress();
@@ -399,7 +403,7 @@ fillSelect(); renderOpts(); bindOptVisual();
 autofillAuthor();
 odRefreshBar();
 (function(){ var f=document.querySelector('form'); if(f){ f.addEventListener('input', function(){ if(!odDirty){ odDirty=true; odRefreshBar(); } }); f.addEventListener('change', function(){ if(!odDirty){ odDirty=true; odRefreshBar(); } }); } })();
-['m_부서','m_작성자','m_직책'].forEach(function(id){ document.getElementById(id).addEventListener('change', updateProgress); });
+['m_부서','m_작성자','m_직책','m_익명'].forEach(function(id){ document.getElementById(id).addEventListener('change', updateProgress); });
 ['q3etc','q4etc','q6etc','q5','q7'].forEach(function(id){ document.getElementById(id).addEventListener('input', updateProgress); });
 document.querySelectorAll('.q1').forEach(function(i){ i.addEventListener('input', updateProgress); });
 document.getElementById('m_작성일').value = todayStr();
