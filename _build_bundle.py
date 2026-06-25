@@ -23,6 +23,8 @@ PAGES = {  # key: (상대경로, 오버레이 제목)
     "fin":   ("pages/자금_자금일보_대시보드_2026.html", "자금팀 — 자금일보 대시보드"),
     "wh":    ("pages/자재물류_재고입출고_2026.html", "자재물류팀 — 2026년 재고 입·출고 현황"),
     "item":  ("pages/품목중복_조회_2026.html", "품목 존재/중복 조회 (검색형)"),
+    "subc":  ("pages/외주발주_검사진행현황_2026.html", "외주 발주·검사 진행현황 — 구매·품질·생산·사업관리 공유"),
+    "mob":   ("pages/협력사_모바일_포털.html", "협력사 모바일 발주·사진등록 포털 (사내 연계)"),
 }
 
 html = PORTAL.read_text(encoding="utf-8")
@@ -97,6 +99,6 @@ html = html.replace(
     "⚠ 화면 구성 데모 (단일 파일 통합본 · 공유용) — 실제 API 미연결, 모든 응답·수치는 예시 데이터입니다. 부서 페이지 8종 + 니즈조사 설문 내장.")
 html = html.replace("</body>", overlay + "\n</body>")
 OUT.write_text(html, encoding="utf-8")
-print(f"치환된 카드 버튼: {replaced}개 (8 기대)")
+print(f"치환된 카드 버튼: {replaced}개 (10 기대)")
 print(f"내장 콘텐츠 합계: {total/1024:.0f} KB (설문폼 포함 9종)")
 print(f"통합본 크기: {OUT.stat().st_size/1024:.0f} KB -> {OUT.name}")

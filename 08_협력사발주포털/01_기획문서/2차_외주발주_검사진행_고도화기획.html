@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>외주 발주·검사 진행현황 운영페이지 고도화 기획(안) — 2차</title>
+<style>
+  :root{
+    --navy:#1a2f4e; --navy2:#27457a; --accent:#2f6fb3; --accent2:#4a8ed0;
+    --red:#b3402f; --green:#2e7d52; --amber:#9a6b1f; --purple:#6b4a9a;
+    --ink:#222; --muted:#666; --line:#d8dee8; --bg:#f4f6f9;
+    --soft:#eef2f8; --softred:#fbeeec; --softgreen:#ecf5f0; --softamber:#faf3e4; --softpur:#f1ecf8;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif; color:var(--ink); background:var(--bg); line-height:1.65; font-size:15px;}
+  .page{max-width:960px; margin:0 auto; background:#fff; padding:56px 64px; box-shadow:0 2px 14px rgba(0,0,0,.08);}
+  .doc-label{display:inline-block; background:var(--purple); color:#fff; font-size:12px; letter-spacing:.18em; padding:5px 14px; border-radius:3px; margin-bottom:18px;}
+  h1{font-size:28px; color:var(--navy); line-height:1.35; margin-bottom:10px;}
+  .subtitle{font-size:16px; color:var(--muted); margin-bottom:26px;}
+  .meta{display:flex; flex-wrap:wrap; border:1px solid var(--line); border-radius:6px; overflow:hidden; margin-bottom:36px;}
+  .meta div{flex:1 1 25%; padding:10px 16px; font-size:13px; border-right:1px solid var(--line); background:var(--soft);}
+  .meta div:last-child{border-right:none;}
+  .meta b{display:block; color:var(--navy); font-size:12px; margin-bottom:2px;}
+  .exec{background:var(--soft); border-radius:10px; padding:20px 24px; margin-bottom:8px;}
+  .exec h3{margin:0 0 8px; color:var(--navy); letter-spacing:.04em; font-size:13px;}
+  .exec ul{margin:6px 0 0 18px;} .exec li{margin-bottom:8px;}
+  h2{font-size:21px; color:var(--navy); margin:46px 0 16px; padding-bottom:10px; border-bottom:3px solid var(--navy); display:flex; align-items:center; gap:10px;}
+  h2 .num{background:var(--navy); color:#fff; font-size:14px; width:28px; height:28px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; flex:none;}
+  h3{font-size:16.5px; color:var(--navy2); margin:26px 0 10px;}
+  p{margin-bottom:12px;}
+  table{width:100%; border-collapse:collapse; margin:14px 0 20px; font-size:13px;}
+  th{background:var(--navy); color:#fff; padding:9px 12px; text-align:left; font-weight:600;}
+  td{padding:8px 12px; border-bottom:1px solid var(--line); vertical-align:top;}
+  tr:nth-child(even) td{background:#fafbfd;}
+  td.c,th.c{text-align:center;}
+  .callout{border-radius:8px; padding:16px 20px; margin:14px 0;}
+  .callout.green{background:var(--softgreen); border-left:5px solid var(--green);}
+  .callout.red{background:var(--softred); border-left:5px solid var(--red);}
+  .callout.amber{background:var(--softamber); border-left:5px solid var(--amber);}
+  .callout.blue{background:var(--soft); border-left:5px solid var(--accent);}
+  .callout.pur{background:var(--softpur); border-left:5px solid var(--purple);}
+  .callout b.tag{display:block; font-size:13px; margin-bottom:6px;}
+  .callout.green b.tag{color:var(--green);} .callout.red b.tag{color:var(--red);}
+  .callout.amber b.tag{color:var(--amber);} .callout.blue b.tag{color:var(--accent);} .callout.pur b.tag{color:var(--purple);}
+  .small{font-size:12.5px; color:var(--muted);}
+  code{font-family:Consolas,monospace; font-size:12px; background:var(--soft); border:1px solid var(--line); border-radius:4px; padding:1px 6px;}
+  a{color:var(--accent);}
+  .badge{display:inline-block; font-size:11px; border-radius:10px; padding:2px 9px; font-weight:600;}
+  .badge.g{background:var(--softgreen); color:var(--green);} .badge.a{background:var(--softamber); color:var(--amber);}
+  .badge.b{background:var(--soft); color:var(--navy2);} .badge.r{background:var(--softred); color:var(--red);} .badge.p{background:var(--softpur); color:var(--purple);}
+  .flow{display:flex; align-items:stretch; margin:18px 0; flex-wrap:wrap;}
+  .flow .box{flex:1; min-width:120px; border:2px solid var(--navy2); border-radius:10px; padding:12px 10px; text-align:center; background:#fff;}
+  .flow .box.hl{background:var(--softpur); border-color:var(--purple);}
+  .flow .box h4{color:var(--navy); font-size:13px; margin-bottom:4px;}
+  .flow .box p{font-size:11px; color:var(--muted); margin:0;}
+  .flow .arrow{display:flex; align-items:center; justify-content:center; padding:0 6px; color:var(--accent); font-size:18px; font-weight:700; min-width:40px;}
+  .demo-link{display:flex; align-items:center; gap:14px; background:linear-gradient(135deg,#27457a,#6b4a9a); color:#fff; border-radius:12px; padding:18px 22px; margin:18px 0; text-decoration:none;}
+  .demo-link .ico{font-size:30px;}
+  .demo-link b{font-size:15px;} .demo-link span{font-size:12.5px; opacity:.9; display:block;}
+  .footer{margin-top:56px; padding-top:16px; border-top:1px solid var(--line); font-size:12px; color:var(--muted); display:flex; justify-content:space-between;}
+  @media print{ body{background:#fff;} .page{box-shadow:none; padding:20px 0; max-width:100%;} h2{break-after:avoid;} table,.callout,.flow{break-inside:avoid;} }
+  @media (max-width:760px){ .page{padding:32px 22px;} .flow{flex-direction:column;} .flow .arrow{transform:rotate(90deg); padding:4px 0;} }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <span class="doc-label">실행 기획 · 외주 발주·검사 · 2차 고도화</span>
+  <h1>외주 발주·검사 진행현황 운영페이지 고도화 기획(안)</h1>
+  <p class="subtitle">ERP 발주구분 기반 — 외주(사급) 발주에 검사신청/결과를 연동하고, 구매·품질·생산·사업관리가 구매요청/발주 기준으로 진행현황을 공유하는 사내 운영 대시보드</p>
+
+  <div class="meta">
+    <div><b>작성일</b>2026. 06. 25.</div>
+    <div><b>관리자</b>최동혁</div>
+    <div><b>데이터 원천</b>UNIERP DB (읽기전용)</div>
+    <div><b>문서 단계</b>2차 고도화 (디테일 설계)</div>
+  </div>
+
+  <a class="demo-link" href="../02_데모/사내_외주발주_검사_대시보드.html">
+    <span class="ico">🏭</span>
+    <span><b>2차 데모 — 외주 발주·검사 진행현황 대시보드 바로보기 →</b><span>발주구분/외주 검사신청·결과, 구매요청/발주 기준 토글, 팀별 뷰 (사내 운영페이지에 추가됨)</span></span>
+  </a>
+
+  <div class="exec">
+    <h3>EXECUTIVE SUMMARY</h3>
+    <ul>
+      <li>1차(협력사용 발주·사진등록 포털)에서 확장하여, 2차는 <b>사내 운영 관점</b>으로 고도화한다. AI.JEILM.CO.KR 챗봇 포털의 <b>사내 운영 페이지에 신규 대시보드를 추가</b>하여 구매·품질·생산·사업관리가 한 화면에서 외주 진행을 확인한다.</li>
+      <li>ERP <b>발주구분(발주형태, M_CONFIG_PROCESS의 PO_TYPE / SUBCONTRA_FLG)</b>을 기준으로, <b>외주(사급) 발주일 경우에만 검사신청/검사결과 흐름을 추가</b> 적용한다. 일반 발주는 입고검사로 처리한다.</li>
+      <li>진행현황은 <b>구매요청(PR) 기준</b>과 <b>발주(PO) 기준</b> 두 가지로 전환 조회할 수 있으며, 각 팀이 자신의 관심 단계를 강조해서 본다.</li>
+      <li>샘플 발주품목 몇 건을 ERP 구조에 맞춰 적용한 <b>동작 데모</b>를 함께 제공한다(발주~입고~검사신청~검사결과(합격/불합격)~매입 파이프라인, 외주 행 클릭 시 검사 상세 펼침).</li>
+      <li>1차 협력사 포털에서 등록된 작업/완성 사진은 <b>검사 증빙</b>으로 본 대시보드의 검사 단계와 연계된다(차기 연동).</li>
+    </ul>
+  </div>
+
+  <h2><span class="num">1</span>1차 대비 변경점 (고도화 방향)</h2>
+  <p>1차는 외주 협력사가 발주 단위로 사진을 올리고 구매팀과 소통하는 <b>협력사 외부 앱</b>이었다. 2차는 같은 데이터를 <b>사내 팀들이 함께 확인·관리</b>하는 운영 대시보드로 관점을 넓히고, ERP 발주구분과 검사 프로세스를 정식으로 반영한다.</p>
+  <table>
+    <tr><th>구분</th><th>1차 초안</th><th>2차 고도화</th></tr>
+    <tr><td>주 사용자</td><td>외주 협력사 담당자</td><td>사내 구매·품질·생산·사업관리 (+협력사 연계)</td></tr>
+    <tr><td>위치</td><td>별도 협력사 전용 앱</td><td>챗봇 포털 <b>사내 운영 페이지</b>에 추가</td></tr>
+    <tr><td>발주구분</td><td>단일 발주 개념</td><td><b>발주형태(PO_TYPE)·사급여부</b>로 외주/일반 구분</td></tr>
+    <tr><td>검사</td><td>사진 등록·확인 수준</td><td><b>외주=검사신청/검사결과(합격·불합격) 정식 흐름</b></td></tr>
+    <tr><td>조회 기준</td><td>발주 단위</td><td><b>구매요청(PR) / 발주(PO) 기준 전환</b></td></tr>
+    <tr><td>공유</td><td>협력사 ↔ 구매</td><td>관련 4개 팀 + 대시보드/현황자료</td></tr>
+  </table>
+
+  <h2><span class="num">2</span>ERP 발주구분과 외주 판별</h2>
+  <p>구매 발주는 ERP 발주헤더(<code>M_PUR_ORD_HDR</code>)의 <code>PO_TYPE_CD</code>(발주형태)로 종류가 나뉜다. 발주형태 마스터(<code>M_CONFIG_PROCESS</code>)의 <code>SUBCONTRA_FLG</code>(사급여부)가 <b>Y이면 외주(사급)</b>로 판별하여 검사신청/결과 흐름을 추가한다.</p>
+  <table>
+    <tr><th>발주형태(PO_TYPE)</th><th class="c">사급(외주)</th><th class="c">입고</th><th>검사 처리</th></tr>
+    <tr><td><b>DIV</b> 국내매입</td><td class="c">–</td><td class="c">입고</td><td>입고검사(일반)</td></tr>
+    <tr><td><b>SIE</b> 외주제작</td><td class="c"><span class="badge p">Y</span></td><td class="c">입고</td><td><b>검사신청 → 검사결과(판정)</b></td></tr>
+    <tr><td><b>SIF</b> 외주설치</td><td class="c"><span class="badge p">Y</span></td><td class="c">현장</td><td>현장 검수확인</td></tr>
+    <tr><td><b>SIE-1</b> 외주제작(수불X)</td><td class="c"><span class="badge p">Y</span></td><td class="c">–</td><td>검수확인</td></tr>
+  </table>
+  <div class="callout pur"><b class="tag">핵심 규칙</b><code>SUBCONTRA_FLG = Y</code> → 외주 발주 → <b>입고 후 검사신청(검사의뢰번호 INSP_REQ_NO) 자동 생성 → 품질 검사 → 검사결과(INSP_RESULT_NO·합격/불합격 판정) 등록</b>. 합격 시 매입(M_IV) 진행, 불합격 시 보류·재작업 요청.</div>
+
+  <h2><span class="num">3</span>진행 단계 파이프라인</h2>
+  <div class="flow">
+    <div class="box"><h4>구매요청</h4><p>PR 등록<br><span class="small">M_PUR_REQ</span></p></div>
+    <div class="arrow">→</div>
+    <div class="box"><h4>발주</h4><p>확정발주<br><span class="small">M_PUR_ORD</span></p></div>
+    <div class="arrow">→</div>
+    <div class="box"><h4>입고</h4><p>입고대기/완료<br><span class="small">M_PUR_GOODS_MVMT</span></p></div>
+    <div class="arrow">→</div>
+    <div class="box hl"><h4>검사신청/결과</h4><p>외주 전용<br><span class="small">Q_INSPECTION</span></p></div>
+    <div class="arrow">→</div>
+    <div class="box"><h4>매입완료</h4><p>정산<br><span class="small">M_IV</span></p></div>
+  </div>
+  <p class="small">일반(비외주) 발주는 검사신청/결과 단계 대신 입고검사로 처리되며 곧바로 매입으로 진행된다. 구매요청(PR) 기준 조회 시 파이프라인 첫 단계가 구매요청부터 표시되어 <b>요청→발주 전환·미발주 잔량</b>까지 확인할 수 있다.</p>
+
+  <h2><span class="num">4</span>팀별 뷰 (관련팀 공유)</h2>
+  <table>
+    <tr><th>팀</th><th>관심 단계</th><th>대시보드 활용</th></tr>
+    <tr><td><b>구매</b></td><td>요청·발주·입고·정산 전체</td><td>납기 임박/지연, 미발주 잔량, 거래처 진행</td></tr>
+    <tr><td><b>품질</b></td><td>검사신청·검사결과</td><td>검사 대기 큐, 합격률·초도 합격률, 불합격 사유</td></tr>
+    <tr><td><b>생산</b></td><td>사급 투입·외주 완성 입고</td><td>검사 합격 후 생산 투입 가능 시점 연계</td></tr>
+    <tr><td><b>사업관리</b></td><td>프로젝트별 외주 진척</td><td>외주비 발주~매입 진행, 실행원가 반영 시점</td></tr>
+  </table>
+  <p>대시보드 상단에서 <b>팀 뷰</b>를 선택하면 해당 팀 관심 단계가 강조되고, 행에는 담당팀이 표기되어 협업 책임이 분명해진다.</p>
+
+  <h2><span class="num">5</span>화면 구성</h2>
+  <p>사내 운영 페이지 카드(🏭 외주 발주·검사 진행현황) → 대시보드 진입. 구성은 ① 조회기준 토글(PR/PO)·팀 뷰·외주만 필터 ② KPI(표시건수·외주건수·진행중·검사대기·보류·합산발주액) ③ 진행 파이프라인 ④ 발주구분 구성·외주 검사 현황(합격률) ⑤ <b>발주별 진행현황 테이블</b>(행 클릭 시 외주 검사 상세 펼침: 검사의뢰번호·검사결과번호·검사항목·합격/불합격 수량·판정·검사담당) 순이다.</p>
+
+  <h2><span class="num">6</span>데이터 연계 (읽기전용)</h2>
+  <table>
+    <tr><th>영역</th><th>ERP 테이블</th><th>주요 항목</th></tr>
+    <tr><td>구매요청</td><td><code>M_PUR_REQ</code></td><td>구매요청번호·요청수량·발주예정일</td></tr>
+    <tr><td>발주</td><td><code>M_PUR_ORD_HDR / M_PUR_ORD_DTL</code></td><td>발주번호·발주형태·공급처·발주량·납기·확정FLAG</td></tr>
+    <tr><td>발주형태(구분)</td><td><code>M_CONFIG_PROCESS</code></td><td>PO_TYPE_CD·PO_TYPE_NM·<b>SUBCONTRA_FLG(사급)</b></td></tr>
+    <tr><td>입고/검사판정</td><td><code>M_PUR_GOODS_MVMT</code></td><td>검사요청번호·검사상태·판정양품/불량수량</td></tr>
+    <tr><td>검사의뢰/결과</td><td><code>Q_INSPECTION_*</code></td><td>INSP_REQ_NO·INSP_RESULT_NO·합격/불합격·불량유형</td></tr>
+    <tr><td>매입</td><td><code>M_IV</code></td><td>매입확정·정산</td></tr>
+    <tr><td>거래처·품목</td><td><code>B_BP · B_ITEM</code></td><td>외주처명·품번·품명·규격</td></tr>
+  </table>
+  <div class="callout blue"><b class="tag">연계 원칙</b>ERP는 <b>읽기전용</b> 조회만 사용한다. 진행상태 시각화·검사 큐·팀 뷰는 ERP 데이터를 가공해 표시하며, 협력사 포털(1차)의 사진 등 신규 데이터만 포털 DB에 저장하여 검사 단계 증빙으로 연계한다.</div>
+
+  <h2><span class="num">7</span>적용 범위 (2차) 및 다음 단계</h2>
+  <table>
+    <tr><th>포함 (2차)</th><th>차기 (3차)</th></tr>
+    <tr><td>사내 운영페이지 대시보드 추가 (데모)</td><td>ERP 발주/검사 실시간 연계(읽기) 구현</td></tr>
+    <tr><td>발주구분·외주 검사신청/결과 흐름 적용</td><td>협력사 포털 사진 ↔ 검사 단계 자동 연계</td></tr>
+    <tr><td>PR/PO 기준 토글·팀 뷰·검사 상세</td><td>검사 합격→매입 자동 알림, 불합격 재작업 워크플로</td></tr>
+    <tr><td>샘플 발주품목 적용</td><td>프로젝트 원가·납기 KPI 경보 연동</td></tr>
+  </table>
+
+  <div class="callout amber"><b class="tag">확정 필요</b>
+    ① 외주 판별 기준 최종 확인(SUBCONTRA_FLG 단독 vs 특정 PO_TYPE 목록 병행) ·
+    ② 검사신청 생성 시점(입고 시 자동 vs 품질 수동) ·
+    ③ 검사 데이터 원천 확정(M_PUR_GOODS_MVMT 판정 vs Q_INSPECTION 상세 중 표준) ·
+    ④ 팀별 열람 권한 범위(관리자 콘솔 권한 적용)
+  </div>
+
+  <div class="footer">
+    <span>제일메디칼 · JEIL AX — 외주 발주·검사 진행현황 운영페이지 고도화 기획(2차)</span>
+    <span>2026. 06. 25.</span>
+  </div>
+
+</div>
+</body>
+</html>

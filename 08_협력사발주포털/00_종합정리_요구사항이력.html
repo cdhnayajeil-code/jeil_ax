@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>외주 협력사 발주·검사 시스템 — 종합 정리 / 요구사항 이력</title>
+<style>
+  :root{
+    --navy:#1a2f4e; --navy2:#27457a; --accent:#2f6fb3; --accent2:#4a8ed0;
+    --red:#b3402f; --green:#2e7d52; --amber:#9a6b1f; --purple:#6b4a9a; --teal:#1f7a7a;
+    --ink:#222; --muted:#666; --line:#d8dee8; --bg:#f4f6f9;
+    --soft:#eef2f8; --softred:#fbeeec; --softgreen:#ecf5f0; --softamber:#faf3e4; --softpur:#f1ecf8;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif; color:var(--ink); background:var(--bg); line-height:1.65; font-size:15px;}
+  .page{max-width:980px; margin:0 auto; background:#fff; padding:52px 60px; box-shadow:0 2px 14px rgba(0,0,0,.08);}
+  .doc-label{display:inline-block; background:var(--navy); color:#fff; font-size:12px; letter-spacing:.18em; padding:5px 14px; border-radius:3px; margin-bottom:18px;}
+  h1{font-size:27px; color:var(--navy); line-height:1.35; margin-bottom:10px;}
+  .subtitle{font-size:15.5px; color:var(--muted); margin-bottom:24px;}
+  .meta{display:flex; flex-wrap:wrap; border:1px solid var(--line); border-radius:6px; overflow:hidden; margin-bottom:30px;}
+  .meta div{flex:1 1 25%; padding:10px 16px; font-size:13px; border-right:1px solid var(--line); background:var(--soft);}
+  .meta div:last-child{border-right:none;}
+  .meta b{display:block; color:var(--navy); font-size:12px; margin-bottom:2px;}
+  .toc{background:var(--soft); border-radius:10px; padding:18px 24px; margin-bottom:10px;}
+  .toc h3{font-size:12.5px; color:var(--navy); letter-spacing:.04em; margin-bottom:8px;}
+  .toc ol{margin:0 0 0 18px;} .toc li{margin-bottom:4px; font-size:13.5px;}
+  .toc a{color:var(--accent); text-decoration:none;}
+  h2{font-size:20px; color:var(--navy); margin:42px 0 14px; padding-bottom:9px; border-bottom:3px solid var(--navy); display:flex; align-items:center; gap:10px;}
+  h2 .num{background:var(--navy); color:#fff; font-size:13px; width:27px; height:27px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; flex:none;}
+  h3{font-size:16px; color:var(--navy2); margin:24px 0 9px;}
+  p{margin-bottom:11px;}
+  table{width:100%; border-collapse:collapse; margin:12px 0 18px; font-size:13px;}
+  th{background:var(--navy); color:#fff; padding:8px 11px; text-align:left; font-weight:600;}
+  td{padding:7px 11px; border-bottom:1px solid var(--line); vertical-align:top;}
+  tr:nth-child(even) td{background:#fafbfd;}
+  td.c,th.c{text-align:center;}
+  code{font-family:Consolas,monospace; font-size:12px; background:var(--soft); border:1px solid var(--line); border-radius:4px; padding:1px 6px;}
+  .callout{border-radius:8px; padding:14px 18px; margin:13px 0; font-size:13.5px;}
+  .callout.blue{background:var(--soft); border-left:5px solid var(--accent);}
+  .callout.green{background:var(--softgreen); border-left:5px solid var(--green);}
+  .callout.amber{background:var(--softamber); border-left:5px solid var(--amber);}
+  .callout.pur{background:var(--softpur); border-left:5px solid var(--purple);}
+  .callout b.tag{display:block; font-size:12.5px; margin-bottom:5px;}
+  .badge{display:inline-block; font-size:11px; border-radius:10px; padding:2px 9px; font-weight:600;}
+  .badge.g{background:var(--softgreen); color:var(--green);} .badge.b{background:var(--soft); color:var(--navy2);} .badge.p{background:var(--softpur); color:var(--purple);} .badge.a{background:var(--softamber); color:var(--amber);}
+  .req{border-left:4px solid var(--accent); background:#fbfcfe; border-radius:0 9px 9px 0; padding:13px 18px; margin:12px 0;}
+  .req .rh{font-weight:800; color:var(--navy); font-size:14.5px; margin-bottom:5px;}
+  .req .rq{font-size:13px; color:#444; font-style:italic; background:var(--soft); border-radius:6px; padding:6px 10px; margin-bottom:7px;}
+  .req .ra{font-size:13.5px;}
+  .tree{font-family:Consolas,monospace; font-size:12.5px; background:#1a2330; color:#d7e0ec; border-radius:9px; padding:16px 20px; white-space:pre; overflow-x:auto; line-height:1.6;}
+  .filelink{display:flex; align-items:center; gap:12px; background:var(--soft); border:1px solid var(--line); border-radius:10px; padding:12px 16px; margin:9px 0; text-decoration:none; color:var(--ink);}
+  .filelink .ic{font-size:24px;} .filelink b{color:var(--navy);} .filelink span{font-size:12px; color:var(--muted); display:block;}
+  .footer{margin-top:50px; padding-top:16px; border-top:1px solid var(--line); font-size:12px; color:var(--muted); display:flex; justify-content:space-between;}
+  @media print{ body{background:#fff;} .page{box-shadow:none; padding:20px 0; max-width:100%;} h2{break-after:avoid;} table,.callout,.req{break-inside:avoid;} }
+  @media (max-width:760px){ .page{padding:30px 20px;} }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <span class="doc-label">프로젝트 종합 정리 · 요구사항 이력</span>
+  <h1>외주 협력사 발주·검사 시스템 — 종합 정리</h1>
+  <p class="subtitle">협력사 모바일 발주·사진 포털 ↔ 사내 외주 발주·검사 진행현황 대시보드 (ERP 연계·라이브 동기화) — 기획부터 데모까지 전 과정 정리</p>
+
+  <div class="meta">
+    <div><b>작성일</b>2026. 06. 25.</div>
+    <div><b>관리자</b>최동혁</div>
+    <div><b>데이터 원천</b>UNIERP DB (읽기전용)</div>
+    <div><b>단계</b>기획 + 동작 데모(목업)</div>
+  </div>
+
+  <div class="toc">
+    <h3>목차</h3>
+    <ol>
+      <li><a href="#s1">프로젝트 개요</a></li>
+      <li><a href="#s2">요구사항 이력 (지시 내용 전체)</a></li>
+      <li><a href="#s3">산출물 목록 및 폴더 구조</a></li>
+      <li><a href="#s4">시스템 구성 · 데이터 연계 구조</a></li>
+      <li><a href="#s5">전체 프로세스 (10단계) 정의</a></li>
+      <li><a href="#s6">ERP 실제 적용 검증 (테이블 매핑)</a></li>
+      <li><a href="#s7">기능 명세 (모바일 / 대시보드)</a></li>
+      <li><a href="#s8">데모 실행 · 연동 확인 방법</a></li>
+      <li><a href="#s9">향후 과제</a></li>
+    </ol>
+  </div>
+
+  <h2 id="s1"><span class="num">1</span>프로젝트 개요</h2>
+  <p>사내 구매팀은 ERP(발주 모듈)에서 외주 협력사에 발주를 내고, 협력사는 가공·제작·출하를 진행한다. 그 과정의 증빙(작업·완성 사진), 진행상태, 검수 결과가 전화·메일·메신저로 분산되어 추적이 어려웠다. 본 프로젝트는 <b>발주번호를 축으로 협력사의 등록 활동과 사내 검사·입고·매입을 한 흐름으로 연결</b>하는 것을 목표로 한다.</p>
+  <p>두 개의 화면으로 구성된다. ① <b>협력사 모바일 포털</b> — 협력사가 자사 발주를 조회하고 사진 등록·진행상태 변경·검수요청·메시지를 입력하는 하이브리드앱형 화면. ② <b>사내 외주 발주·검사 진행현황 대시보드</b> — 구매·품질·생산·사업관리가 구매요청→발주→협력사→입고→매입 전 과정을 발주별로 보고, 검수 판정(합/부)·메시지를 처리하는 운영 화면. 두 화면은 <b>공유 데이터(localStorage)로 실시간 양방향 연동</b>된다.</p>
+  <div class="callout blue"><b class="tag">핵심 원칙</b>ERP는 <b>읽기전용 연계</b>(발주/구매요청/입고/매입/검사 조회)만 사용한다. 협력사가 생성하는 사진·상태·메시지·검수요청과 사내 검수 판정은 <b>포털 전용 데이터</b>로 보관하여 ERP 본 시스템에 영향을 주지 않는다.</div>
+
+  <h2 id="s2"><span class="num">2</span>요구사항 이력 (지시 내용 전체)</h2>
+  <p>지금까지 지시된 내용을 순서대로 정리한다. 각 단계의 요청(원문 요지)과 반영 결과를 함께 기록한다.</p>
+
+  <div class="req"><div class="rh">① 1차 — 협력사용 발주·사진등록 포털 기획 + 하이브리드앱</div>
+    <div class="rq">"구매발주 업체들의 발주·품목을 ERP 기반으로, 협력사가 로그인해 구매팀과 컨택하며 발주 기준 사진을 등록·확인하는 외주협력사용 페이지를 1차 초안 기획·문서화하고 HTML 하이브리드앱으로 구성"</div>
+    <div class="ra">기획서(Markdown + HTML 2종) + 모바일 하이브리드앱 데모 제작. 로그인·발주 목록/상세·사진 등록(실제 업로드 미리보기)·구매팀 메시지·진행상태 4단계. 로그인 가정: 협력사 계정(ID/PW).</div></div>
+
+  <div class="req"><div class="rh">② 단일 HTML 통합 · 관리자 표기 정정</div>
+    <div class="rq">"HTML 하나로 만들고, 관리자는 최동혁, 팀은 넣지 말고 생성"</div>
+    <div class="ra">기획서 + 데모를 단일 HTML로 통합(데모는 iframe 격리 내장). 관리자 <b>최동혁</b>, 팀(부서) 표기 제거.</div></div>
+
+  <div class="req"><div class="rh">③ 2차 — 사내 운영페이지에 외주 발주·검사 대시보드 추가</div>
+    <div class="rq">"AI.JEILM.CO.KR 챗봇 데모의 사내 운영페이지에 추가. ERP 발주구분에서 외주일 경우 검사신청/결과를 적용. 진행사항을 대시보드/현황으로 품질·구매·생산·사업관리가 구매요청/발주 기준으로 확인. 고도화 기획 문서화 후 2차 데모"</div>
+    <div class="ra">2차 고도화 기획서 작성. 사내 대시보드 제작(발주구분·외주 검사신청/결과, 구매요청·발주 기준, 팀 뷰). 챗봇 포털(04)의 부서 운영 페이지에 카드 추가, 공유용 통합본 재빌드.</div></div>
+
+  <div class="req"><div class="rh">④ 협력사 등록 내용 ↔ 사내 대시보드 라이브 연동</div>
+    <div class="rq">"기존 모바일 협력사 기능은 유지하되 등록한 내용이 연결·반영되도록. 기존 협력사 모바일 발주사진 포털을 연계해 맥락에 맞게 재검토"</div>
+    <div class="ra">공유 데이터(localStorage, 키 <code>jeilax_link_v1</code>)로 <b>모바일 ↔ 대시보드 실시간 연동</b> 구현. 협력사 등록 사진(증빙)·상태 변경·메시지·검수요청(검사신청 자동생성)이 대시보드에 반영. 발주번호/품목/거래처 정합화. 모바일 포털 standalone 분리.</div></div>
+
+  <div class="req"><div class="rh">⑤ ERP 실제 적용 검증 + 전체 프로세스 한눈에 + 모바일 프로세스</div>
+    <div class="rq">"ERP 실제 DB 적용 확인·검토. 대시보드/현황을 한눈에. 구매요청–발주–(협력사: 발주확인·접수·생산·사진등록·검수요청·출하)–입고–매입 전체 프로세스를 발주별로 가시화. 모바일에서도 간단히 데모"</div>
+    <div class="ra">ERP 사전(스키마 단일 진실원천)으로 테이블·컬럼 검증. <b>전체 10단계 프로세스 보드</b>(JEIL→협력사→ERP 3존)를 발주별 카드로 가시화. 프로세스↔ERP 매핑표 명시. 모바일 발주 상세에 전체 프로세스 스트립 추가.</div></div>
+
+  <div class="req"><div class="rh">⑥ 대시보드 사진 샘플 표시</div>
+    <div class="rq">"대시보드에서 사진도 샘플로 넣어서 확인할 수 있게"</div>
+    <div class="ra">발주 카드에 사진 썸네일 갤러리 + 클릭 확대(라이트박스) 추가. 협력사 실제 등록 사진이 있으면 그것을, 없으면 샘플을 표시.</div></div>
+
+  <div class="req"><div class="rh">⑦ 모바일 간결화 + 대시보드 조회/구분/현황 개선 + 사진 인식형 자료</div>
+    <div class="rq">"모바일은 협력사 관점으로 간결하게 필요한 내용만. 팀뷰 구분은 나누지 말고, 조회조건 상단에 프로젝트코드·협력사 품목·기간. 발주구분을 나눠서 표시. 대시보드 현황도 직관적으로. 사진 샘플도 이해되도록 사진형 자료"</div>
+    <div class="ra">대시보드 재설계: <b>팀뷰 제거</b>, 상단 <b>조회조건(프로젝트코드·협력사/품목 검색·기간)</b>, <b>발주구분별 그룹화</b>, KPI 5종 + 진행 단계 분포 막대로 단순화. 사진을 <b>내용 인식형 SVG 일러스트</b>(가공·완성·포장·출하·PCB·검사·베어링·밸브 등)로 교체(모바일·대시보드 공통).</div></div>
+
+  <div class="req"><div class="rh">⑧ 발주번호·품목 실제 ERP 형식 + 모바일 메시지 버튼 + 단계취소</div>
+    <div class="rq">"발주번호·품목도 실제 ERP DB 기준 샘플링. 모바일에서 메시지를 보내고 볼 수 있는 버튼 추가해 직접 연결. 모바일 단계취소 기능도 적용"</div>
+    <div class="ra">발주번호 <b>실제 ERP 형식</b>(<code>PO+YYYYMMDD+일련번호</code>), 실제 품목(PLT-AL5T·UNI-25A-S·ORG-P22N·BRG-6204Z 등)·거래처 적용(양쪽 동일 PO 키). 모바일 발주 목록/상세에 메시지 버튼, 단계 취소(이전 단계 복귀, 검사신청 자동취소) 추가.</div></div>
+
+  <div class="req"><div class="rh">⑨ 모바일 표시 정돈 + 메시지 양방향(현황 메뉴 버튼)</div>
+    <div class="rq">"모바일 단계취소 버튼·전체 표시를 자연스럽게. 메시지 기능을 현황(대시보드) 메뉴에서 버튼 추가해 적용"</div>
+    <div class="ra">완료 상태 버튼 레이아웃 정돈(글자 깨짐 수정). 메시지 <b>양방향 실시간 동기화</b> + 대시보드 카드에 <b>💬 메시지 버튼·대화 모달</b>(구매팀 답장) 추가.</div></div>
+
+  <div class="req"><div class="rh">⑩ 검수 판정(합/부) + 판정 인원 기록</div>
+    <div class="rq">"현황 메뉴에서 검수요청 단계 항목은 검수 버튼을 눌러 합/부를 선택하고, 합/부를 선택한 인원이 기록에 남도록 생성"</div>
+    <div class="ra">대시보드 검수요청 단계 카드에 <b>🔬 검수 판정</b> 버튼 → 검사자(인원) 입력·합격/불합격 선택 → <b>판정 결과·판정자·일시·소견을 기록</b>(검수 판정 이력). 합격 시 입고 진행, 불합격 시 보류. 협력사 모바일에 검수 결과 배너 표시·기록 보존.</div></div>
+
+  <h2 id="s3"><span class="num">3</span>산출물 목록 및 폴더 구조</h2>
+  <div class="tree">08_협력사발주포털/                         ← 프로젝트 홈
+├─ 00_종합정리_요구사항이력.html          ← 본 문서
+├─ README.md                              ← 빠른 인덱스
+├─ 01_기획문서/
+│   ├─ 1차_협력사_발주사진_포털.html       ← 1차 기획 + 모바일 데모 내장
+│   └─ 2차_외주발주_검사진행_고도화기획.html ← 2차 고도화 기획
+└─ 02_데모/                               ← 연동 동작 데모 (한 쌍)
+    ├─ 협력사_모바일_포털.html             ← 협력사 모바일 포털
+    └─ 사내_외주발주_검사_대시보드.html     ← 사내 현황 대시보드
+
+[연계 배포본 — 챗봇 포털에 통합]
+JEIL_AX/pages/협력사_모바일_포털.html        ← 동일(라이브 배포본)
+JEIL_AX/pages/외주발주_검사진행현황_2026.html ← 동일(라이브 배포본)
+JEIL_AX/04_챗봇_포털_데모UI.html             ← 사내 운영페이지에 카드 2종 연결
+JEIL_AX/JEIL_AX_포털데모_통합본.html          ← 공유용 단일 파일(재빌드)</div>
+  <div class="callout amber"><b class="tag">파일 위치 안내</b><code>02_데모</code> 폴더의 두 파일은 <b>같은 폴더에서 함께 열면 실시간 연동</b>되는 한 쌍이다. <code>pages/</code>의 동일 파일은 챗봇 포털(04)·통합본과 연결된 <b>라이브 배포본</b>이다. 두 위치는 내용이 같으며, 수정 시 양쪽을 함께 갱신한다.</div>
+
+  <h2 id="s4"><span class="num">4</span>시스템 구성 · 데이터 연계 구조</h2>
+  <p>ERP(읽기전용)에서 발주·구매요청·입고·매입·검사 정보를 가져오고, 협력사·사내가 생성하는 데이터는 포털 전용 저장소에 둔다. 데모에서는 포털 전용 저장소를 <b>브라우저 localStorage</b>로 구현하여, 같은 사이트(또는 같은 브라우저)에서 두 화면이 실시간 공유한다.</p>
+  <div class="tree">[ERP UNIERP DB]  --읽기전용-->  [연계 게이트웨이]  -->  협력사 모바일 포털  ⇄  사내 대시보드
+                                                          └──────── 공유데이터(localStorage: jeilax_link_v1) ────────┘</div>
+
+  <h3>공유 데이터 스키마 (키: <code>jeilax_link_v1</code>)</h3>
+  <table>
+    <tr><th>필드 (orders[발주번호])</th><th>내용</th><th>쓰는 주체</th></tr>
+    <tr><td><code>status</code></td><td>협력사 진행상태 (신규접수/생산중/검수요청/완료)</td><td>모바일</td></tr>
+    <tr><td><code>photos[] / photoCount</code></td><td>등록 사진 메타(태그·코멘트·등록자·확인상태)</td><td>모바일</td></tr>
+    <tr><td><code>messages[] / msgCount / lastMsg</code></td><td>발주별 메시지(협력사·구매팀)</td><td>모바일 · 대시보드(양방향)</td></tr>
+    <tr><td><code>inspRequested / inspReqNo</code></td><td>검수요청 여부 + 검사신청번호(자동생성)</td><td>모바일</td></tr>
+    <tr><td><code>inspection</code></td><td>검수 판정 결과(합격/불합격·결과번호·판정자·일시·소견)</td><td>대시보드</td></tr>
+    <tr><td><code>inspLog[]</code></td><td>검수 판정 이력(인원 기록 누적)</td><td>대시보드</td></tr>
+  </table>
+  <div class="callout pur"><b class="tag">연동 동작</b>한 화면에서 변경 시 <code>storage</code> 이벤트로 다른 화면이 자동 갱신된다. 협력사 등록(사진·상태·검수요청·메시지) → 대시보드 반영, 대시보드 처리(메시지 답장·검수 판정) → 모바일 반영. 사진은 용량을 고려해 메타데이터만 공유하고, 대시보드는 내용 인식형 참조 이미지로 표시한다.</div>
+
+  <h2 id="s5"><span class="num">5</span>전체 프로세스 (10단계) 정의</h2>
+  <table>
+    <tr><th class="c">존</th><th>단계</th><th>주체</th><th>설명</th></tr>
+    <tr><td class="c" rowspan="2"><span class="badge b">JEIL</span></td><td>① 구매요청</td><td>구매</td><td>PR 등록</td></tr>
+    <tr><td>② 발주</td><td>구매</td><td>확정발주(발주구분 결정)</td></tr>
+    <tr><td class="c" rowspan="6"><span class="badge p">협력사</span></td><td>③ 발주확인</td><td>협력사</td><td>발주 접수 확인</td></tr>
+    <tr><td>④ 접수</td><td>협력사</td><td>작업 착수</td></tr>
+    <tr><td>⑤ 생산</td><td>협력사</td><td>가공·제작</td></tr>
+    <tr><td>⑥ 사진등록</td><td>협력사</td><td>작업·완성 사진(검사 증빙)</td></tr>
+    <tr><td>⑦ 검수요청</td><td>협력사</td><td><b>외주(사급) 또는 검수업체 지정 시</b> — 검사신청 자동생성</td></tr>
+    <tr><td>⑧ 출하</td><td>협력사</td><td>납품 출하</td></tr>
+    <tr><td class="c" rowspan="2"><span class="badge g">ERP</span></td><td>⑨ 입고</td><td>사내/품질</td><td>입고처리 + 검수 판정(합/부)</td></tr>
+    <tr><td>⑩ 매입</td><td>사내</td><td>매입 확정</td></tr>
+  </table>
+  <p class="small">일반(비외주, DIV) 발주는 ⑦ 검수요청 단계를 생략하고 입고검사로 처리한다.</p>
+
+  <h2 id="s6"><span class="num">6</span>ERP 실제 적용 검증 (테이블 매핑)</h2>
+  <p>ERP 사전(스키마 스냅샷, 2026-04-15 기준)으로 아래 테이블·컬럼의 실존을 확인했다. (운영 DB 직접 쿼리는 망 분리로 미수행 — 사전이 스키마 단일 진실원천)</p>
+  <table>
+    <tr><th>구간 / 항목</th><th>ERP 테이블 · 컬럼</th></tr>
+    <tr><td>구매요청</td><td><code>M_PUR_REQ</code> (PR_NO·PR_STS·REQ_QTY·ORD_QTY·RCPT_QTY)</td></tr>
+    <tr><td>발주 / 발주구분</td><td><code>M_PUR_ORD_HDR/DTL</code> (PO_NO·RELEASE_FLG) · <code>M_CONFIG_PROCESS</code> (PO_TYPE_CD·PO_TYPE_NM·<b>SUBCONTRA_FLG</b> 사급여부)</td></tr>
+    <tr><td>입고 · 출하 · 검사판정</td><td><code>M_PUR_GOODS_MVMT</code> (MVMT_RCPT_NO 입고번호·MVMT_RCPT_DT·DN_NO 출하번호·INSPECT_REQ_NO·INSPECT_STS·INSPECT_GOOD_QTY/BAD_QTY)</td></tr>
+    <tr><td>검사 의뢰 / 결과</td><td><code>Q_INSPECTION_*</code> (INSP_REQ_NO 검사의뢰번호·INSP_RESULT_NO 검사결과번호·합격/불합격)</td></tr>
+    <tr><td>매입</td><td><code>M_IV_HDR/DTL</code> (IV_QTY)</td></tr>
+    <tr><td>거래처 / 품목</td><td><code>B_BP</code> · <code>B_ITEM</code></td></tr>
+  </table>
+  <div class="callout green"><b class="tag">실제 형식·값 적용</b>발주번호는 실제 ERP 형식 <code>PO+YYYYMMDD+일련번호</code>(예: <code>PO202606220012</code>), 구매요청 <code>PR+YYYYMMDD+seq</code>, 검사 <code>IR/IQ+YYYYMMDD+seq</code>. 품목은 실제 ERP 품목(알루미늄 플레이트 5T <code>PLT-AL5T</code>, 유니온 배관 25A SUS <code>UNI-25A-S</code>, 오링 P-22 NBR <code>ORG-P22N</code>, 볼베어링 6204ZZ <code>BRG-6204Z</code> 등)과 실제 거래처(오성테크·이천베아링·신호종합배관·대신스텐레스·지아이텍)를 적용했다.</div>
+
+  <h2 id="s7"><span class="num">7</span>기능 명세</h2>
+  <h3>협력사 모바일 포털</h3>
+  <table>
+    <tr><th>기능</th><th>설명</th></tr>
+    <tr><td>로그인</td><td>협력사 계정(ID/PW) — 데모 hanil-mt(한일정밀공업), 자사 발주만 조회</td></tr>
+    <tr><td>발주 목록/상세</td><td>발주번호·품목·납기·진행상태·사진현황. 검색·상태 필터. 목록 카드에 💬 메시지 버튼</td></tr>
+    <tr><td>전체 프로세스 스트립</td><td>발주 상세에서 10단계(JEIL·협력사·ERP) 현재 위치 표시</td></tr>
+    <tr><td>사진 등록</td><td>발주·품목 단위 업로드(카메라/파일), 태그·코멘트, 갤러리·확대·삭제 → 검사 증빙 연계</td></tr>
+    <tr><td>진행상태</td><td>신규접수→생산중→검수요청→완료. <b>다음 단계로 / ◀ 단계 취소</b>. 검수요청 시 검사신청 자동생성(취소 시 자동 철회)</td></tr>
+    <tr><td>메시지</td><td>발주별 구매팀과 대화(양방향 실시간). 보내기·보기 버튼 직접연결</td></tr>
+    <tr><td>검수 결과</td><td>사내 검수 판정(합/부·판정자) 결과 배너 표시</td></tr>
+  </table>
+  <h3>사내 외주 발주·검사 대시보드 (현황)</h3>
+  <table>
+    <tr><th>기능</th><th>설명</th></tr>
+    <tr><td>조회 조건</td><td>프로젝트 코드 · 협력사/품목 검색 · 기간(발주일) · 협력사 연계만</td></tr>
+    <tr><td>현황 요약</td><td>KPI 5종(전체/진행중/검사중/완료/보류) + 진행 단계 분포 막대</td></tr>
+    <tr><td>발주구분 그룹</td><td>SIE 외주제작 / SIE-1 외주제작(수불X) / SIF 외주설치 / DIV 국내매입으로 그룹 표시</td></tr>
+    <tr><td>발주별 프로세스 보드</td><td>발주마다 10단계 진행 상태 + 협력사 사진 썸네일(확대) + 검사 상세</td></tr>
+    <tr><td>메시지</td><td>카드별 💬 메시지 — 협력사 대화 보기·구매팀 답장(양방향)</td></tr>
+    <tr><td>검수 판정</td><td>검수요청 단계 카드에 🔬 검수 판정 — 검사자 입력·합/부 선택·소견 → 결과·<b>판정 인원 기록</b>(이력)</td></tr>
+    <tr><td>실시간 연계</td><td>협력사 등록분(사진·상태·검수요청·메시지) 자동 반영, 협력사 포털 열기 버튼</td></tr>
+  </table>
+
+  <h2 id="s8"><span class="num">8</span>데모 실행 · 연동 확인 방법</h2>
+  <p>아래 두 파일을 <b>같은 브라우저</b>에서(또는 같은 사이트에 배포하여) 두 탭으로 열면 실시간 연동을 확인할 수 있다.</p>
+  <a class="filelink" href="02_데모/협력사_모바일_포털.html"><span class="ic">📱</span><span><b>협력사 모바일 포털 열기</b><span>02_데모/협력사_모바일_포털.html</span></span></a>
+  <a class="filelink" href="02_데모/사내_외주발주_검사_대시보드.html"><span class="ic">🖥️</span><span><b>사내 외주 발주·검사 대시보드 열기</b><span>02_데모/사내_외주발주_검사_대시보드.html</span></span></a>
+  <div class="callout blue"><b class="tag">연동 시나리오 예시</b>
+    ① 모바일에서 발주(예: <code>PO202606200008</code>) 사진 등록·상태를 "검수요청"으로 변경 → 대시보드 해당 카드가 검사 단계로 갱신되고 사진 증빙·검사신청 표시. <br>
+    ② 대시보드에서 그 카드의 🔬 검수 판정 → 검사자 입력·합격 선택 → 프로세스 입고로 진행, 판정 인원 기록. <br>
+    ③ 모바일에 검수 결과 배너 표시. 메시지도 양쪽에서 주고받으면 실시간 반영.</div>
+  <p class="small">※ 데모는 목업이며 수치·사진은 예시다. 협력사 계정 격리, 실제 사진, 알림 등은 실제 구축 시 적용한다. 내 정보 화면의 "연계 데이터 초기화"로 데모 상태를 리셋할 수 있다.</p>
+
+  <h2 id="s9"><span class="num">9</span>향후 과제</h2>
+  <table>
+    <tr><th>구분</th><th>내용</th></tr>
+    <tr><td>ERP 실연동</td><td>구매요청·발주·입고·매입·검사 테이블 읽기전용 연계(게이트웨이) 구현</td></tr>
+    <tr><td>포털 백엔드</td><td>사진(파일 스토리지)·메시지·상태·검수 판정 저장소 및 API, 협력사 계정/권한</td></tr>
+    <tr><td>인증·보안</td><td>협력사 계정(차기 휴대폰 OTP/Entra 게스트), 행 단위 데이터 격리, 사외 망분리</td></tr>
+    <tr><td>고도화</td><td>검수 사진 증빙 자동 연계, 합격→매입 자동 알림·불합격 재작업 워크플로, 알림톡</td></tr>
+    <tr><td>배포</td><td>라이브(AI.JEILM.CO.KR / gh-pages) 배포</td></tr>
+  </table>
+
+  <div class="footer">
+    <span>제일메디칼 · JEIL AX — 외주 협력사 발주·검사 시스템 종합 정리</span>
+    <span>2026. 06. 25.</span>
+  </div>
+</div>
+</body>
+</html>

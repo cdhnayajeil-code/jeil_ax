@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>협력사용 발주·사진등록 포털 구축 기획(안) — 1차 초안</title>
+<style>
+  :root{
+    --navy:#1a2f4e; --navy2:#27457a; --accent:#2f6fb3; --accent2:#4a8ed0;
+    --red:#b3402f; --green:#2e7d52; --amber:#9a6b1f;
+    --ink:#222; --muted:#666; --line:#d8dee8; --bg:#f4f6f9;
+    --soft:#eef2f8; --softred:#fbeeec; --softgreen:#ecf5f0; --softamber:#faf3e4;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif; color:var(--ink); background:var(--bg); line-height:1.65; font-size:15px;}
+  .page{max-width:960px; margin:0 auto; background:#fff; padding:56px 64px; box-shadow:0 2px 14px rgba(0,0,0,.08);}
+  .doc-label{display:inline-block; background:var(--accent); color:#fff; font-size:12px; letter-spacing:.18em; padding:5px 14px; border-radius:3px; margin-bottom:18px;}
+  h1{font-size:29px; color:var(--navy); line-height:1.35; margin-bottom:10px;}
+  .subtitle{font-size:16px; color:var(--muted); margin-bottom:26px;}
+  .meta{display:flex; flex-wrap:wrap; border:1px solid var(--line); border-radius:6px; overflow:hidden; margin-bottom:36px;}
+  .meta div{flex:1 1 25%; padding:10px 16px; font-size:13px; border-right:1px solid var(--line); background:var(--soft);}
+  .meta div:last-child{border-right:none;}
+  .meta b{display:block; color:var(--navy); font-size:12px; margin-bottom:2px;}
+  .exec{background:var(--soft); border-radius:10px; padding:20px 24px; margin-bottom:8px;}
+  .exec h3{margin:0 0 8px; color:var(--navy); letter-spacing:.04em; font-size:13px;}
+  .exec ul{margin:6px 0 0 18px;} .exec li{margin-bottom:8px;}
+  h2{font-size:21px; color:var(--navy); margin:46px 0 16px; padding-bottom:10px; border-bottom:3px solid var(--navy); display:flex; align-items:center; gap:10px;}
+  h2 .num{background:var(--navy); color:#fff; font-size:14px; width:28px; height:28px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; flex:none;}
+  h3{font-size:16.5px; color:var(--navy2); margin:26px 0 10px;}
+  p{margin-bottom:12px;}
+  table{width:100%; border-collapse:collapse; margin:14px 0 20px; font-size:13px;}
+  th{background:var(--navy); color:#fff; padding:9px 12px; text-align:left; font-weight:600;}
+  td{padding:8px 12px; border-bottom:1px solid var(--line); vertical-align:top;}
+  tr:nth-child(even) td{background:#fafbfd;}
+  td.c,th.c{text-align:center;}
+  .callout{border-radius:8px; padding:16px 20px; margin:14px 0;}
+  .callout.green{background:var(--softgreen); border-left:5px solid var(--green);}
+  .callout.red{background:var(--softred); border-left:5px solid var(--red);}
+  .callout.amber{background:var(--softamber); border-left:5px solid var(--amber);}
+  .callout.blue{background:var(--soft); border-left:5px solid var(--accent);}
+  .callout b.tag{display:block; font-size:13px; margin-bottom:6px;}
+  .callout.green b.tag{color:var(--green);} .callout.red b.tag{color:var(--red);}
+  .callout.amber b.tag{color:var(--amber);} .callout.blue b.tag{color:var(--accent);}
+  .small{font-size:12.5px; color:var(--muted);}
+  code{font-family:Consolas,monospace; font-size:12px; background:var(--soft); border:1px solid var(--line); border-radius:4px; padding:1px 6px;}
+  a{color:var(--accent);}
+  .badge{display:inline-block; font-size:11px; border-radius:10px; padding:2px 9px; font-weight:600;}
+  .badge.g{background:var(--softgreen); color:var(--green);} .badge.a{background:var(--softamber); color:var(--amber);}
+  .badge.b{background:var(--soft); color:var(--navy2);} .badge.r{background:var(--softred); color:var(--red);}
+  .flow{display:flex; align-items:stretch; margin:18px 0; flex-wrap:wrap;}
+  .flow .box{flex:1; min-width:140px; border:2px solid var(--navy2); border-radius:10px; padding:13px 12px; text-align:center; background:#fff;}
+  .flow .box.hl{background:var(--soft); border-color:var(--accent);}
+  .flow .box h4{color:var(--navy); font-size:13.5px; margin-bottom:5px;}
+  .flow .box p{font-size:11.5px; color:var(--muted); margin:0;}
+  .flow .arrow{display:flex; flex-direction:column; justify-content:center; align-items:center; padding:0 8px; color:var(--accent); font-size:11px; font-weight:700; min-width:56px; text-align:center;}
+  .flow .arrow .line{font-size:20px; line-height:1;}
+  .demo-link{display:flex; align-items:center; gap:14px; background:linear-gradient(135deg,#27457a,#2f6fb3); color:#fff; border-radius:12px; padding:18px 22px; margin:18px 0; text-decoration:none;}
+  .demo-link .ico{font-size:30px;}
+  .demo-link b{font-size:15px;} .demo-link span{font-size:12.5px; opacity:.9; display:block;}
+  .footer{margin-top:56px; padding-top:16px; border-top:1px solid var(--line); font-size:12px; color:var(--muted); display:flex; justify-content:space-between;}
+  @media print{
+    body{background:#fff;} .page{box-shadow:none; padding:20px 0; max-width:100%;}
+    h2{break-after:avoid;} table,.callout,.flow{break-inside:avoid;}
+  }
+  @media (max-width:760px){ .page{padding:32px 22px;} .flow{flex-direction:column;} .flow .arrow{transform:rotate(90deg); min-width:auto; padding:4px 0;} }
+
+  /* embedded demo */
+  .demo-section{background:#dfe4ec; border-radius:14px; padding:30px 14px; margin:14px 0; text-align:center;}
+  .demo-frame{width:392px; max-width:100%; height:846px; border:none; border-radius:42px; background:#000;
+              box-shadow:0 24px 60px rgba(20,40,70,.28); }
+  .demo-cap{font-size:12px; color:var(--muted); margin-top:14px;}
+</style>
+</head>
+<body>
+<div class="page">
+
+  <span class="doc-label">실행 기획 · 협력사 포털 · 1차 초안</span>
+  <h1>협력사용 발주·사진등록 포털 구축 기획(안)</h1>
+  <p class="subtitle">ERP 발주 데이터 기반 — 외주 협력사가 발주 단위로 사진을 등록·확인하고 구매팀과 소통하는 하이브리드앱형 포털</p>
+
+  <div class="meta">
+    <div><b>작성일</b>2026. 06. 25.</div>
+    <div><b>관리자</b>최동혁</div>
+    <div><b>데이터 원천</b>ERP 발주 (사외 IDC MSSQL, 읽기전용)</div>
+    <div><b>사용자</b>외주 협력사 / 구매팀</div>
+  </div>
+
+  <a class="demo-link" href="#demoSection">
+    <span class="ico">📱</span>
+    <span><b>협력사 포털 데모 UI 바로보기 →</b><span>로그인·발주조회·사진등록·메시지·상태관리 동작 데모 (모바일 하이브리드앱 형태)</span></span>
+  </a>
+
+  <div class="exec">
+    <h3>EXECUTIVE SUMMARY</h3>
+    <ul>
+      <li>현재 구매발주 업무는 ERP에서 발주서를 관리하지만, 협력사가 진행 증빙(생산·검수 사진)을 공유하는 채널이 <b>전화·메일·메신저로 분산</b>되어 추적이 어렵다.</li>
+      <li>본 기획은 <b>ERP 발주 데이터를 기준(Source of Truth)으로</b> 협력사가 직접 로그인하여 자사 발주를 조회하고, <b>발주·품목 단위로 사진을 등록/확인하며, 구매 담당자와 메시지로 소통</b>하는 별도 협력사 전용 포털을 제안한다.</li>
+      <li>1차 초안은 <b>협력사 계정(ID/PW) 단순 로그인</b> 가정 하에 ① 발주 목록·상세 조회 ② 발주별 사진 등록·확인 ③ 구매팀 메시지/컨텍 ④ 진행상태 관리 4대 기능을 정의한다.</li>
+      <li>협력사는 현장에서 휴대폰 사용 비중이 높으므로 <b>모바일 우선(하이브리드앱) UI</b>로 설계하며, 본 산출물에는 동작 가능한 <b>HTML 프로토타입</b>을 포함한다.</li>
+      <li>ERP는 <b>읽기전용 연계</b>가 원칙이며, 협력사가 생성하는 사진·메시지·상태는 <b>포털 전용 DB</b>에 저장하여 ERP 본 시스템에 영향을 주지 않는다.</li>
+    </ul>
+  </div>
+
+  <h2><span class="num">1</span>추진 배경 및 목적</h2>
+  <p>구매팀은 ERP(발주 모듈)에서 협력사에 발주를 내고, 협력사는 생산·가공·출하를 진행하며 증빙 사진을 전달한다. 현재는 정해진 채널이 없어 카카오톡·이메일·전화로 산발적으로 오가며, ① 어느 발주의 사진인지 매칭이 어렵고 ② 증빙이 누락·분실되고 ③ 진행상태를 구매팀이 일일이 확인해야 하는 문제가 있다.</p>
+  <p>본 포털의 목적은 <b>"발주번호를 축으로 사진과 소통을 한곳에 모으는 것"</b>이다. ERP 발주 데이터를 기준으로 협력사가 자기 발주를 보고, 그 발주에 사진을 붙이고, 같은 화면에서 구매 담당자와 대화하도록 하여 증빙·소통·상태를 일원화한다.</p>
+
+  <h3>기대효과</h3>
+  <table>
+    <tr><th>구분</th><th>현재 (As-Is)</th><th>개선 (To-Be)</th></tr>
+    <tr><td>증빙 사진</td><td>메일·메신저 분산, 발주 매칭 수작업</td><td>발주·품목 단위 자동 귀속, 누락 방지</td></tr>
+    <tr><td>진행상태 파악</td><td>구매팀이 개별 확인</td><td>협력사 입력 상태 실시간 가시화</td></tr>
+    <tr><td>소통 이력</td><td>채널 분산, 추적 불가</td><td>발주별 메시지 스레드로 보존</td></tr>
+    <tr><td>데이터 신뢰성</td><td>구두·메모 기반</td><td>ERP 발주 원천 + 타임스탬프 증빙</td></tr>
+  </table>
+
+  <h2><span class="num">2</span>적용 범위 (1차)</h2>
+  <table>
+    <tr><th>포함 (In-Scope)</th><th>제외 (Out-of-Scope, 차기)</th></tr>
+    <tr><td>협력사 계정 ID/PW 로그인</td><td>휴대폰 OTP · Entra 게스트 연동</td></tr>
+    <tr><td>ERP 발주 목록/상세 조회 (읽기)</td><td>ERP 발주 생성·수정 (쓰기)</td></tr>
+    <tr><td>발주·품목 단위 사진 업로드/뷰어</td><td>사진 AI 검수·자동 판독</td></tr>
+    <tr><td>발주별 구매팀 메시지(스레드)</td><td>실시간 푸시·알림톡 연동</td></tr>
+    <tr><td>진행상태 4단계 관리</td><td>정산·세금계산서·전자계약</td></tr>
+    <tr><td>모바일 우선 반응형 UI</td><td>네이티브 앱(스토어 배포)</td></tr>
+  </table>
+
+  <h2><span class="num">3</span>사용자 및 권한</h2>
+  <table>
+    <tr><th>역할</th><th>설명</th><th>주요 권한</th></tr>
+    <tr><td>협력사 담당자</td><td>외주 협력사 직원</td><td>자사 발주만 조회 / 사진 등록·삭제 / 메시지 / 상태 입력</td></tr>
+    <tr><td>구매 담당자(사내)</td><td>구매팀</td><td>담당 협력사 발주 조회 / 사진 확인 / 메시지 회신 / 상태 확정</td></tr>
+    <tr><td>관리자</td><td>시스템 관리</td><td>협력사 계정 발급·정지, 발주-협력사 매핑 관리</td></tr>
+  </table>
+  <div class="callout red"><b class="tag">데이터 격리 원칙</b>협력사 계정은 로그인 시 부여된 <code>협력사코드</code>로 필터링되어 <b>자사 발주만</b> 보이며, 타사 발주·품목·사진에는 절대 접근할 수 없다.</div>
+
+  <h2><span class="num">4</span>핵심 기능 명세</h2>
+
+  <h3>4.1 발주 목록·상세 조회</h3>
+  <p>로그인 후 첫 화면에서 자사 발주 카드 목록(발주번호·발주일·납기·품목 요약·진행상태·사진 등록현황 배지)을 표시한다. 상단에 발주번호·품목명 검색, 상태별 필터(전체/신규/생산중/검수/완료), 납기 임박 정렬을 제공한다. 발주 상세는 헤더(발주번호·발주일·납기·구매담당자)와 품목 라인(품번·품명·규격·수량·단가), 품목별 사진/상태로 구성한다.</p>
+
+  <h3>4.2 발주별 사진 등록·확인</h3>
+  <p>발주 또는 품목 단위로 사진을 업로드(다중 선택·카메라 촬영 지원)하고, <b>태그(작업/완성/포장/출하)</b>와 코멘트를 부여한다. 업로더·등록일시가 자동 기록되며, 썸네일 갤러리에서 원본 뷰어로 확대·스와이프할 수 있다. 본인 등록분은 삭제 가능하고, 구매팀은 사진별 <b>확인/반려</b> 처리(반려 시 사유)를 할 수 있다.</p>
+
+  <h3>4.3 구매팀 메시지/컨텍</h3>
+  <p>발주별 메시지 스레드로 협력사 ↔ 담당 구매자가 1:1 대화하며 사진을 첨부할 수 있다. 발주 컨텍스트가 항상 붙어 있어 "어느 발주 얘기인지" 혼선이 없으며, 안 읽은 메시지 배지와 최근 대화 정렬을 지원한다.</p>
+
+  <h3>4.4 진행상태 관리</h3>
+  <p>발주(또는 품목) 상태를 <b>신규 접수 → 생산중 → 검수요청 → 완료</b> 4단계로 관리한다. 협력사가 상태를 전진 입력하면 구매팀 화면에 즉시 반영되고 변경 이력(누가·언제)이 기록된다. 상태별 색상 배지로 목록에서 한눈에 식별한다.</p>
+  <p style="margin-top:14px">
+    <span class="badge b">신규 접수</span>&nbsp;→&nbsp;
+    <span class="badge a">생산중</span>&nbsp;→&nbsp;
+    <span class="badge r">검수요청</span>&nbsp;→&nbsp;
+    <span class="badge g">완료</span>
+  </p>
+
+  <h2><span class="num">5</span>화면 구성 (IA)</h2>
+  <div class="flow">
+    <div class="box hl"><h4>로그인</h4><p>협력사 ID/PW</p></div>
+    <div class="arrow"><span class="line">→</span></div>
+    <div class="box"><h4>발주 목록 (홈)</h4><p>검색·상태 필터</p></div>
+    <div class="arrow"><span class="line">→</span></div>
+    <div class="box"><h4>발주 상세</h4><p>품목 라인</p></div>
+    <div class="arrow"><span class="line">→</span></div>
+    <div class="box"><h4>사진·메시지·상태</h4><p>등록 / 대화 / 변경</p></div>
+  </div>
+  <p class="small">하단 탭바(모바일): <b>발주 · 사진 · 메시지 · 내정보</b> 4탭 구조. 상단은 협력사명·알림 배지.</p>
+
+  <h2><span class="num">6</span>데이터 연계 구조</h2>
+  <div class="flow">
+    <div class="box"><h4>사외 IDC ERP</h4><p>MSSQL · 발주/품목</p></div>
+    <div class="arrow"><span>읽기전용</span><span class="line">→</span></div>
+    <div class="box hl"><h4>연계 게이트웨이</h4><p>주기/온디맨드 동기화</p></div>
+    <div class="arrow"><span>발주·품목</span><span class="line">→</span></div>
+    <div class="box"><h4>협력사 포털</h4><p>API · 화면</p></div>
+    <div class="arrow"><span>사진·메시지·상태</span><span class="line">↔</span></div>
+    <div class="box"><h4>포털 전용 DB</h4><p>신규 데이터</p></div>
+  </div>
+  <div class="callout blue"><b class="tag">연계 원칙</b>ERP는 <b>읽기전용</b>(발주 헤더·품목 라인·협력사 마스터)만 사용하고 쓰기는 하지 않는다. 협력사가 생성하는 사진(파일·메타)·메시지·상태이력·계정은 <b>포털 전용 DB</b>에 저장하며, 사진 원본은 오브젝트 스토리지/파일서버에 두고 DB에는 경로·메타만 보관한다.</div>
+
+  <h3>주요 엔티티 (초안)</h3>
+  <table>
+    <tr><th>엔티티</th><th>핵심 필드</th><th>비고</th></tr>
+    <tr><td>협력사 (Vendor)</td><td>협력사코드, 협력사명, 담당구매자</td><td>ERP 마스터 동기화</td></tr>
+    <tr><td>발주 (PO)</td><td>발주번호, 협력사코드, 발주일, 납기, 상태</td><td>ERP 동기화</td></tr>
+    <tr><td>발주품목 (PO_Item)</td><td>발주번호, 품번, 품명, 규격, 수량, 단가</td><td>ERP 동기화</td></tr>
+    <tr><td>사진 (Photo)</td><td>id, 발주번호, 품번, 파일경로, 태그, 코멘트, 업로더, 등록일시, 확인상태</td><td>포털 신규</td></tr>
+    <tr><td>메시지 (Message)</td><td>id, 발주번호, 발신자, 내용, 첨부, 작성일시, 읽음여부</td><td>포털 신규</td></tr>
+    <tr><td>상태이력 (StatusLog)</td><td>id, 발주번호, 이전상태, 변경상태, 변경자, 변경일시</td><td>포털 신규</td></tr>
+  </table>
+
+  <h2><span class="num">7</span>보안 및 운영</h2>
+  <table>
+    <tr><th>항목</th><th>내용</th></tr>
+    <tr><td>계정</td><td>협력사별 ID/PW 발급, 최초 로그인 시 비밀번호 변경 강제 (차기: 휴대폰 OTP / Entra 게스트)</td></tr>
+    <tr><td>접근 통제</td><td>모든 API는 로그인 세션의 협력사코드로 행 단위 필터링(타사 데이터 차단)</td></tr>
+    <tr><td>외부 노출</td><td>사외 접근 전제 → ERP와 망 분리, 게이트웨이 경유 읽기전용만 허용. 사내 AX 포털(ai.jeilm.co.kr)과 분리된 서브도메인 검토</td></tr>
+    <tr><td>증빙 보존</td><td>사진·메시지·상태이력을 타임스탬프와 함께 보존, 분쟁 시 증빙 활용</td></tr>
+    <tr><td>파일 검증</td><td>업로드 용량·확장자 제한, 이미지 외 차단, 바이러스 검사</td></tr>
+  </table>
+
+  <h2><span class="num">8</span>추진 로드맵</h2>
+  <table>
+    <tr><th>단계</th><th>내용</th><th>산출물</th></tr>
+    <tr><td><span class="badge b">1차 (현재)</span></td><td>개념·화면 설계, 프로토타입 데모</td><td>본 기획서 + HTML 데모</td></tr>
+    <tr><td>2차</td><td>ERP 발주 연계(읽기) + 포털 DB 설계, 사진/메시지 백엔드</td><td>연동 PoC</td></tr>
+    <tr><td>3차</td><td>협력사 파일럿(1~2개사) 운영, 피드백 반영</td><td>파일럿 운영</td></tr>
+    <tr><td>4차</td><td>전 협력사 확대, 알림톡/OTP 등 고도화</td><td>정식 오픈</td></tr>
+  </table>
+
+  <h2><span class="num">9</span>다음 단계 의사결정 필요사항</h2>
+  <div class="callout amber"><b class="tag">확정 필요</b>
+    ① ERP 발주 테이블 실제 스키마(발주/품목/협력사 마스터 컬럼) 및 연계 방식(동기화 vs 온디맨드) ·
+    ② 사진 저장소 선정(사내 파일서버 vs 클라우드 오브젝트 스토리지) 및 용량 정책 ·
+    ③ 협력사 계정 발급/관리 주체 및 인증 강화 시점(OTP/Entra 게스트) ·
+    ④ 협력사 포털 호스팅 위치(사외 노출 구조) 확정
+  </div>
+
+
+  <h2 id="demoSection"><span class="num">10</span>부록 — 협력사 포털 데모 UI</h2>
+  <p>아래는 본 기획을 모바일 하이브리드앱 형태로 구현한 <b>동작 데모</b>입니다. 로그인 → 발주 목록/상세 → 사진 등록(실제 업로드 미리보기) → 구매팀 메시지 → 진행상태 변경까지 직접 조작해 볼 수 있습니다. (데모 계정 자동 입력)</p>
+  <div class="demo-section">
+    <iframe class="demo-frame" src="../02_데모/협력사_모바일_포털.html" title="협력사 포털 데모"></iframe>
+    <div class="demo-cap">📱 협력사 포털 데모 v0.2 — 발주·사진·메시지·검수요청이 <b>사내 외주 발주·검사 대시보드에 실시간 연계</b>됩니다 (<a href="../02_데모/사내_외주발주_검사_대시보드.html">사내 대시보드 열기 ↗</a>)</div>
+  </div>
+
+  <div class="footer">
+    <span>제일메디칼 · JEIL AX — 협력사 발주·사진등록 포털 기획(1차 초안)</span>
+    <span>2026. 06. 25.</span>
+  </div>
+
+</div>
+</body>
+</html>
