@@ -161,12 +161,6 @@
   .fnode.cur .fc{background:#6b4a9a;border-color:#6b4a9a;color:#fff;box-shadow:0 0 0 3px rgba(107,74,154,.18);} .fnode.cur .fl{color:#6b4a9a;font-weight:800;}
   .fnode.skip{opacity:.4;}
 
-  /* ===== 설치 배너 (PWA "홈 화면에 추가") ===== */
-  .installbar{display:flex; align-items:center; gap:10px; background:linear-gradient(135deg,var(--navy),var(--accent)); color:#fff; padding:10px 14px; font-size:12px; z-index:50;}
-  .installbar .ib-ic{font-size:20px;} .installbar .ib-txt{flex:1; line-height:1.35;} .installbar .ib-txt b{font-weight:800;}
-  .installbar button{flex:none; border:none; border-radius:9px; padding:8px 13px; font-size:12px; font-weight:800; cursor:pointer; font-family:inherit;}
-  .installbar .ib-go{background:#fff; color:var(--navy);} .installbar .ib-x{background:rgba(255,255,255,.2); color:#fff; padding:8px 11px;}
-
   /* ===== 실제 모바일/협소 화면: 폰 목업 베젤 제거 → 풀스크린 하이브리드 앱 ===== */
   @media (max-width:600px){
     body{padding:0; display:block; min-height:100dvh; background:var(--bg);}
@@ -175,8 +169,6 @@
     .appbar{padding-top:max(env(safe-area-inset-top),14px);}
     .login{padding-top:max(env(safe-area-inset-top),34px);}
   }
-  /* 데스크톱 폰 목업에서도 상단 노치 영역만큼 띄움(노치 유지 시) */
-  @media (min-width:601px){ .installbar{border-radius:0;} }
 </style>
 </head>
 <body>
@@ -205,12 +197,6 @@
       <span class="bell" onclick="toast('새 알림 2건: 검수 반려 1, 신규 메시지 1')">🔔<b id="bellCnt">2</b></span>
     </div>
     <div class="synctag">🔗 사내 대시보드 실시간 연계 ON — 등록 즉시 구매·품질·생산·사업관리에 반영</div>
-    <div id="installBar" class="installbar hidden">
-      <span class="ib-ic">📲</span>
-      <span class="ib-txt"><b>홈 화면에 추가</b>하면 앱처럼 바로 실행돼요</span>
-      <button class="ib-go" onclick="doInstall()">설치</button>
-      <button class="ib-x" onclick="dismissInstall()">✕</button>
-    </div>
     <div id="screen" class="screen"></div>
     <div id="composer" class="composer hidden">
       <input id="msgInput" placeholder="구매 담당자에게 메시지…" onkeydown="if(event.key==='Enter')sendMsg()">
@@ -354,7 +340,7 @@ const TAGS=['작업','완성','포장','출하'];
 const $ = s => document.querySelector(s);
 const screen = () => $('#screen');
 
-function doLogin(){ $('#loginScreen').classList.add('hidden'); $('#app').classList.remove('hidden'); switchTab('orders'); setTimeout(maybeShowInstall,400); }
+function doLogin(){ $('#loginScreen').classList.add('hidden'); $('#app').classList.remove('hidden'); switchTab('orders'); }
 
 function switchTab(tab){ view=tab; curOrder=null;
   document.querySelectorAll('.tabbar .tab').forEach(t=>t.classList.toggle('on', t.dataset.tab===tab));
@@ -532,7 +518,7 @@ function logout(){ $('#app').classList.add('hidden'); $('#loginScreen').classLis
 let toastTimer;
 function toast(msg){ const t=$('#toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(toastTimer); toastTimer=setTimeout(()=>t.classList.remove('show'),2400); }
 
-/* ===== PWA: 매니페스트 동적 주입 + "홈 화면에 추가"(설치) 처리 ===== */
+/* ===== PWA: 매니페스트 동적 주입 (풀스크린 standalone 지원 · 별도 설치 버튼 없음) ===== */
 (function(){
   var icon="data:image/svg+xml,"+encodeURIComponent("<svg xmlns='http://www.w3.org/2000/svg' width='512' height='512'><rect width='512' height='512' rx='112' fill='#1a2f4e'/><text x='256' y='340' font-size='260' text-anchor='middle'>🏭</text></svg>");
   var manifest={ name:"제일메디칼 협력사 발주 포털", short_name:"협력사 포털", description:"협력사 발주 조회·사진등록·검수요청 (사내 실시간 연계)",
@@ -544,24 +530,6 @@ function toast(msg){ const t=$('#toast'); t.textContent=msg; t.classList.add('sh
     document.head.appendChild(link);
   }catch(e){}
 })();
-var deferredPrompt=null, isStandalone=(window.matchMedia&&window.matchMedia('(display-mode: standalone)').matches)||window.navigator.standalone===true;
-var isIOS=/iphone|ipad|ipod/i.test(navigator.userAgent);
-window.addEventListener('beforeinstallprompt', function(e){ e.preventDefault(); deferredPrompt=e; maybeShowInstall(); });
-window.addEventListener('appinstalled', function(){ dismissInstall(); toast('홈 화면에 설치되었습니다 🎉'); });
-function maybeShowInstall(){
-  if(isStandalone) return;                                  // 이미 앱으로 실행 중
-  if(localStorage.getItem('jeilax_install_dismiss')==='1') return;
-  if(!(deferredPrompt||isIOS)) return;                      // 설치 불가 환경
-  var bar=$('#installBar'); if(!bar) return;
-  if(isIOS&&!deferredPrompt) bar.querySelector('.ib-txt').innerHTML='<b>홈 화면에 추가</b> — 공유 <span style="font-size:14px">⎙</span> → "홈 화면에 추가"';
-  bar.classList.remove('hidden');
-}
-function doInstall(){
-  if(deferredPrompt){ deferredPrompt.prompt(); deferredPrompt.userChoice.then(function(){ deferredPrompt=null; dismissInstall(); }); }
-  else if(isIOS){ toast('하단 공유 버튼 → "홈 화면에 추가"를 눌러주세요'); }
-}
-function dismissInstall(){ var b=$('#installBar'); if(b) b.classList.add('hidden'); localStorage.setItem('jeilax_install_dismiss','1'); }
-
 /* init: 복원 후 시드 출력 */
 restoreIn(); syncOut();
 </script>
