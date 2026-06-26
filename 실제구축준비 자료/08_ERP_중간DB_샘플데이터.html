@@ -3,8 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>ERP 중간 DB 샘플 데이터 — 발주·구매 (erp_ro)</title>
+<title>ERP 중간 DB 샘플 데이터 — 발주·구매 (실데이터 · 마스킹)</title>
 <meta name="theme-color" content="#1a2f4e">
+<meta name="robots" content="noindex, nofollow">
 <style>
   :root{
     --navy:#1a2f4e; --navy2:#27457a; --accent:#2f6fb3; --accent2:#4a8ed0;
@@ -13,58 +14,51 @@
     --soft:#f1f5fb; --code:#0f2238;
   }
   *{box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent;}
-  body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif; color:var(--ink); background:var(--bg); line-height:1.55; font-size:14px;
-       -webkit-text-size-adjust:100%;}
+  body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif; color:var(--ink); background:var(--bg); line-height:1.55; font-size:14px; -webkit-text-size-adjust:100%;}
   .wrap{max-width:1180px; margin:0 auto; padding:22px 18px 60px;}
-  /* 헤더 */
-  .head{background:linear-gradient(135deg,var(--navy),var(--navy2)); color:#fff; border-radius:16px; padding:22px 24px; margin-bottom:16px;}
+  .head{background:linear-gradient(135deg,var(--navy),var(--navy2)); color:#fff; border-radius:16px; padding:22px 24px; margin-bottom:14px;}
   .head h1{font-size:21px; font-weight:800; letter-spacing:-.01em; display:flex; align-items:center; gap:9px; flex-wrap:wrap;}
   .head .tag{font-size:11px; font-weight:700; background:rgba(255,255,255,.16); border:1px solid rgba(255,255,255,.3); border-radius:20px; padding:3px 11px;}
   .head p{font-size:12.5px; opacity:.9; margin-top:8px; line-height:1.65;}
   .head .asof{display:inline-flex; align-items:center; gap:6px; margin-top:12px; font-size:12px; background:rgba(255,255,255,.13); border-radius:9px; padding:7px 13px;}
   .head .asof b{font-weight:800;}
-  /* KPI */
-  .kpis{display:grid; grid-template-columns:repeat(5,1fr); gap:10px; margin-bottom:16px;}
-  .kpi{background:var(--card); border:1px solid var(--line); border-radius:13px; padding:14px 14px; box-shadow:0 1px 3px rgba(20,40,70,.05);}
+  /* 마스킹 배너 */
+  .mask-banner{display:flex; gap:10px; align-items:flex-start; background:#fff7e9; border:1px solid #e8d3a0; border-radius:13px; padding:12px 15px; margin-bottom:14px; font-size:12.5px; color:#6a4e16; line-height:1.65;}
+  .mask-banner .ic{font-size:18px;}
+  .mask-banner b{color:#7a3d0e;}
+  .kpis{display:grid; grid-template-columns:repeat(5,1fr); gap:10px; margin-bottom:14px;}
+  .kpi{background:var(--card); border:1px solid var(--line); border-radius:13px; padding:14px; box-shadow:0 1px 3px rgba(20,40,70,.05);}
   .kpi .n{font-size:23px; font-weight:800; color:var(--navy);}
   .kpi .l{font-size:11.5px; color:var(--muted); margin-top:2px;}
   .kpi.a .n{color:var(--accent);} .kpi.g .n{color:var(--green);} .kpi.p .n{color:var(--purple);}
-  /* 안내 배너 */
-  .arch{background:var(--soft); border:1px solid #dce6f3; border-radius:13px; padding:13px 16px; margin-bottom:16px; font-size:12.5px; color:#3a4858; line-height:1.7;}
+  .arch{background:var(--soft); border:1px solid #dce6f3; border-radius:13px; padding:13px 16px; margin-bottom:14px; font-size:12.5px; color:#3a4858; line-height:1.7;}
   .arch b{color:var(--navy);}
   .arch code{background:#fff; border:1px solid var(--line); border-radius:5px; padding:1px 6px; font-family:Consolas,monospace; font-size:11.5px; color:var(--navy2);}
   .flow{display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-top:9px; font-size:11.5px; font-weight:700;}
   .flow span{background:#fff; border:1px solid var(--line); border-radius:8px; padding:6px 11px; white-space:nowrap;}
   .flow .ar{color:var(--accent); font-weight:800;}
-  /* 테이블 네비 */
   .nav{display:flex; gap:8px; overflow-x:auto; padding:4px 2px 12px; position:sticky; top:0; background:var(--bg); z-index:10;}
   .nav::-webkit-scrollbar{height:5px;} .nav::-webkit-scrollbar-thumb{background:#cfd8e4; border-radius:3px;}
-  .nav button{flex:none; border:1px solid var(--line); background:#fff; color:var(--navy2); font-family:inherit; font-size:12.5px; font-weight:700;
-              border-radius:10px; padding:9px 14px; cursor:pointer; white-space:nowrap; transition:.12s; display:flex; align-items:center; gap:7px;}
+  .nav button{flex:none; border:1px solid var(--line); background:#fff; color:var(--navy2); font-family:inherit; font-size:12.5px; font-weight:700; border-radius:10px; padding:9px 14px; cursor:pointer; white-space:nowrap; transition:.12s; display:flex; align-items:center; gap:7px;}
   .nav button .cnt{font-size:10.5px; font-weight:800; background:var(--soft); color:var(--accent); border-radius:10px; padding:1px 7px;}
   .nav button:hover{border-color:var(--accent2);}
   .nav button.on{background:var(--navy); color:#fff; border-color:var(--navy);}
   .nav button.on .cnt{background:rgba(255,255,255,.2); color:#fff;}
-  /* 테이블 카드 */
   .tcard{background:var(--card); border:1px solid var(--line); border-radius:14px; overflow:hidden; box-shadow:0 1px 4px rgba(20,40,70,.06);}
   .tc-head{padding:16px 18px; border-bottom:1px solid var(--line);}
   .tc-head .ttl{display:flex; align-items:baseline; gap:10px; flex-wrap:wrap;}
   .tc-head .kr{font-size:16px; font-weight:800; color:var(--navy);}
   .tc-head .eng{font-family:Consolas,monospace; font-size:13px; color:var(--accent); font-weight:700;}
-  .tc-head .src{font-size:11.5px; color:var(--muted);}
+  .tc-head .src{font-size:11.5px; color:var(--muted); margin-top:5px;}
   .tc-head .src b{color:var(--navy2); font-family:Consolas,monospace;}
   .tc-head .desc{font-size:12.5px; color:#55616f; margin-top:7px; line-height:1.65;}
   .tc-tools{display:flex; gap:8px; flex-wrap:wrap; margin-top:12px;}
-  .tc-tools button{border:1px solid var(--line); background:#fff; color:var(--navy2); font-family:inherit; font-size:11.5px; font-weight:700;
-                   border-radius:8px; padding:7px 12px; cursor:pointer; display:inline-flex; align-items:center; gap:5px;}
+  .tc-tools button{border:1px solid var(--line); background:#fff; color:var(--navy2); font-family:inherit; font-size:11.5px; font-weight:700; border-radius:8px; padding:7px 12px; cursor:pointer; display:inline-flex; align-items:center; gap:5px;}
   .tc-tools button:hover{background:var(--soft); border-color:var(--accent2);}
   .tc-tools button.pri{background:var(--navy); color:#fff; border-color:var(--navy);}
-  /* DDL */
-  .ddl{display:none; background:var(--code); color:#cfe0f3; font-family:Consolas,'D2Coding',monospace; font-size:12px; line-height:1.6;
-       padding:16px 18px; overflow-x:auto; white-space:pre; border-bottom:1px solid var(--line);}
+  .ddl{display:none; background:var(--code); color:#cfe0f3; font-family:Consolas,'D2Coding',monospace; font-size:12px; line-height:1.6; padding:16px 18px; overflow-x:auto; white-space:pre; border-bottom:1px solid var(--line);}
   .ddl.show{display:block;}
-  .ddl .kw{color:#7db8ea; font-weight:700;} .ddl .ty{color:#8fd3a6;} .ddl .pk{color:#f0c674;} .ddl .cm{color:#7f8ea3; font-style:italic;}
-  /* 그리드 */
+  .ddl .ty{color:#8fd3a6;} .ddl .kw{color:#7db8ea; font-weight:700;} .ddl .pk{color:#f0c674;} .ddl .cm{color:#7f8ea3; font-style:italic;}
   .grid-wrap{overflow-x:auto;}
   table.grid{border-collapse:collapse; width:100%; font-size:12.5px; min-width:640px;}
   table.grid th{background:var(--navy); color:#fff; text-align:left; padding:9px 12px; font-weight:600; white-space:nowrap; position:sticky; top:0;}
@@ -77,22 +71,18 @@
   table.grid .pkk{color:var(--accent);}
   .pill{display:inline-block; font-size:10.5px; font-weight:700; border-radius:11px; padding:2px 9px; white-space:nowrap;}
   .pill.y{background:#fbeeec; color:var(--red);} .pill.n{background:var(--soft); color:var(--navy2);}
-  .pill.ok{background:#ecf5f0; color:var(--green);} .pill.no{background:#fbeeec; color:var(--red);}
-  .pill.wait{background:#faf3e4; color:var(--amber);} .pill.done{background:#ecf5f0; color:var(--green);}
+  .pill.mask{background:#fff3df; color:var(--amber); border:1px dashed #e0c187;}
+  .pill.anon{background:#f1ecf8; color:var(--purple);}
   .gridfoot{padding:11px 16px; font-size:11.5px; color:var(--muted); border-top:1px solid var(--line); display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap;}
   .gridfoot b{color:var(--navy2);}
   .note{font-size:11.5px; color:var(--muted); line-height:1.75; margin-top:18px; text-align:center;}
   .note b{color:var(--navy2);}
-  .toast{position:fixed; left:50%; bottom:26px; transform:translateX(-50%); background:rgba(20,40,70,.96); color:#fff; font-size:12.5px;
-         padding:11px 20px; border-radius:22px; opacity:0; transition:.25s; pointer-events:none; z-index:50; max-width:90%;}
+  .toast{position:fixed; left:50%; bottom:26px; transform:translateX(-50%); background:rgba(20,40,70,.96); color:#fff; font-size:12.5px; padding:11px 20px; border-radius:22px; opacity:0; transition:.25s; pointer-events:none; z-index:50; max-width:90%;}
   .toast.show{opacity:1; bottom:34px;}
-  /* 모바일 */
   @media (max-width:720px){
     .wrap{padding:14px 12px 50px;}
-    .head{padding:18px 16px; border-radius:14px;}
-    .head h1{font-size:18px;}
-    .kpis{grid-template-columns:repeat(2,1fr);}
-    .kpi .n{font-size:20px;}
+    .head{padding:18px 16px; border-radius:14px;} .head h1{font-size:18px;}
+    .kpis{grid-template-columns:repeat(2,1fr);} .kpi .n{font-size:20px;}
     .tc-head .kr{font-size:15px;}
   }
 </style>
@@ -101,19 +91,25 @@
 <div class="wrap">
 
   <div class="head">
-    <h1>🗄️ ERP 중간 DB 샘플 데이터 <span class="tag">erp_ro · 읽기전용</span></h1>
-    <p>UNIERP(사외 IDC MSSQL) 원천을 야간 배치로 적재한 <b>PostgreSQL 중간 DB(<code style="color:#cfe0f3;background:rgba(255,255,255,.1);border:none">erp_ro</code>)</b> 스키마를 테이블 형태로 샘플링한 자료입니다.
-       대시보드·챗봇은 이 중간 DB만 조회합니다(운영 ERP 직접 연결 없음). <b>발주 10건 · 매입(구매) 10건</b> + 연관 마스터/이력 테이블.</p>
-    <span class="asof">📅 데이터 기준: <b id="asof"></b> · ETL 배치 <b id="batch"></b></span>
+    <h1>🗄️ ERP 중간 DB 샘플 데이터 <span class="tag">실데이터 · 마스킹</span></h1>
+    <p>운영 ERP(UNIERP, JEILMNS)에서 <b>실제 추출한 발주·구매(입고/매입) 데이터</b>를 중간 DB(<code style="color:#cfe0f3;background:rgba(255,255,255,.1);border:none">erp_ro</code>) 테이블 형태로 정리한 자료입니다.
+       원천: <b>ITEM_DOCUMENT(입출고) 추출 _movements.csv</b> · 구매입고 102라인 / 발주 37건. <b>발주·구매(입고/매입) 각 12건 + 거래처·품목·매입유형</b>.</p>
+    <span class="asof">📅 데이터 기준: <b>2025-10 ~ 2026-01 입출고 (READ-ONLY 추출)</b></span>
+  </div>
+
+  <div class="mask-banner">
+    <span class="ic">🔒</span>
+    <div><b>마스킹 적용(공개용)</b> — 실제 ERP 추출값이지만 영업비밀 보호를 위해 <b>거래처명은 익명화(거래처 A~Q)</b>, <b>단가·발주/매입 금액은 구간(range)으로 마스킹</b>했습니다.
+      품목코드·품목명·규격·발주번호·전표번호·수량·일자·프로세스는 <b>실제값</b>입니다. (검색엔진 noindex)</div>
   </div>
 
   <div class="kpis" id="kpis"></div>
 
   <div class="arch">
-    <b>구성 방식</b> — 설계 문서 <code>07_ERP_챗봇_중간DB_연계설계</code> 기준. 중간 DB는 원본 전체 복제가 아니라 대시보드·챗봇이 바로 쓰는 <b>집계·요약 + 키 정합</b> 형태로 적재되며, 모든 테이블에 공통 컬럼 <code>synced_at · src_updated · batch_id</code> 를 둡니다.
+    <b>구성 방식</b> — 설계 문서 <code>07_ERP_챗봇_중간DB_연계설계</code> 기준. 운영 ERP는 야간 배치로만 접근하고, 대시보드·챗봇은 중간 DB(<code>erp_ro</code>)만 조회합니다. 실제 스키마: 발주 <code>M_PUR_ORD_HDR/DTL</code> · 매입 <code>M_IV_HDR/DTL</code>(유형 <code>M_IV_TYPE</code>) · 입고 <code>M_PUR_GOODS_MVMT</code>(<code>ITEM_DOCUMENT</code>).
     <div class="flow">
-      <span>UNIERP MSSQL<br><small style="color:#76808d;font-weight:400">① 원천(읽기전용 View)</small></span>
-      <span class="ar">→ 야간배치 03:00 →</span>
+      <span>UNIERP MSSQL<br><small style="color:#76808d;font-weight:400">① 원천(읽기전용)</small></span>
+      <span class="ar">→ 야간배치 →</span>
       <span>PostgreSQL erp_ro<br><small style="color:#76808d;font-weight:400">② 중간 DB(본 화면)</small></span>
       <span class="ar">→ 조회 API/Tool →</span>
       <span>대시보드 · 챗봇<br><small style="color:#76808d;font-weight:400">③ 소비</small></span>
@@ -124,265 +120,180 @@
   <div id="view"></div>
 
   <div class="note">
-    ⚠ <b>샘플 데이터</b> — 실제 ERP 추출 형식을 본떠 구성한 예시이며 수치는 데모용입니다. 운영 전환 시 야간배치 ETL이 동일 키 구조로 실데이터를 적재합니다.<br>
-    개인별 급여·주민번호·계좌번호 등 민감 컬럼은 중간 DB 미연계(유니포인트 View 단계 제외) · JEIL AX 실구축 준비 · 08 ERP 중간DB 샘플데이터
+    원천: <b>제일엠앤에스 ERP_DB / _movements.csv</b> (ITEM_DOCUMENT READ-ONLY 추출) · 실제 거래 데이터(거래처·금액 마스킹) · 전체 매입상세 53,335건 중 발주연계 입고 샘플.<br>
+    개인정보·민감 컬럼 미연계 · JEIL AX 실구축 준비 · 08 ERP 중간DB 샘플데이터(실데이터·마스킹)
   </div>
 </div>
 <div class="toast" id="toast"></div>
 
 <script>
-/* ===== 메타 ===== */
-const ASOF='2026-06-25 03:00', BATCH='8f3a1c2e';
-document.getElementById('asof').textContent=ASOF;
-document.getElementById('batch').textContent='#'+BATCH;
-
-/* ===== 중간 DB(erp_ro) 테이블 정의 + 샘플 데이터 =====
-   cols: [컬럼명, 타입, 한글, 플래그]  플래그: 'pk'|'fk'|'r'(우측정렬)|'pill' */
-const SYNC='2026-06-25 03:00';
+/* ===== 실제 ERP 추출(마스킹) 데이터 =====
+   원천: 제일엠앤에스 ERP_DB/_movements.csv (ITEM_DOCUMENT 입출고, READ-ONLY)
+   마스킹: 거래처명 익명화 / 단가·금액 구간화. 품목·PO·전표·수량·일자는 실제값. */
 const TB = {
 
-  /* ---- 거래처 마스터 ---- */
-  bp:{ kr:'거래처 마스터', tbl:'erp_ro.biz_partner', src:'B_BP', pk:'bp_cd',
-    desc:'발주·매입 거래처(협력사/일반). 외주 협력사는 sub_flg=Y. 코드→명칭 변환 완료 상태로 적재.',
-    cols:[['bp_cd','varchar(8)','거래처코드','pk'],['bp_nm','varchar(60)','거래처명'],['bp_type','varchar(10)','구분'],
-          ['sub_flg','char(1)','외주여부','pill'],['biz_no','varchar(12)','사업자번호'],['mgr','varchar(20)','담당'],['tel','varchar(16)','연락처']],
+  /* ---- 발주 (M_PUR_ORD) 12건 ---- */
+  po:{ kr:'발주', tbl:'erp_ro.purchase_order', src:'M_PUR_ORD_HDR/DTL', pk:'po_no', badge:'발주 12건',
+    desc:'확정 발주(실제 PO번호). 구매입고(ITEM_DOCUMENT) 연계 발주 37건 중 12건. 단가·금액은 마스킹, 거래처는 익명.',
+    cols:[['po_no','varchar(14)','발주번호','pk'],['bp','varchar(20)','거래처','anon'],['item_cd','varchar(16)','품목코드','fk'],['item_nm','varchar(60)','품목명'],
+          ['spec','varchar(40)','규격'],['ord_qty','numeric','발주수량','r'],['unit_price','numeric','단가','mask'],['po_amt','numeric','발주금액','mask'],['po_dt','date','발주(입고)일']],
     rows:[
-      {bp_cd:'V-1027',bp_nm:'한일정밀공업',bp_type:'외주가공',sub_flg:'Y',biz_no:'124-81-27741',mgr:'이상우',tel:'010-2841-7755'},
-      {bp_cd:'V-1043',bp_nm:'대성테크',bp_type:'외주가공',sub_flg:'Y',biz_no:'215-86-31092',mgr:'박정호',tel:'031-552-1840'},
-      {bp_cd:'V-1051',bp_nm:'오성테크',bp_type:'외주가공',sub_flg:'Y',biz_no:'137-81-66210',mgr:'김오성',tel:'031-498-2210'},
-      {bp_cd:'V-1066',bp_nm:'지아이텍',bp_type:'외주가공',sub_flg:'Y',biz_no:'504-81-90233',mgr:'정기일',tel:'053-583-7720'},
-      {bp_cd:'V-1078',bp_nm:'신호종합배관',bp_type:'외주설치',sub_flg:'Y',biz_no:'617-81-44120',mgr:'신호섭',tel:'051-326-9080'},
-      {bp_cd:'V-2210',bp_nm:'대신스텐레스',bp_type:'일반자재',sub_flg:'N',biz_no:'220-81-15530',mgr:'최대신',tel:'031-432-7711'},
-      {bp_cd:'V-2231',bp_nm:'동방금속',bp_type:'일반자재',sub_flg:'N',biz_no:'128-81-77004',mgr:'오동방',tel:'032-816-3300'},
-      {bp_cd:'V-2245',bp_nm:'삼정공업',bp_type:'일반자재',sub_flg:'N',biz_no:'606-81-22119',mgr:'정삼정',tel:'055-291-4400'}
+      {po_no:'PO202510160015',bp:'거래처 M',item_cd:'APAE01-00114',item_nm:'TACMINA PUMP',spec:'TACMINA, PLFXD2-6-STST-CVX, 1.5,',ord_qty:'2',unit_price:'100만 이상',po_amt:'1,000만 이상',po_dt:'2025-12-10'},
+      {po_no:'PO202512240001',bp:'거래처 M',item_cd:'APAE01-00115',item_nm:'TACMINA PUMP',spec:'TACMINA, PLFXD2-14-STST-CVX, 2.5',ord_qty:'1',unit_price:'100만 이상',po_amt:'1,000만 이상',po_dt:'2026-01-26'},
+      {po_no:'PO202510230004',bp:'거래처 P',item_cd:'APAF03-00125',item_nm:'CARTRIDGE FILTER',spec:'CS TECHNOFIL, 75㎛, HOUSING: SRD0',ord_qty:'2',unit_price:'30~100만',po_amt:'50~100만',po_dt:'2025-11-04'},
+      {po_no:'PO202510140001',bp:'거래처 I',item_cd:'ADRE00-00027',item_nm:'SERVO REDUCER',spec:'ATG/PGX62-H-2(1/30)',ord_qty:'2',unit_price:'30~100만',po_amt:'50~100만',po_dt:'2025-10-16'},
+      {po_no:'PO202510170001',bp:'거래처 I',item_cd:'ADRD00-00130',item_nm:'SERVO MOTOR',spec:'MITSUMBSHI/HG-KR43',ord_qty:'2',unit_price:'10~30만',po_amt:'50~100만',po_dt:'2025-10-21'},
+      {po_no:'PO202510220006',bp:'거래처 H',item_cd:'AACA01-00021',item_nm:'CASTER',spec:'GSST-200-ARF-HUD-ENI (고정+2차전지용)',ord_qty:'4',unit_price:'10~30만',po_amt:'10~50만',po_dt:'2025-10-28'},
+      {po_no:'PO202510210004',bp:'거래처 G',item_cd:'APAV01-00061',item_nm:'MANUAL BALL VALVE/FERRULE',spec:'1S, ISO, FERRULE, STS304, 3PCS',ord_qty:'4',unit_price:'5~10만',po_amt:'10~50만',po_dt:'2025-10-23'},
+      {po_no:'PO202510280008',bp:'거래처 C',item_cd:'RZZH4951-00045',item_nm:'STS304 모형',spec:'4T*900*500*50 (내부광)',ord_qty:'2',unit_price:'10~30만',po_amt:'10~50만',po_dt:'2025-12-24'},
+      {po_no:'PO202510280007',bp:'거래처 B',item_cd:'RPIA02-00010',item_nm:'STS304 파이프',spec:'20A*SCH.10S*1M (외부광)',ord_qty:'6',unit_price:'1~5만',po_amt:'10만 미만',po_dt:'2025-12-24'},
+      {po_no:'PO202511250001',bp:'거래처 J',item_cd:'APAI08-00162',item_nm:'CLEAN AIR FILTER',spec:'SMC, SFE73',ord_qty:'2',unit_price:'1~5만',po_amt:'10만 미만',po_dt:'2025-11-26'},
+      {po_no:'PO202511170004',bp:'거래처 L',item_cd:'AACZ15-00002',item_nm:'NAME PLATE',spec:'150*100*0.8T(SUS)',ord_qty:'2',unit_price:'1~5만',po_amt:'10만 미만',po_dt:'2025-11-19'},
+      {po_no:'PO202512090002',bp:'거래처 L',item_cd:'AACZ15-00002',item_nm:'NAME PLATE',spec:'150*100*0.8T(SUS)',ord_qty:'2',unit_price:'1~5만',po_amt:'10만 미만',po_dt:'2025-12-23'}
     ]},
 
-  /* ---- 품목 마스터 ---- */
-  item:{ kr:'품목 마스터', tbl:'erp_ro.item_master', src:'B_ITEM', pk:'item_cd',
-    desc:'발주·매입 대상 품목. 품목중복_조회 화면과 동일 소스. 대표코드·규격 정합.',
-    cols:[['item_cd','varchar(12)','품목코드','pk'],['item_nm','varchar(60)','품목명'],['spec','varchar(40)','규격'],['uom','varchar(6)','단위'],['item_grp','varchar(16)','품목군']],
+  /* ---- 구매·입고(매입) (M_PUR_GOODS_MVMT → M_IV) 12건 ---- */
+  iv:{ kr:'구매·입고(매입)', tbl:'erp_ro.goods_movement', src:'M_PUR_GOODS_MVMT · ITEM_DOCUMENT', pk:'doc_no', badge:'입고/매입 12건',
+    desc:'실제 구매입고 전표(ITEM_DOCUMENT, MOV_TYPE R01). 발주번호 연계. 매입 확정은 M_IV로 이어짐(미착 IIV 등 선후관계 별도).',
+    cols:[['doc_no','varchar(16)','전표번호','pk'],['po_no','varchar(14)','발주번호','fk'],['bp','varchar(20)','거래처','anon'],['item_cd','varchar(16)','품목코드','fk'],['item_nm','varchar(60)','품목명'],
+          ['qty','numeric','입고수량','r'],['unit_price','numeric','단가','mask'],['amt','numeric','금액','mask'],['mvmt_dt','date','입고일'],['mov_type','varchar(6)','이동유형'],['plant','varchar(6)','공장']],
     rows:[
-      {item_cd:'PLT-AL5T',item_nm:'알루미늄 플레이트/브라켓',spec:'5T×1000×2000',uom:'EA',item_grp:'가공소재'},
-      {item_cd:'UNI-25A-S',item_nm:'유니온 배관 25A SUS',spec:'25A SUS304',uom:'EA',item_grp:'배관'},
-      {item_cd:'ORG-P22N',item_nm:'NBR 가스켓(오링 P-22)',spec:'P-22 NBR',uom:'EA',item_grp:'고무성형'},
-      {item_cd:'SPR-SS-08',item_nm:'압축 스프링',spec:'SUS 8×30',uom:'EA',item_grp:'스프링'},
-      {item_cd:'BRG-6204Z',item_nm:'베어링 하우징(마감)',spec:'6204ZZ',uom:'EA',item_grp:'정밀가공'},
-      {item_cd:'BRG-HSG',item_nm:'베어링 하우징 가공',spec:'SCM440',uom:'EA',item_grp:'정밀가공'},
-      {item_cd:'VLV-BDY',item_nm:'밸브 바디 가공',spec:'SUS316 1/2"',uom:'EA',item_grp:'정밀가공'},
-      {item_cd:'PCB-A04',item_nm:'제어보드 PCB 조립',spec:'A04 Rev.2',uom:'SET',item_grp:'전장'},
-      {item_cd:'SUS304-RB',item_nm:'SUS304 환봉',spec:'Ø30',uom:'TON',item_grp:'원자재'},
-      {item_cd:'SUS316-PL',item_nm:'SUS316 판재',spec:'3T',uom:'TON',item_grp:'원자재'},
-      {item_cd:'BOLT-SET',item_nm:'볼트/너트 세트',spec:'M8~M16 혼합',uom:'LOT',item_grp:'체결류'},
-      {item_cd:'CNT-MOD',item_nm:'커넥터 모듈',spec:'12P',uom:'EA',item_grp:'전장'}
+      {doc_no:'PM202512100001',po_no:'PO202510160015',bp:'거래처 M',item_cd:'APAE01-00114',item_nm:'TACMINA PUMP',qty:'2',unit_price:'100만 이상',amt:'1,000만 이상',mvmt_dt:'2025-12-10',mov_type:'R01',plant:'PL1'},
+      {doc_no:'PM202601260001',po_no:'PO202512240001',bp:'거래처 M',item_cd:'APAE01-00115',item_nm:'TACMINA PUMP',qty:'1',unit_price:'100만 이상',amt:'1,000만 이상',mvmt_dt:'2026-01-26',mov_type:'R01',plant:'PL1'},
+      {doc_no:'PM202511040001',po_no:'PO202510230004',bp:'거래처 P',item_cd:'APAF03-00125',item_nm:'CARTRIDGE FILTER',qty:'2',unit_price:'30~100만',amt:'50~100만',mvmt_dt:'2025-11-04',mov_type:'R01',plant:'PL1'},
+      {doc_no:'PM202510160004',po_no:'PO202510140001',bp:'거래처 I',item_cd:'ADRE00-00027',item_nm:'SERVO REDUCER',qty:'2',unit_price:'30~100만',amt:'50~100만',mvmt_dt:'2025-10-16',mov_type:'R01',plant:'PL1'},
+      {doc_no:'PM202510210001',po_no:'PO202510170001',bp:'거래처 I',item_cd:'ADRD00-00130',item_nm:'SERVO MOTOR',qty:'2',unit_price:'10~30만',amt:'50~100만',mvmt_dt:'2025-10-21',mov_type:'R01',plant:'PL1'},
+      {doc_no:'PM202510280003',po_no:'PO202510220006',bp:'거래처 H',item_cd:'AACA03-00040',item_nm:'CASTER',qty:'4',unit_price:'10~30만',amt:'50~100만',mvmt_dt:'2025-10-28',mov_type:'R01',plant:'PL1'},
+      {doc_no:'PM202510280003',po_no:'PO202510220006',bp:'거래처 H',item_cd:'AACA01-00021',item_nm:'CASTER',qty:'4',unit_price:'10~30만',amt:'10~50만',mvmt_dt:'2025-10-28',mov_type:'R01',plant:'PL1'},
+      {doc_no:'PM202510230002',po_no:'PO202510210004',bp:'거래처 G',item_cd:'APAV01-00061',item_nm:'MANUAL BALL VALVE/FERRULE',qty:'4',unit_price:'5~10만',amt:'10~50만',mvmt_dt:'2025-10-23',mov_type:'R01',plant:'PL1'},
+      {doc_no:'PM202512240003',po_no:'PO202510280008',bp:'거래처 C',item_cd:'RZZH4951-00045',item_nm:'STS304 모형',qty:'2',unit_price:'10~30만',amt:'10~50만',mvmt_dt:'2025-12-24',mov_type:'R01',plant:'PL1'},
+      {doc_no:'PM202512240003',po_no:'PO202511070005',bp:'거래처 C',item_cd:'RZZH4951-00052',item_nm:'STS304 모형',qty:'2',unit_price:'10~30만',amt:'10~50만',mvmt_dt:'2025-12-24',mov_type:'R01',plant:'PL1'},
+      {doc_no:'PM202512240001',po_no:'PO202510280007',bp:'거래처 B',item_cd:'RPIA02-00010',item_nm:'STS304 파이프',qty:'6',unit_price:'1~5만',amt:'10만 미만',mvmt_dt:'2025-12-24',mov_type:'R01',plant:'PL1'},
+      {doc_no:'PM202512240001',po_no:'PO202510280007',bp:'거래처 B',item_cd:'RPIB00-00040',item_nm:'STS304 사각 파이프',qty:'6',unit_price:'1~5만',amt:'10만 미만',mvmt_dt:'2025-12-24',mov_type:'R01',plant:'PL1'}
     ]},
 
-  /* ---- 발주형태 ---- */
-  potype:{ kr:'발주형태 코드', tbl:'erp_ro.po_type', src:'M_CONFIG_PROCESS', pk:'po_type_cd',
-    desc:'발주 구분. 외주 여부(sub_flg)는 협력사 발주·검사 프로세스 분기의 기준(SUBCONTRA_FLG).',
-    cols:[['po_type_cd','varchar(6)','형태코드','pk'],['po_type_nm','varchar(24)','형태명'],['sub_flg','char(1)','외주(사급)','pill'],['desc_txt','varchar(40)','설명']],
+  /* ---- 매입유형 (M_IV_TYPE) ---- */
+  ivtype:{ kr:'매입유형', tbl:'erp_ro.iv_type', src:'M_IV_TYPE', pk:'iv_type', badge:'실제 유형',
+    desc:'실제 매입유형 코드. 수입매입(IIV)은 미착품으로 입고 전 매입 선행, 외주가공매입(SIE-1)은 수불 미연동 등 선후관계 분기.',
+    cols:[['iv_type','varchar(6)','유형코드','pk'],['iv_type_nm','varchar(24)','유형명'],['import_flg','char(1)','수입','y'],['note','varchar(40)','비고']],
     rows:[
-      {po_type_cd:'SIE',po_type_nm:'외주가공(사급)',sub_flg:'Y',desc_txt:'자재 사급 + 가공 외주'},
-      {po_type_cd:'SIE-1',po_type_nm:'외주가공(부분사급)',sub_flg:'Y',desc_txt:'일부 사급 + 가공 외주'},
-      {po_type_cd:'SIF',po_type_nm:'외주설치',sub_flg:'Y',desc_txt:'현장 외주 설치/시공'},
-      {po_type_cd:'DIV',po_type_nm:'일반구매',sub_flg:'N',desc_txt:'완제품/자재 일반 구매'}
+      {iv_type:'IIV',iv_type_nm:'해외매입',import_flg:'Y',note:'미착품 — 입고 전 매입 선행(통관 후 입고)'},
+      {iv_type:'DIV',iv_type_nm:'국내매입',import_flg:'N',note:'국내 일반 구매매입(대부분 입고 후 매입)'},
+      {iv_type:'SIE-1',iv_type_nm:'외주가공매입(제작)',import_flg:'N',note:'수불 미연동 설계'},
+      {iv_type:'SIE',iv_type_nm:'외주가공매입',import_flg:'N',note:'외주 가공비 매입'},
+      {iv_type:'SIF',iv_type_nm:'외주설치매입',import_flg:'N',note:'현장 외주 설치/시공'},
+      {iv_type:'SIX',iv_type_nm:'외주 예외',import_flg:'N',note:'예외 처리분'},
+      {iv_type:'XIV',iv_type_nm:'기타매입',import_flg:'N',note:'기타'}
     ]},
 
-  /* ---- 구매요청 ---- */
-  pr:{ kr:'구매요청', tbl:'erp_ro.purchase_req', src:'M_PUR_REQ', pk:'pr_no',
-    desc:'발주 이전 단계의 구매요청(PR). 발주(PO)로 전환되면 ord_qty가 채워짐.',
-    cols:[['pr_no','varchar(14)','요청번호','pk'],['pr_dt','date','요청일'],['proj_cd','varchar(16)','프로젝트'],['item_cd','varchar(12)','품목','fk'],
-          ['req_qty','numeric','요청수량','r'],['uom','varchar(6)','단위'],['req_dept','varchar(16)','요청부서'],['pr_sts','varchar(10)','상태']],
+  /* ---- 거래처 (B_BP) — 익명화 ---- */
+  bp:{ kr:'거래처(익명)', tbl:'erp_ro.biz_partner', src:'B_BP', pk:'bp_label', badge:'17개사',
+    desc:'발주·입고에 등장한 실제 거래처. 영업비밀 보호를 위해 코드·명칭을 익명 라벨(거래처 A~Q)로 마스킹. 우측은 추출 입고라인 수.',
+    cols:[['bp_label','varchar(20)','거래처(익명)','pk'],['lines','int','추출 입고라인','r']],
     rows:[
-      {pr_no:'PR202606170210',pr_dt:'2026-06-17',proj_cd:'2025-095-SUL-EC',item_cd:'PLT-AL5T',req_qty:'500',uom:'EA',req_dept:'사업관리팀',pr_sts:'발주완료'},
-      {pr_no:'PR202606150150',pr_dt:'2026-06-15',proj_cd:'2025-095-SUL-EC',item_cd:'UNI-25A-S',req_qty:'200',uom:'EA',req_dept:'사업관리팀',pr_sts:'발주완료'},
-      {pr_no:'PR202606250231',pr_dt:'2026-06-25',proj_cd:'2026-044-MED',item_cd:'ORG-P22N',req_qty:'3,000',uom:'EA',req_dept:'생산팀',pr_sts:'발주완료'},
-      {pr_no:'PR202606100162',pr_dt:'2026-06-10',proj_cd:'2026-031-PNT',item_cd:'BRG-6204Z',req_qty:'1,500',uom:'EA',req_dept:'생산팀',pr_sts:'발주완료'},
-      {pr_no:'PR202606180188',pr_dt:'2026-06-18',proj_cd:'2026-031-PNT',item_cd:'PCB-A04',req_qty:'120',uom:'SET',req_dept:'생산팀',pr_sts:'발주완료'},
-      {pr_no:'PR202606120162',pr_dt:'2026-06-12',proj_cd:'2026-031-PNT',item_cd:'BRG-HSG',req_qty:'800',uom:'EA',req_dept:'생산팀',pr_sts:'발주완료'},
-      {pr_no:'PR202606190151',pr_dt:'2026-06-19',proj_cd:'2025-095-SUL-EC',item_cd:'VLV-BDY',req_qty:'150',uom:'EA',req_dept:'사업관리팀',pr_sts:'발주완료'},
-      {pr_no:'PR202606230205',pr_dt:'2026-06-23',proj_cd:'2025-095-SUL-EC',item_cd:'UNI-25A-S',req_qty:'1',uom:'LOT',req_dept:'사업관리팀',pr_sts:'발주완료'},
-      {pr_no:'PR202606210140',pr_dt:'2026-06-21',proj_cd:'-',item_cd:'PLT-AL5T',req_qty:'2.4',uom:'TON',req_dept:'구매팀',pr_sts:'발주완료'},
-      {pr_no:'PR202606140175',pr_dt:'2026-06-14',proj_cd:'2026-031-PNT',item_cd:'SPR-SS-08',req_qty:'5,000',uom:'EA',req_dept:'생산팀',pr_sts:'발주완료'}
+      {bp_label:'거래처 A',lines:'25'},{bp_label:'거래처 B',lines:'16'},{bp_label:'거래처 C',lines:'15'},{bp_label:'거래처 D',lines:'12'},
+      {bp_label:'거래처 E',lines:'8'},{bp_label:'거래처 F',lines:'6'},{bp_label:'거래처 G',lines:'3'},{bp_label:'거래처 H',lines:'3'},
+      {bp_label:'거래처 I',lines:'2'},{bp_label:'거래처 J',lines:'2'},{bp_label:'거래처 K',lines:'2'},{bp_label:'거래처 L',lines:'2'},
+      {bp_label:'거래처 M',lines:'2'},{bp_label:'거래처 N',lines:'1'},{bp_label:'거래처 O',lines:'1'},{bp_label:'거래처 P',lines:'1'},{bp_label:'거래처 Q',lines:'1'}
     ]},
 
-  /* ---- 발주 (10건) ---- */
-  po:{ kr:'발주', tbl:'erp_ro.purchase_order', src:'M_PUR_ORD_HDR/DTL', pk:'po_no', badge:'발주 10건',
-    desc:'확정 발주(PO). 외주발주·검사 대시보드의 기준 데이터. po_type_cd로 외주/일반 구분, 외주는 협력사 포털로 연계.',
-    cols:[['po_no','varchar(14)','발주번호','pk'],['pr_no','varchar(14)','요청번호','fk'],['po_dt','date','발주일'],['bp_cd','varchar(8)','거래처','fk'],
-          ['po_type_cd','varchar(6)','형태','fk'],['item_cd','varchar(12)','품목','fk'],['ord_qty','varchar(12)','수량','r'],
-          ['unit_price','numeric','단가','r'],['po_amt','numeric','발주금액','r'],['due_dt','date','납기'],['po_sts','varchar(12)','진행상태']],
+  /* ---- 품목 (B_ITEM) — 실제 ---- */
+  item:{ kr:'품목 마스터', tbl:'erp_ro.item_master', src:'B_ITEM', pk:'item_cd', badge:'실제값',
+    desc:'발주·입고에 사용된 실제 품목(품목코드·명·규격). 마스킹 없음 — ERP 추출 원본값.',
+    cols:[['item_cd','varchar(16)','품목코드','pk'],['item_nm','varchar(60)','품목명'],['spec','varchar(48)','규격']],
     rows:[
-      {po_no:'PO202606220012',pr_no:'PR202606170210',po_dt:'2026-06-22',bp_cd:'V-1027',po_type_cd:'SIE',item_cd:'PLT-AL5T',ord_qty:'500 EA',unit_price:'3,200',po_amt:'1,600,000',due_dt:'2026-07-05',po_sts:'생산중'},
-      {po_no:'PO202606200008',pr_no:'PR202606150150',po_dt:'2026-06-20',bp_cd:'V-1027',po_type_cd:'SIE',item_cd:'UNI-25A-S',ord_qty:'200 EA',unit_price:'5,400',po_amt:'1,080,000',due_dt:'2026-06-30',po_sts:'검수요청'},
-      {po_no:'PO202606250021',pr_no:'PR202606250231',po_dt:'2026-06-25',bp_cd:'V-1027',po_type_cd:'SIE',item_cd:'ORG-P22N',ord_qty:'3,000 EA',unit_price:'180',po_amt:'540,000',due_dt:'2026-07-10',po_sts:'신규접수'},
-      {po_no:'PO202606100005',pr_no:'PR202606100162',po_dt:'2026-06-10',bp_cd:'V-1027',po_type_cd:'SIE-1',item_cd:'BRG-6204Z',ord_qty:'1,500 EA',unit_price:'320',po_amt:'480,000',due_dt:'2026-06-19',po_sts:'완료'},
-      {po_no:'PO202606180017',pr_no:'PR202606180188',po_dt:'2026-06-18',bp_cd:'V-1043',po_type_cd:'SIE',item_cd:'PCB-A04',ord_qty:'120 SET',unit_price:'18,500',po_amt:'2,220,000',due_dt:'2026-06-28',po_sts:'보류(불합격)'},
-      {po_no:'PO202606120009',pr_no:'PR202606120162',po_dt:'2026-06-12',bp_cd:'V-1051',po_type_cd:'SIE-1',item_cd:'BRG-HSG',ord_qty:'800 EA',unit_price:'1,200',po_amt:'960,000',due_dt:'2026-06-22',po_sts:'완료'},
-      {po_no:'PO202606190014',pr_no:'PR202606190151',po_dt:'2026-06-19',bp_cd:'V-1066',po_type_cd:'SIE',item_cd:'VLV-BDY',ord_qty:'150 EA',unit_price:'9,000',po_amt:'1,350,000',due_dt:'2026-06-30',po_sts:'입고·검사대기'},
-      {po_no:'PO202606230006',pr_no:'PR202606230205',po_dt:'2026-06-23',bp_cd:'V-1078',po_type_cd:'SIF',item_cd:'UNI-25A-S',ord_qty:'1 LOT',unit_price:'22,000,000',po_amt:'22,000,000',due_dt:'2026-07-12',po_sts:'발주확정'},
-      {po_no:'PO202606210011',pr_no:'PR202606210140',po_dt:'2026-06-21',bp_cd:'V-2210',po_type_cd:'DIV',item_cd:'PLT-AL5T',ord_qty:'2.4 TON',unit_price:'21,438,608',po_amt:'51,452,660',due_dt:'2026-06-26',po_sts:'입고'},
-      {po_no:'PO202606160013',pr_no:'PR202606140175',po_dt:'2026-06-16',bp_cd:'V-1051',po_type_cd:'SIE-1',item_cd:'SPR-SS-08',ord_qty:'5,000 EA',unit_price:'95',po_amt:'475,000',due_dt:'2026-06-26',po_sts:'완료'}
-    ]},
-
-  /* ---- 입출고 ---- */
-  gm:{ kr:'입출고 이력', tbl:'erp_ro.goods_movement', src:'M_PUR_GOODS_MVMT', pk:'mvmt_no',
-    desc:'협력사 출하(DN) → 사내 입고(RCPT) 이력. 검사의뢰번호·검사상태 연계.',
-    cols:[['mvmt_no','varchar(16)','이동번호','pk'],['po_no','varchar(14)','발주번호','fk'],['mvmt_type','varchar(6)','구분'],['mvmt_dt','date','일자'],
-          ['good_qty','varchar(12)','수량','r'],['inspect_req_no','varchar(16)','검사의뢰'],['inspect_sts','varchar(10)','검사상태','pill']],
-    rows:[
-      {mvmt_no:'DN202606180005',po_no:'PO202606100005',mvmt_type:'출하',mvmt_dt:'2026-06-18',good_qty:'1,500 EA',inspect_req_no:'IR202606100005',inspect_sts:'합격'},
-      {mvmt_no:'RC202606190005',po_no:'PO202606100005',mvmt_type:'입고',mvmt_dt:'2026-06-19',good_qty:'1,500 EA',inspect_req_no:'IR202606100005',inspect_sts:'합격'},
-      {mvmt_no:'RC202606210009',po_no:'PO202606120009',mvmt_type:'입고',mvmt_dt:'2026-06-21',good_qty:'800 EA',inspect_req_no:'IR202606210009',inspect_sts:'합격'},
-      {mvmt_no:'RC202606250014',po_no:'PO202606190014',mvmt_type:'입고',mvmt_dt:'2026-06-25',good_qty:'150 EA',inspect_req_no:'IR202606250014',inspect_sts:'검사대기'},
-      {mvmt_no:'RC202606260013',po_no:'PO202606160013',mvmt_type:'입고',mvmt_dt:'2026-06-26',good_qty:'5,000 EA',inspect_req_no:'IR202606250013',inspect_sts:'합격'},
-      {mvmt_no:'RC202606250011',po_no:'PO202606210011',mvmt_type:'입고',mvmt_dt:'2026-06-25',good_qty:'2.4 TON',inspect_req_no:'-',inspect_sts:'입고검사'},
-      {mvmt_no:'DN202606240017',po_no:'PO202606180017',mvmt_type:'출하',mvmt_dt:'2026-06-24',good_qty:'120 SET',inspect_req_no:'IR202606240017',inspect_sts:'불합격'}
-    ]},
-
-  /* ---- 검사 ---- */
-  insp:{ kr:'검사 결과', tbl:'erp_ro.inspection', src:'Q_INSPECTION_*', pk:'insp_req_no',
-    desc:'외주 입고·검사 판정. 합격 수량/불합격 수량·판정자 기록. 불합격 시 재작업(보류).',
-    cols:[['insp_req_no','varchar(16)','검사의뢰','pk'],['insp_result_no','varchar(16)','검사결과'],['po_no','varchar(14)','발주번호','fk'],['insp_dt','date','검사일'],
-          ['insp_items','varchar(24)','검사항목'],['good_qty','varchar(8)','합격','r'],['bad_qty','varchar(8)','불합격','r'],['result','varchar(8)','판정','pill'],['inspector','varchar(20)','판정자']],
-    rows:[
-      {insp_req_no:'IR202606100005',insp_result_no:'IQ202606100007',po_no:'PO202606100005',insp_dt:'2026-06-19',insp_items:'치수/경도',good_qty:'1,500',bad_qty:'0',result:'합격',inspector:'품질팀 한지후'},
-      {insp_req_no:'IR202606210009',insp_result_no:'IQ202606210009',po_no:'PO202606120009',insp_dt:'2026-06-21',insp_items:'치수/경도',good_qty:'800',bad_qty:'0',result:'합격',inspector:'품질팀 한지후'},
-      {insp_req_no:'IR202606250013',insp_result_no:'IQ202606260013',po_no:'PO202606160013',insp_dt:'2026-06-26',insp_items:'장력/치수',good_qty:'5,000',bad_qty:'0',result:'합격',inspector:'품질팀 정수민'},
-      {insp_req_no:'IR202606240017',insp_result_no:'IQ202606240017',po_no:'PO202606180017',insp_dt:'2026-06-24',insp_items:'솔더링/통전/외관',good_qty:'118',bad_qty:'2',result:'불합격',inspector:'품질팀 정수민'},
-      {insp_req_no:'IR202606250014',insp_result_no:'-',po_no:'PO202606190014',insp_dt:'-',insp_items:'치수/외관',good_qty:'-',bad_qty:'-',result:'대기',inspector:'-'}
-    ]},
-
-  /* ---- 매입 (구매 10건) ---- */
-  iv:{ kr:'매입(구매)', tbl:'erp_ro.purchase_invoice', src:'M_IV_HDR/DTL', pk:'iv_no', badge:'매입 10건',
-    desc:'입고·검사 합격분의 매입 확정 + 일반자재 구매. 거래처별 매입집계 화면의 소스. 공급가/부가세/합계.',
-    cols:[['iv_no','varchar(14)','매입번호','pk'],['po_no','varchar(14)','발주번호','fk'],['bp_cd','varchar(8)','거래처','fk'],['iv_dt','date','매입일'],
-          ['item_cd','varchar(12)','품목','fk'],['iv_qty','varchar(12)','수량','r'],['supply_amt','numeric','공급가','r'],['vat','numeric','부가세','r'],['total_amt','numeric','합계','r'],['iv_sts','varchar(10)','상태','pill']],
-    rows:[
-      {iv_no:'IV202606300012',po_no:'PO202606100005',bp_cd:'V-1027',iv_dt:'2026-06-30',item_cd:'BRG-6204Z',iv_qty:'1,500 EA',supply_amt:'480,000',vat:'48,000',total_amt:'528,000',iv_sts:'확정'},
-      {iv_no:'IV202606300018',po_no:'PO202606120009',bp_cd:'V-1051',iv_dt:'2026-06-30',item_cd:'BRG-HSG',iv_qty:'800 EA',supply_amt:'960,000',vat:'96,000',total_amt:'1,056,000',iv_sts:'확정'},
-      {iv_no:'IV202606300021',po_no:'PO202606160013',bp_cd:'V-1051',iv_dt:'2026-06-30',item_cd:'SPR-SS-08',iv_qty:'5,000 EA',supply_amt:'475,000',vat:'47,500',total_amt:'522,500',iv_sts:'확정'},
-      {iv_no:'IV202606260009',po_no:'PO202606210011',bp_cd:'V-2210',iv_dt:'2026-06-26',item_cd:'PLT-AL5T',iv_qty:'2.4 TON',supply_amt:'51,452,660',vat:'5,145,266',total_amt:'56,597,926',iv_sts:'확정'},
-      {iv_no:'IV202606250014',po_no:'PO202606190014',bp_cd:'V-1066',iv_dt:'2026-06-25',item_cd:'VLV-BDY',iv_qty:'150 EA',supply_amt:'1,350,000',vat:'135,000',total_amt:'1,485,000',iv_sts:'검수대기'},
-      {iv_no:'IV202606150031',po_no:'PO202606050003',bp_cd:'V-2231',iv_dt:'2026-06-15',item_cd:'SUS304-RB',iv_qty:'1.2 TON',supply_amt:'18,600,000',vat:'1,860,000',total_amt:'20,460,000',iv_sts:'확정'},
-      {iv_no:'IV202606180042',po_no:'PO202606090007',bp_cd:'V-2245',iv_dt:'2026-06-18',item_cd:'BOLT-SET',iv_qty:'1 LOT',supply_amt:'3,250,000',vat:'325,000',total_amt:'3,575,000',iv_sts:'확정'},
-      {iv_no:'IV202606200055',po_no:'PO202606110010',bp_cd:'V-2210',iv_dt:'2026-06-20',item_cd:'PLT-AL5T',iv_qty:'0.8 TON',supply_amt:'9,420,000',vat:'942,000',total_amt:'10,362,000',iv_sts:'확정'},
-      {iv_no:'IV202606220061',po_no:'PO202606130012',bp_cd:'V-2231',iv_dt:'2026-06-22',item_cd:'SUS316-PL',iv_qty:'0.6 TON',supply_amt:'11,400,000',vat:'1,140,000',total_amt:'12,540,000',iv_sts:'확정'},
-      {iv_no:'IV202606240070',po_no:'PO202606170016',bp_cd:'V-1043',iv_dt:'2026-06-24',item_cd:'CNT-MOD',iv_qty:'300 EA',supply_amt:'1,350,000',vat:'135,000',total_amt:'1,485,000',iv_sts:'확정'}
+      {item_cd:'ADRE00-00027',item_nm:'SERVO REDUCER',spec:'ATG/PGX62-H-2(1/30)'},
+      {item_cd:'ADRD00-00130',item_nm:'SERVO MOTOR',spec:'MITSUMBSHI/HG-KR43'},
+      {item_cd:'ADRM01-00068',item_nm:'JAW COUPLING',spec:'MS1424 (Ø16 KEY 5*5 , Ø22 KEY 8*7)'},
+      {item_cd:'ADRK01-00008',item_nm:'LOCK WASHER',spec:'AW06'},
+      {item_cd:'ADRG01-00026',item_nm:'BALL BEARING',spec:'6206ZZ / NSK'},
+      {item_cd:'ADRN01-00011',item_nm:'KEY (STEEL)',spec:'8*7*300'},
+      {item_cd:'APAI02-00099',item_nm:'PRESSURE GAUGE',spec:'DIAPHRAGM+LIQUID FILLED, 1S, TRI-CLAMP'},
+      {item_cd:'APAV01-00061',item_nm:'MANUAL BALL VALVE/FERRULE',spec:'1S, ISO, FERRULE, STS304, 3PCS'},
+      {item_cd:'APAV01-00015',item_nm:'MANUAL BALL VALVE/FERRULE',spec:'1.5S, ISO, FERRULE, STS304, 3PCS'},
+      {item_cd:'ADRI03-01109',item_nm:'O-RING (실리콘70)',spec:'G-90'},
+      {item_cd:'ADRI03-01250',item_nm:'O-RING (SILICONE70)',spec:'Ø8*I.D 828'},
+      {item_cd:'RZZH4951-00014',item_nm:'STS304 환봉',spec:'Ø65*80'},
+      {item_cd:'RZZH4951-00015',item_nm:'STS304 환봉',spec:'Ø65*73'},
+      {item_cd:'RZZH4951-00016',item_nm:'STS304 파이프',spec:'20A*SCH.10S*1000 (CD.1152) (외부광)'}
     ]}
 };
-const ORDER=['po','iv','pr','gm','insp','bp','item','potype'];
+const ORDER=['po','iv','ivtype','bp','item'];
 
 /* ===== KPI ===== */
 (function(){
-  const k=document.getElementById('kpis');
-  const cards=[
-    {n:TB.po.rows.length, l:'발주 (PO)', c:'a'},
-    {n:TB.iv.rows.length, l:'매입 (구매)', c:'g'},
-    {n:TB.bp.rows.length, l:'거래처', c:''},
-    {n:TB.item.rows.length, l:'품목', c:'p'},
-    {n:ORDER.length, l:'중간 테이블', c:''}
-  ];
-  k.innerHTML=cards.map(c=>`<div class="kpi ${c.c}"><div class="n">${c.n}</div><div class="l">${c.l}</div></div>`).join('');
+  document.getElementById('kpis').innerHTML=[
+    {n:'12', l:'발주 (PO·실제)', c:'a'},
+    {n:'12', l:'구매·입고/매입', c:'g'},
+    {n:'17', l:'거래처(익명)', c:'p'},
+    {n:'14', l:'품목(실제)', c:''},
+    {n:'102', l:'추출 입고라인', c:''}
+  ].map(c=>`<div class="kpi ${c.c}"><div class="n">${c.n}</div><div class="l">${c.l}</div></div>`).join('');
 })();
 
 /* ===== 네비 ===== */
 let cur='po';
-(function(){
-  const nav=document.getElementById('nav');
-  nav.innerHTML=ORDER.map(key=>{ const t=TB[key];
-    return `<button data-k="${key}" onclick="show('${key}')"><span>${t.kr}</span><span class="cnt">${t.rows.length}</span></button>`;
-  }).join('');
-})();
+document.getElementById('nav').innerHTML=ORDER.map(key=>{ const t=TB[key];
+  return `<button data-k="${key}" onclick="show('${key}')"><span>${t.kr}</span><span class="cnt">${t.rows.length}</span></button>`;
+}).join('');
 
-/* ===== pill 렌더 ===== */
-function pillCell(col, v){
-  const map={'Y':'y','N':'n','합격':'ok','불합격':'no','대기':'wait','검사대기':'wait','검수대기':'wait','입고검사':'wait','확정':'done'};
-  const cls=map[v]||'n';
-  return `<span class="pill ${cls}">${v}</span>`;
+function pillCell(flag,v){
+  if(flag==='mask') return `<span class="pill mask">🔒 ${v}</span>`;
+  if(flag==='anon') return `<span class="pill anon">${v}</span>`;
+  const map={'Y':'y','N':'n'}; return `<span class="pill ${map[v]||'n'}">${v}</span>`;
 }
-
-/* ===== DDL 생성 ===== */
 function ddlHTML(t){
-  const lines=t.cols.map((c,i)=>{
-    const isPk=c[3]==='pk';
-    const comma=(i<t.cols.length-1)?',':',';
-    return `  <span class="ty">${c[0]}</span> ${c[1]}${isPk?' <span class="pk">PRIMARY KEY</span>':''}${comma}  <span class="cm">-- ${c[2]}${c[3]==='fk'?' (FK)':''}</span>`;
+  const lines=t.cols.map((c,i)=>{ const isPk=c[3]==='pk';
+    return `  <span class="ty">${c[0]}</span> ${c[1]}${isPk?' <span class="pk">PRIMARY KEY</span>':''},  <span class="cm">-- ${c[2]}${c[3]==='fk'?' (FK)':''}${c[3]==='mask'?' (마스킹: 운영 시 numeric)':''}</span>`;
   }).join('\n');
   const common=`  <span class="cm">-- 공통 컬럼(모든 erp_* 테이블)</span>\n  <span class="ty">synced_at</span> timestamptz,    <span class="cm">-- 포털 적재 시각</span>\n  <span class="ty">src_updated</span> timestamptz,  <span class="cm">-- ERP 원천 최종수정</span>\n  <span class="ty">batch_id</span> uuid          <span class="cm">-- 배치 실행 ID</span>`;
   return `<span class="kw">CREATE TABLE</span> ${t.tbl} (\n${lines}\n${common}\n);  <span class="cm">-- 원천: UNIERP ${t.src}</span>`;
 }
-
-/* ===== 그리드 렌더 ===== */
 function gridHTML(t){
   const th=t.cols.map(c=>`<th>${c[2]}<span class="e">${c[0]}</span></th>`).join('');
   const tr=t.rows.map(row=>{
-    const tds=t.cols.map(c=>{
-      const v=row[c[0]]; const flag=c[3];
-      if(flag==='pill') return `<td>${pillCell(c[0],v)}</td>`;
-      if(flag==='pk') return `<td class="k pkk">${v}</td>`;
-      if(flag==='fk') return `<td class="k">${v}</td>`;
-      if(flag==='r') return `<td class="r">${v}</td>`;
+    const tds=t.cols.map(c=>{ const v=row[c[0]]; const f=c[3];
+      if(f==='mask'||f==='anon'||f==='y') return `<td>${pillCell(f,v)}</td>`;
+      if(f==='pk') return `<td class="k pkk">${v}</td>`;
+      if(f==='fk') return `<td class="k">${v}</td>`;
+      if(f==='r') return `<td class="r">${v}</td>`;
       return `<td>${v}</td>`;
     }).join('');
     return `<tr>${tds}</tr>`;
   }).join('');
   return `<div class="grid-wrap"><table class="grid"><thead><tr>${th}</tr></thead><tbody>${tr}</tbody></table></div>`;
 }
-
-/* ===== 화면 ===== */
 function show(key){
   cur=key; const t=TB[key];
   document.querySelectorAll('.nav button').forEach(b=>b.classList.toggle('on', b.dataset.k===key));
+  const masked=t.cols.some(c=>c[3]==='mask'||c[3]==='anon');
   document.getElementById('view').innerHTML=`
     <div class="tcard">
       <div class="tc-head">
-        <div class="ttl"><span class="kr">${t.kr}</span><span class="eng">${t.tbl}</span>${t.badge?`<span class="pill done">${t.badge}</span>`:''}</div>
-        <div class="src" style="margin-top:5px">UNIERP 원천: <b>${t.src}</b> · PK: <b>${t.pk}</b> · 중간 DB 스키마 <b>erp_ro</b> (읽기전용)</div>
+        <div class="ttl"><span class="kr">${t.kr}</span><span class="eng">${t.tbl}</span>${t.badge?`<span class="pill ${masked?'mask':'n'}">${t.badge}</span>`:''}</div>
+        <div class="src">UNIERP 원천: <b>${t.src}</b> · PK: <b>${t.pk}</b> · 중간 DB <b>erp_ro</b> (읽기전용)${masked?' · 🔒 일부 컬럼 마스킹':''}</div>
         <div class="desc">${t.desc}</div>
         <div class="tc-tools">
           <button class="pri" onclick="toggleDDL()">📐 CREATE TABLE (DDL)</button>
-          <button onclick="copySQL('${key}')">🧩 SQL 복사 (DDL+INSERT)</button>
-          <button onclick="copyCSV('${key}')">📋 CSV 복사</button>
+          <button onclick="copyCSV('${key}')">📋 CSV 복사(표시값)</button>
         </div>
       </div>
       <pre class="ddl" id="ddl">${ddlHTML(t)}</pre>
       ${gridHTML(t)}
-      <div class="gridfoot"><span><b>${t.rows.length}</b> rows · ${t.cols.length} columns (+ 공통 3)</span><span>데이터 기준 <b>${ASOF}</b> · synced_at = ${SYNC}</span></div>
+      <div class="gridfoot"><span><b>${t.rows.length}</b> rows · ${t.cols.length} columns (+ 공통 3)</span><span>${masked?'🔒 거래처/단가/금액 마스킹':'실제 추출값'} · 원천 _movements.csv</span></div>
     </div>`;
   window.scrollTo({top:document.getElementById('nav').offsetTop-6, behavior:'smooth'});
 }
 function toggleDDL(){ const d=document.getElementById('ddl'); if(d) d.classList.toggle('show'); }
-
-/* ===== 내보내기 ===== */
-function rawVal(v){ return (v==null?'':(''+v)).replace(/,/g,''); }   // 표시용 천단위 콤마 제거
 function copyCSV(key){ const t=TB[key];
-  const head=t.cols.map(c=>c[0]).concat(['synced_at']).join(',');
-  const body=t.rows.map(r=>t.cols.map(c=>{ let v=r[c[0]]; if(/\s/.test(v)||/[",]/.test(v)) v='"'+(''+v).replace(/"/g,'""')+'"'; return v; }).concat([SYNC]).join(',')).join('\n');
-  clip(head+'\n'+body, t.kr+' CSV '+t.rows.length+'행 복사됨');
+  const head=t.cols.map(c=>c[0]).join(',');
+  const body=t.rows.map(r=>t.cols.map(c=>{ let v=r[c[0]]; if(/[",]/.test(v)) v='"'+(''+v).replace(/"/g,'""')+'"'; return v; }).join(',')).join('\n');
+  clip(head+'\n'+body, t.kr+' CSV '+t.rows.length+'행 복사됨(표시값·마스킹 포함)');
 }
-function copySQL(key){ const t=TB[key];
-  const ddl=ddlHTML(t).replace(/<[^>]+>/g,'');
-  const cols=t.cols.map(c=>c[0]).join(', ');
-  const inserts=t.rows.map(r=>{
-    const vals=t.cols.map(c=>{ const flag=c[3]; let v=r[c[0]];
-      const numeric=(flag==='r' && /^[\d,\.\-]+$/.test(''+v) && v!=='-');
-      if(numeric) return rawVal(v);
-      return "'"+(''+v).replace(/'/g,"''")+"'";
-    }).join(', ');
-    return `INSERT INTO ${t.tbl} (${cols}) VALUES (${vals});`;
-  }).join('\n');
-  clip(ddl+'\n\n'+inserts, t.kr+' SQL(DDL+INSERT '+t.rows.length+'건) 복사됨');
-}
-function clip(text, msg){
-  if(navigator.clipboard && navigator.clipboard.writeText){ navigator.clipboard.writeText(text).then(()=>toast(msg),()=>fallbackClip(text,msg)); }
-  else fallbackClip(text,msg);
-}
-function fallbackClip(text,msg){ const ta=document.createElement('textarea'); ta.value=text; ta.style.position='fixed'; ta.style.opacity='0'; document.body.appendChild(ta); ta.select();
-  try{ document.execCommand('copy'); toast(msg); }catch(e){ toast('복사 실패 — 길게 눌러 직접 복사하세요'); } ta.remove(); }
-let toastTimer;
-function toast(m){ const t=document.getElementById('toast'); t.textContent=m; t.classList.add('show'); clearTimeout(toastTimer); toastTimer=setTimeout(()=>t.classList.remove('show'),2200); }
+function clip(text,msg){ if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(text).then(()=>toast(msg),()=>fb(text,msg)); } else fb(text,msg); }
+function fb(text,msg){ const ta=document.createElement('textarea'); ta.value=text; ta.style.position='fixed'; ta.style.opacity='0'; document.body.appendChild(ta); ta.select(); try{document.execCommand('copy');toast(msg);}catch(e){toast('복사 실패');} ta.remove(); }
+let tt; function toast(m){ const t=document.getElementById('toast'); t.textContent=m; t.classList.add('show'); clearTimeout(tt); tt=setTimeout(()=>t.classList.remove('show'),2200); }
 
-/* init */
 show('po');
 </script>
 </body>
