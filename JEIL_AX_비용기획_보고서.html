@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JEIL 전사 AX 비용 기획 보고서</title>
+<style>
+  :root{
+    --ink:#1a2433; --ink2:#46566b; --muted:#7a899c; --line:#e3e8ef;
+    --bg:#f5f7fa; --paper:#ffffff; --brand:#1f5fd6; --brand2:#7c3aed;
+    --good:#0f9d6e; --goodbg:#e6f7f0; --warn:#b8860b; --warnbg:#fdf6e3;
+    --bad:#d24b4b; --badbg:#fdecec; --accentbg:#eef4ff;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--ink);font-family:'Segoe UI',-apple-system,'Malgun Gothic',sans-serif;line-height:1.65;font-size:15px}
+  .page{max-width:920px;margin:0 auto;background:var(--paper);box-shadow:0 1px 30px rgba(20,40,80,.08)}
+  /* cover */
+  .cover{background:linear-gradient(135deg,#1f5fd6 0%,#7c3aed 100%);color:#fff;padding:54px 56px 44px}
+  .cover .tag{font-size:12px;letter-spacing:3px;text-transform:uppercase;opacity:.85}
+  .cover h1{font-size:32px;font-weight:700;margin:14px 0 8px;line-height:1.25}
+  .cover .desc{font-size:15px;opacity:.92;max-width:620px}
+  .cover .meta{margin-top:26px;display:flex;gap:26px;flex-wrap:wrap;font-size:13px}
+  .cover .meta div span{display:block;opacity:.7;font-size:11px;letter-spacing:1px;text-transform:uppercase;margin-bottom:3px}
+  .body{padding:40px 56px 56px}
+  section{margin-bottom:38px}
+  h2{font-size:20px;color:var(--ink);margin-bottom:14px;padding-bottom:8px;border-bottom:2px solid var(--brand);display:flex;align-items:center;gap:10px}
+  h2 .num{background:var(--brand);color:#fff;width:26px;height:26px;border-radius:7px;display:inline-flex;align-items:center;justify-content:center;font-size:13px;flex:none}
+  h3{font-size:15px;color:var(--ink2);margin:18px 0 8px}
+  p{margin-bottom:10px;color:var(--ink2)}
+  strong{color:var(--ink)}
+  ul,ol{margin:8px 0 12px 20px}
+  li{margin-bottom:6px;color:var(--ink2)}
+  table{width:100%;border-collapse:collapse;font-size:13.5px;margin:12px 0}
+  th,td{padding:9px 12px;text-align:right;border-bottom:1px solid var(--line)}
+  th:first-child,td:first-child{text-align:left}
+  thead th{background:#f0f4fa;color:var(--ink);font-weight:600;font-size:12px;border-bottom:2px solid var(--line)}
+  tbody tr:hover{background:#fafbfd}
+  .hl-row{background:var(--accentbg)!important}
+  .hl-row td{font-weight:600}
+  /* callouts */
+  .summary{background:var(--accentbg);border:1px solid #d4e2fb;border-radius:12px;padding:20px 22px;margin-bottom:30px}
+  .summary h2{border:none;color:var(--brand);font-size:17px;margin-bottom:10px;padding:0}
+  .keybox{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:18px 0}
+  .keybox .k{background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:16px}
+  .keybox .k .n{font-size:12px;color:var(--muted);font-weight:600}
+  .keybox .k .v{font-size:24px;font-weight:700;color:var(--good);margin:6px 0}
+  .keybox .k .d{font-size:12px;color:var(--muted)}
+  .tag-good{background:var(--goodbg);color:var(--good)}
+  .tag-warn{background:var(--warnbg);color:var(--warn)}
+  .tag-bad{background:var(--badbg);color:var(--bad)}
+  .chip{display:inline-block;padding:2px 9px;border-radius:20px;font-size:11px;font-weight:600}
+  .reco{background:var(--goodbg);border-left:4px solid var(--good);border-radius:0 10px 10px 0;padding:16px 20px;margin:14px 0}
+  .reco strong{color:var(--good)}
+  .note{background:#fafbfd;border:1px solid var(--line);border-radius:10px;padding:14px 18px;font-size:12.5px;color:var(--muted)}
+  .note li{color:var(--muted);font-size:12.5px}
+  /* bar chart */
+  .barwrap{display:flex;align-items:center;gap:12px;margin:9px 0}
+  .barwrap .nm{width:200px;font-size:13px;color:var(--ink2)}
+  .barwrap .track{flex:1;background:#eef1f6;border-radius:6px;overflow:hidden}
+  .barwrap .bar{height:26px;border-radius:6px;display:flex;align-items:center;justify-content:flex-end;padding-right:8px;color:#fff;font-size:12px;font-weight:600}
+  .pill{display:inline-block;background:#f0f4fa;border:1px solid var(--line);border-radius:20px;padding:4px 12px;font-size:12px;color:var(--ink2);margin:3px 4px 3px 0}
+  a{color:var(--brand);text-decoration:none}
+  .src{font-size:12px;color:var(--muted)}
+  .src a{display:block;margin:3px 0}
+  .footer{padding:22px 56px;background:#f0f4fa;font-size:12px;color:var(--muted);text-align:center}
+  @media print{body{background:#fff}.page{box-shadow:none}}
+  @media(max-width:680px){.cover,.body{padding:32px 22px}.keybox{grid-template-columns:1fr}.barwrap .nm{width:120px}}
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="cover">
+    <div class="tag">JEIL · AX Cost Planning</div>
+    <h1>전사 AX 비용 기획 보고서</h1>
+    <div class="desc">API 토큰 방식 vs 팀빌딩(좌석제) 방식 비교 · 토큰 단가 및 처리 비용 산정 · 헤비유저 분리 과금 설계</div>
+    <div class="meta">
+      <div><span>작성 기준일</span>2026-06-18</div>
+      <div><span>대상 규모</span>전사 100~300명</div>
+      <div><span>모델 구성</span>주력 Claude · 보조 GPT(API)</div>
+      <div><span>환율 가정</span>₩1,400 / USD</div>
+    </div>
+  </div>
+
+  <div class="body">
+
+    <!-- 요약 -->
+    <div class="summary">
+      <h2>요약 (Executive Summary)</h2>
+      <p>전사 AI 사용 방식은 <strong>실제 쓴 토큰만큼 내는 API 방식</strong>과 <strong>사람 수 × 정액인 좌석제</strong>로 나뉜다. 저사용 인원이 많은 전사 환경에서는 API 방식이 총비용이 낮고, 부서·개인별 사용량 추적과 별도 과금이 가능하다. JEIL은 이미 사내 포털(ai.jeilm.co.kr)을 API로 구축 중이므로 <strong>API 게이트웨이 중심 + 헤비유저 분리 과금</strong> 구조가 가장 적합하다.</p>
+      <div class="keybox">
+        <div class="k"><div class="n">200명 월 비용 (권고)</div><div class="v">₩296만</div><div class="d">API + 모델 라우팅 · 연 약 ₩3,550만</div></div>
+        <div class="k"><div class="n">좌석제 대비 절감</div><div class="v">약 47%</div><div class="d">전원 Standard 좌석 ₩560만/월 대비</div></div>
+        <div class="k"><div class="n">분리 과금 추가 라이선스</div><div class="v">₩0</div><div class="d">Usage API·한도는 기본 제공</div></div>
+      </div>
+      <p style="margin:0"><strong>핵심 결론</strong> — ① 주력은 API 방식, 헤비/전문 사용자만 선택적 좌석·쿼터를 주는 <strong>하이브리드</strong>가 최적. ② 헤비유저 <strong>별도 과금은 기술적으로 가능</strong>(Admin Usage API·Workspace 한도). ③ <strong>모델 라우팅</strong>으로 단일 모델 대비 25~40% 추가 절감.</p>
+    </div>
+
+    <!-- 1 -->
+    <section>
+      <h2><span class="num">1</span>두 가지 방식 비교</h2>
+      <table>
+        <thead><tr><th>구분</th><th>(A) 토큰형 API 방식</th><th>(B) 팀빌딩(좌석제) 방식</th></tr></thead>
+        <tbody>
+          <tr><td>과금 기준</td><td>실제 사용 입력/출력 <strong>토큰량</strong></td><td>사용자 1인당 <strong>정액</strong></td></tr>
+          <tr><td>비용 예측성</td><td>사용량 비례(변동)</td><td>매우 높음(고정)</td></tr>
+          <tr><td>저사용자 비용</td><td><span class="chip tag-good">쓴 만큼 ≈ 0</span></td><td><span class="chip tag-bad">안 써도 발생</span></td></tr>
+          <tr><td>사내 시스템 통합</td><td>자유(포털·ERP·자동화 직접 호출)</td><td>제한적(웹/앱 중심)</td></tr>
+          <tr><td>개인·부서별 비용 추적</td><td><span class="chip tag-good">가능</span> (Key/Workspace)</td><td>좌석 수 기준만</td></tr>
+          <tr><td>헤비유저 분리 과금</td><td><span class="chip tag-good">가능</span> (한도/별도 Key)</td><td>Premium 좌석으로 일부</td></tr>
+          <tr><td>적합 대상</td><td>사내 앱·자동화·전사 변동 사용</td><td>매일 쓰는 전문 인력</td></tr>
+        </tbody>
+      </table>
+      <p>전사 100~300명 중 상당수가 "가끔 쓰는" 사용자인 점을 감안하면 전원 좌석제는 과투자다. 사내 포털을 API로 운영하면 저사용자 비용이 0에 수렴해 총비용이 낮아진다.</p>
+    </section>
+
+    <!-- 2 -->
+    <section>
+      <h2><span class="num">2</span>토큰 단가 정리 <span style="font-size:13px;color:var(--muted);font-weight:400">(2026-06 기준, /100만 토큰 USD)</span></h2>
+      <h3>Claude (Anthropic) — 주력</h3>
+      <table>
+        <thead><tr><th>모델</th><th>입력</th><th>출력</th><th>용도</th></tr></thead>
+        <tbody>
+          <tr class="hl-row"><td>Claude Sonnet 4.6</td><td>$3.00</td><td>$15.00</td><td style="text-align:left">전사 기본 워크호스</td></tr>
+          <tr><td>Claude Opus 4.8</td><td>$5.00</td><td>$25.00</td><td style="text-align:left">고난도 추론·기획·코드</td></tr>
+          <tr><td>Claude Haiku 4.5</td><td>$1.00</td><td>$5.00</td><td style="text-align:left">단순 요약·분류·대량 처리</td></tr>
+        </tbody>
+      </table>
+      <h3>OpenAI GPT (API 연동) — 보조</h3>
+      <table>
+        <thead><tr><th>모델</th><th>입력</th><th>출력</th><th>용도</th></tr></thead>
+        <tbody>
+          <tr><td>GPT-5.5</td><td>$5.00</td><td>$30.00</td><td style="text-align:left">교차검증·특정 강점 작업</td></tr>
+          <tr><td>GPT-5.5 mini</td><td>$0.125</td><td>$1.00</td><td style="text-align:left">경량 작업·대량 자동화</td></tr>
+          <tr><td>GPT-5.5 nano</td><td>$0.05</td><td>$0.40</td><td style="text-align:left">초경량 분류·태깅</td></tr>
+        </tbody>
+      </table>
+      <div class="note">
+        <strong style="color:var(--ink2)">비용 절감 레버</strong>
+        <ul style="margin-bottom:0">
+          <li><strong>프롬프트 캐싱</strong>: 반복 시스템 프롬프트·사내 문서는 캐시 적중 시 입력 비용 약 <strong>90% 절감</strong> (사내 포털은 동일 지침 반복 → 효과 큼)</li>
+          <li><strong>배치 처리</strong>: 비실시간 대량 작업 <strong>50% 할인</strong></li>
+          <li><strong>출력이 입력의 5배 단가</strong> → 출력 길이 제한(요약·표 형식)이 가장 빠른 절감책</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- 3 -->
+    <section>
+      <h2><span class="num">3</span>API 방식 단위 비용</h2>
+      <p>주력 Sonnet 4.6, 캐싱 40% 가정 시 체감 단위:</p>
+      <table>
+        <thead><tr><th>단위</th><th>입력 토큰</th><th>출력 토큰</th><th>USD</th><th>KRW</th></tr></thead>
+        <tbody>
+          <tr><td>1회 대화(메시지)</td><td>3,500</td><td>1,000</td><td>$0.022</td><td><strong>약 ₩30</strong></td></tr>
+          <tr><td>100회 대화</td><td>—</td><td>—</td><td>$2.2</td><td>약 ₩3,000</td></tr>
+          <tr><td>1,000회 대화</td><td>—</td><td>—</td><td>$21.7</td><td>약 ₩30,400</td></tr>
+        </tbody>
+      </table>
+      <p>직원 1명이 하루 40번 질의해도 월 약 <strong>₩2.7만</strong>(미디엄 기준). Haiku 라우팅 시 1/3 수준으로 하락.</p>
+    </section>
+
+    <!-- 3.5 입출력 분해 -->
+    <section>
+      <h2><span class="num">＋</span>입력/출력 토큰 비용 분해 &amp; 사용자별 산정 기준</h2>
+      <h3>산정 기준 (계산식)</h3>
+      <div class="note" style="margin-bottom:14px">
+        <ul style="margin-bottom:0">
+          <li><strong>월 토큰</strong> = 일 질의 수 × 22 근무일 × (질의당 입력 토큰 + 출력 토큰)</li>
+          <li><strong>유효 입력 토큰</strong> = 입력 × (1 − 캐싱률) + 입력 × 캐싱률 × 0.1 &nbsp;<span style="color:var(--muted)">(캐시 적중분 90% 할인)</span></li>
+          <li><strong>월 비용</strong> = (유효 입력/1M × 입력단가) + (출력/1M × 출력단가)</li>
+          <li>적용 단가: <strong>Sonnet 4.6 $3 / $15</strong> · 캐싱률 <strong>40%</strong> · 질의당 입력 3,500 / 출력 1,000 토큰 가정</li>
+        </ul>
+      </div>
+      <h3>1회 질의(메시지) 단위 분해</h3>
+      <table>
+        <thead><tr><th>항목</th><th>토큰</th><th>적용 단가</th><th>비용(USD)</th><th>비용(KRW)</th></tr></thead>
+        <tbody>
+          <tr><td>입력 (캐싱 40% 반영)</td><td>3,500</td><td>$3 /1M</td><td>$0.0067</td><td>약 ₩9.4</td></tr>
+          <tr><td>출력</td><td>1,000</td><td>$15 /1M</td><td>$0.0150</td><td>약 ₩21.0</td></tr>
+          <tr class="hl-row"><td>합계 / 1회</td><td>4,500</td><td>—</td><td>$0.0217</td><td>약 ₩30.4</td></tr>
+        </tbody>
+      </table>
+      <p style="font-size:13px;color:var(--muted)">※ 출력 토큰이 전체 비용의 약 70%를 차지 — 출력 길이 관리가 비용에 가장 큰 영향.</p>
+
+      <h3>사용자 설정(프로파일)별 월 토큰 비용 — 입력/출력 분해</h3>
+      <table>
+        <thead><tr><th>프로파일</th><th>월 입력토큰</th><th>입력 비용</th><th>월 출력토큰</th><th>출력 비용</th><th>1인 월 합계</th></tr></thead>
+        <tbody>
+          <tr><td>라이트 (일 15회)</td><td>0.82M</td><td>약 ₩2,200</td><td>0.23M</td><td>약 ₩4,850</td><td><strong>약 ₩7,100</strong></td></tr>
+          <tr class="hl-row"><td>미디엄 (일 40회)</td><td>3.08M</td><td>약 ₩8,300</td><td>0.88M</td><td>약 ₩18,500</td><td><strong>약 ₩26,800</strong></td></tr>
+          <tr><td>헤비 (일 100회)</td><td>8.80M</td><td>약 ₩23,700</td><td>2.64M</td><td>약 ₩55,400</td><td><strong>약 ₩79,100</strong></td></tr>
+        </tbody>
+      </table>
+      <div class="note">
+        <strong style="color:var(--ink2)">사용자별 한도 설정 시 적용 기준 (권고)</strong>
+        <ul style="margin-bottom:0">
+          <li><strong>기본 쿼터 200만 토큰/월</strong> 부여 시 1인 기준 비용 ≈ 라이트~미디엄 사이(월 ₩7천~2.7만)에서 흡수</li>
+          <li>쿼터 초과분은 <strong>실사용 토큰 단가(입력 $3 / 출력 $15)</strong>로 부서 차지백 또는 승인제 적용</li>
+          <li>모델을 Haiku로 라우팅하면 동일 토큰 기준 비용 1/3 (입력 $1 / 출력 $5), Opus는 약 1.7배 (입력 $5 / 출력 $25)</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- 4 -->
+    <section>
+      <h2><span class="num">4</span>비용 시뮬레이션</h2>
+      <h3>사용자 프로파일 (월 22 근무일)</h3>
+      <table>
+        <thead><tr><th>프로파일</th><th>일 질의</th><th>월 입력</th><th>월 출력</th><th>1인 월비용(Sonnet+캐싱)</th></tr></thead>
+        <tbody>
+          <tr><td>라이트</td><td>15회</td><td>0.82M</td><td>0.23M</td><td>약 ₩7,100</td></tr>
+          <tr><td>미디엄</td><td>40회</td><td>3.08M</td><td>0.88M</td><td>약 ₩26,800</td></tr>
+          <tr><td>헤비</td><td>100회</td><td>8.80M</td><td>2.64M</td><td>약 ₩79,100</td></tr>
+        </tbody>
+      </table>
+      <h3>전사 규모별 월/연 비용 <span style="font-size:12px;color:var(--muted);font-weight:400">(구성비 라이트 60% / 미디엄 30% / 헤비 10%, Sonnet+캐싱)</span></h3>
+      <table>
+        <thead><tr><th>인원</th><th>월(USD)</th><th>월(KRW)</th><th>연(KRW)</th></tr></thead>
+        <tbody>
+          <tr><td>100명</td><td>$1,441</td><td>약 ₩202만</td><td>약 ₩2,420만</td></tr>
+          <tr class="hl-row"><td>200명</td><td>$2,883</td><td>약 ₩404만</td><td>약 ₩4,840만</td></tr>
+          <tr><td>300명</td><td>$4,324</td><td>약 ₩605만</td><td>약 ₩7,260만</td></tr>
+        </tbody>
+      </table>
+      <div class="reco"><strong>모델 라우팅 적용</strong> (Haiku 50% / Sonnet 40% / Opus 10%, 200명) → 월 약 <strong>$2,114 = ₩296만</strong> (연 약 ₩3,550만). 단일 Sonnet 대비 약 27% 추가 절감.</div>
+    </section>
+
+    <!-- 5 -->
+    <section>
+      <h2><span class="num">5</span>방식별 200명 총비용 비교</h2>
+      <div style="margin:6px 0 14px">
+        <div class="barwrap"><div class="nm">API + 모델 라우팅 <span class="chip tag-good">권고</span></div><div class="track"><div class="bar" style="width:33%;background:var(--good)">₩296만</div></div></div>
+        <div class="barwrap"><div class="nm">API + Sonnet 단일</div><div class="track"><div class="bar" style="width:45%;background:var(--brand)">₩404만</div></div></div>
+        <div class="barwrap"><div class="nm">좌석제 전원 Standard</div><div class="track"><div class="bar" style="width:62%;background:var(--warn)">₩560만</div></div></div>
+        <div class="barwrap"><div class="nm">좌석제 혼합(헤비 Premium)</div><div class="track"><div class="bar" style="width:100%;background:var(--bad)">₩896만</div></div></div>
+      </div>
+      <p>API 방식이 좌석제 대비 <strong>약 47~67% 저렴</strong>. 단, 좌석제는 사용량 관리 부담이 없고 완성 UI(웹/Cowork)를 즉시 제공하는 장점이 있다.</p>
+    </section>
+
+    <!-- 6 -->
+    <section>
+      <h2><span class="num">6</span>헤비유저 별도 과금 — 가능 여부와 방법</h2>
+      <div class="reco"><strong>결론: 가능하다.</strong> 전사가 하나의 풀을 공유하더라도 개인·부서 단위 사용량 추적과 한도 설정이 된다.</div>
+      <h3>공급사 제공 통제 수단</h3>
+      <table>
+        <thead><tr><th>구분</th><th>Claude (Anthropic)</th><th>OpenAI (GPT)</th></tr></thead>
+        <tbody>
+          <tr><td>사용량 집계</td><td>Usage & Cost Admin API (모델·Workspace·Key별)</td><td>Project·API Key별 사용량</td></tr>
+          <tr><td>비용 한도</td><td>Workspace 월 지출 한도</td><td>Project 사용량/지출 한도</td></tr>
+          <tr><td>과다사용 방지</td><td>Rate limit(분당/일일 토큰 상한)</td><td>Rate limit</td></tr>
+        </tbody>
+      </table>
+      <h3>JEIL 적용 설계 (사내 포털 기준)</h3>
+      <ol>
+        <li>모든 요청에 <strong>사번·부서 태그</strong>를 붙여 사용량 DB(ERP MSSQL 또는 별도 테이블)에 기록</li>
+        <li><strong>월 기본 쿼터</strong>(예: 1인 200만 토큰/월) 부여 후 초과분 정책 적용
+          <ul>
+            <li><strong>옵션 A — 부서 차지백</strong>: 초과 토큰 비용을 부서 비용센터로 배분</li>
+            <li><strong>옵션 B — 승인제 상향</strong>: 초과 시 관리자 승인 후 한도 증액</li>
+            <li><strong>옵션 C — 좌석 전환</strong>: 상시 헤비 사용자는 Team Premium 좌석으로 정액화</li>
+          </ul>
+        </li>
+        <li>부서·개인별 Top 사용자·월 비용 추이 대시보드 시각화 (니즈조사 대시보드 인프라 재활용)</li>
+      </ol>
+      <div class="note">
+        <strong style="color:var(--ink2)">분리 과금 구축 비용</strong>
+        <ul style="margin-bottom:0">
+          <li>공급사 측 추가 요금: <strong>없음</strong> (Usage API·한도는 기본 기능)</li>
+          <li>사내 구축(1회성): 로깅·쿼터·대시보드 개발 공수, 기존 포털 기능 추가 수준이면 수일~2주, 별도 라이선스 비용 없음</li>
+          <li>운영: 사용량 DB 비용 미미 · 헤비유저 Premium 좌석 전환 시 좌석당 연납 $100/월(약 ₩14만) 추가</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- 7 -->
+    <section>
+      <h2><span class="num">7</span>권고 기획안</h2>
+      <p style="font-weight:600;color:var(--ink)">하이브리드 + API 게이트웨이 중심 모델</p>
+      <ol>
+        <li><strong>기본은 API 방식</strong> — 사내 포털이 Claude/GPT 중계, 전 직원 접근, 저사용자 무비용</li>
+        <li><strong>모델 라우팅</strong> — 단순 Haiku/GPT-5.5 mini → 일반 Sonnet → 고난도 Opus/GPT-5.5, 캐싱·출력 가이드 병행</li>
+        <li><strong>사용량 거버넌스</strong> — 사번·부서 태깅 로깅 + 월 기본 쿼터 + 초과 시 차지백/승인제</li>
+        <li><strong>헤비유저 선별 좌석화</strong> — 매일 대량 사용하는 전문 인력 소수만 Team Premium 정액화</li>
+        <li><strong>월 예산 가드레일</strong> — Workspace/Project 지출 한도로 전사 월 상한 하드캡 설정</li>
+      </ol>
+      <div class="reco">예상 200명 총비용: 월 약 <strong>₩296만(API 라우팅)</strong> + 헤비 좌석 일부 ≈ <strong>월 ₩300만~400만, 연 ₩3,600만~4,800만</strong> 수준에서 운영 가능.</div>
+    </section>
+
+    <!-- 8 -->
+    <section>
+      <h2><span class="num">8</span>가정 및 주의사항</h2>
+      <div class="note">
+        <ul style="margin-bottom:0">
+          <li>단가는 2026-06 공개 기준이며 공급사 정책에 따라 변동 가능. 계약 전 콘솔/영업 최종 확인 필요</li>
+          <li>환율 ₩1,400/USD 가정. 실제 청구는 USD 기준이라 환율 변동 시 KRW 비용 변동</li>
+          <li>사용 프로파일(일 질의 수·토큰량)은 추정치 → 1~2개월 파일럿 로그로 보정 권장</li>
+          <li>Claude Enterprise는 비공개 협상가(시트당 약 $60, 일부 최소 70석)로 대규모 전환 시 별도 견적 필요</li>
+          <li>좌석제는 일정 사용량 포함되나 한도 초과분은 API 단가로 추가 과금될 수 있음(플랜별 상이)</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- sources -->
+    <section>
+      <h2 style="font-size:16px"><span class="num" style="background:var(--muted)">＊</span>출처</h2>
+      <div class="src">
+        <a href="https://platform.claude.com/docs/en/about-claude/pricing">Claude API Pricing — platform.claude.com</a>
+        <a href="https://www.finout.io/blog/anthropic-api-pricing">Anthropic API Pricing 2026 — finout.io</a>
+        <a href="https://support.claude.com/en/articles/9266767-what-is-the-team-plan">Claude Team plan — support.claude.com</a>
+        <a href="https://tygartmedia.com/claude-team-pricing-2026-standard-premium-seats/">Claude Team Pricing 2026 (Standard/Premium) — tygartmedia.com</a>
+        <a href="https://openai.com/api/pricing/">OpenAI API Pricing — openai.com</a>
+        <a href="https://www.aipricing.guru/openai-pricing/">OpenAI API Pricing 2026 — aipricing.guru</a>
+        <a href="https://platform.claude.com/docs/en/manage-claude/usage-cost-api">Usage and Cost Admin API — platform.claude.com</a>
+        <a href="https://support.anthropic.com/en/articles/9534590-cost-and-usage-reporting-in-console">Cost and Usage Reporting in Console — support.anthropic.com</a>
+      </div>
+    </section>
+
+  </div>
+  <div class="footer">JEIL 전사 AX 비용 기획 보고서 · 2026-06-18 · 본 자료의 수치는 공개 단가·추정 사용량 기반 시뮬레이션이며 실제 계약·사용 시 보정 필요</div>
+</div>
+</body>
+</html>

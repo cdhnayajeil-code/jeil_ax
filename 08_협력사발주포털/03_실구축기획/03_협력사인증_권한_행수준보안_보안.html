@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>03 인증·보안 — 협력사 발주·검사 포털 ERP연계 실구축 기획</title>
+<style>
+:root{--navy:#1a2f4e;--navy2:#27457a;--accent:#2f6fb3;--red:#b3402f;--green:#2e7d52;--amber:#9a6b1f;
+--ink:#222;--muted:#666;--line:#d8dee8;--bg:#f4f6f9;--soft:#eef2f8;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;color:var(--ink);background:var(--bg);line-height:1.65;font-size:15px;}
+.page{max-width:960px;margin:0 auto;background:#fff;padding:52px 60px;box-shadow:0 2px 14px rgba(0,0,0,.08);}
+.doc-label{display:inline-block;background:var(--navy);color:#fff;font-size:12px;letter-spacing:.16em;padding:5px 14px;border-radius:3px;margin-bottom:16px;}
+.docnav{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 26px;}
+.docnav a{font-size:12px;color:var(--navy2);border:1px solid var(--line);border-radius:20px;padding:4px 12px;text-decoration:none;background:var(--soft);}
+.docnav a:hover{background:var(--navy);color:#fff;}
+.docnav a.cur{background:var(--navy);color:#fff;border-color:var(--navy);}
+.md-link{font-size:13px;margin-bottom:22px;color:var(--muted);}
+.content h1{font-size:27px;color:var(--navy);line-height:1.35;margin:6px 0 18px;}
+.content h2{font-size:20px;color:var(--navy);margin:42px 0 14px;padding-bottom:9px;border-bottom:3px solid var(--navy);}
+.content h3{font-size:16px;color:var(--navy2);margin:24px 0 9px;}
+.content p{margin:0 0 12px;}
+.content ul,.content ol{margin:0 0 14px 22px;}
+.content li{margin-bottom:6px;}
+.content blockquote{background:var(--soft);border-left:5px solid var(--navy);border-radius:0 8px 8px 0;padding:14px 20px;margin:14px 0;color:#33425a;}
+.content blockquote p{margin:0 0 6px;}
+.content table{width:100%;border-collapse:collapse;margin:14px 0 20px;font-size:13.3px;}
+.content th{background:var(--navy);color:#fff;padding:9px 11px;text-align:left;font-weight:600;}
+.content td{padding:8px 11px;border-bottom:1px solid var(--line);vertical-align:top;}
+.content tr:nth-child(even) td{background:#fafbfd;}
+.content a{color:var(--accent);}
+.content code{background:var(--soft);border:1px solid var(--line);border-radius:4px;padding:1px 6px;font-size:12.4px;font-family:Consolas,'Courier New',monospace;}
+.content pre{background:#21252e;color:#e8eaf0;border-radius:8px;padding:16px 18px;font-size:12.4px;font-family:Consolas,'Courier New',monospace;overflow-x:auto;margin:12px 0 18px;line-height:1.55;}
+.content pre code{background:none;border:none;color:inherit;padding:0;}
+.content hr{border:none;border-top:1px solid var(--line);margin:30px 0;}
+.content strong{color:var(--navy2);}
+.footer{margin-top:50px;padding-top:16px;border-top:1px solid var(--line);font-size:12px;color:var(--muted);display:flex;justify-content:space-between;}
+@media print{body{background:#fff;}.page{box-shadow:none;padding:18px 0;max-width:100%;}.docnav{display:none;}.content h2{break-after:avoid;}.content table,.content pre,.content blockquote{break-inside:avoid;}}
+@media (max-width:720px){.page{padding:30px 20px;}}
+</style>
+</head>
+<body>
+<div class="page">
+  <span class="doc-label">협력사 포털 실구축 기획 · 대외비</span>
+  <div class="docnav"><a href="00_CTO종합기획_실행개요.html">00 종합기획</a><a href="01_아키텍처_데이터흐름_연계설계.html">01 아키텍처</a><a href="02_데이터모델_ERP매핑_포털스키마.html">02 데이터모델</a><a class="cur" href="03_협력사인증_권한_행수준보안_보안.html">03 인증·보안</a><a href="04_실시간동기화_API_파일업로드_알림.html">04 동기화·API</a><a href="05_사전정의_의사결정_유니포인트협의_체크리스트.html">05 사전정의</a><a href="06_로드맵_단계별실행_운영전환.html">06 로드맵</a><a href="README.md">README</a></div>
+  <p class="md-link">📄 Markdown 원본: <a href="03_협력사인증_권한_행수준보안_보안.md">03_협력사인증_권한_행수준보안_보안.md</a> · 상위 <a href="../00_종합정리_요구사항이력.html">08 종합정리</a></p>
+  <div class="content">
+<h1 id="03">03. 협력사 인증 · 권한 · 행수준 보안 · 보안</h1>
+<blockquote>
+<p>작성일: 2026-06-26 · 작성: 최동혁 · 대상 페이즈: P1, P5
+관련: 00·01·02, 루트 <code>CLAUDE.md §5·§6</code>
+핵심 결정: <strong>협력사 인증 방식(D1)은 본 기획에서 결정 보류</strong> — 아래 2안 비교를 경영진에 상신한다.</p>
+</blockquote>
+<hr />
+<h2 id="1">1. 보안 설계의 출발점 — "사외 사용자가 쓰기를 한다"</h2>
+<p>전사 포털 보안은 "사내 직원이 읽는다"를 전제한다. 협력사 포털은 <strong>사외(통제 밖) 사용자가 데이터를 생성·업로드</strong>하므로, 다음 3중 방어가 필수다.</p>
+<ol>
+<li><strong>인증 경계 분리</strong> — 협력사를 사내 Entra 테넌트에 섞지 않는다(§CLAUDE.md 5.5).</li>
+<li><strong>행수준 보안(RLS)</strong> — 협력사는 <strong>자기 거래처 발주만</strong>. 백엔드/DB에서 강제.</li>
+<li><strong>입력·파일 검증</strong> — 업로드물은 모두 적대적 입력으로 간주.</li>
+</ol>
+<hr />
+<h2 id="2-2">2. 협력사 인증 — 2안 비교 (★결정 보류, 상신용)</h2>
+<table>
+<thead>
+<tr>
+<th>기준</th>
+<th><strong>A안. Entra External ID / B2B 게스트</strong></th>
+<th><strong>B안. 협력사 전용 자체 인증</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>개념</td>
+<td>MS Entra의 외부 사용자(게스트) 기능으로 협력사를 초대, MS 인증 흐름 사용</td>
+<td>포털이 자체 ID/PW + OTP(MFA) 발급·관리</td>
+</tr>
+<tr>
+<td>사내 SSO 통합</td>
+<td>◎ 동일 Entra 관리 콘솔에서 통합 관리</td>
+<td>△ 별도 사용자 저장소 운영</td>
+</tr>
+<tr>
+<td>MFA</td>
+<td>◎ 조건부 액세스로 일괄 적용</td>
+<td>○ 자체 OTP 구현 필요</td>
+</tr>
+<tr>
+<td>협력사 진입장벽</td>
+<td>△ MS 계정/초대 수락 절차, 비IT 협력사 혼란 가능</td>
+<td>◎ 익숙한 ID/PW, 진입 단순</td>
+</tr>
+<tr>
+<td>비밀번호·계정 관리 부담</td>
+<td>◎ MS가 담당(재설정·잠금)</td>
+<td>△ 자체 구현(재설정·잠금·정책)</td>
+</tr>
+<tr>
+<td>보안 성숙도</td>
+<td>◎ 검증된 IdP, 토큰·세션 표준</td>
+<td>△ 자체 구현 품질에 의존</td>
+</tr>
+<tr>
+<td>사내 테넌트 영향</td>
+<td>게스트가 디렉터리에 들어옴(분리 정책 필요)</td>
+<td>사내 테넌트 완전 무관</td>
+</tr>
+<tr>
+<td>비용</td>
+<td>Entra External ID 과금(MAU 기반) 확인 필요</td>
+<td>구현·운영 인건비</td>
+</tr>
+<tr>
+<td>오프보딩</td>
+<td>◎ 게스트 제거로 즉시 차단</td>
+<td>○ 계정 비활성</td>
+</tr>
+<tr>
+<td>권고 적합</td>
+<td><strong>거래처 수 적당·MS 친화·관리 일원화 우선</strong></td>
+<td><strong>협력사 다수·비IT·진입 단순 우선</strong></td>
+</tr>
+</tbody>
+</table>
+<h3 id="_1">공통 (어느 안이든)</h3>
+<ul>
+<li>토큰/세션은 <strong>HttpOnly 쿠키 + 백엔드 세션(BFF)</strong> 권장(데모 localStorage는 XSS 노출, §CLAUDE.md 6).</li>
+<li>로그인 실패 제한·세션 만료·디바이스 바인딩.</li>
+<li>인증 주체(<code>auth_subject</code>)를 <code>sub_meta.supplier_account</code>에 저장해 RLS 컨텍스트로 사용.</li>
+</ul>
+<h3 id="d1">상신 포인트 (경영진 결정 D1)</h3>
+<blockquote>
+<p>"협력사 수·IT 친숙도·관리 일원화 vs 진입 편의 중 무엇을 우선하는가?" 에 따라 A/B 결정. 결정 전까지 <strong>인증 어댑터 인터페이스</strong>(<code>resolveSupplier(authContext) → account_id</code>)로 추상화해, 어느 안이 채택돼도 비즈니스 코드는 불변이 되게 한다.</p>
+</blockquote>
+<hr />
+<h2 id="3-rbac">3. 권한 모델 (RBAC) — 사내/사외 분리</h2>
+<table>
+<thead>
+<tr>
+<th>역할</th>
+<th>경계</th>
+<th>접근</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>AI-Portal-Subcontractor</code>(협력사)</td>
+<td>A</td>
+<td><code>/supplier/*</code> — 자기 거래처 발주만, 사진·상태·검수요청·메시지 쓰기</td>
+</tr>
+<tr>
+<td><code>AI-Portal-Purchase</code>(구매)</td>
+<td>B</td>
+<td><code>/internal/*</code> — 전체 발주 보드, 메시지 답장</td>
+</tr>
+<tr>
+<td><code>AI-Portal-Quality</code>(품질)</td>
+<td>B</td>
+<td>검수 판정(합/부) 권한</td>
+</tr>
+<tr>
+<td><code>AI-Portal-Production</code>(생산)·<code>-PM</code>(사업관리)</td>
+<td>B</td>
+<td>현황 조회</td>
+</tr>
+<tr>
+<td><code>AI-Portal-Admins</code></td>
+<td>B</td>
+<td>전체 + 계정·매핑·감사</td>
+</tr>
+</tbody>
+</table>
+<p>원칙: <strong>메뉴 숨김은 UX일 뿐, 실제 차단은 API/DB에서</strong>(§CLAUDE.md 5.4). 프론트 토큰만으로 민감 데이터를 내려주지 않는다.</p>
+<hr />
+<h2 id="4-rls">4. 행수준 보안(RLS) — 협력사 격리의 핵심</h2>
+<h3 id="4-1">4-1. 흐름</h3>
+<pre><code>협력사 로그인(경계 A) → auth_subject → supplier_account.account_id
+   → supplier_bp_map 에서 허용 bp_cd 집합 S 조회
+   → 모든 /supplier 조회에 강제 필터: erp_ro.po_header.BP_CD ∈ S
+   → 쓰기도 동일 PO가 S에 속할 때만 허용
+</code></pre>
+<h3 id="4-2-2-db">4-2. 2중 강제 (애플리케이션 + DB)</h3>
+<ul>
+<li><strong>애플리케이션 계층:</strong> 모든 <code>/supplier</code> 쿼리에 <code>bp_cd</code> 필터 자동 주입(우회 불가하게 공통 미들웨어).</li>
+<li><strong>DB 계층(권장):</strong> PostgreSQL Row Level Security 정책으로, 세션 변수 <code>app.supplier_bp</code>에 속하지 않는 행은 원천 차단.</li>
+</ul>
+<pre><code class="language-sql">ALTER TABLE erp_ro.po_header ENABLE ROW LEVEL SECURITY;
+CREATE POLICY supplier_isolation ON erp_ro.po_header
+  USING (bp_cd = ANY (current_setting('app.supplier_bp', true)::text[]));
+</code></pre>
+<ul>
+<li>효과: 애플리케이션 버그로 필터를 빠뜨려도 DB가 한 번 더 막는다. 협력사 A가 협력사 B의 발주를 <strong>구조적으로</strong> 볼 수 없다.</li>
+</ul>
+<h3 id="4-3">4-3. 검증 (반드시 테스트)</h3>
+<ul>
+<li>협력사 계정으로 타 거래처 PO 직접 호출 → <strong>403/빈 결과</strong> 확인.</li>
+<li>매핑 없는 계정 → 전체 빈 결과.</li>
+<li>사진/메시지 쓰기도 자기 PO 외 차단.</li>
+</ul>
+<hr />
+<h2 id="5">5. 파일 업로드 보안 (사진 증빙)</h2>
+<p>협력사가 올리는 사진은 <strong>적대적 입력</strong>으로 간주한다.</p>
+<table>
+<thead>
+<tr>
+<th>단계</th>
+<th>통제</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>수신</td>
+<td>확장자 화이트리스트(jpg/png/heic), MIME 검사, 용량 상한(예 10MB), 매수 제한</td>
+</tr>
+<tr>
+<td>검증</td>
+<td>실제 이미지 디코드 성공 여부(위장 파일 차단), EXIF 제거(위치정보·민감)</td>
+</tr>
+<tr>
+<td>재인코딩</td>
+<td>서버에서 리사이즈·재인코딩(임베디드 페이로드 무력화)</td>
+</tr>
+<tr>
+<td>저장</td>
+<td><strong>별도 Blob 스토리지</strong>(웹 루트 밖), DB엔 경로·메타만</td>
+</tr>
+<tr>
+<td>노출</td>
+<td>직접 URL 금지 → <strong>단기 서명 URL</strong>(만료) 발급, 권한 확인 후</td>
+</tr>
+<tr>
+<td>악성</td>
+<td>바이러스 스캔(가능 시), 실행 권한 제거</td>
+</tr>
+<tr>
+<td>수명주기</td>
+<td>보존연한(D4) 후 자동 아카이브/삭제, 발주 종결 후 정책</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="6">6. 감사·로깅·전송 보안</h2>
+<ul>
+<li><strong>감사 로그(<code>audit_log</code>):</strong> 누가·언제·어떤 PO/화면/사진/판정을 봤·했는지 전건. 개인정보·금액·검수판정 우선. 1년 보존(§CLAUDE.md 6).</li>
+<li><strong>검수 판정 비가역 기록:</strong> 판정자·일시·소견을 <code>inspection_log</code>에 누적(수정 불가, 정정은 신규 행).</li>
+<li><strong>전송 보안:</strong> HTTPS 강제(<code>isHttps()</code> 참일 때만 동작), HSTS.</li>
+<li><strong>비밀값:</strong> 인증 시크릿·DB 접속·스토리지 키는 <strong>Key Vault만</strong>. 코드·Git·문서 금지(§CLAUDE.md 1.1, 8.2).</li>
+<li><strong>XSS/인젝션:</strong> 메시지·코멘트 출력 인코딩, 쿼리 파라미터 바인딩만(§CLAUDE.md 4.5).</li>
+</ul>
+<hr />
+<h2 id="7">7. 위협 모델 (요약)</h2>
+<table>
+<thead>
+<tr>
+<th>위협</th>
+<th>방어</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>협력사 A가 B의 발주 열람</td>
+<td>RLS 2중(앱+DB), 직접 호출 테스트</td>
+</tr>
+<tr>
+<td>토큰 탈취(XSS)</td>
+<td>HttpOnly 쿠키/BFF, 출력 인코딩, CSP</td>
+</tr>
+<tr>
+<td>악성 파일 업로드</td>
+<td>검증·재인코딩·별도 스토리지·스캔</td>
+</tr>
+<tr>
+<td>권한 상승(협력사→사내 API)</td>
+<td>경계 분리, 엔드포인트별 역할 검사</td>
+</tr>
+<tr>
+<td>대량 스크래핑</td>
+<td>행 수 상한·레이트리밋·감사</td>
+</tr>
+<tr>
+<td>오프보딩 누락(퇴사·계약종료)</td>
+<td>분기 계정·매핑 정합성 점검, 즉시 비활성 절차</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="8">8. 이 문서의 결정/실행 항목</h2>
+<ul>
+<li>[ ] <strong>D1 인증 방식</strong>(A/B) 경영진 결정 — 비교표 상신</li>
+<li>[ ] <strong>D2 계정-거래처 매핑</strong> 단위 확정(RLS 근거)</li>
+<li>[ ] <strong>D4 사진 보존연한·소유권</strong> 정책 확정</li>
+<li>[ ] 토큰 보관 BFF/HttpOnly 전환 설계</li>
+<li>[ ] RLS 정책·파일 검증·감사 로그 <strong>모의 점검</strong>(P5 게이트)</li>
+<li>[ ] 보안 민감 변경 시 <code>/security-review</code> 셀프 점검(§CLAUDE.md 6)</li>
+</ul>
+  </div>
+  <div class="footer"><span>JEIL M&amp;S · 협력사 발주·검사 포털 실구축 기획</span><span>03 인증·보안 · 2026-06-26 · 최동혁</span></div>
+</div>
+</body>
+</html>

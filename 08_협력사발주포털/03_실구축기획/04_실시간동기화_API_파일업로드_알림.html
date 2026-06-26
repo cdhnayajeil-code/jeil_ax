@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>04 동기화·API — 협력사 발주·검사 포털 ERP연계 실구축 기획</title>
+<style>
+:root{--navy:#1a2f4e;--navy2:#27457a;--accent:#2f6fb3;--red:#b3402f;--green:#2e7d52;--amber:#9a6b1f;
+--ink:#222;--muted:#666;--line:#d8dee8;--bg:#f4f6f9;--soft:#eef2f8;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;color:var(--ink);background:var(--bg);line-height:1.65;font-size:15px;}
+.page{max-width:960px;margin:0 auto;background:#fff;padding:52px 60px;box-shadow:0 2px 14px rgba(0,0,0,.08);}
+.doc-label{display:inline-block;background:var(--navy);color:#fff;font-size:12px;letter-spacing:.16em;padding:5px 14px;border-radius:3px;margin-bottom:16px;}
+.docnav{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 26px;}
+.docnav a{font-size:12px;color:var(--navy2);border:1px solid var(--line);border-radius:20px;padding:4px 12px;text-decoration:none;background:var(--soft);}
+.docnav a:hover{background:var(--navy);color:#fff;}
+.docnav a.cur{background:var(--navy);color:#fff;border-color:var(--navy);}
+.md-link{font-size:13px;margin-bottom:22px;color:var(--muted);}
+.content h1{font-size:27px;color:var(--navy);line-height:1.35;margin:6px 0 18px;}
+.content h2{font-size:20px;color:var(--navy);margin:42px 0 14px;padding-bottom:9px;border-bottom:3px solid var(--navy);}
+.content h3{font-size:16px;color:var(--navy2);margin:24px 0 9px;}
+.content p{margin:0 0 12px;}
+.content ul,.content ol{margin:0 0 14px 22px;}
+.content li{margin-bottom:6px;}
+.content blockquote{background:var(--soft);border-left:5px solid var(--navy);border-radius:0 8px 8px 0;padding:14px 20px;margin:14px 0;color:#33425a;}
+.content blockquote p{margin:0 0 6px;}
+.content table{width:100%;border-collapse:collapse;margin:14px 0 20px;font-size:13.3px;}
+.content th{background:var(--navy);color:#fff;padding:9px 11px;text-align:left;font-weight:600;}
+.content td{padding:8px 11px;border-bottom:1px solid var(--line);vertical-align:top;}
+.content tr:nth-child(even) td{background:#fafbfd;}
+.content a{color:var(--accent);}
+.content code{background:var(--soft);border:1px solid var(--line);border-radius:4px;padding:1px 6px;font-size:12.4px;font-family:Consolas,'Courier New',monospace;}
+.content pre{background:#21252e;color:#e8eaf0;border-radius:8px;padding:16px 18px;font-size:12.4px;font-family:Consolas,'Courier New',monospace;overflow-x:auto;margin:12px 0 18px;line-height:1.55;}
+.content pre code{background:none;border:none;color:inherit;padding:0;}
+.content hr{border:none;border-top:1px solid var(--line);margin:30px 0;}
+.content strong{color:var(--navy2);}
+.footer{margin-top:50px;padding-top:16px;border-top:1px solid var(--line);font-size:12px;color:var(--muted);display:flex;justify-content:space-between;}
+@media print{body{background:#fff;}.page{box-shadow:none;padding:18px 0;max-width:100%;}.docnav{display:none;}.content h2{break-after:avoid;}.content table,.content pre,.content blockquote{break-inside:avoid;}}
+@media (max-width:720px){.page{padding:30px 20px;}}
+</style>
+</head>
+<body>
+<div class="page">
+  <span class="doc-label">협력사 포털 실구축 기획 · 대외비</span>
+  <div class="docnav"><a href="00_CTO종합기획_실행개요.html">00 종합기획</a><a href="01_아키텍처_데이터흐름_연계설계.html">01 아키텍처</a><a href="02_데이터모델_ERP매핑_포털스키마.html">02 데이터모델</a><a href="03_협력사인증_권한_행수준보안_보안.html">03 인증·보안</a><a class="cur" href="04_실시간동기화_API_파일업로드_알림.html">04 동기화·API</a><a href="05_사전정의_의사결정_유니포인트협의_체크리스트.html">05 사전정의</a><a href="06_로드맵_단계별실행_운영전환.html">06 로드맵</a><a href="README.md">README</a></div>
+  <p class="md-link">📄 Markdown 원본: <a href="04_실시간동기화_API_파일업로드_알림.md">04_실시간동기화_API_파일업로드_알림.md</a> · 상위 <a href="../00_종합정리_요구사항이력.html">08 종합정리</a></p>
+  <div class="content">
+<h1 id="04-api">04. 실시간 동기화 · API 설계 · 파일 업로드 · 알림</h1>
+<blockquote>
+<p>작성일: 2026-06-26 · 작성: 최동혁 · 대상 페이즈: P1, P3
+관련: 01 아키텍처, 02 데이터모델, 03 보안
+목표: 데모의 <code>localStorage(jeilax_link_v1)</code> 한 브라우저 공유를, <strong>백엔드 API + 다기기·다사용자 실시간 양방향</strong>으로 대체한다.</p>
+</blockquote>
+<hr />
+<h2 id="1">1. 무엇을 대체하나 — 데모 → 운영</h2>
+<table>
+<thead>
+<tr>
+<th>데모 메커니즘</th>
+<th>한계</th>
+<th>운영 대체</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>localStorage</code> 공유 객체</td>
+<td>같은 브라우저 안에서만</td>
+<td>백엔드 DB(<code>sub_portal</code>) 단일 진실원천</td>
+</tr>
+<tr>
+<td><code>storage</code> 이벤트로 타 탭 갱신</td>
+<td>같은 origin·기기만</td>
+<td><strong>SSE(서버→클라이언트 push)</strong> 로 모든 접속 기기 갱신</td>
+</tr>
+<tr>
+<td>사진 메타만 공유(용량)</td>
+<td>실제 사진 없음</td>
+<td><strong>Blob 업로드 + 서명 URL</strong></td>
+</tr>
+<tr>
+<td>알림 없음</td>
+<td>상대가 봐야 인지</td>
+<td><strong>알림 큐</strong>(웹푸시·메일·Teams)</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="2">2. 실시간 채널 — 방식 비교 및 권고</h2>
+<table>
+<thead>
+<tr>
+<th>방식</th>
+<th>장점</th>
+<th>단점</th>
+<th>적합도</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>SSE(Server-Sent Events)</strong></td>
+<td>단방향 push 단순, HTTP 기반, 모바일/프록시 친화, 재연결 자동</td>
+<td>서버→클라 단방향(클라→서버는 일반 REST)</td>
+<td>◎ <strong>권고</strong> — 본 포털은 "쓰기는 REST, 갱신 알림은 push" 패턴에 정확히 부합</td>
+</tr>
+<tr>
+<td>WebSocket</td>
+<td>양방향 풀듀플렉스</td>
+<td>인프라·상태관리 복잡, 프록시 이슈</td>
+<td>△ 과한 복잡도</td>
+</tr>
+<tr>
+<td>폴링(주기 조회)</td>
+<td>가장 단순</td>
+<td>지연·부하·배터리</td>
+<td>○ SSE 미지원 환경 폴백</td>
+</tr>
+</tbody>
+</table>
+<p><strong>권고 구조:</strong> 클라이언트는 쓰기를 <strong>REST</strong>로 보내고, 갱신은 <strong>SSE 구독</strong>으로 받는다. 발주(PO) 또는 사용자 단위 채널로 이벤트를 라우팅한다. SSE 불가 환경(일부 사내 프록시)은 <strong>15~30초 폴링 폴백</strong>.</p>
+<pre><code>[협력사 사진 등록] --POST--&gt; 백엔드 --INSERT--&gt; sub_portal.photo
+                                  └--SSE event(po:PO...,type:photo)--&gt; 구독 중인 대시보드 즉시 갱신
+                                  └--notify_queue 적재--&gt; 디스패처 --&gt; 사내 알림
+</code></pre>
+<hr />
+<h2 id="3-api">3. API 명세 (초안)</h2>
+<p>경계별로 prefix 분리. 모든 응답에 ERP 데이터는 "기준 시각" 포함. 모든 호출은 인증·RBAC·RLS·감사를 통과.</p>
+<h3 id="3-1-a-supplier">3-1. 협력사 (경계 A, <code>/supplier</code>)</h3>
+<table>
+<thead>
+<tr>
+<th>메서드·경로</th>
+<th>설명</th>
+<th>비고</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>GET /supplier/orders</code></td>
+<td>자기 거래처 발주 목록</td>
+<td>RLS 필터 자동</td>
+</tr>
+<tr>
+<td><code>GET /supplier/orders/{po}</code></td>
+<td>발주 상세 + 10단계 위치</td>
+<td></td>
+</tr>
+<tr>
+<td><code>POST /supplier/orders/{po}/photos</code></td>
+<td>사진 업로드(multipart)</td>
+<td>파일 검증(03)</td>
+</tr>
+<tr>
+<td><code>DELETE /supplier/orders/{po}/photos/{id}</code></td>
+<td>사진 삭제</td>
+<td>본인 등록분</td>
+</tr>
+<tr>
+<td><code>PATCH /supplier/orders/{po}/status</code></td>
+<td>진행상태 전이(다음/취소)</td>
+<td>상태머신 검증(02)</td>
+</tr>
+<tr>
+<td><code>POST /supplier/orders/{po}/insp-request</code></td>
+<td>검수요청(검사신청 자동생성)</td>
+<td>외주만</td>
+</tr>
+<tr>
+<td><code>GET/POST /supplier/orders/{po}/messages</code></td>
+<td>메시지 조회/발신</td>
+<td></td>
+</tr>
+<tr>
+<td><code>GET /supplier/stream</code></td>
+<td>SSE 구독(자기 PO 이벤트)</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<h3 id="3-2-b-internal">3-2. 사내 (경계 B, <code>/internal</code>)</h3>
+<table>
+<thead>
+<tr>
+<th>메서드·경로</th>
+<th>설명</th>
+<th>비고</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>GET /internal/orders</code></td>
+<td>조회조건(프로젝트·품목·기간·발주구분) 보드</td>
+<td>발주구분 그룹</td>
+</tr>
+<tr>
+<td><code>GET /internal/orders/{po}</code></td>
+<td>발주 상세 + 사진 + 검사</td>
+<td></td>
+</tr>
+<tr>
+<td><code>POST /internal/orders/{po}/inspection</code></td>
+<td>검수 판정(합/부·판정자·소견)</td>
+<td>품질 역할(03)</td>
+</tr>
+<tr>
+<td><code>GET/POST /internal/orders/{po}/messages</code></td>
+<td>메시지 답장</td>
+<td></td>
+</tr>
+<tr>
+<td><code>PATCH /internal/photos/{id}/confirm</code></td>
+<td>사진 확인 처리</td>
+<td></td>
+</tr>
+<tr>
+<td><code>GET /internal/stream</code></td>
+<td>SSE 구독(전체/담당 이벤트)</td>
+<td></td>
+</tr>
+<tr>
+<td><code>GET /internal/dashboard/kpi</code></td>
+<td>KPI 5종 + 단계 분포</td>
+<td>집계</td>
+</tr>
+</tbody>
+</table>
+<h3 id="3-3">3-3. 공통 규약</h3>
+<ul>
+<li>인증: 경계별 세션 쿠키(BFF). 권한: 엔드포인트별 역할 + RLS.</li>
+<li>멱등성: 사진 업로드·상태 전이에 클라이언트 토큰으로 중복 방지.</li>
+<li>에러: 표준 코드(401 인증·403 권한/RLS·409 상태충돌·413 용량초과·422 검증).</li>
+<li>레이트리밋: 협력사 업로드·조회 한도. 행 수 상한.</li>
+</ul>
+<hr />
+<h2 id="4">4. 파일 업로드 파이프라인</h2>
+<pre><code>모바일 선택/촬영
+  → (클라) 미리보기·기본 리사이즈
+  → POST multipart  /supplier/orders/{po}/photos
+  → (서버) 확장자·MIME·용량 검증 → 이미지 디코드 확인 → EXIF 제거·재인코딩
+  → Blob 저장(웹루트 밖)  → sub_portal.photo INSERT(경로·태그·등록자)
+  → SSE(photo) → 대시보드 썸네일 갱신
+  → 응답: photo id + 단기 서명 URL
+조회 시: 서명 URL 재발급(권한 확인 후, 만료 짧게)
+</code></pre>
+<p>세부 보안 통제는 03 문서 §5. 스토리지 선택(Azure Blob vs 사내)은 호스팅 결정과 연동(01 인프라).</p>
+<hr />
+<h2 id="5-notification">5. 알림 (Notification)</h2>
+<p>업무 단절(전화·메신저 분산) 해소가 본 프로젝트 동기이므로, <strong>핵심 이벤트는 알림으로 밀어준다.</strong></p>
+<table>
+<thead>
+<tr>
+<th>이벤트</th>
+<th>수신자</th>
+<th>채널(우선순위)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>협력사 사진 등록·검수요청</td>
+<td>사내 구매·품질</td>
+<td>대시보드 배지 → Teams/메일</td>
+</tr>
+<tr>
+<td>사내 검수 판정(합/부)</td>
+<td>협력사</td>
+<td>모바일 웹푸시(PWA) → 메일</td>
+</tr>
+<tr>
+<td>신규 메시지(양방향)</td>
+<td>상대</td>
+<td>인앱 배지 → 푸시</td>
+</tr>
+<tr>
+<td>발주 신규(야간배치 후)</td>
+<td>협력사</td>
+<td>인앱 → (선택)메일</td>
+</tr>
+<tr>
+<td>출하 지연·납기 임박</td>
+<td>양측</td>
+<td>일배치 알림</td>
+</tr>
+</tbody>
+</table>
+<p>구현: <code>notify_queue</code> 적재 → 디스패처가 채널별 발송·재시도·결과 기록. PWA 웹푸시는 권한 동의 기반(데모의 PWA/standalone 계승). 과다 알림 방지를 위해 묶음·요약 정책.</p>
+<hr />
+<h2 id="6">6. 동기화 정합성·충돌 처리</h2>
+<ul>
+<li><strong>단일 진실원천:</strong> 모든 쓰기는 백엔드 DB. 클라이언트 상태는 캐시일 뿐.</li>
+<li><strong>낙관적 동시성:</strong> 상태 전이·검수 판정에 버전/타임스탬프 검사 → 동시 변경 시 409 후 재조회.</li>
+<li><strong>순서 보장:</strong> 메시지·이벤트에 서버 시퀀스. SSE 끊김 시 마지막 이벤트 ID로 재동기화.</li>
+<li><strong>신선도 표기:</strong> ERP 사본 데이터엔 "기준 시각", 협력사 쓰기엔 실시간 반영.</li>
+</ul>
+<hr />
+<h2 id="7">7. 이 문서의 결정/실행 항목</h2>
+<ul>
+<li>[ ] 실시간 채널 SSE 확정 + 폴백 정책(사내 프록시 환경 점검)</li>
+<li>[ ] 파일 스토리지 확정(Azure Blob vs 사내) — 01 인프라와 연동</li>
+<li>[ ] 웹푸시(PWA) 적용 범위·동의 UX</li>
+<li>[ ] API 명세 리뷰 → OpenAPI 문서화(스택 확정 후)</li>
+<li>[ ] 알림 과다 방지(묶음·요약) 규칙</li>
+</ul>
+  </div>
+  <div class="footer"><span>JEIL M&amp;S · 협력사 발주·검사 포털 실구축 기획</span><span>04 동기화·API · 2026-06-26 · 최동혁</span></div>
+</div>
+</body>
+</html>

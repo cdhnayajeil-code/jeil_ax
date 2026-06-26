@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>01 아키텍처 — 협력사 발주·검사 포털 ERP연계 실구축 기획</title>
+<style>
+:root{--navy:#1a2f4e;--navy2:#27457a;--accent:#2f6fb3;--red:#b3402f;--green:#2e7d52;--amber:#9a6b1f;
+--ink:#222;--muted:#666;--line:#d8dee8;--bg:#f4f6f9;--soft:#eef2f8;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;color:var(--ink);background:var(--bg);line-height:1.65;font-size:15px;}
+.page{max-width:960px;margin:0 auto;background:#fff;padding:52px 60px;box-shadow:0 2px 14px rgba(0,0,0,.08);}
+.doc-label{display:inline-block;background:var(--navy);color:#fff;font-size:12px;letter-spacing:.16em;padding:5px 14px;border-radius:3px;margin-bottom:16px;}
+.docnav{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 26px;}
+.docnav a{font-size:12px;color:var(--navy2);border:1px solid var(--line);border-radius:20px;padding:4px 12px;text-decoration:none;background:var(--soft);}
+.docnav a:hover{background:var(--navy);color:#fff;}
+.docnav a.cur{background:var(--navy);color:#fff;border-color:var(--navy);}
+.md-link{font-size:13px;margin-bottom:22px;color:var(--muted);}
+.content h1{font-size:27px;color:var(--navy);line-height:1.35;margin:6px 0 18px;}
+.content h2{font-size:20px;color:var(--navy);margin:42px 0 14px;padding-bottom:9px;border-bottom:3px solid var(--navy);}
+.content h3{font-size:16px;color:var(--navy2);margin:24px 0 9px;}
+.content p{margin:0 0 12px;}
+.content ul,.content ol{margin:0 0 14px 22px;}
+.content li{margin-bottom:6px;}
+.content blockquote{background:var(--soft);border-left:5px solid var(--navy);border-radius:0 8px 8px 0;padding:14px 20px;margin:14px 0;color:#33425a;}
+.content blockquote p{margin:0 0 6px;}
+.content table{width:100%;border-collapse:collapse;margin:14px 0 20px;font-size:13.3px;}
+.content th{background:var(--navy);color:#fff;padding:9px 11px;text-align:left;font-weight:600;}
+.content td{padding:8px 11px;border-bottom:1px solid var(--line);vertical-align:top;}
+.content tr:nth-child(even) td{background:#fafbfd;}
+.content a{color:var(--accent);}
+.content code{background:var(--soft);border:1px solid var(--line);border-radius:4px;padding:1px 6px;font-size:12.4px;font-family:Consolas,'Courier New',monospace;}
+.content pre{background:#21252e;color:#e8eaf0;border-radius:8px;padding:16px 18px;font-size:12.4px;font-family:Consolas,'Courier New',monospace;overflow-x:auto;margin:12px 0 18px;line-height:1.55;}
+.content pre code{background:none;border:none;color:inherit;padding:0;}
+.content hr{border:none;border-top:1px solid var(--line);margin:30px 0;}
+.content strong{color:var(--navy2);}
+.footer{margin-top:50px;padding-top:16px;border-top:1px solid var(--line);font-size:12px;color:var(--muted);display:flex;justify-content:space-between;}
+@media print{body{background:#fff;}.page{box-shadow:none;padding:18px 0;max-width:100%;}.docnav{display:none;}.content h2{break-after:avoid;}.content table,.content pre,.content blockquote{break-inside:avoid;}}
+@media (max-width:720px){.page{padding:30px 20px;}}
+</style>
+</head>
+<body>
+<div class="page">
+  <span class="doc-label">협력사 포털 실구축 기획 · 대외비</span>
+  <div class="docnav"><a href="00_CTO종합기획_실행개요.html">00 종합기획</a><a class="cur" href="01_아키텍처_데이터흐름_연계설계.html">01 아키텍처</a><a href="02_데이터모델_ERP매핑_포털스키마.html">02 데이터모델</a><a href="03_협력사인증_권한_행수준보안_보안.html">03 인증·보안</a><a href="04_실시간동기화_API_파일업로드_알림.html">04 동기화·API</a><a href="05_사전정의_의사결정_유니포인트협의_체크리스트.html">05 사전정의</a><a href="06_로드맵_단계별실행_운영전환.html">06 로드맵</a><a href="README.md">README</a></div>
+  <p class="md-link">📄 Markdown 원본: <a href="01_아키텍처_데이터흐름_연계설계.md">01_아키텍처_데이터흐름_연계설계.md</a> · 상위 <a href="../00_종합정리_요구사항이력.html">08 종합정리</a></p>
+  <div class="content">
+<h1 id="01">01. 아키텍처·데이터흐름·연계 설계</h1>
+<blockquote>
+<p>작성일: 2026-06-26 · 작성: 최동혁 · 대상 페이즈: P1~P3
+관련: 00 종합기획, 02 데이터모델, <code>실제구축준비 자료/07_ERP_챗봇_중간DB_연계설계</code></p>
+</blockquote>
+<hr />
+<h2 id="1">1. 설계 원칙 (협력사 포털 특화)</h2>
+<p>전사 AI 포털의 일반 원칙(읽기전용·중간DB·화이트리스트)을 계승하되, <strong>사외 사용자가 쓰기를 한다</strong>는 점에서 다음 4개 원칙을 추가한다.</p>
+<table>
+<thead>
+<tr>
+<th>원칙</th>
+<th>내용</th>
+<th>근거</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>P-1 읽기/쓰기 물리 분리</strong></td>
+<td>ERP 사본은 읽기전용(<code>erp_ro</code>), 협력사·사내 생성물은 별도 쓰기 DB(<code>sub_portal</code>). 두 영역은 PO(발주번호) 키로만 조인</td>
+<td>CLAUDE.md §4.3</td>
+</tr>
+<tr>
+<td><strong>P-2 인증 경계 이중화</strong></td>
+<td>사내(Entra SSO)와 사외(협력사) 인증을 <strong>물리적으로 분리</strong>. 협력사를 사내 테넌트에 섞지 않음</td>
+<td>CLAUDE.md §5.5</td>
+</tr>
+<tr>
+<td><strong>P-3 행수준 보안(RLS)</strong></td>
+<td>협력사는 <strong>자기 거래처 발주만</strong>. 권한 판정은 백엔드/DB에서, 프론트는 UX만</td>
+<td>CLAUDE.md §5.4</td>
+</tr>
+<tr>
+<td><strong>P-4 ERP 무영향</strong></td>
+<td>협력사 포털의 어떤 동작도 운영 ERP에 쓰지 않음. 검수 판정조차 포털 DB 기록</td>
+<td>CLAUDE.md §1.2</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="2-3">2. 3계층 + 인증 경계 구조</h2>
+<pre><code>┌─ 계층 1: 원천 (사외 IDC, 유니포인트 관리) ──────────────────────────┐
+│  UNIERP MSSQL — 발주/구매요청/입고/매입/검사 운영 데이터            │
+│  접근: 읽기전용 계정(jeilax_ro) + View 경유 + 야간배치 1회          │
+└────────────────────────────────┬───────────────────────────────────┘
+                                 │ VPN/TLS · 증분 추출
+                                 ▼
+┌─ 계층 2: 연계·애플리케이션 (Azure / ai.jeilm.co.kr) ────────────────┐
+│  ┌──────────────┐   ┌────────────────────────────────────────────┐ │
+│  │ ETL 배치 Job │──▶│ PostgreSQL                                 │ │
+│  │ 매일 03:00   │   │  erp_ro     — 발주·검사 ERP 사본(읽기)      │ │
+│  └──────────────┘   │  sub_portal — 사진·메시지·상태·검수(쓰기)   │ │
+│                     │  sub_meta   — 동기화 로그·감사·알림 큐      │ │
+│  ┌──────────────────┴────────────────────────┐                    │ │
+│  │ 백엔드 API (RBAC + RLS + 화이트리스트)      │  ┌──────────────┐ │ │
+│  │  /supplier/* (사외)   /internal/* (사내)   │──│ Blob 스토리지 │ │ │
+│  │  실시간 채널(SSE)  ·  알림 디스패처         │  │ 사진 원본     │ │ │
+│  └───────┬───────────────────────┬───────────┘  └──────────────┘ │ │
+└──────────│───────────────────────│──────────────────────────────────┘
+   인증경계 A│ (협력사)       인증경계 B│ (사내 Entra SSO)
+            ▼                       ▼
+┌─ 계층 3: 클라이언트 ────────────────────────────────────────────────┐
+│  협력사 모바일 PWA          사내 대시보드(구매·품질·생산·사업관리)   │
+└─────────────────────────────────────────────────────────────────────┘
+</code></pre>
+<p>핵심은 <strong>하나의 백엔드 API가 두 인증 경계를 가진다</strong>는 것이다. <code>/supplier/*</code> 엔드포인트는 협력사 인증(경계 A)을 통과한 요청만, <code>/internal/*</code> 는 Entra SSO(경계 B)를 통과한 요청만 받는다. 같은 발주(PO)를 양쪽이 보지만, <strong>무엇을 볼/쓸 수 있는지는 경계와 RLS가 다르게 통제</strong>한다.</p>
+<hr />
+<h2 id="3">3. 일반 포털과의 차이 (왜 별도 설계인가)</h2>
+<table>
+<thead>
+<tr>
+<th>항목</th>
+<th>일반 부서 포털(03·07)</th>
+<th>협력사 발주·검사 포털(본 기획)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>사용자</td>
+<td>사내 직원만(Entra)</td>
+<td>사내 + <strong>사외 협력사</strong></td>
+</tr>
+<tr>
+<td>데이터 방향</td>
+<td>읽기 전용</td>
+<td>읽기(ERP) + <strong>쓰기(협력사·사내 생성물)</strong></td>
+</tr>
+<tr>
+<td>DB</td>
+<td><code>erp_ro</code>/<code>erp_secure</code></td>
+<td><code>erp_ro</code> + <strong><code>sub_portal</code>(쓰기)</strong></td>
+</tr>
+<tr>
+<td>인증</td>
+<td>단일(Entra)</td>
+<td><strong>이중 경계</strong>(사내 Entra + 사외 협력사)</td>
+</tr>
+<tr>
+<td>보안 핵심</td>
+<td>그룹 인가(RBAC)</td>
+<td>RBAC + <strong>행수준 보안(RLS)</strong> + 파일 검증</td>
+</tr>
+<tr>
+<td>동기화</td>
+<td>야간 배치(읽기)</td>
+<td>야간 배치(ERP) + <strong>실시간(쓰기 양방향)</strong></td>
+</tr>
+<tr>
+<td>파일</td>
+<td>없음/문서 인덱싱</td>
+<td><strong>사진 업로드·스토리지·수명주기</strong></td>
+</tr>
+</tbody>
+</table>
+<p>→ 결론: 협력사 포털은 <strong>읽기 파이프라인은 일반 포털과 공유</strong>하되, <strong>쓰기·인증·파일·실시간은 신규 트랙</strong>으로 설계한다. 본 문서·02·03·04가 그 신규 트랙이다.</p>
+<hr />
+<h2 id="4-5">4. 데이터 흐름 — 5개 시나리오</h2>
+<h3 id="4-1-erp">4-1. ERP 발주 → 협력사·대시보드 노출 (읽기, 야간)</h3>
+<pre><code>UNIERP M_PUR_ORD ──배치──▶ erp_ro.po_header/line ──API──▶ 협력사 목록 / 대시보드 보드
+                                  │
+                          (거래처-협력사 매핑으로 RLS 적용)
+</code></pre>
+<p>협력사는 <strong>자기 거래처(B_BP)에 묶인 발주만</strong> 목록에서 본다. 사내는 발주구분(SIE/SIF/DIV) 그룹으로 전체를 본다.</p>
+<h3 id="4-2">4-2. 협력사 사진 등록 (쓰기, 실시간)</h3>
+<pre><code>협력사 모바일 ──multipart──▶ /supplier/orders/{po}/photos
+   → 파일 검증(확장자·MIME·용량·재인코딩) → Blob 저장
+   → sub_portal.photo(메타·경로·태그·등록자) INSERT
+   → SSE 이벤트 push → 사내 대시보드 썸네일 즉시 갱신
+</code></pre>
+<h3 id="4-3">4-3. 진행상태 변경·검수요청 (쓰기, 상태머신)</h3>
+<pre><code>협력사 &quot;검수요청&quot; ──▶ /supplier/orders/{po}/status
+   → 상태머신 전이 검증(생산중→검수요청 허용?) 
+   → sub_portal.order_state UPDATE + 검사신청 자동생성(inspReqNo)
+   → SSE → 대시보드 카드 &quot;검사 단계&quot;로 이동
+   ※ 단계 취소 시 역전이 + 검사신청 자동 철회
+</code></pre>
+<h3 id="4-4">4-4. 사내 검수 판정 (쓰기, 이력)</h3>
+<pre><code>대시보드 &quot;🔬 검수 판정&quot; ──▶ /internal/orders/{po}/inspection
+   → 검사자(인원)·합/부·소견 입력
+   → sub_portal.inspection + inspection_log(판정자·일시) INSERT
+   → 합격 시 프로세스 입고 진행 / 불합격 보류
+   → SSE → 협력사 모바일 검수결과 배너
+   ※ ERP Q_INSPECTION 에는 쓰지 않음(D3 결정 따름)
+</code></pre>
+<h3 id="4-5_1">4-5. 양방향 메시지 (쓰기, 실시간)</h3>
+<pre><code>협력사/사내 메시지 ──▶ /{role}/orders/{po}/messages
+   → sub_portal.message INSERT(발신주체·본문)
+   → SSE → 상대 화면 즉시 + 알림 큐 적재
+</code></pre>
+<hr />
+<h2 id="5">5. 연계 게이트웨이 — 책임 분리</h2>
+<p>백엔드 API는 다음 5개 책임 모듈로 나눈다. (스택 미정 — §CLAUDE.md 3.2 하이브리드: ERP 읽기는 .NET 친화, 포털 쓰기·실시간은 Node/Next 친화. 인터페이스 추상화로 교체비용 최소화.)</p>
+<table>
+<thead>
+<tr>
+<th>모듈</th>
+<th>책임</th>
+<th>비고</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>AuthN/AuthZ</strong></td>
+<td>인증 경계 A/B 검증, 세션, RBAC, RLS 컨텍스트 주입</td>
+<td>03 문서</td>
+</tr>
+<tr>
+<td><strong>ERP Query</strong></td>
+<td><code>erp_ro</code> 화이트리스트 조회만. 자유 SQL 금지</td>
+<td>02·07</td>
+</tr>
+<tr>
+<td><strong>Portal Write</strong></td>
+<td><code>sub_portal</code> 쓰기, 상태머신 전이 검증, 트랜잭션</td>
+<td>02·04</td>
+</tr>
+<tr>
+<td><strong>File</strong></td>
+<td>업로드 검증·재인코딩·Blob 저장·서명 URL 발급·수명주기</td>
+<td>03·04</td>
+</tr>
+<tr>
+<td><strong>Realtime/Notify</strong></td>
+<td>SSE 채널, 알림 큐 디스패치(웹푸시·메일·Teams)</td>
+<td>04</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="6">6. 배포·환경 분리</h2>
+<table>
+<thead>
+<tr>
+<th>환경</th>
+<th>도메인(안)</th>
+<th>데이터</th>
+<th>용도</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>로컬</td>
+<td>localhost</td>
+<td>목 데이터</td>
+<td>개발</td>
+</tr>
+<tr>
+<td>스테이징</td>
+<td><code>ai-dev.jeilm.co.kr</code></td>
+<td>ERP 사본 일부 + 목</td>
+<td>통합·인증 테스트</td>
+</tr>
+<tr>
+<td>운영</td>
+<td><code>ai.jeilm.co.kr</code></td>
+<td>실데이터</td>
+<td>파일럿·전사</td>
+</tr>
+</tbody>
+</table>
+<p>OneDrive(E:) 작업폴더에서 직접 빌드·푸시 금지(§CLAUDE.md 8.3). <code>/tmp</code> clone → 빌드 → 푸시. 통합 데모본은 <code>_build_bundle.py</code>로만 재생성.</p>
+<hr />
+<h2 id="7-01">7. 이 문서의 결정 포인트 (01에서 확정해야)</h2>
+<ul>
+<li>[ ] 백엔드 API 스택 확정(단일 vs 하이브리드) — 아키텍처 추상화 경계 정의</li>
+<li>[ ] 실시간 채널 방식: SSE vs WebSocket vs 폴링 (04 문서에서 상세 비교)</li>
+<li>[ ] 파일 스토리지: Azure Blob vs 사내 스토리지 (호스팅 결정과 연동, 01 인프라 문서)</li>
+<li>[ ] <code>erp_ro</code> 확장 테이블 범위(발주·검사) 확정 → 02·05 협의표 반영</li>
+</ul>
+  </div>
+  <div class="footer"><span>JEIL M&amp;S · 협력사 발주·검사 포털 실구축 기획</span><span>01 아키텍처 · 2026-06-26 · 최동혁</span></div>
+</div>
+</body>
+</html>

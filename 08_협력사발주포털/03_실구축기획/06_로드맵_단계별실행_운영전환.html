@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>06 로드맵 — 협력사 발주·검사 포털 ERP연계 실구축 기획</title>
+<style>
+:root{--navy:#1a2f4e;--navy2:#27457a;--accent:#2f6fb3;--red:#b3402f;--green:#2e7d52;--amber:#9a6b1f;
+--ink:#222;--muted:#666;--line:#d8dee8;--bg:#f4f6f9;--soft:#eef2f8;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;color:var(--ink);background:var(--bg);line-height:1.65;font-size:15px;}
+.page{max-width:960px;margin:0 auto;background:#fff;padding:52px 60px;box-shadow:0 2px 14px rgba(0,0,0,.08);}
+.doc-label{display:inline-block;background:var(--navy);color:#fff;font-size:12px;letter-spacing:.16em;padding:5px 14px;border-radius:3px;margin-bottom:16px;}
+.docnav{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 26px;}
+.docnav a{font-size:12px;color:var(--navy2);border:1px solid var(--line);border-radius:20px;padding:4px 12px;text-decoration:none;background:var(--soft);}
+.docnav a:hover{background:var(--navy);color:#fff;}
+.docnav a.cur{background:var(--navy);color:#fff;border-color:var(--navy);}
+.md-link{font-size:13px;margin-bottom:22px;color:var(--muted);}
+.content h1{font-size:27px;color:var(--navy);line-height:1.35;margin:6px 0 18px;}
+.content h2{font-size:20px;color:var(--navy);margin:42px 0 14px;padding-bottom:9px;border-bottom:3px solid var(--navy);}
+.content h3{font-size:16px;color:var(--navy2);margin:24px 0 9px;}
+.content p{margin:0 0 12px;}
+.content ul,.content ol{margin:0 0 14px 22px;}
+.content li{margin-bottom:6px;}
+.content blockquote{background:var(--soft);border-left:5px solid var(--navy);border-radius:0 8px 8px 0;padding:14px 20px;margin:14px 0;color:#33425a;}
+.content blockquote p{margin:0 0 6px;}
+.content table{width:100%;border-collapse:collapse;margin:14px 0 20px;font-size:13.3px;}
+.content th{background:var(--navy);color:#fff;padding:9px 11px;text-align:left;font-weight:600;}
+.content td{padding:8px 11px;border-bottom:1px solid var(--line);vertical-align:top;}
+.content tr:nth-child(even) td{background:#fafbfd;}
+.content a{color:var(--accent);}
+.content code{background:var(--soft);border:1px solid var(--line);border-radius:4px;padding:1px 6px;font-size:12.4px;font-family:Consolas,'Courier New',monospace;}
+.content pre{background:#21252e;color:#e8eaf0;border-radius:8px;padding:16px 18px;font-size:12.4px;font-family:Consolas,'Courier New',monospace;overflow-x:auto;margin:12px 0 18px;line-height:1.55;}
+.content pre code{background:none;border:none;color:inherit;padding:0;}
+.content hr{border:none;border-top:1px solid var(--line);margin:30px 0;}
+.content strong{color:var(--navy2);}
+.footer{margin-top:50px;padding-top:16px;border-top:1px solid var(--line);font-size:12px;color:var(--muted);display:flex;justify-content:space-between;}
+@media print{body{background:#fff;}.page{box-shadow:none;padding:18px 0;max-width:100%;}.docnav{display:none;}.content h2{break-after:avoid;}.content table,.content pre,.content blockquote{break-inside:avoid;}}
+@media (max-width:720px){.page{padding:30px 20px;}}
+</style>
+</head>
+<body>
+<div class="page">
+  <span class="doc-label">협력사 포털 실구축 기획 · 대외비</span>
+  <div class="docnav"><a href="00_CTO종합기획_실행개요.html">00 종합기획</a><a href="01_아키텍처_데이터흐름_연계설계.html">01 아키텍처</a><a href="02_데이터모델_ERP매핑_포털스키마.html">02 데이터모델</a><a href="03_협력사인증_권한_행수준보안_보안.html">03 인증·보안</a><a href="04_실시간동기화_API_파일업로드_알림.html">04 동기화·API</a><a href="05_사전정의_의사결정_유니포인트협의_체크리스트.html">05 사전정의</a><a class="cur" href="06_로드맵_단계별실행_운영전환.html">06 로드맵</a><a href="README.md">README</a></div>
+  <p class="md-link">📄 Markdown 원본: <a href="06_로드맵_단계별실행_운영전환.md">06_로드맵_단계별실행_운영전환.md</a> · 상위 <a href="../00_종합정리_요구사항이력.html">08 종합정리</a></p>
+  <div class="content">
+<h1 id="06">06. 로드맵 · 단계별 실행 · 운영 전환</h1>
+<blockquote>
+<p>작성일: 2026-06-26 · 작성: 최동혁
+관련: 00 종합기획, 05 사전정의, <code>실제구축준비 자료/05_실행체크리스트_로드맵</code>
+기준: 전사 AI 포털 16주 마스터 위에 <strong>협력사 포털 고유 트랙</strong>을 얹는다. (1인 구축 병행 가정)</p>
+</blockquote>
+<hr />
+<h2 id="1">1. 전체 페이즈 (현재 데모 → 운영 가동)</h2>
+<table>
+<thead>
+<tr>
+<th>페이즈</th>
+<th>기간(상대)</th>
+<th>목표</th>
+<th>Go 게이트</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>P0</strong> 사전정의·협의</td>
+<td>W1~2</td>
+<td>결정·협의·스키마 확정</td>
+<td>경영 승인 + 벤더 핵심 회신</td>
+</tr>
+<tr>
+<td><strong>P1</strong> 기반 구축</td>
+<td>W3~6</td>
+<td>쓰기 DB·API 골격·인증 경계·파일</td>
+<td>로그인+업로드 E2E</td>
+</tr>
+<tr>
+<td><strong>P2</strong> ERP 연계</td>
+<td>W7~10</td>
+<td>발주·검사 배치·대시보드 실데이터·RLS</td>
+<td>실데이터 5일 무오류</td>
+</tr>
+<tr>
+<td><strong>P3</strong> 실시간·알림</td>
+<td>W9~11</td>
+<td>API 전환·SSE 양방향·알림</td>
+<td>다기기 양방향 검증</td>
+</tr>
+<tr>
+<td><strong>P4</strong> 파일럿</td>
+<td>W12~14</td>
+<td>협력사 1~2사+사내 2팀 실사용</td>
+<td>피드백 반영</td>
+</tr>
+<tr>
+<td><strong>P5</strong> 오픈·운영</td>
+<td>W15~16</td>
+<td>전체 확대·운영 캘린더·DR</td>
+<td>Go-Live 게이트</td>
+</tr>
+</tbody>
+</table>
+<p>P2와 P3는 일부 병행. 전사 마스터의 STEP 5(ERP, W9~12)와 자연 정렬되며, 협력사 고유 작업(인증·쓰기·파일·실시간)은 W3부터 독립 트랙으로 선행한다.</p>
+<hr />
+<h2 id="2">2. 주차별 실행 (협력사 포털 트랙)</h2>
+<pre><code>        W1  W2  W3  W4  W5  W6  W7  W8  W9  W10 W11 W12 W13 W14 W15 W16
+P0 결정·협의  ●   ●
+P1 쓰기DB·API         ●   ●   ●   ●
+P1 인증경계·파일      ●   ●   ●   ●
+P2 ERP배치·RLS                    ●   ●   ●   ●
+P3 API전환·SSE·알림                       ●   ●   ●
+P4 파일럿                                          ●   ●   ●
+P5 오픈·운영                                                   ●   ●
+</code></pre>
+<h3 id="p0-w12">P0 (W1~2) — 사전정의·협의</h3>
+<ul>
+<li>결정 D1~D7 상신, 유니포인트 협의서 발송(핵심 3항 우선).</li>
+<li>포털 DB 스키마·API 명세·상태머신 리뷰 확정.</li>
+<li>환경·스택·스토리지 골격, Key Vault·gitignore·시크릿 스캔.</li>
+<li><strong>게이트:</strong> 경영 승인 + 벤더 핵심 회신(매핑·검사 스키마·검수반영).</li>
+</ul>
+<h3 id="p1-w36">P1 (W3~6) — 기반 구축</h3>
+<ul>
+<li><code>sub_portal</code>·<code>sub_meta</code> DB 생성, 백엔드 API 골격(<code>/supplier</code>·<code>/internal</code>).</li>
+<li>인증 경계 분리(D1 반영) + 인증 어댑터, BFF/HttpOnly 세션.</li>
+<li>파일 업로드 파이프라인(검증·재인코딩·Blob·서명URL).</li>
+<li>데모 화면 → API 클라이언트 모듈 1곳으로 연결(목 데이터).</li>
+<li><strong>게이트:</strong> 협력사 로그인 → 발주 목록 → 사진 업로드 E2E 성공.</li>
+</ul>
+<h3 id="p2-w710-erp">P2 (W7~10) — ERP 연계</h3>
+<ul>
+<li>읽기전용 계정 수령·접속 테스트(TLS), 발주·검사 야간배치(증분).</li>
+<li><code>erp_ro</code> 적재 → 대시보드 실데이터 전환(발주구분 그룹·KPI).</li>
+<li><strong>RLS 2중 강제</strong> 적용 + 협력사 격리 테스트(타 거래처 차단).</li>
+<li><strong>게이트:</strong> 발주·검사 실데이터 연속 5일 무오류 + RLS 차단 확인.</li>
+</ul>
+<h3 id="p3-w911">P3 (W9~11) — 실시간·알림</h3>
+<ul>
+<li><code>localStorage(jeilax_link_v1)</code> → 백엔드 API 완전 전환.</li>
+<li>SSE 양방향(사진·상태·메시지·검수판정) + 폴링 폴백.</li>
+<li>알림 큐·디스패처(Teams/메일/웹푸시), 묶음 정책.</li>
+<li><strong>게이트:</strong> 서로 다른 기기·계정에서 양방향 실시간 반영 검증.</li>
+</ul>
+<h3 id="p4-w1214">P4 (W12~14) — 파일럿</h3>
+<ul>
+<li>협력사 1~2사 + 사내 2팀(구매·품질) 2주 실사용.</li>
+<li>주 2회 피드백 수집·반영. 실제 사진·검수 판정 라이브.</li>
+<li><strong>게이트:</strong> 핵심 피드백 반영 + 중대결함 0.</li>
+</ul>
+<h3 id="p5-w1516">P5 (W15~16) — 오픈·운영</h3>
+<ul>
+<li>협력사 확대 온보딩(계정·매핑·교육), 전사 공지.</li>
+<li>운영 캘린더 가동, 감사·모니터링·DR 리허설.</li>
+<li><strong>게이트:</strong> Go-Live 게이트(§3) 전 항목 통과.</li>
+</ul>
+<hr />
+<h2 id="3-go-live">3. Go-Live 게이트 (오픈 전 최종 점검)</h2>
+<table>
+<thead>
+<tr>
+<th>No.</th>
+<th>항목</th>
+<th>통과 기준</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>협력사 전체 흐름</td>
+<td>로그인→발주조회→사진등록→검수요청→결과수신 무오류</td>
+</tr>
+<tr>
+<td>2</td>
+<td>사내 전체 흐름</td>
+<td>보드 조회→메시지→검수판정→입고진행 무오류</td>
+</tr>
+<tr>
+<td>3</td>
+<td>행수준 보안</td>
+<td>협력사 A가 B 발주 조회/쓰기 <strong>차단</strong> 확인</td>
+</tr>
+<tr>
+<td>4</td>
+<td>인증 경계</td>
+<td>협력사 토큰으로 <code>/internal</code> 접근 차단</td>
+</tr>
+<tr>
+<td>5</td>
+<td>파일 보안</td>
+<td>위장·초과·악성 파일 거부, 서명URL 만료 동작</td>
+</tr>
+<tr>
+<td>6</td>
+<td>실시간</td>
+<td>다기기 양방향 반영 + SSE 끊김 재동기화</td>
+</tr>
+<tr>
+<td>7</td>
+<td>비밀값</td>
+<td>코드·Git·문서에 시크릿 전무(스캔), Key Vault만</td>
+</tr>
+<tr>
+<td>8</td>
+<td>데이터 기준</td>
+<td>ERP 화면에 동기화 기준 시각 표기</td>
+</tr>
+<tr>
+<td>9</td>
+<td>감사</td>
+<td>조회·판정·업로드 전건 로깅 확인</td>
+</tr>
+<tr>
+<td>10</td>
+<td>백업·롤백</td>
+<td>전일 백업 + 롤백 1회 검증</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="4-dr">4. 운영 전환 — 거버넌스·모니터링·DR</h2>
+<h3 id="_1">운영 캘린더 (반복)</h3>
+<table>
+<thead>
+<tr>
+<th>주기</th>
+<th>작업</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>일</td>
+<td>야간배치 성공 확인·실패 알림 대응, 업로드/판정 이상 점검</td>
+</tr>
+<tr>
+<td>주</td>
+<td>오류 로그·응답속도 리뷰, 미처리 검수·메시지 점검</td>
+</tr>
+<tr>
+<td>월</td>
+<td>사용량·스토리지 리포트, 협력사 계정·매핑 정합성, 감사 로그 점검</td>
+</tr>
+<tr>
+<td>분기</td>
+<td>RLS·오프보딩 점검, 보존연한 경과 사진 아카이브/삭제, 보안 패치</td>
+</tr>
+<tr>
+<td>2026-11</td>
+<td>(D1=A안 시) Entra Secret 갱신 → Key Vault 교체</td>
+</tr>
+<tr>
+<td>연</td>
+<td>DR 복구 리허설, 호스팅·스토리지 비용 재평가</td>
+</tr>
+</tbody>
+</table>
+<h3 id="_2">모니터링·알림</h3>
+<ul>
+<li>다운·배치 실패·스토리지 임계·예산 70% 시 관리자 알림.</li>
+<li>"데이터 기준 시각" 상시 노출로 동기화 지연 가시화.</li>
+</ul>
+<h3 id="dr">백업·DR</h3>
+<ul>
+<li>포털 DB·사진 스토리지 정기 백업, 중간 DB 장애 시 재배치 복구(ERP와 격리).</li>
+<li>스테이징 복원 리허설로 RPO/RTO 검증.</li>
+</ul>
+<hr />
+<h2 id="5">5. 마일스톤 요약</h2>
+<table>
+<thead>
+<tr>
+<th>마일스톤</th>
+<th>페이즈</th>
+<th>의미</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>M1 결정·협의 완료</td>
+<td>P0</td>
+<td>외부 의존 해소, 착수 가능</td>
+</tr>
+<tr>
+<td>M2 업로드 E2E</td>
+<td>P1</td>
+<td>쓰기·인증·파일 기반 검증</td>
+</tr>
+<tr>
+<td>M3 ERP 실데이터+RLS</td>
+<td>P2</td>
+<td>읽기 연계·격리 완성</td>
+</tr>
+<tr>
+<td>M4 실시간 양방향</td>
+<td>P3</td>
+<td>데모 핵심 가치 운영화</td>
+</tr>
+<tr>
+<td>M5 파일럿 통과</td>
+<td>P4</td>
+<td>현업 검증</td>
+</tr>
+<tr>
+<td>M6 전사 오픈</td>
+<td>P5</td>
+<td>운영 가동</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="6-1">6. 성공 기준 (오픈 후 1분기)</h2>
+<ul>
+<li>외주 발주의 사진·검수·메시지가 <strong>포털 단일 채널</strong>로 집중(전화·메신저 분산 감소).</li>
+<li>협력사 격리·감사 무사고.</li>
+<li>검수 판정 이력·증빙 보존으로 분쟁 추적성 확보.</li>
+<li>ERP 운영 부하 0 유지(야간 배치만).</li>
+</ul>
+  </div>
+  <div class="footer"><span>JEIL M&amp;S · 협력사 발주·검사 포털 실구축 기획</span><span>06 로드맵 · 2026-06-26 · 최동혁</span></div>
+</div>
+</body>
+</html>

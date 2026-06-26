@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>07. ERP ↔ 챗봇 중간 DB 연계 설계 — UNIERP MSSQL → PostgreSQL</title>
+<style>
+  :root{
+    --navy:#1a2f4e; --navy2:#27457a; --accent:#2f6fb3;
+    --red:#b3402f; --green:#2e7d52; --amber:#9a6b1f;
+    --ink:#222; --muted:#666; --line:#d8dee8; --bg:#f4f6f9;
+    --soft:#eef2f8; --softred:#fbeeec; --softgreen:#ecf5f0; --softamber:#faf3e4;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif; color:var(--ink); background:var(--bg); line-height:1.65; font-size:15px;}
+  .page{max-width:960px; margin:0 auto; background:#fff; padding:56px 64px; box-shadow:0 2px 14px rgba(0,0,0,.08);}
+  .doc-label{display:inline-block; background:var(--navy); color:#fff; font-size:12px; letter-spacing:.18em; padding:5px 14px; border-radius:3px; margin-bottom:18px;}
+  h1{font-size:28px; color:var(--navy); line-height:1.35; margin-bottom:10px;}
+  .subtitle{font-size:15.5px; color:var(--muted); margin-bottom:22px;}
+  .docnav{display:flex; flex-wrap:wrap; gap:6px; margin-bottom:26px;}
+  .docnav a{font-size:12px; color:var(--navy2); border:1px solid var(--line); border-radius:20px; padding:4px 12px; text-decoration:none; background:var(--soft);}
+  .docnav a:hover{background:var(--navy); color:#fff;}
+  .docnav a.cur{background:var(--navy); color:#fff; border-color:var(--navy);}
+  .meta{display:flex; flex-wrap:wrap; border:1px solid var(--line); border-radius:6px; overflow:hidden; margin-bottom:40px;}
+  .meta div{flex:1 1 25%; padding:10px 16px; font-size:13px; border-right:1px solid var(--line); background:var(--soft);}
+  .meta div:last-child{border-right:none;}
+  .meta b{display:block; color:var(--navy); font-size:12px; margin-bottom:2px;}
+  h2{font-size:20px; color:var(--navy); margin:46px 0 16px; padding-bottom:10px; border-bottom:3px solid var(--navy); display:flex; align-items:center; gap:10px;}
+  h2 .num{background:var(--navy); color:#fff; font-size:14px; width:28px; height:28px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; flex:none;}
+  h3{font-size:16px; color:var(--navy2); margin:26px 0 10px;}
+  p{margin-bottom:12px;}
+  .exec{background:var(--soft); border-left:5px solid var(--navy); border-radius:0 8px 8px 0; padding:22px 26px; margin-bottom:8px;}
+  .exec h3{margin-top:0; font-size:15px; letter-spacing:.06em; color:var(--navy);}
+  .exec ul{margin:8px 0 0 18px;}
+  .exec li{margin-bottom:8px;}
+  .callout{border-radius:8px; padding:16px 20px; margin:14px 0;}
+  .callout.red{background:var(--softred); border-left:5px solid var(--red);}
+  .callout.green{background:var(--softgreen); border-left:5px solid var(--green);}
+  .callout.amber{background:var(--softamber); border-left:5px solid var(--amber);}
+  .callout b.tag{display:block; font-size:13px; margin-bottom:6px;}
+  .callout.red b.tag{color:var(--red);} .callout.green b.tag{color:var(--green);} .callout.amber b.tag{color:var(--amber);}
+  table{width:100%; border-collapse:collapse; margin:14px 0 20px; font-size:13.5px;}
+  th{background:var(--navy); color:#fff; padding:9px 12px; text-align:left; font-weight:600;}
+  td{padding:9px 12px; border-bottom:1px solid var(--line); vertical-align:top;}
+  tr:nth-child(even) td{background:#fafbfd;}
+  td.ok{color:var(--green); font-weight:700;} td.no{color:var(--red); font-weight:700;} td.mid{color:var(--amber); font-weight:700;}
+  a{color:var(--accent);}
+  code{background:var(--soft); border:1px solid var(--line); border-radius:4px; padding:1px 6px; font-size:12.5px; font-family:Consolas,'Courier New',monospace;}
+  pre{background:#21252e; color:#e8eaf0; border-radius:8px; padding:16px 18px; font-size:12.5px; font-family:Consolas,'Courier New',monospace; overflow-x:auto; margin:12px 0 18px; line-height:1.55;}
+  pre .c{color:#8a93a5;}
+  .arch{display:flex; align-items:stretch; margin:20px 0; flex-wrap:wrap;}
+  .arch .box{flex:1; min-width:140px; border:2px solid var(--navy2); border-radius:10px; padding:14px 12px; text-align:center; background:#fff;}
+  .arch .box.hl{background:var(--soft); border-color:var(--accent);}
+  .arch .box.ext{border-style:dashed;}
+  .arch .box h4{color:var(--navy); font-size:14px; margin-bottom:6px;}
+  .arch .box p{font-size:12px; color:var(--muted); margin:0;}
+  .arch .arrow{display:flex; flex-direction:column; justify-content:center; align-items:center; padding:0 8px; color:var(--accent); font-size:11.5px; font-weight:700; min-width:64px; text-align:center;}
+  .arch .arrow .line{font-size:20px; line-height:1;}
+  .flowbox{background:var(--soft); border:1px solid var(--line); border-radius:10px; padding:20px 24px; margin:16px 0; font-family:Consolas,'Courier New',monospace; font-size:12.5px; line-height:1.7; overflow-x:auto; white-space:pre;}
+  .footer{margin-top:56px; padding-top:16px; border-top:1px solid var(--line); font-size:12px; color:var(--muted); display:flex; justify-content:space-between;}
+  .small{font-size:12.5px; color:var(--muted);}
+  .md-link{font-size:13px; margin-bottom:20px;}
+  @media print{ body{background:#fff;} .page{box-shadow:none; padding:20px 0; max-width:100%;} h2{break-after:avoid;} table,.callout,.arch,pre,.flowbox{break-inside:avoid;} .docnav{display:none;} }
+  @media (max-width:720px){ .page{padding:32px 22px;} .arch{flex-direction:column;} .arch .arrow{transform:rotate(90deg); min-width:auto; padding:6px 0;} }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <span class="doc-label">실제 구축 준비 07 · 대외비</span>
+  <h1>ERP ↔ 챗봇 중간 DB 연계 설계</h1>
+  <p class="subtitle">UNIERP(사외 IDC MSSQL) → PostgreSQL 중간 DB → 챗봇·부서 대시보드 — 아키텍처 · ETL · Tool Use · 단계별 개방</p>
+
+  <p class="md-link">📄 Markdown 원본: <a href="07_ERP_챗봇_중간DB_연계설계.md">07_ERP_챗봇_중간DB_연계설계.md</a></p>
+
+  <div class="docnav">
+    <a href="00_실제구축_종합기획서.html">00 종합기획</a>
+    <a href="01_도메인_DNS_인프라구성.html">01 도메인·인프라</a>
+    <a href="02_MS연동_OneDrive_데이터연계.html">02 MS·OneDrive</a>
+    <a href="03_ERP_UNIERP_데이터연계.html">03 ERP 연계</a>
+    <a href="04_챗봇전환_데이터관리_운영.html">04 챗봇·데이터관리</a>
+    <a href="05_실행체크리스트_로드맵.html">05 체크리스트</a>
+    <a class="cur" href="07_ERP_챗봇_중간DB_연계설계.html">07 ERP·챗봇 중간DB</a>
+  </div>
+
+  <div class="meta">
+    <div><b>작성일</b>2026. 06. 25.</div>
+    <div><b>담당</b>최동혁</div>
+    <div><b>대상 단계</b>STEP 5 (W9~12)</div>
+    <div><b>관련</b><a href="03_ERP_UNIERP_데이터연계.html">03 ERP</a> · <a href="04_챗봇전환_데이터관리_운영.html">04 챗봇</a></div>
+  </div>
+
+  <div class="exec">
+    <h3>EXECUTIVE SUMMARY</h3>
+    <ul>
+      <li><b>UNIERP 운영 DB에 챗봇·대시보드가 직접 연결되지 않습니다.</b> 사외 IDC MSSQL → 야간 배치 → Azure PostgreSQL 중간 DB → 조회 API·Tool Use 순으로만 데이터가 흐릅니다.</li>
+      <li>챗봇과 <code>pages/</code> 부서 대시보드는 <b>같은 중간 DB</b>를 쓰되, <b>같은 조회 API·쿼리 로직</b>을 공유합니다 — ETL은 1벌만 유지.</li>
+      <li>AI는 <b>임의 SQL을 생성하지 않습니다.</b> 사전 검증된 화이트리스트 템플릿 + Entra RBAC + 행 수 상한(200행)으로 안전하게 조회합니다.</li>
+      <li>민감 영역(자금·인사)은 <code>erp_secure</code> 스키마 + Entra 그룹으로 분리하며, <b>개인 단위 민감정보는 중간 DB에 넣지 않습니다.</b></li>
+    </ul>
+  </div>
+
+  <h2><span class="num">1</span>핵심 데이터 흐름</h2>
+  <div class="arch">
+    <div class="box ext"><h4>UNIERP 운영 DB</h4><p>MS SQL · 사외 IDC<br>유니포인트 관리<br><b>접촉 최소화</b></p></div>
+    <div class="arrow"><span class="line">→</span>야간 배치<br>읽기전용 View</div>
+    <div class="box hl"><h4>동기화 배치</h4><p>매일 03:00<br>증분 추출·집계<br>실패 시 알림</p></div>
+    <div class="arrow"><span class="line">→</span>적재</div>
+    <div class="box hl"><h4>PostgreSQL 중간 DB</h4><p>erp_ro / erp_secure<br>집계·요약 테이블<br>synced_at 공통</p></div>
+    <div class="arrow"><span class="line">→</span>API · Tool</div>
+    <div class="box"><h4>챗봇 · 대시보드</h4><p>자연어 답변<br>pages/ 차트·표<br>기준 시각 표기</p></div>
+  </div>
+
+  <table>
+    <tr><th style="width:28%;">이점</th><th>설명</th></tr>
+    <tr><td><b>성능 격리</b></td><td>직원 100명이 챗봇·대시보드를 써도 ERP 운영 DB 부하 0</td></tr>
+    <tr><td><b>보안</b></td><td>AI 임의 SQL 불가, 민감 데이터 스키마·Entra 그룹 분리</td></tr>
+    <tr><td><b>복구 용이</b></td><td>중간 DB 유실 시 배치 재실행으로 복구 — ERP 원천은 무손상</td></tr>
+  </table>
+
+  <h2><span class="num">2</span>데이터 4계층</h2>
+  <table>
+    <tr><th style="width:12%;">계층</th><th style="width:28%;">데이터</th><th style="width:22%;">위치</th><th>챗봇 접근</th></tr>
+    <tr><td><b>① 원천</b></td><td>UNIERP MSSQL, OneDrive/SharePoint</td><td>IDC / MS 클라우드</td><td class="no">불가 (배치만)</td></tr>
+    <tr><td><b>② 연계 사본</b></td><td>ERP 중간 DB, 문서 인덱스</td><td>PostgreSQL</td><td class="ok">가능 (유일한 ERP 소스)</td></tr>
+    <tr><td><b>③ 생성</b></td><td>대화·크레딧·감사로그</td><td>PostgreSQL portal</td><td>본인·관리자</td></tr>
+    <tr><td><b>④ 비밀</b></td><td>API 키, DB 암호</td><td>Key Vault</td><td>서버만</td></tr>
+  </table>
+
+  <h2><span class="num">3</span>PostgreSQL 중간 DB 스키마</h2>
+  <pre><span class="c">-- jeil_portal (PostgreSQL) — 포털 DB와 동거 시작, 필요 시 erp_* 분리</span>
+portal       : users, credits, conversations, messages, tool_audit
+erp_ro       : sales_orders_m, purchase_m, inventory_d, project_cost_m, item_master
+erp_secure   : cash_daily, hr_payroll_m  <span class="c">→ 일반 앱 역할은 접근 불가</span>
+knowledge    : 문서 벡터 인덱스 (pgvector)
+etl_meta     : 배치 실행 로그, sync 상태
+
+<span class="c">-- 모든 erp_* 테이블 공통 컬럼</span>
+synced_at, src_updated, batch_id</pre>
+
+  <h3>3-1. 데모 페이지 → 중간 테이블 매핑</h3>
+  <table>
+    <tr><th>데모 페이지</th><th>UNIERP 원천</th><th>중간 테이블</th><th>단계</th></tr>
+    <tr><td>영업_수주현황</td><td><code>S_BILL_HDR/DTL</code>, <code>S_BILL_COLLECTING</code></td><td><code>erp_ro.sales_orders_m</code></td><td class="ok">1차</td></tr>
+    <tr><td>구매_거래처별매입집계</td><td><code>M_IV_HDR/DTL</code>, <code>B_BP</code></td><td><code>erp_ro.purchase_m</code></td><td class="ok">1차</td></tr>
+    <tr><td>자재물류_재고입출고</td><td><code>ITEM_DOCUMENT</code>, <code>M_PUR_GOODS_MVMT</code></td><td><code>erp_ro.inventory_d</code></td><td class="ok">1차</td></tr>
+    <tr><td>품목중복_조회</td><td><code>B_ITEM</code></td><td><code>erp_ro.item_master</code></td><td class="ok">1차</td></tr>
+    <tr><td>프로젝트 원가</td><td><code>PM_PROJECT_MASTER</code>, 원가</td><td><code>erp_ro.project_cost_m</code></td><td class="mid">2차</td></tr>
+    <tr><td>자금_자금일보</td><td><code>A_GL</code>, <code>F_LN_INFO</code>, <code>F_NOTE</code></td><td><code>erp_secure.cash_daily</code></td><td class="no">2차+승인</td></tr>
+    <tr><td>인사_인원급여추이</td><td><code>HAA010T</code>, <code>HDF070T</code> (집계만)</td><td><code>erp_secure.hr_payroll_m</code></td><td class="no">2차+승인</td></tr>
+  </table>
+  <div class="callout red">
+    <b class="tag">개인 단위 민감정보는 중간 DB 미연계</b>
+    개인별 급여·주민번호·계좌번호는 추출 쿼리·유니포인트 View 단계에서 원천 제외. 인사는 인원 수·급여 총액·평균 등 <b>집계값만</b> 취급합니다.
+  </div>
+
+  <h2><span class="num">4</span>동기화 배치 (ETL) 정책</h2>
+  <table>
+    <tr><th style="width:26%;">항목</th><th>정책</th></tr>
+    <tr><td>주기</td><td>기본 <b>매일 03:00</b> — ERP 백업·마감과 겹치지 않게 유니포인트 합의</td></tr>
+    <tr><td>방식</td><td><b>증분</b> (수정일시 기준) / 소량 집계는 <b>전체 재적재</b></td></tr>
+    <tr><td>변환</td><td>코드→명칭, 월별 집계 — 챗봇이 코드 해석 없이 바로 답할 형태</td></tr>
+    <tr><td>실패</td><td>Teams/메일 알림 + 1시간 후 재시도 1회</td></tr>
+    <tr><td>UI</td><td>모든 화면·답변에 <b>「데이터 기준: YYYY-MM-DD 03:00」</b> 표기</td></tr>
+    <tr><td>네트워크</td><td>파일럿: IP 허용+TLS → 운영: <b>IPSec VPN</b> (<a href="03_ERP_UNIERP_데이터연계.html">03 문서 3장</a>)</td></tr>
+  </table>
+
+  <div class="flowbox">03:00 스케줄
+    → ERP View SELECT (jeilax_ro, 증분)
+    → 코드·명칭 변환 + 집계
+    → PostgreSQL UPSERT (erp_ro / erp_secure)
+    → etl_meta 갱신 (건수, 시각, batch_id)
+    → (실패 시) 알림 + 1회 재시도</div>
+
+  <h2><span class="num">5</span>챗봇 ERP 조회 — Tool Use (화이트리스트)</h2>
+  <div class="arch">
+    <div class="box"><h4>직원 질문</h4><p>"지난달 A거래처<br>매출 얼마야?"</p></div>
+    <div class="arrow"><span class="line">→</span>Tool Use</div>
+    <div class="box hl"><h4>Claude</h4><p>도구 선택 +<br>파라미터만 추출</p></div>
+    <div class="arrow"><span class="line">→</span>고정 SQL<br>RBAC</div>
+    <div class="box hl"><h4>조회 API</h4><p>화이트리스트<br>행 수 ≤200<br>tool_audit</p></div>
+    <div class="arrow"><span class="line">→</span>erp_ro</div>
+    <div class="box"><h4>답변</h4><p>수치 + 기준시각<br>+ 대시보드 링크</p></div>
+  </div>
+
+  <table>
+    <tr><th>도구 ID</th><th>파라미터</th><th>대상</th><th>Entra 권한</th></tr>
+    <tr><td><code>get_sales_monthly</code></td><td>year, month</td><td><code>erp_ro.sales_orders_m</code></td><td>전 직원</td></tr>
+    <tr><td><code>get_purchase_by_vendor</code></td><td>vendor, period</td><td><code>erp_ro.purchase_m</code></td><td>전 직원</td></tr>
+    <tr><td><code>get_inventory_status</code></td><td>item_code</td><td><code>erp_ro.inventory_d</code></td><td>전 직원</td></tr>
+    <tr><td><code>get_project_cost</code></td><td>project_code</td><td><code>erp_ro.project_cost_m</code></td><td>PM·경영진</td></tr>
+    <tr><td><code>get_cash_daily</code></td><td>date</td><td><code>erp_secure.cash_daily</code></td><td>AI-Portal-Finance</td></tr>
+    <tr><td><code>get_hr_headcount_trend</code></td><td>year</td><td><code>erp_secure.hr_payroll_m</code></td><td>AI-Portal-HR</td></tr>
+  </table>
+
+  <h2><span class="num">6</span>대시보드 vs 챗봇 — 동일 DB, 다른 소비</h2>
+  <table>
+    <tr><th style="width:22%;">구분</th><th>부서 대시보드 (pages/)</th><th>챗봇</th></tr>
+    <tr><td>데이터 소스</td><td><code>erp_ro</code> / <code>erp_secure</code></td><td>동일</td></tr>
+    <tr><td>접근 방식</td><td>REST API <code>/api/erp/*</code></td><td>Tool Use 템플릿</td></tr>
+    <tr><td>적합한 용도</td><td>차트·표·정형 화면</td><td>자연어·요약·질의</td></tr>
+    <tr><td>유지보수</td><td colspan="2" class="ok">ETL 1벌 + API·Tool 쿼리 로직 공유</td></tr>
+  </table>
+
+  <h2><span class="num">7</span>단계별 개방</h2>
+  <table>
+    <tr><th>단계</th><th>영역</th><th>스키마</th><th>권한</th><th>시기</th></tr>
+    <tr><td class="ok">1차</td><td>영업·구매·재고·품목</td><td><code>erp_ro</code></td><td>전 직원</td><td>W10</td></tr>
+    <tr><td class="mid">2차</td><td>프로젝트 원가</td><td><code>erp_ro</code></td><td>PM·경영진</td><td>W12</td></tr>
+    <tr><td class="no">2차+승인</td><td>자금일보</td><td><code>erp_secure</code></td><td>AI-Portal-Finance</td><td>승인 후</td></tr>
+    <tr><td class="no">2차+승인</td><td>인사 집계</td><td><code>erp_secure</code></td><td>AI-Portal-HR</td><td>승인 후</td></tr>
+  </table>
+
+  <h2><span class="num">8</span>하지 말아야 할 구조</h2>
+  <table>
+    <tr><th style="width:32%;">방식</th><th>문제</th></tr>
+    <tr><td>챗봇 → UNIERP 직접 연결</td><td class="no">ERP 성능·장애 전파, AI 임의 SQL 위험</td></tr>
+    <tr><td>MSSQL 전체 복제</td><td>용량·민감컬럼 과다, 비용↑</td></tr>
+    <tr><td>실시간 ERP 조회 (초기)</td><td>복잡도↑ — 일 배치로 90% 요구 충족</td></tr>
+    <tr><td>AI <code>SELECT *</code> 생성 허용</td><td class="no">SQL 인젝션·대량 유출</td></tr>
+    <tr><td>OneDrive CSV만으로 ERP 대체</td><td>권한·갱신·감사 불가</td></tr>
+  </table>
+
+  <div class="callout green">
+    <b class="tag">최종 권고</b>
+    ERP 원천 = MSSQL 유지 · 포털 = PostgreSQL 중간 DB · 챗봇 = 화이트리스트 Tool + RBAC API · 네트워크 = 파일럿 IP허용 → 운영 VPN. 상세 협의·뷰 설계는 <a href="03_ERP_UNIERP_데이터연계.html">03 ERP 연계</a>, 게이트웨이·로그 정책은 <a href="04_챗봇전환_데이터관리_운영.html">04 챗봇·데이터관리</a> 참조.
+  </div>
+
+  <h2><span class="num">9</span>구현 체크리스트</h2>
+  <table>
+    <tr><th style="width:8%;">No.</th><th>완료 기준</th><th style="width:24%;">담당</th></tr>
+    <tr><td>1</td><td>유니포인트 협의 — <code>jeilax_ro</code> 계정, View, 방화벽/VPN</td><td>최동혁 ↔ 유니포인트</td></tr>
+    <tr><td>2</td><td>PostgreSQL <code>erp_ro</code>, <code>erp_secure</code>, <code>etl_meta</code> 스키마 생성</td><td>최동혁</td></tr>
+    <tr><td>3</td><td>1차 배치 — 영업·구매·재고 ETL 가동</td><td>최동혁</td></tr>
+    <tr><td>4</td><td>REST API — <code>pages/</code> 대시보드 실데이터 전환</td><td>최동혁</td></tr>
+    <tr><td>5</td><td>챗봇 Tool 3종 이상 + <code>tool_audit</code> 로깅</td><td>최동혁</td></tr>
+    <tr><td>6</td><td>2차 민감 영역 — 경영진 승인 + Entra 그룹 적용</td><td>경영진·최동혁</td></tr>
+  </table>
+
+  <div class="footer">
+    <span>JEIL AX 실제 구축 준비 · 07 ERP·챗봇 중간DB 연계설계</span>
+    <span>2026. 06. 25. · 작성 최동혁</span>
+  </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JEIL 전사 AX 비용 계산기</title>
+<style>
+  :root{
+    --bg:#0f172a; --card:#1e293b; --card2:#273549; --line:#334155;
+    --txt:#e2e8f0; --muted:#94a3b8; --accent:#38bdf8; --accent2:#a78bfa;
+    --good:#34d399; --warn:#fbbf24; --bad:#f87171;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--txt);font-family:'Segoe UI',-apple-system,'Malgun Gothic',sans-serif;line-height:1.5;padding:24px}
+  .wrap{max-width:1100px;margin:0 auto}
+  h1{font-size:24px;margin-bottom:4px}
+  .sub{color:var(--muted);font-size:13px;margin-bottom:20px}
+  .grid{display:grid;grid-template-columns:340px 1fr;gap:20px}
+  @media(max-width:880px){.grid{grid-template-columns:1fr}}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:16px}
+  .card h2{font-size:14px;text-transform:uppercase;letter-spacing:.5px;color:var(--accent);margin-bottom:14px}
+  label{display:block;font-size:12px;color:var(--muted);margin:12px 0 4px}
+  input[type=number],select{width:100%;background:var(--card2);border:1px solid var(--line);color:var(--txt);border-radius:8px;padding:9px 10px;font-size:14px}
+  .row{display:flex;gap:10px}
+  .row>div{flex:1}
+  input[type=range]{width:100%;accent-color:var(--accent)}
+  .rv{font-size:12px;color:var(--accent);font-weight:600;float:right}
+  .big{font-size:34px;font-weight:700;color:var(--good)}
+  .big small{font-size:14px;color:var(--muted);font-weight:400}
+  .kpi{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px}
+  .kpi .card{margin:0;text-align:center}
+  .kpi .lab{font-size:11px;color:var(--muted);text-transform:uppercase}
+  .kpi .val{font-size:22px;font-weight:700;margin-top:4px}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th,td{padding:8px 10px;text-align:right;border-bottom:1px solid var(--line)}
+  th:first-child,td:first-child{text-align:left}
+  th{color:var(--muted);font-weight:600;font-size:11px;text-transform:uppercase}
+  .bar{height:22px;border-radius:5px;background:linear-gradient(90deg,var(--accent),var(--accent2));position:relative}
+  .barwrap{display:flex;align-items:center;gap:10px;margin:6px 0}
+  .barwrap .nm{width:150px;font-size:12px}
+  .barwrap .vl{width:120px;text-align:right;font-size:12px;color:var(--muted)}
+  .pill{display:inline-block;background:var(--card2);border:1px solid var(--line);border-radius:20px;padding:3px 11px;font-size:11px;color:var(--muted);margin:2px 3px 2px 0}
+  .note{font-size:11px;color:var(--muted);margin-top:10px;line-height:1.6}
+  .tabs{display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap}
+  .tab{cursor:pointer;background:var(--card2);border:1px solid var(--line);border-radius:8px;padding:6px 12px;font-size:12px;color:var(--muted)}
+  .tab.on{background:var(--accent);color:#0f172a;border-color:var(--accent);font-weight:600}
+  .hl{color:var(--good);font-weight:700}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>JEIL 전사 AX 비용 계산기</h1>
+  <div class="sub">API 토큰형 vs 좌석제 비교 · 헤비유저 분리 과금 시뮬레이션 · 환율 ₩<span id="fxlab">1,400</span>/USD · 단가 2026-06 기준</div>
+
+  <div class="grid">
+    <!-- 입력 -->
+    <div>
+      <div class="card">
+        <h2>① 사용 인원 구성</h2>
+        <label>전체 인원 <span class="rv" id="totv">200명</span></label>
+        <input type="range" id="tot" min="50" max="500" step="10" value="200">
+        <label>라이트 사용자 비율 (일 15회) <span class="rv" id="lv">60%</span></label>
+        <input type="range" id="lp" min="0" max="100" step="5" value="60">
+        <label>미디엄 사용자 비율 (일 40회) <span class="rv" id="mv">30%</span></label>
+        <input type="range" id="mp" min="0" max="100" step="5" value="30">
+        <label>헤비 사용자 비율 (일 100회) <span class="rv" id="hv">10%</span></label>
+        <input type="range" id="hp" min="0" max="100" step="5" value="10">
+        <div class="note" id="mixnote"></div>
+      </div>
+
+      <div class="card">
+        <h2>② 비용 절감 옵션</h2>
+        <label>프롬프트 캐싱 적용률 <span class="rv" id="cv">40%</span></label>
+        <input type="range" id="cache" min="0" max="80" step="5" value="40">
+        <label><input type="checkbox" id="route" checked style="width:auto"> 모델 라우팅 (Haiku 50% / Sonnet 40% / Opus 10%)</label>
+        <label>라우팅 미적용 시 기본 모델</label>
+        <select id="basemodel">
+          <option value="Sonnet 4.6" selected>Claude Sonnet 4.6 (워크호스)</option>
+          <option value="Haiku 4.5">Claude Haiku 4.5 (경량)</option>
+          <option value="Opus 4.8">Claude Opus 4.8 (고난도)</option>
+          <option value="GPT-5.5">GPT-5.5</option>
+          <option value="GPT-5.5 mini">GPT-5.5 mini</option>
+        </select>
+        <label>환율 (₩/USD)</label>
+        <input type="number" id="fx" value="1400" step="10">
+      </div>
+
+      <div class="card">
+        <h2>③ 헤비유저 분리 과금</h2>
+        <label><input type="checkbox" id="seat" style="width:auto"> 헤비유저를 Team Premium 좌석으로 전환</label>
+        <div class="note">전환 시 헤비 인원은 API 비용 대신 좌석 정액(연납 $100/월)으로 계산됩니다.</div>
+      </div>
+    </div>
+
+    <!-- 결과 -->
+    <div>
+      <div class="card">
+        <h2>월 예상 비용 (권고 구성)</h2>
+        <div class="big" id="mainKRW">₩0 <small>/ 월</small></div>
+        <div class="sub" id="mainUSD" style="margin:6px 0 0">$0 / 월 · 연 ₩0</div>
+      </div>
+
+      <div class="kpi">
+        <div class="card"><div class="lab">1인 평균 월비용</div><div class="val" id="perUser">₩0</div></div>
+        <div class="card"><div class="lab">연간 총비용</div><div class="val" id="yearKRW">₩0</div></div>
+      </div>
+
+      <div class="card">
+        <h2>방식별 비교 (현재 구성 기준)</h2>
+        <div id="bars"></div>
+        <div class="note">막대는 월 비용. 좌석제는 안 쓰는 인원도 정액이 발생합니다.</div>
+      </div>
+
+      <div class="card">
+        <h2>프로파일별 내역</h2>
+        <table id="breakdown">
+          <thead><tr><th>프로파일</th><th>인원</th><th>1인 월(KRW)</th><th>소계(KRW)</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
+      <div class="card">
+        <h2>참고 단가 (/100만 토큰, USD)</h2>
+        <span class="pill">Opus 4.8 · $5 / $25</span>
+        <span class="pill">Sonnet 4.6 · $3 / $15</span>
+        <span class="pill">Haiku 4.5 · $1 / $5</span>
+        <span class="pill">GPT-5.5 · $5 / $30</span>
+        <span class="pill">GPT-5.5 mini · $0.125 / $1</span>
+        <span class="pill">GPT-5.5 nano · $0.05 / $0.4</span>
+        <div class="note">입력 / 출력 단가. 출력이 입력의 5~6배. 캐싱 적중 입력은 약 90% 할인, 배치 50% 할인.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const P={'Opus 4.8':{i:5,o:25},'Sonnet 4.6':{i:3,o:15},'Haiku 4.5':{i:1,o:5},
+ 'GPT-5.5':{i:5,o:30},'GPT-5.5 mini':{i:0.125,o:1},'GPT-5.5 nano':{i:0.05,o:0.4}};
+const DAYS=22;
+const prof={Light:[15,2500,700],Medium:[40,3500,1000],Heavy:[100,4000,1200]};
+const $=id=>document.getElementById(id);
+
+function tokens(p){const[m,i,o]=prof[p];const n=m*DAYS;return[n*i,n*o];}
+function costUser(model,p,cache){const[ti,to]=tokens(p);const eff=ti*(1-cache)+ti*cache*0.1;
+  return eff/1e6*P[model].i + to/1e6*P[model].o;}
+function costRouted(p,cache){const r={'Haiku 4.5':0.5,'Sonnet 4.6':0.4,'Opus 4.8':0.1};
+  let c=0;for(const m in r)c+=r[m]*costUser(m,p,cache);return c;}
+
+function fmtK(n){return '₩'+Math.round(n).toLocaleString();}
+function fmtKm(n){return '₩'+(n/10000).toFixed(0)+'만';}
+
+function calc(){
+  const tot=+$('tot').value, fx=+$('fx').value, cache=+$('cache').value/100;
+  let lp=+$('lp').value,mp=+$('mp').value,hp=+$('hp').value;
+  const route=$('route').checked, base=$('basemodel').value, seat=$('seat').checked;
+  $('totv').textContent=tot+'명';$('lv').textContent=lp+'%';$('mv').textContent=mp+'%';$('hv').textContent=hp+'%';
+  $('cv').textContent=$('cache').value+'%';$('fxlab').textContent=(+$('fx').value).toLocaleString();
+  const sum=lp+mp+hp||1;
+  const nL=Math.round(tot*lp/sum),nM=Math.round(tot*mp/sum),nH=tot-nL-nM;
+  $('mixnote').textContent=`합계 ${sum}% → 라이트 ${nL}명 · 미디엄 ${nM}명 · 헤비 ${nH}명 (비율 자동 정규화)`;
+
+  const cu=p=>route?costRouted(p,cache):costUser(base,p,cache);
+  // 권고 구성: 헤비 좌석전환 옵션 반영
+  const SEAT=100; // $/mo premium annual
+  let usd=nL*cu('Light')+nM*cu('Medium');
+  usd += seat ? nH*SEAT : nH*cu('Heavy');
+  const krw=usd*fx;
+  $('mainKRW').innerHTML=fmtK(krw)+' <small>/ 월</small>';
+  $('mainUSD').textContent=`$${usd.toLocaleString(undefined,{maximumFractionDigits:0})} / 월 · 연 ${fmtK(krw*12)}`;
+  $('perUser').textContent=fmtK(krw/(tot||1));
+  $('yearKRW').textContent=fmtKm(krw*12);
+
+  // breakdown table
+  const rows=[['라이트',nL,cu('Light')],['미디엄',nM,cu('Medium')],
+    ['헤비',nH, seat?SEAT:cu('Heavy')]];
+  $('breakdown').querySelector('tbody').innerHTML=rows.map(r=>{
+    const per=r[2]*fx, sub=per*r[1];
+    const tag=(r[0]==='헤비'&&seat)?' <span class="pill">좌석</span>':'';
+    return `<tr><td>${r[0]}${tag}</td><td>${r[1]}명</td><td>${fmtK(per)}</td><td>${fmtK(sub)}</td></tr>`;
+  }).join('');
+
+  // comparison bars
+  const apiRoute=(nL*costRouted('Light',cache)+nM*costRouted('Medium',cache)+nH*costRouted('Heavy',cache))*fx;
+  const apiSonnet=(nL*costUser('Sonnet 4.6','Light',cache)+nM*costUser('Sonnet 4.6','Medium',cache)+nH*costUser('Sonnet 4.6','Heavy',cache))*fx;
+  const seatAll=tot*20*fx;
+  const seatMix=((tot-nH)*20+nH*100)*fx;
+  const items=[['API + 모델 라우팅',apiRoute,'var(--good)'],
+    ['API + Sonnet 단일',apiSonnet,'var(--accent)'],
+    ['좌석제 전원 Standard',seatAll,'var(--warn)'],
+    ['좌석제 혼합(헤비 Premium)',seatMix,'var(--bad)']];
+  const max=Math.max(...items.map(i=>i[1]));
+  $('bars').innerHTML=items.map(it=>`<div class="barwrap">
+    <div class="nm">${it[0]}</div>
+    <div style="flex:1"><div class="bar" style="width:${(it[1]/max*100).toFixed(0)}%;background:${it[2]}"></div></div>
+    <div class="vl">${fmtK(it[1])}</div></div>`).join('');
+}
+document.querySelectorAll('input,select').forEach(e=>e.addEventListener('input',calc));
+calc();
+</script>
+</body>
+</html>

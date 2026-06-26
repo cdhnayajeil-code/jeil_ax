@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>02 데이터모델 — 협력사 발주·검사 포털 ERP연계 실구축 기획</title>
+<style>
+:root{--navy:#1a2f4e;--navy2:#27457a;--accent:#2f6fb3;--red:#b3402f;--green:#2e7d52;--amber:#9a6b1f;
+--ink:#222;--muted:#666;--line:#d8dee8;--bg:#f4f6f9;--soft:#eef2f8;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;color:var(--ink);background:var(--bg);line-height:1.65;font-size:15px;}
+.page{max-width:960px;margin:0 auto;background:#fff;padding:52px 60px;box-shadow:0 2px 14px rgba(0,0,0,.08);}
+.doc-label{display:inline-block;background:var(--navy);color:#fff;font-size:12px;letter-spacing:.16em;padding:5px 14px;border-radius:3px;margin-bottom:16px;}
+.docnav{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 26px;}
+.docnav a{font-size:12px;color:var(--navy2);border:1px solid var(--line);border-radius:20px;padding:4px 12px;text-decoration:none;background:var(--soft);}
+.docnav a:hover{background:var(--navy);color:#fff;}
+.docnav a.cur{background:var(--navy);color:#fff;border-color:var(--navy);}
+.md-link{font-size:13px;margin-bottom:22px;color:var(--muted);}
+.content h1{font-size:27px;color:var(--navy);line-height:1.35;margin:6px 0 18px;}
+.content h2{font-size:20px;color:var(--navy);margin:42px 0 14px;padding-bottom:9px;border-bottom:3px solid var(--navy);}
+.content h3{font-size:16px;color:var(--navy2);margin:24px 0 9px;}
+.content p{margin:0 0 12px;}
+.content ul,.content ol{margin:0 0 14px 22px;}
+.content li{margin-bottom:6px;}
+.content blockquote{background:var(--soft);border-left:5px solid var(--navy);border-radius:0 8px 8px 0;padding:14px 20px;margin:14px 0;color:#33425a;}
+.content blockquote p{margin:0 0 6px;}
+.content table{width:100%;border-collapse:collapse;margin:14px 0 20px;font-size:13.3px;}
+.content th{background:var(--navy);color:#fff;padding:9px 11px;text-align:left;font-weight:600;}
+.content td{padding:8px 11px;border-bottom:1px solid var(--line);vertical-align:top;}
+.content tr:nth-child(even) td{background:#fafbfd;}
+.content a{color:var(--accent);}
+.content code{background:var(--soft);border:1px solid var(--line);border-radius:4px;padding:1px 6px;font-size:12.4px;font-family:Consolas,'Courier New',monospace;}
+.content pre{background:#21252e;color:#e8eaf0;border-radius:8px;padding:16px 18px;font-size:12.4px;font-family:Consolas,'Courier New',monospace;overflow-x:auto;margin:12px 0 18px;line-height:1.55;}
+.content pre code{background:none;border:none;color:inherit;padding:0;}
+.content hr{border:none;border-top:1px solid var(--line);margin:30px 0;}
+.content strong{color:var(--navy2);}
+.footer{margin-top:50px;padding-top:16px;border-top:1px solid var(--line);font-size:12px;color:var(--muted);display:flex;justify-content:space-between;}
+@media print{body{background:#fff;}.page{box-shadow:none;padding:18px 0;max-width:100%;}.docnav{display:none;}.content h2{break-after:avoid;}.content table,.content pre,.content blockquote{break-inside:avoid;}}
+@media (max-width:720px){.page{padding:30px 20px;}}
+</style>
+</head>
+<body>
+<div class="page">
+  <span class="doc-label">협력사 포털 실구축 기획 · 대외비</span>
+  <div class="docnav"><a href="00_CTO종합기획_실행개요.html">00 종합기획</a><a href="01_아키텍처_데이터흐름_연계설계.html">01 아키텍처</a><a class="cur" href="02_데이터모델_ERP매핑_포털스키마.html">02 데이터모델</a><a href="03_협력사인증_권한_행수준보안_보안.html">03 인증·보안</a><a href="04_실시간동기화_API_파일업로드_알림.html">04 동기화·API</a><a href="05_사전정의_의사결정_유니포인트협의_체크리스트.html">05 사전정의</a><a href="06_로드맵_단계별실행_운영전환.html">06 로드맵</a><a href="README.md">README</a></div>
+  <p class="md-link">📄 Markdown 원본: <a href="02_데이터모델_ERP매핑_포털스키마.md">02_데이터모델_ERP매핑_포털스키마.md</a> · 상위 <a href="../00_종합정리_요구사항이력.html">08 종합정리</a></p>
+  <div class="content">
+<h1 id="02-erp-10">02. 데이터 모델 — ERP 매핑 · 포털 쓰기 스키마 · 10단계 상태머신</h1>
+<blockquote>
+<p>작성일: 2026-06-26 · 작성: 최동혁 · 대상 페이즈: P1~P2
+관련: 01 아키텍처, 05 협의 체크리스트, <code>08/00_종합정리_요구사항이력</code>(ERP 매핑 §6)
+주의: 아래 ERP 컬럼은 <strong>ERP 사전(스키마 스냅샷, 2026-04-15 기준)</strong> 에 근거한다. 운영 DB 직접 쿼리는 망분리로 미수행 → <strong>유니포인트 확정(05 문서) 전까지 가설</strong>로 취급한다.</p>
+</blockquote>
+<hr />
+<h2 id="1-3">1. 데이터 영역 3분할</h2>
+<table>
+<thead>
+<tr>
+<th>영역</th>
+<th>스키마</th>
+<th>출처/주체</th>
+<th>접근</th>
+<th>예시 테이블</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>ERP 사본</strong></td>
+<td><code>erp_ro</code></td>
+<td>UNIERP(야간배치)</td>
+<td>읽기 전용</td>
+<td>po_header, po_line, pr, goods_mvmt, inspection, item, bp</td>
+</tr>
+<tr>
+<td><strong>포털 생성</strong></td>
+<td><code>sub_portal</code></td>
+<td>협력사·사내(실시간 쓰기)</td>
+<td>읽기/쓰기</td>
+<td>order_state, photo, message, insp_request, inspection, inspection_log</td>
+</tr>
+<tr>
+<td><strong>운영 메타</strong></td>
+<td><code>sub_meta</code></td>
+<td>시스템</td>
+<td>시스템</td>
+<td>sync_log, audit_log, notify_queue, supplier_account, supplier_bp_map</td>
+</tr>
+</tbody>
+</table>
+<p><strong>조인 축은 항상 발주번호(<code>po_no</code>)</strong> — <code>PO+YYYYMMDD+일련번호</code> (예: <code>PO202606220012</code>). ERP 사본과 포털 생성물은 <code>po_no</code>(필요 시 <code>po_no + line_no</code>)로만 연결한다.</p>
+<hr />
+<h2 id="2-erp-erp_ro">2. ERP → <code>erp_ro</code> 매핑 (읽기 전용 사본)</h2>
+<table>
+<thead>
+<tr>
+<th>구간</th>
+<th>UNIERP 원천(가설)</th>
+<th><code>erp_ro</code> 사본 테이블</th>
+<th>핵심 컬럼</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>구매요청</td>
+<td><code>M_PUR_REQ</code></td>
+<td><code>pr</code></td>
+<td>PR_NO, PR_STS, REQ_QTY, ORD_QTY, RCPT_QTY</td>
+</tr>
+<tr>
+<td>발주(헤더)</td>
+<td><code>M_PUR_ORD_HDR</code></td>
+<td><code>po_header</code></td>
+<td>PO_NO, BP_CD(거래처), ORD_DT, RELEASE_FLG, PROJECT_CD</td>
+</tr>
+<tr>
+<td>발주(명세)</td>
+<td><code>M_PUR_ORD_DTL</code></td>
+<td><code>po_line</code></td>
+<td>PO_NO, LINE_NO, ITEM_CD, ORD_QTY, DUE_DT</td>
+</tr>
+<tr>
+<td>발주구분</td>
+<td><code>M_CONFIG_PROCESS</code></td>
+<td><code>po_header.po_type</code></td>
+<td>PO_TYPE_CD, PO_TYPE_NM, <strong>SUBCONTRA_FLG</strong>(사급여부)</td>
+</tr>
+<tr>
+<td>입고·출하</td>
+<td><code>M_PUR_GOODS_MVMT</code></td>
+<td><code>goods_mvmt</code></td>
+<td>MVMT_RCPT_NO(입고), MVMT_RCPT_DT, DN_NO(출하), INSPECT_REQ_NO, INSPECT_STS, INSPECT_GOOD_QTY/BAD_QTY</td>
+</tr>
+<tr>
+<td>검사 의뢰/결과</td>
+<td><code>Q_INSPECTION_*</code></td>
+<td><code>inspection_erp</code></td>
+<td>INSP_REQ_NO, INSP_RESULT_NO, 합격/불합격</td>
+</tr>
+<tr>
+<td>매입</td>
+<td><code>M_IV_HDR/DTL</code></td>
+<td><code>iv</code></td>
+<td>IV_QTY</td>
+</tr>
+<tr>
+<td>거래처</td>
+<td><code>B_BP</code></td>
+<td><code>bp</code></td>
+<td>BP_CD, BP_NM (오성테크·이천베아링 등)</td>
+</tr>
+<tr>
+<td>품목</td>
+<td><code>B_ITEM</code></td>
+<td><code>item</code></td>
+<td>ITEM_CD, ITEM_NM (PLT-AL5T·UNI-25A-S·ORG-P22N·BRG-6204Z 등)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="_1">발주구분 코드(검수요청 단계 분기의 근거)</h3>
+<table>
+<thead>
+<tr>
+<th>코드</th>
+<th>의미</th>
+<th>검수요청(7단계)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>SIE</td>
+<td>외주제작</td>
+<td>적용(검사신청 생성)</td>
+</tr>
+<tr>
+<td>SIE-1</td>
+<td>외주제작(수불X)</td>
+<td>적용</td>
+</tr>
+<tr>
+<td>SIF</td>
+<td>외주설치</td>
+<td>적용</td>
+</tr>
+<tr>
+<td>DIV</td>
+<td>국내매입(비외주)</td>
+<td><strong>생략</strong> → 입고검사로 처리</td>
+</tr>
+</tbody>
+</table>
+<p><code>SUBCONTRA_FLG</code>(사급여부) + <code>PO_TYPE_CD</code>로 외주 여부를 판정해, 10단계 중 ⑦검수요청 단계 적용/생략을 결정한다.</p>
+<h3 id="erp_ro">공통 컬럼 (모든 <code>erp_ro</code> 테이블)</h3>
+<pre><code class="language-sql">synced_at    TIMESTAMPTZ   -- 포털 적재 시각
+src_updated  TIMESTAMPTZ   -- ERP 원천 최종 수정 시각(증분 추출 기준)
+batch_id     UUID          -- 배치 실행 ID
+</code></pre>
+<p>화면·답변에 "데이터 기준: MM/DD 03:00 동기화" 표기로 신선도 보장.</p>
+<hr />
+<h2 id="3-sub_portal-localstorage">3. 포털 쓰기 스키마 <code>sub_portal</code> (데모 localStorage 대체)</h2>
+<p>데모의 <code>jeilax_link_v1</code> 공유 객체를 정규화한 것이다. 데모 필드 → 테이블 대응을 함께 표기한다.</p>
+<pre><code class="language-sql">-- 발주별 진행상태 (데모: orders[po].status)
+CREATE TABLE sub_portal.order_state (
+  po_no        TEXT PRIMARY KEY,           -- erp_ro.po_header 참조(논리 FK)
+  status       TEXT NOT NULL,              -- 신규접수|생산중|검수요청|완료
+  step         SMALLINT NOT NULL,          -- 1~10 (상태머신, §5)
+  updated_by   TEXT, updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- 사진 메타 (데모: orders[po].photos[]/photoCount). 원본은 Blob, DB는 메타만
+CREATE TABLE sub_portal.photo (
+  id           BIGSERIAL PRIMARY KEY,
+  po_no        TEXT NOT NULL, line_no INT,
+  blob_path    TEXT NOT NULL,              -- 스토리지 경로(서명 URL로 노출)
+  tag          TEXT, comment TEXT,         -- 가공|완성|포장|출하 등
+  uploaded_by  TEXT NOT NULL,              -- 협력사 계정
+  confirmed    BOOLEAN DEFAULT false,      -- 사내 확인 여부
+  created_at   TIMESTAMPTZ DEFAULT now()
+);
+
+-- 양방향 메시지 (데모: orders[po].messages[])
+CREATE TABLE sub_portal.message (
+  id           BIGSERIAL PRIMARY KEY,
+  po_no        TEXT NOT NULL,
+  sender_role  TEXT NOT NULL,              -- supplier|internal
+  sender_id    TEXT NOT NULL,
+  body         TEXT NOT NULL,
+  created_at   TIMESTAMPTZ DEFAULT now(),
+  read_at      TIMESTAMPTZ
+);
+
+-- 검수요청 (데모: inspRequested/inspReqNo) — 협력사가 생성
+CREATE TABLE sub_portal.insp_request (
+  id           BIGSERIAL PRIMARY KEY,
+  po_no        TEXT NOT NULL,
+  insp_req_no  TEXT NOT NULL,             -- 자동생성 IR+YYYYMMDD+seq
+  requested_by TEXT NOT NULL, requested_at TIMESTAMPTZ DEFAULT now(),
+  cancelled    BOOLEAN DEFAULT false      -- 단계취소 시 자동 철회
+);
+
+-- 검수 판정 (데모: inspection) — 사내가 생성. ERP에는 쓰지 않음
+CREATE TABLE sub_portal.inspection (
+  po_no        TEXT PRIMARY KEY,
+  result       TEXT NOT NULL,             -- 합격|불합격
+  result_no    TEXT,                      -- IQ+YYYYMMDD+seq
+  judge_id     TEXT NOT NULL,             -- 판정자(인원 기록)
+  opinion      TEXT,
+  judged_at    TIMESTAMPTZ DEFAULT now()
+);
+
+-- 검수 판정 이력 (데모: inspLog[]) — 누가 합/부를 눌렀는지 누적
+CREATE TABLE sub_portal.inspection_log (
+  id           BIGSERIAL PRIMARY KEY,
+  po_no        TEXT NOT NULL,
+  result       TEXT NOT NULL, judge_id TEXT NOT NULL,
+  opinion      TEXT, judged_at TIMESTAMPTZ DEFAULT now()
+);
+</code></pre>
+<h3 id="_2">데모 필드 ↔ 운영 테이블 대응표</h3>
+<table>
+<thead>
+<tr>
+<th>데모(<code>jeilax_link_v1</code>)</th>
+<th>운영 테이블</th>
+<th>쓰는 주체</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>status</code></td>
+<td><code>order_state.status/step</code></td>
+<td>협력사</td>
+</tr>
+<tr>
+<td><code>photos[]</code> / <code>photoCount</code></td>
+<td><code>photo</code> (+ Blob 원본)</td>
+<td>협력사</td>
+</tr>
+<tr>
+<td><code>messages[]</code> / <code>lastMsg</code></td>
+<td><code>message</code></td>
+<td>협력사·사내(양방향)</td>
+</tr>
+<tr>
+<td><code>inspRequested</code> / <code>inspReqNo</code></td>
+<td><code>insp_request</code></td>
+<td>협력사</td>
+</tr>
+<tr>
+<td><code>inspection</code></td>
+<td><code>inspection</code></td>
+<td>사내</td>
+</tr>
+<tr>
+<td><code>inspLog[]</code></td>
+<td><code>inspection_log</code></td>
+<td>사내</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="4-sub_meta">4. <code>sub_meta</code> — 계정·매핑·운영</h2>
+<pre><code class="language-sql">-- 협력사 계정 (인증 방식 D1 확정 전 공통 프로파일)
+CREATE TABLE sub_meta.supplier_account (
+  account_id   TEXT PRIMARY KEY,          -- 데모 hanil-mt 대체
+  display_name TEXT, contact TEXT,
+  auth_subject TEXT,                      -- Entra B2B oid 또는 자체인증 키
+  status       TEXT DEFAULT 'active', created_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- ★ 행수준 보안의 핵심: 협력사 계정 ↔ ERP 거래처(B_BP) 매핑 (결정 D2)
+CREATE TABLE sub_meta.supplier_bp_map (
+  account_id   TEXT REFERENCES sub_meta.supplier_account,
+  bp_cd        TEXT NOT NULL,             -- erp_ro.bp.BP_CD
+  PRIMARY KEY (account_id, bp_cd)
+);
+
+CREATE TABLE sub_meta.audit_log (     -- 누가·언제·무엇을 봤/했나
+  id BIGSERIAL PRIMARY KEY, actor TEXT, role TEXT, action TEXT,
+  po_no TEXT, detail JSONB, at TIMESTAMPTZ DEFAULT now()
+);
+CREATE TABLE sub_meta.notify_queue ( -- 알림 디스패치 큐 (04 문서)
+  id BIGSERIAL PRIMARY KEY, target TEXT, channel TEXT, payload JSONB,
+  status TEXT DEFAULT 'pending', created_at TIMESTAMPTZ DEFAULT now()
+);
+CREATE TABLE sub_meta.sync_log (     -- 야간배치 실행 로그(90일)
+  batch_id UUID, started TIMESTAMPTZ, ended TIMESTAMPTZ,
+  rows INT, status TEXT, error TEXT
+);
+</code></pre>
+<p>협력사가 발주를 조회하면 백엔드는 <code>supplier_bp_map</code>으로 <strong>해당 계정의 <code>bp_cd</code> 집합</strong>을 구하고, <code>erp_ro.po_header.BP_CD IN (...)</code> 로만 결과를 제한한다(RLS, 03 문서).</p>
+<hr />
+<h2 id="5-10">5. 10단계 프로세스 상태머신</h2>
+<table>
+<thead>
+<tr>
+<th>존</th>
+<th>단계</th>
+<th>주체</th>
+<th><code>step</code></th>
+<th>전이 가능</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>JEIL</td>
+<td>① 구매요청</td>
+<td>구매</td>
+<td>1</td>
+<td>→2</td>
+</tr>
+<tr>
+<td>JEIL</td>
+<td>② 발주</td>
+<td>구매</td>
+<td>2</td>
+<td>→3</td>
+</tr>
+<tr>
+<td>협력사</td>
+<td>③ 발주확인</td>
+<td>협력사</td>
+<td>3</td>
+<td>→4, ←2</td>
+</tr>
+<tr>
+<td>협력사</td>
+<td>④ 접수</td>
+<td>협력사</td>
+<td>4</td>
+<td>→5, ←3</td>
+</tr>
+<tr>
+<td>협력사</td>
+<td>⑤ 생산</td>
+<td>협력사</td>
+<td>5</td>
+<td>→6, ←4</td>
+</tr>
+<tr>
+<td>협력사</td>
+<td>⑥ 사진등록</td>
+<td>협력사</td>
+<td>6</td>
+<td>→7, ←5</td>
+</tr>
+<tr>
+<td>협력사</td>
+<td>⑦ 검수요청</td>
+<td>협력사</td>
+<td>7</td>
+<td>→8, ←6 (외주만; 검사신청 생성/철회)</td>
+</tr>
+<tr>
+<td>협력사</td>
+<td>⑧ 출하</td>
+<td>협력사</td>
+<td>8</td>
+<td>→9, ←7</td>
+</tr>
+<tr>
+<td>ERP</td>
+<td>⑨ 입고+검수판정</td>
+<td>사내/품질</td>
+<td>9</td>
+<td>→10 (합격) / 보류(불합격)</td>
+</tr>
+<tr>
+<td>ERP</td>
+<td>⑩ 매입</td>
+<td>사내</td>
+<td>10</td>
+<td>완료</td>
+</tr>
+</tbody>
+</table>
+<p>전이 규칙(백엔드에서 강제):
+- <strong>전진</strong>은 인접 단계로만. 임의 점프 금지.
+- <strong>단계취소(역전이)</strong> 는 직전 단계로만 1칸. ⑦ 취소 시 <code>insp_request.cancelled=true</code> 자동.
+- <strong>DIV(비외주)</strong> 는 ⑦ 생략 → ⑥에서 ⑧로.
+- ⑨ 검수판정 <strong>불합격</strong> 시 step 유지(보류), 협력사에 결과 배너+알림. 재작업 후 재요청 가능.
+- 모든 전이는 <code>audit_log</code>에 기록.</p>
+<pre><code>신규접수(3~4) → 생산중(5~6) → 검수요청(7) → [검수판정] → 완료(9~10)
+        ▲────────── 단계취소(1칸 역전이) ──────────┘
+</code></pre>
+<hr />
+<h2 id="6">6. 샘플 데이터 정합 (데모 계승)</h2>
+<ul>
+<li>발주번호: <code>PO202606220012</code> 형식 / 구매요청 <code>PR+YYYYMMDD+seq</code> / 검사 <code>IR·IQ+YYYYMMDD+seq</code>.</li>
+<li>품목: PLT-AL5T(알루미늄 플레이트 5T), UNI-25A-S(유니온 배관 25A SUS), ORG-P22N(오링 P-22 NBR), BRG-6204Z(볼베어링 6204ZZ).</li>
+<li>거래처: 오성테크·이천베아링·신호종합배관·대신스텐레스·지아이텍.</li>
+<li>운영 전환 시 이 값들은 <code>erp_ro</code> 실데이터로 대체되며, 데모 키와 동일 PO를 유지해 회귀 테스트에 사용.</li>
+</ul>
+<hr />
+<h2 id="7">7. 이 문서의 확정 필요 항목</h2>
+<ul>
+<li>[ ] 유니포인트로 ERP 컬럼 가설 검증(05 협의표) → 매핑 확정</li>
+<li>[ ] D2: 협력사 계정 ↔ 거래처 매핑 단위(1:1 / 1:N) 결정 → <code>supplier_bp_map</code> 카디널리티</li>
+<li>[ ] D3: 검수 판정의 ERP 반영 여부 → <code>inspection</code> 의 ERP 쓰기 금지 원칙 재확인</li>
+<li>[ ] <code>po_line</code> 단위 사진/검수가 필요한지(라인별) vs 발주(헤더) 단위 — 화면 요구와 대조</li>
+</ul>
+  </div>
+  <div class="footer"><span>JEIL M&amp;S · 협력사 발주·검사 포털 실구축 기획</span><span>02 데이터모델 · 2026-06-26 · 최동혁</span></div>
+</div>
+</body>
+</html>

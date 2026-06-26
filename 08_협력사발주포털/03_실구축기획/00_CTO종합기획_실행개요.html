@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>00 종합기획 — 협력사 발주·검사 포털 ERP연계 실구축 기획</title>
+<style>
+:root{--navy:#1a2f4e;--navy2:#27457a;--accent:#2f6fb3;--red:#b3402f;--green:#2e7d52;--amber:#9a6b1f;
+--ink:#222;--muted:#666;--line:#d8dee8;--bg:#f4f6f9;--soft:#eef2f8;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;color:var(--ink);background:var(--bg);line-height:1.65;font-size:15px;}
+.page{max-width:960px;margin:0 auto;background:#fff;padding:52px 60px;box-shadow:0 2px 14px rgba(0,0,0,.08);}
+.doc-label{display:inline-block;background:var(--navy);color:#fff;font-size:12px;letter-spacing:.16em;padding:5px 14px;border-radius:3px;margin-bottom:16px;}
+.docnav{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 26px;}
+.docnav a{font-size:12px;color:var(--navy2);border:1px solid var(--line);border-radius:20px;padding:4px 12px;text-decoration:none;background:var(--soft);}
+.docnav a:hover{background:var(--navy);color:#fff;}
+.docnav a.cur{background:var(--navy);color:#fff;border-color:var(--navy);}
+.md-link{font-size:13px;margin-bottom:22px;color:var(--muted);}
+.content h1{font-size:27px;color:var(--navy);line-height:1.35;margin:6px 0 18px;}
+.content h2{font-size:20px;color:var(--navy);margin:42px 0 14px;padding-bottom:9px;border-bottom:3px solid var(--navy);}
+.content h3{font-size:16px;color:var(--navy2);margin:24px 0 9px;}
+.content p{margin:0 0 12px;}
+.content ul,.content ol{margin:0 0 14px 22px;}
+.content li{margin-bottom:6px;}
+.content blockquote{background:var(--soft);border-left:5px solid var(--navy);border-radius:0 8px 8px 0;padding:14px 20px;margin:14px 0;color:#33425a;}
+.content blockquote p{margin:0 0 6px;}
+.content table{width:100%;border-collapse:collapse;margin:14px 0 20px;font-size:13.3px;}
+.content th{background:var(--navy);color:#fff;padding:9px 11px;text-align:left;font-weight:600;}
+.content td{padding:8px 11px;border-bottom:1px solid var(--line);vertical-align:top;}
+.content tr:nth-child(even) td{background:#fafbfd;}
+.content a{color:var(--accent);}
+.content code{background:var(--soft);border:1px solid var(--line);border-radius:4px;padding:1px 6px;font-size:12.4px;font-family:Consolas,'Courier New',monospace;}
+.content pre{background:#21252e;color:#e8eaf0;border-radius:8px;padding:16px 18px;font-size:12.4px;font-family:Consolas,'Courier New',monospace;overflow-x:auto;margin:12px 0 18px;line-height:1.55;}
+.content pre code{background:none;border:none;color:inherit;padding:0;}
+.content hr{border:none;border-top:1px solid var(--line);margin:30px 0;}
+.content strong{color:var(--navy2);}
+.footer{margin-top:50px;padding-top:16px;border-top:1px solid var(--line);font-size:12px;color:var(--muted);display:flex;justify-content:space-between;}
+@media print{body{background:#fff;}.page{box-shadow:none;padding:18px 0;max-width:100%;}.docnav{display:none;}.content h2{break-after:avoid;}.content table,.content pre,.content blockquote{break-inside:avoid;}}
+@media (max-width:720px){.page{padding:30px 20px;}}
+</style>
+</head>
+<body>
+<div class="page">
+  <span class="doc-label">협력사 포털 실구축 기획 · 대외비</span>
+  <div class="docnav"><a class="cur" href="00_CTO종합기획_실행개요.html">00 종합기획</a><a href="01_아키텍처_데이터흐름_연계설계.html">01 아키텍처</a><a href="02_데이터모델_ERP매핑_포털스키마.html">02 데이터모델</a><a href="03_협력사인증_권한_행수준보안_보안.html">03 인증·보안</a><a href="04_실시간동기화_API_파일업로드_알림.html">04 동기화·API</a><a href="05_사전정의_의사결정_유니포인트협의_체크리스트.html">05 사전정의</a><a href="06_로드맵_단계별실행_운영전환.html">06 로드맵</a><a href="README.md">README</a></div>
+  <p class="md-link">📄 Markdown 원본: <a href="00_CTO종합기획_실행개요.md">00_CTO종합기획_실행개요.md</a> · 상위 <a href="../00_종합정리_요구사항이력.html">08 종합정리</a></p>
+  <div class="content">
+<h1 id="erp-cto">협력사 발주·검사 포털 — ERP 연계 실구축 종합기획 (CTO 실행개요)</h1>
+<blockquote>
+<p>작성일: 2026-06-26 · 작성: 최동혁 · 단계: 실구축 기획 (데모 → 운영 전환)
+대상: 08 협력사 발주·검사 포털의 <strong>ERP 실연계 + 운영 가동</strong>
+관련: <code>08_협력사발주포털/00_종합정리_요구사항이력.html</code>, <code>실제구축준비 자료/03·05·07</code>, 루트 <code>CLAUDE.md</code></p>
+</blockquote>
+<hr />
+<h2 id="1">1. 한 줄 정의</h2>
+<p>사내 구매팀이 UNIERP에서 외주 협력사에 낸 <strong>발주</strong>를 축으로, <strong>협력사(사외)가 모바일로 사진·진행상태·검수요청·메시지를 등록</strong>하고, <strong>사내(구매·품질·생산·사업관리)가 10단계 프로세스 보드에서 검수 판정(합/부)·입고·매입을 처리</strong>하는 <strong>양방향 실시간 포털</strong>을, <strong>ERP 읽기전용 연계 + 포털 전용 쓰기 DB</strong> 구조로 실제 운영에 올린다.</p>
+<hr />
+<h2 id="2">2. 지금이 분기점인 이유 (데모의 한계 = 실구축 과제)</h2>
+<p>현재 산출물은 <strong>동작하는 데모(목업)</strong> 다. 두 화면(<code>협력사_모바일_포털.html</code>, <code>사내_외주발주_검사_대시보드.html</code>)이 브라우저 <code>localStorage</code>(키 <code>jeilax_link_v1</code>)로 한 브라우저 안에서만 실시간 연동된다. 운영으로 가려면 데모가 <strong>회피했던 것들</strong>을 모두 실체화해야 한다.</p>
+<table>
+<thead>
+<tr>
+<th>데모(현재)</th>
+<th>실구축(목표)</th>
+<th>본 기획에서 다루는 문서</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>ERP 수치를 하드코딩/샘플</td>
+<td>ERP <strong>읽기전용 중간 DB</strong>에서 실데이터</td>
+<td>01·02</td>
+</tr>
+<tr>
+<td>협력사 ID/PW 가정(<code>hanil-mt</code>)</td>
+<td><strong>사외 협력사 인증 경계</strong>(2안 비교) + 행수준 보안</td>
+<td>03</td>
+</tr>
+<tr>
+<td>한 브라우저 localStorage 공유</td>
+<td><strong>백엔드 API + 포털 DB</strong>로 다기기·다사용자 양방향</td>
+<td>04</td>
+</tr>
+<tr>
+<td>사진은 메타데이터만, 샘플 SVG</td>
+<td><strong>실제 파일 업로드·검증·스토리지·수명주기</strong></td>
+<td>03·04</td>
+</tr>
+<tr>
+<td>알림 없음</td>
+<td>협력사/사내 <strong>이벤트 알림</strong>(메시지·검수결과)</td>
+<td>04</td>
+</tr>
+<tr>
+<td>누가 봤는지 기록 없음</td>
+<td><strong>감사 로그</strong>(개인정보·금액·판정 우선)</td>
+<td>03</td>
+</tr>
+</tbody>
+</table>
+<p><strong>핵심 통찰:</strong> 일반 부서 챗봇·대시보드(03·05·07 문서)는 <strong>읽기 전용</strong>이면 충분하지만, 협력사 포털은 <strong>사외 사용자가 데이터를 생성(쓰기)</strong> 한다. 그래서 일반 포털 기획을 그대로 쓸 수 없고, <strong>인증 경계·쓰기 DB·행수준 보안·파일 업로드</strong>라는 별도 설계 트랙이 필요하다. 본 기획의 존재 이유가 이것이다.</p>
+<hr />
+<h2 id="3">3. 목표 아키텍처 (한눈에)</h2>
+<pre><code>[사외 IDC]                          [Azure / ai.jeilm.co.kr]                       [사용자]
+┌──────────────┐   야간배치 ETL   ┌───────────────────────────┐
+│ UNIERP MSSQL │ ───읽기전용────▶ │ 중간DB erp_ro (발주·검사 사본) │
+│  (운영DB)    │   (View 경유)    │                            │
+└──────────────┘                  │ 포털DB sub_portal (쓰기)    │   REST/SSE   ┌─────────────┐
+                                  │  주문동기화·사진·메시지·검수  │ ◀──────────▶ │ 협력사 모바일 │ (사외)
+                                  │                            │   인증경계A   │  PWA        │
+                                  │ 백엔드 API (RBAC + RLS)     │              └─────────────┘
+                                  │ 파일 스토리지(Blob)         │   REST/SSE   ┌─────────────┐
+                                  └───────────────────────────┘ ◀──────────▶ │ 사내 대시보드 │ (사내)
+                                                                 Entra SSO    │  (구매·품질) │
+                                                                              └─────────────┘
+</code></pre>
+<p>세 가지 데이터 영역으로 분리한다.</p>
+<ol>
+<li><strong>ERP 사본(<code>erp_ro</code>)</strong> — UNIERP에서 야간 배치로 가져온 발주·구매요청·입고·매입·검사 <strong>읽기 전용</strong> 데이터. (03·07 문서의 중간 DB 구조를 협력사 포털 영역으로 확장.)</li>
+<li><strong>포털 쓰기 DB(<code>sub_portal</code>)</strong> — 협력사·사내가 생성하는 사진 메타·메시지·진행상태·검수요청·검수판정 이력. <strong>ERP에 절대 쓰지 않고</strong> 발주번호(PO) 키로 매핑.</li>
+<li><strong>파일 스토리지</strong> — 협력사가 올리는 실제 사진 원본. DB에는 메타·경로만.</li>
+</ol>
+<hr />
+<h2 id="4-cto">4. CTO가 지금(착수 전) 정의·결정·구성해야 하는 것 — 요약</h2>
+<blockquote>
+<p>상세는 05 문서. 여기서는 "착수를 막는 선행 결정"만 추린다.</p>
+</blockquote>
+<h3 id="4-1">4-1. 경영진/관리자 결정 (사람이 정해야 — 코드로 못 푸는 것)</h3>
+<ul>
+<li><strong>D1. 협력사 인증 방식</strong> — Entra External ID(B2B 게스트) vs 협력사 전용 자체 인증. (03 문서 2안 비교, <strong>본 기획에서는 결정 보류</strong> — 비교표로 상신)</li>
+<li><strong>D2. 협력사 식별 ↔ ERP 거래처(B_BP) 매핑 기준</strong> — 협력사 계정을 어느 ERP 거래처코드에 묶을지(행수준 보안의 근거). 1계정=1거래처? 담당자 다수?</li>
+<li><strong>D3. 검수 판정의 법적 효력 범위</strong> — 포털 검수 판정(합/부)이 ERP 검사결과(Q_INSPECTION)에 <strong>반영되는지/참고용인지</strong>. 운영 ERP 쓰기 금지 원칙(§CLAUDE.md 1.2)과 충돌 여부.</li>
+<li><strong>D4. 사진/증빙의 보존연한·소유권</strong> — 협력사 업로드물의 보관 기간·삭제 정책·분쟁 시 증거 효력.</li>
+<li><strong>D5. 파일럿 협력사 선정</strong> — 외주 비중 높고 협조적인 1~2개사.</li>
+</ul>
+<h3 id="4-2-erp">4-2. 유니포인트(ERP 벤더) 협의 (외부 의존 — 조기 발송)</h3>
+<ul>
+<li>읽기전용 계정·뷰(발주/검사/입출고/매입 한정), 거래처-협력사 매핑 컬럼, 방화벽/VPN, 검사 테이블 스키마 확정. (05 문서 협의표)</li>
+</ul>
+<h3 id="4-3">4-3. 기술 구성 (착수 후 즉시 — 코드성)</h3>
+<ul>
+<li>백엔드 API 스택 확정(§CLAUDE.md 3.2 하이브리드 권고), 포털 쓰기 DB 스키마, 파일 스토리지·검증, 인증 경계 분리, 실시간 채널(SSE/폴링), 알림 채널.</li>
+</ul>
+<hr />
+<h2 id="5">5. 문서 구성 (본 기획 폴더)</h2>
+<table>
+<thead>
+<tr>
+<th>문서</th>
+<th>내용</th>
+<th>핵심 질문에 답함</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>00</strong> 종합기획·실행개요 (본 문서)</td>
+<td>전체 그림·결정사항·로드맵 요약</td>
+<td>"무엇을, 왜, 어떤 순서로?"</td>
+</tr>
+<tr>
+<td><strong>01</strong> 아키텍처·데이터흐름</td>
+<td>3계층, 읽기/쓰기 분리, 게이트웨이, 일반포털과의 차이</td>
+<td>"어떻게 구성되나?"</td>
+</tr>
+<tr>
+<td><strong>02</strong> 데이터모델·ERP매핑·포털스키마</td>
+<td>ERP 테이블 매핑, 포털 DB 스키마, 10단계 상태머신</td>
+<td>"데이터는 어디에 어떻게?"</td>
+</tr>
+<tr>
+<td><strong>03</strong> 인증·권한·행수준보안·보안</td>
+<td>협력사 인증 2안, RBAC/RLS, 파일 검증, 감사</td>
+<td>"사외 사용자를 어떻게 안전하게?"</td>
+</tr>
+<tr>
+<td><strong>04</strong> 실시간 동기화·API·파일·알림</td>
+<td>localStorage 대체, API 명세, 실시간·알림</td>
+<td>"양방향 실시간을 실제로?"</td>
+</tr>
+<tr>
+<td><strong>05</strong> 사전정의·의사결정·협의·체크리스트</td>
+<td>지금 정의/결정/구성할 것 총정리</td>
+<td>"착수 전 무엇을 준비?"</td>
+</tr>
+<tr>
+<td><strong>06</strong> 로드맵·단계별실행·운영전환</td>
+<td>데모→파일럿→오픈, 마일스톤, 운영·DR</td>
+<td>"언제까지 어떻게 가동?"</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="6-06">6. 전체 로드맵 (요약 — 상세는 06 문서)</h2>
+<p>전사 AI 포털 16주 마스터(05 문서)의 <strong>STEP 5(ERP 연계, W9~12)</strong> 에 협력사 포털을 얹되, 협력사 포털 고유 작업(인증 경계·쓰기 DB·파일·실시간)은 <strong>별도 트랙</strong>으로 W3부터 병행한다.</p>
+<table>
+<thead>
+<tr>
+<th>페이즈</th>
+<th>기간(상대)</th>
+<th>핵심 산출</th>
+<th>게이트</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>P0 사전정의·협의</strong></td>
+<td>W1~2</td>
+<td>D1~D5 결정 상신, 유니포인트 협의서 발송, 스키마 확정</td>
+<td>경영진 승인·벤더 회신</td>
+</tr>
+<tr>
+<td><strong>P1 기반 구축</strong></td>
+<td>W3~6</td>
+<td>포털 쓰기 DB, 백엔드 API 골격, 인증 경계, 파일 스토리지</td>
+<td>로그인·업로드 E2E</td>
+</tr>
+<tr>
+<td><strong>P2 ERP 연계</strong></td>
+<td>W7~10</td>
+<td>발주·검사 야간배치, 대시보드 실데이터, 행수준 보안</td>
+<td>실데이터 5일 무오류</td>
+</tr>
+<tr>
+<td><strong>P3 실시간·알림</strong></td>
+<td>W9~11</td>
+<td>localStorage→API 전환, SSE 양방향, 알림</td>
+<td>다기기 양방향 검증</td>
+</tr>
+<tr>
+<td><strong>P4 파일럿</strong></td>
+<td>W12~14</td>
+<td>협력사 1~2사 + 사내 2팀 실사용</td>
+<td>피드백 반영</td>
+</tr>
+<tr>
+<td><strong>P5 오픈·운영</strong></td>
+<td>W15~16</td>
+<td>전체 협력사 확대, 운영 캘린더, 감사·DR</td>
+<td>Go-Live 게이트 통과</td>
+</tr>
+</tbody>
+</table>
+<p><strong>고정 기한:</strong> Entra Client Secret 만료 <strong>2026-12-09</strong> — 인증에 Entra를 쓰면(D1) 이 갱신과 일정 연결.</p>
+<hr />
+<h2 id="7-5">7. 리스크 톱5와 선제 대응</h2>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>리스크</th>
+<th>영향</th>
+<th>선제 대응</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>R1</td>
+<td>유니포인트 회신 지연 → 거래처-협력사 매핑·뷰 미확정</td>
+<td>ERP 연계 전체 지연</td>
+<td>P0에서 즉시 협의서 발송, ERP 트랙 독립화, 회신 전까지 스키마 사전 기반 목 데이터로 선개발</td>
+</tr>
+<tr>
+<td>R2</td>
+<td>사외 협력사 인증·행수준 보안 허점 → 타사 발주 노출</td>
+<td>보안 사고·신뢰 상실</td>
+<td>권한 판정 <strong>백엔드/DB RLS</strong>에서, 프론트 토큰만으로 데이터 미제공(§CLAUDE.md 5.4), 모의 침투 테스트</td>
+</tr>
+<tr>
+<td>R3</td>
+<td>파일 업로드 악성/대용량</td>
+<td>스토리지·보안</td>
+<td>확장자·MIME·용량·이미지 재인코딩 검증, 별도 스토리지, 바이러스 스캔</td>
+</tr>
+<tr>
+<td>R4</td>
+<td>검수 판정의 ERP 반영 기대 ↔ 운영 DB 쓰기 금지 충돌</td>
+<td>업무 혼선</td>
+<td>D3 사전 합의 — 포털은 "판정 기록", ERP 반영은 사내 담당이 ERP에서 별도 수행</td>
+</tr>
+<tr>
+<td>R5</td>
+<td>OneDrive 동기화 지연로 배포 충돌(§CLAUDE.md 8.3)</td>
+<td>라이브 깨짐</td>
+<td><code>/tmp</code> clone→빌드→푸시 절차 준수, 통합본은 빌드 스크립트로만</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="8-nfr">8. 비기능 요구(NFR) 기준선</h2>
+<ul>
+<li><strong>성능:</strong> 운영 ERP 부하 0(야간 배치만). 대시보드 조회 P95 &lt; 1.5s. 모바일 사진 업로드 10MB 이내, 서버 재인코딩.</li>
+<li><strong>가용성:</strong> 포털 99.5%/월. 중간 DB 장애 시 ERP와 격리(재배치 복구).</li>
+<li><strong>보안:</strong> 전송 HTTPS 강제, 비밀값 Key Vault, 행수준 보안, 감사 로그 1년 보존.</li>
+<li><strong>확장성:</strong> 협력사 수십~수백 계정, 발주 월 수백~수천 건 가정. 사진 누적 증가 → 스토리지 수명주기 정책.</li>
+<li><strong>데이터 신선도:</strong> 발주·검사 ERP 데이터 "기준 시각" 화면 표기. 협력사 등록(쓰기)은 실시간.</li>
+</ul>
+<hr />
+<h2 id="9">9. 다음 액션 (착수 첫 주)</h2>
+<ol>
+<li>본 기획 7부를 경영진·관리자에 회람 → <strong>D1~D5 결정</strong> 상신.</li>
+<li>유니포인트 <strong>협의서 발송</strong>(05 문서 표) — 거래처-협력사 매핑·검사 뷰 최우선.</li>
+<li>백엔드 API 스택 확정(하이브리드 권고) + 포털 쓰기 DB 스키마(02 문서) 리뷰.</li>
+<li>파일럿 협력사 내정.</li>
+<li>본 폴더를 <code>08_협력사발주포털/00_종합정리_요구사항이력.html</code> 향후 과제 절에 링크.</li>
+</ol>
+  </div>
+  <div class="footer"><span>JEIL M&amp;S · 협력사 발주·검사 포털 실구축 기획</span><span>00 종합기획 · 2026-06-26 · 최동혁</span></div>
+</div>
+</body>
+</html>
