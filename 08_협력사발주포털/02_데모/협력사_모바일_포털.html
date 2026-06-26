@@ -2,8 +2,16 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no">
 <title>협력사 발주·사진등록 포털 — 모바일 (사내 연계)</title>
+<!-- ===== 하이브리드 앱(PWA) 메타 — 실제 모바일에서 풀스크린 앱처럼 동작 ===== -->
+<meta name="theme-color" content="#1a2f4e">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="협력사 포털">
+<meta name="format-detection" content="telephone=no">
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='180'%20height='180'%3E%3Crect%20width='180'%20height='180'%20rx='40'%20fill='%231a2f4e'/%3E%3Ctext%20x='90'%20y='118'%20font-size='90'%20text-anchor='middle'%3E%F0%9F%8F%AD%3C/text%3E%3C/svg%3E">
 <style>
   :root{
     --navy:#1a2f4e; --navy2:#27457a; --accent:#2f6fb3; --accent2:#4a8ed0;
@@ -14,7 +22,8 @@
   }
   *{box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent;}
   body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif; color:var(--ink); background:#dfe4ec; line-height:1.5; font-size:15px;
-       min-height:100vh; display:flex; align-items:center; justify-content:center; padding:20px 12px;}
+       min-height:100vh; min-height:100dvh; display:flex; align-items:center; justify-content:center; padding:20px 12px;
+       -webkit-text-size-adjust:100%; overscroll-behavior:none;}
   .phone{width:390px; max-width:100%; height:840px; max-height:96vh; background:var(--bg); border-radius:42px;
          box-shadow:0 24px 60px rgba(20,40,70,.28), 0 0 0 11px #11151c, 0 0 0 13px #2a2f38;
          overflow:hidden; position:relative; display:flex; flex-direction:column;}
@@ -32,10 +41,12 @@
   .screen::-webkit-scrollbar{width:0;}
   .pad{padding:14px;}
   .hidden{display:none !important;}
-  .tabbar{display:flex; background:#fff; border-top:1px solid var(--line); padding:7px 0 calc(7px + env(safe-area-inset-bottom));}
-  .tabbar .tab{flex:1; text-align:center; font-size:10.5px; color:var(--muted); cursor:pointer; padding:3px 0;}
-  .tabbar .tab .ic{font-size:20px; display:block; line-height:1.2;}
+  .tabbar{display:flex; background:rgba(255,255,255,.92); backdrop-filter:saturate(180%) blur(12px); -webkit-backdrop-filter:saturate(180%) blur(12px); border-top:1px solid var(--line); padding:7px 0 calc(7px + env(safe-area-inset-bottom));}
+  .tabbar .tab{flex:1; text-align:center; font-size:10.5px; color:var(--muted); cursor:pointer; padding:3px 0; transition:color .15s;}
+  .tabbar .tab .ic{font-size:20px; display:block; line-height:1.2; transition:transform .18s cubic-bezier(.34,1.56,.64,1);}
   .tabbar .tab.on{color:var(--accent); font-weight:700;}
+  .tabbar .tab.on .ic{transform:translateY(-2px) scale(1.12);}
+  .tabbar .tab:active .ic{transform:scale(.9);}
   .login{height:100%; display:flex; flex-direction:column; justify-content:center; padding:34px 28px;
          background:linear-gradient(160deg,#1a2f4e 0%,#27457a 55%,#2f6fb3 100%); color:#fff;}
   .login .logo{font-size:40px; text-align:center; margin-bottom:6px;}
@@ -149,6 +160,23 @@
   .fnode.done .fc{background:#2e7d52;border-color:#2e7d52;color:#fff;} .fnode.done .fl{color:#2e7d52;}
   .fnode.cur .fc{background:#6b4a9a;border-color:#6b4a9a;color:#fff;box-shadow:0 0 0 3px rgba(107,74,154,.18);} .fnode.cur .fl{color:#6b4a9a;font-weight:800;}
   .fnode.skip{opacity:.4;}
+
+  /* ===== 설치 배너 (PWA "홈 화면에 추가") ===== */
+  .installbar{display:flex; align-items:center; gap:10px; background:linear-gradient(135deg,var(--navy),var(--accent)); color:#fff; padding:10px 14px; font-size:12px; z-index:50;}
+  .installbar .ib-ic{font-size:20px;} .installbar .ib-txt{flex:1; line-height:1.35;} .installbar .ib-txt b{font-weight:800;}
+  .installbar button{flex:none; border:none; border-radius:9px; padding:8px 13px; font-size:12px; font-weight:800; cursor:pointer; font-family:inherit;}
+  .installbar .ib-go{background:#fff; color:var(--navy);} .installbar .ib-x{background:rgba(255,255,255,.2); color:#fff; padding:8px 11px;}
+
+  /* ===== 실제 모바일/협소 화면: 폰 목업 베젤 제거 → 풀스크린 하이브리드 앱 ===== */
+  @media (max-width:600px){
+    body{padding:0; display:block; min-height:100dvh; background:var(--bg);}
+    .phone{width:100%; max-width:none; height:100vh; height:100dvh; max-height:none; border-radius:0; box-shadow:none;}
+    .notch{display:none;}
+    .appbar{padding-top:max(env(safe-area-inset-top),14px);}
+    .login{padding-top:max(env(safe-area-inset-top),34px);}
+  }
+  /* 데스크톱 폰 목업에서도 상단 노치 영역만큼 띄움(노치 유지 시) */
+  @media (min-width:601px){ .installbar{border-radius:0;} }
 </style>
 </head>
 <body>
@@ -177,6 +205,12 @@
       <span class="bell" onclick="toast('새 알림 2건: 검수 반려 1, 신규 메시지 1')">🔔<b id="bellCnt">2</b></span>
     </div>
     <div class="synctag">🔗 사내 대시보드 실시간 연계 ON — 등록 즉시 구매·품질·생산·사업관리에 반영</div>
+    <div id="installBar" class="installbar hidden">
+      <span class="ib-ic">📲</span>
+      <span class="ib-txt"><b>홈 화면에 추가</b>하면 앱처럼 바로 실행돼요</span>
+      <button class="ib-go" onclick="doInstall()">설치</button>
+      <button class="ib-x" onclick="dismissInstall()">✕</button>
+    </div>
     <div id="screen" class="screen"></div>
     <div id="composer" class="composer hidden">
       <input id="msgInput" placeholder="구매 담당자에게 메시지…" onkeydown="if(event.key==='Enter')sendMsg()">
@@ -320,7 +354,7 @@ const TAGS=['작업','완성','포장','출하'];
 const $ = s => document.querySelector(s);
 const screen = () => $('#screen');
 
-function doLogin(){ $('#loginScreen').classList.add('hidden'); $('#app').classList.remove('hidden'); switchTab('orders'); }
+function doLogin(){ $('#loginScreen').classList.add('hidden'); $('#app').classList.remove('hidden'); switchTab('orders'); setTimeout(maybeShowInstall,400); }
 
 function switchTab(tab){ view=tab; curOrder=null;
   document.querySelectorAll('.tabbar .tab').forEach(t=>t.classList.toggle('on', t.dataset.tab===tab));
@@ -490,13 +524,43 @@ function renderProfile(){
     <div class="prow"><span>사내 연계</span><span class="v" style="color:var(--green);font-weight:700">🔗 실시간 ON</span></div>
     <button class="btn ghost block" style="margin-top:14px" onclick="resetLink()">🧹 연계 데이터 초기화(데모)</button>
     <button class="btn ghost block" style="margin-top:9px" onclick="logout()">로그아웃</button>
-    <div class="note">제일메디칼 협력사 발주·사진등록 포털 · 데모 v0.2 (사내 연계)<br>등록 사진·상태·검수요청이 사내 외주 발주·검사 대시보드에 실시간 반영됩니다.</div></div>`;
+    <div class="note">제일메디칼 협력사 발주·사진등록 포털 · 데모 v0.3 (하이브리드 앱 · 사내 연계)<br>등록 사진·상태·검수요청이 사내 외주 발주·검사 대시보드에 실시간 반영됩니다.</div></div>`;
 }
 function resetLink(){ localStorage.removeItem(JX_KEY); toast('연계 데이터를 초기화했습니다'); }
 function logout(){ $('#app').classList.add('hidden'); $('#loginScreen').classList.remove('hidden'); }
 
 let toastTimer;
 function toast(msg){ const t=$('#toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(toastTimer); toastTimer=setTimeout(()=>t.classList.remove('show'),2400); }
+
+/* ===== PWA: 매니페스트 동적 주입 + "홈 화면에 추가"(설치) 처리 ===== */
+(function(){
+  var icon="data:image/svg+xml,"+encodeURIComponent("<svg xmlns='http://www.w3.org/2000/svg' width='512' height='512'><rect width='512' height='512' rx='112' fill='#1a2f4e'/><text x='256' y='340' font-size='260' text-anchor='middle'>🏭</text></svg>");
+  var manifest={ name:"제일메디칼 협력사 발주 포털", short_name:"협력사 포털", description:"협력사 발주 조회·사진등록·검수요청 (사내 실시간 연계)",
+    start_url:".", scope:".", display:"standalone", orientation:"portrait", background_color:"#1a2f4e", theme_color:"#1a2f4e",
+    icons:[{src:icon,sizes:"512x512",type:"image/svg+xml",purpose:"any maskable"}] };
+  try{
+    var blob=new Blob([JSON.stringify(manifest)],{type:"application/manifest+json"});
+    var link=document.createElement("link"); link.rel="manifest"; link.href=URL.createObjectURL(blob);
+    document.head.appendChild(link);
+  }catch(e){}
+})();
+var deferredPrompt=null, isStandalone=(window.matchMedia&&window.matchMedia('(display-mode: standalone)').matches)||window.navigator.standalone===true;
+var isIOS=/iphone|ipad|ipod/i.test(navigator.userAgent);
+window.addEventListener('beforeinstallprompt', function(e){ e.preventDefault(); deferredPrompt=e; maybeShowInstall(); });
+window.addEventListener('appinstalled', function(){ dismissInstall(); toast('홈 화면에 설치되었습니다 🎉'); });
+function maybeShowInstall(){
+  if(isStandalone) return;                                  // 이미 앱으로 실행 중
+  if(localStorage.getItem('jeilax_install_dismiss')==='1') return;
+  if(!(deferredPrompt||isIOS)) return;                      // 설치 불가 환경
+  var bar=$('#installBar'); if(!bar) return;
+  if(isIOS&&!deferredPrompt) bar.querySelector('.ib-txt').innerHTML='<b>홈 화면에 추가</b> — 공유 <span style="font-size:14px">⎙</span> → "홈 화면에 추가"';
+  bar.classList.remove('hidden');
+}
+function doInstall(){
+  if(deferredPrompt){ deferredPrompt.prompt(); deferredPrompt.userChoice.then(function(){ deferredPrompt=null; dismissInstall(); }); }
+  else if(isIOS){ toast('하단 공유 버튼 → "홈 화면에 추가"를 눌러주세요'); }
+}
+function dismissInstall(){ var b=$('#installBar'); if(b) b.classList.add('hidden'); localStorage.setItem('jeilax_install_dismiss','1'); }
 
 /* init: 복원 후 시드 출력 */
 restoreIn(); syncOut();
