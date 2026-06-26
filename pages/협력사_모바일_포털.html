@@ -245,18 +245,36 @@ function restoreIn(){
   orders.forEach(o=>{ const s=d.orders[o.no]; if(!s) return;
     if(s.status) o.status=s.status;
     if(s.inspReqNo) o.inspReqNo=s.inspReqNo;
-    // 사진 메타 복원: 세션 내 이미지가 없는 경우 placeholder로 표시
-    if(s.photos && s.photos.length && o.photos.length<s.photos.length){
-      const have=o.photos.length;
-      for(let i=have;i<s.photos.length;i++){ const p=s.photos[i]; o.photos.push({src:svgPhoto(p.tag,200),tag:p.tag,cmt:p.cmt,by:p.by,t:p.t,chk:p.chk}); }
+    if(s.inspection && s.inspection.result==='합격') o.status='done';   // 전후관계: 검수 합격 → 완료
+    if(s.photos && s.photos.length){
+      // 기존 사진 합/부 마크 반영
+      for(let i=0;i<o.photos.length && i<s.photos.length;i++){ o.photos[i].chk=s.photos[i].chk||''; }
+      // 세션 내 이미지가 없는 추가분은 placeholder로 표시
+      if(o.photos.length<s.photos.length){ const have=o.photos.length;
+        for(let i=have;i<s.photos.length;i++){ const p=s.photos[i]; o.photos.push({src:svgPhoto(p.tag,200),tag:p.tag,cmt:p.cmt,by:p.by,t:p.t,chk:p.chk}); } }
     }
     if(s.messages && s.messages.length){ o.msgs = s.messages.map(m=>({who:m.who,name:m.name,text:m.text,t:m.t})); }
   });
 }
+// 사내 대시보드(타 탭) 변경을 즉시 반영 — 현황단계·검수신청·검수판정(전후관계)·사진 합부·메시지
 function mergeIn(){ const d=jxLoad(); if(!d.orders) return; let ch=false;
-  orders.forEach(o=>{ const s=d.orders[o.no]; if(!s||!s.messages) return;
-    if(s.messages.length!==o.msgs.length){ o.msgs=s.messages.map(m=>({who:m.who,name:m.name,text:m.text,t:m.t})); ch=true; } });
-  if(ch){ if(view==='thread') renderThread(); else render(); }
+  orders.forEach(o=>{ const s=d.orders[o.no]; if(!s) return;
+    // 현황 단계 (대시보드 변경 즉시 반영)
+    let eff=s.status;
+    // 전후관계: 검수 판정 합격 → 완료 자동 진행 / 불합격 → 검수요청 단계 유지
+    if(s.inspection && s.inspection.result==='합격') eff='done';
+    if(eff && eff!==o.status){ o.status=eff; ch=true; }
+    // 검수신청 번호 (검수요청 진입 시 생성 / 취소 시 제거)
+    const inNo=s.inspReqNo||'';
+    if(inNo!==(o.inspReqNo||'')){ o.inspReqNo=inNo; ch=true; }
+    // 사진 합/부 판정 마크
+    if(s.photos && s.photos.length){
+      s.photos.forEach((sp,i)=>{ if(o.photos[i] && (o.photos[i].chk||'')!==(sp.chk||'')){ o.photos[i].chk=sp.chk||''; ch=true; } }); }
+    // 메시지
+    if(s.messages && s.messages.length!==o.msgs.length){ o.msgs=s.messages.map(m=>({who:m.who,name:m.name,text:m.text,t:m.t})); ch=true; }
+  });
+  // 검수 결과 배너는 상세에서 jxLoad로 직접 읽으므로 상세/스레드 화면은 항상 갱신
+  if(ch || view==='detail' || view==='thread'){ if(view==='thread') renderThread(); else render(); }
 }
 window.addEventListener('storage', function(e){ if(e.key===JX_KEY) mergeIn(); });
 
