@@ -104,6 +104,7 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <li>[x] <strong>사내 포털(<code>04_챗봇_포털_데모UI.html</code>) 운영페이지에 카드 통합</strong> — "협력사 계정 관리(관리자)" + "협력사 가입·로그인(신규)", 대시보드·협력사 모바일 포털 옆에 배치</li>
 <li>[x] <strong>임시 권한정책(권한분리 전): 관리자페이지 프론트 게이트 완화</strong> — <code>admin-vendors.html</code> <code>role===internal</code> 차단 제거, 로그인 사용자 전체 기능 노출. <strong>백엔드 RLS·<code>approve-vendor</code> Edge Function은 <code>role=internal</code> 검증 유지(안전망)</strong>. 04 카드 문구도 "사내 로그인(임시 전체)"으로 갱신 — 2026-06-29 (TODO: 권한분리 시 게이트 복원)</li>
 <li>[ ] E2E 검증: 협력사 가입 → 인증 → 관리자 승인 → 협력사 발주 접근</li>
+<li>[!] <strong>가입신청 미표시 원인 규명(2026-06-29)</strong>: <code>vendor_application</code>=0건. 원인 = Auth <code>mailer_autoconfirm=false</code> + <code>smtp_host=none</code> → 외부 협력사 인증메일 발송 불가로 signUp 실패. RLS·트리거는 정상(<code>vendor_master</code>=17건, <code>on_auth_vendor_signup</code> 설치됨). <strong>조치: 데모용 이메일 자동확인 ON 필요(관리자 승인 — 보안 분류기 차단됨). vendor-login 안내문구는 자동확인 전제로 수정 완료.</strong> 운영 전환 시 SMTP 연결 후 인증 복원</li>
 <li>[ ] gh-pages 배포 시 <code>app/</code> 동반 필요(F단계) — 사내포털에서 카드 링크 동작</li>
 <li>[ ] <strong>사내 Entra→Supabase OIDC 브리지</strong>(C절) — 미연결 시 관리자페이지는 별도 Supabase 로그인 필요(현재 사내 계정은 dh.choi만 존재). SSO 사용자 전원 무로그인 진입은 이 브리지 후 가능</li>
 </ul>

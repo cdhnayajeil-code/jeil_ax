@@ -70,7 +70,7 @@ input:focus{outline:none;border-color:var(--accent);background:#fff;}
     <label>연락처</label>
     <input type="text" id="su_phone" placeholder="010-0000-0000">
     <button class="btn" id="btnSignup">가입 신청</button>
-    <p class="hint">신청 후 ① 이메일 인증 → ② 제일엠앤에스 관리자 승인을 거쳐야 발주 정보에 접근할 수 있습니다.</p>
+    <p class="hint">신청 후 제일엠앤에스 관리자 승인(ERP 거래처 매칭)을 거쳐야 발주 정보에 접근할 수 있습니다.</p>
     <div class="msg" id="su_msg"></div>
   </div>
   <div class="foot">© 제일엠앤에스 · 협력사 계정 문의: 구매팀</div>
@@ -125,12 +125,14 @@ $("btnSignup").onclick = async () => {
   if (password.length < 8) return show($("su_msg"), "err", "비밀번호는 8자 이상이어야 합니다.");
   $("btnSignup").disabled = true;
   try {
+    // 데모: Supabase Auth 이메일 자동확인(autoconfirm) 전제 — 외부 협력사용 SMTP 미설정.
+    // 운영 전환 시 SMTP 연결 + 이메일 인증 단계를 복원한다.
     const { error } = await supabase.auth.signUp({
       email, password,
       options: { data: { company, biz_no, applicant_name, phone } },
     });
     if (error) throw error;
-    show($("su_msg"), "ok", "🎉 가입 신청 완료!<br>① 이메일로 보낸 <b>인증 링크</b>를 확인해 주세요.<br>② 이후 제일엠앤에스 관리자 <b>승인</b>이 완료되면 로그인 시 발주 정보에 접근할 수 있습니다.");
+    show($("su_msg"), "ok", "🎉 가입 신청 완료!<br>제일엠앤에스 관리자 <b>승인</b>(ERP 거래처 매칭) 후 로그인하면 발주 정보에 접근할 수 있습니다.<br>지금 로그인하면 <b>승인 대기</b> 상태로 표시됩니다.");
   } catch (e) {
     show($("su_msg"), "err", "가입 실패: " + (e.message || e));
   } finally { $("btnSignup").disabled = false; }
