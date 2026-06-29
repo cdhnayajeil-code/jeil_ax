@@ -87,8 +87,8 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 </tr>
 <tr>
 <td><strong>Supabase</strong></td>
-<td><strong>프로젝트 가동</strong> <code>dvzohdqtjzocgcclgwro</code> / 스키마·RLS·Hook·Storage 적용, MCP 로컬연결(<code>.mcp.json</code>)</td>
-<td>협력사 7테이블 + RLS 격리검증 통과, 어드바이저 클린</td>
+<td><strong>프로젝트 가동</strong> <code>dvzohdqtjzocgcclgwro</code> / 스키마·RLS·Hook·Storage·<strong>Azure OIDC</strong>·autoconfirm 적용</td>
+<td>협력사 발주 + <strong>관리자주도 등록</strong>(<code>portal_admin</code>·<code>vendor_account</code>·<code>vendor_account_log</code>) 테이블, Edge Function 3종(<code>approve-vendor</code>·<code>vendor-provision</code>·<code>vendor-reset-password</code>), RLS 격리검증·어드바이저 클린</td>
 </tr>
 <tr>
 <td>데모 도메인</td>
@@ -340,7 +340,7 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 </tr>
 <tr>
 <td>협력사 인증</td>
-<td>데모는 가짜(계정 ID/PW 가정). 이관 시 <strong>Supabase Auth로 분리</strong></td>
+<td><strong>관리자 주도 발급</strong>(ERP 거래처 선택→담당자 이메일로 계정 생성·임시비번). Supabase Auth(이메일/비번), 로그인 시 <code>role=vendor</code>+<code>vendor_bp</code> JWT 주입 → RLS 자기거래처만. 자유가입 제거. 계정 안내는 관리자 M365 메일(Graph)</td>
 </tr>
 </tbody>
 </table>
@@ -449,6 +449,11 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <tr>
 <td>2026-06-29</td>
 <td>Supabase 프로젝트 가동 — 스키마/RLS/Hook/Storage 적용, MCP 로컬연결, RLS 격리검증 통과. <code>app/</code> 데이터 모듈 작성.</td>
+<td>최동혁(+Claude)</td>
+</tr>
+<tr>
+<td>2026-06-29</td>
+<td>협력사 인증 분리(사내 Entra→Supabase Azure OIDC 브리지) + autoconfirm. <strong>협력사 온보딩을 관리자 주도 발급 모델로 전환</strong>(portal_admin·vendor_account·vendor_account_log + Edge Function 2종, 자유가입 제거, Graph 메일발송).</td>
 <td>최동혁(+Claude)</td>
 </tr>
 </tbody>

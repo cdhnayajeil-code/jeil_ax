@@ -13,7 +13,7 @@ body{font-family:'Pretendard','Malgun Gothic',sans-serif;background:var(--bg);co
 .top h1{font-size:18px;margin-top:6px;}
 .top .who{font-size:12.5px;color:#cdd8ea;}
 .wrap{max-width:1180px;margin:0 auto;padding:24px 22px 60px;}
-.gate{max-width:380px;margin:60px auto;background:#fff;border-radius:16px;box-shadow:0 8px 28px rgba(26,47,78,.15);padding:30px 28px;}
+.gate{max-width:400px;margin:60px auto;background:#fff;border-radius:16px;box-shadow:0 8px 28px rgba(26,47,78,.15);padding:30px 28px;}
 .gate h2{font-size:18px;color:var(--navy);margin-bottom:4px;}
 .gate p{font-size:12.5px;color:var(--muted);margin-bottom:14px;}
 label{display:block;font-size:12px;color:var(--navy2);font-weight:600;margin:11px 0 5px;}
@@ -21,28 +21,37 @@ input,select{width:100%;padding:9px 11px;border:1px solid var(--line);border-rad
 input:focus,select:focus{outline:none;border-color:var(--accent);background:#fff;}
 .btn{padding:9px 16px;background:var(--navy);color:#fff;border:none;border-radius:9px;font-size:13.5px;font-weight:700;cursor:pointer;}
 .btn:hover{background:var(--navy2);}
-.btn.sm{padding:6px 12px;font-size:12.5px;}
-.btn.ok{background:var(--green);}.btn.no{background:var(--red);}
+.btn.sm{padding:6px 11px;font-size:12px;}
+.btn.ok{background:var(--green);}.btn.no{background:var(--red);}.btn.gray{background:#5b6b7a;}
+.btn.ghost{background:#eef3fb;color:var(--navy2);border:1px solid #d3e0f2;}
 .btn:disabled{opacity:.55;cursor:wait;}
 .sec{background:#fff;border:1px solid var(--line);border-radius:14px;padding:20px 22px;margin-bottom:20px;}
 .sec h2{font-size:15.5px;color:var(--navy);margin-bottom:4px;}
 .sec .sub{font-size:12px;color:var(--muted);margin-bottom:14px;}
 table{width:100%;border-collapse:collapse;font-size:12.8px;}
 th{background:var(--navy);color:#fff;padding:8px 10px;text-align:left;font-weight:600;white-space:nowrap;}
-td{padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:middle;}
+td{padding:7px 10px;border-bottom:1px solid var(--line);vertical-align:middle;}
 tr:nth-child(even) td{background:#fafbfd;}
 .pill{font-size:11px;font-weight:700;padding:2px 9px;border-radius:20px;}
-.p-pending{background:#fbf3e3;color:var(--amber);}
-.p-approved{background:#eaf5ee;color:var(--green);}
-.p-rejected{background:#fbecea;color:var(--red);}
+.p-none{background:#eef0f3;color:#889;}
+.p-active{background:#eaf5ee;color:var(--green);}
+.p-disabled{background:#fbecea;color:var(--red);}
 .msg{margin:12px 0;padding:11px 14px;border-radius:9px;font-size:13px;display:none;}
 .msg.show{display:block;}
 .msg.ok{background:#eaf5ee;color:var(--green);border:1px solid #cfe6d6;}
 .msg.err{background:#fbecea;color:var(--red);border:1px solid #f0cfca;}
-.row-match{display:flex;gap:6px;align-items:center;}
-.row-match select{min-width:230px;}
-.hidden{display:none;}
+.msg.info{background:#eef3fb;color:var(--navy2);border:1px solid #d3e0f2;}
+.cred{display:none;margin:0 0 20px;padding:16px 18px;border-radius:12px;background:#fff8e8;border:1px solid #ecd9a8;}
+.cred.show{display:block;}
+.cred h3{font-size:14px;color:var(--amber);margin-bottom:8px;}
+.cred .kv{font-size:13px;margin:3px 0;}
+.cred code{background:#fff;border:1px solid #e3d5ad;padding:2px 8px;border-radius:6px;font-size:13.5px;font-weight:700;}
+.cred .acts{margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;}
+.rowin{display:flex;gap:5px;align-items:center;flex-wrap:wrap;}
+.rowin input{width:auto;flex:1;min-width:120px;padding:6px 9px;font-size:12px;}
 .muted{color:var(--muted);font-size:12px;}
+.hidden{display:none;}
+.tag{display:inline-block;font-size:10.5px;background:#eef3fb;color:var(--navy2);padding:1px 7px;border-radius:10px;margin-left:5px;}
 </style>
 </head>
 <body>
@@ -50,7 +59,7 @@ tr:nth-child(even) td{background:#fafbfd;}
 <!-- 로그인 게이트 -->
 <div id="gate" class="gate">
   <h2>사내 로그인</h2>
-  <p>임시(권한분리 전): 로그인된 사내 사용자는 모두 협력사 관리 기능을 사용할 수 있습니다. 데이터 조회·승인은 백엔드 권한(RLS)으로 통제되며, 추후 관리자 한정으로 권한을 분리합니다.</p>
+  <p>협력사 계정 관리는 <b>협력사관리 권한(portal_admin)</b>이 부여된 사내(@jeilm.co.kr) 사용자만 사용할 수 있습니다.</p>
   <button class="btn" id="g_ms" style="width:100%;background:#2f2f7a;">🔐 Microsoft 사내 계정으로 로그인 (Entra SSO)</button>
   <div style="text-align:center;font-size:11px;color:var(--muted);margin:14px 0 2px;">— 또는 이메일 / 비밀번호 —</div>
   <label>이메일</label><input type="email" id="g_email" placeholder="name@jeilm.co.kr">
@@ -63,8 +72,8 @@ tr:nth-child(even) td{background:#fafbfd;}
 <div id="app" class="hidden">
   <div class="top">
     <div>
-      <span class="badge">협력사 계정 관리 · 관리자 전용</span>
-      <h1>협력사 가입 승인 / 마스터 관리</h1>
+      <span class="badge">협력사 계정 관리 · 관리자 주도 등록</span>
+      <h1>ERP 거래처 기반 협력사 계정 발급</h1>
     </div>
     <div style="text-align:right">
       <div class="who" id="whoami"></div>
@@ -74,21 +83,51 @@ tr:nth-child(even) td{background:#fafbfd;}
   <div class="wrap">
     <div class="msg" id="a_msg"></div>
 
+    <!-- 발급 결과(임시 비밀번호) 배너 -->
+    <div class="cred" id="cred">
+      <h3>🔑 계정 발급/초기화 완료 — 협력사에 전달하세요</h3>
+      <div class="kv">로그인 주소: <code id="cr_url"></code></div>
+      <div class="kv">이메일(ID): <code id="cr_email"></code></div>
+      <div class="kv">임시 비밀번호: <code id="cr_pw"></code> <span class="muted">(최초 로그인 후 변경 권장)</span></div>
+      <div class="acts">
+        <button class="btn sm ok" id="cr_mail">📧 등록 메일로 발송(SSO 메일)</button>
+        <button class="btn sm ghost" id="cr_copy">복사</button>
+        <button class="btn sm gray" id="cr_close">닫기</button>
+      </div>
+      <div class="msg" id="cr_msg" style="margin-top:10px"></div>
+    </div>
+
+    <!-- 섹션1: ERP 거래처 + 계정 -->
     <div class="sec">
-      <h2>가입 신청 <span id="cntPending" class="muted"></span></h2>
-      <div class="sub">신청자가 입력한 정보를 ERP 협력사 마스터와 대조해 거래처를 매칭하고 승인합니다. 승인 시 해당 거래처(bp_cd)의 발주만 접근 가능해집니다.</div>
+      <h2>ERP 협력사 거래처 <span id="cntVendor" class="muted"></span></h2>
+      <div class="sub">ERP <code>B_BIZ_PARTNER</code> 기반(데모: 17개사·상호 부분마스킹). 거래처를 골라 협력사 담당자 이메일로 계정을 발급합니다. 운영 시 야간배치로 동기화.</div>
       <table>
-        <thead><tr><th>신청일</th><th>이메일</th><th>회사명(입력)</th><th>사업자번호(입력)</th><th>상태</th><th>ERP 협력사 매칭 → 승인</th></tr></thead>
-        <tbody id="appBody"><tr><td colspan="6" class="muted">불러오는 중…</td></tr></tbody>
+        <thead><tr><th>거래처코드</th><th>협력사명</th><th>사업자번호</th><th>계정상태</th><th>계정 발급 / 관리</th></tr></thead>
+        <tbody id="vmBody"><tr><td colspan="5" class="muted">불러오는 중…</td></tr></tbody>
       </table>
     </div>
 
+    <!-- 섹션2: 감사 로그 -->
     <div class="sec">
-      <h2>ERP 협력사 마스터 <span id="cntVendor" class="muted"></span></h2>
-      <div class="sub">데모: ERP <code>B_BIZ_PARTNER</code> 샘플 17개사(상호 부분 마스킹·사업자번호 데모값). 운영 시 야간배치로 <code>erp_ro.biz_partner</code> 동기화.</div>
+      <h2>처리 로그 <span id="cntLog" class="muted"></span></h2>
+      <div class="sub">계정 발급·비밀번호 초기화 등 처리 이력. 누가(처리자)·언제·무엇을 했는지 기록됩니다.</div>
       <table>
-        <thead><tr><th>거래처코드</th><th>협력사명</th><th>사업자번호</th><th>상태</th></tr></thead>
-        <tbody id="vmBody"><tr><td colspan="4" class="muted">불러오는 중…</td></tr></tbody>
+        <thead><tr><th>처리시각</th><th>작업</th><th>대상 이메일</th><th>거래처</th><th>처리자</th></tr></thead>
+        <tbody id="logBody"><tr><td colspan="5" class="muted">불러오는 중…</td></tr></tbody>
+      </table>
+    </div>
+
+    <!-- 섹션3: 관리자 지정 -->
+    <div class="sec">
+      <h2>협력사관리 권한자 <span id="cntAdmin" class="muted"></span></h2>
+      <div class="sub">협력사 계정을 발급·관리할 수 있는 사내 사용자(@jeilm.co.kr SSO)를 지정합니다. 권한자만 추가/해제할 수 있습니다.</div>
+      <div class="rowin" style="margin-bottom:12px;max-width:520px">
+        <input type="email" id="ad_email" placeholder="추가할 사내 이메일 name@jeilm.co.kr">
+        <button class="btn sm" id="ad_add">권한 부여</button>
+      </div>
+      <table>
+        <thead><tr><th>이메일</th><th>부여자</th><th>부여일</th><th></th></tr></thead>
+        <tbody id="adminBody"><tr><td colspan="4" class="muted">불러오는 중…</td></tr></tbody>
       </table>
     </div>
   </div>
@@ -99,107 +138,205 @@ import { supabase } from "./lib/supabaseClient.js";
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from "./config.js";
 
 const $ = (id) => document.getElementById(id);
-const show = (el, type, html) => { el.className = "msg show " + type; el.innerHTML = html; };
-let VENDORS = [];
+const show = (el, type, html) => { el.className = "msg show " + type + (el.id==="cr_msg"?"":""); el.innerHTML = html; };
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c]));
+const VENDOR_LOGIN_URL = location.origin + "/app/vendor-login.html";
+let ME = "";
 
-// Hook이 주입한 클레임은 JWT(access_token)에 있으므로 토큰을 직접 디코드해 읽는다
+// Hook이 주입한 클레임(JWT)
 function claimsOf(session) {
   if (!session?.access_token) return {};
   try { return JSON.parse(atob(session.access_token.split(".")[1])).app_metadata || {}; }
   catch { return {}; }
 }
 
+// ── 인증 게이트: role=internal + portal_admin ──
 async function boot() {
   const { data: { session } } = await supabase.auth.getSession();
   if (!session) return;
-  // 임시(권한분리 전): 로그인된 사용자는 모두 기능 노출. 백엔드 RLS·approve-vendor Edge Function은
-  // role=internal 검증을 유지하므로 데이터 보안망은 그대로다(CLAUDE.md §5.4).
-  // TODO 권한분리: 추후 아래로 복원 — if (claimsOf(session).role === "internal") return enterApp(...); else 거부
-  enterApp(session.user, claimsOf(session).role);
+  if (claimsOf(session).role !== "internal") {
+    return show($("g_msg"), "err", "사내(@jeilm.co.kr) 계정이 아닙니다. 로그아웃 후 사내 계정으로 로그인하세요.");
+  }
+  ME = session.user.email;
+  const { data: pa, error } = await supabase.from("portal_admin").select("email").eq("email", ME).maybeSingle();
+  if (error) return show($("g_msg"), "err", "권한 확인 실패: " + error.message);
+  if (!pa) return show($("g_msg"), "err", `이 계정(${esc(ME)})에는 협력사관리 권한이 없습니다. 기존 관리자에게 권한 부여를 요청하세요.`);
+  enterApp(session.user);
 }
-function enterApp(user, role) {
+function enterApp(user) {
   $("gate").classList.add("hidden"); $("app").classList.remove("hidden");
-  $("whoami").textContent = user.email + (role === "internal" ? " (사내)" : " · 권한분리 전 임시접근");
-  loadVendors(); loadApps();
+  $("whoami").textContent = user.email + " (협력사관리 권한자)";
+  loadVendors(); loadLog(); loadAdmins();
 }
 
+// ── 로그인 (SSO / 이메일) ──
+$("g_ms").onclick = async () => {
+  $("g_ms").disabled = true;
+  // Mail.Send 스코프 포함 — provider_token으로 SSO 사용자 메일 발송에 사용
+  const { error } = await supabase.auth.signInWithOAuth({
+    provider: "azure",
+    options: { scopes: "openid email profile https://graph.microsoft.com/Mail.Send", redirectTo: location.href.split("#")[0] },
+  });
+  if (error) { show($("g_msg"), "err", "Microsoft 로그인 실패: " + error.message); $("g_ms").disabled = false; }
+};
 $("g_btn").onclick = async () => {
   const email = $("g_email").value.trim(), password = $("g_pw").value;
   if (!email || !password) return show($("g_msg"), "err", "이메일/비밀번호를 입력하세요.");
   $("g_btn").disabled = true;
   try {
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) throw error;
-    // 임시(권한분리 전): role 검증 없이 입장. 데이터 접근 통제는 백엔드 RLS가 담당.
-    enterApp(data.user, claimsOf(data.session).role);
+    await boot();
   } catch (e) { show($("g_msg"), "err", "로그인 실패: " + (e.message || e)); }
   finally { $("g_btn").disabled = false; }
 };
-// Entra→Supabase 브리지: Supabase Azure(Entra ID) provider로 사내 SSO 로그인.
-// 선행: Supabase 대시보드에서 Azure provider 활성화 + Entra 앱에 Supabase 콜백 redirect URI 등록(관리자).
-$("g_ms").onclick = async () => {
-  $("g_ms").disabled = true;
-  const { error } = await supabase.auth.signInWithOAuth({
-    provider: "azure",
-    options: { scopes: "openid email profile", redirectTo: location.href.split("#")[0] },
-  });
-  if (error) { show($("g_msg"), "err", "Microsoft 로그인 실패: " + error.message + " (Supabase Azure provider 활성화 필요)"); $("g_ms").disabled = false; }
-};
 $("logout").onclick = async () => { await supabase.auth.signOut(); location.reload(); };
 
-async function loadVendors() {
-  const { data, error } = await supabase.from("vendor_master").select("*").order("bp_nm");
-  if (error) return show($("a_msg"), "err", "협력사 마스터 조회 실패: " + error.message);
-  VENDORS = data || [];
-  $("cntVendor").textContent = `(${VENDORS.length}개사)`;
-  $("vmBody").innerHTML = VENDORS.map(v =>
-    `<tr><td>${v.bp_cd}</td><td>${v.bp_nm}</td><td>${v.biz_no || "-"}</td><td>${v.active ? "활성" : "비활성"}</td></tr>`
-  ).join("") || `<tr><td colspan="4" class="muted">없음</td></tr>`;
-}
-
-async function loadApps() {
-  const { data, error } = await supabase.from("vendor_application").select("*").order("created_at", { ascending: false });
-  if (error) return show($("a_msg"), "err", "신청 조회 실패: " + error.message);
-  const apps = data || [];
-  $("cntPending").textContent = `(대기 ${apps.filter(a => a.status === "pending").length}건 / 전체 ${apps.length}건)`;
-  const opts = VENDORS.map(v => `<option value="${v.bp_cd}">${v.bp_cd} · ${v.bp_nm} · ${v.biz_no || ""}</option>`).join("");
-  $("appBody").innerHTML = apps.map(a => {
-    const dt = new Date(a.created_at).toLocaleDateString("ko-KR");
-    const st = `<span class="pill p-${a.status}">${({pending:"승인대기",approved:"승인됨",rejected:"반려"})[a.status]}</span>`;
-    let action;
-    if (a.status === "pending") {
-      action = `<div class="row-match">
-        <select id="sel_${a.id}"><option value="">— ERP 협력사 선택 —</option>${opts}</select>
-        <button class="btn sm ok" data-approve="${a.id}">승인</button>
-        <button class="btn sm no" data-reject="${a.id}">반려</button></div>`;
-    } else {
-      action = `<span class="muted">${a.matched_bp_cd ? "→ " + a.matched_bp_cd + " · " : ""}${a.reviewed_by || ""}</span>`;
-    }
-    return `<tr><td>${dt}</td><td>${a.email}</td><td>${a.company_input || "-"}</td><td>${a.biz_no_input || "-"}</td><td>${st}</td><td>${action}</td></tr>`;
-  }).join("") || `<tr><td colspan="6" class="muted">신청 없음</td></tr>`;
-
-  $("appBody").querySelectorAll("[data-approve]").forEach(b => b.onclick = () => review(b.dataset.approve, "approve"));
-  $("appBody").querySelectorAll("[data-reject]").forEach(b => b.onclick = () => review(b.dataset.reject, "reject"));
-}
-
-async function review(id, action) {
-  const matched_bp_cd = action === "approve" ? ($("sel_" + id)?.value || "") : "";
-  if (action === "approve" && !matched_bp_cd) return show($("a_msg"), "err", "승인하려면 ERP 협력사를 선택하세요.");
-  const note = action === "reject" ? (prompt("반려 사유(선택):") || "") : "";
+// ── 토큰 헤더 ──
+async function authHeaders() {
   const { data: { session } } = await supabase.auth.getSession();
+  return { "Content-Type": "application/json", "apikey": SUPABASE_ANON_KEY, "Authorization": "Bearer " + session.access_token };
+}
+async function callFn(name, payload) {
+  const res = await fetch(SUPABASE_URL + "/functions/v1/" + name, { method: "POST", headers: await authHeaders(), body: JSON.stringify(payload) });
+  const out = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(out.error || ("HTTP " + res.status));
+  return out;
+}
+
+// ── 거래처 + 계정 ──
+let ACCOUNTS = {};   // bp_cd -> account row
+async function loadVendors() {
+  const [{ data: vendors, error: ve }, { data: accs }] = await Promise.all([
+    supabase.from("vendor_master").select("*").order("bp_nm"),
+    supabase.from("vendor_account").select("*"),
+  ]);
+  if (ve) return show($("a_msg"), "err", "거래처 조회 실패: " + ve.message);
+  ACCOUNTS = {};
+  (accs || []).forEach(a => { ACCOUNTS[a.bp_cd] = a; });
+  $("cntVendor").textContent = `(${(vendors || []).length}개사 · 계정 ${Object.keys(ACCOUNTS).length})`;
+  $("vmBody").innerHTML = (vendors || []).map(v => {
+    const a = ACCOUNTS[v.bp_cd];
+    let stat, action;
+    if (a && a.status === "active") {
+      stat = `<span class="pill p-active">발급됨</span>`;
+      action = `<div class="rowin"><span class="muted">${esc(a.email)}</span>
+        <button class="btn sm no" data-reset="${esc(a.auth_user_id)}" data-email="${esc(a.email)}">비번 초기화</button></div>`;
+    } else if (a && a.status === "disabled") {
+      stat = `<span class="pill p-disabled">비활성</span>`;
+      action = `<span class="muted">${esc(a.email)}</span>`;
+    } else {
+      stat = `<span class="pill p-none">미발급</span>`;
+      action = `<div class="rowin">
+        <input type="email" id="em_${esc(v.bp_cd)}" placeholder="담당자 이메일">
+        <input type="text" id="nm_${esc(v.bp_cd)}" placeholder="담당자명(선택)" style="max-width:120px">
+        <button class="btn sm ok" data-prov="${esc(v.bp_cd)}">계정 생성</button></div>`;
+    }
+    return `<tr><td>${esc(v.bp_cd)}</td><td>${esc(v.bp_nm)}</td><td>${esc(v.biz_no || "-")}</td><td>${stat}</td><td>${action}</td></tr>`;
+  }).join("") || `<tr><td colspan="5" class="muted">거래처 없음</td></tr>`;
+
+  $("vmBody").querySelectorAll("[data-prov]").forEach(b => b.onclick = () => provision(b.dataset.prov));
+  $("vmBody").querySelectorAll("[data-reset]").forEach(b => b.onclick = () => resetPw(b.dataset.reset, b.dataset.email));
+}
+
+async function provision(bp_cd) {
+  const email = ($("em_" + bp_cd)?.value || "").trim();
+  const contact_name = ($("nm_" + bp_cd)?.value || "").trim();
+  if (!email) return show($("a_msg"), "err", "담당자 이메일을 입력하세요.");
+  if (!confirm(`거래처 ${bp_cd} 협력사 계정을 생성합니다.\n이메일: ${email}\n진행할까요?`)) return;
   try {
-    const res = await fetch(SUPABASE_URL + "/functions/v1/approve-vendor", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "apikey": SUPABASE_ANON_KEY, "Authorization": "Bearer " + session.access_token },
-      body: JSON.stringify({ application_id: id, action, matched_bp_cd, note }),
+    show($("a_msg"), "info", "계정 생성 중…");
+    const out = await callFn("vendor-provision", { bp_cd, email, contact_name });
+    show($("a_msg"), "ok", `✅ ${esc(out.bp_nm || bp_cd)} 협력사 계정 생성 완료.`);
+    showCred(out.email, out.temp_password);
+    loadVendors(); loadLog();
+  } catch (e) { show($("a_msg"), "err", "계정 생성 실패: " + (e.message || e)); }
+}
+async function resetPw(auth_user_id, email) {
+  if (!confirm(`${email} 비밀번호를 초기화합니다. 새 임시 비밀번호가 발급됩니다.\n진행할까요?`)) return;
+  try {
+    show($("a_msg"), "info", "초기화 중…");
+    const out = await callFn("vendor-reset-password", { auth_user_id });
+    show($("a_msg"), "ok", `✅ ${esc(out.email)} 비밀번호 초기화 완료.`);
+    showCred(out.email, out.temp_password);
+    loadVendors(); loadLog();
+  } catch (e) { show($("a_msg"), "err", "초기화 실패: " + (e.message || e)); }
+}
+
+// ── 발급 결과 배너 + 메일 발송(Graph) ──
+let CRED = { email: "", pw: "" };
+function showCred(email, pw) {
+  CRED = { email, pw };
+  $("cr_url").textContent = VENDOR_LOGIN_URL;
+  $("cr_email").textContent = email;
+  $("cr_pw").textContent = pw;
+  $("cr_msg").className = "msg";
+  $("cred").classList.add("show");
+  $("cred").scrollIntoView({ behavior: "smooth", block: "center" });
+}
+$("cr_close").onclick = () => $("cred").classList.remove("show");
+$("cr_copy").onclick = () => {
+  navigator.clipboard.writeText(`로그인: ${VENDOR_LOGIN_URL}\n이메일: ${CRED.email}\n임시 비밀번호: ${CRED.pw}`);
+  show($("cr_msg"), "info", "클립보드에 복사했습니다.");
+};
+$("cr_mail").onclick = async () => {
+  const { data: { session } } = await supabase.auth.getSession();
+  const token = session?.provider_token;
+  if (!token) return show($("cr_msg"), "err", "메일 발송 토큰이 없습니다. ‘Microsoft 사내 계정으로 로그인(SSO)’으로 다시 로그인하면 발송할 수 있습니다. (Entra Mail.Send 권한 필요)");
+  const html = `<p>안녕하세요, 제일엠앤에스 협력사 포털 계정이 발급되었습니다.</p>
+    <ul><li>로그인 주소: <a href="${VENDOR_LOGIN_URL}">${VENDOR_LOGIN_URL}</a></li>
+    <li>이메일(ID): ${esc(CRED.email)}</li><li>임시 비밀번호: <b>${esc(CRED.pw)}</b></li></ul>
+    <p>최초 로그인 후 비밀번호를 변경해 주세요.</p>`;
+  try {
+    $("cr_mail").disabled = true;
+    const res = await fetch("https://graph.microsoft.com/v1.0/me/sendMail", {
+      method: "POST", headers: { "Authorization": "Bearer " + token, "Content-Type": "application/json" },
+      body: JSON.stringify({ message: { subject: "[제일엠앤에스] 협력사 포털 계정 안내", body: { contentType: "HTML", content: html }, toRecipients: [{ emailAddress: { address: CRED.email } }] }, saveToSentItems: true }),
     });
-    const out = await res.json();
-    if (!res.ok) throw new Error(out.error || res.status);
-    show($("a_msg"), "ok", action === "approve"
-      ? `✅ 승인 완료 → 거래처 ${out.bp_cd}. (협력사는 다시 로그인하면 발주 접근 권한이 반영됩니다.)`
-      : "반려 처리되었습니다.");
-    loadApps();
-  } catch (e) { show($("a_msg"), "err", "처리 실패: " + (e.message || e)); }
+    if (!res.ok) throw new Error((res.status) + " " + (await res.text()).slice(0, 160));
+    show($("cr_msg"), "ok", `📧 ${esc(CRED.email)} 로 발송했습니다.`);
+  } catch (e) { show($("cr_msg"), "err", "메일 발송 실패: " + (e.message || e) + " — 화면의 정보를 직접 전달하세요."); }
+  finally { $("cr_mail").disabled = false; }
+};
+
+// ── 처리 로그 ──
+async function loadLog() {
+  const { data, error } = await supabase.from("vendor_account_log").select("*").order("acted_at", { ascending: false }).limit(50);
+  if (error) return;
+  const ACT = { create: "계정 생성", reset_password: "비번 초기화", disable: "비활성", enable: "활성" };
+  $("cntLog").textContent = `(${(data || []).length}건)`;
+  $("logBody").innerHTML = (data || []).map(l =>
+    `<tr><td>${new Date(l.acted_at).toLocaleString("ko-KR")}</td><td>${esc(ACT[l.action] || l.action)}</td><td>${esc(l.target_email || "-")}</td><td>${esc(l.bp_cd || "-")}</td><td>${esc(l.actor_email || "-")}</td></tr>`
+  ).join("") || `<tr><td colspan="5" class="muted">로그 없음</td></tr>`;
+}
+
+// ── 관리자 지정 ──
+async function loadAdmins() {
+  const { data, error } = await supabase.from("portal_admin").select("*").order("granted_at");
+  if (error) return;
+  $("cntAdmin").textContent = `(${(data || []).length}명)`;
+  $("adminBody").innerHTML = (data || []).map(a => {
+    const self = a.email === ME;
+    const rm = self ? `<span class="muted">본인</span>` : `<button class="btn sm no" data-revoke="${esc(a.email)}">해제</button>`;
+    return `<tr><td>${esc(a.email)}${self ? '<span class="tag">나</span>' : ""}</td><td>${esc(a.granted_by || "-")}</td><td>${a.granted_at ? new Date(a.granted_at).toLocaleDateString("ko-KR") : "-"}</td><td>${rm}</td></tr>`;
+  }).join("") || `<tr><td colspan="4" class="muted">없음</td></tr>`;
+  $("adminBody").querySelectorAll("[data-revoke]").forEach(b => b.onclick = () => revokeAdmin(b.dataset.revoke));
+}
+$("ad_add").onclick = async () => {
+  const email = $("ad_email").value.trim().toLowerCase();
+  if (!email) return show($("a_msg"), "err", "이메일을 입력하세요.");
+  if (!email.endsWith("@jeilm.co.kr")) return show($("a_msg"), "err", "사내(@jeilm.co.kr) 이메일만 권한자로 지정할 수 있습니다.");
+  const { error } = await supabase.from("portal_admin").insert({ email, granted_by: ME });
+  if (error) return show($("a_msg"), "err", "권한 부여 실패: " + error.message);
+  $("ad_email").value = ""; show($("a_msg"), "ok", `✅ ${esc(email)} 권한 부여 완료. (해당 사용자는 SSO 로그인 시 관리 기능 사용 가능)`);
+  loadAdmins();
+};
+async function revokeAdmin(email) {
+  if (!confirm(`${email} 의 협력사관리 권한을 해제합니다.`)) return;
+  const { error } = await supabase.from("portal_admin").delete().eq("email", email);
+  if (error) return show($("a_msg"), "err", "해제 실패: " + error.message);
+  show($("a_msg"), "ok", `${esc(email)} 권한 해제 완료.`);
+  loadAdmins();
 }
 
 boot();

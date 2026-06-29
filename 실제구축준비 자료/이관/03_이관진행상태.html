@@ -104,10 +104,21 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <li>[x] <strong>사내 포털(<code>04_챗봇_포털_데모UI.html</code>) 운영페이지에 카드 통합</strong> — "협력사 계정 관리(관리자)" + "협력사 가입·로그인(신규)", 대시보드·협력사 모바일 포털 옆에 배치</li>
 <li>[x] <strong>임시 권한정책(권한분리 전): 관리자페이지 프론트 게이트 완화</strong> — <code>admin-vendors.html</code> <code>role===internal</code> 차단 제거, 로그인 사용자 전체 기능 노출. <strong>백엔드 RLS·<code>approve-vendor</code> Edge Function은 <code>role=internal</code> 검증 유지(안전망)</strong>. 04 카드 문구도 "사내 로그인(임시 전체)"으로 갱신 — 2026-06-29 (TODO: 권한분리 시 게이트 복원)</li>
 <li>[ ] E2E 검증: 협력사 가입 → 인증 → 관리자 승인 → 협력사 발주 접근</li>
-<li>[!] <strong>가입신청 미표시 원인 규명(2026-06-29)</strong>: <code>vendor_application</code>=0건. 원인 = Auth <code>mailer_autoconfirm=false</code> + <code>smtp_host=none</code> → 외부 협력사 인증메일 발송 불가로 signUp 실패. RLS·트리거는 정상(<code>vendor_master</code>=17건, <code>on_auth_vendor_signup</code> 설치됨). <strong>조치: 데모용 이메일 자동확인 ON 필요(관리자 승인 — 보안 분류기 차단됨). vendor-login 안내문구는 자동확인 전제로 수정 완료.</strong> 운영 전환 시 SMTP 연결 후 인증 복원</li>
+<li>[x] <strong>가입신청 미표시 원인 규명·조치(2026-06-29)</strong>: <code>vendor_application</code>=0건. 원인 = Auth <code>mailer_autoconfirm=false</code> + <code>smtp_host=none</code> → 외부 협력사 인증메일 발송 불가로 signUp 실패. RLS·트리거는 정상(<code>vendor_master</code>=17건, <code>on_auth_vendor_signup</code> 설치됨). <strong>조치 완료: 데모용 이메일 자동확인 ON(<code>mailer_autoconfirm=true</code>, 사용자 위임 승인) + vendor-login 안내문구 자동확인 전제로 수정.</strong> ⚠️운영 전환 시 SMTP 연결 후 이메일 인증 복원 필수</li>
 <li>[ ] gh-pages 배포 시 <code>app/</code> 동반 필요(F단계) — 사내포털에서 카드 링크 동작</li>
 <li>[ ] <strong>사내 Entra→Supabase OIDC 브리지</strong>(C절) — 미연결 시 관리자페이지는 별도 Supabase 로그인 필요(현재 사내 계정은 dh.choi만 존재). SSO 사용자 전원 무로그인 진입은 이 브리지 후 가능</li>
 </ul>
+<h3 id="c-2026-06-29">C″. 관리자 주도 등록 모델 전환 (2026-06-29) ★ 현행</h3>
+<blockquote>
+<p>자유가입+승인 → <strong>ERP 거래처 기반 관리자 발급</strong>으로 전환. (자유가입 SMTP 오류 회피 + ERP 원천 일치)
+- [x] 스키마 <code>sql/06_vendor_provisioning.sql</code>: <code>portal_admin</code>(권한자)·<code>vendor_account</code>(거래처↔계정)·<code>vendor_account_log</code>(감사로그) + <code>is_vendor_admin()</code> 헬퍼, 자유가입 트리거(<code>on_auth_vendor_signup</code>)·함수 제거. 부트스트랩 권한자=dh.choi
+- [x] Edge Function 배포: <strong><code>vendor-provision</code></strong>(거래처+이메일→createUser+app_metadata+vendor_account+log), <strong><code>vendor-reset-password</code></strong>(비번 재발급+log). 둘 다 관리자 JWT(role=internal + portal_admin) 검증
+- [x] <code>admin-vendors.html</code> 전면개편: ① ERP 거래처 발급 ② 비번 초기화 ③ 처리 로그(처리자·시각) ④ 관리자 권한 지정 ⑤ <strong>Graph <code>/me/sendMail</code></strong>(SSO <code>provider_token</code>)로 계정 안내 메일 + 임시비번 화면표시 폴백. OAuth scope에 <code>Mail.Send</code> 추가
+- [x] <code>vendor-login.html</code> 자유가입 제거 → <strong>로그인 전용</strong>(관리자 발급 안내). 04 포털 카드 2종 문구 갱신
+- [x] 보안 어드바이저: <code>is_vendor_admin</code> invoker로 정정해 경고 해소(남은 1건 <code>leaked_password_protection</code>은 전역 Auth 설정, 데모 수용)
+- [ ] <strong>E2E</strong>: SSO 로그인→거래처 계정발급→협력사 로그인(RLS 자기거래처)→비번초기화→로그 확인
+- [ ] <strong>선행(관리자)</strong>: Entra 앱에 Graph <code>Mail.Send</code>(위임) 권한 + 관리자 동의 — 메일 자동발송용(없으면 화면표시 폴백)</p>
+</blockquote>
 <h3 id="d-apijs-01-d">D. api.js (<code>01 §D</code>)</h3>
 <ul>
 <li>[x] <code>app/config.js</code>·<code>app/lib/supabaseClient.js</code>·<code>app/lib/api.js</code> 작성 (supabase/mock 어댑터)</li>
@@ -215,6 +226,12 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <td>임시 권한정책 — 협력사 관리페이지(<code>admin-vendors.html</code>) 프론트 게이트 완화(role 차단 제거, 로그인 사용자 전체 노출). 백엔드 RLS·Edge Function role=internal 유지. 04 카드 문구 갱신</td>
 <td>권한분리 전 임시 적용(<code>17500be</code> 커밋)</td>
 <td>Entra→Supabase 브리지 / 추후 권한분리 복원</td>
+</tr>
+<tr>
+<td>2026-06-29</td>
+<td><strong>관리자 주도 등록 모델 전환</strong> — 스키마 06(portal_admin/vendor_account/vendor_account_log), Edge Function 2종(vendor-provision/reset-password) 배포, admin 전면개편(발급·초기화·로그·권한지정·Graph메일), 자유가입 제거. autoconfirm ON(위임). 보안 어드바이저 클린</td>
+<td>구현 완료</td>
+<td>E2E + Entra Mail.Send 동의(관리자)</td>
 </tr>
 <tr>
 <td>2026-06-29</td>
