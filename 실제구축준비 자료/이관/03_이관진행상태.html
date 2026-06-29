@@ -123,12 +123,13 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <ul>
 <li>[x] <code>app/config.js</code>·<code>app/lib/supabaseClient.js</code>·<code>app/lib/api.js</code> 작성 (supabase/mock 어댑터)</li>
 <li>[x] 데모용 발주헤더 <code>sp_order_header</code> 스키마 보강 + RLS + Realtime</li>
-<li>[ ] 협력사 포털·대시보드 인라인 JS → <code>portalApi</code> 치환 (회귀 위험 큰 작업, 다음)</li>
-<li>[ ] 로그인 + 시드 후 브라우저 실동작 검증</li>
+<li>[x] <strong>협력사 포털·대시보드 인라인 JS → <code>portalApi</code> 치환</strong> — 2026-06-29. 협력사 포털: 자체 로그인 제거→세션 게이트, 자기 거래처 발주(RLS)·사진/메시지/검수요청 쓰기. 사내 대시보드: BASE mock 제거→getOrders 전체 발주, 검수판정→judge, 자동 SSO(internal), Realtime</li>
+<li>[x] <strong>시드 후 브라우저 실동작 검증</strong> — 대시보드 8건 표시 확인(dh.choi 세션). 협력사 포털 세션 게이트 동작 확인</li>
+<li>[x] getOrders 보강(vendor_name/proj/amt/inspection — 대시보드용)</li>
 </ul>
 <h3 id="e-01-e">E. 데이터 시드 (<code>01 §E</code>)</h3>
 <ul>
-<li>[ ] 마스킹 샘플 시드(동일 PO 키)</li>
+<li>[x] <strong>마스킹 샘플 발주 시드</strong> — <code>sql/07_seed_orders.sql</code>: 02128(3)·00206(2)·00209/01768/4521(각1) 총 8건 + 상태·메시지·검수요청. RLS 테스트 잔여 정리. 2026-06-29</li>
 </ul>
 <h3 id="f">F. 배포</h3>
 <ul>
@@ -232,6 +233,12 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <td><strong>관리자 주도 등록 모델 전환</strong> — 스키마 06(portal_admin/vendor_account/vendor_account_log), Edge Function 2종(vendor-provision/reset-password) 배포, admin 전면개편(발급·초기화·로그·권한지정·Graph메일), 자유가입 제거. autoconfirm ON(위임). 보안 어드바이저 클린</td>
 <td>구현 완료</td>
 <td>E2E + Entra Mail.Send 동의(관리자)</td>
+</tr>
+<tr>
+<td>2026-06-29</td>
+<td><strong>발주 포털·대시보드 Supabase 연동</strong> — 발주 샘플 8건 시드(<code>sql/07</code>), 협력사 포털(자체로그인 제거·세션게이트·자기거래처 RLS·쓰기), 사내 대시보드(BASE 제거·getOrders 전체·검수판정·자동SSO·Realtime), getOrders 보강. Email provider 재활성. 대시보드 8건 표시 검증. <strong>ai 도메인도 Vercel 전환 확인</strong></td>
+<td>포털·대시보드 연동 완료</td>
+<td>협력사 로그인 발주표시(사용자)</td>
 </tr>
 <tr>
 <td>2026-06-29</td>
