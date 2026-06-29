@@ -49,8 +49,8 @@ tr:nth-child(even) td{background:#fafbfd;}
 
 <!-- 로그인 게이트 -->
 <div id="gate" class="gate">
-  <h2>관리자 로그인</h2>
-  <p>제일엠앤에스 관리자(사내) 계정만 접근할 수 있습니다.</p>
+  <h2>사내 로그인</h2>
+  <p>임시(권한분리 전): 로그인된 사내 사용자는 모두 협력사 관리 기능을 사용할 수 있습니다. 데이터 조회·승인은 백엔드 권한(RLS)으로 통제되며, 추후 관리자 한정으로 권한을 분리합니다.</p>
   <label>이메일</label><input type="email" id="g_email" placeholder="name@jeilm.co.kr">
   <label>비밀번호</label><input type="password" id="g_pw">
   <button class="btn" id="g_btn" style="width:100%;margin-top:16px;">로그인</button>
@@ -110,12 +110,14 @@ function claimsOf(session) {
 async function boot() {
   const { data: { session } } = await supabase.auth.getSession();
   if (!session) return;
-  if (claimsOf(session).role === "internal") return enterApp(session.user);
-  show($("g_msg"), "err", "이 계정은 관리자(사내) 권한이 없습니다. 로그아웃 후 관리자 계정으로 로그인하세요.");
+  // 임시(권한분리 전): 로그인된 사용자는 모두 기능 노출. 백엔드 RLS·approve-vendor Edge Function은
+  // role=internal 검증을 유지하므로 데이터 보안망은 그대로다(CLAUDE.md §5.4).
+  // TODO 권한분리: 추후 아래로 복원 — if (claimsOf(session).role === "internal") return enterApp(...); else 거부
+  enterApp(session.user, claimsOf(session).role);
 }
-function enterApp(user) {
+function enterApp(user, role) {
   $("gate").classList.add("hidden"); $("app").classList.remove("hidden");
-  $("whoami").textContent = user.email + " (관리자)";
+  $("whoami").textContent = user.email + (role === "internal" ? " (사내)" : " · 권한분리 전 임시접근");
   loadVendors(); loadApps();
 }
 
@@ -126,11 +128,8 @@ $("g_btn").onclick = async () => {
   try {
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) throw error;
-    if (claimsOf(data.session).role !== "internal") {
-      show($("g_msg"), "err", "관리자 권한이 없는 계정입니다. (Access Token Hook 활성화 + 사내 도메인/role=internal 필요)");
-      return;
-    }
-    enterApp(data.user);
+    // 임시(권한분리 전): role 검증 없이 입장. 데이터 접근 통제는 백엔드 RLS가 담당.
+    enterApp(data.user, claimsOf(data.session).role);
   } catch (e) { show($("g_msg"), "err", "로그인 실패: " + (e.message || e)); }
   finally { $("g_btn").disabled = false; }
 };

@@ -102,8 +102,10 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <li>[x] Hook 활성화 + 관리자 계정 <code>dh.choi@jeilm.co.kr</code> 생성 — Hook이 role=internal 자동주입 검증 완료</li>
 <li>[x] 페이지 권한 판정을 JWT 디코드 방식으로 보강(getUser 대신 access_token 클레임)</li>
 <li>[x] <strong>사내 포털(<code>04_챗봇_포털_데모UI.html</code>) 운영페이지에 카드 통합</strong> — "협력사 계정 관리(관리자)" + "협력사 가입·로그인(신규)", 대시보드·협력사 모바일 포털 옆에 배치</li>
+<li>[x] <strong>임시 권한정책(권한분리 전): 관리자페이지 프론트 게이트 완화</strong> — <code>admin-vendors.html</code> <code>role===internal</code> 차단 제거, 로그인 사용자 전체 기능 노출. <strong>백엔드 RLS·<code>approve-vendor</code> Edge Function은 <code>role=internal</code> 검증 유지(안전망)</strong>. 04 카드 문구도 "사내 로그인(임시 전체)"으로 갱신 — 2026-06-29 (TODO: 권한분리 시 게이트 복원)</li>
 <li>[ ] E2E 검증: 협력사 가입 → 인증 → 관리자 승인 → 협력사 발주 접근</li>
 <li>[ ] gh-pages 배포 시 <code>app/</code> 동반 필요(F단계) — 사내포털에서 카드 링크 동작</li>
+<li>[ ] <strong>사내 Entra→Supabase OIDC 브리지</strong>(C절) — 미연결 시 관리자페이지는 별도 Supabase 로그인 필요(현재 사내 계정은 dh.choi만 존재). SSO 사용자 전원 무로그인 진입은 이 브리지 후 가능</li>
 </ul>
 <h3 id="d-apijs-01-d">D. api.js (<code>01 §D</code>)</h3>
 <ul>
@@ -116,7 +118,13 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <ul>
 <li>[ ] 마스킹 샘플 시드(동일 PO 키)</li>
 </ul>
-<h3 id="f-vercel-01-f">F. Vercel 배포 (<code>01 §F</code>)</h3>
+<h3 id="f">F. 배포</h3>
+<ul>
+<li>[x] <strong>임시: GitHub Pages(gh-pages) 배포</strong> — <code>ai.jeilm.co.kr</code>에 <code>app/</code> 포함 반영(2026-06-29, <code>705b8d9</code>). https라 Entra 2차인증·Supabase 연동 동작</li>
+<li>[ ] (Supabase Auth) URL Configuration — Site URL <code>https://ai.jeilm.co.kr</code>, Redirect URLs 등록(이메일 인증 링크용)</li>
+<li>[ ] 본 데모는 Vercel 권장(Hobby 비상업 유의) — 트래픽 붙으면 이전</li>
+</ul>
+<h3 id="f-vercel-vercel-01-f">F-Vercel. Vercel 배포 (<code>01 §F</code>, 선택/후속)</h3>
 <ul>
 <li>[ ] GitHub Import·자동배포</li>
 <li>[ ] 환경변수 등록(anon 프론트/service 서버)</li>
@@ -188,6 +196,24 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <td>Hook 활성화·관리자계정(dh.choi) 검증, JWT 디코드 보강, 사내포털 04에 협력사 관리/가입 카드 통합</td>
 <td>포털 통합 완료</td>
 <td>E2E 검증 / F 배포(app 동반)</td>
+</tr>
+<tr>
+<td>2026-06-29</td>
+<td>git 커밋·main/gh-pages 배포(<code>705b8d9</code>) — 협력사 온보딩·<code>app/</code>·이관문서 실서버(ai.jeilm.co.kr) 반영</td>
+<td>라이브 배포 완료</td>
+<td>https에서 2차인증·협력사 온보딩 E2E</td>
+</tr>
+<tr>
+<td>2026-06-29</td>
+<td>Vercel 점검(.env VERCEL_TOKEN+REST API) — jeil-ax 프로젝트 main 자동배포 READY. <strong>도메인 분리 확정: ai=GitHub Pages, ax=Vercel</strong>(서버헤더)</td>
+<td>호스팅 분리 확인</td>
+<td>데모=ax 사용 / ax Entra redirect 등록은 관리자</td>
+</tr>
+<tr>
+<td>2026-06-29</td>
+<td>임시 권한정책 — 협력사 관리페이지(<code>admin-vendors.html</code>) 프론트 게이트 완화(role 차단 제거, 로그인 사용자 전체 노출). 백엔드 RLS·Edge Function role=internal 유지. 04 카드 문구 갱신</td>
+<td>권한분리 전 임시 적용(로컬)</td>
+<td>Entra→Supabase 브리지 / 추후 권한분리 복원</td>
 </tr>
 </tbody>
 </table>
