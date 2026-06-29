@@ -480,7 +480,11 @@ function render(){ fillProjOptions(); renderKPI(); renderDist(); renderBoard(); 
 async function boot(){
   const { data:{ session } } = await supabase.auth.getSession();
   if(!session){ if(!new URLSearchParams(location.search).get('sso')) return autoSSO(); document.body.insertAdjacentHTML('afterbegin','<div style="padding:14px;background:#fbecea;color:#b3402f">로그인이 필요합니다. 사내 계정으로 로그인하세요.</div>'); return; }
-  if(claimsOf(session).role!=='internal'){ document.body.innerHTML='<div style="padding:48px;text-align:center;color:#b3402f;font-size:15px">사내(@jeilm.co.kr) 전용 화면입니다. 협력사 계정으로는 접근할 수 없습니다.</div>'; return; }
+  if(claimsOf(session).role!=='internal'){
+    document.body.innerHTML='<div style="padding:56px 24px;text-align:center;font-family:Pretendard,sans-serif"><div style="font-size:42px">🔒</div><h2 style="color:#1a2f4e;margin:12px 0 6px;font-size:20px">사내 전용 화면</h2><p style="color:#667;font-size:14px;line-height:1.6">외주 발주·검사 대시보드는 <b>사내(@jeilm.co.kr) 계정</b>만 접근할 수 있습니다.<br>현재 협력사 계정으로 로그인되어 있습니다.</p><button id="reSso" style="margin-top:20px;padding:12px 22px;background:#2f2f7a;color:#fff;border:none;border-radius:10px;font-weight:700;font-size:14px;cursor:pointer">🔐 사내 계정으로 로그인</button></div>';
+    var rb=document.getElementById('reSso'); if(rb) rb.onclick=async function(){ try{ await supabase.auth.signOut(); }catch(e){} autoSSO(); };
+    return;
+  }
   await loadData(); fillProjOptions(); render();
   portalApi.subscribe(async()=>{ await loadData(); render(); var mb=document.getElementById('msgbox'); if(mb&&mb.classList.contains('on')) renderMsgBox(); });
 }

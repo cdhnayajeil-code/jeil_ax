@@ -175,7 +175,7 @@
 <div class="phone">
   <div class="notch"></div>
 
-  <div id="loginScreen" class="login">
+  <div id="loginScreen" class="login hidden">
     <div class="logo">🏭</div>
     <h1>협력사 발주 포털</h1>
     <div class="tag">제일메디칼 구매발주 · 협력사 전용</div>
@@ -258,10 +258,6 @@ function fproc(o){ const cur=fcur(o); const sub=o.type!=='DIV'; const zs=[['jeil
     return '<div class="fzone '+z+'"><div class="fzname">'+zn+'</div><div class="fznodes">'+ns.map(function(s){var i=FIDX(s.k);var skip=s.cond&&!sub;var cls=skip?'skip':(i<cur?'done':(i===cur?'cur':''));return '<div class="fnode '+cls+'"><div class="fc">'+(cls==='done'?'✓':s.ic)+'</div><div class="fl">'+s.l+'</div></div>';}).join('')+'</div></div>';
   }).join('')+'</div>'; }
 
-function svgPhoto(label, hue){
-  const s = `<svg xmlns='http://www.w3.org/2000/svg' width='300' height='300'><rect width='300' height='300' fill='hsl(${hue},32%,82%)'/><rect width='300' height='300' fill='url(#g)'/><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='hsl(${hue},45%,72%)'/><stop offset='1' stop-color='hsl(${hue+20},40%,58%)'/></linearGradient></defs><text x='150' y='150' font-size='64' text-anchor='middle' dominant-baseline='central'>📦</text><text x='150' y='235' font-size='22' fill='#23344a' text-anchor='middle' font-family='sans-serif'>${label}</text></svg>`;
-  return 'data:image/svg+xml;base64,'+btoa(unescape(encodeURIComponent(s)));
-}
 function kindFromText(s){ s=s||'';
   if(/PCB|솔더|보드/i.test(s)) return 'pcb';
   if(/베어링|하우징/.test(s)) return 'bearing';
