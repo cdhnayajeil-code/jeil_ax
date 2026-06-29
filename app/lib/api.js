@@ -119,6 +119,12 @@ const supabaseAdapter = {
     return data?.signedUrl || "";
   },
 
+  // ---- 본인 비밀번호 변경 (협력사 세션 기반) ----
+  async changePassword(newPw) {
+    const { error } = await supabase.auth.updateUser({ password: newPw });
+    if (error) throw error;
+  },
+
   // ---- Realtime 구독 (양방향 즉시 반영) ----
   subscribe(onChange) {
     const ch = supabase.channel("portal-sync");
@@ -136,7 +142,7 @@ const mockAdapter = {
   async signIn() { return { email: "demo@local" }; },
   async signOut() {}, async currentUser() { return { email: "demo@local" }; }, onAuthChange() { return { data: { subscription: { unsubscribe() {} } } }; },
   async getOrders() { try { return Object.values((JSON.parse(localStorage.getItem("jeilax_link_v1")) || {}).orders || {}); } catch { return []; } },
-  async updateStatus() {}, async requestInspection() {}, async sendMessage() {}, async judge() {}, async uploadPhoto() {}, async photoUrl() { return ""; }, subscribe() { return () => {}; },
+  async updateStatus() {}, async requestInspection() {}, async sendMessage() {}, async judge() {}, async uploadPhoto() {}, async photoUrl() { return ""; }, async changePassword() {}, subscribe() { return () => {}; },
 };
 
 const adapter = DATA_BACKEND === "mock" ? mockAdapter : supabaseAdapter;

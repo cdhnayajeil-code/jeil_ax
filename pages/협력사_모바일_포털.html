@@ -194,7 +194,7 @@
         <div id="barTitle" class="ttl">발주 목록</div>
         <div id="barSub" class="sub">한일정밀공업</div>
       </div>
-      <span class="bell" onclick="toast('새 알림 2건: 검수 반려 1, 신규 메시지 1')">🔔<b id="bellCnt">2</b></span>
+      <span class="bell" onclick="showAlerts()">🔔<b id="bellCnt"></b></span>
     </div>
     <div class="synctag">🔗 사내 대시보드 실시간 연계 ON — 등록 즉시 구매·품질·생산·사업관리에 반영</div>
     <div id="screen" class="screen"></div>
@@ -311,6 +311,7 @@ function openThread(no){ curOrder=orders.find(o=>o.no===no); view='thread'; rend
 function goBack(){ if(view==='detail') switchTab('orders'); else if(view==='thread') switchTab('messages'); else switchTab('orders'); }
 
 function render(){
+  updateBell();
   const showBack=(view==='detail'||view==='thread');
   $('#backBtn').classList.toggle('hidden', !showBack);
   $('#composer').classList.toggle('hidden', view!=='thread');
@@ -348,8 +349,16 @@ function poCard(o){
 }
 function setFilter(k){filter=k; render();}
 function setSearch(v){search=v; renderOrders();}
-function daysLeft(due){ const d=Math.ceil((new Date(due)-new Date('2026-06-25'))/86400000);
+function daysLeft(due){ const _t=new Date(); _t.setHours(0,0,0,0); const d=Math.ceil((new Date(due)-_t)/86400000);
   if(d<0) return `<b>${-d}일 경과</b>`; if(d===0) return `<b>오늘 마감</b>`; if(d<=3) return `<b>D-${d}</b>`; return `D-${d}`; }
+
+// 알림 집계: 검수 반려 사진 + 마지막이 사내(them)인 발주(미확인 메시지)
+function alertCounts(){ let rej=0, msg=0;
+  orders.forEach(o=>{ rej+=(o.photos||[]).filter(p=>p.chk==='rej').length;
+    if(o.msgs && o.msgs.length && o.msgs[o.msgs.length-1].who==='them') msg++; });
+  return { rej, msg, total: rej+msg }; }
+function updateBell(){ const c=alertCounts(); const b=$('#bellCnt'); if(b){ b.textContent=c.total||''; b.style.display=c.total?'flex':'none'; } }
+function showAlerts(){ const c=alertCounts(); toast(c.total?`알림 ${c.total}건 · 검수반려 ${c.rej} · 새 메시지 ${c.msg}`:'새 알림이 없습니다'); }
 
 function renderDetail(){
   const o=curOrder; const curIdx=STATUS_ORDER.indexOf(o.status);
@@ -478,12 +487,33 @@ function renderProfile(){
     <div class="prow"><span>로그인 계정</span><span class="v">${VENDOR.user||'-'}</span></div>
     <div class="prow"><span>연락처</span><span class="v">${VENDOR.phone}</span></div>
     <div class="prow"><span>사내 연계</span><span class="v" style="color:var(--green);font-weight:700">🔗 실시간 ON</span></div>
-    <button class="btn ghost block" style="margin-top:14px" onclick="resetLink()">🧹 연계 데이터 초기화(데모)</button>
+    <div style="font-size:11.5px;color:var(--amber);background:var(--softamber);border-radius:9px;padding:9px 12px;margin-top:14px">🔑 관리자가 발급한 임시 비밀번호를 쓰고 계시면, 본인 비밀번호로 변경해 주세요.</div>
+    <button class="btn pri block" style="margin-top:9px" onclick="openPwChange()">🔑 비밀번호 변경</button>
     <button class="btn ghost block" style="margin-top:9px" onclick="logout()">로그아웃</button>
     <div class="note">제일메디칼 협력사 발주·사진등록 포털 · 데모 v0.3 (하이브리드 앱 · 사내 연계)<br>등록 사진·상태·검수요청이 사내 외주 발주·검사 대시보드에 실시간 반영됩니다.</div></div>`;
 }
 function resetLink(){ toast('발주·계정 데이터는 사내 관리자 페이지에서 관리됩니다'); }
 async function logout(){ try{ await supabase.auth.signOut(); }catch(e){} location.replace('../app/vendor-login.html'); }
+
+// 본인 비밀번호 변경
+function openPwChange(){
+  const bg=document.createElement('div'); bg.className='sheet-bg'; bg.id='pwSheet';
+  bg.onclick=e=>{ if(e.target===bg) closePwSheet(); };
+  bg.innerHTML=`<div class="sheet"><div class="grab"></div><h3>비밀번호 변경</h3>
+    <div style="font-size:11.5px;color:var(--muted)">새 비밀번호로 변경합니다. 변경 후 다음 로그인부터 적용됩니다.</div>
+    <div class="lab">새 비밀번호 (8자 이상)</div><input id="pw1" type="password" autocomplete="new-password" style="width:100%;padding:11px 13px;border:1px solid var(--line);border-radius:11px;font-size:14px;background:var(--bg)">
+    <div class="lab">새 비밀번호 확인</div><input id="pw2" type="password" autocomplete="new-password" style="width:100%;padding:11px 13px;border:1px solid var(--line);border-radius:11px;font-size:14px;background:var(--bg)">
+    <div class="btn-row" style="margin-top:16px"><button class="btn ghost block" onclick="closePwSheet()">취소</button><button class="btn pri block" onclick="submitPwChange()">변경</button></div></div>`;
+  $('.phone').appendChild(bg);
+}
+function closePwSheet(){ const s=$('#pwSheet'); if(s) s.remove(); }
+async function submitPwChange(){
+  const p1=($('#pw1')||{}).value||'', p2=($('#pw2')||{}).value||'';
+  if(p1.length<8) return toast('비밀번호는 8자 이상이어야 합니다');
+  if(p1!==p2) return toast('비밀번호 확인이 일치하지 않습니다');
+  try{ await portalApi.changePassword(p1); closePwSheet(); toast('✅ 비밀번호가 변경되었습니다'); }
+  catch(e){ toast('변경 실패: '+(e.message||e)); }
+}
 
 let toastTimer;
 function toast(msg){ const t=$('#toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(toastTimer); toastTimer=setTimeout(()=>t.classList.remove('show'),2400); }
@@ -501,7 +531,7 @@ function toast(msg){ const t=$('#toast'); t.textContent=msg; t.classList.add('sh
   }catch(e){}
 })();
 /* 인라인 onclick(전역) 노출 — module 스코프 격리 대응 */
-Object.assign(window, { doLogin, goBack, toast, switchTab, openOrder, openThread, setFilter, setSearch, advanceStatus, cancelStatus, openUpload, pickTag, closeSheet, pickFiles, lightbox, delPhoto, openPhotoLightbox, sendMsg, resetLink, logout });
+Object.assign(window, { doLogin, goBack, toast, switchTab, openOrder, openThread, setFilter, setSearch, advanceStatus, cancelStatus, openUpload, pickTag, closeSheet, pickFiles, lightbox, delPhoto, openPhotoLightbox, sendMsg, resetLink, logout, showAlerts, openPwChange, closePwSheet, submitPwChange });
 
 /* init: 협력사 세션 확인 → 발주 로드 */
 initPortal();
