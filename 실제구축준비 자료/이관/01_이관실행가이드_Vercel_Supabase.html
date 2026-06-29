@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>01 실행 가이드 — JEIL AX 이관 관제 (Vercel+Supabase 단계별 이관 디테일 가이드)</title>
+<style>
+:root{--navy:#1a2f4e;--navy2:#27457a;--accent:#2f6fb3;--red:#b3402f;--green:#2e7d52;--amber:#9a6b1f;
+--ink:#222;--muted:#666;--line:#d8dee8;--bg:#f4f6f9;--soft:#eef2f8;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;color:var(--ink);background:var(--bg);line-height:1.65;font-size:15px;}
+.page{max-width:960px;margin:0 auto;background:#fff;padding:52px 60px;box-shadow:0 2px 14px rgba(0,0,0,.08);}
+.doc-label{display:inline-block;background:var(--navy);color:#fff;font-size:12px;letter-spacing:.16em;padding:5px 14px;border-radius:3px;margin-bottom:16px;}
+.docnav{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 26px;}
+.docnav a{font-size:12px;color:var(--navy2);border:1px solid var(--line);border-radius:20px;padding:4px 12px;text-decoration:none;background:var(--soft);}
+.docnav a:hover{background:var(--navy);color:#fff;}
+.docnav a.cur{background:var(--navy);color:#fff;border-color:var(--navy);}
+.md-link{font-size:13px;margin-bottom:22px;color:var(--muted);}
+.content h1{font-size:27px;color:var(--navy);line-height:1.35;margin:6px 0 18px;}
+.content h2{font-size:20px;color:var(--navy);margin:42px 0 14px;padding-bottom:9px;border-bottom:3px solid var(--navy);}
+.content h3{font-size:16px;color:var(--navy2);margin:24px 0 9px;}
+.content p{margin:0 0 12px;}
+.content ul,.content ol{margin:0 0 14px 22px;}
+.content li{margin-bottom:6px;}
+.content blockquote{background:var(--soft);border-left:5px solid var(--navy);border-radius:0 8px 8px 0;padding:14px 20px;margin:14px 0;color:#33425a;}
+.content blockquote p{margin:0 0 6px;}
+.content table{width:100%;border-collapse:collapse;margin:14px 0 20px;font-size:13.3px;}
+.content th{background:var(--navy);color:#fff;padding:9px 11px;text-align:left;font-weight:600;}
+.content td{padding:8px 11px;border-bottom:1px solid var(--line);vertical-align:top;}
+.content tr:nth-child(even) td{background:#fafbfd;}
+.content a{color:var(--accent);}
+.content code{background:var(--soft);border:1px solid var(--line);border-radius:4px;padding:1px 6px;font-size:12.4px;font-family:Consolas,'Courier New',monospace;}
+.content pre{background:#21252e;color:#e8eaf0;border-radius:8px;padding:16px 18px;font-size:12.4px;font-family:Consolas,'Courier New',monospace;overflow-x:auto;margin:12px 0 18px;line-height:1.55;}
+.content pre code{background:none;border:none;color:inherit;padding:0;}
+.content hr{border:none;border-top:1px solid var(--line);margin:30px 0;}
+.content strong{color:var(--navy2);}
+.footer{margin-top:50px;padding-top:16px;border-top:1px solid var(--line);font-size:12px;color:var(--muted);display:flex;justify-content:space-between;}
+@media print{body{background:#fff;}.page{box-shadow:none;padding:18px 0;max-width:100%;}.docnav{display:none;}.content h2{break-after:avoid;}.content table,.content pre,.content blockquote{break-inside:avoid;}}
+@media (max-width:720px){.page{padding:30px 20px;}}
+</style>
+</head>
+<body>
+<div class="page">
+  <span class="doc-label">JEIL AX 이관 관제 · 대외비</span>
+  <div class="docnav"><a href="index.html">🏠 이관 허브</a><a href="00_현재시스템_상태스냅샷.html">00 현황 스냅샷</a><a class="cur" href="01_이관실행가이드_Vercel_Supabase.html">01 실행 가이드</a><a href="02_Azure이관계획.html">02 Azure 계획</a><a href="03_이관진행상태.html">03 진행 상태</a><a href="README.md">README</a></div>
+  <p class="md-link">📄 Markdown 원본: <a href="01_이관실행가이드_Vercel_Supabase.md">01_이관실행가이드_Vercel_Supabase.md</a> · 허브 <a href="index.html">이관 대시보드</a></p>
+  <div class="content">
+<h1 id="01-vercel-supabase">01. 이관 실행 가이드 — Vercel + Supabase (데이터화 데모)</h1>
+<blockquote>
+<p>작성일: 2026-06-29 · 관리: 최동혁 · 전제: <strong>Vercel·Supabase 계정 생성 완료</strong>
+목표: GitHub Pages 정적 데모를 <strong>실제 DB가 도는 데모</strong>로 전환(비용 0). 운영(Azure) 이전이 "이식"이 되도록 스키마·RLS·인증 경계를 본선과 동일하게 깐다.
+관련: <code>00_현황스냅샷</code>, <code>08/03_실구축기획/02·03·07</code>, <code>CLAUDE.md §1·§3·§4·§5·§6·§8</code></p>
+</blockquote>
+<hr />
+<h2 id="0">0. 진행 원칙 (먼저 읽기)</h2>
+<ol>
+<li><strong>비용 0 유지</strong> — Vercel Hobby·Supabase Free 범위 내에서만. 유료 전환(Pro·과금 애드온·한도초과)은 <strong>사전 승인 후</strong>. MCP로 Supabase 프로젝트 생성 시 비용 확인 단계를 거친다.</li>
+<li><strong>비밀값 분리</strong> — <code>SERVICE_ROLE_KEY</code>·<code>ENTRA_CLIENT_SECRET</code>·DB 접속은 환경변수/시크릿에만. <strong>소스·문서·Git 금지</strong>(<code>CLAUDE.md §1</code>). 프론트엔 <code>ANON_KEY</code>만.</li>
+<li><strong>ERP 실데이터 금지</strong> — 데모는 <strong>마스킹 샘플만</strong>. 운영 MSSQL 직접 연계 안 함(<code>CLAUDE.md §4</code>).</li>
+<li><strong>RLS 먼저</strong> — 테이블 만들 때 <strong>RLS ON + 정책</strong>을 같이. 안 켜면 anon 키로 통째 노출.</li>
+<li><strong>OneDrive에서 직접 push 금지</strong> — 배포 빌드는 <code>/tmp</code> clone 후(<code>CLAUDE.md §8.3</code>). Vercel은 GitHub 연동 자동배포 권장.</li>
+<li>각 단계 끝에 <strong>체크포인트</strong>를 확인하고 <code>03_이관진행상태</code>에 결과를 기록한다.</li>
+</ol>
+<hr />
+<h2 id="a">A. 저장소·프로젝트 준비</h2>
+<ol>
+<li><strong>데모용 디렉터리 정리(권고)</strong> — 운영 코드와 혼재 방지(<code>CLAUDE.md §11-A</code>).
+   <code>/demo   ← 현 정적 데모(이관 출발점)
+   /app    ← Vercel에 올릴 프론트(데모 계승)
+   /api    ← 서버리스 함수(BFF·시드·검증)
+   /docs   ← 기획·이관 문서</code>
+   초기엔 기존 구조 유지 + <code>app/</code>에 <code>api.js</code>만 신설해도 무방. 전면 이동은 무리하지 않는다.</li>
+<li><strong><code>.gitignore</code> 보강</strong> — <code>.env</code>, <code>*.key</code>, <code>*.pem</code>, <code>node_modules/</code>, <code>.vercel/</code>, <code>supabase/.temp/</code> 추가(<code>CLAUDE.md §11-A</code>).</li>
+<li><strong><code>.env.example</code></strong> 추가(키 이름만, 값 없음) — <code>00_현황스냅샷 §7</code> 목록 기준.</li>
+</ol>
+<p><strong>체크포인트 A</strong> — <code>.env</code>가 <code>git status</code>에 안 잡히는지, anon/service 키가 코드에 없는지 확인.</p>
+<hr />
+<h2 id="b-supabase-rls">B. Supabase 프로젝트·스키마·RLS</h2>
+<h3 id="b-1">B-1. 프로젝트 생성</h3>
+<ul>
+<li>리전: 가까운 곳(예: Northeast Asia / Seoul 가능 리전). 조직 = 생성해둔 계정.</li>
+<li><strong>Free 플랜</strong>. 생성 시 비용 0 확인. DB 비밀번호는 시크릿 매니저에 보관.</li>
+<li>생성 후 <code>SUPABASE_URL</code>·<code>ANON_KEY</code>·<code>SERVICE_ROLE_KEY</code> 확보(키는 환경변수로만).</li>
+</ul>
+<h3 id="b-2">B-2. 스키마 (협력사 포털 우선)</h3>
+<p><code>08/03_실구축기획/02 §3</code> + <code>07 §5</code>를 적용. 단일 <code>public</code> + 접두사(<code>sp_</code>). 격리 키 <code>bp_cd</code>를 각 행에 비정규화.</p>
+<pre><code class="language-sql">-- 진행상태
+create table sp_order_state (
+  po_no text primary key,
+  bp_cd text not null,                 -- 격리 키(거래처)
+  status text not null,                -- new|prod|insp|done
+  step smallint not null,              -- 1~10 상태머신
+  updated_by text, updated_at timestamptz default now()
+);
+-- 사진 메타(원본은 Storage)
+create table sp_photo (
+  id bigserial primary key, po_no text not null, bp_cd text not null,
+  storage_path text not null, tag text, comment text,
+  uploaded_by text not null, confirmed boolean default false,
+  created_at timestamptz default now()
+);
+-- 양방향 메시지
+create table sp_message (
+  id bigserial primary key, po_no text not null, bp_cd text not null,
+  sender_role text not null,           -- supplier|internal
+  sender_id text not null, body text not null,
+  created_at timestamptz default now(), read_at timestamptz
+);
+-- 검수요청(협력사 생성)
+create table sp_insp_request (
+  id bigserial primary key, po_no text not null, bp_cd text not null,
+  insp_req_no text not null, requested_by text not null,
+  requested_at timestamptz default now(), cancelled boolean default false
+);
+-- 검수판정(사내 생성) — ERP에는 쓰지 않음
+create table sp_inspection (
+  po_no text primary key, bp_cd text not null,
+  result text not null, result_no text, judge_id text not null,
+  opinion text, judged_at timestamptz default now()
+);
+-- 판정 이력(누적, 수정 불가)
+create table sp_inspection_log (
+  id bigserial primary key, po_no text not null, bp_cd text not null,
+  result text not null, judge_id text not null,
+  opinion text, judged_at timestamptz default now()
+);
+</code></pre>
+<h3 id="b-3-rls">B-3. 클레임 헬퍼 + RLS (필수)</h3>
+<pre><code class="language-sql">-- 토큰 클레임에서 역할·허용 거래처 추출
+create or replace function auth.is_internal() returns boolean
+language sql stable as $$
+  select (auth.jwt() -&gt; 'app_metadata' -&gt;&gt; 'role') = 'internal';
+$$;
+create or replace function auth.vendor_bp() returns text[]
+language sql stable as $$
+  select coalesce((auth.jwt() -&gt; 'app_metadata' -&gt; 'vendor_bp'),'[]'::jsonb)::text[];
+$$;
+
+-- 모든 테이블 RLS ON + 정책 (예: order_state)
+alter table sp_order_state enable row level security;
+create policy internal_all on sp_order_state for all
+  using (auth.is_internal()) with check (auth.is_internal());
+create policy vendor_own on sp_order_state for all
+  using (bp_cd = any (auth.vendor_bp()))
+  with check (bp_cd = any (auth.vendor_bp()));
+</code></pre>
+<ul>
+<li><code>sp_photo</code>·<code>sp_message</code>·<code>sp_insp_request</code>에 같은 패턴.</li>
+<li><code>sp_inspection</code>·<code>sp_inspection_log</code>는 <strong>협력사 읽기만</strong>(<code>for select using (bp_cd = any(auth.vendor_bp()))</code>), 쓰기는 <code>internal</code>만.</li>
+</ul>
+<h3 id="b-4-storagerealtime">B-4. Storage·Realtime</h3>
+<ul>
+<li>버킷 <code>vendor-photos</code>(비공개). 경로 <code>{bp_cd}/{po_no}/{uuid}.ext</code>. Storage 정책으로 협력사는 자기 <code>bp_cd</code> 접두만. 노출은 단기 서명 URL.</li>
+<li>Realtime: <code>sp_*</code> 테이블 publication 활성. 구독도 RLS 적용 → 협력사는 자기 발주 변경만 수신.</li>
+</ul>
+<p><strong>체크포인트 B</strong> — <code>select</code> 시 RLS가 막는지(anon으로 빈 결과), 사진 업로드가 자기 경로만 되는지.</p>
+<hr />
+<h2 id="c-entra-supabase">C. 인증 — 사내 Entra / 협력사 Supabase</h2>
+<h3 id="c-1-entra-supabase-oidc">C-1. 사내(Entra → Supabase OIDC)</h3>
+<ul>
+<li>Supabase Auth → Providers에 <strong>Azure(Entra) OIDC</strong> 등록. tenant/client는 환경변수.</li>
+<li>로그인 성공 사용자에 <code>app_metadata.role='internal'</code>(+Entra 그룹). 기존 Entra PKCE 자산 계승.</li>
+</ul>
+<h3 id="c-2-supabase-auth">C-2. 협력사(Supabase Auth, 분리)</h3>
+<ul>
+<li>이메일/매직링크. 계정에 <code>app_metadata.role='vendor'</code>, <code>app_metadata.vendor_bp=['거래처코드',...]</code>.</li>
+<li>사내 테넌트와 <strong>완전 분리</strong>(<code>CLAUDE.md §5.5</code>). 초대/온보딩은 관리자 콘솔/스크립트.</li>
+</ul>
+<h3 id="c-3-rls">C-3. 커스텀 클레임 주입 (RLS 동작의 전제)</h3>
+<ul>
+<li><strong>Custom Access Token Hook</strong>으로 <code>role</code>·<code>vendor_bp</code>를 액세스 토큰에 심는다. 이게 있어야 B-3 RLS가 작동.</li>
+</ul>
+<p><strong>체크포인트 C</strong> — 협력사 토큰 디코드 시 <code>vendor_bp</code>가 들어오는지, 사내 토큰에 <code>role=internal</code>인지.</p>
+<hr />
+<h2 id="d-apijs-1">D. <code>api.js</code> 데이터 접근 모듈 (교체 지점 1곳)</h2>
+<p><code>CLAUDE.md §3.3</code>. 화면의 <code>localStorage</code>/<code>fetch</code>를 전부 이 모듈 경유로. 어댑터만 갈아끼운다.</p>
+<pre><code class="language-js">// app/api.js
+const adapter = supabaseAdapter; // ← mockAdapter | supabaseAdapter | azureAdapter
+export const portalApi = {
+  getOrders: ()=&gt;adapter.getOrders(),
+  updateStatus:(po,s,step)=&gt;adapter.updateStatus(po,s,step),
+  uploadPhoto:(po,file,meta)=&gt;adapter.uploadPhoto(po,file,meta),
+  sendMessage:(po,body)=&gt;adapter.sendMessage(po,body),
+  requestInspection:(po)=&gt;adapter.requestInspection(po),
+  judge:(po,result,opinion)=&gt;adapter.judge(po,result,opinion),
+  subscribe:(po,cb)=&gt;adapter.subscribe(po,cb),
+};
+export const auth = { login:adapter.login, logout:adapter.logout, currentUser:adapter.currentUser };
+</code></pre>
+<ul>
+<li><code>협력사_모바일_포털.html</code>·<code>외주발주_검사진행현황_2026.html</code>의 <code>jxLoad/jxSave/syncOut/syncIn</code>을 <code>portalApi</code> 호출로 치환.</li>
+<li>데모 키(<code>jeilax_link_v1</code>)는 <code>mockAdapter</code>에만 남기고 "데모 한정" 주석.</li>
+</ul>
+<p><strong>체크포인트 D</strong> — 화면이 <code>localStorage</code> 직접 접근을 더는 안 하는지(grep), 한 모듈만 바꿔 mock↔supabase 전환되는지.</p>
+<hr />
+<h2 id="e">E. 데이터 시드 (마스킹 샘플 적재)</h2>
+<ul>
+<li>기존 데모 샘플(발주 <code>PO+YYYYMMDD+seq</code>, 품목 PLT-AL5T·UNI-25A-S·ORG-P22N·BRG-6204Z, 거래처 마스킹)을 <code>sp_*</code>에 시드.</li>
+<li>시드는 서버측 스크립트(<code>SERVICE_ROLE_KEY</code>, 로컬/CI에서만)로. <strong>ERP 실데이터 금지</strong>.</li>
+<li>회귀 테스트 위해 데모와 동일 PO 키 유지(<code>08/03/02 §6</code>).</li>
+</ul>
+<p><strong>체크포인트 E</strong> — 사내 계정으로 전체 보임, 협력사 계정으로 자기 거래처만 보임.</p>
+<hr />
+<h2 id="f-vercel">F. Vercel 배포</h2>
+<ol>
+<li>Vercel에서 GitHub 저장소 <strong>Import</strong>(브랜치/디렉터리 지정). 자동배포.</li>
+<li><strong>환경변수</strong> 등록: <code>SUPABASE_URL</code>·<code>ANON_KEY</code>(+서버함수용 <code>SERVICE_ROLE_KEY</code>는 서버 스코프). 값은 Vercel UI에만.</li>
+<li><strong>데모 도메인</strong>: Vercel 기본(<code>*.vercel.app</code>) 또는 <code>ai-dev.jeilm.co.kr</code>(운영 <code>ai.jeilm.co.kr</code> 미사용). 도메인 확정은 <code>00 §8</code>.</li>
+<li>HTTPS 강제 확인(<code>isHttps()</code> 동작).</li>
+</ol>
+<p><strong>체크포인트 F</strong> — 배포 URL 접속, 로그인→발주 조회→사진/메시지/검수가 DB에 실제 반영되는지.</p>
+<hr />
+<h2 id="g-rls">G. 검증 — RLS 격리 (보안 게이트, 필수)</h2>
+<p><code>08/03_실구축기획/03 §4-3</code> 준용. 통과 못 하면 배포 중단.</p>
+<ul>
+<li>[ ] 협력사 A 토큰으로 협력사 B의 PO 직접 호출 → <strong>빈 결과/거부</strong></li>
+<li>[ ] <code>vendor_bp</code> 없는 계정 → 전체 빈 결과</li>
+<li>[ ] 사진·메시지·검수요청 <strong>쓰기</strong>도 자기 PO 외 차단</li>
+<li>[ ] anon 키 직접 REST 호출로 테이블 덤프 시도 → RLS에 막힘</li>
+<li>[ ] 검수 판정(<code>sp_inspection</code>) 쓰기는 사내만, 협력사는 읽기만</li>
+<li>[ ] 변경 시 <code>/security-review</code> 셀프 점검(<code>CLAUDE.md §6</code>)</li>
+</ul>
+<h3 id="entra-redirect-uri">관리자 작업 — Entra redirect URI 추가 (코드로 안 됨)</h3>
+<p>데모 호스트를 Entra SSO에 쓰려면 <strong>관리자가 Entra 앱 등록 → 인증 → SPA 플랫폼</strong>에 아래를 직접 추가해야 한다(<code>CLAUDE.md §5.2</code>, 누락 시 AADSTS50011):
+- <code>https://&lt;vercel-배포도메인&gt;/</code>
+- (<code>ai-dev.jeilm.co.kr</code> 사용 시) <code>https://ai-dev.jeilm.co.kr/</code></p>
+<blockquote>
+<p>Claude는 이 목록 제시까지만. <strong>실제 Entra 변경은 관리자가</strong> 수행.</p>
+</blockquote>
+<hr />
+<h2 id="h-definition-of-done">H. 완료 정의 (Definition of Done — 데모 데이터화)</h2>
+<ul>
+<li>협력사 포털·사내 대시보드가 <strong>Supabase 데이터</strong>로 양방향 동작(Realtime).</li>
+<li>사내=Entra / 협력사=Supabase 인증 분리, RLS 격리 검증 통과.</li>
+<li>사진=Storage, 비밀값=환경변수, ERP=마스킹 샘플.</li>
+<li><code>api.js</code> 단일 모듈로 추상화(Azure 전환 준비 완료).</li>
+<li><code>00 현황스냅샷</code>·<code>03 진행상태</code> 갱신.</li>
+</ul>
+<p>→ 이후 운영 전환은 <code>02_Azure이관계획</code>.</p>
+  </div>
+  <div class="footer"><span>JEIL M&amp;S · AI 포털 이관 관제 센터</span><span>01 실행 가이드 · 관리: 최동혁</span></div>
+</div>
+</body>
+</html>

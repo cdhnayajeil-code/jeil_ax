@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>협력사 포털 — 로그인 / 가입신청 · 제일엠앤에스</title>
+<style>
+:root{--navy:#1a2f4e;--navy2:#27457a;--accent:#2f6fb3;--red:#b3402f;--green:#2e7d52;--amber:#9a6b1f;--ink:#222;--muted:#667;--line:#dde3ec;--bg:#eef1f6;--soft:#f4f7fb;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Pretendard','Malgun Gothic',sans-serif;background:var(--bg);color:var(--ink);line-height:1.6;min-height:100dvh;display:flex;align-items:center;justify-content:center;padding:20px;}
+.card{width:100%;max-width:420px;background:#fff;border-radius:18px;box-shadow:0 8px 30px rgba(26,47,78,.16);overflow:hidden;}
+.head{background:linear-gradient(135deg,#1a2f4e,#27457a);color:#fff;padding:26px 26px 22px;}
+.head .badge{font-size:11px;letter-spacing:.16em;background:rgba(255,255,255,.16);padding:4px 11px;border-radius:20px;}
+.head h1{font-size:20px;margin:12px 0 3px;}
+.head p{font-size:12.5px;color:#bccadf;}
+.tabs{display:flex;border-bottom:1px solid var(--line);}
+.tab{flex:1;padding:14px;text-align:center;font-size:14px;font-weight:600;color:var(--muted);cursor:pointer;background:#fafbfd;border:none;}
+.tab.on{color:var(--navy);background:#fff;box-shadow:inset 0 -3px 0 var(--accent);}
+.body{padding:24px 26px 28px;}
+label{display:block;font-size:12.5px;color:var(--navy2);font-weight:600;margin:13px 0 5px;}
+input{width:100%;padding:11px 13px;border:1px solid var(--line);border-radius:10px;font-size:14px;background:var(--soft);}
+input:focus{outline:none;border-color:var(--accent);background:#fff;}
+.btn{width:100%;margin-top:20px;padding:13px;background:var(--navy);color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;}
+.btn:hover{background:var(--navy2);}
+.btn:disabled{opacity:.6;cursor:wait;}
+.hint{font-size:11.5px;color:var(--muted);margin-top:4px;}
+.msg{margin-top:16px;padding:12px 14px;border-radius:10px;font-size:13px;display:none;}
+.msg.show{display:block;}
+.msg.ok{background:#eaf5ee;color:var(--green);border:1px solid #cfe6d6;}
+.msg.err{background:#fbecea;color:var(--red);border:1px solid #f0cfca;}
+.msg.info{background:#eef3fb;color:var(--navy2);border:1px solid #d3e0f2;}
+.foot{text-align:center;font-size:11px;color:var(--muted);padding:0 26px 22px;}
+.hidden{display:none;}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="head">
+    <span class="badge">JEIL M&amp;S 협력사 포털</span>
+    <h1>협력사 로그인 / 가입</h1>
+    <p>발주·검사 협업을 위한 협력사 전용 계정입니다.</p>
+  </div>
+  <div class="tabs">
+    <button class="tab on" id="tabLogin">로그인</button>
+    <button class="tab" id="tabSignup">가입 신청</button>
+  </div>
+
+  <!-- 로그인 -->
+  <div class="body" id="paneLogin">
+    <label>이메일</label>
+    <input type="email" id="li_email" placeholder="name@company.com" autocomplete="username">
+    <label>비밀번호</label>
+    <input type="password" id="li_pw" placeholder="비밀번호" autocomplete="current-password">
+    <button class="btn" id="btnLogin">로그인</button>
+    <div class="msg" id="li_msg"></div>
+  </div>
+
+  <!-- 가입신청 -->
+  <div class="body hidden" id="paneSignup">
+    <label>이메일 *</label>
+    <input type="email" id="su_email" placeholder="담당자 이메일">
+    <label>비밀번호 *</label>
+    <input type="password" id="su_pw" placeholder="8자 이상">
+    <label>회사명(상호) *</label>
+    <input type="text" id="su_company" placeholder="사업자등록증 상의 상호">
+    <label>사업자등록번호 *</label>
+    <input type="text" id="su_bizno" placeholder="000-00-00000">
+    <label>담당자명</label>
+    <input type="text" id="su_name" placeholder="담당자 성함">
+    <label>연락처</label>
+    <input type="text" id="su_phone" placeholder="010-0000-0000">
+    <button class="btn" id="btnSignup">가입 신청</button>
+    <p class="hint">신청 후 ① 이메일 인증 → ② 제일엠앤에스 관리자 승인을 거쳐야 발주 정보에 접근할 수 있습니다.</p>
+    <div class="msg" id="su_msg"></div>
+  </div>
+  <div class="foot">© 제일엠앤에스 · 협력사 계정 문의: 구매팀</div>
+</div>
+
+<script type="module">
+import { supabase } from "./lib/supabaseClient.js";
+
+const $ = (id) => document.getElementById(id);
+const show = (el, type, html) => { el.className = "msg show " + type; el.innerHTML = html; };
+// Hook이 주입한 role/vendor_bp는 JWT(access_token)에 있으므로 직접 디코드
+function claimsOf(session) {
+  if (!session?.access_token) return {};
+  try { return JSON.parse(atob(session.access_token.split(".")[1])).app_metadata || {}; }
+  catch { return {}; }
+}
+
+// 탭 전환
+$("tabLogin").onclick = () => { $("tabLogin").classList.add("on"); $("tabSignup").classList.remove("on"); $("paneLogin").classList.remove("hidden"); $("paneSignup").classList.add("hidden"); };
+$("tabSignup").onclick = () => { $("tabSignup").classList.add("on"); $("tabLogin").classList.remove("on"); $("paneSignup").classList.remove("hidden"); $("paneLogin").classList.add("hidden"); };
+
+// 로그인
+$("btnLogin").onclick = async () => {
+  const email = $("li_email").value.trim(), password = $("li_pw").value;
+  if (!email || !password) return show($("li_msg"), "err", "이메일과 비밀번호를 입력하세요.");
+  $("btnLogin").disabled = true;
+  try {
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) throw error;
+    const am = claimsOf(data.session);
+    const role = am.role, bp = am.vendor_bp;
+    if (role === "vendor" && bp?.length) {
+      show($("li_msg"), "ok", `승인된 협력사 계정입니다(거래처 ${bp.join(", ")}). 발주 포털로 이동합니다…`);
+      setTimeout(() => location.href = "../pages/협력사_모바일_포털.html", 1200);
+    } else {
+      // 승인 전: 신청 상태 조회
+      const { data: app } = await supabase.from("vendor_application").select("status,review_note").eq("auth_user_id", data.user.id).maybeSingle();
+      if (app?.status === "rejected") show($("li_msg"), "err", `가입이 반려되었습니다. ${app.review_note ? "사유: " + app.review_note : "구매팀에 문의하세요."}`);
+      else show($("li_msg"), "info", "✅ 로그인됨 · ⏳ <b>관리자 승인 대기 중</b>입니다. 승인 후 다시 로그인하면 발주 정보에 접근할 수 있습니다.");
+    }
+  } catch (e) {
+    show($("li_msg"), "err", "로그인 실패: " + (e.message || e));
+  } finally { $("btnLogin").disabled = false; }
+};
+
+// 가입 신청
+$("btnSignup").onclick = async () => {
+  const email = $("su_email").value.trim(), password = $("su_pw").value;
+  const company = $("su_company").value.trim(), biz_no = $("su_bizno").value.trim();
+  const applicant_name = $("su_name").value.trim(), phone = $("su_phone").value.trim();
+  if (!email || !password || !company || !biz_no) return show($("su_msg"), "err", "필수 항목(*)을 입력하세요.");
+  if (password.length < 8) return show($("su_msg"), "err", "비밀번호는 8자 이상이어야 합니다.");
+  $("btnSignup").disabled = true;
+  try {
+    const { error } = await supabase.auth.signUp({
+      email, password,
+      options: { data: { company, biz_no, applicant_name, phone } },
+    });
+    if (error) throw error;
+    show($("su_msg"), "ok", "🎉 가입 신청 완료!<br>① 이메일로 보낸 <b>인증 링크</b>를 확인해 주세요.<br>② 이후 제일엠앤에스 관리자 <b>승인</b>이 완료되면 로그인 시 발주 정보에 접근할 수 있습니다.");
+  } catch (e) {
+    show($("su_msg"), "err", "가입 실패: " + (e.message || e));
+  } finally { $("btnSignup").disabled = false; }
+};
+</script>
+</body>
+</html>

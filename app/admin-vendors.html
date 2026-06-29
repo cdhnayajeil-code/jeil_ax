@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>협력사 계정 관리 — 관리자 · 제일엠앤에스</title>
+<style>
+:root{--navy:#1a2f4e;--navy2:#27457a;--accent:#2f6fb3;--red:#b3402f;--green:#2e7d52;--amber:#9a6b1f;--ink:#222;--muted:#667;--line:#dde3ec;--bg:#eef1f6;--soft:#f4f7fb;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Pretendard','Malgun Gothic',sans-serif;background:var(--bg);color:var(--ink);line-height:1.55;font-size:14px;}
+.top{background:linear-gradient(135deg,#1a2f4e,#27457a);color:#fff;padding:18px 26px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;}
+.top .badge{font-size:11px;letter-spacing:.14em;background:rgba(255,255,255,.16);padding:4px 11px;border-radius:20px;}
+.top h1{font-size:18px;margin-top:6px;}
+.top .who{font-size:12.5px;color:#cdd8ea;}
+.wrap{max-width:1180px;margin:0 auto;padding:24px 22px 60px;}
+.gate{max-width:380px;margin:60px auto;background:#fff;border-radius:16px;box-shadow:0 8px 28px rgba(26,47,78,.15);padding:30px 28px;}
+.gate h2{font-size:18px;color:var(--navy);margin-bottom:4px;}
+.gate p{font-size:12.5px;color:var(--muted);margin-bottom:14px;}
+label{display:block;font-size:12px;color:var(--navy2);font-weight:600;margin:11px 0 5px;}
+input,select{width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:9px;font-size:13.5px;background:var(--soft);}
+input:focus,select:focus{outline:none;border-color:var(--accent);background:#fff;}
+.btn{padding:9px 16px;background:var(--navy);color:#fff;border:none;border-radius:9px;font-size:13.5px;font-weight:700;cursor:pointer;}
+.btn:hover{background:var(--navy2);}
+.btn.sm{padding:6px 12px;font-size:12.5px;}
+.btn.ok{background:var(--green);}.btn.no{background:var(--red);}
+.btn:disabled{opacity:.55;cursor:wait;}
+.sec{background:#fff;border:1px solid var(--line);border-radius:14px;padding:20px 22px;margin-bottom:20px;}
+.sec h2{font-size:15.5px;color:var(--navy);margin-bottom:4px;}
+.sec .sub{font-size:12px;color:var(--muted);margin-bottom:14px;}
+table{width:100%;border-collapse:collapse;font-size:12.8px;}
+th{background:var(--navy);color:#fff;padding:8px 10px;text-align:left;font-weight:600;white-space:nowrap;}
+td{padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:middle;}
+tr:nth-child(even) td{background:#fafbfd;}
+.pill{font-size:11px;font-weight:700;padding:2px 9px;border-radius:20px;}
+.p-pending{background:#fbf3e3;color:var(--amber);}
+.p-approved{background:#eaf5ee;color:var(--green);}
+.p-rejected{background:#fbecea;color:var(--red);}
+.msg{margin:12px 0;padding:11px 14px;border-radius:9px;font-size:13px;display:none;}
+.msg.show{display:block;}
+.msg.ok{background:#eaf5ee;color:var(--green);border:1px solid #cfe6d6;}
+.msg.err{background:#fbecea;color:var(--red);border:1px solid #f0cfca;}
+.row-match{display:flex;gap:6px;align-items:center;}
+.row-match select{min-width:230px;}
+.hidden{display:none;}
+.muted{color:var(--muted);font-size:12px;}
+</style>
+</head>
+<body>
+
+<!-- 로그인 게이트 -->
+<div id="gate" class="gate">
+  <h2>관리자 로그인</h2>
+  <p>제일엠앤에스 관리자(사내) 계정만 접근할 수 있습니다.</p>
+  <label>이메일</label><input type="email" id="g_email" placeholder="name@jeilm.co.kr">
+  <label>비밀번호</label><input type="password" id="g_pw">
+  <button class="btn" id="g_btn" style="width:100%;margin-top:16px;">로그인</button>
+  <div class="msg" id="g_msg"></div>
+</div>
+
+<!-- 관리 화면 -->
+<div id="app" class="hidden">
+  <div class="top">
+    <div>
+      <span class="badge">협력사 계정 관리 · 관리자 전용</span>
+      <h1>협력사 가입 승인 / 마스터 관리</h1>
+    </div>
+    <div style="text-align:right">
+      <div class="who" id="whoami"></div>
+      <button class="btn sm" id="logout" style="margin-top:6px;background:rgba(255,255,255,.16)">로그아웃</button>
+    </div>
+  </div>
+  <div class="wrap">
+    <div class="msg" id="a_msg"></div>
+
+    <div class="sec">
+      <h2>가입 신청 <span id="cntPending" class="muted"></span></h2>
+      <div class="sub">신청자가 입력한 정보를 ERP 협력사 마스터와 대조해 거래처를 매칭하고 승인합니다. 승인 시 해당 거래처(bp_cd)의 발주만 접근 가능해집니다.</div>
+      <table>
+        <thead><tr><th>신청일</th><th>이메일</th><th>회사명(입력)</th><th>사업자번호(입력)</th><th>상태</th><th>ERP 협력사 매칭 → 승인</th></tr></thead>
+        <tbody id="appBody"><tr><td colspan="6" class="muted">불러오는 중…</td></tr></tbody>
+      </table>
+    </div>
+
+    <div class="sec">
+      <h2>ERP 협력사 마스터 <span id="cntVendor" class="muted"></span></h2>
+      <div class="sub">데모: ERP <code>B_BIZ_PARTNER</code> 샘플 17개사(상호 부분 마스킹·사업자번호 데모값). 운영 시 야간배치로 <code>erp_ro.biz_partner</code> 동기화.</div>
+      <table>
+        <thead><tr><th>거래처코드</th><th>협력사명</th><th>사업자번호</th><th>상태</th></tr></thead>
+        <tbody id="vmBody"><tr><td colspan="4" class="muted">불러오는 중…</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+import { supabase } from "./lib/supabaseClient.js";
+import { SUPABASE_URL, SUPABASE_ANON_KEY } from "./config.js";
+
+const $ = (id) => document.getElementById(id);
+const show = (el, type, html) => { el.className = "msg show " + type; el.innerHTML = html; };
+let VENDORS = [];
+
+// Hook이 주입한 클레임은 JWT(access_token)에 있으므로 토큰을 직접 디코드해 읽는다
+function claimsOf(session) {
+  if (!session?.access_token) return {};
+  try { return JSON.parse(atob(session.access_token.split(".")[1])).app_metadata || {}; }
+  catch { return {}; }
+}
+
+async function boot() {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) return;
+  if (claimsOf(session).role === "internal") return enterApp(session.user);
+  show($("g_msg"), "err", "이 계정은 관리자(사내) 권한이 없습니다. 로그아웃 후 관리자 계정으로 로그인하세요.");
+}
+function enterApp(user) {
+  $("gate").classList.add("hidden"); $("app").classList.remove("hidden");
+  $("whoami").textContent = user.email + " (관리자)";
+  loadVendors(); loadApps();
+}
+
+$("g_btn").onclick = async () => {
+  const email = $("g_email").value.trim(), password = $("g_pw").value;
+  if (!email || !password) return show($("g_msg"), "err", "이메일/비밀번호를 입력하세요.");
+  $("g_btn").disabled = true;
+  try {
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) throw error;
+    if (claimsOf(data.session).role !== "internal") {
+      show($("g_msg"), "err", "관리자 권한이 없는 계정입니다. (Access Token Hook 활성화 + 사내 도메인/role=internal 필요)");
+      return;
+    }
+    enterApp(data.user);
+  } catch (e) { show($("g_msg"), "err", "로그인 실패: " + (e.message || e)); }
+  finally { $("g_btn").disabled = false; }
+};
+$("logout").onclick = async () => { await supabase.auth.signOut(); location.reload(); };
+
+async function loadVendors() {
+  const { data, error } = await supabase.from("vendor_master").select("*").order("bp_nm");
+  if (error) return show($("a_msg"), "err", "협력사 마스터 조회 실패: " + error.message);
+  VENDORS = data || [];
+  $("cntVendor").textContent = `(${VENDORS.length}개사)`;
+  $("vmBody").innerHTML = VENDORS.map(v =>
+    `<tr><td>${v.bp_cd}</td><td>${v.bp_nm}</td><td>${v.biz_no || "-"}</td><td>${v.active ? "활성" : "비활성"}</td></tr>`
+  ).join("") || `<tr><td colspan="4" class="muted">없음</td></tr>`;
+}
+
+async function loadApps() {
+  const { data, error } = await supabase.from("vendor_application").select("*").order("created_at", { ascending: false });
+  if (error) return show($("a_msg"), "err", "신청 조회 실패: " + error.message);
+  const apps = data || [];
+  $("cntPending").textContent = `(대기 ${apps.filter(a => a.status === "pending").length}건 / 전체 ${apps.length}건)`;
+  const opts = VENDORS.map(v => `<option value="${v.bp_cd}">${v.bp_cd} · ${v.bp_nm} · ${v.biz_no || ""}</option>`).join("");
+  $("appBody").innerHTML = apps.map(a => {
+    const dt = new Date(a.created_at).toLocaleDateString("ko-KR");
+    const st = `<span class="pill p-${a.status}">${({pending:"승인대기",approved:"승인됨",rejected:"반려"})[a.status]}</span>`;
+    let action;
+    if (a.status === "pending") {
+      action = `<div class="row-match">
+        <select id="sel_${a.id}"><option value="">— ERP 협력사 선택 —</option>${opts}</select>
+        <button class="btn sm ok" data-approve="${a.id}">승인</button>
+        <button class="btn sm no" data-reject="${a.id}">반려</button></div>`;
+    } else {
+      action = `<span class="muted">${a.matched_bp_cd ? "→ " + a.matched_bp_cd + " · " : ""}${a.reviewed_by || ""}</span>`;
+    }
+    return `<tr><td>${dt}</td><td>${a.email}</td><td>${a.company_input || "-"}</td><td>${a.biz_no_input || "-"}</td><td>${st}</td><td>${action}</td></tr>`;
+  }).join("") || `<tr><td colspan="6" class="muted">신청 없음</td></tr>`;
+
+  $("appBody").querySelectorAll("[data-approve]").forEach(b => b.onclick = () => review(b.dataset.approve, "approve"));
+  $("appBody").querySelectorAll("[data-reject]").forEach(b => b.onclick = () => review(b.dataset.reject, "reject"));
+}
+
+async function review(id, action) {
+  const matched_bp_cd = action === "approve" ? ($("sel_" + id)?.value || "") : "";
+  if (action === "approve" && !matched_bp_cd) return show($("a_msg"), "err", "승인하려면 ERP 협력사를 선택하세요.");
+  const note = action === "reject" ? (prompt("반려 사유(선택):") || "") : "";
+  const { data: { session } } = await supabase.auth.getSession();
+  try {
+    const res = await fetch(SUPABASE_URL + "/functions/v1/approve-vendor", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "apikey": SUPABASE_ANON_KEY, "Authorization": "Bearer " + session.access_token },
+      body: JSON.stringify({ application_id: id, action, matched_bp_cd, note }),
+    });
+    const out = await res.json();
+    if (!res.ok) throw new Error(out.error || res.status);
+    show($("a_msg"), "ok", action === "approve"
+      ? `✅ 승인 완료 → 거래처 ${out.bp_cd}. (협력사는 다시 로그인하면 발주 접근 권한이 반영됩니다.)`
+      : "반려 처리되었습니다.");
+    loadApps();
+  } catch (e) { show($("a_msg"), "err", "처리 실패: " + (e.message || e)); }
+}
+
+boot();
+</script>
+</body>
+</html>

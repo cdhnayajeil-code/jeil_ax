@@ -136,6 +136,10 @@
     <div class="rq">"협력사발주포털은 모바일에서 접속해도 자연스럽게 보이도록 하이브리드 앱 형태로 업데이트하고 최신 트렌드에 맞게 적용"</div>
     <div class="ra"><b>반응형 전환</b>: 실제 모바일(폭 ≤600px)에서는 폰 목업 베젤·노치를 제거하고 <b>풀스크린(100dvh + safe-area-inset)</b> 엣지투엣지 앱으로 렌더, 데스크톱에서는 발표용 폰 목업 유지. <b>PWA(하이브리드 앱)</b>: theme-color·apple-mobile-web-app-capable·status-bar 메타 + 동적 <code>manifest</code>(standalone·앱 아이콘) 주입으로 브라우저 메뉴를 통한 <b>"홈 화면에 추가" 설치 지원</b>(별도 설치 배너/버튼은 두지 않음 — 화면 정리). <b>모던 인터랙션</b>: 하단 탭바 backdrop-blur·활성 탭 스프링 애니메이션, 동적 뷰포트(dvh)·overscroll 제어·확대 차단. 데모 원본·<code>pages/</code> 배포본·통합본 동기화 재빌드.</div></div>
 
+  <div class="req"><div class="rh">⑫ 데모 데이터화 배포 전략 — 임시 Vercel+Supabase → Azure 전환</div>
+    <div class="rq">"마지막에 반영한 부분을 GitHub에 데이터화하는 게 문제가 되어, 데모는 비용이 들지 않도록 일시적으로 Vercel에 배포하고 Supabase 데이터를 쓰다가 이후 MS Azure에 적용하는 방식으로 검토"</div>
+    <div class="ra"><b>GitHub Pages 한계 진단</b>: 정적 호스팅이라 백엔드·DB가 없어 <code>jeilax_link_v1</code>(상태·사진·메시지·검수) 영속·공유 불가, 데이터를 Git에 커밋하는 것도 부적합(<code>CLAUDE.md §1</code>). <b>3단계 배포 전략 확정</b>: ① GitHub Pages(현재) → ② <b>Vercel + Supabase(무료 데모)</b> → ③ <b>Azure(운영)</b>. ②와 ③의 데이터모델·RLS·인증 경계를 동일하게 가져가 "이식"이 되게 설계. <b>인증 분리(데모 한정 D1′)</b>: 사내=Entra(OIDC로 Supabase 연결)·협력사=Supabase Auth(별도, <code>CLAUDE.md §5.5</code>), <code>app_metadata.role/vendor_bp</code> 커스텀 클레임 + RLS로 협력사 자기 발주만. <b>Supabase 구체화</b>: 02 <code>sub_portal</code> 스키마를 RLS·Storage(사진)·Realtime(양방향)으로, 실시간은 <code>storage</code> 이벤트 대체. <b>전환 비용 최소화</b>: 데이터 접근을 <code>api.js</code> 단일 모듈로 모아 mock→Supabase→Azure 어댑터만 교체. <b>무료 가드레일</b>: Vercel Hobby 비상업·Supabase Free pause/용량 한계 인지, 유료 전환은 사전 승인, ERP 실데이터 미반영(마스킹 샘플만). → 신규 문서 <code>03_실구축기획/07_데모배포전략_Vercel_Supabase_Azure전환</code>(md+html), 빌드·README 반영.</div></div>
+
   <h2 id="s3"><span class="num">3</span>산출물 목록 및 폴더 구조</h2>
   <div class="tree">08_협력사발주포털/                         ← 프로젝트 홈
 ├─ 00_종합정리_요구사항이력.html          ← 본 문서

@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>03 진행 상태 — JEIL AX 이관 관제 (페이즈·체크리스트·작업로그·이슈(지속 갱신))</title>
+<style>
+:root{--navy:#1a2f4e;--navy2:#27457a;--accent:#2f6fb3;--red:#b3402f;--green:#2e7d52;--amber:#9a6b1f;
+--ink:#222;--muted:#666;--line:#d8dee8;--bg:#f4f6f9;--soft:#eef2f8;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;color:var(--ink);background:var(--bg);line-height:1.65;font-size:15px;}
+.page{max-width:960px;margin:0 auto;background:#fff;padding:52px 60px;box-shadow:0 2px 14px rgba(0,0,0,.08);}
+.doc-label{display:inline-block;background:var(--navy);color:#fff;font-size:12px;letter-spacing:.16em;padding:5px 14px;border-radius:3px;margin-bottom:16px;}
+.docnav{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 26px;}
+.docnav a{font-size:12px;color:var(--navy2);border:1px solid var(--line);border-radius:20px;padding:4px 12px;text-decoration:none;background:var(--soft);}
+.docnav a:hover{background:var(--navy);color:#fff;}
+.docnav a.cur{background:var(--navy);color:#fff;border-color:var(--navy);}
+.md-link{font-size:13px;margin-bottom:22px;color:var(--muted);}
+.content h1{font-size:27px;color:var(--navy);line-height:1.35;margin:6px 0 18px;}
+.content h2{font-size:20px;color:var(--navy);margin:42px 0 14px;padding-bottom:9px;border-bottom:3px solid var(--navy);}
+.content h3{font-size:16px;color:var(--navy2);margin:24px 0 9px;}
+.content p{margin:0 0 12px;}
+.content ul,.content ol{margin:0 0 14px 22px;}
+.content li{margin-bottom:6px;}
+.content blockquote{background:var(--soft);border-left:5px solid var(--navy);border-radius:0 8px 8px 0;padding:14px 20px;margin:14px 0;color:#33425a;}
+.content blockquote p{margin:0 0 6px;}
+.content table{width:100%;border-collapse:collapse;margin:14px 0 20px;font-size:13.3px;}
+.content th{background:var(--navy);color:#fff;padding:9px 11px;text-align:left;font-weight:600;}
+.content td{padding:8px 11px;border-bottom:1px solid var(--line);vertical-align:top;}
+.content tr:nth-child(even) td{background:#fafbfd;}
+.content a{color:var(--accent);}
+.content code{background:var(--soft);border:1px solid var(--line);border-radius:4px;padding:1px 6px;font-size:12.4px;font-family:Consolas,'Courier New',monospace;}
+.content pre{background:#21252e;color:#e8eaf0;border-radius:8px;padding:16px 18px;font-size:12.4px;font-family:Consolas,'Courier New',monospace;overflow-x:auto;margin:12px 0 18px;line-height:1.55;}
+.content pre code{background:none;border:none;color:inherit;padding:0;}
+.content hr{border:none;border-top:1px solid var(--line);margin:30px 0;}
+.content strong{color:var(--navy2);}
+.footer{margin-top:50px;padding-top:16px;border-top:1px solid var(--line);font-size:12px;color:var(--muted);display:flex;justify-content:space-between;}
+@media print{body{background:#fff;}.page{box-shadow:none;padding:18px 0;max-width:100%;}.docnav{display:none;}.content h2{break-after:avoid;}.content table,.content pre,.content blockquote{break-inside:avoid;}}
+@media (max-width:720px){.page{padding:30px 20px;}}
+</style>
+</head>
+<body>
+<div class="page">
+  <span class="doc-label">JEIL AX 이관 관제 · 대외비</span>
+  <div class="docnav"><a href="index.html">🏠 이관 허브</a><a href="00_현재시스템_상태스냅샷.html">00 현황 스냅샷</a><a href="01_이관실행가이드_Vercel_Supabase.html">01 실행 가이드</a><a href="02_Azure이관계획.html">02 Azure 계획</a><a class="cur" href="03_이관진행상태.html">03 진행 상태</a><a href="README.md">README</a></div>
+  <p class="md-link">📄 Markdown 원본: <a href="03_이관진행상태.md">03_이관진행상태.md</a> · 허브 <a href="index.html">이관 대시보드</a></p>
+  <div class="content">
+<h1 id="03">03. 이관 진행 상태 (추적표)</h1>
+<blockquote>
+<p><strong>최종 갱신: 2026-06-29</strong> · 관리: 최동혁
+이 문서는 <strong>작업할 때마다 갱신하는 진행 로그</strong>다. 단계 완료 시 체크하고, §3 작업로그에 날짜·내용을 남긴다. 시스템 상태가 바뀌면 <code>00_현황스냅샷</code>도 함께 갱신한다.</p>
+</blockquote>
+<hr />
+<h2 id="1">1. 현재 위치</h2>
+<pre><code>[1] GitHub Pages ───►███ [2] Vercel+Supabase ───────► [3] Azure 운영
+   (정적 데모)          데이터화 (진행 중)              (미착수)
+</code></pre>
+<ul>
+<li><strong>현재 페이즈: [2] 데이터화 — 문서/계획 수립 완료, 구현 착수 전</strong></li>
+<li>계정: Vercel ✅ 생성 · Supabase ✅ 생성 / 프로젝트 ⬜ 미생성</li>
+</ul>
+<hr />
+<h2 id="2">2. 단계별 체크리스트</h2>
+<h3 id="_1">사전 (문서·전략)</h3>
+<ul>
+<li>[x] 배포 전략 확정(<code>08/03_실구축기획/07</code>)</li>
+<li>[x] 이관 관제 문서 세트 작성(본 <code>이관/</code> 폴더)</li>
+<li>[x] 현황 대장 작성(<code>00_현황스냅샷</code>)</li>
+<li>[x] 실행 가이드 작성(<code>01_실행가이드</code>)</li>
+<li>[x] Azure 계획 작성(<code>02_Azure이관계획</code>)</li>
+</ul>
+<h3 id="a-01-a">A. 저장소 준비 (<code>01 §A</code>)</h3>
+<ul>
+<li>[x] <code>.gitignore</code> 보강(.env/키/node_modules/.vercel) — 2026-06-29</li>
+<li>[x] <code>.env.example</code> 추가(키 이름만, Supabase URL 주석) — 2026-06-29</li>
+<li>[ ] (선택) 디렉터리 분리 demo/app/api/docs</li>
+</ul>
+<h3 id="b-supabase-01-b">B. Supabase (<code>01 §B</code>)</h3>
+<ul>
+<li>[x] 프로젝트 생성(Free) — <code>dvzohdqtjzocgcclgwro</code> (URL: https://dvzohdqtjzocgcclgwro.supabase.co)</li>
+<li>[x] 마이그레이션 SQL 작성 — <code>sql/01_schema_rls.sql</code> (테이블·헬퍼·RLS·Realtime·Storage 일괄)</li>
+<li>[x] 스키마/RLS <strong>적용</strong> — 대시보드 SQL Editor 수동 (헬퍼 함수 <code>auth</code>→<code>public</code> 수정 후 성공) 2026-06-29</li>
+<li>[x] 검증(<code>sql/02_verify.sql</code>) — 객체 생성 확인</li>
+</ul>
+<h3 id="c-01-c">C. 인증 (<code>01 §C</code>)</h3>
+<ul>
+<li>[x] <strong>RLS 격리 테스트 [A]~[E] 전부 통과</strong> (MCP 직접 실행) — 2026-06-29</li>
+<li>[x] 보안 어드바이저 <strong>클린</strong> — 함수 search_path 고정 + <code>rls_auto_enable</code> 실행권한 회수</li>
+<li>[x] Custom Access Token Hook <strong>함수 생성</strong>(<code>sql/04_auth_hook.sql</code>)</li>
+<li>[ ] Hook <strong>대시보드 활성화</strong> — Authentication → Hooks → Customize Access Token (사용자 작업)</li>
+<li>[ ] 협력사 Supabase Auth(이메일/매직링크) + 테스트 계정 app_metadata</li>
+<li>[ ] 사내 Entra OIDC → Supabase 연결 (F 배포 후, redirect URI는 관리자가 Entra 등록)</li>
+</ul>
+<h3 id="c">C′. 협력사 온보딩 (이메일 가입 → 승인) ★신규</h3>
+<ul>
+<li>[x] RLS 전수 재점검 — 7→<strong>10 테이블</strong> 모두 RLS ON + 정책(어드바이저 클린)</li>
+<li>[x] <code>vendor_master</code>(ERP 협력사 마스터) + <code>vendor_application</code>(가입신청) 스키마 + RLS</li>
+<li>[x] ERP <code>B_BIZ_PARTNER</code> <strong>17개사 데이터화</strong>(상호 부분마스킹·사업자번호 데모값)</li>
+<li>[x] 가입 시 신청서 자동생성 트리거(<code>handle_new_vendor_signup</code>)</li>
+<li>[x] 승인 Edge Function <code>approve-vendor</code> 배포(service_role, 관리자 JWT 검증)</li>
+<li>[x] 페이지: <code>app/vendor-login.html</code>(협력사 가입/로그인), <code>app/admin-vendors.html</code>(관리자 승인) — 대시보드와 별개</li>
+<li>[x] Hook 활성화 + 관리자 계정 <code>dh.choi@jeilm.co.kr</code> 생성 — Hook이 role=internal 자동주입 검증 완료</li>
+<li>[x] 페이지 권한 판정을 JWT 디코드 방식으로 보강(getUser 대신 access_token 클레임)</li>
+<li>[x] <strong>사내 포털(<code>04_챗봇_포털_데모UI.html</code>) 운영페이지에 카드 통합</strong> — "협력사 계정 관리(관리자)" + "협력사 가입·로그인(신규)", 대시보드·협력사 모바일 포털 옆에 배치</li>
+<li>[ ] E2E 검증: 협력사 가입 → 인증 → 관리자 승인 → 협력사 발주 접근</li>
+<li>[ ] gh-pages 배포 시 <code>app/</code> 동반 필요(F단계) — 사내포털에서 카드 링크 동작</li>
+</ul>
+<h3 id="d-apijs-01-d">D. api.js (<code>01 §D</code>)</h3>
+<ul>
+<li>[x] <code>app/config.js</code>·<code>app/lib/supabaseClient.js</code>·<code>app/lib/api.js</code> 작성 (supabase/mock 어댑터)</li>
+<li>[x] 데모용 발주헤더 <code>sp_order_header</code> 스키마 보강 + RLS + Realtime</li>
+<li>[ ] 협력사 포털·대시보드 인라인 JS → <code>portalApi</code> 치환 (회귀 위험 큰 작업, 다음)</li>
+<li>[ ] 로그인 + 시드 후 브라우저 실동작 검증</li>
+</ul>
+<h3 id="e-01-e">E. 데이터 시드 (<code>01 §E</code>)</h3>
+<ul>
+<li>[ ] 마스킹 샘플 시드(동일 PO 키)</li>
+</ul>
+<h3 id="f-vercel-01-f">F. Vercel 배포 (<code>01 §F</code>)</h3>
+<ul>
+<li>[ ] GitHub Import·자동배포</li>
+<li>[ ] 환경변수 등록(anon 프론트/service 서버)</li>
+<li>[ ] 데모 도메인 결정·연결</li>
+<li>[ ] HTTPS 동작</li>
+</ul>
+<h3 id="g-01-g">G. 검증 (<code>01 §G</code> — 보안 게이트)</h3>
+<ul>
+<li>[ ] RLS 격리 테스트 5종 통과</li>
+<li>[ ] <code>/security-review</code> 셀프 점검</li>
+<li>[ ] <strong>관리자: Entra redirect URI 추가</strong>(데모 호스트)</li>
+</ul>
+<hr />
+<h2 id="3">3. 작업 로그</h2>
+<table>
+<thead>
+<tr>
+<th>일자</th>
+<th>작업</th>
+<th>결과</th>
+<th>다음</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>2026-06-29</td>
+<td>배포 전략 결정(Vercel+Supabase→Azure), 인증 분리(사내 Entra/협력사 Supabase)</td>
+<td><code>08/03/07</code> 신규 문서 + 요구사항 이력 ⑫</td>
+<td>이관 관제 폴더 구축</td>
+</tr>
+<tr>
+<td>2026-06-29</td>
+<td><code>이관/</code> 관제 센터 구축 — 00 현황·01 가이드·02 Azure·03 진행·index 허브</td>
+<td>문서 세트 완료</td>
+<td>A 저장소 준비 착수</td>
+</tr>
+<tr>
+<td>2026-06-29</td>
+<td>A 저장소 준비(.gitignore·.env.example) + B 마이그레이션 SQL 작성(<code>sql/01_schema_rls.sql</code>)</td>
+<td>A 완료 / B SQL 준비</td>
+<td>MCP 권한 블로커 → 적용 경로 결정</td>
+</tr>
+<tr>
+<td>2026-06-29</td>
+<td>B 스키마/RLS 대시보드 수동 적용 성공(헬퍼 <code>auth</code>→<code>public</code> 수정). 데모 도메인=Vercel 기본으로 결정</td>
+<td>B 완료</td>
+<td>C 인증·RLS 격리 검증</td>
+</tr>
+<tr>
+<td>2026-06-29</td>
+<td>MCP 로컬 연결(<code>.mcp.json</code> supabase-jeilax, project-ref 고정) + RLS 격리테스트 [A]~[E] 통과 + 보안 어드바이저 클린</td>
+<td>C 검증 완료</td>
+<td>Hook 활성화·협력사계정 → D api.js</td>
+</tr>
+<tr>
+<td>2026-06-29</td>
+<td>D 착수 — <code>sp_order_header</code> 보강 + <code>app/</code> 모듈(config·supabaseClient·api.js, supabase/mock 어댑터) 작성</td>
+<td>D 모듈 완료</td>
+<td>화면 치환·시드·로그인 검증</td>
+</tr>
+<tr>
+<td>2026-06-29</td>
+<td>C′ 협력사 온보딩 — vendor_master/application+RLS+트리거, ERP 17개사 시드, approve-vendor Edge Function, 가입/관리자 페이지 2종</td>
+<td>온보딩 구축 완료</td>
+<td>사용자: Hook·관리자계정·SMTP → E2E</td>
+</tr>
+<tr>
+<td>2026-06-29</td>
+<td>Hook 활성화·관리자계정(dh.choi) 검증, JWT 디코드 보강, 사내포털 04에 협력사 관리/가입 카드 통합</td>
+<td>포털 통합 완료</td>
+<td>E2E 검증 / F 배포(app 동반)</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="4">4. 이슈·블로커</h2>
+<table>
+<thead>
+<tr>
+<th>상태</th>
+<th>항목</th>
+<th>비고</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>🟢 해소</td>
+<td>Supabase MCP 권한</td>
+<td><strong>프로젝트 로컬 <code>.mcp.json</code>(supabase-jeilax, PAT, project-ref 고정)로 연결 완료.</strong> 이제 Claude가 직접 SQL 실행 가능</td>
+</tr>
+<tr>
+<td>🟢 결정됨</td>
+<td>데모 도메인</td>
+<td><strong>Vercel 기본 도메인</strong>으로 진행. 추후 <code>ai-dev.jeilm.co.kr</code> 교체 가능</td>
+</tr>
+<tr>
+<td>🟡 대기</td>
+<td>Entra redirect URI 추가(관리자)</td>
+<td>데모 호스트 확정 후</td>
+</tr>
+<tr>
+<td>⚪ 예정</td>
+<td>Entra Client Secret 갱신</td>
+<td>2026-12-09 만료</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="5">5. 의사결정 대기 (경영진/관리자)</h2>
+<ul>
+<li><strong>D-도메인</strong>: 데모 도메인 정책.</li>
+<li><strong>D1(협력사 인증)</strong>: 운영 전환 시 Entra B2B vs 전용(<code>08/03/03</code>). 데모는 Supabase로 확정.</li>
+<li><strong>D-호스팅</strong>: 운영 Azure 구성(<code>실제구축준비 자료/01</code>).</li>
+<li><strong>D-비용</strong>: Azure 전환 예산 승인 시점.</li>
+</ul>
+<hr />
+<h2 id="6">6. 관리 규칙 (이 폴더 운영)</h2>
+<ol>
+<li>시스템/배포/데이터/계정이 바뀌면 → <strong><code>00_현황스냅샷</code> 갱신</strong> + §9 이력.</li>
+<li>작업을 하면 → <strong>본 문서 체크리스트 체크 + §3 작업로그</strong> 기록.</li>
+<li>새 결정/구조 변경 → 해당 가이드(<code>01</code>/<code>02</code>) 반영, 필요 시 <code>08/03/07</code>·<code>CLAUDE.md</code> 동기화.</li>
+<li>문서 수정 후 → <code>python _build_html.py</code>로 HTML 재생성.</li>
+<li>비밀값은 어떤 문서에도 적지 않는다(<code>CLAUDE.md §1</code>).</li>
+</ol>
+  </div>
+  <div class="footer"><span>JEIL M&amp;S · AI 포털 이관 관제 센터</span><span>03 진행 상태 · 관리: 최동혁</span></div>
+</div>
+</body>
+</html>

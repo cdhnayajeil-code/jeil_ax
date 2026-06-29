@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>02 Azure 계획 — JEIL AX 이관 관제 (Supabase→Azure 운영 전환 매핑·절차·롤백)</title>
+<style>
+:root{--navy:#1a2f4e;--navy2:#27457a;--accent:#2f6fb3;--red:#b3402f;--green:#2e7d52;--amber:#9a6b1f;
+--ink:#222;--muted:#666;--line:#d8dee8;--bg:#f4f6f9;--soft:#eef2f8;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;color:var(--ink);background:var(--bg);line-height:1.65;font-size:15px;}
+.page{max-width:960px;margin:0 auto;background:#fff;padding:52px 60px;box-shadow:0 2px 14px rgba(0,0,0,.08);}
+.doc-label{display:inline-block;background:var(--navy);color:#fff;font-size:12px;letter-spacing:.16em;padding:5px 14px;border-radius:3px;margin-bottom:16px;}
+.docnav{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 26px;}
+.docnav a{font-size:12px;color:var(--navy2);border:1px solid var(--line);border-radius:20px;padding:4px 12px;text-decoration:none;background:var(--soft);}
+.docnav a:hover{background:var(--navy);color:#fff;}
+.docnav a.cur{background:var(--navy);color:#fff;border-color:var(--navy);}
+.md-link{font-size:13px;margin-bottom:22px;color:var(--muted);}
+.content h1{font-size:27px;color:var(--navy);line-height:1.35;margin:6px 0 18px;}
+.content h2{font-size:20px;color:var(--navy);margin:42px 0 14px;padding-bottom:9px;border-bottom:3px solid var(--navy);}
+.content h3{font-size:16px;color:var(--navy2);margin:24px 0 9px;}
+.content p{margin:0 0 12px;}
+.content ul,.content ol{margin:0 0 14px 22px;}
+.content li{margin-bottom:6px;}
+.content blockquote{background:var(--soft);border-left:5px solid var(--navy);border-radius:0 8px 8px 0;padding:14px 20px;margin:14px 0;color:#33425a;}
+.content blockquote p{margin:0 0 6px;}
+.content table{width:100%;border-collapse:collapse;margin:14px 0 20px;font-size:13.3px;}
+.content th{background:var(--navy);color:#fff;padding:9px 11px;text-align:left;font-weight:600;}
+.content td{padding:8px 11px;border-bottom:1px solid var(--line);vertical-align:top;}
+.content tr:nth-child(even) td{background:#fafbfd;}
+.content a{color:var(--accent);}
+.content code{background:var(--soft);border:1px solid var(--line);border-radius:4px;padding:1px 6px;font-size:12.4px;font-family:Consolas,'Courier New',monospace;}
+.content pre{background:#21252e;color:#e8eaf0;border-radius:8px;padding:16px 18px;font-size:12.4px;font-family:Consolas,'Courier New',monospace;overflow-x:auto;margin:12px 0 18px;line-height:1.55;}
+.content pre code{background:none;border:none;color:inherit;padding:0;}
+.content hr{border:none;border-top:1px solid var(--line);margin:30px 0;}
+.content strong{color:var(--navy2);}
+.footer{margin-top:50px;padding-top:16px;border-top:1px solid var(--line);font-size:12px;color:var(--muted);display:flex;justify-content:space-between;}
+@media print{body{background:#fff;}.page{box-shadow:none;padding:18px 0;max-width:100%;}.docnav{display:none;}.content h2{break-after:avoid;}.content table,.content pre,.content blockquote{break-inside:avoid;}}
+@media (max-width:720px){.page{padding:30px 20px;}}
+</style>
+</head>
+<body>
+<div class="page">
+  <span class="doc-label">JEIL AX 이관 관제 · 대외비</span>
+  <div class="docnav"><a href="index.html">🏠 이관 허브</a><a href="00_현재시스템_상태스냅샷.html">00 현황 스냅샷</a><a href="01_이관실행가이드_Vercel_Supabase.html">01 실행 가이드</a><a class="cur" href="02_Azure이관계획.html">02 Azure 계획</a><a href="03_이관진행상태.html">03 진행 상태</a><a href="README.md">README</a></div>
+  <p class="md-link">📄 Markdown 원본: <a href="02_Azure이관계획.md">02_Azure이관계획.md</a> · 허브 <a href="index.html">이관 대시보드</a></p>
+  <div class="content">
+<h1 id="02-azure-supabase-microsoft-azure">02. Azure 이관 계획 — Supabase → Microsoft Azure (운영 전환)</h1>
+<blockquote>
+<p>작성일: 2026-06-29 · 관리: 최동혁 · 대상: 데모 데이터화([2]) 안정화 이후 운영([3])
+핵심: 데모를 Supabase로 <strong>본선과 동일한 스키마·RLS·인증 경계</strong>로 만들어 뒀기 때문에, 이 단계는 "재구축"이 아니라 <strong>어댑터 교체 + 데이터 복사</strong> 중심의 이식이다.
+관련: <code>00_현황스냅샷</code>, <code>01_실행가이드</code>, <code>08/03_실구축기획/07</code>, <code>실제구축준비 자료/01·02·03·07</code>, <code>CLAUDE.md §3·§4·§5·§6</code></p>
+</blockquote>
+<hr />
+<h2 id="1">1. 언제 옮기나 (전환 트리거)</h2>
+<p>아래 중 하나라도 해당하면 Azure 전환을 착수한다.</p>
+<ul>
+<li><strong>상업적/운영 트래픽 발생</strong> — Vercel Hobby(비상업) 약관 한계 도달.</li>
+<li><strong>Supabase Free 한계</strong> — DB 500MB·Storage 1GB 근접, pause가 업무에 지장.</li>
+<li><strong>ERP 실연계 필요</strong> — 중간 DB·VPN·야간배치가 본선에 들어오는 시점(<code>CLAUDE.md §4</code>).</li>
+<li><strong>회사 보안/컴플라이언스 요구</strong> — 자체 인증서, 감사, 데이터 국내 보관, Key Vault 등.</li>
+<li><strong>경영진의 운영 GO 결정</strong>(<code>실제구축준비 자료/00 종합기획</code>).</li>
+</ul>
+<hr />
+<h2 id="2-supabase-azure">2. 매핑 — Supabase → Azure</h2>
+<table>
+<thead>
+<tr>
+<th>Supabase(임시)</th>
+<th>Azure(운영)</th>
+<th>이전 난이도</th>
+<th>메모</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Postgres DB</td>
+<td><strong>Azure Database for PostgreSQL</strong> Flexible Server</td>
+<td>낮음</td>
+<td>표준 SQL·RLS 그대로 이식</td>
+</tr>
+<tr>
+<td>RLS 정책</td>
+<td>동일 Postgres RLS + 앱 계층 2중(<code>08/03/03 §4-2</code>)</td>
+<td>낮음</td>
+<td>클레임 소스만 Entra로</td>
+</tr>
+<tr>
+<td>Auth(사내)</td>
+<td><strong>Entra ID</strong>(이미 본선)</td>
+<td>낮음</td>
+<td>데모부터 Entra라 추가비용 적음</td>
+</tr>
+<tr>
+<td>Auth(협력사)</td>
+<td><strong>Entra External ID(B2B)</strong> 또는 전용(<code>08/03/03 D1</code>)</td>
+<td>중간</td>
+<td>운영 D1 결정 의존</td>
+</tr>
+<tr>
+<td>Storage(사진)</td>
+<td><strong>Azure Blob Storage</strong></td>
+<td>낮음</td>
+<td>객체 복사 + 서명 URL</td>
+</tr>
+<tr>
+<td>Realtime</td>
+<td><strong>Azure Web PubSub / SignalR</strong> 또는 SSE(<code>08/03/04</code>)</td>
+<td>중간</td>
+<td>구독 코드 어댑터 교체</td>
+</tr>
+<tr>
+<td>Edge Functions</td>
+<td><strong>Azure Functions</strong></td>
+<td>중간</td>
+<td>시드·검증·BFF</td>
+</tr>
+<tr>
+<td>anon/service 키</td>
+<td><strong>Managed Identity + Key Vault</strong></td>
+<td>낮음</td>
+<td>비밀값 일원화(<code>CLAUDE.md §6</code>)</td>
+</tr>
+<tr>
+<td>Vercel 호스팅</td>
+<td><strong>Azure Static Web Apps / App Service</strong></td>
+<td>낮음</td>
+<td>프론트 그대로</td>
+</tr>
+<tr>
+<td>(없음)</td>
+<td><strong>중간 DB + ERP 야간배치/CDC</strong></td>
+<td>별도 트랙</td>
+<td>유니포인트 협의(<code>실제구축준비 자료/03·07</code>)</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="3">3. 이전 절차 (단계별)</h2>
+<h3 id="3-1">3-1. 인프라 프로비저닝</h3>
+<ul>
+<li>Azure 구독·리소스 그룹·VNet. Azure Database for PostgreSQL(Flexible) 생성, 방화벽/프라이빗 엔드포인트.</li>
+<li>Blob Storage 계정·컨테이너(<code>vendor-photos</code>). Static Web Apps/App Service.</li>
+<li><strong>Key Vault</strong> 생성, 모든 비밀값 이전(소스·문서 금지 유지).</li>
+</ul>
+<h3 id="3-2">3-2. 데이터 이전</h3>
+<ul>
+<li>스키마: Supabase에서 <code>pg_dump --schema-only</code> → Azure PG 적용. RLS 정책 포함 확인.</li>
+<li>데이터: <code>pg_dump --data-only</code>(또는 COPY) → Azure PG. <strong>데모는 마스킹 샘플</strong> 그대로.</li>
+<li>운영 데이터는 별도 — ERP 중간 DB 야간배치로 <code>erp_ro</code> 채움(<code>08/03/02</code>).</li>
+<li>Storage 객체: Supabase Storage → Azure Blob 복사(azcopy 등), 경로 규칙 유지.</li>
+</ul>
+<h3 id="3-3">3-3. 인증 전환</h3>
+<ul>
+<li>사내: Supabase OIDC(Entra) → <strong>Entra 직접</strong>. 이미 Entra라 클레임 매핑만 정리.</li>
+<li>협력사: Supabase Auth → <strong>Entra External ID(B2B) 또는 전용</strong>(D1 결정). 계정·<code>vendor_bp</code> 매핑 이관 → <code>supplier_account</code>·<code>supplier_bp_map</code>(<code>08/03/02 §4</code>).</li>
+<li>토큰 보관: localStorage → <strong>BFF/HttpOnly 쿠키</strong>(<code>CLAUDE.md §6</code>, XSS 내성).</li>
+</ul>
+<h3 id="3-4">3-4. 애플리케이션 전환</h3>
+<ul>
+<li><code>api.js</code>의 어댑터를 <code>supabaseAdapter</code> → <code>azureAdapter</code>로 교체(데이터 접근·인증·실시간·스토리지 모두 이 뒤에서).</li>
+<li>Realtime → Web PubSub/SignalR 또는 SSE 구현으로 치환.</li>
+<li>환경변수 → Key Vault 참조.</li>
+</ul>
+<h3 id="3-5">3-5. 검증·컷오버</h3>
+<ul>
+<li>RLS 격리 재검증(<code>01 G절</code> 동일 테스트, Azure 환경).</li>
+<li>감사 로그·접근 로깅 동작(<code>CLAUDE.md §6</code>, 민감 화면 우선).</li>
+<li><code>/security-review</code> + 권한 인가 테스트(필수).</li>
+<li>도메인 전환: <code>ai.jeilm.co.kr</code> → Azure. 인증서(회사 인증서 가능 — GitHub Pages 제약 해소).</li>
+</ul>
+<hr />
+<h2 id="4">4. 병행 운영·롤백</h2>
+<ul>
+<li><strong>병행 기간</strong>: 데모(Vercel+Supabase)와 운영(Azure)을 일정 기간 동시 가동, 데모 도메인은 <code>ai-dev</code>로 유지.</li>
+<li><strong>롤백</strong>: Azure 컷오버 실패 시 DNS를 데모/이전으로 복귀(TTL 짧게 설정). 데이터는 단방향 복사라 원본(Supabase) 보존.</li>
+<li><strong>데이터 정합</strong>: 컷오버 전 최종 동기화 시점 동결(freeze) → 차분 복사 → 전환.</li>
+</ul>
+<hr />
+<h2 id="5">5. 비용·리스크 메모</h2>
+<ul>
+<li>Azure는 <strong>유료</strong>. 전환 착수 전 <code>실제구축준비 자료/00·01</code> + 비용기획으로 예산 승인.</li>
+<li>리스크: 인증(협력사 D1) 미결정 시 3-3 지연 → D1 조기 결정 권고.</li>
+<li>리스크: ERP 연계는 유니포인트 협의 선행(별도 트랙) — Azure 인프라와 병렬 진행.</li>
+</ul>
+<hr />
+<h2 id="6">6. 전환 전 확정 항목</h2>
+<ul>
+<li>[ ] 운영 호스팅 확정(Azure Static Web Apps vs App Service vs 사내 IIS) — <code>실제구축준비 자료/01</code></li>
+<li>[ ] 협력사 인증 D1(Entra B2B vs 전용) 결정 — <code>08/03/03</code></li>
+<li>[ ] 중간 DB·ERP 배치 파이프라인 — 유니포인트 협의</li>
+<li>[ ] Key Vault·Managed Identity 적용</li>
+<li>[ ] 감사 로그·DR/백업 설계 — <code>실제구축준비 자료/05</code>, <code>CLAUDE.md §11-E</code></li>
+</ul>
+  </div>
+  <div class="footer"><span>JEIL M&amp;S · AI 포털 이관 관제 센터</span><span>02 Azure 계획 · 관리: 최동혁</span></div>
+</div>
+</body>
+</html>

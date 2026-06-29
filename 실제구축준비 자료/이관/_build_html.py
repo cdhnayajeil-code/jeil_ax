@@ -1,22 +1,19 @@
 # -*- coding: utf-8 -*-
 """
-03_실구축기획 폴더의 각 .md 를 공유 스타일 HTML 로 변환한다.
-기존 '실제구축준비 자료' 문서와 동일한 톤(네이비/콜아웃/표 스타일)을 따른다.
+실제구축준비 자료/이관/ 폴더의 각 .md 를 공유 스타일 HTML 로 변환한다.
+기존 '실제구축준비 자료'·'08/03_실구축기획' 문서와 동일한 톤(네이비/콜아웃/표)을 따른다.
 사용: python _build_html.py
+주의: index.html 은 자체완결 대시보드라 빌드 대상에서 제외(직접 관리).
 """
-import os, re, markdown
+import os, markdown
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 
 DOCS = [
-    ("00_CTO종합기획_실행개요",            "00 종합기획", "전체 그림·핵심 결정·로드맵 요약"),
-    ("01_아키텍처_데이터흐름_연계설계",      "01 아키텍처", "3계층·읽기/쓰기 분리·인증 경계 이중화"),
-    ("02_데이터모델_ERP매핑_포털스키마",     "02 데이터모델", "ERP 매핑·포털 쓰기 스키마·10단계 상태머신"),
-    ("03_협력사인증_권한_행수준보안_보안",   "03 인증·보안", "인증 2안·RBAC/RLS·파일 검증·감사"),
-    ("04_실시간동기화_API_파일업로드_알림",  "04 동기화·API", "localStorage 대체·API 명세·SSE·알림"),
-    ("05_사전정의_의사결정_유니포인트협의_체크리스트", "05 사전정의", "결정·협의·체크리스트"),
-    ("06_로드맵_단계별실행_운영전환",        "06 로드맵", "데모→파일럿→오픈·운영·DR"),
-    ("07_데모배포전략_Vercel_Supabase_Azure전환", "07 배포전략", "GitHub Pages 한계·임시 Vercel+Supabase·Azure 전환"),
+    ("00_현재시스템_상태스냅샷",            "00 현황 스냅샷", "배포·자산·데이터·인증·시크릿 현황 대장(지속 갱신)"),
+    ("01_이관실행가이드_Vercel_Supabase",   "01 실행 가이드", "Vercel+Supabase 단계별 이관 디테일 가이드"),
+    ("02_Azure이관계획",                   "02 Azure 계획", "Supabase→Azure 운영 전환 매핑·절차·롤백"),
+    ("03_이관진행상태",                     "03 진행 상태", "페이즈·체크리스트·작업로그·이슈(지속 갱신)"),
 ]
 
 CSS = """
@@ -55,7 +52,7 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 """
 
 def nav_html(cur_slug):
-    items=[]
+    items=['<a href="index.html">🏠 이관 허브</a>']
     for slug,label,_ in DOCS:
         cls=' class="cur"' if slug==cur_slug else ''
         items.append(f'<a{cls} href="{slug}.html">{label}</a>')
@@ -76,18 +73,18 @@ def build():
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>{label} — 협력사 발주·검사 포털 ERP연계 실구축 기획</title>
+<title>{label} — JEIL AX 이관 관제 ({sub})</title>
 <style>{CSS}</style>
 </head>
 <body>
 <div class="page">
-  <span class="doc-label">협력사 포털 실구축 기획 · 대외비</span>
+  <span class="doc-label">JEIL AX 이관 관제 · 대외비</span>
   {nav_html(slug)}
-  <p class="md-link">📄 Markdown 원본: <a href="{slug}.md">{slug}.md</a> · 상위 <a href="../00_종합정리_요구사항이력.html">08 종합정리</a></p>
+  <p class="md-link">📄 Markdown 원본: <a href="{slug}.md">{slug}.md</a> · 허브 <a href="index.html">이관 대시보드</a></p>
   <div class="content">
 {body}
   </div>
-  <div class="footer"><span>JEIL M&amp;S · 협력사 발주·검사 포털 실구축 기획</span><span>{label} · 2026-06-26 · 최동혁</span></div>
+  <div class="footer"><span>JEIL M&amp;S · AI 포털 이관 관제 센터</span><span>{label} · 관리: 최동혁</span></div>
 </div>
 </body>
 </html>"""
