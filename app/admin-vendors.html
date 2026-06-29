@@ -51,9 +51,11 @@ tr:nth-child(even) td{background:#fafbfd;}
 <div id="gate" class="gate">
   <h2>사내 로그인</h2>
   <p>임시(권한분리 전): 로그인된 사내 사용자는 모두 협력사 관리 기능을 사용할 수 있습니다. 데이터 조회·승인은 백엔드 권한(RLS)으로 통제되며, 추후 관리자 한정으로 권한을 분리합니다.</p>
+  <button class="btn" id="g_ms" style="width:100%;background:#2f2f7a;">🔐 Microsoft 사내 계정으로 로그인 (Entra SSO)</button>
+  <div style="text-align:center;font-size:11px;color:var(--muted);margin:14px 0 2px;">— 또는 이메일 / 비밀번호 —</div>
   <label>이메일</label><input type="email" id="g_email" placeholder="name@jeilm.co.kr">
   <label>비밀번호</label><input type="password" id="g_pw">
-  <button class="btn" id="g_btn" style="width:100%;margin-top:16px;">로그인</button>
+  <button class="btn" id="g_btn" style="width:100%;margin-top:16px;background:rgba(26,47,78,.85)">이메일로 로그인</button>
   <div class="msg" id="g_msg"></div>
 </div>
 
@@ -132,6 +134,16 @@ $("g_btn").onclick = async () => {
     enterApp(data.user, claimsOf(data.session).role);
   } catch (e) { show($("g_msg"), "err", "로그인 실패: " + (e.message || e)); }
   finally { $("g_btn").disabled = false; }
+};
+// Entra→Supabase 브리지: Supabase Azure(Entra ID) provider로 사내 SSO 로그인.
+// 선행: Supabase 대시보드에서 Azure provider 활성화 + Entra 앱에 Supabase 콜백 redirect URI 등록(관리자).
+$("g_ms").onclick = async () => {
+  $("g_ms").disabled = true;
+  const { error } = await supabase.auth.signInWithOAuth({
+    provider: "azure",
+    options: { scopes: "openid email profile", redirectTo: location.href.split("#")[0] },
+  });
+  if (error) { show($("g_msg"), "err", "Microsoft 로그인 실패: " + error.message + " (Supabase Azure provider 활성화 필요)"); $("g_ms").disabled = false; }
 };
 $("logout").onclick = async () => { await supabase.auth.signOut(); location.reload(); };
 
