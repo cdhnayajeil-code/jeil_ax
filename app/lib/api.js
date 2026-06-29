@@ -28,33 +28,39 @@ const supabaseAdapter = {
   async getOrders() {
     const { data: heads, error } = await supabase
       .from("sp_order_header")
-      .select("po_no,bp_cd,vendor_name,order_date,due_date,po_type,items")
+      .select("po_no,bp_cd,vendor_name,order_date,due_date,po_type,project_code,amt,items")
       .order("order_date", { ascending: false });
     if (error) throw error;
     if (!heads.length) return [];
     const pos = heads.map((h) => h.po_no);
     heads.forEach((h) => (_bp[h.po_no] = h.bp_cd));
 
-    const [states, photos, msgs, insps] = await Promise.all([
+    const [states, photos, msgs, insps, inspections] = await Promise.all([
       supabase.from("sp_order_state").select("*").in("po_no", pos),
       supabase.from("sp_photo").select("*").in("po_no", pos).order("created_at"),
       supabase.from("sp_message").select("*").in("po_no", pos).order("created_at"),
       supabase.from("sp_insp_request").select("*").in("po_no", pos).eq("cancelled", false),
+      supabase.from("sp_inspection").select("*").in("po_no", pos),
     ]);
     const group = (res) => {
       const m = {}; (res.data || []).forEach((r) => (m[r.po_no] = m[r.po_no] || []).push(r)); return m;
     };
     const ph = group(photos), mg = group(msgs), ir = group(insps);
     const st = {}; (states.data || []).forEach((s) => (st[s.po_no] = s));
+    const iq = {}; (inspections.data || []).forEach((r) => (iq[r.po_no] = r));
 
     return heads.map((h) => ({
       no: h.po_no,
       bp: h.bp_cd,
+      vendor_name: h.vendor_name || h.bp_cd,
+      proj: h.project_code || "-",
+      amt: h.amt || 0,
       date: h.order_date,
       due: h.due_date,
       type: h.po_type,
       status: st[h.po_no]?.status || "new",
       inspReqNo: ir[h.po_no]?.[0]?.insp_req_no || "",
+      inspection: iq[h.po_no] ? { result: iq[h.po_no].result, resultNo: iq[h.po_no].result_no, by: iq[h.po_no].judge_id, at: iq[h.po_no].judged_at, comment: iq[h.po_no].opinion } : null,
       items: h.items || [],
       photos: (ph[h.po_no] || []).map((p) => ({
         storage_path: p.storage_path, tag: p.tag, cmt: p.comment,

@@ -223,9 +223,17 @@
   </div>
 </div>
 
-<script>
-const JX_KEY='jeilax_link_v1';
-function jxLoad(){ try{ return JSON.parse(localStorage.getItem(JX_KEY))||{orders:{}}; }catch(e){ return {orders:{}}; } }
+<script type="module">
+import { supabase } from "../app/lib/supabaseClient.js";
+import { portalApi } from "../app/lib/api.js";
+
+// JWT(base64url, UTF-8) 디코드 → app_metadata(role 등)
+function claimsOf(session){ if(!session||!session.access_token) return {}; try{ let p=session.access_token.split('.')[1].replace(/-/g,'+').replace(/_/g,'/'); while(p.length%4)p+='='; return JSON.parse(decodeURIComponent(atob(p).split('').map(c=>'%'+c.charCodeAt(0).toString(16).padStart(2,'0')).join(''))).app_metadata||{}; }catch(e){ return {}; } }
+// 세션 없으면 1회 자동 Azure SSO(가드 ?sso=1)
+function autoSSO(){ const u=new URL(location.href); u.searchParams.set('sso','1'); supabase.auth.signInWithOAuth({provider:'azure',options:{scopes:'openid email profile',redirectTo:u.toString()}}); }
+// 발주 캐시(Supabase getOrders 결과 — RLS상 사내는 전체)
+let ORDERS=[];
+async function loadData(){ ORDERS = await portalApi.getOrders(); }
 
 /* ===== 사진 참조 이미지 (내용 인식형 SVG) ===== */
 function kindFromText(s){ s=s||'';
@@ -279,79 +287,51 @@ const IDX=k=>STAGES.findIndex(s=>s.k===k);
 const PT={DIV:{nm:'국내매입(일반)',sub:false},SIE:{nm:'외주제작',sub:true},'SIE-1':{nm:'외주제작(수불X)',sub:true},SIF:{nm:'외주설치',sub:true}};
 const GROUP_ORDER=['SIE','SIE-1','SIF','DIV'];
 
-const BASE=[
- {pr:'PR202606170210',po:'PO202606220012',type:'SIE',sub:true,link:true,bp:'한일정밀공업',proj:'2025-095-SUL-EC',odt:'2026-06-22',
-  item:'알루미늄 브라켓 가공 〈PLT-AL5T〉',qty:'500 EA',amt:1600000,due:'2026-07-05',chain:IDX('cfm'),
-  insp:{req:'-',res:'-',items:'치수/외관/표면처리',ac:'-',re:'-',judge:'생산 진행',by:'-',dt:'-'},
-  photos:[{tag:'작업',cap:'CNC 1차 가공',cmt:'CNC 1차 가공 완료분',k:'machining',by:'이상우',t:'06-23 14:20',chk:'ok'},{tag:'검사',cap:'치수 검사',cmt:'치수 검사 — 공차 내',k:'inspect',by:'이상우',t:'06-23 15:05',chk:''}]},
- {pr:'PR202606150150',po:'PO202606200008',type:'SIE',sub:true,link:true,bp:'한일정밀공업',proj:'2025-095-SUL-EC',odt:'2026-06-20',
-  item:'유니온 배관 25A SUS 가공 〈UNI-25A-S〉',qty:'200 EA',amt:1080000,due:'2026-06-30',chain:IDX('cfm'),
-  insp:{req:'-',res:'-',items:'치수/외관',ac:'-',re:'-',judge:'검사 대기',by:'품질팀 정수민',dt:'-'},
-  photos:[{tag:'완성',cap:'플랜지 완성품',cmt:'가공 완성품 전수',k:'finished',by:'이상우',t:'06-24 09:40',chk:'ok'},{tag:'포장',cap:'출하 포장',cmt:'출하 포장 상태',k:'packing',by:'이상우',t:'06-24 10:10',chk:''}]},
- {pr:'PR202606250231',po:'PO202606250021',type:'SIE',sub:true,link:true,bp:'한일정밀공업',proj:'2026-044-MED',odt:'2026-06-25',
-  item:'NBR 가스켓 성형 〈ORG-P22N〉 외 1',qty:'3,000 EA',amt:540000,due:'2026-07-10',chain:IDX('cfm'),
-  insp:{req:'-',res:'-',items:'치수/경도/외관',ac:'-',re:'-',judge:'발주 접수',by:'-',dt:'-'},
-  photos:[]},
- {pr:'PR202606100162',po:'PO202606100005',type:'SIE-1',sub:true,link:true,bp:'한일정밀공업',proj:'2026-031-PNT',odt:'2026-06-10',
-  item:'정밀 가공품 마감(베어링하우징) 〈BRG-6204Z〉',qty:'1,500 EA',amt:480000,due:'2026-06-19',chain:IDX('iv'),
-  insp:{req:'IR202606100005',res:'IQ202606100007',items:'치수/경도',ac:'1500',re:'0',judge:'합격',by:'품질팀 한지후',dt:'2026-06-19'},
-  photos:[{tag:'포장',cap:'완충 포장',cmt:'완충 포장 상태',k:'packing',by:'이상우',t:'06-18 11:00',chk:'ok'},{tag:'출하',cap:'출하 팔레트',cmt:'출하 직전 팔레트',k:'shipping',by:'이상우',t:'06-18 16:30',chk:'ok'}]},
- {pr:'PR202606180188',po:'PO202606180017',type:'SIE',sub:true,link:false,bp:'대성테크',proj:'2026-031-PNT',odt:'2026-06-18',
-  item:'제어보드 PCB 조립 〈PCB-A04〉',qty:'120 SET',amt:2220000,due:'2026-06-28',chain:IDX('isp'),fail:true,
-  insp:{req:'IR202606240017',res:'IQ202606240017',items:'솔더링/통전/외관',ac:'118',re:'2',judge:'불합격(재작업)',by:'품질팀 정수민',dt:'2026-06-24'},
-  photos:[{tag:'완성',cap:'PCB 조립',cmt:'PCB 조립 완료 샘플',k:'pcb',by:'박정호',t:'06-23 17:10',chk:'ok'},{tag:'완성',cap:'솔더링 불량부',cmt:'2번 보드 솔더링부(불량)',k:'pcb',by:'박정호',t:'06-23 17:12',chk:'rej'}]},
- {pr:'PR202606120162',po:'PO202606120009',type:'SIE-1',sub:true,link:false,bp:'오성테크',proj:'2026-031-PNT',odt:'2026-06-12',
-  item:'베어링 하우징 가공 〈BRG-HSG〉',qty:'800 EA',amt:960000,due:'2026-06-22',chain:IDX('iv'),
-  insp:{req:'IR202606210009',res:'IQ202606210009',items:'치수/경도',ac:'800',re:'0',judge:'합격',by:'품질팀 한지후',dt:'2026-06-21'},
-  photos:[{tag:'완성',cap:'베어링 하우징',cmt:'베어링 하우징 가공 완성',k:'bearing',by:'오성테크',t:'06-21 10:00',chk:'ok'}]},
- {pr:'PR202606190151',po:'PO202606190014',type:'SIE',sub:true,link:false,bp:'지아이텍',proj:'2025-095-SUL-EC',odt:'2026-06-19',
-  item:'밸브 바디 가공 〈VLV-BDY〉',qty:'150 EA',amt:1350000,due:'2026-06-30',chain:IDX('grn'),
-  insp:{req:'IR202606250014',res:'-',items:'치수/외관',ac:'-',re:'-',judge:'입고완료·검사대기',by:'-',dt:'2026-06-25'},
-  photos:[{tag:'작업',cap:'밸브 바디 가공',cmt:'밸브 바디 가공 진행',k:'valve',by:'지아이텍',t:'06-25 09:00',chk:''}]},
- {pr:'PR202606230205',po:'PO202606230006',type:'SIF',sub:true,link:false,bp:'신호종합배관',proj:'2025-095-SUL-EC',odt:'2026-06-23',
-  item:'유니온 배관 25A SUS 외주설치 〈UNI-25A-S〉',qty:'1 LOT',amt:22000000,due:'2026-07-12',chain:IDX('cfm'),
-  insp:{req:'-',res:'-',items:'설치상태/누설시험',ac:'-',re:'-',judge:'발주확정',by:'-',dt:'-'},
-  photos:[]},
- {pr:'PR202606210140',po:'PO202606210011',type:'DIV',sub:false,link:false,bp:'대신스텐레스',proj:'-',odt:'2026-06-21',
-  item:'알루미늄 플레이트 5T 〈PLT-AL5T〉',qty:'2.4 TON',amt:51452660,due:'2026-06-26',chain:IDX('grn'),
-  insp:{req:'-',res:'-',items:'밀시트/외관',ac:'-',re:'-',judge:'입고검사(일반)',by:'-',dt:'-'},
-  photos:[{tag:'작업',cap:'SUS304 소재',cmt:'SUS304 밀시트/외관 확인',k:'material',by:'대신스텐레스',t:'06-25 08:30',chk:'ok'}]}
-];
+/* BASE mock 제거 — 발주는 Supabase(portalApi.getOrders)에서 ORDERS로 로드 */
 
 const won=n=>n.toLocaleString();
 const SUP_TXT={new:'신규접수',prod:'생산중',insp:'검수요청',done:'완료'};
 let LB=[];
 
-function supChain(b,s){
-  if(s.status==='new') return IDX('rcv');
-  if(s.status==='prod') return (s.photoCount>0)?IDX('pho'):IDX('prd');
-  if(s.status==='insp') return b.sub?IDX('isp'):IDX('shp');
-  if(s.status==='done') return Math.max(IDX('shp'),b.chain);
-  return IDX('cfm');
+// Supabase 발주 객체 → 보드 행 구조로 변환
+function toRow(o){
+  const sub=o.type!=='DIV';
+  let cur = (o.status==='new'?IDX('rcv'): o.status==='prod'?((o.photos&&o.photos.length)?IDX('pho'):IDX('prd')): o.status==='insp'?(sub?IDX('isp'):IDX('shp')): o.status==='done'?IDX('iv'): IDX('cfm'));
+  const insMeta=o.inspection||null;
+  const fail=!!(insMeta&&insMeta.result==='불합격');
+  if(insMeta&&insMeta.result==='합격'){ if(cur<IDX('grn')) cur=IDX('grn'); }
+  if(fail){ if(cur<IDX('isp')) cur=IDX('isp'); }
+  const items=o.items||[];
+  return {
+    pr:'-', po:o.no, type:o.type, sub, link:true,
+    bp:o.vendor_name||o.bp||'', proj:o.proj||'-', odt:o.date, due:o.due, amt:o.amt||0,
+    item: items.map(i=>i.nm+(i.pn?(' 〈'+i.pn+'〉'):'')).join(', '),
+    qty: items.map(i=>i.qty+' '+(i.unit||'')).join(', '),
+    photos: (o.photos||[]).map(p=>({tag:p.tag,cap:(p.cmt||p.tag||'').slice(0,8),cmt:p.cmt,k:kindFromText((p.cmt||'')+(p.tag||'')),by:p.by,t:p.t,chk:p.chk})),
+    chain:cur, cur,
+    fail,
+    _sup: ((o.photos&&o.photos.length)||(o.msgs&&o.msgs.length))?true:false,
+    _supTxt: SUP_TXT[o.status]||'',
+    _photoCount:(o.photos||[]).length, _msgCount:(o.msgs||[]).length,
+    _lastMsg:(o.msgs&&o.msgs.length)?((o.msgs[o.msgs.length-1].who==='me'?'협력사: ':'구매: ')+o.msgs[o.msgs.length-1].text):'',
+    insp:{ req:o.inspReqNo||'-', res:(insMeta&&insMeta.resultNo)||'-', items:'치수/외관', ac:'-', re:(insMeta&&insMeta.result==='합격')?'0':'-',
+      judge: insMeta?(insMeta.result==='합격'?'합격 (검수확정)':'불합격 (재작업)'):(o.inspReqNo?'검사신청(협력사 요청)':'진행중'),
+      by:(insMeta&&insMeta.by)||'-', dt:((insMeta&&insMeta.at)||'').slice(0,10) },
+    _canInspect: (cur===IDX('isp') && !fail),
+    _inspBy:(insMeta&&insMeta.by)||'', _inspAt:(insMeta&&insMeta.at)||'',
+    msgs: o.msgs||[]
+  };
 }
 function buildRows(){
-  const lk=jxLoad(); const link=lk.orders||{}; let cnt=0;
-  const rows=BASE.map(b=>{ const r=JSON.parse(JSON.stringify(b)); r.cur=r.chain;
-    if(r.link && link[r.po]){ const s=link[r.po]; cnt++; r._sup=s; r.cur=supChain(r,s); r._supTxt=SUP_TXT[s.status];
-      r._photoCount=s.photoCount||0; r._msgCount=s.msgCount||0; r._lastMsg=s.lastMsg||'';
-      if(s.photos && s.photos.length) r.photos=s.photos.map(p=>({tag:p.tag,cap:p.cmt? p.cmt.slice(0,8):p.tag,cmt:p.cmt,k:kindFromText((p.cmt||'')+(p.tag||'')),by:p.by,t:p.t,chk:p.chk}));
-      if(s.inspRequested){ r.insp.req=s.inspReqNo||r.insp.req; if(r.insp.res==='-') r.insp.judge='검사신청(협력사 요청)'; }
-    }
-    var _ins = link[r.po] && link[r.po].inspection;
-    if(_ins){ r.insp.res=_ins.resultNo||r.insp.res; r.insp.judge=(_ins.result==='합격'?'합격 (검수확정)':'불합격 (재작업)'); r.insp.by=_ins.by; r.insp.dt=(_ins.at||'').slice(0,10); r._inspBy=_ins.by; r._inspAt=_ins.at;
-      if(_ins.result==='합격'){ r.fail=false; if(r.cur<IDX('grn')) r.cur=IDX('grn'); r.insp.re='0'; }
-      else { r.fail=true; if(r.cur<IDX('isp')) r.cur=IDX('isp'); } }
-    r._canInspect = (r.cur===IDX('isp') && !r.fail);
-    return r;
-  });
+  const rows=ORDERS.map(toRow);
   const el=document.getElementById('linkState'),em=document.getElementById('linkMeta');
-  if(cnt>0){ el.textContent='● 활성 ('+cnt+'건 동기화)'; em.textContent='최근 동기화 '+(lk.updatedAt?new Date(lk.updatedAt).toLocaleString('ko-KR'):'-')+' · 한일정밀공업(V-1027)'; }
-  else{ el.textContent='○ 대기'; em.textContent='협력사 포털을 열어 등록하면 실시간 반영됩니다.'; }
+  if(ORDERS.length>0){ el.textContent='● 활성 ('+ORDERS.length+'건)'; em.textContent='Supabase 실시간 연계 · 협력사 포털 등록분 즉시 반영'; }
+  else{ el.textContent='○ 발주 없음'; em.textContent='협력사 계정 발급 후 발주가 등록되면 표시됩니다.'; }
   return rows;
 }
 function fillProjOptions(){
   const sel=document.getElementById('fProj'); if(sel.options.length) return;
-  const ps=[...new Set(BASE.map(b=>b.proj).filter(p=>p!=='-'))];
+  const ps=[...new Set(ORDERS.map(o=>o.proj).filter(p=>p&&p!=='-'))];
   sel.innerHTML='<option value="all">전체 프로젝트</option>'+ps.map(p=>'<option value="'+p+'">'+p+'</option>').join('')+'<option value="none">미지정</option>';
 }
 function visibleRows(){
@@ -401,43 +381,36 @@ var MSGPO=''; var ROWPO={};
 function nowStr(){ return '06-25 '+new Date().toTimeString().slice(0,5); }
 function openMsg(i){ MSGPO=ROWPO[i]; renderMsgBox(); document.getElementById('msgbox').classList.add('on'); }
 function closeMsg(){ document.getElementById('msgbox').classList.remove('on'); }
-function renderMsgBox(){ var po=MSGPO; var d=jxLoad(); var o=(d.orders&&d.orders[po])||{}; var ms=o.messages||[];
-  var b=null; for(var j=0;j<BASE.length;j++){ if(BASE[j].po===po){ b=BASE[j]; break; } } b=b||{};
-  document.getElementById('mbTitle').textContent='💬 '+po+' · '+(b.bp||'협력사');
+function renderMsgBox(){ var po=MSGPO; var o=ORDERS.find(function(x){return x.no===po;})||{}; var ms=o.msgs||[];
+  var bp=o.vendor_name||o.bp||'협력사';
+  document.getElementById('mbTitle').textContent='💬 '+po+' · '+bp;
   document.getElementById('mbBody').innerHTML = ms.length? ms.map(function(m){ var mine=m.who==='them';
-    return '<div class="mbmsg '+(mine?'me':'them')+'"><div class="mw">'+(mine?'구매팀':(b.bp||'협력사'))+'</div>'+m.text+'<div class="mt">'+m.t+'</div></div>'; }).join('')
+    return '<div class="mbmsg '+(mine?'me':'them')+'"><div class="mw">'+(mine?'구매팀':bp)+'</div>'+m.text+'<div class="mt">'+m.t+'</div></div>'; }).join('')
     : '<div style="text-align:center;color:var(--muted);padding:34px;font-size:12.5px">대화가 없습니다.<br>첫 메시지를 보내보세요.</div>';
   var bd=document.getElementById('mbBody'); setTimeout(function(){ bd.scrollTop=bd.scrollHeight; },20); }
-function sendMsgD(){ var inp=document.getElementById('mbInput'); var v=inp.value.trim(); if(!v) return;
-  var po=MSGPO; var d=jxLoad(); d.orders=d.orders||{}; d.orders[po]=d.orders[po]||{}; var o=d.orders[po];
-  o.messages=o.messages||[]; o.messages.push({who:'them',name:'구매팀',text:v,t:nowStr()});
-  o.msgCount=o.messages.length; o.lastMsg='구매: '+v; d.updatedAt=new Date().toISOString();
-  try{ localStorage.setItem(JX_KEY,JSON.stringify(d)); }catch(e){}
-  inp.value=''; renderMsgBox(); render(); }
+async function sendMsgD(){ var inp=document.getElementById('mbInput'); var v=inp.value.trim(); if(!v) return; inp.value='';
+  try{ await portalApi.sendMessage(MSGPO, v, 'internal', '제일엠앤에스 구매팀'); await loadData(); renderMsgBox(); render(); }
+  catch(e){ alert('전송 실패: '+(e.message||e)); inp.value=v; } }
 var INSPPO='';
 function nowStr2(){ return '2026-06-25 '+new Date().toTimeString().slice(0,5); }
-function openInspect(i){ INSPPO=ROWPO[i]; var po=INSPPO; var b=null; for(var j=0;j<BASE.length;j++){ if(BASE[j].po===po){ b=BASE[j]; break; } } b=b||{};
-  var lk=(jxLoad().orders||{})[po]||{};
+function openInspect(i){ INSPPO=ROWPO[i]; var po=INSPPO; var o=ORDERS.find(function(x){return x.no===po;})||{};
+  var bp=o.vendor_name||o.bp||''; var itm=(o.items||[]).map(function(x){return x.nm;}).join(', ');
   document.getElementById('ipTitle').textContent='🔬 검수 판정 · '+po;
-  document.getElementById('ipInfo').innerHTML='<b>'+(b.bp||'')+'</b> · '+(b.item||'')+'<br>검사항목: '+((b.insp&&b.insp.items)||'-')+' · 검사의뢰 '+(lk.inspReqNo||(b.insp&&b.insp.req)||'-');
-  var lg=lk.inspLog||[];
-  document.getElementById('ipLog').innerHTML=lg.length?('<b>이전 판정 이력</b><br>'+lg.map(function(e){return e.at+' · '+e.result+' · '+e.by;}).join('<br>')):'';
+  document.getElementById('ipInfo').innerHTML='<b>'+bp+'</b> · '+itm+'<br>검사의뢰 '+(o.inspReqNo||'-');
+  var lg=o.inspection?[o.inspection]:[];
+  document.getElementById('ipLog').innerHTML=lg.length?('<b>이전 판정</b><br>'+lg.map(function(e){return (e.at||'').slice(0,16)+' · '+e.result+' · '+e.by;}).join('<br>')):'';
   document.getElementById('ipBy').value=''; document.getElementById('ipBy').style.borderColor='var(--line)'; document.getElementById('ipCmt').value='';
   document.getElementById('inspbox').classList.add('on'); }
 function closeInspect(){ document.getElementById('inspbox').classList.remove('on'); }
-function submitInspect(result){ var byi=document.getElementById('ipBy'); var by=byi.value.trim();
+async function submitInspect(result){ var byi=document.getElementById('ipBy'); var by=byi.value.trim();
   if(!by){ byi.style.borderColor='var(--red)'; byi.focus(); return; }
-  var cmt=document.getElementById('ipCmt').value.trim(); var po=INSPPO; var now=nowStr2();
-  var d=jxLoad(); d.orders=d.orders||{}; d.orders[po]=d.orders[po]||{}; var o=d.orders[po];
-  o.inspection={result:result,resultNo:'IQ'+po.slice(2),by:by,at:now,comment:cmt};
-  o.inspLog=o.inspLog||[]; o.inspLog.push({result:result,by:by,at:now,comment:cmt});
-  o.messages=o.messages||[]; o.messages.push({who:'them',name:'품질팀',text:'[검수 결과: '+result+'] 판정 '+by+(cmt?(' · '+cmt):''),t:now.slice(5)}); o.msgCount=o.messages.length; o.lastMsg='품질: 검수 '+result;
-  d.updatedAt=new Date().toISOString(); try{ localStorage.setItem(JX_KEY,JSON.stringify(d)); }catch(e){}
-  closeInspect(); render(); }
+  var cmt=document.getElementById('ipCmt').value.trim(); var po=INSPPO;
+  try{ await portalApi.judge(po, result, cmt, by); closeInspect(); await loadData(); render(); }
+  catch(e){ alert('검수 판정 저장 실패: '+(e.message||e)); } }
 function toggleDet(i){ var e=document.getElementById('od'+i); if(e) e.classList.toggle('hide'); }
 
 function cardHTML(r,i){
-  ROWPO[i]=r.po; var _lk=(jxLoad().orders||{})[r.po]; var mc=(_lk&&_lk.messages)?_lk.messages.length:0;
+  ROWPO[i]=r.po; var mc=(r.msgs||[]).length;
   const detail='<div class="odetail hide" id="od'+i+'"><div class="dg">'
     +'<div class="dc"><b>구매요청 (M_PUR_REQ)</b>'+r.pr+'</div>'
     +'<div class="dc"><b>발주 (M_PUR_ORD)</b>'+r.po+'</div>'
@@ -448,7 +421,7 @@ function cardHTML(r,i){
     +'<div class="dc"><b>판정</b>'+r.insp.judge+'</div>'
     +'<div class="dc"><b>검사담당</b>'+r.insp.by+(r.insp.dt!=='-'?' · '+r.insp.dt:'')+'</div></div>'
     +(r._msgCount?'<div style="font-size:11px;color:var(--muted);margin-top:6px">💬 협력사 메시지 '+r._msgCount+'건 · 최근: '+(r._lastMsg||'')+'</div>':'')
-    +((_lk&&_lk.inspLog&&_lk.inspLog.length)?'<div style="font-size:11px;color:var(--navy2);margin-top:7px;background:#fff;border:1px solid var(--line);border-radius:7px;padding:8px 10px"><b>🔬 검수 판정 이력</b><br>'+_lk.inspLog.map(function(e){return e.at+' · <b style="color:'+(e.result==='합격'?'var(--green)':'var(--red)')+'">'+e.result+'</b> · 판정자 <b>'+e.by+'</b>'+(e.comment?(' · '+e.comment):'');}).join('<br>')+'</div>':'')
+    +((r.insp.res!=='-' && r._inspBy)?'<div style="font-size:11px;color:var(--navy2);margin-top:7px;background:#fff;border:1px solid var(--line);border-radius:7px;padding:8px 10px"><b>🔬 검수 판정</b><br>'+(r._inspAt||'').slice(0,16)+' · <b style="color:'+(r.fail?'var(--red)':'var(--green)')+'">'+(r.fail?'불합격':'합격')+'</b> · 판정자 <b>'+r._inspBy+'</b></div>':'')
     +'<div style="font-size:10.5px;color:var(--muted);margin-top:6px">데이터: M_PUR_GOODS_MVMT(입고·출하·검사판정) · Q_INSPECTION_*'+(r._sup?' + 협력사 포털 등록분':'')+'</div></div>';
   return '<div class="ocard '+(r._sup?'linked':'')+' '+(r.fail?'hold':'')+'">'
     +'<div class="ohead"><span class="pono">'+r.po+(r._sup?' 🔗':'')+'</span><span class="bp">'+r.bp+'</span><span class="badge '+(r.sub?'p':'b')+'">'+r.type+'</span><span class="right">'+curBadge(r)+'</span></div>'
@@ -502,8 +475,18 @@ function renderDist(){ const rows=visibleRows();
 
 function openPortal(){ window.open('협력사_모바일_포털.html','_blank'); }
 function render(){ fillProjOptions(); renderKPI(); renderDist(); renderBoard(); }
-window.addEventListener('storage', e=>{ if(e.key!==JX_KEY) return; render(); if(document.getElementById('msgbox').classList.contains('on')) renderMsgBox(); });
-render();
+
+// 사내(internal) 세션 게이트 → 데이터 로드 → 렌더 + Realtime
+async function boot(){
+  const { data:{ session } } = await supabase.auth.getSession();
+  if(!session){ if(!new URLSearchParams(location.search).get('sso')) return autoSSO(); document.body.insertAdjacentHTML('afterbegin','<div style="padding:14px;background:#fbecea;color:#b3402f">로그인이 필요합니다. 사내 계정으로 로그인하세요.</div>'); return; }
+  if(claimsOf(session).role!=='internal'){ document.body.innerHTML='<div style="padding:48px;text-align:center;color:#b3402f;font-size:15px">사내(@jeilm.co.kr) 전용 화면입니다. 협력사 계정으로는 접근할 수 없습니다.</div>'; return; }
+  await loadData(); fillProjOptions(); render();
+  portalApi.subscribe(async()=>{ await loadData(); render(); var mb=document.getElementById('msgbox'); if(mb&&mb.classList.contains('on')) renderMsgBox(); });
+}
+// 인라인 onclick(전역) 노출 — module 스코프 격리 대응
+Object.assign(window, { render, openPortal, resetQ, lbxOpen, lbxClose, openMsg, closeMsg, sendMsgD, openInspect, closeInspect, submitInspect, toggleDet });
+boot();
 </script>
 </body>
 </html>
