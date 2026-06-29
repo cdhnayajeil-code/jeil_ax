@@ -213,73 +213,40 @@
 </div>
 <input type="file" id="fileInput" accept="image/*" multiple class="hidden">
 
-<script>
-/* ===== 협력사 ↔ 사내 연계 (localStorage 공유) ===== */
-const JX_KEY='jeilax_link_v1';
-function jxLoad(){ try{ return JSON.parse(localStorage.getItem(JX_KEY))||{orders:{}}; }catch(e){ return {orders:{}}; } }
-function jxSave(d){ d.updatedAt=new Date().toISOString(); d.vendor=VENDOR.code+' '+VENDOR.name; try{ localStorage.setItem(JX_KEY, JSON.stringify(d)); }catch(e){} }
-// 협력사 orders -> 공유 스키마(사진은 메타만, 이미지 제외)로 직렬화
-function syncOut(){
-  const d=jxLoad(); d.orders=d.orders||{};
-  orders.forEach(o=>{
-    const ok=o.photos.filter(p=>p.chk==='ok').length, rej=o.photos.filter(p=>p.chk==='rej').length;
-    const last=o.msgs.length?o.msgs[o.msgs.length-1]:null;
-    const prev=d.orders[o.no]||{};
-    d.orders[o.no]={
-      ...prev,
-      status:o.status,
-      photoCount:o.photos.length, okCount:ok, rejCount:rej,
-      photos:o.photos.map(p=>({tag:p.tag,cmt:p.cmt,by:p.by,t:p.t,chk:p.chk})),
-      msgCount:o.msgs.length, lastMsg:last?((last.who==='me'?'협력사: ':'구매: ')+last.text):'',
-      messages:o.msgs.map(m=>({who:m.who,name:m.name||'',text:m.text,t:m.t})),
-      inspRequested:!!o.inspReqNo, inspReqNo:o.inspReqNo||'',
-      type:o.type, item:o.items.map(i=>i.nm).join(', ')
-    };
-  });
-  jxSave(d);
+<script type="module">
+/* ===== Supabase 연동 (협력사 세션 + 발주 데이터, RLS로 자기 거래처만) ===== */
+import { supabase } from "../app/lib/supabaseClient.js";
+import { portalApi } from "../app/lib/api.js";
+
+// JWT(base64url, UTF-8) 디코드 → app_metadata(role/vendor_bp)
+function claimsOf(session){
+  if(!session || !session.access_token) return {};
+  try{ let p=session.access_token.split('.')[1].replace(/-/g,'+').replace(/_/g,'/'); while(p.length%4)p+='=';
+    return JSON.parse(decodeURIComponent(atob(p).split('').map(c=>'%'+c.charCodeAt(0).toString(16).padStart(2,'0')).join(''))).app_metadata||{}; }
+  catch(e){ return {}; }
 }
-// 저장된 상태 복원(이전 세션 작업 반영)
-function restoreIn(){
-  const d=jxLoad();
-  if(!d.orders) return;
-  orders.forEach(o=>{ const s=d.orders[o.no]; if(!s) return;
-    if(s.status) o.status=s.status;
-    if(s.inspReqNo) o.inspReqNo=s.inspReqNo;
-    if(s.inspection && s.inspection.result==='합격') o.status='done';   // 전후관계: 검수 합격 → 완료
-    if(s.photos && s.photos.length){
-      // 기존 사진 합/부 마크 반영
-      for(let i=0;i<o.photos.length && i<s.photos.length;i++){ o.photos[i].chk=s.photos[i].chk||''; }
-      // 세션 내 이미지가 없는 추가분은 placeholder로 표시
-      if(o.photos.length<s.photos.length){ const have=o.photos.length;
-        for(let i=have;i<s.photos.length;i++){ const p=s.photos[i]; o.photos.push({src:svgPhoto(p.tag,200),tag:p.tag,cmt:p.cmt,by:p.by,t:p.t,chk:p.chk}); } }
-    }
-    if(s.messages && s.messages.length){ o.msgs = s.messages.map(m=>({who:m.who,name:m.name,text:m.text,t:m.t})); }
-  });
+// 협력사 세션 확인 — 없거나 협력사 아니면 로그인 페이지로
+async function loadSession(){
+  const { data:{ session } } = await supabase.auth.getSession();
+  if(!session){ location.replace('../app/vendor-login.html'); return null; }
+  const am = claimsOf(session);
+  if(am.role!=='vendor' || !(am.vendor_bp && am.vendor_bp.length)){
+    location.replace('../app/vendor-login.html'); return null;
+  }
+  VENDOR.code = am.vendor_bp[0];
+  VENDOR.user = session.user.email;
+  try{ const { data:vm } = await supabase.from('vendor_master').select('bp_nm').eq('bp_cd', VENDOR.code).maybeSingle(); VENDOR.name = (vm&&vm.bp_nm) || VENDOR.code; }
+  catch(e){ VENDOR.name = VENDOR.code; }
+  return session;
 }
-// 사내 대시보드(타 탭) 변경을 즉시 반영 — 현황단계·검수신청·검수판정(전후관계)·사진 합부·메시지
-function mergeIn(){ const d=jxLoad(); if(!d.orders) return; let ch=false;
-  orders.forEach(o=>{ const s=d.orders[o.no]; if(!s) return;
-    // 현황 단계 (대시보드 변경 즉시 반영)
-    let eff=s.status;
-    // 전후관계: 검수 판정 합격 → 완료 자동 진행 / 불합격 → 검수요청 단계 유지
-    if(s.inspection && s.inspection.result==='합격') eff='done';
-    if(eff && eff!==o.status){ o.status=eff; ch=true; }
-    // 검수신청 번호 (검수요청 진입 시 생성 / 취소 시 제거)
-    const inNo=s.inspReqNo||'';
-    if(inNo!==(o.inspReqNo||'')){ o.inspReqNo=inNo; ch=true; }
-    // 사진 합/부 판정 마크
-    if(s.photos && s.photos.length){
-      s.photos.forEach((sp,i)=>{ if(o.photos[i] && (o.photos[i].chk||'')!==(sp.chk||'')){ o.photos[i].chk=sp.chk||''; ch=true; } }); }
-    // 메시지
-    if(s.messages && s.messages.length!==o.msgs.length){ o.msgs=s.messages.map(m=>({who:m.who,name:m.name,text:m.text,t:m.t})); ch=true; }
-  });
-  // 검수 결과 배너는 상세에서 jxLoad로 직접 읽으므로 상세/스레드 화면은 항상 갱신
-  if(ch || view==='detail' || view==='thread'){ if(view==='thread') renderThread(); else render(); }
+// 발주 로드(RLS 자기 거래처만) + 사진 signed URL 채움
+async function loadOrders(){
+  orders = await portalApi.getOrders();
+  for(const o of orders){ if(o.photos) for(const p of o.photos){ if(p.storage_path && !p.src){ try{ p.src = await portalApi.photoUrl(p.storage_path); }catch(e){ p.src=''; } } } }
 }
-window.addEventListener('storage', function(e){ if(e.key===JX_KEY) mergeIn(); });
 
 /* ===== 데이터 (한일정밀, 사내 대시보드와 정합) ===== */
-const VENDOR = { code:'V-1027', name:'한일정밀공업', mgr:'김도현', mgrTeam:'구매2팀', user:'이상우 과장', phone:'010-2841-7755' };
+let VENDOR = { code:'', name:'', mgr:'제일엠앤에스 구매팀', mgrTeam:'구매팀', user:'', phone:'-' };
 const STATUS = { new:'신규 접수', prod:'생산중', insp:'검수요청', done:'완료' };
 const STATUS_ORDER = ['new','prod','insp','done'];
 const stCls = { new:'st-new', prod:'st-prod', insp:'st-insp', done:'st-done' };
@@ -322,43 +289,23 @@ function photoScene(k){ switch(k){
 function photoSVG(kind,cap,ts){ var hue={machining:210,finished:32,packing:32,shipping:120,pcb:140,inspect:205,material:205,bearing:30,valve:215,gasket:25}[kind]||205;
   var s="<svg xmlns='http://www.w3.org/2000/svg' width='320' height='320'><defs><linearGradient id='bg' x1='0' y1='0' x2='0' y2='1'><stop offset='0' stop-color='hsl("+hue+",22%,91%)'/><stop offset='1' stop-color='hsl("+hue+",18%,76%)'/></linearGradient></defs><rect width='320' height='320' fill='url(#bg)'/>"+photoScene(kind)+"<rect x='0' y='264' width='320' height='56' fill='rgba(15,23,35,0.60)'/><text x='14' y='288' font-family='sans-serif' font-size='16' fill='#fff' font-weight='bold'>"+cap+"</text><text x='14' y='308' font-family='sans-serif' font-size='11' fill='#cfd8e3'>📷 "+ts+"</text></svg>";
   return 'data:image/svg+xml;base64,'+btoa(unescape(encodeURIComponent(s))); }
-function svgPhoto(label,hue){ return photoSVG(kindFromText(label), label, '06-25 등록'); }
-let orders = [
-  { no:'PO202606220012', date:'2026-06-22', due:'2026-07-05', type:'SIE', status:'prod', inspReqNo:'',
-    items:[{pn:'PLT-AL5T',nm:'알루미늄 브라켓 가공',spec:'5T×1000×2000 절단·가공',qty:500,unit:'EA',price:3200}],
-    photos:[
-      {src:svgPhoto('1차 가공',210),tag:'작업',cmt:'CNC 1차 가공 완료분',by:'이상우',t:'06-23 14:20',chk:'ok'},
-      {src:svgPhoto('치수 검사',150),tag:'작업',cmt:'치수 검사 — 공차 내',by:'이상우',t:'06-23 15:05',chk:''}],
-    msgs:[
-      {who:'them',name:'김도현 (구매2팀)',text:'PO202606220012 생산 일정 공유 부탁드립니다.',t:'06-22 10:14'},
-      {who:'me',text:'금주 내 1차 가공 완료 후 사진 등록드리겠습니다.',t:'06-22 11:02'}] },
-  { no:'PO202606200008', date:'2026-06-20', due:'2026-06-30', type:'SIE', status:'insp', inspReqNo:'IR202606200008',
-    items:[{pn:'UNI-25A-S',nm:'유니온 배관 25A SUS 가공',spec:'25A SUS304',qty:200,unit:'EA',price:5400}],
-    photos:[
-      {src:svgPhoto('완성품',120),tag:'완성',cmt:'가공 완성품 전수',by:'이상우',t:'06-24 09:40',chk:'ok'},
-      {src:svgPhoto('포장',90),tag:'포장',cmt:'출하 포장 상태',by:'이상우',t:'06-24 10:10',chk:''}],
-    msgs:[{who:'me',text:'검수요청 드립니다. 검사 진행 부탁드립니다.',t:'06-24 10:15'}] },
-  { no:'PO202606250021', date:'2026-06-25', due:'2026-07-10', type:'SIE', status:'new', inspReqNo:'',
-    items:[
-      {pn:'ORG-P22N',nm:'NBR 가스켓 성형(오링 P-22)',spec:'P-22 NBR',qty:3000,unit:'EA',price:140},
-      {pn:'SPR-SS-08',nm:'압축 스프링',spec:'SUS, 8×30',qty:1500,unit:'EA',price:320}],
-    photos:[], msgs:[] },
-  { no:'PO202606100005', date:'2026-06-10', due:'2026-06-19', type:'SIE-1', status:'done', inspReqNo:'IR202606100005',
-    items:[{pn:'BRG-6204Z',nm:'정밀 가공품 마감(베어링하우징)',spec:'6204ZZ',qty:1500,unit:'EA',price:320}],
-    photos:[
-      {src:svgPhoto('포장',120),tag:'포장',cmt:'완충 포장 상태',by:'이상우',t:'06-18 11:00',chk:'ok'},
-      {src:svgPhoto('출하',90),tag:'출하',cmt:'출하 직전 팔레트',by:'이상우',t:'06-18 16:30',chk:'ok'}],
-    msgs:[
-      {who:'me',text:'출하 완료했습니다. 송장 6184-2290.',t:'06-18 16:40'},
-      {who:'them',name:'김도현 (구매2팀)',text:'검사 합격·입고 확인했습니다. 수고하셨습니다 👍',t:'06-19 09:05'}] },
-];
+function svgPhoto(label,hue){ return photoSVG(kindFromText(label), label, '등록'); }
+let orders = [];  // Supabase에서 로드 (portalApi.getOrders)
 
 let view='orders', curOrder=null, filter='all', search='', uploadTag='작업';
 const TAGS=['작업','완성','포장','출하'];
 const $ = s => document.querySelector(s);
 const screen = () => $('#screen');
 
-function doLogin(){ $('#loginScreen').classList.add('hidden'); $('#app').classList.remove('hidden'); switchTab('orders'); }
+async function initPortal(){
+  const s = await loadSession(); if(!s) return;   // 세션 없으면 vendor-login으로 리디렉트됨
+  await loadOrders();
+  $('#loginScreen').classList.add('hidden'); $('#app').classList.remove('hidden');
+  switchTab('orders');
+  // 사내 대시보드 변경 실시간 반영
+  portalApi.subscribe(async ()=>{ await loadOrders(); if(view==='thread') renderThread(); else render(); });
+}
+function doLogin(){ initPortal(); }
 
 function switchTab(tab){ view=tab; curOrder=null;
   document.querySelectorAll('.tabbar .tab').forEach(t=>t.classList.toggle('on', t.dataset.tab===tab));
@@ -410,7 +357,7 @@ function daysLeft(due){ const d=Math.ceil((new Date(due)-new Date('2026-06-25'))
 
 function renderDetail(){
   const o=curOrder; const curIdx=STATUS_ORDER.indexOf(o.status);
-  const _insp=(jxLoad().orders[o.no]||{}).inspection;
+  const _insp=o.inspection||null;
   screen().innerHTML=`<div class="pad">
     ${_insp?`<div class="card pad" style="border-left:4px solid ${_insp.result==='합격'?'var(--green)':'var(--red)'}">
       <div style="font-size:13px;font-weight:800;color:${_insp.result==='합격'?'var(--green)':'var(--red)'}">🔬 검수 결과: ${_insp.result}</div>
@@ -439,16 +386,21 @@ function renderDetail(){
 }
 function pcell(p,i){ const mark=p.chk==='ok'?`<span class="ok">✓</span>`:p.chk==='rej'?`<span class="rej">!</span>`:'';
   return `<div class="pcell" onclick="lightbox(${i})"><img src="${p.src}"><span class="tg">${p.tag}</span>${mark}</div>`; }
-function advanceStatus(){ const i=STATUS_ORDER.indexOf(curOrder.status);
-  if(i<3){ curOrder.status=STATUS_ORDER[i+1];
-    if(curOrder.status==='insp' && !curOrder.inspReqNo){ curOrder.inspReqNo='IR'+curOrder.no.slice(2); toast('검수요청 → 검사신청 '+curOrder.inspReqNo+' 자동 생성 (사내 연계)'); }
-    else toast('상태 변경: '+STATUS[curOrder.status]+' (사내 대시보드 반영)');
-    syncOut(); render(); } }
-function cancelStatus(){ const i=STATUS_ORDER.indexOf(curOrder.status);
-  if(i>0){ curOrder.status=STATUS_ORDER[i-1];
-    if(STATUS_ORDER.indexOf(curOrder.status)<2 && curOrder.inspReqNo){ curOrder.inspReqNo=''; toast('단계 취소: '+STATUS[curOrder.status]+' · 검사신청 취소 (사내 반영)'); }
-    else toast('단계 취소: '+STATUS[curOrder.status]+' (사내 대시보드 반영)');
-    syncOut(); render(); } }
+async function advanceStatus(){ const i=STATUS_ORDER.indexOf(curOrder.status);
+  if(i>=3) return;
+  const ns=STATUS_ORDER[i+1];
+  try{
+    if(ns==='insp'){ const r=await portalApi.requestInspection(curOrder.no); curOrder.inspReqNo=(r && r.insp_req_no)||('IR'+curOrder.no.slice(2)); curOrder.status='insp'; toast('검수요청 → 검사신청 '+curOrder.inspReqNo+' 생성 (사내 연계)'); }
+    else { await portalApi.updateStatus(curOrder.no, ns); curOrder.status=ns; toast('상태 변경: '+STATUS[ns]+' (사내 대시보드 반영)'); }
+    render();
+  }catch(e){ toast('상태 변경 실패: '+(e.message||e)); } }
+async function cancelStatus(){ const i=STATUS_ORDER.indexOf(curOrder.status);
+  if(i<=0) return;
+  const ns=STATUS_ORDER[i-1];
+  try{ await portalApi.updateStatus(curOrder.no, ns); curOrder.status=ns;
+    if(STATUS_ORDER.indexOf(ns)<2) curOrder.inspReqNo='';
+    toast('단계 취소: '+STATUS[ns]+' (사내 대시보드 반영)'); render();
+  }catch(e){ toast('취소 실패: '+(e.message||e)); } }
 
 let pendingFiles=[];
 function openUpload(){ if(!curOrder){toast('발주를 먼저 선택하세요'); return;} uploadTag='작업';
@@ -463,13 +415,15 @@ function openUpload(){ if(!curOrder){toast('발주를 먼저 선택하세요'); 
 function pickTag(t){ uploadTag=t; document.querySelectorAll('#tagpick .tp').forEach(e=>e.classList.toggle('on', e.textContent===t)); }
 function closeSheet(){ const s=$('#uploadSheet'); if(s) s.remove(); }
 function pickFiles(){ $('#fileInput').click(); }
-$('#fileInput').addEventListener('change', function(e){
+$('#fileInput').addEventListener('change', async function(e){
   const files=[...e.target.files]; if(!files.length) return;
-  const cmt=$('#upCmt')?$('#upCmt').value:''; let done=0;
-  files.forEach(f=>{ const r=new FileReader();
-    r.onload=ev=>{ curOrder.photos.push({src:ev.target.result,tag:uploadTag,cmt:cmt||'(코멘트 없음)',by:VENDOR.user.split(' ')[0],t:nowStr(),chk:''}); done++;
-      if(done===files.length){ closeSheet(); toast(files.length+'장 등록 완료 (사내 연계 반영)'); syncOut(); render(); } };
-    r.readAsDataURL(f); });
+  const cmt=$('#upCmt')?$('#upCmt').value:'';
+  closeSheet(); toast('업로드 중…');
+  try{
+    for(const f of files){ await portalApi.uploadPhoto(curOrder.no, f, {tag:uploadTag, cmt:cmt||'(코멘트 없음)'}); }
+    await loadOrders(); curOrder=orders.find(o=>o.no===curOrder.no);
+    toast(files.length+'장 등록 완료 (사내 연계 반영)'); render();
+  }catch(err){ toast('사진 업로드 실패: '+(err.message||err)); }
   e.target.value=''; });
 function nowStr(){ return '06-25 '+new Date().toTimeString().slice(0,5); }
 
@@ -480,7 +434,8 @@ function lightbox(i){ const p=curOrder.photos[i];
     <div class="lb-meta"><div class="tg">${p.tag}</div><br>${p.cmt}<br><span style="opacity:.7">${p.by} · ${p.t}</span><br><br>${chkTxt}</div>
     <div class="lb-act"><button class="btn ghost sm" onclick="delPhoto(${i})" style="background:rgba(255,255,255,.16);color:#fff">🗑 삭제</button></div>`;
   $('.phone').appendChild(lb); }
-function delPhoto(i){ curOrder.photos.splice(i,1); $('#lb').remove(); toast('사진을 삭제했습니다 (연계 반영)'); syncOut(); render(); }
+function delPhoto(i){ const lb=$('#lb'); if(lb) lb.remove(); toast('등록된 사진은 사내(품질) 확인 절차로 관리됩니다'); }
+function openPhotoLightbox(no,i){ curOrder=orders.find(o=>o.no===no); lightbox(i); }
 
 function renderPhotos(){
   const all=[]; orders.forEach(o=>o.photos.forEach(p=>all.push(p)));
@@ -489,7 +444,7 @@ function renderPhotos(){
     <div class="stat green"><div class="n">${all.filter(p=>p.chk==='ok').length}</div><div class="l">확인됨</div></div>
     <div class="stat red"><div class="n">${all.filter(p=>p.chk==='rej').length}</div><div class="l">반려</div></div></div>
     ${orders.filter(o=>o.photos.length).map(o=>`<div class="sec" style="margin-top:14px">${o.no} <span class="cnt">${o.photos.length}장</span></div>
-      <div class="pgrid">${o.photos.map((p,i)=>`<div class="pcell" onclick="curOrder=orders.find(x=>x.no==='${o.no}');lightbox(${i})"><img src="${p.src}"><span class="tg">${p.tag}</span>${p.chk==='ok'?'<span class="ok">✓</span>':p.chk==='rej'?'<span class="rej">!</span>':''}</div>`).join('')}</div>`).join('')}
+      <div class="pgrid">${o.photos.map((p,i)=>`<div class="pcell" onclick="openPhotoLightbox('${o.no}',${i})"><img src="${p.src}"><span class="tg">${p.tag}</span>${p.chk==='ok'?'<span class="ok">✓</span>':p.chk==='rej'?'<span class="rej">!</span>':''}</div>`).join('')}</div>`).join('')}
     <div class="note">발주별 사진은 발주 상세에서도 등록할 수 있으며, 사내 검사 증빙으로 연계됩니다.</div></div>`;
 }
 function renderMessages(){
@@ -511,9 +466,10 @@ function renderThread(){
   setTimeout(()=>{const s=screen(); s.scrollTop=s.scrollHeight;},30);
 }
 function msgBubble(m){ return `<div class="msg ${m.who}">${m.who==='them'?`<div class="who">${m.name||'구매 담당자'}</div>`:''}<div>${m.text}</div><div class="mt">${m.t}</div></div>`; }
-function sendMsg(){ const inp=$('#msgInput'); const v=inp.value.trim(); if(!v) return;
-  curOrder.msgs.push({who:'me',text:v,t:nowStr()}); inp.value=''; syncOut(); renderThread();
-  setTimeout(()=>{ curOrder.msgs.push({who:'them',name:VENDOR.mgr+' ('+VENDOR.mgrTeam+')',text:'확인했습니다. 검토 후 회신드리겠습니다.',t:nowStr()}); syncOut(); if(view==='thread') renderThread(); toast('구매팀 회신 도착'); },1400); }
+async function sendMsg(){ const inp=$('#msgInput'); const v=inp.value.trim(); if(!v) return; inp.value='';
+  try{ await portalApi.sendMessage(curOrder.no, v, 'supplier', VENDOR.name);
+    await loadOrders(); curOrder=orders.find(o=>o.no===curOrder.no); renderThread();
+  }catch(e){ toast('전송 실패: '+(e.message||e)); inp.value=v; } }
 
 function renderProfile(){
   const total=orders.length, prod=orders.filter(o=>o.status==='prod').length, insp=orders.filter(o=>o.status==='insp').length, done=orders.filter(o=>o.status==='done').length;
@@ -523,15 +479,15 @@ function renderProfile(){
       <div class="stat" style="--x:0"><div class="n" style="color:var(--purple)">${insp}</div><div class="l">검수요청</div></div>
       <div class="stat green"><div class="n">${done}</div><div class="l">완료</div></div></div>
     <div class="prow"><span>담당 구매자</span><span class="v">${VENDOR.mgr} · ${VENDOR.mgrTeam}</span></div>
-    <div class="prow"><span>로그인 계정</span><span class="v">hanil-mt</span></div>
+    <div class="prow"><span>로그인 계정</span><span class="v">${VENDOR.user||'-'}</span></div>
     <div class="prow"><span>연락처</span><span class="v">${VENDOR.phone}</span></div>
     <div class="prow"><span>사내 연계</span><span class="v" style="color:var(--green);font-weight:700">🔗 실시간 ON</span></div>
     <button class="btn ghost block" style="margin-top:14px" onclick="resetLink()">🧹 연계 데이터 초기화(데모)</button>
     <button class="btn ghost block" style="margin-top:9px" onclick="logout()">로그아웃</button>
     <div class="note">제일메디칼 협력사 발주·사진등록 포털 · 데모 v0.3 (하이브리드 앱 · 사내 연계)<br>등록 사진·상태·검수요청이 사내 외주 발주·검사 대시보드에 실시간 반영됩니다.</div></div>`;
 }
-function resetLink(){ localStorage.removeItem(JX_KEY); toast('연계 데이터를 초기화했습니다'); }
-function logout(){ $('#app').classList.add('hidden'); $('#loginScreen').classList.remove('hidden'); }
+function resetLink(){ toast('발주·계정 데이터는 사내 관리자 페이지에서 관리됩니다'); }
+async function logout(){ try{ await supabase.auth.signOut(); }catch(e){} location.replace('../app/vendor-login.html'); }
 
 let toastTimer;
 function toast(msg){ const t=$('#toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(toastTimer); toastTimer=setTimeout(()=>t.classList.remove('show'),2400); }
@@ -548,8 +504,11 @@ function toast(msg){ const t=$('#toast'); t.textContent=msg; t.classList.add('sh
     document.head.appendChild(link);
   }catch(e){}
 })();
-/* init: 복원 후 시드 출력 */
-restoreIn(); syncOut();
+/* 인라인 onclick(전역) 노출 — module 스코프 격리 대응 */
+Object.assign(window, { doLogin, goBack, toast, switchTab, openOrder, openThread, setFilter, setSearch, advanceStatus, cancelStatus, openUpload, pickTag, closeSheet, pickFiles, lightbox, delPhoto, openPhotoLightbox, sendMsg, resetLink, logout });
+
+/* init: 협력사 세션 확인 → 발주 로드 */
+initPortal();
 </script>
 </body>
 </html>
