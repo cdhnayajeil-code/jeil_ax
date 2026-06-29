@@ -34,7 +34,8 @@ Deno.serve(async (req) => {
   const userClient = createClient(url, anon, { global: { headers: { Authorization: authHeader } } });
   const { data: { user }, error: uerr } = await userClient.auth.getUser();
   if (uerr || !user) return json({ error: "unauthorized" }, 401);
-  if ((user.app_metadata as Record<string, unknown>)?.role !== "internal")
+  // role은 Hook이 JWT에만 주입 → getUser()의 app_metadata엔 없음. 이메일+portal_admin으로 판정.
+  if (!(user.email || "").toLowerCase().endsWith("@jeilm.co.kr"))
     return json({ error: "forbidden: internal only" }, 403);
 
   const admin = createClient(url, service);
