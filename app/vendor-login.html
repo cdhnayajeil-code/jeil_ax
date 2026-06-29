@@ -56,9 +56,14 @@ const $ = (id) => document.getElementById(id);
 const show = (el, type, html) => { el.className = "msg show " + type; el.innerHTML = html; };
 function claimsOf(session) {
   if (!session?.access_token) return {};
-  try { return JSON.parse(atob(session.access_token.split(".")[1])).app_metadata || {}; }
-  catch { return {}; }
+  try {
+    let p = session.access_token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/");
+    while (p.length % 4) p += "=";
+    const json = decodeURIComponent(atob(p).split("").map(c => "%" + c.charCodeAt(0).toString(16).padStart(2, "0")).join(""));
+    return JSON.parse(json).app_metadata || {};
+  } catch { return {}; }
 }
+
 
 $("btnLogin").onclick = async () => {
   const email = $("li_email").value.trim(), password = $("li_pw").value;

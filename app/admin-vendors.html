@@ -56,8 +56,8 @@ tr:nth-child(even) td{background:#fafbfd;}
 </head>
 <body>
 
-<!-- 로그인 게이트 -->
-<div id="gate" class="gate">
+<!-- 로그인 게이트 (자동 SSO 실패 시에만 표시) -->
+<div id="gate" class="gate hidden">
   <h2>사내 로그인</h2>
   <p>협력사 계정 관리는 <b>협력사관리 권한(portal_admin)</b>이 부여된 사내(@jeilm.co.kr) 사용자만 사용할 수 있습니다.</p>
   <button class="btn" id="g_ms" style="width:100%;background:#2f2f7a;">🔐 Microsoft 사내 계정으로 로그인 (Entra SSO)</button>
@@ -143,24 +143,43 @@ const esc = (s) => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&l
 const VENDOR_LOGIN_URL = location.origin + "/app/vendor-login.html";
 let ME = "";
 
-// Hook이 주입한 클레임(JWT)
+// Hook이 주입한 클레임(JWT) — JWT는 base64url(UTF-8)이므로 atob 직접 사용 금지
 function claimsOf(session) {
   if (!session?.access_token) return {};
-  try { return JSON.parse(atob(session.access_token.split(".")[1])).app_metadata || {}; }
-  catch { return {}; }
+  try {
+    let p = session.access_token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/");
+    while (p.length % 4) p += "=";
+    const json = decodeURIComponent(atob(p).split("").map(c => "%" + c.charCodeAt(0).toString(16).padStart(2, "0")).join(""));
+    return JSON.parse(json).app_metadata || {};
+  } catch { return {}; }
+}
+
+// 챗봇 포털(04)에서 이미 MS 로그인된 세션을 무프롬프트로 이어받는다.
+function autoSSO() {
+  const u = new URL(location.href); u.searchParams.set("sso", "1");
+  supabase.auth.signInWithOAuth({
+    provider: "azure",
+    options: { scopes: "openid email profile https://graph.microsoft.com/Mail.Send", redirectTo: u.toString() },
+  });
 }
 
 // ── 인증 게이트: role=internal + portal_admin ──
 async function boot() {
   const { data: { session } } = await supabase.auth.getSession();
-  if (!session) return;
+  if (!session) {
+    // 세션 없음 → 1회 자동 SSO 시도(이미 MS 로그인 시 자동 통과). 실패 시 수동 로그인 폼.
+    if (!new URLSearchParams(location.search).get("sso")) return autoSSO();
+    $("gate").classList.remove("hidden"); // 자동 SSO 실패 → 수동 폼
+    return;
+  }
   if (claimsOf(session).role !== "internal") {
-    return show($("g_msg"), "err", "사내(@jeilm.co.kr) 계정이 아닙니다. 로그아웃 후 사내 계정으로 로그인하세요.");
+    $("gate").classList.remove("hidden");
+    return show($("g_msg"), "err", `사내(@jeilm.co.kr) 계정이 아닙니다(${esc(session.user.email || "")}). 로그아웃 후 사내 계정으로 로그인하세요.`);
   }
   ME = session.user.email;
   const { data: pa, error } = await supabase.from("portal_admin").select("email").eq("email", ME).maybeSingle();
-  if (error) return show($("g_msg"), "err", "권한 확인 실패: " + error.message);
-  if (!pa) return show($("g_msg"), "err", `이 계정(${esc(ME)})에는 협력사관리 권한이 없습니다. 기존 관리자에게 권한 부여를 요청하세요.`);
+  if (error) { $("gate").classList.remove("hidden"); return show($("g_msg"), "err", "권한 확인 실패: " + error.message); }
+  if (!pa) { $("gate").classList.remove("hidden"); return show($("g_msg"), "err", `이 계정(${esc(ME)})에는 협력사관리 권한이 없습니다. 기존 관리자에게 권한 부여를 요청하세요.`); }
   enterApp(session.user);
 }
 function enterApp(user) {
