@@ -52,6 +52,11 @@ tr:nth-child(even) td{background:#fafbfd;}
 .muted{color:var(--muted);font-size:12px;}
 .hidden{display:none;}
 .tag{display:inline-block;font-size:10.5px;background:#eef3fb;color:var(--navy2);padding:1px 7px;border-radius:10px;margin-left:5px;}
+#vmBody.bulk-on input{background:#fffdf3;border-color:#e8d9a0;}
+#vmBody.bulk-on tr:hover td{background:#fcf7e6;}
+.secbar{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap;}
+#bulkResult table{margin-top:4px;}
+#bulkResult th{background:#caa64a;}
 </style>
 </head>
 <body>
@@ -99,12 +104,25 @@ tr:nth-child(even) td{background:#fafbfd;}
 
     <!-- 섹션1: ERP 거래처 + 계정 -->
     <div class="sec">
-      <h2>ERP 협력사 거래처 <span id="cntVendor" class="muted"></span></h2>
-      <div class="sub">ERP <code>B_BIZ_PARTNER</code> 기반(데모: 17개사·상호 부분마스킹). 거래처를 골라 협력사 담당자 이메일로 계정을 발급합니다. 운영 시 야간배치로 동기화.</div>
+      <div class="secbar">
+        <div>
+          <h2>ERP 협력사 거래처 <span id="cntVendor" class="muted"></span></h2>
+          <div class="sub">ERP <code>B_BIZ_PARTNER</code> 기반(데모: 17개사·상호 부분마스킹). 거래처를 골라 협력사 담당자 이메일로 계정을 발급합니다. 운영 시 야간배치로 동기화.</div>
+        </div>
+        <div class="rowin" style="flex:none">
+          <button class="btn sm ghost" id="bulkToggle">📋 엑셀 일괄 편집</button>
+          <button class="btn sm ok hidden" id="bulkSave">💾 일괄 발급</button>
+          <button class="btn sm gray hidden" id="bulkCancel">닫기</button>
+        </div>
+      </div>
+      <div id="bulkHelp" class="msg info">
+        엑셀에서 <b>이메일·담당자명</b>(거래처코드 열 포함 가능)을 복사한 뒤, 아래 미발급 거래처의 <b>'담당자 이메일' 칸을 클릭해 붙여넣기(Ctrl+V)</b> 하면 여러 거래처가 한 번에 채워집니다 — 이메일(@ 포함)·담당자·거래처코드를 자동 인식합니다. 입력 후 <b>💾 일괄 발급</b>을 누르세요.
+      </div>
       <table>
         <thead><tr><th>거래처코드</th><th>협력사명</th><th>사업자번호</th><th>계정상태</th><th>계정 발급 / 관리</th></tr></thead>
         <tbody id="vmBody"><tr><td colspan="5" class="muted">불러오는 중…</td></tr></tbody>
       </table>
+      <div id="bulkResult" class="cred"></div>
     </div>
 
     <!-- 섹션2: 감사 로그 -->
@@ -226,6 +244,8 @@ async function callFn(name, payload) {
 
 // ── 거래처 + 계정 ──
 let ACCOUNTS = {};   // bp_cd -> account row
+let UNISSUED = [];   // 미발급 거래처 bp_cd(화면 순서) — 일괄 편집/발급 대상
+let BULK = false;    // 엑셀 일괄 편집 모드
 async function loadVendors() {
   const [{ data: vendors, error: ve }, { data: accs }] = await Promise.all([
     supabase.from("vendor_master").select("*").order("bp_nm"),
@@ -260,6 +280,15 @@ async function loadVendors() {
   $("vmBody").querySelectorAll("[data-prov]").forEach(b => b.onclick = () => provision(b.dataset.prov));
   $("vmBody").querySelectorAll("[data-reset]").forEach(b => b.onclick = () => resetPw(b.dataset.reset, b.dataset.email));
   $("vmBody").querySelectorAll("[data-mail]").forEach(b => b.onclick = () => mailAccount(b.dataset.mail, b.dataset.email));
+
+  // 일괄 편집: 미발급 거래처(화면 순서) + 엑셀 붙여넣기/카운트 핸들러
+  UNISSUED = Array.from($("vmBody").querySelectorAll('input[id^="em_"]')).map(i => i.id.slice(3));
+  $("vmBody").querySelectorAll('input[id^="em_"]').forEach(inp => {
+    inp.addEventListener("paste", e => handleGridPaste(e, inp.id.slice(3)));
+    inp.addEventListener("input", updateBulkCount);
+  });
+  $("vmBody").querySelectorAll('input[id^="nm_"]').forEach(inp => inp.addEventListener("input", updateBulkCount));
+  applyBulkUI();
 }
 
 // 계정 안내 메일 발송(로그인 관리자 M365, Graph /me/sendMail) — 새 임시비번 재발급 후 발송
@@ -337,6 +366,94 @@ async function provision(bp_cd) {
     loadVendors(); loadLog();
   } catch (e) { show($("a_msg"), "err", "계정 생성 실패: " + (e.message || e)); }
 }
+/* ===================== 엑셀형 일괄 편집·발급 ===================== */
+const isEmail = (s) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(s);
+$("bulkToggle").onclick = () => { BULK = !BULK; applyBulkUI(); };
+$("bulkCancel").onclick = () => { BULK = false; applyBulkUI(); };
+$("bulkSave").onclick = () => bulkProvision();
+
+function applyBulkUI() {
+  $("bulkSave").classList.toggle("hidden", !BULK);
+  $("bulkCancel").classList.toggle("hidden", !BULK);
+  $("bulkToggle").textContent = BULK ? "✏️ 편집 중" : "📋 엑셀 일괄 편집";
+  $("bulkHelp").classList.toggle("show", BULK);
+  $("vmBody").classList.toggle("bulk-on", BULK);
+  updateBulkCount();
+}
+function bulkRows() {
+  return UNISSUED
+    .map(bp => ({ bp, email: ($("em_" + bp)?.value || "").trim(), name: ($("nm_" + bp)?.value || "").trim() }))
+    .filter(r => r.email);
+}
+function updateBulkCount() {
+  const n = bulkRows().length;
+  $("bulkSave").textContent = "💾 일괄 발급" + (n ? `(${n}건)` : "");
+}
+
+// 엑셀(탭/개행) 붙여넣기 → 이메일(@ 포함)·담당자명·거래처코드 자동 인식, 미발급 행에 순서대로 채움
+function handleGridPaste(e, startBp) {
+  const text = (e.clipboardData || window.clipboardData)?.getData("text") || "";
+  if (!/[\t\n\r]/.test(text)) return; // 단일 값은 기본 붙여넣기 허용
+  e.preventDefault();
+  const lines = text.replace(/\r/g, "").split("\n").map(l => l.trim()).filter(l => l.length);
+  let seq = UNISSUED.indexOf(startBp); if (seq < 0) seq = 0;
+  let filled = 0;
+  lines.forEach(line => {
+    const cols = line.split("\t").map(c => c.trim());
+    const codeIdx = cols.findIndex(c => UNISSUED.includes(c)); // 거래처코드 열이 있으면 그 행에 정확 매칭
+    let bp, fields;
+    if (codeIdx >= 0) { bp = cols[codeIdx]; fields = cols.filter((_, j) => j !== codeIdx); }
+    else { bp = UNISSUED[seq++]; fields = cols; }
+    if (!bp) return;
+    const email = fields.find(f => isEmail(f)) || fields.find(f => /@/.test(f)) || "";
+    const name = fields.filter(f => !/@/.test(f) && f).find(f => f !== bp) || "";
+    const em = $("em_" + bp), nm = $("nm_" + bp);
+    if (em && email) { em.value = email; filled++; }
+    if (nm && name) nm.value = name;
+  });
+  if (!BULK) { BULK = true; applyBulkUI(); } else updateBulkCount();
+  show($("a_msg"), "info", `붙여넣기 완료 — ${filled}개 거래처에 이메일 입력됨. 내용 확인 후 '💾 일괄 발급'을 누르세요.`);
+}
+
+// 이메일이 입력된 미발급 거래처를 한 번에 계정 발급
+async function bulkProvision() {
+  const list = bulkRows();
+  if (!list.length) return show($("a_msg"), "err", "발급할 이메일이 입력된 거래처가 없습니다.");
+  const bad = list.filter(r => !isEmail(r.email));
+  if (bad.length) return show($("a_msg"), "err", `이메일 형식 오류(${bad.length}건): ${bad.map(b => b.bp).join(", ")} — 확인 후 다시 시도하세요.`);
+  if (!confirm(`${list.length}개 거래처에 협력사 계정을 일괄 발급합니다.\n각 담당자 이메일로 로그인 계정(임시 비밀번호)이 생성됩니다.\n진행할까요?`)) return;
+  $("bulkSave").disabled = true;
+  const results = [];
+  for (const r of list) {
+    show($("a_msg"), "info", `계정 발급 중… (${results.length + 1}/${list.length}) ${r.bp}`);
+    try {
+      const out = await callFn("vendor-provision", { bp_cd: r.bp, email: r.email, contact_name: r.name });
+      results.push({ ...r, nm: out.bp_nm || r.bp, pw: out.temp_password, ok: true });
+    } catch (e) { results.push({ ...r, nm: r.bp, err: (e.message || String(e)), ok: false }); }
+  }
+  $("bulkSave").disabled = false;
+  const okN = results.filter(r => r.ok).length;
+  show($("a_msg"), okN === results.length ? "ok" : "err", `일괄 발급 완료 — 성공 ${okN}건 / 실패 ${results.length - okN}건`);
+  showBulkResult(results);
+  BULK = false; loadVendors(); loadLog();
+}
+
+function showBulkResult(results) {
+  const rows = results.map(r => `<tr><td>${esc(r.nm || r.bp)}</td><td>${esc(r.email)}</td><td>${r.ok ? `<code>${esc(r.pw)}</code>` : `<span style="color:var(--red)">${esc(r.err)}</span>`}</td><td style="text-align:center">${r.ok ? "✅" : "❌"}</td></tr>`).join("");
+  const box = $("bulkResult");
+  box.innerHTML = `<h3>📋 일괄 발급 결과 (성공 ${results.filter(r => r.ok).length} / ${results.length})</h3>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:8px">임시 비밀번호를 각 협력사에 전달하거나, 위 표의 '📧 메일발송' 버튼으로 보내세요. 협력사는 최초 로그인 후 비밀번호를 변경합니다.</div>
+    <table style="background:#fff"><thead><tr><th>협력사</th><th>이메일</th><th>임시 비밀번호 / 오류</th><th>결과</th></tr></thead><tbody>${rows}</tbody></table>
+    <div class="acts"><button class="btn sm ghost" id="br_copy">전체 복사</button><button class="btn sm gray" id="br_close">닫기</button></div>`;
+  box.classList.add("show");
+  $("br_copy").onclick = () => {
+    navigator.clipboard.writeText(results.filter(r => r.ok).map(r => `${r.nm || r.bp}\t${r.email}\t${r.pw}`).join("\n"));
+    show($("a_msg"), "info", "발급 결과를 클립보드에 복사했습니다.");
+  };
+  $("br_close").onclick = () => box.classList.remove("show");
+  box.scrollIntoView({ behavior: "smooth", block: "center" });
+}
+
 async function resetPw(auth_user_id, email) {
   if (!confirm(`${email} 비밀번호를 초기화합니다. 새 임시 비밀번호가 발급됩니다.\n진행할까요?`)) return;
   try {
