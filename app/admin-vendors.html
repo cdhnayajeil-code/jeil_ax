@@ -186,6 +186,7 @@ function enterApp(user) {
   $("gate").classList.add("hidden"); $("app").classList.remove("hidden");
   $("whoami").textContent = user.email + " (협력사관리 권한자)";
   loadVendors(); loadLog(); loadAdmins();
+  resumePendingMail(); // 재인증 후 복귀했다면 보류 메일 자동 발송
 }
 
 // ── 로그인 (SSO / 이메일) ──
@@ -262,9 +263,8 @@ async function loadVendors() {
 }
 
 // 계정 안내 메일 발송(로그인 관리자 M365, Graph /me/sendMail) — 새 임시비번 재발급 후 발송
-async function sendCredMail(email, pw) {
-  const { data: { session } } = await supabase.auth.getSession();
-  const token = session?.provider_token;
+async function sendCredMail(email, pw, token) {
+  if (!token) { const { data: { session } } = await supabase.auth.getSession(); token = session?.provider_token; }
   if (!token) return { ok: false, reason: "메일 발송 토큰 없음 — 'Microsoft 사내 계정으로 로그인(SSO)'으로 재로그인 + Entra Mail.Send 권한 필요" };
   const html = `<p>안녕하세요, 제일엠앤에스 협력사 포털 계정 안내입니다.</p>
     <ul><li>로그인 주소: <a href="${VENDOR_LOGIN_URL}">${VENDOR_LOGIN_URL}</a></li>
@@ -279,16 +279,49 @@ async function sendCredMail(email, pw) {
     return { ok: true };
   } catch (e) { return { ok: false, reason: e.message || e }; }
 }
+// MS Graph 토큰(provider_token) 확보. 세션 복원/자동갱신 시 사라지므로 발송 직전 확인한다.
+async function ensureGraphToken() {
+  const { data: { session } } = await supabase.auth.getSession();
+  return session?.provider_token || null;
+}
 async function mailAccount(auth_user_id, email) {
   if (!confirm(`${email}에 계정 안내 메일을 발송합니다.\n보안상 새 임시 비밀번호가 발급되어 메일로 전송됩니다. 진행할까요?`)) return;
+  const token = await ensureGraphToken();
+  if (!token) {
+    // 그래프 토큰 만료/부재 → 무프롬프트 SSO 재인증 후 복귀하여 자동 발송(resumePendingMail)
+    sessionStorage.setItem("jeilax_pending_mail", JSON.stringify({ auth_user_id, email }));
+    show($("a_msg"), "info", "메일 발송 권한(MS Graph) 갱신을 위해 Microsoft 재로그인 중…");
+    const u = new URL(location.href); u.searchParams.set("sso", "1");
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "azure",
+      options: { scopes: "openid email profile https://graph.microsoft.com/Mail.Send", redirectTo: u.toString() },
+    });
+    if (error) { sessionStorage.removeItem("jeilax_pending_mail"); show($("a_msg"), "err", "재로그인 실패: " + error.message); }
+    return; // redirect — 이후는 복귀 후 resumePendingMail가 처리
+  }
+  await doMailSend(auth_user_id, email, token);
+}
+// 비번 재발급 + 메일 발송(토큰 확보된 상태에서만 호출)
+async function doMailSend(auth_user_id, email, token) {
   try {
     show($("a_msg"), "info", "비밀번호 재발급 + 메일 발송 중…");
     const out = await callFn("vendor-reset-password", { auth_user_id });
-    const r = await sendCredMail(out.email, out.temp_password);
+    const r = await sendCredMail(out.email, out.temp_password, token);
     if (r.ok) show($("a_msg"), "ok", `📧 ${esc(out.email)} 로 계정 안내 메일을 발송했습니다.`);
-    else { showCred(out.email, out.temp_password); show($("a_msg"), "err", "메일 발송 실패: " + r.reason); }
+    else { showCred(out.email, out.temp_password); show($("a_msg"), "err", "메일 발송 실패: " + r.reason + " — 화면의 임시비번을 직접 전달하세요."); }
     loadVendors(); loadLog();
   } catch (e) { show($("a_msg"), "err", "처리 실패: " + (e.message || e)); }
+}
+// 재인증(SSO) 복귀 후 보류 중이던 메일 발송을 자동 재개
+async function resumePendingMail() {
+  const raw = sessionStorage.getItem("jeilax_pending_mail");
+  if (!raw) return;
+  sessionStorage.removeItem("jeilax_pending_mail");
+  let p; try { p = JSON.parse(raw); } catch { return; }
+  const token = await ensureGraphToken();
+  if (!token) { show($("a_msg"), "err", "재로그인 후에도 메일 토큰을 얻지 못했습니다. Entra의 Mail.Send 권한/관리자 동의를 확인하거나, 임시비번을 직접 전달하세요."); return; }
+  show($("a_msg"), "info", `재로그인 완료 — ${esc(p.email)} 메일 자동 발송 중…`);
+  await doMailSend(p.auth_user_id, p.email, token);
 }
 
 async function provision(bp_cd) {
@@ -333,7 +366,12 @@ $("cr_copy").onclick = () => {
 };
 $("cr_mail").onclick = async () => {
   $("cr_mail").disabled = true;
-  const r = await sendCredMail(CRED.email, CRED.pw);
+  const token = await ensureGraphToken();
+  if (!token) {
+    show($("cr_msg"), "info", "메일 발송 권한(MS Graph)이 만료됐습니다. 표의 '📧 메일발송' 버튼을 누르면 자동 재로그인 후 발송됩니다. (또는 위 정보를 협력사에 직접 전달)");
+    $("cr_mail").disabled = false; return;
+  }
+  const r = await sendCredMail(CRED.email, CRED.pw, token);
   if (r.ok) show($("cr_msg"), "ok", `📧 ${esc(CRED.email)} 로 발송했습니다.`);
   else show($("cr_msg"), "err", "메일 발송 실패: " + r.reason + " — 화면의 정보를 직접 전달하세요.");
   $("cr_mail").disabled = false;

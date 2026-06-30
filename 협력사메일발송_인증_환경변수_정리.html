@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>협력사 메일발송 · 인증 · 환경변수 정리</title>
+<style>
+  :root{
+    --bg:#0f172a; --card:#ffffff; --ink:#1e293b; --muted:#64748b; --line:#e2e8f0;
+    --brand:#1a2f4e; --accent:#2563eb; --ok:#16a34a; --okbg:#ecfdf5; --warn:#d97706;
+    --warnbg:#fffbeb; --danger:#dc2626; --dangerbg:#fef2f2; --info:#0ea5e9; --infobg:#eff6ff;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:'Malgun Gothic','맑은 고딕',-apple-system,system-ui,sans-serif;
+    background:linear-gradient(180deg,#f1f5f9,#e2e8f0);color:var(--ink);line-height:1.7;}
+  .wrap{max-width:980px;margin:0 auto;padding:0 18px 80px;}
+  header{background:var(--brand);color:#fff;padding:34px 26px;border-radius:0 0 20px 20px;
+    box-shadow:0 8px 24px rgba(15,23,42,.18);}
+  header h1{margin:0 0 8px;font-size:26px;letter-spacing:-.5px;}
+  header p{margin:0;color:#cbd5e1;font-size:15px;}
+  .meta{margin-top:14px;font-size:12.5px;color:#94a3b8;}
+  h2{font-size:20px;margin:38px 0 14px;padding-left:12px;border-left:5px solid var(--accent);}
+  h3{font-size:16px;margin:22px 0 8px;}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px 22px;
+    margin:14px 0;box-shadow:0 2px 8px rgba(15,23,42,.05);}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;}
+  .tldr{border-left:5px solid transparent;}
+  .tldr.ok{border-color:var(--ok);background:var(--okbg);}
+  .tldr.warn{border-color:var(--warn);background:var(--warnbg);}
+  .tldr.info{border-color:var(--info);background:var(--infobg);}
+  .tldr h3{margin:0 0 6px;font-size:14px;display:flex;align-items:center;gap:7px;}
+  .tldr p{margin:0;font-size:13.5px;color:#334155;}
+  .badge{display:inline-block;font-size:11.5px;font-weight:700;padding:2px 9px;border-radius:999px;}
+  .b-ok{background:var(--okbg);color:var(--ok);border:1px solid #bbf7d0;}
+  .b-warn{background:var(--warnbg);color:var(--warn);border:1px solid #fde68a;}
+  .b-danger{background:var(--dangerbg);color:var(--danger);border:1px solid #fecaca;}
+  .b-info{background:var(--infobg);color:var(--accent);border:1px solid #bfdbfe;}
+  table{width:100%;border-collapse:collapse;font-size:13.5px;margin-top:6px;}
+  th,td{border:1px solid var(--line);padding:9px 11px;text-align:left;vertical-align:top;}
+  th{background:#f8fafc;font-size:12.5px;color:var(--muted);}
+  code{background:#f1f5f9;padding:1.5px 6px;border-radius:5px;font-size:12.5px;
+    font-family:'D2Coding',Consolas,monospace;color:#be123c;}
+  pre{background:#0f172a;color:#e2e8f0;padding:14px 16px;border-radius:10px;overflow:auto;
+    font-size:12.5px;font-family:'D2Coding',Consolas,monospace;line-height:1.6;}
+  pre .c{color:#94a3b8;}
+  .flow{display:flex;flex-wrap:wrap;align-items:stretch;gap:8px;margin:8px 0;}
+  .node{flex:1;min-width:140px;background:#f8fafc;border:1.5px solid var(--line);border-radius:10px;
+    padding:12px;font-size:12.5px;text-align:center;}
+  .node b{display:block;font-size:13.5px;margin-bottom:4px;color:var(--brand);}
+  .node.live{border-color:#bfdbfe;background:var(--infobg);}
+  .node.srv{border-color:#fde68a;background:var(--warnbg);}
+  .arrow{display:flex;align-items:center;color:var(--muted);font-weight:700;font-size:18px;}
+  ul.clean{margin:8px 0;padding-left:20px;}
+  ul.clean li{margin:5px 0;}
+  .step{display:flex;gap:12px;margin:12px 0;}
+  .step .n{flex:none;width:28px;height:28px;border-radius:50%;background:var(--accent);color:#fff;
+    display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;}
+  .step .t{flex:1;}
+  .note{font-size:12.5px;color:var(--muted);margin-top:6px;}
+  .chk{list-style:none;padding:0;margin:8px 0;}
+  .chk li{padding:8px 0 8px 30px;position:relative;border-bottom:1px dashed var(--line);font-size:14px;}
+  .chk li:before{content:"☐";position:absolute;left:6px;top:7px;font-size:16px;color:var(--accent);}
+  .pill-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:4px;}
+  footer{margin-top:40px;text-align:center;color:var(--muted);font-size:12px;}
+</style>
+</head>
+<body>
+<header>
+  <h1>협력사 메일발송 · 인증 · 환경변수 — 한눈에 정리</h1>
+  <p>왜 메일이 안 보내지는지, 토큰·환경변수가 어디에 필요한지, Vercel 설정이 문제인지 정리</p>
+  <div class="meta">JEIL AX 포털 · 협력사 발주포털(<code>app/admin-vendors.html</code>) 기준 · 작성 2026-06-30
+    · <span style="color:#86efac">✔ 2026-06-30 브라우저 실측 검증 + 자동 재인증 해법 적용</span></div>
+</header>
+
+<div class="wrap">
+
+  <!-- 1. 한눈 요약 -->
+  <h2>1. 결론 먼저 (3줄 요약)</h2>
+  <div class="grid">
+    <div class="card tldr warn">
+      <h3>⚠️ 실측: 그래프 토큰이 비어 있었음</h3>
+      <p>2026-06-30 관리페이지에서 확인 — 로그인돼 있어도 <code>provider_token</code>(MS Graph 토큰)이 <b>실제로 없음</b>. 그래서 메일이 안 나감.</p>
+    </div>
+    <div class="card tldr info">
+      <h3>ℹ️ Entra 권한은 "미검증"</h3>
+      <p>코드는 <code>Mail.Send</code>를 요청하도록 설정돼 있으나, 토큰이 아예 없어 <b>실제 동의·발송은 아직 검증 못 함</b>(과거 "동의 완료"는 단정이었음).</p>
+    </div>
+    <div class="card tldr ok">
+      <h3>✅ 해결 적용</h3>
+      <p>메일발송 클릭 시 토큰이 없으면 <b>자동 재로그인 → 복귀 후 자동 발송</b>. Vercel 환경변수는 이 앱과 무관(프론트가 안 읽음).</p>
+    </div>
+  </div>
+
+  <!-- 2. 구조도 -->
+  <h2>2. 전체 구조 — 무엇이 어디서 도는가</h2>
+  <div class="card">
+    <div class="flow">
+      <div class="node live"><b>브라우저</b>관리자 화면<br>(SSO 로그인)</div>
+      <div class="arrow">→</div>
+      <div class="node"><b>Vercel</b>정적 HTML 호스팅<br><span class="badge b-info">env 안 씀</span></div>
+      <div class="arrow">→</div>
+      <div class="node srv"><b>Supabase</b>DB + Edge Function<br><span class="badge b-warn">secret 필요</span></div>
+      <div class="arrow">→</div>
+      <div class="node"><b>ERP(MSSQL)</b>사외 IDC<br>(읽기전용·향후)</div>
+    </div>
+    <p class="note">메일 발송은 브라우저 → <b>Microsoft Graph</b> (<code>/me/sendMail</code>)로 직접 호출됩니다. 서버나 <code>.env</code>의 저장된 토큰이 아니라, <b>로그인한 사용자의 브라우저 세션 토큰</b>을 씁니다. 그래서 "어느 PC냐"는 상관없습니다.</p>
+  </div>
+
+  <!-- 3. 메일 실패 원인 -->
+  <h2>3. 협력사 메일발송이 실패하는 진짜 이유</h2>
+  <div class="card">
+    <p>코드(<code>sendCredMail()</code>)는 이렇게 동작합니다:</p>
+    <pre><span class="c">// 로그인 세션에서 MS Graph 토큰을 꺼냄</span>
+const token = session?.provider_token;
+if (!token) return { ok:false,
+  reason: <span style="color:#fca5a5">"메일 발송 토큰 없음 — SSO 재로그인 + Mail.Send 권한 필요"</span> };
+
+<span class="c">// 이 토큰으로 Microsoft에 직접 메일 발송 요청</span>
+fetch("https://graph.microsoft.com/v1.0/me/sendMail", { headers:{ Authorization:"Bearer "+token } ...})</pre>
+    <p><code>provider_token</code>이 비면 곧바로 그 오류가 납니다. 비는 경우는 둘:</p>
+    <div class="grid" style="margin-top:10px">
+      <div class="card" style="margin:0">
+        <span class="badge b-danger">원인 A</span>
+        <h3 style="margin-top:8px">이메일/비번으로 로그인함</h3>
+        <p style="font-size:13.5px;margin:0">로그인 창에 SSO 버튼과 이메일/비번 폼이 둘 다 있음. <b>비번으로 들어오면 MS Graph 토큰 자체가 없음</b> → provider_token 없음.</p>
+      </div>
+      <div class="card" style="margin:0">
+        <span class="badge b-warn">원인 B (더 흔함)</span>
+        <h3 style="margin-top:8px">SSO 했어도 토큰이 곧 사라짐</h3>
+        <p style="font-size:13.5px;margin:0">provider_token은 <b>로그인 콜백 직후 그 세션에만</b> 존재. 새로고침·1시간 경과·세션 갱신 시 사라짐. 현재 scope에 <code>offline_access</code>가 없어 재발급도 불가.</p>
+      </div>
+    </div>
+    <p class="note">⮕ 그래서 "다른 PC의 <code>.env</code>에 토큰이 있어야 하나?"는 <b>아니오</b>입니다. 이 기능은 저장된 토큰을 안 쓰고, 그 자리에서 SSO 로그인하면 토큰이 생깁니다.</p>
+    <div class="card tldr warn" style="margin-top:14px">
+      <h3>🔬 2026-06-30 실측 검증 결과</h3>
+      <p style="font-size:13.5px;margin:0">관리페이지(<code>ai.jeilm.co.kr/app/admin-vendors.html</code>)에서 직접 확인: <b><code>dh.choi</code>로 로그인된 상태였지만 <code>provider_token</code>이 비어 있었고</b>, <code>provider_refresh_token</code>도 <b>없음</b>(scope에 <code>offline_access</code> 미포함). 즉 <b>원인 B(세션 자동갱신 시 토큰 소실 + 재발급 불가)</b>가 실제 원인으로 확정. 챗봇포털에서 이어받은 세션이라 발송 시점엔 이미 토큰이 사라진 상태였습니다.</p>
+    </div>
+  </div>
+
+  <!-- 4. 환경변수 어디에 -->
+  <h2>4. 환경변수 — 어떤 값이 어디에 필요한가</h2>
+  <div class="card">
+    <table>
+      <tr><th>변수</th><th>용도</th><th>등록 위치</th><th>Vercel에 필요?</th></tr>
+      <tr><td><code>SUPABASE_URL</code><br><code>SUPABASE_ANON_KEY</code></td><td>프론트가 Supabase 접속 (공개키)</td><td><b>코드에 하드코딩</b> (<code>app/config.js</code>)</td><td><span class="badge b-info">불필요</span></td></tr>
+      <tr><td><code>SUPABASE_SERVICE_ROLE_KEY</code></td><td>계정 생성·비번 초기화 (서버 권한)</td><td><b>Supabase Edge Function</b> secret</td><td><span class="badge b-danger">아니오 (Vercel 금지)</span></td></tr>
+      <tr><td><code>ENTRA_CLIENT_SECRET</code><br><code>ENTRA_TENANT_ID</code> 등</td><td>서버측 인증(향후 백엔드 발송 등)</td><td><b>Supabase / 백엔드</b> secret</td><td><span class="badge b-danger">아니오 (Vercel 금지)</span></td></tr>
+      <tr><td><code>ERP_DB_CONN</code></td><td>ERP DB 접속 (향후 연계)</td><td><b>백엔드</b> 환경변수</td><td><span class="badge b-danger">아니오</span></td></tr>
+      <tr><td><code>VERCEL_TOKEN</code> / <code>VERCEL_TEAM</code></td><td>배포(CLI)할 때만 쓰는 값</td><td>로컬 <code>.env</code> (배포 도구용)</td><td><span class="badge b-info">런타임 무관</span></td></tr>
+    </table>
+    <p class="note">핵심: <code>SERVICE_ROLE</code>·<code>ENTRA_SECRET</code>처럼 <b>비밀값은 Vercel(프론트)이 아니라 Supabase 함수 쪽</b>에 들어갑니다. 프론트에 노출되면 안 되는 값들입니다.</p>
+  </div>
+
+  <!-- 5. Vercel env 미등록 -->
+  <h2>5. "Vercel 환경변수 미등록" — 문제 되나?</h2>
+  <div class="card tldr ok">
+    <h3>✅ 이 앱에서는 문제 없음</h3>
+    <p>Vercel에 올라가는 건 <b>정적 HTML</b>이고, Supabase 접속값은 <code>app/config.js</code>에 직접 적혀 있습니다. 빌드 단계·<code>vercel.json</code>·<code>process.env</code> 치환이 전혀 없어 <b>프론트는 Vercel 환경변수를 읽지 않습니다.</b> 따라서 Vercel env가 비어 있어도 로그인·메일발송 동작은 영향받지 않습니다. (anon 키는 설계상 공개해도 되는 키 — 실제 보호는 RLS가 담당)</p>
+  </div>
+  <div class="card tldr warn">
+    <h3>⚠️ 대신 진짜 확인할 곳</h3>
+    <p>계정 생성·비번 초기화(<code>vendor-reset-password</code> 함수)가 안 되면, Vercel이 아니라 <b>Supabase Edge Function의 Secrets</b>에 <code>SERVICE_ROLE</code> 등이 등록돼 있는지 확인해야 합니다.</p>
+  </div>
+
+  <!-- 6. 해결책 -->
+  <h2>6. 해결 방법</h2>
+  <div class="card tldr ok" style="border-left-color:var(--ok);background:var(--okbg)">
+    <h3>✅ 적용 완료 — 자동 재인증 발송 (2026-06-30, <code>admin-vendors.html</code>)</h3>
+    <p style="font-size:13.5px;margin:0 0 8px">이제 관리자는 <b>표의 '📧 메일발송' 버튼만 누르면</b> 됩니다. 내부 동작:</p>
+    <div class="step"><div class="n">1</div><div class="t">발송 직전 <code>provider_token</code> 확인</div></div>
+    <div class="step"><div class="n">2</div><div class="t">토큰이 없으면 <b>무프롬프트 Microsoft 재로그인</b>(이미 MS 로그인 상태면 화면 깜빡임만) — 발송 의도를 <code>sessionStorage</code>에 잠시 보관</div></div>
+    <div class="step"><div class="n">3</div><div class="t">복귀 직후 <b>신선한 토큰으로 비번 재발급 + 메일 자동 발송</b>(<code>resumePendingMail</code>)</div></div>
+    <p class="note">토큰이 살아있으면 재로그인 없이 즉시 발송. 실패 시 임시비번이 화면에 표시돼 직접 전달할 수 있습니다.</p>
+  </div>
+  <div class="card">
+    <h3>🟡 그래도 안 되면 (수동 폴백)</h3>
+    <div class="step"><div class="n">1</div><div class="t">로그인 창에서 <b>'Microsoft 사내 계정으로 로그인(SSO)'</b> 버튼으로 로그인 (이메일/비번 폼 말고)</div></div>
+    <div class="step"><div class="n">2</div><div class="t">그래도 실패하면 화면에 뜬 <b>임시 비밀번호를 협력사에 직접 전달</b>(메일·메신저)</div></div>
+    <p class="note">재인증 후에도 토큰을 못 받으면 Entra의 <code>Mail.Send</code> 권한/관리자 동의가 실제로 돼 있는지 확인이 필요합니다(아래 근본 수정).</p>
+
+    <h3 style="margin-top:24px">🟢 근본 수정 (운영 전환 시 권장)</h3>
+    <div class="grid">
+      <div class="card" style="margin:0">
+        <span class="badge b-info">방법 1</span>
+        <h3 style="margin-top:8px">offline_access 추가</h3>
+        <p style="font-size:13.5px;margin:0">SSO scope에 <code>offline_access</code>를 넣어 refresh 토큰을 받고, 발송 직전 Graph 토큰을 재발급. 간단하지만 토큰을 프론트가 보관.</p>
+      </div>
+      <div class="card" style="margin:0">
+        <span class="badge b-ok">방법 2 (권장)</span>
+        <h3 style="margin-top:8px">백엔드 발송으로 전환</h3>
+        <p style="font-size:13.5px;margin:0">메일 발송을 <b>Supabase Edge Function</b>으로 옮기고 앱 권한 + client secret으로 서버에서 발송. 어느 PC·세션이든 안정적.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- 7. 보안 -->
+  <h2>7. 보안 주의 (꼭)</h2>
+  <div class="card tldr danger" style="border-left-color:var(--danger);background:var(--dangerbg)">
+    <ul class="clean" style="margin:0">
+      <li><code>SUPABASE_SERVICE_ROLE_KEY</code> · <code>ENTRA_CLIENT_SECRET</code>는 <b>절대 프론트(<code>config.js</code>)나 Vercel에 두지 않기</b>. (현재 <code>config.js</code>엔 공개키만 있어 정상)</li>
+      <li><code>.env</code>는 <b>git에 올리지 않기</b> — 실제 비밀값 포함 (CLAUDE.md §1)</li>
+      <li>Entra 앱 설정 변경(권한·redirect URI)은 <b>관리자가 직접</b>, 코드만 바꾸면 실패 (§5.2)</li>
+      <li>Entra Client Secret <b>만료 2026-12-09</b> → 11월 중 갱신 필요</li>
+    </ul>
+  </div>
+
+  <!-- 8. 체크리스트 -->
+  <h2>8. 확인 체크리스트</h2>
+  <div class="card">
+    <ul class="chk">
+      <li>메일 발송 전 'Microsoft SSO' 버튼으로 로그인했는가 (이메일/비번 아님)</li>
+      <li>로그인 직후 새로고침 없이 바로 발송했는가</li>
+      <li>Supabase Edge Function Secrets에 <code>SERVICE_ROLE</code> 등 등록돼 있는가</li>
+      <li>(근본수정) offline_access 추가 또는 백엔드 발송 전환을 검토했는가</li>
+      <li><code>.env</code>·secret이 git/프론트에 노출돼 있지 않은가</li>
+    </ul>
+  </div>
+
+  <footer>JEIL AX 포털 내부 정리 문서 · 코드(<code>app/admin-vendors.html</code>, <code>app/config.js</code>) 기준 · 2026-06-30</footer>
+</div>
+</body>
+</html>
