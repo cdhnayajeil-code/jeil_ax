@@ -144,6 +144,10 @@
     <div class="rq">"협력사관리에서 Supabase 데이터를 연결하여 협력사와 메시지 데이터가 저장되고 작업될 수 있게 업데이트 고도화"</div>
     <div class="ra"><b>사내 협력사관리(<code>app/admin-vendors.html</code>)에 협력사 메시지 섹션 신설</b> — Supabase <code>sp_message</code> 실시간 연동. 발주(PO)별 스레드 목록(협력사명·미읽음 배지·최근 메시지) + 채팅 뷰(말풍선·발신자·읽음/안읽음 표시) + 발송 + 메시지 없는 발주로 <b>새 스레드 시작</b>. 스레드 열람 시 협력사 발신분 자동 읽음처리, Realtime 구독으로 협력사 포털 발신 메시지 즉시 수신. <b>DB 마이그레이션</b>: <code>sp_message.sender_name</code> 컬럼 부재로 협력사 포털 메시지 저장이 실패하던 버그 수정(컬럼 추가 + 조회 인덱스 2종). <b>api.js 고도화</b>: 관리자용 <code>adminMsgApi</code>(스레드 집계·발송·읽음처리·구독)와 <code>portalApi.markRead</code> 신설 — 협력사 모바일 포털이 스레드를 열면 사내 발신분이 읽음 처리되어 관리 화면에 "읽음" 표시. 권한은 기존 RLS(<code>internal_all</code>/<code>vendor_own</code>) 그대로 — 협력사는 자기 <code>bp_cd</code> 메시지만.</div></div>
 
+  <div class="req"><div class="rh">⑭ 실가동 전면 점검·개선 — 사진 실표시·검토(확인/반려)·삭제·취소 영속화 (2026-07-07)</div>
+    <div class="rq">"협력사 등록 사진이 포털에서 보이지 않는데, 전체 기능과 연계 데이터를 확인해서 외주발주 프로세스 현황과 협력사 기능 디테일을 점검하고 실제 가동될 수 있게 전면 개선"</div>
+    <div class="ra"><b>원인</b>: DB·Storage·업로드는 정상이었으나 사내 대시보드가 실사진 렌더링 경로 없이 항상 합성 SVG만 표시(storage_path 유실). <b>개선</b>: ① <b>사진 실표시</b> — 서명 URL 일괄 발급 <code>photoUrls()</code>(TTL 1h·캐시) 신설, 대시보드·협력사 포털 모두 실사진 렌더 + 실패 시 폴백. ② <b>사진 검토 기능 신설</b> — <code>sp_photo</code>에 review_status(ok/rej)·판정자·사유 컬럼 추가, 대시보드 라이트박스에 ✅확인/🔴반려(사유) 버튼, 협력사 상세에 "반려 — 재촬영 요청" 배너·사유 표시. 협력사의 사진 UPDATE를 RLS로 차단(확인상태 위조 방지). ③ <b>사진 삭제</b> — 검토 전 본인 업로드 건만 삭제 가능(RLS DB 레벨 강제, 검토 후 버튼 숨김). ④ <b>검수요청 취소 영속화</b> — 단계취소 시 <code>sp_insp_request.cancelled</code> DB 기록(재로드 부활 버그 수정), 재요청 시 IR번호 접미사(-2) 발번. ⑤ <b>담당 구매자 실데이터</b> — 발주 헤더에 buyer 3컬럼 추가, 하드코딩('제일엠앤에스 구매팀') 제거. ⑥ 메시지 미읽음을 read_at 기준으로 전환(대시보드 열람 시 읽음 처리), 판정 이력 전체 표시, 기간필터 오늘 기준 동적화, items 빈 배열 크래시 가드, 죽은코드(SVG 일러스트·사문화 로그인폼 등) 정리.</div></div>
+
   <h2 id="s3"><span class="num">3</span>산출물 목록 및 폴더 구조</h2>
   <div class="tree">08_협력사발주포털/                         ← 프로젝트 홈
 ├─ 00_종합정리_요구사항이력.html          ← 본 문서

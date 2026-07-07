@@ -52,11 +52,12 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 </blockquote>
 <hr />
 <h2 id="1">1. 현재 위치</h2>
-<p><strong>P0(정책 수립) 마무리 — P1(유니포인트 협의) 진입 대기</strong> (2026-07-03 기준)</p>
+<p><strong>P0(정책 수립) 마무리 — P1(유니포인트 협의) 진입 대기 + P3(중간DB) 내부 준비 선행</strong> (2026-07-07 기준)</p>
 <pre><code>[P0 정책수립]──▶[P1 유니포인트 협의]──▶[P2 리포팅 계층]──▶[P3 중간DB+ETL]──▶[P4 포털·챗봇 연결]──▶[P5 민감영역]
-   ● 현재            ○ 대기               ○                  ○                  ○                    ○
+   ● 현재            ○ 대기               ○              ◐ 스키마·스크립트 준비    ○                    ○
 </code></pre>
-<p>차단 요인: ①경영 티어 결정(Tier A vs B — 마스터플랜 v2.0 §11), ②마스터플랜 승인.</p>
+<p>차단 요인: ①경영 티어 결정(Tier A vs B — 마스터플랜 v2.0 §11), ②마스터플랜 승인, ③(P3 실적재) 루트 <code>.env</code>의 <code>SUPABASE_SERVICE_ROLE_KEY</code>·<code>ERP_DB_CONN</code> 값 미입력.</p>
+<p>P1(유니포인트 협의)이 열리기 전이라도 ERP 접속이 필요 없는 내부 준비(중간 DB 스키마·적재 RPC·ETL 스크립트 작성)는 먼저 진행했다(2026-07-07). 실제 ERP 데이터 적재는 여전히 유니포인트 협의(뷰·계정) 이후에만 가능하다.</p>
 <h2 id="2">2. 체크리스트</h2>
 <h3 id="p0">P0 — 정책 수립</h3>
 <ul>
@@ -86,12 +87,14 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 </blockquote>
 <h3 id="p3-db-etl">P3 — 중간 DB + ETL</h3>
 <ul>
-<li>[ ] PostgreSQL <code>erp_ro</code>·<code>erp_secure</code>·<code>etl_meta</code> 스키마 생성</li>
-<li>[ ] 1차 ETL 배치 가동(영업·구매·재고) + 실패 알림</li>
+<li>[x] PostgreSQL(Supabase) <code>erp_ro</code>·<code>etl_meta</code> 스키마 생성 — 1차 4종(품목·영업월·구매월·재고일) + <code>table_dict</code>(ERP 테이블 사전) + <code>batch_run</code>/<code>v_last_success</code>, RLS 사내 한정(2026-07-07). <code>erp_secure</code>는 P5 예약(미생성)</li>
+<li>[x] 적재 경로(service_role 전용 RPC <code>erp_etl_upsert</code>/<code>erp_etl_batch</code>) 구성 — <code>erp_ro</code> REST 비노출(2026-07-07)</li>
+<li>[x] ETL 스크립트 작성(<code>10_ERP_DB연계/etl/load_table_dict.py</code>·<code>etl_run.py</code>, <code>--dry-run</code> 지원) — <strong>실행은 대기</strong>(<code>.env</code> 키 미입력, 2026-07-07)</li>
+<li>[ ] 1차 ETL 배치 실적재 가동(영업·구매·재고) + 실패 알림 — <code>.env</code> 값 입력 → <code>load_table_dict.py</code> → <code>etl_run.py --dry-run</code> 검증 → 실적재 순</li>
 <li>[ ] 「데이터 기준 시각」 표기 규약 적용</li>
 </ul>
 <blockquote>
-<p>상세 실행 체크리스트는 <code>03_중간DB_구축실행기획 §7·§8</code>을 따른다.</p>
+<p>상세 실행 체크리스트는 <code>03_중간DB_구축실행기획 §7·§8</code>을 따른다(§7-C 내부 구축 항목 중 스키마·RLS·ETL 스크립트 작성 완료 반영).</p>
 </blockquote>
 <h3 id="p4">P4 — 포털·챗봇 연결</h3>
 <ul>
@@ -116,6 +119,12 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 </tr>
 </thead>
 <tbody>
+<tr>
+<td>2026-07-07</td>
+<td>중간DB 스키마·ETL 스크립트 내부 준비 착수(D1-a안 실행) — Supabase에 <code>erp_ro</code>(1차 4종+<code>table_dict</code>)·<code>etl_meta</code> 스키마와 §4 DDL 적용, RLS(사내만 SELECT) 활성화, service_role 전용 적재 RPC(<code>erp_etl_upsert</code>/<code>erp_etl_batch</code>) 구성, ETL 스크립트 3종(<code>load_table_dict.py</code>·<code>etl_run.py</code>·<code>_env.py</code>+README) 작성. 실적재는 <code>.env</code>(<code>SUPABASE_SERVICE_ROLE_KEY</code>·<code>ERP_DB_CONN</code>) 값 입력 대기로 미실행</td>
+<td>Supabase 마이그레이션(<code>erp_ro_etl_meta_schemas</code>·<code>erp_etl_rpc</code>), <code>10_ERP_DB연계/etl/</code></td>
+<td>최동혁(+Claude)</td>
+</tr>
 <tr>
 <td>2026-07-03</td>
 <td>중간DB 구축 실행기획 v0.1 작성 — D1(중간DB 위치)~D3(추출 원천) 결정안, 스키마 DDL 4종+<code>etl_meta</code>, ETL 처리방법(롤링 윈도 재집계·대사·알림), 주체별 준비 체크리스트, 6주 일정</td>
@@ -150,7 +159,8 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 </table>
 <h2 id="4">4. 이슈·메모</h2>
 <ul>
-<li>(없음)</li>
+<li><strong>대기(관리자 실행 필요)</strong>: 루트 <code>.env</code>에 <code>SUPABASE_SERVICE_ROLE_KEY</code>·<code>ERP_DB_CONN</code> 값 입력 → ①<code>python load_table_dict.py</code>(테이블 사전 적재, ERP 접속 없음) → ②<code>python etl_run.py --job all --dry-run</code>(추출 SQL·건수 검증) → ③관리자 확인 후 실적재. 추출 SQL은 유니포인트 뷰 스펙 협의 전 초안이므로 협의 결과에 따라 수정 필요.</li>
+<li>원천 자산 확인: 사내 OneDrive <code>최동혁/ERP_DB</code>의 erp_chat(ERP MSSQL 직결 챗봇, <code>table-index.json</code> 2,658테이블·<code>module-*.json</code> 452테이블 컬럼 문서·표준쿼리·query-validator)·db변경요청/02_표준쿼리 등은 중간DB ETL 및 추후 챗봇 2단계 Tool의 지식 원천으로 활용 예정(2026-07-07).</li>
 </ul>
   </div>
   <div class="footer"><span>JEIL M&amp;S · ERP DB 연계 관제</span><span>02 진행상태 · 관리: 최동혁</span></div>
