@@ -40,8 +40,8 @@
   <tr><th style="width:22%;">항목</th><th>현재 적용</th><th style="width:14%;">상태</th></tr>
   <tr><td>챗봇 응답</td><td>게이트웨이 <code>jeil-chat</code>(Supabase Edge Function) → OpenAI <code>gpt-4o-mini</code> 실호출, SSE 스트리밍. API 키는 서버 시크릿 전용</td><td><span class="tag g">가동</span></td></tr>
   <tr><td>사용 인가</td><td>Entra 액세스 토큰을 Microsoft Graph로 검증 → <b>@jeilm.co.kr 사내 계정만 허용</b>(전 직원 동일 권한)</td><td><span class="tag g">가동</span></td></tr>
-  <tr><td>데이터 접근</td><td><b>없음</b> — 챗봇은 아직 사내 데이터(ERP·포털DB·문서)에 접근하지 않음. 일반 지식·문서 초안 작성만</td><td><span class="tag a">미착수</span></td></tr>
-  <tr><td>사용량 기록</td><td><code>chat_log</code> 테이블(사용자·모델·메시지수·질문 문자수·시각) — 대화 원문 미저장(개인정보 최소화). RLS로 클라이언트 차단</td><td><span class="tag g">가동</span></td></tr>
+  <tr><td>데이터 접근</td><td><b>1단계 가동(2026-07-07)</b> — 포털DB 읽기전용 조회 도구 3종: <code>get_order_summary</code>(발주 현황 요약)·<code>get_order_detail</code>(발주 상세)·<code>get_inspection_pending</code>(검수 판정대기). 게이트웨이 등록 도구만 실행, 최대 1라운드</td><td><span class="tag g">1단계 가동</span></td></tr>
+  <tr><td>사용량 기록</td><td><code>chat_log</code> 테이블(사용자·모델·메시지수·질문 문자수·<b>입출력 토큰·추정비용(USD)·사용 도구</b>·시각) — 대화 원문 미저장(개인정보 최소화). RLS로 클라이언트 차단</td><td><span class="tag g">가동</span></td></tr>
   <tr><td>관리자 콘솔</td><td><code>jeil-chat-admin</code> Edge Function — <code>portal_admin</code> 등록자만 사용량·권한·게이트웨이 상태 실데이터 조회. 데모UI 관리자 탭 상단 "● 실데이터" 섹션 연동</td><td><span class="tag g">가동</span></td></tr>
   <tr><td>입력·과금 상한</td><td>대화 20턴 / 24,000자, 응답 1,024토큰 (게이트웨이 강제)</td><td><span class="tag g">가동</span></td></tr>
 </table>
@@ -78,10 +78,10 @@
 <table>
   <tr><th style="width:12%;">단계</th><th style="width:24%;">데이터 소스</th><th>적용 방식</th><th style="width:16%;">선행 조건</th></tr>
   <tr>
-    <td><b>1단계</b><br><span class="tag b">즉시 가능</span></td>
+    <td><b>1단계</b><br><span class="tag g">가동 07-07</span></td>
     <td>포털 DB (Supabase)<br>협력사 발주·검사 현황</td>
-    <td>도구 <code>get_order_status</code> 등 — 게이트웨이가 service_role로 조회 후 요약만 전달. "이번 주 검수요청 몇 건?" 류 질의 응답</td>
-    <td>없음 (데이터 기가동)</td>
+    <td>도구 3종 가동: <code>get_order_summary</code>·<code>get_order_detail</code>·<code>get_inspection_pending</code> — 게이트웨이가 service_role로 조회 후 집계·요약만 모델에 전달. "발주 현황 어때?", "검수 대기 몇 건?" 류 질의 응답</td>
+    <td>완료</td>
   </tr>
   <tr>
     <td><b>2단계</b><br><span class="tag a">중간DB 연동</span></td>
@@ -136,8 +136,8 @@
   <tr><td rowspan="3">완료</td><td>jeil-chat 게이트웨이(OpenAI·스트리밍·사내 인가) + chat_log</td><td>Claude+최동혁</td><td><span class="tag g">완료 07-07</span></td></tr>
   <tr><td>jeil-chat-admin 실데이터 API + 관리자 콘솔 3개 탭 연동</td><td>Claude</td><td><span class="tag g">완료 07-07</span></td></tr>
   <tr><td>OPENAI_API_KEY 시크릿 등록</td><td>최동혁</td><td><span class="tag g">완료 07-07</span></td></tr>
-  <tr><td rowspan="4">단기</td><td>U-1 토큰·비용 기록 (chat_log 확장)</td><td>Claude</td><td><span class="tag a">대기</span></td></tr>
-  <tr><td>1단계 데이터 도구: 포털DB 발주·검사 현황 조회</td><td>Claude</td><td><span class="tag a">대기</span></td></tr>
+  <tr><td rowspan="4">단기</td><td>U-1 토큰·비용 기록 (chat_log 확장 + 스트림 usage 캡처 + 콘솔 표시)</td><td>Claude</td><td><span class="tag g">완료 07-07</span></td></tr>
+  <tr><td>1단계 데이터 도구: 포털DB 발주·검사 현황 조회 (도구 3종 + Tool Use 1라운드)</td><td>Claude</td><td><span class="tag g">완료 07-07</span></td></tr>
   <tr><td>Entra 보안그룹 생성(AI-Portal-Admins/부서별) + 인원 배정</td><td><b>최동혁(Entra 관리센터)</b></td><td><span class="tag r">관리자 작업</span></td></tr>
   <tr><td>OpenAI 콘솔 월 지출한도(Usage Limit) 설정</td><td><b>최동혁(OpenAI 콘솔)</b></td><td><span class="tag r">관리자 작업</span></td></tr>
   <tr><td rowspan="3">중기</td><td>그룹 기반 등급·도구 화이트리스트 (게이트웨이 §1.2)</td><td>Claude</td><td><span class="tag a">그룹 선행</span></td></tr>

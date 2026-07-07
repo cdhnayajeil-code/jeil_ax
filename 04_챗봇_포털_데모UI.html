@@ -512,15 +512,16 @@
         <div class="cards">
           <div class="card"><div class="lb">오늘 호출</div><div class="v" id="luToday">—</div></div>
           <div class="card"><div class="lb">최근 7일 호출 / 사용자</div><div class="v" id="luWeek">—</div></div>
-          <div class="card"><div class="lb">누적 호출</div><div class="v" id="luTotal">—</div></div>
-          <div class="card"><div class="lb">누적 질문 분량</div><div class="v" id="luChars">—</div></div>
+          <div class="card"><div class="lb">누적 호출 · 데이터조회</div><div class="v" id="luTotal">—</div></div>
+          <div class="card"><div class="lb">누적 토큰 (입력/출력)</div><div class="v" id="luTokens">—</div></div>
+          <div class="card"><div class="lb">추정 비용 (이번 달/누적)</div><div class="v" id="luCost">—</div></div>
         </div>
         <table id="luByUser">
-          <tr><th>사용자</th><th class="r">호출</th><th class="r">질문 문자수</th><th>최근 사용</th></tr>
+          <tr><th>사용자</th><th class="r">호출</th><th class="r">토큰</th><th class="r">추정 비용</th><th>최근 사용</th></tr>
         </table>
         <h3 style="margin-top:14px;">최근 호출 20건</h3>
         <table id="luRecent">
-          <tr><th>시각</th><th>사용자</th><th>모델</th><th class="r">맥락 메시지</th><th class="r">문자수</th></tr>
+          <tr><th>시각</th><th>사용자</th><th>모델</th><th>데이터 조회</th><th class="r">토큰(입/출)</th><th class="r">비용</th></tr>
         </table>
         <p class="admin-note">개인정보 최소화 원칙 — 대화 원문은 저장하지 않고 호출 메타데이터(누가·언제·모델·분량)만 기록합니다. 아래 섹션은 실구축 기획 예시 화면입니다.</p>
       </div>
@@ -613,8 +614,8 @@
         <table>
           <tr><th style="width:16%;">구분</th><th>현재 적용(실측)</th><th>다음 단계(기획)</th></tr>
           <tr><td><b>챗봇 사용</b></td><td id="lpChat">사내 전 직원(@jeilm.co.kr) — Entra SSO·MFA 통과 시 허용, 전원 동일 권한</td><td>Entra 보안그룹(AI-Portal-*) 기반 등급·모델 차등</td></tr>
-          <tr><td><b>데이터 접근</b></td><td>없음 — 챗봇은 아직 사내 데이터에 접근하지 않음(일반 지식·문서 초안 작성만)</td><td>1단계 포털DB 조회 Tool → 2단계 ERP 중간DB 읽기 Tool(부서 매핑) → 3단계 문서 RAG</td></tr>
-          <tr><td><b>사용 감사</b></td><td>chat_log 기록(사용자·모델·분량) — 관리자만 Edge Function 경유 조회(RLS 차단)</td><td>토큰·비용 기록, 월 사용자 한도·초과 알림</td></tr>
+          <tr><td><b>데이터 접근</b></td><td><b>1단계 가동</b> — 포털DB 발주·검사 조회 도구 3종(발주 현황 요약·발주 상세·검수 판정대기). 읽기전용, 게이트웨이 등록 도구만 실행(임의 SQL 불가)</td><td>2단계 ERP 중간DB 읽기 Tool(부서 매핑) → 3단계 문서 RAG</td></tr>
+          <tr><td><b>사용 감사</b></td><td>chat_log 기록(사용자·모델·분량·<b>토큰·추정비용·사용 도구</b>) — 관리자만 Edge Function 경유 조회(RLS 차단)</td><td>월 사용자 한도·초과 알림</td></tr>
         </table>
         <table id="lpAdmins" style="margin-top:10px;">
           <tr><th>전체 관리자 (portal_admin)</th><th>부여</th><th>부여일</th></tr>
@@ -1204,17 +1205,23 @@ async function loadAdminLive(force){
     setTxt('lgModel', escHtml(d.gateway.provider + ' · ' + d.gateway.model));
     setTxt('lgAuth', escHtml(d.gateway.auth_policy));
     setTxt('lgLimits', 'API 키는 서버 시크릿 전용(화면·소스 미노출) · 입력 상한: 대화 ' + d.gateway.limits.max_messages + '턴 / ' + d.gateway.limits.max_total_chars.toLocaleString() + '자, 응답 ' + d.gateway.limits.max_tokens.toLocaleString() + ' 토큰');
-    // 사용량 탭
+    // 사용량 탭 (U-1: 토큰·추정비용 포함)
     setTxt('luToday', d.usage.today_calls.toLocaleString() + '회');
     setTxt('luWeek', d.usage.week_calls.toLocaleString() + '회 / ' + d.usage.week_users + '명');
-    setTxt('luTotal', d.usage.total_calls.toLocaleString() + '회');
-    setTxt('luChars', d.usage.total_prompt_chars.toLocaleString() + '자');
+    setTxt('luTotal', d.usage.total_calls.toLocaleString() + '회 <small>· 조회 ' + (d.usage.tool_call_count||0) + '건</small>');
+    setTxt('luTokens', ((d.usage.total_prompt_tokens||0)/1000).toFixed(1) + 'k / ' + ((d.usage.total_completion_tokens||0)/1000).toFixed(1) + 'k');
+    setTxt('luCost', '$' + (d.usage.month_cost_usd||0).toFixed(3) + ' <small>/ $' + (d.usage.total_cost_usd||0).toFixed(3) + '</small>');
     var bu = document.getElementById('luByUser');
-    if(bu) bu.innerHTML = '<tr><th>사용자</th><th class="r">호출</th><th class="r">질문 문자수</th><th>최근 사용</th></tr>'
-      + d.usage.by_user.map(function(u){ return '<tr><td>'+escHtml(u.upn)+'</td><td class="r">'+u.calls.toLocaleString()+'</td><td class="r">'+u.chars.toLocaleString()+'</td><td>'+fmtKST(u.last)+'</td></tr>'; }).join('');
+    if(bu) bu.innerHTML = '<tr><th>사용자</th><th class="r">호출</th><th class="r">토큰</th><th class="r">추정 비용</th><th>최근 사용</th></tr>'
+      + d.usage.by_user.map(function(u){ return '<tr><td>'+escHtml(u.upn)+'</td><td class="r">'+u.calls.toLocaleString()+'</td><td class="r">'+(u.tokens||0).toLocaleString()+'</td><td class="r">$'+(u.cost||0).toFixed(3)+'</td><td>'+fmtKST(u.last)+'</td></tr>'; }).join('');
     var rc = document.getElementById('luRecent');
-    if(rc) rc.innerHTML = '<tr><th>시각</th><th>사용자</th><th>모델</th><th class="r">맥락 메시지</th><th class="r">문자수</th></tr>'
-      + d.usage.recent.map(function(r){ return '<tr><td>'+fmtKST(r.created_at)+'</td><td>'+escHtml(r.upn)+'</td><td>'+escHtml(r.model)+'</td><td class="r">'+r.messages_count+'</td><td class="r">'+(r.prompt_chars||0).toLocaleString()+'</td></tr>'; }).join('');
+    if(rc) rc.innerHTML = '<tr><th>시각</th><th>사용자</th><th>모델</th><th>데이터 조회</th><th class="r">토큰(입/출)</th><th class="r">비용</th></tr>'
+      + d.usage.recent.map(function(r){
+          var tools = (r.tools_used && r.tools_used.length) ? escHtml(r.tools_used.join(', ')) : '-';
+          var tok = (r.prompt_tokens!=null) ? (r.prompt_tokens.toLocaleString()+' / '+(r.completion_tokens||0).toLocaleString()) : '-';
+          var cost = (r.est_cost_usd!=null) ? ('$'+Number(r.est_cost_usd).toFixed(4)) : '-';
+          return '<tr><td>'+fmtKST(r.created_at)+'</td><td>'+escHtml(r.upn)+'</td><td>'+escHtml(r.model)+'</td><td>'+tools+'</td><td class="r">'+tok+'</td><td class="r">'+cost+'</td></tr>';
+        }).join('');
     // 권한 탭
     var ad = document.getElementById('lpAdmins');
     if(ad) ad.innerHTML = '<tr><th>전체 관리자 (portal_admin)</th><th>부여</th><th>부여일</th></tr>'

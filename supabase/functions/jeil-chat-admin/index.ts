@@ -46,7 +46,7 @@ Deno.serve(async (req) => {
   // 3) 사용량 집계 (최근 2000건 기준 — 현 규모에 충분, 대량화 시 SQL 집계로 전환)
   const { data: logs, error: le } = await admin
     .from("chat_log")
-    .select("upn,model,messages_count,prompt_chars,created_at")
+    .select("upn,model,messages_count,prompt_chars,prompt_tokens,completion_tokens,est_cost_usd,tools_used,created_at")
     .order("id", { ascending: false })
     .limit(2000);
   if (le) return json({ error: "chat_log 조회 실패: " + le.message }, 500);
@@ -55,16 +55,25 @@ Deno.serve(async (req) => {
   const dayMs = 24 * 3600 * 1000;
   const todayStart = new Date(); todayStart.setUTCHours(0, 0, 0, 0);
   const rows = logs || [];
-  const byUser: Record<string, { calls: number; chars: number; last: string }> = {};
+  const byUser: Record<string, { calls: number; chars: number; tokens: number; cost: number; last: string }> = {};
   let todayCalls = 0, weekCalls = 0, totalChars = 0;
+  let totalPt = 0, totalCt = 0, totalCost = 0, monthCost = 0, toolCalls = 0;
+  const monthStart = new Date(); monthStart.setUTCDate(1); monthStart.setUTCHours(0, 0, 0, 0);
   const weekUsers = new Set<string>();
   for (const r of rows) {
     const t = new Date(r.created_at).getTime();
     totalChars += r.prompt_chars || 0;
+    totalPt += r.prompt_tokens || 0; totalCt += r.completion_tokens || 0;
+    const c = Number(r.est_cost_usd || 0);
+    totalCost += c;
+    if (t >= monthStart.getTime()) monthCost += c;
+    if (Array.isArray(r.tools_used) && r.tools_used.length) toolCalls++;
     if (t >= todayStart.getTime()) todayCalls++;
     if (now - t <= 7 * dayMs) { weekCalls++; weekUsers.add(r.upn); }
-    const u = (byUser[r.upn] = byUser[r.upn] || { calls: 0, chars: 0, last: r.created_at });
+    const u = (byUser[r.upn] = byUser[r.upn] || { calls: 0, chars: 0, tokens: 0, cost: 0, last: r.created_at });
     u.calls++; u.chars += r.prompt_chars || 0;
+    u.tokens += (r.prompt_tokens || 0) + (r.completion_tokens || 0);
+    u.cost += c;
     if (r.created_at > u.last) u.last = r.created_at;
   }
 
@@ -78,6 +87,7 @@ Deno.serve(async (req) => {
       key_set: !!Deno.env.get("OPENAI_API_KEY"),
       auth_policy: "Entra 토큰 Graph 검증 · @jeilm.co.kr 사내 한정",
       limits: { max_messages: 20, max_total_chars: 24000, max_tokens: 1024 },
+      tools: ["get_order_summary", "get_order_detail", "get_inspection_pending"],
     },
     usage: {
       total_calls: rows.length,
@@ -85,8 +95,13 @@ Deno.serve(async (req) => {
       week_calls: weekCalls,
       week_users: weekUsers.size,
       total_prompt_chars: totalChars,
+      total_prompt_tokens: totalPt,
+      total_completion_tokens: totalCt,
+      total_cost_usd: Number(totalCost.toFixed(4)),
+      month_cost_usd: Number(monthCost.toFixed(4)),
+      tool_call_count: toolCalls,
       by_user: Object.entries(byUser)
-        .map(([upn, v]) => ({ upn, ...v }))
+        .map(([upn, v]) => ({ upn, ...v, cost: Number(v.cost.toFixed(4)) }))
         .sort((a, b) => b.calls - a.calls)
         .slice(0, 20),
       recent: rows.slice(0, 20),

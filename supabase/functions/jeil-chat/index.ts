@@ -1,10 +1,12 @@
-// jeil-chat — 사내 AI 챗봇 게이트웨이 (OpenAI 프록시)
+// jeil-chat — 사내 AI 챗봇 게이트웨이 (OpenAI 프록시 + 포털DB 조회 도구 + 토큰·비용 기록)
 // 배포: verify_jwt=false (Entra 토큰은 Supabase JWT가 아니므로 내부에서 직접 검증)
 // 호출: POST /functions/v1/jeil-chat  Authorization: Bearer <Entra access_token(User.Read)>
 //   body: { messages: [{role:'user'|'assistant', content:string}, ...] }
-//   응답: OpenAI SSE 스트림 패스스루 (text/event-stream)
-// 원칙(CLAUDE.md §1·§6): API 키는 서버 시크릿(OPENAI_API_KEY)에만 존재. 프론트 미노출.
-//   사용 이력은 chat_log 테이블에 기록(감사 로그).
+//   응답: SSE 스트림 — data: {"choices":[{"delta":{"content":"..."}}]} ... data: [DONE]
+// 원칙(CLAUDE.md §1·§4·§6):
+//   - API 키는 서버 시크릿(OPENAI_API_KEY)에만 존재. 프론트 미노출.
+//   - 데이터 접근은 사전 등록된 읽기전용 도구만(모델의 임의 SQL 금지). 포털DB(Supabase) 한정 — ERP 직접 조회 없음.
+//   - chat_log에 사용 이력 + 토큰·추정비용·사용도구 기록(대화 원문 미저장).
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
 const cors = {
@@ -19,14 +21,130 @@ const json = (o: unknown, status = 200) =>
 const MAX_MESSAGES = 20;
 const MAX_MSG_CHARS = 8000;
 const MAX_TOTAL_CHARS = 24000;
+const MAX_TOKENS = 1024;
+
+// 모델 단가표 (USD / 1M 토큰, 2026-07 기준 — 변동 시 갱신. 정산은 OpenAI 청구서 기준)
+const PRICES: Record<string, { inp: number; out: number }> = {
+  "gpt-4o-mini": { inp: 0.15, out: 0.60 },
+  "gpt-4o": { inp: 2.50, out: 10.00 },
+  "gpt-4.1-mini": { inp: 0.40, out: 1.60 },
+};
 
 const SYSTEM_PROMPT =
   "당신은 제일엠앤에스(JEIL M&S)의 사내 AI 어시스턴트 'jeil-chat'입니다. " +
   "업무 문서 초안(주간보고·메일·공지), 규정 질의, 데이터 요약을 한국어로 간결하고 정확하게 돕습니다. " +
-  "확실하지 않은 사내 수치·규정은 추측하지 말고 원본 확인을 권하세요. " +
+  "협력사 외주 발주·검사 현황은 제공된 조회 도구(포털DB 실데이터)를 사용해 답하고, 답변에 조회 기준 시각을 표기하세요. " +
+  "도구로 조회할 수 없는 사내 수치·규정은 추측하지 말고 원본 확인을 권하세요. " +
   "급여·주민번호 등 개인정보나 비밀값을 답변에 포함하지 마세요.";
 
-// Entra 액세스 토큰 검증: Microsoft Graph /me 호출로 유효성 + 사내 도메인 확인
+/* ===== 1단계 포털DB 조회 도구 (읽기전용 · 집계/요약만 반환) ===== */
+const TOOLS = [
+  {
+    type: "function",
+    function: {
+      name: "get_order_summary",
+      description: "협력사 외주 발주 전체 현황 요약(포털DB 실데이터) — 상태별 건수, 총 발주금액, 협력사 수, 납기 임박(7일 내) 목록. '발주 현황 어때', '진행 중 몇 건' 류 질의에 사용.",
+      parameters: { type: "object", properties: {}, required: [] },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_order_detail",
+      description: "발주번호로 특정 발주 상세 조회 — 협력사, 발주/납기일, 금액, 품목, 진행상태(10단계), 검사결과, 검수요청·사진·메시지 건수.",
+      parameters: {
+        type: "object",
+        properties: { po_no: { type: "string", description: "발주번호 (예: PO202607010128)" } },
+        required: ["po_no"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_inspection_pending",
+      description: "검수요청이 접수됐지만 아직 합/부 판정이 나지 않은(검사 대기) 발주 목록 — 발주번호, 협력사, 납기, 요청일시.",
+      parameters: { type: "object", properties: {}, required: [] },
+    },
+  },
+];
+
+const STATUS_KO: Record<string, string> = { new: "신규", prod: "생산중", insp: "검사", done: "완료" };
+
+// deno-lint-ignore no-explicit-any
+async function runTool(admin: any, name: string, argsJson: string): Promise<unknown> {
+  let args: Record<string, string> = {};
+  try { args = JSON.parse(argsJson || "{}"); } catch { /* 빈 인자 */ }
+  const asOf = new Date().toISOString();
+
+  if (name === "get_order_summary") {
+    const [{ data: heads }, { data: states }] = await Promise.all([
+      admin.from("sp_order_header").select("po_no,vendor_name,due_date,amt"),
+      admin.from("sp_order_state").select("po_no,status,step"),
+    ]);
+    const st: Record<string, { status: string; step: number }> = {};
+    (states || []).forEach((s: { po_no: string; status: string; step: number }) => (st[s.po_no] = s));
+    const byStatus: Record<string, number> = {};
+    let totalAmt = 0;
+    const vendors = new Set<string>();
+    const dueSoon: unknown[] = [];
+    const in7 = Date.now() + 7 * 86400000;
+    for (const h of heads || []) {
+      const s = st[h.po_no]?.status || "new";
+      byStatus[STATUS_KO[s] || s] = (byStatus[STATUS_KO[s] || s] || 0) + 1;
+      totalAmt += Number(h.amt || 0);
+      vendors.add(h.vendor_name || "");
+      if (s !== "done" && h.due_date && new Date(h.due_date).getTime() <= in7) {
+        dueSoon.push({ 발주번호: h.po_no, 협력사: h.vendor_name, 납기: h.due_date, 상태: STATUS_KO[s] || s });
+      }
+    }
+    return { 기준시각: asOf, 총발주: (heads || []).length, 상태별건수: byStatus, 총발주금액_원: totalAmt, 협력사수: vendors.size, 납기7일내_미완료: dueSoon };
+  }
+
+  if (name === "get_order_detail") {
+    const po = String(args.po_no || "").trim();
+    if (!po) return { 오류: "po_no가 필요합니다." };
+    const [{ data: h }, { data: s }, { data: insp }, { data: reqs }, { data: photos }, { data: msgs }] = await Promise.all([
+      admin.from("sp_order_header").select("*").eq("po_no", po).maybeSingle(),
+      admin.from("sp_order_state").select("status,step,updated_at").eq("po_no", po).maybeSingle(),
+      admin.from("sp_inspection").select("result,judge_id,opinion,judged_at").eq("po_no", po).maybeSingle(),
+      admin.from("sp_insp_request").select("insp_req_no,requested_at").eq("po_no", po).eq("cancelled", false),
+      admin.from("sp_photo").select("id").eq("po_no", po),
+      admin.from("sp_message").select("id").eq("po_no", po),
+    ]);
+    if (!h) return { 기준시각: asOf, 오류: `발주번호 ${po} 를 찾을 수 없습니다.` };
+    return {
+      기준시각: asOf, 발주번호: h.po_no, 협력사: h.vendor_name, 발주일: h.order_date, 납기: h.due_date,
+      금액_원: Number(h.amt || 0), 품목수: Array.isArray(h.items) ? h.items.length : 0,
+      상태: STATUS_KO[s?.status || ""] || s?.status || "미확인", 진행단계_10: s?.step ?? null,
+      검사결과: insp ? { 판정: insp.result, 판정자: insp.judge_id, 의견: insp.opinion, 판정일: insp.judged_at } : "판정 전",
+      검수요청건수: (reqs || []).length, 사진건수: (photos || []).length, 메시지건수: (msgs || []).length,
+    };
+  }
+
+  if (name === "get_inspection_pending") {
+    const [{ data: reqs }, { data: insps }, { data: heads }] = await Promise.all([
+      admin.from("sp_insp_request").select("po_no,insp_req_no,requested_at").eq("cancelled", false),
+      admin.from("sp_inspection").select("po_no"),
+      admin.from("sp_order_header").select("po_no,vendor_name,due_date"),
+    ]);
+    const judged = new Set((insps || []).map((r: { po_no: string }) => r.po_no));
+    const hm: Record<string, { vendor_name: string; due_date: string }> = {};
+    (heads || []).forEach((h: { po_no: string; vendor_name: string; due_date: string }) => (hm[h.po_no] = h));
+    const seen = new Set<string>();
+    const pending = (reqs || [])
+      .filter((r: { po_no: string }) => !judged.has(r.po_no) && !seen.has(r.po_no) && seen.add(r.po_no))
+      .map((r: { po_no: string; insp_req_no: string; requested_at: string }) => ({
+        발주번호: r.po_no, 협력사: hm[r.po_no]?.vendor_name || "-", 납기: hm[r.po_no]?.due_date || "-",
+        검수요청번호: r.insp_req_no, 요청일시: r.requested_at,
+      }));
+    return { 기준시각: asOf, 판정대기건수: pending.length, 목록: pending };
+  }
+
+  return { 오류: `알 수 없는 도구: ${name}` };
+}
+
+/* ===== Entra 토큰 검증 ===== */
 async function verifyEntraUser(token: string): Promise<{ upn: string } | null> {
   try {
     const r = await fetch("https://graph.microsoft.com/v1.0/me?$select=userPrincipalName,mail", {
@@ -39,6 +157,57 @@ async function verifyEntraUser(token: string): Promise<{ upn: string } | null> {
     return { upn };
   } catch {
     return null;
+  }
+}
+
+/* ===== OpenAI 스트림 호출·파싱 ===== */
+function callOpenAI(apiKey: string, model: string, messages: unknown[], withTools: boolean) {
+  return fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model, stream: true, max_tokens: MAX_TOKENS, messages,
+      stream_options: { include_usage: true },            // U-1: 토큰 usage 수신
+      ...(withTools ? { tools: TOOLS } : {}),
+    }),
+  });
+}
+
+type ToolCallAcc = { id: string; name: string; args: string };
+type PumpState = { pt: number; ct: number; toolCalls: Record<number, ToolCallAcc> };
+
+// OpenAI SSE를 읽어 content는 emit, tool_calls·usage는 state에 축적
+async function pumpStream(body: ReadableStream<Uint8Array>, emit: (c: string) => Promise<void>, state: PumpState) {
+  const reader = body.getReader();
+  const dec = new TextDecoder();
+  let buf = "";
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buf += dec.decode(value, { stream: true });
+    const lines = buf.split("\n");
+    buf = lines.pop() || "";
+    for (const ln of lines) {
+      const t = ln.trim();
+      if (!t.startsWith("data:")) continue;
+      const p = t.slice(5).trim();
+      if (p === "[DONE]") continue;
+      // deno-lint-ignore no-explicit-any
+      let ev: any; try { ev = JSON.parse(p); } catch { continue; }
+      if (ev.usage) { state.pt += ev.usage.prompt_tokens || 0; state.ct += ev.usage.completion_tokens || 0; }
+      const d = ev.choices?.[0]?.delta;
+      if (!d) continue;
+      if (Array.isArray(d.tool_calls)) {
+        for (const tc of d.tool_calls) {
+          const i = tc.index ?? 0;
+          const cur = (state.toolCalls[i] = state.toolCalls[i] || { id: "", name: "", args: "" });
+          if (tc.id) cur.id = tc.id;
+          if (tc.function?.name) cur.name = tc.function.name;
+          if (tc.function?.arguments) cur.args += tc.function.arguments;
+        }
+      }
+      if (typeof d.content === "string" && d.content) await emit(d.content);
+    }
   }
 }
 
@@ -68,34 +237,82 @@ Deno.serve(async (req) => {
   const total = messages.reduce((n, m) => n + m.content.length, 0);
   if (total > MAX_TOTAL_CHARS) return json({ error: "대화가 너무 깁니다. 새 대화로 시작하세요." }, 400);
 
-  // 3) 감사 로그 (service_role — 실패해도 응답은 진행)
+  const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+
+  // 3) 감사 로그 선기록 (스트림 종료 후 토큰·비용·도구 갱신)
+  let logId: number | null = null;
   try {
-    const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
-    await admin.from("chat_log").insert({
-      upn: user.upn, model, messages_count: messages.length, prompt_chars: total,
-    });
+    const { data } = await admin.from("chat_log")
+      .insert({ upn: user.upn, model, messages_count: messages.length, prompt_chars: total })
+      .select("id").single();
+    logId = data?.id ?? null;
   } catch { /* 로그 실패는 무시 */ }
 
-  // 4) OpenAI 호출 — SSE 스트림 패스스루
-  const upstream = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model,
-      stream: true,
-      max_tokens: 1024,
-      messages: [{ role: "system", content: SYSTEM_PROMPT }, ...messages],
-    }),
-  });
-  if (!upstream.ok || !upstream.body) {
-    const detail = await upstream.text().catch(() => "");
-    console.error("openai error", upstream.status, detail.slice(0, 500));
-    const msg = upstream.status === 401 ? "OpenAI 키가 유효하지 않습니다(만료/오입력)."
-      : upstream.status === 429 ? "OpenAI 사용량 한도 초과 — 잠시 후 다시 시도하세요."
-      : "AI 응답 생성에 실패했습니다.";
-    return json({ error: msg, status: upstream.status }, 502);
-  }
-  return new Response(upstream.body, {
+  // 4) 스트리밍 응답 (도구 호출 시: 1차 스트림에서 도구 수집 → 실행 → 2차 스트림)
+  const { readable, writable } = new TransformStream<Uint8Array, Uint8Array>();
+  const writer = writable.getWriter();
+  const enc = new TextEncoder();
+  const emit = (c: string) =>
+    writer.write(enc.encode("data: " + JSON.stringify({ choices: [{ delta: { content: c } }] }) + "\n\n")).then(() => {});
+
+  const run = (async () => {
+    const state: PumpState = { pt: 0, ct: 0, toolCalls: {} };
+    const toolsUsed: string[] = [];
+    try {
+      const convo: unknown[] = [{ role: "system", content: SYSTEM_PROMPT }, ...messages];
+      const res1 = await callOpenAI(apiKey, model, convo, true);
+      if (!res1.ok || !res1.body) {
+        const detail = await res1.text().catch(() => "");
+        console.error("openai error", res1.status, detail.slice(0, 500));
+        await emit(res1.status === 401 ? "⚠ OpenAI 키가 유효하지 않습니다(만료/오입력)."
+          : res1.status === 429 ? "⚠ OpenAI 사용량 한도 초과 — 잠시 후 다시 시도하세요."
+          : "⚠ AI 응답 생성에 실패했습니다.");
+      } else {
+        await pumpStream(res1.body, emit, state);
+        const calls = Object.values(state.toolCalls).filter((c) => c.name);
+        if (calls.length) {
+          // 도구 실행 (최대 1라운드 — 2차 호출에는 도구 미제공)
+          const assistantMsg = {
+            role: "assistant", content: null,
+            tool_calls: calls.map((c) => ({ id: c.id, type: "function", function: { name: c.name, arguments: c.args || "{}" } })),
+          };
+          const toolMsgs: unknown[] = [];
+          for (const c of calls) {
+            toolsUsed.push(c.name);
+            let result: unknown;
+            try { result = await runTool(admin, c.name, c.args); }
+            catch (e) { result = { 오류: "조회 실패: " + (e instanceof Error ? e.message : String(e)) }; }
+            toolMsgs.push({ role: "tool", tool_call_id: c.id, content: JSON.stringify(result).slice(0, 12000) });
+          }
+          state.toolCalls = {};
+          const res2 = await callOpenAI(apiKey, model, [...convo, assistantMsg, ...toolMsgs], false);
+          if (res2.ok && res2.body) await pumpStream(res2.body, emit, state);
+          else await emit("⚠ 데이터 조회 후 응답 생성에 실패했습니다.");
+        }
+      }
+    } catch (e) {
+      try { await emit("⚠ 오류: " + (e instanceof Error ? e.message : String(e))); } catch { /* 스트림 종료됨 */ }
+    } finally {
+      try { await writer.write(enc.encode("data: [DONE]\n\n")); } catch { /* 무시 */ }
+      try { await writer.close(); } catch { /* 무시 */ }
+      // U-1: 토큰·추정비용·사용도구 갱신
+      if (logId != null) {
+        const price = PRICES[model] || PRICES["gpt-4o-mini"];
+        const cost = (state.pt * price.inp + state.ct * price.out) / 1_000_000;
+        try {
+          await admin.from("chat_log").update({
+            prompt_tokens: state.pt || null, completion_tokens: state.ct || null,
+            est_cost_usd: state.pt || state.ct ? Number(cost.toFixed(6)) : null,
+            tools_used: toolsUsed.length ? toolsUsed : null,
+          }).eq("id", logId);
+        } catch { /* 무시 */ }
+      }
+    }
+  })();
+  // @ts-ignore: Supabase Edge Runtime — 응답 반환 후에도 로그 갱신 완료 보장
+  if (typeof EdgeRuntime !== "undefined" && EdgeRuntime.waitUntil) EdgeRuntime.waitUntil(run);
+
+  return new Response(readable, {
     headers: { ...cors, "Content-Type": "text/event-stream", "x-model": model },
   });
 });
