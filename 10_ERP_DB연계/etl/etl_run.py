@@ -12,7 +12,10 @@ import urllib.request
 
 from _env import load_env, need
 
-# ===== 화이트리스트 추출 SQL (읽기 전용 · 초안 — 컬럼 확정은 유니포인트 협의) =====
+# ===== 화이트리스트 추출 SQL (읽기 전용) =====
+# 테이블·컬럼명은 erp_ro.table_dict(ERP 스키마 사전 2,658개)로 검증함(2026-07-07):
+#   B_ITEM(품목), B_BIZ_PARTNER(거래처 BP_CD·BP_NM), S_BILL_HDR(매출), M_IV_HDR(매입), M_PUR_GOODS_MVMT(수불)
+# 집계 기준(금액 컬럼 선택·수불 in/out 분류)은 유니포인트/현업 확인 대상 — --dry-run으로 먼저 검증.
 ROLLING_MONTHS = 3  # 월집계 롤링 윈도(당월 포함)
 
 JOBS = {
@@ -20,53 +23,59 @@ JOBS = {
     "item_master": {
         "table": "item_master_s",
         "sql": """
-            SELECT ITEM_CD AS item_code, ITEM_NM AS item_name, [SPEC] AS spec,
-                   UNIT_CD AS unit, ITEM_ACCT AS item_class,
-                   CASE WHEN USE_YN = 'Y' THEN 1 ELSE 0 END AS use_yn
+            SELECT ITEM_CD AS item_code, ITEM_NM AS item_name, SPEC AS spec,
+                   BASIC_UNIT AS unit, ITEM_ACCT AS item_class,
+                   CONVERT(bit, CASE WHEN VALID_FLG = 'Y' THEN 1 ELSE 0 END) AS use_yn,
+                   UPDT_DT AS src_updated
             FROM JEILMNS.dbo.B_ITEM WITH (NOLOCK)
         """,
         "params": [],
     },
-    # ② 영업 수주/매출 월집계 ← S_BILL_HDR/DTL (롤링 3개월)
+    # ② 영업 매출/수금 월집계 ← S_BILL_HDR (롤링 3개월) ※ 수주(order_amt)는 S_SO 확정 후 추가
     "sales": {
         "table": "sales_orders_m",
         "sql": """
-            SELECT CONVERT(char(7), BILL_DT, 120) AS ym,
-                   h.BP_CD AS bp_code, MAX(b.BP_NM) AS bp_name,
-                   SUM(d.SUPPLY_AMT) AS sales_amt, COUNT(DISTINCT h.BILL_NO) AS order_cnt
+            SELECT CONVERT(char(7), h.BILL_DT, 120) AS ym,
+                   h.SOLD_TO_PARTY AS bp_code,
+                   ISNULL(MAX(b.BP_NM), h.SOLD_TO_PARTY) AS bp_name,
+                   SUM(h.BILL_AMT_LOC) AS sales_amt,
+                   SUM(h.COLLECT_AMT_LOC) AS collect_amt,
+                   COUNT(DISTINCT h.BILL_NO) AS order_cnt
             FROM JEILMNS.dbo.S_BILL_HDR h WITH (NOLOCK)
-            JOIN JEILMNS.dbo.S_BILL_DTL d WITH (NOLOCK) ON d.BILL_NO = h.BILL_NO
-            JOIN JEILMNS.dbo.B_BP b WITH (NOLOCK) ON b.BP_CD = h.BP_CD
+            LEFT JOIN JEILMNS.dbo.B_BIZ_PARTNER b WITH (NOLOCK) ON b.BP_CD = h.SOLD_TO_PARTY
             WHERE h.BILL_DT >= ?
-            GROUP BY CONVERT(char(7), BILL_DT, 120), h.BP_CD
+            GROUP BY CONVERT(char(7), h.BILL_DT, 120), h.SOLD_TO_PARTY
         """,
         "params": ["rolling_start"],
     },
-    # ③ 구매 거래처별 매입 월집계 ← M_IV_HDR/DTL (롤링 3개월)
+    # ③ 구매 거래처별 매입 월집계 ← M_IV_HDR (롤링 3개월)
     "purchase": {
         "table": "purchase_m",
         "sql": """
             SELECT CONVERT(char(7), h.IV_DT, 120) AS ym,
-                   h.BP_CD AS bp_code, MAX(b.BP_NM) AS bp_name,
-                   SUM(d.SUPPLY_AMT) AS purchase_amt, COUNT(DISTINCT h.IV_NO) AS iv_cnt
+                   h.BP_CD AS bp_code,
+                   ISNULL(MAX(b.BP_NM), h.BP_CD) AS bp_name,
+                   SUM(h.NET_LOC_AMT) AS purchase_amt,
+                   COUNT(DISTINCT h.IV_NO) AS iv_cnt
             FROM JEILMNS.dbo.M_IV_HDR h WITH (NOLOCK)
-            JOIN JEILMNS.dbo.M_IV_DTL d WITH (NOLOCK) ON d.IV_NO = h.IV_NO
-            JOIN JEILMNS.dbo.B_BP b WITH (NOLOCK) ON b.BP_CD = h.BP_CD
+            LEFT JOIN JEILMNS.dbo.B_BIZ_PARTNER b WITH (NOLOCK) ON b.BP_CD = h.BP_CD
             WHERE h.IV_DT >= ?
             GROUP BY CONVERT(char(7), h.IV_DT, 120), h.BP_CD
         """,
         "params": ["rolling_start"],
     },
     # ④ 자재 재고 입출고 일집계 ← M_PUR_GOODS_MVMT (롤링 31일)
+    #    ⚠ in/out 분류(IO_TYPE_CD 체계: R01=입고, T62=이동 등)는 dry-run으로 코드 분포 확인 후 확정
     "inventory": {
         "table": "inventory_d",
         "sql": """
-            SELECT CONVERT(date, MVMT_DT) AS ymd, ITEM_CD AS item_code, WH_CD AS wh_code,
-                   SUM(CASE WHEN IN_OUT = 'I' THEN QTY ELSE 0 END) AS in_qty,
-                   SUM(CASE WHEN IN_OUT = 'O' THEN QTY ELSE 0 END) AS out_qty
+            SELECT CONVERT(date, MVMT_DT) AS ymd, ITEM_CD AS item_code,
+                   ISNULL(MVMT_SL_CD, '-') AS wh_code,
+                   SUM(CASE WHEN IO_TYPE_CD LIKE 'R%' THEN MVMT_BASE_QTY ELSE 0 END) AS in_qty,
+                   SUM(CASE WHEN IO_TYPE_CD NOT LIKE 'R%' THEN MVMT_BASE_QTY ELSE 0 END) AS out_qty
             FROM JEILMNS.dbo.M_PUR_GOODS_MVMT WITH (NOLOCK)
             WHERE MVMT_DT >= ?
-            GROUP BY CONVERT(date, MVMT_DT), ITEM_CD, WH_CD
+            GROUP BY CONVERT(date, MVMT_DT), ITEM_CD, ISNULL(MVMT_SL_CD, '-')
         """,
         "params": ["daily_start"],
     },
