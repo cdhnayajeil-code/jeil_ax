@@ -448,9 +448,19 @@
       </div>
       <button class="back-chat" onclick="showChat()">← 챗봇으로</button>
     </div>
+    <p class="admin-note" id="liveNote" style="margin:8px 20px 0;">실데이터 확인 중…</p>
 
     <!-- 패널 1: API 설정 -->
     <div class="panel on" id="panel-api">
+      <div class="sec">
+        <h3>실연결 상태 — jeil-chat 게이트웨이 <span style="font-size:11px;color:var(--green,#1a7f37);">● 실데이터</span> <button class="save" onclick="loadAdminLive(true)">새로고침</button></h3>
+        <div class="cards">
+          <div class="card"><div class="lb">게이트웨이</div><div class="v" id="lgStatus">—</div></div>
+          <div class="card"><div class="lb">운영 모델</div><div class="v" id="lgModel">—</div></div>
+          <div class="card"><div class="lb">인가 정책</div><div class="v" id="lgAuth" style="font-size:13px;">—</div></div>
+        </div>
+        <p class="admin-note" id="lgLimits">API 키는 Supabase Edge Function 시크릿(서버 전용)에만 보관 — 화면·소스에 노출되지 않습니다.</p>
+      </div>
       <div class="cards">
         <div class="card"><div class="lb">API 연결 상태</div><div class="v"><span class="dot"></span>정상 <small>· 응답 0.8s</small></div></div>
         <div class="card"><div class="lb">활성 Workspace</div><div class="v">3개</div></div>
@@ -497,6 +507,23 @@
 
     <!-- 패널 2: 사용량 설정 -->
     <div class="panel" id="panel-usage">
+      <div class="sec">
+        <h3>실사용 현황 — chat_log 감사 로그 <span style="font-size:11px;color:var(--green,#1a7f37);">● 실데이터</span> <button class="save" onclick="loadAdminLive(true)">새로고침</button></h3>
+        <div class="cards">
+          <div class="card"><div class="lb">오늘 호출</div><div class="v" id="luToday">—</div></div>
+          <div class="card"><div class="lb">최근 7일 호출 / 사용자</div><div class="v" id="luWeek">—</div></div>
+          <div class="card"><div class="lb">누적 호출</div><div class="v" id="luTotal">—</div></div>
+          <div class="card"><div class="lb">누적 질문 분량</div><div class="v" id="luChars">—</div></div>
+        </div>
+        <table id="luByUser">
+          <tr><th>사용자</th><th class="r">호출</th><th class="r">질문 문자수</th><th>최근 사용</th></tr>
+        </table>
+        <h3 style="margin-top:14px;">최근 호출 20건</h3>
+        <table id="luRecent">
+          <tr><th>시각</th><th>사용자</th><th>모델</th><th class="r">맥락 메시지</th><th class="r">문자수</th></tr>
+        </table>
+        <p class="admin-note">개인정보 최소화 원칙 — 대화 원문은 저장하지 않고 호출 메타데이터(누가·언제·모델·분량)만 기록합니다. 아래 섹션은 실구축 기획 예시 화면입니다.</p>
+      </div>
       <div class="cards">
         <div class="card"><div class="lb">이번 달 전사 사용액</div><div class="v">$232.35 <small>/ 한도 $550</small></div></div>
         <div class="card"><div class="lb">활성 사용자 (이번 주)</div><div class="v">61명 <small>/ 87명</small></div></div>
@@ -581,6 +608,19 @@
 
     <!-- 패널 4: 권한 설정 -->
     <div class="panel" id="panel-perm">
+      <div class="sec">
+        <h3>현재 적용 중인 권한 <span style="font-size:11px;color:var(--green,#1a7f37);">● 실데이터</span></h3>
+        <table>
+          <tr><th style="width:16%;">구분</th><th>현재 적용(실측)</th><th>다음 단계(기획)</th></tr>
+          <tr><td><b>챗봇 사용</b></td><td id="lpChat">사내 전 직원(@jeilm.co.kr) — Entra SSO·MFA 통과 시 허용, 전원 동일 권한</td><td>Entra 보안그룹(AI-Portal-*) 기반 등급·모델 차등</td></tr>
+          <tr><td><b>데이터 접근</b></td><td>없음 — 챗봇은 아직 사내 데이터에 접근하지 않음(일반 지식·문서 초안 작성만)</td><td>1단계 포털DB 조회 Tool → 2단계 ERP 중간DB 읽기 Tool(부서 매핑) → 3단계 문서 RAG</td></tr>
+          <tr><td><b>사용 감사</b></td><td>chat_log 기록(사용자·모델·분량) — 관리자만 Edge Function 경유 조회(RLS 차단)</td><td>토큰·비용 기록, 월 사용자 한도·초과 알림</td></tr>
+        </table>
+        <table id="lpAdmins" style="margin-top:10px;">
+          <tr><th>전체 관리자 (portal_admin)</th><th>부여</th><th>부여일</th></tr>
+        </table>
+        <p class="admin-note">아래 섹션은 실구축 기획 예시 화면입니다 — 상세 기획: 「실제구축준비 자료/06_챗봇_데이터접근권한_사용량관리_고도화」.</p>
+      </div>
       <div class="cards">
         <div class="card"><div class="lb">전체 관리자</div><div class="v">1명 <small>· 최동혁</small></div></div>
         <div class="card"><div class="lb">부서 관리자</div><div class="v">8명 <small>· 부서별 1인</small></div></div>
@@ -1069,7 +1109,7 @@ function hideViews(){
   document.getElementById('pagesView').style.display='none';
 }
 function showChat(){ hideViews(); document.querySelector('.main').style.display='flex'; closeDrawer(); }
-function showAdmin(){ hideViews(); document.getElementById('adminView').style.display='flex'; closeDrawer(); }
+function showAdmin(){ hideViews(); document.getElementById('adminView').style.display='flex'; closeDrawer(); loadAdminLive(); }
 function showPages(){ hideViews(); document.getElementById('pagesView').style.display='flex'; closeDrawer(); }
 function showTab(key){
   ['api','usage','model','perm'].forEach(k=>{
@@ -1137,6 +1177,50 @@ async function sendLive(v, auth){
     bubble.classList.remove('typing');
     bubble.innerHTML = '⚠ ' + escHtml(e.message || '연결 실패')
       + '<br><small style="color:#888">네트워크·MS 로그인 상태 확인 후 다시 시도하세요. 계속 실패하면 관리자에게 문의.</small>';
+  }
+}
+
+/* ===== 관리자 콘솔 실데이터 (jeil-chat-admin — 관리자 전용) ===== */
+var ADMIN_GATEWAY = 'https://dvzohdqtjzocgcclgwro.supabase.co/functions/v1/jeil-chat-admin';
+var adminLiveLoaded = false;
+
+function fmtKST(iso){ try{ return new Date(iso).toLocaleString('ko-KR',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}); }catch(e){ return iso||''; } }
+function setTxt(id, v){ var el=document.getElementById(id); if(el) el.innerHTML = v; }
+
+async function loadAdminLive(force){
+  var note = document.getElementById('liveNote');
+  if(adminLiveLoaded && !force) return;
+  var auth = getLiveAuth();
+  if(!auth){ if(note) note.textContent = '👁 미로그인 — 아래는 기획 예시 화면입니다. MS 로그인(관리자)하면 실데이터가 표시됩니다.'; return; }
+  if(note) note.textContent = '실데이터 불러오는 중…';
+  try{
+    var res = await fetch(ADMIN_GATEWAY, { method:'POST', headers:{ Authorization:'Bearer '+auth.at } });
+    if(!res.ok){ var e={}; try{ e=await res.json(); }catch(_){} throw new Error(e.error || ('오류 '+res.status)); }
+    var d = await res.json();
+    adminLiveLoaded = true;
+    if(note) note.innerHTML = '🔒 실데이터 표시 중 (기준: ' + fmtKST(d.as_of) + ') — 각 탭 상단 <b>● 실데이터</b> 섹션이 실측값, 나머지는 실구축 기획 예시입니다.';
+    // API 탭
+    setTxt('lgStatus', d.gateway.key_set ? '<span class="dot"></span>정상 가동' : '⚠ 키 미설정');
+    setTxt('lgModel', escHtml(d.gateway.provider + ' · ' + d.gateway.model));
+    setTxt('lgAuth', escHtml(d.gateway.auth_policy));
+    setTxt('lgLimits', 'API 키는 서버 시크릿 전용(화면·소스 미노출) · 입력 상한: 대화 ' + d.gateway.limits.max_messages + '턴 / ' + d.gateway.limits.max_total_chars.toLocaleString() + '자, 응답 ' + d.gateway.limits.max_tokens.toLocaleString() + ' 토큰');
+    // 사용량 탭
+    setTxt('luToday', d.usage.today_calls.toLocaleString() + '회');
+    setTxt('luWeek', d.usage.week_calls.toLocaleString() + '회 / ' + d.usage.week_users + '명');
+    setTxt('luTotal', d.usage.total_calls.toLocaleString() + '회');
+    setTxt('luChars', d.usage.total_prompt_chars.toLocaleString() + '자');
+    var bu = document.getElementById('luByUser');
+    if(bu) bu.innerHTML = '<tr><th>사용자</th><th class="r">호출</th><th class="r">질문 문자수</th><th>최근 사용</th></tr>'
+      + d.usage.by_user.map(function(u){ return '<tr><td>'+escHtml(u.upn)+'</td><td class="r">'+u.calls.toLocaleString()+'</td><td class="r">'+u.chars.toLocaleString()+'</td><td>'+fmtKST(u.last)+'</td></tr>'; }).join('');
+    var rc = document.getElementById('luRecent');
+    if(rc) rc.innerHTML = '<tr><th>시각</th><th>사용자</th><th>모델</th><th class="r">맥락 메시지</th><th class="r">문자수</th></tr>'
+      + d.usage.recent.map(function(r){ return '<tr><td>'+fmtKST(r.created_at)+'</td><td>'+escHtml(r.upn)+'</td><td>'+escHtml(r.model)+'</td><td class="r">'+r.messages_count+'</td><td class="r">'+(r.prompt_chars||0).toLocaleString()+'</td></tr>'; }).join('');
+    // 권한 탭
+    var ad = document.getElementById('lpAdmins');
+    if(ad) ad.innerHTML = '<tr><th>전체 관리자 (portal_admin)</th><th>부여</th><th>부여일</th></tr>'
+      + d.admins.map(function(a){ return '<tr><td>'+escHtml(a.email)+'</td><td>'+escHtml(a.granted_by||'-')+'</td><td>'+(a.granted_at||'').slice(0,10)+'</td></tr>'; }).join('');
+  }catch(e){
+    if(note) note.textContent = '⚠ 실데이터 조회 실패: ' + (e.message||'') + ' — 아래는 기획 예시 화면입니다.';
   }
 }
 
