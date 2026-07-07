@@ -1,0 +1,105 @@
+/* app/lib/grid.css — JEIL_AX 표준 편집 그리드 스타일
+ * 단일 출처: 그리드/표준그리드_가이드.md · 데모: 그리드/index.html
+ * 규칙: 전역 table/th/td 셀렉터를 절대 건드리지 않는다(.grid__ 스코프만).
+ *       호스트 HTML의 :root 변수를 재사용하되, 없을 때를 대비한 fallback 1벌만 둔다.
+ */
+.grid {
+  --g-navy:  var(--navy,  #1a2f4e);
+  --g-navy2: var(--navy2, #27457a);
+  --g-accent:var(--accent,#2f6fb3);
+  --g-red:   var(--red,   #b3402f);
+  --g-green: var(--green, #2e7d52);
+  --g-amber: var(--amber, #9a6b1f);
+  --g-line:  var(--line,  #dde3ec);
+  --g-bg:    var(--bg,    #eef1f6);
+  --g-soft:  var(--soft,  #f4f7fb);
+  --g-ink:   var(--ink,   #222);
+  --g-muted: var(--muted, #667);
+  font-family: 'Pretendard','Malgun Gothic',sans-serif;
+  color: var(--g-ink);
+  font-size: 12.8px;
+}
+
+/* 툴바: 검색 + 액션 버튼 */
+.grid__toolbar{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;}
+.grid__toolbar-left,.grid__toolbar-right{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+.grid__search{display:flex;align-items:center;gap:6px;}
+.grid__search input{width:230px;max-width:60vw;padding:7px 11px 7px 30px;border:1px solid var(--g-line);border-radius:9px;
+  font-size:12.5px;background:var(--g-soft) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='15' height='15' viewBox='0 0 24 24' fill='none' stroke='%23889' stroke-width='2.2'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='m21 21-4.3-4.3'/%3E%3C/svg%3E") 9px center no-repeat;}
+.grid__search input:focus{outline:none;border-color:var(--g-accent);background-color:#fff;}
+.grid__badge-count{font-size:11.5px;color:var(--g-muted);}
+.grid__badge-count b{color:var(--g-accent);}
+
+/* 스크롤 영역 + 스티키 헤더 */
+.grid__scroll{border:1px solid var(--g-line);border-radius:12px;overflow:auto;max-height:70vh;background:#fff;}
+.grid__table{width:100%;border-collapse:separate;border-spacing:0;}
+.grid__table th,.grid__table td{padding:7px 10px;text-align:left;vertical-align:middle;white-space:nowrap;}
+.grid__th{position:sticky;top:0;z-index:2;background:var(--g-navy);color:#fff;font-weight:600;font-size:12px;
+  border-bottom:1px solid var(--g-navy2);user-select:none;}
+.grid__th--sortable{cursor:pointer;}
+.grid__th--sortable:hover{background:var(--g-navy2);}
+.grid__th .grid__sort{opacity:.45;margin-left:4px;font-size:10px;}
+.grid__th--sorted-asc .grid__sort,.grid__th--sorted-desc .grid__sort{opacity:1;}
+.grid__th--check,.grid__td--check{width:34px;text-align:center;padding-left:6px;padding-right:6px;}
+
+/* 컬럼 필터 행 */
+.grid__filter-row th{position:sticky;top:31px;z-index:1;background:var(--g-soft);padding:4px 8px;border-bottom:1px solid var(--g-line);}
+.grid__filter-row input,.grid__filter-row select{width:100%;padding:4px 7px;border:1px solid var(--g-line);border-radius:6px;
+  font-size:11.5px;background:#fff;}
+.grid__filter-row input:focus,.grid__filter-row select:focus{outline:none;border-color:var(--g-accent);}
+
+/* 본문 행 */
+.grid__td{border-bottom:1px solid var(--g-line);}
+.grid__row:nth-child(even) .grid__td{background:#fafbfd;}
+.grid__row:hover .grid__td{background:#f1f6fc;}
+.grid__row--selected .grid__td{background:#eaf2fb !important;}
+.grid__row--dirty .grid__td{box-shadow:inset 2px 0 0 var(--g-amber);}
+.grid__td--readonly{color:var(--g-ink);}
+.grid__td--editable{cursor:text;}
+.grid__td--num{text-align:right;font-variant-numeric:tabular-nums;}
+.grid__td--center{text-align:center;}
+.grid__td--error{background:#fbecea !important;box-shadow:inset 0 0 0 1.5px var(--g-red);}
+.grid__cell--focus{box-shadow:inset 0 0 0 2px var(--g-accent);}
+
+/* 편집 입력 */
+.grid__cell-input{width:100%;min-width:90px;padding:5px 8px;border:1px solid var(--g-line);border-radius:7px;
+  font-size:12px;background:#fff;}
+.grid__cell-input:focus{outline:none;border-color:var(--g-accent);}
+.grid--bulk-on .grid__cell-input{background:#fffdf3;border-color:#e8d9a0;}
+.grid__err-tip{display:block;font-size:10.5px;color:var(--g-red);margin-top:2px;}
+
+/* 체크박스 */
+.grid__check{width:15px;height:15px;cursor:pointer;accent-color:var(--g-accent);}
+
+/* 상태 pill (호스트 .pill 없을 때도 동작) */
+.grid__pill{display:inline-block;font-size:11px;font-weight:700;padding:2px 9px;border-radius:20px;background:#eef0f3;color:#889;}
+.grid__pill--active{background:#eaf5ee;color:var(--g-green);}
+.grid__pill--disabled{background:#fbecea;color:var(--g-red);}
+.grid__pill--none{background:#eef0f3;color:#889;}
+
+/* 빈 상태 / 로딩 */
+.grid__empty,.grid__loading{padding:34px 14px;text-align:center;color:var(--g-muted);font-size:13px;}
+.grid__loading::before{content:"";display:inline-block;width:15px;height:15px;margin-right:8px;vertical-align:-3px;
+  border:2px solid var(--g-line);border-top-color:var(--g-accent);border-radius:50%;animation:grid-spin .7s linear infinite;}
+@keyframes grid-spin{to{transform:rotate(360deg)}}
+
+/* 푸터 */
+.grid__footer{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;
+  margin-top:8px;font-size:11.5px;color:var(--g-muted);}
+
+/* 데모/독립 사용 시 버튼 fallback (호스트에 .btn 있으면 그것이 우선) */
+.grid__btn{padding:6px 12px;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;
+  background:var(--g-navy);color:#fff;}
+.grid__btn:hover{background:var(--g-navy2);}
+.grid__btn--ok{background:var(--g-green);}
+.grid__btn--no{background:var(--g-red);}
+.grid__btn--ghost{background:#eef3fb;color:var(--g-navy2);border:1px solid #d3e0f2;}
+.grid__btn--gray{background:#5b6b7a;}
+.grid__btn:disabled{opacity:.55;cursor:wait;}
+
+/* 반응형 */
+@media(max-width:720px){
+  .grid__search input{width:100%;}
+  .grid__toolbar{align-items:stretch;}
+  .grid__table th,.grid__table td{padding:6px 7px;font-size:12px;}
+}

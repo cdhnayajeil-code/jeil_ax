@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JEIL_AX 표준 편집 그리드 — 데모 · 레퍼런스</title>
+<!-- 표준 그리드 컴포넌트(단일 출처). 데모는 단일파일 자기완결 원칙의 의도적 예외:
+     표준 컴포넌트를 그대로 참조해 중복을 막는다. ESM이라 file:// 직접 열기는 막힘 →
+     반드시 정적 서버로 서빙: 프로젝트 루트에서  python -m http.server  후
+     http://localhost:8000/그리드/  로 접속(또는 Vercel 배포본). -->
+<link rel="stylesheet" href="../app/lib/grid.css">
+<style>
+  :root{--navy:#1a2f4e;--navy2:#27457a;--accent:#2f6fb3;--red:#b3402f;--green:#2e7d52;--amber:#9a6b1f;
+    --ink:#222;--muted:#667;--line:#dde3ec;--bg:#eef1f6;--soft:#f4f7fb;}
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:'Pretendard','Malgun Gothic',sans-serif;background:var(--bg);color:var(--ink);line-height:1.55;font-size:14px;}
+  .top{background:linear-gradient(135deg,#1a2f4e,#27457a);color:#fff;padding:20px 26px;}
+  .top h1{font-size:19px;}
+  .top p{font-size:12.5px;color:#cdd8ea;margin-top:5px;}
+  .wrap{max-width:1180px;margin:0 auto;padding:22px;}
+  .sec{background:#fff;border:1px solid var(--line);border-radius:14px;padding:20px 22px;margin-bottom:18px;}
+  .sec h2{font-size:15.5px;color:var(--navy);margin-bottom:4px;}
+  .sec .sub{font-size:12px;color:var(--muted);margin-bottom:14px;}
+  .btn{padding:8px 14px;background:var(--navy);color:#fff;border:none;border-radius:9px;font-size:13px;font-weight:700;cursor:pointer;}
+  .btn.sm{padding:6px 11px;font-size:12px;}
+  .btn.ok{background:var(--green);}.btn.no{background:var(--red);}.btn.gray{background:#5b6b7a;}
+  .btn.ghost{background:#eef3fb;color:var(--navy2);border:1px solid #d3e0f2;}
+  .pill{font-size:11px;font-weight:700;padding:2px 9px;border-radius:20px;}
+  .p-none{background:#eef0f3;color:#889;}.p-active{background:#eaf5ee;color:var(--green);}.p-disabled{background:#fbecea;color:var(--red);}
+  .out{margin-top:12px;padding:11px 14px;border-radius:9px;background:#0f172a;color:#cbd5e1;font-size:12px;
+    font-family:Consolas,monospace;white-space:pre-wrap;max-height:160px;overflow:auto;display:none;}
+  .out.show{display:block;}
+  .note{font-size:12px;color:var(--muted);margin-top:10px;}
+</style>
+</head>
+<body>
+<div class="top">
+  <h1>JEIL_AX 표준 편집 그리드 — 데모 · 레퍼런스</h1>
+  <p>app/lib/grid.js · grid.css · 체크박스 선택 · 조회/필터 · 정렬 · 인라인 편집 · 엑셀 붙여넣기 · CSV 다운로드/복사</p>
+</div>
+<div class="wrap">
+  <div class="sec">
+    <h2>협력사 거래처 그리드 (전체 기능 시연)</h2>
+    <div class="sub">상단 "📋 일괄 편집"으로 편집 모드 진입 → 셀 수정 또는 엑셀에서 [거래처코드·이메일·담당자] 복사해 붙여넣기. 선택 후 일괄 작업·CSV 내보내기.</div>
+    <div id="demoGrid"></div>
+    <div id="out" class="out"></div>
+    <div class="note">※ 이 화면은 mock 데이터입니다. 실제 화면은 데이터 조회/저장을 <code>app/lib/api.js</code> 또는 Edge Function 콜백으로 연결합니다.</div>
+  </div>
+</div>
+
+<script type="module">
+import { createGrid } from "../app/lib/grid.js";
+
+const log = (label, data) => { const el = document.getElementById("out"); el.classList.add("show"); el.textContent = label + "\n" + JSON.stringify(data, null, 2); };
+
+const ROWS = [
+  { bp_cd:"00206", bp_nm:"(주)대신스틸", biz_no:"206-81-55012", status:"active",  email:"daesin@corp.com", name:"김대신" },
+  { bp_cd:"02128", bp_nm:"(주)삼성티",   biz_no:"128-81-43021", status:"active",  email:"three@corp.com",  name:"이삼성" },
+  { bp_cd:"00324", bp_nm:"(주)상우터",   biz_no:"324-81-61018", status:"disabled",email:"sangwoo@corp.com",name:"" },
+  { bp_cd:"00209", bp_nm:"(주)서일텐",   biz_no:"209-81-60113", status:"none",    email:"", name:"" },
+  { bp_cd:"01699", bp_nm:"(주)신호관",   biz_no:"699-81-94021", status:"none",    email:"", name:"" },
+  { bp_cd:"01768", bp_nm:"(주)엠텍",     biz_no:"768-81-50017", status:"none",    email:"", name:"" },
+];
+const PILL = { active:["p-active","발급됨"], disabled:["p-disabled","비활성"], none:["p-none","미발급"] };
+
+const grid = createGrid("#demoGrid", {
+  keyField: "bp_cd",
+  selectable: true, search: true, columnFilter: true, sortable: true,
+  editable: true, editToggle: true, editToggleLabels:{ off:"📋 일괄 편집", on:"✏️ 편집 중" },
+  paste: true, exportCsv: true, copy: true, exportName: "협력사거래처",
+  rows: ROWS,
+  columns: [
+    { key:"bp_cd", label:"거래처코드", width:"90px", pasteKey:"code" },
+    { key:"bp_nm", label:"협력사명", width:"150px" },
+    { key:"biz_no", label:"사업자번호", width:"120px", filter:false },
+    { key:"status", label:"상태", width:"80px", align:"center",
+      type:"select", options:[{value:"none",label:"미발급"},{value:"active",label:"발급됨"},{value:"disabled",label:"비활성"}],
+      formatter:(v)=>{ const [c,t]=PILL[v]||PILL.none; return `<span class="pill ${c}">${t}</span>`; } },
+    { key:"email", label:"담당자 이메일", width:"190px", pasteKey:"email", type:"email",
+      editable:(row)=>row.status==="none",
+      validator:(v,row)=> row.status!=="none" ? true : (!v ? true : (/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v) || "이메일 형식 오류")),
+      formatter:(v)=> v?`<span>${v}</span>`:`<span style="color:#aab">미입력</span>` },
+    { key:"name", label:"담당자명", width:"100px", pasteKey:"name", editable:(row)=>row.status==="none",
+      formatter:(v)=> v||`<span style="color:#aab">—</span>` },
+    { key:"_act", label:"관리", width:"120px", filter:false, sortable:false,
+      formatter:(_,row)=> row.status==="none"
+        ? `<button class="btn sm ok" data-row-act="provision">계정 생성</button>`
+        : `<button class="btn sm ghost" data-row-act="mail">메일</button> <button class="btn sm no" data-row-act="reset">초기화</button>` },
+  ],
+  bulkActions: [{ id:"issue", label:"💾 선택/입력 일괄 발급", btnClass:"ok" }],
+  onBulkAction: (id, g) => {
+    const dirty = g.getDirty().filter(d => d.row.status==="none" && d.row.email);
+    const selected = g.getSelected();
+    if (!g.validateAll()) { alert("입력값 오류가 있습니다. 빨간 셀을 확인하세요."); return; }
+    log(`[onBulkAction] id=${id} — 수정행 ${dirty.length}, 선택행 ${selected.length}`, { dirty: dirty.map(d=>({bp:d.key, email:d.row.email, name:d.row.name})), selectedKeys: g.getSelectedKeys() });
+  },
+  onRowAction: (act, row) => log(`[onRowAction] ${act}`, { bp_cd: row.bp_cd, bp_nm: row.bp_nm }),
+  onSelectionChange: (rows) => { /* 선택 변경 시 처리 */ },
+  onSave: (changes) => log("[onSave]", changes),
+});
+window.demoGrid = grid; // 콘솔 디버깅용
+</script>
+</body>
+</html>

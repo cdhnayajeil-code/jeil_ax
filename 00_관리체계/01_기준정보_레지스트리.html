@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>01 기준정보 — JEIL AX 관리체계 (조직·권한·ERP매핑·프로세스·환경 마스터)</title>
+<style>
+:root{--navy:#1a2f4e;--navy2:#27457a;--accent:#2f6fb3;--red:#b3402f;--green:#2e7d52;--amber:#9a6b1f;
+--ink:#222;--muted:#666;--line:#d8dee8;--bg:#f4f6f9;--soft:#eef2f8;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;color:var(--ink);background:var(--bg);line-height:1.65;font-size:15px;}
+.page{max-width:960px;margin:0 auto;background:#fff;padding:52px 60px;box-shadow:0 2px 14px rgba(0,0,0,.08);}
+.doc-label{display:inline-block;background:var(--navy);color:#fff;font-size:12px;letter-spacing:.16em;padding:5px 14px;border-radius:3px;margin-bottom:16px;}
+.docnav{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 26px;}
+.docnav a{font-size:12px;color:var(--navy2);border:1px solid var(--line);border-radius:20px;padding:4px 12px;text-decoration:none;background:var(--soft);}
+.docnav a:hover{background:var(--navy);color:#fff;}
+.docnav a.cur{background:var(--navy);color:#fff;border-color:var(--navy);}
+.md-link{font-size:13px;margin-bottom:22px;color:var(--muted);}
+.content h1{font-size:27px;color:var(--navy);line-height:1.35;margin:6px 0 18px;}
+.content h2{font-size:20px;color:var(--navy);margin:42px 0 14px;padding-bottom:9px;border-bottom:3px solid var(--navy);}
+.content h3{font-size:16px;color:var(--navy2);margin:24px 0 9px;}
+.content p{margin:0 0 12px;}
+.content ul,.content ol{margin:0 0 14px 22px;}
+.content li{margin-bottom:6px;}
+.content blockquote{background:var(--soft);border-left:5px solid var(--navy);border-radius:0 8px 8px 0;padding:14px 20px;margin:14px 0;color:#33425a;}
+.content blockquote p{margin:0 0 6px;}
+.content table{width:100%;border-collapse:collapse;margin:14px 0 20px;font-size:13.3px;}
+.content th{background:var(--navy);color:#fff;padding:9px 11px;text-align:left;font-weight:600;}
+.content td{padding:8px 11px;border-bottom:1px solid var(--line);vertical-align:top;}
+.content tr:nth-child(even) td{background:#fafbfd;}
+.content a{color:var(--accent);}
+.content code{background:var(--soft);border:1px solid var(--line);border-radius:4px;padding:1px 6px;font-size:12.4px;font-family:Consolas,'Courier New',monospace;}
+.content pre{background:#21252e;color:#e8eaf0;border-radius:8px;padding:16px 18px;font-size:12.4px;font-family:Consolas,'Courier New',monospace;overflow-x:auto;margin:12px 0 18px;line-height:1.55;}
+.content pre code{background:none;border:none;color:inherit;padding:0;}
+.content hr{border:none;border-top:1px solid var(--line);margin:30px 0;}
+.content strong{color:var(--navy2);}
+.footer{margin-top:50px;padding-top:16px;border-top:1px solid var(--line);font-size:12px;color:var(--muted);display:flex;justify-content:space-between;}
+@media print{body{background:#fff;}.page{box-shadow:none;padding:18px 0;max-width:100%;}.docnav{display:none;}.content h2{break-after:avoid;}.content table,.content pre,.content blockquote{break-inside:avoid;}}
+@media (max-width:720px){.page{padding:30px 20px;}}
+</style>
+</head>
+<body>
+<div class="page">
+  <span class="doc-label">JEIL AX 관리체계 · 대외비</span>
+  <div class="docnav"><a href="index.html">🏠 관리체계 허브</a><a href="00_문서대장.html">00 문서대장</a><a class="cur" href="01_기준정보_레지스트리.html">01 기준정보</a><a href="02_명명규칙_폴더규약.html">02 명명규칙</a><a href="03_변경관리_CHANGELOG.html">03 변경관리</a><a href="README.md">README</a></div>
+  <p class="md-link">📄 Markdown 원본: <a href="01_기준정보_레지스트리.md">01_기준정보_레지스트리.md</a> · 허브 <a href="index.html">관리체계 대시보드</a></p>
+  <div class="content">
+<h1 id="01-master-data-registry">01. 기준정보 레지스트리 (Master Data Registry)</h1>
+<blockquote>
+<p><strong>기준일: 2026-06-30</strong> · 관리: 최동혁(dh.choi@jeilm.co.kr)
+프로젝트 전반에서 재사용되는 <strong>기준정보의 단일 출처</strong>다. 화면·문서·SQL에 흩어진 값을 여기로 모은다.
+비밀값(Secret·DB접속·키)은 <strong>이름·존재만</strong>(<code>CLAUDE.md §1</code>). 운영 현황(배포·계정 상태)은 <code>이관/00_현황스냅샷</code>이 출처다.
+<strong>갱신 규칙</strong>: 아래 값이 바뀌면 여기를 먼저 고치고 <code>03_변경관리_CHANGELOG</code>에 한 줄 남긴다.</p>
+</blockquote>
+<hr />
+<h2 id="1">1. 조직/부서 마스터</h2>
+<blockquote>
+<p>표기 통일(<code>CLAUDE.md §7</code>): "인사총무팀"❌ → <strong>"인사팀"</strong>. 챗봇 명칭 <strong>jeil-chat</strong>.
+출처: <code>04_챗봇_포털_데모UI.html</code>(부서선택·운영카드), <code>pages/</code>(부서별 페이지).</p>
+</blockquote>
+<table>
+<thead>
+<tr>
+<th>코드</th>
+<th>부서명(표준)</th>
+<th>운영페이지</th>
+<th>권한 민감도</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>sales</code></td>
+<td>영업팀</td>
+<td><code>pages/영업_수주현황_2026.html</code></td>
+<td>일반</td>
+</tr>
+<tr>
+<td><code>pur</code></td>
+<td>구매팀</td>
+<td><code>pages/구매_거래처별매입집계_2026.html</code></td>
+<td>일반</td>
+</tr>
+<tr>
+<td><code>hr</code></td>
+<td>인사팀</td>
+<td><code>pages/인사_인원급여추이_2026.html</code></td>
+<td><strong>PII 마스킹</strong></td>
+</tr>
+<tr>
+<td><code>fin</code></td>
+<td>자금팀</td>
+<td><code>pages/자금_자금일보_대시보드_2026.html</code></td>
+<td><strong>임원·자금팀 한정</strong></td>
+</tr>
+<tr>
+<td><code>mat</code></td>
+<td>자재물류팀</td>
+<td><code>pages/자재물류_재고입출고_2026.html</code></td>
+<td>일반(구매·사업관리 공유)</td>
+</tr>
+<tr>
+<td><code>sub</code></td>
+<td>외주(협력사)</td>
+<td><code>pages/외주발주_검사진행현황_2026.html</code> + 협력사 모바일 포털</td>
+<td>행수준 보안</td>
+</tr>
+<tr>
+<td><code>pmo</code></td>
+<td>사업관리팀</td>
+<td>(원가현황·프로젝트 원가)</td>
+<td>일반</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>보조 표기로 등장하는 설계·생산·품질팀은 사업관리/구매 화면의 공유 라벨이며, 별도 운영페이지는 미정. 신규 부서 추가 시 이 표 + 권한 모델(§2)을 함께 갱신한다.</p>
+</blockquote>
+<hr />
+<h2 id="2-entra-supabase-rls">2. 권한 모델 매핑표 (Entra ↔ Supabase ↔ RLS)</h2>
+<blockquote>
+<p>현재 권한 정의가 <strong>CLAUDE.md(텍스트)·HTML 기획·SQL 함수</strong> 3곳에 흩어져 있어 여기로 일원화한다.
+상세 설계: <code>08/03_실구축기획/03_협력사인증_권한_행수준보안_보안.md</code>. 운영 적용 현황: <code>이관/00_현황스냅샷 §5</code>.</p>
+</blockquote>
+<table>
+<thead>
+<tr>
+<th>역할</th>
+<th>Entra 보안그룹(사내)</th>
+<th>Supabase 역할/클레임(데모)</th>
+<th>RLS 적용</th>
+<th>데이터 경계</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>시스템 관리자</td>
+<td><code>AI-Portal-Admins</code></td>
+<td><code>portal_admin</code></td>
+<td>전체</td>
+<td>전 데이터 + 협력사 계정 발급</td>
+</tr>
+<tr>
+<td>자금</td>
+<td><code>AI-Portal-Finance</code></td>
+<td>(미정)</td>
+<td>자금 화면</td>
+<td>자금·금액 화면 인가</td>
+</tr>
+<tr>
+<td>인사</td>
+<td><code>AI-Portal-HR</code></td>
+<td>(미정)</td>
+<td>인사 화면</td>
+<td>급여·PII 인가</td>
+</tr>
+<tr>
+<td>영업(확장)</td>
+<td><code>AI-Portal-Sales</code></td>
+<td>(미정)</td>
+<td>영업 화면</td>
+<td>수주 화면</td>
+</tr>
+<tr>
+<td>협력사(사외)</td>
+<td><strong>테넌트 분리</strong></td>
+<td><code>vendor</code> + <code>vendor_bp</code>(거래처코드 배열)</td>
+<td><strong>행수준</strong></td>
+<td>자기 거래처(<code>bp_cd</code>) 발주만</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li><strong>사내 인증</strong> = Microsoft Entra ID(SSO+MFA), 앱 <code>JEIL-AX-Portal</code>. 협력사는 동일 테넌트에 넣지 않음(<code>CLAUDE.md §5.5</code>).</li>
+<li><strong>권한 판정은 백엔드/DB에서</strong>(프론트 메뉴 숨김은 UX일 뿐 — <code>CLAUDE.md §5.4</code>).</li>
+<li>RLS 헬퍼: <code>is_vendor_admin()</code>(사내 관리자 판정), <code>vendor_bp</code> JWT 클레임(협력사 거래처 격리). 정의: <code>이관/sql/01_schema_rls.sql</code>·<code>06_vendor_provisioning.sql</code>.</li>
+</ul>
+<hr />
+<h2 id="3-erp">3. ERP 테이블 매핑 카탈로그 (요약 + 포인터)</h2>
+<blockquote>
+<p>ERP는 <strong>읽기 전용 + 중간 DB 경유</strong>(<code>CLAUDE.md §4</code>). 운영 MSSQL 직접 쓰기·조회 금지.
+<strong>상세 단일 출처</strong>: <code>08/03_실구축기획/02_데이터모델_ERP매핑_포털스키마.md</code>. 아래는 빠른 참조용 요약.</p>
+</blockquote>
+<h3 id="31-erpunierp-erp_ro">3.1 ERP(UNIERP) → 읽기전용 사본(<code>erp_ro</code>)</h3>
+<table>
+<thead>
+<tr>
+<th>업무</th>
+<th>ERP 테이블</th>
+<th>포털 별칭</th>
+<th>핵심 컬럼</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>구매요청</td>
+<td><code>M_PUR_REQ</code></td>
+<td><code>pr</code></td>
+<td>PR_NO, PR_STS, REQ_QTY, ORD_QTY, RCPT_QTY</td>
+</tr>
+<tr>
+<td>발주(헤더)</td>
+<td><code>M_PUR_ORD</code>(_HDR)</td>
+<td><code>po_header</code></td>
+<td>PO_NO, BP_CD, ORD_DT, PROJECT_CD</td>
+</tr>
+<tr>
+<td>외주구분</td>
+<td><code>M_CONFIG_PROCESS</code></td>
+<td>-</td>
+<td>SUBCONTRA_FLG(외주/사급)</td>
+</tr>
+<tr>
+<td>입출고</td>
+<td><code>M_PUR_GOODS_MVMT</code></td>
+<td>-</td>
+<td>입고·매입 수량</td>
+</tr>
+<tr>
+<td>검사</td>
+<td><code>Q_INSPECTION</code></td>
+<td>-</td>
+<td>검사신청·결과(합/부)</td>
+</tr>
+<tr>
+<td>품목</td>
+<td><code>M_IV</code></td>
+<td>-</td>
+<td>품목 마스터</td>
+</tr>
+<tr>
+<td>거래처</td>
+<td><code>B_BIZ_PARTNER</code></td>
+<td><code>vendor_master</code></td>
+<td>BP_CD, BP_NM(협력사 마스터 원천)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="32-sp_-supabase-erp">3.2 포털 전용 쓰기 스키마(<code>sp_*</code> / 데모는 Supabase) — ERP에 직접 안 씀</h3>
+<p><code>sp_order_state</code>(진행상태·10단계) · <code>sp_photo</code>(증빙사진, 원본은 Storage) · <code>sp_message</code>(양방향) · <code>sp_insp_request</code>(검수요청) · <code>sp_inspection</code>(판정) · <code>sp_inspection_log</code>(판정이력). 격리 키 = <code>bp_cd</code>. 정의: <code>이관/sql/01_schema_rls.sql</code>.</p>
+<blockquote>
+<p>신규 화면은 이 매핑을 <strong>재사용·확장</strong>하고, 변경 시 §3 + <code>08/03/02</code> 양쪽을 갱신한다.</p>
+</blockquote>
+<hr />
+<h2 id="4">4. 협력사 마스터 정책</h2>
+<table>
+<thead>
+<tr>
+<th>항목</th>
+<th>내용</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>원천</td>
+<td>ERP <code>B_BIZ_PARTNER</code> → 포털 <code>vendor_master</code>(<code>bp_cd</code> PK, <code>bp_nm</code>, <code>status</code>)</td>
+</tr>
+<tr>
+<td>데모 데이터</td>
+<td>17개사 샘플(상호 부분 마스킹, 사업자번호 데모값)</td>
+</tr>
+<tr>
+<td>온보딩 모델</td>
+<td><strong>관리자 주도</strong>: <code>portal_admin</code>이 ERP 거래처 선택 → 담당자 이메일로 계정·임시비번 발급. 자유가입 제거</td>
+</tr>
+<tr>
+<td>계정 발급</td>
+<td>Edge Function <code>vendor-provision</code>(생성)·<code>approve-vendor</code>(승인)·<code>vendor-reset-password</code>(비번 재설정)</td>
+</tr>
+<tr>
+<td>안내 메일</td>
+<td>관리자 M365 메일(Graph). 토큰 부재 시 자동 재인증 발송</td>
+</tr>
+<tr>
+<td>동기화(운영)</td>
+<td>ERP <code>B_BIZ_PARTNER</code> → <code>vendor_master</code> 야간배치(미구축, 유니포인트 협의 대상)</td>
+</tr>
+</tbody>
+</table>
+<p>상세: <code>08/03_실구축기획/03</code>, <code>이관/03_이관진행상태 §C′</code>.</p>
+<hr />
+<h2 id="5-10">5. 발주·검사 프로세스 10단계 (상태머신)</h2>
+<blockquote>
+<p><code>sp_order_state.status</code>(new·prod·insp·done) + <code>step</code>(1~10). 협력사 포털·사내 대시보드 공통 기준.</p>
+</blockquote>
+<table>
+<thead>
+<tr>
+<th>step</th>
+<th>단계</th>
+<th>status</th>
+<th>주체</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>구매요청(PR) 발생</td>
+<td>new</td>
+<td>ERP</td>
+</tr>
+<tr>
+<td>2</td>
+<td>발주(PO) 생성</td>
+<td>new</td>
+<td>ERP/구매</td>
+</tr>
+<tr>
+<td>3</td>
+<td>협력사 발주 확인</td>
+<td>prod</td>
+<td>협력사</td>
+</tr>
+<tr>
+<td>4</td>
+<td>제작 시작</td>
+<td>prod</td>
+<td>협력사</td>
+</tr>
+<tr>
+<td>5</td>
+<td>제작 완료</td>
+<td>prod</td>
+<td>협력사</td>
+</tr>
+<tr>
+<td>6</td>
+<td>증빙 사진 등록</td>
+<td>prod</td>
+<td>협력사</td>
+</tr>
+<tr>
+<td>7</td>
+<td>검수 요청</td>
+<td>insp</td>
+<td>협력사</td>
+</tr>
+<tr>
+<td>8</td>
+<td>검수 판정(합/부 + 판정자 기록)</td>
+<td>insp</td>
+<td>사내</td>
+</tr>
+<tr>
+<td>9</td>
+<td>입고</td>
+<td>done</td>
+<td>ERP</td>
+</tr>
+<tr>
+<td>10</td>
+<td>매입</td>
+<td>done</td>
+<td>ERP</td>
+</tr>
+</tbody>
+</table>
+<p>상세: <code>08/03_실구축기획/02 §3</code>.</p>
+<hr />
+<h2 id="6">6. 환경/도메인/배포 토폴로지</h2>
+<blockquote>
+<p><strong>변동 현황 상세·계정 상태는 <code>이관/00_현황스냅샷 §2</code>가 단일 출처.</strong> 여기는 안정적 기준만.</p>
+</blockquote>
+<table>
+<thead>
+<tr>
+<th>항목</th>
+<th>값</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>운영 도메인</td>
+<td><code>ai.jeilm.co.kr</code> (Vercel, HTTPS)</td>
+</tr>
+<tr>
+<td>데모 도메인</td>
+<td><code>ax.jeilm.co.kr</code> (Vercel) — 둘 다 <code>jeil-ax</code> 프로젝트 main 자동배포</td>
+</tr>
+<tr>
+<td>저장소</td>
+<td>GitHub <code>cdhnayajeil-code/jeil_ax</code> · 브랜치 <code>main</code>(소스) + <code>gh-pages</code>(레거시 배포)</td>
+</tr>
+<tr>
+<td>데이터(데모)</td>
+<td>Supabase 프로젝트 <code>dvzohdqtjzocgcclgwro</code></td>
+</tr>
+<tr>
+<td>운영(예정)</td>
+<td>Azure (미착수 — <code>이관/02_Azure이관계획</code>)</td>
+</tr>
+<tr>
+<td>빌드</td>
+<td>정적 HTML + <code>_build_bundle.py</code>(통합본) + 영역별 <code>_build_html.py</code>(MD→HTML, 공통 <code>00_관리체계/lib/_html_builder.py</code>)</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="7">7. 환경변수·시크릿 목록 (이름만 — 값 절대 금지)</h2>
+<blockquote>
+<p>실제 값은 <code>.env</code>(로컬)·Vercel/Supabase 환경변수·(운영) Azure Key Vault 에만. 원본 식별자는 <code>MS_connect/</code>. 출처: <code>.env.example</code>.</p>
+</blockquote>
+<table>
+<thead>
+<tr>
+<th>키 이름</th>
+<th>용도</th>
+<th>노출 경계</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>SUPABASE_URL</code></td>
+<td>프로젝트 URL</td>
+<td>프론트 가능</td>
+</tr>
+<tr>
+<td><code>SUPABASE_ANON_KEY</code></td>
+<td>publishable(anon) 키</td>
+<td>프론트 가능(RLS 전제)</td>
+</tr>
+<tr>
+<td><code>SUPABASE_SERVICE_ROLE_KEY</code></td>
+<td>관리 키</td>
+<td><strong>서버 전용·프론트/Git 금지</strong></td>
+</tr>
+<tr>
+<td><code>ENTRA_TENANT_ID</code> · <code>ENTRA_CLIENT_ID</code></td>
+<td>Entra 앱 식별</td>
+<td>서버/설정</td>
+</tr>
+<tr>
+<td><code>ENTRA_CLIENT_SECRET</code></td>
+<td>Entra 시크릿 (<strong>만료 2026-12-09</strong>)</td>
+<td><strong>서버 전용·시크릿 매니저</strong></td>
+</tr>
+<tr>
+<td><code>ERP_DB_CONN</code></td>
+<td>(운영) 중간 DB 접속</td>
+<td><strong>서버 전용</strong></td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="8">8. 외부 서비스·계정 인벤토리</h2>
+<table>
+<thead>
+<tr>
+<th>서비스</th>
+<th>식별</th>
+<th>비고</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>GitHub</td>
+<td>repo <code>cdhnayajeil-code/jeil_ax</code></td>
+<td>소스·배포</td>
+</tr>
+<tr>
+<td>Vercel</td>
+<td>team <code>jeil_Ax</code> · 프로젝트 <code>jeil-ax</code></td>
+<td>ai·ax 자동배포(Hobby=비상업 유의)</td>
+</tr>
+<tr>
+<td>Supabase</td>
+<td>프로젝트 <code>dvzohdqtjzocgcclgwro</code></td>
+<td>데모 데이터·RLS·Edge Function·Storage</td>
+</tr>
+<tr>
+<td>Microsoft Entra ID</td>
+<td>앱 <code>JEIL-AX-Portal</code>(단일 테넌트 jeilm.co.kr)</td>
+<td>식별자·Secret 원본은 <code>MS_connect/</code></td>
+</tr>
+<tr>
+<td>ERP</td>
+<td>UNIERP(사외 IDC MS SQL)</td>
+<td>미연계(샘플 동작)</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>계정 생성·만료·키 회전 등 <strong>상태 변화는 <code>이관/00_현황스냅샷</code>에 기록</strong>하고, 여기 식별 정보는 변할 때만 갱신한다.</p>
+</blockquote>
+  </div>
+  <div class="footer"><span>JEIL M&S · AI 포털 관리체계</span><span>01 기준정보 · 관리: 최동혁</span></div>
+</div>
+</body>
+</html>

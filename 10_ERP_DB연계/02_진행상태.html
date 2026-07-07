@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>02 진행상태 — ERP DB 연계 관제 (페이즈·체크리스트·작업로그(지속 갱신))</title>
+<style>
+:root{--navy:#1a2f4e;--navy2:#27457a;--accent:#2f6fb3;--red:#b3402f;--green:#2e7d52;--amber:#9a6b1f;
+--ink:#222;--muted:#666;--line:#d8dee8;--bg:#f4f6f9;--soft:#eef2f8;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;color:var(--ink);background:var(--bg);line-height:1.65;font-size:15px;}
+.page{max-width:960px;margin:0 auto;background:#fff;padding:52px 60px;box-shadow:0 2px 14px rgba(0,0,0,.08);}
+.doc-label{display:inline-block;background:var(--navy);color:#fff;font-size:12px;letter-spacing:.16em;padding:5px 14px;border-radius:3px;margin-bottom:16px;}
+.docnav{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 26px;}
+.docnav a{font-size:12px;color:var(--navy2);border:1px solid var(--line);border-radius:20px;padding:4px 12px;text-decoration:none;background:var(--soft);}
+.docnav a:hover{background:var(--navy);color:#fff;}
+.docnav a.cur{background:var(--navy);color:#fff;border-color:var(--navy);}
+.md-link{font-size:13px;margin-bottom:22px;color:var(--muted);}
+.content h1{font-size:27px;color:var(--navy);line-height:1.35;margin:6px 0 18px;}
+.content h2{font-size:20px;color:var(--navy);margin:42px 0 14px;padding-bottom:9px;border-bottom:3px solid var(--navy);}
+.content h3{font-size:16px;color:var(--navy2);margin:24px 0 9px;}
+.content p{margin:0 0 12px;}
+.content ul,.content ol{margin:0 0 14px 22px;}
+.content li{margin-bottom:6px;}
+.content blockquote{background:var(--soft);border-left:5px solid var(--navy);border-radius:0 8px 8px 0;padding:14px 20px;margin:14px 0;color:#33425a;}
+.content blockquote p{margin:0 0 6px;}
+.content table{width:100%;border-collapse:collapse;margin:14px 0 20px;font-size:13.3px;}
+.content th{background:var(--navy);color:#fff;padding:9px 11px;text-align:left;font-weight:600;}
+.content td{padding:8px 11px;border-bottom:1px solid var(--line);vertical-align:top;}
+.content tr:nth-child(even) td{background:#fafbfd;}
+.content a{color:var(--accent);}
+.content code{background:var(--soft);border:1px solid var(--line);border-radius:4px;padding:1px 6px;font-size:12.4px;font-family:Consolas,'Courier New',monospace;}
+.content pre{background:#21252e;color:#e8eaf0;border-radius:8px;padding:16px 18px;font-size:12.4px;font-family:Consolas,'Courier New',monospace;overflow-x:auto;margin:12px 0 18px;line-height:1.55;}
+.content pre code{background:none;border:none;color:inherit;padding:0;}
+.content hr{border:none;border-top:1px solid var(--line);margin:30px 0;}
+.content strong{color:var(--navy2);}
+.footer{margin-top:50px;padding-top:16px;border-top:1px solid var(--line);font-size:12px;color:var(--muted);display:flex;justify-content:space-between;}
+@media print{body{background:#fff;}.page{box-shadow:none;padding:18px 0;max-width:100%;}.docnav{display:none;}.content h2{break-after:avoid;}.content table,.content pre,.content blockquote{break-inside:avoid;}}
+@media (max-width:720px){.page{padding:30px 20px;}}
+</style>
+</head>
+<body>
+<div class="page">
+  <span class="doc-label">JEIL AX ERP DB 연계 · 대외비</span>
+  <div class="docnav"><a href="index.html">🏠 연계 허브</a><a href="00_현재상태_스냅샷.html">00 현재상태</a><a href="01_연계기획.html">01 연계기획</a><a class="cur" href="02_진행상태.html">02 진행상태</a><a href="03_중간DB_구축실행기획.html">03 중간DB 실행기획</a><a href="README.md">README</a></div>
+  <p class="md-link">📄 Markdown 원본: <a href="02_진행상태.md">02_진행상태.md</a> · 허브 <a href="index.html">연계 허브</a></p>
+  <div class="content">
+<h1 id="02-erp-db">02. ERP DB 연계 — 진행상태 (지속 갱신)</h1>
+<blockquote>
+<p><strong>관리: 최동혁</strong> · 전담 에이전트: <code>erp-db-link-manager</code>
+페이즈·체크리스트·작업로그를 지속 갱신하는 대장. 작업을 수행하면 §2 체크리스트와 §3 작업로그를 함께 갱신하고, 미러(<code>정책관리/ERP_DB연계/</code>)에 동기화한다.</p>
+</blockquote>
+<hr />
+<h2 id="1">1. 현재 위치</h2>
+<p><strong>P0(정책 수립) 마무리 — P1(유니포인트 협의) 진입 대기</strong> (2026-07-03 기준)</p>
+<pre><code>[P0 정책수립]──▶[P1 유니포인트 협의]──▶[P2 리포팅 계층]──▶[P3 중간DB+ETL]──▶[P4 포털·챗봇 연결]──▶[P5 민감영역]
+   ● 현재            ○ 대기               ○                  ○                  ○                    ○
+</code></pre>
+<p>차단 요인: ①경영 티어 결정(Tier A vs B — 마스터플랜 v2.0 §11), ②마스터플랜 승인.</p>
+<h2 id="2">2. 체크리스트</h2>
+<h3 id="p0">P0 — 정책 수립</h3>
+<ul>
+<li>[x] ERP·챗봇 중간DB 연계설계 작성 (2026-06-25)</li>
+<li>[x] ERP 데이터연동 마스터플랜 v2.0 작성 (2026-07-01) — <strong>승인요청 중</strong></li>
+<li>[x] ERP DB 접근정책안 v0.1 작성 (2026-07-02)</li>
+<li>[x] ERP DB 연계 관제 체계(<code>10_ERP_DB연계/</code> + 정책관리 미러 + 전담 에이전트) 신설 (2026-07-03)</li>
+<li>[x] 중간DB 구축 실행기획 v0.1 작성 (2026-07-03)</li>
+<li>[ ] 마스터플랜 v2.0 경영 승인 (티어 결정 포함)</li>
+<li>[ ] 접근정책안 v0.1 → 확정본 승격</li>
+</ul>
+<h3 id="p1">P1 — 유니포인트 협의 (사람 실행 — 임의 진행 금지)</h3>
+<ul>
+<li>[ ] 읽기전용 계정(<code>jeilax_ro</code>) 발급 협의</li>
+<li>[ ] 읽기전용 뷰(민감컬럼 제외) 생성 협의</li>
+<li>[ ] 방화벽 IP 허용(파일럿) → VPN(운영) 경로 협의</li>
+<li>[ ] 배치 시각(03:00) — ERP 백업·마감 일정과 충돌 확인</li>
+</ul>
+<h3 id="p2">P2 — 리포팅 계층</h3>
+<ul>
+<li>[ ] Tier A 리포팅 DB 구성 + 야간 갱신 잡</li>
+<li>[ ] <code>rpt.v_*</code> 뷰 정의(1차: 영업·구매·재고·품목)</li>
+<li>[ ] 접근 감사 로깅 활성화</li>
+</ul>
+<blockquote>
+<p>상세 실행 체크리스트는 <code>03_중간DB_구축실행기획 §7·§8</code>을 따른다.</p>
+</blockquote>
+<h3 id="p3-db-etl">P3 — 중간 DB + ETL</h3>
+<ul>
+<li>[ ] PostgreSQL <code>erp_ro</code>·<code>erp_secure</code>·<code>etl_meta</code> 스키마 생성</li>
+<li>[ ] 1차 ETL 배치 가동(영업·구매·재고) + 실패 알림</li>
+<li>[ ] 「데이터 기준 시각」 표기 규약 적용</li>
+</ul>
+<blockquote>
+<p>상세 실행 체크리스트는 <code>03_중간DB_구축실행기획 §7·§8</code>을 따른다.</p>
+</blockquote>
+<h3 id="p4">P4 — 포털·챗봇 연결</h3>
+<ul>
+<li>[ ] REST API — <code>pages/</code> 대시보드 실데이터 전환</li>
+<li>[ ] 챗봇 Tool 3종 + <code>portal.tool_audit</code> 로깅</li>
+<li>[ ] 행 수 상한(200행)·RBAC 서버 단 검사</li>
+</ul>
+<h3 id="p5">P5 — 민감 영역</h3>
+<ul>
+<li>[ ] 경영 승인(자금일보·인사 집계)</li>
+<li>[ ] Entra 그룹(<code>AI-Portal-Finance</code>·<code>AI-Portal-HR</code>) 신설·배정</li>
+<li>[ ] <code>erp_secure</code> 개방 + 감사 우선 로깅</li>
+</ul>
+<h2 id="3">3. 작업 로그 (최신 우선)</h2>
+<table>
+<thead>
+<tr>
+<th>일자</th>
+<th>작업</th>
+<th>산출물</th>
+<th>작성</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>2026-07-03</td>
+<td>중간DB 구축 실행기획 v0.1 작성 — D1(중간DB 위치)~D3(추출 원천) 결정안, 스키마 DDL 4종+<code>etl_meta</code>, ETL 처리방법(롤링 윈도 재집계·대사·알림), 주체별 준비 체크리스트, 6주 일정</td>
+<td><code>10_ERP_DB연계/03_중간DB_구축실행기획</code> v0.1</td>
+<td>최동혁(+Claude)</td>
+</tr>
+<tr>
+<td>2026-07-03</td>
+<td>ERP DB 연계 관제 체계 신설 — 현재상태·기획·진행상태 3종 작성, 전담 에이전트 <code>erp-db-link-manager</code> 등록, 정책관리 미러 동기화 개시</td>
+<td><code>10_ERP_DB연계/</code> v0.1 + <code>정책관리/ERP_DB연계/</code></td>
+<td>최동혁(+Claude)</td>
+</tr>
+<tr>
+<td>2026-07-02</td>
+<td>ERP DB 접근정책안 v0.1 작성</td>
+<td><code>정책관리/ERP_DB접근정책/</code></td>
+<td>최동혁</td>
+</tr>
+<tr>
+<td>2026-07-01</td>
+<td>ERP 데이터연동 마스터플랜 v2.0 작성(승인요청) — 리포팅 계층 티어링·4계층 모델</td>
+<td><code>데이터연동방안/</code></td>
+<td>최동혁</td>
+</tr>
+<tr>
+<td>2026-06-25</td>
+<td>ERP·챗봇 중간DB 연계설계 작성 — PostgreSQL 중간DB·ETL·Tool Use 화이트리스트</td>
+<td><code>실제구축준비 자료/07_*.md</code></td>
+<td>최동혁</td>
+</tr>
+</tbody>
+</table>
+<h2 id="4">4. 이슈·메모</h2>
+<ul>
+<li>(없음)</li>
+</ul>
+  </div>
+  <div class="footer"><span>JEIL M&amp;S · ERP DB 연계 관제</span><span>02 진행상태 · 관리: 최동혁</span></div>
+</div>
+</body>
+</html>

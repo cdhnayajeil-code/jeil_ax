@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>03 중간DB 실행기획 — ERP DB 연계 관제 (중간 DB 연결 방안·처리방법·준비사항 상세)</title>
+<style>
+:root{--navy:#1a2f4e;--navy2:#27457a;--accent:#2f6fb3;--red:#b3402f;--green:#2e7d52;--amber:#9a6b1f;
+--ink:#222;--muted:#666;--line:#d8dee8;--bg:#f4f6f9;--soft:#eef2f8;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;color:var(--ink);background:var(--bg);line-height:1.65;font-size:15px;}
+.page{max-width:960px;margin:0 auto;background:#fff;padding:52px 60px;box-shadow:0 2px 14px rgba(0,0,0,.08);}
+.doc-label{display:inline-block;background:var(--navy);color:#fff;font-size:12px;letter-spacing:.16em;padding:5px 14px;border-radius:3px;margin-bottom:16px;}
+.docnav{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 26px;}
+.docnav a{font-size:12px;color:var(--navy2);border:1px solid var(--line);border-radius:20px;padding:4px 12px;text-decoration:none;background:var(--soft);}
+.docnav a:hover{background:var(--navy);color:#fff;}
+.docnav a.cur{background:var(--navy);color:#fff;border-color:var(--navy);}
+.md-link{font-size:13px;margin-bottom:22px;color:var(--muted);}
+.content h1{font-size:27px;color:var(--navy);line-height:1.35;margin:6px 0 18px;}
+.content h2{font-size:20px;color:var(--navy);margin:42px 0 14px;padding-bottom:9px;border-bottom:3px solid var(--navy);}
+.content h3{font-size:16px;color:var(--navy2);margin:24px 0 9px;}
+.content p{margin:0 0 12px;}
+.content ul,.content ol{margin:0 0 14px 22px;}
+.content li{margin-bottom:6px;}
+.content blockquote{background:var(--soft);border-left:5px solid var(--navy);border-radius:0 8px 8px 0;padding:14px 20px;margin:14px 0;color:#33425a;}
+.content blockquote p{margin:0 0 6px;}
+.content table{width:100%;border-collapse:collapse;margin:14px 0 20px;font-size:13.3px;}
+.content th{background:var(--navy);color:#fff;padding:9px 11px;text-align:left;font-weight:600;}
+.content td{padding:8px 11px;border-bottom:1px solid var(--line);vertical-align:top;}
+.content tr:nth-child(even) td{background:#fafbfd;}
+.content a{color:var(--accent);}
+.content code{background:var(--soft);border:1px solid var(--line);border-radius:4px;padding:1px 6px;font-size:12.4px;font-family:Consolas,'Courier New',monospace;}
+.content pre{background:#21252e;color:#e8eaf0;border-radius:8px;padding:16px 18px;font-size:12.4px;font-family:Consolas,'Courier New',monospace;overflow-x:auto;margin:12px 0 18px;line-height:1.55;}
+.content pre code{background:none;border:none;color:inherit;padding:0;}
+.content hr{border:none;border-top:1px solid var(--line);margin:30px 0;}
+.content strong{color:var(--navy2);}
+.footer{margin-top:50px;padding-top:16px;border-top:1px solid var(--line);font-size:12px;color:var(--muted);display:flex;justify-content:space-between;}
+@media print{body{background:#fff;}.page{box-shadow:none;padding:18px 0;max-width:100%;}.docnav{display:none;}.content h2{break-after:avoid;}.content table,.content pre,.content blockquote{break-inside:avoid;}}
+@media (max-width:720px){.page{padding:30px 20px;}}
+</style>
+</head>
+<body>
+<div class="page">
+  <span class="doc-label">JEIL AX ERP DB 연계 · 대외비</span>
+  <div class="docnav"><a href="index.html">🏠 연계 허브</a><a href="00_현재상태_스냅샷.html">00 현재상태</a><a href="01_연계기획.html">01 연계기획</a><a href="02_진행상태.html">02 진행상태</a><a class="cur" href="03_중간DB_구축실행기획.html">03 중간DB 실행기획</a><a href="README.md">README</a></div>
+  <p class="md-link">📄 Markdown 원본: <a href="03_중간DB_구축실행기획.md">03_중간DB_구축실행기획.md</a> · 허브 <a href="index.html">연계 허브</a></p>
+  <div class="content">
+<h1 id="03-db">03. 중간 DB 구축 실행기획 — 연결 방안·처리방법·준비사항</h1>
+<blockquote>
+<p><strong>v0.1 · 2026-07-03</strong> · 작성: 최동혁(+Claude) · 상태: <strong>초안(결정 대기 D1~D3 포함)</strong>
+<code>01_연계기획</code> P3 단계(중간 DB + ETL)를 실행 가능한 수준으로 구체화한 문서다. ERP운영DB 접속 정보(IP/ID/비밀번호)는 기록하지 않는다 — 서버 지칭은 별칭 <strong>"ERP운영DB"</strong> 만 사용.</p>
+</blockquote>
+<hr />
+<h2 id="1">1. 목적·범위</h2>
+<p><strong>목적</strong>: ERP운영DB(UNIERP, 사외 IDC MSSQL 2022)의 데이터를 포털·챗봇이 안전하게 조회할 수 있도록, <strong>읽기전용 중간 DB(PostgreSQL)와 야간 ETL 파이프라인을 실제로 구축</strong>한다.</p>
+<table>
+<thead>
+<tr>
+<th>구분</th>
+<th>내용</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>범위(In)</strong></td>
+<td>중간 DB 인스턴스 확보 → 스키마·테이블 생성 → 1차 ETL 4종(품목·영업·구매·재고) 가동 → 초기적재(백필) → 검증·대사 → 운영수칙</td>
+</tr>
+<tr>
+<td><strong>범위 외(Out)</strong></td>
+<td>챗봇 Tool Use 연결(P4), 민감 영역 <code>erp_secure</code>(자금·인사, P5 — 경영 승인 후), 사내 타부서 BI 채널(축 A — 별도 진행)</td>
+</tr>
+<tr>
+<td><strong>전제</strong></td>
+<td>마스터플랜 v2.0 승인, 접근정책안 v0.1 준수, <code>CLAUDE.md §4</code>(운영 DB 읽기전용·중간 DB 경유·파라미터 바인딩)</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="2-3-d1d3">2. 핵심 의사결정 3건 (D1~D3) — 이것부터 확정</h2>
+<h3 id="d1-db">D1. 중간 DB를 어디에 두는가</h3>
+<table>
+<thead>
+<tr>
+<th>옵션</th>
+<th>내용</th>
+<th>장점</th>
+<th>단점/리스크</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>D1-a (파일럿 권고)</strong></td>
+<td><strong>기존 Supabase 프로젝트에 <code>erp_ro</code>·<code>etl_meta</code> 스키마 추가</strong></td>
+<td>비용 0·즉시 착수, 기존 RLS·Entra OIDC 브리지·MCP 운영 경험 재사용, 포털(<code>app/</code>)과 같은 접속 체계</td>
+<td>무료 티어 용량(DB 500MB)·비상업 조건, 외부 SaaS에 사내 데이터 → <strong>1차 일반등급(마스킹·집계)만 허용</strong></td>
+</tr>
+<tr>
+<td>D1-b</td>
+<td>Supabase <strong>신규 프로젝트</strong> 분리</td>
+<td>포털과 장애·권한 격리</td>
+<td>무료 2프로젝트 관리 부담, 이점 크지 않음</td>
+</tr>
+<tr>
+<td><strong>D1-c (운영 목표)</strong></td>
+<td><strong>Azure Database for PostgreSQL Flexible Server</strong></td>
+<td>회사 테넌트 안, VNet·Key Vault·백업 등 운영 요건 충족, <code>02_Azure이관계획</code>과 정렬</td>
+<td>비용 발생, Azure 착수 결정 선행</td>
+</tr>
+</tbody>
+</table>
+<p><strong>권고</strong>: <strong>파일럿 = D1-a → 운영 = D1-c.</strong> 스키마·DDL·ETL 코드는 표준 PostgreSQL만 사용해(Supabase 전용 기능 배제) 이관 비용을 0에 가깝게 유지한다.</p>
+<h3 id="d2-etl">D2. ETL 러너(배치 실행기)를 어디서 돌리는가</h3>
+<table>
+<thead>
+<tr>
+<th>옵션</th>
+<th>내용</th>
+<th>장점</th>
+<th>단점/리스크</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>D2-a (파일럿 권고)</strong></td>
+<td><strong>사내 상시 PC/서버 + Windows 작업 스케줄러 + Python 스크립트</strong></td>
+<td>기존 자산 그대로 재사용 — <code>.erp</code> DPAPI 자격증명, <code>query.ps1</code> 검증된 접속 경로, ERP측 방화벽에 이미 허용된 사내망에서 실행</td>
+<td>실행 PC가 꺼지면 배치 누락 → <strong>상시 가동 장비 지정 필수</strong></td>
+</tr>
+<tr>
+<td>D2-b</td>
+<td>n8n 워크플로</td>
+<td>이미 보유, 알림·재시도 UI</td>
+<td>ERP 자격증명을 n8n에 복제 보관해야 함(노출면 증가)</td>
+</tr>
+<tr>
+<td><strong>D2-c (운영 목표)</strong></td>
+<td>Azure Functions(Timer) 또는 Container Apps Job + Key Vault</td>
+<td>무인 운영·모니터링·시크릿 관리 정석</td>
+<td>Azure·VPN 선행 필요</td>
+</tr>
+</tbody>
+</table>
+<p><strong>권고</strong>: <strong>파일럿 = D2-a → 운영 = D2-c.</strong> 스크립트는 처음부터 "환경변수/자격증명 주입형"으로 작성해 러너 이동 시 코드 수정이 없게 한다.</p>
+<h3 id="d3-select">D3. 추출 원천 — 무엇에 SELECT 하는가</h3>
+<table>
+<thead>
+<tr>
+<th>옵션</th>
+<th>내용</th>
+<th>판단</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>D3-a (원칙)</strong></td>
+<td><strong>리포팅 계층(Tier A) <code>rpt.v_*</code> 뷰 경유</strong></td>
+<td>마스터플랜 원칙(운영계 무접촉). Tier A 구축 후 즉시 전환</td>
+</tr>
+<tr>
+<td><strong>D3-b (파일럿 한시 허용)</strong></td>
+<td>ERP운영DB의 <strong>읽기전용 화이트리스트 뷰 직접 SELECT</strong>(야간 03:00, 저부하 증분 쿼리 한정)</td>
+<td>Tier A 구축 전 공백기 한시 운용. 유니포인트 합의 + 접근정책안 §의 읽기전용·야간 조건 충족 시 허용</td>
+</tr>
+</tbody>
+</table>
+<p><strong>권고</strong>: <strong>D3-b로 시작하되 "뷰 이름·쿼리 형태를 D3-a와 동일하게" 설계</strong>한다(원천 전환 = 접속 문자열 교체만). Tier A 가동 즉시 D3-a로 전환한다.</p>
+<hr />
+<h2 id="3">3. 목표 구성도</h2>
+<h3 id="3-1-d1-a-d2-a-d3-b">3-1. 파일럿 구성 (D1-a + D2-a + D3-b)</h3>
+<pre><code>┌───────────────────────────────┐          ┌──────────────────────────────────┐
+│ 사외 IDC                       │          │ 사내망 (상시 가동 PC/서버)         │
+│ ┌───────────────────────────┐ │  TLS     │ ┌──────────────────────────────┐ │
+│ │ ERP운영DB (MSSQL 2022)     │◀┼──────────┼─│ ETL 러너 (Python)             │ │
+│ │  · jeilax_ro 읽기전용 계정 │ │ 1433/TLS │ │  · 작업 스케줄러 매일 03:00    │ │
+│ │  · 화이트리스트 뷰 4종     │ │          │ │  · 자격증명: %USERPROFILE%\.erp│ │
+│ └───────────────────────────┘ │          │ └──────────────┬───────────────┘ │
+└───────────────────────────────┘          └────────────────│─────────────────┘
+                                              HTTPS/5432(TLS)│ UPSERT
+                                                             ▼
+                                           ┌──────────────────────────────────┐
+                                           │ Supabase (기존 jeil_ax 프로젝트)   │
+                                           │  erp_ro   — 1차 집계 4종 (RLS)    │
+                                           │  etl_meta — batch_run 로그        │
+                                           └──────────────┬───────────────────┘
+                                                          │ 조회(RLS·API)
+                                                          ▼
+                                           pages/ 대시보드 · (P4) 챗봇 Tool
+</code></pre>
+<h3 id="3-2-d1-c-d2-c-d3-a-azure">3-2. 운영 구성 (D1-c + D2-c + D3-a) — Azure 전환 시</h3>
+<pre><code>ERP운영DB ─(IPSec VPN)─▶ 리포팅 계층 rpt.v_* ─▶ Azure Functions(Timer, Key Vault)
+        ─▶ Azure PostgreSQL Flexible Server(erp_ro·erp_secure·etl_meta, VNet)
+        ─▶ App Service API ─▶ 포털·챗봇
+</code></pre>
+<hr />
+<h2 id="4-ddl">4. 스키마·테이블 설계 (DDL 초안)</h2>
+<h3 id="4-1">4-1. 명명 규칙</h3>
+<ul>
+<li>스키마: <code>erp_ro</code>(일반) · <code>erp_secure</code>(민감, P5 예약) · <code>etl_meta</code>(배치 메타)</li>
+<li>테이블 접미사: <code>_m</code> 월집계 · <code>_d</code> 일집계 · <code>_s</code> 현재 스냅샷</li>
+<li>모든 <code>erp_*</code> 테이블 공통 컬럼: <code>synced_at TIMESTAMPTZ</code>(적재 시각) · <code>src_updated TIMESTAMPTZ</code>(원천 수정 시각) · <code>batch_id UUID</code></li>
+</ul>
+<h3 id="4-2-1-4">4-2. 1차 테이블 4종</h3>
+<pre><code class="language-sql">-- ① 품목 마스터 (스냅샷, 전체 갱신)  ← B_ITEM
+CREATE TABLE erp_ro.item_master_s (
+  item_code    TEXT PRIMARY KEY,
+  item_name    TEXT NOT NULL,
+  spec         TEXT,
+  unit         TEXT,
+  item_class   TEXT,            -- 분류 코드→명칭 변환 적재
+  use_yn       BOOLEAN,
+  synced_at    TIMESTAMPTZ NOT NULL,
+  src_updated  TIMESTAMPTZ,
+  batch_id     UUID NOT NULL
+);
+
+-- ② 영업 수주/매출 월집계  ← S_BILL_HDR/DTL, S_BILL_COLLECTING
+CREATE TABLE erp_ro.sales_orders_m (
+  ym           TEXT NOT NULL,          -- 'YYYY-MM'
+  bp_code      TEXT NOT NULL,          -- 거래처
+  bp_name      TEXT NOT NULL,          -- 코드→명칭 변환 적재
+  order_amt    NUMERIC(18,0) DEFAULT 0,
+  sales_amt    NUMERIC(18,0) DEFAULT 0,
+  collect_amt  NUMERIC(18,0) DEFAULT 0,
+  order_cnt    INTEGER DEFAULT 0,
+  synced_at    TIMESTAMPTZ NOT NULL,
+  src_updated  TIMESTAMPTZ,
+  batch_id     UUID NOT NULL,
+  PRIMARY KEY (ym, bp_code)
+);
+
+-- ③ 구매 거래처별 매입 월집계  ← M_IV_HDR/DTL, B_BP
+CREATE TABLE erp_ro.purchase_m (
+  ym           TEXT NOT NULL,
+  bp_code      TEXT NOT NULL,
+  bp_name      TEXT NOT NULL,
+  purchase_amt NUMERIC(18,0) DEFAULT 0,
+  iv_cnt       INTEGER DEFAULT 0,
+  synced_at    TIMESTAMPTZ NOT NULL,
+  src_updated  TIMESTAMPTZ,
+  batch_id     UUID NOT NULL,
+  PRIMARY KEY (ym, bp_code)
+);
+
+-- ④ 자재 재고 입출고 일집계  ← ITEM_DOCUMENT, M_PUR_GOODS_MVMT
+CREATE TABLE erp_ro.inventory_d (
+  ymd          DATE NOT NULL,
+  item_code    TEXT NOT NULL,
+  wh_code      TEXT NOT NULL,
+  in_qty       NUMERIC(18,3) DEFAULT 0,
+  out_qty      NUMERIC(18,3) DEFAULT 0,
+  stock_qty    NUMERIC(18,3),           -- 일말 재고
+  synced_at    TIMESTAMPTZ NOT NULL,
+  src_updated  TIMESTAMPTZ,
+  batch_id     UUID NOT NULL,
+  PRIMARY KEY (ymd, item_code, wh_code)
+);
+</code></pre>
+<blockquote>
+<p>컬럼 확정은 유니포인트 뷰 스펙 협의 결과에 따른다. 원칙: <strong>원본 전체 복제가 아니라 화면·챗봇이 바로 쓰는 집계 형태</strong>, 코드값은 ETL 변환 단계에서 명칭 병기.</p>
+</blockquote>
+<h3 id="4-3-etl_meta">4-3. 배치 메타 (<code>etl_meta</code>)</h3>
+<pre><code class="language-sql">CREATE TABLE etl_meta.batch_run (
+  batch_id     UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  job_name     TEXT NOT NULL,           -- 'item_master' 등
+  started_at   TIMESTAMPTZ NOT NULL,
+  finished_at  TIMESTAMPTZ,
+  status       TEXT NOT NULL,           -- running/success/failed/retried
+  rows_read    INTEGER,
+  rows_upserted INTEGER,
+  watermark    TIMESTAMPTZ,             -- 증분 기준(원천 최대 수정시각)
+  error_msg    TEXT
+);
+-- 조회 편의 뷰: 최신 성공 배치 = 화면의 「데이터 기준 시각」
+CREATE VIEW etl_meta.v_last_success AS
+  SELECT DISTINCT ON (job_name) job_name, finished_at, watermark
+  FROM etl_meta.batch_run WHERE status = 'success'
+  ORDER BY job_name, finished_at DESC;
+</code></pre>
+<hr />
+<h2 id="5-etl">5. ETL 파이프라인 처리방법 (상세)</h2>
+<h3 id="5-1-1-1">5-1. 잡 구조 (잡 1개 = 테이블 1개)</h3>
+<pre><code>[03:00 스케줄러]
+  └─ etl_run.py --job all
+      ├─ ① 추출  : ERP 화이트리스트 뷰 SELECT (파라미터 바인딩, 증분 조건)
+      ├─ ② 변환  : 코드→명칭, 월/일 집계, 타입 정규화
+      ├─ ③ 적재  : PostgreSQL UPSERT (INSERT … ON CONFLICT DO UPDATE)
+      ├─ ④ 검증  : 건수·금액 합계 대사 (원천 vs 적재, 오차 0 원칙)
+      ├─ ⑤ 기록  : etl_meta.batch_run (성공/실패·건수·watermark)
+      └─ ⑥ 알림  : 실패 시 Teams/메일 → 1시간 후 자동 재시도 1회
+</code></pre>
+<h3 id="5-2">5-2. 적재 전략 (테이블별)</h3>
+<table>
+<thead>
+<tr>
+<th>잡</th>
+<th>방식</th>
+<th>이유</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>item_master_s</code></td>
+<td><strong>전체 재적재</strong>(TRUNCATE→INSERT 또는 전건 UPSERT)</td>
+<td>마스터 소량, 삭제 반영 필요</td>
+</tr>
+<tr>
+<td><code>sales_orders_m</code> / <code>purchase_m</code></td>
+<td><strong>롤링 윈도 재집계</strong> — 당월+직전 2개월(3개월분)을 매일 다시 집계·UPSERT</td>
+<td>소급 수정(전표 정정)이 최근월에 집중, 증분 감지보다 단순·정확</td>
+</tr>
+<tr>
+<td><code>inventory_d</code></td>
+<td>증분(수정일시 watermark) + 최근 7일 윈도 재적재</td>
+<td>일 단위 대량, 윈도로 정정 흡수</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li><strong>삭제 처리</strong>: 원천 행 삭제는 윈도 재집계 범위 안에서 자연 반영. 윈도 밖 소급 정정 발견 시 해당 월 수동 재적재(런북 §7).</li>
+<li><strong>초기적재(백필)</strong>: 2024-01 ~ 현재를 월 단위 분할 실행(야간·주말). 백필 완료 후 일 배치 전환.</li>
+</ul>
+<h3 id="5-3">5-3. 추출 쿼리 원칙</h3>
+<ul>
+<li><strong>화이트리스트 뷰만</strong> SELECT. 테이블 직접 조회·<code>SELECT *</code>·문자열 연결 SQL 금지, 반드시 파라미터 바인딩.</li>
+<li>증분 조건·기간 조건으로 스캔 범위 최소화(야간이라도 저부하 원칙).</li>
+<li>1회 페치 상한·쿼리 타임아웃(예: 10분) 설정 — 폭주 쿼리 자동 차단.</li>
+</ul>
+<h3 id="5-4">5-4. 알림·재시도·운영 표시</h3>
+<table>
+<thead>
+<tr>
+<th>항목</th>
+<th>정책</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>실패 알림</td>
+<td>Teams/메일(협력사 포털에서 쓰는 M365 Graph 발송 체계 재사용 검토) — 잡명·오류·재시도 예정 시각</td>
+</tr>
+<tr>
+<td>재시도</td>
+<td>실패 1시간 후 자동 1회, 재실패 시 사람 개입(런북)</td>
+</tr>
+<tr>
+<td>기준 시각 표기</td>
+<td>모든 화면·챗봇 답변에 <code>etl_meta.v_last_success</code> 기반 「데이터 기준: YYYY-MM-DD 03:00」</td>
+</tr>
+<tr>
+<td>로그 보관</td>
+<td><code>batch_run</code> 90일 보관 후 삭제 배치</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="6">6. 보안·권한 설계</h2>
+<table>
+<thead>
+<tr>
+<th>영역</th>
+<th>정책</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>ERP 접속 자격증명</td>
+<td>파일럿: 러너 PC <code>%USERPROFILE%\.erp\</code>(DPAPI 암호화 — 기존 체계 그대로). 운영: Azure Key Vault. <strong>코드·문서·로그에 값 기록 금지</strong></td>
+</tr>
+<tr>
+<td>중간 DB 쓰기 권한</td>
+<td>ETL 러너 전용 키(Supabase <code>service_role</code> 또는 전용 DB 계정)만 쓰기 가능. 프론트에는 절대 노출 금지</td>
+</tr>
+<tr>
+<td>중간 DB 읽기 권한</td>
+<td><code>erp_ro</code> 테이블 <strong>RLS 적용</strong> — 사내 인증(Entra OIDC 브리지) 사용자만 SELECT, <code>anon</code> 차단. 협력사(vendor) 롤 접근 불가</td>
+</tr>
+<tr>
+<td>데이터 등급</td>
+<td>파일럿 적재는 <strong>일반 등급(집계·코드·수량·금액)만</strong>. 개인정보·급여·원가 상세는 원천 뷰 스펙 단계에서 제외(유니포인트 협의 항목)</td>
+</tr>
+<tr>
+<td>전송 구간</td>
+<td>ERP→러너, 러너→중간 DB 모두 TLS 강제</td>
+</tr>
+<tr>
+<td>감사</td>
+<td>ETL 이력은 <code>etl_meta.batch_run</code>. 사용자 조회 감사는 P4(API 계층)에서 구현</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="7">7. 준비사항 체크리스트 (주체별 — 디테일)</h2>
+<h3 id="a">A. 경영/결정 (선행)</h3>
+<ul>
+<li>[ ] 마스터플랜 v2.0 승인(리포팅 계층 티어 포함)</li>
+<li>[ ] 본 문서 D1(중간 DB 위치)·D2(러너)·D3(추출 원천) 확정</li>
+<li>[ ] 파일럿 적재 데이터 범위 승인(1차 일반등급 4종 — 외부 SaaS(Supabase) 보관 허용 여부 포함)</li>
+</ul>
+<h3 id="b">B. 유니포인트 요청 목록 (사람이 협의 — 임의 진행 금지)</h3>
+<ul>
+<li>[ ] <strong>읽기전용 계정 <code>jeilax_ro</code> 발급</strong> — 권한: 아래 뷰 4종 SELECT만(테이블 직접 조회 불가)</li>
+<li>[ ] <strong>화이트리스트 뷰 4종 생성</strong> — <code>v_jeilax_item</code>(품목), <code>v_jeilax_sales</code>(수주/매출/수금), <code>v_jeilax_purchase</code>(매입), <code>v_jeilax_inventory</code>(입출고/재고). 각 뷰에 수정일시 컬럼 포함, 개인정보·단가원가 상세 등 민감 컬럼 제외(컬럼 스펙 별지 협의)</li>
+<li>[ ] <strong>접속 경로 허용</strong> — 사내 러너 장비 → ERP운영DB 1433/TLS (파일럿 IP 허용, 운영 시 VPN 전환)</li>
+<li>[ ] <strong>배치 시각 합의</strong> — 매일 03:00 실행이 ERP 백업·마감 배치와 충돌하지 않는지 확인(충돌 시 시각 조정)</li>
+<li>[ ] 백필 기간(2024-01~) 대량 SELECT의 야간·주말 실행 허용 확인</li>
+</ul>
+<h3 id="c-claude">C. 내부 구축 작업 (최동혁 + Claude)</h3>
+<ul>
+<li>[ ] 러너 장비 지정 — <strong>상시 가동</strong> PC/서버 1대(절전·재부팅 정책 확인)</li>
+<li>[ ] Supabase에 <code>erp_ro</code>·<code>etl_meta</code> 스키마 + §4 DDL 적용(마이그레이션 파일로 관리)</li>
+<li>[ ] RLS 정책 작성·격리 검증(사내 롤만 SELECT, vendor·anon 차단 테스트)</li>
+<li>[ ] ETL 스크립트 <code>etl_run.py</code> 작성 — 잡 4종, UPSERT, 대사, <code>batch_run</code> 기록, 자격증명 주입형(러너 이동 대비)</li>
+<li>[ ] Windows 작업 스케줄러 등록(03:00, 실패 시 이벤트 로그) + 재시도 로직</li>
+<li>[ ] 실패 알림 연동(Teams/메일 — Graph 발송 재사용 여부 결정)</li>
+<li>[ ] 초기적재(백필) 실행 + 월별 대사 리포트</li>
+<li>[ ] <code>pages/</code> 1개 화면(권고: 품목중복_조회 또는 자재 재고) 실데이터 전환 PoC — 데이터 접근은 <code>app/lib/api.js</code> 계열 모듈로 일원화(<code>CLAUDE.md §3.3</code>)</li>
+<li>[ ] 런북 작성 — 실패 대응·수동 재적재·윈도 밖 정정 처리 절차</li>
+</ul>
+<h3 id="d-erp-db-link-manager">D. 문서·거버넌스 (에이전트 <code>erp-db-link-manager</code>)</h3>
+<ul>
+<li>[ ] 착수 시 <code>02_진행상태</code> P3 체크리스트를 본 문서 §7로 대체·연동</li>
+<li>[ ] 중간 DB 가동 시 <code>00_현재상태</code> + <code>실제구축준비 자료/이관/00_현재시스템_상태스냅샷</code> §6 갱신</li>
+<li>[ ] 접근정책안 v0.1 → 뷰·계정 확정 내용 반영해 개정</li>
+<li>[ ] 정책관리 미러 동기화(매 갱신 시)</li>
+</ul>
+<hr />
+<h2 id="8-6">8. 단계별 일정 (착수 후 6주)</h2>
+<table>
+<thead>
+<tr>
+<th>주차</th>
+<th>작업</th>
+<th>완료 기준</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>W1</strong></td>
+<td>D1~D3 확정, 유니포인트 요청 발송(§7-B), 러너 장비 지정</td>
+<td>요청 공문/메일 발송 완료</td>
+</tr>
+<tr>
+<td><strong>W2</strong></td>
+<td>계정·뷰 수령, 접속 검증(SELECT 1건), 스키마·DDL 적용, RLS 검증</td>
+<td>러너→ERP·러너→중간 DB 양방향 접속 성공</td>
+</tr>
+<tr>
+<td><strong>W3</strong></td>
+<td>ETL 1종(품목) 파일럿 관통 — 추출→변환→적재→대사→로그→알림 전 구간</td>
+<td><code>item_master_s</code> 일 배치 3일 연속 성공</td>
+</tr>
+<tr>
+<td><strong>W4</strong></td>
+<td>잡 4종 확장 + 백필(2024-01~)</td>
+<td>4종 적재 + 월별 대사 오차 0</td>
+</tr>
+<tr>
+<td><strong>W5</strong></td>
+<td>안정화 — 5영업일 무장애, 실패·재시도 시나리오 실험(네트워크 차단 테스트)</td>
+<td>무장애 5일 + 알림 동작 확인</td>
+</tr>
+<tr>
+<td><strong>W6</strong></td>
+<td><code>pages/</code> 1개 화면 실데이터 전환 PoC + 런북·문서 정리</td>
+<td>화면에 「데이터 기준 시각」 표기 동작</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="9-definition-of-done">9. 완료 기준 (Definition of Done)</h2>
+<ol>
+<li>매일 03:00 잡 4종 자동 실행, 실패 시 알림+재시도가 <strong>사람 개입 없이</strong> 동작한다.</li>
+<li>원천 대비 건수·금액 대사 <strong>오차 0</strong> (월별 리포트 증빙).</li>
+<li><code>erp_ro</code>는 사내 인증 사용자만 조회 가능(RLS 격리 검증 통과), 쓰기는 ETL 키만 가능.</li>
+<li>자격증명이 코드·저장소·문서 어디에도 없다(DPAPI/시크릿 매니저만).</li>
+<li><code>pages/</code> 1개 화면이 중간 DB 실데이터로 동작하고 기준 시각을 표기한다.</li>
+<li>런북·본 문서·<code>00/02</code> 상태 문서가 실제와 일치한다.</li>
+</ol>
+<hr />
+<h2 id="10">10. 리스크·대응</h2>
+<table>
+<thead>
+<tr>
+<th>리스크</th>
+<th>영향</th>
+<th>대응</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>러너 PC 꺼짐·절전</td>
+<td>배치 누락</td>
+<td>상시 가동 장비 지정 + 스케줄러 "놓친 작업 즉시 실행" 옵션 + 무실행 감지 알림(전일 배치 없으면 경보)</td>
+</tr>
+<tr>
+<td>Supabase 무료 한계(DB 500MB·비상업)</td>
+<td>적재 중단</td>
+<td>집계 위주 설계로 용량 최소화(예상 수십 MB), 초과 조짐 시 Azure 전환 앞당김</td>
+</tr>
+<tr>
+<td>ERP 스키마 변경(패치)</td>
+<td>ETL 실패</td>
+<td>뷰가 계약 — 원천 변경은 유니포인트가 뷰 내부에서 흡수. 실패 알림→대사로 즉시 감지</td>
+</tr>
+<tr>
+<td>소급 전표 정정(윈도 밖)</td>
+<td>수치 불일치</td>
+<td>월 대사 리포트에서 감지 → 해당 월 수동 재적재(런북)</td>
+</tr>
+<tr>
+<td>03:00 ERP 백업과 충돌</td>
+<td>배치 지연·부하</td>
+<td>유니포인트와 시각 합의(§7-B), 타임아웃·저부하 쿼리 원칙</td>
+</tr>
+<tr>
+<td>외부 SaaS 보관 우려 제기</td>
+<td>파일럿 중단</td>
+<td>파일럿은 일반 등급 집계만 + 경영 사전 승인(§7-A), 운영은 Azure 회사 테넌트로 이관</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="11">11. 참고</h2>
+<ul>
+<li><code>01_연계기획</code>(통합 아키텍처·로드맵) · <code>00_현재상태_스냅샷</code>(현황)</li>
+<li><code>실제구축준비 자료/07_ERP_챗봇_중간DB_연계설계.md</code>(설계 원본) · <code>실제구축준비 자료/이관/02_Azure이관계획.md</code></li>
+<li>사내 OneDrive <code>ERP_DB/데이터연동방안/ERP_데이터연동_마스터플랜_v2.0.md</code> · <code>ERP_DB/정책관리/ERP_DB접근정책/</code></li>
+<li><code>CLAUDE.md §4·§6</code> (ERP 연계·보안 절대 규칙)</li>
+</ul>
+  </div>
+  <div class="footer"><span>JEIL M&amp;S · ERP DB 연계 관제</span><span>03 중간DB 실행기획 · 관리: 최동혁</span></div>
+</div>
+</body>
+</html>

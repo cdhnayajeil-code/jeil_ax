@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>02 명명규칙 — JEIL AX 관리체계 (파일/폴더 규칙·예외·README 템플릿)</title>
+<style>
+:root{--navy:#1a2f4e;--navy2:#27457a;--accent:#2f6fb3;--red:#b3402f;--green:#2e7d52;--amber:#9a6b1f;
+--ink:#222;--muted:#666;--line:#d8dee8;--bg:#f4f6f9;--soft:#eef2f8;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;color:var(--ink);background:var(--bg);line-height:1.65;font-size:15px;}
+.page{max-width:960px;margin:0 auto;background:#fff;padding:52px 60px;box-shadow:0 2px 14px rgba(0,0,0,.08);}
+.doc-label{display:inline-block;background:var(--navy);color:#fff;font-size:12px;letter-spacing:.16em;padding:5px 14px;border-radius:3px;margin-bottom:16px;}
+.docnav{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 26px;}
+.docnav a{font-size:12px;color:var(--navy2);border:1px solid var(--line);border-radius:20px;padding:4px 12px;text-decoration:none;background:var(--soft);}
+.docnav a:hover{background:var(--navy);color:#fff;}
+.docnav a.cur{background:var(--navy);color:#fff;border-color:var(--navy);}
+.md-link{font-size:13px;margin-bottom:22px;color:var(--muted);}
+.content h1{font-size:27px;color:var(--navy);line-height:1.35;margin:6px 0 18px;}
+.content h2{font-size:20px;color:var(--navy);margin:42px 0 14px;padding-bottom:9px;border-bottom:3px solid var(--navy);}
+.content h3{font-size:16px;color:var(--navy2);margin:24px 0 9px;}
+.content p{margin:0 0 12px;}
+.content ul,.content ol{margin:0 0 14px 22px;}
+.content li{margin-bottom:6px;}
+.content blockquote{background:var(--soft);border-left:5px solid var(--navy);border-radius:0 8px 8px 0;padding:14px 20px;margin:14px 0;color:#33425a;}
+.content blockquote p{margin:0 0 6px;}
+.content table{width:100%;border-collapse:collapse;margin:14px 0 20px;font-size:13.3px;}
+.content th{background:var(--navy);color:#fff;padding:9px 11px;text-align:left;font-weight:600;}
+.content td{padding:8px 11px;border-bottom:1px solid var(--line);vertical-align:top;}
+.content tr:nth-child(even) td{background:#fafbfd;}
+.content a{color:var(--accent);}
+.content code{background:var(--soft);border:1px solid var(--line);border-radius:4px;padding:1px 6px;font-size:12.4px;font-family:Consolas,'Courier New',monospace;}
+.content pre{background:#21252e;color:#e8eaf0;border-radius:8px;padding:16px 18px;font-size:12.4px;font-family:Consolas,'Courier New',monospace;overflow-x:auto;margin:12px 0 18px;line-height:1.55;}
+.content pre code{background:none;border:none;color:inherit;padding:0;}
+.content hr{border:none;border-top:1px solid var(--line);margin:30px 0;}
+.content strong{color:var(--navy2);}
+.footer{margin-top:50px;padding-top:16px;border-top:1px solid var(--line);font-size:12px;color:var(--muted);display:flex;justify-content:space-between;}
+@media print{body{background:#fff;}.page{box-shadow:none;padding:18px 0;max-width:100%;}.docnav{display:none;}.content h2{break-after:avoid;}.content table,.content pre,.content blockquote{break-inside:avoid;}}
+@media (max-width:720px){.page{padding:30px 20px;}}
+</style>
+</head>
+<body>
+<div class="page">
+  <span class="doc-label">JEIL AX 관리체계 · 대외비</span>
+  <div class="docnav"><a href="index.html">🏠 관리체계 허브</a><a href="00_문서대장.html">00 문서대장</a><a href="01_기준정보_레지스트리.html">01 기준정보</a><a class="cur" href="02_명명규칙_폴더규약.html">02 명명규칙</a><a href="03_변경관리_CHANGELOG.html">03 변경관리</a><a href="README.md">README</a></div>
+  <p class="md-link">📄 Markdown 원본: <a href="02_명명규칙_폴더규약.md">02_명명규칙_폴더규약.md</a> · 허브 <a href="index.html">관리체계 대시보드</a></p>
+  <div class="content">
+<h1 id="02">02. 명명규칙 · 폴더규약</h1>
+<blockquote>
+<p><strong>기준일: 2026-06-30</strong> · 관리: 최동혁
+파일·폴더·문서의 명명과 배치 규칙. 신규 산출물은 이 규칙을 따른다(<code>CLAUDE.md §7</code> 계승·구체화).</p>
+</blockquote>
+<hr />
+<h2 id="1">1. 파일 명명 규칙</h2>
+<h3 id="11-nn__">1.1 기본형 — <code>NN_주제_설명.확장자</code></h3>
+<ul>
+<li><code>NN</code> = 2자리 정렬 번호(<code>00</code>은 폴더 인덱스/종합문서 예약).</li>
+<li>단어 구분은 언더스코어(<code>_</code>), 한국어 우선.</li>
+<li>예: <code>01_AI_관리시스템_도입_기획서.html</code>, <code>00_니즈조사_홈.html</code>.</li>
+</ul>
+<h3 id="12">1.2 날짜 표기</h3>
+<ul>
+<li><code>YYYY-MM-DD</code>(문서 본문·이력) 또는 <code>YYYYMMDD</code>(파일명). 예: <code>2026-06-30</code>, <code>20260514</code>.</li>
+</ul>
+<h3 id="13">1.3 정당한 예외 (리네임 대상 아님)</h3>
+<table>
+<thead>
+<tr>
+<th>패턴</th>
+<th>예</th>
+<th>사유</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>진입점</td>
+<td><code>index.html</code></td>
+<td>웹 표준 진입점</td>
+</tr>
+<tr>
+<td>도메인</td>
+<td><code>CNAME</code></td>
+<td>GitHub Pages 규약</td>
+</tr>
+<tr>
+<td>브랜드 도구</td>
+<td><code>JEIL_AX_비용계산기.html</code> 등</td>
+<td>제품 브랜딩(현재 <code>09_비용_호스팅/</code>로 묶음)</td>
+</tr>
+<tr>
+<td>부서 운영페이지</td>
+<td><code>영업_수주현황_2026.html</code></td>
+<td><strong>§2 부서 페이지 규칙</strong></td>
+</tr>
+<tr>
+<td>프로젝트 산출물</td>
+<td><code>2025-095-SUL-EC_원가현황_20260514.html</code></td>
+<td>프로젝트코드 우선 식별</td>
+</tr>
+<tr>
+<td>통합 산출물</td>
+<td><code>JEIL_AX_포털데모_통합본.html</code></td>
+<td>빌드 산출물(<code>_build_bundle.py</code>)</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="2-pages">2. 부서 운영페이지 규칙 (<code>pages/</code>)</h2>
+<ul>
+<li>형식: <strong><code>[부서]_[기능]_[연도].html</code></strong> (예: <code>구매_거래처별매입집계_2026.html</code>).</li>
+<li>부서명은 <code>01_기준정보_레지스트리 §1</code> 표준 표기를 따른다(인사팀 등).</li>
+<li><code>pages/</code> 파일은 <code>04_챗봇_포털_데모UI.html</code>·통합본·<code>이관/00_현황스냅샷</code>이 <strong>경로를 직접 참조</strong>한다 → <strong>리네임 시 참조처 동반 갱신 + 통합본 재빌드 필수</strong>(함부로 바꾸지 않는다).</li>
+</ul>
+<hr />
+<h2 id="3-vs">3. 배포본 vs 데모본 구분 (의도적 중복)</h2>
+<p>같은 화면이 두 위치에 존재하는 것은 정당하며 정리 대상이 아니다.</p>
+<table>
+<thead>
+<tr>
+<th>용도</th>
+<th>위치</th>
+<th>예</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>기획/데모본</strong></td>
+<td><code>08_협력사발주포털/02_데모/</code></td>
+<td><code>협력사_모바일_포털.html</code></td>
+</tr>
+<tr>
+<td><strong>배포본</strong>(라이브·포털 연결)</td>
+<td><code>pages/</code></td>
+<td><code>협력사_모바일_포털.html</code>, <code>외주발주_검사진행현황_2026.html</code></td>
+</tr>
+</tbody>
+</table>
+<p>변경 시 <strong>배포본을 정본</strong>으로 삼고, 데모본은 기획 스냅샷으로 유지한다.</p>
+<hr />
+<h2 id="4-md-html">4. MD ↔ HTML 쌍 규칙 (단일 출처)</h2>
+<ul>
+<li>기획·관리 문서는 <strong><code>.md</code>가 단일 출처</strong>, <code>.html</code>은 <code>_build_html.py</code> <strong>자동 생성본</strong>(손으로 고치지 않음).</li>
+<li>적용 폴더: <code>00_관리체계/</code>, <code>실제구축준비 자료/이관/</code>, <code>08/03_실구축기획/</code>.</li>
+<li>공통 빌드 로직: <code>00_관리체계/lib/_html_builder.py</code>. 각 폴더 <code>_build_html.py</code>는 문서 목록·라벨만 정의.</li>
+<li><code>index.html</code>(허브)은 자체완결 대시보드 → 빌드 제외, 직접 관리.</li>
+</ul>
+<hr />
+<h2 id="5">5. 폴더 용도 정의</h2>
+<table>
+<thead>
+<tr>
+<th>폴더</th>
+<th>용도</th>
+<th>단일출처 문서</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>00_관리체계/</code></td>
+<td>기준정보·문서대장·명명규칙·변경관리</td>
+<td>README.md</td>
+</tr>
+<tr>
+<td><code>05_니즈조사/</code></td>
+<td>설문폼·집계·응답(OneDrive)</td>
+<td>00_니즈조사_홈.html</td>
+</tr>
+<tr>
+<td><code>06_실행기획_고도화/</code></td>
+<td>실행 기획서</td>
+<td>00_실행계획_요약보고.html</td>
+</tr>
+<tr>
+<td><code>08_협력사발주포털/</code></td>
+<td>협력사 포털 기획·데모·실구축</td>
+<td>00_종합정리_요구사항이력.html · README.md</td>
+</tr>
+<tr>
+<td><code>09_비용_호스팅/</code></td>
+<td>비용·호스팅 기획/계산</td>
+<td>(브랜드 도구 묶음)</td>
+</tr>
+<tr>
+<td><code>pages/</code></td>
+<td>부서 운영페이지(배포본)</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>app/</code> · <code>supabase/</code></td>
+<td>실구축 프론트 · Edge Function</td>
+<td>config.js / functions/</td>
+</tr>
+<tr>
+<td><code>실제구축준비 자료/</code></td>
+<td>실구축 종합기획 + 이관 관제</td>
+<td>00_실제구축_종합기획서.html</td>
+</tr>
+<tr>
+<td><code>실제구축준비 자료/이관/</code></td>
+<td>운영현황·이관 진행(SSOT)</td>
+<td>README.md · 00_현황스냅샷</td>
+</tr>
+<tr>
+<td><code>MS_connect/</code> <code>doc/</code> <code>.claude/</code></td>
+<td>(git 제외) 비밀·내부자산·로컬설정</td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="6-readme">6. README 표준 템플릿</h2>
+<p>새 폴더/영역을 만들 때 아래 골격으로 <code>README.md</code>(또는 <code>00_*</code> 인덱스)를 둔다.</p>
+<pre><code class="language-markdown"># [영역명]
+
+&gt; 관리: [담당] · 기준 규칙: 루트 CLAUDE.md
+&gt; 한 줄 목적.
+
+## 폴더 구조
+(트리 + 각 파일 한 줄 역할)
+
+## 단일 출처
+(이 영역의 정본 문서 = 무엇)
+
+## 갱신 규칙
+(언제 무엇을 갱신하는가 + 변경 시 03_변경관리_CHANGELOG 기록)
+
+## 관련 문서
+(상위/연관 문서 링크)
+</code></pre>
+  </div>
+  <div class="footer"><span>JEIL M&S · AI 포털 관리체계</span><span>02 명명규칙 · 관리: 최동혁</span></div>
+</div>
+</body>
+</html>

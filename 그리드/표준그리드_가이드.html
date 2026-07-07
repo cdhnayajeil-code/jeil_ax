@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>표준 그리드 가이드 — JEIL AX 표준 그리드 (app/lib/grid.js 사용법·API·마이그레이션 규약(단일 출처))</title>
+<style>
+:root{--navy:#1a2f4e;--navy2:#27457a;--accent:#2f6fb3;--red:#b3402f;--green:#2e7d52;--amber:#9a6b1f;
+--ink:#222;--muted:#666;--line:#d8dee8;--bg:#f4f6f9;--soft:#eef2f8;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;color:var(--ink);background:var(--bg);line-height:1.65;font-size:15px;}
+.page{max-width:960px;margin:0 auto;background:#fff;padding:52px 60px;box-shadow:0 2px 14px rgba(0,0,0,.08);}
+.doc-label{display:inline-block;background:var(--navy);color:#fff;font-size:12px;letter-spacing:.16em;padding:5px 14px;border-radius:3px;margin-bottom:16px;}
+.docnav{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 26px;}
+.docnav a{font-size:12px;color:var(--navy2);border:1px solid var(--line);border-radius:20px;padding:4px 12px;text-decoration:none;background:var(--soft);}
+.docnav a:hover{background:var(--navy);color:#fff;}
+.docnav a.cur{background:var(--navy);color:#fff;border-color:var(--navy);}
+.md-link{font-size:13px;margin-bottom:22px;color:var(--muted);}
+.content h1{font-size:27px;color:var(--navy);line-height:1.35;margin:6px 0 18px;}
+.content h2{font-size:20px;color:var(--navy);margin:42px 0 14px;padding-bottom:9px;border-bottom:3px solid var(--navy);}
+.content h3{font-size:16px;color:var(--navy2);margin:24px 0 9px;}
+.content p{margin:0 0 12px;}
+.content ul,.content ol{margin:0 0 14px 22px;}
+.content li{margin-bottom:6px;}
+.content blockquote{background:var(--soft);border-left:5px solid var(--navy);border-radius:0 8px 8px 0;padding:14px 20px;margin:14px 0;color:#33425a;}
+.content blockquote p{margin:0 0 6px;}
+.content table{width:100%;border-collapse:collapse;margin:14px 0 20px;font-size:13.3px;}
+.content th{background:var(--navy);color:#fff;padding:9px 11px;text-align:left;font-weight:600;}
+.content td{padding:8px 11px;border-bottom:1px solid var(--line);vertical-align:top;}
+.content tr:nth-child(even) td{background:#fafbfd;}
+.content a{color:var(--accent);}
+.content code{background:var(--soft);border:1px solid var(--line);border-radius:4px;padding:1px 6px;font-size:12.4px;font-family:Consolas,'Courier New',monospace;}
+.content pre{background:#21252e;color:#e8eaf0;border-radius:8px;padding:16px 18px;font-size:12.4px;font-family:Consolas,'Courier New',monospace;overflow-x:auto;margin:12px 0 18px;line-height:1.55;}
+.content pre code{background:none;border:none;color:inherit;padding:0;}
+.content hr{border:none;border-top:1px solid var(--line);margin:30px 0;}
+.content strong{color:var(--navy2);}
+.footer{margin-top:50px;padding-top:16px;border-top:1px solid var(--line);font-size:12px;color:var(--muted);display:flex;justify-content:space-between;}
+@media print{body{background:#fff;}.page{box-shadow:none;padding:18px 0;max-width:100%;}.docnav{display:none;}.content h2{break-after:avoid;}.content table,.content pre,.content blockquote{break-inside:avoid;}}
+@media (max-width:720px){.page{padding:30px 20px;}}
+</style>
+</head>
+<body>
+<div class="page">
+  <span class="doc-label">JEIL AX · 표준 그리드</span>
+  <div class="docnav"><a href="index.html">🧩 그리드 데모</a><a class="cur" href="표준그리드_가이드.html">표준 그리드 가이드</a><a href="샘플양식.csv">샘플 CSV</a></div>
+  <p class="md-link">📄 Markdown 원본: <a href="표준그리드_가이드.md">표준그리드_가이드.md</a> · 데모 <a href="index.html">그리드 데모</a></p>
+  <div class="content">
+<h1 id="jeil_ax">JEIL_AX 표준 편집 그리드 — 사용 가이드 (단일 출처)</h1>
+<blockquote>
+<p>이 문서는 jeil_ax의 <strong>모든 편집 가능한 화면 그리드</strong>가 따라야 하는 표준이다.
+컴포넌트: <code>app/lib/grid.js</code> + <code>app/lib/grid.css</code> · 데모: <code>그리드/index.html</code> · 샘플: <code>그리드/샘플양식.csv</code>
+관리 에이전트: <code>grid-standardizer</code>(로컬). 표준이 바뀌면 이 문서·데모·샘플을 함께 갱신한다.</p>
+</blockquote>
+<hr />
+<h2 id="0">0. 핵심 원칙</h2>
+<ol>
+<li><strong>편집 가능한 그리드는 직접 <code>&lt;table&gt;</code> + innerHTML로 만들지 않는다.</strong> <code>createGrid()</code>를 쓴다. (순수 읽기 전용 대시보드 표는 예외 — 표준화 대상이 아니다.)</li>
+<li><strong>grid.js는 UI만 담당한다.</strong> 데이터 조회·저장·발급은 <code>app/lib/api.js</code>(portalApi) 또는 Edge Function 호출을 <strong>콜백</strong>(<code>onSave</code>/<code>onBulkAction</code>/<code>onRowAction</code>)에서 처리한다. DB·인증 로직을 grid.js에 심지 않는다.</li>
+<li><strong>CSS는 <code>.grid__</code> 스코프만.</strong> 전역 <code>table/th/td</code>를 재정의하지 않는다(같은 화면의 다른 표 보호).</li>
+<li><strong>외부 라이브러리·CDN 금지.</strong> 바닐라 ESM. 내보내기는 <strong>CSV(UTF-8 BOM)</strong>.</li>
+<li>비밀값·운영 데이터 직접 노출 금지(CLAUDE.md §1). 한국어 UI.</li>
+</ol>
+<hr />
+<h2 id="1">1. 빠른 시작</h2>
+<pre><code class="language-html">&lt;link rel=&quot;stylesheet&quot; href=&quot;./lib/grid.css&quot;&gt;
+&lt;div id=&quot;myGrid&quot;&gt;&lt;/div&gt;
+&lt;script type=&quot;module&quot;&gt;
+  import { createGrid } from &quot;./lib/grid.js&quot;;
+  const grid = createGrid(&quot;#myGrid&quot;, {
+    keyField: &quot;id&quot;,
+    selectable: true, search: true, columnFilter: true,
+    editable: true, editToggle: true, paste: true, exportCsv: true, copy: true,
+    rows: await portalApi.getSomething(),
+    columns: [
+      { key:&quot;code&quot;, label:&quot;코드&quot;, pasteKey:&quot;code&quot; },
+      { key:&quot;email&quot;, label:&quot;이메일&quot;, type:&quot;email&quot;, editable:true, pasteKey:&quot;email&quot;,
+        validator:(v)=&gt; !v || /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v) || &quot;이메일 형식 오류&quot; },
+      { key:&quot;name&quot;, label:&quot;담당자&quot;, editable:true, pasteKey:&quot;name&quot; },
+    ],
+    bulkActions: [{ id:&quot;save&quot;, label:&quot;💾 저장&quot;, btnClass:&quot;ok&quot; }],
+    onBulkAction: (id, g) =&gt; { /* g.getDirty() / g.getSelected() 로 처리 */ },
+  });
+&lt;/script&gt;
+</code></pre>
+<blockquote>
+<p><strong>주의(ESM)</strong>: <code>file://</code>로 직접 열면 모듈 로드가 막힌다. 정적 서버로 서빙: 루트에서 <code>python -m http.server</code> 후 <code>http://localhost:8000/...</code>, 또는 Vercel 배포본에서 확인.</p>
+</blockquote>
+<hr />
+<h2 id="2-columns">2. columns 스펙</h2>
+<table>
+<thead>
+<tr>
+<th>키</th>
+<th>설명</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>key</code> (필수)</td>
+<td>데이터 필드명</td>
+</tr>
+<tr>
+<td><code>label</code> (필수)</td>
+<td>헤더 표시명</td>
+</tr>
+<tr>
+<td><code>editable</code></td>
+<td><code>true</code>/<code>false</code> 또는 <code>(row)=&gt;boolean</code> (행 조건부 편집)</td>
+</tr>
+<tr>
+<td><code>readOnly</code></td>
+<td>true면 편집 모드여도 잠금</td>
+</tr>
+<tr>
+<td><code>type</code></td>
+<td><code>text</code>/<code>email</code>/<code>number</code>/<code>date</code>/<code>select</code>/<code>checkbox</code></td>
+</tr>
+<tr>
+<td><code>options</code></td>
+<td>select용 <code>[{value,label}]</code> 또는 <code>["A","B"]</code></td>
+</tr>
+<tr>
+<td><code>validator</code></td>
+<td><code>(val,row)=&gt; true | "에러메시지"</code></td>
+</tr>
+<tr>
+<td><code>formatter</code></td>
+<td><code>(val,row)=&gt; html</code> — 읽기 모드 셀 표시(pill/배지/버튼). 값은 직접 escape할 것</td>
+</tr>
+<tr>
+<td><code>exportValue</code></td>
+<td><code>(val,row)=&gt; CSV에 쓸 값</code>(미지정 시 원값)</td>
+</tr>
+<tr>
+<td><code>filter</code></td>
+<td><code>false</code>면 컬럼 필터 비활성</td>
+</tr>
+<tr>
+<td><code>sortable</code></td>
+<td><code>false</code>면 정렬 비활성</td>
+</tr>
+<tr>
+<td><code>width</code></td>
+<td>예: <code>"120px"</code></td>
+</tr>
+<tr>
+<td><code>align</code></td>
+<td><code>"right"</code>/<code>"center"</code></td>
+</tr>
+<tr>
+<td><code>pasteKey</code></td>
+<td>붙여넣기 자동 인식 힌트: <code>email</code>/<code>name</code>/<code>code</code>/<code>none</code></td>
+</tr>
+<tr>
+<td><code>cssClass</code></td>
+<td>셀 추가 클래스</td>
+</tr>
+</tbody>
+</table>
+<p>행 내 커스텀 버튼은 formatter에서 <code>data-row-act="액션명"</code>을 넣으면 클릭 시 <code>onRowAction(액션명, row)</code>로 전달된다.</p>
+<hr />
+<h2 id="3-options">3. options &amp; 콜백</h2>
+<p><strong>options</strong>: <code>columns, rows, keyField, selectable, search, columnFilter, sortable, editable, editToggle, editToggleLabels, paste, exportCsv, copy, exportName, stickyHeader, keyboardNav, pageSize, emptyText, loadingText, rowClass, bulkActions</code>.</p>
+<p><strong>bulkActions</strong>: <code>[{ id, label, btnClass }]</code> — 툴바 버튼. 클릭 시 <code>onBulkAction(id, gridInstance)</code>.</p>
+<table>
+<thead>
+<tr>
+<th>콜백</th>
+<th>시점</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>onSave(changes)</code></td>
+<td>저장 트리거 시(호출측에서 사용)</td>
+</tr>
+<tr>
+<td><code>onBulkAction(id, grid)</code></td>
+<td>툴바 일괄 버튼 클릭 — <code>grid.getDirty()/getSelected()</code> 활용</td>
+</tr>
+<tr>
+<td><code>onRowAction(act, row, ev)</code></td>
+<td>행 내 <code>data-row-act</code> 버튼 클릭</td>
+</tr>
+<tr>
+<td><code>onCellEdit(key, field, value, row)</code></td>
+<td>셀 편집</td>
+</tr>
+<tr>
+<td><code>onSelectionChange(rows)</code></td>
+<td>체크박스 선택 변경</td>
+</tr>
+<tr>
+<td><code>onPaste(touchedKeys)</code></td>
+<td>엑셀 붙여넣기 반영 후</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="4">4. 인스턴스 메서드</h2>
+<p><code>getData()</code> · <code>getSelected()</code> · <code>getSelectedKeys()</code> · <code>getDirty()</code>(→<code>[{key,row,dirtyFields}]</code>) · <code>setRows(rows)</code> · <code>updateRow(key,patch)</code> · <code>refresh()</code> · <code>setLoading(bool)</code> · <code>clearSelection()</code> · <code>clearDirty()</code> · <code>setEditMode(bool)</code> · <code>isEditMode()</code> · <code>validateAll()</code> · <code>hasErrors()</code> · <code>exportCsv(name)</code> · <code>copyToClipboard()</code> · <code>destroy()</code>.</p>
+<hr />
+<h2 id="5">5. 엑셀 붙여넣기 규약</h2>
+<p>편집 모드에서 편집 셀에 Ctrl+V 하면 탭/개행을 파싱해 채운다. 자동 인식:
+- <code>@</code> 포함 값 → <code>pasteKey:"email"</code> 컬럼
+- <code>keyField</code> 값과 일치하는 값 → 그 행에 <strong>정확 매칭</strong>(행 순서가 달라도 OK)
+- 나머지 → <code>pasteKey:"name"</code> 컬럼
+- 거래처코드 열이 없으면 붙여넣기 시작 행부터 순서대로</p>
+<p>샘플: <code>그리드/샘플양식.csv</code> (<code>거래처코드,담당자이메일,담당자명</code>).</p>
+<hr />
+<h2 id="6">6. 새 편집 화면 추가 레시피</h2>
+<ol>
+<li>화면에 <code>&lt;div id="xGrid"&gt;</code> + <code>grid.css</code> 링크, <code>&lt;script type="module"&gt;</code>에서 <code>createGrid</code> import.</li>
+<li>데이터는 <code>portalApi</code>/Edge Function으로 받아 <code>rows</code>로 전달(또는 <code>setRows</code>).</li>
+<li>편집/일괄 작업의 <strong>실제 저장은 콜백</strong>에서 <code>portalApi.*</code> 또는 <code>callFn(...)</code> 호출 후 <code>setRows</code>로 갱신.</li>
+<li>변경 후 이 가이드의 사례 표에 추가하고, 표준이 바뀌면 <code>python 그리드/_build_html.py</code>로 HTML 재생성.</li>
+</ol>
+<hr />
+<h2 id="7">7. 금지 사항</h2>
+<ul>
+<li>❌ 전역 <code>table/th/td</code> CSS 재정의 (→ <code>.grid__</code> 스코프만)</li>
+<li>❌ grid.js에 DB/SSO/RLS/Edge Function 로직 삽입</li>
+<li>❌ 외부 그리드 라이브러리·CDN 추가</li>
+<li>❌ 비밀값·운영 데이터 하드코딩, <code>.claude/</code>·<code>MS_connect/</code>·<code>doc/</code> 커밋</li>
+<li>❌ 사람이 결정/실행해야 하는 일(실거래·권한·Entra 설정) 임의 진행</li>
+</ul>
+<hr />
+<h2 id="8">8. 적용 사례</h2>
+<table>
+<thead>
+<tr>
+<th>화면</th>
+<th>파일</th>
+<th>비고</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>협력사 계정발급</td>
+<td><code>app/admin-vendors.html</code> <code>#vmGrid</code></td>
+<td>첫 실적용 — 미발급 거래처 인라인 편집·붙여넣기·선택 일괄 발급. vendor-provision/메일/SSO/RLS는 콜백으로 보존</td>
+</tr>
+<tr>
+<td>(표준 데모)</td>
+<td><code>그리드/index.html</code></td>
+<td>전체 기능 레퍼런스</td>
+</tr>
+</tbody>
+</table>
+  </div>
+  <div class="footer"><span>JEIL M&amp;S · AI 포털 표준 그리드</span><span>표준 그리드 가이드 · 관리: 최동혁</span></div>
+</div>
+</body>
+</html>

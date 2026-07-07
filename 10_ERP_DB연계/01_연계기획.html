@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>01 연계기획 — ERP DB 연계 관제 (타부서 개방 + 포털·챗봇 중간DB 통합 기획)</title>
+<style>
+:root{--navy:#1a2f4e;--navy2:#27457a;--accent:#2f6fb3;--red:#b3402f;--green:#2e7d52;--amber:#9a6b1f;
+--ink:#222;--muted:#666;--line:#d8dee8;--bg:#f4f6f9;--soft:#eef2f8;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;color:var(--ink);background:var(--bg);line-height:1.65;font-size:15px;}
+.page{max-width:960px;margin:0 auto;background:#fff;padding:52px 60px;box-shadow:0 2px 14px rgba(0,0,0,.08);}
+.doc-label{display:inline-block;background:var(--navy);color:#fff;font-size:12px;letter-spacing:.16em;padding:5px 14px;border-radius:3px;margin-bottom:16px;}
+.docnav{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 26px;}
+.docnav a{font-size:12px;color:var(--navy2);border:1px solid var(--line);border-radius:20px;padding:4px 12px;text-decoration:none;background:var(--soft);}
+.docnav a:hover{background:var(--navy);color:#fff;}
+.docnav a.cur{background:var(--navy);color:#fff;border-color:var(--navy);}
+.md-link{font-size:13px;margin-bottom:22px;color:var(--muted);}
+.content h1{font-size:27px;color:var(--navy);line-height:1.35;margin:6px 0 18px;}
+.content h2{font-size:20px;color:var(--navy);margin:42px 0 14px;padding-bottom:9px;border-bottom:3px solid var(--navy);}
+.content h3{font-size:16px;color:var(--navy2);margin:24px 0 9px;}
+.content p{margin:0 0 12px;}
+.content ul,.content ol{margin:0 0 14px 22px;}
+.content li{margin-bottom:6px;}
+.content blockquote{background:var(--soft);border-left:5px solid var(--navy);border-radius:0 8px 8px 0;padding:14px 20px;margin:14px 0;color:#33425a;}
+.content blockquote p{margin:0 0 6px;}
+.content table{width:100%;border-collapse:collapse;margin:14px 0 20px;font-size:13.3px;}
+.content th{background:var(--navy);color:#fff;padding:9px 11px;text-align:left;font-weight:600;}
+.content td{padding:8px 11px;border-bottom:1px solid var(--line);vertical-align:top;}
+.content tr:nth-child(even) td{background:#fafbfd;}
+.content a{color:var(--accent);}
+.content code{background:var(--soft);border:1px solid var(--line);border-radius:4px;padding:1px 6px;font-size:12.4px;font-family:Consolas,'Courier New',monospace;}
+.content pre{background:#21252e;color:#e8eaf0;border-radius:8px;padding:16px 18px;font-size:12.4px;font-family:Consolas,'Courier New',monospace;overflow-x:auto;margin:12px 0 18px;line-height:1.55;}
+.content pre code{background:none;border:none;color:inherit;padding:0;}
+.content hr{border:none;border-top:1px solid var(--line);margin:30px 0;}
+.content strong{color:var(--navy2);}
+.footer{margin-top:50px;padding-top:16px;border-top:1px solid var(--line);font-size:12px;color:var(--muted);display:flex;justify-content:space-between;}
+@media print{body{background:#fff;}.page{box-shadow:none;padding:18px 0;max-width:100%;}.docnav{display:none;}.content h2{break-after:avoid;}.content table,.content pre,.content blockquote{break-inside:avoid;}}
+@media (max-width:720px){.page{padding:30px 20px;}}
+</style>
+</head>
+<body>
+<div class="page">
+  <span class="doc-label">JEIL AX ERP DB 연계 · 대외비</span>
+  <div class="docnav"><a href="index.html">🏠 연계 허브</a><a href="00_현재상태_스냅샷.html">00 현재상태</a><a class="cur" href="01_연계기획.html">01 연계기획</a><a href="02_진행상태.html">02 진행상태</a><a href="03_중간DB_구축실행기획.html">03 중간DB 실행기획</a><a href="README.md">README</a></div>
+  <p class="md-link">📄 Markdown 원본: <a href="01_연계기획.md">01_연계기획.md</a> · 허브 <a href="index.html">연계 허브</a></p>
+  <div class="content">
+<h1 id="01-erp-db">01. ERP DB 연계 — 이후 기획 (통합 정리)</h1>
+<blockquote>
+<p><strong>기준일: 2026-07-03</strong> · 관리: 최동혁
+ERP 데이터 활용은 <strong>두 축</strong>으로 진행된다: <strong>A) 사내 타부서 데이터 개방</strong>(마스터플랜 v2.0)과 <strong>B) AI 포털·챗봇 연계</strong>(중간DB 연계설계). 본 문서는 두 기획을 하나의 그림으로 통합 정리한 것이다. 상세는 각 원본 문서를 따른다.</p>
+</blockquote>
+<hr />
+<h2 id="1">1. 공통 대원칙 (두 축 모두 적용)</h2>
+<table>
+<thead>
+<tr>
+<th>원칙</th>
+<th>내용</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>READ-ONLY 절대성</strong></td>
+<td>연동 경로 어디에서도 운영계 쓰기 불가. 사본조차 읽기전용.</td>
+</tr>
+<tr>
+<td><strong>부하 격리</strong></td>
+<td>소비자(부서·포털·챗봇) 트래픽은 운영계에 닿지 않는다 — 야간 사본에서만 조회.</td>
+</tr>
+<tr>
+<td><strong>최소 권한</strong></td>
+<td>필요한 뷰·컬럼·행만. 기본 거부, 명시 허용. 개인별 급여·주민번호·계좌는 <strong>원천 View 단계에서 제외</strong>.</td>
+</tr>
+<tr>
+<td><strong>스키마 추상화</strong></td>
+<td>소비자는 물리 테이블을 모른다 — 뷰(<code>rpt.v_*</code>)·집계 테이블이 계약(Contract).</td>
+</tr>
+<tr>
+<td><strong>추적성</strong></td>
+<td>누가·언제·무엇을 조회했는지 전량 감사 로깅.</td>
+</tr>
+<tr>
+<td><strong>점진성</strong></td>
+<td>최소 인프라로 즉시 시작(Crawl) → 수요 증가 시 승격(Walk/Run).</td>
+</tr>
+</tbody>
+</table>
+<h2 id="2">2. 통합 목표 아키텍처</h2>
+<pre><code>┌────────────────────────────────────────────────────────────┐
+│ ERP운영DB (UNIERP · MSSQL 2022 · 사외 IDC · 단일노드)       │
+│              ✕ 모든 소비자 직접 접근 금지                   │
+└──────────────┬─────────────────────────────────────────────┘
+               │ 야간 1회 갱신 (백업·복원 / 스냅샷 / ETL)
+               ▼
+┌────────────────────────────────────────────────────────────┐
+│ ① 리포팅 계층 — 격리된 읽기전용 사본 (Tier A→B)             │
+│ ② 추상화 계층 — rpt.v_* 뷰 (마스킹·RLS·스키마 계약)         │
+└──────┬──────────────────────┬──────────────────────────────┘
+       │ [축 A] 사내 타부서    │ [축 B] AI 포털·챗봇
+       ▼                      ▼
+ ③-A 직접조회(BI/Excel)   야간 ETL → PostgreSQL 중간 DB
+ ③-B API(n8n/REST)          (erp_ro / erp_secure / etl_meta)
+ ③-C 파일(CSV/Parquet)          │
+       │                        ├─▶ 부서 대시보드(pages/) — REST API
+       │                        └─▶ 챗봇(jeil-chat) — Tool Use 화이트리스트
+       ▼                        ▼
+┌────────────────────────────────────────────────────────────┐
+│ ④ 거버넌스 — 인증(Entra)·권한(RBAC)·감사·SLA·승인·정기검토  │
+└────────────────────────────────────────────────────────────┘
+</code></pre>
+<p><strong>정합 포인트</strong>: 포털 중간 DB의 ETL도 운영계가 아닌 <strong>리포팅 계층(①)/읽기전용 뷰(②)에서 추출</strong>하도록 일원화한다. 원천 접근 창구를 하나로 유지해 운영 무영향 원칙을 지킨다.</p>
+<h2 id="3-a-v20">3. 축 A — 사내 타부서 개방 (마스터플랜 v2.0 요약)</h2>
+<ul>
+<li><strong>리포팅 계층 티어</strong>: <strong>Tier A</strong>(동일 인스턴스 내 리포팅 전용 DB, 즉시·저비용)로 시작 → 소비자·조회량 증가 시 <strong>Tier B</strong>(별도 리포팅 서버, 물리적 완전 격리)로 승격 → 전사 BI 수요 확인 시 Tier C(BI/DW) 별도 과제. Always On은 일 배치 요건에 과잉투자로 배제.</li>
+<li><strong>전달 채널</strong>: 소비자 유형별 선택 — BI/Excel은 읽기전용 계정 직접조회(③-A), 자체 앱은 API(③-B), 대량·이관은 야간 파일 Export(③-C). 모두 ② 뷰만 바라본다.</li>
+<li><strong>경영 의사결정 1건</strong>: Tier A 시작 vs 곧바로 Tier B (마스터플랜 §11). 나머지는 실무 진행.</li>
+</ul>
+<h2 id="4-b-ai-07">4. 축 B — AI 포털·챗봇 연계 (07 연계설계 요약)</h2>
+<h3 id="41-db-postgresql-jeil_portal">4.1 중간 DB (PostgreSQL <code>jeil_portal</code>)</h3>
+<pre><code>portal       — 사용자·크레딧·대화·감사로그(tool_audit)
+erp_ro       — 영업·구매·재고·원가 (일반, 전 직원)
+erp_secure   — 자금·인사 집계 (민감, Entra 그룹 인가)
+knowledge    — 문서 벡터 (pgvector)
+etl_meta     — 배치 실행 로그·동기화 상태
+</code></pre>
+<h3 id="42">4.2 주요 매핑 (원천 → 중간 테이블)</h3>
+<table>
+<thead>
+<tr>
+<th>화면</th>
+<th>UNIERP 원천(읽기만)</th>
+<th>중간 테이블</th>
+<th>개방 단계</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>영업 수주현황</td>
+<td><code>S_BILL_HDR/DTL</code>, <code>S_BILL_COLLECTING</code></td>
+<td><code>erp_ro.sales_orders_m</code></td>
+<td>1차</td>
+</tr>
+<tr>
+<td>구매 매입집계</td>
+<td><code>M_IV_HDR/DTL</code>, <code>B_BP</code></td>
+<td><code>erp_ro.purchase_m</code></td>
+<td>1차</td>
+</tr>
+<tr>
+<td>재고 입출고</td>
+<td><code>ITEM_DOCUMENT</code>, <code>M_PUR_GOODS_MVMT</code></td>
+<td><code>erp_ro.inventory_d</code></td>
+<td>1차</td>
+</tr>
+<tr>
+<td>품목 마스터</td>
+<td><code>B_ITEM</code></td>
+<td><code>erp_ro.item_master</code></td>
+<td>1차</td>
+</tr>
+<tr>
+<td>프로젝트 원가</td>
+<td><code>PM_PROJECT_MASTER</code> + 원가</td>
+<td><code>erp_ro.project_cost_m</code></td>
+<td>2차</td>
+</tr>
+<tr>
+<td>자금일보</td>
+<td><code>A_GL</code>, <code>F_LN_INFO</code>, <code>F_NOTE</code></td>
+<td><code>erp_secure.cash_daily</code></td>
+<td>2차+승인</td>
+</tr>
+<tr>
+<td>인사 집계</td>
+<td><code>HAA010T</code>, <code>HDF070T</code>(집계만)</td>
+<td><code>erp_secure.hr_payroll_m</code></td>
+<td>2차+승인</td>
+</tr>
+</tbody>
+</table>
+<h3 id="43-etl">4.3 ETL·챗봇 정책</h3>
+<ul>
+<li><strong>배치</strong>: 매일 03:00(유니포인트 합의), 증분 기준 + 소량 집계는 전체 재적재. 실패 시 Teams/메일 알림 + 1시간 후 재시도 1회. 모든 화면·답변에 「데이터 기준: YYYY-MM-DD 03:00」 표기.</li>
+<li><strong>챗봇</strong>: AI가 SQL을 생성·실행하지 않는다 — <strong>화이트리스트 조회 템플릿</strong>(<code>get_sales_monthly</code> 등 6종 초안)만 실행. 권한은 서버 단 Entra 그룹 검사, 1회 최대 200행, <code>portal.tool_audit</code> 전량 로깅.</li>
+<li><strong>대시보드와 챗봇은 동일 중간 DB·동일 쿼리 로직 공유</strong> — ETL·테이블 1벌 유지.</li>
+</ul>
+<h2 id="5">5. 단계별 로드맵 (통합)</h2>
+<table>
+<thead>
+<tr>
+<th>단계</th>
+<th>내용</th>
+<th>선행 조건</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>P0</strong> 정책 수립</td>
+<td>접근정책안·마스터플랜·본 관제 체계</td>
+<td>(완료·승인 대기)</td>
+</tr>
+<tr>
+<td><strong>P1</strong> 유니포인트 협의</td>
+<td>읽기전용 계정(<code>jeilax_ro</code>)·뷰·방화벽/VPN 합의</td>
+<td>경영 티어 결정</td>
+</tr>
+<tr>
+<td><strong>P2</strong> 리포팅 계층</td>
+<td>Tier A 리포팅 DB + <code>rpt.v_*</code> 뷰 + 감사 로깅</td>
+<td>P1</td>
+</tr>
+<tr>
+<td><strong>P3</strong> 중간 DB + ETL</td>
+<td>PostgreSQL 스키마 생성, 1차 배치(영업·구매·재고) 가동</td>
+<td>P2</td>
+</tr>
+<tr>
+<td><strong>P4</strong> 포털·챗봇 연결</td>
+<td><code>pages/</code> 실데이터 API 전환 + 챗봇 Tool 3종 + <code>tool_audit</code></td>
+<td>P3</td>
+</tr>
+<tr>
+<td><strong>P5</strong> 민감 영역</td>
+<td><code>erp_secure</code>(자금·인사) — 경영 승인 + Entra 그룹</td>
+<td>P4 + 승인</td>
+</tr>
+</tbody>
+</table>
+<h2 id="6">6. 하지 말아야 할 구조 (금지 목록)</h2>
+<table>
+<thead>
+<tr>
+<th>방식</th>
+<th>문제</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>포털/챗봇/BI → ERP운영DB 직접 연결</td>
+<td>성능·장애 전파, AI 임의 SQL 위험</td>
+</tr>
+<tr>
+<td>MSSQL 전체 복제</td>
+<td>용량·민감컬럼 과다</td>
+</tr>
+<tr>
+<td>실시간 ERP 조회(초기)</td>
+<td>복잡도↑ — 일 배치로 대부분 충족</td>
+</tr>
+<tr>
+<td>AI <code>SELECT *</code> 생성 허용</td>
+<td>인젝션·대량 유출</td>
+</tr>
+<tr>
+<td>OneDrive CSV만으로 ERP 대체</td>
+<td>권한·갱신·감사 불가</td>
+</tr>
+<tr>
+<td>Always On 실시간 복제(현 단계)</td>
+<td>Enterprise 라이선스·2차 서버 비용 대비 불필요</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="7">7. 원본 문서</h2>
+<ul>
+<li><strong>축 A 원본</strong>: 사내 OneDrive <code>ERP_DB/데이터연동방안/ERP_데이터연동_마스터플랜_v2.0.md</code>(2026-07-01, 승인요청)</li>
+<li><strong>축 B 원본</strong>: <code>실제구축준비 자료/07_ERP_챗봇_중간DB_연계설계.md</code>(2026-06-25)</li>
+<li><strong>정책</strong>: 사내 OneDrive <code>ERP_DB/정책관리/ERP_DB접근정책/ERP_DB_접근정책안_v0.1_20260702</code></li>
+<li><strong>규칙</strong>: <code>CLAUDE.md §4</code>(ERP 연계), §5(인증·권한), §6(보안)</li>
+</ul>
+  </div>
+  <div class="footer"><span>JEIL M&amp;S · ERP DB 연계 관제</span><span>01 연계기획 · 관리: 최동혁</span></div>
+</div>
+</body>
+</html>

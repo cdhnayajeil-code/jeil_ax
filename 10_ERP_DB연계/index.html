@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ERP DB 연계 관제 허브 — JEIL AX</title>
+<style>
+:root{--navy:#1a2f4e;--navy2:#27457a;--accent:#2f6fb3;--red:#b3402f;--green:#2e7d52;--amber:#9a6b1f;
+--ink:#222;--muted:#666;--line:#d8dee8;--bg:#f4f6f9;--soft:#eef2f8;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;color:var(--ink);background:var(--bg);line-height:1.65;font-size:15px;}
+.page{max-width:960px;margin:0 auto;background:#fff;padding:52px 60px;box-shadow:0 2px 14px rgba(0,0,0,.08);min-height:100vh;}
+.doc-label{display:inline-block;background:var(--navy);color:#fff;font-size:12px;letter-spacing:.16em;padding:5px 14px;border-radius:3px;margin-bottom:16px;}
+h1{font-size:26px;color:var(--navy);margin:6px 0 8px;}
+.sub{color:var(--muted);font-size:13.5px;margin-bottom:28px;}
+.status{background:var(--soft);border-left:5px solid var(--navy);border-radius:0 8px 8px 0;padding:14px 20px;margin:0 0 28px;font-size:14px;color:#33425a;}
+.status b{color:var(--navy2);}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;margin-bottom:30px;}
+.card{border:1px solid var(--line);border-radius:10px;padding:18px 20px;text-decoration:none;color:var(--ink);display:block;background:#fff;transition:box-shadow .15s,border-color .15s;}
+.card:hover{border-color:var(--accent);box-shadow:0 3px 12px rgba(47,111,179,.15);}
+.card .no{font-size:11px;color:var(--accent);letter-spacing:.12em;font-weight:700;}
+.card h2{font-size:16.5px;color:var(--navy);margin:4px 0 6px;}
+.card p{font-size:13px;color:var(--muted);}
+.card .badge{display:inline-block;font-size:11px;border-radius:12px;padding:2px 10px;margin-top:10px;background:var(--soft);color:var(--navy2);}
+.badge.live{background:#e7f3ec;color:var(--green);}
+h3{font-size:15px;color:var(--navy2);margin:26px 0 8px;}
+ul{margin:0 0 14px 22px;font-size:13.5px;}
+li{margin-bottom:5px;}
+code{background:var(--soft);border:1px solid var(--line);border-radius:4px;padding:1px 6px;font-size:12px;font-family:Consolas,monospace;}
+.footer{margin-top:44px;padding-top:16px;border-top:1px solid var(--line);font-size:12px;color:var(--muted);display:flex;justify-content:space-between;}
+@media (max-width:720px){.page{padding:30px 20px;}}
+</style>
+</head>
+<body>
+<div class="page">
+  <span class="doc-label">JEIL AX ERP DB 연계 · 대외비</span>
+  <h1>ERP DB 연계 관제 허브</h1>
+  <p class="sub">ERP(UNIERP) DB ↔ AI 포털·사내 타부서 연계의 현재상태·기획·진행상태 단일 출처 · 관리: 최동혁</p>
+
+  <div class="status">
+    <b>현재 위치:</b> P0(정책 수립) 마무리 → P1(유니포인트 협의) 진입 대기 ·
+    <b>결정 대기:</b> 리포팅 계층 티어(A/B) 경영 결정, 마스터플랜 v2.0 승인
+  </div>
+
+  <div class="cards">
+    <a class="card" href="00_현재상태_스냅샷.html">
+      <span class="no">00</span>
+      <h2>현재상태 스냅샷</h2>
+      <p>원천 시스템·접근 자산·포털측 연계·정책문서 현황 대장</p>
+      <span class="badge live">지속 갱신</span>
+    </a>
+    <a class="card" href="01_연계기획.html">
+      <span class="no">01</span>
+      <h2>연계기획 (통합)</h2>
+      <p>사내 타부서 개방(4계층) + 포털·챗봇 중간DB 연계 통합 기획</p>
+      <span class="badge">기획</span>
+    </a>
+    <a class="card" href="02_진행상태.html">
+      <span class="no">02</span>
+      <h2>진행상태</h2>
+      <p>페이즈 P0~P5 · 체크리스트 · 작업로그 · 이슈</p>
+      <span class="badge live">지속 갱신</span>
+    </a>
+    <a class="card" href="03_중간DB_구축실행기획.html">
+      <span class="no">03</span>
+      <h2>중간DB 구축 실행기획</h2>
+      <p>연결 방안(D1~D3)·스키마 DDL·ETL 처리방법·준비 체크리스트·6주 일정</p>
+      <span class="badge">실행기획 v0.1</span>
+    </a>
+  </div>
+
+  <h3>운영 규칙</h3>
+  <ul>
+    <li>원본(단일 출처)은 이 폴더 — <code>.md</code> 수정 후 <code>python _build_html.py</code>로 HTML 재생성.</li>
+    <li>사내 OneDrive <code>ERP_DB/정책관리/ERP_DB연계/</code>로 미러 동기화(전담 에이전트 <code>erp-db-link-manager</code>).</li>
+    <li>비밀값(접속 IP/ID/비밀번호) 기록 금지 — 서버 지칭은 별칭 <b>"ERP운영DB"</b>만.</li>
+  </ul>
+
+  <div class="footer"><span>JEIL M&amp;S · ERP DB 연계 관제</span><span>index · 관리: 최동혁</span></div>
+</div>
+</body>
+</html>

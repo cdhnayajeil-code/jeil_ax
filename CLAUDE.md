@@ -39,6 +39,7 @@
 ```
 JEIL_AX/
 ├─ CLAUDE.md                         ← 본 파일 (작업 규칙)
+├─ 00_관리체계/                       ← ★기준정보·문서대장·명명규칙·변경관리 허브(단일 출처): index.html + 00~03
 ├─ index.html / CNAME                ← 진입·도메인
 ├─ 01~03_*.html                      ← 기획서 (도입/니즈조사/챗봇포털)
 ├─ 04_챗봇_포털_데모UI.html           ← 포털 메인 데모(로그인·부서선택·운영페이지 링크)
@@ -46,7 +47,11 @@ JEIL_AX/
 ├─ 06_실행기획_고도화/
 ├─ 07_부서운영페이지_확장기획.html
 ├─ 08_협력사발주포털/                  ← 협력사 발주·검사 시스템 (기획+데모)  ★신규 핵심
+├─ 09_비용_호스팅/                    ← 비용계산기·비용/호스팅 기획(브랜드 도구 묶음)
+├─ 10_ERP_DB연계/                     ← ★ERP DB 연계 관제(현재상태·기획·진행상태 단일 출처, 정책관리 미러 동기)
 ├─ pages/                            ← 부서별 운영 관리페이지(영업/구매/인사/자금/자재/외주 등)
+├─ app/                              ← 실구축 프론트(협력사 로그인·관리, Supabase 연동 api.js)
+├─ supabase/functions/              ← Edge Function(vendor-provision·approve·reset)
 ├─ 실제구축준비 자료/00~05,07_*.html   ← 실구축 종합기획 7부 + 16주 로드맵
 │   └─ 이관/                          ← ★이관 관제 센터(단일 출처): 현 시스템 상태·Vercel+Supabase→Azure 이관 (index.html 허브 + 00~03)
 ├─ _build_bundle.py                  ← 통합본 빌드 스크립트
@@ -163,6 +168,8 @@ JEIL_AX/
 - 큰 변경은 단계로 쪼개고, 완료 후 `git diff`로 자가 검토. 보안 민감 변경은 `/security-review`.
 - 출력물은 한국어, 간결하게. 사내 비개발자도 이해할 수준의 설명을 곁들인다.
 - **이관/시스템 상태가 바뀌면 `실제구축준비 자료/이관/`(관제 센터, 단일 출처)를 갱신한다**: 배포·데이터·인증·계정 변경 → `00_현재시스템_상태스냅샷` + 변경이력, 작업 수행 → `03_이관진행상태` 체크리스트·작업로그. `.md` 수정 후 `python _build_html.py`로 HTML 재생성(`index.html`은 자체완결, 직접 관리).
+- **ERP DB 연계 관련 작업·상태 변화가 생기면 `10_ERP_DB연계/`(단일 출처)를 갱신한다**: 전담 서브에이전트 **`erp-db-link-manager`**(로컬 `.claude/agents/`)에 위임 — 문서(00 현재상태·01 기획·02 진행상태) 갱신 → `python _build_html.py` → `python _sync_mirror.py`로 사내 OneDrive 정책관리 미러 동기화(경로는 `.claude/erp_db_mirror.path`, 저장소에 기재 금지).
+- **기준정보·문서가 바뀌면 `00_관리체계/`(관리 허브, 단일 출처)를 갱신한다**: 조직·권한·ERP매핑·프로세스 변경 → `01_기준정보_레지스트리`, 문서 추가·이동·상태변경 → `00_문서대장`, 모든 의미 있는 변경 → `03_변경관리_CHANGELOG` 한 줄. 명명·배치는 `02_명명규칙_폴더규약`을 따른다. (운영현황은 위 이관 관제가 출처 — 중복 기록 금지.) `.md` 수정 후 `python _build_html.py`로 HTML 재생성.
 
 ---
 
@@ -174,7 +181,8 @@ JEIL_AX/
 - [ ] `.gitignore` 보강: `.env`, `*.key`, `*.pem`, `appsettings*.json`, `secrets/`, `node_modules/`, 빌드 산출물 추가.
 - [ ] `.env.example`(키 이름만, 값 없음) 추가로 필요한 환경변수 목록 문서화: ERP_DB_CONN, ENTRA_TENANT_ID, ENTRA_CLIENT_ID, ENTRA_CLIENT_SECRET 등.
 - [ ] `.claude/settings.json`에 팀 공용 권한·금지 명령 정의(현재 로컬 `Bash(cd *)`만). 위험 명령(push/force, rm, DB write) 차단 룰.
-- [ ] 디렉터리 분리 계획: `demo/`(현 정적 데모) ↔ `app/`(실구축 프론트) ↔ `api/`(백엔드) ↔ `docs/`(기획). 데모와 운영 코드 혼재 방지.
+- [~] 디렉터리 분리 계획: `demo/`(현 정적 데모) ↔ `app/`(실구축 프론트) ↔ `api/`(백엔드) ↔ `docs/`(기획). 데모와 운영 코드 혼재 방지. (2026-06-30: `00_관리체계/`(거버넌스 허브)·`09_비용_호스팅/` 신설, `app/`·`supabase/` 가동으로 부분 진행.)
+- [x] **문서 거버넌스·기준정보 체계** 수립 — `00_관리체계/`(문서대장·기준정보 레지스트리·명명규칙·변경관리) 2026-06-30.
 - [ ] 시크릿 스캐닝(gitleaks 등) + PR 점검 도입.
 
 **B. 인프라·호스팅 (의사결정 필요)**
@@ -206,6 +214,21 @@ JEIL_AX/
 ## 12. 참고 문서
 
 - 실구축 종합기획 7부 + 16주 로드맵: `실제구축준비 자료/00~05,07_*.html`
-- 호스팅/비용 기획: `JEIL_AX_호스팅_기획서.*`, `JEIL_AX_비용기획_보고서.*`, `JEIL_AX_비용계산기.html`
+- 호스팅/비용 기획: `09_비용_호스팅/`(`JEIL_AX_호스팅_기획서.*`, `JEIL_AX_비용기획_보고서.*`, `JEIL_AX_비용계산기.html`)
+- 관리체계 허브(기준정보·문서대장·명명규칙·변경관리): `00_관리체계/`(README + index.html + 00~03)
 - Entra/MFA 기술 원본(비공개): `MS_connect/`(README + 01~05 + TASK/)
 - 협력사 포털 요구사항 이력: `08_협력사발주포털/00_종합정리_요구사항이력.html`
+- ERP DB 연계 관제(현재상태·기획·진행상태): `10_ERP_DB연계/`(index.html 허브 + 00~02, 미러: 사내 OneDrive `ERP_DB/정책관리/ERP_DB연계/`)
+
+---
+
+## 13. 그리드 표준 (편집 그리드 단일 컴포넌트)
+
+> 웹에서 보이는 **수정 가능한 표(편집 그리드)** 는 직접 `<table>`+`innerHTML`로 만들지 말고 **표준 컴포넌트**를 쓴다. 순수 읽기 전용 표시표·기획 문서의 표는 예외(그대로 둬도 됨).
+
+1. **표준 컴포넌트**: `app/lib/grid.js`(바닐라 ESM, 의존성 0) + `app/lib/grid.css`. `import { createGrid } from "./lib/grid.js"` → `createGrid(container, options)`.
+2. **단일 출처(문서·데모)**: 가이드 `그리드/표준그리드_가이드.md`(+`.html` 빌드), 데모/레퍼런스 `그리드/index.html`, 붙여넣기 샘플 `그리드/샘플양식.csv`. 변경 시 가이드·샘플을 함께 갱신하고 `python 그리드/_build_html.py`로 HTML 재생성.
+3. **역할 분리**: `grid.js`는 **UI만** 담당한다. 데이터 조회/저장/검증로직(DB·Edge Function 호출)은 콜백(`onSave`·`onBulkAction`·`onRowAction`·`onPaste`)에서 호출측이 처리하고, 데이터 접근은 `app/lib/api.js`·Supabase 클라이언트로 모은다. **grid.js에 DB/비즈니스 로직을 심지 않는다.**
+4. **스타일 격리**: CSS는 `.grid__` 스코프만 사용한다. **전역 `table/th/td` 셀렉터를 재정의하지 않는다**(같은 화면의 다른 표 오염 금지). 호스트 `:root` 팔레트(navy/accent/green/red/line…)를 재사용한다.
+5. **규약**: CSV 내보내기는 **UTF-8 BOM** 접두(엑셀 한글 깨짐 방지), 클립보드 복사는 TSV. 붙여넣기 컬럼 분류는 `pasteKey`(email/name/code/none). **외부 라이브러리/CDN 금지**(자기완결 바닐라).
+6. **적용 사례**: `app/admin-vendors.html`(협력사 계정발급 — `#vmGrid`). 새 편집 화면은 이 표준으로 통일한다(서브에이전트 `grid-standardizer`가 마이그레이션·관리, 로컬 전용).
