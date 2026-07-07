@@ -52,12 +52,32 @@ tr:nth-child(even) td{background:#fafbfd;}
 .muted{color:var(--muted);font-size:12px;}
 .hidden{display:none;}
 .tag{display:inline-block;font-size:10.5px;background:#eef3fb;color:var(--navy2);padding:1px 7px;border-radius:10px;margin-left:5px;}
-#vmBody.bulk-on input{background:#fffdf3;border-color:#e8d9a0;}
-#vmBody.bulk-on tr:hover td{background:#fcf7e6;}
-.secbar{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap;}
 #bulkResult table{margin-top:4px;}
 #bulkResult th{background:#caa64a;}
+/* 협력사 메시지 (Supabase sp_message 실시간) */
+.chat{display:flex;border:1px solid var(--line);border-radius:12px;overflow:hidden;min-height:380px;background:#fff;}
+.chat-list{width:290px;flex:none;border-right:1px solid var(--line);overflow-y:auto;max-height:480px;background:var(--soft);}
+.chat-item{padding:10px 12px;border-bottom:1px solid var(--line);cursor:pointer;border-left:3px solid transparent;}
+.chat-item:hover{background:#eef3fb;}
+.chat-item.on{background:#e3edf9;border-left-color:var(--accent);}
+.chat-item .ci-top{display:flex;justify-content:space-between;align-items:center;gap:6px;}
+.chat-item .ci-nm{font-weight:700;font-size:12.5px;color:var(--navy);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.chat-item .ci-po{font-size:10.5px;color:var(--muted);}
+.chat-item .ci-last{font-size:11.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px;}
+.badge-un{flex:none;min-width:18px;height:18px;border-radius:9px;background:var(--red);color:#fff;font-size:10.5px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;padding:0 5px;}
+.chat-view{flex:1;display:flex;flex-direction:column;min-width:0;}
+.chat-head{padding:10px 14px;border-bottom:1px solid var(--line);font-size:13px;font-weight:700;color:var(--navy);background:#fff;}
+.chat-body{flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:8px;max-height:360px;background:#fbfcfe;}
+.bub{max-width:72%;padding:8px 11px;border-radius:12px;font-size:12.8px;line-height:1.5;white-space:pre-wrap;word-break:break-word;}
+.bub.me{align-self:flex-end;background:var(--navy);color:#fff;border-bottom-right-radius:4px;}
+.bub.them{align-self:flex-start;background:#fff;border:1px solid var(--line);border-bottom-left-radius:4px;}
+.bub .bm{font-size:10.5px;opacity:.75;margin-bottom:2px;}
+.bub .bt{font-size:10px;opacity:.6;margin-top:3px;text-align:right;}
+.chat-input{display:flex;gap:8px;padding:10px;border-top:1px solid var(--line);background:#fff;}
+.chat-input input{flex:1;}
+.chat-empty{flex:1;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:13px;}
 </style>
+<link rel="stylesheet" href="./lib/grid.css">
 </head>
 <body>
 
@@ -104,28 +124,35 @@ tr:nth-child(even) td{background:#fafbfd;}
 
     <!-- 섹션1: ERP 거래처 + 계정 -->
     <div class="sec">
-      <div class="secbar">
-        <div>
-          <h2>ERP 협력사 거래처 <span id="cntVendor" class="muted"></span></h2>
-          <div class="sub">ERP <code>B_BIZ_PARTNER</code> 기반(데모: 17개사·상호 부분마스킹). 거래처를 골라 협력사 담당자 이메일로 계정을 발급합니다. 운영 시 야간배치로 동기화.</div>
-        </div>
-        <div class="rowin" style="flex:none">
-          <button class="btn sm ghost" id="bulkToggle">📋 엑셀 일괄 편집</button>
-          <button class="btn sm ok hidden" id="bulkSave">💾 일괄 발급</button>
-          <button class="btn sm gray hidden" id="bulkCancel">닫기</button>
-        </div>
-      </div>
-      <div id="bulkHelp" class="msg info">
-        엑셀에서 <b>이메일·담당자명</b>(거래처코드 열 포함 가능)을 복사한 뒤, 아래 미발급 거래처의 <b>'담당자 이메일' 칸을 클릭해 붙여넣기(Ctrl+V)</b> 하면 여러 거래처가 한 번에 채워집니다 — 이메일(@ 포함)·담당자·거래처코드를 자동 인식합니다. 입력 후 <b>💾 일괄 발급</b>을 누르세요.
-      </div>
-      <table>
-        <thead><tr><th>거래처코드</th><th>협력사명</th><th>사업자번호</th><th>계정상태</th><th>계정 발급 / 관리</th></tr></thead>
-        <tbody id="vmBody"><tr><td colspan="5" class="muted">불러오는 중…</td></tr></tbody>
-      </table>
+      <h2>ERP 협력사 거래처 <span id="cntVendor" class="muted"></span></h2>
+      <div class="sub">ERP <code>B_BIZ_PARTNER</code> 기반(데모: 17개사·상호 부분마스킹). 거래처를 골라 협력사 담당자 이메일로 계정을 발급합니다. 운영 시 야간배치로 동기화.
+        <br><b>📋 엑셀 일괄 편집</b>으로 편집 모드 진입 → 미발급 행에 이메일/담당자 입력(엑셀에서 복사·Ctrl+V 붙여넣기 가능) → 체크 선택 후 <b>💾 일괄 발급</b>. 검색·필터·CSV 내보내기 지원.</div>
+      <div id="vmGrid"><div class="grid__loading" style="padding:24px">불러오는 중…</div></div>
       <div id="bulkResult" class="cred"></div>
     </div>
 
-    <!-- 섹션2: 감사 로그 -->
+    <!-- 섹션2: 협력사 메시지 (Supabase sp_message 실시간 연동) -->
+    <div class="sec">
+      <h2>협력사 메시지 <span id="cntMsg" class="muted"></span></h2>
+      <div class="sub">발주 건별 협력사와의 양방향 메시지(Supabase <code>sp_message</code> 실시간 연동). 협력사 포털에서 보낸 메시지가 즉시 표시되고, 스레드를 열면 자동으로 읽음 처리됩니다.</div>
+      <div class="chat">
+        <div class="chat-list" id="thList"><div class="chat-empty" style="padding:24px">불러오는 중…</div></div>
+        <div class="chat-view">
+          <div class="chat-head" id="thHead">← 왼쪽에서 스레드를 선택하세요</div>
+          <div class="chat-body" id="thBody"><div class="chat-empty">협력사·발주 스레드를 선택하면 대화가 표시됩니다.</div></div>
+          <div class="chat-input">
+            <input id="th_text" placeholder="메시지를 입력하세요… (Enter 발송)" disabled>
+            <button class="btn sm" id="th_send" disabled>보내기</button>
+          </div>
+        </div>
+      </div>
+      <div class="rowin" style="margin-top:10px;max-width:560px">
+        <select id="th_new_po" style="flex:1"><option value="">새 스레드 시작 — 발주 선택…</option></select>
+        <button class="btn sm ghost" id="th_new">➕ 스레드 열기</button>
+      </div>
+    </div>
+
+    <!-- 섹션3: 감사 로그 -->
     <div class="sec">
       <h2>처리 로그 <span id="cntLog" class="muted"></span></h2>
       <div class="sub">계정 발급·비밀번호 초기화 등 처리 이력. 누가(처리자)·언제·무엇을 했는지 기록됩니다.</div>
@@ -135,7 +162,7 @@ tr:nth-child(even) td{background:#fafbfd;}
       </table>
     </div>
 
-    <!-- 섹션3: 관리자 지정 -->
+    <!-- 섹션4: 관리자 지정 -->
     <div class="sec">
       <h2>협력사관리 권한자 <span id="cntAdmin" class="muted"></span></h2>
       <div class="sub">협력사 계정을 발급·관리할 수 있는 사내 사용자(@jeilm.co.kr SSO)를 지정합니다. 권한자만 추가/해제할 수 있습니다.</div>
@@ -154,6 +181,8 @@ tr:nth-child(even) td{background:#fafbfd;}
 <script type="module">
 import { supabase } from "./lib/supabaseClient.js";
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from "./config.js";
+import { createGrid } from "./lib/grid.js";
+import { adminMsgApi } from "./lib/api.js";
 
 const $ = (id) => document.getElementById(id);
 const show = (el, type, html) => { el.className = "msg show " + type + (el.id==="cr_msg"?"":""); el.innerHTML = html; };
@@ -204,6 +233,7 @@ function enterApp(user) {
   $("gate").classList.add("hidden"); $("app").classList.remove("hidden");
   $("whoami").textContent = user.email + " (협력사관리 권한자)";
   loadVendors(); loadLog(); loadAdmins();
+  initMessages(); // 협력사 메시지 스레드 + 실시간 구독
   resumePendingMail(); // 재인증 후 복귀했다면 보류 메일 자동 발송
 }
 
@@ -242,10 +272,11 @@ async function callFn(name, payload) {
   return out;
 }
 
-// ── 거래처 + 계정 ──
+// ── 거래처 + 계정 (표준 그리드: app/lib/grid.js) ──
 let ACCOUNTS = {};   // bp_cd -> account row
-let UNISSUED = [];   // 미발급 거래처 bp_cd(화면 순서) — 일괄 편집/발급 대상
-let BULK = false;    // 엑셀 일괄 편집 모드
+let vmGrid = null;   // 표준 그리드 인스턴스
+const STAT_PILL = { active: ["p-active", "발급됨"], disabled: ["p-disabled", "비활성"], none: ["p-none", "미발급"] };
+
 async function loadVendors() {
   const [{ data: vendors, error: ve }, { data: accs }] = await Promise.all([
     supabase.from("vendor_master").select("*").order("bp_nm"),
@@ -255,40 +286,67 @@ async function loadVendors() {
   ACCOUNTS = {};
   (accs || []).forEach(a => { ACCOUNTS[a.bp_cd] = a; });
   $("cntVendor").textContent = `(${(vendors || []).length}개사 · 계정 ${Object.keys(ACCOUNTS).length})`;
-  $("vmBody").innerHTML = (vendors || []).map(v => {
+  const rows = (vendors || []).map(v => {
     const a = ACCOUNTS[v.bp_cd];
-    let stat, action;
-    if (a && a.status === "active") {
-      stat = `<span class="pill p-active">발급됨</span>`;
-      action = `<div class="rowin" style="justify-content:flex-end">
-        <span class="muted" style="margin-right:auto">${esc(a.email)}</span>
-        <button class="btn sm ok" data-mail="${esc(a.auth_user_id)}" data-email="${esc(a.email)}">📧 메일발송</button>
-        <button class="btn sm no" data-reset="${esc(a.auth_user_id)}" data-email="${esc(a.email)}">비번 초기화</button></div>`;
-    } else if (a && a.status === "disabled") {
-      stat = `<span class="pill p-disabled">비활성</span>`;
-      action = `<span class="muted">${esc(a.email)}</span>`;
-    } else {
-      stat = `<span class="pill p-none">미발급</span>`;
-      action = `<div class="rowin">
-        <input type="email" id="em_${esc(v.bp_cd)}" placeholder="담당자 이메일">
-        <input type="text" id="nm_${esc(v.bp_cd)}" placeholder="담당자명(선택)" style="max-width:120px">
-        <button class="btn sm ok" data-prov="${esc(v.bp_cd)}">계정 생성</button></div>`;
-    }
-    return `<tr><td>${esc(v.bp_cd)}</td><td>${esc(v.bp_nm)}</td><td>${esc(v.biz_no || "-")}</td><td>${stat}</td><td>${action}</td></tr>`;
-  }).join("") || `<tr><td colspan="5" class="muted">거래처 없음</td></tr>`;
-
-  $("vmBody").querySelectorAll("[data-prov]").forEach(b => b.onclick = () => provision(b.dataset.prov));
-  $("vmBody").querySelectorAll("[data-reset]").forEach(b => b.onclick = () => resetPw(b.dataset.reset, b.dataset.email));
-  $("vmBody").querySelectorAll("[data-mail]").forEach(b => b.onclick = () => mailAccount(b.dataset.mail, b.dataset.email));
-
-  // 일괄 편집: 미발급 거래처(화면 순서) + 엑셀 붙여넣기/카운트 핸들러
-  UNISSUED = Array.from($("vmBody").querySelectorAll('input[id^="em_"]')).map(i => i.id.slice(3));
-  $("vmBody").querySelectorAll('input[id^="em_"]').forEach(inp => {
-    inp.addEventListener("paste", e => handleGridPaste(e, inp.id.slice(3)));
-    inp.addEventListener("input", updateBulkCount);
+    return {
+      bp_cd: v.bp_cd, bp_nm: v.bp_nm, biz_no: v.biz_no || "-",
+      status: a ? a.status : "none", email: a?.email || "", name: "",
+      _auth: a?.auth_user_id || "",
+    };
   });
-  $("vmBody").querySelectorAll('input[id^="nm_"]').forEach(inp => inp.addEventListener("input", updateBulkCount));
-  applyBulkUI();
+  if (!vmGrid) vmGrid = buildVmGrid(rows); else vmGrid.setRows(rows);
+}
+
+function buildVmGrid(rows) {
+  return createGrid("#vmGrid", {
+    keyField: "bp_cd", rows,
+    selectable: true, search: true, columnFilter: true, sortable: true,
+    editable: true, editToggle: true, editToggleLabels: { off: "📋 엑셀 일괄 편집", on: "✏️ 편집 중" },
+    paste: true, exportCsv: true, copy: true, exportName: "협력사거래처",
+    emptyText: "거래처 없음",
+    columns: [
+      { key: "bp_cd", label: "거래처코드", width: "90px", pasteKey: "code" },
+      { key: "bp_nm", label: "협력사명", width: "150px" },
+      { key: "biz_no", label: "사업자번호", width: "120px", filter: false },
+      { key: "status", label: "계정상태", width: "82px", align: "center",
+        type: "select", options: [{ value: "none", label: "미발급" }, { value: "active", label: "발급됨" }, { value: "disabled", label: "비활성" }],
+        formatter: (v) => { const [c, t] = STAT_PILL[v] || STAT_PILL.none; return `<span class="pill ${c}">${t}</span>`; } },
+      { key: "email", label: "담당자 이메일", width: "190px", type: "email", pasteKey: "email",
+        editable: (row) => row.status === "none",
+        validator: (v, row) => row.status !== "none" ? true : (!v ? true : (isEmail(v) || "이메일 형식 오류")),
+        formatter: (v) => v ? esc(v) : `<span class="muted">미입력</span>` },
+      { key: "name", label: "담당자명", width: "110px", pasteKey: "name", editable: (row) => row.status === "none",
+        formatter: (v) => v || `<span class="muted">—</span>` },
+      { key: "_act", label: "계정 발급 / 관리", width: "180px", filter: false, sortable: false,
+        formatter: (_, row) => row.status === "active"
+          ? `<button class="btn sm ok" data-row-act="mail">📧 메일발송</button> <button class="btn sm no" data-row-act="reset">비번 초기화</button>`
+          : row.status === "disabled"
+            ? `<span class="muted">비활성</span>`
+            : `<button class="btn sm ok" data-row-act="provision">계정 생성</button>` },
+    ],
+    bulkActions: [{ id: "issue", label: "💾 일괄 발급", btnClass: "ok" }],
+    onRowAction: (act, row) => {
+      if (act === "provision") provisionRow(row);
+      else if (act === "reset") resetPw(row._auth, row.email);
+      else if (act === "mail") mailAccount(row._auth, row.email);
+    },
+    onBulkAction: (id) => { if (id === "issue") bulkProvision(); },
+  });
+}
+
+// 단건 계정 생성(그리드 행 기준)
+async function provisionRow(row) {
+  if (!vmGrid.isEditMode()) { vmGrid.setEditMode(true); return show($("a_msg"), "info", "편집 모드로 전환했습니다. 담당자 이메일을 입력한 뒤 다시 '계정 생성'을 누르세요."); }
+  const email = (row.email || "").trim(), contact_name = (row.name || "").trim();
+  if (!email) return show($("a_msg"), "err", "담당자 이메일을 입력하세요.");
+  if (!isEmail(email)) return show($("a_msg"), "err", "이메일 형식이 올바르지 않습니다.");
+  if (!confirm(`거래처 ${row.bp_cd} 협력사 계정을 생성합니다.\n이메일: ${email}\n진행할까요?`)) return;
+  try {
+    show($("a_msg"), "info", "계정 생성 중…");
+    const out = await callFn("vendor-provision", { bp_cd: row.bp_cd, email, contact_name });
+    show($("a_msg"), "ok", `✅ ${esc(out.bp_nm || row.bp_cd)} 협력사 계정 생성 완료.`);
+    showCred(out.email, out.temp_password); loadVendors(); loadLog();
+  } catch (e) { show($("a_msg"), "err", "계정 생성 실패: " + (e.message || e)); }
 }
 
 // 계정 안내 메일 발송(로그인 관리자 M365, Graph /me/sendMail) — 새 임시비번 재발급 후 발송
@@ -353,76 +411,26 @@ async function resumePendingMail() {
   await doMailSend(p.auth_user_id, p.email, token);
 }
 
-async function provision(bp_cd) {
-  const email = ($("em_" + bp_cd)?.value || "").trim();
-  const contact_name = ($("nm_" + bp_cd)?.value || "").trim();
-  if (!email) return show($("a_msg"), "err", "담당자 이메일을 입력하세요.");
-  if (!confirm(`거래처 ${bp_cd} 협력사 계정을 생성합니다.\n이메일: ${email}\n진행할까요?`)) return;
-  try {
-    show($("a_msg"), "info", "계정 생성 중…");
-    const out = await callFn("vendor-provision", { bp_cd, email, contact_name });
-    show($("a_msg"), "ok", `✅ ${esc(out.bp_nm || bp_cd)} 협력사 계정 생성 완료.`);
-    showCred(out.email, out.temp_password);
-    loadVendors(); loadLog();
-  } catch (e) { show($("a_msg"), "err", "계정 생성 실패: " + (e.message || e)); }
-}
-/* ===================== 엑셀형 일괄 편집·발급 ===================== */
-const isEmail = (s) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(s);
-$("bulkToggle").onclick = () => { BULK = !BULK; applyBulkUI(); };
-$("bulkCancel").onclick = () => { BULK = false; applyBulkUI(); };
-$("bulkSave").onclick = () => bulkProvision();
+/* ===================== 엑셀형 일괄 편집·발급 (표준 그리드) ===================== */
+const isEmail = (s) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(String(s || "").trim());
 
-function applyBulkUI() {
-  $("bulkSave").classList.toggle("hidden", !BULK);
-  $("bulkCancel").classList.toggle("hidden", !BULK);
-  $("bulkToggle").textContent = BULK ? "✏️ 편집 중" : "📋 엑셀 일괄 편집";
-  $("bulkHelp").classList.toggle("show", BULK);
-  $("vmBody").classList.toggle("bulk-on", BULK);
-  updateBulkCount();
-}
+// 발급 대상: 미발급 + 이메일 입력된 행. 행을 선택(체크)하면 선택 건만 발급.
 function bulkRows() {
-  return UNISSUED
-    .map(bp => ({ bp, email: ($("em_" + bp)?.value || "").trim(), name: ($("nm_" + bp)?.value || "").trim() }))
-    .filter(r => r.email);
-}
-function updateBulkCount() {
-  const n = bulkRows().length;
-  $("bulkSave").textContent = "💾 일괄 발급" + (n ? `(${n}건)` : "");
-}
-
-// 엑셀(탭/개행) 붙여넣기 → 이메일(@ 포함)·담당자명·거래처코드 자동 인식, 미발급 행에 순서대로 채움
-function handleGridPaste(e, startBp) {
-  const text = (e.clipboardData || window.clipboardData)?.getData("text") || "";
-  if (!/[\t\n\r]/.test(text)) return; // 단일 값은 기본 붙여넣기 허용
-  e.preventDefault();
-  const lines = text.replace(/\r/g, "").split("\n").map(l => l.trim()).filter(l => l.length);
-  let seq = UNISSUED.indexOf(startBp); if (seq < 0) seq = 0;
-  let filled = 0;
-  lines.forEach(line => {
-    const cols = line.split("\t").map(c => c.trim());
-    const codeIdx = cols.findIndex(c => UNISSUED.includes(c)); // 거래처코드 열이 있으면 그 행에 정확 매칭
-    let bp, fields;
-    if (codeIdx >= 0) { bp = cols[codeIdx]; fields = cols.filter((_, j) => j !== codeIdx); }
-    else { bp = UNISSUED[seq++]; fields = cols; }
-    if (!bp) return;
-    const email = fields.find(f => isEmail(f)) || fields.find(f => /@/.test(f)) || "";
-    const name = fields.filter(f => !/@/.test(f) && f).find(f => f !== bp) || "";
-    const em = $("em_" + bp), nm = $("nm_" + bp);
-    if (em && email) { em.value = email; filled++; }
-    if (nm && name) nm.value = name;
-  });
-  if (!BULK) { BULK = true; applyBulkUI(); } else updateBulkCount();
-  show($("a_msg"), "info", `붙여넣기 완료 — ${filled}개 거래처에 이메일 입력됨. 내용 확인 후 '💾 일괄 발급'을 누르세요.`);
+  const data = vmGrid?.getData() || [];
+  const selKeys = new Set((vmGrid?.getSelectedKeys() || []).map(String));
+  let cand = data.filter(r => r.status === "none" && (r.email || "").trim());
+  if (selKeys.size) cand = cand.filter(r => selKeys.has(String(r.bp_cd)));
+  return cand.map(r => ({ bp: r.bp_cd, email: (r.email || "").trim(), name: (r.name || "").trim() }));
 }
 
 // 이메일이 입력된 미발급 거래처를 한 번에 계정 발급
 async function bulkProvision() {
+  if (vmGrid && !vmGrid.validateAll()) return show($("a_msg"), "err", "이메일 형식 오류가 있습니다. 빨간 셀을 확인하세요.");
   const list = bulkRows();
-  if (!list.length) return show($("a_msg"), "err", "발급할 이메일이 입력된 거래처가 없습니다.");
+  if (!list.length) return show($("a_msg"), "err", "발급할 이메일이 입력된 미발급 거래처가 없습니다. (행을 선택하면 선택 건만 발급)");
   const bad = list.filter(r => !isEmail(r.email));
   if (bad.length) return show($("a_msg"), "err", `이메일 형식 오류(${bad.length}건): ${bad.map(b => b.bp).join(", ")} — 확인 후 다시 시도하세요.`);
   if (!confirm(`${list.length}개 거래처에 협력사 계정을 일괄 발급합니다.\n각 담당자 이메일로 로그인 계정(임시 비밀번호)이 생성됩니다.\n진행할까요?`)) return;
-  $("bulkSave").disabled = true;
   const results = [];
   for (const r of list) {
     show($("a_msg"), "info", `계정 발급 중… (${results.length + 1}/${list.length}) ${r.bp}`);
@@ -431,11 +439,10 @@ async function bulkProvision() {
       results.push({ ...r, nm: out.bp_nm || r.bp, pw: out.temp_password, ok: true });
     } catch (e) { results.push({ ...r, nm: r.bp, err: (e.message || String(e)), ok: false }); }
   }
-  $("bulkSave").disabled = false;
   const okN = results.filter(r => r.ok).length;
   show($("a_msg"), okN === results.length ? "ok" : "err", `일괄 발급 완료 — 성공 ${okN}건 / 실패 ${results.length - okN}건`);
   showBulkResult(results);
-  BULK = false; loadVendors(); loadLog();
+  loadVendors(); loadLog();
 }
 
 function showBulkResult(results) {
@@ -493,6 +500,106 @@ $("cr_mail").onclick = async () => {
   else show($("cr_msg"), "err", "메일 발송 실패: " + r.reason + " — 화면의 정보를 직접 전달하세요.");
   $("cr_mail").disabled = false;
 };
+
+/* ===================== 협력사 메시지 (Supabase sp_message 실시간) ===================== */
+let THREADS = [];      // adminMsgApi.listThreads() 결과
+let MSG_ORDERS = [];   // 새 스레드용 발주 헤더 목록
+let CUR_PO = null;     // 열려 있는 스레드의 po_no
+let msgUnsub = null;   // realtime 구독 해제 함수
+const fmtTs = (ts) => ts ? new Date(ts).toLocaleString("ko-KR", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" }) : "";
+
+async function initMessages() {
+  await loadThreads();
+  if (!msgUnsub) msgUnsub = adminMsgApi.subscribe(() => loadThreads()); // 수신·읽음 변경 즉시 반영
+}
+
+async function loadThreads() {
+  try {
+    const { threads, orders } = await adminMsgApi.listThreads();
+    THREADS = threads; MSG_ORDERS = orders;
+    renderThreadList();
+    renderNewPoSelect();
+    if (CUR_PO) renderThread(true); // 열린 스레드 갱신 — 보고 있는 중 수신된 메시지는 즉시 읽음처리
+  } catch (e) { $("thList").innerHTML = `<div class="chat-empty" style="padding:24px">메시지 조회 실패: ${esc(e.message || e)}</div>`; }
+}
+
+function threadTitle(t) {
+  const nm = t?.head?.vendor_name || t?.bp_cd || "";
+  return `${esc(nm)} <span class="ci-po">${esc(t?.po_no || "")}</span>`;
+}
+
+function renderThreadList() {
+  const totalUnread = THREADS.reduce((s, t) => s + t.unread, 0);
+  $("cntMsg").textContent = `(스레드 ${THREADS.length} · 미읽음 ${totalUnread})`;
+  if (!THREADS.length) { $("thList").innerHTML = `<div class="chat-empty" style="padding:24px">메시지 스레드 없음 — 아래에서 발주를 선택해 첫 메시지를 보내세요.</div>`; return; }
+  $("thList").innerHTML = THREADS.map(t => {
+    const last = t.msgs[t.msgs.length - 1];
+    return `<div class="chat-item${t.po_no === CUR_PO ? " on" : ""}" data-po="${esc(t.po_no)}">
+      <div class="ci-top"><span class="ci-nm">${esc(t.head?.vendor_name || t.bp_cd)}</span>${t.unread ? `<span class="badge-un">${t.unread}</span>` : `<span class="ci-po">${fmtTs(last?.created_at)}</span>`}</div>
+      <div class="ci-po">${esc(t.po_no)} · ${esc(t.head?.po_type || "")}</div>
+      <div class="ci-last">${last ? `${last.sender_role === "internal" ? "나: " : ""}${esc(last.body)}` : ""}</div>
+    </div>`;
+  }).join("");
+  $("thList").querySelectorAll(".chat-item").forEach(el => el.onclick = () => openThread(el.dataset.po));
+}
+
+// 메시지 없는 발주로 새 스레드 시작
+function renderNewPoSelect() {
+  const has = new Set(THREADS.map(t => t.po_no));
+  const rest = MSG_ORDERS.filter(o => !has.has(o.po_no));
+  $("th_new_po").innerHTML = `<option value="">새 스레드 시작 — 발주 선택…</option>` +
+    rest.map(o => `<option value="${esc(o.po_no)}">${esc(o.po_no)} · ${esc(o.vendor_name || o.bp_cd)}</option>`).join("");
+}
+$("th_new").onclick = () => { const po = $("th_new_po").value; if (!po) return show($("a_msg"), "err", "발주를 선택하세요."); openThread(po); };
+
+async function openThread(po, markRead = true) {
+  CUR_PO = po;
+  renderThreadList();
+  renderThread(markRead);
+}
+
+function curThread() {
+  let t = THREADS.find(x => x.po_no === CUR_PO);
+  if (!t) { // 메시지가 아직 없는 발주 — 헤더 기반 빈 스레드
+    const h = MSG_ORDERS.find(o => o.po_no === CUR_PO);
+    if (h) t = { po_no: h.po_no, bp_cd: h.bp_cd, head: h, msgs: [], unread: 0 };
+  }
+  return t;
+}
+
+async function renderThread(markRead = true) {
+  const t = curThread();
+  if (!t) return;
+  $("thHead").innerHTML = `💬 ${threadTitle(t)} <span class="muted" style="font-weight:400">· 납기 ${esc(t.head?.due_date || "-")}</span>`;
+  $("th_text").disabled = false; $("th_send").disabled = false;
+  $("thBody").innerHTML = t.msgs.length ? t.msgs.map(m => {
+    const me = m.sender_role === "internal";
+    return `<div class="bub ${me ? "me" : "them"}">
+      <div class="bm">${esc(m.sender_name || m.sender_id || (me ? "사내" : "협력사"))}</div>${esc(m.body)}
+      <div class="bt">${fmtTs(m.created_at)}${me ? (m.read_at ? " · 읽음" : " · 안읽음") : ""}</div>
+    </div>`;
+  }).join("") : `<div class="chat-empty">아직 메시지가 없습니다. 첫 메시지를 보내보세요.</div>`;
+  $("thBody").scrollTop = $("thBody").scrollHeight;
+  if (markRead && t.unread) {
+    try { await adminMsgApi.markRead(t.po_no); t.unread = 0; t.msgs.forEach(m => { if (m.sender_role === "supplier" && !m.read_at) m.read_at = new Date().toISOString(); }); renderThreadList(); } catch {}
+  }
+}
+
+async function sendCurMessage() {
+  const t = curThread();
+  const text = $("th_text").value.trim();
+  if (!t || !text) return;
+  $("th_send").disabled = true;
+  try {
+    await adminMsgApi.send(t.po_no, t.bp_cd, text, ME);
+    $("th_text").value = "";
+    await loadThreads();
+    if (!THREADS.some(x => x.po_no === CUR_PO)) renderThread(false); // 첫 메시지 직후 보정
+  } catch (e) { show($("a_msg"), "err", "메시지 발송 실패: " + (e.message || e)); }
+  finally { $("th_send").disabled = false; $("th_text").focus(); }
+}
+$("th_send").onclick = sendCurMessage;
+$("th_text").addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.isComposing) sendCurMessage(); });
 
 // ── 처리 로그 ──
 async function loadLog() {

@@ -307,7 +307,8 @@ function switchTab(tab){ view=tab; curOrder=null;
   document.querySelectorAll('.tabbar .tab').forEach(t=>t.classList.toggle('on', t.dataset.tab===tab));
   $('#tabbar').classList.remove('hidden'); render(); }
 function openOrder(no){ curOrder=orders.find(o=>o.no===no); view='detail'; render(); }
-function openThread(no){ curOrder=orders.find(o=>o.no===no); view='thread'; render(); }
+function openThread(no){ curOrder=orders.find(o=>o.no===no); view='thread'; render();
+  try{ portalApi.markRead && portalApi.markRead(no,'internal'); }catch(e){} } // 사내 발신분 읽음 처리(관리 화면 읽음표시 연동)
 function goBack(){ if(view==='detail') switchTab('orders'); else if(view==='thread') switchTab('messages'); else switchTab('orders'); }
 
 function render(){

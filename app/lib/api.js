@@ -97,6 +97,14 @@ const supabaseAdapter = {
     if (error) throw error;
   },
 
+  // ---- 메시지 읽음 처리: 상대방(senderRole)이 보낸 미읽음 메시지에 read_at 기록 ----
+  async markRead(po, senderRole) {
+    const { error } = await supabase.from("sp_message")
+      .update({ read_at: new Date().toISOString() })
+      .eq("po_no", po).eq("sender_role", senderRole).is("read_at", null);
+    if (error) throw error;
+  },
+
   // ---- 검수 판정 (사내 전용. 협력사 토큰으론 RLS가 차단) ----
   async judge(po, result, opinion, judgeId) {
     const no = "IQ" + po.slice(2);
@@ -142,7 +150,58 @@ const mockAdapter = {
   async signIn() { return { email: "demo@local" }; },
   async signOut() {}, async currentUser() { return { email: "demo@local" }; }, onAuthChange() { return { data: { subscription: { unsubscribe() {} } } }; },
   async getOrders() { try { return Object.values((JSON.parse(localStorage.getItem("jeilax_link_v1")) || {}).orders || {}); } catch { return []; } },
-  async updateStatus() {}, async requestInspection() {}, async sendMessage() {}, async judge() {}, async uploadPhoto() {}, async photoUrl() { return ""; }, async changePassword() {}, subscribe() { return () => {}; },
+  async updateStatus() {}, async requestInspection() {}, async sendMessage() {}, async markRead() {}, async judge() {}, async uploadPhoto() {}, async photoUrl() { return ""; }, async changePassword() {}, subscribe() { return () => {}; },
+};
+
+/* ===================== 관리자 메시지 API (사내 협력사관리 화면 전용) ===================== */
+// RLS internal_all 정책으로 사내 계정만 전 협력사 메시지에 접근 가능(협력사 토큰은 자기 bp_cd만).
+export const adminMsgApi = {
+  // 발주(po_no)별 메시지 스레드 목록 + 미읽음(협력사 발신·미확인) 집계.
+  // 메시지가 아직 없는 발주도 새 스레드를 시작할 수 있도록 발주 헤더 전체를 함께 반환한다.
+  async listThreads() {
+    const [{ data: msgs, error: me }, { data: heads, error: he }] = await Promise.all([
+      supabase.from("sp_message").select("*").order("created_at"),
+      supabase.from("sp_order_header").select("po_no,bp_cd,vendor_name,po_type,due_date,order_date"),
+    ]);
+    if (me) throw me;
+    if (he) throw he;
+    const H = {}; (heads || []).forEach((h) => (H[h.po_no] = h));
+    const T = {};
+    (msgs || []).forEach((m) => {
+      const t = (T[m.po_no] = T[m.po_no] || { po_no: m.po_no, bp_cd: m.bp_cd, head: H[m.po_no] || null, msgs: [], unread: 0 });
+      t.msgs.push(m);
+      if (m.sender_role === "supplier" && !m.read_at) t.unread++;
+    });
+    const threads = Object.values(T).sort((a, b) =>
+      (b.msgs[b.msgs.length - 1]?.created_at || "").localeCompare(a.msgs[a.msgs.length - 1]?.created_at || ""));
+    return { threads, orders: heads || [] };
+  },
+
+  // 사내 → 협력사 발송
+  async send(po_no, bp_cd, text, senderName) {
+    const { data: { user } } = await supabase.auth.getUser();
+    const { error } = await supabase.from("sp_message").insert({
+      po_no, bp_cd, sender_role: "internal",
+      sender_id: user?.email || "internal", sender_name: senderName || user?.email || "", body: text,
+    });
+    if (error) throw error;
+  },
+
+  // 스레드 열람 시 협력사 발신 미읽음 메시지 읽음 처리
+  async markRead(po_no) {
+    const { error } = await supabase.from("sp_message")
+      .update({ read_at: new Date().toISOString() })
+      .eq("po_no", po_no).eq("sender_role", "supplier").is("read_at", null);
+    if (error) throw error;
+  },
+
+  // 메시지 실시간 구독(수신·읽음 변경 즉시 반영)
+  subscribe(onChange) {
+    const ch = supabase.channel("admin-msg-sync")
+      .on("postgres_changes", { event: "*", schema: "public", table: "sp_message" }, (p) => onChange(p));
+    ch.subscribe();
+    return () => supabase.removeChannel(ch);
+  },
 };
 
 const adapter = DATA_BACKEND === "mock" ? mockAdapter : supabaseAdapter;
