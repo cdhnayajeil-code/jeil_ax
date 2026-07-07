@@ -205,6 +205,14 @@ const supabaseAdapter = {
     if (error) throw error;
   },
 
+  // ---- 본인 프로필(담당자 이름·연락처) 수정 — user_metadata + vendor_account(RPC, 컬럼 제한) 동기 ----
+  async updateProfile({ contact_name, phone }) {
+    const { error } = await supabase.auth.updateUser({ data: { contact_name: contact_name || null, phone: phone || null } });
+    if (error) throw error;
+    const rpc = await supabase.rpc("update_my_vendor_contact", { p_name: contact_name || "", p_phone: phone || "" });
+    if (rpc.error) console.warn("vendor_account 동기 실패(표시는 user_metadata 기준):", rpc.error.message);
+  },
+
   // ---- Realtime 구독 (양방향 즉시 반영) ----
   subscribe(onChange) {
     const ch = supabase.channel("portal-sync");
@@ -222,7 +230,7 @@ const mockAdapter = {
   async signIn() { return { email: "demo@local" }; },
   async signOut() {}, async currentUser() { return { email: "demo@local" }; }, onAuthChange() { return { data: { subscription: { unsubscribe() {} } } }; },
   async getOrders() { try { return Object.values((JSON.parse(localStorage.getItem("jeilax_link_v1")) || {}).orders || {}); } catch { return []; } },
-  async updateStatus() {}, async requestInspection() {}, async cancelInspection() {}, async sendMessage() {}, async markRead() {}, async judge() {}, async uploadPhoto() {}, async photoUrl() { return ""; }, async photoUrls() { return {}; }, async reviewPhoto() {}, async deletePhoto() {}, async inspectionLog() { return []; }, async changePassword() {}, subscribe() { return () => {}; },
+  async updateStatus() {}, async requestInspection() {}, async cancelInspection() {}, async sendMessage() {}, async markRead() {}, async judge() {}, async uploadPhoto() {}, async photoUrl() { return ""; }, async photoUrls() { return {}; }, async reviewPhoto() {}, async deletePhoto() {}, async inspectionLog() { return []; }, async changePassword() {}, async updateProfile() {}, subscribe() { return () => {}; },
 };
 
 /* ===================== 관리자 메시지 API (사내 협력사관리 화면 전용) ===================== */
