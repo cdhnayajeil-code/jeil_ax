@@ -29,7 +29,7 @@ const supabaseAdapter = {
   async getOrders() {
     const { data: heads, error } = await supabase
       .from("sp_order_header")
-      .select("po_no,bp_cd,vendor_name,order_date,due_date,po_type,project_code,amt,items")
+      .select("po_no,bp_cd,vendor_name,order_date,due_date,po_type,project_code,amt,items,buyer_name,buyer_team,buyer_phone")
       .order("order_date", { ascending: false });
     if (error) throw error;
     if (!heads.length) return [];
@@ -60,16 +60,19 @@ const supabaseAdapter = {
       due: h.due_date,
       type: h.po_type,
       status: st[h.po_no]?.status || "new",
+      buyer: h.buyer_name ? { name: h.buyer_name, team: h.buyer_team || "구매팀", phone: h.buyer_phone || "" } : null,
       inspReqNo: ir[h.po_no]?.[0]?.insp_req_no || "",
       inspection: iq[h.po_no] ? { result: iq[h.po_no].result, resultNo: iq[h.po_no].result_no, by: iq[h.po_no].judge_id, at: iq[h.po_no].judged_at, comment: iq[h.po_no].opinion } : null,
       items: h.items || [],
       photos: (ph[h.po_no] || []).map((p) => ({
-        storage_path: p.storage_path, tag: p.tag, cmt: p.comment,
-        by: p.uploaded_by, t: fmt(p.created_at), chk: p.confirmed ? "ok" : "",
+        id: p.id, storage_path: p.storage_path, tag: p.tag, cmt: p.comment,
+        by: p.uploaded_by, t: fmt(p.created_at),
+        chk: p.review_status || (p.confirmed ? "ok" : ""),
+        rejReason: p.review_comment || "", reviewBy: p.review_by || "", reviewAt: p.review_at ? fmt(p.review_at) : "",
       })),
       msgs: (mg[h.po_no] || []).map((m) => ({
         who: m.sender_role === "supplier" ? "me" : "them",
-        name: m.sender_name || "", text: m.body, t: fmt(m.created_at),
+        name: m.sender_name || "", text: m.body, t: fmt(m.created_at), read_at: m.read_at || null,
       })),
     }));
   },
@@ -81,14 +84,24 @@ const supabaseAdapter = {
     if (error) throw error;
   },
 
-  // ---- 검수요청 생성 (IR+YYYYMMDD+seq) ----
+  // ---- 검수요청 생성 (IR+YYYYMMDD+seq, 취소 후 재요청은 -2, -3 접미사) ----
   async requestInspection(po) {
-    const no = "IR" + po.slice(2);
+    const { count } = await supabase.from("sp_insp_request")
+      .select("id", { count: "exact", head: true }).eq("po_no", po);
+    const no = "IR" + po.slice(2) + (count ? "-" + (count + 1) : "");
     const { error } = await supabase.from("sp_insp_request")
       .insert({ po_no: po, bp_cd: _bp[po], insp_req_no: no, requested_by: (await this.currentUser())?.email || "vendor" });
     if (error) throw error;
     await this.updateStatus(po, "insp");
     return no;
+  },
+
+  // ---- 검수요청 취소 (DB 영속 — 단계취소 시 호출) ----
+  async cancelInspection(po) {
+    const { error } = await supabase.from("sp_insp_request")
+      .update({ cancelled: true }).eq("po_no", po).eq("cancelled", false);
+    if (error) throw error;
+    await this.updateStatus(po, "prod");
   },
 
   // ---- 양방향 메시지 ----
@@ -124,8 +137,52 @@ const supabaseAdapter = {
     return path;
   },
   async photoUrl(path) {
-    const { data } = await supabase.storage.from("vendor-photos").createSignedUrl(path, 60 * 10);
-    return data?.signedUrl || "";
+    const map = await this.photoUrls([path]);
+    return map[path] || "";
+  },
+
+  // ---- 사진 signed URL 일괄 발급 (TTL 1시간, 모듈 캐시 — 만료 5분 전 재발급) ----
+  async photoUrls(paths) {
+    const uniq = [...new Set((paths || []).filter(Boolean))];
+    const now = Date.now();
+    const need = uniq.filter((p) => !(_urlCache[p] && _urlCache[p].exp - now > 5 * 60 * 1000));
+    if (need.length) {
+      const { data, error } = await supabase.storage.from("vendor-photos").createSignedUrls(need, 3600);
+      if (error) console.warn("photoUrls 실패:", error.message);
+      (data || []).forEach((r, i) => {
+        if (!r.error && r.signedUrl) _urlCache[need[i]] = { url: r.signedUrl, exp: now + 3600 * 1000 };
+      });
+    }
+    const out = {};
+    uniq.forEach((p) => { out[p] = _urlCache[p]?.url || ""; });
+    return out;
+  },
+
+  // ---- 사진 검토: 확인(ok)/반려(rej) — 사내 전용(RLS internal_all만 UPDATE 허용) ----
+  async reviewPhoto(photoId, status, comment, reviewer) {
+    const { error } = await supabase.from("sp_photo").update({
+      review_status: status, review_by: reviewer || (await this.currentUser())?.email || "internal",
+      review_at: new Date().toISOString(), review_comment: comment || "",
+      confirmed: status === "ok",
+    }).eq("id", photoId);
+    if (error) throw error;
+  },
+
+  // ---- 사진 삭제 (협력사 본인 업로드 + 검토 전 건만 — RLS가 DB 레벨 강제) ----
+  async deletePhoto(photo) {
+    const { error } = await supabase.from("sp_photo").delete().eq("id", photo.id);
+    if (error) throw error;
+    const rm = await supabase.storage.from("vendor-photos").remove([photo.storage_path]);
+    if (rm.error) console.warn("storage 삭제 실패(무해):", rm.error.message);
+    delete _urlCache[photo.storage_path];
+  },
+
+  // ---- 검수 판정 이력 전체 조회 ----
+  async inspectionLog(po) {
+    const { data, error } = await supabase.from("sp_inspection_log")
+      .select("*").eq("po_no", po).order("judged_at", { ascending: false });
+    if (error) throw error;
+    return data || [];
   },
 
   // ---- 본인 비밀번호 변경 (협력사 세션 기반) ----
@@ -151,7 +208,7 @@ const mockAdapter = {
   async signIn() { return { email: "demo@local" }; },
   async signOut() {}, async currentUser() { return { email: "demo@local" }; }, onAuthChange() { return { data: { subscription: { unsubscribe() {} } } }; },
   async getOrders() { try { return Object.values((JSON.parse(localStorage.getItem("jeilax_link_v1")) || {}).orders || {}); } catch { return []; } },
-  async updateStatus() {}, async requestInspection() {}, async sendMessage() {}, async markRead() {}, async judge() {}, async uploadPhoto() {}, async photoUrl() { return ""; }, async changePassword() {}, subscribe() { return () => {}; },
+  async updateStatus() {}, async requestInspection() {}, async cancelInspection() {}, async sendMessage() {}, async markRead() {}, async judge() {}, async uploadPhoto() {}, async photoUrl() { return ""; }, async photoUrls() { return {}; }, async reviewPhoto() {}, async deletePhoto() {}, async inspectionLog() { return []; }, async changePassword() {}, subscribe() { return () => {}; },
 };
 
 /* ===================== 관리자 메시지 API (사내 협력사관리 화면 전용) ===================== */

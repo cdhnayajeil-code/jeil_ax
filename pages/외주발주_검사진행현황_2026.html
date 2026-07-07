@@ -143,7 +143,7 @@
 </style>
 </head>
 <body>
-<div class="demo-banner">⚠ 목업 데모 — UNIERP DB 구조(M_PUR_REQ·M_PUR_ORD·M_CONFIG_PROCESS·M_PUR_GOODS_MVMT·Q_INSPECTION·M_IV) 기반 샘플. 협력사 포털 등록분 실시간 연계.</div>
+<div class="demo-banner">🔗 협력사 포털 실연동 — 사진·진행상태·검수요청·메시지는 Supabase 실데이터(실시간). 발주 원천은 UNIERP 구조(M_PUR_REQ·M_PUR_ORD·Q_INSPECTION·M_IV) 기반 마스킹 샘플(ERP 직연계 전).</div>
 <div class="page">
 
   <div class="head">
@@ -151,7 +151,7 @@
       <h1>🔄 외주 발주 전체 프로세스 현황</h1>
       <div class="sub">구매요청 → 발주 → 협력사(발주확인·접수·생산·사진·검수요청·출하) → 입고 → 매입 · 발주별 한눈에</div>
     </div>
-    <div class="right">기준일: 2026-06-25</div>
+    <div class="right">기준일: <span id="baseDate">—</span></div>
   </div>
 
   <div class="linkbar">
@@ -169,7 +169,7 @@
         <option value="all">전체</option>
         <option value="7">최근 7일</option>
         <option value="30">최근 30일</option>
-        <option value="2026-06">2026년 6월</option>
+        <option value="month" id="fMonth">이번 달</option>
       </select>
     </div>
     <div class="qf chkrow"><input type="checkbox" id="onlyLink" onchange="render()"><label for="onlyLink" style="font-weight:600;color:var(--ink)">협력사 연계만</label></div>
@@ -187,7 +187,7 @@
   <div id="board"></div>
 
   <div class="src">
-    <b>데이터 원천 (UNIERP 읽기전용 + 협력사 포털)</b> — 구매요청 <code>M_PUR_REQ</code> · 발주 <code>M_PUR_ORD_HDR/DTL</code> · 발주형태 <code>M_CONFIG_PROCESS</code>(SUBCONTRA_FLG) · 입고/출하/검사판정 <code>M_PUR_GOODS_MVMT</code>(MVMT_RCPT_NO·DN_NO·INSPECT_REQ_NO·INSPECT_STS) · 검사 <code>Q_INSPECTION_*</code> · 매입 <code>M_IV_HDR/DTL</code> · 거래처 <code>B_BP</code> · 품목 <code>B_ITEM</code>. 협력사 등록 사진은 이해를 돕기 위한 참조 이미지(샘플)이며 실제 등록 시 실사진으로 대체됩니다.
+    <b>데이터 원천 (UNIERP 읽기전용 + 협력사 포털)</b> — 구매요청 <code>M_PUR_REQ</code> · 발주 <code>M_PUR_ORD_HDR/DTL</code> · 발주형태 <code>M_CONFIG_PROCESS</code>(SUBCONTRA_FLG) · 입고/출하/검사판정 <code>M_PUR_GOODS_MVMT</code>(MVMT_RCPT_NO·DN_NO·INSPECT_REQ_NO·INSPECT_STS) · 검사 <code>Q_INSPECTION_*</code> · 매입 <code>M_IV_HDR/DTL</code> · 거래처 <code>B_BP</code> · 품목 <code>B_ITEM</code>. 협력사 등록 사진은 <b>실사진</b>(Supabase Storage, 서명 URL)으로 표시되며, 접근 불가 시에만 참조 이미지(SVG)로 폴백됩니다.
   </div>
   <div class="foot"><span>외주 발주 전체 프로세스 현황 · 구매·품질·생산·사업관리 공유</span><span>등록: 구매팀 · 부서 공유</span></div>
 </div>
@@ -233,7 +233,13 @@ function claimsOf(session){ if(!session||!session.access_token) return {}; try{ 
 function autoSSO(){ const u=new URL(location.href); u.searchParams.set('sso','1'); supabase.auth.signInWithOAuth({provider:'azure',options:{scopes:'openid email profile',redirectTo:u.toString()}}); }
 // 발주 캐시(Supabase getOrders 결과 — RLS상 사내는 전체)
 let ORDERS=[];
-async function loadData(){ ORDERS = await portalApi.getOrders(); }
+async function loadData(){
+  ORDERS = await portalApi.getOrders();
+  // 협력사 등록 사진 → signed URL 일괄 발급(캐시)로 src 주입
+  const paths = ORDERS.flatMap(o=>(o.photos||[]).map(p=>p.storage_path)).filter(Boolean);
+  const urls = paths.length ? await portalApi.photoUrls(paths) : {};
+  ORDERS.forEach(o=>(o.photos||[]).forEach(p=>{ p.src = urls[p.storage_path] || ''; }));
+}
 
 /* ===== 사진 참조 이미지 (내용 인식형 SVG) ===== */
 function kindFromText(s){ s=s||'';
@@ -307,7 +313,7 @@ function toRow(o){
     bp:o.vendor_name||o.bp||'', proj:o.proj||'-', odt:o.date, due:o.due, amt:o.amt||0,
     item: items.map(i=>i.nm+(i.pn?(' 〈'+i.pn+'〉'):'')).join(', '),
     qty: items.map(i=>i.qty+' '+(i.unit||'')).join(', '),
-    photos: (o.photos||[]).map(p=>({tag:p.tag,cap:(p.cmt||p.tag||'').slice(0,8),cmt:p.cmt,k:kindFromText((p.cmt||'')+(p.tag||'')),by:p.by,t:p.t,chk:p.chk})),
+    photos: (o.photos||[]).map(p=>({id:p.id,src:p.src||'',storage_path:p.storage_path||'',tag:p.tag,cap:(p.cmt||p.tag||'').slice(0,8),cmt:p.cmt,k:kindFromText((p.cmt||'')+(p.tag||'')),by:p.by,t:p.t,chk:p.chk,rejReason:p.rejReason||'',reviewBy:p.reviewBy||'',reviewAt:p.reviewAt||''})),
     chain:cur, cur,
     fail,
     _sup: ((o.photos&&o.photos.length)||(o.msgs&&o.msgs.length))?true:false,
@@ -343,8 +349,8 @@ function visibleRows(){
   if(proj && proj!=='all') rows=rows.filter(r=> proj==='none'? r.proj==='-' : r.proj===proj);
   if(q) rows=rows.filter(r=> (r.bp+ ' '+r.item+' '+r.po+' '+r.pr).toLowerCase().includes(q));
   if(period!=='all'){
-    const base=new Date('2026-06-25');
-    rows=rows.filter(r=>{ if(period==='2026-06') return r.odt.startsWith('2026-06');
+    const base=new Date(); base.setHours(0,0,0,0);
+    rows=rows.filter(r=>{ if(period==='month') return String(r.odt||'').startsWith(nowYM());
       const days=(base-new Date(r.odt))/86400000; return days <= (period==='7'?7:30); });
   }
   return rows;
@@ -366,20 +372,32 @@ function procBar(r){
   }).join('')+'</div>';
 }
 function galleryHTML(r){ const ph=r.photos||[]; if(!ph.length) return '';
-  const lbl=r._sup?'협력사 등록 사진':'협력사 사진(샘플)';
-  let h='<div class="pthumbs"><span class="ptlb">📷 '+lbl+' '+ph.length+'장</span>';
-  ph.forEach(p=>{ const src=photoSVG(p.k||kindFromText(p.cmt||p.tag),p.cap||p.tag,p.t||''); const i=LB.length; LB.push({src:src,p:p});
-    h+='<div class="pthumb" onclick="lbxOpen('+i+')"><img src="'+src+'">'+(p.chk==='ok'?'<span class="mk ok">✓</span>':(p.chk==='rej'?'<span class="mk rej">!</span>':''))+'</div>'; });
+  let h='<div class="pthumbs"><span class="ptlb">📷 협력사 등록 사진 '+ph.length+'장</span>';
+  ph.forEach(p=>{ const fb=photoSVG(p.k||kindFromText(p.cmt||p.tag),p.cap||p.tag,p.t||''); const src=p.src||fb; const i=LB.length; LB.push({src:src,fb:fb,p:p});
+    h+='<div class="pthumb" onclick="lbxOpen('+i+')"><img src="'+src+'" onerror="imgFb(this,'+i+')">'+(p.chk==='ok'?'<span class="mk ok">✓</span>':(p.chk==='rej'?'<span class="mk rej">!</span>':''))+'</div>'; });
   return h+'</div>';
 }
-function lbxOpen(i){ const e=LB[i]; if(!e)return; const p=e.p; document.getElementById('lbxImg').src=e.src;
-  const chk=p.chk==='ok'?'<span style="color:#7fe0a8">✓ 구매·품질 확인됨</span>':(p.chk==='rej'?'<span style="color:#ff9a8a">✕ 반려 — 재촬영 요청</span>':'<span style="opacity:.7">확인 대기중</span>');
-  document.getElementById('lbxMeta').innerHTML='<div class="tg">'+p.tag+'</div><br>'+(p.cmt||'')+'<br><span style="opacity:.7">'+(p.by||'')+' · '+(p.t||'')+'</span><br><br>'+chk;
+// signed URL 만료/네트워크 실패 시 참조 이미지(SVG)로 폴백
+function imgFb(el,i){ if(!LB[i]) return; el.onerror=null; LB[i].src=LB[i].fb; el.src=LB[i].fb; }
+var LBI=-1;
+function lbxOpen(i){ const e=LB[i]; if(!e)return; const p=e.p; LBI=i; document.getElementById('lbxImg').src=e.src;
+  const chk=p.chk==='ok'?'<span style="color:#7fe0a8">✓ 구매·품질 확인됨'+(p.reviewBy?' · '+p.reviewBy+(p.reviewAt?' · '+p.reviewAt:''):'')+'</span>'
+    :(p.chk==='rej'?'<span style="color:#ff9a8a">✕ 반려 — 재촬영 요청'+(p.rejReason?'<br>사유: '+p.rejReason:'')+(p.reviewBy?'<br><span style="opacity:.7">'+p.reviewBy+(p.reviewAt?' · '+p.reviewAt:'')+'</span>':'')+'</span>'
+    :'<span style="opacity:.7">확인 대기중</span>');
+  const btn='padding:8px 14px;border:none;border-radius:8px;font-weight:700;font-size:12.5px;cursor:pointer';
+  const acts=(p.id!=null)?'<br><br><button onclick="reviewCur(\'ok\')" style="'+btn+';background:#2e7d52;color:#fff">✓ 확인</button> <button onclick="reviewCur(\'rej\')" style="'+btn+';background:#b3402f;color:#fff;margin-left:6px">✕ 반려(재촬영 요청)</button>':'';
+  document.getElementById('lbxMeta').innerHTML='<div class="tg">'+p.tag+'</div><br>'+(p.cmt||'')+'<br><span style="opacity:.7">'+(p.by||'')+' · '+(p.t||'')+'</span><br><br>'+chk+acts;
   document.getElementById('lbx').classList.add('on'); }
+// 사진 확인/반려 — sp_photo.review_* 기록(사내 전용, 협력사 화면에 실시간 반영)
+async function reviewCur(st){ const e=LB[LBI]; if(!e||e.p.id==null) return;
+  let cmt='';
+  if(st==='rej'){ cmt=prompt('반려 사유를 입력하세요 (협력사 화면에 표시됩니다)',''); if(cmt===null) return; }
+  try{ await portalApi.reviewPhoto(e.p.id, st, cmt); lbxClose(); await loadData(); render(); }
+  catch(err){ alert('사진 검토 처리 실패: '+(err.message||err)); } }
 function lbxClose(){ document.getElementById('lbx').classList.remove('on'); }
 var MSGPO=''; var ROWPO={};
-function nowStr(){ return '06-25 '+new Date().toTimeString().slice(0,5); }
-function openMsg(i){ MSGPO=ROWPO[i]; renderMsgBox(); document.getElementById('msgbox').classList.add('on'); }
+function openMsg(i){ MSGPO=ROWPO[i]; renderMsgBox(); document.getElementById('msgbox').classList.add('on');
+  portalApi.markRead(MSGPO,'supplier').catch(function(){}); } // 협력사 발신분 읽음 처리(미읽음 배지 정합)
 function closeMsg(){ document.getElementById('msgbox').classList.remove('on'); }
 function renderMsgBox(){ var po=MSGPO; var o=ORDERS.find(function(x){return x.no===po;})||{}; var ms=o.msgs||[];
   var bp=o.vendor_name||o.bp||'협력사';
@@ -392,13 +410,16 @@ async function sendMsgD(){ var inp=document.getElementById('mbInput'); var v=inp
   try{ await portalApi.sendMessage(MSGPO, v, 'internal', '제일엠앤에스 구매팀'); await loadData(); renderMsgBox(); render(); }
   catch(e){ alert('전송 실패: '+(e.message||e)); inp.value=v; } }
 var INSPPO='';
-function nowStr2(){ return '2026-06-25 '+new Date().toTimeString().slice(0,5); }
 function openInspect(i){ INSPPO=ROWPO[i]; var po=INSPPO; var o=ORDERS.find(function(x){return x.no===po;})||{};
-  var bp=o.vendor_name||o.bp||''; var itm=(o.items||[]).map(function(x){return x.nm;}).join(', ');
+  var bp=o.vendor_name||o.bp||''; var itm=(o.items||[]).map(function(x){return x.nm||'품목';}).join(', ');
   document.getElementById('ipTitle').textContent='🔬 검수 판정 · '+po;
   document.getElementById('ipInfo').innerHTML='<b>'+bp+'</b> · '+itm+'<br>검사의뢰 '+(o.inspReqNo||'-');
-  var lg=o.inspection?[o.inspection]:[];
-  document.getElementById('ipLog').innerHTML=lg.length?('<b>이전 판정</b><br>'+lg.map(function(e){return (e.at||'').slice(0,16)+' · '+e.result+' · '+e.by;}).join('<br>')):'';
+  document.getElementById('ipLog').innerHTML='';
+  // 판정 이력 전체(sp_inspection_log) 비동기 로드
+  portalApi.inspectionLog(po).then(function(lg){
+    document.getElementById('ipLog').innerHTML = lg.length?('<b>판정 이력</b><br>'+lg.map(function(e){
+      return String(e.judged_at||'').slice(0,16).replace('T',' ')+' · '+e.result+' · '+e.judge_id+(e.opinion?' · '+e.opinion:''); }).join('<br>')):'';
+  }).catch(function(){});
   document.getElementById('ipBy').value=''; document.getElementById('ipBy').style.borderColor='var(--line)'; document.getElementById('ipCmt').value='';
   document.getElementById('inspbox').classList.add('on'); }
 function closeInspect(){ document.getElementById('inspbox').classList.remove('on'); }
@@ -485,11 +506,15 @@ async function boot(){
     var rb=document.getElementById('reSso'); if(rb) rb.onclick=async function(){ try{ await supabase.auth.signOut(); }catch(e){} autoSSO(); };
     return;
   }
+  // 기준일·기간 옵션 오늘 기준 동적화
+  var today=new Date(); document.getElementById('baseDate').textContent=today.toISOString().slice(0,10);
+  document.getElementById('fMonth').textContent=today.getFullYear()+'년 '+(today.getMonth()+1)+'월';
   await loadData(); fillProjOptions(); render();
   portalApi.subscribe(async()=>{ await loadData(); render(); var mb=document.getElementById('msgbox'); if(mb&&mb.classList.contains('on')) renderMsgBox(); });
 }
+function nowYM(){ var d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); }
 // 인라인 onclick(전역) 노출 — module 스코프 격리 대응
-Object.assign(window, { render, openPortal, resetQ, lbxOpen, lbxClose, openMsg, closeMsg, sendMsgD, openInspect, closeInspect, submitInspect, toggleDet });
+Object.assign(window, { render, openPortal, resetQ, lbxOpen, lbxClose, imgFb, reviewCur, openMsg, closeMsg, sendMsgD, openInspect, closeInspect, submitInspect, toggleDet });
 boot();
 </script>
 </body>
