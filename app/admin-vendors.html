@@ -125,7 +125,7 @@ tr:nth-child(even) td{background:#fafbfd;}
     <!-- 섹션1: ERP 거래처 + 계정 -->
     <div class="sec">
       <h2>ERP 협력사 거래처 <span id="cntVendor" class="muted"></span></h2>
-      <div class="sub">ERP <code>B_BIZ_PARTNER</code> 기반(데모: 17개사·상호 부분마스킹). 거래처를 골라 협력사 담당자 이메일로 계정을 발급합니다. 운영 시 야간배치로 동기화.
+      <div class="sub">ERP <code>B_BIZ_PARTNER</code> 기반(데모: 17개사). 거래처를 골라 협력사 담당자 이메일로 계정을 발급합니다. 운영 시 야간배치로 동기화. <b>담당자명·연락처는 협력사가 포털 '내 정보 수정'으로 갱신하면 실시간 반영</b>됩니다.
         <br><b>📋 엑셀 일괄 편집</b>으로 편집 모드 진입 → 미발급 행에 이메일/담당자 입력(엑셀에서 복사·Ctrl+V 붙여넣기 가능) → 체크 선택 후 <b>💾 일괄 발급</b>. 검색·필터·CSV 내보내기 지원.</div>
       <div id="vmGrid"><div class="grid__loading" style="padding:24px">불러오는 중…</div></div>
       <div id="bulkResult" class="cred"></div>
@@ -237,6 +237,11 @@ function enterApp(user) {
   $("whoami").textContent = (MY_NAME && MY_NAME !== user.email.split("@")[0] ? MY_NAME + " · " : "") + user.email + " (협력사관리 권한자)";
   loadVendors(); loadLog(); loadAdmins();
   initMessages(); // 협력사 메시지 스레드 + 실시간 구독
+  // 협력사가 포털에서 담당자 이름·연락처를 수정하면 계정 그리드에 즉시 반영
+  supabase.channel("admin-vendor-sync")
+    .on("postgres_changes", { event: "*", schema: "public", table: "vendor_account" },
+      () => { if (!vmGrid?.isEditMode()) loadVendors(); }) // 일괄 편집 중에는 입력 보호(끝나면 재조회)
+    .subscribe();
   resumePendingMail(); // 재인증 후 복귀했다면 보류 메일 자동 발송
 }
 
@@ -293,7 +298,9 @@ async function loadVendors() {
     const a = ACCOUNTS[v.bp_cd];
     return {
       bp_cd: v.bp_cd, bp_nm: v.bp_nm, biz_no: v.biz_no || "-",
-      status: a ? a.status : "none", email: a?.email || "", name: "",
+      status: a ? a.status : "none", email: a?.email || "",
+      name: a?.contact_name || "",   // 협력사가 포털 '내 정보 수정'으로 갱신 시 실시간 반영
+      phone: a?.phone || "",
       _auth: a?.auth_user_id || "",
     };
   });
@@ -318,8 +325,10 @@ function buildVmGrid(rows) {
         editable: (row) => row.status === "none",
         validator: (v, row) => row.status !== "none" ? true : (!v ? true : (isEmail(v) || "이메일 형식 오류")),
         formatter: (v) => v ? esc(v) : `<span class="muted">미입력</span>` },
-      { key: "name", label: "담당자명", width: "110px", pasteKey: "name", editable: (row) => row.status === "none",
-        formatter: (v) => v || `<span class="muted">—</span>` },
+      { key: "name", label: "담당자명", width: "100px", pasteKey: "name", editable: (row) => row.status === "none",
+        formatter: (v) => v ? esc(v) : `<span class="muted">—</span>` },
+      { key: "phone", label: "연락처", width: "110px", filter: false, sortable: false, editable: false,
+        formatter: (v) => v ? esc(v) : `<span class="muted">—</span>` },
       { key: "_act", label: "계정 발급 / 관리", width: "180px", filter: false, sortable: false,
         formatter: (_, row) => row.status === "active"
           ? `<button class="btn sm ok" data-row-act="mail">📧 메일발송</button> <button class="btn sm no" data-row-act="reset">비번 초기화</button>`

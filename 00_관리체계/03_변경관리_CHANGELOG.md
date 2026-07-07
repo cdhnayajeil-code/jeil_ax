@@ -27,6 +27,7 @@
 
 | 일자 | 범위 | 대상 | 내용 | 작성 |
 |---|---|---|---|---|
+| 2026-07-07 | 협력사 포털 | `app/admin-vendors.html`, DB(Realtime) | **계정관리에 담당자 정보 실반영** — 그리드 담당자명을 vendor_account 실데이터로 표시(기존 항상 빈값) + 연락처 컬럼 신설. vendor_account Realtime 발행 켜서 협력사가 포털에서 수정하면 관리 화면에 즉시 반영(일괄 편집 중엔 입력 보호) | 최동혁(+Claude) |
 | 2026-07-07 | 협력사 포털 | `pages/협력사_모바일_포털.html`, `app/lib/api.js`, DB(RPC) | **모바일 메시지 체감결함 수정 + 내 정보 수정 신설** — 한글 IME Enter 오발송 가드, 낙관적 말풍선(전송 무반응 제거)·연타 중복 방지, 스레드 뒤로가기 출처 복귀(상세→상세). 내정보에서 담당자 이름·연락처 본인 수정(user_metadata + `update_my_vendor_contact` RPC로 vendor_account 컬럼 제한 동기 — 사내 관리 화면에도 반영) | 최동혁(+Claude) |
 | 2026-07-07 | 협력사 포털 | `03_실구축기획/08`(신설), `app/lib/api.js`, `pages/*2026.html·모바일_포털.html`, DB | **전체 프로세스 상태머신 재설계** — 검수 불합격 시 흐름이 영구 교착되던 구조 결함(판정이 상태를 전이시키지 않음) 해소. SAP QM(UD)·ISO 9001 8.7 벤치마킹으로 5상태 머신 정의(new→prod→insp→합격 done/불합격 rework→재검수). 판정 시 자동 전이, 재검수요청 시 판정 리셋+차수 발번, 합격 없이 완료 불가·완료 후 되돌리기 불가 가드, 기존 데이터 정합화 | 최동혁(+Claude) |
 | 2026-07-07 | ERP 연계 | Supabase(`erp_ro`·`etl_meta`), `10_ERP_DB연계/etl/`(신설), `.env.example` | **중간DB 구축 착수(D1-a 실행)** — 03 기획 §4 DDL 적용(1차 4종+배치메타+RLS 사내한정), ERP 테이블 사전 `table_dict` 신설(사내 ERP_DB 메타 2,658테이블 적재용), service_role 전용 적재 RPC, ETL 스크립트 3종(사전적재·4종 배치 초안·README). 실적재는 .env 키 입력 대기 | 최동혁(+Claude) |
