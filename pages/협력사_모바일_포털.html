@@ -181,7 +181,7 @@
       <span id="backBtn" class="back hidden" onclick="goBack()">‹</span>
       <div style="flex:1; overflow:hidden;">
         <div id="barTitle" class="ttl">발주 목록</div>
-        <div id="barSub" class="sub">한일정밀공업</div>
+        <div id="barSub" class="sub">협력사 포털</div>
       </div>
       <span class="bell" onclick="showAlerts()">🔔<b id="bellCnt"></b></span>
     </div>
@@ -238,7 +238,7 @@ async function loadOrders(){
 }
 
 /* ===== 데이터 (한일정밀, 사내 대시보드와 정합) ===== */
-let VENDOR = { code:'', name:'', contact:'', mgr:'제일엠앤에스 구매팀', mgrTeam:'구매팀', user:'', phone:'-' };
+let VENDOR = { code:'', name:'', contact:'', user:'' }; // 담당 구매자는 발주별 o.buyer(실데이터)로 표시
 const STATUS = { new:'신규 접수', prod:'생산중', insp:'검수요청', done:'완료' };
 const STATUS_ORDER = ['new','prod','insp','done'];
 const stCls = { new:'st-new', prod:'st-prod', insp:'st-insp', done:'st-done' };
@@ -299,13 +299,13 @@ function render(){
 function renderOrders(){
   const counts={all:orders.length}; STATUS_ORDER.forEach(s=>counts[s]=orders.filter(o=>o.status===s).length);
   let list=orders.filter(o=>filter==='all'||o.status===filter);
-  if(search){const q=search.toLowerCase(); list=list.filter(o=>o.no.toLowerCase().includes(q)||o.items.some(i=>i.nm.toLowerCase().includes(q)||i.pn.toLowerCase().includes(q)));}
+  if(search){const q=search.toLowerCase(); list=list.filter(o=>o.no.toLowerCase().includes(q)||(o.items||[]).some(i=>String(i.nm||'').toLowerCase().includes(q)||String(i.pn||'').toLowerCase().includes(q)));}
   list=list.slice().sort((a,b)=>new Date(a.due)-new Date(b.due));
   const chip=(k,l)=>`<div class="chip ${filter===k?'on':''}" onclick="setFilter('${k}')">${l} ${counts[k]||0}</div>`;
   screen().innerHTML=`<div class="searchbar"><input placeholder="🔍 발주번호 · 품명 · 품번 검색" value="${search}" oninput="setSearch(this.value)"></div>
     <div class="chips">${chip('all','전체')}${chip('new','신규')}${chip('prod','생산중')}${chip('insp','검수요청')}${chip('done','완료')}</div>
     <div class="pad">${list.length?list.map(o=>poCard(o)).join(''):`<div class="empty"><span class="ic">📭</span>조건에 맞는 발주가 없습니다.</div>`}
-      <div class="note">ERP 발주 데이터 기준 · 한일정밀공업(${VENDOR.code}) 자사 발주만 표시 · 등록 내용은 사내 대시보드 실시간 연계</div></div>`;
+      <div class="note">ERP 발주 데이터 기준 · ${VENDOR.name}(${VENDOR.code}) 자사 발주만 표시 · 등록 내용은 사내 대시보드 실시간 연계</div></div>`;
 }
 function poCard(o){
   const pCnt=o.photos.length, rej=o.photos.filter(p=>p.chk==='rej').length;
@@ -467,14 +467,14 @@ function renderProfile(){
       <div class="stat amber"><div class="n">${prod}</div><div class="l">생산중</div></div>
       <div class="stat" style="--x:0"><div class="n" style="color:var(--purple)">${insp}</div><div class="l">검수요청</div></div>
       <div class="stat green"><div class="n">${done}</div><div class="l">완료</div></div></div>
-    <div class="prow"><span>담당 구매자</span><span class="v">${VENDOR.mgr} · ${VENDOR.mgrTeam}</span></div>
+    ${(()=>{ const b=orders.find(o=>o.buyer)?.buyer; return b?`<div class="prow"><span>담당 구매자</span><span class="v">${b.name} · ${b.team}${b.phone?` · ${b.phone}`:''}</span></div>`:''; })()}
+    <div class="prow"><span>담당자</span><span class="v">${VENDOR.contact||'-'}</span></div>
     <div class="prow"><span>로그인 계정</span><span class="v">${VENDOR.user||'-'}</span></div>
-    <div class="prow"><span>연락처</span><span class="v">${VENDOR.phone}</span></div>
     <div class="prow"><span>사내 연계</span><span class="v" style="color:var(--green);font-weight:700">🔗 실시간 ON</span></div>
     <div style="font-size:11.5px;color:var(--amber);background:var(--softamber);border-radius:9px;padding:9px 12px;margin-top:14px">🔑 관리자가 발급한 임시 비밀번호를 쓰고 계시면, 본인 비밀번호로 변경해 주세요.</div>
     <button class="btn pri block" style="margin-top:9px" onclick="openPwChange()">🔑 비밀번호 변경</button>
     <button class="btn ghost block" style="margin-top:9px" onclick="logout()">로그아웃</button>
-    <div class="note">제일메디칼 협력사 발주·사진등록 포털 · 데모 v0.3 (하이브리드 앱 · 사내 연계)<br>등록 사진·상태·검수요청이 사내 외주 발주·검사 대시보드에 실시간 반영됩니다.</div></div>`;
+    <div class="note">제일엠앤에스 협력사 발주·사진등록 포털 (하이브리드 앱 · Supabase 실연동)<br>등록 사진·상태·검수요청이 사내 외주 발주·검사 대시보드에 실시간 반영됩니다.</div></div>`;
 }
 async function logout(){ try{ await supabase.auth.signOut(); }catch(e){} location.replace('../app/vendor-login.html'); }
 
