@@ -11,6 +11,7 @@ import { supabase } from "./supabaseClient.js";
 const STEP = { new: 4, prod: 5, insp: 7, done: 10 };
 const fmt = (ts) => (ts ? new Date(ts).toLocaleString("ko-KR", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" }) : "");
 const _bp = {}; // po_no -> bp_cd 캐시 (쓰기 시 격리 키 재사용)
+const _urlCache = {}; // storage_path -> { url, exp } — signed URL 캐시(Realtime 재로드 시 재서명 방지)
 
 /* ===================== Supabase 어댑터 ===================== */
 const supabaseAdapter = {
