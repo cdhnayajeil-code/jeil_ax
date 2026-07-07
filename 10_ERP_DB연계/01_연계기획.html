@@ -160,6 +160,12 @@ etl_meta     — 배치 실행 로그·동기화 상태
 <td>1차</td>
 </tr>
 <tr>
+<td><strong>발주현황(협력사 포털용)</strong></td>
+<td><code>M_PUR_REQ</code>(발주요청)·<code>M_PUR_ORD</code>(발주)</td>
+<td><code>erp_ro.purchase_order_*</code>(신설 예정)</td>
+<td><strong>1차-우선, 범위축소: 2026년도분만</strong>(2026-07-07 요청)</td>
+</tr>
+<tr>
 <td>프로젝트 원가</td>
 <td><code>PM_PROJECT_MASTER</code> + 원가</td>
 <td><code>erp_ro.project_cost_m</code></td>
@@ -179,6 +185,9 @@ etl_meta     — 배치 실행 로그·동기화 상태
 </tr>
 </tbody>
 </table>
+<blockquote>
+<p><strong>우선순위 결정(2026-07-07)</strong>: 발주 데이터는 정식 1차 4종(품목·영업·구매=매입·재고) 가동 전이라도, <strong>연도를 2026년도로 좁혀 파일럿 우선연동</strong>하기로 했다(협력사 발주포털 실데이터 전환 대비, <code>CLAUDE.md §4.4</code>·§9 매핑 재사용). 실행에는 유니포인트 협의(발주요청/발주 테이블 컬럼·연도 필터 기준 확인) 및 <code>ERP_DB_CONN</code> 입력이 선행되어야 하며, 실제 ETL 개발·실행은 <code>10_ERP_DB연계/etl/</code>(별도 개발 세션) 또는 <code>erp-db-analyst</code>(ERP_DB 작업환경) 소관이다. 상세 진행은 <code>02_진행상태.md</code> P3 참조.</p>
+</blockquote>
 <h3 id="43-etl">4.3 ETL·챗봇 정책</h3>
 <ul>
 <li><strong>배치</strong>: 매일 03:00(유니포인트 합의), 증분 기준 + 소량 집계는 전체 재적재. 실패 시 Teams/메일 알림 + 1시간 후 재시도 1회. 모든 화면·답변에 「데이터 기준: YYYY-MM-DD 03:00」 표기.</li>

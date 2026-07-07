@@ -17,8 +17,31 @@ from _env import load_env, need
 #   B_ITEM(품목), B_BIZ_PARTNER(거래처 BP_CD·BP_NM), S_BILL_HDR(매출), M_IV_HDR(매입), M_PUR_GOODS_MVMT(수불)
 # 집계 기준(금액 컬럼 선택·수불 in/out 분류)은 유니포인트/현업 확인 대상 — --dry-run으로 먼저 검증.
 ROLLING_MONTHS = 3  # 월집계 롤링 윈도(당월 포함)
+TARGET_YEAR = 2026  # pur_order job 연도 필터(우선연동 범위 — 관리자 결정 2026-07-07)
 
 JOBS = {
+    # ⓪ 발주현황 스냅샷 ← M_PUR_ORD_HDR/DTL (2026년도만 우선연동 — 협력사 포털·챗봇용)
+    "pur_order": {
+        "table": "pur_order_s",
+        "sql": """
+            SELECT h.PO_NO AS po_no, d.PO_SEQ_NO AS po_seq,
+                   CONVERT(date, h.PO_DT) AS po_dt,
+                   h.BP_CD AS bp_code, ISNULL(b.BP_NM, h.BP_CD) AS bp_name,
+                   d.ITEM_CD AS item_code, i.ITEM_NM AS item_name,
+                   CONVERT(date, d.DLVY_DT) AS dlvy_dt,
+                   d.PO_QTY AS po_qty, d.PO_UNIT AS po_unit,
+                   d.PO_LOC_AMT AS po_amt, d.PO_STS AS po_sts,
+                   d.RCPT_QTY AS rcpt_qty,
+                   h.SUBCONTRA_FLG AS subcontra_flg, h.CLS_FLG AS cls_flg,
+                   h.UPDT_DT AS src_updated
+            FROM JEILMNS.dbo.M_PUR_ORD_HDR h WITH (NOLOCK)
+            JOIN JEILMNS.dbo.M_PUR_ORD_DTL d WITH (NOLOCK) ON d.PO_NO = h.PO_NO
+            LEFT JOIN JEILMNS.dbo.B_BIZ_PARTNER b WITH (NOLOCK) ON b.BP_CD = h.BP_CD
+            LEFT JOIN JEILMNS.dbo.B_ITEM i WITH (NOLOCK) ON i.ITEM_CD = d.ITEM_CD
+            WHERE h.PO_DT >= ? AND h.PO_DT < ?
+        """,
+        "params": ["year_start", "year_end"],
+    },
     # ① 품목 마스터 스냅샷 ← B_ITEM (전체 재적재)
     "item_master": {
         "table": "item_master_s",
@@ -104,6 +127,10 @@ def param_value(name):
         return datetime.date(y, m, 1)
     if name == "daily_start":
         return today - datetime.timedelta(days=31)
+    if name == "year_start":
+        return datetime.date(TARGET_YEAR, 1, 1)
+    if name == "year_end":
+        return datetime.date(TARGET_YEAR + 1, 1, 1)
     raise ValueError(name)
 
 

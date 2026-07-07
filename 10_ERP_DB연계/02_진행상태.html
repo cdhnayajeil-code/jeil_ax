@@ -58,6 +58,7 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 </code></pre>
 <p>차단 요인: ①경영 티어 결정(Tier A vs B — 마스터플랜 v2.0 §11), ②마스터플랜 승인, ③(P3 실적재) 루트 <code>.env</code>의 <code>ERP_DB_CONN</code> 값 미입력(<code>SUPABASE_SERVICE_ROLE_KEY</code>는 2026-07-07 입력 완료).</p>
 <p>P1(유니포인트 협의)이 열리기 전이라도 ERP 접속이 필요 없는 내부 준비(중간 DB 스키마·적재 RPC·ETL 스크립트 작성)는 먼저 진행했다(2026-07-07). 같은 날 <code>erp_ro.table_dict</code>에 ERP 테이블 사전 2,658건(컬럼 문서화 452개, 11개 모듈)을 적재 완료했다(로컬 메타 기반, 운영 ERP DB 접속 없음). 실제 ERP 데이터 적재는 여전히 유니포인트 협의(뷰·계정) 이후에만 가능하다.</p>
+<p><strong>신규 요청 접수(2026-07-07)</strong>: 발주 데이터(<code>M_PUR_REQ</code> 발주요청·<code>M_PUR_ORD</code> 발주, §4.4 협력사 포털 매핑)를 <strong>2026년도분만 우선연동</strong>하는 안이 접수됐다. 현재 1차 4종(품목·영업·구매=매입·재고)에는 포함되지 않은 별도 범위이며, 본 에이전트는 문서 관제 담당으로 ERP DB 직접 조회·ETL 코드 실행을 하지 않는다(§4 이슈·메모 요청 목록 참조) — 실행은 관리자(<code>ERP_DB_CONN</code> 입력)·유니포인트 협의·ETL 개발(별도 세션/erp-db-analyst) 이후 가능하다.</p>
 <h2 id="2">2. 체크리스트</h2>
 <h3 id="p0">P0 — 정책 수립</h3>
 <ul>
@@ -93,6 +94,7 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <li>[x] <code>load_table_dict.py</code> 실행 — <code>erp_ro.table_dict</code>에 ERP 테이블 사전 2,658건 적재 완료(컬럼 문서화 452개, 11개 모듈), DB 검증 완료(운영 ERP DB 접속 없음, 로컬 메타 기반) (2026-07-07)</li>
 <li>[ ] 1차 ETL 배치 실적재 가동(영업·구매·재고) + 실패 알림 — <code>.env</code>의 <code>ERP_DB_CONN</code> 값 입력 → <code>etl_run.py --dry-run</code> 검증 → 실적재 순</li>
 <li>[ ] 「데이터 기준 시각」 표기 규약 적용</li>
+<li>[ ] <strong>(신규요청·우선순위) 발주 데이터(<code>M_PUR_REQ</code>·<code>M_PUR_ORD</code>) 2026년도분 우선연동</strong> — 요청 접수(2026-07-07). 필요: ①<code>ERP_DB_CONN</code> 입력, ②유니포인트 협의 또는 <code>table_dict</code>로 컬럼 사전검증, ③<code>etl_run.py</code>에 신규 job 초안 작성(연도 필터 포함) + <code>--dry-run</code> 검증, ④관리자 확인 후 실적재 — <strong>본 에이전트는 실행하지 않음</strong>(문서 관제 담당, DB 직접 조회·ETL 실행 금지)</li>
 </ul>
 <blockquote>
 <p>상세 실행 체크리스트는 <code>03_중간DB_구축실행기획 §7·§8</code>을 따른다(§7-C 내부 구축 항목 중 스키마·RLS·ETL 스크립트 작성 완료 반영).</p>
@@ -120,6 +122,12 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 </tr>
 </thead>
 <tbody>
+<tr>
+<td>2026-07-07</td>
+<td>발주(<code>M_PUR_REQ</code>·<code>M_PUR_ORD</code>) 2026년도 데이터 우선연동 요청 접수 — 문서(§1·P3 체크리스트·§4)에 신규 우선순위 항목으로 기록. 실행(ERP DB 접속·ETL 코드 작성)은 본 에이전트 권한 밖이라 미실행, 요청 목록만 정리</td>
+<td><code>02_진행상태.md</code> §1·§2·§4</td>
+<td>최동혁(+Claude)</td>
+</tr>
 <tr>
 <td>2026-07-07</td>
 <td>루트 <code>.env</code>에 <code>SUPABASE_SERVICE_ROLE_KEY</code>(신형 secret key) 입력 완료 → <code>load_table_dict.py</code> 실행 성공 — <code>erp_ro.table_dict</code>에 ERP 테이블 사전 2,658건 적재(컬럼 문서화 452개, 11개 모듈), DB 검증 완료(운영 ERP DB 접속 없음, 로컬 메타만 사용). <code>ERP_DB_CONN</code>은 여전히 미입력이라 <code>etl_run.py</code>(1차 4종 실추출)는 대기</td>
@@ -167,6 +175,12 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <h2 id="4">4. 이슈·메모</h2>
 <ul>
 <li><strong>대기(관리자 실행 필요)</strong>: <code>SUPABASE_SERVICE_ROLE_KEY</code> 입력 및 <code>load_table_dict.py</code> 실행은 완료(2026-07-07). 남은 대기: 루트 <code>.env</code>에 <code>ERP_DB_CONN</code> 값 입력(사내 OneDrive <code>ERP_DB</code>의 기존 접속 문자열 재사용, 읽기 전용 계정 권장) → ①<code>python etl_run.py --job all --dry-run</code>(추출 SQL·건수 검증) → ②관리자 확인 후 실적재. 추출 SQL은 유니포인트 뷰 스펙 협의 전 초안이므로 협의 결과에 따라 수정 필요.</li>
+<li><strong>신규 요청(2026-07-07) — 발주 데이터 2026년도 우선연동</strong>: "ERP DB 연결을 통해 발주데이터 2026년도 데이터만 우선연동 적용" 요청을 접수했다. <code>erp-db-link-manager</code>는 문서 관제 담당으로 <strong>ERP운영DB 직접 조회·쓰기, ETL 코드 실행을 하지 않는다</strong>(에이전트 정의 절대 규칙) — 아래를 요청 목록으로만 제시한다.
+  1. 루트 <code>.env</code>에 <code>ERP_DB_CONN</code> 값 입력(관리자).
+  2. 발주요청/발주 테이블(<code>M_PUR_REQ</code>·<code>M_PUR_ORD</code>) 컬럼·연도 필터 기준(발주일자 컬럼 등)을 유니포인트 협의 또는 <code>erp_ro.table_dict</code>(2,658건 사전) 조회로 확인 — DB 조회가 필요하면 <code>erp-db-analyst</code>(ERP_DB 작업환경) 소관.
+  3. 위 확인을 바탕으로 <code>10_ERP_DB연계/etl/etl_run.py</code>에 <code>WHERE 발주일자 &gt;= '2026-01-01' AND &lt; '2027-01-01'</code> 형태의 신규 job 초안 추가(코드 작성은 본 문서관제 에이전트 범위 밖 — 별도 개발 세션에서 진행).
+  4. <code>--dry-run</code>으로 건수·SQL 검증 → 관리자 확인 → 실적재.
+  현재는 요청 접수·문서화만 완료했고, 실제 데이터 연동은 미착수 상태다.</li>
 <li>원천 자산 확인: 사내 OneDrive <code>최동혁/ERP_DB</code>의 erp_chat(ERP MSSQL 직결 챗봇, <code>table-index.json</code> 2,658테이블·<code>module-*.json</code> 452테이블 컬럼 문서·표준쿼리·query-validator)·db변경요청/02_표준쿼리 등은 중간DB ETL 및 추후 챗봇 2단계 Tool의 지식 원천으로 활용 예정(2026-07-07).</li>
 </ul>
   </div>
