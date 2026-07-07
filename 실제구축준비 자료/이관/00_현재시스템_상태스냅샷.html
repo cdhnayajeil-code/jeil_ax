@@ -481,6 +481,11 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <td><strong>협력사 포털 실가동 전면 개선(스키마 변경)</strong> — <code>sp_photo</code>에 사진 검토 컬럼(review_status ok/rej·review_by/at/comment) 추가 + 협력사 RLS를 SELECT/INSERT/DELETE(검토 전만)로 분리(UPDATE는 사내만 — 확인상태 위조 차단). <code>sp_order_header</code>에 담당 구매자 buyer_name/team/phone 추가. 화면: 사내 대시보드 실사진 표시(서명URL 일괄 <code>photoUrls</code>+캐시)·확인/반려 버튼, 협력사 포털 재촬영 배너·검토 전 삭제·검수요청 취소 DB 영속화(IR 재발번 접미사).</td>
 <td>최동혁(+Claude)</td>
 </tr>
+<tr>
+<td>2026-07-07</td>
+<td><strong>발주 상태머신 v2(스키마 변경)</strong> — <code>sp_order_state.status</code>에 <code>rework</code>(재작업·불합격) 상태 추가 + 5상태 check 제약(new/prod/insp/rework/done). 판정 시 자동 전이(합격→done·불합격→rework), 재검수요청 시 현재 판정(<code>sp_inspection</code>) 리셋+IR 차수 발번+이전 미결 신청 자동 마감, step을 10단계 인덱스(0~9)로 재정렬. 기존 데이터 정합화(불합격→rework·합격→done). 단일 출처: <code>08_협력사발주포털/03_실구축기획/08_전체프로세스_상태머신_로직재설계</code>.</td>
+<td>최동혁(+Claude)</td>
+</tr>
 </tbody>
 </table>
   </div>

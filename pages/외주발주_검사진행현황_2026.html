@@ -296,17 +296,20 @@ const GROUP_ORDER=['SIE','SIE-1','SIF','DIV'];
 /* BASE mock 제거 — 발주는 Supabase(portalApi.getOrders)에서 ORDERS로 로드 */
 
 const won=n=>n.toLocaleString();
-const SUP_TXT={new:'신규접수',prod:'생산중',insp:'검수요청',done:'완료'};
+const SUP_TXT={new:'신규접수',prod:'생산중',insp:'검수요청',rework:'재작업(불합격)',done:'완료'};
 let LB=[];
 
 // Supabase 발주 객체 → 보드 행 구조로 변환
 function toRow(o){
   const sub=o.type!=='DIV';
-  let cur = (o.status==='new'?IDX('rcv'): o.status==='prod'?((o.photos&&o.photos.length)?IDX('pho'):IDX('prd')): o.status==='insp'?(sub?IDX('isp'):IDX('shp')): o.status==='done'?IDX('iv'): IDX('cfm'));
+  // 상태머신 v2(03_실구축기획/08): 판정이 상태를 전이시킨다 — 합격→done, 불합격→rework.
+  let cur = (o.status==='new'?IDX('rcv')
+    : o.status==='prod'?((o.photos&&o.photos.length)?IDX('pho'):IDX('prd'))
+    : o.status==='rework'?IDX('prd')
+    : o.status==='insp'?(sub?IDX('isp'):IDX('shp'))
+    : o.status==='done'?IDX('iv'): IDX('cfm'));
   const insMeta=o.inspection||null;
-  const fail=!!(insMeta&&insMeta.result==='불합격');
-  if(insMeta&&insMeta.result==='합격'){ if(cur<IDX('grn')) cur=IDX('grn'); }
-  if(fail){ if(cur<IDX('isp')) cur=IDX('isp'); }
+  const fail=(o.status==='rework'); // 불합격 → 재작업 상태
   const items=o.items||[];
   return {
     pr:'-', po:o.no, type:o.type, sub, link:true,
@@ -323,7 +326,7 @@ function toRow(o){
     insp:{ req:o.inspReqNo||'-', res:(insMeta&&insMeta.resultNo)||'-', items:'치수/외관', ac:'-', re:(insMeta&&insMeta.result==='합격')?'0':'-',
       judge: insMeta?(insMeta.result==='합격'?'합격 (검수확정)':'불합격 (재작업)'):(o.inspReqNo?'검사신청(협력사 요청)':'진행중'),
       by:(insMeta&&insMeta.by)||'-', dt:((insMeta&&insMeta.at)||'').slice(0,10) },
-    _canInspect: (cur===IDX('isp') && !fail),
+    _canInspect: (o.status==='insp' && !insMeta), // 검사 대기 + 판정 전 — 재검수요청 시 판정이 리셋되어 재판정 가능
     _inspBy:(insMeta&&insMeta.by)||'', _inspAt:(insMeta&&insMeta.at)||'',
     msgs: o.msgs||[]
   };
@@ -357,7 +360,7 @@ function visibleRows(){
 }
 function resetQ(){ document.getElementById('fProj').value='all'; document.getElementById('fItem').value=''; document.getElementById('fPeriod').value='all'; document.getElementById('onlyLink').checked=false; render(); }
 
-function curBadge(r){ if(r.fail) return '<span class="stg s-hold">보류 · 불합격</span>';
+function curBadge(r){ if(r.fail) return '<span class="stg s-hold">재작업 · 불합격</span>';
   if(r.cur>=IDX('iv')) return '<span class="stg s-done">완료 · 매입</span>';
   const s=STAGES[r.cur]; const cls=s.z==='jeil'?'s-jeil':s.z==='sup'?'s-sup':'s-erp';
   return '<span class="stg '+cls+'">'+s.l+(r._supTxt&&s.z==='sup'?' (협력사)':'')+'</span>'; }
@@ -475,7 +478,7 @@ function renderKPI(){ const rows=visibleRows();
   const hold=rows.filter(r=>r.fail).length;
   const insp=rows.filter(r=>r.cur===IDX('isp')&&!r.fail).length;
   const prog=rows.filter(r=>!r.fail && r.cur<IDX('iv')).length;
-  const k=[{c:'',v:rows.length,l:'전체 발주'},{c:'amber',v:prog,l:'진행중'},{c:'pur',v:insp,l:'검사중'},{c:'green',v:done,l:'완료(매입)'},{c:'red',v:hold,l:'보류'}];
+  const k=[{c:'',v:rows.length,l:'전체 발주'},{c:'amber',v:prog,l:'진행중'},{c:'pur',v:insp,l:'검사중'},{c:'green',v:done,l:'완료(매입)'},{c:'red',v:hold,l:'재작업(불합격)'}];
   document.getElementById('kpis').innerHTML=k.map(x=>'<div class="kpi '+x.c+'"><div class="v">'+x.v+'</div><div class="lb">'+x.l+'</div></div>').join('');
 }
 function renderDist(){ const rows=visibleRows();
@@ -485,7 +488,7 @@ function renderDist(){ const rows=visibleRows();
    {l:'검사',c:'#6b4a9a',f:r=>!r.fail&&r.cur===IDX('isp')},
    {l:'출하·입고',c:'#1f7a7a',f:r=>!r.fail&&(r.cur===IDX('shp')||r.cur===IDX('grn'))},
    {l:'완료',c:'#2e7d52',f:r=>!r.fail&&r.cur>=IDX('iv')},
-   {l:'보류',c:'#b3402f',f:r=>r.fail}
+   {l:'재작업',c:'#b3402f',f:r=>r.fail}
   ];
   const tot=rows.length||1;
   document.getElementById('distbar').innerHTML=segs.map(s=>{ const n=rows.filter(s.f).length; if(!n) return '';

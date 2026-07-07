@@ -68,6 +68,7 @@
   .badge{display:inline-block; font-size:10.5px; border-radius:20px; padding:3px 10px; font-weight:700; white-space:nowrap;}
   .st-new{background:var(--soft); color:var(--navy2);} .st-prod{background:var(--softamber); color:var(--amber);}
   .st-insp{background:var(--softpur); color:var(--purple);} .st-done{background:var(--softgreen); color:var(--green);}
+  .st-rework{background:var(--softred); color:var(--red);}
   .photo-badge{font-size:10.5px; color:var(--muted);} .photo-badge b{color:var(--accent);}
   .searchbar{padding:12px 14px 4px; background:var(--bg); position:sticky; top:0; z-index:10;}
   .searchbar input{width:100%; padding:11px 14px; border-radius:11px; border:1px solid var(--line); font-size:14px; background:#fff;}
@@ -239,12 +240,14 @@ async function loadOrders(){
 
 /* ===== 데이터 (한일정밀, 사내 대시보드와 정합) ===== */
 let VENDOR = { code:'', name:'', contact:'', user:'' }; // 담당 구매자는 발주별 o.buyer(실데이터)로 표시
-const STATUS = { new:'신규 접수', prod:'생산중', insp:'검수요청', done:'완료' };
-const STATUS_ORDER = ['new','prod','insp','done'];
-const stCls = { new:'st-new', prod:'st-prod', insp:'st-insp', done:'st-done' };
+// 상태머신 v2(08_협력사발주포털/03_실구축기획/08): 판정이 상태를 전이 — 합격→done, 불합격→rework
+const STATUS = { new:'신규 접수', prod:'생산중', insp:'검사 대기', rework:'재작업(불합격)', done:'완료' };
+const STATUS_ORDER = ['new','prod','insp','done'];            // 스텝퍼 4단 표시(재작업은 생산 위치)
+const stepIdx = s => s==='rework' ? 1 : STATUS_ORDER.indexOf(s);
+const stCls = { new:'st-new', prod:'st-prod', insp:'st-insp', rework:'st-rework', done:'st-done' };
 const FSTAGES=[{k:'req',l:'구매요청',z:'jeil',ic:'📝'},{k:'po',l:'발주',z:'jeil',ic:'📋'},{k:'cfm',l:'발주확인',z:'sup',ic:'✅'},{k:'rcv',l:'접수',z:'sup',ic:'📥'},{k:'prd',l:'생산',z:'sup',ic:'🏭'},{k:'pho',l:'사진',z:'sup',ic:'📷'},{k:'isp',l:'검수요청',z:'sup',ic:'🔬',cond:true},{k:'shp',l:'출하',z:'sup',ic:'🚚'},{k:'grn',l:'입고',z:'erp',ic:'📦'},{k:'iv',l:'매입',z:'erp',ic:'💰'}];
 const FIDX=k=>FSTAGES.findIndex(s=>s.k===k);
-function fcur(o){ if(o.status==='new')return FIDX('rcv'); if(o.status==='prod')return o.photos.length?FIDX('pho'):FIDX('prd'); if(o.status==='insp')return FIDX('isp'); if(o.status==='done')return FIDX('iv'); return FIDX('cfm'); }
+function fcur(o){ if(o.status==='new')return FIDX('rcv'); if(o.status==='prod')return o.photos.length?FIDX('pho'):FIDX('prd'); if(o.status==='rework')return FIDX('prd'); if(o.status==='insp')return FIDX('isp'); if(o.status==='done')return FIDX('iv'); return FIDX('cfm'); }
 function fproc(o){ const cur=fcur(o); const sub=o.type!=='DIV'; const zs=[['jeil','JEIL'],['sup','협력사'],['erp','ERP']];
   return '<div class="fproc">'+zs.map(function(zz){var z=zz[0],zn=zz[1];var ns=FSTAGES.filter(function(s){return s.z===z;});
     return '<div class="fzone '+z+'"><div class="fzname">'+zn+'</div><div class="fznodes">'+ns.map(function(s){var i=FIDX(s.k);var skip=s.cond&&!sub;var cls=skip?'skip':(i<cur?'done':(i===cur?'cur':''));return '<div class="fnode '+cls+'"><div class="fc">'+(cls==='done'?'✓':s.ic)+'</div><div class="fl">'+s.l+'</div></div>';}).join('')+'</div></div>';
@@ -297,13 +300,13 @@ function render(){
   if(view==='profile') return renderProfile();
 }
 function renderOrders(){
-  const counts={all:orders.length}; STATUS_ORDER.forEach(s=>counts[s]=orders.filter(o=>o.status===s).length);
+  const counts={all:orders.length}; ['new','prod','insp','rework','done'].forEach(s=>counts[s]=orders.filter(o=>o.status===s).length);
   let list=orders.filter(o=>filter==='all'||o.status===filter);
   if(search){const q=search.toLowerCase(); list=list.filter(o=>o.no.toLowerCase().includes(q)||(o.items||[]).some(i=>String(i.nm||'').toLowerCase().includes(q)||String(i.pn||'').toLowerCase().includes(q)));}
   list=list.slice().sort((a,b)=>new Date(a.due)-new Date(b.due));
   const chip=(k,l)=>`<div class="chip ${filter===k?'on':''}" onclick="setFilter('${k}')">${l} ${counts[k]||0}</div>`;
   screen().innerHTML=`<div class="searchbar"><input placeholder="🔍 발주번호 · 품명 · 품번 검색" value="${search}" oninput="setSearch(this.value)"></div>
-    <div class="chips">${chip('all','전체')}${chip('new','신규')}${chip('prod','생산중')}${chip('insp','검수요청')}${chip('done','완료')}</div>
+    <div class="chips">${chip('all','전체')}${chip('new','신규')}${chip('prod','생산중')}${chip('insp','검사대기')}${chip('rework','재작업')}${chip('done','완료')}</div>
     <div class="pad">${list.length?list.map(o=>poCard(o)).join(''):`<div class="empty"><span class="ic">📭</span>조건에 맞는 발주가 없습니다.</div>`}
       <div class="note">ERP 발주 데이터 기준 · ${VENDOR.name}(${VENDOR.code}) 자사 발주만 표시 · 등록 내용은 사내 대시보드 실시간 연계</div></div>`;
 }
@@ -322,16 +325,17 @@ function setSearch(v){search=v; renderOrders();}
 function daysLeft(due){ const _t=new Date(); _t.setHours(0,0,0,0); const d=Math.ceil((new Date(due)-_t)/86400000);
   if(d<0) return `<b>${-d}일 경과</b>`; if(d===0) return `<b>오늘 마감</b>`; if(d<=3) return `<b>D-${d}</b>`; return `D-${d}`; }
 
-// 알림 집계: 검수 반려 사진 + 사내 발신 미읽음 메시지(read_at 기준)
-function alertCounts(){ let rej=0, msg=0;
+// 알림 집계: 재작업(불합격) 발주 + 검수 반려 사진 + 사내 발신 미읽음 메시지(read_at 기준)
+function alertCounts(){ let rej=0, msg=0, rw=0;
   orders.forEach(o=>{ rej+=(o.photos||[]).filter(p=>p.chk==='rej').length;
+    if(o.status==='rework') rw++;
     if((o.msgs||[]).some(m=>m.who==='them' && !m.read_at)) msg++; });
-  return { rej, msg, total: rej+msg }; }
+  return { rej, msg, rw, total: rej+msg+rw }; }
 function updateBell(){ const c=alertCounts(); const b=$('#bellCnt'); if(b){ b.textContent=c.total||''; b.style.display=c.total?'flex':'none'; } }
-function showAlerts(){ const c=alertCounts(); toast(c.total?`알림 ${c.total}건 · 검수반려 ${c.rej} · 새 메시지 ${c.msg}`:'새 알림이 없습니다'); }
+function showAlerts(){ const c=alertCounts(); toast(c.total?`알림 ${c.total}건 · 재작업 ${c.rw} · 사진반려 ${c.rej} · 새 메시지 ${c.msg}`:'새 알림이 없습니다'); }
 
 function renderDetail(){
-  const o=curOrder; const curIdx=STATUS_ORDER.indexOf(o.status);
+  const o=curOrder; const st=o.status; const curIdx=stepIdx(st);
   const _insp=o.inspection||null;
   const _rej=(o.photos||[]).filter(p=>p.chk==='rej');
   screen().innerHTML=`<div class="pad">
@@ -349,14 +353,17 @@ function renderDetail(){
     <div class="card pad"><div class="sec">📦 발주 품목 <span class="cnt">${o.items.length}종</span></div>
       ${o.items.map(i=>`<div class="line"><div><div class="nm">${i.nm||'품목'}</div><div class="sp">${i.pn||''}${i.spec?` · ${i.spec}`:''}</div></div>
         <div class="qty">${(i.qty||0).toLocaleString()}<span class="u"> ${i.unit||''}</span><div class="sp">@${(i.price||0).toLocaleString()}원</div></div></div>`).join('')||'<div class="sp" style="color:var(--muted)">품목 정보 없음</div>'}</div>
-    <div class="card pad"><div class="sec">🚦 진행 상태</div><div class="stepper">
-      ${STATUS_ORDER.map((s,idx)=>`<div class="step ${idx<curIdx?'done':''} ${idx===curIdx?'cur':''}"><div class="dot">${idx<curIdx?'✓':idx+1}</div><div class="lb">${STATUS[s]}</div></div>`).join('')}</div>
-      ${curIdx>=3?`<div style="text-align:center; color:var(--green); font-size:13px; font-weight:700; margin:12px 0 9px">✓ 완료된 발주 (검사 합격·매입 처리)</div>`:``}
-      <div class="btn-row" style="margin-top:${curIdx>=3?'0':'12px'}">
-        ${curIdx>0?`<button class="btn ghost block sm" onclick="cancelStatus()">◀ 단계 취소</button>`:``}
-        ${curIdx<3?`<button class="btn pri block sm" onclick="advanceStatus()">▶ 다음 단계로 (${STATUS[STATUS_ORDER[curIdx+1]]})</button>`:``}
+    <div class="card pad"><div class="sec">🚦 진행 상태${st==='rework'?' <span style="color:var(--red);font-size:10px">· 재작업 중</span>':''}</div><div class="stepper">
+      ${STATUS_ORDER.map((s,idx)=>`<div class="step ${idx<curIdx?'done':''} ${idx===curIdx?'cur':''}"><div class="dot">${idx<curIdx?'✓':idx+1}</div><div class="lb">${idx===1&&st==='rework'?'재작업':STATUS[s]}</div></div>`).join('')}</div>
+      ${st==='done'?`<div style="text-align:center; color:var(--green); font-size:13px; font-weight:700; margin:12px 0 9px">✓ 완료된 발주 (${o.type==='DIV'?'무검사 입고':'검사 합격'}·매입 처리)</div>`:``}
+      <div class="btn-row" style="margin-top:${st==='done'?'0':'12px'}">
+        ${(st==='prod'||st==='insp'||st==='rework')?`<button class="btn ghost block sm" onclick="cancelStatus()">◀ 단계 취소</button>`:``}
+        ${st==='new'?`<button class="btn pri block sm" onclick="advanceStatus()">▶ 생산 시작</button>`:``}
+        ${st==='prod'?`<button class="btn pri block sm" onclick="advanceStatus()">▶ ${o.type==='DIV'?'완료 처리 (무검사)':'검수요청'}</button>`:``}
+        ${st==='rework'?`<button class="btn pri block sm" onclick="advanceStatus()">▶ 재작업 완료 → 재검수요청</button>`:``}
       </div>
-      ${o.status==='insp'?`<div style="margin-top:10px; background:var(--softpur); color:var(--purple); border-radius:9px; padding:9px 12px; font-size:11.5px; font-weight:700">🔬 검수요청됨 → 검사신청 ${o.inspReqNo} 자동 생성 · 품질팀 검사 대기</div>`:''}</div>
+      ${st==='insp'?`<div style="margin-top:10px; background:var(--softpur); color:var(--purple); border-radius:9px; padding:9px 12px; font-size:11.5px; font-weight:700">🔬 검수요청됨 → 검사신청 ${o.inspReqNo} · 품질팀 검사 대기 (판정 시 자동 진행)</div>`:''}
+      ${st==='rework'?`<div style="margin-top:10px; background:var(--softred); color:var(--red); border-radius:9px; padding:9px 12px; font-size:11.5px; font-weight:700">🔴 검수 불합격 — 재작업 후 사진을 다시 등록하고 재검수요청해 주세요</div>`:''}</div>
     <div class="card pad"><div class="sec">📷 등록 사진 <span class="cnt">${o.photos.length}장</span> <span style="font-weight:600;color:var(--purple);font-size:10.5px">· 검사 증빙 연계</span></div>
       <div class="pgrid"><div class="padd" onclick="openUpload()"><span class="pl">＋</span><span>사진 등록</span></div>
         ${o.photos.map((p,i)=>pcell(p,i)).join('')}</div></div>
@@ -365,23 +372,26 @@ function renderDetail(){
 }
 function pcell(p,i){ const mark=p.chk==='ok'?`<span class="ok">✓</span>`:p.chk==='rej'?`<span class="rej">!</span>`:'';
   return `<div class="pcell" onclick="lightbox(${i})"><img src="${p.src}" onerror="photoErr(this)"><span class="tg">${p.tag}</span>${mark}</div>`; }
-async function advanceStatus(){ const i=STATUS_ORDER.indexOf(curOrder.status);
-  if(i>=3) return;
-  const ns=STATUS_ORDER[i+1];
+// 전이표(03_실구축기획/08 §3.1)대로만 전이한다 — done은 판정(합격) 또는 DIV 무검사로만 진입
+async function advanceStatus(){ const st=curOrder.status;
   try{
-    if(ns==='insp'){ const r=await portalApi.requestInspection(curOrder.no); curOrder.inspReqNo=(r && r.insp_req_no)||('IR'+curOrder.no.slice(2)); curOrder.status='insp'; toast('검수요청 → 검사신청 '+curOrder.inspReqNo+' 생성 (사내 연계)'); }
-    else { await portalApi.updateStatus(curOrder.no, ns); curOrder.status=ns; toast('상태 변경: '+STATUS[ns]+' (사내 대시보드 반영)'); }
+    if(st==='new'){ await portalApi.updateStatus(curOrder.no,'prod'); curOrder.status='prod'; toast('생산 시작 (사내 대시보드 반영)'); }
+    else if(st==='prod' && curOrder.type==='DIV'){ // 일반(무검사) 발주만 협력사가 직접 완료
+      await portalApi.updateStatus(curOrder.no,'done'); curOrder.status='done'; toast('완료 처리 (무검사 입고)'); }
+    else if(st==='prod' || st==='rework'){ // 검수요청/재검수요청 — 새 IR 발번 + 판정 리셋
+      const no=await portalApi.requestInspection(curOrder.no);
+      curOrder.inspReqNo=no; curOrder.status='insp'; curOrder.inspection=null;
+      toast((st==='rework'?'재검수요청 ':'검수요청 → 검사신청 ')+no+' · 품질팀 검사 대기'); }
+    else return; // insp·done: 협력사 진행 불가(판정으로만 전이)
     render();
   }catch(e){ toast('상태 변경 실패: '+(e.message||e)); } }
-async function cancelStatus(){ const i=STATUS_ORDER.indexOf(curOrder.status);
-  if(i<=0) return;
-  const ns=STATUS_ORDER[i-1];
+async function cancelStatus(){ const st=curOrder.status;
   try{
-    if(curOrder.status==='insp'){ await portalApi.cancelInspection(curOrder.no); curOrder.inspReqNo=''; } // 검사신청 DB 취소(영속)
-    else{ await portalApi.updateStatus(curOrder.no, ns); }
-    curOrder.status=ns;
-    if(STATUS_ORDER.indexOf(ns)<2) curOrder.inspReqNo='';
-    toast('단계 취소: '+STATUS[ns]+' (사내 대시보드 반영)'); render();
+    if(st==='insp'){ await portalApi.cancelInspection(curOrder.no); curOrder.inspReqNo=''; curOrder.status='prod'; } // 판정 전만 취소 가능
+    else if(st==='prod'){ await portalApi.updateStatus(curOrder.no,'new'); curOrder.status='new'; }
+    else if(st==='rework'){ await portalApi.updateStatus(curOrder.no,'prod'); curOrder.status='prod'; } // 재작업 보류 → 생산중 표기
+    else return; // done: 종결 — 되돌리기 불가
+    toast('단계 취소: '+STATUS[curOrder.status]+' (사내 대시보드 반영)'); render();
   }catch(e){ toast('취소 실패: '+(e.message||e)); } }
 
 let pendingFiles=[];
@@ -461,7 +471,7 @@ async function sendMsg(){ const inp=$('#msgInput'); const v=inp.value.trim(); if
   }catch(e){ toast('전송 실패: '+(e.message||e)); inp.value=v; } }
 
 function renderProfile(){
-  const total=orders.length, prod=orders.filter(o=>o.status==='prod').length, insp=orders.filter(o=>o.status==='insp').length, done=orders.filter(o=>o.status==='done').length;
+  const total=orders.length, prod=orders.filter(o=>o.status==='prod'||o.status==='rework').length, insp=orders.filter(o=>o.status==='insp').length, done=orders.filter(o=>o.status==='done').length;
   screen().innerHTML=`<div class="pad"><div class="prof-head"><div class="av">🏭</div><div class="nm">${VENDOR.name}</div><div class="co">${VENDOR.code} · ${VENDOR.user}</div></div>
     <div class="stat-row"><div class="stat"><div class="n">${total}</div><div class="l">전체 발주</div></div>
       <div class="stat amber"><div class="n">${prod}</div><div class="l">생산중</div></div>

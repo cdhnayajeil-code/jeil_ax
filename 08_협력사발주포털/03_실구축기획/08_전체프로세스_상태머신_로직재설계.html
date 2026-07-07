@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>08 상태머신 — 협력사 발주·검사 포털 ERP연계 실구축 기획</title>
+<style>
+:root{--navy:#1a2f4e;--navy2:#27457a;--accent:#2f6fb3;--red:#b3402f;--green:#2e7d52;--amber:#9a6b1f;
+--ink:#222;--muted:#666;--line:#d8dee8;--bg:#f4f6f9;--soft:#eef2f8;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;color:var(--ink);background:var(--bg);line-height:1.65;font-size:15px;}
+.page{max-width:960px;margin:0 auto;background:#fff;padding:52px 60px;box-shadow:0 2px 14px rgba(0,0,0,.08);}
+.doc-label{display:inline-block;background:var(--navy);color:#fff;font-size:12px;letter-spacing:.16em;padding:5px 14px;border-radius:3px;margin-bottom:16px;}
+.docnav{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 26px;}
+.docnav a{font-size:12px;color:var(--navy2);border:1px solid var(--line);border-radius:20px;padding:4px 12px;text-decoration:none;background:var(--soft);}
+.docnav a:hover{background:var(--navy);color:#fff;}
+.docnav a.cur{background:var(--navy);color:#fff;border-color:var(--navy);}
+.md-link{font-size:13px;margin-bottom:22px;color:var(--muted);}
+.content h1{font-size:27px;color:var(--navy);line-height:1.35;margin:6px 0 18px;}
+.content h2{font-size:20px;color:var(--navy);margin:42px 0 14px;padding-bottom:9px;border-bottom:3px solid var(--navy);}
+.content h3{font-size:16px;color:var(--navy2);margin:24px 0 9px;}
+.content p{margin:0 0 12px;}
+.content ul,.content ol{margin:0 0 14px 22px;}
+.content li{margin-bottom:6px;}
+.content blockquote{background:var(--soft);border-left:5px solid var(--navy);border-radius:0 8px 8px 0;padding:14px 20px;margin:14px 0;color:#33425a;}
+.content blockquote p{margin:0 0 6px;}
+.content table{width:100%;border-collapse:collapse;margin:14px 0 20px;font-size:13.3px;}
+.content th{background:var(--navy);color:#fff;padding:9px 11px;text-align:left;font-weight:600;}
+.content td{padding:8px 11px;border-bottom:1px solid var(--line);vertical-align:top;}
+.content tr:nth-child(even) td{background:#fafbfd;}
+.content a{color:var(--accent);}
+.content code{background:var(--soft);border:1px solid var(--line);border-radius:4px;padding:1px 6px;font-size:12.4px;font-family:Consolas,'Courier New',monospace;}
+.content pre{background:#21252e;color:#e8eaf0;border-radius:8px;padding:16px 18px;font-size:12.4px;font-family:Consolas,'Courier New',monospace;overflow-x:auto;margin:12px 0 18px;line-height:1.55;}
+.content pre code{background:none;border:none;color:inherit;padding:0;}
+.content hr{border:none;border-top:1px solid var(--line);margin:30px 0;}
+.content strong{color:var(--navy2);}
+.footer{margin-top:50px;padding-top:16px;border-top:1px solid var(--line);font-size:12px;color:var(--muted);display:flex;justify-content:space-between;}
+@media print{body{background:#fff;}.page{box-shadow:none;padding:18px 0;max-width:100%;}.docnav{display:none;}.content h2{break-after:avoid;}.content table,.content pre,.content blockquote{break-inside:avoid;}}
+@media (max-width:720px){.page{padding:30px 20px;}}
+</style>
+</head>
+<body>
+<div class="page">
+  <span class="doc-label">협력사 포털 실구축 기획 · 대외비</span>
+  <div class="docnav"><a href="00_CTO종합기획_실행개요.html">00 종합기획</a><a href="01_아키텍처_데이터흐름_연계설계.html">01 아키텍처</a><a href="02_데이터모델_ERP매핑_포털스키마.html">02 데이터모델</a><a href="03_협력사인증_권한_행수준보안_보안.html">03 인증·보안</a><a href="04_실시간동기화_API_파일업로드_알림.html">04 동기화·API</a><a href="05_사전정의_의사결정_유니포인트협의_체크리스트.html">05 사전정의</a><a href="06_로드맵_단계별실행_운영전환.html">06 로드맵</a><a href="07_데모배포전략_Vercel_Supabase_Azure전환.html">07 배포전략</a><a class="cur" href="08_전체프로세스_상태머신_로직재설계.html">08 상태머신</a><a href="README.md">README</a></div>
+  <p class="md-link">📄 Markdown 원본: <a href="08_전체프로세스_상태머신_로직재설계.md">08_전체프로세스_상태머신_로직재설계.md</a> · 상위 <a href="../00_종합정리_요구사항이력.html">08 종합정리</a></p>
+  <div class="content">
+<h1 id="08">08. 전체 프로세스 상태머신 — 로직 재설계 (검수 합격/불합격 흐름)</h1>
+<blockquote>
+<p>작성 2026-07-07 · 관리 최동혁 · 상태: Active (현행 기준)
+목적: <strong>검수 불합격 후 흐름이 막히는 구조적 결함</strong>을 해소하기 위해, 표준(SAP QM·ISO 9001 8.7) 벤치마킹 기준으로
+발주 전체 프로세스의 상태머신을 재정의하고 시스템(포털 DB·api.js·사내 대시보드·협력사 포털)에 적용한 기준 문서.</p>
+</blockquote>
+<hr />
+<h2 id="1">1. 왜 재설계했나 — 현행 로직의 구조적 결함</h2>
+<p>전수 조사 결과, <strong>판정(합/부)과 발주 상태가 완전히 분리된 두 축</strong>이어서 아래 결함이 확인됐다.</p>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>결함</th>
+<th>내용</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>R1</td>
+<td><strong>판정이 상태를 안 바꿈</strong></td>
+<td><code>judge()</code>가 <code>sp_inspection.result</code>만 기록하고 <code>sp_order_state.status</code>는 <code>insp</code> 그대로 → 합격해도 완료가 아니고, 불합격해도 아무 전이가 없음</td>
+</tr>
+<tr>
+<td>R2</td>
+<td><strong>불합격 교착(사용자 보고 버그)</strong></td>
+<td>대시보드 판정 버튼 조건이 <code>검수요청 단계 &amp;&amp; 불합격 아님</code> → 불합격 판정 즉시 버튼이 사라지고, 재검수요청을 해도 옛 불합격 판정이 리셋되지 않아 <strong>영구히 재판정 불가</strong></td>
+</tr>
+<tr>
+<td>R3</td>
+<td><strong>합격 없이 완료 가능</strong></td>
+<td>협력사가 검수요청 상태에서 "다음 단계" 클릭만으로 <code>done</code> 전이 — 품질 판정과 무관하게 완료됨</td>
+</tr>
+<tr>
+<td>R4</td>
+<td><strong>모순 표시</strong></td>
+<td>불합격 배너와 "품질팀 검사 대기중" 배너가 동시 표출, 완료+불합격 시 KPI 이중 계상</td>
+</tr>
+<tr>
+<td>R5</td>
+<td><strong>완료 후 되돌리기 허용</strong></td>
+<td>협력사가 done→insp 단계취소 가능(종결 상태가 아님)</td>
+</tr>
+<tr>
+<td>R6</td>
+<td><strong>step 컬럼 고아화</strong></td>
+<td><code>sp_order_state.step</code> 숫자가 화면 10단계 인덱스와 불일치·미사용(write-only)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="2">2. 벤치마킹 요약 (표준 근거)</h2>
+<ul>
+<li><strong>SAP QM (가장 정형화된 레퍼런스)</strong>: 입고 시 검사로트 자동 생성 → 결과기록 → <strong>Usage Decision(사용결정=판정)</strong> 1회 → 판정 코드에 따라 재고 전기(합격=가용재고, 불합격=차단재고·반품·폐기). <strong>재검사는 판정을 덮어쓰지 않고 새 검사로트를 발번</strong>.</li>
+<li><strong>ISO 9001 8.7 (부적합 산출물)</strong>: 불합격품은 식별·격리 후 <strong>재작업/수리/특채/반품/폐기</strong>로 분기, <strong>재작업 후 재검증(재검사) 필수</strong>, 모든 판정은 판정자·일시·사유와 함께 불변 이력 보존.</li>
+<li><strong>핵심 불변식</strong>: ① <em>검사의뢰 1건 = 판정 1회</em> — 재검사는 차수를 올린 새 의뢰. ② 발주에는 <em>현재 상태 1개</em>, 판정 상세는 <em>append-only 이력 테이블</em>로 분리. ③ 특채는 별도 상태가 아닌 합격의 하위 판정코드(상태 폭발 방지).</li>
+</ul>
+<h2 id="3-v2-5">3. 목표 상태머신 (v2 — 5상태, 단순 유지)</h2>
+<p>기존 4상태(new/prod/insp/done)의 맥락을 유지하고 <strong><code>rework</code>(재작업) 1개만 추가</strong>한다.</p>
+<pre><code>                  협력사                       협력사(검수요청)                 사내 판정(합격)
+   new(신규접수) ────────► prod(생산중) ─────────────────────► insp(검사대기) ──────────► done(완료)
+        ▲    취소           ▲   ▲                                  │    ▲                   [종결]
+        └───────────────────┘   │ 취소(재작업 보류)                 │    │
+                                │                          사내 판정(불합격)│ 협력사(재검수요청, 차수+1)
+                                └────────────── rework(재작업) ◄───┘    │
+                                                     └──────────────────┘
+   ※ DIV(일반·무검사): prod ──협력사(완료 처리)──► done   (검사 생략 유형 — SIE 계열만 검수 필수)
+</code></pre>
+<h3 id="31">3.1 전이표 (전체 — 이것만이 허용되는 전이)</h3>
+<table>
+<thead>
+<tr>
+<th>From</th>
+<th>To</th>
+<th>트리거</th>
+<th>주체</th>
+<th>시스템 동작</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>new</td>
+<td>prod</td>
+<td>생산 시작</td>
+<td>협력사</td>
+<td>status 갱신</td>
+</tr>
+<tr>
+<td>prod</td>
+<td>insp</td>
+<td>검수요청</td>
+<td>협력사</td>
+<td>검사신청 IR 발번(차수 접미사) + <strong>현재 판정 리셋</strong> + status=insp</td>
+</tr>
+<tr>
+<td>prod</td>
+<td>done</td>
+<td>완료 처리 (<strong>DIV 무검사 전용</strong>)</td>
+<td>협력사</td>
+<td>status=done</td>
+</tr>
+<tr>
+<td>insp</td>
+<td>done</td>
+<td><strong>판정=합격</strong></td>
+<td>사내(품질)</td>
+<td>판정 기록(현재+이력) + <strong>status=done 자동 전이</strong></td>
+</tr>
+<tr>
+<td>insp</td>
+<td>rework</td>
+<td><strong>판정=불합격</strong></td>
+<td>사내(품질)</td>
+<td>판정 기록(현재+이력) + <strong>status=rework 자동 전이</strong></td>
+</tr>
+<tr>
+<td>rework</td>
+<td>insp</td>
+<td>재작업 완료 → 재검수요청</td>
+<td>협력사</td>
+<td>새 IR 발번(<strong>차수+1</strong>) + 현재 판정 리셋 + status=insp</td>
+</tr>
+<tr>
+<td>insp</td>
+<td>prod</td>
+<td>검수요청 취소(판정 전만 가능)</td>
+<td>협력사</td>
+<td>검사신청 cancelled=true + status=prod</td>
+</tr>
+<tr>
+<td>prod</td>
+<td>new</td>
+<td>단계 취소</td>
+<td>협력사</td>
+<td>status 갱신</td>
+</tr>
+<tr>
+<td>rework</td>
+<td>prod</td>
+<td>재작업 보류(생산중으로 표기)</td>
+<td>협력사</td>
+<td>status 갱신</td>
+</tr>
+<tr>
+<td>done</td>
+<td>—</td>
+<td><strong>전이 없음(종결)</strong></td>
+<td>—</td>
+<td>협력사 되돌리기 불가. 예외 처리는 사내 관리자</td>
+</tr>
+</tbody>
+</table>
+<h3 id="32-invariant">3.2 불변식 (Invariant)</h3>
+<ol>
+<li><strong>done은 오직 ① 합격 판정 ② DIV 무검사 완료로만 진입</strong> — 협력사가 검사 유형(SIE 계열)에서 임의 완료 불가.</li>
+<li><strong>판정은 status=insp에서만</strong> 가능하고, 판정 즉시 상태가 자동 전이되므로 "insp + 판정 있음" 상태는 존재하지 않는다 → 판정 버튼 조건 = <code>status==='insp' &amp;&amp; 현재 판정 없음</code>(교착 원천 차단).</li>
+<li><strong>재검수요청은 반드시 현재 판정을 리셋</strong>한다(<code>sp_inspection</code> 행 삭제). 판정 이력은 <code>sp_inspection_log</code>(append-only)에 영구 보존 — <em>검사의뢰 1건=판정 1회</em> 불변식.</li>
+<li>검사 차수 = 해당 발주의 검사신청 누적 건수. IR번호는 <code>IR+일자+거래처</code> + 차수 접미사(<code>-2, -3…</code>).</li>
+<li><code>sp_order_state.step</code>은 대시보드 10단계 인덱스(0~9)와 동일 기준으로 기록(참고용 — 화면은 status로 판단).</li>
+</ol>
+<h3 id="33">3.3 상태 정의 (기초 세팅)</h3>
+<table>
+<thead>
+<tr>
+<th>status</th>
+<th>이름</th>
+<th>의미</th>
+<th>10단계 표시(step)</th>
+<th>협력사 가능 액션</th>
+<th>사내 가능 액션</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>new</td>
+<td>신규 접수</td>
+<td>발주 확인·접수 대기</td>
+<td>3 접수</td>
+<td>생산 시작</td>
+<td>메시지</td>
+</tr>
+<tr>
+<td>prod</td>
+<td>생산중</td>
+<td>제작·사진 등록</td>
+<td>4 생산(사진 있으면 5)</td>
+<td>사진 등록·검수요청(SIE)·완료(DIV)·취소</td>
+<td>사진 검토·메시지</td>
+</tr>
+<tr>
+<td>insp</td>
+<td>검사 대기</td>
+<td>검수요청됨·판정 대기</td>
+<td>6 검수요청</td>
+<td>취소(판정 전)</td>
+<td><strong>검수 판정(합/부)</strong></td>
+</tr>
+<tr>
+<td><strong>rework</strong></td>
+<td><strong>재작업(불합격)</strong></td>
+<td>불합격 → 협력사 재작업</td>
+<td>4 생산(재작업 표시)</td>
+<td>사진 재등록·<strong>재검수요청</strong>·보류</td>
+<td>사진 검토·메시지</td>
+</tr>
+<tr>
+<td>done</td>
+<td>완료</td>
+<td>합격(또는 DIV 무검사) → 입고·매입</td>
+<td>9 매입</td>
+<td>(없음 — 종결)</td>
+<td>(없음)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="4">4. 데이터 규칙 (테이블별)</h2>
+<table>
+<thead>
+<tr>
+<th>테이블</th>
+<th>역할</th>
+<th>규칙</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>sp_order_state</code></td>
+<td>발주 <strong>현재 상태 1행</strong></td>
+<td>status ∈ 5상태(check 제약), 전이는 §3.1만 허용</td>
+</tr>
+<tr>
+<td><code>sp_insp_request</code></td>
+<td>검사의뢰(차수 관리)</td>
+<td>append-only + cancelled 플래그. 재요청=새 행(차수+1)</td>
+</tr>
+<tr>
+<td><code>sp_inspection</code></td>
+<td><strong>현재 유효 판정 1행</strong></td>
+<td>판정 시 upsert, 재검수요청 시 <strong>삭제(리셋)</strong></td>
+</tr>
+<tr>
+<td><code>sp_inspection_log</code></td>
+<td>판정 <strong>불변 이력</strong></td>
+<td>append-only — 수정·삭제 금지, 판정자·일시·소견 보존</td>
+</tr>
+</tbody>
+</table>
+<h2 id="5">5. 화면 규칙</h2>
+<p><strong>사내 대시보드</strong>: 판정 버튼 = <code>insp &amp;&amp; 판정 없음</code>(불합격 후 재검수요청 오면 다시 활성 — R2 해소). rework는 "재작업 (불합격)" 배지 + 생산 단계 위치. 합격은 status=done으로 "완료" 집계(KPI 이중 계상 해소). 판정 이력은 모달에서 전체 표시.</p>
+<p><strong>협력사 포털</strong>: insp에서는 "검사 대기" 배너만(다음 단계 버튼 없음 — R3 해소). rework에서는 불합격 배너(판정자·소견) + "▶ 재작업 완료 → 재검수요청" 버튼. done은 종결(버튼 없음 — R5 해소). DIV는 검수요청 대신 "완료 처리(무검사)".</p>
+<h2 id="6-2026-07-07">6. 적용 단계 (모두 2026-07-07 적용 완료)</h2>
+<table>
+<thead>
+<tr>
+<th>단계</th>
+<th>내용</th>
+<th>대상</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>상태머신 정의·문서화(본 문서)</td>
+<td>03_실구축기획/08</td>
+</tr>
+<tr>
+<td>2</td>
+<td>DB 기초 세팅 — status check 제약(5상태) + 기존 불합격 건 rework 마이그레이션 + step 재정렬</td>
+<td>Supabase 마이그레이션</td>
+</tr>
+<tr>
+<td>3</td>
+<td>코어 로직 — <code>judge()</code> 자동 전이, <code>requestInspection()</code> 판정 리셋+차수, STEP 정렬</td>
+<td><code>app/lib/api.js</code></td>
+</tr>
+<tr>
+<td>4</td>
+<td>사내 대시보드 — 판정 버튼 조건·rework 표시·KPI 정합</td>
+<td><code>pages/외주발주_검사진행현황_2026.html</code></td>
+</tr>
+<tr>
+<td>5</td>
+<td>협력사 포털 — 전이 버튼 재구성(§3.1 그대로)·rework 화면·done 종결</td>
+<td><code>pages/협력사_모바일_포털.html</code></td>
+</tr>
+<tr>
+<td>6</td>
+<td>전체 흐름 검증(합격/불합격/재검수 시나리오) + 통합본 재빌드</td>
+<td>라이브</td>
+</tr>
+</tbody>
+</table>
+<h2 id="7">7. 검증 시나리오 (전체 흐름이 끊기지 않는지)</h2>
+<ol>
+<li><strong>정상 합격 흐름</strong>: new → 생산 시작 → 사진 등록 → 검수요청(IR 발번) → 사내 합격 판정 → <strong>자동 done</strong> → 협력사 화면 종결 표시.</li>
+<li><strong>불합격→재검수 루프(핵심)</strong>: 검수요청 → 불합격 판정(사유) → <strong>자동 rework</strong> + 협력사 불합격 배너 → 사진 재등록 → 재검수요청(<strong>IR-2 발번, 판정 리셋</strong>) → 대시보드에 <strong>판정 버튼 재활성</strong> → 합격 → done. <em>(기존: 불합격 시 영구 교착)</em></li>
+<li><strong>가드</strong>: insp에서 협력사 "다음 단계" 버튼 없음 / done에서 취소 버튼 없음 / DIV는 검수요청 없이 완료 처리.</li>
+<li>판정 이력: 불합격→합격 2건이 판정자·일시와 함께 모달에 누적 표시.</li>
+</ol>
+<h2 id="8">8. 확장 여지 (이번 범위 제외 — 단순성 유지)</h2>
+<ul>
+<li>불합격 처리 유형 분기(반품/폐기/특채) — 현재는 <strong>재작업 단일 경로</strong>. 필요 시 <code>sp_inspection_log</code>에 처리유형 컬럼 추가로 확장(특채는 합격 하위 코드로).</li>
+<li>검사중(INSP) 상태 분리(현재는 검사대기=검사중 통합), 부분합격(수량 분할).</li>
+<li>ERP <code>Q_INSPECTION</code> 실연계 시 본 상태머신의 insp/판정 축을 ERP 검사의뢰·판정으로 대체(§4 매핑 유지).</li>
+</ul>
+<h2 id="9">9. 참고 (벤치마킹 출처)</h2>
+<p>SAP QM 검사로트 상태관리·Usage Decision(SAP Help/Community), Guru99 SAP QM Incoming Inspection, ISO 9001 8.7 부적합 산출물 처리(Advisera·iso9001help), IATF 16949 8.7.1.7, 국내 제조 부적합품 관리 프로세스 규정 사례(세종몰드 QP-08·KOSHA).</p>
+  </div>
+  <div class="footer"><span>JEIL M&amp;S · 협력사 발주·검사 포털 실구축 기획</span><span>08 상태머신 · 2026-06-26 · 최동혁</span></div>
+</div>
+</body>
+</html>

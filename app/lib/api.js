@@ -7,8 +7,10 @@
 import { DATA_BACKEND } from "../config.js";
 import { supabase } from "./supabaseClient.js";
 
-// status ↔ step 매핑(02 문서 상태머신 단순화)
-const STEP = { new: 4, prod: 5, insp: 7, done: 10 };
+// 상태머신 v2 (08_협력사발주포털/03_실구축기획/08 문서가 단일 출처)
+// new → prod → insp ─합격→ done(종결) / ─불합격→ rework → insp(재검수, 차수+1) …
+// step = 대시보드 10단계 인덱스(0~9, 참고용 — 화면 판단은 status)
+const STEP = { new: 3, prod: 4, insp: 6, rework: 4, done: 9 };
 const fmt = (ts) => (ts ? new Date(ts).toLocaleString("ko-KR", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" }) : "");
 const _bp = {}; // po_no -> bp_cd 캐시 (쓰기 시 격리 키 재사용)
 const _urlCache = {}; // storage_path -> { url, exp } — signed URL 캐시(Realtime 재로드 시 재서명 방지)
@@ -40,7 +42,7 @@ const supabaseAdapter = {
       supabase.from("sp_order_state").select("*").in("po_no", pos),
       supabase.from("sp_photo").select("*").in("po_no", pos).order("created_at"),
       supabase.from("sp_message").select("*").in("po_no", pos).order("created_at"),
-      supabase.from("sp_insp_request").select("*").in("po_no", pos).eq("cancelled", false),
+      supabase.from("sp_insp_request").select("*").in("po_no", pos).eq("cancelled", false).order("requested_at", { ascending: false }),
       supabase.from("sp_inspection").select("*").in("po_no", pos),
     ]);
     const group = (res) => {
@@ -84,14 +86,20 @@ const supabaseAdapter = {
     if (error) throw error;
   },
 
-  // ---- 검수요청 생성 (IR+YYYYMMDD+seq, 취소 후 재요청은 -2, -3 접미사) ----
+  // ---- 검수요청(prod→insp) / 재검수요청(rework→insp) ----
+  // 표준 불변식: 검사의뢰 1건 = 판정 1회. 재요청은 새 IR(차수 접미사 -2, -3…)을 발번하고
+  // 현재 유효 판정(sp_inspection)을 리셋한다(이력은 sp_inspection_log에 영구 보존).
   async requestInspection(po) {
     const { count } = await supabase.from("sp_insp_request")
       .select("id", { count: "exact", head: true }).eq("po_no", po);
     const no = "IR" + po.slice(2) + (count ? "-" + (count + 1) : "");
+    // 불변식: 유효(미취소) 검사신청은 발주당 1건 — 이전 미결 신청은 자동 마감
+    await supabase.from("sp_insp_request").update({ cancelled: true }).eq("po_no", po).eq("cancelled", false);
     const { error } = await supabase.from("sp_insp_request")
       .insert({ po_no: po, bp_cd: _bp[po], insp_req_no: no, requested_by: (await this.currentUser())?.email || "vendor" });
     if (error) throw error;
+    const rs = await supabase.from("sp_inspection").delete().eq("po_no", po); // 현재 판정 리셋 → 재판정 가능
+    if (rs.error) console.warn("판정 리셋 실패:", rs.error.message);
     await this.updateStatus(po, "insp");
     return no;
   },
@@ -120,10 +128,16 @@ const supabaseAdapter = {
   },
 
   // ---- 검수 판정 (사내 전용. 협력사 토큰으론 RLS가 차단) ----
+  // 판정 즉시 상태 자동 전이: 합격→done(종결), 불합격→rework(재작업).
+  // 따라서 "insp + 판정 있음" 상태는 존재하지 않는다(재판정 교착 원천 차단).
   async judge(po, result, opinion, judgeId) {
     const no = "IQ" + po.slice(2);
-    await supabase.from("sp_inspection").upsert({ po_no: po, bp_cd: _bp[po], result, result_no: no, judge_id: judgeId, opinion });
-    await supabase.from("sp_inspection_log").insert({ po_no: po, bp_cd: _bp[po], result, judge_id: judgeId, opinion });
+    const { error } = await supabase.from("sp_inspection")
+      .upsert({ po_no: po, bp_cd: _bp[po], result, result_no: no, judge_id: judgeId, opinion, judged_at: new Date().toISOString() });
+    if (error) throw error;
+    const lg = await supabase.from("sp_inspection_log").insert({ po_no: po, bp_cd: _bp[po], result, judge_id: judgeId, opinion });
+    if (lg.error) console.warn("판정 이력 기록 실패:", lg.error.message);
+    await this.updateStatus(po, result === "합격" ? "done" : "rework");
   },
 
   // ---- 사진 업로드 (Storage + 메타) ----
