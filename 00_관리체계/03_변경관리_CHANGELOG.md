@@ -27,8 +27,9 @@
 
 | 일자 | 범위 | 대상 | 내용 | 작성 |
 |---|---|---|---|---|
+| 2026-07-07 | AI 챗봇 | `supabase/functions/jeil-chat*/`, `04_챗봇_포털_데모UI.html`, DB, `실제구축준비 자료/06_*` | **U-1 토큰·비용 기록 + 1단계 포털DB 조회 도구 가동** — chat_log에 토큰·추정비용·사용도구 기록(스트림 usage 캡처), Tool Use로 발주 현황 요약·발주 상세·검수 판정대기 3종 도구(읽기전용) 연결. 관리자 콘솔 사용량 탭에 토큰·비용 표시 | 최동혁(+Claude) |
 | 2026-07-07 | AI 챗봇 | `supabase/functions/jeil-chat-admin/`, `04_챗봇_포털_데모UI.html`, `실제구축준비 자료/06_*`(신설) | **챗봇 연결 완료 + 관리자 콘솔 실데이터 연동** — 사용량·권한·게이트웨이 상태 실측 API(`jeil-chat-admin`, portal_admin 전용)와 관리자 탭 "● 실데이터" 섹션. 데이터 접근권한(Entra 그룹 RBAC)·데이터 적용방식(Tool Use 3단계)·사용량 관리(토큰·한도·알림) 고도화 기획 06 문서 신설 | 최동혁(+Claude) |
-| 2026-07-07 | 협력사 포털 | `app/admin-vendors.html`, `app/lib/api.js`, `pages/협력사_모바일_포털.html`, DB | **협력사관리 메시지 고도화** — 관리 화면에 협력사 메시지 섹션 신설(발주별 스레드·미읽음 배지·실시간 수신·열람 시 읽음처리·새 스레드 시작). `sp_message`에 `sender_name` 컬럼 추가로 메시지 저장 실패 버그 수정 + 조회 인덱스. api.js에 `adminMsgApi`·`markRead` 신설, 협력사 포털 열람 시 사내 발신분 읽음 연동 | 최동혁(+Claude) |
+| 2026-07-07 | 협력사 포털 | `app/admin-vendors.html`, `app/lib/api.js`, `pages/협력사_모바일_포털.html`, DB | **협력사관리 메시지 고도화** — 관리 화면에 협력사 메시지 섹션 신설(발주별 스레드·미읽음 배지·실시간 수신·열람 시 읽음처리·새 스레드 시작). `sp_message`에 `sender_name` 컬럼 추가로 메시지 저장 실패 버그 수정 + 조회 인덱스. api.js에 `adminMsgApi`·`markRead` 신설, 협력사 포털 열람 시 사내 발신분 읽음 연동. 메시지 발신자명은 로그인 사용자 정보로 표기(사내=Entra 표시명, 협력사=담당자명(회사명)) | 최동혁(+Claude) |
 | 2026-07-07 | AI 챗봇 | `supabase/functions/jeil-chat/`, `04_챗봇_포털_데모UI.html`, `.env.example` | **챗봇 실 API 연결 착수** — OpenAI 프록시 Edge Function `jeil-chat` 신설(키는 서버 시크릿만, Entra 토큰 Graph 검증으로 사내 한정, SSE 스트리밍, `chat_log` 감사 기록). 데모 UI 자유입력을 실 응답으로 전환(미로그인=데모 폴백). OPENAI_API_KEY 시크릿 등록 대기 | 최동혁(+Claude) |
 | 2026-07-03 | ERP 연계 | `10_ERP_DB연계/03_*` | **중간DB 구축 실행기획 v0.1 신설** — 연결 방안 D1(중간DB 위치)~D3(추출 원천)·스키마 DDL·ETL 처리방법·준비사항·6주 일정. 정책관리 미러 동기화 | 최동혁(+Claude) |
 | 2026-07-03 | ERP 연계 | `10_ERP_DB연계/`(신설), `.claude/agents/` | **ERP DB 연계 관제 체계 신설** — 현재상태·기획·진행상태 3종(SSOT) + HTML 빌드 + 사내 OneDrive `정책관리/ERP_DB연계/` 미러 동기화 스크립트. 전담 에이전트 `erp-db-link-manager` 등록(작업 시 문서·미러 자동 갱신) | 최동혁 |

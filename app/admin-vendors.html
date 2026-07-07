@@ -189,6 +189,8 @@ const show = (el, type, html) => { el.className = "msg show " + type + (el.id===
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c]));
 const VENDOR_LOGIN_URL = location.origin + "/app/vendor-login.html";
 let ME = "";
+let MY_NAME = ""; // 메시지 발신자 표시명 — 로그인 사용자 정보(Entra 표시명 → 이메일 앞부분)
+const displayNameOf = (u) => u?.user_metadata?.full_name || u?.user_metadata?.name || (u?.email || "").split("@")[0];
 
 // Hook이 주입한 클레임(JWT) — JWT는 base64url(UTF-8)이므로 atob 직접 사용 금지
 function claimsOf(session) {
@@ -224,6 +226,7 @@ async function boot() {
     return show($("g_msg"), "err", `사내(@jeilm.co.kr) 계정이 아닙니다(${esc(session.user.email || "")}). 로그아웃 후 사내 계정으로 로그인하세요.`);
   }
   ME = session.user.email;
+  MY_NAME = displayNameOf(session.user);
   const { data: pa, error } = await supabase.from("portal_admin").select("email").eq("email", ME).maybeSingle();
   if (error) { $("gate").classList.remove("hidden"); return show($("g_msg"), "err", "권한 확인 실패: " + error.message); }
   if (!pa) { $("gate").classList.remove("hidden"); return show($("g_msg"), "err", `이 계정(${esc(ME)})에는 협력사관리 권한이 없습니다. 기존 관리자에게 권한 부여를 요청하세요.`); }
@@ -231,7 +234,7 @@ async function boot() {
 }
 function enterApp(user) {
   $("gate").classList.add("hidden"); $("app").classList.remove("hidden");
-  $("whoami").textContent = user.email + " (협력사관리 권한자)";
+  $("whoami").textContent = (MY_NAME && MY_NAME !== user.email.split("@")[0] ? MY_NAME + " · " : "") + user.email + " (협력사관리 권한자)";
   loadVendors(); loadLog(); loadAdmins();
   initMessages(); // 협력사 메시지 스레드 + 실시간 구독
   resumePendingMail(); // 재인증 후 복귀했다면 보류 메일 자동 발송
@@ -591,7 +594,7 @@ async function sendCurMessage() {
   if (!t || !text) return;
   $("th_send").disabled = true;
   try {
-    await adminMsgApi.send(t.po_no, t.bp_cd, text, ME);
+    await adminMsgApi.send(t.po_no, t.bp_cd, text, MY_NAME);
     $("th_text").value = "";
     await loadThreads();
     if (!THREADS.some(x => x.po_no === CUR_PO)) renderThread(false); // 첫 메시지 직후 보정

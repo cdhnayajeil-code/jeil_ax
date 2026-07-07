@@ -235,6 +235,7 @@ async function loadSession(){
   }
   VENDOR.code = am.vendor_bp[0];
   VENDOR.user = session.user.email;
+  VENDOR.contact = session.user.user_metadata?.contact_name || ''; // 계정 발급 시 등록된 담당자명 — 메시지 발신자 표기
   try{ const { data:vm } = await supabase.from('vendor_master').select('bp_nm').eq('bp_cd', VENDOR.code).maybeSingle(); VENDOR.name = (vm&&vm.bp_nm) || VENDOR.code; }
   catch(e){ VENDOR.name = VENDOR.code; }
   return session;
@@ -246,7 +247,7 @@ async function loadOrders(){
 }
 
 /* ===== 데이터 (한일정밀, 사내 대시보드와 정합) ===== */
-let VENDOR = { code:'', name:'', mgr:'제일엠앤에스 구매팀', mgrTeam:'구매팀', user:'', phone:'-' };
+let VENDOR = { code:'', name:'', contact:'', mgr:'제일엠앤에스 구매팀', mgrTeam:'구매팀', user:'', phone:'-' };
 const STATUS = { new:'신규 접수', prod:'생산중', insp:'검수요청', done:'완료' };
 const STATUS_ORDER = ['new','prod','insp','done'];
 const stCls = { new:'st-new', prod:'st-prod', insp:'st-insp', done:'st-done' };
@@ -473,7 +474,7 @@ function renderThread(){
 }
 function msgBubble(m){ return `<div class="msg ${m.who}">${m.who==='them'?`<div class="who">${m.name||'구매 담당자'}</div>`:''}<div>${m.text}</div><div class="mt">${m.t}</div></div>`; }
 async function sendMsg(){ const inp=$('#msgInput'); const v=inp.value.trim(); if(!v) return; inp.value='';
-  try{ await portalApi.sendMessage(curOrder.no, v, 'supplier', VENDOR.name);
+  try{ await portalApi.sendMessage(curOrder.no, v, 'supplier', VENDOR.contact ? `${VENDOR.contact}(${VENDOR.name})` : VENDOR.name);
     await loadOrders(); curOrder=orders.find(o=>o.no===curOrder.no); renderThread();
   }catch(e){ toast('전송 실패: '+(e.message||e)); inp.value=v; } }
 
