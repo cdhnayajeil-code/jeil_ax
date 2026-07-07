@@ -220,7 +220,7 @@
 </head>
 <body>
 
-<div class="demo-banner">⚠ 화면 구성 데모 — 실제 API 미연결 상태이며, 모든 응답·수치는 예시 데이터입니다.</div>
+<div class="demo-banner" id="demoBanner">⚠ 화면 구성 데모 — MS 로그인 시 자유 입력은 실제 AI(jeil-chat 게이트웨이) 응답, 템플릿 버튼·수치는 예시 데이터입니다.</div>
 
 <!-- ===== JEIL AI Portal 로그인 (실제 Entra ID SSO + MFA — JEIL-AX-Portal 앱 연동) ===== -->
 <div class="login-ov" id="loginOv">
@@ -1078,13 +1078,78 @@ function showTab(key){
   });
 }
 
+/* ===== 실제 AI 연결 — jeil-chat 게이트웨이(Supabase Edge Function → OpenAI) =====
+   원칙: OpenAI API 키는 서버(Supabase Secret)에만 존재. 프론트는 Entra 토큰으로 인증만.
+   미로그인(데모 모드)에서는 기존 하드코딩 데모 응답으로 폴백한다. */
+var CHAT_GATEWAY = 'https://dvzohdqtjzocgcclgwro.supabase.co/functions/v1/jeil-chat';
+var chatHistory = []; // 세션 내 대화 맥락 (새로고침 시 초기화)
+
+function getLiveAuth(){
+  try{
+    var a = JSON.parse(localStorage.getItem('jeilax_auth')||'null');
+    return (a && a.at && a.exp > Date.now()) ? a : null;
+  }catch(e){ return null; }
+}
+function escHtml(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function mdLite(s){ // 최소 마크다운: **굵게** + 줄바꿈만 (그 외는 이스케이프)
+  return escHtml(s).replace(/\*\*([^*]+)\*\*/g,'<b>$1</b>').replace(/\n/g,'<br>');
+}
+
+async function sendLive(v, auth){
+  chatHistory.push({role:'user', content:v});
+  var wrap = el('<div class="msg ai"><div class="who">AI</div><div class="bubble typing"><i></i><i></i><i></i></div></div>');
+  document.getElementById('chat').appendChild(wrap); scrollBottom();
+  var bubble = wrap.querySelector('.bubble');
+  try{
+    var res = await fetch(CHAT_GATEWAY, {
+      method:'POST',
+      headers:{ 'Content-Type':'application/json', Authorization:'Bearer '+auth.at },
+      body: JSON.stringify({ messages: chatHistory.slice(-20) })
+    });
+    if(!res.ok){
+      var err = {}; try{ err = await res.json(); }catch(e){}
+      throw new Error(err.error || ('게이트웨이 오류 (' + res.status + ')'));
+    }
+    var model = res.headers.get('x-model');
+    document.getElementById('modelLabel').textContent = 'OpenAI · ' + (model || '연결됨');
+    // OpenAI SSE 스트림 파싱 → 실시간 렌더링
+    var reader = res.body.getReader(), dec = new TextDecoder(), buf = '', text = '';
+    bubble.classList.remove('typing'); bubble.innerHTML = '';
+    while(true){
+      var r = await reader.read(); if(r.done) break;
+      buf += dec.decode(r.value, {stream:true});
+      var lines = buf.split('\n'); buf = lines.pop();
+      for(var i=0; i<lines.length; i++){
+        var ln = lines[i].trim();
+        if(ln.indexOf('data:') !== 0) continue;
+        var payload = ln.slice(5).trim();
+        if(payload === '[DONE]') continue;
+        try{
+          var delta = JSON.parse(payload).choices[0].delta.content;
+          if(delta){ text += delta; bubble.innerHTML = mdLite(text); scrollBottom(); }
+        }catch(e){ /* keep-alive 등 무시 */ }
+      }
+    }
+    if(text){ chatHistory.push({role:'assistant', content:text}); }
+    else { chatHistory.pop(); bubble.innerHTML = '(빈 응답) 다시 시도해 주세요.'; }
+  }catch(e){
+    chatHistory.pop();
+    bubble.classList.remove('typing');
+    bubble.innerHTML = '⚠ ' + escHtml(e.message || '연결 실패')
+      + '<br><small style="color:#888">네트워크·MS 로그인 상태 확인 후 다시 시도하세요. 계속 실패하면 관리자에게 문의.</small>';
+  }
+}
+
 function send(){
   const inp=document.getElementById('inp'); const v=inp.value.trim(); if(!v) return;
   inp.value='';
   addUser(v.replace(/</g,'&lt;'));
+  var auth = getLiveAuth();
+  if(auth){ sendLive(v, auth); return; }
+  // 미로그인(데모 모드): 기존 키워드 매칭 데모 응답
   const hit = v.includes('원가')||v.includes('수지')||v.includes('095')||v.includes('프로젝트')||v.includes('매출')?'cost' : v.includes('주간')||v.includes('보고')?'report' : v.includes('규정')||v.includes('휴가')||v.includes('연차')?'rule' : v.includes('메일')?'mail' : null;
   const d = hit?DEMOS[hit]:DEMOS.fallback;
-  addAI(d.a, d.model);
+  addAI(d.a + '<br><small style="color:#888">※ MS 로그인하면 실제 AI 응답으로 동작합니다.</small>', d.model);
 }
 </script>
 </body>
