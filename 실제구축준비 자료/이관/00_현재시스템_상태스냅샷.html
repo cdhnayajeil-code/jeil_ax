@@ -367,7 +367,7 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 </tr>
 <tr>
 <td>민감 데이터 통제(급여)</td>
-<td><strong>강화(2026-07-08)</strong> — 급여를 민감 모듈 <code>payroll</code>로 신설, <code>dept_erp_scope</code> 인사팀 전용 + 인사 페이지 서버 게이트(비인사팀 직접 접근 차단), 인사 데모 페이지 개인급여 샘플화+마스킹. 민감 분리 스키마 <code>erp_secure</code>(집계·감사) 승인-준비 빈 구조로 신설 — <strong>실 데이터 미적재</strong>(경영승인+유니포인트+Entra HR 그룹 선행 필요)</td>
+<td><strong>실적재 완료·가동(2026-07-08)</strong> — 급여를 민감 모듈 <code>payroll</code>로 신설, <code>dept_erp_scope</code> 인사팀 전용 + 인사 페이지 서버 게이트(비인사팀 직접 접근 차단), 인사 데모 페이지 개인급여 샘플화+마스킹. 민감 분리 스키마 <code>erp_secure.hr_payroll_m</code>(월별 인원·급여총액·퇴직 <strong>집계만</strong>, 개인별·이름·주민번호·계좌 미포함)에 관리자 직접 실행으로 <strong>143행</strong>(2026.01~06) 실적재, 게이트 API <strong><code>jeil-hr</code>(Edge Function) v1</strong>을 배포해 Entra 검증→<code>dept='인사팀'</code>/<code>portal_admin</code>만→감사 로그→집계 반환. 자금(F 모듈) 실적재는 별개로 경영 승인 대기·미착수, <code>AI-Portal-HR</code> Entra 그룹·유니포인트 재직상태 정의는 잔여</td>
 </tr>
 <tr>
 <td>매핑(가설)</td>
@@ -445,6 +445,11 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 </tr>
 </thead>
 <tbody>
+<tr>
+<td>2026-07-08</td>
+<td><strong>인사 급여 집계 실적재 완료 + 게이트 API <code>jeil-hr</code> 배포 — §6 갱신</strong>(관리자 직접 실행) — 승인-준비 상태였던 <code>erp_secure.hr_payroll_m</code>에 실제 데이터를 적재했다: ETL job <code>hr_payroll</code>로 143행(급여 월×부서 137+퇴직 월×전사 6, 2026.01~06) 적재, 개인별·이름·주민번호·계좌는 여전히 미포함(집계만). Edge Function <code>jeil-hr</code> v1 신규 배포(Entra 검증→<code>dept='인사팀'</code>/<code>portal_admin</code>만→감사→집계 반환). 자금(F 모듈) 실적재는 별개로 미착수, <code>AI-Portal-HR</code> Entra 그룹·유니포인트 재직상태 정의는 잔여. 상세·단일 출처는 <code>10_ERP_DB연계/</code>(00·01·02).</td>
+<td>최동혁(+Claude)</td>
+</tr>
 <tr>
 <td>2026-07-08</td>
 <td><strong>급여(민감) 권한 강화 + <code>erp_secure</code> 착수(승인-준비) — §6 갱신</strong> — 급여를 민감 모듈 <code>payroll</code>로 신설, <code>dept_erp_scope</code> 인사팀 전용 부여·인사 페이지 서버 게이트(비인사팀 직접 접근 차단), 관리자 콘솔 급여 ⚠ 민감표시. 인사 데모 페이지 개인급여 샘플화+마스킹. 민감 분리 스키마 <code>erp_secure</code>(<code>hr_payroll_m</code> 집계·<code>hr_access_log</code> 감사) 승인-준비 빈 구조 신설, <strong>실 데이터 미적재</strong> — 경영 승인+유니포인트 협의+Entra HR 그룹 선행 필요. 상세·단일 출처는 <code>10_ERP_DB연계/</code>(00·02).</td>

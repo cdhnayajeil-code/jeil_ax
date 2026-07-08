@@ -47,7 +47,7 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
   <div class="content">
 <h1 id="01-erp-db">01. ERP DB 연계 — 이후 기획 (통합 정리)</h1>
 <blockquote>
-<p><strong>기준일: 2026-07-03</strong>(2026-07-08 §4.4 P4 노출 계층, §4.5 사용자-부서 매핑, §4.6 부서별 ERP 모듈 제안값, §4.7 급여 민감권한·<code>erp_secure</code> 착수 추가 갱신) · 관리: 최동혁
+<p><strong>기준일: 2026-07-03</strong>(2026-07-08 §4.4 P4 노출 계층, §4.5 사용자-부서 매핑, §4.6 부서별 ERP 모듈 제안값, §4.7 급여 민감권한·<code>erp_secure</code> 착수 → 같은 날 실적재 완료로 갱신) · 관리: 최동혁
 ERP 데이터 활용은 <strong>두 축</strong>으로 진행된다: <strong>A) 사내 타부서 데이터 개방</strong>(마스터플랜 v2.0)과 <strong>B) AI 포털·챗봇 연계</strong>(중간DB 연계설계). 본 문서는 두 기획을 하나의 그림으로 통합 정리한 것이다. 상세는 각 원본 문서를 따른다.</p>
 </blockquote>
 <hr />
@@ -209,14 +209,15 @@ etl_meta     — 배치 실행 로그·동기화 상태
 <h3 id="46-erp-2026-07-08">4.6 부서별 ERP 모듈 제안값(참고) (2026-07-08 신설)</h3>
 <p>관리자 콘솔(04)의 '권한 상세' 탭에서 부서별 ERP 모듈 권한(sales/purchase/pur_order/inventory/item)을 편집할 때 참고할 수 있도록, <strong>ERP 역할·메뉴 권한 기반 '제안값'</strong>을 추가했다. <code>Z_USR_MAST_REC_USR_ROLE_ASSO</code>→<code>Z_USR_ROLE_MNU_AUTHZTN_ASSO</code>(MNU_USE_YN='Y')→<code>Z_CO_MAST_MNU</code>(ModuleInitial)를 조인해 사용자별 접근 모듈(ModuleInitial∈SD/MM/IM/MDM)을 <code>erp_ro.usr_erp_module_s</code>로 추출(ETL job <code>usr_erp_module</code>)하고, §4.5의 이메일→부서 매핑(<code>v_user_dept</code>)과 결합해 <strong>부서 과반(≥50%)이 접근하는 모듈</strong>을 <code>erp_ro.v_dept_erp_suggest</code>/<code>public.v_erp_dept_erp_suggest</code>로 산출한다.</p>
 <p><strong>관리자 결정(2026-07-08)</strong>: 이 제안값은 콘솔에 ◆ 참고표시로만 노출하고 <strong>자동 덮어쓰기하지 않는다</strong> — 실질 통제선은 여전히 편집형 <code>dept_erp_scope</code>(업무기준)다. 이유는 실측 소견: 이 조직은 ERP 읽기권한이 광범위(사용자당 평균 17개 역할)해, 부서 과반 임계로 한정해도 거의 모든 부서에 전 모듈이 제안되어 <strong>ERP-역할 신호의 부서 변별력이 약하기 때문</strong>이다(이 실측 결과가 '참고표시만' 결정의 타당성을 뒷받침). 정본 SQL: <code>실제구축준비 자료/이관/sql/12_erp_dept_module_suggest.sql</code>. 실적재 완료(2026-07-08, 397건). 상세 진행은 <code>02_진행상태.md</code> P3·P4, 이슈는 §4 참조.</p>
-<h3 id="47-erp_secure-2026-07-08">4.7 급여 민감권한 강화 + <code>erp_secure</code> 착수 — 승인-준비 (2026-07-08 신설)</h3>
-<p>인사(급여) 집계는 축 B의 가장 민감한 영역(P5)이라, 실 적재보다 <strong>권한 프레임워크와 격리 스키마를 먼저</strong> 갖췄다.</p>
+<h3 id="47-erp_secure-2026-07-08">4.7 급여 민감권한 강화 + <code>erp_secure</code> — 실적재 완료(집계·인사팀 전용) (2026-07-08 신설, 같은 날 실적재)</h3>
+<p>인사(급여) 집계는 축 B의 가장 민감한 영역(P5)이라, 실 적재보다 <strong>권한 프레임워크와 격리 스키마를 먼저</strong> 갖춘 뒤(승인-준비) 같은 날 관리자 직접 실행으로 <strong>실 데이터 적재까지 완료</strong>했다.</p>
 <ul>
 <li><strong>급여 민감 모듈(라이브)</strong>: 급여를 별도 민감 모듈 <code>payroll</code>로 신설해 <code>dept_erp_scope</code>에 <strong>인사팀만</strong> 부여했다. 인사 페이지(<code>portal_page.hr_2026</code>)는 <code>erp_module='payroll'</code>로 이중 게이트돼, <strong>비인사팀은 URL을 알아도 서버 단(jeil-me)에서 직접 접근이 차단</strong>된다. 관리자 콘솔(04) '권한 상세'는 급여를 ⚠ 민감으로 표시하고 일괄부여·◆ 제안값에서 제외한다(개별 지정만 가능). 정본 SQL: <code>이관/sql/13_payroll_module.sql</code>.</li>
 <li><strong>인사 데모 페이지 안전화(라이브)</strong>: <code>pages/인사_인원급여추이_2026.html</code>의 퇴직정산 표에 있던 개인별 실급여(원단위·"실데이터·A22" 배지)를 <strong>샘플값으로 교체</strong>해 저장소·통합본에 실데이터가 남지 않도록 했고, 급여 요소는 <code>data-sensitive="pay"</code>로 기본 마스킹(blur)한다. 마스킹 해제는 인사팀 권한자에게만 허용하며, 통합본 iframe·미로그인 상태는 게이트와 독립적으로 fail-safe하게 마스킹을 유지한다.</li>
-<li><strong><code>erp_secure</code> 스키마(승인-준비 빈 구조)</strong>: 민감 분리 스키마 <code>erp_secure</code>를 신설하고 <code>hr_payroll_m</code>(월별 인원·급여총액·퇴직급여 <strong>집계만</strong> — 개인별 행·주민번호·계좌는 설계상 영구 미포함)과 <code>hr_access_log</code>(조회 감사)를 만들었다. <code>erp_secure</code>는 REST 비노출·service_role 전용(RLS 활성화, <code>authenticated</code> 정책 없음 = 전면 차단)이다. 정본 SQL: <code>이관/sql/14_erp_secure_hr.sql</code>.</li>
-<li><strong>⚠ 거버넌스 게이트(중요)</strong>: 실 급여 데이터 적재, 적재 RPC(<code>hr_payroll_get</code>), 게이트 API(Edge Function <code>jeil-hr</code>)는 <strong>경영 승인 + 유니포인트 View 협의 + (권장) <code>AI-Portal-HR</code> Entra 그룹 신설·배정</strong>이 모두 선행돼야 착수한다(<code>CLAUDE.md §1.7</code>·§4·§6). 이번 착수에서는 이 세 조건 중 어느 것도 충족되지 않아 <strong>실 데이터를 적재하지 않았다</strong>(스키마·정책만).</li>
-<li><strong>커넥터 검증 결과(2026-07-08)</strong>: 인사 테이블 <code>HAA010T</code>(인사기본)·<code>HDF070T</code>(급여)·<code>HGA070T</code>(퇴직급여)·<code>TH101BA1</code>은 실존이 확인됐으나, 로컬 메타(<code>table_dict</code>)에 컬럼 문서가 없어 <code>14_erp_secure_hr.sql</code>의 추출 SQL(귀속월·부서·급여총액 등 컬럼명)은 <strong>문서 추정치의 초안</strong>이다. 유니포인트 협의 시 실제 컬럼 스펙을 확인해 보정해야 한다.</li>
+<li><strong><code>erp_secure</code> 스키마</strong>: 민감 분리 스키마 <code>erp_secure</code>를 신설하고 <code>hr_payroll_m</code>(월별 인원·급여총액·퇴직급여 <strong>집계만</strong> — 개인별 행·주민번호·계좌는 설계상 영구 미포함)과 <code>hr_access_log</code>(조회 감사)를 만들었다. <code>erp_secure</code>는 REST 비노출·service_role 전용(RLS 활성화, <code>authenticated</code> 정책 없음 = 전면 차단)이다. 정본 SQL: <code>이관/sql/14_erp_secure_hr.sql</code>.</li>
+<li><strong>실적재 완료 + 게이트 API <code>jeil-hr</code> 배포(2026-07-08, 관리자 직접 실행)</strong>: ETL job <code>hr_payroll</code>(<code>HDF070T</code> 월×부서 집계·<code>HGA070T</code> 월×전사 집계)을 확정·가동해 <code>erp_secure.hr_payroll_m</code>에 <strong>143행</strong>(급여 월×부서 137 + 퇴직 월×전사 6, 2026.01~06 6개월분)을 적재했다. 컬럼은 <code>ym·dept_nm·headcount·pay_tot_amt·retire_amt</code>뿐 — <strong>개인별·이름·주민번호(RES_NO)·계좌는 포함하지 않는다</strong>(집계만, 퇴직은 부서 breakdown 재식별 위험으로 전사 월별만). 게이트 API <strong><code>jeil-hr</code>(Edge Function) v1</strong>을 배포해 Entra 검증→<code>dept='인사팀'</code>/<code>portal_admin</code>만 통과(그 외 403)→감사 로그(<code>hr_access_log</code>)→<code>hr_payroll_get()</code> 집계 반환 흐름을 갖췄고, service_role 전용 RPC 3종(<code>erp_secure_upsert</code>·<code>hr_payroll_get</code>·<code>hr_access_log_add</code>)을 신설했다. 인사 페이지는 인사팀 권한자에게 이 실 집계 표(월별 인원·급여총액·퇴직)를 보여주고, 비권한자·데모는 여전히 마스킹·샘플 유지. <strong>개인별 급여·주민번호·계좌는 설계상 앞으로도 영구 미연계.</strong></li>
+<li><strong>잔여 게이트</strong>: 자금(F 모듈) 실적재는 인사와 별개로 경영 승인 전 미착수, <code>AI-Portal-HR</code> Entra 보안그룹은 아직 미신설(현재는 <code>dept='인사팀'</code>/<code>portal_admin</code> 판정으로 대체 게이트), 유니포인트와의 재직상태(퇴직 구분 등) 정의 확인은 잔여 항목이다.</li>
+<li><strong>커넥터 검증 결과(2026-07-08)</strong>: 인사 테이블 <code>HAA010T</code>(인사기본)·<code>HDF070T</code>(급여)·<code>HGA070T</code>(퇴직급여)·<code>TH101BA1</code>은 실존이 확인됐고, 실컬럼도 확정됐다(<code>PAY_YYMM</code>·<code>DEPT_NM</code>·<code>PAY_TOT_AMT</code> / <code>RETIRE_DT</code>·<code>RETIRE_AMT</code>) — ETL job <code>hr_payroll</code>에 반영해 실적재까지 완료했다. 다만 <strong>재직상태(퇴직 구분 등) 정의</strong>는 여전히 유니포인트 협의로 확인이 필요하다.</li>
 <li>상세 진행·잔여 게이트는 <code>02_진행상태.md</code> P5 참조.</li>
 </ul>
 <h2 id="5">5. 단계별 로드맵 (통합)</h2>
@@ -256,8 +257,8 @@ etl_meta     — 배치 실행 로그·동기화 상태
 </tr>
 <tr>
 <td><strong>P5</strong> 민감 영역</td>
-<td><code>erp_secure</code>(자금·인사) — 경영 승인 + Entra 그룹 — <strong>2026-07-08 착수(승인-준비)</strong>: 급여 민감권한 프레임워크(라이브)·<code>erp_secure</code> 스키마(빈 구조) 신설(§4.7), 실 적재는 경영승인+유니포인트+Entra HR 그룹 대기</td>
-<td>P4 + 승인</td>
+<td><code>erp_secure</code>(자금·인사) — 경영 승인 + Entra 그룹 — <strong>2026-07-08 급여(인사) 실적재 완료</strong>: 급여 민감권한 프레임워크(라이브)·<code>erp_secure</code> 스키마 신설 후 같은 날 관리자 직접 실행으로 <code>hr_payroll_m</code> 143행 적재 + 게이트 API <code>jeil-hr</code> 배포(§4.7). 자금(F 모듈)은 여전히 경영 승인 대기·미착수, <code>AI-Portal-HR</code> Entra 그룹·유니포인트 재직상태 정의는 잔여</td>
+<td>P4 + 승인(자금)</td>
 </tr>
 </tbody>
 </table>
