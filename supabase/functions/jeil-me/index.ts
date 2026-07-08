@@ -13,7 +13,7 @@ const cors = {
 const json = (o: unknown, status = 200) =>
   new Response(JSON.stringify(o), { status, headers: { ...cors, "Content-Type": "application/json" } });
 
-// ERP 데이터 모듈 카탈로그 — public.v_erp_* 노출 뷰와 1:1
+// ERP 데이터 모듈 카탈로그 — public.v_erp_* 노출 뷰와 1:1 (+ payroll=민감, 인사팀/관리자)
 const CATALOG = [
   { key: "sales", label: "매출" },
   { key: "purchase", label: "매입" },
@@ -21,6 +21,7 @@ const CATALOG = [
   { key: "item", label: "품목" },
   { key: "pur_order", label: "발주" },
   { key: "user_dept", label: "사용자·부서" },
+  { key: "payroll", label: "급여" }, // 민감 — 인사팀 dept_erp_scope 또는 관리자(is_admin)만
 ];
 
 async function verifyEntraUser(token: string): Promise<{ upn: string } | null> {

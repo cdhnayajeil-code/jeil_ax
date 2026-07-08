@@ -116,6 +116,25 @@ Deno.serve(async (req) => {
     return json({ ok: true, saved: depts.length, modules: ins.length, updated_by: user.upn, updated_at: nowIso });
   }
 
+  // 2-e) 전체권한(전체 관리자=portal_admin) 부여/해제 — 관리자만. 특정 이메일 수동 지정.
+  if (body && (body as Record<string, unknown>).action === "manage_admin") {
+    const sub = String((body as Record<string, unknown>).sub || "");
+    const email = String((body as Record<string, unknown>).email || "").trim().toLowerCase();
+    if (!email || !email.endsWith("@jeilm.co.kr")) return json({ error: "사내(@jeilm.co.kr) 이메일이 필요합니다." }, 400);
+    if (sub === "add") {
+      const { error } = await admin.from("portal_admin").upsert({ email, granted_by: user.upn, granted_at: nowIso }, { onConflict: "email" });
+      if (error) return json({ error: "전체권한 부여 실패: " + error.message }, 500);
+      return json({ ok: true, action: "add", email, by: user.upn });
+    }
+    if (sub === "remove") {
+      if (email === user.upn) return json({ error: "본인의 전체권한은 해제할 수 없습니다(잠금 방지)." }, 400);
+      const { error } = await admin.from("portal_admin").delete().eq("email", email);
+      if (error) return json({ error: "전체권한 해제 실패: " + error.message }, 500);
+      return json({ ok: true, action: "remove", email });
+    }
+    return json({ error: "알 수 없는 관리 동작" }, 400);
+  }
+
   // 3) 사용량 집계 (최근 2000건 기준 — 현 규모에 충분, 대량화 시 SQL 집계로 전환)
   const { data: logs, error: le } = await admin
     .from("chat_log")

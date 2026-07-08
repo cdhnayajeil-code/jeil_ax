@@ -642,9 +642,17 @@
           <tr><td><b>사용 감사</b></td><td>chat_log 기록(사용자·모델·분량·<b>토큰·추정비용·사용 도구</b>) — 관리자만 Edge Function 경유 조회(RLS 차단)</td><td>월 사용자 한도·초과 알림</td></tr>
         </table>
         <table id="lpAdmins" style="margin-top:10px;">
-          <tr><th>전체 관리자 (portal_admin)</th><th>부여</th><th>부여일</th></tr>
+          <tr><th>전체 관리자 (portal_admin)</th><th>부여</th><th>부여일</th><th class="r">관리</th></tr>
         </table>
-        <p class="admin-note">아래 섹션은 실구축 기획 예시 화면입니다 — 상세 기획: 「실제구축준비 자료/06_챗봇_데이터접근권한_사용량관리_고도화」.</p>
+        <div style="margin-top:10px; padding:12px 14px; background:var(--soft,#eef2f8); border:1px solid var(--line,#d8dee8); border-radius:9px;">
+          <b style="font-size:12.5px; color:var(--navy);">전체권한(전체 관리자) 수동 부여</b>
+          <span style="font-size:11px; color:var(--muted);"> — 지정한 사내 이메일에 <b>모든 페이지·ERP 모듈(급여 포함) 열람 + 권한/설정 편집</b> 권한을 부여합니다. (portal_admin 등록)</span>
+          <div style="margin-top:8px; display:flex; gap:8px; flex-wrap:wrap;">
+            <input id="adminEmailIn" type="email" placeholder="user@jeilm.co.kr" autocomplete="off" style="flex:1; min-width:220px; padding:7px 11px; border:1px solid var(--line,#d8dee8); border-radius:7px; font-size:13px;">
+            <button class="save" onclick="grantAdmin()">전체권한 부여</button>
+          </div>
+        </div>
+        <p class="admin-note">전체권한은 최고 권한(설정 편집·급여 포함)입니다. 최소 인원에게만 부여하세요. 아래 섹션은 실구축 기획 예시 화면입니다 — 상세 기획: 「실제구축준비 자료/06_챗봇_데이터접근권한_사용량관리_고도화」.</p>
       </div>
       <div class="cards">
         <div class="card"><div class="lb">전체 관리자</div><div class="v">1명 <small>· 최동혁</small></div></div>
@@ -1405,8 +1413,8 @@ async function loadAdminLive(force){
         }).join('');
     // 권한 탭
     var ad = document.getElementById('lpAdmins');
-    if(ad) ad.innerHTML = '<tr><th>전체 관리자 (portal_admin)</th><th>부여</th><th>부여일</th></tr>'
-      + d.admins.map(function(a){ return '<tr><td>'+escHtml(a.email)+'</td><td>'+escHtml(a.granted_by||'-')+'</td><td>'+(a.granted_at||'').slice(0,10)+'</td></tr>'; }).join('');
+    if(ad) ad.innerHTML = '<tr><th>전체 관리자 (portal_admin)</th><th>부여</th><th>부여일</th><th class="r">관리</th></tr>'
+      + d.admins.map(function(a){ return '<tr><td>'+escHtml(a.email)+'</td><td>'+escHtml(a.granted_by||'-')+'</td><td>'+(a.granted_at||'').slice(0,10)+'</td><td class="r"><button data-email="'+escHtml(a.email)+'" onclick="revokeAdmin(this.getAttribute(\'data-email\'))" style="background:#fff;color:var(--red);border:1px solid var(--red);border-radius:6px;padding:2px 10px;font-size:11px;cursor:pointer;">해제</button></td></tr>'; }).join('');
     // 사용자·부서 탭 + 권한 설정 부서표 (ERP 매핑 기준)
     if(d.dept_mapping) renderUserDept(d.dept_mapping);
     renderDeptPerm(d.dept_mapping || { roster: [], users: [] }, d.dept_permissions || []);
@@ -1578,6 +1586,24 @@ async function postAdmin(payload, label){
     loadAdminLive(true);
   }catch(e){ alert(label+' 저장 실패: '+(e.message||e)); }
 }
+
+/* 전체권한(portal_admin) 부여/해제 — 특정 이메일 수동 지정 */
+async function manageAdminReq(sub, email, label){
+  var auth = getLiveAuth(); if(!auth){ alert('MS 로그인(관리자) 후 가능합니다.'); return; }
+  email = (email||'').trim().toLowerCase();
+  if(!email){ alert('사내 이메일을 입력하세요.'); return; }
+  if(email.indexOf('@jeilm.co.kr') < 0){ alert('사내(@jeilm.co.kr) 이메일만 가능합니다.'); return; }
+  try{
+    var res = await fetch(ADMIN_GATEWAY, { method:'POST', headers:{ Authorization:'Bearer '+auth.at, 'Content-Type':'application/json' }, body: JSON.stringify({ action:'manage_admin', sub:sub, email:email }) });
+    var d = await res.json().catch(function(){ return {}; });
+    if(!res.ok || !d.ok) throw new Error(d.error || ('오류 '+res.status));
+    alert(label+' 완료 — '+d.email);
+    var el=document.getElementById('adminEmailIn'); if(el && sub==='add') el.value='';
+    loadAdminLive(true);
+  }catch(e){ alert(label+' 실패: '+(e.message||e)); }
+}
+function grantAdmin(){ var el=document.getElementById('adminEmailIn'); manageAdminReq('add', el&&el.value, '전체권한 부여'); }
+function revokeAdmin(email){ if(!confirm(email+' 의 전체권한(전체 관리자)을 해제할까요?')) return; manageAdminReq('remove', email, '전체권한 해제'); }
 
 function savePagePerm(){
   var rows = Array.prototype.map.call(document.querySelectorAll('#ppRows tr[data-key]'), function(tr){
