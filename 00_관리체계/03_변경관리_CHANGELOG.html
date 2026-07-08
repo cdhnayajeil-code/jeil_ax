@@ -109,6 +109,13 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <tbody>
 <tr>
 <td>2026-07-08</td>
+<td>권한·포털</td>
+<td>Supabase(<code>portal_page</code>·<code>dept_erp_scope</code>·<code>dept_permission</code>), Edge Function <code>jeil-me</code>(신규)·<code>jeil-chat-admin</code>(v4)·<code>jeil-chat</code>(소스), <code>04</code>(권한 상세 탭·카드 게이팅), <code>pages/_access-gate.js</code>+운영 8종, <code>이관/sql/10·11</code></td>
+<td><strong>권한 설정 실제 적용(Enforcement) — 서버 판정 기반 페이지·ERP 접근 강제.</strong> ① 신원·역할(전체관리자/부서관리자/일반)·부서 판정 엔드포인트 <code>jeil-me</code>(Entra Graph 재검증→ERP 매핑 부서→권한). ② 부서 운영 페이지: 포털 카드 잠금 + 8개 페이지 URL 직접 접근 서버 차단(권한 없으면 🔒). ③ 페이지 공개범위·부서×ERP 모듈 권한을 콘솔 '권한 상세'에서 편집·영속(portal_admin만). ④ erp_scope 페이지 레벨 강제 라이브, 챗봇 Tool 게이팅은 소스 반영(재배포 대기). 부서 기준은 ERP 사용자-부서 매핑, ERP 모듈 기본값 시드(편집 가능)</td>
+<td>최동혁(+Claude)</td>
+</tr>
+<tr>
+<td>2026-07-08</td>
 <td>ERP 연계</td>
 <td>Supabase(마이그레이션 <code>erp_user_dept_exclude_unmatched</code>), <code>이관/sql/09 §3-2</code>, <code>10_ERP_DB연계/</code>(<code>00</code>·<code>02</code>·<code>05</code> 갱신, v0.5), 정책관리 미러</td>
 <td><strong>사용자-부서-사원 매핑·대사 실적재 완료 + 자동제외 정책 확정</strong> — 관리자 직접 실행으로 <code>erp_ro.dept_master_s</code> 351건·<code>usr_master_s</code> 99건 실적재 완료. 대사 결과 정상 매핑 89건·불일치 10건(부서불일치 6·상태이상 3·테스트 1) 확정, 불일치는 정상 매핑에서 자동 제외하는 정책 확정. 잔여이슈: 상태이상 3건(김해품질팀·영업팀·자재물류파트) 현업 확인 권고, <code>usr_master</code> upsert-only prune 후속</td>
