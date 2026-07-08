@@ -32,14 +32,26 @@ grant select on erp_ro.usr_erp_module_s to authenticated, service_role;
 
 -- 부서별 ERP 모듈 제안값 (ModuleInitial→포털모듈 매핑은 아래 VALUES에서 편집)
 --   MM(구매관리)은 purchase·pur_order 둘 다로 확장(ERP상 분리 불가 — 제안값이므로 둘 다 제시).
+--   ⚠ 실측(2026-07-08): 이 조직은 ERP 읽기권한이 광범위(사용자당 평균 17역할)해, '부서 과반(≥50%)이
+--     접근하는 모듈'로 한정해도 거의 모든 부서가 전 모듈로 나옴 → ERP-역할 신호는 부서 변별력이 약함.
+--     따라서 자동 덮어쓰기 없이 콘솔 ◆ 참고표시로만 사용하고, 편집형 dept_erp_scope가 실질 통제선.
 create or replace view erp_ro.v_dept_erp_suggest with (security_invoker=true) as
 with map(module_initial, module_key) as (
   values ('SD','sales'), ('MM','purchase'), ('MM','pur_order'), ('IM','inventory'), ('MDM','item')
+),
+dept_users as (
+  select dept_nm, count(*)::numeric as tot from erp_ro.v_user_dept group by dept_nm
+),
+mod_users as (
+  select ud.dept_nm, m.module_key, count(distinct ud.email)::numeric as cnt
+  from erp_ro.usr_erp_module_s u
+  join erp_ro.v_user_dept ud on ud.email = u.email
+  join map m on m.module_initial = u.module_initial
+  group by ud.dept_nm, m.module_key
 )
-select distinct ud.dept_nm, m.module_key
-from erp_ro.usr_erp_module_s u
-join erp_ro.v_user_dept ud on ud.email = u.email
-join map m on m.module_initial = u.module_initial;
+select mu.dept_nm, mu.module_key
+from mod_users mu join dept_users du on du.dept_nm = mu.dept_nm
+where du.tot > 0 and mu.cnt / du.tot >= 0.5;  -- 부서 과반 접근 모듈만
 grant select on erp_ro.v_dept_erp_suggest to authenticated, service_role;
 
 -- public 노출(콘솔 jeil-chat-admin이 service_role로 조회)
