@@ -153,13 +153,14 @@ Deno.serve(async (req) => {
 
   // 4) 사용자↔부서↔사원 매핑(ERP Z_USR_MAST_REC 대사) + 부서별 권한 설정
   //    service_role은 RLS 우회 → 사내 전용 뷰 전량 조회. 부서명 기준으로 권한 설정과 결합.
-  const [udUsers, udRecon, udRoster, deptPerm, pagesRes, deptErpRes] = await Promise.all([
+  const [udUsers, udRecon, udRoster, deptPerm, pagesRes, deptErpRes, deptErpSuggestRes] = await Promise.all([
     admin.from("v_erp_user_dept").select("email,dept_nm,emp_nm,matched_dept_cd,dept_matched").order("dept_nm").order("emp_nm"),
     admin.from("v_erp_user_dept_recon").select("email,usr_nm_raw,dept_nm,emp_nm,status,recon_type").order("recon_type").order("dept_nm"),
     admin.from("v_erp_dept_roster").select("dept_nm,emp_cnt,dept_matched,members").order("emp_cnt", { ascending: false }),
     admin.from("dept_permission").select("dept_nm,dept_admin_email,erp_scope,page_visibility,note,updated_by,updated_at"),
     admin.from("portal_page").select("*").order("sort"),
     admin.from("dept_erp_scope").select("dept_nm,module_key"),
+    admin.from("v_erp_dept_erp_suggest").select("dept_nm,module_key"),
   ]);
 
   return json({
@@ -206,6 +207,7 @@ Deno.serve(async (req) => {
     // 권한 상세: 페이지 레지스트리 + 부서별 ERP 모듈 권한 + 모듈 카탈로그
     portal_pages: pagesRes.data || [],
     dept_erp_scope: deptErpRes.data || [],
+    dept_erp_suggest: deptErpSuggestRes.data || [], // ERP 역할·메뉴 권한 기반 제안값(참고용)
     catalog: CATALOG,
     as_of: new Date().toISOString(),
   });

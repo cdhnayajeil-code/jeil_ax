@@ -739,7 +739,7 @@
       </div>
       <div class="sec">
         <h3>부서별 ERP 모듈 권한 <span style="font-size:11px;color:var(--green,#1a7f37);">● 실데이터·강제</span> <button class="save" onclick="saveDeptErp()">저장</button></h3>
-        <p class="admin-note">부서별 허용 ERP 데이터 모듈(챗봇·ERP 페이지 접근 강제). 기본값은 ERP 기준으로 시드되며 편집 가능합니다. 체크된 모듈만 해당 부서가 조회할 수 있습니다(전체 관리자는 전 모듈).</p>
+        <p class="admin-note">부서별 허용 ERP 데이터 모듈(챗봇·ERP 페이지 접근 강제). 체크된 모듈만 해당 부서가 조회할 수 있습니다(전체 관리자는 전 모듈). <b style="color:#2f6fb3;">◆</b> = ERP 역할·메뉴 권한상 그 부서가 <b>실제 접근하는 모듈(제안값·참고)</b> — 체크(실제 적용)와 별개이며, 참고해 편집하세요.</p>
         <div class="tblwrap" style="overflow-x:auto;">
           <table id="erpMatrix"><thead id="erpMatrixHead"></thead><tbody id="erpMatrixRows"><tr><td class="c" style="color:#888;padding:14px;">MS 로그인(관리자) 시 표시</td></tr></tbody></table>
         </div>
@@ -1515,13 +1515,17 @@ function renderPermDetail(d){
   }).join('') : '<tr><td colspan="6" class="c" style="color:#888;padding:14px;">페이지 없음</td></tr>';
   // B. 부서별 ERP 모듈 매트릭스
   var scopeSet = {}; (d.dept_erp_scope||[]).forEach(function(e){ (scopeSet[e.dept_nm]=scopeSet[e.dept_nm]||{})[e.module_key]=1; });
+  var sugSet = {}; (d.dept_erp_suggest||[]).forEach(function(e){ (sugSet[e.dept_nm]=sugSet[e.dept_nm]||{})[e.module_key]=1; });
   var head = document.getElementById('erpMatrixHead');
   if(head) head.innerHTML = '<tr><th>부서</th>'+PERM_CATALOG.map(function(c){ return '<th class="c">'+escHtml(c.label)+'</th>'; }).join('')+'</tr>';
   var mb = document.getElementById('erpMatrixRows');
   if(mb) mb.innerHTML = PERM_DEPTS.length ? PERM_DEPTS.map(function(dn){
-    var sc = scopeSet[dn]||{};
+    var sc = scopeSet[dn]||{}; var su = sugSet[dn]||{};
     return '<tr data-dept="'+escHtml(dn)+'"><td><b>'+escHtml(dn)+'</b></td>'
-      + PERM_CATALOG.map(function(c){ return '<td class="c"><input type="checkbox" class="em-chk" data-mod="'+c.key+'"'+(sc[c.key]?' checked':'')+'></td>'; }).join('')+'</tr>';
+      + PERM_CATALOG.map(function(c){
+          var mark = su[c.key] ? ' <span title="ERP 역할·메뉴상 이 부서가 실제 접근하는 모듈(제안값)" style="color:#2f6fb3;font-size:10px;">◆</span>' : '';
+          return '<td class="c"><input type="checkbox" class="em-chk" data-mod="'+c.key+'"'+(sc[c.key]?' checked':'')+'>'+mark+'</td>';
+        }).join('')+'</tr>';
   }).join('') : '<tr><td class="c" style="color:#888;padding:14px;">부서 없음</td></tr>';
 }
 

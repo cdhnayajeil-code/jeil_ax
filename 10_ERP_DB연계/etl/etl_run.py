@@ -48,6 +48,22 @@ JOBS = {
         """,
         "params": [],
     },
+    # ⑦ 사용자별 ERP 접근 모듈 ← 역할·메뉴 권한(참고 제안값용) — 부서별 ERP 모듈 제안(v_dept_erp_suggest)
+    #    조인: Z_USR_MAST_REC_USR_ROLE_ASSO → Z_USR_ROLE_MNU_AUTHZTN_ASSO(MNU_USE_YN='Y') → Z_CO_MAST_MNU(ModuleInitial)
+    #    관련 포털 모듈(SD/MM/IM/MDM)만 추출. 소형·전량 upsert. 자동 덮어쓰기 아님(관리자 참고용).
+    "usr_erp_module": {
+        "table": "usr_erp_module_s",
+        "sql": """
+            SELECT DISTINCT a.USR_ID AS email, mm.ModuleInitial AS module_initial
+            FROM JEILMNS.dbo.Z_USR_MAST_REC_USR_ROLE_ASSO a WITH (NOLOCK)
+            JOIN JEILMNS.dbo.Z_USR_ROLE_MNU_AUTHZTN_ASSO m WITH (NOLOCK)
+                 ON m.USR_ROLE_ID = a.USR_ROLE_ID AND m.MNU_USE_YN = 'Y'
+            JOIN JEILMNS.dbo.Z_CO_MAST_MNU mm WITH (NOLOCK)
+                 ON mm.MNU_ID = m.MNU_ID AND mm.MNU_TYPE = m.MNU_TYPE
+            WHERE a.USR_ID LIKE '%@%' AND mm.ModuleInitial IN ('SD','MM','IM','MDM')
+        """,
+        "params": [],
+    },
     # ⓪ 발주현황 스냅샷 ← M_PUR_ORD_HDR/DTL (2026년도만 우선연동 — 협력사 포털·챗봇용)
     "pur_order": {
         "table": "pur_order_s",
