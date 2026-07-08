@@ -47,9 +47,10 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
   <div class="content">
 <h1 id="03-db">03. 중간 DB 구축 실행기획 — 연결 방안·처리방법·준비사항</h1>
 <blockquote>
-<p><strong>v0.2 · 2026-07-07</strong>(최초 v0.1 · 2026-07-03) · 작성: 최동혁(+Claude) · 상태: <strong>초안(D1~D3 결정 자체는 대기) — §7-C 내부 구축 일부 착수</strong>
+<p><strong>v0.3 · 2026-07-08</strong>(v0.2 · 2026-07-07, 최초 v0.1 · 2026-07-03) · 작성: 최동혁(+Claude) · 상태: <strong>초안(D1~D3 결정 자체는 대기) — §7-C 내부 구축 진행 중(1차 5종 실적재·RLS 격리 테스트 완료)</strong>
 <code>01_연계기획</code> P3 단계(중간 DB + ETL)를 실행 가능한 수준으로 구체화한 문서다. ERP운영DB 접속 정보(IP/ID/비밀번호)는 기록하지 않는다 — 서버 지칭은 별칭 <strong>"ERP운영DB"</strong> 만 사용.
-<strong>2026-07-07 갱신</strong>: D1-a(기존 Supabase 프로젝트)안대로 §4 스키마 DDL을 실제 적용하고 §7-C 내부 구축 항목(스키마·RLS·ETL 스크립트) 일부를 완료했다. 실적재는 <code>.env</code> 키 입력 대기(§7-C).</p>
+<strong>2026-07-07 갱신</strong>: D1-a(기존 Supabase 프로젝트)안대로 §4 스키마 DDL을 실제 적용하고 §7-C 내부 구축 항목(스키마·RLS·ETL 스크립트) 일부를 완료했다. 같은 날 관리자 직접 실행으로 1차 5종(발주 포함) 실적재도 완료됐다.
+<strong>2026-07-08 갱신</strong>: §7-C의 RLS 격리 검증 테스트(JWT 시뮬레이션)를 실행해 통과 확인(사내만 정상 조회, 협력사·anon 차단)했다. 이 중간DB 위에 <strong>P4(포털·챗봇 연결) 노출 계층</strong>(뷰 6종 <code>v_erp_*</code>)이 신설됐다 — P3 범위 밖이지만 상호참조: <code>01_연계기획 §4.4</code>·<code>02_진행상태</code> P4 참조.</p>
 </blockquote>
 <hr />
 <h2 id="1">1. 목적·범위</h2>
@@ -410,10 +411,10 @@ CREATE VIEW etl_meta.v_last_success AS
 <h3 id="c-claude">C. 내부 구축 작업 (최동혁 + Claude)</h3>
 <ul>
 <li>[ ] 러너 장비 지정 — <strong>상시 가동</strong> PC/서버 1대(절전·재부팅 정책 확인)</li>
-<li>[x] Supabase에 <code>erp_ro</code>·<code>etl_meta</code> 스키마 + §4 DDL 적용(마이그레이션 파일로 관리) — 1차 4종+<code>table_dict</code> 포함(2026-07-07)</li>
-<li>[x] RLS 정책 작성(사내 롤만 SELECT, vendor·anon 차단) — 마이그레이션 적용 완료(2026-07-07). <strong>격리 검증 테스트(실사용자 계정 시나리오)는 미실시</strong>, 실적재 후 재확인 필요</li>
-<li>[x] ETL 스크립트 <code>etl_run.py</code> 작성 — 잡 4종, UPSERT, 대사 초안, <code>batch_run</code> 기록, 자격증명 주입형(<code>.env</code>)(2026-07-07). <strong><code>--dry-run</code>도 미실행 상태</strong>(ERP 접속값 미입력)</li>
-<li>[x] ERP 테이블 사전 적재 스크립트 <code>load_table_dict.py</code> 작성(§4-2-1, ERP 접속 없음) — <strong>실행 대기</strong>(<code>.env</code> 값 입력 필요, 2026-07-07)</li>
+<li>[x] Supabase에 <code>erp_ro</code>·<code>etl_meta</code> 스키마 + §4 DDL 적용(마이그레이션 파일로 관리) — 1차 4종+<code>pur_order_s</code>(발주)+<code>table_dict</code> 포함(2026-07-07)</li>
+<li>[x] RLS 정책 작성(사내 롤만 SELECT, vendor·anon 차단) — 마이그레이션 적용 완료(2026-07-07). <strong>격리 검증 테스트 완료(2026-07-08)</strong> — JWT 시뮬레이션: 사내 정상조회, 협력사(vendor) 전부 0행, anon 차단. 상세는 <code>02_진행상태</code> 참조</li>
+<li>[x] ETL 스크립트 <code>etl_run.py</code> 작성 — 잡 5종(품목·영업·구매·재고·발주), UPSERT, 대사 초안, <code>batch_run</code> 기록, 자격증명 주입형(<code>.env</code>/<code>_erp_conn.py</code> DPAPI 폴백)(2026-07-07). <code>--dry-run</code> 검증 후 관리자 직접 실행으로 <strong>1차 5종 실적재 완료</strong>(2026-07-07). 2026-07-08 dry-run 재확인 결과 원천 건수가 소폭 증가(§1 참고)해 재적재 명령 준비(관리자 <code>!</code> 직접 실행 예정, 미실행)</li>
+<li>[x] ERP 테이블 사전 적재 스크립트 <code>load_table_dict.py</code> 작성(§4-2-1, ERP 접속 없음) — <strong>실행 완료</strong>(2026-07-07, <code>erp_ro.table_dict</code> 2,658건 적재)</li>
 <li>[ ] Windows 작업 스케줄러 등록(03:00, 실패 시 이벤트 로그) + 재시도 로직</li>
 <li>[ ] 실패 알림 연동(Teams/메일 — Graph 발송 재사용 여부 결정)</li>
 <li>[ ] 초기적재(백필) 실행 + 월별 대사 리포트</li>
@@ -423,9 +424,9 @@ CREATE VIEW etl_meta.v_last_success AS
 <h3 id="d-erp-db-link-manager">D. 문서·거버넌스 (에이전트 <code>erp-db-link-manager</code>)</h3>
 <ul>
 <li>[x] 착수 시 <code>02_진행상태</code> P3 체크리스트를 본 문서 §7로 대체·연동(2026-07-07)</li>
-<li>[ ] 중간 DB <strong>가동</strong>(실적재·야간 배치 정상화) 시 <code>00_현재상태</code> + <code>실제구축준비 자료/이관/00_현재시스템_상태스냅샷</code> §6 갱신 — <strong>아직 미해당</strong>: 스키마만 적용, 실데이터 미적재 상태이므로 이관 문서는 갱신하지 않음</li>
+<li>[x] 중간 DB <strong>가동</strong>(실적재) + P4 노출 계층으로 포털·챗봇 실연동 시작 → <code>00_현재상태</code> + <code>실제구축준비 자료/이관/00_현재시스템_상태스냅샷</code> §6 갱신 완료(2026-07-08, 부분 연계 착수로 반영). 야간 배치 정기화는 여전히 미완료라 "완전 가동"은 아님</li>
 <li>[ ] 접근정책안 v0.1 → 뷰·계정 확정 내용 반영해 개정</li>
-<li>[x] 정책관리 미러 동기화(매 갱신 시) — 2026-07-07 동기화</li>
+<li>[x] 정책관리 미러 동기화(매 갱신 시) — 2026-07-08 동기화</li>
 </ul>
 <hr />
 <h2 id="8-6">8. 단계별 일정 (착수 후 6주)</h2>

@@ -52,13 +52,16 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 </blockquote>
 <hr />
 <h2 id="1">1. 현재 위치</h2>
-<p><strong>P0(정책 수립) 마무리 — P1(유니포인트 협의) 진입 대기 + P3(중간DB) 내부 준비 선행</strong> (2026-07-07 기준)</p>
+<p><strong>P0(정책 수립) 마무리 — P1(유니포인트 협의) 진입 대기 + P3(중간DB) 내부 준비 계속 + P4(포털·챗봇 연결) 착수·부분완료</strong> (2026-07-08 기준)</p>
 <pre><code>[P0 정책수립]──▶[P1 유니포인트 협의]──▶[P2 리포팅 계층]──▶[P3 중간DB+ETL]──▶[P4 포털·챗봇 연결]──▶[P5 민감영역]
-   ● 현재            ○ 대기               ○              ◐ 스키마·스크립트 준비    ○                    ○
+   ● 현재            ○ 대기               ○              ◐ 스키마·스크립트 준비    ◐ 착수·부분완료        ○
 </code></pre>
-<p>차단 요인: ①경영 티어 결정(Tier A vs B — 마스터플랜 v2.0 §11), ②마스터플랜 승인, ③(P3 실적재) 루트 <code>.env</code>의 <code>ERP_DB_CONN</code> 값 미입력(<code>SUPABASE_SERVICE_ROLE_KEY</code>는 2026-07-07 입력 완료).</p>
+<p>차단 요인: ①경영 티어 결정(Tier A vs B — 마스터플랜 v2.0 §11), ②마스터플랜 승인. ~~③(P3 실적재) <code>ERP_DB_CONN</code> 미입력~~ → <strong>해소·실적재 완료(2026-07-07)</strong>: <code>etl/_erp_conn.py</code> 신설 — <code>ERP_DB_CONN</code>이 비어 있으면 관리자 PC의 <code>%USERPROFILE%\.erp\</code>(DPAPI 암호화 저장소)에서 접속 문자열을 런타임 조립하는 폴백(<code>.env</code> 평문 저장 금지 보안규칙 준수, 서버 배포 시엔 종전대로 환경변수). 전 job <code>--dry-run</code> 검증 후 관리자 직접 실행으로 <strong>1차 5종 실적재 완료</strong>(발주 2026년 우선연동 포함). 남은 것: 야간배치 정기화·유니포인트 협의(SQL 초안 확정).</p>
 <p>P1(유니포인트 협의)이 열리기 전이라도 ERP 접속이 필요 없는 내부 준비(중간 DB 스키마·적재 RPC·ETL 스크립트 작성)는 먼저 진행했다(2026-07-07). 같은 날 <code>erp_ro.table_dict</code>에 ERP 테이블 사전 2,658건(컬럼 문서화 452개, 11개 모듈)을 적재 완료했다(로컬 메타 기반, 운영 ERP DB 접속 없음). 실제 ERP 데이터 적재는 여전히 유니포인트 협의(뷰·계정) 이후에만 가능하다.</p>
 <p><strong>신규 요청 접수(2026-07-07)</strong>: 발주 데이터(<code>M_PUR_REQ</code> 발주요청·<code>M_PUR_ORD</code> 발주, §4.4 협력사 포털 매핑)를 <strong>2026년도분만 우선연동</strong>하는 안이 접수됐다. 현재 1차 4종(품목·영업·구매=매입·재고)에는 포함되지 않은 별도 범위이며, 본 에이전트는 문서 관제 담당으로 ERP DB 직접 조회·ETL 코드 실행을 하지 않는다(§4 이슈·메모 요청 목록 참조) — 실행은 관리자(<code>ERP_DB_CONN</code> 입력)·유니포인트 협의·ETL 개발(별도 세션/erp-db-analyst) 이후 가능하다.</p>
+<p><strong>P4 착수(2026-07-08)</strong>: 오늘 ERP→중간DB dry-run으로 원천 5종을 재확인한 결과 건수가 소폭 늘어 있었다(발주 2,702·품목 58,249·매출 10·매입 63·재고 659, 중간DB 적재분은 아직 2026-07-07 기준 2,699/58,246/10/63/656). 최신 재적재는 관리자가 <code>!</code>로 직접 실행하기로 결정했고(명령 준비, 미실행) 본 에이전트는 실행하지 않는다.</p>
+<p>같은 날 <strong>노출 계층(P4)을 신설</strong>했다 — Supabase에 사내 전용 <code>security_invoker</code> 뷰 6종(<code>v_erp_sales_monthly</code>·<code>v_erp_purchase_monthly</code>·<code>v_erp_inventory_daily</code>·<code>v_erp_item</code>·<code>v_erp_pur_order</code>·<code>v_erp_data_asof</code>)을 public에 만들고(<code>erp_ro</code>/<code>etl_meta</code>는 여전히 REST 비노출), 챗봇(jeil-chat) Edge Function이 service_role로 조회할 수 있게 GRANT를 추가했다(마이그레이션 2건: <code>erp_pub_reporting_views</code>·<code>erp_ro_grant_service_role_read</code>). RLS 격리 실측 테스트(JWT 시뮬레이션)도 통과했다 — 사내: 정상(매출10·매입63·재고656·품목58,246·발주2,699·기준시각5행), 협력사(vendor): 전부 0행, anon: 차단.</p>
+<p>이 노출 계층 위에서 실제 연결도 시작했다 — <code>app/lib/api.js</code>에 <code>erpApi</code>를 추가해 <code>pages/구매_거래처별매입집계_2026.html</code> 1개 화면을 사내 로그인 시 실데이터로 파일럿 전환했고(비로그인·협력사는 목업 폴백), 챗봇에는 ERP Tool 4종(<code>get_erp_sales_monthly</code>·<code>get_erp_purchase_monthly</code>·<code>get_erp_inventory_status</code>·<code>get_erp_item</code>)을 추가해 배포했다(version 7 ACTIVE, ERP 중간DB Tool 2단계 착수). 남은 선행·이슈는 §4 참조.</p>
 <h2 id="2">2. 체크리스트</h2>
 <h3 id="p0">P0 — 정책 수립</h3>
 <ul>
@@ -92,18 +95,23 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <li>[x] 적재 경로(service_role 전용 RPC <code>erp_etl_upsert</code>/<code>erp_etl_batch</code>) 구성 — <code>erp_ro</code> REST 비노출(2026-07-07)</li>
 <li>[x] ETL 스크립트 작성(<code>10_ERP_DB연계/etl/load_table_dict.py</code>·<code>etl_run.py</code>, <code>--dry-run</code> 지원) (2026-07-07)</li>
 <li>[x] <code>load_table_dict.py</code> 실행 — <code>erp_ro.table_dict</code>에 ERP 테이블 사전 2,658건 적재 완료(컬럼 문서화 452개, 11개 모듈), DB 검증 완료(운영 ERP DB 접속 없음, 로컬 메타 기반) (2026-07-07)</li>
-<li>[ ] 1차 ETL 배치 실적재 가동(영업·구매·재고) + 실패 알림 — <code>.env</code>의 <code>ERP_DB_CONN</code> 값 입력 → <code>etl_run.py --dry-run</code> 검증 → 실적재 순</li>
+<li>[x] 1차 ETL <strong>실적재 완료</strong>(2026-07-07, 관리자 직접 실행) — <code>--job all</code> 성공: pur_order_s 2,699 / item_master_s 58,246 / sales_orders_m 10 / purchase_m 63 / inventory_d 656행(추출=적재, 유실 0), <code>etl_meta.batch_run</code> 이력 기록. 추출 SQL은 유니포인트 협의 전 초안이라 협의 후 재적재 가능성 있음</li>
+<li>[x] <strong>연결 전담 에이전트(<code>erp-db-connector</code>) 설치·배포킷 완성</strong>(2026-07-07) — jeil_ax <code>.claude/agents/erp-db-connector.md</code> 설치 완료(연결테스트·table_dict·ETL dry-run/실적재·batch_run 점검 소관, DB 작업은 이 에이전트로 일원화·문서관제는 기존대로 <code>erp-db-link-manager</code>). <code>10_ERP_DB연계/agent_kit/</code>(README+정의원본)를 배포킷으로 신설. <strong>ERP_DB 작업환경 설치 완료(2026-07-07)</strong> — <code>ERP_DB\.claude\agents\</code> + 작업 폴더 <code>ERP_DB\JEIL_AX연계\</code>, 킷은 같은 날 불합리 5건 교정(작업로그 참조)</li>
+<li>[ ] 야간배치 정기 가동(스케줄러 등록) + 실패 알림</li>
 <li>[ ] 「데이터 기준 시각」 표기 규약 적용</li>
-<li>[ ] <strong>(신규요청·우선순위) 발주 데이터(<code>M_PUR_REQ</code>·<code>M_PUR_ORD</code>) 2026년도분 우선연동</strong> — 요청 접수(2026-07-07). 필요: ①<code>ERP_DB_CONN</code> 입력, ②유니포인트 협의 또는 <code>table_dict</code>로 컬럼 사전검증, ③<code>etl_run.py</code>에 신규 job 초안 작성(연도 필터 포함) + <code>--dry-run</code> 검증, ④관리자 확인 후 실적재 — <strong>본 에이전트는 실행하지 않음</strong>(문서 관제 담당, DB 직접 조회·ETL 실행 금지)</li>
+<li>[x] <strong>(신규요청) 발주 데이터 2026년도분 우선연동 — 실적재 완료</strong>(2026-07-07): <code>pur_order</code> job(<code>M_PUR_ORD_HDR/DTL</code>, 2026년 필터) → <code>erp_ro.pur_order_s</code> 2,699행. 남은 것: 유니포인트 뷰 스펙 협의(추출 SQL 초안 확정), <code>M_PUR_REQ</code>(발주요청)는 미포함 — 필요 시 별도 job 추가</li>
+<li>[x] ERP→중간DB dry-run 재확인(2026-07-08) — 원천 5종 최신 건수 확인(발주 2,702·품목 58,249·매출 10·매입 63·재고 659), 중간DB 적재분보다 소폭 증가 확인. 최신 재적재는 관리자 <code>!</code> 직접 실행 예정(명령 준비 완료, 미실행)</li>
 </ul>
 <blockquote>
-<p>상세 실행 체크리스트는 <code>03_중간DB_구축실행기획 §7·§8</code>을 따른다(§7-C 내부 구축 항목 중 스키마·RLS·ETL 스크립트 작성 완료 반영).</p>
+<p>상세 실행 체크리스트는 <code>03_중간DB_구축실행기획 §7·§8</code>을 따른다(§7-C 내부 구축 항목 중 스키마·RLS·ETL 스크립트 작성 완료, RLS 격리 테스트 완료 반영).</p>
 </blockquote>
 <h3 id="p4">P4 — 포털·챗봇 연결</h3>
 <ul>
-<li>[ ] REST API — <code>pages/</code> 대시보드 실데이터 전환</li>
-<li>[ ] 챗봇 Tool 3종 + <code>portal.tool_audit</code> 로깅</li>
-<li>[ ] 행 수 상한(200행)·RBAC 서버 단 검사</li>
+<li>[x] <strong>노출 계층(뷰 6종) 신설 + RLS 격리 실측 테스트 통과</strong>(2026-07-08) — public에 <code>v_erp_*</code> 6종(<code>security_invoker</code>), JWT 시뮬레이션: 사내 정상조회·협력사(vendor) 전부 0행·anon 차단. 정본 SQL <code>실제구축준비 자료/이관/sql/08_erp_pub_reporting_views.sql</code></li>
+<li>[~] REST API — <code>pages/</code> 대시보드 실데이터 전환 — <strong>파일럿 1건 완료</strong>(2026-07-08): <code>pages/구매_거래처별매입집계_2026.html</code>(<code>app/lib/api.js</code>의 <code>erpApi</code>, 사내 세션 전용). 나머지 부서 화면은 여전히 샘플데이터</li>
+<li>[~] 챗봇 Tool + <code>portal.tool_audit</code> 로깅 — <strong>ERP Tool 4종 배포</strong>(2026-07-08, <code>jeil-chat</code> version 7 ACTIVE: <code>get_erp_sales_monthly</code>·<code>get_erp_purchase_monthly</code>·<code>get_erp_inventory_status</code>·<code>get_erp_item</code>). <code>portal.tool_audit</code> 로깅 반영 여부는 별도 확인 필요(미확인)</li>
+<li>[ ] 행 수 상한(200행)·RBAC 서버 단 검사 — 미적용/미확인(남은 항목)</li>
+<li>[ ] 사내 Entra→Supabase 세션 브리지 — 부서 대시보드 실데이터가 일반 사용자에게 보이려면 필요. 현재는 사내 Supabase 세션 보유자만 실데이터 확인 가능</li>
 </ul>
 <h3 id="p5">P5 — 민감 영역</h3>
 <ul>
@@ -122,6 +130,48 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 </tr>
 </thead>
 <tbody>
+<tr>
+<td>2026-07-08</td>
+<td><strong>P4 노출 계층 신설 + RLS 격리 실측 테스트</strong> — Supabase 마이그레이션 2건 적용(라이브): <code>erp_pub_reporting_views</code>(public에 사내 전용 <code>security_invoker</code> 뷰 6종 <code>v_erp_*</code> 생성, erp_ro/etl_meta REST 비노출 유지, <code>etl_meta.batch_run</code>에 <code>internal_select_batch_run</code> 정책 추가), <code>erp_ro_grant_service_role_read</code>(챗봇 Edge Function이 service_role로 뷰 조회 가능). JWT 시뮬레이션으로 사내/협력사/anon 격리 테스트 통과(사내 정상·vendor 0행·anon 차단). 재현용 SQL 정본 <code>08_erp_pub_reporting_views.sql</code> 신규</td>
+<td>Supabase 마이그레이션 2건, <code>실제구축준비 자료/이관/sql/08_erp_pub_reporting_views.sql</code></td>
+<td>최동혁(+Claude)</td>
+</tr>
+<tr>
+<td>2026-07-08</td>
+<td><strong>부서 대시보드·챗봇 실데이터 연결(P4-2/P4-3)</strong> — <code>app/lib/api.js</code>에 <code>erpApi</code>(salesMonthly·purchaseMonthly·inventoryDaily·items·purOrders·dataAsof) 추가, <code>pages/구매_거래처별매입집계_2026.html</code> 1개 화면 파일럿 실연동(사내 로그인 시 실데이터, 비로그인·협력사는 목업 폴백). <code>jeil-chat</code> Edge Function에 ERP Tool 4종(<code>get_erp_sales_monthly</code>·<code>get_erp_purchase_monthly</code>·<code>get_erp_inventory_status</code>·<code>get_erp_item</code>) 추가 후 배포(version 7 ACTIVE)</td>
+<td><code>app/lib/api.js</code>(erpApi), <code>pages/구매_거래처별매입집계_2026.html</code>, <code>jeil-chat</code> v7</td>
+<td>최동혁(+Claude)</td>
+</tr>
+<tr>
+<td>2026-07-08</td>
+<td>ERP→중간DB dry-run 재확인 — 5종 전부 정상(발주 2,702·품목 58,249·매출 10·매입 63·재고 659), 2026-07-07 적재분(2,699/58,246/10/63/656) 대비 소폭 증가 확인. 최신 재적재(재실행)는 관리자가 <code>!</code>로 직접 실행하기로 결정(명령 제공, 미실행)</td>
+<td>(미실행 — 명령 준비)</td>
+<td>최동혁(+Claude)</td>
+</tr>
+<tr>
+<td>2026-07-07</td>
+<td><strong>erp-db-connector ERP_DB 작업환경 설치 + 배포킷 개정(불합리 5건 교정)</strong> — ERP_DB 측: <code>ERP_DB\.claude\agents\erp-db-connector.md</code> 설치, 작업 폴더 <code>ERP_DB\JEIL_AX연계\</code>(README=로컬 포인터+작업로그) 신설, ERP_DB CLAUDE.md에 위임 규칙 등록. 킷 교정: ①<code>.env</code> 작성 지시 삭제(OneDrive 평문 저장은 ERP_DB 보안규칙 위반 — ERP 접속은 <code>ERP_DB_CONN</code> 또는 <code>%USERPROFILE%\.erp\</code> DPAPI 폴백 2단계로 명문화) ②실적재는 에이전트 자동 실행 차단 실측 반영(명령 제시→사용자 <code>!</code> 직접 실행) ③ERP_DB 환경 ETL 경로 단절 해소(<code>JEIL_AX연계\README.md</code> 포인터 문서 규약) ④ERP_DB <code>doc/db_log</code> 기록 의무 추가 ⑤ERP_DB 환경에선 link-manager 부재 — "jeil_ax 세션에서 호출 필요" 안내 명문화. 킷 원본 개정 후 jeil_ax 설치본 재복사(해시 일치 확인)</td>
+<td><code>agent_kit/</code>(정의·README 개정), <code>.claude/agents/erp-db-connector.md</code>(재복사), ERP_DB <code>JEIL_AX연계/</code></td>
+<td>최동혁(+Claude)</td>
+</tr>
+<tr>
+<td>2026-07-07</td>
+<td><strong>ERP_DB 연결 전담 에이전트(<code>erp-db-connector</code>) 신설</strong> — 소관: ERP운영DB 읽기전용 연결·연결테스트·<code>table_dict</code> 적재·ETL dry-run/실적재·<code>batch_run</code> 점검(문서 관제는 기존대로 <code>erp-db-link-manager</code>, 역할 완전 분리). 배포킷 <code>10_ERP_DB연계/agent_kit/</code>(README+정의원본, 비밀값·절대경로 없음) 신설 — ERP_DB 작업환경(<code>ERP_DB\.claude\agents\</code>)에도 동일 에이전트 설치 가능하게 함</td>
+<td><code>.claude/agents/erp-db-connector.md</code>, <code>10_ERP_DB연계/agent_kit/</code></td>
+<td>최동혁(+Claude)</td>
+</tr>
+<tr>
+<td>2026-07-07</td>
+<td><strong>1차 ETL 실적재 완료</strong> — 관리자 직접 실행(<code>etl_run.py --job all</code>, 자동모드에선 운영데이터 외부반출 사유로 에이전트 실행 차단됨). 5개 job 전부 추출=적재: pur_order_s 2,699(발주 2026년 우선연동 포함) / item_master_s 58,246 / sales_orders_m 10 / purchase_m 63 / inventory_d 656행, <code>etl_meta.batch_run</code> 이력 기록. ERP_DB 측 로그: <code>doc/db_log_20260707_153000.md</code></td>
+<td><code>erp_ro</code> 1차 5종 적재</td>
+<td>최동혁(+Claude)</td>
+</tr>
+<tr>
+<td>2026-07-07</td>
+<td>ERP운영DB 접속 확보 — <code>.env</code>에 평문 접속 문자열을 넣는 대신 <code>etl/_erp_conn.py</code> 신설(<code>ERP_DB_CONN</code> 비어 있으면 <code>%USERPROFILE%\.erp\</code> DPAPI 저장소에서 런타임 조립, ERP_DB 보안규칙 2026-06-12 준수). <code>etl_run.py --job all --dry-run</code> 전 job 성공: pur_order 2,699 / item_master 58,246 / sales 10 / purchase 63 / inventory 656행. 실적재는 유니포인트 협의·관리자 확인 대기. ERP_DB 측 로그: <code>doc/db_log_20260707_150000.md</code></td>
+<td><code>etl/_erp_conn.py</code>, <code>etl_run.py</code> 패치</td>
+<td>최동혁(+Claude)</td>
+</tr>
 <tr>
 <td>2026-07-07</td>
 <td>발주(<code>M_PUR_REQ</code>·<code>M_PUR_ORD</code>) 2026년도 데이터 우선연동 요청 접수 — 문서(§1·P3 체크리스트·§4)에 신규 우선순위 항목으로 기록. 실행(ERP DB 접속·ETL 코드 작성)은 본 에이전트 권한 밖이라 미실행, 요청 목록만 정리</td>
@@ -174,7 +224,12 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 </table>
 <h2 id="4">4. 이슈·메모</h2>
 <ul>
-<li><strong>대기(관리자 실행 필요)</strong>: <code>SUPABASE_SERVICE_ROLE_KEY</code> 입력 및 <code>load_table_dict.py</code> 실행은 완료(2026-07-07). 남은 대기: 루트 <code>.env</code>에 <code>ERP_DB_CONN</code> 값 입력(사내 OneDrive <code>ERP_DB</code>의 기존 접속 문자열 재사용, 읽기 전용 계정 권장) → ①<code>python etl_run.py --job all --dry-run</code>(추출 SQL·건수 검증) → ②관리자 확인 후 실적재. 추출 SQL은 유니포인트 뷰 스펙 협의 전 초안이므로 협의 결과에 따라 수정 필요.</li>
+<li><strong>P4 착수 이후 남은 선행·이슈(2026-07-08)</strong>:
+  1. 전용 읽기계정 <code>jeilax_ro</code> 미전환 — 현재 ETL은 관리자 개인 계정(DPAPI 폴백) 접속, P1 유니포인트 협의 항목.
+  2. ERP 매핑·<code>inventory_d</code>(재고) 입출고 분류는 여전히 협의 전 '가설' — 유니포인트 확인 필요.
+  3. 야간배치 스케줄 자동화 미구성 — 현재는 수동/일회성 실행만.
+  4. 내부 Entra→Supabase 세션 브리지 부재 — 부서 대시보드 실데이터가 일반 사용자에게 보이려면 필요. 현재는 사내 Supabase 세션 보유자만 실데이터를 볼 수 있다(§2 P4 참조).</li>
+<li><strong>1차 실적재 완료(2026-07-07)</strong>: ERP 접속은 <code>etl/_erp_conn.py</code> DPAPI 폴백으로 해소, 관리자 직접 실행으로 5개 job 전부 적재 완료(추출=적재, 유실 0). 남은 것: ①야간배치 정기 가동(스케줄러) + 실패 알림, ②추출 SQL은 유니포인트 뷰 스펙 협의 전 초안 — 협의 결과에 따라 수정·재적재. 주의: DPAPI 폴백은 관리자 PC·현재 계정에서만 동작(서버 배포 시엔 서버 환경변수 <code>ERP_DB_CONN</code> 필요), 현재 접속 계정은 읽기 전용 계정이 아니므로 P1에서 <code>jeilax_ro</code> 발급 후 교체 권장.</li>
 <li><strong>신규 요청(2026-07-07) — 발주 데이터 2026년도 우선연동</strong>: "ERP DB 연결을 통해 발주데이터 2026년도 데이터만 우선연동 적용" 요청을 접수했다. <code>erp-db-link-manager</code>는 문서 관제 담당으로 <strong>ERP운영DB 직접 조회·쓰기, ETL 코드 실행을 하지 않는다</strong>(에이전트 정의 절대 규칙) — 아래를 요청 목록으로만 제시한다.
   1. 루트 <code>.env</code>에 <code>ERP_DB_CONN</code> 값 입력(관리자).
   2. 발주요청/발주 테이블(<code>M_PUR_REQ</code>·<code>M_PUR_ORD</code>) 컬럼·연도 필터 기준(발주일자 컬럼 등)을 유니포인트 협의 또는 <code>erp_ro.table_dict</code>(2,658건 사전) 조회로 확인 — DB 조회가 필요하면 <code>erp-db-analyst</code>(ERP_DB 작업환경) 소관.

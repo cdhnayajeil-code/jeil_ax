@@ -284,9 +284,55 @@ export const adminMsgApi = {
   },
 };
 
+/* ===================== ERP 중간DB API (사내 전용 리포팅) ===================== */
+// public.v_erp_* 뷰만 조회한다(erp_ro/etl_meta는 REST 비노출).
+// 뷰는 security_invoker + erp_ro RLS(internal_select_*)로 사내(role=internal)만 통과 →
+// 협력사·비로그인은 0행 또는 권한오류. 화면은 데이터가 비면 샘플/안내로 폴백한다.
+// 데이터 출처는 ERP 야간배치 사본이며, 유니포인트 매핑 확정 전 '파일럿·가설'임에 유의.
+export const erpApi = {
+  // 매출 월집계(거래처×월): {ym, bp_code, bp_name, order_amt, sales_amt, collect_amt, order_cnt}
+  async salesMonthly() {
+    const { data, error } = await supabase.from("v_erp_sales_monthly")
+      .select("*").order("ym", { ascending: false }).order("sales_amt", { ascending: false });
+    if (error) throw error; return data || [];
+  },
+  // 매입 월집계(거래처×월): {ym, bp_code, bp_name, purchase_amt, iv_cnt}
+  async purchaseMonthly() {
+    const { data, error } = await supabase.from("v_erp_purchase_monthly")
+      .select("*").order("ym", { ascending: false }).order("purchase_amt", { ascending: false });
+    if (error) throw error; return data || [];
+  },
+  // 재고 입출고 일집계(품목×창고×일): {ymd, item_code, wh_code, in_qty, out_qty, stock_qty}
+  async inventoryDaily(days = 31) {
+    const { data, error } = await supabase.from("v_erp_inventory_daily")
+      .select("*").order("ymd", { ascending: false }).limit(5000);
+    if (error) throw error; return data || [];
+  },
+  // 품목 조회(키워드 부분일치, 대량이라 반드시 필터+상한)
+  async items(keyword = "", limit = 200) {
+    let q = supabase.from("v_erp_item").select("*").limit(limit);
+    if (keyword) q = q.or(`item_code.ilike.%${keyword}%,item_name.ilike.%${keyword}%`);
+    const { data, error } = await q; if (error) throw error; return data || [];
+  },
+  // 발주 스냅샷(2026): 필터 {bp_code, subcontra_flg, po_sts} 선택
+  async purOrders({ bp_code, subcontra_flg, po_sts, limit = 500 } = {}) {
+    let q = supabase.from("v_erp_pur_order").select("*").order("po_dt", { ascending: false }).limit(limit);
+    if (bp_code) q = q.eq("bp_code", bp_code);
+    if (subcontra_flg) q = q.eq("subcontra_flg", subcontra_flg);
+    if (po_sts) q = q.eq("po_sts", po_sts);
+    const { data, error } = await q; if (error) throw error; return data || [];
+  },
+  // 데이터 기준시각(job별 최신 성공): { sales:{last_success,rows_upserted}, ... }
+  async dataAsof() {
+    const { data, error } = await supabase.from("v_erp_data_asof").select("*");
+    if (error) throw error;
+    const m = {}; (data || []).forEach((r) => (m[r.job_name] = r)); return m;
+  },
+};
+
 const adapter = DATA_BACKEND === "mock" ? mockAdapter : supabaseAdapter;
 export const portalApi = adapter;
 export const authApi = adapter;
 
 // 비모듈 인라인 스크립트(기존 데모 HTML)에서도 쓸 수 있게 전역 노출
-if (typeof window !== "undefined") { window.portalApi = adapter; window.authApi = adapter; }
+if (typeof window !== "undefined") { window.portalApi = adapter; window.authApi = adapter; window.erpApi = erpApi; }

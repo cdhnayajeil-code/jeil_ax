@@ -5,7 +5,7 @@
 //   응답: SSE 스트림 — data: {"choices":[{"delta":{"content":"..."}}]} ... data: [DONE]
 // 원칙(CLAUDE.md §1·§4·§6):
 //   - API 키는 서버 시크릿(OPENAI_API_KEY)에만 존재. 프론트 미노출.
-//   - 데이터 접근은 사전 등록된 읽기전용 도구만(모델의 임의 SQL 금지). 포털DB(Supabase) 한정 — ERP 직접 조회 없음.
+//   - 데이터 접근은 사전 등록된 읽기전용 도구만(모델의 임의 SQL 금지). 포털DB + ERP 중간DB 사본(public.v_erp_* 뷰) — ERP 운영DB 직접 조회는 없음.
 //   - chat_log에 사용 이력 + 토큰·추정비용·사용도구 기록(대화 원문 미저장).
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
@@ -34,6 +34,7 @@ const SYSTEM_PROMPT =
   "당신은 제일엠앤에스(JEIL M&S)의 사내 AI 어시스턴트 'jeil-chat'입니다. " +
   "업무 문서 초안(주간보고·메일·공지), 규정 질의, 데이터 요약을 한국어로 간결하고 정확하게 돕습니다. " +
   "협력사 외주 발주·검사 현황은 제공된 조회 도구(포털DB 실데이터)를 사용해 답하고, 답변에 조회 기준 시각을 표기하세요. " +
+  "매출·매입·재고·품목 등 ERP 데이터는 ERP 중간DB 조회 도구(get_erp_*)를 사용하되, 유니포인트 매핑 확정 전 '파일럿 데이터'임을 답변에 밝히세요. " +
   "도구로 조회할 수 없는 사내 수치·규정은 추측하지 말고 원본 확인을 권하세요. " +
   "급여·주민번호 등 개인정보나 비밀값을 답변에 포함하지 마세요.";
 
@@ -65,6 +66,39 @@ const TOOLS = [
       name: "get_inspection_pending",
       description: "검수요청이 접수됐지만 아직 합/부 판정이 나지 않은(검사 대기) 발주 목록 — 발주번호, 협력사, 납기, 요청일시.",
       parameters: { type: "object", properties: {}, required: [] },
+    },
+  },
+  /* ===== 2단계 ERP 중간DB 조회 도구 (사내 실데이터 · 읽기전용 뷰 v_erp_* · 파일럿) ===== */
+  {
+    type: "function",
+    function: {
+      name: "get_erp_sales_monthly",
+      description: "ERP 매출 월집계(중간DB 사내 실데이터) — 거래처×월 매출액·수금액·건수, 롤링 3개월. '이번달 매출', '거래처별 매출' 류 질의에 사용. 파일럿(유니포인트 매핑 확정 전).",
+      parameters: { type: "object", properties: {}, required: [] },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_erp_purchase_monthly",
+      description: "ERP 매입 월집계(중간DB 사내 실데이터) — 거래처×월 매입액·전표건수, 롤링 3개월. '매입 현황', '거래처별 매입' 류 질의에 사용.",
+      parameters: { type: "object", properties: {}, required: [] },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_erp_inventory_status",
+      description: "ERP 재고 입출고 현황(중간DB 사내 실데이터) — 품목×창고 입고/출고, 최근 31일. '재고', '입출고' 류 질의에 사용. 입출고 분류는 협의 전 초안.",
+      parameters: { type: "object", properties: { item_code: { type: "string", description: "품목코드(선택, 특정 품목만)" } }, required: [] },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_erp_item",
+      description: "ERP 품목 조회(중간DB 사내 실데이터) — 코드/명 부분일치로 품목 마스터 검색(규격·단위·분류). '품목 있어?', '품목코드 뭐야' 류 질의에 사용.",
+      parameters: { type: "object", properties: { keyword: { type: "string", description: "품목코드 또는 품목명 키워드" } }, required: ["keyword"] },
     },
   },
 ];
@@ -139,6 +173,59 @@ async function runTool(admin: any, name: string, argsJson: string): Promise<unkn
         검수요청번호: r.insp_req_no, 요청일시: r.requested_at,
       }));
     return { 기준시각: asOf, 판정대기건수: pending.length, 목록: pending };
+  }
+
+  /* ===== 2단계 ERP 중간DB 도구 (public.v_erp_* 뷰, service_role 조회 · 사내 실데이터) ===== */
+  if (name === "get_erp_sales_monthly") {
+    const { data } = await admin.from("v_erp_sales_monthly").select("*").order("ym", { ascending: false });
+    const rows = data || [];
+    let amt = 0, cnt = 0; const months = new Set<string>();
+    const byBp: Record<string, { name: string; amt: number }> = {};
+    for (const r of rows) {
+      months.add(r.ym); amt += Number(r.sales_amt || 0); cnt += Number(r.order_cnt || 0);
+      const b = (byBp[r.bp_code] = byBp[r.bp_code] || { name: r.bp_name || r.bp_code, amt: 0 });
+      b.amt += Number(r.sales_amt || 0);
+    }
+    const top = Object.values(byBp).sort((a, b) => b.amt - a.amt).slice(0, 10);
+    return { 기준시각: asOf, 집계월: [...months].sort(), 매출액합계_원: amt, 매출건수: cnt, 거래처수: Object.keys(byBp).length,
+      거래처Top10: top.map((t) => ({ 거래처: t.name, 매출액_원: t.amt })), 안내: "ERP 중간DB 파일럿(유니포인트 매핑 확정 전)" };
+  }
+
+  if (name === "get_erp_purchase_monthly") {
+    const { data } = await admin.from("v_erp_purchase_monthly").select("*").order("ym", { ascending: false });
+    const rows = data || [];
+    let amt = 0, cnt = 0; const months = new Set<string>();
+    const byBp: Record<string, { name: string; amt: number; cnt: number }> = {};
+    for (const r of rows) {
+      months.add(r.ym); amt += Number(r.purchase_amt || 0); cnt += Number(r.iv_cnt || 0);
+      const b = (byBp[r.bp_code] = byBp[r.bp_code] || { name: r.bp_name || r.bp_code, amt: 0, cnt: 0 });
+      b.amt += Number(r.purchase_amt || 0); b.cnt += Number(r.iv_cnt || 0);
+    }
+    const top = Object.values(byBp).sort((a, b) => b.amt - a.amt).slice(0, 10);
+    return { 기준시각: asOf, 집계월: [...months].sort(), 매입액합계_원: amt, 전표건수: cnt, 거래처수: Object.keys(byBp).length,
+      거래처Top10: top.map((t) => ({ 거래처: t.name, 매입액_원: t.amt, 전표건수: t.cnt })), 안내: "ERP 중간DB 파일럿" };
+  }
+
+  if (name === "get_erp_inventory_status") {
+    const code = String(args.item_code || "").replace(/[,()*%]/g, "").trim();
+    let q = admin.from("v_erp_inventory_daily").select("*").order("ymd", { ascending: false }).limit(2000);
+    if (code) q = q.eq("item_code", code);
+    const { data } = await q; const rows = data || [];
+    let inq = 0, outq = 0; const items = new Set<string>();
+    for (const r of rows) { inq += Number(r.in_qty || 0); outq += Number(r.out_qty || 0); items.add(r.item_code); }
+    return { 기준시각: asOf, 대상: code || "전체(최근31일)", 품목수: items.size, 입고합계: inq, 출고합계: outq, 표본행수: rows.length,
+      안내: "ERP 중간DB 재고 일집계 파일럿(입출고 분류는 협의 전 초안)" };
+  }
+
+  if (name === "get_erp_item") {
+    const kw = String(args.keyword || "").replace(/[,()*%]/g, "").trim();
+    if (!kw) return { 오류: "keyword가 필요합니다." };
+    const { data } = await admin.from("v_erp_item")
+      .select("item_code,item_name,spec,unit,item_class,use_yn")
+      .or(`item_code.ilike.%${kw}%,item_name.ilike.%${kw}%`).limit(30);
+    const rows = data || [];
+    // deno-lint-ignore no-explicit-any
+    return { 기준시각: asOf, 검색어: kw, 건수: rows.length, 목록: rows.map((r: any) => ({ 품목코드: r.item_code, 품목명: r.item_name, 규격: r.spec, 단위: r.unit, 분류: r.item_class, 사용: r.use_yn })) };
   }
 
   return { 오류: `알 수 없는 도구: ${name}` };

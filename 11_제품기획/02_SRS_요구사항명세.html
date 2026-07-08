@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>02 SRS — JEIL AX 제품기획 (기능요구 FR·상태머신·추적매트릭스)</title>
+<style>
+:root{--navy:#1a2f4e;--navy2:#27457a;--accent:#2f6fb3;--red:#b3402f;--green:#2e7d52;--amber:#9a6b1f;
+--ink:#222;--muted:#666;--line:#d8dee8;--bg:#f4f6f9;--soft:#eef2f8;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;color:var(--ink);background:var(--bg);line-height:1.65;font-size:15px;}
+.page{max-width:960px;margin:0 auto;background:#fff;padding:52px 60px;box-shadow:0 2px 14px rgba(0,0,0,.08);}
+.doc-label{display:inline-block;background:var(--navy);color:#fff;font-size:12px;letter-spacing:.16em;padding:5px 14px;border-radius:3px;margin-bottom:16px;}
+.docnav{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 26px;}
+.docnav a{font-size:12px;color:var(--navy2);border:1px solid var(--line);border-radius:20px;padding:4px 12px;text-decoration:none;background:var(--soft);}
+.docnav a:hover{background:var(--navy);color:#fff;}
+.docnav a.cur{background:var(--navy);color:#fff;border-color:var(--navy);}
+.md-link{font-size:13px;margin-bottom:22px;color:var(--muted);}
+.content h1{font-size:27px;color:var(--navy);line-height:1.35;margin:6px 0 18px;}
+.content h2{font-size:20px;color:var(--navy);margin:42px 0 14px;padding-bottom:9px;border-bottom:3px solid var(--navy);}
+.content h3{font-size:16px;color:var(--navy2);margin:24px 0 9px;}
+.content p{margin:0 0 12px;}
+.content ul,.content ol{margin:0 0 14px 22px;}
+.content li{margin-bottom:6px;}
+.content blockquote{background:var(--soft);border-left:5px solid var(--navy);border-radius:0 8px 8px 0;padding:14px 20px;margin:14px 0;color:#33425a;}
+.content blockquote p{margin:0 0 6px;}
+.content table{width:100%;border-collapse:collapse;margin:14px 0 20px;font-size:13.3px;}
+.content th{background:var(--navy);color:#fff;padding:9px 11px;text-align:left;font-weight:600;}
+.content td{padding:8px 11px;border-bottom:1px solid var(--line);vertical-align:top;}
+.content tr:nth-child(even) td{background:#fafbfd;}
+.content a{color:var(--accent);}
+.content code{background:var(--soft);border:1px solid var(--line);border-radius:4px;padding:1px 6px;font-size:12.4px;font-family:Consolas,'Courier New',monospace;}
+.content pre{background:#21252e;color:#e8eaf0;border-radius:8px;padding:16px 18px;font-size:12.4px;font-family:Consolas,'Courier New',monospace;overflow-x:auto;margin:12px 0 18px;line-height:1.55;}
+.content pre code{background:none;border:none;color:inherit;padding:0;}
+.content hr{border:none;border-top:1px solid var(--line);margin:30px 0;}
+.content strong{color:var(--navy2);}
+.footer{margin-top:50px;padding-top:16px;border-top:1px solid var(--line);font-size:12px;color:var(--muted);display:flex;justify-content:space-between;}
+@media print{body{background:#fff;}.page{box-shadow:none;padding:18px 0;max-width:100%;}.docnav{display:none;}.content h2{break-after:avoid;}.content table,.content pre,.content blockquote{break-inside:avoid;}}
+@media (max-width:720px){.page{padding:30px 20px;}}
+</style>
+</head>
+<body>
+<div class="page">
+  <span class="doc-label">JEIL AX 제품기획 · 대외비</span>
+  <div class="docnav"><a href="index.html">🏠 제품기획 허브</a><a href="00_제품기획_개요.html">00 개요</a><a href="01_PRD_제품요구사항정의.html">01 PRD</a><a class="cur" href="02_SRS_요구사항명세.html">02 SRS</a><a href="03_시스템아키텍처_설계.html">03 아키텍처</a><a href="04_데이터베이스_설계.html">04 DB설계</a><a href="05_프론트엔드_백엔드_설계.html">05 FE·BE</a><a href="06_ERP연계_챗봇활용_설계.html">06 ERP연계</a><a href="07_마이그레이션_Azure이관_설계.html">07 이관</a><a href="08_보안_데이터안정성.html">08 보안</a><a href="09_ADR_의사결정기록.html">09 ADR</a><a href="README.md">README</a></div>
+  <p class="md-link">📄 Markdown 원본: <a href="02_SRS_요구사항명세.md">02_SRS_요구사항명세.md</a> · 허브 <a href="index.html">제품기획 개요</a></p>
+  <div class="content">
+<h1 id="02-srs">02 · SRS — 요구사항 명세서</h1>
+<blockquote>
+<p>관리자: 최동혁(dh.choi@jeilm.co.kr) · 기준일: 2026-07-08 · 상태: Draft
+관련: <a href="01_PRD_제품요구사항정의.md">01 PRD</a> · <a href="04_데이터베이스_설계.md">04 DB설계</a> · <a href="05_프론트엔드_백엔드_설계.md">05 FE·BE</a></p>
+</blockquote>
+<p>기능요구를 <strong>FR-ID 체계</strong>로 명세한다. 각 FR은 화면·테이블·Edge Function으로 추적된다(§4 추적매트릭스). 구현 상태: ✅가동 · 🟡부분 · ⬜계획.</p>
+<hr />
+<h2 id="1-fr-id">1. 모듈·FR-ID 체계</h2>
+<p><code>FR-&lt;모듈&gt;-&lt;번호&gt;</code>. 모듈: CHAT(챗봇) · VP(협력사포털) · INS(검수) · MSG(메시지) · ACC(계정) · CADM(챗봇관리) · DEPT(부서페이지) · ETL(연계) · AUTH(인증) · SEC(보안공통).</p>
+<h2 id="2">2. 기능요구 명세</h2>
+<h3 id="21-chat">2.1 챗봇 (CHAT)</h3>
+<table>
+<thead>
+<tr>
+<th>FR-ID</th>
+<th>요구</th>
+<th>상태</th>
+<th>근거</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>FR-CHAT-1</td>
+<td>Entra 로그인 사용자만 챗봇 사용(도메인 <code>@jeilm.co.kr</code>)</td>
+<td>✅</td>
+<td><code>jeil-chat</code> <code>verifyEntraUser</code></td>
+</tr>
+<tr>
+<td>FR-CHAT-2</td>
+<td>사용자 자유질의를 LLM으로 응답(SSE 스트림)</td>
+<td>✅</td>
+<td><code>jeil-chat</code> OpenAI 프록시</td>
+</tr>
+<tr>
+<td>FR-CHAT-3</td>
+<td>사전 등록 읽기전용 Tool만 호출(임의 SQL 금지)</td>
+<td>✅</td>
+<td><code>get_order_summary</code>·<code>get_order_detail</code>·<code>get_inspection_pending</code></td>
+</tr>
+<tr>
+<td>FR-CHAT-4</td>
+<td>Tool은 포털DB(<code>sp_*</code>)만 조회(현재 1단계)</td>
+<td>✅</td>
+<td>service_role, ERP 직접조회 없음</td>
+</tr>
+<tr>
+<td>FR-CHAT-5</td>
+<td>입력 상한(메시지 20·문자 24k·토큰 1024)</td>
+<td>✅</td>
+<td>남용·과금 방지</td>
+</tr>
+<tr>
+<td>FR-CHAT-6</td>
+<td>개인정보·비밀값 응답 금지(시스템 프롬프트)</td>
+<td>✅</td>
+<td>프롬프트 가드</td>
+</tr>
+<tr>
+<td>FR-CHAT-7</td>
+<td>ERP 중간DB 조회 Tool로 확장(2단계, 부서 매핑)</td>
+<td>⬜</td>
+<td><a href="06_ERP연계_챗봇활용_설계.md">06</a> 설계</td>
+</tr>
+<tr>
+<td>FR-CHAT-8</td>
+<td>문서 RAG(3단계)</td>
+<td>⬜</td>
+<td>로드맵, 범위 밖</td>
+</tr>
+</tbody>
+</table>
+<h3 id="22-vp">2.2 협력사 포털 (VP)</h3>
+<table>
+<thead>
+<tr>
+<th>FR-ID</th>
+<th>요구</th>
+<th>상태</th>
+<th>근거</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>FR-VP-1</td>
+<td>협력사 이메일/비번 로그인, <code>role=vendor</code>+<code>vendor_bp</code> 확인</td>
+<td>✅</td>
+<td><code>vendor-login.html</code></td>
+</tr>
+<tr>
+<td>FR-VP-2</td>
+<td>자기 거래처(<code>bp_cd</code>) 발주만 조회(RLS 자동 격리)</td>
+<td>✅</td>
+<td><code>portalApi.getOrders</code>, <code>vendor_own</code> 정책</td>
+</tr>
+<tr>
+<td>FR-VP-3</td>
+<td>생산/검사 사진 업로드(비공개 버킷, 서명 URL)</td>
+<td>✅</td>
+<td><code>vendor-photos</code>, <code>uploadPhoto</code>/<code>photoUrls</code></td>
+</tr>
+<tr>
+<td>FR-VP-4</td>
+<td>검수요청/취소</td>
+<td>✅</td>
+<td><code>requestInspection</code>/<code>cancelInspection</code></td>
+</tr>
+<tr>
+<td>FR-VP-5</td>
+<td>진행상태 실시간 반영(Realtime)</td>
+<td>✅</td>
+<td><code>subscribe</code> postgres_changes</td>
+</tr>
+<tr>
+<td>FR-VP-6</td>
+<td>본인 프로필(담당자명·연락처) 수정</td>
+<td>✅</td>
+<td>RPC <code>update_my_vendor_contact</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="23-ins">2.3 검수·판정 (INS)</h3>
+<table>
+<thead>
+<tr>
+<th>FR-ID</th>
+<th>요구</th>
+<th>상태</th>
+<th>근거</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>FR-INS-1</td>
+<td>사내만 합격/불합격 판정(협력사 SELECT만)</td>
+<td>✅</td>
+<td><code>sp_inspection</code> 사내쓰기 RLS</td>
+</tr>
+<tr>
+<td>FR-INS-2</td>
+<td>판정 시 판정자·차수 기록(비가역 이력)</td>
+<td>✅</td>
+<td><code>sp_inspection_log</code></td>
+</tr>
+<tr>
+<td>FR-INS-3</td>
+<td>판정 즉시 상태 자동 전이(합격→done, 불합격→rework)</td>
+<td>✅</td>
+<td>상태머신 v2(§3)</td>
+</tr>
+<tr>
+<td>FR-INS-4</td>
+<td>사진 검수(사내 코멘트/반려)</td>
+<td>✅</td>
+<td><code>reviewPhoto</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="24-msg">2.4 메시지 (MSG)</h3>
+<table>
+<thead>
+<tr>
+<th>FR-ID</th>
+<th>요구</th>
+<th>상태</th>
+<th>근거</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>FR-MSG-1</td>
+<td>발주 건별 협력사↔사내 양방향 메시지</td>
+<td>✅</td>
+<td><code>sp_message</code></td>
+</tr>
+<tr>
+<td>FR-MSG-2</td>
+<td>읽음 처리·실시간 수신</td>
+<td>✅</td>
+<td><code>markRead</code>/<code>subscribe</code></td>
+</tr>
+<tr>
+<td>FR-MSG-3</td>
+<td>사내 관리자는 전 협력사 스레드 접근</td>
+<td>✅</td>
+<td><code>adminMsgApi</code>, <code>internal_all</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="25-acc">2.5 계정 (ACC)</h3>
+<table>
+<thead>
+<tr>
+<th>FR-ID</th>
+<th>요구</th>
+<th>상태</th>
+<th>근거</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>FR-ACC-1</td>
+<td>관리자 주도 협력사 계정 발급(임시비번)</td>
+<td>✅</td>
+<td><code>vendor-provision</code> Edge Fn</td>
+</tr>
+<tr>
+<td>FR-ACC-2</td>
+<td>발급 권한: <code>@jeilm.co.kr</code> AND <code>portal_admin</code></td>
+<td>✅</td>
+<td>함수 내부 검증</td>
+</tr>
+<tr>
+<td>FR-ACC-3</td>
+<td>협력사 비번 초기화 + 로그</td>
+<td>✅</td>
+<td><code>vendor-reset-password</code></td>
+</tr>
+<tr>
+<td>FR-ACC-4</td>
+<td>협력사 가입신청 승인/거부</td>
+<td>✅</td>
+<td><code>approve-vendor</code></td>
+</tr>
+<tr>
+<td>FR-ACC-5</td>
+<td>계정 변경 감사로그</td>
+<td>✅</td>
+<td><code>vendor_account_log</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="26-cadm">2.6 챗봇 관리 (CADM)</h3>
+<table>
+<thead>
+<tr>
+<th>FR-ID</th>
+<th>요구</th>
+<th>상태</th>
+<th>근거</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>FR-CADM-1</td>
+<td>관리자만 사용량·비용·게이트웨이 상태 조회</td>
+<td>✅</td>
+<td><code>jeil-chat-admin</code>, <code>portal_admin</code></td>
+</tr>
+<tr>
+<td>FR-CADM-2</td>
+<td>모델·토큰·추정비용·사용도구 집계(대화원문 미저장)</td>
+<td>✅</td>
+<td><code>chat_log</code></td>
+</tr>
+<tr>
+<td>FR-CADM-3</td>
+<td>Entra 보안그룹 기반 등급·모델 차등</td>
+<td>⬜</td>
+<td>계획(<a href="09_ADR_의사결정기록.md">09 ADR</a>)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="27-dept">2.7 부서 운영페이지 (DEPT)</h3>
+<table>
+<thead>
+<tr>
+<th>FR-ID</th>
+<th>요구</th>
+<th>상태</th>
+<th>근거</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>FR-DEPT-1</td>
+<td>부서별 대시보드 표시(영업·구매·인사·자금·자재·품목·원가)</td>
+<td>🟡 정적</td>
+<td><code>pages/*_2026.html</code>(하드코딩 샘플)</td>
+</tr>
+<tr>
+<td>FR-DEPT-2</td>
+<td>외주 발주·검사 대시보드 실연동</td>
+<td>✅</td>
+<td><code>외주발주_검사진행현황_2026.html</code>(portalApi)</td>
+</tr>
+<tr>
+<td>FR-DEPT-3</td>
+<td>부서 대시보드를 ERP 중간DB(<code>erp_ro</code>) 실연동 전환</td>
+<td>⬜</td>
+<td><a href="06_ERP연계_챗봇활용_설계.md">06</a> 설계</td>
+</tr>
+</tbody>
+</table>
+<h3 id="28-erp-etl">2.8 ERP 연계 (ETL)</h3>
+<table>
+<thead>
+<tr>
+<th>FR-ID</th>
+<th>요구</th>
+<th>상태</th>
+<th>근거</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>FR-ETL-1</td>
+<td>ERP→중간DB 야간배치(화이트리스트 SQL 5종, 읽기전용)</td>
+<td>🟡 파일럿</td>
+<td><code>etl_run.py</code></td>
+</tr>
+<tr>
+<td>FR-ETL-2</td>
+<td>적재는 service_role RPC 경유(<code>erp_ro</code> REST 비노출)</td>
+<td>✅</td>
+<td><code>erp_etl_upsert</code>/<code>erp_etl_batch</code></td>
+</tr>
+<tr>
+<td>FR-ETL-3</td>
+<td>배치 이력·데이터 기준시각</td>
+<td>✅</td>
+<td><code>etl_meta.batch_run</code>/<code>v_last_success</code></td>
+</tr>
+<tr>
+<td>FR-ETL-4</td>
+<td>전용 읽기계정(<code>jeilax_ro</code>)·리포팅 뷰(유니포인트 협의)</td>
+<td>⬜</td>
+<td>P1 대기</td>
+</tr>
+<tr>
+<td>FR-ETL-5</td>
+<td>중간DB→앱/챗봇 노출(P4 연결)</td>
+<td>⬜</td>
+<td><a href="06_ERP연계_챗봇활용_설계.md">06</a> 핵심</td>
+</tr>
+<tr>
+<td>FR-ETL-6</td>
+<td>민감영역 <code>erp_secure</code>(자금·인사)</td>
+<td>⬜</td>
+<td>P5 예약</td>
+</tr>
+</tbody>
+</table>
+<h3 id="29-authsec">2.9 인증·보안 공통 (AUTH/SEC)</h3>
+<table>
+<thead>
+<tr>
+<th>FR-ID</th>
+<th>요구</th>
+<th>상태</th>
+<th>근거</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>FR-AUTH-1</td>
+<td>사내 Entra ID SSO + MFA(조건부 액세스)</td>
+<td>✅</td>
+<td>PKCE 직접구현</td>
+</tr>
+<tr>
+<td>FR-AUTH-2</td>
+<td>협력사·사내 인증 경계 분리</td>
+<td>✅</td>
+<td>Supabase Auth vs Entra</td>
+</tr>
+<tr>
+<td>FR-AUTH-3</td>
+<td>운영 토큰 보관 BFF/HttpOnly 전환</td>
+<td>⬜</td>
+<td>미결정(<a href="09_ADR_의사결정기록.md">09 ADR</a>)</td>
+</tr>
+<tr>
+<td>FR-SEC-1</td>
+<td>권한 판정은 백엔드/DB(RLS)에서</td>
+<td>✅</td>
+<td>프론트 메뉴숨김은 UX만</td>
+</tr>
+<tr>
+<td>FR-SEC-2</td>
+<td>업로드 파일 검증(형식·용량·확장자)</td>
+<td>🟡</td>
+<td>강화 필요(<a href="08_보안_데이터안정성.md">08</a>)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="3-v2">3. 상태머신 (발주·검사 v2)</h2>
+<p>현행 구현(<code>app/lib/api.js</code> 주석·<code>order_state_machine_v2</code> 마이그레이션) = <strong>5상태</strong>:</p>
+<pre><code> new ──▶ prod ──▶ insp ──합격──▶ done
+                   │
+                   └──불합격──▶ rework ──▶ insp (재검수, 차수 +1)
+</code></pre>
+<ul>
+<li><code>new</code>(발주) → <code>prod</code>(생산) → <code>insp</code>(검수요청/검수중) → 판정.</li>
+<li>합격: <code>insp → done</code>(자동 전이). 불합격: <code>insp → rework</code>(재작업) → 다시 <code>insp</code>(검사 차수 증가).</li>
+<li>판정 즉시 자동 전이하여 "검수 불합격 교착"을 해소(재설계 배경: 커밋 <code>b62e337</code>).</li>
+<li>상세 10단계 업무 프로세스(구매요청~매입)와의 매핑은 → <a href="../08_협력사발주포털/03_실구축기획/08_전체프로세스_상태머신_로직재설계.md"><code>08/03_실구축기획/08_전체프로세스_상태머신</code></a>.</li>
+</ul>
+<h2 id="4-fr-edge-fn">4. 요구사항 추적 매트릭스 (FR ↔ 화면 ↔ 테이블 ↔ Edge Fn)</h2>
+<table>
+<thead>
+<tr>
+<th>FR 그룹</th>
+<th>화면(프론트)</th>
+<th>테이블(DB)</th>
+<th>Edge Function</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>CHAT</td>
+<td><code>04_챗봇_포털_데모UI.html</code></td>
+<td><code>sp_order_*</code>, <code>sp_inspection</code>, <code>chat_log</code></td>
+<td><code>jeil-chat</code></td>
+</tr>
+<tr>
+<td>VP</td>
+<td><code>vendor-login.html</code>, <code>협력사_모바일_포털.html</code></td>
+<td><code>sp_order_header/state</code>, <code>sp_photo</code>, <code>sp_insp_request</code></td>
+<td>(RLS 직접) + <code>vendor-provision</code></td>
+</tr>
+<tr>
+<td>INS</td>
+<td><code>외주발주_검사진행현황_2026.html</code></td>
+<td><code>sp_inspection</code>, <code>sp_inspection_log</code></td>
+<td>(RLS 직접)</td>
+</tr>
+<tr>
+<td>MSG</td>
+<td>양측 포털</td>
+<td><code>sp_message</code></td>
+<td>(RLS 직접)</td>
+</tr>
+<tr>
+<td>ACC</td>
+<td><code>admin-vendors.html</code></td>
+<td><code>vendor_master/account/account_log</code>, <code>vendor_application</code>, <code>portal_admin</code></td>
+<td><code>vendor-provision</code>, <code>vendor-reset-password</code>, <code>approve-vendor</code></td>
+</tr>
+<tr>
+<td>CADM</td>
+<td><code>04_…</code> 관리자 콘솔</td>
+<td><code>chat_log</code></td>
+<td><code>jeil-chat-admin</code></td>
+</tr>
+<tr>
+<td>DEPT</td>
+<td><code>pages/*_2026.html</code></td>
+<td>(정적) → <code>erp_ro.*</code>(계획)</td>
+<td>(계획: ERP Query 뷰/RPC)</td>
+</tr>
+<tr>
+<td>ETL</td>
+<td>(배치, 화면 없음)</td>
+<td><code>erp_ro.*</code>, <code>etl_meta.batch_run</code></td>
+<td>RPC <code>erp_etl_upsert</code>/<code>erp_etl_batch</code></td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>화면·테이블·함수의 상세 명세는 <a href="04_데이터베이스_설계.md">04 DB설계</a>·<a href="05_프론트엔드_백엔드_설계.md">05 FE·BE</a>.</p>
+</blockquote>
+  </div>
+  <div class="footer"><span>JEIL M&S · AI 포털 제품기획</span><span>02 SRS · 관리: 최동혁</span></div>
+</div>
+</body>
+</html>

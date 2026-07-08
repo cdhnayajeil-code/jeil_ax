@@ -108,6 +108,27 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 </thead>
 <tbody>
 <tr>
+<td>2026-07-08</td>
+<td>ERP 연계</td>
+<td>Supabase(마이그레이션 2건·<code>jeil-chat</code> v7), <code>app/lib/api.js</code>, <code>pages/구매_거래처별매입집계_2026.html</code>, <code>이관/sql/08</code>(신설), <code>10_ERP_DB연계/</code>, <code>11_제품기획/06·09</code></td>
+<td><strong>P4 착수 — ERP 중간DB→앱/챗봇 실데이터 연결</strong> — 사내 전용 노출 뷰 <code>public.v_erp_*</code> 6종 신설(erp_ro REST 비노출 유지·<code>security_invoker</code>+<code>internal_select_*</code> RLS로 사내만, 협력사/anon 0행 격리 실테스트 통과). <code>api.js</code>에 <code>erpApi</code> 추가 + 구매 부서페이지 파일럿 실연동(비로그인 목업 폴백). 챗봇에 ERP Tool 4종(매출·매입·재고·품목) 추가 배포. 실적재는 관리자 <code>!</code> 직접 실행. 재현 SQL <code>이관/sql/08</code>. 매핑은 유니포인트 확정 전 '가설'·전용계정 <code>jeilax_ro</code> 미전환</td>
+<td>최동혁(+Claude)</td>
+</tr>
+<tr>
+<td>2026-07-08</td>
+<td>제품기획·거버넌스</td>
+<td><code>11_제품기획/</code>(신설, 문서 10종+README+index+빌드), <code>00_문서대장</code>, 본 CHANGELOG</td>
+<td><strong>전사 제품기획·아키텍처 SSOT 신설</strong> — 여러 곳에 분산된 현재 시스템 구조(3계층 데이터·인증 3경로·챗봇·이관)를 CTO 관점 단일 세트로 통합·격상. PRD·SRS·시스템아키텍처·DB설계·FE/BE설계·ERP연계(P4)·Azure이관·보안·ADR 10종. <strong>Supabase 라이브 실측</strong>(get_advisors·list_tables·list_migrations)으로 전 테이블 RLS ON·보안 advisor(WARN 2·INFO 2)·성능 136건을 08 보안에 근거 기록. 발견 불일치(챗봇 Claude/OpenAI 표기 등)·미결정(스택·호스팅·인증 D1·BFF)은 09 ADR에 이슈/결정대기로 등재. 코드 무변경(순수 문서화). 정본 중복 없이 링크 참조</td>
+<td>최동혁(+Claude)</td>
+</tr>
+<tr>
+<td>2026-07-07</td>
+<td>ERP 연계</td>
+<td><code>.claude/agents/erp-db-connector.md</code>(신설), <code>10_ERP_DB연계/agent_kit/</code>(신설), <code>02_진행상태.md</code>, <code>00_현재상태_스냅샷.md</code></td>
+<td><strong>ERP_DB 연결 전담 에이전트(<code>erp-db-connector</code>) 신설 — 문서·DB 작업 역할 분리</strong> — 기존 <code>erp-db-link-manager</code>(문서·미러 관제)와 별개로 ERP운영DB 연결테스트·<code>table_dict</code>·ETL dry-run/실적재·<code>batch_run</code> 점검을 담당하는 신규 에이전트 도입. 배포킷 <code>10_ERP_DB연계/agent_kit/</code>(비밀값 없음)로 ERP_DB 작업환경에도 동일 설치 가능하게 함, 정책관리 미러에 <code>agent_kit/</code> 동봉</td>
+<td>최동혁(+Claude)</td>
+</tr>
+<tr>
 <td>2026-07-07</td>
 <td>협력사 포털</td>
 <td><code>app/admin-vendors.html</code>, DB(Realtime)</td>

@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>09 ADR — JEIL AX 제품기획 (확정결정·미결정·발견이슈)</title>
+<style>
+:root{--navy:#1a2f4e;--navy2:#27457a;--accent:#2f6fb3;--red:#b3402f;--green:#2e7d52;--amber:#9a6b1f;
+--ink:#222;--muted:#666;--line:#d8dee8;--bg:#f4f6f9;--soft:#eef2f8;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;color:var(--ink);background:var(--bg);line-height:1.65;font-size:15px;}
+.page{max-width:960px;margin:0 auto;background:#fff;padding:52px 60px;box-shadow:0 2px 14px rgba(0,0,0,.08);}
+.doc-label{display:inline-block;background:var(--navy);color:#fff;font-size:12px;letter-spacing:.16em;padding:5px 14px;border-radius:3px;margin-bottom:16px;}
+.docnav{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 26px;}
+.docnav a{font-size:12px;color:var(--navy2);border:1px solid var(--line);border-radius:20px;padding:4px 12px;text-decoration:none;background:var(--soft);}
+.docnav a:hover{background:var(--navy);color:#fff;}
+.docnav a.cur{background:var(--navy);color:#fff;border-color:var(--navy);}
+.md-link{font-size:13px;margin-bottom:22px;color:var(--muted);}
+.content h1{font-size:27px;color:var(--navy);line-height:1.35;margin:6px 0 18px;}
+.content h2{font-size:20px;color:var(--navy);margin:42px 0 14px;padding-bottom:9px;border-bottom:3px solid var(--navy);}
+.content h3{font-size:16px;color:var(--navy2);margin:24px 0 9px;}
+.content p{margin:0 0 12px;}
+.content ul,.content ol{margin:0 0 14px 22px;}
+.content li{margin-bottom:6px;}
+.content blockquote{background:var(--soft);border-left:5px solid var(--navy);border-radius:0 8px 8px 0;padding:14px 20px;margin:14px 0;color:#33425a;}
+.content blockquote p{margin:0 0 6px;}
+.content table{width:100%;border-collapse:collapse;margin:14px 0 20px;font-size:13.3px;}
+.content th{background:var(--navy);color:#fff;padding:9px 11px;text-align:left;font-weight:600;}
+.content td{padding:8px 11px;border-bottom:1px solid var(--line);vertical-align:top;}
+.content tr:nth-child(even) td{background:#fafbfd;}
+.content a{color:var(--accent);}
+.content code{background:var(--soft);border:1px solid var(--line);border-radius:4px;padding:1px 6px;font-size:12.4px;font-family:Consolas,'Courier New',monospace;}
+.content pre{background:#21252e;color:#e8eaf0;border-radius:8px;padding:16px 18px;font-size:12.4px;font-family:Consolas,'Courier New',monospace;overflow-x:auto;margin:12px 0 18px;line-height:1.55;}
+.content pre code{background:none;border:none;color:inherit;padding:0;}
+.content hr{border:none;border-top:1px solid var(--line);margin:30px 0;}
+.content strong{color:var(--navy2);}
+.footer{margin-top:50px;padding-top:16px;border-top:1px solid var(--line);font-size:12px;color:var(--muted);display:flex;justify-content:space-between;}
+@media print{body{background:#fff;}.page{box-shadow:none;padding:18px 0;max-width:100%;}.docnav{display:none;}.content h2{break-after:avoid;}.content table,.content pre,.content blockquote{break-inside:avoid;}}
+@media (max-width:720px){.page{padding:30px 20px;}}
+</style>
+</head>
+<body>
+<div class="page">
+  <span class="doc-label">JEIL AX 제품기획 · 대외비</span>
+  <div class="docnav"><a href="index.html">🏠 제품기획 허브</a><a href="00_제품기획_개요.html">00 개요</a><a href="01_PRD_제품요구사항정의.html">01 PRD</a><a href="02_SRS_요구사항명세.html">02 SRS</a><a href="03_시스템아키텍처_설계.html">03 아키텍처</a><a href="04_데이터베이스_설계.html">04 DB설계</a><a href="05_프론트엔드_백엔드_설계.html">05 FE·BE</a><a href="06_ERP연계_챗봇활용_설계.html">06 ERP연계</a><a href="07_마이그레이션_Azure이관_설계.html">07 이관</a><a href="08_보안_데이터안정성.html">08 보안</a><a class="cur" href="09_ADR_의사결정기록.html">09 ADR</a><a href="README.md">README</a></div>
+  <p class="md-link">📄 Markdown 원본: <a href="09_ADR_의사결정기록.md">09_ADR_의사결정기록.md</a> · 허브 <a href="index.html">제품기획 개요</a></p>
+  <div class="content">
+<h1 id="09-adr">09 · ADR — 아키텍처 의사결정 기록</h1>
+<blockquote>
+<p>관리자: 최동혁(dh.choi@jeilm.co.kr) · 기준일: 2026-07-08 · 상태: Draft
+관련: <a href="00_제품기획_개요.md">00 개요</a> · <a href="03_시스템아키텍처_설계.md">03 아키텍처</a> · <a href="07_마이그레이션_Azure이관_설계.md">07 이관</a> · <a href="08_보안_데이터안정성.md">08 보안</a></p>
+</blockquote>
+<p>이 문서는 <strong>결정(Accepted)·미결정(Proposed)·발견 이슈(Issue)</strong> 를 한 곳에 모은다. 상태가 바뀌면 여기에 갱신하고 관련 문서에 반영한다. 형식: 배경 → 선택지 → 결정/상태.</p>
+<p>범례: ✅ Accepted · 🕐 Proposed(결정 대기) · ⚠️ Issue(발견, 조치 필요)</p>
+<hr />
+<h2 id="a-accepted">A. 확정된 결정 (Accepted)</h2>
+<h3 id="adr-001-3">ADR-001 ✅ 3계층 데이터 분리</h3>
+<ul>
+<li><strong>배경</strong>: ERP 운영DB에 프론트가 직접 붙으면 부하·보안·이관 리스크.</li>
+<li><strong>결정</strong>: 원천(ERP)/읽기사본(중간DB)/자체생성(포털DB) 물리 분리. 프론트는 ERP 직접 접근 금지.</li>
+<li><strong>근거</strong>: <a href="03_시스템아키텍처_설계.md">03 §1</a>, [CLAUDE.md §4].</li>
+</ul>
+<h3 id="adr-002-erp">ADR-002 ✅ ERP 읽기전용 + 화이트리스트</h3>
+<ul>
+<li><strong>결정</strong>: ETL은 SELECT+NOLOCK+파라미터 바인딩, 화이트리스트 SQL 5종. 챗봇도 AI SQL 금지·등록 Tool만.</li>
+<li><strong>근거</strong>: <code>etl_run.py</code>, <code>jeil-chat</code>.</li>
+</ul>
+<h3 id="adr-003-rls">ADR-003 ✅ RLS로 백엔드 권한 판정</h3>
+<ul>
+<li><strong>결정</strong>: 권한 차단은 DB RLS/Edge Function. 프론트 메뉴 숨김은 UX만. 라이브 실측으로 전 테이블 RLS ON 확인(2026-07-08).</li>
+<li><strong>근거</strong>: <a href="08_보안_데이터안정성.md">08 §3</a>.</li>
+</ul>
+<h3 id="adr-004">ADR-004 ✅ 데이터 접근 단일 진입점 + 어댑터</h3>
+<ul>
+<li><strong>결정</strong>: 프론트 데이터 접근은 <code>app/lib/api.js</code> 하나로. <code>DATA_BACKEND</code> 스위치로 supabase↔mock, 향후 azure.</li>
+<li><strong>근거</strong>: <a href="03_시스템아키텍처_설계.md">03 §8</a>, [CLAUDE.md §3.3].</li>
+</ul>
+<h3 id="adr-005-entra-supabase-auth">ADR-005 ✅ 인증 경계 분리(Entra ↔ Supabase Auth)</h3>
+<ul>
+<li><strong>결정</strong>: 사내는 Entra, 협력사는 Supabase Auth. Edge Fn이 Entra 토큰을 Graph로 검증하는 브리지.</li>
+<li><strong>근거</strong>: <a href="03_시스템아키텍처_설계.md">03 §5</a>, [CLAUDE.md §5.5].</li>
+</ul>
+<h3 id="adr-006-supabase">ADR-006 ✅ 현행 실행 스택 = Supabase(잠정)</h3>
+<ul>
+<li><strong>배경</strong>: 스택 최종 확정 전, 빠른 실동작 필요.</li>
+<li><strong>결정</strong>: 현재 Supabase(Postgres+Edge+Auth+Storage)로 실가동. <strong>단 "최종 확정" 아님</strong>(ADR-101 참조).</li>
+<li><strong>근거</strong>: 실동작 코드, [CLAUDE.md §3].</li>
+</ul>
+<h3 id="adr-007-erp-db-public-security_invoker-2026-07-08">ADR-007 ✅ ERP 중간DB 노출 = <code>public</code> security_invoker 뷰 (2026-07-08)</h3>
+<ul>
+<li><strong>배경</strong>: <code>erp_ro</code>를 앱/챗봇에 노출하되 REST 비노출·사내한정·화이트리스트 원칙 유지 필요.</li>
+<li><strong>선택지</strong>: (A) <code>security definer</code> 뷰/RPC(정의자 권한, advisor 경고) / (B) <code>public</code>의 <code>security_invoker</code> 뷰 + <code>erp_ro</code> 최소 GRANT + 기존 <code>internal_select_*</code> RLS 게이트 / (C) 별도 <code>erp_pub</code> 스키마 REST 노출(프로젝트 config 변경 필요).</li>
+<li><strong>결정</strong>: <strong>(B)</strong>. <code>erp_ro</code>/<code>etl_meta</code>는 REST 비노출 유지, 진입점은 <code>public.v_erp_*</code> 뷰뿐. 사내(internal)만 RLS 통과, 협력사/anon 0행(격리 테스트 통과 ISS-203). 챗봇은 service_role 전용 read GRANT. definer-뷰 advisor 경고 회피.</li>
+<li><strong>근거</strong>: <a href="06_ERP연계_챗봇활용_설계.md">06 §3·§7</a>, <a href="../실제구축준비%20자료/이관/sql/08_erp_pub_reporting_views.sql"><code>이관/sql/08</code></a>.</li>
+</ul>
+<h2 id="b-proposed">B. 미결정 (Proposed — 결정 대기)</h2>
+<h3 id="adr-101">ADR-101 🕐 백엔드 스택 최종 확정</h3>
+<ul>
+<li><strong>선택지</strong>: (A) .NET/C#+MSSQL(ERP 백엔드 친화) / (B) Node·서버리스+Postgres(현행 계열) / (하이브리드) 프론트=B·ERP백엔드=A.</li>
+<li><strong>상태</strong>: 하이브리드 권고([CLAUDE.md §3.2]), 미확정. <strong>결정 필요자</strong>: CTO/경영.</li>
+</ul>
+<h3 id="adr-102-azure-vs-iis">ADR-102 🕐 호스팅 확정(Azure vs 사내 IIS)</h3>
+<ul>
+<li><strong>선택지</strong>: Azure(Static Web Apps/App Service, 권고) vs 사내 IIS vs 기타.</li>
+<li><strong>상태</strong>: 미확정([CLAUDE.md §11-B], <a href="07_마이그레이션_Azure이관_설계.md">07 §6</a>). 인증서·이관 전략에 직결.</li>
+</ul>
+<h3 id="adr-103-d1">ADR-103 🕐 협력사 인증 방식(D1)</h3>
+<ul>
+<li><strong>선택지</strong>: (A) Entra External ID/B2B 게스트 / (B) 협력사 전용 자체 인증(현행 Supabase Auth 계열).</li>
+<li><strong>상태</strong>: 보류. 어댑터 <code>resolveSupplier(authContext)→account_id</code>로 추상화되어 있어 교체 가능. 이관(ADR-102)과 함께 확정 권장.</li>
+</ul>
+<h3 id="adr-104-bffhttponly">ADR-104 🕐 운영 토큰 보관(BFF/HttpOnly)</h3>
+<ul>
+<li><strong>배경</strong>: 현재 localStorage 토큰은 XSS 노출 위험.</li>
+<li><strong>선택지</strong>: BFF 패턴 + HttpOnly 쿠키 / 현행 유지.</li>
+<li><strong>상태</strong>: 운영 전환 시 재설계 예정([CLAUDE.md §6], <a href="08_보안_데이터안정성.md">08 R3</a>).</li>
+</ul>
+<h3 id="adr-105">ADR-105 🕐 마이그레이션 파일화 정책</h3>
+<ul>
+<li><strong>배경</strong>: <code>erp_ro</code>/<code>etl_meta</code> DDL이 MCP 직접 적용되어 리포에 <code>.sql</code> 파일 없음 → 이관·감사 취약.</li>
+<li><strong>선택지</strong>: 향후 모든 스키마 변경을 <code>supabase/migrations/</code> 파일로 관리 / 현행.</li>
+<li><strong>상태</strong>: 파일화 권고. 이관(ADR-102) 전제 조건(<a href="07_마이그레이션_Azure이관_설계.md">07 §5</a>).</li>
+</ul>
+<h3 id="adr-106-llm">ADR-106 🕐 챗봇 LLM 벤더 확정</h3>
+<ul>
+<li><strong>배경</strong>: 발견 이슈 ISS-201과 연동. Claude(UI 표기·최신 모델) vs OpenAI(현 구현).</li>
+<li><strong>상태</strong>: 결정 필요. 비용·성능·표기 정합 고려. (Claude 전환 시 게이트웨이 어댑터만 교체.)</li>
+</ul>
+<h2 id="c-issue">C. 발견 이슈 (Issue — 이번 조사에서 확인, 조치 필요)</h2>
+<h3 id="iss-201">ISS-201 ⚠️ 챗봇 표기/구현 불일치</h3>
+<ul>
+<li><strong>내용</strong>: <code>04_챗봇_포털_데모UI.html</code> UI·관리자 콘솔은 "Claude(Haiku/Sonnet/Opus)" 표기, 실제 <code>jeil-chat</code>은 OpenAI gpt-4o-mini.</li>
+<li><strong>영향</strong>: 사용자·관리자 혼선, 비용/모델 관리 왜곡.</li>
+<li><strong>조치</strong>: 표기를 실제에 맞추거나(문서·UI), LLM 벤더를 확정(ADR-106) 후 정합. <strong>이번 작업은 기록만</strong>(코드 무변경).</li>
+</ul>
+<h3 id="iss-202-update_my_vendor_contact-rest">ISS-202 ⚠️ <code>update_my_vendor_contact</code> REST 노출</h3>
+<ul>
+<li><strong>내용</strong>: SECURITY DEFINER 함수가 anon/authenticated에 REST로 실행 가능(보안 advisor WARN).</li>
+<li><strong>조치</strong>: 세션 없는 호출 무효·자기 행만 수정 가드 재확인, 불필요 EXECUTE 회수/INVOKER 검토(<a href="08_보안_데이터안정성.md">08 R1</a>).</li>
+</ul>
+<h3 id="iss-203-erp_ro-rls-2026-07-08">ISS-203 ✅ <code>erp_ro</code> RLS 격리 실테스트 (2026-07-08 해소)</h3>
+<ul>
+<li><strong>내용</strong>: 문서상 사내 SELECT·anon/vendor 차단 설계였으나 실사용자 시나리오 격리 테스트 미실시였음.</li>
+<li><strong>조치 완료</strong>: P4 노출 뷰(<code>public.v_erp_*</code>)에 대해 JWT 시뮬레이션 격리 테스트 통과 — 사내(internal) 데이터 정상, 협력사(vendor) 전부 0행, anon 차단 확인. <code>erp_ro</code> 원천 테이블도 동일 <code>internal_select_*</code> 정책이 게이트. (참고: 뷰가 아닌 erp_ro 직접 접근 경로는 REST 비노출 + GRANT 최소화로 이중 차단.)</li>
+</ul>
+<h3 id="iss-204-erp">ISS-204 ⚠️ ERP 매핑 "가설" 상태</h3>
+<ul>
+<li><strong>내용</strong>: ETL 추출 SQL·ERP 테이블 매핑이 유니포인트 뷰 스펙 확정 전 초안.</li>
+<li><strong>조치</strong>: 유니포인트 협의로 확정(전용 계정 <code>jeilax_ro</code>, 리포팅 뷰) — 관리자 진행, Claude는 요청목록 제시(<a href="06_ERP연계_챗봇활용_설계.md">06 §5</a>).</li>
+</ul>
+<h3 id="iss-205-configjs-anon">ISS-205 ⚠️ config.js anon 키 소스 존재</h3>
+<ul>
+<li><strong>내용</strong>: <code>app/config.js</code>에 Supabase URL·anon(publishable) 키가 소스에 있음.</li>
+<li><strong>판정</strong>: <strong>설계상 허용</strong>(publishable·RLS가 보호). 단 service_role·Secret은 절대 소스 금지. 문서에 "허용 근거" 명시로 오해 방지.</li>
+</ul>
+<h3 id="iss-206-p4">ISS-206 🟡 P4 단절(부서 페이지 정적) — 부분 해소 진행 중</h3>
+<ul>
+<li><strong>내용</strong>: <code>erp_ro</code>가 앱/챗봇 미노출 → 부서 페이지 정적 샘플.</li>
+<li><strong>진행(2026-07-08)</strong>: 노출 뷰 6종 + <code>erpApi</code> + 구매 페이지 파일럿 + 챗봇 ERP Tool 4종 구현·배포. 나머지 부서 페이지 확대·Entra→Supabase 세션 브리지·권한 등급(P4-4)이 남음. 설계 <a href="06_ERP연계_챗봇활용_설계.md">06 §7</a>, 상태 <a href="../10_ERP_DB연계/02_진행상태.md"><code>10_ERP_DB연계/02</code></a>.</li>
+</ul>
+<h3 id="iss-207-entra-client-secret-2026-12-09">ISS-207 ⚠️ Entra Client Secret 만료(2026-12-09)</h3>
+<ul>
+<li><strong>내용</strong>: 미갱신 시 로그인 전면 중단.</li>
+<li><strong>조치</strong>: 11월 중 갱신·일정 등록(관리자, <a href="08_보안_데이터안정성.md">08 §4</a>).</li>
+</ul>
+<hr />
+<h2 id="d-cto">D. 결정 요청 요약 (경영/CTO 판단 필요)</h2>
+<table>
+<thead>
+<tr>
+<th>항목</th>
+<th>ADR</th>
+<th>시급도</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>백엔드 스택 확정</td>
+<td>ADR-101</td>
+<td>중(이관 전)</td>
+</tr>
+<tr>
+<td>호스팅 확정(Azure/IIS)</td>
+<td>ADR-102</td>
+<td>높음(이관 트리거)</td>
+</tr>
+<tr>
+<td>협력사 인증 D1</td>
+<td>ADR-103</td>
+<td>높음(이관·계정 영향)</td>
+</tr>
+<tr>
+<td>챗봇 LLM 벤더</td>
+<td>ADR-106/ISS-201</td>
+<td>중(비용·표기)</td>
+</tr>
+<tr>
+<td>Entra Secret 갱신</td>
+<td>ISS-207</td>
+<td><strong>높음(12-09 데드라인)</strong></td>
+</tr>
+</tbody>
+</table>
+  </div>
+  <div class="footer"><span>JEIL M&S · AI 포털 제품기획</span><span>09 ADR · 관리: 최동혁</span></div>
+</div>
+</body>
+</html>

@@ -136,7 +136,8 @@ def param_value(name):
 
 def run_job(name, spec, url, key, dry):
     import pyodbc  # 지연 import — dict 적재 등에서 불필요한 의존 방지
-    conn_str = need("ERP_DB_CONN")
+    from _erp_conn import erp_conn_str  # ERP_DB_CONN 비어 있으면 %USERPROFILE%\.erp\ DPAPI 폴백
+    conn_str = erp_conn_str()
     print(f"[{name}] 추출 시작")
     batch_id = None if dry else rpc(url, key, "erp_etl_batch", {"p_action": "start", "p_payload": {"job_name": name}})
     rows_read = rows_up = 0

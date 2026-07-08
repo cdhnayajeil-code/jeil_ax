@@ -359,19 +359,19 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <tbody>
 <tr>
 <td>ERP</td>
-<td>UNIERP, 사외 IDC의 <strong>MS SQL</strong></td>
+<td>UNIERP, 사외 IDC의 <strong>MS SQL</strong>(별칭 "ERP운영DB")</td>
 </tr>
 <tr>
 <td>연계 상태</td>
-<td><strong>미연계</strong> — 화면은 추출 샘플(마스킹) 데이터로 동작</td>
+<td><strong>부분 연계 착수(2026-07-08)</strong> — 중간DB(Supabase <code>erp_ro</code>) 1차 5종 실적재 완료(발주 2,699·품목 58,246·매출 10·매입 63·재고 656행) + 사내 전용 노출 뷰 6종(<code>v_erp_*</code>)으로 부서 대시보드 1개 화면(구매 매입집계)·챗봇(<code>jeil-chat</code>) ERP Tool 4종이 실데이터 연동. 나머지 화면은 여전히 추출 샘플(마스킹) 데이터</td>
 </tr>
 <tr>
 <td>매핑(가설)</td>
-<td><code>M_PUR_REQ</code>·<code>M_PUR_ORD</code>·<code>M_CONFIG_PROCESS</code>·<code>M_PUR_GOODS_MVMT</code>·<code>Q_INSPECTION</code>·<code>M_IV</code> (<code>CLAUDE.md §4.4</code>, <code>08/03/02</code>)</td>
+<td><code>M_PUR_REQ</code>·<code>M_PUR_ORD</code>·<code>M_CONFIG_PROCESS</code>·<code>M_PUR_GOODS_MVMT</code>·<code>Q_INSPECTION</code>·<code>M_IV</code> (<code>CLAUDE.md §4.4</code>, <code>08/03/02</code>) — 세부 컬럼·재고 입출고 분류는 유니포인트 협의 전 가설</td>
 </tr>
 <tr>
 <td>원칙</td>
-<td>운영 MSSQL <strong>읽기 전용 + 중간 DB 경유</strong>. 이관/데모 단계에서 ERP 실데이터 미반영</td>
+<td>운영 MSSQL <strong>읽기 전용 + 중간 DB 경유</strong>. 상세 진행은 <code>10_ERP_DB연계/</code>(단일 출처) 참조</td>
 </tr>
 </tbody>
 </table>
@@ -441,6 +441,11 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 </tr>
 </thead>
 <tbody>
+<tr>
+<td>2026-07-08</td>
+<td><strong>ERP DB 연계 P4(포털·챗봇 연결) 착수 — §6 갱신</strong> — 중간DB(Supabase <code>erp_ro</code>) 1차 5종 실적재(발주 2,699·품목 58,246·매출 10·매입 63·재고 656행) 위에 사내 전용 노출 뷰 6종(<code>v_erp_*</code>, security_invoker) 신설 + RLS 격리 실측 테스트 통과. 부서 대시보드 1개 화면(<code>pages/구매_거래처별매입집계_2026.html</code>) 파일럿 실연동, <code>jeil-chat</code>에 ERP Tool 4종 추가 배포(version 7 ACTIVE). 상세·단일 출처는 <code>10_ERP_DB연계/</code>(00·02).</td>
+<td>최동혁(+Claude)</td>
+</tr>
 <tr>
 <td>2026-06-29</td>
 <td>현황 대장 최초 작성. 이관 [1]→[2] 착수 시점 스냅샷. Vercel·Supabase 계정 생성 완료 반영.</td>

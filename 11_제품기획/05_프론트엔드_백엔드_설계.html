@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>05 FE·BE — JEIL AX 제품기획 (모듈구조·화면·Edge Function 명세)</title>
+<style>
+:root{--navy:#1a2f4e;--navy2:#27457a;--accent:#2f6fb3;--red:#b3402f;--green:#2e7d52;--amber:#9a6b1f;
+--ink:#222;--muted:#666;--line:#d8dee8;--bg:#f4f6f9;--soft:#eef2f8;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;color:var(--ink);background:var(--bg);line-height:1.65;font-size:15px;}
+.page{max-width:960px;margin:0 auto;background:#fff;padding:52px 60px;box-shadow:0 2px 14px rgba(0,0,0,.08);}
+.doc-label{display:inline-block;background:var(--navy);color:#fff;font-size:12px;letter-spacing:.16em;padding:5px 14px;border-radius:3px;margin-bottom:16px;}
+.docnav{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 26px;}
+.docnav a{font-size:12px;color:var(--navy2);border:1px solid var(--line);border-radius:20px;padding:4px 12px;text-decoration:none;background:var(--soft);}
+.docnav a:hover{background:var(--navy);color:#fff;}
+.docnav a.cur{background:var(--navy);color:#fff;border-color:var(--navy);}
+.md-link{font-size:13px;margin-bottom:22px;color:var(--muted);}
+.content h1{font-size:27px;color:var(--navy);line-height:1.35;margin:6px 0 18px;}
+.content h2{font-size:20px;color:var(--navy);margin:42px 0 14px;padding-bottom:9px;border-bottom:3px solid var(--navy);}
+.content h3{font-size:16px;color:var(--navy2);margin:24px 0 9px;}
+.content p{margin:0 0 12px;}
+.content ul,.content ol{margin:0 0 14px 22px;}
+.content li{margin-bottom:6px;}
+.content blockquote{background:var(--soft);border-left:5px solid var(--navy);border-radius:0 8px 8px 0;padding:14px 20px;margin:14px 0;color:#33425a;}
+.content blockquote p{margin:0 0 6px;}
+.content table{width:100%;border-collapse:collapse;margin:14px 0 20px;font-size:13.3px;}
+.content th{background:var(--navy);color:#fff;padding:9px 11px;text-align:left;font-weight:600;}
+.content td{padding:8px 11px;border-bottom:1px solid var(--line);vertical-align:top;}
+.content tr:nth-child(even) td{background:#fafbfd;}
+.content a{color:var(--accent);}
+.content code{background:var(--soft);border:1px solid var(--line);border-radius:4px;padding:1px 6px;font-size:12.4px;font-family:Consolas,'Courier New',monospace;}
+.content pre{background:#21252e;color:#e8eaf0;border-radius:8px;padding:16px 18px;font-size:12.4px;font-family:Consolas,'Courier New',monospace;overflow-x:auto;margin:12px 0 18px;line-height:1.55;}
+.content pre code{background:none;border:none;color:inherit;padding:0;}
+.content hr{border:none;border-top:1px solid var(--line);margin:30px 0;}
+.content strong{color:var(--navy2);}
+.footer{margin-top:50px;padding-top:16px;border-top:1px solid var(--line);font-size:12px;color:var(--muted);display:flex;justify-content:space-between;}
+@media print{body{background:#fff;}.page{box-shadow:none;padding:18px 0;max-width:100%;}.docnav{display:none;}.content h2{break-after:avoid;}.content table,.content pre,.content blockquote{break-inside:avoid;}}
+@media (max-width:720px){.page{padding:30px 20px;}}
+</style>
+</head>
+<body>
+<div class="page">
+  <span class="doc-label">JEIL AX 제품기획 · 대외비</span>
+  <div class="docnav"><a href="index.html">🏠 제품기획 허브</a><a href="00_제품기획_개요.html">00 개요</a><a href="01_PRD_제품요구사항정의.html">01 PRD</a><a href="02_SRS_요구사항명세.html">02 SRS</a><a href="03_시스템아키텍처_설계.html">03 아키텍처</a><a href="04_데이터베이스_설계.html">04 DB설계</a><a class="cur" href="05_프론트엔드_백엔드_설계.html">05 FE·BE</a><a href="06_ERP연계_챗봇활용_설계.html">06 ERP연계</a><a href="07_마이그레이션_Azure이관_설계.html">07 이관</a><a href="08_보안_데이터안정성.html">08 보안</a><a href="09_ADR_의사결정기록.html">09 ADR</a><a href="README.md">README</a></div>
+  <p class="md-link">📄 Markdown 원본: <a href="05_프론트엔드_백엔드_설계.md">05_프론트엔드_백엔드_설계.md</a> · 허브 <a href="index.html">제품기획 개요</a></p>
+  <div class="content">
+<h1 id="05">05 · 프론트엔드·백엔드 설계서</h1>
+<blockquote>
+<p>관리자: 최동혁(dh.choi@jeilm.co.kr) · 기준일: 2026-07-08 · 상태: Draft
+관련: <a href="03_시스템아키텍처_설계.md">03 아키텍처</a> · <a href="04_데이터베이스_설계.md">04 DB설계</a> · <a href="02_SRS_요구사항명세.md">02 SRS</a></p>
+</blockquote>
+<hr />
+<h2 id="a">A. 프론트엔드 설계</h2>
+<h3 id="a1">A.1 기술스택·원칙</h3>
+<ul>
+<li><strong>바닐라 JS + HTML, 프레임워크·번들러 없음.</strong> 실구축 프론트(<code>app/</code>)와 동적 페이지 2종만 ESM 모듈 + supabase-js(CDN esm.sh). 나머지는 단일 파일 자기완결 HTML(공유 편의, [CLAUDE.md §7]).</li>
+<li>공통 팔레트: <code>--navy #1a2f4e / --accent #2f6fb3 …</code>, 폰트 Pretendard/Malgun Gothic.</li>
+<li><strong>데이터 접근은 <code>app/lib/api.js</code> 한 곳</strong>. 화면 곳곳에 fetch를 흩지 않는다([CLAUDE.md §3.3]).</li>
+</ul>
+<h3 id="a2">A.2 모듈 구조</h3>
+<pre><code>app/config.js               공개설정(SUPABASE_URL, ANON_KEY=publishable, DATA_BACKEND)
+   └─ app/lib/supabaseClient.js   createClient(PKCE, storageKey 'jeilax_sb_auth')
+        └─ app/lib/api.js         어댑터 단일 진입점
+             ├─ supabaseAdapter   실 DB(운영)
+             └─ mockAdapter       localStorage 'jeilax_link_v1'(데모 폴백, 운영 미사용)
+   └─ app/lib/grid.js + grid.css  표준 편집 그리드(의존성 0)
+화면 HTML ── &lt;script type=&quot;module&quot;&gt; import { portalApi } from &quot;../app/lib/api.js&quot;
+</code></pre>
+<ul>
+<li><code>api.js</code> export: <code>portalApi</code>(발주·상태·사진·검수·메시지·프로필·Realtime), <code>authApi</code>(signIn/out/currentUser), <code>adminMsgApi</code>(사내 협력사 메시지 관리).</li>
+<li><code>window.portalApi = adapter</code>로 비모듈 인라인 스크립트도 호환.</li>
+</ul>
+<h3 id="a3">A.3 화면 목록</h3>
+<table>
+<thead>
+<tr>
+<th>화면</th>
+<th>경로</th>
+<th>데이터</th>
+<th>상태</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>챗봇 포털(메인)</td>
+<td><code>04_챗봇_포털_데모UI.html</code></td>
+<td>jeil-chat 게이트웨이(SSE) + 정적 카드</td>
+<td>실가동(로그인 시 실 AI)</td>
+</tr>
+<tr>
+<td>협력사 로그인</td>
+<td><code>app/vendor-login.html</code></td>
+<td>Supabase Auth</td>
+<td>실가동</td>
+</tr>
+<tr>
+<td>협력사 계정관리</td>
+<td><code>app/admin-vendors.html</code></td>
+<td>Edge Fn + grid + adminMsgApi</td>
+<td>실가동</td>
+</tr>
+<tr>
+<td>협력사 모바일 포털</td>
+<td><code>pages/협력사_모바일_포털.html</code></td>
+<td>portalApi(RLS 자기 거래처)</td>
+<td>실가동</td>
+</tr>
+<tr>
+<td>외주 발주·검사 대시보드</td>
+<td><code>pages/외주발주_검사진행현황_2026.html</code></td>
+<td>portalApi + Realtime</td>
+<td>실가동</td>
+</tr>
+<tr>
+<td>부서 페이지 8종</td>
+<td><code>pages/*_2026.html</code>, 원가 2종</td>
+<td><strong>정적 하드코딩 샘플</strong></td>
+<td>데모(ERP 미연결)</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>정적 부서 페이지는 ERP 원천 테이블을 카드에 라벨로 표기(인사 <code>HDF070T·HAA010T</code>, 자금 <code>A_GL·F_LN_INFO</code>, 영업 <code>S_BILL</code>, 구매 <code>M_IV·B_BP</code>, 품목 <code>B_ITEM</code>). 실연동 전환 설계 → <a href="06_ERP연계_챗봇활용_설계.md">06</a>.</li>
+</ul>
+<h3 id="a4">A.4 그리드 표준(편집 표)</h3>
+<ul>
+<li>수정 가능한 표는 직접 <code>&lt;table&gt;</code> 대신 표준 컴포넌트 <code>createGrid(container, options)</code>([CLAUDE.md §13]).</li>
+<li><code>grid.js</code>는 UI만. 데이터 조회/저장은 콜백(<code>onSave</code>/<code>onBulkAction</code>/<code>onRowAction</code>/<code>onPaste</code>)에서 호출측이 <code>api.js</code>로 처리.</li>
+<li>CSV 내보내기 UTF-8 BOM, 클립보드 TSV, 외부 CDN 금지. 적용: <code>admin-vendors.html</code>(<code>#vmGrid</code>).</li>
+</ul>
+<h3 id="a5">A.5 빌드</h3>
+<ul>
+<li><code>_build_bundle.py</code> → 04 데모 + 부서페이지 10종 + 설문폼을 <strong>base64 인라인한 단일 공유본</strong> <code>JEIL_AX_포털데모_통합본.html</code> 재생성(오프라인 배포용). 손으로 안 고침.</li>
+</ul>
+<h2 id="b-edge-functions">B. 백엔드 설계 (Edge Functions)</h2>
+<h3 id="b1">B.1 공통 패턴</h3>
+<ul>
+<li>전부 <code>verify_jwt=false</code>로 배포하고 <strong>함수 내부에서 직접 인증 검증</strong>(Entra 토큰은 Supabase JWT가 아니므로).</li>
+<li>클라이언트는 anon 키만. <strong>service_role 키는 Edge Function <code>Deno.env</code>에만</strong>. RLS 우회가 필요한 특권작업(계정생성·비번초기화·로그조회)은 전부 여기서.</li>
+</ul>
+<h3 id="b2-5">B.2 함수 명세 5종</h3>
+<table>
+<thead>
+<tr>
+<th>함수</th>
+<th>입력</th>
+<th>인증 경계</th>
+<th>동작</th>
+<th>쓰기 대상</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>vendor-provision</code></td>
+<td>bp_cd(들)</td>
+<td><code>@jeilm.co.kr</code> AND <code>portal_admin</code></td>
+<td><code>auth.admin.createUser</code>(app_metadata role=vendor·vendor_bp), 임시비번</td>
+<td><code>vendor_account</code>, <code>vendor_account_log</code></td>
+</tr>
+<tr>
+<td><code>approve-vendor</code></td>
+<td>application id, 승인/거부</td>
+<td><code>role=internal</code></td>
+<td><code>updateUserById</code>로 role·vendor_bp 부여</td>
+<td><code>vendor_application</code></td>
+</tr>
+<tr>
+<td><code>vendor-reset-password</code></td>
+<td>user</td>
+<td><code>@jeilm.co.kr</code> AND <code>portal_admin</code></td>
+<td><code>updateUserById({password})</code></td>
+<td><code>vendor_account_log</code>(last_reset_at)</td>
+</tr>
+<tr>
+<td><code>jeil-chat</code></td>
+<td>messages[]</td>
+<td>Entra Bearer → Graph <code>/me</code>(@jeilm.co.kr)</td>
+<td>OpenAI 프록시 + Tool 3종(§B.3), SSE</td>
+<td><code>chat_log</code></td>
+</tr>
+<tr>
+<td><code>jeil-chat-admin</code></td>
+<td>(조회)</td>
+<td>Entra + <code>portal_admin</code></td>
+<td><code>chat_log</code> 집계(최근 2000)</td>
+<td>(읽기)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="b3-jeil-chat">B.3 챗봇 오케스트레이션(<code>jeil-chat</code>)</h3>
+<pre><code>사용자 질의 ─▶ 1차 OpenAI 스트림 ─(tool_calls 수집)─▶ runTool() ─▶ 결과를 tool 메시지로 첨부
+           ─▶ 2차 OpenAI 스트림(최대 1라운드) ─▶ SSE로 클라이언트 렌더
+</code></pre>
+<ul>
+<li><strong>Tool 3종(포털DB만, 읽기전용)</strong>: <code>get_order_summary</code>(상태별 건수·총액·납기7일), <code>get_order_detail(po_no)</code>, <code>get_inspection_pending</code>.</li>
+<li><strong>AI가 SQL을 생성/실행하지 않는다.</strong> 사전 등록 Tool만. ERP 직접조회 없음.</li>
+<li>감사: <code>chat_log</code>에 UPN·모델·토큰·추정비용·사용도구 기록(대화 원문 미저장). 기본 모델 <code>gpt-4o-mini</code>.</li>
+<li><strong>표기 불일치</strong>: 04 UI·관리자 콘솔은 "Claude" 계열 모델을 표기하나 실구현은 OpenAI → <a href="09_ADR_의사결정기록.md">09 ADR</a>.</li>
+</ul>
+<h3 id="b4">B.4 데이터 접근 계약(프론트↔백엔드)</h3>
+<ul>
+<li>프론트는 두 경로로만 데이터에 닿는다: (1) supabase-js anon + RLS(직접 테이블/Realtime/Storage), (2) Edge Function(특권·챗봇).</li>
+<li>신규 기능은 이 두 경로 외의 우회를 만들지 않는다. ERP 사본 노출도 이 원칙 위에서 뷰/RPC/Edge Fn로 → <a href="06_ERP연계_챗봇활용_설계.md">06</a>.</li>
+</ul>
+<h3 id="b5">B.5 향후 백엔드 방향(참고)</h3>
+<ul>
+<li>[CLAUDE.md §3] 하이브리드 권고: 프론트/챗봇은 Node/서버리스 계열, <strong>ERP 연동 백엔드는 .NET 또는 별도 읽기 API</strong>로 분리 가능. 확정 전까지 <code>api.js</code> 어댑터로 스택 교체 비용을 낮춘다. 결정은 <a href="09_ADR_의사결정기록.md">09 ADR</a>.</li>
+</ul>
+  </div>
+  <div class="footer"><span>JEIL M&S · AI 포털 제품기획</span><span>05 FE·BE · 관리: 최동혁</span></div>
+</div>
+</body>
+</html>

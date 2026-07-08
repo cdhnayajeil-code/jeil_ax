@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>06 ERP연계 — JEIL AX 제품기획 (P4연결·챗봇Tool확장·부서대시보드)</title>
+<style>
+:root{--navy:#1a2f4e;--navy2:#27457a;--accent:#2f6fb3;--red:#b3402f;--green:#2e7d52;--amber:#9a6b1f;
+--ink:#222;--muted:#666;--line:#d8dee8;--bg:#f4f6f9;--soft:#eef2f8;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;color:var(--ink);background:var(--bg);line-height:1.65;font-size:15px;}
+.page{max-width:960px;margin:0 auto;background:#fff;padding:52px 60px;box-shadow:0 2px 14px rgba(0,0,0,.08);}
+.doc-label{display:inline-block;background:var(--navy);color:#fff;font-size:12px;letter-spacing:.16em;padding:5px 14px;border-radius:3px;margin-bottom:16px;}
+.docnav{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 26px;}
+.docnav a{font-size:12px;color:var(--navy2);border:1px solid var(--line);border-radius:20px;padding:4px 12px;text-decoration:none;background:var(--soft);}
+.docnav a:hover{background:var(--navy);color:#fff;}
+.docnav a.cur{background:var(--navy);color:#fff;border-color:var(--navy);}
+.md-link{font-size:13px;margin-bottom:22px;color:var(--muted);}
+.content h1{font-size:27px;color:var(--navy);line-height:1.35;margin:6px 0 18px;}
+.content h2{font-size:20px;color:var(--navy);margin:42px 0 14px;padding-bottom:9px;border-bottom:3px solid var(--navy);}
+.content h3{font-size:16px;color:var(--navy2);margin:24px 0 9px;}
+.content p{margin:0 0 12px;}
+.content ul,.content ol{margin:0 0 14px 22px;}
+.content li{margin-bottom:6px;}
+.content blockquote{background:var(--soft);border-left:5px solid var(--navy);border-radius:0 8px 8px 0;padding:14px 20px;margin:14px 0;color:#33425a;}
+.content blockquote p{margin:0 0 6px;}
+.content table{width:100%;border-collapse:collapse;margin:14px 0 20px;font-size:13.3px;}
+.content th{background:var(--navy);color:#fff;padding:9px 11px;text-align:left;font-weight:600;}
+.content td{padding:8px 11px;border-bottom:1px solid var(--line);vertical-align:top;}
+.content tr:nth-child(even) td{background:#fafbfd;}
+.content a{color:var(--accent);}
+.content code{background:var(--soft);border:1px solid var(--line);border-radius:4px;padding:1px 6px;font-size:12.4px;font-family:Consolas,'Courier New',monospace;}
+.content pre{background:#21252e;color:#e8eaf0;border-radius:8px;padding:16px 18px;font-size:12.4px;font-family:Consolas,'Courier New',monospace;overflow-x:auto;margin:12px 0 18px;line-height:1.55;}
+.content pre code{background:none;border:none;color:inherit;padding:0;}
+.content hr{border:none;border-top:1px solid var(--line);margin:30px 0;}
+.content strong{color:var(--navy2);}
+.footer{margin-top:50px;padding-top:16px;border-top:1px solid var(--line);font-size:12px;color:var(--muted);display:flex;justify-content:space-between;}
+@media print{body{background:#fff;}.page{box-shadow:none;padding:18px 0;max-width:100%;}.docnav{display:none;}.content h2{break-after:avoid;}.content table,.content pre,.content blockquote{break-inside:avoid;}}
+@media (max-width:720px){.page{padding:30px 20px;}}
+</style>
+</head>
+<body>
+<div class="page">
+  <span class="doc-label">JEIL AX 제품기획 · 대외비</span>
+  <div class="docnav"><a href="index.html">🏠 제품기획 허브</a><a href="00_제품기획_개요.html">00 개요</a><a href="01_PRD_제품요구사항정의.html">01 PRD</a><a href="02_SRS_요구사항명세.html">02 SRS</a><a href="03_시스템아키텍처_설계.html">03 아키텍처</a><a href="04_데이터베이스_설계.html">04 DB설계</a><a href="05_프론트엔드_백엔드_설계.html">05 FE·BE</a><a class="cur" href="06_ERP연계_챗봇활용_설계.html">06 ERP연계</a><a href="07_마이그레이션_Azure이관_설계.html">07 이관</a><a href="08_보안_데이터안정성.html">08 보안</a><a href="09_ADR_의사결정기록.html">09 ADR</a><a href="README.md">README</a></div>
+  <p class="md-link">📄 Markdown 원본: <a href="06_ERP연계_챗봇활용_설계.md">06_ERP연계_챗봇활용_설계.md</a> · 허브 <a href="index.html">제품기획 개요</a></p>
+  <div class="content">
+<h1 id="06-erp-p4">06 · ERP연계·챗봇활용 설계서 (P4 연결)</h1>
+<blockquote>
+<p>관리자: 최동혁(dh.choi@jeilm.co.kr) · 기준일: 2026-07-08 · 상태: Draft
+관련: <a href="03_시스템아키텍처_설계.md">03 아키텍처</a> · <a href="04_데이터베이스_설계.md">04 DB설계</a> · <a href="08_보안_데이터안정성.md">08 보안</a>
+ERP 연계 관제 정본(값 복제 금지): <a href="../10_ERP_DB연계/01_연계기획.md"><code>10_ERP_DB연계/01_연계기획</code></a> · <a href="../10_ERP_DB연계/03_중간DB_구축실행기획.md"><code>10_ERP_DB연계/03_중간DB_구축실행기획</code></a></p>
+</blockquote>
+<p>이 문서는 제품기획 세트의 <strong>핵심 신규 설계</strong>다. 현재 끊겨 있는 <strong>중간DB(<code>erp_ro</code>) → 앱/챗봇</strong> 구간(P4)을 안전하게 잇는 방법을 정의한다.</p>
+<hr />
+<h2 id="1-p4">1. 문제: P4 단절</h2>
+<pre><code>ERP운영DB ──ETL──▶ erp_ro(집계 사본) ──✕ 단절 ──▶ 부서 대시보드 / 챗봇
+   완료         파일럿 실적재 완료         여기가 비어 있음
+</code></pre>
+<ul>
+<li><code>erp_ro</code>는 REST에 비노출이고 적재만 RPC로 이뤄져, <strong>클라이언트·챗봇이 읽을 경로가 없다.</strong></li>
+<li>그래서 부서 페이지는 정적 샘플이고, 챗봇 Tool은 포털DB(<code>sp_*</code>)만 본다.</li>
+<li><strong>목표</strong>: ERP 무영향·읽기전용·RLS·화이트리스트 원칙을 지키면서 <code>erp_ro</code>를 (a) 부서 대시보드와 (b) 챗봇에 노출한다.</li>
+</ul>
+<h2 id="2-p4">2. 설계 원칙 (P4에서도 불변)</h2>
+<ol>
+<li><code>erp_ro</code> 스키마 자체는 <strong>REST 비노출 유지</strong>. 노출은 <strong>명시적 화이트리스트 뷰/RPC</strong>로만.</li>
+<li>노출 객체는 <strong>집계·요약 위주</strong>(원시 행 대량 노출 금지). ERP 원천 직접 접근은 절대 없음.</li>
+<li>접근은 <strong>사내 인증(Entra) 사용자만</strong>. anon·vendor 차단. 부서 매핑으로 필요한 데이터만.</li>
+<li>AI는 SQL 생성 금지. <strong>사전 등록 Tool/뷰만</strong> 호출.</li>
+<li>대량/집계는 중간DB에서. ERP 운영 부하 0.</li>
+</ol>
+<h2 id="3">3. 노출 계층 설계 (두 가지 방식, 병행)</h2>
+<h3 id="31-a">3.1 방식 A — 읽기전용 화이트리스트 뷰(부서 대시보드용)</h3>
+<p><code>erp_ro</code> 위에 <strong>공개용 뷰</strong>를 별도 스키마(예: <code>erp_pub</code>) 또는 <code>public</code>에 <code>security_barrier</code> 뷰로 정의하고, 그 뷰에만 사내 SELECT를 허용한다.</p>
+<pre><code>erp_ro.sales_orders_m ──▶ view erp_pub.v_sales_monthly (사내 SELECT, RLS: is_internal())
+erp_ro.purchase_m     ──▶ view erp_pub.v_purchase_monthly
+erp_ro.inventory_d    ──▶ view erp_pub.v_inventory_daily
+erp_ro.pur_order_s    ──▶ view erp_pub.v_pur_order (거래처·상태 요약)
+erp_ro.item_master_s  ──▶ view erp_pub.v_item (품목 조회)
+</code></pre>
+<ul>
+<li>부서 페이지(<code>pages/*_2026.html</code>)는 <code>api.js</code>에 새 메서드(예: <code>erpApi.salesMonthly()</code>)를 추가해 이 뷰를 조회 → 정적 배열을 실데이터로 교체.</li>
+<li>데이터 기준시각은 <code>etl_meta.v_last_success</code>를 사내 노출 뷰로 함께 제공(화면 「기준: YYYY-MM-DD HH:MM」).</li>
+</ul>
+<h3 id="32-b-tool-2">3.2 방식 B — 챗봇 Tool 확장(2단계, 부서 매핑)</h3>
+<p><code>jeil-chat</code>에 <strong>ERP 중간DB 조회 Tool</strong>을 추가한다. 각 Tool은 service_role로 <code>erp_ro</code>(또는 3.1 뷰)를 집계 조회하고, <strong>부서·권한에 매핑</strong>한다.</p>
+<table>
+<thead>
+<tr>
+<th>신규 Tool(예시)</th>
+<th>반환</th>
+<th>소스</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>get_sales_monthly(months?)</code></td>
+<td>월별 매출 요약</td>
+<td><code>sales_orders_m</code></td>
+</tr>
+<tr>
+<td><code>get_purchase_by_vendor(months?)</code></td>
+<td>거래처별 매입</td>
+<td><code>purchase_m</code></td>
+</tr>
+<tr>
+<td><code>get_inventory_status()</code></td>
+<td>재고 입출고 현황</td>
+<td><code>inventory_d</code></td>
+</tr>
+<tr>
+<td><code>get_item(keyword)</code></td>
+<td>품목 조회/중복</td>
+<td><code>item_master_s</code></td>
+</tr>
+<tr>
+<td><code>get_pur_order_summary(filter)</code></td>
+<td>발주 현황</td>
+<td><code>pur_order_s</code></td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>현재 1단계 Tool 3종(포털DB)에 <strong>더해</strong> 등록. 임의 SQL 여전히 금지.</li>
+<li><strong>권한 등급</strong>: 초기에는 전 사내 사용자 동일. 이후 Entra 보안그룹(<code>AI-Portal-Finance</code>·<code>-HR</code> 등)으로 민감 Tool(자금·인사) 접근을 제한([CLAUDE.md §5], <a href="09_ADR_의사결정기록.md">09 ADR</a>). 자금·인사는 <code>erp_secure</code>(P5)까지 보류.</li>
+</ul>
+<h3 id="33">3.3 방식 비교</h3>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>방식 A(뷰)</th>
+<th>방식 B(챗봇 Tool)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>소비자</td>
+<td>부서 대시보드 화면</td>
+<td>챗봇 대화</td>
+</tr>
+<tr>
+<td>노출</td>
+<td>사내 SELECT 뷰(RLS)</td>
+<td>Edge Fn service_role(집계만)</td>
+</tr>
+<tr>
+<td>권장</td>
+<td>표·차트 정형 화면</td>
+<td>자유질의 요약</td>
+</tr>
+<tr>
+<td>공통</td>
+<td>erp_ro 비노출 유지·화이트리스트·집계·사내한정</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<h2 id="4-p4">4. 데이터 흐름(P4 연결 후, 목표)</h2>
+<pre><code>ERP ─ETL(야간)─▶ erp_ro/etl_meta
+                     │
+      ┌──────────────┼───────────────────────────┐
+      ▼(뷰)                                       ▼(RPC/Tool)
+  erp_pub.v_*  ◀─사내 SELECT(RLS)─ 부서 대시보드     jeil-chat Tool ◀─Entra 사내── 챗봇
+  + v_last_success (기준시각)                      (부서 매핑·권한 등급)
+</code></pre>
+<h2 id="5">5. 매핑 선행 조건 (유니포인트 협의 — 임의 진행 금지)</h2>
+<ul>
+<li>현재 ETL 추출 SQL·ERP 테이블 매핑은 <strong>"가설"</strong>(유니포인트 뷰 스펙 확정 전). 실 연동 전 확정 필요:</li>
+<li>전용 읽기계정 <code>jeilax_ro</code>(현재는 관리자 계정, P1에서 교체).</li>
+<li>리포팅 뷰/화이트리스트 컬럼 스펙(민감 컬럼 제외).</li>
+<li>발주·검사 매핑(<code>M_PUR_ORD_HDR/DTL</code>·<code>Q_INSPECTION</code>·<code>B_BIZ_PARTNER</code>) 실스키마 검증.</li>
+<li>이 협의는 사용자(관리자)가 유니포인트와 진행하고, Claude는 <strong>요청 목록만 제시</strong>([CLAUDE.md §4.6]).</li>
+</ul>
+<h2 id="6">6. 데이터 정합·안정성</h2>
+<ul>
+<li><strong>조인축 <code>po_no</code></strong>: 포털 <code>sp_order_header.po_no</code> ↔ ERP <code>pur_order_s</code>의 발주번호. 매핑 테이블/뷰로 연결(현재 포털 발주는 자체 시드, 실연동 시 ERP 발주를 기준으로 전환 검토).</li>
+<li><strong>기준시각</strong>: 모든 ERP 파생 화면에 <code>v_last_success</code> 기준 표기 → 배치 실패 시 "오래된 데이터"임을 사용자가 인지.</li>
+<li><strong>증분·리프레시</strong>: 현재 롤링(매출·매입 3개월, 재고 31일) + 스냅샷. 향후 <code>pg_cron</code>으로 스케줄 자동화 검토(<a href="04_데이터베이스_설계.md">04 §7</a>).</li>
+</ul>
+<h2 id="7">7. 단계별 실행(요약)</h2>
+<table>
+<thead>
+<tr>
+<th>단계</th>
+<th>내용</th>
+<th>선행</th>
+<th>상태(2026-07-08)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>P4-1</td>
+<td>사내 전용 뷰 <code>public.v_erp_*</code> 6종 + RLS + 기준시각 뷰 정의</td>
+<td>매핑 가설 검증</td>
+<td>✅ <strong>완료</strong>(마이그레이션 2건 적용, 격리 실테스트 통과)</td>
+</tr>
+<tr>
+<td>P4-2</td>
+<td><code>api.js</code>에 <code>erpApi</code> 추가, 부서 페이지 1종 파일럿 실연동</td>
+<td>P4-1</td>
+<td>✅ <strong>완료</strong>(<code>구매_거래처별매입집계</code> 파일럿)</td>
+</tr>
+<tr>
+<td>P4-3</td>
+<td><code>jeil-chat</code> ERP Tool 추가, 사내 전체 파일럿</td>
+<td>P4-1</td>
+<td>✅ <strong>완료</strong>(Tool 4종 배포 v7)</td>
+</tr>
+<tr>
+<td>P4-4</td>
+<td>Entra 보안그룹 권한 등급 적용(민감 Tool 제한)</td>
+<td>보안그룹 신설([CLAUDE.md §11-C])</td>
+<td>⬜ 대기</td>
+</tr>
+<tr>
+<td>P5</td>
+<td><code>erp_secure</code>(자금·인사) 별도 스키마·강권한</td>
+<td>정책·법무 검토</td>
+<td>⬜ 예약</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>구현 노트(2026-07-08)</strong>: 노출은 <code>erp_pub</code>가 아닌 <strong><code>public.v_erp_*</code> <code>security_invoker</code> 뷰</strong>로 구현했다(erp_ro는 REST 비노출 유지, authenticated 최소 GRANT + 기존 <code>internal_select_*</code> RLS로 사내만 통과). 챗봇은 service_role 전용 read GRANT로 뷰를 조회한다. 재현 SQL: <a href="../실제구축준비%20자료/이관/sql/08_erp_pub_reporting_views.sql"><code>이관/sql/08_erp_pub_reporting_views.sql</code></a>. 상태 정본은 <a href="../10_ERP_DB연계/02_진행상태.md"><code>10_ERP_DB연계/02_진행상태</code></a>.
+<strong>의존성</strong>: 부서 페이지가 사용자에게 실데이터를 보이려면 내부 Entra→Supabase 세션(role=internal)이 필요하다. 현재는 사내 Supabase 세션 보유자에게만 표시되고, 그 외에는 목업으로 폴백한다(내부 세션 브리지는 <a href="09_ADR_의사결정기록.md">ADR-104/05</a> 트랙).</p>
+<p>ERP 연계의 상태·진행은 <a href="../10_ERP_DB연계/02_진행상태.md"><code>10_ERP_DB연계/02_진행상태</code></a>가 정본이다. 본 설계가 실행에 반영되면 전담 에이전트 <code>erp-db-link-manager</code>로 해당 문서를 갱신한다.</p>
+</blockquote>
+  </div>
+  <div class="footer"><span>JEIL M&S · AI 포털 제품기획</span><span>06 ERP연계 · 관리: 최동혁</span></div>
+</div>
+</body>
+</html>
