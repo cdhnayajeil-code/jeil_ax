@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>04 증분·확장·거버넌스 — ERP DB 연계 관제 (증분 동기화·대용량 확장·권한 거버넌스 방향)</title>
+<style>
+:root{--navy:#1a2f4e;--navy2:#27457a;--accent:#2f6fb3;--red:#b3402f;--green:#2e7d52;--amber:#9a6b1f;
+--ink:#222;--muted:#666;--line:#d8dee8;--bg:#f4f6f9;--soft:#eef2f8;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;color:var(--ink);background:var(--bg);line-height:1.65;font-size:15px;}
+.page{max-width:960px;margin:0 auto;background:#fff;padding:52px 60px;box-shadow:0 2px 14px rgba(0,0,0,.08);}
+.doc-label{display:inline-block;background:var(--navy);color:#fff;font-size:12px;letter-spacing:.16em;padding:5px 14px;border-radius:3px;margin-bottom:16px;}
+.docnav{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 26px;}
+.docnav a{font-size:12px;color:var(--navy2);border:1px solid var(--line);border-radius:20px;padding:4px 12px;text-decoration:none;background:var(--soft);}
+.docnav a:hover{background:var(--navy);color:#fff;}
+.docnav a.cur{background:var(--navy);color:#fff;border-color:var(--navy);}
+.md-link{font-size:13px;margin-bottom:22px;color:var(--muted);}
+.content h1{font-size:27px;color:var(--navy);line-height:1.35;margin:6px 0 18px;}
+.content h2{font-size:20px;color:var(--navy);margin:42px 0 14px;padding-bottom:9px;border-bottom:3px solid var(--navy);}
+.content h3{font-size:16px;color:var(--navy2);margin:24px 0 9px;}
+.content p{margin:0 0 12px;}
+.content ul,.content ol{margin:0 0 14px 22px;}
+.content li{margin-bottom:6px;}
+.content blockquote{background:var(--soft);border-left:5px solid var(--navy);border-radius:0 8px 8px 0;padding:14px 20px;margin:14px 0;color:#33425a;}
+.content blockquote p{margin:0 0 6px;}
+.content table{width:100%;border-collapse:collapse;margin:14px 0 20px;font-size:13.3px;}
+.content th{background:var(--navy);color:#fff;padding:9px 11px;text-align:left;font-weight:600;}
+.content td{padding:8px 11px;border-bottom:1px solid var(--line);vertical-align:top;}
+.content tr:nth-child(even) td{background:#fafbfd;}
+.content a{color:var(--accent);}
+.content code{background:var(--soft);border:1px solid var(--line);border-radius:4px;padding:1px 6px;font-size:12.4px;font-family:Consolas,'Courier New',monospace;}
+.content pre{background:#21252e;color:#e8eaf0;border-radius:8px;padding:16px 18px;font-size:12.4px;font-family:Consolas,'Courier New',monospace;overflow-x:auto;margin:12px 0 18px;line-height:1.55;}
+.content pre code{background:none;border:none;color:inherit;padding:0;}
+.content hr{border:none;border-top:1px solid var(--line);margin:30px 0;}
+.content strong{color:var(--navy2);}
+.footer{margin-top:50px;padding-top:16px;border-top:1px solid var(--line);font-size:12px;color:var(--muted);display:flex;justify-content:space-between;}
+@media print{body{background:#fff;}.page{box-shadow:none;padding:18px 0;max-width:100%;}.docnav{display:none;}.content h2{break-after:avoid;}.content table,.content pre,.content blockquote{break-inside:avoid;}}
+@media (max-width:720px){.page{padding:30px 20px;}}
+</style>
+</head>
+<body>
+<div class="page">
+  <span class="doc-label">JEIL AX ERP DB 연계 · 대외비</span>
+  <div class="docnav"><a href="index.html">🏠 연계 허브</a><a href="00_현재상태_스냅샷.html">00 현재상태</a><a href="01_연계기획.html">01 연계기획</a><a href="02_진행상태.html">02 진행상태</a><a href="03_중간DB_구축실행기획.html">03 중간DB 실행기획</a><a class="cur" href="04_증분동기화_확장_거버넌스_기획.html">04 증분·확장·거버넌스</a><a href="README.md">README</a></div>
+  <p class="md-link">📄 Markdown 원본: <a href="04_증분동기화_확장_거버넌스_기획.md">04_증분동기화_확장_거버넌스_기획.md</a> · 허브 <a href="index.html">연계 허브</a></p>
+  <div class="content">
+<h1 id="04">04. 증분 동기화 · 대용량 확장 · 권한 거버넌스 기획</h1>
+<blockquote>
+<p>관리자: 최동혁(dh.choi@jeilm.co.kr) · 기준일: 2026-07-08 · 상태: Active
+관련: <a href="00_현재상태_스냅샷.md">00 현재상태</a> · <a href="02_진행상태.md">02 진행상태</a> · <a href="03_중간DB_구축실행기획.md">03 중간DB 실행기획</a>
+제품기획 정본: <a href="../11_제품기획/06_ERP연계_챗봇활용_설계.md"><code>11_제품기획/06 ERP연계</code></a></p>
+</blockquote>
+<p>ERP 데이터를 중간DB(Supabase)로 <strong>효율적·안전하게 반복 반영</strong>하고, 이후 <strong>ERP 전체(방대) 데이터로 확장·권한 관리</strong>하기 위한 방향성을 정의한다. 지금은 소규모지만 설계는 대용량·다권한을 전제로 한다.</p>
+<hr />
+<h2 id="1">1. 문제: 전량 재적재의 비효율</h2>
+<p>초기 ETL은 실행할 때마다 <strong>전량 추출→전량 upsert</strong>했다. item_master 58,256행·pur_order 2,702행을 매번 다시 읽고 쓴다. 데이터가 커질수록:</p>
+<ul>
+<li>ERP 운영DB 읽기 부하↑(야간이라도 방대해지면 위험), 네트워크·시간↑</li>
+<li>Supabase 쓰기·API 호출↑(비용·부하)</li>
+<li>조회·검증마다 전량 재실행 유혹 → <strong>불필요한 업데이트 반복</strong></li>
+</ul>
+<h2 id="2-incremental">2. 해결 원칙: 증분(Incremental) + 주기적 전량 정합</h2>
+<p><strong>"평소엔 변경분만, 가끔 전량으로 정합"</strong> — 표준 CDC-lite 패턴.</p>
+<h3 id="21">2.1 테이블 유형별 전략 (핵심)</h3>
+<table>
+<thead>
+<tr>
+<th>유형</th>
+<th>예시</th>
+<th>전략</th>
+<th>근거</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>대량 원시/스냅샷</strong></td>
+<td><code>item_master_s</code>(58k), <code>pur_order_s</code>(2.7k)</td>
+<td><strong>증분</strong> — <code>UPDT_DT &gt;= watermark</code> 변경분만</td>
+<td>대부분 불변, 변경분 극소(오늘 실측 58k→136행)</td>
+</tr>
+<tr>
+<td><strong>소량 집계</strong></td>
+<td><code>sales_orders_m</code>, <code>purchase_m</code></td>
+<td><strong>당해년 full 재집계</strong></td>
+<td>수백 행뿐, 집계는 증분이 부정확(월합계가 전표 추가로 계속 변함)</td>
+</tr>
+<tr>
+<td><strong>롤링 일집계</strong></td>
+<td><code>inventory_d</code></td>
+<td><strong>최근 N일 롤링</strong>(현행)</td>
+<td>최근 재고 중심, 오래된 일자 불필요</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>원칙: <strong>증분이 이득인 곳(대량·저변경)만 증분</strong>. 소량 집계까지 증분화하면 정확도만 잃고 이득 없음.</p>
+</blockquote>
+<h3 id="22-watermark-2026-07-08">2.2 Watermark 메커니즘 (구현됨 2026-07-08)</h3>
+<pre><code>매 실행:
+  1) watermark = erp_ro.&lt;table&gt; 의 max(src_updated)  ── RPC public.erp_etl_watermark(job)
+  2) 안전버퍼: 추출 기준 = watermark − LOOKBACK_DAYS(기본 2일)  ── 경계 유실·지연도착 방지
+  3) 추출 SQL 에 `AND UPDT_DT &gt;= 기준` 부착 → 변경분만 SELECT
+  4) upsert(PK 기준 병합) → 신규·변경만 반영, 나머지는 그대로 유지
+최초 실행(watermark 없음) 또는 --full → 전량
+</code></pre>
+<ul>
+<li>watermark 원천은 <strong>중간DB 테이블 자체의 최신 src_updated</strong>(별도 상태 저장 불필요, 항상 실제 적재 상태 반영).</li>
+<li><code>LOOKBACK_DAYS</code> 버퍼로 같은 시각·지연 도착 전표를 다음 회차가 다시 덮어써 <strong>유실 방지</strong>(upsert라 중복 무해).</li>
+<li><strong>삭제·취소 반영 한계</strong>: 증분은 ERP에서 <em>삭제된</em> 행을 감지 못함(upsert는 지우지 않음). → <strong>주 1회 <code>--full</code> 정합</strong>으로 스냅샷 재적재(대안: 향후 truncate+reload 또는 tombstone).</li>
+</ul>
+<h3 id="23">2.3 실행 방법 (현재)</h3>
+<pre><code>평소(증분):   python etl_run.py --job all
+주기 정합:    python etl_run.py --job all --full         # 주1회 권장(삭제·정합)
+특정 job:     python etl_run.py --job item_master        # 증분
+검증:         python etl_run.py --job all --dry-run      # 추출 건수만
+</code></pre>
+<ul>
+<li>적용 대상: <code>pur_order</code>·<code>item_master</code>(증분). <code>sales</code>·<code>purchase</code>(연 full)·<code>inventory</code>(롤링)는 데이터가 작아 매번 전량이 합리적.</li>
+<li>참조 RPC(재현):
+  <code>sql
+  create or replace function public.erp_etl_watermark(p_job text)
+  returns timestamptz language sql stable security definer set search_path='' as $$
+    select case p_job
+      when 'item_master' then (select max(src_updated) from erp_ro.item_master_s)
+      when 'pur_order'   then (select max(src_updated) from erp_ro.pur_order_s)
+      else null end; $$;
+  -- service_role 전용(anon/authenticated revoke)</code></li>
+</ul>
+<h2 id="3">3. 스케줄링·자동화 (다음 단계)</h2>
+<table>
+<thead>
+<tr>
+<th>항목</th>
+<th>방향</th>
+<th>비고</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>정기 실행</td>
+<td>ETL PC/서버 <strong>작업 스케줄러</strong>(야간 증분 + 주1회 --full)</td>
+<td>pg_cron은 ERP MSSQL 직접 접근 불가 → 배치는 ERP 연결 호스트에서</td>
+</tr>
+<tr>
+<td>실패 알림</td>
+<td><code>etl_meta.batch_run.status='failed'</code> 감지 → 메일/Teams 알림</td>
+<td>미구성(로드맵)</td>
+</tr>
+<tr>
+<td>관측</td>
+<td>연동 현황 페이지(<code>app/erp-status.html</code>)·<code>v_erp_data_asof</code></td>
+<td>구현됨</td>
+</tr>
+<tr>
+<td>전용 계정</td>
+<td>읽기전용 <code>jeilax_ro</code>로 접속 계정 전환</td>
+<td>P1, 유니포인트 협의</td>
+</tr>
+</tbody>
+</table>
+<h2 id="4-erp">4. 대용량 확장 로드맵 (ERP 전체를 향해)</h2>
+<p>ERP는 2,658 테이블·수천만 행. 전체를 한 번에 붙이지 않고 <strong>계층·단계</strong>로 넓힌다.</p>
+<h3 id="41">4.1 온보딩 단계 (테이블 화이트리스트 확장)</h3>
+<table>
+<thead>
+<tr>
+<th>단계</th>
+<th>범위</th>
+<th>방식</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>P4(현재)</td>
+<td>발주·품목·매출·매입·재고 5종</td>
+<td>증분/집계, 파일럿</td>
+</tr>
+<tr>
+<td>확장1</td>
+<td>부서 KPI에 필요한 마스터·전표(거래처·계정·프로젝트·수주 등)</td>
+<td><code>table_dict</code>(2,658 사전) 기준 선별, 컬럼 화이트리스트</td>
+</tr>
+<tr>
+<td>확장2</td>
+<td>고빈도·대용량 원시전표(수불·회계 라인 등)</td>
+<td><strong>증분 필수</strong> + 파티셔닝(연/월) + 필요 컬럼만</td>
+</tr>
+<tr>
+<td>확장3</td>
+<td>준실시간 필요 영역</td>
+<td><strong>CDC</strong>(변경 로그 기반) 또는 짧은 주기 증분</td>
+</tr>
+</tbody>
+</table>
+<h3 id="42">4.2 대용량 설계 지침</h3>
+<ul>
+<li><strong>필요 컬럼만</strong>(개인정보·미사용 컬럼 제외), <strong>집계는 중간DB에서</strong>(운영 부하 0).</li>
+<li><strong>파티셔닝</strong>: 큰 원시 테이블은 연/월 파티션(<code>pg_partman</code> 검토), 오래된 파티션 아카이브.</li>
+<li><strong>증분 우선</strong>: 신규 테이블은 <code>UPDT_DT</code>(또는 변경 컬럼) watermark를 표준 장착.</li>
+<li><strong>전표 취소·삭제</strong>: 스냅샷은 주기 full, 대용량은 tombstone/상태컬럼 + reconcile job.</li>
+<li><strong>인덱스·튜닝</strong>: 조회 패턴 기반 인덱스(현 성능 advisor의 RLS initplan·다중정책 정리 병행 → <a href="../11_제품기획/08_보안_데이터안정성.md"><code>11_제품기획/08</code></a>).</li>
+</ul>
+<h2 id="5">5. 권한·거버넌스 (디테일 관리)</h2>
+<p>데이터가 넓어질수록 <strong>누가 어디까지 보느냐</strong>가 핵심. 계층·행·열 3중 통제.</p>
+<h3 id="51">5.1 데이터 등급·스키마 분리</h3>
+<table>
+<thead>
+<tr>
+<th>등급</th>
+<th>스키마</th>
+<th>예</th>
+<th>접근</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>일반</td>
+<td><code>erp_ro</code></td>
+<td>발주·품목·매출·매입·재고</td>
+<td>사내(internal) 전체</td>
+</tr>
+<tr>
+<td><strong>민감</strong></td>
+<td><code>erp_secure</code>(P5 예약·미생성)</td>
+<td>급여·인사평가·자금·원가</td>
+<td><strong>부서·직급 그룹 한정</strong></td>
+</tr>
+<tr>
+<td>배치메타</td>
+<td><code>etl_meta</code></td>
+<td>batch_run</td>
+<td>service_role만</td>
+</tr>
+</tbody>
+</table>
+<h3 id="52-3">5.2 3중 통제</h3>
+<ol>
+<li><strong>열(Column) 화이트리스트</strong>: 노출 뷰(<code>v_erp_*</code>)에 필요한 컬럼만. 개인정보·급여 등은 뷰에서 제외(직원 이름은 마스킹 예외 — [CLAUDE.md §1.7]).</li>
+<li><strong>행(Row) 보안(RLS)</strong>: 사내/협력사 격리(현행). 확장 시 <strong>부서·거래처·프로젝트 단위</strong> RLS(예: 영업은 자기 담당 거래처만).</li>
+<li><strong>역할(Role) 인가</strong>: Entra 보안그룹(<code>AI-Portal-Finance</code>·<code>-HR</code>·<code>-Sales</code>…) → JWT claim → 뷰/RPC/챗봇 Tool 인가. 민감 Tool·뷰는 그룹 확인.</li>
+</ol>
+<h3 id="53">5.3 감사·최소권한</h3>
+<ul>
+<li><strong>감사 로그</strong>: 챗봇(<code>chat_log</code>) 외에, 민감 데이터 조회 접근 로깅 확대(누가·언제·무엇).</li>
+<li><strong>최소권한</strong>: 접속 계정 <code>jeilax_ro</code>(읽기전용) 전환, service_role은 서버에만, 뷰는 authenticated·사내 RLS.</li>
+<li><strong>미노출 유지</strong>: <code>erp_ro</code>/<code>etl_meta</code>/<code>erp_secure</code>는 REST 비노출, 진입점은 화이트리스트 뷰/RPC뿐.</li>
+</ul>
+<h3 id="54">5.4 권한 매트릭스(목표 예시)</h3>
+<table>
+<thead>
+<tr>
+<th>그룹</th>
+<th>발주·품목</th>
+<th>매출·매입</th>
+<th>재고</th>
+<th>자금·원가(erp_secure)</th>
+<th>인사·급여</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>전 사내</td>
+<td>○</td>
+<td>○(요약)</td>
+<td>○</td>
+<td>✕</td>
+<td>✕</td>
+</tr>
+<tr>
+<td>영업/구매</td>
+<td>○</td>
+<td>○(담당)</td>
+<td>○</td>
+<td>△</td>
+<td>✕</td>
+</tr>
+<tr>
+<td>재무/경영</td>
+<td>○</td>
+<td>○</td>
+<td>○</td>
+<td>○</td>
+<td>△</td>
+</tr>
+<tr>
+<td>인사</td>
+<td>○</td>
+<td>✕</td>
+<td>✕</td>
+<td>✕</td>
+<td>○</td>
+</tr>
+<tr>
+<td>협력사</td>
+<td>자기 발주만</td>
+<td>✕</td>
+<td>✕</td>
+<td>✕</td>
+<td>✕</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>실제 그룹·컬럼 매핑은 <strong>경영 결정 + 유니포인트 협의</strong> 후 확정(§5는 방향성). Entra 보안그룹 신설은 관리자 작업([CLAUDE.md §11-C]).</p>
+</blockquote>
+<h2 id="6">6. 실행 체크리스트</h2>
+<ul>
+<li>[x] 증분 동기화 구현(watermark RPC + item_master·pur_order 증분 + <code>--full</code>) — 2026-07-08</li>
+<li>[x] 매출·매입 2026 연 전체 전환</li>
+<li>[x] 연동 현황 페이지·기준시각 노출</li>
+<li>[ ] 야간 스케줄러(증분) + 주1회 <code>--full</code> 등록</li>
+<li>[ ] 배치 실패 알림</li>
+<li>[ ] <code>jeilax_ro</code> 읽기전용 계정 전환(P1)</li>
+<li>[ ] 확장1 테이블 선별(부서 KPI) + 컬럼 화이트리스트</li>
+<li>[ ] <code>erp_secure</code>(P5) + Entra 보안그룹 RBAC 설계·적용</li>
+<li>[ ] 대용량 테이블 파티셔닝·삭제 정합(reconcile) 설계</li>
+</ul>
+<h2 id="7">7. 결정 필요(경영/관리자)</h2>
+<ul>
+<li>온보딩 확장 순서(어느 부서·전표 먼저), 스케줄 주기(야간 몇 시·정합 주기).</li>
+<li>민감 등급 분류(무엇을 <code>erp_secure</code>로) 및 부서·직급 권한 매트릭스 확정.</li>
+<li>유니포인트 협의: 리포팅 뷰·<code>jeilax_ro</code>·<code>UPDT_DT</code> 신뢰성(증분 키) 확인.</li>
+</ul>
+  </div>
+  <div class="footer"><span>JEIL M&amp;S · ERP DB 연계 관제</span><span>04 증분·확장·거버넌스 · 관리: 최동혁</span></div>
+</div>
+</body>
+</html>

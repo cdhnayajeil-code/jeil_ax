@@ -18,8 +18,36 @@ from _env import load_env, need
 # 집계 기준(금액 컬럼 선택·수불 in/out 분류)은 유니포인트/현업 확인 대상 — --dry-run으로 먼저 검증.
 ROLLING_MONTHS = 3  # (레거시·현재 미사용) 예전 매출·매입 롤링 윈도. 2026-07-08부터 연 전체 적재로 전환
 TARGET_YEAR = 2026  # 연도 필터 — pur_order·sales·purchase 공통(2026년 전체 적재, 관리자 결정 2026-07-08)
+LOOKBACK_DAYS = 2   # 증분 안전버퍼 — watermark보다 이만큼 앞선 변경분까지 재추출(경계 유실·지연도착 방지)
 
 JOBS = {
+    # ⑤ 사용자 마스터 스냅샷 ← Z_USR_MAST_REC (사용·이메일 계정만 — 사용자↔부서↔사원 대사용)
+    #    usr_id=MS 이메일(SSOT), usr_nm='부서명_이름[(휴직)|(퇴사)]'. 부서/사원 파싱은 중간DB 뷰(v_user_dept_map).
+    #    ⚠ EMP_NO/DEPT_CD 컬럼 없음 — 부서 정보는 usr_nm 텍스트가 유일 소스(구조 확인 2026-07-08).
+    "usr_master": {
+        "table": "usr_master_s",
+        "sql": """
+            SELECT USR_ID AS usr_id, USR_NM AS usr_nm,
+                   CONVERT(bit, CASE WHEN USE_YN = 'Y' THEN 1 ELSE 0 END) AS use_yn,
+                   UPDT_DT AS src_updated
+            FROM JEILMNS.dbo.Z_USR_MAST_REC WITH (NOLOCK)
+            WHERE USE_YN = 'Y' AND USR_ID LIKE '%@%'
+        """,
+        "params": [],
+        "incr_sql": " AND UPDT_DT >= ?",   # 증분: 변경된 계정만(watermark 이후). 미사용 전환분은 --full 정합으로 정리
+    },
+    # ⑥ 부서 마스터 스냅샷 ← B_ACCT_DEPT (파싱 부서명 대사·부서-사원 관계 기준, 소형·전량 upsert)
+    "dept_master": {
+        "table": "dept_master_s",
+        "sql": """
+            SELECT ISNULL(ORG_CHANGE_ID, '') AS org_change_id, DEPT_CD AS dept_cd,
+                   DEPT_NM AS dept_nm, PAR_DEPT_CD AS par_dept_cd,
+                   DEPT_FULL_NM AS dept_full_nm, END_DEPT_FG AS end_dept_fg,
+                   UPDT_DT AS src_updated
+            FROM JEILMNS.dbo.B_ACCT_DEPT WITH (NOLOCK)
+        """,
+        "params": [],
+    },
     # ⓪ 발주현황 스냅샷 ← M_PUR_ORD_HDR/DTL (2026년도만 우선연동 — 협력사 포털·챗봇용)
     "pur_order": {
         "table": "pur_order_s",
@@ -41,6 +69,7 @@ JOBS = {
             WHERE h.PO_DT >= ? AND h.PO_DT < ?
         """,
         "params": ["year_start", "year_end"],
+        "incr_sql": " AND h.UPDT_DT >= ?",   # 증분: 연 범위 내 변경분만(watermark 이후)
     },
     # ① 품목 마스터 스냅샷 ← B_ITEM (전체 재적재)
     "item_master": {
@@ -53,6 +82,7 @@ JOBS = {
             FROM JEILMNS.dbo.B_ITEM WITH (NOLOCK)
         """,
         "params": [],
+        "incr_sql": " WHERE UPDT_DT >= ?",   # 증분: 변경된 품목만(watermark 이후)
     },
     # ② 영업 매출/수금 월집계 ← S_BILL_HDR (TARGET_YEAR 전체) ※ 수주(order_amt)는 S_SO 확정 후 추가
     "sales": {
@@ -118,6 +148,22 @@ def rpc(url, key, fn, payload):
         return raw
 
 
+def parse_ts(raw):
+    """RPC(timestamptz) 반환 문자열 → datetime. null/빈값이면 None."""
+    if not raw or raw.lower() == "null":
+        return None
+    try:
+        return datetime.datetime.fromisoformat(raw.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+
+
+def watermark(url, key, name):
+    """job 대상 테이블의 최신 src_updated - LOOKBACK_DAYS. 최초 적재(값 없음)면 None."""
+    wm = parse_ts(rpc(url, key, "erp_etl_watermark", {"p_job": name}))
+    return (wm - datetime.timedelta(days=LOOKBACK_DAYS)) if wm else None
+
+
 def param_value(name):
     today = datetime.date.today()
     if name == "rolling_start":
@@ -134,17 +180,33 @@ def param_value(name):
     raise ValueError(name)
 
 
-def run_job(name, spec, url, key, dry):
+def run_job(name, spec, url, key, dry, full=False):
     import pyodbc  # 지연 import — dict 적재 등에서 불필요한 의존 방지
     from _erp_conn import erp_conn_str  # ERP_DB_CONN 비어 있으면 %USERPROFILE%\.erp\ DPAPI 폴백
     conn_str = erp_conn_str()
     print(f"[{name}] 추출 시작")
+
+    # 증분 모드: incr_sql 있는 job은 watermark 이후 변경분만 추출(--full 이면 전량)
+    sql = spec["sql"]
+    params = [param_value(p) for p in spec["params"]]
+    incr = spec.get("incr_sql")
+    if incr and not full:
+        wm = watermark(url, key, name)
+        if wm:
+            sql = sql + incr
+            params.append(wm)
+            print(f"[{name}] 증분 — {wm:%Y-%m-%d %H:%M} 이후 변경분만")
+        else:
+            print(f"[{name}] 최초 전량 적재(watermark 없음)")
+    elif incr and full:
+        print(f"[{name}] --full 전량 재적재")
+
     batch_id = None if dry else rpc(url, key, "erp_etl_batch", {"p_action": "start", "p_payload": {"job_name": name}})
     rows_read = rows_up = 0
     try:
         with pyodbc.connect(conn_str, timeout=30) as conn:
             cur = conn.cursor()
-            cur.execute(spec["sql"], *[param_value(p) for p in spec["params"]])
+            cur.execute(sql, *params)
             cols = [c[0] for c in cur.description]
             buf = []
             for rec in cur:
@@ -176,6 +238,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--job", default="all", choices=["all", *JOBS.keys()])
     ap.add_argument("--dry-run", action="store_true", help="추출·건수만 확인(적재 안 함)")
+    ap.add_argument("--full", action="store_true", help="증분 무시하고 전량 재적재(주기적 정합·초기 적재용)")
     args = ap.parse_args()
     load_env()
     url = need("SUPABASE_URL").rstrip("/")
@@ -184,7 +247,7 @@ def main():
     fail = 0
     for name, spec in targets:
         try:
-            run_job(name, spec, url, key, args.dry_run)
+            run_job(name, spec, url, key, args.dry_run, args.full)
         except Exception:
             fail += 1
     return 1 if fail else 0
