@@ -64,7 +64,11 @@
   <!-- 비로그인/권한없음 안내 -->
   <div class="gate" id="gate">
     <b>사내 로그인이 필요합니다.</b><br>
-    사용자·부서 매핑은 사내(내부) 계정으로 로그인한 경우에만 표시됩니다. 협력사·비로그인 사용자에게는 데이터가 격리되어 표시되지 않습니다.
+    사용자·부서 매핑은 사내(@jeilm.co.kr) 계정으로 로그인한 경우에만 표시됩니다. 협력사·비로그인 사용자에게는 데이터가 격리되어 표시되지 않습니다.
+    <div style="margin-top:12px;">
+      <button id="g_ms" style="background:#2f2f7a;color:#fff;border:0;border-radius:8px;padding:10px 16px;font-size:13px;font-weight:600;cursor:pointer;">🔐 Microsoft 사내 계정으로 로그인 (Entra SSO)</button>
+    </div>
+    <div id="g_msg" style="margin-top:8px;font-size:12.5px;"></div>
   </div>
 
   <!-- 대사 불일치 (확인 대상 우선) -->
@@ -108,18 +112,30 @@
 
 <script type="module">
   import { erpApi } from "../app/lib/api.js";
+  import { supabase } from "../app/lib/supabaseClient.js";
   const el = (id) => document.getElementById(id);
   const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
   const fmtDt = (ts) => ts ? new Date(ts).toLocaleString("ko-KR", { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" }) : "—";
   const RECON_BADGE = { "형식오류": "r", "상태이상": "a", "부서불일치": "a", "테스트계정": "b" };
 
-  function showGate() {
+  // access_token(JWT)에서 app_metadata 클레임 추출(role=internal 확인용)
+  function claimsOf(session) {
+    try {
+      let p = session.access_token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/");
+      while (p.length % 4) p += "=";
+      const j = decodeURIComponent(atob(p).split("").map((c) => "%" + c.charCodeAt(0).toString(16).padStart(2, "0")).join(""));
+      return JSON.parse(j).app_metadata || {};
+    } catch { return {}; }
+  }
+
+  function showGate(msg) {
     el("gate").style.display = "block";
     ["sMap", "sRecon", "sDept"].forEach((id) => (el(id).textContent = "—"));
     el("sAsof").textContent = "권한 없음";
     el("reconRows").innerHTML = `<tr><td colspan="6" class="c muted" style="padding:16px;">사내 로그인 필요</td></tr>`;
     el("rosterRows").innerHTML = `<tr><td colspan="3" class="c muted" style="padding:16px;">사내 로그인 필요</td></tr>`;
     el("mapRows").innerHTML = `<tr><td colspan="4" class="c muted" style="padding:16px;">사내 로그인 필요</td></tr>`;
+    if (msg) el("g_msg").textContent = msg;
   }
 
   let MAP = []; // 정상 매핑 캐시(검색용)
@@ -133,43 +149,61 @@
       : `<tr><td colspan="4" class="c muted" style="padding:16px;">일치하는 사용자 없음</td></tr>`;
   }
 
-  try {
+  async function loadData() {
     const [map, recon, roster, asof] = await Promise.all([
       erpApi.userDept(), erpApi.userDeptRecon(), erpApi.deptRoster(), erpApi.dataAsof(),
     ]);
-    // 사내 세션이 아니면 RLS로 전부 0행 → gate
-    if (!map.length && !recon.length && !roster.length) { showGate(); }
-    else {
-      MAP = map;
-      // 요약
-      el("sMap").textContent = map.length.toLocaleString("ko-KR");
-      el("sRecon").textContent = recon.length.toLocaleString("ko-KR");
-      const byType = recon.reduce((m, r) => ((m[r.recon_type] = (m[r.recon_type] || 0) + 1), m), {});
-      el("sReconU").textContent = Object.entries(byType).map(([k, v]) => `${k} ${v}`).join(" · ") || "없음";
-      el("sDept").textContent = roster.length.toLocaleString("ko-KR");
-      el("sAsof").textContent = fmtDt(asof.usr_master?.last_success);
+    el("gate").style.display = "none";
+    MAP = map;
+    // 요약
+    el("sMap").textContent = map.length.toLocaleString("ko-KR");
+    el("sRecon").textContent = recon.length.toLocaleString("ko-KR");
+    const byType = recon.reduce((m, r) => ((m[r.recon_type] = (m[r.recon_type] || 0) + 1), m), {});
+    el("sReconU").textContent = Object.entries(byType).map(([k, v]) => `${k} ${v}`).join(" · ") || "없음";
+    el("sDept").textContent = roster.length.toLocaleString("ko-KR");
+    el("sAsof").textContent = fmtDt(asof.usr_master?.last_success);
 
-      // 대사 불일치
-      el("hRecon").textContent = `(${recon.length}건 · 자동제외)`;
-      el("reconRows").innerHTML = recon.length ? recon.map((r) => `<tr>
-        <td><span class="badge ${RECON_BADGE[r.recon_type] || "b"}">${esc(r.recon_type)}</span></td>
-        <td>${esc(r.email)}</td><td>${esc(r.dept_nm)}</td><td>${esc(r.emp_nm)}</td>
-        <td class="c">${esc(r.status)}</td><td class="muted">${esc(r.usr_nm_raw)}</td></tr>`).join("")
-        : `<tr><td colspan="6" class="c muted" style="padding:16px;">불일치 없음</td></tr>`;
+    // 대사 불일치
+    el("hRecon").textContent = `(${recon.length}건 · 자동제외)`;
+    el("reconRows").innerHTML = recon.length ? recon.map((r) => `<tr>
+      <td><span class="badge ${RECON_BADGE[r.recon_type] || "b"}">${esc(r.recon_type)}</span></td>
+      <td>${esc(r.email)}</td><td>${esc(r.dept_nm)}</td><td>${esc(r.emp_nm)}</td>
+      <td class="c">${esc(r.status)}</td><td class="muted">${esc(r.usr_nm_raw)}</td></tr>`).join("")
+      : `<tr><td colspan="6" class="c muted" style="padding:16px;">불일치 없음</td></tr>`;
 
-      // 부서 명부
-      el("hRoster").textContent = `(${roster.length}개 부서)`;
-      el("rosterRows").innerHTML = roster.map((r) => `<tr>
-        <td><b>${esc(r.dept_nm)}</b></td><td class="c">${r.emp_cnt}</td>
-        <td class="muted">${esc(r.members)}</td></tr>`).join("");
+    // 부서 명부
+    el("hRoster").textContent = `(${roster.length}개 부서)`;
+    el("rosterRows").innerHTML = roster.map((r) => `<tr>
+      <td><b>${esc(r.dept_nm)}</b></td><td class="c">${r.emp_cnt}</td>
+      <td class="muted">${esc(r.members)}</td></tr>`).join("");
 
-      // 사용자 검색
-      renderMap();
-      el("q").addEventListener("input", (e) => renderMap(e.target.value));
+    // 사용자 검색
+    renderMap();
+    el("q").addEventListener("input", (e) => renderMap(e.target.value));
+  }
+
+  // Entra SSO 로그인 — 성공 시 세션 persist + 콜백 복귀하면 boot가 데이터 로드
+  el("g_ms").onclick = async () => {
+    el("g_ms").disabled = true;
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "azure",
+      options: { scopes: "openid email profile", redirectTo: location.href.split("#")[0] },
+    });
+    if (error) { el("g_msg").textContent = "Microsoft 로그인 실패: " + error.message; el("g_ms").disabled = false; }
+  };
+
+  // 인증 게이트: 세션 + role=internal 확인 후에만 조회(비내부·비로그인은 게이트)
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) { showGate(); }
+    else if (claimsOf(session).role !== "internal") {
+      showGate(`사내(@jeilm.co.kr) 계정이 아닙니다(${session.user.email || ""}). 로그아웃 후 사내 계정으로 로그인하세요.`);
+    } else {
+      await loadData();
     }
   } catch (e) {
     showGate();
-    console.warn("[admin-user-dept] 조회 불가(사내 세션 필요):", e?.message || e);
+    console.warn("[admin-user-dept] 조회 불가:", e?.message || e);
   }
 </script>
 </body>

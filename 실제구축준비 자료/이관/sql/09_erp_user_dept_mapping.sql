@@ -143,15 +143,19 @@ end $function$;
 -- 3) 파싱·대사 뷰 (erp_ro 내부)
 -- ─────────────────────────────────────────────────────────────────────────
 
+-- 3) 파싱·대사 뷰는 전부 security_invoker=true — 호출자(authenticated) 권한으로 기저 테이블
+--    RLS(internal_select_*)가 적용돼 사내만 통과. (비-invoker면 소유자 권한으로 RLS 우회 + 호출자
+--    SELECT 권한 없어 permission denied — 2026-07-08 수정.) §4에서 이 뷰들에 SELECT를 GRANT한다.
+
 -- 3-0) 부서명 사전(대사 기준): B_ACCT_DEPT 부서명 distinct(공백 정리)
-create or replace view erp_ro.v_dept_dim as
+create or replace view erp_ro.v_dept_dim with (security_invoker=true) as
   select btrim(dept_nm) as dept_nm, min(dept_cd) as dept_cd
   from erp_ro.dept_master_s
   where dept_nm is not null and btrim(dept_nm) <> ''
   group by btrim(dept_nm);
 
 -- 3-1) 사용자→부서→사원 파싱 매핑(대사 값 포함)
-create or replace view erp_ro.v_user_dept_map as
+create or replace view erp_ro.v_user_dept_map with (security_invoker=true) as
 with parsed as (
   select
     m.usr_id                                             as email,
@@ -187,13 +191,13 @@ left join erp_ro.v_dept_dim d on d.dept_nm = p.dept_nm;
 
 -- 3-2) 정상 매핑(연동용): 재직 · 형식정상 · 비테스트 · 부서일치(불일치 자동제외, 2026-07-08 관리자 결정)
 --      불일치(형식오류·테스트계정·상태이상·부서불일치)는 v_user_dept_recon 에만 잔존.
-create or replace view erp_ro.v_user_dept as
+create or replace view erp_ro.v_user_dept with (security_invoker=true) as
   select email, dept_nm, emp_nm, matched_dept_cd, dept_matched, src_updated, synced_at
   from erp_ro.v_user_dept_map
   where has_sep and emp_nm <> '' and status = '재직' and not is_test and dept_matched;
 
 -- 3-3) 대사 리포트(불일치 목록) — 유형별 사유
-create or replace view erp_ro.v_user_dept_recon as
+create or replace view erp_ro.v_user_dept_recon with (security_invoker=true) as
   select email, usr_nm_raw, dept_nm, emp_nm, status,
     case
       when not has_sep or emp_nm = '' then '형식오류'
@@ -206,7 +210,7 @@ create or replace view erp_ro.v_user_dept_recon as
   where (not has_sep) or emp_nm = '' or is_test or status <> '재직' or not dept_matched;
 
 -- 3-4) 부서별 사원 명부(부서-사원 관계)
-create or replace view erp_ro.v_dept_roster as
+create or replace view erp_ro.v_dept_roster with (security_invoker=true) as
   select dept_nm,
          count(*)                              as emp_cnt,
          bool_or(dept_matched)                 as dept_matched,
@@ -219,6 +223,11 @@ create or replace view erp_ro.v_dept_roster as
 -- ─────────────────────────────────────────────────────────────────────────
 grant usage on schema erp_ro to authenticated, service_role;
 grant select on erp_ro.usr_master_s, erp_ro.dept_master_s to authenticated, service_role;
+-- security_invoker 뷰 사슬: 호출자가 각 중간 뷰에도 SELECT 권한이 있어야 함(기저 테이블 RLS는 그대로 internal만).
+grant select on
+  erp_ro.v_dept_dim, erp_ro.v_user_dept_map, erp_ro.v_user_dept,
+  erp_ro.v_user_dept_recon, erp_ro.v_dept_roster
+to authenticated, service_role;
 
 create or replace view public.v_erp_user_dept with (security_invoker=true) as
   select email, dept_nm, emp_nm, matched_dept_cd, dept_matched, src_updated, synced_at
