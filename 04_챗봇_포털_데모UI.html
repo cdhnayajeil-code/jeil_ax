@@ -222,6 +222,9 @@
 
 <div class="demo-banner" id="demoBanner">⚠ 화면 구성 데모 — MS 로그인 시 자유 입력은 실제 AI(jeil-chat 게이트웨이) 응답, 템플릿 버튼·수치는 예시 데이터입니다.</div>
 
+<!-- Microsoft Teams JS SDK — 탭/팝업 인증 연동 (jsDelivr, 실패 시 unpkg 폴백) -->
+<script src="https://cdn.jsdelivr.net/npm/@microsoft/teams-js@2.53.0/dist/umd/MicrosoftTeams.min.js"></script>
+<script>if(!window.microsoftTeams){var s=document.createElement('script');s.src='https://unpkg.com/@microsoft/teams-js@2.53.0/dist/umd/MicrosoftTeams.min.js';document.head.appendChild(s);}</script>
 <!-- ===== JEIL AI Portal 로그인 (실제 Entra ID SSO + MFA — JEIL-AX-Portal 앱 연동) ===== -->
 <div class="login-ov" id="loginOv">
   <div class="ms-card" id="loginCard">
@@ -231,7 +234,7 @@
     <h2 style="font-size:24px;">JEIL AI Portal</h2>
     <p class="sub">제일엠앤에스(JEIL M&amp;S) 사내 업무지원 AI 포털</p>
     <p style="font-size:14px; color:#444; margin:20px 0 24px;">회사 계정(<b>@jeilm.co.kr</b>)으로 로그인하면<br>바로 이용할 수 있습니다.</p>
-    <button class="ms-btn" style="width:100%; display:flex; align-items:center; justify-content:center; gap:9px; padding:12px 30px; font-size:14.5px;" onclick="msLogin('select_account')">
+    <button class="ms-btn" style="width:100%; display:flex; align-items:center; justify-content:center; gap:9px; padding:12px 30px; font-size:14.5px;" onclick="doLogin()">
       <span class="ms-sq" style="grid-gap:1.5px;"><i></i><i></i><i></i><i></i></span> Microsoft 계정으로 로그인
     </button>
     <p class="ms-foot" style="text-align:center;">🔒 Microsoft Entra ID SSO · 2차 인증(MFA) 자동 적용 · 자체 비밀번호 미저장</p>
@@ -392,8 +395,8 @@
         </div>
       </div>
 
-      <div class="pg-sect">🏢 부서 운영 페이지 <small>부서별 권한 적용</small></div>
-      <div class="pg-grid">
+      <div class="pg-sect">🏢 부서 운영 페이지 <small>부서별 권한 적용 (로그인 계정의 부서·권한에 따라 표시)</small></div>
+      <div class="pg-grid" id="deptPageGrid">
         <div class="pgcard">
           <span class="ic">📊</span>
           <h4>프로젝트 원가관리 시스템<br>2025-095-SUL-EC</h4>
@@ -465,6 +468,7 @@
         <button id="tab-model" onclick="showTab('model')">모델 설정</button>
         <button id="tab-perm" onclick="showTab('perm')">권한 설정</button>
         <button id="tab-userdept" onclick="showTab('userdept')">사용자·부서</button>
+        <button id="tab-permdetail" onclick="showTab('permdetail')">권한 상세</button>
       </div>
       <button class="back-chat" onclick="showChat()">← 챗봇으로</button>
     </div>
@@ -720,6 +724,25 @@
           <thead><tr><th>이메일(MS 계정)</th><th>부서명</th><th>사원</th><th class="c">부서코드</th></tr></thead>
           <tbody id="ud_user_rows"><tr><td colspan="4" class="c" style="color:#888;padding:14px;">MS 로그인(관리자) 시 실데이터 표시</td></tr></tbody>
         </table>
+      </div>
+    </div>
+
+    <!-- 패널 6: 권한 상세 (페이지 공개 + 부서별 ERP 모듈, 실제 강제 대상) -->
+    <div class="panel" id="panel-permdetail">
+      <div class="sec">
+        <h3>페이지 공개 설정 <span style="font-size:11px;color:var(--green,#1a7f37);">● 실데이터·강제</span> <button class="save" onclick="savePagePerm()">저장</button></h3>
+        <p class="admin-note">부서 운영 페이지의 <b>소유 부서·공개범위·지정 공유 부서·ERP 모듈</b>을 설정합니다. 저장 시 <code>portal_page</code>에 영속되고, <b>포털 카드 노출 + 페이지 URL 직접 접근</b>이 이 값으로 서버 판정(jeil-me)·강제됩니다.</p>
+        <table>
+          <thead><tr><th>페이지</th><th>소유 부서</th><th>공개범위</th><th>지정 공유 부서(쉼표)</th><th>ERP 모듈</th><th class="c">활성</th></tr></thead>
+          <tbody id="ppRows"><tr><td colspan="6" class="c" style="color:#888;padding:14px;">MS 로그인(관리자) 시 표시</td></tr></tbody>
+        </table>
+      </div>
+      <div class="sec">
+        <h3>부서별 ERP 모듈 권한 <span style="font-size:11px;color:var(--green,#1a7f37);">● 실데이터·강제</span> <button class="save" onclick="saveDeptErp()">저장</button></h3>
+        <p class="admin-note">부서별 허용 ERP 데이터 모듈(챗봇·ERP 페이지 접근 강제). 기본값은 ERP 기준으로 시드되며 편집 가능합니다. 체크된 모듈만 해당 부서가 조회할 수 있습니다(전체 관리자는 전 모듈).</p>
+        <div class="tblwrap" style="overflow-x:auto;">
+          <table id="erpMatrix"><thead id="erpMatrixHead"></thead><tbody id="erpMatrixRows"><tr><td class="c" style="color:#888;padding:14px;">MS 로그인(관리자) 시 표시</td></tr></tbody></table>
+        </div>
       </div>
     </div>
   </main>
@@ -1096,6 +1119,7 @@ function authDone(claims){
   }
   setAuthBadge('🔒 Entra ID SSO · MFA 인증됨');
   loadProfilePhoto();
+  loadPagePerms(); // 로그인 후 부서 운영 카드를 내 권한 기준으로 재구성
 }
 function parseJwt(t){
   try{
@@ -1144,9 +1168,78 @@ async function handleAuthCallback(){
 
 renderTpls('biz');
 
-(function initAuth(){
-  if(!isHttps()){ document.getElementById('httpsWarn').style.display='block'; }
+/* ===== Microsoft Teams 탭 연동 (팝업 로그인 핸드오프) — 2026-07 추가 =====
+   Teams 탭은 iframe이라 기존 리디렉트 로그인이 막힘 → Teams 안에서는
+   microsoftTeams.authentication 팝업으로 로그인하고 토큰을 탭으로 넘겨받는다.
+   일반 브라우저 접속 시에는 기존 동작(리디렉트) 그대로. */
+var IN_TEAMS = false;
+
+function teamsStoreAndDone(payload){
+  try{
+    var d = (typeof payload === 'string') ? JSON.parse(payload) : payload;
+    if(d && d.at){
+      try{ localStorage.setItem('jeilax_auth', JSON.stringify(d)); }catch(e){}
+      authDone({ name: d.name || '인증 사용자', preferred_username: d.upn || '' });
+      return;
+    }
+  }catch(e){}
+  authDone(null);
+}
+
+function loginInTeams(){
+  if(!(window.microsoftTeams && microsoftTeams.authentication)){ msLogin('select_account'); return; }
+  microsoftTeams.authentication.authenticate({
+    url: location.origin + '/?teamsauth=1',
+    width: 600, height: 640
+  }).then(function(res){ teamsStoreAndDone(res); })
+    .catch(function(err){ /* 사용자가 창을 닫았거나 인증 취소 — 무시 */ });
+}
+
+function doLogin(){ if(IN_TEAMS){ loginInTeams(); } else { msLogin('select_account'); } }
+
+(function teamsBoot(){
+  if(!isHttps()){ var w=document.getElementById('httpsWarn'); if(w) w.style.display='block'; }
+
+  var params = new URLSearchParams(location.search);
+  var inAuthPopup = params.has('teamsauth') || sessionStorage.getItem('teams_auth_popup') === '1';
+
+  if(inAuthPopup){
+    // ── Teams 인증 팝업 창 내부 ──
+    sessionStorage.setItem('teams_auth_popup', '1');
+    var initP = (window.microsoftTeams && microsoftTeams.app)
+      ? microsoftTeams.app.initialize().catch(function(){})
+      : Promise.resolve();
+    if(params.has('code') || params.has('error')){
+      // Entra 리디렉트 복귀 → 토큰 교환 후 탭으로 결과 전달
+      handleAuthCallback().then(function(ok){
+        var payload = null; try{ payload = localStorage.getItem('jeilax_auth'); }catch(e){}
+        sessionStorage.removeItem('teams_auth_popup');
+        initP.then(function(){
+          if(window.microsoftTeams && microsoftTeams.authentication){
+            if(ok && payload){ microsoftTeams.authentication.notifySuccess(payload); }
+            else { microsoftTeams.authentication.notifyFailure('auth_failed'); }
+          }
+        });
+      });
+    } else {
+      // 로그인 시작 → Entra 인증 페이지로 이동 (팝업 창 전체 이동)
+      msLogin('select_account');
+    }
+    return;
+  }
+
+  // ── 일반 브라우저 / Teams 탭 임베드 공통 흐름 ──
   handleAuthCallback();
+  loadPagePerms(); // 초기 로드 시 부서 운영 카드를 권한 기준으로 구성(미로그인=잠금)
+
+  // Teams 탭 호스트 감지 (임베드된 경우에만 initialize 성공)
+  if(window.microsoftTeams && microsoftTeams.app){
+    var settled = false;
+    var timer = setTimeout(function(){ if(!settled){ settled = true; IN_TEAMS = false; } }, 1500);
+    microsoftTeams.app.initialize().then(function(){
+      if(settled) return; settled = true; clearTimeout(timer); IN_TEAMS = true;
+    }).catch(function(){ if(!settled){ settled = true; clearTimeout(timer); IN_TEAMS = false; } });
+  }
 })();
 
 /* ===== 모바일 드로어(사이드바) 토글 ===== */
@@ -1163,9 +1256,9 @@ function hideViews(){
 }
 function showChat(){ hideViews(); document.querySelector('.main').style.display='flex'; closeDrawer(); }
 function showAdmin(){ hideViews(); document.getElementById('adminView').style.display='flex'; closeDrawer(); loadAdminLive(); }
-function showPages(){ hideViews(); document.getElementById('pagesView').style.display='flex'; closeDrawer(); }
+function showPages(){ hideViews(); document.getElementById('pagesView').style.display='flex'; closeDrawer(); loadPagePerms(); }
 function showTab(key){
-  ['api','usage','model','perm','userdept'].forEach(k=>{
+  ['api','usage','model','perm','userdept','permdetail'].forEach(k=>{
     document.getElementById('panel-'+k).classList.toggle('on', k===key);
     document.getElementById('tab-'+k).classList.toggle('on', k===key);
   });
@@ -1235,7 +1328,37 @@ async function sendLive(v, auth){
 
 /* ===== 관리자 콘솔 실데이터 (jeil-chat-admin — 관리자 전용) ===== */
 var ADMIN_GATEWAY = 'https://dvzohdqtjzocgcclgwro.supabase.co/functions/v1/jeil-chat-admin';
+var ME_GATEWAY = 'https://dvzohdqtjzocgcclgwro.supabase.co/functions/v1/jeil-me';
 var adminLiveLoaded = false;
+window.MY_PERM = null; // jeil-me 결과 캐시(내 부서·역할·페이지 권한)
+
+/* ===== 부서 운영 페이지 카드 게이팅 (jeil-me 서버 판정) ===== */
+async function loadPagePerms(){
+  if(window.IS_BUNDLE) return; // 오프라인 통합본: 정적 오버레이 버튼 유지(서버 판정 미적용)
+  var grid = document.getElementById('deptPageGrid'); if(!grid) return;
+  var auth = getLiveAuth();
+  if(!auth){ grid.innerHTML = '<div class="pgcard locked"><span class="ic">🔒</span><h4>부서 운영 페이지</h4><div class="metarow"><span class="badge r">로그인 필요</span></div><p>MS 사내 로그인 후 소속 부서·권한에 따라 페이지가 표시됩니다.</p></div>'; return; }
+  try{
+    var res = await fetch(ME_GATEWAY, { method:'POST', headers:{ Authorization:'Bearer '+auth.at } });
+    var me = await res.json();
+    if(!res.ok) throw new Error(me.error || ('오류 '+res.status));
+    window.MY_PERM = me;
+    var pages = me.pages || [];
+    grid.innerHTML = pages.length ? pages.map(function(p){
+      var meta = '<div class="metarow"><span class="badge b">'+escHtml(p.dept_nm||'')+'</span><span class="badge '+(p.visibility==='전사 공개'?'g':'a')+'">'+escHtml(p.visibility||'')+'</span>'+(p.erp_module?'<span class="badge a">ERP '+escHtml(p.erp_module)+'</span>':'')+'</div>';
+      if(p.allowed){
+        return '<div class="pgcard"><span class="ic">'+escHtml(p.icon||'📄')+'</span><h4>'+escHtml(p.title||p.page_key)+'</h4>'+meta
+          + '<a class="open-btn" href="'+escHtml(p.path)+'" target="_blank">페이지 열기 ↗</a></div>';
+      }
+      return '<div class="pgcard locked"><span class="ic">🔒</span><h4>'+escHtml(p.title||p.page_key)+'</h4>'
+        + '<div class="metarow"><span class="badge b">'+escHtml(p.dept_nm||'')+'</span><span class="badge r">권한 없음</span></div>'
+        + '<p style="color:#888">소속 부서·권한 범위 밖 페이지입니다. 열람이 필요하면 해당 부서 관리자에게 요청하세요.</p>'
+        + '<a class="open-btn lock" href="#" onclick="return false">🔒 접근 권한 없음</a></div>';
+    }).join('') : '<div class="pgcard"><h4>표시할 부서 운영 페이지가 없습니다.</h4></div>';
+  }catch(e){
+    grid.innerHTML = '<div class="pgcard locked"><span class="ic">⚠</span><h4>부서 운영 페이지</h4><p style="color:#888">권한 조회 실패: '+escHtml(e.message||'')+' — 잠시 후 새로고침 해주세요.</p></div>';
+  }
+}
 
 function fmtKST(iso){ try{ return new Date(iso).toLocaleString('ko-KR',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}); }catch(e){ return iso||''; } }
 function setTxt(id, v){ var el=document.getElementById(id); if(el) el.innerHTML = v; }
@@ -1281,6 +1404,8 @@ async function loadAdminLive(force){
     // 사용자·부서 탭 + 권한 설정 부서표 (ERP 매핑 기준)
     if(d.dept_mapping) renderUserDept(d.dept_mapping);
     renderDeptPerm(d.dept_mapping || { roster: [], users: [] }, d.dept_permissions || []);
+    // 권한 상세 탭 (페이지 공개 + 부서 ERP 모듈)
+    renderPermDetail(d);
   }catch(e){
     if(note) note.textContent = '⚠ 실데이터 조회 실패: ' + (e.message||'') + ' — 아래는 기획 예시 화면입니다.';
   }
@@ -1356,6 +1481,79 @@ async function saveDeptPerm(){
     if(!res.ok || !d.ok) throw new Error(d.error || ('오류 '+res.status));
     alert('부서별 권한 저장 완료 — '+d.saved+'개 부서 (저장자: '+(d.updated_by||'')+')');
   }catch(e){ alert('저장 실패: '+(e.message||e)); }
+}
+
+/* ===== 권한 상세: 페이지 공개 설정 + 부서별 ERP 모듈 매트릭스 ===== */
+var PERM_DEPTS = [], PERM_CATALOG = [];
+
+function deptUniverse(d){
+  var s = {};
+  ((d.dept_mapping && d.dept_mapping.roster) || []).forEach(function(r){ if(r.dept_nm) s[r.dept_nm]=1; });
+  (d.portal_pages || []).forEach(function(p){ if(p.dept_nm) s[p.dept_nm]=1; (p.shared_depts||[]).forEach(function(x){ if(x) s[x]=1; }); });
+  (d.dept_erp_scope || []).forEach(function(e){ if(e.dept_nm) s[e.dept_nm]=1; });
+  return Object.keys(s).sort();
+}
+
+function renderPermDetail(d){
+  PERM_CATALOG = d.catalog || [];
+  PERM_DEPTS = deptUniverse(d);
+  var VIS = ['부서 전용','전사 공개','지정 부서 공유'];
+  var deptOpts = function(sel){ return '<option value="">(미지정)</option>'+PERM_DEPTS.map(function(dn){ return '<option'+(dn===sel?' selected':'')+'>'+escHtml(dn)+'</option>'; }).join(''); };
+  // A. 페이지 공개 설정
+  var pt = document.getElementById('ppRows'); var pages = d.portal_pages||[];
+  if(pt) pt.innerHTML = pages.length ? pages.map(function(p){
+    var visOpts = VIS.map(function(v){ return '<option'+((p.visibility===v)?' selected':'')+'>'+v+'</option>'; }).join('');
+    var modOpts = '<option value="">(없음)</option>'+PERM_CATALOG.map(function(c){ return '<option value="'+c.key+'"'+((p.erp_module===c.key)?' selected':'')+'>'+escHtml(c.label)+'</option>'; }).join('');
+    var shared = (p.shared_depts||[]).join(', ');
+    return '<tr data-key="'+escHtml(p.page_key)+'" data-title="'+escHtml(p.title||'')+'" data-path="'+escHtml(p.path||'')+'" data-icon="'+escHtml(p.icon||'')+'">'
+      + '<td><b>'+escHtml((p.icon||'')+' '+(p.title||p.page_key))+'</b><br><span style="color:#999;font-size:11px">'+escHtml(p.path||'')+'</span></td>'
+      + '<td><select class="sel pp-dept">'+deptOpts(p.dept_nm)+'</select></td>'
+      + '<td><select class="sel pp-vis">'+visOpts+'</select></td>'
+      + '<td><input class="pp-shared" value="'+escHtml(shared)+'" placeholder="부서A, 부서B" style="width:100%;padding:5px 8px;border:1px solid var(--line,#d8dee8);border-radius:6px;font-size:12px;"></td>'
+      + '<td><select class="sel pp-mod">'+modOpts+'</select></td>'
+      + '<td class="c"><input type="checkbox" class="pp-active"'+((p.active!==false)?' checked':'')+'></td></tr>';
+  }).join('') : '<tr><td colspan="6" class="c" style="color:#888;padding:14px;">페이지 없음</td></tr>';
+  // B. 부서별 ERP 모듈 매트릭스
+  var scopeSet = {}; (d.dept_erp_scope||[]).forEach(function(e){ (scopeSet[e.dept_nm]=scopeSet[e.dept_nm]||{})[e.module_key]=1; });
+  var head = document.getElementById('erpMatrixHead');
+  if(head) head.innerHTML = '<tr><th>부서</th>'+PERM_CATALOG.map(function(c){ return '<th class="c">'+escHtml(c.label)+'</th>'; }).join('')+'</tr>';
+  var mb = document.getElementById('erpMatrixRows');
+  if(mb) mb.innerHTML = PERM_DEPTS.length ? PERM_DEPTS.map(function(dn){
+    var sc = scopeSet[dn]||{};
+    return '<tr data-dept="'+escHtml(dn)+'"><td><b>'+escHtml(dn)+'</b></td>'
+      + PERM_CATALOG.map(function(c){ return '<td class="c"><input type="checkbox" class="em-chk" data-mod="'+c.key+'"'+(sc[c.key]?' checked':'')+'></td>'; }).join('')+'</tr>';
+  }).join('') : '<tr><td class="c" style="color:#888;padding:14px;">부서 없음</td></tr>';
+}
+
+async function postAdmin(payload, label){
+  var auth = getLiveAuth(); if(!auth){ alert('MS 로그인(관리자) 후 저장할 수 있습니다.'); return; }
+  try{
+    var res = await fetch(ADMIN_GATEWAY, { method:'POST', headers:{ Authorization:'Bearer '+auth.at, 'Content-Type':'application/json' }, body: JSON.stringify(payload) });
+    var d = await res.json().catch(function(){ return {}; });
+    if(!res.ok || !d.ok) throw new Error(d.error || ('오류 '+res.status));
+    alert(label+' 저장 완료 — '+d.saved+'건'+(d.modules!=null?(' / 모듈 '+d.modules):'')+' (저장자: '+(d.updated_by||'')+')');
+    loadAdminLive(true);
+  }catch(e){ alert(label+' 저장 실패: '+(e.message||e)); }
+}
+
+function savePagePerm(){
+  var rows = Array.prototype.map.call(document.querySelectorAll('#ppRows tr[data-key]'), function(tr){
+    var shared = (tr.querySelector('.pp-shared').value||'').split(',').map(function(s){return s.trim();}).filter(Boolean);
+    return { page_key: tr.getAttribute('data-key'), title: tr.getAttribute('data-title'), path: tr.getAttribute('data-path'), icon: tr.getAttribute('data-icon'),
+      dept_nm: tr.querySelector('.pp-dept').value||null, visibility: tr.querySelector('.pp-vis').value||'부서 전용',
+      shared_depts: shared, erp_module: tr.querySelector('.pp-mod').value||null, active: tr.querySelector('.pp-active').checked };
+  });
+  if(!rows.length){ alert('저장할 페이지가 없습니다.'); return; }
+  postAdmin({ action:'save_page_perm', rows:rows }, '페이지 공개 설정');
+}
+
+function saveDeptErp(){
+  var rows = Array.prototype.map.call(document.querySelectorAll('#erpMatrixRows tr[data-dept]'), function(tr){
+    var mods = Array.prototype.map.call(tr.querySelectorAll('.em-chk:checked'), function(c){ return c.getAttribute('data-mod'); });
+    return { dept_nm: tr.getAttribute('data-dept'), modules: mods };
+  });
+  if(!rows.length){ alert('저장할 부서가 없습니다.'); return; }
+  postAdmin({ action:'save_dept_erp', rows:rows }, '부서별 ERP 모듈 권한');
 }
 
 function send(){

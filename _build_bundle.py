@@ -29,6 +29,9 @@ PAGES = {  # key: (상대경로, 오버레이 제목)
 
 html = PORTAL.read_text(encoding="utf-8")
 
+# 0) 통합본 표식 — 포털 스크립트가 서버 권한판정(jeil-me)을 건너뛰도록(오프라인 데모: 정적 오버레이 유지)
+html = html.replace("</head>", "<script>window.IS_BUNDLE=true;</script></head>", 1)
+
 # 1) 카드 앵커 → 오버레이 버튼 치환
 replaced = 0
 for key, (rel, _t) in PAGES.items():

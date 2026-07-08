@@ -132,10 +132,36 @@ const TOOLS = [
 const STATUS_KO: Record<string, string> = { new: "신규", prod: "생산중", insp: "검사", done: "완료" };
 
 // deno-lint-ignore no-explicit-any
-async function runTool(admin: any, name: string, argsJson: string): Promise<unknown> {
+// ERP Tool → 데이터 모듈 매핑 (부서별 erp_scope 강제용, dept_erp_scope와 동일 키)
+const ERP_TOOL_MODULE: Record<string, string> = {
+  get_erp_sales_monthly: "sales", get_erp_purchase_monthly: "purchase",
+  get_erp_inventory_status: "inventory", get_erp_item: "item",
+  get_erp_pur_order: "pur_order", get_erp_po_pr: "pur_order", get_erp_pur_top: "pur_order",
+};
+
+type ErpScope = { isAdmin: boolean; modules: Set<string>; dept: string | null };
+// 호출자 UPN → 허용 ERP 모듈 판정 (관리자=전 모듈, 그 외=소속 부서 dept_erp_scope)
+async function resolveErpScope(admin: any, upn: string): Promise<ErpScope> {
+  const [{ data: pa }, { data: ud }] = await Promise.all([
+    admin.from("portal_admin").select("email").eq("email", upn).maybeSingle(),
+    admin.from("v_erp_user_dept").select("dept_nm").eq("email", upn).maybeSingle(),
+  ]);
+  const dept: string | null = ud?.dept_nm ?? null;
+  if (pa) return { isAdmin: true, modules: new Set(), dept };
+  const { data: es } = await admin.from("dept_erp_scope").select("module_key").eq("dept_nm", dept || "");
+  return { isAdmin: false, modules: new Set((es || []).map((r: { module_key: string }) => r.module_key)), dept };
+}
+
+async function runTool(admin: any, name: string, argsJson: string, scope: ErpScope): Promise<unknown> {
   let args: Record<string, string> = {};
   try { args = JSON.parse(argsJson || "{}"); } catch { /* 빈 인자 */ }
   const asOf = new Date().toISOString();
+
+  // ERP 데이터 도구는 소속 부서 erp_scope로 강제(관리자 예외). 범위 밖이면 데이터 대신 안내 반환.
+  const erpMod = ERP_TOOL_MODULE[name];
+  if (erpMod && !scope.isAdmin && !scope.modules.has(erpMod)) {
+    return { 접근제한: true, 안내: `요청하신 ERP 데이터(${erpMod})는 소속 부서(${scope.dept || "미지정"})의 접근 권한 범위 밖입니다. 열람이 필요하면 관리자에게 부서 ERP 모듈 권한을 요청하세요.` };
+  }
 
   if (name === "get_order_summary") {
     const [{ data: heads }, { data: states }] = await Promise.all([
@@ -424,6 +450,9 @@ Deno.serve(async (req) => {
 
   const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
+  // 2-b) ERP Tool 접근 범위(부서별 erp_scope) — 관리자는 전 모듈, 그 외 소속 부서 허용 모듈만
+  const erpScope = await resolveErpScope(admin, user.upn);
+
   // 3) 감사 로그 선기록 (스트림 종료 후 토큰·비용·도구 갱신)
   let logId: number | null = null;
   try {
@@ -465,7 +494,7 @@ Deno.serve(async (req) => {
           for (const c of calls) {
             toolsUsed.push(c.name);
             let result: unknown;
-            try { result = await runTool(admin, c.name, c.args); }
+            try { result = await runTool(admin, c.name, c.args, erpScope); }
             catch (e) { result = { 오류: "조회 실패: " + (e instanceof Error ? e.message : String(e)) }; }
             toolMsgs.push({ role: "tool", tool_call_id: c.id, content: JSON.stringify(result).slice(0, 12000) });
           }
