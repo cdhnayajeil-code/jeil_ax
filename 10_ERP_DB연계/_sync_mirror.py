@@ -6,11 +6,13 @@
 
 사용:
     python _sync_mirror.py                              # 02_진행상태만 최신 동기화(항상)
-    python _sync_mirror.py --version 0.2 --date 20260710  # + 00·01 버전 사본 추가(의미 있는 개정 시)
+    python _sync_mirror.py --version 0.2 --date 20260710  # + 00·01·03 버전 사본 추가(의미 있는 개정 시)
+    python _sync_mirror.py --version05 1.1 --date05 20260708  # + 05(사용자-부서 매핑) 버전 사본 추가(독립 버전 계열)
 
 규칙(README.md 참조):
 - 02_진행상태 → 미러에 버전 없는 단일 파일(ERP_DB연계_진행상태.md/.html) 덮어쓰기.
-- 00_현재상태·01_연계기획 → --version 지정 시 ERP_DB연계_<문서명>_v<버전>_<날짜>.md/.html 추가(구버전 보존).
+- 00_현재상태·01_연계기획·03_중간DB구축기획 → --version 지정 시 ERP_DB연계_<문서명>_v<버전>_<날짜>.md/.html 추가(구버전 보존, 공통 패키지 버전 계열).
+- 05_사용자부서_매핑대사 → --version05 지정 시 ERP_DB연계_사용자부서매핑_v<버전>_<날짜>.md/.html 추가(문서 자체 독립 버전 계열, 00/01/03과 번호 공유하지 않음).
 - HTML은 미러에서 자기완결이 되도록 폴더 내 상호링크(docnav·md-link)를 제거해 복사한다.
 """
 import argparse
@@ -27,6 +29,7 @@ DOCS_VERSIONED = [
     ('03_중간DB_구축실행기획', 'ERP_DB연계_중간DB구축기획'),
 ]
 DOC_LIVE = ('02_진행상태', 'ERP_DB연계_진행상태')
+DOC_05 = ('05_사용자부서_매핑대사', 'ERP_DB연계_사용자부서매핑')
 
 
 def mirror_root():
@@ -62,8 +65,10 @@ def copy_doc(slug, out_base, root):
 
 if __name__ == '__main__':
     ap = argparse.ArgumentParser()
-    ap.add_argument('--version', help='00·01 버전 사본 버전(예: 0.1)')
+    ap.add_argument('--version', help='00·01·03(공통 패키지) 버전 사본 버전(예: 0.1)')
     ap.add_argument('--date', help='버전 사본 날짜 YYYYMMDD (–version 과 함께)')
+    ap.add_argument('--version05', help='05(사용자-부서 매핑) 독립 버전 사본 버전(예: 1.1)')
+    ap.add_argument('--date05', help='05 버전 사본 날짜 YYYYMMDD (–version05 와 함께)')
     a = ap.parse_args()
 
     root = mirror_root()
@@ -74,4 +79,10 @@ if __name__ == '__main__':
             sys.exit('--version 사용 시 --date YYYYMMDD 도 지정하세요.')
         for slug, base in DOCS_VERSIONED:
             copy_doc(slug, f'{base}_v{a.version}_{a.date}', root)
+
+    if a.version05:
+        if not a.date05:
+            sys.exit('--version05 사용 시 --date05 YYYYMMDD 도 지정하세요.')
+        slug, base = DOC_05
+        copy_doc(slug, f'{base}_v{a.version05}_{a.date05}', root)
     print('완료. (정책관리/README.md 프로젝트 표·미러 README 갱신은 별도 확인)')

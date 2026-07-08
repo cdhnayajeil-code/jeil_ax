@@ -333,6 +333,27 @@ export const erpApi = {
     const { data, error } = await supabase.from("v_erp_sync_overview").select("*").order("source_key");
     if (error) throw error; return data || [];
   },
+
+  // 사용자↔부서↔사원 정상 매핑(연동용): {email, dept_nm, emp_nm, matched_dept_cd, dept_matched, src_updated, synced_at}
+  // 재직·형식정상·비테스트·부서일치만(불일치는 userDeptRecon). 이메일=MS 계정.
+  async userDept() {
+    const { data, error } = await supabase.from("v_erp_user_dept")
+      .select("*").order("dept_nm").order("emp_nm");
+    if (error) throw error; return data || [];
+  },
+  // 대사 불일치 목록: {email, usr_nm_raw, dept_nm, emp_nm, status, recon_type, dept_matched, src_updated}
+  // recon_type: 형식오류 | 테스트계정 | 상태이상 | 부서불일치
+  async userDeptRecon() {
+    const { data, error } = await supabase.from("v_erp_user_dept_recon")
+      .select("*").order("recon_type").order("dept_nm");
+    if (error) throw error; return data || [];
+  },
+  // 부서별 사원 명부(부서-사원 관계): {dept_nm, emp_cnt, dept_matched, members}
+  async deptRoster() {
+    const { data, error } = await supabase.from("v_erp_dept_roster")
+      .select("*").order("emp_cnt", { ascending: false });
+    if (error) throw error; return data || [];
+  },
 };
 
 const adapter = DATA_BACKEND === "mock" ? mockAdapter : supabaseAdapter;

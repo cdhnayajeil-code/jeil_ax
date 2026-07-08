@@ -110,6 +110,20 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <tr>
 <td>2026-07-08</td>
 <td>ERP 연계</td>
+<td>Supabase(마이그레이션 <code>erp_user_dept_exclude_unmatched</code>), <code>이관/sql/09 §3-2</code>, <code>10_ERP_DB연계/</code>(<code>00</code>·<code>02</code>·<code>05</code> 갱신, v0.5), 정책관리 미러</td>
+<td><strong>사용자-부서-사원 매핑·대사 실적재 완료 + 자동제외 정책 확정</strong> — 관리자 직접 실행으로 <code>erp_ro.dept_master_s</code> 351건·<code>usr_master_s</code> 99건 실적재 완료. 대사 결과 정상 매핑 89건·불일치 10건(부서불일치 6·상태이상 3·테스트 1) 확정, 불일치는 정상 매핑에서 자동 제외하는 정책 확정. 잔여이슈: 상태이상 3건(김해품질팀·영업팀·자재물류파트) 현업 확인 권고, <code>usr_master</code> upsert-only prune 후속</td>
+<td>최동혁(+Claude)</td>
+</tr>
+<tr>
+<td>2026-07-08</td>
+<td>ERP 연계</td>
+<td>Supabase(마이그레이션 <code>erp_user_dept_mapping</code>), <code>이관/sql/09</code>(신설), <code>10_ERP_DB연계/</code>(<code>05</code> 신설 + <code>00</code>·<code>01</code>·<code>02</code> 갱신), 정책관리 미러</td>
+<td><strong>사용자-부서-사원 매핑·대사 계층 신설</strong> — <code>Z_USR_MAST_REC</code>(사용자 마스터, <code>usr_id</code>=MS 이메일 SSOT)와 <code>B_ACCT_DEPT</code>(부서 마스터)를 대사해 이메일 기준 사용자↔부서↔사원 관계를 조회하는 스키마·뷰(erp_ro 5종+public 노출 3종)·ETL job 2종 구축. 대상 99건 중 부서명 25/29 일치, 불일치 4건(해외법인·외부회계·재무 세분화·admin) 처리방침 결정 대기. 실적재는 미실행(0행, 관리자 <code>!</code> 대기). 전용 관리 문서 <code>10_ERP_DB연계/05_사용자부서_매핑대사.md</code> 신설</td>
+<td>최동혁(+Claude)</td>
+</tr>
+<tr>
+<td>2026-07-08</td>
+<td>ERP 연계</td>
 <td>Supabase(마이그레이션 2건·<code>jeil-chat</code> v7), <code>app/lib/api.js</code>, <code>pages/구매_거래처별매입집계_2026.html</code>, <code>이관/sql/08</code>(신설), <code>10_ERP_DB연계/</code>, <code>11_제품기획/06·09</code></td>
 <td><strong>P4 착수 — ERP 중간DB→앱/챗봇 실데이터 연결</strong> — 사내 전용 노출 뷰 <code>public.v_erp_*</code> 6종 신설(erp_ro REST 비노출 유지·<code>security_invoker</code>+<code>internal_select_*</code> RLS로 사내만, 협력사/anon 0행 격리 실테스트 통과). <code>api.js</code>에 <code>erpApi</code> 추가 + 구매 부서페이지 파일럿 실연동(비로그인 목업 폴백). 챗봇에 ERP Tool 4종(매출·매입·재고·품목) 추가 배포. 실적재는 관리자 <code>!</code> 직접 실행. 재현 SQL <code>이관/sql/08</code>. 매핑은 유니포인트 확정 전 '가설'·전용계정 <code>jeilax_ro</code> 미전환</td>
 <td>최동혁(+Claude)</td>

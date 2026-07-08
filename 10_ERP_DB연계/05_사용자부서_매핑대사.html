@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>05 사용자-부서 매핑 — ERP DB 연계 관제 (Z_USR_MAST_REC 이메일 SSOT ↔ 부서 대사·매핑)</title>
+<style>
+:root{--navy:#1a2f4e;--navy2:#27457a;--accent:#2f6fb3;--red:#b3402f;--green:#2e7d52;--amber:#9a6b1f;
+--ink:#222;--muted:#666;--line:#d8dee8;--bg:#f4f6f9;--soft:#eef2f8;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;color:var(--ink);background:var(--bg);line-height:1.65;font-size:15px;}
+.page{max-width:960px;margin:0 auto;background:#fff;padding:52px 60px;box-shadow:0 2px 14px rgba(0,0,0,.08);}
+.doc-label{display:inline-block;background:var(--navy);color:#fff;font-size:12px;letter-spacing:.16em;padding:5px 14px;border-radius:3px;margin-bottom:16px;}
+.docnav{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 26px;}
+.docnav a{font-size:12px;color:var(--navy2);border:1px solid var(--line);border-radius:20px;padding:4px 12px;text-decoration:none;background:var(--soft);}
+.docnav a:hover{background:var(--navy);color:#fff;}
+.docnav a.cur{background:var(--navy);color:#fff;border-color:var(--navy);}
+.md-link{font-size:13px;margin-bottom:22px;color:var(--muted);}
+.content h1{font-size:27px;color:var(--navy);line-height:1.35;margin:6px 0 18px;}
+.content h2{font-size:20px;color:var(--navy);margin:42px 0 14px;padding-bottom:9px;border-bottom:3px solid var(--navy);}
+.content h3{font-size:16px;color:var(--navy2);margin:24px 0 9px;}
+.content p{margin:0 0 12px;}
+.content ul,.content ol{margin:0 0 14px 22px;}
+.content li{margin-bottom:6px;}
+.content blockquote{background:var(--soft);border-left:5px solid var(--navy);border-radius:0 8px 8px 0;padding:14px 20px;margin:14px 0;color:#33425a;}
+.content blockquote p{margin:0 0 6px;}
+.content table{width:100%;border-collapse:collapse;margin:14px 0 20px;font-size:13.3px;}
+.content th{background:var(--navy);color:#fff;padding:9px 11px;text-align:left;font-weight:600;}
+.content td{padding:8px 11px;border-bottom:1px solid var(--line);vertical-align:top;}
+.content tr:nth-child(even) td{background:#fafbfd;}
+.content a{color:var(--accent);}
+.content code{background:var(--soft);border:1px solid var(--line);border-radius:4px;padding:1px 6px;font-size:12.4px;font-family:Consolas,'Courier New',monospace;}
+.content pre{background:#21252e;color:#e8eaf0;border-radius:8px;padding:16px 18px;font-size:12.4px;font-family:Consolas,'Courier New',monospace;overflow-x:auto;margin:12px 0 18px;line-height:1.55;}
+.content pre code{background:none;border:none;color:inherit;padding:0;}
+.content hr{border:none;border-top:1px solid var(--line);margin:30px 0;}
+.content strong{color:var(--navy2);}
+.footer{margin-top:50px;padding-top:16px;border-top:1px solid var(--line);font-size:12px;color:var(--muted);display:flex;justify-content:space-between;}
+@media print{body{background:#fff;}.page{box-shadow:none;padding:18px 0;max-width:100%;}.docnav{display:none;}.content h2{break-after:avoid;}.content table,.content pre,.content blockquote{break-inside:avoid;}}
+@media (max-width:720px){.page{padding:30px 20px;}}
+</style>
+</head>
+<body>
+<div class="page">
+  <span class="doc-label">JEIL AX ERP DB 연계 · 대외비</span>
+  <div class="docnav"><a href="index.html">🏠 연계 허브</a><a href="00_현재상태_스냅샷.html">00 현재상태</a><a href="01_연계기획.html">01 연계기획</a><a href="02_진행상태.html">02 진행상태</a><a href="03_중간DB_구축실행기획.html">03 중간DB 실행기획</a><a href="04_증분동기화_확장_거버넌스_기획.html">04 증분·확장·거버넌스</a><a class="cur" href="05_사용자부서_매핑대사.html">05 사용자-부서 매핑</a><a href="README.md">README</a></div>
+  <p class="md-link">📄 Markdown 원본: <a href="05_사용자부서_매핑대사.md">05_사용자부서_매핑대사.md</a> · 허브 <a href="index.html">연계 허브</a></p>
+  <div class="content">
+<h1 id="05-ssot">05. 사용자-부서-사원 매핑·대사 (이메일 SSOT)</h1>
+<blockquote>
+<p>관리자: 최동혁(dh.choi@jeilm.co.kr) · 기준일: 2026-07-08 · 상태: Active(<strong>실적재 완료·가동</strong>)
+관련: <a href="00_현재상태_스냅샷.md">00 현재상태</a> · <a href="01_연계기획.md">01 연계기획 §4.5</a> · <a href="02_진행상태.md">02 진행상태</a> · <a href="04_증분동기화_확장_거버넌스_기획.md">04 증분·확장·거버넌스</a>
+비밀값(접속 IP/ID/비밀번호) 기록 금지 — 서버 지칭은 별칭 <strong>"ERP운영DB"</strong> 만 사용(<code>CLAUDE.md §1</code>).</p>
+</blockquote>
+<hr />
+<h2 id="1">1. 목적</h2>
+<p>ERP <code>Z_USR_MAST_REC</code>(사용자 마스터)의 <strong><code>usr_id</code>(=MS 이메일 계정, SSOT)</strong> 와 <strong><code>usr_nm</code>(="부서명_이름" 텍스트)</strong> 을 <strong>대사(reconciliation)</strong> 하여, <strong>이메일 기준으로 사용자 ↔ 부서 ↔ 사원</strong> 관계를 중간DB(Supabase <code>erp_ro</code>)에서 관리·조회할 수 있게 한다.</p>
+<p>이 매핑은 다음을 가능하게 하는 기반 데이터다.
+- 포털 로그인(Entra, 이메일 기준) 사용자를 <strong>소속 부서</strong>로 자동 분류(향후 부서별 화면·권한 인가에 활용 가능).
+- 챗봇·대시보드에서 "이 사람이 어느 부서 소속인가"를 이메일만으로 조회.
+- 부서별 재직 인원 명부(누가 어느 부서에 있는지) 확인.</p>
+<p><strong>주의</strong>: 이 매핑은 현재 <strong>부서 소속 확인용 참고 데이터</strong>이며, 그 자체가 RBAC(권한 부여) 결정을 내리지 않는다. 실제 화면·데이터 접근 통제는 여전히 Entra 보안그룹 + RLS(<code>CLAUDE.md §5</code>)를 따른다.</p>
+<h2 id="2-2026-07-08">2. 원천·규칙 (관리자 확인, 2026-07-08)</h2>
+<table>
+<thead>
+<tr>
+<th>항목</th>
+<th>내용</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>원천 테이블</td>
+<td><code>Z_USR_MAST_REC</code>(사용자 마스터), <code>B_ACCT_DEPT</code>(부서 마스터) — 모두 ERP운영DB</td>
+</tr>
+<tr>
+<td>PK / SSOT</td>
+<td><code>USR_ID</code> = <strong>MS 이메일 계정</strong>(SSOT로 신뢰). <code>USER_E_MAIL</code> 컬럼은 <strong>비신뢰</strong>(99건 중 1건만 값 있음 — 사용하지 않음)</td>
+</tr>
+<tr>
+<td>대상 필터</td>
+<td><code>USE_YN='Y' AND USR_ID LIKE '%@%'</code> → 현재 <strong>99건</strong>(전체 811건 중 @포함 434건, 사용중 471건)</td>
+</tr>
+<tr>
+<td><code>usr_nm</code> 형식</td>
+<td><strong><code>부서명_이름</code></strong>, 밑줄(<code>_</code>) 정확히 1개 — 대상 99건 <strong>100% 이 형식</strong>을 따름(파싱 안전)</td>
+</tr>
+<tr>
+<td>상태 표기</td>
+<td>퇴사/휴직자는 이름 옆에 <code>(퇴사)</code>/<code>(휴직)</code> 접미</td>
+</tr>
+<tr>
+<td><strong>알려진 한계</strong></td>
+<td><code>Z_USR_MAST_REC</code>에는 <strong>EMP_NO(사원번호)·DEPT_CD(부서코드) 컬럼이 없음</strong> → 부서 정보는 <code>usr_nm</code> 텍스트 파싱이 <strong>유일한 소스</strong>(사원 마스터·인사테이블과의 정식 조인 키가 없음). 인사테이블(HR) 실검증은 §8 후속</td>
+</tr>
+</tbody>
+</table>
+<h2 id="3-2026-07-08">3. 부서 대사 결과 (실적재 완료, 2026-07-08)</h2>
+<p><strong>실제 ERP 데이터 적재</strong>(<code>usr_master_s</code> 99건 · <code>dept_master_s</code> 351건) 후 대사를 실행한 결과, 대상 99건 중 <strong>정상 매핑 89건</strong>, <strong>대사 불일치 10건</strong>으로 확정됐다.</p>
+<table>
+<thead>
+<tr>
+<th>유형</th>
+<th>건수</th>
+<th>세부</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>정상 매핑</strong>(<code>v_erp_user_dept</code>)</td>
+<td><strong>89건</strong></td>
+<td>재직 · 형식정상 · 비테스트 · 부서일치</td>
+</tr>
+<tr>
+<td>부서불일치</td>
+<td>6건</td>
+<td>외부회계 2명 · 재무 1명 · 제일엠앤에스 미국(해외법인) 3명</td>
+</tr>
+<tr>
+<td>상태이상</td>
+<td>3건</td>
+<td>활성계정(<code>USE_YN='Y'</code>)인데 이름에 <code>(퇴사)</code>/<code>(휴직)</code> 표기 — 김해품질팀·영업팀·자재물류파트 각 1명</td>
+</tr>
+<tr>
+<td>테스트계정</td>
+<td>1건</td>
+<td><code>admin</code>(<code>test@jeilm.co.kr</code>)</td>
+</tr>
+<tr>
+<td><strong>불일치 합계</strong></td>
+<td><strong>10건</strong></td>
+<td><code>v_erp_user_dept_recon</code>에서 조회</td>
+</tr>
+</tbody>
+</table>
+<p><strong>정책 확정(관리자 결정, 2026-07-08)</strong>: 불일치 10건은 <strong>정상 매핑(연동용)에서 자동 제외</strong>한다 — 마이그레이션 <code>erp_user_dept_exclude_unmatched</code> 적용, 정본 SQL <code>09_erp_user_dept_mapping.sql §3-2</code>에 반영 완료. 즉 <code>v_erp_user_dept</code>는 기존(재직·형식정상·비테스트)에 더해 <strong>부서일치까지 요구</strong>하도록 조건이 강화됐다. 불일치 10건은 <code>v_erp_user_dept_recon</code>(대사 리포트)에서만 조회 가능하며, 수기 확인 대상으로 남는다.</p>
+<p>이로써 이전에 "결정 대기"였던 부서명 처리방침(제일엠앤에스 미국·외부회계·재무·admin)은 <strong>자동제외로 해소</strong>됐다 — 별도 등재·별칭 작업 없이 정상 매핑에서 걸러진다. 다만 <strong>상태이상 3건</strong>(김해품질팀·영업팀·자재물류파트)은 부서 매핑 문제가 아니라 <strong>ERP 원천 데이터 정합 이상</strong>(퇴사/휴직 표기인데 계정이 활성 상태)이므로, 자동제외와는 별개로 <strong>현업 확인 후 ERP측(<code>Z_USR_MAST_REC</code>) 정리를 권고</strong>한다(§8).</p>
+<h2 id="4-db-supabase-erp_ropublic">4. 중간DB 구현 (Supabase <code>erp_ro</code>/<code>public</code>)</h2>
+<p>정본 SQL: <code>실제구축준비 자료/이관/sql/09_erp_user_dept_mapping.sql</code> · Supabase 마이그레이션명 <code>erp_user_dept_mapping</code>(2026-07-08 적용).</p>
+<h3 id="41-erp_ro">4.1 원천 미러 테이블 (<code>erp_ro</code>)</h3>
+<table>
+<thead>
+<tr>
+<th>테이블</th>
+<th>내용</th>
+<th>RLS</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>erp_ro.usr_master_s</code></td>
+<td><code>usr_id</code>(PK)·<code>usr_nm</code>·<code>use_yn</code>·<code>src_updated</code> — <strong>실적재 완료 99건</strong></td>
+<td><code>internal_select_usr_master_s</code>(사내만 SELECT)</td>
+</tr>
+<tr>
+<td><code>erp_ro.dept_master_s</code></td>
+<td><code>B_ACCT_DEPT</code> 미러(<code>org_change_id</code>+<code>dept_cd</code> PK)·<code>dept_nm</code>·<code>par_dept_cd</code>·<code>dept_full_nm</code>·<code>end_dept_fg</code> — <strong>실적재 완료 351건</strong></td>
+<td><code>internal_select_dept_master_s</code>(사내만 SELECT)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="42-erp_ro">4.2 파싱·대사 뷰 (<code>erp_ro</code>, 내부용)</h3>
+<table>
+<thead>
+<tr>
+<th>뷰</th>
+<th>역할</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>v_dept_dim</code></td>
+<td>부서명 사전(대사 기준) — <code>dept_master_s</code>에서 부서명 distinct</td>
+</tr>
+<tr>
+<td><code>v_user_dept_map</code></td>
+<td>전체 파싱 결과(이메일·원문·부서명·이름·재직상태·부서일치여부·테스트계정여부) — 대사의 기준 뷰</td>
+</tr>
+<tr>
+<td><code>v_user_dept</code></td>
+<td><strong>정상 매핑만</strong>(연동용): 형식정상 · 재직 · 비테스트 · <strong>부서일치</strong>(2026-07-08 정책 확정 — 불일치 자동제외 조건 추가)</td>
+</tr>
+<tr>
+<td><code>v_user_dept_recon</code></td>
+<td><strong>불일치만</strong>(대사 리포트): <code>형식오류</code>·<code>테스트계정</code>·<code>상태이상</code>·<code>부서불일치</code> 4개 유형(사유별)</td>
+</tr>
+<tr>
+<td><code>v_dept_roster</code></td>
+<td>부서별 인원수·명부(재직자 이름 목록)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="43-public-security_invokertrue">4.3 public 노출 뷰 (사내 전용, <code>security_invoker=true</code>)</h3>
+<table>
+<thead>
+<tr>
+<th>뷰</th>
+<th>컬럼</th>
+<th>용도</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>public.v_erp_user_dept</code></td>
+<td>email·dept_nm·emp_nm·matched_dept_cd·dept_matched·src_updated·synced_at</td>
+<td>이메일→부서·이름 조회(정상 매핑만)</td>
+</tr>
+<tr>
+<td><code>public.v_erp_user_dept_recon</code></td>
+<td>email·usr_nm_raw·dept_nm·emp_nm·status·recon_type·dept_matched·src_updated</td>
+<td>대사 불일치 확인(관리자용)</td>
+</tr>
+<tr>
+<td><code>public.v_erp_dept_roster</code></td>
+<td>dept_nm·emp_cnt·dept_matched·members</td>
+<td>부서별 명부</td>
+</tr>
+</tbody>
+</table>
+<p><code>erp_ro</code>/<code>etl_meta</code>는 여전히 REST 비노출(<code>CLAUDE.md §4</code> 원칙 준수). 위 3개 뷰만 <code>security_invoker</code>로 노출되며, 기존 <code>erp_ro</code> RLS(<code>internal_select_*</code>)가 그대로 적용돼 <strong>사내 인증 사용자만</strong> 조회 가능하다(협력사·비로그인 차단).</p>
+<h3 id="44-rpc">4.4 적재 RPC</h3>
+<p>기존 <code>public.erp_etl_upsert(p_table, p_rows)</code>에 <code>usr_master_s</code>·<code>dept_master_s</code> 분기를 추가했다(service_role 전용, REST 비노출 유지).</p>
+<h3 id="45-etl-job">4.5 ETL job</h3>
+<p><code>10_ERP_DB연계/etl/etl_run.py</code>에 job 2종 추가:</p>
+<table>
+<thead>
+<tr>
+<th>job</th>
+<th>원천 SQL</th>
+<th>방식</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>usr_master</code></td>
+<td><code>Z_USR_MAST_REC WHERE USE_YN='Y' AND USR_ID LIKE '%@%'</code></td>
+<td>증분(<code>AND UPDT_DT &gt;= ?</code> watermark, <code>04 증분기획</code> 패턴 재사용)</td>
+</tr>
+<tr>
+<td><code>dept_master</code></td>
+<td><code>B_ACCT_DEPT</code>(전량)</td>
+<td>전량(소형 마스터, upsert)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="5-4-v_user_dept_reconrecon_type">5. 대사 판정 유형 (4종, <code>v_user_dept_recon.recon_type</code>)</h2>
+<table>
+<thead>
+<tr>
+<th>유형</th>
+<th>조건</th>
+<th>의미</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>형식오류</code></td>
+<td>밑줄 없음 또는 이름 파트 공백</td>
+<td><code>usr_nm</code>이 "부서명_이름" 형식을 따르지 않음(<strong>0건</strong> — 대상 99건 100% 정상형식)</td>
+</tr>
+<tr>
+<td><code>테스트계정</code></td>
+<td>부서명이 <code>admin</code> 또는 이메일이 <code>test@</code>/<code>test_*@</code></td>
+<td>테스트/더미 계정(<strong>1건</strong>: <code>test@jeilm.co.kr</code>)</td>
+</tr>
+<tr>
+<td><code>상태이상</code></td>
+<td><code>USE_YN='Y'</code>인데 이름에 <code>(퇴사)</code>/<code>(휴직)</code> 표기</td>
+<td>활성 계정인데 이름 표기상 퇴사/휴직(<strong>3건</strong>: 김해품질팀·영업팀·자재물류파트 각 1명) — 현업 확인 후 ERP측 정리 권고(§8)</td>
+</tr>
+<tr>
+<td><code>부서불일치</code></td>
+<td>파싱 부서명이 <code>B_ACCT_DEPT.DEPT_NM</code>에 없음</td>
+<td><strong>6건</strong>: 외부회계 2명·재무 1명·제일엠앤에스 미국(해외법인) 3명 — 자동제외 정책으로 처리방침 확정(§3)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="6-select">6. 조회 방법 (참고 — SELECT만, 사내 세션 필요)</h2>
+<pre><code class="language-sql">-- 이메일 → 부서·이름 조회 (정상 매핑)
+select * from public.v_erp_user_dept where email = '&lt;이메일&gt;';
+
+-- 대사 불일치 전체 확인(유형별)
+select recon_type, count(*) from public.v_erp_user_dept_recon group by recon_type;
+
+-- 부서별 명부
+select * from public.v_erp_dept_roster order by emp_cnt desc;
+</code></pre>
+<blockquote>
+<p>위 조회는 <strong>참고용 SQL 예시</strong>이며, 이 문서관제 에이전트(<code>erp-db-link-manager</code>)는 직접 실행하지 않는다(ERP운영DB·중간DB 조회는 <code>erp-db-connector</code>/<code>erp-db-analyst</code> 소관).</p>
+</blockquote>
+<h2 id="7-2026-07-08">7. 실적재 결과 (완료, 2026-07-08)</h2>
+<p>관리자 직접 실행(<code>!</code>)으로 실제 ERP 데이터 적재를 완료했다.</p>
+<table>
+<thead>
+<tr>
+<th>job</th>
+<th>방식</th>
+<th>결과</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>dept_master</code></td>
+<td>전량(upsert)</td>
+<td><code>erp_ro.dept_master_s</code> <strong>351건</strong>(<code>B_ACCT_DEPT</code>)</td>
+</tr>
+<tr>
+<td><code>usr_master</code></td>
+<td>증분(watermark)</td>
+<td><code>erp_ro.usr_master_s</code> <strong>99건</strong>(<code>USE_YN='Y' AND USR_ID LIKE '%@%'</code>)</td>
+</tr>
+</tbody>
+</table>
+<p><code>etl_meta.batch_run</code>에 두 job 모두 success 이력이 기록됐다. 대사 결과는 §3 참조.</p>
+<ul>
+<li>실행 명령(관리자 <code>!</code> 직접 실행, 선행 <code>--dry-run</code> 검증): <code>python etl_run.py --job dept_master</code> / <code>python etl_run.py --job usr_master</code></li>
+<li>이 에이전트(<code>erp-db-link-manager</code>)는 문서 관제 담당으로 <strong>ERP운영DB 직접 조회·ETL 실행을 하지 않는다</strong> — 실적재 실행은 관리자 또는 <code>erp-db-connector</code>가 수행했다.</li>
+</ul>
+<h2 id="8">8. 알려진 한계·후속 과제</h2>
+<ol>
+<li><strong>upsert-only 잔존 위험</strong>: <code>erp_etl_upsert</code>는 삭제하지 않고 병합만 한다 — 재직 상태였다가 <code>USE_YN='N'</code>으로 전환된(즉 대상 필터에서 빠지는) 계정이 <code>usr_master_s</code>에 그대로 남을 수 있다. <code>04 증분·확장·거버넌스 기획</code>의 "주기적 <code>--full</code> 정합" 패턴을 이 job에도 적용하거나, 별도 prune(정리) 로직 도입이 필요하다.</li>
+<li><strong>인사 테이블(HR) 실검증 미실시</strong>: 현재 부서 대사는 <code>B_ACCT_DEPT</code>(부서명 존재 여부)만 사용한다. 사원번호(<code>EMP_NO</code>) 기반 정식 인사 테이블과의 교차검증은 아직 하지 않았다 — 필요 시 후속 과제.</li>
+<li><strong>부서명 텍스트 파싱 의존</strong>: <code>EMP_NO</code>/<code>DEPT_CD</code> 컬럼 부재로 부서 정보가 <code>usr_nm</code> 문자열에만 의존한다. ERP 측에 조직변경(부서명 변경·부서 통폐합)이 있으면 파싱 부서명이 바로 갱신되지 않을 수 있다 — 정기 재적재(<code>dept_master</code>)로 완화하되 근본 해법은 유니포인트 협의 대상.</li>
+<li><strong>개인정보 취급</strong>(<code>CLAUDE.md §1.7</code>): 직원 이름은 마스킹 예외 대상이라 이메일·이름·부서 조합 노출이 허용된다(사내 role=internal 한정). 급여·주민번호 등 민감값과의 결합은 없음 — 현재 설계 유지로 충분.</li>
+<li><strong>(신규) 상태이상 3건 현업 확인 필요</strong>: 김해품질팀·영업팀·자재물류파트 소속 각 1명이 활성계정(<code>USE_YN='Y'</code>)인데 이름에 <code>(퇴사)</code>/<code>(휴직)</code> 표기가 남아 있다. ERP 원천의 상태 갱신 누락 가능성 — <strong>현업(인사/해당 부서) 확인 후 ERP측(<code>Z_USR_MAST_REC</code>) 정리를 권고</strong>한다. 확인 전까지는 자동제외(§3) 상태로 안전 처리되어 있어 연동 데이터에는 영향 없음.</li>
+</ol>
+<h2 id="9">9. 변경 이력</h2>
+<table>
+<thead>
+<tr>
+<th>일자</th>
+<th>변경 내용</th>
+<th>작성</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>2026-07-08</td>
+<td><strong>실적재 완료 + 대사 결과 확정 + 정책 확정</strong> — <code>usr_master_s</code> 99건·<code>dept_master_s</code> 351건 실제 ERP 데이터 적재 완료(관리자 직접 실행). 대사 결과: 정상 매핑 89건 · 불일치 10건(부서불일치 6·상태이상 3·테스트 1). <strong>불일치 자동제외 정책 확정</strong>(<code>v_erp_user_dept</code>에 부서일치 조건 추가, 마이그레이션 <code>erp_user_dept_exclude_unmatched</code>, 정본 SQL §3-2 반영). 이전 "부서명 4개 처리방침 결정대기"는 자동제외로 해소, 상태이상 3건은 현업 확인 권고로 신규 등재. §3·§4·§5·§7·§8 갱신</td>
+<td>최동혁(+Claude)</td>
+</tr>
+<tr>
+<td>2026-07-08</td>
+<td>문서 신설 — <code>Z_USR_MAST_REC</code>/<code>B_ACCT_DEPT</code> 대사 스키마·뷰·ETL job 구축 완료 반영(실적재는 대기, 0행). 부서명 불일치 4건(해외법인·외부회계·재무 세분화·admin) 처리방침 결정 대기로 등재</td>
+<td>최동혁(+Claude)</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="10">10. 관련 문서</h2>
+<ul>
+<li>정본 SQL: <code>실제구축준비 자료/이관/sql/09_erp_user_dept_mapping.sql</code></li>
+<li>ETL 스크립트: <code>10_ERP_DB연계/etl/etl_run.py</code>(<code>usr_master</code>·<code>dept_master</code> job)</li>
+<li>증분·전량 정합 패턴: <a href="04_증분동기화_확장_거버넌스_기획.md"><code>04_증분동기화_확장_거버넌스_기획.md</code></a></li>
+<li>규칙: <code>CLAUDE.md §4</code>(ERP 연계) · §1.7(직원 이름 마스킹 예외)</li>
+</ul>
+  </div>
+  <div class="footer"><span>JEIL M&amp;S · ERP DB 연계 관제</span><span>05 사용자-부서 매핑 · 관리: 최동혁</span></div>
+</div>
+</body>
+</html>

@@ -42,12 +42,12 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <body>
 <div class="page">
   <span class="doc-label">JEIL AX ERP DB 연계 · 대외비</span>
-  <div class="docnav"><a href="index.html">🏠 연계 허브</a><a href="00_현재상태_스냅샷.html">00 현재상태</a><a class="cur" href="01_연계기획.html">01 연계기획</a><a href="02_진행상태.html">02 진행상태</a><a href="03_중간DB_구축실행기획.html">03 중간DB 실행기획</a><a href="README.md">README</a></div>
+  <div class="docnav"><a href="index.html">🏠 연계 허브</a><a href="00_현재상태_스냅샷.html">00 현재상태</a><a class="cur" href="01_연계기획.html">01 연계기획</a><a href="02_진행상태.html">02 진행상태</a><a href="03_중간DB_구축실행기획.html">03 중간DB 실행기획</a><a href="04_증분동기화_확장_거버넌스_기획.html">04 증분·확장·거버넌스</a><a href="05_사용자부서_매핑대사.html">05 사용자-부서 매핑</a><a href="README.md">README</a></div>
   <p class="md-link">📄 Markdown 원본: <a href="01_연계기획.md">01_연계기획.md</a> · 허브 <a href="index.html">연계 허브</a></p>
   <div class="content">
 <h1 id="01-erp-db">01. ERP DB 연계 — 이후 기획 (통합 정리)</h1>
 <blockquote>
-<p><strong>기준일: 2026-07-03</strong>(2026-07-08 §4.4 P4 노출 계층 추가 갱신) · 관리: 최동혁
+<p><strong>기준일: 2026-07-03</strong>(2026-07-08 §4.4 P4 노출 계층, §4.5 사용자-부서 매핑 추가 갱신) · 관리: 최동혁
 ERP 데이터 활용은 <strong>두 축</strong>으로 진행된다: <strong>A) 사내 타부서 데이터 개방</strong>(마스터플랜 v2.0)과 <strong>B) AI 포털·챗봇 연계</strong>(중간DB 연계설계). 본 문서는 두 기획을 하나의 그림으로 통합 정리한 것이다. 상세는 각 원본 문서를 따른다.</p>
 </blockquote>
 <hr />
@@ -198,6 +198,14 @@ etl_meta     — 배치 실행 로그·동기화 상태
 <p>포털·챗봇이 <code>erp_ro</code>/<code>etl_meta</code>를 직접 REST로 조회하지 않도록, public 스키마에 <strong>사내 전용 <code>security_invoker</code> 뷰 6종</strong>을 신설했다: <code>v_erp_sales_monthly</code>·<code>v_erp_purchase_monthly</code>·<code>v_erp_inventory_daily</code>·<code>v_erp_item</code>·<code>v_erp_pur_order</code>·<code>v_erp_data_asof</code>(job별 최신 성공시각). <code>erp_ro</code>·<code>etl_meta</code>는 여전히 REST 비노출이며, 기존 <code>erp_ro</code> RLS(<code>internal_select_*</code>)가 <code>security_invoker</code> 뷰에도 그대로 적용돼 사내 인증 사용자만 통과한다. 챗봇(jeil-chat) Edge Function은 service_role 전용 GRANT로 서버 측에서만 조회한다. 정본 SQL: <code>실제구축준비 자료/이관/sql/08_erp_pub_reporting_views.sql</code>.</p>
 <p><strong>RLS 격리 실측 테스트(2026-07-08)</strong>: JWT 시뮬레이션 결과 — 사내(internal): 정상 조회(매출10·매입63·재고656·품목58,246·발주2,699·기준시각5행), 협력사(vendor): 전부 0행, anon: 미부여로 차단.</p>
 <p>이 위에서 실제 연결도 시작됐다: <code>app/lib/api.js</code>의 <code>erpApi</code>로 <code>pages/구매_거래처별매입집계_2026.html</code> 1개 화면을 파일럿 실연동했고, 챗봇에 ERP Tool 4종(<code>get_erp_sales_monthly</code>·<code>get_erp_purchase_monthly</code>·<code>get_erp_inventory_status</code>·<code>get_erp_item</code>)을 배포했다(version 7 ACTIVE). 유니포인트 협의(P1)·읽기전용 계정 전환·야간배치 자동화·Entra→Supabase 세션 브리지는 여전히 미해결이다. 상세 진행은 <code>02_진행상태.md</code> P4 참조.</p>
+<h3 id="45-2026-07-08">4.5 사용자-부서-사원 매핑·대사 (2026-07-08 신설)</h3>
+<p>ERP <code>Z_USR_MAST_REC</code>(사용자 마스터)의 <code>usr_id</code>(=MS 이메일, SSOT)와 <code>usr_nm</code>(="부서명_이름")을 대사해, <strong>이메일 기준으로 사용자↔부서↔사원 관계</strong>를 중간DB(<code>erp_ro</code>)에서 관리하는 계층을 추가했다. 이는 축 B(포털·챗봇 연계)의 부속 계층으로, 향후 부서 기준 화면 분류·챗봇 응답의 소속 확인 등에 활용할 수 있는 <strong>참고 데이터</strong>다(실제 권한 인가는 여전히 Entra 보안그룹 + RLS가 담당, <code>CLAUDE.md §5</code>).</p>
+<ul>
+<li>대상: <code>USE_YN='Y' AND USR_ID LIKE '%@%'</code> 99건. <code>usr_nm</code> 파싱(부서명_이름) → <code>B_ACCT_DEPT</code>와 대사해 29개 부서명 중 25개(95건) 일치, 불일치 4개(해외법인·외부회계·재무 세분화·admin 테스트계정)는 처리방침 결정 대기.</li>
+<li>노출 뷰(사내 전용, security_invoker): <code>public.v_erp_user_dept</code>(정상 매핑)·<code>v_erp_user_dept_recon</code>(대사 불일치 리포트)·<code>v_erp_dept_roster</code>(부서별 명부).</li>
+<li>스키마·뷰·ETL job(<code>usr_master</code>·<code>dept_master</code>)은 구축·적용 완료됐으나 <strong>실적재는 미실행</strong>(0행, 관리자 <code>!</code> 직접 실행 대기).</li>
+<li>상세는 전용 관리 문서 <a href="05_사용자부서_매핑대사.md"><code>05_사용자부서_매핑대사.md</code></a> 참조. 정본 SQL: <code>실제구축준비 자료/이관/sql/09_erp_user_dept_mapping.sql</code>.</li>
+</ul>
 <h2 id="5">5. 단계별 로드맵 (통합)</h2>
 <table>
 <thead>
@@ -230,7 +238,7 @@ etl_meta     — 배치 실행 로그·동기화 상태
 </tr>
 <tr>
 <td><strong>P4</strong> 포털·챗봇 연결</td>
-<td><code>pages/</code> 실데이터 API 전환 + 챗봇 Tool 3종 + <code>tool_audit</code> — <strong>2026-07-08 착수·부분완료</strong>(§4.4: 노출 뷰 6종·RLS 격리 테스트·파일럿 화면 1건·챗봇 Tool 4종)</td>
+<td><code>pages/</code> 실데이터 API 전환 + 챗봇 Tool 3종 + <code>tool_audit</code> — <strong>2026-07-08 착수·부분완료</strong>(§4.4: 노출 뷰 6종·RLS 격리 테스트·파일럿 화면 1건·챗봇 Tool 4종 / §4.5: 사용자-부서 매핑 계층 구축, 실적재 대기)</td>
 <td>P3</td>
 </tr>
 <tr>

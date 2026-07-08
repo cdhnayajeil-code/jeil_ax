@@ -19,11 +19,25 @@
 ## 실행
 
 ```bash
-pip install pyodbc                      # etl_run.py만 필요
-python load_table_dict.py               # 테이블 사전 (ERP 접속 없음)
-python etl_run.py --job all --dry-run   # 추출 건수만 확인 (적재 안 함)
-python etl_run.py --job all             # 실제 적재 (⚠ 관리자 확인 후)
+pip install pyodbc                        # etl_run.py만 필요
+python load_table_dict.py                 # 테이블 사전 (ERP 접속 없음)
+python etl_run.py --job all --dry-run     # 추출 건수만 확인 (적재 안 함)
+python etl_run.py --job all               # 실제 적재 (⚠ 관리자 확인 후)
+python etl_run.py --job usr_master --dry-run   # 사용자 계정(Z_USR_MAST_REC) 단독 확인
+python etl_run.py --job dept_master            # 부서 마스터(B_ACCT_DEPT) 단독 적재
 ```
+
+### JOB 목록
+
+| job | 원천 | 대상 테이블 | 비고 |
+|---|---|---|---|
+| `usr_master` | `Z_USR_MAST_REC` | `erp_ro.usr_master_s` | 사용(`USE_YN='Y'`)·이메일(`@`) 계정만. 부서/사원은 `usr_nm` 파싱(뷰) |
+| `dept_master` | `B_ACCT_DEPT` | `erp_ro.dept_master_s` | 부서명 대사 기준·부서-사원 관계 |
+| `pur_order`·`item_master`·`sales`·`purchase`·`inventory` | (기존) | `erp_ro.*` | 1차 5종 |
+
+> **사용자↔부서↔사원 대사**: `usr_master`+`dept_master` 적재 후 `public.v_erp_user_dept`(정상 매핑)·`v_erp_user_dept_recon`(불일치)·`v_erp_dept_roster`(부서 명부)로 조회. 파싱·판정 로직은 마이그레이션 `erp_user_dept_mapping`(정본 `실제구축준비 자료/이관/sql/09_erp_user_dept_mapping.sql`).
+>
+> **알려진 한계(usr_master)**: 적재는 upsert-only라 재직→퇴사로 `USE_YN`이 `N`으로 바뀐 계정은 `usr_master_s`에 잔존할 수 있음(증분·`--full` 모두 삭제는 안 함). 정합이 필요하면 주기적 prune(현재 활성셋에 없는 `usr_id` 삭제)을 후속 도입.
 
 ## 보안·운영 규칙
 

@@ -42,7 +42,7 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <body>
 <div class="page">
   <span class="doc-label">JEIL AX ERP DB 연계 · 대외비</span>
-  <div class="docnav"><a href="index.html">🏠 연계 허브</a><a href="00_현재상태_스냅샷.html">00 현재상태</a><a href="01_연계기획.html">01 연계기획</a><a class="cur" href="02_진행상태.html">02 진행상태</a><a href="03_중간DB_구축실행기획.html">03 중간DB 실행기획</a><a href="README.md">README</a></div>
+  <div class="docnav"><a href="index.html">🏠 연계 허브</a><a href="00_현재상태_스냅샷.html">00 현재상태</a><a href="01_연계기획.html">01 연계기획</a><a class="cur" href="02_진행상태.html">02 진행상태</a><a href="03_중간DB_구축실행기획.html">03 중간DB 실행기획</a><a href="04_증분동기화_확장_거버넌스_기획.html">04 증분·확장·거버넌스</a><a href="05_사용자부서_매핑대사.html">05 사용자-부서 매핑</a><a href="README.md">README</a></div>
   <p class="md-link">📄 Markdown 원본: <a href="02_진행상태.md">02_진행상태.md</a> · 허브 <a href="index.html">연계 허브</a></p>
   <div class="content">
 <h1 id="02-erp-db">02. ERP DB 연계 — 진행상태 (지속 갱신)</h1>
@@ -62,6 +62,7 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <p><strong>P4 착수(2026-07-08)</strong>: 오늘 ERP→중간DB dry-run으로 원천 5종을 재확인한 결과 건수가 소폭 늘어 있었다(발주 2,702·품목 58,249·매출 10·매입 63·재고 659, 중간DB 적재분은 아직 2026-07-07 기준 2,699/58,246/10/63/656). 최신 재적재는 관리자가 <code>!</code>로 직접 실행하기로 결정했고(명령 준비, 미실행) 본 에이전트는 실행하지 않는다.</p>
 <p>같은 날 <strong>노출 계층(P4)을 신설</strong>했다 — Supabase에 사내 전용 <code>security_invoker</code> 뷰 6종(<code>v_erp_sales_monthly</code>·<code>v_erp_purchase_monthly</code>·<code>v_erp_inventory_daily</code>·<code>v_erp_item</code>·<code>v_erp_pur_order</code>·<code>v_erp_data_asof</code>)을 public에 만들고(<code>erp_ro</code>/<code>etl_meta</code>는 여전히 REST 비노출), 챗봇(jeil-chat) Edge Function이 service_role로 조회할 수 있게 GRANT를 추가했다(마이그레이션 2건: <code>erp_pub_reporting_views</code>·<code>erp_ro_grant_service_role_read</code>). RLS 격리 실측 테스트(JWT 시뮬레이션)도 통과했다 — 사내: 정상(매출10·매입63·재고656·품목58,246·발주2,699·기준시각5행), 협력사(vendor): 전부 0행, anon: 차단.</p>
 <p>이 노출 계층 위에서 실제 연결도 시작했다 — <code>app/lib/api.js</code>에 <code>erpApi</code>를 추가해 <code>pages/구매_거래처별매입집계_2026.html</code> 1개 화면을 사내 로그인 시 실데이터로 파일럿 전환했고(비로그인·협력사는 목업 폴백), 챗봇에는 ERP Tool 4종(<code>get_erp_sales_monthly</code>·<code>get_erp_purchase_monthly</code>·<code>get_erp_inventory_status</code>·<code>get_erp_item</code>)을 추가해 배포했다(version 7 ACTIVE, ERP 중간DB Tool 2단계 착수). 남은 선행·이슈는 §4 참조.</p>
+<p><strong>사용자-부서-사원 매핑·대사 신설 + 실적재 완료(2026-07-08)</strong>: ERP <code>Z_USR_MAST_REC</code>(사용자 마스터, <code>usr_id</code>=MS 이메일 SSOT)와 <code>B_ACCT_DEPT</code>(부서 마스터)를 대사하는 계층을 구축했다 — 원천 미러 2종(<code>usr_master_s</code>·<code>dept_master_s</code>) + 파싱·대사 뷰 5종(<code>erp_ro</code>) + 노출 뷰 3종(<code>public.v_erp_user_dept</code>·<code>v_erp_user_dept_recon</code>·<code>v_erp_dept_roster</code>) + ETL job 2종(<code>usr_master</code>·<code>dept_master</code>). 관리자 직접 실행(<code>!</code>)으로 <strong>실적재까지 완료</strong>했다 — <code>dept_master_s</code> 351건·<code>usr_master_s</code> 99건. 대사 결과 <strong>정상 매핑 89건</strong>, <strong>불일치 10건</strong>(부서불일치 6·상태이상 3·테스트 1)이며, <strong>불일치는 정상 매핑(연동용)에서 자동 제외</strong>하는 정책이 확정됐다(마이그레이션 <code>erp_user_dept_exclude_unmatched</code>). 이전 "부서명 처리방침 결정 대기"는 이로써 해소됐고, 상태이상 3건(활성계정인데 (퇴사)/(휴직) 표기 — 김해품질팀·영업팀·자재물류파트)만 현업 확인 권고로 남았다. 전용 관리 문서 <a href="05_사용자부서_매핑대사.md"><code>05_사용자부서_매핑대사.md</code></a> 갱신. 정본 SQL: <code>실제구축준비 자료/이관/sql/09_erp_user_dept_mapping.sql</code>.</p>
 <h2 id="2">2. 체크리스트</h2>
 <h3 id="p0">P0 — 정책 수립</h3>
 <ul>
@@ -101,6 +102,8 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <li>[ ] 「데이터 기준 시각」 표기 규약 적용</li>
 <li>[x] <strong>(신규요청) 발주 데이터 2026년도분 우선연동 — 실적재 완료</strong>(2026-07-07): <code>pur_order</code> job(<code>M_PUR_ORD_HDR/DTL</code>, 2026년 필터) → <code>erp_ro.pur_order_s</code> 2,699행. 남은 것: 유니포인트 뷰 스펙 협의(추출 SQL 초안 확정), <code>M_PUR_REQ</code>(발주요청)는 미포함 — 필요 시 별도 job 추가</li>
 <li>[x] ERP→중간DB dry-run 재확인(2026-07-08) — 원천 5종 최신 건수 확인(발주 2,702·품목 58,249·매출 10·매입 63·재고 659), 중간DB 적재분보다 소폭 증가 확인. 최신 재적재는 관리자 <code>!</code> 직접 실행 예정(명령 준비 완료, 미실행)</li>
+<li>[x] <strong>사용자-부서-사원 매핑·대사 스키마·뷰·ETL job 구축</strong>(2026-07-08) — <code>usr_master_s</code>·<code>dept_master_s</code>(원천 미러) + 파싱/대사 뷰 5종 + 노출 뷰 3종(<code>v_erp_user_dept</code>·<code>v_erp_user_dept_recon</code>·<code>v_erp_dept_roster</code>) + ETL job 2종(<code>usr_master</code>·<code>dept_master</code>). 상세 <code>05_사용자부서_매핑대사.md</code></li>
+<li>[x] <strong>사용자-부서 매핑 실적재 완료 + 정책 확정</strong>(2026-07-08, 관리자 <code>!</code> 직접 실행) — <code>dept_master_s</code> 351건·<code>usr_master_s</code> 99건 적재. 대사 결과 정상 매핑 89건·불일치 10건(부서불일치 6·상태이상 3·테스트 1), 불일치 자동제외 정책 확정(<code>erp_user_dept_exclude_unmatched</code>). 잔여: 상태이상 3건 현업 확인·upsert-only prune 후속(§4)</li>
 </ul>
 <blockquote>
 <p>상세 실행 체크리스트는 <code>03_중간DB_구축실행기획 §7·§8</code>을 따른다(§7-C 내부 구축 항목 중 스키마·RLS·ETL 스크립트 작성 완료, RLS 격리 테스트 완료 반영).</p>
@@ -130,6 +133,18 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 </tr>
 </thead>
 <tbody>
+<tr>
+<td>2026-07-08</td>
+<td><strong>사용자-부서-사원 매핑·대사 실적재 완료 + 자동제외 정책 확정</strong>(관리자 <code>!</code> 직접 실행) — <code>dept_master</code>(전량) job으로 <code>erp_ro.dept_master_s</code> 351건(<code>B_ACCT_DEPT</code>), <code>usr_master</code>(증분) job으로 <code>erp_ro.usr_master_s</code> 99건(<code>Z_USR_MAST_REC</code>, <code>USE_YN='Y' AND USR_ID LIKE '%@%'</code>) 적재, <code>etl_meta.batch_run</code> 두 job 모두 success 기록. 대사 결과 확정: <strong>정상 매핑 89건</strong>, <strong>불일치 10건</strong>(부서불일치 6 — 외부회계2·재무1·제일엠앤에스 미국3, 상태이상 3 — 김해품질팀·영업팀·자재물류파트, 테스트 1 — admin). 관리자 결정으로 <strong>불일치는 정상 매핑(<code>v_erp_user_dept</code>)에서 자동 제외</strong>하도록 정책 확정(마이그레이션 <code>erp_user_dept_exclude_unmatched</code>, 정본 SQL <code>09_erp_user_dept_mapping.sql §3-2</code>) — 이전 "부서명 4개 처리방침 결정 대기"는 해소. 잔여이슈: 상태이상 3건 현업 확인(ERP측 정리 권고), <code>usr_master</code> upsert-only prune 후속. <code>00</code>·<code>02</code>·<code>05</code> 갱신, 미러(00·02) 동기화</td>
+<td>Supabase 마이그레이션(<code>erp_user_dept_exclude_unmatched</code>), <code>10_ERP_DB연계/05_사용자부서_매핑대사.md</code></td>
+<td>최동혁(+Claude)</td>
+</tr>
+<tr>
+<td>2026-07-08</td>
+<td><strong>사용자-부서-사원 매핑·대사 계층 신설</strong> — <code>Z_USR_MAST_REC</code>(이메일 SSOT)와 <code>B_ACCT_DEPT</code>(부서) 대사 스키마·뷰·ETL 구축(마이그레이션 <code>erp_user_dept_mapping</code>): 원천 미러 2종, 파싱·대사 뷰 5종(<code>v_dept_dim</code>·<code>v_user_dept_map</code>·<code>v_user_dept</code>·<code>v_user_dept_recon</code>·<code>v_dept_roster</code>), 노출 뷰 3종(<code>v_erp_user_dept</code>·<code>v_erp_user_dept_recon</code>·<code>v_erp_dept_roster</code>), ETL job 2종(<code>usr_master</code> 증분·<code>dept_master</code> 전량). 대상 99건 중 부서명 25/29 일치, 불일치 4개(해외법인 3명·외부회계 2명·재무 세분화 1명·admin 테스트 1명, admin은 이미 제외 처리). 실적재는 미실행(0행, 관리자 <code>!</code> 대기). 전용 관리 문서 <code>05_사용자부서_매핑대사.md</code> 신설, <code>00</code>·<code>01</code> 갱신, 미러(00·01·02) 동기화</td>
+<td>Supabase 마이그레이션(<code>erp_user_dept_mapping</code>), <code>실제구축준비 자료/이관/sql/09_erp_user_dept_mapping.sql</code>, <code>10_ERP_DB연계/05_사용자부서_매핑대사.md</code></td>
+<td>최동혁(+Claude)</td>
+</tr>
 <tr>
 <td>2026-07-08</td>
 <td><strong>P4 노출 계층 신설 + RLS 격리 실측 테스트</strong> — Supabase 마이그레이션 2건 적용(라이브): <code>erp_pub_reporting_views</code>(public에 사내 전용 <code>security_invoker</code> 뷰 6종 <code>v_erp_*</code> 생성, erp_ro/etl_meta REST 비노출 유지, <code>etl_meta.batch_run</code>에 <code>internal_select_batch_run</code> 정책 추가), <code>erp_ro_grant_service_role_read</code>(챗봇 Edge Function이 service_role로 뷰 조회 가능). JWT 시뮬레이션으로 사내/협력사/anon 격리 테스트 통과(사내 정상·vendor 0행·anon 차단). 재현용 SQL 정본 <code>08_erp_pub_reporting_views.sql</code> 신규</td>
@@ -224,6 +239,10 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 </table>
 <h2 id="4">4. 이슈·메모</h2>
 <ul>
+<li><strong>사용자-부서 매핑(2026-07-08) — 실적재 완료, 잔여이슈</strong>:
+  1. ~~부서명 불일치 4개 처리방침 결정~~ → <strong>해소(2026-07-08)</strong>: 불일치는 정상 매핑에서 자동 제외하는 정책이 확정돼 별도 등재·별칭 작업이 불필요해졌다.
+  2. <strong>상태이상 3건 현업 확인 필요</strong>: 김해품질팀·영업팀·자재물류파트 소속 각 1명이 활성계정(<code>USE_YN='Y'</code>)인데 이름에 <code>(퇴사)</code>/<code>(휴직)</code> 표기가 남아 있다. ERP 원천 정합 이상 추정 — 현업(인사/해당 부서) 확인 후 ERP측(<code>Z_USR_MAST_REC</code>) 정리 권고. 확인 전까지는 자동제외로 안전 처리(연동 영향 없음). 상세 <code>05_사용자부서_매핑대사.md §3·§8</code>.
+  3. <strong>usr_master upsert-only prune 후속</strong>: <code>erp_etl_upsert</code>는 병합만 하므로 재직 상태였다가 <code>USE_YN='N'</code>으로 전환된(대상 필터에서 빠지는) 계정이 <code>usr_master_s</code>에 그대로 남을 수 있다. <code>04 증분·확장·거버넌스 기획</code>의 "주기적 <code>--full</code> 정합" 패턴 적용 또는 별도 prune 로직 도입 필요(<code>05</code> §8 참조).</li>
 <li><strong>P4 착수 이후 남은 선행·이슈(2026-07-08)</strong>:
   1. 전용 읽기계정 <code>jeilax_ro</code> 미전환 — 현재 ETL은 관리자 개인 계정(DPAPI 폴백) 접속, P1 유니포인트 협의 항목.
   2. ERP 매핑·<code>inventory_d</code>(재고) 입출고 분류는 여전히 협의 전 '가설' — 유니포인트 확인 필요.
