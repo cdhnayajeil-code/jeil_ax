@@ -109,6 +109,13 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <tbody>
 <tr>
 <td>2026-07-08</td>
+<td>ERP 연계</td>
+<td>Supabase(마이그레이션 <code>erp_dept_module_suggest</code>·<code>erp_dept_erp_suggest_public_view</code>), <code>이관/sql/12</code>(신설), <code>jeil-chat-admin</code> v5, <code>10_ERP_DB연계/</code>(<code>00</code>·<code>01</code>·<code>02</code>·<code>05</code> 갱신, v0.6), 정책관리 미러</td>
+<td><strong>부서별 ERP 모듈 제안값(참고) 신설·실적재</strong> — 신규 ETL job <code>usr_erp_module</code>로 ERP 역할·메뉴 권한(사용자↔역할↔메뉴↔ModuleInitial)을 근거로 <code>erp_ro.usr_erp_module_s</code> 397건 적재, 부서 과반 접근 모듈을 관리자 콘솔 '권한 상세' ERP 매트릭스에 ◆ 참고표시로 반영(자동 덮어쓰기 안 함 — 관리자 결정, 실질 통제선은 편집형 <code>dept_erp_scope</code>). 실측: ERP 읽기권한이 광범위(평균 17역할)해 ERP-역할 신호는 부서 변별력이 약함을 확인 — 참고 제안 결정의 타당성 입증</td>
+<td>최동혁(+Claude)</td>
+</tr>
+<tr>
+<td>2026-07-08</td>
 <td>권한·포털</td>
 <td>Supabase(<code>portal_page</code>·<code>dept_erp_scope</code>·<code>dept_permission</code>), Edge Function <code>jeil-me</code>(신규)·<code>jeil-chat-admin</code>(v4)·<code>jeil-chat</code>(소스), <code>04</code>(권한 상세 탭·카드 게이팅), <code>pages/_access-gate.js</code>+운영 8종, <code>이관/sql/10·11</code></td>
 <td><strong>권한 설정 실제 적용(Enforcement) — 서버 판정 기반 페이지·ERP 접근 강제.</strong> ① 신원·역할(전체관리자/부서관리자/일반)·부서 판정 엔드포인트 <code>jeil-me</code>(Entra Graph 재검증→ERP 매핑 부서→권한). ② 부서 운영 페이지: 포털 카드 잠금 + 8개 페이지 URL 직접 접근 서버 차단(권한 없으면 🔒). ③ 페이지 공개범위·부서×ERP 모듈 권한을 콘솔 '권한 상세'에서 편집·영속(portal_admin만). ④ erp_scope 페이지 레벨 강제 라이브, 챗봇 Tool 게이팅은 소스 반영(재배포 대기). 부서 기준은 ERP 사용자-부서 매핑, ERP 모듈 기본값 시드(편집 가능)</td>

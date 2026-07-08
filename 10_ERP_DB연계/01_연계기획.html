@@ -47,7 +47,7 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
   <div class="content">
 <h1 id="01-erp-db">01. ERP DB 연계 — 이후 기획 (통합 정리)</h1>
 <blockquote>
-<p><strong>기준일: 2026-07-03</strong>(2026-07-08 §4.4 P4 노출 계층, §4.5 사용자-부서 매핑 추가 갱신) · 관리: 최동혁
+<p><strong>기준일: 2026-07-03</strong>(2026-07-08 §4.4 P4 노출 계층, §4.5 사용자-부서 매핑, §4.6 부서별 ERP 모듈 제안값 추가 갱신) · 관리: 최동혁
 ERP 데이터 활용은 <strong>두 축</strong>으로 진행된다: <strong>A) 사내 타부서 데이터 개방</strong>(마스터플랜 v2.0)과 <strong>B) AI 포털·챗봇 연계</strong>(중간DB 연계설계). 본 문서는 두 기획을 하나의 그림으로 통합 정리한 것이다. 상세는 각 원본 문서를 따른다.</p>
 </blockquote>
 <hr />
@@ -206,6 +206,9 @@ etl_meta     — 배치 실행 로그·동기화 상태
 <li>스키마·뷰·ETL job(<code>usr_master</code>·<code>dept_master</code>)은 구축·적용 완료됐으나 <strong>실적재는 미실행</strong>(0행, 관리자 <code>!</code> 직접 실행 대기).</li>
 <li>상세는 전용 관리 문서 <a href="05_사용자부서_매핑대사.md"><code>05_사용자부서_매핑대사.md</code></a> 참조. 정본 SQL: <code>실제구축준비 자료/이관/sql/09_erp_user_dept_mapping.sql</code>.</li>
 </ul>
+<h3 id="46-erp-2026-07-08">4.6 부서별 ERP 모듈 제안값(참고) (2026-07-08 신설)</h3>
+<p>관리자 콘솔(04)의 '권한 상세' 탭에서 부서별 ERP 모듈 권한(sales/purchase/pur_order/inventory/item)을 편집할 때 참고할 수 있도록, <strong>ERP 역할·메뉴 권한 기반 '제안값'</strong>을 추가했다. <code>Z_USR_MAST_REC_USR_ROLE_ASSO</code>→<code>Z_USR_ROLE_MNU_AUTHZTN_ASSO</code>(MNU_USE_YN='Y')→<code>Z_CO_MAST_MNU</code>(ModuleInitial)를 조인해 사용자별 접근 모듈(ModuleInitial∈SD/MM/IM/MDM)을 <code>erp_ro.usr_erp_module_s</code>로 추출(ETL job <code>usr_erp_module</code>)하고, §4.5의 이메일→부서 매핑(<code>v_user_dept</code>)과 결합해 <strong>부서 과반(≥50%)이 접근하는 모듈</strong>을 <code>erp_ro.v_dept_erp_suggest</code>/<code>public.v_erp_dept_erp_suggest</code>로 산출한다.</p>
+<p><strong>관리자 결정(2026-07-08)</strong>: 이 제안값은 콘솔에 ◆ 참고표시로만 노출하고 <strong>자동 덮어쓰기하지 않는다</strong> — 실질 통제선은 여전히 편집형 <code>dept_erp_scope</code>(업무기준)다. 이유는 실측 소견: 이 조직은 ERP 읽기권한이 광범위(사용자당 평균 17개 역할)해, 부서 과반 임계로 한정해도 거의 모든 부서에 전 모듈이 제안되어 <strong>ERP-역할 신호의 부서 변별력이 약하기 때문</strong>이다(이 실측 결과가 '참고표시만' 결정의 타당성을 뒷받침). 정본 SQL: <code>실제구축준비 자료/이관/sql/12_erp_dept_module_suggest.sql</code>. 실적재 완료(2026-07-08, 397건). 상세 진행은 <code>02_진행상태.md</code> P3·P4, 이슈는 §4 참조.</p>
 <h2 id="5">5. 단계별 로드맵 (통합)</h2>
 <table>
 <thead>
@@ -238,7 +241,7 @@ etl_meta     — 배치 실행 로그·동기화 상태
 </tr>
 <tr>
 <td><strong>P4</strong> 포털·챗봇 연결</td>
-<td><code>pages/</code> 실데이터 API 전환 + 챗봇 Tool 3종 + <code>tool_audit</code> — <strong>2026-07-08 착수·부분완료</strong>(§4.4: 노출 뷰 6종·RLS 격리 테스트·파일럿 화면 1건·챗봇 Tool 4종 / §4.5: 사용자-부서 매핑 계층 구축, 실적재 대기)</td>
+<td><code>pages/</code> 실데이터 API 전환 + 챗봇 Tool 3종 + <code>tool_audit</code> — <strong>2026-07-08 착수·부분완료</strong>(§4.4: 노출 뷰 6종·RLS 격리 테스트·파일럿 화면 1건·챗봇 Tool 4종 / §4.5: 사용자-부서 매핑 계층 구축·실적재 완료 / §4.6: 부서별 ERP 모듈 제안값(참고) 신설·실적재 완료·관리자 콘솔 반영)</td>
 <td>P3</td>
 </tr>
 <tr>
