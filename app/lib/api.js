@@ -328,6 +328,11 @@ export const erpApi = {
     if (error) throw error;
     const m = {}; (data || []).forEach((r) => (m[r.job_name] = r)); return m;
   },
+  // ERP 연동 현황(소스별 최신연동시점·건수·기간) — 연동 상태 페이지용
+  async syncOverview() {
+    const { data, error } = await supabase.from("v_erp_sync_overview").select("*").order("source_key");
+    if (error) throw error; return data || [];
+  },
 };
 
 const adapter = DATA_BACKEND === "mock" ? mockAdapter : supabaseAdapter;

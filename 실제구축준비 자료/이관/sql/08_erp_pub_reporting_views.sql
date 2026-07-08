@@ -74,6 +74,31 @@ to service_role;
 grant usage on schema etl_meta to service_role;
 grant select on etl_meta.batch_run to service_role;
 
+-- ── 마이그레이션 3: erp_sync_overview_view (연동 현황 페이지용) ──────────
+-- 소스별 최신 연동시점·적재건수·기간. 사내(internal)만 실제 값(security_invoker + RLS).
+create or replace view public.v_erp_sync_overview with (security_invoker=true) as
+  select 'pur_order' as source_key, '발주(2026)' as source_label, 'M_PUR_ORD' as erp_src,
+    (select max(finished_at) from etl_meta.batch_run where job_name='pur_order' and status='success') as last_sync,
+    (select count(*) from erp_ro.pur_order_s) as row_count,
+    (select min(po_dt)::text from erp_ro.pur_order_s) as period_min,
+    (select max(po_dt)::text from erp_ro.pur_order_s) as period_max
+  union all select 'item_master','품목 마스터','B_ITEM',
+    (select max(finished_at) from etl_meta.batch_run where job_name='item_master' and status='success'),
+    (select count(*) from erp_ro.item_master_s), null, null
+  union all select 'sales','매출 월집계','S_BILL_HDR',
+    (select max(finished_at) from etl_meta.batch_run where job_name='sales' and status='success'),
+    (select count(*) from erp_ro.sales_orders_m),
+    (select min(ym) from erp_ro.sales_orders_m), (select max(ym) from erp_ro.sales_orders_m)
+  union all select 'purchase','매입 월집계','M_IV_HDR',
+    (select max(finished_at) from etl_meta.batch_run where job_name='purchase' and status='success'),
+    (select count(*) from erp_ro.purchase_m),
+    (select min(ym) from erp_ro.purchase_m), (select max(ym) from erp_ro.purchase_m)
+  union all select 'inventory','재고 입출고','M_PUR_GOODS_MVMT',
+    (select max(finished_at) from etl_meta.batch_run where job_name='inventory' and status='success'),
+    (select count(*) from erp_ro.inventory_d),
+    (select min(ymd)::text from erp_ro.inventory_d), (select max(ymd)::text from erp_ro.inventory_d);
+grant select on public.v_erp_sync_overview to authenticated, service_role;
+
 -- ── 검증(참고) ─────────────────────────────────────────────────────────
 -- 사내(internal)만 데이터, 협력사(vendor)/anon은 0행이어야 정상:
 --   set local role authenticated;

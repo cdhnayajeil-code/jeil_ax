@@ -179,31 +179,41 @@ async function runTool(admin: any, name: string, argsJson: string): Promise<unkn
   if (name === "get_erp_sales_monthly") {
     const { data } = await admin.from("v_erp_sales_monthly").select("*").order("ym", { ascending: false });
     const rows = data || [];
-    let amt = 0, cnt = 0; const months = new Set<string>();
+    let amt = 0, cnt = 0;
     const byBp: Record<string, { name: string; amt: number }> = {};
+    const byMo: Record<string, { amt: number; cnt: number; bps: Set<string> }> = {};
     for (const r of rows) {
-      months.add(r.ym); amt += Number(r.sales_amt || 0); cnt += Number(r.order_cnt || 0);
+      amt += Number(r.sales_amt || 0); cnt += Number(r.order_cnt || 0);
       const b = (byBp[r.bp_code] = byBp[r.bp_code] || { name: r.bp_name || r.bp_code, amt: 0 });
       b.amt += Number(r.sales_amt || 0);
+      const m = (byMo[r.ym] = byMo[r.ym] || { amt: 0, cnt: 0, bps: new Set() });
+      m.amt += Number(r.sales_amt || 0); m.cnt += Number(r.order_cnt || 0); m.bps.add(r.bp_code);
     }
     const top = Object.values(byBp).sort((a, b) => b.amt - a.amt).slice(0, 10);
-    return { 기준시각: asOf, 집계월: [...months].sort(), 매출액합계_원: amt, 매출건수: cnt, 거래처수: Object.keys(byBp).length,
-      거래처Top10: top.map((t) => ({ 거래처: t.name, 매출액_원: t.amt })), 안내: "ERP 중간DB 파일럿(유니포인트 매핑 확정 전)" };
+    const 월별 = Object.keys(byMo).sort().map((ym) => ({ 월: ym, 매출액_원: byMo[ym].amt, 건수: byMo[ym].cnt, 거래처수: byMo[ym].bps.size }));
+    return { 기준시각: asOf, 월별, 매출액합계_원: amt, 매출건수: cnt, 거래처수: Object.keys(byBp).length,
+      거래처Top10: top.map((t) => ({ 거래처: t.name, 매출액_원: t.amt })),
+      안내: "ERP 중간DB 파일럿(유니포인트 매핑 확정 전). 월별 값은 각 월 실적재분이며, 미마감 최근월은 값이 작을 수 있음." };
   }
 
   if (name === "get_erp_purchase_monthly") {
     const { data } = await admin.from("v_erp_purchase_monthly").select("*").order("ym", { ascending: false });
     const rows = data || [];
-    let amt = 0, cnt = 0; const months = new Set<string>();
+    let amt = 0, cnt = 0;
     const byBp: Record<string, { name: string; amt: number; cnt: number }> = {};
+    const byMo: Record<string, { amt: number; cnt: number; bps: Set<string> }> = {};
     for (const r of rows) {
-      months.add(r.ym); amt += Number(r.purchase_amt || 0); cnt += Number(r.iv_cnt || 0);
+      amt += Number(r.purchase_amt || 0); cnt += Number(r.iv_cnt || 0);
       const b = (byBp[r.bp_code] = byBp[r.bp_code] || { name: r.bp_name || r.bp_code, amt: 0, cnt: 0 });
       b.amt += Number(r.purchase_amt || 0); b.cnt += Number(r.iv_cnt || 0);
+      const m = (byMo[r.ym] = byMo[r.ym] || { amt: 0, cnt: 0, bps: new Set() });
+      m.amt += Number(r.purchase_amt || 0); m.cnt += Number(r.iv_cnt || 0); m.bps.add(r.bp_code);
     }
     const top = Object.values(byBp).sort((a, b) => b.amt - a.amt).slice(0, 10);
-    return { 기준시각: asOf, 집계월: [...months].sort(), 매입액합계_원: amt, 전표건수: cnt, 거래처수: Object.keys(byBp).length,
-      거래처Top10: top.map((t) => ({ 거래처: t.name, 매입액_원: t.amt, 전표건수: t.cnt })), 안내: "ERP 중간DB 파일럿" };
+    const 월별 = Object.keys(byMo).sort().map((ym) => ({ 월: ym, 매입액_원: byMo[ym].amt, 전표건수: byMo[ym].cnt, 거래처수: byMo[ym].bps.size }));
+    return { 기준시각: asOf, 월별, 매입액합계_원: amt, 전표건수: cnt, 거래처수: Object.keys(byBp).length,
+      거래처Top10: top.map((t) => ({ 거래처: t.name, 매입액_원: t.amt, 전표건수: t.cnt })),
+      안내: "ERP 중간DB 파일럿. 월별 값은 각 월 실적재분이며, 미마감 최근월은 값이 작을 수 있음." };
   }
 
   if (name === "get_erp_inventory_status") {
