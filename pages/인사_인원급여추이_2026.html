@@ -122,6 +122,9 @@
     </div>
   </div>
 
+  <!-- 인사팀 권한자 전용: erp_secure 실 급여 집계(jeil-hr) — 미권한/데모엔 미표시 -->
+  <div id="hrLiveAgg" style="margin:0 0 14px;"></div>
+
   <!-- 부서별 / 입퇴사 -->
   <div class="grid2">
     <div class="sec">
@@ -190,12 +193,31 @@
   try{ if(window.self !== window.top) return; }catch(e){ return; }  // 임베드(통합본)면 마스킹 유지
   var a; try{ a = JSON.parse(localStorage.getItem('jeilax_auth')||'null'); }catch(e){ a=null; }
   if(!(a && a.at && a.exp > Date.now())) return;                     // 미로그인 → 마스킹 유지
-  fetch('https://dvzohdqtjzocgcclgwro.supabase.co/functions/v1/jeil-me', { method:'POST', headers:{ Authorization:'Bearer '+a.at } })
+  var BASE='https://dvzohdqtjzocgcclgwro.supabase.co/functions/v1/', H={ Authorization:'Bearer '+a.at };
+  function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
+  function won(n){ return (Number(n)||0).toLocaleString('ko-KR'); }
+  function renderHrAgg(hr){
+    var el = document.getElementById('hrLiveAgg'); if(!el) return;
+    if(!hr || !hr.allowed || !Array.isArray(hr.payroll) || !hr.payroll.length){
+      el.innerHTML = '<div class="sec"><h3>2026 실 급여 집계 (erp_secure) <span class="badge g">인사팀 전용</span></h3><p style="color:#888;font-size:12.5px;margin:0;">급여 집계 데이터가 아직 적재되지 않았습니다(적재 대기). 적재 후 월별 인원·급여총액·퇴직 집계가 표시됩니다.</p></div>';
+      return;
+    }
+    var byYm = {};
+    hr.payroll.forEach(function(r){ var m=(byYm[r.ym]=byYm[r.ym]||{hc:0,pay:0,ret:0}); m.hc+=Number(r.headcount||0); m.pay+=Number(r.pay_tot_amt||0); m.ret+=Number(r.retire_amt||0); });
+    var yms = Object.keys(byYm).sort();
+    var rows = yms.map(function(ym){ var m=byYm[ym]; return '<tr><td>'+esc(ym)+'</td><td class="r">'+won(m.hc)+'</td><td class="r">'+won(m.pay)+'</td><td class="r">'+won(m.ret)+'</td></tr>'; }).join('');
+    el.innerHTML = '<div class="sec"><h3>2026 실 급여 집계 (erp_secure · 인사팀 전용) <span class="badge g">실데이터</span></h3>'
+      + '<p style="color:#666;font-size:11.5px;margin:0 0 8px;">개인별·주민번호·계좌 미포함(집계만). 게이트 API(jeil-hr) 경유 · 접근 감사 기록됨.</p>'
+      + '<table><tr><th>귀속월</th><th class="r">급여대상 인원</th><th class="r">급여총액(원)</th><th class="r">퇴직급여(원)</th></tr>'+rows+'</table></div>';
+  }
+  fetch(BASE+'jeil-me', { method:'POST', headers:H })
     .then(function(r){ return r.ok ? r.json() : null; })
     .then(function(me){
-      if(me && Array.isArray(me.erp_modules) && me.erp_modules.indexOf('payroll') >= 0){
-        document.body.classList.add('pay-authorized');               // 인사팀·관리자 → 해제
-      }
+      if(!(me && Array.isArray(me.erp_modules) && me.erp_modules.indexOf('payroll') >= 0)) return;  // 인사팀/관리자 아니면 마스킹 유지
+      document.body.classList.add('pay-authorized');                 // 급여 마스킹 해제
+      return fetch(BASE+'jeil-hr', { method:'POST', headers:H })     // erp_secure 실 집계
+        .then(function(r){ return r.ok ? r.json() : null; })
+        .then(renderHrAgg);
     })
     .catch(function(){ /* 실패 → 마스킹 유지 */ });
 })();

@@ -64,6 +64,30 @@ JOBS = {
         """,
         "params": [],
     },
+    # ⑧ 인사 급여 '집계' ← HDF070T(월급여대장)·HGA070T(퇴직) — erp_secure(민감·인사팀 전용)
+    #    ⚠ 집계만(월×부서 인원·급여총액, 월×전사 퇴직). 개인 행·이름·주민번호(RES_NO)·계좌 절대 미추출.
+    #    퇴직은 부서 breakdown 시 셀이 작아 재식별 위험 → 회사 전체(전사) 월별 합계만(커넥터 검증 2026-07-08).
+    #    적재 대상은 erp_secure.hr_payroll_m → 전용 RPC erp_secure_upsert(service_role). 컬럼은 실스키마 확정.
+    "hr_payroll": {
+        "table": "hr_payroll_m",
+        "rpc": "erp_secure_upsert",
+        "sql": """
+            SELECT PAY_YYMM AS ym, DEPT_NM AS dept_nm,
+                   COUNT(*) AS headcount, SUM(PAY_TOT_AMT) AS pay_tot_amt,
+                   CAST(NULL AS numeric) AS retire_amt
+            FROM JEILMNS.dbo.HDF070T WITH (NOLOCK)
+            WHERE PAY_YYMM >= ? AND PAY_YYMM < ?
+            GROUP BY PAY_YYMM, DEPT_NM
+            UNION ALL
+            SELECT CONVERT(char(6), RETIRE_DT, 112) AS ym, N'전사' AS dept_nm,
+                   CAST(NULL AS int) AS headcount, CAST(NULL AS numeric) AS pay_tot_amt,
+                   SUM(RETIRE_AMT) AS retire_amt
+            FROM JEILMNS.dbo.HGA070T WITH (NOLOCK)
+            WHERE RETIRE_DT >= ? AND RETIRE_DT < ?
+            GROUP BY CONVERT(char(6), RETIRE_DT, 112)
+        """,
+        "params": ["ym_start", "ym_end", "year_start", "year_end"],
+    },
     # ⓪ 발주현황 스냅샷 ← M_PUR_ORD_HDR/DTL (2026년도만 우선연동 — 협력사 포털·챗봇용)
     "pur_order": {
         "table": "pur_order_s",
@@ -215,6 +239,10 @@ def param_value(name):
         return datetime.date(TARGET_YEAR, 1, 1)
     if name == "year_end":
         return datetime.date(TARGET_YEAR + 1, 1, 1)
+    if name == "ym_start":            # 급여 귀속월 문자열 필터(YYYYMM)
+        return f"{TARGET_YEAR}01"
+    if name == "ym_end":
+        return f"{TARGET_YEAR + 1}01"
     raise ValueError(name)
 
 
@@ -240,6 +268,7 @@ def run_job(name, spec, url, key, dry, full=False):
         print(f"[{name}] --full 전량 재적재")
 
     batch_id = None if dry else rpc(url, key, "erp_etl_batch", {"p_action": "start", "p_payload": {"job_name": name}})
+    upsert_fn = spec.get("rpc", "erp_etl_upsert")  # job별 적재 RPC(민감은 erp_secure_upsert)
     rows_read = rows_up = 0
     try:
         with pyodbc.connect(conn_str, timeout=30) as conn:
@@ -254,10 +283,10 @@ def run_job(name, spec, url, key, dry, full=False):
                 buf.append(row)
                 rows_read += 1
                 if len(buf) >= CHUNK_ROWS and not dry:
-                    rows_up += int(rpc(url, key, "erp_etl_upsert", {"p_table": spec["table"], "p_rows": buf}) or 0)
+                    rows_up += int(rpc(url, key, upsert_fn, {"p_table": spec["table"], "p_rows": buf}) or 0)
                     buf = []
             if buf and not dry:
-                rows_up += int(rpc(url, key, "erp_etl_upsert", {"p_table": spec["table"], "p_rows": buf}) or 0)
+                rows_up += int(rpc(url, key, upsert_fn, {"p_table": spec["table"], "p_rows": buf}) or 0)
         if dry:
             print(f"[{name}] (dry-run) 추출 {rows_read}행 — 적재 생략")
         else:
