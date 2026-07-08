@@ -16,8 +16,8 @@ from _env import load_env, need
 # 테이블·컬럼명은 erp_ro.table_dict(ERP 스키마 사전 2,658개)로 검증함(2026-07-07):
 #   B_ITEM(품목), B_BIZ_PARTNER(거래처 BP_CD·BP_NM), S_BILL_HDR(매출), M_IV_HDR(매입), M_PUR_GOODS_MVMT(수불)
 # 집계 기준(금액 컬럼 선택·수불 in/out 분류)은 유니포인트/현업 확인 대상 — --dry-run으로 먼저 검증.
-ROLLING_MONTHS = 3  # 월집계 롤링 윈도(당월 포함)
-TARGET_YEAR = 2026  # pur_order job 연도 필터(우선연동 범위 — 관리자 결정 2026-07-07)
+ROLLING_MONTHS = 3  # (레거시·현재 미사용) 예전 매출·매입 롤링 윈도. 2026-07-08부터 연 전체 적재로 전환
+TARGET_YEAR = 2026  # 연도 필터 — pur_order·sales·purchase 공통(2026년 전체 적재, 관리자 결정 2026-07-08)
 
 JOBS = {
     # ⓪ 발주현황 스냅샷 ← M_PUR_ORD_HDR/DTL (2026년도만 우선연동 — 협력사 포털·챗봇용)
@@ -54,7 +54,7 @@ JOBS = {
         """,
         "params": [],
     },
-    # ② 영업 매출/수금 월집계 ← S_BILL_HDR (롤링 3개월) ※ 수주(order_amt)는 S_SO 확정 후 추가
+    # ② 영업 매출/수금 월집계 ← S_BILL_HDR (TARGET_YEAR 전체) ※ 수주(order_amt)는 S_SO 확정 후 추가
     "sales": {
         "table": "sales_orders_m",
         "sql": """
@@ -66,12 +66,12 @@ JOBS = {
                    COUNT(DISTINCT h.BILL_NO) AS order_cnt
             FROM JEILMNS.dbo.S_BILL_HDR h WITH (NOLOCK)
             LEFT JOIN JEILMNS.dbo.B_BIZ_PARTNER b WITH (NOLOCK) ON b.BP_CD = h.SOLD_TO_PARTY
-            WHERE h.BILL_DT >= ?
+            WHERE h.BILL_DT >= ? AND h.BILL_DT < ?
             GROUP BY CONVERT(char(7), h.BILL_DT, 120), h.SOLD_TO_PARTY
         """,
-        "params": ["rolling_start"],
+        "params": ["year_start", "year_end"],
     },
-    # ③ 구매 거래처별 매입 월집계 ← M_IV_HDR (롤링 3개월)
+    # ③ 구매 거래처별 매입 월집계 ← M_IV_HDR (TARGET_YEAR 전체)
     "purchase": {
         "table": "purchase_m",
         "sql": """
@@ -82,10 +82,10 @@ JOBS = {
                    COUNT(DISTINCT h.IV_NO) AS iv_cnt
             FROM JEILMNS.dbo.M_IV_HDR h WITH (NOLOCK)
             LEFT JOIN JEILMNS.dbo.B_BIZ_PARTNER b WITH (NOLOCK) ON b.BP_CD = h.BP_CD
-            WHERE h.IV_DT >= ?
+            WHERE h.IV_DT >= ? AND h.IV_DT < ?
             GROUP BY CONVERT(char(7), h.IV_DT, 120), h.BP_CD
         """,
-        "params": ["rolling_start"],
+        "params": ["year_start", "year_end"],
     },
     # ④ 자재 재고 입출고 일집계 ← M_PUR_GOODS_MVMT (롤링 31일)
     #    ⚠ in/out 분류(IO_TYPE_CD 체계: R01=입고, T62=이동 등)는 dry-run으로 코드 분포 확인 후 확정
