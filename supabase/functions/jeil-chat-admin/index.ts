@@ -1,8 +1,9 @@
-// jeil-chat-admin — 챗봇 관리자 콘솔 실데이터 API (사용량·권한·게이트웨이 상태)
+// jeil-chat-admin — 챗봇 관리자 콘솔 실데이터 API (사용량·권한·게이트웨이 상태·사용자부서 매핑)
 // 배포: verify_jwt=false (Entra 토큰을 내부에서 Graph로 검증)
 // 호출: POST /functions/v1/jeil-chat-admin  Authorization: Bearer <Entra access_token>
-//   응답: { gateway, usage, admins } — 관리자(portal_admin 등록자)만 접근 가능
-// 원칙: chat_log는 RLS로 클라이언트 차단 → 이 함수(service_role)가 유일한 조회 경로.
+//   조회(빈 바디): { gateway, usage, admins, dept_mapping, dept_permissions } — 관리자(portal_admin)만
+//   저장(바디 {action:'save_dept_perm', rows:[...]}): 부서별 권한 설정 upsert(관리자만) → { ok, saved }
+// 원칙: chat_log·erp 매핑 뷰는 RLS로 클라이언트 차단 → 이 함수(service_role)가 유일한 조회/저장 경로.
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
 const cors = {
@@ -43,6 +44,28 @@ Deno.serve(async (req) => {
   const { data: pa } = await admin.from("portal_admin").select("email").eq("email", user.upn).maybeSingle();
   if (!pa) return json({ error: "forbidden: 관리자 전용" }, 403);
 
+  // 2-b) 저장 액션 — 부서별 권한 설정 upsert(관리자만). 부서명 기준은 ERP 매핑(v_erp_dept_roster).
+  const body = await req.json().catch(() => ({} as Record<string, unknown>));
+  if (body && (body as Record<string, unknown>).action === "save_dept_perm") {
+    const rowsIn = Array.isArray((body as Record<string, unknown>).rows) ? (body as Record<string, unknown>).rows as Record<string, unknown>[] : [];
+    const nowIso = new Date().toISOString();
+    const rows = rowsIn
+      .filter((r) => r && r.dept_nm)
+      .map((r) => ({
+        dept_nm: String(r.dept_nm),
+        dept_admin_email: r.dept_admin_email ? String(r.dept_admin_email) : null,
+        erp_scope: r.erp_scope ? String(r.erp_scope) : null,
+        page_visibility: r.page_visibility ? String(r.page_visibility) : "부서 전용",
+        note: r.note ? String(r.note) : null,
+        updated_by: user.upn,
+        updated_at: nowIso,
+      }));
+    if (!rows.length) return json({ error: "저장할 부서 행이 없습니다." }, 400);
+    const { error: se } = await admin.from("dept_permission").upsert(rows, { onConflict: "dept_nm" });
+    if (se) return json({ error: "부서 권한 저장 실패: " + se.message }, 500);
+    return json({ ok: true, saved: rows.length, updated_by: user.upn, updated_at: nowIso });
+  }
+
   // 3) 사용량 집계 (최근 2000건 기준 — 현 규모에 충분, 대량화 시 SQL 집계로 전환)
   const { data: logs, error: le } = await admin
     .from("chat_log")
@@ -79,6 +102,15 @@ Deno.serve(async (req) => {
 
   const { data: admins } = await admin.from("portal_admin").select("email,granted_by,granted_at").order("granted_at");
 
+  // 4) 사용자↔부서↔사원 매핑(ERP Z_USR_MAST_REC 대사) + 부서별 권한 설정
+  //    service_role은 RLS 우회 → 사내 전용 뷰 전량 조회. 부서명 기준으로 권한 설정과 결합.
+  const [udUsers, udRecon, udRoster, deptPerm] = await Promise.all([
+    admin.from("v_erp_user_dept").select("email,dept_nm,emp_nm,matched_dept_cd,dept_matched").order("dept_nm").order("emp_nm"),
+    admin.from("v_erp_user_dept_recon").select("email,usr_nm_raw,dept_nm,emp_nm,status,recon_type").order("recon_type").order("dept_nm"),
+    admin.from("v_erp_dept_roster").select("dept_nm,emp_cnt,dept_matched,members").order("emp_cnt", { ascending: false }),
+    admin.from("dept_permission").select("dept_nm,dept_admin_email,erp_scope,page_visibility,note,updated_by,updated_at"),
+  ]);
+
   return json({
     gateway: {
       function: "jeil-chat",
@@ -107,6 +139,19 @@ Deno.serve(async (req) => {
       recent: rows.slice(0, 20),
     },
     admins: admins || [],
+    // 사용자↔부서↔사원 매핑(ERP 대사) — 콘솔 '사용자·부서' 탭 + '권한 설정' 부서표 기준 데이터
+    dept_mapping: {
+      counts: {
+        users: (udUsers.data || []).length,
+        recon: (udRecon.data || []).length,
+        depts: (udRoster.data || []).length,
+      },
+      users: udUsers.data || [],   // 정상 매핑(재직·부서일치)
+      recon: udRecon.data || [],   // 대사 불일치(자동제외·확인대상)
+      roster: udRoster.data || [], // 부서별 사원 명부
+      error: udUsers.error?.message || udRoster.error?.message || null,
+    },
+    dept_permissions: deptPerm.data || [], // 저장된 부서별 권한 설정
     as_of: new Date().toISOString(),
   });
 });

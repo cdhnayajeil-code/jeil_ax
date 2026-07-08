@@ -464,6 +464,7 @@
         <button id="tab-usage" onclick="showTab('usage')">사용량 설정</button>
         <button id="tab-model" onclick="showTab('model')">모델 설정</button>
         <button id="tab-perm" onclick="showTab('perm')">권한 설정</button>
+        <button id="tab-userdept" onclick="showTab('userdept')">사용자·부서</button>
       </div>
       <button class="back-chat" onclick="showChat()">← 챗봇으로</button>
     </div>
@@ -665,16 +666,13 @@
       </div>
 
       <div class="sec">
-        <h3>부서별 권한 설정 <span><button class="save" style="background:#fff;color:var(--accent);border:1px solid var(--accent);" onclick="alert('데모: 부서 행 추가 (실제 미동작)')">+ 부서 추가</button> <button class="save" onclick="alert('데모: 부서별 권한 저장 (실제 미동작)')">저장</button></span></h3>
+        <h3>부서별 권한 설정 <span style="font-size:11px;color:var(--green,#1a7f37);">● 실데이터(ERP 부서 기준)</span> <span><button class="save" onclick="saveDeptPerm()">저장</button></span></h3>
+        <p class="admin-note">부서 목록은 <b>사용자·부서 매핑</b>(ERP <code>Z_USR_MAST_REC</code> 대사)의 실제 부서를 기준으로 자동 구성됩니다. 부서 관리자는 해당 부서 구성원 중에서 지정하며, 저장 시 <code>dept_permission</code>에 즉시 영속됩니다.</p>
         <table>
-          <tr><th>부서</th><th>부서 관리자</th><th class="c">운영 페이지</th><th>ERP 데이터 접근 범위</th><th>페이지 기본 공개범위</th></tr>
-          <tr><td><b>사업관리팀</b></td><td>홍길동</td><td class="c">3개 (전사공개 1)</td><td>프로젝트 원가 · 수금 · 외주/매입 (읽기전용)</td><td><select class="sel"><option selected>부서 전용</option><option>전사 공개</option><option>지정 부서 공유</option></select></td></tr>
-          <tr><td><b>영업팀</b></td><td>김영희</td><td class="c">1개</td><td>매출 · 수주 · 채권 (읽기전용)</td><td><select class="sel"><option selected>부서 전용</option><option>전사 공개</option><option>지정 부서 공유</option></select></td></tr>
-          <tr><td><b>구매팀</b></td><td>박철수</td><td class="c">0개</td><td>발주 · 매입 · 재고 (읽기전용)</td><td><select class="sel"><option selected>부서 전용</option><option>전사 공개</option><option>지정 부서 공유</option></select></td></tr>
-          <tr><td><b>재무팀</b></td><td>이민정</td><td class="c">0개</td><td>회계 요약 (상세 원장 제외 · 읽기전용)</td><td><select class="sel"><option selected>부서 전용</option><option>전사 공개</option><option>지정 부서 공유</option></select></td></tr>
-          <tr><td><b>인사팀</b></td><td>정수진</td><td class="c">0개</td><td>규정 · 공지 (개인정보 제외)</td><td><select class="sel"><option>부서 전용</option><option selected>전사 공개</option><option>지정 부서 공유</option></select></td></tr>
+          <thead><tr><th>부서</th><th class="c">인원</th><th>부서 관리자</th><th>ERP 데이터 접근 범위</th><th>페이지 공개범위</th></tr></thead>
+          <tbody id="permDeptRows"><tr><td colspan="5" class="c" style="color:#888;padding:14px;">MS 로그인(관리자) 시 부서 목록 표시 — '사용자·부서' 탭의 매핑 데이터 기준</td></tr></tbody>
         </table>
-        <p class="admin-note">부서 관리자는 소속 부서의 사용자·운영 페이지·크레딧 신청만 관리합니다. ERP 접근 범위는 게이트웨이에서 모듈 단위로 차단됩니다.</p>
+        <p class="admin-note">부서 관리자는 소속 부서의 사용자·운영 페이지·크레딧 신청만 관리합니다. ERP 접근 범위는 게이트웨이에서 모듈 단위로 차단됩니다. 부서명 기준은 ERP 매핑과 동기화됩니다.</p>
       </div>
 
       <div class="sec">
@@ -686,6 +684,41 @@
           <tr><td><span class="badge b">일반 사용자</span></td><td>개인정보·기밀</td><td>주민번호·계좌 등 자동 마스킹, 인사평가·급여 데이터 질의 차단(담당 부서 안내로 대체)</td><td class="r"><button class="mini" onclick="alert('데모 (실제 미동작)')">수정</button></td></tr>
           <tr><td><span class="badge a">부서 관리자</span></td><td>관리 범위</td><td>소속 부서 구성원·페이지·크레딧만 관리. 전사 설정(API·모델·지출한도) 변경 불가</td><td class="r"><button class="mini" onclick="alert('데모 (실제 미동작)')">수정</button></td></tr>
           <tr><td><span class="badge g">전체 관리자</span></td><td>변경 통제</td><td>API 키·지출한도·권한 변경 시 변경 이력 자동 기록(감사 로그). 백업 관리자 1인 지정 권장</td><td class="r"><button class="mini" onclick="alert('데모 (실제 미동작)')">수정</button></td></tr>
+        </table>
+      </div>
+    </div>
+
+    <!-- 패널 5: 사용자·부서 매핑 (ERP 대사) -->
+    <div class="panel" id="panel-userdept">
+      <div class="sec">
+        <h3>사용자·부서 매핑 대사 <span style="font-size:11px;color:var(--green,#1a7f37);">● 실데이터</span> <button class="save" onclick="loadAdminLive(true)">새로고침</button></h3>
+        <p class="admin-note">ERP 사용자 마스터(Z_USR_MAST_REC)의 이메일(=MS 계정)·사용자명(<b>부서명_이름</b>)을 대사한 결과입니다 — 아래 <b>권한 설정</b>의 부서 기준이 되는 데이터. 불일치(부서불일치·상태이상·테스트)는 정상 매핑에서 자동제외되어 확인 대상으로 표시됩니다.</p>
+        <div class="cards">
+          <div class="card"><div class="lb">정상 매핑(연동용)</div><div class="v" id="ud_map">—</div></div>
+          <div class="card"><div class="lb">대사 불일치</div><div class="v" id="ud_recon">—</div></div>
+          <div class="card"><div class="lb">부서 수</div><div class="v" id="ud_dept">—</div></div>
+        </div>
+      </div>
+      <div class="sec">
+        <h3>⚠ 대사 불일치 <span style="font-size:11px;color:var(--muted,#888);font-weight:400;">자동제외 · 확인 대상</span></h3>
+        <table>
+          <thead><tr><th>유형</th><th>이메일(MS 계정)</th><th>부서명</th><th>사원</th><th class="c">상태</th><th>원문(usr_nm)</th></tr></thead>
+          <tbody id="ud_recon_rows"><tr><td colspan="6" class="c" style="color:#888;padding:14px;">MS 로그인(관리자) 시 실데이터 표시</td></tr></tbody>
+        </table>
+      </div>
+      <div class="sec">
+        <h3>부서별 사원 명부</h3>
+        <table>
+          <thead><tr><th>부서명</th><th class="c">인원</th><th>구성원</th></tr></thead>
+          <tbody id="ud_roster_rows"><tr><td colspan="3" class="c" style="color:#888;padding:14px;">MS 로그인(관리자) 시 실데이터 표시</td></tr></tbody>
+        </table>
+      </div>
+      <div class="sec">
+        <h3>사용자 매핑 조회</h3>
+        <input id="ud_q" oninput="renderUdUsers(this.value)" placeholder="이메일·이름·부서 검색…" autocomplete="off" style="padding:7px 11px;border:1px solid var(--line,#d8dee8);border-radius:7px;width:280px;max-width:100%;margin-bottom:9px;font-size:13px;">
+        <table>
+          <thead><tr><th>이메일(MS 계정)</th><th>부서명</th><th>사원</th><th class="c">부서코드</th></tr></thead>
+          <tbody id="ud_user_rows"><tr><td colspan="4" class="c" style="color:#888;padding:14px;">MS 로그인(관리자) 시 실데이터 표시</td></tr></tbody>
         </table>
       </div>
     </div>
@@ -1132,7 +1165,7 @@ function showChat(){ hideViews(); document.querySelector('.main').style.display=
 function showAdmin(){ hideViews(); document.getElementById('adminView').style.display='flex'; closeDrawer(); loadAdminLive(); }
 function showPages(){ hideViews(); document.getElementById('pagesView').style.display='flex'; closeDrawer(); }
 function showTab(key){
-  ['api','usage','model','perm'].forEach(k=>{
+  ['api','usage','model','perm','userdept'].forEach(k=>{
     document.getElementById('panel-'+k).classList.toggle('on', k===key);
     document.getElementById('tab-'+k).classList.toggle('on', k===key);
   });
@@ -1245,9 +1278,84 @@ async function loadAdminLive(force){
     var ad = document.getElementById('lpAdmins');
     if(ad) ad.innerHTML = '<tr><th>전체 관리자 (portal_admin)</th><th>부여</th><th>부여일</th></tr>'
       + d.admins.map(function(a){ return '<tr><td>'+escHtml(a.email)+'</td><td>'+escHtml(a.granted_by||'-')+'</td><td>'+(a.granted_at||'').slice(0,10)+'</td></tr>'; }).join('');
+    // 사용자·부서 탭 + 권한 설정 부서표 (ERP 매핑 기준)
+    if(d.dept_mapping) renderUserDept(d.dept_mapping);
+    renderDeptPerm(d.dept_mapping || { roster: [], users: [] }, d.dept_permissions || []);
   }catch(e){
     if(note) note.textContent = '⚠ 실데이터 조회 실패: ' + (e.message||'') + ' — 아래는 기획 예시 화면입니다.';
   }
+}
+
+/* ===== 사용자·부서 매핑 + 부서별 권한 설정 렌더 (jeil-chat-admin d.dept_mapping) ===== */
+var UD_USERS = [];
+var UD_RECON_BADGE = { '형식오류':'r', '상태이상':'a', '부서불일치':'a', '테스트계정':'b' };
+
+function renderUserDept(dm){
+  setTxt('ud_map', (dm.counts && dm.counts.users!=null) ? dm.counts.users.toLocaleString() : '—');
+  setTxt('ud_recon', (dm.counts && dm.counts.recon!=null) ? dm.counts.recon.toLocaleString() : '—');
+  setTxt('ud_dept', (dm.counts && dm.counts.depts!=null) ? dm.counts.depts.toLocaleString() : '—');
+  var rb = document.getElementById('ud_recon_rows');
+  if(rb) rb.innerHTML = (dm.recon && dm.recon.length) ? dm.recon.map(function(r){
+    return '<tr><td><span class="badge '+(UD_RECON_BADGE[r.recon_type]||'b')+'">'+escHtml(r.recon_type||'')+'</span></td><td>'+escHtml(r.email||'')+'</td><td>'+escHtml(r.dept_nm||'')+'</td><td>'+escHtml(r.emp_nm||'')+'</td><td class="c">'+escHtml(r.status||'')+'</td><td style="color:#888">'+escHtml(r.usr_nm_raw||'')+'</td></tr>';
+  }).join('') : '<tr><td colspan="6" class="c" style="color:#888;padding:14px;">불일치 없음</td></tr>';
+  var ro = document.getElementById('ud_roster_rows');
+  if(ro) ro.innerHTML = (dm.roster && dm.roster.length) ? dm.roster.map(function(r){
+    return '<tr><td><b>'+escHtml(r.dept_nm||'')+'</b></td><td class="c">'+(r.emp_cnt||0)+'</td><td style="color:#555">'+escHtml(r.members||'')+'</td></tr>';
+  }).join('') : '<tr><td colspan="3" class="c" style="color:#888;padding:14px;">부서 없음</td></tr>';
+  UD_USERS = dm.users || [];
+  var q = document.getElementById('ud_q');
+  renderUdUsers(q ? q.value : '');
+}
+
+function renderUdUsers(filter){
+  var f = (filter||'').trim().toLowerCase();
+  var rows = f ? UD_USERS.filter(function(u){ return ((u.email||'')+' '+(u.dept_nm||'')+' '+(u.emp_nm||'')).toLowerCase().indexOf(f)>=0; }) : UD_USERS;
+  var tb = document.getElementById('ud_user_rows'); if(!tb) return;
+  tb.innerHTML = rows.length ? rows.map(function(u){
+    return '<tr><td>'+escHtml(u.email||'')+'</td><td>'+escHtml(u.dept_nm||'')+'</td><td>'+escHtml(u.emp_nm||'')+'</td><td class="c" style="color:#888">'+escHtml(u.matched_dept_cd||'-')+'</td></tr>';
+  }).join('') : '<tr><td colspan="4" class="c" style="color:#888;padding:14px;">일치하는 사용자 없음</td></tr>';
+}
+
+function renderDeptPerm(dm, perms){
+  var tb = document.getElementById('permDeptRows'); if(!tb) return;
+  var byDept = {}; (perms||[]).forEach(function(p){ byDept[p.dept_nm]=p; });
+  var mem = {}; (dm.users||[]).forEach(function(u){ (mem[u.dept_nm]=mem[u.dept_nm]||[]).push(u); });
+  var roster = dm.roster || [];
+  if(!roster.length){ tb.innerHTML = '<tr><td colspan="5" class="c" style="color:#888;padding:14px;">부서 데이터 없음 — MS 로그인(관리자) 필요</td></tr>'; return; }
+  var VIS = ['부서 전용','전사 공개','지정 부서 공유'];
+  tb.innerHTML = roster.map(function(r){
+    var p = byDept[r.dept_nm] || {};
+    var opts = '<option value="">(미지정)</option>' + (mem[r.dept_nm]||[]).map(function(u){
+      return '<option value="'+escHtml(u.email)+'"'+(p.dept_admin_email===u.email?' selected':'')+'>'+escHtml(u.emp_nm)+'</option>';
+    }).join('');
+    var visOpts = VIS.map(function(v){ return '<option'+(((p.page_visibility||'부서 전용')===v)?' selected':'')+'>'+v+'</option>'; }).join('');
+    var tip = p.updated_by ? ' title="최종 저장: '+escHtml(p.updated_by)+' '+((p.updated_at||'').slice(0,10))+'"' : '';
+    return '<tr data-dept="'+escHtml(r.dept_nm)+'"'+tip+'><td><b>'+escHtml(r.dept_nm)+'</b></td><td class="c">'+(r.emp_cnt||0)+'</td>'
+      + '<td><select class="sel pd-admin">'+opts+'</select></td>'
+      + '<td><input class="pd-scope" value="'+escHtml(p.erp_scope||'')+'" placeholder="예: 발주·매입·재고 (읽기전용)" style="width:100%;padding:5px 8px;border:1px solid var(--line,#d8dee8);border-radius:6px;font-size:12.5px;"></td>'
+      + '<td><select class="sel pd-vis">'+visOpts+'</select></td></tr>';
+  }).join('');
+}
+
+async function saveDeptPerm(){
+  var auth = getLiveAuth();
+  if(!auth){ alert('MS 로그인(관리자) 후 저장할 수 있습니다.'); return; }
+  var trs = document.querySelectorAll('#permDeptRows tr[data-dept]');
+  if(!trs.length){ alert('저장할 부서가 없습니다. 먼저 사용자·부서 매핑을 불러오세요.'); return; }
+  var rows = Array.prototype.map.call(trs, function(tr){
+    return {
+      dept_nm: tr.getAttribute('data-dept'),
+      dept_admin_email: (tr.querySelector('.pd-admin')||{}).value || null,
+      erp_scope: (tr.querySelector('.pd-scope')||{}).value || null,
+      page_visibility: (tr.querySelector('.pd-vis')||{}).value || '부서 전용'
+    };
+  });
+  try{
+    var res = await fetch(ADMIN_GATEWAY, { method:'POST', headers:{ Authorization:'Bearer '+auth.at, 'Content-Type':'application/json' }, body: JSON.stringify({ action:'save_dept_perm', rows: rows }) });
+    var d = await res.json().catch(function(){ return {}; });
+    if(!res.ok || !d.ok) throw new Error(d.error || ('오류 '+res.status));
+    alert('부서별 권한 저장 완료 — '+d.saved+'개 부서 (저장자: '+(d.updated_by||'')+')');
+  }catch(e){ alert('저장 실패: '+(e.message||e)); }
 }
 
 function send(){
