@@ -33,8 +33,10 @@ const PRICES: Record<string, { inp: number; out: number }> = {
 const SYSTEM_PROMPT =
   "당신은 제일엠앤에스(JEIL M&S)의 사내 AI 어시스턴트 'jeil-chat'입니다. " +
   "업무 문서 초안(주간보고·메일·공지), 규정 질의, 데이터 요약을 한국어로 간결하고 정확하게 돕습니다. " +
-  "협력사 외주 발주·검사 현황은 제공된 조회 도구(포털DB 실데이터)를 사용해 답하고, 답변에 조회 기준 시각을 표기하세요. " +
-  "매출·매입·재고·품목 등 ERP 데이터는 ERP 중간DB 조회 도구(get_erp_*)를 사용하되, 유니포인트 매핑 확정 전 '파일럿 데이터'임을 답변에 밝히세요. " +
+  "협력사 외주 '검사' 현황은 포털 도구(get_order_summary/get_order_detail 등)로 답하고, 답변에 조회 기준 시각을 표기하세요. " +
+  "매출·매입·재고·품목·발주 등 ERP 데이터는 ERP 중간DB 조회 도구(get_erp_*)를 사용하되, 유니포인트 매핑 확정 전 '파일럿 데이터'임을 답변에 밝히세요. " +
+  "'발주'는 기본적으로 ERP 전체 구매발주(get_erp_pur_order)를 의미합니다. 협력사 외주 검사 관련일 때만 get_order_summary(포털)를 쓰고, 두 발주 데이터를 혼동하지 마세요. " +
+  "월별 표를 그릴 때는 도구가 반환한 '월별' 배열의 각 월 값을 그대로 사용하고, 값이 없는 월을 임의로 '미제공'으로 적지 마세요. " +
   "도구로 조회할 수 없는 사내 수치·규정은 추측하지 말고 원본 확인을 권하세요. " +
   "급여·주민번호 등 개인정보나 비밀값을 답변에 포함하지 마세요.";
 
@@ -44,7 +46,7 @@ const TOOLS = [
     type: "function",
     function: {
       name: "get_order_summary",
-      description: "협력사 외주 발주 전체 현황 요약(포털DB 실데이터) — 상태별 건수, 총 발주금액, 협력사 수, 납기 임박(7일 내) 목록. '발주 현황 어때', '진행 중 몇 건' 류 질의에 사용.",
+      description: "협력사 '외주 검사' 발주 현황(포털DB — 협력사 포털에 등록된 외주 검사 대상 발주, 소수 건). 상태별 건수·검사 진행·납기임박. ※ ERP 전체 구매발주(수천 건·월별)는 get_erp_pur_order 를 쓸 것.",
       parameters: { type: "object", properties: {}, required: [] },
     },
   },
@@ -99,6 +101,14 @@ const TOOLS = [
       name: "get_erp_item",
       description: "ERP 품목 조회(중간DB 사내 실데이터) — 코드/명 부분일치로 품목 마스터 검색(규격·단위·분류). '품목 있어?', '품목코드 뭐야' 류 질의에 사용.",
       parameters: { type: "object", properties: { keyword: { type: "string", description: "품목코드 또는 품목명 키워드" } }, required: ["keyword"] },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_erp_pur_order",
+      description: "ERP 전체 구매발주 현황(중간DB 사내 실데이터, 2026년 수천 건) — 월별 발주건수·발주금액·거래처수, 특정 월 상세(거래처Top·상태분포). '1월 발주', 'ERP 발주 현황', '월별 발주 얼마' 류 질의에 사용. (협력사 외주 검사 발주는 get_order_summary)",
+      parameters: { type: "object", properties: { ym: { type: "string", description: "조회 월 YYYY-MM(선택, 예 2026-01). 없으면 월별 전체 요약" } }, required: [] },
     },
   },
 ];
@@ -236,6 +246,34 @@ async function runTool(admin: any, name: string, argsJson: string): Promise<unkn
     const rows = data || [];
     // deno-lint-ignore no-explicit-any
     return { 기준시각: asOf, 검색어: kw, 건수: rows.length, 목록: rows.map((r: any) => ({ 품목코드: r.item_code, 품목명: r.item_name, 규격: r.spec, 단위: r.unit, 분류: r.item_class, 사용: r.use_yn })) };
+  }
+
+  if (name === "get_erp_pur_order") {
+    const ym = String(args.ym || "").replace(/[^0-9-]/g, "").slice(0, 7);
+    const { data: mrows } = await admin.from("v_erp_pur_order_monthly").select("*").order("ym");
+    const 월별 = (mrows || []).map((r: Record<string, unknown>) => ({
+      월: r.ym, 발주건수: Number(r.po_cnt || 0), 품목라인: Number(r.line_cnt || 0),
+      거래처수: Number(r.bp_cnt || 0), 발주금액_원: Number(r.amt || 0),
+    }));
+    let 상세: unknown = null;
+    if (/^\d{4}-\d{2}$/.test(ym)) {
+      const [y, m] = ym.split("-").map(Number);
+      const nm = m === 12 ? `${y + 1}-01` : `${y}-${String(m + 1).padStart(2, "0")}`;
+      const { data } = await admin.from("v_erp_pur_order")
+        .select("po_no,bp_name,po_amt,po_sts").gte("po_dt", ym + "-01").lt("po_dt", nm + "-01").limit(3000);
+      const rows = data || [];
+      const byBp: Record<string, number> = {}; const bySts: Record<string, number> = {};
+      const pos = new Set<string>(); let amt = 0;
+      for (const r of rows) {
+        pos.add(r.po_no); amt += Number(r.po_amt || 0);
+        const nmk = r.bp_name || r.po_no; byBp[nmk] = (byBp[nmk] || 0) + Number(r.po_amt || 0);
+        const s = r.po_sts || "-"; bySts[s] = (bySts[s] || 0) + 1;
+      }
+      const top = Object.entries(byBp).sort((a, b) => b[1] - a[1]).slice(0, 10)
+        .map(([거래처, 금액]) => ({ 거래처, 발주금액_원: 금액 }));
+      상세 = { 월: ym, 발주건수: pos.size, 품목라인: rows.length, 발주금액_원: amt, 거래처Top10: top, 상태분포: bySts };
+    }
+    return { 기준시각: asOf, 월별, 상세, 안내: "ERP 중간DB 구매발주(pur_order_s, 2026 전체). 발주건수=고유 발주번호 기준. 파일럿 데이터." };
   }
 
   return { 오류: `알 수 없는 도구: ${name}` };
