@@ -58,6 +58,10 @@
   .brow .cnt{font-weight:700; color:var(--navy); text-align:right;}
   .src{margin-top:18px; background:var(--soft); border:1px solid var(--line); border-radius:9px; padding:11px 16px; font-size:11.5px; color:var(--muted);}
   .src b{color:var(--navy2);}
+  /* 급여 마스킹 — 인사팀 권한자만 해제. 미권한/데모(통합본)/오프라인은 기본 마스킹(fail-safe) */
+  body:not(.pay-authorized) [data-sensitive="pay"]{filter:blur(7px); pointer-events:none; user-select:none;}
+  .pay-gate{display:none; background:var(--softred); border:1px solid var(--red); color:#7a2a1e; border-radius:9px; padding:10px 14px; margin:0 0 14px; font-size:12.5px;}
+  body:not(.pay-authorized) .pay-gate{display:block;}
   code{font-family:Consolas,monospace; font-size:11px; background:#fff; border:1px solid var(--line); border-radius:4px; padding:0 5px;}
   .callout{border-radius:8px; padding:11px 15px; margin:10px 0; font-size:12.5px;}
   .callout.red{background:var(--softred); border-left:4px solid var(--red);}
@@ -70,6 +74,8 @@
 <body>
 <div class="demo-banner">⚠ 목업 데모 — UNIERP DB 구조·일부 실데이터 기반 샘플입니다. 수치는 검증 전 참고용이며 최종 확인은 인사팀 책임입니다.</div>
 <div class="page">
+
+  <div class="pay-gate">🔒 <b>급여 항목은 인사팀 권한자에게만 표시됩니다.</b> 현재 마스킹 상태입니다(데모·미로그인·타부서). 급여 수치는 인사팀(또는 관리자) 로그인 시에만 해제됩니다.</div>
 
   <div class="head">
     <div>
@@ -84,8 +90,8 @@
     <div class="kpi"><div class="lb">현재 재적 인원</div><div class="v">87명</div><div class="delta up">▲ 전년말 대비 +2</div></div>
     <div class="kpi"><div class="lb">2026 누적 입사</div><div class="v">7명</div><div class="delta">신입 3 · 경력 4</div></div>
     <div class="kpi"><div class="lb">2026 누적 퇴사</div><div class="v">5명</div><div class="delta dn">4월 집중 (A22 신고분)</div></div>
-    <div class="kpi"><div class="lb">월평균 급여총액</div><div class="v">412<small> 백만원</small></div><div class="delta up">▲ 전년 대비 +3.1%</div></div>
-    <div class="kpi"><div class="lb">4월 퇴직급여 정산</div><div class="v">69.5<small> 백만원</small></div><div class="delta">IRP 과세이연 · 소득세 0</div></div>
+    <div class="kpi" data-sensitive="pay"><div class="lb">월평균 급여총액</div><div class="v">412<small> 백만원</small></div><div class="delta up">▲ 전년 대비 +3.1%</div></div>
+    <div class="kpi" data-sensitive="pay"><div class="lb">4월 퇴직급여 정산</div><div class="v">69.5<small> 백만원</small></div><div class="delta">IRP 과세이연 · 소득세 0</div></div>
   </div>
 
   <!-- 월별 추이 -->
@@ -102,7 +108,7 @@
       </div>
       <div class="legend"><span><i style="background:var(--accent)"></i>마감</span><span><i style="background:#b9cfe6"></i>진행 중(미마감)</span></div>
     </div>
-    <div class="sec">
+    <div class="sec" data-sensitive="pay">
       <h3>월별 급여총액 추이 (백만원) <span class="badge b">SUM(PAY_TOT_AMT)</span></h3>
       <div class="chart">
         <div class="cbar"><span class="val">398</span><div class="bar" style="height:72%"></div><span class="lab">1월</span></div>
@@ -147,20 +153,20 @@
     </div>
   </div>
 
-  <!-- 퇴직 정산 실데이터 -->
-  <div class="sec">
-    <h3>2026년 4월 퇴직급여 정산 내역 <span class="badge g">실데이터 · A22 신고 완료</span> <span class="badge r">성명 마스킹</span></h3>
+  <!-- 퇴직 정산 (데모 샘플 — 개인별 실데이터 미포함) -->
+  <div class="sec" data-sensitive="pay">
+    <h3>2026년 4월 퇴직급여 정산 내역 <span class="badge a">샘플(데모) · 개인 실데이터 미포함</span> <span class="badge r">인사팀 전용</span></h3>
     <table>
       <tr><th>사번</th><th>성명</th><th>퇴사일</th><th class="r">총지급액 (원)</th><th class="r">소득세</th><th class="r">지방세</th><th class="c">가입유형</th></tr>
-      <tr><td>5214***</td><td>이○영</td><td>2026-04-22</td><td class="r">18,030,106</td><td class="r">0</td><td class="r">0</td><td class="c"><span class="badge b">DB</span></td></tr>
-      <tr><td>5223***</td><td>차○우</td><td>2026-04-06</td><td class="r">19,250,352</td><td class="r">0</td><td class="r">0</td><td class="c"><span class="badge b">DB</span></td></tr>
-      <tr><td>5224***</td><td>박○림</td><td>2026-04-24</td><td class="r">16,673,227</td><td class="r">0</td><td class="r">0</td><td class="c"><span class="badge b">DB</span></td></tr>
-      <tr><td>5241***</td><td>임○호</td><td>2026-04-17</td><td class="r">6,791,807</td><td class="r">0</td><td class="r">0</td><td class="c"><span class="badge b">DB</span></td></tr>
-      <tr><td>5244***</td><td>최○열</td><td>2026-04-24</td><td class="r">8,779,523</td><td class="r">0</td><td class="r">0</td><td class="c"><span class="badge b">DB</span></td></tr>
-      <tr style="font-weight:700;"><td colspan="3">합계 — A22 신고 (2026-04 귀속)</td><td class="r" style="color:var(--navy);">69,525,015</td><td class="r">0</td><td class="r">0</td><td class="c">DB 5건</td></tr>
+      <tr><td>S-001</td><td>샘플직원1</td><td>2026-04-05</td><td class="r">12,000,000</td><td class="r">0</td><td class="r">0</td><td class="c"><span class="badge b">샘플</span></td></tr>
+      <tr><td>S-002</td><td>샘플직원2</td><td>2026-04-11</td><td class="r">15,000,000</td><td class="r">0</td><td class="r">0</td><td class="c"><span class="badge b">샘플</span></td></tr>
+      <tr><td>S-003</td><td>샘플직원3</td><td>2026-04-18</td><td class="r">10,000,000</td><td class="r">0</td><td class="r">0</td><td class="c"><span class="badge b">샘플</span></td></tr>
+      <tr><td>S-004</td><td>샘플직원4</td><td>2026-04-22</td><td class="r">18,000,000</td><td class="r">0</td><td class="r">0</td><td class="c"><span class="badge b">샘플</span></td></tr>
+      <tr><td>S-005</td><td>샘플직원5</td><td>2026-04-26</td><td class="r">14,000,000</td><td class="r">0</td><td class="r">0</td><td class="c"><span class="badge b">샘플</span></td></tr>
+      <tr style="font-weight:700;"><td colspan="3">합계 (샘플)</td><td class="r" style="color:var(--navy);">69,000,000</td><td class="r">0</td><td class="r">0</td><td class="c">5건</td></tr>
     </table>
     <div class="callout amber">
-      <b>처리 메모</b> — ① 소득세 0원은 IRP 과세이연 처리(실세액은 <code>DEFER_INCOME_TAX</code> 컬럼 참조) ② DC형 가입자 2명은 금융기관 신고(A21)로 본 집계(A22)에서 제외 ③ 집계 헤더: <code>TH101BA1_AUTOCREATE</code> (귀속 202604 · 인원 5 · 작성 2026-05-22, 인사팀)
+      <b>처리 메모(샘플)</b> — 본 표는 데모용 <b>샘플 수치</b>이며 개인별 실제 급여·퇴직정산 데이터를 포함하지 않습니다. 실제 개인별 정산은 ERP 인사 권한자(인사팀)만 원 시스템에서 조회하며, 중간DB에는 <b>집계(총액·인원)만</b> 반입됩니다(개인별·주민번호·계좌 미연계).
     </div>
   </div>
 
@@ -177,5 +183,22 @@
     <span>등록: 인사팀 · 공개범위: 부서 전용 (관리자 콘솔 권한 적용)</span>
   </div>
 </div>
+<script>
+/* 급여(data-sensitive=pay) 마스킹 — 인사팀(payroll 모듈) 권한자만 해제. 게이트와 독립.
+   통합본(iframe)·미로그인·오프라인 → 마스킹 유지(fail-safe). 값은 이미 데모 샘플(실데이터 미포함). */
+(function(){
+  try{ if(window.self !== window.top) return; }catch(e){ return; }  // 임베드(통합본)면 마스킹 유지
+  var a; try{ a = JSON.parse(localStorage.getItem('jeilax_auth')||'null'); }catch(e){ a=null; }
+  if(!(a && a.at && a.exp > Date.now())) return;                     // 미로그인 → 마스킹 유지
+  fetch('https://dvzohdqtjzocgcclgwro.supabase.co/functions/v1/jeil-me', { method:'POST', headers:{ Authorization:'Bearer '+a.at } })
+    .then(function(r){ return r.ok ? r.json() : null; })
+    .then(function(me){
+      if(me && Array.isArray(me.erp_modules) && me.erp_modules.indexOf('payroll') >= 0){
+        document.body.classList.add('pay-authorized');               // 인사팀·관리자 → 해제
+      }
+    })
+    .catch(function(){ /* 실패 → 마스킹 유지 */ });
+})();
+</script>
 </body>
 </html>
