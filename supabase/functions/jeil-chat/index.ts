@@ -131,7 +131,6 @@ const TOOLS = [
 
 const STATUS_KO: Record<string, string> = { new: "신규", prod: "생산중", insp: "검사", done: "완료" };
 
-// deno-lint-ignore no-explicit-any
 // ERP Tool → 데이터 모듈 매핑 (부서별 erp_scope 강제용, dept_erp_scope와 동일 키)
 const ERP_TOOL_MODULE: Record<string, string> = {
   get_erp_sales_monthly: "sales", get_erp_purchase_monthly: "purchase",
@@ -141,6 +140,7 @@ const ERP_TOOL_MODULE: Record<string, string> = {
 
 type ErpScope = { isAdmin: boolean; modules: Set<string>; dept: string | null };
 // 호출자 UPN → 허용 ERP 모듈 판정 (관리자=전 모듈, 그 외=소속 부서 dept_erp_scope)
+// deno-lint-ignore no-explicit-any
 async function resolveErpScope(admin: any, upn: string): Promise<ErpScope> {
   const [{ data: pa }, { data: ud }] = await Promise.all([
     admin.from("portal_admin").select("email").eq("email", upn).maybeSingle(),
@@ -152,6 +152,7 @@ async function resolveErpScope(admin: any, upn: string): Promise<ErpScope> {
   return { isAdmin: false, modules: new Set((es || []).map((r: { module_key: string }) => r.module_key)), dept };
 }
 
+// deno-lint-ignore no-explicit-any
 async function runTool(admin: any, name: string, argsJson: string, scope: ErpScope): Promise<unknown> {
   let args: Record<string, string> = {};
   try { args = JSON.parse(argsJson || "{}"); } catch { /* 빈 인자 */ }
