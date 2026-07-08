@@ -363,7 +363,7 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 </tr>
 <tr>
 <td>연계 상태</td>
-<td><strong>부분 연계 착수(2026-07-08)</strong> — 중간DB(Supabase <code>erp_ro</code>) 1차 5종 실적재 완료(발주 2,699·품목 58,246·매출 10·매입 63·재고 656행) + 사내 전용 노출 뷰 6종(<code>v_erp_*</code>)으로 부서 대시보드 1개 화면(구매 매입집계)·챗봇(<code>jeil-chat</code>) ERP Tool 4종이 실데이터 연동. 나머지 화면은 여전히 추출 샘플(마스킹) 데이터</td>
+<td><strong>부분 연계 착수(2026-07-08)</strong> — 중간DB(Supabase <code>erp_ro</code>) 1차 5종 실적재 완료(발주 2,699·품목 58,246·매출 10·매입 63·재고 656행) + 사내 전용 노출 뷰(<code>v_erp_*</code>, 발주↔구매요청 연결·프로세스 진행수량 보강 포함)로 부서 대시보드 1개 화면(구매 매입집계)·챗봇(<code>jeil-chat</code>) ERP Tool 8종(<strong>version 14 ACTIVE</strong>, 도구호출 멀티라운드 전환)이 실데이터 연동. 나머지 화면은 여전히 추출 샘플(마스킹) 데이터</td>
 </tr>
 <tr>
 <td>민감 데이터 통제(급여)</td>
@@ -445,6 +445,11 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 </tr>
 </thead>
 <tbody>
+<tr>
+<td>2026-07-08</td>
+<td><strong>챗봇 ERP 프로세스 응답 품질 개선 — §6 갱신</strong> — 중간DB 노출 뷰 3종(<code>v_erp_po_pr_link</code>·<code>v_erp_pur_req</code>·신규 <code>v_erp_pur_top_po</code>) 보강(입고/매입 진행수량·외주구분·납기경과·연결수주·요청부서 해석). <code>jeil-chat</code>은 도구 호출을 1라운드→상한 멀티라운드(<code>MAX_ROUNDS=4</code>)로 교체(재조회 불가로 안내문만 반복되던 버그 해소), 상태코드 한글 해석 주입, 신규 도구 2종 추가 — <strong>version 14 ACTIVE</strong> 배포. 재고 입고·재고량 미적재/매출 수주·수금 미매핑/발주 외주구분 전건 'N' 등 ETL 데이터 갭 확인. 상세·단일 출처는 <code>10_ERP_DB연계/</code>(00·02).</td>
+<td>최동혁(+Claude)</td>
+</tr>
 <tr>
 <td>2026-07-08</td>
 <td><strong>인사 급여 집계 실적재 완료 + 게이트 API <code>jeil-hr</code> 배포 — §6 갱신</strong>(관리자 직접 실행) — 승인-준비 상태였던 <code>erp_secure.hr_payroll_m</code>에 실제 데이터를 적재했다: ETL job <code>hr_payroll</code>로 143행(급여 월×부서 137+퇴직 월×전사 6, 2026.01~06) 적재, 개인별·이름·주민번호·계좌는 여전히 미포함(집계만). Edge Function <code>jeil-hr</code> v1 신규 배포(Entra 검증→<code>dept='인사팀'</code>/<code>portal_admin</code>만→감사→집계 반환). 자금(F 모듈) 실적재는 별개로 미착수, <code>AI-Portal-HR</code> Entra 그룹·유니포인트 재직상태 정의는 잔여. 상세·단일 출처는 <code>10_ERP_DB연계/</code>(00·01·02).</td>
