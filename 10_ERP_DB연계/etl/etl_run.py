@@ -61,6 +61,7 @@ JOBS = {
                    d.PO_LOC_AMT AS po_amt, d.PO_STS AS po_sts,
                    d.RCPT_QTY AS rcpt_qty,
                    h.SUBCONTRA_FLG AS subcontra_flg, h.CLS_FLG AS cls_flg,
+                   d.PR_NO AS pr_no,
                    h.UPDT_DT AS src_updated
             FROM JEILMNS.dbo.M_PUR_ORD_HDR h WITH (NOLOCK)
             JOIN JEILMNS.dbo.M_PUR_ORD_DTL d WITH (NOLOCK) ON d.PO_NO = h.PO_NO
@@ -70,6 +71,27 @@ JOBS = {
         """,
         "params": ["year_start", "year_end"],
         "incr_sql": " AND h.UPDT_DT >= ?",   # 증분: 연 범위 내 변경분만(watermark 이후)
+    },
+    # ⓪-2 구매요청 원장 ← M_PUR_REQ (2026년 요청분, PR_NO 기준) — 발주(pur_order_s.pr_no)와 연결
+    "pur_req": {
+        "table": "pur_req_s",
+        "sql": """
+            SELECT r.PR_NO AS pr_no, r.PR_TYPE AS pr_type, r.PR_STS AS pr_sts, r.PLANT_CD AS plant_cd,
+                   r.ITEM_CD AS item_code, i.ITEM_NM AS item_name,
+                   r.REQ_QTY AS req_qty, r.REQ_UNIT AS req_unit, r.ORD_QTY AS ord_qty,
+                   r.RCPT_QTY AS rcpt_qty, r.IV_QTY AS iv_qty,
+                   CONVERT(date, r.REQ_DT) AS req_dt, CONVERT(date, r.DLVY_DT) AS dlvy_dt,
+                   CONVERT(date, r.PUR_PLAN_DT) AS pur_plan_dt,
+                   r.REQ_DEPT AS req_dept, r.REQ_PRSN AS req_prsn,
+                   r.SPPL_CD AS sppl_code, b.BP_NM AS sppl_name, r.SO_NO AS so_no,
+                   r.UPDT_DT AS src_updated
+            FROM JEILMNS.dbo.M_PUR_REQ r WITH (NOLOCK)
+            LEFT JOIN JEILMNS.dbo.B_ITEM i WITH (NOLOCK) ON i.ITEM_CD = r.ITEM_CD
+            LEFT JOIN JEILMNS.dbo.B_BIZ_PARTNER b WITH (NOLOCK) ON b.BP_CD = r.SPPL_CD
+            WHERE r.REQ_DT >= ? AND r.REQ_DT < ?
+        """,
+        "params": ["year_start", "year_end"],
+        "incr_sql": " AND r.UPDT_DT >= ?",   # 증분: 변경분만(watermark 이후)
     },
     # ① 품목 마스터 스냅샷 ← B_ITEM (전체 재적재)
     "item_master": {

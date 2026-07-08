@@ -111,6 +111,14 @@ const TOOLS = [
       parameters: { type: "object", properties: { ym: { type: "string", description: "조회 월 YYYY-MM(선택, 예 2026-01). 없으면 월별 전체 요약" } }, required: [] },
     },
   },
+  {
+    type: "function",
+    function: {
+      name: "get_erp_po_pr",
+      description: "ERP 발주↔구매요청 연결 조회(중간DB 사내 실데이터) — 발주번호(po_no) 또는 구매요청번호(pr_no)로 발주·구매요청 상세(품목·수량·금액·요청일·필요납기·요청자·상태) 조회. 'PO202607080001 구매요청 뭐야', 'PR202606240017 발주됐어?' 류. po_no 또는 pr_no 중 하나 필수.",
+      parameters: { type: "object", properties: { po_no: { type: "string", description: "발주번호(예: PO202607080001)" }, pr_no: { type: "string", description: "구매요청번호(예: PR202607060009)" } }, required: [] },
+    },
+  },
 ];
 
 const STATUS_KO: Record<string, string> = { new: "신규", prod: "생산중", insp: "검사", done: "완료" };
@@ -274,6 +282,24 @@ async function runTool(admin: any, name: string, argsJson: string): Promise<unkn
       상세 = { 월: ym, 발주건수: pos.size, 품목라인: rows.length, 발주금액_원: amt, 거래처Top10: top, 상태분포: bySts };
     }
     return { 기준시각: asOf, 월별, 상세, 안내: "ERP 중간DB 구매발주(pur_order_s, 2026 전체). 발주건수=고유 발주번호 기준. 파일럿 데이터." };
+  }
+
+  if (name === "get_erp_po_pr") {
+    const po = String(args.po_no || "").replace(/[^A-Za-z0-9-]/g, "").slice(0, 20);
+    const pr = String(args.pr_no || "").replace(/[^A-Za-z0-9-]/g, "").slice(0, 20);
+    if (!po && !pr) return { 오류: "po_no 또는 pr_no가 필요합니다." };
+    let q = admin.from("v_erp_po_pr_link").select("*").limit(50);
+    if (po) q = q.eq("po_no", po);
+    if (pr) q = q.eq("pr_no", pr);
+    const { data } = await q; const rows = data || [];
+    let 구매요청상세: unknown = null;
+    if (pr && !rows.length) {
+      const { data: rd } = await admin.from("v_erp_pur_req").select("*").eq("pr_no", pr).maybeSingle();
+      구매요청상세 = rd || null;
+    }
+    return { 기준시각: asOf, 조회조건: { po_no: po || null, pr_no: pr || null }, 연결건수: rows.length,
+      발주_구매요청_연결: rows, 구매요청상세,
+      안내: "ERP 중간DB 발주↔구매요청 연결(pur_order_s.pr_no ↔ pur_req_s). 파일럿 데이터." };
   }
 
   return { 오류: `알 수 없는 도구: ${name}` };
