@@ -35,7 +35,7 @@ const SYSTEM_PROMPT =
   "업무 문서 초안(주간보고·메일·공지), 규정 질의, 데이터 요약을 한국어로 간결하고 정확하게 돕습니다. " +
   "협력사 외주 '검사' 현황은 포털 도구(get_order_summary/get_order_detail 등)로 답하고, 답변에 조회 기준 시각을 표기하세요. " +
   "매출·매입·재고·품목·발주 등 ERP 데이터는 ERP 중간DB 조회 도구(get_erp_*)를 사용하되, 유니포인트 매핑 확정 전 '파일럿 데이터'임을 답변에 밝히세요. " +
-  "'발주'는 기본적으로 ERP 전체 구매발주(get_erp_pur_order)를 의미합니다. 협력사 외주 검사 관련일 때만 get_order_summary(포털)를 쓰고, 두 발주 데이터를 혼동하지 마세요. " +
+  "'발주'는 기본적으로 ERP 전체 구매발주(get_erp_pur_order)를 의미합니다. 특정 발주번호(PO)·구매요청번호(PR) 조회는 get_erp_po_pr, '가장 금액이 큰/최대/상위(top) 발주·구매요청'은 get_erp_pur_top 을 쓰세요(임의 레코드를 최대라고 답하지 말 것). 구매요청 자체엔 금액 컬럼이 없어 연결된 발주금액 기준으로 판단합니다. 협력사 외주 검사 관련일 때만 get_order_summary(포털)를 쓰고, 서로 다른 발주 데이터를 혼동하지 마세요. " +
   "월별 표를 그릴 때는 도구가 반환한 '월별' 배열의 각 월 값을 그대로 사용하고, 값이 없는 월을 임의로 '미제공'으로 적지 마세요. " +
   "도구로 조회할 수 없는 사내 수치·규정은 추측하지 말고 원본 확인을 권하세요. " +
   "급여·주민번호 등 개인정보나 비밀값을 답변에 포함하지 마세요.";
@@ -117,6 +117,14 @@ const TOOLS = [
       name: "get_erp_po_pr",
       description: "ERP 발주↔구매요청 연결 조회(중간DB 사내 실데이터) — 발주번호(po_no) 또는 구매요청번호(pr_no)로 발주·구매요청 상세(품목·수량·금액·요청일·필요납기·요청자·상태) 조회. 'PO202607080001 구매요청 뭐야', 'PR202606240017 발주됐어?' 류. po_no 또는 pr_no 중 하나 필수.",
       parameters: { type: "object", properties: { po_no: { type: "string", description: "발주번호(예: PO202607080001)" }, pr_no: { type: "string", description: "구매요청번호(예: PR202607060009)" } }, required: [] },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_erp_pur_top",
+      description: "ERP 발주·구매요청 금액 상위(top N) 조회 — 발주금액 큰 순으로 발주번호·구매요청번호·품목·거래처·금액·요청자. '가장 금액이 큰 발주/구매요청', '발주 top 5', '최대 금액 구매' 류. 구매요청 자체엔 금액이 없어 연결 발주금액 기준.",
+      parameters: { type: "object", properties: { n: { type: "integer", description: "상위 몇 건(기본 10, 최대 30)" } }, required: [] },
     },
   },
 ];
@@ -300,6 +308,22 @@ async function runTool(admin: any, name: string, argsJson: string): Promise<unkn
     return { 기준시각: asOf, 조회조건: { po_no: po || null, pr_no: pr || null }, 연결건수: rows.length,
       발주_구매요청_연결: rows, 구매요청상세,
       안내: "ERP 중간DB 발주↔구매요청 연결(pur_order_s.pr_no ↔ pur_req_s). 파일럿 데이터." };
+  }
+
+  if (name === "get_erp_pur_top") {
+    const n = Math.min(Math.max(Number(args.n) || 10, 1), 30);
+    const { data } = await admin.from("v_erp_po_pr_link")
+      .select("po_no,pr_no,po_dt,po_vendor,item_name,po_qty,po_amt,po_sts,req_prsn,req_dept")
+      .order("po_amt", { ascending: false, nullsFirst: false }).limit(n);
+    const rows = data || [];
+    return { 기준시각: asOf, 상위N: n,
+      // deno-lint-ignore no-explicit-any
+      상위목록: rows.map((r: any) => ({
+        발주번호: r.po_no, 구매요청번호: r.pr_no, 발주일: r.po_dt, 거래처: r.po_vendor,
+        품목: r.item_name, 수량: r.po_qty, 발주금액_원: Number(r.po_amt || 0), 발주상태: r.po_sts,
+        요청자: r.req_prsn, 요청부서: r.req_dept || null,
+      })),
+      안내: "ERP 중간DB 발주금액 상위(pur_order_s 라인 기준). 구매요청 금액은 연결 발주금액으로 판단. 파일럿 데이터." };
   }
 
   return { 오류: `알 수 없는 도구: ${name}` };
