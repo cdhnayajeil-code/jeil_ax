@@ -109,6 +109,13 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <tbody>
 <tr>
 <td>2026-07-08</td>
+<td>ERP 연계·보안</td>
+<td>Supabase(마이그레이션 <code>payroll_module_hr_gate</code>·<code>erp_secure_hr_schema</code>), <code>이관/sql/13</code>·<code>14</code>(신설), <code>pages/인사_인원급여추이_2026.html</code>, 통합본, <code>10_ERP_DB연계/</code>(<code>00</code>·<code>01</code>·<code>02</code> 갱신, v0.7), 정책관리 미러</td>
+<td><strong>급여(민감) 권한 강화 + <code>erp_secure</code> 착수(승인-준비)</strong> — 급여를 민감 모듈 <code>payroll</code>로 신설해 <code>dept_erp_scope</code>를 인사팀 전용으로 한정하고 인사 페이지를 서버 게이트(비인사팀 직접 접근 차단), 관리자 콘솔 급여 ⚠ 민감표시(일괄/제안 제외). 인사 데모 페이지 개인급여를 샘플값+마스킹으로 안전화. 민감 분리 스키마 <code>erp_secure</code>(<code>hr_payroll_m</code> 집계·<code>hr_access_log</code> 감사)를 승인-준비 빈 구조로 신설했으나 <strong>실 데이터는 미적재</strong> — 실 적재는 경영 승인+유니포인트 View 협의+<code>AI-Portal-HR</code> Entra 그룹이 선행돼야 함</td>
+<td>최동혁(+Claude)</td>
+</tr>
+<tr>
+<td>2026-07-08</td>
 <td>ERP 연계</td>
 <td>Supabase(마이그레이션 <code>erp_dept_module_suggest</code>·<code>erp_dept_erp_suggest_public_view</code>), <code>이관/sql/12</code>(신설), <code>jeil-chat-admin</code> v5, <code>10_ERP_DB연계/</code>(<code>00</code>·<code>01</code>·<code>02</code>·<code>05</code> 갱신, v0.6), 정책관리 미러</td>
 <td><strong>부서별 ERP 모듈 제안값(참고) 신설·실적재</strong> — 신규 ETL job <code>usr_erp_module</code>로 ERP 역할·메뉴 권한(사용자↔역할↔메뉴↔ModuleInitial)을 근거로 <code>erp_ro.usr_erp_module_s</code> 397건 적재, 부서 과반 접근 모듈을 관리자 콘솔 '권한 상세' ERP 매트릭스에 ◆ 참고표시로 반영(자동 덮어쓰기 안 함 — 관리자 결정, 실질 통제선은 편집형 <code>dept_erp_scope</code>). 실측: ERP 읽기권한이 광범위(평균 17역할)해 ERP-역할 신호는 부서 변별력이 약함을 확인 — 참고 제안 결정의 타당성 입증</td>

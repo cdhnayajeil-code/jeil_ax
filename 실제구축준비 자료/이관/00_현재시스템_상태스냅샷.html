@@ -366,6 +366,10 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <td><strong>부분 연계 착수(2026-07-08)</strong> — 중간DB(Supabase <code>erp_ro</code>) 1차 5종 실적재 완료(발주 2,699·품목 58,246·매출 10·매입 63·재고 656행) + 사내 전용 노출 뷰 6종(<code>v_erp_*</code>)으로 부서 대시보드 1개 화면(구매 매입집계)·챗봇(<code>jeil-chat</code>) ERP Tool 4종이 실데이터 연동. 나머지 화면은 여전히 추출 샘플(마스킹) 데이터</td>
 </tr>
 <tr>
+<td>민감 데이터 통제(급여)</td>
+<td><strong>강화(2026-07-08)</strong> — 급여를 민감 모듈 <code>payroll</code>로 신설, <code>dept_erp_scope</code> 인사팀 전용 + 인사 페이지 서버 게이트(비인사팀 직접 접근 차단), 인사 데모 페이지 개인급여 샘플화+마스킹. 민감 분리 스키마 <code>erp_secure</code>(집계·감사) 승인-준비 빈 구조로 신설 — <strong>실 데이터 미적재</strong>(경영승인+유니포인트+Entra HR 그룹 선행 필요)</td>
+</tr>
+<tr>
 <td>매핑(가설)</td>
 <td><code>M_PUR_REQ</code>·<code>M_PUR_ORD</code>·<code>M_CONFIG_PROCESS</code>·<code>M_PUR_GOODS_MVMT</code>·<code>Q_INSPECTION</code>·<code>M_IV</code> (<code>CLAUDE.md §4.4</code>, <code>08/03/02</code>) — 세부 컬럼·재고 입출고 분류는 유니포인트 협의 전 가설</td>
 </tr>
@@ -441,6 +445,11 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 </tr>
 </thead>
 <tbody>
+<tr>
+<td>2026-07-08</td>
+<td><strong>급여(민감) 권한 강화 + <code>erp_secure</code> 착수(승인-준비) — §6 갱신</strong> — 급여를 민감 모듈 <code>payroll</code>로 신설, <code>dept_erp_scope</code> 인사팀 전용 부여·인사 페이지 서버 게이트(비인사팀 직접 접근 차단), 관리자 콘솔 급여 ⚠ 민감표시. 인사 데모 페이지 개인급여 샘플화+마스킹. 민감 분리 스키마 <code>erp_secure</code>(<code>hr_payroll_m</code> 집계·<code>hr_access_log</code> 감사) 승인-준비 빈 구조 신설, <strong>실 데이터 미적재</strong> — 경영 승인+유니포인트 협의+Entra HR 그룹 선행 필요. 상세·단일 출처는 <code>10_ERP_DB연계/</code>(00·02).</td>
+<td>최동혁(+Claude)</td>
+</tr>
 <tr>
 <td>2026-07-08</td>
 <td><strong>ERP DB 연계 P4(포털·챗봇 연결) 착수 — §6 갱신</strong> — 중간DB(Supabase <code>erp_ro</code>) 1차 5종 실적재(발주 2,699·품목 58,246·매출 10·매입 63·재고 656행) 위에 사내 전용 노출 뷰 6종(<code>v_erp_*</code>, security_invoker) 신설 + RLS 격리 실측 테스트 통과. 부서 대시보드 1개 화면(<code>pages/구매_거래처별매입집계_2026.html</code>) 파일럿 실연동, <code>jeil-chat</code>에 ERP Tool 4종 추가 배포(version 7 ACTIVE). 상세·단일 출처는 <code>10_ERP_DB연계/</code>(00·02).</td>
