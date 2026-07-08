@@ -15,6 +15,7 @@ const json = (o: unknown, status = 200) =>
   new Response(JSON.stringify(o), { status, headers: { ...cors, "Content-Type": "application/json" } });
 
 // ERP 데이터 모듈 카탈로그 — public.v_erp_* 노출 뷰와 1:1 (jeil-me와 동일)
+// 급여(payroll·민감)는 콘솔(04)에서 클라이언트 측 카탈로그로 병합·처리(dept_erp_scope가 실제 판정 구동).
 const CATALOG = [
   { key: "sales", label: "매출" }, { key: "purchase", label: "매입" },
   { key: "inventory", label: "재고" }, { key: "item", label: "품목" },

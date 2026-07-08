@@ -738,8 +738,14 @@
         </table>
       </div>
       <div class="sec">
-        <h3>부서별 ERP 모듈 권한 <span style="font-size:11px;color:var(--green,#1a7f37);">● 실데이터·강제</span> <button class="save" onclick="saveDeptErp()">저장</button></h3>
-        <p class="admin-note">부서별 허용 ERP 데이터 모듈(챗봇·ERP 페이지 접근 강제). 체크된 모듈만 해당 부서가 조회할 수 있습니다(전체 관리자는 전 모듈). <b style="color:#2f6fb3;">◆</b> = ERP 역할·메뉴 권한상 그 부서가 <b>실제 접근하는 모듈(제안값·참고)</b> — 체크(실제 적용)와 별개이며, 참고해 편집하세요.</p>
+        <h3>부서별 ERP 모듈 권한 <span style="font-size:11px;color:var(--green,#1a7f37);">● 실데이터·강제</span>
+          <span style="float:right;">
+            <button class="save" style="background:#fff;color:var(--accent);border:1px solid var(--accent);" onclick="erpBulk('suggest')" title="ERP 역할 제안(◆) 기준으로 일괄 체크(민감 제외)">◆ 제안 일괄</button>
+            <button class="save" style="background:#fff;color:var(--accent);border:1px solid var(--accent);" onclick="erpBulk('all')" title="민감 제외 전체 선택">전체 선택</button>
+            <button class="save" style="background:#fff;color:var(--accent);border:1px solid var(--accent);" onclick="erpBulk('none')" title="민감 제외 전체 해제">전체 해제</button>
+            <button class="save" onclick="saveDeptErp()">저장</button>
+          </span></h3>
+        <p class="admin-note">부서별 허용 ERP 데이터 모듈(챗봇·ERP 페이지 접근 강제). 체크된 모듈만 해당 부서가 조회할 수 있습니다(전체 관리자는 전 모듈). <b style="color:#2f6fb3;">◆</b> = ERP 역할·메뉴 권한상 그 부서가 <b>실제 접근하는 모듈(제안값·참고)</b> — 체크(실제 적용)와 별개. <b style="color:#b3402f;">⚠ 급여</b>는 <b>민감 모듈(인사팀 전용)</b>로 일괄·제안 대상에서 제외되며 개별 지정만 가능합니다. 상단 <b>◆ 제안 일괄·전체 선택/해제</b> 버튼과 열 헤더 <b>열전체</b> 체크로 여러 부서를 한 번에 설정할 수 있습니다(민감 제외).</p>
         <div class="tblwrap" style="overflow-x:auto;">
           <table id="erpMatrix"><thead id="erpMatrixHead"></thead><tbody id="erpMatrixRows"><tr><td class="c" style="color:#888;padding:14px;">MS 로그인(관리자) 시 표시</td></tr></tbody></table>
         </div>
@@ -1494,39 +1500,72 @@ function deptUniverse(d){
   return Object.keys(s).sort();
 }
 
+var SENSITIVE_MODS = { payroll: 1 }; // 민감 모듈 — 일괄/제안 제외, 개별 지정만
+function catalogWithSensitive(cat){
+  var c = (cat||[]).slice();
+  if(!c.some(function(x){ return x.key==='payroll'; })) c.push({ key:'payroll', label:'급여', sensitive:true });
+  c.forEach(function(x){ if(SENSITIVE_MODS[x.key]) x.sensitive = true; });
+  return c;
+}
 function renderPermDetail(d){
-  PERM_CATALOG = d.catalog || [];
+  PERM_CATALOG = catalogWithSensitive(d.catalog);
   PERM_DEPTS = deptUniverse(d);
   var VIS = ['부서 전용','전사 공개','지정 부서 공유'];
   var deptOpts = function(sel){ return '<option value="">(미지정)</option>'+PERM_DEPTS.map(function(dn){ return '<option'+(dn===sel?' selected':'')+'>'+escHtml(dn)+'</option>'; }).join(''); };
-  // A. 페이지 공개 설정
+  // A. 페이지 공개 설정 (민감 모듈 페이지 ⚠ 표시)
   var pt = document.getElementById('ppRows'); var pages = d.portal_pages||[];
   if(pt) pt.innerHTML = pages.length ? pages.map(function(p){
     var visOpts = VIS.map(function(v){ return '<option'+((p.visibility===v)?' selected':'')+'>'+v+'</option>'; }).join('');
-    var modOpts = '<option value="">(없음)</option>'+PERM_CATALOG.map(function(c){ return '<option value="'+c.key+'"'+((p.erp_module===c.key)?' selected':'')+'>'+escHtml(c.label)+'</option>'; }).join('');
+    var modOpts = '<option value="">(없음)</option>'+PERM_CATALOG.map(function(c){ return '<option value="'+c.key+'"'+((p.erp_module===c.key)?' selected':'')+'>'+escHtml(c.label)+(c.sensitive?' ⚠':'')+'</option>'; }).join('');
     var shared = (p.shared_depts||[]).join(', ');
+    var sens = (p.erp_module && SENSITIVE_MODS[p.erp_module]) ? ' <span class="badge r" style="font-size:9.5px;">민감·인사팀 전용</span>' : '';
     return '<tr data-key="'+escHtml(p.page_key)+'" data-title="'+escHtml(p.title||'')+'" data-path="'+escHtml(p.path||'')+'" data-icon="'+escHtml(p.icon||'')+'">'
-      + '<td><b>'+escHtml((p.icon||'')+' '+(p.title||p.page_key))+'</b><br><span style="color:#999;font-size:11px">'+escHtml(p.path||'')+'</span></td>'
+      + '<td><b>'+escHtml((p.icon||'')+' '+(p.title||p.page_key))+'</b>'+sens+'<br><span style="color:#999;font-size:11px">'+escHtml(p.path||'')+'</span></td>'
       + '<td><select class="sel pp-dept">'+deptOpts(p.dept_nm)+'</select></td>'
       + '<td><select class="sel pp-vis">'+visOpts+'</select></td>'
       + '<td><input class="pp-shared" value="'+escHtml(shared)+'" placeholder="부서A, 부서B" style="width:100%;padding:5px 8px;border:1px solid var(--line,#d8dee8);border-radius:6px;font-size:12px;"></td>'
       + '<td><select class="sel pp-mod">'+modOpts+'</select></td>'
       + '<td class="c"><input type="checkbox" class="pp-active"'+((p.active!==false)?' checked':'')+'></td></tr>';
   }).join('') : '<tr><td colspan="6" class="c" style="color:#888;padding:14px;">페이지 없음</td></tr>';
-  // B. 부서별 ERP 모듈 매트릭스
+  // B. 부서별 ERP 모듈 매트릭스 (열 전체선택 + 일괄, 민감 모듈은 개별만)
   var scopeSet = {}; (d.dept_erp_scope||[]).forEach(function(e){ (scopeSet[e.dept_nm]=scopeSet[e.dept_nm]||{})[e.module_key]=1; });
   var sugSet = {}; (d.dept_erp_suggest||[]).forEach(function(e){ (sugSet[e.dept_nm]=sugSet[e.dept_nm]||{})[e.module_key]=1; });
+  window.__PERM_SUG = sugSet; // erpBulk('suggest')에서 참조
   var head = document.getElementById('erpMatrixHead');
-  if(head) head.innerHTML = '<tr><th>부서</th>'+PERM_CATALOG.map(function(c){ return '<th class="c">'+escHtml(c.label)+'</th>'; }).join('')+'</tr>';
+  if(head) head.innerHTML = '<tr><th>부서</th>'+PERM_CATALOG.map(function(c){
+      if(c.sensitive) return '<th class="c" title="민감 모듈(급여) — 일괄 제외, 개별 지정만">'+escHtml(c.label)+' ⚠<br><span style="font-weight:400;font-size:9.5px;color:#b3402f;">민감·개별만</span></th>';
+      return '<th class="c">'+escHtml(c.label)+'<br><label style="font-weight:400;font-size:9.5px;color:#888;cursor:pointer;"><input type="checkbox" class="em-col" data-mod="'+c.key+'" onclick="erpColToggle(this)"> 열전체</label></th>';
+    }).join('')+'</tr>';
   var mb = document.getElementById('erpMatrixRows');
   if(mb) mb.innerHTML = PERM_DEPTS.length ? PERM_DEPTS.map(function(dn){
     var sc = scopeSet[dn]||{}; var su = sugSet[dn]||{};
     return '<tr data-dept="'+escHtml(dn)+'"><td><b>'+escHtml(dn)+'</b></td>'
       + PERM_CATALOG.map(function(c){
-          var mark = su[c.key] ? ' <span title="ERP 역할·메뉴상 이 부서가 실제 접근하는 모듈(제안값)" style="color:#2f6fb3;font-size:10px;">◆</span>' : '';
-          return '<td class="c"><input type="checkbox" class="em-chk" data-mod="'+c.key+'"'+(sc[c.key]?' checked':'')+'>'+mark+'</td>';
+          var mark = (!c.sensitive && su[c.key]) ? ' <span title="ERP 역할·메뉴상 이 부서가 실제 접근하는 모듈(제안값)" style="color:#2f6fb3;font-size:10px;">◆</span>' : '';
+          var scls = c.sensitive ? ' em-sens' : '';
+          var tip = c.sensitive ? ' title="민감(급여) — 인사팀만 지정. 일괄 대상 아님"' : '';
+          return '<td class="c"'+(c.sensitive?' style="background:#fbeeec;"':'')+'><input type="checkbox" class="em-chk'+scls+'" data-mod="'+c.key+'"'+(sc[c.key]?' checked':'')+tip+'>'+mark+'</td>';
         }).join('')+'</tr>';
   }).join('') : '<tr><td class="c" style="color:#888;padding:14px;">부서 없음</td></tr>';
+}
+
+// 열(모듈) 전체선택/해제 — 민감 모듈은 헤더에 체크박스 없음(호출 안 됨)
+function erpColToggle(box){
+  var mod = box.getAttribute('data-mod'); var on = box.checked;
+  Array.prototype.forEach.call(document.querySelectorAll('#erpMatrixRows .em-chk[data-mod="'+mod+'"]:not(.em-sens)'), function(c){ c.checked = on; });
+}
+// 일괄: suggest(◆ 제안 적용) / all(전체 선택) / none(전체 해제) — 민감 모듈(payroll)은 제외
+function erpBulk(mode){
+  if(mode==='all' || mode==='none'){
+    Array.prototype.forEach.call(document.querySelectorAll('#erpMatrixRows .em-chk:not(.em-sens)'), function(c){ c.checked = (mode==='all'); });
+  } else if(mode==='suggest'){
+    var sug = window.__PERM_SUG || {};
+    Array.prototype.forEach.call(document.querySelectorAll('#erpMatrixRows tr[data-dept]'), function(tr){
+      var su = sug[tr.getAttribute('data-dept')] || {};
+      Array.prototype.forEach.call(tr.querySelectorAll('.em-chk:not(.em-sens)'), function(c){ c.checked = !!su[c.getAttribute('data-mod')]; });
+    });
+  }
+  Array.prototype.forEach.call(document.querySelectorAll('#erpMatrixHead .em-col'), function(c){ c.checked = false; });
 }
 
 async function postAdmin(payload, label){
