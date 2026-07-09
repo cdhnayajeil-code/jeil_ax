@@ -1,8 +1,8 @@
 // jeil-chat-admin — 챗봇 관리자 콘솔 실데이터 API (사용량·권한·게이트웨이 상태·사용자부서 매핑)
 // 배포: verify_jwt=false (Entra 토큰을 내부에서 Graph로 검증)
 // 호출: POST /functions/v1/jeil-chat-admin  Authorization: Bearer <Entra access_token>
-//   조회(빈 바디): { gateway, usage, admins, dept_mapping, dept_permissions, portal_pages, dept_erp_scope, catalog } — 관리자만
-//   저장({action:'save_dept_perm'|'save_page_perm'|'save_dept_erp', rows:[...]}): 관리자만 upsert → { ok, saved }
+//   조회(빈 바디): { gateway, usage, admins, dept_mapping, dept_permissions, portal_pages, dept_erp_scope, catalog, model_settings } — 관리자만
+//   저장({action:'save_dept_perm'|'save_page_perm'|'save_dept_erp'|'save_ai_models'|'save_ai_config'|'save_ai_routing'|'manage_admin', ...}): 관리자만 → { ok, saved }
 // 원칙: chat_log·erp 매핑 뷰는 RLS로 클라이언트 차단 → 이 함수(service_role)가 유일한 조회/저장 경로.
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
@@ -135,6 +135,93 @@ Deno.serve(async (req) => {
     return json({ error: "알 수 없는 관리 동작" }, 400);
   }
 
+  // 2-f) 저장 액션 — 사용모델 카탈로그(ai_model upsert). 단가·활성화·용도 편집.
+  if (body && (body as Record<string, unknown>).action === "save_ai_models") {
+    const rowsIn = Array.isArray((body as Record<string, unknown>).rows) ? (body as Record<string, unknown>).rows as Record<string, unknown>[] : [];
+    const num = (v: unknown, d: number) => { const n = Number(v); return Number.isFinite(n) && n >= 0 ? n : d; };
+    const rows = rowsIn.filter((r) => r && r.model_id).map((r) => ({
+      model_id: String(r.model_id).trim().slice(0, 80),
+      vendor: r.vendor ? String(r.vendor).slice(0, 40) : "OpenAI",
+      label: r.label != null ? String(r.label).slice(0, 120) : String(r.model_id),
+      purpose: r.purpose != null ? String(r.purpose).slice(0, 400) : null,
+      price_in: num(r.price_in, 0),
+      price_out: num(r.price_out, 0),
+      active: r.active === true,
+      // callable은 게이트웨이 실제 호출가능 여부 — 서버가 벤더로 강제(OpenAI만 true). 클라이언트 임의 지정 불가.
+      callable: String(r.vendor || "OpenAI").toLowerCase() === "openai",
+      sort: Math.trunc(num(r.sort, 100)),
+      note: r.note != null ? String(r.note).slice(0, 400) : null,
+      updated_by: user.upn, updated_at: nowIso,
+    }));
+    if (!rows.length) return json({ error: "저장할 모델이 없습니다." }, 400);
+    const { error: me } = await admin.from("ai_model").upsert(rows, { onConflict: "model_id" });
+    if (me) return json({ error: "모델 저장 실패: " + me.message }, 500);
+    return json({ ok: true, saved: rows.length, updated_by: user.upn, updated_at: nowIso });
+  }
+
+  // 2-g) 저장 액션 — 게이트웨이 설정(ai_gateway_config 싱글턴 upsert). 상한·파라미터·시스템프롬프트.
+  if (body && (body as Record<string, unknown>).action === "save_ai_config") {
+    const c = ((body as Record<string, unknown>).config || {}) as Record<string, unknown>;
+    const clampInt = (v: unknown, lo: number, hi: number, d: number) => {
+      const n = Math.trunc(Number(v)); return Number.isFinite(n) ? Math.min(hi, Math.max(lo, n)) : d;
+    };
+    const dm = String(c.default_model || "").trim();
+    // 기본 모델은 반드시 실제 호출가능(active+callable)한 모델이어야 함
+    const { data: dmRow } = await admin.from("ai_model").select("model_id,active,callable").eq("model_id", dm).maybeSingle();
+    if (!dmRow || !dmRow.active || !dmRow.callable) {
+      return json({ error: `기본 모델 '${dm || "(미지정)"}'은(는) 활성화·호출가능한 모델이 아닙니다. 먼저 모델을 활성화하세요.` }, 400);
+    }
+    const temp = Math.min(2, Math.max(0, Number(c.temperature)));
+    const row = {
+      id: 1,
+      default_model: dm,
+      max_tokens: clampInt(c.max_tokens, 256, 4096, 1024),
+      temperature: Number.isFinite(temp) ? Number(temp.toFixed(2)) : 0.3,
+      prompt_caching: c.prompt_caching !== false,
+      max_messages: clampInt(c.max_messages, 1, 50, 20),
+      max_total_chars: clampInt(c.max_total_chars, 1000, 100000, 24000),
+      system_prompt: c.system_prompt != null ? String(c.system_prompt).slice(0, 12000) : "",
+      updated_by: user.upn, updated_at: nowIso,
+    };
+    const { error: ce } = await admin.from("ai_gateway_config").upsert(row, { onConflict: "id" });
+    if (ce) return json({ error: "게이트웨이 설정 저장 실패: " + ce.message }, 500);
+    return json({ ok: true, saved: 1, updated_by: user.upn, updated_at: nowIso });
+  }
+
+  // 2-h) 저장 액션 — 라우팅 규칙(ai_routing_rule 전체 교체). enforced는 서버가 규칙유형으로 강제.
+  if (body && (body as Record<string, unknown>).action === "save_ai_routing") {
+    const rowsIn = Array.isArray((body as Record<string, unknown>).rows) ? (body as Record<string, unknown>).rows as Record<string, unknown>[] : [];
+    // 게이트웨이 실제 적용 유형: keyword_length·default 만(파일/ERP/교차검증은 미연동 → enforced=false 강제)
+    const ENFORCEABLE = new Set(["keyword_length", "default"]);
+    const rows = rowsIn.filter((r) => r && r.model_id && r.label).map((r, i) => {
+      const rt = String(r.rule_type || "keyword_length");
+      const kws = Array.isArray(r.match_keywords)
+        ? (r.match_keywords as unknown[]).map((x) => String(x).trim()).filter(Boolean)
+        : String(r.match_keywords || "").split(",").map((s) => s.trim()).filter(Boolean);
+      const mc = Number(r.min_chars);
+      return {
+        seq: Math.trunc(Number(r.seq) || (i + 1)),
+        label: String(r.label).slice(0, 200),
+        rule_type: rt.slice(0, 30),
+        match_keywords: kws.slice(0, 30),
+        min_chars: Number.isFinite(mc) && mc > 0 ? Math.trunc(mc) : null,
+        model_id: String(r.model_id).trim().slice(0, 80),
+        enforced: ENFORCEABLE.has(rt) && r.active !== false,
+        active: r.active !== false,
+        note: r.note != null ? String(r.note).slice(0, 400) : null,
+        updated_by: user.upn, updated_at: nowIso,
+      };
+    });
+    // 전체 교체(부서별 ERP 모듈과 동일 패턴): 기존 삭제 후 재삽입
+    const { error: de } = await admin.from("ai_routing_rule").delete().gte("id", 0);
+    if (de) return json({ error: "라우팅 규칙 갱신 실패: " + de.message }, 500);
+    if (rows.length) {
+      const { error: ie } = await admin.from("ai_routing_rule").insert(rows);
+      if (ie) return json({ error: "라우팅 규칙 저장 실패: " + ie.message }, 500);
+    }
+    return json({ ok: true, saved: rows.length, updated_by: user.upn, updated_at: nowIso });
+  }
+
   // 3) 사용량 집계 (최근 2000건 기준 — 현 규모에 충분, 대량화 시 SQL 집계로 전환)
   const { data: logs, error: le } = await admin
     .from("chat_log")
@@ -173,7 +260,7 @@ Deno.serve(async (req) => {
 
   // 4) 사용자↔부서↔사원 매핑(ERP Z_USR_MAST_REC 대사) + 부서별 권한 설정
   //    service_role은 RLS 우회 → 사내 전용 뷰 전량 조회. 부서명 기준으로 권한 설정과 결합.
-  const [udUsers, udRecon, udRoster, deptPerm, pagesRes, deptErpRes, deptErpSuggestRes] = await Promise.all([
+  const [udUsers, udRecon, udRoster, deptPerm, pagesRes, deptErpRes, deptErpSuggestRes, aiModelsRes, aiCfgRes, aiRulesRes] = await Promise.all([
     admin.from("v_erp_user_dept").select("email,dept_nm,emp_nm,matched_dept_cd,dept_matched").order("dept_nm").order("emp_nm"),
     admin.from("v_erp_user_dept_recon").select("email,usr_nm_raw,dept_nm,emp_nm,status,recon_type").order("recon_type").order("dept_nm"),
     admin.from("v_erp_dept_roster").select("dept_nm,emp_cnt,dept_matched,members").order("emp_cnt", { ascending: false }),
@@ -181,16 +268,29 @@ Deno.serve(async (req) => {
     admin.from("portal_page").select("*").order("sort"),
     admin.from("dept_erp_scope").select("dept_nm,module_key"),
     admin.from("v_erp_dept_erp_suggest").select("dept_nm,module_key"),
+    admin.from("ai_model").select("*").order("sort"),
+    admin.from("ai_gateway_config").select("*").eq("id", 1).maybeSingle(),
+    admin.from("ai_routing_rule").select("*").order("seq"),
   ]);
+
+  // 사용모델 설정(SSOT: ai_model / ai_gateway_config / ai_routing_rule). 게이트웨이 실효 모델은 DB 기본모델 우선.
+  const aiCfg = aiCfgRes.data as Record<string, unknown> | null;
+  const effectiveModel = (aiCfg?.default_model as string) || Deno.env.get("OPENAI_MODEL") || "gpt-4o-mini";
 
   return json({
     gateway: {
       function: "jeil-chat",
-      model: Deno.env.get("OPENAI_MODEL") || "gpt-4o-mini",
+      model: effectiveModel,                                   // DB 설정 기본모델(실효값). 미설정 시 env 폴백
+      env_model: Deno.env.get("OPENAI_MODEL") || "gpt-4o-mini",
+      config_source: aiCfg ? "db(ai_gateway_config)" : "env(fallback)",
       provider: "OpenAI",
       key_set: !!Deno.env.get("OPENAI_API_KEY"),
       auth_policy: "Entra 토큰 Graph 검증 · @jeilm.co.kr 사내 한정",
-      limits: { max_messages: 20, max_total_chars: 24000, max_tokens: 1024 },
+      limits: {
+        max_messages: Number(aiCfg?.max_messages ?? 20),
+        max_total_chars: Number(aiCfg?.max_total_chars ?? 24000),
+        max_tokens: Number(aiCfg?.max_tokens ?? 1024),
+      },
       tools: ["get_order_summary", "get_order_detail", "get_inspection_pending"],
     },
     usage: {
@@ -229,6 +329,14 @@ Deno.serve(async (req) => {
     dept_erp_scope: deptErpRes.data || [],
     dept_erp_suggest: deptErpSuggestRes.data || [], // ERP 역할·메뉴 권한 기반 제안값(참고용)
     catalog: CATALOG,
+    // 사용모델 설정 탭(모델 카탈로그·게이트웨이 설정·라우팅 규칙) — 실데이터
+    model_settings: {
+      models: aiModelsRes.data || [],
+      config: aiCfg,
+      routing: aiRulesRes.data || [],
+      effective_model: effectiveModel,
+      error: aiModelsRes.error?.message || aiCfgRes.error?.message || aiRulesRes.error?.message || null,
+    },
     as_of: new Date().toISOString(),
   });
 });

@@ -108,6 +108,13 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 </thead>
 <tbody>
 <tr>
+<td>2026-07-09</td>
+<td>챗봇·관리콘솔</td>
+<td>Supabase(마이그레이션 <code>ai_model_settings_tables</code>·<code>ai_model_settings_seed</code> — <code>ai_model</code>·<code>ai_gateway_config</code>·<code>ai_routing_rule</code> 신설+시드), Edge Function <code>jeil-chat-admin</code>(v7)·<code>jeil-chat</code>(v15), <code>04</code>(모델 설정 탭·통합본 재생성), <code>실제구축준비 자료/06_챗봇_사용모델설정_SSOT.md</code>(신설)</td>
+<td><strong>관리자 콘솔 '모델 설정' 실연동 — 데모 목업 → 실제 디테일 설정 가능</strong> — 그간 <code>alert('데모 미동작')</code>이던 모델 설정 탭을 실제 Supabase 저장·게이트웨이 소비로 전환. ① 설정 SSOT 3테이블 신설(RLS enable·정책없음=service_role 전용, <code>chat_log</code> 패턴): 모델 카탈로그(<code>ai_model</code> 단가·활성화·callable) / 게이트웨이 설정(<code>ai_gateway_config</code> 싱글턴 — 기본모델·max_tokens·temperature·상한·시스템프롬프트) / 라우팅 규칙(<code>ai_routing_rule</code>). 시드값은 현행 하드코딩값과 동일(폴백 무결). ② <code>jeil-chat-admin</code> v7: <code>model_settings</code> 조회 + <code>save_ai_models</code>·<code>save_ai_config</code>·<code>save_ai_routing</code> 저장 액션(관리자만·검증: callable은 벤더로 강제, 기본모델은 active+callable만, enforced는 규칙유형으로 강제). ③ <code>jeil-chat</code> v15: 요청마다 DB 설정 로드해 <strong>실제 소비</strong>(시스템프롬프트·상한·max_tokens·temperature·기본모델·keyword_length 라우팅·모델별 단가) — 조회 실패 시 기존값 안전 폴백(전 직원 챗봇 무중단). ④ <code>04</code> 모델 패널을 실데이터 렌더·저장으로 배선. 현 게이트웨이는 OpenAI 프록시라 OpenAI만 callable, Anthropic은 카탈로그·단가 표시용. 프론트(<code>04</code>·통합본) 라이브 반영은 git push 필요(§8 절차)</td>
+<td>최동혁(+Claude)</td>
+</tr>
+<tr>
 <td>2026-07-08</td>
 <td>ERP 연계·챗봇</td>
 <td>Supabase 마이그레이션(<code>erp_process_link_enrich</code>), <code>이관/sql/15</code>(신설), <code>supabase/functions/jeil-chat/index.ts</code>(v14), <code>10_ERP_DB연계/</code>(<code>00</code>·<code>02</code> 갱신, v0.8), 정책관리 미러</td>

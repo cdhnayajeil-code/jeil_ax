@@ -17,13 +17,14 @@ const cors = {
 const json = (o: unknown, status = 200) =>
   new Response(JSON.stringify(o), { status, headers: { ...cors, "Content-Type": "application/json" } });
 
-// 입력 상한 (키 남용·과금 폭주 방지)
+// 입력 상한 폴백 기본값 (DB ai_gateway_config 미설정/조회실패 시에만 사용)
 const MAX_MESSAGES = 20;
 const MAX_MSG_CHARS = 8000;
 const MAX_TOTAL_CHARS = 24000;
 const MAX_TOKENS = 1024;
+const DEFAULT_TEMP = 0.3;
 
-// 모델 단가표 (USD / 1M 토큰, 2026-07 기준 — 변동 시 갱신. 정산은 OpenAI 청구서 기준)
+// 모델 단가표 폴백 (USD / 1M 토큰). 실제 단가는 DB ai_model(price_in/price_out) 우선.
 const PRICES: Record<string, { inp: number; out: number }> = {
   "gpt-4o-mini": { inp: 0.15, out: 0.60 },
   "gpt-4o": { inp: 2.50, out: 10.00 },
@@ -185,6 +186,82 @@ async function resolveErpScope(admin: any, upn: string): Promise<ErpScope> {
   if (pa) return { isAdmin: true, modules: new Set(), dept };
   const { data: es } = await admin.from("dept_erp_scope").select("module_key").eq("dept_nm", dept || "");
   return { isAdmin: false, modules: new Set((es || []).map((r: { module_key: string }) => r.module_key)), dept };
+}
+
+/* ===== 사용모델 설정 로드·라우팅 (SSOT: ai_gateway_config / ai_model / ai_routing_rule) =====
+   원칙: 조회 실패·미설정이면 기존 하드코딩 기본값으로 안전 폴백 → 설정이 비어도 챗봇은 정상 동작한다. */
+type AiModelRow = { model_id: string; vendor: string; active: boolean; callable: boolean; price_in: number; price_out: number };
+type AiRuleRow = { seq: number; rule_type: string; match_keywords: string[] | null; min_chars: number | null; model_id: string; active: boolean };
+type AiConfig = {
+  default_model: string; max_tokens: number; temperature: number;
+  max_messages: number; max_total_chars: number; system_prompt: string;
+  models: AiModelRow[]; rules: AiRuleRow[];
+};
+
+function fallbackConfig(): AiConfig {
+  return {
+    default_model: Deno.env.get("OPENAI_MODEL") || "gpt-4o-mini",
+    max_tokens: MAX_TOKENS, temperature: DEFAULT_TEMP,
+    max_messages: MAX_MESSAGES, max_total_chars: MAX_TOTAL_CHARS,
+    system_prompt: SYSTEM_PROMPT, models: [], rules: [],
+  };
+}
+
+// deno-lint-ignore no-explicit-any
+async function loadAiConfig(admin: any): Promise<AiConfig> {
+  try {
+    const [cfgR, modR, rulR] = await Promise.all([
+      admin.from("ai_gateway_config").select("*").eq("id", 1).maybeSingle(),
+      admin.from("ai_model").select("model_id,vendor,active,callable,price_in,price_out"),
+      admin.from("ai_routing_rule").select("seq,rule_type,match_keywords,min_chars,model_id,active").eq("active", true).order("seq"),
+    ]);
+    const c = cfgR.data;
+    if (!c) return fallbackConfig();
+    return {
+      default_model: c.default_model || fallbackConfig().default_model,
+      max_tokens: Number(c.max_tokens) || MAX_TOKENS,
+      temperature: c.temperature != null ? Number(c.temperature) : DEFAULT_TEMP,
+      max_messages: Number(c.max_messages) || MAX_MESSAGES,
+      max_total_chars: Number(c.max_total_chars) || MAX_TOTAL_CHARS,
+      system_prompt: c.system_prompt || SYSTEM_PROMPT,
+      models: (modR.data as AiModelRow[]) || [],
+      rules: (rulR.data as AiRuleRow[]) || [],
+    };
+  } catch {
+    return fallbackConfig();
+  }
+}
+
+// 실제 호출 가능한(active+callable+OpenAI) 모델 맵
+function usableModels(ai: AiConfig): Map<string, AiModelRow> {
+  return new Map(
+    ai.models.filter((m) => m.active && m.callable && String(m.vendor).toLowerCase() === "openai")
+      .map((m) => [m.model_id, m]),
+  );
+}
+
+// 라우팅: keyword_length 규칙만 실제 적용(대상 모델이 usable일 때). 미매칭이면 기본 모델(usable 검증·폴백).
+function pickModel(userText: string, ai: AiConfig): string {
+  const usable = usableModels(ai);
+  const envModel = Deno.env.get("OPENAI_MODEL") || "gpt-4o-mini";
+  const safeDefault = usable.has(ai.default_model)
+    ? ai.default_model
+    : (usable.size ? [...usable.keys()][0] : envModel);
+  const text = String(userText || "");
+  for (const rule of ai.rules) {
+    if (rule.rule_type !== "keyword_length") continue;            // 게이트웨이 실제 적용 유형만
+    const kwHit = (rule.match_keywords || []).some((k) => k && text.includes(k));
+    const lenHit = rule.min_chars != null && rule.min_chars > 0 && text.length >= rule.min_chars;
+    if ((kwHit || lenHit) && usable.has(rule.model_id)) return rule.model_id;
+  }
+  return safeDefault;
+}
+
+// 단가 조회: DB ai_model 우선 → 폴백 PRICES 표
+function priceFor(model: string, ai: AiConfig): { inp: number; out: number } {
+  const m = ai.models.find((x) => x.model_id === model);
+  if (m && (m.price_in || m.price_out)) return { inp: Number(m.price_in), out: Number(m.price_out) };
+  return PRICES[model] || PRICES["gpt-4o-mini"];
 }
 
 // deno-lint-ignore no-explicit-any
@@ -487,12 +564,12 @@ async function verifyEntraUser(token: string): Promise<{ upn: string } | null> {
 }
 
 /* ===== OpenAI 스트림 호출·파싱 ===== */
-function callOpenAI(apiKey: string, model: string, messages: unknown[], withTools: boolean) {
+function callOpenAI(apiKey: string, model: string, messages: unknown[], withTools: boolean, maxTokens: number, temperature: number) {
   return fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
     body: JSON.stringify({
-      model, stream: true, max_tokens: MAX_TOKENS, messages,
+      model, stream: true, max_tokens: maxTokens, temperature, messages,
       stream_options: { include_usage: true },            // U-1: 토큰 usage 수신
       ...(withTools ? { tools: TOOLS } : {}),
     }),
@@ -543,7 +620,6 @@ Deno.serve(async (req) => {
 
   const apiKey = Deno.env.get("OPENAI_API_KEY");
   if (!apiKey) return json({ error: "서버 미설정: OPENAI_API_KEY 시크릿이 등록되지 않았습니다." }, 503);
-  const model = Deno.env.get("OPENAI_MODEL") || "gpt-4o-mini";
 
   // 1) 사내 사용자 검증 (Entra 토큰 → Graph)
   const token = (req.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "");
@@ -551,21 +627,28 @@ Deno.serve(async (req) => {
   const user = await verifyEntraUser(token);
   if (!user) return json({ error: "unauthorized: 사내(@jeilm.co.kr) 계정 인증 실패 — 다시 로그인하세요." }, 401);
 
-  // 2) 입력 검증
+  const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+
+  // 1-b) 사용모델 설정 로드(관리자 콘솔 › 모델 설정 SSOT). 조회 실패 시 안전 폴백(기존 하드코딩값).
+  const ai = await loadAiConfig(admin);
+
+  // 2) 입력 검증 (상한은 DB 설정값 사용)
   let body: { messages?: Array<{ role: string; content: string }> };
   try { body = await req.json(); } catch { return json({ error: "invalid json" }, 400); }
   const raw = Array.isArray(body.messages) ? body.messages : [];
   const messages = raw
     .filter((m) => (m.role === "user" || m.role === "assistant") && typeof m.content === "string" && m.content.trim())
-    .slice(-MAX_MESSAGES)
+    .slice(-ai.max_messages)
     .map((m) => ({ role: m.role, content: m.content.slice(0, MAX_MSG_CHARS) }));
   if (!messages.length) return json({ error: "messages가 비어 있습니다." }, 400);
   const total = messages.reduce((n, m) => n + m.content.length, 0);
-  if (total > MAX_TOTAL_CHARS) return json({ error: "대화가 너무 깁니다. 새 대화로 시작하세요." }, 400);
+  if (total > ai.max_total_chars) return json({ error: "대화가 너무 깁니다. 새 대화로 시작하세요." }, 400);
 
-  const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+  // 2-b) 모델 라우팅 — 마지막 사용자 메시지 기준. 라우팅 규칙 미매칭 시 기본 모델(설정값).
+  const lastUserText = [...messages].reverse().find((m) => m.role === "user")?.content || "";
+  const model = pickModel(lastUserText, ai);
 
-  // 2-b) ERP Tool 접근 범위(부서별 erp_scope) — 관리자는 전 모듈, 그 외 소속 부서 허용 모듈만
+  // 2-c) ERP Tool 접근 범위(부서별 erp_scope) — 관리자는 전 모듈, 그 외 소속 부서 허용 모듈만
   const erpScope = await resolveErpScope(admin, user.upn);
 
   // 3) 감사 로그 선기록 (스트림 종료 후 토큰·비용·도구 갱신)
@@ -590,13 +673,13 @@ Deno.serve(async (req) => {
     try {
       // 도구 호출 상한 멀티라운드 — 리다이렉트형(도구가 다른 도구를 안내)·순차의존형 복합질문 대응.
       // 무한루프 3중 차단: MAX_ROUNDS 상한 + 직전 라운드와 동일 호출 반복 시 중단 + 마지막 라운드 강제 withTools=false.
-      const convo: unknown[] = [{ role: "system", content: SYSTEM_PROMPT }, ...messages];
+      const convo: unknown[] = [{ role: "system", content: ai.system_prompt }, ...messages];
       const MAX_ROUNDS = 4;
       let lastSig = "";
       for (let round = 0; round < MAX_ROUNDS; round++) {
         const lastRound = round === MAX_ROUNDS - 1;
         state.toolCalls = {};
-        const res = await callOpenAI(apiKey, model, convo, !lastRound);
+        const res = await callOpenAI(apiKey, model, convo, !lastRound, ai.max_tokens, ai.temperature);
         if (!res.ok || !res.body) {
           const detail = await res.text().catch(() => "");
           console.error("openai error", res.status, detail.slice(0, 500));
@@ -630,7 +713,7 @@ Deno.serve(async (req) => {
       try { await writer.close(); } catch { /* 무시 */ }
       // U-1: 토큰·추정비용·사용도구 갱신
       if (logId != null) {
-        const price = PRICES[model] || PRICES["gpt-4o-mini"];
+        const price = priceFor(model, ai);
         const cost = (state.pt * price.inp + state.ct * price.out) / 1_000_000;
         try {
           await admin.from("chat_log").update({
