@@ -163,7 +163,7 @@
   <!-- 조회 조건 -->
   <div class="query">
     <div class="qf"><label>프로젝트 코드</label><select id="fProj" onchange="render()"></select></div>
-    <div class="qf"><label>협력사 · 품목 조회</label><input id="fItem" placeholder="거래처 또는 품목명 입력" oninput="render()"></div>
+    <div class="qf"><label>거래처 · 품목 · 프로젝트 조회</label><input id="fItem" placeholder="거래처·품목·프로젝트코드 입력" oninput="debouncedRender()"></div>
     <div class="qf"><label>기간 (발주일)</label>
       <select id="fPeriod" onchange="render()">
         <option value="all">전체</option>
@@ -233,6 +233,8 @@ function claimsOf(session){ if(!session||!session.access_token) return {}; try{ 
 function autoSSO(){ const u=new URL(location.href); u.searchParams.set('sso','1'); supabase.auth.signInWithOAuth({provider:'azure',options:{scopes:'openid email profile',redirectTo:u.toString()}}); }
 // 발주 캐시: ERP 발주원장(v_erp_pur_order_hdr) 기본 + 협력사 포털(sp_*) 오버레이. RLS상 사내는 전체.
 let ORDERS=[];
+// 성능: 필터 결과를 1회만 계산해 재사용(CURROWS) + 카드 점진 렌더(SHOWN/PAGE_SIZE)로 초기 DOM 최소화
+let CURROWS=[], SHOWN=0; const PAGE_SIZE=60; let _searchTimer=null;
 async function loadData(){
   const [erpHdrs, supOrders] = await Promise.all([
     erpApi.purOrderHeaders().catch(e=>{ console.warn('ERP 발주원장 로드 실패:', e.message||e); return []; }),
@@ -246,7 +248,7 @@ async function loadData(){
     if(s){ used.add(h.po_no); merged.push(Object.assign({}, s, { _link:true, _erp:true,
       amt: s.amt||h.amt, date: s.date||h.po_dt, due: s.due||h.dlvy_dt,
       items_txt:h.items_txt, line_cnt:h.line_cnt, item_cnt:h.item_cnt, po_sts:h.po_sts })); }
-    else { merged.push({ no:h.po_no, bp:h.bp_code, vendor_name:h.bp_name, proj:'-',
+    else { merged.push({ no:h.po_no, bp:h.bp_code, vendor_name:h.bp_name, proj:h.project_code||'-',
       amt:h.amt, date:h.po_dt, due:h.dlvy_dt, po_sts:h.po_sts, subcontra_flg:h.subcontra_flg,
       items_txt:h.items_txt, line_cnt:h.line_cnt, item_cnt:h.item_cnt,
       _link:false, _erp:true, photos:[], msgs:[] }); }
@@ -385,9 +387,10 @@ function buildRows(){
   return rows;
 }
 function fillProjOptions(){
-  const sel=document.getElementById('fProj'); if(sel.options.length) return;
-  const ps=[...new Set(ORDERS.map(o=>o.proj).filter(p=>p&&p!=='-'))];
-  sel.innerHTML='<option value="all">전체 프로젝트</option>'+ps.map(p=>'<option value="'+p+'">'+p+'</option>').join('')+'<option value="none">미지정</option>';
+  const sel=document.getElementById('fProj'); if(sel.options.length>1) return;
+  const ps=[...new Set(ORDERS.map(o=>o.proj).filter(p=>p&&p!=='-'))].sort();
+  const noneCnt=ORDERS.filter(o=>!o.proj||o.proj==='-').length;
+  sel.innerHTML='<option value="all">전체 프로젝트</option>'+ps.map(p=>'<option value="'+p+'">'+p+'</option>').join('')+'<option value="none">미지정'+(noneCnt?(' ('+noneCnt+')'):'')+'</option>';
 }
 function visibleRows(){
   let rows=buildRows();
@@ -396,7 +399,7 @@ function visibleRows(){
   const period=document.getElementById('fPeriod').value;
   if(document.getElementById('onlyLink').checked) rows=rows.filter(r=>r.link);
   if(proj && proj!=='all') rows=rows.filter(r=> proj==='none'? r.proj==='-' : r.proj===proj);
-  if(q) rows=rows.filter(r=> (r.bp+ ' '+r.item+' '+r.po+' '+r.pr).toLowerCase().includes(q));
+  if(q) rows=rows.filter(r=> (r.bp+ ' '+r.item+' '+r.po+' '+r.pr+' '+r.proj).toLowerCase().includes(q));
   if(period!=='all'){
     const base=new Date(); base.setHours(0,0,0,0);
     rows=rows.filter(r=>{ if(period==='month') return String(r.odt||'').startsWith(nowYM());
@@ -509,31 +512,37 @@ function cardHTML(r,i){
     +'</div>'+detail+'</div>';
 }
 
+// CURROWS(필터 결과)를 발주월 최신순으로 정렬해 SHOWN 개수만 렌더 + '더 보기'. 월 헤더는 해당 월 전체 기준 집계.
 function renderBoard(){
-  LB=[]; const rows=visibleRows(); const box=document.getElementById('board');
-  if(!rows.length){ box.innerHTML='<div class="ocard" style="text-align:center;color:var(--muted)">조건에 맞는 발주가 없습니다.</div>'; return; }
-  // 발주월(YYYY-MM) 그룹, 최신월 우선
-  const groups={};
-  rows.forEach(r=>{ const ym=String(r.odt||'').slice(0,7)||'기타'; (groups[ym]=groups[ym]||[]).push(r); });
-  const yms=Object.keys(groups).sort().reverse();
-  let html=''; let gi=0;
-  yms.forEach(ym=>{ const gr=groups[ym].sort((a,b)=>String(b.odt).localeCompare(String(a.odt)));
-    const sum=gr.reduce((s,r)=>s+r.amt,0); const linked=gr.filter(r=>r.link).length;
-    const label= /^\d{4}-\d{2}$/.test(ym)?(ym.slice(0,4)+'년 '+Number(ym.slice(5,7))+'월'):'기타';
-    html+='<div class="grphead"><span class="gt">'+label+'</span>'
-      +(linked?'<span class="gtag sub">🔗 협력사 연계 '+linked+'</span>':'<span class="gtag gen">ERP 원장</span>')
-      +'<span class="gcnt">'+gr.length+'건 · 발주액 '+won(sum)+'원</span></div>';
-    html+=gr.map(r=>cardHTML(r,gi++)).join('');
+  LB=[]; const box=document.getElementById('board');
+  const sorted=CURROWS.slice().sort((a,b)=>String(b.odt).localeCompare(String(a.odt)));
+  if(!sorted.length){ box.innerHTML='<div class="ocard" style="text-align:center;color:var(--muted)">조건에 맞는 발주가 없습니다.</div>'; return; }
+  const slice=sorted.slice(0,SHOWN);
+  let html=''; let gi=0; let curYm=null;
+  slice.forEach(r=>{ const ym=String(r.odt||'').slice(0,7)||'기타';
+    if(ym!==curYm){ curYm=ym;
+      const gr=sorted.filter(x=>(String(x.odt||'').slice(0,7)||'기타')===ym);
+      const sum=gr.reduce((s,x)=>s+x.amt,0); const linked=gr.filter(x=>x.link).length;
+      const label= /^\d{4}-\d{2}$/.test(ym)?(ym.slice(0,4)+'년 '+Number(ym.slice(5,7))+'월'):'기타';
+      html+='<div class="grphead"><span class="gt">'+label+'</span>'
+        +(linked?'<span class="gtag sub">🔗 협력사 연계 '+linked+'</span>':'<span class="gtag gen">ERP 원장</span>')
+        +'<span class="gcnt">'+gr.length+'건 · 발주액 '+won(sum)+'원</span></div>';
+    }
+    html+=cardHTML(r,gi++);
   });
+  if(sorted.length>SHOWN){
+    html+='<div style="text-align:center;margin:16px 0"><button class="lbtn solid" onclick="loadMore()" style="padding:11px 30px;font-size:13px">▾ 더 보기 (남은 '+(sorted.length-SHOWN)+'건)</button></div>';
+  }
   box.innerHTML=html;
 }
-function renderKPI(){ const rows=visibleRows();
+function loadMore(){ SHOWN+=PAGE_SIZE; renderBoard(); }
+function renderKPI(){ const rows=CURROWS;
   const c=k=>rows.filter(r=>cat(r)===k).length;
   const order=c('order'), ship=c('ship'), done=c('done'), link=rows.filter(r=>r.link).length;
   const k=[{c:'',v:rows.length,l:'전체 발주'},{c:'amber',v:order,l:'발주(PO)'},{c:'',v:ship,l:'입고(GR)'},{c:'green',v:done,l:'완료·매입(IV)'},{c:'pur',v:link,l:'협력사 연계'}];
   document.getElementById('kpis').innerHTML=k.map(x=>'<div class="kpi '+x.c+'"><div class="v">'+x.v+'</div><div class="lb">'+x.l+'</div></div>').join('');
 }
-function renderDist(){ const rows=visibleRows(); const C=rows.map(cat);
+function renderDist(){ const rows=CURROWS; const C=rows.map(cat);
   const segs=[
    {l:'발주(PO)',c:'#27457a',ks:['order']},
    {l:'생산·검수(협력사)',c:'#9a6b1f',ks:['making','insp']},
@@ -549,7 +558,10 @@ function renderDist(){ const rows=visibleRows(); const C=rows.map(cat);
 }
 
 function openPortal(){ window.open('협력사_모바일_포털.html','_blank'); }
-function render(){ fillProjOptions(); renderKPI(); renderDist(); renderBoard(); }
+// 필터/데이터 변경 시: 결과 1회 계산 → 페이지 초기화 → KPI·분포·보드 렌더
+function render(){ fillProjOptions(); CURROWS=visibleRows(); SHOWN=PAGE_SIZE; renderKPI(); renderDist(); renderBoard(); }
+// 검색어 입력은 220ms 디바운스(매 키입력 전체 재렌더 방지)
+function debouncedRender(){ clearTimeout(_searchTimer); _searchTimer=setTimeout(render,220); }
 
 // 사내(internal) 세션 게이트 → 데이터 로드 → 렌더 + Realtime
 async function boot(){
@@ -568,7 +580,7 @@ async function boot(){
 }
 function nowYM(){ var d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); }
 // 인라인 onclick(전역) 노출 — module 스코프 격리 대응
-Object.assign(window, { render, openPortal, resetQ, lbxOpen, lbxClose, imgFb, reviewCur, openMsg, closeMsg, sendMsgD, openInspect, closeInspect, submitInspect, toggleDet });
+Object.assign(window, { render, debouncedRender, loadMore, openPortal, resetQ, lbxOpen, lbxClose, imgFb, reviewCur, openMsg, closeMsg, sendMsgD, openInspect, closeInspect, submitInspect, toggleDet });
 boot();
 </script>
 </body>
