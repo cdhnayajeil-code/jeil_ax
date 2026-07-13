@@ -143,36 +143,33 @@
 </style>
 </head>
 <body>
-<div class="demo-banner">🔗 ERP 발주원장 실연동 — 발주·입고·매입 진행상태는 중간DB(<code style="color:#fff;background:transparent;border:0">v_erp_pur_order_hdr</code>) 실데이터. 협력사 등록 사진·검수·메시지는 Supabase 실시간 오버레이. (ERP 야간배치 사본 · 유니포인트 매핑 파일럿)</div>
 <div class="page">
 
   <div class="head">
     <div>
-      <h1>🔄 발주 전체 프로세스 현황</h1>
-      <div class="sub">ERP 발주원장(발주 PO → 입고 GR → 매입 IV) 전체 + 협력사 연계 외주(발주확인·생산·사진·검수·출하) 오버레이 · 발주별 한눈에</div>
+      <h1>🔄 발주 진행현황</h1>
+      <div class="sub">발주 → 입고 → 매입 진행상태를 발주별로 한눈에</div>
     </div>
     <div class="right">기준일: <span id="baseDate">—</span></div>
   </div>
 
   <div class="linkbar">
     <span class="dot"></span>
-    <span class="txt">협력사 포털 연계 <span id="linkState">— 확인 중…</span><small id="linkMeta">한일정밀공업(V-1027) 등록 사진·상태·검수요청이 실시간 반영됩니다.</small></span>
+    <span class="txt"><span id="linkState">— 확인 중…</span><small id="linkMeta">협력사 등록 사진·검수·메시지는 실시간 반영됩니다.</small></span>
     <span class="sp"><button class="lbtn" onclick="render()">↻ 새로고침</button><button class="lbtn solid" onclick="openPortal()">📱 협력사 포털</button></span>
   </div>
 
   <!-- 조회 조건 -->
   <div class="query">
-    <div class="qf"><label>프로젝트 코드</label><select id="fProj" onchange="render()"></select></div>
-    <div class="qf"><label>거래처 · 품목 · 프로젝트 조회</label><input id="fItem" placeholder="거래처·품목·프로젝트코드 입력" oninput="debouncedRender()"></div>
-    <div class="qf"><label>기간 (발주일)</label>
-      <select id="fPeriod" onchange="render()">
-        <option value="all">전체</option>
-        <option value="7">최근 7일</option>
-        <option value="30">최근 30일</option>
-        <option value="month" id="fMonth">이번 달</option>
-      </select>
+    <div class="qf"><label>거래처 · 품목 조회</label><input id="fItem" placeholder="거래처 또는 품목명 입력" oninput="debouncedRender()"></div>
+    <div class="qf"><label>발주일 (기간)</label>
+      <div style="display:flex;align-items:center;gap:6px">
+        <input type="date" id="fFrom" onchange="render()" style="min-width:140px">
+        <span style="color:var(--muted)">~</span>
+        <input type="date" id="fTo" onchange="render()" style="min-width:140px">
+      </div>
     </div>
-    <div class="qf chkrow"><input type="checkbox" id="onlyLink" onchange="render()"><label for="onlyLink" style="font-weight:600;color:var(--ink)">협력사 연계만</label></div>
+    <div class="qf chkrow"><input type="checkbox" id="onlyLink" onchange="render()"><label for="onlyLink" style="font-weight:600;color:var(--ink)" title="협력사 포털에 사진·검수·메시지가 등록된 발주만 표시합니다">협력사 등록건만 <small style="font-weight:400;color:var(--muted)">(사진·검수·메시지 있는 발주)</small></label></div>
     <div class="qf"><button class="reset" onclick="resetQ()">조건 초기화</button></div>
   </div>
 
@@ -186,10 +183,7 @@
 
   <div id="board"></div>
 
-  <div class="src">
-    <b>데이터 원천 (ERP 중간DB 실연동 + 협력사 포털 오버레이)</b> — 발주 원장(헤더 집계) <code>v_erp_pur_order_hdr</code> ← <code>erp_ro.pur_order_s</code>(UNIERP <code>M_PUR_ORD</code> 야간배치 사본): 발주(PO)·입고(GR)·매입(IV) 진행상태를 라인→발주(po_no) 단위로 집계(가장 덜 진행된 라인 기준). 협력사 연계 발주(같은 po_no)는 <code>sp_photo</code>(사진)·<code>sp_inspection</code>(검수판정)·<code>sp_message</code>(메시지)·<code>sp_order_state</code>(상태)를 <b>실시간 오버레이</b>. 사진은 실사진(Supabase Storage 서명 URL), 접근 불가 시 참조 이미지(SVG)로 폴백. <b>참고</b>: 현재 ERP 스냅샷은 외주구분(SUBCONTRA_FLG)이 전건 <code>N</code>이라 외주/일반 분리는 ETL 매핑 보정 후 반영 예정(유니포인트 협의).
-  </div>
-  <div class="foot"><span>외주 발주 전체 프로세스 현황 · 구매·품질·생산·사업관리 공유</span><span>등록: 구매팀 · 부서 공유</span></div>
+  <div class="foot"><span>발주 진행현황 · 구매·품질·생산·사업관리 공유</span><span>등록: 구매팀 · 부서 공유</span></div>
 </div>
 
 <div class="lbx" id="lbx" onclick="if(event.target.id==='lbx')lbxClose()">
@@ -382,32 +376,22 @@ function buildRows(){
   const rows=ORDERS.map(toRow);
   const el=document.getElementById('linkState'),em=document.getElementById('linkMeta');
   const link=rows.filter(r=>r.link).length;
-  if(ORDERS.length>0){ el.textContent='● 활성 (ERP 발주 '+ORDERS.length+'건'+(link?' · 협력사 연계 '+link:'')+')'; em.textContent='ERP 발주원장 실연동 + 협력사 포털(사진·검수·메시지) 오버레이'; }
-  else{ el.textContent='○ 발주 없음'; em.textContent='ERP 연동 데이터가 없습니다(사내 계정 로그인 필요).'; }
+  if(ORDERS.length>0){ el.textContent='● 총 '+ORDERS.length+'건'+(link?' (협력사 등록 '+link+'건)':''); em.textContent='협력사 등록 사진·검수·메시지는 실시간 반영됩니다.'; }
+  else{ el.textContent='○ 발주 없음'; em.textContent='사내 계정으로 로그인하면 발주가 표시됩니다.'; }
   return rows;
-}
-function fillProjOptions(){
-  const sel=document.getElementById('fProj'); if(sel.options.length>1) return;
-  const ps=[...new Set(ORDERS.map(o=>o.proj).filter(p=>p&&p!=='-'))].sort();
-  const noneCnt=ORDERS.filter(o=>!o.proj||o.proj==='-').length;
-  sel.innerHTML='<option value="all">전체 프로젝트</option>'+ps.map(p=>'<option value="'+p+'">'+p+'</option>').join('')+'<option value="none">미지정'+(noneCnt?(' ('+noneCnt+')'):'')+'</option>';
 }
 function visibleRows(){
   let rows=buildRows();
-  const proj=document.getElementById('fProj').value;
   const q=document.getElementById('fItem').value.trim().toLowerCase();
-  const period=document.getElementById('fPeriod').value;
+  const from=document.getElementById('fFrom').value;
+  const to=document.getElementById('fTo').value;
   if(document.getElementById('onlyLink').checked) rows=rows.filter(r=>r.link);
-  if(proj && proj!=='all') rows=rows.filter(r=> proj==='none'? r.proj==='-' : r.proj===proj);
-  if(q) rows=rows.filter(r=> (r.bp+ ' '+r.item+' '+r.po+' '+r.pr+' '+r.proj).toLowerCase().includes(q));
-  if(period!=='all'){
-    const base=new Date(); base.setHours(0,0,0,0);
-    rows=rows.filter(r=>{ if(period==='month') return String(r.odt||'').startsWith(nowYM());
-      const days=(base-new Date(r.odt))/86400000; return days <= (period==='7'?7:30); });
-  }
+  if(q) rows=rows.filter(r=> (r.bp+' '+r.item+' '+r.po+' '+r.proj).toLowerCase().includes(q));
+  if(from) rows=rows.filter(r=> String(r.odt||'')>=from);
+  if(to)   rows=rows.filter(r=> String(r.odt||'')<=to);
   return rows;
 }
-function resetQ(){ document.getElementById('fProj').value='all'; document.getElementById('fItem').value=''; document.getElementById('fPeriod').value='all'; document.getElementById('onlyLink').checked=false; render(); }
+function resetQ(){ document.getElementById('fItem').value=''; document.getElementById('fFrom').value=''; document.getElementById('fTo').value=''; document.getElementById('onlyLink').checked=false; render(); }
 
 function curBadge(r){ if(r.fail) return '<span class="stg s-hold">재작업 · 불합격</span>';
   if(r.done) return '<span class="stg s-done">완료 · 매입</span>';
@@ -485,21 +469,27 @@ function toggleDet(i){ var e=document.getElementById('od'+i); if(e) e.classList.
 
 function cardHTML(r,i){
   ROWPO[i]=r.po; var mc=(r.msgs||[]).length;
-  const detail='<div class="odetail hide" id="od'+i+'"><div class="dg">'
-    +'<div class="dc"><b>구매요청 (M_PUR_REQ)</b>'+r.pr+'</div>'
-    +'<div class="dc"><b>발주 (M_PUR_ORD)</b>'+r.po+'</div>'
-    +'<div class="dc"><b>발주형태</b>'+r.type+(r.sub?' · 외주(사급)':' · 일반')+'</div>'
-    +'<div class="dc"><b>검사의뢰 (INSP_REQ_NO)</b>'+r.insp.req+'</div>'
-    +'<div class="dc"><b>검사결과 (INSP_RESULT_NO)</b>'+r.insp.res+'</div>'
-    +'<div class="dc"><b>합격/불합격</b><span style="color:var(--green)">'+r.insp.ac+'</span> / <span style="color:var(--red)">'+r.insp.re+'</span></div>'
-    +'<div class="dc"><b>판정</b>'+r.insp.judge+'</div>'
-    +'<div class="dc"><b>검사담당</b>'+r.insp.by+(r.insp.dt!=='-'?' · '+r.insp.dt:'')+'</div></div>'
-    +(r._msgCount?'<div style="font-size:11px;color:var(--muted);margin-top:6px">💬 협력사 메시지 '+r._msgCount+'건 · 최근: '+(r._lastMsg||'')+'</div>':'')
-    +((r.insp.res!=='-' && r._inspBy)?'<div style="font-size:11px;color:var(--navy2);margin-top:7px;background:#fff;border:1px solid var(--line);border-radius:7px;padding:8px 10px"><b>🔬 검수 판정</b><br>'+(r._inspAt||'').slice(0,16)+' · <b style="color:'+(r.fail?'var(--red)':'var(--green)')+'">'+(r.fail?'불합격':'합격')+'</b> · 판정자 <b>'+r._inspBy+'</b></div>':'')
-    +'<div style="font-size:10.5px;color:var(--muted);margin-top:6px">데이터: M_PUR_GOODS_MVMT(입고·출하·검사판정) · Q_INSPECTION_*'+(r._sup?' + 협력사 포털 등록분':'')+'</div></div>';
+  const cell=(k,v)=>'<div class="dc"><b>'+k+'</b>'+(v||'-')+'</div>';
+  let cells=cell('거래처',r.bp)
+    +cell('발주형태',r.type+(r.sub?' · 외주(사급)':' · 일반'))
+    +cell('발주액','<b>'+won(r.amt)+'</b>원')
+    +cell('발주일',r.odt)+cell('납기',r.due)
+    +cell('수량',r.qty);
+  if(r.proj&&r.proj!=='-') cells+=cell('프로젝트',r.proj);
+  if(r.link){
+    if(r.insp.req!=='-') cells+=cell('검사의뢰',r.insp.req);
+    cells+=cell('검사 판정',r.insp.judge);
+    if(r.insp.by!=='-') cells+=cell('검사담당',r.insp.by+(r.insp.dt!=='-'?' · '+r.insp.dt:''));
+  }
+  const detail='<div class="odetail hide" id="od'+i+'">'
+    +'<div style="margin-bottom:9px"><b style="display:block;font-size:10px;color:var(--muted);font-weight:600;margin-bottom:2px">품목</b><span style="font-size:12.5px">'+(r.item||'-')+'</span></div>'
+    +'<div class="dg">'+cells+'</div>'
+    +(r._msgCount?'<div style="font-size:11px;color:var(--muted);margin-top:8px">💬 협력사 메시지 '+r._msgCount+'건 · 최근: '+(r._lastMsg||'')+'</div>':'')
+    +((r.insp.res!=='-' && r._inspBy)?'<div style="font-size:11px;color:var(--navy2);margin-top:8px;background:#fff;border:1px solid var(--line);border-radius:7px;padding:8px 10px"><b>🔬 검수 판정</b> · '+(r._inspAt||'').slice(0,16)+' · <b style="color:'+(r.fail?'var(--red)':'var(--green)')+'">'+(r.fail?'불합격':'합격')+'</b> · 판정자 '+r._inspBy+'</div>':'')
+    +'</div>';
   return '<div class="ocard '+(r._sup?'linked':'')+' '+(r.fail?'hold':'')+'">'
     +'<div class="ohead"><span class="pono">'+r.po+(r._sup?' 🔗':'')+'</span><span class="bp">'+r.bp+'</span><span class="badge '+(r.sub?'p':'b')+'">'+r.type+'</span><span class="right">'+curBadge(r)+'</span></div>'
-    +'<div class="ometa">요청 <b>'+r.pr+'</b> · 품목 <b>'+r.item+'</b> · '+r.qty+' · 발주액 <b>'+won(r.amt)+'</b>원 · 발주일 '+r.odt+' · 납기 '+r.due+'</div>'
+    +'<div class="ometa">품목 <b>'+r.item+'</b> · '+r.qty+' · 발주액 <b>'+won(r.amt)+'</b>원 · 발주일 '+r.odt+' · 납기 '+r.due+'</div>'
     +procBar(r)+galleryHTML(r)
     +'<div class="ofoot">'
       +(r._supTxt?'<span class="pill pur">협력사: '+r._supTxt+'</span>':'')
@@ -539,15 +529,15 @@ function loadMore(){ SHOWN+=PAGE_SIZE; renderBoard(); }
 function renderKPI(){ const rows=CURROWS;
   const c=k=>rows.filter(r=>cat(r)===k).length;
   const order=c('order'), ship=c('ship'), done=c('done'), link=rows.filter(r=>r.link).length;
-  const k=[{c:'',v:rows.length,l:'전체 발주'},{c:'amber',v:order,l:'발주(PO)'},{c:'',v:ship,l:'입고(GR)'},{c:'green',v:done,l:'완료·매입(IV)'},{c:'pur',v:link,l:'협력사 연계'}];
+  const k=[{c:'',v:rows.length,l:'전체 발주'},{c:'amber',v:order,l:'발주'},{c:'',v:ship,l:'입고'},{c:'green',v:done,l:'매입완료'},{c:'pur',v:link,l:'협력사 등록'}];
   document.getElementById('kpis').innerHTML=k.map(x=>'<div class="kpi '+x.c+'"><div class="v">'+x.v+'</div><div class="lb">'+x.l+'</div></div>').join('');
 }
 function renderDist(){ const rows=CURROWS; const C=rows.map(cat);
   const segs=[
-   {l:'발주(PO)',c:'#27457a',ks:['order']},
-   {l:'생산·검수(협력사)',c:'#9a6b1f',ks:['making','insp']},
-   {l:'입고(GR)',c:'#1f7a7a',ks:['ship']},
-   {l:'완료·매입(IV)',c:'#2e7d52',ks:['done']},
+   {l:'발주',c:'#27457a',ks:['order']},
+   {l:'생산·검수',c:'#9a6b1f',ks:['making','insp']},
+   {l:'입고',c:'#1f7a7a',ks:['ship']},
+   {l:'매입완료',c:'#2e7d52',ks:['done']},
    {l:'재작업',c:'#b3402f',ks:['rework']}
   ];
   const tot=rows.length||1; const cnt=s=>C.filter(x=>s.ks.includes(x)).length;
@@ -559,7 +549,7 @@ function renderDist(){ const rows=CURROWS; const C=rows.map(cat);
 
 function openPortal(){ window.open('협력사_모바일_포털.html','_blank'); }
 // 필터/데이터 변경 시: 결과 1회 계산 → 페이지 초기화 → KPI·분포·보드 렌더
-function render(){ fillProjOptions(); CURROWS=visibleRows(); SHOWN=PAGE_SIZE; renderKPI(); renderDist(); renderBoard(); }
+function render(){ CURROWS=visibleRows(); SHOWN=PAGE_SIZE; renderKPI(); renderDist(); renderBoard(); }
 // 검색어 입력은 220ms 디바운스(매 키입력 전체 재렌더 방지)
 function debouncedRender(){ clearTimeout(_searchTimer); _searchTimer=setTimeout(render,220); }
 
@@ -572,13 +562,11 @@ async function boot(){
     var rb=document.getElementById('reSso'); if(rb) rb.onclick=async function(){ try{ await supabase.auth.signOut(); }catch(e){} autoSSO(); };
     return;
   }
-  // 기준일·기간 옵션 오늘 기준 동적화
+  // 기준일 오늘 기준 표시
   var today=new Date(); document.getElementById('baseDate').textContent=today.toISOString().slice(0,10);
-  document.getElementById('fMonth').textContent=today.getFullYear()+'년 '+(today.getMonth()+1)+'월';
-  await loadData(); fillProjOptions(); render();
+  await loadData(); render();
   portalApi.subscribe(async()=>{ await loadData(); render(); var mb=document.getElementById('msgbox'); if(mb&&mb.classList.contains('on')) renderMsgBox(); });
 }
-function nowYM(){ var d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); }
 // 인라인 onclick(전역) 노출 — module 스코프 격리 대응
 Object.assign(window, { render, debouncedRender, loadMore, openPortal, resetQ, lbxOpen, lbxClose, imgFb, reviewCur, openMsg, closeMsg, sendMsgD, openInspect, closeInspect, submitInspect, toggleDet });
 boot();
