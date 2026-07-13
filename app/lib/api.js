@@ -57,7 +57,7 @@ const supabaseAdapter = {
       bp: h.bp_cd,
       vendor_name: h.vendor_name || h.bp_cd,
       proj: h.project_code || "-",
-      amt: h.amt || 0,
+      amt: Number(h.amt) || 0, // PostgREST는 numeric을 문자열로 반환 → 화면 합계/천단위표기 정합 위해 숫자 정규화(§3.3)
       date: h.order_date,
       due: h.due_date,
       type: h.po_type,
@@ -321,6 +321,15 @@ export const erpApi = {
     if (subcontra_flg) q = q.eq("subcontra_flg", subcontra_flg);
     if (po_sts) q = q.eq("po_sts", po_sts);
     const { data, error } = await q; if (error) throw error; return data || [];
+  },
+  // 발주 헤더 집계(po_no 단위, v_erp_pur_order_hdr): 외주발주 프로세스 현황 보드 기본 소스.
+  // {po_no, po_dt, dlvy_dt, bp_code, bp_name, line_cnt, item_cnt, amt, po_qty, rcpt_qty, po_sts(PO/GR/IV·최소진행), subcontra_flg, items_txt}
+  async purOrderHeaders({ bp_code, po_sts, limit = 1000 } = {}) {
+    let q = supabase.from("v_erp_pur_order_hdr").select("*").order("po_dt", { ascending: false }).limit(limit);
+    if (bp_code) q = q.eq("bp_code", bp_code);
+    if (po_sts) q = q.eq("po_sts", po_sts);
+    const { data, error } = await q; if (error) throw error;
+    return (data || []).map((r) => ({ ...r, amt: Number(r.amt) || 0, po_qty: Number(r.po_qty) || 0, rcpt_qty: Number(r.rcpt_qty) || 0 }));
   },
   // 데이터 기준시각(job별 최신 성공): { sales:{last_success,rows_upserted}, ... }
   async dataAsof() {

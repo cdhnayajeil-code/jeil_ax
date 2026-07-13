@@ -143,13 +143,13 @@
 </style>
 </head>
 <body>
-<div class="demo-banner">🔗 협력사 포털 실연동 — 사진·진행상태·검수요청·메시지는 Supabase 실데이터(실시간). 발주 원천은 UNIERP 구조(M_PUR_REQ·M_PUR_ORD·Q_INSPECTION·M_IV) 기반 마스킹 샘플(ERP 직연계 전).</div>
+<div class="demo-banner">🔗 ERP 발주원장 실연동 — 발주·입고·매입 진행상태는 중간DB(<code style="color:#fff;background:transparent;border:0">v_erp_pur_order_hdr</code>) 실데이터. 협력사 등록 사진·검수·메시지는 Supabase 실시간 오버레이. (ERP 야간배치 사본 · 유니포인트 매핑 파일럿)</div>
 <div class="page">
 
   <div class="head">
     <div>
-      <h1>🔄 외주 발주 전체 프로세스 현황</h1>
-      <div class="sub">구매요청 → 발주 → 협력사(발주확인·접수·생산·사진·검수요청·출하) → 입고 → 매입 · 발주별 한눈에</div>
+      <h1>🔄 발주 전체 프로세스 현황</h1>
+      <div class="sub">ERP 발주원장(발주 PO → 입고 GR → 매입 IV) 전체 + 협력사 연계 외주(발주확인·생산·사진·검수·출하) 오버레이 · 발주별 한눈에</div>
     </div>
     <div class="right">기준일: <span id="baseDate">—</span></div>
   </div>
@@ -187,7 +187,7 @@
   <div id="board"></div>
 
   <div class="src">
-    <b>데이터 원천 (UNIERP 읽기전용 + 협력사 포털)</b> — 구매요청 <code>M_PUR_REQ</code> · 발주 <code>M_PUR_ORD_HDR/DTL</code> · 발주형태 <code>M_CONFIG_PROCESS</code>(SUBCONTRA_FLG) · 입고/출하/검사판정 <code>M_PUR_GOODS_MVMT</code>(MVMT_RCPT_NO·DN_NO·INSPECT_REQ_NO·INSPECT_STS) · 검사 <code>Q_INSPECTION_*</code> · 매입 <code>M_IV_HDR/DTL</code> · 거래처 <code>B_BP</code> · 품목 <code>B_ITEM</code>. 협력사 등록 사진은 <b>실사진</b>(Supabase Storage, 서명 URL)으로 표시되며, 접근 불가 시에만 참조 이미지(SVG)로 폴백됩니다.
+    <b>데이터 원천 (ERP 중간DB 실연동 + 협력사 포털 오버레이)</b> — 발주 원장(헤더 집계) <code>v_erp_pur_order_hdr</code> ← <code>erp_ro.pur_order_s</code>(UNIERP <code>M_PUR_ORD</code> 야간배치 사본): 발주(PO)·입고(GR)·매입(IV) 진행상태를 라인→발주(po_no) 단위로 집계(가장 덜 진행된 라인 기준). 협력사 연계 발주(같은 po_no)는 <code>sp_photo</code>(사진)·<code>sp_inspection</code>(검수판정)·<code>sp_message</code>(메시지)·<code>sp_order_state</code>(상태)를 <b>실시간 오버레이</b>. 사진은 실사진(Supabase Storage 서명 URL), 접근 불가 시 참조 이미지(SVG)로 폴백. <b>참고</b>: 현재 ERP 스냅샷은 외주구분(SUBCONTRA_FLG)이 전건 <code>N</code>이라 외주/일반 분리는 ETL 매핑 보정 후 반영 예정(유니포인트 협의).
   </div>
   <div class="foot"><span>외주 발주 전체 프로세스 현황 · 구매·품질·생산·사업관리 공유</span><span>등록: 구매팀 · 부서 공유</span></div>
 </div>
@@ -225,17 +225,36 @@
 
 <script type="module">
 import { supabase } from "../app/lib/supabaseClient.js";
-import { portalApi } from "../app/lib/api.js";
+import { portalApi, erpApi } from "../app/lib/api.js";
 
 // JWT(base64url, UTF-8) 디코드 → app_metadata(role 등)
 function claimsOf(session){ if(!session||!session.access_token) return {}; try{ let p=session.access_token.split('.')[1].replace(/-/g,'+').replace(/_/g,'/'); while(p.length%4)p+='='; return JSON.parse(decodeURIComponent(atob(p).split('').map(c=>'%'+c.charCodeAt(0).toString(16).padStart(2,'0')).join(''))).app_metadata||{}; }catch(e){ return {}; } }
 // 세션 없으면 1회 자동 Azure SSO(가드 ?sso=1)
 function autoSSO(){ const u=new URL(location.href); u.searchParams.set('sso','1'); supabase.auth.signInWithOAuth({provider:'azure',options:{scopes:'openid email profile',redirectTo:u.toString()}}); }
-// 발주 캐시(Supabase getOrders 결과 — RLS상 사내는 전체)
+// 발주 캐시: ERP 발주원장(v_erp_pur_order_hdr) 기본 + 협력사 포털(sp_*) 오버레이. RLS상 사내는 전체.
 let ORDERS=[];
 async function loadData(){
-  ORDERS = await portalApi.getOrders();
-  // 협력사 등록 사진 → signed URL 일괄 발급(캐시)로 src 주입
+  const [erpHdrs, supOrders] = await Promise.all([
+    erpApi.purOrderHeaders().catch(e=>{ console.warn('ERP 발주원장 로드 실패:', e.message||e); return []; }),
+    portalApi.getOrders().catch(e=>{ console.warn('협력사 포털 로드 실패:', e.message||e); return []; }),
+  ]);
+  const supByPo={}; supOrders.forEach(o=>{ supByPo[o.no]=o; });
+  const used=new Set(); const merged=[];
+  // ERP 발주원장 기준 base — 같은 po_no의 협력사 등록분은 오버레이(사진·검수·메시지·상태)
+  erpHdrs.forEach(h=>{
+    const s=supByPo[h.po_no];
+    if(s){ used.add(h.po_no); merged.push(Object.assign({}, s, { _link:true, _erp:true,
+      amt: s.amt||h.amt, date: s.date||h.po_dt, due: s.due||h.dlvy_dt,
+      items_txt:h.items_txt, line_cnt:h.line_cnt, item_cnt:h.item_cnt, po_sts:h.po_sts })); }
+    else { merged.push({ no:h.po_no, bp:h.bp_code, vendor_name:h.bp_name, proj:'-',
+      amt:h.amt, date:h.po_dt, due:h.dlvy_dt, po_sts:h.po_sts, subcontra_flg:h.subcontra_flg,
+      items_txt:h.items_txt, line_cnt:h.line_cnt, item_cnt:h.item_cnt,
+      _link:false, _erp:true, photos:[], msgs:[] }); }
+  });
+  // 협력사 포털에만 있고 ERP 원장에 아직 없는 발주(현 데모 시드 등)도 누락 없이 표시
+  supOrders.forEach(o=>{ if(!used.has(o.no)) merged.push(Object.assign({}, o, { _link:true, _erp:false })); });
+  ORDERS = merged;
+  // 협력사 등록 사진 → signed URL 일괄 발급(캐시)로 src 주입(연계건만)
   const paths = ORDERS.flatMap(o=>(o.photos||[]).map(p=>p.storage_path)).filter(Boolean);
   const urls = paths.length ? await portalApi.photoUrls(paths) : {};
   ORDERS.forEach(o=>(o.photos||[]).forEach(p=>{ p.src = urls[p.storage_path] || ''; }));
@@ -299,43 +318,70 @@ const won=n=>n.toLocaleString();
 const SUP_TXT={new:'신규접수',prod:'생산중',insp:'검수요청',rework:'재작업(불합격)',done:'완료'};
 let LB=[];
 
-// Supabase 발주 객체 → 보드 행 구조로 변환
+// 발주 객체(ERP 원장 ± 협력사 오버레이) → 보드 행 구조로 변환
 function toRow(o){
-  const sub=o.type!=='DIV';
-  // 상태머신 v2(03_실구축기획/08): 판정이 상태를 전이시킨다 — 합격→done, 불합격→rework.
-  let cur = (o.status==='new'?IDX('rcv')
-    : o.status==='prod'?((o.photos&&o.photos.length)?IDX('pho'):IDX('prd'))
-    : o.status==='rework'?IDX('prd')
-    : o.status==='insp'?(sub?IDX('isp'):IDX('shp'))
-    : o.status==='done'?IDX('iv'): IDX('cfm'));
+  const link=!!o._link, erpOnly=!link;
+  const sub= link ? (o.type!=='DIV') : (o.subcontra_flg==='Y');
+  let cur, fail=false, done=false;
+  if(link){
+    // 협력사 상태머신 v2(03_실구축기획/08): 판정이 상태를 전이 — 합격→done, 불합격→rework.
+    const st=o.status||'new';
+    fail=(st==='rework'); done=(st==='done');
+    cur = done?10
+      : st==='new'?IDX('rcv')
+      : st==='prod'?((o.photos&&o.photos.length)?IDX('pho'):IDX('prd'))
+      : st==='rework'?IDX('prd')
+      : st==='insp'?(sub?IDX('isp'):IDX('shp'))
+      : IDX('cfm');
+  } else {
+    // ERP 원장: po_sts(PO 발주 / GR 입고 / IV 매입). 협력사 존은 skip(dashed).
+    const s=o.po_sts||'PO';
+    done=(s==='IV');
+    cur = done?10 : (s==='GR'?IDX('grn'):IDX('po'));
+  }
   const insMeta=o.inspection||null;
-  const fail=(o.status==='rework'); // 불합격 → 재작업 상태
   const items=o.items||[];
+  const itemStr= link ? items.map(i=>i.nm+(i.pn?(' 〈'+i.pn+'〉'):'')).join(', ')
+                      : ((o.items_txt||'-')+((o.item_cnt>8)?' …':''));
+  const qtyStr= link ? items.map(i=>i.qty+' '+(i.unit||'')).join(', ')
+                     : ((o.line_cnt||0)+'개 라인'+(o.item_cnt?(' · 품목 '+o.item_cnt):''));
   return {
-    pr:'-', po:o.no, type:o.type, sub, link:true,
+    pr:'-', po:o.no, type: link?o.type:(sub?'외주':'구매'), sub, link, erpOnly, done,
+    _pos: erpOnly?(o.po_sts||'PO'):(done?'IV':''),
     bp:o.vendor_name||o.bp||'', proj:o.proj||'-', odt:o.date, due:o.due, amt:o.amt||0,
-    item: items.map(i=>i.nm+(i.pn?(' 〈'+i.pn+'〉'):'')).join(', '),
-    qty: items.map(i=>i.qty+' '+(i.unit||'')).join(', '),
+    item:itemStr, qty:qtyStr,
     photos: (o.photos||[]).map(p=>({id:p.id,src:p.src||'',storage_path:p.storage_path||'',tag:p.tag,cap:(p.cmt||p.tag||'').slice(0,8),cmt:p.cmt,k:kindFromText((p.cmt||'')+(p.tag||'')),by:p.by,t:p.t,chk:p.chk,rejReason:p.rejReason||'',reviewBy:p.reviewBy||'',reviewAt:p.reviewAt||''})),
-    chain:cur, cur,
-    fail,
+    chain:cur, cur, fail,
     _sup: ((o.photos&&o.photos.length)||(o.msgs&&o.msgs.length))?true:false,
-    _supTxt: SUP_TXT[o.status]||'',
+    _supTxt: link?(SUP_TXT[o.status]||''):'',
     _photoCount:(o.photos||[]).length, _msgCount:(o.msgs||[]).length,
     _lastMsg:(o.msgs&&o.msgs.length)?((o.msgs[o.msgs.length-1].who==='me'?'협력사: ':'구매: ')+o.msgs[o.msgs.length-1].text):'',
     insp:{ req:o.inspReqNo||'-', res:(insMeta&&insMeta.resultNo)||'-', items:'치수/외관', ac:'-', re:(insMeta&&insMeta.result==='합격')?'0':'-',
-      judge: insMeta?(insMeta.result==='합격'?'합격 (검수확정)':'불합격 (재작업)'):(o.inspReqNo?'검사신청(협력사 요청)':'진행중'),
+      judge: insMeta?(insMeta.result==='합격'?'합격 (검수확정)':'불합격 (재작업)'):(o.inspReqNo?'검사신청(협력사 요청)':(erpOnly?'-':'진행중')),
       by:(insMeta&&insMeta.by)||'-', dt:((insMeta&&insMeta.at)||'').slice(0,10) },
-    _canInspect: (o.status==='insp' && !insMeta), // 검사 대기 + 판정 전 — 재검수요청 시 판정이 리셋되어 재판정 가능
+    _canInspect: (link && o.status==='insp' && !insMeta), // 검사 대기 + 판정 전(협력사 연계건만)
     _inspBy:(insMeta&&insMeta.by)||'', _inspAt:(insMeta&&insMeta.at)||'',
     msgs: o.msgs||[]
   };
 }
+// 진행 카테고리(KPI·분포 단일 분류): 발주 원장(PO/GR/IV) + 협력사 세부(생산·검수·재작업)
+function cat(r){
+  if(r.fail) return 'rework';
+  if(r.done) return 'done';
+  if(r.link){
+    if(r.cur===IDX('isp')) return 'insp';
+    if(r.cur===IDX('prd')||r.cur===IDX('pho')) return 'making';
+    if(r.cur===IDX('shp')||r.cur===IDX('grn')) return 'ship';
+    return 'order';
+  }
+  return r._pos==='GR' ? 'ship' : 'order';
+}
 function buildRows(){
   const rows=ORDERS.map(toRow);
   const el=document.getElementById('linkState'),em=document.getElementById('linkMeta');
-  if(ORDERS.length>0){ el.textContent='● 활성 ('+ORDERS.length+'건)'; em.textContent='Supabase 실시간 연계 · 협력사 포털 등록분 즉시 반영'; }
-  else{ el.textContent='○ 발주 없음'; em.textContent='협력사 계정 발급 후 발주가 등록되면 표시됩니다.'; }
+  const link=rows.filter(r=>r.link).length;
+  if(ORDERS.length>0){ el.textContent='● 활성 (ERP 발주 '+ORDERS.length+'건'+(link?' · 협력사 연계 '+link:'')+')'; em.textContent='ERP 발주원장 실연동 + 협력사 포털(사진·검수·메시지) 오버레이'; }
+  else{ el.textContent='○ 발주 없음'; em.textContent='ERP 연동 데이터가 없습니다(사내 계정 로그인 필요).'; }
   return rows;
 }
 function fillProjOptions(){
@@ -361,15 +407,16 @@ function visibleRows(){
 function resetQ(){ document.getElementById('fProj').value='all'; document.getElementById('fItem').value=''; document.getElementById('fPeriod').value='all'; document.getElementById('onlyLink').checked=false; render(); }
 
 function curBadge(r){ if(r.fail) return '<span class="stg s-hold">재작업 · 불합격</span>';
-  if(r.cur>=IDX('iv')) return '<span class="stg s-done">완료 · 매입</span>';
-  const s=STAGES[r.cur]; const cls=s.z==='jeil'?'s-jeil':s.z==='sup'?'s-sup':'s-erp';
+  if(r.done) return '<span class="stg s-done">완료 · 매입</span>';
+  const s=STAGES[Math.min(r.cur,STAGES.length-1)]; const cls=s.z==='jeil'?'s-jeil':s.z==='sup'?'s-sup':'s-erp';
   return '<span class="stg '+cls+'">'+s.l+(r._supTxt&&s.z==='sup'?' (협력사)':'')+'</span>'; }
 
 function procBar(r){
   const zones=[['jeil','🏢 JEIL'],['sup','🤝 협력사'],['erp','📦 ERP']];
   return '<div class="proc">'+zones.map(zz=>{ const z=zz[0]; const ns=STAGES.filter(s=>s.z===z);
     return '<div class="zone '+z+'"><div class="zname">'+zz[1]+'</div><div class="znodes">'+ns.map(s=>{ const i=IDX(s.k);
-      const skip=s.cond&&!r.sub; let cls= skip?'skip':(r.fail&&i===IDX('isp'))?'fail':(i<r.cur?'done':(i===r.cur?'cur'+(s.z==='sup'?' supc':''):''));
+      // ERP 원장만인 발주는 협력사 존 전체를 미해당(skip)으로 표기
+      const skip=(s.cond&&!r.sub)||(r.erpOnly&&s.z==='sup'); let cls= skip?'skip':(r.fail&&i===IDX('isp'))?'fail':(i<r.cur?'done':(i===r.cur?'cur'+(s.z==='sup'?' supc':''):''));
       return '<div class="node '+cls+'"><div class="circ">'+(cls==='done'?'✓':s.ic)+'</div><div class="nl">'+s.l+'</div></div>';
     }).join('')+'</div></div>';
   }).join('')+'</div>';
@@ -457,7 +504,7 @@ function cardHTML(r,i){
       +(r.insp.res!=='-'?'<span class="pill '+(r.insp.judge.indexOf('불합격')>=0?'r':'g')+'">'+r.insp.judge+'</span>':'')
       +(r.photos&&r.photos.length?'<span class="pill pur">📷 '+r.photos.length+'</span>':'')
       +(r._canInspect?'<button class="ibtn" onclick="openInspect('+i+')">🔬 검수 판정</button>':'')
-      +'<span class="pill" style="cursor:pointer;background:var(--softpur);color:var(--purple)" onclick="openMsg('+i+')">💬 메시지'+(mc?(' '+mc):'')+'</span>'
+      +(r.link?'<span class="pill" style="cursor:pointer;background:var(--softpur);color:var(--purple)" onclick="openMsg('+i+')">💬 메시지'+(mc?(' '+mc):'')+'</span>':'<span class="pill" style="background:var(--zErp);color:var(--teal)">ERP 원장</span>')
       +'<span class="expand" onclick="toggleDet('+i+')">상세 ▾</span>'
     +'</div>'+detail+'</div>';
 }
@@ -465,35 +512,39 @@ function cardHTML(r,i){
 function renderBoard(){
   LB=[]; const rows=visibleRows(); const box=document.getElementById('board');
   if(!rows.length){ box.innerHTML='<div class="ocard" style="text-align:center;color:var(--muted)">조건에 맞는 발주가 없습니다.</div>'; return; }
+  // 발주월(YYYY-MM) 그룹, 최신월 우선
+  const groups={};
+  rows.forEach(r=>{ const ym=String(r.odt||'').slice(0,7)||'기타'; (groups[ym]=groups[ym]||[]).push(r); });
+  const yms=Object.keys(groups).sort().reverse();
   let html=''; let gi=0;
-  GROUP_ORDER.forEach(t=>{ const gr=rows.filter(r=>r.type===t); if(!gr.length) return;
-    const info=PT[t]; const sum=gr.reduce((s,r)=>s+r.amt,0);
-    html+='<div class="grphead"><span class="gt">'+t+' '+info.nm+'</span><span class="gtag '+(info.sub?'sub':'gen')+'">'+(info.sub?'외주(사급)':'일반')+'</span><span class="gcnt">'+gr.length+'건 · 발주액 '+won(sum)+'원</span></div>';
+  yms.forEach(ym=>{ const gr=groups[ym].sort((a,b)=>String(b.odt).localeCompare(String(a.odt)));
+    const sum=gr.reduce((s,r)=>s+r.amt,0); const linked=gr.filter(r=>r.link).length;
+    const label= /^\d{4}-\d{2}$/.test(ym)?(ym.slice(0,4)+'년 '+Number(ym.slice(5,7))+'월'):'기타';
+    html+='<div class="grphead"><span class="gt">'+label+'</span>'
+      +(linked?'<span class="gtag sub">🔗 협력사 연계 '+linked+'</span>':'<span class="gtag gen">ERP 원장</span>')
+      +'<span class="gcnt">'+gr.length+'건 · 발주액 '+won(sum)+'원</span></div>';
     html+=gr.map(r=>cardHTML(r,gi++)).join('');
   });
   box.innerHTML=html;
 }
 function renderKPI(){ const rows=visibleRows();
-  const done=rows.filter(r=>r.cur>=IDX('iv')).length;
-  const hold=rows.filter(r=>r.fail).length;
-  const insp=rows.filter(r=>r.cur===IDX('isp')&&!r.fail).length;
-  const prog=rows.filter(r=>!r.fail && r.cur<IDX('iv')).length;
-  const k=[{c:'',v:rows.length,l:'전체 발주'},{c:'amber',v:prog,l:'진행중'},{c:'pur',v:insp,l:'검사중'},{c:'green',v:done,l:'완료(매입)'},{c:'red',v:hold,l:'재작업(불합격)'}];
+  const c=k=>rows.filter(r=>cat(r)===k).length;
+  const order=c('order'), ship=c('ship'), done=c('done'), link=rows.filter(r=>r.link).length;
+  const k=[{c:'',v:rows.length,l:'전체 발주'},{c:'amber',v:order,l:'발주(PO)'},{c:'',v:ship,l:'입고(GR)'},{c:'green',v:done,l:'완료·매입(IV)'},{c:'pur',v:link,l:'협력사 연계'}];
   document.getElementById('kpis').innerHTML=k.map(x=>'<div class="kpi '+x.c+'"><div class="v">'+x.v+'</div><div class="lb">'+x.l+'</div></div>').join('');
 }
-function renderDist(){ const rows=visibleRows();
+function renderDist(){ const rows=visibleRows(); const C=rows.map(cat);
   const segs=[
-   {l:'발주·접수',c:'#27457a',f:r=>!r.fail&&r.cur<=IDX('rcv')},
-   {l:'생산·사진',c:'#9a6b1f',f:r=>!r.fail&&(r.cur===IDX('prd')||r.cur===IDX('pho'))},
-   {l:'검사',c:'#6b4a9a',f:r=>!r.fail&&r.cur===IDX('isp')},
-   {l:'출하·입고',c:'#1f7a7a',f:r=>!r.fail&&(r.cur===IDX('shp')||r.cur===IDX('grn'))},
-   {l:'완료',c:'#2e7d52',f:r=>!r.fail&&r.cur>=IDX('iv')},
-   {l:'재작업',c:'#b3402f',f:r=>r.fail}
+   {l:'발주(PO)',c:'#27457a',ks:['order']},
+   {l:'생산·검수(협력사)',c:'#9a6b1f',ks:['making','insp']},
+   {l:'입고(GR)',c:'#1f7a7a',ks:['ship']},
+   {l:'완료·매입(IV)',c:'#2e7d52',ks:['done']},
+   {l:'재작업',c:'#b3402f',ks:['rework']}
   ];
-  const tot=rows.length||1;
-  document.getElementById('distbar').innerHTML=segs.map(s=>{ const n=rows.filter(s.f).length; if(!n) return '';
+  const tot=rows.length||1; const cnt=s=>C.filter(x=>s.ks.includes(x)).length;
+  document.getElementById('distbar').innerHTML=segs.map(s=>{ const n=cnt(s); if(!n) return '';
     return '<div style="width:'+(n/tot*100)+'%;background:'+s.c+'">'+n+'</div>'; }).join('');
-  document.getElementById('distleg').innerHTML=segs.map(s=>{ const n=rows.filter(s.f).length;
+  document.getElementById('distleg').innerHTML=segs.map(s=>{ const n=cnt(s);
     return '<span><span class="dot2" style="background:'+s.c+'"></span>'+s.l+' <b>'+n+'</b></span>'; }).join('');
 }
 
