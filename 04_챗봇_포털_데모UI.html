@@ -1125,14 +1125,17 @@ function demoEnter(){
 }
 function authDone(claims){
   document.getElementById('loginOv').style.display='none';
+  var live = !!getLiveAuth();   // 실제 사용 가능한 액세스 토큰 유무 — 배지/사용 상태의 진실
   if(claims){
-    setUser(claims.name || '인증 사용자', claims.preferred_username || claims.email, (claims.preferred_username||'') + ' · MFA 인증');
+    setUser(claims.name || '인증 사용자', claims.preferred_username || claims.email, (claims.preferred_username||'') + (live ? ' · MFA 인증' : ' · 제한 모드'));
   } else {
-    setUser('인증 사용자', '', 'Entra 로그인 완료 · MFA 인증');
+    setUser('인증 사용자', '', live ? 'Entra 로그인 완료 · MFA 인증' : '제한 모드 · 재로그인 필요');
   }
-  setAuthBadge('🔒 Entra ID SSO · MFA 인증됨');
+  // 토큰 미확보(교환 실패 등)면 "인증됨"으로 오인시키지 않고 재로그인을 안내
+  setAuthBadge(live ? '🔒 Entra ID SSO · MFA 인증됨' : '⚠️ 로그인 필요 — 실데이터는 재로그인 후 동작');
   loadProfilePhoto();
   loadPagePerms(); // 로그인 후 부서 운영 카드를 내 권한 기준으로 재구성
+  if(live) scheduleTokenRefresh(); // 토큰 있으면 만료 전 사전 갱신 예약
 }
 function parseJwt(t){
   try{
@@ -1243,6 +1246,8 @@ function doLogin(){ if(IN_TEAMS){ loginInTeams(); } else { msLogin('select_accou
 
   // ── 일반 브라우저 / Teams 탭 임베드 공통 흐름 ──
   handleAuthCallback();
+  restoreSessionUI();   // 저장된(유효/갱신가능) 토큰이면 로그인 UI 복원 — 재로드 후에도 실데이터 유지
+  scheduleTokenRefresh(); // 만료 전 사전 갱신 예약(세션 자동 유지)
   loadPagePerms(); // 초기 로드 시 부서 운영 카드를 권한 기준으로 구성(미로그인=잠금)
 
   // Teams 탭 호스트 감지 (임베드된 경우에만 initialize 성공)
@@ -1288,6 +1293,68 @@ function getLiveAuth(){
     var a = JSON.parse(localStorage.getItem('jeilax_auth')||'null');
     return (a && a.at && a.exp > Date.now()) ? a : null;
   }catch(e){ return null; }
+}
+
+/* ===== 액세스 토큰 무음 갱신 (offline_access 리프레시 토큰 사용) =====
+   토큰 수명은 약 1시간 — 갱신이 없으면 만료 후 getLiveAuth()가 null이 되어
+   채팅이 조용히 데모 응답으로 폴백한다(로그인 배지는 켜진 채). rt로 자동 갱신해 이를 방지. */
+var _refreshInflight = null;   // 동시 다중 호출 방지(진행 중 Promise 재사용)
+var _refreshTimer = null;      // 만료 임박 시 사전 갱신 예약
+function refreshLiveAuth(){
+  if(_refreshInflight) return _refreshInflight;
+  var a; try{ a = JSON.parse(localStorage.getItem('jeilax_auth')||'null'); }catch(e){ a=null; }
+  if(!a || !a.rt){ return Promise.resolve(null); }
+  _refreshInflight = fetch('https://login.microsoftonline.com/' + ENTRA.tenant + '/oauth2/v2.0/token', {
+    method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'},
+    body: new URLSearchParams({
+      client_id: ENTRA.clientId, grant_type:'refresh_token',
+      refresh_token: a.rt, scope: ENTRA.scopes
+    })
+  }).then(function(r){ return r.json(); }).then(function(tok){
+    if(tok && tok.access_token){
+      var cl = tok.id_token ? parseJwt(tok.id_token) : null;
+      var next = {
+        at: tok.access_token,
+        rt: tok.refresh_token || a.rt,   // 새 리프레시 토큰 없으면 기존 유지(회전 대응)
+        exp: Date.now() + ((tok.expires_in || 3599) * 1000),
+        name: (cl && cl.name) || a.name || '',
+        upn:  (cl && cl.preferred_username) || a.upn || ''
+      };
+      try{ localStorage.setItem('jeilax_auth', JSON.stringify(next)); }catch(e){}
+      return next;
+    }
+    return null;   // invalid_grant 등 = 리프레시 토큰 만료 → 재로그인 필요
+  }).catch(function(){ return null; }).then(function(res){ _refreshInflight = null; return res; });
+  return _refreshInflight;
+}
+/* 유효 토큰 확보(만료·임박이면 갱신 시도). 실패 시 null → 호출측이 데모/재로그인 처리 */
+function ensureAuth(){
+  var a; try{ a = JSON.parse(localStorage.getItem('jeilax_auth')||'null'); }catch(e){ a=null; }
+  if(a && a.at && a.exp > Date.now() + 60000){ return Promise.resolve(a); } // 여유 1분
+  if(a && a.rt){ return refreshLiveAuth(); }
+  return Promise.resolve(null);
+}
+/* 만료 2분 전 사전 갱신 예약(사용자 조작 없이 세션 유지) */
+function scheduleTokenRefresh(){
+  if(_refreshTimer){ clearTimeout(_refreshTimer); _refreshTimer = null; }
+  var a; try{ a = JSON.parse(localStorage.getItem('jeilax_auth')||'null'); }catch(e){ a=null; }
+  if(!a || !a.rt || !a.exp) return;
+  var delay = a.exp - Date.now() - 120000;   // 만료 2분 전
+  if(delay < 0) delay = 0;
+  if(delay > 0x7fffffff) return;             // setTimeout 32비트 한계 방지
+  _refreshTimer = setTimeout(function(){
+    refreshLiveAuth().then(function(){ scheduleTokenRefresh(); });
+  }, delay);
+}
+/* 페이지 재로드 시 저장된 토큰으로 로그인 UI 복원(만료면 갱신 후 복원) */
+function restoreSessionUI(){
+  var a; try{ a = JSON.parse(localStorage.getItem('jeilax_auth')||'null'); }catch(e){ a=null; }
+  if(!a || !a.at) return;
+  if(a.exp && a.exp <= Date.now()){
+    if(a.rt){ refreshLiveAuth().then(function(n){ if(n){ authDone({name:n.name, preferred_username:n.upn}); scheduleTokenRefresh(); } }); }
+    return;
+  }
+  authDone({ name: a.name, preferred_username: a.upn });
 }
 function escHtml(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 function mdLite(s){ // 최소 마크다운: **굵게** + 줄바꿈만 (그 외는 이스케이프)
@@ -1731,13 +1798,13 @@ function saveDeptErp(){
   postAdmin({ action:'save_dept_erp', rows:rows }, '부서별 ERP 모듈 권한');
 }
 
-function send(){
+async function send(){
   const inp=document.getElementById('inp'); const v=inp.value.trim(); if(!v) return;
   inp.value='';
   addUser(v.replace(/</g,'&lt;'));
-  var auth = getLiveAuth();
+  var auth = await ensureAuth();   // 만료·임박이면 리프레시 토큰으로 무음 갱신 시도
   if(auth){ sendLive(v, auth); return; }
-  // 미로그인(데모 모드): 기존 키워드 매칭 데모 응답
+  // 미로그인/갱신실패(데모 모드): 기존 키워드 매칭 데모 응답
   const hit = v.includes('원가')||v.includes('수지')||v.includes('095')||v.includes('프로젝트')||v.includes('매출')?'cost' : v.includes('주간')||v.includes('보고')?'report' : v.includes('규정')||v.includes('휴가')||v.includes('연차')?'rule' : v.includes('메일')?'mail' : null;
   const d = hit?DEMOS[hit]:DEMOS.fallback;
   addAI(d.a + '<br><small style="color:#888">※ MS 로그인하면 실제 AI 응답으로 동작합니다.</small>', d.model);
