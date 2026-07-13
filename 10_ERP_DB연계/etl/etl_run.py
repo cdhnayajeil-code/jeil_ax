@@ -179,7 +179,7 @@ JOBS = {
         """,
         "params": ["year_start", "year_end"],
     },
-    # ④ 자재 재고 입출고 일집계 ← M_PUR_GOODS_MVMT (롤링 31일)
+    # ④ 자재 재고 입출고 일집계 ← M_PUR_GOODS_MVMT (2026년 전체)
     #    ⚠ in/out 분류(IO_TYPE_CD 체계: R01=입고, T62=이동 등)는 dry-run으로 코드 분포 확인 후 확정
     "inventory": {
         "table": "inventory_d",
@@ -189,10 +189,10 @@ JOBS = {
                    SUM(CASE WHEN IO_TYPE_CD LIKE 'R%' THEN MVMT_BASE_QTY ELSE 0 END) AS in_qty,
                    SUM(CASE WHEN IO_TYPE_CD NOT LIKE 'R%' THEN MVMT_BASE_QTY ELSE 0 END) AS out_qty
             FROM JEILMNS.dbo.M_PUR_GOODS_MVMT WITH (NOLOCK)
-            WHERE MVMT_DT >= ?
+            WHERE MVMT_DT >= ? AND MVMT_DT < ?
             GROUP BY CONVERT(date, MVMT_DT), ITEM_CD, ISNULL(MVMT_SL_CD, '-')
         """,
-        "params": ["daily_start"],
+        "params": ["year_start", "year_end"],
     },
 }
 
