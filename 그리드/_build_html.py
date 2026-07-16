@@ -3,11 +3,12 @@
 그리드/ 폴더의 가이드 .md 를 공유 스타일 HTML 로 변환한다.
 기존 '실제구축준비 자료/이관/_build_html.py' 와 동일한 톤(네이비/콜아웃/표)을 따른다.
 사용: python _build_html.py
-주의: index.html 은 자체완결 데모라 빌드 대상에서 제외(직접 관리).
+주의: index.html의 GRID_*_INLINE 마커 블록은 이 스크립트가 주입(그 외 영역은 직접 관리).
 """
-import os, markdown
+import os, re, markdown
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+ROOT = os.path.dirname(HERE)  # 프로젝트 루트 (app/lib/grid.js·grid.css 위치 계산용)
 
 DOCS = [
     ("표준그리드_가이드", "표준 그리드 가이드", "app/lib/grid.js 사용법·API·마이그레이션 규약(단일 출처)"),
@@ -89,5 +90,62 @@ def build():
         open(out, 'w', encoding='utf-8').write(html)
         print('built:', slug + '.html')
 
+# ---------------------------------------------------------------------------
+# index.html 자기완결화(inline_demo)
+# 원본 단일 출처(app/lib/grid.js · app/lib/grid.css)는 읽기만 하고 절대 수정하지
+# 않는다. index.html의 GRID_CSS_INLINE / GRID_JS_INLINE 마커 블록 "안쪽 내용만"
+# 매 실행마다 통째로 재생성해 주입한다 — file:// 더블클릭으로도 데모가 동작하게.
+# ---------------------------------------------------------------------------
+
+CSS_MARK_RE = re.compile(
+    r'(<!-- \[GRID_CSS_INLINE 시작\].*?-->\s*<style>)(.*?)(</style>\s*<!-- \[GRID_CSS_INLINE 끝\] -->)',
+    re.DOTALL,
+)
+JS_MARK_RE = re.compile(
+    r'(<!-- \[GRID_JS_INLINE 시작\].*?-->\s*<script>)(.*?)(</script>\s*<!-- \[GRID_JS_INLINE 끝\] -->)',
+    re.DOTALL,
+)
+
+def transform_grid_js(src):
+    """app/lib/grid.js(ESM export)를 비모듈 <script> 인라인에서 그대로 동작하도록 변환한다.
+    아래 두 패턴을 정확히 치환한다 — grid.js의 export 형태가 바뀌면(리팩터링 등)
+    빌드가 시끄럽게 실패해 드리프트를 즉시 감지하게 한다(패턴을 못 찾으면 에러로 중단)."""
+    if '</script>' in src:
+        raise SystemExit('[중단] grid.js 안에 "</script>" 문자열이 있습니다 — 인라인 주입 시 <script> 블록이 조기 종료됩니다.')
+
+    m1 = 'export function createGrid'
+    if m1 not in src:
+        raise SystemExit(f'[중단] grid.js에서 예상 패턴을 찾지 못했습니다: {m1!r} (export 형태가 바뀌었다면 _build_html.py의 transform_grid_js()도 함께 갱신하세요)')
+    src = src.replace(m1, 'function createGrid', 1)
+
+    m2 = 'export { esc as gridEsc, isEmail as gridIsEmail };'
+    if m2 not in src:
+        raise SystemExit(f'[중단] grid.js에서 예상 패턴을 찾지 못했습니다: {m2!r} (export 형태가 바뀌었다면 _build_html.py의 transform_grid_js()도 함께 갱신하세요)')
+    src = src.replace(m2, 'window.gridEsc = esc; window.gridIsEmail = isEmail; /* (인라인 빌드) 모듈 export 대체 */', 1)
+
+    return src
+
+def inline_demo():
+    css_path = os.path.join(ROOT, 'app', 'lib', 'grid.css')
+    js_path = os.path.join(ROOT, 'app', 'lib', 'grid.js')
+    index_path = os.path.join(HERE, 'index.html')
+
+    css_src = open(css_path, encoding='utf-8').read()
+    js_src = transform_grid_js(open(js_path, encoding='utf-8').read())
+
+    html = open(index_path, encoding='utf-8').read()
+    if not CSS_MARK_RE.search(html):
+        raise SystemExit('[중단] index.html에 [GRID_CSS_INLINE 시작/끝] 마커 블록이 없습니다.')
+    if not JS_MARK_RE.search(html):
+        raise SystemExit('[중단] index.html에 [GRID_JS_INLINE 시작/끝] 마커 블록이 없습니다.')
+
+    # repl을 함수로 넘겨 정규식 백참조(\1 등) 오인식을 피한다(CSS/JS 원문에 백슬래시가 많음).
+    html = CSS_MARK_RE.sub(lambda m: m.group(1) + '\n' + css_src.strip('\n') + '\n' + m.group(3), html, count=1)
+    html = JS_MARK_RE.sub(lambda m: m.group(1) + '\n' + js_src.strip('\n') + '\n' + m.group(3), html, count=1)
+
+    open(index_path, 'w', encoding='utf-8').write(html)
+    print(f'inlined: index.html ← grid.css({len(css_src)}B) + grid.js({len(js_src)}B, 변환됨)')
+
 if __name__ == '__main__':
     build()
+    inline_demo()
