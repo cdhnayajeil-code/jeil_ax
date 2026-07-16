@@ -36,17 +36,133 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 .warn{background:#fcf6ec;border:1px solid #ecdcbf;border-radius:12px;padding:16px 20px;font-size:13px;color:#5c4a23;}
 .warn b{color:var(--amber);}
 .footer{margin-top:40px;padding-top:18px;border-top:1px solid var(--line);font-size:12px;color:var(--muted);display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;}
+/* ===== 총괄 대시보드·탭 (2026-07-16 신설) — 기존 클래스와 이름 분리(.panel 충돌 회피) ===== */
+.tabbar{display:none;gap:4px;margin-top:26px;border-bottom:2px solid var(--line);overflow-x:auto;}
+body.js .tabbar{display:flex;}
+.tabbtn{background:none;border:none;border-bottom:3px solid transparent;padding:13px 18px;font-size:15px;font-weight:700;cursor:pointer;color:var(--muted);white-space:nowrap;margin-bottom:-2px;font-family:inherit;}
+.tabbtn.on{color:var(--navy);border-bottom-color:var(--accent);}
+.tabbtn:hover{color:var(--navy);}
+body.js .tabpane{display:none;}
+body.js .tabpane.on{display:block;}
+.status{background:var(--soft);border-left:5px solid var(--navy);border-radius:0 8px 8px 0;padding:14px 20px;margin-top:26px;font-size:14px;color:#33425a;}
+.status a{color:var(--accent);}
+.h2sub{font-size:12px;color:#9aa6b6;font-weight:400;margin-left:6px;}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(148px,1fr));gap:12px;}
+.kpi{background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px 16px;}
+.kpi .v{font-size:23px;font-weight:800;color:var(--navy);line-height:1.2;}
+.kpi .k{font-size:12px;color:var(--muted);margin-top:3px;}
+.kpi .s{font-size:11px;color:#9aa6b6;margin-top:5px;}
+.kpi.alert .v{color:var(--red);}
+.acards{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:14px;}
+.acard{background:#fff;border:1px solid var(--line);border-radius:12px;padding:16px 18px;}
+.acard h3{font-size:15px;color:var(--navy);display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.acard .note{font-size:12.8px;color:var(--muted);margin-top:8px;}
+.acard .meta{margin-top:10px;font-size:11px;color:#9aa6b6;display:flex;gap:10px;flex-wrap:wrap;}
+.acard .meta a{color:var(--accent);text-decoration:none;}
+.acard .meta a:hover{text-decoration:underline;}
+.st{font-size:11px;padding:2px 10px;border-radius:20px;font-weight:600;white-space:nowrap;}
+.st-run{background:#dff0e4;color:var(--green);}
+.st-build{background:#e3eefa;color:var(--accent);}
+.st-pilot{background:#f7ecd8;color:var(--amber);}
+.st-plan{background:#eee;color:#777;}
+.pctline{display:flex;align-items:center;gap:10px;margin-top:10px;}
+.pctline .num{font-size:12px;font-weight:700;color:var(--navy);min-width:38px;text-align:right;}
+.bar{flex:1;height:8px;background:var(--soft);border:1px solid var(--line);border-radius:6px;overflow:hidden;}
+.bar i{display:block;height:100%;background:var(--accent);}
+.bar.run i{background:var(--green);}
+.bar.pilot i{background:var(--amber);}
+.bar.plan i{background:#9aa6b6;}
+.gate{margin-top:9px;font-size:11.5px;background:#fcf6ec;border:1px solid #ecdcbf;color:#5c4a23;border-radius:8px;padding:6px 10px;}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;}
+.chip{font-size:12px;padding:4px 12px;border-radius:20px;background:#fff;border:1px solid var(--line);cursor:pointer;color:var(--muted);font-family:inherit;}
+.chip.on{background:var(--navy);color:#fff;border-color:var(--navy);}
+.tl{background:#fff;border:1px solid var(--line);border-radius:12px;padding:6px 18px;}
+.tl .row{display:flex;gap:12px;padding:9px 0;border-bottom:1px solid #eef1f6;font-size:13px;align-items:baseline;}
+.tl .row:last-child{border-bottom:none;}
+.tl .d{min-width:86px;color:#9aa6b6;font-size:12px;white-space:nowrap;}
+.tl .tag{font-size:11px;color:var(--accent);min-width:74px;white-space:nowrap;}
+.morebtn{display:block;width:100%;margin-top:10px;padding:9px;background:var(--soft);border:1px solid var(--line);border-radius:8px;cursor:pointer;font-size:12.5px;color:var(--navy);font-family:inherit;}
+.morebtn:hover{border-color:var(--accent);}
+.dgrid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+@media(max-width:760px){.dgrid{grid-template-columns:1fr;}}
+.dbox{background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px 18px;}
+.dbox h3{font-size:13.5px;color:var(--navy);margin-bottom:6px;}
+.drow{display:flex;gap:8px;padding:8px 0;border-bottom:1px solid #eef1f6;font-size:12.8px;align-items:baseline;flex-wrap:wrap;}
+.drow:last-child{border-bottom:none;}
+.did{font-size:11px;color:#9aa6b6;font-family:Consolas,monospace;min-width:34px;}
+.drow .tt{flex:1;min-width:180px;}
+.drow .nn{color:#9aa6b6;}
+.drow .src{font-size:11px;color:#9aa6b6;}
+.dday{font-size:11px;padding:2px 9px;border-radius:20px;background:var(--soft);color:var(--navy2);font-weight:700;white-space:nowrap;}
+.dday.soon{background:#f7e6e2;color:var(--red);}
+.dday.past{background:var(--red);color:#fff;}
+.agrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:14px;}
+.ag{background:#fff;border:1px solid var(--line);border-radius:12px;padding:15px 18px;}
+.ag h3{font-size:14.5px;color:var(--navy);display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+.ag .aid{font-size:11px;color:#9aa6b6;font-family:Consolas,monospace;margin-top:2px;}
+.ag p{font-size:12.5px;color:var(--muted);margin-top:6px;}
+.ag .meta{margin-top:8px;font-size:11px;color:#9aa6b6;}
+.fallback{font-size:12.5px;color:var(--muted);}
+.fallback a{color:var(--accent);}
 </style>
 </head>
 <body>
 <div class="wrap">
 
   <div class="hero">
-    <span class="label">JEIL AX · 관리체계 허브 · 대외비</span>
-    <h1>AI 포털 관리체계 대시보드</h1>
-    <p>프로젝트 전체의 <b style="color:#fff">기준정보</b>(조직·권한·ERP매핑·프로세스)와 <b style="color:#fff">문서·변경관리</b>를 한 곳에서 관리합니다. 흩어지기 쉬운 기준을 모아 단일 출처로 유지합니다.</p>
-    <div class="meta">기준일 2026-06-30 · 관리: 최동혁(dh.choi@jeilm.co.kr) · 단일 출처(Single Source of Truth)</div>
+    <span class="label">JEIL AX · 총괄 대시보드 · 관리체계 허브 · 대외비</span>
+    <h1>JEIL AX 총괄 대시보드 · 관리체계 허브</h1>
+    <p>프로젝트 전체의 <b style="color:#fff">진행상황·의사결정</b>을 한눈에 보는 <b style="color:#fff">총괄 대시보드</b>와, <b style="color:#fff">기준정보·문서·변경관리</b>의 단일 출처인 <b style="color:#fff">관리 허브</b>를 한 곳에서 제공합니다.</p>
+    <div class="meta">기준일 2026-07-16 · 관리: 최동혁(dh.choi@jeilm.co.kr) · 지속 갱신: 총괄관리자(jeilax-master) · 단일 출처(Single Source of Truth)</div>
   </div>
+
+  <!-- 탭 바 (JS 활성 시에만 표시 — 미작동 시 두 패널 모두 세로 표시) -->
+  <nav class="tabbar" aria-label="허브 탭">
+    <button type="button" class="tabbtn on" id="tabbtn-dash">총괄 대시보드</button>
+    <button type="button" class="tabbtn" id="tabbtn-hub">관리 허브</button>
+  </nav>
+
+  <!-- ⑴ 총괄 대시보드 탭 (데이터: 하단 AX_DASH 블록 — 총괄관리자(jeilax-master) 지속 갱신) -->
+  <div class="tabpane on" id="pane-dash">
+
+    <div class="status" id="dash-status">
+      <b>총괄 대시보드</b> — 이 영역은 JavaScript로 렌더됩니다. 원천 문서:
+      <a href="../실제구축준비 자료/이관/index.html">이관 관제</a> ·
+      <a href="../10_ERP_DB연계/index.html">ERP 연계 관제</a> ·
+      <a href="03_변경관리_CHANGELOG.html">변경 CHANGELOG</a>
+    </div>
+
+    <div class="sec">
+      <h2>핵심 지표<span class="h2sub">데이터에서 자동 계산 — 수기 입력 없음</span></h2>
+      <div class="kpis" id="dash-kpis"><p class="fallback">JavaScript 렌더 영역입니다.</p></div>
+    </div>
+
+    <div class="sec">
+      <h2>영역별 기능 현황<span class="h2sub">상태 · 진행률 · 결정 게이트(⏸)</span></h2>
+      <div class="acards" id="dash-areas"><p class="fallback">JavaScript 렌더 영역입니다. 상세는 <a href="../실제구축준비 자료/이관/index.html">이관 관제</a>·<a href="../10_ERP_DB연계/index.html">ERP 연계 관제</a> 참조.</p></div>
+    </div>
+
+    <div class="sec">
+      <h2>진행 타임라인<span class="h2sub">최신순 · 영역 필터 · 요약(전수 이력은 03_CHANGELOG)</span></h2>
+      <div class="chips" id="dash-tl-chips"></div>
+      <div class="tl" id="dash-tl"><p class="fallback" style="padding:10px 0">JavaScript 렌더 영역입니다. 전수 이력은 <a href="03_변경관리_CHANGELOG.html">03_변경관리_CHANGELOG</a> 참조.</p></div>
+      <div id="dash-tl-more"></div>
+    </div>
+
+    <div class="sec">
+      <h2>의사결정 로그<span class="h2sub">결정됨 / 대기·예정 · 기한 D-day</span></h2>
+      <div class="dgrid" id="dash-decisions"><p class="fallback">JavaScript 렌더 영역입니다.</p></div>
+    </div>
+
+    <div class="sec">
+      <h2>AI 에이전트 현황<span class="h2sub">로컬 .claude/agents 등록 — 정의 원본은 git 제외</span></h2>
+      <div class="agrid" id="dash-agents"><p class="fallback">JavaScript 렌더 영역입니다.</p></div>
+    </div>
+
+  </div><!-- /pane-dash -->
+
+  <!-- ⑵ 관리 허브 탭 (기존 콘텐츠 원형 유지) -->
+  <div class="tabpane" id="pane-hub">
 
   <!-- 역할 분리 -->
   <div class="sec">
@@ -140,11 +256,289 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
     </div>
   </div>
 
+  </div><!-- /pane-hub -->
+
   <div class="footer">
     <span>JEIL M&amp;S · AI 포털 관리체계 허브 · 기준 규칙 CLAUDE.md</span>
-    <span>관리: 최동혁 · 2026-06-30</span>
+    <span>관리: 최동혁 · 총괄관리자(jeilax-master) 지속 갱신 · 2026-07-16</span>
   </div>
 
 </div>
+
+<script>
+/* ============================================================================
+   [AX_DASH 데이터 시작] — 총괄관리자(jeilax-master) 전용 편집 영역
+   · 이 블록(시작~끝 주석 사이)만 편집한다. 아래 렌더 코드·위 마크업/CSS 수정 금지.
+   · 문자열에 큰따옴표(")·HTML 태그·javascript: 금지(이스케이프되어 그대로 노출됨). 따옴표가 필요하면 『』.
+   · 날짜는 YYYY-MM-DD. timeline은 맨 앞에만 추가(prepend, 과거 항목 수정·삭제 금지).
+   · decisions는 삭제 금지 — 상태 전이는 state 변경 + decided 날짜 추가로.
+   · areas는 id 변경·항목 삭제 금지. pct·status는 실배포·실적재 등 사실 근거로만.
+   · KPI는 자동 계산 — 수치를 손으로 적지 않는다. 비밀값(IP·키·Secret)은 절대 기재 금지.
+   ============================================================================ */
+const AX_DASH = {
+  asof: "2026-07-16",
+  now: "총괄 대시보드 가동 — ERP 중간DB 1차 적재·챗봇 OneDrive 문서연계(v18)·협력사 포털 실가동 단계. 다음 게이트: 유니포인트 협의 · 호스팅(Azure) 확정 · Entra Secret 갱신(2026-12-09).",
+
+  areas: [
+    { id:"chatbot", name:"AI 챗봇 (jeil-chat)", status:"구축중", pct:70,
+      note:"실 API 게이트웨이 가동 — 포털DB 도구 3종 + ERP 도구 8종(v14) + OneDrive 문서연계·화이트리스트(v18) + 모델설정 실연동(v15).",
+      updated:"2026-07-09", gate:"LLM 벤더 확정 대기(UI 표기 Claude ↔ 실구현 OpenAI 불일치)",
+      links:[{t:"포털 데모", href:"../04_챗봇_포털_데모UI.html"}] },
+    { id:"vendor", name:"협력사 발주·검사 포털", status:"구축중", pct:75,
+      note:"모바일↔사내 대시보드 Supabase 실연동 — 계정발급·메일발송·메시지·사진검토·5상태 상태머신·검수판정, 외주 발주현황 ERP 실연동(570건).",
+      updated:"2026-07-13",
+      links:[{t:"요구사항 이력", href:"../08_협력사발주포털/00_종합정리_요구사항이력.html"},{t:"외주 대시보드", href:"../pages/외주발주_검사진행현황_2026.html"}] },
+    { id:"erp", name:"ERP DB 연계", status:"구축중", pct:55,
+      note:"중간DB(erp_ro) 1차 5종 + 급여집계 실적재, 노출뷰 6종, 재고 입출고 ETL 연 전체 적재(v0.10), 사용자-부서 매핑 대사.",
+      updated:"2026-07-13", gate:"유니포인트 협의(P1) · ERP 마스터플랜 v2.0 경영 승인 대기",
+      links:[{t:"ERP 연계 관제", href:"../10_ERP_DB연계/index.html"}] },
+    { id:"dept", name:"부서 운영페이지", status:"구축중", pct:50,
+      note:"10종 배포 — 구매 매입집계 ERP 실연동, 인사 급여 서버 게이트(jeil-hr), 권한 enforce(jeil-me). 나머지는 샘플 데이터.",
+      updated:"2026-07-08",
+      links:[{t:"확장 기획", href:"../07_부서운영페이지_확장기획.html"}] },
+    { id:"auth", name:"인증·보안", status:"운영", pct:65,
+      note:"Entra SSO+MFA(SPA+PKCE) 가동, 전 테이블 RLS, 협력사 인증 분리, 권한 enforce·급여 민감권한 강화.",
+      updated:"2026-07-08", gate:"Entra Client Secret 갱신 기한 2026-12-09 · 운영 토큰(BFF) 재설계 대기",
+      links:[{t:"현황 스냅샷", href:"../실제구축준비 자료/이관/00_현재시스템_상태스냅샷.html"}] },
+    { id:"infra", name:"이관·인프라", status:"구축중", pct:40,
+      note:"GitHub Pages→Vercel+Supabase 전환 완료(현재 단계), Azure 이관은 미착수.",
+      updated:"2026-06-29", gate:"호스팅 확정(Azure vs 사내 IIS) 경영 결정 대기",
+      links:[{t:"이관 관제", href:"../실제구축준비 자료/이관/index.html"}] },
+    { id:"gov", name:"거버넌스·제품기획", status:"운영", pct:80,
+      note:"관리체계 허브(문서대장·기준정보·CHANGELOG) + 총괄 대시보드 가동, 제품기획 SSOT 10종(Draft).",
+      updated:"2026-07-16",
+      links:[{t:"문서대장", href:"00_문서대장.html"},{t:"제품기획", href:"../11_제품기획/index.html"}] },
+    { id:"needs", name:"니즈조사", status:"운영", pct:85,
+      note:"설문폼 + OneDrive 자동집계 대시보드 완성 — 응답 수집은 파일럿 단계.",
+      updated:"2026-06-16",
+      links:[{t:"니즈조사 홈", href:"../05_니즈조사/00_니즈조사_홈.html"}] },
+    { id:"cost", name:"비용·호스팅", status:"기획", pct:90,
+      note:"비용기획 보고서·호스팅 기획서(Azure 권고)·비용계산기 완성 — 기획은 완료, 결정만 남음.",
+      updated:"2026-06-18", gate:"경영진 호스팅·예산 결정 대기",
+      links:[{t:"비용계산기", href:"../09_비용_호스팅/JEIL_AX_비용계산기.html"}] },
+    { id:"grid", name:"그리드 표준", status:"구축중", pct:70,
+      note:"표준 컴포넌트(app/lib/grid.js)+가이드+데모 완성 — 적용 1화면(협력사 계정발급), 순차 확대 예정.",
+      updated:"2026-07-07",
+      links:[{t:"표준 가이드", href:"../그리드/index.html"}] }
+  ],
+
+  timeline: [
+    { d:"2026-07-16", area:"거버넌스", t:"총괄 대시보드 신설 + 총괄관리자(jeilax-master) 에이전트 등록 — 관리 허브 2탭 개편" },
+    { d:"2026-07-13", area:"협력사포털", t:"외주 발주현황 프로젝트코드 필터 + 대량조회 성능·안정성 개선" },
+    { d:"2026-07-13", area:"협력사포털", t:"발주 진행현황 화면 정리 — 상단·상세 간결화, 발주일 날짜 필터" },
+    { d:"2026-07-13", area:"협력사포털", t:"외주 발주현황 ERP 발주원장 실연동(8→570건) + 협력사 오버레이" },
+    { d:"2026-07-13", area:"ERP연계", t:"재고 입출고 ETL 롤링 31일 → 연 전체 적재 전환(v0.10)" },
+    { d:"2026-07-09", area:"챗봇", t:"폴더 지정 3단계 스코프(site/library/folder) + ERP_DML 폴더 적용(v18)" },
+    { d:"2026-07-09", area:"챗봇", t:"AI 문서범위 화이트리스트 실적용(v17) — 개인 재무문서 노출 실측 후 파일럿 사이트 격리" },
+    { d:"2026-07-09", area:"챗봇", t:"실 챗봇 OneDrive 문서연계 착수·배포 — 위임 방식 A, 검색·본문판독(v16)" },
+    { d:"2026-07-09", area:"챗봇", t:"관리자 콘솔 모델 설정 실연동 — 데모 목업 → Supabase 저장·게이트웨이 소비(v15)" },
+    { d:"2026-07-08", area:"거버넌스", t:"전사 제품기획·아키텍처 SSOT(11_제품기획/) 10종 신설" },
+    { d:"2026-07-08", area:"챗봇", t:"챗봇 ERP 프로세스 응답품질 개선 + 멀티라운드 도구호출 버그수정(v14)" },
+    { d:"2026-07-08", area:"ERP연계", t:"인사 급여 집계 실적재(143행, 집계만) + 게이트 API jeil-hr 배포" },
+    { d:"2026-07-08", area:"인증·보안", t:"급여 민감권한 강화 + erp_secure 스키마 착수" },
+    { d:"2026-07-08", area:"ERP연계", t:"부서별 ERP 모듈 제안값(참고) 신설·실적재 397건" },
+    { d:"2026-07-08", area:"인증·보안", t:"권한 설정 실 적용(enforce) — jeil-me 신원·역할 판정 + 페이지·ERP 게이팅" },
+    { d:"2026-07-08", area:"ERP연계", t:"사용자-부서 매핑·대사 실적재(정상 89·불일치 10) + 자동제외 정책 확정" },
+    { d:"2026-07-08", area:"ERP연계", t:"P4 착수 — 노출뷰 6종+RLS 격리 통과+구매 대시보드 파일럿+챗봇 ERP 도구(v7)" },
+    { d:"2026-07-07", area:"ERP연계", t:"1차 ETL 실적재 — 발주 2,699·품목 58,246·매출·매입·재고" },
+    { d:"2026-07-07", area:"ERP연계", t:"중간DB 구축 착수(erp_ro·etl_meta) + 테이블 사전 2,658건 적재" },
+    { d:"2026-07-07", area:"거버넌스", t:"직원 이름 마스킹 제외 결정 + 샘플 업체명 17개사 실명화" },
+    { d:"2026-07-07", area:"협력사포털", t:"협력사관리 메시지 Supabase 실연동 — 발주별 스레드·미읽음·실시간" },
+    { d:"2026-07-07", area:"협력사포털", t:"실가동 전면 개선 — 사진 실표시·검토·검수요청 취소 영속화" },
+    { d:"2026-07-07", area:"협력사포털", t:"전체 프로세스 상태머신 v2 재설계(5상태) — 검수 불합격 교착 해소" },
+    { d:"2026-07-07", area:"챗봇", t:"관리자 콘솔 실데이터 연동 + 토큰·비용 기록 + 포털DB 조회도구 3종" },
+    { d:"2026-07-07", area:"챗봇", t:"AI 챗봇 실 API 연결 — jeil-chat 게이트웨이 신설(SSE 스트리밍)" },
+    { d:"2026-07-07", area:"그리드", t:"편집 그리드 표준 컴포넌트(app/lib/grid.js)+가이드 신설, 협력사 계정발급 화면 적용" },
+    { d:"2026-07-03", area:"ERP연계", t:"중간DB 구축 실행기획 v0.1(D1~D3 결정안)" },
+    { d:"2026-07-03", area:"ERP연계", t:"ERP DB 연계 관제 체계(10_ERP_DB연계/) + 전담 에이전트 신설" },
+    { d:"2026-07-02", area:"ERP연계", t:"ERP DB 접근정책안 v0.1 작성" },
+    { d:"2026-07-01", area:"ERP연계", t:"ERP 데이터연동 마스터플랜 v2.0 작성(경영 승인 요청)" },
+    { d:"2026-06-30", area:"협력사포털", t:"협력사 계정 엑셀형 일괄발급 + 메일발송 자동 재인증" },
+    { d:"2026-06-30", area:"거버넌스", t:"관리체계 허브(00_관리체계/) 신설 — 문서대장·기준정보·명명규칙·CHANGELOG" },
+    { d:"2026-06-29", area:"인증·보안", t:"Entra→Supabase 브리지 + 계정발급 E2E 검증" },
+    { d:"2026-06-29", area:"협력사포털", t:"협력사 모바일 포털·사내 대시보드 Supabase 실연동(RLS 자기거래처)" },
+    { d:"2026-06-29", area:"이관·인프라", t:"라이브 ai·ax 모두 Vercel로 일원화(GitHub Pages→Vercel)" },
+    { d:"2026-06-29", area:"협력사포털", t:"협력사 온보딩 『관리자 주도 발급』 모델 전환 + Supabase 이관 1차" },
+    { d:"2026-06-26", area:"거버넌스", t:"실구축 기획 문서 세트 + ERP 중간DB 샘플데이터 + 비용/호스팅 기획" },
+    { d:"2026-06-26", area:"협력사포털", t:"협력사 모바일 하이브리드 앱화(PWA) + 전체 최적화" },
+    { d:"2026-06-25", area:"협력사포털", t:"외주 협력사 발주·검사 포털 기획 착수 — 챗봇 포털에 카드 신설" },
+    { d:"2026-06-25", area:"ERP연계", t:"ERP·챗봇 중간DB 연계설계 작성(PostgreSQL 중간DB·화이트리스트)" },
+    { d:"2026-06-18", area:"비용·호스팅", t:"비용기획 보고서 + 호스팅 기획서(Azure 전환 권고) 작성" },
+    { d:"2026-06-16", area:"거버넌스", t:"실제구축준비 자료 7종 추가 + 부서명 표기 통일(인사팀)" },
+    { d:"2026-06-15", area:"니즈조사", t:"설문폼 작성자 자동입력 + 집계 대시보드 OneDrive 자동수집" },
+    { d:"2026-06-15", area:"부서페이지", t:"부서선택 드롭다운 + 부서별 템플릿/운영페이지 링크 도입" },
+    { d:"2026-06-12", area:"챗봇", t:"로그인 UI 『JEIL AI Portal』 리디자인 + 공식 로고 적용" },
+    { d:"2026-06-12", area:"챗봇", t:"규정 챗봇 데모를 실제 취업규칙 조문 기준으로 교체" },
+    { d:"2026-06-12", area:"인증·보안", t:"로그인을 실제 Microsoft Entra ID(MFA) 인증으로 교체(SPA+PKCE)" },
+    { d:"2026-06-12", area:"거버넌스", t:"프로젝트 개시 — AI 포털 데모 + 니즈조사 도구 초기 배포" }
+  ],
+
+  decisions: [
+    { id:"D-01", title:"3계층 데이터 분리 — ERP운영/중간DB/포털DB, 프론트 직결 금지", state:"결정됨", src:"ADR-001 · CLAUDE.md §4" },
+    { id:"D-02", title:"라이브 도메인 ai·ax = Vercel 확정(GitHub Pages 폐지)", state:"결정됨", decided:"2026-06-29", src:"이관/00 §2·§9" },
+    { id:"D-03", title:"협력사 온보딩 = 관리자 주도 발급(자유가입 폐기)", state:"결정됨", decided:"2026-06-29", src:"이관/03" },
+    { id:"D-04", title:"인증 경계 분리 — 사내 Entra ↔ 협력사 Supabase Auth", state:"결정됨", decided:"2026-06-29", src:"ADR-005" },
+    { id:"D-05", title:"직원 이름(성명)은 마스킹 제외 — 결합 민감값은 보호 유지", state:"결정됨", decided:"2026-07-07", src:"CLAUDE.md §1.7" },
+    { id:"D-06", title:"샘플 업체명 실명화(17개사)", state:"결정됨", decided:"2026-07-07", src:"03_CHANGELOG" },
+    { id:"D-07", title:"ERP 중간DB 노출 = security_invoker 뷰(B안)", state:"결정됨", decided:"2026-07-08", src:"ADR-007" },
+    { id:"D-08", title:"사용자-부서 대사 불일치는 정상 매핑에서 자동 제외", state:"결정됨", decided:"2026-07-08", src:"10_ERP/00·05" },
+    { id:"D-09", title:"부서별 ERP 모듈 = 참고 표시만(자동 덮어쓰기 금지)", state:"결정됨", decided:"2026-07-08", src:"10_ERP/02" },
+    { id:"D-10", title:"급여 개인별·주민번호·계좌 영구 미연계(집계만 적재)", state:"결정됨", decided:"2026-07-08", src:"10_ERP/02 P5" },
+    { id:"D-11", title:"ERP_DML 감사로그 AI 적용 = 테스트 단계 한정 승인", state:"결정됨", decided:"2026-07-09", note:"전사 확대 시 민감도 재심사", src:"03_CHANGELOG" },
+    { id:"D-12", title:"AI 문서연계 거버넌스 기본키 = 서비스계정(ai.jeil)", state:"결정됨", decided:"2026-07-09", src:"02_MS연동 §8" },
+    { id:"D-13", title:"Cloudium 직접 연계 제외", state:"결정됨", src:"CLAUDE.md §11-D" },
+    { id:"D-14", title:"Entra Client Secret 갱신", state:"예정", due:"2026-12-09", note:"11월 중 갱신 — 미갱신 시 로그인 전면 중단", src:"CLAUDE.md §6 · 이관/00 §5" },
+    { id:"D-15", title:"호스팅 확정 — Azure(권고) vs 사내 IIS", state:"대기", src:"ADR-102 · 09_비용_호스팅" },
+    { id:"D-16", title:"백엔드 스택 최종 확정 — .NET vs Node(하이브리드 권고)", state:"대기", src:"ADR-101 · CLAUDE.md §3" },
+    { id:"D-17", title:"협력사 인증 방식 — Entra B2B 게스트 vs 전용 인증", state:"대기", note:"파일럿은 Supabase 전용 인증 가동 중", src:"ADR-103" },
+    { id:"D-18", title:"챗봇 LLM 벤더 확정 — UI 표기 Claude ↔ 실구현 OpenAI 정합", state:"대기", src:"ADR-106 · ISS-201" },
+    { id:"D-19", title:"운영 토큰 보관 재설계 — localStorage → BFF/HttpOnly 쿠키", state:"예정", note:"운영 전환 시", src:"ADR-104 · CLAUDE.md §6" },
+    { id:"D-20", title:"ERP 마스터플랜 v2.0 경영 승인 + 리포팅 티어(A/B) 선택", state:"대기", src:"10_ERP/02 P0" },
+    { id:"D-21", title:"자금(F 모듈) 개방 경영 승인·실적재", state:"대기", src:"10_ERP/00 §6" },
+    { id:"D-22", title:"유니포인트 협의 — 읽기전용 계정·리포팅 뷰·VPN", state:"대기", src:"10_ERP/02 P1" }
+  ],
+
+  agents: [
+    { id:"jeilax-master", kind:"agent", alias:"총괄관리자",
+      role:"프로젝트 전체 총괄 — 이 대시보드(AX_DASH)·의사결정·진행상황 관제, 원천 4곳 대사, 하위 에이전트 위임 조정.", last:"2026-07-16" },
+    { id:"erp-db-link-manager", kind:"agent", alias:"ERP 연계 관제",
+      role:"ERP DB 연계 문서(10_ERP_DB연계/) 관리·갱신 + OneDrive 정책관리 미러 동기화.", last:"2026-07-13" },
+    { id:"erp-db-connector", kind:"agent", alias:"ERP DB 연결(실행성)",
+      role:"ERP 운영DB 읽기전용 연결·중간DB ETL 점검·검증 — 실행성 에이전트라 총괄 위임 대상에서 제외, 관리자 직접 기동.", last:"2026-07-13" },
+    { id:"grid-standardizer", kind:"agent", alias:"그리드 표준화",
+      role:"편집 그리드를 표준 컴포넌트(app/lib/grid.js)로 통일·마이그레이션 관리.", last:"2026-07-07" }
+  ]
+};
+/* ===================== [AX_DASH 데이터 끝] ===================== */
+
+/* ---- 이하 렌더 코드: 총괄관리자 수정 금지 ---- */
+function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,function(m){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m];});}
+function pd(s){return new Date(s+"T00:00:00");}
+function today0(){var t=new Date();t.setHours(0,0,0,0);return t;}
+function dday(due){var n=Math.round((pd(due)-today0())/864e5);var label=n>0?("D-"+n):(n===0?"D-DAY":("D+"+Math.abs(n)));var cls=n<0?"past":(n<=30?"soon":"");return{n:n,label:label,cls:cls};}
+function stCls(status){return status==="운영"?"run":status==="구축중"?"build":status==="파일럿"?"pilot":"plan";}
+
+function showTab(key){
+  ["dash","hub"].forEach(function(k){
+    var b=document.getElementById("tabbtn-"+k),p=document.getElementById("pane-"+k);
+    if(b)b.classList.toggle("on",k===key);
+    if(p)p.classList.toggle("on",k===key);
+  });
+  try{history.replaceState(null,"","#"+key);}catch(e){location.hash=key;}
+}
+function initTabs(){
+  document.body.classList.add("js");
+  showTab(location.hash==="#hub"?"hub":"dash");
+  document.getElementById("tabbtn-dash").addEventListener("click",function(){showTab("dash");});
+  document.getElementById("tabbtn-hub").addEventListener("click",function(){showTab("hub");});
+  window.addEventListener("hashchange",function(){showTab(location.hash==="#hub"?"hub":"dash");});
+}
+
+function renderStatus(){
+  document.getElementById("dash-status").innerHTML="<b>현재 위치("+esc(AX_DASH.asof)+"):</b> "+esc(AX_DASH.now);
+}
+
+function calcKpis(){
+  var st={};AX_DASH.areas.forEach(function(a){st[a.status]=(st[a.status]||0)+1;});
+  var lim=new Date(today0().getTime()-13*864e5);
+  var recent=AX_DASH.timeline.filter(function(e){return pd(e.d)>=lim;}).length;
+  var pending=AX_DASH.decisions.filter(function(d){return d.state!=="결정됨";});
+  var dated=pending.filter(function(d){return d.due;}).sort(function(a,b){return pd(a.due)-pd(b.due);});
+  var next=null;
+  for(var i=0;i<dated.length;i++){if(pd(dated[i].due)>=today0()){next=dated[i];break;}}
+  if(!next&&dated.length)next=dated[dated.length-1];
+  return{st:st,recent:recent,pending:pending.length,next:next};
+}
+function renderKpis(){
+  var k=calcKpis(),h="";
+  ["운영","구축중","파일럿","기획"].forEach(function(s){
+    if(k.st[s])h+='<div class="kpi"><div class="v">'+k.st[s]+'</div><div class="k">'+esc(s)+" 영역</div></div>";
+  });
+  h+='<div class="kpi'+(k.recent===0?" alert":"")+'"><div class="v">'+k.recent+'</div><div class="k">최근 14일 업데이트</div><div class="s">'+(k.recent===0?"2주간 기록 없음 — 정체 신호":"타임라인 기준")+"</div></div>";
+  h+='<div class="kpi"><div class="v">'+k.pending+'</div><div class="k">결정 대기·예정</div></div>';
+  if(k.next){var dd=dday(k.next.due);
+    h+='<div class="kpi'+(dd.cls?" alert":"")+'"><div class="v">'+esc(dd.label)+'</div><div class="k">최근접 기한 '+esc(k.next.due)+'</div><div class="s">'+esc(k.next.title)+"</div></div>";}
+  document.getElementById("dash-kpis").innerHTML=h;
+}
+function renderAreas(){
+  var h="";
+  AX_DASH.areas.forEach(function(a){
+    var pct=Math.max(0,Math.min(100,a.pct|0)),cls=stCls(a.status);
+    h+='<div class="acard"><h3>'+esc(a.name)+' <span class="st st-'+cls+'">'+esc(a.status)+"</span></h3>"
+      +'<div class="pctline"><div class="bar '+cls+'"><i style="width:'+pct+'%"></i></div><span class="num">'+pct+"%</span></div>"
+      +'<div class="note">'+esc(a.note)+"</div>"
+      +(a.gate?'<div class="gate">⏸ '+esc(a.gate)+"</div>":"")
+      +'<div class="meta"><span>갱신 '+esc(a.updated)+"</span>"
+      +(a.links||[]).map(function(l){return '<a href="'+esc(l.href)+'">'+esc(l.t)+" ↗</a>";}).join("")
+      +"</div></div>";
+  });
+  document.getElementById("dash-areas").innerHTML=h;
+}
+var tlState={area:"전체",all:false};
+function renderTimeline(){
+  var items=AX_DASH.timeline.slice().sort(function(a,b){return a.d<b.d?1:a.d>b.d?-1:0;});
+  var areas=["전체"];items.forEach(function(e){if(areas.indexOf(e.area)<0)areas.push(e.area);});
+  document.getElementById("dash-tl-chips").innerHTML=areas.map(function(a){
+    return '<button type="button" class="chip'+(tlState.area===a?" on":"")+'" data-area="'+esc(a)+'">'+esc(a)+"</button>";
+  }).join("");
+  var f=items.filter(function(e){return tlState.area==="전체"||e.area===tlState.area;});
+  var LIMIT=15,shown=tlState.all?f:f.slice(0,LIMIT);
+  var h=shown.map(function(e){
+    return '<div class="row"><span class="d">'+esc(e.d)+'</span><span class="tag">'+esc(e.area)+"</span><span>"+esc(e.t)+"</span></div>";
+  }).join("");
+  if(!h)h='<div class="row"><span class="fallback">해당 영역 기록이 없습니다.</span></div>';
+  document.getElementById("dash-tl").innerHTML=h;
+  var more=document.getElementById("dash-tl-more");
+  if(f.length>LIMIT){more.innerHTML='<button type="button" class="morebtn">'+(tlState.all?"접기 ▲":"이전 "+(f.length-LIMIT)+"건 더 보기 ▼")+"</button>";}
+  else{more.innerHTML="";}
+}
+function drow(d){
+  var h='<div class="drow"><span class="did">'+esc(d.id)+'</span><span class="tt">'+esc(d.title)
+    +(d.note?' <span class="nn">— '+esc(d.note)+"</span>":"")+"</span>";
+  if(d.state==="결정됨"){h+='<span class="st st-run">'+esc(d.decided?"결정 "+d.decided:"결정됨")+"</span>";}
+  else{
+    h+='<span class="st '+(d.state==="예정"?"st-pilot":"st-plan")+'">'+esc(d.state)+"</span>";
+    if(d.due){var dd=dday(d.due);h+='<span class="dday '+dd.cls+'">'+esc(dd.label)+"</span>";}
+  }
+  h+='<span class="src">'+esc(d.src)+"</span></div>";
+  return h;
+}
+function renderDecisions(){
+  var dec=AX_DASH.decisions.filter(function(d){return d.state==="결정됨";})
+    .sort(function(a,b){var x=a.decided||"0000",y=b.decided||"0000";return x<y?1:x>y?-1:0;});
+  var pen=AX_DASH.decisions.filter(function(d){return d.state!=="결정됨";})
+    .sort(function(a,b){var x=a.due||"9999",y=b.due||"9999";return x<y?-1:x>y?1:0;});
+  document.getElementById("dash-decisions").innerHTML=
+    '<div class="dbox"><h3>⏳ 대기·예정 ('+pen.length+")</h3>"+pen.map(drow).join("")+"</div>"
+   +'<div class="dbox"><h3>✅ 결정됨 ('+dec.length+")</h3>"+dec.map(drow).join("")+"</div>";
+}
+function renderAgents(){
+  var h="";
+  AX_DASH.agents.forEach(function(a){
+    h+='<div class="ag"><h3>'+esc(a.alias)+' <span class="st '+(a.kind==="agent"?"st-build":"st-pilot")+'">'+(a.kind==="agent"?"에이전트":"스킬")+"</span></h3>"
+      +'<div class="aid">'+esc(a.id)+"</div>"
+      +"<p>"+esc(a.role)+"</p>"
+      +'<div class="meta">최근 활동 '+esc(a.last)+"</div></div>";
+  });
+  document.getElementById("dash-agents").innerHTML=h;
+}
+function renderAll(){
+  try{
+    renderStatus();renderKpis();renderAreas();renderTimeline();renderDecisions();renderAgents();
+  }catch(e){
+    var el=document.getElementById("dash-status");
+    if(el)el.innerHTML='<b style="color:var(--red)">대시보드 렌더 오류</b> — AX_DASH 데이터 블록 문법을 확인하세요: '+esc(e.message);
+  }
+}
+document.getElementById("dash-tl-chips").addEventListener("click",function(ev){
+  var b=ev.target.closest(".chip");if(!b)return;
+  tlState.area=b.getAttribute("data-area");tlState.all=false;renderTimeline();
+});
+document.getElementById("dash-tl-more").addEventListener("click",function(ev){
+  if(!ev.target.closest(".morebtn"))return;
+  tlState.all=!tlState.all;renderTimeline();
+});
+initTabs();renderAll();
+</script>
 </body>
 </html>

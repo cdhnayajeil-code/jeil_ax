@@ -108,6 +108,97 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 </thead>
 <tbody>
 <tr>
+<td>2026-07-16</td>
+<td>거버넌스·관리체계</td>
+<td><code>00_관리체계/index.html</code>(2탭 개편), <code>.claude/agents/jeilax-master.md</code>(신설·로컬), <code>README</code>·<code>00_문서대장</code>·<code>01_기준정보(§9)</code>·<code>CLAUDE.md §10·§12</code></td>
+<td><strong>총괄 대시보드 신설 + 총괄관리자(jeilax-master) 등록</strong> — 관리 허브를 2탭으로 개편(기본 탭=총괄 대시보드): 영역 10종 현황(상태·진행률·의사결정 게이트) · KPI 자동계산(상태별 영역 수·최근 14일 업데이트·결정 대기·최근접 기한 D-day) · 진행 타임라인 48건(영역 필터·접기) · 의사결정 로그 22건(결정됨 13/대기·예정 9) · AI 에이전트 현황 4종. 데이터는 index.html 내 <code>AX_DASH</code> 인라인 블록이 단일 데이터(원천 4곳 — 이관 00·03 / 10_ERP 00·02 / 본 CHANGELOG / 11_제품기획 09_ADR — 의 파생 뷰)이며, 총괄 서브에이전트 <strong>jeilax-master(통칭 총괄관리자)</strong> 가 지속 갱신한다. 주요 작업 마무리 시 호출 규칙을 CLAUDE.md §10에 통합, <code>01_기준정보 §9 AI 에이전트 레지스트리</code> 신설(4종 — erp-db-connector는 총괄 위임 제외 명기)</td>
+<td>최동혁(+Claude)</td>
+</tr>
+<tr>
+<td>2026-07-13</td>
+<td>ERP 연계</td>
+<td>ETL(재고 입출고), <code>10_ERP_DB연계/</code>(v0.10), 정책관리 미러</td>
+<td><strong>재고 입출고 ETL 롤링 31일 → 2026년 전체 적재 전환</strong> — inventory_d 1,810행, 연간 재고 흐름 조회 가능. 관제 문서·미러 v0.10 갱신 <em>(소급 기재 2026-07-16 — 총괄 대시보드 첫 대사에서 누락 발견)</em></td>
+<td>최동혁(+Claude)</td>
+</tr>
+<tr>
+<td>2026-07-13</td>
+<td>협력사포털·ERP 연계</td>
+<td><code>pages/외주발주_검사진행현황_2026.html</code></td>
+<td><strong>외주 발주현황 ERP 발주원장 실연동(8→570건 전체 노출) + 협력사 오버레이</strong> <em>(소급 기재 2026-07-16)</em></td>
+<td>최동혁(+Claude)</td>
+</tr>
+<tr>
+<td>2026-07-13</td>
+<td>협력사포털</td>
+<td>발주 진행현황 화면</td>
+<td>상단·상세 간결화, 발주일 날짜 필터, 체크박스 의미 명시 <em>(소급 기재 2026-07-16)</em></td>
+<td>최동혁(+Claude)</td>
+</tr>
+<tr>
+<td>2026-07-13</td>
+<td>협력사포털</td>
+<td>외주 발주현황</td>
+<td>프로젝트코드 필터 연결 + 대량조회 성능·안정성 개선 <em>(소급 기재 2026-07-16)</em></td>
+<td>최동혁(+Claude)</td>
+</tr>
+<tr>
+<td>2026-07-09</td>
+<td>챗봇·문서연계·보안</td>
+<td>Supabase(마이그레이션 <code>ai_document_scope_whitelist</code> — <code>ai_document_scope</code> 테이블 신설·파일럿 시드), Edge Function <code>jeil-chat</code>(v17), <code>02_MS연동_OneDrive_데이터연계.html</code>(§8-4·8-6 갱신)</td>
+<td><strong>AI 문서 범위 화이트리스트 실적용·배포(v17) — 파일럿 <code>ai.jeil</code> 사이트</strong> — §8 기획을 실제 코드로 구현. ① <code>ai_document_scope</code>(SSOT, RLS enable·정책없음=service_role 전용) 신설 + 파일럿 Team <code>ai.jeil</code>(sites/ai_jeil, driveId <code>b!QKCqjrc…</code>) 승인 시드. ② <code>jeil-chat</code> v17: 문서도구(<code>search_my_documents</code>·<code>read_document</code>)에 <strong>이중 게이트</strong> 적용 — 승인 컨테이너(drive_id) ∩ 사용자 위임 권한. 검색은 KQL <code>path:</code> 스코프 + 승인 driveId 하드필터, 판독은 driveId 승인검증, <strong>범위 미설정 시 fail-closed</strong>. system_prompt·도구설명에 화이트리스트 명시. ACTIVE·401 정상기동(전 직원 챗봇 무중단·안전폴백). <strong>실측 근거</strong>: 스코프 없던 상태에서 "ai.jeil" 검색이 dh.choi 개인 OneDrive 재무 CSV(원장·지급이체 은행계좌 포함) <strong>6,317건</strong> 노출 확인 → 화이트리스트 필요성 실증, v17로 파일럿 사이트만 격리. 잔여: ai.jeil 멤버십 기반 자동 동기화 배치(현재 수동 등록)·파일럿 테스트문서 등재·부서원 격리검증</td>
+<td>최동혁(+Claude)</td>
+</tr>
+<tr>
+<td>2026-07-09</td>
+<td>거버넌스</td>
+<td><code>02_MS연동…</code>(§8-6 결정 기록)</td>
+<td><strong>ERP_DML(DML 감사로그) AI 적용 — 테스트 단계 승인</strong>(관리자 최동혁). 현재 ai.jeil 팀 멤버 한정이라 안전. 전사/운영 확대 시 민감도 재심사 후 결정(급여·자금은 여전히 등재 금지).</td>
+<td>최동혁(+Claude)</td>
+</tr>
+<tr>
+<td>2026-07-09</td>
+<td>챗봇·문서연계·보안</td>
+<td>Supabase(마이그레이션 <code>ai_document_scope_folder_designation</code> — scope_type·item_id·path_prefix 추가), Edge Function <code>jeil-chat</code>(v18), <code>02_MS연동…</code>(§8-7·8-8 신설)</td>
+<td><strong>폴더 지정 모델 — 3단계 스코프(site/library/folder) + AI DML 폴더 적용</strong> — 자동 driveId 추측이 엉뚱한 라이브러리를 잡던 문제(SiteAssets 오지정)를 근절: 관리자/사용자가 대상 폴더를 명시 지정하는 모델. <code>ai_document_scope</code>에 scope_type(site/library/folder)·path_prefix(정규화 경로 접두)·item_id 추가. <code>jeil-chat</code> v18: 검색은 KQL <code>path:</code> 한정 + (승인 driveId 일치 AND 경로가 지정 접두로 시작) 하드필터, 판독은 문서 webUrl이 지정 폴더 하위인지 2차 검증 → <strong>폴더 레벨 정밀 강제</strong>(그 위에 사용자 위임 트리밍). <strong>AI DML(ERP_DML)을 folder 스코프로 적용</strong> — 챗봇이 ai.jeil의 ERP_DML 폴더만 검색·판독(상위 Shared Documents 다른 폴더 자동 제외). 지정 방법 3종(A 링크붙여넣기 권장·B ai.jeil공유+폴더확정·C 직접등록), 원칙="후보는 자동, 최종 폴더 지정은 명시적". 전 프로젝트 확대 무결성=프로젝트당 행1개·코드변경0·fail-closed. v18 ACTIVE·401 정상. 잔여: 방법A 링크해석 콘솔UI·방법B 후보열거 배치. (배포본은 토큰절약 위해 주석 축약본, 디스크 index.ts가 풀 레퍼런스·로직 동일)</td>
+<td>최동혁(+Claude)</td>
+</tr>
+<tr>
+<td>2026-07-09</td>
+<td>챗봇·문서연계</td>
+<td>Supabase <code>ai_document_scope</code>(id=1 driveId 교정), <code>02_MS연동…</code>(§8-6 갱신)</td>
+<td><strong>파일럿 화이트리스트 driveId 교정 + end-to-end 검증</strong> — 사용자 스크린샷으로 발견: <code>ai.jeil</code> 사이트에 문서 라이브러리가 2개(SiteAssets/전자필기장 vs Shared Documents/문서)인데 최초 시드가 빈 SiteAssets(OneNote) driveId(<code>…ZcwLkg…</code>)였음 → 실제 데이터(<code>ERP_DML</code>: DOC 기획문서 20여개·data/dml_data.js·SQL·scripts·BAK)가 있는 Shared Documents drive(<code>…ovvBu8GzGR…</code>)로 교정. 위임 토큰으로 README.txt 본문 판독 성공 → v17 검색·판독 범위 정상 포함 확인. 교훈: 사이트 승인 시 대상 라이브러리 driveId 정확 지정 필요(자동 동기화 배치가 자동화). ERP_DML은 DML 감사로그 — 파일럿 멤버 한정이나 전사 확대 전 민감도 재확인 대상</td>
+<td>최동혁(+Claude)</td>
+</tr>
+<tr>
+<td>2026-07-09</td>
+<td>챗봇·문서연계</td>
+<td><code>실제구축준비 자료/02_MS연동_OneDrive_데이터연계.html</code>(§8 신설)</td>
+<td><strong>AI 작업 범위 거버넌스 — ai_admin 화이트리스트 모델 기획</strong> — 방식 A(위임·라이브 검색)가 사용자 ACL 전체를 범위로 삼아 "OneDrive 폴더가 너무 많아 관리 불가"한 문제를 해소하는 설계. <strong>2중 게이트</strong>: (AI 승인 컨테이너) ∩ (사용자 본인 ACL). 거버넌스 기본키=전용 서비스계정 <code>ai.jeil@jeilm.co.kr</code>(2026-07-09 확정, "사이트/라이브러리에 이 계정 구성원 추가 = AI 사용 허가", SharePoint 권한 UI 자기서비스), 범위 단위=SharePoint 사이트/라이브러리. 야간 배치가 ai_admin 접근 컨테이너를 열거→<code>ai_document_scope</code>(Supabase SSOT) 갱신, jeil-chat v17(계획)이 <code>search_my_documents</code>/<code>read_document</code>에 스코프 필터 적용(호출은 여전히 사용자 위임 토큰=권한 트리밍 유지, 서비스계정 토큰 대리읽기 금지). 민감 사이트(급여·인사·계약) 등재금지. 열거 API 정확값은 W7 구현 시 핀 고정. 코드·설정 변경 없음(기획만)</td>
+<td>최동혁(+Claude)</td>
+</tr>
+<tr>
+<td>2026-07-09</td>
+<td>챗봇·문서연계</td>
+<td><code>supabase/functions/jeil-chat</code>(v16)·<code>ai_gateway_config</code>(DB 프롬프트)·<code>02_MS연동_OneDrive_데이터연계.html</code>(§7-6)</td>
+<td><strong>실 챗봇 OneDrive 문서 연계 착수·배포(방식 A 라이브 위임)</strong> — 설정확인: Entra 앱에 위임 <code>Files.ReadWrite.All</code>이 이미 관리자 동의(2026-06-12), 포털 로그인이 해당 scope 요청 → 사용자 토큰에 파일권한 존재·<code>jeil-chat</code>이 수신. <strong>Entra·프론트 변경 없이</strong> <code>jeil-chat</code> v16에 문서 도구 2종(<code>search_my_documents</code>·<code>read_document</code>) 추가 — 호출자 위임 토큰으로 Graph 검색·읽기(보안 트리밍, 본인 권한 범위만), Excel(Workbook)·텍스트 본문 판독. DB 시스템프롬프트에 도구 안내 반영. 부팅 정상(401). dh.choi 실테스트 가능(포털 로그인→"내 OneDrive 회의록 찾아줘"). 잔여: 부서원 계정 격리검증·Sites.Read.All(사이트 일부)·docx/pdf 본문추출</td>
+<td>최동혁(+Claude)</td>
+</tr>
+<tr>
+<td>2026-07-09</td>
+<td>챗봇·문서연계</td>
+<td><code>실제구축준비 자료/02_MS연동_OneDrive_데이터연계.html</code>(§7-5 추가)</td>
+<td><strong>OneDrive 문서 연계 — 실계정 검증(dh.choi) 로그 기록</strong> — Graph Explorer(프로덕션 앱 미변경)에 dh.choi@jeilm.co.kr 위임 로그인해 실제 권한 기준 검증: <code>/me</code>(신원)·<code>/me/drive/root/children</code>(실제 OneDrive 폴더)·<code>/sites?search=*</code>(부서 팀사이트 실존: 구매팀·사업관리팀·공정설계팀 등)·<code>/search/query</code>(접근가능 31,980건 보안 트리밍)·Workbook <code>usedRange</code>(회의록 양식.xlsx 셀 값 판독) 전부 200. 위임 권한만으로 조회·검색·본문판독 실증 → 방식 A·부서폴더 격리 모델 검증. 부서 격리 최종검증(일반 부서원 계정)·실 챗봇 통합(앱 위임권한+동의, search_docs 도구)은 잔여. 코드·설정 변경 없음(검증만)</td>
+<td>최동혁(+Claude)</td>
+</tr>
+<tr>
+<td>2026-07-09</td>
+<td>챗봇·문서연계</td>
+<td><code>실제구축준비 자료/02_MS연동_OneDrive_데이터연계.html</code>(§7 추가)</td>
+<td><strong>OneDrive 문서 연계 적용가능성 검토(현행 실측 기준) 추가</strong> — 문의 검토. 챗봇 <code>jeil-chat</code> 실가동 구조 기준으로 재검증: "OneDrive 권한 개별 적용"은 방식 A(위임·라이브 Graph 검색, 자동 보안 트리밍)가 정합 — 별도 권한테이블 불필요·OneDrive ACL이 통제선, 현 도구호출 구조에 <code>search_documents</code> 도구로 확장. 선행조건은 Entra 위임권한(<code>Files.Read</code>·<code>Sites.Read.All</code>)+관리자 동의. RAG(방식 B)는 2차(권한 트리밍 선결). 대안 M365 Copilot/Azure AI Search 병기. 코드·설정 변경 없음(검토만)</td>
+<td>최동혁(+Claude)</td>
+</tr>
+<tr>
 <td>2026-07-09</td>
 <td>챗봇·관리콘솔</td>
 <td>Supabase(마이그레이션 <code>ai_model_settings_tables</code>·<code>ai_model_settings_seed</code> — <code>ai_model</code>·<code>ai_gateway_config</code>·<code>ai_routing_rule</code> 신설+시드), Edge Function <code>jeil-chat-admin</code>(v7)·<code>jeil-chat</code>(v15), <code>04</code>(모델 설정 탭·통합본 재생성), <code>실제구축준비 자료/06_챗봇_사용모델설정_SSOT.md</code>(신설)</td>
@@ -182,6 +273,13 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <td>ERP 연계</td>
 <td><code>.claude/agents/erp-db-connector.md</code>(신설), <code>10_ERP_DB연계/agent_kit/</code>(신설), <code>02_진행상태.md</code>, <code>00_현재상태_스냅샷.md</code></td>
 <td><strong>ERP_DB 연결 전담 에이전트(<code>erp-db-connector</code>) 신설 — 문서·DB 작업 역할 분리</strong> — 기존 <code>erp-db-link-manager</code>(문서·미러 관제)와 별개로 ERP운영DB 연결테스트·<code>table_dict</code>·ETL dry-run/실적재·<code>batch_run</code> 점검을 담당하는 신규 에이전트 도입. 배포킷 <code>10_ERP_DB연계/agent_kit/</code>(비밀값 없음)로 ERP_DB 작업환경에도 동일 설치 가능하게 함, 정책관리 미러에 <code>agent_kit/</code> 동봉</td>
+<td>최동혁(+Claude)</td>
+</tr>
+<tr>
+<td>2026-07-07</td>
+<td>그리드·거버넌스</td>
+<td><code>그리드/</code>(가이드·데모·샘플), <code>app/lib/grid.js</code>·<code>grid.css</code>, <code>app/admin-vendors.html</code></td>
+<td><strong>편집 그리드 표준 컴포넌트 신설 + 첫 적용</strong> — 바닐라 ESM 표준그리드(의존성 0)+가이드+데모, 협력사 계정발급 화면(#vmGrid) 적용. 이후 CLAUDE.md §13 표준으로 승격 <em>(소급 기재 2026-07-16 — 총괄 대시보드 첫 대사에서 누락 발견)</em></td>
 <td>최동혁(+Claude)</td>
 </tr>
 <tr>

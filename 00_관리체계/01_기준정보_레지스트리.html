@@ -481,6 +481,55 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <blockquote>
 <p>계정 생성·만료·키 회전 등 <strong>상태 변화는 <code>이관/00_현황스냅샷</code>에 기록</strong>하고, 여기 식별 정보는 변할 때만 갱신한다.</p>
 </blockquote>
+<hr />
+<h2 id="9-ai-2026-07-16">9. AI 에이전트 레지스트리 (2026-07-16 신설)</h2>
+<blockquote>
+<p>정의 원본은 <code>.claude/agents/</code>(git 제외 — 로컬 전용). 여기는 <strong>이름·역할 레지스트리</strong>만 둔다(비밀값 아님). 에이전트 증감·역할 변경 시 본 표 + <code>00_문서대장</code> + 총괄 대시보드(에이전트 현황)를 함께 갱신한다.</p>
+</blockquote>
+<table>
+<thead>
+<tr>
+<th>이름(id)</th>
+<th>통칭</th>
+<th>역할</th>
+<th>위임 관계</th>
+<th>비고</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>jeilax-master</code></td>
+<td><strong>총괄관리자</strong></td>
+<td>프로젝트 전체 총괄 — 총괄 대시보드(<code>index.html</code>의 <code>AX_DASH</code> 블록) 갱신·원천 4곳 대사·의사결정 등재·에이전트 조정</td>
+<td><code>erp-db-link-manager</code>·<code>grid-standardizer</code> 위임 호출 가능</td>
+<td>2026-07-16 신설 · <strong>주요 작업 마무리 시 호출</strong>(CLAUDE.md §10)</td>
+</tr>
+<tr>
+<td><code>erp-db-link-manager</code></td>
+<td>ERP 연계 관제</td>
+<td><code>10_ERP_DB연계/</code> 문서 관리·갱신 + OneDrive 정책관리 미러 동기화</td>
+<td>총괄관리자가 위임 호출</td>
+<td>2026-07-03 등록</td>
+</tr>
+<tr>
+<td><code>erp-db-connector</code></td>
+<td>ERP DB 연결(실행성)</td>
+<td>ERP 운영DB 읽기전용 연결·중간DB(erp_ro) ETL 점검·검증</td>
+<td><strong>총괄 위임 대상 제외</strong> — 관리자 직접 기동(가드레일)</td>
+<td>2026-07-07 등록</td>
+</tr>
+<tr>
+<td><code>grid-standardizer</code></td>
+<td>그리드 표준화</td>
+<td>편집 그리드를 표준 컴포넌트(<code>app/lib/grid.js</code>)로 통일·마이그레이션</td>
+<td>총괄관리자가 위임 호출</td>
+<td>CLAUDE.md §13</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>총괄 대시보드는 <strong>파생 뷰</strong> — 원천 4곳: <code>실제구축준비 자료/이관/00·03</code> · <code>10_ERP_DB연계/00·02</code> · <code>00_관리체계/03_변경관리_CHANGELOG</code> · <code>11_제품기획/09_ADR</code>. 불일치 시 원천이 정답.</p>
+</blockquote>
   </div>
   <div class="footer"><span>JEIL M&S · AI 포털 관리체계</span><span>01 기준정보 · 관리: 최동혁</span></div>
 </div>
