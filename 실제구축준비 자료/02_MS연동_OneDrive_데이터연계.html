@@ -65,6 +65,11 @@
   <h1>MS 연동 · OneDrive 데이터 연계</h1>
   <p class="subtitle">Entra SSO 운영 전환(완료분 계승) · Microsoft Graph 권한 설계 · OneDrive/SharePoint 문서 연계 · AI 지식 라이브러리 거버넌스</p>
 
+  <div class="callout green" style="margin-bottom:24px;">
+    <b class="tag">2026-07-09 갱신 — 적용가능성 검토(§7) + AI 작업 범위 거버넌스 기획(§8)</b>
+    본 문서 최초 작성(2026-06-12) 이후 챗봇 <code>jeil-chat</code> 게이트웨이가 실제 가동(Entra 검증·도구 호출·DB 설정·감사 로그)되었습니다. 그 <b>실가동 구조 기준으로 OneDrive 문서 연계의 적용가능성을 재검토</b>한 결과를 §7에 추가했습니다(결론: <b>적용 가능</b>, 방식 A 정합). 이어 방식 A의 <b>범위 폭주(사용자 ACL 전체) 문제를 해소</b>하는 <b>ai_admin 화이트리스트 거버넌스</b>를 §8에 기획했습니다 — "폴더에 ai_admin 추가 = AI 사용 허가"의 2중 게이트 모델.
+  </div>
+
   <div class="docnav">
     <a href="00_실제구축_종합기획서.html">00 종합기획</a>
     <a href="01_도메인_DNS_인프라구성.html">01 도메인·인프라</a>
@@ -76,7 +81,7 @@
   </div>
 
   <div class="meta">
-    <div><b>작성일</b>2026. 06. 12.</div>
+    <div><b>작성일</b>2026. 06. 12. <span class="small">(갱신 07. 09.)</span></div>
     <div><b>담당</b>최동혁 (Entra 전역 관리자)</div>
     <div><b>대상 단계</b>STEP 2 · 4 (W3~10)</div>
     <div><b>기술 원본</b>MS_connect 폴더 01~04</div>
@@ -212,9 +217,221 @@ Refresh Token은 서버 측 토큰 캐시에만 — 브라우저 저장 금지</
     <tr><td>지식 라이브러리 최신성</td><td>분기 1회</td><td>부서별 개정 문서 교체 확인, 인덱스 재생성 로그 점검</td></tr>
   </table>
 
+  <h2><span class="num">7</span>적용가능성 검토 — 현행 실측 기준 (2026-07-09 추가)</h2>
+  <p>본 문서 §3~5는 <b>계획</b>이었고, 그 사이 챗봇 <code>jeil-chat</code>이 실제 가동됐다. 이 절은 <b>지금 라이브인 구조</b>를 기준으로 OneDrive 문서 연계의 적용가능성을 재검증한 결과다. (문의 검토 — 코드·설정 변경은 미수행)</p>
+
+  <div class="callout green">
+    <b class="tag">결론 — 적용 가능(높음)</b>
+    "OneDrive 권한을 개별로 그대로 적용"하려는 목표는 <b>방식 A(위임·라이브 Graph 검색)</b>가 정석이다. Microsoft Graph가 <b>사용자 본인 권한으로 검색을 자동 필터(보안 트리밍)</b>하므로 포털이 별도 권한 테이블을 만들 필요 없이 <b>OneDrive ACL이 곧 통제선</b>이 된다. 현행 <code>jeil-chat</code>의 도구 호출 구조에 "문서 검색" 도구 하나를 얹는 형태로 자연스럽게 확장된다.
+  </div>
+
+  <h3>7-1. 현행 실측 상태 (이 문서 작성 이후 가동분)</h3>
+  <table>
+    <tr><th style="width:26%;">구성</th><th>현행(라이브)</th></tr>
+    <tr><td>인증</td><td>Entra SSO + MFA, <code>@jeilm.co.kr</code> 한정. 게이트웨이가 요청마다 Graph <code>/me</code>로 사용자 검증 — <b>OneDrive 접근 기반 이미 존재</b></td></tr>
+    <tr><td>챗봇 게이트웨이</td><td><code>jeil-chat</code>(Supabase Edge Function) — OpenAI 프록시 + <b>사전 등록 도구 호출</b>(포털·ERP 조회) + <code>chat_log</code> 감사</td></tr>
+    <tr><td>권한 판정</td><td>ERP 데이터는 부서별 <code>dept_erp_scope</code>로 강제(관리자=전 모듈). OneDrive는 <b>이 로직 불필요</b> — Graph가 자동 트리밍</td></tr>
+    <tr><td>설정 관리</td><td>관리자 콘솔에서 모델·프롬프트·라우팅 실시간 설정(DB SSOT) — 문서검색 도구도 동일 패턴으로 관리 가능</td></tr>
+  </table>
+
+  <h3>7-2. 방식 A(위임·라이브) — 현행 구조에 얹기</h3>
+  <table>
+    <tr><th style="width:26%;">단계</th><th>내용</th><th style="width:16%;">주체</th></tr>
+    <tr><td>① Entra 앱 권한 추가</td><td>위임 <code>Files.Read</code>·<code>Sites.Read.All</code> 추가 + <b>테넌트 관리자 동의</b> (현재 토큰 스코프는 <code>User.Read</code>만)</td><td class="mid">관리자</td></tr>
+    <tr><td>② 프론트 토큰</td><td>MSAL(PKCE)로 Graph 스코프 토큰 별도 획득 → Edge로 전달(현 인증 흐름 확장)</td><td>개발</td></tr>
+    <tr><td>③ 게이트웨이 도구</td><td><code>jeil-chat</code>에 <code>search_documents</code> 도구 추가 — 사용자 토큰으로 Graph Search(<code>/search/query</code> driveItem) 호출 → 본문 추출 → 컨텍스트 주입</td><td>개발</td></tr>
+    <tr><td>④ 권한</td><td class="ok">추가 판정 불필요 — Graph가 사용자 권한으로 결과를 자동 필터(남의 문서 원천 불가)</td><td>—</td></tr>
+    <tr><td>⑤ 감사·민감</td><td>문서 본문은 <code>chat_log</code>에 원문 저장 금지(요약만), 급여·인사 폴더는 OneDrive 권한이 곧 차단선(§4 정책 계승)</td><td>개발</td></tr>
+  </table>
+  <p class="small">→ 현행 아키텍처에 <b>큰 구조 변경 없이</b> 확장 가능. 최대 선행 조건은 <b>Entra 앱 권한 추가·관리자 동의</b>(코드가 아니라 관리자 설정, §5.2).</p>
+
+  <h3>7-3. 방식 A vs B — 권한 관점 재확인</h3>
+  <table>
+    <tr><th style="width:14%;">방식</th><th>권한 처리</th><th style="width:18%;">난이도·비용</th><th style="width:16%;">적합</th></tr>
+    <tr><td><b>A. 라이브 위임</b></td><td class="ok">Graph 자동 보안 트리밍 — 권한 유출 위험 낮음, 항상 최신</td><td>낮음(Graph 호출 위주)</td><td class="ok">1차 권장</td></tr>
+    <tr><td><b>B. RAG 인덱스</b></td><td class="mid">색인에 파일별 ACL 저장 + 권한 변경 동기화(보안 트리밍)를 <b>직접 설계</b> — 어긋나면 유출</td><td>높음(벡터DB·임베딩·동기화)</td><td class="mid">2차(품질 필요 시, 권한 트리밍 선결)</td></tr>
+  </table>
+  <div class="callout amber">
+    <b class="tag">RAG(방식 B)의 핵심 리스크</b>
+    사전 인덱싱은 검색 품질이 좋지만, <b>요청 사용자 권한으로 결과를 필터하는 보안 트리밍</b>이 난제다. ACL 색인·동기화가 어긋나면 권한 없는 사람에게 문서가 노출된다 — 급여·인사 등 민감 데이터에서 특히 위험(§1·§6). 그래서 §3에서 정한 대로 <b>B는 전 직원 공개 문서만 담는 전용 라이브러리로 한정</b>하고 <code>Sites.Selected</code> 최소권한으로 운영하는 것이 옳다.
+  </div>
+
+  <h3>7-4. 대안 — Microsoft 네이티브 (라이선스 검토)</h3>
+  <table>
+    <tr><th style="width:34%;">옵션</th><th>내용</th></tr>
+    <tr><td>Microsoft 365 Copilot</td><td>Graph 근거·보안 트리밍을 이미 내장 — 라이선스 보유 시 자체 구현 없이 해결 가능</td></tr>
+    <tr><td>Copilot Studio / Graph connectors + Azure AI Search</td><td>커스텀 에이전트 + 보안 트리밍 내장</td></tr>
+    <tr><td>Azure OpenAI "On Your Data" + Azure AI Search</td><td>Graph 데이터소스 연결 — Azure 이관 방향과 정합</td></tr>
+  </table>
+
+  <h3>7-5. 실계정 검증 로그 (2026-07-09 · Graph Explorer · dh.choi)</h3>
+  <p>프로덕션 앱(JEIL-AX-Portal)은 <b>변경하지 않고</b>, Microsoft Graph Explorer에 <b>dh.choi@jeilm.co.kr</b>(제일엠앤에스 테넌트)로 위임 로그인하여 실제 권한 기준으로 검증했다.</p>
+  <table>
+    <tr><th style="width:6%;">#</th><th style="width:34%;">호출</th><th>결과(실측)</th></tr>
+    <tr><td>1</td><td><code>GET /me</code></td><td class="ok">200 — 최동혁·매니저·ko-KR (신원 확인)</td></tr>
+    <tr><td>2</td><td><code>GET /me/drive/root/children</code></td><td class="ok">200 — 실제 OneDrive 폴더 조회: <b>기록</b>(≈342MB)·<b>기타,다운로드</b>·<b>모임</b> 등 (위임 <code>Files.Read</code> 작동)</td></tr>
+    <tr><td>3</td><td><code>GET /sites?search=*</code></td><td class="ok">200 — 부서·기능 SharePoint 팀사이트 실존: <b>전사(All Company)·[주간업무] 구매팀·사업관리팀·[주간업무] 공정설계팀·그룹웨어·글로벌법인관리</b> 등 (부서 폴더 모델 현존)</td></tr>
+    <tr><td>4</td><td><code>POST /search/query</code> (driveItem)</td><td class="ok">200 — 접근 가능 문서 <b>31,980건</b> 보안 트리밍(사이트+개인 OneDrive 혼합) 검색 (방식 A 검색)</td></tr>
+    <tr><td>5</td><td>Workbook API <code>usedRange</code><br>(회의록 양식.xlsx)</td><td class="ok">200 — 셀 값 실제 판독(회의명·회의장소·회의일시 …) → <b>파일 본문 분석 가능</b></td></tr>
+  </table>
+  <div class="callout green">
+    <b class="tag">검증 결론</b>
+    위임 권한만으로 dh.choi가 볼 수 있는 OneDrive·SharePoint 자료가 <b>그대로 조회·검색·본문 판독</b>되었다 — 방식 A의 실현성과 부서 폴더 격리 모델이 실증됨. 다만 dh.choi는 <b>전역 관리자</b>라 검색 범위가 넓다: <b>부서 격리의 최종 검증</b>은 일반 부서원 계정 로그인 시 타부서 폴더가 0건인지 확인하는 것이 남는다.
+  </div>
+  <div class="callout amber">
+    <b class="tag">실 챗봇 통합까지 남은 것(이 검증은 Graph Explorer 기준)</b>
+    ① 프로덕션 <b>JEIL-AX-Portal</b> 앱에 위임 <code>Files.Read</code>·<code>Sites.Read.All</code> 추가 + 관리자 동의 ② 프론트 MSAL로 Graph 스코프 토큰 획득 → Edge 전달 ③ <code>jeil-chat</code>에 <code>search_docs</code>·<code>read_file</code>(+Excel <code>read_workbook</code>) 도구 추가.
+  </div>
+
+  <h3>7-6. 실 챗봇 통합 착수 — 배포 완료 (2026-07-09)</h3>
+  <div class="callout green">
+    <b class="tag">핵심 발견 — 추가 권한·프론트 변경 불필요</b>
+    설정 확인 결과, Entra 앱(JEIL-AX-Portal)에 위임 <b><code>Files.ReadWrite.All</code>이 이미 관리자 동의</b>로 부여돼 있고(니즈조사 자동저장용, 2026-06-12), 포털 로그인이 이 scope를 이미 요청한다(04 파일). 즉 사용자의 로그인 토큰(<code>jeilax_auth</code>, Graph-audience)에 <b>이미 파일 읽기 권한이 있고</b> <code>jeil-chat</code>이 그 토큰을 수신한다 → <b>Entra·프론트 변경 없이</b> 게이트웨이에 도구만 얹으면 OneDrive 문서 확인이 된다.
+  </div>
+  <table>
+    <tr><th style="width:26%;">항목</th><th>내용(배포됨)</th></tr>
+    <tr><td class="first">게이트웨이</td><td><code>jeil-chat</code> <b>v16</b> — 문서 도구 2종 추가: <code>search_my_documents</code>(검색)·<code>read_document</code>(상세·본문). <b>호출자 위임 토큰</b>으로 Graph 호출 → 본인 권한 범위만 보안 트리밍</td></tr>
+    <tr><td class="first">본문 판독</td><td>Excel(.xlsx) 셀 값(최대 40행, Workbook API)·텍스트(.txt/.csv/.md/.json, 최대 8000자). docx/pdf는 메타+링크(후속 과제)</td></tr>
+    <tr><td class="first">모델 안내</td><td>DB <code>ai_gateway_config.system_prompt</code>에 문서 도구 사용·출처 표기·보안 트리밍 안내 반영</td></tr>
+    <tr><td class="first">권한</td><td class="ok">추가 판정 불필요 — Graph가 사용자 권한으로 자동 필터. 급여·개인정보는 답변 노출 금지 규칙 유지</td></tr>
+  </table>
+  <div class="callout amber">
+    <b class="tag">테스트 방법 (dh.choi)</b>
+    ① <code>https://ai.jeilm.co.kr/04_챗봇_포털_데모UI.html</code> 접속 → MS 로그인(파일 권한 포함 재로그인 권장). ② 챗봇에 <b>"내 OneDrive에서 회의록 찾아줘"</b> → 파일 목록 반환. ③ <b>"그 회의록 양식 파일 열어서 요약해줘"</b> → 본문(셀 값) 요약. 타부서/권한 밖 문서는 조회되지 않음(보안 트리밍).
+  </div>
+  <div class="callout red">
+    <b class="tag">남은 검증·확장</b>
+    ① <b>부서 격리 최종검증</b>: 일반 부서원 계정으로 타부서 문서 0건 확인. ② SharePoint 사이트 문서는 대체로 <code>Files.ReadWrite.All</code>로 조회되나 일부는 <code>Sites.Read.All</code> 추가 동의 필요할 수 있음(관리자). ③ docx/pdf 본문 추출·부서별 RAG는 후속.
+  </div>
+
+  <div class="callout green">
+    <b class="tag">권고 요약</b>
+    ① <b>1순위: 방식 A(라이브 위임)</b> — 권한 안전·저비용·현 구조 확장. <b>본 통합(v16)으로 착수 완료</b>. ② <b>2순위: 방식 B(RAG)</b> — 검색 품질이 필요할 때, 전용 라이브러리·<code>Sites.Selected</code>·ACL 트리밍 설계를 선결. ③ M365 Copilot/Azure AI Search 라이선스 보유 여부를 먼저 확인하면 자체 구현을 줄일 수 있음.
+  </div>
+
+  <h2><span class="num">8</span>AI 작업 범위 거버넌스 — ai.jeil 화이트리스트 + 폴더 지정 모델 (2026-07-09 기획·구현)</h2>
+  <p>방식 A는 <b>로그인한 사용자 본인 토큰</b>으로 검색하므로, AI가 뒤지는 범위 = 그 사람이 볼 수 있는 <b>모든 문서</b>다(§7-5에서 dh.choi 기준 31,980건). 권한 유출은 없으나 <b>범위를 좁히는 장치가 없다</b> — "OneDrive 폴더가 너무 많아 관리가 안 된다"는 우려의 실체가 이것이다. 본 절은 <b>"AI가 애초에 손댈 수 있는 컨테이너"를 화이트리스트로 한정</b>하는 거버넌스를 설계한다. (기획 — 코드·설정 변경은 미수행)</p>
+
+  <div class="callout green">
+    <b class="tag">설계 결론 — 2중 게이트 (범위 ∩ 사용자권한)</b>
+    <b>검색 대상 = (AI 승인 컨테이너) ∩ (사용자 본인 ACL)</b>. ① <b>범위 게이트(신규)</b>: <code>ai_admin</code> 서비스계정이 <b>구성원으로 포함된 SharePoint 사이트/라이브러리</b>만 AI 대상. ② <b>권한 게이트(기존 유지)</b>: 그 안에서도 방식 A 보안 트리밍으로 <b>본인이 볼 권한 있는 것만</b>. 순효과 — 폭주하던 범위가 승인된 프로젝트 폴더로 <b>한정</b>되고, 권한 유출은 여전히 0.
+  </div>
+
+  <h3>8-1. 확정 결정 (2026-07-09)</h3>
+  <table>
+    <tr><th style="width:26%;">결정 항목</th><th>선택</th></tr>
+    <tr><td>거버넌스 기본키</td><td><b>전용 서비스계정 <code>ai.jeil@jeilm.co.kr</code></b> — "사이트/라이브러리에 이 계정을 구성원으로 추가 = AI 사용 허가". SharePoint 권한 UI만으로 자기서비스 운영</td></tr>
+    <tr><td>범위 단위</td><td><b>SharePoint 사이트/문서 라이브러리</b> 단위 — 열거·필터가 깔끔하고 Graph 스코프와 정합. 개인 OneDrive 개인검색은 방식 A 그대로(별도), 화이트리스트 대상 아님</td></tr>
+  </table>
+
+  <h3>8-2. ai_admin 서비스계정 설계</h3>
+  <table>
+    <tr><th style="width:26%;">항목</th><th>내용</th></tr>
+    <tr><td>정체</td><td>전용 계정 <code>ai.jeil@jeilm.co.kr</code> (2026-07-09 확정) — <b>권한 부여 대상 표식</b>일 뿐, 사람이 로그인하지 않는다. 이 계정을 프로젝트 사이트/라이브러리에 <b>읽기 구성원</b>으로 추가하면 그 컨테이너가 AI 승인 대상이 됨</td></tr>
+    <tr><td>계정 보안 (필수)</td><td class="mid">대화형 로그인 차단(조건부 액세스), 강력 MFA, 최소 라이선스, 소유자 최동혁. 광범위 접근을 갖는 계정이므로 <b>탈취 시 파급이 큼 → 사용면 최소화·감시</b></td></tr>
+    <tr><td class="ok">권한 상승 금지 원칙</td><td class="ok"><b>ai_admin은 "범위 표식"으로만 쓰고, 실제 문서 읽기는 반드시 사용자 위임 토큰으로</b> 한다. 서비스계정 토큰으로 대신 읽으면 사용자 권한을 우회해 유출 경로가 됨 — 절대 금지</td></tr>
+  </table>
+
+  <h3>8-3. 범위 동기화 파이프라인 (야간 배치)</h3>
+  <div class="arch">
+    <div class="box ext"><h4>담당자 공유</h4><p>프로젝트 사이트/라이브러리에<br>ai_admin 읽기 추가</p></div>
+    <div class="arrow"><span class="line">→</span>야간 배치<br>(app-only)</div>
+    <div class="box hl"><h4>범위 동기화</h4><p>ai_admin 접근 사이트·드라이브 열거<br>→ 승인/해제 반영</p></div>
+    <div class="arrow"><span class="line">→</span>upsert</div>
+    <div class="box hl"><h4>ai_document_scope</h4><p>Supabase SSOT 테이블<br>siteId·driveId·목적·승인자·일자</p></div>
+  </div>
+  <table>
+    <tr><th style="width:26%;">항목</th><th>내용</th></tr>
+    <tr><td>SSOT 테이블</td><td><code>ai_document_scope</code>(Supabase) — <code>site_id</code>·<code>drive_id</code>·<code>site_name</code>·<code>purpose</code>·<code>approved_by</code>·<code>approved_at</code>·<code>active</code>. jeil-chat이 검색 스코프로 이 목록만 사용</td></tr>
+    <tr><td>동기화 방식</td><td>야간 배치가 ai_admin이 접근 가능한 사이트/라이브러리를 열거해 테이블 upsert, 공유 해제분은 <code>active=false</code>. <b>공유 추가/해제만으로 자동 반영</b> — 관리자 화면 없이 운영 가능</td></tr>
+    <tr><td class="mid">구현 확정 필요</td><td class="mid">"서비스계정이 구성원인 사이트 전역 열거"는 Graph 단일 호출이 깔끔하지 않다. 실무 후보: ⓐ ai_admin이 승인 사이트를 <b>팔로우</b>→<code>followedSites</code> 열거, ⓑ app-only <code>getAllSites</code>+구성원 필터, ⓒ 명시적 등록 보조 테이블 병행. <b>W7 구현 시 정확한 호출을 핀 고정</b>(과잉확언 금지)</td></tr>
+  </table>
+
+  <h3>8-4. jeil-chat 게이트웨이 변경 (v17 — 배포 완료 2026-07-09)</h3>
+  <table>
+    <tr><th style="width:26%;">도구</th><th>변경(배포됨)</th></tr>
+    <tr><td><code>search_my_documents</code></td><td class="ok">검색 전 <code>ai_document_scope</code>(active)에서 승인 <code>drive_id</code>·<code>web_url</code> 로드 → Graph Search를 <b>KQL <code>path:</code> 스코프로 제한</b> + 결과를 <b>승인 driveId로 하드 필터</b>(경로 누수 대비 이중). 호출은 <b>여전히 사용자 위임 토큰</b>(권한 트리밍 유지). 범위 미설정이면 <b>fail-closed</b>(검색 비활성)</td></tr>
+    <tr><td><code>read_document</code></td><td class="ok">요청 <code>driveId</code>가 <b>승인 목록에 있는지 검증</b> 후 본문 반환 — 범위 밖 driveId 직접 열람 차단(이중 안전)</td></tr>
+    <tr><td>모델 안내</td><td class="ok"><code>system_prompt</code>에 "승인 프로젝트 폴더만 검색·범위 밖은 정직 안내" 반영. 도구 설명도 화이트리스트 명시</td></tr>
+    <tr><td>부팅</td><td class="ok">v17 ACTIVE·401 정상 기동(전 직원 챗봇 무중단). 조회 실패 시 안전 폴백 유지</td></tr>
+  </table>
+
+  <h3>8-5. 운영 절차 · 안전선</h3>
+  <table>
+    <tr><th style="width:26%;">구분</th><th>정책</th></tr>
+    <tr><td>AI 사용 신청</td><td>부서 → 대상 사이트/라이브러리에 ai_admin 읽기 공유 → 관리자(최동혁) 검토 → 다음 야간 배치에 자동 반영</td></tr>
+    <tr><td>해제</td><td>공유 제거 → 다음 배치에 <code>active=false</code>. 범위 변경은 감사 로그로 기록</td></tr>
+    <tr><td class="no">민감 컨테이너 금지</td><td class="no">급여·인사평가·계약·원가 등 민감 사이트는 <b>화이트리스트 등재 금지</b>(§4 계승). ai_admin을 그런 사이트에 추가하지 않는 것을 등재 심사 1차 관문으로</td></tr>
+    <tr><td>2차(RAG) 정합</td><td>방식 B(RAG) 도입 시에도 인덱싱 대상 = 본 화이트리스트로 한정 → 범위 통제선 일원화</td></tr>
+  </table>
+  <div class="callout amber">
+    <b class="tag">착수 선행조건 · 진행상태</b>
+    <b class="ok">② <code>ai_document_scope</code> 테이블 신설·파일럿 시드 완료</b>, <b class="ok">④ jeil-chat v17 스코프 필터 배포 완료</b>(이중 게이트·fail-closed). 남은 것: ① 서비스계정 <code>ai.jeil@jeilm.co.kr</code> 정식 보안설정(관리자) ③ 범위 <b>자동</b> 동기화 배치(현재는 수동 등록) + 열거 API 핀 고정. 초기엔 승인 사이트 2~3개로 파일럿 후 확대.
+  </div>
+
+  <h3>8-6. 파일럿 실측 로그 (2026-07-09 · dh.choi 위임 · claude.ai M365 커넥터)</h3>
+  <p>파일럿으로 <b>Team <code>ai.jeil</code></b> 을 생성(SharePoint 사이트 <code>sites/ai_jeil</code>, driveId <code>b!QKCqjrc…</code>)하고 <code>ai.jeil@jeilm.co.kr</code>을 구성원으로 등록한 뒤, dh.choi 위임 권한으로 Graph 실측했다.</p>
+  <table>
+    <tr><th style="width:6%;">#</th><th style="width:34%;">검증</th><th>결과(실측)</th></tr>
+    <tr><td>1</td><td>파일럿 사이트 실존·읽기</td><td class="ok">200 — <code>sites/ai_jeil</code> 문서함 접근 가능. 단 <b>현재 자동 생성 OneNote만 있고 테스트 문서 미등재</b>(검색 6,317건 중 파일럿 driveId 문서 0건)</td></tr>
+    <tr><td>2</td><td>스코프 <b>미적용</b> 검색 위험</td><td class="no">"ai.jeil" 검색이 파일럿 사이트로 격리되지 않고 <b>dh.choi 개인 OneDrive</b>(<code>사업관리팀 공유/ERP_자동추출</code>)의 재무 CSV까지 <b>6,317건</b> 반환 — 원장·<b>지급이체내역(은행계좌 포함)</b> 등 민감자료 포함</td></tr>
+  </table>
+  <div class="callout red">
+    <b class="tag">핵심 발견 — 화이트리스트 필요성 실증</b>
+    스코프 필터가 없는 현재 상태(v16 검색)는 로그인 사용자가 볼 수 있는 <b>모든 것</b>(개인 OneDrive의 급여·자금·은행계좌 추출물 포함)을 검색 범위로 삼는다 — 위 #2가 그 실물 증거다. <b>§8의 2중 게이트(승인 컨테이너 ∩ 사용자 권한)가 반드시 선행돼야</b> 하며, 자금·급여성 폴더는 화이트리스트 등재 금지(§8-5)를 재확인한다.
+  </div>
+  <table>
+    <tr><th style="width:26%;">확정·해소 사항</th><th>내용</th></tr>
+    <tr><td>스코프 시드값</td><td>파일럿 사이트 <b>driveId <code>b!QKCqjrc…</code></b>(<code>sites/ai_jeil</code>)를 <code>ai_document_scope</code> 첫 항목으로 등록</td></tr>
+    <tr><td class="ok">§8-3 열거방식 해소</td><td class="ok">ai.jeil을 <b>Team(M365 그룹) 구성원</b>으로 넣었으므로 배치는 app-only로 <code>GET /users/{ai.jeil-id}/transitiveMemberOf/microsoft.graph.group</code> → 각 그룹의 SharePoint 사이트/드라이브로 열거. <b>폴더 공유가 아닌 그룹 멤버십이라 전역 열거가 깔끔</b> — Team으로 만든 것이 정답이었음</td></tr>
+    <tr><td class="ok">구현·배포(2026-07-09)</td><td class="ok"><code>ai_document_scope</code> 테이블 신설 + 파일럿 driveId 시드 완료, <b>jeil-chat v17 스코프 필터 배포</b>(ACTIVE·401 정상). 이제 챗봇 문서검색은 파일럿 사이트로 격리됨(이전 6,317건 개인 재무 CSV 노출 → 승인 컨테이너만)</td></tr>
+    <tr><td class="no">driveId 교정(2026-07-09)</td><td class="no">사용자 스크린샷으로 발견 — 한 사이트에 <b>문서 라이브러리 2개</b>(SiteAssets/전자필기장 vs Shared Documents/문서). 최초 시드가 <b>SiteAssets(OneNote)</b> driveId였음(빈 라이브러리) → 실제 데이터(<code>ERP_DML</code> 등)가 있는 <b>Shared Documents</b> drive(<code>…ovvBu8GzGR…</code>)로 교정. <b>교훈: 사이트 승인 시 대상 문서 라이브러리 driveId를 정확히 지정</b>(자동 동기화 배치가 이 선택을 자동화해야 함)</td></tr>
+    <tr><td class="ok">end-to-end 검증(2026-07-09)</td><td class="ok">교정 후 파일럿 문서함 실측: <code>ERP_DML</code>(DOC 기획문서 20여개·<code>data/dml_data.js</code>·SQL·scripts·BAK). 위임 토큰으로 <code>README.txt</code> 본문 판독 성공 → v17 검색·판독 범위에 정확히 포함됨을 확인</td></tr>
+    <tr><td class="ok">거버넌스 결정(2026-07-09)</td><td class="ok"><code>ERP_DML</code>(DML 감사로그) AI 적용 — <b>테스트 단계이므로 적용 승인</b>(관리자 최동혁). 현재 <code>ai.jeil</code> 팀 멤버 한정. <b>전사/운영 확대 시 민감도 재심사 후 결정</b>(급여·자금과 달리 감사로그는 파일럿 허용)</td></tr>
+    <tr><td>잔여</td><td>① ai.jeil 멤버십 기반 <b>자동</b> 동기화 배치(현재 수동 등록·driveId 선택 자동화 포함) ② 부서원 계정 격리 최종검증</td></tr>
+  </table>
+
+  <h3>8-7. 폴더 지정 모델 — 3단계 스코프 + 관리자/사용자 지정 (2026-07-09 구현)</h3>
+  <p>이번 파일럿에서 <b>한 사이트에 문서 라이브러리가 2개</b>(SiteAssets vs Shared Documents)라 자동 추측이 엉뚱한 쪽을 잡는 사고가 있었다(§8-6). 해법은 <b>"자동 추측"을 버리고 관리자/사용자가 대상 폴더를 명시적으로 지정</b>하는 것. 이를 위해 <code>ai_document_scope</code>를 <b>site/library/folder 3단계 스코프</b>로 확장했다(구현·v18 배포 완료).</p>
+  <table>
+    <tr><th style="width:14%;">단계</th><th>의미</th><th style="width:34%;">저장(<code>ai_document_scope</code>)</th></tr>
+    <tr><td><b>folder</b>(권장)</td><td>라이브러리 내 <b>특정 폴더</b>만(예: <code>ERP_DML</code>). 가장 정밀 — 같은 라이브러리 다른 폴더는 제외</td><td><code>scope_type='folder'</code>, <code>drive_id</code>+<code>path_prefix</code>(폴더 웹URL)</td></tr>
+    <tr><td><b>library</b></td><td>문서 라이브러리(드라이브) 전체</td><td><code>scope_type='library'</code>, <code>drive_id</code>+<code>path_prefix</code>(라이브러리 URL)</td></tr>
+    <tr><td><b>site</b></td><td>사이트 전체(모든 라이브러리) — 거칠어 지양</td><td><code>scope_type='site'</code>, <code>drive_id</code>별 행 + 사이트 URL</td></tr>
+  </table>
+  <div class="callout green">
+    <b class="tag">jeil-chat v18 강제 방식(이중 게이트 + 폴더 경로)</b>
+    검색은 KQL <code>path:"<지정경로>"</code>로 한정하고, 결과를 <b>승인 driveId 일치 AND 경로가 지정 접두로 시작</b>하는지 하드 필터한다(경로 스코프 누수 대비). 판독도 문서 <code>webUrl</code>이 지정 폴더 하위인지 <b>2차 검증</b>. 즉 <b>폴더 레벨까지 정밀 강제</b>되고, 그 위에 사용자 위임 권한 트리밍(Graph)이 더해진다.
+  </div>
+  <h4 style="margin:18px 0 8px;color:var(--navy2);">지정 방법 (사용자 친화 순)</h4>
+  <table>
+    <tr><th style="width:20%;">방법</th><th>절차</th><th style="width:14%;">주체</th></tr>
+    <tr><td class="ok"><b>A. 링크 붙여넣기</b>(권장)</td><td>관리자 콘솔에 <b>SharePoint 폴더 링크</b>를 붙여넣으면 Graph <code>/shares/{link}/driveItem</code>로 해석 → <code>site_id·drive_id·item_id·web_url</code> 자동 추출 → folder 스코프로 등록. <b>비개발자도 링크 복사만</b>. 라이브러리 오지정 원천 차단</td><td>관리자/부서담당</td></tr>
+    <tr><td><b>B. ai.jeil 공유 + 폴더 확정</b></td><td>사이트/폴더에 <code>ai.jeil</code> 계정을 멤버로 추가(자기서비스) → 배치가 후보 사이트를 열거해 <b>"지정 대기"</b>로 올림 → 관리자가 그 사이트의 <b>어느 폴더</b>인지 1클릭 확정</td><td>부서담당+관리자</td></tr>
+    <tr><td><b>C. 직접 등록</b>(fallback)</td><td><code>ai_document_scope</code>에 SQL로 직접(현 파일럿 방식)</td><td>개발/관리자</td></tr>
+  </table>
+  <div class="callout amber">
+    <b class="tag">핵심 원칙 — "후보는 자동, 최종 폴더 지정은 명시적"</b>
+    ai.jeil 멤버십은 <b>어느 사이트가 후보인지</b>만 자동으로 좁힌다(자기서비스 편의). 그러나 <b>구체적으로 어느 라이브러리/폴더를 AI에 열지는 사람이 확정</b>한다 — 이번 SiteAssets 오지정 같은 자동 추측 사고의 재발을 원천 차단. 미확정 후보는 "지정 대기"로 남고 <b>자동 등록하지 않는다</b>.
+  </div>
+
+  <h3>8-8. 전 프로젝트 확대 — 무결 적용 보장</h3>
+  <table>
+    <tr><th style="width:26%;">보장 항목</th><th>설계</th></tr>
+    <tr><td>프로젝트=행</td><td>프로젝트(폴더) 하나 = <code>ai_document_scope</code> 행 하나(폴더 여러 개면 여러 행). <b>코드 변경 0 — 행 추가만으로</b> 새 프로젝트 반영</td></tr>
+    <tr><td>정밀 식별</td><td><code>drive_id</code>+<code>path_prefix</code> 조합이 컨테이너를 유일 식별 → 한 사이트에 라이브러리·폴더가 아무리 많아도 <b>지정한 폴더만</b> 검색·판독</td></tr>
+    <tr><td>충돌 없음</td><td>jeil-chat은 활성 행 수만큼 <code>path:</code> OR 스코프 + driveId∩경로 필터 → 여러 프로젝트가 <b>서로 간섭 없이 병존</b>. 각 사용자는 그중 <b>본인 권한 범위</b>만(Graph 트리밍)</td></tr>
+    <tr><td class="ok">안전 기본값</td><td class="ok"><b>fail-closed</b> 유지 — 범위 미설정/오등록 시 과다노출이 아니라 <b>과소노출</b>(검색 0건). 실수의 방향이 항상 안전측</td></tr>
+    <tr><td>운영</td><td>추가=링크 붙여넣기(방법 A)·해제=<code>active=false</code> 또는 공유 제거. 모든 변경은 <code>approved_by·approved_at</code>로 감사. 민감(급여·자금·인사) 폴더는 등재 금지(§8-5)</td></tr>
+  </table>
+  <div class="callout green">
+    <b class="tag">현재 반영 상태</b>
+    ① <code>ai_document_scope</code> <b>3단계 스코프 스키마</b>(scope_type·item_id·path_prefix) 적용 완료. ② <b>AI DML(ERP_DML) 폴더 스코프로 적용 완료</b> — 챗봇이 <code>ai.jeil</code>의 <code>ERP_DML</code> 폴더 문서를 검색·판독 가능(그 상위 Shared Documents 다른 폴더는 자동 제외). ③ jeil-chat <b>v18 배포·ACTIVE</b>. 남은 것: 방법 A(링크 해석) 관리자 콘솔 UI + 방법 B(후보 열거) 배치.
+  </div>
+
   <div class="footer">
     <span>JEIL AX 실제 구축 준비 · 02 MS 연동·OneDrive</span>
-    <span>2026. 06. 12. · 작성 최동혁</span>
+    <span>2026. 06. 12. · 갱신 2026. 07. 09. · 작성 최동혁</span>
   </div>
 </div>
 </body>
