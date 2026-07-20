@@ -103,6 +103,11 @@
   .cv-req{display:flex; flex-wrap:wrap; gap:6px; margin-top:8px;}
   .cv-chip{font-size:11px; background:#fff; border:1px solid var(--line); border-radius:12px; padding:3px 10px; color:var(--navy); font-weight:600;}
   .cv-foot{margin-top:7px; font-size:11px; color:var(--muted);}
+  .cv-actions{display:flex; flex-wrap:wrap; gap:6px; margin-top:9px;}
+  .cv-act{font-size:11.5px; background:#fff; border:1px solid var(--accent); color:var(--accent); border-radius:14px; padding:4px 12px; cursor:pointer; font-family:inherit; text-decoration:none; font-weight:600; line-height:1.4; appearance:none;}
+  .cv-act:hover{background:var(--accent); color:#fff;}
+  .cv-act-copy{border-color:var(--line); color:var(--muted);}
+  .cv-act-copy:hover{background:var(--navy); border-color:var(--navy); color:#fff;}
   /* 마크다운 블록(renderMd) */
   .bubble .cv-p{margin:3px 0;}
   .bubble ol{margin:6px 0 4px 20px;}
@@ -1485,6 +1490,33 @@ function _cvNum(v){ return (typeof v === 'number' && isFinite(v)) ? v.toLocaleSt
 function _cvEl(tag, cls, txt){ var e = document.createElement(tag); if(cls) e.className = cls; if(txt != null) e.textContent = txt; return e; }
 function _cvTable(){ var w = _cvEl('div', 'cv-tblwrap'), t = document.createElement('table'); t.className = 'cv-table'; w.appendChild(t); return { wrap: w, tbl: t }; }
 function _cvTh(tr, label, right){ var th = _cvEl('th', right ? 'r' : null, label); th.setAttribute('scope', 'col'); tr.appendChild(th); return th; }
+/* P3: 카드 데이터 → TSV (엑셀 붙여넣기용, 그리드 표준 §13.5 클립보드=TSV 규약과 동일) */
+function _cvTsv(v){
+  if(v.view === 'series' && Array.isArray(v.rows)){
+    return ['구분\t' + (v.unit ? '값(' + v.unit + ')' : '값')]
+      .concat(v.rows.map(function(r){ return String(r.k) + '\t' + String(r.v); })).join('\n');
+  }
+  if(v.view === 'ranking' && Array.isArray(v.rows)){
+    return ['순위\t항목\t' + (v.unit ? '값(' + v.unit + ')' : '값')]
+      .concat(v.rows.map(function(r){ return String(r.rank) + '\t' + String(r.label) + '\t' + String(r.v); })).join('\n');
+  }
+  if(v.view === 'list' && Array.isArray(v.columns) && Array.isArray(v.rows)){
+    var head = v.columns.map(function(c){ return String(c.label != null ? c.label : c.key); }).join('\t');
+    return [head].concat(v.rows.map(function(r){
+      return v.columns.map(function(c){ var x = r ? r[c.key] : null; return x == null ? '' : String(x); }).join('\t');
+    })).join('\n');
+  }
+  return null;
+}
+function _cvCopy(tsv, btn){
+  function done(ok){ var t = '📋 표 복사'; btn.textContent = ok ? '복사됨 ✓' : '복사 실패'; setTimeout(function(){ btn.textContent = t; }, 1500); }
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(tsv).then(function(){ done(true); }, function(){ done(false); });
+  } else {
+    try{ var ta = document.createElement('textarea'); ta.value = tsv; document.body.appendChild(ta); ta.select();
+      var ok = document.execCommand('copy'); document.body.removeChild(ta); done(ok); }catch(e){ done(false); }
+  }
+}
 function renderView(host, v){
   if(!v || !v.view) return;
   var card = _cvEl('div', 'cv-card cv-' + v.view);
@@ -1571,6 +1603,32 @@ function renderView(host, v){
       card.appendChild(rq);
     }
   } else { return; }
+
+  /* P3 액션 바 — 서버 지정 link/ask + 클라이언트 TSV 복사. link는 화이트리스트(https 또는 pages/ 상대경로)만. */
+  var ab = _cvEl('div', 'cv-actions');
+  if(Array.isArray(v.actions)){
+    v.actions.slice(0, 4).forEach(function(a){
+      if(!a || !a.label) return;
+      if(a.kind === 'link' && typeof a.url === 'string' &&
+         (/^https:\/\//.test(a.url) || (/^(\.\/)?pages\//.test(a.url) && a.url.indexOf(':') < 0))){
+        var l = document.createElement('a'); l.className = 'cv-act'; l.href = a.url;
+        l.target = '_blank'; l.rel = 'noopener noreferrer'; l.textContent = '↗ ' + String(a.label);
+        ab.appendChild(l);
+      } else if(a.kind === 'ask' && typeof a.prompt === 'string' && a.prompt.length > 0 && a.prompt.length <= 500){
+        var b = document.createElement('button'); b.className = 'cv-act'; b.type = 'button';
+        b.textContent = '💬 ' + String(a.label);
+        (function(p){ b.onclick = function(){ var inp = document.getElementById('inp'); if(inp){ inp.value = p; send(); } }; })(a.prompt);
+        ab.appendChild(b);
+      }
+    });
+  }
+  var tsv = _cvTsv(v);
+  if(tsv){
+    var cb = document.createElement('button'); cb.className = 'cv-act cv-act-copy'; cb.type = 'button'; cb.textContent = '📋 표 복사';
+    cb.onclick = function(){ _cvCopy(tsv, cb); };
+    ab.appendChild(cb);
+  }
+  if(ab.childNodes.length) card.appendChild(ab);
 
   var foot = [];
   if(v.asOf){ try{ foot.push('기준 ' + fmtKST(v.asOf)); }catch(e){} }

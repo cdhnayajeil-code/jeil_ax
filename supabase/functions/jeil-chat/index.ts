@@ -245,7 +245,10 @@ const hasModule = (s: ErpScope, m: string) => s.isAdmin || s.modules.has(m);
 
 /* ===== P2 구조화 뷰(11_제품기획/10) — 도구 결과를 SSE 'jeilax' 이벤트로 프론트 카드에 직결(모델 미경유) =====
    뷰 5종 고정: series/ranking/record/list/notice. 도구별 신규 템플릿 신설 금지 — 데이터 "형태"로 추상화한다.
-   각 도구 반환의 __view 는 모델 전달 전 제거되므로 토큰 비용 0. 구버전 프론트는 이벤트를 무시(하위호환). */
+   각 도구 반환의 __view 는 모델 전달 전 제거되므로 토큰 비용 0. 구버전 프론트는 이벤트를 무시(하위호환).
+   P3 액션(선택): actions?: [{kind:"link",label,url} | {kind:"ask",label,prompt}] — 카드당 최대 4개.
+     link = 포털 내 pages/ 상대경로 또는 https 링크(프론트가 화이트리스트 검증).
+     ask  = 클릭 시 해당 질문을 사용자가 챗봇에 보내는 것(후속질문·요청 "초안 작성"까지만 — 전송·승인 등 실거래 액션 금지, CLAUDE.md §1.6). */
 type ViewPayload = Record<string, unknown> & { view: "series" | "ranking" | "record" | "list" | "notice" };
 const comma = (n: number) => String(Math.round(Number(n) || 0)).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 const won = (n: number) => comma(n) + "원";
@@ -391,7 +394,9 @@ async function runTool(admin: any, name: string, argsJson: string, scope: ErpSco
       접근제한: true, 요청안내: true, 모듈: erpMod, 부서: scope.dept || "미지정", 안내,
       // notice 뷰 — 서버 안내 문구를 그대로 카드 표시(전 게이트 도구 공통 1곳)
       __view: { view: "notice", title: "데이터 접근 권한 안내", kind: "deny", text: 안내,
-        request: { module: erpMod, moduleKo: modKo, dept } } satisfies ViewPayload,
+        request: { module: erpMod, moduleKo: modKo, dept },
+        actions: [{ kind: "ask", label: "권한 요청 초안 작성",
+          prompt: `포털 관리자에게 보낼 '${dept}의 ${modKo}(${erpMod}) ERP 모듈 권한' 요청 메시지 초안을 사내 메신저용으로 간결하게 작성해줘. 요청 사유 한 줄을 포함하고, 내가 복사해서 직접 보낼 수 있는 형태로.` }] } satisfies ViewPayload,
     };
   }
 
@@ -717,7 +722,9 @@ async function runTool(admin: any, name: string, argsJson: string, scope: ErpSco
       __view: { view: "ranking", title: `발주 총액 상위 ${n}건`, unit: "원", asOf,
         // deno-lint-ignore no-explicit-any
         rows: rows.map((r: any, i: number) => ({ rank: i + 1, label: `${r.po_no} · ${r.po_vendor || "-"}`, v: Number(r.po_total || 0), sub: String(r.top_item || "") })),
-        note: "발주번호별 라인 합산 총액 기준" } satisfies ViewPayload };
+        note: "발주번호별 라인 합산 총액 기준",
+        ...(rows.length ? { actions: [{ kind: "ask", label: `1위 ${(rows[0] as Record<string, unknown>).po_no} 상세 보기`,
+          prompt: `발주 ${(rows[0] as Record<string, unknown>).po_no} 상세 조회해줘` }] } : {}) } satisfies ViewPayload };
   }
 
   if (name === "get_erp_receipt_pending") {
@@ -798,7 +805,7 @@ async function runTool(admin: any, name: string, argsJson: string, scope: ErpSco
       else if (vis === "지정 부서 공유") ok = (!!scope.dept && (scope.dept === owner || shared.includes(scope.dept))) || daSet.has(owner);
       else ok = false;
       if (ok && p.erp_module && !scope.isAdmin) ok = scope.modules.has(String(p.erp_module));
-      return { 페이지: p.title, 담당부서: p.dept_nm, 공개범위: p.visibility, 접근가능: ok };
+      return { 페이지: p.title, 담당부서: p.dept_nm, 공개범위: p.visibility, 접근가능: ok, 경로: String(p.path || "") };
     });
     // deno-lint-ignore no-explicit-any
     const okPages = pages.filter((p: any) => p.접근가능);
@@ -820,7 +827,12 @@ async function runTool(admin: any, name: string, argsJson: string, scope: ErpSco
           { k: "ERP 모듈", v: modules.length ? modules.map((m) => MODULE_KO[m] || m).join(" · ") : "없음" },
           { k: "운영페이지", v: `접근가능 ${okPages.length} / 전체 ${pages.length}` },
           ...(deptAdminOf.length ? [{ k: "부서관리자", v: deptAdminOf.join(", ") }] : []),
-        ] } satisfies ViewPayload,
+        ],
+        // 접근 가능한 운영페이지 바로가기(상위 3) — 실제 열람 차단은 각 페이지 게이트(jeil-me)가 재판정
+        // deno-lint-ignore no-explicit-any
+        actions: okPages.filter((p: any) => p.경로).slice(0, 3)
+          // deno-lint-ignore no-explicit-any
+          .map((p: any) => ({ kind: "link", label: String(p.페이지), url: String(p.경로) })) } satisfies ViewPayload,
       권한요청방법: scope.isAdmin
         ? "관리자(전권) 계정이므로 별도 권한 요청이 필요 없습니다. 타 사용자 권한 부여는 관리자 콘솔 › 사용자·부서에서 직접 수행하세요."
         : "필요한 데이터 모듈·페이지를 지정해 포털 관리자에게 요청하세요(관리자 콘솔 › 사용자·부서 › 부서별 ERP 모듈 권한에서 부여). 급여·인사 데이터는 인사팀 소속 또는 관리자만 가능합니다.",
@@ -837,7 +849,11 @@ async function runTool(admin: any, name: string, argsJson: string, scope: ErpSco
       const 안내 = `급여 집계는 인사팀(또는 포털 관리자)만 열람할 수 있습니다. 회원님 소속(${scope.dept || "미지정"})은 권한 범위 밖입니다. 인원 수만 필요하시면 '인원현황'으로 다시 물어보세요(전사 총원은 조회 가능).`;
       return { 접근제한: true, 요청안내: true, 모듈: "payroll", 부서: scope.dept || "미지정", 안내,
         __view: { view: "notice", title: "급여 데이터 접근 제한", kind: "deny", text: 안내,
-          request: { module: "payroll", moduleKo: "급여·인사", dept: scope.dept || "미지정" } } satisfies ViewPayload };
+          request: { module: "payroll", moduleKo: "급여·인사", dept: scope.dept || "미지정" },
+          actions: [
+            { kind: "ask", label: "전사 인원현황만 보기", prompt: "2026년 월별 전사 인원현황 보여줘" },
+            { kind: "ask", label: "권한 요청 초안 작성", prompt: "포털 관리자에게 보낼 급여·인사(payroll) ERP 모듈 권한 요청 메시지 초안을 사내 메신저용으로 간결하게 작성해줘. 요청 사유 한 줄을 포함하고, 내가 복사해서 직접 보낼 수 있는 형태로." },
+          ] } satisfies ViewPayload };
     }
     const ymF = String(args.ym || "").replace(/[^0-9]/g, "").slice(0, 6);   // 'YYYY-MM'·'YYYYMM' 모두 수용
     // erp_secure 는 REST 미노출 → service_role RPC로만 조회
@@ -864,7 +880,9 @@ async function runTool(admin: any, name: string, argsJson: string, scope: ErpSco
       unit: wantsPay ? "원" : "명", asOf,
       // deno-lint-ignore no-explicit-any
       rows: (월별 as any[]).slice(-24).map((m) => ({ k: String(m.월), v: wantsPay ? Number(m.급여총액_원 || 0) : Number(m.급여대상인원 || 0) })),
-      note: "급여대장(HDF070T) 기준 · 마감 전 변동 가능" + (wantsPay ? " · 집계만(개인별 없음)" : "") };
+      note: "급여대장(HDF070T) 기준 · 마감 전 변동 가능" + (wantsPay ? " · 집계만(개인별 없음)" : ""),
+      // 후속질문 칩 — 권한 보유자(인사팀·관리자)에게만 급여 방향 유도(비권한자에게 차단 질문 유도 금지)
+      ...(!wantsPay && canDetail ? { actions: [{ kind: "ask", label: "월별 급여총액 추이 보기", prompt: "2026년 월별 급여총액 추이 보여줘" }] } : {}) };
     const base = { 기준시각: asOf, 조건: ymF ? `${ymF.slice(0, 4)}-${ymF.slice(4, 6)}` : "전체 기간", 월별 };
     if (!canDetail) {
       return { ...base, 부서별: "권한 없음(비표시)",
