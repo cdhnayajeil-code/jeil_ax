@@ -109,6 +109,13 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <tbody>
 <tr>
 <td>2026-07-20</td>
+<td>챗봇</td>
+<td><code>supabase/functions/jeil-chat/index.ts</code>(v21→v23), <code>supabase/functions/jeil-chat-admin/index.ts</code>(v7→v8), <code>04_챗봇_포털_데모UI.html</code>, 통합본</td>
+<td><strong>사용자 아이디 표기 규약 도입 — 『부서_이름_아이디』통일</strong>(예: 총무팀_최동혁_dh.choi@jeilm.co.kr). 매핑 원천은 ERP 사용자정보 <code>v_erp_user_dept</code>(이메일→부서·이름) 단일 — 미매핑(퇴사자·시스템 계정)·비이메일 값은 원본 유지 폴백. 적용: 챗봇 구매요청 목록·발주↔구매요청 연결·구매요청 상세의 요청자(데이터+뷰 컬럼, v23에서 list 뷰 컬럼 누락 보완·요청부서 컬럼은 중복 제거), <code>get_my_access</code> 계정 표기, SYSTEM_PROMPT 표기 준수 지시, 관리자 콘솔 사용자별 사용량·최근 호출(<code>by_user.label</code>·<code>recent.upn_label</code>, 이미 조회 중인 <code>v_erp_user_dept</code> 재사용 — 추가 쿼리 0). 원칙: 표시 계층 변환만 — 감사 로그(<code>chat_log</code>·<code>hr_access_log</code>) 원본 upn 불변. 라이브 E2E 확인 — 계정 <code>총무팀_최동혁_dh.choi@jeilm.co.kr</code>, 요청자 <code>생산팀_이민호_mh.lee1@jeilm.co.kr</code> 등. git 커밋 <code>cc2e5f9</code>(v22 대비)·<code>4995179</code>(v23 대비) main 푸시 완료 → Vercel 자동배포.</td>
+<td>최동혁(+Claude)</td>
+</tr>
+<tr>
+<td>2026-07-20</td>
 <td>챗봇·제품기획</td>
 <td><code>04_챗봇_포털_데모UI.html</code>, <code>supabase/functions/jeil-chat/index.ts</code>(v20→v21), <code>11_제품기획/10_챗봇_응답렌더링_설계.md</code>(상태 "P1+P2+P3 구현 완료"로 갱신)</td>
 <td><strong>챗봇 뷰 액션(P3) 구현·배포 완료 — jeil-chat v20→v21 + 프론트 액션 바</strong>. ADR-008 범위 내 후속(§3-4 보류 해제)이며 신규 ADR 아님. 뷰 페이로드에 <code>actions</code>(카드당 최대 4) 규약 추가: <code>ask</code>(클릭 시 해당 질문을 챗봇 입력창에 넣어 자동 전송 — 일반 질문과 동일 경로) · <code>link</code>(새 탭, 프론트가 화이트리스트 검증 — <code>https://</code> 또는 <code>pages/</code> 상대경로만, <code>:</code> 포함 상대경로 차단) · (클라이언트) series/ranking/list 카드 "표 복사" 버튼(TSV 클립보드, 그리드 표준 §13.5 규약과 동일). 적용 사례: 접근제한 notice 카드 "권한 요청 초안 작성"(CLAUDE.md §1.6 준수 — 모델이 초안만 작성, 복사·전송은 사람) · 급여 접근제한 카드 "전사 인원현황만 보기"(권한 내 대안 유도) · 내 포털 권한(record) 카드 접근 가능 운영페이지 바로가기 상위 3(실제 열람 차단은 각 페이지 게이트 <code>jeil-me</code>가 재판정) · 인원현황 카드 "급여총액 추이" 후속 칩은 <strong>권한 보유자(인사팀·관리자)에게만</strong> 노출(비권한자에게 차단당할 질문 유도 금지) · 발주 Top 카드 "1위 상세 보기" 후속 칩. 배포: verify_jwt=false 유지, 배포본-로컬 소스 diff 0, 부트 31ms 정상. 라이브 E2E 확인 — 발주 랭킹 카드 액션 칩 2종 표시→클릭→자동 질문 전송→PO record 카드+진행단계 steps(요청✓→확정✓→발주완료(현재)→입고→매입) 체이닝, 내 권한 카드 링크 3종(<code>rel=noopener</code>·<code>target=_blank</code>·화이트리스트 경로 통과) 정상. 설계문서 <code>11_제품기획/10</code> 상태를 "P1+P2+P3 구현 완료"로 갱신(§3-4 신설·§5 단계표·§7 결정표 반영, ADR-008 본문은 P1+P2 범위 결정 그대로 — P3는 그 결정의 구현 후속이라 별도 ADR 미등재). git 커밋 <code>6c3dd5f</code> main 푸시 완료 → Vercel 자동배포.</td>
