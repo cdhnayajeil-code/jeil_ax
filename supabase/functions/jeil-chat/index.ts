@@ -7,6 +7,7 @@
 //   - API 키는 서버 시크릿(OPENAI_API_KEY)에만 존재. 프론트 미노출.
 //   - 데이터 접근은 사전 등록된 읽기전용 도구만(모델의 임의 SQL 금지). 포털DB + ERP 중간DB 사본(public.v_erp_* 뷰) — ERP 운영DB 직접 조회는 없음.
 //   - chat_log에 사용 이력 + 토큰·추정비용·사용도구 기록(대화 원문 미저장).
+//   - 도구 결과는 SSE 'jeilax' 이벤트로 구조화 뷰(5종)를 병행 송출 — 프론트 카드 직결(모델 미경유·수치 환각 차단, 11_제품기획/10).
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
 const cors = {
@@ -46,6 +47,7 @@ const SYSTEM_PROMPT =
   "'내 권한 확인', '나 뭐 볼 수 있어?', '이 페이지 왜 안 보여?' 류 권한 질의는 일반론으로 답하지 말고 반드시 get_my_access 도구로 로그인 본인의 실제 역할·부서·ERP 모듈·페이지 권한을 조회해 답하세요(관리자면 관리자라고 정확히 알릴 것). 본인 외 타인의 권한은 조회할 수 없습니다. " +
   "인원현황(재적·급여대상 인원)은 get_hr_headcount, 급여 총액 집계는 get_hr_payroll을 쓰세요. 인원 수치는 급여대장(HDF070T) 기준 '급여대상 인원'이며 마감 전 변동 가능함을 밝히세요. 부서별 인원 분포·급여액은 인사팀·관리자만 열람 가능하고, 그 외에는 전사 총원만 제공됩니다 — 권한 밖 수치를 추정·역산하지 마세요. " +
   "도구로 조회할 수 없는 사내 수치·규정은 추측하지 말고 원본 확인을 권하세요. " +
+  "도구 조회 수치는 화면에 표·카드(구조화 뷰)로 자동 표시되므로, 동일 수치를 표로 길게 반복 나열하지 말고 핵심 요약·해석·비교·시사점 중심으로 간결히 답하세요. " +
   "사용자의 OneDrive·SharePoint 문서 관련 질의('내 문서', '회의록 찾아', '이 파일 요약' 등)는 search_my_documents(검색)로 파일을 찾고, 상세·본문이 필요하면 검색결과의 driveId·itemId로 read_document를 호출하세요. 문서 검색은 회사가 승인한 프로젝트 폴더(화이트리스트) 안에서, 그중에서도 로그인한 본인 권한 범위만 조회됩니다(Microsoft 보안 트리밍) — 이를 답변에 밝히고 출처(파일명·링크)를 표기하세요. 검색 결과가 없으면 '승인된 AI 연동 범위에 해당 문서가 없다'고 정직하게 안내하세요. 본문 판독은 Excel·텍스트 파일만 가능하며, 그 외 형식은 링크 안내로 대체하세요. " +
   "급여·주민번호 등 개인정보나 비밀값을 답변에 포함하지 마세요.";
 
@@ -241,6 +243,16 @@ async function resolveErpScope(admin: any, upn: string): Promise<ErpScope> {
 // 모듈 보유 여부(관리자는 전 모듈)
 const hasModule = (s: ErpScope, m: string) => s.isAdmin || s.modules.has(m);
 
+/* ===== P2 구조화 뷰(11_제품기획/10) — 도구 결과를 SSE 'jeilax' 이벤트로 프론트 카드에 직결(모델 미경유) =====
+   뷰 5종 고정: series/ranking/record/list/notice. 도구별 신규 템플릿 신설 금지 — 데이터 "형태"로 추상화한다.
+   각 도구 반환의 __view 는 모델 전달 전 제거되므로 토큰 비용 0. 구버전 프론트는 이벤트를 무시(하위호환). */
+type ViewPayload = Record<string, unknown> & { view: "series" | "ranking" | "record" | "list" | "notice" };
+const comma = (n: number) => String(Math.round(Number(n) || 0)).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+const won = (n: number) => comma(n) + "원";
+// ERP 진행단계 → steps 뷰 인덱스(요청 RQ → 확정 CF → 발주 PO → 입고 GR → 매입 IV)
+const STEP_IX: Record<string, number> = { RQ: 0, CF: 1, PO: 2, GR: 3, IV: 4 };
+const STEP_LABELS = ["요청", "확정", "발주완료", "입고", "매입"];
+
 /* ===== 사용모델 설정 로드·라우팅 (SSOT: ai_gateway_config / ai_model / ai_routing_rule) =====
    원칙: 조회 실패·미설정이면 기존 하드코딩 기본값으로 안전 폴백 → 설정이 비어도 챗봇은 정상 동작한다. */
 type AiModelRow = { model_id: string; vendor: string; active: boolean; callable: boolean; price_in: number; price_out: number };
@@ -374,9 +386,12 @@ async function runTool(admin: any, name: string, argsJson: string, scope: ErpSco
   if (erpMod && !scope.isAdmin && !scope.modules.has(erpMod)) {
     const modKo = MODULE_KO[erpMod] || erpMod;
     const dept = scope.dept || "소속 부서";
+    const 안내 = `요청하신 ERP '${modKo}' 데이터는 회원님 소속 부서(${dept})에 아직 열람 권한이 없습니다. 열람이 필요하시면 포털 관리자에게 '${dept}의 ${modKo}(${erpMod}) ERP 모듈 권한'을 요청해 주세요. (관리자 콘솔 › 사용자·부서 › 부서별 ERP 모듈 권한에서 부여)`;
     return {
-      접근제한: true, 요청안내: true, 모듈: erpMod, 부서: scope.dept || "미지정",
-      안내: `요청하신 ERP '${modKo}' 데이터는 회원님 소속 부서(${dept})에 아직 열람 권한이 없습니다. 열람이 필요하시면 포털 관리자에게 '${dept}의 ${modKo}(${erpMod}) ERP 모듈 권한'을 요청해 주세요. (관리자 콘솔 › 사용자·부서 › 부서별 ERP 모듈 권한에서 부여)`,
+      접근제한: true, 요청안내: true, 모듈: erpMod, 부서: scope.dept || "미지정", 안내,
+      // notice 뷰 — 서버 안내 문구를 그대로 카드 표시(전 게이트 도구 공통 1곳)
+      __view: { view: "notice", title: "데이터 접근 권한 안내", kind: "deny", text: 안내,
+        request: { module: erpMod, moduleKo: modKo, dept } } satisfies ViewPayload,
     };
   }
 
@@ -401,7 +416,15 @@ async function runTool(admin: any, name: string, argsJson: string, scope: ErpSco
         dueSoon.push({ 발주번호: h.po_no, 협력사: h.vendor_name, 납기: h.due_date, 상태: STATUS_KO[s] || s });
       }
     }
-    return { 기준시각: asOf, 총발주: (heads || []).length, 상태별건수: byStatus, 총발주금액_원: totalAmt, 협력사수: vendors.size, 납기7일내_미완료: dueSoon };
+    return { 기준시각: asOf, 총발주: (heads || []).length, 상태별건수: byStatus, 총발주금액_원: totalAmt, 협력사수: vendors.size, 납기7일내_미완료: dueSoon,
+      __view: { view: "record", title: "협력사 외주검사 발주 현황", asOf,
+        fields: [
+          { k: "총 발주", v: `${(heads || []).length}건` },
+          { k: "총 발주금액", v: won(totalAmt) },
+          { k: "협력사", v: `${vendors.size}곳` },
+          { k: "납기 7일내 미완료", v: `${dueSoon.length}건` },
+          ...Object.entries(byStatus).map(([k, v]) => ({ k: `상태 · ${k}`, v: `${v}건` })),
+        ] } satisfies ViewPayload };
   }
 
   if (name === "get_order_detail") {
@@ -422,6 +445,16 @@ async function runTool(admin: any, name: string, argsJson: string, scope: ErpSco
       상태: STATUS_KO[s?.status || ""] || s?.status || "미확인", 진행단계_10: s?.step ?? null,
       검사결과: insp ? { 판정: insp.result, 판정자: insp.judge_id, 의견: insp.opinion, 판정일: insp.judged_at } : "판정 전",
       검수요청건수: (reqs || []).length, 사진건수: (photos || []).length, 메시지건수: (msgs || []).length,
+      __view: { view: "record", title: `외주검사 발주 ${h.po_no}`, asOf,
+        fields: [
+          { k: "협력사", v: String(h.vendor_name || "-") },
+          { k: "발주일 / 납기", v: `${h.order_date || "-"} / ${h.due_date || "-"}` },
+          { k: "금액", v: won(Number(h.amt || 0)) },
+          { k: "품목수", v: `${Array.isArray(h.items) ? h.items.length : 0}종` },
+          { k: "상태", v: `${STATUS_KO[s?.status || ""] || s?.status || "미확인"}${s?.step != null ? ` (${s.step}/10단계)` : ""}` },
+          { k: "검사결과", v: insp ? `${insp.result}${insp.judged_at ? ` · ${String(insp.judged_at).slice(0, 10)}` : ""}` : "판정 전" },
+          { k: "검수요청/사진/메시지", v: `${(reqs || []).length}건 / ${(photos || []).length}장 / ${(msgs || []).length}건` },
+        ] } satisfies ViewPayload,
     };
   }
 
@@ -441,7 +474,12 @@ async function runTool(admin: any, name: string, argsJson: string, scope: ErpSco
         발주번호: r.po_no, 협력사: hm[r.po_no]?.vendor_name || "-", 납기: hm[r.po_no]?.due_date || "-",
         검수요청번호: r.insp_req_no, 요청일시: r.requested_at,
       }));
-    return { 기준시각: asOf, 판정대기건수: pending.length, 목록: pending };
+    return { 기준시각: asOf, 판정대기건수: pending.length, 목록: pending,
+      __view: { view: "list", title: `검사 판정 대기 ${pending.length}건`, asOf,
+        columns: [
+          { key: "발주번호", label: "발주번호" }, { key: "협력사", label: "협력사" },
+          { key: "납기", label: "납기" }, { key: "요청일시", label: "검수요청일시" },
+        ], rows: pending.slice(0, 30) } satisfies ViewPayload };
   }
 
   /* ===== 2단계 ERP 중간DB 도구 (public.v_erp_* 뷰, service_role 조회 · 사내 실데이터) ===== */
@@ -462,7 +500,10 @@ async function runTool(admin: any, name: string, argsJson: string, scope: ErpSco
     const 월별 = Object.keys(byMo).sort().map((ym) => ({ 월: ym, 매출액_원: byMo[ym].amt, 건수: byMo[ym].cnt, 거래처수: byMo[ym].bps.size }));
     return { 기준시각: asOf, 월별, 매출액합계_원: amt, 매출건수: cnt, 거래처수: Object.keys(byBp).length,
       거래처Top10: top.map((t) => ({ 거래처: t.name, 매출액_원: t.amt })),
-      안내: "ERP 중간DB 파일럿(유니포인트 매핑 확정 전). 월별 값은 각 월 실적재분이며, 미마감 최근월은 값이 작을 수 있음." };
+      안내: "ERP 중간DB 파일럿(유니포인트 매핑 확정 전). 월별 값은 각 월 실적재분이며, 미마감 최근월은 값이 작을 수 있음.",
+      __view: { view: "series", title: "월별 매출액(전사)", unit: "원", asOf,
+        rows: 월별.slice(-24).map((m) => ({ k: m.월, v: m.매출액_원 })),
+        note: "ERP 중간DB 파일럿 · 미마감 최근월은 값이 작을 수 있음" } satisfies ViewPayload };
   }
 
   if (name === "get_erp_purchase_monthly") {
@@ -492,9 +533,22 @@ async function runTool(admin: any, name: string, argsJson: string, scope: ErpSco
       필터결과 = { 조건: { 거래처: bpKw || null, 월: ymF || null }, 건수: f.length, 매입액합계_원: famt,
         목록: f.map((r: Record<string, unknown>) => ({ 월: r.ym, 거래처: r.bp_name || r.bp_code, 매입액_원: Number(r.purchase_amt || 0), 전표건수: Number(r.iv_cnt || 0) })) };
     }
+    // 뷰: 거래처·월 필터 조회면 그 목록(list), 아니면 월별 추이(series)
+    const purView: ViewPayload = 필터결과
+      ? { view: "list", title: `매입 조회${bpKw ? " — " + bpKw : ""}${/^\d{4}-\d{2}$/.test(ymF) ? " " + ymF : ""}`, asOf,
+          columns: [
+            { key: "월", label: "월" }, { key: "거래처", label: "거래처" },
+            { key: "매입액_원", label: "매입액(원)", num: true }, { key: "전표건수", label: "전표", num: true },
+          ],
+          // deno-lint-ignore no-explicit-any
+          rows: ((필터결과 as any).목록 || []).slice(0, 30), note: "송장(M_IV) 기준" }
+      : { view: "series", title: "월별 매입액(전사)", unit: "원", asOf,
+          rows: 월별.slice(-24).map((m) => ({ k: m.월, v: m.매입액_원 })),
+          note: "송장(M_IV) 기준 · 미마감 최근월은 값이 작을 수 있음" };
     return { 기준시각: asOf, 월별, 매입액합계_원: amt, 전표건수: cnt, 거래처수: Object.keys(byBp).length,
       거래처Top10: top.map((t) => ({ 거래처: t.name, 매입액_원: t.amt, 전표건수: t.cnt })), 필터결과,
-      안내: "ERP 중간DB 매입(송장 M_IV 기준) 파일럿. 월별 값은 각 월 실적재분이며, 미마감 최근월은 값이 작을 수 있음. 발주 상태 IV와는 별개 집계." };
+      안내: "ERP 중간DB 매입(송장 M_IV 기준) 파일럿. 월별 값은 각 월 실적재분이며, 미마감 최근월은 값이 작을 수 있음. 발주 상태 IV와는 별개 집계.",
+      __view: purView };
   }
 
   if (name === "get_erp_inventory_status") {
@@ -506,7 +560,14 @@ async function runTool(admin: any, name: string, argsJson: string, scope: ErpSco
     for (const r of rows) { inq += Number(r.in_qty || 0); outq += Number(r.out_qty || 0); items.add(r.item_code); }
     return { 기준시각: asOf, 대상: code || "전체(최근31일)", 품목수: items.size, 입고합계: inq, 출고합계: outq, 표본행수: rows.length,
       데이터주의: "현재 중간DB 재고는 출고만 유효하며 입고량·재고량은 미적재(0/미표기)입니다 — '입고 0/재고 없음'을 실적으로 단정하지 말 것. 특정 발주의 입고 여부는 get_erp_po_pr(입고수량)로 확인.",
-      안내: "ERP 중간DB 재고 일집계 파일럿(입출고 분류는 협의 전 초안, 수집범위 일부 품목·약 1개월)" };
+      안내: "ERP 중간DB 재고 일집계 파일럿(입출고 분류는 협의 전 초안, 수집범위 일부 품목·약 1개월)",
+      __view: { view: "record", title: `재고 입출고 — ${code || "전체(최근 31일)"}`, asOf,
+        fields: [
+          { k: "품목수", v: comma(items.size) },
+          { k: "출고합계", v: comma(outq) },
+          { k: "입고합계", v: `${comma(inq)} (미적재)` },
+          { k: "표본행수", v: comma(rows.length) },
+        ], note: "입고량·재고량은 중간DB 미적재 — 실적으로 단정 금지" } satisfies ViewPayload };
   }
 
   if (name === "get_erp_item") {
@@ -520,7 +581,15 @@ async function runTool(admin: any, name: string, argsJson: string, scope: ErpSco
     const 목록 = rows.map((r: any) => ({ 품목코드: r.item_code, 품목명: r.item_name, 규격: r.spec, 단위: r.unit, 분류: r.item_class, 사용: r.use_yn, 사용금지: /사용\s*금지/.test(String(r.item_name || "")) }))
       .sort((a: { 사용금지: boolean }, b: { 사용금지: boolean }) => (a.사용금지 ? 1 : 0) - (b.사용금지 ? 1 : 0));
     return { 기준시각: asOf, 검색어: kw, 건수: 목록.length, 목록,
-      안내: "품목명에 '사용금지' 표기가 있는 코드는 신규 발주용으로 제시 금지(대체코드 확인 안내)." };
+      안내: "품목명에 '사용금지' 표기가 있는 코드는 신규 발주용으로 제시 금지(대체코드 확인 안내).",
+      __view: { view: "list", title: `품목 검색 — "${kw}" (${목록.length}건)`, asOf,
+        columns: [
+          { key: "품목코드", label: "품목코드" }, { key: "품목명", label: "품목명" },
+          { key: "규격", label: "규격" }, { key: "단위", label: "단위" }, { key: "금지", label: "" },
+        ],
+        // deno-lint-ignore no-explicit-any
+        rows: 목록.slice(0, 30).map((r: any) => ({ 품목코드: r.품목코드, 품목명: r.품목명, 규격: r.규격 || "", 단위: r.단위 || "", 금지: r.사용금지 ? "⚠ 사용금지" : "" })),
+        note: "사용금지 품목은 신규 발주 제시 금지" } satisfies ViewPayload };
   }
 
   if (name === "get_erp_pur_order") {
@@ -549,7 +618,18 @@ async function runTool(admin: any, name: string, argsJson: string, scope: ErpSco
         .map(([거래처, 금액]) => ({ 거래처, 발주금액_원: 금액 }));
       상세 = { 월: ym, 발주건수: pos.size, 품목라인: rows.length, 발주금액_원: amt, 거래처Top10: top, 상태분포_금액: bySts };
     }
-    return { 기준시각: asOf, 월별, 상세, 안내: "ERP 중간DB 구매발주(pur_order_s, 2026 전체). 발주건수=고유 발주번호 기준. 파일럿 데이터." };
+    // 뷰: 특정 월 상세 조회면 거래처 Top10(ranking), 아니면 월별 추이(series)
+    // deno-lint-ignore no-explicit-any
+    const d상세 = 상세 as any;
+    const poView: ViewPayload = d상세
+      ? { view: "ranking", title: `${ym} 거래처별 발주금액 Top10`, unit: "원", asOf,
+          rows: (d상세.거래처Top10 || []).map((t: Record<string, unknown>, i: number) => ({ rank: i + 1, label: String(t.거래처), v: Number(t.발주금액_원 || 0) })),
+          note: `${ym} 발주 ${comma(Number(d상세.발주건수 || 0))}건 · 총 ${won(Number(d상세.발주금액_원 || 0))}` }
+      : { view: "series", title: "월별 발주금액(전사)", unit: "원", asOf,
+          rows: 월별.slice(-24).map((m: Record<string, unknown>) => ({ k: String(m.월), v: Number(m.발주금액_원 || 0) })),
+          note: "발주건수는 고유 발주번호 기준 · 파일럿" };
+    return { 기준시각: asOf, 월별, 상세, 안내: "ERP 중간DB 구매발주(pur_order_s, 2026 전체). 발주건수=고유 발주번호 기준. 파일럿 데이터.",
+      __view: poView };
   }
 
   if (name === "get_erp_po_pr") {
@@ -573,6 +653,7 @@ async function runTool(admin: any, name: string, argsJson: string, scope: ErpSco
     }));
     // PR 조회인데 발주 라인이 없으면(미발주 PR) 구매요청 자체 상세로 답
     let 구매요청상세: unknown = null;
+    let poPrView: ViewPayload | null = null;
     if (pr && !rows.length) {
       const { data: rd } = await admin.from("v_erp_pur_req").select("*").eq("pr_no", pr).maybeSingle();
       // deno-lint-ignore no-explicit-any
@@ -584,10 +665,39 @@ async function runTool(admin: any, name: string, argsJson: string, scope: ErpSco
         미발주: Number(r.ord_qty || 0) === 0, 요청일: r.req_dt, 필요납기: r.dlvy_dt,
         요청부서: r.req_dept_resolved || "미상", 요청자: r.req_prsn || null, 연결수주번호: r.so_no || null, 공급처: r.sppl_name || null,
       } : null;
+      if (r) {
+        poPrView = { view: "record", title: `구매요청 ${r.pr_no}`, asOf,
+          fields: [
+            { k: "품목", v: String(r.item_name || "-") },
+            { k: "요청수량", v: comma(Number(r.req_qty || 0)) },
+            { k: "요청일 / 필요납기", v: `${r.req_dt || "-"} / ${r.dlvy_dt || "-"}` },
+            { k: "요청부서 / 요청자", v: `${r.req_dept_resolved || "미상"} / ${r.req_prsn || "-"}` },
+            { k: "발주 여부", v: Number(r.ord_qty || 0) === 0 ? "미발주" : `발주 ${comma(Number(r.ord_qty || 0))}` },
+          ],
+          steps: { labels: STEP_LABELS, current: STEP_IX[String(r.pr_sts || "").trim()] ?? -1 } };
+      }
+    }
+    // 발주 라인이 있으면 첫 라인 기준 record + 진행단계 steps
+    // deno-lint-ignore no-explicit-any
+    const f0: any = rows[0];
+    if (f0) {
+      poPrView = { view: "record", title: `발주 ${f0.po_no}`, asOf,
+        fields: [
+          { k: "거래처", v: String(f0.po_vendor || "-") },
+          { k: "품목", v: String(f0.item_name || "-") + (rows.length > 1 ? ` 외 ${rows.length - 1}건` : "") },
+          { k: "발주일", v: String(f0.po_dt || "-") },
+          { k: "납기", v: String(f0.po_dlvy_dt || "-") + (f0.overdue_unreceived === true ? " ⚠경과·미입고" : "") },
+          { k: "발주금액", v: won(Number(f0.po_amt || 0)) + (rows.length > 1 ? " (첫 라인)" : "") },
+          { k: "수량 진행", v: `요청 ${comma(Number(f0.req_qty || 0))} → 발주 ${comma(Number(f0.ord_qty || 0))} → 입고 ${comma(Number(f0.po_rcpt_qty || 0))} → 매입 ${comma(Number(f0.iv_qty || 0))}` },
+          { k: "구매요청", v: String(f0.pr_no || "-") + (f0.req_dept_resolved ? ` · ${f0.req_dept_resolved}` : "") },
+          { k: "외주구분", v: f0.subcontra_flg === "Y" ? "외주" : "일반" },
+        ],
+        steps: { labels: STEP_LABELS, current: STEP_IX[String(f0.po_sts || "").trim()] ?? -1 } };
     }
     return { 기준시각: asOf, 조회조건: { po_no: po || null, pr_no: pr || null }, 연결건수: rows.length,
       발주_구매요청, 구매요청상세,
-      안내: "ERP 중간DB 발주↔구매요청 연결(파일럿). 진행단계: 요청(RQ)→확정(CF)→발주(PO)→입고(GR)→매입(IV). 요청부서는 요청자 이메일→부서 매핑으로 보완됨." };
+      안내: "ERP 중간DB 발주↔구매요청 연결(파일럿). 진행단계: 요청(RQ)→확정(CF)→발주(PO)→입고(GR)→매입(IV). 요청부서는 요청자 이메일→부서 매핑으로 보완됨.",
+      ...(poPrView ? { __view: poPrView } : {}) };
   }
 
   if (name === "get_erp_pur_top") {
@@ -603,7 +713,11 @@ async function runTool(admin: any, name: string, argsJson: string, scope: ErpSco
         발주총액_원: Number(r.po_total || 0), 라인수: Number(r.line_cnt || 0), 대표품목: r.top_item,
         구매요청번호: r.pr_no || null, 진행: r.has_open_line ? "진행중(일부 입고전)" : "입고/매입 진행",
       })),
-      안내: "ERP 중간DB 발주 총액(발주번호별 라인 합산) 상위. 동일 발주 중복 없음. 파일럿 데이터." };
+      안내: "ERP 중간DB 발주 총액(발주번호별 라인 합산) 상위. 동일 발주 중복 없음. 파일럿 데이터.",
+      __view: { view: "ranking", title: `발주 총액 상위 ${n}건`, unit: "원", asOf,
+        // deno-lint-ignore no-explicit-any
+        rows: rows.map((r: any, i: number) => ({ rank: i + 1, label: `${r.po_no} · ${r.po_vendor || "-"}`, v: Number(r.po_total || 0), sub: String(r.top_item || "") })),
+        note: "발주번호별 라인 합산 총액 기준" } satisfies ViewPayload };
   }
 
   if (name === "get_erp_receipt_pending") {
@@ -616,12 +730,21 @@ async function runTool(admin: any, name: string, argsJson: string, scope: ErpSco
     const { data } = await q.order("po_dlvy_dt", { ascending: true }).limit(lim);
     const rows = data || [];
     let amt = 0; for (const r of rows) amt += Number(r.po_amt || 0);
+    // deno-lint-ignore no-explicit-any
+    const 목록 = rows.map((r: any) => ({ 발주번호: r.po_no, 거래처: r.po_vendor, 품목: r.item_name,
+      발주수량: Number(r.po_qty || 0), 입고수량: Number(r.po_rcpt_qty || 0), 납기: r.po_dlvy_dt,
+      발주금액_원: Number(r.po_amt || 0), 납기경과: r.overdue_unreceived === true }));
     return { 기준시각: asOf, 조건: overdueOnly ? "납기경과·미입고" : "미입고(발주완료 PO상태)", 표시건수_라인: rows.length, 표시금액합_원: amt,
-      // deno-lint-ignore no-explicit-any
-      목록: rows.map((r: any) => ({ 발주번호: r.po_no, 거래처: r.po_vendor, 품목: r.item_name,
-        발주수량: Number(r.po_qty || 0), 입고수량: Number(r.po_rcpt_qty || 0), 납기: r.po_dlvy_dt,
-        발주금액_원: Number(r.po_amt || 0), 납기경과: r.overdue_unreceived === true })),
-      안내: "발주상태 PO=발주완료·입고전. 발주 라인 단위 목록(limit 제한). 파일럿 데이터." };
+      목록,
+      안내: "발주상태 PO=발주완료·입고전. 발주 라인 단위 목록(limit 제한). 파일럿 데이터.",
+      __view: { view: "list", title: overdueOnly ? "납기경과·미입고 발주" : "미입고 발주(발주완료·입고전)", asOf,
+        columns: [
+          { key: "발주번호", label: "발주번호" }, { key: "거래처", label: "거래처" }, { key: "품목", label: "품목" },
+          { key: "발주수량", label: "발주수량", num: true }, { key: "입고수량", label: "입고", num: true },
+          { key: "납기", label: "납기" }, { key: "발주금액_원", label: "금액(원)", num: true }, { key: "경과", label: "" },
+        ],
+        rows: 목록.slice(0, 30).map((r) => ({ ...r, 경과: r.납기경과 ? "⚠" : "" })),
+        note: `표시 ${rows.length}라인 · 합계 ${won(amt)}` } satisfies ViewPayload };
   }
 
   if (name === "get_erp_pur_req") {
@@ -635,12 +758,20 @@ async function runTool(admin: any, name: string, argsJson: string, scope: ErpSco
     if (dept) q = q.ilike("req_dept_resolved", `%${dept}%`);
     const { data } = await q.order("req_dt", { ascending: false }).limit(lim);
     const rows = data || [];
+    // deno-lint-ignore no-explicit-any
+    const 목록 = rows.map((r: any) => ({ 구매요청번호: r.pr_no, 상태: stsKo(r.pr_sts), 품목: r.item_name,
+      요청수량: Number(r.req_qty || 0), 발주수량: Number(r.ord_qty || 0), 미발주: Number(r.ord_qty || 0) === 0,
+      요청일: r.req_dt, 필요납기: r.dlvy_dt, 요청부서: r.req_dept_resolved || "미상", 요청자: r.req_prsn }));
     return { 기준시각: asOf, 조건: { 상태: status || "전체", 부서: dept || "전체" }, 표시건수: rows.length,
-      // deno-lint-ignore no-explicit-any
-      목록: rows.map((r: any) => ({ 구매요청번호: r.pr_no, 상태: stsKo(r.pr_sts), 품목: r.item_name,
-        요청수량: Number(r.req_qty || 0), 발주수량: Number(r.ord_qty || 0), 미발주: Number(r.ord_qty || 0) === 0,
-        요청일: r.req_dt, 필요납기: r.dlvy_dt, 요청부서: r.req_dept_resolved || "미상", 요청자: r.req_prsn })),
-      안내: "구매요청 목록. status=unordered(미발주,ord_qty=0)/RQ(요청)/CF(확정). 요청부서는 요청자 이메일→부서 매핑 보완. 파일럿 데이터." };
+      목록,
+      안내: "구매요청 목록. status=unordered(미발주,ord_qty=0)/RQ(요청)/CF(확정). 요청부서는 요청자 이메일→부서 매핑 보완. 파일럿 데이터.",
+      __view: { view: "list", title: `구매요청 — ${status || "전체"} / ${dept || "전부서"} (${rows.length}건)`, asOf,
+        columns: [
+          { key: "구매요청번호", label: "구매요청번호" }, { key: "상태", label: "상태" }, { key: "품목", label: "품목" },
+          { key: "요청수량", label: "요청수량", num: true }, { key: "미발주표시", label: "" },
+          { key: "요청일", label: "요청일" }, { key: "필요납기", label: "필요납기" }, { key: "요청부서", label: "요청부서" },
+        ],
+        rows: 목록.slice(0, 30).map((r) => ({ ...r, 미발주표시: r.미발주 ? "미발주" : "" })) } satisfies ViewPayload };
   }
 
   /* ===== 4단계 인사·권한 도구 ===== */
@@ -669,14 +800,27 @@ async function runTool(admin: any, name: string, argsJson: string, scope: ErpSco
       if (ok && p.erp_module && !scope.isAdmin) ok = scope.modules.has(String(p.erp_module));
       return { 페이지: p.title, 담당부서: p.dept_nm, 공개범위: p.visibility, 접근가능: ok };
     });
+    // deno-lint-ignore no-explicit-any
+    const okPages = pages.filter((p: any) => p.접근가능);
+    // deno-lint-ignore no-explicit-any
+    const noPages = pages.filter((p: any) => !p.접근가능);
     return {
       기준시각: asOf, 계정: scope.upn, 이름: scope.empNm || "-", 소속부서: scope.dept || "미매핑",
       역할: role, 관리자여부: scope.isAdmin, 부서관리자_담당부서: deptAdminOf,
       열람가능_ERP모듈: modules.map((m) => `${MODULE_KO[m] || m}(${m})`),
       // deno-lint-ignore no-explicit-any
-      접근가능_페이지: pages.filter((p: any) => p.접근가능).map((p: any) => p.페이지),
+      접근가능_페이지: okPages.map((p: any) => p.페이지),
       // deno-lint-ignore no-explicit-any
-      접근불가_페이지: pages.filter((p: any) => !p.접근가능).map((p: any) => ({ 페이지: p.페이지, 담당부서: p.담당부서, 공개범위: p.공개범위 })),
+      접근불가_페이지: noPages.map((p: any) => ({ 페이지: p.페이지, 담당부서: p.담당부서, 공개범위: p.공개범위 })),
+      __view: { view: "record", title: "내 포털 권한", asOf,
+        fields: [
+          { k: "이름 · 계정", v: `${scope.empNm || "-"} · ${scope.upn}` },
+          { k: "소속부서", v: scope.dept || "미매핑" },
+          { k: "역할", v: role },
+          { k: "ERP 모듈", v: modules.length ? modules.map((m) => MODULE_KO[m] || m).join(" · ") : "없음" },
+          { k: "운영페이지", v: `접근가능 ${okPages.length} / 전체 ${pages.length}` },
+          ...(deptAdminOf.length ? [{ k: "부서관리자", v: deptAdminOf.join(", ") }] : []),
+        ] } satisfies ViewPayload,
       권한요청방법: scope.isAdmin
         ? "관리자(전권) 계정이므로 별도 권한 요청이 필요 없습니다. 타 사용자 권한 부여는 관리자 콘솔 › 사용자·부서에서 직접 수행하세요."
         : "필요한 데이터 모듈·페이지를 지정해 포털 관리자에게 요청하세요(관리자 콘솔 › 사용자·부서 › 부서별 ERP 모듈 권한에서 부여). 급여·인사 데이터는 인사팀 소속 또는 관리자만 가능합니다.",
@@ -690,8 +834,10 @@ async function runTool(admin: any, name: string, argsJson: string, scope: ErpSco
     // 민감 데이터 접근은 허용·거부 모두 감사 기록(jeil-hr와 동일 원장)
     try { await admin.rpc("hr_access_log_add", { p_upn: scope.upn, p_dept: scope.dept, p_ok: canDetail }); } catch { /* 무시 */ }
     if (wantsPay && !canDetail) {
-      return { 접근제한: true, 요청안내: true, 모듈: "payroll", 부서: scope.dept || "미지정",
-        안내: `급여 집계는 인사팀(또는 포털 관리자)만 열람할 수 있습니다. 회원님 소속(${scope.dept || "미지정"})은 권한 범위 밖입니다. 인원 수만 필요하시면 '인원현황'으로 다시 물어보세요(전사 총원은 조회 가능).` };
+      const 안내 = `급여 집계는 인사팀(또는 포털 관리자)만 열람할 수 있습니다. 회원님 소속(${scope.dept || "미지정"})은 권한 범위 밖입니다. 인원 수만 필요하시면 '인원현황'으로 다시 물어보세요(전사 총원은 조회 가능).`;
+      return { 접근제한: true, 요청안내: true, 모듈: "payroll", 부서: scope.dept || "미지정", 안내,
+        __view: { view: "notice", title: "급여 데이터 접근 제한", kind: "deny", text: 안내,
+          request: { module: "payroll", moduleKo: "급여·인사", dept: scope.dept || "미지정" } } satisfies ViewPayload };
     }
     const ymF = String(args.ym || "").replace(/[^0-9]/g, "").slice(0, 6);   // 'YYYY-MM'·'YYYYMM' 모두 수용
     // erp_secure 는 REST 미노출 → service_role RPC로만 조회
@@ -712,10 +858,18 @@ async function runTool(admin: any, name: string, argsJson: string, scope: ErpSco
       월: `${y.slice(0, 4)}-${y.slice(4, 6)}`, 급여대상인원: byYm[y].hc, 부서수: byYm[y].depts,
       ...(wantsPay && canDetail ? { 급여총액_원: byYm[y].pay, 퇴직급여_원: byYm[y].ret } : {}),
     }));
+    // 뷰: 인원(명) 또는 급여총액(원) 월별 시리즈 — 전사 총원은 전 직원, 급여는 권한 통과자만 이 지점에 도달
+    const hrView: ViewPayload = { view: "series",
+      title: wantsPay ? "월별 급여총액(전사)" : "월별 급여대상 인원(전사)",
+      unit: wantsPay ? "원" : "명", asOf,
+      // deno-lint-ignore no-explicit-any
+      rows: (월별 as any[]).slice(-24).map((m) => ({ k: String(m.월), v: wantsPay ? Number(m.급여총액_원 || 0) : Number(m.급여대상인원 || 0) })),
+      note: "급여대장(HDF070T) 기준 · 마감 전 변동 가능" + (wantsPay ? " · 집계만(개인별 없음)" : "") };
     const base = { 기준시각: asOf, 조건: ymF ? `${ymF.slice(0, 4)}-${ymF.slice(4, 6)}` : "전체 기간", 월별 };
     if (!canDetail) {
       return { ...base, 부서별: "권한 없음(비표시)",
-        안내: "전사 총원(월별)만 제공됩니다. 부서별 인원 분포·급여액은 인사팀·관리자 전용입니다 — 필요 시 포털 관리자에게 요청하세요. 인원은 급여대장(HDF070T) 기준 급여대상 인원이며 마감 전 변동될 수 있습니다. 이 수치로 부서별 인원을 추정하지 마세요." };
+        안내: "전사 총원(월별)만 제공됩니다. 부서별 인원 분포·급여액은 인사팀·관리자 전용입니다 — 필요 시 포털 관리자에게 요청하세요. 인원은 급여대장(HDF070T) 기준 급여대상 인원이며 마감 전 변동될 수 있습니다. 이 수치로 부서별 인원을 추정하지 마세요.",
+        __view: hrView };
     }
     const 부서별 = rows
       // deno-lint-ignore no-explicit-any
@@ -724,7 +878,8 @@ async function runTool(admin: any, name: string, argsJson: string, scope: ErpSco
       .sort((a, b) => (a.월 === b.월 ? b.인원 - a.인원 : (a.월 < b.월 ? 1 : -1)))
       .slice(0, 120);
     return { ...base, 부서별, 열람권한: scope.isAdmin ? "관리자" : "인사팀",
-      안내: `인원은 급여대장(HDF070T) 기준 급여대상 인원으로 마감 전 변동될 수 있습니다. ${wantsPay ? "급여는 집계(총액·인원)만이며 개인별·주민번호·계좌는 중간DB에 없습니다. " : ""}민감 데이터 접근은 감사 기록(hr_access_log)됩니다 — 답변에 개인 식별 정보를 포함하지 마세요.` };
+      안내: `인원은 급여대장(HDF070T) 기준 급여대상 인원으로 마감 전 변동될 수 있습니다. ${wantsPay ? "급여는 집계(총액·인원)만이며 개인별·주민번호·계좌는 중간DB에 없습니다. " : ""}민감 데이터 접근은 감사 기록(hr_access_log)됩니다 — 답변에 개인 식별 정보를 포함하지 마세요.`,
+      __view: hrView };
   }
 
   /* ===== 3단계 문서 도구 (사용자 위임 토큰 · OneDrive/SharePoint 보안 트리밍) ===== */
@@ -735,7 +890,9 @@ async function runTool(admin: any, name: string, argsJson: string, scope: ErpSco
     // 화이트리스트(§8): 승인 컨테이너로만 제한. 미설정이면 fail-closed(전 문서 노출 방지).
     const docScope = await loadDocScope(admin);
     if (!docScope) return { 오류: "문서 연동 범위 미설정",
-      안내: "AI 문서 연동 범위(승인 프로젝트 폴더)가 설정되지 않아 검색을 제공하지 않습니다. 관리자에게 범위 등록을 요청하세요." };
+      안내: "AI 문서 연동 범위(승인 프로젝트 폴더)가 설정되지 않아 검색을 제공하지 않습니다. 관리자에게 범위 등록을 요청하세요.",
+      __view: { view: "notice", title: "문서 연동 범위 미설정", kind: "info",
+        text: "AI 문서 연동 범위(승인 프로젝트 폴더)가 설정되지 않아 검색을 제공하지 않습니다. 관리자에게 범위 등록을 요청하세요." } satisfies ViewPayload };
     try {
       // 서버측 스코프: 승인 범위 경로(폴더/라이브러리/사이트)로 KQL path 한정 + 여유분 확보(후단 하드필터 대비)
       const pathClause = ` AND (${docScope.map((s) => `path:"${s.webUrl}"`).join(" OR ")})`;
@@ -752,7 +909,14 @@ async function runTool(admin: any, name: string, argsJson: string, scope: ErpSco
         .filter((x: any) => inScope(docScope, String(x.driveId || ""), String(x.링크 || "")))
         .slice(0, size);
       return { 기준시각: asOf, 검색어: q, 승인범위_수: docScope.length, 반환수: 목록.length, 목록,
-        안내: "AI 승인 범위(폴더/라이브러리 화이트리스트) ∩ 본인 권한 범위 문서만 검색됨(§8 이중 게이트). 본문·상세는 read_document(driveId,itemId). 답변에 출처(파일명·링크) 표기. 범위 밖이면 결과 없음이 정상." };
+        안내: "AI 승인 범위(폴더/라이브러리 화이트리스트) ∩ 본인 권한 범위 문서만 검색됨(§8 이중 게이트). 본문·상세는 read_document(driveId,itemId). 답변에 출처(파일명·링크) 표기. 범위 밖이면 결과 없음이 정상.",
+        __view: { view: "list", title: `문서 검색 — "${q}" (${목록.length}건)`, asOf,
+          columns: [
+            { key: "이름", label: "파일명" }, { key: "수정일", label: "수정일" }, { key: "링크", label: "열기", link: true },
+          ],
+          // deno-lint-ignore no-explicit-any
+          rows: 목록.map((x: any) => ({ 이름: x.이름, 수정일: String(x.수정일 || "").slice(0, 10), 링크: x.링크 })),
+          note: "AI 승인 범위 ∩ 본인 권한 문서만" } satisfies ViewPayload };
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       if (msg.includes("401") || msg.includes("403")) return { 오류: "문서 접근 권한 없음", 안내: "MS 재로그인(파일 권한 포함)이 필요할 수 있습니다. 계속 실패하면 관리자에게 문의하세요." };
@@ -964,6 +1128,17 @@ Deno.serve(async (req) => {
           let result: unknown;
           try { result = await runTool(admin, c.name, c.args, erpScope, token); }
           catch (e) { result = { 오류: "조회 실패: " + (e instanceof Error ? e.message : String(e)) }; }
+          // P2: 구조화 뷰 분리 송출 — 프론트 카드 렌더용(모델에는 미전달·토큰 0, 구버전 프론트는 무시).
+          //     뷰는 부가 기능 — 실패해도 본문 스트림·모델 응답에 영향을 주지 않는다.
+          try {
+            const ro = result as Record<string, unknown> | null;
+            const view = ro && typeof ro === "object" ? ro.__view : null;
+            if (ro && view) {
+              delete ro.__view;
+              const payload = JSON.stringify({ jeilax: view });
+              if (payload.length <= 16000) await writer.write(enc.encode("data: " + payload + "\n\n"));
+            }
+          } catch { /* 무시 */ }
           convo.push({ role: "tool", tool_call_id: c.id, content: JSON.stringify(result).slice(0, 12000) });
         }
       }

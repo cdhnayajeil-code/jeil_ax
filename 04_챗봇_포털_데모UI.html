@@ -77,6 +77,39 @@
   .bubble ul{margin:6px 0 4px 18px;}
   .bubble li{margin-bottom:4px;}
   .bubble h4{font-size:13.5px; color:var(--navy); margin:8px 0 4px;}
+  /* ===== 챗봇 구조화 뷰(.cv-) — 서버 주도 카드(P2) + 마크다운 블록(P1). 스코프 격리: 전역 table 재정의 금지(11_제품기획/10) ===== */
+  .cv-stack{display:flex; flex-direction:column; gap:10px; margin:2px 0 10px;}
+  .cv-card{border:1px solid var(--line); border-radius:10px; padding:10px 12px; background:#f9fafc;}
+  .cv-title{font-size:12.5px; font-weight:700; color:var(--navy); margin-bottom:7px;}
+  .cv-tblwrap{overflow-x:auto; margin:6px 0 2px;}
+  .cv-table th{white-space:nowrap;}
+  .cv-table td{background:#fff; white-space:nowrap;}
+  .cv-barcell{width:34%; min-width:90px;}
+  .cv-bar{height:10px; background:var(--accent2); border-radius:3px;}
+  .cv-rank{font-weight:700; color:var(--navy);}
+  .cv-sub{color:var(--muted); font-size:11px;}
+  .cv-fields{display:grid; grid-template-columns:1fr 1fr; gap:4px 16px;}
+  .cv-field{display:flex; gap:8px; font-size:12.8px; border-bottom:1px dashed var(--line); padding:3px 0;}
+  .cv-k{color:var(--muted); flex:none; min-width:78px;}
+  .cv-v{font-weight:600; color:var(--ink); word-break:break-all;}
+  .cv-steps{display:flex; flex-wrap:wrap; align-items:center; gap:4px; margin:9px 0 2px; font-size:11.5px;}
+  .cv-step{border:1px solid var(--line); border-radius:12px; padding:2px 9px; color:var(--muted); background:#fff;}
+  .cv-step.done{background:#ecf5f0; border-color:#cde3d6; color:var(--green);}
+  .cv-step.cur{background:var(--navy); border-color:var(--navy); color:#fff; font-weight:700;}
+  .cv-arrow{color:#b9c2cf;}
+  .cv-card.cv-notice{background:#fdf6ee; border-color:#ecd9bd;}
+  .cv-notice-body{display:flex; gap:8px; font-size:13px; line-height:1.65;}
+  .cv-notice-ic{flex:none;}
+  .cv-req{display:flex; flex-wrap:wrap; gap:6px; margin-top:8px;}
+  .cv-chip{font-size:11px; background:#fff; border:1px solid var(--line); border-radius:12px; padding:3px 10px; color:var(--navy); font-weight:600;}
+  .cv-foot{margin-top:7px; font-size:11px; color:var(--muted);}
+  /* 마크다운 블록(renderMd) */
+  .bubble .cv-p{margin:3px 0;}
+  .bubble ol{margin:6px 0 4px 20px;}
+  .cv-pre{background:#0f1c30; color:#dce6f5; border-radius:8px; padding:10px 12px; overflow-x:auto; font-size:12px; margin:8px 0; line-height:1.55;}
+  .cv-pre code{font-family:Consolas,Menlo,'Courier New',monospace;}
+  .cv-hr{border:none; border-top:1px solid var(--line); margin:10px 0;}
+  .cv-quote{border-left:3px solid var(--line); padding:2px 0 2px 10px; color:var(--muted); margin:6px 0;}
   .typing i{display:inline-block; width:7px; height:7px; border-radius:50%; background:#a9b8cc; margin-right:4px; animation:blink 1.2s infinite;}
   .typing i:nth-child(2){animation-delay:.2s;} .typing i:nth-child(3){animation-delay:.4s;}
   @keyframes blink{0%,80%,100%{opacity:.25;} 40%{opacity:1;}}
@@ -210,6 +243,8 @@
     .input-area{padding:12px 12px calc(10px + env(safe-area-inset-bottom));}
     .input-box button{padding:0 16px;}
     .bubble{font-size:14px;}
+    .cv-fields{grid-template-columns:1fr;}
+    .cv-barcell{min-width:60px;}
     /* 관리자/운영 페이지 */
     .panel{padding:14px;}
     .pg-grid{grid-template-columns:1fr;}
@@ -843,8 +878,9 @@ function el(html){ const d=document.createElement('div'); d.innerHTML=html.trim(
 function scrollBottom(){ const c=document.getElementById('chat'); c.scrollTop=c.scrollHeight; }
 
 function addUser(text){
+  // 이스케이프는 호출측이 아닌 여기서 일괄 수행(&·<·> — XSS 방지)
   document.getElementById('chat').appendChild(el(
-    `<div class="msg user"><div class="who">홍</div><div class="bubble">${text}</div></div>`));
+    `<div class="msg user"><div class="who">홍</div><div class="bubble">${escHtml(String(text||''))}</div></div>`));
   scrollBottom();
 }
 function addAI(html, model){
@@ -1357,9 +1393,192 @@ function restoreSessionUI(){
   authDone({ name: a.name, preferred_username: a.upn });
 }
 function escHtml(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
-function mdLite(s){ // 최소 마크다운: **굵게** + 줄바꿈만 (그 외는 이스케이프)
-  return escHtml(s).replace(/\*\*([^*]+)\*\*/g,'<b>$1</b>').replace(/\n/g,'<br>');
+/* ===== chat-render — 챗봇 응답 마크다운 렌더러 (11_제품기획/10 · P1) =====
+   인라인 모듈: 유일 소비처가 본 파일이라 단일 파일 자기완결 원칙(CLAUDE.md §7)에 따라 인라인 배치(통합본·file:// 안전).
+   보안 원칙: escHtml "먼저" → 문법 치환(순서를 뒤집으면 XSS). raw HTML 미지원. 링크는 http(s)만 허용.
+   지원: **굵게** · `코드` · ```펜스``` · #~#### 헤딩(h4 통일) · -/1. 목록(중첩 1단계) · GFM 표 · [링크](https://…) · > 인용 · --- 구분선 */
+var _MD_SENT = String.fromCharCode(0xE000);   // 코드스팬 보호 센티널(사설영역 문자 — 본문 텍스트와 충돌 불가)
+function _mdInline(s){
+  var codes = [];
+  // 코드스팬을 센티널로 보호 → 굵게·링크 치환 → 복원
+  s = s.replace(/`([^`\n]+)`/g, function(_m, c){ codes.push(c); return _MD_SENT + (codes.length - 1) + _MD_SENT; });
+  s = s.replace(/\*\*([^*\n]+)\*\*/g, '<b>$1</b>');
+  s = s.replace(/\[([^\]\n]+)\]\((https?:\/\/[^\s)"']+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
+  var re = new RegExp(_MD_SENT + '(\\d+)' + _MD_SENT, 'g');
+  return s.replace(re, function(_m, i){ return '<code>' + codes[+i] + '</code>'; });
 }
+function renderMd(src){
+  var lines = escHtml(String(src == null ? '' : src)).split('\n');
+  var out = [], para = [], i = 0, n = lines.length;
+  function flush(){ if(para.length){ out.push('<div class="cv-p">' + para.map(_mdInline).join('<br>') + '</div>'); para = []; } }
+  function isSep(t){ return /^[|\s:-]+$/.test(t) && t.indexOf('-') >= 0 && t.indexOf('|') >= 0; }
+  function cells(t){
+    if(t.charAt(0) === '|') t = t.slice(1);
+    if(t.charAt(t.length - 1) === '|') t = t.slice(0, -1);
+    return t.split('|').map(function(c){ return c.trim(); });
+  }
+  while(i < n){
+    var raw = lines[i], t = raw.trim();
+    if(!t){ flush(); i++; continue; }
+    if(/^```/.test(t)){                                        // 펜스 코드(미폐합 시 EOF까지)
+      flush(); var code = []; i++;
+      while(i < n && !/^```/.test(lines[i].trim())){ code.push(lines[i]); i++; }
+      i++;
+      out.push('<pre class="cv-pre"><code>' + code.join('\n') + '</code></pre>');
+      continue;
+    }
+    if(t.indexOf('|') >= 0 && i + 1 < n && isSep(lines[i + 1].trim())){  // GFM 표(다음 줄=구분행)
+      flush();
+      var head = cells(t); i += 2; var body = [];
+      while(i < n && lines[i].indexOf('|') >= 0 && lines[i].trim()){ body.push(cells(lines[i])); i++; }
+      var th = '<tr>' + head.map(function(c){ return '<th scope="col">' + _mdInline(c) + '</th>'; }).join('') + '</tr>';
+      var tb = body.map(function(r2){
+        return '<tr>' + r2.map(function(c){
+          var num = /\d/.test(c) && /^[\d,.\s%원명건억만개±+~-]*$/.test(c);   // 숫자성 셀은 우측 정렬
+          return '<td' + (num ? ' class="r"' : '') + '>' + _mdInline(c) + '</td>';
+        }).join('') + '</tr>';
+      }).join('');
+      out.push('<div class="cv-tblwrap"><table>' + th + tb + '</table></div>');
+      continue;
+    }
+    var mh = /^#{1,4}\s+(.+)$/.exec(t);                        // 헤딩 → 말풍선 내부라 h4 통일
+    if(mh){ flush(); out.push('<h4>' + _mdInline(mh[1]) + '</h4>'); i++; continue; }
+    if(/^-{3,}$/.test(t)){ flush(); out.push('<hr class="cv-hr">'); i++; continue; }
+    if(/^&gt;\s?/.test(t)){                                    // 인용(이스케이프 후이므로 &gt;)
+      flush(); var q = [];
+      while(i < n && /^&gt;\s?/.test(lines[i].trim())){ q.push(lines[i].trim().replace(/^&gt;\s?/, '')); i++; }
+      out.push('<div class="cv-quote">' + q.map(_mdInline).join('<br>') + '</div>');
+      continue;
+    }
+    if(/^([-*]|\d+[.)])\s+/.test(t)){                          // 목록(들여쓰기 2칸+ → 하위 1단계)
+      flush();
+      var ordered = /^\d/.test(t), items = [];
+      while(i < n){
+        var lt = lines[i], mm = /^([-*]|\d+[.)])\s+(.+)$/.exec(lt.trim());
+        if(!mm) break;
+        var sub = /^\s{2,}/.test(lt);
+        if(!sub && /^\d/.test(mm[1]) !== ordered) break;   // 마커 타입 변경(-/1.) → 별도 리스트로 분리
+        if(!sub || !items.length){ items.push({ txt: mm[2], subs: [] }); }
+        else { items[items.length - 1].subs.push(mm[2]); }
+        i++;
+      }
+      var tag = ordered ? 'ol' : 'ul';
+      out.push('<' + tag + '>' + items.map(function(it){
+        return '<li>' + _mdInline(it.txt) + (it.subs.length
+          ? '<ul>' + it.subs.map(function(s2){ return '<li>' + _mdInline(s2) + '</li>'; }).join('') + '</ul>' : '') + '</li>';
+      }).join('') + '</' + tag + '>');
+      continue;
+    }
+    para.push(t); i++;                                         // 일반 문단(단일 줄바꿈은 <br>)
+  }
+  flush();
+  return out.join('');
+}
+function mdLite(s){ return renderMd(s); } // 구 호출부 호환
+/* ===== chat-render:end ===== */
+
+/* ===== chat-views — 서버 주도 구조화 뷰 5종 (11_제품기획/10 · P2) =====
+   게이트웨이(jeil-chat)가 도구 실행 직후 SSE 'jeilax' 이벤트로 보낸 데이터를 카드로 렌더.
+   수치는 DB 직결(모델 미경유 — 환각 차단). 값 삽입은 전부 textContent — 도구 결과 문자열의 innerHTML 주입 금지.
+   뷰 페이로드는 화면 표시만 하고 어디에도 저장하지 않는다(localStorage 캐시 금지 — CLAUDE.md §1.7). */
+function _cvNum(v){ return (typeof v === 'number' && isFinite(v)) ? v.toLocaleString('ko-KR') : String(v == null ? '-' : v); }
+function _cvEl(tag, cls, txt){ var e = document.createElement(tag); if(cls) e.className = cls; if(txt != null) e.textContent = txt; return e; }
+function _cvTable(){ var w = _cvEl('div', 'cv-tblwrap'), t = document.createElement('table'); t.className = 'cv-table'; w.appendChild(t); return { wrap: w, tbl: t }; }
+function _cvTh(tr, label, right){ var th = _cvEl('th', right ? 'r' : null, label); th.setAttribute('scope', 'col'); tr.appendChild(th); return th; }
+function renderView(host, v){
+  if(!v || !v.view) return;
+  var card = _cvEl('div', 'cv-card cv-' + v.view);
+  if(v.title) card.appendChild(_cvEl('div', 'cv-title', String(v.title)));
+
+  if(v.view === 'series' && Array.isArray(v.rows)){
+    var max = 0;
+    v.rows.forEach(function(r){ var x = Number(r.v); if(isFinite(x) && x > max) max = x; });
+    var t = _cvTable(), hr = document.createElement('tr');
+    _cvTh(hr, '구분'); _cvTh(hr, v.unit ? '값(' + v.unit + ')' : '값', true); _cvTh(hr, '');
+    t.tbl.appendChild(hr);
+    v.rows.forEach(function(r){
+      var tr = document.createElement('tr');
+      tr.appendChild(_cvEl('td', null, String(r.k)));
+      tr.appendChild(_cvEl('td', 'r', _cvNum(Number(r.v))));
+      var bc = _cvEl('td', 'cv-barcell'), b = _cvEl('div', 'cv-bar');
+      b.style.width = (max > 0 ? Math.max(2, Math.round(Number(r.v) / max * 100)) : 0) + '%';
+      bc.appendChild(b); tr.appendChild(bc); t.tbl.appendChild(tr);
+    });
+    card.appendChild(t.wrap);
+
+  } else if(v.view === 'ranking' && Array.isArray(v.rows)){
+    var t2 = _cvTable(), h2 = document.createElement('tr');
+    _cvTh(h2, '순위'); _cvTh(h2, '항목'); _cvTh(h2, v.unit ? '값(' + v.unit + ')' : '값', true);
+    t2.tbl.appendChild(h2);
+    v.rows.forEach(function(r){
+      var tr = document.createElement('tr');
+      tr.appendChild(_cvEl('td', 'cv-rank', String(r.rank)));
+      var td = _cvEl('td', null, String(r.label));
+      if(r.sub){ td.appendChild(document.createElement('br')); td.appendChild(_cvEl('small', 'cv-sub', String(r.sub))); }
+      tr.appendChild(td);
+      tr.appendChild(_cvEl('td', 'r', _cvNum(Number(r.v))));
+      t2.tbl.appendChild(tr);
+    });
+    card.appendChild(t2.wrap);
+
+  } else if(v.view === 'record' && Array.isArray(v.fields)){
+    var g = _cvEl('div', 'cv-fields');
+    v.fields.forEach(function(f){
+      var row = _cvEl('div', 'cv-field');
+      row.appendChild(_cvEl('span', 'cv-k', String(f.k)));
+      row.appendChild(_cvEl('span', 'cv-v', String(f.v)));
+      g.appendChild(row);
+    });
+    card.appendChild(g);
+    if(v.steps && Array.isArray(v.steps.labels)){
+      var sp = _cvEl('div', 'cv-steps');
+      v.steps.labels.forEach(function(lb, ix){
+        sp.appendChild(_cvEl('span', 'cv-step' + (ix < v.steps.current ? ' done' : ix === v.steps.current ? ' cur' : ''), String(lb)));
+        if(ix < v.steps.labels.length - 1) sp.appendChild(_cvEl('span', 'cv-arrow', '→'));
+      });
+      card.appendChild(sp);
+    }
+
+  } else if(v.view === 'list' && Array.isArray(v.columns) && Array.isArray(v.rows)){
+    var t3 = _cvTable(), h3 = document.createElement('tr');
+    v.columns.forEach(function(c){ _cvTh(h3, String(c.label != null ? c.label : c.key), !!c.num); });
+    t3.tbl.appendChild(h3);
+    v.rows.forEach(function(r){
+      var tr = document.createElement('tr');
+      v.columns.forEach(function(c){
+        var val = r ? r[c.key] : null;
+        var td = _cvEl('td', c.num ? 'r' : null);
+        if(c.link && typeof val === 'string' && /^https:\/\//.test(val)){
+          var a = document.createElement('a'); a.href = val; a.target = '_blank'; a.rel = 'noopener noreferrer'; a.textContent = '열기 ↗';
+          td.appendChild(a);
+        } else if(typeof val === 'number'){ td.textContent = _cvNum(val); }
+        else { td.textContent = val == null ? '-' : String(val); }
+        tr.appendChild(td);
+      });
+      t3.tbl.appendChild(tr);
+    });
+    card.appendChild(t3.wrap);
+
+  } else if(v.view === 'notice'){
+    var nb = _cvEl('div', 'cv-notice-body');
+    nb.appendChild(_cvEl('span', 'cv-notice-ic', v.kind === 'deny' ? '🔒' : 'ℹ️'));
+    nb.appendChild(_cvEl('span', null, String(v.text || '')));   // 서버 안내 문구 그대로(프론트 재작성 금지)
+    card.appendChild(nb);
+    if(v.request){
+      var rq = _cvEl('div', 'cv-req');
+      rq.appendChild(_cvEl('span', 'cv-chip', '요청 대상: ' + (v.request.moduleKo || '') + '(' + (v.request.module || '') + ')'));
+      if(v.request.dept) rq.appendChild(_cvEl('span', 'cv-chip', '소속: ' + v.request.dept));
+      card.appendChild(rq);
+    }
+  } else { return; }
+
+  var foot = [];
+  if(v.asOf){ try{ foot.push('기준 ' + fmtKST(v.asOf)); }catch(e){} }
+  if(v.note) foot.push(String(v.note));
+  if(foot.length) card.appendChild(_cvEl('div', 'cv-foot', foot.join(' · ')));
+  host.appendChild(card);
+}
+/* ===== chat-views:end ===== */
 
 async function sendLive(v, auth){
   chatHistory.push({role:'user', content:v});
@@ -1378,9 +1597,16 @@ async function sendLive(v, auth){
     }
     var model = res.headers.get('x-model');
     document.getElementById('modelLabel').textContent = 'OpenAI · ' + (model || '연결됨');
-    // OpenAI SSE 스트림 파싱 → 실시간 렌더링
+    // SSE 스트림 파싱 → 이원 렌더링: 본문(마크다운 renderMd) + 구조화 뷰(jeilax 이벤트 → renderView)
     var reader = res.body.getReader(), dec = new TextDecoder(), buf = '', text = '';
     bubble.classList.remove('typing'); bubble.innerHTML = '';
+    var viewsEl = null;                                   // 뷰 카드 스택(첫 뷰 도착 시 생성)
+    var txtEl = document.createElement('div'); bubble.appendChild(txtEl);
+    var chatBox = document.getElementById('chat');
+    function nearBottom(){ return chatBox.scrollHeight - chatBox.scrollTop - chatBox.clientHeight < 80; }
+    var pend = false;
+    function paint(){ var keep = nearBottom(); txtEl.innerHTML = renderMd(text); if(keep) scrollBottom(); }
+    function schedule(){ if(pend) return; pend = true; setTimeout(function(){ pend = false; paint(); }, 60); } // 전체 재파싱 스로틀(60ms)
     while(true){
       var r = await reader.read(); if(r.done) break;
       buf += dec.decode(r.value, {stream:true});
@@ -1390,14 +1616,23 @@ async function sendLive(v, auth){
         if(ln.indexOf('data:') !== 0) continue;
         var payload = ln.slice(5).trim();
         if(payload === '[DONE]') continue;
+        var ev = null; try{ ev = JSON.parse(payload); }catch(e){ continue; }
+        if(ev && ev.jeilax){                              // 서버 주도 구조화 뷰(도구 결과 직결 — 모델 미경유)
+          try{
+            if(!viewsEl){ viewsEl = document.createElement('div'); viewsEl.className = 'cv-stack'; bubble.insertBefore(viewsEl, txtEl); }
+            var keep = nearBottom(); renderView(viewsEl, ev.jeilax); if(keep) scrollBottom();
+          }catch(e){ /* 뷰 실패는 본문 스트림에 영향 없음 */ }
+          continue;
+        }
         try{
-          var delta = JSON.parse(payload).choices[0].delta.content;
-          if(delta){ text += delta; bubble.innerHTML = mdLite(text); scrollBottom(); }
+          var delta = ev.choices[0].delta.content;
+          if(delta){ text += delta; schedule(); }
         }catch(e){ /* keep-alive 등 무시 */ }
       }
     }
+    paint();                                              // 종료 후 최종 완결 렌더 1회
     if(text){ chatHistory.push({role:'assistant', content:text}); }
-    else { chatHistory.pop(); bubble.innerHTML = '(빈 응답) 다시 시도해 주세요.'; }
+    else { chatHistory.pop(); if(!viewsEl) txtEl.innerHTML = '(빈 응답) 다시 시도해 주세요.'; }
   }catch(e){
     chatHistory.pop();
     bubble.classList.remove('typing');
@@ -1801,7 +2036,7 @@ function saveDeptErp(){
 async function send(){
   const inp=document.getElementById('inp'); const v=inp.value.trim(); if(!v) return;
   inp.value='';
-  addUser(v.replace(/</g,'&lt;'));
+  addUser(v);   // 이스케이프는 addUser 내부에서 일괄(& 포함 완전 이스케이프)
   var auth = await ensureAuth();   // 만료·임박이면 리프레시 토큰으로 무음 갱신 시도
   if(auth){ sendLive(v, auth); return; }
   // 미로그인/갱신실패(데모 모드): 기존 키워드 매칭 데모 응답
