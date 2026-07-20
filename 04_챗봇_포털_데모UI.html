@@ -1761,14 +1761,14 @@ async function loadAdminLive(force){
     setTxt('luCost', '$' + (d.usage.month_cost_usd||0).toFixed(3) + ' <small>/ $' + (d.usage.total_cost_usd||0).toFixed(3) + '</small>');
     var bu = document.getElementById('luByUser');
     if(bu) bu.innerHTML = '<tr><th>사용자</th><th class="r">호출</th><th class="r">토큰</th><th class="r">추정 비용</th><th>최근 사용</th></tr>'
-      + d.usage.by_user.map(function(u){ return '<tr><td>'+escHtml(u.upn)+'</td><td class="r">'+u.calls.toLocaleString()+'</td><td class="r">'+(u.tokens||0).toLocaleString()+'</td><td class="r">$'+(u.cost||0).toFixed(3)+'</td><td>'+fmtKST(u.last)+'</td></tr>'; }).join('');
+      + d.usage.by_user.map(function(u){ return '<tr><td>'+escHtml(u.label||u.upn)+'</td><td class="r">'+u.calls.toLocaleString()+'</td><td class="r">'+(u.tokens||0).toLocaleString()+'</td><td class="r">$'+(u.cost||0).toFixed(3)+'</td><td>'+fmtKST(u.last)+'</td></tr>'; }).join('');
     var rc = document.getElementById('luRecent');
     if(rc) rc.innerHTML = '<tr><th>시각</th><th>사용자</th><th>모델</th><th>데이터 조회</th><th class="r">토큰(입/출)</th><th class="r">비용</th></tr>'
       + d.usage.recent.map(function(r){
           var tools = (r.tools_used && r.tools_used.length) ? escHtml(r.tools_used.join(', ')) : '-';
           var tok = (r.prompt_tokens!=null) ? (r.prompt_tokens.toLocaleString()+' / '+(r.completion_tokens||0).toLocaleString()) : '-';
           var cost = (r.est_cost_usd!=null) ? ('$'+Number(r.est_cost_usd).toFixed(4)) : '-';
-          return '<tr><td>'+fmtKST(r.created_at)+'</td><td>'+escHtml(r.upn)+'</td><td>'+escHtml(r.model)+'</td><td>'+tools+'</td><td class="r">'+tok+'</td><td class="r">'+cost+'</td></tr>';
+          return '<tr><td>'+fmtKST(r.created_at)+'</td><td>'+escHtml(r.upn_label||r.upn)+'</td><td>'+escHtml(r.model)+'</td><td>'+tools+'</td><td class="r">'+tok+'</td><td class="r">'+cost+'</td></tr>';
         }).join('');
     // 권한 탭
     var ad = document.getElementById('lpAdmins');

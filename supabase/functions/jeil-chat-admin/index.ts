@@ -273,6 +273,16 @@ Deno.serve(async (req) => {
     admin.from("ai_routing_rule").select("*").order("seq"),
   ]);
 
+  // 사용자 표기 규약 '부서_이름_아이디'(예: 총무팀_최동혁_dh.choi@jeilm.co.kr) — 표시용. 감사 원본 upn은 불변.
+  const uLbl = new Map<string, string>(
+    // deno-lint-ignore no-explicit-any
+    ((udUsers.data || []) as any[]).map((r) => {
+      const e = String(r.email || "").toLowerCase();
+      return [e, `${r.dept_nm || "미매핑"}_${r.emp_nm || "-"}_${e}`] as [string, string];
+    }),
+  );
+  const uLabel = (id: unknown) => { const s = String(id || "").toLowerCase(); return uLbl.get(s) || String(id || ""); };
+
   // 사용모델 설정(SSOT: ai_model / ai_gateway_config / ai_routing_rule). 게이트웨이 실효 모델은 DB 기본모델 우선.
   const aiCfg = aiCfgRes.data as Record<string, unknown> | null;
   const effectiveModel = (aiCfg?.default_model as string) || Deno.env.get("OPENAI_MODEL") || "gpt-4o-mini";
@@ -305,10 +315,10 @@ Deno.serve(async (req) => {
       month_cost_usd: Number(monthCost.toFixed(4)),
       tool_call_count: toolCalls,
       by_user: Object.entries(byUser)
-        .map(([upn, v]) => ({ upn, ...v, cost: Number(v.cost.toFixed(4)) }))
+        .map(([upn, v]) => ({ upn, label: uLabel(upn), ...v, cost: Number(v.cost.toFixed(4)) }))
         .sort((a, b) => b.calls - a.calls)
         .slice(0, 20),
-      recent: rows.slice(0, 20),
+      recent: rows.slice(0, 20).map((r) => ({ ...r, upn_label: uLabel(r.upn) })),
     },
     admins: admins || [],
     // 사용자↔부서↔사원 매핑(ERP 대사) — 콘솔 '사용자·부서' 탭 + '권한 설정' 부서표 기준 데이터

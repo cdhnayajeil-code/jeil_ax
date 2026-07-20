@@ -48,6 +48,7 @@ const SYSTEM_PROMPT =
   "인원현황(재적·급여대상 인원)은 get_hr_headcount, 급여 총액 집계는 get_hr_payroll을 쓰세요. 인원 수치는 급여대장(HDF070T) 기준 '급여대상 인원'이며 마감 전 변동 가능함을 밝히세요. 부서별 인원 분포·급여액은 인사팀·관리자만 열람 가능하고, 그 외에는 전사 총원만 제공됩니다 — 권한 밖 수치를 추정·역산하지 마세요. " +
   "도구로 조회할 수 없는 사내 수치·규정은 추측하지 말고 원본 확인을 권하세요. " +
   "도구 조회 수치는 화면에 표·카드(구조화 뷰)로 자동 표시되므로, 동일 수치를 표로 길게 반복 나열하지 말고 핵심 요약·해석·비교·시사점 중심으로 간결히 답하세요. " +
+  "요청자·사용자 아이디는 도구가 '부서_이름_아이디' 형식(예: 총무팀_최동혁_dh.choi@jeilm.co.kr)으로 제공하므로 그 표기를 그대로 쓰고 임의로 분해·재구성하지 마세요(미매핑 계정은 아이디만 표시됨). " +
   "사용자의 OneDrive·SharePoint 문서 관련 질의('내 문서', '회의록 찾아', '이 파일 요약' 등)는 search_my_documents(검색)로 파일을 찾고, 상세·본문이 필요하면 검색결과의 driveId·itemId로 read_document를 호출하세요. 문서 검색은 회사가 승인한 프로젝트 폴더(화이트리스트) 안에서, 그중에서도 로그인한 본인 권한 범위만 조회됩니다(Microsoft 보안 트리밍) — 이를 답변에 밝히고 출처(파일명·링크)를 표기하세요. 검색 결과가 없으면 '승인된 AI 연동 범위에 해당 문서가 없다'고 정직하게 안내하세요. 본문 판독은 Excel·텍스트 파일만 가능하며, 그 외 형식은 링크 안내로 대체하세요. " +
   "급여·주민번호 등 개인정보나 비밀값을 답변에 포함하지 마세요.";
 
@@ -255,6 +256,27 @@ const won = (n: number) => comma(n) + "원";
 // ERP 진행단계 → steps 뷰 인덱스(요청 RQ → 확정 CF → 발주 PO → 입고 GR → 매입 IV)
 const STEP_IX: Record<string, number> = { RQ: 0, CF: 1, PO: 2, GR: 3, IV: 4 };
 const STEP_LABELS = ["요청", "확정", "발주완료", "입고", "매입"];
+
+/* ===== 사용자 표기 규약 — 아이디(사내 이메일)는 '부서_이름_아이디'로 표시 =====
+   예: 총무팀_최동혁_dh.choi@jeilm.co.kr (v_erp_user_dept 매핑). 미매핑(퇴사자·시스템 계정)·비이메일 값은 원본 유지.
+   표시용 변환일 뿐 — 감사 로그(chat_log·hr_access_log)의 원본 upn은 바꾸지 않는다. */
+// deno-lint-ignore no-explicit-any
+async function userLabelMap(admin: any, ids: unknown[]): Promise<Map<string, string>> {
+  const uniq = [...new Set(ids.map((s) => String(s || "").trim().toLowerCase()).filter((s) => s.includes("@")))];
+  if (!uniq.length) return new Map();
+  const { data } = await admin.from("v_erp_user_dept").select("email,dept_nm,emp_nm").in("email", uniq);
+  const m = new Map<string, string>();
+  // deno-lint-ignore no-explicit-any
+  for (const r of (data || []) as any[]) {
+    const e = String(r.email || "").toLowerCase();
+    if (e && r.emp_nm) m.set(e, `${r.dept_nm || "미매핑"}_${r.emp_nm}_${e}`);
+  }
+  return m;
+}
+const userLbl = (m: Map<string, string>, id: unknown): string | null => {
+  const s = String(id || "").trim();
+  return s ? (m.get(s.toLowerCase()) || s) : null;
+};
 
 /* ===== 사용모델 설정 로드·라우팅 (SSOT: ai_gateway_config / ai_model / ai_routing_rule) =====
    원칙: 조회 실패·미설정이면 기존 하드코딩 기본값으로 안전 폴백 → 설정이 비어도 챗봇은 정상 동작한다. */
@@ -645,6 +667,8 @@ async function runTool(admin: any, name: string, argsJson: string, scope: ErpSco
     if (po) q = q.eq("po_no", po);
     if (pr) q = q.eq("pr_no", pr);
     const { data } = await q; const rows = data || [];
+    // 요청자 표기: '부서_이름_아이디' (미매핑은 원본 아이디 유지)
+    const uMap = await userLabelMap(admin, rows.map((r: Record<string, unknown>) => r.req_prsn));
     // deno-lint-ignore no-explicit-any
     const 발주_구매요청 = rows.map((r: any) => ({
       발주번호: r.po_no, 구매요청번호: r.pr_no || null, 발주일: r.po_dt, 거래처: r.po_vendor,
@@ -654,7 +678,7 @@ async function runTool(admin: any, name: string, argsJson: string, scope: ErpSco
       납기: r.po_dlvy_dt, 납기경과_미입고: r.overdue_unreceived === true,
       외주구분: r.subcontra_flg === "Y" ? "외주" : "일반", 연결수주번호: r.so_no || null,
       요청일: r.req_dt, 필요납기: r.pr_dlvy_dt, 요청수량: Number(r.req_qty || 0),
-      요청부서: r.req_dept_resolved || "미상", 요청자: r.req_prsn || null, 구매요청상태: stsKo(r.pr_sts),
+      요청부서: r.req_dept_resolved || "미상", 요청자: userLbl(uMap, r.req_prsn), 구매요청상태: stsKo(r.pr_sts),
     }));
     // PR 조회인데 발주 라인이 없으면(미발주 PR) 구매요청 자체 상세로 답
     let 구매요청상세: unknown = null;
@@ -663,12 +687,13 @@ async function runTool(admin: any, name: string, argsJson: string, scope: ErpSco
       const { data: rd } = await admin.from("v_erp_pur_req").select("*").eq("pr_no", pr).maybeSingle();
       // deno-lint-ignore no-explicit-any
       const r: any = rd;
+      const uMap2 = await userLabelMap(admin, [r?.req_prsn]);
       구매요청상세 = r ? {
         구매요청번호: r.pr_no, 구매요청상태: stsKo(r.pr_sts), 품목코드: r.item_code, 품목: r.item_name,
         요청수량: Number(r.req_qty || 0), 발주수량: Number(r.ord_qty || 0), 입고수량: Number(r.rcpt_qty || 0), 매입수량: Number(r.iv_qty || 0),
         진행: `요청 ${Number(r.req_qty || 0)} → 발주 ${Number(r.ord_qty || 0)} → 입고 ${Number(r.rcpt_qty || 0)} → 매입 ${Number(r.iv_qty || 0)}`,
         미발주: Number(r.ord_qty || 0) === 0, 요청일: r.req_dt, 필요납기: r.dlvy_dt,
-        요청부서: r.req_dept_resolved || "미상", 요청자: r.req_prsn || null, 연결수주번호: r.so_no || null, 공급처: r.sppl_name || null,
+        요청부서: r.req_dept_resolved || "미상", 요청자: userLbl(uMap2, r.req_prsn), 연결수주번호: r.so_no || null, 공급처: r.sppl_name || null,
       } : null;
       if (r) {
         poPrView = { view: "record", title: `구매요청 ${r.pr_no}`, asOf,
@@ -676,7 +701,8 @@ async function runTool(admin: any, name: string, argsJson: string, scope: ErpSco
             { k: "품목", v: String(r.item_name || "-") },
             { k: "요청수량", v: comma(Number(r.req_qty || 0)) },
             { k: "요청일 / 필요납기", v: `${r.req_dt || "-"} / ${r.dlvy_dt || "-"}` },
-            { k: "요청부서 / 요청자", v: `${r.req_dept_resolved || "미상"} / ${r.req_prsn || "-"}` },
+            { k: "요청부서", v: String(r.req_dept_resolved || "미상") },
+            { k: "요청자", v: userLbl(uMap2, r.req_prsn) || "-" },
             { k: "발주 여부", v: Number(r.ord_qty || 0) === 0 ? "미발주" : `발주 ${comma(Number(r.ord_qty || 0))}` },
           ],
           steps: { labels: STEP_LABELS, current: STEP_IX[String(r.pr_sts || "").trim()] ?? -1 } };
@@ -694,7 +720,7 @@ async function runTool(admin: any, name: string, argsJson: string, scope: ErpSco
           { k: "납기", v: String(f0.po_dlvy_dt || "-") + (f0.overdue_unreceived === true ? " ⚠경과·미입고" : "") },
           { k: "발주금액", v: won(Number(f0.po_amt || 0)) + (rows.length > 1 ? " (첫 라인)" : "") },
           { k: "수량 진행", v: `요청 ${comma(Number(f0.req_qty || 0))} → 발주 ${comma(Number(f0.ord_qty || 0))} → 입고 ${comma(Number(f0.po_rcpt_qty || 0))} → 매입 ${comma(Number(f0.iv_qty || 0))}` },
-          { k: "구매요청", v: String(f0.pr_no || "-") + (f0.req_dept_resolved ? ` · ${f0.req_dept_resolved}` : "") },
+          { k: "구매요청", v: String(f0.pr_no || "-") + (f0.req_prsn ? ` · ${userLbl(uMap, f0.req_prsn)}` : (f0.req_dept_resolved ? ` · ${f0.req_dept_resolved}` : "")) },
           { k: "외주구분", v: f0.subcontra_flg === "Y" ? "외주" : "일반" },
         ],
         steps: { labels: STEP_LABELS, current: STEP_IX[String(f0.po_sts || "").trim()] ?? -1 } };
@@ -765,10 +791,12 @@ async function runTool(admin: any, name: string, argsJson: string, scope: ErpSco
     if (dept) q = q.ilike("req_dept_resolved", `%${dept}%`);
     const { data } = await q.order("req_dt", { ascending: false }).limit(lim);
     const rows = data || [];
+    // 요청자 표기: '부서_이름_아이디' (미매핑은 원본 아이디 유지)
+    const uMap = await userLabelMap(admin, rows.map((r: Record<string, unknown>) => r.req_prsn));
     // deno-lint-ignore no-explicit-any
     const 목록 = rows.map((r: any) => ({ 구매요청번호: r.pr_no, 상태: stsKo(r.pr_sts), 품목: r.item_name,
       요청수량: Number(r.req_qty || 0), 발주수량: Number(r.ord_qty || 0), 미발주: Number(r.ord_qty || 0) === 0,
-      요청일: r.req_dt, 필요납기: r.dlvy_dt, 요청부서: r.req_dept_resolved || "미상", 요청자: r.req_prsn }));
+      요청일: r.req_dt, 필요납기: r.dlvy_dt, 요청부서: r.req_dept_resolved || "미상", 요청자: userLbl(uMap, r.req_prsn) }));
     return { 기준시각: asOf, 조건: { 상태: status || "전체", 부서: dept || "전체" }, 표시건수: rows.length,
       목록,
       안내: "구매요청 목록. status=unordered(미발주,ord_qty=0)/RQ(요청)/CF(확정). 요청부서는 요청자 이메일→부서 매핑 보완. 파일럿 데이터.",
@@ -811,8 +839,10 @@ async function runTool(admin: any, name: string, argsJson: string, scope: ErpSco
     const okPages = pages.filter((p: any) => p.접근가능);
     // deno-lint-ignore no-explicit-any
     const noPages = pages.filter((p: any) => !p.접근가능);
+    // 계정 표기 규약: '부서_이름_아이디'
+    const 계정표기 = `${scope.dept || "미매핑"}_${scope.empNm || "-"}_${scope.upn}`;
     return {
-      기준시각: asOf, 계정: scope.upn, 이름: scope.empNm || "-", 소속부서: scope.dept || "미매핑",
+      기준시각: asOf, 계정: 계정표기, 이름: scope.empNm || "-", 소속부서: scope.dept || "미매핑",
       역할: role, 관리자여부: scope.isAdmin, 부서관리자_담당부서: deptAdminOf,
       열람가능_ERP모듈: modules.map((m) => `${MODULE_KO[m] || m}(${m})`),
       // deno-lint-ignore no-explicit-any
@@ -821,7 +851,7 @@ async function runTool(admin: any, name: string, argsJson: string, scope: ErpSco
       접근불가_페이지: noPages.map((p: any) => ({ 페이지: p.페이지, 담당부서: p.담당부서, 공개범위: p.공개범위 })),
       __view: { view: "record", title: "내 포털 권한", asOf,
         fields: [
-          { k: "이름 · 계정", v: `${scope.empNm || "-"} · ${scope.upn}` },
+          { k: "계정", v: 계정표기 },
           { k: "소속부서", v: scope.dept || "미매핑" },
           { k: "역할", v: role },
           { k: "ERP 모듈", v: modules.length ? modules.map((m) => MODULE_KO[m] || m).join(" · ") : "없음" },
