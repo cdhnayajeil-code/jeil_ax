@@ -804,7 +804,8 @@ async function runTool(admin: any, name: string, argsJson: string, scope: ErpSco
         columns: [
           { key: "구매요청번호", label: "구매요청번호" }, { key: "상태", label: "상태" }, { key: "품목", label: "품목" },
           { key: "요청수량", label: "요청수량", num: true }, { key: "미발주표시", label: "" },
-          { key: "요청일", label: "요청일" }, { key: "필요납기", label: "필요납기" }, { key: "요청부서", label: "요청부서" },
+          { key: "요청일", label: "요청일" }, { key: "필요납기", label: "필요납기" },
+          { key: "요청자", label: "요청자(부서_이름_아이디)" },
         ],
         rows: 목록.slice(0, 30).map((r) => ({ ...r, 미발주표시: r.미발주 ? "미발주" : "" })) } satisfies ViewPayload };
   }
