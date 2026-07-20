@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>10 응답렌더링 — JEIL AX 제품기획 (마크다운렌더+서버주도 구조화뷰 5종)</title>
+<style>
+:root{--navy:#1a2f4e;--navy2:#27457a;--accent:#2f6fb3;--red:#b3402f;--green:#2e7d52;--amber:#9a6b1f;
+--ink:#222;--muted:#666;--line:#d8dee8;--bg:#f4f6f9;--soft:#eef2f8;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;color:var(--ink);background:var(--bg);line-height:1.65;font-size:15px;}
+.page{max-width:960px;margin:0 auto;background:#fff;padding:52px 60px;box-shadow:0 2px 14px rgba(0,0,0,.08);}
+.doc-label{display:inline-block;background:var(--navy);color:#fff;font-size:12px;letter-spacing:.16em;padding:5px 14px;border-radius:3px;margin-bottom:16px;}
+.docnav{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 26px;}
+.docnav a{font-size:12px;color:var(--navy2);border:1px solid var(--line);border-radius:20px;padding:4px 12px;text-decoration:none;background:var(--soft);}
+.docnav a:hover{background:var(--navy);color:#fff;}
+.docnav a.cur{background:var(--navy);color:#fff;border-color:var(--navy);}
+.md-link{font-size:13px;margin-bottom:22px;color:var(--muted);}
+.content h1{font-size:27px;color:var(--navy);line-height:1.35;margin:6px 0 18px;}
+.content h2{font-size:20px;color:var(--navy);margin:42px 0 14px;padding-bottom:9px;border-bottom:3px solid var(--navy);}
+.content h3{font-size:16px;color:var(--navy2);margin:24px 0 9px;}
+.content p{margin:0 0 12px;}
+.content ul,.content ol{margin:0 0 14px 22px;}
+.content li{margin-bottom:6px;}
+.content blockquote{background:var(--soft);border-left:5px solid var(--navy);border-radius:0 8px 8px 0;padding:14px 20px;margin:14px 0;color:#33425a;}
+.content blockquote p{margin:0 0 6px;}
+.content table{width:100%;border-collapse:collapse;margin:14px 0 20px;font-size:13.3px;}
+.content th{background:var(--navy);color:#fff;padding:9px 11px;text-align:left;font-weight:600;}
+.content td{padding:8px 11px;border-bottom:1px solid var(--line);vertical-align:top;}
+.content tr:nth-child(even) td{background:#fafbfd;}
+.content a{color:var(--accent);}
+.content code{background:var(--soft);border:1px solid var(--line);border-radius:4px;padding:1px 6px;font-size:12.4px;font-family:Consolas,'Courier New',monospace;}
+.content pre{background:#21252e;color:#e8eaf0;border-radius:8px;padding:16px 18px;font-size:12.4px;font-family:Consolas,'Courier New',monospace;overflow-x:auto;margin:12px 0 18px;line-height:1.55;}
+.content pre code{background:none;border:none;color:inherit;padding:0;}
+.content hr{border:none;border-top:1px solid var(--line);margin:30px 0;}
+.content strong{color:var(--navy2);}
+.footer{margin-top:50px;padding-top:16px;border-top:1px solid var(--line);font-size:12px;color:var(--muted);display:flex;justify-content:space-between;}
+@media print{body{background:#fff;}.page{box-shadow:none;padding:18px 0;max-width:100%;}.docnav{display:none;}.content h2{break-after:avoid;}.content table,.content pre,.content blockquote{break-inside:avoid;}}
+@media (max-width:720px){.page{padding:30px 20px;}}
+</style>
+</head>
+<body>
+<div class="page">
+  <span class="doc-label">JEIL AX 제품기획 · 대외비</span>
+  <div class="docnav"><a href="index.html">🏠 제품기획 허브</a><a href="00_제품기획_개요.html">00 개요</a><a href="01_PRD_제품요구사항정의.html">01 PRD</a><a href="02_SRS_요구사항명세.html">02 SRS</a><a href="03_시스템아키텍처_설계.html">03 아키텍처</a><a href="04_데이터베이스_설계.html">04 DB설계</a><a href="05_프론트엔드_백엔드_설계.html">05 FE·BE</a><a href="06_ERP연계_챗봇활용_설계.html">06 ERP연계</a><a href="07_마이그레이션_Azure이관_설계.html">07 이관</a><a href="08_보안_데이터안정성.html">08 보안</a><a href="09_ADR_의사결정기록.html">09 ADR</a><a class="cur" href="10_챗봇_응답렌더링_설계.html">10 응답렌더링</a><a href="README.md">README</a></div>
+  <p class="md-link">📄 Markdown 원본: <a href="10_챗봇_응답렌더링_설계.md">10_챗봇_응답렌더링_설계.md</a> · 허브 <a href="index.html">제품기획 개요</a></p>
+  <div class="content">
+<h1 id="10">10 · 챗봇 응답 렌더링 설계 — 템플릿화 고도화</h1>
+<blockquote>
+<p>관리자: 최동혁(dh.choi@jeilm.co.kr) · 기준일: 2026-07-20 · 상태: <strong>Accepted — P1+P2 구현 완료(2026-07-20, ADR-008)</strong>
+관련: <a href="05_프론트엔드_백엔드_설계.md">05 FE·BE</a> · <a href="06_ERP연계_챗봇활용_설계.md">06 ERP연계</a> · <a href="08_보안_데이터안정성.md">08 보안</a> · <a href="09_ADR_의사결정기록.md">09 ADR</a> · [CLAUDE.md §7·§13]</p>
+</blockquote>
+<p>챗봇 응답을 <strong>읽기 좋은 구조로 렌더링</strong>하는 방식을 검토·설계한다. 결론부터: <strong>"모델에게 템플릿을 시키는 방식"은 권장하지 않고</strong>, 마크다운 렌더링(P1)을 먼저 깔고 그 위에 <strong>서버 주도 구조화 뷰</strong>(P2)를 얹는 2단 구조를 권장한다. 근거와 위험은 §3~§7.</p>
+<hr />
+<h2 id="1-2026-07-20">1. 현재 상태 (실측, 2026-07-20)</h2>
+<h3 id="1-1-3">1-1. 라이브 챗봇의 렌더러는 3줄이 전부다</h3>
+<p><code>04_챗봇_포털_데모UI.html:1360</code></p>
+<pre><code class="language-js">function escHtml(s){ return s.replace(/&amp;/g,'&amp;amp;').replace(/&lt;/g,'&amp;lt;').replace(/&gt;/g,'&amp;gt;'); }
+function mdLite(s){ // 최소 마크다운: **굵게** + 줄바꿈만 (그 외는 이스케이프)
+  return escHtml(s).replace(/\*\*([^*]+)\*\*/g,'&lt;b&gt;$1&lt;/b&gt;').replace(/\n/g,'&lt;br&gt;');
+}
+</code></pre>
+<p>즉 라이브 응답에서 <strong>표·목록·헤딩·코드·링크는 전부 원문 텍스트로 노출</strong>된다. 모델이 월별 실적을 표로 내면 화면에는 이렇게 찍힌다.</p>
+<pre><code>| 월 | 급여대상 인원 |
+|---|---|
+| 2026-01 | 113 |
+</code></pre>
+<h3 id="1-2">1-2. 스타일은 이미 있는데 라이브가 도달하지 못한다</h3>
+<p>같은 파일 <code>:72~79</code>에 <code>.bubble table / th / td / td.r / ul / li / h4 / .src</code> 스타일이 <strong>이미 완비</strong>돼 있다. 그런데 이 스타일을 쓰는 건 <strong>데모 경로뿐</strong>이다.</p>
+<table>
+<thead>
+<tr>
+<th>경로</th>
+<th>렌더 방식</th>
+<th>결과</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>데모(미로그인)</td>
+<td>하드코딩 <code>&lt;table&gt;</code> HTML을 <code>bubble.innerHTML</code>에 주입(<code>:854</code>)</td>
+<td>표·배지·링크 정상 표시</td>
+</tr>
+<tr>
+<td>라이브(로그인)</td>
+<td><code>mdLite(text)</code> (<code>:1395</code>)</td>
+<td>마크다운 원문 텍스트</td>
+</tr>
+</tbody>
+</table>
+<p><strong>로그인해서 실데이터를 보는 쪽이 데모보다 못생겨 보이는 역전 현상</strong>이 현재 상태다. 사용자가 체감한 문제의 정체는 "템플릿이 없어서"가 아니라 <strong>"이미 있는 표현력에 라이브 경로가 연결되지 않아서"</strong> 다.</p>
+<h3 id="1-3">1-3. 서버는 이미 구조화 데이터를 갖고 있다</h3>
+<p><code>jeil-chat</code>(v19)의 도구 17종은 전부 <strong>구조화 JSON</strong>을 반환한다.</p>
+<pre><code class="language-jsonc">// get_hr_headcount 반환 예
+{ &quot;기준시각&quot;:&quot;…&quot;, &quot;월별&quot;:[{&quot;월&quot;:&quot;2026-01&quot;,&quot;급여대상인원&quot;:113,&quot;부서수&quot;:25}, …] }
+</code></pre>
+<p>그런데 이 JSON은 <strong>모델에게만</strong> 전달되고, 모델이 자연어·마크다운으로 <strong>다시 서술</strong>한 결과만 화면에 간다. 구조가 한 번 소실됐다가 모델의 재구성으로 복원되는 셈이다.</p>
+<p>이 재구성이 실제로 틀린 적이 있다는 증거가 시스템 프롬프트에 남아 있다.</p>
+<blockquote>
+<p>"월별 표를 그릴 때는 도구가 반환한 '월별' 배열의 각 월 값을 그대로 사용하고, 값이 없는 월을 임의로 '미제공'으로 적지 마세요."</p>
+</blockquote>
+<p>방어 문구가 프롬프트에 들어갔다는 것은 <strong>모델이 표를 잘못 그린 사고가 있었다</strong>는 뜻이다. 즉 렌더링은 미관 문제만이 아니라 <strong>정확성 문제</strong>다.</p>
+<hr />
+<h2 id="2">2. 무엇을 "템플릿화"라고 부를 것인가 — 세 갈래</h2>
+<p>"템플릿화"라는 한 단어에 서로 다른 세 방식이 섞여 있다. 이걸 먼저 분리해야 판단이 선다.</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>방식 A · 마크다운 렌더</th>
+<th>방식 B · 모델이 템플릿 블록 방출</th>
+<th>방식 C · 서버 주도 구조화 뷰</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>누가 구조를 만드나</td>
+<td>모델(마크다운)</td>
+<td>모델(JSON/DSL)</td>
+<td><strong>서버(도구 결과)</strong></td>
+</tr>
+<tr>
+<td>프론트가 하는 일</td>
+<td>마크다운 → HTML</td>
+<td>블록 파싱 → 컴포넌트</td>
+<td>데이터 → 뷰 컴포넌트</td>
+</tr>
+<tr>
+<td>숫자의 출처</td>
+<td>모델이 재서술</td>
+<td>모델이 재서술</td>
+<td><strong>DB 직결</strong></td>
+</tr>
+<tr>
+<td>실패 시 모습</td>
+<td>평문으로 degrade(우아함)</td>
+<td><strong>깨진 JSON 원문 노출</strong>(추함)</td>
+<td>실패 여지 없음</td>
+</tr>
+<tr>
+<td>프롬프트 비용</td>
+<td>+0 토큰</td>
+<td>스키마 설명만큼 증가</td>
+<td>+0 토큰</td>
+</tr>
+<tr>
+<td>모델 교체 내성</td>
+<td>높음</td>
+<td><strong>낮음</strong>(준수율 의존)</td>
+<td>무관</td>
+</tr>
+</tbody>
+</table>
+<h3 id="2-1-a">2-1. 방식 A가 업계 표준인 이유</h3>
+<p>ChatGPT·Claude·Gemini·Copilot·Perplexity 모두 <strong>기본 렌더는 마크다운</strong>이다. 이유는 취향이 아니라 구조적이다.</p>
+<ol>
+<li>LLM은 마크다운으로 대량 학습돼 있어 <strong>별도 지시 없이도</strong> 표·목록을 자연스럽게 낸다.</li>
+<li>렌더에 실패해도 최악이 "평문"이다. 사용자는 내용을 여전히 읽을 수 있다(<strong>graceful degradation</strong>).</li>
+<li>새 기능·새 도구를 추가해도 <strong>렌더러를 손댈 필요가 없다</strong>.</li>
+</ol>
+<h3 id="2-2-b">2-2. 방식 B를 권장하지 않는 이유</h3>
+<p>"모델이 <code>{"type":"kpi","value":98}</code> 같은 블록을 내면 카드로 그린다"는 발상은 직관적이지만, 실무에서 다음 문제로 되돌아온다.</p>
+<ul>
+<li><strong>fail-ugly</strong>: 스키마를 한 글자만 어겨도 사용자 화면에 JSON 원문이 노출된다. 방식 A의 실패(평문)와 달리 복구가 안 된다.</li>
+<li><strong>스트리밍 불가</strong>: JSON은 닫히기 전까지 파싱할 수 없다. 응답이 다 끝날 때까지 빈 화면이거나, 반쯤 그려진 블록이 깜빡인다. 지금의 실시간 타이핑 경험이 사라진다.</li>
+<li><strong>프롬프트 비대</strong>: 도구 17종 × 블록 스키마를 프롬프트에 설명해야 한다. 현 시스템 프롬프트는 이미 길다(약 2,000자). 매 요청 입력 토큰으로 과금된다.</li>
+<li><strong>모델 종속</strong>: 라우팅 규칙상 모델은 교체 가능하다(<code>ai_routing_rule</code>). 저가 모델로 라우팅되는 순간 스키마 준수율이 떨어진다.</li>
+<li><strong>이중 유지보수</strong>: 도구를 고칠 때 프롬프트의 스키마 설명도 같이 고쳐야 한다. 둘이 어긋나는 순간 조용히 깨진다.</li>
+</ul>
+<blockquote>
+<p><strong>판단</strong>: 방식 B는 "모델에게 UI 책임을 위임"하는 구조다. UI 정확성을 확률적 생성에 맡기는 것이므로, 사내 업무 데이터를 다루는 우리 용도에는 부적합하다.</p>
+</blockquote>
+<h3 id="2-3-c">2-3. 방식 C가 우리에게 특히 잘 맞는 이유</h3>
+<p>우리는 <strong>게이트웨이(<code>jeil-chat</code>)를 소유</strong>하고 있고, 도구 실행 시점에 이미 정확한 구조화 데이터를 손에 쥐고 있다. 이걸 모델에게만 주고 버릴 이유가 없다.</p>
+<ul>
+<li>표에 찍히는 숫자가 <strong>모델을 거치지 않는다</strong> → 환각 0, §1-3의 방어 프롬프트가 불필요해진다.</li>
+<li><strong>프롬프트 토큰 증가 없음</strong>, 오히려 모델이 표를 그릴 필요가 없어 출력 토큰이 준다.</li>
+<li>도구가 반환하지 않은 필드는 화면에 존재할 수 없으므로, <strong>권한 게이트가 렌더 계층까지 자동 전파</strong>된다(§6-3).</li>
+</ul>
+<p>이는 새로운 발상이 아니라 이미 확립된 패턴이다(Vercel AI SDK의 tool-invocation 기반 generative UI, OpenAI Assistants의 tool outputs 스트리밍). 다만 <strong>방식 A를 대체하는 게 아니라 그 위에 얹는 것</strong>이라는 점이 중요하다.</p>
+<hr />
+<h2 id="3-2">3. 권장 설계 — 2단 구조</h2>
+<pre><code>                     ┌─ 텍스트 채널 ─────────────┐
+모델 출력(마크다운) ──┤  P1: 마크다운 렌더러       ├─→ 말풍선 본문(해석·요약)
+                     └───────────────────────────┘
+                     ┌─ 데이터 채널 ─────────────┐
+도구 결과(JSON) ─────┤  P2: 뷰 컴포넌트 5종       ├─→ 말풍선 상단 카드(수치)
+                     └───────────────────────────┘
+</code></pre>
+<p><strong>역할 분리가 핵심이다.</strong> 모델은 <em>해석·판단·요약</em>을 담당하고, 수치·표는 <em>서버가 직접</em> 그린다. 두 채널이 독립이므로 한쪽이 실패해도 다른 쪽은 살아 있다.</p>
+<h3 id="3-1-p1">3-1. P1 — 마크다운 렌더러 (기반)</h3>
+<p><code>mdLite</code>를 확장한다. 지원 범위는 <strong>의도적으로 좁게</strong> 유지한다.</p>
+<table>
+<thead>
+<tr>
+<th>문법</th>
+<th>렌더</th>
+<th>비고</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>**굵게**</code> <code>*기울임*</code> <code>`코드`</code></td>
+<td><code>&lt;b&gt; &lt;i&gt; &lt;code&gt;</code></td>
+<td>기존 유지·확장</td>
+</tr>
+<tr>
+<td><code># ~ ###</code></td>
+<td><code>&lt;h4&gt;</code> 통일</td>
+<td>말풍선 안이라 레벨 구분 불필요</td>
+</tr>
+<tr>
+<td><code>-</code> <code>1.</code></td>
+<td><code>&lt;ul&gt; &lt;ol&gt;</code></td>
+<td>중첩 1단계까지만</td>
+</tr>
+<tr>
+<td>GFM 표</td>
+<td><code>&lt;table&gt;</code></td>
+<td><strong>기존 <code>.bubble table</code> CSS에 그대로 연결</strong></td>
+</tr>
+<tr>
+<td><code>```코드블록```</code></td>
+<td><code>&lt;pre&gt;&lt;code&gt;</code></td>
+<td>가로 스크롤</td>
+</tr>
+<tr>
+<td><code>[텍스트](url)</code></td>
+<td><code>&lt;a target=_blank rel=noopener&gt;</code></td>
+<td><code>http(s):</code> 스킴만 허용</td>
+</tr>
+<tr>
+<td><strong>raw HTML</strong></td>
+<td><strong>미지원(이스케이프)</strong></td>
+<td>XSS 차단 — §6-1</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>외부 라이브러리·CDN 금지(CLAUDE.md §13.5, 자기완결 원칙 §7) → <strong>바닐라 자체 구현</strong>. 위 범위면 150줄 내외.</li>
+<li>~~배치: <code>app/lib/chat-render.js</code>(ESM)~~ → <strong>(구현 시 조정) 04 인라인 배치</strong>: 실측 결과 04는 로컬 <code>&lt;script src&gt;</code>가 전혀 없는 완전 인라인 단일 파일이고 <code>_build_bundle.py</code>가 전문을 그대로 내장(스크립트 src 인라인 처리 없음) — 외부 파일 분리 시 통합본·file:// 시연이 깨진다. 유일 소비처가 04이므로 인라인(주석 마커 <code>chat-render</code>/<code>chat-views</code> 구간)으로 확정, 실구축 프론트(app/) 이관 시 추출한다.</li>
+</ul>
+<blockquote>
+<p>P1만으로 체감 개선의 대부분이 해결된다. §1-2에서 확인했듯 <strong>CSS는 이미 준비돼 있어 연결만 하면 되기 때문</strong>이다.</p>
+</blockquote>
+<h3 id="3-2-p2">3-2. P2 — 서버 주도 구조화 뷰</h3>
+<p><strong>SSE 프로토콜 확장.</strong> 현재 게이트웨이는 OpenAI SSE를 그대로 프록시하지만, 우리가 소유한 스트림이므로 이벤트를 추가할 수 있다. 도구 실행 직후(<code>index.ts</code>의 <code>runTool</code> 반환 지점) 한 줄을 흘려보낸다.</p>
+<pre><code class="language-jsonc">// 기존(변경 없음)
+data: {&quot;choices&quot;:[{&quot;delta&quot;:{&quot;content&quot;:&quot;6월 재적은 98명입니다.&quot;}}]}
+// 추가
+data: {&quot;jeilax&quot;:{&quot;view&quot;:&quot;series&quot;,&quot;title&quot;:&quot;2026년 월별 급여대상 인원&quot;,
+       &quot;unit&quot;:&quot;명&quot;,&quot;asOf&quot;:&quot;…&quot;,&quot;rows&quot;:[{&quot;k&quot;:&quot;2026-01&quot;,&quot;v&quot;:113}, …],
+       &quot;note&quot;:&quot;급여대장(HDF070T) 기준 · 마감 전 변동 가능&quot;}}
+</code></pre>
+<p><strong>하위호환</strong>: 기존 프론트는 <code>choices</code>가 없는 이벤트를 <code>try/catch</code>로 무시한다(<code>:1396</code>의 기존 동작). 즉 <strong>게이트웨이를 먼저 배포해도 구 프론트가 깨지지 않는다.</strong></p>
+<h3 id="3-3-5">3-3. 뷰는 "도구별"이 아니라 "데이터 형태별" 5종으로 고정한다</h3>
+<p>여기가 이 설계의 성패를 가르는 지점이다. 도구마다 템플릿을 만들면 17개 → 앞으로 30개로 늘고 유지보수가 무너진다. <strong>데이터 형태로 추상화</strong>한다.</p>
+<table>
+<thead>
+<tr>
+<th>뷰</th>
+<th>형태</th>
+<th>화면</th>
+<th>해당 도구</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>series</code></td>
+<td>시계열</td>
+<td>표 + 미니 막대</td>
+<td>매출·매입 월집계, 발주 월별, 인원현황</td>
+</tr>
+<tr>
+<td><code>ranking</code></td>
+<td>상위 N</td>
+<td>순위 표</td>
+<td>거래처Top10, 발주 상위</td>
+</tr>
+<tr>
+<td><code>record</code></td>
+<td>단건 상세</td>
+<td>라벨-값 카드 + 진행단계</td>
+<td>발주 상세, 구매요청, 검사 상세</td>
+</tr>
+<tr>
+<td><code>list</code></td>
+<td>목록</td>
+<td>표(스크롤)</td>
+<td>미입고, 검수대기, 구매요청, 문서검색</td>
+</tr>
+<tr>
+<td><code>notice</code></td>
+<td>안내·권한</td>
+<td>아이콘 카드 + 액션</td>
+<td><strong>접근제한 응답</strong>, <code>get_my_access</code></td>
+</tr>
+</tbody>
+</table>
+<p>새 도구를 추가할 때 하는 일은 반환값에 <code>view:"series"</code> <strong>한 줄 추가</strong>뿐이다. 프론트는 손대지 않는다.</p>
+<p><strong><code>notice</code> 뷰의 가치</strong>: 지금 접근제한 응답은 모델이 안내 문구를 풀어 쓰는데, 이걸 카드로 그리면 "요청할 모듈명·부여 경로"가 항상 같은 자리에 나온다. 권한 요청 UX가 표준화된다(§권한 개선 작업과 직결).</p>
+<h3 id="3-4-p3">3-4. P3 — 액션(선택, 후순위)</h3>
+<p><code>get_my_access</code>가 접근 불가 페이지를 알고 있으므로 "권한 요청" 버튼을, 페이지 링크는 기존 <code>.pglink-btn</code> 스타일 카드로. <strong>단, CLAUDE.md §1.6에 따라 버튼은 요청 초안 생성까지만이고 승인·발주 확정 등 실거래 액션은 넣지 않는다.</strong></p>
+<hr />
+<h2 id="4">4. 효율성 — 정직한 평가</h2>
+<p>사용자 질문("효율적인지")에 과장 없이 답한다.</p>
+<table>
+<thead>
+<tr>
+<th>항목</th>
+<th>평가</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>개발 비용</td>
+<td>P1 약 1일, P2 약 2~3일. 뷰 5종 고정이라 이후 한계비용 거의 0</td>
+</tr>
+<tr>
+<td>런타임 성능</td>
+<td>마크다운 파싱은 응답당 수 ms. <strong>단, 현재 매 delta마다 전체 재파싱(O(n²)) — 긴 답변에서 렉. §6-2에서 해결 필요</strong></td>
+</tr>
+<tr>
+<td>토큰 비용</td>
+<td>월별 표 1개 ≈ 출력 300토큰. <code>gpt-4o-mini</code> 기준 1,000회/월이면 <strong>월 $0.2 수준 — 무시할 만함</strong></td>
+</tr>
+<tr>
+<td><strong>실질 이익</strong></td>
+<td><strong>비용 절감이 아니라 ① 수치 정확성(환각 제거) ② 일관성 ③ 권한 게이트의 렌더 전파</strong></td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>비용 절감을 근거로 삼지 말 것. 이 작업의 정당화는 <strong>정확성과 신뢰</strong>다.</p>
+</blockquote>
+<hr />
+<h2 id="5">5. 단계별 적용 계획</h2>
+<table>
+<thead>
+<tr>
+<th>단계</th>
+<th>범위</th>
+<th>산출물</th>
+<th>상태</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>P1</strong></td>
+<td>마크다운 렌더러</td>
+<td>04 인라인 <code>chat-render</code> 구간(renderMd) + 스로틀·스크롤 가드 + XSS 수정, 통합본 재빌드</td>
+<td>✅ 완료(2026-07-20, 단위테스트 15/15)</td>
+</tr>
+<tr>
+<td><strong>P2-a</strong></td>
+<td>SSE <code>jeilax</code> 이벤트 송출 + 도구 <code>__view</code> 배선(17종)</td>
+<td><code>jeil-chat</code> v20</td>
+<td>✅ 완료(2026-07-20)</td>
+</tr>
+<tr>
+<td><strong>P2-b</strong></td>
+<td>뷰 5종 구현</td>
+<td>04 인라인 <code>chat-views</code> 구간(renderView) + <code>.cv-</code> CSS</td>
+<td>✅ 완료(2026-07-20)</td>
+</tr>
+<tr>
+<td><strong>P3</strong></td>
+<td>액션·후속질문 칩</td>
+<td>—</td>
+<td>🕐 보류(별도 결정, §1.6 실거래 금지 준수)</td>
+</tr>
+</tbody>
+</table>
+<p><strong>P1과 P2-a는 서로 독립</strong>이라 병렬 진행 가능하다. P2-a를 먼저 배포해도 구 프론트가 이벤트를 무시하므로 안전하다(§3-2).</p>
+<hr />
+<h2 id="6">6. 위험과 대응 — "이후에 문제없을지"</h2>
+<h3 id="6-1-xss">6-1. XSS (가장 중요)</h3>
+<p>마크다운 렌더러를 넣는 순간 이것이 최우선 위험이 된다.</p>
+<ul>
+<li><strong>raw HTML 미지원</strong>을 원칙으로. <code>escHtml</code> <strong>먼저</strong>, 그 다음 마크다운 문법 치환(순서를 뒤집으면 구멍이 난다).</li>
+<li>링크는 <code>http:</code>/<code>https:</code>만 허용. <code>javascript:</code>·<code>data:</code> 차단. <code>rel="noopener noreferrer"</code>.</li>
+<li>뷰 컴포넌트는 <strong><code>textContent</code>로 값 삽입</strong>(<code>innerHTML</code> 금지). 도구 결과에는 ERP 품목명 등 외부 유래 문자열이 있다.</li>
+<li>기존 결함 1건: <code>send()</code>(<code>:1804</code>)가 사용자 입력에서 <code>&lt;</code>만 치환하고 <code>&amp;</code>를 놓친다. 같은 작업에서 <code>escHtml</code>로 통일할 것.</li>
+</ul>
+<h3 id="6-2">6-2. 스트리밍 중 렌더 안정성</h3>
+<ul>
+<li>매 delta마다 <code>bubble.innerHTML = mdLite(text)</code> 전체 재구성 → <strong>O(n²)</strong>. 긴 답변에서 체감 렉. <code>requestAnimationFrame</code> 스로틀(약 60ms)로 묶는다.</li>
+<li>표가 그려지는 중간에는 행이 하나씩 늘며 깜빡인다. <strong>미완결 표 블록은 마지막 줄바꿈이 올 때까지 평문으로 유예</strong>하고 완결 시 표로 승격.</li>
+<li>스크롤: 렌더 중 사용자가 위로 스크롤했으면 자동 하단 이동을 멈춘다(현재 무조건 <code>scrollBottom()</code>).</li>
+</ul>
+<h3 id="6-3">6-3. 권한 (우리 프로젝트 고유 위험)</h3>
+<ul>
+<li>뷰는 <strong>도구가 반환한 필드만</strong> 그린다. 서버가 이미 <code>dept_erp_scope</code>로 스코프를 걸었으므로 권한 밖 데이터는 애초에 페이로드에 없다 → <strong>렌더 계층 권한 누수 구조적으로 차단</strong>.</li>
+<li><code>접근제한:true</code> 응답은 반드시 <code>notice</code> 뷰로 그리고, <strong>서버가 준 안내 문구를 그대로</strong> 표시한다(프론트가 문구를 지어내지 않는다).</li>
+<li>뷰 데이터를 <code>localStorage</code>·<code>sessionStorage</code>에 캐시하지 않는다. 급여·인원 데이터가 브라우저에 잔류하면 §1.7 위반이다.</li>
+<li>감사: <code>chat_log</code>는 대화 원문 미저장이 원칙. <strong>뷰 페이로드도 저장하지 않는다</strong>(현행 <code>tools_used</code> 기록만 유지).</li>
+</ul>
+<h3 id="6-4">6-4. 유지보수</h3>
+<ul>
+<li>뷰는 <strong>5종 고정</strong>. 도구별 템플릿 신설 금지를 규칙으로 명문화한다. 새 형태가 정말 필요하면 ADR 항목으로 올린다.</li>
+<li>도구 반환의 <code>view</code> 힌트가 누락되면 <strong>뷰 없이 마크다운만</strong> 표시(fail-safe). 화면이 깨지지 않는다.</li>
+</ul>
+<h3 id="6-5-13">6-5. 그리드 표준(§13)과의 경계 — 혼동 주의</h3>
+<p>CLAUDE.md §13은 <strong>편집 가능한 그리드</strong>를 <code>app/lib/grid.js</code>로 통일하라고 규정한다. <strong>챗봇 응답 뷰는 읽기 전용이므로 그 대상이 아니다.</strong></p>
+<ul>
+<li>챗봇 뷰에 <code>grid.js</code>를 쓰지 않는다(편집·붙여넣기·CSV 기능이 불필요하고 무겁다).</li>
+<li>다만 <strong>CSS 팔레트(<code>:root</code> navy/accent/green/red/line)는 공유</strong>해 시각적 일관성을 유지한다.</li>
+<li>챗봇 뷰 CSS는 <code>.chatview__</code> 스코프로 격리한다. 전역 <code>table/th/td</code> 재정의 금지(§13.4와 동일 원칙).</li>
+</ul>
+<h3 id="6-6">6-6. 기타</h3>
+<ul>
+<li><strong>복사·재활용</strong>: 실제 <code>&lt;table&gt;</code> 태그로 그린다. div 격자로 만들면 엑셀 붙여넣기가 깨진다. 사내에서 챗봇 표를 엑셀로 옮기는 건 흔한 실무다.</li>
+<li><strong>모바일</strong>: 표는 자체 <code>overflow-x:auto</code> 컨테이너에. 말풍선(<code>.bubble</code>)에 이미 있으나 뷰에도 개별 적용.</li>
+<li><strong>접근성</strong>: <code>&lt;th scope="col"&gt;</code>, 숫자는 우측 정렬(<code>td.r</code> 기존 클래스 재사용), 색상만으로 의미를 전달하지 않는다.</li>
+<li><strong>Azure 이관</strong>(07): 뷰는 순수 프론트 컴포넌트라 백엔드 교체 영향 없음. SSE 이벤트 형식만 어댑터 계약에 포함시킨다.</li>
+</ul>
+<hr />
+<h2 id="7">7. 결정 요청 사항</h2>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>항목</th>
+<th>권고</th>
+<th>상태</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>P1 마크다운 렌더러 도입</td>
+<td><strong>도입</strong>(위험 낮음·효과 큼·독립 배포)</td>
+<td>✅ 결정·구현(2026-07-20)</td>
+</tr>
+<tr>
+<td>2</td>
+<td>방식 B(모델 템플릿 블록) 채택 여부</td>
+<td><strong>미채택</strong>(§2-2)</td>
+<td>✅ 기각 확정(2026-07-20)</td>
+</tr>
+<tr>
+<td>3</td>
+<td>P2 서버 주도 구조화 뷰</td>
+<td><strong>도입</strong>, 뷰 5종 고정</td>
+<td>✅ 결정·구현(2026-07-20)</td>
+</tr>
+<tr>
+<td>4</td>
+<td>P3 액션 버튼</td>
+<td>후순위. 도입 시 §1.6(실거래 액션 금지) 준수</td>
+<td>🕐 보류</td>
+</tr>
+</tbody>
+</table>
+<p>결정·구현 내역은 <a href="09_ADR_의사결정기록.md">09_ADR <strong>ADR-008</strong></a>에 등재됨. 변경 이력은 <code>00_관리체계/03_변경관리_CHANGELOG</code> 참조.</p>
+<hr />
+<h2 id="8">8. 참고 — 현재 코드 위치</h2>
+<table>
+<thead>
+<tr>
+<th>대상</th>
+<th>경로</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>라이브 렌더러 <code>mdLite</code></td>
+<td><code>04_챗봇_포털_데모UI.html:1359~1362</code></td>
+</tr>
+<tr>
+<td>스트림 수신 루프</td>
+<td><code>04_챗봇_포털_데모UI.html:1382~1398</code></td>
+</tr>
+<tr>
+<td>말풍선 CSS(표·목록 스타일 기보유)</td>
+<td><code>04_챗봇_포털_데모UI.html:70~79</code></td>
+</tr>
+<tr>
+<td>게이트웨이 도구 실행 지점</td>
+<td><code>supabase/functions/jeil-chat/index.ts</code> · <code>runTool()</code></td>
+</tr>
+<tr>
+<td>도구 결과 → 대화 주입</td>
+<td><code>supabase/functions/jeil-chat/index.ts</code> · 멀티라운드 루프</td>
+</tr>
+</tbody>
+</table>
+  </div>
+  <div class="footer"><span>JEIL M&S · AI 포털 제품기획</span><span>10 응답렌더링 · 관리: 최동혁</span></div>
+</div>
+</body>
+</html>

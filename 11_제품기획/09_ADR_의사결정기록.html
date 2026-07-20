@@ -42,7 +42,7 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <body>
 <div class="page">
   <span class="doc-label">JEIL AX 제품기획 · 대외비</span>
-  <div class="docnav"><a href="index.html">🏠 제품기획 허브</a><a href="00_제품기획_개요.html">00 개요</a><a href="01_PRD_제품요구사항정의.html">01 PRD</a><a href="02_SRS_요구사항명세.html">02 SRS</a><a href="03_시스템아키텍처_설계.html">03 아키텍처</a><a href="04_데이터베이스_설계.html">04 DB설계</a><a href="05_프론트엔드_백엔드_설계.html">05 FE·BE</a><a href="06_ERP연계_챗봇활용_설계.html">06 ERP연계</a><a href="07_마이그레이션_Azure이관_설계.html">07 이관</a><a href="08_보안_데이터안정성.html">08 보안</a><a class="cur" href="09_ADR_의사결정기록.html">09 ADR</a><a href="README.md">README</a></div>
+  <div class="docnav"><a href="index.html">🏠 제품기획 허브</a><a href="00_제품기획_개요.html">00 개요</a><a href="01_PRD_제품요구사항정의.html">01 PRD</a><a href="02_SRS_요구사항명세.html">02 SRS</a><a href="03_시스템아키텍처_설계.html">03 아키텍처</a><a href="04_데이터베이스_설계.html">04 DB설계</a><a href="05_프론트엔드_백엔드_설계.html">05 FE·BE</a><a href="06_ERP연계_챗봇활용_설계.html">06 ERP연계</a><a href="07_마이그레이션_Azure이관_설계.html">07 이관</a><a href="08_보안_데이터안정성.html">08 보안</a><a class="cur" href="09_ADR_의사결정기록.html">09 ADR</a><a href="10_챗봇_응답렌더링_설계.html">10 응답렌더링</a><a href="README.md">README</a></div>
   <p class="md-link">📄 Markdown 원본: <a href="09_ADR_의사결정기록.md">09_ADR_의사결정기록.md</a> · 허브 <a href="index.html">제품기획 개요</a></p>
   <div class="content">
 <h1 id="09-adr">09 · ADR — 아키텍처 의사결정 기록</h1>
@@ -92,6 +92,13 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <li><strong>선택지</strong>: (A) <code>security definer</code> 뷰/RPC(정의자 권한, advisor 경고) / (B) <code>public</code>의 <code>security_invoker</code> 뷰 + <code>erp_ro</code> 최소 GRANT + 기존 <code>internal_select_*</code> RLS 게이트 / (C) 별도 <code>erp_pub</code> 스키마 REST 노출(프로젝트 config 변경 필요).</li>
 <li><strong>결정</strong>: <strong>(B)</strong>. <code>erp_ro</code>/<code>etl_meta</code>는 REST 비노출 유지, 진입점은 <code>public.v_erp_*</code> 뷰뿐. 사내(internal)만 RLS 통과, 협력사/anon 0행(격리 테스트 통과 ISS-203). 챗봇은 service_role 전용 read GRANT. definer-뷰 advisor 경고 회피.</li>
 <li><strong>근거</strong>: <a href="06_ERP연계_챗봇활용_설계.md">06 §3·§7</a>, <a href="../실제구축준비%20자료/이관/sql/08_erp_pub_reporting_views.sql"><code>이관/sql/08</code></a>.</li>
+</ul>
+<h3 id="adr-008-2026-07-20">ADR-008 ✅ 챗봇 응답 렌더링 = 마크다운 렌더 + 서버 주도 구조화 뷰 (2026-07-20)</h3>
+<ul>
+<li><strong>배경</strong>: 라이브 챗봇 렌더러가 mdLite 3줄(굵게+줄바꿈)뿐이라 표·목록이 원문 노출. 도구의 구조화 JSON을 모델이 재서술하는 과정에서 수치 오류 사고 이력(프롬프트 방어 문구가 증거).</li>
+<li><strong>선택지</strong>: (A) 마크다운 렌더만 / (B) 모델이 템플릿 블록(JSON/DSL) 방출 / (C) 마크다운 렌더 + 게이트웨이가 도구 결과를 SSE <code>jeilax</code> 이벤트로 병행 송출(서버 주도 뷰).</li>
+<li><strong>결정</strong>: <strong>(C)</strong> = P1+P2. <strong>(B)는 기각</strong> — fail-ugly(스키마 위반 시 JSON 원문 노출)·스트리밍 불가·프롬프트 비대·모델 교체 취약. 뷰는 도구별이 아니라 <strong>데이터 형태 5종 고정</strong>(series/ranking/record/list/notice, 신규 템플릿 신설 금지). 수치는 DB 직결(모델 미경유·토큰 0)로 환각을 구조적으로 차단. 렌더러는 04 인라인 배치(04는 완전 인라인 단일 파일 + 통합본이 전문 내장 — app/lib 분리 시 file://·통합본 파손).</li>
+<li><strong>근거</strong>: <a href="10_챗봇_응답렌더링_설계.md">10 응답렌더링</a>, jeil-chat v20 + 04 포털(renderMd/renderView), 단위테스트 15/15(XSS 포함).</li>
 </ul>
 <h2 id="b-proposed">B. 미결정 (Proposed — 결정 대기)</h2>
 <h3 id="adr-101">ADR-101 🕐 백엔드 스택 최종 확정</h3>
