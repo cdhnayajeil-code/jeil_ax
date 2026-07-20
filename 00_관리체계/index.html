@@ -276,21 +276,21 @@ body.js .tabpane.on{display:block;}
    · KPI는 자동 계산 — 수치를 손으로 적지 않는다. 비밀값(IP·키·Secret)은 절대 기재 금지.
    ============================================================================ */
 const AX_DASH = {
-  asof: "2026-07-16",
-  now: "총괄 대시보드 가동 — ERP 중간DB 1차 적재·챗봇 OneDrive 문서연계(v18)·협력사 포털 실가동 단계. 다음 게이트: 유니포인트 협의 · 호스팅(Azure) 확정 · Entra Secret 갱신(2026-12-09).",
+  asof: "2026-07-20",
+  now: "총괄 대시보드 가동 — 챗봇 권한체계 실연동(v19, get_my_access·인사조회 게이팅)·ERP 중간DB 1차 적재·협력사 포털 실가동 단계. 다음 게이트: 유니포인트 협의 · 호스팅(Azure) 확정 · Entra Secret 갱신(2026-12-09).",
 
   areas: [
-    { id:"chatbot", name:"AI 챗봇 (jeil-chat)", status:"구축중", pct:70,
-      note:"실 API 게이트웨이 가동 — 포털DB 도구 3종 + ERP 도구 8종(v14) + OneDrive 문서연계·화이트리스트(v18) + 모델설정 실연동(v15).",
-      updated:"2026-07-09", gate:"LLM 벤더 확정 대기(UI 표기 Claude ↔ 실구현 OpenAI 불일치)",
+    { id:"chatbot", name:"AI 챗봇 (jeil-chat)", status:"구축중", pct:72,
+      note:"실 API 게이트웨이 가동 — 권한체계 실연동(v19, get_my_access·get_hr_headcount·get_hr_payroll) + 포털 도구 소급 권한구멍(pur_order 미매핑) 차단 + ERP 도구 8종(v14) + OneDrive 문서연계·화이트리스트(v18) + 모델설정 실연동(v15).",
+      updated:"2026-07-20", gate:"LLM 벤더 확정 대기(UI 표기 Claude ↔ 실구현 OpenAI 불일치)",
       links:[{t:"포털 데모", href:"../04_챗봇_포털_데모UI.html"}] },
     { id:"vendor", name:"협력사 발주·검사 포털", status:"구축중", pct:75,
       note:"모바일↔사내 대시보드 Supabase 실연동 — 계정발급·메일발송·메시지·사진검토·5상태 상태머신·검수판정, 외주 발주현황 ERP 실연동(570건).",
       updated:"2026-07-13",
       links:[{t:"요구사항 이력", href:"../08_협력사발주포털/00_종합정리_요구사항이력.html"},{t:"외주 대시보드", href:"../pages/외주발주_검사진행현황_2026.html"}] },
-    { id:"erp", name:"ERP DB 연계", status:"구축중", pct:55,
-      note:"중간DB(erp_ro) 1차 5종 + 급여집계 실적재, 노출뷰 6종, 재고 입출고 ETL 연 전체 적재(v0.10), 사용자-부서 매핑 대사.",
-      updated:"2026-07-13", gate:"유니포인트 협의(P1) · ERP 마스터플랜 v2.0 경영 승인 대기",
+    { id:"erp", name:"ERP DB 연계", status:"구축중", pct:56,
+      note:"중간DB(erp_ro) 1차 5종 + 급여집계 실적재, 노출뷰 6종, 재고 입출고 ETL 연 전체 적재, 사용자-부서 매핑 대사. 챗봇 권한체계 연결(v19)로 P4 마감(v0.11).",
+      updated:"2026-07-20", gate:"유니포인트 협의(P1) · ERP 마스터플랜 v2.0 경영 승인 대기 · 부서별 ERP 모듈 차등 정책 결정 대기",
       links:[{t:"ERP 연계 관제", href:"../10_ERP_DB연계/index.html"}] },
     { id:"dept", name:"부서 운영페이지", status:"구축중", pct:50,
       note:"10종 배포 — 구매 매입집계 ERP 실연동, 인사 급여 서버 게이트(jeil-hr), 권한 enforce(jeil-me). 나머지는 샘플 데이터.",
@@ -323,6 +323,8 @@ const AX_DASH = {
   ],
 
   timeline: [
+    { d:"2026-07-20", area:"챗봇", t:"챗봇 권한체계 실연동(v19) — get_my_access·get_hr_headcount·get_hr_payroll 신설, 인원현황·권한확인 오답 원인 해소" },
+    { d:"2026-07-20", area:"챗봇", t:"소급 권한구멍 차단 — 포털 도구 3종(발주요약·상세·검사대기) pur_order 미매핑으로 전 직원 노출되던 결함 해소" },
     { d:"2026-07-16", area:"그리드", t:"그리드 데모 자기완결화 — 빌드 주입(GRID_*_INLINE)으로 file:// 더블클릭 실행 가능" },
     { d:"2026-07-16", area:"거버넌스", t:"총괄 대시보드 신설 + 총괄관리자(jeilax-master) 에이전트 등록 — 관리 허브 2탭 개편" },
     { d:"2026-07-13", area:"협력사포털", t:"외주 발주현황 프로젝트코드 필터 + 대량조회 성능·안정성 개선" },
@@ -396,14 +398,17 @@ const AX_DASH = {
     { id:"D-19", title:"운영 토큰 보관 재설계 — localStorage → BFF/HttpOnly 쿠키", state:"예정", note:"운영 전환 시", src:"ADR-104 · CLAUDE.md §6" },
     { id:"D-20", title:"ERP 마스터플랜 v2.0 경영 승인 + 리포팅 티어(A/B) 선택", state:"대기", src:"10_ERP/02 P0" },
     { id:"D-21", title:"자금(F 모듈) 개방 경영 승인·실적재", state:"대기", src:"10_ERP/00 §6" },
-    { id:"D-22", title:"유니포인트 협의 — 읽기전용 계정·리포팅 뷰·VPN", state:"대기", src:"10_ERP/02 P1" }
+    { id:"D-22", title:"유니포인트 협의 — 읽기전용 계정·리포팅 뷰·VPN", state:"대기", src:"10_ERP/02 P1" },
+    { id:"D-23", title:"인원현황 공개 등급 — 전사 총원은 전 직원, 부서별 분포·급여액은 인사팀·관리자 전용", state:"결정됨", decided:"2026-07-20", src:"03_CHANGELOG" },
+    { id:"D-24", title:"협력사 발주·검사 챗봇 조회권한 — 신규 모듈 대신 기존 pur_order 재사용", state:"결정됨", decided:"2026-07-20", src:"03_CHANGELOG" },
+    { id:"D-25", title:"부서별 ERP 모듈 차등 적용 — 23개 부서 전부 동일 보유(payroll만 예외), 구조는 지원하나 정책 미결정", state:"대기", note:"경영 판단 사항, 이번엔 미변경", src:"03_CHANGELOG · 10_ERP/02" }
   ],
 
   agents: [
     { id:"jeilax-master", kind:"agent", alias:"총괄관리자",
-      role:"프로젝트 전체 총괄 — 이 대시보드(AX_DASH)·의사결정·진행상황 관제, 원천 4곳 대사, 하위 에이전트 위임 조정.", last:"2026-07-16" },
+      role:"프로젝트 전체 총괄 — 이 대시보드(AX_DASH)·의사결정·진행상황 관제, 원천 4곳 대사, 하위 에이전트 위임 조정.", last:"2026-07-20" },
     { id:"erp-db-link-manager", kind:"agent", alias:"ERP 연계 관제",
-      role:"ERP DB 연계 문서(10_ERP_DB연계/) 관리·갱신 + OneDrive 정책관리 미러 동기화.", last:"2026-07-13" },
+      role:"ERP DB 연계 문서(10_ERP_DB연계/) 관리·갱신 + OneDrive 정책관리 미러 동기화.", last:"2026-07-20" },
     { id:"erp-db-connector", kind:"agent", alias:"ERP DB 연결(실행성)",
       role:"ERP 운영DB 읽기전용 연결·중간DB ETL 점검·검증 — 실행성 에이전트라 총괄 위임 대상에서 제외, 관리자 직접 기동.", last:"2026-07-13" },
     { id:"grid-standardizer", kind:"agent", alias:"그리드 표준화",

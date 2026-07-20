@@ -47,7 +47,7 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
   <div class="content">
 <h1 id="01-erp-db">01. ERP DB 연계 — 이후 기획 (통합 정리)</h1>
 <blockquote>
-<p><strong>기준일: 2026-07-03</strong>(2026-07-08 §4.4 P4 노출 계층, §4.5 사용자-부서 매핑, §4.6 부서별 ERP 모듈 제안값, §4.7 급여 민감권한·<code>erp_secure</code> 착수 → 같은 날 실적재 완료로 갱신) · 관리: 최동혁
+<p><strong>기준일: 2026-07-03</strong>(2026-07-08 §4.4 P4 노출 계층, §4.5 사용자-부서 매핑, §4.6 부서별 ERP 모듈 제안값, §4.7 급여 민감권한·<code>erp_secure</code> 착수 → 같은 날 실적재 완료로 갱신 / 2026-07-20 §4.8 챗봇 권한체계 연결·포털 도구 권한구멍 차단 추가) · 관리: 최동혁
 ERP 데이터 활용은 <strong>두 축</strong>으로 진행된다: <strong>A) 사내 타부서 데이터 개방</strong>(마스터플랜 v2.0)과 <strong>B) AI 포털·챗봇 연계</strong>(중간DB 연계설계). 본 문서는 두 기획을 하나의 그림으로 통합 정리한 것이다. 상세는 각 원본 문서를 따른다.</p>
 </blockquote>
 <hr />
@@ -220,6 +220,18 @@ etl_meta     — 배치 실행 로그·동기화 상태
 <li><strong>커넥터 검증 결과(2026-07-08)</strong>: 인사 테이블 <code>HAA010T</code>(인사기본)·<code>HDF070T</code>(급여)·<code>HGA070T</code>(퇴직급여)·<code>TH101BA1</code>은 실존이 확인됐고, 실컬럼도 확정됐다(<code>PAY_YYMM</code>·<code>DEPT_NM</code>·<code>PAY_TOT_AMT</code> / <code>RETIRE_DT</code>·<code>RETIRE_AMT</code>) — ETL job <code>hr_payroll</code>에 반영해 실적재까지 완료했다. 다만 <strong>재직상태(퇴직 구분 등) 정의</strong>는 여전히 유니포인트 협의로 확인이 필요하다.</li>
 <li>상세 진행·잔여 게이트는 <code>02_진행상태.md</code> P5 참조.</li>
 </ul>
+<h3 id="48-2026-07-20">4.8 챗봇 권한체계 연결 + 포털 도구 권한 구멍 차단 (2026-07-20 신설)</h3>
+<p>§4.4~4.7에서 권한 체계(<code>dept_erp_scope</code>·<code>payroll</code> 모듈·<code>jeil-hr</code> 게이트)와 인사 집계 실적재는 이미 갖춰져 있었지만, <strong>챗봇(jeil-chat)이 그 체계에 연결돼 있지 않아</strong> 관리자가 챗봇에 인원현황·권한을 물으면 오답이 나오는 문제가 있었다. 이를 메우기 위해 <code>jeil-chat</code>을 <strong>version 18 → 19</strong>로 배포했다.</p>
+<ul>
+<li><strong><code>get_my_access</code>(신규)</strong>: 호출자 본인의 역할(관리자/부서관리자/일반)·소속부서·열람가능 ERP 모듈·접근가능/불가 페이지·권한요청 방법을 반환한다. 호출자 UPN을 고정해 타인 권한을 조회할 수 없고, 전 직원이 사용할 수 있다. 권한 질의는 SYSTEM_PROMPT에서 반드시 이 도구로 실조회하도록 강제했다(추정·역산 금지).</li>
+<li><strong><code>get_hr_headcount</code>(신규)</strong>: 인원현황. 전 직원에게는 월별 전사 총원만, 부서별 인원 분포는 <code>payroll</code> 권한자(인사팀·관리자)에게만 반환한다(급여 금액은 포함하지 않음).</li>
+<li><strong><code>get_hr_payroll</code>(신규)</strong>: 급여 집계(인사팀·관리자 전용). <code>erp_secure</code>는 REST 미노출이므로 기존 <code>jeil-hr</code>와 동일하게 service_role RPC <code>hr_payroll_get</code>을 경유한다. 인사 도구(<code>get_hr_headcount</code>·<code>get_hr_payroll</code>) 접근은 허용·거부 모두 <code>hr_access_log</code>에 감사 기록된다(<code>jeil-hr</code>와 원장 재사용).</li>
+<li><strong>소급 발견 권한 구멍 차단(중요)</strong>: 기존 포털 도구 3종 <code>get_order_summary</code>·<code>get_order_detail</code>·<code>get_inspection_pending</code>이 그동안 <code>ERP_TOOL_MODULE</code> 매핑이 없어 권한 강제 없이 <strong>전 직원에게 협력사 발주번호·금액·납기를 노출</strong>하고 있었다. 이번에 <code>pur_order</code> 모듈 권한으로 강제 적용해 차단했다 — 2026-07-08 v14에서 "ERP 도구 8종을 <code>pur_order</code>로 매핑"한 작업(§4.4)은 ERP 도구 쪽만 대상이었고, 이 포털 도구 3종은 그 매핑에서 빠져 있었다(즉 이 취약점은 그날 이후 계속 실재했다).</li>
+<li><strong>관리자 결정(2026-07-20)</strong>: ①전사 총원은 전 직원 조회 가능, 부서별 인원 분포·급여액은 인사팀·관리자 전용. ②협력사 발주·검사 챗봇 조회 권한은 신규 모듈 신설 대신 기존 <code>pur_order</code> 모듈 권한으로 통합.</li>
+<li><strong>경영 판단 보류(변경 안 함)</strong>: <code>dept_erp_scope</code>가 23개 부서 전부 sales·purchase·inventory·item·pur_order를 동일 보유해 부서별 데이터 차등이 사실상 없다(payroll만 인사팀 단독 차등). 구조는 부서별 차등을 지원하므로 정책 결정만 필요한 상태이며, 이번 작업에선 손대지 않았다(<code>02_진행상태.md</code> §4, <code>00_현재상태_스냅샷.md</code> §6).</li>
+<li>배포는 <code>verify_jwt=false</code> 유지, 배포본이 로컬 소스와 문자 단위 일치 검증됐다. 소스(<code>supabase/functions/jeil-chat/index.ts</code>)는 수정·배포 완료 상태이나 git 커밋은 관리자가 별도로 진행한다.</li>
+<li>상세 진행은 <code>02_진행상태.md</code> P4·P5 참조.</li>
+</ul>
 <h2 id="5">5. 단계별 로드맵 (통합)</h2>
 <table>
 <thead>
@@ -252,12 +264,12 @@ etl_meta     — 배치 실행 로그·동기화 상태
 </tr>
 <tr>
 <td><strong>P4</strong> 포털·챗봇 연결</td>
-<td><code>pages/</code> 실데이터 API 전환 + 챗봇 Tool 3종 + <code>tool_audit</code> — <strong>2026-07-08 착수·부분완료</strong>(§4.4: 노출 뷰 6종·RLS 격리 테스트·파일럿 화면 1건·챗봇 Tool 4종 / §4.5: 사용자-부서 매핑 계층 구축·실적재 완료 / §4.6: 부서별 ERP 모듈 제안값(참고) 신설·실적재 완료·관리자 콘솔 반영)</td>
+<td><code>pages/</code> 실데이터 API 전환 + 챗봇 Tool 3종 + <code>tool_audit</code> — <strong>2026-07-08 착수·부분완료</strong>(§4.4: 노출 뷰 6종·RLS 격리 테스트·파일럿 화면 1건·챗봇 Tool 4종 / §4.5: 사용자-부서 매핑 계층 구축·실적재 완료 / §4.6: 부서별 ERP 모듈 제안값(참고) 신설·실적재 완료·관리자 콘솔 반영) → <strong>2026-07-20 챗봇 권한체계 연결</strong>(<code>get_my_access</code> 신설, 포털 도구 3종 권한구멍 차단, §4.8)</td>
 <td>P3</td>
 </tr>
 <tr>
 <td><strong>P5</strong> 민감 영역</td>
-<td><code>erp_secure</code>(자금·인사) — 경영 승인 + Entra 그룹 — <strong>2026-07-08 급여(인사) 실적재 완료</strong>: 급여 민감권한 프레임워크(라이브)·<code>erp_secure</code> 스키마 신설 후 같은 날 관리자 직접 실행으로 <code>hr_payroll_m</code> 143행 적재 + 게이트 API <code>jeil-hr</code> 배포(§4.7). 자금(F 모듈)은 여전히 경영 승인 대기·미착수, <code>AI-Portal-HR</code> Entra 그룹·유니포인트 재직상태 정의는 잔여</td>
+<td><code>erp_secure</code>(자금·인사) — 경영 승인 + Entra 그룹 — <strong>2026-07-08 급여(인사) 실적재 완료</strong>: 급여 민감권한 프레임워크(라이브)·<code>erp_secure</code> 스키마 신설 후 같은 날 관리자 직접 실행으로 <code>hr_payroll_m</code> 143행 적재 + 게이트 API <code>jeil-hr</code> 배포(§4.7) → <strong>2026-07-20 챗봇 인사 조회 게이팅</strong>(<code>get_hr_headcount</code>·<code>get_hr_payroll</code> 신설, <code>hr_access_log</code> 감사 재사용, §4.8). 자금(F 모듈)은 여전히 경영 승인 대기·미착수, <code>AI-Portal-HR</code> Entra 그룹·유니포인트 재직상태 정의는 잔여</td>
 <td>P4 + 승인(자금)</td>
 </tr>
 </tbody>

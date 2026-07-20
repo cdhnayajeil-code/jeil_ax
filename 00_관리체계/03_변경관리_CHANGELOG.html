@@ -108,6 +108,13 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 </thead>
 <tbody>
 <tr>
+<td>2026-07-20</td>
+<td>챗봇·ERP연계·보안</td>
+<td><code>supabase/functions/jeil-chat/index.ts</code>(v18→v19), <code>10_ERP_DB연계/</code>(P4)</td>
+<td><strong>챗봇 권한체계 실연동(v19) — "권한 확인"·"인원현황" 오답 원인 해소 + 소급 권한구멍 차단</strong>. 조사 결과 권한체계(jeil-me/jeil-hr/dept_erp_scope/portal_page)와 인원 데이터(erp_secure.hr_payroll_m, 2026.01~06 113·119·101·100·94·98명)는 이미 정상 적재돼 있었고, <strong>챗봇만 그 체계에 연결돼 있지 않았던 것</strong>이 원인이었음. 신규 도구 3종: <code>get_my_access</code>(본인 역할·소속·열람가능 모듈·페이지 조회, 호출자 UPN 고정, 전 직원용) · <code>get_hr_headcount</code>(전 직원=전사 총원만, 부서별 분포는 payroll 권한자만) · <code>get_hr_payroll</code>(급여 집계, 인사팀·관리자 전용, service_role RPC 경유). <strong>소급 발견한 권한 구멍 차단</strong>: 포털 도구 3종(<code>get_order_summary</code>·<code>get_order_detail</code>·<code>get_inspection_pending</code>)이 그동안 <code>ERP_TOOL_MODULE</code> 매핑 누락으로 권한 강제 없이 전 직원에게 협력사 발주번호·금액·납기를 노출하고 있었음 → <code>pur_order</code> 모듈 권한으로 강제. 인사 도구는 허용·거부 모두 <code>hr_access_log</code> 감사기록. verify_jwt=false 유지, 배포본 로컬 소스 문자단위 일치 검증. 소스는 수정·배포 완료·git 미커밋 상태. <strong>관리자 결정</strong>: ①인원현황 공개등급(전사 총원=전 직원, 부서별 분포·급여액=인사팀·관리자 전용) ②협력사 발주·검사 조회권한=신규 모듈 대신 기존 <code>pur_order</code> 재사용. <strong>미결(경영 판단 보류)</strong>: <code>dept_erp_scope</code>가 23개 부서 전부 동일 모듈 보유로 부서별 차등이 사실상 없음(payroll만 예외) — 구조는 지원하나 정책 결정 대기, 이번엔 미변경.</td>
+<td>최동혁(+Claude)</td>
+</tr>
+<tr>
 <td>2026-07-16</td>
 <td>그리드·거버넌스</td>
 <td><code>그리드/index.html</code>·<code>_build_html.py</code>·<code>표준그리드_가이드.md(+html)</code></td>

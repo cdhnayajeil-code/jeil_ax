@@ -43,7 +43,10 @@ const SYSTEM_PROMPT =
   "재고·입고 수치(get_erp_inventory_status)는 현재 중간DB에 출고만 유효하고 입고량·재고량은 미적재입니다 — '입고 0/재고 없음'을 실적으로 단정하지 말고 미적재 상태임을 밝히며, 특정 발주의 입고 여부는 발주 조회(get_erp_po_pr)의 입고수량으로 답하세요. 매출의 수금액·수주액도 미매핑(0)이니 매출액만 답하세요. " +
   "품목명에 '사용금지' 표기가 있는 코드는 신규 발주용으로 제시하지 말고 대체코드 확인을 안내하세요. " +
   "도구가 '접근제한'(요청안내)을 반환하면 데이터를 지어내지 말고, 반환된 '안내' 문구 그대로 사용자에게 관리자 권한 요청 방법을 안내하세요. " +
+  "'내 권한 확인', '나 뭐 볼 수 있어?', '이 페이지 왜 안 보여?' 류 권한 질의는 일반론으로 답하지 말고 반드시 get_my_access 도구로 로그인 본인의 실제 역할·부서·ERP 모듈·페이지 권한을 조회해 답하세요(관리자면 관리자라고 정확히 알릴 것). 본인 외 타인의 권한은 조회할 수 없습니다. " +
+  "인원현황(재적·급여대상 인원)은 get_hr_headcount, 급여 총액 집계는 get_hr_payroll을 쓰세요. 인원 수치는 급여대장(HDF070T) 기준 '급여대상 인원'이며 마감 전 변동 가능함을 밝히세요. 부서별 인원 분포·급여액은 인사팀·관리자만 열람 가능하고, 그 외에는 전사 총원만 제공됩니다 — 권한 밖 수치를 추정·역산하지 마세요. " +
   "도구로 조회할 수 없는 사내 수치·규정은 추측하지 말고 원본 확인을 권하세요. " +
+  "사용자의 OneDrive·SharePoint 문서 관련 질의('내 문서', '회의록 찾아', '이 파일 요약' 등)는 search_my_documents(검색)로 파일을 찾고, 상세·본문이 필요하면 검색결과의 driveId·itemId로 read_document를 호출하세요. 문서 검색은 회사가 승인한 프로젝트 폴더(화이트리스트) 안에서, 그중에서도 로그인한 본인 권한 범위만 조회됩니다(Microsoft 보안 트리밍) — 이를 답변에 밝히고 출처(파일명·링크)를 표기하세요. 검색 결과가 없으면 '승인된 AI 연동 범위에 해당 문서가 없다'고 정직하게 안내하세요. 본문 판독은 Excel·텍스트 파일만 가능하며, 그 외 형식은 링크 안내로 대체하세요. " +
   "급여·주민번호 등 개인정보나 비밀값을 답변에 포함하지 마세요.";
 
 /* ===== 1단계 포털DB 조회 도구 (읽기전용 · 집계/요약만 반환) ===== */
@@ -149,6 +152,48 @@ const TOOLS = [
       parameters: { type: "object", properties: { status: { type: "string", description: "unordered(미발주)/RQ/CF 등(선택)" }, dept: { type: "string", description: "요청부서 키워드(선택)" }, limit: { type: "integer", description: "최대 건수(기본 30, 최대 100)" } }, required: [] },
     },
   },
+  /* ===== 4단계 인사·권한 도구 (본인 권한 조회 = 전 직원 / 인원·급여 = 등급별) ===== */
+  {
+    type: "function",
+    function: {
+      name: "get_my_access",
+      description: "로그인한 '본인'의 포털 권한 조회 — 역할(관리자/부서관리자/일반), 소속 부서, 열람 가능한 ERP 데이터 모듈, 접근 가능/불가 운영페이지 목록, 권한 요청 방법. '내 권한 뭐야', '나 관리자야?', '어떤 데이터 볼 수 있어?', '이 페이지 왜 안 보여' 류 질의에 반드시 사용(추측 답변 금지). 타인의 권한은 조회 불가.",
+      parameters: { type: "object", properties: {}, required: [] },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_hr_headcount",
+      description: "인원현황 조회(급여대장 HDF070T 기준 급여대상 인원, 2026-01~). 월별 전사 총원은 전 직원 조회 가능하고, 부서별 인원 분포는 인사팀·관리자만 반환된다. '2026년 인원현황', '이번달 몇 명', '부서별 인원' 류 질의에 사용. 급여 금액은 포함하지 않음(금액은 get_hr_payroll).",
+      parameters: { type: "object", properties: { ym: { type: "string", description: "조회 월 YYYY-MM(선택). 없으면 월별 전체 추이" } }, required: [] },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_hr_payroll",
+      description: "인사 급여 집계 조회(민감 — 인사팀·관리자 전용, 접근 감사 기록됨). 월별·부서별 급여대상 인원·급여총액·퇴직급여 집계. 개인별 급여·주민번호·계좌는 중간DB에 없으며 조회 불가. '급여총액', '인건비 추이' 류 질의에 사용.",
+      parameters: { type: "object", properties: { ym: { type: "string", description: "조회 월 YYYY-MM(선택)" } }, required: [] },
+    },
+  },
+  /* ===== 3단계 문서 도구 (사용자 OneDrive/SharePoint · 위임 토큰 · 보안 트리밍) ===== */
+  {
+    type: "function",
+    function: {
+      name: "search_my_documents",
+      description: "사용자의 OneDrive·SharePoint 문서 검색(Microsoft Graph). 단, AI 연동이 승인된 프로젝트 폴더(화이트리스트) 안에서만, 그중에서도 본인 권한 범위만 자동 트리밍된다. '내 문서/회의록/보고서/특정 파일 찾아줘' 류 질의에 사용. 파일명·수정일·링크와 함께 read_document 호출용 driveId·itemId를 반환한다. 승인 범위 밖 문서는 조회되지 않는다.",
+      parameters: { type: "object", properties: { query: { type: "string", description: "검색어(파일명·키워드)" }, limit: { type: "integer", description: "최대 건수(기본 8, 최대 15)" } }, required: ["query"] },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "read_document",
+      description: "특정 문서의 상세·본문 조회(사용자 위임 토큰). search_my_documents가 준 driveId·itemId로 호출. 승인 프로젝트 폴더(화이트리스트) 밖 문서는 열람되지 않는다. Excel(.xlsx)은 셀 값(최대 40행), 텍스트(.txt/.csv/.md/.json)는 본문(최대 8000자)을 반환하고, 그 외 형식(docx/pdf 등)은 메타데이터+링크만 반환한다(본문 추출 미지원).",
+      parameters: { type: "object", properties: { driveId: { type: "string", description: "드라이브 ID(search 결과)" }, itemId: { type: "string", description: "항목 ID(search 결과)" } }, required: ["driveId", "itemId"] },
+    },
+  },
 ];
 
 const STATUS_KO: Record<string, string> = { new: "신규", prod: "생산중", insp: "검사", done: "완료" };
@@ -162,31 +207,39 @@ const stsKo = (c: unknown): string => {
   return s ? (ERP_STS_KO[s] ? `${s}(${ERP_STS_KO[s]})` : s) : "-";
 };
 
-// ERP Tool → 데이터 모듈 매핑 (부서별 erp_scope 강제용, dept_erp_scope와 동일 키)
+// Tool → 데이터 모듈 매핑 (부서별 erp_scope 강제용, dept_erp_scope와 동일 키)
+// 포털(협력사 외주검사) 도구도 pur_order 권한으로 강제 — 발주번호·금액·납기가 담기므로 무권한 열람 금지.
 const ERP_TOOL_MODULE: Record<string, string> = {
   get_erp_sales_monthly: "sales", get_erp_purchase_monthly: "purchase",
   get_erp_inventory_status: "inventory", get_erp_item: "item",
   get_erp_pur_order: "pur_order", get_erp_po_pr: "pur_order", get_erp_pur_top: "pur_order",
   get_erp_receipt_pending: "pur_order", get_erp_pur_req: "pur_order",
+  get_order_summary: "pur_order", get_order_detail: "pur_order", get_inspection_pending: "pur_order",
+  get_hr_payroll: "payroll",
+  // get_hr_headcount 는 부분 허용(전사 총원=전 직원 / 부서별=payroll)이라 여기 매핑하지 않고 도구 내부에서 판정
 };
 // 모듈 키 → 한글 라벨 (접근제한 안내 문구용)
 const MODULE_KO: Record<string, string> = {
   sales: "매출", purchase: "매입", inventory: "재고", item: "품목", pur_order: "발주·구매요청",
+  payroll: "급여·인사", user_dept: "사용자·부서",
 };
 
-type ErpScope = { isAdmin: boolean; modules: Set<string>; dept: string | null };
+type ErpScope = { upn: string; isAdmin: boolean; modules: Set<string>; dept: string | null; empNm: string | null };
 // 호출자 UPN → 허용 ERP 모듈 판정 (관리자=전 모듈, 그 외=소속 부서 dept_erp_scope)
 // deno-lint-ignore no-explicit-any
 async function resolveErpScope(admin: any, upn: string): Promise<ErpScope> {
   const [{ data: pa }, { data: ud }] = await Promise.all([
     admin.from("portal_admin").select("email").eq("email", upn).maybeSingle(),
-    admin.from("v_erp_user_dept").select("dept_nm").eq("email", upn).maybeSingle(),
+    admin.from("v_erp_user_dept").select("dept_nm,emp_nm").eq("email", upn).maybeSingle(),
   ]);
   const dept: string | null = ud?.dept_nm ?? null;
-  if (pa) return { isAdmin: true, modules: new Set(), dept };
+  const empNm: string | null = ud?.emp_nm ?? null;
+  if (pa) return { upn, isAdmin: true, modules: new Set(), dept, empNm };
   const { data: es } = await admin.from("dept_erp_scope").select("module_key").eq("dept_nm", dept || "");
-  return { isAdmin: false, modules: new Set((es || []).map((r: { module_key: string }) => r.module_key)), dept };
+  return { upn, isAdmin: false, modules: new Set((es || []).map((r: { module_key: string }) => r.module_key)), dept, empNm };
 }
+// 모듈 보유 여부(관리자는 전 모듈)
+const hasModule = (s: ErpScope, m: string) => s.isAdmin || s.modules.has(m);
 
 /* ===== 사용모델 설정 로드·라우팅 (SSOT: ai_gateway_config / ai_model / ai_routing_rule) =====
    원칙: 조회 실패·미설정이면 기존 하드코딩 기본값으로 안전 폴백 → 설정이 비어도 챗봇은 정상 동작한다. */
@@ -264,8 +317,54 @@ function priceFor(model: string, ai: AiConfig): { inp: number; out: number } {
   return PRICES[model] || PRICES["gpt-4o-mini"];
 }
 
+// ===== Microsoft Graph 호출(사용자 위임 토큰) — 문서 도구 전용. 보안 트리밍은 Graph가 처리 =====
+async function graphGet(userToken: string, url: string): Promise<Record<string, unknown>> {
+  const r = await fetch(url, { headers: { Authorization: `Bearer ${userToken}` } });
+  if (!r.ok) throw new Error(`Graph ${r.status}`);
+  return await r.json();
+}
+async function graphSearchDocs(userToken: string, q: string, size: number): Promise<Record<string, unknown>> {
+  const r = await fetch("https://graph.microsoft.com/v1.0/search/query", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${userToken}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ requests: [{ entityTypes: ["driveItem"], query: { queryString: q }, from: 0, size }] }),
+  });
+  if (!r.ok) throw new Error(`Graph search ${r.status}`);
+  return await r.json();
+}
+
+// ===== AI 문서 연계 화이트리스트 로드 (SSOT: ai_document_scope, 02_MS연동 §8) =====
+// 승인 범위를 site/library/folder 3단계로 지정: 각 범위는 driveId + pathPrefix(폴더/라이브러리/사이트 웹URL)로 구성.
+// 조회실패·빈 목록이면 null → 문서 도구는 fail-closed(검색·판독 비활성). 사용자 권한 트리밍은 Graph가 별도 처리(이중 게이트).
+type DocScope = { driveId: string; pathPrefix: string; webUrl: string };
+// URL 접두 비교용 정규화(퍼센트 디코드 + 소문자) — Graph webUrl 인코딩 편차 흡수
+function normUrl(u: string): string {
+  try { return decodeURIComponent(String(u || "")).toLowerCase(); } catch { return String(u || "").toLowerCase(); }
+}
 // deno-lint-ignore no-explicit-any
-async function runTool(admin: any, name: string, argsJson: string, scope: ErpScope): Promise<unknown> {
+async function loadDocScope(admin: any): Promise<DocScope[] | null> {
+  try {
+    const { data, error } = await admin.from("ai_document_scope")
+      .select("drive_id, web_url, path_prefix").eq("active", true);
+    if (error || !Array.isArray(data) || data.length === 0) return null;
+    // deno-lint-ignore no-explicit-any
+    const scopes: DocScope[] = data.map((r: any) => ({
+      driveId: String(r.drive_id || ""),
+      pathPrefix: normUrl(String(r.path_prefix || r.web_url || "")),
+      webUrl: String(r.web_url || ""),
+    })).filter((s: DocScope) => s.driveId && s.pathPrefix);
+    return scopes.length ? scopes : null;
+  } catch { return null; }
+}
+// hit(driveId,webUrl)이 승인 범위 안인지 — driveId 일치 AND 경로가 승인 접두로 시작(폴더 레벨 강제)
+function inScope(scopes: DocScope[], driveId: string, webUrl: string): boolean {
+  const du = String(driveId || "");
+  const wu = normUrl(webUrl);
+  return scopes.some((s) => s.driveId === du && (!s.pathPrefix || wu.startsWith(s.pathPrefix)));
+}
+
+// deno-lint-ignore no-explicit-any
+async function runTool(admin: any, name: string, argsJson: string, scope: ErpScope, userToken: string): Promise<unknown> {
   let args: Record<string, unknown> = {};
   try { args = JSON.parse(argsJson || "{}"); } catch { /* 빈 인자 */ }
   const asOf = new Date().toISOString();
@@ -544,6 +643,168 @@ async function runTool(admin: any, name: string, argsJson: string, scope: ErpSco
       안내: "구매요청 목록. status=unordered(미발주,ord_qty=0)/RQ(요청)/CF(확정). 요청부서는 요청자 이메일→부서 매핑 보완. 파일럿 데이터." };
   }
 
+  /* ===== 4단계 인사·권한 도구 ===== */
+  if (name === "get_my_access") {
+    // 본인 권한만(호출자 UPN 고정 — 모델이 타인 UPN을 지정할 수 없음). 판정 기준은 jeil-me와 동일.
+    const [{ data: da }, { data: pageRows }] = await Promise.all([
+      admin.from("dept_permission").select("dept_nm").eq("dept_admin_email", scope.upn),
+      admin.from("portal_page").select("*").eq("active", true).order("sort"),
+    ]);
+    const deptAdminOf: string[] = (da || []).map((r: { dept_nm: string }) => r.dept_nm);
+    const role = scope.isAdmin ? "관리자(전권)" : (deptAdminOf.length ? "부서관리자" : "일반 사용자");
+    const modules = scope.isAdmin
+      ? Object.keys(MODULE_KO)
+      : [...scope.modules];
+    const daSet = new Set(deptAdminOf);
+    // deno-lint-ignore no-explicit-any
+    const pages = (pageRows || []).map((p: any) => {
+      const vis = String(p.visibility || ""); const owner = String(p.dept_nm || "");
+      const shared: string[] = p.shared_depts || [];
+      let ok: boolean;
+      if (scope.isAdmin) ok = true;
+      else if (vis === "전사 공개") ok = true;
+      else if (vis === "부서 전용") ok = (!!scope.dept && scope.dept === owner) || daSet.has(owner);
+      else if (vis === "지정 부서 공유") ok = (!!scope.dept && (scope.dept === owner || shared.includes(scope.dept))) || daSet.has(owner);
+      else ok = false;
+      if (ok && p.erp_module && !scope.isAdmin) ok = scope.modules.has(String(p.erp_module));
+      return { 페이지: p.title, 담당부서: p.dept_nm, 공개범위: p.visibility, 접근가능: ok };
+    });
+    return {
+      기준시각: asOf, 계정: scope.upn, 이름: scope.empNm || "-", 소속부서: scope.dept || "미매핑",
+      역할: role, 관리자여부: scope.isAdmin, 부서관리자_담당부서: deptAdminOf,
+      열람가능_ERP모듈: modules.map((m) => `${MODULE_KO[m] || m}(${m})`),
+      // deno-lint-ignore no-explicit-any
+      접근가능_페이지: pages.filter((p: any) => p.접근가능).map((p: any) => p.페이지),
+      // deno-lint-ignore no-explicit-any
+      접근불가_페이지: pages.filter((p: any) => !p.접근가능).map((p: any) => ({ 페이지: p.페이지, 담당부서: p.담당부서, 공개범위: p.공개범위 })),
+      권한요청방법: scope.isAdmin
+        ? "관리자(전권) 계정이므로 별도 권한 요청이 필요 없습니다. 타 사용자 권한 부여는 관리자 콘솔 › 사용자·부서에서 직접 수행하세요."
+        : "필요한 데이터 모듈·페이지를 지정해 포털 관리자에게 요청하세요(관리자 콘솔 › 사용자·부서 › 부서별 ERP 모듈 권한에서 부여). 급여·인사 데이터는 인사팀 소속 또는 관리자만 가능합니다.",
+      안내: "본인 권한만 조회됩니다(타인 권한 조회 불가). 판정 기준: 관리자(portal_admin) › 부서관리자(dept_permission) › 소속부서 ERP 모듈(dept_erp_scope) + 페이지 공개범위(portal_page).",
+    };
+  }
+
+  if (name === "get_hr_headcount" || name === "get_hr_payroll") {
+    const wantsPay = name === "get_hr_payroll";
+    const canDetail = hasModule(scope, "payroll");   // 부서별 분포·금액 열람 가능 여부(인사팀·관리자)
+    // 민감 데이터 접근은 허용·거부 모두 감사 기록(jeil-hr와 동일 원장)
+    try { await admin.rpc("hr_access_log_add", { p_upn: scope.upn, p_dept: scope.dept, p_ok: canDetail }); } catch { /* 무시 */ }
+    if (wantsPay && !canDetail) {
+      return { 접근제한: true, 요청안내: true, 모듈: "payroll", 부서: scope.dept || "미지정",
+        안내: `급여 집계는 인사팀(또는 포털 관리자)만 열람할 수 있습니다. 회원님 소속(${scope.dept || "미지정"})은 권한 범위 밖입니다. 인원 수만 필요하시면 '인원현황'으로 다시 물어보세요(전사 총원은 조회 가능).` };
+    }
+    const ymF = String(args.ym || "").replace(/[^0-9]/g, "").slice(0, 6);   // 'YYYY-MM'·'YYYYMM' 모두 수용
+    // erp_secure 는 REST 미노출 → service_role RPC로만 조회
+    // deno-lint-ignore no-explicit-any
+    const { data: pr, error } = await admin.rpc("hr_payroll_get");
+    if (error) return { 오류: "인사 집계 조회 실패: " + error.message };
+    // deno-lint-ignore no-explicit-any
+    const rows = ((pr || []) as any[]).filter((r) => !ymF || String(r.ym) === ymF);
+    if (!rows.length) return { 기준시각: asOf, 조건: ymF || "전체", 건수: 0,
+      안내: "해당 기간 인사 집계 데이터가 없습니다. 현재 중간DB 적재 범위를 확인하세요(2026년 이후 월별 적재)." };
+    const byYm: Record<string, { hc: number; pay: number; ret: number; depts: number }> = {};
+    for (const r of rows) {
+      const m = (byYm[r.ym] = byYm[r.ym] || { hc: 0, pay: 0, ret: 0, depts: 0 });
+      m.hc += Number(r.headcount || 0); m.pay += Number(r.pay_tot_amt || 0);
+      m.ret += Number(r.retire_amt || 0); m.depts += 1;
+    }
+    const 월별 = Object.keys(byYm).sort().map((y) => ({
+      월: `${y.slice(0, 4)}-${y.slice(4, 6)}`, 급여대상인원: byYm[y].hc, 부서수: byYm[y].depts,
+      ...(wantsPay && canDetail ? { 급여총액_원: byYm[y].pay, 퇴직급여_원: byYm[y].ret } : {}),
+    }));
+    const base = { 기준시각: asOf, 조건: ymF ? `${ymF.slice(0, 4)}-${ymF.slice(4, 6)}` : "전체 기간", 월별 };
+    if (!canDetail) {
+      return { ...base, 부서별: "권한 없음(비표시)",
+        안내: "전사 총원(월별)만 제공됩니다. 부서별 인원 분포·급여액은 인사팀·관리자 전용입니다 — 필요 시 포털 관리자에게 요청하세요. 인원은 급여대장(HDF070T) 기준 급여대상 인원이며 마감 전 변동될 수 있습니다. 이 수치로 부서별 인원을 추정하지 마세요." };
+    }
+    const 부서별 = rows
+      // deno-lint-ignore no-explicit-any
+      .map((r: any) => ({ 월: `${String(r.ym).slice(0, 4)}-${String(r.ym).slice(4, 6)}`, 부서: r.dept_nm, 인원: Number(r.headcount || 0),
+        ...(wantsPay ? { 급여총액_원: Number(r.pay_tot_amt || 0), 퇴직급여_원: Number(r.retire_amt || 0) } : {}) }))
+      .sort((a, b) => (a.월 === b.월 ? b.인원 - a.인원 : (a.월 < b.월 ? 1 : -1)))
+      .slice(0, 120);
+    return { ...base, 부서별, 열람권한: scope.isAdmin ? "관리자" : "인사팀",
+      안내: `인원은 급여대장(HDF070T) 기준 급여대상 인원으로 마감 전 변동될 수 있습니다. ${wantsPay ? "급여는 집계(총액·인원)만이며 개인별·주민번호·계좌는 중간DB에 없습니다. " : ""}민감 데이터 접근은 감사 기록(hr_access_log)됩니다 — 답변에 개인 식별 정보를 포함하지 마세요.` };
+  }
+
+  /* ===== 3단계 문서 도구 (사용자 위임 토큰 · OneDrive/SharePoint 보안 트리밍) ===== */
+  if (name === "search_my_documents") {
+    const q = String(args.query || "").trim();
+    if (!q) return { 오류: "검색어(query)가 필요합니다." };
+    const size = Math.min(Math.max(Number(args.limit) || 8, 1), 15);
+    // 화이트리스트(§8): 승인 컨테이너로만 제한. 미설정이면 fail-closed(전 문서 노출 방지).
+    const docScope = await loadDocScope(admin);
+    if (!docScope) return { 오류: "문서 연동 범위 미설정",
+      안내: "AI 문서 연동 범위(승인 프로젝트 폴더)가 설정되지 않아 검색을 제공하지 않습니다. 관리자에게 범위 등록을 요청하세요." };
+    try {
+      // 서버측 스코프: 승인 범위 경로(폴더/라이브러리/사이트)로 KQL path 한정 + 여유분 확보(후단 하드필터 대비)
+      const pathClause = ` AND (${docScope.map((s) => `path:"${s.webUrl}"`).join(" OR ")})`;
+      const data = await graphSearchDocs(userToken, q + pathClause, Math.min(Math.max(size * 4, size), 40));
+      // deno-lint-ignore no-explicit-any
+      const hc = (data as any).value?.[0]?.hitsContainers?.[0];
+      // deno-lint-ignore no-explicit-any
+      const 목록 = (hc?.hits || []).map((h: any) => ({
+        이름: h.resource?.name, 수정일: h.resource?.lastModifiedDateTime, 링크: h.resource?.webUrl,
+        driveId: h.resource?.parentReference?.driveId, itemId: h.resource?.id, 발췌: h.summary || null,
+      }))
+        // 이중 게이트: 승인 driveId 일치 AND 경로가 승인 접두로 시작(폴더 레벨 하드 필터 — 경로 스코프 누수 대비)
+        // deno-lint-ignore no-explicit-any
+        .filter((x: any) => inScope(docScope, String(x.driveId || ""), String(x.링크 || "")))
+        .slice(0, size);
+      return { 기준시각: asOf, 검색어: q, 승인범위_수: docScope.length, 반환수: 목록.length, 목록,
+        안내: "AI 승인 범위(폴더/라이브러리 화이트리스트) ∩ 본인 권한 범위 문서만 검색됨(§8 이중 게이트). 본문·상세는 read_document(driveId,itemId). 답변에 출처(파일명·링크) 표기. 범위 밖이면 결과 없음이 정상." };
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      if (msg.includes("401") || msg.includes("403")) return { 오류: "문서 접근 권한 없음", 안내: "MS 재로그인(파일 권한 포함)이 필요할 수 있습니다. 계속 실패하면 관리자에게 문의하세요." };
+      return { 오류: "문서 검색 실패: " + msg };
+    }
+  }
+
+  if (name === "read_document") {
+    const driveId = String(args.driveId || "").trim();
+    const itemId = String(args.itemId || "").trim();
+    if (!driveId || !itemId) return { 오류: "driveId·itemId가 필요합니다(먼저 search_my_documents로 조회)." };
+    // 화이트리스트(§8): 승인 범위의 문서만 판독 허용(범위 밖 driveId/폴더 직접 열람 차단)
+    const docScope = await loadDocScope(admin);
+    if (!docScope) return { 오류: "문서 연동 범위 미설정", 안내: "AI 문서 연동 범위가 설정되지 않아 본문을 제공하지 않습니다. 관리자에게 문의하세요." };
+    // 1차 게이트: 승인 driveId가 하나도 없으면 Graph 호출 전 차단
+    if (!docScope.some((s) => s.driveId === driveId)) return { 오류: "범위 밖 문서",
+      안내: "이 문서는 AI 연동 승인 범위(프로젝트 폴더)에 없어 열람할 수 없습니다. search_my_documents로 승인 범위 내 문서를 찾으세요." };
+    const base = `https://graph.microsoft.com/v1.0/drives/${encodeURIComponent(driveId)}/items/${encodeURIComponent(itemId)}`;
+    try {
+      const meta = await graphGet(userToken, `${base}?$select=name,size,file,webUrl,lastModifiedDateTime`);
+      // 2차 게이트: 폴더 레벨 경로 검증(승인 폴더 하위인지) — 같은 라이브러리라도 범위 밖 폴더면 차단
+      if (!inScope(docScope, driveId, String(meta.webUrl || ""))) return { 오류: "범위 밖 폴더",
+        안내: "이 문서는 승인된 AI 연동 폴더 하위가 아니어서 열람할 수 없습니다. search_my_documents로 승인 범위 내 문서를 찾으세요." };
+      const nm = String(meta.name || "");
+      if (/\.xlsx?$/i.test(nm)) {
+        const ws = await graphGet(userToken, `${base}/workbook/worksheets`);
+        // deno-lint-ignore no-explicit-any
+        const sid = (ws as any).value?.[0]?.id;
+        // deno-lint-ignore no-explicit-any
+        const sname = (ws as any).value?.[0]?.name;
+        const ur = await graphGet(userToken, `${base}/workbook/worksheets('${sid}')/usedRange(valuesOnly=true)`);
+        // deno-lint-ignore no-explicit-any
+        const rows = ((ur as any).text || []).slice(0, 40);
+        return { 기준시각: asOf, 파일: nm, 링크: meta.webUrl, 시트: sname, 범위: (ur as Record<string, unknown>).address,
+          행수: (ur as Record<string, unknown>).rowCount, 열수: (ur as Record<string, unknown>).columnCount, 셀값: rows,
+          안내: "Excel 셀 값(최대 40행). 본인 권한 내 파일만 판독됨. 개인정보(급여·주민번호 등)는 답변에 노출 금지." };
+      }
+      if (/\.(txt|csv|md|json)$/i.test(nm)) {
+        const r = await fetch(`${base}/content`, { headers: { Authorization: `Bearer ${userToken}` } });
+        if (!r.ok) throw new Error(`Graph ${r.status}`);
+        const t = (await r.text()).slice(0, 8000);
+        return { 기준시각: asOf, 파일: nm, 링크: meta.webUrl, 내용: t, 안내: "텍스트 본문(최대 8000자). 본인 권한 내 파일만." };
+      }
+      return { 기준시각: asOf, 파일: nm, 크기: meta.size, 링크: meta.webUrl,
+        안내: "이 형식(docx/pdf 등)의 본문 추출은 현재 미지원(후속 과제) — Excel·텍스트만 본문 판독. 파일은 접근 가능하며 링크로 열람하세요." };
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      if (msg.includes("401") || msg.includes("403")) return { 오류: "문서 접근 권한 없음", 안내: "본인 권한 밖 문서이거나 재로그인이 필요합니다." };
+      return { 오류: "문서 읽기 실패: " + msg };
+    }
+  }
+
   return { 오류: `알 수 없는 도구: ${name}` };
 }
 
@@ -701,7 +962,7 @@ Deno.serve(async (req) => {
         for (const c of calls) {
           toolsUsed.push(c.name);
           let result: unknown;
-          try { result = await runTool(admin, c.name, c.args, erpScope); }
+          try { result = await runTool(admin, c.name, c.args, erpScope, token); }
           catch (e) { result = { 오류: "조회 실패: " + (e instanceof Error ? e.message : String(e)) }; }
           convo.push({ role: "tool", tool_call_id: c.id, content: JSON.stringify(result).slice(0, 12000) });
         }

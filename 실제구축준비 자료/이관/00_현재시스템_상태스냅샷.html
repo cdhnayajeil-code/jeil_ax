@@ -363,7 +363,7 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 </tr>
 <tr>
 <td>연계 상태</td>
-<td><strong>부분 연계 착수(2026-07-08)</strong> — 중간DB(Supabase <code>erp_ro</code>) 1차 5종 실적재 완료(발주 2,699·품목 58,246·매출 10·매입 63·재고 656행) + 사내 전용 노출 뷰(<code>v_erp_*</code>, 발주↔구매요청 연결·프로세스 진행수량 보강 포함)로 부서 대시보드 1개 화면(구매 매입집계)·챗봇(<code>jeil-chat</code>) ERP Tool 8종(<strong>version 14 ACTIVE</strong>, 도구호출 멀티라운드 전환)이 실데이터 연동. 나머지 화면은 여전히 추출 샘플(마스킹) 데이터</td>
+<td><strong>부분 연계 착수(2026-07-08), 2026-07-20 챗봇 권한체계 연결</strong> — 중간DB(Supabase <code>erp_ro</code>) 1차 5종 실적재 완료(발주 2,699·품목 58,246·매출 10·매입 63·재고 656행) + 사내 전용 노출 뷰(<code>v_erp_*</code>, 발주↔구매요청 연결·프로세스 진행수량 보강 포함)로 부서 대시보드 1개 화면(구매 매입집계)·챗봇(<code>jeil-chat</code>) ERP Tool 8종이 실데이터 연동. <strong>2026-07-20 <code>jeil-chat</code> version 19 배포</strong>: <code>get_my_access</code>(본인 권한 조회)·<code>get_hr_headcount</code>·<code>get_hr_payroll</code> 신설로 챗봇↔권한체계 연결 + 기존 포털 도구 3종(<code>get_order_summary</code>·<code>get_order_detail</code>·<code>get_inspection_pending</code>)의 소급 권한구멍(무강제 노출) 차단. 나머지 화면은 여전히 추출 샘플(마스킹) 데이터</td>
 </tr>
 <tr>
 <td>민감 데이터 통제(급여)</td>
@@ -445,6 +445,11 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 </tr>
 </thead>
 <tbody>
+<tr>
+<td>2026-07-20</td>
+<td><strong>챗봇(jeil-chat) 권한체계 연결 + 포털 도구 권한구멍 차단 — §6 갱신</strong>(version 18→19) — 관리자가 챗봇에 "인원현황"·"권한 확인"을 물었을 때 오답이 난 원인 조사: 권한체계(<code>jeil-me</code>/<code>jeil-hr</code>/<code>dept_erp_scope</code>/<code>portal_page</code>)·인원 데이터(<code>erp_secure.hr_payroll_m</code>)는 이미 정상 가동 중이었고 <strong>챗봇만 연결돼 있지 않았음</strong>. 신규 도구 3종 배포 — <code>get_my_access</code>(본인 역할·부서·ERP모듈·접근페이지, 전 직원)·<code>get_hr_headcount</code>(전사총원은 전 직원, 부서분포는 payroll 권한자만)·<code>get_hr_payroll</code>(급여집계, 인사팀·관리자 전용). <strong>소급 발견 권한구멍 차단</strong>: 포털 도구 3종이 <code>ERP_TOOL_MODULE</code> 매핑 누락으로 전 직원에게 협력사 발주정보를 무강제 노출 중이던 것을 <code>pur_order</code> 모듈 강제로 차단. 소스 배포 완료·git 미커밋(관리자 별도 진행). 상세·단일 출처는 <code>10_ERP_DB연계/</code>(00·01·02).</td>
+<td>최동혁(+Claude)</td>
+</tr>
 <tr>
 <td>2026-07-08</td>
 <td><strong>챗봇 ERP 프로세스 응답 품질 개선 — §6 갱신</strong> — 중간DB 노출 뷰 3종(<code>v_erp_po_pr_link</code>·<code>v_erp_pur_req</code>·신규 <code>v_erp_pur_top_po</code>) 보강(입고/매입 진행수량·외주구분·납기경과·연결수주·요청부서 해석). <code>jeil-chat</code>은 도구 호출을 1라운드→상한 멀티라운드(<code>MAX_ROUNDS=4</code>)로 교체(재조회 불가로 안내문만 반복되던 버그 해소), 상태코드 한글 해석 주입, 신규 도구 2종 추가 — <strong>version 14 ACTIVE</strong> 배포. 재고 입고·재고량 미적재/매출 수주·수금 미매핑/발주 외주구분 전건 'N' 등 ETL 데이터 갭 확인. 상세·단일 출처는 <code>10_ERP_DB연계/</code>(00·02).</td>
