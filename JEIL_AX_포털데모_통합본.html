@@ -2259,23 +2259,42 @@ async function historyApi(op, payload){
   return d;
 }
 
+/* 저장된 인증 존재 여부 — 표시 판정 전용. 액세스 토큰이 잠시 만료돼도(무음 갱신 전) 로그인 상태로 취급해
+   작업 폴더 목록이 예시 화면으로 되돌아가는 깜빡임을 막는다(실호출 인가는 ensureAuth가 별도 수행). */
+function hasStoredAuth(){
+  try{ var a = JSON.parse(localStorage.getItem('jeilax_auth')||'null'); return !!(a && a.at); }catch(e){ return false; }
+}
+
 /* 로그인 후 초기 로드(authDone에서 호출) — work 목록 + 전체 세션(클라이언트가 work별 그룹핑) */
 function initWorkspace(){
-  if(!getLiveAuth()){ renderWorkBox(); return; }
+  renderWorkBox();   // 미로그인=예시 / 로그인+미로드=불러오는 중
+  if(!hasStoredAuth()) return;
   historyApi('bootstrap').then(function(d){
     WS.works = d.works || []; WS.sessions = d.sessions || [];
     renderWorkBox();
-  }).catch(function(e){ /* 목록 실패는 챗 사용을 막지 않는다 */ });
+  }).catch(function(e){
+    // 목록 실패는 챗 사용을 막지 않는다 — 재시도 버튼만 표시
+    if(WS && WS.works !== null) return;
+    var box = document.getElementById('workBox');
+    if(box) box.innerHTML = '<div class="wk-note">대화 목록을 불러오지 못했습니다.</div>'
+      + '<button class="wk-new" style="margin-left:0;width:100%" onclick="initWorkspace()">↻ 다시 불러오기</button>';
+  });
 }
 
-/* 사이드바 work 아코디언 렌더 — 미로그인은 기존 데모 버튼 유지(데모 모드 불변) */
+/* 사이드바 work 아코디언 렌더 — 3상태: 미로그인=예시 질문 / 로그인+로딩=안내 / 로드됨=폴더·대화 목록 */
 function renderWorkBox(){
   var box = document.getElementById('workBox'); if(!box) return;
-  if(!getLiveAuth() || WS.works === null){
+  if(!hasStoredAuth()){
     box.innerHTML = '<button onclick="askExample(\'최근 구매요청과 발주 진행 현황 조회해줘\')">🧾 구매요청·발주 정보 조회</button>'
       + '<button onclick="askExample(\'밸브 품목정보 검색해줘\')">📦 품목정보 확인</button>'
       + '<button onclick="askExample(\'2026년 인원현황 알려줘\')">👥 2026년 인원현황</button>'
       + '<div class="wk-note">예시 질문입니다 — MS 로그인하면 실데이터로 답하고, 내 작업 폴더·대화 내역이 저장·표시됩니다.</div>';
+    return;
+  }
+  // 주의: 로그인 복원(authDone)이 스크립트 하단 `var WS = {...}` 할당보다 먼저 실행될 수 있어
+  // WS 미할당(undefined) 가드 필수 — 없으면 저장 토큰 보유 상태의 첫 로드에서 스크립트 전체가 죽는다.
+  if(!WS || WS.works === null){
+    box.innerHTML = '<div class="wk-note">💬 내 작업 폴더·대화 목록을 불러오는 중…</div>';
     return;
   }
   box.innerHTML = '';
@@ -2402,7 +2421,7 @@ function applySessionMeta(meta){
 
 /* work 생성·편집·삭제 */
 function createWork(){
-  if(!getLiveAuth()){ alert('MS 로그인 후 작업 폴더를 만들 수 있습니다.'); return; }
+  if(!hasStoredAuth()){ alert('MS 로그인 후 작업 폴더를 만들 수 있습니다.'); return; }
   var name = prompt('새 작업 폴더 이름 (예: 7월 결산, 헝가리 프로젝트)'); if(name == null) return;
   name = name.trim(); if(!name) return;
   historyApi('work_create', { name: name }).then(function(d){
