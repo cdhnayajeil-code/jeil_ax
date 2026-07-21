@@ -22,7 +22,7 @@
   .demo-banner{background:var(--amber); color:#fff; text-align:center; font-size:12.5px; padding:6px 10px; letter-spacing:.04em; flex:none;}
   .app{flex:1; display:flex; min-height:0;}
   /* 사이드바 */
-  .side{width:264px; background:var(--side); color:#e7edf6; display:flex; flex-direction:column; flex:none;}
+  .side{width:304px; background:var(--side); color:#e7edf6; display:flex; flex-direction:column; flex:none;}
   .brand{padding:18px 20px 14px; border-bottom:1px solid rgba(255,255,255,.12);}
   .brand h1{font-size:16px; letter-spacing:.02em;}
   .brand h1 span{color:#9cc3ec;}
@@ -39,9 +39,12 @@
   .quota .hint{font-size:10.5px; color:#9fb1ca; margin-top:6px;}
   .quota button{margin-top:8px; width:100%; background:transparent; border:1px solid rgba(255,255,255,.3); color:#cfe0f3; font-size:11.5px; padding:5px; border-radius:6px; cursor:pointer;}
   .quota button:hover{background:rgba(255,255,255,.08);}
-  .tpl{padding:14px 14px 8px; flex:1; overflow-y:auto;}
+  .tpl{padding:14px 14px 8px; flex:1; overflow-y:auto; scrollbar-width:thin; scrollbar-color:rgba(255,255,255,.18) transparent;}
+  .tpl::-webkit-scrollbar{width:6px;}
+  .tpl::-webkit-scrollbar-thumb{background:rgba(255,255,255,.16); border-radius:3px;}
+  .tpl::-webkit-scrollbar-track{background:transparent;}
   .tpl h3{font-size:11px; color:#9fb1ca; letter-spacing:.1em; padding:0 6px 8px;}
-  .tpl button{display:block; width:100%; text-align:left; background:rgba(255,255,255,.06); border:none; color:#e7edf6; font-size:12.5px; padding:9px 12px; border-radius:8px; margin-bottom:6px; cursor:pointer; font-family:inherit; line-height:1.4;}
+  .tpl button{display:block; width:100%; text-align:left; background:rgba(255,255,255,.06); border:none; color:#e7edf6; font-size:12.5px; padding:9px 12px; border-radius:9px; margin-bottom:6px; cursor:pointer; font-family:inherit; line-height:1.4; transition:background .15s;}
   .tpl button:hover{background:rgba(255,255,255,.14);}
   .tpl button small{display:block; color:#9fb1ca; font-size:10.5px;}
   .tpl .dept-sel{width:100%; box-sizing:border-box; background:rgba(255,255,255,.10); color:#e7edf6; border:1px solid rgba(255,255,255,.20); border-radius:8px; padding:9px 10px; font-size:12.5px; font-family:inherit; cursor:pointer;}
@@ -96,14 +99,19 @@
   .top h2{font-size:15px; color:var(--navy);}
   .top .mode{font-size:11.5px; color:var(--muted); background:var(--bg); border:1px solid var(--line); border-radius:20px; padding:4px 12px;}
   .top .mode b{color:var(--accent);}
-  .chat{flex:1; overflow-y:auto; padding:26px 8%;}
-  .msg{display:flex; gap:12px; margin-bottom:22px; max-width:780px;}
-  .msg .who{width:34px; height:34px; border-radius:50%; flex:none; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; color:#fff;}
+  .chat{flex:1; overflow-y:auto; padding:28px 8% 30px; scrollbar-width:thin; scrollbar-color:#cfd8e6 transparent;}
+  .chat::-webkit-scrollbar{width:8px;}
+  .chat::-webkit-scrollbar-thumb{background:#cfd8e6; border-radius:4px;}
+  .chat::-webkit-scrollbar-track{background:transparent;}
+  @keyframes msgIn{from{opacity:0; transform:translateY(8px);} to{opacity:1; transform:none;}}
+  .msg{display:flex; gap:12px; margin-bottom:22px; max-width:780px; animation:msgIn .28s ease;}
+  @media (prefers-reduced-motion:reduce){ .msg{animation:none;} }
+  .msg .who{width:34px; height:34px; border-radius:50%; flex:none; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; color:#fff; box-shadow:0 2px 6px rgba(16,42,80,.16);}
   .msg.ai .who{background:var(--navy);}
   .msg.user{flex-direction:row-reverse; margin-left:auto;}
   .msg.user .who{background:var(--accent2);}
-  .bubble{background:#fff; border:1px solid var(--line); border-radius:12px; padding:13px 16px; line-height:1.7; font-size:13.8px; box-shadow:0 1px 3px rgba(0,0,0,.04); max-width:100%; overflow-x:auto;}
-  .msg.user .bubble{background:var(--accent); color:#fff; border-color:var(--accent);}
+  .bubble{background:#fff; border:1px solid var(--line); border-radius:14px 14px 14px 5px; padding:14px 17px; line-height:1.7; font-size:13.8px; box-shadow:0 2px 8px rgba(16,42,80,.06); max-width:100%; overflow-x:auto;}
+  .msg.user .bubble{background:var(--accent); color:#fff; border-color:var(--accent); border-radius:14px 14px 5px 14px; box-shadow:0 2px 8px rgba(47,111,179,.22);}
   .bubble table{border-collapse:collapse; margin:10px 0 6px; font-size:12.5px; width:100%;}
   .bubble th{background:var(--navy); color:#fff; padding:6px 10px; text-align:left; font-weight:600;}
   .bubble td{border-bottom:1px solid var(--line); padding:6px 10px;}
@@ -154,15 +162,15 @@
   .typing i:nth-child(2){animation-delay:.2s;} .typing i:nth-child(3){animation-delay:.4s;}
   @keyframes blink{0%,80%,100%{opacity:.25;} 40%{opacity:1;}}
   /* 추천 프롬프트 */
-  .suggest{display:flex; flex-wrap:wrap; gap:8px; margin-top:10px;}
-  .suggest button{background:#fff; border:1px solid var(--accent); color:var(--accent); font-size:12px; padding:7px 14px; border-radius:18px; cursor:pointer; font-family:inherit;}
-  .suggest button:hover{background:var(--accent); color:#fff;}
+  .suggest{display:flex; flex-wrap:wrap; gap:8px; margin-top:12px;}
+  .suggest button{background:#f4f8fc; border:1px solid #cdddef; color:var(--accent); font-size:12px; font-weight:600; padding:8px 15px; border-radius:20px; cursor:pointer; font-family:inherit; transition:background .15s, border-color .15s, color .15s, transform .15s;}
+  .suggest button:hover{background:var(--accent); border-color:var(--accent); color:#fff; transform:translateY(-1px);}
   /* 입력영역 */
-  .input-area{flex:none; background:#fff; border-top:1px solid var(--line); padding:14px 8% 10px;}
-  .input-box{display:flex; gap:10px; max-width:880px; margin:0 auto;}
-  .input-box textarea{flex:1; border:1.5px solid var(--line); border-radius:12px; padding:11px 14px; font-family:inherit; font-size:14px; resize:none; height:48px; outline:none;}
-  .input-box textarea:focus{border-color:var(--accent);}
-  .input-box button{background:var(--navy); color:#fff; border:none; border-radius:12px; padding:0 22px; font-size:14px; font-weight:600; cursor:pointer; font-family:inherit;}
+  .input-area{flex:none; background:#fff; border-top:1px solid var(--line); padding:14px 8% 10px; box-shadow:0 -4px 16px rgba(16,42,80,.04);}
+  .input-box{display:flex; gap:10px; max-width:880px; margin:0 auto; align-items:flex-end;}
+  .input-box textarea{flex:1; border:1.5px solid var(--line); border-radius:13px; padding:12px 15px; font-family:inherit; font-size:14px; resize:none; height:48px; max-height:132px; overflow-y:auto; outline:none; transition:border-color .15s, box-shadow .15s;}
+  .input-box textarea:focus{border-color:var(--accent); box-shadow:0 0 0 3px rgba(58,124,193,.14);}
+  .input-box button{background:var(--navy); color:#fff; border:none; border-radius:13px; padding:0 22px; height:48px; font-size:14px; font-weight:600; cursor:pointer; font-family:inherit; transition:background .15s;}
   .input-box button:hover{background:var(--navy2);}
   .input-box button:disabled{background:#b8c2d2; cursor:not-allowed;}
   .input-box button.stop{background:var(--red,#c0392b);}
@@ -2205,7 +2213,7 @@ function saveDeptErp(){
 async function send(){
   if(_chatAbort) return;   // 스트리밍 중 Enter·연타 차단 — 중지는 버튼(onSendBtn)으로만
   const inp=document.getElementById('inp'); const v=inp.value.trim(); if(!v) return;
-  inp.value='';
+  inp.value=''; inp.style.height='48px';   // 자동 확장 높이 원복
   addUser(v);   // 이스케이프는 addUser 내부에서 일괄(& 포함 완전 이스케이프)
   var auth = await ensureAuth();   // 만료·임박이면 리프레시 토큰으로 무음 갱신 시도
   if(auth){ sendLive(v, auth); return; }
@@ -2458,6 +2466,12 @@ function deleteSession(id){
 
 /* 초기 환영 화면 보관 — 새 대화 시 복원(스크립트가 body 말미라 #chat은 이미 파싱됨) */
 var WELCOME_HTML = (function(){ var c = document.getElementById('chat'); return c ? c.innerHTML : ''; })();
+
+/* 입력창 자동 높이 — 여러 줄 입력 시 최대 132px까지 확장(전송 시 원복) */
+(function(){
+  var t = document.getElementById('inp'); if(!t) return;
+  t.addEventListener('input', function(){ t.style.height = '48px'; t.style.height = Math.min(t.scrollHeight, 132) + 'px'; });
+})();
 </script>
 
 <!-- ===== 통합본: 내장 페이지 오버레이 ===== -->
