@@ -287,6 +287,10 @@ Deno.serve(async (req) => {
     admin.from("ai_routing_rule").select("*").order("seq"),
   ]);
 
+  // ERP DB 연동 현황(소스별 최신 연동시각·건수·기간) — 관리자 콘솔 표시용.
+  // service_role이라 RLS 우회. 급여는 뷰 자체가 민감 실테이블을 세지 않고 배치 건수만 노출한다.
+  const erpSyncRes = await admin.from("v_erp_sync_overview").select("*").order("sort");
+
   // 사용자 표기 규약 '부서_이름_아이디'(예: 총무팀_최동혁_dh.choi@jeilm.co.kr) — 표시용. 감사 원본 upn은 불변.
   const uLbl = new Map<string, string>(
     // deno-lint-ignore no-explicit-any
@@ -355,6 +359,8 @@ Deno.serve(async (req) => {
     dept_erp_scope: deptErpRes.data || [],
     dept_erp_suggest: deptErpSuggestRes.data || [], // ERP 역할·메뉴 권한 기반 제안값(참고용)
     catalog: CATALOG,
+    // ERP DB 연동 현황 — 어떤 ERP 테이블이 언제·얼마나 중간DB로 들어왔는지(연결 상태 확인용)
+    erp_sync: { sources: erpSyncRes.data || [], error: erpSyncRes.error?.message || null },
     // 사용모델 설정 탭(모델 카탈로그·게이트웨이 설정·라우팅 규칙) — 실데이터
     model_settings: {
       models: aiModelsRes.data || [],

@@ -47,7 +47,7 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
   <div class="content">
 <h1 id="01-erp-db">01. ERP DB 연계 — 이후 기획 (통합 정리)</h1>
 <blockquote>
-<p><strong>기준일: 2026-07-03</strong>(2026-07-08 §4.4 P4 노출 계층, §4.5 사용자-부서 매핑, §4.6 부서별 ERP 모듈 제안값, §4.7 급여 민감권한·<code>erp_secure</code> 착수 → 같은 날 실적재 완료로 갱신 / 2026-07-20 §4.8 챗봇 권한체계 연결·포털 도구 권한구멍 차단 추가) · 관리: 최동혁
+<p><strong>기준일: 2026-07-03</strong>(2026-07-08 §4.4 P4 노출 계층, §4.5 사용자-부서 매핑, §4.6 부서별 ERP 모듈 제안값, §4.7 급여 민감권한·<code>erp_secure</code> 착수 → 같은 날 실적재 완료로 갱신 / 2026-07-20 §4.8 챗봇 권한체계 연결·포털 도구 권한구멍 차단 추가 / 2026-07-21 §4.9 연동 현황 뷰 10종 전체 노출·관리자 콘솔 반영 추가) · 관리: 최동혁
 ERP 데이터 활용은 <strong>두 축</strong>으로 진행된다: <strong>A) 사내 타부서 데이터 개방</strong>(마스터플랜 v2.0)과 <strong>B) AI 포털·챗봇 연계</strong>(중간DB 연계설계). 본 문서는 두 기획을 하나의 그림으로 통합 정리한 것이다. 상세는 각 원본 문서를 따른다.</p>
 </blockquote>
 <hr />
@@ -232,6 +232,15 @@ etl_meta     — 배치 실행 로그·동기화 상태
 <li>배포는 <code>verify_jwt=false</code> 유지, 배포본이 로컬 소스와 문자 단위 일치 검증됐다. 소스(<code>supabase/functions/jeil-chat/index.ts</code>)는 수정·배포 완료 상태이나 git 커밋은 관리자가 별도로 진행한다.</li>
 <li>상세 진행은 <code>02_진행상태.md</code> P4·P5 참조.</li>
 </ul>
+<h3 id="49-10-2026-07-21">4.9 연동 현황 뷰 10종 전체 노출 + 관리자 콘솔 반영 (2026-07-21 신설)</h3>
+<p>연동 현황을 사내 사용자·관리자가 확인하는 화면 <code>app/erp-status.html</code>과 그 원천 뷰 <code>public.v_erp_sync_overview</code>는 이미 가동 중이었으나, 지금까지 본 관제 문서에는 등재되지 않은 채 운영되고 있었다(문서화 공백 — 이번에 소급 등재).</p>
+<ul>
+<li><strong>가시성 격차 발견</strong>: 이 뷰가 1차 5종(발주·품목·매출·매입·재고)만 노출하고 있었는데, 실제 <code>erp_ro</code>/<code>erp_secure</code>에는 §4.5~4.8에서 이미 실적재를 마친 <strong>10종</strong>(추가 5종: 구매요청 <code>pur_req</code>·부서마스터 <code>dept_master</code>·사용자마스터 <code>usr_master</code>·부서별 ERP모듈 <code>usr_erp_module</code>·급여집계 <code>hr_payroll</code>)이 있어, 연동 자산의 절반이 이 현황 화면에서 보이지 않았다.</li>
+<li><strong>뷰 확장</strong>: 마이그레이션 <code>erp_sync_overview_all_sources</code>로 <code>v_erp_sync_overview</code>를 10종 전체로 확장하고, <code>sensitive</code>(민감 표시)·<code>sort</code>(정렬) 컬럼을 추가했다. 급여(<code>hr_payroll</code>)는 <code>erp_secure</code> 민감 스키마이므로 <strong>실테이블을 count하지 않고 <code>etl_meta.batch_run.rows_upserted</code>만 사용</strong>해 금액·명세를 노출하지 않는다. 발주 원천 표기를 실제 조인 기준(<code>M_PUR_ORD_HDR + M_PUR_ORD_DTL</code>)으로 정정했다. <code>security_invoker=true</code>는 유지되며 사내(internal) 세션만 조회 가능하다(RLS 상속, 변화 없음).</li>
+<li><strong>관리자 콘솔 반영</strong>: <code>jeil-chat-admin</code>을 <strong>version 9 → 10</strong>으로 배포해 이 뷰를 service_role로 조회한 결과를 응답 <code>erp_sync</code>로 반환하고, <code>04_챗봇_포털_데모UI.html</code> 관리자 콘솔 'API' 탭에 실데이터 표를 신설했다(기존엔 '사내 운영 페이지' 카드 링크로만 접근 가능했음).</li>
+<li><strong>연결 정보 명세</strong>: <code>app/erp-status.html</code>에 연결 정보 표를 추가해 원천(UNIERP MS SQL, 사외 IDC, DB <code>JEILMNS</code>)·접속 방식(ODBC 읽기전용, <code>SELECT … WITH (NOLOCK)</code>, 화이트리스트 SQL, DDL/DML 없음)·적재 경로(<code>10_ERP_DB연계/etl/etl_run.py</code> → RPC <code>erp_etl_upsert</code>/민감분 <code>erp_secure_upsert</code> → <code>erp_ro</code>/<code>erp_secure</code>)·실행 방식(<strong>수동 실행</strong>, 자동 스케줄러 미도입, 이력은 <code>etl_meta.batch_run</code>)·접속정보 보관(실행환경 <code>.env</code>에만, 소스·문서 미기재)·데이터 격리(RLS, 협력사·anon 0행)를 명시했다. 비밀값(서버 IP·계정·비밀번호)은 어디에도 기재하지 않았다.</li>
+<li><strong>현재 적재 실측(2026-07-21)</strong>은 <code>00_현재상태_스냅샷.md</code> §4, 재적재 이력 추적 공백은 <code>02_진행상태.md</code> §4 참조.</li>
+</ul>
 <h2 id="5">5. 단계별 로드맵 (통합)</h2>
 <table>
 <thead>
@@ -264,7 +273,7 @@ etl_meta     — 배치 실행 로그·동기화 상태
 </tr>
 <tr>
 <td><strong>P4</strong> 포털·챗봇 연결</td>
-<td><code>pages/</code> 실데이터 API 전환 + 챗봇 Tool 3종 + <code>tool_audit</code> — <strong>2026-07-08 착수·부분완료</strong>(§4.4: 노출 뷰 6종·RLS 격리 테스트·파일럿 화면 1건·챗봇 Tool 4종 / §4.5: 사용자-부서 매핑 계층 구축·실적재 완료 / §4.6: 부서별 ERP 모듈 제안값(참고) 신설·실적재 완료·관리자 콘솔 반영) → <strong>2026-07-20 챗봇 권한체계 연결</strong>(<code>get_my_access</code> 신설, 포털 도구 3종 권한구멍 차단, §4.8)</td>
+<td><code>pages/</code> 실데이터 API 전환 + 챗봇 Tool 3종 + <code>tool_audit</code> — <strong>2026-07-08 착수·부분완료</strong>(§4.4: 노출 뷰 6종·RLS 격리 테스트·파일럿 화면 1건·챗봇 Tool 4종 / §4.5: 사용자-부서 매핑 계층 구축·실적재 완료 / §4.6: 부서별 ERP 모듈 제안값(참고) 신설·실적재 완료·관리자 콘솔 반영) → <strong>2026-07-20 챗봇 권한체계 연결</strong>(<code>get_my_access</code> 신설, 포털 도구 3종 권한구멍 차단, §4.8) → <strong>2026-07-21 연동 현황 뷰 10종 전체 노출 + 관리자 콘솔 반영</strong>(<code>v_erp_sync_overview</code> 5→10종, <code>jeil-chat-admin</code> v10, §4.9)</td>
 <td>P3</td>
 </tr>
 <tr>

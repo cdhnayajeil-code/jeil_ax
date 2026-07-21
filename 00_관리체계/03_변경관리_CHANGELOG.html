@@ -109,6 +109,20 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <tbody>
 <tr>
 <td>2026-07-21</td>
+<td>ERP 연계</td>
+<td>Supabase 마이그레이션 3건(<code>erp_pur_req_detail_and_iv_dtl</code>·<code>erp_etl_upsert_pur_req_detail_iv_dtl</code>·<code>erp_pur_req_detail_view_and_iv_dtl_views</code>, +<code>erp_sync_overview_add_iv_dtl</code>), <code>10_ERP_DB연계/etl/etl_run.py</code></td>
+<td><strong>구매요청 상세 확충 + 매입 상세(라인) 연동 신설 — 스키마·ETL·뷰 준비 완료(적재는 관리자 실행 대기)</strong>. ① <strong>원천 구조 실측</strong>(<code>erp_ro.table_dict</code>): <code>M_PUR_REQ</code>는 HDR/DTL 분리가 없는 <strong>라인 단위 단일 테이블</strong>(49컬럼·63,423행)이라 "DTL 반영"은 <strong>미적재 상세 컬럼 확충</strong>으로 해석 — <code>pur_req_s</code>에 조달구분(<code>procure_type</code>)·확정수량·릴리즈수량·구매그룹/조직·저장위치·수주라인·도면번호·추적번호·변경차수·MRP오더·생성/수정자 <strong>14컬럼 추가</strong>(원천에 단가·금액 컬럼 없음 확인 — 구매요청 금액은 연결 발주 기준이라는 기존 원칙 유지). ② <strong>매입 상세 신설</strong>: <code>M_IV_DTL</code>(52,478행·66컬럼)이 실재하는데 그동안 <code>M_IV_HDR</code> 월집계만 적재해 "무엇을·얼마에" 매입했는지 확인 불가였음 → <code>erp_ro.iv_dtl_s</code>(PK <code>iv_no+iv_seq_no</code>, 품목·수량·단가·금액·부가세 + <strong>발주 연결키 <code>po_no</code>/<code>po_seq_no</code>·입고 연결키 <code>mvmt_no</code></strong>) 신설, RLS ON+사내 SELECT 정책. ③ 적재 RPC <code>erp_etl_upsert</code>를 화이트리스트 방식 유지한 채 두 대상으로 확장(기존 분기 무변경). ④ 노출 뷰: <code>v_erp_pur_req</code> 상세 컬럼 추가(기존 컬럼·순서 보존), <strong><code>v_erp_iv_dtl</code>·<code>v_erp_iv_dtl_monthly</code>(월×품목 집계) 신설</strong>, 연동 현황에 <code>iv_dtl</code> 등재(적재 전 "미연동" 표시). ⑤ ETL <code>iv_dtl</code> 잡 추가(증분 <code>UPDT_DT</code> 지원)·<code>pur_req</code> SQL 확충, 문법 검증 통과(잡 11종). <strong>잔여: ERP 운영DB 접속이 필요한 실적재는 관리자 직접 실행</strong>(<code>python etl_run.py --job iv_dtl</code>, <code>--job pur_req</code>).</td>
+<td>최동혁(+Claude)</td>
+</tr>
+<tr>
+<td>2026-07-21</td>
+<td>ERP 연계·관리체계</td>
+<td>Supabase 마이그레이션 <code>erp_sync_overview_all_sources</code>, <code>supabase/functions/jeil-chat-admin/index.ts</code>(v9→<strong>v10</strong>), <code>04_챗봇_포털_데모UI.html</code>, <code>app/erp-status.html</code>, 통합본</td>
+<td><strong>ERP DB 연동 현황 전체 노출 + 관리자 콘솔 반영</strong>. 점검 결과 연동 현황 화면(<code>app/erp-status.html</code>)은 이미 있었으나 <strong>원천 뷰 <code>v_erp_sync_overview</code>가 5종(발주·품목·매출·매입·재고)만 노출</strong> — 실제로는 10종이 적재 중이어서(구매요청 3,784·부서마스터 351·사용자마스터 99·ERP권한 397·급여 143) <strong>연동 자산의 절반이 화면에서 보이지 않던 상태</strong>. ① 뷰를 10종 전부로 확장(+<code>sensitive</code>·<code>sort</code> 컬럼, security_invoker=true 유지 — 사내만 조회). 급여는 <code>erp_secure</code> 민감 스키마라 <strong>실테이블을 세지 않고 배치 적재건수만</strong> 표시(금액·명세 미노출). 원천 표기도 실제 조인 기준으로 정정(발주=<code>M_PUR_ORD_HDR + M_PUR_ORD_DTL</code>). ② <strong>관리자 콘솔(API 탭)에 「ERP DB 연동 현황」 실데이터 표 신설</strong> — 기존엔 '사내 운영 페이지' 카드로만 접근 가능했음(admin v10이 뷰를 service_role로 조회해 <code>erp_sync</code>로 반환). ③ 상세 화면에 <strong>연결 정보 표</strong> 추가: 원천 UNIERP MS SQL(사외 IDC·DB <code>JEILMNS</code>), ODBC 읽기전용(<code>SELECT … WITH (NOLOCK)</code>·화이트리스트 SQL·DDL/DML 없음), ETL→RPC(<code>erp_etl_upsert</code>/<code>erp_secure_upsert</code>)→<code>erp_ro</code>/<code>erp_secure</code>, <strong>수동 실행</strong>(자동 스케줄러 미도입), 접속정보는 <code>.env</code>에만 보관(소스·문서 미기재), RLS 격리. 라벨 하드코딩 제거(뷰가 단일 출처)·XSS 이스케이프 보강.</td>
+<td>최동혁(+Claude)</td>
+</tr>
+<tr>
+<td>2026-07-21</td>
 <td>협력사포털·보안</td>
 <td><code>pages/외주발주_검사진행현황_2026.html</code>, <code>app/lib/api.js</code></td>
 <td><strong>외주 발주·검사 메시지 발신자 표기를 챗봇 규약으로 통일 + 저장형 XSS 차단</strong>. ① 기존: 사내 발신자가 말풍선에 <code>'구매팀'</code>으로 <strong>하드코딩</strong>되고 전송 시 <code>sender_name</code>에 리터럴 <code>'제일엠앤에스 구매팀'</code>을 저장 — DB의 <code>sender_name</code>은 표시에 쓰이지도 않아 "제일엠앤에스 구매팀/최동혁/이메일 원문"이 혼재(실데이터 확인). ② 변경: <code>erpApi.userLabels()</code>·<code>myLabel()</code> 공통 함수 신설(원천 <code>v_erp_user_dept</code> — 챗봇 라벨과 동일, 표시는 화면에 맞춰 <strong>"부서 · 이름"</strong>), 전송 시 로그인 본인 라벨을 <code>sender_name</code>에 저장하고, 렌더는 <code>sender_id</code>(이메일)→부서 매핑을 우선해 <strong>과거 메시지까지 소급 보정</strong>(미매핑·구 데모 데이터는 기존 이름→'구매팀' 순 폴백, 6개 시나리오 유닛검증 통과). 목록 카드의 최근 메시지 미리보기 접두('구매: ')도 동일 라벨로 통일. 협력사 화면(<code>협력사_모바일_포털.html</code>)은 이미 <code>sender_name</code>을 표시하므로 자동 반영. ③ <strong>보안 부수 수정</strong>: 같은 렌더 함수에서 메시지 본문·시각이 이스케이프 없이 innerHTML로 삽입되던 <strong>저장형 XSS</strong>(협력사 입력이 사내 화면에서 실행 가능)를 <code>esc()</code> 도입으로 차단(본문·발신자명·미리보기 전부).</td>

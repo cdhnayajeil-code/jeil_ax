@@ -538,7 +538,7 @@
           <span class="ic">🔗</span>
           <h4>ERP 데이터 연동 현황<br>중간DB 적재 상태</h4>
           <div class="metarow"><span class="badge b">사내 전용</span><span class="badge a">Supabase erp_ro</span><span class="badge g">읽기전용</span></div>
-          <p>ERP 데이터가 중간DB에 <b>언제·얼마나</b> 반영됐는지 소스별(발주·품목·매출·매입·재고·사용자·부서) 최신 연동 시점·적재 건수·데이터 기간을 확인합니다. 야간/수동 배치(ETL, 읽기전용) 기준.</p>
+          <p>ERP 데이터가 중간DB에 <b>언제·얼마나</b> 반영됐는지 소스별 10종(발주·구매요청·품목·매출·매입·재고·부서·사용자·ERP권한·급여) 최신 연동 시점·적재 건수·데이터 기간과 <b>연결 정보</b>(원천 DB·접속 방식·실행 방식)를 확인합니다. 수동 배치(ETL, 읽기전용) 기준.</p>
           <a class="open-btn" href="app/erp-status.html" target="_blank">연동 현황 열기 ↗</a>
         </div>
       </div>
@@ -650,6 +650,17 @@
           <div class="card"><div class="lb">인가 정책</div><div class="v" id="lgAuth" style="font-size:13px;">—</div></div>
         </div>
         <p class="admin-note" id="lgLimits">API 키는 Supabase Edge Function 시크릿(서버 전용)에만 보관 — 화면·소스에 노출되지 않습니다.</p>
+      </div>
+
+      <!-- ERP DB 연동 현황(실데이터) — 소스별 최신 연동 시점·건수. 원천은 public.v_erp_sync_overview -->
+      <div class="sec">
+        <h3>ERP DB 연동 현황 <span style="font-size:11px;color:var(--green,#1a7f37);">● 실데이터</span>
+          <a class="save" href="app/erp-status.html" target="_blank" style="text-decoration:none;">상세 화면 열기 ↗</a></h3>
+        <table>
+          <thead><tr><th>데이터</th><th>ERP 원천 테이블</th><th class="r">적재 건수</th><th>데이터 기간</th><th class="r">최신 연동</th></tr></thead>
+          <tbody id="erpSyncRows"><tr><td colspan="5" class="c" style="color:#888;padding:14px;">MS 로그인(관리자) 후 실데이터가 표시됩니다.</td></tr></tbody>
+        </table>
+        <p class="admin-note">원천 <b>UNIERP MS SQL(사외 IDC · DB JEILMNS)</b> → ODBC <b>읽기전용</b> 조회(<code>SELECT … WITH (NOLOCK)</code>, 화이트리스트 SQL) → ETL이 Supabase 중간DB(<code>erp_ro</code>)에 적재 → 사내 전용 뷰(<code>v_erp_*</code>)로 화면·챗봇에 제공. 실행은 <b>수동 배치</b>(자동 스케줄러 미도입)이며, 접속 서버·계정은 실행 환경 <code>.env</code>에만 보관하고 소스·문서에 남기지 않습니다. 급여는 민감 스키마(<code>erp_secure</code>)로 분리되어 이 표에는 <b>연동 시점·건수만</b> 표시됩니다.</p>
       </div>
       <div class="cards">
         <div class="card"><div class="lb">API 연결 상태</div><div class="v"><span class="dot"></span>정상 <small>· 응답 0.8s</small></div></div>
@@ -1991,6 +2002,7 @@ async function loadAdminLive(force){
     renderPermDetail(d);
     // 모델 설정 탭 (사용모델 카탈로그 + 게이트웨이 설정 + 라우팅 규칙)
     if(d.model_settings) renderModelSettings(d.model_settings);
+    if(d.erp_sync) renderErpSync(d.erp_sync);
   }catch(e){
     if(note) note.textContent = '⚠ 실데이터 조회 실패: ' + (e.message||'') + ' — 아래는 기획 예시 화면입니다.';
   }
@@ -2156,6 +2168,30 @@ async function postAdmin(payload, label){
     alert(label+' 저장 완료 — '+d.saved+'건'+(d.modules!=null?(' / 모듈 '+d.modules):'')+' (저장자: '+(d.updated_by||'')+')');
     loadAdminLive(true);
   }catch(e){ alert(label+' 저장 실패: '+(e.message||e)); }
+}
+
+/* ===== ERP DB 연동 현황 렌더 (jeil-chat-admin d.erp_sync — v_erp_sync_overview) =====
+   어떤 ERP 원천 테이블이 언제·얼마나 중간DB로 적재됐는지. 급여(민감)는 건수·시점만 표시. */
+function renderErpSync(es){
+  var tb = document.getElementById('erpSyncRows'); if(!tb) return;
+  var rows = (es && es.sources) || [];
+  if(!rows.length){
+    tb.innerHTML = '<tr><td colspan="5" class="c" style="color:#888;padding:14px;">'
+      + escHtml(es && es.error ? ('연동 현황 조회 실패: ' + es.error) : '연동된 ERP 소스가 없습니다.') + '</td></tr>';
+    return;
+  }
+  tb.innerHTML = rows.map(function(r){
+    var period = (r.period_min && r.period_max) ? (escHtml(r.period_min) + ' ~ ' + escHtml(r.period_max))
+                                                : '<span style="color:var(--muted)">전체 스냅샷</span>';
+    var when = r.last_sync ? String(r.last_sync).slice(0,16).replace('T',' ') : '—';
+    var sens = r.sensitive ? ' <span class="badge a" title="인사팀·관리자만 데이터 열람 — 여기는 건수·시점만">민감</span>' : '';
+    var stale = r.last_sync ? '' : ' <span class="badge r">미연동</span>';
+    return '<tr><td><b>' + escHtml(r.source_label || r.source_key) + '</b>' + sens + stale + '</td>'
+      + '<td><span class="keychip">' + escHtml(r.erp_src || '-') + '</span></td>'
+      + '<td class="r">' + Number(r.row_count || 0).toLocaleString('ko-KR') + '</td>'
+      + '<td>' + period + '</td>'
+      + '<td class="r">' + escHtml(when) + '</td></tr>';
+  }).join('');
 }
 
 /* ===== 사용모델 설정 렌더·저장 (jeil-chat-admin d.model_settings) ===== */

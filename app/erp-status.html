@@ -76,6 +76,18 @@
     데이터는 유니포인트 매핑 확정 전 <b>파일럿</b>이며, 최신 연동 시점 이후의 ERP 변경은 다음 배치에서 반영됩니다.
   </div>
 
+  <h3 style="margin-top:22px;">연결 정보</h3>
+  <table>
+    <tbody>
+      <tr><td style="width:170px;"><b>원천 시스템</b></td><td>UNIERP · MS SQL Server(사외 IDC) — DB <code>JEILMNS</code></td></tr>
+      <tr><td><b>접속 방식</b></td><td>ODBC(SQL Server Driver 18/17) · <b>읽기전용</b> 조회만(<code>SELECT … WITH (NOLOCK)</code>) · 화이트리스트 SQL 고정, DDL/DML 없음</td></tr>
+      <tr><td><b>적재 경로</b></td><td>ETL 스크립트(<code>10_ERP_DB연계/etl/etl_run.py</code>) → Supabase RPC <code>erp_etl_upsert</code>(민감분 <code>erp_secure_upsert</code>) → <code>erp_ro</code>/<code>erp_secure</code></td></tr>
+      <tr><td><b>실행 방식</b></td><td><b>수동 실행</b>(자동 스케줄러 미도입) — 배치 이력은 <code>etl_meta.batch_run</code>에 기록. 상단 표의 "최신 연동"이 각 소스의 마지막 성공 시각</td></tr>
+      <tr><td><b>접속 정보 보관</b></td><td>서버·계정·비밀번호는 <b>소스·문서에 기재하지 않음</b> — 실행 환경의 <code>.env</code>(git 제외)에만 보관</td></tr>
+      <tr><td><b>데이터 격리</b></td><td>RLS로 사내(internal) 세션만 조회 · 협력사·anon 0행 · 급여 등 민감분은 <code>erp_secure</code> 분리 후 전용 RPC로만 접근(접근 감사 기록)</td></tr>
+    </tbody>
+  </table>
+
   <div class="foot">
     <span>JEIL AX · ERP 데이터 연동 현황</span>
     <span id="fnote">사내 전용 · 읽기전용</span>
@@ -87,7 +99,8 @@
   const el = (id) => document.getElementById(id);
   const fmtDt = (ts) => ts ? new Date(ts).toLocaleString("ko-KR", { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" }) : "—";
   const num = (n) => Number(n || 0).toLocaleString("ko-KR");
-  const LABEL = { pur_order: "발주(2026)", item_master: "품목 마스터", sales: "매출 월집계", purchase: "매입 월집계", inventory: "재고 입출고" };
+  // 라벨은 뷰(source_label)가 단일 출처 — 소스가 늘어도 화면 수정 없이 반영된다.
+  const esc = (s) => String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
   try {
     const rows = await erpApi.syncOverview();
@@ -102,12 +115,14 @@
 
       // 관리자용 상세 표
       el("rows").innerHTML = rows.map((r) => {
-        const period = (r.period_min && r.period_max) ? `${r.period_min} ~ ${r.period_max}` : "<span class='muted'>전체 스냅샷</span>";
+        const period = (r.period_min && r.period_max) ? `${esc(r.period_min)} ~ ${esc(r.period_max)}` : "<span class='muted'>전체 스냅샷</span>";
         const on = !!r.last_sync;
         const badge = on ? `<span class="badge g">연동됨</span>` : `<span class="badge r">미연동</span>`;
+        // 민감 소스(급여)는 실테이블을 세지 않고 배치 적재건수만 표시 — 금액·명세는 이 화면에 없다
+        const sens = r.sensitive ? ` <span class="badge a" title="인사팀·관리자만 데이터 열람 가능(이 화면은 건수·시점만)">민감</span>` : "";
         return `<tr>
-          <td><b>${LABEL[r.source_key] || r.source_label || r.source_key}</b></td>
-          <td class="muted"><code>${r.erp_src || "-"}</code></td>
+          <td><b>${esc(r.source_label || r.source_key)}</b>${sens}</td>
+          <td class="muted"><code>${esc(r.erp_src || "-")}</code></td>
           <td class="c">${fmtDt(r.last_sync)}</td>
           <td class="r">${num(r.row_count)}</td>
           <td class="c">${period}</td>

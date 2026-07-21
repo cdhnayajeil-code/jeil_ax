@@ -124,6 +124,12 @@ JOBS = {
                    CONVERT(date, r.PUR_PLAN_DT) AS pur_plan_dt,
                    r.REQ_DEPT AS req_dept, r.REQ_PRSN AS req_prsn,
                    r.SPPL_CD AS sppl_code, b.BP_NM AS sppl_name, r.SO_NO AS so_no,
+                   -- 상세 확충(2026-07-21): 조달구분·확정/릴리즈 수량·구매조직·도면·추적번호·생성/수정자
+                   r.PROCURE_TYPE AS procure_type, r.REQ_CFM_QTY AS req_cfm_qty, r.RLS_ORD_QTY AS rls_ord_qty,
+                   r.PUR_GRP AS pur_grp, r.PUR_ORG AS pur_org, r.SL_CD AS sl_cd, r.SO_SEQ_NO AS so_seq_no,
+                   r.DW_NO1 AS dw_no1, r.TRACKING_NO AS tracking_no, r.CHANGE_ORDER AS change_order,
+                   r.MRP_ORD_NO AS mrp_ord_no, r.INSRT_DT AS insrt_dt,
+                   r.INSRT_USER_ID AS insrt_user_id, r.UPDT_USER_ID AS updt_user_id,
                    r.UPDT_DT AS src_updated
             FROM JEILMNS.dbo.M_PUR_REQ r WITH (NOLOCK)
             LEFT JOIN JEILMNS.dbo.B_ITEM i WITH (NOLOCK) ON i.ITEM_CD = r.ITEM_CD
@@ -164,6 +170,29 @@ JOBS = {
         "params": ["year_start", "year_end"],
     },
     # ③ 구매 거래처별 매입 월집계 ← M_IV_HDR (TARGET_YEAR 전체)
+    # 매입 상세(라인) — M_IV_DTL + M_IV_HDR. 월집계(purchase_m)만으로는 '무엇을 얼마에' 매입했는지 알 수 없어 신설.
+    # 발주(PO_NO·PO_SEQ_NO)·입고(MVMT_NO) 연결키를 함께 적재 → 발주→입고→매입 추적 연결.
+    "iv_dtl": {
+        "table": "iv_dtl_s",
+        "sql": """
+            SELECT d.IV_NO AS iv_no, d.IV_SEQ_NO AS iv_seq_no,
+                   CONVERT(date, h.IV_DT) AS iv_dt, h.BP_CD AS bp_code, b.BP_NM AS bp_name,
+                   d.PO_NO AS po_no, d.PO_SEQ_NO AS po_seq_no,
+                   d.ITEM_CD AS item_code, i.ITEM_NM AS item_name,
+                   d.IV_QTY AS iv_qty, d.IV_UNIT AS iv_unit, d.IV_PRC AS iv_prc,
+                   d.IV_LOC_AMT AS iv_loc_amt, d.VAT_LOC_AMT AS vat_loc_amt,
+                   d.MVMT_NO AS mvmt_no, d.MVMT_QTY AS mvmt_qty,
+                   d.PLANT_CD AS plant_cd, d.REMARK AS remark,
+                   d.UPDT_DT AS src_updated
+            FROM JEILMNS.dbo.M_IV_DTL d WITH (NOLOCK)
+            JOIN JEILMNS.dbo.M_IV_HDR h WITH (NOLOCK) ON h.IV_NO = d.IV_NO
+            LEFT JOIN JEILMNS.dbo.B_ITEM i WITH (NOLOCK) ON i.ITEM_CD = d.ITEM_CD
+            LEFT JOIN JEILMNS.dbo.B_BIZ_PARTNER b WITH (NOLOCK) ON b.BP_CD = h.BP_CD
+            WHERE h.IV_DT >= ? AND h.IV_DT < ?
+        """,
+        "params": ["year_start", "year_end"],
+        "incr_sql": " AND d.UPDT_DT >= ?",   # 증분: 변경분만(watermark 이후)
+    },
     "purchase": {
         "table": "purchase_m",
         "sql": """
