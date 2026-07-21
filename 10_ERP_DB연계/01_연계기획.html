@@ -47,7 +47,7 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
   <div class="content">
 <h1 id="01-erp-db">01. ERP DB 연계 — 이후 기획 (통합 정리)</h1>
 <blockquote>
-<p><strong>기준일: 2026-07-03</strong>(2026-07-08 §4.4 P4 노출 계층, §4.5 사용자-부서 매핑, §4.6 부서별 ERP 모듈 제안값, §4.7 급여 민감권한·<code>erp_secure</code> 착수 → 같은 날 실적재 완료로 갱신 / 2026-07-20 §4.8 챗봇 권한체계 연결·포털 도구 권한구멍 차단 추가 / 2026-07-21 §4.9 연동 현황 뷰 10종 전체 노출·관리자 콘솔 반영 추가) · 관리: 최동혁
+<p><strong>기준일: 2026-07-03</strong>(2026-07-08 §4.4 P4 노출 계층, §4.5 사용자-부서 매핑, §4.6 부서별 ERP 모듈 제안값, §4.7 급여 민감권한·<code>erp_secure</code> 착수 → 같은 날 실적재 완료로 갱신 / 2026-07-20 §4.8 챗봇 권한체계 연결·포털 도구 권한구멍 차단 추가 / 2026-07-21 §4.9 연동 현황 뷰 10종 전체 노출·관리자 콘솔 반영 추가, §4.10 매입 상세(<code>iv_dtl</code>) 신규 연동·구매요청 상세 백필 실적재 완료 추가) · 관리: 최동혁
 ERP 데이터 활용은 <strong>두 축</strong>으로 진행된다: <strong>A) 사내 타부서 데이터 개방</strong>(마스터플랜 v2.0)과 <strong>B) AI 포털·챗봇 연계</strong>(중간DB 연계설계). 본 문서는 두 기획을 하나의 그림으로 통합 정리한 것이다. 상세는 각 원본 문서를 따른다.</p>
 </blockquote>
 <hr />
@@ -148,6 +148,12 @@ etl_meta     — 배치 실행 로그·동기화 상태
 <td>1차</td>
 </tr>
 <tr>
+<td><strong>매입 상세(라인)</strong></td>
+<td><code>M_IV_DTL</code>(품목·수량·단가·금액·부가세 + 발주/입고 연결키)</td>
+<td><code>erp_ro.iv_dtl_s</code></td>
+<td><strong>신규(2026-07-21), 실적재 완료</strong> — 1,981행(2026-01-05~07-20)</td>
+</tr>
+<tr>
 <td>재고 입출고</td>
 <td><code>ITEM_DOCUMENT</code>, <code>M_PUR_GOODS_MVMT</code></td>
 <td><code>erp_ro.inventory_d</code></td>
@@ -241,6 +247,11 @@ etl_meta     — 배치 실행 로그·동기화 상태
 <li><strong>연결 정보 명세</strong>: <code>app/erp-status.html</code>에 연결 정보 표를 추가해 원천(UNIERP MS SQL, 사외 IDC, DB <code>JEILMNS</code>)·접속 방식(ODBC 읽기전용, <code>SELECT … WITH (NOLOCK)</code>, 화이트리스트 SQL, DDL/DML 없음)·적재 경로(<code>10_ERP_DB연계/etl/etl_run.py</code> → RPC <code>erp_etl_upsert</code>/민감분 <code>erp_secure_upsert</code> → <code>erp_ro</code>/<code>erp_secure</code>)·실행 방식(<strong>수동 실행</strong>, 자동 스케줄러 미도입, 이력은 <code>etl_meta.batch_run</code>)·접속정보 보관(실행환경 <code>.env</code>에만, 소스·문서 미기재)·데이터 격리(RLS, 협력사·anon 0행)를 명시했다. 비밀값(서버 IP·계정·비밀번호)은 어디에도 기재하지 않았다.</li>
 <li><strong>현재 적재 실측(2026-07-21)</strong>은 <code>00_현재상태_스냅샷.md</code> §4, 재적재 이력 추적 공백은 <code>02_진행상태.md</code> §4 참조.</li>
 </ul>
+<h3 id="410-iv_dtl-2026-07-21">4.10 매입 상세(<code>iv_dtl</code>) 신규 연동 + 구매요청 상세 백필 — 실적재 완료 (2026-07-21 신설)</h3>
+<p>같은 날 오전(§4.9와 별개 작업)에 <code>erp_ro.table_dict</code>(테이블 사전) 실측으로 두 가지가 확인됐다: ①<code>M_PUR_REQ</code>는 HDR/DTL 분리가 없는 <strong>라인 단위 단일 테이블</strong>(49컬럼·63,423행)이라 "DTL 반영"은 미적재 상세 컬럼을 채우는 <strong>백필</strong>로 해석해야 한다는 점(원천에 단가·금액 컬럼이 없어 구매요청 금액은 여전히 연결 발주 기준이라는 기존 원칙 유지), ②<code>M_IV_DTL</code>(52,478행·66컬럼)이 실재하는데 그동안 <code>M_IV_HDR</code> 월집계(<code>purchase_m</code>)만 적재해 "무엇을·얼마에" 매입했는지 라인 단위로 확인할 수 없었다는 점. 이를 메우기 위해 스키마·ETL·뷰를 신설했다 — <code>erp_ro.iv_dtl_s</code>(PK <code>iv_no+iv_seq_no</code>, 품목·수량·단가·금액·부가세 + <strong>발주 연결키 <code>po_no</code>/<code>po_seq_no</code></strong>·<strong>입고 연결키 <code>mvmt_no</code></strong>, RLS ON+<code>internal_select_iv_dtl</code>), <code>pur_req_s</code>에 조달구분(<code>procure_type</code>)·확정/릴리즈수량·구매그룹/조직·저장위치·수주라인·도면번호·추적번호·변경차수·MRP오더·생성/수정자 <strong>14컬럼 추가</strong>, 노출 뷰 <code>v_erp_iv_dtl</code>·<code>v_erp_iv_dtl_monthly</code>(월×품목 집계) 신설(<code>v_erp_pur_req</code>는 기존 컬럼·순서 보존한 채 상세 컬럼만 append), <code>erp_etl_upsert</code> 화이트리스트에 두 대상 추가, ETL job <code>iv_dtl</code>(증분 <code>UPDT_DT</code> 지원) 신설·<code>pur_req</code> SQL 확충. 이 단계에서는 <strong>적재는 관리자 실행 대기</strong>였다(<code>00_관리체계/03_변경관리_CHANGELOG</code> 2026-07-21 첫 줄 참조).</p>
+<p><strong>같은 날 오후, 관리자가 위 준비분을 직접 실행해 실적재까지 완료</strong>했다(<code>batch_run</code> 7건 성공·0건 실패). <code>iv_dtl</code>: 2026-01-05~07-20 구간 <strong>1,981행</strong>(0.9초) — 송장 213건·발주 432건, 매입금액 합계 <strong>35.6억원</strong>, 발주 연결(<code>po_no</code>) <strong>100%</strong>(발주 미연결 36건은 과거 발주로 추정되는 데이터 품질 참고 항목, 임의 조치 없음). <code>pur_req</code> 상세 백필: <code>--full</code> <strong>4,063행</strong>(2.1초) — 조달구분 채움 99.98%(미채움 1건은 ERP 원천 <code>PROCURE_TYPE</code> NULL), 도면번호 보유 856건.</p>
+<p><strong>부수적으로 발견·해소된 정합성 이슈</strong>: 신규 적재한 매입 상세를 기존 월집계(<code>purchase_m</code>)와 대사하니 6월 +19.2억원·7월 +1.5억원 차이가 나타났다(1~5월은 완전 일치). 원인은 데이터 오류가 아니라 <strong>적재 시점 차이</strong>(2026-07-08 문서화 이후 ERP에 새로 등록된 매입 건이 월집계에 미반영)였다 — 관리자가 <code>purchase --full</code>(151행)·<code>pur_order</code>(증분, 512행)·<code>sales</code>(37행)·<code>item_master</code>(증분, 415행)·<code>inventory</code>(1,847행)를 재적재해 <strong>매입 대사 차이를 전월 0으로 해소</strong>했다(매핑·로직 정상 검증). <code>hr_payroll</code>(민감)은 별도 승인 사항이라 이번 재적재에서 제외했다(2026-07-08 143행 유지).</p>
+<p>상세 진행은 <code>02_진행상태.md</code> §1·§2 P3, 현재 적재 실측·이슈는 <code>00_현재상태_스냅샷.md</code> §1·§4·§6 참조.</p>
 <h2 id="5">5. 단계별 로드맵 (통합)</h2>
 <table>
 <thead>
