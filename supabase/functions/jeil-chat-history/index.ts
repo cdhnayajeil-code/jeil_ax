@@ -1,9 +1,10 @@
-// jeil-chat-history — 챗봇 대화내역 CRUD (work 작업폴더 · 대화 세션 · 메시지 · 팀 공유) v2
+// jeil-chat-history — 챗봇 대화내역 CRUD (work 작업폴더 · 대화 세션 · 메시지 · 팀 공유) v3
 // 배포: verify_jwt=false (Entra 토큰은 Supabase JWT가 아니므로 내부에서 직접 검증)
 // 호출: POST /functions/v1/jeil-chat-history  Authorization: Bearer <Entra access_token>
 //   body: { op: "bootstrap"|"work_create"|"work_update"|"work_delete"
 //               |"session_list"|"session_rename"|"session_delete"|"session_messages"
-//               |"member_list"|"member_add"|"member_remove", ... }
+//               |"member_list"|"member_add"|"member_remove"|"people_search", ... }
+//   v3: people_search(사내 인원 검색 — 이름·부서·아이디, Outlook 받는사람 UX) + member_add 복수 초대(emails[])
 // 원칙(대화 원문 서버 저장 — ADR-009, v2에서 팀 공유로 개정):
 //   - chat_work/chat_session/chat_message/chat_work_member 는 RLS 전면차단(정책 0) — 이 함수(service_role)의
 //     접근 판정이 유일한 경로. 판정은 DB RPC(chat_work_access/chat_session_access)로 일원화:
@@ -284,21 +285,67 @@ Deno.serve(async (req) => {
     });
   }
 
-  // 팀원 초대 — 소유자만. 사내(@jeilm.co.kr) 계정 한정.
+  // 사내 인원 검색 — Outlook '받는 사람' UX용. 이름·부서·아이디 부분일치.
+  // 원본: ERP 사용자·부서 매핑 뷰(v_erp_user_dept). Graph 조직 검색은 앱 권한(User.ReadBasic.All) 미부여라 미사용.
+  // 규모가 작아(수십~수백) 전량 조회 후 서버 메모리 필터 — PostgREST 필터 문자열에 사용자 입력을 넣지 않는다(주입 차단).
+  if (op === "people_search") {
+    const q = String(b.q || "").trim().toLowerCase();
+    const limit = Math.min(50, Math.max(1, Math.trunc(Number(b.limit)) || 20));
+    const { data, error } = await admin.from("v_erp_user_dept").select("email,dept_nm,emp_nm");
+    if (error) return json({ error: "인원 조회 실패: " + error.message }, 500);
+    // 이미 팀원·소유자인 사람은 표시만 하고 선택 불가(프론트에서 회색 처리)
+    let taken = new Set<string>();
+    if (isUuid(b.work_id) && await canAccessWork(admin, b.work_id, user.upn)) {
+      const [{ data: w }, { data: mem }] = await Promise.all([
+        admin.from("chat_work").select("upn").eq("id", b.work_id).maybeSingle(),
+        admin.from("chat_work_member").select("upn").eq("work_id", b.work_id),
+      ]);
+      taken = new Set([String(w?.upn || "").toLowerCase(), ...((mem || []) as { upn: string }[]).map((r) => r.upn.toLowerCase())]);
+    }
+    // deno-lint-ignore no-explicit-any
+    const rows = ((data || []) as any[]).map((r) => {
+      const email = String(r.email || "").toLowerCase();
+      const dept = String(r.dept_nm || "");
+      const name = String(r.emp_nm || "");
+      return { email, dept, name, label: `${dept || "미매핑"}_${name || "-"}_${email}`, id: email.split("@")[0], taken: taken.has(email) };
+    }).filter((r) => r.email);
+    const hit = q
+      ? rows.filter((r) => r.name.toLowerCase().includes(q) || r.dept.toLowerCase().includes(q) || r.email.includes(q))
+      : rows;
+    // 정렬: 이름 시작일치 > 부서 시작일치 > 아이디 시작일치 > 그 외, 동순위는 부서·이름
+    const rank = (r: typeof rows[number]) => {
+      if (!q) return 3;
+      if (r.name.toLowerCase().startsWith(q)) return 0;
+      if (r.dept.toLowerCase().startsWith(q)) return 1;
+      if (r.id.startsWith(q)) return 2;
+      return 3;
+    };
+    hit.sort((a, c) => (rank(a) - rank(c)) || a.dept.localeCompare(c.dept, "ko") || a.name.localeCompare(c.name, "ko"));
+    const depts = [...new Set(rows.map((r) => r.dept).filter(Boolean))].sort((a, c) => a.localeCompare(c, "ko"));
+    return json({ people: hit.slice(0, limit), total: hit.length, depts });
+  }
+
+  // 팀원 초대 — 소유자만. 사내(@jeilm.co.kr) 계정 한정. v3: 복수 초대(emails[]) 지원(단수 email 하위호환).
   if (op === "member_add") {
     if (!isUuid(b.work_id)) return json({ error: "잘못된 work_id" }, 400);
-    const email = String(b.email || "").trim().toLowerCase();
-    if (!email.endsWith("@jeilm.co.kr")) return json({ error: "사내(@jeilm.co.kr) 계정만 초대할 수 있습니다." }, 400);
+    const raw = Array.isArray(b.emails) ? (b.emails as unknown[]) : (b.email != null ? [b.email] : []);
+    const emails = [...new Set(raw.map((e) => String(e || "").trim().toLowerCase()).filter(Boolean))];
+    if (!emails.length) return json({ error: "초대할 계정이 필요합니다." }, 400);
+    const bad = emails.filter((e) => !e.endsWith("@jeilm.co.kr"));
+    if (bad.length) return json({ error: `사내(@jeilm.co.kr) 계정만 초대할 수 있습니다: ${bad.join(", ")}` }, 400);
     const { data: w } = await works.select("id,upn").eq("id", b.work_id).is("deleted_at", null).maybeSingle();
     if (!w) return json({ error: "팀원 초대는 폴더 소유자만 가능합니다." }, 403);
-    if (email === user.upn) return json({ error: "본인(소유자)은 초대 대상이 아닙니다." }, 400);
+    const targets = emails.filter((e) => e !== user.upn);   // 본인(소유자)은 조용히 제외
+    if (!targets.length) return json({ error: "본인(소유자)은 초대 대상이 아닙니다." }, 400);
     const { count } = await admin.from("chat_work_member").select("upn", { count: "exact", head: true }).eq("work_id", b.work_id);
-    if ((count || 0) >= MAX_MEMBERS) return json({ error: `팀원은 폴더당 최대 ${MAX_MEMBERS}명입니다.` }, 400);
+    if ((count || 0) + targets.length > MAX_MEMBERS) {
+      return json({ error: `팀원은 폴더당 최대 ${MAX_MEMBERS}명입니다(현재 ${count || 0}명).` }, 400);
+    }
     const { error } = await admin.from("chat_work_member")
-      .upsert({ work_id: b.work_id, upn: email, invited_by: user.upn }, { onConflict: "work_id,upn" });
+      .upsert(targets.map((e) => ({ work_id: b.work_id, upn: e, invited_by: user.upn })), { onConflict: "work_id,upn" });
     if (error) return json({ error: "팀원 초대 실패: " + error.message }, 500);
-    const lbl = await labelMap(admin, [email]);
-    return json({ ok: true, member: { upn: email, label: lbl[email] || email } });
+    const lbl = await labelMap(admin, targets);
+    return json({ ok: true, added: targets.length, members: targets.map((e) => ({ upn: e, label: lbl[e] || e })) });
   }
 
   // 팀원 제거 — 소유자(누구든 제거) 또는 본인(나가기)
