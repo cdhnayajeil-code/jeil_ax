@@ -60,6 +60,7 @@
   - 구버전 하위호환: 저장은 opt-in(body 세션 필드 없으면 v23 동작), 세션 메타는 별도 SSE 키 `jeilax_meta`.
 - **부수 결정**: 응답 중지 = 클라이언트 fetch abort → 게이트웨이 이중 감지(req.signal + write 실패)로 OpenAI 업스트림 abort(비용 차단), 부분 응답은 `stopped=true`로 저장.
 - **잔여 위험(보안 셀프점검 2026-07-21, Low·정보성)**: 인증이 Graph `/me` 성공+사내 도메인만으로 성립(토큰 audience 미검증 — jeil-chat 기존 패턴 승계). 이번 변경으로 이 경계가 지키는 자산이 "축적된 대화 원문"으로 커짐 → **운영 전환 시 JEIL-AX 앱 전용 aud/tid 서명 검증으로 교체 검토**(ADR-104·CLAUDE.md §5.6과 함께).
+- **개정(2026-07-21, 팀 공유)**: "본인만 열람·삭제" → **"본인 또는 작업 폴더 팀원"** 으로 확장(관리자 결정). 신규 `chat_work_member` + DB RPC 접근 판정(`chat_work_access`/`chat_session_access`) 일원화 — 폴더 소유자가 사내 계정을 초대(폴더당 최대 20명)하면 팀원이 그 폴더의 모든 대화를 열람·참여(공동 지시). 발화자 upn은 실작성자로 기록(감사 정확). 통제: 초대·이름/메모 수정·폴더 삭제=소유자만, 세션 삭제=접근 가능한 생성자·폴더 소유자만, 팀원은 나가기 가능. **회수(revocation) 규칙**: 폴더 소속 대화의 접근은 "현재" 구성원 자격 기준 — 제거·나가기 시 본인이 만든 대화 포함 폴더 대화 접근을 전면 상실하고, 대화는 폴더에 남아 팀이 유지(보안 셀프점검 F1 발견 → 즉시 수정·SQL 실측). 개인 대화(폴더 미소속)만 생성자 무조건 접근. 관리자 원문 조회 API 부재 원칙 유지. UI에 "초대한 팀원은 폴더의 모든 대화를 열람·참여" 고지. jeil-chat v25 · jeil-chat-history v2.
 - **근거**: 마이그레이션 `create_chat_work_session_message`·`ai_gateway_config_work_context`, jeil-chat v24 + jeil-chat-history v1 + jeil-chat-admin v9, [04 DB설계](04_데이터베이스_설계.md).
 
 ## B. 미결정 (Proposed — 결정 대기)

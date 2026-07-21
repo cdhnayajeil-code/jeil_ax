@@ -109,6 +109,13 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <tbody>
 <tr>
 <td>2026-07-21</td>
+<td>챗봇·DB·보안</td>
+<td>Supabase 마이그레이션 <code>chat_work_team_sharing</code>(chat_work_member + 접근 RPC 2종 + chat_append_message 확장), <code>supabase/functions/jeil-chat/index.ts</code>(v24→<strong>v25</strong>), <code>jeil-chat-history/index.ts</code>(v1→<strong>v2</strong>), <code>04_챗봇_포털_데모UI.html</code>, 통합본, <code>11_제품기획/09_ADR</code>(ADR-009 개정)</td>
+<td><strong>작업 폴더 팀 공유 — 팀원 초대·공유 대화·공동 지시(ADR-009 개정: "본인만"→"본인 또는 폴더 팀원")</strong>. ① DB: <code>chat_work_member</code>(폴더당 최대 20명, RLS ON+정책 0) 신설, 접근 판정을 DB RPC(<code>chat_work_access</code>=소유자·팀원 / <code>chat_session_access</code>=생성자·공유 폴더 팀원)로 <strong>일원화</strong> — Edge 3함수가 동일 판정 사용, <code>chat_append_message</code>도 접근 검증으로 확장하되 <strong>발화자 upn은 실작성자 기록</strong>(감사 정확). SQL 실측: 소유자·팀원 허용/비팀원 차단/팀원 append 성공/외부인 append 예외. ② jeil-chat-history v2: <code>member_list/add/remove</code>(초대=소유자만·사내 도메인 한정·본인 나가기 허용), bootstrap이 공유 폴더(소유자 표기 라벨)+팀원 세션까지 반환, <code>session_messages</code>에 발화자 라벨('부서_이름_아이디' 규약) 동봉, 세션 삭제는 생성자·폴더 소유자만. ③ jeil-chat v25: 세션 이어쓰기·폴더 새 대화·work 메모 컨텍스트 주입을 공유 접근으로 확장(팀원도 같은 대화방에서 AI에게 지시 가능). ④ 프론트: 폴더 편집 모달에 <strong>팀 공유 섹션</strong>(멤버 목록·초대·제거, 팀원 모드는 열람+나가기), 공유 폴더 👥 아이콘·소유자 툴팁, 타인 발화는 회색 말풍선+발화자 라벨+이니셜 아바타, 타인 시작 대화 👤 표시, 공유 대화 <strong>↻ 동기화</strong> 버튼(팀원 새 메시지 재조회 — 실시간 아님·수동 동기화), 폴더 접근 상실 시 내 대화는 '일반 대화'로 회수 표시. 공유 고지문("초대한 팀원은 폴더의 모든 대화를 열람·참여") 명시. ⑤ 보안 셀프점검(전용 에이전트, 인가 매트릭스 11개 op 전수 검증): High 0건·<strong>Medium 1건(F1) 발견 즉시 수정</strong> — 제거된 팀원이 "자기가 만든" 폴더 세션에 계속 접근 가능하던 회수(revocation) 공백을 "폴더 소속 대화 접근=현재 구성원 자격 기준"으로 교정(마이그레이션 <code>chat_session_access_require_work_membership</code> + bootstrap 필터·세션삭제 접근 검증 보강), SQL 실측으로 제거 후 차단·소유자 유지·개인 대화 유지 확인. XSS 싱크 전수(textContent-only)·PostgREST 필터 주입·권한 상승 경로 없음 확인.</td>
+<td>최동혁(+Claude)</td>
+</tr>
+<tr>
+<td>2026-07-21</td>
 <td>챗봇 UI</td>
 <td><code>04_챗봇_포털_데모UI.html</code>, 통합본</td>
 <td><strong>사용자 아바타 빈 원 문제 해소 — img 요소 + 이니셜 자동 폴백 구조로 교체</strong>. 사용자 제보(내 메시지 아바타가 빈 파란 원): 기존 CSS background-image 방식은 사진 로드가 조용히 실패하면 빈 원이 남는 구조 → <code>makeUserWho()</code>(img 요소, onerror 시 실명 이니셜 폴백) + 소급 적용도 onload 성공 시에만 교체(실패 시 이니셜 유지)로 재구성. 실제 blob 사진·깨진 URL 두 경로 Chrome 실측 — 사진 원형 채움·폴백 '최' 확인, 빈 원 원천 차단.</td>

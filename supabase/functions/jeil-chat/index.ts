@@ -7,8 +7,9 @@
 // 원칙(CLAUDE.md §1·§4·§6):
 //   - API 키는 서버 시크릿(OPENAI_API_KEY)에만 존재. 프론트 미노출.
 //   - 데이터 접근은 사전 등록된 읽기전용 도구만(모델의 임의 SQL 금지). 포털DB + ERP 중간DB 사본(public.v_erp_* 뷰) — ERP 운영DB 직접 조회는 없음.
-//   - chat_log에 사용 이력 + 토큰·추정비용·사용도구 기록. 대화 원문은 chat_session/chat_message에 본인 열람·삭제용으로만
-//     저장(정책 변경 ADR — 조회·삭제는 jeil-chat-history 경유, 킬스위치 ai_gateway_config.chat_save_enabled).
+//   - chat_log에 사용 이력 + 토큰·추정비용·사용도구 기록. 대화 원문은 chat_session/chat_message에 저장 —
+//     열람·참여는 본인 또는 공유 work(작업 폴더) 팀원만(ADR-009, v25 팀 공유). 조회·삭제·팀 관리는
+//     jeil-chat-history 경유, 킬스위치 ai_gateway_config.chat_save_enabled.
 //   - 도구 결과는 SSE 'jeilax' 이벤트로 구조화 뷰(5종)를 병행 송출 — 프론트 카드 직결(모델 미경유·수치 환각 차단, 11_제품기획/10).
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
@@ -1143,31 +1144,38 @@ Deno.serve(async (req) => {
   // 2-c) ERP Tool 접근 범위(부서별 erp_scope) — 관리자는 전 모듈, 그 외 소속 부서 허용 모듈만
   const erpScope = await resolveErpScope(admin, user.upn);
 
-  // 2-d) 대화 저장 세션 확정 — opt-in(세 필드 모두 없으면 저장 없이 기존 동작). 전부 본인(upn) 소유 검증.
-  //      원문 저장 정책(ADR): 열람·삭제는 jeil-chat-history(본인만). 킬스위치 chat_save_enabled.
+  // 2-d) 대화 저장 세션 확정 — opt-in(세 필드 모두 없으면 저장 없이 기존 동작).
+  //      v25 팀 공유: 접근 판정을 DB RPC(chat_session_access/chat_work_access)로 일원화 —
+  //      본인 세션 또는 공유 work(소유자·팀원)의 세션이면 이어쓰기 허용. 발화자 upn은 본인으로 기록.
+  //      원문 저장 정책(ADR-009 개정): 열람·삭제는 jeil-chat-history. 킬스위치 chat_save_enabled.
   let sessionId: string | null = null;
   let sessionWork: { id: string; name: string; memo: string | null } | null = null;
   let sessionTitle: string | null = null;
   if (ai.chat_save_enabled) {
     if (isUuid(body.session_id)) {
+      const acc = await admin.rpc("chat_session_access", { p_session: body.session_id, p_upn: user.upn });
+      if (acc.data !== true) return json({ error: "대화를 찾을 수 없습니다. 새 대화로 시작하세요." }, 404);
       const { data: s } = await admin.from("chat_session")
         .select("id,work_id,title,message_count")
-        .eq("id", body.session_id).eq("upn", user.upn).is("deleted_at", null).maybeSingle();
+        .eq("id", body.session_id).is("deleted_at", null).maybeSingle();
       if (!s) return json({ error: "대화를 찾을 수 없습니다. 새 대화로 시작하세요." }, 404);
       if (Number(s.message_count) >= ai.session_max_messages) {
         return json({ error: "이 대화가 너무 길어졌습니다. 새 대화로 시작하세요." }, 400);
       }
       sessionId = s.id; sessionTitle = s.title;
       if (s.work_id) {
+        // 접근은 세션 판정으로 이미 성립 — work 컨텍스트(메모)는 공유 팀원에게도 동일 주입
         const { data: w } = await admin.from("chat_work").select("id,name,memo")
-          .eq("id", s.work_id).eq("upn", user.upn).is("deleted_at", null).maybeSingle();
+          .eq("id", s.work_id).is("deleted_at", null).maybeSingle();
         if (w) sessionWork = w;
       }
     } else if (isUuid(body.work_id) || body.save === true) {
       let workId: string | null = null;
       if (isUuid(body.work_id)) {
+        const acc = await admin.rpc("chat_work_access", { p_work: body.work_id, p_upn: user.upn });
+        if (acc.data !== true) return json({ error: "작업 폴더를 찾을 수 없습니다." }, 404);
         const { data: w } = await admin.from("chat_work").select("id,name,memo")
-          .eq("id", body.work_id).eq("upn", user.upn).is("deleted_at", null).maybeSingle();
+          .eq("id", body.work_id).is("deleted_at", null).maybeSingle();
         if (!w) return json({ error: "작업 폴더를 찾을 수 없습니다." }, 404);
         sessionWork = w; workId = w.id;
       }

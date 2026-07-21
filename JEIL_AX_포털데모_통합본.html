@@ -79,6 +79,19 @@
   .wk-modal input, .wk-modal textarea{width:100%; box-sizing:border-box; border:1.5px solid var(--line); border-radius:9px; padding:9px 11px; font-family:inherit; font-size:13.5px; outline:none;}
   .wk-modal textarea{min-height:120px; resize:vertical;}
   .wk-modal input:focus, .wk-modal textarea:focus{border-color:var(--accent);}
+  /* 팀 공유(모달) — 멤버 목록·초대 */
+  .wk-mems{display:flex; flex-direction:column; gap:4px; margin-top:6px; max-height:150px; overflow-y:auto;}
+  .wk-mem{display:flex; align-items:center; gap:8px; font-size:12.5px; background:var(--bg); border:1px solid var(--line); border-radius:8px; padding:6px 10px;}
+  .wk-mem span{flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .wk-mem button{border:none; background:transparent; color:var(--red,#c0392b); cursor:pointer; font-size:12px; font-family:inherit; flex:none;}
+  .wk-invite{display:flex; gap:8px; margin-top:8px;}
+  .wk-invite input{flex:1;}
+  .wk-invite button{border:none; border-radius:8px; padding:8px 14px; font-size:12.5px; cursor:pointer; font-family:inherit; background:var(--navy); color:#fff; flex:none;}
+  .wk-invite button:hover{background:var(--navy2);}
+  /* 공유 대화 — 타인 발화 말풍선(회색)·발화자 라벨 */
+  .msg.user.other .bubble{background:#eef3fa; color:var(--ink); border-color:var(--line); box-shadow:0 2px 8px rgba(16,42,80,.06);}
+  .msg.user .who.other-who{background:#8296b3;}
+  .wk-sender{font-size:10.5px; color:var(--muted); margin-bottom:3px; font-weight:700;}
   .wk-btns{display:flex; justify-content:space-between; gap:8px; margin-top:16px;}
   .wk-btns .grp{display:flex; gap:8px;}
   .wk-btns button{border:none; border-radius:8px; padding:8px 16px; font-size:13px; cursor:pointer; font-family:inherit;}
@@ -342,9 +355,15 @@
       <label>이름</label><input id="wkEdName" maxlength="100">
       <label>메모(컨텍스트) — 이 폴더에서 대화를 시작하면 AI에게 배경 정보로 전달됩니다</label>
       <textarea id="wkEdMemo" maxlength="4000" placeholder="예: 헝가리 2공장 프로젝트. 발주처 A사, 납기 9월, 담당 최동혁. 관련 품목 코드 IT-…"></textarea>
+      <label>팀 공유 <small style="color:var(--muted); font-weight:400;">— 초대한 팀원은 이 폴더의 모든 대화를 열람·참여합니다. 민감한 개인 대화는 개인 폴더를 사용하세요.</small></label>
+      <div id="wkMemberList" class="wk-mems"></div>
+      <div class="wk-invite" id="wkInviteRow">
+        <input id="wkInvEmail" placeholder="사내 이메일 또는 아이디 (예: hong 또는 hong@jeilm.co.kr)" onkeydown="if(event.key==='Enter'){event.preventDefault();inviteMember();}">
+        <button onclick="inviteMember()">초대</button>
+      </div>
       <div class="wk-btns">
-        <div class="grp"><button class="del" onclick="deleteWorkFromEdit()">폴더 삭제</button></div>
-        <div class="grp"><button class="sec2" onclick="closeWorkEdit()">취소</button><button class="pri" onclick="saveWorkEdit()">저장</button></div>
+        <div class="grp"><button class="del" id="wkDelBtn" onclick="deleteWorkFromEdit()">폴더 삭제</button></div>
+        <div class="grp"><button class="sec2" onclick="closeWorkEdit()">취소</button><button class="pri" id="wkSaveBtn" onclick="saveWorkEdit()">저장</button></div>
       </div>
     </div>
   </div>
@@ -391,7 +410,7 @@
   <main class="main">
     <div class="top">
       <button class="menu-btn" onclick="toggleDrawer()" aria-label="메뉴">☰</button>
-      <h2><span id="chatTitle">새 대화</span> <button class="mini" onclick="newChat()" title="새 대화 시작">＋ 새 대화</button> <span class="mfa-badge" id="mfaBadge">🔐 Entra ID 로그인 대기</span></h2>
+      <h2><span id="chatTitle">새 대화</span> <button class="mini" onclick="newChat()" title="새 대화 시작">＋ 새 대화</button> <button class="mini" id="chatSyncBtn" style="display:none" onclick="refreshSession()" title="팀원이 남긴 새 메시지 확인">↻ 동기화</button> <span class="mfa-badge" id="mfaBadge">🔐 Entra ID 로그인 대기</span></h2>
       <span class="mode">모델 자동 라우팅: <b id="modelLabel">표준 (Haiku)</b></span>
     </div>
 
@@ -1446,8 +1465,9 @@ var CHAT_GATEWAY = 'https://dvzohdqtjzocgcclgwro.supabase.co/functions/v1/jeil-c
 var HISTORY_GATEWAY = 'https://dvzohdqtjzocgcclgwro.supabase.co/functions/v1/jeil-chat-history'; // 대화내역 CRUD(본인 전용)
 var chatHistory = []; // 현재 대화 맥락(메모리) — 서버 chat_session/chat_message가 원본, 클라이언트 캐시 금지
 var _chatAbort = null; // 스트리밍 중이면 AbortController(보내기 버튼이 '중지'로 전환), 아니면 null
-/* work(작업 폴더)·대화 상태 — 메모리 전용. 서버(jeil-chat-history)가 단일 출처 */
-var WS = { works: null, sessions: null, workId: null, sessionId: null };
+/* work(작업 폴더)·대화 상태 — 메모리 전용. 서버(jeil-chat-history)가 단일 출처.
+   works 항목: {id,name,memo,…, is_owner, shared(팀원 존재), member_count, owner_label(공유받은 폴더의 소유자 표기)} */
+var WS = { works: null, sessions: null, workId: null, sessionId: null, me: '' };
 
 function getLiveAuth(){
   try{
@@ -2316,7 +2336,7 @@ function initWorkspace(){
   renderWorkBox();   // 미로그인=예시 / 로그인+미로드=불러오는 중
   if(!hasStoredAuth()) return;
   historyApi('bootstrap').then(function(d){
-    WS.works = d.works || []; WS.sessions = d.sessions || [];
+    WS.works = d.works || []; WS.sessions = d.sessions || []; WS.me = String(d.me || '').toLowerCase();
     renderWorkBox();
   }).catch(function(e){
     // 목록 실패는 챗 사용을 막지 않는다 — 재시도 버튼만 표시
@@ -2345,22 +2365,30 @@ function renderWorkBox(){
   }
   box.innerHTML = '';
   var sess = WS.sessions || [];
-  var groups = (WS.works || []).map(function(w){ return { id: w.id, name: w.name, pseudo: false }; });
-  groups.push({ id: null, name: '일반 대화', pseudo: true });   // 미분류(work_id null) 의사 폴더
+  var knownIds = {};
+  (WS.works || []).forEach(function(w){ knownIds[w.id] = true; });
+  var groups = (WS.works || []).map(function(w){
+    return { id: w.id, name: w.name, pseudo: false, shared: !!w.shared, isOwner: w.is_owner !== false, ownerLabel: w.owner_label || null };
+  });
+  groups.push({ id: null, name: '일반 대화', pseudo: true });   // 미분류 + 접근 상실 폴더의 내 대화(고아) 의사 폴더
   groups.forEach(function(g){
     var open = (WS.workId === g.id);
-    var list = sess.filter(function(s){ return (s.work_id || null) === g.id; });
+    var list = g.pseudo
+      ? sess.filter(function(s){ return !s.work_id || !knownIds[s.work_id]; })
+      : sess.filter(function(s){ return (s.work_id || null) === g.id; });
     var row = document.createElement('div'); row.className = 'wk-row';
     var btn = document.createElement('button');
     btn.className = 'wk-folder' + (open ? ' wk-on' : '');
-    var ic = document.createElement('span'); ic.textContent = (open ? '▾' : '▸') + ' ' + (g.pseudo ? '💬' : '📁');
+    var ic = document.createElement('span'); ic.textContent = (open ? '▾' : '▸') + ' ' + (g.pseudo ? '💬' : (g.shared ? '👥' : '📁'));
     var nm = document.createElement('span'); nm.className = 'wk-nm'; nm.textContent = g.name;
+    btn.title = g.pseudo ? '' : (g.shared ? (g.isOwner ? '공유 폴더(내 소유) — 팀원과 대화 공유 중' : '공유받은 폴더 · 소유: ' + (g.ownerLabel || '')) : g.name);
     btn.appendChild(ic); btn.appendChild(nm);
     if(list.length){ var ct = document.createElement('span'); ct.className = 'wk-cnt'; ct.textContent = String(list.length); btn.appendChild(ct); }
     btn.onclick = function(){ selectWork(g.id); };
     row.appendChild(btn);
     if(!g.pseudo){
-      var more = document.createElement('button'); more.className = 'wk-more'; more.textContent = '⋯'; more.title = '이름·메모 수정 / 삭제';
+      var more = document.createElement('button'); more.className = 'wk-more'; more.textContent = '⋯';
+      more.title = g.isOwner ? '이름·메모·팀 공유 / 삭제' : '팀원 보기 / 나가기';
       more.onclick = function(ev){ ev.stopPropagation(); openWorkEdit(g.id); };
       row.appendChild(more);
     }
@@ -2370,8 +2398,10 @@ function renderWorkBox(){
       var srow = document.createElement('div'); srow.className = 'wk-row wk-sess';
       var sb = document.createElement('button');
       if(WS.sessionId === s.id) sb.className = 'wk-on';
-      sb.textContent = s.title || '(제목 없음)';
-      sb.title = (s.title || '') + (s.last_message_at ? (' · ' + String(s.last_message_at).slice(0, 10)) : '');
+      var mine = !s.upn || String(s.upn).toLowerCase() === WS.me;
+      sb.textContent = (g.shared && !mine ? '👤 ' : '') + (s.title || '(제목 없음)');
+      sb.title = (s.title || '') + (s.last_message_at ? (' · ' + String(s.last_message_at).slice(0, 10)) : '')
+        + (g.shared ? (' · ' + (mine ? '내가 시작한 대화' : '시작: ' + (s.upn || ''))) : '');
       sb.onclick = function(){ openSession(s.id); };
       srow.appendChild(sb);
       var rn = document.createElement('button'); rn.className = 'wk-more'; rn.textContent = '✎'; rn.title = '이름 변경';
@@ -2412,19 +2442,26 @@ function newChat(skipGuard){
   WS.sessionId = null;
   var c = document.getElementById('chat'); if(c) c.innerHTML = WELCOME_HTML;
   var t = document.getElementById('chatTitle'); if(t) t.textContent = '새 대화';
+  updateSyncBtn();
   renderWorkBox();
   showChat();
 }
 
-/* 대화 복원(이어보기) — 원문은 renderMd, 저장된 뷰 페이로드는 renderView로 카드 재현 */
-function openSession(id){
+/* 대화 복원(이어보기) — 원문은 renderMd, 저장된 뷰는 renderView로 재현.
+   공유 대화: 타인 발화는 회색 말풍선+발화자 라벨, ↻ 동기화 버튼 노출(팀원 새 메시지 재조회) */
+function openSession(id, force){
   if(!guardStreaming()) return;
-  if(WS.sessionId === id){ showChat(); return; }
+  if(!force && WS.sessionId === id){ showChat(); return; }
   historyApi('session_messages', { session_id: id }).then(function(d){
     var c = document.getElementById('chat'); if(!c) return;
     c.innerHTML = ''; chatHistory = [];
+    var myUpn = String(d.me || WS.me || '').toLowerCase();
     (d.messages || []).forEach(function(m){
-      if(m.role === 'user'){ addUser(m.content); }
+      if(m.role === 'user'){
+        var sender = String(m.upn || '').toLowerCase();
+        if(sender && myUpn && sender !== myUpn){ addUserOther(m.content, (d.senders && d.senders[sender]) || m.upn); }
+        else { addUser(m.content); }
+      }
       else { addAssistantStatic(m.content, m.views, m.stopped); }
       chatHistory.push({ role: m.role, content: m.content });
     });
@@ -2432,8 +2469,30 @@ function openSession(id){
     var s = d.session || {};
     WS.workId = s.work_id || null;
     var t = document.getElementById('chatTitle'); if(t) t.textContent = s.title || '대화';
+    updateSyncBtn();
     renderWorkBox(); showChat(); scrollBottom();
   }).catch(function(e){ alert('대화 불러오기 실패: ' + (e.message || e)); });
+}
+/* 공유 대화 동기화 버튼 — 현재 세션이 공유 폴더 소속일 때만 표시 */
+function updateSyncBtn(){
+  var btn = document.getElementById('chatSyncBtn'); if(!btn) return;
+  var w = WS.sessionId ? (WS.works || []).find(function(x){ return x.id === WS.workId; }) : null;
+  btn.style.display = (w && w.shared) ? '' : 'none';
+}
+function refreshSession(){ if(WS.sessionId) openSession(WS.sessionId, true); }
+/* 타인(팀원) 발화 말풍선 — 회색 배경 + 발화자 라벨('부서_이름_아이디' 규약), 이니셜 아바타 */
+function addUserOther(text, label){
+  var wrap = el('<div class="msg user other"><div class="bubble"></div></div>');
+  var b = wrap.querySelector('.bubble');
+  var cap = document.createElement('div'); cap.className = 'wk-sender'; cap.textContent = String(label || '');
+  b.appendChild(cap);
+  var t = document.createElement('div'); t.textContent = String(text || '');
+  b.appendChild(t);
+  var who = document.createElement('div'); who.className = 'who other-who';
+  var parts = String(label || '').split('_');
+  who.textContent = (parts.length > 1 ? parts[1] : String(label || '?')).charAt(0);
+  wrap.insertBefore(who, b);
+  document.getElementById('chat').appendChild(wrap);
 }
 function addAssistantStatic(content, views, stopped){
   var wrap = el('<div class="msg ai">' + AI_AVATAR + '<div class="bubble"></div></div>');
@@ -2454,7 +2513,7 @@ function applySessionMeta(meta){
   if(WS.sessions === null) WS.sessions = [];
   var s = WS.sessions.find(function(x){ return x.id === meta.session_id; });
   if(!s){
-    s = { id: meta.session_id, work_id: meta.work_id || null, title: meta.title || null, last_message_at: new Date().toISOString() };
+    s = { id: meta.session_id, work_id: meta.work_id || null, title: meta.title || null, last_message_at: new Date().toISOString(), upn: WS.me };
     WS.sessions.unshift(s);
   } else {
     if(meta.title && !s.title) s.title = meta.title;
@@ -2462,6 +2521,7 @@ function applySessionMeta(meta){
   }
   var t = document.getElementById('chatTitle');
   if(t && (meta.title || s.title)) t.textContent = meta.title || s.title;
+  updateSyncBtn();
   renderWorkBox();
 }
 
@@ -2481,11 +2541,80 @@ var _wkEditId = null;
 function openWorkEdit(id){
   var w = (WS.works || []).find(function(x){ return x.id === id; }); if(!w) return;
   _wkEditId = id;
+  var isOwner = w.is_owner !== false;
   document.getElementById('wkEdName').value = w.name || '';
   document.getElementById('wkEdMemo').value = w.memo || '';
+  // 소유자=편집·초대·삭제 / 팀원=열람·나가기(팀 공유)
+  document.getElementById('wkEdName').disabled = !isOwner;
+  document.getElementById('wkEdMemo').disabled = !isOwner;
+  var inv = document.getElementById('wkInviteRow'); if(inv) inv.style.display = isOwner ? 'flex' : 'none';
+  var sv = document.getElementById('wkSaveBtn'); if(sv) sv.style.display = isOwner ? '' : 'none';
+  var dl = document.getElementById('wkDelBtn'); if(dl) dl.textContent = isOwner ? '폴더 삭제' : '폴더 나가기';
+  var ml = document.getElementById('wkMemberList');
+  if(ml){ ml.innerHTML = ''; var ld = document.createElement('div'); ld.className = 'wk-mem'; ld.textContent = '팀원 목록 불러오는 중…'; ml.appendChild(ld); }
   document.getElementById('wkEditOv').classList.add('open');
+  loadMembers(id);
 }
 function closeWorkEdit(){ _wkEditId = null; document.getElementById('wkEditOv').classList.remove('open'); }
+
+/* 팀원 목록 로드 — 소유자(👑)·팀원 표기('부서_이름_아이디'), 소유자에게만 제거 버튼 */
+function loadMembers(id){
+  historyApi('member_list', { work_id: id }).then(function(d){
+    if(_wkEditId !== id) return;   // 모달이 다른 폴더로 바뀐 뒤 늦게 도착한 응답 무시
+    var box = document.getElementById('wkMemberList'); if(!box) return;
+    box.innerHTML = '';
+    var ow = document.createElement('div'); ow.className = 'wk-mem';
+    var os = document.createElement('span'); os.textContent = '👑 ' + ((d.owner && (d.owner.label || d.owner.upn)) || '');
+    ow.appendChild(os); box.appendChild(ow);
+    (d.members || []).forEach(function(m){
+      var row = document.createElement('div'); row.className = 'wk-mem';
+      var sp = document.createElement('span'); sp.textContent = m.label || m.upn; row.appendChild(sp);
+      if(d.is_owner){
+        var rm = document.createElement('button'); rm.textContent = '제거';
+        rm.onclick = function(){ removeMember(id, m.upn, m.label); };
+        row.appendChild(rm);
+      }
+      box.appendChild(row);
+    });
+    if(!(d.members || []).length && d.is_owner){
+      var e = document.createElement('div'); e.className = 'wk-note'; e.style.padding = '2px 0';
+      e.textContent = '아직 초대한 팀원이 없습니다. 아래에 사내 이메일을 입력해 초대하세요.';
+      box.appendChild(e);
+    }
+  }).catch(function(){ var box = document.getElementById('wkMemberList'); if(box) box.innerHTML = ''; });
+}
+function inviteMember(){
+  var id = _wkEditId; if(!id) return;
+  var inp = document.getElementById('wkInvEmail'); if(!inp) return;
+  var email = (inp.value || '').trim().toLowerCase();
+  if(!email){ alert('초대할 사내 이메일(또는 아이디)을 입력하세요.'); return; }
+  if(email.indexOf('@') < 0) email += '@jeilm.co.kr';   // 아이디만 입력하면 사내 도메인 보완
+  historyApi('member_add', { work_id: id, email: email }).then(function(){
+    inp.value = '';
+    var w = (WS.works || []).find(function(x){ return x.id === id; });
+    if(w){ w.member_count = (w.member_count || 0) + 1; w.shared = true; }
+    loadMembers(id); renderWorkBox(); updateSyncBtn();
+  }).catch(function(e){ alert('초대 실패: ' + (e.message || e)); });
+}
+function removeMember(id, upn, label){
+  if(!confirm('"' + (label || upn) + '" 팀원을 제거할까요? 해당 폴더의 대화에 더 이상 접근할 수 없습니다.')) return;
+  historyApi('member_remove', { work_id: id, email: upn }).then(function(){
+    var w = (WS.works || []).find(function(x){ return x.id === id; });
+    if(w && w.member_count > 0){ w.member_count--; w.shared = w.member_count > 0; }
+    loadMembers(id); renderWorkBox(); updateSyncBtn();
+  }).catch(function(e){ alert('제거 실패: ' + (e.message || e)); });
+}
+/* 공유 폴더 나가기(팀원 본인) — 목록에서 제거되고 대화 접근이 끊긴다 */
+function leaveWork(id){
+  var w = (WS.works || []).find(function(x){ return x.id === id; }); if(!w) return;
+  if(!confirm('공유 폴더 "' + w.name + '"에서 나갈까요? 이 폴더의 공유 대화가 더 이상 보이지 않습니다.')) return;
+  historyApi('member_remove', { work_id: id, email: WS.me || (getLiveAuth() || {}).upn || '' }).then(function(){
+    WS.works = (WS.works || []).filter(function(x){ return x.id !== id; });
+    if(WS.workId === id) WS.workId = null;
+    var curAlive = (WS.sessions || []).some(function(s){ return s.id === WS.sessionId && (s.work_id || null) !== id; });
+    if(WS.sessionId && !curAlive){ newChat(true); } else { renderWorkBox(); }
+  }).catch(function(e){ alert('나가기 실패: ' + (e.message || e)); });
+}
 function saveWorkEdit(){
   var id = _wkEditId; if(!id) return;
   var name = document.getElementById('wkEdName').value.trim();
@@ -2497,7 +2626,12 @@ function saveWorkEdit(){
     closeWorkEdit(); renderWorkBox();
   }).catch(function(e){ alert('저장 실패: ' + (e.message || e)); });
 }
-function deleteWorkFromEdit(){ var id = _wkEditId; closeWorkEdit(); if(id) deleteWork(id); }
+function deleteWorkFromEdit(){
+  var id = _wkEditId; if(!id) return;
+  var w = (WS.works || []).find(function(x){ return x.id === id; });
+  closeWorkEdit();
+  if(w && w.is_owner === false){ leaveWork(id); } else { deleteWork(id); }
+}
 function deleteWork(id){
   var w = (WS.works || []).find(function(x){ return x.id === id; }); if(!w) return;
   if(!confirm('작업 폴더 "' + w.name + '"와 폴더 안의 대화가 모두 삭제됩니다. 계속할까요?')) return;
