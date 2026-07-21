@@ -74,7 +74,9 @@ const supabaseAdapter = {
       })),
       msgs: (mg[h.po_no] || []).map((m) => ({
         who: m.sender_role === "supplier" ? "me" : "them",
-        name: m.sender_name || "", text: m.body, t: fmt(m.created_at), read_at: m.read_at || null,
+        // sender_id: 사내 발신자는 사내 이메일 — 화면이 v_erp_user_dept로 "부서 · 이름" 라벨을 붙이는 데 쓴다
+        name: m.sender_name || "", sender_id: m.sender_id || "",
+        text: m.body, t: fmt(m.created_at), read_at: m.read_at || null,
       })),
     }));
   },
@@ -362,6 +364,35 @@ export const erpApi = {
     const { data, error } = await supabase.from("v_erp_dept_roster")
       .select("*").order("emp_cnt", { ascending: false });
     if (error) throw error; return data || [];
+  },
+
+  // ---- 사내 사용자 표기(부서·이름) — 챗봇 라벨과 동일 원천(v_erp_user_dept) ----
+  // 표기 규약: 화면 라벨은 "부서 · 이름"(예: 구매팀 · 최동혁), 미매핑은 아이디로 폴백.
+  // 챗봇('부서_이름_아이디')과 원천·의미는 같고 표시 형태만 화면에 맞춘다.
+  // 조회 실패는 예외로 올리지 않는다 — 이름 표시는 부가 정보이므로 화면 동작을 막지 않는다.
+  async userLabels(emails = []) {
+    const uniq = [...new Set(emails.map((e) => String(e || "").trim().toLowerCase()).filter((e) => e.includes("@")))];
+    const out = {};
+    if (!uniq.length) return out;
+    try {
+      const { data } = await supabase.from("v_erp_user_dept").select("email,dept_nm,emp_nm").in("email", uniq);
+      for (const r of data || []) {
+        const e = String(r.email || "").toLowerCase();
+        if (!e) continue;
+        out[e] = { email: e, dept: r.dept_nm || "", name: r.emp_nm || "",
+                   label: r.emp_nm ? `${r.dept_nm || "미매핑"} · ${r.emp_nm}` : e.split("@")[0] };
+      }
+    } catch { /* 매핑 실패 시 아이디 폴백 */ }
+    for (const e of uniq) if (!out[e]) out[e] = { email: e, dept: "", name: "", label: e.split("@")[0] };
+    return out;
+  },
+  // 로그인한 본인의 표기 — {email, dept, name, label}. 세션 없으면 null.
+  async myLabel() {
+    const { data: { user } } = await supabase.auth.getUser();
+    const email = (user?.email || "").toLowerCase();
+    if (!email) return null;
+    const m = await this.userLabels([email]);
+    return m[email] || { email, dept: "", name: "", label: email.split("@")[0] };
   },
 };
 

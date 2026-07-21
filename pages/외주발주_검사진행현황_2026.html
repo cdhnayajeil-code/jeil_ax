@@ -235,6 +235,12 @@ async function loadData(){
     portalApi.getOrders().catch(e=>{ console.warn('협력사 포털 로드 실패:', e.message||e); return []; }),
   ]);
   const supByPo={}; supOrders.forEach(o=>{ supByPo[o.no]=o; });
+  // 사내 발신자(이메일) → "부서 · 이름" 라벨 일괄 조회(챗봇과 동일 원천 v_erp_user_dept).
+  // 실패해도 메시지·목록 렌더는 그대로 진행(라벨은 부가 정보).
+  try{
+    const ids=[]; supOrders.forEach(o=>(o.msgs||[]).forEach(m=>{ if(m.who==='them'&&m.sender_id) ids.push(m.sender_id); }));
+    if(ids.length) USER_LABELS = Object.assign(USER_LABELS, await erpApi.userLabels(ids));
+  }catch(e){ /* 라벨 조회 실패는 무시 */ }
   const used=new Set(); const merged=[];
   // ERP 발주원장 기준 base — 같은 po_no의 협력사 등록분은 오버레이(사진·검수·메시지·상태)
   erpHdrs.forEach(h=>{
@@ -351,7 +357,7 @@ function toRow(o){
     _sup: ((o.photos&&o.photos.length)||(o.msgs&&o.msgs.length))?true:false,
     _supTxt: link?(SUP_TXT[o.status]||''):'',
     _photoCount:(o.photos||[]).length, _msgCount:(o.msgs||[]).length,
-    _lastMsg:(o.msgs&&o.msgs.length)?((o.msgs[o.msgs.length-1].who==='me'?'협력사: ':'구매: ')+o.msgs[o.msgs.length-1].text):'',
+    _lastMsg:(o.msgs&&o.msgs.length)?(function(m){ return (m.who==='me'?'협력사':senderLabel(m))+': '+m.text; })(o.msgs[o.msgs.length-1]):'',
     insp:{ req:o.inspReqNo||'-', res:(insMeta&&insMeta.resultNo)||'-', items:'치수/외관', ac:'-', re:(insMeta&&insMeta.result==='합격')?'0':'-',
       judge: insMeta?(insMeta.result==='합격'?'합격 (검수확정)':'불합격 (재작업)'):(o.inspReqNo?'검사신청(협력사 요청)':(erpOnly?'-':'진행중')),
       by:(insMeta&&insMeta.by)||'-', dt:((insMeta&&insMeta.at)||'').slice(0,10) },
@@ -436,15 +442,30 @@ var MSGPO=''; var ROWPO={};
 function openMsg(i){ MSGPO=ROWPO[i]; renderMsgBox(); document.getElementById('msgbox').classList.add('on');
   portalApi.markRead(MSGPO,'supplier').catch(function(){}); } // 협력사 발신분 읽음 처리(미읽음 배지 정합)
 function closeMsg(){ document.getElementById('msgbox').classList.remove('on'); }
+/* 사내 발신자 표기 — 챗봇과 동일 원천(v_erp_user_dept)의 "부서 · 이름".
+   우선순위: 발신자 이메일의 부서 매핑 > 저장된 sender_name > '구매팀'(구 데이터 폴백).
+   USER_LABELS는 loadData()가 메시지의 사내 발신자 이메일을 모아 채운다. */
+var USER_LABELS = {}, MY_LABEL = null;
+// 메시지 본문·발신자명은 사용자 입력(사내·협력사) → innerHTML 삽입 전 반드시 이스케이프(저장형 XSS 차단)
+function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function senderLabel(m){
+  var id = String(m.sender_id||'').toLowerCase();
+  var hit = id && USER_LABELS[id];
+  if(hit && hit.name) return hit.label;
+  if(m.name && m.name.indexOf('@') < 0) return m.name;   // 이메일 원문이 저장된 구 데이터는 라벨로 쓰지 않음
+  return hit ? hit.label : '구매팀';
+}
 function renderMsgBox(){ var po=MSGPO; var o=ORDERS.find(function(x){return x.no===po;})||{}; var ms=o.msgs||[];
   var bp=o.vendor_name||o.bp||'협력사';
   document.getElementById('mbTitle').textContent='💬 '+po+' · '+bp;
   document.getElementById('mbBody').innerHTML = ms.length? ms.map(function(m){ var mine=m.who==='them';
-    return '<div class="mbmsg '+(mine?'me':'them')+'"><div class="mw">'+(mine?'구매팀':bp)+'</div>'+m.text+'<div class="mt">'+m.t+'</div></div>'; }).join('')
+    var who = mine ? senderLabel(m) : (m.name || bp);
+    return '<div class="mbmsg '+(mine?'me':'them')+'"><div class="mw">'+esc(who)+'</div>'+esc(m.text)+'<div class="mt">'+esc(m.t)+'</div></div>'; }).join('')
     : '<div style="text-align:center;color:var(--muted);padding:34px;font-size:12.5px">대화가 없습니다.<br>첫 메시지를 보내보세요.</div>';
   var bd=document.getElementById('mbBody'); setTimeout(function(){ bd.scrollTop=bd.scrollHeight; },20); }
 async function sendMsgD(){ var inp=document.getElementById('mbInput'); var v=inp.value.trim(); if(!v) return; inp.value='';
-  try{ await portalApi.sendMessage(MSGPO, v, 'internal', '제일엠앤에스 구매팀'); await loadData(); renderMsgBox(); render(); }
+  // 발신자명은 로그인 본인의 "부서 · 이름"(챗봇 표기 규약과 동일 원천) — 협력사 화면에도 그대로 표시된다
+  try{ await portalApi.sendMessage(MSGPO, v, 'internal', (MY_LABEL && MY_LABEL.label) || '제일엠앤에스 구매팀'); await loadData(); renderMsgBox(); render(); }
   catch(e){ alert('전송 실패: '+(e.message||e)); inp.value=v; } }
 var INSPPO='';
 function openInspect(i){ INSPPO=ROWPO[i]; var po=INSPPO; var o=ORDERS.find(function(x){return x.no===po;})||{};
@@ -484,7 +505,7 @@ function cardHTML(r,i){
   const detail='<div class="odetail hide" id="od'+i+'">'
     +'<div style="margin-bottom:9px"><b style="display:block;font-size:10px;color:var(--muted);font-weight:600;margin-bottom:2px">품목</b><span style="font-size:12.5px">'+(r.item||'-')+'</span></div>'
     +'<div class="dg">'+cells+'</div>'
-    +(r._msgCount?'<div style="font-size:11px;color:var(--muted);margin-top:8px">💬 협력사 메시지 '+r._msgCount+'건 · 최근: '+(r._lastMsg||'')+'</div>':'')
+    +(r._msgCount?'<div style="font-size:11px;color:var(--muted);margin-top:8px">💬 협력사 메시지 '+r._msgCount+'건 · 최근: '+esc(r._lastMsg||'')+'</div>':'')
     +((r.insp.res!=='-' && r._inspBy)?'<div style="font-size:11px;color:var(--navy2);margin-top:8px;background:#fff;border:1px solid var(--line);border-radius:7px;padding:8px 10px"><b>🔬 검수 판정</b> · '+(r._inspAt||'').slice(0,16)+' · <b style="color:'+(r.fail?'var(--red)':'var(--green)')+'">'+(r.fail?'불합격':'합격')+'</b> · 판정자 '+r._inspBy+'</div>':'')
     +'</div>';
   return '<div class="ocard '+(r._sup?'linked':'')+' '+(r.fail?'hold':'')+'">'
@@ -564,6 +585,8 @@ async function boot(){
   }
   // 기준일 오늘 기준 표시
   var today=new Date(); document.getElementById('baseDate').textContent=today.toISOString().slice(0,10);
+  // 내 표기(부서 · 이름) — 메시지 전송 시 발신자명으로 사용. 실패해도 화면은 정상 동작.
+  try{ MY_LABEL = await erpApi.myLabel(); }catch(e){ MY_LABEL = null; }
   await loadData(); render();
   portalApi.subscribe(async()=>{ await loadData(); render(); var mb=document.getElementById('msgbox'); if(mb&&mb.classList.contains('on')) renderMsgBox(); });
 }

@@ -109,6 +109,13 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <tbody>
 <tr>
 <td>2026-07-21</td>
+<td>협력사포털·보안</td>
+<td><code>pages/외주발주_검사진행현황_2026.html</code>, <code>app/lib/api.js</code></td>
+<td><strong>외주 발주·검사 메시지 발신자 표기를 챗봇 규약으로 통일 + 저장형 XSS 차단</strong>. ① 기존: 사내 발신자가 말풍선에 <code>'구매팀'</code>으로 <strong>하드코딩</strong>되고 전송 시 <code>sender_name</code>에 리터럴 <code>'제일엠앤에스 구매팀'</code>을 저장 — DB의 <code>sender_name</code>은 표시에 쓰이지도 않아 "제일엠앤에스 구매팀/최동혁/이메일 원문"이 혼재(실데이터 확인). ② 변경: <code>erpApi.userLabels()</code>·<code>myLabel()</code> 공통 함수 신설(원천 <code>v_erp_user_dept</code> — 챗봇 라벨과 동일, 표시는 화면에 맞춰 <strong>"부서 · 이름"</strong>), 전송 시 로그인 본인 라벨을 <code>sender_name</code>에 저장하고, 렌더는 <code>sender_id</code>(이메일)→부서 매핑을 우선해 <strong>과거 메시지까지 소급 보정</strong>(미매핑·구 데모 데이터는 기존 이름→'구매팀' 순 폴백, 6개 시나리오 유닛검증 통과). 목록 카드의 최근 메시지 미리보기 접두('구매: ')도 동일 라벨로 통일. 협력사 화면(<code>협력사_모바일_포털.html</code>)은 이미 <code>sender_name</code>을 표시하므로 자동 반영. ③ <strong>보안 부수 수정</strong>: 같은 렌더 함수에서 메시지 본문·시각이 이스케이프 없이 innerHTML로 삽입되던 <strong>저장형 XSS</strong>(협력사 입력이 사내 화면에서 실행 가능)를 <code>esc()</code> 도입으로 차단(본문·발신자명·미리보기 전부).</td>
+<td>최동혁(+Claude)</td>
+</tr>
+<tr>
+<td>2026-07-21</td>
 <td>챗봇 UI·공유</td>
 <td><code>supabase/functions/jeil-chat-history/index.ts</code>(v2→<strong>v3</strong>), <code>04_챗봇_포털_데모UI.html</code>, 통합본</td>
 <td><strong>팀원 초대 UX 고도화 — Outlook '받는 사람' 방식 인원 검색·칩 선택 + 초대 링크</strong>. ① 서버 <code>people_search</code> op 신설: 사내 인원을 <strong>이름·부서·아이디</strong> 부분일치로 검색(원본=ERP 사용자·부서 매핑 <code>v_erp_user_dept</code> 89명·22부서 — Graph 조직 검색은 앱 위임권한이 <code>User.Read</code>뿐이라 미사용, 부서 정보도 ERP가 정확). 규모가 작아 <strong>전량 조회 후 서버 메모리 필터</strong>(PostgREST 필터 문자열에 사용자 입력 미주입 — 주입 차단), 정렬은 이름 시작일치&gt;부서&gt;아이디, 이미 소유자·팀원인 사람은 <code>taken</code> 플래그로 표시. <code>member_add</code>는 <strong>복수 초대(emails[])</strong> 지원(단수 email 하위호환·상한 20명 합산 검증). ② 프론트: Outlook 메일 받는사람과 동일한 <strong>칩(chip) 입력기</strong> — 검색어 입력 시 드롭다운(아바타·이름·부서·이메일), ↑↓ 이동(이미 팀원은 자동 건너뜀)·Enter/쉼표/세미콜론/Tab 확정·Backspace 마지막 칩 삭제·✕ 개별 제거, 검색 결과 없으면 사내 이메일 직접 입력 허용(아이디만 쓰면 <code>@jeilm.co.kr</code> 자동 보완, 서버 재검증), 늦게 도착한 이전 검색 응답 폐기(경합 방지). ③ <strong>초대 링크</strong>: 초대 완료 시 <code>#work=&lt;uuid&gt;</code> 딥링크 노출 — 복사 버튼 + <strong>Outlook 메일 초안(mailto) 열기</strong>(자동 발송 금지, 사람이 직접 전송 — CLAUDE.md §1.6). 링크 수신자가 열면 로그인 후 해당 폴더·최근 대화로 자동 이동(OAuth 리다이렉트로 fragment가 유실되므로 sessionStorage 보관 후 복원), <strong>링크는 권한을 부여하지 않고 화면 연결만</strong> — 미초대자는 "접근할 수 없습니다" 안내(접근 판정은 서버 멤버십 유지). Chrome 실측: 부서명 검색·이미 팀원 회색 처리·키보드 건너뜀·클릭 선택·도메인 보완·Backspace·초대 후 칩 비움·링크 생성 전 항목 통과.</td>
