@@ -106,8 +106,10 @@
   @keyframes msgIn{from{opacity:0; transform:translateY(8px);} to{opacity:1; transform:none;}}
   .msg{display:flex; gap:12px; margin-bottom:22px; max-width:780px; animation:msgIn .28s ease;}
   @media (prefers-reduced-motion:reduce){ .msg{animation:none;} }
-  .msg .who{width:34px; height:34px; border-radius:50%; flex:none; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; color:#fff; box-shadow:0 2px 6px rgba(16,42,80,.16);}
+  .msg .who{width:34px; height:34px; border-radius:50%; flex:none; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; color:#fff; box-shadow:0 2px 6px rgba(16,42,80,.16); overflow:hidden; background-size:cover; background-position:center;}
   .msg.ai .who{background:var(--navy);}
+  .msg .who.ai-logo{background:#fff; border:1.5px solid var(--line);}
+  .msg .who.ai-logo img{width:19px; height:auto; display:block;}
   .msg.user{flex-direction:row-reverse; margin-left:auto;}
   .msg.user .who{background:var(--accent2);}
   .bubble{background:#fff; border:1px solid var(--line); border-radius:14px 14px 14px 5px; padding:14px 17px; line-height:1.7; font-size:13.8px; box-shadow:0 2px 8px rgba(16,42,80,.06); max-width:100%; overflow-x:auto;}
@@ -392,9 +394,9 @@
 
     <div class="chat" id="chat">
       <div class="msg ai">
-        <div class="who">AI</div>
+        <div class="who ai-logo"></div>
         <div class="bubble">
-          안녕하세요, <b>홍길동</b>님. 사내 AI 포털입니다. 🙂<br>
+          안녕하세요, <b class="hello-nm">홍길동</b>님. 사내 AI 포털입니다. 🙂<br>
           문서 초안, 데이터 조회·요약, 규정 검색 등을 도와드립니다. 왼쪽 템플릿을 누르거나 자유롭게 입력해 보세요.
           <div class="suggest">
             <button onclick="askExample('최근 구매요청과 발주 진행 현황 조회해줘')">🧾 구매요청·발주 정보 조회</button>
@@ -948,18 +950,34 @@ const DEMOS = {
   }
 };
 
+/* ===== 사용자 표시명·아바타 + AI 로고 아바타 =====
+   데모 기본값(홍길동)은 미로그인 한정 — 로그인하면 setUser가 실명·이니셜·프로필사진으로 갱신한다. */
+var USER_NAME = '홍길동', USER_INITIAL = '홍', USER_PHOTO = null;
+var AI_LOGO_SRC = 'data:image/png;base64,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';
+var AI_AVATAR = '<div class="who ai-logo"><img src="' + AI_LOGO_SRC + '" alt=""></div>';
+/* 로그인 실명 반영 — 사이드바 프로필 외에 환영 인사(.hello-nm)·새 대화 템플릿(WELCOME_HTML)까지 동기화 */
+function applyUserNameUI(){
+  var list = document.querySelectorAll('.hello-nm');
+  for(var i=0; i<list.length; i++){ list[i].textContent = USER_NAME; }
+  if(typeof WELCOME_HTML === 'string' && WELCOME_HTML){
+    WELCOME_HTML = WELCOME_HTML.replace(/(<b class="hello-nm">)[\s\S]*?(<\/b>)/, '$1' + escHtml(USER_NAME) + '$2');
+  }
+}
 function el(html){ const d=document.createElement('div'); d.innerHTML=html.trim(); return d.firstChild; }
 function scrollBottom(){ const c=document.getElementById('chat'); c.scrollTop=c.scrollHeight; }
 
 function addUser(text){
-  // 이스케이프는 호출측이 아닌 여기서 일괄 수행(&·<·> — XSS 방지)
+  // 이스케이프는 호출측이 아닌 여기서 일괄 수행(&·<·> — XSS 방지). 아바타는 로그인 사진 > 이니셜 순
+  const who = USER_PHOTO
+    ? `<div class="who" style="background-image:url('${USER_PHOTO}')"></div>`
+    : `<div class="who">${escHtml(USER_INITIAL)}</div>`;
   document.getElementById('chat').appendChild(el(
-    `<div class="msg user"><div class="who">홍</div><div class="bubble">${escHtml(String(text||''))}</div></div>`));
+    `<div class="msg user">${who}<div class="bubble">${escHtml(String(text||''))}</div></div>`));
   scrollBottom();
 }
 function addAI(html, model){
   document.getElementById('modelLabel').textContent = model || '표준 (Haiku)';
-  const typing = el(`<div class="msg ai"><div class="who">AI</div><div class="bubble typing"><i></i><i></i><i></i></div></div>`);
+  const typing = el(`<div class="msg ai">${AI_AVATAR}<div class="bubble typing"><i></i><i></i><i></i></div></div>`);
   document.getElementById('chat').appendChild(typing); scrollBottom();
   setTimeout(()=>{ typing.querySelector('.bubble').classList.remove('typing'); typing.querySelector('.bubble').innerHTML=html; scrollBottom(); }, 900);
 }
@@ -1210,7 +1228,11 @@ function setUser(name, email, sub){
   var av = document.querySelector('.profile .avatar');
   var nm = document.querySelector('.profile b');
   var sp = document.querySelector('.profile span');
-  if(name){ av.textContent = name.charAt(0); nm.textContent = name; }
+  if(name){
+    av.textContent = name.charAt(0); nm.textContent = name;
+    USER_NAME = name; USER_INITIAL = name.charAt(0);   // 대화 아바타·환영 인사도 실명으로
+    applyUserNameUI();
+  }
   if(sp) sp.textContent = sub || (email || 'Entra 인증 계정');
 }
 function setAuthBadge(html){ var b=document.getElementById('mfaBadge'); if(b) b.innerHTML = html; }
@@ -1224,6 +1246,7 @@ function loadProfilePhoto(){
     .then(function(b){
       if(!b) return;
       var url = URL.createObjectURL(b);
+      USER_PHOTO = url;   // 이후 내 대화 말풍선 아바타에도 사진 사용
       var av = document.querySelector('.profile .avatar');
       if(av){ av.textContent=''; av.style.backgroundImage='url('+url+')'; av.style.backgroundSize='cover'; av.style.backgroundPosition='center'; av.style.backgroundRepeat='no-repeat'; }
     }).catch(function(){});
@@ -1718,7 +1741,7 @@ async function sendLive(v, auth){
   // 새 배열로 교체돼도, 중지된 스트림의 부분 응답이 "새 대화" 맥락에 끼어들지 않게 한다.
   var hist = chatHistory;
   hist.push({role:'user', content:v});
-  var wrap = el('<div class="msg ai"><div class="who">AI</div><div class="bubble typing"><i></i><i></i><i></i></div></div>');
+  var wrap = el('<div class="msg ai">' + AI_AVATAR + '<div class="bubble typing"><i></i><i></i><i></i></div></div>');
   document.getElementById('chat').appendChild(wrap); scrollBottom();
   var bubble = wrap.querySelector('.bubble');
   // 중지 대응: text·viewsEl·paint를 try 밖에 두어 abort(catch)에서도 부분 응답을 마무리할 수 있게 한다.
@@ -2390,7 +2413,7 @@ function openSession(id){
   }).catch(function(e){ alert('대화 불러오기 실패: ' + (e.message || e)); });
 }
 function addAssistantStatic(content, views, stopped){
-  var wrap = el('<div class="msg ai"><div class="who">AI</div><div class="bubble"></div></div>');
+  var wrap = el('<div class="msg ai">' + AI_AVATAR + '<div class="bubble"></div></div>');
   var bubble = wrap.querySelector('.bubble');
   if(Array.isArray(views) && views.length){
     var stack = document.createElement('div'); stack.className = 'cv-stack'; bubble.appendChild(stack);
@@ -2483,6 +2506,13 @@ function deleteSession(id){
   }).catch(function(e){ alert('삭제 실패: ' + (e.message || e)); });
 }
 
+/* AI 로고 아바타 주입(정적 환영 카드) — WELCOME_HTML 캡처 "전"에 실행되어야 새 대화 복원에도 반영 */
+(function(){
+  var list = document.querySelectorAll('.who.ai-logo');
+  for(var i=0; i<list.length; i++){
+    if(!list[i].firstElementChild){ var im = document.createElement('img'); im.src = AI_LOGO_SRC; im.alt = ''; list[i].appendChild(im); }
+  }
+})();
 /* 초기 환영 화면 보관 — 새 대화 시 복원(스크립트가 body 말미라 #chat은 이미 파싱됨) */
 var WELCOME_HTML = (function(){ var c = document.getElementById('chat'); return c ? c.innerHTML : ''; })();
 
