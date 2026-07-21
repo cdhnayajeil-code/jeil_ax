@@ -47,18 +47,26 @@
   .tpl .dept-sel{width:100%; box-sizing:border-box; background:rgba(255,255,255,.10); color:#e7edf6; border:1px solid rgba(255,255,255,.20); border-radius:8px; padding:9px 10px; font-size:12.5px; font-family:inherit; cursor:pointer;}
   .tpl .dept-sel:focus{outline:none; border-color:#4a8ed0;}
   .tpl .dept-sel option{color:#1a2f4e;}
-  /* work(작업 폴더)·대화 목록 — 로그인 시 '최근 대화' 자리를 동적 목록으로 대체 */
-  .wk-head{display:flex; align-items:center; justify-content:space-between; padding:10px 6px 8px 0;}
-  .wk-head h3{padding:0 0 0 6px;}
-  .wk-add{background:transparent; border:1px solid rgba(255,255,255,.3); color:#cfe0f3; font-size:13px; width:24px; height:24px; border-radius:6px; cursor:pointer; line-height:1; flex:none;}
-  .wk-add:hover{background:rgba(255,255,255,.12);}
-  #workBox .wk-row{display:flex; gap:4px; margin-bottom:6px;}
-  #workBox .wk-row > button:first-child{flex:1; margin-bottom:0; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
-  #workBox .wk-row.wk-sess{margin-left:14px;}
-  #workBox button.wk-on{background:rgba(255,255,255,.18); border-left:3px solid #4a8ed0;}
-  #workBox .wk-more{flex:none; width:26px; background:rgba(255,255,255,.06); border:none; color:#9fb1ca; border-radius:8px; cursor:pointer; font-size:12px; font-family:inherit;}
+  /* work(작업 폴더)·대화 목록 — 로그인 시 '최근 대화' 자리를 동적 목록으로 대체
+     주의: .tpl button{display:block; width:100%}가 특이도로 이기므로, 소형 버튼은 .tpl .wk-* 이상으로 재정의 */
+  .wk-head{display:flex; align-items:center; gap:6px; padding:12px 0 8px;}
+  .wk-head h3{flex:1 1 auto; min-width:0; padding:0 0 0 6px; white-space:nowrap;}
+  .tpl .wk-add{display:inline-flex; align-items:center; justify-content:center; width:24px; height:24px; padding:0; margin:0; flex:none; background:transparent; border:1px solid rgba(255,255,255,.3); color:#cfe0f3; font-size:14px; border-radius:7px; cursor:pointer; line-height:1;}
+  .tpl .wk-add:hover{background:rgba(255,255,255,.14); border-color:#7db8ea; color:#fff;}
+  #workBox .wk-row{display:flex; gap:4px; margin-bottom:5px; align-items:stretch;}
+  #workBox .wk-row > button:first-child{flex:1; margin-bottom:0; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; text-align:left;}
+  #workBox button.wk-folder{display:flex; align-items:center; gap:7px; background:rgba(255,255,255,.09); font-weight:600; border-left:3px solid transparent;}
+  #workBox .wk-nm{flex:1 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; text-align:left;}
+  #workBox .wk-cnt{flex:none; font-size:10px; font-weight:400; color:#9cc3ec; background:rgba(255,255,255,.12); border-radius:9px; padding:1px 7px;}
+  #workBox button.wk-on{background:rgba(74,142,208,.26); border-left:3px solid #7db8ea;}
+  #workBox .wk-row.wk-sess{margin-left:10px; padding-left:8px; border-left:1px solid rgba(255,255,255,.14);}
+  #workBox .wk-sess > button:first-child{font-size:12px; padding:7px 10px;}
+  #workBox .wk-more{flex:none; width:24px; background:transparent; border:none; color:#8296b3; border-radius:7px; cursor:pointer; font-size:12px; font-family:inherit; opacity:.55;}
+  #workBox .wk-row:hover .wk-more{opacity:1;}
   #workBox .wk-more:hover{background:rgba(255,255,255,.16); color:#fff;}
-  .wk-note{font-size:10.5px; color:#9fb1ca; padding:2px 6px 8px; line-height:1.5;}
+  #workBox .wk-new{background:transparent; border:1px dashed rgba(255,255,255,.28); color:#9cc3ec; font-size:12px; margin-left:18px; width:calc(100% - 18px);}
+  #workBox .wk-new:hover{background:rgba(255,255,255,.08); border-color:#7db8ea;}
+  .wk-note{font-size:10.5px; color:#8fa5c4; padding:3px 6px 8px; line-height:1.6;}
   /* work 이름·메모 편집 모달 */
   .wk-ov{position:fixed; inset:0; background:rgba(10,20,35,.55); display:none; align-items:center; justify-content:center; z-index:60;}
   .wk-ov.open{display:flex;}
@@ -355,11 +363,11 @@
       <div id="tplBox"></div>
       <div class="wk-head"><h3>작업 폴더 · 대화</h3><button class="wk-add" onclick="createWork()" title="작업 폴더 만들기">＋</button></div>
       <div id="workBox">
-        <!-- 미로그인(데모): 정적 예시. 로그인하면 renderWorkBox()가 work·대화 동적 목록으로 교체 -->
-        <button onclick="runDemo('cost')">2025-095-SUL-EC 수지 분석</button>
-        <button>헝가리 현장 출장비 정리</button>
-        <button>기성 청구 일정 확인</button>
-        <div class="wk-note">MS 로그인하면 내 작업 폴더·대화 내역이 저장·표시됩니다.</div>
+        <!-- 미로그인(예시 질문): 클릭 시 해당 질문 전송. 로그인하면 renderWorkBox()가 work·대화 동적 목록으로 교체 -->
+        <button onclick="askExample('최근 구매요청과 발주 진행 현황 조회해줘')">🧾 구매요청·발주 정보 조회</button>
+        <button onclick="askExample('밸브 품목정보 검색해줘')">📦 품목정보 확인</button>
+        <button onclick="askExample('2026년 인원현황 알려줘')">👥 2026년 인원현황</button>
+        <div class="wk-note">예시 질문입니다 — MS 로그인하면 실데이터로 답하고, 내 작업 폴더·대화 내역이 저장·표시됩니다.</div>
       </div>
     </div>
     <button class="admin-open" onclick="showPages()">📁 사내 운영 페이지</button>
@@ -381,9 +389,9 @@
           안녕하세요, <b>홍길동</b>님. 사내 AI 포털입니다. 🙂<br>
           문서 초안, 데이터 조회·요약, 규정 검색 등을 도와드립니다. 왼쪽 템플릿을 누르거나 자유롭게 입력해 보세요.
           <div class="suggest">
-            <button onclick="runDemo('cost')">2025-095-SUL-EC 원가 요약 보여줘</button>
-            <button onclick="runDemo('report')">주간보고 초안 작성해줘</button>
-            <button onclick="runDemo('rule')">연차휴가 규정 알려줘</button>
+            <button onclick="askExample('최근 구매요청과 발주 진행 현황 조회해줘')">🧾 구매요청·발주 정보 조회</button>
+            <button onclick="askExample('밸브 품목정보 검색해줘')">📦 품목정보 확인</button>
+            <button onclick="askExample('2026년 인원현황 알려줘')">👥 2026년 인원현황</button>
           </div>
         </div>
       </div>
@@ -2217,6 +2225,12 @@ function setSendState(streaming){
   b.textContent = streaming ? '중지' : '보내기';
   b.classList.toggle('stop', !!streaming);
 }
+/* 예시 질문 버튼 — 입력창에 넣고 즉시 전송(로그인 시 실데이터 도구 응답, 미로그인은 데모 안내) */
+function askExample(q){
+  if(_chatAbort) return;
+  var inp = document.getElementById('inp'); if(!inp) return;
+  showChat(); inp.value = q; send();
+}
 /* 스트리밍 중 화면 전환·삭제 가드 — 확인 후 중지하고 진행 */
 function guardStreaming(){
   if(!_chatAbort) return true;
@@ -2250,9 +2264,10 @@ function initWorkspace(){
 function renderWorkBox(){
   var box = document.getElementById('workBox'); if(!box) return;
   if(!getLiveAuth() || WS.works === null){
-    box.innerHTML = '<button onclick="runDemo(\'cost\')">2025-095-SUL-EC 수지 분석</button>'
-      + '<button>헝가리 현장 출장비 정리</button><button>기성 청구 일정 확인</button>'
-      + '<div class="wk-note">MS 로그인하면 내 작업 폴더·대화 내역이 저장·표시됩니다.</div>';
+    box.innerHTML = '<button onclick="askExample(\'최근 구매요청과 발주 진행 현황 조회해줘\')">🧾 구매요청·발주 정보 조회</button>'
+      + '<button onclick="askExample(\'밸브 품목정보 검색해줘\')">📦 품목정보 확인</button>'
+      + '<button onclick="askExample(\'2026년 인원현황 알려줘\')">👥 2026년 인원현황</button>'
+      + '<div class="wk-note">예시 질문입니다 — MS 로그인하면 실데이터로 답하고, 내 작업 폴더·대화 내역이 저장·표시됩니다.</div>';
     return;
   }
   box.innerHTML = '';
@@ -2261,10 +2276,14 @@ function renderWorkBox(){
   groups.push({ id: null, name: '일반 대화', pseudo: true });   // 미분류(work_id null) 의사 폴더
   groups.forEach(function(g){
     var open = (WS.workId === g.id);
+    var list = sess.filter(function(s){ return (s.work_id || null) === g.id; });
     var row = document.createElement('div'); row.className = 'wk-row';
     var btn = document.createElement('button');
-    if(open) btn.className = 'wk-on';
-    btn.textContent = (open ? '▾ ' : '▸ ') + (g.pseudo ? g.name : '📁 ' + g.name);
+    btn.className = 'wk-folder' + (open ? ' wk-on' : '');
+    var ic = document.createElement('span'); ic.textContent = (open ? '▾' : '▸') + ' ' + (g.pseudo ? '💬' : '📁');
+    var nm = document.createElement('span'); nm.className = 'wk-nm'; nm.textContent = g.name;
+    btn.appendChild(ic); btn.appendChild(nm);
+    if(list.length){ var ct = document.createElement('span'); ct.className = 'wk-cnt'; ct.textContent = String(list.length); btn.appendChild(ct); }
     btn.onclick = function(){ selectWork(g.id); };
     row.appendChild(btn);
     if(!g.pseudo){
@@ -2274,7 +2293,6 @@ function renderWorkBox(){
     }
     box.appendChild(row);
     if(!open) return;
-    var list = sess.filter(function(s){ return (s.work_id || null) === g.id; });
     list.forEach(function(s){
       var srow = document.createElement('div'); srow.className = 'wk-row wk-sess';
       var sb = document.createElement('button');
@@ -2291,7 +2309,7 @@ function renderWorkBox(){
       srow.appendChild(dl);
       box.appendChild(srow);
     });
-    var nb = document.createElement('button'); nb.textContent = '＋ 새 대화'; nb.style.color = '#9cc3ec';
+    var nb = document.createElement('button'); nb.className = 'wk-new'; nb.textContent = '＋ 새 대화';
     nb.onclick = function(){ WS.workId = g.id; newChat(); };
     box.appendChild(nb);
     if(!list.length){
