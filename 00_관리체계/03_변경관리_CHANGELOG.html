@@ -109,6 +109,13 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <tbody>
 <tr>
 <td>2026-07-21</td>
+<td>ERP 연계·인증</td>
+<td><code>app/erp-status.html</code></td>
+<td><strong>ERP 연동 현황 화면 로그인 게이트 결함 수정 — 로그인 상태인데도 "사내 로그인 필요"만 뜨던 문제</strong>. 사용자 제보로 확인: 이 화면은 <code>erpApi</code>만 import하고 <strong>Supabase 세션 확인·SSO 로직이 아예 없어</strong>, 다른 사내 화면(<code>pages/외주발주_검사진행현황_2026.html</code>)에서 미리 로그인해 둔 경우가 아니면 조회가 RLS로 차단돼 항상 게이트가 표시됐음. 챗봇 포털의 <strong>Entra 토큰(<code>jeilax_auth</code>)과 이 화면의 Supabase Auth 세션은 별개 경로</strong>라 포털 로그인만으로는 열리지 않았던 것(권한·뷰 GRANT는 정상 — authenticated SELECT 확인). 수정: 외주발주 화면과 동일 패턴으로 <code>supabase.auth.getSession()</code> + <code>claimsOf()</code>(app_metadata.role) 검사 + <strong>Azure SSO 자동 로그인</strong>(<code>?sso=1</code> 무한 리다이렉트 가드) 적용, 상태별 안내 분리 — 세션 없음=자동 SSO 후 실패 시 「사내 계정으로 로그인」 버튼, 협력사·무권한 계정=「사내 계정으로 다시 로그인」(signOut 후 재로그인) 버튼. 콘솔 오류 없이 종료되도록 <code>gateCheck()</code> 함수로 분리.</td>
+<td>최동혁(+Claude)</td>
+</tr>
+<tr>
+<td>2026-07-21</td>
 <td>ERP 연계</td>
 <td><code>10_ERP_DB연계/etl/etl_run.py</code>, <code>erp_ro.iv_dtl_s</code>·<code>pur_req_s</code>·<code>purchase_m</code>·<code>pur_order_s</code>·<code>sales_orders_m</code>·<code>item_master_s</code>·<code>inventory_d</code></td>
 <td><strong>매입 상세(<code>iv_dtl</code>) 신규 연동 + 구매요청 상세 백필 — 실적재 완료(관리자 직접 실행, <code>batch_run</code> 7건 성공·0건 실패)</strong>. 같은 날 오전 준비해 둔(아래 줄 참조) 스키마·ETL·뷰를 실행해 신규 <code>iv_dtl</code>(<code>M_IV_DTL</code>) 2026-01-05~07-20 <strong>1,981행</strong> 적재(송장 213건·발주 432건·매입금액 35.6억원·발주 연결 100%, 미연결 36건은 데이터 품질 참고 항목) + <code>pur_req</code> 상세 14컬럼 백필 <code>--full</code> <strong>4,063행</strong> 재적재(조달구분 채움 99.98%). 매입 상세를 신규 적재한 김에 기존 월집계(<code>purchase_m</code>)와 대사하니 6월 +19.2억·7월 +1.5억 차이가 드러났는데, <strong>원인은 데이터 오류가 아니라 적재 시점 차이</strong>(7/8 이후 ERP 신규 등록분 미반영)로 확인 — <code>purchase --full</code>·<code>pur_order</code>(증분)·<code>sales</code>·<code>item_master</code>(증분)·<code>inventory</code> 5종을 재적재해 매입 대사 차이를 전월 0으로 해소(매핑·로직 정상 검증). <code>hr_payroll</code>(민감)은 별도 승인 사항이라 이번 재적재에서 제외. 관제 문서 <code>10_ERP_DB연계/00</code>(v0.13)·<code>01</code>(§4.10)·<code>02</code> 갱신, 정책관리 미러 동기화(v0.13).</td>
