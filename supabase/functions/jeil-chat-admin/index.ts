@@ -3,6 +3,7 @@
 // 호출: POST /functions/v1/jeil-chat-admin  Authorization: Bearer <Entra access_token>
 //   조회(빈 바디): { gateway, usage, admins, dept_mapping, dept_permissions, portal_pages, dept_erp_scope, catalog, model_settings } — 관리자만
 //   저장({action:'save_dept_perm'|'save_page_perm'|'save_dept_erp'|'save_ai_models'|'save_ai_config'|'save_ai_routing'|'manage_admin', ...}): 관리자만 → { ok, saved }
+//   v9: save_ai_config에 work 컨텍스트 적용범위·대화 저장 정책 6필드 추가. usage에 세션·메시지 건수(원문은 반환하지 않음 — 본인 전용 jeil-chat-history뿐).
 // 원칙: chat_log·erp 매핑 뷰는 RLS로 클라이언트 차단 → 이 함수(service_role)가 유일한 조회/저장 경로.
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
@@ -181,6 +182,13 @@ Deno.serve(async (req) => {
       max_messages: clampInt(c.max_messages, 1, 50, 20),
       max_total_chars: clampInt(c.max_total_chars, 1000, 100000, 24000),
       system_prompt: c.system_prompt != null ? String(c.system_prompt).slice(0, 12000) : "",
+      // v9: work 컨텍스트 적용범위·대화 저장 정책(챗봇 대화내역 기능 — jeil-chat이 요청마다 로드)
+      work_context_mode: ["off", "memo", "memo_summary"].includes(String(c.work_context_mode)) ? String(c.work_context_mode) : "memo",
+      work_context_max_chars: clampInt(c.work_context_max_chars, 0, 8000, 2000),
+      work_history_turns: clampInt(c.work_history_turns, 0, 25, 10),
+      chat_save_enabled: c.chat_save_enabled !== false,
+      chat_retention_days: clampInt(c.chat_retention_days, 0, 730, 180),
+      session_max_messages: clampInt(c.session_max_messages, 50, 2000, 400),
       updated_by: user.upn, updated_at: nowIso,
     };
     const { error: ce } = await admin.from("ai_gateway_config").upsert(row, { onConflict: "id" });
@@ -258,6 +266,12 @@ Deno.serve(async (req) => {
 
   const { data: admins } = await admin.from("portal_admin").select("email,granted_by,granted_at").order("granted_at");
 
+  // 대화내역 규모 통계(건수만 — 원문은 절대 반환하지 않는다. 원문 열람은 본인 전용 jeil-chat-history뿐)
+  const [sessCntRes, msgCntRes] = await Promise.all([
+    admin.from("chat_session").select("id", { count: "exact", head: true }).is("deleted_at", null),
+    admin.from("chat_message").select("id", { count: "exact", head: true }),
+  ]);
+
   // 4) 사용자↔부서↔사원 매핑(ERP Z_USR_MAST_REC 대사) + 부서별 권한 설정
   //    service_role은 RLS 우회 → 사내 전용 뷰 전량 조회. 부서명 기준으로 권한 설정과 결합.
   const [udUsers, udRecon, udRoster, deptPerm, pagesRes, deptErpRes, deptErpSuggestRes, aiModelsRes, aiCfgRes, aiRulesRes] = await Promise.all([
@@ -314,6 +328,8 @@ Deno.serve(async (req) => {
       total_cost_usd: Number(totalCost.toFixed(4)),
       month_cost_usd: Number(monthCost.toFixed(4)),
       tool_call_count: toolCalls,
+      chat_sessions: sessCntRes.count || 0,
+      chat_messages: msgCntRes.count || 0,
       by_user: Object.entries(byUser)
         .map(([upn, v]) => ({ upn, label: uLabel(upn), ...v, cost: Number(v.cost.toFixed(4)) }))
         .sort((a, b) => b.calls - a.calls)

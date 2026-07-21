@@ -88,7 +88,7 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <tr>
 <td><strong>Supabase</strong></td>
 <td><strong>프로젝트 가동</strong> <code>dvzohdqtjzocgcclgwro</code> / 스키마·RLS·Hook·Storage·<strong>Azure OIDC</strong>·autoconfirm 적용</td>
-<td>협력사 발주 + <strong>관리자주도 등록</strong>(<code>portal_admin</code>·<code>vendor_account</code>·<code>vendor_account_log</code>) 테이블, Edge Function 5종(<code>approve-vendor</code>·<code>vendor-provision</code>·<code>vendor-reset-password</code>·<strong><code>jeil-chat</code></strong>·<strong><code>jeil-chat-admin</code></strong>), <code>chat_log</code> 감사 테이블, RLS 격리검증·어드바이저 클린</td>
+<td>협력사 발주 + <strong>관리자주도 등록</strong>(<code>portal_admin</code>·<code>vendor_account</code>·<code>vendor_account_log</code>) 테이블, Edge Function <strong>6종</strong>(<code>approve-vendor</code>·<code>vendor-provision</code>·<code>vendor-reset-password</code>·<strong><code>jeil-chat</code></strong>·<strong><code>jeil-chat-admin</code></strong>·<strong><code>jeil-chat-history</code></strong>), <code>chat_log</code> 감사 + <strong>대화내역 3테이블</strong>(<code>chat_work</code>·<code>chat_session</code>·<code>chat_message</code> — 본인 전용, ADR-009), RLS 격리검증·어드바이저 클린</td>
 </tr>
 <tr>
 <td>데모 도메인</td>
@@ -445,6 +445,11 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 </tr>
 </thead>
 <tbody>
+<tr>
+<td>2026-07-21</td>
+<td><strong>챗봇 대화 관리 3기능 배포 — §2 갱신</strong>(<code>jeil-chat</code> v23→<strong>v24</strong>, <code>jeil-chat-admin</code> v8→<strong>v9</strong>, 신규 <code>jeil-chat-history</code> <strong>v1</strong>, 마이그레이션 3건) — ① <strong>응답 중지</strong>: 프론트 AbortController+중지 버튼, 게이트웨이 이중 감지(req.signal+write 실패)로 OpenAI 업스트림 abort(중지 후 비용 차단), 부분 응답 <code>stopped=true</code> 저장. ② <strong>대화내역 서버 저장</strong>: <code>chat_work</code>/<code>chat_session</code>/<code>chat_message</code>(원문+뷰 jsonb) 신설 — 기존 "원문 미저장" 원칙을 "본인만 열람·삭제 가능한 서버 저장"으로 변경(<strong>ADR-009</strong>). RLS ON+정책 0, Edge Fn upn 필터가 유일 경로, 관리자 원문 조회 API 없음(건수 통계만). soft delete 30일 purge+보존 180일. ③ <strong>work(작업 폴더) 2단 구조</strong>: work 메모를 시스템 컨텍스트로 주입, 적용범위(모드·글자수·턴수·저장 킬스위치·보존·상한)는 관리자 콘솔 설정(<code>ai_gateway_config</code> 6컬럼). 구버전 하위호환(저장 opt-in·<code>jeilax_meta</code> 별도 키). 04 데모UI 사이드바=work 아코디언(생성·메모편집·삭제·대화 이름변경·삭제·복원), 통합본 재생성. 상세·단일 출처는 <code>00_관리체계/03_변경관리_CHANGELOG</code>.</td>
+<td>최동혁(+Claude)</td>
+</tr>
 <tr>
 <td>2026-07-20</td>
 <td><strong>사용자 아이디 표기 규약 도입 — §6 갱신</strong>(<code>jeil-chat</code> version 21→23, <code>jeil-chat-admin</code> v7→v8) — 요청자·계정 표시를 『부서_이름_아이디』(예: 총무팀_최동혁_dh.choi@jeilm.co.kr)로 통일. 매핑 원천 ERP <code>v_erp_user_dept</code>, 미매핑·비이메일은 원본 유지 폴백. 표시 계층 변환만 — 감사 로그(<code>chat_log</code>·<code>hr_access_log</code>) 원본 upn 불변. 상세·단일 출처는 <code>00_관리체계/03_변경관리_CHANGELOG</code>.</td>

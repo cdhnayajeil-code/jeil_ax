@@ -49,6 +49,19 @@
 - **결정**: **(C)** = P1+P2. **(B)는 기각** — fail-ugly(스키마 위반 시 JSON 원문 노출)·스트리밍 불가·프롬프트 비대·모델 교체 취약. 뷰는 도구별이 아니라 **데이터 형태 5종 고정**(series/ranking/record/list/notice, 신규 템플릿 신설 금지). 수치는 DB 직결(모델 미경유·토큰 0)로 환각을 구조적으로 차단. 렌더러는 04 인라인 배치(04는 완전 인라인 단일 파일 + 통합본이 전문 내장 — app/lib 분리 시 file://·통합본 파손).
 - **근거**: [10 응답렌더링](10_챗봇_응답렌더링_설계.md), jeil-chat v20 + 04 포털(renderMd/renderView), 단위테스트 15/15(XSS 포함).
 
+### ADR-009 ✅ 챗봇 대화 원문 서버 저장(본인 한정) + work 2단 구조 (2026-07-21)
+- **배경**: 대화가 브라우저 메모리에만 있어 새로고침 시 소멸, 응답 중지·대화내역 확인/삭제·업무별 맥락 관리가 불가. 기존 원칙은 "chat_log 대화 원문 미저장"(개인정보 최소화)이었음.
+- **선택지**: (A) 원칙 유지 + localStorage 저장(기기 한정·PC 공유 노출·캐시 금지 규칙 충돌) / (B) 원칙 변경 — Supabase 서버 저장 + 본인 한정 열람·삭제.
+- **결정**: **(B)** — 관리자 결정(2026-07-21). "원문 미저장" 원칙을 **"본인만 열람·삭제 가능한 서버 저장"** 으로 변경. 통제 장치:
+  - 신규 `chat_work`(작업 폴더) / `chat_session`(대화) / `chat_message`(원문+`views` jsonb) — 전부 **RLS ON+정책 0**(클라이언트 전면 차단), 접근은 Edge Fn(service_role)의 **upn 필터 경유뿐**.
+  - 열람·삭제는 본인 전용 `jeil-chat-history`. **관리자용 원문 조회 API는 만들지 않는다**(관리자 콘솔은 건수 통계만).
+  - 보존: soft delete 30일 후 hard purge + 보존기간 기본 180일(관리자 설정, 기회적 purge). 저장 킬스위치 `chat_save_enabled`.
+  - work 2단 구조: work(이름+메모) → 대화(세션) → 메시지. work 메모는 시스템 컨텍스트로 주입하며 **적용범위(모드·글자수·히스토리 턴수)는 관리자 콘솔 설정**(`ai_gateway_config` 6컬럼).
+  - 구버전 하위호환: 저장은 opt-in(body 세션 필드 없으면 v23 동작), 세션 메타는 별도 SSE 키 `jeilax_meta`.
+- **부수 결정**: 응답 중지 = 클라이언트 fetch abort → 게이트웨이 이중 감지(req.signal + write 실패)로 OpenAI 업스트림 abort(비용 차단), 부분 응답은 `stopped=true`로 저장.
+- **잔여 위험(보안 셀프점검 2026-07-21, Low·정보성)**: 인증이 Graph `/me` 성공+사내 도메인만으로 성립(토큰 audience 미검증 — jeil-chat 기존 패턴 승계). 이번 변경으로 이 경계가 지키는 자산이 "축적된 대화 원문"으로 커짐 → **운영 전환 시 JEIL-AX 앱 전용 aud/tid 서명 검증으로 교체 검토**(ADR-104·CLAUDE.md §5.6과 함께).
+- **근거**: 마이그레이션 `create_chat_work_session_message`·`ai_gateway_config_work_context`, jeil-chat v24 + jeil-chat-history v1 + jeil-chat-admin v9, [04 DB설계](04_데이터베이스_설계.md).
+
 ## B. 미결정 (Proposed — 결정 대기)
 
 ### ADR-101 🕐 백엔드 스택 최종 확정

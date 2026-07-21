@@ -197,7 +197,27 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <tr>
 <td><code>chat_log</code></td>
 <td>9</td>
-<td>챗봇 사용 감사(UPN·모델·토큰·추정비용·사용도구). <strong>대화 원문 미저장</strong>. Edge Fn(service_role)만 기록</td>
+<td>챗봇 사용 감사(UPN·모델·토큰·추정비용·사용도구·<code>session_id</code>·<code>stopped</code>). 원문은 저장하지 않음(원문은 아래 chat_message). Edge Fn(service_role)만 기록</td>
+</tr>
+<tr>
+<td><code>chat_work</code></td>
+<td>—</td>
+<td><strong>작업 폴더(work)</strong> — 사용자 생성(이름·메모). 메모는 해당 work 대화에 시스템 컨텍스트로 주입(적용범위=<code>ai_gateway_config</code>). soft delete(2026-07-21 신설, ADR-009)</td>
+</tr>
+<tr>
+<td><code>chat_session</code></td>
+<td>—</td>
+<td><strong>대화 세션</strong> — work 소속(선택, null=일반). 제목(첫 질문 60자 자동)·message_count·last_message_at. soft delete 30일 후 purge</td>
+</tr>
+<tr>
+<td><code>chat_message</code></td>
+<td>—</td>
+<td><strong>대화 원문</strong>(user/assistant) + <code>views</code> jsonb(jeilax 뷰 복원용) + <code>stopped</code>(중지 부분응답). 세션 FK cascade. <strong>본인만 열람·삭제</strong>(jeil-chat-history 경유, ADR-009)</td>
+</tr>
+<tr>
+<td><code>ai_gateway_config</code> 外</td>
+<td>1·5·5·1</td>
+<td>모델 설정 SSOT(<code>ai_model</code>·<code>ai_routing_rule</code>·<code>ai_document_scope</code>) + work 컨텍스트·저장 정책 6컬럼(2026-07-21 확장)</td>
 </tr>
 </tbody>
 </table>
@@ -330,6 +350,12 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <td>차단</td>
 </tr>
 <tr>
+<td><code>chat_work</code>·<code>chat_session</code>·<code>chat_message</code></td>
+<td>(정책 없음 — Edge Fn의 <strong>upn 필터</strong>가 유일한 경로. 본인 것만, ADR-009)</td>
+<td>차단</td>
+<td>차단</td>
+</tr>
+<tr>
 <td><code>etl_meta.batch_run</code></td>
 <td>(정책 없음 — service_role만)</td>
 <td>차단</td>
@@ -381,6 +407,12 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <td>Auth Hook</td>
 <td>supabase_auth_admin</td>
 <td>JWT claim 주입</td>
+</tr>
+<tr>
+<td><code>chat_append_message(...)</code></td>
+<td>RPC(security definer)</td>
+<td>service_role 전용(public/anon/authenticated revoke)</td>
+<td>챗봇 메시지 원자 append(seq 채번·제목 자동·upn 검증)</td>
 </tr>
 <tr>
 <td><code>etl_meta.v_last_success</code></td>
@@ -487,6 +519,7 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 </table>
 <blockquote>
 <p>DDL·RLS의 재현 SQL은 <code>이관/sql/01~07</code>에 있으나, <code>erp_ro</code>/<code>etl_meta</code> DDL은 Supabase MCP <code>apply_migration</code>으로 직접 적용되어 <code>.sql</code> 파일이 리포에 없다(근거=마이그레이션 이력·ETL RPC 호출). <strong>개선 권고</strong>: 향후 마이그레이션은 <code>supabase/migrations/</code>에 파일로 남겨 이관·감사 가능성을 높인다 → <a href="09_ADR_의사결정기록.md">09 ADR</a>.</p>
+<p><strong>추가 이력(2026-07-21, 챗봇 대화내역 — ADR-009)</strong>: <code>create_chat_work_session_message</code>(chat_work/chat_session/chat_message + RLS + chat_log 확장 + <code>chat_append_message</code> RPC) · <code>ai_gateway_config_work_context</code>(work 컨텍스트·저장 정책 6컬럼). 그 사이 2026-07-08~13의 ERP 뷰·권한·모델설정 마이그레이션 다수는 라이브 <code>list_migrations</code>가 정본.</p>
 </blockquote>
 <h2 id="7-vectorpg_cron">7. 확장(vector/pg_cron) 현황</h2>
 <ul>

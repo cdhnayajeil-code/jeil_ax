@@ -1,12 +1,14 @@
 // jeil-chat — 사내 AI 챗봇 게이트웨이 (OpenAI 프록시 + 포털DB 조회 도구 + 토큰·비용 기록)
 // 배포: verify_jwt=false (Entra 토큰은 Supabase JWT가 아니므로 내부에서 직접 검증)
 // 호출: POST /functions/v1/jeil-chat  Authorization: Bearer <Entra access_token(User.Read)>
-//   body: { messages: [{role:'user'|'assistant', content:string}, ...] }
-//   응답: SSE 스트림 — data: {"choices":[{"delta":{"content":"..."}}]} ... data: [DONE]
+//   body: { messages: [{role,content},...], session_id?, work_id?, save? } — 세션 필드는 대화 저장 opt-in(없으면 구버전과 동일 동작)
+//   응답: SSE — {"choices":[{"delta"}]} · {"jeilax": 뷰} · {"jeilax_meta": 세션정보(최초 1회)} · [DONE]
+//   중지: 클라이언트 fetch abort → (A) req.signal / (B) writer.write 실패 이중 감지 → OpenAI 업스트림 abort(비용 차단), 부분 응답은 저장.
 // 원칙(CLAUDE.md §1·§4·§6):
 //   - API 키는 서버 시크릿(OPENAI_API_KEY)에만 존재. 프론트 미노출.
 //   - 데이터 접근은 사전 등록된 읽기전용 도구만(모델의 임의 SQL 금지). 포털DB + ERP 중간DB 사본(public.v_erp_* 뷰) — ERP 운영DB 직접 조회는 없음.
-//   - chat_log에 사용 이력 + 토큰·추정비용·사용도구 기록(대화 원문 미저장).
+//   - chat_log에 사용 이력 + 토큰·추정비용·사용도구 기록. 대화 원문은 chat_session/chat_message에 본인 열람·삭제용으로만
+//     저장(정책 변경 ADR — 조회·삭제는 jeil-chat-history 경유, 킬스위치 ai_gateway_config.chat_save_enabled).
 //   - 도구 결과는 SSE 'jeilax' 이벤트로 구조화 뷰(5종)를 병행 송출 — 프론트 카드 직결(모델 미경유·수치 환각 차단, 11_제품기획/10).
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
@@ -17,6 +19,9 @@ const cors = {
 };
 const json = (o: unknown, status = 200) =>
   new Response(JSON.stringify(o), { status, headers: { ...cors, "Content-Type": "application/json" } });
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const isUuid = (v: unknown): v is string => typeof v === "string" && UUID_RE.test(v);
 
 // 입력 상한 폴백 기본값 (DB ai_gateway_config 미설정/조회실패 시에만 사용)
 const MAX_MESSAGES = 20;
@@ -285,6 +290,9 @@ type AiRuleRow = { seq: number; rule_type: string; match_keywords: string[] | nu
 type AiConfig = {
   default_model: string; max_tokens: number; temperature: number;
   max_messages: number; max_total_chars: number; system_prompt: string;
+  // work 컨텍스트 적용범위·대화 저장 정책(관리자 콘솔 설정)
+  work_context_mode: string; work_context_max_chars: number; work_history_turns: number;
+  chat_save_enabled: boolean; chat_retention_days: number; session_max_messages: number;
   models: AiModelRow[]; rules: AiRuleRow[];
 };
 
@@ -293,7 +301,10 @@ function fallbackConfig(): AiConfig {
     default_model: Deno.env.get("OPENAI_MODEL") || "gpt-4o-mini",
     max_tokens: MAX_TOKENS, temperature: DEFAULT_TEMP,
     max_messages: MAX_MESSAGES, max_total_chars: MAX_TOTAL_CHARS,
-    system_prompt: SYSTEM_PROMPT, models: [], rules: [],
+    system_prompt: SYSTEM_PROMPT,
+    work_context_mode: "memo", work_context_max_chars: 2000, work_history_turns: 10,
+    chat_save_enabled: true, chat_retention_days: 180, session_max_messages: 400,
+    models: [], rules: [],
   };
 }
 
@@ -314,6 +325,12 @@ async function loadAiConfig(admin: any): Promise<AiConfig> {
       max_messages: Number(c.max_messages) || MAX_MESSAGES,
       max_total_chars: Number(c.max_total_chars) || MAX_TOTAL_CHARS,
       system_prompt: c.system_prompt || SYSTEM_PROMPT,
+      work_context_mode: ["off", "memo", "memo_summary"].includes(String(c.work_context_mode)) ? String(c.work_context_mode) : "memo",
+      work_context_max_chars: Number(c.work_context_max_chars) > 0 ? Number(c.work_context_max_chars) : 2000,
+      work_history_turns: Number(c.work_history_turns) > 0 ? Number(c.work_history_turns) : 10,
+      chat_save_enabled: c.chat_save_enabled !== false,
+      chat_retention_days: Number.isFinite(Number(c.chat_retention_days)) ? Number(c.chat_retention_days) : 180,
+      session_max_messages: Number(c.session_max_messages) || 400,
       models: (modR.data as AiModelRow[]) || [],
       rules: (rulR.data as AiRuleRow[]) || [],
     };
@@ -1038,9 +1055,10 @@ async function verifyEntraUser(token: string): Promise<{ upn: string } | null> {
 }
 
 /* ===== OpenAI 스트림 호출·파싱 ===== */
-function callOpenAI(apiKey: string, model: string, messages: unknown[], withTools: boolean, maxTokens: number, temperature: number) {
+function callOpenAI(apiKey: string, model: string, messages: unknown[], withTools: boolean, maxTokens: number, temperature: number, signal?: AbortSignal) {
   return fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
+    signal,                                               // 중지 전파 — 클라이언트 disconnect 시 업스트림 소비 중단
     headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
     body: JSON.stringify({
       model, stream: true, max_tokens: maxTokens, temperature, messages,
@@ -1107,7 +1125,7 @@ Deno.serve(async (req) => {
   const ai = await loadAiConfig(admin);
 
   // 2) 입력 검증 (상한은 DB 설정값 사용)
-  let body: { messages?: Array<{ role: string; content: string }> };
+  let body: { messages?: Array<{ role: string; content: string }>; session_id?: unknown; work_id?: unknown; save?: unknown };
   try { body = await req.json(); } catch { return json({ error: "invalid json" }, 400); }
   const raw = Array.isArray(body.messages) ? body.messages : [];
   const messages = raw
@@ -1125,35 +1143,119 @@ Deno.serve(async (req) => {
   // 2-c) ERP Tool 접근 범위(부서별 erp_scope) — 관리자는 전 모듈, 그 외 소속 부서 허용 모듈만
   const erpScope = await resolveErpScope(admin, user.upn);
 
+  // 2-d) 대화 저장 세션 확정 — opt-in(세 필드 모두 없으면 저장 없이 기존 동작). 전부 본인(upn) 소유 검증.
+  //      원문 저장 정책(ADR): 열람·삭제는 jeil-chat-history(본인만). 킬스위치 chat_save_enabled.
+  let sessionId: string | null = null;
+  let sessionWork: { id: string; name: string; memo: string | null } | null = null;
+  let sessionTitle: string | null = null;
+  if (ai.chat_save_enabled) {
+    if (isUuid(body.session_id)) {
+      const { data: s } = await admin.from("chat_session")
+        .select("id,work_id,title,message_count")
+        .eq("id", body.session_id).eq("upn", user.upn).is("deleted_at", null).maybeSingle();
+      if (!s) return json({ error: "대화를 찾을 수 없습니다. 새 대화로 시작하세요." }, 404);
+      if (Number(s.message_count) >= ai.session_max_messages) {
+        return json({ error: "이 대화가 너무 길어졌습니다. 새 대화로 시작하세요." }, 400);
+      }
+      sessionId = s.id; sessionTitle = s.title;
+      if (s.work_id) {
+        const { data: w } = await admin.from("chat_work").select("id,name,memo")
+          .eq("id", s.work_id).eq("upn", user.upn).is("deleted_at", null).maybeSingle();
+        if (w) sessionWork = w;
+      }
+    } else if (isUuid(body.work_id) || body.save === true) {
+      let workId: string | null = null;
+      if (isUuid(body.work_id)) {
+        const { data: w } = await admin.from("chat_work").select("id,name,memo")
+          .eq("id", body.work_id).eq("upn", user.upn).is("deleted_at", null).maybeSingle();
+        if (!w) return json({ error: "작업 폴더를 찾을 수 없습니다." }, 404);
+        sessionWork = w; workId = w.id;
+      }
+      try {
+        const { data: ns } = await admin.from("chat_session")
+          .insert({ upn: user.upn, work_id: workId }).select("id").single();
+        sessionId = ns?.id ?? null;
+      } catch { sessionId = null; /* 세션 생성 실패가 챗 자체를 막지 않는다 */ }
+    }
+  }
+
   // 3) 감사 로그 선기록 (스트림 종료 후 토큰·비용·도구 갱신)
   let logId: number | null = null;
   try {
     const { data } = await admin.from("chat_log")
-      .insert({ upn: user.upn, model, messages_count: messages.length, prompt_chars: total })
+      .insert({ upn: user.upn, model, messages_count: messages.length, prompt_chars: total, session_id: sessionId })
       .select("id").single();
     logId = data?.id ?? null;
   } catch { /* 로그 실패는 무시 */ }
+
+  // 3-b) 사용자 메시지 저장 — 마지막 user 1건만(클라이언트가 히스토리 전체를 보내므로 중복 방지). seq는 RPC 원자 채번.
+  let userSeq: number | null = null;
+  if (sessionId) {
+    const lastUser = [...messages].reverse().find((m) => m.role === "user");
+    if (lastUser) {
+      if (!sessionTitle) sessionTitle = lastUser.content.replace(/\s+/g, " ").slice(0, 60);
+      try {
+        const { data: seq } = await admin.rpc("chat_append_message", {
+          p_session: sessionId, p_upn: user.upn, p_role: "user", p_content: lastUser.content,
+          p_views: null, p_model: null, p_stopped: false, p_log_id: logId,
+        });
+        userSeq = typeof seq === "number" ? seq : null;
+      } catch { /* 저장 실패는 무시 */ }
+    }
+  }
 
   // 4) 스트리밍 응답 (도구 호출 시 상한 멀티라운드: 라운드마다 도구 수집→실행→누적, 마지막 라운드는 도구 없이 최종답변)
   const { readable, writable } = new TransformStream<Uint8Array, Uint8Array>();
   const writer = writable.getWriter();
   const enc = new TextEncoder();
-  const emit = (c: string) =>
-    writer.write(enc.encode("data: " + JSON.stringify({ choices: [{ delta: { content: c } }] }) + "\n\n")).then(() => {});
+  // 중지 이중 감지: (A) req.signal — 런타임의 disconnect 발화가 문서상 미보장이라 방어적,
+  //                (B) writer.write 실패 — readable cancel(클라이언트 disconnect)의 신뢰 신호.
+  // 어느 쪽이든 upstream(OpenAI) fetch를 abort해 불필요한 토큰 소비를 즉시 중단한다.
+  const upstream = new AbortController();
+  let clientGone = false;
+  const onGone = () => { clientGone = true; try { upstream.abort(); } catch { /* 무시 */ } };
+  try { req.signal?.addEventListener("abort", onGone); } catch { /* 무시 */ }
+  let assistantText = "";                                 // 저장용 본문 누적(중지 시 부분 응답 포함)
+  const emit = (c: string) => {
+    assistantText += c;
+    return writer.write(enc.encode("data: " + JSON.stringify({ choices: [{ delta: { content: c } }] }) + "\n\n"))
+      .catch((e: unknown) => { onGone(); throw e; });
+  };
 
   const run = (async () => {
     const state: PumpState = { pt: 0, ct: 0, toolCalls: {} };
     const toolsUsed: string[] = [];
+    const viewsSaved: unknown[] = [];                     // 저장용 구조화 뷰 누적(복원 시 카드 재현)
+    let stopped = false;
     try {
+      // 세션 메타 선송출 — 프론트가 새 세션 id·제목을 사이드바에 반영(구버전 프론트는 미지의 키라 무시)
+      if (sessionId) {
+        try {
+          await writer.write(enc.encode("data: " + JSON.stringify({
+            jeilax_meta: { session_id: sessionId, work_id: sessionWork?.id ?? null, title: sessionTitle, seq: userSeq },
+          }) + "\n\n"));
+        } catch { onGone(); }
+      }
+      // work 컨텍스트 주입(관리자 설정: work_context_mode·work_context_max_chars) — work 소속 세션만.
+      // work 대화의 히스토리 턴수는 work_history_turns 적용(메모가 맥락을 보완하므로 축약 허용).
+      const workCtx = ai.work_context_mode !== "off" && sessionWork && sessionWork.memo
+        ? `[작업 컨텍스트: ${sessionWork.name}]\n${String(sessionWork.memo).slice(0, ai.work_context_max_chars)}\n(위는 이 작업 폴더의 배경 정보입니다. 이 대화의 답변에 참고하세요.)`
+        : null;
+      const histMsgs = workCtx && ai.work_history_turns > 0 ? messages.slice(-ai.work_history_turns * 2) : messages;
       // 도구 호출 상한 멀티라운드 — 리다이렉트형(도구가 다른 도구를 안내)·순차의존형 복합질문 대응.
       // 무한루프 3중 차단: MAX_ROUNDS 상한 + 직전 라운드와 동일 호출 반복 시 중단 + 마지막 라운드 강제 withTools=false.
-      const convo: unknown[] = [{ role: "system", content: ai.system_prompt }, ...messages];
+      const convo: unknown[] = [
+        { role: "system", content: ai.system_prompt },
+        ...(workCtx ? [{ role: "system", content: workCtx }] : []),
+        ...histMsgs,
+      ];
       const MAX_ROUNDS = 4;
       let lastSig = "";
       for (let round = 0; round < MAX_ROUNDS; round++) {
+        if (clientGone) { stopped = true; break; }        // 중지 감지 시 다음 라운드 진입 차단
         const lastRound = round === MAX_ROUNDS - 1;
         state.toolCalls = {};
-        const res = await callOpenAI(apiKey, model, convo, !lastRound, ai.max_tokens, ai.temperature);
+        const res = await callOpenAI(apiKey, model, convo, !lastRound, ai.max_tokens, ai.temperature, upstream.signal);
         if (!res.ok || !res.body) {
           const detail = await res.text().catch(() => "");
           console.error("openai error", res.status, detail.slice(0, 500));
@@ -1184,29 +1286,51 @@ Deno.serve(async (req) => {
             const view = ro && typeof ro === "object" ? ro.__view : null;
             if (ro && view) {
               delete ro.__view;
+              // 저장용 누적(복원 시 카드 재현) — 메시지당 8개·직렬화 64KB 상한
+              if (viewsSaved.length < 8 && JSON.stringify(viewsSaved).length < 64000) viewsSaved.push(view);
               const payload = JSON.stringify({ jeilax: view });
-              if (payload.length <= 16000) await writer.write(enc.encode("data: " + payload + "\n\n"));
+              if (payload.length <= 16000) await writer.write(enc.encode("data: " + payload + "\n\n")).catch(() => onGone());
             }
           } catch { /* 무시 */ }
           convo.push({ role: "tool", tool_call_id: c.id, content: JSON.stringify(result).slice(0, 12000) });
         }
       }
     } catch (e) {
-      try { await emit("⚠ 오류: " + (e instanceof Error ? e.message : String(e))); } catch { /* 스트림 종료됨 */ }
+      // 사용자 중지(클라이언트 abort)는 오류가 아니라 정상 종료로 분류 — 오류 문구를 내보내지 않는다.
+      if (clientGone || (e instanceof Error && e.name === "AbortError")) {
+        stopped = true;
+      } else {
+        try { await emit("⚠ 오류: " + (e instanceof Error ? e.message : String(e))); } catch { /* 스트림 종료됨 */ }
+      }
     } finally {
+      try { req.signal?.removeEventListener("abort", onGone); } catch { /* 무시 */ }
       try { await writer.write(enc.encode("data: [DONE]\n\n")); } catch { /* 무시 */ }
       try { await writer.close(); } catch { /* 무시 */ }
-      // U-1: 토큰·추정비용·사용도구 갱신
+      // U-1: 토큰·추정비용·사용도구 갱신 — 중지로 usage 미수신 시 보수적 추정(문자수/3)
       if (logId != null) {
         const price = priceFor(model, ai);
-        const cost = (state.pt * price.inp + state.ct * price.out) / 1_000_000;
+        let pt = state.pt, ct = state.ct;
+        if (stopped && !pt && !ct) { pt = Math.ceil(total / 3); ct = Math.ceil(assistantText.length / 3); }
+        const cost = (pt * price.inp + ct * price.out) / 1_000_000;
         try {
           await admin.from("chat_log").update({
-            prompt_tokens: state.pt || null, completion_tokens: state.ct || null,
-            est_cost_usd: state.pt || state.ct ? Number(cost.toFixed(6)) : null,
+            prompt_tokens: pt || null, completion_tokens: ct || null,
+            est_cost_usd: pt || ct ? Number(cost.toFixed(6)) : null,
             tools_used: toolsUsed.length ? toolsUsed : null,
+            stopped,
           }).eq("id", logId);
         } catch { /* 무시 */ }
+      }
+      // 어시스턴트 응답 저장(중지 시 부분 응답 포함) — EdgeRuntime.waitUntil이 응답 반환 후 완료 보장
+      if (sessionId && (assistantText || viewsSaved.length)) {
+        try {
+          await admin.rpc("chat_append_message", {
+            p_session: sessionId, p_upn: user.upn, p_role: "assistant",
+            p_content: assistantText || "(뷰 응답)",
+            p_views: viewsSaved.length ? viewsSaved : null,
+            p_model: model, p_stopped: stopped, p_log_id: logId,
+          });
+        } catch { /* 저장 실패는 무시 */ }
       }
     }
   })();
