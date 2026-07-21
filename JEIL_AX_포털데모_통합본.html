@@ -111,6 +111,8 @@
   /* AI 아바타 = 좌측 상단과 동일한 JEIL 심벌마크 — 앱아이콘형(둥근 사각·흰 배경)으로 선명하게 */
   .msg .who.ai-logo{background:#fff; border:1.5px solid var(--line); border-radius:10px;}
   .msg .who.ai-logo img{width:22px; height:auto; display:block;}
+  /* 내 아바타 = MS 프로필 사진(img) — 원형 꽉 채움. 실패 시 JS가 이니셜로 폴백 */
+  .msg.user .who img{width:100%; height:100%; object-fit:cover; display:block;}
   .msg.user{flex-direction:row-reverse; margin-left:auto;}
   .msg.user .who{background:var(--accent2);}
   .bubble{background:#fff; border:1px solid var(--line); border-radius:14px 14px 14px 5px; padding:14px 17px; line-height:1.7; font-size:13.8px; box-shadow:0 2px 8px rgba(16,42,80,.06); max-width:100%; overflow-x:auto;}
@@ -967,13 +969,24 @@ function applyUserNameUI(){
 function el(html){ const d=document.createElement('div'); d.innerHTML=html.trim(); return d.firstChild; }
 function scrollBottom(){ const c=document.getElementById('chat'); c.scrollTop=c.scrollHeight; }
 
+/* 내 아바타 노드 — MS 프로필 사진(img) 우선, 로드 실패·미보유 시 실명 이니셜 폴백(빈 원 방지) */
+function makeUserWho(){
+  var d = document.createElement('div'); d.className = 'who';
+  if(USER_PHOTO){
+    var im = document.createElement('img'); im.alt = '';
+    im.onerror = function(){ d.textContent = USER_INITIAL; };
+    im.src = USER_PHOTO;
+    d.appendChild(im);
+  } else {
+    d.textContent = USER_INITIAL;
+  }
+  return d;
+}
 function addUser(text){
-  // 이스케이프는 호출측이 아닌 여기서 일괄 수행(&·<·> — XSS 방지). 아바타는 로그인 사진 > 이니셜 순
-  const who = USER_PHOTO
-    ? `<div class="who" style="background-image:url('${USER_PHOTO}')"></div>`
-    : `<div class="who">${escHtml(USER_INITIAL)}</div>`;
-  document.getElementById('chat').appendChild(el(
-    `<div class="msg user">${who}<div class="bubble">${escHtml(String(text||''))}</div></div>`));
+  // 이스케이프는 호출측이 아닌 여기서 일괄 수행(&·<·> — XSS 방지)
+  var wrap = el(`<div class="msg user"><div class="bubble">${escHtml(String(text||''))}</div></div>`);
+  wrap.insertBefore(makeUserWho(), wrap.firstChild);
+  document.getElementById('chat').appendChild(wrap);
   scrollBottom();
 }
 function addAI(html, model){
@@ -1248,9 +1261,15 @@ function loadProfilePhoto(){
       if(!b) return;
       var url = URL.createObjectURL(b);
       USER_PHOTO = url;   // 이후 내 대화 말풍선 아바타에도 사진 사용
-      // 이미 그려진 내 말풍선 아바타(이니셜)에도 MS 프로필 사진 소급 적용
+      // 이미 그려진 내 말풍선 아바타(이니셜)에도 MS 프로필 사진 소급 적용 — img 교체(실패 시 이니셜 유지)
       var uw = document.querySelectorAll('.msg.user .who');
-      for(var i=0; i<uw.length; i++){ uw[i].textContent = ''; uw[i].style.backgroundImage = "url('" + url + "')"; }
+      for(var i=0; i<uw.length; i++){
+        (function(d){
+          var im = document.createElement('img'); im.alt = '';
+          im.onload = function(){ d.textContent = ''; d.appendChild(im); };
+          im.src = url;
+        })(uw[i]);
+      }
       var av = document.querySelector('.profile .avatar');
       if(av){ av.textContent=''; av.style.backgroundImage='url('+url+')'; av.style.backgroundSize='cover'; av.style.backgroundPosition='center'; av.style.backgroundRepeat='no-repeat'; }
     }).catch(function(){});
