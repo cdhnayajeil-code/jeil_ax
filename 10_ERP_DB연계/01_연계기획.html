@@ -47,7 +47,7 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
   <div class="content">
 <h1 id="01-erp-db">01. ERP DB 연계 — 이후 기획 (통합 정리)</h1>
 <blockquote>
-<p><strong>기준일: 2026-07-03</strong>(2026-07-08 §4.4 P4 노출 계층, §4.5 사용자-부서 매핑, §4.6 부서별 ERP 모듈 제안값, §4.7 급여 민감권한·<code>erp_secure</code> 착수 → 같은 날 실적재 완료로 갱신 / 2026-07-20 §4.8 챗봇 권한체계 연결·포털 도구 권한구멍 차단 추가 / 2026-07-21 §4.9 연동 현황 뷰 10종 전체 노출·관리자 콘솔 반영 추가, §4.10 매입 상세(<code>iv_dtl</code>) 신규 연동·구매요청 상세 백필 실적재 완료 추가) · 관리: 최동혁
+<p><strong>기준일: 2026-07-03</strong>(2026-07-08 §4.4 P4 노출 계층, §4.5 사용자-부서 매핑, §4.6 부서별 ERP 모듈 제안값, §4.7 급여 민감권한·<code>erp_secure</code> 착수 → 같은 날 실적재 완료로 갱신 / 2026-07-20 §4.8 챗봇 권한체계 연결·포털 도구 권한구멍 차단 추가 / 2026-07-21 §4.9 연동 현황 뷰 10종 전체 노출·관리자 콘솔 반영 추가, §4.10 매입 상세(<code>iv_dtl</code>) 신규 연동·구매요청 상세 백필 실적재 완료 추가 / 2026-07-22 §4.11 협력사 거래처마스터(<code>vendor_master</code>) 재적재·정합화 + ERP 거래처마스터 원천 연동(<code>bp_master</code>) 스키마·ETL 준비 추가) · 관리: 최동혁
 ERP 데이터 활용은 <strong>두 축</strong>으로 진행된다: <strong>A) 사내 타부서 데이터 개방</strong>(마스터플랜 v2.0)과 <strong>B) AI 포털·챗봇 연계</strong>(중간DB 연계설계). 본 문서는 두 기획을 하나의 그림으로 통합 정리한 것이다. 상세는 각 원본 문서를 따른다.</p>
 </blockquote>
 <hr />
@@ -172,6 +172,12 @@ etl_meta     — 배치 실행 로그·동기화 상태
 <td><strong>1차-우선, 범위축소: 2026년도분만</strong>(2026-07-07 요청)</td>
 </tr>
 <tr>
+<td><strong>협력사 거래처마스터</strong></td>
+<td><code>B_BIZ_PARTNER</code>(거래처마스터 4,621건, 대표자주민번호·은행계좌번호는 최소수집 원칙으로 제외)</td>
+<td><code>erp_ro.bp_master_s</code></td>
+<td><strong>신규(2026-07-22)</strong> — 스키마·ETL job(<code>bp_master</code>) 준비 완료, <strong>적재는 ODBC 접속 필요로 대기</strong>(§4.11)</td>
+</tr>
+<tr>
 <td>프로젝트 원가</td>
 <td><code>PM_PROJECT_MASTER</code> + 원가</td>
 <td><code>erp_ro.project_cost_m</code></td>
@@ -252,6 +258,17 @@ etl_meta     — 배치 실행 로그·동기화 상태
 <p><strong>같은 날 오후, 관리자가 위 준비분을 직접 실행해 실적재까지 완료</strong>했다(<code>batch_run</code> 7건 성공·0건 실패). <code>iv_dtl</code>: 2026-01-05~07-20 구간 <strong>1,981행</strong>(0.9초) — 송장 213건·발주 432건, 매입금액 합계 <strong>35.6억원</strong>, 발주 연결(<code>po_no</code>) <strong>100%</strong>(발주 미연결 36건은 과거 발주로 추정되는 데이터 품질 참고 항목, 임의 조치 없음). <code>pur_req</code> 상세 백필: <code>--full</code> <strong>4,063행</strong>(2.1초) — 조달구분 채움 99.98%(미채움 1건은 ERP 원천 <code>PROCURE_TYPE</code> NULL), 도면번호 보유 856건.</p>
 <p><strong>부수적으로 발견·해소된 정합성 이슈</strong>: 신규 적재한 매입 상세를 기존 월집계(<code>purchase_m</code>)와 대사하니 6월 +19.2억원·7월 +1.5억원 차이가 나타났다(1~5월은 완전 일치). 원인은 데이터 오류가 아니라 <strong>적재 시점 차이</strong>(2026-07-08 문서화 이후 ERP에 새로 등록된 매입 건이 월집계에 미반영)였다 — 관리자가 <code>purchase --full</code>(151행)·<code>pur_order</code>(증분, 512행)·<code>sales</code>(37행)·<code>item_master</code>(증분, 415행)·<code>inventory</code>(1,847행)를 재적재해 <strong>매입 대사 차이를 전월 0으로 해소</strong>했다(매핑·로직 정상 검증). <code>hr_payroll</code>(민감)은 별도 승인 사항이라 이번 재적재에서 제외했다(2026-07-08 143행 유지).</p>
 <p>상세 진행은 <code>02_진행상태.md</code> §1·§2 P3, 현재 적재 실측·이슈는 <code>00_현재상태_스냅샷.md</code> §1·§4·§6 참조.</p>
+<h3 id="411-vendor_master-erp-bp_master-2026-07-22">4.11 협력사 거래처마스터(<code>vendor_master</code>) 재적재·정합화 + ERP 거래처마스터 원천 연동(<code>bp_master</code>) 준비 (2026-07-22 신설)</h3>
+<p>사용자 제보(협력사 정보 화면 <code>app/admin-vendors.html</code>에서 발주거래처가 보이지 않음)를 조사한 결과 두 가지 결함이 발견됐다. ①포털 <code>public.vendor_master</code>가 초기 데모 시드 <strong>17개사</strong>에 머물러 있어 ERP 실제 발주거래처 <strong>103개사 중 87개사가 미등록</strong>이었다. ②기존 17건의 사업자번호는 <strong>거래처코드 뒤3자리-81-임의5자리 패턴으로 생성된 가짜 값</strong>(실제 사업자등록번호 아님)이었다.</p>
+<ul>
+<li><strong><code>vendor_master</code> 재적재</strong>: 발주 103·매입·매입상세 합집합 기준 <strong>109개사</strong>로 재적재, 거래처명 5건을 ERP 최신 실적 기준으로 교정(예 "(주)대신스텐레스_" → "주식회사 대신스텐레스"). 발급 계정 4건 무영향·고아 0건 확인. 가짜 사업자번호 17건은 제거(NULL) — ERP 거래처마스터 연계 전까지 공란 유지가 정책이다.</li>
+<li><strong>ERP 거래처마스터 원천 연동(<code>bp_master</code>) 신설, 적재는 대기</strong>: ERP <code>B_BIZ_PARTNER</code>(4,621건) 복제용 <code>erp_ro.bp_master_s</code>를 신설했다(RLS internal+authenticated SELECT, 기존 <code>erp_ro</code> 테이블과 동일 규약). <strong>대표자주민등록번호(REPRE_RGST_NO/_PRVC)·은행계좌번호(BANK_ACCT_NO*)는 개인정보·금융정보 최소수집 원칙에 따라 적재 대상에서 의도적으로 제외</strong>했다. 적재 컬럼: <code>bp_cd·bp_nm·bp_full_nm·biz_no·repre_nm·bp_type·bp_group·in_out_flag·tel_no·fax_no·email·zip_cd·addr1·addr2·bp_prsn_nm·bp_contact_pt·use_yn</code>. <code>erp_etl_upsert</code> RPC 화이트리스트에 <code>bp_master_s</code> 분기를 추가(기존 분기 전부 보존 확인)하고, <code>10_ERP_DB연계/etl/etl_run.py</code>에 신규 ETL job <code>bp_master</code>(전량 적재, 증분은 <code>UPDT_DT</code> 기준)를 추가했다. 이 job은 <strong>ODBC 접속이 필요해 이번엔 미실행</strong>이다 — 관리자가 <code>10_ERP_DB연계/etl/</code>에서 <code>python etl_run.py --job bp_master</code> 직접 실행하면 실제 사업자등록번호·대표자명·연락처까지 채워진다.</li>
+<li><strong>관리자 전용 동기화 RPC</strong>: <code>public.vendor_master_sync()</code>를 신설했다 — 관리자 전용(비관리자 42501 차단 검증 완료), 멱등(재실행 시 변경 0건 검증). 원천 우선순위는 <strong>ERP 거래처마스터 → 발주·매입 실적</strong>이며, 관리자 화면(<code>app/admin-vendors.html</code>)에 <strong>"🔄 거래처 동기화" 버튼</strong>을 추가해 <code>bp_master</code> 적재 이후 이 버튼으로 <code>vendor_master</code>에 반영할 수 있게 했다.</li>
+<li><strong>부수 효과</strong>: <code>vendor_master</code>를 공유하는 협력사 모바일 포털(<code>pages/협력사_모바일_포털.html</code>)에서 거래처명이 코드로 표시되던 87개사도 정상 표기되며, 계정발급 Edge Function(<code>vendor-provision</code>·<code>approve-vendor</code>)도 동일 원천을 사용한다.</li>
+<li><strong>라이브 검증</strong>(ai.jeilm.co.kr): 109개사·계정 4건 표시, 거래처명 교정 반영 확인(커밋 <code>c11d632</code>).</li>
+<li><strong>잔여 과제</strong>: <code>bp_master</code> job의 실제 적재(ODBC 접속 필요, 관리자 직접 실행) 및 그 결과의 <code>vendor_master_sync()</code> 반영.</li>
+<li>상세 진행은 <code>02_진행상태.md</code> §1·§2 P4, 결과 반영은 <code>00_현재상태_스냅샷.md</code> §1·§4·§5·§7 참조.</li>
+</ul>
 <h2 id="5">5. 단계별 로드맵 (통합)</h2>
 <table>
 <thead>
@@ -284,7 +301,7 @@ etl_meta     — 배치 실행 로그·동기화 상태
 </tr>
 <tr>
 <td><strong>P4</strong> 포털·챗봇 연결</td>
-<td><code>pages/</code> 실데이터 API 전환 + 챗봇 Tool 3종 + <code>tool_audit</code> — <strong>2026-07-08 착수·부분완료</strong>(§4.4: 노출 뷰 6종·RLS 격리 테스트·파일럿 화면 1건·챗봇 Tool 4종 / §4.5: 사용자-부서 매핑 계층 구축·실적재 완료 / §4.6: 부서별 ERP 모듈 제안값(참고) 신설·실적재 완료·관리자 콘솔 반영) → <strong>2026-07-20 챗봇 권한체계 연결</strong>(<code>get_my_access</code> 신설, 포털 도구 3종 권한구멍 차단, §4.8) → <strong>2026-07-21 연동 현황 뷰 10종 전체 노출 + 관리자 콘솔 반영</strong>(<code>v_erp_sync_overview</code> 5→10종, <code>jeil-chat-admin</code> v10, §4.9)</td>
+<td><code>pages/</code> 실데이터 API 전환 + 챗봇 Tool 3종 + <code>tool_audit</code> — <strong>2026-07-08 착수·부분완료</strong>(§4.4: 노출 뷰 6종·RLS 격리 테스트·파일럿 화면 1건·챗봇 Tool 4종 / §4.5: 사용자-부서 매핑 계층 구축·실적재 완료 / §4.6: 부서별 ERP 모듈 제안값(참고) 신설·실적재 완료·관리자 콘솔 반영) → <strong>2026-07-20 챗봇 권한체계 연결</strong>(<code>get_my_access</code> 신설, 포털 도구 3종 권한구멍 차단, §4.8) → <strong>2026-07-21 연동 현황 뷰 10종 전체 노출 + 관리자 콘솔 반영</strong>(<code>v_erp_sync_overview</code> 5→10종, <code>jeil-chat-admin</code> v10, §4.9) → <strong>2026-07-22 협력사 거래처마스터(<code>vendor_master</code>) 재적재·정합화 + ERP 거래처마스터 원천 연동(<code>bp_master</code>) 스키마·ETL 준비</strong>(적재는 대기, §4.11)</td>
 <td>P3</td>
 </tr>
 <tr>
