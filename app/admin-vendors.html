@@ -328,10 +328,24 @@ function applyVendorFilter() {
   if (!vmGrid) vmGrid = buildVmGrid(rows); else vmGrid.setRows(rows);
 }
 
+// 거래처는 수천 건 — PostgREST 기본 1,000행 제한에 걸리므로 range 로 전량 페이징 조회한다.
+async function fetchAllVendors() {
+  const PAGE = 1000, out = [];
+  for (let from = 0; ; from += PAGE) {
+    const { data, error } = await supabase.from("vendor_master").select("*")
+      .in("bp_type", ["S", "CS"])          // 매출전용(C)·사내 관계사(I) 배제
+      .order("bp_nm").range(from, from + PAGE - 1);
+    if (error) return { data: null, error };
+    out.push(...(data || []));
+    if (!data || data.length < PAGE) break;
+    if (out.length > 50000) break;         // 안전장치
+  }
+  return { data: out, error: null };
+}
+
 async function loadVendors() {
   const [{ data: vendors, error: ve }, { data: accs }] = await Promise.all([
-    // 매입거래처만 적재되지만, 과거 데이터 보호를 위해 매출전용(C)·사내(I)는 조회 단계에서도 배제
-    supabase.from("vendor_master").select("*").in("bp_type", ["S", "CS"]).order("bp_nm"),
+    fetchAllVendors(),
     supabase.from("vendor_account").select("*"),
   ]);
   if (ve) return show($("a_msg"), "err", "거래처 조회 실패: " + ve.message);
