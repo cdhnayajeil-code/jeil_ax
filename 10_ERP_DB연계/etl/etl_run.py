@@ -223,6 +223,26 @@ JOBS = {
         """,
         "params": ["year_start", "year_end"],
     },
+    # ④ 거래처마스터 ← B_BIZ_PARTNER (전량, 연도 무관)
+    # 협력사 계정발급(app/admin-vendors.html)·협력사 모바일 포털이 쓰는 public.vendor_master 의 원천.
+    # ⚠ 보안: 대표자주민등록번호(REPRE_RGST_NO, REPRE_RGST_NO_PRVC)·은행계좌번호(BANK_ACCT_NO*)는
+    #    의도적으로 SELECT 하지 않는다(개인정보·금융정보 최소수집). 컬럼 추가 시 이 원칙을 지킬 것.
+    "bp_master": {
+        "table": "bp_master_s",
+        "sql": """
+            SELECT BP_CD AS bp_cd, BP_NM AS bp_nm, BP_FULL_NM AS bp_full_nm,
+                   BP_RGST_NO AS biz_no, REPRE_NM AS repre_nm,
+                   BP_TYPE AS bp_type, BP_GROUP AS bp_group, IN_OUT_FLAG AS in_out_flag,
+                   TEL_NO1 AS tel_no, FAX_NO AS fax_no, E_MAIL AS email,
+                   ZIP_CD AS zip_cd, ADDR1 AS addr1, ADDR2 AS addr2,
+                   BP_PRSN_NM AS bp_prsn_nm, BP_CONTACT_PT AS bp_contact_pt,
+                   CONVERT(bit, CASE WHEN USAGE_FLAG = 'Y' THEN 1 ELSE 0 END) AS use_yn,
+                   UPDT_DT AS src_updated
+            FROM JEILMNS.dbo.B_BIZ_PARTNER WITH (NOLOCK)
+        """,
+        "params": [],
+        "incr_sql": " WHERE UPDT_DT >= ?",   # 증분: 변경된 거래처만(watermark 이후)
+    },
 }
 
 CHUNK_ROWS = 500
