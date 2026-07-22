@@ -109,6 +109,13 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <tbody>
 <tr>
 <td>2026-07-21</td>
+<td>챗봇 UI·관리자콘솔</td>
+<td><code>04_챗봇_포털_데모UI.html</code>, 통합본</td>
+<td><strong>관리자 콘솔 실운영 기준 재정비 + 데모 표기 제거</strong>. 조사 결과 콘솔의 "기획 예시" 섹션 대부분이 <strong>실제 아키텍처와 불일치하는 허구</strong>(Anthropic Workspace 지출한도·가짜 sk-ant 키·크레딧 등급제·미배선 보안 토글·가짜 인명 사용현황)임을 확인 → 정리 방침 "허구 제거 / 서버 실데이터 바인딩 / 데모버튼 삭제 / 정직한 정책은 읽기전용 참고". 변경: ① <strong>데모 표기 제거</strong> — 상단 데모 배너는 로그인(실토큰) 시 숨김(미로그인 방문자만 노출), 진입 버튼 "(데모)" 삭제 + <strong>전체 관리자(portal_admin)에게만 노출</strong>(<code>is_admin</code> 게이트), liveNote·프로필의 "기획 예시/스탠다드 등급" 문구 정리. ② <strong>API 탭</strong> — 가짜 API키 관리표·Anthropic Workspace 지출한도·미배선 보안 토글 제거 → 실제 「API 키·시크릿(OPENAI_API_KEY=Supabase 시크릿)」+「적용 중인 게이트웨이 보안 정책(읽기전용, 실제 강제 7종)」으로 대체. ③ <strong>사용량 탭</strong> — 목업 카드($232.35 등)·크레딧 등급 정책·가짜 직원표·승인대기 제거 → 서버가 이미 주던 <strong>대화 저장 현황(세션·메시지 수)</strong> 실데이터 카드 신설(chat_sessions/chat_messages 바인딩). ④ <strong>권한 탭</strong> — 목업 카드를 실데이터(관리자 수·매핑 부서 수·사용자 수) 바인딩, 역할 매트릭스·제한영역표의 가짜 저장/수정 버튼 제거하고 읽기전용 참고표로 정리. 실측 검증(Chrome): sk-ant·데모alert·지출한도·가짜인명·"기획 예시" 전부 0건, 신규 실데이터 5종(luSessions/luMessages/lpAdminCnt/lpDeptCnt/lpUserCnt) 바인딩 확인. jeil-chat-admin 서버는 필드 이미 제공 — 서버 변경 없음.</td>
+<td>최동혁(+Claude)</td>
+</tr>
+<tr>
+<td>2026-07-21</td>
 <td>챗봇 UI</td>
 <td><code>04_챗봇_포털_데모UI.html</code>, 통합본</td>
 <td><strong>사내 운영 페이지·사이드바 간결화 + 부서선택 → 소속부서 자동 표시</strong>. 사용자 요청(텍스트 과다·직관성): ① <strong>부서 선택 드롭다운 제거</strong> — 사이드바의 5개 부서 수동 선택 <code>&lt;select&gt;</code>를 없애고 <strong>로그인 계정의 실제 소속 부서</strong>(<code>jeil-me</code>의 <code>MY_PERM.dept_nm</code>)를 배지로 표시(<code>applyMyDept()</code>), 22개 실부서→업무 템플릿 5종 매핑(<code>deptKeyFromName</code>, 미매칭 시 기본 세트)으로 "추천 업무 도구" 자동 렌더. 사내 운영 페이지 상단 제목도 하드코딩("IT 자산관리 · 내 권한: 부서 관리자")에서 "📁 사내 운영 페이지 · &lt;내 부서&gt;(권한)"로 동적화, 데모용 부서 필터 select·"+페이지 등록" 버튼 제거. ② <strong>텍스트 간결화</strong> — 섹션별 장황한 안내문(admin-note) 3개 삭제, 카드 8종의 설명을 제목+한 줄+배지 2개로 축약(내부 테이블명·구현 세부 노출 정리). ③ <strong>"ERP 권한정보(Role 현황)·변경내역 모니터링" 카드 제거</strong>(요청). Chrome 실측: 소속부서 표시(공정설계팀·미매칭 부서도 정상)·드롭다운/필터/등록버튼/권한카드 제거·카드 8종 렌더 확인.</td>

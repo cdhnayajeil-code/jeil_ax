@@ -417,7 +417,7 @@
     </div>
     <div class="profile">
       <div class="avatar">홍</div>
-      <div><b>홍길동</b><span>사업관리팀 · 스탠다드 등급</span></div>
+      <div><b>홍길동</b><span>미로그인 · 예시 화면</span></div>
     </div>
     <a id="surveyLink" href="javascript:openEmbed('survey')" style="display:block; width:calc(100% - 28px); margin:14px 14px 10px; background:linear-gradient(135deg,#2f6fb3,#4a8ed0); border:1px solid rgba(255,255,255,.4); color:#fff; border-radius:11px; padding:14px 15px; font-family:inherit; text-align:left; box-shadow:0 3px 12px rgba(0,0,0,.35); text-decoration:none;">
       <span style="font-size:14.5px; font-weight:800; letter-spacing:-.01em;">📋 AI 니즈조사 설문 참여</span>
@@ -437,7 +437,7 @@
       </div>
     </div>
     <button class="admin-open" onclick="showPages()">📁 사내 운영 페이지</button>
-    <button class="admin-open" onclick="showAdmin()">⚙ 관리자 콘솔 (데모)</button>
+    <button class="admin-open" id="adminConsoleBtn" onclick="showAdmin()">⚙ 관리자 콘솔</button>
   </aside>
 
   <!-- 메인 -->
@@ -645,47 +645,28 @@
         </table>
         <p class="admin-note">원천 <b>UNIERP MS SQL(사외 IDC · DB JEILMNS)</b> → ODBC <b>읽기전용</b> 조회(<code>SELECT … WITH (NOLOCK)</code>, 화이트리스트 SQL) → ETL이 Supabase 중간DB(<code>erp_ro</code>)에 적재 → 사내 전용 뷰(<code>v_erp_*</code>)로 화면·챗봇에 제공. 실행은 <b>수동 배치</b>(자동 스케줄러 미도입)이며, 접속 서버·계정은 실행 환경 <code>.env</code>에만 보관하고 소스·문서에 남기지 않습니다. 급여는 민감 스키마(<code>erp_secure</code>)로 분리되어 이 표에는 <b>연동 시점·건수만</b> 표시됩니다.</p>
       </div>
-      <div class="cards">
-        <div class="card"><div class="lb">API 연결 상태</div><div class="v"><span class="dot"></span>정상 <small>· 응답 0.8s</small></div></div>
-        <div class="card"><div class="lb">활성 Workspace</div><div class="v">3개</div></div>
-        <div class="card"><div class="lb">기본 키 최종 교체</div><div class="v">2026-05-02 <small>· 40일 경과</small></div></div>
+      <div class="sec">
+        <h3>API 키 · 시크릿</h3>
+        <table>
+          <tr><td>게이트웨이 API 키</td><td class="r"><span class="badge g" id="apiKeySet">Supabase 시크릿 보관</span></td></tr>
+          <tr><td>보관 위치</td><td class="r">Edge Function 환경변수 <code>OPENAI_API_KEY</code> — 서버 전용</td></tr>
+          <tr><td>교체 방법</td><td class="r">Supabase 대시보드 › Edge Functions › Secrets (코드 변경 불필요)</td></tr>
+        </table>
+        <p class="admin-note">API 키는 서버 시크릿으로만 보관되어 화면·소스·직원에게 노출되지 않습니다.</p>
       </div>
 
       <div class="sec">
-        <h3>API 키 관리 <button class="save" onclick="alert('데모: 신규 키가 발급되고 기존 키는 7일 후 만료 처리됩니다. (실제 미동작)')">키 교체(Rotation)</button></h3>
+        <h3>적용 중인 게이트웨이 보안 정책 <span style="font-size:11px;color:var(--muted);">읽기전용 · 실제 강제</span></h3>
         <table>
-          <tr><th>용도</th><th>키 (마스킹)</th><th>Workspace</th><th>상태</th><th class="r">관리</th></tr>
-          <tr><td>운영 (게이트웨이 전용)</td><td><span class="keychip">sk-ant-****…****3f7a</span></td><td>chatbot-prod</td><td><span class="badge g">활성</span></td>
-            <td class="r"><button class="mini" onclick="alert('데모: 연결 테스트 성공 — claude-haiku-4-5 응답 확인 (실제 미동작)')">연결 테스트</button><button class="mini no" onclick="alert('데모: 키 비활성화 (실제 미동작)')">비활성화</button></td></tr>
-          <tr><td>테스트</td><td><span class="keychip">sk-ant-****…****9c21</span></td><td>chatbot-test</td><td><span class="badge g">활성</span></td>
-            <td class="r"><button class="mini" onclick="alert('데모 (실제 미동작)')">연결 테스트</button><button class="mini no" onclick="alert('데모 (실제 미동작)')">비활성화</button></td></tr>
-          <tr><td>정기 리포트 (Batch)</td><td><span class="keychip">sk-ant-****…****b8e4</span></td><td>system-batch</td><td><span class="badge a">야간만 사용</span></td>
-            <td class="r"><button class="mini" onclick="alert('데모 (실제 미동작)')">연결 테스트</button><button class="mini no" onclick="alert('데모 (실제 미동작)')">비활성화</button></td></tr>
-          <tr><td>보조 모델 (OpenAI)</td><td><span class="keychip">sk-proj-****…****7d2c</span></td><td>openai: chatbot-prod (프로젝트)</td><td><span class="badge g">활성</span></td>
-            <td class="r"><button class="mini" onclick="alert('데모: 연결 테스트 성공 — gpt-5.4 응답 확인 (실제 미동작)')">연결 테스트</button><button class="mini no" onclick="alert('데모 (실제 미동작)')">비활성화</button></td></tr>
+          <tr><td style="width:32%;">사내 인증</td><td>Entra ID(MS) 토큰 검증 · <b>@jeilm.co.kr 계정만</b> 허용</td></tr>
+          <tr><td>데이터 접근</td><td>사전 등록된 <b>읽기전용 도구만</b> 실행 — 모델의 임의 SQL 불가</td></tr>
+          <tr><td>ERP 모듈 권한</td><td>부서별 허용 모듈만 조회 — 권한 밖은 게이트웨이가 차단</td></tr>
+          <tr><td>문서 연계</td><td>승인 컨테이너(화이트리스트) + 로그인 본인 권한 범위만</td></tr>
+          <tr><td>민감정보</td><td>급여·주민번호 등 응답 억제 · 인사 데이터는 인사팀·관리자만(접근 감사)</td></tr>
+          <tr><td>대화 저장</td><td>「모델 설정」 탭의 저장·보존 정책에 따름 — 원문은 본인만 열람·삭제</td></tr>
+          <tr><td>감사 로그</td><td>chat_log에 호출 메타데이터 기록(원문 미저장) — 「사용량」 탭에서 확인</td></tr>
         </table>
-        <p class="admin-note">키는 게이트웨이 서버 환경변수로만 보관되며 직원에게 노출되지 않습니다. 90일 주기 교체 권장 (다음 교체 예정: 2026-08-01).</p>
-      </div>
-
-      <div class="sec">
-        <h3>Workspace 및 지출한도 <button class="save" onclick="alert('데모: Anthropic Console과 동기화되었습니다. (실제 미동작)')">저장</button></h3>
-        <table>
-          <tr><th>Workspace</th><th>용도</th><th class="r">월 지출한도(USD)</th><th class="r">이번 달 사용</th><th>소진율</th></tr>
-          <tr><td>chatbot-prod</td><td>전사 챗봇 운영</td><td class="r"><input class="num-inp" value="400"></td><td class="r">$182.40</td><td><div class="bar2"><i style="width:46%;"></i></div></td></tr>
-          <tr><td>chatbot-test</td><td>신기능 테스트</td><td class="r"><input class="num-inp" value="50"></td><td class="r">$11.20</td><td><div class="bar2"><i style="width:22%;"></i></div></td></tr>
-          <tr><td>system-batch</td><td>정기 리포트 자동화</td><td class="r"><input class="num-inp" value="100"></td><td class="r">$38.75</td><td><div class="bar2"><i style="width:39%;"></i></div></td></tr>
-        </table>
-        <p class="admin-note">한도 도달 시 해당 Workspace 호출이 자동 차단됩니다 (Anthropic Console Spend Limit 연동).</p>
-      </div>
-
-      <div class="sec">
-        <h3>게이트웨이 보안 설정</h3>
-        <table>
-          <tr><td>개인정보 자동 마스킹 (주민번호·계좌·전화번호 패턴)</td><td class="r"><label class="sw"><input type="checkbox" checked><i></i></label></td></tr>
-          <tr><td>금칙어 필터 (기밀 키워드 차단 및 경고)</td><td class="r"><label class="sw"><input type="checkbox" checked><i></i></label></td></tr>
-          <tr><td>전 대화 로깅 (감사용 · 보존 3년)</td><td class="r"><label class="sw"><input type="checkbox" checked><i></i></label></td></tr>
-          <tr><td>파일 업로드 허용 (xlsx·pdf·docx, 최대 20MB)</td><td class="r"><label class="sw"><input type="checkbox" checked><i></i></label></td></tr>
-        </table>
+        <p class="admin-note">위 정책은 게이트웨이(jeil-chat)와 DB RLS로 실제 강제됩니다. 세부 설정은 「모델 설정」·「권한 상세」 탭에서 관리합니다.</p>
       </div>
     </div>
 
@@ -707,45 +688,16 @@
         <table id="luRecent">
           <tr><th>시각</th><th>사용자</th><th>모델</th><th>데이터 조회</th><th class="r">토큰(입/출)</th><th class="r">비용</th></tr>
         </table>
-        <p class="admin-note">개인정보 최소화 원칙 — 대화 원문은 저장하지 않고 호출 메타데이터(누가·언제·모델·분량)만 기록합니다. 아래 섹션은 실구축 기획 예시 화면입니다.</p>
-      </div>
-      <div class="cards">
-        <div class="card"><div class="lb">이번 달 전사 사용액</div><div class="v">$232.35 <small>/ 한도 $550</small></div></div>
-        <div class="card"><div class="lb">활성 사용자 (이번 주)</div><div class="v">61명 <small>/ 87명</small></div></div>
-        <div class="card"><div class="lb">총 질의 수 (6월)</div><div class="v">14,820회</div></div>
-        <div class="card"><div class="lb">크레딧 추가 승인 대기</div><div class="v" style="color:var(--amber);">2건</div></div>
+        <p class="admin-note">개인정보 최소화 원칙 — 대화 원문 자체는 감사 로그에 저장하지 않고, 호출 메타데이터(누가·언제·모델·분량·토큰·비용·사용 도구)만 기록합니다.</p>
       </div>
 
       <div class="sec">
-        <h3>등급별 크레딧 정책 <button class="save" onclick="alert('데모: 정책이 저장되어 다음 달 1일부터 적용됩니다. (실제 미동작)')">정책 저장</button></h3>
-        <table>
-          <tr><th>등급</th><th>대상</th><th class="r">월 크레딧(회)</th><th>사용 모델</th><th class="r">인원</th></tr>
-          <tr><td><span class="badge b">라이트</span></td><td>일반 직원 (기본)</td><td class="r"><input class="num-inp" value="300"></td><td>Haiku 중심</td><td class="r">52명</td></tr>
-          <tr><td><span class="badge b">스탠다드</span></td><td>실무 빈번 사용 (부서장 추천)</td><td class="r"><input class="num-inp" value="800"></td><td>Haiku + Sonnet</td><td class="r">28명</td></tr>
-          <tr><td><span class="badge b">프로</span></td><td>헤비유저 (승인제)</td><td class="r"><input class="num-inp" value="2000"></td><td>Sonnet 중심</td><td class="r">7명</td></tr>
-        </table>
-        <p class="admin-note">미사용분 이월 없음 · 매월 1일 자동 리셋 · 1크레딧 = 평균 질의 1회(입력 2,000/출력 800토큰 기준 환산)</p>
-      </div>
-
-      <div class="sec">
-        <h3>직원별 사용 현황</h3>
-        <table>
-          <tr><th>이름</th><th>부서</th><th>등급</th><th class="r">사용 / 한도</th><th>소진율</th><th class="r">관리</th></tr>
-          <tr><td>홍길동</td><td>사업관리</td><td><select class="sel"><option>라이트</option><option selected>스탠다드</option><option>프로</option></select></td><td class="r">582 / 800</td><td><div class="bar2"><i class="warn" style="width:73%;"></i></div></td><td class="r"><button class="mini" onclick="alert('데모: 상세 사용 이력 (실제 미동작)')">이력</button></td></tr>
-          <tr><td>이민정</td><td>재무</td><td><select class="sel"><option>라이트</option><option>스탠다드</option><option selected>프로</option></select></td><td class="r">1,450 / 2,000</td><td><div class="bar2"><i class="warn" style="width:72%;"></i></div></td><td class="r"><button class="mini" onclick="alert('데모 (실제 미동작)')">이력</button></td></tr>
-          <tr><td>김영희</td><td>구매</td><td><select class="sel"><option>라이트</option><option selected>스탠다드</option><option>프로</option></select></td><td class="r">214 / 800</td><td><div class="bar2"><i style="width:27%;"></i></div></td><td class="r"><button class="mini" onclick="alert('데모 (실제 미동작)')">이력</button></td></tr>
-          <tr><td>박철수</td><td>생산</td><td><select class="sel"><option selected>라이트</option><option>스탠다드</option><option>프로</option></select></td><td class="r">298 / 300</td><td><div class="bar2"><i class="full" style="width:99%;"></i></div></td><td class="r"><button class="mini" onclick="alert('데모 (실제 미동작)')">이력</button></td></tr>
-          <tr><td>정수진</td><td>인사</td><td><select class="sel"><option selected>라이트</option><option>스탠다드</option><option>프로</option></select></td><td class="r">45 / 300</td><td><div class="bar2"><i style="width:15%;"></i></div></td><td class="r"><button class="mini" onclick="alert('데모 (실제 미동작)')">이력</button></td></tr>
-        </table>
-      </div>
-
-      <div class="sec">
-        <h3>추가 크레딧 승인 대기</h3>
-        <table>
-          <tr><th>신청자</th><th>부서</th><th class="r">신청량</th><th>사유</th><th class="r">처리</th></tr>
-          <tr><td>박철수</td><td>생산</td><td class="r">+200회</td><td>월말 생산실적 보고 집중 작성</td><td class="r"><button class="mini ok" onclick="alert('데모: 승인 — 즉시 반영됩니다. (실제 미동작)')">승인</button><button class="mini no" onclick="alert('데모: 반려 (실제 미동작)')">반려</button></td></tr>
-          <tr><td>홍길동</td><td>사업관리</td><td class="r">+200회</td><td>프로젝트 기성 청구·정산 자료 집중 작성</td><td class="r"><button class="mini ok" onclick="alert('데모: 승인 (실제 미동작)')">승인</button><button class="mini no" onclick="alert('데모: 반려 (실제 미동작)')">반려</button></td></tr>
-        </table>
+        <h3>대화 저장 현황 <span style="font-size:11px;color:var(--green,#1a7f37);">● 실데이터</span></h3>
+        <div class="cards">
+          <div class="card"><div class="lb">저장된 대화(세션)</div><div class="v" id="luSessions">—</div></div>
+          <div class="card"><div class="lb">저장된 메시지</div><div class="v" id="luMessages">—</div></div>
+        </div>
+        <p class="admin-note">사용자가 작업 폴더·대화로 저장한 건수입니다. <b>원문은 본인만 열람·삭제</b>할 수 있으며(jeil-chat-history), 관리자에게는 건수 통계만 표시됩니다. 저장 on/off·보존기간은 「모델 설정」 탭에서 관리합니다.</p>
       </div>
     </div>
 
@@ -817,29 +769,27 @@
             <button class="save" onclick="grantAdmin()">전체권한 부여</button>
           </div>
         </div>
-        <p class="admin-note">전체권한은 최고 권한(설정 편집·급여 포함)입니다. 최소 인원에게만 부여하세요. 아래 섹션은 실구축 기획 예시 화면입니다 — 상세 기획: 「실제구축준비 자료/06_챗봇_데이터접근권한_사용량관리_고도화」.</p>
+        <p class="admin-note">전체권한은 최고 권한(설정 편집·급여 포함)입니다. 최소 인원에게만 부여하세요.</p>
       </div>
       <div class="cards">
-        <div class="card"><div class="lb">전체 관리자</div><div class="v">1명 <small>· 최동혁</small></div></div>
-        <div class="card"><div class="lb">부서 관리자</div><div class="v">8명 <small>· 부서별 1인</small></div></div>
-        <div class="card"><div class="lb">일반 사용자</div><div class="v">78명</div></div>
-        <div class="card"><div class="lb">권한 요청 대기</div><div class="v" style="color:var(--amber);">1건</div></div>
+        <div class="card"><div class="lb">전체 관리자</div><div class="v" id="lpAdminCnt">—</div></div>
+        <div class="card"><div class="lb">매핑된 부서</div><div class="v" id="lpDeptCnt">—</div></div>
+        <div class="card"><div class="lb">매핑된 사용자</div><div class="v" id="lpUserCnt">—</div></div>
       </div>
 
       <div class="sec">
-        <h3>역할별 권한 매트릭스 <button class="save" onclick="alert('데모: 권한 매트릭스 저장 — 즉시 적용됩니다. (실제 미동작)')">저장</button></h3>
+        <h3>역할별 권한 매트릭스 <span style="font-size:11px;color:var(--muted);">읽기전용 · 역할 정의</span></h3>
         <table>
           <tr><th>기능 영역</th><th class="c">전체 관리자</th><th class="c">부서 관리자</th><th class="c">일반 사용자</th></tr>
-          <tr><td>챗봇 사용 · 파일 분석</td><td class="c mat-y">●</td><td class="c mat-y">●</td><td class="c mat-y">●</td></tr>
+          <tr><td>챗봇 사용</td><td class="c mat-y">●</td><td class="c mat-y">●</td><td class="c mat-y">●</td></tr>
           <tr><td>부서 운영 페이지 열람</td><td class="c mat-y">● 전체</td><td class="c mat-p">▲ 소속 부서 + 전사공개</td><td class="c mat-p">▲ 소속 부서 + 전사공개</td></tr>
-          <tr><td>운영 페이지 등록·수정·공개범위 지정</td><td class="c mat-y">● 전체</td><td class="c mat-p">▲ 소속 부서만</td><td class="c mat-n">✕</td></tr>
+          <tr><td>운영 페이지 공개범위 지정</td><td class="c mat-y">● 전체</td><td class="c mat-p">▲ 소속 부서만</td><td class="c mat-n">✕</td></tr>
           <tr><td>ERP 연계 데이터 조회 범위</td><td class="c mat-y">● 전체 모듈</td><td class="c mat-p">▲ 부서 매핑 모듈</td><td class="c mat-p">▲ 부서 매핑 모듈 (조회만)</td></tr>
-          <tr><td>크레딧 추가 승인 · 등급 변경</td><td class="c mat-y">● 전체</td><td class="c mat-p">▲ 소속 부서만</td><td class="c mat-n">✕ (신청만 가능)</td></tr>
           <tr><td>대화 로그 감사 조회</td><td class="c mat-y">●</td><td class="c mat-n">✕</td><td class="c mat-n">✕</td></tr>
-          <tr><td>API 키 · 지출한도 · 모델 · 보안 설정</td><td class="c mat-y">●</td><td class="c mat-n">✕</td><td class="c mat-n">✕</td></tr>
-          <tr><td>권한 부여 · 역할 변경</td><td class="c mat-y">●</td><td class="c mat-n">✕</td><td class="c mat-n">✕</td></tr>
+          <tr><td>모델 · 게이트웨이 · 보안 설정</td><td class="c mat-y">●</td><td class="c mat-n">✕</td><td class="c mat-n">✕</td></tr>
+          <tr><td>권한 부여 · 부서 설정</td><td class="c mat-y">●</td><td class="c mat-p">▲ 소속 부서만</td><td class="c mat-n">✕</td></tr>
         </table>
-        <p class="admin-note">● 전체 허용 · ▲ 범위 제한 허용 · ✕ 불가. 역할은 Microsoft Entra 보안그룹과 연동되어 자동 부여됩니다 (예: AI-Portal-Admins → 전체 관리자).</p>
+        <p class="admin-note">● 전체 허용 · ▲ 범위 제한 · ✕ 불가. 전체 관리자는 <code>portal_admin</code>, 부서 관리자·부서 접근범위는 「부서별 권한 설정」에서 지정합니다. (운영 전환 시 Entra 보안그룹 자동 부여로 확장 예정)</p>
       </div>
 
       <div class="sec">
@@ -853,14 +803,14 @@
       </div>
 
       <div class="sec">
-        <h3>권한별 제한영역 정리 <span><button class="save" style="background:#fff;color:var(--accent);border:1px solid var(--accent);" onclick="alert('데모: 제한 항목 추가 (실제 미동작)')">+ 항목 추가</button> <button class="save" onclick="alert('데모: 제한영역 정리 저장 (실제 미동작)')">저장</button></span></h3>
+        <h3>권한별 제한영역 <span style="font-size:11px;color:var(--muted);">읽기전용 · 정책 안내</span></h3>
         <table>
-          <tr><th style="width:14%;">역할</th><th style="width:22%;">제한 영역</th><th>제한 내용</th><th class="r" style="width:10%;">관리</th></tr>
-          <tr><td><span class="badge b">일반 사용자</span></td><td>ERP 데이터</td><td>소속 부서에 매핑된 모듈만 조회 가능. 원장 수정·삭제 불가(전 역할 공통, 읽기전용 원칙)</td><td class="r"><button class="mini" onclick="alert('데모: 항목 수정 (실제 미동작)')">수정</button></td></tr>
-          <tr><td><span class="badge b">일반 사용자</span></td><td>운영 페이지</td><td>타 부서 전용 페이지 접근 불가(잠금 표시). 열람 필요 시 해당 부서 관리자에게 권한 요청</td><td class="r"><button class="mini" onclick="alert('데모 (실제 미동작)')">수정</button></td></tr>
-          <tr><td><span class="badge b">일반 사용자</span></td><td>개인정보·기밀</td><td>주민번호·계좌 등 자동 마스킹, 인사평가·급여 데이터 질의 차단(담당 부서 안내로 대체)</td><td class="r"><button class="mini" onclick="alert('데모 (실제 미동작)')">수정</button></td></tr>
-          <tr><td><span class="badge a">부서 관리자</span></td><td>관리 범위</td><td>소속 부서 구성원·페이지·크레딧만 관리. 전사 설정(API·모델·지출한도) 변경 불가</td><td class="r"><button class="mini" onclick="alert('데모 (실제 미동작)')">수정</button></td></tr>
-          <tr><td><span class="badge g">전체 관리자</span></td><td>변경 통제</td><td>API 키·지출한도·권한 변경 시 변경 이력 자동 기록(감사 로그). 백업 관리자 1인 지정 권장</td><td class="r"><button class="mini" onclick="alert('데모 (실제 미동작)')">수정</button></td></tr>
+          <tr><th style="width:16%;">역할</th><th style="width:22%;">제한 영역</th><th>제한 내용</th></tr>
+          <tr><td><span class="badge b">일반 사용자</span></td><td>ERP 데이터</td><td>소속 부서에 매핑된 모듈만 조회. 원장 수정·삭제 불가(전 역할 공통, 읽기전용 원칙)</td></tr>
+          <tr><td><span class="badge b">일반 사용자</span></td><td>운영 페이지</td><td>타 부서 전용 페이지 접근 불가(잠금 표시). 필요 시 해당 부서 관리자에게 권한 요청</td></tr>
+          <tr><td><span class="badge b">일반 사용자</span></td><td>개인정보·기밀</td><td>급여·주민번호 등 민감 데이터 질의는 응답 억제, 인사 데이터는 담당 부서 안내로 대체</td></tr>
+          <tr><td><span class="badge a">부서 관리자</span></td><td>관리 범위</td><td>소속 부서 구성원·페이지만 관리. 전사 설정(모델·게이트웨이·보안) 변경 불가</td></tr>
+          <tr><td><span class="badge g">전체 관리자</span></td><td>변경 통제</td><td>권한·설정 변경은 관리자 콘솔 저장 액션으로만 반영(서버 감사). 백업 관리자 1인 지정 권장</td></tr>
         </table>
       </div>
     </div>
@@ -1253,6 +1203,9 @@ function applyMyDept(){
   // 사내 운영 페이지 상단에도 소속·권한 표시
   var pg = document.getElementById('pgMyDept');
   if(pg) pg.textContent = nm ? ('· ' + nm + (role ? ' (' + role + ')' : '')) : '';
+  // 관리자 콘솔 진입 버튼은 전체 관리자(portal_admin)에게만 노출
+  var ab = document.getElementById('adminConsoleBtn');
+  if(ab) ab.style.display = (window.MY_PERM && window.MY_PERM.is_admin) ? '' : 'none';
 }
 
 function runDemo(key){
@@ -1359,6 +1312,8 @@ function authDone(claims){
   }
   // 토큰 미확보(교환 실패 등)면 "인증됨"으로 오인시키지 않고 재로그인을 안내
   setAuthBadge(live ? '🔒 Entra ID SSO · MFA 인증됨' : '⚠️ 로그인 필요 — 실데이터는 재로그인 후 동작');
+  // 로그인(실토큰) 상태에서는 상단 데모 안내 배너를 숨긴다(실운영 화면). 미로그인 방문자에게만 노출.
+  var _db = document.getElementById('demoBanner'); if(_db) _db.style.display = live ? 'none' : '';
   loadProfilePhoto();
   loadPagePerms(); // 로그인 후 부서 운영 카드를 내 권한 기준으로 재구성
   initWorkspace(); // work 폴더·대화 목록 로드(서버 저장 대화내역)
@@ -1963,14 +1918,14 @@ async function loadAdminLive(force){
   var note = document.getElementById('liveNote');
   if(adminLiveLoaded && !force) return;
   var auth = getLiveAuth();
-  if(!auth){ if(note) note.textContent = '👁 미로그인 — 아래는 기획 예시 화면입니다. MS 로그인(관리자)하면 실데이터가 표시됩니다.'; return; }
+  if(!auth){ if(note) note.textContent = '👁 MS 로그인(관리자) 후 실데이터가 표시됩니다.'; return; }
   if(note) note.textContent = '실데이터 불러오는 중…';
   try{
     var res = await fetch(ADMIN_GATEWAY, { method:'POST', headers:{ Authorization:'Bearer '+auth.at } });
     if(!res.ok){ var e={}; try{ e=await res.json(); }catch(_){} throw new Error(e.error || ('오류 '+res.status)); }
     var d = await res.json();
     adminLiveLoaded = true;
-    if(note) note.innerHTML = '🔒 실데이터 표시 중 (기준: ' + fmtKST(d.as_of) + ') — 각 탭 상단 <b>● 실데이터</b> 섹션이 실측값, 나머지는 실구축 기획 예시입니다.';
+    if(note) note.innerHTML = '🔒 실데이터 표시 중 · 기준 ' + fmtKST(d.as_of) + ' — 게이트웨이(jeil-chat) 실측값입니다.';
     // API 탭
     setTxt('lgStatus', d.gateway.key_set ? '<span class="dot"></span>정상 가동' : '⚠ 키 미설정');
     setTxt('lgModel', escHtml(d.gateway.provider + ' · ' + d.gateway.model));
@@ -1982,6 +1937,8 @@ async function loadAdminLive(force){
     setTxt('luTotal', d.usage.total_calls.toLocaleString() + '회 <small>· 조회 ' + (d.usage.tool_call_count||0) + '건</small>');
     setTxt('luTokens', ((d.usage.total_prompt_tokens||0)/1000).toFixed(1) + 'k / ' + ((d.usage.total_completion_tokens||0)/1000).toFixed(1) + 'k');
     setTxt('luCost', '$' + (d.usage.month_cost_usd||0).toFixed(3) + ' <small>/ $' + (d.usage.total_cost_usd||0).toFixed(3) + '</small>');
+    setTxt('luSessions', (d.usage.chat_sessions!=null ? d.usage.chat_sessions.toLocaleString() : '0') + '개');
+    setTxt('luMessages', (d.usage.chat_messages!=null ? d.usage.chat_messages.toLocaleString() : '0') + '건');
     var bu = document.getElementById('luByUser');
     if(bu) bu.innerHTML = '<tr><th>사용자</th><th class="r">호출</th><th class="r">토큰</th><th class="r">추정 비용</th><th>최근 사용</th></tr>'
       + d.usage.by_user.map(function(u){ return '<tr><td>'+escHtml(u.label||u.upn)+'</td><td class="r">'+u.calls.toLocaleString()+'</td><td class="r">'+(u.tokens||0).toLocaleString()+'</td><td class="r">$'+(u.cost||0).toFixed(3)+'</td><td>'+fmtKST(u.last)+'</td></tr>'; }).join('');
@@ -1993,7 +1950,10 @@ async function loadAdminLive(force){
           var cost = (r.est_cost_usd!=null) ? ('$'+Number(r.est_cost_usd).toFixed(4)) : '-';
           return '<tr><td>'+fmtKST(r.created_at)+'</td><td>'+escHtml(r.upn_label||r.upn)+'</td><td>'+escHtml(r.model)+'</td><td>'+tools+'</td><td class="r">'+tok+'</td><td class="r">'+cost+'</td></tr>';
         }).join('');
-    // 권한 탭
+    // 권한 탭 — 실데이터 카운트(관리자·부서·사용자)
+    setTxt('lpAdminCnt', (d.admins ? d.admins.length : 0) + '명');
+    setTxt('lpDeptCnt', ((d.dept_mapping && d.dept_mapping.counts && d.dept_mapping.counts.depts) || 0) + '개');
+    setTxt('lpUserCnt', ((d.dept_mapping && d.dept_mapping.counts && d.dept_mapping.counts.users) || 0) + '명');
     var ad = document.getElementById('lpAdmins');
     if(ad) ad.innerHTML = '<tr><th>전체 관리자 (portal_admin)</th><th>부여</th><th>부여일</th><th class="r">관리</th></tr>'
       + d.admins.map(function(a){ return '<tr><td>'+escHtml(a.email)+'</td><td>'+escHtml(a.granted_by||'-')+'</td><td>'+(a.granted_at||'').slice(0,10)+'</td><td class="r"><button data-email="'+escHtml(a.email)+'" onclick="revokeAdmin(this.getAttribute(\'data-email\'))" style="background:#fff;color:var(--red);border:1px solid var(--red);border-radius:6px;padding:2px 10px;font-size:11px;cursor:pointer;">해제</button></td></tr>'; }).join('');
@@ -2006,7 +1966,7 @@ async function loadAdminLive(force){
     if(d.model_settings) renderModelSettings(d.model_settings);
     if(d.erp_sync) renderErpSync(d.erp_sync);
   }catch(e){
-    if(note) note.textContent = '⚠ 실데이터 조회 실패: ' + (e.message||'') + ' — 아래는 기획 예시 화면입니다.';
+    if(note) note.textContent = '⚠ 실데이터 조회 실패: ' + (e.message||'') + ' (관리자 계정으로 로그인했는지 확인하세요)';
   }
 }
 
