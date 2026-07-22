@@ -109,6 +109,13 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <tbody>
 <tr>
 <td>2026-07-22</td>
+<td>ERP 연계·데이터품질</td>
+<td><code>10_ERP_DB연계/00</code>(v0.15)·<code>02</code>(SQL 검증 결과)</td>
+<td><strong>중간DB(erp_ro) 정합성 SQL 검증 — 실측 완료(이상 없음)</strong>. S3041-00065 챗봇 오답 이슈의 후속으로, 사용자 우려("Supabase 중간DB가 실제 ERP와 안 맞게 연결된 것 아닌가")에 SQL 실측으로 답했다. item_code NULL/공백·품목마스터 고아(발주·구매요청·매입)·번호형식 위반·PK 중복을 발주 3,088·구매요청 4,064·매입상세 1,981·품목 58,533행 전건 점검한 결과 <strong>전부 0건</strong>(구조적 오류·누락 미발견), <code>etl_meta.batch_run</code> 최근 12건 전부 success·rows_read=rows_upserted. 발견된 2건(발주→구매요청 고아 49건=전부 2025년 PR 참조, (po_no+item_code) 중복 31건=동일 PO 내 po_seq 분리)은 조사 결과 데이터 오류가 아니라 각각 "2026년만 적재하는 범위 한계"·"ERP 원본 구조 정확 보존"으로 설명됨. <strong>잔여 과제</strong>: ERP 원본(M_PUR_ORD/M_PUR_REQ) 직접 대사는 ODBC 접속 설정 읽기 권한 거부로 미실행 — 관리자 <code>etl_run.py --dry-run</code> 직접 실행 필요.</td>
+<td>최동혁(+Claude)</td>
+</tr>
+<tr>
+<td>2026-07-22</td>
 <td>챗봇 UI·대화공유</td>
 <td><code>supabase/functions/jeil-chat-history/index.ts</code>(v3→<strong>v4</strong>), <code>04_챗봇_포털_데모UI.html</code>, 통합본</td>
 <td><strong>공유 작업 폴더 실시간 반영 — 다른 사용자가 작업한 내용이 새로고침 없이 보이도록 주기 동기화 적용</strong>. 사용자 제보: 챗봇에서 팀원이 추가한 대화·메시지가 실시간으로 안 보임. 원인: 워크스페이스를 <strong>로그인 시 <code>bootstrap</code> 1회만</strong> 불러오고 이후 갱신 경로가 수동(↻ 버튼·새로고침)뿐이었음 — 공유 폴더(<code>chat_work_member</code>)의 팀원 대화는 서버엔 쌓이지만 화면은 최초 스냅샷에 고정. 조치: ① 서버 <strong><code>sync</code> op 신설</strong>(폴더·세션 목록 스냅샷 + 열어둔 대화의 새 메시지 <strong>증분</strong>; <code>session_messages</code>에 <code>after_seq</code> 추가, purge 미수행 경량 경로, 접근 상실 세션은 <code>gone:true</code>). ② 프론트 <strong>주기 폴링 15초</strong> — 탭이 숨겨지면 정지하고 복귀·포커스 시 즉시 1회, 스트리밍 중 정지, 연속 실패는 지수 백오프(최대 2분). 목록은 <strong>지문 비교로 변경 시에만</strong> 다시 그려 사이드바 깜빡임·조작 방해 없음. 팀원 발화는 기존 공유 말풍선(회색+발화자 라벨)으로 붙고 다음 질문의 맥락(<code>chatHistory</code>)에도 포함. ③ 중복 방지: 내 계정 메시지는 이 탭이 이미 그린 것으로 보고 렌더 없이 <code>seq</code>만 전진(내 응답 저장 완료를 감안해 전송 1.5초 뒤 1회 추가 동기화). Realtime(WebSocket)은 <code>chat_*</code> 테이블이 RLS 전면차단이라 미사용 — 서버 접근판정을 거치는 Edge Function 폴링으로 구현(동기화 지연 최대 15초 허용).</td>
