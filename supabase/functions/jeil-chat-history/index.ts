@@ -1,10 +1,12 @@
-// jeil-chat-history — 챗봇 대화내역 CRUD (work 작업폴더 · 대화 세션 · 메시지 · 팀 공유) v3
+// jeil-chat-history — 챗봇 대화내역 CRUD (work 작업폴더 · 대화 세션 · 메시지 · 팀 공유) v4
 // 배포: verify_jwt=false (Entra 토큰은 Supabase JWT가 아니므로 내부에서 직접 검증)
 // 호출: POST /functions/v1/jeil-chat-history  Authorization: Bearer <Entra access_token>
-//   body: { op: "bootstrap"|"work_create"|"work_update"|"work_delete"
+//   body: { op: "bootstrap"|"sync"|"work_create"|"work_update"|"work_delete"
 //               |"session_list"|"session_rename"|"session_delete"|"session_messages"
 //               |"member_list"|"member_add"|"member_remove"|"people_search", ... }
 //   v3: people_search(사내 인원 검색 — 이름·부서·아이디, Outlook 받는사람 UX) + member_add 복수 초대(emails[])
+//   v4: sync(주기 동기화 — 목록 + 현재 세션의 새 메시지 증분) · session_messages after_seq 증분 조회.
+//       공유 폴더에서 팀원이 추가한 대화·메시지가 새로고침 없이 보이게 하는 폴링 전용 경량 op(purge 미수행).
 // 원칙(대화 원문 서버 저장 — ADR-009, v2에서 팀 공유로 개정):
 //   - chat_work/chat_session/chat_message/chat_work_member 는 RLS 전면차단(정책 0) — 이 함수(service_role)의
 //     접근 판정이 유일한 경로. 판정은 DB RPC(chat_work_access/chat_session_access)로 일원화:
@@ -117,13 +119,14 @@ Deno.serve(async (req) => {
   const works = ownGuard(admin, "chat_work", user.upn);
   const sessions = ownGuard(admin, "chat_session", user.upn);
 
-  // 초기 로드 — 내 폴더 + 내가 팀원인 공유 폴더 + 접근 가능한 세션 전체. 말미에 기회적 purge.
-  if (op === "bootstrap") {
+  // 워크스페이스 스냅샷(폴더 + 접근 가능한 세션) — bootstrap(초기 로드)과 sync(주기 동기화)가 공유.
+  // deno-lint-ignore no-explicit-any
+  async function loadWorkspace(): Promise<{ works: any[]; sessions: any[] } | { error: string }> {
     const [ownR, memR] = await Promise.all([
       works.select("id,name,memo,sort,updated_at").is("deleted_at", null).order("sort").order("updated_at", { ascending: false }),
       admin.from("chat_work_member").select("work_id").eq("upn", user.upn),
     ]);
-    if (ownR.error) return json({ error: "work 조회 실패: " + ownR.error.message }, 500);
+    if (ownR.error) return { error: "work 조회 실패: " + ownR.error.message };
     // deno-lint-ignore no-explicit-any
     const ownWorks = (ownR.data || []) as any[];
     const memIds = [...new Set(((memR.data || []) as { work_id: string }[]).map((r) => r.work_id))];
@@ -155,10 +158,61 @@ Deno.serve(async (req) => {
       ? sq.or(`and(upn.eq.${user.upn},work_id.is.null),work_id.in.(${allIds.join(",")})`)
       : sq.eq("upn", user.upn).is("work_id", null);
     const { data: sess, error: se } = await sq.order("last_message_at", { ascending: false, nullsFirst: false }).limit(300);
-    if (se) return json({ error: "세션 조회 실패: " + se.message }, 500);
+    if (se) return { error: "세션 조회 실패: " + se.message };
+    return { works: outWorks, sessions: sess || [] };
+  }
+
+  // 세션 메시지 조회(공통) — before_seq=과거 방향 페이지, after_seq=증분(폴링 동기화). 접근 판정은 호출측 책임.
+  async function readMessages(sessionId: string, opts: { limit?: unknown; before_seq?: unknown; after_seq?: unknown }) {
+    const limit = Math.min(200, Math.max(1, Math.trunc(Number(opts.limit)) || 50));
+    const after = Math.trunc(Number(opts.after_seq));
+    let q = admin.from("chat_message").select("seq,role,content,views,model,stopped,created_at,upn").eq("session_id", sessionId);
+    // deno-lint-ignore no-explicit-any
+    let msgs: any[] = [];
+    if (Number.isFinite(after) && after > 0) {
+      const { data, error } = await q.gt("seq", after).order("seq", { ascending: true }).limit(limit);
+      if (error) return { error: "메시지 조회 실패: " + error.message };
+      msgs = data || [];
+    } else {
+      const before = Math.trunc(Number(opts.before_seq));
+      if (Number.isFinite(before) && before > 0) q = q.lt("seq", before);
+      const { data, error } = await q.order("seq", { ascending: false }).limit(limit);
+      if (error) return { error: "메시지 조회 실패: " + error.message };
+      msgs = (data || []).reverse();
+    }
+    const senders = await labelMap(admin, msgs.filter((x) => x.role === "user").map((x) => String(x.upn)));
+    return { messages: msgs, senders };
+  }
+
+  // 초기 로드 — 내 폴더 + 내가 팀원인 공유 폴더 + 접근 가능한 세션 전체. 말미에 기회적 purge.
+  if (op === "bootstrap") {
+    const ws = await loadWorkspace();
+    if ("error" in ws) return json({ error: ws.error }, 500);
     // @ts-ignore: Supabase Edge Runtime
     if (typeof EdgeRuntime !== "undefined" && EdgeRuntime.waitUntil) EdgeRuntime.waitUntil(opportunisticPurge(admin));
-    return json({ works: outWorks, sessions: sess || [], me: user.upn });
+    return json({ works: ws.works, sessions: ws.sessions, me: user.upn });
+  }
+
+  // 주기 동기화(폴링) — 목록 스냅샷 + 열린 세션의 새 메시지 증분. purge·부가작업 없음(가벼움 우선).
+  //   body: { session_id?, after_seq? } → { works, sessions, me, messages?, senders?, session? }
+  //   접근을 잃은(제거·삭제) 세션이면 messages 대신 gone:true 를 돌려 프론트가 화면을 정리하게 한다.
+  if (op === "sync") {
+    const ws = await loadWorkspace();
+    if ("error" in ws) return json({ error: ws.error }, 500);
+    const out: Record<string, unknown> = { works: ws.works, sessions: ws.sessions, me: user.upn };
+    if (isUuid(b.session_id)) {
+      if (!(await canAccessSession(admin, b.session_id, user.upn))) {
+        out.gone = true;
+      } else {
+        const r = await readMessages(b.session_id, { limit: b.limit, after_seq: b.after_seq });
+        if ("error" in r) return json({ error: r.error }, 500);
+        out.messages = r.messages; out.senders = r.senders;
+        const { data: s } = await admin.from("chat_session").select("id,work_id,title,message_count,last_message_at,upn")
+          .eq("id", b.session_id).is("deleted_at", null).maybeSingle();
+        if (!s) out.gone = true; else out.session = s;
+      }
+    }
+    return json(out);
   }
 
   // work 생성 (생성자=소유자)
@@ -255,16 +309,9 @@ Deno.serve(async (req) => {
     const { data: s, error: se } = await admin.from("chat_session").select("id,work_id,title,message_count,last_message_at,upn")
       .eq("id", b.session_id).is("deleted_at", null).maybeSingle();
     if (se || !s) return json({ error: "세션 조회 실패" }, 500);
-    const limit = Math.min(200, Math.max(1, Math.trunc(Number(b.limit)) || 50));
-    let q = admin.from("chat_message").select("seq,role,content,views,model,stopped,created_at,upn").eq("session_id", b.session_id);
-    const before = Math.trunc(Number(b.before_seq));
-    if (Number.isFinite(before) && before > 0) q = q.lt("seq", before);
-    const { data: m, error: me } = await q.order("seq", { ascending: false }).limit(limit);
-    if (me) return json({ error: "메시지 조회 실패: " + me.message }, 500);
-    const msgs = (m || []).reverse();
-    // deno-lint-ignore no-explicit-any
-    const senders = await labelMap(admin, (msgs as any[]).filter((x) => x.role === "user").map((x) => String(x.upn)));
-    return json({ session: s, messages: msgs, senders, me: user.upn });
+    const r = await readMessages(b.session_id, { limit: b.limit, before_seq: b.before_seq, after_seq: b.after_seq });
+    if ("error" in r) return json({ error: r.error }, 500);
+    return json({ session: s, messages: r.messages, senders: r.senders, me: user.upn });
   }
 
   // 팀원 목록 — 접근자 모두. 소유자·팀원 표기 라벨 포함.

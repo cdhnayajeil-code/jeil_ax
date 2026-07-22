@@ -1474,7 +1474,7 @@ var chatHistory = []; // 현재 대화 맥락(메모리) — 서버 chat_session
 var _chatAbort = null; // 스트리밍 중이면 AbortController(보내기 버튼이 '중지'로 전환), 아니면 null
 /* work(작업 폴더)·대화 상태 — 메모리 전용. 서버(jeil-chat-history)가 단일 출처.
    works 항목: {id,name,memo,…, is_owner, shared(팀원 존재), member_count, owner_label(공유받은 폴더의 소유자 표기)} */
-var WS = { works: null, sessions: null, workId: null, sessionId: null, me: '' };
+var WS = { works: null, sessions: null, workId: null, sessionId: null, me: '', lastSeq: 0 };
 
 function getLiveAuth(){
   try{
@@ -1874,6 +1874,8 @@ async function sendLive(v, auth){
   }finally{
     if(_chatAbort === myAbort) _chatAbort = null;   // 다른 스트림이 시작됐다면 그 상태를 건드리지 않는다
     setSendState(false);
+    // 응답 저장(서버 waitUntil)이 끝날 시간을 잠깐 준 뒤 동기화 — 내 응답 seq 전진 + 그사이 팀원 메시지 반영
+    setTimeout(function(){ try{ syncNow(); }catch(e){} }, 1500);
   }
 }
 
@@ -2431,6 +2433,7 @@ function initWorkspace(){
     WS.works = d.works || []; WS.sessions = d.sessions || []; WS.me = String(d.me || '').toLowerCase();
     renderWorkBox();
     consumePendingWork();   // 초대 링크로 들어왔으면 해당 폴더 열기
+    syncStart();            // 이후로는 주기 동기화가 팀원 변경분을 반영(새로고침 불필요)
   }).catch(function(e){
     // 목록 실패는 챗 사용을 막지 않는다 — 재시도 버튼만 표시
     if(WS && WS.works !== null) return;
@@ -2532,7 +2535,7 @@ function selectWork(id){
 function newChat(skipGuard){
   if(!skipGuard && !guardStreaming()) return;
   chatHistory = [];
-  WS.sessionId = null;
+  WS.sessionId = null; WS.lastSeq = 0;
   var c = document.getElementById('chat'); if(c) c.innerHTML = WELCOME_HTML;
   var t = document.getElementById('chatTitle'); if(t) t.textContent = '새 대화';
   updateSyncBtn();
@@ -2547,7 +2550,7 @@ function openSession(id, force){
   if(!force && WS.sessionId === id){ showChat(); return; }
   historyApi('session_messages', { session_id: id }).then(function(d){
     var c = document.getElementById('chat'); if(!c) return;
-    c.innerHTML = ''; chatHistory = [];
+    c.innerHTML = ''; chatHistory = []; WS.lastSeq = 0;
     var myUpn = String(d.me || WS.me || '').toLowerCase();
     (d.messages || []).forEach(function(m){
       if(m.role === 'user'){
@@ -2557,6 +2560,7 @@ function openSession(id, force){
       }
       else { addAssistantStatic(m.content, m.views, m.stopped); }
       chatHistory.push({ role: m.role, content: m.content });
+      if(Number(m.seq) > WS.lastSeq) WS.lastSeq = Number(m.seq);   // 폴링 증분 기준점(after_seq)
     });
     WS.sessionId = id;
     var s = d.session || {};
@@ -2573,6 +2577,63 @@ function updateSyncBtn(){
   btn.style.display = (w && w.shared) ? '' : 'none';
 }
 function refreshSession(){ if(WS.sessionId) openSession(WS.sessionId, true); }
+
+/* ===== 실시간 동기화(주기 폴링) — 팀원이 추가한 대화·메시지를 새로고침 없이 반영 =====
+   Supabase Realtime(WebSocket)은 chat_* 테이블이 RLS 전면차단(정책 0)이라 쓸 수 없다 →
+   서버 접근판정을 거치는 jeil-chat-history 'sync' op를 주기 호출한다(동기화 시점은 최대 SYNC.base 지연 허용).
+   비용·부하 억제: 탭이 숨겨지면 폴링 정지(복귀 시 즉시 1회), 스트리밍 중 정지, 연속 실패는 지수 백오프(최대 2분).
+   중복 방지: 내 upn 메시지는 이 탭이 이미 그렸다고 보고 렌더 없이 seq만 전진시킨다
+   (다른 기기·탭에서 보낸 내 발화는 해당 화면에서 표시되며, 이 탭에는 대화 다시 열기 시 합류). */
+var SYNC = { timer: null, base: 15000, wait: 15000, max: 120000, busy: false, sig: '' };
+function syncSig(){
+  var w = (WS.works || []).map(function(x){ return [x.id, x.name, x.shared ? 1 : 0, x.member_count || 0].join('~'); }).join('|');
+  var s = (WS.sessions || []).map(function(x){ return [x.id, x.work_id || '', x.title || '', x.message_count || 0, x.last_message_at || ''].join('~'); }).join('|');
+  return w + '#' + s;
+}
+function syncStart(){
+  if(SYNC.timer) return;
+  SYNC.sig = syncSig(); SYNC.wait = SYNC.base;
+  SYNC.timer = setTimeout(function tick(){
+    SYNC.timer = null;
+    syncTick().then(function(){ SYNC.wait = SYNC.base; }, function(){ SYNC.wait = Math.min(SYNC.max, SYNC.wait * 2); })
+      .then(function(){ if(hasStoredAuth()){ SYNC.timer = setTimeout(tick, SYNC.wait); } });
+  }, SYNC.base);
+}
+function syncNow(){   // 탭 복귀·포커스 시 즉시 1회(대기 없이 최신화)
+  if(SYNC.busy) return;
+  syncTick().then(function(){ SYNC.wait = SYNC.base; }, function(){ /* 실패는 다음 주기에 재시도 */ });
+}
+function syncTick(){
+  // 폴링 스킵 조건: 미로그인 · 초기 로드 전 · 탭 비활성 · 스트리밍 중(응답 렌더와 충돌 방지)
+  if(!hasStoredAuth() || !WS || WS.works === null || document.hidden || _chatAbort || SYNC.busy) return Promise.resolve();
+  SYNC.busy = true;
+  var sid = WS.sessionId, after = WS.lastSeq || 0;
+  return historyApi('sync', sid ? { session_id: sid, after_seq: after } : {}).then(function(d){
+    if(d.me) WS.me = String(d.me).toLowerCase();
+    // 1) 폴더·대화 목록 — 실제 변화가 있을 때만 다시 그린다(사이드바 깜빡임·조작 방해 방지)
+    WS.works = d.works || []; WS.sessions = d.sessions || [];
+    var sig = syncSig();
+    if(sig !== SYNC.sig){ SYNC.sig = sig; renderWorkBox(); updateSyncBtn(); }
+    // 2) 열어둔 대화의 새 메시지 — 응답이 늦게 도착한 사이 다른 대화로 옮겼으면 폐기
+    if(!sid || WS.sessionId !== sid || d.gone) return;
+    var msgs = d.messages || []; if(!msgs.length) return;
+    var box = document.getElementById('chat');
+    var keep = box ? (box.scrollHeight - box.scrollTop - box.clientHeight < 80) : false;
+    var added = 0;
+    msgs.forEach(function(m){
+      if(Number(m.seq) > WS.lastSeq) WS.lastSeq = Number(m.seq);
+      var who = String(m.upn || '').toLowerCase();
+      if(who && WS.me && who === WS.me) return;   // 내 발화·내 요청의 응답 — 이 탭에 이미 표시됨
+      if(m.role === 'user'){ addUserOther(m.content, (d.senders && d.senders[who]) || m.upn); }
+      else { addAssistantStatic(m.content, m.views, m.stopped); }
+      chatHistory.push({ role: m.role, content: m.content });   // 팀원 발화도 다음 질문의 맥락에 포함
+      added++;
+    });
+    if(added && keep) scrollBottom();
+  }).finally(function(){ SYNC.busy = false; });
+}
+document.addEventListener('visibilitychange', function(){ if(!document.hidden) syncNow(); });
+window.addEventListener('focus', syncNow);
 /* 타인(팀원) 발화 말풍선 — 회색 배경 + 발화자 라벨('부서_이름_아이디' 규약), 이니셜 아바타 */
 function addUserOther(text, label){
   var wrap = el('<div class="msg user other"><div class="bubble"></div></div>');
@@ -2602,7 +2663,9 @@ function addAssistantStatic(content, views, stopped){
 /* 스트림 메타(jeilax_meta) 수신 — 새 세션을 목록 맨 앞에 낙관적 삽입(재조회 불필요) */
 function applySessionMeta(meta){
   if(!meta || !meta.session_id) return;
+  if(WS.sessionId !== meta.session_id) WS.lastSeq = 0;
   WS.sessionId = meta.session_id;
+  if(Number(meta.seq) > WS.lastSeq) WS.lastSeq = Number(meta.seq);   // 내 발화 seq — 폴링 증분 기준점 전진
   if(WS.sessions === null) WS.sessions = [];
   var s = WS.sessions.find(function(x){ return x.id === meta.session_id; });
   if(!s){
