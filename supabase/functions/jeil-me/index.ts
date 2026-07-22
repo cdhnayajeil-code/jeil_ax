@@ -22,6 +22,7 @@ const CATALOG = [
   { key: "pur_order", label: "발주" },
   { key: "user_dept", label: "사용자·부서" },
   { key: "payroll", label: "급여" }, // 민감 — 인사팀 dept_erp_scope 또는 관리자(is_admin)만
+  { key: "finance", label: "자금·회계" }, // 민감 — 자금·회계 부서만(자금 대시보드 게이트, erp_finance_overview RPC 강제)
 ];
 
 async function verifyEntraUser(token: string): Promise<{ upn: string } | null> {

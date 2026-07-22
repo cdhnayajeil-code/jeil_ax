@@ -109,6 +109,13 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <tbody>
 <tr>
 <td>2026-07-22</td>
+<td>ERP·권한</td>
+<td>Supabase 마이그레이션 <code>erp_finance_module_and_overview_rpc</code>, <code>pages/자금현황_대시보드.html</code>(신규), <code>app/lib/api.js</code>, <code>supabase/functions/jeil-me</code>(CATALOG)·<code>jeil-chat-admin</code>(CATALOG), portal_page 등록</td>
+<td><strong>자금·경영 현황 대시보드 신설(연/월 선택·ERP 실데이터) + 자금 데이터 부서 권한 게이트</strong>. ① <strong>연/월 선택 대시보드</strong>(<code>pages/자금현황_대시보드.html</code>) — ERP 중간DB 월집계(매출·매입·발주·수지) 실데이터, 연도·월 드롭다운(가용 기간 자동), KPI 카드(매출·매입·수지차 흑/적자·발주·수주)·월별 추이 막대차트(순수 CSS)·매출/매입 상위 거래처 Top10. Azure SSO 자체 인증(erp-status와 동일 콜드스타트-안전 패턴). ② <strong>권한 게이트(사용자 결정: 자금/회계/재무/관리자만)</strong> — <code>finance</code> ERP 모듈 신설(CATALOG 2함수 추가 → 관리자 콘솔 「권한 상세」 탭에서 부서별 가감 가능), <code>dept_erp_scope</code>에 자금팀·내부회계관리팀 초기 부여, portal_page 등록(전사공개+erp_module=finance → jeil-me가 <strong>자금/회계/관리자에게만 카드 노출</strong>). ③ <strong>서버 강제</strong> — 데이터는 <code>erp_finance_overview(연,월)</code> SECURITY DEFINER RPC가 세션 이메일(auth.jwt)→부서→finance 모듈/관리자 여부로 검증 후에만 반환(비권한=<code>forbidden</code> 예외→화면 잠금). SQL·브라우저 실측: 내부회계관리팀·관리자 허용(7개월·거래처Top), 생산팀 forbidden 차단 확인. 방침: 사내 운영 페이지는 기본적으로 권한 있는 부서만 열람(default-gated), 추가 조정은 관리자 콘솔.</td>
+<td>최동혁(+Claude)</td>
+</tr>
+<tr>
+<td>2026-07-22</td>
 <td>챗봇 UI·안정성</td>
 <td><code>04_챗봇_포털_데모UI.html</code>, 통합본</td>
 <td><strong>로그인 상태인데 "소속 부서 로그인 후 표시"로 굳던 버그 수정 — jeil-me 콜드스타트 재시도</strong>. 사용자 제보(로그인됐는데 소속부서 미표시+404). 라이브 실토큰으로 진단: jeil-me는 200 정상(dept=총무팀·is_admin), 토큰도 유효 — <strong>로그인이 끊긴 게 아니라</strong> 페이지 로드 시 첫 <code>jeil-me</code> 호출이 <code>'Unexpected token'</code>(비-JSON 응답 파싱) 오류로 실패한 것이 원인. 코드가 <code>res.json()</code>을 <code>res.ok</code> 확인 전에 호출해 오류를 못 잡고 포기 → <code>MY_PERM</code> null → <code>applyMyDept</code> 미실행으로 dept가 placeholder에 고정(수동 재호출 시 즉시 정상). 근본원인=<strong>Supabase Edge Function 콜드스타트</strong>(첫 요청이 HTML/빈 오류 응답). 수정: <code>fetchMe()</code> 헬퍼 신설 — 응답을 text로 받아 <strong>안전 파싱</strong> + <strong>최대 3회 재시도(500·1000ms 백오프, 401/403은 재시도 안 함)</strong>, loadPagePerms가 이를 사용하고 실패 시 dept를 '로그아웃'처럼 보이지 않게(🏢 부서 확인 중… → 자동 재시도 3회 → 실패 시 새로고침 안내). 부수: favicon 404 제거(<code>&lt;link rel="icon" href="data:,"&gt;</code>), MS Graph 프로필사진 404는 사진 미설정 시 정상(무해·핸들링됨). 라이브 실토큰으로 로직 검증(정상 1회 성공·오류 3회후 무한루프 없이 실패).</td>

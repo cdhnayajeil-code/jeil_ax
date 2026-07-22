@@ -345,6 +345,19 @@ export const erpApi = {
     if (error) throw error; return data || [];
   },
 
+  // 자금·회계 현황 종합(연/월) — 서버 RPC가 세션 부서(finance 모듈/관리자)로 강제.
+  // 권한 없으면 forbidden 예외를 던진다({ forbidden:true } 로 표준화해 반환). 반환: {ok, dept, is_admin, year, month, monthly[], top_sales[], top_purchase[], years[]}
+  async financeOverview(year = 2026, month = null) {
+    const { data, error } = await supabase.rpc("erp_finance_overview", { p_year: year, p_month: month });
+    if (error) {
+      const msg = String(error.message || "");
+      if (/forbidden/i.test(msg) || error.code === "42501") return { ok: false, forbidden: true };
+      if (/unauthorized/i.test(msg) || error.code === "28000") return { ok: false, unauthorized: true };
+      throw error;
+    }
+    return data || { ok: false };
+  },
+
   // 사용자↔부서↔사원 정상 매핑(연동용): {email, dept_nm, emp_nm, matched_dept_cd, dept_matched, src_updated, synced_at}
   // 재직·형식정상·비테스트·부서일치만(불일치는 userDeptRecon). 이메일=MS 계정.
   async userDept() {

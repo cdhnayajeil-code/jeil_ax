@@ -21,6 +21,7 @@ const CATALOG = [
   { key: "sales", label: "매출" }, { key: "purchase", label: "매입" },
   { key: "inventory", label: "재고" }, { key: "item", label: "품목" },
   { key: "pur_order", label: "발주" }, { key: "user_dept", label: "사용자·부서" },
+  { key: "finance", label: "자금·회계" }, // 자금 대시보드 게이트 — 자금·회계 부서만
 ];
 
 async function verifyEntraUser(token: string): Promise<{ upn: string } | null> {

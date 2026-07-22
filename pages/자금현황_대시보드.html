@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" href="data:,">
+<title>자금·경영 현황 대시보드 — JEIL AX</title>
+<style>
+  :root{ --navy:#1a2f4e; --navy2:#24406b; --accent:#3a7cc1; --accent2:#4a8ed0;
+         --ink:#26313f; --muted:#6b7787; --line:#e2e7ee; --bg:#f4f6f9; --soft:#eef2f8;
+         --green:#1a7f37; --red:#c0392b; --amber:#c9821a; }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif; color:var(--ink); background:var(--bg); font-size:14px; line-height:1.5;}
+  .wrap{max-width:1120px; margin:0 auto; padding:20px 18px 60px;}
+  .top{display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; padding:8px 0 16px;}
+  .top h1{font-size:19px; color:var(--navy); display:flex; align-items:center; gap:9px;}
+  .top .sub{font-size:12px; color:var(--muted); margin-top:2px;}
+  .top .who{font-size:12px; color:var(--muted);}
+  .filters{display:flex; gap:8px; align-items:center; flex-wrap:wrap;}
+  .filters select{border:1.5px solid var(--line); border-radius:9px; padding:8px 12px; font-family:inherit; font-size:13.5px; background:#fff; color:var(--ink); cursor:pointer; outline:none;}
+  .filters select:focus{border-color:var(--accent);}
+  .filters .lb{font-size:12px; color:var(--muted);}
+  /* 카드 */
+  .cards{display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:12px; margin:6px 0 18px;}
+  .card{background:#fff; border:1px solid var(--line); border-radius:13px; padding:15px 17px; box-shadow:0 2px 8px rgba(16,42,80,.05);}
+  .card .lb{font-size:11.5px; color:var(--muted); letter-spacing:.02em;}
+  .card .v{font-size:22px; font-weight:800; color:var(--navy); margin-top:5px; letter-spacing:-.02em;}
+  .card .v small{font-size:12px; font-weight:500; color:var(--muted);}
+  .card .v.pos{color:var(--green);} .card .v.neg{color:var(--red);}
+  .card .sub{font-size:11px; color:var(--muted); margin-top:3px;}
+  /* 섹션 */
+  .sec{background:#fff; border:1px solid var(--line); border-radius:13px; padding:18px 20px; margin-bottom:16px; box-shadow:0 2px 8px rgba(16,42,80,.05);}
+  .sec h2{font-size:14.5px; color:var(--navy); margin-bottom:14px; display:flex; align-items:center; gap:8px;}
+  .sec h2 small{font-weight:400; color:var(--muted); font-size:11.5px;}
+  /* 월별 막대 차트(순수 CSS) */
+  .chart{display:flex; align-items:flex-end; gap:10px; height:200px; padding:6px 2px 0; overflow-x:auto;}
+  .col{flex:1; min-width:54px; display:flex; flex-direction:column; align-items:center; gap:5px; height:100%;}
+  .col .bars{flex:1; width:100%; display:flex; align-items:flex-end; justify-content:center; gap:4px;}
+  .col .bar{width:16px; border-radius:4px 4px 0 0; min-height:2px; transition:height .3s;}
+  .col .bar.sales{background:var(--accent2);} .col .bar.purchase{background:#e0a94a;}
+  .col .lbm{font-size:11px; color:var(--muted); white-space:nowrap;}
+  .col .net{font-size:10.5px; font-weight:700;}
+  .legend{display:flex; gap:16px; font-size:11.5px; color:var(--muted); margin-top:6px;}
+  .legend i{display:inline-block; width:11px; height:11px; border-radius:3px; margin-right:5px; vertical-align:-1px;}
+  /* 표 */
+  table{width:100%; border-collapse:collapse; font-size:13px;}
+  th{background:var(--soft); color:var(--navy); padding:8px 11px; text-align:left; font-weight:600; font-size:12px; white-space:nowrap;}
+  td{padding:8px 11px; border-bottom:1px solid var(--line); vertical-align:middle;}
+  td.r,th.r{text-align:right;}
+  .two{display:grid; grid-template-columns:1fr 1fr; gap:16px;}
+  @media (max-width:720px){ .two{grid-template-columns:1fr;} }
+  .foot{text-align:center; font-size:11px; color:var(--muted); padding-top:8px;}
+  /* 게이트/로딩 */
+  .gate{max-width:520px; margin:60px auto; background:#fff; border:1px solid var(--line); border-radius:14px; padding:34px 28px; text-align:center; box-shadow:0 4px 18px rgba(16,42,80,.08);}
+  .gate .ic{font-size:44px;}
+  .gate h2{color:var(--navy); font-size:19px; margin:12px 0 8px;}
+  .gate p{color:var(--muted); font-size:14px; line-height:1.7;}
+  .gate button{margin-top:18px; padding:11px 22px; background:var(--navy); color:#fff; border:none; border-radius:10px; font-weight:700; font-size:14px; cursor:pointer; font-family:inherit;}
+  .loading{text-align:center; color:var(--muted); padding:50px; font-size:14px;}
+  .note{font-size:11.5px; color:var(--muted); margin-top:10px; line-height:1.6;}
+</style>
+</head>
+<body>
+<div class="wrap" id="app">
+  <div class="loading" id="loading">자금·경영 현황을 불러오는 중…</div>
+</div>
+
+<script type="module">
+  import { supabase } from "../app/lib/supabaseClient.js";
+  import { erpApi } from "../app/lib/api.js";
+
+  const $ = (id) => document.getElementById(id);
+  const won = (n) => (Number(n||0)).toLocaleString("ko-KR") + "원";
+  const wonM = (n) => { const v = Number(n||0)/1000000; return (v>=0?"":"−") + Math.abs(v).toLocaleString("ko-KR",{maximumFractionDigits:0}) + "백만"; };
+  const esc = (s) => String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+
+  /* ===== 사내(internal) 세션 게이트 — erp-status.html과 동일 패턴 ===== */
+  function claimsOf(session){
+    if(!session || !session.access_token) return {};
+    try{
+      let p = session.access_token.split('.')[1].replace(/-/g,'+').replace(/_/g,'/');
+      while(p.length%4) p+='=';
+      return JSON.parse(decodeURIComponent(atob(p).split('').map(c=>'%'+c.charCodeAt(0).toString(16).padStart(2,'0')).join(''))).app_metadata||{};
+    }catch(e){ return {}; }
+  }
+  function autoSSO(){
+    const u=new URL(location.href); u.searchParams.set('sso','1');
+    supabase.auth.signInWithOAuth({ provider:'azure', options:{ scopes:'openid email profile', redirectTo:u.toString() } });
+  }
+  function gate(icon, title, msg, btn){
+    $("app").innerHTML = '<div class="gate"><div class="ic">'+icon+'</div><h2>'+esc(title)+'</h2><p>'+msg+'</p>'
+      + (btn ? '<button id="gsso">'+esc(btn)+'</button>' : '') + '</div>';
+    const b=$("gsso"); if(b) b.onclick = async ()=>{ try{ await supabase.auth.signOut(); }catch(e){} autoSSO(); };
+  }
+
+  let YEAR = 2026, MONTH = null;   // MONTH null = 연간
+
+  async function boot(){
+    const { data:{ session } } = await supabase.auth.getSession();
+    if(!session){
+      if(!new URLSearchParams(location.search).get('sso')){ autoSSO(); return; }
+      return gate('🔐','사내 로그인이 필요합니다','자금·경영 현황은 사내(@jeilm.co.kr) 계정으로 로그인해야 볼 수 있습니다.','사내 계정으로 로그인');
+    }
+    if(claimsOf(session).role!=='internal'){
+      return gate('🔒','사내 전용 화면','현재 협력사(또는 권한 없는) 계정으로 로그인되어 있어 표시할 수 없습니다.','사내 계정으로 다시 로그인');
+    }
+    render();
+  }
+
+  async function render(){
+    $("app").innerHTML = '<div class="loading" id="loading">자금·경영 현황을 불러오는 중…</div>';
+    let d;
+    try{ d = await erpApi.financeOverview(YEAR, MONTH); }
+    catch(e){ return gate('⚠','조회 오류', esc(e.message||'잠시 후 다시 시도하세요.'), '다시 시도'); }
+
+    if(d && d.forbidden){
+      return gate('🔒','자금·회계 전용 화면',
+        '이 대시보드의 <b>자금 데이터</b>는 <b>자금팀·회계 부서·전체 관리자</b>만 열람할 수 있습니다.<br>열람이 필요하면 관리자에게 <b>자금(finance) 권한</b>을 요청하세요.', null);
+    }
+    if(d && d.unauthorized){ return gate('🔐','인증 필요','세션이 만료되었습니다. 다시 로그인하세요.','다시 로그인'); }
+    if(!d || !d.ok){ return gate('⚠','데이터 없음','표시할 데이터가 없습니다.', null); }
+
+    drawDashboard(d);
+  }
+
+  function drawDashboard(d){
+    const monthly = d.monthly || [];
+    const years = (d.years || []).slice().sort().reverse();
+    // 선택 기간 합계(월 지정 시 그 월, 아니면 연간 합)
+    const rows = MONTH==null ? monthly : monthly.filter(m => m.ym === (YEAR+'-'+String(MONTH).padStart(2,'0')));
+    const sum = (k) => rows.reduce((a,m)=>a+Number(m[k]||0),0);
+    const sales=sum('sales_amt'), purchase=sum('purchase_amt'), po=sum('po_amt'), net=sales-purchase, order=sum('order_amt'), collect=sum('collect_amt');
+
+    const monthOpts = ['<option value="">연간(전체)</option>']
+      .concat(monthly.map(m=>{ const mm=m.ym.slice(5); return '<option value="'+Number(mm)+'"'+(String(MONTH)===String(Number(mm))?' selected':'')+'>'+mm+'월</option>'; })).join('');
+    const yearOpts = years.map(y=>'<option value="'+y+'"'+(String(YEAR)===y?' selected':'')+'>'+y+'년</option>').join('') || ('<option>'+YEAR+'년</option>');
+
+    // 월별 차트 스케일
+    const maxV = Math.max(1, ...monthly.map(m=>Math.max(Number(m.sales_amt||0), Number(m.purchase_amt||0))));
+    const bars = monthly.map(m=>{
+      const sh = Math.round(Number(m.sales_amt||0)/maxV*100), ph = Math.round(Number(m.purchase_amt||0)/maxV*100);
+      const nt = Number(m.net_amt||0);
+      const on = (MONTH!=null && m.ym.slice(5)===String(MONTH).padStart(2,'0'));
+      return '<div class="col" title="'+m.ym+' · 매출 '+won(m.sales_amt)+' / 매입 '+won(m.purchase_amt)+'">'
+        + '<div class="bars"><div class="bar sales" style="height:'+sh+'%;opacity:'+(on?1:.85)+'"></div>'
+        + '<div class="bar purchase" style="height:'+ph+'%;opacity:'+(on?1:.85)+'"></div></div>'
+        + '<div class="net" style="color:'+(nt>=0?'var(--green)':'var(--red)')+'">'+wonM(nt)+'</div>'
+        + '<div class="lbm">'+m.ym.slice(5)+'월</div></div>';
+    }).join('');
+
+    const periodLabel = MONTH==null ? (YEAR+'년 연간') : (YEAR+'년 '+MONTH+'월');
+
+    $("app").innerHTML =
+      '<div class="top">'
+      + '<div><h1>📊 자금·경영 현황 대시보드</h1><div class="sub">ERP 실데이터 · '+esc(periodLabel)+' 기준</div></div>'
+      + '<div class="filters"><span class="lb">기간</span>'
+      +   '<select id="fy">'+yearOpts+'</select><select id="fm">'+monthOpts+'</select>'
+      +   '<span class="who" style="margin-left:8px;">🔒 '+esc(d.dept||'')+(d.is_admin?' · 관리자':'')+'</span></div>'
+      + '</div>'
+      // KPI 카드
+      + '<div class="cards">'
+      +   card('매출액', won(sales), MONTH==null?'연간 누계':MONTH+'월')
+      +   card('매입액', won(purchase), MONTH==null?'연간 누계':MONTH+'월')
+      +   card('수지차 (매출−매입)', won(net), net>=0?'흑자':'적자', net>=0?'pos':'neg')
+      +   card('발주액', won(po), '구매발주')
+      +   card('수주액', won(order), order>0?'수주 기준':'미매핑')
+      + '</div>'
+      // 월별 추이
+      + '<div class="sec"><h2>📈 월별 추이 <small>'+YEAR+'년 · 매출/매입(막대) · 수지(하단, 백만원)</small></h2>'
+      +   '<div class="chart">'+(bars||'<div class="loading">데이터 없음</div>')+'</div>'
+      +   '<div class="legend"><span><i style="background:var(--accent2)"></i>매출</span><span><i style="background:#e0a94a"></i>매입</span><span>하단 숫자 = 수지(백만원)</span></div>'
+      + '</div>'
+      // 거래처 Top
+      + '<div class="two">'
+      +   topTable('🏢 매출 상위 거래처', d.top_sales, 'amt', esc(periodLabel))
+      +   topTable('📦 매입 상위 거래처', d.top_purchase, 'amt', esc(periodLabel))
+      + '</div>'
+      + '<div class="sec" style="padding:14px 18px;"><div class="note">💡 이 화면의 자금 데이터는 <b>자금·회계 부서·관리자</b>만 열람하도록 서버에서 강제됩니다(<code>erp_finance_overview</code>). 수치는 ERP 중간DB(<code>erp_ro</code>) 월집계 기준이며, 수금(collect)·일부 항목은 유니포인트 매핑 확정 전이라 0으로 표시될 수 있습니다.</div></div>'
+      + '<div class="foot">JEIL AX · 자금·경영 현황 대시보드 · 사내 전용</div>';
+
+    // 필터 이벤트
+    $("fy").onchange = (e)=>{ YEAR = Number(e.target.value); MONTH = null; render(); };
+    $("fm").onchange = (e)=>{ MONTH = e.target.value===''? null : Number(e.target.value); drawDashboard(d); };
+  }
+
+  function card(lb, v, sub, cls){
+    return '<div class="card"><div class="lb">'+esc(lb)+'</div><div class="v'+(cls?' '+cls:'')+'">'+v+'</div>'
+      + (sub?'<div class="sub">'+esc(sub)+'</div>':'') + '</div>';
+  }
+  function topTable(title, rows, key, period){
+    rows = rows || [];
+    const body = rows.length ? rows.map((r,i)=>'<tr><td>'+(i+1)+'</td><td>'+esc(r.bp_name||'-')+'</td><td class="r">'+won(r[key])+'</td></tr>').join('')
+      : '<tr><td colspan="3" style="text-align:center;color:var(--muted);padding:16px;">데이터 없음</td></tr>';
+    return '<div class="sec"><h2>'+title+' <small>'+period+'</small></h2><table>'
+      + '<thead><tr><th style="width:12%;">순위</th><th>거래처</th><th class="r">금액</th></tr></thead><tbody>'+body+'</tbody></table></div>';
+  }
+
+  boot();
+</script>
+</body>
+</html>
