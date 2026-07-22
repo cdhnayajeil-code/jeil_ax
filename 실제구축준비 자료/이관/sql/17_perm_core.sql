@@ -121,6 +121,17 @@ grant execute on function public.perm_grant_list() to service_role;
 --    erp_finance_overview: 부서 하드체크 → perm_effective(finance 모듈)로 교체(이 파일 §3 계약 적용).
 -- ─────────────────────────────────────────────────────────────────────────
 
+-- ─────────────────────────────────────────────────────────────────────────
+-- 6) 부수 정리(관리자 결정 2026-07-22) — 고아 페이지 소유 부서 이관
+--    sales_2026(수주현황 대시보드)의 소유 부서 '영업팀'은 ERP 사용자 매핑에 소속 인원이 0명이라
+--    관리자 외 전원이 차단된 상태였다(11_portal_page_perm.sql 시드값). 실제 담당 조직으로 이관한다.
+-- ─────────────────────────────────────────────────────────────────────────
+update public.portal_page
+   set dept_nm = '사업관리팀', updated_by = 'admin:dept_owner_fix', updated_at = now()
+ where page_key = 'sales_2026' and dept_nm = '영업팀';
+--   결과: 사업관리팀 10명 접근(판정 사유 '소속·겸직 부서'), 타 부서 차단 유지, perm_audit 기록.
+--   참고: dept_erp_scope에 남은 '영업팀' 행은 소속 인원이 없어 무효(무해) — 부서 권한 실사 때 함께 정리.
+
 -- ── 검증(참고) ─────────────────────────────────────────────────────────
 --   select public.perm_effective('user@jeilm.co.kr');
 --   select public.perm_grant_set('actor@jeilm.co.kr','user@jeilm.co.kr','erp_module','finance','allow','자금 대행', now()+interval '30 days');
