@@ -130,7 +130,11 @@ tr:nth-child(even) td{background:#fafbfd;}
       </h2>
       <div id="syncMsg" class="msg"></div>
       <div class="sub">중간DB(<code>erp_ro</code>)의 <b>실제 발주·매입 거래처</b> 기준. 거래처를 골라 협력사 담당자 이메일로 계정을 발급합니다. <b>담당자명·연락처는 협력사가 포털 '내 정보 수정'으로 갱신하면 실시간 반영</b>됩니다.
-        <br><span class="muted">※ 거래처명·사업자번호는 ERP 거래처마스터(<code>B_BIZ_PARTNER</code>) 연계분이며, ETL 적재 시점까지 반영됩니다. 개인사업자의 주민등록번호는 적재 단계에서 차단되어 표시되지 않습니다.</span>
+        <br><span class="muted">※ ERP 거래처마스터(<code>B_BIZ_PARTNER</code>)의 <b>매입거래처(유형 S·매입+매출 CS)</b> 중 사외·사용중 거래처만 대상입니다. 매출전용·사내 관계사는 제외됩니다. 개인사업자의 주민등록번호는 적재 단계에서 차단되어 표시되지 않습니다.</span>
+        <br><label style="display:inline-flex;align-items:center;gap:6px;margin-top:6px;font-size:13px;cursor:pointer">
+          <input type="checkbox" id="chkOnlyDeal" checked> <b>거래실적 있는 거래처만 보기</b>
+          <span class="muted">(해제하면 실적 없는 매입거래처까지 전체 표시 — 신규 협력사 계정 발급 시 사용)</span>
+        </label>
         <br><b>📋 엑셀 일괄 편집</b>으로 편집 모드 진입 → 미발급 행에 이메일/담당자 입력(엑셀에서 복사·Ctrl+V 붙여넣기 가능) → 체크 선택 후 <b>💾 일괄 발급</b>. 검색·필터·CSV 내보내기 지원.</div>
       <div id="vmGrid"><div class="grid__loading" style="padding:24px">불러오는 중…</div></div>
       <div id="bulkResult" class="cred"></div>
@@ -302,7 +306,8 @@ async function syncVendors() {
     }
     const added = data?.added ?? 0;
     show($("syncMsg"), "ok",
-      `동기화 완료 — 총 ${data?.after ?? "?"}개사${added > 0 ? ` (신규 ${added}개사)` : " (변경 없음)"} · 기준: ${data?.source || "-"}`);
+      `동기화 완료 — 매입거래처 ${data?.after ?? "?"}개사${added > 0 ? ` (신규 ${added}개사)` : " (변경 없음)"}`
+      + ` · 거래실적 보유 ${data?.with_order ?? "?"}개사 · 기준: ${data?.source || "-"}`);
     await loadVendors();
   } catch (e) {
     show($("syncMsg"), "err", "동기화 실패: " + (e.message || e));
@@ -311,26 +316,41 @@ async function syncVendors() {
   }
 }
 
+let ALL_VENDOR_ROWS = [];   // 전체 매입거래처(유형 S·CS) — 화면은 기본적으로 거래실적 보유분만 표시
+
+// 거래실적 필터 적용 후 그리드에 반영
+function applyVendorFilter() {
+  const onlyDeal = $("chkOnlyDeal")?.checked !== false;
+  const rows = onlyDeal ? ALL_VENDOR_ROWS.filter(r => r._has_order) : ALL_VENDOR_ROWS;
+  const dealCnt = ALL_VENDOR_ROWS.filter(r => r._has_order).length;
+  $("cntVendor").textContent =
+    `(${rows.length}개사 표시 · 거래실적 ${dealCnt} / 전체 매입거래처 ${ALL_VENDOR_ROWS.length} · 계정 ${Object.keys(ACCOUNTS).length})`;
+  if (!vmGrid) vmGrid = buildVmGrid(rows); else vmGrid.setRows(rows);
+}
+
 async function loadVendors() {
   const [{ data: vendors, error: ve }, { data: accs }] = await Promise.all([
-    supabase.from("vendor_master").select("*").order("bp_nm"),
+    // 매입거래처만 적재되지만, 과거 데이터 보호를 위해 매출전용(C)·사내(I)는 조회 단계에서도 배제
+    supabase.from("vendor_master").select("*").in("bp_type", ["S", "CS"]).order("bp_nm"),
     supabase.from("vendor_account").select("*"),
   ]);
   if (ve) return show($("a_msg"), "err", "거래처 조회 실패: " + ve.message);
   ACCOUNTS = {};
   (accs || []).forEach(a => { ACCOUNTS[a.bp_cd] = a; });
-  $("cntVendor").textContent = `(${(vendors || []).length}개사 · 계정 ${Object.keys(ACCOUNTS).length})`;
-  const rows = (vendors || []).map(v => {
+  ALL_VENDOR_ROWS = (vendors || []).map(v => {
     const a = ACCOUNTS[v.bp_cd];
     return {
       bp_cd: v.bp_cd, bp_nm: v.bp_nm, biz_no: v.biz_no || "-",
+      bp_type: v.bp_type === "CS" ? "매입+매출" : "매입",
+      deal: v.has_order ? "있음" : "없음",
       status: a ? a.status : "none", email: a?.email || "",
       name: a?.contact_name || "",   // 협력사가 포털 '내 정보 수정'으로 갱신 시 실시간 반영
       phone: a?.phone || "",
       _auth: a?.auth_user_id || "",
+      _has_order: !!v.has_order,
     };
   });
-  if (!vmGrid) vmGrid = buildVmGrid(rows); else vmGrid.setRows(rows);
+  applyVendorFilter();
 }
 
 function buildVmGrid(rows) {
@@ -344,6 +364,12 @@ function buildVmGrid(rows) {
       { key: "bp_cd", label: "거래처코드", width: "90px", pasteKey: "code" },
       { key: "bp_nm", label: "협력사명", width: "150px" },
       { key: "biz_no", label: "사업자번호", width: "120px", filter: false },
+      { key: "bp_type", label: "거래처유형", width: "92px", align: "center", editable: false,
+        formatter: (v) => `<span class="muted">${esc(v || "-")}</span>` },
+      { key: "deal", label: "거래실적", width: "78px", align: "center", editable: false,
+        formatter: (v) => v === "있음"
+          ? `<span class="pill p-active">있음</span>`
+          : `<span class="muted">없음</span>` },
       { key: "status", label: "계정상태", width: "82px", align: "center",
         type: "select", options: [{ value: "none", label: "미발급" }, { value: "active", label: "발급됨" }, { value: "disabled", label: "비활성" }],
         formatter: (v) => { const [c, t] = STAT_PILL[v] || STAT_PILL.none; return `<span class="pill ${c}">${t}</span>`; } },
@@ -637,6 +663,7 @@ async function sendCurMessage() {
   finally { $("th_send").disabled = false; $("th_text").focus(); }
 }
 $("btnSyncVendor").onclick = syncVendors;
+$("chkOnlyDeal").onchange = applyVendorFilter;
 $("th_send").onclick = sendCurMessage;
 $("th_text").addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.isComposing) sendCurMessage(); });
 
