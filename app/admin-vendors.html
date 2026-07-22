@@ -13,6 +13,9 @@ body{font-family:'Pretendard','Malgun Gothic',sans-serif;background:var(--bg);co
 .top h1{font-size:18px;margin-top:6px;}
 .top .who{font-size:12.5px;color:#cdd8ea;}
 .wrap{max-width:1180px;margin:0 auto;padding:24px 22px 60px;}
+/* 거래처 표는 컬럼이 많아 1180px 안에서 잘린다 → 넓은 화면에서는 본문 폭을 넓혀 전체 컬럼을 한눈에 */
+@media (min-width:1460px){ .wrap{max-width:1440px;} }
+@media (min-width:1740px){ .wrap{max-width:1680px;} }
 .gate{max-width:400px;margin:60px auto;background:#fff;border-radius:16px;box-shadow:0 8px 28px rgba(26,47,78,.15);padding:30px 28px;}
 .gate h2{font-size:18px;color:var(--navy);margin-bottom:4px;}
 .gate p{font-size:12.5px;color:var(--muted);margin-bottom:14px;}
@@ -355,7 +358,7 @@ async function loadVendors() {
     const a = ACCOUNTS[v.bp_cd];
     return {
       bp_cd: v.bp_cd, bp_nm: v.bp_nm, biz_no: v.biz_no || "-",
-      bp_type: v.bp_type === "CS" ? "매입+매출" : "매입",
+      bp_type: v.bp_type === "CS" ? "겸용" : "매입",
       deal: v.has_order ? "있음" : "없음",
       status: a ? a.status : "none", email: a?.email || "",
       name: a?.contact_name || "",   // 협력사가 포털 '내 정보 수정'으로 갱신 시 실시간 반영
@@ -375,27 +378,27 @@ function buildVmGrid(rows) {
     paste: true, exportCsv: true, copy: true, exportName: "협력사거래처",
     emptyText: "거래처 없음",
     columns: [
-      { key: "bp_cd", label: "거래처코드", width: "90px", pasteKey: "code" },
-      { key: "bp_nm", label: "협력사명", width: "150px" },
-      { key: "biz_no", label: "사업자번호", width: "120px", filter: false },
-      { key: "bp_type", label: "거래처유형", width: "92px", align: "center", editable: false,
+      { key: "bp_cd", label: "코드", width: "76px", pasteKey: "code" },
+      { key: "bp_nm", label: "협력사명", width: "210px" },
+      { key: "biz_no", label: "사업자번호", width: "112px", filter: false },
+      { key: "bp_type", label: "유형", width: "64px", align: "center", editable: false,
         formatter: (v) => `<span class="muted">${esc(v || "-")}</span>` },
-      { key: "deal", label: "거래실적", width: "78px", align: "center", editable: false,
+      { key: "deal", label: "실적", width: "60px", align: "center", editable: false,
         formatter: (v) => v === "있음"
           ? `<span class="pill p-active">있음</span>`
           : `<span class="muted">없음</span>` },
-      { key: "status", label: "계정상태", width: "82px", align: "center",
+      { key: "status", label: "계정상태", width: "78px", align: "center",
         type: "select", options: [{ value: "none", label: "미발급" }, { value: "active", label: "발급됨" }, { value: "disabled", label: "비활성" }],
         formatter: (v) => { const [c, t] = STAT_PILL[v] || STAT_PILL.none; return `<span class="pill ${c}">${t}</span>`; } },
-      { key: "email", label: "담당자 이메일", width: "190px", type: "email", pasteKey: "email",
+      { key: "email", label: "담당자 이메일", width: "178px", type: "email", pasteKey: "email",
         editable: (row) => row.status === "none",
         validator: (v, row) => row.status !== "none" ? true : (!v ? true : (isEmail(v) || "이메일 형식 오류")),
         formatter: (v) => v ? esc(v) : `<span class="muted">미입력</span>` },
-      { key: "name", label: "담당자명", width: "100px", pasteKey: "name", editable: (row) => row.status === "none",
+      { key: "name", label: "담당자명", width: "88px", pasteKey: "name", editable: (row) => row.status === "none",
         formatter: (v) => v ? esc(v) : `<span class="muted">—</span>` },
-      { key: "phone", label: "연락처", width: "110px", filter: false, sortable: false, editable: false,
+      { key: "phone", label: "연락처", width: "104px", filter: false, sortable: false, editable: false,
         formatter: (v) => v ? esc(v) : `<span class="muted">—</span>` },
-      { key: "_act", label: "계정 발급 / 관리", width: "180px", filter: false, sortable: false,
+      { key: "_act", label: "계정 발급 / 관리", width: "172px", filter: false, sortable: false,
         formatter: (_, row) => row.status === "active"
           ? `<button class="btn sm ok" data-row-act="mail">📧 메일발송</button> <button class="btn sm no" data-row-act="reset">비번 초기화</button>`
           : row.status === "disabled"
