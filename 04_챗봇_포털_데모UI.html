@@ -79,9 +79,15 @@
   .wk-modal{background:#fff; color:var(--ink); border-radius:14px; padding:20px 22px; width:min(480px,92vw); box-shadow:0 12px 40px rgba(0,0,0,.35);}
   .wk-modal h3{font-size:15px; color:var(--navy); margin-bottom:4px;}
   .wk-modal label{display:block; font-size:12px; color:var(--muted); margin:12px 0 4px;}
-  .wk-modal input, .wk-modal textarea{width:100%; box-sizing:border-box; border:1.5px solid var(--line); border-radius:9px; padding:9px 11px; font-family:inherit; font-size:13.5px; outline:none;}
+  .wk-modal input, .wk-modal textarea, .wk-modal select{width:100%; box-sizing:border-box; border:1.5px solid var(--line); border-radius:9px; padding:9px 11px; font-family:inherit; font-size:13.5px; outline:none; background:#fff; color:var(--ink);}
   .wk-modal textarea{min-height:120px; resize:vertical;}
-  .wk-modal input:focus, .wk-modal textarea:focus{border-color:var(--accent);}
+  .wk-modal input:focus, .wk-modal textarea:focus, .wk-modal select:focus{border-color:var(--accent);}
+  /* 요청 접수 모달(ADR-011) — 조회 불가 카드에서 호출 */
+  .rq-target{font-size:12.5px; background:var(--bg); border:1px solid var(--line); border-radius:9px; padding:9px 11px; line-height:1.6; color:var(--navy);}
+  .rq-warn{font-size:11px; color:var(--muted); margin-top:10px; line-height:1.6;}
+  .rq-msg{font-size:12px; margin-top:10px; line-height:1.6; display:none;}
+  .rq-msg.err{color:#c0392b; display:block;}
+  .rq-msg.ok{color:#1e8449; display:block;}
   /* 팀 공유(모달) — 멤버 목록·초대 */
   .wk-mems{display:flex; flex-direction:column; gap:4px; margin-top:6px; max-height:150px; overflow-y:auto;}
   .wk-mem{display:flex; align-items:center; gap:8px; font-size:12.5px; background:var(--bg); border:1px solid var(--line); border-radius:8px; padding:6px 10px;}
@@ -409,6 +415,28 @@
       </div>
     </div>
   </div>
+  <!-- 데이터 열람 요청 모달(ADR-011) — 챗봇이 "조회 불가"를 알린 카드에서 그 자리로 접수.
+       접수까지만 수행하며 권한 부여는 관리자가 별도 화면에서 실행한다(CLAUDE.md §1.6·§5.4). -->
+  <div id="reqOv" class="wk-ov">
+    <div class="wk-modal">
+      <h3>데이터 열람 요청</h3>
+      <label>요청 대상</label>
+      <div class="rq-target" id="reqTarget">-</div>
+      <label>요청 사유 <small style="color:var(--muted); font-weight:400;">— 필수, 15자 이상. 무엇에 쓰는지 적어주시면 처리가 빨라집니다.</small></label>
+      <textarea id="reqReason" maxlength="200" placeholder="예: 주간 생산계획 수립에 자재 재고 현황이 필요합니다. 매주 월요일 회의 자료로 사용합니다."></textarea>
+      <label>긴급도</label>
+      <select id="reqUrgency">
+        <option value="normal">보통 — 1영업일 내 확인</option>
+        <option value="high">급함 — 당일 처리 필요</option>
+      </select>
+      <p class="rq-warn">⚠ 사유란에 <b>급여액·주민번호·계좌번호 등 민감한 값은 적지 마세요</b>. 저장 전 자동 마스킹되며, 요청 내용은 포털 관리자에게 전달됩니다.</p>
+      <div class="rq-msg" id="reqMsg"></div>
+      <div class="wk-btns">
+        <div class="grp"></div>
+        <div class="grp"><button class="sec2" onclick="closeReqModal()">취소</button><button class="pri" id="reqSendBtn" onclick="submitReq()">요청 접수</button></div>
+      </div>
+    </div>
+  </div>
   <!-- 사이드바 -->
   <aside class="side">
     <div class="brand">
@@ -619,6 +647,7 @@
         <button id="tab-perm" onclick="showTab('perm')">권한 설정</button>
         <button id="tab-userdept" onclick="showTab('userdept')">사용자·부서</button>
         <button id="tab-permdetail" onclick="showTab('permdetail')">권한 상세</button>
+        <button id="tab-requests" onclick="showTab('requests')">요청함 <span id="reqBadge" style="display:none; background:#c0392b; color:#fff; border-radius:9px; padding:1px 6px; font-size:10.5px; margin-left:3px;">0</span></button>
       </div>
       <button class="back-chat" onclick="showChat()">← 챗봇으로</button>
     </div>
@@ -918,6 +947,38 @@
         <p class="admin-note">부서별 허용 ERP 데이터 모듈(챗봇·ERP 페이지 접근 강제). 체크된 모듈만 해당 부서가 조회할 수 있습니다(전체 관리자는 전 모듈). <b style="color:#2f6fb3;">◆</b> = ERP 역할·메뉴 권한상 그 부서가 <b>실제 접근하는 모듈(제안값·참고)</b> — 체크(실제 적용)와 별개. <b style="color:#b3402f;">⚠ 급여</b>는 <b>민감 모듈(인사팀 전용)</b>로 일괄·제안 대상에서 제외되며 개별 지정만 가능합니다. 상단 <b>◆ 제안 일괄·전체 선택/해제</b> 버튼과 열 헤더 <b>열전체</b> 체크로 여러 부서를 한 번에 설정할 수 있습니다(민감 제외).</p>
         <div class="tblwrap" style="overflow-x:auto;">
           <table id="erpMatrix"><thead id="erpMatrixHead"></thead><tbody id="erpMatrixRows"><tr><td class="c" style="color:#888;padding:14px;">MS 로그인(관리자) 시 표시</td></tr></tbody></table>
+        </div>
+      </div>
+    </div>
+
+    <!-- 패널 7: 요청함 (실데이터 — portal_request, jeil-portal-request 경유 · ADR-011) -->
+    <div class="panel" id="panel-requests">
+      <div class="sec">
+        <h3>요청 현황 <span style="font-size:11px;color:var(--green,#1a7f37);">● 실데이터</span>
+          <span style="float:right;">
+            <select id="reqFilter" onchange="loadRequests()" style="font-size:12px; padding:5px 8px; border:1px solid var(--line); border-radius:7px; font-family:inherit;">
+              <option value="open">진행 중(접수·확인·처리중)</option>
+              <option value="">전체</option>
+              <option value="done">완료</option>
+              <option value="rejected">반려</option>
+            </select>
+            <button class="save" onclick="loadRequests()">새로고침</button>
+          </span></h3>
+        <p class="admin-note">챗봇이 <b>“조회할 수 없다”</b>고 답한 지점에서 사용자가 직접 접수한 요청입니다. 같은 부서·같은 대상의 요청은 <b>자동 병합</b>되어 <b>동조 인원</b>으로 누적됩니다 — 인원이 많으면 개인 예외보다 <b>부서 단위 부여</b>를 검토하세요. <b>권한 부여는 이 화면에서 실행되지 않습니다</b>: 「권한 상세」 탭의 부서별 ERP 모듈 권한 또는 「권한 설정」의 개인 예외에서 관리자가 직접 부여한 뒤, 여기서 <b>완료</b> 처리하세요.</p>
+        <div class="cards" id="reqStatCards"></div>
+        <div class="tblwrap" style="overflow-x:auto; margin-top:12px;">
+          <table>
+            <thead><tr><th>접수번호</th><th>유형</th><th>요청자</th><th>대상</th><th class="c">동조</th><th class="c">긴급</th><th class="c">경과</th><th>상태</th><th>사유</th><th class="c">처리</th></tr></thead>
+            <tbody id="reqRows"><tr><td colspan="10" class="c" style="color:#888;padding:14px;">MS 로그인(관리자) 시 표시</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="sec">
+        <h3>수요 통계 — 부서 × 대상</h3>
+        <p class="admin-note">누적 요청 상위 20건. 반복 요청되는 조합은 <b>부서 기본 권한 재설계</b> 또는 <b>중간DB 적재범위 확대</b>의 근거가 됩니다(설계 §8-2).</p>
+        <div class="tblwrap" style="overflow-x:auto;">
+          <table><thead><tr><th>부서</th><th>대상</th><th class="r">요청 수</th></tr></thead>
+          <tbody id="reqHeatRows"><tr><td colspan="3" class="c" style="color:#888;padding:14px;">데이터 없음</td></tr></tbody></table>
         </div>
       </div>
     </div>
@@ -1505,10 +1566,11 @@ function showChat(){ hideViews(); document.querySelector('.main').style.display=
 function showAdmin(){ hideViews(); document.getElementById('adminView').style.display='flex'; closeDrawer(); loadAdminLive(); }
 function showPages(){ hideViews(); document.getElementById('pagesView').style.display='flex'; closeDrawer(); loadPagePerms(); }
 function showTab(key){
-  ['api','usage','model','perm','userdept','permdetail'].forEach(k=>{
+  ['api','usage','model','perm','userdept','permdetail','requests'].forEach(k=>{
     document.getElementById('panel-'+k).classList.toggle('on', k===key);
     document.getElementById('tab-'+k).classList.toggle('on', k===key);
   });
+  if(key === 'requests') loadRequests();
 }
 
 /* ===== 실제 AI 연결 — jeil-chat 게이트웨이(Supabase Edge Function → OpenAI) =====
@@ -1816,6 +1878,15 @@ function renderView(host, v){
       }
     });
   }
+  /* 요청 접수 버튼(ADR-011) — 서버가 준 v.request 컨텍스트를 그대로 반송한다(프론트가 대상을 조립하지 않는다).
+     실제 정당성은 접수 시 서버가 perm_effective로 재판정하므로, 여기서 버튼을 그리는 것 자체는 권한이 아니다.
+     로그인 상태에서만 노출(미로그인 데모 화면에는 접수 경로가 없다). */
+  if(v.request && v.request.module && (getLiveAuth() || hasStoredAuth())){
+    var rb = document.createElement('button'); rb.className = 'cv-act'; rb.type = 'button';
+    rb.textContent = '🙋 ' + (v.request.module === 'payroll' ? '급여·인사 열람 권한 요청' : '열람 권한 요청하기');
+    (function(rq, btn){ btn.onclick = function(){ openReqModal(rq, btn); }; })(v.request, rb);
+    ab.insertBefore(rb, ab.firstChild);
+  }
   var tsv = _cvTsv(v);
   if(tsv){
     var cb = document.createElement('button'); cb.className = 'cv-act cv-act-copy'; cb.type = 'button'; cb.textContent = '📋 표 복사';
@@ -1829,6 +1900,79 @@ function renderView(host, v){
   if(v.note) foot.push(String(v.note));
   if(foot.length) card.appendChild(_cvEl('div', 'cv-foot', foot.join(' · ')));
   host.appendChild(card);
+}
+/* ===== 요청 접수(ADR-011) — 조회 불가 카드 → 요청 원장(jeil-portal-request) =====
+   설계: 11_제품기획/11_챗봇_데이터요청접수_설계.md
+   원칙: 프론트는 서버가 준 request 컨텍스트를 반송만 한다. 요청자·정당성 판정은 전부 서버(§3-2).
+   접수는 실거래 액션이 아니다 — 권한 부여는 관리자 콘솔에서 사람이 클릭한다(CLAUDE.md §1.6). */
+var REQUEST_GATEWAY = 'https://dvzohdqtjzocgcclgwro.supabase.co/functions/v1/jeil-portal-request';
+var _reqCtx = null, _reqBtn = null;
+
+async function callRequestFn(payload){
+  var auth = await ensureAuth();
+  if(!auth) return { error: '로그인이 필요합니다. MS 계정으로 다시 로그인해 주세요.' };
+  try{
+    var res = await fetch(REQUEST_GATEWAY, {
+      method:'POST',
+      headers:{ Authorization:'Bearer '+auth.at, 'Content-Type':'application/json' },
+      body: JSON.stringify(payload)
+    });
+    var txt = await res.text();
+    var data; try{ data = JSON.parse(txt); }catch(e){ return { error:'서버 응답을 해석할 수 없습니다('+res.status+').' }; }
+    return data;
+  }catch(e){ return { error: e.message || String(e) }; }
+}
+
+function openReqModal(rq, btn){
+  _reqCtx = rq || {}; _reqBtn = btn || null;
+  var t = document.getElementById('reqTarget');
+  if(t){
+    t.innerHTML = '<b>'+escHtml(_reqCtx.moduleKo || _reqCtx.module || '')+'</b>'
+      + ' <span style="color:var(--muted)">('+escHtml(_reqCtx.module || '')+')</span>'
+      + (_reqCtx.dept ? '<br><span style="color:var(--muted)">소속: '+escHtml(_reqCtx.dept)+'</span>' : '');
+  }
+  var msg = document.getElementById('reqMsg'); if(msg){ msg.className='rq-msg'; msg.textContent=''; }
+  var ta = document.getElementById('reqReason'); if(ta) ta.value = '';
+  var ug = document.getElementById('reqUrgency'); if(ug) ug.value = 'normal';
+  var sb = document.getElementById('reqSendBtn'); if(sb){ sb.disabled=false; sb.textContent='요청 접수'; }
+  var ov = document.getElementById('reqOv'); if(ov) ov.classList.add('open');
+  if(ta) setTimeout(function(){ ta.focus(); }, 50);
+}
+function closeReqModal(){
+  var ov = document.getElementById('reqOv'); if(ov) ov.classList.remove('open');
+  _reqCtx = null; _reqBtn = null;
+}
+
+async function submitReq(){
+  if(!_reqCtx) return;
+  var msg = document.getElementById('reqMsg');
+  var reason = (document.getElementById('reqReason')||{}).value || '';
+  if(reason.trim().length < 15){
+    if(msg){ msg.className='rq-msg err'; msg.textContent='요청 사유를 15자 이상 구체적으로 적어주세요.'; }
+    return;
+  }
+  var sb = document.getElementById('reqSendBtn');
+  if(sb){ sb.disabled = true; sb.textContent = '접수 중…'; }
+  // 급여·인사는 민감권한 유형으로 분류(2인 확인 대상) — 설계 §4-2
+  var kind = (_reqCtx.module === 'payroll') ? 'perm_sensitive' : 'perm';
+  var out = await callRequestFn({
+    op:'create', kind: kind, module: _reqCtx.module, module_ko: _reqCtx.moduleKo,
+    tool: _reqCtx.tool, args_digest: _reqCtx.args_digest,
+    reason: reason.trim(), urgency: (document.getElementById('reqUrgency')||{}).value || 'normal'
+  });
+  if(out && out.ok){
+    if(_reqBtn){
+      _reqBtn.textContent = '✅ 접수됨 ' + (out.req_no || '');
+      _reqBtn.disabled = true; _reqBtn.style.opacity = '.7'; _reqBtn.style.cursor = 'default';
+    }
+    if(msg){ msg.className='rq-msg ok'; msg.textContent = out['안내'] || '요청이 접수되었습니다.'; }
+    if(sb){ sb.textContent = '접수 완료'; }
+    setTimeout(closeReqModal, 1800);
+  } else {
+    var em = (out && (out['안내'] || out.error)) || '접수에 실패했습니다. 잠시 후 다시 시도해 주세요.';
+    if(msg){ msg.className='rq-msg err'; msg.textContent = em; }
+    if(sb){ sb.disabled = false; sb.textContent = '요청 접수'; }
+  }
 }
 /* ===== chat-views:end ===== */
 
@@ -2002,6 +2146,8 @@ async function loadAdminLive(force){
     var d = await res.json();
     adminLiveLoaded = true;
     if(note) note.innerHTML = '🔒 실데이터 표시 중 · 기준 ' + fmtKST(d.as_of) + ' — 게이트웨이(jeil-chat) 실측값입니다.';
+    // 요청함 미처리 배지(ADR-011) — 탭을 열지 않아도 대기 건수가 보이게. 실패는 무시.
+    callRequestFn({ op:'stats' }).then(function(s){ if(s && s.ok) updateReqBadge(s.open_count); }).catch(function(){});
     // API 탭
     setTxt('lgStatus', d.gateway.key_set ? '<span class="dot"></span>정상 가동' : '⚠ 키 미설정');
     setTxt('lgModel', escHtml(d.gateway.provider + ' · ' + d.gateway.model));
@@ -2046,6 +2192,94 @@ async function loadAdminLive(force){
   }catch(e){
     if(note) note.textContent = '⚠ 실데이터 조회 실패: ' + (e.message||'') + ' (관리자 계정으로 로그인했는지 확인하세요)';
   }
+}
+
+/* ===== 요청함(ADR-011) — portal_request 조회·상태 전이 (jeil-portal-request, 관리자 전용) =====
+   이 화면은 권한을 부여하지 않는다. 부여는 「권한 상세」·「권한 설정」 탭에서 관리자가 직접 실행하고,
+   여기서는 그 결과를 요청에 반영(완료·반려)한다 — CLAUDE.md §1.6·§5.4. */
+var REQ_STATUS_KO = { open:'접수', ack:'확인', doing:'처리중', done:'완료', rejected:'반려', duplicate:'중복', cancelled:'취소' };
+var REQ_STATUS_BADGE = { open:'r', ack:'a', doing:'a', done:'g', rejected:'b', duplicate:'b', cancelled:'b' };
+
+async function loadRequests(){
+  var tb = document.getElementById('reqRows'); if(!tb) return;
+  var filter = (document.getElementById('reqFilter')||{}).value;
+  if(filter === undefined) filter = 'open';
+  tb.innerHTML = '<tr><td colspan="10" class="c" style="color:#888;padding:14px;">불러오는 중…</td></tr>';
+
+  var [list, stats] = await Promise.all([
+    callRequestFn({ op:'list', status: filter }),
+    callRequestFn({ op:'stats' })
+  ]);
+  if(!list || list.error){
+    tb.innerHTML = '<tr><td colspan="10" class="c" style="color:#888;padding:14px;">'+escHtml((list&&list.error)||'조회 실패')+'</td></tr>';
+    return;
+  }
+  var rows = list.rows || [];
+  tb.innerHTML = rows.length ? rows.map(function(r){
+    var st = REQ_STATUS_KO[r.status] || r.status;
+    var closed = ['done','rejected','duplicate','cancelled'].indexOf(r.status) >= 0;
+    var acts = [];
+    if(r.status === 'open') acts.push(['ack','확인']);
+    if(r.status === 'open' || r.status === 'ack') acts.push(['doing','처리중']);
+    if(!closed){ acts.push(['done','완료']); acts.push(['rejected','반려']); }
+    var btns = acts.map(function(a){
+      return '<button class="save" style="padding:3px 8px;font-size:11px;margin:1px;" onclick="reqTransition(\''+escHtml(r.req_no)+'\',\''+a[0]+'\')">'+a[1]+'</button>';
+    }).join('') || '<span style="color:#aaa">—</span>';
+    var target = escHtml((r.target_detail && r.target_detail.module_ko) || r.target_module || '-')
+      + (r.target_module ? ' <span style="color:#999;font-size:11px;">('+escHtml(r.target_module)+')</span>' : '');
+    return '<tr>'
+      + '<td><b>'+escHtml(r.req_no)+'</b></td>'
+      + '<td>'+escHtml(r.kind_ko||r.kind)+(r.needs_vendor_review?' <span class="badge a" title="ETL 확대는 유니포인트 협의가 필요할 수 있음">협의</span>':'')+'</td>'
+      + '<td style="font-size:11.5px;">'+escHtml(r.requester_label||r.requester_upn)+'</td>'
+      + '<td>'+target+'</td>'
+      + '<td class="c">'+(r.supporter_count ? '<b>+'+r.supporter_count+'</b>' : '—')+'</td>'
+      + '<td class="c">'+(r.urgency==='high'?'<span class="badge r">급함</span>':'—')+'</td>'
+      + '<td class="c">'+(r.age_days>=1?('<span style="color:'+(r.age_days>=1&&!closed?'#c0392b':'#888')+'">'+r.age_days+'일</span>'):'오늘')+'</td>'
+      + '<td><span class="badge '+(REQ_STATUS_BADGE[r.status]||'b')+'">'+escHtml(st)+'</span></td>'
+      + '<td style="font-size:11.5px; max-width:280px;">'+escHtml(r.reason||'')
+        + (r.handled_note ? '<br><span style="color:#1a7f37;">↳ '+escHtml(r.handled_note)+'</span>' : '') + '</td>'
+      + '<td class="c">'+btns+'</td>'
+      + '</tr>';
+  }).join('') : '<tr><td colspan="10" class="c" style="color:#888;padding:14px;">해당 조건의 요청이 없습니다.</td></tr>';
+
+  // 상단 요약 카드 + 탭 배지 + 수요 통계
+  if(stats && stats.ok){
+    var cs = document.getElementById('reqStatCards');
+    if(cs){
+      cs.innerHTML = '<div class="card"><div class="lb">진행 중</div><div class="v">'+stats.open_count+'건</div></div>'
+        + '<div class="card"><div class="lb">1일 초과 미처리</div><div class="v" style="color:'+(stats.overdue_count?'#c0392b':'inherit')+'">'+stats.overdue_count+'건</div></div>'
+        + '<div class="card"><div class="lb">누적 접수</div><div class="v">'+stats.total+'건</div></div>'
+        + (stats.by_kind||[]).filter(function(k){return k.open>0;}).map(function(k){
+            return '<div class="card"><div class="lb">'+escHtml(k.kind_ko)+'</div><div class="v">'+k.open+'건</div></div>'; }).join('');
+    }
+    updateReqBadge(stats.open_count);
+    var hr = document.getElementById('reqHeatRows');
+    if(hr){
+      var heat = stats.heatmap || [];
+      hr.innerHTML = heat.length ? heat.map(function(h){
+        return '<tr><td>'+escHtml(h.dept)+'</td><td>'+escHtml(h.module)+'</td><td class="r"><b>'+h.n+'</b></td></tr>';
+      }).join('') : '<tr><td colspan="3" class="c" style="color:#888;padding:14px;">데이터 없음</td></tr>';
+    }
+  }
+}
+
+function updateReqBadge(n){
+  var b = document.getElementById('reqBadge'); if(!b) return;
+  if(n > 0){ b.textContent = n; b.style.display = 'inline-block'; } else { b.style.display = 'none'; }
+}
+
+async function reqTransition(reqNo, to){
+  var note = null;
+  if(to === 'done' || to === 'rejected'){
+    note = window.prompt(to === 'done'
+      ? '처리 결과를 요청자에게 회신할 문구로 적어주세요.\n(예: 부서별 ERP 모듈 권한에 자재를 추가했습니다. 재로그인 후 조회하세요.)'
+      : '반려 사유를 요청자에게 회신할 문구로 적어주세요.', '');
+    if(note === null) return;                      // 사용자가 취소
+    if(!note.trim()){ alert('처리 사유는 필수입니다.'); return; }
+  }
+  var out = await callRequestFn({ op:'transition', req_no: reqNo, to: to, note: note });
+  if(out && out.ok) loadRequests();
+  else alert((out && (out['안내'] || out.error)) || '상태 변경에 실패했습니다.');
 }
 
 /* ===== 사용자·부서 매핑 + 부서별 권한 설정 렌더 (jeil-chat-admin d.dept_mapping) ===== */

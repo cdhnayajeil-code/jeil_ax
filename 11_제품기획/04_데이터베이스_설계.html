@@ -42,7 +42,7 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <body>
 <div class="page">
   <span class="doc-label">JEIL AX 제품기획 · 대외비</span>
-  <div class="docnav"><a href="index.html">🏠 제품기획 허브</a><a href="00_제품기획_개요.html">00 개요</a><a href="01_PRD_제품요구사항정의.html">01 PRD</a><a href="02_SRS_요구사항명세.html">02 SRS</a><a href="03_시스템아키텍처_설계.html">03 아키텍처</a><a class="cur" href="04_데이터베이스_설계.html">04 DB설계</a><a href="05_프론트엔드_백엔드_설계.html">05 FE·BE</a><a href="06_ERP연계_챗봇활용_설계.html">06 ERP연계</a><a href="07_마이그레이션_Azure이관_설계.html">07 이관</a><a href="08_보안_데이터안정성.html">08 보안</a><a href="09_ADR_의사결정기록.html">09 ADR</a><a href="10_챗봇_응답렌더링_설계.html">10 응답렌더링</a><a href="README.md">README</a></div>
+  <div class="docnav"><a href="index.html">🏠 제품기획 허브</a><a href="00_제품기획_개요.html">00 개요</a><a href="01_PRD_제품요구사항정의.html">01 PRD</a><a href="02_SRS_요구사항명세.html">02 SRS</a><a href="03_시스템아키텍처_설계.html">03 아키텍처</a><a class="cur" href="04_데이터베이스_설계.html">04 DB설계</a><a href="05_프론트엔드_백엔드_설계.html">05 FE·BE</a><a href="06_ERP연계_챗봇활용_설계.html">06 ERP연계</a><a href="07_마이그레이션_Azure이관_설계.html">07 이관</a><a href="08_보안_데이터안정성.html">08 보안</a><a href="09_ADR_의사결정기록.html">09 ADR</a><a href="10_챗봇_응답렌더링_설계.html">10 응답렌더링</a><a href="11_챗봇_데이터요청접수_설계.html">11 요청접수</a><a href="README.md">README</a></div>
   <p class="md-link">📄 Markdown 원본: <a href="04_데이터베이스_설계.md">04_데이터베이스_설계.md</a> · 허브 <a href="index.html">제품기획 개요</a></p>
   <div class="content">
 <h1 id="04">04 · 데이터베이스 설계서</h1>
@@ -219,6 +219,11 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <td>1·5·5·1</td>
 <td>모델 설정 SSOT(<code>ai_model</code>·<code>ai_routing_rule</code>·<code>ai_document_scope</code>) + work 컨텍스트·저장 정책 6컬럼(2026-07-21 확장)</td>
 </tr>
+<tr>
+<td><code>portal_request</code></td>
+<td>—</td>
+<td><strong>포털 요청 원장</strong> — 챗봇이 "조회 불가"를 알린 지점에서 사용자가 접수(권한·데이터 적재범위·문서범위·기능·품질 6유형). 동조자 배열로 중복 자동 병합, 상태 7종. RLS 전면차단, <code>jeil-portal-request</code> 전용(2026-07-22 신설, ADR-011)</td>
+</tr>
 </tbody>
 </table>
 <h3 id="24-erp_ro-erp">2.4 erp_ro — ERP 읽기 사본</h3>
@@ -352,6 +357,12 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <tr>
 <td><code>chat_work</code>·<code>chat_session</code>·<code>chat_message</code></td>
 <td>(정책 없음 — Edge Fn의 <strong>upn 필터</strong>가 유일한 경로. 본인 것만, ADR-009)</td>
+<td>차단</td>
+<td>차단</td>
+</tr>
+<tr>
+<td><code>portal_request</code></td>
+<td>(정책 없음 — <code>jeil-portal-request</code>가 유일한 경로. 요청자는 JWT에서만 취득, 관리자 op는 <code>perm_effective.is_admin</code>, ADR-011)</td>
 <td>차단</td>
 <td>차단</td>
 </tr>
@@ -520,6 +531,7 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <blockquote>
 <p>DDL·RLS의 재현 SQL은 <code>이관/sql/01~07</code>에 있으나, <code>erp_ro</code>/<code>etl_meta</code> DDL은 Supabase MCP <code>apply_migration</code>으로 직접 적용되어 <code>.sql</code> 파일이 리포에 없다(근거=마이그레이션 이력·ETL RPC 호출). <strong>개선 권고</strong>: 향후 마이그레이션은 <code>supabase/migrations/</code>에 파일로 남겨 이관·감사 가능성을 높인다 → <a href="09_ADR_의사결정기록.md">09 ADR</a>.</p>
 <p><strong>추가 이력(2026-07-21, 챗봇 대화내역 — ADR-009)</strong>: <code>create_chat_work_session_message</code>(chat_work/chat_session/chat_message + RLS + chat_log 확장 + <code>chat_append_message</code> RPC) · <code>ai_gateway_config_work_context</code>(work 컨텍스트·저장 정책 6컬럼). 그 사이 2026-07-08~13의 ERP 뷰·권한·모델설정 마이그레이션 다수는 라이브 <code>list_migrations</code>가 정본.</p>
+<p><strong>추가 이력(2026-07-22, 포털 요청 원장 — ADR-011)</strong>: <code>portal_request_v1</code>(<code>portal_request</code> + 접수번호 시퀀스 + updated_at 트리거 + RLS 전면차단). 정본 SQL은 <code>실제구축준비 자료/이관/sql/18_portal_request.sql</code>.</p>
 </blockquote>
 <h2 id="7-vectorpg_cron">7. 확장(vector/pg_cron) 현황</h2>
 <ul>

@@ -88,7 +88,7 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <tr>
 <td><strong>Supabase</strong></td>
 <td><strong>프로젝트 가동</strong> <code>dvzohdqtjzocgcclgwro</code> / 스키마·RLS·Hook·Storage·<strong>Azure OIDC</strong>·autoconfirm 적용</td>
-<td>협력사 발주 + <strong>관리자주도 등록</strong>(<code>portal_admin</code>·<code>vendor_account</code>·<code>vendor_account_log</code>) 테이블, Edge Function <strong>6종</strong>(<code>approve-vendor</code>·<code>vendor-provision</code>·<code>vendor-reset-password</code>·<strong><code>jeil-chat</code></strong>·<strong><code>jeil-chat-admin</code></strong>·<strong><code>jeil-chat-history</code></strong>), <code>chat_log</code> 감사 + <strong>대화내역 3테이블</strong>(<code>chat_work</code>·<code>chat_session</code>·<code>chat_message</code> — 본인 전용, ADR-009), RLS 격리검증·어드바이저 클린</td>
+<td>협력사 발주 + <strong>관리자주도 등록</strong>(<code>portal_admin</code>·<code>vendor_account</code>·<code>vendor_account_log</code>) 테이블, Edge Function <strong>9종</strong>(<code>approve-vendor</code>·<code>vendor-provision</code>·<code>vendor-reset-password</code>·<strong><code>jeil-chat</code></strong>·<strong><code>jeil-chat-admin</code></strong>·<strong><code>jeil-chat-history</code></strong>·<code>jeil-me</code>·<code>jeil-hr</code>·<strong><code>jeil-portal-request</code></strong>), <code>chat_log</code> 감사 + <strong>대화내역 3테이블</strong>(<code>chat_work</code>·<code>chat_session</code>·<code>chat_message</code> — 본인 전용, ADR-009) + <strong>요청 원장</strong>(<code>portal_request</code> — 조회불가 요청접수, ADR-011), RLS 격리검증·어드바이저 클린</td>
 </tr>
 <tr>
 <td>데모 도메인</td>
@@ -493,6 +493,11 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 </tr>
 </thead>
 <tbody>
+<tr>
+<td>2026-07-22</td>
+<td><strong>포털 요청 원장 신설 — 챗봇 "조회 불가 → 요청접수" P1 배포 — §2 갱신</strong>(마이그레이션 <code>portal_request_v1</code>, Edge Function <strong><code>jeil-portal-request</code> v1 신규</strong> → 총 <strong>9종</strong>, 정본 SQL <code>이관/sql/18_portal_request.sql</code>, ADR-011) — 챗봇이 권한 부족으로 데이터를 못 주던 지점에서 사용자가 그 자리에서 요청을 접수하고 관리자가 콘솔 「요청함」에서 처리한다. 원장 <code>public.portal_request</code>는 RLS 전면차단(정책 0)이고 <code>jeil-portal-request</code>가 유일한 경로이며, 접수 시 <code>perm_effective</code>로 <strong>서버 재판정</strong>해 이미 권한이 있으면 접수를 거부한다. 1일 5건 상한·사유 15자 하한·동일 요청 자동 병합(동조 카운트), 사유·처리메모 민감패턴 마스킹(성명 제외). <strong>권한 부여는 이 화면에서 실행되지 않는다</strong>(「권한 상세」에서 관리자 클릭). 알림 채널은 <strong>Teams 확정</strong> — Graph 앱 권한 없이 채널 워크플로 웹훅, <code>TEAMS_WEBHOOK_URL</code> 시크릿 등록 대기(미등록 시 알림만 생략). 잔여: 중간DB 미적재·문서범위·기능없음 응답의 카드화(P2, <code>jeil-chat</code> 재배포 필요). 상세·단일 출처는 <code>00_관리체계/03_변경관리_CHANGELOG</code>·<code>11_제품기획/11</code>.</td>
+<td>최동혁(+Claude)</td>
+</tr>
 <tr>
 <td>2026-07-22</td>
 <td><strong>권한 코어 v1 — 판정 단일화 + 개인 예외 권한 신설 — §5.1 신설</strong>(마이그레이션 4건, <code>jeil-me</code> v3→<strong>v4</strong>·<code>jeil-hr</code> v1→<strong>v2</strong>·<code>jeil-chat</code> v26→<strong>v27</strong>·<code>jeil-chat-admin</code> v11→<strong>v12</strong>) — ① <strong>판정 SSOT</strong> <code>public.perm_effective(upn)</code> 신설: 페이지·챗봇·급여·자금 게이트가 각자 구현하던 판정을 한 함수로 통합. 특히 <code>jeil-hr</code>의 <code>dept='인사팀'</code> 하드코딩을 제거해 콘솔에서 부여한 권한이 급여 게이트에도 반영되도록 정정. ② <strong>개인 예외 권한</strong> <code>perm_grant</code> 신설 — 부서축(CORE)은 그대로 두고 겸직·대행·프로젝트만 개인 단위로 가감(<code>deny&gt;allow&gt;부서</code>), <strong>기간 만료 자동 소멸</strong>·<strong>사유 필수</strong>. 이전에는 개인에게 모듈 하나를 더 주려면 전권(<code>portal_admin</code>)뿐이었던 권한 과잉 문제 해소. ③ <strong>감사</strong> <code>perm_audit</code> 신설(부여·회수·조회), 모듈 카탈로그 SSOT를 코드→DB(<code>perm_module_catalog</code>)로 이관, 관리자 콘솔에 개인 예외 관리·<strong>유효 권한 시뮬레이터</strong>·감사 로그 3개 섹션 추가. ④ <code>scope_type='onedrive'</code> 자리를 선반영해 팀별 OneDrive 폴더 권한을 같은 체계로 확장 가능. 정본 SQL <code>이관/sql/17_perm_core.sql</code>. ⑤ <strong>고아 페이지 정리</strong>(관리자 결정 2026-07-22): <code>sales_2026</code>(수주현황 대시보드) 소유 부서를 <code>영업팀</code>→<strong><code>사업관리팀</code></strong>으로 이관 — ERP 사용자 매핑에 영업팀 소속이 0명이라 관리자 외에는 아무도 열 수 없던 상태였다(현재 사업관리팀 10명 접근, 타 부서 차단 유지·<code>perm_audit</code> 기록). <strong>잔여</strong>: <code>erp_ro.*</code> RLS 모듈별 차등(REST 직접조회 차단)·부서 권한 실사·부서 관리자 지정(현재 0명)·백업 전체 관리자 지정.</td>
