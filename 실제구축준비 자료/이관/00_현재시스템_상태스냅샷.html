@@ -344,7 +344,55 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 </tr>
 </tbody>
 </table>
+<h3 id="51-2026-07-22-v1">5.1 권한 체계 (2026-07-22 통합 — 권한 코어 v1)</h3>
+<table>
+<thead>
+<tr>
+<th>축</th>
+<th>저장소</th>
+<th>현재 상태</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>판정(단일 출처)</strong></td>
+<td><code>public.perm_effective(upn)</code> — DB 함수</td>
+<td><strong>게이트 4종이 모두 이 함수만 강제</strong>(<code>jeil-me</code> v4·<code>jeil-chat</code> v27·<code>jeil-hr</code> v2·<code>erp_finance_overview</code>). 판정 로직 중복 제거(이전에는 4곳 각자 구현, <code>jeil-hr</code>는 <code>dept='인사팀'</code> 하드코딩이라 콘솔 설정과 어긋났음)</td>
+</tr>
+<tr>
+<td><strong>① 부서(CORE)</strong></td>
+<td><code>dept_erp_scope</code>(모듈) · <code>portal_page</code>(페이지 공개범위)</td>
+<td>23부서 118행 / 페이지 9개. <strong>기본은 전부 부서로 부여</strong></td>
+</tr>
+<tr>
+<td><strong>② 개인 예외</strong></td>
+<td><code>perm_grant</code>(신설)</td>
+<td><code>scope_type</code>= role·dept·erp_module·page·<strong>onedrive(확장 자리)</strong>. <code>deny &gt; allow &gt; 부서</code>, <code>valid_to</code> 기간 만료 자동 소멸, <strong>사유 필수</strong>. 현재 활성 0건(전원 부서 권한만 — 권장 기본값)</td>
+</tr>
+<tr>
+<td><strong>③ 전권</strong></td>
+<td><code>portal_admin</code></td>
+<td><strong>1명</strong>(dh.choi@jeilm.co.kr). 개인 예외 <code>role:admin</code>으로도 부여 가능(기간 지정 가능해 상시 전권보다 안전)</td>
+</tr>
+<tr>
+<td><strong>모듈 카탈로그</strong></td>
+<td><code>perm_module_catalog</code>(신설)</td>
+<td>8종. <code>sensitive</code>=급여·자금 — 개인 페이지 예외만으로 열리지 않음(모듈 권한 필수)</td>
+</tr>
+<tr>
+<td><strong>감사</strong></td>
+<td><code>perm_audit</code>(신설) · <code>hr_access_log</code></td>
+<td>부여·회수·유효권한 조회까지 기록. 관리자 콘솔 「권한 변경 감사」에 최근 100건 표시</td>
+</tr>
+<tr>
+<td><strong>관리 UI</strong></td>
+<td>04 관리자 콘솔 › 권한 설정</td>
+<td>개인 예외 부여/회수 + <strong>유효 권한 시뮬레이터</strong>(선택 사용자가 지금 무엇을 볼 수 있는지 서버 판정 그대로 조회 — 「왜 안 보이나요」 문의 대응)</td>
+</tr>
+</tbody>
+</table>
 <blockquote>
+<p><strong>잔여(중요)</strong>: DB 레벨은 아직 부서 차등이 없다 — <code>erp_ro.*</code> RLS가 "사내면 전 행 SELECT"라 <code>dept_erp_scope</code>는 앱 게이트(챗봇·페이지)에서만 강제된다. REST 직접 조회 차단(모듈별 RLS)은 다음 단계.</p>
 <p>이관 후 인증 분리(데모): <strong>사내=Entra OIDC→Supabase 연결 / 협력사=Supabase Auth</strong>(<code>08/03_실구축기획/07 §4</code>).</p>
 </blockquote>
 <hr />
@@ -445,6 +493,11 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 </tr>
 </thead>
 <tbody>
+<tr>
+<td>2026-07-22</td>
+<td><strong>권한 코어 v1 — 판정 단일화 + 개인 예외 권한 신설 — §5.1 신설</strong>(마이그레이션 4건, <code>jeil-me</code> v3→<strong>v4</strong>·<code>jeil-hr</code> v1→<strong>v2</strong>·<code>jeil-chat</code> v26→<strong>v27</strong>·<code>jeil-chat-admin</code> v11→<strong>v12</strong>) — ① <strong>판정 SSOT</strong> <code>public.perm_effective(upn)</code> 신설: 페이지·챗봇·급여·자금 게이트가 각자 구현하던 판정을 한 함수로 통합. 특히 <code>jeil-hr</code>의 <code>dept='인사팀'</code> 하드코딩을 제거해 콘솔에서 부여한 권한이 급여 게이트에도 반영되도록 정정. ② <strong>개인 예외 권한</strong> <code>perm_grant</code> 신설 — 부서축(CORE)은 그대로 두고 겸직·대행·프로젝트만 개인 단위로 가감(<code>deny&gt;allow&gt;부서</code>), <strong>기간 만료 자동 소멸</strong>·<strong>사유 필수</strong>. 이전에는 개인에게 모듈 하나를 더 주려면 전권(<code>portal_admin</code>)뿐이었던 권한 과잉 문제 해소. ③ <strong>감사</strong> <code>perm_audit</code> 신설(부여·회수·조회), 모듈 카탈로그 SSOT를 코드→DB(<code>perm_module_catalog</code>)로 이관, 관리자 콘솔에 개인 예외 관리·<strong>유효 권한 시뮬레이터</strong>·감사 로그 3개 섹션 추가. ④ <code>scope_type='onedrive'</code> 자리를 선반영해 팀별 OneDrive 폴더 권한을 같은 체계로 확장 가능. 정본 SQL <code>이관/sql/17_perm_core.sql</code>. <strong>잔여</strong>: <code>erp_ro.*</code> RLS 모듈별 차등(REST 직접조회 차단)·부서 권한 실사·<code>영업팀</code> 고아 페이지 정리.</td>
+<td>최동혁(+Claude)</td>
+</tr>
 <tr>
 <td>2026-07-21</td>
 <td><strong>ERP DB 연동 현황 전체 노출 + 관리자 콘솔 반영 — §6 갱신</strong>(<code>jeil-chat-admin</code> v9→<strong>v10</strong>, 마이그레이션 <code>erp_sync_overview_all_sources</code>) — 연동 현황 뷰 <code>v_erp_sync_overview</code>가 1차 5종만 노출하던 것을 실제 적재된 10종 전체로 확장, 관리자 콘솔 API 탭에 실데이터 표 신설, <code>app/erp-status.html</code>에 연결 정보 표 추가. 상세·단일 출처는 <code>10_ERP_DB연계/</code>(00·02) 및 <code>00_관리체계/03_변경관리_CHANGELOG</code>.</td>

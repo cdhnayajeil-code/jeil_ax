@@ -240,22 +240,31 @@ const ERP_TOOL_MODULE: Record<string, string> = {
 // 모듈 키 → 한글 라벨 (접근제한 안내 문구용)
 const MODULE_KO: Record<string, string> = {
   sales: "매출", purchase: "매입", inventory: "재고", item: "품목", pur_order: "발주·구매요청",
-  payroll: "급여·인사", user_dept: "사용자·부서",
+  payroll: "급여·인사", user_dept: "사용자·부서", finance: "자금·회계",
 };
 
-type ErpScope = { upn: string; isAdmin: boolean; modules: Set<string>; dept: string | null; empNm: string | null };
-// 호출자 UPN → 허용 ERP 모듈 판정 (관리자=전 모듈, 그 외=소속 부서 dept_erp_scope)
+type PagePerm = { page_key: string; title: string; path: string; dept_nm: string | null; visibility: string; allowed: boolean; reason: string };
+type ErpScope = {
+  upn: string; isAdmin: boolean; modules: Set<string>; dept: string | null; empNm: string | null;
+  depts: string[]; deptAdminOf: string[]; pages: PagePerm[]; grants: Record<string, unknown>[];
+};
+// 호출자 UPN → 유효 권한 판정. v2(2026-07-22): DB 통합 함수 public.perm_effective(SSOT) 호출로 일원화.
+//   부서축(dept_erp_scope) + 개인 예외(perm_grant: 겸직부서·모듈 가감·기간 만료)가 여기 한 곳에서 계산된다.
 // deno-lint-ignore no-explicit-any
 async function resolveErpScope(admin: any, upn: string): Promise<ErpScope> {
-  const [{ data: pa }, { data: ud }] = await Promise.all([
-    admin.from("portal_admin").select("email").eq("email", upn).maybeSingle(),
-    admin.from("v_erp_user_dept").select("dept_nm,emp_nm").eq("email", upn).maybeSingle(),
-  ]);
-  const dept: string | null = ud?.dept_nm ?? null;
-  const empNm: string | null = ud?.emp_nm ?? null;
-  if (pa) return { upn, isAdmin: true, modules: new Set(), dept, empNm };
-  const { data: es } = await admin.from("dept_erp_scope").select("module_key").eq("dept_nm", dept || "");
-  return { upn, isAdmin: false, modules: new Set((es || []).map((r: { module_key: string }) => r.module_key)), dept, empNm };
+  const { data: eff } = await admin.rpc("perm_effective", { p_upn: upn });
+  const e = (eff || {}) as Record<string, unknown>;
+  return {
+    upn,
+    isAdmin: !!e.is_admin,
+    modules: new Set<string>((e.erp_modules as string[]) || []),
+    dept: (e.dept_nm as string) ?? null,
+    empNm: (e.emp_nm as string) ?? null,
+    depts: (e.depts as string[]) || [],
+    deptAdminOf: (e.dept_admin_of as string[]) || [],
+    pages: (e.pages as PagePerm[]) || [],
+    grants: (e.grants as Record<string, unknown>[]) || [],
+  };
 }
 // 모듈 보유 여부(관리자는 전 모듈)
 const hasModule = (s: ErpScope, m: string) => s.isAdmin || s.modules.has(m);
@@ -916,30 +925,22 @@ async function runTool(admin: any, name: string, argsJson: string, scope: ErpSco
 
   /* ===== 4단계 인사·권한 도구 ===== */
   if (name === "get_my_access") {
-    // 본인 권한만(호출자 UPN 고정 — 모델이 타인 UPN을 지정할 수 없음). 판정 기준은 jeil-me와 동일.
-    const [{ data: da }, { data: pageRows }] = await Promise.all([
-      admin.from("dept_permission").select("dept_nm").eq("dept_admin_email", scope.upn),
-      admin.from("portal_page").select("*").eq("active", true).order("sort"),
-    ]);
-    const deptAdminOf: string[] = (da || []).map((r: { dept_nm: string }) => r.dept_nm);
+    // 본인 권한만(호출자 UPN 고정 — 모델이 타인 UPN을 지정할 수 없음).
+    // v2: 판정은 이미 perm_effective(SSOT)가 끝냈다 — 여기서는 표현만 한다(중복 판정 제거).
+    const deptAdminOf = scope.deptAdminOf;
     const role = scope.isAdmin ? "관리자(전권)" : (deptAdminOf.length ? "부서관리자" : "일반 사용자");
-    const modules = scope.isAdmin
-      ? Object.keys(MODULE_KO)
-      : [...scope.modules];
-    const daSet = new Set(deptAdminOf);
-    // deno-lint-ignore no-explicit-any
-    const pages = (pageRows || []).map((p: any) => {
-      const vis = String(p.visibility || ""); const owner = String(p.dept_nm || "");
-      const shared: string[] = p.shared_depts || [];
-      let ok: boolean;
-      if (scope.isAdmin) ok = true;
-      else if (vis === "전사 공개") ok = true;
-      else if (vis === "부서 전용") ok = (!!scope.dept && scope.dept === owner) || daSet.has(owner);
-      else if (vis === "지정 부서 공유") ok = (!!scope.dept && (scope.dept === owner || shared.includes(scope.dept))) || daSet.has(owner);
-      else ok = false;
-      if (ok && p.erp_module && !scope.isAdmin) ok = scope.modules.has(String(p.erp_module));
-      return { 페이지: p.title, 담당부서: p.dept_nm, 공개범위: p.visibility, 접근가능: ok, 경로: String(p.path || "") };
-    });
+    const modules = [...scope.modules];
+    const pages = scope.pages.map((p) => ({
+      페이지: p.title, 담당부서: p.dept_nm, 공개범위: p.visibility,
+      접근가능: p.allowed, 사유: p.reason, 경로: String(p.path || ""),
+    }));
+    // 개인 예외(겸직 부서·모듈 가감·기간 권한) — 본인에게 무엇이 왜 적용 중인지 투명하게 보여준다
+    const 개인예외 = scope.grants.map((g) => ({
+      유형: String(g.scope_type), 대상: String(g.scope_key),
+      효과: g.effect === "deny" ? "차단" : "허용",
+      만료: g.valid_to ? String(g.valid_to).slice(0, 10) : "무기한",
+      사유: String(g.reason || ""),
+    }));
     // deno-lint-ignore no-explicit-any
     const okPages = pages.filter((p: any) => p.접근가능);
     // deno-lint-ignore no-explicit-any
@@ -948,19 +949,22 @@ async function runTool(admin: any, name: string, argsJson: string, scope: ErpSco
     const 계정표기 = `${scope.dept || "미매핑"}_${scope.empNm || "-"}_${scope.upn}`;
     return {
       기준시각: asOf, 계정: 계정표기, 이름: scope.empNm || "-", 소속부서: scope.dept || "미매핑",
+      적용부서: scope.depts,
       역할: role, 관리자여부: scope.isAdmin, 부서관리자_담당부서: deptAdminOf,
       열람가능_ERP모듈: modules.map((m) => `${MODULE_KO[m] || m}(${m})`),
+      개인예외권한: 개인예외,
       // deno-lint-ignore no-explicit-any
       접근가능_페이지: okPages.map((p: any) => p.페이지),
       // deno-lint-ignore no-explicit-any
-      접근불가_페이지: noPages.map((p: any) => ({ 페이지: p.페이지, 담당부서: p.담당부서, 공개범위: p.공개범위 })),
+      접근불가_페이지: noPages.map((p: any) => ({ 페이지: p.페이지, 담당부서: p.담당부서, 공개범위: p.공개범위, 사유: p.사유 })),
       __view: { view: "record", title: "내 포털 권한", asOf,
         fields: [
           { k: "계정", v: 계정표기 },
-          { k: "소속부서", v: scope.dept || "미매핑" },
+          { k: "소속부서", v: scope.depts.length > 1 ? scope.depts.join(" · ") + " (겸직·대행 포함)" : (scope.dept || "미매핑") },
           { k: "역할", v: role },
           { k: "ERP 모듈", v: modules.length ? modules.map((m) => MODULE_KO[m] || m).join(" · ") : "없음" },
           { k: "운영페이지", v: `접근가능 ${okPages.length} / 전체 ${pages.length}` },
+          ...(개인예외.length ? [{ k: "개인 예외", v: 개인예외.map((g) => `${g.대상}(${g.효과}·${g.만료})`).join(", ") }] : []),
           ...(deptAdminOf.length ? [{ k: "부서관리자", v: deptAdminOf.join(", ") }] : []),
         ],
         // 접근 가능한 운영페이지 바로가기(상위 3) — 실제 열람 차단은 각 페이지 게이트(jeil-me)가 재판정
@@ -969,9 +973,9 @@ async function runTool(admin: any, name: string, argsJson: string, scope: ErpSco
           // deno-lint-ignore no-explicit-any
           .map((p: any) => ({ kind: "link", label: String(p.페이지), url: String(p.경로) })) } satisfies ViewPayload,
       권한요청방법: scope.isAdmin
-        ? "관리자(전권) 계정이므로 별도 권한 요청이 필요 없습니다. 타 사용자 권한 부여는 관리자 콘솔 › 사용자·부서에서 직접 수행하세요."
-        : "필요한 데이터 모듈·페이지를 지정해 포털 관리자에게 요청하세요(관리자 콘솔 › 사용자·부서 › 부서별 ERP 모듈 권한에서 부여). 급여·인사 데이터는 인사팀 소속 또는 관리자만 가능합니다.",
-      안내: "본인 권한만 조회됩니다(타인 권한 조회 불가). 판정 기준: 관리자(portal_admin) › 부서관리자(dept_permission) › 소속부서 ERP 모듈(dept_erp_scope) + 페이지 공개범위(portal_page).",
+        ? "관리자(전권) 계정이므로 별도 권한 요청이 필요 없습니다. 타 사용자 권한 부여는 관리자 콘솔 › 권한 설정에서 수행하세요(부서 단위 = 부서별 ERP 모듈, 개인 단위 = 개인 예외 권한)."
+        : "필요한 데이터 모듈·페이지를 지정해 포털 관리자에게 요청하세요. 부서 전체가 필요하면 부서 권한으로, 본인만 필요하면 개인 예외 권한(기간 지정 가능)으로 부여됩니다. 급여·자금은 민감 모듈이라 별도 승인이 필요합니다.",
+      안내: "본인 권한만 조회됩니다(타인 권한 조회 불가). 판정 기준(단일 출처 public.perm_effective): 전체 관리자(portal_admin) › 개인 예외(perm_grant, deny>allow) › 소속·겸직 부서 ERP 모듈(dept_erp_scope) + 페이지 공개범위(portal_page).",
     };
   }
 

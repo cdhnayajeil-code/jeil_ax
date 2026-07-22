@@ -109,6 +109,13 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <tbody>
 <tr>
 <td>2026-07-22</td>
+<td>권한·보안</td>
+<td>DB 마이그레이션 4건 · Edge Function 4종 · <code>04</code> 관리자 콘솔 · <code>이관/sql/17_perm_core.sql</code> · <code>이관/00 §5.1</code></td>
+<td><strong>권한 코어 v1 — 부서축 CORE + 개인 예외 + 판정 단일화</strong>. 현행 권한 구조를 실측한 결과 세 가지 문제가 확인됐다: ① 판정 로직이 4곳(<code>jeil-me</code>·<code>jeil-chat</code>·<code>jeil-hr</code>·<code>erp_finance_overview</code>)에 복제돼 있었고 <code>jeil-hr</code>는 부서명 하드코딩이라 콘솔 설정과 어긋났다, ② 개인 단위 예외 수단이 없어 한 사람에게 모듈 하나를 더 주려면 급여 포함 전권(<code>portal_admin</code>)뿐이었다, ③ 대행·프로젝트성 권한에 기간 개념이 없어 회수 누락 위험이 있었다. 해결: 판정 SSOT <code>public.perm_effective(upn)</code> 신설(게이트 4종 전부 이 결과만 강제), 개인 예외 <code>perm_grant</code>(role·dept·erp_module·page·<strong>onedrive</strong>, <code>deny&gt;allow&gt;부서</code>, 만료 자동 소멸, 사유 필수), 권한 변경 감사 <code>perm_audit</code>, 모듈 카탈로그 SSOT를 코드→DB(<code>perm_module_catalog</code>). 관리자 콘솔에 개인 예외 부여/회수·<strong>유효 권한 시뮬레이터</strong>(서버 판정 그대로 조회)·감사 로그 추가. 향후 팀별 OneDrive 폴더 권한도 같은 축으로 확장. <strong>잔여</strong>: <code>erp_ro.*</code> RLS가 아직 "사내 전원 SELECT"라 모듈 차등은 앱 게이트 한정(REST 직접조회 차단은 다음 단계), 부서 권한 실사(23부서 대부분 5개 모듈 일괄 보유), <code>영업팀</code> 소유 페이지의 매핑 사용자 0명.</td>
+<td>최동혁(+Claude)</td>
+</tr>
+<tr>
+<td>2026-07-22</td>
 <td>ERP 연계·데이터품질</td>
 <td><code>10_ERP_DB연계/00</code>(v0.15)·<code>02</code>(SQL 검증 결과)</td>
 <td><strong>중간DB(erp_ro) 정합성 SQL 검증 — 실측 완료(이상 없음)</strong>. S3041-00065 챗봇 오답 이슈의 후속으로, 사용자 우려("Supabase 중간DB가 실제 ERP와 안 맞게 연결된 것 아닌가")에 SQL 실측으로 답했다. item_code NULL/공백·품목마스터 고아(발주·구매요청·매입)·번호형식 위반·PK 중복을 발주 3,088·구매요청 4,064·매입상세 1,981·품목 58,533행 전건 점검한 결과 <strong>전부 0건</strong>(구조적 오류·누락 미발견), <code>etl_meta.batch_run</code> 최근 12건 전부 success·rows_read=rows_upserted. 발견된 2건(발주→구매요청 고아 49건=전부 2025년 PR 참조, (po_no+item_code) 중복 31건=동일 PO 내 po_seq 분리)은 조사 결과 데이터 오류가 아니라 각각 "2026년만 적재하는 범위 한계"·"ERP 원본 구조 정확 보존"으로 설명됨. <strong>잔여 과제</strong>: ERP 원본(M_PUR_ORD/M_PUR_REQ) 직접 대사는 ODBC 접속 설정 읽기 권한 거부로 미실행 — 관리자 <code>etl_run.py --dry-run</code> 직접 실행 필요.</td>

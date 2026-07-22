@@ -4,6 +4,8 @@
 //   조회(빈 바디): { gateway, usage, admins, dept_mapping, dept_permissions, portal_pages, dept_erp_scope, catalog, model_settings } — 관리자만
 //   저장({action:'save_dept_perm'|'save_page_perm'|'save_dept_erp'|'save_ai_models'|'save_ai_config'|'save_ai_routing'|'manage_admin', ...}): 관리자만 → { ok, saved }
 //   v9: save_ai_config에 work 컨텍스트 적용범위·대화 저장 정책 6필드 추가. usage에 세션·메시지 건수(원문은 반환하지 않음 — 본인 전용 jeil-chat-history뿐).
+//   v10(2026-07-22): 권한 코어 통합 — 개인 예외 권한 액션 3종(grant_perm·revoke_perm·effective_perm) 추가,
+//     조회 응답에 perm_grants·perm_audit 포함, 모듈 카탈로그 SSOT를 DB(perm_module_catalog)로 이관.
 // 원칙: chat_log·erp 매핑 뷰는 RLS로 클라이언트 차단 → 이 함수(service_role)가 유일한 조회/저장 경로.
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
@@ -15,13 +17,13 @@ const cors = {
 const json = (o: unknown, status = 200) =>
   new Response(JSON.stringify(o), { status, headers: { ...cors, "Content-Type": "application/json" } });
 
-// ERP 데이터 모듈 카탈로그 — public.v_erp_* 노출 뷰와 1:1 (jeil-me와 동일)
-// 급여(payroll·민감)는 콘솔(04)에서 클라이언트 측 카탈로그로 병합·처리(dept_erp_scope가 실제 판정 구동).
-const CATALOG = [
-  { key: "sales", label: "매출" }, { key: "purchase", label: "매입" },
-  { key: "inventory", label: "재고" }, { key: "item", label: "품목" },
-  { key: "pur_order", label: "발주" }, { key: "user_dept", label: "사용자·부서" },
-  { key: "finance", label: "자금·회계" }, // 자금 대시보드 게이트 — 자금·회계 부서만
+// ERP 데이터 모듈 카탈로그 — v10(2026-07-22)부터 DB(public.perm_module_catalog)가 SSOT.
+// 아래 값은 DB 조회 실패 시의 안전 폴백일 뿐이다(코드-DB 이중관리 종료).
+const CATALOG_FALLBACK = [
+  { key: "sales", label: "매출", sensitive: false }, { key: "purchase", label: "매입", sensitive: false },
+  { key: "inventory", label: "재고", sensitive: false }, { key: "item", label: "품목", sensitive: false },
+  { key: "pur_order", label: "발주", sensitive: false }, { key: "user_dept", label: "사용자·부서", sensitive: false },
+  { key: "payroll", label: "급여·인사", sensitive: true }, { key: "finance", label: "자금·회계", sensitive: true },
 ];
 
 async function verifyEntraUser(token: string): Promise<{ upn: string } | null> {
@@ -135,6 +137,44 @@ Deno.serve(async (req) => {
       return json({ ok: true, action: "remove", email });
     }
     return json({ error: "알 수 없는 관리 동작" }, 400);
+  }
+
+  // 2-e-1) 개인 예외 권한 부여 — 부서축으로 못 푸는 예외(겸직·대행·프로젝트)를 개인 단위로 가감.
+  //   scope_type: role(admin|auditor) | dept(부서 추가) | erp_module | page | onedrive
+  //   effect: allow | deny(우선). valid_to로 기간 권한(대행 종료 시 자동 소멸). 사유 필수 → perm_audit 기록.
+  if (body && (body as Record<string, unknown>).action === "grant_perm") {
+    const b = body as Record<string, unknown>;
+    const { data, error } = await admin.rpc("perm_grant_set", {
+      p_actor: user.upn,
+      p_upn: String(b.upn || "").trim().toLowerCase(),
+      p_scope_type: String(b.scope_type || ""),
+      p_scope_key: String(b.scope_key || ""),
+      p_effect: String(b.effect || "allow"),
+      p_reason: b.reason != null ? String(b.reason).slice(0, 400) : null,
+      p_valid_to: b.valid_to ? String(b.valid_to) : null,
+    });
+    if (error) return json({ error: "권한 부여 실패: " + error.message }, 400);
+    return json({ ok: true, result: data, by: user.upn });
+  }
+
+  // 2-e-2) 개인 예외 권한 회수(이력 보존 — revoked_at 기록 후 감사 남김)
+  if (body && (body as Record<string, unknown>).action === "revoke_perm") {
+    const id = Number((body as Record<string, unknown>).id);
+    if (!Number.isFinite(id)) return json({ error: "회수할 권한 id가 필요합니다." }, 400);
+    const { data, error } = await admin.rpc("perm_grant_revoke", { p_actor: user.upn, p_id: id });
+    if (error) return json({ error: "권한 회수 실패: " + error.message }, 400);
+    return json({ ok: true, result: data, by: user.upn });
+  }
+
+  // 2-e-3) 유효 권한 시뮬레이터 — "이 사람은 지금 무엇을 볼 수 있는가"를 실제 판정 함수로 그대로 확인.
+  //   부여 전 영향 확인·문의 대응용. 조회 자체도 감사에 남긴다.
+  if (body && (body as Record<string, unknown>).action === "effective_perm") {
+    const target = String((body as Record<string, unknown>).upn || "").trim().toLowerCase();
+    if (!target) return json({ error: "조회할 사용자 이메일이 필요합니다." }, 400);
+    const { data, error } = await admin.rpc("perm_effective", { p_upn: target });
+    if (error) return json({ error: "권한 조회 실패: " + error.message }, 400);
+    await admin.from("perm_audit").insert({ actor: user.upn, action: "view_effective", target, detail: {} });
+    return json({ ok: true, effective: data });
   }
 
   // 2-f) 저장 액션 — 사용모델 카탈로그(ai_model upsert). 단가·활성화·용도 편집.
@@ -275,7 +315,8 @@ Deno.serve(async (req) => {
 
   // 4) 사용자↔부서↔사원 매핑(ERP Z_USR_MAST_REC 대사) + 부서별 권한 설정
   //    service_role은 RLS 우회 → 사내 전용 뷰 전량 조회. 부서명 기준으로 권한 설정과 결합.
-  const [udUsers, udRecon, udRoster, deptPerm, pagesRes, deptErpRes, deptErpSuggestRes, aiModelsRes, aiCfgRes, aiRulesRes] = await Promise.all([
+  const [udUsers, udRecon, udRoster, deptPerm, pagesRes, deptErpRes, deptErpSuggestRes, aiModelsRes, aiCfgRes, aiRulesRes,
+         catalogRes, grantsRes, permAuditRes] = await Promise.all([
     admin.from("v_erp_user_dept").select("email,dept_nm,emp_nm,matched_dept_cd,dept_matched").order("dept_nm").order("emp_nm"),
     admin.from("v_erp_user_dept_recon").select("email,usr_nm_raw,dept_nm,emp_nm,status,recon_type").order("recon_type").order("dept_nm"),
     admin.from("v_erp_dept_roster").select("dept_nm,emp_cnt,dept_matched,members").order("emp_cnt", { ascending: false }),
@@ -286,6 +327,9 @@ Deno.serve(async (req) => {
     admin.from("ai_model").select("*").order("sort"),
     admin.from("ai_gateway_config").select("*").eq("id", 1).maybeSingle(),
     admin.from("ai_routing_rule").select("*").order("seq"),
+    admin.from("perm_module_catalog").select("module_key,label,sensitive,sort").order("sort"),
+    admin.rpc("perm_grant_list"),                                     // 개인 예외 권한(활성+회수 이력)
+    admin.from("perm_audit").select("actor,action,target,detail,at").order("at", { ascending: false }).limit(100),
   ]);
 
   // ERP DB 연동 현황(소스별 최신 연동시각·건수·기간) — 관리자 콘솔 표시용.
@@ -359,7 +403,14 @@ Deno.serve(async (req) => {
     portal_pages: pagesRes.data || [],
     dept_erp_scope: deptErpRes.data || [],
     dept_erp_suggest: deptErpSuggestRes.data || [], // ERP 역할·메뉴 권한 기반 제안값(참고용)
-    catalog: CATALOG,
+    // 모듈 카탈로그(SSOT: perm_module_catalog). sensitive=민감(급여·자금) — 콘솔에서 ⚠ 표시·일괄부여 제외.
+    catalog: (catalogRes.data || []).length
+      ? (catalogRes.data as { module_key: string; label: string; sensitive: boolean }[])
+          .map((c) => ({ key: c.module_key, label: c.label, sensitive: c.sensitive }))
+      : CATALOG_FALLBACK,
+    // 개인 예외 권한(부서축으로 못 푸는 예외) + 권한 변경 감사
+    perm_grants: grantsRes.data || [],
+    perm_audit: permAuditRes.data || [],
     // ERP DB 연동 현황 — 어떤 ERP 테이블이 언제·얼마나 중간DB로 들어왔는지(연결 상태 확인용)
     erp_sync: { sources: erpSyncRes.data || [], error: erpSyncRes.error?.message || null },
     // 사용모델 설정 탭(모델 카탈로그·게이트웨이 설정·라우팅 규칙) — 실데이터

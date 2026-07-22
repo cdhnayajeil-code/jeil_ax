@@ -1,4 +1,5 @@
-// jeil-hr — 인사 급여 '집계'(민감) 게이트 API. 인사팀·관리자(portal_admin)만. 감사 로그 기록.
+// jeil-hr — 인사 급여 '집계'(민감) 게이트 API. payroll 모듈 보유자만. 감사 로그 기록.
+// v2(2026-07-22): 판정을 DB 통합 함수 perm_effective로 이관(부서 하드코딩 제거).
 // 배포: verify_jwt=false (Entra access_token을 Graph로 재검증)
 // 호출: POST /functions/v1/jeil-hr  Authorization: Bearer <Entra access_token(jeilax_auth.at)>
 //   응답(허용): { allowed:true, dept, is_admin, payroll:[{ym,dept_nm,headcount,pay_tot_amt,retire_amt}], as_of }
@@ -42,20 +43,20 @@ Deno.serve(async (req) => {
 
   const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
-  // 신원·부서·관리자
-  const [{ data: pa }, { data: ud }] = await Promise.all([
-    admin.from("portal_admin").select("email").eq("email", upn).maybeSingle(),
-    admin.from("v_erp_user_dept").select("dept_nm").eq("email", upn).maybeSingle(),
-  ]);
-  const dept: string | null = ud?.dept_nm ?? null;
-  const is_admin = !!pa;
-  const allowed = is_admin || dept === "인사팀";
+  // 통합 판정(SSOT): payroll 모듈 보유 = 부서 권한(인사팀) 또는 개인 예외(기간 권한 포함) 또는 전체 관리자
+  // v2(2026-07-22): 부서명 하드코딩(dept==='인사팀') 제거 → perm_effective로 통일. 콘솔 설정이 즉시 반영된다.
+  const { data: eff, error: pe } = await admin.rpc("perm_effective", { p_upn: upn });
+  if (pe || !eff) return json({ error: "권한 판정 실패: " + (pe?.message || "no data") }, 500);
+  const e = eff as Record<string, unknown>;
+  const dept: string | null = (e.dept_nm as string) ?? null;
+  const is_admin = !!e.is_admin;
+  const allowed = is_admin || (Array.isArray(e.erp_modules) && (e.erp_modules as string[]).includes("payroll"));
 
   // 감사 기록(허용/거부 모두)
   try { await admin.rpc("hr_access_log_add", { p_upn: upn, p_dept: dept, p_ok: allowed }); } catch { /* 무시 */ }
 
   if (!allowed) {
-    return json({ allowed: false, error: "forbidden: 급여 데이터는 인사팀(또는 관리자)만 조회할 수 있습니다.", dept }, 403);
+    return json({ allowed: false, error: "forbidden: 급여 데이터는 급여(payroll) 권한 보유자만 조회할 수 있습니다.", dept }, 403);
   }
 
   // 급여 집계(erp_secure) — service_role RPC로만 조회

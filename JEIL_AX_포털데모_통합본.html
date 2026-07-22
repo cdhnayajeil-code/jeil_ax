@@ -789,8 +789,9 @@
           <tr><td>대화 로그 감사 조회</td><td class="c mat-y">●</td><td class="c mat-n">✕</td><td class="c mat-n">✕</td></tr>
           <tr><td>모델 · 게이트웨이 · 보안 설정</td><td class="c mat-y">●</td><td class="c mat-n">✕</td><td class="c mat-n">✕</td></tr>
           <tr><td>권한 부여 · 부서 설정</td><td class="c mat-y">●</td><td class="c mat-p">▲ 소속 부서만</td><td class="c mat-n">✕</td></tr>
+          <tr><td>개인 예외 권한 부여·회수</td><td class="c mat-y">●</td><td class="c mat-n">✕ (요청만)</td><td class="c mat-n">✕</td></tr>
         </table>
-        <p class="admin-note">● 전체 허용 · ▲ 범위 제한 · ✕ 불가. 전체 관리자는 <code>portal_admin</code>, 부서 관리자·부서 접근범위는 「부서별 권한 설정」에서 지정합니다. (운영 전환 시 Entra 보안그룹 자동 부여로 확장 예정)</p>
+        <p class="admin-note">● 전체 허용 · ▲ 범위 제한 · ✕ 불가. <b>권한 판정은 서버 단일 함수 <code>perm_effective</code></b>가 수행하며 챗봇·운영페이지·급여·자금 게이트가 모두 이 결과를 강제합니다(판정 중복 없음). 축은 3개 — ① 부서(기본): <code>dept_erp_scope</code>·<code>portal_page</code>, ② 개인 예외: <code>perm_grant</code>(차단&gt;허용&gt;부서, 기간 만료 지원), ③ 전권: <code>portal_admin</code>. 향후 OneDrive 팀 폴더 권한도 같은 축(<code>scope_type='onedrive'</code>)으로 확장합니다.</p>
       </div>
 
       <div class="sec">
@@ -801,6 +802,51 @@
           <tbody id="permDeptRows"><tr><td colspan="5" class="c" style="color:#888;padding:14px;">MS 로그인(관리자) 시 부서 목록 표시 — '사용자·부서' 탭의 매핑 데이터 기준</td></tr></tbody>
         </table>
         <p class="admin-note">부서 관리자는 소속 부서의 사용자·운영 페이지·크레딧 신청만 관리합니다. ERP 접근 범위는 게이트웨이에서 모듈 단위로 차단됩니다. 부서명 기준은 ERP 매핑과 동기화됩니다.</p>
+      </div>
+
+      <div class="sec">
+        <h3>개인 예외 권한 <span style="font-size:11px;color:var(--green,#1a7f37);">● 실데이터</span> <span style="font-size:11px;color:var(--muted);">부서축으로 못 푸는 예외만</span></h3>
+        <p class="admin-note">권한의 <b>기본 축은 부서</b>입니다(위 「부서별 ERP 모듈 권한」). 겸직·업무대행·프로젝트처럼 <b>특정 인원에게만</b> 권한이 필요할 때 여기서 개인 단위로 더하거나(허용) 빼세요(차단). 판정 우선순위는 <b>차단 &gt; 개인 허용 &gt; 부서 권한</b>이며, <b>만료일</b>을 넣으면 그날 자동으로 사라집니다(회수를 잊어도 권한이 남지 않음).</p>
+        <div style="padding:12px 14px; background:var(--soft,#eef2f8); border:1px solid var(--line,#d8dee8); border-radius:9px;">
+          <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:8px;">
+            <label style="font-size:11px;color:var(--muted);">대상 사용자<select class="sel" id="pgUser" style="width:100%;margin-top:3px;"></select></label>
+            <label style="font-size:11px;color:var(--muted);">권한 유형<select class="sel" id="pgScopeType" onchange="pgScopeKeys()" style="width:100%;margin-top:3px;">
+              <option value="erp_module">ERP 모듈</option><option value="dept">부서 추가(겸직·대행)</option>
+              <option value="page">운영 페이지</option><option value="role">역할(전권·감사자)</option>
+              <option value="onedrive">OneDrive 폴더(준비 중)</option></select></label>
+            <label style="font-size:11px;color:var(--muted);">대상<select class="sel" id="pgScopeKey" style="width:100%;margin-top:3px;"></select></label>
+            <label style="font-size:11px;color:var(--muted);">효과<select class="sel" id="pgEffect" style="width:100%;margin-top:3px;">
+              <option value="allow">허용(추가 부여)</option><option value="deny">차단(부서 권한에서 제외)</option></select></label>
+            <label style="font-size:11px;color:var(--muted);">만료일(선택)<input type="date" id="pgValidTo" style="width:100%;margin-top:3px;padding:6px 8px;border:1px solid var(--line,#d8dee8);border-radius:6px;font-size:12.5px;"></label>
+          </div>
+          <div style="margin-top:8px; display:flex; gap:8px; flex-wrap:wrap;">
+            <input id="pgReason" placeholder="사유(필수) — 예: 자재물류팀 업무대행(2026-08-31까지)" style="flex:1; min-width:260px; padding:7px 11px; border:1px solid var(--line,#d8dee8); border-radius:7px; font-size:13px;">
+            <button class="save" onclick="grantPerm()">권한 부여</button>
+          </div>
+        </div>
+        <table style="margin-top:10px;">
+          <thead><tr><th style="width:8%;">상태</th><th style="width:22%;">대상자</th><th style="width:10%;">유형</th><th style="width:14%;">대상</th><th class="c" style="width:7%;">효과</th><th class="c" style="width:9%;">만료</th><th>사유·부여자</th><th class="r" style="width:7%;">관리</th></tr></thead>
+          <tbody id="pgRows"><tr><td colspan="8" class="c" style="color:#888;padding:14px;">MS 로그인(관리자) 시 표시</td></tr></tbody>
+        </table>
+      </div>
+
+      <div class="sec">
+        <h3>유효 권한 확인 <span style="font-size:11px;color:var(--green,#1a7f37);">● 실판정</span> <span style="font-size:11px;color:var(--muted);">부여 전 영향 확인 · 문의 대응</span></h3>
+        <p class="admin-note">선택한 사용자가 <b>지금 실제로 무엇을 볼 수 있는지</b>를 서버 판정 함수(<code>perm_effective</code>)로 그대로 조회합니다 — 화면 계산이 아니라 실제 접근 판정과 동일한 결과입니다. 「왜 이 페이지가 안 보이나요」 문의에 바로 답할 수 있습니다.</p>
+        <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:flex-end;">
+          <select class="sel" id="pgCheckUser" style="flex:1; min-width:260px;"></select>
+          <button class="save" onclick="checkEffective()">유효 권한 조회</button>
+        </div>
+        <div id="pgEffOut" style="margin-top:10px;"></div>
+      </div>
+
+      <div class="sec">
+        <h3>권한 변경 감사 <span style="font-size:11px;color:var(--green,#1a7f37);">● 실데이터</span> <span style="font-size:11px;color:var(--muted);">최근 100건</span></h3>
+        <p class="admin-note">누가·언제·누구에게 어떤 권한을 부여/회수했는지 서버에 기록됩니다(<code>perm_audit</code>). 권한 조회(시뮬레이터) 사용도 함께 남습니다.</p>
+        <table>
+          <thead><tr><th style="width:14%;">시각</th><th style="width:12%;">동작</th><th style="width:22%;">수행자</th><th style="width:22%;">대상</th><th>내용</th></tr></thead>
+          <tbody id="pgAuditRows"><tr><td colspan="5" class="c" style="color:#888;padding:14px;">MS 로그인(관리자) 시 표시</td></tr></tbody>
+        </table>
       </div>
 
       <div class="sec">
@@ -1992,6 +2038,8 @@ async function loadAdminLive(force){
     renderDeptPerm(d.dept_mapping || { roster: [], users: [] }, d.dept_permissions || []);
     // 권한 상세 탭 (페이지 공개 + 부서 ERP 모듈)
     renderPermDetail(d);
+    // 개인 예외 권한(perm_grant) + 권한 변경 감사 — 부서축으로 못 푸는 예외 관리
+    renderPermGrants(d);
     // 모델 설정 탭 (사용모델 카탈로그 + 게이트웨이 설정 + 라우팅 규칙)
     if(d.model_settings) renderModelSettings(d.model_settings);
     if(d.erp_sync) renderErpSync(d.erp_sync);
@@ -2083,11 +2131,12 @@ function deptUniverse(d){
   return Object.keys(s).sort();
 }
 
-var SENSITIVE_MODS = { payroll: 1 }; // 민감 모듈 — 일괄/제안 제외, 개별 지정만
+// 민감 모듈 — 일괄/제안 제외, 개별 지정만. v2: 서버 카탈로그(perm_module_catalog.sensitive)가 SSOT.
+var SENSITIVE_MODS = { payroll: 1, finance: 1 }; // 서버 응답이 없을 때의 폴백
 function catalogWithSensitive(cat){
   var c = (cat||[]).slice();
-  if(!c.some(function(x){ return x.key==='payroll'; })) c.push({ key:'payroll', label:'급여', sensitive:true });
-  c.forEach(function(x){ if(SENSITIVE_MODS[x.key]) x.sensitive = true; });
+  if(!c.length) c = [{key:'payroll',label:'급여·인사',sensitive:true}];
+  c.forEach(function(x){ if(x.sensitive) SENSITIVE_MODS[x.key] = 1; else if(SENSITIVE_MODS[x.key]) x.sensitive = true; });
   return c;
 }
 function renderPermDetail(d){
@@ -2097,6 +2146,7 @@ function renderPermDetail(d){
   var deptOpts = function(sel){ return '<option value="">(미지정)</option>'+PERM_DEPTS.map(function(dn){ return '<option'+(dn===sel?' selected':'')+'>'+escHtml(dn)+'</option>'; }).join(''); };
   // A. 페이지 공개 설정 (민감 모듈 페이지 ⚠ 표시)
   var pt = document.getElementById('ppRows'); var pages = d.portal_pages||[];
+  window.__PERM_PAGES = pages; // 개인 예외 권한(페이지 지정)의 선택 목록으로 재사용
   if(pt) pt.innerHTML = pages.length ? pages.map(function(p){
     var visOpts = VIS.map(function(v){ return '<option'+((p.visibility===v)?' selected':'')+'>'+v+'</option>'; }).join('');
     var modOpts = '<option value="">(없음)</option>'+PERM_CATALOG.map(function(c){ return '<option value="'+c.key+'"'+((p.erp_module===c.key)?' selected':'')+'>'+escHtml(c.label)+(c.sensitive?' ⚠':'')+'</option>'; }).join('');
@@ -2149,6 +2199,131 @@ function erpBulk(mode){
     });
   }
   Array.prototype.forEach.call(document.querySelectorAll('#erpMatrixHead .em-col'), function(c){ c.checked = false; });
+}
+
+/* ===== 개인 예외 권한(perm_grant) — 부서축 CORE의 예외를 개인 단위로 가감 =====
+   원칙: 기본은 부서 권한. 겸직·대행·프로젝트처럼 부서로 못 푸는 경우만 개인 예외로 처리한다.
+   deny > allow > 부서. 기간(만료일)을 넣으면 그날 자동 소멸 — 회수를 잊어도 권한이 남지 않는다.
+   판정은 서버 단일 함수 public.perm_effective가 수행하고, 이 화면은 부여·회수·확인 UI일 뿐이다. */
+var PG_USERS = [], PG_GRANTS = [];
+var PG_SCOPE_LABEL = { role:'역할', dept:'부서 추가', erp_module:'ERP 모듈', page:'페이지', onedrive:'OneDrive 폴더' };
+
+function renderPermGrants(d){
+  PG_USERS = (d.dept_mapping && d.dept_mapping.users) || [];
+  PG_GRANTS = d.perm_grants || [];
+  // 대상 사용자 셀렉트(부서_이름_아이디 표기)
+  var userOpts = '<option value="">(사용자 선택)</option>' + PG_USERS.map(function(u){
+    return '<option value="'+escHtml(u.email)+'">'+escHtml((u.dept_nm||'미매핑')+'_'+(u.emp_nm||'-')+'_'+u.email)+'</option>';
+  }).join('');
+  var us = document.getElementById('pgUser'); if(us) us.innerHTML = userOpts;
+  var cu = document.getElementById('pgCheckUser'); if(cu) cu.innerHTML = userOpts;
+  pgScopeKeys(); // 유형에 맞는 대상 목록 채우기
+  // 부여 현황
+  var tb = document.getElementById('pgRows');
+  if(tb) tb.innerHTML = PG_GRANTS.length ? PG_GRANTS.map(function(g){
+    var st = g.active ? '<span class="badge g">적용중</span>'
+           : (g.revoked_at ? '<span class="badge b">회수됨</span>' : '<span class="badge a">만료</span>');
+    var ef = g.effect==='deny' ? '<span class="badge r">차단</span>' : '<span class="badge a">허용</span>';
+    var exp = g.valid_to ? String(g.valid_to).slice(0,10) : '무기한';
+    return '<tr><td>'+st+'</td><td><b>'+escHtml(g.emp_label||'')+'</b><br><span style="color:#999;font-size:11px">'+escHtml(g.upn)+'</span></td>'
+      + '<td>'+escHtml(PG_SCOPE_LABEL[g.scope_type]||g.scope_type)+'</td><td><span class="keychip">'+escHtml(g.scope_key)+'</span></td>'
+      + '<td class="c">'+ef+'</td><td class="c">'+escHtml(exp)+'</td>'
+      + '<td style="color:#555">'+escHtml(g.reason||'')+'<br><span style="color:#999;font-size:11px">'+escHtml(g.granted_by||'')+' · '+String(g.granted_at||'').slice(0,10)+'</span></td>'
+      + '<td class="r">'+(g.active ? '<button data-id="'+g.id+'" onclick="revokeGrant(this.getAttribute(\'data-id\'))" style="background:#fff;color:var(--red);border:1px solid var(--red);border-radius:6px;padding:2px 10px;font-size:11px;cursor:pointer;">회수</button>' : '')+'</td></tr>';
+  }).join('') : '<tr><td colspan="8" class="c" style="color:#888;padding:14px;">개인 예외 권한 없음 — 전원이 소속 부서 권한만 적용받는 상태입니다(권장 기본값)</td></tr>';
+  // 권한 변경 감사(최근 100건)
+  var ab = document.getElementById('pgAuditRows');
+  var AUD_KO = { grant:'권한 부여', revoke:'권한 회수', view_effective:'유효권한 조회' };
+  if(ab) ab.innerHTML = (d.perm_audit||[]).length ? d.perm_audit.map(function(a){
+    var det = a.detail ? Object.keys(a.detail).filter(function(k){ return a.detail[k]!=null && k!=='grant_id'; })
+                          .map(function(k){ return k+'='+a.detail[k]; }).join(' · ') : '';
+    return '<tr><td>'+String(a.at||'').slice(0,16).replace('T',' ')+'</td><td>'+escHtml(AUD_KO[a.action]||a.action)+'</td>'
+      + '<td>'+escHtml(a.actor||'')+'</td><td>'+escHtml(a.target||'')+'</td><td style="color:#666">'+escHtml(det)+'</td></tr>';
+  }).join('') : '<tr><td colspan="5" class="c" style="color:#888;padding:14px;">권한 변경 이력 없음</td></tr>';
+}
+
+// 권한 유형에 따라 '대상' 목록을 바꿔준다(오타로 잘못된 키가 저장되지 않도록 선택식)
+function pgScopeKeys(){
+  var t = (document.getElementById('pgScopeType')||{}).value || 'erp_module';
+  var sel = document.getElementById('pgScopeKey'); if(!sel) return;
+  var opts = [];
+  if(t==='erp_module') opts = PERM_CATALOG.map(function(c){ return { v:c.key, t:c.label+(c.sensitive?' ⚠ 민감':'') }; });
+  else if(t==='dept')  opts = PERM_DEPTS.map(function(dn){ return { v:dn, t:dn }; });
+  else if(t==='page')  opts = (window.__PERM_PAGES||[]).map(function(p){ return { v:p.page_key, t:(p.title||p.page_key) }; });
+  else if(t==='role')  opts = [{ v:'admin', t:'전체 관리자(admin) — 전권' }, { v:'auditor', t:'감사자(auditor) — 열람 전용' }];
+  else opts = []; // onedrive: 폴더 연계 후 목록 제공(2단계)
+  sel.innerHTML = opts.length ? opts.map(function(o){ return '<option value="'+escHtml(o.v)+'">'+escHtml(o.t)+'</option>'; }).join('')
+                              : '<option value="">(대상 없음 — OneDrive 폴더 연계는 준비 중)</option>';
+}
+
+async function grantPerm(){
+  var auth = getLiveAuth(); if(!auth){ alert('MS 로그인(관리자) 후 부여할 수 있습니다.'); return; }
+  var v = function(id){ var e=document.getElementById(id); return e ? String(e.value||'').trim() : ''; };
+  var payload = { action:'grant_perm', upn:v('pgUser'), scope_type:v('pgScopeType'), scope_key:v('pgScopeKey'),
+                  effect:v('pgEffect'), reason:v('pgReason'), valid_to: v('pgValidTo') ? (v('pgValidTo')+'T23:59:59+09:00') : null };
+  if(!payload.upn){ alert('대상 사용자를 선택하세요.'); return; }
+  if(!payload.scope_key){ alert('부여할 대상을 선택하세요.'); return; }
+  if(!payload.reason){ alert('사유는 필수입니다(감사 추적용).'); return; }
+  if(payload.scope_type==='role' && payload.scope_key==='admin'
+     && !confirm('전체 관리자(전권)는 급여·자금을 포함한 모든 데이터와 설정 편집이 가능합니다. 정말 부여할까요?')) return;
+  try{
+    var res = await fetch(ADMIN_GATEWAY, { method:'POST', headers:{ Authorization:'Bearer '+auth.at, 'Content-Type':'application/json' }, body: JSON.stringify(payload) });
+    var d = await res.json().catch(function(){ return {}; });
+    if(!res.ok || !d.ok) throw new Error(d.error || ('오류 '+res.status));
+    var r = document.getElementById('pgReason'); if(r) r.value = '';
+    alert('개인 예외 권한을 부여했습니다.');
+    loadAdminLive(true);
+  }catch(e){ alert('부여 실패: '+(e.message||e)); }
+}
+
+async function revokeGrant(id){
+  var auth = getLiveAuth(); if(!auth){ alert('MS 로그인(관리자) 후 회수할 수 있습니다.'); return; }
+  if(!confirm('이 개인 예외 권한을 회수할까요? (이력은 감사에 남습니다)')) return;
+  try{
+    var res = await fetch(ADMIN_GATEWAY, { method:'POST', headers:{ Authorization:'Bearer '+auth.at, 'Content-Type':'application/json' }, body: JSON.stringify({ action:'revoke_perm', id: Number(id) }) });
+    var d = await res.json().catch(function(){ return {}; });
+    if(!res.ok || !d.ok) throw new Error(d.error || ('오류 '+res.status));
+    loadAdminLive(true);
+  }catch(e){ alert('회수 실패: '+(e.message||e)); }
+}
+
+/* 유효 권한 시뮬레이터 — "이 사람은 지금 무엇을 볼 수 있나"를 실제 판정 함수(perm_effective)로 그대로 확인.
+   권한 부여 전 영향 확인·문의 대응용. 화면 계산이 아니라 서버 판정 결과라 실제 접근과 100% 일치한다. */
+async function checkEffective(){
+  var auth = getLiveAuth(); if(!auth){ alert('MS 로그인(관리자) 후 조회할 수 있습니다.'); return; }
+  var upn = (document.getElementById('pgCheckUser')||{}).value || '';
+  var out = document.getElementById('pgEffOut'); if(!upn){ alert('조회할 사용자를 선택하세요.'); return; }
+  if(out) out.innerHTML = '<span style="color:#888">조회 중…</span>';
+  try{
+    var res = await fetch(ADMIN_GATEWAY, { method:'POST', headers:{ Authorization:'Bearer '+auth.at, 'Content-Type':'application/json' }, body: JSON.stringify({ action:'effective_perm', upn: upn }) });
+    var d = await res.json().catch(function(){ return {}; });
+    if(!res.ok || !d.ok) throw new Error(d.error || ('오류 '+res.status));
+    var e = d.effective || {};
+    var ROLE_KO = { admin:'전체 관리자(전권)', dept_admin:'부서 관리자', user:'일반 사용자' };
+    var mods = (e.erp_modules||[]).map(function(m){
+      var c = PERM_CATALOG.filter(function(x){ return x.key===m; })[0];
+      return '<span class="keychip">'+escHtml(c?c.label:m)+(c&&c.sensitive?' ⚠':'')+'</span>';
+    }).join(' ') || '<span style="color:#b3402f">없음</span>';
+    var pages = (e.pages||[]);
+    var okp = pages.filter(function(p){ return p.allowed; });
+    var pgList = pages.map(function(p){
+      return '<tr><td>'+(p.allowed?'<span class="badge g">가능</span>':'<span class="badge b">불가</span>')+'</td>'
+        + '<td>'+escHtml(p.title||p.page_key)+'</td><td>'+escHtml(p.dept_nm||'-')+'</td>'
+        + '<td>'+escHtml(p.visibility||'')+'</td><td style="color:#666">'+escHtml(p.reason||'')+'</td></tr>';
+    }).join('');
+    var gr = (e.grants||[]).map(function(g){
+      return '<span class="keychip">'+escHtml((PG_SCOPE_LABEL[g.scope_type]||g.scope_type)+':'+g.scope_key)
+        + (g.effect==='deny'?' 차단':'') + (g.valid_to?(' ~'+String(g.valid_to).slice(0,10)):'') + '</span>';
+    }).join(' ') || '<span style="color:#888">없음(부서 권한만 적용)</span>';
+    if(out) out.innerHTML =
+      '<table style="margin-top:6px;"><tr><th style="width:18%;">계정</th><td>'+escHtml((e.dept_nm||'미매핑')+'_'+(e.emp_nm||'-')+'_'+(e.upn||''))+'</td></tr>'
+      + '<tr><th>역할</th><td>'+escHtml(ROLE_KO[e.role]||e.role||'')+((e.dept_admin_of||[]).length?(' · 담당부서 '+escHtml(e.dept_admin_of.join(', '))):'')+'</td></tr>'
+      + '<tr><th>적용 부서</th><td>'+escHtml((e.depts||[]).join(' · ')||'없음')+((e.depts||[]).length>1?' <span class="badge a">겸직·대행 포함</span>':'')+'</td></tr>'
+      + '<tr><th>ERP 모듈</th><td>'+mods+'</td></tr>'
+      + '<tr><th>개인 예외</th><td>'+gr+'</td></tr>'
+      + '<tr><th>운영 페이지</th><td>접근가능 <b>'+okp.length+'</b> / 전체 '+pages.length+'</td></tr></table>'
+      + '<table style="margin-top:8px;"><tr><th style="width:9%;">접근</th><th>페이지</th><th style="width:14%;">담당부서</th><th style="width:14%;">공개범위</th><th style="width:26%;">판정 사유</th></tr>'+pgList+'</table>';
+  }catch(e){ if(out) out.innerHTML = '<span style="color:var(--red)">조회 실패: '+escHtml(e.message||String(e))+'</span>'; }
 }
 
 async function postAdmin(payload, label){

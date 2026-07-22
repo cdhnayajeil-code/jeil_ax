@@ -63,6 +63,20 @@
 - **개정(2026-07-21, 팀 공유)**: "본인만 열람·삭제" → **"본인 또는 작업 폴더 팀원"** 으로 확장(관리자 결정). 신규 `chat_work_member` + DB RPC 접근 판정(`chat_work_access`/`chat_session_access`) 일원화 — 폴더 소유자가 사내 계정을 초대(폴더당 최대 20명)하면 팀원이 그 폴더의 모든 대화를 열람·참여(공동 지시). 발화자 upn은 실작성자로 기록(감사 정확). 통제: 초대·이름/메모 수정·폴더 삭제=소유자만, 세션 삭제=접근 가능한 생성자·폴더 소유자만, 팀원은 나가기 가능. **회수(revocation) 규칙**: 폴더 소속 대화의 접근은 "현재" 구성원 자격 기준 — 제거·나가기 시 본인이 만든 대화 포함 폴더 대화 접근을 전면 상실하고, 대화는 폴더에 남아 팀이 유지(보안 셀프점검 F1 발견 → 즉시 수정·SQL 실측). 개인 대화(폴더 미소속)만 생성자 무조건 접근. 관리자 원문 조회 API 부재 원칙 유지. UI에 "초대한 팀원은 폴더의 모든 대화를 열람·참여" 고지. jeil-chat v25 · jeil-chat-history v2.
 - **근거**: 마이그레이션 `create_chat_work_session_message`·`ai_gateway_config_work_context`, jeil-chat v24 + jeil-chat-history v1 + jeil-chat-admin v9, [04 DB설계](04_데이터베이스_설계.md).
 
+### ADR-010 ✅ 권한 모델 = 부서축 CORE + 개인 예외(grant) + 판정 단일화 (2026-07-22)
+- **배경**: 권한 판정이 4곳(`jeil-me` 페이지 게이트 · `jeil-chat` `resolveErpScope` · `jeil-hr` · `erp_finance_overview` RPC)에 각자 구현돼 있었고, 그중 `jeil-hr`는 `dept === '인사팀'` 하드코딩이라 관리자 콘솔에서 부여한 권한이 급여 게이트에 반영되지 않았다. 또 개인 단위 예외 수단이 없어 한 사람에게 모듈 하나를 더 주려면 급여 포함 전권(`portal_admin`)을 줘야 했고, 대행성 권한에 기간 개념이 없어 회수 누락 위험이 있었다.
+- **선택지**: (A) 각 게이트에 개인 예외 처리를 각각 추가(중복 4배·불일치 지속) / (B) 사용자 단위 권한표로 전환(부서 편의성 상실·행 수 폭증) / (C) **부서축을 CORE로 유지하고 개인은 예외만, 판정은 DB 단일 함수로 통합**.
+- **결정**: **(C)** — 관리자 방침(2026-07-22: "기본 CORE는 부서별 축, 특정 인원만 예외로 부서권한·전체권한 부여"). 구조:
+  - **판정 SSOT** `public.perm_effective(upn) → jsonb`(security definer, service_role 전용). 게이트 4종은 판정하지 않고 이 결과만 강제한다. 신규 게이트도 이 함수만 호출한다(판정 재구현 금지).
+  - **① 부서(CORE)**: `dept_erp_scope`(ERP 모듈) · `portal_page`(페이지 공개범위). 기본 권한은 전부 부서로 준다.
+  - **② 개인 예외**: `perm_grant(scope_type ∈ role|dept|erp_module|page|onedrive, effect ∈ allow|deny)`. 우선순위 **deny > 개인 allow > 부서**. `valid_to` 경과 시 자동 소멸, **사유 필수**, 중복 부여 시 기존 건 회수 후 재부여(이력 보존).
+  - **③ 전권**: `portal_admin` 유지 + 개인 예외 `role:admin`(기간 지정 가능 — 상시 전권보다 안전한 대안).
+  - **민감 모듈 방어**: `perm_module_catalog.sensitive`(급여·자금)는 개인 **페이지** 예외만으로 열리지 않는다(모듈 권한 필수).
+  - **감사**: `perm_audit`(부여·회수·유효권한 조회) + 기존 `hr_access_log`. 관리자 콘솔에 개인 예외 관리·**유효 권한 시뮬레이터**(서버 판정 그대로 조회)·감사 로그 3개 섹션.
+- **확장 결정**: 팀별 **OneDrive 폴더 권한**도 별도 체계를 만들지 않고 같은 축(`scope_type='onedrive'`, 부서 기본 + 개인 예외)으로 관리한다 — UI·감사·만료 규칙을 재사용하기 위함. 폴더 목록 연계는 2단계.
+- **잔여 위험**: `erp_ro.*` RLS가 아직 "사내면 전 행 SELECT"라 모듈 차등은 **앱 게이트에서만** 강제된다(REST 직접 조회는 사내 계정이면 가능). 다음 단계로 모듈별 RLS 또는 뷰 분리 필요 — CLAUDE.md §5.4("실제 차단은 API/DB 레벨")의 미충족 항목.
+- **근거**: 마이그레이션 `perm_core_v1`·`perm_core_v1_functions`·`perm_core_v1_admin_rpc`·`perm_core_v1_reason_fix`, 정본 SQL `실제구축준비 자료/이관/sql/17_perm_core.sql`, `jeil-me` v4 · `jeil-hr` v2 · `jeil-chat` v27 · `jeil-chat-admin` v12.
+
 ## B. 미결정 (Proposed — 결정 대기)
 
 ### ADR-101 🕐 백엔드 스택 최종 확정

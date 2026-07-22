@@ -1,7 +1,9 @@
 // jeil-me — 로그인 사용자의 신원·역할·부서·페이지/ERP 권한 판정 (사내 전 직원)
 // 배포: verify_jwt=false (Entra access_token을 Graph로 재검증 — 위조 불가)
 // 호출: POST /functions/v1/jeil-me  Authorization: Bearer <Entra access_token(jeilax_auth.at)>
-//   응답: { upn, name, dept_nm, role, is_admin, dept_admin_of, erp_modules, pages[], catalog[] }
+//   응답: { upn, name, dept_nm, depts[], role, is_admin, dept_admin_of, erp_modules, grants[], pages[], catalog[] }
+// v2(2026-07-22): 판정 로직을 DB 단일 함수 public.perm_effective(upn)로 이관 — 부서축 CORE + 개인 예외(perm_grant).
+//   이 함수는 더 이상 자체 판정을 하지 않는다(판정 중복 제거). 카탈로그도 DB(perm_module_catalog)가 SSOT.
 // 원칙(CLAUDE.md §5.4): 권한 판정은 서버에서. 포털 카드·페이지 게이트는 이 결과를 강제한다.
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
@@ -12,18 +14,6 @@ const cors = {
 };
 const json = (o: unknown, status = 200) =>
   new Response(JSON.stringify(o), { status, headers: { ...cors, "Content-Type": "application/json" } });
-
-// ERP 데이터 모듈 카탈로그 — public.v_erp_* 노출 뷰와 1:1 (+ payroll=민감, 인사팀/관리자)
-const CATALOG = [
-  { key: "sales", label: "매출" },
-  { key: "purchase", label: "매입" },
-  { key: "inventory", label: "재고" },
-  { key: "item", label: "품목" },
-  { key: "pur_order", label: "발주" },
-  { key: "user_dept", label: "사용자·부서" },
-  { key: "payroll", label: "급여" }, // 민감 — 인사팀 dept_erp_scope 또는 관리자(is_admin)만
-  { key: "finance", label: "자금·회계" }, // 민감 — 자금·회계 부서만(자금 대시보드 게이트, erp_finance_overview RPC 강제)
-];
 
 async function verifyEntraUser(token: string): Promise<{ upn: string } | null> {
   try {
@@ -52,60 +42,29 @@ Deno.serve(async (req) => {
 
   const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
-  // 신원·역할·부서
-  const [udRes, paRes, daRes] = await Promise.all([
-    admin.from("v_erp_user_dept").select("dept_nm,emp_nm").eq("email", upn).maybeSingle(),
-    admin.from("portal_admin").select("email").eq("email", upn).maybeSingle(),
-    admin.from("dept_permission").select("dept_nm").eq("dept_admin_email", upn),
+  // 통합 판정(SSOT) — 부서축 + 개인 예외 + 기간 만료까지 DB에서 계산
+  const [{ data: eff, error: pe }, { data: cat }] = await Promise.all([
+    admin.rpc("perm_effective", { p_upn: upn }),
+    admin.from("perm_module_catalog").select("module_key,label,sensitive").order("sort"),
   ]);
-  const dept_nm: string | null = udRes.data?.dept_nm ?? null;
-  const emp_nm: string | null = udRes.data?.emp_nm ?? null;
-  const is_admin = !!paRes.data;
-  const dept_admin_of: string[] = (daRes.data || []).map((r: { dept_nm: string }) => r.dept_nm);
-  const role = is_admin ? "admin" : (dept_admin_of.length ? "dept_admin" : "user");
+  if (pe || !eff) return json({ error: "권한 판정 실패: " + (pe?.message || "no data") }, 500);
 
-  // 허용 ERP 모듈
-  let erp_modules: string[];
-  if (is_admin) {
-    erp_modules = CATALOG.map((c) => c.key);
-  } else {
-    const { data: es } = await admin.from("dept_erp_scope").select("module_key").eq("dept_nm", dept_nm || "");
-    erp_modules = (es || []).map((r: { module_key: string }) => r.module_key);
-  }
-  const modSet = new Set(erp_modules);
-  const deptAdminSet = new Set(dept_admin_of);
-
-  // 페이지 접근 판정
-  const { data: pageRows } = await admin.from("portal_page").select("*").eq("active", true).order("sort");
-  const pages = (pageRows || []).map((p: Record<string, unknown>) => {
-    const vis = String(p.visibility || "");
-    const owner = (p.dept_nm as string) || "";
-    const shared: string[] = (p.shared_depts as string[]) || [];
-    let allowed: boolean;
-    if (is_admin) {
-      allowed = true;
-    } else if (vis === "전사 공개") {
-      allowed = true;
-    } else if (vis === "부서 전용") {
-      allowed = (!!dept_nm && dept_nm === owner) || deptAdminSet.has(owner);
-    } else if (vis === "지정 부서 공유") {
-      allowed = (!!dept_nm && (dept_nm === owner || shared.includes(dept_nm))) || deptAdminSet.has(owner);
-    } else {
-      allowed = false;
-    }
-    // ERP 모듈 강제(해당 페이지가 ERP 데이터면 부서 모듈 권한도 있어야 함)
-    if (allowed && p.erp_module && !is_admin) allowed = modSet.has(p.erp_module as string);
-    return {
-      page_key: p.page_key, title: p.title, path: p.path, icon: p.icon,
-      dept_nm: p.dept_nm, visibility: p.visibility, erp_module: p.erp_module, allowed,
-    };
-  });
-
+  const e = eff as Record<string, unknown>;
   return json({
     upn,
-    name: emp_nm || upn.split("@")[0],
-    dept_nm, emp_nm, role, is_admin, dept_admin_of,
-    erp_modules, pages, catalog: CATALOG,
-    as_of: new Date().toISOString(),
+    name: (e.emp_nm as string) || upn.split("@")[0],
+    emp_nm: e.emp_nm ?? null,
+    dept_nm: e.dept_nm ?? null,
+    depts: e.depts ?? [],                 // 소속 + 개인 dept 예외(겸직·대행)
+    role: e.role,
+    is_admin: e.is_admin,
+    is_auditor: e.is_auditor,
+    dept_admin_of: e.dept_admin_of ?? [],
+    erp_modules: e.erp_modules ?? [],
+    grants: e.grants ?? [],               // 본인에게 적용 중인 개인 예외(투명성)
+    pages: e.pages ?? [],                 // { page_key, title, path, allowed, reason }
+    catalog: (cat || []).map((c: { module_key: string; label: string; sensitive: boolean }) =>
+      ({ key: c.module_key, label: c.label, sensitive: c.sensitive })),
+    as_of: e.as_of ?? new Date().toISOString(),
   });
 });
