@@ -109,6 +109,13 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <tbody>
 <tr>
 <td>2026-07-22</td>
+<td>챗봇</td>
+<td>커밋 <code>da48325</code>(main push) · <code>04_챗봇_포털_데모UI.html</code> 라이브</td>
+<td><strong>요청접수 P1 실배포 완료 확인 — git push origin main 성공, 라이브 검증</strong>. 같은 날 기재된 요청접수 P1 구현 항목(바로 아래) 작성 시점엔 <code>04_챗봇_포털_데모UI.html</code>(요청버튼·모달·관리자 「요청함」 탭)이 git 미커밋 상태였다. 이후 커밋 <code>da48325</code>(30 files, +2018/-31)로 DB 마이그레이션·Edge Fn·04 프론트를 함께 커밋해 <code>git push origin main</code> 성공 → Vercel 자동배포 완료, 작업트리 clean 확인. 라이브 <code>ai.jeilm.co.kr/04_챗봇_포털_데모UI.html</code>에서 『열람 권한 요청하기』 버튼·<code>jeil-portal-request</code> 호출 문자열 노출 확인. 총괄 대시보드(<code>00_관리체계/index.html</code>)의 『04 프론트 미커밋·미배포』 단서를 정정.</td>
+<td>최동혁(+Claude)</td>
+</tr>
+<tr>
+<td>2026-07-22</td>
 <td>ERP·협력사포털</td>
 <td><code>public.vendor_master</code>(재적재 109개사) · <code>erp_ro.bp_master_s</code>(신규) · <code>erp_etl_upsert</code>·<code>etl_run.py</code>(bp_master 잡 추가)</td>
 <td><strong>협력사 거래처 정보 실데이터 반영 — 발주거래처 누락 해소(17→109개사)</strong>. 제보: 협력사 정보 화면에 발주거래처가 안 보임. 원인: <code>vendor_master</code>가 데모 시드 17개사에 머물러 ERP 실제 발주거래처 103개사 중 87개사 미등록 상태였고, 기존 17건 사업자번호는 전부 『거래처코드 뒤3자리-81-임의5자리』 패턴의 가짜값(실제 사업자등록번호 아님)이었음. 조치: 발주·매입·매입상세 합집합 기준 109개사로 재적재(거래처명 5건은 ERP 최신 실적 기준으로 교정, 기 발급 계정 4건은 무영향), 가짜 사업자번호 17건 제거(NULL — ERP 거래처마스터 연계 전까지 공란 유지), <code>erp_ro.bp_master_s</code> 신설(B_BIZ_PARTNER 복제용, RLS internal+authenticated SELECT, <strong>대표자주민등록번호·은행계좌번호는 의도적으로 적재 대상에서 제외</strong>), ETL 화이트리스트·<code>etl_run.py</code>에 <code>bp_master</code> 잡 추가(기존 분기 보존 확인).</td>
