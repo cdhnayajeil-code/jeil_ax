@@ -109,6 +109,13 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <tbody>
 <tr>
 <td>2026-07-21</td>
+<td>ERP 연계·보안</td>
+<td>Supabase 마이그레이션 <code>grant_iv_dtl_s_authenticated_select</code></td>
+<td><strong>매입 상세 GRANT 누락 수정 — 사내 로그인해도 연동 현황 전체가 403 차단되던 결함</strong>. 콘솔 오류 <code>permission denied for table iv_dtl_s</code>로 규명: <code>iv_dtl_s</code> 신설 시 <code>service_role</code>에만 SELECT를 부여하고 <strong><code>authenticated</code>(사내 로그인 사용자) GRANT를 누락</strong>. <code>v_erp_sync_overview</code>·<code>v_erp_iv_dtl</code> 등이 <code>security_invoker=true</code>(조회자 권한 실행)라, 사내 계정이어도 <code>iv_dtl_s</code> GRANT가 없어 뷰 조회 전체가 403 → 연동 현황 화면이 "사내 로그인 필요"로 오인 표시됨(직전 커밋의 SSO 게이트를 통과한 뒤 이 2차 오류에 걸림). 수정: 기존 erp_ro 테이블과 동일하게 <code>grant select on erp_ro.iv_dtl_s to authenticated</code>. <strong>격리 검증</strong>: 접근통제는 GRANT가 아니라 RLS(<code>internal_select_iv_dtl = is_internal()</code>)가 담당 — JWT 시뮬레이션으로 협력사(vendor) 0행·사내(internal) 정상 조회·연동현황 11행 전체 확인, 보안 어드바이저 신규 경고 0(iv_dtl_s 관련 없음). erp_ro 전 테이블 GRANT 전수 점검 결과 나머지는 정상(table_dict만 미부여이나 노출 뷰 미참조 — service_role 전용 사전이라 의도된 상태).</td>
+<td>최동혁(+Claude)</td>
+</tr>
+<tr>
+<td>2026-07-21</td>
 <td>ERP 연계·인증</td>
 <td><code>app/erp-status.html</code></td>
 <td><strong>ERP 연동 현황 화면 로그인 게이트 결함 수정 — 로그인 상태인데도 "사내 로그인 필요"만 뜨던 문제</strong>. 사용자 제보로 확인: 이 화면은 <code>erpApi</code>만 import하고 <strong>Supabase 세션 확인·SSO 로직이 아예 없어</strong>, 다른 사내 화면(<code>pages/외주발주_검사진행현황_2026.html</code>)에서 미리 로그인해 둔 경우가 아니면 조회가 RLS로 차단돼 항상 게이트가 표시됐음. 챗봇 포털의 <strong>Entra 토큰(<code>jeilax_auth</code>)과 이 화면의 Supabase Auth 세션은 별개 경로</strong>라 포털 로그인만으로는 열리지 않았던 것(권한·뷰 GRANT는 정상 — authenticated SELECT 확인). 수정: 외주발주 화면과 동일 패턴으로 <code>supabase.auth.getSession()</code> + <code>claimsOf()</code>(app_metadata.role) 검사 + <strong>Azure SSO 자동 로그인</strong>(<code>?sso=1</code> 무한 리다이렉트 가드) 적용, 상태별 안내 분리 — 세션 없음=자동 SSO 후 실패 시 「사내 계정으로 로그인」 버튼, 협력사·무권한 계정=「사내 계정으로 다시 로그인」(signOut 후 재로그인) 버튼. 콘솔 오류 없이 종료되도록 <code>gateCheck()</code> 함수로 분리.</td>
