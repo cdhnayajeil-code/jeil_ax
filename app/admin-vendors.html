@@ -13,9 +13,9 @@ body{font-family:'Pretendard','Malgun Gothic',sans-serif;background:var(--bg);co
 .top h1{font-size:18px;margin-top:6px;}
 .top .who{font-size:12.5px;color:#cdd8ea;}
 .wrap{max-width:1180px;margin:0 auto;padding:24px 22px 60px;}
-/* 거래처 표는 컬럼이 많아 1180px 안에서 잘린다 → 넓은 화면에서는 본문 폭을 넓혀 전체 컬럼을 한눈에 */
-@media (min-width:1460px){ .wrap{max-width:1440px;} }
-@media (min-width:1740px){ .wrap{max-width:1680px;} }
+/* 거래처 표는 컬럼이 많아 1180px 안에서 잘린다(그리드는 min-width 기반이라 컨테이너 폭이 병목).
+   → 데스크톱에서는 화면 폭을 최대한 사용해 전체 컬럼이 한눈에 들어오게 한다(초광폭 모니터는 1780px로 상한). */
+@media (min-width:1200px){ .wrap{max-width:min(1780px, calc(100vw - 56px));} }
 .gate{max-width:400px;margin:60px auto;background:#fff;border-radius:16px;box-shadow:0 8px 28px rgba(26,47,78,.15);padding:30px 28px;}
 .gate h2{font-size:18px;color:var(--navy);margin-bottom:4px;}
 .gate p{font-size:12.5px;color:var(--muted);margin-bottom:14px;}
@@ -379,7 +379,7 @@ function buildVmGrid(rows) {
     emptyText: "거래처 없음",
     columns: [
       { key: "bp_cd", label: "코드", width: "76px", pasteKey: "code" },
-      { key: "bp_nm", label: "협력사명", width: "210px" },
+      { key: "bp_nm", label: "협력사명", width: "190px" },
       { key: "biz_no", label: "사업자번호", width: "112px", filter: false },
       { key: "bp_type", label: "유형", width: "64px", align: "center", editable: false,
         formatter: (v) => `<span class="muted">${esc(v || "-")}</span>` },
@@ -390,7 +390,7 @@ function buildVmGrid(rows) {
       { key: "status", label: "계정상태", width: "78px", align: "center",
         type: "select", options: [{ value: "none", label: "미발급" }, { value: "active", label: "발급됨" }, { value: "disabled", label: "비활성" }],
         formatter: (v) => { const [c, t] = STAT_PILL[v] || STAT_PILL.none; return `<span class="pill ${c}">${t}</span>`; } },
-      { key: "email", label: "담당자 이메일", width: "178px", type: "email", pasteKey: "email",
+      { key: "email", label: "담당자 이메일", width: "168px", type: "email", pasteKey: "email",
         editable: (row) => row.status === "none",
         validator: (v, row) => row.status !== "none" ? true : (!v ? true : (isEmail(v) || "이메일 형식 오류")),
         formatter: (v) => v ? esc(v) : `<span class="muted">미입력</span>` },
@@ -398,7 +398,7 @@ function buildVmGrid(rows) {
         formatter: (v) => v ? esc(v) : `<span class="muted">—</span>` },
       { key: "phone", label: "연락처", width: "104px", filter: false, sortable: false, editable: false,
         formatter: (v) => v ? esc(v) : `<span class="muted">—</span>` },
-      { key: "_act", label: "계정 발급 / 관리", width: "172px", filter: false, sortable: false,
+      { key: "_act", label: "계정 발급 / 관리", width: "162px", filter: false, sortable: false,
         formatter: (_, row) => row.status === "active"
           ? `<button class="btn sm ok" data-row-act="mail">📧 메일발송</button> <button class="btn sm no" data-row-act="reset">비번 초기화</button>`
           : row.status === "disabled"
