@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<link rel="icon" href="data:,">
 <title>사내 AI 챗봇 포털 — 화면 데모</title>
 <meta name="theme-color" content="#1a2f4e">
 <meta name="mobile-web-app-capable" content="yes">
@@ -1882,16 +1883,43 @@ var ME_GATEWAY = 'https://dvzohdqtjzocgcclgwro.supabase.co/functions/v1/jeil-me'
 var adminLiveLoaded = false;
 window.MY_PERM = null; // jeil-me 결과 캐시(내 부서·역할·페이지 권한)
 
+/* ===== jeil-me 호출(내 부서·권한) — Edge Function 콜드스타트/일시 오류 대비 재시도·안전 파싱 =====
+   콜드스타트 첫 요청이 비-JSON 오류(HTML/빈 응답)를 줄 수 있어, res.json()을 res.ok 확인 전에 부르면
+   'Unexpected token'이 나며 통째로 실패한다 → text로 받아 안전 파싱 + 최대 3회 재시도. 성공 시 me 반환, 실패 시 null. */
+async function fetchMe(){
+  var auth = await ensureAuth();   // 만료 임박이면 무음 갱신
+  if(!auth) return null;
+  var lastErr = '';
+  for(var i=0; i<3; i++){
+    try{
+      var res = await fetch(ME_GATEWAY, { method:'POST', headers:{ Authorization:'Bearer '+auth.at } });
+      var txt = await res.text();
+      if(res.ok){ try{ return JSON.parse(txt); }catch(pe){ lastErr = '응답 파싱 실패'; } }
+      else if(res.status === 401 || res.status === 403){ lastErr = '인증/권한 오류('+res.status+')'; break; } // 재시도 무의미
+      else { lastErr = '오류 '+res.status; }
+    }catch(e){ lastErr = e.message || String(e); }
+    await new Promise(function(r){ setTimeout(r, 500*(i+1)); });   // 500·1000ms 후 재시도(콜드스타트 워밍업)
+  }
+  window._MY_ERR = lastErr;
+  return null;
+}
+
 /* ===== 부서 운영 페이지 카드 게이팅 (jeil-me 서버 판정) ===== */
 async function loadPagePerms(){
   if(window.IS_BUNDLE) return; // 오프라인 통합본: 정적 오버레이 버튼 유지(서버 판정 미적용)
   var grid = document.getElementById('deptPageGrid'); if(!grid) return;
-  var auth = getLiveAuth();
-  if(!auth){ grid.innerHTML = '<div class="pgcard locked"><span class="ic">🔒</span><h4>부서 운영 페이지</h4><div class="metarow"><span class="badge r">로그인 필요</span></div><p>MS 사내 로그인 후 소속 부서·권한에 따라 페이지가 표시됩니다.</p></div>'; return; }
+  if(!getLiveAuth() && !hasStoredAuth()){ grid.innerHTML = '<div class="pgcard locked"><span class="ic">🔒</span><h4>부서 운영 페이지</h4><div class="metarow"><span class="badge r">로그인 필요</span></div><p>MS 사내 로그인 후 소속 부서·권한에 따라 페이지가 표시됩니다.</p></div>'; return; }
+  var me = await fetchMe();
+  if(!me){
+    // 로그인 상태인데 조회 실패(대부분 콜드스타트 일시 오류) — dept를 '로그아웃'처럼 보이지 않게 하고 자동 재시도
+    var md=document.getElementById('myDept'); if(md) md.innerHTML='🏢 부서 확인 중… <small>잠시만요</small>';
+    grid.innerHTML = '<div class="pgcard locked"><span class="ic">⏳</span><h4>부서 운영 페이지</h4><p style="color:#888">권한 정보를 불러오는 중입니다 ('+escHtml(window._MY_ERR||'')+') — 자동으로 다시 시도합니다.</p></div>';
+    if((window._ppRetry=(window._ppRetry||0)+1) <= 3){ setTimeout(loadPagePerms, 2500); }
+    else { if(md) md.innerHTML='🏢 부서 확인 실패 <small>새로고침(Ctrl+F5)</small>'; }
+    return;
+  }
+  window._ppRetry = 0;
   try{
-    var res = await fetch(ME_GATEWAY, { method:'POST', headers:{ Authorization:'Bearer '+auth.at } });
-    var me = await res.json();
-    if(!res.ok) throw new Error(me.error || ('오류 '+res.status));
     window.MY_PERM = me;
     applyMyDept();   // 사이드바 소속 부서·추천 도구를 내 부서 기준으로 갱신
     var pages = me.pages || [];
