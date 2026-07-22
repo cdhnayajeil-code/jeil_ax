@@ -47,6 +47,8 @@
   .tpl button{display:block; width:100%; text-align:left; background:rgba(255,255,255,.06); border:none; color:#e7edf6; font-size:12.5px; padding:9px 12px; border-radius:9px; margin-bottom:6px; cursor:pointer; font-family:inherit; line-height:1.4; transition:background .15s;}
   .tpl button:hover{background:rgba(255,255,255,.14);}
   .tpl button small{display:block; color:#9fb1ca; font-size:10.5px;}
+  .tpl .my-dept{display:flex; align-items:center; gap:7px; background:rgba(74,142,208,.16); border:1px solid rgba(124,184,234,.3); color:#dbe8f7; border-radius:9px; padding:9px 12px; font-size:13px; font-weight:600; margin-bottom:4px;}
+  .tpl .my-dept small{color:#9fb1ca; font-weight:400; font-size:10.5px;}
   .tpl .dept-sel{width:100%; box-sizing:border-box; background:rgba(255,255,255,.10); color:#e7edf6; border:1px solid rgba(255,255,255,.20); border-radius:8px; padding:9px 10px; font-size:12.5px; font-family:inherit; cursor:pointer;}
   .tpl .dept-sel:focus{outline:none; border-color:#4a8ed0;}
   .tpl .dept-sel option{color:#1a2f4e;}
@@ -422,15 +424,8 @@
       <small style="display:block; font-size:11px; color:#e2eefb; margin-top:4px; line-height:1.5;">전 부서 · 약 5~7분 · 익명 가능</small>
     </a>
     <div class="tpl">
-      <h3>부서 선택</h3>
-      <select id="deptSel" class="dept-sel" onchange="switchDept(this.value)">
-        <option value="biz">사업관리팀</option>
-        <option value="hr">인사팀</option>
-        <option value="fin">자금팀</option>
-        <option value="sales">영업팀</option>
-        <option value="pur">구매팀</option>
-      </select>
-      <h3 id="tplTitle" style="padding-top:12px;">사업관리팀 업무 템플릿</h3>
+      <div id="myDept" class="my-dept">🏢 소속 부서 <small>로그인 후 표시</small></div>
+      <h3 id="tplTitle" style="padding-top:10px;">추천 업무 도구</h3>
       <div id="tplBox"></div>
       <div class="wk-head"><h3>작업 폴더 · 대화</h3><button class="wk-add" onclick="createWork()" title="작업 폴더 만들기">＋</button></div>
       <div id="workBox">
@@ -481,65 +476,60 @@
   <main class="pgview" id="pagesView">
     <div class="admin-top">
       <button class="menu-btn" onclick="toggleDrawer()" aria-label="메뉴">☰</button>
-      <h2>📁 IT 자산관리 <span style="font-weight:400;color:var(--muted);font-size:12px;">· 내 권한: 부서 관리자 (사업관리팀)</span></h2>
+      <h2>📁 사내 운영 페이지 <span id="pgMyDept" style="font-weight:400;color:var(--muted);font-size:12px;"></span></h2>
       <div style="display:flex; gap:8px; align-items:center;">
-        <select class="sel" onchange="alert('데모: 부서 필터 적용 (실제 미동작)')"><option>전체 부서</option><option selected>사업관리팀</option><option>영업팀</option><option>구매팀</option><option>재무팀</option></select>
-        <button class="back-chat" style="background:var(--accent);" onclick="alert('데모: 페이지 등록 — 부서 관리자가 HTML 파일 또는 링크를 등록하고 공개 범위를 지정합니다. (실제 미동작)')">+ 페이지 등록</button>
         <button class="back-chat" onclick="showChat()">← 챗봇으로</button>
       </div>
     </div>
     <div class="panel on">
-      <p class="admin-note" style="margin:0 0 14px;">사내에서 별도 운영하는 보고서·대시보드·관리 페이지를 등록하고 링크로 공유하는 공간입니다. <b>전사 공유</b> 페이지는 전 직원이 열람할 수 있으며, <b>부서 운영</b> 페이지는 관리자 콘솔의 권한 설정을 따릅니다(권한이 없으면 잠금 표시).</p>
 
-      <div class="pg-sect first">🤝 외주 협력사 발주·검사 포털 <small>사내 대시보드 ↔ 협력사 모바일 실시간 연계 (샘플)</small></div>
-      <p class="admin-note" style="margin:0 0 14px;">사내 <b>외주 발주·검사 대시보드</b>와 협력사용 <b>모바일 발주·사진등록 포털</b>이 한 쌍으로 동작하는 연계 데모입니다. 두 페이지를 <b>같은 브라우저에서 각각 열어두면</b>, 협력사 모바일에서 사진 등록·검수요청 → 사내 대시보드 실시간 반영, 사내 검수 판정(합/부) → 협력사 모바일 실시간 반영됩니다. (공유키 <code>jeilax_link_v1</code> 기반 양방향 동기화 · ERP M_PUR_ORD·M_CONFIG_PROCESS·Q_INSPECTION 매핑)</p>
+      <div class="pg-sect first">🤝 외주 협력사 발주·검사 포털</div>
       <div class="pg-grid">
         <div class="pgcard">
           <span class="ic">🏭</span>
-          <h4>외주 발주·검사 진행현황<br>사내 대시보드 (ERP DB 연계)</h4>
-          <div class="metarow"><span class="badge b">구매·품질·생산·사업관리</span><span class="badge g">부서 공유</span><span class="badge a">UNIERP 추출</span></div>
-          <p>발주구분(외주/사급)별 진행 — 구매요청·발주·입고·검사신청/결과(합격·불합격)·매입 통합. 발주별 10단계 프로세스 보드, 협력사 등록 사진·메시지 확인, 검수 판정(합/부) 입력 (M_PUR_ORD·M_CONFIG_PROCESS·Q_INSPECTION 기반)</p>
-          <button class="open-btn" onclick="openEmbed('subc')">사내 대시보드 열기 ↗</button>
+          <h4>외주 발주·검사 진행현황</h4>
+          <div class="metarow"><span class="badge b">구매·품질·생산</span><span class="badge a">ERP 연계</span></div>
+          <p>발주·입고·검사·매입 통합 현황과 검수 판정(합/부)</p>
+          <button class="open-btn" onclick="openEmbed('subc')">열기 ↗</button>
         </div>
         <div class="pgcard">
           <span class="ic">📱</span>
-          <h4>협력사 모바일 포털<br>외주 발주·사진등록 (협력사용)</h4>
-          <div class="metarow"><span class="badge b">협력사 전용</span><span class="badge g">모바일</span><span class="badge a">대시보드 연계</span></div>
-          <p>외주 협력사(한일정밀공업)용 — 발주별 사진 등록·진행상태(다음/취소)·검수요청·메시지를 입력하면 사내 대시보드에 실시간 반영되는 하이브리드앱 형태. 데모 계정 자동 입력되어 바로 체험 가능합니다.</p>
-          <button class="open-btn" onclick="openEmbed('mob')">협력사 포털 열기 ↗</button>
+          <h4>협력사 모바일 포털</h4>
+          <div class="metarow"><span class="badge b">협력사 전용</span><span class="badge g">모바일</span></div>
+          <p>협력사가 사진 등록·진행상태·검수요청을 올리는 화면</p>
+          <button class="open-btn" onclick="openEmbed('mob')">열기 ↗</button>
         </div>
         <div class="pgcard">
           <span class="ic">🛡️</span>
-          <h4>협력사 계정 관리<br>ERP 거래처 기반 발급 (관리자용)</h4>
-          <div class="metarow"><span class="badge b">권한자 전용(portal_admin)</span><span class="badge a">Supabase 실DB</span><span class="badge g">SSO 메일 발송</span></div>
-          <p>ERP 협력사 거래처(B_BIZ_PARTNER)를 선택해 담당자 이메일로 협력사 계정을 발급하고, 비밀번호 초기화·처리 로그(처리자·시각)·관리자 권한 지정을 관리합니다. 계정 안내는 로그인 관리자의 M365 메일로 발송. 승인 시 행수준 보안(RLS)으로 자기 거래처 발주만 접근. <b>사내 SSO + 협력사관리 권한(portal_admin) 필요.</b></p>
-          <a class="open-btn" href="app/admin-vendors.html" target="_blank">협력사 관리 열기 ↗</a>
+          <h4>협력사 계정 관리</h4>
+          <div class="metarow"><span class="badge b">관리자 전용</span><span class="badge a">실DB</span></div>
+          <p>협력사 계정 발급·비밀번호 초기화·권한 관리</p>
+          <a class="open-btn" href="app/admin-vendors.html" target="_blank">열기 ↗</a>
         </div>
         <div class="pgcard">
           <span class="ic">🔑</span>
-          <h4>협력사 로그인<br>관리자 발급 계정 (협력사)</h4>
-          <div class="metarow"><span class="badge b">협력사 전용</span><span class="badge a">Supabase Auth</span><span class="badge g">관리자 발급제</span></div>
-          <p>협력사는 관리자가 발급한 이메일·임시 비밀번호로 로그인해 자기 거래처 발주·검사에 접근합니다(행수준 보안 RLS). 사내 Entra와 분리된 협력사 전용 인증 경계.</p>
-          <a class="open-btn" href="app/vendor-login.html" target="_blank">협력사 로그인 열기 ↗</a>
+          <h4>협력사 로그인</h4>
+          <div class="metarow"><span class="badge b">협력사 전용</span></div>
+          <p>협력사가 발급받은 계정으로 로그인하는 화면</p>
+          <a class="open-btn" href="app/vendor-login.html" target="_blank">열기 ↗</a>
         </div>
       </div>
 
-      <div class="pg-sect">🔗 ERP 중간DB 연동·관리 <small>사내 전용 · 읽기전용 (Supabase erp_ro 경유)</small></div>
-      <p class="admin-note" style="margin:0 0 14px;">ERP(UNIERP) 운영DB를 <b>읽기전용 배치</b>로 Supabase 중간DB(<code>erp_ro</code>)에 적재하고, 사내 전용 뷰(<code>public.v_erp_*</code>)로 안전하게 조회합니다. 사내(Entra) 로그인 세션에서만 실데이터가 보이며, 협력사·비로그인은 격리됩니다.</p>
+      <div class="pg-sect">🔗 ERP 중간DB 연동·관리 <small>사내 전용 · 읽기전용</small></div>
       <div class="pg-grid">
         <div class="pgcard">
           <span class="ic">👥</span>
-          <h4>사용자·부서 매핑 대사<br>ERP 계정↔부서↔사원 (사내 전용)</h4>
-          <div class="metarow"><span class="badge b">사내 전용</span><span class="badge a">Supabase 실DB</span><span class="badge g">읽기전용</span></div>
-          <p>ERP 사용자 마스터(Z_USR_MAST_REC)의 이메일(=MS 계정)·사용자명(<code>부서명_이름</code>)을 대사해 사용자↔부서↔사원 관계를 관리합니다. 정상 매핑·대사 불일치(부서불일치·상태이상·테스트)·부서별 사원 명부·사용자 검색을 한 화면에서 확인. 불일치는 자동제외되어 확인 대상으로 표시됩니다.</p>
-          <a class="open-btn" href="app/admin-user-dept.html" target="_blank">사용자·부서 매핑 열기 ↗</a>
+          <h4>사용자·부서 매핑 대사</h4>
+          <div class="metarow"><span class="badge b">사내 전용</span><span class="badge g">읽기전용</span></div>
+          <p>ERP 계정↔부서↔사원 매핑·불일치 확인</p>
+          <a class="open-btn" href="app/admin-user-dept.html" target="_blank">열기 ↗</a>
         </div>
         <div class="pgcard">
           <span class="ic">🔗</span>
-          <h4>ERP 데이터 연동 현황<br>중간DB 적재 상태</h4>
-          <div class="metarow"><span class="badge b">사내 전용</span><span class="badge a">Supabase erp_ro</span><span class="badge g">읽기전용</span></div>
-          <p>ERP 데이터가 중간DB에 <b>언제·얼마나</b> 반영됐는지 소스별 10종(발주·구매요청·품목·매출·매입·재고·부서·사용자·ERP권한·급여) 최신 연동 시점·적재 건수·데이터 기간과 <b>연결 정보</b>(원천 DB·접속 방식·실행 방식)를 확인합니다. 수동 배치(ETL, 읽기전용) 기준.</p>
-          <a class="open-btn" href="app/erp-status.html" target="_blank">연동 현황 열기 ↗</a>
+          <h4>ERP 데이터 연동 현황</h4>
+          <div class="metarow"><span class="badge b">사내 전용</span><span class="badge g">읽기전용</span></div>
+          <p>ERP 데이터가 언제·얼마나 반영됐는지(소스 11종)</p>
+          <a class="open-btn" href="app/erp-status.html" target="_blank">열기 ↗</a>
         </div>
       </div>
 
@@ -547,21 +537,14 @@
       <div class="pg-grid">
         <div class="pgcard">
           <span class="ic">🖥️</span>
-          <h4>IT 자산관리 시스템<br>장비·자산 현황</h4>
-          <div class="metarow"><span class="badge b">IT팀 운영</span><span class="badge g">전사 공개</span><span class="badge a">실서버 링크</span></div>
-          <p>사내 IT 자산(PC·서버·SW 라이선스 등) 등록·현황 관리 시스템 — 회사 계정으로 로그인하여 사용합니다.</p>
-          <a class="open-btn" href="http://172.10.20.118:8080" target="_blank">자산관리 로그인 ↗</a>
-        </div>
-        <div class="pgcard">
-          <span class="ic">🔑</span>
-          <h4>ERP 권한정보 (Role 현황)<br>변경내역 모니터링</h4>
-          <div class="metarow"><span class="badge b">사업관리팀 등록</span><span class="badge g">전사 공개</span><span class="badge a">웹 링크</span></div>
-          <p>UNIERP Role(권한) 현황 조회 — 메뉴·사용자·부서별 권한 검색, Matrix 뷰, 변경내역 모니터링, 엑셀 내보내기</p>
-          <a class="open-btn" href="https://cdhnayajeil-code.github.io/erp_role" target="_blank">페이지 열기 ↗</a>
+          <h4>IT 자산관리 시스템</h4>
+          <div class="metarow"><span class="badge b">IT팀 운영</span><span class="badge g">전사 공개</span></div>
+          <p>사내 IT 자산(PC·서버·SW) 등록·현황 관리</p>
+          <a class="open-btn" href="http://172.10.20.118:8080" target="_blank">열기 ↗</a>
         </div>
       </div>
 
-      <div class="pg-sect">🏢 부서 운영 페이지 <small>부서별 권한 적용 (로그인 계정의 부서·권한에 따라 표시)</small></div>
+      <div class="pg-sect">🏢 부서 운영 페이지 <small>내 부서·권한에 따라 표시</small></div>
       <div class="pg-grid" id="deptPageGrid">
         <div class="pgcard">
           <span class="ic">📊</span>
@@ -1245,14 +1228,32 @@ Object.assign(DEMOS, {
 
 function renderTpls(dept){
   var ds = DEPTS[dept] || DEPTS.biz;
-  var title = document.getElementById('tplTitle');
   var box = document.getElementById('tplBox');
-  if(title) title.textContent = ds.name + ' 업무 템플릿';
   if(box) box.innerHTML = ds.tpls.map(function(t){
     return '<button onclick="runDemo(\'' + t.k + '\')">' + t.t + '<small>' + t.s + '</small></button>';
   }).join('');
 }
-function switchDept(dept){ renderTpls(dept); }
+// 실제 소속 부서명(22개) → 업무 템플릿 키(5종) 매핑. 미매칭이면 기본(사업관리) 세트.
+function deptKeyFromName(nm){
+  var map = { '사업관리팀':'biz', '인사팀':'hr', '자금팀':'fin', '영업팀':'sales', '구매팀':'pur' };
+  return map[nm] || 'biz';
+}
+/* 로그인 계정의 소속 부서를 사이드바에 표시하고, 그 부서 기준 추천 업무 도구를 렌더.
+   부서 정보는 jeil-me 결과(window.MY_PERM.dept_nm) — 없으면(미로그인) 안내 문구 유지. */
+function applyMyDept(){
+  var el = document.getElementById('myDept'); if(!el) return;
+  var nm = (window.MY_PERM && window.MY_PERM.dept_nm) || '';
+  var role = window.MY_PERM && (window.MY_PERM.is_admin ? '관리자' : (window.MY_PERM.role === 'dept_admin' ? '부서 관리자' : ''));
+  if(nm){
+    el.innerHTML = '🏢 ' + escHtml(nm) + (role ? ' <small>' + escHtml(role) + '</small>' : '');
+    renderTpls(deptKeyFromName(nm));
+  } else {
+    el.innerHTML = '🏢 소속 부서 <small>로그인 후 표시</small>';
+  }
+  // 사내 운영 페이지 상단에도 소속·권한 표시
+  var pg = document.getElementById('pgMyDept');
+  if(pg) pg.textContent = nm ? ('· ' + nm + (role ? ' (' + role + ')' : '')) : '';
+}
 
 function runDemo(key){
   var d = DEMOS[key]; if(!d) return;
@@ -1937,6 +1938,7 @@ async function loadPagePerms(){
     var me = await res.json();
     if(!res.ok) throw new Error(me.error || ('오류 '+res.status));
     window.MY_PERM = me;
+    applyMyDept();   // 사이드바 소속 부서·추천 도구를 내 부서 기준으로 갱신
     var pages = me.pages || [];
     grid.innerHTML = pages.length ? pages.map(function(p){
       var meta = '<div class="metarow"><span class="badge b">'+escHtml(p.dept_nm||'')+'</span><span class="badge '+(p.visibility==='전사 공개'?'g':'a')+'">'+escHtml(p.visibility||'')+'</span>'+(p.erp_module?'<span class="badge a">ERP '+escHtml(p.erp_module)+'</span>':'')+'</div>';
