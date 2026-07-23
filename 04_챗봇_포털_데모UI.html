@@ -430,8 +430,9 @@
       <textarea id="reqReason" maxlength="200" placeholder="예: 주간 생산계획 수립에 자재 재고 현황이 필요합니다. 매주 월요일 회의 자료로 사용합니다."></textarea>
       <label>긴급도</label>
       <select id="reqUrgency">
-        <option value="normal">보통 — 1영업일 내 확인</option>
-        <option value="high">급함 — 당일 처리 필요</option>
+        <!-- 처리 기한은 약속하지 않는다(관리자 결정 2026-07-23) — 우선순위 구분 용도로만 쓴다. -->
+        <option value="normal">보통</option>
+        <option value="high">급함</option>
       </select>
       <p class="rq-warn">⚠ 사유란에 <b>급여액·주민번호·계좌번호 등 민감한 값은 적지 마세요</b>. 저장 전 자동 마스킹되며, 요청 내용은 포털 관리자에게 전달됩니다.</p>
       <div class="rq-msg" id="reqMsg"></div>
@@ -2257,7 +2258,11 @@ async function loadRequests(){
       + '<td><b>'+escHtml(r.req_no)+'</b></td>'
       + '<td>'+escHtml(r.kind_ko||r.kind)+(r.needs_vendor_review?' <span class="badge a" title="ETL 확대는 유니포인트 협의가 필요할 수 있음">협의</span>':'')+'</td>'
       + '<td style="font-size:11.5px;">'+escHtml(r.requester_label||r.requester_upn)+'</td>'
-      + '<td>'+target+'</td>'
+      /* 권한 유형은 "요청자가 지금 실제로 볼 수 있는가"를 함께 표시 — 완료 처리 전 부여 누락 확인용 */
+      + '<td>'+target
+        + (r.fulfilled === true ? ' <span class="badge g" title="요청자에게 실제 권한이 반영된 상태">반영됨</span>'
+         : r.fulfilled === false ? ' <span class="badge r" title="아직 요청자에게 권한이 없습니다 — 권한 화면에서 부여 필요">미반영</span>' : '')
+        + '</td>'
       + '<td class="c">'+(r.supporter_count ? '<b>+'+r.supporter_count+'</b>' : '—')+'</td>'
       + '<td class="c">'+(r.urgency==='high'?'<span class="badge r">급함</span>':'—')+'</td>'
       + '<td class="c">'+(r.age_days>=1?('<span style="color:'+(r.age_days>=1&&!closed?'#c0392b':'#888')+'">'+r.age_days+'일</span>'):'오늘')+'</td>'
@@ -2304,7 +2309,16 @@ async function reqTransition(reqNo, to){
     if(!note.trim()){ alert('처리 사유는 필수입니다.'); return; }
   }
   var out = await callRequestFn({ op:'transition', req_no: reqNo, to: to, note: note });
-  if(out && out.ok) loadRequests();
+  /* 완료 게이트 — 서버가 "아직 반영 안 됐다"고 하면 강제 완료 여부를 다시 묻는다.
+     상태만 닫고 부여를 잊는 사고를 막는 장치이므로 기본값은 '중단'이다. */
+  if(out && out.error === 'not_fulfilled'){
+    if(!window.confirm(out['안내'] + '\n\n그래도 완료 처리할까요?')) return;
+    out = await callRequestFn({ op:'transition', req_no: reqNo, to: to, note: note, force: true });
+  }
+  if(out && out.ok){
+    if(out['안내']) alert(out['안내']);
+    loadRequests();
+  }
   else alert((out && (out['안내'] || out.error)) || '상태 변경에 실패했습니다.');
 }
 

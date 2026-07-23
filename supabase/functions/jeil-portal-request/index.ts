@@ -1,4 +1,4 @@
-// jeil-portal-request — 포털 요청 원장 CRUD (챗봇 조회불가 → 사용자 요청 접수) v1
+// jeil-portal-request — 포털 요청 원장 CRUD (챗봇 조회불가 → 사용자 요청 접수) v2
 // 배포: verify_jwt=false (Entra 토큰은 Supabase JWT가 아니므로 내부에서 직접 검증)
 // 호출: POST /functions/v1/jeil-portal-request  Authorization: Bearer <Entra access_token>
 //   body: { op: "create"|"mine"|"cancel"|"list"|"transition"|"stats", ... }
@@ -126,6 +126,30 @@ Deno.serve(async (req) => {
   const myModules: string[] = (eff.erp_modules as string[]) || [];
 
   const adminGuard = () => (isAdmin ? null : json({ error: "forbidden: 관리자 전용" }, 403));
+
+  /* 요청이 "실제로 해결됐는지" 판정 — 완료 처리와 실제 반영의 괴리를 막는다(2026-07-23).
+     상태만 done 으로 닫고 부여를 잊으면 요청자는 완료 통보를 받고도 여전히 못 본다.
+     권한 유형은 perm_effective(SSOT)로 기계 판정하고, 데이터·기능 유형은 판정 불가라 사람 확인에 맡긴다.
+     반환: true=반영됨 / false=미반영 / null=자동판정 불가 */
+  // deno-lint-ignore no-explicit-any
+  async function isFulfilled(admin: any, kind: string, upn: string, mod: string | null): Promise<boolean | null> {
+    if (kind === "perm" || kind === "perm_sensitive") {
+      if (!mod) return null;
+      try {
+        const { data } = await admin.rpc("perm_effective", { p_upn: upn });
+        const e = (data || {}) as Record<string, unknown>;
+        return !!e.is_admin || ((e.erp_modules as string[]) || []).includes(mod);
+      } catch { return null; }
+    }
+    if (kind === "doc") {
+      try {
+        const { count } = await admin.from("ai_document_scope")
+          .select("id", { count: "exact", head: true }).eq("active", true);
+        return (count || 0) > 0;
+      } catch { return null; }
+    }
+    return null;   // data·feature·quality — 적재/구현 여부는 자동 판정 불가
+  }
 
   /* ===== op: create — 요청 접수 ===== */
   if (op === "create") {
@@ -278,10 +302,33 @@ Deno.serve(async (req) => {
     const rows = data || [];
     const lbl = await labelMap(admin, rows.map((r) => String(r.requester_upn)));
     const DAY = 24 * 3600 * 1000;
+
+    // 권한 유형은 "요청자가 지금 실제로 볼 수 있는가"를 함께 내려준다 —
+    // 관리자가 완료 처리 전에 부여 누락을 눈으로 확인할 수 있게(요청 처리 ↔ 권한의 연결고리).
+    // 사용자 수만큼만 판정(행 수가 아니라 distinct upn 기준).
+    const permRows = rows.filter((r) => r.kind === "perm" || r.kind === "perm_sensitive");
+    const effByUpn: Record<string, { admin: boolean; mods: string[] }> = {};
+    for (const upn of [...new Set(permRows.map((r) => String(r.requester_upn)))]) {
+      try {
+        const { data: e } = await admin.rpc("perm_effective", { p_upn: upn });
+        const o = (e || {}) as Record<string, unknown>;
+        effByUpn[upn] = { admin: !!o.is_admin, mods: (o.erp_modules as string[]) || [] };
+      } catch { /* 판정 실패는 미표시 */ }
+    }
+    const fulfilledOf = (r: Record<string, unknown>): boolean | null => {
+      if (r.kind !== "perm" && r.kind !== "perm_sensitive") return null;
+      const e = effByUpn[String(r.requester_upn)];
+      if (!e || !r.target_module) return null;
+      return e.admin || e.mods.includes(String(r.target_module));
+    };
+
     return json({ ok: true, rows: rows.map((r) => ({
       ...r, kind_ko: KIND_KO[r.kind] || r.kind,
       requester_label: lbl[String(r.requester_upn).toLowerCase()] || r.requester_upn,
       supporter_count: (r.supporters || []).length,
+      fix_type: r.target_detail?.gap?.fix_type || null,
+      gap_detail: r.target_detail?.gap?.detail || null,
+      fulfilled: fulfilledOf(r),
       age_days: Math.floor((Date.now() - new Date(r.created_at).getTime()) / DAY),
     })) });
   }
@@ -293,13 +340,29 @@ Deno.serve(async (req) => {
     const to = String(b.to || "");
     const note = b.note ? maskSensitive(String(b.note).slice(0, 500)) : null;
 
-    const { data: row } = await admin.from("portal_request").select("id,status,kind").eq("req_no", reqNo).maybeSingle();
+    const { data: row } = await admin.from("portal_request")
+      .select("id,status,kind,requester_upn,target_module,target_detail").eq("req_no", reqNo).maybeSingle();
     if (!row) return json({ error: "요청을 찾을 수 없습니다." }, 404);
     if (!(NEXT[row.status] || []).includes(to)) {
       return json({ error: `'${row.status}' → '${to}' 전이는 허용되지 않습니다.` }, 400);
     }
     if (["done", "rejected"].includes(to) && !note) {
       return json({ error: "완료·반려는 처리 사유(요청자 회신 문구)가 필요합니다." }, 400);
+    }
+
+    // 완료 게이트 — "완료 처리했는데 실제로는 반영 안 됨"을 차단한다.
+    // 기계 판정이 가능한 유형(권한·문서범위)만 막고, 판정 불가한 유형은 사람 확인에 맡긴다.
+    // 예외 처리가 필요하면 force=true 로 관리자가 명시 우회한다(사유는 handled_note 에 남는다).
+    let fulfilled: boolean | null = null;
+    if (to === "done") {
+      fulfilled = await isFulfilled(admin, String(row.kind), String(row.requester_upn), row.target_module);
+      if (fulfilled === false && b.force !== true) {
+        const modKo = String(row.target_detail?.module_ko || row.target_module || "요청 대상");
+        return json({ error: "not_fulfilled", 확인필요: true,
+          안내: row.kind === "doc"
+            ? "AI 문서 연동 범위가 아직 등록되지 않았습니다. 범위를 등록한 뒤 완료 처리하세요."
+            : `요청자에게 아직 '${modKo}' 열람 권한이 없습니다. 「권한 상세」(부서별 ERP 모듈) 또는 「권한 설정」(개인 예외)에서 부여한 뒤 완료 처리하세요. 부여 없이 닫으려면 처리 사유에 이유를 적고 강제 완료를 선택하세요.` }, 409);
+      }
     }
     const patch: Record<string, unknown> = { status: to, assignee_upn: user.upn };
     if (note) patch.handled_note = note;
@@ -309,13 +372,17 @@ Deno.serve(async (req) => {
 
     const { error } = await admin.from("portal_request").update(patch).eq("id", row.id);
     if (error) return json({ error: "상태 변경 실패: " + error.message }, 500);
-    return json({ ok: true, req_no: reqNo, status: to });
+    return json({ ok: true, req_no: reqNo, status: to, fulfilled,
+      ...(to === "done" && fulfilled === null
+        ? { 안내: "이 유형은 반영 여부를 자동 확인할 수 없습니다 — 실제 적재·구현을 확인한 뒤 닫아 주세요." }
+        : {}),
+      ...(to === "done" && fulfilled === false ? { 안내: "권한 미반영 상태로 강제 완료했습니다." } : {}) });
   }
 
   /* ===== op: stats — 요청함 배지·수요 통계(관리자) ===== */
   if (op === "stats") {
     const g = adminGuard(); if (g) return g;
-    const { data } = await admin.from("portal_request").select("kind,status,target_module,requester_dept,created_at");
+    const { data } = await admin.from("portal_request").select("kind,status,target_module,requester_dept,target_detail,created_at");
     const rows = data || [];
     const open = rows.filter((r) => OPEN_STATES.includes(r.status));
     const DAY = 24 * 3600 * 1000;
@@ -324,10 +391,26 @@ Deno.serve(async (req) => {
       const k = `${r.requester_dept || "미지정"}|${r.target_module || "-"}`;
       heat[k] = (heat[k] || 0) + 1;
     }
+    // 작업유형별 묶음(관리자 결정 2026-07-23) — 데이터 요청은 담당자 작업 단위로 모아 처리한다.
+    const FIX_KO: Record<string, string> = {
+      period: "기간 확대", column: "칸 수정·추가", table: "새 테이블 연결",
+    };
+    const byFix: Record<string, { n: number; modules: Set<string> }> = {};
+    for (const r of open.filter((x) => x.kind === "data")) {
+      // deno-lint-ignore no-explicit-any
+      const ft = String((r as any).target_detail?.gap?.fix_type || "미분류");
+      for (const one of ft.split(",").map((s) => s.trim()).filter(Boolean)) {
+        const m = (byFix[one] = byFix[one] || { n: 0, modules: new Set<string>() });
+        m.n += 1; m.modules.add(String(r.target_module || "-"));
+      }
+    }
     return json({ ok: true,
       open_count: open.length,
       overdue_count: open.filter((r) => Date.now() - new Date(r.created_at).getTime() > DAY).length,
       by_kind: KINDS.map((k) => ({ kind: k, kind_ko: KIND_KO[k], open: open.filter((r) => r.kind === k).length })),
+      by_fix_type: Object.entries(byFix).map(([k, v]) => ({
+        fix_type: k, fix_ko: FIX_KO[k] || k, open: v.n, modules: [...v.modules] }))
+        .sort((a, b) => b.open - a.open),
       heatmap: Object.entries(heat).map(([k, v]) => ({ dept: k.split("|")[0], module: k.split("|")[1], n: v }))
         .sort((a, b) => b.n - a.n).slice(0, 20),
       total: rows.length });
