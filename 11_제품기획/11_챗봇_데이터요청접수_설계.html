@@ -1103,6 +1103,83 @@ C-3(부분적재)은 조회가 <strong>성공</strong>하고 값이 <strong>0</s
 <h3 id="16-3">16-3. 상태 기록의 원칙</h3>
 <p><code>scope_set</code>은 <strong>적재를 실행하지 않는다 — 결과를 기록만 한다</strong>(CLAUDE.md §1.6). 실제 ETL은 <code>10_ERP_DB연계</code>의 담당 절차로 수행하고, 끝난 뒤 이 화면에서 <code>적재완료</code>로 기록해야 해당 데이터 요청의 완료 게이트가 열린다. 버튼 확인 문구에도 이 점을 명시했다.</p>
 <p><strong>부작용 하나</strong>: 적재 없이 기록만 바꾸면 게이트가 거짓으로 열린다. 이건 기술로 막을 수 없고 운영 규율의 영역이다 — 그래서 기록 버튼을 관리자 전용으로 두고 확인 대화상자에 경고를 넣었다.</p>
+<hr />
+<h2 id="17-2026-07-23">17. 구현 현황 (2026-07-23 기준)</h2>
+<blockquote>
+<p><strong>배포 상태를 코드 상태와 구분해 적는다.</strong> 커밋됐다고 동작하는 것이 아니다.</p>
+</blockquote>
+<table>
+<thead>
+<tr>
+<th>단계</th>
+<th>범위</th>
+<th>코드</th>
+<th>배포</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>P1</td>
+<td>권한 유형(A·B) 요청 버튼·원장·요청함</td>
+<td>✅</td>
+<td>✅ <code>jeil-chat</code> v28 · <code>jeil-portal-request</code> v4</td>
+</tr>
+<tr>
+<td>P2a</td>
+<td>2분류 전환·결측 배지·작업유형 묶음</td>
+<td>✅</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>—</td>
+<td>완료 게이트(요청 처리 ↔ 권한 반영)</td>
+<td>✅</td>
+<td>✅ v3</td>
+</tr>
+<tr>
+<td>—</td>
+<td><code>erp_load_scope</code> 레지스트리</td>
+<td>✅</td>
+<td>✅ v4 (<code>erp_load_scope_v1</code>)</td>
+</tr>
+<tr>
+<td><strong>P2b</strong></td>
+<td>무데이터·기간밖 카드화(품목 이력 0건·인사 기간밖)</td>
+<td>✅ <code>791d949</code></td>
+<td>⏳ <strong><code>jeil-chat</code> 재배포 대기</strong></td>
+</tr>
+<tr>
+<td><strong>P2c</strong></td>
+<td>범위 밖 문서 2지점 + 검색 0건 요청 경로</td>
+<td>✅ <code>791d949</code></td>
+<td>⏳ 〃</td>
+</tr>
+<tr>
+<td><strong>P2d</strong></td>
+<td><code>get_my_requests</code> 도구</td>
+<td>✅ <code>791d949</code></td>
+<td>⏳ 〃</td>
+</tr>
+<tr>
+<td><strong>A5</strong></td>
+<td>결측 배지를 <code>erp_load_scope</code> 조회로 전환</td>
+<td>✅ <code>791d949</code></td>
+<td>⏳ 〃</td>
+</tr>
+</tbody>
+</table>
+<h3 id="17-1-mcp">17-1. 배포 제약 — MCP 인라인 한계</h3>
+<p><code>jeil-chat/index.ts</code>는 <strong>116KB 단일 파일</strong>이다. MCP 배포는 파일 전체를 응답에 실어 보내는 방식이라, 106KB(v28)에서 이미 한계에 가까웠고 116KB에서는 <strong>한 응답 한도를 초과해 실패</strong>한다(잘린 호출은 실행되지 않으므로 배포 사고는 발생하지 않는다).</p>
+<p>→ 이후 <code>jeil-chat</code> 배포는 <strong>CLI 경로</strong>를 기본으로 한다.</p>
+<pre><code>npx supabase functions deploy jeil-chat --project-ref dvzohdqtjzocgcclgwro
+</code></pre>
+<p><strong>구조적 대응(권고)</strong>: 이 파일은 도구 정의(TOOLS)·도구 구현(runTool)·게이트웨이(Deno.serve)가 한 파일에 있다. 모듈 3분할하면 배포 단위가 작아지고 리뷰도 쉬워진다 — 다만 분할 자체가 대규모 변경이라 별도 과제로 둔다.</p>
+<h3 id="17-2-p2bp2d">17-2. P2b~P2d 설계 메모</h3>
+<ul>
+<li><strong><code>confirm_first</code></strong>: 무데이터 카드에서 요청 버튼을 <strong>뒤로</strong> 보내는 신호. §14-2①의 오분류(ⓓ 조건 오입력)를 줄이기 위해, "품목 정보 다시 확인"·"2026년 인원현황 보기" 같은 재확인 액션을 앞세운다. 프론트 렌더러가 <code>insertBefore</code> 대신 <code>appendChild</code> 한다.</li>
+<li><strong>배지 SSOT 전환의 부수 효과</strong>: 결측이 하나도 없으면(<code>state=loaded</code>) 배지도 요청 버튼도 <strong>자동으로 사라진다</strong>. 적재 완료 후 코드를 고칠 필요가 없다.</li>
+<li><strong><code>get_my_requests</code>는 게이트 대상이 아니다</strong>: 본인 요청 조회는 전 직원 가능해야 하므로 <code>ERP_TOOL_MODULE</code>에 매핑하지 않았다. 요청자는 호출자 UPN으로 고정되어 타인 요청은 조회 불가.</li>
+</ul>
   </div>
   <div class="footer"><span>JEIL M&S · AI 포털 제품기획</span><span>11 요청접수 · 관리: 최동혁</span></div>
 </div>

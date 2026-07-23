@@ -337,6 +337,142 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <blockquote>
 <p>R1·R2·R4·R6은 <a href="09_ADR_의사결정기록.md">09 ADR</a>에 결정/추적 항목으로 등재.</p>
 </blockquote>
+<hr />
+<h2 id="9-2026-07-23">9. 전체 점검 (2026-07-23, 코드리뷰 + 라이브 실측)</h2>
+<blockquote>
+<p>범위: Supabase 보안·성능 어드바이저 전량(보안 24건·성능 147건 <strong>모두 확인</strong>), RLS/SECURITY DEFINER 실측, 요청접수 신규 코드 리뷰, 저장소↔배포 정합성, 시크릿 노출.</p>
+</blockquote>
+<h3 id="9-1">9-1. 오탐 정리 — 건전함이 확인된 것</h3>
+<p>경보 대부분은 <strong>설계 의도</strong>였다. 실제로 검증한 근거를 남긴다.</p>
+<table>
+<thead>
+<tr>
+<th>어드바이저 경보</th>
+<th>실측 결과</th>
+<th>판정</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>rls_enabled_no_policy</code> 15건 (INFO)</td>
+<td><code>chat_*</code>·<code>portal_request</code>·<code>erp_load_scope</code>·<code>perm_*</code>·<code>ai_*</code> — RLS 켜고 정책 0 + anon/authenticated 권한 회수</td>
+<td>✅ 의도된 <strong>fail-closed</strong>(Edge Function 전용)</td>
+</tr>
+<tr>
+<td><code>multiple_permissive_policies</code> <strong>125건</strong> (WARN)</td>
+<td>정책이 <code>{public}</code> 롤 대상이라 anon까지 열거될 뿐, 실제 게이트는 <code>is_internal()</code>·<code>vendor_bp()</code></td>
+<td>✅ 성능 노이즈. 보안 구멍 아님</td>
+</tr>
+<tr>
+<td>SECURITY DEFINER 공개 실행 4건 (WARN)</td>
+<td><code>vendor_master_sync</code>=portal_admin 검사 후 예외, <code>update_my_vendor_contact</code>=<code>auth.uid()</code> 없으면 0행, <code>erp_finance_overview</code>=<code>perm_effective</code> finance 검사, <code>perm_can</code>=판정 함수</td>
+<td>✅ 전부 <strong>내부 인증 가드 보유</strong></td>
+</tr>
+<tr>
+<td>협력사 경계</td>
+<td><code>is_internal()</code>·<code>vendor_bp()</code>가 <strong><code>app_metadata</code></strong>(서버 통제, 사용자 조작 불가) 기반</td>
+<td>✅ 건전</td>
+</tr>
+<tr>
+<td>시크릿 노출</td>
+<td>추적 파일 전체 스캔 — JWT/<code>sk-</code>/service_role 패턴 <strong>0건</strong>, <code>.gitignore</code> 정상</td>
+<td>✅</td>
+</tr>
+</tbody>
+</table>
+<h3 id="9-2">9-2. 발견 — 조치 필요</h3>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>심각도</th>
+<th>발견</th>
+<th>근거(실측)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>F1</td>
+<td><strong>높음</strong></td>
+<td><strong>저장소 ↔ 배포 드리프트</strong> — <code>jeil-chat</code> 저장소는 P2b~P2d 포함(<code>791d949</code>), 운영은 <strong>v28</strong>(미포함). 코드만 보고 "동작한다"고 오판할 위험</td>
+<td><code>git log</code> vs <code>list_edge_functions</code></td>
+</tr>
+<tr>
+<td>F2</td>
+<td><strong>높음</strong></td>
+<td><strong>관리자 1명(SPOF)</strong> — <code>portal_admin</code> 1행. 완료 게이트 도입으로 관리자 의존이 더 커졌는데 백업이 없다. 이 계정이 막히면 요청 처리·권한 부여가 전면 정지</td>
+<td><code>portal_admin</code>=1</td>
+</tr>
+<tr>
+<td>F3</td>
+<td><strong>높음</strong></td>
+<td><strong><code>erp_load_scope</code> 상태 변경에 감사 흔적 없음</strong> — <code>updated_by</code> 컬럼 부재. 이 값이 <strong>데이터 요청 완료 게이트를 여는 통제</strong>인데 누가 언제 바꿨는지 남지 않는다(<code>portal_request</code>는 <code>assignee_upn</code>을 남김)</td>
+<td>DDL 확인</td>
+</tr>
+<tr>
+<td>F4</td>
+<td><strong>중간</strong></td>
+<td><strong>강제 완료(<code>force</code>) 흔적 미보존</strong> — <code>fulfilled=false</code>인데 강제 종결해도 <code>handled_note</code> 자유텍스트 외에 구분 수단이 없다. 사후에 "정상 완료"와 "미반영 강제 종결"을 못 가른다</td>
+<td>코드 리뷰</td>
+</tr>
+<tr>
+<td>F5</td>
+<td><strong>중간</strong></td>
+<td><strong>개인정보 보존기간 미이행</strong> — <code>chat_retention_days=180</code> 설정만 있고 <strong>실제 파기 배치 없음</strong>(<code>pg_cron</code> 미설치). 최고령 로그 2026-07-07이라 현재는 위반 아니지만 <strong>2027-01 초부터 정책과 실제가 어긋난다</strong></td>
+<td><code>pg_extension</code>=0, <code>chat_log</code> 최고령 2026-07-07</td>
+</tr>
+<tr>
+<td>F6</td>
+<td><strong>중간</strong></td>
+<td><strong><code>erp_ro</code> 모듈 차등이 RLS에 없음</strong> — 정책은 "<code>role=internal</code>이면 전량 SELECT". 현재 <strong>internal JWT 보유자 0명</strong>이라 실제 노출은 없으나, 사내 Supabase 세션을 도입하는 순간 앱 게이트를 우회해 매출·매입·발주 전량 열람이 가능해진다</td>
+<td><code>auth.users</code> app_role: vendor 4 / none 1</td>
+</tr>
+<tr>
+<td>F7</td>
+<td><strong>중간</strong></td>
+<td><strong><code>jeil-chat</code> 116KB 단일 파일</strong> — 배포 경로를 제약하고(§17-1) 변경·리뷰 위험을 키운다</td>
+<td>파일 크기</td>
+</tr>
+<tr>
+<td>F8</td>
+<td><strong>낮음</strong></td>
+<td><strong>상수 중복</strong> — <code>KIND_KO</code>·상태 라벨이 <code>jeil-chat</code>·<code>jeil-portal-request</code> 양쪽에 복제. 유형 추가 시 한쪽만 고칠 위험</td>
+<td>양쪽 정의 확인</td>
+</tr>
+<tr>
+<td>F9</td>
+<td><strong>낮음</strong></td>
+<td><code>portal_request_touch</code> <strong>search_path mutable</strong></td>
+<td>보안 어드바이저</td>
+</tr>
+<tr>
+<td>F10</td>
+<td><strong>낮음</strong></td>
+<td><code>vendor_master_sync</code>·<code>update_my_vendor_contact</code> <strong>anon EXECUTE 부여</strong> — 내부 가드로 무력화되나 방어심도상 REVOKE 권장</td>
+<td>ACL 확인</td>
+</tr>
+<tr>
+<td>F11</td>
+<td><strong>낮음</strong></td>
+<td><strong>유출 비밀번호 차단 비활성</strong> — 협력사 계정 4개가 자체 비밀번호 사용</td>
+<td>보안 어드바이저</td>
+</tr>
+<tr>
+<td>F12</td>
+<td><strong>정보</strong></td>
+<td>동조자에게 <strong>원 요청자의 사유가 노출</strong> — <code>mine</code>/<code>get_my_requests</code>가 supporters 참여 건의 <code>reason</code>을 그대로 반환. 공동 요청 성격상 의도로 볼 수 있으나 문서화 필요</td>
+<td>코드 리뷰</td>
+</tr>
+<tr>
+<td>F13</td>
+<td><strong>정보</strong></td>
+<td><code>auth_rls_initplan</code> 16건 — <code>auth.jwt()</code>를 <code>(select auth.jwt())</code>로 감싸면 해소(행 단위 재평가 제거)</td>
+<td>성능 어드바이저</td>
+</tr>
+</tbody>
+</table>
+<h3 id="9-3-2026-07-23">9-3. 운영 지표 (2026-07-23)</h3>
+<p><code>chat_log</code> 203 · <code>chat_message</code> 144 · 요청 5건 · 미해결 적재범위 항목 <strong>9/11</strong> · <code>dept_erp_scope</code> 129행 · 개인 예외 3건 · 감사(<code>perm_audit</code> 7 · <code>hr_access_log</code> 23) · 협력사 계정 4 · 문서 연동범위 1</p>
   </div>
   <div class="footer"><span>JEIL M&S · AI 포털 제품기획</span><span>08 보안 · 관리: 최동혁</span></div>
 </div>
