@@ -47,7 +47,7 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
   <div class="content">
 <h1 id="11">11 · 챗봇 데이터 요청접수 설계 — "조회 불가 → 요청 버튼 → 접수·처리"</h1>
 <blockquote>
-<p>관리자: 최동혁(dh.choi@jeilm.co.kr) · 기준일: 2026-07-22 · 상태: <strong>Accepted — P1(권한 유형) 구현·배포 완료 / P2~P3 잔여 (ADR-011)</strong>
+<p>관리자: 최동혁(dh.choi@jeilm.co.kr) · 기준일: 2026-07-23 · 상태: <strong>Accepted — P1(권한 유형) 구현·배포 완료 / P2(미연계 데이터) 기획검토 완료·착수 대기 / P3 잔여 (ADR-011)</strong>
 관련: <a href="10_챗봇_응답렌더링_설계.md">10 응답렌더링</a> · <a href="05_프론트엔드_백엔드_설계.md">05 FE·BE</a> · <a href="06_ERP연계_챗봇활용_설계.md">06 ERP연계</a> · <a href="04_데이터베이스_설계.md">04 DB설계</a> · <a href="08_보안_데이터안정성.md">08 보안</a> · <a href="09_ADR_의사결정기록.md">09 ADR</a> · <code>CLAUDE.md §1.6·§5.4·§7·§13</code></p>
 </blockquote>
 <p>챗봇이 <strong>"그 데이터는 못 보여드립니다"</strong> 로 끝나는 지점에서, 사용자가 그 자리에서 <strong>요청 버튼</strong>을 눌러 접수하고, 관리자가 <strong>요청함</strong>에서 처리·회신하는 흐름을 설계한다.
@@ -612,7 +612,8 @@ comment on table public.portal_request is
 <li>[x] <strong>P1 구현·배포</strong> — 원장·API·요청 버튼·요청함</li>
 <li>[x] <code>05 FE·BE</code> Edge Function 명세 · <code>04 DB설계</code> 테이블·RLS 반영</li>
 <li>[ ] <strong>Teams 웹훅 URL 발급 → Supabase 시크릿 <code>TEAMS_WEBHOOK_URL</code> 등록</strong>(관리자 작업, §13)</li>
-<li>[ ] <strong>P2</strong>: <code>jeil-chat</code> 반환부에 C·D·E 유형 <code>notice</code> 카드 신설 + <code>get_my_requests</code> 도구 → 재배포</li>
+<li>[x] <strong>P2 기획검토</strong> — 미연계 데이터(C·D·E) 확장 설계·결함 2건·단계 재분할(§14, 2026-07-23)</li>
+<li>[ ] <strong>P2 착수 결정</strong> — §14-6 P2a~P2d 묶음 구현 + <code>jeil-chat</code> 재배포 / §14-8 미결정 4건 판단</li>
 <li>[ ] §11 잔여 미결정 5건(승인 라인·상태이력·벤더 게이트·SLA·보존기간) 관리자 판단</li>
 <li>[ ] <code>02_SRS</code>에 FR-ID 등재</li>
 </ul>
@@ -651,6 +652,232 @@ comment on table public.portal_request is
 <blockquote>
 <p>구 O365 커넥터(<code>…webhook.office.com</code>) URL을 쓰는 경우에도 동작한다 — 서버가 URL 형식을 보고 MessageCard/Adaptive Card 페이로드를 자동 분기한다. 다만 커넥터는 Microsoft가 단계적으로 폐지 중이라 <strong>워크플로 방식을 권장</strong>한다.</p>
 </blockquote>
+<hr />
+<h2 id="14-cde">14. 확장 기획검토 — "연결되지 않은 데이터"(유형 C·D·E) 요청</h2>
+<blockquote>
+<p>검토일 2026-07-23 · 대상: P1에서 제외한 <strong>미연계 데이터</strong> 3유형. 결론은 §14-6(단계 재분할)·§14-8(추가 미결정).</p>
+</blockquote>
+<h3 id="14-1">14-1. 실측 — 지금 무엇이 어떻게 끝나는가</h3>
+<p><code>jeil-chat/index.ts</code> 전수 확인 결과, 미연계 응답은 <strong>7곳</strong>에서 나오고 그중 요청 버튼이 붙을 수 있는 곳은 <strong>0곳</strong>이다.</p>
+<table>
+<thead>
+<tr>
+<th>구분</th>
+<th>지점</th>
+<th>현재 응답</th>
+<th>카드</th>
+<th><code>request</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>C-1</strong> 무데이터</td>
+<td><code>:764</code></td>
+<td>"이 품목은 중간DB(2026년)에 등록된 구매요청·발주·매입이 없습니다. 2025년 이전 건은 미적재…"</td>
+<td>❌ 평문</td>
+<td>❌</td>
+</tr>
+<tr>
+<td><strong>C-2</strong> 기간 밖</td>
+<td><code>:1005</code></td>
+<td>"해당 기간 인사 집계 데이터가 없습니다. 중간DB 적재 범위를 확인하세요(2026년 이후)"</td>
+<td>❌ 평문</td>
+<td>❌</td>
+</tr>
+<tr>
+<td><strong>C-3</strong> <strong>부분적재(결측 컬럼)</strong></td>
+<td><code>:626·632·634</code>, 프롬프트 <code>:52</code>·도구설명 <code>:114</code></td>
+<td>재고 <strong>입고량·재고량 미적재</strong>, 매출 <strong>수금액·수주액 미매핑(0)</strong></td>
+<td>✅ <code>record</code>(주석만)</td>
+<td>❌</td>
+</tr>
+<tr>
+<td><strong>D-1</strong> 문서범위 미설정</td>
+<td><code>:1051</code></td>
+<td>"AI 문서 연동 범위가 설정되지 않아 검색을 제공하지 않습니다"</td>
+<td>✅ <code>notice/info</code></td>
+<td>❌</td>
+</tr>
+<tr>
+<td><strong>D-2·3</strong> 범위 밖 문서</td>
+<td><code>:1093</code>, <code>:1099</code></td>
+<td>"AI 연동 승인 범위에 없어 열람할 수 없습니다"</td>
+<td>❌ 평문</td>
+<td>❌</td>
+</tr>
+<tr>
+<td><strong>E</strong> 도구 없음</td>
+<td>시스템 프롬프트 <code>:57</code></td>
+<td>"추측하지 말고 원본 확인 권유"</td>
+<td>❌</td>
+<td>❌</td>
+</tr>
+</tbody>
+</table>
+<p>즉 <strong>P1의 요청 버튼은 이 7곳 어디에도 나타나지 않는다.</strong> 프론트 렌더러는 <code>v.request.module</code>이 있을 때만 버튼을 그리는데(<code>04:1884</code>), 이 경로들은 <code>request</code>를 싣지 않는다.</p>
+<h3 id="14-2-c-ab-3">14-2. C는 A·B(권한)와 근본적으로 다르다 — 같은 방식으로 처리하면 안 되는 3가지</h3>
+<p><strong>① 서버가 원인을 판정할 수 없다.</strong>
+권한은 <code>perm_effective</code>로 즉시 참·거짓이 나온다. 반면 "데이터가 없다"는 최소 4가지 서로 다른 원인의 결과다 — ⓐ ETL 미적재 ⓑ 적재 기간 밖 ⓒ <strong>ERP 원본에도 없음</strong> ⓓ 사용자가 조건(품목코드·기간)을 잘못 입력. 지금 코드는 넷을 구분하지 않고 한 문장으로 답한다. 여기에 그대로 요청 버튼을 달면 <strong>ⓒ·ⓓ가 ERP 연계 담당에게 "적재해달라"는 요청으로 쌓인다.</strong> 권한 유형의 <code>already_granted</code> 재판정(§4)에 해당하는 방어 장치가 C에는 없다.</p>
+<p><strong>② 해결 리드타임이 자릿수 단위로 다르다.</strong>
+권한 승인은 관리자 클릭 1회(분 단위). 적재 확대는 추출 SQL 작성 → dry-run 검증 → 실적재 → 대사이며, <strong>유니포인트 협의가 끼면 주~월 단위</strong>다(<code>10_ERP_DB연계</code> 기준 P1 협의는 현재도 대기 중). §11-5의 단일 SLA(1영업일/5영업일)를 C에 그대로 적용하면 <strong>지킬 수 없는 약속</strong>이 된다.</p>
+<p><strong>③ 가장 위험한 건 "안 나오는 것"이 아니라 "0으로 나오는 것"이다.</strong>
+C-3(부분적재)은 조회가 <strong>성공</strong>하고 값이 <strong>0</strong>으로 나온다. 사용자는 이를 실적으로 오해한다. 현재 방어선은 시스템 프롬프트 한 줄과 카드 각주뿐 — <strong>모델이 지켜주기를 기대하는 구조</strong>다. 이건 요청 기능 이전에 <strong>응답 정확성 문제</strong>이고, 미연계 요청 기능에서 가장 먼저 손대야 할 지점이다.</p>
+<h3 id="14-3-erp_rotable_dict-2658">14-3. 이미 갖춘 자산 — <code>erp_ro.table_dict</code> 2,658행</h3>
+<table>
+<thead>
+<tr>
+<th>자산</th>
+<th>실측</th>
+<th>역할</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>erp_ro.table_dict</code></td>
+<td><strong>2,658행</strong>(ERP 전체 테이블 사전)</td>
+<td>"이 정보가 <strong>ERP에 존재하는가</strong>"를 기계 판정 → §14-2① 의 ⓒ 분리</td>
+</tr>
+<tr>
+<td>적재 실체 7종</td>
+<td><code>item_master_s</code> 58,533 · <code>bp_master_s</code> 4,649 · <code>pur_req_s</code> 4,064 · <code>pur_order_s</code> 3,088 · <code>inventory_d</code> 1,847 · <code>purchase_m</code> 151 · <code>sales_orders_m</code> 37</td>
+<td>"적재됐는가·어디까지인가" 판정</td>
+</tr>
+<tr>
+<td><code>portal_request.needs_vendor_review</code></td>
+<td>✅ 컬럼 존재(P1에서 신설, 미사용)</td>
+<td>벤더 협의 필요 건 표시</td>
+</tr>
+</tbody>
+</table>
+<p><strong><code>table_dict</code>가 이 기획의 차별점이다</strong> — 요청을 사용자 문장이 아니라 사전 대조로 자동 분류할 수 있다. 단 테이블명 2,658개는 ERP 내부 구조 정보이므로 <strong>사용자 카드에 노출하지 않고 관리자 요청함에서만</strong> 근거로 표시한다.</p>
+<h3 id="14-4">14-4. 설계안</h3>
+<p><strong>(a) 적재범위 레지스트리 <code>erp_load_scope</code> 신설(권고)</strong>
+현재 <code>index.ts:52·114·626·764·1005</code>에 <strong>문자열로 흩어진</strong> 적재범위 지식("2026년 이후", "입고량 미적재", "수금액 미매핑")을 데이터로 승격한다.</p>
+<pre><code>erp_load_scope(module, table_key, period_from, period_to,
+               missing_cols text[], state('loaded'|'partial'|'none'),
+               erp_source, expandable bool, note)
+</code></pre>
+<p>챗봇 응답·요청함·<code>10_ERP_DB연계</code> 문서가 <strong>같은 출처</strong>를 본다. 지금은 코드를 고쳐야 안내 문구가 바뀌고, 그때마다 <code>jeil-chat</code> 106KB를 재배포해야 한다.</p>
+<p><strong>(b) <code>notice</code> 카드의 <code>request</code> 확장</strong> — 뷰 타입은 늘리지 않는다(ADR-008 준수).</p>
+<pre><code class="language-jsonc">request: {
+  kind: &quot;data&quot; | &quot;doc&quot; | &quot;feature&quot;,       // ← 신설. 프론트가 그대로 반송
+  module: &quot;inventory&quot;, moduleKo: &quot;재고&quot;, dept: &quot;자재물류팀&quot;,
+  gap: { type: &quot;field&quot;|&quot;period&quot;|&quot;table&quot;|&quot;scope&quot;, detail: &quot;입고량·재고량&quot; }
+}
+</code></pre>
+<p><strong>(c) 요청 유형은 늘리지 않는다.</strong> 기존 <code>data</code>/<code>doc</code>/<code>feature</code> 3종을 그대로 쓰고 세분은 <code>target_detail.gap</code>에 담는다. 테이블·상태머신 변경 0.</p>
+<p><strong>(d) 벤더 협의 상태(§11-4 미결정에 대한 권고)</strong> — <code>blocked</code> 상태를 새로 만들지 말고 <strong><code>doing</code> + <code>needs_vendor_review=true</code></strong> 로 표기한다. 상태머신을 건드리지 않고 요청함에서 「유니포인트 협의 대기」로 필터할 수 있다.</p>
+<p><strong>(e) 유형별 라우팅</strong></p>
+<table>
+<thead>
+<tr>
+<th>유형</th>
+<th>담당</th>
+<th>후속</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>data</code></td>
+<td>ERP 연계 담당</td>
+<td><code>10_ERP_DB연계/02_진행상태</code> 항목화(에이전트 <code>erp-db-link-manager</code>)</td>
+</tr>
+<tr>
+<td><code>doc</code></td>
+<td>문서연동 담당</td>
+<td><code>ai_document_scope</code> 등재</td>
+</tr>
+<tr>
+<td><code>feature</code></td>
+<td>제품기획</td>
+<td><code>01_PRD</code> 백로그</td>
+</tr>
+</tbody>
+</table>
+<h3 id="14-5-2">14-5. 착수 전 선수정이 필요한 결함 2건 (실측 확인)</h3>
+<ol>
+<li><strong><code>04:1957</code> — 요청 유형이 하드코딩되어 있다.</strong>
+   <code>js
+   var kind = (_reqCtx.module === 'payroll') ? 'perm_sensitive' : 'perm';</code>
+   C·D·E 카드에 버튼이 붙어도 <strong>전부 <code>perm</code>(권한 요청)으로 접수</strong>되어 라우팅·통계·히트맵이 오염된다. 서버가 <code>request.kind</code>를 내리고 프론트는 그대로 반송하도록 바꿔야 한다(§14-4b). <strong>P2의 첫 작업이어야 한다.</strong></li>
+<li><strong><code>:1051</code>의 <code>notice/info</code> 카드에 <code>request</code>가 없다.</strong> 카드가 이미 있는데도 버튼이 붙지 않는 유일한 지점 — 필드 3개 추가로 해결된다.</li>
+</ol>
+<h3 id="14-6-p2-4">14-6. 단계 재분할 (기존 P2를 4개로 쪼갬)</h3>
+<table>
+<thead>
+<tr>
+<th>단계</th>
+<th>범위</th>
+<th>수정 지점</th>
+<th>근거</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>P2a</strong></td>
+<td><strong>결측 표기 정확성</strong> — 부분적재 응답에 <code>notice</code> + <code>request{kind:'data',gap:'field'}</code></td>
+<td><code>index.ts:626·632·634</code> + <code>04:1957</code> 결함 수정</td>
+<td>§14-2③ 가장 위험하면서 가장 저렴</td>
+</tr>
+<tr>
+<td><strong>P2b</strong></td>
+<td>무데이터·기간 밖 — <code>erp_load_scope</code> 조회 후 ⓐⓑ/ⓒⓓ 분기, ⓓ는 "조건 다시 확인"을 요청 버튼보다 <strong>앞에</strong> 배치</td>
+<td><code>:764</code>, <code>:1005</code></td>
+<td>§14-2① 오분류 방어</td>
+</tr>
+<tr>
+<td><strong>P2c</strong></td>
+<td>문서범위(D) + 미구현(E)</td>
+<td><code>:1051</code>(필드 3개) · <code>:1093</code> · <code>:1099</code> · 프롬프트 <code>:57</code></td>
+<td>저비용</td>
+</tr>
+<tr>
+<td><strong>P2d</strong></td>
+<td><code>get_my_requests</code> 도구 — "내 요청 어떻게 됐어?"</td>
+<td>도구 1개</td>
+<td>재요청 억제</td>
+</tr>
+</tbody>
+</table>
+<p><strong>배포는 P2a~P2d를 묶어 1회로 한다</strong> — <code>jeil-chat</code>은 106KB 단일 파일이라 MCP 인라인 재배포 비용이 크다(§14-7).</p>
+<h3 id="14-7">14-7. 비용·리스크</h3>
+<table>
+<thead>
+<tr>
+<th>항목</th>
+<th>평가</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>개발량</td>
+<td>서버 반환부 7곳 + 프론트 1줄 + (선택)레지스트리 1테이블. <strong>신규 화면·뷰 타입 0</strong></td>
+</tr>
+<tr>
+<td>배포</td>
+<td><code>jeil-chat</code> 재배포 필수(P1은 불필요했음). 106KB 인라인 — <strong>묶음 배포 권장</strong></td>
+</tr>
+<tr>
+<td>요청 남발</td>
+<td><code>data</code>는 서버 재판정이 <strong>원리적으로 불가</strong> → 사유 필수·자동 병합·일 5건 제한이 유일한 방어. <strong>부서×모듈 병합이 권한 유형보다 훨씬 중요</strong>(같은 적재범위 요청은 1건으로 수렴)</td>
+</tr>
+<tr>
+<td>오분류</td>
+<td>조건 오입력(ⓓ)까지 요청으로 유입 → P2b의 액션 순서 배치로 완화, 완전 차단은 불가</td>
+</tr>
+<tr>
+<td>기대치 관리</td>
+<td>E(기능없음)에 요청 버튼을 달면 "요청하면 만들어준다"는 신호가 된다 → 회신 문구에 <strong>검토 대상임</strong>을 명시</td>
+</tr>
+</tbody>
+</table>
+<h3 id="14-8">14-8. 추가 미결정 사항 (관리자 결정 필요)</h3>
+<ol start="7">
+<li><strong><code>erp_load_scope</code> 신설 여부</strong> — 데이터로 승격(권고, 안내문 변경 시 재배포 불필요) vs 현행 코드 상수 유지(개발 0, 변경마다 재배포).</li>
+<li><strong><code>data</code> 요청 승인의 의미</strong> — 승인 = ETL 착수 확정인가, 검토 대기열 등재인가. 유니포인트 협의 의존분을 어떻게 약속할지와 직결(§14-2②).</li>
+<li><strong>E(기능 없음) 유형 노출 여부</strong> — 사용자에게 "그 기능은 없습니다 + 요청하기"를 보일지, 조용히 백로그만 쌓을지.</li>
+<li><strong>C 유형 SLA 분리</strong> — §11-5의 단일 SLA 대신 <code>data</code>는 <strong>1차 응답만 SLA(1영업일), 완료 SLA 없음</strong>을 기본안으로 제안.</li>
+</ol>
   </div>
   <div class="footer"><span>JEIL M&S · AI 포털 제품기획</span><span>11 요청접수 · 관리: 최동혁</span></div>
 </div>

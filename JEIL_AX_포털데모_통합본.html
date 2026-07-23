@@ -85,6 +85,9 @@
   /* 요청 접수 모달(ADR-011) — 조회 불가 카드에서 호출 */
   .rq-target{font-size:12.5px; background:var(--bg); border:1px solid var(--line); border-radius:9px; padding:9px 11px; line-height:1.6; color:var(--navy);}
   .rq-warn{font-size:11px; color:var(--muted); margin-top:10px; line-height:1.6;}
+  /* 결측 배지(§14 Q5-ⓑ) — 값이 0으로 보이는 칸이 "실적 0"이 아니라 "아직 못 채운 칸"임을 표시 */
+  .cv-gap{display:inline-block; font-size:10.5px; font-weight:700; color:#9a5b00; background:#fff5e6;
+          border:1px solid #f0c98a; border-radius:9px; padding:1px 7px; margin-left:6px; vertical-align:1px; cursor:help;}
   .rq-msg{font-size:12px; margin-top:10px; line-height:1.6; display:none;}
   .rq-msg.err{color:#c0392b; display:block;}
   .rq-msg.ok{color:#1e8449; display:block;}
@@ -420,6 +423,7 @@
   <div id="reqOv" class="wk-ov">
     <div class="wk-modal">
       <h3>데이터 열람 요청</h3>
+      <p id="reqLead" style="font-size:12px; color:var(--muted); line-height:1.6; margin:-4px 0 12px;"></p>
       <label>요청 대상</label>
       <div class="rq-target" id="reqTarget">-</div>
       <label>요청 사유 <small style="color:var(--muted); font-weight:400;">— 필수, 15자 이상. 무엇에 쓰는지 적어주시면 처리가 빨라집니다.</small></label>
@@ -1814,7 +1818,14 @@ function renderView(host, v){
     v.fields.forEach(function(f){
       var row = _cvEl('div', 'cv-field');
       row.appendChild(_cvEl('span', 'cv-k', String(f.k)));
-      row.appendChild(_cvEl('span', 'cv-v', String(f.v)));
+      var vw = _cvEl('span', 'cv-v', String(f.v));
+      /* 결측 배지 — 서버가 gap을 표기한 칸만. 사유(gap_why)는 툴팁으로. */
+      if(f.gap){
+        var gb = _cvEl('span', 'cv-gap', '⚠ ' + String(f.gap));
+        if(f.gap_why) gb.title = String(f.gap_why);
+        vw.appendChild(gb);
+      }
+      row.appendChild(vw);
       g.appendChild(row);
     });
     card.appendChild(g);
@@ -1883,7 +1894,10 @@ function renderView(host, v){
      로그인 상태에서만 노출(미로그인 데모 화면에는 접수 경로가 없다). */
   if(v.request && v.request.module && (getLiveAuth() || hasStoredAuth())){
     var rb = document.createElement('button'); rb.className = 'cv-act'; rb.type = 'button';
-    rb.textContent = '🙋 ' + (v.request.module === 'payroll' ? '급여·인사 열람 권한 요청' : '열람 권한 요청하기');
+    /* 2분류(§14) — 사용자에게는 「권한요청」·「데이터 적용요청」 둘뿐. 원장 유형(kind)은 서버가 정한다. */
+    rb.textContent = (v.request.ui === 'data')
+      ? '📭 데이터 적용 요청'
+      : '🔒 ' + (v.request.module === 'payroll' ? '급여·인사 열람 권한 요청' : '열람 권한 요청하기');
     (function(rq, btn){ btn.onclick = function(){ openReqModal(rq, btn); }; })(v.request, rb);
     ab.insertBefore(rb, ab.firstChild);
   }
@@ -1925,10 +1939,20 @@ async function callRequestFn(payload){
 
 function openReqModal(rq, btn){
   _reqCtx = rq || {}; _reqBtn = btn || null;
+  var isData = (_reqCtx.ui === 'data');
+  /* 화면 2분류에 따라 제목·안내를 바꾼다. 데이터 요청은 완료 시점을 약속하지 않는다(Q2 결정). */
+  var h = document.querySelector('#reqOv h3');
+  if(h) h.textContent = isData ? '데이터 적용 요청' : '데이터 열람 권한 요청';
+  var lead = document.getElementById('reqLead');
+  if(lead) lead.textContent = isData
+    ? '요청하신 항목은 아직 중간DB에 연결되지 않았습니다. 접수하시면 검토에 착수하고, 정기 업데이트 시 적용을 검토합니다(완료 시점은 별도 안내).'
+    : '접수하시면 포털 관리자가 확인 후 권한 부여 여부를 회신합니다.';
   var t = document.getElementById('reqTarget');
   if(t){
+    var gap = _reqCtx.gap && _reqCtx.gap.detail ? _reqCtx.gap.detail : '';
     t.innerHTML = '<b>'+escHtml(_reqCtx.moduleKo || _reqCtx.module || '')+'</b>'
       + ' <span style="color:var(--muted)">('+escHtml(_reqCtx.module || '')+')</span>'
+      + (gap ? '<br><span style="color:var(--muted)">미연계 항목: </span><b>'+escHtml(gap)+'</b>' : '')
       + (_reqCtx.dept ? '<br><span style="color:var(--muted)">소속: '+escHtml(_reqCtx.dept)+'</span>' : '');
   }
   var msg = document.getElementById('reqMsg'); if(msg){ msg.className='rq-msg'; msg.textContent=''; }
@@ -1953,10 +1977,12 @@ async function submitReq(){
   }
   var sb = document.getElementById('reqSendBtn');
   if(sb){ sb.disabled = true; sb.textContent = '접수 중…'; }
-  // 급여·인사는 민감권한 유형으로 분류(2인 확인 대상) — 설계 §4-2
-  var kind = (_reqCtx.module === 'payroll') ? 'perm_sensitive' : 'perm';
+  /* 원장 유형은 서버가 준 kind를 그대로 쓴다(§14-5 결함 수정).
+     구버전 서버가 kind를 안 내리면 기존 규칙으로 폴백 — 급여는 민감권한(2인 확인 대상, §4-2). */
+  var kind = _reqCtx.kind || ((_reqCtx.module === 'payroll') ? 'perm_sensitive' : 'perm');
   var out = await callRequestFn({
     op:'create', kind: kind, module: _reqCtx.module, module_ko: _reqCtx.moduleKo,
+    gap: _reqCtx.gap,
     tool: _reqCtx.tool, args_digest: _reqCtx.args_digest,
     reason: reason.trim(), urgency: (document.getElementById('reqUrgency')||{}).value || 'normal'
   });

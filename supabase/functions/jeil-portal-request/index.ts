@@ -161,16 +161,26 @@ Deno.serve(async (req) => {
 
     // 3) 중복 병합 — 같은 (유형·대상·부서)로 진행 중인 건이 있으면 동조 처리(새 행 생성 안 함)
     // 대상(module)이 특정된 유형만 병합한다. feature·quality 는 내용이 제각각이라 병합하면 안 된다.
+    // 데이터 요청의 묶음 축 = 담당자 작업 유형(fix_type: period|column|table) — 관리자 결정 2026-07-23.
+    // 같은 모듈이라도 "칸 수정"과 "새 테이블 연결"은 작업도 소요도 달라 한 건으로 묶으면 안 된다.
+    // deno-lint-ignore no-explicit-any
+    const gapIn: any = (b.gap && typeof b.gap === "object") ? b.gap : null;
+    const fixType = gapIn?.fix_type ? String(gapIn.fix_type).slice(0, 40) : null;
+
     // deno-lint-ignore no-explicit-any
     let dup: any;
     if (targetModule) {
       let dupQ = admin.from("portal_request")
-        .select("id,req_no,status,supporters,requester_upn,reason")
+        .select("id,req_no,status,supporters,requester_upn,reason,target_detail")
         .eq("kind", kind).in("status", OPEN_STATES).eq("target_module", targetModule);
       // null 은 eq 로 매칭되지 않으므로 is 로 분기(부서 미매핑 사용자)
       dupQ = myDept ? dupQ.eq("requester_dept", myDept) : dupQ.is("requester_dept", null);
-      const { data: dupRows } = await dupQ.order("created_at", { ascending: true }).limit(1);
-      dup = (dupRows || [])[0];
+      const { data: dupRows } = await dupQ.order("created_at", { ascending: true }).limit(20);
+      // deno-lint-ignore no-explicit-any
+      const cands = (dupRows || []) as any[];
+      dup = kind === "data"
+        ? cands.find((r) => (r.target_detail?.gap?.fix_type ?? null) === fixType)
+        : cands[0];
     }
     if (dup) {
       if (dup.requester_upn === user.upn) {
@@ -189,6 +199,14 @@ Deno.serve(async (req) => {
     if (b.args_digest) detail.args_digest = String(b.args_digest).slice(0, 120);
     if (b.module_ko) detail.module_ko = String(b.module_ko).slice(0, 60);
     if (b.detail) detail.note = String(b.detail).slice(0, 200);
+    // 미연계 항목·작업유형 — 요청함의 묶음(캠페인) 기준이 된다.
+    if (gapIn) {
+      detail.gap = {
+        type: gapIn.type ? String(gapIn.type).slice(0, 20) : null,
+        detail: gapIn.detail ? String(gapIn.detail).slice(0, 120) : null,
+        fix_type: fixType,
+      };
+    }
 
     const { data: ins, error } = await admin.from("portal_request").insert({
       kind, requester_upn: user.upn, requester_dept: myDept,
@@ -205,8 +223,11 @@ Deno.serve(async (req) => {
       "https://ai.jeilm.co.kr/",
     );
 
+    // 데이터 요청은 완료 시점을 약속하지 않는다(관리자 결정 2026-07-23) — 검토 착수만 통지.
     return json({ ok: true, req_no: ins.req_no, status: ins.status,
-      안내: `요청이 접수되었습니다(${ins.req_no}). 관리자 확인 후 결과를 알려드립니다.` });
+      안내: kind === "data" || kind === "feature"
+        ? `요청이 접수되었습니다(${ins.req_no}). 검토에 착수하며, 정기 업데이트 시 적용을 검토해 결과를 알려드립니다.`
+        : `요청이 접수되었습니다(${ins.req_no}). 관리자 확인 후 결과를 알려드립니다.` });
   }
 
   /* ===== op: mine — 내가 낸 요청 ===== */

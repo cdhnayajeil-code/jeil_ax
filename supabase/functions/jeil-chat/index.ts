@@ -453,7 +453,7 @@ async function runTool(admin: any, name: string, argsJson: string, scope: ErpSco
       접근제한: true, 요청안내: true, 모듈: erpMod, 부서: scope.dept || "미지정", 안내,
       // notice 뷰 — 서버 안내 문구를 그대로 카드 표시(전 게이트 도구 공통 1곳)
       __view: { view: "notice", title: "데이터 접근 권한 안내", kind: "deny", text: 안내,
-        request: { module: erpMod, moduleKo: modKo, dept },
+        request: { ui: "perm", kind: "perm", module: erpMod, moduleKo: modKo, dept },
         actions: [{ kind: "ask", label: "권한 요청 초안 작성",
           prompt: `포털 관리자에게 보낼 '${dept}의 ${modKo}(${erpMod}) ERP 모듈 권한' 요청 메시지 초안을 사내 메신저용으로 간결하게 작성해줘. 요청 사유 한 줄을 포함하고, 내가 복사해서 직접 보낼 수 있는 형태로.` }] } satisfies ViewPayload,
     };
@@ -629,9 +629,17 @@ async function runTool(admin: any, name: string, argsJson: string, scope: ErpSco
         fields: [
           { k: "품목수", v: comma(items.size) },
           { k: "출고합계", v: comma(outq) },
-          { k: "입고합계", v: `${comma(inq)} (미적재)` },
+          // gap 표기(§14-6 P2a): 값이 0으로 보이는 칸은 "실적 0"이 아니라 "아직 못 채운 칸"임을 배지로 명시.
+          //   fix_type = 담당자 작업 유형(§14-4) — 요청 묶음의 단위가 된다.
+          { k: "입고합계", v: comma(inq), gap: "미적재", gap_why: "입출고 분류규칙 미확정(IO_TYPE_CD 체계 확인 전)", fix_type: "column" },
+          { k: "재고합계", v: "-", gap: "미연계", gap_why: "원천(M_PUR_GOODS_MVMT)은 이동이력 테이블 — 잔고는 별도 테이블 연결 필요", fix_type: "table" },
           { k: "표본행수", v: comma(rows.length) },
-        ], note: "입고량·재고량은 중간DB 미적재 — 실적으로 단정 금지" } satisfies ViewPayload };
+        ],
+        // 데이터 적용요청(2분류 중 '데이터' 축) — 프론트는 이 객체를 그대로 반송한다.
+        request: { ui: "data", kind: "data", module: "inventory", moduleKo: "재고",
+          dept: scope.dept || "미지정",
+          gap: { type: "field", detail: "입고량·재고량", fix_type: "column,table" } },
+        note: "입고량·재고량은 중간DB 미적재 — 실적으로 단정 금지" } satisfies ViewPayload };
   }
 
   if (name === "get_erp_item") {
@@ -988,7 +996,7 @@ async function runTool(admin: any, name: string, argsJson: string, scope: ErpSco
       const 안내 = `급여 집계는 인사팀(또는 포털 관리자)만 열람할 수 있습니다. 회원님 소속(${scope.dept || "미지정"})은 권한 범위 밖입니다. 인원 수만 필요하시면 '인원현황'으로 다시 물어보세요(전사 총원은 조회 가능).`;
       return { 접근제한: true, 요청안내: true, 모듈: "payroll", 부서: scope.dept || "미지정", 안내,
         __view: { view: "notice", title: "급여 데이터 접근 제한", kind: "deny", text: 안내,
-          request: { module: "payroll", moduleKo: "급여·인사", dept: scope.dept || "미지정" },
+          request: { ui: "perm", kind: "perm_sensitive", module: "payroll", moduleKo: "급여·인사", dept: scope.dept || "미지정" },
           actions: [
             { kind: "ask", label: "전사 인원현황만 보기", prompt: "2026년 월별 전사 인원현황 보여줘" },
             { kind: "ask", label: "권한 요청 초안 작성", prompt: "포털 관리자에게 보낼 급여·인사(payroll) ERP 모듈 권한 요청 메시지 초안을 사내 메신저용으로 간결하게 작성해줘. 요청 사유 한 줄을 포함하고, 내가 복사해서 직접 보낼 수 있는 형태로." },
@@ -1049,7 +1057,10 @@ async function runTool(admin: any, name: string, argsJson: string, scope: ErpSco
     if (!docScope) return { 오류: "문서 연동 범위 미설정",
       안내: "AI 문서 연동 범위(승인 프로젝트 폴더)가 설정되지 않아 검색을 제공하지 않습니다. 관리자에게 범위 등록을 요청하세요.",
       __view: { view: "notice", title: "문서 연동 범위 미설정", kind: "info",
-        text: "AI 문서 연동 범위(승인 프로젝트 폴더)가 설정되지 않아 검색을 제공하지 않습니다. 관리자에게 범위 등록을 요청하세요." } satisfies ViewPayload };
+        text: "AI 문서 연동 범위(승인 프로젝트 폴더)가 설정되지 않아 검색을 제공하지 않습니다. 관리자에게 범위 등록을 요청하세요.",
+        // 문서 승인범위는 "문서는 있는데 못 본다" → 사용자 화면상 권한요청(ui:perm), 원장 유형은 doc(담당 분리)
+        request: { ui: "perm", kind: "doc", module: "document", moduleKo: "문서 연동범위",
+          dept: scope.dept || "미지정" } } satisfies ViewPayload };
     try {
       // 서버측 스코프: 승인 범위 경로(폴더/라이브러리/사이트)로 KQL path 한정 + 여유분 확보(후단 하드필터 대비)
       const pathClause = ` AND (${docScope.map((s) => `path:"${s.webUrl}"`).join(" OR ")})`;

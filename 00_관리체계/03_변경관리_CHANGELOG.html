@@ -108,6 +108,13 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 </thead>
 <tbody>
 <tr>
+<td>2026-07-23</td>
+<td>챗봇·제품기획</td>
+<td><code>11_제품기획/11</code>(§14 신설, 상태줄 갱신)</td>
+<td><strong>요청접수 P1 기능점검 + 미연계 데이터(C·D·E) 확장 기획검토.</strong> ① 점검: "열람 권한 요청하기가 안 보인다"는 제보를 실측한 결과 <strong>기능 결함이 아니라 계정 조건</strong>이었다 — <code>perm_effective('dh.choi@…')</code>가 <code>is_admin=true</code> + ERP 모듈 8종 전부이므로 서버 게이트(<code>jeil-chat:447</code>)가 거부 카드를 아예 만들지 않는다(붙을 카드가 없어 버튼도 없음). 라이브에서 거부 카드를 직접 주입해 버튼 렌더 확인, 백엔드는 <code>stats/list/mine</code> 정상·관리자 접수 시 <code>already_granted</code> 409 차단·사유 15자 하한·위조 <code>kind</code> 거부·무인증 401까지 전 경로 실측 정상. 배포 이후 챗봇을 쓴 비관리자 계정 0명이라 실사용 트리거 기회도 아직 없었음(재현 경로: 비관리자 <code>hh.lee2@…</code>(총무팀, payroll·finance 무권한)로 급여 질의). ② 기획검토(§14): 미연계 응답은 <strong>7곳</strong>에서 나오며 그중 <code>request</code>를 싣는 곳이 0곳 → P1 버튼이 절대 나타나지 않음을 전수 확인. C가 권한(A·B)과 다른 3가지(원인 판정 불가 4갈래 ⓐ미적재ⓑ기간밖ⓒERP에도 없음ⓓ조건오입력 / 리드타임 자릿수 차이 — 유니포인트 협의 의존 / <strong>가장 위험한 건 "안 나옴"이 아니라 "0으로 나옴"</strong>인 부분적재)를 정리하고, <code>erp_ro.table_dict</code> <strong>2,658행</strong>을 요청 자동분류 근거로 활용하는 설계를 제시(적재범위 레지스트리 <code>erp_load_scope</code> 권고, <code>request.kind</code>·<code>gap</code> 확장, 유형 추가 0·뷰 추가 0, <code>needs_vendor_review</code> 재활용으로 <code>blocked</code> 상태 신설 회피). <strong>착수 전 선수정 결함 2건 발견</strong>: <code>04:1957</code> 요청 유형이 <code>payroll</code> 여부로 하드코딩돼 C·D·E도 전부 <code>perm</code>으로 접수됨(라우팅·통계 오염), <code>jeil-chat:1051</code> notice에 <code>request</code> 누락. P2를 P2a(결측 표기 정확성)~P2d(<code>get_my_requests</code>)로 재분할하고 106KB 재배포 비용 때문에 <strong>묶음 배포</strong> 권고. <strong>추가 미결정 4건</strong>(<code>erp_load_scope</code> 신설 여부·<code>data</code> 승인의 의미·E 유형 노출 여부·C 유형 SLA 분리) 관리자 판단 대기.</td>
+<td>최동혁(+Claude)</td>
+</tr>
+<tr>
 <td>2026-07-22</td>
 <td>챗봇</td>
 <td>커밋 <code>da48325</code>(main push) · <code>04_챗봇_포털_데모UI.html</code> 라이브</td>
