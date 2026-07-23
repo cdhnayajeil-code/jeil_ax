@@ -907,7 +907,7 @@ C-3(부분적재)은 조회가 <strong>성공</strong>하고 값이 <strong>0</s
 <p><strong>프롬프트에서 발견한 함정</strong>: 기존 문장이 <em>"입고량·재고량은 미적재입니다"</em> 로 단정해 두니 모델이 <strong>"조회할 필요 없다"</strong> 고 판단해 도구를 부르지 않고 그 문장만 재진술했다. 결측 배지를 도입한 뒤에는 이 문장이 오히려 기능을 막는다 → <em>"반드시 조회하고, 미적재 표기는 카드 배지가 처리한다"</em> 로 교체했다. <strong>미적재 지식을 프롬프트에 넣지 말고 도구 반환값에 두라</strong>는 것이 이번 작업의 교훈이다.</p>
 <h3 id="14-8">14-8. 추가 미결정 사항 (관리자 결정 필요)</h3>
 <ol start="7">
-<li><strong><code>erp_load_scope</code> 신설 여부</strong> — 데이터로 승격(권고, 안내문 변경 시 재배포 불필요) vs 현행 코드 상수 유지(개발 0, 변경마다 재배포).</li>
+<li>~~<strong><code>erp_load_scope</code> 신설 여부</strong>~~ → <strong>결정: 신설</strong>(2026-07-23). 마이그레이션 <code>erp_load_scope_v1</code>, 정본 <code>이관/sql/19_erp_load_scope.sql</code>, 시드 11행(전부 실측). 챗봇 결측 배지·완료 게이트·요청함 현황이 이 표 하나를 본다. <strong>잔여</strong>: <code>jeil-chat</code>의 재고 배지는 아직 코드 상수 — P2b 배포 때 레지스트리 조회로 교체(그때까지 값은 동일하게 유지·이중 출처 상태).</li>
 <li><strong><code>data</code> 요청 승인의 의미</strong> — 승인 = ETL 착수 확정인가, 검토 대기열 등재인가. 유니포인트 협의 의존분을 어떻게 약속할지와 직결(§14-2②).</li>
 <li><strong>E(기능 없음) 유형 노출 여부</strong> — 사용자에게 "그 기능은 없습니다 + 요청하기"를 보일지, 조용히 백로그만 쌓을지.</li>
 <li><strong>C 유형 SLA 분리</strong> — §11-5의 단일 SLA 대신 <code>data</code>는 <strong>1차 응답만 SLA(1영업일), 완료 SLA 없음</strong>을 기본안으로 제안.</li>
@@ -1007,6 +1007,102 @@ C-3(부분적재)은 조회가 <strong>성공</strong>하고 값이 <strong>0</s
 </tr>
 </tbody>
 </table>
+<hr />
+<h2 id="16-erp_load_scope-2026-07-23">16. 적재범위 레지스트리 <code>erp_load_scope</code> (2026-07-23 신설)</h2>
+<h3 id="16-1">16-1. 무엇을 해결하는가</h3>
+<p>적재범위 지식이 <strong>코드 5곳에 문자열로</strong> 흩어져 있었다(<code>jeil-chat:52·114·626·764·1005</code>). 문구 한 줄을 고치려면 106KB Edge Function을 재배포해야 했고, 같은 사실이 시스템 프롬프트·도구 설명·카드 각주에 <strong>제각각 복제</strong>돼 서로 어긋날 여지가 있었다(실제로 "수금액 미매핑"은 원인이 두 가지로 달랐다 — §14-2③).</p>
+<p>이제 <strong>표 하나가 단일 출처</strong>다.</p>
+<pre><code>erp_load_scope(module, field_key, label_ko, state, gap_label, gap_why,
+               fix_type, erp_source, period_from/to, expandable, note)
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>소비처</th>
+<th>쓰임</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>챗봇 카드</td>
+<td>결측 배지 문구·툴팁 (<strong>P2b 배포 시 연결</strong> — 현재는 코드 상수)</td>
+</tr>
+<tr>
+<td>데이터 요청 <strong>완료 게이트</strong></td>
+<td>모듈×작업유형 항목이 전부 <code>loaded</code>여야 완료 가능 ✅ 연결됨</td>
+</tr>
+<tr>
+<td>요청함 「미연계 항목 현황」</td>
+<td>상태·사유·<strong>항목별 미해결 요청 수</strong>·기록 버튼 ✅ 연결됨</td>
+</tr>
+</tbody>
+</table>
+<h3 id="16-2">16-2. 시드 (전부 실측 — 추정값 없음)</h3>
+<table>
+<thead>
+<tr>
+<th>모듈</th>
+<th>항목</th>
+<th>상태</th>
+<th>작업유형</th>
+<th>근거</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>inventory</td>
+<td>출고량</td>
+<td>적재됨</td>
+<td>—</td>
+<td>1,847행 중 1,846행 값 있음</td>
+</tr>
+<tr>
+<td>inventory</td>
+<td><strong>입고량</strong></td>
+<td>미적재</td>
+<td>칸 수정·추가</td>
+<td>분류규칙(IO_TYPE_CD) 미확정 — 입고 1행</td>
+</tr>
+<tr>
+<td>inventory</td>
+<td><strong>재고량</strong></td>
+<td>미적재</td>
+<td>새 테이블 연결</td>
+<td>원천이 이동이력 테이블 — 0행</td>
+</tr>
+<tr>
+<td>sales</td>
+<td>매출액</td>
+<td>적재됨</td>
+<td>—</td>
+<td>37행 중 36행 값 있음</td>
+</tr>
+<tr>
+<td>sales</td>
+<td><strong>수금액</strong></td>
+<td>미적재</td>
+<td>칸 수정·추가</td>
+<td>추출 SQL엔 있으나 원천 컬럼이 공백 — 협의 대상</td>
+</tr>
+<tr>
+<td>sales</td>
+<td><strong>수주액</strong></td>
+<td>미적재</td>
+<td>새 테이블 연결</td>
+<td>원천(S_SO) 미확정 — 협의 대상</td>
+</tr>
+<tr>
+<td>inventory·sales·purchase·pur_order·payroll</td>
+<td>적재기간</td>
+<td>부분적재</td>
+<td>기간 확대</td>
+<td>2026년 이후만</td>
+</tr>
+</tbody>
+</table>
+<h3 id="16-3">16-3. 상태 기록의 원칙</h3>
+<p><code>scope_set</code>은 <strong>적재를 실행하지 않는다 — 결과를 기록만 한다</strong>(CLAUDE.md §1.6). 실제 ETL은 <code>10_ERP_DB연계</code>의 담당 절차로 수행하고, 끝난 뒤 이 화면에서 <code>적재완료</code>로 기록해야 해당 데이터 요청의 완료 게이트가 열린다. 버튼 확인 문구에도 이 점을 명시했다.</p>
+<p><strong>부작용 하나</strong>: 적재 없이 기록만 바꾸면 게이트가 거짓으로 열린다. 이건 기술로 막을 수 없고 운영 규율의 영역이다 — 그래서 기록 버튼을 관리자 전용으로 두고 확인 대화상자에 경고를 넣었다.</p>
   </div>
   <div class="footer"><span>JEIL M&S · AI 포털 제품기획</span><span>11 요청접수 · 관리: 최동혁</span></div>
 </div>
