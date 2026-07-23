@@ -979,6 +979,20 @@
         </div>
       </div>
       <div class="sec">
+        <h3>작업유형별 묶음 <span style="font-size:11px;color:#888;font-weight:400;">— 데이터 요청은 담당자가 실제로 고치는 단위로 묶어 처리합니다</span></h3>
+        <p class="admin-note">같은 ERP 모듈이라도 <b>기간 확대</b>(설정 한 줄)와 <b>새 테이블 연결</b>(유니포인트 협의)은 작업도 소요도 다릅니다. 모듈로 묶으면 빨리 되는 일이 협의 대기에 끌려가므로, <b>작업 단위로 묶어</b> 한 번에 처리하세요(설계 §14-4·§14-6).</p>
+        <div class="cards" id="reqFixCards"></div>
+      </div>
+      <div class="sec">
+        <h3>미연계 항목 현황 <span style="font-size:11px;color:#888;font-weight:400;">— erp_load_scope (적재범위 단일 출처)</span>
+          <span style="float:right;"><button class="save" onclick="loadScope()">새로고침</button></span></h3>
+        <p class="admin-note">챗봇 카드의 <b>결측 배지</b>와 데이터 요청의 <b>완료 게이트</b>가 모두 이 표를 근거로 동작합니다. 실제 적재를 마친 뒤 <b>적재완료</b>로 기록해야 해당 요청을 완료 처리할 수 있습니다 — <b>이 버튼은 적재를 실행하지 않고 결과를 기록만 합니다.</b></p>
+        <div class="tblwrap" style="overflow-x:auto;">
+          <table><thead><tr><th>모듈</th><th>항목</th><th>상태</th><th>작업유형</th><th>사유</th><th class="c">요청</th><th class="c">기록</th></tr></thead>
+          <tbody id="reqScopeRows"><tr><td colspan="7" class="c" style="color:#888;padding:14px;">MS 로그인(관리자) 시 표시</td></tr></tbody></table>
+        </div>
+      </div>
+      <div class="sec">
         <h3>수요 통계 — 부서 × 대상</h3>
         <p class="admin-note">누적 요청 상위 20건. 반복 요청되는 조합은 <b>부서 기본 권한 재설계</b> 또는 <b>중간DB 적재범위 확대</b>의 근거가 됩니다(설계 §8-2).</p>
         <div class="tblwrap" style="overflow-x:auto;">
@@ -1575,7 +1589,7 @@ function showTab(key){
     document.getElementById('panel-'+k).classList.toggle('on', k===key);
     document.getElementById('tab-'+k).classList.toggle('on', k===key);
   });
-  if(key === 'requests') loadRequests();
+  if(key === 'requests'){ loadRequests(); loadScope(); }
 }
 
 /* ===== 실제 AI 연결 — jeil-chat 게이트웨이(Supabase Edge Function → OpenAI) =====
@@ -2226,6 +2240,9 @@ async function loadAdminLive(force){
    여기서는 그 결과를 요청에 반영(완료·반려)한다 — CLAUDE.md §1.6·§5.4. */
 var REQ_STATUS_KO = { open:'접수', ack:'확인', doing:'처리중', done:'완료', rejected:'반려', duplicate:'중복', cancelled:'취소' };
 var REQ_STATUS_BADGE = { open:'r', ack:'a', doing:'a', done:'g', rejected:'b', duplicate:'b', cancelled:'b' };
+/* 담당자 작업 유형 = 데이터 요청의 묶음 축(설계 §14-4) */
+var REQ_FIX_KO = { period:'기간 확대', column:'칸 수정·추가', table:'새 테이블 연결' };
+var REQ_SCOPE_BADGE = { loaded:'g', partial:'a', none:'r' };
 
 async function loadRequests(){
   var tb = document.getElementById('reqRows'); if(!tb) return;
@@ -2262,6 +2279,10 @@ async function loadRequests(){
       + '<td>'+target
         + (r.fulfilled === true ? ' <span class="badge g" title="요청자에게 실제 권한이 반영된 상태">반영됨</span>'
          : r.fulfilled === false ? ' <span class="badge r" title="아직 요청자에게 권한이 없습니다 — 권한 화면에서 부여 필요">미반영</span>' : '')
+        /* 데이터 요청은 "무엇이 미연계인지"와 "담당자가 무슨 작업을 해야 하는지"가 대상보다 중요하다 */
+        + (r.gap_detail ? '<br><span style="font-size:11px;color:#9a5b00;">⚠ '+escHtml(r.gap_detail)+'</span>' : '')
+        + (r.fix_type ? '<br>'+r.fix_type.split(',').map(function(f){
+              return '<span class="badge b" style="font-size:10px;" title="담당자 작업 유형 — 요청 묶음의 단위">'+escHtml(REQ_FIX_KO[f.trim()]||f.trim())+'</span>'; }).join(' ') : '')
         + '</td>'
       + '<td class="c">'+(r.supporter_count ? '<b>+'+r.supporter_count+'</b>' : '—')+'</td>'
       + '<td class="c">'+(r.urgency==='high'?'<span class="badge r">급함</span>':'—')+'</td>'
@@ -2284,6 +2305,16 @@ async function loadRequests(){
             return '<div class="card"><div class="lb">'+escHtml(k.kind_ko)+'</div><div class="v">'+k.open+'건</div></div>'; }).join('');
     }
     updateReqBadge(stats.open_count);
+    /* 작업유형별 묶음 — "이 작업 한 번으로 몇 건이 해결되는가"를 보여준다 */
+    var fc = document.getElementById('reqFixCards');
+    if(fc){
+      var bf = stats.by_fix_type || [];
+      fc.innerHTML = bf.length ? bf.map(function(f){
+        return '<div class="card"><div class="lb">'+escHtml(f.fix_ko||f.fix_type)+'</div>'
+          + '<div class="v">'+f.open+'건</div>'
+          + '<div style="font-size:11px;color:#888;margin-top:2px;">'+escHtml((f.modules||[]).join(' · '))+'</div></div>';
+      }).join('') : '<div class="card"><div class="lb">진행 중인 데이터 요청</div><div class="v">0건</div></div>';
+    }
     var hr = document.getElementById('reqHeatRows');
     if(hr){
       var heat = stats.heatmap || [];
@@ -2297,6 +2328,50 @@ async function loadRequests(){
 function updateReqBadge(n){
   var b = document.getElementById('reqBadge'); if(!b) return;
   if(n > 0){ b.textContent = n; b.style.display = 'inline-block'; } else { b.style.display = 'none'; }
+}
+
+/* 미연계 항목 현황 — erp_load_scope(적재범위 SSOT) 조회·기록.
+   여기서 '적재완료'로 기록해야 해당 데이터 요청의 완료 게이트가 열린다(설계 §15-3). */
+async function loadScope(){
+  var tb = document.getElementById('reqScopeRows'); if(!tb) return;
+  tb.innerHTML = '<tr><td colspan="7" class="c" style="color:#888;padding:14px;">불러오는 중…</td></tr>';
+  var out = await callRequestFn({ op:'scope' });
+  if(!out || out.error || !out.rows){
+    tb.innerHTML = '<tr><td colspan="7" class="c" style="color:#888;padding:14px;">'+escHtml((out&&out.error)||'조회 실패')+'</td></tr>';
+    return;
+  }
+  tb.innerHTML = out.rows.length ? out.rows.map(function(r){
+    var isGap = r.state !== 'loaded';
+    var mark = r.field_key === '*' ? '<span style="color:#888;font-size:11px;">모듈 전체</span>' : escHtml(r.field_key);
+    return '<tr'+(isGap?'':' style="opacity:.6;"')+'>'
+      + '<td><b>'+escHtml(r.module)+'</b></td>'
+      + '<td>'+escHtml(r.label_ko)+'<br><span style="color:#999;font-size:11px;">'+mark+'</span></td>'
+      + '<td><span class="badge '+(REQ_SCOPE_BADGE[r.state]||'b')+'">'+escHtml(r.state_ko||r.state)+'</span>'
+        + (r.gap_label?' <span class="badge a">'+escHtml(r.gap_label)+'</span>':'')+'</td>'
+      + '<td>'+(r.fix_ko?escHtml(r.fix_ko):'<span style="color:#aaa">—</span>')+'</td>'
+      + '<td style="font-size:11.5px;max-width:340px;">'+escHtml(r.gap_why||r.note||'')+'</td>'
+      + '<td class="c">'+(r.open_requests ? '<b>'+r.open_requests+'</b>'+(r.supporters?' <span style="color:#888;font-size:11px;">+'+r.supporters+'명</span>':'') : '—')+'</td>'
+      /* 인라인 onclick 대신 data 속성 + 후단 바인딩(따옴표 이스케이프 문제 회피) */
+      + '<td class="c">'+(isGap
+          ? '<button class="save scope-btn" data-sid="'+r.id+'" data-sstate="loaded" data-slabel="'+escHtml(r.label_ko)+'" style="padding:3px 8px;font-size:11px;">적재완료</button>'
+          : '<button class="save scope-btn" data-sid="'+r.id+'" data-sstate="none" data-slabel="'+escHtml(r.label_ko)+'" style="padding:3px 8px;font-size:11px;background:#fff;color:var(--navy);">되돌리기</button>')+'</td>'
+      + '</tr>';
+  }).join('') : '<tr><td colspan="7" class="c" style="color:#888;padding:14px;">등록된 적재범위 항목이 없습니다.</td></tr>';
+
+  [].forEach.call(tb.querySelectorAll('.scope-btn'), function(btn){
+    btn.onclick = function(){ scopeSet(Number(btn.dataset.sid), btn.dataset.sstate, btn.dataset.slabel); };
+  });
+}
+
+/* 적재 상태 기록 — 실제 적재를 실행하지 않는다(결과 기록만). CLAUDE.md §1.6 */
+async function scopeSet(id, state, label){
+  var msg = state === 'loaded'
+    ? label + " 항목을 적재완료로 기록합니다.\n\n※ 이 버튼은 실제 적재를 실행하지 않습니다 — ETL 적재를 마친 뒤에만 기록하세요.\n기록하면 이 항목을 요구한 데이터 요청을 완료 처리할 수 있게 됩니다."
+    : label + " 항목을 미적재로 되돌립니다.";
+  if(!window.confirm(msg)) return;
+  var out = await callRequestFn({ op:'scope_set', id:id, state:state });
+  if(out && out.ok){ loadScope(); loadRequests(); }
+  else alert((out && (out['안내'] || out.error)) || '기록에 실패했습니다.');
 }
 
 async function reqTransition(reqNo, to){

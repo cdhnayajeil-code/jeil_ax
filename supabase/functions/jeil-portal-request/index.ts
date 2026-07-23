@@ -1,4 +1,4 @@
-// jeil-portal-request — 포털 요청 원장 CRUD (챗봇 조회불가 → 사용자 요청 접수) v2
+// jeil-portal-request — 포털 요청 원장 CRUD (챗봇 조회불가 → 사용자 요청 접수) v4
 // 배포: verify_jwt=false (Entra 토큰은 Supabase JWT가 아니므로 내부에서 직접 검증)
 // 호출: POST /functions/v1/jeil-portal-request  Authorization: Bearer <Entra access_token>
 //   body: { op: "create"|"mine"|"cancel"|"list"|"transition"|"stats", ... }
@@ -148,7 +148,26 @@ Deno.serve(async (req) => {
         return (count || 0) > 0;
       } catch { return null; }
     }
-    return null;   // data·feature·quality — 적재/구현 여부는 자동 판정 불가
+    return null;   // feature·quality — 구현 여부는 자동 판정 불가
+  }
+
+  /* data 유형 반영 판정 — erp_load_scope(적재범위 레지스트리)가 근거.
+     요청이 가리키는 (모듈 × 작업유형)의 항목이 전부 loaded 면 반영된 것으로 본다.
+     레지스트리에 해당 모듈 행이 아예 없으면 판정 불가(null) — 없는 근거로 막지 않는다. */
+  // deno-lint-ignore no-explicit-any
+  async function isDataFulfilled(admin: any, mod: string | null, fixType: string | null): Promise<boolean | null> {
+    if (!mod) return null;
+    try {
+      const { data } = await admin.from("erp_load_scope")
+        .select("field_key,state,fix_type").eq("module", mod);
+      // deno-lint-ignore no-explicit-any
+      const rows = (data || []) as any[];
+      if (!rows.length) return null;
+      const wants = (fixType || "").split(",").map((s) => s.trim()).filter(Boolean);
+      const scoped = wants.length ? rows.filter((r) => wants.includes(String(r.fix_type || ""))) : rows;
+      if (!scoped.length) return null;
+      return scoped.every((r) => r.state === "loaded");
+    } catch { return null; }
   }
 
   /* ===== op: create — 요청 접수 ===== */
@@ -355,12 +374,17 @@ Deno.serve(async (req) => {
     // 예외 처리가 필요하면 force=true 로 관리자가 명시 우회한다(사유는 handled_note 에 남는다).
     let fulfilled: boolean | null = null;
     if (to === "done") {
-      fulfilled = await isFulfilled(admin, String(row.kind), String(row.requester_upn), row.target_module);
+      fulfilled = row.kind === "data"
+        ? await isDataFulfilled(admin, row.target_module, row.target_detail?.gap?.fix_type ?? null)
+        : await isFulfilled(admin, String(row.kind), String(row.requester_upn), row.target_module);
       if (fulfilled === false && b.force !== true) {
         const modKo = String(row.target_detail?.module_ko || row.target_module || "요청 대상");
+        const gapKo = String(row.target_detail?.gap?.detail || "요청 항목");
         return json({ error: "not_fulfilled", 확인필요: true,
           안내: row.kind === "doc"
             ? "AI 문서 연동 범위가 아직 등록되지 않았습니다. 범위를 등록한 뒤 완료 처리하세요."
+            : row.kind === "data"
+            ? `'${modKo}'의 '${gapKo}'가 적재범위 레지스트리에서 아직 미적재 상태입니다. 실제 적재를 마친 뒤 「미연계 항목 현황」에서 적재완료로 표시하고 완료 처리하세요.`
             : `요청자에게 아직 '${modKo}' 열람 권한이 없습니다. 「권한 상세」(부서별 ERP 모듈) 또는 「권한 설정」(개인 예외)에서 부여한 뒤 완료 처리하세요. 부여 없이 닫으려면 처리 사유에 이유를 적고 강제 완료를 선택하세요.` }, 409);
       }
     }
@@ -414,6 +438,53 @@ Deno.serve(async (req) => {
       heatmap: Object.entries(heat).map(([k, v]) => ({ dept: k.split("|")[0], module: k.split("|")[1], n: v }))
         .sort((a, b) => b.n - a.n).slice(0, 20),
       total: rows.length });
+  }
+
+  /* ===== op: scope — 미연계 항목 현황(적재범위 레지스트리 + 관련 미해결 요청 수) ===== */
+  if (op === "scope") {
+    const g = adminGuard(); if (g) return g;
+    const [{ data: sc }, { data: reqs }] = await Promise.all([
+      admin.from("erp_load_scope").select("*").order("module").order("field_key"),
+      admin.from("portal_request").select("target_module,target_detail,status,supporters")
+        .eq("kind", "data").in("status", OPEN_STATES),
+    ]);
+    // deno-lint-ignore no-explicit-any
+    const rq = (reqs || []) as any[];
+    const STATE_KO: Record<string, string> = { loaded: "적재됨", partial: "부분적재", none: "미적재" };
+    const FIX_KO: Record<string, string> = { period: "기간 확대", column: "칸 수정·추가", table: "새 테이블 연결" };
+    // deno-lint-ignore no-explicit-any
+    const rows = ((sc || []) as any[]).map((r) => {
+      // 이 항목을 요구하는 미해결 요청(모듈 일치 + 작업유형 포함) — 수요를 항목 옆에 붙여 보여준다
+      const hits = rq.filter((q) => q.target_module === r.module &&
+        String(q.target_detail?.gap?.fix_type || "").split(",").map((s: string) => s.trim()).includes(String(r.fix_type || "")));
+      const people = new Set<string>();
+      for (const h of hits) for (const s of (h.supporters || [])) people.add(String(s));
+      return { ...r, state_ko: STATE_KO[r.state] || r.state, fix_ko: r.fix_type ? (FIX_KO[r.fix_type] || r.fix_type) : null,
+        open_requests: hits.length, supporters: people.size };
+    });
+    return json({ ok: true, rows,
+      summary: { total: rows.length, loaded: rows.filter((r) => r.state === "loaded").length,
+        gap: rows.filter((r) => r.state !== "loaded").length } });
+  }
+
+  /* ===== op: scope_set — 적재 상태 갱신(관리자). 실제 적재를 하는 것이 아니라 '결과를 기록'한다 ===== */
+  if (op === "scope_set") {
+    const g = adminGuard(); if (g) return g;
+    const id = Number(b.id || 0);
+    const state = String(b.state || "");
+    if (!id || !["loaded", "partial", "none"].includes(state)) {
+      return json({ error: "id와 state(loaded|partial|none)가 필요합니다." }, 400);
+    }
+    const patch: Record<string, unknown> = { state, updated_at: nowIso };
+    if (state === "loaded") { patch.gap_label = null; patch.gap_why = null; }
+    if (b.note !== undefined) patch.note = b.note ? String(b.note).slice(0, 300) : null;
+    const { data, error } = await admin.from("erp_load_scope").update(patch).eq("id", id)
+      .select("module,field_key,label_ko,state").single();
+    if (error) return json({ error: "갱신 실패: " + error.message }, 500);
+    return json({ ok: true, ...data,
+      안내: state === "loaded"
+        ? "적재됨으로 기록했습니다. 이 항목을 요구한 데이터 요청을 이제 완료 처리할 수 있습니다."
+        : "상태를 기록했습니다." });
   }
 
   return json({ error: "지원하지 않는 op" }, 400);
