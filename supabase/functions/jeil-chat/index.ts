@@ -196,6 +196,14 @@ const TOOLS = [
       parameters: { type: "object", properties: { ym: { type: "string", description: "조회 월 YYYY-MM(선택)" } }, required: [] },
     },
   },
+  {
+    type: "function",
+    function: {
+      name: "get_my_requests",
+      description: "로그인한 '본인'이 접수한 포털 요청의 진행상황 조회 — 접수번호·유형(권한/데이터 적재범위 등)·상태·대상·처리 회신. '내 요청 어떻게 됐어?', '권한 요청 진행상황', '내가 낸 요청 보여줘' 류 질의에 사용. 본인이 낸 건과 동조자로 참여한 건만 조회되며 타인의 요청은 조회할 수 없다.",
+      parameters: { type: "object", properties: {}, required: [] },
+    },
+  },
   /* ===== 3단계 문서 도구 (사용자 OneDrive/SharePoint · 위임 토큰 · 보안 트리밍) ===== */
   {
     type: "function",
@@ -437,6 +445,25 @@ function inScope(scopes: DocScope[], driveId: string, webUrl: string): boolean {
   return scopes.some((s) => s.driveId === du && (!s.pathPrefix || wu.startsWith(s.pathPrefix)));
 }
 
+/* ===== 적재범위 레지스트리(erp_load_scope) — "무엇이 어디까지 적재됐나"의 단일 출처 =====
+   설계 11 §16. 결측 배지 문구를 코드 상수로 들고 있으면 문구 하나 바꾸는 데도 재배포가 필요하고
+   같은 사실이 프롬프트·도구설명·카드각주에 복제돼 어긋난다. 여기서는 표만 읽는다.
+   조회 실패는 빈 배열 → 배지가 사라질 뿐 조회 자체는 정상 동작(부가 정보이므로 fail-soft). */
+type ScopeRow = { field_key: string; label_ko: string; state: string; gap_label: string | null; gap_why: string | null; fix_type: string | null };
+// deno-lint-ignore no-explicit-any
+async function loadLoadScope(admin: any, mod: string): Promise<ScopeRow[]> {
+  try {
+    const { data } = await admin.from("erp_load_scope")
+      .select("field_key,label_ko,state,gap_label,gap_why,fix_type").eq("module", mod);
+    return (data || []) as ScopeRow[];
+  } catch { return []; }
+}
+// 해당 항목이 '미해결(loaded 아님)'이면 그 행을, 아니면 null
+const gapOf = (rows: ScopeRow[], key: string): ScopeRow | null =>
+  rows.find((r) => r.field_key === key && r.state !== "loaded") || null;
+// 결측 행들 → 카드 필드에 얹을 배지 속성
+const gapAttr = (g: ScopeRow | null) => (g ? { gap: g.gap_label || "미연계", gap_why: g.gap_why || "", fix_type: g.fix_type || "" } : {});
+
 // deno-lint-ignore no-explicit-any
 async function runTool(admin: any, name: string, argsJson: string, scope: ErpScope, userToken: string): Promise<unknown> {
   let args: Record<string, unknown> = {};
@@ -625,21 +652,27 @@ async function runTool(admin: any, name: string, argsJson: string, scope: ErpSco
     return { 기준시각: asOf, 대상: code || "전체(최근31일)", 품목수: items.size, 입고합계: inq, 출고합계: outq, 표본행수: rows.length,
       데이터주의: "현재 중간DB 재고는 출고만 유효하며 입고량·재고량은 미적재(0/미표기)입니다 — '입고 0/재고 없음'을 실적으로 단정하지 말 것. 특정 발주의 입고 여부는 get_erp_po_pr(입고수량)로 확인.",
       안내: "ERP 중간DB 재고 일집계 파일럿(입출고 분류는 협의 전 초안, 수집범위 일부 품목·약 1개월)",
-      __view: { view: "record", title: `재고 입출고 — ${code || "전체(최근 31일)"}`, asOf,
-        fields: [
-          { k: "품목수", v: comma(items.size) },
-          { k: "출고합계", v: comma(outq) },
-          // gap 표기(§14-6 P2a): 값이 0으로 보이는 칸은 "실적 0"이 아니라 "아직 못 채운 칸"임을 배지로 명시.
-          //   fix_type = 담당자 작업 유형(§14-4) — 요청 묶음의 단위가 된다.
-          { k: "입고합계", v: comma(inq), gap: "미적재", gap_why: "입출고 분류규칙 미확정(IO_TYPE_CD 체계 확인 전)", fix_type: "column" },
-          { k: "재고합계", v: "-", gap: "미연계", gap_why: "원천(M_PUR_GOODS_MVMT)은 이동이력 테이블 — 잔고는 별도 테이블 연결 필요", fix_type: "table" },
-          { k: "표본행수", v: comma(rows.length) },
-        ],
-        // 데이터 적용요청(2분류 중 '데이터' 축) — 프론트는 이 객체를 그대로 반송한다.
-        request: { ui: "data", kind: "data", module: "inventory", moduleKo: "재고",
-          dept: scope.dept || "미지정",
-          gap: { type: "field", detail: "입고량·재고량", fix_type: "column,table" } },
-        note: "입고량·재고량은 중간DB 미적재 — 실적으로 단정 금지" } satisfies ViewPayload };
+      __view: await (async () => {
+        // 결측 배지는 레지스트리에서 온다(§16) — 코드 상수 제거. 적재가 끝나 state=loaded 가 되면 배지가 자동으로 사라진다.
+        const sc = await loadLoadScope(admin, "inventory");
+        const gIn = gapOf(sc, "in_qty"), gStock = gapOf(sc, "stock_qty");
+        const gaps = [gIn, gStock].filter(Boolean) as ScopeRow[];
+        const fixes = [...new Set(gaps.map((g) => g.fix_type).filter(Boolean))].join(",");
+        return { view: "record", title: `재고 입출고 — ${code || "전체(최근 31일)"}`, asOf,
+          fields: [
+            { k: "품목수", v: comma(items.size) },
+            { k: "출고합계", v: comma(outq) },
+            { k: "입고합계", v: comma(inq), ...gapAttr(gIn) },
+            ...(gStock ? [{ k: "재고합계", v: "-", ...gapAttr(gStock) }] : []),
+            { k: "표본행수", v: comma(rows.length) },
+          ],
+          // 데이터 적용요청(2분류 중 '데이터' 축) — 결측이 있을 때만 붙인다.
+          ...(gaps.length ? { request: { ui: "data", kind: "data", module: "inventory", moduleKo: "재고",
+            dept: scope.dept || "미지정",
+            gap: { type: "field", detail: gaps.map((g) => g.label_ko).join("·"), fix_type: fixes } } } : {}),
+          note: gaps.length ? `${gaps.map((g) => g.label_ko).join("·")}은 중간DB 미적재 — 실적으로 단정 금지` : undefined,
+        } satisfies ViewPayload;
+      })() };
   }
 
   if (name === "get_erp_item") {
@@ -770,7 +803,18 @@ async function runTool(admin: any, name: string, argsJson: string, scope: ErpSco
       안내: (구매요청.length || 발주.length || 매입.length)
         ? "요청→발주→입고→매입 진행순. 진행상태 코드는 요청RQ→확정CF→발주완료PO→입고GR→매입IV. 수량·금액은 ERP 중간DB(2026) 기준."
         : `이 품목(${code})은 중간DB(2026년)에 등록된 구매요청·발주·매입이 없습니다. 2025년 이전 건은 미적재이니 있으면 원본 ERP를 확인하세요.`,
-      __view: (구매요청.length || 발주.length) ? view : undefined,
+      // 이력 0건은 "없다"가 아니라 "적재범위 밖일 수 있다" — 평문으로 끝내지 않고 카드로 원인과 요청 경로를 준다(§14-6 P2b).
+      // 조건 오입력(ⓓ)일 가능성이 있으므로 '품목 다시 확인'을 앞에 두고 요청 버튼은 뒤로 보낸다(confirm_first).
+      __view: (구매요청.length || 발주.length) ? view : await (async () => {
+        const p = gapOf(await loadLoadScope(admin, "pur_order"), "*");
+        return { view: "notice", title: `${code} — 등록된 발주·구매요청 이력 없음`, kind: "info",
+          text: `중간DB(${p ? "2026년 이후 적재" : "현재 적재범위"})에 이 품목의 구매요청·발주·매입이 없습니다. 품목코드가 맞는지 먼저 확인하시고, 2025년 이전 건이라면 적재범위 밖입니다.`,
+          actions: [{ kind: "ask", label: "품목 정보 다시 확인", prompt: `품목 ${code} 정보 확인해줘` }],
+          ...(p ? { request: { ui: "data", kind: "data", module: "pur_order", moduleKo: "발주·구매요청",
+            dept: scope.dept || "미지정", confirm_first: true,
+            gap: { type: "period", detail: p.label_ko, fix_type: p.fix_type } } } : {}),
+        } satisfies ViewPayload;
+      })(),
     };
   }
 
@@ -1009,8 +1053,18 @@ async function runTool(admin: any, name: string, argsJson: string, scope: ErpSco
     if (error) return { 오류: "인사 집계 조회 실패: " + error.message };
     // deno-lint-ignore no-explicit-any
     const rows = ((pr || []) as any[]).filter((r) => !ymF || String(r.ym) === ymF);
-    if (!rows.length) return { 기준시각: asOf, 조건: ymF || "전체", 건수: 0,
-      안내: "해당 기간 인사 집계 데이터가 없습니다. 현재 중간DB 적재 범위를 확인하세요(2026년 이후 월별 적재)." };
+    if (!rows.length) {
+      // 기간 밖 무데이터 — 평문 대신 카드 + 적용요청 경로(§14-6 P2b)
+      const p = gapOf(await loadLoadScope(admin, "payroll"), "*");
+      const 안내 = "해당 기간 인사 집계 데이터가 없습니다. 현재 중간DB는 2026년 이후만 월별 적재되어 있습니다.";
+      return { 기준시각: asOf, 조건: ymF || "전체", 건수: 0, 안내,
+        __view: { view: "notice", title: "인사 집계 — 적재범위 밖", kind: "info", text: 안내,
+          actions: [{ kind: "ask", label: "2026년 인원현황 보기", prompt: "2026년 월별 전사 인원현황 보여줘" }],
+          ...(p ? { request: { ui: "data", kind: "data", module: "payroll", moduleKo: "급여·인사",
+            dept: scope.dept || "미지정", confirm_first: true,
+            gap: { type: "period", detail: p.label_ko, fix_type: p.fix_type } } } : {}),
+        } satisfies ViewPayload };
+    }
     const byYm: Record<string, { hc: number; pay: number; ret: number; depts: number }> = {};
     for (const r of rows) {
       const m = (byYm[r.ym] = byYm[r.ym] || { hc: 0, pay: 0, ret: 0, depts: 0 });
@@ -1045,6 +1099,53 @@ async function runTool(admin: any, name: string, argsJson: string, scope: ErpSco
     return { ...base, 부서별, 열람권한: scope.isAdmin ? "관리자" : "인사팀",
       안내: `인원은 급여대장(HDF070T) 기준 급여대상 인원으로 마감 전 변동될 수 있습니다. ${wantsPay ? "급여는 집계(총액·인원)만이며 개인별·주민번호·계좌는 중간DB에 없습니다. " : ""}민감 데이터 접근은 감사 기록(hr_access_log)됩니다 — 답변에 개인 식별 정보를 포함하지 마세요.`,
       __view: hrView };
+  }
+
+  /* 내 요청 진행상황 — 완료 통보를 못 받아 재요청하던 문제(설계 §15-4)의 조회 경로.
+     본인 접수분 + 동조 참여분만. 타인 요청은 조회 불가(요청자는 호출자 UPN으로 고정). */
+  if (name === "get_my_requests") {
+    const KIND_KO_REQ: Record<string, string> = {
+      perm: "권한", perm_sensitive: "민감권한(급여·인사)", data: "데이터 적재범위",
+      doc: "문서 연동범위", feature: "기능 요청", quality: "데이터 품질",
+    };
+    const ST_KO: Record<string, string> = {
+      open: "접수", ack: "확인", doing: "처리중", done: "완료", rejected: "반려", duplicate: "중복", cancelled: "취소",
+    };
+    const cols = "req_no,kind,status,target_module,target_detail,reason,handled_note,created_at,closed_at";
+    const [own, sup] = await Promise.all([
+      admin.from("portal_request").select(cols).eq("requester_upn", scope.upn)
+        .order("created_at", { ascending: false }).limit(20),
+      admin.from("portal_request").select(cols).contains("supporters", [scope.upn])
+        .order("created_at", { ascending: false }).limit(20),
+    ]);
+    const seen = new Set<string>();
+    // deno-lint-ignore no-explicit-any
+    const merged = ([...(own.data || []), ...(sup.data || [])] as any[])
+      .filter((r) => (seen.has(r.req_no) ? false : (seen.add(r.req_no), true)))
+      .sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)));
+    if (!merged.length) {
+      return { 기준시각: asOf, 건수: 0,
+        안내: "접수하신 요청이 없습니다. 챗봇이 '조회할 수 없다'고 답한 카드에서 「열람 권한 요청」 또는 「데이터 적용 요청」 버튼으로 접수할 수 있습니다." };
+    }
+    // deno-lint-ignore no-explicit-any
+    const 목록 = merged.map((r: any) => ({
+      접수번호: r.req_no, 유형: KIND_KO_REQ[r.kind] || r.kind, 상태: ST_KO[r.status] || r.status,
+      대상: r.target_detail?.module_ko || r.target_module || "-",
+      항목: r.target_detail?.gap?.detail || null,
+      접수일: String(r.created_at).slice(0, 10), 사유: r.reason,
+      처리회신: r.handled_note || null,
+    }));
+    return { 기준시각: asOf, 건수: 목록.length, 목록,
+      안내: "본인이 접수했거나 동조자로 참여한 요청만 조회됩니다. 처리 결과는 '처리회신'에 표시되며, 권한 요청은 완료 후 재로그인하면 반영됩니다.",
+      __view: { view: "list", title: `내 요청 ${목록.length}건`, asOf,
+        columns: [
+          { key: "접수번호", label: "접수번호" }, { key: "유형", label: "유형" },
+          { key: "대상", label: "대상" }, { key: "상태", label: "상태" },
+          { key: "접수일", label: "접수일" }, { key: "처리회신", label: "처리 회신" },
+        ],
+        // deno-lint-ignore no-explicit-any
+        rows: 목록.map((r: any) => ({ ...r, 처리회신: r.처리회신 || "" })),
+        note: "본인 접수·동조분만 표시" } satisfies ViewPayload };
   }
 
   /* ===== 3단계 문서 도구 (사용자 위임 토큰 · OneDrive/SharePoint 보안 트리밍) ===== */
@@ -1084,7 +1185,11 @@ async function runTool(admin: any, name: string, argsJson: string, scope: ErpSco
           ],
           // deno-lint-ignore no-explicit-any
           rows: 목록.map((x: any) => ({ 이름: x.이름, 수정일: String(x.수정일 || "").slice(0, 10), 링크: x.링크 })),
-          note: "AI 승인 범위 ∩ 본인 권한 문서만" } satisfies ViewPayload };
+          // 0건은 "없다"가 아니라 "승인 범위 밖일 수 있다" — 검색어 재확인을 먼저 권하고 요청 경로를 함께 준다.
+          ...(목록.length === 0 ? { request: { ui: "perm", kind: "doc", module: "document", moduleKo: "문서 연동범위", dept: scope.dept || "미지정", confirm_first: true } } : {}),
+          note: 목록.length === 0
+            ? "검색 결과 없음 — 검색어를 바꿔보시고, 필요한 폴더가 AI 연동 범위에 없다면 아래로 요청하세요"
+            : "AI 승인 범위 ∩ 본인 권한 문서만" } satisfies ViewPayload };
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       if (msg.includes("401") || msg.includes("403")) return { 오류: "문서 접근 권한 없음", 안내: "MS 재로그인(파일 권한 포함)이 필요할 수 있습니다. 계속 실패하면 관리자에게 문의하세요." };
@@ -1100,14 +1205,22 @@ async function runTool(admin: any, name: string, argsJson: string, scope: ErpSco
     const docScope = await loadDocScope(admin);
     if (!docScope) return { 오류: "문서 연동 범위 미설정", 안내: "AI 문서 연동 범위가 설정되지 않아 본문을 제공하지 않습니다. 관리자에게 문의하세요." };
     // 1차 게이트: 승인 driveId가 하나도 없으면 Graph 호출 전 차단
-    if (!docScope.some((s) => s.driveId === driveId)) return { 오류: "범위 밖 문서",
-      안내: "이 문서는 AI 연동 승인 범위(프로젝트 폴더)에 없어 열람할 수 없습니다. search_my_documents로 승인 범위 내 문서를 찾으세요." };
+    if (!docScope.some((s) => s.driveId === driveId)) {
+      const 안내 = "이 문서는 AI 연동 승인 범위(프로젝트 폴더)에 없어 열람할 수 없습니다. search_my_documents로 승인 범위 내 문서를 찾으세요.";
+      return { 오류: "범위 밖 문서", 안내,
+        __view: { view: "notice", title: "문서 연동 승인범위 밖", kind: "deny", text: 안내,
+          request: { ui: "perm", kind: "doc", module: "document", moduleKo: "문서 연동범위", dept: scope.dept || "미지정" } } satisfies ViewPayload };
+    }
     const base = `https://graph.microsoft.com/v1.0/drives/${encodeURIComponent(driveId)}/items/${encodeURIComponent(itemId)}`;
     try {
       const meta = await graphGet(userToken, `${base}?$select=name,size,file,webUrl,lastModifiedDateTime`);
       // 2차 게이트: 폴더 레벨 경로 검증(승인 폴더 하위인지) — 같은 라이브러리라도 범위 밖 폴더면 차단
-      if (!inScope(docScope, driveId, String(meta.webUrl || ""))) return { 오류: "범위 밖 폴더",
-        안내: "이 문서는 승인된 AI 연동 폴더 하위가 아니어서 열람할 수 없습니다. search_my_documents로 승인 범위 내 문서를 찾으세요." };
+      if (!inScope(docScope, driveId, String(meta.webUrl || ""))) {
+        const 안내 = "이 문서는 승인된 AI 연동 폴더 하위가 아니어서 열람할 수 없습니다. search_my_documents로 승인 범위 내 문서를 찾으세요.";
+        return { 오류: "범위 밖 폴더", 안내,
+          __view: { view: "notice", title: "승인 폴더 밖 문서", kind: "deny", text: 안내,
+            request: { ui: "perm", kind: "doc", module: "document", moduleKo: "문서 연동범위", dept: scope.dept || "미지정" } } satisfies ViewPayload };
+      }
       const nm = String(meta.name || "");
       if (/\.xlsx?$/i.test(nm)) {
         const ws = await graphGet(userToken, `${base}/workbook/worksheets`);

@@ -1914,7 +1914,10 @@ function renderView(host, v){
       ? '📭 데이터 적용 요청'
       : '🔒 ' + (v.request.module === 'payroll' ? '급여·인사 열람 권한 요청' : '열람 권한 요청하기');
     (function(rq, btn){ btn.onclick = function(){ openReqModal(rq, btn); }; })(v.request, rb);
-    ab.insertBefore(rb, ab.firstChild);
+    /* confirm_first: 조건 오입력일 가능성이 있는 무데이터 카드에서는 '다시 확인' 액션을 앞세우고
+       요청 버튼을 뒤로 보낸다 — 잘못된 조건으로 낸 요청이 담당자 큐에 쌓이는 것을 줄인다(설계 §14-6 P2b). */
+    if(v.request.confirm_first) ab.appendChild(rb);
+    else ab.insertBefore(rb, ab.firstChild);
   }
   var tsv = _cvTsv(v);
   if(tsv){
