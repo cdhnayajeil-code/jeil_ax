@@ -47,7 +47,7 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
   <div class="content">
 <h1 id="11">11 · 챗봇 데이터 요청접수 설계 — "조회 불가 → 요청 버튼 → 접수·처리"</h1>
 <blockquote>
-<p>관리자: 최동혁(dh.choi@jeilm.co.kr) · 기준일: 2026-07-23 · 상태: <strong>Accepted — P1(권한 유형) 구현·배포 완료 / P2(미연계 데이터) 기획검토 완료·착수 대기 / P3 잔여 (ADR-011)</strong>
+<p>관리자: 최동혁(dh.choi@jeilm.co.kr) · 기준일: 2026-07-23 · 상태: <strong>Accepted — P1(권한)·P2a(결측 표기·2분류)·완료 게이트 구현·배포 완료 / P2b~P2d 잔여 (ADR-011)</strong>
 관련: <a href="10_챗봇_응답렌더링_설계.md">10 응답렌더링</a> · <a href="05_프론트엔드_백엔드_설계.md">05 FE·BE</a> · <a href="06_ERP연계_챗봇활용_설계.md">06 ERP연계</a> · <a href="04_데이터베이스_설계.md">04 DB설계</a> · <a href="08_보안_데이터안정성.md">08 보안</a> · <a href="09_ADR_의사결정기록.md">09 ADR</a> · <code>CLAUDE.md §1.6·§5.4·§7·§13</code></p>
 </blockquote>
 <p>챗봇이 <strong>"그 데이터는 못 보여드립니다"</strong> 로 끝나는 지점에서, 사용자가 그 자리에서 <strong>요청 버튼</strong>을 눌러 접수하고, 관리자가 <strong>요청함</strong>에서 처리·회신하는 흐름을 설계한다.
@@ -197,7 +197,7 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <tr>
 <td>요청 평균 처리 리드타임</td>
 <td>측정 불가</td>
-<td>권한 유형 <strong>1영업일</strong> 내 1차 응답</td>
+<td>권한 유형 <strong>1영업일</strong> 내 1차 응답(내부 관리지표 — 화면에는 기한을 표시하지 않는다, §11-5)</td>
 </tr>
 <tr>
 <td>동일 요청 중복 접수</td>
@@ -602,7 +602,7 @@ comment on table public.portal_request is
 <li><strong>승인 라인</strong> — 권한 요청에 <strong>부서장 확인</strong>을 넣을지(2단 승인) 아니면 포털 관리자 단독 판단으로 갈지. 현재 <code>perm_effective</code>에 <code>dept_admin_of</code> 축이 이미 있어 2단 확장은 가능.</li>
 <li><strong>상태 이력 테이블 분리 여부</strong> — <code>portal_request</code> 컬럼 갱신만으로 갈지, 전이 이력을 별도 로그로 남길지(감사 요구 수준에 의존).</li>
 <li><strong><code>data</code> 유형의 유니포인트 협의 게이트</strong> — ETL 확대 요청이 벤더 협의를 요하면(§4-2) 요청 상태를 <code>doing</code>에 묶어둘지 별도 <code>blocked</code> 상태를 둘지.</li>
-<li><strong>SLA 수치 확정</strong> — 1차 응답 1영업일 / 완료 5영업일을 기본안으로 제안. 관리자 확정 필요.</li>
+<li>~~<strong>SLA 수치 확정</strong>~~ → <strong>결정: 처리 기한을 화면에서 약속하지 않는다</strong>(2026-07-23, 관리자). 긴급도는 보통/급함 <strong>우선순위 구분 용도로만</strong> 쓰고 옵션에서 "1영업일 내 확인"·"당일 처리" 문구를 제거했다. <code>data</code> 유형은 "검토 착수 + 정기 업데이트 시 적용 검토"로 회신한다(§14-8 10번과 통합). 내부 관리지표로서의 리드타임 집계는 유지(§2 목표표).</li>
 <li><strong>요청 보존기간</strong> — <code>done/rejected</code> 건의 보존(제안: 2년) 및 개인정보 관점 파기 정책.</li>
 </ol>
 <hr />
@@ -871,6 +871,40 @@ C-3(부분적재)은 조회가 <strong>성공</strong>하고 값이 <strong>0</s
 </tr>
 </tbody>
 </table>
+<h3 id="14-9-p2a-2026-07-23">14-9. P2a 구현·실측 실적 (2026-07-23)</h3>
+<p>§14-6의 P2a를 <strong>2분류 구조로 확장해</strong> 구현·배포했다. 라이브(<code>ai.jeilm.co.kr</code>) 실측 결과를 함께 남긴다.</p>
+<table>
+<thead>
+<tr>
+<th>계층</th>
+<th>산출물</th>
+<th>실측</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>서버</td>
+<td><code>jeil-chat</code> <strong>v28</strong> — <code>request.ui</code>(perm|data)·<code>kind</code> 부여, 재고 도구에 <code>gap</code>/<code>gap_why</code>/<code>fix_type</code> 신설, 문서범위 카드에 <code>request</code> 추가</td>
+<td>「재고 입출고 현황」 카드에 <code>입고합계 0 ⚠미적재</code>(fix_type <code>column</code>) · <code>재고합계 - ⚠미연계</code>(fix_type <code>table</code>) 표시</td>
+</tr>
+<tr>
+<td>API</td>
+<td><code>jeil-portal-request</code> <strong>v3</strong> — <code>gap</code> 저장, 중복병합 키에 <code>fix_type</code> 포함, <code>by_fix_type</code> 집계, <strong>완료 게이트</strong>(§15)</td>
+<td>동일 요청 재접수 → 병합 / 같은 모듈·다른 <code>fix_type</code> → 별건 접수 확인</td>
+</tr>
+<tr>
+<td>프론트</td>
+<td>결측 배지(<code>.cv-gap</code>+툴팁), 버튼 2분류, 모달 제목·안내 유형별 분기, 요청 유형 하드코딩 제거, 긴급도 기한 문구 제거</td>
+<td><code>REQ-2026-0003</code> 접수 → 원장 <code>kind=data</code>(이전엔 <code>perm</code>으로 오분류), 사유의 계좌번호 <code>***-****-****</code> 마스킹</td>
+</tr>
+<tr>
+<td>프롬프트</td>
+<td>DB <code>ai_gateway_config.system_prompt</code> 수정(재배포 불필요)</td>
+<td>「재고 현황 보여줘」가 도구를 건너뛰던 문제 해소 — 조회 후 카드 표시</td>
+</tr>
+</tbody>
+</table>
+<p><strong>프롬프트에서 발견한 함정</strong>: 기존 문장이 <em>"입고량·재고량은 미적재입니다"</em> 로 단정해 두니 모델이 <strong>"조회할 필요 없다"</strong> 고 판단해 도구를 부르지 않고 그 문장만 재진술했다. 결측 배지를 도입한 뒤에는 이 문장이 오히려 기능을 막는다 → <em>"반드시 조회하고, 미적재 표기는 카드 배지가 처리한다"</em> 로 교체했다. <strong>미적재 지식을 프롬프트에 넣지 말고 도구 반환값에 두라</strong>는 것이 이번 작업의 교훈이다.</p>
 <h3 id="14-8">14-8. 추가 미결정 사항 (관리자 결정 필요)</h3>
 <ol start="7">
 <li><strong><code>erp_load_scope</code> 신설 여부</strong> — 데이터로 승격(권고, 안내문 변경 시 재배포 불필요) vs 현행 코드 상수 유지(개발 0, 변경마다 재배포).</li>
@@ -878,6 +912,101 @@ C-3(부분적재)은 조회가 <strong>성공</strong>하고 값이 <strong>0</s
 <li><strong>E(기능 없음) 유형 노출 여부</strong> — 사용자에게 "그 기능은 없습니다 + 요청하기"를 보일지, 조용히 백로그만 쌓을지.</li>
 <li><strong>C 유형 SLA 분리</strong> — §11-5의 단일 SLA 대신 <code>data</code>는 <strong>1차 응답만 SLA(1영업일), 완료 SLA 없음</strong>을 기본안으로 제안.</li>
 </ol>
+<hr />
+<h2 id="15-2026-07-23">15. 요청 처리 ↔ 권한·데이터 반영의 연결 (2026-07-23)</h2>
+<blockquote>
+<p>관리자 지시: <em>"요청함에서 처리되면 권한과 내용이 유기적으로 적용되는지 분석"</em>. 결론부터 — <strong>연결돼 있지 않았고, 실제 사고가 이미 발생해 있었다.</strong></p>
+</blockquote>
+<h3 id="15-1">15-1. 실측 — 완료 처리와 실제 반영이 어긋나 있었다</h3>
+<table>
+<thead>
+<tr>
+<th>접수번호</th>
+<th>유형</th>
+<th>상태</th>
+<th>처리메모</th>
+<th>요청자의 실제 권한</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>REQ-2026-0001</code></td>
+<td>민감권한(payroll)</td>
+<td><strong>done</strong>(닫힘)</td>
+<td>"TEST 처리"</td>
+<td><code>erp_modules = []</code> · <code>perm_grant</code> 0건</td>
+</tr>
+</tbody>
+</table>
+<p><strong>완료로 닫혔는데 요청자는 여전히 아무것도 못 본다.</strong> 요청자 입장에서는 "완료됐다"는 회신을 받고 다시 조회했다가 또 막히고, 다시 요청하게 된다(§1-3의 재요청 문제가 형태만 바꿔 재발).</p>
+<p>이는 P1 설계의 의도적 분리(§3-3 "권한 부여 버튼은 두지 않는다 — 사람이 권한 화면에서 클릭") 때문에 생긴 <strong>필연적 부작용</strong>이다. 부여를 사람에게 맡긴 것 자체는 옳지만(CLAUDE.md §1.6·§5.4), <strong>"부여했는지 확인하는 장치"가 없었다.</strong></p>
+<h3 id="15-2">15-2. 왜 자동 부여로 해결하면 안 되는가</h3>
+<p>「완료」 클릭이 곧바로 권한을 부여하게 만들면 문제가 사라지긴 한다. 그러나 그건 <strong>요청함이 권한 부여 화면이 되는 것</strong>이고, 다음을 위반한다.</p>
+<ul>
+<li>CLAUDE.md §1.6 — 최종 승인 클릭은 사람이 한다.</li>
+<li>§5.4 — 권한 판정·부여는 권한 화면(단일 경로)에서. 부여 경로가 둘이 되면 감사(<code>perm_audit</code>)와 정책이 갈라진다.</li>
+<li>민감 모듈(<code>payroll</code>)은 2인 확인 대상(§4-2)인데, 요청 완료 클릭 하나로 부여되면 그 통제가 무력해진다.</li>
+</ul>
+<h3 id="15-3">15-3. 채택안 — 부여는 사람이, 확인은 서버가</h3>
+<p><strong>완료(done) 전이에 반영 검증 게이트를 둔다.</strong> 부여를 대신하지 않고, <strong>부여되지 않았으면 닫지 못하게</strong> 한다.</p>
+<table>
+<thead>
+<tr>
+<th>유형</th>
+<th>판정 방법</th>
+<th>미반영 시</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>perm</code> · <code>perm_sensitive</code></td>
+<td><code>perm_effective(요청자)</code> → <code>is_admin</code> 또는 <code>erp_modules ∋ target_module</code></td>
+<td><strong>409 차단</strong> + 부여 화면 안내</td>
+</tr>
+<tr>
+<td><code>doc</code></td>
+<td><code>ai_document_scope</code> 활성 행 존재</td>
+<td><strong>409 차단</strong> + 범위 등록 안내</td>
+</tr>
+<tr>
+<td><code>data</code> · <code>feature</code> · <code>quality</code></td>
+<td><strong>자동 판정 불가</strong></td>
+<td>차단하지 않음 + <em>"실제 적재·구현을 확인한 뒤 닫으라"</em> 안내</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li><strong>예외 경로</strong>: 권한 외 방식으로 해결했거나 반려에 준하는 종결이 필요하면 <code>force: true</code>로 관리자가 명시 우회한다. 프론트는 확인 대화상자를 띄우고 <strong>기본값은 중단</strong>이며, 우회 사유는 <code>handled_note</code>에 남는다.</li>
+<li><strong>사전 표시</strong>: 요청함 목록이 권한 유형에 <code>fulfilled</code>를 함께 내려 <strong>「반영됨」·「미반영」</strong> 뱃지를 보여준다. 완료를 누르기 전에 누락이 눈에 보인다.</li>
+<li><strong>판정 출처는 하나</strong>: 게이트도 <code>perm_effective</code>(ADR-010)만 본다. 요청함이 별도 권한 로직을 갖지 않는다.</li>
+</ul>
+<h3 id="15-4">15-4. 남는 연결 공백</h3>
+<table>
+<thead>
+<tr>
+<th>공백</th>
+<th>현재</th>
+<th>비고</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>data</code> 유형 반영 확인</td>
+<td>자동 판정 불가 — 사람이 확인</td>
+<td><code>erp_load_scope</code>(§14-4a)를 신설하면 "해당 칸이 적재됐는가"를 기계 판정할 수 있다. 미결정 7번과 직결.</td>
+</tr>
+<tr>
+<td>요청자 알림</td>
+<td>완료 시 요청자에게 능동 통지 없음</td>
+<td>챗봇 <code>get_my_requests</code> 도구(P2d) 또는 포털 배지 필요</td>
+</tr>
+<tr>
+<td>이미 잘못 닫힌 건</td>
+<td><code>REQ-2026-0001</code>은 <code>done</code> + <code>fulfilled=false</code>로 남아 있음</td>
+<td>화면에 「미반영」으로 드러난다. 실제 부여 후 재처리하거나 사유를 남겨 정리 필요</td>
+</tr>
+</tbody>
+</table>
   </div>
   <div class="footer"><span>JEIL M&S · AI 포털 제품기획</span><span>11 요청접수 · 관리: 최동혁</span></div>
 </div>
