@@ -108,6 +108,13 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 </thead>
 <tbody>
 <tr>
+<td>2026-07-24</td>
+<td>ERP DB 연계</td>
+<td><code>10_ERP_DB연계/00·02</code>(v0.17)</td>
+<td><strong>야간배치 수동 실행 — 12개 ETL job 전량 성공(실패 0)</strong> + <strong><code>bp_master</code> 적재버그 RCA·수정·재성공</strong>. 최종배치(07-21/07-22) 이후 누적 3~4일치 미실행분을 일괄 반영(pur_order·pur_req·item_master·iv_dtl·inventory·hr_payroll·purchase 등 건수 증가). <code>bp_master</code>는 최초 HTTP 400(<code>erp_etl_upsert</code>의 <code>bp_master_s</code> 분기 인라인 주석이 컬럼값 3개를 가려 20 vs 17 불일치)으로 실패했으나 원인분석 후 함수 수정(<code>실제구축준비 자료/이관/sql/20_erp_etl_upsert_bp_master_fix.sql</code>)·재실행으로 3/3 해소, "ODBC 미실행" 구기록도 소급 정정. 후속 조사 필요 이슈 2건(연동 현황 뷰 <code>rows_upserted</code> 최신 배치 미반영 정황, <code>erp_etl_upsert</code> 함수 전체의 번호 마이그레이션 미승격) 등재. 정책관리 미러 동기화(v0.17·20260724)</td>
+<td>최동혁(+Claude)</td>
+</tr>
+<tr>
 <td>2026-07-23</td>
 <td>보안·품질</td>
 <td><code>11_제품기획/08 §9</code>(전체 점검 결과)</td>

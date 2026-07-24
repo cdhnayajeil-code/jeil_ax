@@ -8,6 +8,7 @@ import argparse
 import datetime
 import json
 import sys
+import urllib.error
 import urllib.request
 
 from _env import load_env, need
@@ -254,9 +255,18 @@ def rpc(url, key, fn, payload):
         f"{url}/rest/v1/rpc/{fn}", data=body, method="POST",
         headers={"apikey": key, "Authorization": f"Bearer {key}", "Content-Type": "application/json"},
     )
-    with urllib.request.urlopen(req, timeout=120) as r:
-        raw = r.read().decode().strip().strip('"')
-        return raw
+    try:
+        with urllib.request.urlopen(req, timeout=120) as r:
+            raw = r.read().decode().strip().strip('"')
+            return raw
+    except urllib.error.HTTPError as e:
+        # PostgREST 오류 본문(제약조건·컬럼·타입 상세)을 예외에 실어 진단 가능하게 함
+        detail = ""
+        try:
+            detail = e.read().decode("utf-8", "replace").strip()
+        except Exception:
+            pass
+        raise RuntimeError(f"HTTP {e.code} rpc/{fn}: {detail[:800]}") from e
 
 
 def parse_ts(raw):
