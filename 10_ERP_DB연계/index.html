@@ -38,7 +38,7 @@ code{background:var(--soft);border:1px solid var(--line);border-radius:4px;paddi
   <p class="sub">ERP(UNIERP) DB ↔ AI 포털·사내 타부서 연계의 현재상태·기획·진행상태 단일 출처 · 관리: 최동혁</p>
 
   <div class="status">
-    <b>현재 위치(2026-07-22):</b> P0(정책 수립) 마무리 → P1(유니포인트 협의) 진입 대기 + P3(중간DB) 내부 준비 계속(1차 5종 실적재 완료, 재고 입출고 ETL 연 전체 적재 전환·재적재 완료 + 매입 상세 <code>iv_dtl</code> 신규 연동·구매요청 상세 백필·매입 대사 재적재 5종 실적재 완료 + <b>중간DB(erp_ro) 정합성 SQL 검증 완료 — 이상 없음</b> + ERP 거래처마스터(<code>bp_master</code>) 스키마·ETL 준비 완료·적재는 ODBC 접속 필요로 대기, ERP 원본 직접 대사는 잔여 과제) + <b>P4(포털·챗봇 연결) 착수·부분완료</b>(노출 뷰·연동 현황 뷰 10종 전체 노출·관리자 콘솔 반영·부서화면 1건 파일럿·챗봇 권한체계 연결 <code>get_my_access</code>·포털 도구 권한구멍 차단·챗봇 ERP 조회 정합성 RCA + 품목코드 역조회 도구 <code>get_erp_item_orders</code> 신설(<code>jeil-chat</code> version 26)·협력사 거래처마스터(<code>vendor_master</code>) 재적재·정합화 109개사 + 관리자 동기화 RPC 신설) + P5(민감 영역) 인사 급여 집계 실적재 완료(자금 미착수)·챗봇 인사 조회 게이팅(<code>get_hr_headcount</code>·<code>get_hr_payroll</code>) 가동 ·
+    <b>현재 위치(2026-08-03):</b> <b>결의전표 파일럿 — 회계 코드 마스터 실적재 완료(A1 승인), 전체관리자 한정 테스트 단계</b>(계정과목 <b>691행</b>·코스트센터 <b>133행</b> 적재·유실 0, 연동 현황 뷰 11→<b>13종</b> 확장, <code>erp_load_scope</code> <code>loaded</code> 기록. 화면의 마스터 미적재 배너 해소. <b>권한은 테스트 단계라 <code>accounting</code> 모듈을 어느 부서에도 부여하지 않고 전체관리자만 사용</b>(A3·A4 보류 결정). 다음: <b>전표 1건 E2E 테스트</b> · <code>A_TEMP_GL</code> 샘플 조회 승인(A2) · 회계 규칙 확정(A5) — 상세는 <b>06 추진계획</b>·<b>07 연동 종합</b>. 발견: <code>project_fg</code> 691행 전량 NULL로 프로젝트 필수 검증 무력) · 야간배치 12개 job 전량 성공(2026-07-24) · 이전: P0(정책 수립) 마무리 → P1(유니포인트 협의) 진입 대기 + P3(중간DB) 내부 준비 계속(1차 5종 실적재 완료, 재고 입출고 ETL 연 전체 적재 전환·재적재 완료 + 매입 상세 <code>iv_dtl</code> 신규 연동·구매요청 상세 백필·매입 대사 재적재 5종 실적재 완료 + <b>중간DB(erp_ro) 정합성 SQL 검증 완료 — 이상 없음</b> + ERP 거래처마스터(<code>bp_master</code>) 스키마·ETL 준비 완료·적재는 ODBC 접속 필요로 대기, ERP 원본 직접 대사는 잔여 과제) + <b>P4(포털·챗봇 연결) 착수·부분완료</b>(노출 뷰·연동 현황 뷰 10종 전체 노출·관리자 콘솔 반영·부서화면 1건 파일럿·챗봇 권한체계 연결 <code>get_my_access</code>·포털 도구 권한구멍 차단·챗봇 ERP 조회 정합성 RCA + 품목코드 역조회 도구 <code>get_erp_item_orders</code> 신설(<code>jeil-chat</code> version 26)·협력사 거래처마스터(<code>vendor_master</code>) 재적재·정합화 109개사 + 관리자 동기화 RPC 신설) + P5(민감 영역) 인사 급여 집계 실적재 완료(자금 미착수)·챗봇 인사 조회 게이팅(<code>get_hr_headcount</code>·<code>get_hr_payroll</code>) 가동 ·
     <b>결정 대기:</b> 리포팅 계층 티어(A/B) 경영 결정, 마스터플랜 v2.0 승인, 유니포인트 협의(P1)
   </div>
 
@@ -66,6 +66,18 @@ code{background:var(--soft);border:1px solid var(--line);border-radius:4px;paddi
       <h2>중간DB 구축 실행기획</h2>
       <p>연결 방안(D1~D3)·스키마 DDL·ETL 처리방법·준비 체크리스트·6주 일정</p>
       <span class="badge">실행기획 v0.3</span>
+    </a>
+    <a class="card" href="06_결의전표_추진계획.html">
+      <span class="no">06</span>
+      <h2>결의전표 추진계획</h2>
+      <p>결의전표 초안 파일럿 — 승인 게이트(A1~A5)·실행 단계(S1~S6)·확대 로드맵·리스크</p>
+      <span class="badge live">승인 대기</span>
+    </a>
+    <a class="card" href="07_결의전표_연동_종합.html">
+      <span class="no">07</span>
+      <h2>결의전표 연동 종합</h2>
+      <p>구조·현재상태·의사결정 상세 — 확정 7건·승인대기 A1~A5·미결정 5건·확대 E1~E5</p>
+      <span class="badge">정리 뷰</span>
     </a>
   </div>
 

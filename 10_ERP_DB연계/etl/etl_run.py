@@ -224,6 +224,39 @@ JOBS = {
         """,
         "params": ["year_start", "year_end"],
     },
+    # ⑨ 계정과목 마스터 ← A_ACCT (전량, 연도 무관) — 결의전표 초안 입력화면의 계정 드롭다운 원천
+    #    ⚠ 회계(A 모듈) 첫 개방. 금액·잔액 데이터가 아닌 '코드 마스터'만 추출한다(관리자 승인 A1, 2026-07-31).
+    #    전표·분개 라인(A_GL_ITEM·A_TEMP_GL_ITEM)은 이 job의 대상이 아니다 — 확대는 경영 승인 별건.
+    #    BAL_FG(차대구분)·PROJECT_FG(프로젝트 관리여부)는 입력화면 검증 규칙에 그대로 쓰인다.
+    "acct_master": {
+        "table": "acct_master_s",
+        "rpc": "erp_master_upsert",   # 기존 erp_etl_upsert 를 건드리지 않는 마스터 전용 RPC(21_gl_draft.sql)
+        "sql": """
+            SELECT ACCT_CD AS acct_cd, ACCT_NM AS acct_nm, ACCT_FULL_NM AS acct_full_nm,
+                   GP_CD AS gp_cd, ACCT_SEQ AS acct_seq,
+                   BAL_FG AS bal_fg, BS_PL_FG AS bs_pl_fg, ACCT_TYPE AS acct_type,
+                   PROJECT_FG AS project_fg, MGNT_FG AS mgnt_fg, MGNT_TYPE AS mgnt_type,
+                   CONVERT(bit, CASE WHEN ISNULL(DEL_FG, 'N') = 'Y' THEN 0 ELSE 1 END) AS use_yn,
+                   UPDT_DT AS src_updated
+            FROM JEILMNS.dbo.A_ACCT WITH (NOLOCK)
+            WHERE ISNULL(DEL_FG, 'N') <> 'Y'
+        """,
+        "params": [],
+    },
+    # ⑩ 코스트센터 마스터 ← B_COST_CENTER (전량, 소형 133행) — 결의전표 헤더·라인의 코스트센터 선택지
+    "cost_center": {
+        "table": "cost_center_s",
+        "rpc": "erp_master_upsert",
+        "sql": """
+            SELECT COST_CD AS cost_cd, COST_NM AS cost_nm,
+                   ISNULL(ORG_CHANGE_ID, '') AS org_change_id, DEPT_CD AS dept_cd,
+                   BIZ_AREA_CD AS biz_area_cd, BIZ_UNIT_CD AS biz_unit_cd,
+                   COST_TYPE AS cost_type, DI_FG AS di_fg, PLANT_CD AS plant_cd,
+                   UPDT_DT AS src_updated
+            FROM JEILMNS.dbo.B_COST_CENTER WITH (NOLOCK)
+        """,
+        "params": [],
+    },
     # ④ 거래처마스터 ← B_BIZ_PARTNER (전량, 연도 무관)
     # 협력사 계정발급(app/admin-vendors.html)·협력사 모바일 포털이 쓰는 public.vendor_master 의 원천.
     # ⚠ 보안: 대표자주민등록번호(REPRE_RGST_NO, REPRE_RGST_NO_PRVC)·은행계좌번호(BANK_ACCT_NO*)는

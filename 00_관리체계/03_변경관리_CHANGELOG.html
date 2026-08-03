@@ -108,6 +108,41 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 </thead>
 <tbody>
 <tr>
+<td>2026-08-03</td>
+<td>ERP연계·회계</td>
+<td><code>erp_ro.acct_master_s</code>(691행)·<code>cost_center_s</code>(133행) 실적재 · 마이그레이션 <code>erp_sync_overview_accounting_master</code> · <code>erp_load_scope</code> 2행 · <code>10_ERP_DB연계/00</code>(v0.19)·<code>02</code>·<code>06</code>(v1.1)·<code>07</code></td>
+<td><strong>회계 코드 마스터 실적재 + 연동 현황 반영 + 권한 전체관리자 한정(A1 승인·A3/A4 보류 결정).</strong> 관리자 지시로 결의전표 파일럿의 최대 차단 요인이 해소됐다. ① <strong>실적재</strong>: dry-run 재검증(691·133) 후 실행해 <code>acct_master</code> <strong>691/691</strong>·<code>cost_center</code> <strong>133/133</strong>(추출=적재, 유실 0, <code>batch_run</code> success 2건). 적재 범위는 <strong>코드 목록뿐</strong> — 금액·잔액·전표·분개 라인은 미적재 유지. ② <strong>연동 현황 뷰 11→13종</strong>: 회계 마스터 2종 등재. <strong>⚠ 실테이블 <code>count(*)</code> 대신 <code>batch_run</code> 성공 건수로 표시</strong> — 이 뷰는 <code>security_invoker</code>인데 회계 마스터는 설계상 <code>authenticated</code> GRANT 없는 fail-closed 구성이라 실 count 시 사내 사용자에게 permission denied가 나 <strong>연동현황 화면 전체가 403</strong>이 된다(2026-07-21 <code>iv_dtl</code> 사고와 동일 유형). 급여 집계 선례를 따라 회피했고 <strong>권한을 열어 우회하지 않았다</strong>. ③ <strong>권한(A3·A4) 관리자 결정</strong>: 테스트 단계이므로 <code>accounting</code> 모듈을 <strong>어느 부서에도 부여하지 않고 전체관리자만</strong> 사용 → <code>dept_erp_scope</code> 무변경(목표 상태가 이미 성립). 실측 재확인 — 비관리자 2명 <code>gl_draft</code> <code>allowed=false</code>, 관리자만 <code>true</code>. ④ <code>erp_load_scope</code>의 <code>accounting/acct_master</code>·<code>cost_center</code>를 <code>loaded</code>로 기록(챗봇 결측 배지·데이터 요청 완료 게이트 판정 근거), <code>gl_slip</code>은 <code>none</code> 유지. ⑤ <strong>검증</strong>: <code>gl_master_get()</code> 계정 691·코스트센터 133·부서 107 반환 → 마스터 미적재 배너·<code>master_empty</code> 503 해소. 계정 구성 BS 268·PL 235·MC 184·미분류 4, 차대 DR 507·CR 184로 차대 자동제안 동작. <strong>발견 1건(등재만)</strong>: <code>project_fg</code>가 <strong>691행 전량 NULL</strong> — 서버 재검증 7종 중 5번(프로젝트 필수 계정 강제)이 <strong>현재 어떤 계정에도 걸리지 않는 무력 상태</strong>. ERP 원천이 비어 있거나 다른 컬럼·체계로 관리될 가능성이 있어 A5·유니포인트 확인 대상으로 등재(임의 조치 없음). <strong>잔여</strong>: A2·A5 승인, S5 E2E 테스트 1건 + 서버 검증 우회 시도, 실사용 직전 <code>/security-review</code>.</td>
+<td>최동혁(+Claude)</td>
+</tr>
+<tr>
+<td>2026-08-03</td>
+<td>ERP연계·문서</td>
+<td><code>10_ERP_DB연계/07_결의전표_연동_종합.html</code>(신규) · 연계 허브 index 카드 · <code>00_문서대장</code></td>
+<td><strong>결의전표 연동 종합 정리 뷰 신설(구조·현재상태·의사결정).</strong> 06(남은 일)·00 §4(구축 내역)·02 §3(작업 이력)에 흩어진 전표 연동 내용을 한 문서로 합치고, 특히 <strong>의사결정을 4갈래로 분리</strong>해 무엇이 이미 확정됐고 무엇이 아직 열려 있는지 구분되게 했다: ①<strong>확정 7건</strong>(C-1 반영경로=초안+사람이 ERP 확정/대안 &lsquo;포털 직접등록&rsquo; 기각 · C-2 케이스=일반 경비 지출결의 · C-3 등록자=MS 계정 ID(그룹웨어 전자결재가 등록자 기준) · C-4 전표번호는 ERP 채번(포털은 <code>DRAFT-</code>) · C-5 권한 2단 분리(입력 <code>accounting</code>/확정 <code>finance</code>) · C-6 RLS 전면차단+Edge Fn 단일경로 · C-7 코드 마스터만 적재) ②<strong>승인 대기 A1~A5</strong>(승인 범위·없으면 생기는 일·주체·우선순위. <strong>A1은 코드 목록이라 위험 낮고 A2는 실제 전표 열람이라 민감</strong> — 묶지 말고 A1만 먼저 승인해도 진행 가능함을 강조) ③<strong>미결정 5건</strong>(부가세·프로젝트 필수계정·초안 보존기간·확정 권한 분리·E3 착수시점, 각각 &lsquo;언제 결정해야 하는지&rsquo; 명시) ④<strong>확대 로드맵 E1~E5</strong>(<strong>E3 ERP 쓰기 API가 실질적 갈림길</strong> — 현 구조는 회계팀 이중작업이라 확대 시 병목). 함께 정리: ERP 원천 6테이블 실측 매핑, 등록자 자동매핑 근거(99명 전원 이메일형), 서버 검증 7종, 실측 통과 항목과 <strong>미실행 항목(업무규칙 우회 테스트 — 유효 토큰 필요)을 분리 명기</strong>, 리스크 6건(대비책 ↔ 잔여위험 분리), 다음 액션 6단계. 파생 뷰 원칙 명시(원천이 정답).</td>
+<td>최동혁(+Claude)</td>
+</tr>
+<tr>
+<td>2026-08-03</td>
+<td>거버넌스·문서</td>
+<td><code>00_관리체계/04_현재상태_한장요약.html</code>(신규) · <code>00_문서대장</code></td>
+<td><strong>현재상태 한 장 요약(파생 뷰) 신설.</strong> 프로젝트 현황이 총괄 대시보드·ERP 연계 관제·이관 관제·CHANGELOG 4곳에 나뉘어 있어 "지금 어디까지 왔고 무엇이 막혀 있나"를 한 화면에서 볼 수 없었다. 원천을 대사해 A4 한 장 분량으로 압축한 요약 뷰를 만들었다(자체완결 HTML, 인쇄 대응). 구성: ①헤드라인(만드는 단계는 거의 끝났고 <strong>막힌 것은 대부분 사람의 결정</strong>) ②KPI 6종(영역 10·평균 진행률 71%·의사결정 23/34·라이브 화면 12·ERP 연동 소스 12·<strong>Entra Secret D-128</strong>) ③영역별 현황 10종(상태·진행률 미터·막고 있는 것) ④최근 완료/진행 중/막힌 것 3분할 ⑤다음 할 일 6단계(1순위 <strong>A1 회계 마스터 조회 승인</strong>) ⑥대기 의사결정 11건 ⑦리스크 5건 ⑧원천 바로가기. <strong>파생 뷰 원칙 명시</strong> — 수치는 원천에서 계산했고 어긋나면 원천이 정답, 수기 기입 금지(CLAUDE.md §10).</td>
+<td>최동혁(+Claude)</td>
+</tr>
+<tr>
+<td>2026-07-31</td>
+<td>ERP연계·문서</td>
+<td><code>10_ERP_DB연계/06_결의전표_추진계획</code>(신규 v1.0) · 연계 허브 index · <code>00_문서대장</code></td>
+<td><strong>결의전표 파일럿 추진계획 문서 신설.</strong> 구축은 끝났는데 "왜 아직 못 쓰나·다음에 뭘 해야 하나"가 관제 문서 여러 곳에 흩어져 있어, <strong>남은 일만</strong> 모은 실행 문서를 만들었다. 구성: ①한 눈에 보기(현재 막힌 지점 = 마스터 미적재 + 권한 미부여, 둘 다 사람 승인 필요 — <strong>가장 먼저 할 일은 A1 하나</strong>) ②승인 게이트 A1~A5(무엇을 승인하나·없으면 생기는 일·결정 주체. A1은 코드 목록이라 위험 낮고 A2는 실제 전표 열람이라 민감 — <strong>A1만 먼저 승인해도 진행 가능</strong>함을 명시) ③실행 단계 S1~S6(실행 명령·완료 기준 포함, S5는 전표 1건 E2E 7단계 + 서버 검증 우회 시도) ④확대 로드맵 E1~E5(<strong>E3 ERP 쓰기 API가 핵심 갈림길</strong> — 파일럿은 회계 담당자 이중작업이라 실무 확대의 병목) ⑤리스크 6건(1순위: 이중 입력, 2순위: 회계 담당자 부하) ⑥미결정 5건. 연계 허브에 카드 등재 + 현재 위치 문구 갱신, 정책관리 미러 동기화.</td>
+<td>최동혁(+Claude)</td>
+</tr>
+<tr>
+<td>2026-07-31</td>
+<td>ERP연계·회계</td>
+<td><code>10_ERP_DB연계/00·02</code>(v0.18) · <code>이관/sql/21_gl_draft.sql</code>(신규) · <code>jeil-gl-draft</code> <strong>v1</strong> · <code>pages/자금_결의전표_입력_2026.html</code>(신규)</td>
+<td><strong>결의전표 초안 입력 파일럿 — 회계(A 모듈) 첫 개방, 기반 구축 완료(실적재·권한부여는 승인 대기).</strong> 전 직원이 ERP 화면에서 각자 입력하던 결의전표를, 케이스 1개(일반 경비 지출결의)에 한해 사내 포털에서 <strong>ERP와 동일한 형태로</strong> 입력받게 하는 파일럿이다. <strong>아키텍처는 "초안은 포털, 확정은 ERP"</strong> — 포털은 ERP에 쓰지 않는다(CLAUDE.md §1.2·§1.6). 포털이 검증된 초안을 만들고 회계 담당자가 ERP 화면에서 최종 저장한 뒤 전표번호를 되돌려 기입해야 초안이 닫히며, 이 회기입이 <strong>이중 입력을 막는 유일한 장치</strong>라 DB 제약으로 강제했다(같은 전표번호 중복 기입도 거부). ① <strong>ERP 구조 실측</strong>: <code>A_TEMP_GL</code>(결의전표 헤더 28,219행)·<code>A_TEMP_GL_ITEM</code>(라인 294,043행) → 승인 시 <code>A_GL</code>로 전기. ② <strong>등록자 매핑</strong>(핵심 요구사항 — 그룹웨어 전자결재가 전표등록자 기준): <code>usr_master_s</code> 99명 전원이 이메일형 ERP 계정이라 MS 계정(UPN)과 <code>lower()</code> 비교로 자동 매핑되며, 등록자는 <strong>JWT에서만</strong> 취득하고 매핑 실패 시 저장을 거부한다(ERP 계정 없는 사람 명의의 전표 차단). ③ <strong>ETL</strong> job 2종(<code>acct_master</code>·<code>cost_center</code>) — <strong>금액·잔액·전표가 아닌 코드 마스터만</strong> 적재(dry-run 691행·133행 검증 완료). 기존 13KB <code>erp_etl_upsert</code> 재작성 위험을 피해 마스터 전용 RPC <code>erp_master_upsert</code> 분리 신설. ④ <strong>포털 DB</strong> 6종 전부 RLS ON·정책 0개·anon/authenticated 회수 — 금액이 담기는 첫 포털 쓰기 기능이라 뷰 직접 노출 없이 Edge Function 단일 경로. ⑤ <strong>서버 재검증 7종</strong>(차대일치·계정유효·금액&gt;0 정수·라인 2줄↑·프로젝트 필수계정·마감월·등록자) — 합계는 화면 값을 믿지 않고 라인에서 재계산. ⑥ <strong>화면</strong>은 표준 그리드(§13)로 차/대변 라인 + 실시간 차대 합계바, 회계 담당자 탭에 ERP 입력용 요약·전표번호 회기입. <strong>실측 검증</strong>: 권한격리(관리자만 허용·비관리자 3명 전원 차단), 인증게이트(무토큰·위조토큰 401). <strong>잔여는 전부 사람 결정</strong> — 회계 마스터 조회 승인(A1)→실적재, <code>A_TEMP_GL</code> 샘플 조회 승인(A2: 등록자 ID 형식·<code>GL_TYPE</code> 실코드), <code>accounting</code> 모듈 신설·부여(A3), 파일럿 대상자(A4), 회계 규칙(A5: 경비 계정·상대계정·부가세·마감 기준).</td>
+<td>최동혁(+Claude)</td>
+</tr>
+<tr>
 <td>2026-07-24</td>
 <td>ERP DB 연계</td>
 <td><code>10_ERP_DB연계/00·02</code>(v0.17)</td>

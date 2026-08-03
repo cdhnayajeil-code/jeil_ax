@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" href="data:,">
+<title>결의전표 입력(초안) — JEIL AX</title>
+<script>window.PAGE_KEY='gl_draft';</script>
+<script src="_access-gate.js"></script>
+<link rel="stylesheet" href="../app/lib/grid.css">
+<style>
+  :root{ --navy:#1a2f4e; --navy2:#24406b; --accent:#3a7cc1; --accent2:#4a8ed0;
+         --ink:#26313f; --muted:#6b7787; --line:#e2e7ee; --bg:#f4f6f9; --soft:#eef2f8;
+         --green:#1a7f37; --red:#c0392b; --amber:#c9821a; }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif; color:var(--ink); background:var(--bg); font-size:14px; line-height:1.5;}
+  .wrap{max-width:1180px; margin:0 auto; padding:20px 18px 60px;}
+  .top{display:flex; align-items:flex-start; justify-content:space-between; gap:12px; flex-wrap:wrap; padding:8px 0 14px;}
+  .top h1{font-size:19px; color:var(--navy); display:flex; align-items:center; gap:9px;}
+  .top .sub{font-size:12px; color:var(--muted); margin-top:3px;}
+  .top .who{font-size:12px; color:var(--muted); text-align:right;}
+  .top .who b{color:var(--navy);}
+  /* 안내 배너 */
+  .banner{background:#fff8e8; border:1px solid #f0d9a8; border-left:4px solid var(--amber); border-radius:10px;
+          padding:11px 15px; font-size:12.5px; color:#7a5a12; margin-bottom:14px; line-height:1.65;}
+  .banner b{color:#6b4a08;}
+  .banner.err{background:#fdeeec; border-color:#f2c4be; border-left-color:var(--red); color:#8c2b1e;}
+  /* 탭 */
+  .tabs{display:flex; gap:6px; margin-bottom:14px; border-bottom:1.5px solid var(--line);}
+  .tabs button{background:none; border:none; padding:9px 16px; font-family:inherit; font-size:13.5px; color:var(--muted);
+               cursor:pointer; border-bottom:2.5px solid transparent; margin-bottom:-1.5px; font-weight:600;}
+  .tabs button.on{color:var(--navy); border-bottom-color:var(--accent);}
+  .tabs button:hover{color:var(--navy);}
+  /* 섹션 */
+  .sec{background:#fff; border:1px solid var(--line); border-radius:13px; padding:18px 20px; margin-bottom:14px; box-shadow:0 2px 8px rgba(16,42,80,.05);}
+  .sec h2{font-size:14.5px; color:var(--navy); margin-bottom:14px; display:flex; align-items:center; gap:8px; flex-wrap:wrap;}
+  .sec h2 small{font-weight:400; color:var(--muted); font-size:11.5px;}
+  /* 헤더 폼 */
+  .form{display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr)); gap:13px 16px;}
+  .fld{display:flex; flex-direction:column; gap:5px;}
+  .fld.wide{grid-column:1/-1;}
+  .fld label{font-size:11.5px; color:var(--muted); font-weight:600;}
+  .fld label .req{color:var(--red); margin-left:2px;}
+  .fld input,.fld select,.fld textarea{border:1.5px solid var(--line); border-radius:9px; padding:8px 11px;
+    font-family:inherit; font-size:13.5px; background:#fff; color:var(--ink); outline:none; width:100%;}
+  .fld input:focus,.fld select:focus,.fld textarea:focus{border-color:var(--accent);}
+  .fld input[readonly]{background:var(--soft); color:var(--muted); cursor:not-allowed;}
+  .fld .hint{font-size:11px; color:var(--muted);}
+  /* 합계 바 */
+  .sumbar{display:flex; align-items:center; gap:20px; flex-wrap:wrap; padding:12px 16px; border-radius:11px;
+          background:var(--soft); border:1.5px solid var(--line); margin-top:13px;}
+  .sumbar .it{font-size:12px; color:var(--muted);}
+  .sumbar .it b{display:block; font-size:17px; color:var(--navy); font-weight:800; margin-top:2px; letter-spacing:-.02em;}
+  .sumbar .st{margin-left:auto; font-size:13px; font-weight:700; padding:6px 13px; border-radius:8px;}
+  .sumbar.ok{background:#eefaf1; border-color:#b8e2c4;}
+  .sumbar.ok .st{color:var(--green);}
+  .sumbar.bad{background:#fdeeec; border-color:#f2c4be;}
+  .sumbar.bad .st{color:var(--red);}
+  /* 버튼 */
+  .btns{display:flex; gap:9px; flex-wrap:wrap; margin-top:15px;}
+  button.b{padding:10px 20px; border:none; border-radius:9px; font-family:inherit; font-size:13.5px; font-weight:700; cursor:pointer;}
+  button.b.pri{background:var(--navy); color:#fff;}
+  button.b.ok{background:var(--green); color:#fff;}
+  button.b.gh{background:#fff; color:var(--muted); border:1.5px solid var(--line);}
+  button.b.sm{padding:7px 14px; font-size:12.5px; font-weight:600;}
+  button.b:disabled{opacity:.45; cursor:not-allowed;}
+  button.b:not(:disabled):hover{filter:brightness(1.08);}
+  /* 표(읽기 전용 목록) — 전역 셀렉터를 쓰지 않는다(그리드 오염 방지, CLAUDE.md §13-4) */
+  .tbl{width:100%; border-collapse:collapse; font-size:13px;}
+  .tbl th{background:var(--soft); color:var(--navy); padding:8px 10px; text-align:left; font-weight:600; font-size:11.5px; white-space:nowrap;}
+  .tbl td{padding:8px 10px; border-bottom:1px solid var(--line); vertical-align:middle;}
+  .tbl td.r,.tbl th.r{text-align:right;}
+  .tbl tr.clk{cursor:pointer;}
+  .tbl tr.clk:hover{background:var(--soft);}
+  .pill{display:inline-block; padding:2px 9px; border-radius:20px; font-size:11px; font-weight:700;}
+  .pill.draft{background:#eef2f8; color:var(--muted);}
+  .pill.submitted{background:#e8f1fb; color:var(--accent);}
+  .pill.posted{background:#eefaf1; color:var(--green);}
+  .pill.void{background:#f3f4f6; color:#9aa3ad; text-decoration:line-through;}
+  /* 거래처 검색 */
+  .bpbox{display:flex; gap:8px; align-items:center; flex-wrap:wrap;}
+  .bpbox input{flex:1; min-width:160px;}
+  .bplist{margin-top:9px; max-height:170px; overflow-y:auto; border:1px solid var(--line); border-radius:9px;}
+  .bplist div{padding:7px 12px; font-size:12.5px; cursor:pointer; border-bottom:1px solid var(--line);}
+  .bplist div:last-child{border-bottom:none;}
+  .bplist div:hover{background:var(--soft);}
+  /* ERP 입력용 요약 */
+  .erpbox{background:var(--soft); border:1px solid var(--line); border-radius:10px; padding:14px 16px; font-size:13px;}
+  .erpbox .row{display:flex; gap:10px; padding:3px 0;}
+  .erpbox .row .k{color:var(--muted); min-width:88px; font-size:12px;}
+  .erpbox .row .v{font-weight:600; color:var(--navy);}
+  .toast{position:fixed; left:50%; bottom:28px; transform:translateX(-50%); background:var(--navy); color:#fff;
+         padding:12px 22px; border-radius:11px; font-size:13.5px; box-shadow:0 6px 22px rgba(16,42,80,.28); z-index:99; max-width:90vw;}
+  .toast.bad{background:var(--red);}
+  .loading{text-align:center; color:var(--muted); padding:50px; font-size:14px;}
+  .gate{max-width:520px; margin:60px auto; background:#fff; border:1px solid var(--line); border-radius:14px; padding:34px 28px; text-align:center; box-shadow:0 4px 18px rgba(16,42,80,.08);}
+  .gate .ic{font-size:44px;} .gate h2{color:var(--navy); font-size:19px; margin:12px 0 8px;}
+  .gate p{color:var(--muted); font-size:14px; line-height:1.7;}
+  .foot{text-align:center; font-size:11px; color:var(--muted); padding-top:10px; line-height:1.7;}
+  .hide{display:none !important;}
+  @media (max-width:640px){ .sumbar .st{margin-left:0; width:100%;} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="loading" id="loading">결의전표 입력 화면을 불러오는 중…</div>
+  <div id="app" class="hide">
+    <div class="top">
+      <div>
+        <h1>🧾 결의전표 입력 <small style="font-size:12px;font-weight:400;color:var(--muted);">(초안)</small></h1>
+        <div class="sub">일반 경비 지출결의 · 파일럿</div>
+      </div>
+      <div class="who" id="who"></div>
+    </div>
+
+    <div class="banner">
+      <b>이 화면은 ERP 결의전표 <u>초안</u>을 만듭니다.</b> 포털은 ERP에 직접 등록하지 않습니다 —
+      제출하면 회계 담당자가 내용을 확인해 ERP에 최종 저장하고, 저장된 전표번호가 이 화면에 표시됩니다.
+      등록자는 회원님의 MS 계정과 연결된 ERP 사용자 ID로 자동 지정됩니다.
+    </div>
+    <div class="banner err hide" id="warnBox"></div>
+
+    <div class="tabs">
+      <button data-tab="write" class="on">전표 작성</button>
+      <button data-tab="mine">내 초안</button>
+      <button data-tab="post" class="hide" id="tabPost">회계 담당자</button>
+    </div>
+
+    <!-- ═══ 전표 작성 ═══ -->
+    <div id="paneWrite">
+      <div class="sec">
+        <h2>전표 헤더 <small id="editingNo"></small></h2>
+        <div class="form">
+          <div class="fld">
+            <label>결의일자<span class="req">*</span></label>
+            <input type="date" id="fDt">
+          </div>
+          <div class="fld">
+            <label>전표형태<span class="req">*</span></label>
+            <select id="fType"></select>
+            <span class="hint">ERP 전표형태 코드는 확인 후 확정됩니다</span>
+          </div>
+          <div class="fld">
+            <label>등록자 (자동)</label>
+            <input type="text" id="fOwner" readonly>
+          </div>
+          <div class="fld">
+            <label>부서<span class="req">*</span></label>
+            <select id="fDept"></select>
+          </div>
+          <div class="fld">
+            <label>코스트센터</label>
+            <select id="fCost"></select>
+          </div>
+          <div class="fld">
+            <label>프로젝트</label>
+            <input type="text" id="fProj" placeholder="예: 2025-095-SUL-EC">
+          </div>
+          <div class="fld">
+            <label>참조번호</label>
+            <input type="text" id="fRef" maxlength="30" placeholder="그룹웨어 결재 문서번호">
+          </div>
+          <div class="fld wide">
+            <label>적요<span class="req">*</span></label>
+            <input type="text" id="fDesc" maxlength="200" placeholder="예: 7월 출장 여비교통비 정산">
+          </div>
+        </div>
+      </div>
+
+      <div class="sec">
+        <h2>전표 라인
+          <small>차변·대변 합계가 일치해야 제출할 수 있습니다</small>
+          <span style="margin-left:auto;display:flex;gap:7px;">
+            <button class="b gh sm" id="btnAddRow">+ 행 추가</button>
+            <button class="b gh sm" id="btnDelRow">선택 행 삭제</button>
+          </span>
+        </h2>
+        <div id="itemGrid"></div>
+        <div class="sumbar" id="sumbar">
+          <div class="it">차변 합계<b id="sumDr">0</b></div>
+          <div class="it">대변 합계<b id="sumCr">0</b></div>
+          <div class="st" id="sumSt">—</div>
+        </div>
+        <div class="btns">
+          <button class="b pri" id="btnSave">임시저장</button>
+          <button class="b ok" id="btnSubmit">제출</button>
+          <button class="b gh" id="btnReset">새 전표</button>
+        </div>
+      </div>
+
+      <div class="sec">
+        <h2>거래처 찾기 <small>선택하면 그리드에서 선택한 행의 거래처로 넣습니다</small></h2>
+        <div class="bpbox">
+          <input type="text" id="bpQ" placeholder="거래처명 2자 이상 입력">
+          <button class="b gh sm" id="btnBp">검색</button>
+        </div>
+        <div class="bplist hide" id="bpList"></div>
+      </div>
+    </div>
+
+    <!-- ═══ 내 초안 ═══ -->
+    <div id="paneMine" class="hide">
+      <div class="sec">
+        <h2>내가 작성한 초안 <small>작성중인 건을 눌러 이어서 수정할 수 있습니다</small></h2>
+        <div style="overflow-x:auto;"><table class="tbl" id="mineTbl"></table></div>
+      </div>
+    </div>
+
+    <!-- ═══ 회계 담당자 ═══ -->
+    <div id="panePost" class="hide">
+      <div class="sec">
+        <h2>제출된 초안
+          <small>ERP에 등록한 뒤 전표번호를 기입해야 완료 처리됩니다</small>
+          <span style="margin-left:auto;">
+            <select id="postFilter" style="border:1.5px solid var(--line);border-radius:8px;padding:6px 10px;font-family:inherit;font-size:12.5px;">
+              <option value="submitted">제출됨</option>
+              <option value="posted">확정됨</option>
+              <option value="all">전체</option>
+            </select>
+          </span>
+        </h2>
+        <div style="overflow-x:auto;"><table class="tbl" id="postTbl"></table></div>
+      </div>
+      <div class="sec hide" id="postDetail">
+        <h2>ERP 입력용 요약 <small id="postDetailNo"></small></h2>
+        <div class="erpbox" id="erpSummary"></div>
+        <div style="overflow-x:auto;margin-top:12px;"><table class="tbl" id="postItems"></table></div>
+        <div class="btns">
+          <input type="text" id="tempGlNo" maxlength="18" placeholder="ERP 결의전표번호"
+                 style="border:1.5px solid var(--line);border-radius:9px;padding:10px 13px;font-family:inherit;font-size:13.5px;width:220px;">
+          <button class="b ok" id="btnPost">확정 기록</button>
+          <button class="b gh" id="btnCopyErp">📋 값 복사</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="foot">
+      데이터 출처: 포털 초안 DB(gl_draft) · 계정과목·코스트센터는 ERP 마스터 미러<br>
+      전표의 최종 효력은 ERP에 저장된 결의전표에 있습니다.
+    </div>
+  </div>
+</div>
+
+<script type="module">
+import { createGrid } from "../app/lib/grid.js";
+
+const API = "https://dvzohdqtjzocgcclgwro.supabase.co/functions/v1/jeil-gl-draft";
+const PORTAL = "../04_챗봇_포털_데모UI.html";
+
+/* 데모 한정: 토큰은 localStorage 'jeilax_auth'(포털 로그인 결과).
+   운영 전환 시 BFF/HttpOnly 쿠키로 대체 예정 — CLAUDE.md §5.6 */
+function auth(){
+  try{ const a = JSON.parse(localStorage.getItem("jeilax_auth")||"null"); return (a&&a.at&&a.exp>Date.now())?a:null; }
+  catch(e){ return null; }
+}
+async function api(op, body={}){
+  const a = auth();
+  if(!a){ location.replace(PORTAL); throw new Error("로그인이 필요합니다."); }
+  const r = await fetch(API, { method:"POST",
+    headers:{ Authorization:"Bearer "+a.at, "Content-Type":"application/json" },
+    body: JSON.stringify({ op, ...body }) });
+  const j = await r.json().catch(()=>({}));
+  if(!r.ok) throw new Error(j.안내 || j.error || "요청 실패");
+  return j;
+}
+const $ = (id)=>document.getElementById(id);
+const won = (n)=>Number(n||0).toLocaleString("ko-KR");
+const esc = (s)=>String(s??"").replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const STATUS_KO = { draft:"작성중", submitted:"제출됨", posted:"확정됨", void:"폐기" };
+
+let ME = null, MASTER = { accounts:[], cost_centers:[], depts:[] }, GRID = null;
+let CURRENT_NO = null;            // 수정 중인 초안번호(신규면 null)
+let POST_SEL = null;              // 회계 담당자 화면에서 선택한 초안
+
+function toast(msg, bad){
+  const t = document.createElement("div");
+  t.className = "toast" + (bad?" bad":""); t.textContent = msg;
+  document.body.appendChild(t); setTimeout(()=>t.remove(), bad?5200:2800);
+}
+
+/* ═══ 초기화 ═══ */
+async function boot(){
+  let d;
+  try{ d = await api("bootstrap"); }
+  catch(e){
+    $("loading").innerHTML = '<div class="gate"><div class="ic">🔒</div><h2>화면을 열 수 없습니다</h2>'
+      + '<p>'+esc(e.message)+'</p></div>';
+    return;
+  }
+  ME = d.me; MASTER = d.master || MASTER;
+  $("loading").classList.add("hide"); $("app").classList.remove("hide");
+  $("who").innerHTML = "등록자 <b>"+esc(ME.name||ME.upn)+"</b><br>"+esc(ME.dept_nm||"부서 미매핑");
+  $("fOwner").value = (ME.name?ME.name+" ":"") + "(" + (ME.erp_usr_id||ME.upn) + ")";
+  if(d.can_post) $("tabPost").classList.remove("hide");
+
+  // 차단 사유는 감추지 않고 그대로 보여준다 — 저장이 왜 안 되는지 사용자가 알아야 한다
+  const warn = [];
+  if(!d.erp_user_mapped) warn.push("⚠ MS 계정과 연결된 <b>ERP 사용자 ID를 찾지 못했습니다</b>. 전표 등록자는 ERP 계정 기준이라 초안을 저장할 수 없습니다 — 포털 관리자에게 문의하세요.");
+  if(!d.accounts_loaded) warn.push("⚠ <b>계정과목 마스터가 아직 적재되지 않았습니다</b>. 관리자가 ERP 마스터를 적재한 뒤 입력할 수 있습니다.");
+  if(!d.can_input && d.can_post) warn.push("ℹ 회원님은 <b>회계 담당자 권한</b>으로 접속했습니다. 초안 작성 권한은 없습니다.");
+  if(warn.length){ $("warnBox").innerHTML = warn.join("<br>"); $("warnBox").classList.remove("hide"); }
+  const blocked = !d.erp_user_mapped || !d.accounts_loaded || !d.can_input;
+  $("btnSave").disabled = blocked; $("btnSubmit").disabled = blocked;
+
+  fillHeader(d.locked_months || []);
+  buildGrid();
+  newDraft();
+  loadMine();
+}
+
+function fillHeader(locked){
+  const today = new Date(); const iso = new Date(today.getTime() - today.getTimezoneOffset()*60000).toISOString().slice(0,10);
+  $("fDt").value = iso;
+  $("fDt").addEventListener("change", ()=>{
+    const ym = $("fDt").value.slice(0,7);
+    if(locked.includes(ym)) toast(ym+" 은(는) 마감된 회계기간입니다. 다른 날짜를 선택하세요.", true);
+  });
+  // 전표형태 — ERP 실제 코드값 확인 전이라 기본값 하나만 둔다(확인 후 옵션 확정)
+  $("fType").innerHTML = '<option value="">(기본)</option><option value="1">일반전표</option>';
+  $("fDept").innerHTML = '<option value="">선택</option>' + (MASTER.depts||[]).map((d)=>
+    '<option value="'+esc(d.dept_cd)+'">'+esc(d.dept_nm)+'</option>').join("");
+  // 내 부서를 기본 선택
+  const mine = (MASTER.depts||[]).find((d)=>d.dept_nm === ME.dept_nm);
+  if(mine) $("fDept").value = mine.dept_cd;
+  renderCostOptions();
+  $("fDept").addEventListener("change", renderCostOptions);
+}
+function renderCostOptions(){
+  const dept = $("fDept").value;
+  const all = MASTER.cost_centers||[];
+  const rel = all.filter((c)=>!dept || c.dept_cd === dept);
+  const list = rel.length ? rel : all;   // 부서 연결이 없으면 전체를 보여준다(선택 자체를 막지 않는다)
+  const cur = $("fCost").value;
+  $("fCost").innerHTML = '<option value="">선택 안 함</option>' + list.map((c)=>
+    '<option value="'+esc(c.cost_cd)+'">'+esc(c.cost_nm||c.cost_cd)+'</option>').join("");
+  if(cur) $("fCost").value = cur;
+}
+
+/* ═══ 라인 그리드 (표준 컴포넌트 — CLAUDE.md §13) ═══ */
+function buildGrid(){
+  const acctOptions = [{value:"",label:"선택"}].concat(
+    (MASTER.accounts||[]).map((a)=>({ value:a.acct_cd, label:(a.acct_nm||a.acct_cd)+" ("+a.acct_cd+")" })));
+  const costOptions = [{value:"",label:"—"}].concat(
+    (MASTER.cost_centers||[]).map((c)=>({ value:c.cost_cd, label:c.cost_nm||c.cost_cd })));
+
+  GRID = createGrid("#itemGrid", {
+    keyField:"item_seq", rows:[], selectable:true, sortable:false, search:false, columnFilter:false,
+    editable:true, editToggle:false, paste:false, exportCsv:true, copy:true, exportName:"결의전표라인",
+    emptyText:"라인이 없습니다. [+ 행 추가]를 눌러 시작하세요.",
+    columns:[
+      { key:"item_seq", label:"순번", width:"48px", editable:false, align:"center" },
+      { key:"dr_cr_fg", label:"차대", width:"78px", type:"select", editable:true,
+        options:[{value:"D",label:"차변"},{value:"C",label:"대변"}],
+        formatter:(v)=> v==="D" ? "차변" : v==="C" ? "대변" : "",
+        validator:(v)=> (v==="D"||v==="C") || "차변/대변을 선택하세요" },
+      { key:"acct_cd", label:"계정과목", width:"210px", type:"select", editable:true, options:acctOptions,
+        formatter:(v,row)=> v ? esc(row.acct_nm||v) : "",
+        validator:(v)=> !!v || "계정과목을 선택하세요" },
+      { key:"item_amt", label:"금액", width:"120px", editable:true, align:"right",
+        formatter:(v)=> v ? won(v) : "",
+        validator:(v)=>{ const n=Number(String(v||"").replace(/,/g,""));
+          return (n>0 && Number.isInteger(n)) || "0보다 큰 정수"; } },
+      { key:"item_desc", label:"적요", width:"200px", editable:true },
+      { key:"bp_nm", label:"거래처", width:"150px", editable:false,
+        formatter:(v,row)=> v ? esc(v) : (row.bp_cd ? esc(row.bp_cd) : '<span style="color:#aab;">—</span>') },
+      { key:"cost_cd", label:"코스트센터", width:"140px", type:"select", editable:true, options:costOptions },
+      { key:"project_no", label:"프로젝트", width:"130px", editable:true },
+    ],
+    // 계정을 고르면 계정명 사본을 채운다(ERP 코드 변경 대비 + 회계 담당자 화면 표시용)
+    onCellEdit:(key, field, value, row)=>{
+      if(field === "acct_cd"){
+        const a = (MASTER.accounts||[]).find((x)=>String(x.acct_cd)===String(value));
+        row.acct_nm = a ? (a.acct_nm||"") : "";
+        // 차대 기본값 제안 — 비어 있을 때만(사용자 선택을 덮어쓰지 않는다)
+        if(a && !row.dr_cr_fg && (a.bal_fg==="D"||a.bal_fg==="C")) row.dr_cr_fg = a.bal_fg;
+      }
+      updateSum();
+    },
+  });
+}
+function rows(){ return GRID ? GRID.getData() : []; }
+function setRows(rs){
+  rs.forEach((r,i)=>{ r.item_seq = i+1; });
+  GRID.setRows(rs); updateSum();
+}
+function updateSum(){
+  let dr=0, cr=0;
+  rows().forEach((r)=>{
+    const n = Number(String(r.item_amt||"").replace(/,/g,""));
+    if(!(n>0)) return;
+    if(r.dr_cr_fg==="D") dr+=n; else if(r.dr_cr_fg==="C") cr+=n;
+  });
+  $("sumDr").textContent = won(dr); $("sumCr").textContent = won(cr);
+  const bar = $("sumbar"), st = $("sumSt");
+  bar.classList.remove("ok","bad");
+  if(dr===0 && cr===0){ st.textContent = "—"; return; }
+  if(dr===cr){ bar.classList.add("ok"); st.textContent = "✅ 차대 일치"; }
+  else { bar.classList.add("bad"); st.textContent = "⚠ 차액 " + won(Math.abs(dr-cr)); }
+}
+
+/* ═══ 작성 동작 ═══ */
+function newDraft(){
+  CURRENT_NO = null; $("editingNo").textContent = "";
+  $("fDesc").value = ""; $("fProj").value = ""; $("fRef").value = "";
+  setRows([{ dr_cr_fg:"D", acct_cd:"", item_amt:"", item_desc:"" },
+           { dr_cr_fg:"C", acct_cd:"", item_amt:"", item_desc:"" }]);
+}
+function collect(){
+  const deptSel = $("fDept");
+  return {
+    header:{
+      draft_dt: $("fDt").value, gl_type: $("fType").value,
+      dept_cd: deptSel.value, dept_nm: deptSel.options[deptSel.selectedIndex]?.text || "",
+      cost_cd: $("fCost").value, gl_desc: $("fDesc").value.trim(),
+      project_no: $("fProj").value.trim(), ref_no: $("fRef").value.trim(),
+    },
+    items: rows().filter((r)=> r.acct_cd || r.item_amt).map((r)=>({
+      dr_cr_fg:r.dr_cr_fg, acct_cd:r.acct_cd, item_amt:r.item_amt, item_desc:r.item_desc,
+      bp_cd:r.bp_cd||null, bp_nm:r.bp_nm||null, cost_cd:r.cost_cd||null, project_no:r.project_no||null,
+    })),
+  };
+}
+async function save(){
+  const p = collect();
+  if(!GRID.validateAll()){ toast("입력값을 확인하세요 — 빨간 셀을 수정해 주세요.", true); return null; }
+  try{
+    const r = await api("save", { ...p, draft_no: CURRENT_NO });
+    CURRENT_NO = r.draft_no; $("editingNo").textContent = "· "+r.draft_no+" 수정 중";
+    toast(r.안내 || "저장했습니다."); loadMine(); return r.draft_no;
+  }catch(e){ toast(e.message, true); return null; }
+}
+
+$("btnAddRow").onclick = ()=>{ const rs = rows(); rs.push({ dr_cr_fg:"", acct_cd:"", item_amt:"", item_desc:"" }); setRows(rs); };
+$("btnDelRow").onclick = ()=>{
+  const sel = new Set(GRID.getSelectedKeys().map(String));
+  if(!sel.size){ toast("삭제할 행을 선택하세요.", true); return; }
+  const rest = rows().filter((r)=> !sel.has(String(r.item_seq)));
+  if(rest.length < 2){ toast("라인은 최소 2줄이 필요합니다.", true); return; }
+  GRID.clearSelection(); setRows(rest);
+};
+$("btnSave").onclick = save;
+$("btnReset").onclick = ()=>{ if(confirm("작성 중인 내용을 지우고 새 전표를 시작할까요?")) newDraft(); };
+$("btnSubmit").onclick = async ()=>{
+  const no = await save(); if(!no) return;
+  if(!confirm("제출하면 수정할 수 없습니다. 회계 담당자에게 넘길까요?")) return;
+  try{ const r = await api("submit", { draft_no:no }); toast(r.안내); newDraft(); loadMine(); }
+  catch(e){ toast(e.message, true); }
+};
+
+/* 거래처 검색 — 선택한 행에 넣는다 */
+$("btnBp").onclick = async ()=>{
+  const q = $("bpQ").value.trim();
+  if(q.length < 2){ toast("2자 이상 입력하세요.", true); return; }
+  try{
+    const r = await api("bp", { q });
+    const list = $("bpList");
+    if(!r.rows.length){ list.innerHTML = '<div style="color:var(--muted);cursor:default;">검색 결과가 없습니다.</div>'; }
+    else list.innerHTML = r.rows.map((b)=>
+      '<div data-cd="'+esc(b.bp_cd)+'" data-nm="'+esc(b.bp_nm)+'">'+esc(b.bp_nm)+' <span style="color:var(--muted);font-size:11px;">'+esc(b.bp_cd)+'</span></div>').join("");
+    list.classList.remove("hide");
+  }catch(e){ toast(e.message, true); }
+};
+$("bpList").onclick = (e)=>{
+  const d = e.target.closest("div[data-cd]"); if(!d) return;
+  const keys = GRID.getSelectedKeys();
+  if(!keys.length){ toast("거래처를 넣을 행을 먼저 선택하세요.", true); return; }
+  const rs = rows();
+  keys.forEach((k)=>{ const r = rs.find((x)=>String(x.item_seq)===String(k));
+    if(r){ r.bp_cd = d.getAttribute("data-cd"); r.bp_nm = d.getAttribute("data-nm"); } });
+  setRows(rs); toast("거래처를 적용했습니다.");
+};
+
+/* ═══ 내 초안 ═══ */
+async function loadMine(){
+  try{
+    const r = await api("mine");
+    const t = $("mineTbl");
+    if(!r.rows.length){ t.innerHTML = '<tr><td style="color:var(--muted);padding:20px;text-align:center;">작성한 초안이 없습니다.</td></tr>'; return; }
+    t.innerHTML = '<thead><tr><th>초안번호</th><th>결의일자</th><th>적요</th><th class="r">차변</th><th class="r">대변</th><th>상태</th><th>ERP 전표번호</th></tr></thead><tbody>'
+      + r.rows.map((x)=>
+        '<tr class="'+(x.status==="draft"?"clk":"")+'" data-no="'+esc(x.draft_no)+'" data-st="'+esc(x.status)+'">'
+        + '<td>'+esc(x.draft_no)+'</td><td>'+esc(x.draft_dt)+'</td><td>'+esc(x.gl_desc||"")+'</td>'
+        + '<td class="r">'+won(x.dr_total)+'</td><td class="r">'+won(x.cr_total)+'</td>'
+        + '<td><span class="pill '+esc(x.status)+'">'+(STATUS_KO[x.status]||x.status)+'</span></td>'
+        + '<td>'+(x.erp_temp_gl_no?esc(x.erp_temp_gl_no):'<span style="color:#aab;">—</span>')+'</td></tr>').join("")
+      + '</tbody>';
+  }catch(e){ toast(e.message, true); }
+}
+$("mineTbl").onclick = async (e)=>{
+  const tr = e.target.closest("tr[data-no]"); if(!tr || tr.getAttribute("data-st")!=="draft") return;
+  try{
+    const r = await api("get", { draft_no: tr.getAttribute("data-no") });
+    const h = r.header;
+    CURRENT_NO = h.draft_no; $("editingNo").textContent = "· "+h.draft_no+" 수정 중";
+    $("fDt").value = h.draft_dt || ""; $("fType").value = h.gl_type || "";
+    $("fDept").value = h.dept_cd || ""; renderCostOptions(); $("fCost").value = h.cost_cd || "";
+    $("fDesc").value = h.gl_desc || ""; $("fProj").value = h.project_no || ""; $("fRef").value = h.ref_no || "";
+    setRows(r.items.map((it)=>({ ...it })));
+    showTab("write"); toast(h.draft_no+" 을 불러왔습니다.");
+  }catch(e2){ toast(e2.message, true); }
+};
+
+/* ═══ 회계 담당자 ═══ */
+async function loadPost(){
+  try{
+    const r = await api("list", { status: $("postFilter").value });
+    const t = $("postTbl");
+    if(!r.rows.length){ t.innerHTML = '<tr><td style="color:var(--muted);padding:20px;text-align:center;">해당 상태의 초안이 없습니다.</td></tr>'; return; }
+    t.innerHTML = '<thead><tr><th>초안번호</th><th>결의일자</th><th>등록자</th><th>부서</th><th>적요</th><th class="r">금액</th><th>상태</th><th>ERP 전표번호</th></tr></thead><tbody>'
+      + r.rows.map((x)=>
+        '<tr class="clk" data-no="'+esc(x.draft_no)+'">'
+        + '<td>'+esc(x.draft_no)+'</td><td>'+esc(x.draft_dt)+'</td>'
+        + '<td>'+esc(x.owner_nm||x.owner_erp_usr_id||"")+'</td><td>'+esc(x.dept_nm||"")+'</td>'
+        + '<td>'+esc(x.gl_desc||"")+'</td><td class="r">'+won(x.dr_total)+'</td>'
+        + '<td><span class="pill '+esc(x.status)+'">'+(STATUS_KO[x.status]||x.status)+'</span></td>'
+        + '<td>'+(x.erp_temp_gl_no?esc(x.erp_temp_gl_no):'<span style="color:var(--red);font-weight:700;">미기입</span>')+'</td></tr>').join("")
+      + '</tbody>';
+  }catch(e){ toast(e.message, true); }
+}
+$("postFilter").onchange = loadPost;
+$("postTbl").onclick = async (e)=>{
+  const tr = e.target.closest("tr[data-no]"); if(!tr) return;
+  try{
+    const r = await api("get", { draft_no: tr.getAttribute("data-no") });
+    POST_SEL = r; const h = r.header;
+    $("postDetail").classList.remove("hide");
+    $("postDetailNo").textContent = "· " + h.draft_no;
+    $("erpSummary").innerHTML = [
+      ["결의일자", h.draft_dt], ["전표형태", h.gl_type||"(기본)"],
+      ["등록자(ERP ID)", h.owner_erp_usr_id], ["부서", h.dept_nm||h.dept_cd||"—"],
+      ["코스트센터", h.cost_cd||"—"], ["적요", h.gl_desc],
+      ["프로젝트", h.project_no||"—"], ["참조번호", h.ref_no||"—"],
+      ["차변/대변 합계", won(h.dr_total)+" / "+won(h.cr_total)],
+    ].map(([k,v])=>'<div class="row"><span class="k">'+esc(k)+'</span><span class="v">'+esc(v)+'</span></div>').join("");
+    $("postItems").innerHTML = '<thead><tr><th>순번</th><th>차대</th><th>계정과목</th><th class="r">금액</th><th>적요</th><th>거래처</th><th>코스트센터</th><th>프로젝트</th></tr></thead><tbody>'
+      + r.items.map((it)=>'<tr><td>'+it.item_seq+'</td><td>'+(it.dr_cr_fg==="D"?"차변":"대변")+'</td>'
+      + '<td>'+esc(it.acct_nm||"")+' <span style="color:var(--muted);font-size:11px;">'+esc(it.acct_cd)+'</span></td>'
+      + '<td class="r">'+won(it.item_amt)+'</td><td>'+esc(it.item_desc||"")+'</td>'
+      + '<td>'+esc(it.bp_nm||it.bp_cd||"—")+'</td><td>'+esc(it.cost_cd||"—")+'</td><td>'+esc(it.project_no||"—")+'</td></tr>').join("")
+      + '</tbody>';
+    $("tempGlNo").value = h.erp_temp_gl_no || "";
+    $("postDetail").scrollIntoView({ behavior:"smooth", block:"nearest" });
+  }catch(e2){ toast(e2.message, true); }
+};
+$("btnPost").onclick = async ()=>{
+  if(!POST_SEL) return;
+  const no = $("tempGlNo").value.trim();
+  if(!no){ toast("ERP에서 저장된 결의전표번호를 입력하세요.", true); return; }
+  if(!confirm("ERP 전표번호 "+no+" 로 확정 기록합니다. ERP에 실제로 저장했는지 확인하셨나요?")) return;
+  try{
+    const r = await api("post", { draft_no: POST_SEL.header.draft_no, erp_temp_gl_no: no });
+    toast(r.안내); $("postDetail").classList.add("hide"); POST_SEL = null; loadPost();
+  }catch(e){ toast(e.message, true); }
+};
+$("btnCopyErp").onclick = ()=>{
+  if(!POST_SEL) return;
+  const h = POST_SEL.header;
+  const lines = ["결의일자\t"+h.draft_dt, "등록자\t"+h.owner_erp_usr_id, "부서\t"+(h.dept_nm||""),
+                 "적요\t"+h.gl_desc, "참조번호\t"+(h.ref_no||""), "",
+                 "순번\t차대\t계정코드\t계정명\t금액\t적요\t거래처\t코스트센터\t프로젝트"]
+    .concat(POST_SEL.items.map((it)=>[it.item_seq, it.dr_cr_fg==="D"?"차변":"대변", it.acct_cd, it.acct_nm||"",
+      it.item_amt, it.item_desc||"", it.bp_cd||"", it.cost_cd||"", it.project_no||""].join("\t")));
+  navigator.clipboard?.writeText(lines.join("\n")).then(()=>toast("클립보드에 복사했습니다."), ()=>toast("복사 실패", true));
+};
+
+/* ═══ 탭 ═══ */
+function showTab(name){
+  document.querySelectorAll(".tabs button").forEach((b)=> b.classList.toggle("on", b.dataset.tab===name));
+  $("paneWrite").classList.toggle("hide", name!=="write");
+  $("paneMine").classList.toggle("hide", name!=="mine");
+  $("panePost").classList.toggle("hide", name!=="post");
+  if(name==="mine") loadMine();
+  if(name==="post") loadPost();
+}
+document.querySelectorAll(".tabs button").forEach((b)=> b.onclick = ()=> showTab(b.dataset.tab));
+
+boot();
+</script>
+</body>
+</html>
