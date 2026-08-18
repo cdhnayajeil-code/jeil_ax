@@ -151,6 +151,26 @@
   .top h2{font-size:15px; color:var(--navy);}
   .top .mode{font-size:11.5px; color:var(--muted); background:var(--bg); border:1px solid var(--line); border-radius:20px; padding:4px 12px;}
   .top .mode b{color:var(--accent);}
+  /* ===== 상단 대시보드 라인 — 즐겨찾기 바로가기 (★는 사이드바 업무 도구·사내 운영 페이지에서 등록) ===== */
+  .dashline{background:#f7f9fc; border-bottom:1px solid var(--line); padding:8px 24px; display:flex; align-items:center; gap:10px; flex:none;}
+  .dashline .dl-lb{font-size:11.5px; font-weight:700; color:var(--navy); flex:none; letter-spacing:.02em;}
+  .dashline .dl-chips{display:flex; gap:6px; overflow-x:auto; flex:1; min-width:0; align-items:center; scrollbar-width:thin; scrollbar-color:#cfd8e6 transparent; padding-bottom:2px;}
+  .dashline .dl-hint{font-size:11.5px; color:var(--muted); white-space:nowrap;}
+  .dl-chip{display:inline-flex; align-items:center; gap:6px; background:#fff; border:1px solid var(--line); border-radius:20px; padding:5px 7px 5px 12px; font-size:12px; color:var(--navy); cursor:pointer; font-family:inherit; text-decoration:none; white-space:nowrap; flex:none; transition:border-color .15s, box-shadow .15s;}
+  .dl-chip:hover{border-color:var(--accent); box-shadow:0 1px 6px rgba(47,111,179,.18);}
+  .dl-chip .dl-x{width:16px; height:16px; color:#aab6c8; font-size:11px; cursor:pointer; border-radius:50%; display:inline-flex; align-items:center; justify-content:center;}
+  .dl-chip .dl-x:hover{color:#c0392b; background:#f6e3e1;}
+  /* 즐겨찾기 ★ 토글 — 사내 운영 페이지 카드 우상단 */
+  .fav-btn{border:1px solid var(--line); background:#fff; color:#b8c2d2; width:28px; height:28px; border-radius:50%; font-size:14px; cursor:pointer; line-height:1; font-family:inherit; padding:0; transition:color .15s, border-color .15s;}
+  .fav-btn:hover{color:#e8a413; border-color:#e8c96a;}
+  .fav-btn.on{color:#e8a413; border-color:#e8c96a; background:#fff8e6;}
+  .pgcard .fav-btn{position:absolute; top:12px; right:12px;}
+  /* 즐겨찾기 ★ 토글 — 사이드바 추천 업무 도구 */
+  .tpl-row{display:flex; gap:5px; align-items:stretch; margin-bottom:6px;}
+  .tpl .tpl-row button{margin-bottom:0; flex:1; min-width:0;}
+  .tpl button.tpl-fav{flex:none; width:34px; border:none; background:rgba(255,255,255,.06); color:#8fa3c0; font-size:14px; text-align:center; padding:0; border-radius:9px;}
+  .tpl button.tpl-fav:hover{background:rgba(255,255,255,.14); color:#ffd24a;}
+  .tpl button.tpl-fav.on{color:#ffd24a;}
   .chat{flex:1; overflow-y:auto; padding:28px 8% 30px; scrollbar-width:thin; scrollbar-color:#cfd8e6 transparent;}
   .chat::-webkit-scrollbar{width:8px;}
   .chat::-webkit-scrollbar-thumb{background:#cfd8e6; border-radius:4px;}
@@ -281,7 +301,7 @@
   /* ===== 부서 운영 페이지 ===== */
   .pgview{flex:1; display:none; flex-direction:column; min-width:0; overflow-y:auto;}
   .pg-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(270px,1fr)); gap:14px;}
-  .pgcard{background:#fff; border:1px solid var(--line); border-radius:12px; padding:18px; display:flex; flex-direction:column; gap:8px;}
+  .pgcard{background:#fff; border:1px solid var(--line); border-radius:12px; padding:18px; display:flex; flex-direction:column; gap:8px; position:relative;}
   .pgcard .ic{font-size:22px;}
   .pgcard h4{font-size:14.5px; color:var(--navy); line-height:1.4;}
   .pgcard p{font-size:12px; color:var(--muted); flex:1; line-height:1.6;}
@@ -340,6 +360,7 @@
     /* 헤더 */
     .top, .admin-top{padding-left:12px; padding-right:12px; gap:8px; flex-wrap:wrap;}
     .top h2{font-size:14px;} .top .mode{font-size:10px; padding:3px 9px;}
+    .dashline{padding:6px 12px;}
     .admin-top h2{font-size:14px; padding:12px 0 8px;}
     .admin-top{padding-top:6px; padding-bottom:6px;}
     .tabs{order:3; width:100%; overflow-x:auto;}
@@ -480,6 +501,13 @@
       <button class="menu-btn" onclick="toggleDrawer()" aria-label="메뉴">☰</button>
       <h2><span id="chatTitle">새 대화</span> <button class="mini" onclick="newChat()" title="새 대화 시작">＋ 새 대화</button> <button class="mini" id="chatSyncBtn" style="display:none" onclick="refreshSession()" title="팀원이 남긴 새 메시지 확인">↻ 동기화</button> <span class="mfa-badge" id="mfaBadge">🔐 Entra ID 로그인 대기</span></h2>
       <span class="mode">모델 자동 라우팅: <b id="modelLabel">표준 (Haiku)</b></span>
+    </div>
+
+    <!-- 상단 대시보드 라인 — 즐겨찾기 바로가기. ★는 사이드바 추천 업무 도구·사내 운영 페이지 카드에서 등록.
+         저장은 localStorage 'jeilax_fav_v1' (데모 한정 — 실구축 시 백엔드 사용자 설정으로 대체) -->
+    <div class="dashline" id="dashLine">
+      <span class="dl-lb">★ 즐겨찾기</span>
+      <div class="dl-chips" id="dlChips"></div>
     </div>
 
     <div class="chat" id="chat">
@@ -1307,8 +1335,12 @@ function renderTpls(dept){
   var ds = DEPTS[dept] || DEPTS.biz;
   var box = document.getElementById('tplBox');
   if(box) box.innerHTML = ds.tpls.map(function(t){
-    return '<button onclick="runDemo(\'' + t.k + '\')">' + t.t + '<small>' + t.s + '</small></button>';
+    return '<div class="tpl-row">'
+      + '<button onclick="runDemo(\'' + t.k + '\')">' + t.t + '<small>' + t.s + '</small></button>'
+      + '<button type="button" class="fav-btn tpl-fav" data-fav-type="tool" data-fav-key="' + t.k + '" onclick="favToggleTpl(\'' + t.k + '\')">☆</button>'
+      + '</div>';
   }).join('');
+  refreshFavMarks();
 }
 // 실제 소속 부서명(22개) → 업무 템플릿 키(5종) 매핑. 미매칭이면 기본(사업관리) 세트.
 function deptKeyFromName(nm){
@@ -1558,6 +1590,7 @@ function doLogin(){ if(IN_TEAMS){ loginInTeams(); } else { msLogin('select_accou
   restoreSessionUI();   // 저장된(유효/갱신가능) 토큰이면 로그인 UI 복원 — 재로드 후에도 실데이터 유지
   scheduleTokenRefresh(); // 만료 전 사전 갱신 예약(세션 자동 유지)
   loadPagePerms(); // 초기 로드 시 부서 운영 카드를 권한 기준으로 구성(미로그인=잠금)
+  renderDashline(); applyFavStars(); // 상단 즐겨찾기 대시보드 라인 + 운영 페이지 카드 ★
 
   // Teams 탭 호스트 감지 (임베드된 경우에만 initialize 성공)
   if(window.microsoftTeams && microsoftTeams.app){
@@ -1584,6 +1617,80 @@ function hideViews(){
 function showChat(){ hideViews(); document.querySelector('.main').style.display='flex'; closeDrawer(); }
 function showAdmin(){ hideViews(); document.getElementById('adminView').style.display='flex'; closeDrawer(); loadAdminLive(); }
 function showPages(){ hideViews(); document.getElementById('pagesView').style.display='flex'; closeDrawer(); loadPagePerms(); }
+
+/* ===== 즐겨찾기 — 상단 대시보드 라인 =====
+   등록 위치 2곳: ① 사이드바 추천 업무 도구(도구 실행) ② 사내 운영 페이지 카드(페이지 열기).
+   저장: localStorage 'jeilax_fav_v1' — 데모 한정(실구축 시 백엔드 사용자 설정으로 대체). */
+var FAV_KEY = 'jeilax_fav_v1';
+function favList(){ try{ var v = JSON.parse(localStorage.getItem(FAV_KEY)||'[]'); return Array.isArray(v)?v:[]; }catch(e){ return []; } }
+function favSave(list){ try{ localStorage.setItem(FAV_KEY, JSON.stringify(list)); }catch(e){} renderDashline(); refreshFavMarks(); }
+function favHas(type, key){ return favList().some(function(f){ return f.t===type && f.k===key; }); }
+function favToggle(type, key, label, icon){
+  var list = favList();
+  var kept = list.filter(function(f){ return !(f.t===type && f.k===key); });
+  if(kept.length === list.length) kept.push({ t:type, k:key, lb:label, ic:icon||'' });
+  favSave(kept);
+}
+function favRemove(i){ var list = favList(); list.splice(i,1); favSave(list); }
+/* 사이드바 도구 ★ — 부서가 바뀌어도 키로 전체 DEPTS에서 라벨을 찾는다 */
+function favToggleTpl(key){
+  var found = null;
+  Object.keys(DEPTS).some(function(d){
+    var t = (DEPTS[d].tpls||[]).filter(function(x){ return x.k===key; })[0];
+    if(t){ found = t; return true; } return false;
+  });
+  if(found) favToggle('tool', key, found.t, '');
+}
+/* 대시보드 라인 렌더 — 페이지=새 탭 열기 / 도구=챗봇 데모 실행 */
+function renderDashline(){
+  var box = document.getElementById('dlChips'); if(!box) return;
+  var list = favList();
+  if(!list.length){
+    box.innerHTML = '<span class="dl-hint">사이드바 업무 도구·사내 운영 페이지의 ☆를 누르면 여기에 바로가기가 생깁니다.</span>';
+    return;
+  }
+  box.innerHTML = list.map(function(f, i){
+    var ic = f.ic ? escHtml(f.ic) + ' ' : '';
+    var x = '<span class="dl-x" onclick="event.preventDefault();event.stopPropagation();favRemove(' + i + ')" title="즐겨찾기 해제">✕</span>';
+    if(f.t === 'page'){
+      return '<a class="dl-chip" href="' + escHtml(f.k) + '" target="_blank" title="' + escHtml(f.lb) + ' 열기">' + ic + escHtml(f.lb) + x + '</a>';
+    }
+    return '<button type="button" class="dl-chip" onclick="showChat();runDemo(\'' + escHtml(f.k) + '\')" title="' + escHtml(f.lb) + ' 실행">' + escHtml(f.lb) + x + '</button>';
+  }).join('');
+}
+/* 보이는 ★ 버튼들의 on/off 표시 동기화 */
+function refreshFavMarks(){
+  document.querySelectorAll('.fav-btn[data-fav-type]').forEach(function(b){
+    var on = favHas(b.getAttribute('data-fav-type'), b.getAttribute('data-fav-key'));
+    b.classList.toggle('on', on);
+    b.textContent = on ? '★' : '☆';
+    b.title = on ? '즐겨찾기 해제' : '즐겨찾기 추가';
+  });
+}
+/* 사내 운영 페이지 카드에 ★ 주입 — 정적 카드·서버 재렌더 카드 공통(잠금 카드 제외) */
+function applyFavStars(){
+  document.querySelectorAll('#pagesView .pgcard').forEach(function(card){
+    if(card.querySelector('.fav-btn')) return;
+    var a = card.querySelector('a.open-btn[href]');
+    if(!a || a.classList.contains('lock')) return;
+    var href = a.getAttribute('href'); if(!href || href === '#') return;
+    var h4 = card.querySelector('h4');
+    var title = href;
+    if(h4){ // <br> 뒷부분(프로젝트 번호 등)은 칩 라벨에서 생략
+      var tmp = document.createElement('div');
+      tmp.innerHTML = h4.innerHTML.split(/<br\s*\/?>/i)[0];
+      title = tmp.textContent.replace(/\s+/g,' ').trim() || href;
+    }
+    var icEl = card.querySelector('.ic');
+    var ic = icEl ? icEl.textContent.trim() : '';
+    var b = document.createElement('button');
+    b.className = 'fav-btn'; b.type = 'button';
+    b.setAttribute('data-fav-type','page'); b.setAttribute('data-fav-key', href);
+    b.onclick = function(){ favToggle('page', href, title, ic); };
+    card.appendChild(b);
+  });
+  refreshFavMarks();
+}
 function showTab(key){
   ['api','usage','model','perm','userdept','permdetail','requests'].forEach(k=>{
     document.getElementById('panel-'+k).classList.toggle('on', k===key);
@@ -2170,6 +2277,7 @@ async function loadPagePerms(){
         + '<p style="color:#888">소속 부서·권한 범위 밖 페이지입니다. 열람이 필요하면 해당 부서 관리자에게 요청하세요.</p>'
         + '<a class="open-btn lock" href="#" onclick="return false">🔒 접근 권한 없음</a></div>';
     }).join('') : '<div class="pgcard"><h4>표시할 부서 운영 페이지가 없습니다.</h4></div>';
+    applyFavStars(); // 서버 재렌더 카드에도 ★ 주입
   }catch(e){
     grid.innerHTML = '<div class="pgcard locked"><span class="ic">⚠</span><h4>부서 운영 페이지</h4><p style="color:#888">권한 조회 실패: '+escHtml(e.message||'')+' — 잠시 후 새로고침 해주세요.</p></div>';
   }
