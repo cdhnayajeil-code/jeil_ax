@@ -293,7 +293,8 @@ JOBS = {
         "rpc": "erp_master_upsert",
         "sql": """
             SELECT h.TEMP_GL_NO AS temp_gl_no, CONVERT(date, h.TEMP_GL_DT) AS temp_gl_dt,
-                   h.GL_NO AS gl_no, RTRIM(h.DEPT_CD) AS dept_cd, RTRIM(h.COST_CD) AS cost_cd,
+                   NULLIF(RTRIM(h.GL_NO), '') AS gl_no, NULLIF(RTRIM(h.DEPT_CD), '') AS dept_cd,
+                   NULLIF(RTRIM(h.COST_CD), '') AS cost_cd,
                    RTRIM(h.GL_TYPE) AS gl_type, RTRIM(h.GL_INPUT_TYPE) AS gl_input_type,
                    RTRIM(h.CONF_FG) AS conf_fg,
                    h.DR_LOC_AMT AS dr_loc_amt, h.TEMP_GL_DESC AS temp_gl_desc,
@@ -312,11 +313,13 @@ JOBS = {
         "rpc": "erp_master_upsert",
         "sql": """
             SELECT i.TEMP_GL_NO AS temp_gl_no, i.ITEM_SEQ AS item_seq, RTRIM(i.ACCT_CD) AS acct_cd,
-                   RTRIM(i.DR_CR_FG) AS dr_cr_fg, RTRIM(i.DEPT_CD) AS dept_cd, RTRIM(i.COST_CD) AS cost_cd,
-                   RTRIM(i.VAT_TYPE) AS vat_type, i.ITEM_LOC_AMT AS item_loc_amt, i.VAT_LOC_AMT AS vat_loc_amt,
-                   i.ITEM_DESC AS item_desc, RTRIM(i.BP_CD) AS bp_cd, i.TAX_BIZ_AREA AS tax_biz_area,
-                   i.RELATIVE_ACCT_CD AS relative_acct_cd, RTRIM(i.ITEM_CD) AS item_cd,
-                   RTRIM(i.PROJECT_NO) AS project_no, i.IO_FG AS io_fg,
+                   RTRIM(i.DR_CR_FG) AS dr_cr_fg, NULLIF(RTRIM(i.DEPT_CD), '') AS dept_cd,
+                   NULLIF(RTRIM(i.COST_CD), '') AS cost_cd,
+                   NULLIF(RTRIM(i.VAT_TYPE), '') AS vat_type,
+                   i.ITEM_LOC_AMT AS item_loc_amt, i.VAT_LOC_AMT AS vat_loc_amt,
+                   i.ITEM_DESC AS item_desc, NULLIF(RTRIM(i.BP_CD), '') AS bp_cd, i.TAX_BIZ_AREA AS tax_biz_area,
+                   i.RELATIVE_ACCT_CD AS relative_acct_cd, NULLIF(RTRIM(i.ITEM_CD), '') AS item_cd,
+                   NULLIF(RTRIM(i.PROJECT_NO), '') AS project_no, i.IO_FG AS io_fg,
                    h.UPDT_DT AS src_updated
             FROM JEILMNS.dbo.A_TEMP_GL_ITEM i WITH (NOLOCK)
             JOIN JEILMNS.dbo.A_TEMP_GL h WITH (NOLOCK) ON h.TEMP_GL_NO = i.TEMP_GL_NO

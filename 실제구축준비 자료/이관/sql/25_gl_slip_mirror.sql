@@ -1,5 +1,6 @@
 -- 25_gl_slip_mirror.sql — 결의전표 미러(전표복사 원천) + 조회 RPC
 -- 적용일 2026-08-18 · Supabase 마이그레이션: gl_slip_mirror_v1 · gl_slip_synced_at_v1 · gl_pad_trim_v1
+--                                          · gl_empty_code_null_v1(빈 문자열 코드 → NULL 정규화)
 -- 원천(읽기 전용): JEILMNS.dbo.A_TEMP_GL · A_TEMP_GL_ITEM · A_TEMP_GL_DTL
 --
 -- 배경 — 결의전표 입력(초안) 화면의 「전표복사」 탭 (ERP 전표복사 메뉴와 동일 흐름)
