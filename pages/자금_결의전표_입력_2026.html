@@ -29,14 +29,19 @@
   .tabs{display:flex; gap:6px; margin-bottom:14px; border-bottom:1.5px solid var(--line);}
   .tabs button{background:none; border:none; padding:9px 16px; font-family:inherit; font-size:13.5px; color:var(--muted);
                cursor:pointer; border-bottom:2.5px solid transparent; margin-bottom:-1.5px; font-weight:600;}
-  .tabs button.on{color:var(--navy); border-bottom-color:var(--accent);}
-  .tabs button:hover{color:var(--navy);}
+  .tabs button.on{color:var(--navy); border-bottom-color:var(--accent);
+                  background:linear-gradient(180deg,rgba(58,124,193,.07),rgba(58,124,193,0)); border-radius:8px 8px 0 0;}
+  .tabs button:hover{color:var(--navy); background:rgba(58,124,193,.05); border-radius:8px 8px 0 0;}
   /* 섹션 */
   .sec{background:#fff; border:1px solid var(--line); border-radius:13px; padding:18px 20px; margin-bottom:14px; box-shadow:0 2px 8px rgba(16,42,80,.05);}
-  .sec h2{font-size:14.5px; color:var(--navy); margin-bottom:14px; display:flex; align-items:center; gap:8px; flex-wrap:wrap;}
+  /* 섹션 제목 밴드 — 옅은 음영으로 구획을 인지시킨다(과하지 않게) */
+  .sec h2{font-size:14.5px; color:var(--navy); display:flex; align-items:center; gap:8px; flex-wrap:wrap;
+          background:linear-gradient(90deg,#f2f6fb,#f8fafd 55%,rgba(248,250,253,0));
+          border-radius:9px; padding:9px 13px; margin:-6px -8px 14px;}
   .sec h2 small{font-weight:400; color:var(--muted); font-size:11.5px;}
-  /* 헤더 폼 */
-  .form{display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr)); gap:13px 16px;}
+  /* 헤더 폼 — 입력 구역을 옅은 패널로 감싸 구분 */
+  .form{display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr)); gap:13px 16px;
+        background:#f9fbfd; border:1px solid #edf1f7; border-radius:11px; padding:14px 16px;}
   .fld{display:flex; flex-direction:column; gap:5px;}
   .fld.wide{grid-column:1/-1;}
   .fld label{font-size:11.5px; color:var(--muted); font-weight:600;}
@@ -70,8 +75,9 @@
   .tbl th{background:var(--soft); color:var(--navy); padding:8px 10px; text-align:left; font-weight:600; font-size:11.5px; white-space:nowrap;}
   .tbl td{padding:8px 10px; border-bottom:1px solid var(--line); vertical-align:middle;}
   .tbl td.r,.tbl th.r{text-align:right;}
+  .tbl tbody tr:nth-child(even) td{background:#fafbfd;}   /* 옅은 줄무늬 — 행 구분 인지 */
   .tbl tr.clk{cursor:pointer;}
-  .tbl tr.clk:hover{background:var(--soft);}
+  .tbl tr.clk:hover td{background:#eef4fb;}
   .pill{display:inline-block; padding:2px 9px; border-radius:20px; font-size:11px; font-weight:700;}
   .pill.draft{background:#eef2f8; color:var(--muted);}
   .pill.submitted{background:#e8f1fb; color:var(--accent);}
@@ -120,12 +126,18 @@
   /* 관리항목 패널(F5) — 라인별 카드(차/대변 색 구분) */
   .ctrlpanel{margin-top:12px;}
   .ctrlhead{display:flex; align-items:center; gap:8px; font-size:14px; font-weight:700; color:var(--navy);
-            margin:2px 0 10px; padding-top:12px; border-top:1.5px dashed var(--line);}
+            margin:12px 0 10px;
+            background:linear-gradient(90deg,#f2f6fb,#f8fafd 55%,rgba(248,250,253,0));
+            border-radius:9px; padding:9px 13px;}
   .ctrlhead small{font-weight:400; color:var(--muted); font-size:11.5px;}
   .ctrlrow{border:1px solid var(--line); border-left:4px solid var(--line); border-radius:10px;
            padding:11px 14px; margin-bottom:9px; background:#fbfcfe;}
-  .ctrlrow.dr{border-left-color:var(--accent); background:#fafcff;}
-  .ctrlrow.cr{border-left-color:var(--green); background:#fafdfb;}
+  /* 차/대변 옅은 음영 — 흐릿한 배경으로 방향 구분을 바로 인지 */
+  .ctrlrow.dr{border-left-color:var(--accent); border-color:#dce8f4;
+              background:linear-gradient(180deg,#f3f8fd,#fafcff 70%);}
+  .ctrlrow.cr{border-left-color:var(--green); border-color:#d8ecdd;
+              background:linear-gradient(180deg,#f2faf4,#fafdfb 70%);}
+  .ctrlrow .flds{background:rgba(255,255,255,.65); border-radius:8px; padding:9px 11px;}
   .ctrlrow .ttl{display:flex; align-items:center; gap:8px; font-size:12.5px; font-weight:700; color:var(--navy); margin-bottom:9px; flex-wrap:wrap;}
   .ctrlrow .ttl .fgtag{padding:1px 8px; border-radius:5px; font-size:10.5px; font-weight:800;}
   .ctrlrow.dr .fgtag{background:#e8f1fb; color:var(--accent);}
