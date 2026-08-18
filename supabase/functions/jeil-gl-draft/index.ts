@@ -1,10 +1,11 @@
 // jeil-gl-draft — 결의전표 초안 CRUD (포털 입력 → 사람이 ERP 확정) v5
 // 배포: verify_jwt=false (Entra 토큰은 Supabase JWT가 아니므로 내부에서 Graph 재검증)
 // 호출: POST /functions/v1/jeil-gl-draft  Authorization: Bearer <Entra access_token>
-//   body: { op: "bootstrap"|"save"|"mine"|"get"|"submit"|"void"|"bp"|"list"|"post"
+//   body: { op: "bootstrap"|"save"|"mine"|"get"|"submit"|"void"|"bp"|"item"|"list"|"post"
 //              |"tpl_list"|"tpl_get"|"tpl_save"|"tpl_status"|"tpl_delete"|"tpl_use"
 //              |"tpl_recur_list"|"tpl_apply_prev"|"tpl_seed_bulk"
 //              |"slip_list"|"slip_get", ... }
+// v5.1(2026-08-18): ERP char 패딩 대응(acctCtrlFor trim, RPC btrim은 gl_pad_trim_v1) + op item(품목 검색) 추가
 // DDL 정본: 이관/sql/21_gl_draft.sql · 22_gl_template.sql · 23(관리항목 마스터) · 25(전표 미러)
 //   마이그레이션 gl_draft_v1 · gl_draft_master_rpc · gl_template_v1 · gl_ctrl_master_v1 · gl_template_v2
 //              · gl_slip_mirror_v1
@@ -186,14 +187,17 @@ Deno.serve(async (req) => {
     return _ctrlMaster;
   };
   // 계정×차대별 관리항목 요건: Map<acct_cd, {cd, seq, req(해당 방향 필수)}[]>
+  // ERP char 패딩(뒤 공백) 대비 — 키·코드·플래그 전부 trim해 매칭한다(gl_pad_trim_v1 이후 이중 안전).
   const acctCtrlFor = async (fg: "D" | "C") => {
     const m = await ctrlMaster();
     const rows: [string, string, number, string, string][] = m.acct_ctrl || [];
     const out = new Map<string, { cd: string; seq: number; req: boolean }[]>();
     rows.forEach(([acct, cd, seq, drY, crY]) => {
-      const arr = out.get(acct) || [];
-      arr.push({ cd, seq: Number(seq), req: (fg === "D" ? drY : crY) === "Y" });
-      out.set(acct, arr);
+      const a = String(acct || "").trim();
+      const arr = out.get(a) || [];
+      arr.push({ cd: String(cd || "").trim(), seq: Number(seq),
+                 req: String(fg === "D" ? drY : crY).trim() === "Y" });
+      out.set(a, arr);
     });
     return out;
   };
@@ -505,6 +509,14 @@ Deno.serve(async (req) => {
     const q = String(b.q || "").trim();
     if (q.length < 2) return json({ ok: true, rows: [] });
     const { data } = await admin.rpc("gl_bp_search", { p_q: q });
+    return json({ ok: true, rows: data || [] });
+  }
+
+  /* ===== op: item — 품목 검색(관리항목 MK 팝업용, 2자 이상, 최대 30건) ===== */
+  if (op === "item") {
+    const q = String(b.q || "").trim();
+    if (q.length < 2) return json({ ok: true, rows: [] });
+    const { data } = await admin.rpc("gl_item_search", { p_q: q });
     return json({ ok: true, rows: data || [] });
   }
 

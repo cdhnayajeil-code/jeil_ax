@@ -1,5 +1,5 @@
 -- 25_gl_slip_mirror.sql — 결의전표 미러(전표복사 원천) + 조회 RPC
--- 적용일 2026-08-18 · Supabase 마이그레이션: gl_slip_mirror_v1
+-- 적용일 2026-08-18 · Supabase 마이그레이션: gl_slip_mirror_v1 · gl_slip_synced_at_v1 · gl_pad_trim_v1
 -- 원천(읽기 전용): JEILMNS.dbo.A_TEMP_GL · A_TEMP_GL_ITEM · A_TEMP_GL_DTL
 --
 -- 배경 — 결의전표 입력(초안) 화면의 「전표복사」 탭 (ERP 전표복사 메뉴와 동일 흐름)
@@ -13,9 +13,12 @@
 --   · 민감 관리항목(EM/BA/D1/CP/NN — 사번·계좌·신용카드·구매카드·어음)은
 --     ETL 추출 SQL 에서 값을 NULL 마스킹(중간DB에 값 자체를 두지 않는다)
 --
--- 알려진 한계
+-- 알려진 한계·특성
 --   · upsert 적재라 ERP에서 '삭제'된 전표는 미러에 남을 수 있다(복사 원천 용도로는 허용).
 --   · 야간 배치 미러라 실시간이 아니다 — 화면에 최근 동기 시점을 표시한다.
+--   · ERP char 컬럼은 뒤 공백(패딩)이 붙는다 — 계정·거래처·관리항목 매칭이 전부 miss 되던
+--     원인(2026-08-18 발견). 3중 대응: ETL RTRIM + 기존 데이터 일회성 trim(gl_pad_trim_v1)
+--     + 아래 RPC btrim 반환·조인. ETL/RPC 수정 시 이 원칙을 유지할 것.
 
 -- ═══════════════════════════════════════════════════════════════════════
 -- 1) 미러 테이블 3종 (erp_ro)
@@ -102,6 +105,7 @@ grant select on erp_ro.gl_slip_s, erp_ro.gl_slip_item_s, erp_ro.gl_slip_ctrl_s t
 -- 3) 조회 RPC — 소유 필터를 RPC 안에서 강제. service_role 전용.
 -- ═══════════════════════════════════════════════════════════════════════
 
+-- ※ btrim: ERP char 패딩 대비 이중 안전(데이터는 ETL RTRIM·gl_pad_trim_v1 로 이미 정리됨)
 create or replace function public.gl_slip_list(p_erp_usr_id text, p_from date, p_to date, p_q text)
   returns jsonb
   language sql
@@ -109,12 +113,14 @@ create or replace function public.gl_slip_list(p_erp_usr_id text, p_from date, p
   set search_path to ''
 as $function$
   select coalesce(jsonb_agg(t), '[]'::jsonb) from (
-    select h.temp_gl_no, h.temp_gl_dt, h.gl_no, h.dept_cd, h.cost_cd, h.gl_type,
-           h.gl_input_type, h.conf_fg, h.dr_loc_amt, h.temp_gl_desc, h.ref_no,
+    select h.temp_gl_no, h.temp_gl_dt, h.gl_no, btrim(h.dept_cd) as dept_cd,
+           btrim(h.cost_cd) as cost_cd, btrim(h.gl_type) as gl_type,
+           btrim(h.gl_input_type) as gl_input_type, btrim(h.conf_fg) as conf_fg,
+           h.dr_loc_amt, h.temp_gl_desc, h.ref_no,
            (select count(*) from erp_ro.gl_slip_item_s i where i.temp_gl_no = h.temp_gl_no) as line_cnt
     from erp_ro.gl_slip_s h
     where length(coalesce(p_erp_usr_id, '')) > 3
-      and lower(h.insrt_user_id) = lower(p_erp_usr_id)
+      and lower(btrim(h.insrt_user_id)) = lower(btrim(p_erp_usr_id))
       and (p_from is null or h.temp_gl_dt >= p_from)
       and (p_to   is null or h.temp_gl_dt <= p_to)
       and (coalesce(p_q, '') = '' or h.temp_gl_desc ilike '%' || p_q || '%'
@@ -131,25 +137,32 @@ create or replace function public.gl_slip_get(p_erp_usr_id text, p_no text)
   set search_path to ''
 as $function$
   select jsonb_build_object(
-    'header', to_jsonb(h) - 'batch_id',
+    'header', jsonb_build_object(
+      'temp_gl_no', h.temp_gl_no, 'temp_gl_dt', h.temp_gl_dt, 'gl_no', h.gl_no,
+      'dept_cd', btrim(h.dept_cd), 'cost_cd', btrim(h.cost_cd), 'gl_type', btrim(h.gl_type),
+      'gl_input_type', btrim(h.gl_input_type), 'conf_fg', btrim(h.conf_fg),
+      'dr_loc_amt', h.dr_loc_amt, 'temp_gl_desc', h.temp_gl_desc,
+      'ref_no', h.ref_no, 'issued_dt', h.issued_dt, 'attach_cnt', h.attach_cnt),
     'items', (
       select coalesce(jsonb_agg(jsonb_build_object(
-               'item_seq', i.item_seq, 'dr_cr_fg', i.dr_cr_fg,
-               'acct_cd', i.acct_cd, 'acct_nm', coalesce(a.acct_nm, a.acct_full_nm),
+               'item_seq', i.item_seq, 'dr_cr_fg', btrim(i.dr_cr_fg),
+               'acct_cd', btrim(i.acct_cd), 'acct_nm', coalesce(a.acct_nm, a.acct_full_nm),
                'acct_in_master', (a.acct_cd is not null and a.use_yn),
-               'item_loc_amt', i.item_loc_amt, 'vat_loc_amt', i.vat_loc_amt, 'vat_type', i.vat_type,
-               'item_desc', i.item_desc, 'bp_cd', i.bp_cd, 'bp_nm', b.bp_nm,
-               'cost_cd', i.cost_cd, 'project_no', i.project_no, 'dept_cd', i.dept_cd
+               'item_loc_amt', i.item_loc_amt, 'vat_loc_amt', i.vat_loc_amt,
+               'vat_type', btrim(i.vat_type),
+               'item_desc', i.item_desc, 'bp_cd', btrim(i.bp_cd), 'bp_nm', b.bp_nm,
+               'cost_cd', btrim(i.cost_cd), 'project_no', btrim(i.project_no),
+               'dept_cd', btrim(i.dept_cd)
              ) order by i.item_seq), '[]'::jsonb)
       from erp_ro.gl_slip_item_s i
-      left join erp_ro.acct_master_s a on a.acct_cd = i.acct_cd
-      left join erp_ro.bp_master_s b on b.bp_cd = i.bp_cd
+      left join erp_ro.acct_master_s a on a.acct_cd = btrim(i.acct_cd)
+      left join erp_ro.bp_master_s b on b.bp_cd = btrim(i.bp_cd)
       where i.temp_gl_no = h.temp_gl_no
     ),
     'ctrls', (
       select coalesce(jsonb_agg(jsonb_build_object(
                'item_seq', d.item_seq, 'dtl_seq', d.dtl_seq,
-               'ctrl_cd', d.ctrl_cd, 'ctrl_val', d.ctrl_val
+               'ctrl_cd', btrim(d.ctrl_cd), 'ctrl_val', d.ctrl_val
              ) order by d.item_seq, d.dtl_seq), '[]'::jsonb)
       from erp_ro.gl_slip_ctrl_s d
       where d.temp_gl_no = h.temp_gl_no
@@ -158,8 +171,32 @@ as $function$
   from erp_ro.gl_slip_s h
   where h.temp_gl_no = p_no
     and length(coalesce(p_erp_usr_id, '')) > 3
-    and lower(h.insrt_user_id) = lower(p_erp_usr_id);
+    and lower(btrim(h.insrt_user_id)) = lower(btrim(p_erp_usr_id));
 $function$;
+
+-- 품목 검색(관리항목 MK 팝업용) — 마이그레이션 gl_pad_trim_v1
+create or replace function public.gl_item_search(p_q text)
+  returns jsonb
+  language sql
+  security definer
+  set search_path to ''
+as $function$
+  select coalesce(jsonb_agg(t), '[]'::jsonb) from (
+    select i.item_code, i.item_name, i.spec, i.unit
+    from erp_ro.item_master_s i
+    where i.use_yn
+      and length(coalesce(p_q, '')) >= 2
+      and (i.item_name ilike '%' || p_q || '%' or i.item_code ilike p_q || '%'
+           or coalesce(i.spec,'') ilike '%' || p_q || '%')
+    order by i.item_name
+    limit 30
+  ) t;
+$function$;
+revoke all on function public.gl_item_search(text) from public, anon, authenticated;
+grant execute on function public.gl_item_search(text) to service_role;
+
+-- gl_ctrl_master_get(23/마이그레이션 gl_ctrl_master_v1 정의)도 gl_pad_trim_v1 에서
+-- btrim 반환으로 재정의됨 — acct_ctrl 의 계정·관리항목 코드가 trim 되어 내려간다.
 
 -- 미러 최근 동기 시점(화면 안내용) — 마이그레이션 gl_slip_synced_at_v1
 create or replace function public.gl_slip_synced_at()

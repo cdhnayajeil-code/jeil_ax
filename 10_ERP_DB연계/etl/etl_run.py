@@ -263,9 +263,9 @@ JOBS = {
         "table": "ctrl_item_s",
         "rpc": "erp_master_upsert",
         "sql": """
-            SELECT CTRL_CD AS ctrl_cd, CTRL_NM AS ctrl_nm, CTRL_ENG_NM AS ctrl_eng_nm,
-                   SYS_FG AS sys_fg, COLM_DATA_TYPE AS colm_data_type, DATA_LEN AS data_len,
-                   TBL_ID AS ref_tbl, MAJOR_CD AS major_cd, GL_CTRL_FLD AS gl_ctrl_fld,
+            SELECT RTRIM(CTRL_CD) AS ctrl_cd, CTRL_NM AS ctrl_nm, CTRL_ENG_NM AS ctrl_eng_nm,
+                   SYS_FG AS sys_fg, RTRIM(COLM_DATA_TYPE) AS colm_data_type, DATA_LEN AS data_len,
+                   RTRIM(TBL_ID) AS ref_tbl, MAJOR_CD AS major_cd, GL_CTRL_FLD AS gl_ctrl_fld,
                    DESC_FG AS desc_fg, UPDT_DT AS src_updated
             FROM JEILMNS.dbo.A_CTRL_ITEM WITH (NOLOCK)
         """,
@@ -277,8 +277,8 @@ JOBS = {
         "table": "acct_ctrl_assn_s",
         "rpc": "erp_master_upsert",
         "sql": """
-            SELECT ACCT_CD AS acct_cd, CTRL_CD AS ctrl_cd, CTRL_ITEM_SEQ AS ctrl_item_seq,
-                   DR_FG AS dr_fg, CR_FG AS cr_fg,
+            SELECT RTRIM(ACCT_CD) AS acct_cd, RTRIM(CTRL_CD) AS ctrl_cd, CTRL_ITEM_SEQ AS ctrl_item_seq,
+                   RTRIM(DR_FG) AS dr_fg, RTRIM(CR_FG) AS cr_fg,
                    DEFAULT_GL_FIELD AS default_gl_field, DEFAULT_VALUE AS default_value,
                    SYS_FG AS sys_fg, UPDT_DT AS src_updated
             FROM JEILMNS.dbo.A_ACCT_CTRL_ASSN WITH (NOLOCK)
@@ -293,8 +293,9 @@ JOBS = {
         "rpc": "erp_master_upsert",
         "sql": """
             SELECT h.TEMP_GL_NO AS temp_gl_no, CONVERT(date, h.TEMP_GL_DT) AS temp_gl_dt,
-                   h.GL_NO AS gl_no, h.DEPT_CD AS dept_cd, h.COST_CD AS cost_cd,
-                   h.GL_TYPE AS gl_type, h.GL_INPUT_TYPE AS gl_input_type, h.CONF_FG AS conf_fg,
+                   h.GL_NO AS gl_no, RTRIM(h.DEPT_CD) AS dept_cd, RTRIM(h.COST_CD) AS cost_cd,
+                   RTRIM(h.GL_TYPE) AS gl_type, RTRIM(h.GL_INPUT_TYPE) AS gl_input_type,
+                   RTRIM(h.CONF_FG) AS conf_fg,
                    h.DR_LOC_AMT AS dr_loc_amt, h.TEMP_GL_DESC AS temp_gl_desc,
                    h.INSRT_USER_ID AS insrt_user_id, h.REF_NO AS ref_no,
                    CONVERT(date, h.ISSUED_DT) AS issued_dt, h.attach_cnt AS attach_cnt,
@@ -310,12 +311,12 @@ JOBS = {
         "table": "gl_slip_item_s",
         "rpc": "erp_master_upsert",
         "sql": """
-            SELECT i.TEMP_GL_NO AS temp_gl_no, i.ITEM_SEQ AS item_seq, i.ACCT_CD AS acct_cd,
-                   i.DR_CR_FG AS dr_cr_fg, i.DEPT_CD AS dept_cd, i.COST_CD AS cost_cd,
-                   i.VAT_TYPE AS vat_type, i.ITEM_LOC_AMT AS item_loc_amt, i.VAT_LOC_AMT AS vat_loc_amt,
-                   i.ITEM_DESC AS item_desc, i.BP_CD AS bp_cd, i.TAX_BIZ_AREA AS tax_biz_area,
-                   i.RELATIVE_ACCT_CD AS relative_acct_cd, i.ITEM_CD AS item_cd,
-                   i.PROJECT_NO AS project_no, i.IO_FG AS io_fg,
+            SELECT i.TEMP_GL_NO AS temp_gl_no, i.ITEM_SEQ AS item_seq, RTRIM(i.ACCT_CD) AS acct_cd,
+                   RTRIM(i.DR_CR_FG) AS dr_cr_fg, RTRIM(i.DEPT_CD) AS dept_cd, RTRIM(i.COST_CD) AS cost_cd,
+                   RTRIM(i.VAT_TYPE) AS vat_type, i.ITEM_LOC_AMT AS item_loc_amt, i.VAT_LOC_AMT AS vat_loc_amt,
+                   i.ITEM_DESC AS item_desc, RTRIM(i.BP_CD) AS bp_cd, i.TAX_BIZ_AREA AS tax_biz_area,
+                   i.RELATIVE_ACCT_CD AS relative_acct_cd, RTRIM(i.ITEM_CD) AS item_cd,
+                   RTRIM(i.PROJECT_NO) AS project_no, i.IO_FG AS io_fg,
                    h.UPDT_DT AS src_updated
             FROM JEILMNS.dbo.A_TEMP_GL_ITEM i WITH (NOLOCK)
             JOIN JEILMNS.dbo.A_TEMP_GL h WITH (NOLOCK) ON h.TEMP_GL_NO = i.TEMP_GL_NO
@@ -332,7 +333,7 @@ JOBS = {
         "rpc": "erp_master_upsert",
         "sql": """
             SELECT d.TEMP_GL_NO AS temp_gl_no, d.ITEM_SEQ AS item_seq, d.DTL_SEQ AS dtl_seq,
-                   d.CTRL_CD AS ctrl_cd,
+                   RTRIM(d.CTRL_CD) AS ctrl_cd,
                    CASE WHEN d.CTRL_CD IN ('EM','BA','D1','CP','NN') THEN NULL
                         ELSE d.CTRL_VAL END AS ctrl_val,
                    h.UPDT_DT AS src_updated

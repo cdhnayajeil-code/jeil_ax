@@ -97,13 +97,6 @@
   .applybox .fld{min-width:160px;}
   .tplprev{width:100%; font-size:12px; color:var(--muted); line-height:1.7; margin-top:2px;}
   .tplprev b{color:var(--navy);}
-  /* 거래처 검색 */
-  .bpbox{display:flex; gap:8px; align-items:center; flex-wrap:wrap;}
-  .bpbox input{flex:1; min-width:160px;}
-  .bplist{margin-top:9px; max-height:170px; overflow-y:auto; border:1px solid var(--line); border-radius:9px;}
-  .bplist div{padding:7px 12px; font-size:12.5px; cursor:pointer; border-bottom:1px solid var(--line);}
-  .bplist div:last-child{border-bottom:none;}
-  .bplist div:hover{background:var(--soft);}
   /* ERP 입력용 요약 */
   .erpbox{background:var(--soft); border:1px solid var(--line); border-radius:10px; padding:14px 16px; font-size:13px;}
   .erpbox .row{display:flex; gap:10px; padding:3px 0;}
@@ -121,18 +114,66 @@
   .rbadge.submitted{background:#e8f1fb; color:var(--accent);}
   .rbadge.posted{background:#eefaf1; color:var(--green);}
   .rcard .act{margin-top:9px; display:flex; gap:6px;}
-  /* 관리항목 패널(F5) */
+  /* 섹션 스텝 번호 — 입력 순서 가시화 */
+  .sec h2 .step{display:inline-flex; align-items:center; justify-content:center; width:22px; height:22px;
+                border-radius:7px; background:var(--navy); color:#fff; font-size:11.5px; font-weight:800; flex:none;}
+  /* 관리항목 패널(F5) — 라인별 카드(차/대변 색 구분) */
   .ctrlpanel{margin-top:12px;}
-  .ctrlrow{border:1px solid var(--line); border-radius:10px; padding:10px 13px; margin-bottom:8px; background:#fbfcfe;}
-  .ctrlrow .ttl{font-size:12px; font-weight:700; color:var(--navy); margin-bottom:8px;}
+  .ctrlhead{display:flex; align-items:center; gap:8px; font-size:14px; font-weight:700; color:var(--navy);
+            margin:2px 0 10px; padding-top:12px; border-top:1.5px dashed var(--line);}
+  .ctrlhead small{font-weight:400; color:var(--muted); font-size:11.5px;}
+  .ctrlrow{border:1px solid var(--line); border-left:4px solid var(--line); border-radius:10px;
+           padding:11px 14px; margin-bottom:9px; background:#fbfcfe;}
+  .ctrlrow.dr{border-left-color:var(--accent); background:#fafcff;}
+  .ctrlrow.cr{border-left-color:var(--green); background:#fafdfb;}
+  .ctrlrow .ttl{display:flex; align-items:center; gap:8px; font-size:12.5px; font-weight:700; color:var(--navy); margin-bottom:9px; flex-wrap:wrap;}
+  .ctrlrow .ttl .fgtag{padding:1px 8px; border-radius:5px; font-size:10.5px; font-weight:800;}
+  .ctrlrow.dr .fgtag{background:#e8f1fb; color:var(--accent);}
+  .ctrlrow.cr .fgtag{background:#eefaf1; color:var(--green);}
+  .ctrlrow .ttl .amt{margin-left:auto; font-weight:800; color:var(--navy); font-size:12.5px;}
+  .ctrlrow .ttl .missbadge{background:#fdeeec; color:var(--red); padding:1px 8px; border-radius:10px; font-size:10.5px; font-weight:700;}
   .ctrlrow .flds{display:flex; gap:9px 14px; flex-wrap:wrap;}
   .cfld{display:flex; flex-direction:column; gap:3px; min-width:130px;}
   .cfld label{font-size:10.5px; color:var(--muted); font-weight:600;}
   .cfld label .req{color:var(--red);}
-  .cfld input{border:1.5px solid var(--line); border-radius:7px; padding:5px 9px; font-family:inherit; font-size:12.5px; width:150px;}
+  .cfld .wref{display:flex; gap:4px; align-items:center;}
+  .cfld input{border:1.5px solid var(--line); border-radius:7px; padding:5px 9px; font-family:inherit; font-size:12.5px; width:150px; background:#fff;}
   .cfld input:focus{border-color:var(--accent); outline:none;}
   .cfld input.suggest{background:#fdf9ee; border-color:#e8d9ae;}
+  .cfld input.miss{border-color:#e7b3aa; background:#fdf6f5;}
+  .cfld .refbtn{border:1.5px solid var(--line); background:#fff; border-radius:7px; width:29px; height:29px;
+                cursor:pointer; font-size:12px; flex:none; padding:0;}
+  .cfld .refbtn:hover{border-color:var(--accent);}
   .cfld .sug{font-size:10px; color:var(--amber);}
+  .cfld .refnm{font-size:10px; color:var(--green); max-width:180px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  /* 그리드 셀 선택 버튼(계정과목·거래처 — 클릭 시 검색 팝업) */
+  .cellpick{display:flex; align-items:center; gap:6px; width:100%; border:1.5px dashed #cdd6e1; background:#fbfcfe;
+            border-radius:8px; padding:5px 9px; font-family:inherit; font-size:12.5px; color:var(--muted);
+            cursor:pointer; text-align:left; min-height:30px;}
+  .cellpick.has{border-style:solid; border-color:var(--line); color:var(--ink); background:#fff; font-weight:600;}
+  .cellpick:hover{border-color:var(--accent); color:var(--navy);}
+  .cellpick .cd{color:var(--muted); font-size:10.5px; font-weight:400; margin-left:auto; flex:none;}
+  /* 검색 팝업(계정과목·거래처·품목 공용) */
+  .pk-overlay{position:fixed; inset:0; background:rgba(14,28,52,.45); z-index:200;
+              display:flex; align-items:flex-start; justify-content:center; padding:8vh 16px 16px;}
+  .pk-box{background:#fff; border-radius:14px; width:100%; max-width:560px;
+          box-shadow:0 18px 50px rgba(10,25,50,.35); display:flex; flex-direction:column; max-height:74vh; overflow:hidden;}
+  .pk-head{display:flex; align-items:center; gap:10px; padding:14px 16px 10px;}
+  .pk-head .t{font-size:14.5px; font-weight:800; color:var(--navy);}
+  .pk-head .x{margin-left:auto; border:none; background:var(--soft); border-radius:8px; width:28px; height:28px;
+              cursor:pointer; font-size:13px; color:var(--muted);}
+  .pk-search{padding:0 16px 8px;}
+  .pk-search input{width:100%; border:1.5px solid var(--accent); border-radius:9px; padding:9px 12px;
+                   font-family:inherit; font-size:13.5px; outline:none;}
+  .pk-hint{padding:0 16px 9px; font-size:11px; color:var(--muted);}
+  .pk-list{overflow-y:auto; border-top:1px solid var(--line); flex:1;}
+  .pk-it{padding:9px 16px; cursor:pointer; border-bottom:1px solid var(--line);
+         display:flex; gap:10px; align-items:baseline; font-size:13px;}
+  .pk-it:hover,.pk-it.on{background:#f0f6fd;}
+  .pk-it .cd{font-size:11.5px; color:var(--accent); font-weight:700; min-width:78px; flex:none;}
+  .pk-it .nm{font-weight:600; color:var(--ink);}
+  .pk-it .sub{margin-left:auto; font-size:11px; color:var(--muted); flex:none;}
+  .pk-empty{padding:26px 16px; text-align:center; color:var(--muted); font-size:12.5px;}
   .toast{position:fixed; left:50%; bottom:28px; transform:translateX(-50%); background:var(--navy); color:#fff;
          padding:12px 22px; border-radius:11px; font-size:13.5px; box-shadow:0 6px 22px rgba(16,42,80,.28); z-index:99; max-width:90vw;}
   .toast.bad{background:var(--red);}
@@ -208,7 +249,7 @@
       </div>
 
       <div class="sec">
-        <h2>전표 헤더 <small id="editingNo"></small></h2>
+        <h2><span class="step">1</span> 전표 헤더 <small id="editingNo"></small></h2>
         <div class="form">
           <div class="fld">
             <label>결의일자<span class="req">*</span></label>
@@ -247,8 +288,8 @@
       </div>
 
       <div class="sec">
-        <h2>전표 라인
-          <small>차변·대변 합계가 일치해야 제출할 수 있습니다</small>
+        <h2><span class="step">2</span> 전표 라인
+          <small>계정과목·거래처 칸을 누르면 검색 팝업이 열립니다 · 차변·대변 합계가 일치해야 제출됩니다</small>
           <span style="margin-left:auto;display:flex;gap:7px;">
             <button class="b gh sm" id="btnAddRow">+ 행 추가</button>
             <button class="b gh sm" id="btnFillDiff">선택 행에 차액 채우기</button>
@@ -269,14 +310,6 @@
         </div>
       </div>
 
-      <div class="sec">
-        <h2>거래처 찾기 <small>선택하면 그리드에서 선택한 행의 거래처로 넣습니다</small></h2>
-        <div class="bpbox">
-          <input type="text" id="bpQ" placeholder="거래처명 2자 이상 입력">
-          <button class="b gh sm" id="btnBp">검색</button>
-        </div>
-        <div class="bplist hide" id="bpList"></div>
-      </div>
     </div>
 
     <!-- ═══ 전표복사 (ERP 전표복사 메뉴와 동일 흐름) ═══ -->
@@ -545,6 +578,92 @@ function toast(msg, bad){
   document.body.appendChild(t); setTimeout(()=>t.remove(), bad?5200:2800);
 }
 
+/* ═══ 검색 팝업(계정과목·거래처·품목 공용) ═══
+   local: 로컬 배열 필터 함수 / remote: 서버 검색 함수(2자 이상). 키보드 ↑↓·Enter·Esc 지원.
+   staticItems: 결과 위에 항상 붙는 항목(예: 거래처 지우기). */
+let PK = null;
+function closePicker(){ if(PK){ PK.ov.remove(); PK = null; } }
+function openPicker(opt){
+  closePicker();
+  const ov = document.createElement("div"); ov.className = "pk-overlay";
+  ov.innerHTML = '<div class="pk-box"><div class="pk-head"><span class="t">'+esc(opt.title||"검색")+'</span>'
+    + '<button class="x" type="button" title="닫기">✕</button></div>'
+    + '<div class="pk-search"><input type="text" placeholder="'+esc(opt.placeholder||"검색어 입력")+'"></div>'
+    + '<div class="pk-hint">'+esc(opt.hint||"↑↓ 이동 · Enter 선택 · Esc 닫기")+'</div>'
+    + '<div class="pk-list"></div></div>';
+  document.body.appendChild(ov);
+  PK = { ov, items:[], idx:-1 };
+  const inp = ov.querySelector(".pk-search input"), list = ov.querySelector(".pk-list");
+  const draw = (items, msg)=>{
+    const all = (opt.staticItems||[]).concat(items||[]);
+    PK.items = all; PK.idx = all.length ? 0 : -1;
+    list.innerHTML = all.length
+      ? all.map((it,i)=>'<div class="pk-it'+(i===0?" on":"")+'" data-i="'+i+'">'+opt.render(it)+'</div>').join("")
+      : '<div class="pk-empty">'+esc(msg||"검색 결과가 없습니다.")+'</div>';
+  };
+  let tid = null, runSeq = 0;
+  const run = async ()=>{
+    const q = inp.value.trim(), mySeq = ++runSeq;
+    if(opt.local){ draw(opt.local(q).slice(0,150), "검색 결과가 없습니다."); return; }
+    if(q.length < 2){ draw([], "2자 이상 입력하면 검색합니다."); return; }
+    list.innerHTML = '<div class="pk-empty">검색 중…</div>';
+    try{ const rows = await opt.remote(q); if(mySeq===runSeq) draw(rows, "검색 결과가 없습니다."); }
+    catch(e){ if(mySeq===runSeq) draw([], e.message); }
+  };
+  const pick = (i)=>{ const it = PK.items[i]; closePicker(); if(it && opt.onPick) opt.onPick(it); };
+  inp.addEventListener("input", ()=>{ clearTimeout(tid); tid = setTimeout(run, opt.local?60:350); });
+  inp.addEventListener("keydown", (e)=>{
+    if(e.key==="ArrowDown" || e.key==="ArrowUp"){
+      e.preventDefault();
+      if(!PK.items.length) return;
+      PK.idx = Math.max(0, Math.min(PK.items.length-1, PK.idx + (e.key==="ArrowDown"?1:-1)));
+      list.querySelectorAll(".pk-it").forEach((el,i)=> el.classList.toggle("on", i===PK.idx));
+      const on = list.querySelector(".pk-it.on"); if(on) on.scrollIntoView({ block:"nearest" });
+    } else if(e.key==="Enter"){ e.preventDefault(); if(PK.idx>=0) pick(PK.idx); }
+    else if(e.key==="Escape"){ closePicker(); }
+  });
+  list.addEventListener("click", (e)=>{ const d = e.target.closest(".pk-it[data-i]"); if(d) pick(Number(d.getAttribute("data-i"))); });
+  ov.addEventListener("mousedown", (e)=>{ if(e.target===ov) closePicker(); });
+  ov.querySelector(".pk-head .x").onclick = closePicker;
+  run(); inp.focus();
+}
+/* 계정과목 — 로컬 691건 즉시 필터(코드·계정명) */
+function openAcctPicker(onPick){
+  openPicker({
+    title:"계정과목 검색", placeholder:"계정명 또는 코드 입력 (예: 여비, 81101)",
+    local:(q)=>{
+      const s = q.toLowerCase();
+      return (MASTER.accounts||[]).filter((a)=> !s ||
+        (String(a.acct_cd)+" "+String(a.acct_nm||"")).toLowerCase().includes(s));
+    },
+    render:(a)=>{
+      const fg = String(a.bal_fg||"").charAt(0).toUpperCase();
+      return '<span class="cd">'+esc(a.acct_cd)+'</span><span class="nm">'+esc(a.acct_nm||"")+'</span>'
+        + '<span class="sub">'+(fg==="D"?"차변":fg==="C"?"대변":"")+(a.bs_pl_fg?' · '+esc(a.bs_pl_fg):'')+'</span>';
+    },
+    onPick });
+}
+/* 거래처 — 서버 검색(gl_bp_search). clearable=true 면 "지우기" 항목을 맨 위에 둔다 */
+function openBpPicker(onPick, clearable){
+  openPicker({
+    title:"거래처 검색", placeholder:"거래처명 또는 코드 2자 이상",
+    staticItems: clearable ? [{ __clear:true }] : [],
+    remote: async (q)=> (await api("bp", { q })).rows || [],
+    render:(b)=> b.__clear
+      ? '<span class="nm" style="color:var(--red);">✕ 거래처 지우기</span>'
+      : '<span class="cd">'+esc(b.bp_cd)+'</span><span class="nm">'+esc(b.bp_nm||"")+'</span>',
+    onPick:(b)=> onPick(b.__clear ? { bp_cd:null, bp_nm:null } : b) });
+}
+/* 품목 — 서버 검색(gl_item_search). 관리항목 MK(품목코드)용 */
+function openItemPicker(onPick){
+  openPicker({
+    title:"품목 검색", placeholder:"품목명·코드·규격 2자 이상",
+    remote: async (q)=> (await api("item", { q })).rows || [],
+    render:(it)=>'<span class="cd">'+esc(it.item_code)+'</span><span class="nm">'+esc(it.item_name||"")+'</span>'
+      + '<span class="sub">'+esc(it.spec||"")+'</span>',
+    onPick });
+}
+
 /* ═══ 초기화 ═══ */
 async function boot(){
   let d;
@@ -572,14 +691,18 @@ async function boot(){
   TPLS = d.templates || [];
   CAN_MANAGE_TPL = !!d.can_manage_tpl;
 
-  /* v4 — 관리항목 마스터 인덱싱 */
+  /* v4 — 관리항목 마스터 인덱싱
+     ERP char 패딩(뒤 공백) 대비 — 키를 전부 trim해서 계정코드 매칭이 어긋나지 않게 한다.
+     (패딩 탓에 계정별 관리항목 필드가 아예 안 뜨던 문제의 화면측 방어 — 서버는 gl_pad_trim_v1) */
   CTRLM = d.ctrl_master || CTRLM;
   (CTRLM.ctrl_items||[]).forEach((c)=> CTRL_NM.set(String(c.ctrl_cd||"").trim(), c));
   (CTRLM.acct_ctrl||[]).forEach((row)=>{
     const [acct, cd, seq, dr, cr] = row;
-    const arr = CTRL_BY_ACCT.get(acct) || [];
-    arr.push({ cd:String(cd||"").trim(), seq:Number(seq)||999, dr:dr==="Y", cr:cr==="Y" });
-    CTRL_BY_ACCT.set(acct, arr);
+    const a = String(acct||"").trim();
+    const arr = CTRL_BY_ACCT.get(a) || [];
+    arr.push({ cd:String(cd||"").trim(), seq:Number(seq)||999,
+               dr:String(dr||"").trim()==="Y", cr:String(cr||"").trim()==="Y" });
+    CTRL_BY_ACCT.set(a, arr);
   });
 
   fillHeader(d.locked_months || []);
@@ -624,8 +747,6 @@ function renderCostOptions(){
 
 /* ═══ 라인 그리드 (표준 컴포넌트 — CLAUDE.md §13) ═══ */
 function buildGrid(){
-  const acctOptions = [{value:"",label:"선택"}].concat(
-    (MASTER.accounts||[]).map((a)=>({ value:a.acct_cd, label:(a.acct_nm||a.acct_cd)+" ("+a.acct_cd+")" })));
   const costOptions = [{value:"",label:"—"}].concat(
     (MASTER.cost_centers||[]).map((c)=>({ value:c.cost_cd, label:c.cost_nm||c.cost_cd })));
 
@@ -639,34 +760,45 @@ function buildGrid(){
         options:[{value:"D",label:"차변"},{value:"C",label:"대변"}],
         formatter:(v)=> v==="D" ? "차변" : v==="C" ? "대변" : "",
         validator:(v)=> (v==="D"||v==="C") || "차변/대변을 선택하세요" },
-      { key:"acct_cd", label:"계정과목", width:"210px", type:"select", editable:true, options:acctOptions,
-        formatter:(v,row)=> v ? esc(row.acct_nm||v) : "",
+      // 계정과목·거래처는 셀 클릭 → 검색 팝업(691개 select 스크롤 대신 검색 선택)
+      { key:"acct_cd", label:"계정과목", width:"220px", editable:false,
+        formatter:(v,row)=> v
+          ? '<button type="button" class="cellpick has" data-row-act="pick-acct"><span>'+esc(row.acct_nm||v)+'</span><span class="cd">'+esc(v)+'</span></button>'
+          : '<button type="button" class="cellpick" data-row-act="pick-acct">🔍 계정 선택</button>',
         validator:(v)=> !!v || "계정과목을 선택하세요" },
       { key:"item_amt", label:"금액", width:"120px", editable:true, align:"right",
         formatter:(v)=> v ? won(v) : "",
         validator:(v)=>{ const n=Number(String(v||"").replace(/,/g,""));
           return (n>0 && Number.isInteger(n)) || "0보다 큰 정수"; } },
       { key:"item_desc", label:"적요", width:"200px", editable:true },
-      { key:"bp_nm", label:"거래처", width:"150px", editable:false,
-        formatter:(v,row)=> v ? esc(v) : (row.bp_cd ? esc(row.bp_cd) : '<span style="color:#aab;">—</span>') },
+      { key:"bp_nm", label:"거래처", width:"160px", editable:false,
+        formatter:(v,row)=> (v || row.bp_cd)
+          ? '<button type="button" class="cellpick has" data-row-act="pick-bp"><span>'+esc(v||row.bp_cd)+'</span></button>'
+          : '<button type="button" class="cellpick" data-row-act="pick-bp">🔍 거래처</button>' },
       { key:"cost_cd", label:"코스트센터", width:"140px", type:"select", editable:true, options:costOptions },
       { key:"project_no", label:"프로젝트", width:"130px", editable:true },
     ],
-    // 계정을 고르면 계정명 사본을 채운다(ERP 코드 변경 대비 + 회계 담당자 화면 표시용)
     onCellEdit:(key, field, value, row)=>{
-      if(field === "acct_cd"){
-        const a = (MASTER.accounts||[]).find((x)=>String(x.acct_cd)===String(value));
-        row.acct_nm = a ? (a.acct_nm||"") : "";
-        // 차대 기본값 제안 — 비어 있을 때만(사용자 선택을 덮어쓰지 않는다)
-        // ERP bal_fg 실측값은 'DR'/'CR' 2자다(A_ACCT). 첫 글자로 맞춘다.
-        const fg = String(a && a.bal_fg || "").charAt(0).toUpperCase();
-        if(a && !row.dr_cr_fg && (fg==="D"||fg==="C")){
-          row.dr_cr_fg = fg;
-          GRID.refresh();   // 차대를 코드가 채웠으니 화면(차대 셀)도 동기화
-        }
-      }
       updateSum();
-      if(field === "acct_cd" || field === "dr_cr_fg") renderCtrlPanel();
+      if(field === "dr_cr_fg") renderCtrlPanel();
+    },
+    // 계정과목·거래처 팝업 — 선택 시 계정명 사본을 함께 채운다(ERP 코드 변경 대비 + 회계 담당자 표시용)
+    onRowAction:(act, row)=>{
+      if(!row) return;
+      if(act === "pick-acct"){
+        openAcctPicker((a)=>{
+          row.acct_cd = a.acct_cd; row.acct_nm = a.acct_nm || "";
+          // 차대 기본값 제안 — 비어 있을 때만(사용자 선택을 덮어쓰지 않는다). bal_fg 실측 'DR'/'CR'.
+          const fg = String(a.bal_fg||"").charAt(0).toUpperCase();
+          if(!row.dr_cr_fg && (fg==="D"||fg==="C")) row.dr_cr_fg = fg;
+          GRID.refresh(); updateSum(); renderCtrlPanel();
+        });
+      } else if(act === "pick-bp"){
+        openBpPicker((b)=>{
+          row.bp_cd = b.bp_cd || null; row.bp_nm = b.bp_cd ? (b.bp_nm||null) : null;
+          GRID.refresh(); renderCtrlPanel();
+        }, !!(row.bp_cd || row.bp_nm));
+      }
     },
   });
 }
@@ -697,7 +829,8 @@ function updateSum(){
    필수(*)는 ERP 설정(A_ACCT_CTRL_ASSN 플래그 Y) 기준 — 서버도 동일 기준으로 재검증한다.
    부가세·원천징수 자동계산은 하지 않는다(B2 결정) — 세액은 실물 증빙 값을 직접 입력한다. */
 function ctrlDefsFor(row){
-  const defs = (CTRL_BY_ACCT.get(String(row.acct_cd||"")) || [])
+  // 계정코드 trim — ERP char 패딩 대비(전표복사로 들어온 코드 포함)
+  const defs = (CTRL_BY_ACCT.get(String(row.acct_cd||"").trim()) || [])
     .slice().sort((a,b)=> a.seq-b.seq);
   const isD = row.dr_cr_fg==="D";
   // 설정에 연결된 전 항목을 보여주되, 해당 방향 필수만 * 표시
@@ -708,6 +841,13 @@ function ctrlDefsFor(row){
   });
   return out;
 }
+// 참조 마스터가 미러에 있는 관리항목 — 검색 팝업 제공(ref_tbl 기준)
+function ctrlRefKind(cd){
+  const ref = String((CTRL_NM.get(cd)||{}).ref_tbl||"").trim().toUpperCase();
+  if(ref === "B_BIZ_PARTNER") return "bp";
+  if(ref === "B_ITEM") return "item";
+  return null;
+}
 function renderCtrlPanel(){
   const box = $("ctrlPanel"); if(!box) return;
   const rs = rows();
@@ -717,24 +857,44 @@ function renderCtrlPanel(){
     const defs = ctrlDefsFor(r);
     if(!defs.length) return;
     r.__ctrl = r.__ctrl || {};
+    let missCnt = 0;
     const flds = defs.map((d)=>{
       const info = CTRL_NM.get(d.cd) || {};
       const nm = info.ctrl_nm || d.cd;
       const isDate = DATE_CTRLS.has(d.cd) || String(info.data_type||"").toUpperCase()==="D";
       const val = r.__ctrl[d.cd] ?? "";
       const sug = (r.__ctrlSug||{})[d.cd];
+      const refKind = ctrlRefKind(d.cd);
+      const miss = d.req && String(val).trim()==="";
+      if(miss) missCnt++;
+      const refNm = (r.__ctrlNm||{})[d.cd];
+      const inputHtml = '<input type="'+(isDate?'date':'text')+'" data-seq="'+r.item_seq+'" data-cd="'+esc(d.cd)+'"'
+        + ' value="'+esc(val)+'" class="'+(miss?'miss ':'')+(sug&&val===sug?'suggest':'')+'"'
+        + (sug&&val===sug?' title="전월 기준 제안값 — 실물 증빙을 확인하세요"':'')+'>';
       return '<div class="cfld"><label>'+esc(d.cd)+' · '+esc(nm)+(d.req?'<span class="req">*</span>':'')+'</label>'
-        + '<input type="'+(isDate?'date':'text')+'" data-seq="'+r.item_seq+'" data-cd="'+esc(d.cd)+'"'
-        + ' value="'+esc(val)+'"'+(sug&&val===sug?' class="suggest" title="전월 기준 제안값 — 실물 증빙을 확인하세요"':'')+'>'
+        + (refKind
+            ? '<div class="wref">'+inputHtml
+              + '<button type="button" class="refbtn" data-seq="'+r.item_seq+'" data-cd="'+esc(d.cd)+'" data-ref="'+refKind+'"'
+              + ' title="'+(refKind==="bp"?"거래처 검색":"품목 검색")+'">🔍</button></div>'
+            : inputHtml)
         + (sug&&val===sug?'<span class="sug">제안값 — 증빙 확인</span>':'')
+        + (refNm?'<span class="refnm">'+esc(refNm)+'</span>':'')
         + '</div>';
     }).join("");
-    parts.push('<div class="ctrlrow"><div class="ttl">'+r.item_seq+'번 줄 · '
-      + esc(r.acct_nm||r.acct_cd)+' ('+(r.dr_cr_fg==="D"?"차변":"대변")+')</div>'
+    const isD = r.dr_cr_fg==="D";
+    const amt = Number(String(r.item_amt||"").replace(/,/g,""));
+    parts.push('<div class="ctrlrow '+(isD?'dr':r.dr_cr_fg==="C"?'cr':'')+'">'
+      + '<div class="ttl"><span class="fgtag">'+(isD?"차변":r.dr_cr_fg==="C"?"대변":"—")+'</span>'
+      + r.item_seq+'번 줄 · '+esc(r.acct_nm||r.acct_cd)
+      + '<span style="color:var(--muted);font-weight:400;font-size:11px;">'+esc(String(r.acct_cd||"").trim())+'</span>'
+      + (missCnt?'<span class="missbadge">필수 '+missCnt+'건 미입력</span>':'')
+      + '<span class="amt">'+(amt>0?won(amt)+'원':'')+'</span></div>'
       + '<div class="flds">'+flds+'</div></div>');
   });
   box.innerHTML = parts.length
-    ? '<div style="font-size:11.5px;color:var(--muted);margin-bottom:7px;">관리항목 — ERP 하단 그리드에 들어갈 값입니다. <b style="color:var(--red);">*</b> 표시는 ERP 설정상 필수입니다.</div>' + parts.join("")
+    ? '<div class="ctrlhead"><span class="step">3</span> 관리항목'
+      + '<small>ERP 하단 그리드에 들어갈 값 — <b style="color:var(--red);">*</b>는 ERP 설정상 필수 · 🔍는 검색 선택</small></div>'
+      + parts.join("")
     : "";
 }
 $("ctrlPanel").addEventListener("input", (e)=>{
@@ -742,8 +902,25 @@ $("ctrlPanel").addEventListener("input", (e)=>{
   const r = rows().find((x)=> String(x.item_seq)===String(inp.getAttribute("data-seq")));
   if(!r) return;
   r.__ctrl = r.__ctrl || {};
-  r.__ctrl[inp.getAttribute("data-cd")] = inp.value;
-  inp.classList.remove("suggest");   // 손대는 순간 제안값 표시는 걷어낸다
+  const cd = inp.getAttribute("data-cd");
+  r.__ctrl[cd] = inp.value;
+  if(r.__ctrlNm) delete r.__ctrlNm[cd];   // 직접 수정하면 팝업 선택명 표시는 걷어낸다
+  inp.classList.remove("suggest");        // 손대는 순간 제안값 표시도 걷어낸다
+  inp.classList.remove("miss");
+});
+// 참조형 관리항목(거래처·품목) 검색 버튼
+$("ctrlPanel").addEventListener("click", (e)=>{
+  const btn = e.target.closest("button[data-ref]"); if(!btn) return;
+  const r = rows().find((x)=> String(x.item_seq)===String(btn.getAttribute("data-seq")));
+  if(!r) return;
+  const cd = btn.getAttribute("data-cd");
+  const set = (code, nm)=>{
+    r.__ctrl = r.__ctrl || {}; r.__ctrl[cd] = code || "";
+    r.__ctrlNm = r.__ctrlNm || {}; if(nm) r.__ctrlNm[cd] = nm; else delete r.__ctrlNm[cd];
+    renderCtrlPanel();
+  };
+  if(btn.getAttribute("data-ref")==="bp") openBpPicker((b)=> set(b.bp_cd, b.bp_nm), !!(r.__ctrl||{})[cd]);
+  else openItemPicker((it)=> set(it.item_code, it.item_name));
 });
 
 /* ═══ v4 — 월반복 홈(F1)·전월 프리필(F2) ═══ */
@@ -1127,29 +1304,6 @@ $("btnSubmit").onclick = async ()=>{
   catch(e){ toast(e.message, true); }
 };
 
-/* 거래처 검색 — 선택한 행에 넣는다 */
-$("btnBp").onclick = async ()=>{
-  const q = $("bpQ").value.trim();
-  if(q.length < 2){ toast("2자 이상 입력하세요.", true); return; }
-  try{
-    const r = await api("bp", { q });
-    const list = $("bpList");
-    if(!r.rows.length){ list.innerHTML = '<div style="color:var(--muted);cursor:default;">검색 결과가 없습니다.</div>'; }
-    else list.innerHTML = r.rows.map((b)=>
-      '<div data-cd="'+esc(b.bp_cd)+'" data-nm="'+esc(b.bp_nm)+'">'+esc(b.bp_nm)+' <span style="color:var(--muted);font-size:11px;">'+esc(b.bp_cd)+'</span></div>').join("");
-    list.classList.remove("hide");
-  }catch(e){ toast(e.message, true); }
-};
-$("bpList").onclick = (e)=>{
-  const d = e.target.closest("div[data-cd]"); if(!d) return;
-  const keys = GRID.getSelectedKeys();
-  if(!keys.length){ toast("거래처를 넣을 행을 먼저 선택하세요.", true); return; }
-  const rs = rows();
-  keys.forEach((k)=>{ const r = rs.find((x)=>String(x.item_seq)===String(k));
-    if(r){ r.bp_cd = d.getAttribute("data-cd"); r.bp_nm = d.getAttribute("data-nm"); } });
-  setRows(rs); toast("거래처를 적용했습니다.");
-};
-
 /* ═══ 전표복사 — 본인 ERP 전표(야간 미러) 조회 → 작성 탭으로 복사 ═══
    ERP 전표복사 메뉴와 동일 흐름: 기간·검색으로 내 전표를 찾고, 복사하면 결의일자만 오늘로
    새로 잡힌 채 라인 전체가 작성 탭에 채워진다. 이후 수정·저장·제출은 기존 초안 흐름 그대로
@@ -1412,8 +1566,6 @@ $("btnCopyErp").onclick = ()=>{
 
 /* ═══ 템플릿 관리 ═══ */
 function buildTplGrid(){
-  const acctOptions = [{value:"",label:"선택"}].concat(
-    (MASTER.accounts||[]).map((a)=>({ value:a.acct_cd, label:(a.acct_nm||a.acct_cd)+" ("+a.acct_cd+")" })));
   const costOptions = [{value:"",label:"—"}].concat(
     (MASTER.cost_centers||[]).map((c)=>({ value:c.cost_cd, label:c.cost_nm||c.cost_cd })));
 
@@ -1427,8 +1579,10 @@ function buildTplGrid(){
         options:[{value:"D",label:"차변"},{value:"C",label:"대변"}],
         formatter:(v)=> v==="D" ? "차변" : v==="C" ? "대변" : "",
         validator:(v)=> (v==="D"||v==="C") || "차변/대변을 선택하세요" },
-      { key:"acct_cd", label:"계정과목", width:"210px", type:"select", editable:true, options:acctOptions,
-        formatter:(v,row)=> v ? esc(row.acct_nm||v) : "",
+      { key:"acct_cd", label:"계정과목", width:"220px", editable:false,
+        formatter:(v,row)=> v
+          ? '<button type="button" class="cellpick has" data-row-act="pick-acct"><span>'+esc(row.acct_nm||v)+'</span><span class="cd">'+esc(v)+'</span></button>'
+          : '<button type="button" class="cellpick" data-row-act="pick-acct">🔍 계정 선택</button>',
         validator:(v)=> !!v || "계정과목을 선택하세요" },
       { key:"amt_rule", label:"금액 규칙", width:"110px", type:"select", editable:true,
         options:[{value:"input",label:"입력"},{value:"pct",label:"비율(%)"},{value:"fixed",label:"고정액"},{value:"balance",label:"차액 자동"}],
@@ -1451,16 +1605,17 @@ function buildTplGrid(){
         formatter:(v)=> (v==="Y"||v===true) ? "🔒 고정" : "변동" },
     ],
     onCellEdit:(key, field, value, row)=>{
-      if(field === "acct_cd"){
-        const a = (MASTER.accounts||[]).find((x)=>String(x.acct_cd)===String(value));
-        row.acct_nm = a ? (a.acct_nm||"") : "";
-        const fg = String(a && a.bal_fg || "").charAt(0).toUpperCase();
-        if(a && !row.dr_cr_fg && (fg==="D"||fg==="C")){
-          row.dr_cr_fg = fg;
-          TGRID.refresh();   // 차대 자동 세팅을 화면에도 반영
-        }
-      }
       if(field === "amt_rule" && (value==="input"||value==="balance")) row.amt_value = "";
+    },
+    // 계정과목 팝업 — 라인 그리드와 동일한 검색 선택
+    onRowAction:(act, row)=>{
+      if(act !== "pick-acct" || !row) return;
+      openAcctPicker((a)=>{
+        row.acct_cd = a.acct_cd; row.acct_nm = a.acct_nm || "";
+        const fg = String(a.bal_fg||"").charAt(0).toUpperCase();
+        if(!row.dr_cr_fg && (fg==="D"||fg==="C")) row.dr_cr_fg = fg;
+        TGRID.refresh();
+      });
     },
   });
 }
