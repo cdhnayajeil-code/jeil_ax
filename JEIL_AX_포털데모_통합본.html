@@ -21,7 +21,8 @@
   body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif; color:var(--ink); background:var(--bg); display:flex; flex-direction:column; font-size:14.5px;}
   /* 데모 배너 */
   .demo-banner{background:var(--amber); color:#fff; text-align:center; font-size:12.5px; padding:6px 10px; letter-spacing:.04em; flex:none;}
-  .app{flex:1; display:flex; min-height:0;}
+  .app{flex:1; display:flex; flex-direction:column; min-height:0;}
+  .app-body{flex:1; display:flex; min-height:0;}
   /* 사이드바 */
   .side{width:304px; background:var(--side); color:#e7edf6; display:flex; flex-direction:column; flex:none;}
   .brand{padding:18px 20px 14px; border-bottom:1px solid rgba(255,255,255,.12);}
@@ -151,13 +152,33 @@
   .top h2{font-size:15px; color:var(--navy);}
   .top .mode{font-size:11.5px; color:var(--muted); background:var(--bg); border:1px solid var(--line); border-radius:20px; padding:4px 12px;}
   .top .mode b{color:var(--accent);}
-  /* ===== 상단 대시보드 라인 — 즐겨찾기 바로가기 (★는 사이드바 업무 도구·사내 운영 페이지에서 등록) ===== */
-  .dashline{background:#f7f9fc; border-bottom:1px solid var(--line); padding:8px 24px; display:flex; align-items:center; gap:10px; flex:none;}
-  .dashline .dl-lb{font-size:11.5px; font-weight:700; color:var(--navy); flex:none; letter-spacing:.02em;}
-  .dashline .dl-chips{display:flex; gap:6px; overflow-x:auto; flex:1; min-width:0; align-items:center; scrollbar-width:thin; scrollbar-color:#cfd8e6 transparent; padding-bottom:2px;}
-  .dashline .dl-hint{font-size:11.5px; color:var(--muted); white-space:nowrap;}
+  /* ===== 상단 글로벌 바 — 주요 이동 · 통합 검색 · 즐겨찾기 (전 뷰 공통) ===== */
+  .gbar{background:var(--side); border-bottom:1px solid rgba(255,255,255,.08); padding:7px 14px; display:flex; align-items:center; gap:10px; flex:none; position:relative; z-index:40;}
+  .gbar .menu-btn{border-color:rgba(255,255,255,.25); background:transparent; color:#e7edf6;}
+  .gb-nav{display:flex; gap:4px; flex:none;}
+  .gb-nav button{background:transparent; border:none; color:#c9d6e8; font-size:12.5px; font-family:inherit; padding:7px 12px; border-radius:9px; cursor:pointer; white-space:nowrap; transition:background .15s,color .15s;}
+  .gb-nav button:hover{background:rgba(255,255,255,.10); color:#fff;}
+  .gb-nav button.on{background:rgba(255,255,255,.16); color:#fff; font-weight:700;}
+  .gb-search{position:relative; flex:none; display:flex; align-items:center;}
+  .gb-search .gb-sic{position:absolute; left:10px; font-size:12px; pointer-events:none; opacity:.75;}
+  .gb-search input{width:210px; background:rgba(255,255,255,.10); border:1px solid rgba(255,255,255,.18); color:#fff; border-radius:9px; padding:7px 10px 7px 30px; font-size:12.5px; font-family:inherit; outline:none; transition:width .18s, background .15s, color .15s;}
+  .gb-search input::placeholder{color:#9fb1ca;}
+  .gb-search input:focus{width:300px; background:#fff; color:var(--ink); border-color:#fff;}
+  .gb-results{position:absolute; top:calc(100% + 6px); left:0; width:360px; max-height:60vh; overflow-y:auto; background:#fff; border:1px solid var(--line); border-radius:12px; box-shadow:0 10px 34px rgba(10,22,40,.28); display:none; z-index:80;}
+  .gb-results.open{display:block;}
+  .gr-item{display:flex; align-items:center; gap:9px; width:100%; text-align:left; background:none; border:none; border-bottom:1px solid #f0f3f8; padding:9px 12px; font-size:12.5px; color:var(--ink); cursor:pointer; font-family:inherit;}
+  .gr-item:last-child{border-bottom:none;}
+  .gr-item:hover, .gr-item.sel{background:#eef4fb;}
+  .gr-item .gr-ic{flex:none; font-size:15px; width:20px; text-align:center;}
+  .gr-item .gr-tx{flex:1; min-width:0;}
+  .gr-item .gr-tx b{display:block; font-weight:600; color:var(--navy); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .gr-item .gr-tx small{display:block; color:var(--muted); font-size:11px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .gr-item .gr-tag{flex:none; font-size:10px; color:#fff; border-radius:8px; padding:2px 7px;}
+  .gr-none{padding:14px 12px; font-size:12px; color:var(--muted);}
+  .gb-favs{display:flex; gap:6px; overflow-x:auto; flex:1; min-width:0; align-items:center; scrollbar-width:thin; scrollbar-color:rgba(255,255,255,.25) transparent; padding-bottom:1px;}
+  .gb-favs .dl-hint{font-size:11.5px; color:#9fb1ca; white-space:nowrap;}
   .dl-chip{display:inline-flex; align-items:center; gap:6px; background:#fff; border:1px solid var(--line); border-radius:20px; padding:5px 7px 5px 12px; font-size:12px; color:var(--navy); cursor:pointer; font-family:inherit; text-decoration:none; white-space:nowrap; flex:none; transition:border-color .15s, box-shadow .15s;}
-  .dl-chip:hover{border-color:var(--accent); box-shadow:0 1px 6px rgba(47,111,179,.18);}
+  .dl-chip:hover{border-color:var(--accent); box-shadow:0 1px 6px rgba(47,111,179,.28);}
   .dl-chip .dl-x{width:16px; height:16px; color:#aab6c8; font-size:11px; cursor:pointer; border-radius:50%; display:inline-flex; align-items:center; justify-content:center;}
   .dl-chip .dl-x:hover{color:#c0392b; background:#f6e3e1;}
   /* 즐겨찾기 ★ 토글 — 사내 운영 페이지 카드 우상단 */
@@ -348,7 +369,7 @@
   /* ===== 모바일: 사이드바를 슬라이드 드로어로, 전체 레이아웃 단순·풀스크린화 ===== */
   @media (max-width:760px){
     body{height:100dvh;}
-    .menu-btn{display:inline-flex;}
+    .gbar .menu-btn{display:inline-flex;} /* 햄버거는 글로벌 바 한 곳으로 일원화 */
     /* 사이드바 → 오프캔버스 드로어 */
     .side{position:fixed; top:0; left:0; bottom:0; width:84%; max-width:316px; z-index:90;
           transform:translateX(-100%); transition:transform .26s cubic-bezier(.4,0,.2,1);
@@ -360,7 +381,13 @@
     /* 헤더 */
     .top, .admin-top{padding-left:12px; padding-right:12px; gap:8px; flex-wrap:wrap;}
     .top h2{font-size:14px;} .top .mode{font-size:10px; padding:3px 9px;}
-    .dashline{padding:6px 12px;}
+    /* 글로벌 바: 1행 = ☰·이동·즐겨찾기, 2행 = 검색 전체 폭 */
+    .gbar{flex-wrap:wrap; padding:6px 10px; gap:8px;}
+    .gb-nav button{padding:7px 9px; font-size:12px;}
+    .gb-search{order:5; flex:1 1 100%;}
+    .gb-search input{width:100%;} .gb-search input:focus{width:100%;}
+    .gb-results{left:0; right:0; width:auto;}
+    .gb-favs{order:4;}
     .admin-top h2{font-size:14px; padding:12px 0 8px;}
     .admin-top{padding-top:6px; padding-bottom:6px;}
     .tabs{order:3; width:100%; overflow-x:auto;}
@@ -463,6 +490,25 @@
       </div>
     </div>
   </div>
+  <!-- ===== 상단 글로벌 바 — 주요 이동 · 통합 검색(Ctrl+K) · 즐겨찾기 칩 (전 뷰 공통) ===== -->
+  <div class="gbar">
+    <button class="menu-btn" onclick="toggleDrawer()" aria-label="메뉴">☰</button>
+    <nav class="gb-nav" aria-label="주 메뉴">
+      <button id="gbNavChat" class="on" onclick="showChat()">💬 챗봇</button>
+      <button id="gbNavPages" onclick="showPages()">📁 운영 페이지</button>
+      <button id="gbNavAdmin" style="display:none" onclick="showAdmin()">⚙ 관리자</button>
+    </nav>
+    <div class="gb-search">
+      <span class="gb-sic">🔍</span>
+      <input id="gbSearch" placeholder="페이지·기능 검색 (Ctrl+K)" autocomplete="off"
+             oninput="gbSearchInput()" onkeydown="gbSearchKey(event)" onfocus="gbSearchInput()">
+      <div class="gb-results" id="gbResults"></div>
+    </div>
+    <!-- 즐겨찾기 칩 — ☆는 사이드바 업무 도구·사내 운영 페이지 카드에서 등록. 저장은 localStorage(데모 한정) -->
+    <div class="gb-favs" id="gbFavs"></div>
+  </div>
+
+  <div class="app-body">
   <!-- 사이드바 -->
   <aside class="side">
     <div class="brand">
@@ -501,13 +547,6 @@
       <button class="menu-btn" onclick="toggleDrawer()" aria-label="메뉴">☰</button>
       <h2><span id="chatTitle">새 대화</span> <button class="mini" onclick="newChat()" title="새 대화 시작">＋ 새 대화</button> <button class="mini" id="chatSyncBtn" style="display:none" onclick="refreshSession()" title="팀원이 남긴 새 메시지 확인">↻ 동기화</button> <span class="mfa-badge" id="mfaBadge">🔐 Entra ID 로그인 대기</span></h2>
       <span class="mode">모델 자동 라우팅: <b id="modelLabel">표준 (Haiku)</b></span>
-    </div>
-
-    <!-- 상단 대시보드 라인 — 즐겨찾기 바로가기. ★는 사이드바 추천 업무 도구·사내 운영 페이지 카드에서 등록.
-         저장은 localStorage 'jeilax_fav_v1' (데모 한정 — 실구축 시 백엔드 사용자 설정으로 대체) -->
-    <div class="dashline" id="dashLine">
-      <span class="dl-lb">★ 즐겨찾기</span>
-      <div class="dl-chips" id="dlChips"></div>
     </div>
 
     <div class="chat" id="chat">
@@ -1030,6 +1069,7 @@
       </div>
     </div>
   </main>
+  </div><!-- /app-body -->
 </div>
 
 <script>
@@ -1362,9 +1402,12 @@ function applyMyDept(){
   // 사내 운영 페이지 상단에도 소속·권한 표시
   var pg = document.getElementById('pgMyDept');
   if(pg) pg.textContent = nm ? ('· ' + nm + (role ? ' (' + role + ')' : '')) : '';
-  // 관리자 콘솔 진입 버튼은 전체 관리자(portal_admin)에게만 노출
+  // 관리자 콘솔 진입 버튼(사이드바·상단 글로벌 바)은 전체 관리자(portal_admin)에게만 노출
+  var isAdmin = !!(window.MY_PERM && window.MY_PERM.is_admin);
   var ab = document.getElementById('adminConsoleBtn');
-  if(ab) ab.style.display = (window.MY_PERM && window.MY_PERM.is_admin) ? '' : 'none';
+  if(ab) ab.style.display = isAdmin ? '' : 'none';
+  var gb = document.getElementById('gbNavAdmin');
+  if(gb) gb.style.display = isAdmin ? '' : 'none';
 }
 
 function runDemo(key){
@@ -1614,9 +1657,15 @@ function hideViews(){
   document.getElementById('adminView').style.display='none';
   document.getElementById('pagesView').style.display='none';
 }
-function showChat(){ hideViews(); document.querySelector('.main').style.display='flex'; closeDrawer(); }
-function showAdmin(){ hideViews(); document.getElementById('adminView').style.display='flex'; closeDrawer(); loadAdminLive(); }
-function showPages(){ hideViews(); document.getElementById('pagesView').style.display='flex'; closeDrawer(); loadPagePerms(); }
+function showChat(){ hideViews(); document.querySelector('.main').style.display='flex'; closeDrawer(); setGbNav('chat'); }
+function showAdmin(){ hideViews(); document.getElementById('adminView').style.display='flex'; closeDrawer(); setGbNav('admin'); loadAdminLive(); }
+function showPages(){ hideViews(); document.getElementById('pagesView').style.display='flex'; closeDrawer(); setGbNav('pages'); loadPagePerms(); }
+/* 상단 글로벌 바의 현재 뷰 탭 표시 */
+function setGbNav(key){
+  [['gbNavChat','chat'],['gbNavPages','pages'],['gbNavAdmin','admin']].forEach(function(p){
+    var el = document.getElementById(p[0]); if(el) el.classList.toggle('on', p[1]===key);
+  });
+}
 
 /* ===== 즐겨찾기 — 상단 대시보드 라인 =====
    등록 위치 2곳: ① 사이드바 추천 업무 도구(도구 실행) ② 사내 운영 페이지 카드(페이지 열기).
@@ -1641,12 +1690,12 @@ function favToggleTpl(key){
   });
   if(found) favToggle('tool', key, found.t, '');
 }
-/* 대시보드 라인 렌더 — 페이지=새 탭 열기 / 도구=챗봇 데모 실행 */
+/* 상단 글로벌 바 즐겨찾기 칩 렌더 — 페이지=새 탭 열기 / 도구=챗봇 데모 실행 */
 function renderDashline(){
-  var box = document.getElementById('dlChips'); if(!box) return;
+  var box = document.getElementById('gbFavs'); if(!box) return;
   var list = favList();
   if(!list.length){
-    box.innerHTML = '<span class="dl-hint">사이드바 업무 도구·사내 운영 페이지의 ☆를 누르면 여기에 바로가기가 생깁니다.</span>';
+    box.innerHTML = '<span class="dl-hint">★ 즐겨찾기 — 업무 도구·운영 페이지의 ☆로 추가</span>';
     return;
   }
   box.innerHTML = list.map(function(f, i){
@@ -1667,6 +1716,109 @@ function refreshFavMarks(){
     b.title = on ? '즐겨찾기 해제' : '즐겨찾기 추가';
   });
 }
+/* ===== 상단 글로벌 바 — 통합 검색(페이지·업무 도구·주요 기능) =====
+   인덱스는 입력 시마다 현재 화면 기준으로 재구성 — 권한 재렌더(loadPagePerms) 결과가 자동 반영된다. */
+var GB_NAV_ITEMS = [
+  { type:'nav',  k:'chat',    lb:'챗봇 홈',          ic:'💬', desc:'대화 화면으로 이동' },
+  { type:'nav',  k:'pages',   lb:'사내 운영 페이지', ic:'📁', desc:'부서·협력사·ERP 페이지 목록' },
+  { type:'nav',  k:'admin',   lb:'관리자 콘솔',      ic:'⚙', desc:'API·권한·사용량 관리 (관리자 전용)', admin:true },
+  { type:'nav',  k:'newchat', lb:'새 대화 시작',     ic:'＋', desc:'새 대화 열기' },
+  { type:'link', k:'05_니즈조사/01_니즈조사_설문폼.html', lb:'AI 니즈조사 설문', ic:'📋', desc:'전 부서 · 약 5~7분 · 새 탭으로 열기' }
+];
+function gbBuildIndex(){
+  var idx = [];
+  // ① 사내 운영 페이지 카드(잠금 제외 — 권한 밖 페이지는 검색에도 안 나온다)
+  document.querySelectorAll('#pagesView .pgcard').forEach(function(card){
+    var a = card.querySelector('a.open-btn[href]');
+    if(!a || a.classList.contains('lock')) return;
+    var href = a.getAttribute('href'); if(!href || href === '#') return;
+    var h4 = card.querySelector('h4');
+    var tmp = document.createElement('div');
+    tmp.innerHTML = h4 ? h4.innerHTML.replace(/<br\s*\/?>/gi,' ') : '';
+    var lb = tmp.textContent.replace(/\s+/g,' ').trim() || href;
+    var p = card.querySelector('p');
+    var badges = Array.prototype.map.call(card.querySelectorAll('.badge'), function(b){ return b.textContent; }).join(' ');
+    var icEl = card.querySelector('.ic');
+    idx.push({ type:'page', k:href, lb:lb, ic:(icEl ? icEl.textContent.trim() : '📄'), desc:((p ? p.textContent : '') + ' ' + badges).replace(/\s+/g,' ').trim() });
+  });
+  // ② 추천 업무 도구(전 부서 세트)
+  var seen = {};
+  Object.keys(DEPTS).forEach(function(d){
+    (DEPTS[d].tpls||[]).forEach(function(t){
+      if(seen[t.k]) return; seen[t.k] = 1;
+      idx.push({ type:'tool', k:t.k, lb:t.t, ic:'', desc:DEPTS[d].name + ' · ' + t.s });
+    });
+  });
+  // ③ 주요 기능(관리자 항목은 권한 시에만)
+  GB_NAV_ITEMS.forEach(function(n){
+    if(n.admin && !(window.MY_PERM && window.MY_PERM.is_admin)) return;
+    idx.push(n);
+  });
+  return idx;
+}
+var gbSel = -1;
+function gbSearchInput(){
+  var q = document.getElementById('gbSearch').value.trim().toLowerCase();
+  var box = document.getElementById('gbResults');
+  gbSel = -1;
+  if(!q){ box.classList.remove('open'); box.innerHTML = ''; return; }
+  var hits = gbBuildIndex().filter(function(it){
+    return (it.lb + ' ' + (it.desc||'')).toLowerCase().indexOf(q) >= 0;
+  }).slice(0, 8);
+  window._gbHits = hits;
+  if(!hits.length){
+    box.innerHTML = '<div class="gr-none">「' + escHtml(q) + '」 검색 결과가 없습니다.</div>';
+    box.classList.add('open'); return;
+  }
+  box.innerHTML = hits.map(function(it, i){
+    var tag = it.type === 'page' ? '<span class="gr-tag" style="background:#2f6fb3">페이지</span>'
+            : it.type === 'tool' ? '<span class="gr-tag" style="background:#6b5cc4">도구</span>'
+            : '<span class="gr-tag" style="background:#8a94a6">기능</span>';
+    return '<button type="button" class="gr-item" onclick="gbGo(' + i + ')">'
+      + '<span class="gr-ic">' + escHtml(it.ic || '🛠') + '</span>'
+      + '<span class="gr-tx"><b>' + escHtml(it.lb) + '</b><small>' + escHtml(it.desc||'') + '</small></span>' + tag + '</button>';
+  }).join('');
+  box.classList.add('open');
+}
+function gbGo(i){
+  var it = (window._gbHits||[])[i]; if(!it) return;
+  gbCloseResults(true);
+  if(it.type === 'page' || it.type === 'link'){ window.open(it.k, '_blank'); return; }
+  if(it.type === 'tool'){ showChat(); runDemo(it.k); return; }
+  if(it.k === 'chat') showChat();
+  else if(it.k === 'pages') showPages();
+  else if(it.k === 'admin') showAdmin();
+  else if(it.k === 'newchat'){ showChat(); newChat(); }
+}
+function gbCloseResults(clear){
+  var box = document.getElementById('gbResults'); if(!box) return;
+  box.classList.remove('open'); gbSel = -1;
+  if(clear){ var inp = document.getElementById('gbSearch'); if(inp) inp.value = ''; box.innerHTML = ''; }
+}
+function gbSearchKey(ev){
+  var box = document.getElementById('gbResults');
+  var items = box.querySelectorAll('.gr-item');
+  if(ev.key === 'Escape'){ gbCloseResults(true); ev.target.blur(); return; }
+  if(!items.length) return;
+  if(ev.key === 'ArrowDown' || ev.key === 'ArrowUp'){
+    ev.preventDefault();
+    gbSel = (ev.key === 'ArrowDown') ? Math.min(gbSel + 1, items.length - 1) : Math.max(gbSel - 1, 0);
+    items.forEach(function(el, i){ el.classList.toggle('sel', i === gbSel); });
+    items[gbSel].scrollIntoView({ block:'nearest' });
+  } else if(ev.key === 'Enter'){
+    ev.preventDefault();
+    gbGo(gbSel >= 0 ? gbSel : 0);
+  }
+}
+// Ctrl+K(또는 입력 중이 아닐 때 /) → 검색 포커스 · 바깥 클릭 → 결과 닫기
+document.addEventListener('keydown', function(ev){
+  if((ev.ctrlKey || ev.metaKey) && (ev.key === 'k' || ev.key === 'K')){ ev.preventDefault(); var i=document.getElementById('gbSearch'); if(i) i.focus(); return; }
+  if(ev.key === '/' && !/^(INPUT|TEXTAREA)$/.test((document.activeElement||{}).tagName || '')){ ev.preventDefault(); var j=document.getElementById('gbSearch'); if(j) j.focus(); }
+});
+document.addEventListener('click', function(ev){
+  if(!(ev.target.closest && ev.target.closest('.gb-search'))) gbCloseResults(false);
+});
+
 /* 사내 운영 페이지 카드에 ★ 주입 — 정적 카드·서버 재렌더 카드 공통(잠금 카드 제외) */
 function applyFavStars(){
   document.querySelectorAll('#pagesView .pgcard').forEach(function(card){
