@@ -138,18 +138,24 @@
   .ctrlrow.cr{border-left-color:var(--green); border-color:#d8ecdd;
               background:linear-gradient(180deg,#f2faf4,#fafdfb 70%);}
   .ctrlrow .flds{background:rgba(255,255,255,.65); border-radius:8px; padding:9px 11px;}
-  .ctrlrow .ttl{display:flex; align-items:center; gap:8px; font-size:12.5px; font-weight:700; color:var(--navy); margin-bottom:9px; flex-wrap:wrap;}
+  .ctrlrow .ttl{display:flex; align-items:center; gap:8px; font-size:12.5px; font-weight:700; color:var(--navy); margin-bottom:9px; flex-wrap:wrap;
+                cursor:pointer; user-select:none;}
+  .ctrlrow .ttl .tgl{color:var(--muted); font-size:11px; width:12px; flex:none;}
   .ctrlrow .ttl .fgtag{padding:1px 8px; border-radius:5px; font-size:10.5px; font-weight:800;}
   .ctrlrow.dr .fgtag{background:#e8f1fb; color:var(--accent);}
   .ctrlrow.cr .fgtag{background:#eefaf1; color:var(--green);}
   .ctrlrow .ttl .amt{margin-left:auto; font-weight:800; color:var(--navy); font-size:12.5px;}
   .ctrlrow .ttl .missbadge{background:#fdeeec; color:var(--red); padding:1px 8px; border-radius:10px; font-size:10.5px; font-weight:700;}
-  .ctrlrow .flds{display:flex; gap:9px 14px; flex-wrap:wrap;}
-  .cfld{display:flex; flex-direction:column; gap:3px; min-width:130px;}
-  .cfld label{font-size:10.5px; color:var(--muted); font-weight:600;}
+  .ctrlrow .flds{display:grid; grid-template-columns:repeat(auto-fill,minmax(185px,1fr)); gap:9px 14px;}
+  .cfld{display:flex; flex-direction:column; gap:3px; min-width:0;}
+  .cfld label{font-size:10.5px; color:var(--muted); font-weight:600; display:flex; align-items:center; gap:4px;}
   .cfld label .req{color:var(--red);}
+  .cfld label .fillbtn{margin-left:auto; border:none; background:transparent; color:var(--accent);
+                       cursor:pointer; font-size:10.5px; font-family:inherit; font-weight:600; padding:0 2px; flex:none;}
+  .cfld label .fillbtn:hover{text-decoration:underline;}
   .cfld .wref{display:flex; gap:4px; align-items:center;}
-  .cfld input{border:1.5px solid var(--line); border-radius:7px; padding:5px 9px; font-family:inherit; font-size:12.5px; width:150px; background:#fff;}
+  .cfld .wref input{flex:1; min-width:0;}
+  .cfld input{border:1.5px solid var(--line); border-radius:7px; padding:5px 9px; font-family:inherit; font-size:12.5px; width:100%; background:#fff;}
   .cfld input:focus{border-color:var(--accent); outline:none;}
   .cfld input.suggest{background:#fdf9ee; border-color:#e8d9ae;}
   .cfld input.miss{border-color:#e7b3aa; background:#fdf6f5;}
@@ -158,6 +164,23 @@
   .cfld .refbtn:hover{border-color:var(--accent);}
   .cfld .sug{font-size:10px; color:var(--amber);}
   .cfld .refnm{font-size:10px; color:var(--green); max-width:180px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  /* 접힌 카드 요약 칩 */
+  .ctrlchips{display:flex; gap:5px; flex-wrap:wrap;}
+  .ctrlchip{background:rgba(255,255,255,.8); border:1px solid var(--line); border-radius:6px;
+            padding:2px 8px; font-size:10.5px; color:var(--ink);}
+  .ctrlchip b{color:var(--navy); font-weight:700;}
+  .ctrlchip.empty{color:var(--muted); border-style:dashed; background:transparent;}
+  /* 그리드 관리항목 상태 배지 */
+  .cbadge{border:none; border-radius:14px; padding:3px 10px; font-family:inherit; font-size:11px;
+          font-weight:700; cursor:pointer; white-space:nowrap;}
+  .cbadge.ok{background:#e6f6ea; color:var(--green);}
+  .cbadge.mid{background:#eef2f8; color:var(--muted);}
+  .cbadge.warn{background:#fdeeec; color:var(--red);}
+  .cbadge:hover{filter:brightness(.95);}
+  /* 관리항목 필수 진행률 */
+  .ctrlhead .prog{margin-left:auto; font-size:11px; font-weight:700; padding:3px 10px; border-radius:12px;}
+  .ctrlhead .prog.ok{background:#e6f6ea; color:var(--green);}
+  .ctrlhead .prog.warn{background:#fdeeec; color:var(--red);}
   /* 그리드 셀 선택 버튼(계정과목·거래처 — 클릭 시 검색 팝업) */
   .cellpick{display:flex; align-items:center; gap:6px; width:100%; border:1.5px dashed #cdd6e1; background:#fbfcfe;
             border-radius:8px; padding:5px 9px; font-family:inherit; font-size:12.5px; color:var(--muted);
@@ -789,6 +812,10 @@ function buildGrid(){
           : '<button type="button" class="cellpick" data-row-act="pick-bp">🔍 거래처</button>' },
       { key:"cost_cd", label:"코스트센터", width:"140px", type:"select", editable:true, options:costOptions },
       { key:"project_no", label:"프로젝트", width:"130px", editable:true },
+      // 관리항목 입력 현황 — 클릭하면 아래 관리항목 카드로 이동(펼침+빈 칸 포커스)
+      { key:"__ctrl_stat", label:"관리항목", width:"92px", editable:false, sortable:false, align:"center",
+        exportValue:(v,row)=>{ const s=ctrlStatFor(row); return s.total ? s.filled+"/"+s.total : ""; },
+        formatter:(v,row)=> ctrlBadgeHtml(row) },
     ],
     onCellEdit:(key, field, value, row)=>{
       updateSum();
@@ -810,6 +837,13 @@ function buildGrid(){
           row.bp_cd = b.bp_cd || null; row.bp_nm = b.bp_cd ? (b.bp_nm||null) : null;
           GRID.refresh(); renderCtrlPanel();
         }, !!(row.bp_cd || row.bp_nm));
+      } else if(act === "goto-ctrl"){
+        if(!row.acct_cd){ toast("계정과목을 먼저 선택하세요.", true); return; }
+        row.__ctrlOpen = true; renderCtrlPanel();
+        const el = document.getElementById("ctrlrow-"+row.item_seq);
+        if(!el){ toast("이 계정에는 관리항목이 없습니다."); return; }
+        el.scrollIntoView({ behavior:"smooth", block:"center" });
+        setTimeout(()=>{ const inp = el.querySelector("input.miss") || el.querySelector("input"); if(inp) inp.focus(); }, 260);
       }
     },
   });
@@ -860,54 +894,114 @@ function ctrlRefKind(cd){
   if(ref === "B_ITEM") return "item";
   return null;
 }
+/* 라인별 관리항목 입력 현황 — 그리드 배지·필수 진행률 공용 */
+function ctrlStatFor(row){
+  const defs = row.acct_cd ? ctrlDefsFor(row) : [];
+  let filled = 0, reqTotal = 0, reqFilled = 0;
+  defs.forEach((d)=>{
+    const has = String((row.__ctrl||{})[d.cd] ?? "").trim() !== "";
+    if(has) filled++;
+    if(d.req){ reqTotal++; if(has) reqFilled++; }
+  });
+  return { total:defs.length, filled, reqTotal, reqFilled, reqMiss:reqTotal>reqFilled };
+}
+function ctrlBadgeHtml(row){
+  const s = ctrlStatFor(row);
+  if(!s.total) return '<span style="color:#aab;font-size:11px;">—</span>';
+  const cls = s.reqMiss ? "warn" : (s.filled >= s.total ? "ok" : "mid");
+  return '<button type="button" class="cbadge '+cls+'" data-row-act="goto-ctrl" title="관리항목 입력으로 이동">'
+    + s.filled+'/'+s.total+(s.reqMiss?' ⚠':'')+'</button>';
+}
+function updateCtrlProg(){
+  const prog = $("ctrlProg"); if(!prog) return;
+  let t = 0, f = 0;
+  rows().forEach((x)=>{ const s = ctrlStatFor(x); t += s.reqTotal; f += s.reqFilled; });
+  prog.textContent = t ? "필수 "+f+"/"+t+" 입력" : "";
+  prog.className = "prog " + (t && f < t ? "warn" : "ok");
+}
+// 관리항목 입력 중 그리드 배지·진행률만 부분 갱신(그리드 전체 리렌더 없이 — 포커스 유지)
+function syncCtrlBadge(seq){
+  const r = rows().find((x)=> String(x.item_seq)===String(seq));
+  const td = document.querySelector('#itemGrid tr[data-key="'+seq+'"] td[data-col="__ctrl_stat"]');
+  if(r && td) td.innerHTML = ctrlBadgeHtml(r);
+  updateCtrlProg();
+}
 function renderCtrlPanel(){
   const box = $("ctrlPanel"); if(!box) return;
   const rs = rows();
+  // 같은 관리항목 코드를 가진 라인 수 — 2줄 이상이면 「⤓ 전체」(빈 칸 일괄 채우기) 버튼 표시
+  const shareCnt = new Map();
+  rs.forEach((r)=>{ if(!r.acct_cd) return;
+    ctrlDefsFor(r).forEach((d)=>{ shareCnt.set(d.cd, (shareCnt.get(d.cd)||0)+1); }); });
   const parts = [];
   rs.forEach((r)=>{
     if(!r.acct_cd) return;
     const defs = ctrlDefsFor(r);
     if(!defs.length) return;
     r.__ctrl = r.__ctrl || {};
-    let missCnt = 0;
-    const flds = defs.map((d)=>{
-      const info = CTRL_NM.get(d.cd) || {};
-      const nm = info.ctrl_nm || d.cd;
-      const isDate = DATE_CTRLS.has(d.cd) || String(info.data_type||"").toUpperCase()==="D";
-      const val = r.__ctrl[d.cd] ?? "";
-      const sug = (r.__ctrlSug||{})[d.cd];
-      const refKind = ctrlRefKind(d.cd);
-      const miss = d.req && String(val).trim()==="";
-      if(miss) missCnt++;
-      const refNm = (r.__ctrlNm||{})[d.cd];
-      const inputHtml = '<input type="'+(isDate?'date':'text')+'" data-seq="'+r.item_seq+'" data-cd="'+esc(d.cd)+'"'
-        + ' value="'+esc(val)+'" class="'+(miss?'miss ':'')+(sug&&val===sug?'suggest':'')+'"'
-        + (sug&&val===sug?' title="전월 기준 제안값 — 실물 증빙을 확인하세요"':'')+'>';
-      return '<div class="cfld"><label>'+esc(d.cd)+' · '+esc(nm)+(d.req?'<span class="req">*</span>':'')+'</label>'
-        + (refKind
-            ? '<div class="wref">'+inputHtml
-              + '<button type="button" class="refbtn" data-seq="'+r.item_seq+'" data-cd="'+esc(d.cd)+'" data-ref="'+refKind+'"'
-              + ' title="'+(refKind==="bp"?"거래처 검색":"품목 검색")+'">🔍</button></div>'
-            : inputHtml)
-        + (sug&&val===sug?'<span class="sug">제안값 — 증빙 확인</span>':'')
-        + (refNm?'<span class="refnm">'+esc(refNm)+'</span>':'')
+    const stat = ctrlStatFor(r);
+    const missCnt = stat.reqTotal - stat.reqFilled;
+    // 접기 기본값: 필수 미입력이 있으면 펼침, 아니면 접힘(요약 칩). 제목 클릭으로 토글.
+    const open = r.__ctrlOpen != null ? r.__ctrlOpen : missCnt > 0;
+    let body;
+    if(open){
+      body = '<div class="flds">' + defs.map((d)=>{
+        const info = CTRL_NM.get(d.cd) || {};
+        const nm = info.ctrl_nm || d.cd;
+        const isDate = DATE_CTRLS.has(d.cd) || String(info.data_type||"").toUpperCase()==="D";
+        const val = r.__ctrl[d.cd] ?? "";
+        const sug = (r.__ctrlSug||{})[d.cd];
+        const refKind = ctrlRefKind(d.cd);
+        const miss = d.req && String(val).trim()==="";
+        const refNm = (r.__ctrlNm||{})[d.cd];
+        const inputHtml = '<input type="'+(isDate?'date':'text')+'" data-seq="'+r.item_seq+'" data-cd="'+esc(d.cd)+'"'
+          + ' value="'+esc(val)+'" class="'+(miss?'miss ':'')+(sug&&val===sug?'suggest':'')+'"'
+          + (sug&&val===sug?' title="전월 기준 제안값 — 실물 증빙을 확인하세요"':'')+'>';
+        return '<div class="cfld"><label><span>'+esc(d.cd)+' · '+esc(nm)+(d.req?'<span class="req">*</span>':'')+'</span>'
+          + ((shareCnt.get(d.cd)||0) > 1
+              ? '<button type="button" class="fillbtn" data-fillseq="'+r.item_seq+'" data-fillcd="'+esc(d.cd)+'"'
+                + ' title="같은 항목이 있는 다른 줄의 빈 칸에 이 값을 채웁니다">⤓ 전체</button>' : '')
+          + '</label>'
+          + (refKind
+              ? '<div class="wref">'+inputHtml
+                + '<button type="button" class="refbtn" data-seq="'+r.item_seq+'" data-cd="'+esc(d.cd)+'" data-ref="'+refKind+'"'
+                + ' title="'+(refKind==="bp"?"거래처 검색":"품목 검색")+'">🔍</button></div>'
+              : inputHtml)
+          + (sug&&val===sug?'<span class="sug">제안값 — 증빙 확인</span>':'')
+          + (refNm?'<span class="refnm">'+esc(refNm)+'</span>':'')
+          + '</div>';
+      }).join("") + '</div>';
+    }else{
+      // 접힌 카드 — 입력값 요약 칩(빠르게 검토·확인 용도)
+      const chips = defs.map((d)=>{
+        const v = String(r.__ctrl[d.cd] ?? "").trim();
+        const nm = (CTRL_NM.get(d.cd)||{}).ctrl_nm || d.cd;
+        if(v) return '<span class="ctrlchip"><b>'+esc(nm)+'</b> '+esc(v.length>14 ? v.slice(0,13)+'…' : v)+'</span>';
+        return d.req ? '<span class="ctrlchip empty">'+esc(nm)+' 미입력<span style="color:var(--red);">*</span></span>' : '';
+      }).filter(Boolean).join("");
+      body = '<div class="ctrlchips">'
+        + (chips || '<span class="ctrlchip empty">입력된 관리항목 없음 — 제목을 눌러 펼치기</span>')
         + '</div>';
-    }).join("");
+    }
     const isD = r.dr_cr_fg==="D";
     const amt = Number(String(r.item_amt||"").replace(/,/g,""));
-    parts.push('<div class="ctrlrow '+(isD?'dr':r.dr_cr_fg==="C"?'cr':'')+'">'
-      + '<div class="ttl"><span class="fgtag">'+(isD?"차변":r.dr_cr_fg==="C"?"대변":"—")+'</span>'
+    parts.push('<div class="ctrlrow '+(isD?'dr':r.dr_cr_fg==="C"?'cr':'')+'" id="ctrlrow-'+r.item_seq+'">'
+      + '<div class="ttl" data-tgl="'+r.item_seq+'" title="클릭하면 접기/펼치기">'
+      + '<span class="tgl">'+(open?'▾':'▸')+'</span>'
+      + '<span class="fgtag">'+(isD?"차변":r.dr_cr_fg==="C"?"대변":"—")+'</span>'
       + r.item_seq+'번 줄 · '+esc(r.acct_nm||r.acct_cd)
       + '<span style="color:var(--muted);font-weight:400;font-size:11px;">'+esc(String(r.acct_cd||"").trim())+'</span>'
       + (missCnt?'<span class="missbadge">필수 '+missCnt+'건 미입력</span>':'')
       + '<span class="amt">'+(amt>0?won(amt)+'원':'')+'</span></div>'
-      + '<div class="flds">'+flds+'</div></div>');
+      + body + '</div>');
   });
   box.innerHTML = parts.length
     ? '<div class="ctrlhead"><span class="step">3</span> 관리항목'
-      + '<small>ERP 하단 그리드에 들어갈 값 — <b style="color:var(--red);">*</b>는 ERP 설정상 필수 · 🔍는 검색 선택</small></div>'
+      + '<small>ERP 하단 그리드에 들어갈 값 — <b style="color:var(--red);">*</b>는 필수 · 🔍 검색 · ⤓ 다른 줄 빈 칸 채우기 · Enter 다음 칸</small>'
+      + '<span class="prog" id="ctrlProg"></span></div>'
       + parts.join("")
     : "";
+  updateCtrlProg();
 }
 $("ctrlPanel").addEventListener("input", (e)=>{
   const inp = e.target.closest("input[data-cd]"); if(!inp) return;
@@ -919,20 +1013,63 @@ $("ctrlPanel").addEventListener("input", (e)=>{
   if(r.__ctrlNm) delete r.__ctrlNm[cd];   // 직접 수정하면 팝업 선택명 표시는 걷어낸다
   inp.classList.remove("suggest");        // 손대는 순간 제안값 표시도 걷어낸다
   inp.classList.remove("miss");
+  syncCtrlBadge(r.item_seq);              // 그리드 배지·진행률만 부분 갱신(포커스 유지)
 });
-// 참조형 관리항목(거래처·품목) 검색 버튼
+// Enter → 다음 관리항목 칸으로 이동(입력 흐름 단축)
+$("ctrlPanel").addEventListener("keydown", (e)=>{
+  if(e.key !== "Enter") return;
+  const inp = e.target.closest("input[data-cd]"); if(!inp) return;
+  e.preventDefault();
+  const all = Array.from($("ctrlPanel").querySelectorAll("input[data-cd]"));
+  const next = all[all.indexOf(inp)+1];
+  if(next){ next.focus(); if(next.select) next.select(); }
+});
+// 클릭 위임 — ⤓ 일괄 채우기 / 🔍 참조 검색 / 제목 접기·펼치기
 $("ctrlPanel").addEventListener("click", (e)=>{
-  const btn = e.target.closest("button[data-ref]"); if(!btn) return;
-  const r = rows().find((x)=> String(x.item_seq)===String(btn.getAttribute("data-seq")));
-  if(!r) return;
-  const cd = btn.getAttribute("data-cd");
-  const set = (code, nm)=>{
-    r.__ctrl = r.__ctrl || {}; r.__ctrl[cd] = code || "";
-    r.__ctrlNm = r.__ctrlNm || {}; if(nm) r.__ctrlNm[cd] = nm; else delete r.__ctrlNm[cd];
+  // ⤓ 같은 관리항목이 있는 다른 줄의 '빈 칸만' 채운다(기존 입력값은 보존)
+  const fb = e.target.closest("button[data-fillcd]");
+  if(fb){
+    const seq = fb.getAttribute("data-fillseq"), cd = fb.getAttribute("data-fillcd");
+    const src = rows().find((x)=> String(x.item_seq)===String(seq));
+    const val = String((src?.__ctrl||{})[cd] ?? "").trim();
+    if(!val){ toast("먼저 이 칸에 값을 입력한 뒤 누르세요.", true); return; }
+    let n = 0;
+    rows().forEach((r)=>{
+      if(String(r.item_seq)===String(seq) || !r.acct_cd) return;
+      if(!ctrlDefsFor(r).some((d)=> d.cd===cd)) return;
+      if(String((r.__ctrl||{})[cd] ?? "").trim()) return;
+      r.__ctrl = r.__ctrl || {}; r.__ctrl[cd] = val; n++;
+    });
+    if(n){ renderCtrlPanel(); GRID.refresh();
+      toast("'"+((CTRL_NM.get(cd)||{}).ctrl_nm||cd)+"' 값을 다른 "+n+"개 줄의 빈 칸에 채웠습니다."); }
+    else toast("채울 빈 칸이 없습니다 — 다른 줄은 이미 입력돼 있습니다.", true);
+    return;
+  }
+  // 🔍 참조형(거래처·품목) 검색
+  const btn = e.target.closest("button[data-ref]");
+  if(btn){
+    const r = rows().find((x)=> String(x.item_seq)===String(btn.getAttribute("data-seq")));
+    if(!r) return;
+    const cd = btn.getAttribute("data-cd");
+    const set = (code, nm)=>{
+      r.__ctrl = r.__ctrl || {}; r.__ctrl[cd] = code || "";
+      r.__ctrlNm = r.__ctrlNm || {}; if(nm) r.__ctrlNm[cd] = nm; else delete r.__ctrlNm[cd];
+      renderCtrlPanel(); syncCtrlBadge(r.item_seq);
+    };
+    if(btn.getAttribute("data-ref")==="bp") openBpPicker((b)=> set(b.bp_cd, b.bp_nm), !!(r.__ctrl||{})[cd]);
+    else openItemPicker((it)=> set(it.item_code, it.item_name));
+    return;
+  }
+  // 제목 클릭 — 접기/펼치기 토글
+  const tt = e.target.closest(".ttl[data-tgl]");
+  if(tt){
+    const r = rows().find((x)=> String(x.item_seq)===String(tt.getAttribute("data-tgl")));
+    if(!r) return;
+    const s = ctrlStatFor(r);
+    const cur = r.__ctrlOpen != null ? r.__ctrlOpen : s.reqMiss;
+    r.__ctrlOpen = !cur;
     renderCtrlPanel();
-  };
-  if(btn.getAttribute("data-ref")==="bp") openBpPicker((b)=> set(b.bp_cd, b.bp_nm), !!(r.__ctrl||{})[cd]);
-  else openItemPicker((it)=> set(it.item_code, it.item_name));
+  }
 });
 
 /* ═══ v4 — 월반복 홈(F1)·전월 프리필(F2) ═══ */
