@@ -839,7 +839,7 @@ function buildGrid(){
         }, !!(row.bp_cd || row.bp_nm));
       } else if(act === "goto-ctrl"){
         if(!row.acct_cd){ toast("계정과목을 먼저 선택하세요.", true); return; }
-        row.__ctrlOpen = true; renderCtrlPanel();
+        row.__ctrlUi = row.__ctrlUi || {}; row.__ctrlUi.open = true; renderCtrlPanel();
         const el = document.getElementById("ctrlrow-"+row.item_seq);
         if(!el){ toast("이 계정에는 관리항목이 없습니다."); return; }
         el.scrollIntoView({ behavior:"smooth", block:"center" });
@@ -850,9 +850,11 @@ function buildGrid(){
 }
 function rows(){ return GRID ? GRID.getData() : []; }
 function setRows(rs){
-  // __ctrl 객체를 그리드에 넣기 '전에' 만들어 둔다 — getData()가 행을 얕은 복사로 돌려주므로,
-  // 여기서 만들어야 관리항목 패널 입력이 원본 행과 같은 객체를 공유해 유실되지 않는다.
-  rs.forEach((r,i)=>{ r.item_seq = i+1; r.__ctrl = r.__ctrl || {}; });
+  // __ctrl/__ctrlNm/__ctrlUi 객체를 그리드에 넣기 '전에' 만들어 둔다 — getData()가 행을 얕은
+  // 복사로 돌려주므로, 중첩 객체로 만들어야 관리항목 패널의 입력·펼침 상태가 원본 행과
+  // 같은 객체를 공유해 유실되지 않는다(원시값 속성은 복사본에 써지면 유실됨 — 주의).
+  rs.forEach((r,i)=>{ r.item_seq = i+1; r.__ctrl = r.__ctrl || {};
+                      r.__ctrlNm = r.__ctrlNm || {}; r.__ctrlUi = r.__ctrlUi || {}; });
   GRID.setRows(rs); updateSum(); renderCtrlPanel();
 }
 function updateSum(){
@@ -942,7 +944,9 @@ function renderCtrlPanel(){
     const stat = ctrlStatFor(r);
     const missCnt = stat.reqTotal - stat.reqFilled;
     // 접기 기본값: 필수 미입력이 있으면 펼침, 아니면 접힘(요약 칩). 제목 클릭으로 토글.
-    const open = r.__ctrlOpen != null ? r.__ctrlOpen : missCnt > 0;
+    // 상태는 __ctrlUi(공유 객체)에 저장 — getData() 얕은 복사에도 유실되지 않는다.
+    r.__ctrlUi = r.__ctrlUi || {};
+    const open = r.__ctrlUi.open != null ? r.__ctrlUi.open : missCnt > 0;
     let body;
     if(open){
       body = '<div class="flds">' + defs.map((d)=>{
@@ -1060,14 +1064,15 @@ $("ctrlPanel").addEventListener("click", (e)=>{
     else openItemPicker((it)=> set(it.item_code, it.item_name));
     return;
   }
-  // 제목 클릭 — 접기/펼치기 토글
+  // 제목 클릭 — 접기/펼치기 토글(__ctrlUi 는 원본 행과 공유되는 객체라 상태가 유지된다)
   const tt = e.target.closest(".ttl[data-tgl]");
   if(tt){
     const r = rows().find((x)=> String(x.item_seq)===String(tt.getAttribute("data-tgl")));
     if(!r) return;
     const s = ctrlStatFor(r);
-    const cur = r.__ctrlOpen != null ? r.__ctrlOpen : s.reqMiss;
-    r.__ctrlOpen = !cur;
+    r.__ctrlUi = r.__ctrlUi || {};
+    const cur = r.__ctrlUi.open != null ? r.__ctrlUi.open : s.reqMiss;
+    r.__ctrlUi.open = !cur;
     renderCtrlPanel();
   }
 });
@@ -1170,7 +1175,8 @@ async function startRecur(t){
                item_amt:String(it.item_amt||""), item_desc:it.item_desc||"",
                bp_cd:it.bp_cd||null, bp_nm:it.bp_nm||null,
                cost_cd:it.cost_cd||"", project_no:it.project_no||"",
-               __ctrl:ctrl, __ctrlSug:sug };
+               __ctrl:ctrl, __ctrlSug:sug,
+               __ctrlUi:{ open:true } };   // 전월 프리필 — 제안값 검토가 목적이라 펼쳐서 시작
     });
     // 템플릿 라인의 고정/변동 플래그를 순번 매칭으로 얹는다(요약 diff 근거)
     (tpl.items||[]).forEach((ti,i)=>{ if(newRows[i]) newRows[i].__locked = !!ti.amt_locked; });
@@ -1562,7 +1568,7 @@ $("btnSlipCopy").onclick = ()=>{
   if(h.dept_cd && (MASTER.depts||[]).some((d)=> String(d.dept_cd)===String(h.dept_cd))) $("fDept").value = h.dept_cd;
   renderCostOptions();
   if(h.cost_cd) $("fCost").value = h.cost_cd;
-  // 관리항목 — 라인별 첫 세트(dtl_seq 최소) 우선. 날짜형 8자리(YYYYMMDD)는 달력 입력형으로 변환.
+  // 관리항목 — 라인별 첫 세트(dtl_seq 최소) 우선. 날짜형은 달력 입력형(YYYY-MM-DD)으로 정규화.
   const ctrlBySeq = {};
   (SLIP_SEL.ctrls||[]).forEach((c)=>{
     const m = (ctrlBySeq[c.item_seq] = ctrlBySeq[c.item_seq] || {});
@@ -1571,7 +1577,11 @@ $("btnSlipCopy").onclick = ()=>{
     let v = c.ctrl_val;
     if(v == null || String(v).trim()==="") return;   // 민감 항목(NULL)은 빈 칸으로 — 직접 입력
     v = String(v).trim();
-    if(DATE_CTRLS.has(cd) && /^\d{8}$/.test(v)) v = v.slice(0,4)+"-"+v.slice(4,6)+"-"+v.slice(6,8);
+    const isDate = DATE_CTRLS.has(cd) || String((CTRL_NM.get(cd)||{}).data_type||"").toUpperCase()==="D";
+    if(isDate){
+      const dm = /^(\d{4})[-./]?(\d{2})[-./]?(\d{2})$/.exec(v);   // YYYYMMDD·YYYY/MM/DD·YYYY.MM.DD 허용
+      if(dm) v = dm[1]+"-"+dm[2]+"-"+dm[3];
+    }
     m[cd] = v;
   });
   const missing = [];
@@ -1586,11 +1596,12 @@ $("btnSlipCopy").onclick = ()=>{
              item_amt: it.item_loc_amt!=null ? String(Math.round(Number(it.item_loc_amt)||0)) : "",
              item_desc: it.item_desc || "", bp_cd: it.bp_cd||null, bp_nm: it.bp_nm||null,
              cost_cd: it.cost_cd||"", project_no: it.project_no||"",
-             __ctrl: ctrlBySeq[it.item_seq] || {} };
+             __ctrl: ctrlBySeq[it.item_seq] || {},
+             __ctrlUi: { open:true } };   // 복사 직후엔 전 카드 펼침 — 복사값 검토·수정이 목적
   });
   if(newRows.length) setRows(newRows);
   showTab("write");
-  toast("전표 "+h.temp_gl_no+" 을(를) 복사했습니다 — 결의일자는 오늘로 설정됐습니다. 계정·금액·내용을 확인·수정한 뒤 저장하세요.");
+  toast("전표 "+h.temp_gl_no+" 을(를) 복사했습니다 — 결의일자는 오늘로 새로 설정됐고, 관리항목이 펼쳐져 있으니 계정·금액·관리항목 값을 확인·수정한 뒤 저장하세요.");
   if(missing.length) toast("⚠ 계정과목 마스터에 없는 계정은 비워 뒀습니다: "+missing.join(", ")+" — 계정을 다시 선택하세요.", true);
 };
 
