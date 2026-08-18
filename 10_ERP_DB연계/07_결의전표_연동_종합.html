@@ -157,7 +157,7 @@ a{color:var(--accent);}
       <ul>
         <li><b>관리자 외 접근 불가</b> — <code>accounting</code> 모듈 부서 미부여. <b>테스트 단계 한정 결정(A3·A4 보류)이라 의도된 상태</b></li>
         <li><b>프로젝트 필수 검증이 무력</b> — <code>project_fg</code>가 <b>691행 전량 NULL</b>이라 서버 검증 5번이 어떤 계정에도 걸리지 않음 → A5·유니포인트 확인 대상</li>
-        <li><b>전표형태 드롭다운이 잠정값</b> — <code>GL_TYPE</code> 실코드 미확인 → <b>A2 필요</b></li>
+        <li><b>계정 691개가 그대로 노출</b> — 경비 계정 후보 미확정 → <b>A5 필요</b></li>
         <li><b>계정 691개가 그대로 노출될 상태</b> — 경비 계정 후보 미확정 → <b>A5 필요</b></li>
         <li><b>마감월 통제 비활성</b> — <code>gl_period_lock</code> 구조는 있으나 기준 미등재</li>
         <li><b>업무규칙 우회 테스트 미실행</b> — 유효한 Entra 토큰이 필요해 관리자 테스트 항목으로 남음</li>
@@ -224,10 +224,10 @@ a{color:var(--accent);}
       <tr>
         <td class="id">A2</td>
         <td><code>A_TEMP_GL</code><br><b>샘플 5~10건</b> 조회</td>
-        <td>등록자(<code>INSRT_USER_ID</code>) 실제 형식과 <code>GL_TYPE</code>·<code>GL_INPUT_TYPE</code> 실코드 확인. 관리자 지시 &ldquo;기존 데이터 샘플링 확인&rdquo;의 실행 근거<br>
-        <span style="color:var(--amber)">▸ 없으면: 전표형태가 잠정값으로 남고 등록자 매핑이 추정에 머묾. ERP 등록 시 값이 안 맞을 위험</span></td>
+        <td><b>승인·실행 완료(2026-08-03)</b> — 등록자 <b>2,947건 전량 이메일형</b>(매핑 확정) · <code>GL_TYPE</code> 전량 <code>03</code> 단일 · <code>GL_INPUT_TYPE</code> 수기결의=<code>TG</code> · <code>CONF_FG</code> 등록직후 <code>U</code> · <code>TEMP_GL_NO</code>=<code>TG</code>+8자리+4자리(14자)<br>
+        <span style="color:var(--green)">▸ 결과: 전표형태 드롭다운 확정 + <b>전표번호 형식 검증 신설</b>(<code>erp_no_format</code>, v2 배포)</span></td>
         <td>경영/재무</td>
-        <td class="c"><span class="chip wait">대기</span></td>
+        <td class="c"><span class="chip ok">완료</span></td>
       </tr>
       <tr>
         <td class="id">A3</td>
@@ -258,9 +258,9 @@ a{color:var(--accent);}
   </div>
 
   <div class="callout ok">
-    <b>A1·A3·A4가 정리돼 승인 대기는 A2·A5 두 건만 남았습니다.</b>
-    둘 다 없어도 <b>관리자 계정으로 전표 1건 E2E 테스트는 지금 실행할 수 있습니다</b> — 전표형태와 계정 선택지를 잠정값으로 두면 됩니다.
-    A2·A5는 <b>실제 ERP 등록 단계에서 값이 맞는지</b>(전표형태 코드)와 <b>실무자가 계정을 고를 수 있는지</b>(691개 중 경비 계정 후보)를 좌우하므로, 파일럿을 사람에게 열기 전까지 확보하면 됩니다.
+    <b>A1·A2·A3·A4가 정리돼 승인 대기는 A5 하나입니다.</b>
+    A2 실측으로 등록자 매핑·전표형태·전표번호 형식이 전부 확정됐고, 그 결과 <b>전표번호 형식 검증까지 신설</b>했습니다.
+    남은 A5(회계 규칙)는 <b>계정 691개를 실무용으로 좁히는 문제</b>라 <b>E2E 테스트 진행에는 지장이 없습니다</b> — 파일럿을 사람에게 열기 전까지 확보하면 됩니다.
   </div>
 
   <h2>6. 의사결정 ③ 미결정 사항 <span class="h2sub">5건 — 결정되면 문서 갱신</span></h2>

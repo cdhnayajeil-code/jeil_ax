@@ -38,7 +38,7 @@ code{background:var(--soft);border:1px solid var(--line);border-radius:4px;paddi
   <p class="sub">ERP(UNIERP) DB ↔ AI 포털·사내 타부서 연계의 현재상태·기획·진행상태 단일 출처 · 관리: 최동혁</p>
 
   <div class="status">
-    <b>현재 위치(2026-08-03):</b> <b>결의전표 파일럿 — 회계 코드 마스터 실적재 완료(A1 승인), 전체관리자 한정 테스트 단계</b>(계정과목 <b>691행</b>·코스트센터 <b>133행</b> 적재·유실 0, 연동 현황 뷰 11→<b>13종</b> 확장, <code>erp_load_scope</code> <code>loaded</code> 기록. 화면의 마스터 미적재 배너 해소. <b>권한은 테스트 단계라 <code>accounting</code> 모듈을 어느 부서에도 부여하지 않고 전체관리자만 사용</b>(A3·A4 보류 결정). 다음: <b>전표 1건 E2E 테스트</b> · <code>A_TEMP_GL</code> 샘플 조회 승인(A2) · 회계 규칙 확정(A5) — 상세는 <b>06 추진계획</b>·<b>07 연동 종합</b>. 발견: <code>project_fg</code> 691행 전량 NULL로 프로젝트 필수 검증 무력) · 야간배치 12개 job 전량 성공(2026-07-24) · 이전: P0(정책 수립) 마무리 → P1(유니포인트 협의) 진입 대기 + P3(중간DB) 내부 준비 계속(1차 5종 실적재 완료, 재고 입출고 ETL 연 전체 적재 전환·재적재 완료 + 매입 상세 <code>iv_dtl</code> 신규 연동·구매요청 상세 백필·매입 대사 재적재 5종 실적재 완료 + <b>중간DB(erp_ro) 정합성 SQL 검증 완료 — 이상 없음</b> + ERP 거래처마스터(<code>bp_master</code>) 스키마·ETL 준비 완료·적재는 ODBC 접속 필요로 대기, ERP 원본 직접 대사는 잔여 과제) + <b>P4(포털·챗봇 연결) 착수·부분완료</b>(노출 뷰·연동 현황 뷰 10종 전체 노출·관리자 콘솔 반영·부서화면 1건 파일럿·챗봇 권한체계 연결 <code>get_my_access</code>·포털 도구 권한구멍 차단·챗봇 ERP 조회 정합성 RCA + 품목코드 역조회 도구 <code>get_erp_item_orders</code> 신설(<code>jeil-chat</code> version 26)·협력사 거래처마스터(<code>vendor_master</code>) 재적재·정합화 109개사 + 관리자 동기화 RPC 신설) + P5(민감 영역) 인사 급여 집계 실적재 완료(자금 미착수)·챗봇 인사 조회 게이팅(<code>get_hr_headcount</code>·<code>get_hr_payroll</code>) 가동 ·
+    <b>현재 위치(2026-08-11):</b> <b>반복전표 자동화 — ERP 읽기전용 분석·기획 완료(승인 대기)</b>(관리자 지시로 매달 반복 작성되는 결의전표를 자동화하는 방안을 분석 — ERP운영DB 2026년 수기 결의전표(TG) <b>2,287건</b>을 읽기전용 전수 조회(<code>WITH NOLOCK</code>·파라미터 바인딩, DDL/DML 없음)해 <b>반복 패밀리 156개=964건(42.2%)</b>, 금액 완전고정 34개, 1차 시드 후보 <b>36개(242건)</b>를 확정. 신규 문서 <b>10 반복전표 자동화 기획</b>(v1.0 → 4관점 교차검증 36건 반영 → <b>v1.1</b>) + 재실행 가능 분석 도구(<code>etl/analyze_repeat_gl.py</code>) 신설. <b>중간DB 실적재·DDL·Edge Function 배포는 없음</b> — 승인 게이트 B1(관리항목 마스터 적재)·B2(시드 검수+회계규칙 확정)·B2-1(마감 기준)·B3(파일럿 대상) 대기. 결의전표 파일럿(S5 E2E 테스트)과는 <b>독립 트랙</b>) · 이전: 회계 마스터 대사 검증(차이 0) + 연동 현황 뷰 사각지대 수정(<code>bp_master</code> 13→<b>14종</b>) + 12개 job 재동기화 완료</b>(관리자 지시로 "회계계정정보 동기화"를 점검한 결과 회계 마스터는 이미 최신이라 <b>차이 0</b>이었고, 대신 <code>bp_master</code>(2026-07-24 실적재 4,650행)가 연동 현황 뷰에서 빠져 있던 사각지대를 발견·수정(마이그레이션 <code>erp_sync_overview_add_bp_master</code>) + 정본 SQL 드리프트 시정(<code>08_erp_pub_reporting_views.sql</code> 5종 옛 버전 → 최신 14종 정의로 교체). <code>project_fg</code> 전량 NULL은 재추출로도 재현돼 <b>ERP 원천 결함으로 확정</b>. <b>정작 나머지 12개 job은 2026-07-24(18일 경과)에 멈춰 있어 회계(08-03, 8일 경과)보다 노후</b> — <b>08-11 11:12 KST에 관리자가 실제 재동기화 실행, 1차 결과 7 성공(acct_master <b>692</b>행 등)/7 실패</b>(레거시 ODBC 드라이버가 <code>SQL_TYPE_DATE</code> 파라미터 바인딩 미구현 — 원인 확정·코드 수정·재검증 완료). <b>08-11 15:35에 관리자가 "직접작업진행"을 지시해 어시스턴트가 직접 실행, 실패 7개 job(hr_payroll 포함) 전량 success·추출=적재·유실 0으로 완료</b>(연동현황 14종 전체 08-11 동기화, 18일 적재 공백 해소). 08-11 09:53 신설 계정 1건(<code>55004101</code>) 반영으로 관리자가 말한 "미적용 회계계정정보"는 결과적으로 실재·해소) · 이전: 결의전표 파일럿 — 회계 코드 마스터 실적재 완료(A1)·<code>A_TEMP_GL</code> 샘플 조회(A2) 모두 승인·완료(2026-08-03, 계정과목 <b>691행</b>·코스트센터 <b>133행</b>, 등록자 자동매핑 실측 확정·전표번호 형식 검증 신설), <b>권한은 테스트 단계라 <code>accounting</code> 모듈을 어느 부서에도 부여하지 않고 전체관리자만 사용</b>(A3·A4 보류 결정). 다음: <b>전표 1건 E2E 테스트</b> · 회계 규칙 확정(A5, 남은 승인 1건) — 상세는 <b>06 추진계획</b>·<b>07 연동 종합</b>·<b>08 처리 프로세스</b>. 야간배치 12개 job 전량 성공(2026-07-24) · 이전: P0(정책 수립) 마무리 → P1(유니포인트 협의) 진입 대기 + P3(중간DB) 내부 준비 계속(1차 5종 실적재 완료, 재고 입출고 ETL 연 전체 적재 전환·재적재 완료 + 매입 상세 <code>iv_dtl</code> 신규 연동·구매요청 상세 백필·매입 대사 재적재 5종 실적재 완료 + <b>중간DB(erp_ro) 정합성 SQL 검증 완료 — 이상 없음</b> + ERP 거래처마스터(<code>bp_master</code>) 실적재 완료) + <b>P4(포털·챗봇 연결) 착수·부분완료</b>(노출 뷰·연동 현황 뷰 14종 전체 노출·관리자 콘솔 반영·부서화면 1건 파일럿·챗봇 권한체계 연결 <code>get_my_access</code>·포털 도구 권한구멍 차단·챗봇 ERP 조회 정합성 RCA + 품목코드 역조회 도구 <code>get_erp_item_orders</code> 신설(<code>jeil-chat</code> version 26)·협력사 거래처마스터(<code>vendor_master</code>) 재적재·정합화 109개사 + 관리자 동기화 RPC 신설) + P5(민감 영역) 인사 급여 집계 실적재 완료(자금 미착수)·챗봇 인사 조회 게이팅(<code>get_hr_headcount</code>·<code>get_hr_payroll</code>) 가동 ·
     <b>결정 대기:</b> 리포팅 계층 티어(A/B) 경영 결정, 마스터플랜 v2.0 승인, 유니포인트 협의(P1)
   </div>
 
@@ -67,6 +67,12 @@ code{background:var(--soft);border:1px solid var(--line);border-radius:4px;paddi
       <p>연결 방안(D1~D3)·스키마 DDL·ETL 처리방법·준비 체크리스트·6주 일정</p>
       <span class="badge">실행기획 v0.3</span>
     </a>
+    <a class="card" href="09_결의전표_인수인계.html" style="border-color:#2f6fb3;background:#fbfdff">
+      <span class="no">09 ★</span>
+      <h2>결의전표 인수인계 <span style="font-size:12px;color:#2f6fb3">(재개 진입점)</span></h2>
+      <p>06·07·08 취합 — 확정 결정 9건·실측 ERP 사실·반드시 알 것 4건·재개 절차 5단계</p>
+      <span class="badge live">여기부터 읽기</span>
+    </a>
     <a class="card" href="06_결의전표_추진계획.html">
       <span class="no">06</span>
       <h2>결의전표 추진계획</h2>
@@ -78,6 +84,18 @@ code{background:var(--soft);border:1px solid var(--line);border-radius:4px;paddi
       <h2>결의전표 연동 종합</h2>
       <p>구조·현재상태·의사결정 상세 — 확정 7건·승인대기 A1~A5·미결정 5건·확대 E1~E5</p>
       <span class="badge">정리 뷰</span>
+    </a>
+    <a class="card" href="08_결의전표_처리프로세스.html">
+      <span class="no">08</span>
+      <h2>결의전표 처리 프로세스</h2>
+      <p>등록→검증→제출→ERP 등록→확정 기록 7단계 · 단계별 데이터 작업·상태 전이·감사·오류코드</p>
+      <span class="badge">프로세스</span>
+    </a>
+    <a class="card" href="10_반복전표_자동화_기획.html">
+      <span class="no">10 신규</span>
+      <h2>반복전표 자동화 기획</h2>
+      <p>ERP 실측 분석(156패밀리·964건·42.2%) + 템플릿 플랫폼 v2 기획 — 승인 게이트 B1~B4</p>
+      <span class="badge live">분석·기획 완료 v1.1</span>
     </a>
   </div>
 

@@ -77,6 +77,26 @@
   .pill.submitted{background:#e8f1fb; color:var(--accent);}
   .pill.posted{background:#eefaf1; color:var(--green);}
   .pill.void{background:#f3f4f6; color:#9aa3ad; text-decoration:line-through;}
+  /* 템플릿 선택 */
+  .chips{display:flex; gap:6px; flex-wrap:wrap; margin-bottom:12px;}
+  .chip{padding:5px 13px; border-radius:20px; border:1.5px solid var(--line); background:#fff; color:var(--muted);
+        font-family:inherit; font-size:12.5px; font-weight:600; cursor:pointer;}
+  .chip.on{background:var(--navy); border-color:var(--navy); color:#fff;}
+  .tplgrid{display:grid; grid-template-columns:repeat(auto-fill,minmax(238px,1fr)); gap:10px;}
+  .tplcard{border:1.5px solid var(--line); border-radius:11px; padding:12px 14px; cursor:pointer; background:#fff; transition:.12s;}
+  .tplcard:hover{border-color:var(--accent); box-shadow:0 3px 10px rgba(16,42,80,.08);}
+  .tplcard.on{border-color:var(--accent); background:#f5f9fe; box-shadow:0 0 0 2px rgba(58,124,193,.15);}
+  .tplcard .nm{font-size:13.5px; font-weight:700; color:var(--navy); display:flex; align-items:center; gap:6px;}
+  .tplcard .ds{font-size:11.5px; color:var(--muted); margin-top:4px; line-height:1.55;}
+  .tplcard .ln{font-size:11px; color:var(--accent); margin-top:7px; font-weight:600;}
+  .tag{display:inline-block; padding:1px 7px; border-radius:5px; font-size:10.5px; font-weight:700; background:var(--soft); color:var(--muted);}
+  .tag.org{background:#e8f1fb; color:var(--accent);} .tag.dept{background:#eefaf1; color:var(--green);}
+  .tag.user{background:#fdf3e5; color:var(--amber);} .tag.draft{background:#f3f4f6; color:#9aa3ad;}
+  .applybox{margin-top:13px; padding:13px 16px; border-radius:11px; background:var(--soft); border:1.5px solid var(--line);
+            display:flex; gap:13px; align-items:flex-end; flex-wrap:wrap;}
+  .applybox .fld{min-width:160px;}
+  .tplprev{width:100%; font-size:12px; color:var(--muted); line-height:1.7; margin-top:2px;}
+  .tplprev b{color:var(--navy);}
   /* 거래처 검색 */
   .bpbox{display:flex; gap:8px; align-items:center; flex-wrap:wrap;}
   .bpbox input{flex:1; min-width:160px;}
@@ -89,6 +109,30 @@
   .erpbox .row{display:flex; gap:10px; padding:3px 0;}
   .erpbox .row .k{color:var(--muted); min-width:88px; font-size:12px;}
   .erpbox .row .v{font-weight:600; color:var(--navy);}
+  /* 월반복 홈(F1) */
+  .recurgrid{display:grid; grid-template-columns:repeat(auto-fill,minmax(250px,1fr)); gap:10px;}
+  .rcard{border:1.5px solid var(--line); border-radius:11px; padding:12px 14px; background:#fff; transition:.12s;}
+  .rcard.warn{border-left:4px solid var(--amber);}
+  .rcard .nm{font-size:13.5px; font-weight:700; color:var(--navy);}
+  .rcard .meta{font-size:11px; color:var(--muted); margin-top:5px; line-height:1.6;}
+  .rbadge{display:inline-block; padding:2px 9px; border-radius:20px; font-size:11px; font-weight:700; margin-top:6px;}
+  .rbadge.none{background:#fdf3e5; color:var(--amber);}
+  .rbadge.draft{background:#eef2f8; color:var(--muted);}
+  .rbadge.submitted{background:#e8f1fb; color:var(--accent);}
+  .rbadge.posted{background:#eefaf1; color:var(--green);}
+  .rcard .act{margin-top:9px; display:flex; gap:6px;}
+  /* 관리항목 패널(F5) */
+  .ctrlpanel{margin-top:12px;}
+  .ctrlrow{border:1px solid var(--line); border-radius:10px; padding:10px 13px; margin-bottom:8px; background:#fbfcfe;}
+  .ctrlrow .ttl{font-size:12px; font-weight:700; color:var(--navy); margin-bottom:8px;}
+  .ctrlrow .flds{display:flex; gap:9px 14px; flex-wrap:wrap;}
+  .cfld{display:flex; flex-direction:column; gap:3px; min-width:130px;}
+  .cfld label{font-size:10.5px; color:var(--muted); font-weight:600;}
+  .cfld label .req{color:var(--red);}
+  .cfld input{border:1.5px solid var(--line); border-radius:7px; padding:5px 9px; font-family:inherit; font-size:12.5px; width:150px;}
+  .cfld input:focus{border-color:var(--accent); outline:none;}
+  .cfld input.suggest{background:#fdf9ee; border-color:#e8d9ae;}
+  .cfld .sug{font-size:10px; color:var(--amber);}
   .toast{position:fixed; left:50%; bottom:28px; transform:translateX(-50%); background:var(--navy); color:#fff;
          padding:12px 22px; border-radius:11px; font-size:13.5px; box-shadow:0 6px 22px rgba(16,42,80,.28); z-index:99; max-width:90vw;}
   .toast.bad{background:var(--red);}
@@ -122,12 +166,47 @@
 
     <div class="tabs">
       <button data-tab="write" class="on">전표 작성</button>
+      <button data-tab="copy">전표복사</button>
       <button data-tab="mine">내 초안</button>
       <button data-tab="post" class="hide" id="tabPost">회계 담당자</button>
+      <button data-tab="tpl">템플릿 관리</button>
     </div>
 
     <!-- ═══ 전표 작성 ═══ -->
     <div id="paneWrite">
+      <div class="sec hide" id="recurSec">
+        <h2>이번 달 반복 전표
+          <small id="recurYmLbl">매달 쓰는 전표 — 지난달 값이 채워진 상태로 시작합니다</small>
+        </h2>
+        <div class="recurgrid" id="recurList"></div>
+      </div>
+
+      <div class="sec">
+        <h2>템플릿으로 시작
+          <small>자주 쓰는 분개 형태를 고르면 계정·적요·금액 배분이 자동으로 채워집니다</small>
+          <span style="margin-left:auto;display:flex;gap:7px;align-items:center;">
+            <input type="text" id="tplSearch" placeholder="템플릿 검색"
+                   style="border:1.5px solid var(--line);border-radius:8px;padding:6px 11px;font-family:inherit;font-size:12.5px;width:150px;">
+            <button class="b gh sm" id="btnTplFromDraft">현재 전표를 템플릿으로</button>
+          </span>
+        </h2>
+        <div class="chips" id="tplChips"></div>
+        <div class="tplgrid" id="tplList"></div>
+        <div class="applybox hide" id="tplApply">
+          <div class="fld">
+            <label>선택한 템플릿</label>
+            <div style="font-size:13.5px;font-weight:700;color:var(--navy);padding:6px 0;" id="tplSelNm"></div>
+          </div>
+          <div class="fld" id="tplTotalFld">
+            <label>총액 (원)</label>
+            <input type="text" id="tplTotal" placeholder="예: 150000" style="width:150px;">
+          </div>
+          <button class="b pri sm" id="btnTplApply">템플릿 적용</button>
+          <button class="b gh sm" id="btnTplClear">선택 해제</button>
+          <div class="tplprev" id="tplPreview"></div>
+        </div>
+      </div>
+
       <div class="sec">
         <h2>전표 헤더 <small id="editingNo"></small></h2>
         <div class="form">
@@ -138,7 +217,7 @@
           <div class="fld">
             <label>전표형태<span class="req">*</span></label>
             <select id="fType"></select>
-            <span class="hint">ERP 전표형태 코드는 확인 후 확정됩니다</span>
+            <span class="hint">ERP 실측 확정(2026-08-03) — 2026년 결의전표 2,947건 전량 <code>03</code></span>
           </div>
           <div class="fld">
             <label>등록자 (자동)</label>
@@ -172,10 +251,12 @@
           <small>차변·대변 합계가 일치해야 제출할 수 있습니다</small>
           <span style="margin-left:auto;display:flex;gap:7px;">
             <button class="b gh sm" id="btnAddRow">+ 행 추가</button>
+            <button class="b gh sm" id="btnFillDiff">선택 행에 차액 채우기</button>
             <button class="b gh sm" id="btnDelRow">선택 행 삭제</button>
           </span>
         </h2>
         <div id="itemGrid"></div>
+        <div class="ctrlpanel" id="ctrlPanel"></div>
         <div class="sumbar" id="sumbar">
           <div class="it">차변 합계<b id="sumDr">0</b></div>
           <div class="it">대변 합계<b id="sumCr">0</b></div>
@@ -195,6 +276,43 @@
           <button class="b gh sm" id="btnBp">검색</button>
         </div>
         <div class="bplist hide" id="bpList"></div>
+      </div>
+    </div>
+
+    <!-- ═══ 전표복사 (ERP 전표복사 메뉴와 동일 흐름) ═══ -->
+    <div id="paneCopy" class="hide">
+      <div class="banner" style="background:#eef4fb;border-color:#c9dcf1;border-left-color:var(--accent);color:#2a4a6b;">
+        <b>본인이 ERP에서 입력한 결의전표</b>만 표시됩니다(ERP 계정 ↔ MS 계정 1:1 연결).
+        전표를 골라 복사하면 <b>전표 작성</b> 탭에 계정·금액·적요·거래처·관리항목이 채워지고,
+        결의일자는 오늘로 새로 잡힙니다. 내용을 수정한 뒤 새 초안으로 저장하세요.
+        데이터는 야간 동기화 사본이라 방금 ERP에 저장한 전표는 다음 동기화 후에 보입니다.
+      </div>
+      <div class="sec">
+        <h2>내 ERP 전표 조회 <small id="slipAsOf"></small></h2>
+        <div class="applybox" style="margin-top:0;">
+          <div class="fld"><label>결의일자 시작</label><input type="date" id="slipFrom" style="width:150px;"></div>
+          <div class="fld"><label>결의일자 종료</label><input type="date" id="slipTo" style="width:150px;"></div>
+          <div class="fld" style="flex:1;min-width:180px;"><label>적요·전표번호 검색</label>
+            <input type="text" id="slipQ" placeholder="예: 출장 / TG202608"></div>
+          <div class="fld"><label>입력경로</label>
+            <select id="slipType" style="width:140px;">
+              <option value="">전체</option>
+              <option value="TG">TG · 수기 결의</option>
+              <option value="etc">그 외(자동생성)</option>
+            </select></div>
+          <button class="b pri sm" id="btnSlipSearch">조회</button>
+        </div>
+        <div style="overflow-x:auto;margin-top:12px;"><table class="tbl" id="slipTbl"></table></div>
+      </div>
+      <div class="sec hide" id="slipDetail">
+        <h2>전표 미리보기 <small id="slipDetailNo"></small></h2>
+        <div class="erpbox" id="slipSummary"></div>
+        <div style="overflow-x:auto;margin-top:12px;"><table class="tbl" id="slipItems"></table></div>
+        <h2 style="margin-top:14px;">관리항목 <small>민감 항목(계좌·사번·카드·어음)의 값은 복사되지 않습니다 — 작성 화면에서 직접 입력</small></h2>
+        <div style="overflow-x:auto;"><table class="tbl" id="slipCtrls"></table></div>
+        <div class="btns">
+          <button class="b pri" id="btnSlipCopy">📄 이 전표를 복사해 새 초안 작성</button>
+        </div>
       </div>
     </div>
 
@@ -225,11 +343,128 @@
         <h2>ERP 입력용 요약 <small id="postDetailNo"></small></h2>
         <div class="erpbox" id="erpSummary"></div>
         <div style="overflow-x:auto;margin-top:12px;"><table class="tbl" id="postItems"></table></div>
+        <h2 style="margin-top:14px;">관리항목 <small>ERP 하단 그리드 입력 순서대로 — [값 복사]에 포함됩니다</small></h2>
+        <div style="overflow-x:auto;"><table class="tbl" id="postCtrls"></table></div>
         <div class="btns">
           <input type="text" id="tempGlNo" maxlength="18" placeholder="ERP 결의전표번호"
                  style="border:1.5px solid var(--line);border-radius:9px;padding:10px 13px;font-family:inherit;font-size:13.5px;width:220px;">
           <button class="b ok" id="btnPost">확정 기록</button>
           <button class="b gh" id="btnCopyErp">📋 값 복사</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ 템플릿 관리 ═══ -->
+    <div id="paneTpl" class="hide">
+      <div class="sec">
+        <h2>템플릿 목록
+          <small id="tplScopeHint"></small>
+          <span style="margin-left:auto;display:flex;gap:7px;">
+            <button class="b pri sm" id="btnTplNew">+ 새 템플릿</button>
+          </span>
+        </h2>
+        <div style="overflow-x:auto;"><table class="tbl" id="tplMgrTbl"></table></div>
+      </div>
+
+      <div class="sec hide" id="tplEdit">
+        <h2>템플릿 편집 <small id="tplEditCode"></small></h2>
+        <div class="form">
+          <div class="fld">
+            <label>템플릿 이름<span class="req">*</span></label>
+            <input type="text" id="tName" maxlength="60" placeholder="예: 국내 출장 여비 정산">
+          </div>
+          <div class="fld">
+            <label>분류</label>
+            <input type="text" id="tCategory" maxlength="30" placeholder="예: 경비 · 카드 · 매입">
+            <span class="hint">같은 분류끼리 묶여서 표시됩니다</span>
+          </div>
+          <div class="fld">
+            <label>공개 범위<span class="req">*</span></label>
+            <select id="tScope">
+              <option value="user">개인 — 나만 사용</option>
+              <option value="dept">부서 — 해당 부서 구성원</option>
+              <option value="org">전사 — 모든 사용자</option>
+            </select>
+            <span class="hint" id="tScopeHint">전사·부서 템플릿은 관리자·회계 담당자만 만들 수 있습니다</span>
+          </div>
+          <div class="fld hide" id="tDeptFld">
+            <label>대상 부서<span class="req">*</span></label>
+            <select id="tDept"></select>
+          </div>
+          <div class="fld">
+            <label>금액 입력 방식</label>
+            <select id="tAmountMode">
+              <option value="total">총액 1칸 입력 → 규칙대로 배분</option>
+              <option value="manual">라인별로 직접 입력</option>
+            </select>
+          </div>
+          <div class="fld">
+            <label>상태</label>
+            <select id="tStatus">
+              <option value="draft">비공개(초안) — 목록에 안 보임</option>
+              <option value="active">공개 — 선택 가능</option>
+              <option value="archived">보관</option>
+            </select>
+          </div>
+          <div class="fld">
+            <label>기본 코스트센터</label>
+            <select id="tCost"></select>
+          </div>
+          <div class="fld">
+            <label>표시 순서</label>
+            <input type="number" id="tSort" value="100">
+          </div>
+          <div class="fld">
+            <label>ERP 케이스 코드</label>
+            <input type="text" id="tCase" maxlength="30" placeholder="예: EXP-TRV-01">
+            <span class="hint">ERP_DB 기준 케이스가 확정되면 여기에 연결합니다</span>
+          </div>
+          <div class="fld">
+            <label>월반복</label>
+            <select id="tRecur">
+              <option value="">아니오 — 일반 템플릿</option>
+              <option value="monthly">예 — 매달 반복(작성 탭 상단 카드·미작성 배지)</option>
+            </select>
+          </div>
+          <div class="fld">
+            <label>적요 월 표기</label>
+            <select id="tMonthOffset">
+              <option value="0">당월 — 8월에 쓰면 "8월"</option>
+              <option value="-1">전월분 — 8월에 쓰면 "7월분"</option>
+            </select>
+            <span class="hint">적요 제목의 월 숫자를 자동으로 갱신할 때의 기준</span>
+          </div>
+          <div class="fld wide">
+            <label>적요 제목 틀 <small style="font-weight:400;">— {YYYY}·{YY}·{M} 토큰이 월에 맞게 치환됩니다</small></label>
+            <input type="text" id="tTitlePattern" maxlength="200" placeholder="예: (주)쿠콘 {YY}년{M}월분 국세청 스크래핑외">
+          </div>
+          <div class="fld wide">
+            <label>설명 <small style="font-weight:400;">— 언제 쓰는 템플릿인지</small></label>
+            <input type="text" id="tDescr" maxlength="200" placeholder="예: 국내 출장 후 개인이 선지출한 교통비·숙박비를 정산할 때">
+          </div>
+          <div class="fld wide">
+            <label>기본 적요</label>
+            <input type="text" id="tDescTmpl" maxlength="200" placeholder="예: 국내 출장 여비 정산">
+          </div>
+          <div class="fld wide">
+            <label>참조번호 안내</label>
+            <input type="text" id="tRefHint" maxlength="100" placeholder="예: 그룹웨어 출장정산 결재 문서번호를 입력하세요">
+          </div>
+        </div>
+
+        <h2 style="margin-top:18px;">템플릿 라인
+          <small>금액 규칙 — 입력: 사용자가 직접 · 비율: 총액×%(정수 반올림) · 고정: 정액 · 차액: 나머지 자동</small>
+          <span style="margin-left:auto;display:flex;gap:7px;">
+            <button class="b gh sm" id="btnTAddRow">+ 행 추가</button>
+            <button class="b gh sm" id="btnTDelRow">선택 행 삭제</button>
+          </span>
+        </h2>
+        <div id="tplItemGrid"></div>
+        <div class="btns">
+          <button class="b pri" id="btnTSave">템플릿 저장</button>
+          <button class="b ok" id="btnTPublish">공개</button>
+          <button class="b gh" id="btnTDelete">삭제</button>
+          <button class="b gh" id="btnTClose">닫기</button>
         </div>
       </div>
     </div>
@@ -271,6 +506,38 @@ const STATUS_KO = { draft:"작성중", submitted:"제출됨", posted:"확정됨"
 let ME = null, MASTER = { accounts:[], cost_centers:[], depts:[] }, GRID = null;
 let CURRENT_NO = null;            // 수정 중인 초안번호(신규면 null)
 let POST_SEL = null;              // 회계 담당자 화면에서 선택한 초안
+let TPLS = [];                    // 선택 가능한 템플릿(공개 상태)
+let TPL_SEL = null;               // 작성 화면에서 고른 템플릿
+let TPL_CAT = "";                 // 분류 칩 필터("" = 전체)
+let CAN_MANAGE_TPL = false;       // 전사·부서 템플릿 편집 권한(관리자·회계 담당자)
+let TGRID = null, TPL_EDIT = null;// 템플릿 관리 탭의 라인 그리드 / 편집 중인 템플릿
+/* v4 — 월반복·관리항목 */
+let CTRLM = { ctrl_items:[], acct_ctrl:[] };  // 관리항목 마스터(bootstrap)
+const CTRL_BY_ACCT = new Map();               // acct_cd → [{cd,seq,dr,cr}]
+const CTRL_NM = new Map();                    // cd → {ctrl_nm, data_type}
+let CURRENT_TPL = null;                       // {tpl_id, use_ym} — 월반복 회차 작성 중이면 세팅
+let PREV_SNAP = null;                         // 전월 프리필 스냅샷(제출 전 "달라진 점" 비교용)
+// 날짜형 관리항목(만기일·지급일·계산서일 등) — +1개월 제안·달력 입력 대상
+const DATE_CTRLS = new Set(["C1","C2","C21","C4","V2","X05","XC1"]);
+const NUM_CTRLS  = new Set(["V1","V8","F3"]); // 금액형 — 콤마 표기
+
+/* +1개월(월말 클램프): 1/31→2/28, 말일이면 말일 유지 */
+function shiftMonth(iso){
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(iso||"")); if(!m) return "";
+  const y=+m[1], mo=+m[2], d=+m[3];
+  const ny = mo===12 ? y+1 : y, nm = mo===12 ? 1 : mo+1;
+  const lastCur = new Date(y, mo, 0).getDate(), lastNew = new Date(ny, nm, 0).getDate();
+  const nd = Math.min(d>=lastCur ? 31 : d, lastNew);
+  return ny+"-"+String(nm).padStart(2,"0")+"-"+String(nd).padStart(2,"0");
+}
+/* 적요 제목 틀 치환 — {YYYY}·{YY}·{M} 토큰을 (회차+오프셋) 월로 */
+function fmtTitle(pattern, ym, offset){
+  const m = /^(\d{4})-(\d{2})$/.exec(String(ym||"")); if(!m || !pattern) return pattern||"";
+  let y=+m[1], mo=+m[2]+(Number(offset)||0);
+  if(mo<1){ mo+=12; y-=1; } if(mo>12){ mo-=12; y+=1; }
+  return String(pattern).replaceAll("{YYYY}", String(y)).replaceAll("{YY}", String(y%100))
+                        .replaceAll("{M}", String(mo));
+}
 
 function toast(msg, bad){
   const t = document.createElement("div");
@@ -302,10 +569,26 @@ async function boot(){
   const blocked = !d.erp_user_mapped || !d.accounts_loaded || !d.can_input;
   $("btnSave").disabled = blocked; $("btnSubmit").disabled = blocked;
 
+  TPLS = d.templates || [];
+  CAN_MANAGE_TPL = !!d.can_manage_tpl;
+
+  /* v4 — 관리항목 마스터 인덱싱 */
+  CTRLM = d.ctrl_master || CTRLM;
+  (CTRLM.ctrl_items||[]).forEach((c)=> CTRL_NM.set(String(c.ctrl_cd||"").trim(), c));
+  (CTRLM.acct_ctrl||[]).forEach((row)=>{
+    const [acct, cd, seq, dr, cr] = row;
+    const arr = CTRL_BY_ACCT.get(acct) || [];
+    arr.push({ cd:String(cd||"").trim(), seq:Number(seq)||999, dr:dr==="Y", cr:cr==="Y" });
+    CTRL_BY_ACCT.set(acct, arr);
+  });
+
   fillHeader(d.locked_months || []);
   buildGrid();
+  buildTplGrid();
+  renderTplCards();
   newDraft();
   loadMine();
+  if(!blocked) loadRecur();
 }
 
 function fillHeader(locked){
@@ -315,8 +598,11 @@ function fillHeader(locked){
     const ym = $("fDt").value.slice(0,7);
     if(locked.includes(ym)) toast(ym+" 은(는) 마감된 회계기간입니다. 다른 날짜를 선택하세요.", true);
   });
-  // 전표형태 — ERP 실제 코드값 확인 전이라 기본값 하나만 둔다(확인 후 옵션 확정)
-  $("fType").innerHTML = '<option value="">(기본)</option><option value="1">일반전표</option>';
+  // 전표형태 — A2 승인 후 ERP 실측으로 확정(2026-08-03).
+  // A_TEMP_GL 2026년 2,947건이 GL_TYPE='03' 단일값이라 선택지가 아니라 사실상 상수다.
+  // 다른 값이 나타나면 그때 옵션을 늘린다(임의 추가 금지 — 실측 근거 없는 코드는 넣지 않는다).
+  $("fType").innerHTML = '<option value="03">03 · 일반전표</option>';
+  $("fType").value = "03";
   $("fDept").innerHTML = '<option value="">선택</option>' + (MASTER.depts||[]).map((d)=>
     '<option value="'+esc(d.dept_cd)+'">'+esc(d.dept_nm)+'</option>').join("");
   // 내 부서를 기본 선택
@@ -372,16 +658,24 @@ function buildGrid(){
         const a = (MASTER.accounts||[]).find((x)=>String(x.acct_cd)===String(value));
         row.acct_nm = a ? (a.acct_nm||"") : "";
         // 차대 기본값 제안 — 비어 있을 때만(사용자 선택을 덮어쓰지 않는다)
-        if(a && !row.dr_cr_fg && (a.bal_fg==="D"||a.bal_fg==="C")) row.dr_cr_fg = a.bal_fg;
+        // ERP bal_fg 실측값은 'DR'/'CR' 2자다(A_ACCT). 첫 글자로 맞춘다.
+        const fg = String(a && a.bal_fg || "").charAt(0).toUpperCase();
+        if(a && !row.dr_cr_fg && (fg==="D"||fg==="C")){
+          row.dr_cr_fg = fg;
+          GRID.refresh();   // 차대를 코드가 채웠으니 화면(차대 셀)도 동기화
+        }
       }
       updateSum();
+      if(field === "acct_cd" || field === "dr_cr_fg") renderCtrlPanel();
     },
   });
 }
 function rows(){ return GRID ? GRID.getData() : []; }
 function setRows(rs){
-  rs.forEach((r,i)=>{ r.item_seq = i+1; });
-  GRID.setRows(rs); updateSum();
+  // __ctrl 객체를 그리드에 넣기 '전에' 만들어 둔다 — getData()가 행을 얕은 복사로 돌려주므로,
+  // 여기서 만들어야 관리항목 패널 입력이 원본 행과 같은 객체를 공유해 유실되지 않는다.
+  rs.forEach((r,i)=>{ r.item_seq = i+1; r.__ctrl = r.__ctrl || {}; });
+  GRID.setRows(rs); updateSum(); renderCtrlPanel();
 }
 function updateSum(){
   let dr=0, cr=0;
@@ -398,9 +692,351 @@ function updateSum(){
   else { bar.classList.add("bad"); st.textContent = "⚠ 차액 " + won(Math.abs(dr-cr)); }
 }
 
+/* ═══ v4 — 관리항목 패널(F5) ═══
+   계정을 고르면 그 계정×차대에 연결된 관리항목 입력칸을 자동으로 만든다.
+   필수(*)는 ERP 설정(A_ACCT_CTRL_ASSN 플래그 Y) 기준 — 서버도 동일 기준으로 재검증한다.
+   부가세·원천징수 자동계산은 하지 않는다(B2 결정) — 세액은 실물 증빙 값을 직접 입력한다. */
+function ctrlDefsFor(row){
+  const defs = (CTRL_BY_ACCT.get(String(row.acct_cd||"")) || [])
+    .slice().sort((a,b)=> a.seq-b.seq);
+  const isD = row.dr_cr_fg==="D";
+  // 설정에 연결된 전 항목을 보여주되, 해당 방향 필수만 * 표시
+  const out = defs.map((d)=> ({ cd:d.cd, seq:d.seq, req: isD ? d.dr : d.cr }));
+  // 저장돼 있는데 설정에 없는 항목(과거 데이터)도 잃지 않고 보여준다
+  Object.keys(row.__ctrl||{}).forEach((cd)=>{
+    if(!out.some((x)=>x.cd===cd)) out.push({ cd, seq:999, req:false });
+  });
+  return out;
+}
+function renderCtrlPanel(){
+  const box = $("ctrlPanel"); if(!box) return;
+  const rs = rows();
+  const parts = [];
+  rs.forEach((r)=>{
+    if(!r.acct_cd) return;
+    const defs = ctrlDefsFor(r);
+    if(!defs.length) return;
+    r.__ctrl = r.__ctrl || {};
+    const flds = defs.map((d)=>{
+      const info = CTRL_NM.get(d.cd) || {};
+      const nm = info.ctrl_nm || d.cd;
+      const isDate = DATE_CTRLS.has(d.cd) || String(info.data_type||"").toUpperCase()==="D";
+      const val = r.__ctrl[d.cd] ?? "";
+      const sug = (r.__ctrlSug||{})[d.cd];
+      return '<div class="cfld"><label>'+esc(d.cd)+' · '+esc(nm)+(d.req?'<span class="req">*</span>':'')+'</label>'
+        + '<input type="'+(isDate?'date':'text')+'" data-seq="'+r.item_seq+'" data-cd="'+esc(d.cd)+'"'
+        + ' value="'+esc(val)+'"'+(sug&&val===sug?' class="suggest" title="전월 기준 제안값 — 실물 증빙을 확인하세요"':'')+'>'
+        + (sug&&val===sug?'<span class="sug">제안값 — 증빙 확인</span>':'')
+        + '</div>';
+    }).join("");
+    parts.push('<div class="ctrlrow"><div class="ttl">'+r.item_seq+'번 줄 · '
+      + esc(r.acct_nm||r.acct_cd)+' ('+(r.dr_cr_fg==="D"?"차변":"대변")+')</div>'
+      + '<div class="flds">'+flds+'</div></div>');
+  });
+  box.innerHTML = parts.length
+    ? '<div style="font-size:11.5px;color:var(--muted);margin-bottom:7px;">관리항목 — ERP 하단 그리드에 들어갈 값입니다. <b style="color:var(--red);">*</b> 표시는 ERP 설정상 필수입니다.</div>' + parts.join("")
+    : "";
+}
+$("ctrlPanel").addEventListener("input", (e)=>{
+  const inp = e.target.closest("input[data-cd]"); if(!inp) return;
+  const r = rows().find((x)=> String(x.item_seq)===String(inp.getAttribute("data-seq")));
+  if(!r) return;
+  r.__ctrl = r.__ctrl || {};
+  r.__ctrl[inp.getAttribute("data-cd")] = inp.value;
+  inp.classList.remove("suggest");   // 손대는 순간 제안값 표시는 걷어낸다
+});
+
+/* ═══ v4 — 월반복 홈(F1)·전월 프리필(F2) ═══ */
+const RSTATUS = { none:["⚠ 이번 달 미작성","none"], draft:["✏️ 작성중","draft"],
+                  submitted:["📤 제출됨","submitted"], posted:["✅ 확정됨","posted"] };
+let RECUR_ROWS = [], RECUR_YM = "";
+async function loadRecur(){
+  try{
+    // 회차(ym)는 사용자 로컬(KST) 기준으로 명시 전송 — 매월 1일 아침 UTC 경계 오차 방지
+    const localYm = new Date(Date.now() - new Date().getTimezoneOffset()*60000).toISOString().slice(0,7);
+    const r = await api("tpl_recur_list", { ym: localYm });
+    RECUR_ROWS = r.rows || []; RECUR_YM = r.ym || "";
+    renderRecur();
+  }catch(e){ /* 월반복 로드 실패는 화면을 막지 않는다 */ }
+}
+function renderRecur(){
+  const sec = $("recurSec"), box = $("recurList");
+  if(!RECUR_ROWS.length){ sec.classList.add("hide"); return; }
+  sec.classList.remove("hide");
+  $("recurYmLbl").textContent = RECUR_YM + " 회차 — 지난달 값이 채워진 상태로 시작합니다";
+  // 미작성 우선 → 최근 사용순
+  const order = { none:0, draft:1, submitted:2, posted:3 };
+  const list = RECUR_ROWS.slice().sort((a,b)=>
+    (order[a.ym_status]??9)-(order[b.ym_status]??9) ||
+    String(b.last_used_at||"").localeCompare(String(a.last_used_at||"")));
+  box.innerHTML = list.map((t)=>{
+    const [lbl, cls] = RSTATUS[t.ym_status] || RSTATUS.none;
+    const who = t.ym_used_by && !t.ym_is_mine ? " · "+esc(t.ym_used_by) : "";
+    const meta = [];
+    if(t.ym_count>1) meta.push("이번 달 "+t.ym_count+"건");
+    if(t.last_posted_at) meta.push("최근 확정 "+String(t.last_posted_at).slice(0,10));
+    return '<div class="rcard'+(t.ym_status==="none"?" warn":"")+'">'
+      + '<div class="nm">'+esc(t.tpl_nm)+'</div>'
+      + '<span class="rbadge '+cls+'">'+lbl+who+'</span>'
+      + (meta.length?'<div class="meta">'+meta.join(" · ")+'</div>':'')
+      + '<div class="act">'
+      + (t.ym_status==="draft" && t.ym_is_mine && t.ym_draft_no
+          ? '<button class="b pri sm" data-act="continue" data-id="'+t.tpl_id+'" data-no="'+esc(t.ym_draft_no)+'">이어서 작성</button>'
+          : '<button class="b '+(t.ym_status==="none"?"pri":"gh")+' sm" data-act="start" data-id="'+t.tpl_id+'">이번 달 작성</button>')
+      + '</div></div>';
+  }).join("");
+}
+$("recurList").onclick = async (e)=>{
+  const btn = e.target.closest("button[data-act]"); if(!btn) return;
+  const id = Number(btn.getAttribute("data-id"));
+  const t = RECUR_ROWS.find((x)=> x.tpl_id===id); if(!t) return;
+  if(btn.getAttribute("data-act")==="continue"){
+    // 진행 중 초안 이어서 — 서버가 본인 초안번호만 내려주므로 이 버튼은 본인 건에만 뜬다
+    try{
+      const r = await api("get", { draft_no: btn.getAttribute("data-no") });
+      loadDraftIntoForm(r);
+      CURRENT_TPL = { tpl_id:id, use_ym:t.ym };
+      toast("작성 중인 초안을 불러왔습니다.");
+    }catch(e2){ toast(e2.message, true); }
+    return;
+  }
+  // 이번 달 작성 — 이미 진행 건이 있으면 중복 경고(F1)
+  if(t.ym_status!=="none"){
+    const who = t.ym_used_by ? String(t.ym_used_by).split("@")[0]+" 님이 " : "";
+    if(!confirm("이번 달("+t.ym+") 이 전표는 이미 "+who+(RSTATUS[t.ym_status]||["처리"])[0].replace(/^[^\s]+\s/,"")
+        +" 상태입니다.\n같은 전표를 한 번 더 작성할까요? (중복 등록 주의)")) return;
+  }
+  await startRecur(t);
+};
+async function startRecur(t){
+  let d;
+  try{ d = await api("tpl_apply_prev", { tpl_id: t.tpl_id }); }
+  catch(e){ toast(e.message, true); return; }
+  if(rows().some((r)=> r.acct_cd || r.item_amt)){
+    if(!confirm("작성 중인 라인을 지우고 월반복 전표를 시작합니다. 계속할까요?")) return;
+  }
+  newDraft();
+  CURRENT_TPL = { tpl_id: t.tpl_id, use_ym: t.ym };
+  const tpl = d.tpl || {}, prev = d.prev;
+
+  // 적요 — 제목 틀(토큰)이 있으면 회차+오프셋으로 치환, 없으면 전월 적요를 그대로(사용자 수정)
+  const title = tpl.title_pattern ? fmtTitle(tpl.title_pattern, t.ym, tpl.month_offset)
+              : (prev?.header?.gl_desc || tpl.desc_tmpl || "");
+  $("fDesc").value = title;
+
+  if(prev){
+    const h = prev.header;
+    if(h.dept_cd) $("fDept").value = h.dept_cd;
+    renderCostOptions(); if(h.cost_cd) $("fCost").value = h.cost_cd;
+    $("fProj").value = h.project_no || "";
+    // 라인 — 전월 값 전체 프리필(금액 포함). 날짜형 관리항목은 +1개월 제안값.
+    const ctrlBySeq = {};
+    (prev.ctrls||[]).forEach((c)=>{ (ctrlBySeq[c.item_seq]=ctrlBySeq[c.item_seq]||{})[c.ctrl_cd]=c.ctrl_val; });
+    const newRows = (prev.items||[]).map((it)=>{
+      const src = ctrlBySeq[it.item_seq] || {};
+      const ctrl = {}, sug = {};
+      Object.keys(src).forEach((cd)=>{
+        if(DATE_CTRLS.has(cd) && /^\d{4}-\d{2}-\d{2}$/.test(String(src[cd]||""))){
+          ctrl[cd] = shiftMonth(src[cd]); sug[cd] = ctrl[cd];   // 제안값 표시
+        } else ctrl[cd] = src[cd];
+      });
+      return { dr_cr_fg:it.dr_cr_fg, acct_cd:it.acct_cd, acct_nm:it.acct_nm,
+               item_amt:String(it.item_amt||""), item_desc:it.item_desc||"",
+               bp_cd:it.bp_cd||null, bp_nm:it.bp_nm||null,
+               cost_cd:it.cost_cd||"", project_no:it.project_no||"",
+               __ctrl:ctrl, __ctrlSug:sug };
+    });
+    // 템플릿 라인의 고정/변동 플래그를 순번 매칭으로 얹는다(요약 diff 근거)
+    (tpl.items||[]).forEach((ti,i)=>{ if(newRows[i]) newRows[i].__locked = !!ti.amt_locked; });
+    setRows(newRows);
+    PREV_SNAP = {
+      draft_no: h.draft_no, total: Number(h.dr_total)||0,
+      amounts: (prev.items||[]).map((it)=> Number(it.item_amt)||0),
+      ctrls: ctrlBySeq,
+    };
+    toast("지난달 확정 전표("+(h.draft_dt||"")+") 값을 채웠습니다 — 금액·날짜를 확인한 뒤 제출하세요.");
+  }else{
+    // 본인 확정 이력이 없으면 템플릿 규칙만으로 시작(고정액·관리항목 fixed 값 프리필)
+    PREV_SNAP = null;
+    const newRows = (tpl.items||[]).map((it)=>{
+      const ctrl = {};
+      (it.ctrls||[]).forEach((c)=>{ if(c.val_rule==="fixed" && c.fixed_val!=null) ctrl[c.ctrl_cd]=c.fixed_val; });
+      return { dr_cr_fg:it.dr_cr_fg, acct_cd:it.acct_cd, acct_nm:it.acct_nm,
+               item_amt: it.amt_rule==="fixed" ? String(it.amt_value||"") : "",
+               item_desc:it.item_desc||"", bp_cd:it.bp_cd||null, bp_nm:it.bp_nm||null,
+               cost_cd:it.cost_cd||"", project_no:it.project_no||"",
+               __ctrl:ctrl, __locked:!!it.amt_locked };
+    });
+    if(newRows.length) setRows(newRows);
+    toast("이 템플릿으로 처음 작성합니다 — 고정값 외의 금액·관리항목을 채워 주세요.");
+  }
+  try{ await api("tpl_use", { tpl_id: t.tpl_id }); }catch(e){ /* 무시 */ }
+  $("paneWrite").scrollIntoView({ behavior:"smooth" });
+}
+/* 초안 데이터 → 폼 (내 초안·이어서 작성 공용).
+   월반복 상태는 여기서 초기화 — [이어서 작성] 경로는 호출 직후 CURRENT_TPL 을 다시 세팅한다. */
+function loadDraftIntoForm(r){
+  CURRENT_TPL = null; PREV_SNAP = null;
+  const h = r.header;
+  CURRENT_NO = h.draft_no; $("editingNo").textContent = "· "+h.draft_no+" 수정 중";
+  $("fDt").value = h.draft_dt || ""; $("fType").value = h.gl_type || "";
+  $("fDept").value = h.dept_cd || ""; renderCostOptions(); $("fCost").value = h.cost_cd || "";
+  $("fDesc").value = h.gl_desc || ""; $("fProj").value = h.project_no || ""; $("fRef").value = h.ref_no || "";
+  setRows((r.items||[]).map((it)=>{
+    const ctrl = {};
+    (it.ctrls||[]).forEach((c)=>{ ctrl[c.ctrl_cd] = c.ctrl_val; });
+    return { ...it, __ctrl: ctrl };
+  }));
+  showTab("write");
+}
+
+/* ═══ 템플릿 — 선택·적용 ═══
+   템플릿은 "분개 형태"만 담는다. 적용해도 검증은 그대로다(서버 재검증 통과 필요). */
+const SCOPE_KO = { org:"전사", dept:"부서", user:"개인" };
+const RULE_KO  = { input:"입력", pct:"비율", fixed:"고정", balance:"차액" };
+
+function tplCats(){
+  const s = new Set(TPLS.map((t)=> t.category||"").filter(Boolean));
+  return Array.from(s).sort();
+}
+function renderTplCards(){
+  const q = ($("tplSearch").value||"").trim().toLowerCase();
+  const cats = tplCats();
+  $("tplChips").innerHTML = ['<button class="chip'+(TPL_CAT?"":" on")+'" data-cat="">전체</button>']
+    .concat(cats.map((c)=> '<button class="chip'+(TPL_CAT===c?" on":"")+'" data-cat="'+esc(c)+'">'+esc(c)+'</button>')).join("");
+
+  const list = TPLS.filter((t)=>
+    (!TPL_CAT || (t.category||"")===TPL_CAT) &&
+    (!q || (t.tpl_nm+" "+(t.descr||"")+" "+(t.category||"")).toLowerCase().includes(q)));
+
+  const box = $("tplList");
+  if(!list.length){
+    box.innerHTML = '<div style="grid-column:1/-1;color:var(--muted);font-size:12.5px;padding:14px 0;">'
+      + (TPLS.length ? '조건에 맞는 템플릿이 없습니다.'
+                     : '등록된 템플릿이 없습니다. 자주 쓰는 분개는 <b>[템플릿 관리]</b> 탭에서 만들어 두면 다음부터 한 번에 불러올 수 있습니다.')
+      + '</div>';
+    return;
+  }
+  box.innerHTML = list.map((t)=>
+    '<div class="tplcard'+(TPL_SEL&&TPL_SEL.tpl_id===t.tpl_id?" on":"")+'" data-id="'+t.tpl_id+'">'
+    + '<div class="nm">'+esc(t.tpl_nm)+' <span class="tag '+esc(t.scope)+'">'+SCOPE_KO[t.scope]+'</span></div>'
+    + (t.descr?'<div class="ds">'+esc(t.descr)+'</div>':'')
+    + '<div class="ln">'+(t.items||[]).length+'줄 · '
+    + (t.amount_mode==="total"?"총액 입력":"라인별 입력")
+    + (t.use_cnt?' · '+t.use_cnt+'회 사용':'')+'</div></div>').join("");
+}
+$("tplChips").onclick = (e)=>{
+  const b = e.target.closest("button[data-cat]"); if(!b) return;
+  TPL_CAT = b.getAttribute("data-cat"); renderTplCards();
+};
+$("tplSearch").oninput = renderTplCards;
+$("tplList").onclick = (e)=>{
+  const c = e.target.closest(".tplcard[data-id]"); if(!c) return;
+  selectTpl(Number(c.getAttribute("data-id")));
+};
+function selectTpl(id){
+  TPL_SEL = TPLS.find((t)=> t.tpl_id===id) || null;
+  renderTplCards();
+  const box = $("tplApply");
+  if(!TPL_SEL){ box.classList.add("hide"); return; }
+  box.classList.remove("hide");
+  $("tplSelNm").textContent = TPL_SEL.tpl_nm;
+  $("tplTotalFld").classList.toggle("hide", TPL_SEL.amount_mode!=="total");
+  $("tplPreview").innerHTML = (TPL_SEL.items||[]).map((it)=>
+    '· '+(it.dr_cr_fg==="D"?"차변":"대변")+' <b>'+esc(it.acct_nm||it.acct_cd)+'</b> — '
+    + RULE_KO[it.amt_rule]
+    + (it.amt_rule==="pct" ? " "+Number(it.amt_value)+"%"
+      : it.amt_rule==="fixed" ? " "+won(it.amt_value)+"원" : "")).join("<br>");
+}
+$("btnTplClear").onclick = ()=>{ TPL_SEL=null; $("tplApply").classList.add("hide"); renderTplCards(); };
+
+/* 총액 → 라인 금액 배분.
+   fixed·pct 를 먼저 확정하고, 차액(balance) 라인은 남은 금액으로 채운다.
+   총액이 없으면 금액은 비워 둔 채 계정·적요만 채운다(형태만 가져오기). */
+function spreadAmounts(items, total){
+  const out = items.map((it)=> ({ ...it }));
+  const fixedSum = { D:0, C:0 };
+  out.forEach((it)=>{
+    let amt = "";
+    if(it.amt_rule==="fixed") amt = Math.round(Number(it.amt_value)||0);
+    else if(it.amt_rule==="pct" && total>0) amt = Math.round(total * (Number(it.amt_value)||0) / 100);
+    if(amt!==""){ fixedSum[it.dr_cr_fg] += amt; }
+    it.__amt = amt;
+  });
+  out.forEach((it)=>{
+    if(it.amt_rule==="input" && total>0){
+      // 같은 방향에 규칙 라인이 하나도 없고 입력 라인도 자기 혼자면 총액을 그대로 넣는다
+      const sameDir = out.filter((x)=> x.dr_cr_fg===it.dr_cr_fg);
+      if(sameDir.length===1 && fixedSum[it.dr_cr_fg]===0) it.__amt = total;
+    }
+    if(it.amt_rule==="balance"){
+      const other = it.dr_cr_fg==="D" ? "C" : "D";
+      const base = total>0 ? total : fixedSum[other];
+      const rest = base - fixedSum[it.dr_cr_fg];
+      it.__amt = rest>0 ? rest : "";
+    }
+  });
+  return out;
+}
+async function applyTpl(){
+  if(!TPL_SEL) return;
+  CURRENT_TPL = null; PREV_SNAP = null;   // 월반복 회차 작성을 중단하고 일반 템플릿으로 전환
+  const total = Number(String($("tplTotal").value||"").replace(/,/g,"")) || 0;
+  if(TPL_SEL.amount_mode==="total" && total>0 && !Number.isInteger(total)){
+    toast("총액은 원 단위 정수로 입력하세요.", true); return;
+  }
+  if(rows().some((r)=> r.acct_cd || r.item_amt)){
+    if(!confirm("작성 중인 라인을 템플릿 내용으로 바꿉니다. 계속할까요?")) return;
+  }
+  const t = TPL_SEL;
+  // 헤더 기본값 — 비어 있는 칸만 채운다(사용자가 이미 적은 값을 덮지 않는다)
+  if(t.gl_type) $("fType").value = t.gl_type;
+  if(t.desc_tmpl && !$("fDesc").value.trim()) $("fDesc").value = t.desc_tmpl;
+  if(t.cost_cd){ renderCostOptions(); $("fCost").value = t.cost_cd; }
+
+  const spread = spreadAmounts(t.items||[], total);
+  setRows(spread.map((it)=>{
+    const ctrl = {};
+    (it.ctrls||[]).forEach((c)=>{ if(c.val_rule==="fixed" && c.fixed_val!=null) ctrl[c.ctrl_cd]=c.fixed_val; });
+    return {
+      dr_cr_fg: it.dr_cr_fg, acct_cd: it.acct_cd, acct_nm: it.acct_nm,
+      item_amt: it.__amt === "" ? "" : String(it.__amt),
+      item_desc: it.item_desc || t.desc_tmpl || "",
+      bp_cd: it.bp_cd || null, bp_nm: it.bp_nm || null,
+      cost_cd: it.cost_cd || t.cost_cd || "", project_no: it.project_no || "",
+      __ctrl: ctrl, __locked: !!it.amt_locked,
+    };
+  }));
+  toast("템플릿 '"+t.tpl_nm+"' 을(를) 적용했습니다."
+        + (t.ref_hint ? " — "+t.ref_hint : ""));
+  if(t.ref_hint) $("fRef").setAttribute("placeholder", t.ref_hint);
+  try{ await api("tpl_use", { tpl_id: t.tpl_id }); }catch(e){ /* 사용기록 실패가 입력을 막지 않는다 */ }
+}
+$("btnTplApply").onclick = applyTpl;
+
+/* 차액 채우기 — 선택한 행에 차변·대변 차액을 넣는다 */
+$("btnFillDiff").onclick = ()=>{
+  const keys = GRID.getSelectedKeys();
+  if(keys.length!==1){ toast("차액을 넣을 행 1개를 선택하세요.", true); return; }
+  const rs = rows();
+  const target = rs.find((x)=> String(x.item_seq)===String(keys[0]));
+  if(!target || (target.dr_cr_fg!=="D" && target.dr_cr_fg!=="C")){ toast("선택한 행의 차변/대변을 먼저 정하세요.", true); return; }
+  let dr=0, cr=0;
+  rs.forEach((r)=>{
+    if(r===target) return;
+    const n = Number(String(r.item_amt||"").replace(/,/g,""));
+    if(!(n>0)) return;
+    if(r.dr_cr_fg==="D") dr+=n; else if(r.dr_cr_fg==="C") cr+=n;
+  });
+  const need = target.dr_cr_fg==="D" ? cr-dr : dr-cr;
+  if(!(need>0)){ toast("채울 차액이 없습니다(반대편 금액을 먼저 입력하세요).", true); return; }
+  target.item_amt = String(need); setRows(rs); toast(won(need)+"원을 채웠습니다.");
+};
+
 /* ═══ 작성 동작 ═══ */
 function newDraft(){
   CURRENT_NO = null; $("editingNo").textContent = "";
+  CURRENT_TPL = null; PREV_SNAP = null;
   $("fDesc").value = ""; $("fProj").value = ""; $("fRef").value = "";
   setRows([{ dr_cr_fg:"D", acct_cd:"", item_amt:"", item_desc:"" },
            { dr_cr_fg:"C", acct_cd:"", item_amt:"", item_desc:"" }]);
@@ -417,17 +1053,60 @@ function collect(){
     items: rows().filter((r)=> r.acct_cd || r.item_amt).map((r)=>({
       dr_cr_fg:r.dr_cr_fg, acct_cd:r.acct_cd, item_amt:r.item_amt, item_desc:r.item_desc,
       bp_cd:r.bp_cd||null, bp_nm:r.bp_nm||null, cost_cd:r.cost_cd||null, project_no:r.project_no||null,
+      ctrls: Object.entries(r.__ctrl||{}).filter(([,v])=> String(v||"").trim()!=="")
+        .map(([cd,v])=>({ ctrl_cd:cd, ctrl_val:String(v).trim() })),
     })),
+    ctrl_aware: true,                          // v4 — 필수 관리항목 서버검증 활성(신형 화면 표식)
+    tpl_id: CURRENT_TPL?.tpl_id || null,       // 월반복 회차 기록용
+    use_ym: CURRENT_TPL?.use_ym || null,
   };
 }
 async function save(){
+  // 완전 빈 행(계정·금액·차대 전부 공백)은 검증 전에 걷어낸다 — 안 쓰는 행이 저장을 막지 않게
+  const nonEmpty = rows().filter((r)=> r.acct_cd || String(r.item_amt||"").trim() || r.dr_cr_fg);
+  if(nonEmpty.length !== rows().length) setRows(nonEmpty);
   const p = collect();
   if(!GRID.validateAll()){ toast("입력값을 확인하세요 — 빨간 셀을 수정해 주세요.", true); return null; }
   try{
     const r = await api("save", { ...p, draft_no: CURRENT_NO });
     CURRENT_NO = r.draft_no; $("editingNo").textContent = "· "+r.draft_no+" 수정 중";
-    toast(r.안내 || "저장했습니다."); loadMine(); return r.draft_no;
+    (r.warnings||[]).forEach((w)=> toast("⚠ "+w, true));
+    toast(r.안내 || "저장했습니다."); loadMine(); loadRecur(); return r.draft_no;
   }catch(e){ toast(e.message, true); return null; }
+}
+/* 제출 전 요약 — 총액·귀속월·날짜 관리항목 + 전월과 달라진 점(F3) */
+function submitSummary(){
+  const p = collect();
+  const total = p.items.reduce((s,it)=> it.dr_cr_fg==="D" ? s+(Number(String(it.item_amt||"").replace(/,/g,""))||0) : s, 0);
+  const lines = ["── 제출 전 확인 ──",
+    "총액(차변): "+won(total)+"원",
+    "결의일자: "+p.header.draft_dt + (CURRENT_TPL ? " · 처리 회차: "+CURRENT_TPL.use_ym : ""),
+    "적요: "+p.header.gl_desc];
+  p.items.forEach((it,i)=>{
+    (it.ctrls||[]).forEach((c)=>{
+      if(DATE_CTRLS.has(c.ctrl_cd)){
+        const nm = (CTRL_NM.get(c.ctrl_cd)||{}).ctrl_nm || c.ctrl_cd;
+        lines.push((i+1)+"번 줄 "+nm+": "+c.ctrl_val);
+      }
+    });
+  });
+  if(PREV_SNAP){
+    if(p.items.length !== PREV_SNAP.amounts.length){
+      // 라인 구성이 달라지면 순번 매칭 비교는 오답을 만든다 — 구성 변경 사실만 알린다
+      lines.push("", "전월과 라인 구성이 다릅니다("+PREV_SNAP.amounts.length+"줄 → "+p.items.length+"줄) — 금액을 직접 확인하세요.");
+    }else{
+      const diffs = [];
+      p.items.forEach((it,i)=>{
+        const now = Number(String(it.item_amt||"").replace(/,/g,""))||0;
+        const was = PREV_SNAP.amounts[i];
+        if(was!=null && now!==was) diffs.push((i+1)+"번 줄 금액 "+won(was)+" → "+won(now));
+      });
+      lines.push("", diffs.length ? "전월과 달라진 점 "+diffs.length+"건:" : "전월과 금액이 모두 같습니다 — 실제 청구액이 맞는지 확인하세요.");
+      diffs.slice(0,8).forEach((d)=> lines.push(" · "+d));
+    }
+  }
+  lines.push("", "제출하면 수정할 수 없습니다. 회계 담당자에게 넘길까요?");
+  return lines.join("\n");
 }
 
 $("btnAddRow").onclick = ()=>{ const rs = rows(); rs.push({ dr_cr_fg:"", acct_cd:"", item_amt:"", item_desc:"" }); setRows(rs); };
@@ -441,9 +1120,10 @@ $("btnDelRow").onclick = ()=>{
 $("btnSave").onclick = save;
 $("btnReset").onclick = ()=>{ if(confirm("작성 중인 내용을 지우고 새 전표를 시작할까요?")) newDraft(); };
 $("btnSubmit").onclick = async ()=>{
+  const summary = submitSummary();            // 저장 전에 요약을 만들어 사용자가 먼저 확인한다
+  if(!confirm(summary)) return;
   const no = await save(); if(!no) return;
-  if(!confirm("제출하면 수정할 수 없습니다. 회계 담당자에게 넘길까요?")) return;
-  try{ const r = await api("submit", { draft_no:no }); toast(r.안내); newDraft(); loadMine(); }
+  try{ const r = await api("submit", { draft_no:no }); toast(r.안내); newDraft(); loadMine(); loadRecur(); }
   catch(e){ toast(e.message, true); }
 };
 
@@ -470,6 +1150,147 @@ $("bpList").onclick = (e)=>{
   setRows(rs); toast("거래처를 적용했습니다.");
 };
 
+/* ═══ 전표복사 — 본인 ERP 전표(야간 미러) 조회 → 작성 탭으로 복사 ═══
+   ERP 전표복사 메뉴와 동일 흐름: 기간·검색으로 내 전표를 찾고, 복사하면 결의일자만 오늘로
+   새로 잡힌 채 라인 전체가 작성 탭에 채워진다. 이후 수정·저장·제출은 기존 초안 흐름 그대로
+   (서버 재검증 통과 필요 — 복사가 검증을 면제하지 않는다). */
+let SLIP_ROWS = [], SLIP_SEL = null, SLIP_LOADED = false;
+const CONF_KO = { C:"승인", U:"미승인" };
+// ERP DR_CR_FG 실측은 'DR'/'CR' 2자 — 첫 글자로 정규화(D/C)
+const slipFg = (v)=> String(v||"").trim().charAt(0).toUpperCase();
+function slipDefaults(){
+  if($("slipFrom").value || $("slipTo").value) return;
+  const now = new Date();
+  const iso = (d)=> new Date(d.getTime() - d.getTimezoneOffset()*60000).toISOString().slice(0,10);
+  $("slipFrom").value = iso(new Date(now.getFullYear(), now.getMonth()-2, 1));   // 기본: 최근 3개월
+  $("slipTo").value = iso(now);
+}
+async function loadSlips(){
+  slipDefaults();
+  try{
+    const r = await api("slip_list", {
+      from: $("slipFrom").value || null, to: $("slipTo").value || null,
+      q: $("slipQ").value.trim() || null,
+    });
+    SLIP_ROWS = r.rows || [];
+    $("slipAsOf").textContent = r.as_of
+      ? "미러 동기 시점: " + String(r.as_of).slice(0,16).replace("T"," ") + " (야간 배치 사본)"
+      : "⚠ ERP 전표 미러가 아직 적재되지 않았습니다";
+    renderSlips();
+  }catch(e){ toast(e.message, true); }
+}
+function renderSlips(){
+  const t = $("slipTbl");
+  const typeSel = $("slipType").value;
+  const list = SLIP_ROWS.filter((x)=> !typeSel ||
+    (typeSel==="TG" ? x.gl_input_type==="TG" : x.gl_input_type!=="TG"));
+  if(!list.length){
+    t.innerHTML = '<tr><td style="color:var(--muted);padding:20px;text-align:center;">'
+      + (SLIP_ROWS.length ? '입력경로 필터에 맞는 전표가 없습니다.'
+         : '조회된 전표가 없습니다 — 기간을 넓히거나, ERP 전표 미러 적재 여부를 관리자에게 확인하세요.')
+      + '</td></tr>';
+    return;
+  }
+  t.innerHTML = '<thead><tr><th>전표번호</th><th>결의일자</th><th>적요</th><th class="r">금액</th><th>라인</th><th>입력경로</th><th>승인</th></tr></thead><tbody>'
+    + list.map((x)=>
+      '<tr class="clk" data-no="'+esc(x.temp_gl_no)+'">'
+      + '<td>'+esc(x.temp_gl_no)+'</td><td>'+esc(x.temp_gl_dt||"")+'</td>'
+      + '<td>'+esc(x.temp_gl_desc||"")+'</td>'
+      + '<td class="r">'+won(Math.round(Number(x.dr_loc_amt)||0))+'</td>'
+      + '<td>'+(x.line_cnt||0)+'줄</td>'
+      + '<td>'+esc(x.gl_input_type||"—")+'</td>'
+      + '<td><span class="pill '+(String(x.conf_fg||"").trim()==="C"?"posted":"submitted")+'">'
+      + (CONF_KO[String(x.conf_fg||"").trim()]||x.conf_fg||"—")+'</span></td></tr>').join("")
+    + '</tbody>';
+}
+$("btnSlipSearch").onclick = loadSlips;
+$("slipQ").addEventListener("keydown", (e)=>{ if(e.key==="Enter") loadSlips(); });
+$("slipType").onchange = renderSlips;
+$("slipTbl").onclick = async (e)=>{
+  const tr = e.target.closest("tr[data-no]"); if(!tr) return;
+  try{
+    const r = await api("slip_get", { temp_gl_no: tr.getAttribute("data-no") });
+    SLIP_SEL = r; const h = r.header;
+    $("slipDetail").classList.remove("hide");
+    $("slipDetailNo").textContent = "· " + h.temp_gl_no;
+    $("slipSummary").innerHTML = [
+      ["결의일자", h.temp_gl_dt||"—"], ["전표형태", h.gl_type||"—"],
+      ["입력경로", h.gl_input_type||"—"], ["승인여부", CONF_KO[String(h.conf_fg||"").trim()]||h.conf_fg||"—"],
+      ["적요", h.temp_gl_desc||"—"], ["부서코드", h.dept_cd||"—"],
+      ["코스트센터", h.cost_cd||"—"], ["참조번호", h.ref_no||"—"],
+      ["차변 합계", won(Math.round(Number(h.dr_loc_amt)||0))],
+      ["정식 전표번호", h.gl_no||"(전기 전)"],
+    ].map(([k,v])=>'<div class="row"><span class="k">'+esc(k)+'</span><span class="v">'+esc(v)+'</span></div>').join("");
+    $("slipItems").innerHTML = '<thead><tr><th>순번</th><th>차대</th><th>계정과목</th><th class="r">금액</th><th class="r">부가세</th><th>적요</th><th>거래처</th><th>코스트센터</th><th>프로젝트</th></tr></thead><tbody>'
+      + (r.items||[]).map((it)=>{
+          const fg = slipFg(it.dr_cr_fg);
+          const acctBad = !it.acct_in_master;
+          return '<tr><td>'+it.item_seq+'</td><td>'+(fg==="D"?"차변":fg==="C"?"대변":"—")+'</td>'
+          + '<td>'+esc(it.acct_nm||"")+' <span style="color:var(--muted);font-size:11px;">'+esc(it.acct_cd||"")+'</span>'
+          + (acctBad?' <span style="color:var(--red);font-size:11px;font-weight:700;">⚠ 마스터에 없음</span>':'')+'</td>'
+          + '<td class="r">'+won(Math.round(Number(it.item_loc_amt)||0))+'</td>'
+          + '<td class="r">'+(it.vat_loc_amt?won(Math.round(Number(it.vat_loc_amt)||0)):'—')+'</td>'
+          + '<td>'+esc(it.item_desc||"")+'</td><td>'+esc(it.bp_nm||it.bp_cd||"—")+'</td>'
+          + '<td>'+esc(it.cost_cd||"—")+'</td><td>'+esc(it.project_no||"—")+'</td></tr>';
+        }).join("")
+      + '</tbody>';
+    const ctrls = (r.ctrls||[]);
+    $("slipCtrls").innerHTML = ctrls.length
+      ? '<thead><tr><th>줄</th><th>세트</th><th>관리항목</th><th>항목명</th><th>값</th></tr></thead><tbody>'
+        + ctrls.map((c)=>'<tr><td>'+c.item_seq+'</td><td>'+c.dtl_seq+'</td><td>'+esc(c.ctrl_cd)+'</td>'
+          + '<td>'+esc((CTRL_NM.get(String(c.ctrl_cd||"").trim())||{}).ctrl_nm||"")+'</td>'
+          + '<td>'+(c.ctrl_val!=null?('<b>'+esc(c.ctrl_val)+'</b>'):'<span style="color:var(--amber);">(민감 — 미러 제외)</span>')+'</td></tr>').join("")
+        + '</tbody>'
+      : '<tr><td style="color:var(--muted);padding:10px;">관리항목 없음</td></tr>';
+    $("slipDetail").scrollIntoView({ behavior:"smooth", block:"nearest" });
+  }catch(e2){ toast(e2.message, true); }
+};
+/* 복사 실행 — 헤더·라인·관리항목을 작성 탭에 채운다.
+   결의일자는 오늘(ERP 전표복사와 동일), 참조번호는 건별 문서번호라 복사하지 않는다.
+   마스터에 없는 계정은 비워 두고 경고한다(저장 시 서버가 어차피 거부하므로 먼저 알린다). */
+$("btnSlipCopy").onclick = ()=>{
+  if(!SLIP_SEL) return;
+  const h = SLIP_SEL.header;
+  if(rows().some((r)=> r.acct_cd || r.item_amt)){
+    if(!confirm("작성 중인 라인을 지우고 전표 "+h.temp_gl_no+" 을(를) 복사합니다. 계속할까요?")) return;
+  }
+  newDraft();
+  $("fDesc").value = h.temp_gl_desc || "";
+  if(h.dept_cd && (MASTER.depts||[]).some((d)=> String(d.dept_cd)===String(h.dept_cd))) $("fDept").value = h.dept_cd;
+  renderCostOptions();
+  if(h.cost_cd) $("fCost").value = h.cost_cd;
+  // 관리항목 — 라인별 첫 세트(dtl_seq 최소) 우선. 날짜형 8자리(YYYYMMDD)는 달력 입력형으로 변환.
+  const ctrlBySeq = {};
+  (SLIP_SEL.ctrls||[]).forEach((c)=>{
+    const m = (ctrlBySeq[c.item_seq] = ctrlBySeq[c.item_seq] || {});
+    const cd = String(c.ctrl_cd||"").trim();
+    if(!cd || cd in m) return;   // 첫 세트 우선
+    let v = c.ctrl_val;
+    if(v == null || String(v).trim()==="") return;   // 민감 항목(NULL)은 빈 칸으로 — 직접 입력
+    v = String(v).trim();
+    if(DATE_CTRLS.has(cd) && /^\d{8}$/.test(v)) v = v.slice(0,4)+"-"+v.slice(4,6)+"-"+v.slice(6,8);
+    m[cd] = v;
+  });
+  const missing = [];
+  const newRows = (SLIP_SEL.items||[]).map((it)=>{
+    const fg = slipFg(it.dr_cr_fg);
+    let acct = it.acct_cd || "", acctNm = it.acct_nm || "";
+    if(acct && !(MASTER.accounts||[]).some((a)=> String(a.acct_cd)===String(acct))){
+      missing.push(it.item_seq+"번 줄 "+(it.acct_nm||it.acct_cd));
+      acct = ""; acctNm = "";
+    }
+    return { dr_cr_fg:(fg==="D"||fg==="C")?fg:"", acct_cd:acct, acct_nm:acctNm,
+             item_amt: it.item_loc_amt!=null ? String(Math.round(Number(it.item_loc_amt)||0)) : "",
+             item_desc: it.item_desc || "", bp_cd: it.bp_cd||null, bp_nm: it.bp_nm||null,
+             cost_cd: it.cost_cd||"", project_no: it.project_no||"",
+             __ctrl: ctrlBySeq[it.item_seq] || {} };
+  });
+  if(newRows.length) setRows(newRows);
+  showTab("write");
+  toast("전표 "+h.temp_gl_no+" 을(를) 복사했습니다 — 결의일자는 오늘로 설정됐습니다. 계정·금액·내용을 확인·수정한 뒤 저장하세요.");
+  if(missing.length) toast("⚠ 계정과목 마스터에 없는 계정은 비워 뒀습니다: "+missing.join(", ")+" — 계정을 다시 선택하세요.", true);
+};
+
 /* ═══ 내 초안 ═══ */
 async function loadMine(){
   try{
@@ -490,13 +1311,8 @@ $("mineTbl").onclick = async (e)=>{
   const tr = e.target.closest("tr[data-no]"); if(!tr || tr.getAttribute("data-st")!=="draft") return;
   try{
     const r = await api("get", { draft_no: tr.getAttribute("data-no") });
-    const h = r.header;
-    CURRENT_NO = h.draft_no; $("editingNo").textContent = "· "+h.draft_no+" 수정 중";
-    $("fDt").value = h.draft_dt || ""; $("fType").value = h.gl_type || "";
-    $("fDept").value = h.dept_cd || ""; renderCostOptions(); $("fCost").value = h.cost_cd || "";
-    $("fDesc").value = h.gl_desc || ""; $("fProj").value = h.project_no || ""; $("fRef").value = h.ref_no || "";
-    setRows(r.items.map((it)=>({ ...it })));
-    showTab("write"); toast(h.draft_no+" 을 불러왔습니다.");
+    loadDraftIntoForm(r);
+    toast(r.header.draft_no+" 을 불러왔습니다.");
   }catch(e2){ toast(e2.message, true); }
 };
 
@@ -538,6 +1354,27 @@ $("postTbl").onclick = async (e)=>{
       + '<td class="r">'+won(it.item_amt)+'</td><td>'+esc(it.item_desc||"")+'</td>'
       + '<td>'+esc(it.bp_nm||it.bp_cd||"—")+'</td><td>'+esc(it.cost_cd||"—")+'</td><td>'+esc(it.project_no||"—")+'</td></tr>').join("")
       + '</tbody>';
+    // v4 — 관리항목 표(ERP 하단 그리드 입력 순서 = A_ACCT_CTRL_ASSN seq)
+    const ctrlLines = [];
+    r.items.forEach((it)=>{
+      const cs = (it.ctrls||[]).slice();
+      if(!cs.length) return;
+      const seqOf = (cd)=>{
+        const defs = CTRL_BY_ACCT.get(String(it.acct_cd)) || [];
+        const d = defs.find((x)=> x.cd===cd);
+        return d ? d.seq : 999;
+      };
+      cs.sort((a,b2)=> seqOf(a.ctrl_cd)-seqOf(b2.ctrl_cd));
+      cs.forEach((c)=>{
+        const nm = (CTRL_NM.get(c.ctrl_cd)||{}).ctrl_nm || "";
+        ctrlLines.push([it.item_seq, c.ctrl_cd, nm, c.ctrl_val]);
+      });
+    });
+    $("postCtrls").innerHTML = ctrlLines.length
+      ? '<thead><tr><th>줄</th><th>관리항목</th><th>항목명</th><th>값</th></tr></thead><tbody>'
+        + ctrlLines.map(([s,cd,nm,v])=>'<tr><td>'+s+'</td><td>'+esc(cd)+'</td><td>'+esc(nm)+'</td><td><b>'+esc(v)+'</b></td></tr>').join("")
+        + '</tbody>'
+      : '<tr><td style="color:var(--muted);padding:10px;">관리항목 없음</td></tr>';
     $("tempGlNo").value = h.erp_temp_gl_no || "";
     $("postDetail").scrollIntoView({ behavior:"smooth", block:"nearest" });
   }catch(e2){ toast(e2.message, true); }
@@ -560,17 +1397,267 @@ $("btnCopyErp").onclick = ()=>{
                  "순번\t차대\t계정코드\t계정명\t금액\t적요\t거래처\t코스트센터\t프로젝트"]
     .concat(POST_SEL.items.map((it)=>[it.item_seq, it.dr_cr_fg==="D"?"차변":"대변", it.acct_cd, it.acct_nm||"",
       it.item_amt, it.item_desc||"", it.bp_cd||"", it.cost_cd||"", it.project_no||""].join("\t")));
+  // v4 — 관리항목도 함께(줄·코드·항목명·값, ERP 입력 순서)
+  const ctrlRows = [];
+  POST_SEL.items.forEach((it)=>{
+    const defs = CTRL_BY_ACCT.get(String(it.acct_cd)) || [];
+    const seqOf = (cd)=>{ const d = defs.find((x)=> x.cd===cd); return d ? d.seq : 999; };
+    (it.ctrls||[]).slice().sort((a,b)=> seqOf(a.ctrl_cd)-seqOf(b.ctrl_cd)).forEach((c)=>{
+      ctrlRows.push([it.item_seq, c.ctrl_cd, (CTRL_NM.get(c.ctrl_cd)||{}).ctrl_nm||"", c.ctrl_val].join("\t"));
+    });
+  });
+  if(ctrlRows.length) lines.push("", "줄\t관리항목\t항목명\t값", ...ctrlRows);
   navigator.clipboard?.writeText(lines.join("\n")).then(()=>toast("클립보드에 복사했습니다."), ()=>toast("복사 실패", true));
+};
+
+/* ═══ 템플릿 관리 ═══ */
+function buildTplGrid(){
+  const acctOptions = [{value:"",label:"선택"}].concat(
+    (MASTER.accounts||[]).map((a)=>({ value:a.acct_cd, label:(a.acct_nm||a.acct_cd)+" ("+a.acct_cd+")" })));
+  const costOptions = [{value:"",label:"—"}].concat(
+    (MASTER.cost_centers||[]).map((c)=>({ value:c.cost_cd, label:c.cost_nm||c.cost_cd })));
+
+  TGRID = createGrid("#tplItemGrid", {
+    keyField:"line_seq", rows:[], selectable:true, sortable:false, search:false, columnFilter:false,
+    editable:true, editToggle:false, paste:false, exportCsv:false, copy:false,
+    emptyText:"라인이 없습니다. [+ 행 추가]로 분개 형태를 정의하세요.",
+    columns:[
+      { key:"line_seq", label:"순번", width:"48px", editable:false, align:"center" },
+      { key:"dr_cr_fg", label:"차대", width:"78px", type:"select", editable:true,
+        options:[{value:"D",label:"차변"},{value:"C",label:"대변"}],
+        formatter:(v)=> v==="D" ? "차변" : v==="C" ? "대변" : "",
+        validator:(v)=> (v==="D"||v==="C") || "차변/대변을 선택하세요" },
+      { key:"acct_cd", label:"계정과목", width:"210px", type:"select", editable:true, options:acctOptions,
+        formatter:(v,row)=> v ? esc(row.acct_nm||v) : "",
+        validator:(v)=> !!v || "계정과목을 선택하세요" },
+      { key:"amt_rule", label:"금액 규칙", width:"110px", type:"select", editable:true,
+        options:[{value:"input",label:"입력"},{value:"pct",label:"비율(%)"},{value:"fixed",label:"고정액"},{value:"balance",label:"차액 자동"}],
+        formatter:(v)=> RULE_KO[v] || "입력" },
+      { key:"amt_value", label:"규칙 값", width:"100px", editable:true, align:"right",
+        formatter:(v,row)=> (row.amt_rule==="pct") ? (v?Number(v)+"%":"")
+                          : (row.amt_rule==="fixed") ? (v?won(v):"")
+                          : '<span style="color:#aab;">—</span>',
+        validator:(v,row)=>{
+          if(row.amt_rule!=="pct" && row.amt_rule!=="fixed") return true;
+          const n = Number(String(v||"").replace(/,/g,""));
+          if(!(n>0)) return "0보다 큰 값을 입력하세요";
+          if(row.amt_rule==="pct" && n>100) return "비율은 100 이하";
+          return true; } },
+      { key:"item_desc", label:"라인 적요", width:"180px", editable:true },
+      { key:"cost_cd", label:"코스트센터", width:"140px", type:"select", editable:true, options:costOptions },
+      { key:"project_no", label:"프로젝트", width:"120px", editable:true },
+      { key:"amt_locked", label:"프리필 잠금", width:"96px", type:"select", editable:true,
+        options:[{value:"",label:"변동"},{value:"Y",label:"고정"}],
+        formatter:(v)=> (v==="Y"||v===true) ? "🔒 고정" : "변동" },
+    ],
+    onCellEdit:(key, field, value, row)=>{
+      if(field === "acct_cd"){
+        const a = (MASTER.accounts||[]).find((x)=>String(x.acct_cd)===String(value));
+        row.acct_nm = a ? (a.acct_nm||"") : "";
+        const fg = String(a && a.bal_fg || "").charAt(0).toUpperCase();
+        if(a && !row.dr_cr_fg && (fg==="D"||fg==="C")){
+          row.dr_cr_fg = fg;
+          TGRID.refresh();   // 차대 자동 세팅을 화면에도 반영
+        }
+      }
+      if(field === "amt_rule" && (value==="input"||value==="balance")) row.amt_value = "";
+    },
+  });
+}
+function tRows(){ return TGRID ? TGRID.getData() : []; }
+function setTRows(rs){ rs.forEach((r,i)=>{ r.line_seq = i+1; }); TGRID.setRows(rs); }
+
+async function loadTplMgr(){
+  try{
+    const r = await api("tpl_list", { all: true });
+    CAN_MANAGE_TPL = !!r.can_manage_tpl;
+    $("tplScopeHint").textContent = CAN_MANAGE_TPL
+      ? "전사·부서·개인 템플릿을 모두 관리할 수 있습니다"
+      : "개인 템플릿만 만들 수 있습니다 — 전사·부서 템플릿은 회계 담당자에게 요청하세요";
+    const list = r.rows || [];
+    const t = $("tplMgrTbl");
+    if(!list.length){ t.innerHTML = '<tr><td style="color:var(--muted);padding:20px;text-align:center;">등록된 템플릿이 없습니다. [+ 새 템플릿]으로 만들어 보세요.</td></tr>'; return; }
+    t.innerHTML = '<thead><tr><th>코드</th><th>이름</th><th>분류</th><th>범위</th><th>라인</th><th>금액방식</th><th>상태</th><th class="r">사용</th></tr></thead><tbody>'
+      + list.map((x)=>
+        '<tr class="'+(x.can_edit?"clk":"")+'" data-id="'+x.tpl_id+'">'
+        + '<td>'+esc(x.tpl_code)+'</td><td><b>'+esc(x.tpl_nm)+'</b>'
+        + (x.descr?'<br><span style="color:var(--muted);font-size:11px;">'+esc(x.descr)+'</span>':'')+'</td>'
+        + '<td>'+esc(x.category||"—")+'</td>'
+        + '<td><span class="tag '+esc(x.scope)+'">'+SCOPE_KO[x.scope]+(x.scope==="dept"?" · "+esc(x.scope_dept_nm||""):"")+'</span></td>'
+        + '<td>'+(x.items||[]).length+'줄</td>'
+        + '<td>'+(x.amount_mode==="total"?"총액 입력":"라인별")+'</td>'
+        + '<td>'+(x.status==="active"?'<span class="pill posted">공개</span>':'<span class="tag draft">비공개</span>')+'</td>'
+        + '<td class="r">'+(x.use_cnt||0)+'</td></tr>').join("")
+      + '</tbody>';
+  }catch(e){ toast(e.message, true); }
+}
+$("tplMgrTbl").onclick = async (e)=>{
+  const tr = e.target.closest("tr[data-id]"); if(!tr || !tr.classList.contains("clk")) return;
+  try{
+    const r = await api("tpl_get", { tpl_id: Number(tr.getAttribute("data-id")) });
+    openTplEdit(r.tpl, r.items);
+  }catch(e2){ toast(e2.message, true); }
+};
+
+function fillTplDeptOptions(){
+  $("tDept").innerHTML = '<option value="">선택</option>' + (MASTER.depts||[]).map((d)=>
+    '<option value="'+esc(d.dept_cd)+'">'+esc(d.dept_nm)+'</option>').join("");
+  $("tCost").innerHTML = '<option value="">선택 안 함</option>' + (MASTER.cost_centers||[]).map((c)=>
+    '<option value="'+esc(c.cost_cd)+'">'+esc(c.cost_nm||c.cost_cd)+'</option>').join("");
+}
+function syncScopeUi(){
+  const sc = $("tScope").value;
+  $("tDeptFld").classList.toggle("hide", sc!=="dept");
+  const blocked = (sc!=="user") && !CAN_MANAGE_TPL;
+  $("tScopeHint").textContent = blocked
+    ? "⚠ 전사·부서 템플릿을 만들 권한이 없습니다 — 개인으로 저장하세요."
+    : "개인 템플릿은 본인만, 부서 템플릿은 해당 부서 구성원이 볼 수 있습니다.";
+  $("tScopeHint").style.color = blocked ? "var(--red)" : "";
+}
+$("tScope").onchange = syncScopeUi;
+
+function openTplEdit(tpl, items){
+  TPL_EDIT = tpl || null;
+  fillTplDeptOptions();
+  $("tplEdit").classList.remove("hide");
+  $("tplEditCode").textContent = tpl && tpl.tpl_code ? "· "+tpl.tpl_code : "· 새 템플릿";
+  $("tName").value      = tpl?.tpl_nm || "";
+  $("tCategory").value  = tpl?.category || "";
+  $("tScope").value     = tpl?.scope || (CAN_MANAGE_TPL ? "org" : "user");
+  $("tDept").value      = tpl?.scope_dept_cd || "";
+  $("tAmountMode").value= tpl?.amount_mode || "total";
+  $("tStatus").value    = tpl?.status || "draft";
+  $("tCost").value      = tpl?.cost_cd || "";
+  $("tSort").value      = tpl?.sort_no ?? 100;
+  $("tCase").value      = tpl?.erp_case_cd || "";
+  $("tDescr").value     = tpl?.descr || "";
+  $("tDescTmpl").value  = tpl?.desc_tmpl || "";
+  $("tRefHint").value   = tpl?.ref_hint || "";
+  $("tRecur").value     = tpl?.recur_cycle || "";
+  $("tMonthOffset").value = String(tpl?.month_offset ?? 0);
+  $("tTitlePattern").value = tpl?.title_pattern || "";
+  syncScopeUi();
+  // 관리항목 규칙은 행에 실어 보존한다(편집기에서 직접 수정하진 않지만 저장 시 유실 방지)
+  setTRows((items||[]).map((it)=>({ ...it, amt_locked: it.amt_locked ? "Y":"", __ctrls: it.ctrls||[] })));
+  $("btnTDelete").classList.toggle("hide", !TPL_EDIT);
+  $("btnTPublish").textContent = (tpl?.status==="active") ? "비공개로" : "공개";
+  $("tplEdit").scrollIntoView({ behavior:"smooth", block:"nearest" });
+}
+$("btnTplNew").onclick = ()=> openTplEdit(null, [
+  { dr_cr_fg:"D", acct_cd:"", amt_rule:"input", amt_value:"" },
+  { dr_cr_fg:"C", acct_cd:"", amt_rule:"balance", amt_value:"" },
+]);
+$("btnTClose").onclick = ()=>{ $("tplEdit").classList.add("hide"); TPL_EDIT=null; };
+$("btnTAddRow").onclick = ()=>{ const rs = tRows(); rs.push({ dr_cr_fg:"", acct_cd:"", amt_rule:"input", amt_value:"" }); setTRows(rs); };
+$("btnTDelRow").onclick = ()=>{
+  const sel = new Set(TGRID.getSelectedKeys().map(String));
+  if(!sel.size){ toast("삭제할 행을 선택하세요.", true); return; }
+  const rest = tRows().filter((r)=> !sel.has(String(r.line_seq)));
+  if(!rest.length){ toast("라인은 최소 1줄이 필요합니다.", true); return; }
+  TGRID.clearSelection(); setTRows(rest);
+};
+
+function collectTpl(){
+  const deptSel = $("tDept");
+  return {
+    tpl:{
+      tpl_nm: $("tName").value.trim(), category: $("tCategory").value.trim(),
+      descr: $("tDescr").value.trim(), scope: $("tScope").value,
+      scope_dept_cd: deptSel.value, scope_dept_nm: deptSel.options[deptSel.selectedIndex]?.text || "",
+      gl_type: "03", cost_cd: $("tCost").value,
+      desc_tmpl: $("tDescTmpl").value.trim(), ref_hint: $("tRefHint").value.trim(),
+      amount_mode: $("tAmountMode").value, status: $("tStatus").value,
+      erp_case_cd: $("tCase").value.trim(), sort_no: Number($("tSort").value)||100,
+      recur_cycle: $("tRecur").value || null,
+      month_offset: Number($("tMonthOffset").value)||0,
+      title_pattern: $("tTitlePattern").value.trim() || null,
+      // 편집기에 입력칸이 없는 v2 필드는 원본 값을 그대로 되돌려 보낸다(저장 시 소실 방지)
+      vat_mode: TPL_EDIT?.vat_mode ?? null,
+      src_family_key: TPL_EDIT?.src_family_key ?? null,
+    },
+    items: tRows().filter((r)=> r.acct_cd).map((r)=>({
+      dr_cr_fg:r.dr_cr_fg, acct_cd:r.acct_cd,
+      amt_rule:r.amt_rule||"input",
+      amt_value:(r.amt_rule==="pct"||r.amt_rule==="fixed") ? String(r.amt_value||"").replace(/,/g,"") : null,
+      item_desc:r.item_desc||null, cost_cd:r.cost_cd||null, project_no:r.project_no||null,
+      bp_cd:r.bp_cd||null, bp_nm:r.bp_nm||null,
+      amt_locked:(r.amt_locked==="Y"||r.amt_locked===true),
+      ctrls:(r.__ctrls||[]).map((c)=>({ ctrl_cd:c.ctrl_cd, val_rule:c.val_rule||"input", fixed_val:c.fixed_val??null })),
+    })),
+  };
+}
+async function saveTpl(){
+  if(!TGRID.validateAll()){ toast("템플릿 라인을 확인하세요 — 빨간 셀을 수정해 주세요.", true); return null; }
+  const p = collectTpl();
+  if(!p.tpl.tpl_nm){ toast("템플릿 이름을 입력하세요.", true); return null; }
+  if(!p.items.length){ toast("계정이 지정된 라인이 최소 1줄 필요합니다.", true); return null; }
+  try{
+    const r = await api("tpl_save", { ...p, tpl_id: TPL_EDIT?.tpl_id || null });
+    toast(r.안내 || "저장했습니다.");
+    await refreshTpls(); await loadTplMgr();
+    const got = await api("tpl_get", { tpl_id: r.tpl_id });
+    openTplEdit(got.tpl, got.items);
+    return r.tpl_id;
+  }catch(e){ toast(e.message, true); return null; }
+}
+$("btnTSave").onclick = saveTpl;
+$("btnTPublish").onclick = async ()=>{
+  let id = TPL_EDIT?.tpl_id;
+  if(!id){ id = await saveTpl(); if(!id) return; }
+  const next = (TPL_EDIT?.status==="active") ? "draft" : "active";
+  try{
+    const r = await api("tpl_status", { tpl_id:id, status:next });
+    toast(r.안내); await refreshTpls(); await loadTplMgr();
+    const got = await api("tpl_get", { tpl_id:id }); openTplEdit(got.tpl, got.items);
+  }catch(e){ toast(e.message, true); }
+};
+$("btnTDelete").onclick = async ()=>{
+  if(!TPL_EDIT) return;
+  if(!confirm("템플릿 '"+TPL_EDIT.tpl_nm+"' 을(를) 삭제합니다. 되돌릴 수 없습니다.")) return;
+  try{
+    const r = await api("tpl_delete", { tpl_id: TPL_EDIT.tpl_id });
+    toast(r.안내); $("tplEdit").classList.add("hide"); TPL_EDIT=null;
+    await refreshTpls(); await loadTplMgr();
+  }catch(e){ toast(e.message, true); }
+};
+async function refreshTpls(){
+  try{ const r = await api("tpl_list"); TPLS = r.rows||[]; TPL_SEL=null; $("tplApply").classList.add("hide"); renderTplCards(); }
+  catch(e){ /* 목록 갱신 실패는 조용히 — 다음 진입 시 다시 시도 */ }
+}
+
+/* 작성 중인 전표를 템플릿으로 — 금액은 규칙으로 바꿔 담는다(실적 금액은 저장하지 않는다) */
+$("btnTplFromDraft").onclick = ()=>{
+  const rs = rows().filter((r)=> r.acct_cd);
+  if(!rs.length){ toast("계정이 입력된 라인이 없습니다.", true); return; }
+  showTab("tpl");
+  fillTplDeptOptions();
+  openTplEdit(null, rs.map((r)=>({
+    dr_cr_fg:r.dr_cr_fg, acct_cd:r.acct_cd, acct_nm:r.acct_nm,
+    amt_rule:"input", amt_value:"", item_desc:r.item_desc||"",
+    cost_cd:r.cost_cd||"", project_no:r.project_no||"",
+    // 관리항목 — 날짜형은 다음 회차 +1개월 제안(date_shift), 나머지는 고정값으로 승격
+    ctrls: Object.entries(r.__ctrl||{}).filter(([,v])=> String(v||"").trim()!=="")
+      .map(([cd,v])=> DATE_CTRLS.has(cd)
+        ? { ctrl_cd:cd, val_rule:"date_shift", fixed_val:null }
+        : { ctrl_cd:cd, val_rule:"fixed", fixed_val:String(v).trim() }),
+  })));
+  $("tName").value = ($("fDesc").value.trim() || "새 템플릿").slice(0,60);
+  $("tDescTmpl").value = $("fDesc").value.trim();
+  toast("현재 전표 라인을 템플릿 편집기로 가져왔습니다. 금액 규칙을 정한 뒤 저장하세요.");
 };
 
 /* ═══ 탭 ═══ */
 function showTab(name){
   document.querySelectorAll(".tabs button").forEach((b)=> b.classList.toggle("on", b.dataset.tab===name));
   $("paneWrite").classList.toggle("hide", name!=="write");
+  $("paneCopy").classList.toggle("hide", name!=="copy");
   $("paneMine").classList.toggle("hide", name!=="mine");
   $("panePost").classList.toggle("hide", name!=="post");
+  $("paneTpl").classList.toggle("hide", name!=="tpl");
+  if(name==="copy" && !SLIP_LOADED){ SLIP_LOADED = true; loadSlips(); }
   if(name==="mine") loadMine();
   if(name==="post") loadPost();
+  if(name==="tpl") loadTplMgr();
 }
 document.querySelectorAll(".tabs button").forEach((b)=> b.onclick = ()=> showTab(b.dataset.tab));
 

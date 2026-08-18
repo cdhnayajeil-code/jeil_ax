@@ -76,27 +76,88 @@ grant select on etl_meta.batch_run to service_role;
 
 -- ── 마이그레이션 3: erp_sync_overview_view (연동 현황 페이지용) ──────────
 -- 소스별 최신 연동시점·적재건수·기간. 사내(internal)만 실제 값(security_invoker + RLS).
+--
+-- ⚠ 이 정의는 이후 마이그레이션으로 5종 → 14종까지 확장됐다. 정본을 라이브와 일치시키기 위해
+--   아래 최신 정의(erp_sync_overview_add_bp_master, 2026-08-10)로 대체한다. 확장 이력:
+--     erp_sync_overview_v2(sensitive·sort 컬럼 추가, 급여 집계 등재)
+--     erp_sync_overview_accounting_master(2026-08-03, acct_master·cost_center 등재 → 13종)
+--     erp_sync_overview_add_bp_master(2026-08-10, bp_master 등재 → 14종)
+--
+-- ⚠ 설계 주의 — row_count 산출 방식이 두 갈래인 이유:
+--   security_invoker 뷰라 호출자 권한으로 실행된다. 따라서 실테이블 count(*)는
+--   해당 테이블에 authenticated GRANT가 있는 경우에만 쓸 수 있다.
+--   · GRANT 있음(pur_order_s·pur_req_s·item_master_s·bp_master_s·iv_dtl_s 등) → 실테이블 count(*)
+--   · GRANT 없음(fail-closed: hr_payroll_m·acct_master_s·cost_center_s) → batch_run 최근 성공건수
+--   GRANT 없는 테이블을 count 하면 사내 사용자에게 permission denied가 발생해
+--   연동현황 화면 전체가 403이 된다(2026-07-21 iv_dtl 사고 유형). 권한을 열어 우회하지 말 것.
 create or replace view public.v_erp_sync_overview with (security_invoker=true) as
-  select 'pur_order' as source_key, '발주(2026)' as source_label, 'M_PUR_ORD' as erp_src,
-    (select max(finished_at) from etl_meta.batch_run where job_name='pur_order' and status='success') as last_sync,
-    (select count(*) from erp_ro.pur_order_s) as row_count,
-    (select min(po_dt)::text from erp_ro.pur_order_s) as period_min,
-    (select max(po_dt)::text from erp_ro.pur_order_s) as period_max
+  with last_ok as (
+    select job_name, max(finished_at) as finished_at
+      from etl_meta.batch_run where status='success' group by job_name
+  ), last_rows as (
+    select distinct on (b.job_name) b.job_name, b.rows_upserted
+      from etl_meta.batch_run b where b.status='success'
+     order by b.job_name, b.finished_at desc
+  )
+  select 'pur_order'::text as source_key, '발주(2026)'::text as source_label,
+         'M_PUR_ORD_HDR + M_PUR_ORD_DTL'::text as erp_src,
+         (select finished_at from last_ok where job_name='pur_order') as last_sync,
+         (select count(*) from erp_ro.pur_order_s) as row_count,
+         (select min(po_dt)::text from erp_ro.pur_order_s) as period_min,
+         (select max(po_dt)::text from erp_ro.pur_order_s) as period_max,
+         false as sensitive, 10 as sort
+  union all select 'pur_req','구매요청(2026)','M_PUR_REQ',
+         (select finished_at from last_ok where job_name='pur_req'),
+         (select count(*) from erp_ro.pur_req_s),
+         (select min(req_dt)::text from erp_ro.pur_req_s),
+         (select max(req_dt)::text from erp_ro.pur_req_s), false, 20
   union all select 'item_master','품목 마스터','B_ITEM',
-    (select max(finished_at) from etl_meta.batch_run where job_name='item_master' and status='success'),
-    (select count(*) from erp_ro.item_master_s), null, null
+         (select finished_at from last_ok where job_name='item_master'),
+         (select count(*) from erp_ro.item_master_s), null, null, false, 30
+  union all select 'bp_master','거래처 마스터','B_BIZ_PARTNER',
+         (select finished_at from last_ok where job_name='bp_master'),
+         (select count(*) from erp_ro.bp_master_s), null, null, false, 35
   union all select 'sales','매출 월집계','S_BILL_HDR',
-    (select max(finished_at) from etl_meta.batch_run where job_name='sales' and status='success'),
-    (select count(*) from erp_ro.sales_orders_m),
-    (select min(ym) from erp_ro.sales_orders_m), (select max(ym) from erp_ro.sales_orders_m)
-  union all select 'purchase','매입 월집계','M_IV_HDR',
-    (select max(finished_at) from etl_meta.batch_run where job_name='purchase' and status='success'),
-    (select count(*) from erp_ro.purchase_m),
-    (select min(ym) from erp_ro.purchase_m), (select max(ym) from erp_ro.purchase_m)
+         (select finished_at from last_ok where job_name='sales'),
+         (select count(*) from erp_ro.sales_orders_m),
+         (select min(ym) from erp_ro.sales_orders_m),
+         (select max(ym) from erp_ro.sales_orders_m), false, 40
+  union all select 'purchase','매입 월집계(거래처)','M_IV_HDR',
+         (select finished_at from last_ok where job_name='purchase'),
+         (select count(*) from erp_ro.purchase_m),
+         (select min(ym) from erp_ro.purchase_m),
+         (select max(ym) from erp_ro.purchase_m), false, 45
+  union all select 'iv_dtl','매입 상세(라인)','M_IV_DTL + M_IV_HDR',
+         (select finished_at from last_ok where job_name='iv_dtl'),
+         (select count(*) from erp_ro.iv_dtl_s),
+         (select min(iv_dt)::text from erp_ro.iv_dtl_s),
+         (select max(iv_dt)::text from erp_ro.iv_dtl_s), false, 46
   union all select 'inventory','재고 입출고','M_PUR_GOODS_MVMT',
-    (select max(finished_at) from etl_meta.batch_run where job_name='inventory' and status='success'),
-    (select count(*) from erp_ro.inventory_d),
-    (select min(ymd)::text from erp_ro.inventory_d), (select max(ymd)::text from erp_ro.inventory_d);
+         (select finished_at from last_ok where job_name='inventory'),
+         (select count(*) from erp_ro.inventory_d),
+         (select min(ymd)::text from erp_ro.inventory_d),
+         (select max(ymd)::text from erp_ro.inventory_d), false, 60
+  union all select 'dept_master','부서 마스터','B_ACCT_DEPT',
+         (select finished_at from last_ok where job_name='dept_master'),
+         (select count(*) from erp_ro.dept_master_s), null, null, false, 70
+  union all select 'usr_master','사용자 마스터(계정↔부서)','Z_USR_MAST_REC',
+         (select finished_at from last_ok where job_name='usr_master'),
+         (select count(*) from erp_ro.usr_master_s), null, null, false, 80
+  union all select 'usr_erp_module','ERP 메뉴 권한','Z_USR_ROLE_MNU_AUTHZTN_ASSO 외',
+         (select finished_at from last_ok where job_name='usr_erp_module'),
+         (select count(*) from erp_ro.usr_erp_module_s), null, null, false, 90
+  union all select 'hr_payroll','급여 집계(민감)','HDF070T + HGA070T',
+         (select finished_at from last_ok where job_name='hr_payroll'),
+         (select rows_upserted from last_rows where job_name='hr_payroll')::bigint,
+         null, null, true, 100
+  union all select 'acct_master','계정과목 마스터(회계)','A_ACCT',
+         (select finished_at from last_ok where job_name='acct_master'),
+         (select rows_upserted from last_rows where job_name='acct_master')::bigint,
+         null, null, false, 110
+  union all select 'cost_center','코스트센터 마스터(회계)','B_COST_CENTER',
+         (select finished_at from last_ok where job_name='cost_center'),
+         (select rows_upserted from last_rows where job_name='cost_center')::bigint,
+         null, null, false, 120;
 grant select on public.v_erp_sync_overview to authenticated, service_role;
 
 -- ── 검증(참고) ─────────────────────────────────────────────────────────

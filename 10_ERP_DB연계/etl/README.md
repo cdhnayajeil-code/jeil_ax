@@ -16,6 +16,20 @@
 - `ERP_DB_CONN` — pyodbc 연결 문자열(읽기 전용 계정 권장) — `etl_run.py`만 사용
 - `ERP_DB_META_DIR` — (선택) 메타 폴더 경로 재정의
 
+## 실행 환경 (ODBC 드라이버 — 실행 전 확인)
+
+`etl_run.py`는 pyodbc로 ERP에 붙는다. **`ODBC Driver 18 for SQL Server`(또는 17) 설치를 권장**하고,
+연결 문자열의 `Driver=` 를 여기에 맞춘다(연결 문자열 자체는 `.env`·DPAPI에만 — 커밋 금지).
+
+> **레거시 `SQL Server` 드라이버 주의(2026-08-11 실측)**: Windows 기본 제공 레거시 드라이버는
+> `SQL_TYPE_DATE` **파라미터 바인딩을 구현하지 않아**, 날짜 파라미터를 쓰는 job 7종
+> (`pur_order`·`pur_req`·`sales`·`purchase`·`iv_dtl`·`inventory`·`hr_payroll`)이
+> `HYC00 (SQLBindParameter)`로 전부 실패한다. 무파라미터·`datetime` job 7종은 정상 동작해
+> **부분 성공으로 보이는 것이 함정**이다.
+> → `etl_run.py`가 `date` 파라미터를 `datetime`(자정)으로 승격해 회피하므로 레거시 드라이버에서도
+> 동작한다(경계 비교가 `>= 시작 AND < 종료`라 결과 동일, `CONVERT(date,…)` 결과 컬럼은 영향 없음).
+> 이 승격은 드라이버 교체 후에도 안전장치로 유지한다.
+
 ## 실행
 
 ```bash

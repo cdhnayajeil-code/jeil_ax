@@ -1,0 +1,875 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>10 반복전표 자동화 — ERP DB 연계 관제 (월반복 결의전표 실측 분석(156패밀리·42%) + 템플릿 플랫폼 v2 기획)</title>
+<style>
+:root{--navy:#1a2f4e;--navy2:#27457a;--accent:#2f6fb3;--red:#b3402f;--green:#2e7d52;--amber:#9a6b1f;
+--ink:#222;--muted:#666;--line:#d8dee8;--bg:#f4f6f9;--soft:#eef2f8;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;color:var(--ink);background:var(--bg);line-height:1.65;font-size:15px;}
+.page{max-width:960px;margin:0 auto;background:#fff;padding:52px 60px;box-shadow:0 2px 14px rgba(0,0,0,.08);}
+.doc-label{display:inline-block;background:var(--navy);color:#fff;font-size:12px;letter-spacing:.16em;padding:5px 14px;border-radius:3px;margin-bottom:16px;}
+.docnav{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 26px;}
+.docnav a{font-size:12px;color:var(--navy2);border:1px solid var(--line);border-radius:20px;padding:4px 12px;text-decoration:none;background:var(--soft);}
+.docnav a:hover{background:var(--navy);color:#fff;}
+.docnav a.cur{background:var(--navy);color:#fff;border-color:var(--navy);}
+.md-link{font-size:13px;margin-bottom:22px;color:var(--muted);}
+.content h1{font-size:27px;color:var(--navy);line-height:1.35;margin:6px 0 18px;}
+.content h2{font-size:20px;color:var(--navy);margin:42px 0 14px;padding-bottom:9px;border-bottom:3px solid var(--navy);}
+.content h3{font-size:16px;color:var(--navy2);margin:24px 0 9px;}
+.content p{margin:0 0 12px;}
+.content ul,.content ol{margin:0 0 14px 22px;}
+.content li{margin-bottom:6px;}
+.content blockquote{background:var(--soft);border-left:5px solid var(--navy);border-radius:0 8px 8px 0;padding:14px 20px;margin:14px 0;color:#33425a;}
+.content blockquote p{margin:0 0 6px;}
+.content table{width:100%;border-collapse:collapse;margin:14px 0 20px;font-size:13.3px;}
+.content th{background:var(--navy);color:#fff;padding:9px 11px;text-align:left;font-weight:600;}
+.content td{padding:8px 11px;border-bottom:1px solid var(--line);vertical-align:top;}
+.content tr:nth-child(even) td{background:#fafbfd;}
+.content a{color:var(--accent);}
+.content code{background:var(--soft);border:1px solid var(--line);border-radius:4px;padding:1px 6px;font-size:12.4px;font-family:Consolas,'Courier New',monospace;}
+.content pre{background:#21252e;color:#e8eaf0;border-radius:8px;padding:16px 18px;font-size:12.4px;font-family:Consolas,'Courier New',monospace;overflow-x:auto;margin:12px 0 18px;line-height:1.55;}
+.content pre code{background:none;border:none;color:inherit;padding:0;}
+.content hr{border:none;border-top:1px solid var(--line);margin:30px 0;}
+.content strong{color:var(--navy2);}
+.footer{margin-top:50px;padding-top:16px;border-top:1px solid var(--line);font-size:12px;color:var(--muted);display:flex;justify-content:space-between;}
+@media print{body{background:#fff;}.page{box-shadow:none;padding:18px 0;max-width:100%;}.docnav{display:none;}.content h2{break-after:avoid;}.content table,.content pre,.content blockquote{break-inside:avoid;}}
+@media (max-width:720px){.page{padding:30px 20px;}}
+</style>
+</head>
+<body>
+<div class="page">
+  <span class="doc-label">JEIL AX ERP DB 연계 · 대외비</span>
+  <div class="docnav"><a href="index.html">🏠 연계 허브</a><a href="00_현재상태_스냅샷.html">00 현재상태</a><a href="01_연계기획.html">01 연계기획</a><a href="02_진행상태.html">02 진행상태</a><a href="03_중간DB_구축실행기획.html">03 중간DB 실행기획</a><a href="04_증분동기화_확장_거버넌스_기획.html">04 증분·확장·거버넌스</a><a href="05_사용자부서_매핑대사.html">05 사용자-부서 매핑</a><a href="06_결의전표_추진계획.html">06 결의전표 추진계획</a><a href="09_결의전표_인수인계.html">09 결의전표 인수인계</a><a class="cur" href="10_반복전표_자동화_기획.html">10 반복전표 자동화</a><a href="README.md">README</a></div>
+  <p class="md-link">📄 Markdown 원본: <a href="10_반복전표_자동화_기획.md">10_반복전표_자동화_기획.md</a> · 허브 <a href="index.html">연계 허브</a></p>
+  <div class="content">
+<h1 id="10-erp">10. 결의전표 반복전표 자동화 — ERP 실측 분석·기획</h1>
+<blockquote>
+<p><strong>작성일: 2026-08-10 · 최종 갱신: 2026-08-11</strong>(v1.2 — 승인 게이트 결정 반영: B1 승인·B2 자동계산 제외·B2-1 적용 완료·B3 파일럿 확정) · 관리: 최동혁 · 전담 에이전트: <code>erp-db-link-manager</code>
+매달 같은 형태로 반복 작성되는 결의전표를 <strong>한 번 등록해 두고 변동값만 고쳐 재사용</strong>하는 자동화 툴의 분석·기획 문서.
+ERP운영DB 2026년 수기 결의전표 <strong>2,287건 전수</strong>를 읽기전용으로 분석해 실측 근거로 기획했다(추측 없음). 본문 수치는 분석 도구(<code>etl/analyze_repeat_gl.py</code>) 출력으로 전부 재현 가능하다.
+기존 결의전표 파일럿(06·07·08·09)과 템플릿 플랫폼 v1(09 §3.4) 위에 얹는 <strong>v2 확장</strong>이다.
+비밀값(접속 IP/ID/비밀번호) 기록 금지 — 서버 지칭은 별칭 <strong>"ERP운영DB"</strong> 만 사용.</p>
+</blockquote>
+<hr />
+<h2 id="1-30">1. 30초 요약</h2>
+<p><strong>무엇을 확인했나</strong> — 2026년 1~8월 수기 결의전표(TG) 2,287건 중 <strong>42.2%(964건)가 "동일 부서 + 동일 계정 조합 + 동일 거래처"로 3개월 이상 반복</strong>되는 156개 패밀리에 속한다. 월평균 약 <strong>134건</strong>이 매달 거의 같은 내용을 다시 입력하는 전표다. 이 중 34개 패밀리는 <strong>금액까지 완전 고정</strong>(예: (주)쿠콘 275,000원, KT 968,000원, 거산엔지니어링 임대료 27,500,000원)이라 날짜만 바꾸면 그대로 재사용 가능하다.</p>
+<p><strong>무엇을 만들려 하나</strong> — 템플릿 플랫폼 v1(구조만 완성, 등재 0건)을 확장해:
+① ERP 기작성 전표에서 <strong>시드 템플릿을 자동 생성</strong>(분석으로 후보 확보 완료),
+② 사용자는 <strong>"이번 달 작성" 클릭 → 전월 값이 채워진 폼에서 변동값만 수정 → 제출</strong>,
+③ 계정별 <strong>관리항목</strong>(공급가액·계산서일·부가세액 등 — 이번 분석으로 체계 실측 완료)을 자동 생성·자동 제안.</p>
+<p><strong>핵심 발견(보너스)</strong> — 승인 대기 중이던 <strong>A5(회계 규칙) 중 "계정 후보 좁히기" 항목의 실측 근거가 확보</strong>됐다. 반복 패밀리가 실제 사용하는 계정은 691개 중 <strong>88개</strong>(3개 패밀리 이상 반복 등장하는 핵심 계정은 <strong>44개</strong>)로 실측됐고, 계정별 필수 관리항목 규칙도 ERP 설정 테이블(<code>A_ACCT_CTRL_ASSN</code> 997건)에서 그대로 가져올 수 있다. 단 A5의 나머지 항목(기본 상대계정·부가세 처리·마감 기준)은 여전히 회계 담당 결정이 필요하다 — §8.</p>
+<hr />
+<h2 id="2">2. 무엇을, 어떻게 분석했나</h2>
+<table>
+<thead>
+<tr>
+<th>항목</th>
+<th>내용</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>분석 대상</td>
+<td><code>A_TEMP_GL</code>(헤더) · <code>A_TEMP_GL_ITEM</code>(라인) · <code>A_TEMP_GL_DTL</code>(관리항목) — 2026-01-01~08-10, <code>GL_INPUT_TYPE='TG'</code>(수기 결의)</td>
+</tr>
+<tr>
+<td>조회 방식</td>
+<td><strong>읽기전용 SELECT만</strong>(<code>WITH (NOLOCK)</code> + 파라미터 바인딩, DDL/DML 없음) — CLAUDE.md §4 준수</td>
+</tr>
+<tr>
+<td>규모(도구 stats로 재현)</td>
+<td>헤더 2,287건 · 라인 10,858건 · 관리항목 27,634건 + 마스터(관리항목 52·계정별요건 997·계정 691·거래처 4,660)</td>
+</tr>
+<tr>
+<td>민감값 처리</td>
+<td>은행계좌·사원번호·카드·어음번호는 <strong>컬럼 미조회 또는 값 미기록</strong>(관리항목 EM/BA/D1/CP/NN은 고유값 '개수'만 저장 — 고정/변동 판별에 충분). 분석 출력(JSON)은 OneDrive 밖 <code>%LOCALAPPDATA%\jeilax\erp_analysis\</code> 로컬 전용, 커밋·중간DB 적재 금지</td>
+</tr>
+<tr>
+<td>반복 판정</td>
+<td>전표별 시그니처 = 정렬된 (계정코드, 차/대변) 목록 + 거래처 집합. 같은 부서에서 같은 시그니처가 <strong>3개월 이상</strong> 등장하면 반복 패밀리. 제목의 연/월 표기를 제거한 "제목 줄기" 기반 보조 탐지 병행</td>
+</tr>
+<tr>
+<td>승인 근거</td>
+<td>A2(전표 샘플 조회) 승인(2026-08-03) + 관리자 지시(2026-08-10, 반복전표 자동화 분석)</td>
+</tr>
+<tr>
+<td>분석 도구</td>
+<td><code>10_ERP_DB연계/etl/analyze_repeat_gl.py</code>(재실행 가능 — §6.6 시드 갱신에 재사용. 유형·월1건형·월오프셋 판정을 출력에 저장해 본문 수치 전부 재현 가능)</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="3-1">3. 분석 결과 ① — 반복 전표가 얼마나 되나</h2>
+<h3 id="31">3.1 전체 볼륨</h3>
+<table>
+<thead>
+<tr>
+<th>구분</th>
+<th>수치</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>2026년 수기(TG) 결의전표</td>
+<td><strong>2,287건</strong> (1월 311 · 2월 244 · 3월 352 · 4월 389 · 5월 284 · 6월 326 · 7월 341 · 8월 40)</td>
+</tr>
+<tr>
+<td>작성자 / 부서</td>
+<td>78명 / 26개 부서</td>
+</tr>
+<tr>
+<td><strong>반복 패밀리(3개월+)</strong></td>
+<td><strong>156개</strong> — 소속 전표 964건, <strong>전체의 42.2%</strong></td>
+</tr>
+<tr>
+<td>반복 월수 분포</td>
+<td>8개월 연속 4개 · 7개월 27개 · 6개월 19개 · 5개월 23개 · 4개월 29개 · 3개월 54개</td>
+</tr>
+<tr>
+<td>금액까지 완전 고정</td>
+<td><strong>34개 패밀리</strong> (변동 122개)</td>
+</tr>
+<tr>
+<td>고신뢰(5개월+)</td>
+<td>73개 패밀리 · 567건</td>
+</tr>
+<tr>
+<td>순수 월반복(6개월+ 이면서 전표수=월수)</td>
+<td><strong>36개 패밀리 · 242건</strong> ← 1차 시드 등재 후보</td>
+</tr>
+<tr>
+<td>제목줄기 기반 추가 후보</td>
+<td>30개 (전도금 정산·운반비·급여 등 계정 조합이 매달 조금씩 다른 형태)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="32">3.2 부서별 분포 (상위)</h3>
+<table>
+<thead>
+<tr>
+<th>부서</th>
+<th>패밀리</th>
+<th>전표 수</th>
+<th>비고</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>총무팀</strong></td>
+<td><strong>65</strong></td>
+<td><strong>421</strong></td>
+<td>최다 — 시설관리·임대료·통신·급식 등 월정 거래처 지급이 집중</td>
+</tr>
+<tr>
+<td>사업 1파트</td>
+<td>21</td>
+<td>146</td>
+<td>출장·개인경비 정산 반복</td>
+</tr>
+<tr>
+<td>자재물류팀</td>
+<td>16</td>
+<td>80</td>
+<td>운반비·포장비</td>
+</tr>
+<tr>
+<td>인사팀</td>
+<td>12</td>
+<td>73</td>
+<td>4대보험·원천세·프리랜서 — <strong>구조 완전 고정, 금액만 변동</strong></td>
+</tr>
+<tr>
+<td>자금팀</td>
+<td>12</td>
+<td>71</td>
+<td>계좌대체·금융수수료</td>
+</tr>
+<tr>
+<td>김해생산팀</td>
+<td>6</td>
+<td>50</td>
+<td>김해 사업장 시설·운반</td>
+</tr>
+<tr>
+<td>운영지원팀</td>
+<td>9</td>
+<td>44</td>
+<td>생수·비품 등</td>
+</tr>
+</tbody>
+</table>
+<h3 id="33">3.3 유형 분류 (전표 구조 기준)</h3>
+<p>판정 규칙(분석 도구가 패밀리별 <code>type</code>으로 저장): 부가세대급금(11103301) 포함 → T1(총액 완전고정)/T2(변동) · 예수금/미지급세금/미지급급여 포함 → T5 · '개인' 계정 포함 → T3 · 보통예금 포함 + 자산/비용만 → T6 · 그 외 → T7. (T4 결번 — 급여형은 T5에 통합)</p>
+<table>
+<thead>
+<tr>
+<th>유형</th>
+<th>패밀리 / 전표</th>
+<th>구조</th>
+<th>자동화 방식</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>T1 세금계산서 매입·고정형</strong></td>
+<td>25 / 153</td>
+<td>차) 부가세대급금 + 비용계정(1~n) / 대) 미지급금(거래처). 금액 완전 고정</td>
+<td><strong>날짜만 갱신해 복사</strong> + 제출 전 요약 확인 — 최상급 자동화</td>
+</tr>
+<tr>
+<td><strong>T2 세금계산서 매입·변동형</strong></td>
+<td>44 / 283</td>
+<td>T1과 동일 구조, 금액만 매월 변동</td>
+<td><strong>공급가액 1칸 입력</strong> → 부가세·미지급금·판/제/연 배분 자동 제안</td>
+</tr>
+<tr>
+<td><strong>T3 개인경비 정산형</strong></td>
+<td>27 / 159</td>
+<td>차) 비용 / 대) 미지급금(개인). 관리항목 사번(EM)·현금지급요청일(XC1)</td>
+<td>계정·사번 프리필, 금액·적요만 입력</td>
+</tr>
+<tr>
+<td><strong>T5 원천세·보험·급여형</strong></td>
+<td>11 / 67</td>
+<td>다계정 판/제/연 + 예수금 차/대 혼합(4대보험 4종·원천세·급여)</td>
+<td>라인 구조 완전 고정 — <strong>금액 열만 채우는 월간 폼</strong></td>
+</tr>
+<tr>
+<td><strong>T6 자금이체형</strong></td>
+<td>7 / 44</td>
+<td>차/대 보통예금(+수수료). 관리항목 은행(BK)·계좌(BA)</td>
+<td>계좌 짝 프리필</td>
+</tr>
+<tr>
+<td><strong>T7 무부가세 거래처지급 등 기타</strong></td>
+<td>42 / 258</td>
+<td>차) 비용 / 대) 미지급금(거래처), 계산서 없음(해외법인·아파트관리비 등)</td>
+<td>T2와 동일하되 부가세 라인 없음</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>계산서유형(V4) 실측 분포</strong>: A(일반과세) 68패밀리 · K(면세계산서) 4 · B(불공제 추정) 2 · C(수입) 1 · L 1 · Q(매출측) 1. <strong>1차 구현 범위는 A·K 한정</strong> — B·C·L·Q는 부가세 분개 구조가 달라(§4.2) 시드 후보에서 자동 제외하고 일반 작성으로 폴백한다.
+전 유형이 기존 템플릿 v1의 배분 규칙(<code>input</code>/<code>pct</code>/<code>fixed</code>/<code>balance</code>)으로 표현 가능함을 확인했다 — <strong>새 배분 개념은 불필요</strong>하고, 부족한 것은 §5의 4가지다.</p>
+</blockquote>
+<h3 id="34-1">3.4 대표 사례 (실측 — 시드 등재 1순위)</h3>
+<table>
+<thead>
+<tr>
+<th>패밀리</th>
+<th>반복</th>
+<th>구조(계정)</th>
+<th>변동값</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>(주)쿠콘 국세청 스크래핑 (총무팀)</td>
+<td>7개월, 총액 고정 275,000</td>
+<td>차) 부가세대급금 25,000 + 판)지급수수료(기타) 250,000 / 대) 미지급금(거래처) 275,000</td>
+<td>결의일자·계산서일(V2)·만기일(C1)·적요 월표기뿐</td>
+</tr>
+<tr>
+<td>KT 서울사무소 기가오피스 (총무팀)</td>
+<td>6개월, 총액 고정 968,000</td>
+<td>차) 부가세대급금 88,000 + 제)통신비 269,984 + 판)통신비 610,016 / 대) 미지급금 968,000</td>
+<td>〃 (판/제 배분도 고정)</td>
+</tr>
+<tr>
+<td>거산엔지니어링 공장 임대료 (총무팀)</td>
+<td>7개월, 고정 27,500,000</td>
+<td>차) 부가세 2,500,000 + 제)지급임차료 25,000,000 / 대) 미지급금</td>
+<td>〃</td>
+</tr>
+<tr>
+<td>한성세종푸드 급식대 (총무팀)</td>
+<td>8개월 31건(주차 단위)</td>
+<td>차) 부가세 + 판/연/제 복리후생비(식대) 3계정 배분 / 대) 미지급금</td>
+<td>공급가액·판/제/연 배분액</td>
+</tr>
+<tr>
+<td>4대보험 4종 (인사팀)</td>
+<td>각 7개월</td>
+<td>판/연/제 세금과공과·보험료 + 예수금 차/대 (전표당 5~8라인)</td>
+<td>금액 전부(구조·거래처 고정)</td>
+</tr>
+<tr>
+<td>프리랜서 용역비 (인사팀)</td>
+<td>7개월</td>
+<td>차) 수수료 / 대) 예수금(소득세)+예수금(주민세)+미지급급여(잔액)</td>
+<td>총액 1개 → 원천징수 파생 계산 가능(§4.2)</td>
+</tr>
+<tr>
+<td>개인 출장경비 정산 (사업 1파트)</td>
+<td>8개월 23건</td>
+<td>차) 제)여비교통비 / 대) 미지급금(개인)</td>
+<td>금액·사번·프로젝트</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="4-2">4. 분석 결과 ② — 관리항목 체계 실측 (이번 기획의 열쇠)</h2>
+<p>ERP 결의전표 화면 하단의 "관리항목" 그리드(공급가액·계산서일·거래처코드…)는 <strong><code>A_TEMP_GL_DTL</code></strong>(전표번호+라인순번+관리항목코드 <code>CTRL_CD</code>+값 <code>CTRL_VAL</code>)에 저장되며, <strong>어느 계정에 어떤 관리항목을 입력해야 하는지는 ERP 설정 테이블 <code>A_ACCT_CTRL_ASSN</code>(997건)이 계정×차/대변 단위로 정의</strong>하고 있다. 관리항목 종류는 <code>A_CTRL_ITEM</code> 52종.</p>
+<p><strong>현 포털 파일럿(gl_draft)에는 관리항목 개념이 아예 없다</strong> — 세금계산서 매입형(T1·T2, 반복 전표의 45%)을 지원하려면 이 구조가 반드시 필요하다.</p>
+<h3 id="41-964">4.1 주요 계정별 관리항목 (실측 — 반복 패밀리 964건 기준 사용 빈도순)</h3>
+<p>"필수"는 <code>A_ACCT_CTRL_ASSN</code>의 차/대변 플래그(DR_FG/CR_FG)가 'Y'인 항목, "선택"은 설정상 연결돼 있으나 플래그가 없는데 실무에서 쓰이는 항목이다. <strong>서버 필수검증은 플래그 'Y' 항목만 대상</strong>으로 한다(플래그의 정확한 의미는 유니포인트 확인 항목 — §8).</p>
+<table>
+<thead>
+<tr>
+<th>계정 [패밀리/전표]</th>
+<th>필수(플래그 Y)</th>
+<th>선택(실측 사용)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>21100901 미지급금(거래처) [82/552]</td>
+<td>BP(거래처) · C1(만기일)</td>
+<td>XC1(현금지급요청일)</td>
+</tr>
+<tr>
+<td>11103301 부가세대급금 [69/436]</td>
+<td><strong>V1 공급가액 · V2 계산서일 · V4 계산서유형 · V5 신고사업장 · V6 거래처코드 · V8 부가세액</strong></td>
+<td>V11(전자발행여부)</td>
+</tr>
+<tr>
+<td>21100902 미지급금(개인) [27/159]</td>
+<td>EM(사번)</td>
+<td>XC1(현금지급요청일)</td>
+</tr>
+<tr>
+<td>43001101 제)여비교통비(국내) [17/100]</td>
+<td>PC(프로젝트코드)</td>
+<td>BP(거래처)</td>
+</tr>
+<tr>
+<td>43003305 제)지급수수료(기타) [10/71]</td>
+<td>PC(프로젝트코드)</td>
+<td>BP(거래처)</td>
+</tr>
+<tr>
+<td>53014307 판)지급수수료(기타) [11/67]</td>
+<td>(없음)</td>
+<td>PC · BP</td>
+</tr>
+<tr>
+<td>43001103 제)여비교통비(해외) [9/59]</td>
+<td>PC(프로젝트코드)</td>
+<td>BP(거래처)</td>
+</tr>
+<tr>
+<td>21100101 외상매입금 [11/59]</td>
+<td>BP(거래처)</td>
+<td>C1(만기일)</td>
+</tr>
+<tr>
+<td>11100105 보통예금 [9/52]</td>
+<td>BK(은행) · BA(계좌번호)</td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<h3 id="42">4.2 파생 계산 규칙 (실측 검증 결과 — <strong>전부 '제안값'이며 실물 증빙이 정답</strong>)</h3>
+<table>
+<thead>
+<tr>
+<th>규칙</th>
+<th>실측 근거와 한계</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>V8(부가세액) ≈ V1(공급가액) × 10% — 과세(V4=A). 면세(K)는 V8=0</td>
+<td>다수 패밀리에서 성립하나 <strong>정확히 10%가 아닌 실전표가 실존</strong> — 렌탈료 전표는 품목별 부가세 절사 후 합산이라 최대 10원 수준 차이, 통신료 전표는 청구액 절사 단수차를 잡이익 라인(9원)으로 처리. <strong>따라서 V8은 자동 계산 '제안값' + 수기 수정 가능으로 설계하고, 서버 검증은 경고(soft) 또는 계산서당 ±10원 허용으로 한다.</strong> 수입(C)·불공제(B)는 10% 관계 자체가 불성립 — 1차 범위 제외</td>
+</tr>
+<tr>
+<td>미지급금(대변) = Σ(V1+V8) — <strong>계산서 그룹 단위</strong></td>
+<td>한 전표에 계산서 여러 건(예: 코로케이션 2건, 렌탈 5건)이 실존 — 라인·전표 단위가 아니라 <strong>계산서 그룹별</strong> 대응이며, 단수차 잔액(잡이익/잡손실 라인) 허용이 필요. 데이터 모델에 계산서 그룹 키(§6.3 <code>invoice_seq</code>) 필수</td>
+</tr>
+<tr>
+<td>V6(거래처코드) = 미지급금 라인 BP</td>
+<td>전 세금계산서형 패밀리에서 일치</td>
+</tr>
+<tr>
+<td>V5(신고사업장) = TX1(이천)/TX2(김해) — <strong>부서로 유추 불가</strong></td>
+<td>김해 관련 패밀리 18개 중 TX2 단독 9 · TX1 단독 6 · 혼재 3으로 전표별로 갈린다. <strong>규칙 강제 금지 — 템플릿별 전월 실측값 프리필로만 처리</strong></td>
+</tr>
+<tr>
+<td>프리랜서 원천징수: 소득세=총액×3% → <strong>주민세=⌊소득세×10%⌋(10원 미만 절사)</strong> → 미지급급여=잔액</td>
+<td>헝가리법인 케이스에서 '총액×0.3%' 단순식은 6원 과대(실측 10,740 vs 계산 10,746) — 절사 규칙 포함식이 실전표와 일치. 소액부징수(1천원 미만) 경계는 검증 규칙에 주석으로 유지</td>
+</tr>
+<tr>
+<td>V2(계산서일)·C1(만기일)은 매월 <strong>유사</strong> 일자로 +1개월 이동</td>
+<td>동일 일자가 아니다(휴일·월말 보정 실존). +1개월 제안 시 <strong>월말은 말일로 클램프</strong>(1/31→2/28), <strong>항상 '변동' 취급으로 잠금 제외</strong>, 제안값 배지 표시 + 제출 전 확인(§6.1)</td>
+</tr>
+<tr>
+<td>적요 월 표기: <strong>당월형 84% · 전월형 11%</strong>(월표기 전표 623건 실측)</td>
+<td>전역 기본값 없음 — <strong>패밀리별 실측 오프셋(<code>month_offset</code> 0/-1)을 분석 도구가 자동 판정해 템플릿에 저장</strong></td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="5-v1-v2">5. 현 템플릿 플랫폼(v1)과의 갭 — 왜 v2가 필요한가</h2>
+<p>v1(2026-08-05, 09 §3.4)은 "케이스별 분개 형태 등록 → 골라서 총액 입력" 구조를 만들었지만 <strong>등재 0건</strong>으로 미가동이다. 이번 분석 기준으로 부족한 것:</p>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>갭</th>
+<th>영향</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>G1</td>
+<td><strong>관리항목(CTRL) 구조 부재</strong> — 초안·템플릿 모두 저장 불가</td>
+<td>반복 전표의 45%(세금계산서형)를 표현 못함. 회계 담당자가 ERP 하단 그리드를 결국 수기로 다시 입력</td>
+</tr>
+<tr>
+<td>G2</td>
+<td><strong>부가세 케이스 미지원</strong> — 파일럿은 부가세 미사용 케이스 한정(확정 결정 C-2)</td>
+<td>T1·T2 유형 지원 불가. <strong>C-2 범위 개정은 승인 사항</strong>(§8 B2)</td>
+</tr>
+<tr>
+<td>G3</td>
+<td><strong>기작성 전표 기반 생성 부재</strong> — 템플릿을 백지에서 수작업 등록해야 함</td>
+<td>등재 0건이 증명하는 병목. 실측 후보 156개가 있는데 활용 경로가 없음</td>
+</tr>
+<tr>
+<td>G4</td>
+<td><strong>월반복 워크플로 부재</strong> — "지난달 것 이번 달 것으로" 개념 없음</td>
+<td>사용자가 매달 템플릿을 찾아 총액부터 다시 입력. "이번 달 미작성" 파악 불가</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="6-v2">6. 기획 — 반복전표 자동화 (템플릿 플랫폼 v2)</h2>
+<h3 id="60">6.0 설계 원칙</h3>
+<ol>
+<li><strong>"초안은 포털, 확정은 ERP"(C-1) 불변</strong> — 이 기획은 입력 단계 자동화이며 ERP 쓰기(E3)와 무관하게 성립한다.</li>
+<li><strong>전표 이력은 중간DB에 적재하지 않는다(C-7 유지)</strong> — 중간DB에는 코드 마스터 2종만 추가한다(§6.5). 단 <strong>시드 템플릿의 고정 금액(T1형 fixed 값) 저장은 v1 "실적 금액 미저장" 원칙의 명시적 변경</strong>이며 §8 B2 승인 범위에 포함한다. 변동 금액의 프리필은 ERP 값이 아니라 <strong>포털이 스스로 만든 데이터(본인 최근 확정 초안)</strong> 를 참조한다(§6.2 F2).</li>
+<li><strong>템플릿을 적용해도 서버 재검증은 전부 통과해야 한다</strong>(v1 원칙 유지) + 관리항목 검증 추가. 단 부가세 관계식은 hard가 아닌 <strong>soft(경고)</strong> — 실물 계산서가 정답이다(§4.2).</li>
+<li><strong>자동 제출은 없다</strong> — 어떤 자동화 수준에서도 사람이 확인·제출한다(§1.6 실거래 액션 금지).</li>
+</ol>
+<h3 id="61">6.1 목표 사용자 경험 (핵심 플로우)</h3>
+<pre><code>[월반복 홈]                        [작성 폼(프리필)]                [제출 전 확인]         [제출]
+내 반복전표 카드 목록       ──►    전월 값 채워짐             ──►   요약 1화면:      ──►  기존 gl_draft
+· 쿠콘 스크래핑   ✅8월 확정        · 결의일자 = 오늘                 총액·계산서일·        파이프라인
+· KT 기가오피스   📤8월 제출됨      · 적요 월표기 자동 갱신            만기일·귀속월 +       (검증→제출→
+· 급식대         ✏️작성중(dh.lee)   · 계산서일·만기일 '제안값'         전월과 달라진 점       회계담당자→
+· 전기안전관리    ⚠8월 미작성       · 변동 필드만 하이라이트           n건 리스트            ERP 입력→
+  [이번 달 작성]/[이어서 작성]      · 고정 필드 잠금(해제 아이콘)                            회기입 확정)
+</code></pre>
+<ul>
+<li><strong>T1 고정형</strong>: 프리필 확인 → 요약에서 날짜 2개(계산서일·만기일) 확인 → 제출. <strong>금액 입력 0회</strong>, 확인 1회.</li>
+<li><strong>T2 변동형</strong>: 공급가액 1칸 입력 → 부가세·미지급금·판/제/연 배분·관리항목 자동 제안. 입력 1회.</li>
+<li><strong>T5 보험형</strong>: 라인 고정 폼에서 금액 열만 채움(고지서 보고 옮겨 적기).</li>
+<li>현행 ERP 직접 입력 대비: 전표 1건당 헤더 6필드 + 라인×(계정 검색 포함 7~10필드) + 관리항목 5~7필드 → <strong>0~3필드 + 확인 1회</strong>로 축소.</li>
+<li><strong>1차 지원 범위</strong>: 작성·수정 폼은 데스크톱 기준. <strong>카드 홈(F1)과 T1 고정형의 확인·제출 경로는 모바일 대응 목표</strong>(자리 비운 담당자가 배지 보고 즉시 처리하는 시나리오가 모바일 가치 최대).</li>
+</ul>
+<h3 id="62">6.2 기능 명세</h3>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>기능</th>
+<th>내용</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>F1 월반복 홈</strong></td>
+<td>「전표 작성」 탭 상단(또는 별도 「월반복」 탭)에 내/내부서 반복 템플릿 카드. <strong>배지 4상태: ⚠미작성 / ✏️작성중(작성자 표시) / 📤제출됨 / ✅확정됨</strong> — 판정은 <code>gl_template_usage</code>(초안 생성 시점 기록, 상태 동기 갱신 §6.4). 미확정 초안이 있으면 [이어서 작성] 버튼 + [이번 달 작성] 클릭 시 "이미 ○○○님이 8/1 제출한 건이 있습니다" 중복 경고. 정렬 기본 = 미작성 우선 → 최근 사용순, 거래처·유형 검색, 카드 20개 초과 시 그룹 접기. 주차·수시 반복 케이스는 월1회 배지 대신 <strong>"이번 달 3건 · 최근 8/4(7일 경과)" 카운터</strong> 표시</td>
+<td></td>
+</tr>
+<tr>
+<td><strong>F2 전월 프리필</strong></td>
+<td><strong>프리필 정본 이원화</strong>: 라인 구성·고정값·파생 규칙은 템플릿 정의에서, 변동 필드 기본값은 <strong>요청자 본인의 최근 확정(posted) 초안</strong>에서 가져온다(부서 공유 템플릿이어도 타인 초안은 참조하지 않음 — 본인 이력이 없으면 규칙값만 프리필). EM·BA 등 개인 식별 관리항목은 부서 템플릿의 프리필·카드 표시 대상 제외. 결의일자=오늘, <strong>적요 월 표기는 템플릿 토큰(<code>{YY}년{M}월</code>)+실측 오프셋(<code>month_offset</code>)으로 자동 갱신</strong>, 날짜형 관리항목(V2·C1)은 직전 회차 값+1개월(월말 클램프)을 '제안값' 배지로. 일회성 수정이 다음 달로 전이되지 않도록 스냅샷 갱신은 자동이 아니라 <strong>"이번 값을 다음 달 기본으로 저장" 명시 선택</strong></td>
+<td></td>
+</tr>
+<tr>
+<td><strong>F3 변동 필드 하이라이트</strong></td>
+<td>템플릿 라인·관리항목마다 고정/변동 플래그(시드는 실측 <code>amt_distinct</code>로 자동 판정, 날짜형은 항상 변동). 변동 필드만 입력 활성·강조, 고정 필드는 잠금 + <strong>눈에 보이는 해제 아이콘</strong> + 최근 3개월 값 툴팁(요금 인상 감지 근거). 고정액을 해제·수정해 제출하면 <strong>"템플릿의 고정값도 갱신할까요"</strong> 선택 제공(다음 달 재발 방지). 오제출 방어는 반복 모달 대신 <strong>제출 전 요약의 "전월과 달라진 점 n건 / 같은 점" 차이 리스트</strong>로(습관적 통과 방지)</td>
+<td></td>
+</tr>
+<tr>
+<td><strong>F4 총액 자동 배분</strong></td>
+<td>v1 배분 규칙(<code>input</code>/<code>pct</code>/<code>fixed</code>/<code>balance</code>) 재사용 — 비용 판/제/연 비율 배분·차액(<code>balance</code>) 채움만 수행. <strong>[B2 결정 2026-08-11] 부가세·원천징수 자동계산은 범위 제외</strong> — V8(부가세액)·원천징수액은 자동 계산하지 않고 사용자가 실물 증빙 값을 직접 입력(전월값 프리필만). §4.2의 파생식은 향후 승인 시를 위한 실측 기록으로만 유지</td>
+<td></td>
+</tr>
+<tr>
+<td><strong>F5 관리항목 자동화</strong></td>
+<td>계정 선택 시 <code>acct_ctrl_assn_s</code> 기준 관리항목 필드를 차/대변 구분 반영해 자동 생성(<strong>필수검증은 플래그 'Y' 항목만</strong>). 파생값(V1·V6·V8)은 자동 계산 제안 + 수정 가능. <strong>「ERP 입력용 요약」에 관리항목 표 추가 — <code>acct_ctrl_assn</code> seq 순서(ERP 입력 순서)로 정렬, 항목별·전체 TSV 복사 버튼</strong>(그리드 표준 §13 규약 재사용) — 회계 담당자가 ERP 하단 그리드까지 그대로 옮겨 붙이게</td>
+<td></td>
+</tr>
+<tr>
+<td><strong>F6 라인 복사·증감</strong></td>
+<td>표준 그리드에 행 복사 버튼(관리항목 세트 동반 복제, 에스원형 다라인 대응). <strong>행 삭제 시 관리항목 동반 삭제 + <code>balance</code> 라인 자동 재계산, <code>pct</code> 라인 증감 시 비율 재정규화(또는 수동 모드 전환 안내), 신규 행 기본 플래그=변동.</strong> 구조가 템플릿과 달라지면 초안·카드에 "템플릿과 다른 구성" 표시</td>
+<td></td>
+</tr>
+<tr>
+<td><strong>F7 전표→템플릿 승격</strong></td>
+<td>v1 「현재 전표를 템플릿으로」 확장: 확정(<code>posted</code>)된 내 초안에서 원클릭 승격 + 월반복 여부·제목 토큰·고정/변동 플래그 지정 UI. <strong>일반 사용자 승격분은 공개범위 <code>user</code> 고정 — <code>dept</code>/<code>org</code> 전환은 관리자·회계 담당자 승인 시에만</strong>(v1 거버넌스 유지)</td>
+<td></td>
+</tr>
+<tr>
+<td><strong>F8 시드 일괄 등재</strong></td>
+<td>분석 도구가 만든 후보(1차: 월1건형 <strong>36개</strong> → 검수 후 5개월+ 73개로 확대)를 회계 담당 검수(§8 B2) 후 <code>erp_case_cd</code>=패밀리 ID로 일괄 등재. <strong>V4가 B·C·L·Q인 패밀리는 자동 제외</strong>(§3.3). <code>month_offset</code>·고정/변동 플래그는 실측 자동 판정. 공개범위 기본 <code>dept</code>, 작성자가 특정인인 케이스는 <code>user</code> — <strong><code>user</code> 범위 템플릿은 담당자 교체 시 관리자·회계 담당자가 범위를 <code>dept</code>로 변경하는 이전 절차</strong>를 함께 규정. 찾는 템플릿이 없으면 "일반 작성 + 부서 공유 요청" 안내 경로 제공</td>
+<td></td>
+</tr>
+<tr>
+<td><strong>F9 처리 현황 보드</strong></td>
+<td>회계 담당자 탭에 <strong>미처리(제출됨) 초안 대기열 + 건별 완료 체크오프</strong> 뷰를 추가하고, 월별 반복전표 처리율은 그 파생으로 계산. 미작성 알림은 후순위(L3)</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<h3 id="63-ddl-23_gl_template_v2sql">6.3 데이터 모델 확장 (DDL 스케치 — 정본은 구현 시 <code>23_gl_template_v2.sql</code>)</h3>
+<pre><code>-- 초안 라인 관리항목 (ERP A_TEMP_GL_DTL 대응)
+gl_draft_item_ctrl   (draft_id, item_seq, ctrl_cd, ctrl_val,
+                      invoice_seq)   -- 계산서 그룹 식별(다계산서 전표 검증 단위 §4.2)
+
+-- 템플릿 라인 관리항목 + 값 규칙
+gl_template_item_ctrl(template_id, item_seq, ctrl_cd,
+                      val_rule,      -- fixed | input | derived(파생계산) | date_shift(+1개월·월말클램프)
+                      fixed_val)     -- fixed 규칙일 때만(B2 승인 범위)
+
+-- 템플릿 헤더 확장
+gl_template + recur_cycle('monthly'|null), title_pattern(월 토큰),
+              month_offset(0|-1 — 적요 월표기 실측 오프셋),
+              src_family_key(분석 패밀리 식별자),
+              vat_mode('taxable'|'exempt'|null — V4 A/K 대응, B·C·L·Q는 1차 미지원)
+
+-- 템플릿 라인 확장
+gl_template_item + amt_locked(고정/변동)   -- 변동 프리필은 본인 최근 확정 초안 참조(컬럼 저장 안 함)
+
+-- 회차별 사용 이력 (F1 배지·F9 처리율의 근거)
+gl_template_usage    (template_id, use_ym, draft_id, status, used_by, used_at)
+                      -- use_ym = 결의일자의 연월 기본. 소급 작성 대비 폼에 '처리 회차' 선택 필드,
+                      --          배지·처리율 판정은 전부 이 값 기준
+                      -- 기록 시점 = 초안 생성 시(§6.4), status는 초안 상태와 동기
+
+-- 중간DB 코드 마스터 2종 (RLS는 기존 erp_ro 규약 동일)
+erp_ro.ctrl_item_s      (ctrl_cd, ctrl_nm, ...)                              -- 52행
+erp_ro.acct_ctrl_assn_s (acct_cd, ctrl_cd, seq, dr_fg, cr_fg, default_val)   -- 997행
+</code></pre>
+<p>전부 RLS ON·정책 0(Edge Function 단일 경로) — 기존 gl_* 테이블 규약(C-6)과 동일.</p>
+<h3 id="64-edge-functionjeil-gl-draft-op">6.4 Edge Function(<code>jeil-gl-draft</code>) op 확장</h3>
+<table>
+<thead>
+<tr>
+<th>op</th>
+<th>역할</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>tpl_recur_list</code></td>
+<td>월반복 템플릿 + 이번 회차 상태(F1 카드 데이터 — 미작성/작성중/제출됨/확정됨 + 작성자)</td>
+</tr>
+<tr>
+<td><code>tpl_apply_prev</code></td>
+<td>본인 최근 확정 초안 + 날짜/적요 갱신 제안값 반환(F2)</td>
+</tr>
+<tr>
+<td><code>save</code> 확장</td>
+<td>라인 관리항목 배열 수용 + <strong>초안 생성 시 <code>gl_template_usage</code> 기록</strong>(템플릿 유래 초안). <strong>서버 재검증 — hard</strong>: 필수 관리항목 누락(플래그 'Y'만) · V6=BP 일치 · 차대일치(기존) / <strong>soft(경고)</strong>: V8≈V1×10%(계산서 그룹당 ±10원) · 계산서 그룹별 미지급금=ΣV1+V8(단수차 잡이익/잡손실 허용) · V2가 결의일자보다 미래 등 이상치</td>
+</tr>
+<tr>
+<td><code>submit</code>·<code>post</code>·<code>void</code> 확장</td>
+<td><code>gl_template_usage.status</code> 동기 갱신(F1 배지 소스)</td>
+</tr>
+<tr>
+<td><code>tpl_save</code> 확장</td>
+<td>관리항목 규칙·월반복 속성·<code>month_offset</code>·고정/변동 플래그 저장</td>
+</tr>
+<tr>
+<td><code>tpl_seed_bulk</code> <strong>신설</strong></td>
+<td>시드 일괄 등재 — <strong>관리자 한정, Edge Function 단일 경로 유지(C-6), 등재 행위를 감사 로그(<code>gl_draft_log</code> 상당)에 기록</strong></td>
+</tr>
+</tbody>
+</table>
+<h3 id="65-db">6.5 중간DB에 새로 담는 것 / 담지 않는 것</h3>
+<table>
+<thead>
+<tr>
+<th>구분</th>
+<th>내용</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>담는다(신규 ETL job 2종)</strong></td>
+<td><code>ctrl_item</code>(52행)·<code>acct_ctrl_assn</code>(997행) — <strong>코드/설정 마스터</strong>로 A1 승인의 연장선. <code>erp_master_upsert</code> 경로 재사용, <code>--dry-run</code> 검증 후 관리자 직접 실행(기존 관례). 참고: <code>A_ACCT_CTRL_ASSN.DEFAULT_VALUE</code>는 실측 997행 전량 공란 — 기본값 프리필 용도로는 쓸 수 없고 프리필은 F2로 일원화</td>
+</tr>
+<tr>
+<td><strong>담지 않는다</strong></td>
+<td>전표·분개 라인·금액 이력(C-7 유지). 시드 생성용 반복 분석은 <code>analyze_repeat_gl.py</code>가 로컬(OneDrive 밖)에서 수행하고 결과 JSON은 커밋·적재하지 않음. 시드의 고정 금액만 B2 승인 하에 포털 템플릿에 저장(§6.0-2)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="66-f8">6.6 시드 템플릿 등재 절차 (F8 상세)</h3>
+<ol>
+<li>분석 도구 실행(완료) → 후보 156개 중 <strong>1차 = 6개월+ 월1건형 36개</strong> 추출(V4 B·C·L·Q 유형 제외 적용)</li>
+<li>후보별 시드 정의 자동 생성: 계정 라인(고정/변동 플래그·배분 비율) + 관리항목 규칙(V계열 파생·날짜 시프트) + 제목 토큰·<code>month_offset</code></li>
+<li><strong>회계 담당 검수</strong>(§8 B2): 계정 구성 적정성 + <strong>부가세·원천징수 파생 규칙 승인 + 고정 금액 저장 승인</strong> — A5 중 '계정 후보' 항목의 실측 대체</li>
+<li>검수 통과분 <code>tpl_seed_bulk</code>로 일괄 등재(감사 기록) → 파일럿 부서부터 노출</li>
+<li>분기 1회 재분석으로 신규 패밀리 추가·불용 템플릿 정리(<code>use_cnt</code>·<code>last_used_at</code> 근거)</li>
+</ol>
+<h3 id="67">6.7 자동화 수준 로드맵</h3>
+<table>
+<thead>
+<tr>
+<th>레벨</th>
+<th>내용</th>
+<th>상태</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>L0</td>
+<td>빈 폼 수기 입력 (현 파일럿)</td>
+<td>가동(관리자 한정)</td>
+</tr>
+<tr>
+<td><strong>L1</strong></td>
+<td>템플릿 선택 → 총액 입력 (v1)</td>
+<td>구조 완성, 등재 0건</td>
+</tr>
+<tr>
+<td><strong>L2</strong></td>
+<td><strong>월반복 프리필 + 변동값만 수정 + 관리항목 자동</strong> (본 기획)</td>
+<td>← 이번 목표</td>
+</tr>
+<tr>
+<td>L3</td>
+<td>월초 자동 초안 생성 + 미작성 알림(제출은 사람)</td>
+<td>파일럿 후 판단(§8 B4). <strong>전제</strong>: 현행 "등록자는 JWT에서만 취득" 규약과 충돌하므로, 자동 생성분은 등록자 미확정 상태로 두고 사용자가 열어 제출하는 시점에 JWT로 등록자를 확정하는 방식이어야 함</td>
+</tr>
+<tr>
+<td>L4</td>
+<td>ERP 자동 등록 (쓰기 API)</td>
+<td>= 기존 E3. 유니포인트 협의 + 경영 승인 필요, 본 기획 범위 밖</td>
+</tr>
+</tbody>
+</table>
+<h3 id="68">6.8 구현 순서 (제안)</h3>
+<table>
+<thead>
+<tr>
+<th>단계</th>
+<th>내용</th>
+<th>선행</th>
+<th>상태(2026-08-12)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>~~<strong>P1 구조</strong>~~ ✅</td>
+<td>DDL(§6.3) + Edge Function 확장(§6.4) + ETL job 2종</td>
+<td>—</td>
+<td><strong>완료(2026-08-12)</strong> — 마이그레이션 <code>gl_template_v2</code>(관리항목·usage·월반복 속성·RPC <code>gl_ctrl_master_get</code>, 정본 24번) + <strong><code>jeil-gl-draft</code> v4 배포</strong>(신규 op 3종: <code>tpl_recur_list</code>·<code>tpl_apply_prev</code>·<code>tpl_seed_bulk</code> + save/get/submit/void/post 확장, 구화면 하위호환 유지)</td>
+</tr>
+<tr>
+<td>~~<strong>P2 마스터 적재</strong>~~ ✅</td>
+<td><code>ctrl_item</code>·<code>acct_ctrl_assn</code> 실적재</td>
+<td>~~승인 B1~~ ✅</td>
+<td><strong>완료(2026-08-12)</strong> — 52행·1,002행, 연동 현황 16종 등재</td>
+</tr>
+<tr>
+<td>~~<strong>P3 화면</strong>~~ ✅</td>
+<td>F1~F6 화면 구현(월반복 홈·프리필·하이라이트·관리항목 필드)</td>
+<td>P1</td>
+<td><strong>완료(2026-08-12)</strong> — 월반복 홈(배지 4상태·중복 경고·이어서 작성), 전월 프리필(본인 확정 초안 기반 + 날짜 +1개월 제안값 배지), 관리항목 자동 패널(필수<em> 표시), 제출 전 요약(총액·날짜·전월 差), 회계 담당자 관리항목 표+TSV 복사, 템플릿 편집기 월반복 속성. </em><em>3관점 코드 리뷰(정확성·보안·UX) 지적 16건 반영</em>* — 관리항목 유실(치명)·구화면 하위호환·KST 회차·민감 관리항목(사번·계좌) 부서 템플릿 고정값 차단·타인 미제출 초안 열람 제한 등. 라이브 반영은 커밋·배포(gh-pages) 후</td>
+</tr>
+<tr>
+<td><strong>P4 시드 등재</strong></td>
+<td>36건 검수→등재(F8, <code>tpl_seed_bulk</code>) — <strong>B2 결정에 따라 세액 자동계산 없는 형태로 등재</strong></td>
+<td>승인 B2(계정 구성 검수 잔여)</td>
+<td>검수 대기 — 검수 완료 시 분석 도구 출력에서 시드 JSON 생성 후 일괄 등재</td>
+</tr>
+<tr>
+<td><strong>P5 파일럿</strong></td>
+<td><strong>이훈희·최동혁</strong>(B3 확정) 실사용 → 기존 S5 E2E 테스트와 통합 진행</td>
+<td>~~B3 + 마감 등재~~ ✅</td>
+<td>권한·마감·코드 준비 완료 — <strong>화면 커밋·배포 후 개시 가능</strong></td>
+</tr>
+<tr>
+<td>P6 회고·확대</td>
+<td>기존 S6과 통합 — 처리율(F9)로 정량 평가</td>
+<td>P5</td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="7">7. 사용자 편의성 검토 (요청 명시 대응)</h2>
+<table>
+<thead>
+<tr>
+<th>요청 사항</th>
+<th>반영</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>"매달 같은 방식의 전표를 한 번 등록해 놓고 이후에도 처리"</td>
+<td>F7 승격 + F8 시드 일괄 등재 — 사용자가 등록할 필요조차 없는 후보 36개(→73개)는 시드로 선등재</td>
+</tr>
+<tr>
+<td>"기작성된 전표를 기준으로"</td>
+<td>F2 프리필(백지 시작 없음) — 구조는 템플릿, 변동 기본값은 본인 최근 확정 초안</td>
+</tr>
+<tr>
+<td>"변동되는 비용이나 항목들만 수정"</td>
+<td>F3 고정/변동 플래그(실측 자동 판정) + F4 총액 1칸 입력 → 나머지 자동 제안</td>
+</tr>
+<tr>
+<td>"항목들을 복사해서 적용"</td>
+<td>F6 라인 복사(관리항목 포함) + F2 전표 단위 복사</td>
+</tr>
+<tr>
+<td>놓치기 쉬운 것 보완</td>
+<td>F1 상태 배지(4상태) — 반복 전표는 '입력이 어려운 것'보다 '잊는 것'이 실무 리스크. 주차 단위 케이스도 카운터로 커버</td>
+</tr>
+</tbody>
+</table>
+<p><strong>검토 소견(설계에 반영된 판단)</strong>
+- 입력 최소화보다 <strong>오입력 방지</strong>가 우선 — 프리필은 편하지만 "전월 값 그대로 제출" 사고를 만든다. 방어선은 ①변동 필드 강조 ②제출 전 "전월과 달라진 점" 차이 리스트 ③날짜형은 항상 변동 취급 ④파생 관계식 soft 검증의 4겹이다. 반복 모달은 수개월 내 습관적 통과로 무력화되므로 쓰지 않는다.
+- 적요 월 표기는 실측상 <strong>당월형이 84%</strong>로 다수고 'N월분' 표기만 전월형이 우세 — 전역 기본값 대신 패밀리별 실측 오프셋을 저장한다(§4.2).
+- 주차 단위(급식대·월 31건)는 반복 빈도가 가장 높아 가장 잊기 쉬운 케이스다 — 월 1건 배지 대신 "이번 달 n건 + 경과일" 카운터로 커버하고, <code>recur_cycle='weekly'</code>(월 기대 건수 기반 "8월 3/4건" 배지)는 2차 로드맵에 둔다.
+- 회계 담당자 쪽은 요약 '보여주기'가 아니라 <strong>옮겨 붙이기(TSV 복사)와 대기열 체크오프</strong>까지 가야 이중 작업 부담이 실제로 준다(F5·F9).</p>
+<hr />
+<h2 id="8-2026-08-11">8. 승인 게이트 — <strong>2026-08-11 관리자 결정 반영</strong></h2>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>항목</th>
+<th>결정(2026-08-11)</th>
+<th>실행 상태</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>~~<strong>B1</strong>~~ ✅</td>
+<td>관리항목 마스터 2종 적재</td>
+<td><strong>승인 → 실적재 완료(2026-08-12, 관리자 지시)</strong></td>
+<td>미러 2종(<code>ctrl_item_s</code>·<code>acct_ctrl_assn_s</code>) + <code>erp_master_upsert</code> 확장(마이그레이션 <code>gl_ctrl_master_v1</code>, 정본 23번), ETL job 2종 신설 후 <strong>실적재 완료 — 52행 · 1,002행(필수 플래그 Y 377행), batch_run success·유실 0</strong>. <code>erp_load_scope</code> 2건 <code>loaded</code> 등재, 연동 현황 뷰 14→16종 확장(<code>erp_sync_overview_ctrl_master</code>, batch_run 기반). DR_FG/CR_FG 플래그 의미 확인은 유니포인트 문의 항목 유지</td>
+</tr>
+<tr>
+<td><strong>B2</strong> ◔</td>
+<td>시드 템플릿 검수·등재</td>
+<td><strong>부분 승인 — 부가세·원천징수 등의 항목은 제외</strong></td>
+<td>해석(관리자 확인 요망): <strong>파생 자동계산 규칙(§4.2)을 범위에서 제외</strong> — 세금계산서형·원천징수형 템플릿도 등재는 진행하되, 부가세액(V8)·원천징수액은 자동 계산하지 않고 <strong>사용자가 실물 증빙 값을 직접 입력</strong>(전월값 프리필만 제공, 세액 관계식 검증·경고 비활성). U-1 미해소·C-2 개정 없음(부가세 자동 처리는 계속 하지 않음). F4는 차대 균형 배분(<code>balance</code>)·판/제/연 비율 배분만 수행. 시드 36건의 계정 구성 검수는 회계 담당 확인 후 등재(P4)</td>
+</tr>
+<tr>
+<td>~~<strong>B2-1</strong>~~ ✅</td>
+<td>회계기간 마감 기준</td>
+<td><strong>ERP 회계마감 데이터 연동 적용</strong></td>
+<td>ERP 월마감 원장 <strong><code>C_CLOSE_STATUS</code></strong>(작업년월·마감여부·마감일자) 실측 — <strong>2026-06까지 전월 마감(Y), 2026-07부터 미마감</strong>. <code>gl_period_lock</code>에 2023-10~2026-06 <strong>33개월 등재 완료</strong>(note에 근거 기록). ⚠ ERP 실측상 마감월에도 결의전표 소급 등록이 관찰됨(예: 1월 귀속 전표가 8월 등록) — 포털이 ERP보다 엄격해지며 예외는 회계 담당이 해당 월 lock 해제로 처리. ⚠ 새 달 마감 시 수동 추가 필요(자동 동기 job은 후속 과제)</td>
+</tr>
+<tr>
+<td>~~<strong>B3</strong>~~ ✅</td>
+<td>파일럿 대상</td>
+<td><strong>이훈희·최동혁</strong></td>
+<td><code>accounting</code> 모듈을 권한 카탈로그에 신설(sensitive, A3 실행)하고 이훈희(<code>hh.lee2@jeilm.co.kr</code>, 총무팀)에 개인 예외(<code>perm_grant</code>) 부여 — 감사(<code>perm_audit</code>) 기록 동반. <strong>실측 검증</strong>: 이훈희 <code>gl_draft</code> 허용, 비대상자 차단 유지("ERP 모듈 권한 없음"), 최동혁은 전체관리자로 기허용. 부서 부여는 계속 없음(C-8 유지)</td>
+</tr>
+<tr>
+<td>B4</td>
+<td>(후속) L3 자동 초안 생성</td>
+<td>미결</td>
+<td>파일럿 회고 후. 등록자 JWT 규약과의 충돌 해소 방안(§6.7) 포함</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="9">9. 리스크·한계</h2>
+<table>
+<thead>
+<tr>
+<th>리스크</th>
+<th>대비</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>프리필 값 무확인 제출(오입력)</td>
+<td>4겹 방어(§7 소견) — 변동 강조 + 차이 리스트 + 날짜 상시 변동 + soft 관계식 검증. 잔여: 사용자 습관화는 완전 차단 불가</td>
+</tr>
+<tr>
+<td>시드의 계정 구성이 회계 방침과 다를 가능성</td>
+<td>B2 검수 없이는 등재하지 않음(v1 원칙 유지)</td>
+</tr>
+<tr>
+<td>부가세 예외(불공제 B·수입 C·수정세금계산서 음수·면세)</td>
+<td>1차 범위 A·K 한정 + 시드 자동 제외(§3.3). 음수 금액 허용 여부는 B2에서 결정</td>
+</tr>
+<tr>
+<td>배지 오판(제출~확정 공백·소급 작성)</td>
+<td>usage 기록을 초안 생성 시점으로 + 4상태 배지 + <code>use_ym</code> 기준 명시·회차 선택 필드(§6.3)</td>
+</tr>
+<tr>
+<td>이중 입력·회계 담당자 부하(기존 리스크)</td>
+<td>변화 없음 — 근본 해소는 E3(L4). 단 관리항목 TSV 복사·대기열(F5·F9)로 재입력 부담은 추가 경감</td>
+</tr>
+<tr>
+<td>분석 기준이 2026년 한정</td>
+<td>분기 1회 재분석(§6.6-5). 12월 결산기 특수 전표는 반복 판정에서 자연 제외됨</td>
+</tr>
+<tr>
+<td><code>A_ACCT_CTRL_ASSN</code>의 실무 예외(설정에 없지만 관례로 입력하는 항목)</td>
+<td>시드는 <strong>실측 사용 관리항목</strong>(A_TEMP_GL_DTL 실데이터)을 우선하고 설정 테이블은 검증용으로 병행</td>
+</tr>
+<tr>
+<td><strong>본 문서의 공개 배포 노출</strong> — 거래처 실명·계약 단가(§3.4)가 HTML 빌드·커밋 시 공개 정적 호스팅(gh-pages)에 노출됨</td>
+<td>기존 관제 문서 관례와 동일한 수준이나, 계약 단가는 영업 정보 성격이 있어 <strong>배포 포함 여부는 관리자 결정 필요</strong> — 결정 전까지 본 문서는 커밋하되 gh-pages 배포 제외(또는 §3.4 익명화) 옵션을 열어 둔다</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="10">10. 변경 이력</h2>
+<table>
+<thead>
+<tr>
+<th>일자</th>
+<th>변경 내용</th>
+<th>작성</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>2026-08-12</td>
+<td>v1.4 — <strong>P1·P3 구현 완료(관리자 지시 "P1 나머지 + P3 화면 구현 진행")</strong>. ①DDL: 마이그레이션 <code>gl_template_v2</code> — <code>gl_draft_item_ctrl</code>(관리항목+<code>invoice_seq</code>)·<code>gl_template_item_ctrl</code>(fixed/input/date_shift 규칙)·<code>gl_template_usage</code>(회차 4상태)·월반복 속성 컬럼(recur_cycle·title_pattern·month_offset·vat_mode·src_family_key·amt_locked)·RPC <code>gl_ctrl_master_get</code>(service_role 전용). 정본 <code>이관/sql/24_gl_template_v2.sql</code>. ②<strong>Edge Function <code>jeil-gl-draft</code> v4 배포</strong> — 신규 op <code>tpl_recur_list</code>(월반복 카드)·<code>tpl_apply_prev</code>(본인 확정 초안 프리필)·<code>tpl_seed_bulk</code>(관리자 한정 시드 등재, 감사 기록) + save 확장(관리항목 검증: 필수 플래그 Y는 신형 화면 하드·구화면 경고, V6=BP 정합, V2 이상치 경고 — 세액 자동계산·검증은 B2 결정대로 없음) + usage 상태 동기. <strong>구화면 하위호환 유지</strong>(기존 op 동작 불변, ctrls 미전송 저장이 관리항목을 지우지 않음). ③<strong>화면 v2</strong> — 월반복 홈(F1: 배지 4상태·작성자·중복 경고·검색 정렬)·전월 프리필(F2: 본인 최근 확정 초안 + 날짜 +1개월 월말클램프 제안값 배지·적요 토큰 치환)·관리항목 자동 패널(F5: 계정×차대 필수<em> 표시·ERP seq 정렬 요약·TSV 복사)·제출 전 요약(F3: 전월 差 리스트)·행 복사/삭제 관리항목 동반(F6)·템플릿 편집기 월반복 속성·승격 시 관리항목 규칙 변환(F7). ④</em><em>3관점 코드 리뷰 지적 16건 반영</em>* — 치명 1(수동 행 관리항목 유실) 포함: KST 회차 경계, 월반복 상태 오염(CURRENT_TPL 초기화), 민감 관리항목(EM·BA 등) 부서/전사 템플릿 고정값 저장 차단, 타인 미제출 초안 열람 차단(list/get), tpl_use 권한 확인, post 중복검사 다건 보정, usage 위조 방지(템플릿 가시성 검증·±2개월 제한). 잔여: 화면 라이브 반영은 git 커밋·gh-pages 배포 후(관리자)</td>
+<td>최동혁(+Claude)</td>
+</tr>
+<tr>
+<td>2026-08-12</td>
+<td>v1.3 — <strong>B1 실적재 완료(관리자 지시)</strong>. <code>ctrl_item</code> 52/52 · <code>acct_ctrl_assn</code> 1,002/1,002(필수 플래그 Y 377행), batch_run success·유실 0. <code>erp_load_scope</code> 2건 <code>loaded</code> 등재, 연동 현황 뷰 14→16종 확장(마이그레이션 <code>erp_sync_overview_ctrl_master</code> — fail-closed 규약에 따라 batch_run 기반 count). §6.8 P2 완료 처리. 이로써 P3(화면 구현) 착수의 데이터 선행 조건이 모두 충족됨</td>
+<td>최동혁(+Claude)</td>
+</tr>
+<tr>
+<td>2026-08-11</td>
+<td>v1.2 — <strong>승인 게이트 관리자 결정 반영·집행</strong>. ①B1 승인 → 미러 2종(<code>ctrl_item_s</code>·<code>acct_ctrl_assn_s</code>)+RPC 확장(마이그레이션 <code>gl_ctrl_master_v1</code>, 정본 23번), ETL job 2종 신설, dry-run 통과(52·1,001행), 실적재는 관리자 실행 대기. ②B2 부분 승인 — <strong>부가세·원천징수 자동계산 규칙 제외</strong>(템플릿 등재는 진행, 세액은 수기 입력+전월값 프리필, F4 범위 축소). ③B2-1 — ERP 월마감 원장 <code>C_CLOSE_STATUS</code> 실측(2026-06까지 마감 Y) 연동, <code>gl_period_lock</code> 33개월 등재 완료(마감월 소급 등록 관행 주석 포함). ④B3 — 파일럿 이훈희·최동혁 확정: <code>accounting</code> 모듈 카탈로그 신설(sensitive)+이훈희 개인 예외 부여·감사 기록, 허용/차단 실측 검증. §6.8 단계 상태 갱신</td>
+<td>최동혁(+Claude)</td>
+</tr>
+<tr>
+<td>2026-08-11</td>
+<td>v1.1 — <strong>4관점 교차검증(수치·회계·UX·규칙, 지적 36건) 반영 개정</strong>. 수치 정정(월1건형 39→36, 반복 계정 40→88/핵심 44, §4.1 필수/선택 구분·패밀리 기준 재집계, T5·T7 재분류, 김해 TX2 주장 삭제). 회계 규칙 전면 보강(V8 10%는 제안값·soft 검증·계산서 그룹 단위 <code>invoice_seq</code>·단수차 허용, V4 6종 실측·1차 A/K 한정, 원천징수 절사식, 적요 당월형 84% → <code>month_offset</code> 실측 저장, 날짜 상시 변동·월말 클램프). UX 보강(배지 4상태·초안 생성 시점 기록·중복 경고, 프리필 정본 이원화·본인 초안 한정, 잠금 해제 발견성·차이 리스트, F1 검색·정렬·카운터, 회계 대기열·TSV 복사). 거버넌스 정합(A5 대체 주장 축소, B2에 U-1·C-2 개정 명시, B2-1 마감 기준 신설, <code>tpl_seed_bulk</code> 단일 경로, F7 승격 user 고정, L3 등록자 전제). <strong>분석 도구 v1.1 — 민감 관리항목(EM/BA/D1/CP/NN) 값 미기록·출력 OneDrive 밖 이동·유형/월1건형/오프셋 판정 저장</strong></td>
+<td>최동혁(+Claude)</td>
+</tr>
+<tr>
+<td>2026-08-10</td>
+<td>최초 작성(v1.0) — 2026년 수기 결의전표 2,287건 전수 반복 패턴 분석 + 템플릿 플랫폼 v2(월반복 자동화) 기획</td>
+<td>최동혁(+Claude)</td>
+</tr>
+</tbody>
+</table>
+  </div>
+  <div class="footer"><span>JEIL M&amp;S · ERP DB 연계 관제</span><span>10 반복전표 자동화 · 관리: 최동혁</span></div>
+</div>
+</body>
+</html>

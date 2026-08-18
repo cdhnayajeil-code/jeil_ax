@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>09 결의전표 인수인계 — ERP DB 연계 관제 (결의전표 파일럿 종합 인수인계 — 재개 진입점(확정 결정·실측 사실·재개 절차))</title>
+<style>
+:root{--navy:#1a2f4e;--navy2:#27457a;--accent:#2f6fb3;--red:#b3402f;--green:#2e7d52;--amber:#9a6b1f;
+--ink:#222;--muted:#666;--line:#d8dee8;--bg:#f4f6f9;--soft:#eef2f8;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;color:var(--ink);background:var(--bg);line-height:1.65;font-size:15px;}
+.page{max-width:960px;margin:0 auto;background:#fff;padding:52px 60px;box-shadow:0 2px 14px rgba(0,0,0,.08);}
+.doc-label{display:inline-block;background:var(--navy);color:#fff;font-size:12px;letter-spacing:.16em;padding:5px 14px;border-radius:3px;margin-bottom:16px;}
+.docnav{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 26px;}
+.docnav a{font-size:12px;color:var(--navy2);border:1px solid var(--line);border-radius:20px;padding:4px 12px;text-decoration:none;background:var(--soft);}
+.docnav a:hover{background:var(--navy);color:#fff;}
+.docnav a.cur{background:var(--navy);color:#fff;border-color:var(--navy);}
+.md-link{font-size:13px;margin-bottom:22px;color:var(--muted);}
+.content h1{font-size:27px;color:var(--navy);line-height:1.35;margin:6px 0 18px;}
+.content h2{font-size:20px;color:var(--navy);margin:42px 0 14px;padding-bottom:9px;border-bottom:3px solid var(--navy);}
+.content h3{font-size:16px;color:var(--navy2);margin:24px 0 9px;}
+.content p{margin:0 0 12px;}
+.content ul,.content ol{margin:0 0 14px 22px;}
+.content li{margin-bottom:6px;}
+.content blockquote{background:var(--soft);border-left:5px solid var(--navy);border-radius:0 8px 8px 0;padding:14px 20px;margin:14px 0;color:#33425a;}
+.content blockquote p{margin:0 0 6px;}
+.content table{width:100%;border-collapse:collapse;margin:14px 0 20px;font-size:13.3px;}
+.content th{background:var(--navy);color:#fff;padding:9px 11px;text-align:left;font-weight:600;}
+.content td{padding:8px 11px;border-bottom:1px solid var(--line);vertical-align:top;}
+.content tr:nth-child(even) td{background:#fafbfd;}
+.content a{color:var(--accent);}
+.content code{background:var(--soft);border:1px solid var(--line);border-radius:4px;padding:1px 6px;font-size:12.4px;font-family:Consolas,'Courier New',monospace;}
+.content pre{background:#21252e;color:#e8eaf0;border-radius:8px;padding:16px 18px;font-size:12.4px;font-family:Consolas,'Courier New',monospace;overflow-x:auto;margin:12px 0 18px;line-height:1.55;}
+.content pre code{background:none;border:none;color:inherit;padding:0;}
+.content hr{border:none;border-top:1px solid var(--line);margin:30px 0;}
+.content strong{color:var(--navy2);}
+.footer{margin-top:50px;padding-top:16px;border-top:1px solid var(--line);font-size:12px;color:var(--muted);display:flex;justify-content:space-between;}
+@media print{body{background:#fff;}.page{box-shadow:none;padding:18px 0;max-width:100%;}.docnav{display:none;}.content h2{break-after:avoid;}.content table,.content pre,.content blockquote{break-inside:avoid;}}
+@media (max-width:720px){.page{padding:30px 20px;}}
+</style>
+</head>
+<body>
+<div class="page">
+  <span class="doc-label">JEIL AX ERP DB 연계 · 대외비</span>
+  <div class="docnav"><a href="index.html">🏠 연계 허브</a><a href="00_현재상태_스냅샷.html">00 현재상태</a><a href="01_연계기획.html">01 연계기획</a><a href="02_진행상태.html">02 진행상태</a><a href="03_중간DB_구축실행기획.html">03 중간DB 실행기획</a><a href="04_증분동기화_확장_거버넌스_기획.html">04 증분·확장·거버넌스</a><a href="05_사용자부서_매핑대사.html">05 사용자-부서 매핑</a><a href="06_결의전표_추진계획.html">06 결의전표 추진계획</a><a class="cur" href="09_결의전표_인수인계.html">09 결의전표 인수인계</a><a href="10_반복전표_자동화_기획.html">10 반복전표 자동화</a><a href="README.md">README</a></div>
+  <p class="md-link">📄 Markdown 원본: <a href="09_결의전표_인수인계.md">09_결의전표_인수인계.md</a> · 허브 <a href="index.html">연계 허브</a></p>
+  <div class="content">
+<h1 id="09">09. 결의전표 파일럿 — 종합 인수인계</h1>
+<blockquote>
+<p><strong>작성: 2026-08-03</strong>(v1.0, 이후 v1.1 · 2026-08-05 / v1.2 · 2026-08-11 / v1.3 · 2026-08-18) · 관리: 최동혁 · 전담 에이전트: <code>erp-db-link-manager</code>
+결의전표 초안 입력 파일럿의 <strong>전체 그림과 재개 절차</strong>를 한 문서에 모았다. 시간이 지나거나 담당이 바뀐 뒤 <strong>여기부터 읽으면 바로 이어서 진행할 수 있게</strong> 쓴다.
+세부는 <code>06</code>(추진계획)·<code>07</code>(연동 종합)·<code>08</code>(처리 프로세스)에 있고, 이 문서는 <strong>진입점 + 재개 체크리스트</strong>다.
+비밀값(접속 IP/ID/비밀번호) 기록 금지 — 서버 지칭은 별칭 <strong>"ERP운영DB"</strong> 만 사용.</p>
+</blockquote>
+<hr />
+<h2 id="1-30">1. 30초 요약</h2>
+<p><strong>무엇을 만들었나</strong> — 전 직원이 ERP 화면에서 각자 입력하던 <strong>결의전표</strong>를, 케이스 1개(일반 경비 지출결의)에 한해 사내 포털에서 ERP와 같은 형태로 입력받는 기능. 포털은 <strong>검증된 초안</strong>까지만 만들고, ERP 등록은 회계 담당자가 직접 한다.</p>
+<p><strong>지금 어디까지 왔나</strong> — 코드·DB·화면 배포 완료, 회계 마스터 적재 완료, 코드 체계 실측 확정 완료. <strong>라이브에서 관리자 계정으로 동작한다.</strong>
+2026-08-05 <strong>템플릿 플랫폼</strong>(케이스별 분개 형태를 등록해 두고 골라 쓰는 구조)을 얹었다 — 구조는 완성, <strong>등재된 템플릿은 0건</strong>(§3.4).
+2026-08-10~11 <strong>별도 트랙(반복전표 자동화)의 분석·기획이 추가됐다</strong> — ERP 2026년 수기 결의전표 2,287건을 전수 분석해 반복 패턴 156개(964건·42.2%)를 확인하고, 이를 템플릿 플랫폼 v2로 잇는 <code>10_반복전표_자동화_기획.md</code>(v1.1)를 신설했다. <strong>이 트랙은 아래 S5 E2E 테스트와 독립적이며, 진행하려면 승인 게이트 B1(관리항목 마스터 적재)·B2(시드 검수+회계 규칙 확정)·B2-1(마감 기준)이 먼저 필요하다.</strong> 상세는 <code>10_반복전표_자동화_기획.md §8</code>.
+2026-08-18 <strong>「전표복사」 기능 신설·배포 + 결의전표 원장 미러링 결정(C-10)</strong> — 본인이 ERP에 입력한 결의전표를 조회·미리보기·복사해 초안을 시작하는 탭을 추가했고, 이를 뒷받침하기 위해 <code>A_TEMP_GL</code> 3종(헤더·라인·관리항목)을 중간DB에 미러링하는 결정을 내렸다(C-7 확장, §2 C-10). 코드·DDL·화면은 배포 완료, ERP운영DB dry-run 검증도 통과(3,224·16,865·42,371행)했으나 <strong>실적재는 아직 실행하지 않았다 — 아래 §3.2·§6 참조, 관리자가 직접 실행해야 하는 명령 3개가 남아 있다.</strong></p>
+<p><strong>다음에 할 일 딱 하나</strong> — <strong>전표 1건 E2E 테스트(S5)</strong>. 지금 바로 실행 가능하다(반복전표 자동화 트랙과 무관하게 그대로 유효).</p>
+<p><strong>남은 승인</strong> — <strong>A5(회계 규칙) 하나뿐.</strong> 계정 691개를 실무용으로 좁히는 문제라 테스트에는 지장 없다.</p>
+<pre><code>[완료] 구축·배포 ─▶ [완료] A1 마스터 적재 ─▶ [완료] A2 코드 체계 확정 ─▶ [지금] S5 E2E 테스트
+                                                                              │
+                              [대기] A5 회계 규칙 ──────────────────────────────┤
+                                                                              ▼
+                                                                    [판단] S6 확대 여부
+</code></pre>
+<hr />
+<h2 id="2">2. 확정된 결정 (되돌리려면 재설계 필요)</h2>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>결정</th>
+<th>내용</th>
+<th>일자</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>C-1</td>
+<td><strong>반영 경로</strong></td>
+<td><strong>초안은 포털, 확정은 ERP</strong> — 포털은 ERP에 쓰지 않는다(CLAUDE.md §1.2·§1.6). 대안이던 "포털이 ERP에 직접 등록"은 <strong>기각</strong></td>
+<td>2026-07-31</td>
+</tr>
+<tr>
+<td>C-2</td>
+<td><strong>샘플 케이스</strong></td>
+<td>일반 경비 지출결의(차변 비용계정 / 대변 미지급금·보통예금), 부가세 미사용</td>
+<td>2026-07-31</td>
+</tr>
+<tr>
+<td>C-3</td>
+<td><strong>등록자 = MS 계정 ID</strong></td>
+<td>그룹웨어 전자결재가 전표등록자 기준으로 돌아가므로 동일 ID여야 함. <strong>A2 실측으로 확정</strong>(§4)</td>
+<td>2026-07-31</td>
+</tr>
+<tr>
+<td>C-4</td>
+<td><strong>전표번호는 ERP가 채번</strong></td>
+<td>포털은 <code>DRAFT-YYYYMMDD-nnnn</code> 임시번호만 사용</td>
+<td>2026-07-31</td>
+</tr>
+<tr>
+<td>C-5</td>
+<td><strong>권한 2단 분리</strong></td>
+<td>입력 = <code>accounting</code> / ERP 확정 = <code>finance</code>(자금팀·내부회계관리팀 기보유)</td>
+<td>2026-07-31</td>
+</tr>
+<tr>
+<td>C-6</td>
+<td><strong>RLS 전면차단 + 단일 경로</strong></td>
+<td>회계는 민감 등급 → 테이블 6종 RLS ON·정책 0 + <code>anon</code>/<code>authenticated</code> 회수. Edge Function만 접근</td>
+<td>2026-07-31</td>
+</tr>
+<tr>
+<td>C-7</td>
+<td><strong>코드 마스터만 적재</strong></td>
+<td>금액·잔액·전표는 적재하지 않는다. 기존 <code>erp_etl_upsert</code> 재작성 위험을 피해 <code>erp_master_upsert</code> 분리 신설</td>
+<td>2026-07-31</td>
+</tr>
+<tr>
+<td>C-8</td>
+<td><strong>권한은 전체관리자 한정</strong></td>
+<td>테스트 단계이므로 <code>accounting</code>을 <strong>어느 부서에도 부여하지 않는다</strong>(A3·A4 보류). <code>dept_erp_scope</code> 무변경</td>
+<td>2026-08-03</td>
+</tr>
+<tr>
+<td>C-9</td>
+<td><strong>전표형태는 상수</strong></td>
+<td><code>GL_TYPE</code> 실측 전량 <code>03</code> → 선택지가 아니라 상수. 실측 근거 없는 코드는 임의 추가하지 않는다</td>
+<td>2026-08-03</td>
+</tr>
+<tr>
+<td>C-10</td>
+<td><strong>결의전표 원장(<code>gl_slip</code>)도 미러링</strong></td>
+<td><strong>C-7을 확장</strong> — 코드 마스터뿐 아니라 결의전표 원장(<code>A_TEMP_GL</code> 3종: 헤더·라인·관리항목)도 중간DB에 미러링해 「전표복사」 기능에 사용한다. 통제 3중: ①RLS 전면차단+RPC 단일경로 ②조회 RPC가 소유 필터(C-3 매핑 근거)를 내부 강제 ③민감 관리항목(EM/BA/D1/CP/NN)은 ETL 단계에서 값 자체를 NULL 마스킹</td>
+<td>2026-08-18</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="3">3. 구축물 — 어디에 무엇이 있나</h2>
+<h3 id="31">3.1 코드·화면</h3>
+<table>
+<thead>
+<tr>
+<th>파일</th>
+<th>역할</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>pages/자금_결의전표_입력_2026.html</code></td>
+<td>입력 화면(전표 작성 / 내 초안 / 회계 담당자 / 템플릿 관리 + <strong>「전표복사」 탭 신설</strong>(2026-08-18) — 본인 결의전표를 기간·검색으로 조회→라인·관리항목 미리보기→복사해 전표 작성 탭을 채움). 표준 그리드(<code>app/lib/grid.js</code>) + 실시간 차대 합계바. <code>PAGE_KEY='gl_draft'</code> + <code>_access-gate.js</code></td>
+</tr>
+<tr>
+<td><code>supabase/functions/jeil-gl-draft/index.ts</code></td>
+<td>Edge Function <strong>v5</strong>(<code>verify_jwt=false</code>, 2026-08-18 갱신 — v4는 반복전표 자동화 op 확장, <strong>v5는 op <code>slip_list</code>·<code>slip_get</code> 추가</strong>). 서버 재검증 포함. 등록자는 JWT에서만 취득</td>
+</tr>
+<tr>
+<td><code>실제구축준비 자료/이관/sql/21_gl_draft.sql</code></td>
+<td>포털 DB 4종 + <code>erp_ro</code> 마스터 2종 정본 DDL</td>
+</tr>
+<tr>
+<td><code>실제구축준비 자료/이관/sql/22_gl_template.sql</code></td>
+<td><strong>템플릿 2종 정본 DDL</strong>(2026-08-05 신설)</td>
+</tr>
+<tr>
+<td><code>실제구축준비 자료/이관/sql/25_gl_slip_mirror.sql</code></td>
+<td><strong><code>gl_slip</code> 미러 3종(헤더·라인·관리항목) 정본 DDL</strong>(2026-08-18 신설, C-10)</td>
+</tr>
+<tr>
+<td><code>10_ERP_DB연계/etl/etl_run.py</code></td>
+<td>ETL job <code>acct_master</code>·<code>cost_center</code> + <strong><code>gl_slip</code>·<code>gl_slip_item</code>·<code>gl_slip_ctrl</code>(2026-08-18 신설, 실적재는 관리자 실행 대기)</strong></td>
+</tr>
+</tbody>
+</table>
+<h3 id="32">3.2 데이터베이스</h3>
+<table>
+<thead>
+<tr>
+<th>테이블</th>
+<th>용도</th>
+<th>상태</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>public.gl_draft</code></td>
+<td>초안 헤더(상태·합계·ERP 전표번호·감사 컬럼)</td>
+<td>RLS ON·정책 0</td>
+</tr>
+<tr>
+<td><code>public.gl_draft_item</code></td>
+<td>초안 라인</td>
+<td>RLS ON·정책 0</td>
+</tr>
+<tr>
+<td><code>public.gl_draft_log</code></td>
+<td>감사 로그(조회 포함 전 동작)</td>
+<td>RLS ON·정책 0</td>
+</tr>
+<tr>
+<td><code>public.gl_period_lock</code></td>
+<td>회계기간 마감</td>
+<td><strong>등재 0건 = 제한 없음</strong></td>
+</tr>
+<tr>
+<td><code>public.gl_template</code></td>
+<td><strong>템플릿 헤더</strong>(케이스별 분개 형태·공개범위·금액방식)</td>
+<td>RLS ON·정책 0</td>
+</tr>
+<tr>
+<td><code>public.gl_template_item</code></td>
+<td><strong>템플릿 라인</strong>(계정 + 배분규칙)</td>
+<td>RLS ON·정책 0</td>
+</tr>
+<tr>
+<td><code>erp_ro.acct_master_s</code></td>
+<td>계정과목 마스터</td>
+<td><strong>691행 적재</strong></td>
+</tr>
+<tr>
+<td><code>erp_ro.cost_center_s</code></td>
+<td>코스트센터 마스터</td>
+<td><strong>133행 적재</strong></td>
+</tr>
+<tr>
+<td><code>erp_ro.gl_slip_s</code></td>
+<td><strong>결의전표 미러 — 헤더</strong>(신규, C-10)</td>
+<td>RLS ON·정책 0 — dry-run 3,224행 확인, <strong>0행(실적재 대기)</strong></td>
+</tr>
+<tr>
+<td><code>erp_ro.gl_slip_item_s</code></td>
+<td><strong>결의전표 미러 — 라인</strong>(신규, C-10)</td>
+<td>RLS ON·정책 0 — dry-run 16,865행 확인, <strong>0행(실적재 대기)</strong></td>
+</tr>
+<tr>
+<td><code>erp_ro.gl_slip_ctrl_s</code></td>
+<td><strong>결의전표 미러 — 관리항목</strong>(신규, C-10, 민감 관리항목 EM/BA/D1/CP/NN은 <code>ctrl_val</code> NULL 마스킹)</td>
+<td>RLS ON·정책 0 — dry-run 42,371행 확인, <strong>0행(실적재 대기)</strong></td>
+</tr>
+</tbody>
+</table>
+<p><strong>남은 일 — <code>gl_slip</code> 실적재(관리자 직접 실행, 순서대로)</strong>:</p>
+<pre><code>python &quot;10_ERP_DB연계/etl/etl_run.py&quot; --job gl_slip
+python &quot;10_ERP_DB연계/etl/etl_run.py&quot; --job gl_slip_item
+python &quot;10_ERP_DB연계/etl/etl_run.py&quot; --job gl_slip_ctrl
+</code></pre>
+<p>완료 후 확인 2건: ①<code>etl_meta.batch_run</code>에 3건 success 기록 ②민감 관리항목(EM/BA/D1/CP/NN)의 <code>ctrl_val</code>이 실제로 NULL 마스킹됐는지 표본 조회로 실측. 야간배치 스케줄 편입은 별도 후속(현재 수동 실행만).</p>
+<p><strong>RPC</strong>(전부 service_role 전용): <code>gl_master_get()</code> · <code>gl_bp_search(q)</code> · <code>gl_erp_user(upn)</code> · <code>erp_master_upsert(table, rows)</code> · <strong><code>gl_slip_list()</code>·<code>gl_slip_get(no)</code>·<code>gl_slip_synced_at()</code>(신규, C-10)</strong>
+<strong>마이그레이션</strong>: <code>gl_draft_v1</code> · <code>gl_draft_master_rpc</code> · <code>erp_sync_overview_accounting_master</code> · <code>gl_template_v1</code> · <strong><code>gl_slip_mirror_v1</code>·<code>gl_slip_synced_at_v1</code>(2026-08-18)</strong></p>
+<h3 id="34-2026-08-05">3.4 템플릿 플랫폼 (2026-08-05 신설)</h3>
+<p><strong>왜 만들었나</strong> — 전 직원이 691개 계정에서 매번 고르는 것은 현실적이지 않다. 케이스별로 "어떤 계정을 차/대변에 쓰고 금액을 어떻게 나누는가"를 미리 등록해 두고, 사용자는 <strong>템플릿을 고르고 총액만 입력</strong>한다.</p>
+<table>
+<thead>
+<tr>
+<th>요소</th>
+<th>내용</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>공개 범위</td>
+<td><code>org</code>(전사) · <code>dept</code>(부서) · <code>user</code>(개인). <strong>전사·부서 템플릿은 관리자·회계 담당자만 생성·수정</strong> — 잘못된 분개가 전사로 퍼지는 것을 막는다</td>
+</tr>
+<tr>
+<td>금액 방식</td>
+<td><code>total</code>(총액 1칸 → 규칙대로 배분) · <code>manual</code>(라인별 직접 입력)</td>
+</tr>
+<tr>
+<td>배분 규칙</td>
+<td><code>input</code>(사용자 입력) · <code>pct</code>(총액×비율) · <code>fixed</code>(고정액) · <code>balance</code>(차액 자동, 방향당 1줄)</td>
+</tr>
+<tr>
+<td>화면 동작</td>
+<td>카드 선택 → 총액 입력 → [템플릿 적용] → 헤더 <strong>빈 칸만</strong> 채우고 라인 전체 교체. 「선택 행에 차액 채우기」 버튼 별도 제공</td>
+</tr>
+<tr>
+<td>역방향</td>
+<td>「현재 전표를 템플릿으로」 — 작성 중인 라인을 템플릿 편집기로 가져온다(금액은 규칙으로 전환, 실적 금액 미저장)</td>
+</tr>
+<tr>
+<td>사용 기록</td>
+<td><code>use_cnt</code>·<code>last_used_at</code> — 실제로 쓰이는 템플릿을 가려내는 근거(케이스 정리 시 사용)</td>
+</tr>
+<tr>
+<td>ERP 케이스 연결</td>
+<td><code>erp_case_cd</code> 필드 — <strong>ERP_DB 기준 케이스 확정 시 여기에 코드를 채운다</strong>(현재 공란)</td>
+</tr>
+</tbody>
+</table>
+<p><strong>중요</strong> — 템플릿을 적용해도 검증은 면제되지 않는다. 적용 결과는 <code>save</code> 의 서버 재검증(차대일치·계정유효·금액·마감월·프로젝트필수)을 그대로 통과해야 한다. 템플릿 저장 시에도 계정코드는 마스터 대조를 거친다.</p>
+<p><strong>등재된 템플릿: 0건</strong>(구조만 완성). 실제 케이스는 A5 회계 규칙 확보 후 등록한다 — 승인 없는 계정 조합을 임의로 만들어 두지 않는다.</p>
+<h3 id="33">3.3 문서 (이 폴더)</h3>
+<table>
+<thead>
+<tr>
+<th>문서</th>
+<th>내용</th>
+<th>언제 보나</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>09</strong>(본 문서)</td>
+<td>종합 인수인계·재개 절차</td>
+<td><strong>재개할 때 여기부터</strong></td>
+</tr>
+<tr>
+<td><code>06_결의전표_추진계획</code></td>
+<td>승인 게이트 A1~A5 · 실행 단계 S1~S6 · 확대 로드맵 E1~E5</td>
+<td>남은 일 상세</td>
+</tr>
+<tr>
+<td><code>07_결의전표_연동_종합</code></td>
+<td>구조·현재상태·의사결정 4갈래</td>
+<td>배경·결정 이력</td>
+</tr>
+<tr>
+<td><code>08_결의전표_처리프로세스</code></td>
+<td>등록~확정 7단계 데이터 작업·상태 전이·오류 코드</td>
+<td><strong>구현 이해·디버깅</strong></td>
+</tr>
+<tr>
+<td><code>10_반복전표_자동화_기획</code>(v1.1)</td>
+<td>반복전표 자동화 — ERP 실측 분석(156패밀리·42.2%) + 템플릿 플랫폼 v2 기획, 승인 게이트 B1~B4</td>
+<td><strong>별도 트랙</strong>(파일럿과 독립, 진행하려면 B1~B3 선행)</td>
+</tr>
+<tr>
+<td><code>00_현재상태_스냅샷</code>(v0.22) · <code>02_진행상태</code></td>
+<td>ERP 연계 전체 현황·작업 이력</td>
+<td>연계 전반</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="4-erp-a1a2">4. 실측으로 확정된 ERP 사실 (A1·A2 결과)</h2>
+<p>임의 추정이 아니라 <strong>ERP 실데이터에서 확인한 값</strong>이다. 코드 변경 시 이 표를 근거로 판단한다.</p>
+<table>
+<thead>
+<tr>
+<th>항목</th>
+<th>실측값</th>
+<th>확인일</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>결의전표 헤더</td>
+<td><code>A_TEMP_GL</code> 28,219행</td>
+<td>07-31</td>
+</tr>
+<tr>
+<td>결의전표 라인</td>
+<td><code>A_TEMP_GL_ITEM</code> 294,043행</td>
+<td>07-31</td>
+</tr>
+<tr>
+<td>전기 후 정식 전표</td>
+<td><code>A_GL</code> 34,130 / <code>A_GL_ITEM</code> 305,864</td>
+<td>07-31</td>
+</tr>
+<tr>
+<td>계정과목</td>
+<td><code>A_ACCT</code> → <strong>691행 적재</strong>(BS 268·PL 235·MC 184·미분류 4)</td>
+<td>08-03</td>
+</tr>
+<tr>
+<td>코스트센터</td>
+<td><code>B_COST_CENTER</code> → <strong>133행 적재</strong></td>
+<td>08-03</td>
+</tr>
+<tr>
+<td>차대구분 <code>BAL_FG</code></td>
+<td>DR 507 · CR 184</td>
+<td>08-03</td>
+</tr>
+<tr>
+<td><strong>등록자 <code>INSRT_USER_ID</code></strong></td>
+<td>2026년 <strong>2,947건 전량 이메일형</strong>(고유 76명, 비이메일형 0건)</td>
+<td>08-03</td>
+</tr>
+<tr>
+<td><strong>전표형태 <code>GL_TYPE</code></strong></td>
+<td>2026년 <strong>전량 <code>03</code></strong> 단일값</td>
+<td>08-03</td>
+</tr>
+<tr>
+<td>입력경로 <code>GL_INPUT_TYPE</code></td>
+<td><code>TG</code> 2,177(74%·수기 결의) · UX 426 · AP 245 · AR 82 · FN 9 · DP 6 · AC 2</td>
+<td>08-03</td>
+</tr>
+<tr>
+<td>승인여부 <code>CONF_FG</code></td>
+<td>등록 직후 <code>U</code> → 승인 시 <code>C</code>(C 2,719 / U 228)</td>
+<td>08-03</td>
+</tr>
+<tr>
+<td><strong>전표번호 <code>TEMP_GL_NO</code></strong></td>
+<td><strong><code>TG</code>+YYYYMMDD+4자리 = 14자 고정</strong>(예 <code>TG202608030001</code>)</td>
+<td>08-03</td>
+</tr>
+<tr>
+<td>사업장</td>
+<td><code>BA1</code> 단일 · 부서코드 4자리 체계</td>
+<td>08-03</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="5-4">5. 지금 상태에서 <strong>반드시 알아야 할 것</strong> 4가지</h2>
+<h3 id="51">⚠ 5.1 프로젝트 필수 검증이 무력하다</h3>
+<p>계정과목 <strong>691행 전량 <code>project_fg</code>가 NULL</strong>이다. 서버 재검증 7종 중 5번(프로젝트 필수 계정 강제)이 <strong>어떤 계정에도 걸리지 않는다.</strong>
+ERP 원천이 비어 있는지, 프로젝트 필수 여부를 다른 컬럼·다른 체계로 관리하는지 확인이 필요하다(A5·유니포인트 대상).
+<strong>테스트에서 이 항목이 통과해도 정상 판정으로 오해하지 말 것.</strong></p>
+<h3 id="52">⚠ 5.2 마감월 통제가 비어 있다</h3>
+<p><code>gl_period_lock</code> 등재 0건 → <strong>어떤 결의일자도 막히지 않는다.</strong> 구조는 완비돼 있고 A5에서 기준을 정해 등재하면 즉시 동작한다.</p>
+<h3 id="53">⚠ 5.3 회기입을 "잊는 것"은 막지 못한다</h3>
+<p>ERP에 등록해 놓고 포털에 전표번호를 적지 않으면 초안은 <code>submitted</code>로 남는다. 화면이 경고 표시는 하지만 <strong>근본 해소는 운영 규칙</strong>(S6에서 정할 사항).</p>
+<h3 id="54">⚠ 5.4 남아 있는 테스트 데이터</h3>
+<p><code>DRAFT-20260803-0001</code>(적요 "123", 1원, 전표번호 <code>"1"</code>)이 <code>posted</code> 상태로 남아 있다. <strong>형식 검증 신설 이전에 만들어진 건</strong>이라 현재 규칙(<code>TG</code>+12자리)에 맞지 않는다.
+<code>posted</code>는 화면에서 폐기할 수 없으므로 <strong>정리하려면 DB에서 직접 삭제</strong>해야 한다(감사 로그는 보존 권장).</p>
+<hr />
+<h2 id="6">6. 재개 절차 — 이 순서대로</h2>
+<h3 id="step-1-5">STEP 1. 상태 확인 (5분)</h3>
+<pre><code class="language-sql">-- 마스터 적재 확인 (691 / 133 이어야 정상)
+select 'acct' t, count(*) from erp_ro.acct_master_s
+union all select 'cost', count(*) from erp_ro.cost_center_s;
+
+-- 권한 확인 (accounting 이 어느 부서에도 없어야 = 관리자 전용 유지)
+select module_key, count(*) from public.dept_erp_scope
+ where module_key in ('accounting','finance') group by module_key;
+
+-- 초안 현황
+select draft_no, status, erp_temp_gl_no, owner_upn, posted_at from public.gl_draft order by created_at;
+</code></pre>
+<p>라이브 화면: <code>https://ai.jeilm.co.kr/pages/자금_결의전표_입력_2026.html</code> (관리자 계정으로만 접근)</p>
+<h3 id="step-2-s5-1-e2e">STEP 2. <strong>S5 — 전표 1건 E2E 테스트</strong> ← 다음 할 일</h3>
+<table>
+<thead>
+<tr>
+<th>순</th>
+<th>행위자</th>
+<th>동작</th>
+<th>기대 결과</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>작성자</td>
+<td>화면 진입</td>
+<td>계정 드롭다운 채워짐, <strong>등록자 자동 표기</strong></td>
+</tr>
+<tr>
+<td>2</td>
+<td>작성자</td>
+<td><strong>차·대변 일부러 불일치</strong>시켜 저장</td>
+<td>차단 + 차액 표시(<code>unbalanced</code>)</td>
+</tr>
+<tr>
+<td>3</td>
+<td>작성자</td>
+<td>금액 맞춰 저장 → 제출</td>
+<td><code>DRAFT-…</code> 발급, 상태 <strong>제출됨</strong></td>
+</tr>
+<tr>
+<td>4</td>
+<td>회계 담당자</td>
+<td>「회계 담당자」 탭 요약 확인·복사</td>
+<td>ERP 입력 순서대로 정확히 표시</td>
+</tr>
+<tr>
+<td>5</td>
+<td>회계 담당자</td>
+<td><strong>ERP 결의전표 화면에 직접 입력·저장</strong></td>
+<td><code>TEMP_GL_NO</code> 채번</td>
+</tr>
+<tr>
+<td>6</td>
+<td>회계 담당자</td>
+<td>전표번호 <strong>없이</strong> 확정 시도</td>
+<td>거부(<code>erp_no_required</code>)</td>
+</tr>
+<tr>
+<td>7</td>
+<td>회계 담당자</td>
+<td><strong>잘못된 형식</strong>(예 <code>123</code>)으로 확정 시도</td>
+<td>거부(<code>erp_no_format</code>) ← <strong>08-03 신설</strong></td>
+</tr>
+<tr>
+<td>8</td>
+<td>회계 담당자</td>
+<td>정상 번호 회기입 → 확정</td>
+<td>상태 <strong>확정됨</strong>, 작성자 화면에도 번호 표시</td>
+</tr>
+<tr>
+<td>9</td>
+<td>회계 담당자</td>
+<td><strong>같은 번호</strong>를 다른 초안에 기입</td>
+<td>거부(<code>duplicate_erp_no</code>) + 기존 초안번호 안내</td>
+</tr>
+</tbody>
+</table>
+<p><strong>추가 필수 — 서버 검증 우회 시도</strong>(화면을 거치지 않고 API 직접 호출):
+①차대 불일치 ②존재하지 않는 계정코드 ③타인 UPN → <strong>전부 거부되어야 한다.</strong> 프론트 검증만으로는 불충분(CLAUDE.md §5.4).
+※ 유효한 Entra 토큰이 필요해 <strong>아직 미실행</strong>인 항목이다.</p>
+<p><strong>마지막</strong>: <code>select * from public.gl_draft_log order by created_at;</code> 로 전 동작이 기록됐는지 확인.</p>
+<h3 id="step-3-a5-s4">STEP 3. A5 확보 → S4 (테스트 통과 후)</h3>
+<p>회계 담당에게 받을 것: ①경비 지출결의 계정과목 후보 ②기본 상대계정(미지급금 vs 보통예금) ③부가세 처리 여부 ④회계기간 마감 기준
+→ 화면 계정 드롭다운을 후보로 좁히고(<code>bs_pl_fg</code> 필터 또는 목록 지정), 마감월을 <code>gl_period_lock</code>에 등재.</p>
+<h3 id="step-4">STEP 4. 실사용 직전</h3>
+<ul>
+<li><code>/security-review</code> 실행 — <strong>금액이 담기는 첫 포털 쓰기 기능</strong>이다</li>
+<li>A3·A4 재판단(부서 부여·파일럿 대상자) — 사람에게 열 때 필요</li>
+<li>테스트 데이터 정리(§5.4)</li>
+</ul>
+<h3 id="step-5-s6">STEP 5. S6 회고 → 확대 판단</h3>
+<p>전표 5~10건 처리 후 판단한다. <strong>자동으로 확대하지 않는다.</strong>
+점검 질문: 실무자가 ERP보다 쉽다고 느끼는가 / <strong>회계 담당자의 이중 작업이 감당 가능한가</strong>(최대 약점) / 회기입이 실제로 지켜지는가 / 어떤 케이스가 더 필요한가.</p>
+<hr />
+<h2 id="7-e3">7. 확대 시 반드시 짚을 갈림길 — E3</h2>
+<table>
+<thead>
+<tr>
+<th>단계</th>
+<th>내용</th>
+<th>선결 조건</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>E1</td>
+<td>케이스 확대(법인카드·세금계산서 매입)</td>
+<td>파일럿 성공 + 회계 규칙. <strong>부가세 로직 필요</strong></td>
+</tr>
+<tr>
+<td>E2</td>
+<td>대상자 확대(부서→전사)</td>
+<td>S6 통과. <strong>회계 담당자 부하가 병목</strong></td>
+</tr>
+<tr>
+<td><strong>E3</strong></td>
+<td><strong>ERP 자동 등록(쓰기 API)</strong></td>
+<td><strong>유니포인트 협의 + 경영 승인.</strong> 현재 절대규칙상 불가</td>
+</tr>
+<tr>
+<td>E4</td>
+<td>그룹웨어 전자결재 연동</td>
+<td>E3 + 그룹웨어 API</td>
+</tr>
+<tr>
+<td>E5</td>
+<td>내 전표의 ERP 승인 상태 조회</td>
+<td><code>A_TEMP_GL</code> 조회 개방 승인</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>현재 구조는 "포털 입력 + 회계 담당자가 ERP 재입력"이라 회계팀 일이 오히려 늘어난다.</strong>
+파일럿(1~2명)은 감당되지만 부서·전사로 넓히면 회계 담당자가 병목이 된다.
+<strong>실무 확대를 원한다면 E3 협의를 언제 의제에 올릴지가 실질적인 의사결정 지점이다.</strong></p>
+</blockquote>
+<hr />
+<h2 id="8">8. 미결정 사항</h2>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>안건</th>
+<th>언제까지</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>U-1</td>
+<td>부가세 처리(<code>VAT_TYPE</code>·<code>VAT_AMT</code> 계산 규칙)</td>
+<td>케이스 확대(E1) 전</td>
+</tr>
+<tr>
+<td>U-2</td>
+<td>프로젝트 필수 계정 범위 — <strong>§5.1과 직결</strong>(현재 전량 NULL)</td>
+<td>A5와 함께</td>
+</tr>
+<tr>
+<td>U-3</td>
+<td>초안 보존기간(<code>gl_draft</code>·<code>gl_draft_log</code>)</td>
+<td><strong>실사용 시작 전</strong></td>
+</tr>
+<tr>
+<td>U-4</td>
+<td>확정 권한 분리 — 현재 <code>finance</code> 보유자 전체</td>
+<td>S3 권한 부여 시</td>
+</tr>
+<tr>
+<td>U-5</td>
+<td>E3(쓰기 API) 착수 시점</td>
+<td>S6 회고 시</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="9">9. 작업 환경 메모 (재개 시 필요)</h2>
+<ul>
+<li><strong>ERP 접속</strong>: <code>10_ERP_DB연계/etl/_erp_conn.py</code> — 환경변수 <code>ERP_DB_CONN</code> 우선, 없으면 관리자 PC <code>%USERPROFILE%\.erp\</code>(DPAPI) 폴백. <strong>비밀값은 문서·코드에 기록 금지</strong></li>
+<li><strong>ETL 실행</strong>: <code>python 10_ERP_DB연계/etl/etl_run.py --job acct_master [--dry-run]</code></li>
+<li><strong>Edge Function 배포</strong>: 현재 v2 ACTIVE. 20KB라 MCP 인라인 배포 가능(<code>jeil-chat</code>처럼 CLI 필수인 크기 아님)</li>
+<li><strong>문서 빌드</strong>: <code>.md</code> 수정 → <code>python 10_ERP_DB연계/_build_html.py</code> → <code>python _sync_mirror.py</code>(OneDrive 정책관리 미러). <code>07</code>·<code>08</code>은 자체완결 HTML이라 직접 편집</li>
+<li><strong>git 상태(2026-08-03 기준)</strong>: 최신 커밋 <code>2de5292</code>(결의전표 배포). 이후 변경분(<code>jeil-gl-draft</code> v2 소스·화면 전표형태·문서 다수)은 <strong>미커밋</strong> — 재개 시 <code>git status</code>로 확인 후 커밋</li>
+</ul>
+<hr />
+<h2 id="10">10. 변경 이력</h2>
+<table>
+<thead>
+<tr>
+<th>일자</th>
+<th>변경 내용</th>
+<th>작성</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>2026-08-18</td>
+<td><strong>「전표복사」 기능 신설·배포 + 결의전표 원장 미러링 결정(C-10)</strong>(v1.3) — 회계 담당자가 본인이 ERP에 입력한 결의전표를 기간·검색으로 조회→라인·관리항목 미리보기→복사해 초안을 시작하는 「전표복사」 탭을 신설했다(결의일자는 오늘로 새로, 참조번호는 미복사, 이후는 기존 초안 흐름). <strong>관리자 결정 C-10</strong>(§2)으로 기존 <strong>C-7("코드 마스터만 적재")을 확장</strong> — 결의전표 원장(<code>A_TEMP_GL</code> 3종: 헤더·라인·관리항목)을 중간DB에 미러링하기로 했다(통제 3중: RLS 전면차단+RPC 단일경로 / 조회 RPC 소유 필터 강제 / 민감 관리항목 ETL 단계 NULL 마스킹). 마이그레이션 <code>gl_slip_mirror_v1</code>+<code>gl_slip_synced_at_v1</code>(<code>erp_ro.gl_slip_s</code>·<code>gl_slip_item_s</code>·<code>gl_slip_ctrl_s</code>), 정본 DDL <code>이관/sql/25_gl_slip_mirror.sql</code>, ETL job 3종(<code>gl_slip</code>·<code>gl_slip_item</code>·<code>gl_slip_ctrl</code>), Edge Function <code>jeil-gl-draft</code> <strong>v5</strong>(op <code>slip_list</code>·<code>slip_get</code>). ERP운영DB dry-run 3종 성공(3,224·16,865·42,371행). <strong>잔여 — 관리자 직접 실행 대기</strong>: <code>--job gl_slip</code>→<code>gl_slip_item</code>→<code>gl_slip_ctrl</code> 순 실적재(§3.2), 완료 후 확인 2건(batch_run success·민감 관리항목 마스킹 실측), 야간배치 편입. §1·§2·§3.1·§3.2 갱신</td>
+<td>최동혁(+Claude)</td>
+</tr>
+<tr>
+<td>2026-08-11</td>
+<td><strong>반복전표 자동화 트랙 등재</strong>(v1.2) — 별도 신규 문서 <code>10_반복전표_자동화_기획.md</code>(v1.1, ERP 2026년 결의전표 2,287건 전수 분석 + 템플릿 플랫폼 v2 기획)를 §3.3 문서 표·§1 요약에 등재. 이 트랙은 S5 E2E 테스트(다음 할 일)와 독립이며 승인 게이트 B1~B4가 별도로 남는다. 06(추진계획)은 파일럿 전용으로 그대로 유지</td>
+<td>최동혁(+Claude)</td>
+</tr>
+<tr>
+<td>2026-08-05</td>
+<td><strong>템플릿 플랫폼 기본 구성</strong>(v1.1) — <code>gl_template</code>·<code>gl_template_item</code> 신설(마이그레이션 <code>gl_template_v1</code>, 정본 <code>22_gl_template.sql</code>), Edge Function v3 op 6종 추가(<code>tpl_list</code>·<code>tpl_get</code>·<code>tpl_save</code>·<code>tpl_status</code>·<code>tpl_delete</code>·<code>tpl_use</code>), 화면 4번째 탭「템플릿 관리」+ 작성 탭 템플릿 카드·총액 배분·차액 채우기. <strong>템플릿 등재 0건 — 케이스는 ERP_DB 기준 확정 후 입력</strong>. 부수: 계정 <code>bal_fg</code> 실측값이 <code>DR/CR</code>인데 화면이 <code>D/C</code>로 비교하던 차대 자동제안 버그 수정</td>
+<td>최동혁(+Claude)</td>
+</tr>
+<tr>
+<td>2026-08-03</td>
+<td>최초 작성(v1.0) — 06·07·08과 작업 이력을 취합한 <strong>종합 인수인계·재개 진입점</strong>. 확정 결정 9건, 실측 ERP 사실 12항목, 반드시 알아야 할 것 4건, 재개 절차 5단계(다음 할 일 = S5 E2E 테스트), 확대 갈림길 E3, 미결정 5건, 작업 환경 메모 정리</td>
+<td>최동혁(+Claude)</td>
+</tr>
+</tbody>
+</table>
+  </div>
+  <div class="footer"><span>JEIL M&amp;S · ERP DB 연계 관제</span><span>09 결의전표 인수인계 · 관리: 최동혁</span></div>
+</div>
+</body>
+</html>

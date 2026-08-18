@@ -42,7 +42,7 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <body>
 <div class="page">
   <span class="doc-label">JEIL AX ERP DB 연계 · 대외비</span>
-  <div class="docnav"><a href="index.html">🏠 연계 허브</a><a href="00_현재상태_스냅샷.html">00 현재상태</a><a href="01_연계기획.html">01 연계기획</a><a href="02_진행상태.html">02 진행상태</a><a href="03_중간DB_구축실행기획.html">03 중간DB 실행기획</a><a href="04_증분동기화_확장_거버넌스_기획.html">04 증분·확장·거버넌스</a><a href="05_사용자부서_매핑대사.html">05 사용자-부서 매핑</a><a class="cur" href="06_결의전표_추진계획.html">06 결의전표 추진계획</a><a href="README.md">README</a></div>
+  <div class="docnav"><a href="index.html">🏠 연계 허브</a><a href="00_현재상태_스냅샷.html">00 현재상태</a><a href="01_연계기획.html">01 연계기획</a><a href="02_진행상태.html">02 진행상태</a><a href="03_중간DB_구축실행기획.html">03 중간DB 실행기획</a><a href="04_증분동기화_확장_거버넌스_기획.html">04 증분·확장·거버넌스</a><a href="05_사용자부서_매핑대사.html">05 사용자-부서 매핑</a><a class="cur" href="06_결의전표_추진계획.html">06 결의전표 추진계획</a><a href="09_결의전표_인수인계.html">09 결의전표 인수인계</a><a href="10_반복전표_자동화_기획.html">10 반복전표 자동화</a><a href="README.md">README</a></div>
   <p class="md-link">📄 Markdown 원본: <a href="06_결의전표_추진계획.md">06_결의전표_추진계획.md</a> · 허브 <a href="index.html">연계 허브</a></p>
   <div class="content">
 <h1 id="06">06. 결의전표 입력(초안) — 향후 추진계획</h1>
@@ -66,7 +66,7 @@ ETL job 2종  ──┘                 A4 대상자 지정                     
                                                                           [판단] 확대 여부
 </code></pre>
 <p>~~<strong>가장 먼저 할 일 단 하나</strong>: A1(회계 코드 마스터 조회 승인)~~ → <strong>완료(2026-08-03)</strong>. S1 실적재까지 끝났다.
-<strong>다음 할 일</strong>: <strong>S5 전표 1건 E2E 테스트</strong>(관리자 계정으로 실행 가능). A2·A5가 없어도 전표형태·계정 선택지를 잠정값으로 두고 흐름 검증은 가능하다.</p>
+<strong>다음 할 일</strong>: <strong>S5 전표 1건 E2E 테스트</strong>(관리자 계정으로 실행 가능). <strong>A2도 완료(2026-08-03)</strong> 되어 전표형태·등록자 형식·전표번호 형식이 실측 확정됐다 — 남은 승인은 <strong>A5(회계 규칙)</strong> 하나뿐이며, 계정 선택지를 좁히는 문제라 테스트 진행에는 지장이 없다.</p>
 <hr />
 <h2 id="2">2. 승인 게이트 (사람이 결정 — 임의 진행 금지)</h2>
 <table>
@@ -88,8 +88,8 @@ ETL job 2종  ──┘                 A4 대상자 지정                     
 <td>경영/재무</td>
 </tr>
 <tr>
-<td><strong>A2</strong></td>
-<td><code>A_TEMP_GL</code> <strong>샘플 5~10건</strong> 조회</td>
+<td>~~<strong>A2</strong>~~ ✅</td>
+<td>~~<code>A_TEMP_GL</code> <strong>샘플 5~10건</strong> 조회~~ <strong>승인·실행 완료(2026-08-03)</strong> — 등록자 전량 이메일형 확정 · <code>GL_TYPE</code>=<code>03</code> 단일 · <code>TEMP_GL_NO</code>=<code>TG</code>+8자리+4자리 → 형식 검증 신설</td>
 <td>등록자(<code>INSRT_USER_ID</code>) 실제 형식과 <code>GL_TYPE</code>·<code>GL_INPUT_TYPE</code> 실코드 확인. 관리자 지시사항 "기존 데이터 샘플링 확인"의 실행 근거</td>
 <td>전표형태 선택지가 잠정값으로 남고, 등록자 매핑이 추정에 머문다. ERP 등록 시 값이 안 맞을 위험</td>
 <td>경영/재무</td>
@@ -142,7 +142,15 @@ python 10_ERP_DB연계/etl/etl_run.py --job cost_center
 - <code>etl_meta.batch_run</code>에 success 2건, <code>rows_read = rows_upserted</code>(유실 0)
 - 화면 새로고침 시 "계정과목 마스터가 아직 적재되지 않았습니다" 배너가 사라지고 계정 드롭다운이 채워짐
 - <code>erp_load_scope</code>의 <code>accounting/acct_master</code>·<code>cost_center</code>를 <strong><code>loaded</code>로 기록</strong>(관리자 콘솔 「미연계 항목 현황」)</p>
-<h3 id="s2-a2">S2. 전표형태·등록자 형식 확정 — <em>선행: A2</em></h3>
+<h3 id="s2-2026-08-03">✅ S2. 전표형태·등록자 형식 확정 — <strong>완료(2026-08-03)</strong></h3>
+<blockquote>
+<p><strong>실측 결과</strong>: 등록자 <code>INSRT_USER_ID</code> 2026년 <strong>2,947건 전량 이메일형</strong>(고유 76명) → 자동매핑 확정, 보정 불필요.
+<code>GL_TYPE</code> <strong>전량 <code>03</code></strong> 단일값 → 드롭다운을 <code>03 · 일반전표</code> 단일 옵션으로 확정 + 서버 기본값 <code>GL_TYPE_DEFAULT</code>.
+<code>GL_INPUT_TYPE</code> — 수기 결의는 <code>TG</code>(2,177건·74%), 나머지(UX·AP·AR·FN·DP·AC)는 타 모듈 자동생성분.
+<code>CONF_FG</code> — 등록 직후 <code>U</code> → 승인 시 <code>C</code>(C 2,719 / U 228).
+<strong><code>TEMP_GL_NO</code> = <code>TG</code>+YYYYMMDD+4자리(14자 고정)</strong> → Edge Function에 형식 검증 <code>erp_no_format</code> 신설·배포(v2).
+아래는 확인 항목 원안(기록 보존).</p>
+</blockquote>
 <p><code>A_TEMP_GL</code> 최근 건에서 확인할 것:</p>
 <table>
 <thead>
@@ -372,6 +380,11 @@ python 10_ERP_DB연계/etl/etl_run.py --job cost_center
 </tr>
 </thead>
 <tbody>
+<tr>
+<td>2026-08-03</td>
+<td>v1.2 — <strong>A2 승인·S2 완료</strong>. 등록자 전량 이메일형(2,947건) 실측으로 자동매핑 확정, <code>GL_TYPE</code>=<code>03</code> 단일값으로 드롭다운 확정, <code>TEMP_GL_NO</code> 형식(<code>TG</code>+12자리) 확인 후 <strong>Edge Function에 형식 검증 <code>erp_no_format</code> 신설·v2 배포</strong>(임의값 확정 처리 공백 차단). 남은 승인은 A5 하나</td>
+<td>최동혁(+Claude)</td>
+</tr>
 <tr>
 <td>2026-08-03</td>
 <td>v1.1 — <strong>A1 승인·S1 실적재 완료</strong> 반영(계정과목 691행·코스트센터 133행, 연동 현황 뷰 13종 확장, <code>erp_load_scope</code> <code>loaded</code> 기록). <strong>A3·A4는 보류 결정</strong>(테스트 단계 한정 — <code>accounting</code> 모듈 부서 미부여, 전체관리자만 사용). 다음 할 일을 A1 → <strong>S5 E2E 테스트</strong>로 전환. 발견 1건(<code>project_fg</code> 전량 NULL → 서버 검증 5번 무력) 등재</td>

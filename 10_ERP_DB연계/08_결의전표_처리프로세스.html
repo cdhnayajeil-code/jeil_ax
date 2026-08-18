@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>결의전표 처리 프로세스 — 등록부터 ERP 확정 기록까지</title>
+<style>
+:root{--navy:#1a2f4e;--navy2:#27457a;--accent:#2f6fb3;--red:#b3402f;--green:#2e7d52;--amber:#9a6b1f;
+--ink:#222;--ink2:#4a5568;--muted:#6b7280;--line:#d8dee8;--bg:#f4f6f9;--soft:#eef2f8;--track:#e3e9f2;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;color:var(--ink);background:var(--bg);line-height:1.62;font-size:15px;}
+.page{max-width:1120px;margin:0 auto;background:#fff;padding:48px 56px 60px;box-shadow:0 2px 14px rgba(0,0,0,.08);min-height:100vh;}
+.doc-label{display:inline-block;background:var(--navy);color:#fff;font-size:12px;letter-spacing:.16em;padding:5px 14px;border-radius:3px;margin-bottom:14px;}
+h1{font-size:27px;color:var(--navy);margin:4px 0 6px;letter-spacing:-.01em;}
+.sub{color:var(--muted);font-size:13.5px;margin-bottom:24px;}
+.sub b{color:var(--ink2);}
+h2{font-size:17.5px;color:var(--navy);margin:40px 0 6px;padding-bottom:7px;border-bottom:2px solid var(--navy);letter-spacing:-.01em;}
+h2 .h2sub{font-size:12.5px;color:var(--muted);font-weight:400;letter-spacing:0;margin-left:8px;}
+h3{font-size:14.5px;color:var(--navy2);margin:24px 0 8px;}
+p{margin:8px 0;}
+
+.headline{background:var(--soft);border-left:5px solid var(--navy);border-radius:0 8px 8px 0;padding:16px 22px;margin-bottom:24px;font-size:14.5px;color:#33425a;}
+.headline .lead{display:block;font-size:16px;color:var(--navy);font-weight:700;margin-bottom:6px;}
+.headline b{color:var(--navy2);}
+
+.callout{border-radius:8px;padding:13px 18px;margin:14px 0;font-size:13.5px;}
+.callout.warn{background:#fdf8ee;border-left:4px solid var(--amber);color:#5c4517;}
+.callout.stop{background:#fbeceb;border-left:4px solid var(--red);color:#6d2b20;}
+.callout.ok{background:#eef7f1;border-left:4px solid var(--green);color:#1f5238;}
+
+pre.flow{background:#fbfcfe;border:1px solid var(--line);border-radius:8px;padding:16px 18px;font-family:Consolas,'D2Coding',monospace;font-size:12.1px;line-height:1.75;color:var(--ink2);overflow-x:auto;margin:12px 0;}
+
+table{width:100%;border-collapse:collapse;font-size:13.3px;margin:10px 0 4px;}
+th{background:var(--soft);color:var(--navy2);font-size:12px;letter-spacing:.03em;text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);font-weight:600;vertical-align:bottom;}
+td{padding:9px 10px;border-bottom:1px solid #eef1f6;vertical-align:top;}
+tr:last-child td{border-bottom:none;}
+td.c{text-align:center;}
+td.id{font-weight:700;color:var(--navy);white-space:nowrap;font-variant-numeric:tabular-nums;}
+.tbl-scroll{overflow-x:auto;}
+
+.chip{display:inline-block;font-size:11px;border-radius:11px;padding:2px 9px;white-space:nowrap;background:var(--soft);color:var(--navy2);border:1px solid transparent;}
+.chip.ok{background:#e7f3ec;color:var(--green);border-color:#c4e2d1;}
+.chip.wait{background:#fdf3e0;color:var(--amber);border-color:#ecd9b0;}
+.chip.no{background:#fbeceb;color:var(--red);border-color:#eecdc9;}
+.chip.info{background:#e8f0f9;color:var(--accent);border-color:#c9dcf0;}
+.chip.grey{background:#eef0f3;color:var(--muted);}
+
+/* 단계 카드 */
+.step{border:1px solid var(--line);border-radius:10px;margin:14px 0;overflow:hidden;background:#fff;}
+.step > .hd{display:flex;align-items:center;gap:12px;padding:12px 18px;background:var(--soft);border-bottom:1px solid var(--line);}
+.step > .hd .n{width:26px;height:26px;flex:0 0 26px;border-radius:50%;background:var(--navy);color:#fff;font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center;}
+.step > .hd .t{font-size:15px;font-weight:700;color:var(--navy);}
+.step > .hd .who{margin-left:auto;font-size:12px;color:var(--muted);}
+.step > .bd{padding:14px 18px 16px;}
+.step .lead{font-size:13.8px;color:var(--ink2);margin-bottom:10px;}
+.step table{margin:6px 0 0;font-size:12.9px;}
+.step th{font-size:11.5px;}
+.wr{background:#f7fbf8;}
+.rd{background:#fdf7f6;}
+
+ul.plain{margin:8px 0 4px 20px;font-size:13.5px;color:var(--ink2);}
+ul.plain li{margin-bottom:6px;}
+code{background:var(--soft);border:1px solid var(--line);border-radius:4px;padding:1px 6px;font-size:12px;font-family:Consolas,monospace;}
+.note{font-size:12.5px;color:var(--muted);margin-top:10px;}
+a{color:var(--accent);}
+.footer{margin-top:46px;padding-top:14px;border-top:1px solid var(--line);font-size:12px;color:var(--muted);display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;}
+@media (max-width:760px){.page{padding:28px 18px 40px;}.step > .hd .who{display:none;}}
+@media print{body{background:#fff;}.page{box-shadow:none;padding:0;}.step{break-inside:avoid;}}
+</style>
+</head>
+<body>
+<div class="page">
+
+  <span class="doc-label">JEIL AX ERP DB 연계 · 대외비</span>
+  <h1>결의전표 처리 프로세스</h1>
+  <p class="sub">등록 → 검증 → 제출 → ERP 등록 → <b>확정 기록</b>까지 · 단계별 데이터 작업 명세<br>
+  작성 <b>2026-08-03</b> · 관리: 최동혁 · 기준: <code>jeil-gl-draft</code> v1 구현 · <b>파생 정리 뷰</b>(원천: <code>06 추진계획</code>·<code>07 연동 종합</code>·<code>이관/sql/21_gl_draft.sql</code>)<br>
+  비밀값(접속 IP/ID/비밀번호) 미기재 — 서버 지칭은 별칭 <b>&ldquo;ERP운영DB&rdquo;</b>만 사용.</p>
+
+  <div class="headline">
+    <span class="lead">가장 중요한 한 가지 — 포털은 ERP에 쓰지 않습니다.</span>
+    포털이 하는 일은 <b>검증된 초안을 만드는 것</b>까지입니다. ERP에 실제로 등록하는 행위는 <b>회계 담당자가 ERP 화면에서 직접</b> 합니다.
+    포털의 &ldquo;확정&rdquo;은 전표를 만드는 동작이 아니라, <b>사람이 이미 등록한 결과(전표번호)를 받아 적는 기록 동작</b>입니다.
+    이 되받아 적기가 <b>같은 전표가 ERP에 두 번 들어가는 것을 막는 유일한 장치</b>이며, DB 제약으로 강제돼 있습니다.
+  </div>
+
+  <h2>1. 전체 흐름 <span class="h2sub">누가 · 어디서 · 무엇을 쓰나</span></h2>
+
+<pre class="flow">   작성자(직원)              포털 서버                    회계 담당자              ERP운영DB
+   ─────────────             ─────────────                ─────────────            ─────────────
+①  입력 화면 작성
+    (계정·금액·적요)
+        │ save
+        ▼
+②                      <b>서버 재검증 7종</b>
+                       차대일치·계정유효·금액
+                       ·라인수·프로젝트·마감월
+                       ·등록자 매핑
+                            │ 통과
+                            ▼
+③                      gl_draft        ← INSERT (status=<b>draft</b>)
+                       gl_draft_item   ← INSERT (라인 전량)
+                       gl_draft_log    ← INSERT (save)
+        │ submit
+        ▼
+④                      gl_draft.status = <b>submitted</b>
+                       submitted_at 기록
+                            │                          목록에 노출
+                            └────────────────────────────▶ 검토 · ERP 입력용
+                                                            요약 복사
+                                                              │
+⑤                                                            └──▶ ERP 결의전표 화면에
+                                                                   <b>사람이 직접 입력·저장</b>
+                                                                   A_TEMP_GL      ← INSERT
+                                                                   A_TEMP_GL_ITEM ← INSERT
+                                                                   TEMP_GL_NO 채번 ┐
+                                                              ┌──────────────────┘
+                                                              ▼
+⑥                      <b>확정 기록(post)</b>          전표번호 회기입
+                       중복 전표번호 검사
+                       gl_draft.status = <b>posted</b>
+                       erp_temp_gl_no · posted_by
+                       · posted_at 기록
+                       gl_draft_log ← INSERT (post)
+                                                                        │
+⑦  내 초안 화면에                                         (이후 ERP 내부) │
+    전표번호 표시  ◀───────────────────────────────                      ▼
+                                                                   회계 승인 → GL_NO 채번
+                                                                   → A_GL / A_GL_ITEM 전기
+                                                                   <span class="chip grey">포털 범위 밖</span></pre>
+
+  <div class="callout warn">
+    <b>포털이 ERP DB에 접근하는 경로는 단 하나, 읽기 전용 야간 ETL뿐입니다.</b>
+    계정과목(<code>A_ACCT</code> 691행)·코스트센터(<code>B_COST_CENTER</code> 133행)를 중간DB로 복제해 드롭다운에 씁니다.
+    ⑤단계의 ERP 쓰기는 <b>사람이 ERP 화면에서</b> 하는 것이지 포털이 하는 것이 아닙니다.
+  </div>
+
+  <h2>2. 단계별 데이터 작업 <span class="h2sub">각 단계에서 실제로 무엇이 쓰이나</span></h2>
+
+  <div class="step">
+    <div class="hd"><span class="n">1</span><span class="t">화면 진입 · 초기 적재</span><span class="who">작성자 · <code>op: bootstrap</code></span></div>
+    <div class="bd">
+      <p class="lead">화면을 열면 서버가 신원·권한·마스터를 한 번에 내려줍니다. 이 응답으로 <b>드롭다운이 채워지고 저장 가능 여부가 결정</b>됩니다.</p>
+      <div class="tbl-scroll">
+      <table>
+        <thead><tr><th style="width:150px">읽는 것</th><th>내용</th><th style="width:150px">화면 반영</th></tr></thead>
+        <tbody>
+          <tr><td><code>gl_master_get()</code></td><td>계정과목 <b>691</b> · 코스트센터 <b>133</b> · 부서 <b>107</b></td><td>계정·코스트센터·부서 드롭다운</td></tr>
+          <tr><td><code>gl_erp_user(upn)</code></td><td>MS 계정 → ERP 사용자 ID 매핑(<code>lower()</code> 비교)</td><td>등록자 자동 표기(수정 불가)</td></tr>
+          <tr><td><code>perm_effective(upn)</code></td><td><code>accounting</code>(입력) · <code>finance</code>(확정) 보유 여부</td><td>탭 노출·저장 버튼 활성</td></tr>
+          <tr><td><code>gl_period_lock</code></td><td>잠긴 회계기간 목록</td><td>결의일자 선택 제한</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <p class="note"><b>쓰기:</b> <code>gl_draft_log</code>에 <code>bootstrap</code> 1행(누가 언제 화면을 열었는지).</p>
+      <div class="callout stop" style="margin-bottom:0">
+        <b>여기서 막히면 아무것도 못 합니다.</b> ① ERP 사용자 매핑 실패 → <code>erp_user_mapped=false</code>, 저장 불가 안내
+        ② 계정과목 0행 → <code>accounts_loaded=false</code>, 저장 시 <code>master_empty</code> 503 ③ 권한 없음 → 화면 자체가 차단(<code>_access-gate.js</code>).
+      </div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="hd"><span class="n">2</span><span class="t">저장 — 서버 재검증 7종</span><span class="who">작성자 · <code>op: save</code></span></div>
+    <div class="bd">
+      <p class="lead">검증은 <b>전부 서버에서</b> 다시 합니다. 화면 검증은 사용성일 뿐이고, 화면을 거치지 않고 API를 직접 호출해도 동일하게 막힙니다.</p>
+      <div class="tbl-scroll">
+      <table>
+        <thead><tr><th style="width:34px">#</th><th style="width:150px">검증</th><th>판정 방식</th><th style="width:130px">실패 코드</th></tr></thead>
+        <tbody>
+          <tr><td class="id">1</td><td>등록자 매핑</td><td>JWT의 UPN으로 ERP 사용자 ID 조회 — <b>화면 입력값은 아예 쓰지 않음</b></td><td><code>erp_user_unmapped</code> 409</td></tr>
+          <tr><td class="id">2</td><td>마감월</td><td>결의일자의 <code>YYYY-MM</code>이 <code>gl_period_lock</code>에 잠겨 있는지</td><td><code>period_locked</code> 409</td></tr>
+          <tr><td class="id">3</td><td>라인 수</td><td>2줄 이상 50줄 이하(분개가 성립해야 함)</td><td>400</td></tr>
+          <tr><td class="id">4</td><td>계정 유효</td><td>마스터에 실재하는 코드인지 — 코드로 계정명·차대구분을 <b>서버가 다시 채움</b></td><td>400(줄 번호 표시)</td></tr>
+          <tr><td class="id">5</td><td>프로젝트 필수</td><td>계정의 <code>project_fg='Y'</code>면 프로젝트 없이 저장 불가</td><td>400 <span class="chip no">현재 무력</span></td></tr>
+          <tr><td class="id">6</td><td>금액</td><td>0보다 큰 <b>원 단위 정수</b></td><td>400(줄 번호 표시)</td></tr>
+          <tr><td class="id">7</td><td>차대 일치</td><td><b>화면이 보낸 합계를 믿지 않고 라인에서 재계산</b>해 비교</td><td><code>unbalanced</code> 400(차액 표시)</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <p class="note">추가 제한: 적요 200자(ERP <code>nvarchar(200)</code>) · 참조번호 30자 · 사용자당 미확정 초안 30건(<code>too_many_drafts</code> 429).</p>
+      <div class="tbl-scroll">
+      <table>
+        <thead><tr><th style="width:150px">쓰는 것</th><th>내용</th></tr></thead>
+        <tbody>
+          <tr class="wr"><td><code>gl_draft</code></td><td>신규면 INSERT(<code>draft_no</code> 자동 채번 <code>DRAFT-YYYYMMDD-nnnn</code>) · 수정이면 UPDATE.
+            <b>서버가 채우는 값</b>: <code>owner_upn</code>·<code>owner_erp_usr_id</code>·<code>owner_nm</code>(JWT 기준) · <code>dr_total</code>·<code>cr_total</code>(재계산값) · <code>status='draft'</code></td></tr>
+          <tr class="wr"><td><code>gl_draft_item</code></td><td>수정 시 <b>기존 라인 전량 삭제 후 재삽입</b>(부분 수정 없음 — 합계와 라인의 불일치를 원천 차단).
+            <code>item_seq</code>는 1부터 재부여, <code>acct_nm</code>은 마스터에서 서버가 채움</td></tr>
+          <tr class="wr"><td><code>gl_draft_log</code></td><td><code>save</code> 1행(라인 수·차변합·대변합·신규 여부)</td></tr>
+        </tbody>
+      </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="hd"><span class="n">3</span><span class="t">제출</span><span class="who">작성자 · <code>op: submit</code></span></div>
+    <div class="bd">
+      <p class="lead">회계 담당자 목록에 올리는 단계입니다. 여기서 <b>차대 일치를 한 번 더</b> 확인합니다(저장 이후 데이터가 바뀌었을 가능성 차단).</p>
+      <div class="tbl-scroll">
+      <table>
+        <thead><tr><th style="width:150px">검사</th><th>조건</th><th style="width:110px">불충족 시</th></tr></thead>
+        <tbody>
+          <tr><td>본인 확인</td><td><code>owner_upn</code>이 호출자와 같을 것 — <b>남의 초안은 제출 불가</b></td><td>403</td></tr>
+          <tr><td>상태</td><td><code>draft</code>일 것(이미 제출된 건 재제출 불가)</td><td>409</td></tr>
+          <tr><td>차대 일치</td><td><code>dr_total = cr_total</code></td><td>400</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <p class="note"><b>쓰기:</b> <code>gl_draft.status='submitted'</code> · <code>submitted_at</code> · <code>gl_draft_log</code>(submit).</p>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="hd"><span class="n">4</span><span class="t">회계 담당자 검토</span><span class="who">회계 담당자 · <code>op: list</code> / <code>get</code></span></div>
+    <div class="bd">
+      <p class="lead">제출된 초안을 목록으로 보고, 1건을 열어 <b>ERP 입력용 요약</b>(ERP 화면 입력 순서대로 나열 + 복사 버튼)을 확인합니다.</p>
+      <ul class="plain">
+        <li><code>list</code> — <code>finance</code> 모듈 보유자 또는 관리자만 호출 가능(그 외 403). 기본은 <code>submitted</code>만, 최대 300건</li>
+        <li><code>get</code> — <b>본인 초안이거나 확정 권한자</b>만 열람 가능. 그 외에는 403이며 <code>gl_draft_log</code>에 <code>denied</code>로 남습니다</li>
+        <li>읽기 전용 단계입니다 — 상태 변화 없음, <code>view</code> 감사 로그만 기록</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="hd"><span class="n">5</span><span class="t">ERP 등록 — 사람이 직접</span><span class="who">회계 담당자 · <b>ERP 화면</b></span></div>
+    <div class="bd">
+      <p class="lead"><b>포털은 이 단계에 관여하지 않습니다.</b> 회계 담당자가 ERP 결의전표 화면에 요약 값을 입력해 저장하고, ERP가 전표번호를 채번합니다.</p>
+      <div class="tbl-scroll">
+      <table>
+        <thead><tr><th style="width:170px">ERP 테이블</th><th>기록되는 것</th><th style="width:150px">포털 대응</th></tr></thead>
+        <tbody>
+          <tr class="rd"><td><code>A_TEMP_GL</code></td><td>결의전표 헤더 — <code>TEMP_GL_NO</code>(<b><code>TG</code>+YYYYMMDD+4자리</b> 채번) · <code>TEMP_GL_DT</code> · <code>GL_TYPE='03'</code> · <code>GL_INPUT_TYPE='TG'</code>(수기 결의) · <code>INSRT_USER_ID</code>(등록자, 이메일형) · <code>CONF_FG='U'</code>(미승인)</td><td><code>gl_draft</code> 헤더</td></tr>
+          <tr class="rd"><td><code>A_TEMP_GL_ITEM</code></td><td>분개 라인 — <code>ACCT_CD</code>·<code>DR_CR_FG</code>·<code>ITEM_AMT</code>·<code>ITEM_DESC</code>·<code>BP_CD</code>·<code>COST_CD</code></td><td><code>gl_draft_item</code></td></tr>
+        </tbody>
+      </table>
+      </div>
+      <div class="callout warn" style="margin-bottom:0">
+        <b>등록자가 왜 중요한가</b> — 그룹웨어 전자결재가 <b>전표등록자를 기준</b>으로 돌아갑니다.
+        그래서 포털은 등록자를 MS 계정(UPN)에서만 취득하고, ERP 사용자 마스터에 매핑되지 않으면 초안 생성 자체를 거부합니다.
+        ERP 계정이 없는 사람 명의로 전표가 만들어지는 것을 막기 위해서입니다.
+      </div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="hd"><span class="n">6</span><span class="t">확정 기록 — 전표번호 회기입</span><span class="who">회계 담당자 · <code>op: post</code> <b>★핵심</b></span></div>
+    <div class="bd">
+      <p class="lead">ERP에서 받은 <b><code>TEMP_GL_NO</code>를 포털에 입력</b>해 초안을 닫습니다. <b>포털이 ERP에 무언가를 쓰는 동작이 아니라, 사람이 등록한 결과를 받아 적는 기록 동작</b>입니다.</p>
+      <div class="tbl-scroll">
+      <table>
+        <thead><tr><th style="width:34px">순</th><th style="width:160px">검사</th><th>내용 · 이유</th><th style="width:135px">실패 시</th></tr></thead>
+        <tbody>
+          <tr><td class="id">1</td><td>권한</td><td><code>finance</code> 모듈 보유자 또는 관리자만</td><td>403</td></tr>
+          <tr><td class="id">2</td><td><b>전표번호 필수</b></td><td>번호 없이는 확정 불가. <b>이 번호가 이중 입력을 막는 유일한 장치</b>이므로 빈 값을 허용하지 않는다</td><td><code>erp_no_required</code> 400</td></tr>
+          <tr><td class="id">2-1</td><td><b>전표번호 형식</b> <span class="chip ok">신설 08-03</span></td><td><code>TG</code>+YYYYMMDD+4자리 순번(14자)만 허용 — A2 실측으로 2026년 2,947건 전량 이 형식임을 확인. <b>오타·임의값이 확정 처리되던 공백을 차단</b></td><td><code>erp_no_format</code> 400</td></tr>
+          <tr><td class="id">3</td><td>상태</td><td>이미 <code>posted</code>면 재확정 불가 · <code>void</code>면 확정 불가</td><td>409</td></tr>
+          <tr><td class="id">4</td><td><b>중복 전표번호</b></td><td>같은 <code>erp_temp_gl_no</code>가 <b>다른 초안</b>에 이미 있으면 거부하고 해당 초안번호를 알려준다 — <b>ERP 이중 등록 탐지</b></td><td><code>duplicate_erp_no</code> 409</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <div class="tbl-scroll">
+      <table>
+        <thead><tr><th style="width:150px">쓰는 것</th><th>내용</th></tr></thead>
+        <tbody>
+          <tr class="wr"><td><code>gl_draft</code></td><td><code>status='posted'</code> · <code>erp_temp_gl_no</code>(ERP 번호) · <code>posted_by</code>(확정자 UPN) · <code>posted_at</code></td></tr>
+          <tr class="wr"><td><code>gl_draft_log</code></td><td><code>post</code> 1행 — 누가 언제 어떤 전표번호로 확정했는지</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <div class="callout ok" style="margin-bottom:0">
+        <b>DB 제약으로 강제됩니다</b> — <code>gl_draft_posted_needs_no</code>: <code>status='posted'</code>이면 <code>erp_temp_gl_no</code>가 반드시 있어야 합니다.
+        코드에 버그가 있어도 <b>전표번호 없는 확정 상태는 DB가 거부</b>합니다. 애플리케이션 검사와 DB 제약의 이중 방어입니다.
+      </div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="hd"><span class="n">7</span><span class="t">이후 — ERP 내부(포털 범위 밖)</span><span class="who">회계 · ERP</span></div>
+    <div class="bd">
+      <p class="lead">확정 기록 이후는 ERP의 기존 회계 프로세스입니다. 포털은 <b>조회하지 않습니다</b>(의도적 미연계 — <code>erp_load_scope</code>에 <code>gl_slip: none</code>으로 등재).</p>
+      <ul class="plain">
+        <li>회계 승인 → <code>A_TEMP_GL.CONF_FG</code> 변경, 정식 전표번호 <code>GL_NO</code> 채번</li>
+        <li><code>A_GL</code>(34,130행) / <code>A_GL_ITEM</code>(305,864행)으로 <b>전기</b></li>
+        <li>작성자는 포털의 「내 초안」에서 <b>전표번호와 확정 상태</b>까지만 볼 수 있습니다 — ERP 승인 여부는 보이지 않습니다(확대 로드맵 <b>E5</b>)</li>
+      </ul>
+    </div>
+  </div>
+
+  <h2>3. 상태 전이 <span class="h2sub">4가지 상태와 이동 규칙</span></h2>
+
+<pre class="flow">                  submit                    post(전표번호 필수)
+   <b>draft</b> ──────────────▶ <b>submitted</b> ──────────────────────▶ <b>posted</b>  (종료)
+   작성중                    제출됨                              확정됨
+     │                         │
+     │ void                    │ void
+     ▼                         ▼
+   <b>void</b> (폐기)  ◀───────────┘            <b>posted 에서는 폐기 불가</b>
+                                             "이미 ERP에 등록된 건은 폐기할 수
+                                              없습니다. 회계 담당자에게 문의하세요."</pre>
+
+  <div class="tbl-scroll">
+  <table>
+    <thead><tr><th style="width:110px">상태</th><th style="width:130px">의미</th><th style="width:170px">할 수 있는 것</th><th>누가</th></tr></thead>
+    <tbody>
+      <tr><td><span class="chip info">draft</span></td><td>작성중</td><td>수정 · 제출 · 폐기</td><td>본인만(수정·제출) / 본인 또는 확정권한자(폐기)</td></tr>
+      <tr><td><span class="chip wait">submitted</span></td><td>제출됨</td><td>열람 · 확정 · 폐기 &nbsp;<b>(수정 불가)</b></td><td>확정은 <code>finance</code> 보유자·관리자</td></tr>
+      <tr><td><span class="chip ok">posted</span></td><td>확정됨(ERP 등록 완료)</td><td>열람만 — <b>수정·폐기 모두 불가</b></td><td>—</td></tr>
+      <tr><td><span class="chip grey">void</span></td><td>폐기</td><td>열람만. 사유(<code>void_reason</code>) 보존</td><td>—</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h2>4. 감사 기록 <span class="h2sub"><code>gl_draft_log</code> — 전 접근을 남긴다</span></h2>
+  <p>금액이 담기는 첫 포털 쓰기 기능이라 <b>조회까지 포함해 전 동작</b>을 기록합니다.</p>
+  <div class="tbl-scroll">
+  <table>
+    <thead><tr><th style="width:120px">action</th><th>기록 시점</th><th>함께 남는 것</th></tr></thead>
+    <tbody>
+      <tr><td><code>bootstrap</code></td><td>화면 진입</td><td>호출자 UPN·시각</td></tr>
+      <tr><td><code>save</code></td><td>초안 저장·수정</td><td>라인 수 · 차변합 · 대변합 · 신규 여부</td></tr>
+      <tr><td><code>view</code></td><td>초안 1건 열람</td><td>초안번호</td></tr>
+      <tr><td><code>submit</code></td><td>제출</td><td>초안번호</td></tr>
+      <tr><td><code>list</code></td><td>회계 담당자 목록 조회</td><td>조회 상태 필터</td></tr>
+      <tr><td><code>post</code></td><td><b>확정 기록</b></td><td><b>ERP 전표번호</b> · 확정자 UPN · 시각</td></tr>
+      <tr><td><code>void</code></td><td>폐기</td><td>폐기 사유</td></tr>
+      <tr><td><code>denied</code></td><td><b>거부된 접근</b></td><td>거부 사유(타인 초안 열람 시도, ERP 미매핑 등)</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h2>5. 예외·오류 처리 <span class="h2sub">화면에 뜨는 코드와 그 의미</span></h2>
+  <div class="tbl-scroll">
+  <table>
+    <thead><tr><th style="width:165px">코드</th><th style="width:60px">HTTP</th><th>의미 · 조치</th></tr></thead>
+    <tbody>
+      <tr><td><code>master_empty</code></td><td class="c">503</td><td>계정과목 마스터 미적재 → 검증 불가. <b>현재는 해소됨</b>(691행 적재). 재발 시 ETL 확인</td></tr>
+      <tr><td><code>erp_user_unmapped</code></td><td class="c">409</td><td>MS 계정에 연결된 ERP 사용자 ID 없음 → <b>초안 생성 거부</b>. ERP 계정 발급 후 사용</td></tr>
+      <tr><td><code>unbalanced</code></td><td class="c">400</td><td>차변·대변 불일치. <b>차액을 함께 안내</b></td></tr>
+      <tr><td><code>period_locked</code></td><td class="c">409</td><td>마감된 회계기간. 결의일자 변경 필요 <span class="chip wait">현재 등재 0건 = 제한 없음</span></td></tr>
+      <tr><td><code>too_many_drafts</code></td><td class="c">429</td><td>미확정 초안 30건 초과. 기존 건 제출·폐기 후 재시도</td></tr>
+      <tr><td><code>erp_no_required</code></td><td class="c">400</td><td>전표번호 없이 확정 시도 → 거부(이중 입력 방지 장치)</td></tr>
+      <tr><td><code>erp_no_format</code></td><td class="c">400</td><td><b>전표번호 형식 위반</b> — <code>TG</code>+날짜8+순번4(예 <code>TG202608030001</code>)가 아니면 거부 <span class="chip ok">2026-08-03 신설</span></td></tr>
+      <tr><td><code>duplicate_erp_no</code></td><td class="c">409</td><td><b>같은 ERP 전표번호가 다른 초안에 이미 기록됨</b> → 중복 등록 의심. 어느 초안인지 함께 안내</td></tr>
+      <tr><td>인증 실패</td><td class="c">401</td><td>토큰 없음·위조 → Microsoft Graph 재검증에서 차단(실측 확인)</td></tr>
+      <tr><td>권한 없음</td><td class="c">403</td><td>모듈 미보유·타인 초안 접근. <code>denied</code>로 감사 기록</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h2>6. 지금 상태에서 주의할 점 <span class="h2sub">테스트 전 반드시 인지</span></h2>
+  <div class="callout stop">
+    <b>① 프로젝트 필수 검증(7종 중 5번)이 현재 동작하지 않습니다.</b>
+    적재해 보니 계정과목 <b>691행 전량 <code>project_fg</code>가 NULL</b>이라, 프로젝트가 필요한 계정을 골라도 서버가 막지 않습니다.
+    ERP 원천이 비어 있거나 다른 컬럼·체계로 관리될 가능성이 있어 <b>A5·유니포인트 확인 대상</b>입니다. 테스트에서 이 항목이 통과하더라도 정상 판정으로 오해하지 마세요.
+  </div>
+  <div class="callout warn">
+    <b>② 마감월 통제가 비어 있습니다.</b> <code>gl_period_lock</code>에 등재된 월이 0건이라 어떤 결의일자도 막히지 않습니다. 마감 기준은 A5에서 확정해 등재해야 합니다.<br>
+    <b>③ 전표형태는 실측 확정됐습니다(2026-08-03).</b> A2 승인 조회 결과 2026년 2,947건 전량 <code>GL_TYPE='03'</code> 단일값이라 선택지가 아니라 상수입니다 — 화면도 <code>03 · 일반전표</code> 하나로 고정했습니다.<br>
+    <b>④ 권한은 전체관리자 한정입니다.</b> 테스트 단계라 <code>accounting</code> 모듈을 어느 부서에도 부여하지 않았습니다(관리자 결정).
+  </div>
+  <div class="callout ok">
+    <b>⑤ 회기입을 &ldquo;잊는 것&rdquo;은 시스템이 막지 못합니다.</b>
+    ERP에 등록해 놓고 포털에 전표번호를 적지 않으면 초안은 <code>submitted</code>로 남습니다.
+    화면이 미기입 초안을 목록 상단에 경고 표시하지만, <b>근본 해소는 운영 규칙</b>(S6 회고에서 정할 사항)입니다.
+  </div>
+
+  <h2>7. 테스트 시나리오 <span class="h2sub">이 순서대로 확인</span></h2>
+  <div class="tbl-scroll">
+  <table>
+    <thead><tr><th style="width:34px">#</th><th style="width:110px">행위자</th><th>동작</th><th style="width:220px">기대 결과</th></tr></thead>
+    <tbody>
+      <tr><td class="id">1</td><td>작성자</td><td>화면 진입</td><td>계정 드롭다운이 채워지고, <b>등록자가 본인 ERP ID로 자동 표기</b></td></tr>
+      <tr><td class="id">2</td><td>작성자</td><td><b>차변·대변을 일부러 다르게</b> 입력 후 저장</td><td><b>차단</b> + 차액 표시(<code>unbalanced</code>)</td></tr>
+      <tr><td class="id">3</td><td>작성자</td><td>금액 맞춘 뒤 저장 → 제출</td><td>초안번호 <code>DRAFT-…</code> 발급, 상태 <b>제출됨</b></td></tr>
+      <tr><td class="id">4</td><td>회계 담당자</td><td>「회계 담당자」 탭에서 요약 확인·복사</td><td>헤더·라인이 ERP 입력 순서대로 정확히 표시</td></tr>
+      <tr><td class="id">5</td><td>회계 담당자</td><td>ERP 결의전표 화면에 동일 값 입력·저장</td><td>ERP에 정상 등록, <code>TEMP_GL_NO</code> 채번</td></tr>
+      <tr><td class="id">6</td><td>회계 담당자</td><td>전표번호 <b>없이</b> 확정 시도</td><td><b>거부</b>(<code>erp_no_required</code>)</td></tr>
+      <tr><td class="id">7</td><td>회계 담당자</td><td>전표번호 회기입 → 확정</td><td>상태 <b>확정됨</b>, 작성자 화면에도 전표번호 표시</td></tr>
+      <tr><td class="id">8</td><td>회계 담당자</td><td><b>같은 전표번호</b>를 다른 초안에 기입 시도</td><td><b>거부</b>(<code>duplicate_erp_no</code>) + 기존 초안번호 안내</td></tr>
+      <tr><td class="id">9</td><td>관리자</td><td><b>화면을 거치지 않고 API 직접 호출</b> — ①차대 불일치 ②없는 계정코드 ③타인 UPN</td><td><b>전부 거부</b>. 프론트 검증만으로는 불충분하므로 필수 확인</td></tr>
+      <tr><td class="id">10</td><td>관리자</td><td><code>gl_draft_log</code> 확인</td><td>bootstrap·save·submit·view·post가 전부 기록</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h2>8. 관련 문서</h2>
+  <ul class="plain">
+    <li><a href="07_결의전표_연동_종합.html">07 결의전표 연동 종합</a> — 구조·현재상태·의사결정(확정 7건·승인대기·미결정·확대 로드맵)</li>
+    <li><a href="06_결의전표_추진계획.html">06 추진계획</a> — 승인 게이트·실행 단계 · <a href="00_현재상태_스냅샷.html">00 현재상태</a> · <a href="02_진행상태.html">02 진행상태</a></li>
+    <li><a href="index.html">ERP DB 연계 관제 허브</a> · <a href="../00_관리체계/04_현재상태_한장요약.html">전사 현재상태 요약</a></li>
+  </ul>
+
+  <div class="footer">
+    <span>JEIL M&amp;S · 결의전표 처리 프로세스</span>
+    <span>파생 정리 뷰 · 원천이 정답 · 관리: 최동혁</span>
+  </div>
+</div>
+</body>
+</html>

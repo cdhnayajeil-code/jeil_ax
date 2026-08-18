@@ -257,6 +257,92 @@ JOBS = {
         """,
         "params": [],
     },
+    # ⑪ 관리항목 마스터 ← A_CTRL_ITEM (전량, 소형 52행) — 결의전표 라인 관리항목 자동 생성의 코드 사전
+    #    반복전표 자동화 v2(10_반복전표_자동화_기획 §6.5), 관리자 승인 B1(2026-08-11). 코드/설정 마스터만.
+    "ctrl_item": {
+        "table": "ctrl_item_s",
+        "rpc": "erp_master_upsert",
+        "sql": """
+            SELECT CTRL_CD AS ctrl_cd, CTRL_NM AS ctrl_nm, CTRL_ENG_NM AS ctrl_eng_nm,
+                   SYS_FG AS sys_fg, COLM_DATA_TYPE AS colm_data_type, DATA_LEN AS data_len,
+                   TBL_ID AS ref_tbl, MAJOR_CD AS major_cd, GL_CTRL_FLD AS gl_ctrl_fld,
+                   DESC_FG AS desc_fg, UPDT_DT AS src_updated
+            FROM JEILMNS.dbo.A_CTRL_ITEM WITH (NOLOCK)
+        """,
+        "params": [],
+    },
+    # ⑫ 계정별 관리항목 요건 ← A_ACCT_CTRL_ASSN (전량, 소형 997행) — 계정 선택 시 관리항목 필드
+    #    자동 생성·필수(DR_FG/CR_FG='Y') 검증 근거. 반복전표 자동화 v2, 관리자 승인 B1(2026-08-11).
+    "acct_ctrl_assn": {
+        "table": "acct_ctrl_assn_s",
+        "rpc": "erp_master_upsert",
+        "sql": """
+            SELECT ACCT_CD AS acct_cd, CTRL_CD AS ctrl_cd, CTRL_ITEM_SEQ AS ctrl_item_seq,
+                   DR_FG AS dr_fg, CR_FG AS cr_fg,
+                   DEFAULT_GL_FIELD AS default_gl_field, DEFAULT_VALUE AS default_value,
+                   SYS_FG AS sys_fg, UPDT_DT AS src_updated
+            FROM JEILMNS.dbo.A_ACCT_CTRL_ASSN WITH (NOLOCK)
+        """,
+        "params": [],
+    },
+    # ⑬ 결의전표 헤더 미러 ← A_TEMP_GL (TARGET_YEAR 전체, 전 입력경로) — 「전표복사」 원천
+    #    결정 C-10(2026-08-18 관리자 지시): C-7(코드 마스터만)을 확장해 결의전표 미러 적재.
+    #    접근은 RPC(gl_slip_list/get, service_role)가 본인(insrt_user_id) 전표만 반환 — 25_gl_slip_mirror.sql
+    "gl_slip": {
+        "table": "gl_slip_s",
+        "rpc": "erp_master_upsert",
+        "sql": """
+            SELECT h.TEMP_GL_NO AS temp_gl_no, CONVERT(date, h.TEMP_GL_DT) AS temp_gl_dt,
+                   h.GL_NO AS gl_no, h.DEPT_CD AS dept_cd, h.COST_CD AS cost_cd,
+                   h.GL_TYPE AS gl_type, h.GL_INPUT_TYPE AS gl_input_type, h.CONF_FG AS conf_fg,
+                   h.DR_LOC_AMT AS dr_loc_amt, h.TEMP_GL_DESC AS temp_gl_desc,
+                   h.INSRT_USER_ID AS insrt_user_id, h.REF_NO AS ref_no,
+                   CONVERT(date, h.ISSUED_DT) AS issued_dt, h.attach_cnt AS attach_cnt,
+                   h.UPDT_DT AS src_updated
+            FROM JEILMNS.dbo.A_TEMP_GL h WITH (NOLOCK)
+            WHERE h.TEMP_GL_DT >= ? AND h.TEMP_GL_DT < ?
+        """,
+        "params": ["year_start", "year_end"],
+        "incr_sql": " AND h.UPDT_DT >= ?",   # 증분: 변경분만(watermark 이후)
+    },
+    # ⑬-2 결의전표 라인 미러 ← A_TEMP_GL_ITEM (헤더 결의일자 기준 연 범위)
+    "gl_slip_item": {
+        "table": "gl_slip_item_s",
+        "rpc": "erp_master_upsert",
+        "sql": """
+            SELECT i.TEMP_GL_NO AS temp_gl_no, i.ITEM_SEQ AS item_seq, i.ACCT_CD AS acct_cd,
+                   i.DR_CR_FG AS dr_cr_fg, i.DEPT_CD AS dept_cd, i.COST_CD AS cost_cd,
+                   i.VAT_TYPE AS vat_type, i.ITEM_LOC_AMT AS item_loc_amt, i.VAT_LOC_AMT AS vat_loc_amt,
+                   i.ITEM_DESC AS item_desc, i.BP_CD AS bp_cd, i.TAX_BIZ_AREA AS tax_biz_area,
+                   i.RELATIVE_ACCT_CD AS relative_acct_cd, i.ITEM_CD AS item_cd,
+                   i.PROJECT_NO AS project_no, i.IO_FG AS io_fg,
+                   h.UPDT_DT AS src_updated
+            FROM JEILMNS.dbo.A_TEMP_GL_ITEM i WITH (NOLOCK)
+            JOIN JEILMNS.dbo.A_TEMP_GL h WITH (NOLOCK) ON h.TEMP_GL_NO = i.TEMP_GL_NO
+            WHERE h.TEMP_GL_DT >= ? AND h.TEMP_GL_DT < ?
+        """,
+        "params": ["year_start", "year_end"],
+        "incr_sql": " AND h.UPDT_DT >= ?",
+    },
+    # ⑬-3 결의전표 관리항목 미러 ← A_TEMP_GL_DTL
+    #    ⚠ 민감 항목(EM 사번·BA 계좌·D1 신용카드·CP 구매카드·NN 어음)은 값 미적재(NULL 마스킹) —
+    #      analyze_repeat_gl.py 의 SENSITIVE_CTRL 과 동일 기준. 항목 추가 시 이 원칙을 지킬 것.
+    "gl_slip_ctrl": {
+        "table": "gl_slip_ctrl_s",
+        "rpc": "erp_master_upsert",
+        "sql": """
+            SELECT d.TEMP_GL_NO AS temp_gl_no, d.ITEM_SEQ AS item_seq, d.DTL_SEQ AS dtl_seq,
+                   d.CTRL_CD AS ctrl_cd,
+                   CASE WHEN d.CTRL_CD IN ('EM','BA','D1','CP','NN') THEN NULL
+                        ELSE d.CTRL_VAL END AS ctrl_val,
+                   h.UPDT_DT AS src_updated
+            FROM JEILMNS.dbo.A_TEMP_GL_DTL d WITH (NOLOCK)
+            JOIN JEILMNS.dbo.A_TEMP_GL h WITH (NOLOCK) ON h.TEMP_GL_NO = d.TEMP_GL_NO
+            WHERE h.TEMP_GL_DT >= ? AND h.TEMP_GL_DT < ?
+        """,
+        "params": ["year_start", "year_end"],
+        "incr_sql": " AND h.UPDT_DT >= ?",
+    },
     # ④ 거래처마스터 ← B_BIZ_PARTNER (전량, 연도 무관)
     # 협력사 계정발급(app/admin-vendors.html)·협력사 모바일 포털이 쓰는 public.vendor_master 의 원천.
     # ⚠ 보안: 대표자주민등록번호(REPRE_RGST_NO, REPRE_RGST_NO_PRVC)·은행계좌번호(BANK_ACCT_NO*)는
@@ -347,6 +433,14 @@ def run_job(name, spec, url, key, dry, full=False):
     # 증분 모드: incr_sql 있는 job은 watermark 이후 변경분만 추출(--full 이면 전량)
     sql = spec["sql"]
     params = [param_value(p) for p in spec["params"]]
+    # 레거시 ODBC 'SQL Server' 드라이버는 SQL_TYPE_DATE 파라미터 바인딩을 구현하지 않아
+    # date 를 넘기면 HYC00(SQLBindParameter)로 실패한다(2026-08-11 실측 — 날짜 파라미터를 쓰는
+    # 7개 job 전멸, 무파라미터·datetime job 7개는 정상). date → datetime(자정)으로 승격한다 —
+    # 경계 비교가 `>= 시작 AND < 종료` 라 결과는 완전히 동일하다.
+    # ※ 근본 해결은 'ODBC Driver 18 for SQL Server' 설치(README 참조). 이 변환은 드라이버가
+    #   무엇이든 동작하게 하는 안전장치이므로 드라이버 교체 후에도 그대로 둔다.
+    params = [datetime.datetime.combine(p, datetime.time.min) if type(p) is datetime.date else p
+              for p in params]
     incr = spec.get("incr_sql")
     if incr and not full:
         wm = watermark(url, key, name)
