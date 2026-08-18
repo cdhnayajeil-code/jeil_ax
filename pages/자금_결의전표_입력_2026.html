@@ -130,23 +130,28 @@
             background:linear-gradient(90deg,#f2f6fb,#f8fafd 55%,rgba(248,250,253,0));
             border-radius:9px; padding:9px 13px;}
   .ctrlhead small{font-weight:400; color:var(--muted); font-size:11.5px;}
+  /* 라인 카드 — 색 헤더 스트립 + 흰 입력 영역(펼침 전용, 표시 여부는 줄 선택/전체 펼치기) */
   .ctrlrow{border:1px solid var(--line); border-left:4px solid var(--line); border-radius:10px;
-           padding:11px 14px; margin-bottom:9px; background:#fbfcfe;}
-  /* 차/대변 옅은 음영 — 흐릿한 배경으로 방향 구분을 바로 인지 */
-  .ctrlrow.dr{border-left-color:var(--accent); border-color:#dce8f4;
-              background:linear-gradient(180deg,#f3f8fd,#fafcff 70%);}
-  .ctrlrow.cr{border-left-color:var(--green); border-color:#d8ecdd;
-              background:linear-gradient(180deg,#f2faf4,#fafdfb 70%);}
-  .ctrlrow .flds{background:rgba(255,255,255,.65); border-radius:8px; padding:9px 11px;}
-  .ctrlrow .ttl{display:flex; align-items:center; gap:8px; font-size:12.5px; font-weight:700; color:var(--navy); margin-bottom:9px; flex-wrap:wrap;
-                cursor:pointer; user-select:none;}
-  .ctrlrow .ttl .tgl{color:var(--muted); font-size:11px; width:12px; flex:none;}
+           padding:0; margin-bottom:9px; background:#fff; overflow:hidden;}
+  .ctrlrow.dr{border-left-color:var(--accent); border-color:#d8e6f3;}
+  .ctrlrow.cr{border-left-color:var(--green); border-color:#d4ecdb;}
+  .ctrlrow .ttl{display:flex; align-items:center; gap:8px; font-size:12.5px; font-weight:700; color:var(--navy);
+                margin:0; padding:9px 14px; flex-wrap:wrap; background:#f6f9fc; border-bottom:1px solid rgba(16,42,80,.07);}
+  .ctrlrow.dr .ttl{background:#eef6fd;}
+  .ctrlrow.cr .ttl{background:#eef9f2;}
+  .ctrlrow .ttl .ttlclose{margin-left:6px; border:none; background:rgba(255,255,255,.7); border-radius:7px;
+                          width:24px; height:24px; cursor:pointer; font-size:11px; color:var(--muted); flex:none;}
+  .ctrlrow .ttl .ttlclose:hover{color:var(--red);}
+  .ctrlempty{border:1.5px dashed var(--line); border-radius:10px; padding:13px 16px; margin-bottom:9px;
+             font-size:12.5px; color:var(--muted); background:#fbfcfe;}
+  .ctrlempty .warn{color:var(--red); font-weight:700;}
+  .ctrlempty.slim{padding:9px 14px; font-size:12px;}
   .ctrlrow .ttl .fgtag{padding:1px 8px; border-radius:5px; font-size:10.5px; font-weight:800;}
   .ctrlrow.dr .fgtag{background:#e8f1fb; color:var(--accent);}
   .ctrlrow.cr .fgtag{background:#eefaf1; color:var(--green);}
   .ctrlrow .ttl .amt{margin-left:auto; font-weight:800; color:var(--navy); font-size:12.5px;}
   .ctrlrow .ttl .missbadge{background:#fdeeec; color:var(--red); padding:1px 8px; border-radius:10px; font-size:10.5px; font-weight:700;}
-  .ctrlrow .flds{display:grid; grid-template-columns:repeat(auto-fill,minmax(185px,1fr)); gap:9px 14px;}
+  .ctrlrow .flds{display:grid; grid-template-columns:repeat(auto-fill,minmax(185px,1fr)); gap:10px 14px; padding:12px 14px;}
   .cfld{display:flex; flex-direction:column; gap:3px; min-width:0;}
   .cfld label{font-size:10.5px; color:var(--muted); font-weight:600; display:flex; align-items:center; gap:4px;}
   .cfld label .req{color:var(--red);}
@@ -155,8 +160,8 @@
   .cfld label .fillbtn:hover{text-decoration:underline;}
   .cfld .wref{display:flex; gap:4px; align-items:center;}
   .cfld .wref input{flex:1; min-width:0;}
-  .cfld input{border:1.5px solid var(--line); border-radius:7px; padding:5px 9px; font-family:inherit; font-size:12.5px; width:100%; background:#fff;}
-  .cfld input:focus{border-color:var(--accent); outline:none;}
+  .cfld input{border:1.5px solid var(--line); border-radius:7px; padding:7px 10px; font-family:inherit; font-size:12.5px; width:100%; background:#fff;}
+  .cfld input:focus{border-color:var(--accent); outline:none; box-shadow:0 0 0 2px rgba(58,124,193,.12);}
   .cfld input.suggest{background:#fdf9ee; border-color:#e8d9ae;}
   .cfld input.miss{border-color:#e7b3aa; background:#fdf6f5;}
   .cfld .refbtn{border:1.5px solid var(--line); background:#fff; border-radius:7px; width:29px; height:29px;
@@ -164,12 +169,6 @@
   .cfld .refbtn:hover{border-color:var(--accent);}
   .cfld .sug{font-size:10px; color:var(--amber);}
   .cfld .refnm{font-size:10px; color:var(--green); max-width:180px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
-  /* 접힌 카드 요약 칩 */
-  .ctrlchips{display:flex; gap:5px; flex-wrap:wrap;}
-  .ctrlchip{background:rgba(255,255,255,.8); border:1px solid var(--line); border-radius:6px;
-            padding:2px 8px; font-size:10.5px; color:var(--ink);}
-  .ctrlchip b{color:var(--navy); font-weight:700;}
-  .ctrlchip.empty{color:var(--muted); border-style:dashed; background:transparent;}
   /* 그리드 관리항목 상태 배지 */
   .cbadge{border:none; border-radius:14px; padding:3px 10px; font-family:inherit; font-size:11px;
           font-weight:700; cursor:pointer; white-space:nowrap;}
@@ -324,7 +323,7 @@
 
       <div class="sec">
         <h2><span class="step">2</span> 전표 라인
-          <small>계정과목·거래처 칸을 누르면 검색 팝업이 열립니다 · 차변·대변 합계가 일치해야 제출됩니다</small>
+          <small>계정과목·거래처 칸은 클릭 시 검색 팝업 · 줄 선택(☑) 시 아래에 관리항목이 열립니다 · 차대 합계 일치 필요</small>
           <span style="margin-left:auto;display:flex;gap:7px;">
             <button class="b gh sm" id="btnAddRow">+ 행 추가</button>
             <button class="b gh sm" id="btnFillDiff">선택 행에 차액 채우기</button>
@@ -817,6 +816,7 @@ function buildGrid(){
         exportValue:(v,row)=>{ const s=ctrlStatFor(row); return s.total ? s.filled+"/"+s.total : ""; },
         formatter:(v,row)=> ctrlBadgeHtml(row) },
     ],
+    onSelectionChange: ()=> renderCtrlPanel(),   // 줄 선택(☑) ↔ 해당 줄 관리항목 카드 표시 연동
     onCellEdit:(key, field, value, row)=>{
       updateSum();
       if(field === "dr_cr_fg") renderCtrlPanel();
@@ -928,83 +928,83 @@ function syncCtrlBadge(seq){
   if(r && td) td.innerHTML = ctrlBadgeHtml(r);
   updateCtrlProg();
 }
+/* 관리항목 패널 — 기본은 숨김. 전표 라인에서 줄을 선택(☑)하면 그 줄만 열리고,
+   [전체 펼치기]를 누르면 전부 펼쳐진다(그리드 배지 클릭으로 특정 줄만 고정 펼침도 가능). */
+let CTRL_SHOW_ALL = false;
 function renderCtrlPanel(){
   const box = $("ctrlPanel"); if(!box) return;
   const rs = rows();
+  const withDefs = rs.filter((r)=> r.acct_cd && ctrlDefsFor(r).length);
+  if(!withDefs.length){ box.innerHTML = ""; return; }
+  const selected = new Set((GRID ? GRID.getSelectedKeys() : []).map(String));
   // 같은 관리항목 코드를 가진 라인 수 — 2줄 이상이면 「⤓ 전체」(빈 칸 일괄 채우기) 버튼 표시
   const shareCnt = new Map();
-  rs.forEach((r)=>{ if(!r.acct_cd) return;
-    ctrlDefsFor(r).forEach((d)=>{ shareCnt.set(d.cd, (shareCnt.get(d.cd)||0)+1); }); });
+  withDefs.forEach((r)=> ctrlDefsFor(r).forEach((d)=>{ shareCnt.set(d.cd, (shareCnt.get(d.cd)||0)+1); }));
   const parts = [];
-  rs.forEach((r)=>{
-    if(!r.acct_cd) return;
+  const hiddenMiss = [];   // 접힌 줄의 필수 미입력 — 안내줄에 표시(놓침 방지)
+  withDefs.forEach((r)=>{
+    r.__ctrl = r.__ctrl || {}; r.__ctrlUi = r.__ctrlUi || {};
     const defs = ctrlDefsFor(r);
-    if(!defs.length) return;
-    r.__ctrl = r.__ctrl || {};
     const stat = ctrlStatFor(r);
     const missCnt = stat.reqTotal - stat.reqFilled;
-    // 접기 기본값: 필수 미입력이 있으면 펼침, 아니면 접힘(요약 칩). 제목 클릭으로 토글.
-    // 상태는 __ctrlUi(공유 객체)에 저장 — getData() 얕은 복사에도 유실되지 않는다.
-    r.__ctrlUi = r.__ctrlUi || {};
-    const open = r.__ctrlUi.open != null ? r.__ctrlUi.open : missCnt > 0;
-    let body;
-    if(open){
-      body = '<div class="flds">' + defs.map((d)=>{
-        const info = CTRL_NM.get(d.cd) || {};
-        const nm = info.ctrl_nm || d.cd;
-        const isDate = DATE_CTRLS.has(d.cd) || String(info.data_type||"").toUpperCase()==="D";
-        const val = r.__ctrl[d.cd] ?? "";
-        const sug = (r.__ctrlSug||{})[d.cd];
-        const refKind = ctrlRefKind(d.cd);
-        const miss = d.req && String(val).trim()==="";
-        const refNm = (r.__ctrlNm||{})[d.cd];
-        const inputHtml = '<input type="'+(isDate?'date':'text')+'" data-seq="'+r.item_seq+'" data-cd="'+esc(d.cd)+'"'
-          + ' value="'+esc(val)+'" class="'+(miss?'miss ':'')+(sug&&val===sug?'suggest':'')+'"'
-          + (sug&&val===sug?' title="전월 기준 제안값 — 실물 증빙을 확인하세요"':'')+'>';
-        return '<div class="cfld"><label><span>'+esc(d.cd)+' · '+esc(nm)+(d.req?'<span class="req">*</span>':'')+'</span>'
-          + ((shareCnt.get(d.cd)||0) > 1
-              ? '<button type="button" class="fillbtn" data-fillseq="'+r.item_seq+'" data-fillcd="'+esc(d.cd)+'"'
-                + ' title="같은 항목이 있는 다른 줄의 빈 칸에 이 값을 채웁니다">⤓ 전체</button>' : '')
-          + '</label>'
-          + (refKind
-              ? '<div class="wref">'+inputHtml
-                + '<button type="button" class="refbtn" data-seq="'+r.item_seq+'" data-cd="'+esc(d.cd)+'" data-ref="'+refKind+'"'
-                + ' title="'+(refKind==="bp"?"거래처 검색":"품목 검색")+'">🔍</button></div>'
-              : inputHtml)
-          + (sug&&val===sug?'<span class="sug">제안값 — 증빙 확인</span>':'')
-          + (refNm?'<span class="refnm">'+esc(refNm)+'</span>':'')
-          + '</div>';
-      }).join("") + '</div>';
-    }else{
-      // 접힌 카드 — 입력값 요약 칩(빠르게 검토·확인 용도)
-      const chips = defs.map((d)=>{
-        const v = String(r.__ctrl[d.cd] ?? "").trim();
-        const nm = (CTRL_NM.get(d.cd)||{}).ctrl_nm || d.cd;
-        if(v) return '<span class="ctrlchip"><b>'+esc(nm)+'</b> '+esc(v.length>14 ? v.slice(0,13)+'…' : v)+'</span>';
-        return d.req ? '<span class="ctrlchip empty">'+esc(nm)+' 미입력<span style="color:var(--red);">*</span></span>' : '';
-      }).filter(Boolean).join("");
-      body = '<div class="ctrlchips">'
-        + (chips || '<span class="ctrlchip empty">입력된 관리항목 없음 — 제목을 눌러 펼치기</span>')
+    const isSel = selected.has(String(r.item_seq));
+    const visible = CTRL_SHOW_ALL || isSel || r.__ctrlUi.open === true;
+    if(!visible){ if(missCnt) hiddenMiss.push({ seq:r.item_seq, cnt:missCnt }); return; }
+    const flds = defs.map((d)=>{
+      const info = CTRL_NM.get(d.cd) || {};
+      const nm = info.ctrl_nm || d.cd;
+      const isDate = DATE_CTRLS.has(d.cd) || String(info.data_type||"").toUpperCase()==="D";
+      const val = r.__ctrl[d.cd] ?? "";
+      const sug = (r.__ctrlSug||{})[d.cd];
+      const refKind = ctrlRefKind(d.cd);
+      const miss = d.req && String(val).trim()==="";
+      const refNm = (r.__ctrlNm||{})[d.cd];
+      const inputHtml = '<input type="'+(isDate?'date':'text')+'" data-seq="'+r.item_seq+'" data-cd="'+esc(d.cd)+'"'
+        + ' value="'+esc(val)+'" class="'+(miss?'miss ':'')+(sug&&val===sug?'suggest':'')+'"'
+        + (sug&&val===sug?' title="전월 기준 제안값 — 실물 증빙을 확인하세요"':'')+'>';
+      return '<div class="cfld"><label><span>'+esc(d.cd)+' · '+esc(nm)+(d.req?'<span class="req">*</span>':'')+'</span>'
+        + ((shareCnt.get(d.cd)||0) > 1
+            ? '<button type="button" class="fillbtn" data-fillseq="'+r.item_seq+'" data-fillcd="'+esc(d.cd)+'"'
+              + ' title="같은 항목이 있는 다른 줄의 빈 칸에 이 값을 채웁니다">⤓ 전체</button>' : '')
+        + '</label>'
+        + (refKind
+            ? '<div class="wref">'+inputHtml
+              + '<button type="button" class="refbtn" data-seq="'+r.item_seq+'" data-cd="'+esc(d.cd)+'" data-ref="'+refKind+'"'
+              + ' title="'+(refKind==="bp"?"거래처 검색":"품목 검색")+'">🔍</button></div>'
+            : inputHtml)
+        + (sug&&val===sug?'<span class="sug">제안값 — 증빙 확인</span>':'')
+        + (refNm?'<span class="refnm">'+esc(refNm)+'</span>':'')
         + '</div>';
-    }
+    }).join("");
     const isD = r.dr_cr_fg==="D";
     const amt = Number(String(r.item_amt||"").replace(/,/g,""));
+    // ✕ 닫기 — 배지 클릭으로 고정 펼침한 카드에만(줄 선택·전체 펼치기로 보이는 카드는 각각의 방법으로 닫는다)
+    const viaOpen = !CTRL_SHOW_ALL && !isSel && r.__ctrlUi.open === true;
     parts.push('<div class="ctrlrow '+(isD?'dr':r.dr_cr_fg==="C"?'cr':'')+'" id="ctrlrow-'+r.item_seq+'">'
-      + '<div class="ttl" data-tgl="'+r.item_seq+'" title="클릭하면 접기/펼치기">'
-      + '<span class="tgl">'+(open?'▾':'▸')+'</span>'
+      + '<div class="ttl">'
       + '<span class="fgtag">'+(isD?"차변":r.dr_cr_fg==="C"?"대변":"—")+'</span>'
       + r.item_seq+'번 줄 · '+esc(r.acct_nm||r.acct_cd)
-      + '<span style="color:var(--muted);font-weight:400;font-size:11px;">'+esc(String(r.acct_cd||"").trim())+'</span>'
+      + '<span style="color:var(--muted);font-weight:400;font-size:11px;">'+esc(String(r.acct_cd||"").trim())
+      + ' · 관리항목 '+defs.length+'종'+(stat.reqTotal?' (필수 '+stat.reqTotal+')':'')+'</span>'
       + (missCnt?'<span class="missbadge">필수 '+missCnt+'건 미입력</span>':'')
-      + '<span class="amt">'+(amt>0?won(amt)+'원':'')+'</span></div>'
-      + body + '</div>');
+      + '<span class="amt">'+(amt>0?won(amt)+'원':'')+'</span>'
+      + (viaOpen?'<button type="button" class="ttlclose" data-close="'+r.item_seq+'" title="이 줄 접기">✕</button>':'')
+      + '</div><div class="flds">'+flds+'</div></div>');
   });
-  box.innerHTML = parts.length
-    ? '<div class="ctrlhead"><span class="step">3</span> 관리항목'
-      + '<small>ERP 하단 그리드에 들어갈 값 — <b style="color:var(--red);">*</b>는 필수 · 🔍 검색 · ⤓ 다른 줄 빈 칸 채우기 · Enter 다음 칸</small>'
-      + '<span class="prog" id="ctrlProg"></span></div>'
-      + parts.join("")
-    : "";
+  const missSum = hiddenMiss.reduce((s,x)=> s+x.cnt, 0);
+  const missTxt = missSum
+    ? '<span class="warn">⚠ 접힌 줄에 필수 미입력 '+missSum+'건('+hiddenMiss.map((x)=> x.seq+"번 줄").join(", ")+') — 저장 전 입력 필요</span>'
+    : '';
+  const head = '<div class="ctrlhead"><span class="step">3</span> 관리항목'
+    + '<small><b style="color:var(--red);">*</b> 필수 · 🔍 검색 · ⤓ 다른 줄 빈 칸 채우기 · Enter 다음 칸</small>'
+    + '<button type="button" class="b gh sm" id="ctrlShowAll">'+(CTRL_SHOW_ALL?'▴ 전체 접기':'▾ 전체 펼치기')+'</button>'
+    + '<span class="prog" id="ctrlProg"></span></div>';
+  box.innerHTML = head
+    + (parts.length
+        ? parts.join("") + (missTxt ? '<div class="ctrlempty slim">'+missTxt+'</div>' : '')
+        : '<div class="ctrlempty">관리항목 입력칸이 접혀 있습니다 — 전표 라인에서 <b>줄을 선택(☑)</b>하거나 '
+          + '<b>[전체 펼치기]</b>를 누르면 해당 줄의 관리항목이 열립니다. '
+          + '그리드 오른쪽 <b>관리항목 배지</b>를 눌러도 그 줄만 바로 열립니다. '+missTxt+'</div>');
   updateCtrlProg();
 }
 $("ctrlPanel").addEventListener("input", (e)=>{
@@ -1064,16 +1064,17 @@ $("ctrlPanel").addEventListener("click", (e)=>{
     else openItemPicker((it)=> set(it.item_code, it.item_name));
     return;
   }
-  // 제목 클릭 — 접기/펼치기 토글(__ctrlUi 는 원본 행과 공유되는 객체라 상태가 유지된다)
-  const tt = e.target.closest(".ttl[data-tgl]");
-  if(tt){
-    const r = rows().find((x)=> String(x.item_seq)===String(tt.getAttribute("data-tgl")));
-    if(!r) return;
-    const s = ctrlStatFor(r);
-    r.__ctrlUi = r.__ctrlUi || {};
-    const cur = r.__ctrlUi.open != null ? r.__ctrlUi.open : s.reqMiss;
-    r.__ctrlUi.open = !cur;
+  // [전체 펼치기/접기] 토글
+  if(e.target.closest("#ctrlShowAll")){
+    CTRL_SHOW_ALL = !CTRL_SHOW_ALL;
     renderCtrlPanel();
+    return;
+  }
+  // ✕ — 배지 클릭으로 고정 펼침한 카드 접기(__ctrlUi 는 원본 행과 공유되는 객체라 상태 유지)
+  const cl = e.target.closest("button[data-close]");
+  if(cl){
+    const r = rows().find((x)=> String(x.item_seq)===String(cl.getAttribute("data-close")));
+    if(r){ r.__ctrlUi = r.__ctrlUi || {}; r.__ctrlUi.open = false; renderCtrlPanel(); }
   }
 });
 
@@ -1175,8 +1176,7 @@ async function startRecur(t){
                item_amt:String(it.item_amt||""), item_desc:it.item_desc||"",
                bp_cd:it.bp_cd||null, bp_nm:it.bp_nm||null,
                cost_cd:it.cost_cd||"", project_no:it.project_no||"",
-               __ctrl:ctrl, __ctrlSug:sug,
-               __ctrlUi:{ open:true } };   // 전월 프리필 — 제안값 검토가 목적이라 펼쳐서 시작
+               __ctrl:ctrl, __ctrlSug:sug };
     });
     // 템플릿 라인의 고정/변동 플래그를 순번 매칭으로 얹는다(요약 diff 근거)
     (tpl.items||[]).forEach((ti,i)=>{ if(newRows[i]) newRows[i].__locked = !!ti.amt_locked; });
@@ -1500,7 +1500,7 @@ function renderSlips(){
       + '</td></tr>';
     return;
   }
-  t.innerHTML = '<thead><tr><th>전표번호</th><th>결의일자</th><th>적요</th><th class="r">금액</th><th>라인</th><th>입력경로</th><th>승인</th></tr></thead><tbody>'
+  t.innerHTML = '<thead><tr><th>전표번호</th><th>결의일자</th><th>적요</th><th class="r">금액</th><th>라인</th><th>입력경로</th><th>승인</th><th>복사</th></tr></thead><tbody>'
     + list.map((x)=>
       '<tr class="clk" data-no="'+esc(x.temp_gl_no)+'">'
       + '<td>'+esc(x.temp_gl_no)+'</td><td>'+esc(x.temp_gl_dt||"")+'</td>'
@@ -1509,13 +1509,25 @@ function renderSlips(){
       + '<td>'+(x.line_cnt||0)+'줄</td>'
       + '<td>'+esc(x.gl_input_type||"—")+'</td>'
       + '<td><span class="pill '+(String(x.conf_fg||"").trim()==="C"?"posted":"submitted")+'">'
-      + (CONF_KO[String(x.conf_fg||"").trim()]||x.conf_fg||"—")+'</span></td></tr>').join("")
+      + (CONF_KO[String(x.conf_fg||"").trim()]||x.conf_fg||"—")+'</span></td>'
+      + '<td><button type="button" class="b pri sm" data-copy="'+esc(x.temp_gl_no)+'" title="이 전표를 바로 복사해 새 초안 작성">📄 복사</button></td></tr>').join("")
     + '</tbody>';
 }
 $("btnSlipSearch").onclick = loadSlips;
 $("slipQ").addEventListener("keydown", (e)=>{ if(e.key==="Enter") loadSlips(); });
 $("slipType").onchange = renderSlips;
 $("slipTbl").onclick = async (e)=>{
+  // 행의 [복사] 버튼 — 미리보기 없이 바로 복사해 작성 탭으로
+  const cp = e.target.closest("button[data-copy]");
+  if(cp){
+    cp.disabled = true;
+    try{
+      const r = await api("slip_get", { temp_gl_no: cp.getAttribute("data-copy") });
+      copySlipData(r);
+    }catch(err){ toast(err.message, true); }
+    cp.disabled = false;
+    return;
+  }
   const tr = e.target.closest("tr[data-no]"); if(!tr) return;
   try{
     const r = await api("slip_get", { temp_gl_no: tr.getAttribute("data-no") });
@@ -1554,12 +1566,12 @@ $("slipTbl").onclick = async (e)=>{
     $("slipDetail").scrollIntoView({ behavior:"smooth", block:"nearest" });
   }catch(e2){ toast(e2.message, true); }
 };
-/* 복사 실행 — 헤더·라인·관리항목을 작성 탭에 채운다.
+/* 복사 실행 — 헤더·라인·관리항목을 작성 탭에 채운다(목록 [복사] 버튼·미리보기 버튼 공용).
    결의일자는 오늘(ERP 전표복사와 동일), 참조번호는 건별 문서번호라 복사하지 않는다.
    마스터에 없는 계정은 비워 두고 경고한다(저장 시 서버가 어차피 거부하므로 먼저 알린다). */
-$("btnSlipCopy").onclick = ()=>{
-  if(!SLIP_SEL) return;
-  const h = SLIP_SEL.header;
+function copySlipData(data){
+  if(!data || !data.header) return;
+  const h = data.header;
   if(rows().some((r)=> r.acct_cd || r.item_amt)){
     if(!confirm("작성 중인 라인을 지우고 전표 "+h.temp_gl_no+" 을(를) 복사합니다. 계속할까요?")) return;
   }
@@ -1570,7 +1582,7 @@ $("btnSlipCopy").onclick = ()=>{
   if(h.cost_cd) $("fCost").value = h.cost_cd;
   // 관리항목 — 라인별 첫 세트(dtl_seq 최소) 우선. 날짜형은 달력 입력형(YYYY-MM-DD)으로 정규화.
   const ctrlBySeq = {};
-  (SLIP_SEL.ctrls||[]).forEach((c)=>{
+  (data.ctrls||[]).forEach((c)=>{
     const m = (ctrlBySeq[c.item_seq] = ctrlBySeq[c.item_seq] || {});
     const cd = String(c.ctrl_cd||"").trim();
     if(!cd || cd in m) return;   // 첫 세트 우선
@@ -1585,7 +1597,7 @@ $("btnSlipCopy").onclick = ()=>{
     m[cd] = v;
   });
   const missing = [];
-  const newRows = (SLIP_SEL.items||[]).map((it)=>{
+  const newRows = (data.items||[]).map((it)=>{
     const fg = slipFg(it.dr_cr_fg);
     let acct = it.acct_cd || "", acctNm = it.acct_nm || "";
     if(acct && !(MASTER.accounts||[]).some((a)=> String(a.acct_cd)===String(acct))){
@@ -1596,14 +1608,14 @@ $("btnSlipCopy").onclick = ()=>{
              item_amt: it.item_loc_amt!=null ? String(Math.round(Number(it.item_loc_amt)||0)) : "",
              item_desc: it.item_desc || "", bp_cd: it.bp_cd||null, bp_nm: it.bp_nm||null,
              cost_cd: it.cost_cd||"", project_no: it.project_no||"",
-             __ctrl: ctrlBySeq[it.item_seq] || {},
-             __ctrlUi: { open:true } };   // 복사 직후엔 전 카드 펼침 — 복사값 검토·수정이 목적
+             __ctrl: ctrlBySeq[it.item_seq] || {} };
   });
   if(newRows.length) setRows(newRows);
   showTab("write");
-  toast("전표 "+h.temp_gl_no+" 을(를) 복사했습니다 — 결의일자는 오늘로 새로 설정됐고, 관리항목이 펼쳐져 있으니 계정·금액·관리항목 값을 확인·수정한 뒤 저장하세요.");
+  toast("전표 "+h.temp_gl_no+" 을(를) 복사했습니다 — 결의일자는 오늘로 새로 설정됐습니다. 관리항목은 줄을 선택(☑)하거나 [전체 펼치기]로 열어 확인·수정하세요.");
   if(missing.length) toast("⚠ 계정과목 마스터에 없는 계정은 비워 뒀습니다: "+missing.join(", ")+" — 계정을 다시 선택하세요.", true);
-};
+}
+$("btnSlipCopy").onclick = ()=>{ if(SLIP_SEL) copySlipData(SLIP_SEL); };
 
 /* ═══ 내 초안 ═══ */
 async function loadMine(){
