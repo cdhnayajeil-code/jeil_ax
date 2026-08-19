@@ -47,13 +47,16 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
   <div class="content">
 <h1 id="11-erp-1demo2">11. 결의전표 ERP 직접등록 — 1차(DEMO2) 기획·구축</h1>
 <blockquote>
-<p><strong>작성: 2026-08-19 (v1.0)</strong> · 관리: 최동혁 · 전담 에이전트: <code>erp-db-link-manager</code>
+<p><strong>작성: 2026-08-19</strong>(v1.0, 이후 v1.1 · 2026-08-19 오후) · 관리: 최동혁 · 전담 에이전트: <code>erp-db-link-manager</code>
 <strong>결정 C-11</strong>(2026-08-19 관리자 지시): AI(포털) 생성 결의전표의 ERP 직접 투입을 <strong>데모 DB <code>JEILMNS_DEMO2</code> 한정</strong>으로 1차 테스트한다.
 <strong>운영(<code>JEILMNS</code>) 쓰기는 여전히 금지</strong>(C-1 유지) — 운영 전환은 기회검토의 착수 게이트 G-1~G-8 통과 + 재심의가 선행돼야 한다.
 근거·선행: 사내 OneDrive <code>ERP_DB/회계/260819_AX_결의전표_ERP연동_기회검토/</code>(기회검토 본문 + test_demo2 리허설 킷 — <strong>투입 레시피 리허설 검증 완료</strong>)</p>
 </blockquote>
 <hr />
 <h2 id="1">1. 한 장 요약</h2>
+<blockquote>
+<p><strong>상태 — 1차 투입 성공(2026-08-19 오후, 관리자 직접 실행)</strong>: 대상 초안 <code>DRAFT-20260819-0005</code>(총무팀, 275,000원, 쿠콘 7월분 스크래핑 수수료 — 부가세 포함 3라인)을 <code>--dry-run</code>(리허설) → 확정 순으로 적용해 DEMO2에 <strong><code>AG202608190006</code></strong>(BATCH <code>BT202608190007</code>) 전표가 정상 생성됐다. 분개코드 자동 해석 성공(<code>11103301</code>→<code>A</code>/<code>A</code> · <code>53014307</code>→<code>SPC20</code> · <code>21100901</code>→<code>AP</code>, <code>A_JNL_ACCT_ASSN</code>+<code>A_JNL_FORM</code> 2단 조회), 엔진 rc=1·오류 없음, 전표 생성 <code>CONF_FG=U</code>, <strong>라인 대조 3/3 완전일치</strong>(대차 자동보정 미개입) 확인 후 COMMIT. 포털 회기입도 검증됐다 — <code>gl_draft.erp_apply_status='applied'</code>·AG번호·시각 자동 기록, 적용 원장 <code>gl_erp_apply_log</code> 2행(#1 dry-run/rolled_back, #2 commit/success), 적용 대상 목록에서 자동 제거돼 <strong>이중 적용 차단이 실제로 작동</strong>함을 확인했다. <strong>특기(정상 특성, 조치 불필요)</strong>: 채번 갱신(<code>B_AUTO_NUMBERING</code>)도 트랜잭션에 포함돼 리허설 롤백 시 번호가 반환되고, 같은 번호가 확정 실행에서 재사용됨(번호 낭비 없음). 잔여는 2차 이상 케이스 확대·운영 전환 재심의(§6)뿐이다. 상세는 §7 변경이력.</p>
+</blockquote>
 <p><strong>무엇</strong> — 포털에서 작성·제출한 결의전표 초안을, 사람이 ERP에 재입력하는 대신 <strong>적용기(관리자 PC 배치)가 DEMO2에 직접 투입</strong>해 ERP 표준 엔진으로 전표(TG류)를 생성한다. ERP 계정=MS 계정 1:1(C-3)이므로 <strong>전표 등록자는 포털 제출자의 ERP 계정 그대로</strong>다.</p>
 <p><strong>전표번호(핵심 요구)</strong> — AI가 만드는 전표는 <strong>전용 접두어 <code>AG</code> 대역</strong>으로 채번한다.
 ERP 표준 채번기(<code>usp_a_tempgl_no_auto_gen 'AG'</code> — <code>B_AUTO_NUMBERING</code> 기존 미사용 유형 재활용)를 쓰므로 <strong>중복이 원천 차단</strong>되고, TG(수기·기존 자동화) 대역과 완전히 분리되어 ①AI 전표만 골라 조회·회수 가능 ②사고 시 식별 즉시 ③운영 채번과 충돌 0. 포털 측에는 <strong>적용 원장(<code>gl_erp_apply_log</code>)</strong>이 모든 시도(리허설 포함)와 발급 번호를 기록·관리한다(성공 커밋의 초안·번호 유니크 제약).</p>
@@ -218,6 +221,11 @@ ERP 표준 채번기(<code>usp_a_tempgl_no_auto_gen 'AG'</code> — <code>B_AUTO
 </tr>
 </thead>
 <tbody>
+<tr>
+<td>2026-08-19(오후)</td>
+<td><strong>1차 투입 성공(v1.1, 관리자 직접 실행)</strong> — 대상 초안 <code>DRAFT-20260819-0005</code>(총무팀, 275,000원, 쿠콘 7월분 스크래핑 수수료, 부가세 포함 3라인)을 <code>--dry-run</code>→확정 순으로 실행. 분개코드 자동 해석 성공(<code>11103301</code>→<code>A</code>/<code>A</code>·<code>53014307</code>→<code>SPC20</code>·<code>21100901</code>→<code>AP</code>), AG 채번 <strong><code>AG202608190006</code></strong>(BATCH <code>BT202608190007</code>), 엔진 rc=1·오류 없음, 전표 생성 <code>CONF_FG=U</code>, <strong>라인 대조 3/3 완전일치</strong>(대차 자동보정 미개입), COMMIT. 포털 회기입 검증: <code>gl_draft.erp_apply_status='applied'</code>·AG번호·시각 자동 기록, 원장 <code>gl_erp_apply_log</code> 2행(#1 dry-run/rolled_back·#2 commit/success), 적용 대상 목록 자동 제거(이중 적용 차단 작동 확인). <strong>특기</strong>: 채번 갱신(<code>B_AUTO_NUMBERING</code>)도 트랜잭션에 포함돼 리허설 롤백 시 번호가 반환되고 같은 번호가 확정에서 재사용됨(번호 낭비 없음, 정상 특성으로 기록). §1 상태 갱신</td>
+<td>최동혁(+Claude)</td>
+</tr>
 <tr>
 <td>2026-08-19</td>
 <td>최초 작성(v1.0) — C-11 결정, DEMO2 실사, 적용기·원장·화면 구축</td>
