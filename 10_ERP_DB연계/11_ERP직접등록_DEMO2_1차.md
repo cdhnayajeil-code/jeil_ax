@@ -1,6 +1,6 @@
 # 11. 결의전표 ERP 직접등록 — 1차(DEMO2) 기획·구축
 
-> **작성: 2026-08-19**(v1.0, 이후 v1.1 · 2026-08-19 오후) · 관리: 최동혁 · 전담 에이전트: `erp-db-link-manager`
+> **작성: 2026-08-19**(v1.0 → v1.1 오후 → **v1.2 저녁**) · 관리: 최동혁 · 전담 에이전트: `erp-db-link-manager`
 > **결정 C-11**(2026-08-19 관리자 지시): AI(포털) 생성 결의전표의 ERP 직접 투입을 **데모 DB `JEILMNS_DEMO2` 한정**으로 1차 테스트한다.
 > **운영(`JEILMNS`) 쓰기는 여전히 금지**(C-1 유지) — 운영 전환은 기회검토의 착수 게이트 G-1~G-8 통과 + 재심의가 선행돼야 한다.
 > 근거·선행: 사내 OneDrive `ERP_DB/회계/260819_AX_결의전표_ERP연동_기회검토/`(기회검토 본문 + test_demo2 리허설 킷 — **투입 레시피 리허설 검증 완료**)
@@ -49,7 +49,8 @@ ERP 표준 채번기(`usp_a_tempgl_no_auto_gen 'AG'` — `B_AUTO_NUMBERING` 기�
 | **적용기** | `10_ERP_DB연계/etl/gl_apply_demo2.py` — 대상 DB `JEILMNS_DEMO2` **하드코딩**(CLI 변경 불가) + 접속 후 `DB_NAME()` 재확인 + 단일 트랜잭션 + 라인 대조 실패 시 ROLLBACK. `--list / --dry-run / (확정) / --cleanup` |
 | **포털 DB** | 마이그레이션 `gl_erp_apply_v1·v1b·v1c` — `gl_draft` 적용 추적 5컬럼(`erp_apply_*`) + **적용 원장 `gl_erp_apply_log`**(성공 커밋 유니크: 초안·AG번호) + RPC 3종(`gl_apply_ready/fetch/record`, service_role 전용) |
 | **Edge Function** | `jeil-gl-draft` **v5.2** — mine/list 에 적용 상태 노출(함수는 ERP에 쓰지 않음 — 실행 주체는 적용기) |
-| **화면** | 내 초안·회계 담당자 목록에 「ERP 적용」 열(DEMO AG번호 / 적용 실패 표시) |
+| **화면** | 내 초안·회계 담당자 목록에 「ERP 적용」 열(DEMO AG번호 / 전송 대기 / 적용 실패) + **회계 담당자 탭 [🚀 ERP 전송]·[전송 취소] 버튼**(v1.2) + 결과 자동 폴링 |
+| **전송 큐**(v1.2) | Edge Function op `apply_request`/`apply_cancel`(canPost 전용) + RPC `gl_apply_queue`(마이그레이션 `gl_erp_apply_v2`) + 적용기 `--queue`·`--watch`(감시 모드) |
 
 ### 3.1 멱등·중복 방지 3중 (요구: "전표번호 관리·중복 방지")
 
@@ -68,16 +69,38 @@ ERP 표준 채번기(`usp_a_tempgl_no_auto_gen 'AG'` — `B_AUTO_NUMBERING` 기�
 
 ① `A_TEMP_GL` 전표 생성 확인 ② **투입 라인 ↔ 생성 라인 완전대조**(계정+차대+금액 다중집합 — 엔진이 라인을 재정렬하므로 순번 매칭 금지, 리허설 정정 3) ③ 불일치 시 대차 자동보정 개입으로 판정·ROLLBACK. 관리항목 슬롯 순서는 엔진이 재배치(정정 2 — 코드만 정확히).
 
-## 4. 실행 절차 (관리자 `!` 직접 실행)
+## 4. 실행 절차
+
+### 4.1 화면 [🚀 ERP 전송] 방식 (v1.2 신설 — 실사용 테스트 경로)
+
+회계 담당자가 화면에서 버튼을 눌러 전송하고, 사내 중계가 자동 투입한다.
+**포털은 여전히 ERP에 직접 쓰지 않는다** — 버튼은 `erp_apply_status='ready'` 마킹만 하고, 투입은 중계가 수행(기회검토 채택 구조: 사내 pull).
 
 ```
-# 0) 포털에서 테스트 초안 작성·제출 (명세: 기회검토/test_demo2/02_포털입력_명세.md — S0003 허용 계정)
-! python "10_ERP_DB연계/etl/gl_apply_demo2.py" --list                      # 1) 적용 대상 확인
-! python "10_ERP_DB연계/etl/gl_apply_demo2.py" --draft DRAFT-... --dry-run  # 2) 리허설(ROLLBACK)
-! python "10_ERP_DB연계/etl/gl_apply_demo2.py" --draft DRAFT-...            # 3) 확정(COMMIT+회기입)
-# 4) 검증: 화면 「ERP 적용」 열 + 원장(gl_erp_apply_log) + DEMO2 A_TEMP_GL
-! python "10_ERP_DB연계/etl/gl_apply_demo2.py" --draft DRAFT-... --cleanup  # 5) 정리(삭제·상태 해제)
+① 관리자 PC에서 중계를 켠다(감시 모드 — 15초 간격, Ctrl+C 종료)
+   ! python "10_ERP_DB연계/etl/gl_apply_demo2.py" --watch
+② 회계 담당자: 결의전표 입력 화면 → 「회계 담당자」 탭 → 제출된 초안 선택
+   → [🚀 ERP 전송 (DEMO2)] 클릭 → 확인
+③ 중계가 자동 처리(멱등 확인 → 분개코드 조회 → AG·BT 채번 → A_BATCH 투입
+   → 표준 엔진 → 라인 완전대조 → 대조 통과 시 COMMIT)
+④ 화면이 4.5초 간격 폴링으로 결과를 자동 감지 → 「ERP 적용」 열에 AG전표번호 표시
+   (실패 시 '적용 실패' + 사유. 대기 중 취소는 [전송 취소])
 ```
+
+상태머신: `null` → **`ready`**(버튼) → **`applied`**(성공, AG번호 회기입) 또는 **`failed`**(실패, 사유 기록).
+중계를 상시 켜두지 않을 때는 버튼으로 대기만 걸고, 나중에 `--queue`(대기 건 일괄 처리, 1회 상한 5건)로 처리해도 된다.
+
+### 4.2 CLI 단건 방식 (리허설·정밀 검증용)
+
+```
+! python "10_ERP_DB연계/etl/gl_apply_demo2.py" --list                      # 적용 대상 확인
+! python "10_ERP_DB연계/etl/gl_apply_demo2.py" --draft DRAFT-... --dry-run  # 리허설(ROLLBACK)
+! python "10_ERP_DB연계/etl/gl_apply_demo2.py" --draft DRAFT-...            # 확정(COMMIT+회기입)
+! python "10_ERP_DB연계/etl/gl_apply_demo2.py" --draft DRAFT-... --cleanup  # 정리(삭제·상태 해제)
+```
+
+> 새 케이스(처음 쓰는 계정 조합)는 **먼저 `--dry-run`으로 검증**한 뒤 화면 전송을 쓰는 것을 권장한다.
+> 화면 전송 경로는 리허설 없이 바로 확정 투입되지만, 라인 대조 불일치 시 자동 ROLLBACK되므로 안전 경계는 동일하다.
 
 ## 5. 미결·주의 (실사 2026-08-19)
 
@@ -97,5 +120,6 @@ ERP 표준 채번기(`usp_a_tempgl_no_auto_gen 'AG'` — `B_AUTO_NUMBERING` 기�
 
 | 일자 | 내용 | 작성 |
 |---|---|---|
+| 2026-08-19(저녁) | **화면 [ERP 전송] 버튼 신설(v1.2, 커밋 `fbdcdcd`)** — 회계 담당자가 화면에서 클릭하면 ERP(DEMO2)로 데이터가 연결되는 실사용 테스트 경로를 완성했다. Edge Function **v5.3**(플랫폼 v8): op `apply_request`(전송 대기 `ready` 마킹)·`apply_cancel`(대기 취소, canPost 전용), `post` 형식검증에 AG 대역 허용 추가, `bootstrap` 에 `apply_target` 노출. 적용기: `--queue`(대기 건 일괄, 1회 상한 5)·`--watch`(15초 간격 감시 — 버튼 누르면 자동 처리) 추가. 큐 RPC `gl_apply_queue` 신설(마이그레이션 `gl_erp_apply_v2`). 화면: [🚀 ERP 전송]·[전송 취소] 버튼, 안내 배너, 「ERP 적용」 열 전송 대기 상태, 결과 자동 폴링(4.5초 간격·최대 40회)으로 AG번호·실패 즉시 반영. **포털이 ERP에 직접 쓰지 않는 경계는 유지**(버튼=마킹, 투입=사내 pull 중계). 배포 검증: OPTIONS 200·무토큰 POST 401 JSON(모듈 정상 기동) | 최동혁(+Claude) |
 | 2026-08-19(오후) | **1차 투입 성공(v1.1, 관리자 직접 실행)** — 대상 초안 `DRAFT-20260819-0005`(총무팀, 275,000원, 쿠콘 7월분 스크래핑 수수료, 부가세 포함 3라인)을 `--dry-run`→확정 순으로 실행. 분개코드 자동 해석 성공(`11103301`→`A`/`A`·`53014307`→`SPC20`·`21100901`→`AP`), AG 채번 **`AG202608190006`**(BATCH `BT202608190007`), 엔진 rc=1·오류 없음, 전표 생성 `CONF_FG=U`, **라인 대조 3/3 완전일치**(대차 자동보정 미개입), COMMIT. 포털 회기입 검증: `gl_draft.erp_apply_status='applied'`·AG번호·시각 자동 기록, 원장 `gl_erp_apply_log` 2행(#1 dry-run/rolled_back·#2 commit/success), 적용 대상 목록 자동 제거(이중 적용 차단 작동 확인). **특기**: 채번 갱신(`B_AUTO_NUMBERING`)도 트랜잭션에 포함돼 리허설 롤백 시 번호가 반환되고 같은 번호가 확정에서 재사용됨(번호 낭비 없음, 정상 특성으로 기록). §1 상태 갱신 | 최동혁(+Claude) |
 | 2026-08-19 | 최초 작성(v1.0) — C-11 결정, DEMO2 실사, 적용기·원장·화면 구축 | 최동혁(+Claude) |
