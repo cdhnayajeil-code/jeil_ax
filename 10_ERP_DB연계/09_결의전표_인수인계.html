@@ -42,12 +42,12 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <body>
 <div class="page">
   <span class="doc-label">JEIL AX ERP DB 연계 · 대외비</span>
-  <div class="docnav"><a href="index.html">🏠 연계 허브</a><a href="00_현재상태_스냅샷.html">00 현재상태</a><a href="01_연계기획.html">01 연계기획</a><a href="02_진행상태.html">02 진행상태</a><a href="03_중간DB_구축실행기획.html">03 중간DB 실행기획</a><a href="04_증분동기화_확장_거버넌스_기획.html">04 증분·확장·거버넌스</a><a href="05_사용자부서_매핑대사.html">05 사용자-부서 매핑</a><a href="06_결의전표_추진계획.html">06 결의전표 추진계획</a><a class="cur" href="09_결의전표_인수인계.html">09 결의전표 인수인계</a><a href="10_반복전표_자동화_기획.html">10 반복전표 자동화</a><a href="README.md">README</a></div>
+  <div class="docnav"><a href="index.html">🏠 연계 허브</a><a href="00_현재상태_스냅샷.html">00 현재상태</a><a href="01_연계기획.html">01 연계기획</a><a href="02_진행상태.html">02 진행상태</a><a href="03_중간DB_구축실행기획.html">03 중간DB 실행기획</a><a href="04_증분동기화_확장_거버넌스_기획.html">04 증분·확장·거버넌스</a><a href="05_사용자부서_매핑대사.html">05 사용자-부서 매핑</a><a href="06_결의전표_추진계획.html">06 결의전표 추진계획</a><a class="cur" href="09_결의전표_인수인계.html">09 결의전표 인수인계</a><a href="10_반복전표_자동화_기획.html">10 반복전표 자동화</a><a href="11_ERP직접등록_DEMO2_1차.html">11 ERP 직접등록(DEMO2)</a><a href="README.md">README</a></div>
   <p class="md-link">📄 Markdown 원본: <a href="09_결의전표_인수인계.md">09_결의전표_인수인계.md</a> · 허브 <a href="index.html">연계 허브</a></p>
   <div class="content">
 <h1 id="09">09. 결의전표 파일럿 — 종합 인수인계</h1>
 <blockquote>
-<p><strong>작성: 2026-08-03</strong>(v1.0, 이후 v1.1 · 2026-08-05 / v1.2 · 2026-08-11 / v1.3 · 2026-08-18 / v1.4 · 2026-08-18) · 관리: 최동혁 · 전담 에이전트: <code>erp-db-link-manager</code>
+<p><strong>작성: 2026-08-03</strong>(v1.0, 이후 v1.1 · 2026-08-05 / v1.2 · 2026-08-11 / v1.3 · 2026-08-18 / v1.4 · 2026-08-18 / v1.5 · 2026-08-19) · 관리: 최동혁 · 전담 에이전트: <code>erp-db-link-manager</code>
 결의전표 초안 입력 파일럿의 <strong>전체 그림과 재개 절차</strong>를 한 문서에 모았다. 시간이 지나거나 담당이 바뀐 뒤 <strong>여기부터 읽으면 바로 이어서 진행할 수 있게</strong> 쓴다.
 세부는 <code>06</code>(추진계획)·<code>07</code>(연동 종합)·<code>08</code>(처리 프로세스)에 있고, 이 문서는 <strong>진입점 + 재개 체크리스트</strong>다.
 비밀값(접속 IP/ID/비밀번호) 기록 금지 — 서버 지칭은 별칭 <strong>"ERP운영DB"</strong> 만 사용.</p>
@@ -59,7 +59,8 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 2026-08-05 <strong>템플릿 플랫폼</strong>(케이스별 분개 형태를 등록해 두고 골라 쓰는 구조)을 얹었다 — 구조는 완성, <strong>등재된 템플릿은 0건</strong>(§3.4).
 2026-08-10~11 <strong>별도 트랙(반복전표 자동화)의 분석·기획이 추가됐다</strong> — ERP 2026년 수기 결의전표 2,287건을 전수 분석해 반복 패턴 156개(964건·42.2%)를 확인하고, 이를 템플릿 플랫폼 v2로 잇는 <code>10_반복전표_자동화_기획.md</code>(v1.1)를 신설했다. <strong>이 트랙은 아래 S5 E2E 테스트와 독립적이며, 진행하려면 승인 게이트 B1(관리항목 마스터 적재)·B2(시드 검수+회계 규칙 확정)·B2-1(마감 기준)이 먼저 필요하다.</strong> 상세는 <code>10_반복전표_자동화_기획.md §8</code>.
 2026-08-18 <strong>「전표복사」 기능 신설·배포 + 결의전표 원장 미러링 결정(C-10) — 같은 날 오후 실적재까지 완료</strong> — 본인이 ERP에 입력한 결의전표를 조회·미리보기·복사해 초안을 시작하는 탭을 추가했고, 이를 뒷받침하기 위해 <code>A_TEMP_GL</code> 3종(헤더·라인·관리항목)을 중간DB에 미러링하는 결정을 내렸다(C-7 확장, §2 C-10). 코드·DDL·화면 배포, ERP운영DB dry-run 검증(3,224·16,865·42,371행)에 이어 <strong>관리자가 직접 실행해 실적재까지 완료</strong>했다 — <code>gl_slip_s</code> 3,226행·<code>gl_slip_item_s</code> 16,879행·<code>gl_slip_ctrl_s</code> 42,422행, 민감 관리항목 마스킹·조회 RPC 소유 필터 실측 확인(상세 §3.2). 잔여는 야간배치 스케줄 편입뿐이다.
-2026-08-18(저녁) <strong>char 패딩 결함 해소 + 검색 팝업·디자인 개선 배포(v5.1)</strong> — 결의전표 입력 화면에서 관리항목·거래처가 표시되지 않는 문제의 원인이 ERP char 컬럼의 트레일링 스페이스임을 발견해 해소했다(3중 대응: 미러 5테이블 trim 마이그레이션 + ETL RTRIM + 화면·서버 trim 방어). 같은 배포에서 계정과목·거래처 검색 팝업, 관리항목 참조검색(품목·거래처)이 신설됐다. 상세는 §3.1·§5 참조.</p>
+2026-08-18(저녁) <strong>char 패딩 결함 해소 + 검색 팝업·디자인 개선 배포(v5.1)</strong> — 결의전표 입력 화면에서 관리항목·거래처가 표시되지 않는 문제의 원인이 ERP char 컬럼의 트레일링 스페이스임을 발견해 해소했다(3중 대응: 미러 5테이블 trim 마이그레이션 + ETL RTRIM + 화면·서버 trim 방어). 같은 배포에서 계정과목·거래처 검색 팝업, 관리항목 참조검색(품목·거래처)이 신설됐다. 상세는 §3.1·§5 참조.
+2026-08-19 <strong>신규 트랙 "ERP 직접등록 — 1차(DEMO2)" 개시(결정 C-11)</strong> — 이 파일럿의 "초안은 포털, 확정은 ERP"(C-1) 구조 중 회계 담당자의 ERP 재입력 단계를, 데모 DB <code>JEILMNS_DEMO2</code> 한정으로 자동화 실증하는 별도 트랙이 시작됐다. <strong>운영(<code>JEILMNS</code>) 쓰기는 여전히 금지</strong>(C-1 유지) — 전용 채번 대역(<code>AG</code>)·적용기·포털 원장·Edge Function v5.2·화면까지 구축을 마쳤고 DEMO2 읽기전용 실사도 완료했으나, <strong>실제 투입은 관리자 직접 실행 대기</strong>다. <strong>이 트랙은 아래 S5 E2E 테스트·반복전표 자동화 트랙과 모두 독립적</strong>이며, 신규 문서 <code>11_ERP직접등록_DEMO2_1차.md</code>(v1.0)에 전체 내용이 있다. §2 C-11 참조.</p>
 <p><strong>다음에 할 일 딱 하나</strong> — <strong>전표 1건 E2E 테스트(S5)</strong>. 지금 바로 실행 가능하다(반복전표 자동화 트랙과 무관하게 그대로 유효).</p>
 <p><strong>남은 승인</strong> — <strong>A5(회계 규칙) 하나뿐.</strong> 계정 691개를 실무용으로 좁히는 문제라 테스트에는 지장 없다.</p>
 <pre><code>[완료] 구축·배포 ─▶ [완료] A1 마스터 적재 ─▶ [완료] A2 코드 체계 확정 ─▶ [지금] S5 E2E 테스트
@@ -139,6 +140,12 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <td><strong>결의전표 원장(<code>gl_slip</code>)도 미러링</strong></td>
 <td><strong>C-7을 확장</strong> — 코드 마스터뿐 아니라 결의전표 원장(<code>A_TEMP_GL</code> 3종: 헤더·라인·관리항목)도 중간DB에 미러링해 「전표복사」 기능에 사용한다. 통제 3중: ①RLS 전면차단+RPC 단일경로 ②조회 RPC가 소유 필터(C-3 매핑 근거)를 내부 강제 ③민감 관리항목(EM/BA/D1/CP/NN)은 ETL 단계에서 값 자체를 NULL 마스킹</td>
 <td>2026-08-18</td>
+</tr>
+<tr>
+<td>C-11</td>
+<td><strong>ERP 직접등록 — 데모 DB(<code>JEILMNS_DEMO2</code>) 한정 1차 허용</strong></td>
+<td>C-1("포털은 ERP에 쓰지 않는다")은 <strong>운영(<code>JEILMNS</code>)에서는 그대로 유지</strong>된다. 데모 DB <code>JEILMNS_DEMO2</code>에 한정해 적용기(<code>gl_apply_demo2.py</code>)가 AI 결의전표를 직접 투입하는 1차 테스트를 허용한다(대상 DB 하드코딩·단일 트랜잭션·라인 완전대조). 전표번호는 AI 전용 <strong><code>AG</code> 대역</strong>으로 분리 채번(TG 대역과 완전 분리, 중복 원천 차단). 운영 전환은 기회검토 착수 게이트 G-1~G-8 통과 + 재심의가 선행돼야 한다. 상세는 신규 문서 <code>11_ERP직접등록_DEMO2_1차.md</code></td>
+<td>2026-08-19</td>
 </tr>
 </tbody>
 </table>
@@ -327,7 +334,12 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <td><strong>별도 트랙</strong>(파일럿과 독립, 진행하려면 B1~B3 선행)</td>
 </tr>
 <tr>
-<td><code>00_현재상태_스냅샷</code>(v0.22) · <code>02_진행상태</code></td>
+<td><strong><code>11_ERP직접등록_DEMO2_1차</code></strong>(v1.0, 신규)</td>
+<td>ERP 직접등록 1차 — 결정 C-11, 데모 DB(<code>JEILMNS_DEMO2</code>) 한정 적용기·AG 채번·멱등 3중 방어, 구축 완료·적용 실행 대기</td>
+<td><strong>별도 트랙</strong>(파일럿·반복전표 자동화와 독립, 운영 쓰기는 C-1 유지)</td>
+</tr>
+<tr>
+<td><code>00_현재상태_스냅샷</code>(v0.31) · <code>02_진행상태</code></td>
 <td>ERP 연계 전체 현황·작업 이력</td>
 <td>연계 전반</td>
 </tr>
@@ -544,12 +556,12 @@ select draft_no, status, erp_temp_gl_no, owner_upn, posted_at from public.gl_dra
 <tr>
 <td><strong>E3</strong></td>
 <td><strong>ERP 자동 등록(쓰기 API)</strong></td>
-<td><strong>유니포인트 협의 + 경영 승인.</strong> 현재 절대규칙상 불가</td>
+<td><strong>유니포인트 협의 + 경영 승인.</strong> 운영(<code>JEILMNS</code>)에서는 여전히 절대규칙상 불가(C-1 유지) — <strong>2026-08-19 결정 C-11로 데모 DB(<code>JEILMNS_DEMO2</code>) 한정 1차 실증 트랙이 개시됐다</strong>(신규 문서 <code>11_ERP직접등록_DEMO2_1차.md</code>). 이 1차 실증의 결과가 향후 E3(운영 전환) 재심의의 입력이 되며, 운영 전환 자체는 별도 기회검토의 착수 게이트 G-1~G-8 통과가 선행돼야 한다</td>
 </tr>
 <tr>
 <td>E4</td>
 <td>그룹웨어 전자결재 연동</td>
-<td>E3 + 그룹웨어 API</td>
+<td>E3(운영 전환) + 그룹웨어 API</td>
 </tr>
 <tr>
 <td>E5</td>
@@ -561,7 +573,7 @@ select draft_no, status, erp_temp_gl_no, owner_upn, posted_at from public.gl_dra
 <blockquote>
 <p><strong>현재 구조는 "포털 입력 + 회계 담당자가 ERP 재입력"이라 회계팀 일이 오히려 늘어난다.</strong>
 파일럿(1~2명)은 감당되지만 부서·전사로 넓히면 회계 담당자가 병목이 된다.
-<strong>실무 확대를 원한다면 E3 협의를 언제 의제에 올릴지가 실질적인 의사결정 지점이다.</strong></p>
+<strong>실무 확대를 원한다면 E3 협의를 언제 의제에 올릴지가 실질적인 의사결정 지점이다</strong> — 그 첫 단추가 데모 DB 1차 실증(C-11, <code>11</code> 문서)이다.</p>
 </blockquote>
 <hr />
 <h2 id="8">8. 미결정 사항</h2>
@@ -621,6 +633,11 @@ select draft_no, status, erp_temp_gl_no, owner_upn, posted_at from public.gl_dra
 </tr>
 </thead>
 <tbody>
+<tr>
+<td>2026-08-19</td>
+<td><strong>신규 트랙 "ERP 직접등록 — 1차(DEMO2)" 등재</strong>(v1.5, 관리자 결정 C-11, 커밋 <code>2737dcb</code>) — 이 파일럿의 "초안은 포털, 확정은 ERP"(C-1) 구조 중 회계 담당자의 ERP 재입력 단계를 데모 DB <code>JEILMNS_DEMO2</code> 한정으로 자동화 실증하는 신규 문서 <code>11_ERP직접등록_DEMO2_1차.md</code>(v1.0)를 §3.3 문서 표·§1 요약에 등재했다. <strong>관리자 결정 C-11</strong>(§2 신규 행)로 AI 결의전표의 ERP 직접 투입을 DEMO2에서 1차 테스트로 허용 — <strong>운영(<code>JEILMNS</code>) 쓰기는 C-1 그대로 유지</strong>, 운영 전환은 기회검토 착수 게이트 G-1~G-8 통과·재심의 선행 필요. 전표번호는 AI 전용 <code>AG</code> 대역으로 분리 채번. 적용기·포털 원장(<code>gl_erp_apply_v1</code>·<code>v1b</code>·<code>v1c</code>)·Edge Function <code>jeil-gl-draft</code> v5.2·화면 「ERP 적용」 열 구축과 DEMO2 읽기전용 실사가 완료됐고, 실제 투입은 관리자 직접 실행 대기다. <strong>§7 E3 갱신</strong> — "운영 전환은 절대규칙상 불가"라는 기존 서술에 "데모 DB 한정 1차 실증 트랙(C-11)이 이 재심의의 입력이 된다"는 연결을 추가했다. 이 트랙은 S5 E2E 테스트·반복전표 자동화 트랙과 모두 독립이다. §1·§2·§3.3·§7 갱신</td>
+<td>최동혁(+Claude)</td>
+</tr>
 <tr>
 <td>2026-08-18</td>
 <td><strong>char 패딩 결함 해소 + 계정·거래처 검색 팝업·관리항목 참조검색·디자인 개선</strong>(v1.4, 같은 날 저녁, 관리자 제보) — 결의전표 입력 화면에서 관리항목·거래처가 표시되지 않는 문제를 조사한 결과, v1.3에서 "알려진 특성·조치 불필요"로 판단했던 ERP char 패딩(트레일링 스페이스)이 <strong>실제로는 화면 기능을 무력화하는 결함</strong>이었음이 드러났다(오판 정정, §5.5 신설). <strong>원인</strong>: <code>acct_ctrl_assn_s</code> 978/1,002행 계정코드 패딩(관리항목 매칭 전부 miss)·전표 라인 <code>bp_cd</code> 1,773행 패딩(거래처 조인 실패)·<code>gl_input_type</code> 패딩(입력경로 필터 오작동). <strong>조치 3중</strong>: 마이그레이션 <code>gl_pad_trim_v1</code>(미러 5테이블 trim + RPC 3종 btrim 재정의) + ETL 5개 job <code>RTRIM</code> + 화면·Edge Function trim 방어. <strong>검증</strong>: 거래처 조인 11,734/11,734, 계정×관리항목 조인 42,466건 정상. <strong>같은 배포에서 화면(v5.1)도 개선</strong>: 계정과목 검색 팝업(select 드롭다운 대체)·거래처 검색 팝업(<code>gl_bp_search</code>, 기존 "거래처 찾기" 섹션 제거)·관리항목 참조검색(품목 <code>gl_item_search</code> 신규 RPC+op <code>item</code>, 거래처)·관리항목 패널 카드형 디자인(차대 색상 보더·필수 강조배지)·섹션 스텝 번호. Edge Function <code>jeil-gl-draft</code> v5→<strong>v5.1</strong>. <strong>배포</strong>: git 커밋 <code>a715f1f</code> push 완료(Vercel main 자동배포), 마이그레이션 <code>gl_pad_trim_v1</code> 적용 완료, 정본 <code>이관/sql/25_gl_slip_mirror.sql</code>에 btrim RPC·<code>gl_item_search</code>·패딩 노트 반영 완료. §1·§3.1·§3.2·§5 갱신</td>
