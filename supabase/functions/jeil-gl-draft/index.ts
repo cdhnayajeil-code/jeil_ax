@@ -6,6 +6,8 @@
 //              |"tpl_recur_list"|"tpl_apply_prev"|"tpl_seed_bulk"
 //              |"slip_list"|"slip_get", ... }
 // v5.1(2026-08-18): ERP char 패딩 대응(acctCtrlFor trim, RPC btrim은 gl_pad_trim_v1) + op item(품목 검색) 추가
+// v5.2(2026-08-19): ERP 직접등록 1차(DEMO2, 결정 C-11) 적용 상태 노출 — mine/list 에 erp_apply_* 필드 추가.
+//   적용 실행은 이 함수가 아니라 관리자 PC 적용기(gl_apply_demo2.py)가 수행한다(포털은 ERP에 직접 쓰지 않음).
 // DDL 정본: 이관/sql/21_gl_draft.sql · 22_gl_template.sql · 23(관리항목 마스터) · 25(전표 미러)
 //   마이그레이션 gl_draft_v1 · gl_draft_master_rpc · gl_template_v1 · gl_ctrl_master_v1 · gl_template_v2
 //              · gl_slip_mirror_v1
@@ -781,7 +783,7 @@ Deno.serve(async (req) => {
   /* ===== op: mine — 내 초안 목록 ===== */
   if (op === "mine") {
     const { data, error } = await admin.from("gl_draft")
-      .select("draft_no,draft_dt,gl_desc,dept_nm,dr_total,cr_total,status,erp_temp_gl_no,created_at,submitted_at,posted_at")
+      .select("draft_no,draft_dt,gl_desc,dept_nm,dr_total,cr_total,status,erp_temp_gl_no,erp_apply_status,erp_apply_gl_no,erp_apply_target,created_at,submitted_at,posted_at")
       .eq("owner_upn", user.upn).order("created_at", { ascending: false }).limit(100);
     if (error) return json({ error: "조회 실패: " + error.message }, 500);
     return json({ ok: true, rows: data || [] });
@@ -848,7 +850,7 @@ Deno.serve(async (req) => {
   if (op === "list") {
     if (!canPost) return json({ error: "forbidden: 회계 담당자 전용입니다." }, 403);
     let q = admin.from("gl_draft")
-      .select("draft_no,draft_dt,gl_type,dept_nm,cost_cd,gl_desc,ref_no,owner_upn,owner_nm,owner_erp_usr_id,dr_total,cr_total,status,erp_temp_gl_no,created_at,submitted_at,posted_at")
+      .select("draft_no,draft_dt,gl_type,dept_nm,cost_cd,gl_desc,ref_no,owner_upn,owner_nm,owner_erp_usr_id,dr_total,cr_total,status,erp_temp_gl_no,erp_apply_status,erp_apply_gl_no,erp_apply_target,created_at,submitted_at,posted_at")
       .order("submitted_at", { ascending: true, nullsFirst: false }).limit(300);
     const st = String(b.status || "submitted");
     if (st === "draft") return json({ error: "forbidden: 작성중(미제출) 초안은 작성자 본인만 볼 수 있습니다." }, 403);
