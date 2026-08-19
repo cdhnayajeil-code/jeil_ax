@@ -395,7 +395,7 @@
     <div id="panePost" class="hide">
       <div class="sec">
         <h2>제출된 초안
-          <small>ERP에 등록한 뒤 전표번호를 기입해야 완료 처리됩니다</small>
+          <small>[🚀 ERP 전송]으로 자동 등록(DEMO2 테스트) · 또는 ERP 수기 입력 후 전표번호 기입</small>
           <span style="margin-left:auto;">
             <select id="postFilter" style="border:1.5px solid var(--line);border-radius:8px;padding:6px 10px;font-family:inherit;font-size:12.5px;">
               <option value="submitted">제출됨</option>
@@ -408,6 +408,12 @@
       </div>
       <div class="sec hide" id="postDetail">
         <h2>ERP 입력용 요약 <small id="postDetailNo"></small></h2>
+        <div class="banner" style="background:#eef4fb;border-color:#c9dcf1;border-left-color:var(--accent);color:#2a4a6b;margin-bottom:13px;">
+          <b>[🚀 ERP 전송]</b>을 누르면 사내 중계가 ERP 표준 엔진으로 전표를 자동 생성합니다
+          (<b>1차 테스트 — 대상: 데모 DB DEMO2</b>, AI 전용 <b>AG</b> 번호대역).
+          라인 대조가 일치하지 않으면 자동 취소되고, 완료되면 아래 「ERP 적용」에 전표번호가 표시됩니다.
+          운영 ERP 등록은 아직 수기 입력 + 전표번호 회기입입니다.
+        </div>
         <div class="erpbox" id="erpSummary"></div>
         <div style="overflow-x:auto;margin-top:12px;"><table class="tbl" id="postItems"></table></div>
         <h2 style="margin-top:14px;">관리항목 <small>ERP 하단 그리드 입력 순서대로 — [값 복사]에 포함됩니다</small></h2>
@@ -417,6 +423,8 @@
                  style="border:1.5px solid var(--line);border-radius:9px;padding:10px 13px;font-family:inherit;font-size:13.5px;width:220px;">
           <button class="b ok" id="btnPost">확정 기록</button>
           <button class="b gh" id="btnCopyErp">📋 값 복사</button>
+          <button class="b pri hide" id="btnErpSend">🚀 ERP 전송 (DEMO2)</button>
+          <button class="b gh hide" id="btnErpCancel">전송 취소</button>
         </div>
       </div>
     </div>
@@ -574,6 +582,8 @@ function applyPill(x){
   if(x.erp_apply_status === "applied")
     return '<span class="pill posted" title="'+esc(x.erp_apply_target||"")+' 적용 완료">'
       + (String(x.erp_apply_target||"").indexOf("DEMO")>=0 ? "DEMO " : "") + esc(x.erp_apply_gl_no||"적용됨") + '</span>';
+  if(x.erp_apply_status === "ready")
+    return '<span class="pill submitted" title="사내 중계가 곧 투입합니다">🚀 전송 대기</span>';
   if(x.erp_apply_status === "failed")
     return '<span class="pill" style="background:#fdeeec;color:var(--red);" title="적용 실패 — 관리자 확인 필요">적용 실패</span>';
   return '<span style="color:#aab;">—</span>';
@@ -1684,7 +1694,17 @@ $("postTbl").onclick = async (e)=>{
       ["코스트센터", h.cost_cd||"—"], ["적요", h.gl_desc],
       ["프로젝트", h.project_no||"—"], ["참조번호", h.ref_no||"—"],
       ["차변/대변 합계", won(h.dr_total)+" / "+won(h.cr_total)],
+      ["ERP 적용(자동)", h.erp_apply_status==="applied" ? (h.erp_apply_target||"")+" · "+(h.erp_apply_gl_no||"")
+        : h.erp_apply_status==="ready" ? "🚀 전송 대기(중계 처리 중)"
+        : h.erp_apply_status==="failed" ? "⚠ 적용 실패 — "+(h.erp_apply_msg||"관리자 확인") : "—"],
     ].map(([k,v])=>'<div class="row"><span class="k">'+esc(k)+'</span><span class="v">'+esc(v)+'</span></div>').join("");
+    // [ERP 전송] 버튼 상태 — 제출됨 + 미적용 건만 전송 가능(C-11 1차: DEMO2)
+    const canSend = h.status === "submitted" && h.erp_apply_status !== "applied";
+    $("btnErpSend").classList.toggle("hide", !canSend);
+    $("btnErpSend").disabled = h.erp_apply_status === "ready";
+    $("btnErpSend").textContent = h.erp_apply_status === "ready" ? "🚀 전송 대기 중…"
+      : h.erp_apply_status === "failed" ? "🚀 ERP 재전송 (DEMO2)" : "🚀 ERP 전송 (DEMO2)";
+    $("btnErpCancel").classList.toggle("hide", h.erp_apply_status !== "ready");
     $("postItems").innerHTML = '<thead><tr><th>순번</th><th>차대</th><th>계정과목</th><th class="r">금액</th><th>적요</th><th>거래처</th><th>코스트센터</th><th>프로젝트</th></tr></thead><tbody>'
       + r.items.map((it)=>'<tr><td>'+it.item_seq+'</td><td>'+(it.dr_cr_fg==="D"?"차변":"대변")+'</td>'
       + '<td>'+esc(it.acct_nm||"")+' <span style="color:var(--muted);font-size:11px;">'+esc(it.acct_cd)+'</span></td>'
@@ -1726,6 +1746,62 @@ $("btnPost").onclick = async ()=>{
     toast(r.안내); $("postDetail").classList.add("hide"); POST_SEL = null; loadPost();
   }catch(e){ toast(e.message, true); }
 };
+/* ═══ ERP 전송(C-11 1차 · 대상 DEMO2) ═══
+   포털은 ERP에 직접 쓰지 않는다 — 이 버튼은 '전송 대기(ready)' 마킹만 하고,
+   실제 투입은 사내 중계(gl_apply_demo2.py --queue/--watch)가 수행한다.
+   결과(AG전표번호·실패)는 중계가 회기입하며, 아래 폴링이 자동으로 감지해 화면에 반영한다. */
+let SEND_POLL = null;
+function stopSendPoll(){ if(SEND_POLL){ clearInterval(SEND_POLL); SEND_POLL = null; } }
+function startSendPoll(draftNo){
+  stopSendPoll();
+  let tries = 0;
+  SEND_POLL = setInterval(async ()=>{
+    tries++;
+    if(tries > 40){ stopSendPoll(); return; }   // 최대 약 3분(4.5초×40) 후 중단 — 수동 새로고침 안내
+    try{
+      const r = await api("get", { draft_no: draftNo });
+      const st = r.header.erp_apply_status;
+      if(st === "applied" || st === "failed"){
+        stopSendPoll();
+        POST_SEL = r; loadPost();
+        // 상세 패널이 같은 건을 보고 있으면 다시 그려 최신 상태 반영
+        if($("postDetailNo").textContent.indexOf(draftNo) >= 0){
+          const tr = document.querySelector('#postTbl tr[data-no="'+CSS.escape(draftNo)+'"]');
+          if(tr) tr.click();
+        }
+        if(st === "applied")
+          toast("✅ ERP 적용 완료 — 전표번호 "+(r.header.erp_apply_gl_no||"")+" ("+(r.header.erp_apply_target||"")+")");
+        else
+          toast("⚠ ERP 적용 실패 — "+(r.header.erp_apply_msg||"중계 로그를 확인하세요."), true);
+      }
+    }catch(e){ /* 폴링 실패는 조용히 — 다음 주기에 재시도 */ }
+  }, 4500);
+}
+$("btnErpSend").onclick = async ()=>{
+  if(!POST_SEL) return;
+  const no = POST_SEL.header.draft_no;
+  if(!confirm("초안 "+no+" 을(를) ERP(DEMO2)로 전송합니다.\n\n"
+    + "· 사내 중계가 ERP 표준 엔진으로 전표를 생성합니다(AI 전용 AG 번호대역)\n"
+    + "· 라인 대조가 일치하지 않으면 자동 취소됩니다\n"
+    + "· 중계가 실행 중이어야 처리됩니다(감시 모드 또는 --queue)\n\n계속할까요?")) return;
+  $("btnErpSend").disabled = true;
+  try{
+    const r = await api("apply_request", { draft_no: no });
+    toast(r.안내 || "전송 요청했습니다.");
+    loadPost(); startSendPoll(no);
+  }catch(e){ toast(e.message, true); $("btnErpSend").disabled = false; }
+};
+$("btnErpCancel").onclick = async ()=>{
+  if(!POST_SEL) return;
+  const no = POST_SEL.header.draft_no;
+  if(!confirm("전송 대기를 취소합니다(중계가 이미 처리했다면 취소되지 않습니다). 계속할까요?")) return;
+  try{
+    const r = await api("apply_cancel", { draft_no: no });
+    stopSendPoll(); toast(r.안내 || "취소했습니다."); loadPost();
+    const tr = document.querySelector('#postTbl tr[data-no="'+CSS.escape(no)+'"]'); if(tr) tr.click();
+  }catch(e){ toast(e.message, true); loadPost(); }
+};
+
 $("btnCopyErp").onclick = ()=>{
   if(!POST_SEL) return;
   const h = POST_SEL.header;

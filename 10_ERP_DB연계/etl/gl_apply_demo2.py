@@ -22,12 +22,18 @@ r"""gl_apply_demo2.py — 포털 결의전표 초안 → ERP 데모DB(JEILMNS_DE
   python gl_apply_demo2.py --draft DRAFT-... --dry-run   리허설(전 과정 실행 후 ROLLBACK)
   python gl_apply_demo2.py --draft DRAFT-...             확정 투입(COMMIT + 포털 회기입)
   python gl_apply_demo2.py --draft DRAFT-... --cleanup   DEMO2에서 해당 건 삭제(정리) + 포털 상태 해제
+  python gl_apply_demo2.py --queue                       화면 [ERP 전송] 대기(ready) 건 일괄 처리(1건씩 순차)
+  python gl_apply_demo2.py --watch                       감시 모드 — 15초마다 대기 건 확인·처리(Ctrl+C 종료)
+
+전송 흐름(v1.1): 회계 담당자가 화면에서 [🚀 ERP 전송] 클릭 → erp_apply_status='ready' 마킹
+  → 이 스크립트(--queue/--watch, 사내 pull 중계)가 투입 → 결과 회기입 → 화면 자동 반영.
 """
 import argparse
 import datetime
 import json
 import re
 import sys
+import time
 import urllib.error
 import urllib.request
 
@@ -448,10 +454,47 @@ def list_ready():
         return 0
     print(f"적용 대상 {len(rows)}건 — 대상 DB: {TARGET_DB}")
     for r in rows:
+        mark = "🚀 전송 대기" if r.get("erp_apply_status") == "ready" \
+            else ("⚠ 이전 실패" if r.get("erp_apply_status") == "failed" else "")
         print(f"  {r['draft_no']}  {r['draft_dt']}  {int(r['dr_total']):>12,}원  "
-              f"{r.get('dept_nm') or r.get('dept_cd') or '-'}  {r.get('gl_desc','')[:40]}")
-    print("\n다음: python gl_apply_demo2.py --draft <초안번호> --dry-run")
+              f"{r.get('dept_nm') or r.get('dept_cd') or '-'}  {r.get('gl_desc','')[:36]}  {mark}")
+    print("\n다음: --queue(전송 대기 건 처리) 또는 --draft <초안번호> --dry-run")
     return 0
+
+
+def queue_run(args, url, key):
+    """화면 [ERP 전송] 대기(ready) 건을 1건씩 순차 처리. 실패 건은 failed 로 기록되고 건너뛴다."""
+    rows = rpc(url, key, "gl_apply_queue", {"p_target": TARGET_DB}) or []
+    if not rows:
+        return 0, 0
+    ok = 0
+    for r in rows[: args.max]:
+        no = r["draft_no"]
+        print(f"\n════ [전송 처리] {no} · {int(r['dr_total']):,}원 · {r.get('gl_desc','')[:36]} ════")
+        ns = argparse.Namespace(draft=no, dry_run=False, cleanup=False, trans_type=args.trans_type)
+        try:
+            if apply_draft(ns) == 0:
+                ok += 1
+        except SystemExit as e:   # 개별 건 실패가 큐 전체를 멈추지 않게
+            print(f"[건너뜀] {no}: {e}", file=sys.stderr)
+    return ok, len(rows)
+
+
+def watch_run(args, url, key):
+    print(f"[감시 모드] {args.interval}초 간격으로 전송 대기 건을 확인합니다 — 화면에서 [🚀 ERP 전송]을 누르면"
+          f" 자동 처리됩니다. 종료: Ctrl+C")
+    try:
+        while True:
+            ok, total = queue_run(args, url, key)
+            now = datetime.datetime.now().strftime("%H:%M:%S")
+            if total:
+                print(f"[{now}] 처리 {ok}/{total}건 — 계속 감시 중…")
+            else:
+                print(f"[{now}] 대기 건 없음", end="\r")
+            time.sleep(args.interval)
+    except KeyboardInterrupt:
+        print("\n[감시 종료]")
+        return 0
 
 
 def main():
@@ -460,10 +503,23 @@ def main():
     ap.add_argument("--draft", help="초안번호(DRAFT-...) — 1회 1건")
     ap.add_argument("--dry-run", action="store_true", help="리허설(전 과정 실행 후 ROLLBACK)")
     ap.add_argument("--cleanup", action="store_true", help="해당 초안의 DEMO2 전표·배치 삭제(정리)")
+    ap.add_argument("--queue", action="store_true", help="화면 [ERP 전송] 대기 건 일괄 처리")
+    ap.add_argument("--watch", action="store_true", help="감시 모드 — 대기 건을 주기적으로 자동 처리")
+    ap.add_argument("--interval", type=int, default=15, help="감시 주기(초, 기본 15)")
+    ap.add_argument("--max", type=int, default=5, help="1회 처리 상한(기본 5 — 대량 오전송 방지)")
     ap.add_argument("--trans-type", default=TRANS_TYPE_DEFAULT, help=f"거래유형(기본 {TRANS_TYPE_DEFAULT})")
     args = ap.parse_args()
     if args.list:
         return list_ready()
+    if args.queue or args.watch:
+        load_env()
+        url = need("SUPABASE_URL").rstrip("/")
+        key = need("SUPABASE_SERVICE_ROLE_KEY")
+        if args.watch:
+            return watch_run(args, url, key)
+        ok, total = queue_run(args, url, key)
+        print(f"\n[큐 처리 완료] {ok}/{total}건 성공" if total else "전송 대기 건이 없습니다 — 화면에서 [🚀 ERP 전송]을 먼저 누르세요.")
+        return 0 if ok == total else 1
     if not args.draft:
         ap.error("--draft 초안번호가 필요합니다(--list 로 확인).")
     if args.cleanup:

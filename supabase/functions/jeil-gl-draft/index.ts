@@ -4,10 +4,13 @@
 //   body: { op: "bootstrap"|"save"|"mine"|"get"|"submit"|"void"|"bp"|"item"|"list"|"post"
 //              |"tpl_list"|"tpl_get"|"tpl_save"|"tpl_status"|"tpl_delete"|"tpl_use"
 //              |"tpl_recur_list"|"tpl_apply_prev"|"tpl_seed_bulk"
-//              |"slip_list"|"slip_get", ... }
+//              |"slip_list"|"slip_get"|"apply_request"|"apply_cancel", ... }
 // v5.1(2026-08-18): ERP char 패딩 대응(acctCtrlFor trim, RPC btrim은 gl_pad_trim_v1) + op item(품목 검색) 추가
 // v5.2(2026-08-19): ERP 직접등록 1차(DEMO2, 결정 C-11) 적용 상태 노출 — mine/list 에 erp_apply_* 필드 추가.
 //   적용 실행은 이 함수가 아니라 관리자 PC 적용기(gl_apply_demo2.py)가 수행한다(포털은 ERP에 직접 쓰지 않음).
+// v5.3(2026-08-19): [ERP 전송] 버튼 — op apply_request(전송 대기 ready 마킹)·apply_cancel(대기 취소), canPost 전용.
+//   상태머신: null → ready(버튼) → applied|failed(중계 gl_apply_demo2.py --queue/--watch 처리 결과).
+//   이 함수는 여전히 ERP에 쓰지 않는다 — 마킹만 하고, 투입은 사내 pull 중계가 수행(기회검토 채택 구조).
 // DDL 정본: 이관/sql/21_gl_draft.sql · 22_gl_template.sql · 23(관리항목 마스터) · 25(전표 미러)
 //   마이그레이션 gl_draft_v1 · gl_draft_master_rpc · gl_template_v1 · gl_ctrl_master_v1 · gl_template_v2
 //              · gl_slip_mirror_v1
@@ -900,6 +903,53 @@ Deno.serve(async (req) => {
     await syncUsage(no, "posted");
     log("post", no, { erp_temp_gl_no: tempGlNo });
     return json({ ok: true, 안내: `ERP 전표번호 ${tempGlNo} 로 확정 기록했습니다.` });
+  }
+
+  /* ===== op: apply_request — [ERP 전송] 대기 등록(회계 담당자·관리자 전용, C-11 1차: DEMO2) =====
+     실제 투입은 사내 중계(gl_apply_demo2.py --queue/--watch)가 수행 — 여기서는 ready 마킹만.
+     포털은 ERP에 직접 쓰지 않는다는 경계를 유지한다(기회검토 채택 구조: 사내 pull). */
+  if (op === "apply_request") {
+    if (!canPost) return json({ error: "forbidden: 회계 담당자 전용입니다." }, 403);
+    const no = String(b.draft_no || "");
+    const { data: cur } = await admin.from("gl_draft")
+      .select("draft_no,status,erp_apply_status,erp_apply_gl_no").eq("draft_no", no).maybeSingle();
+    if (!cur) return json({ error: "초안을 찾을 수 없습니다." }, 404);
+    if (cur.status !== "submitted") {
+      return json({ error: "제출됨 상태의 초안만 ERP로 전송할 수 있습니다." }, 409);
+    }
+    if (cur.erp_apply_status === "applied") {
+      return json({ error: "already_applied",
+        안내: `이미 ERP에 적용된 초안입니다(${cur.erp_apply_gl_no || ""}).` }, 409);
+    }
+    if (cur.erp_apply_status === "ready") {
+      return json({ ok: true, 안내: "이미 전송 대기 중입니다 — 중계가 곧 처리합니다." });
+    }
+    const { error } = await admin.from("gl_draft").update({
+      erp_apply_status: "ready", erp_apply_target: "JEILMNS_DEMO2",
+      erp_apply_msg: null, updated_at: nowIso,
+    }).eq("draft_no", no);
+    if (error) return json({ error: "전송 요청 실패: " + error.message }, 500);
+    log("apply_request", no, { target: "JEILMNS_DEMO2" });
+    return json({ ok: true,
+      안내: "ERP 전송 대기로 등록했습니다(대상: DEMO2). 사내 중계가 자동 투입하며, 완료되면 「ERP 적용」 열에 전표번호(AG…)가 표시됩니다." });
+  }
+
+  /* ===== op: apply_cancel — 전송 대기 취소(중계가 아직 집지 않은 건만) ===== */
+  if (op === "apply_cancel") {
+    if (!canPost) return json({ error: "forbidden: 회계 담당자 전용입니다." }, 403);
+    const no = String(b.draft_no || "");
+    const { data: cur } = await admin.from("gl_draft")
+      .select("draft_no,erp_apply_status").eq("draft_no", no).maybeSingle();
+    if (!cur) return json({ error: "초안을 찾을 수 없습니다." }, 404);
+    if (cur.erp_apply_status !== "ready") {
+      return json({ error: "전송 대기 상태가 아닙니다(이미 처리됐을 수 있습니다)." }, 409);
+    }
+    const { error } = await admin.from("gl_draft").update({
+      erp_apply_status: null, erp_apply_target: null, updated_at: nowIso,
+    }).eq("draft_no", no);
+    if (error) return json({ error: "취소 실패: " + error.message }, 500);
+    log("apply_cancel", no);
+    return json({ ok: true, 안내: "전송 대기를 취소했습니다." });
   }
 
   /* ===== op: tpl_seed_bulk — 시드 템플릿 일괄 등재(전체관리자 한정, C-6 단일 경로 유지) =====
