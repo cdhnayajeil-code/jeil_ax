@@ -1004,6 +1004,17 @@ function applyHeaderProjToLines(next){
     }
   });
 }
+/* 한 줄에 전표 기본값을 채운다 — 비어 있는 칸만.
+   행 추가 직후에는 계정이 없어 관리항목 칸이 만들어지지 않으므로,
+   계정을 고른 시점에 다시 불러 PC(프로젝트코드)까지 맞춘다. */
+function applyRowDefaults(r){
+  if(!r.cost_cd) r.cost_cd = $("fCost").value || "";
+  if(!r.project_no) r.project_no = $("fProj").value || "";
+  if(r.acct_cd && ctrlDefsFor(r).some((d)=> d.cd === "PC")){
+    const cur = String(r.__ctrl.PC ?? "").trim();
+    if(!cur && r.project_no) r.__ctrl.PC = r.project_no;
+  }
+}
 function commitHeaderProj(){
   const next = $("fProj").value;
   applyHeaderProjToLines(next);
@@ -1309,6 +1320,7 @@ $("draftForm").addEventListener("click", (e)=>{
       r.acct_cd = a.acct_cd; r.acct_nm = a.acct_nm || "";
       const fg = String(a.bal_fg||"").charAt(0).toUpperCase();
       if(!r.dr_cr_fg && (fg==="D"||fg==="C")) r.dr_cr_fg = fg;
+      applyRowDefaults(r);   // 계정이 정해져야 관리항목 칸이 생긴다 — 이때 PC 를 채운다
       renderDraftForm(); updateSum();
     });
   } else if(act === "cost"){
@@ -1784,9 +1796,10 @@ function newDraft(){
   CURRENT_NO = null; $("editingNo").textContent = "";
   CURRENT_TPL = null; PREV_SNAP = null;
   $("fDesc").value = ""; $("fProj").value = ""; HDR_PROJ_PREV = ""; syncProjLabel();
-  const cc = $("fCost").value || "";   // 부서 기준 기본 코스트센터를 처음부터 넣어 둔다
-  setRows([{ dr_cr_fg:"D", acct_cd:"", item_amt:"", item_desc:"", cost_cd:cc },
-           { dr_cr_fg:"C", acct_cd:"", item_amt:"", item_desc:"", cost_cd:cc }]);
+  // 부서 기준 코스트센터는 처음부터 넣어 둔다(프로젝트는 새 전표라 아직 비어 있다)
+  const cc = $("fCost").value || "", pj = $("fProj").value || "";
+  setRows([{ dr_cr_fg:"D", acct_cd:"", item_amt:"", item_desc:"", cost_cd:cc, project_no:pj },
+           { dr_cr_fg:"C", acct_cd:"", item_amt:"", item_desc:"", cost_cd:cc, project_no:pj }]);
 }
 function collect(){
   const deptSel = $("fDept");
@@ -1860,8 +1873,10 @@ function submitSummary(){
 
 $("btnAddRow").onclick = ()=>{
   const rs = rows();
-  // 새 줄도 전표 코스트센터를 이미 넣은 상태로 시작한다(필수값이라 빈 채로 두지 않는다)
-  rs.push({ dr_cr_fg:"", acct_cd:"", item_amt:"", item_desc:"", cost_cd: $("fCost").value || "" });
+  // 새 줄도 전표 기본값(코스트센터·프로젝트)을 이미 넣은 상태로 시작한다.
+  // 관리항목 PC 는 계정이 정해져야 칸이 생기므로, 계정 선택 시점에 채운다(applyRowDefaults).
+  rs.push({ dr_cr_fg:"", acct_cd:"", item_amt:"", item_desc:"",
+            cost_cd: $("fCost").value || "", project_no: $("fProj").value || "" });
   setRows(rs);
 };
 $("btnDelRow").onclick = ()=>{
