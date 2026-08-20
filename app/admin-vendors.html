@@ -148,12 +148,13 @@ tr:nth-child(even) td{background:#fafbfd;}
       <h2>협력사 포털 관리자 계정 <span id="cntVAdmin" class="muted"></span></h2>
       <div class="sub">협력사 포털(<code id="vpUrl"></code>)에 로그인해 <b>거래처를 골라 전체 거래처의 발주·사진·검수·메시지를 열람</b>할 수 있는 계정입니다. 특정 거래처에 묶이지 않습니다.
         <br><b>읽기 전용</b> — 상태변경·사진등록·메시지 발송·검수요청은 DB 권한(RLS)에서 차단됩니다(대행 처리 금지).
-        <br><span class="muted">※ 사내(<b>@jeilm.co.kr</b>) 이메일로는 발급할 수 없습니다(Entra SSO 계정과 충돌). <b>사내 직원은 SSO 로그인 상태에서 협력사 포털 주소로 들어가면 별도 계정 없이 같은 전체 조회 화면</b>이 열립니다.</span></div>
+        <br><span class="muted">※ 사내(<b>@jeilm.co.kr</b>) 이메일로는 발급할 수 없습니다(Entra SSO 계정과 충돌). <b>사내 직원은 SSO 로그인 상태에서 협력사 포털 주소로 들어가면 별도 계정 없이 같은 전체 조회 화면</b>이 열립니다.<br>※ 이미 <b>협력사 계정으로 쓰이는 이메일</b>을 입력하면 어떤 계정인지 알려주고, 확인창에서 <b>관리자 계정으로 전환</b>할 수 있습니다(전환 시 기존 거래처 접근 권한 해제 + 새 임시 비밀번호 발급).</span></div>
       <div class="rowin" style="margin-bottom:12px;max-width:720px">
         <input type="email" id="va_email" placeholder="관리자 로그인 이메일 (사내 도메인 불가)">
         <input type="text" id="va_name" placeholder="표시명 (예: 구매팀 공용)" style="max-width:180px">
         <button class="btn sm ok" id="va_add">＋ 관리자 계정 생성</button>
       </div>
+      <div class="msg" id="va_msg"></div>
       <table>
         <thead><tr><th>이메일(ID)</th><th>표시명</th><th>상태</th><th>발급자</th><th>발급일</th><th>최근 초기화</th><th>관리</th></tr></thead>
         <tbody id="vaBody"><tr><td colspan="7" class="muted">불러오는 중…</td></tr></tbody>
@@ -306,7 +307,7 @@ async function authHeaders() {
 async function callFn(name, payload) {
   const res = await fetch(SUPABASE_URL + "/functions/v1/" + name, { method: "POST", headers: await authHeaders(), body: JSON.stringify(payload) });
   const out = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(out.error || ("HTTP " + res.status));
+  if (!res.ok) { const e = new Error(out.error || ("HTTP " + res.status)); e.status = res.status; e.data = out; throw e; }
   return out;
 }
 
@@ -742,38 +743,60 @@ async function loadVendorAdmins() {
 async function vaAction(action, email, confirmText) {
   if (!confirm(confirmText + "\n진행할까요?")) return;
   try {
-    show($("a_msg"), "info", "처리 중…");
+    vaMsg("info", "처리 중…");
     await callFn("vendor-admin-provision", { action, email });
-    show($("a_msg"), "ok", `✅ ${esc(email)} — ${action === "delete" ? "삭제" : action === "disable" ? "비활성화" : "활성화"} 완료.`);
+    vaMsg("ok", `✅ ${esc(email)} — ${action === "delete" ? "삭제" : action === "disable" ? "비활성화" : "활성화"} 완료.`);
     loadVendorAdmins(); loadLog();
-  } catch (e) { show($("a_msg"), "err", "처리 실패: " + (e.message || e)); }
+  } catch (e) { vaMsg("err", "처리 실패: " + esc(e.message || e)); }
 }
 
 $("va_add").onclick = async () => {
   const email = $("va_email").value.trim().toLowerCase(), display_name = $("va_name").value.trim();
-  if (!email) return show($("a_msg"), "err", "관리자 로그인 이메일을 입력하세요.");
-  if (!isEmail(email)) return show($("a_msg"), "err", "이메일 형식이 올바르지 않습니다.");
+  if (!email) return vaMsg("err", "관리자 로그인 이메일을 입력하세요.");
+  if (!isEmail(email)) return vaMsg("err", "이메일 형식이 올바르지 않습니다.");
   if (email.endsWith("@jeilm.co.kr"))
-    return show($("a_msg"), "err", "사내(@jeilm.co.kr) 이메일은 Entra SSO 계정과 충돌해 발급할 수 없습니다. 사내 직원은 SSO 로그인 상태로 협력사 포털에 접속하면 동일한 전체 조회 화면이 열립니다.");
+    return vaMsg("err", "사내(@jeilm.co.kr) 이메일은 Entra SSO 계정과 충돌해 발급할 수 없습니다. 사내 직원은 <b>SSO 로그인 상태로 협력사 포털에 접속</b>하면 별도 계정 없이 동일한 전체 조회 화면이 열립니다.");
   if (!confirm(`협력사 포털 관리자 계정을 생성합니다.\n이메일: ${email}\n권한: 전체 거래처 조회(읽기 전용)\n진행할까요?`)) return;
+  await createVendorAdmin(email, display_name, false);
+};
+
+async function createVendorAdmin(email, display_name, force) {
   $("va_add").disabled = true;
   try {
-    show($("a_msg"), "info", "관리자 계정 생성 중…");
-    const out = await callFn("vendor-admin-provision", { action: "create", email, display_name });
-    show($("a_msg"), "ok", `✅ 협력사 포털 관리자 계정 생성 완료 — ${esc(out.email)} (전체 거래처 읽기 전용)`);
+    vaMsg("info", force ? "기존 계정을 관리자 계정으로 전환 중…" : "관리자 계정 생성 중…");
+    const out = await callFn("vendor-admin-provision", { action: "create", email, display_name, force });
+    const cv = out.converted;
+    vaMsg("ok", cv
+      ? `✅ 기존 계정을 협력사 포털 관리자 계정으로 <b>전환</b>했습니다 — ${esc(out.email)}${cv.bp_cd ? ` (이전 거래처 ${esc(cv.bp_cd)}${cv.bp_nm ? " " + esc(cv.bp_nm) : ""} 소속 해제)` : ""}. 새 임시 비밀번호가 발급됐습니다.`
+      : `✅ 협력사 포털 관리자 계정 생성 완료 — ${esc(out.email)} (전체 거래처 읽기 전용)`);
     $("va_email").value = ""; $("va_name").value = "";
     showCred(out.email, out.temp_password, "🔑 협력사 포털 관리자 계정 발급 완료 — 사용자에게 전달하세요");
-    loadVendorAdmins(); loadLog();
-  } catch (e) { show($("a_msg"), "err", "생성 실패: " + (e.message || e)); }
+    loadVendorAdmins(); loadVendors(); loadLog();
+  } catch (e) {
+    // 409 email_exists — 이미 그 이메일로 Supabase Auth 계정이 있다. 어떤 계정인지 알리고 전환 여부를 묻는다.
+    const ex = e.data && e.data.code === "email_exists" ? (e.data.existing || {}) : null;
+    if (ex && ex.kind !== "vendor_admin") {
+      const what = ex.kind === "vendor"
+        ? `협력사 계정(거래처 ${ex.bp_cd}${ex.bp_nm ? " " + ex.bp_nm : ""})`
+        : "다른 용도의 계정";
+      vaMsg("err", `${esc(e.message)} — 다른 이메일을 쓰거나, 확인창에서 <b>전환</b>을 선택하세요.`);
+      if (confirm(`이미 등록된 이메일입니다.\n\n현재 상태: ${what}\n\n이 계정을 '협력사 포털 관리자 계정'으로 전환할까요?\n· 전체 거래처를 읽기 전용으로 조회하게 됩니다\n· 기존 거래처 전용 접근 권한은 해제됩니다\n· 새 임시 비밀번호가 발급됩니다(기존 비밀번호는 사용 불가)\n\n취소하면 아무 것도 바뀌지 않습니다.`)) {
+        return createVendorAdmin(email, display_name, true);
+      }
+      vaMsg("info", "전환을 취소했습니다. 다른 이메일로 발급하세요.");
+    } else {
+      vaMsg("err", "생성 실패: " + esc(e.message || e));
+    }
+  }
   finally { $("va_add").disabled = false; }
-};
+}
 
 // ── 처리 로그 ──
 async function loadLog() {
   const { data, error } = await supabase.from("vendor_account_log").select("*").order("acted_at", { ascending: false }).limit(50);
   if (error) return;
   const ACT = { create: "계정 생성", reset_password: "비번 초기화", disable: "비활성", enable: "활성",
-    create_admin: "포털 관리자 계정 생성", disable_admin: "포털 관리자 비활성", enable_admin: "포털 관리자 활성", delete_admin: "포털 관리자 삭제" };
+    create_admin: "포털 관리자 계정 생성", convert_admin: "포털 관리자 계정 전환", disable_admin: "포털 관리자 비활성", enable_admin: "포털 관리자 활성", delete_admin: "포털 관리자 삭제" };
   $("cntLog").textContent = `(${(data || []).length}건)`;
   $("logBody").innerHTML = (data || []).map(l =>
     `<tr><td>${new Date(l.acted_at).toLocaleString("ko-KR")}</td><td>${esc(ACT[l.action] || l.action)}</td><td>${esc(l.target_email || "-")}</td><td>${esc(l.bp_cd || "-")}</td><td>${esc(l.actor_email || "-")}</td></tr>`
