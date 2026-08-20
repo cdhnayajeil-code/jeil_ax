@@ -229,7 +229,17 @@ const supabaseAdapter = {
     });
     const out = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(out.error || ("HTTP " + res.status));
-    await supabase.auth.refreshSession();   // must_pw 클레임 갱신(강제 변경 해제 반영)
+    // GoTrue는 관리자 API로 비밀번호를 바꾸면 그 사용자의 **모든 세션을 폐기**한다(실측: 변경 직후
+    // auth.sessions 0행). 남은 토큰은 즉시 401이 되므로 refreshSession으로는 살릴 수 없다.
+    // → 새 비밀번호로 곧바로 재로그인해 유효 세션을 만든다(must_pw 클레임도 이때 갱신된다).
+    const email = session.user?.email || "";
+    const { error } = await supabase.auth.signInWithPassword({ email, password: newPw });
+    if (error) {
+      await supabase.auth.signOut();
+      const e = new Error("비밀번호가 변경되었습니다. 새 비밀번호로 다시 로그인해 주세요.");
+      e.reloginRequired = true;
+      throw e;
+    }
     return out;
   },
 

@@ -503,7 +503,7 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <tbody>
 <tr>
 <td>2026-08-20</td>
-<td><strong>세션 저장소 분리(사내 ↔ 협력사) + 관리자 로그인 화면 거래처 선택</strong> — 사내 세션과 협력사 세션이 같은 localStorage 키를 공유해 협력사 포털 로그인이 사내 세션을 대체하던 문제를 해소했다(증상: 사내 콘솔의 관리자 계정 삭제가 <code>403 forbidden: internal only</code>). 협력사 화면만 <code>jeilax_sb_vendor</code> 키를 쓰도록 분리하고, 사내 콘솔은 Edge Function 호출 직전 세션 역할을 재확인해 원인을 안내한다. 관리자 계정으로 로그인하면 로그인 화면에서 바로 거래처를 검색·선택해 포털로 진입한다. 세션 분리에 따라 「사내 SSO로 협력사 포털 열람」 경로는 폐지(사내 담당자도 관리자 계정 사용).</td>
+<td><strong>세션 저장소 분리(사내 ↔ 협력사) + 관리자 로그인 화면 거래처 선택</strong> — 사내 세션과 협력사 세션이 같은 localStorage 키를 공유해 협력사 포털 로그인이 사내 세션을 대체하던 문제를 해소했다(증상: 사내 콘솔의 관리자 계정 삭제가 <code>403 forbidden: internal only</code>). 협력사 화면만 <code>jeilax_sb_vendor</code> 키를 쓰도록 분리하고, 사내 콘솔은 Edge Function 호출 직전 세션 역할을 재확인해 원인을 안내한다. 관리자 계정으로 로그인하면 로그인 화면에서 바로 거래처를 검색·선택해 포털로 진입한다. 세션 분리에 따라 「사내 SSO로 협력사 포털 열람」 경로는 폐지(사내 담당자도 관리자 계정 사용). <strong>후속 픽스(같은 날)</strong>: 새 비밀번호 설정 직후 포털에서 설정 화면이 다시 뜨고 모든 호출이 <code>401</code>로 실패하던 문제 해소 — 원인은 <strong>GoTrue가 관리자 API로 비밀번호를 바꾸면 그 사용자의 세션을 전부 폐기</strong>한다는 점(실측: 변경 직후 <code>auth.sessions</code> 0행)이라 남은 토큰이 즉시 무효가 되고 <code>refreshSession()</code>으로도 살아나지 않는다(JWT는 로컬 파싱만 되므로 <code>must_pw</code> 옛 값이 남아 설정 화면이 재표시됨). 조치: 변경 성공 직후 <strong>새 비밀번호로 즉시 재로그인</strong>해 유효 세션을 만들고(실패 시 '다시 로그인' 안내로 폴백), 협력사 로그인·포털 진입 시 <code>getUser()</code>로 <strong>폐기된 세션을 감지해 정리</strong>한다.</td>
 <td>최동혁(+Claude)</td>
 </tr>
 <tr>

@@ -239,6 +239,10 @@ function claimsOf(session){
 async function loadSession(){
   const { data:{ session } } = await supabase.auth.getSession();
   if(!session){ location.replace('../app/vendor-login.html'); return null; }
+  // 저장된 토큰이 서버에서 이미 폐기됐을 수 있다(비밀번호 변경·초기화 시 GoTrue가 세션을 폐기).
+  // 그대로 두면 모든 호출이 401이 되므로 진입 시 한 번 확인하고 로그인 화면으로 되돌린다.
+  const { error:uerr } = await supabase.auth.getUser();
+  if(uerr){ await supabase.auth.signOut().catch(()=>{}); location.replace('../app/vendor-login.html'); return null; }
   const am = claimsOf(session);
   FORCE_PW = !!am.must_pw;   // 발급·초기화 직후 고정 초기비번 상태
   ADMIN = (am.role==='vendor_admin' || am.role==='internal');
@@ -669,9 +673,13 @@ async function submitPwChange(){
   if(p1.length<8) return toast('비밀번호는 8자 이상이어야 합니다');
   if(p1!==p2) return toast('비밀번호 확인이 일치하지 않습니다');
   try{
-    await portalApi.changePassword(p1);   // Edge Function 경유 — 강제 플래그도 함께 해제
+    await portalApi.changePassword(p1);   // Edge Function 경유 — 강제 플래그 해제 + 새 비번으로 재로그인
     FORCE_PW=false; closePwSheet(); toast('✅ 비밀번호가 설정되었습니다');
-  }catch(e){ toast('변경 실패: '+(e.message||e)); }
+    await loadOrders(); render();
+  }catch(e){
+    if(e.reloginRequired){ toast('비밀번호가 변경되었습니다. 다시 로그인해 주세요'); setTimeout(logout, 1400); return; }
+    toast('변경 실패: '+(e.message||e));
+  }
 }
 
 let toastTimer;
