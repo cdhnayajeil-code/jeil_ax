@@ -11,6 +11,9 @@
 // v5.3(2026-08-19): [ERP 전송] 버튼 — op apply_request(전송 대기 ready 마킹)·apply_cancel(대기 취소), canPost 전용.
 //   상태머신: null → ready(버튼) → applied|failed(중계 gl_apply_demo2.py --queue/--watch 처리 결과).
 //   이 함수는 여전히 ERP에 쓰지 않는다 — 마킹만 하고, 투입은 사내 pull 중계가 수행(기회검토 채택 구조).
+// v5.6(2026-08-20): 코스트센터 필수화(관리자 지시). save 에서 라인마다 코스트센터를 요구하고
+//   (없으면 헤더값 승계) `gl_master_get` 의 유효 목록으로 화이트리스트 재검증한다.
+//   유효 목록은 폐지분(조직개편 19801 · 명칭 '(사용금지)')을 제외한 것 — migration gl_master_cost_center_v2.
 // v5.5(2026-08-20): 템플릿 가시성 수정 — `tpl_list all` 을 관리 권한자로 제한하던 조건 제거.
 //   일반 사용자가 자기 비공개(draft) 템플릿을 어디서도 볼 수 없어 공개조차 못 하던 막다른 길을 없앤다.
 //   범위 제한은 loadTemplates 안으로 옮겼다: 관리 권한이 없으면 '공개된 것 + 내 편집 가능한 것'까지만.
@@ -608,13 +611,21 @@ Deno.serve(async (req) => {
     // 계정 유효성 — 마스터에 있고 사용중인 코드만. project_fg='Y' 면 프로젝트 필수.
     // deno-lint-ignore no-explicit-any
     let accounts: any[] = [];
-    try { const { data } = await admin.rpc("gl_master_get"); accounts = (data?.accounts || []); } catch { /* 폴백 */ }
+    // deno-lint-ignore no-explicit-any
+    let costCenters: any[] = [];
+    try {
+      const { data } = await admin.rpc("gl_master_get");
+      accounts = (data?.accounts || []);
+      costCenters = (data?.cost_centers || []);
+    } catch { /* 폴백 */ }
     if (!accounts.length) {
       return json({ error: "master_empty",
         안내: "계정과목 마스터가 아직 적재되지 않아 초안을 검증할 수 없습니다. 관리자에게 문의하세요." }, 503);
     }
     // deno-lint-ignore no-explicit-any
     const acctMap = new Map<string, any>(accounts.map((a) => [String(a.acct_cd), a]));
+    // 코스트센터는 필수값(2026-08-20 관리자 지시). 폐지된 코드는 gl_master_get 이 이미 제외한다.
+    const costSet = new Set(costCenters.map((c) => String(c.cost_cd).trim()));
 
     const items: Record<string, unknown>[] = [];
     let dr = 0, cr = 0;
@@ -637,6 +648,15 @@ Deno.serve(async (req) => {
         return json({ error: `${line}번 줄: '${acct.acct_nm}' 계정은 프로젝트가 필요합니다.` }, 400);
       }
 
+      // 코스트센터 필수 + 화이트리스트 재검증(화면 값만 믿지 않는다 — 폐지 코드 유입 차단)
+      const lineCost = (clip(r.cost_cd, 10) || clip(h.cost_cd, 10) || "").trim();
+      if (!lineCost) {
+        return json({ error: `${line}번 줄: 코스트센터는 필수입니다. 전표 기본 코스트센터를 고르거나 줄마다 지정하세요.` }, 400);
+      }
+      if (costSet.size && !costSet.has(lineCost)) {
+        return json({ error: `${line}번 줄: 사용할 수 없는 코스트센터입니다(${lineCost}). 폐지됐거나 존재하지 않습니다.` }, 400);
+      }
+
       if (fg === "D") dr += amt; else cr += amt;
       items.push({
         item_seq: line, dr_cr_fg: fg,
@@ -644,7 +664,7 @@ Deno.serve(async (req) => {
         item_amt: amt,
         item_desc: clip(r.item_desc, DESC_MAX) || glDesc,
         bp_cd: clip(r.bp_cd, 30), bp_nm: clip(r.bp_nm, 100),
-        cost_cd: clip(r.cost_cd, 10) || clip(h.cost_cd, 10),
+        cost_cd: lineCost,
         project_no: projectNo,
         vat_type: clip(r.vat_type, 2), vat_amt: r.vat_amt != null ? num(r.vat_amt) : null,
       });

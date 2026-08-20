@@ -421,8 +421,9 @@
             <select id="fDept"></select>
           </div>
           <div class="fld">
-            <label>코스트센터</label>
+            <label>코스트센터<span class="req">*</span></label>
             <select id="fCost"></select>
+            <span class="hint" id="fCostHint"></span>
           </div>
           <div class="fld">
             <label>프로젝트</label>
@@ -916,17 +917,64 @@ function fillHeader(locked){
   const mine = (MASTER.depts||[]).find((d)=>d.dept_nm === ME.dept_nm);
   if(mine) $("fDept").value = mine.dept_cd;
   renderCostOptions();
-  $("fDept").addEventListener("change", renderCostOptions);
+  $("fDept").addEventListener("change", onDeptChange);
+  $("fCost").addEventListener("change", ()=>{ syncCostReq(); renderDraftForm(); });
+  // 최초 진입 시에도 내 부서 기본 코스트센터를 채워 둔다(비워 두면 필수인데 빈 상태로 시작)
+  if(!$("fCost").value){ const d = defaultCostFor($("fDept").value); if(d) $("fCost").value = d; }
+  syncCostReq();
 }
-function renderCostOptions(){
+/* 부서의 기본 코스트센터 — 서버가 표시한 is_dept_default(코드 뒷자리=부서코드) 우선,
+   없으면 그 부서의 첫 번째. ERP에는 '기본' 플래그가 없어 코드 규칙으로 정한다(gl_master_cost_center_v2). */
+function defaultCostFor(dept){
+  const mine = (MASTER.cost_centers||[]).filter((c)=> String(c.dept_cd||"") === String(dept||""));
+  if(!mine.length) return "";
+  return (mine.find((c)=> c.is_dept_default) || mine[0]).cost_cd;
+}
+/* 코스트센터는 필수값이다. 목록은 전체(사용 중인 것만 — 폐지분은 서버가 제외)를 보여주되
+   부서 소속을 위로 올리고, 부서를 바꾸면 그 부서 기본값으로 자동 전환한다(직접 수정 가능). */
+function renderCostOptions(keepCur){
   const dept = $("fDept").value;
-  const all = MASTER.cost_centers||[];
-  const rel = all.filter((c)=>!dept || c.dept_cd === dept);
-  const list = rel.length ? rel : all;   // 부서 연결이 없으면 전체를 보여준다(선택 자체를 막지 않는다)
+  const all = (MASTER.cost_centers||[]).slice();
+  const mine = all.filter((c)=> String(c.dept_cd||"") === String(dept||""));
+  const rest = all.filter((c)=> String(c.dept_cd||"") !== String(dept||""));
+  const opt = (c)=> '<option value="'+esc(c.cost_cd)+'">'+esc(c.cost_cd+" · "+(c.cost_nm||""))
+    + (c.is_dept_default ? " (부서 기본)" : "")+'</option>';
   const cur = $("fCost").value;
-  $("fCost").innerHTML = '<option value="">선택 안 함</option>' + list.map((c)=>
-    '<option value="'+esc(c.cost_cd)+'">'+esc(c.cost_nm||c.cost_cd)+'</option>').join("");
-  if(cur) $("fCost").value = cur;
+  $("fCost").innerHTML = '<option value="">— 선택하세요 —</option>'
+    + (mine.length ? '<optgroup label="이 부서">'+mine.map(opt).join("")+'</optgroup>' : '')
+    + (rest.length ? '<optgroup label="그 밖의 코스트센터">'+rest.map(opt).join("")+'</optgroup>' : '');
+  // 값 유지: 목록에 남아 있으면 그대로, 아니면 부서 기본값으로
+  const has = (v)=> !!v && all.some((c)=> String(c.cost_cd)===String(v));
+  $("fCost").value = (keepCur && has(cur)) ? cur : (has(cur) ? cur : "");
+  syncCostReq();
+}
+/* 부서를 바꾸면 기본 코스트센터를 넣는다 — 사용자가 이미 고른 값이 그 부서 것이면 건드리지 않는다 */
+function onDeptChange(){
+  const dept = $("fDept").value;
+  const cur = $("fCost").value;
+  const curBelongs = (MASTER.cost_centers||[]).some(
+    (c)=> String(c.cost_cd)===String(cur) && String(c.dept_cd||"")===String(dept||""));
+  renderCostOptions(true);
+  if(!curBelongs){
+    const def = defaultCostFor(dept);
+    if(def){
+      $("fCost").value = def;
+      const nm = (MASTER.cost_centers||[]).find((c)=> c.cost_cd===def);
+      toast("코스트센터를 부서 기본값 '"+def+" · "+((nm&&nm.cost_nm)||"")+"' 으로 맞췄습니다 — 필요하면 바꾸세요.");
+    }
+  }
+  syncCostReq();
+  renderDraftForm();   // 라인의 코스트센터 목록·표시도 함께 갱신
+}
+/* 필수 표시 — 비어 있으면 붉게 */
+function syncCostReq(){
+  const el = $("fCost");
+  el.style.borderColor = el.value ? "" : "var(--red)";
+  const h = $("fCostHint");
+  if(h){
+    h.textContent = el.value ? "" : "필수 — ERP 전표에 반드시 들어갑니다";
+    h.style.color = "var(--red)";
+  }
 }
 
 /* ═══ 전표 서식 입력기 ═══
@@ -947,10 +995,20 @@ function setRows(rs){
   SELSET = new Set([...SELSET].filter((s)=> rs.some((r)=> String(r.item_seq)===String(s))));
   renderDraftForm(); updateSum();
 }
+/* 라인 코스트센터 — 비우면 헤더값을 쓴다(저장 시 채워 넣는다). 부서 소속을 위로 올린다. */
 function costOptionsHtml(sel){
-  return '<option value="">코스트센터 —</option>' + (MASTER.cost_centers||[]).map((c)=>
-    '<option value="'+esc(c.cost_cd)+'"'+(String(sel||"")===String(c.cost_cd)?" selected":"")+'>'
-    + esc(c.cost_cd+" "+(c.cost_nm||""))+'</option>').join("");
+  const hdr = $("fCost").value;
+  const hdrNm = (MASTER.cost_centers||[]).find((c)=> String(c.cost_cd)===String(hdr));
+  const dept = $("fDept").value;
+  const all = (MASTER.cost_centers||[]);
+  const mine = all.filter((c)=> String(c.dept_cd||"")===String(dept||""));
+  const rest = all.filter((c)=> String(c.dept_cd||"")!==String(dept||""));
+  const opt = (c)=> '<option value="'+esc(c.cost_cd)+'"'+(String(sel||"")===String(c.cost_cd)?" selected":"")+'>'
+    + esc(c.cost_cd+" "+(c.cost_nm||""))+'</option>';
+  return '<option value="">'
+      + esc(hdr ? "전표 기본 · "+hdr+(hdrNm ? " "+(hdrNm.cost_nm||"") : "") : "⚠ 지정 안 함")+'</option>'
+    + (mine.length ? '<optgroup label="이 부서">'+mine.map(opt).join("")+'</optgroup>' : '')
+    + (rest.length ? '<optgroup label="그 밖">'+rest.map(opt).join("")+'</optgroup>' : '');
 }
 /* 관리항목 한 칸 — 라벨(이름·필수·⤓) + 입력(날짜/텍스트/검색) */
 function slotCellHtml(r, def, shareCnt){
@@ -1191,6 +1249,18 @@ function validateRows(){
   let bad = null;
   const list = ROWS.filter((r)=> r.acct_cd || numAmt(r.item_amt) || (r.item_desc||"").trim());
   document.querySelectorAll("#draftForm .pick.bad").forEach((el)=> el.classList.remove("bad"));
+  // 코스트센터는 필수 — 헤더가 비어 있으면 라인이 전부 채워져 있어야 한다
+  const hdrCost = $("fCost").value;
+  if(!hdrCost){
+    const miss = list.filter((r)=> !r.cost_cd);
+    if(miss.length){
+      syncCostReq();
+      toast("코스트센터는 필수입니다 — 상단 ① 기본정보에서 고르거나, 모든 줄에 지정하세요("
+        + miss.map((r)=> r.item_seq+"번").join(", ")+" 줄 비어 있음).", true);
+      $("fCost").scrollIntoView({ behavior:"smooth", block:"center" }); $("fCost").focus();
+      return false;
+    }
+  }
   list.forEach((r)=>{
     if(!r.acct_cd){
       const el = document.querySelector('#draftForm .pick[data-act="acct"][data-seq="'+r.item_seq+'"]');
@@ -1606,6 +1676,7 @@ function newDraft(){
 }
 function collect(){
   const deptSel = $("fDept");
+  const hdrCost = $("fCost").value;   // 라인이 비면 이 값을 채워 보낸다(ERP는 라인마다 코스트센터를 갖는다)
   return {
     header:{
       draft_dt: $("fDt").value, gl_type: $("fType").value,
@@ -1615,7 +1686,8 @@ function collect(){
     },
     items: rows().filter((r)=> r.acct_cd || r.item_amt).map((r)=>({
       dr_cr_fg:r.dr_cr_fg, acct_cd:r.acct_cd, item_amt:r.item_amt, item_desc:r.item_desc,
-      bp_cd:r.bp_cd||null, bp_nm:r.bp_nm||null, cost_cd:r.cost_cd||null, project_no:r.project_no||null,
+      bp_cd:r.bp_cd||null, bp_nm:r.bp_nm||null,
+      cost_cd: r.cost_cd || hdrCost || null, project_no:r.project_no||null,
       ctrls: Object.entries(r.__ctrl||{}).filter(([,v])=> String(v||"").trim()!=="")
         .map(([cd,v])=>({ ctrl_cd:cd, ctrl_val:String(v).trim() })),
     })),
