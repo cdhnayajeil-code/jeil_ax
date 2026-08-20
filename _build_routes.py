@@ -83,6 +83,10 @@ def main():
         "$schema": "https://openapi.vercel.sh/vercel.json",
         "cleanUrls": True,
         "trailingSlash": False,
+        # 구 주소(파일 경로)로 들어오면 새 클린 주소로 보낸다 — 북마크가 새 주소로 수렴한다.
+        # permanent=False(307): 브라우저에 영구 캐시되지 않아 라우트를 나중에 고쳐도 즉시 반영된다.
+        "redirects": [{"source": enc(d), "destination": s, "permanent": False}
+                      for s, d in ROUTES.items()],
         "rewrites": [{"source": s, "destination": enc(d)} for s, d in ROUTES.items()],
         "headers": [{
             "source": "/(.*)",
