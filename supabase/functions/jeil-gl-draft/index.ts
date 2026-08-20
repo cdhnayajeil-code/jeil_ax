@@ -211,6 +211,32 @@ Deno.serve(async (req) => {
     catch { _ctrlMaster = {}; }
     return _ctrlMaster;
   };
+  /* 참조 마스터 값 검증(2026-08-20 레드팀 조치) — 저장 시 코드가 ERP 마스터에 있는지 확인한다.
+     검색은 붙였지만 저장 검증이 없어, 복사·템플릿·API 직접호출로 임의값이 들어갈 수 있었다.
+     적재되지 않은 관리항목(참조 없음)은 검증 대상이 아니므로 통과시킨다 — 없는 걸 막을 수는 없다.
+     한 요청 안에서 같은 (항목,값)은 한 번만 조회한다(라인 수만큼 왕복하지 않게). */
+  const refCache = new Map<string, boolean>();
+  const refLoaded = new Map<string, boolean>();
+  const refValid = async (ctrlCd: string, val: string): Promise<boolean> => {
+    const cd = String(ctrlCd || "").trim();
+    const v = String(val || "").trim();
+    if (!cd || !v) return true;
+    const key = cd + " " + v;
+    if (refCache.has(key)) return refCache.get(key)!;
+    // 이 관리항목이 참조 미러에 적재돼 있는지 먼저 본다(미적재면 검증 자체를 하지 않는다)
+    if (!refLoaded.has(cd)) {
+      const { count } = await admin.schema("erp_ro").from("ctrl_ref_s")
+        .select("ref_cd", { count: "exact", head: true }).eq("ctrl_cd", cd);
+      refLoaded.set(cd, (count || 0) > 0);
+    }
+    if (!refLoaded.get(cd)) { refCache.set(key, true); return true; }
+    const { count } = await admin.schema("erp_ro").from("ctrl_ref_s")
+      .select("ref_cd", { count: "exact", head: true }).eq("ctrl_cd", cd).eq("ref_cd", v);
+    const ok = (count || 0) > 0;
+    refCache.set(key, ok);
+    return ok;
+  };
+
   // 계정×차대별 관리항목 요건: Map<acct_cd, {cd, seq, req(해당 방향 필수)}[]>
   // ERP char 패딩(뒤 공백) 대비 — 키·코드·플래그 전부 trim해 매칭한다(gl_pad_trim_v1 이후 이중 안전).
   const acctCtrlFor = async (fg: "D" | "C") => {
@@ -676,6 +702,11 @@ Deno.serve(async (req) => {
       if (String(acct.project_fg || "") === "Y" && !projectNo) {
         return json({ error: `${line}번 줄: '${acct.acct_nm}' 계정은 프로젝트가 필요합니다.` }, 400);
       }
+      // 프로젝트 코드 화이트리스트(2026-08-20) — 화면은 조회식이지만 복사·템플릿·API 직접호출로
+      // 임의값이 들어올 수 있다. 실제로 자유입력 시절 '2026-01'(월 표기)이 저장된 초안이 있었다.
+      if (projectNo && !(await refValid("PC", projectNo))) {
+        return json({ error: `${line}번 줄: 프로젝트 '${projectNo}' 는 ERP 프로젝트 마스터에 없습니다. 검색해서 선택하세요.` }, 400);
+      }
 
       // 코스트센터 필수 + 화이트리스트 재검증(화면 값만 믿지 않는다 — 폐지 코드 유입 차단)
       const lineCost = (clip(r.cost_cd, 10) || clip(h.cost_cd, 10) || "").trim();
@@ -716,6 +747,10 @@ Deno.serve(async (req) => {
       const m = await ctrlMaster();
       // deno-lint-ignore no-explicit-any
       const known = new Set(((m.ctrl_items || []) as any[]).map((c) => String(c.ctrl_cd).trim()));
+      // 오류 메시지에 코드 대신 항목명을 보여주기 위한 사전(예: PC → 프로젝트코드)
+      // deno-lint-ignore no-explicit-any
+      const ctrlNmOf = new Map<string, string>(((m.ctrl_items || []) as any[])
+        .map((c) => [String(c.ctrl_cd).trim(), String(c.ctrl_nm || "").trim()]));
       const reqD = await acctCtrlFor("D");
       const reqC = await acctCtrlFor("C");
       for (let i = 0; i < itemsIn.length; i++) {
@@ -739,6 +774,15 @@ Deno.serve(async (req) => {
           if (val == null) continue;   // 빈 값은 저장하지 않는다
           const inv = Number(c.invoice_seq);
           given.set(cd, { val, inv: Number.isInteger(inv) && inv > 0 ? inv : null });
+        }
+        // 참조 마스터가 있는 관리항목은 값이 실제로 존재하는 코드인지 확인한다(2026-08-20).
+        // 틀린 코드는 ERP 투입 단계에서야 터지므로, 저장 시점에 잡아 돌려보낸다.
+        for (const [cd, v] of given) {
+          if (!(await refValid(cd, v.val))) {
+            const nm = (ctrlNmOf.get(cd) || cd);
+            return json({ error: "ctrl_ref_invalid",
+              안내: `${line}번 줄: ${nm}(${cd}) 값 '${v.val}' 은(는) ERP 마스터에 없습니다. 🔍 검색해서 선택하세요.` }, 400);
+          }
         }
         given.forEach((v, cd) =>
           ctrlRows.push({ item_seq: line, ctrl_cd: cd, ctrl_val: v.val, invoice_seq: v.inv }));
@@ -786,7 +830,14 @@ Deno.serve(async (req) => {
       if (!cur) return json({ error: "초안을 찾을 수 없습니다." }, 404);
       if (cur.owner_upn !== user.upn) return json({ error: "forbidden: 본인이 작성한 초안만 수정할 수 있습니다." }, 403);
       if (cur.status !== "draft") return json({ error: "이미 제출·확정된 초안은 수정할 수 없습니다." }, 409);
-      const { error } = await admin.from("gl_draft").update(headerRow).eq("draft_no", no);
+      // 위 검사는 읽고-나서-쓰기라, 확인과 저장 사이에 다른 탭이 제출하면 덮어쓸 수 있다.
+      // UPDATE 조건에 상태·소유자를 함께 걸어 그 틈을 닫는다(조건에 안 맞으면 0행 → 409).
+      const { data: upd, error } = await admin.from("gl_draft").update(headerRow)
+        .eq("draft_no", no).eq("status", "draft").eq("owner_upn", user.upn).select("draft_no");
+      if (!error && (!upd || upd.length === 0)) {
+        return json({ error: "conflict",
+          안내: "저장하는 사이에 이 초안이 제출·확정됐습니다. 화면을 새로 고쳐 확인하세요." }, 409);
+      }
       if (error) return json({ error: "저장 실패: " + error.message }, 500);
       await admin.from("gl_draft_item").delete().eq("draft_no", no);
     } else {

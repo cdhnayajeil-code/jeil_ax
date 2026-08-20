@@ -716,6 +716,8 @@ function applyPill(x){
       + (String(x.erp_apply_target||"").indexOf("DEMO")>=0 ? "DEMO " : "") + esc(x.erp_apply_gl_no||"적용됨") + '</span>';
   if(x.erp_apply_status === "ready")
     return '<span class="pill submitted" title="사내 중계가 곧 투입합니다">🚀 전송 대기</span>';
+  if(x.erp_apply_status === "sending")
+    return '<span class="pill submitted" title="중계가 처리 중입니다 — 다른 실행이 끼어들지 못하도록 선점된 상태">⏳ 전송 중</span>';
   if(x.erp_apply_status === "failed")
     return '<span class="pill" style="background:#fdeeec;color:var(--red);" title="적용 실패 — 관리자 확인 필요">적용 실패</span>';
   return '<span style="color:#aab;">—</span>';
@@ -2150,20 +2152,23 @@ function renderPostLines(items){
 /* 상단 전송 스트립 — 상태 한 줄과 실행 버튼. 전표번호는 ERP가 채번하므로 입력칸이 없다. */
 function renderSendBar(h){
   const st = h.erp_apply_status || "";
-  $("sendBar").className = "sendbar" + (st==="applied" ? " applied" : st==="ready" ? " ready" : st==="failed" ? " failed" : "");
+  $("sendBar").className = "sendbar" + (st==="applied" ? " applied"
+    : (st==="ready"||st==="sending") ? " ready" : st==="failed" ? " failed" : "");
   $("sendState").innerHTML = st==="applied" ? '적용 완료 · <span class="no">'+esc(h.erp_apply_gl_no||"")+'</span>'
-    : st==="ready"  ? "전송 대기 중"
-    : st==="failed" ? "적용 실패" : "미전송";
+    : st==="ready"   ? "전송 대기 중"
+    : st==="sending" ? "전송 처리 중"
+    : st==="failed"  ? "적용 실패" : "미전송";
   $("sendMsg").innerHTML = st==="applied"
       ? "대상 <b>"+esc(h.erp_apply_target||"")+"</b> · ERP 표준 엔진이 채번한 전표번호입니다. 같은 초안의 재전송은 자동으로 차단됩니다."
-    : st==="ready"  ? "사내 중계가 처리 중입니다 — 결과는 이 화면에 자동으로 반영됩니다."
+    : st==="ready"   ? "사내 중계가 곧 가져갑니다 — 결과는 이 화면에 자동으로 반영됩니다."
+    : st==="sending" ? "중계가 처리 중입니다(선점됨) — 다른 실행이 끼어들지 못합니다. 결과는 자동 반영됩니다."
     : st==="failed" ? "⚠ "+esc(h.erp_apply_msg||"중계 로그를 확인하세요.")
     : "누르면 사내 중계가 ERP 표준 엔진으로 전표를 만듭니다(대상 <b>DEMO2</b> · AI 전용 <b>AG</b> 번호대역). "
       + "라인 대조가 어긋나면 자동 취소되고, 성공하면 전표번호가 여기에 표시됩니다.";
   const canSend = h.status === "submitted" && st !== "applied";
   $("btnErpSend").classList.toggle("hide", !canSend);
-  $("btnErpSend").disabled = st === "ready";
-  $("btnErpSend").textContent = st==="ready" ? "🚀 전송 대기 중…"
+  $("btnErpSend").disabled = st === "ready" || st === "sending";
+  $("btnErpSend").textContent = st==="sending" ? "🚀 전송 처리 중…" : st==="ready" ? "🚀 전송 대기 중…"
     : st==="failed" ? "🚀 ERP 재전송 (DEMO2)" : "🚀 ERP 전송 (DEMO2)";
   $("btnErpCancel").classList.toggle("hide", st !== "ready");
 }
@@ -2201,7 +2206,7 @@ function startSendPoll(draftNo){
     try{
       const r = await api("get", { draft_no: draftNo });
       const st = r.header.erp_apply_status;
-      if(st === "applied" || st === "failed"){
+      if(st === "applied" || st === "failed"){   // sending 은 아직 진행 중이라 계속 기다린다
         stopSendPoll();
         POST_SEL = r; loadPost();
         // 상세 패널이 같은 건을 보고 있으면 그 자리에서 갱신한다.

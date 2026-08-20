@@ -33,7 +33,9 @@ r"""gl_apply_demo2.py — 포털 결의전표 초안 → ERP 데모DB(JEILMNS_DE
 import argparse
 import datetime
 import json
+import os
 import re
+import socket
 import sys
 import time
 import urllib.error
@@ -246,6 +248,15 @@ def apply_draft(args):
         # 라인 코스트센터가 전부 있으면 허용, 아니면 중단(엔진 요건)
         if not all((it.get("cost_cd") or "").strip() for it in items):
             raise SystemExit("[중단] 코스트센터가 없습니다(헤더 또는 전 라인에 필요).")
+
+    # 다른 러너가 이미 선점(sending)한 건은 건드리지 않는다 — 중복 투입 차단.
+    # 큐 경로는 자기가 방금 선점하고 들어오므로, 단건 수동 실행만 여기서 걸린다.
+    if h.get("erp_apply_status") == "sending" and not args.cleanup \
+            and not getattr(args, "claimed", False):
+        who = (h.get("erp_apply_msg") or "다른 러너")
+        raise SystemExit(f"[중단] {args.draft} 은(는) 현재 전송 처리 중입니다({who}). "
+                         "중복 투입을 막기 위해 실행하지 않습니다 — 끝나기를 기다리거나 "
+                         "장시간 멈춰 있으면 --queue 가 30분 뒤 자동 회수합니다.")
 
     # 포털 원장 멱등 확인(commit 성공 이력)
     ready = rpc(url, key, "gl_apply_ready", {"p_target": TARGET_DB}) or []
@@ -522,20 +533,51 @@ def list_ready():
 
 
 def queue_run(args, url, key):
-    """화면 [ERP 전송] 대기(ready) 건을 1건씩 순차 처리. 실패 건은 failed 로 기록되고 건너뛴다."""
-    rows = rpc(url, key, "gl_apply_queue", {"p_target": TARGET_DB}) or []
+    """화면 [ERP 전송] 대기 건을 1건씩 순차 처리.
+
+    ⚠ 조회가 아니라 '선점'이다(gl_apply_claim). 큐를 단순 SELECT 로 읽으면 러너를 두 번
+    띄웠을 때 같은 초안을 둘 다 집어 ERP 에 전표가 두 장 생길 수 있다 —
+    적용기의 REF_NO 선조회는 읽고-나서-쓰기라 둘 다 통과하고, ERP 도 REF_NO 를
+    유니크로 잡지 않으며(A_BATCH 비유니크 인덱스·A_TEMP_GL 인덱스 없음),
+    포털 원장 유니크는 ERP 커밋이 끝난 뒤에야 걸린다(레드팀 실측 2026-08-20).
+    선점하면 한 초안은 한 러너만 가져간다. 처리 못 한 건은 반드시 반납한다.
+    """
+    # 죽은 러너가 sending 에 가둬 둔 건을 먼저 회수(기본 30분 초과분)
+    try:
+        n = rpc(url, key, "gl_apply_reclaim", {"p_minutes": 30}) or 0
+        if n:
+            print(f"[회수] 중단된 선점 {n}건을 대기 상태로 되돌렸습니다.")
+    except Exception as e:
+        print(f"[경고] 선점 회수 실패(계속 진행): {e}", file=sys.stderr)
+
+    worker = f"{socket.gethostname()}/{os.getpid()}"
+    rows = rpc(url, key, "gl_apply_claim",
+               {"p_target": TARGET_DB, "p_max": args.max, "p_worker": worker}) or []
     if not rows:
         return 0, 0
     ok = 0
-    for r in rows[: args.max]:
+    for r in rows:
         no = r["draft_no"]
         print(f"\n════ [전송 처리] {no} · {int(r['dr_total']):,}원 · {r.get('gl_desc','')[:36]} ════")
-        ns = argparse.Namespace(draft=no, dry_run=False, cleanup=False, trans_type=args.trans_type)
+        # claimed=True — 이 건은 방금 내가 선점했으므로 'sending' 가드를 통과시킨다
+        ns = argparse.Namespace(draft=no, dry_run=False, cleanup=False,
+                                trans_type=args.trans_type, claimed=True)
+        done = False
         try:
             if apply_draft(ns) == 0:
                 ok += 1
+            done = True          # 성공·실패 모두 gl_apply_record 가 상태를 확정한다
         except SystemExit as e:   # 개별 건 실패가 큐 전체를 멈추지 않게
             print(f"[건너뜀] {no}: {e}", file=sys.stderr)
+        except Exception as e:
+            print(f"[오류] {no}: {e}", file=sys.stderr)
+        if not done:
+            # 투입 자체를 못 했으면 선점을 반납해 다음 회차에 다시 잡히게 한다
+            try:
+                rpc(url, key, "gl_apply_release", {"p_draft_no": no})
+                print(f"[반납] {no} — 전송 대기로 되돌렸습니다.")
+            except Exception as e:
+                print(f"[경고] {no} 선점 반납 실패: {e}", file=sys.stderr)
     return ok, len(rows)
 
 
