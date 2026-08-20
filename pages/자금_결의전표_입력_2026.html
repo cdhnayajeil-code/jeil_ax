@@ -419,11 +419,9 @@
           <div class="fld">
             <label>부서<span class="req">*</span></label>
             <select id="fDept"></select>
-          </div>
-          <div class="fld">
-            <label>코스트센터<span class="req">*</span></label>
-            <select id="fCost"></select>
+            <!-- 코스트센터는 부서로 정해진다 — 헤더에 선택칸을 두지 않고, 줄마다 서식에서 바꾼다 -->
             <span class="hint" id="fCostHint"></span>
+            <input type="hidden" id="fCost">
           </div>
           <div class="fld">
             <label>프로젝트</label>
@@ -918,8 +916,7 @@ function fillHeader(locked){
   if(mine) $("fDept").value = mine.dept_cd;
   renderCostOptions();
   $("fDept").addEventListener("change", onDeptChange);
-  $("fCost").addEventListener("change", commitHeaderCost);
-  // 최초 진입 시에도 내 부서 기본 코스트센터를 채워 둔다(비워 두면 필수인데 빈 상태로 시작)
+  // 코스트센터는 부서로 정해진다 — 진입 시 내 부서 기본값을 확정해 둔다
   if(!$("fCost").value){ const d = defaultCostFor($("fDept").value); if(d) $("fCost").value = d; }
   HDR_COST_PREV = $("fCost").value;
   syncCostReq();
@@ -931,22 +928,20 @@ function defaultCostFor(dept){
   if(!mine.length) return "";
   return (mine.find((c)=> c.is_dept_default) || mine[0]).cost_cd;
 }
-/* 코스트센터는 필수값이다. 목록은 전체(사용 중인 것만 — 폐지분은 서버가 제외)를 보여주되
-   부서 소속을 위로 올리고, 부서를 바꾸면 그 부서 기본값으로 자동 전환한다(직접 수정 가능). */
+/* 코스트센터 표시명 — 'C013200 총무팀' */
+function costLabel(cd){
+  if(!cd) return "";
+  const c = (MASTER.cost_centers||[]).find((x)=> String(x.cost_cd)===String(cd));
+  return c ? c.cost_cd+" "+(c.cost_nm||"") : String(cd);
+}
+/* 코스트센터는 부서로 정해진다 — 헤더에 선택칸을 두지 않는다.
+   값이 목록에 없으면(폐지·타부서 등) 부서 기본값으로 돌린다. */
 function renderCostOptions(keepCur){
   const dept = $("fDept").value;
-  const all = (MASTER.cost_centers||[]).slice();
-  const mine = all.filter((c)=> String(c.dept_cd||"") === String(dept||""));
-  const rest = all.filter((c)=> String(c.dept_cd||"") !== String(dept||""));
-  const opt = (c)=> '<option value="'+esc(c.cost_cd)+'">'+esc(c.cost_cd+" · "+(c.cost_nm||""))
-    + (c.is_dept_default ? " (부서 기본)" : "")+'</option>';
+  const all = MASTER.cost_centers||[];
   const cur = $("fCost").value;
-  $("fCost").innerHTML = '<option value="">— 선택하세요 —</option>'
-    + (mine.length ? '<optgroup label="이 부서">'+mine.map(opt).join("")+'</optgroup>' : '')
-    + (rest.length ? '<optgroup label="그 밖의 코스트센터">'+rest.map(opt).join("")+'</optgroup>' : '');
-  // 값 유지: 목록에 남아 있으면 그대로, 아니면 부서 기본값으로
   const has = (v)=> !!v && all.some((c)=> String(c.cost_cd)===String(v));
-  $("fCost").value = (keepCur && has(cur)) ? cur : (has(cur) ? cur : "");
+  if(!(keepCur && has(cur))) $("fCost").value = has(cur) ? cur : defaultCostFor(dept);
   syncCostReq();
 }
 /* 헤더 코스트센터가 바뀌면 라인에도 실제로 넣는다.
@@ -988,13 +983,16 @@ function onDeptChange(){
   }
   commitHeaderCost();
 }
-/* 필수 표시 — 비어 있으면 붉게 */
+/* 부서로 정해진 코스트센터를 헤더에 안내만 한다(선택칸 없음 — 변경은 서식의 줄에서) */
 function syncCostReq(){
-  const el = $("fCost");
-  el.style.borderColor = el.value ? "" : "var(--red)";
-  const h = $("fCostHint");
-  if(h){
-    h.textContent = el.value ? "" : "필수 — ERP 전표에 반드시 들어갑니다";
+  const h = $("fCostHint"); if(!h) return;
+  const v = $("fCost").value;
+  if(v){
+    h.innerHTML = '코스트센터 <b style="color:var(--navy);">'+esc(costLabel(v))
+      + '</b> — 줄마다 서식에서 바꿀 수 있습니다';
+    h.style.color = "var(--muted)";
+  } else {
+    h.textContent = "⚠ 이 부서에 연결된 코스트센터가 없습니다 — 전표 서식에서 줄마다 지정하세요.";
     h.style.color = "var(--red)";
   }
 }
@@ -1017,20 +1015,24 @@ function setRows(rs){
   SELSET = new Set([...SELSET].filter((s)=> rs.some((r)=> String(r.item_seq)===String(s))));
   renderDraftForm(); updateSum();
 }
-/* 라인 코스트센터 — 비우면 헤더값을 쓴다(저장 시 채워 넣는다). 부서 소속을 위로 올린다. */
-function costOptionsHtml(sel){
-  const hdr = $("fCost").value;
-  const hdrNm = (MASTER.cost_centers||[]).find((c)=> String(c.cost_cd)===String(hdr));
+/* 코스트센터 검색 — 계정과목과 같은 방식(로컬 즉시 필터). 내 부서 것을 위로 올린다. */
+function openCostPicker(onPick){
   const dept = $("fDept").value;
-  const all = (MASTER.cost_centers||[]);
-  const mine = all.filter((c)=> String(c.dept_cd||"")===String(dept||""));
-  const rest = all.filter((c)=> String(c.dept_cd||"")!==String(dept||""));
-  const opt = (c)=> '<option value="'+esc(c.cost_cd)+'"'+(String(sel||"")===String(c.cost_cd)?" selected":"")+'>'
-    + esc(c.cost_cd+" "+(c.cost_nm||""))+'</option>';
-  return '<option value="">'
-      + esc(hdr ? "전표 기본 · "+hdr+(hdrNm ? " "+(hdrNm.cost_nm||"") : "") : "⚠ 지정 안 함")+'</option>'
-    + (mine.length ? '<optgroup label="이 부서">'+mine.map(opt).join("")+'</optgroup>' : '')
-    + (rest.length ? '<optgroup label="그 밖">'+rest.map(opt).join("")+'</optgroup>' : '');
+  const rank = (c)=> String(c.dept_cd||"")===String(dept||"") ? (c.is_dept_default ? 0 : 1) : 2;
+  openPicker({
+    title:"코스트센터 검색",
+    placeholder:"코스트센터명 또는 코드 입력 (예: 총무, C0132)",
+    hint:"내 부서 것이 위에 옵니다 · ↑↓ 이동 · Enter 선택 · Esc 닫기",
+    local:(q)=>{
+      const s = q.toLowerCase();
+      return (MASTER.cost_centers||[])
+        .filter((c)=> !s || (String(c.cost_cd)+" "+String(c.cost_nm||"")).toLowerCase().includes(s))
+        .slice().sort((a,b)=> rank(a)-rank(b) || String(a.cost_cd).localeCompare(String(b.cost_cd)));
+    },
+    render:(c)=> '<span class="cd">'+esc(c.cost_cd)+'</span><span class="nm">'+esc(c.cost_nm||"")+'</span>'
+      + '<span class="sub">'+(String(c.dept_cd||"")===String(dept||"")
+          ? (c.is_dept_default ? "내 부서 기본" : "내 부서") : "부서 "+esc(c.dept_cd||"—"))+'</span>',
+    onPick });
 }
 /* 관리항목 한 칸 — 라벨(이름·필수·⤓) + 입력(날짜/텍스트/검색) */
 function slotCellHtml(r, def, shareCnt){
@@ -1087,7 +1089,9 @@ function renderDraftForm(){
         + (SELSET.has(String(seq))?" checked":"")+'><br>'+seq+'</td>'
       + '<td><button type="button" class="pick'+(r.acct_cd?" has":"")+'" data-act="acct" data-seq="'+seq+'">'
         + (r.acct_cd ? '<span class="acd">'+esc(r.acct_cd)+'</span>' : '🔍 계정 선택')+'</button></td>'
-      + '<td><select data-f="cost" data-seq="'+seq+'">'+costOptionsHtml(r.cost_cd)+'</select></td>'
+      + '<td><button type="button" class="pick'+(r.cost_cd?" has":" bad")+'" data-act="cost" data-seq="'+seq+'"'
+        + ' title="클릭해 코스트센터 검색·변경">'
+        + (r.cost_cd ? esc(costLabel(r.cost_cd)) : "🔍 코스트센터")+'</button></td>'
       + cell(0) + cell(1) + cell(2)
       + '<td class="cur" rowspan="3">KRW</td>'
       + '<td class="amt" rowspan="3">'+amtIn("D")+'</td>'
@@ -1170,8 +1174,7 @@ $("draftForm").addEventListener("input", (e)=>{
 $("draftForm").addEventListener("change", (e)=>{
   const el = e.target.closest("[data-f]"); if(!el) return;
   const r = rowBySeq(el.getAttribute("data-seq")); if(!r) return;
-  if(el.getAttribute("data-f") === "cost"){ r.cost_cd = el.value; }
-  else if(el.getAttribute("data-f") === "sel"){
+  if(el.getAttribute("data-f") === "sel"){
     const k = String(r.item_seq);
     if(el.checked) SELSET.add(k); else SELSET.delete(k);
   }
@@ -1237,6 +1240,8 @@ $("draftForm").addEventListener("click", (e)=>{
       if(!r.dr_cr_fg && (fg==="D"||fg==="C")) r.dr_cr_fg = fg;
       renderDraftForm(); updateSum();
     });
+  } else if(act === "cost"){
+    openCostPicker((c)=>{ r.cost_cd = c.cost_cd; renderDraftForm(); });
   } else if(act === "bp"){
     openBpPicker((x)=>{
       r.bp_cd = x.bp_cd || null; r.bp_nm = x.bp_cd ? (x.bp_nm||null) : null;
@@ -1270,18 +1275,15 @@ $("draftForm").addEventListener("click", (e)=>{
 function validateRows(){
   let bad = null;
   const list = ROWS.filter((r)=> r.acct_cd || numAmt(r.item_amt) || (r.item_desc||"").trim());
-  document.querySelectorAll("#draftForm .pick.bad").forEach((el)=> el.classList.remove("bad"));
-  // 코스트센터는 필수 — 헤더가 비어 있으면 라인이 전부 채워져 있어야 한다
+  document.querySelectorAll('#draftForm .pick[data-act="acct"].bad').forEach((el)=> el.classList.remove("bad"));
+  // 코스트센터 필수 — 부서 기본값이 자동으로 들어가지만, 지워졌다면 그 줄에서 고르게 한다
   const hdrCost = $("fCost").value;
-  if(!hdrCost){
-    const miss = list.filter((r)=> !r.cost_cd);
-    if(miss.length){
-      syncCostReq();
-      toast("코스트센터는 필수입니다 — 상단 ① 기본정보에서 고르거나, 모든 줄에 지정하세요("
-        + miss.map((r)=> r.item_seq+"번").join(", ")+" 줄 비어 있음).", true);
-      $("fCost").scrollIntoView({ behavior:"smooth", block:"center" }); $("fCost").focus();
-      return false;
-    }
+  const missCost = list.filter((r)=> !(r.cost_cd || hdrCost));
+  if(missCost.length){
+    const el = document.querySelector('#draftForm .pick[data-act="cost"][data-seq="'+missCost[0].item_seq+'"]');
+    toast(missCost[0].item_seq+"번 줄 — 코스트센터를 선택하세요(필수). 칸을 눌러 검색할 수 있습니다.", true);
+    if(el){ el.classList.add("bad"); el.scrollIntoView({ behavior:"smooth", block:"center" }); el.focus?.(); }
+    return false;
   }
   list.forEach((r)=>{
     if(!r.acct_cd){
