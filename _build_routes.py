@@ -73,11 +73,18 @@ def main():
         return 1
 
     # ── 2. vercel.json ──────────────────────────────────────
-    # 목적지 규칙(실측으로 확정):
-    #  · 원문(비인코딩) 경로를 쓴다 — 퍼센트 인코딩하면 정적 파일 매칭 실패(404).
-    #  · `.html` 을 뗀다 — cleanUrls:true 면 출력에서 확장자가 제거돼 `/foo.html` 은 존재하지 않는다.
-    def enc(p):
-        return "/" + (p[:-5] if p.lower().endswith(".html") else p)
+    # 경로 표기 규칙(라이브 실측으로 확정 — 둘이 서로 다르다):
+    #  · 공통: `.html` 을 뗀다. cleanUrls:true 면 출력에서 확장자가 제거돼 `/foo.html` 은 없다.
+    #  · rewrite destination = **원문(비인코딩)**. 퍼센트 인코딩하면 정적 파일 매칭 실패(404).
+    #  · redirect source     = **퍼센트 인코딩**. 원문이면 한글 경로가 매칭되지 않는다(리다이렉트 미발동).
+    def _bare(p):
+        return p[:-5] if p.lower().endswith(".html") else p
+
+    def dest(p):
+        return "/" + _bare(p)
+
+    def src(p):
+        return "/" + urllib.parse.quote(_bare(p))
 
     vercel = {
         "$schema": "https://openapi.vercel.sh/vercel.json",
@@ -85,9 +92,9 @@ def main():
         "trailingSlash": False,
         # 구 주소(파일 경로)로 들어오면 새 클린 주소로 보낸다 — 북마크가 새 주소로 수렴한다.
         # permanent=False(307): 브라우저에 영구 캐시되지 않아 라우트를 나중에 고쳐도 즉시 반영된다.
-        "redirects": [{"source": enc(d), "destination": s, "permanent": False}
+        "redirects": [{"source": src(d), "destination": s, "permanent": False}
                       for s, d in ROUTES.items()],
-        "rewrites": [{"source": s, "destination": enc(d)} for s, d in ROUTES.items()],
+        "rewrites": [{"source": s, "destination": dest(d)} for s, d in ROUTES.items()],
         "headers": [{
             "source": "/(.*)",
             "headers": [
