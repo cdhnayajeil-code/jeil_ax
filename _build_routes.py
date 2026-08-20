@@ -84,7 +84,11 @@ def main():
         return "/" + _bare(p)
 
     def src(p):
-        return "/" + urllib.parse.quote(_bare(p))
+        b = _bare(p)
+        # cleanUrls 는 `/폴더/index.html` 을 `/폴더/index` 가 아니라 `/폴더` 로 정규화한다
+        if b.endswith("/index"):
+            b = b[:-len("/index")]
+        return "/" + urllib.parse.quote(b)
 
     vercel = {
         "$schema": "https://openapi.vercel.sh/vercel.json",
