@@ -69,7 +69,19 @@
   .sumbar.bad .st{color:var(--red);}
   /* 버튼 */
   .btns{display:flex; gap:9px; flex-wrap:wrap; margin-top:15px;}
-  button.b{padding:10px 20px; border:none; border-radius:9px; font-family:inherit; font-size:13.5px; font-weight:700; cursor:pointer;}
+  /* 버튼 글자는 절대 줄바꿈하지 않는다 — 좁은 표 칸에서 '복 사'처럼 두 줄로 접히던 문제 */
+  button.b{padding:10px 20px; border:none; border-radius:9px; font-family:inherit; font-size:13.5px; font-weight:700; cursor:pointer; white-space:nowrap;}
+  /* 상태 구분 버튼(세그먼트) — 드롭다운을 대신한다 */
+  .segs{display:inline-flex; border:1.5px solid var(--line); border-radius:9px; overflow:hidden; background:#fff;}
+  .segs .seg{border:none; background:#fff; color:var(--muted); font-family:inherit; font-size:12.5px;
+             font-weight:700; padding:7px 15px; cursor:pointer; white-space:nowrap; display:flex; align-items:center; gap:5px;}
+  .segs .seg + .seg{border-left:1px solid var(--line);}
+  .segs .seg:hover{background:#f2f7fc; color:var(--navy);}
+  .segs .seg.on{background:var(--navy); color:#fff;}
+  .segs .seg b{font-size:11px; font-weight:700; padding:0 6px; border-radius:10px;
+               background:var(--soft); color:var(--muted); min-width:18px; text-align:center;}
+  .segs .seg b:empty{display:none;}
+  .segs .seg.on b{background:rgba(255,255,255,.22); color:#fff;}
   button.b.pri{background:var(--navy); color:#fff;}
   button.b.ok{background:var(--green); color:#fff;}
   button.b.gh{background:#fff; color:var(--muted); border:1.5px solid var(--line);}
@@ -536,12 +548,11 @@
       <div class="sec">
         <h2>제출된 초안
           <small>행을 선택하면 아래에 전송 패널이 열립니다 · 전표번호는 ERP가 채번합니다</small>
-          <span style="margin-left:auto;">
-            <select id="postFilter" style="border:1.5px solid var(--line);border-radius:8px;padding:6px 10px;font-family:inherit;font-size:12.5px;">
-              <option value="submitted">제출됨</option>
-              <option value="posted">확정됨</option>
-              <option value="all">전체</option>
-            </select>
+          <!-- 상태 구분은 드롭다운 대신 한눈에 보이는 버튼으로(선택지가 3개뿐) -->
+          <span class="segs" id="postFilter" style="margin-left:auto;">
+            <button type="button" class="seg on" data-st="submitted">제출됨<b></b></button>
+            <button type="button" class="seg" data-st="posted">확정됨<b></b></button>
+            <button type="button" class="seg" data-st="all">전체<b></b></button>
           </span>
         </h2>
         <!-- 여러 건을 한 번에 보내는 경로. 한 건씩 여는 기존 흐름은 그대로 둔다. -->
@@ -1962,7 +1973,7 @@ function renderSlips(){
   }
   t.innerHTML = '<colgroup><col style="width:150px"><col style="width:96px"><col>'
     + '<col style="width:120px"><col style="width:60px"><col style="width:82px">'
-    + '<col style="width:74px"><col style="width:86px"></colgroup>'
+    + '<col style="width:74px"><col style="width:100px"></colgroup>'
     + '<thead><tr><th>전표번호</th><th>결의일자</th><th>적요</th><th class="r">금액</th><th>라인</th><th>입력경로</th><th>승인</th><th>복사</th></tr></thead><tbody>'
     + list.map((x)=>
       '<tr class="clk" data-no="'+esc(x.temp_gl_no)+'">'
@@ -2115,9 +2126,13 @@ $("mineTbl").onclick = async (e)=>{
 /* ═══ ERP 전송 ═══ */
 async function loadPost(){
   try{
-    const r = await api("list", { status: $("postFilter").value });
+    const r = await api("list", { status: POST_FILTER });
     const t = $("postTbl");
-    if(!r.rows.length){ t.innerHTML = '<tr><td style="color:var(--muted);padding:20px;text-align:center;">해당 상태의 초안이 없습니다.</td></tr>'; return; }
+    if(!r.rows.length){
+      POST_ROWS = []; POST_PICK.clear(); syncPostBulk(); syncPostFilterCount(0);
+      t.innerHTML = '<tr><td style="color:var(--muted);padding:20px;text-align:center;">해당 구분의 초안이 없습니다.</td></tr>';
+      return;
+    }
     POST_ROWS = r.rows;
     // 열 폭을 고정해 둔다 — 폭이 자동이면 긴 적요가 다른 칸을 밀어 두 줄로 접힌다
     t.innerHTML = '<colgroup><col style="width:34px"><col style="width:158px"><col style="width:96px">'
@@ -2147,7 +2162,7 @@ async function loadPost(){
       + '</tbody>';
     // 목록이 바뀌면 사라진 건은 선택에서 뺀다
     POST_PICK = new Set([...POST_PICK].filter((no)=> r.rows.some((x)=> x.draft_no===no && canSendRow(x))));
-    syncPostBulk();
+    syncPostBulk(); syncPostFilterCount(r.rows.length);
   }catch(e){ toast(e.message, true); }
 }
 /* ═══ 일괄 ERP 전송 ═══
@@ -2213,7 +2228,23 @@ $("postTbl").addEventListener("click", (e)=>{
   const all = e.target.closest("#postChkAll");
   if(all){ e.stopPropagation(); $("btnPostSelAll").click(); }
 }, true);
-$("postFilter").onchange = loadPost;
+/* 상태 구분 버튼 — 선택 상태를 표시하고 목록을 다시 불러온다 */
+let POST_FILTER = "submitted";
+$("postFilter").addEventListener("click", (e)=>{
+  const b = e.target.closest(".seg[data-st]"); if(!b) return;
+  const st = b.getAttribute("data-st");
+  if(st === POST_FILTER) return;
+  POST_FILTER = st;
+  document.querySelectorAll("#postFilter .seg").forEach((x)=> x.classList.toggle("on", x === b));
+  POST_PICK.clear();          // 구분을 바꾸면 선택은 초기화한다(대상이 달라진다)
+  $("postDetail").classList.add("hide"); POST_SEL = null; stopSendPoll();
+  loadPost();
+});
+/* 현재 구분의 건수를 버튼에 표시(다른 구분은 눌러야 채워진다 — 매번 3번 조회하지 않는다) */
+function syncPostFilterCount(n){
+  const b = document.querySelector('#postFilter .seg[data-st="'+POST_FILTER+'"] b');
+  if(b) b.textContent = n > 0 ? String(n) : "";
+}
 /* 코스트센터 표시명 — 코드만으로는 무엇인지 알 수 없어 이름을 함께 보인다 */
 function costNm(cd){
   const c = (MASTER.cost_centers||[]).find((x)=> String(x.cost_cd)===String(cd));
