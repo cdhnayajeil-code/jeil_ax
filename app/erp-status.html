@@ -30,6 +30,8 @@
   .upd .msg{font-size:12px;color:var(--muted);flex:1 1 220px;}
   .upd .msg b{color:var(--navy2);}
   .upd .msg.err{color:var(--red);} .upd .msg.ok{color:var(--green);} .upd .msg.warn{color:var(--amber);}
+  .upd .sens{display:inline-flex;align-items:center;gap:5px;font-size:12px;color:#33425a;cursor:pointer;white-space:nowrap;}
+  .upd .sens input{cursor:pointer;}
   .bar{display:none;width:100%;height:6px;border-radius:4px;background:#e2e8f1;overflow:hidden;}
   .bar > i{display:block;height:100%;width:0;background:var(--accent);transition:width .35s;}
   /* 관리자용 상세 */
@@ -68,6 +70,10 @@
          ERP 접속 호스트의 러너(etl_watch.py)가 ETL을 실행하고, 끝나면 이 화면이 자동 갱신된다. -->
     <div class="upd" id="updBox" style="display:none;">
       <button class="btn" id="btnUpdate">🔄 데이터 업데이트</button>
+      <!-- 급여(erp_secure)는 전체관리자에게만 노출·허용. 서버(RPC)가 다시 검증하고 감사 기록한다. -->
+      <label class="sens" id="sensBox" style="display:none;">
+        <input type="checkbox" id="chkSens"> 급여 집계 포함 <span class="badge a">관리자</span>
+      </label>
       <span class="msg" id="updMsg">ERP에서 최신 데이터를 다시 받아옵니다(증분).</span>
       <div class="bar" id="updBar"><i id="updBarFill"></i></div>
     </div>
@@ -226,11 +232,16 @@
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
   async function runUpdate() {
+    const wantSens = !!(el("chkSens") && el("chkSens").checked);
     setBusy(true, "요청 중…"); setBar(0, 0);
     let req;
-    try { req = await erpApi.syncRequest(); }
+    try { req = await erpApi.syncRequest(null, wantSens); }
     catch (e) { setMsg("업데이트 요청 실패 — " + esc(e?.message || e), "err"); setBusy(false); return; }
 
+    if (req.forbiddenSensitive) {
+      setMsg("급여 집계 포함은 <b>전체관리자만</b> 요청할 수 있습니다(요청 기록됨). 체크를 해제하면 나머지 19종은 갱신됩니다.", "err");
+      setBusy(false); return;
+    }
     if (req.forbidden) { setMsg("권한이 없습니다. 사내 계정으로 다시 로그인하세요.", "err"); setBusy(false); return; }
     if (req.cooldown) {
       setMsg(`방금 실행이 끝났습니다 — <b>${req.wait_sec}초</b> 후 다시 시도할 수 있습니다.`, "warn");
@@ -238,7 +249,10 @@
     }
     if (!req.ok || !req.request_id) { setMsg("업데이트 요청을 등록하지 못했습니다.", "err"); setBusy(false); return; }
 
-    setMsg(req.reused ? "이미 진행 중인 업데이트가 있어 그 작업에 연결했습니다." : "업데이트 요청 등록됨 — 실행 대기 중…");
+    setMsg(req.reused
+      ? "이미 진행 중인 업데이트가 있어 그 작업에 연결했습니다."
+        + (wantSens && !req.include_sensitive ? " <b>(그 요청은 급여 미포함 — 끝난 뒤 다시 요청하세요)</b>" : "")
+      : "업데이트 요청 등록됨 — 실행 대기 중…" + (req.include_sensitive ? " (급여 집계 포함)" : ""));
     setBusy(true, "대기 중…");
 
     const t0 = Date.now();
@@ -272,7 +286,8 @@
 
     setBar(0, 0); setBusy(false);
     if (last.status === "done") {
-      setMsg(`업데이트 완료 — 추출 ${num(last.rows_read)}건 / 적재 <b>${num(last.rows_upserted)}건</b>`, "ok");
+      setMsg(`업데이트 완료 — 추출 ${num(last.rows_read)}건 / 적재 <b>${num(last.rows_upserted)}건</b>`
+        + (last.include_sensitive ? " · 급여 집계 포함" : ""), "ok");
     } else if (last.status === "failed") {
       setMsg("업데이트 일부/전체 실패 — " + esc(last.error_msg || "원인 미상") + " (아래 표는 최신 상태로 갱신)", "err");
     } else if (last.status === "running" || last.status === "queued") {
@@ -285,6 +300,11 @@
     await loadOverview();
     el("updBox").style.display = "flex";
     el("btnUpdate").onclick = runUpdate;
+    // 전체관리자에게만 '급여 집계 포함' 노출(서버가 다시 검증하므로 이 표시는 UX용)
+    try {
+      const caps = await erpApi.syncCaps();
+      if (caps.is_admin) el("sensBox").style.display = "inline-flex";
+    } catch (e) { console.warn("[erp-status] 권한 확인 실패:", e?.message || e); }
   } catch (e) {
     // 비로그인/anon/권한없음
     el("gate").style.display = "block";

@@ -1,14 +1,15 @@
 -- 29. 「데이터 업데이트」 요청 큐 (etl_meta.sync_request) + 러너 하트비트
--- 정본. 적용 마이그레이션: erp_sync_request_v1 (2026-08-20)
+-- 정본. 적용 마이그레이션: erp_sync_request_v1 (2026-08-20) → erp_sync_request_sensitive_v1 (2026-08-20, 급여 포함 옵션)
 -- 화면: app/erp-status.html 「🔄 데이터 업데이트」 버튼 · 러너: 10_ERP_DB연계/etl/etl_watch.py
 --
--- 왜 큐인가: ERP(UNIERP) MSSQL은 사외 IDC + IP 허용이라 브라우저·Supabase Edge에서 직접 붙을 수 없다.
---   ETL(etl_run.py)은 ERP 접속이 되는 호스트(관리자 PC)에서만 돈다 → 웹은 "요청"만 남기고,
+-- 왜 큐인가: ERP(UNIERP) MSSQL은 사외 IDC + IP 허용이라 브라우저·Supabase Edge에서 직접 붙을 수 없다(CLAUDE.md §4).
+--   ETL(etl_run.py)은 ERP 접속이 되는 호스트에서만 돈다 → 웹은 "요청"만 남기고,
 --   그 호스트의 감시 러너(etl_watch.py)가 집어가 실행하고 진행률·결과를 여기에 되쓴다.
 --   화면은 요청 상태를 폴링하다가 done 이면 v_erp_sync_overview 를 다시 그린다.
--- 보안(CLAUDE.md §4·§5): 큐는 etl_meta 스키마(REST 미노출) → public RPC 로만 접근.
+-- 보안(CLAUDE.md §1·§4·§5): 큐는 etl_meta 스키마(REST 미노출) → public RPC 로만 접근.
 --   요청 생성·조회는 사내 세션(is_internal)만, 집행(claim/progress/finish/ping)은 service_role 만.
---   민감 job(hr_payroll, erp_secure)은 러너가 요청 대상에서 제외한다(거버넌스 게이트 — 관리자 직접 실행 유지).
+--   민감 job(급여 hr_payroll → erp_secure)은 기본 제외 — `include_sensitive` 요청일 때만 러너가 돌리고,
+--   그 플래그는 **전체관리자(public.portal_admin)만** 쓸 수 있으며 허용·거부 모두 erp_secure.hr_access_log 에 남는다.
 
 create schema if not exists etl_meta;
 
@@ -17,7 +18,7 @@ create table if not exists etl_meta.sync_request (
   request_id     uuid primary key default gen_random_uuid(),
   requested_at   timestamptz not null default now(),
   requested_by   text not null default '',            -- 요청자 이메일(감사용)
-  jobs           text[] not null default '{}',        -- 비우면 러너 기본 세트(민감 제외 전체)
+  jobs           text[] not null default '{}',        -- 비우면 러너 기본 세트(허용 목록 전체)
   status         text not null default 'queued'
                  check (status in ('queued','running','done','failed')),
   claimed_at     timestamptz,
@@ -31,6 +32,8 @@ create table if not exists etl_meta.sync_request (
   result         jsonb,                               -- job별 {job,status,read,upserted,error}
   error_msg      text
 );
+-- 급여(erp_secure) 포함 여부 — 관리자 요청에서만 true (erp_sync_request_sensitive_v1)
+alter table etl_meta.sync_request add column if not exists include_sensitive boolean not null default false;
 
 create index if not exists sync_request_status_idx on etl_meta.sync_request (status, requested_at);
 
@@ -48,8 +51,31 @@ alter table etl_meta.runner_heartbeat enable row level security;
 revoke all on etl_meta.runner_heartbeat from anon, authenticated;
 
 -- ── 3. 사용자용 RPC (사내 세션 전용) ──────────────────────
+-- 3-0. 화면 진입 시 1회 — 관리자 여부(급여 포함 옵션 노출)·러너 생존
+create or replace function public.erp_sync_caps()
+returns jsonb
+language plpgsql
+security definer
+set search_path = public, etl_meta, pg_temp
+as $$
+declare
+  v_email  text := lower(coalesce(auth.jwt() ->> 'email', ''));
+  v_admin  boolean;
+  v_online boolean;
+begin
+  if not public.is_internal() then
+    raise exception 'forbidden' using errcode = '42501';
+  end if;
+  select exists(select 1 from public.portal_admin where lower(email) = v_email) into v_admin;
+  select exists(select 1 from etl_meta.runner_heartbeat where seen_at > now() - interval '3 minutes') into v_online;
+  return jsonb_build_object('ok', true, 'is_admin', coalesce(v_admin, false), 'runner_online', v_online);
+end;
+$$;
+
 -- 3-1. 요청 생성. 진행 중 요청이 있으면 새로 만들지 않고 그 건을 돌려준다(중복 실행 방지).
-create or replace function public.erp_sync_request_create(p_jobs text[] default null)
+--      p_include_sensitive = 급여 집계 포함 요청 → 전체관리자만, 감사 기록 필수.
+create or replace function public.erp_sync_request_create(
+  p_jobs text[] default null, p_include_sensitive boolean default false)
 returns jsonb
 language plpgsql
 security definer
@@ -57,12 +83,24 @@ set search_path = public, etl_meta, pg_temp
 as $$
 declare
   v_email  text := coalesce(auth.jwt() ->> 'email', '');
+  v_admin  boolean;
   v_online boolean;
   v_last   timestamptz;
+  v_sens   boolean := coalesce(p_include_sensitive, false);
   r        etl_meta.sync_request%rowtype;
 begin
   if not public.is_internal() then
     raise exception 'forbidden' using errcode = '42501';
+  end if;
+
+  -- 급여(erp_secure) 포함 요청은 전체관리자만. 허용·거부 모두 감사 기록(jeil-hr 와 동일 원장).
+  if v_sens then
+    select exists(select 1 from public.portal_admin where lower(email) = lower(v_email)) into v_admin;
+    insert into erp_secure.hr_access_log (upn, dept_nm, action, ok)
+    values (v_email, null, 'sync_request_hr_payroll', coalesce(v_admin, false));
+    if not coalesce(v_admin, false) then
+      raise exception 'forbidden_sensitive' using errcode = '42501';
+    end if;
   end if;
 
   select exists(select 1 from etl_meta.runner_heartbeat where seen_at > now() - interval '3 minutes')
@@ -78,7 +116,7 @@ begin
       'requested_by', r.requested_by, 'claimed_at', r.claimed_at, 'finished_at', r.finished_at,
       'runner', r.runner, 'progress_done', r.progress_done, 'progress_total', r.progress_total,
       'progress_job', r.progress_job, 'rows_read', r.rows_read, 'rows_upserted', r.rows_upserted,
-      'result', r.result, 'error_msg', r.error_msg);
+      'result', r.result, 'error_msg', r.error_msg, 'include_sensitive', r.include_sensitive);
   end if;
 
   -- 쿨다운: 마지막 종료 후 60초 이내 재요청 차단(ERP 부하·연타 방지)
@@ -88,8 +126,8 @@ begin
       'wait_sec', ceil(extract(epoch from (v_last + interval '60 seconds' - now())))::int);
   end if;
 
-  insert into etl_meta.sync_request (requested_by, jobs)
-  values (v_email, coalesce(p_jobs, '{}'::text[]))
+  insert into etl_meta.sync_request (requested_by, jobs, include_sensitive)
+  values (v_email, coalesce(p_jobs, '{}'::text[]), v_sens)
   returning * into r;
 
   return jsonb_build_object(
@@ -97,7 +135,8 @@ begin
     'request_id', r.request_id, 'status', r.status, 'requested_at', r.requested_at,
     'requested_by', r.requested_by, 'claimed_at', null, 'finished_at', null,
     'runner', null, 'progress_done', 0, 'progress_total', 0, 'progress_job', null,
-    'rows_read', 0, 'rows_upserted', 0, 'result', null, 'error_msg', null);
+    'rows_read', 0, 'rows_upserted', 0, 'result', null, 'error_msg', null,
+    'include_sensitive', v_sens);
 end;
 $$;
 
@@ -130,7 +169,7 @@ begin
     'requested_by', r.requested_by, 'claimed_at', r.claimed_at, 'finished_at', r.finished_at,
     'runner', r.runner, 'progress_done', r.progress_done, 'progress_total', r.progress_total,
     'progress_job', r.progress_job, 'rows_read', r.rows_read, 'rows_upserted', r.rows_upserted,
-    'result', r.result, 'error_msg', r.error_msg);
+    'result', r.result, 'error_msg', r.error_msg, 'include_sensitive', r.include_sensitive);
 end;
 $$;
 
@@ -180,7 +219,8 @@ begin
   if not found then return null; end if;
 
   return jsonb_build_object('request_id', r.request_id, 'jobs', r.jobs,
-                            'requested_by', r.requested_by, 'requested_at', r.requested_at);
+                            'requested_by', r.requested_by, 'requested_at', r.requested_at,
+                            'include_sensitive', r.include_sensitive);
 end;
 $$;
 
@@ -221,17 +261,19 @@ as $$
 $$;
 
 -- ── 5. 권한 ───────────────────────────────────────────────
-revoke all on function public.erp_sync_request_create(text[])   from public, anon;
-revoke all on function public.erp_sync_request_status(uuid)     from public, anon;
-grant execute on function public.erp_sync_request_create(text[]) to authenticated, service_role;
-grant execute on function public.erp_sync_request_status(uuid)   to authenticated, service_role;
+revoke all on function public.erp_sync_caps()                          from public, anon;
+revoke all on function public.erp_sync_request_create(text[], boolean) from public, anon;
+revoke all on function public.erp_sync_request_status(uuid)            from public, anon;
+grant execute on function public.erp_sync_caps()                          to authenticated, service_role;
+grant execute on function public.erp_sync_request_create(text[], boolean) to authenticated, service_role;
+grant execute on function public.erp_sync_request_status(uuid)            to authenticated, service_role;
 
-revoke all on function public.erp_sync_runner_ping(text,text)                   from public, anon, authenticated;
-revoke all on function public.erp_sync_request_claim(text)                      from public, anon, authenticated;
+revoke all on function public.erp_sync_runner_ping(text,text)                     from public, anon, authenticated;
+revoke all on function public.erp_sync_request_claim(text)                        from public, anon, authenticated;
 revoke all on function public.erp_sync_request_progress(uuid,int,int,text,int,int) from public, anon, authenticated;
 revoke all on function public.erp_sync_request_finish(uuid,text,jsonb,int,int,text) from public, anon, authenticated;
-grant execute on function public.erp_sync_runner_ping(text,text)                   to service_role;
-grant execute on function public.erp_sync_request_claim(text)                      to service_role;
+grant execute on function public.erp_sync_runner_ping(text,text)                     to service_role;
+grant execute on function public.erp_sync_request_claim(text)                        to service_role;
 grant execute on function public.erp_sync_request_progress(uuid,int,int,text,int,int) to service_role;
 grant execute on function public.erp_sync_request_finish(uuid,text,jsonb,int,int,text) to service_role;
 
@@ -241,5 +283,6 @@ grant execute on function public.erp_sync_request_finish(uuid,text,jsonb,int,int
 --                         public.erp_sync_request_claim(text),
 --                         public.erp_sync_runner_ping(text,text),
 --                         public.erp_sync_request_status(uuid),
---                         public.erp_sync_request_create(text[]);
+--                         public.erp_sync_request_create(text[], boolean),
+--                         public.erp_sync_caps();
 -- drop table if exists etl_meta.sync_request, etl_meta.runner_heartbeat;

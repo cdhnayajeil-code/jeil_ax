@@ -110,6 +110,13 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <tr>
 <td>2026-08-20</td>
 <td>ERP연계</td>
+<td><code>app/erp-status.html</code>(관리자 체크박스) · <code>app/lib/api.js</code> · <code>10_ERP_DB연계/etl/etl_watch.py</code>·<code>etl/README.md</code> · 마이그레이션 <code>erp_sync_request_sensitive_v1</code></td>
+<td><strong>「데이터 업데이트」에 급여 집계 포함 옵션(전체관리자 전용)</strong> — 급여는 민감 스키마(<code>erp_secure</code>)라 웹 버튼에서 기본 제외돼 왔다(그래서 다른 19종만 갱신됐다). 관리자 결정으로 전체관리자에 한해 포함을 허용하되, <strong>판정은 서버 RPC가 하고 허용·거부 모두 <code>erp_secure.hr_access_log</code>에 감사 기록</strong>한다. 일반 사내 사용자는 종전대로 19종만</td>
+<td>최동혁(+Claude)</td>
+</tr>
+<tr>
+<td>2026-08-20</td>
+<td>ERP연계</td>
 <td>Supabase(마이그레이션 <code>gl_ctrl_ref_v1</code>·<code>v1b_dedupe</code>, <code>erp_ro.ctrl_ref_s</code> 신규) · <code>jeil-gl-draft</code>(v5.7) · <code>10_ERP_DB연계/etl/etl_run.py</code>(job <code>ctrl_ref</code>) · <code>실제구축준비 자료/이관/sql/27_gl_ctrl_ref.sql</code>(신규) · Supabase(마이그레이션 <code>erp_sync_overview_gl_mirror_ctrl_ref</code>)</td>
 <td><strong>관리항목 참조 마스터 전면 연결(<code>ctrl_ref</code>) 신설·실적재 완료 + 연동 현황 뷰 16→20종 확장.</strong> 관리항목 52종 중 31종이 가리키는 ERP 참조 마스터(<code>A_CTRL_ITEM.TBL_ID</code>)를, 종류마다 개별 테이블을 만드는 대신 <code>(관리항목코드,코드,명칭,보조)</code> 정규화 통합 미러 <code>erp_ro.ctrl_ref_s</code>로 연결했다 — <strong>27종 9,279건 적재, 참조 보유 31종 전수 연결·미연결 0건</strong>. 관리자 지시로 처음 제외했던 민감 6종(사번·계좌·법인/구매카드·어음·차입번호)도 전부 연결하되, 사번은 사번·성명·부서명 3컬럼만·재직자만 추출(주민번호·연락처 등 제외)하고 민감 항목 조회는 값 없이 건수만 감사기록했다. <strong>같은 작업 중 결의전표 미러 3종(<code>gl_slip</code>계열, 08-18 실적재 완료)이 연동 현황 뷰 <code>v_erp_sync_overview</code>에 그동안 등재되지 않았던 사각지대(08-10 <code>bp_master</code> 누락과 동일 유형)를 발견</strong>, <code>ctrl_ref</code>와 함께 반영해 <strong>16종→20종</strong>으로 확장했다. 단일 출처는 <code>10_ERP_DB연계/</code>(00 v0.34·02)</td>
 <td>최동혁(+Claude)</td>

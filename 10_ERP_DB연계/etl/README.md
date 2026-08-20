@@ -63,6 +63,7 @@ schtasks /Create /TN "JEIL_AX ETL 요청러너" /SC MINUTE /MO 1 /RL LIMITED ^
 ```
 
 - 대상 job = `JOBS` 중 **민감분(급여 `hr_payroll`, `erp_secure`) 제외 전 종**(현재 19종). 증분(watermark) 기준이라 변경분만 돈다.
+- **급여 집계 포함**: 화면의 「급여 집계 포함」 체크는 **전체관리자(`public.portal_admin`)에게만 보이고, 서버 RPC가 다시 검증**한다. 허용·거부 모두 `erp_secure.hr_access_log`(action=`sync_request_hr_payroll`)에 남는다. 이 요청일 때만 러너가 `hr_payroll`을 대상에 넣는다(총 20종).
 - 진행률·결과는 `etl_meta.sync_request`(진행 job·건수·job별 성패)에, 배치 이력은 기존대로 `etl_meta.batch_run`에 남는다.
 - 중복 실행 방지: 진행 중 요청이 있으면 버튼은 그 요청에 붙고, 종료 60초 내 재요청은 쿨다운으로 거절된다.
 - 좀비 정리: `running` 2시간·`queued` 4시간 초과 요청은 다음 claim 때 `failed`로 정리된다.

@@ -14,7 +14,9 @@
 #
 # 보안(CLAUDE.md §1·§4):
 #   · SUPABASE_SERVICE_ROLE_KEY / ERP_DB_CONN 은 프로젝트 루트 .env 에서만 읽는다(출력 금지).
-#   · 민감 job(erp_secure — 급여 hr_payroll)은 웹 요청으로 절대 돌지 않는다. 관리자 직접 실행 유지.
+#   · 민감 job(erp_secure — 급여 hr_payroll)은 요청에 include_sensitive=true 가 있을 때만 돈다.
+#     그 플래그는 DB RPC(`erp_sync_request_create`)가 전체관리자(portal_admin)에게만 허용하고,
+#     허용·거부 모두 erp_secure.hr_access_log 에 감사 기록한다. 일반 사내 사용자 요청엔 붙지 않는다.
 import argparse
 import datetime
 import json
@@ -27,9 +29,11 @@ import urllib.request
 from _env import load_env, need
 from etl_run import JOBS, run_job
 
-# 웹 요청으로 허용하는 job = 민감 스키마(erp_secure)로 가지 않는 것 전부.
-# hr_payroll 은 rpc="erp_secure_upsert" 라 자동으로 빠진다(거버넌스 게이트).
+# 웹 요청으로 항상 허용하는 job = 민감 스키마(erp_secure)로 가지 않는 것 전부.
 SAFE_JOBS = [n for n, s in JOBS.items() if s.get("rpc") != "erp_secure_upsert"]
+# 민감 job(급여 hr_payroll → erp_secure). 요청에 include_sensitive=true 가 있을 때만 돈다 —
+# 그 플래그는 DB RPC 가 전체관리자(portal_admin)에게만 허용하고 hr_access_log 에 감사 기록한다.
+SENSITIVE_JOBS = [n for n, s in JOBS.items() if s.get("rpc") == "erp_secure_upsert"]
 
 POLL_SEC = 20          # 기본 폴링 주기
 HTTP_TIMEOUT = 60
@@ -64,17 +68,21 @@ def rpc(url, key, fn, payload):
         return raw
 
 
-def targets_for(req_jobs):
-    """요청이 지정한 job ∩ 허용 목록. 비었으면 허용 목록 전체(기본 세트)."""
-    asked = [j for j in (req_jobs or []) if j in SAFE_JOBS]
-    return asked or list(SAFE_JOBS)
+def targets_for(req_jobs, include_sensitive=False):
+    """요청이 지정한 job ∩ 허용 목록. 비었으면 허용 목록 전체(기본 세트).
+    include_sensitive 는 관리자 요청에서만 참 — 이때만 급여(erp_secure) job 이 목록에 붙는다."""
+    allowed = list(SAFE_JOBS) + (list(SENSITIVE_JOBS) if include_sensitive else [])
+    asked = [j for j in (req_jobs or []) if j in allowed]
+    return asked or allowed
 
 
 def handle(url, key, runner, req, dry, full):
     rid = req["request_id"]
-    names = targets_for(req.get("jobs"))
+    sens = bool(req.get("include_sensitive"))
+    names = targets_for(req.get("jobs"), sens)
     total = len(names)
-    log(f"요청 수락 {rid[:8]}… (요청자 {req.get('requested_by') or '-'}) — job {total}종")
+    log(f"요청 수락 {rid[:8]}… (요청자 {req.get('requested_by') or '-'}) — job {total}종"
+        + (" · 급여 포함(관리자 요청)" if sens else ""))
 
     rpc(url, key, "erp_sync_request_progress",
         {"p_request_id": rid, "p_done": 0, "p_total": total, "p_job": names[0]})
@@ -138,7 +146,8 @@ def main():
     key = need("SUPABASE_SERVICE_ROLE_KEY")
     runner = socket.gethostname()
 
-    log(f"러너 시작 — host={runner} · 허용 job {len(SAFE_JOBS)}종(민감 제외)"
+    log(f"러너 시작 — host={runner} · 기본 job {len(SAFE_JOBS)}종"
+        f"(+관리자 요청 시 민감 {len(SENSITIVE_JOBS)}종)"
         + (" · dry-run" if args.dry_run else "") + (" · full" if args.full else ""))
     if args.once:
         return 0 if tick(url, key, runner, args.dry_run, args.full) is not None else 1

@@ -125,6 +125,7 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <li>[x] <strong>연결 전담 에이전트(<code>erp-db-connector</code>) 설치·배포킷 완성</strong>(2026-07-07) — jeil_ax <code>.claude/agents/erp-db-connector.md</code> 설치 완료(연결테스트·table_dict·ETL dry-run/실적재·batch_run 점검 소관, DB 작업은 이 에이전트로 일원화·문서관제는 기존대로 <code>erp-db-link-manager</code>). <code>10_ERP_DB연계/agent_kit/</code>(README+정의원본)를 배포킷으로 신설. <strong>ERP_DB 작업환경 설치 완료(2026-07-07)</strong> — <code>ERP_DB\.claude\agents\</code> + 작업 폴더 <code>ERP_DB\JEIL_AX연계\</code>, 킷은 같은 날 불합리 5건 교정(작업로그 참조)</li>
 <li>[~] 야간배치 정기 가동(스케줄러 등록) + 실패 알림 — <strong>무인 야간 스케줄러는 여전히 미도입</strong>. 2026-08-20 신설한 요청 러너 <code>etl_watch.py</code>를 Windows 작업 스케줄러에 <code>--once</code>(1분 주기)로 등록하면 대체 가능(관리자 실행 대기)</li>
 <li>[x] <strong>화면 「데이터 업데이트」 실행 경로 신설</strong>(2026-08-20) — <code>app/erp-status.html</code> 버튼 → 요청 큐(<code>etl_meta.sync_request</code>) → 러너 <code>etl_watch.py</code>가 <code>etl_run</code> 집행 → 진행률 폴링 → 완료 시 화면 자동 갱신. 마이그레이션 <code>erp_sync_request_v1</code>(정본 <code>이관/sql/29_erp_sync_request.sql</code>), 민감 job 자동 제외(19/20), 큐 플러밍 실측 검증 완료(ERP 미접속)</li>
+<li>[x] <strong>급여 집계 — 관리자 전용 포함 허용</strong>(2026-08-20, 관리자 결정) — 기본 19종에서 제외되던 <code>hr_payroll</code>을 전체관리자(<code>portal_admin</code>) 요청에 한해 포함(20종). 마이그레이션 <code>erp_sync_request_sensitive_v1</code>, 서버 검증 + <code>erp_secure.hr_access_log</code> 감사 기록, 화면 체크박스는 관리자에게만 노출</li>
 <li>[ ] 러너 상시 가동 확정 — 관리자 PC 상주 실행 vs 작업 스케줄러 등록 vs 전용 호스트(ERP 접속 가능) 중 선택. 미가동 시 버튼은 요청만 쌓고 화면이 "러너 미가동"으로 안내한다</li>
 <li>[ ] 「데이터 기준 시각」 표기 규약 적용</li>
 <li>[x] <strong>(신규요청) 발주 데이터 2026년도분 우선연동 — 실적재 완료</strong>(2026-07-07): <code>pur_order</code> job(<code>M_PUR_ORD_HDR/DTL</code>, 2026년 필터) → <code>erp_ro.pur_order_s</code> 2,699행. 남은 것: 유니포인트 뷰 스펙 협의(추출 SQL 초안 확정), <code>M_PUR_REQ</code>(발주요청)는 미포함 — 필요 시 별도 job 추가</li>
@@ -214,6 +215,12 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 </tr>
 </thead>
 <tbody>
+<tr>
+<td>2026-08-20</td>
+<td><strong>「데이터 업데이트」 급여 미반영 원인 확인 + 관리자 전용 포함</strong> — 원인은 결함이 아니라 러너의 의도적 제외(<code>rpc=erp_secure_upsert</code> job 자동 제외). 실측: 첫 버튼 실행(15:06 KST) 19종 전부 success, 급여만 08-11 적재분(167행) 유지. 관리자 결정으로 전체관리자 한정 포함 허용 — <code>include_sensitive</code> 컬럼·<code>erp_sync_caps()</code> 신설, <code>erp_sync_request_create(p_jobs,p_include_sensitive)</code>로 교체(서버 관리자 검증 + <code>hr_access_log</code> 감사, 비관리자 <code>forbidden_sensitive</code>), 러너 <code>SENSITIVE_JOBS</code> 분리(플래그일 때만 20종), 화면 관리자 전용 체크박스. 검증 실측 통과(관리자 허용·비관리자 거부·caps·job선택), 러너 재기동</td>
+<td>Supabase 마이그레이션 <code>erp_sync_request_sensitive_v1</code>(정본 <code>이관/sql/29_erp_sync_request.sql</code> v2), <code>etl/etl_watch.py</code>·<code>etl/README.md</code>, <code>app/erp-status.html</code>, <code>app/lib/api.js</code></td>
+<td>최동혁(+Claude)</td>
+</tr>
 <tr>
 <td>2026-08-20</td>
 <td><strong>연동 현황 화면 「데이터 업데이트」 버튼 — ETL 실행 요청 큐 + 러너 신설</strong> — 관리자 요청("버튼 클릭 시 데이터 업데이트 적용 후 새로고침"). ERP가 사외 IDC라 브라우저·Edge에서 ETL을 직접 못 돌리는 제약을 <strong>요청 큐</strong>로 우회: ①DB — 마이그레이션 <code>erp_sync_request_v1</code>로 <code>etl_meta.sync_request</code>(요청·상태·진행률·job별 결과)·<code>etl_meta.runner_heartbeat</code> 신설, RPC 6종(사용자용 <code>erp_sync_request_create</code>/<code>_status</code>는 <code>is_internal()</code> 게이트·authenticated 실행, 러너용 <code>erp_sync_runner_ping</code>/<code>_claim</code>/<code>_progress</code>/<code>_finish</code>는 service_role 전용). ②러너 — <code>etl/etl_watch.py</code> 신설(상주 20초 폴링 또는 <code>--once</code>, 민감 job(<code>erp_secure</code>) 자동 제외 19종, job 단위 실패 격리, 좀비 요청 정리). <code>etl_run.run_job</code>이 진행률용 <code>(추출,적재)</code> 건수를 반환하도록 보완. ③화면 — <code>app/erp-status.html</code>에 버튼·진행 바·상태 문구 추가, 2.5초 폴링 후 완료 시 <code>v_erp_sync_overview</code> 재조회, 러너 미가동이면 20초 후 안내 전환. <code>app/lib/api.js</code>에 <code>syncRequest</code>·<code>syncRequestStatus</code> 추가. <strong>검증</strong>: ERP 미접속 상태에서 큐 왕복(등록→claim→progress→finish→조회) 실측 통과, 민감 job 제외 19/20 확인, 테스트 행 정리. 실 ETL 집행 확인은 관리자가 러너 기동 후 수행</td>

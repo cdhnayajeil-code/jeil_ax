@@ -428,12 +428,26 @@ export const erpApi = {
   /* 「데이터 업데이트」 요청 큐 (etl_meta.sync_request · SQL 정본 29_erp_sync_request.sql)
      ERP MSSQL은 사외 IDC라 브라우저·Edge에서 직접 못 붙는다 → 웹은 요청만 남기고,
      ERP 접속 호스트의 러너(10_ERP_DB연계/etl/etl_watch.py)가 집어가 ETL을 돌린 뒤 상태를 되쓴다. */
+  // 화면 진입 시 1회 — 사내 여부·전체관리자 여부·러너 생존. 관리자에게만 '급여 포함' 옵션을 연다.
+  // 반환: {ok, is_admin, runner_online} | {ok:false, forbidden:true}
+  async syncCaps() {
+    const { data, error } = await supabase.rpc("erp_sync_caps");
+    if (error) {
+      if (/forbidden/i.test(String(error.message || "")) || error.code === "42501") return { ok: false, forbidden: true };
+      throw error;
+    }
+    return data || { ok: false };
+  },
   // 요청 등록(사내 세션 전용). 진행 중 요청이 있으면 그 건을 그대로 돌려준다(reused=true).
-  // 반환: {ok, request_id, status, runner_online, reused} | {ok:false, cooldown, wait_sec} | {ok:false, forbidden:true}
-  async syncRequest(jobs = null) {
-    const { data, error } = await supabase.rpc("erp_sync_request_create", { p_jobs: jobs });
+  // includeSensitive=true(급여 집계 포함)는 전체관리자(portal_admin)만 — 서버가 검증하고
+  // 허용·거부 모두 erp_secure.hr_access_log 에 감사 기록한다(거부 시 forbiddenSensitive).
+  // 반환: {ok, request_id, status, runner_online, reused, include_sensitive} | {ok:false, cooldown, wait_sec} | {ok:false, forbidden|forbiddenSensitive:true}
+  async syncRequest(jobs = null, includeSensitive = false) {
+    const { data, error } = await supabase.rpc("erp_sync_request_create",
+      { p_jobs: jobs, p_include_sensitive: !!includeSensitive });
     if (error) {
       const msg = String(error.message || "");
+      if (/forbidden_sensitive/i.test(msg)) return { ok: false, forbiddenSensitive: true };
       if (/forbidden/i.test(msg) || error.code === "42501") return { ok: false, forbidden: true };
       throw error;
     }
