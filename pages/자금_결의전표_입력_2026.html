@@ -108,6 +108,47 @@
   .erpbox .row{display:flex; gap:10px; padding:3px 0;}
   .erpbox .row .k{color:var(--muted); min-width:88px; font-size:12px;}
   .erpbox .row .v{font-weight:600; color:var(--navy);}
+  .erpbox.two{display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:0 22px;}
+  /* ERP 전송 상태 스트립 — 상태 한 줄 + 전송 버튼(상단 고정 위치) */
+  .sendbar{display:flex; align-items:center; gap:14px; flex-wrap:wrap; padding:13px 16px; border-radius:11px;
+           border:1.5px solid var(--line); background:var(--soft); margin-bottom:13px;}
+  .sendbar .st{display:flex; flex-direction:column; gap:2px; min-width:0;}
+  .sendbar .st .lbl{font-size:11px; color:var(--muted); font-weight:600;}
+  .sendbar .st .val{font-size:15px; font-weight:800; color:var(--navy); letter-spacing:-.01em;}
+  .sendbar .st .val .no{font-family:'Consolas','Menlo',monospace; font-size:14.5px;}
+  .sendbar .msg{font-size:12px; color:var(--muted); flex:1 1 200px; min-width:0; line-height:1.55;}
+  .sendbar .acts{margin-left:auto; display:flex; gap:8px; flex-wrap:wrap;}
+  .sendbar.ready{background:#fff8e8; border-color:#f0d9a8;}
+  .sendbar.ready .val{color:var(--amber);}
+  .sendbar.applied{background:#eefaf1; border-color:#b8e2c4;}
+  .sendbar.applied .val{color:var(--green);}
+  .sendbar.failed{background:#fdeeec; border-color:#f2c4be;}
+  .sendbar.failed .val{color:var(--red);}
+  /* 분개 카드 — 라인과 그 라인의 관리항목을 한 덩어리로 보여준다(표 2개 대조 불필요) */
+  .jl{border:1px solid var(--line); border-left:4px solid var(--line); border-radius:11px; background:#fff;
+      margin-bottom:9px; overflow:hidden;}
+  .jl.dr{border-left-color:var(--accent); border-color:#d8e6f3;}
+  .jl.cr{border-left-color:var(--green); border-color:#d4ecdb;}
+  .jl .hd{display:flex; align-items:center; gap:9px; flex-wrap:wrap; padding:9px 13px;}
+  .jl.dr .hd{background:#eef6fd;} .jl.cr .hd{background:#eef9f2;}
+  .jl .hd .seq{font-size:11px; font-weight:700; color:var(--muted); min-width:16px;}
+  .jl .hd .fg{padding:1px 8px; border-radius:5px; font-size:10.5px; font-weight:800;}
+  .jl.dr .hd .fg{background:#e8f1fb; color:var(--accent);} .jl.cr .hd .fg{background:#eefaf1; color:var(--green);}
+  .jl .hd .nm{font-size:13px; font-weight:700; color:var(--navy);}
+  .jl .hd .cd{font-family:'Consolas','Menlo',monospace; font-size:11px; color:var(--muted);}
+  .jl .hd .amt{margin-left:auto; font-size:14.5px; font-weight:800; color:var(--navy);
+               font-variant-numeric:tabular-nums; letter-spacing:-.01em;}
+  .jl .bd{padding:9px 13px; display:flex; flex-wrap:wrap; gap:6px 8px; align-items:center;}
+  .jl .bd .desc{width:100%; font-size:12.5px; color:var(--ink); margin-bottom:2px;}
+  .chip{display:inline-flex; align-items:center; gap:5px; background:#f6f8fb; border:1px solid #e7ecf3;
+        border-radius:7px; padding:3px 9px; font-size:11.5px; color:var(--ink); max-width:100%;}
+  .chip .k{color:var(--muted); font-size:10.5px; font-weight:700;}
+  .chip .v{font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .chip.ctrl{background:#fdfaf3; border-color:#f0e6d2;}
+  .chip.ctrl .k{color:var(--amber);}
+  .jl .ctrls{border-top:1px dashed var(--line); padding:9px 13px; display:flex; flex-wrap:wrap; gap:6px 8px; align-items:center;}
+  .jl .ctrls .cap{font-size:10.5px; font-weight:700; color:var(--muted); margin-right:2px;}
+  .jl .none{padding:8px 13px; font-size:11.5px; color:#aab;}
   /* 월반복 홈(F1) */
   .recurgrid{display:grid; grid-template-columns:repeat(auto-fill,minmax(250px,1fr)); gap:10px;}
   .rcard{border:1.5px solid var(--line); border-radius:11px; padding:12px 14px; background:#fff; transition:.12s;}
@@ -233,8 +274,8 @@
     </div>
 
     <div class="banner">
-      <b>이 화면은 ERP 결의전표 <u>초안</u>을 만듭니다.</b> 포털은 ERP에 직접 등록하지 않습니다 —
-      제출하면 회계 담당자가 내용을 확인해 ERP에 최종 저장하고, 저장된 전표번호가 이 화면에 표시됩니다.
+      <b>이 화면은 ERP 결의전표 <u>초안</u>을 만듭니다.</b> 제출하면 회계 담당자가 내용을 확인한 뒤
+      <b>[ERP 전송]</b> 탭에서 ERP로 보내고, ERP가 채번한 전표번호가 이 화면에 표시됩니다.
       등록자는 회원님의 MS 계정과 연결된 ERP 사용자 ID로 자동 지정됩니다.
     </div>
     <div class="banner err hide" id="warnBox"></div>
@@ -243,7 +284,7 @@
       <button data-tab="write" class="on">전표 작성</button>
       <button data-tab="copy">전표복사</button>
       <button data-tab="mine">내 초안</button>
-      <button data-tab="post" class="hide" id="tabPost">회계 담당자</button>
+      <button data-tab="post" class="hide" id="tabPost">ERP 전송</button>
       <button data-tab="tpl">템플릿 관리</button>
     </div>
 
@@ -391,11 +432,11 @@
       </div>
     </div>
 
-    <!-- ═══ 회계 담당자 ═══ -->
+    <!-- ═══ ERP 전송 ═══ -->
     <div id="panePost" class="hide">
       <div class="sec">
         <h2>제출된 초안
-          <small>[🚀 ERP 전송]으로 자동 등록(DEMO2 테스트) · 또는 ERP 수기 입력 후 전표번호 기입</small>
+          <small>행을 선택하면 아래에 전송 패널이 열립니다 · 전표번호는 ERP가 채번합니다</small>
           <span style="margin-left:auto;">
             <select id="postFilter" style="border:1.5px solid var(--line);border-radius:8px;padding:6px 10px;font-family:inherit;font-size:12.5px;">
               <option value="submitted">제출됨</option>
@@ -407,25 +448,20 @@
         <div style="overflow-x:auto;"><table class="tbl" id="postTbl"></table></div>
       </div>
       <div class="sec hide" id="postDetail">
-        <h2>ERP 입력용 요약 <small id="postDetailNo"></small></h2>
-        <div class="banner" style="background:#eef4fb;border-color:#c9dcf1;border-left-color:var(--accent);color:#2a4a6b;margin-bottom:13px;">
-          <b>[🚀 ERP 전송]</b>을 누르면 사내 중계가 ERP 표준 엔진으로 전표를 자동 생성합니다
-          (<b>1차 테스트 — 대상: 데모 DB DEMO2</b>, AI 전용 <b>AG</b> 번호대역).
-          라인 대조가 일치하지 않으면 자동 취소되고, 완료되면 아래 「ERP 적용」에 전표번호가 표시됩니다.
-          운영 ERP 등록은 아직 수기 입력 + 전표번호 회기입입니다.
+        <h2>ERP 전송 <small id="postDetailNo"></small></h2>
+        <!-- 전송 상태 + 실행 버튼 — 패널 최상단(스크롤 없이 바로 누를 수 있게) -->
+        <div class="sendbar" id="sendBar">
+          <div class="st"><span class="lbl">ERP 적용 상태</span><span class="val" id="sendState">—</span></div>
+          <div class="msg" id="sendMsg"></div>
+          <div class="acts">
+            <button class="b pri hide" id="btnErpSend">🚀 ERP 전송 (DEMO2)</button>
+            <button class="b gh hide" id="btnErpCancel">전송 취소</button>
+            <button class="b gh" id="btnCopyErp">📋 값 복사</button>
+          </div>
         </div>
-        <div class="erpbox" id="erpSummary"></div>
-        <div style="overflow-x:auto;margin-top:12px;"><table class="tbl" id="postItems"></table></div>
-        <h2 style="margin-top:14px;">관리항목 <small>ERP 하단 그리드 입력 순서대로 — [값 복사]에 포함됩니다</small></h2>
-        <div style="overflow-x:auto;"><table class="tbl" id="postCtrls"></table></div>
-        <div class="btns">
-          <input type="text" id="tempGlNo" maxlength="18" placeholder="ERP 결의전표번호"
-                 style="border:1.5px solid var(--line);border-radius:9px;padding:10px 13px;font-family:inherit;font-size:13.5px;width:220px;">
-          <button class="b ok" id="btnPost">확정 기록</button>
-          <button class="b gh" id="btnCopyErp">📋 값 복사</button>
-          <button class="b pri hide" id="btnErpSend">🚀 ERP 전송 (DEMO2)</button>
-          <button class="b gh hide" id="btnErpCancel">전송 취소</button>
-        </div>
+        <div class="erpbox two" id="erpSummary"></div>
+        <h2 style="margin-top:14px;">분개 <small>라인별 관리항목을 같은 카드에 붙여 표시합니다 — [값 복사]에 모두 포함</small></h2>
+        <div id="postLines"></div>
       </div>
     </div>
 
@@ -435,6 +471,7 @@
         <h2>템플릿 목록
           <small id="tplScopeHint"></small>
           <span style="margin-left:auto;display:flex;gap:7px;">
+            <button class="b gh sm" id="btnTplFromSlip" title="내가 ERP에 입력한 전표를 골라 템플릿으로 만듭니다">📄 기존 전표에서</button>
             <button class="b pri sm" id="btnTplNew">+ 새 템플릿</button>
           </span>
         </h2>
@@ -1662,7 +1699,7 @@ $("mineTbl").onclick = async (e)=>{
   }catch(e2){ toast(e2.message, true); }
 };
 
-/* ═══ 회계 담당자 ═══ */
+/* ═══ ERP 전송 ═══ */
 async function loadPost(){
   try{
     const r = await api("list", { status: $("postFilter").value });
@@ -1675,12 +1712,78 @@ async function loadPost(){
         + '<td>'+esc(x.owner_nm||x.owner_erp_usr_id||"")+'</td><td>'+esc(x.dept_nm||"")+'</td>'
         + '<td>'+esc(x.gl_desc||"")+'</td><td class="r">'+won(x.dr_total)+'</td>'
         + '<td><span class="pill '+esc(x.status)+'">'+(STATUS_KO[x.status]||x.status)+'</span></td>'
-        + '<td>'+(x.erp_temp_gl_no?esc(x.erp_temp_gl_no):'<span style="color:var(--red);font-weight:700;">미기입</span>')+'</td>'
+        // 전표번호는 ERP가 채번한다 — 아직 전송 전이면 비어 있는 게 정상(경고 표시하지 않는다)
+        + '<td>'+(x.erp_temp_gl_no ? esc(x.erp_temp_gl_no)
+                 : x.status==="posted" ? '<span style="color:var(--red);font-weight:700;">미기입</span>'
+                 : '<span style="color:#aab;">—</span>')+'</td>'
         + '<td>'+applyPill(x)+'</td></tr>').join("")
       + '</tbody>';
   }catch(e){ toast(e.message, true); }
 }
 $("postFilter").onchange = loadPost;
+/* 코스트센터 표시명 — 코드만으로는 무엇인지 알 수 없어 이름을 함께 보인다 */
+function costNm(cd){
+  const c = (MASTER.cost_centers||[]).find((x)=> String(x.cost_cd)===String(cd));
+  return (c && c.cost_nm) ? c.cost_nm+" ("+cd+")" : String(cd||"");
+}
+/* 라인의 관리항목을 ERP 하단 그리드 입력 순서(A_ACCT_CTRL_ASSN seq)로 정렬 */
+function ctrlListOf(it){
+  const defs = CTRL_BY_ACCT.get(String(it.acct_cd)) || [];
+  const seqOf = (cd)=>{ const d = defs.find((x)=> x.cd===cd); return d ? d.seq : 999; };
+  return (it.ctrls||[]).slice().sort((a,b)=> seqOf(a.ctrl_cd)-seqOf(b.ctrl_cd))
+    .map((c)=> [c.ctrl_cd, (CTRL_NM.get(c.ctrl_cd)||{}).ctrl_nm || "", c.ctrl_val]);
+}
+/* 분개 카드 — 라인 1건 = 카드 1장. 관리항목을 같은 카드 안에 두어 표 2개를 대조하지 않아도 되게 한다. */
+function renderPostLines(items){
+  const box = $("postLines");
+  if(!items || !items.length){ box.innerHTML = '<div class="jl"><div class="none">라인이 없습니다.</div></div>'; return; }
+  box.innerHTML = items.map((it)=>{
+    const dr = it.dr_cr_fg === "D";
+    const chips = [];
+    if(it.bp_nm || it.bp_cd) chips.push(["거래처", (it.bp_nm||"") + (it.bp_cd ? " ("+it.bp_cd+")" : "")]);
+    if(it.cost_cd)    chips.push(["코스트센터", costNm(it.cost_cd)]);
+    if(it.project_no) chips.push(["프로젝트", it.project_no]);
+    const cs = ctrlListOf(it);
+    return '<div class="jl '+(dr?"dr":"cr")+'">'
+      + '<div class="hd"><span class="seq">'+it.item_seq+'</span>'
+      + '<span class="fg">'+(dr?"차변":"대변")+'</span>'
+      + '<span class="nm">'+esc(it.acct_nm||"")+'</span><span class="cd">'+esc(it.acct_cd||"")+'</span>'
+      + '<span class="amt">'+won(it.item_amt)+'</span></div>'
+      + ((it.item_desc || chips.length)
+          ? '<div class="bd">'
+            + (it.item_desc ? '<div class="desc">'+esc(it.item_desc)+'</div>' : '')
+            + chips.map(([k,v])=>'<span class="chip"><span class="k">'+esc(k)+'</span><span class="v">'+esc(v)+'</span></span>').join("")
+            + '</div>'
+          : '')
+      + (cs.length
+          ? '<div class="ctrls"><span class="cap">관리항목 '+cs.length+'</span>'
+            + cs.map(([cd,nm,v])=>'<span class="chip ctrl" title="'+esc(cd)+'"><span class="k">'+esc(nm||cd)+'</span>'
+                + '<span class="v">'+esc(v)+'</span></span>').join("")
+            + '</div>'
+          : '<div class="none">관리항목 없음</div>')
+      + '</div>';
+  }).join("");
+}
+/* 상단 전송 스트립 — 상태 한 줄과 실행 버튼. 전표번호는 ERP가 채번하므로 입력칸이 없다. */
+function renderSendBar(h){
+  const st = h.erp_apply_status || "";
+  $("sendBar").className = "sendbar" + (st==="applied" ? " applied" : st==="ready" ? " ready" : st==="failed" ? " failed" : "");
+  $("sendState").innerHTML = st==="applied" ? '적용 완료 · <span class="no">'+esc(h.erp_apply_gl_no||"")+'</span>'
+    : st==="ready"  ? "전송 대기 중"
+    : st==="failed" ? "적용 실패" : "미전송";
+  $("sendMsg").innerHTML = st==="applied"
+      ? "대상 <b>"+esc(h.erp_apply_target||"")+"</b> · ERP 표준 엔진이 채번한 전표번호입니다. 같은 초안의 재전송은 자동으로 차단됩니다."
+    : st==="ready"  ? "사내 중계가 처리 중입니다 — 결과는 이 화면에 자동으로 반영됩니다."
+    : st==="failed" ? "⚠ "+esc(h.erp_apply_msg||"중계 로그를 확인하세요.")
+    : "누르면 사내 중계가 ERP 표준 엔진으로 전표를 만듭니다(대상 <b>DEMO2</b> · AI 전용 <b>AG</b> 번호대역). "
+      + "라인 대조가 어긋나면 자동 취소되고, 성공하면 전표번호가 여기에 표시됩니다.";
+  const canSend = h.status === "submitted" && st !== "applied";
+  $("btnErpSend").classList.toggle("hide", !canSend);
+  $("btnErpSend").disabled = st === "ready";
+  $("btnErpSend").textContent = st==="ready" ? "🚀 전송 대기 중…"
+    : st==="failed" ? "🚀 ERP 재전송 (DEMO2)" : "🚀 ERP 전송 (DEMO2)";
+  $("btnErpCancel").classList.toggle("hide", st !== "ready");
+}
 $("postTbl").onclick = async (e)=>{
   const tr = e.target.closest("tr[data-no]"); if(!tr) return;
   try{
@@ -1688,63 +1791,17 @@ $("postTbl").onclick = async (e)=>{
     POST_SEL = r; const h = r.header;
     $("postDetail").classList.remove("hide");
     $("postDetailNo").textContent = "· " + h.draft_no;
+    renderSendBar(h);
     $("erpSummary").innerHTML = [
       ["결의일자", h.draft_dt], ["전표형태", h.gl_type||"(기본)"],
       ["등록자(ERP ID)", h.owner_erp_usr_id], ["부서", h.dept_nm||h.dept_cd||"—"],
-      ["코스트센터", h.cost_cd||"—"], ["적요", h.gl_desc],
-      ["프로젝트", h.project_no||"—"], ["참조번호", h.ref_no||"—"],
-      ["차변/대변 합계", won(h.dr_total)+" / "+won(h.cr_total)],
-      ["ERP 적용(자동)", h.erp_apply_status==="applied" ? (h.erp_apply_target||"")+" · "+(h.erp_apply_gl_no||"")
-        : h.erp_apply_status==="ready" ? "🚀 전송 대기(중계 처리 중)"
-        : h.erp_apply_status==="failed" ? "⚠ 적용 실패 — "+(h.erp_apply_msg||"관리자 확인") : "—"],
+      ["코스트센터", h.cost_cd ? costNm(h.cost_cd) : "—"], ["프로젝트", h.project_no||"—"],
+      ["적요", h.gl_desc], ["참조번호", h.ref_no||"—"],
+      ["차변 합계", won(h.dr_total)], ["대변 합계", won(h.cr_total)],
     ].map(([k,v])=>'<div class="row"><span class="k">'+esc(k)+'</span><span class="v">'+esc(v)+'</span></div>').join("");
-    // [ERP 전송] 버튼 상태 — 제출됨 + 미적용 건만 전송 가능(C-11 1차: DEMO2)
-    const canSend = h.status === "submitted" && h.erp_apply_status !== "applied";
-    $("btnErpSend").classList.toggle("hide", !canSend);
-    $("btnErpSend").disabled = h.erp_apply_status === "ready";
-    $("btnErpSend").textContent = h.erp_apply_status === "ready" ? "🚀 전송 대기 중…"
-      : h.erp_apply_status === "failed" ? "🚀 ERP 재전송 (DEMO2)" : "🚀 ERP 전송 (DEMO2)";
-    $("btnErpCancel").classList.toggle("hide", h.erp_apply_status !== "ready");
-    $("postItems").innerHTML = '<thead><tr><th>순번</th><th>차대</th><th>계정과목</th><th class="r">금액</th><th>적요</th><th>거래처</th><th>코스트센터</th><th>프로젝트</th></tr></thead><tbody>'
-      + r.items.map((it)=>'<tr><td>'+it.item_seq+'</td><td>'+(it.dr_cr_fg==="D"?"차변":"대변")+'</td>'
-      + '<td>'+esc(it.acct_nm||"")+' <span style="color:var(--muted);font-size:11px;">'+esc(it.acct_cd)+'</span></td>'
-      + '<td class="r">'+won(it.item_amt)+'</td><td>'+esc(it.item_desc||"")+'</td>'
-      + '<td>'+esc(it.bp_nm||it.bp_cd||"—")+'</td><td>'+esc(it.cost_cd||"—")+'</td><td>'+esc(it.project_no||"—")+'</td></tr>').join("")
-      + '</tbody>';
-    // v4 — 관리항목 표(ERP 하단 그리드 입력 순서 = A_ACCT_CTRL_ASSN seq)
-    const ctrlLines = [];
-    r.items.forEach((it)=>{
-      const cs = (it.ctrls||[]).slice();
-      if(!cs.length) return;
-      const seqOf = (cd)=>{
-        const defs = CTRL_BY_ACCT.get(String(it.acct_cd)) || [];
-        const d = defs.find((x)=> x.cd===cd);
-        return d ? d.seq : 999;
-      };
-      cs.sort((a,b2)=> seqOf(a.ctrl_cd)-seqOf(b2.ctrl_cd));
-      cs.forEach((c)=>{
-        const nm = (CTRL_NM.get(c.ctrl_cd)||{}).ctrl_nm || "";
-        ctrlLines.push([it.item_seq, c.ctrl_cd, nm, c.ctrl_val]);
-      });
-    });
-    $("postCtrls").innerHTML = ctrlLines.length
-      ? '<thead><tr><th>줄</th><th>관리항목</th><th>항목명</th><th>값</th></tr></thead><tbody>'
-        + ctrlLines.map(([s,cd,nm,v])=>'<tr><td>'+s+'</td><td>'+esc(cd)+'</td><td>'+esc(nm)+'</td><td><b>'+esc(v)+'</b></td></tr>').join("")
-        + '</tbody>'
-      : '<tr><td style="color:var(--muted);padding:10px;">관리항목 없음</td></tr>';
-    $("tempGlNo").value = h.erp_temp_gl_no || "";
+    renderPostLines(r.items);
     $("postDetail").scrollIntoView({ behavior:"smooth", block:"nearest" });
   }catch(e2){ toast(e2.message, true); }
-};
-$("btnPost").onclick = async ()=>{
-  if(!POST_SEL) return;
-  const no = $("tempGlNo").value.trim();
-  if(!no){ toast("ERP에서 저장된 결의전표번호를 입력하세요.", true); return; }
-  if(!confirm("ERP 전표번호 "+no+" 로 확정 기록합니다. ERP에 실제로 저장했는지 확인하셨나요?")) return;
-  try{
-    const r = await api("post", { draft_no: POST_SEL.header.draft_no, erp_temp_gl_no: no });
-    toast(r.안내); $("postDetail").classList.add("hide"); POST_SEL = null; loadPost();
-  }catch(e){ toast(e.message, true); }
 };
 /* ═══ ERP 전송(C-11 1차 · 대상 DEMO2) ═══
    포털은 ERP에 직접 쓰지 않는다 — 이 버튼은 '전송 대기(ready)' 마킹만 하고,
@@ -1764,13 +1821,13 @@ function startSendPoll(draftNo){
       if(st === "applied" || st === "failed"){
         stopSendPoll();
         POST_SEL = r; loadPost();
-        // 상세 패널이 같은 건을 보고 있으면 다시 그려 최신 상태 반영
+        // 상세 패널이 같은 건을 보고 있으면 그 자리에서 갱신한다.
+        // (적용 성공 시 초안이 '확정됨'으로 바뀌어 기본 목록에서 빠지므로 행 클릭으로는 되살릴 수 없다)
         if($("postDetailNo").textContent.indexOf(draftNo) >= 0){
-          const tr = document.querySelector('#postTbl tr[data-no="'+CSS.escape(draftNo)+'"]');
-          if(tr) tr.click();
+          renderSendBar(r.header); renderPostLines(r.items);
         }
         if(st === "applied")
-          toast("✅ ERP 적용 완료 — 전표번호 "+(r.header.erp_apply_gl_no||"")+" ("+(r.header.erp_apply_target||"")+")");
+          toast("✅ ERP 적용 완료 — 전표번호 "+(r.header.erp_apply_gl_no||"")+" ("+(r.header.erp_apply_target||"")+") · 초안은 확정됨으로 닫혔습니다");
         else
           toast("⚠ ERP 적용 실패 — "+(r.header.erp_apply_msg||"중계 로그를 확인하세요."), true);
       }
@@ -1798,7 +1855,8 @@ $("btnErpCancel").onclick = async ()=>{
   try{
     const r = await api("apply_cancel", { draft_no: no });
     stopSendPoll(); toast(r.안내 || "취소했습니다."); loadPost();
-    const tr = document.querySelector('#postTbl tr[data-no="'+CSS.escape(no)+'"]'); if(tr) tr.click();
+    const g = await api("get", { draft_no: no });
+    POST_SEL = g; renderSendBar(g.header); renderPostLines(g.items);
   }catch(e){ toast(e.message, true); loadPost(); }
 };
 
@@ -1813,11 +1871,7 @@ $("btnCopyErp").onclick = ()=>{
   // v4 — 관리항목도 함께(줄·코드·항목명·값, ERP 입력 순서)
   const ctrlRows = [];
   POST_SEL.items.forEach((it)=>{
-    const defs = CTRL_BY_ACCT.get(String(it.acct_cd)) || [];
-    const seqOf = (cd)=>{ const d = defs.find((x)=> x.cd===cd); return d ? d.seq : 999; };
-    (it.ctrls||[]).slice().sort((a,b)=> seqOf(a.ctrl_cd)-seqOf(b.ctrl_cd)).forEach((c)=>{
-      ctrlRows.push([it.item_seq, c.ctrl_cd, (CTRL_NM.get(c.ctrl_cd)||{}).ctrl_nm||"", c.ctrl_val].join("\t"));
-    });
+    ctrlListOf(it).forEach(([cd,nm,v])=> ctrlRows.push([it.item_seq, cd, nm, v].join("\t")));
   });
   if(ctrlRows.length) lines.push("", "줄\t관리항목\t항목명\t값", ...ctrlRows);
   navigator.clipboard?.writeText(lines.join("\n")).then(()=>toast("클립보드에 복사했습니다."), ()=>toast("복사 실패", true));
@@ -2039,6 +2093,90 @@ async function refreshTpls(){
   catch(e){ /* 목록 갱신 실패는 조용히 — 다음 진입 시 다시 시도 */ }
 }
 
+/* 실적 전표의 관리항목 값 → 템플릿 규칙으로 변환.
+   날짜형: 다음 회차 +1개월 제안(date_shift) / 금액형: 매번 달라지므로 빈 칸(input) / 그 외: 고정값 승격(fixed) */
+function ctrlRule(cd, v){
+  if(DATE_CTRLS.has(cd)) return { ctrl_cd:cd, val_rule:"date_shift", fixed_val:null };
+  if(NUM_CTRLS.has(cd))  return { ctrl_cd:cd, val_rule:"input", fixed_val:null };
+  return { ctrl_cd:cd, val_rule:"fixed", fixed_val:v };
+}
+
+/* ═══ 기존 ERP 전표 → 템플릿 자동 생성 ═══
+   [📄 기존 전표에서] → 내 전표 팝업 선택 → 라인·관리항목을 규칙으로 바꿔 담고 개인 비공개 템플릿으로 즉시 저장.
+   실적 금액은 저장하지 않는다(금액 규칙만 남긴다). */
+$("btnTplFromSlip").onclick = async ()=>{
+  if(!SLIP_ROWS.length){ await loadSlips(); SLIP_LOADED = true; }
+  if(!SLIP_ROWS.length){
+    toast("불러올 내 ERP 전표가 없습니다 — [전표복사] 탭에서 조회 기간을 넓혀 보세요.", true); return;
+  }
+  openPicker({
+    title:"기존 전표에서 템플릿 만들기",
+    placeholder:"적요 또는 전표번호로 좁히기",
+    hint:"내가 ERP에 입력한 전표 "+SLIP_ROWS.length+"건 · ↑↓ 이동 · Enter 선택 · Esc 닫기",
+    local:(q)=>{
+      const s = q.toLowerCase();
+      return SLIP_ROWS.filter((x)=> !s ||
+        (String(x.temp_gl_no||"")+" "+String(x.temp_gl_desc||"")).toLowerCase().includes(s));
+    },
+    render:(x)=> '<span class="cd">'+esc(x.temp_gl_no)+'</span>'
+      + '<span class="nm">'+esc(x.temp_gl_desc||"(적요 없음)")+'</span>'
+      + '<span class="sub">'+esc(x.temp_gl_dt||"")+' · '+won(Math.round(Number(x.dr_loc_amt)||0))
+      + ' · '+(x.line_cnt||0)+'줄</span>',
+    onPick:(x)=> tplFromSlip(x.temp_gl_no),
+  });
+};
+async function tplFromSlip(no){
+  let data;
+  try{ data = await api("slip_get", { temp_gl_no: no }); }
+  catch(e){ toast(e.message, true); return; }
+  const h = data.header || {};
+  // 관리항목 — 라인별 첫 세트만(전표복사와 같은 규칙). 민감 항목(미러 제외)은 값이 없어 자동으로 빠진다.
+  const ctrlBySeq = {};
+  (data.ctrls||[]).forEach((c)=>{
+    const m = (ctrlBySeq[c.item_seq] = ctrlBySeq[c.item_seq] || {});
+    const cd = String(c.ctrl_cd||"").trim();
+    if(!cd || cd in m) return;
+    if(c.ctrl_val == null || String(c.ctrl_val).trim()==="") return;
+    m[cd] = String(c.ctrl_val).trim();
+  });
+  const missing = [];
+  const items = (data.items||[]).map((it)=>{
+    if(it.acct_cd && !(MASTER.accounts||[]).some((a)=> String(a.acct_cd)===String(it.acct_cd))){
+      missing.push(it.item_seq+"번 줄 "+(it.acct_nm||it.acct_cd));
+      return null;   // 마스터에 없는 계정은 템플릿에 담지 않는다(저장 시 어차피 거부된다)
+    }
+    const fg = slipFg(it.dr_cr_fg);
+    return {
+      dr_cr_fg:(fg==="D"||fg==="C")?fg:"", acct_cd:it.acct_cd||"", acct_nm:it.acct_nm||"",
+      amt_rule:"input", amt_value:"", item_desc:it.item_desc||"",
+      cost_cd:it.cost_cd||"", project_no:it.project_no||"",
+      bp_cd:it.bp_cd||null, bp_nm:it.bp_nm||null,
+      ctrls: Object.entries(ctrlBySeq[it.item_seq]||{}).map(([cd,v])=> ctrlRule(cd, v)),
+    };
+  }).filter(Boolean);
+  if(!items.length){ toast("템플릿으로 만들 라인이 없습니다 — 계정과목이 모두 마스터에 없습니다.", true); return; }
+  // 대변이 한 줄이면 '차액 자동'으로 — 총액 1칸만 입력하면 되는 기본형이 된다
+  const crs = items.filter((r)=> r.dr_cr_fg==="C");
+  if(crs.length === 1) crs[0].amt_rule = "balance";
+
+  showTab("tpl");
+  fillTplDeptOptions();
+  openTplEdit(null, items);
+  $("tName").value     = (h.temp_gl_desc || ("전표 "+no)).slice(0,60);
+  $("tDescTmpl").value = h.temp_gl_desc || "";
+  $("tDescr").value    = "ERP 전표 "+no+(h.temp_gl_dt?" ("+h.temp_gl_dt+")":"")+" 에서 자동 생성";
+  $("tScope").value    = "user";      // 자동 생성분은 개인·비공개로 시작(공개는 확인 후 수동)
+  $("tStatus").value   = "draft";
+  if(h.cost_cd && (MASTER.cost_centers||[]).some((c)=> String(c.cost_cd)===String(h.cost_cd))) $("tCost").value = h.cost_cd;
+  syncScopeUi();
+
+  const id = await saveTpl();   // 자동 템플릿화 — 저장까지 끝내고 편집기를 열어 둔다
+  toast(id
+    ? "전표 "+no+" 을(를) 템플릿으로 저장했습니다(개인·비공개) — 금액 규칙을 확인한 뒤 [공개]를 누르세요."
+    : "전표 "+no+" 을(를) 템플릿 편집기로 가져왔습니다 — 내용을 확인한 뒤 저장하세요.");
+  if(missing.length) toast("⚠ 계정과목 마스터에 없어 제외한 줄: "+missing.join(", "), true);
+}
+
 /* 작성 중인 전표를 템플릿으로 — 금액은 규칙으로 바꿔 담는다(실적 금액은 저장하지 않는다) */
 $("btnTplFromDraft").onclick = ()=>{
   const rs = rows().filter((r)=> r.acct_cd);
@@ -2049,11 +2187,8 @@ $("btnTplFromDraft").onclick = ()=>{
     dr_cr_fg:r.dr_cr_fg, acct_cd:r.acct_cd, acct_nm:r.acct_nm,
     amt_rule:"input", amt_value:"", item_desc:r.item_desc||"",
     cost_cd:r.cost_cd||"", project_no:r.project_no||"",
-    // 관리항목 — 날짜형은 다음 회차 +1개월 제안(date_shift), 나머지는 고정값으로 승격
     ctrls: Object.entries(r.__ctrl||{}).filter(([,v])=> String(v||"").trim()!=="")
-      .map(([cd,v])=> DATE_CTRLS.has(cd)
-        ? { ctrl_cd:cd, val_rule:"date_shift", fixed_val:null }
-        : { ctrl_cd:cd, val_rule:"fixed", fixed_val:String(v).trim() }),
+      .map(([cd,v])=> ctrlRule(cd, String(v).trim())),
   })));
   $("tName").value = ($("fDesc").value.trim() || "새 템플릿").slice(0,60);
   $("tDescTmpl").value = $("fDesc").value.trim();

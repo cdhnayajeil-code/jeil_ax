@@ -20,13 +20,15 @@ r"""gl_apply_demo2.py — 포털 결의전표 초안 → ERP 데모DB(JEILMNS_DE
 사용(이 폴더 기준):
   python gl_apply_demo2.py --list                        적용 대상(제출됨·미적용) 목록
   python gl_apply_demo2.py --draft DRAFT-... --dry-run   리허설(전 과정 실행 후 ROLLBACK)
-  python gl_apply_demo2.py --draft DRAFT-...             확정 투입(COMMIT + 포털 회기입)
+  python gl_apply_demo2.py --draft DRAFT-...             확정 투입(COMMIT + 포털 회기입·확정)
   python gl_apply_demo2.py --draft DRAFT-... --cleanup   DEMO2에서 해당 건 삭제(정리) + 포털 상태 해제
   python gl_apply_demo2.py --queue                       화면 [ERP 전송] 대기(ready) 건 일괄 처리(1건씩 순차)
   python gl_apply_demo2.py --watch                       감시 모드 — 15초마다 대기 건 확인·처리(Ctrl+C 종료)
 
-전송 흐름(v1.1): 회계 담당자가 화면에서 [🚀 ERP 전송] 클릭 → erp_apply_status='ready' 마킹
+전송 흐름(v1.2): 회계 담당자가 화면 [ERP 전송] 탭에서 [🚀 ERP 전송] 클릭 → erp_apply_status='ready' 마킹
   → 이 스크립트(--queue/--watch, 사내 pull 중계)가 투입 → 결과 회기입 → 화면 자동 반영.
+  성공 시 포털이 초안을 '확정됨(posted)'으로 닫고 ERP가 채번한 전표번호를 전표번호란에 기록한다
+  (gl_apply_record v3 — 화면에 수기 번호 입력칸이 없다). --cleanup 은 이 확정까지 되돌린다.
 """
 import argparse
 import datetime
@@ -225,6 +227,8 @@ def apply_draft(args):
     h, items, ctrls = d["header"], d["items"], d["ctrls"]
 
     # ── 포털측 사전 검증 ─────────────────────────────────────────────
+    # 적용 성공 시 포털이 초안을 '확정됨(posted)'으로 닫는다(gl_apply_record v3) →
+    # 여기서 'submitted' 만 통과시키는 것이 곧 재투입 방지선이다. 정리(--cleanup)는 이 경로를 타지 않는다.
     if h.get("status") != "submitted":
         raise SystemExit(f"[중단] 초안 상태가 '제출됨'이 아닙니다(현재: {h.get('status')}). 제출된 초안만 투입합니다.")
     if not items or len(items) < 2:

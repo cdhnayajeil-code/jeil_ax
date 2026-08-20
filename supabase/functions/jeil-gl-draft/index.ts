@@ -11,7 +11,10 @@
 // v5.3(2026-08-19): [ERP 전송] 버튼 — op apply_request(전송 대기 ready 마킹)·apply_cancel(대기 취소), canPost 전용.
 //   상태머신: null → ready(버튼) → applied|failed(중계 gl_apply_demo2.py --queue/--watch 처리 결과).
 //   이 함수는 여전히 ERP에 쓰지 않는다 — 마킹만 하고, 투입은 사내 pull 중계가 수행(기회검토 채택 구조).
-// DDL 정본: 이관/sql/21_gl_draft.sql · 22_gl_template.sql · 23(관리항목 마스터) · 25(전표 미러)
+// v5.4(2026-08-20): 「전송 성공 = 확정」 일원화(결정 C-13). 화면의 ERP 전표번호 수기 입력칸을 없애고,
+//   적용 성공 시 RPC gl_apply_record(v3)가 status 를 submitted→posted 로 닫고 ERP 채번번호를
+//   erp_temp_gl_no 에 기록한다. op post(수기 번호 회기입)는 운영 전환기 폴백으로만 남긴다 — 화면 미노출.
+// DDL 정본: 이관/sql/21_gl_draft.sql · 22_gl_template.sql · 23(관리항목 마스터) · 25(전표 미러) · 26(ERP 적용)
 //   마이그레이션 gl_draft_v1 · gl_draft_master_rpc · gl_template_v1 · gl_ctrl_master_v1 · gl_template_v2
 //              · gl_slip_mirror_v1
 //
@@ -865,7 +868,8 @@ Deno.serve(async (req) => {
     return json({ ok: true, rows: data || [] });
   }
 
-  /* ===== op: post — ERP 확정 기록(회계 담당자). 포털이 ERP에 쓰는 것이 아니라 "사람이 등록한 결과"를 기록한다 ===== */
+  /* ===== op: post — ERP 확정 기록(회계 담당자). 포털이 ERP에 쓰는 것이 아니라 "사람이 등록한 결과"를 기록한다.
+     v5.4부터 화면에서는 호출하지 않는다(전송 성공 시 gl_apply_record 가 자동 확정) — 수기 등록 폴백용으로만 유지. ===== */
   if (op === "post") {
     if (!canPost) return json({ error: "forbidden: 회계 담당자 전용입니다." }, 403);
     const no = String(b.draft_no || "");
