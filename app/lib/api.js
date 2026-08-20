@@ -28,11 +28,14 @@ const supabaseAdapter = {
   onAuthChange(cb) { return supabase.auth.onAuthStateChange((_e, s) => cb(s?.user || null)); },
 
   // ---- 발주 목록 (RLS가 자동 격리: 협력사는 자기 bp_cd만) ----
-  async getOrders() {
-    const { data: heads, error } = await supabase
+  // opts.bp: 통합 관리자 계정(role=vendor_admin)·사내 계정처럼 전 거래처가 보이는 세션에서
+  //          선택한 거래처 한 곳으로 좁힌다. 협력사 세션은 RLS가 이미 자기 건만 주므로 무해.
+  async getOrders(opts = {}) {
+    let q = supabase
       .from("sp_order_header")
-      .select("po_no,bp_cd,vendor_name,order_date,due_date,po_type,project_code,amt,items,buyer_name,buyer_team,buyer_phone")
-      .order("order_date", { ascending: false });
+      .select("po_no,bp_cd,vendor_name,order_date,due_date,po_type,project_code,amt,items,buyer_name,buyer_team,buyer_phone");
+    if (opts.bp) q = q.eq("bp_cd", opts.bp);
+    const { data: heads, error } = await q.order("order_date", { ascending: false });
     if (error) throw error;
     if (!heads.length) return [];
     const pos = heads.map((h) => h.po_no);
@@ -233,6 +236,44 @@ const mockAdapter = {
   async signOut() {}, async currentUser() { return { email: "demo@local" }; }, onAuthChange() { return { data: { subscription: { unsubscribe() {} } } }; },
   async getOrders() { try { return Object.values((JSON.parse(localStorage.getItem("jeilax_link_v1")) || {}).orders || {}); } catch { return []; } },
   async updateStatus() {}, async requestInspection() {}, async cancelInspection() {}, async sendMessage() {}, async markRead() {}, async judge() {}, async uploadPhoto() {}, async photoUrl() { return ""; }, async photoUrls() { return {}; }, async reviewPhoto() {}, async deletePhoto() {}, async inspectionLog() { return []; }, async changePassword() {}, async updateProfile() {}, subscribe() { return () => {}; },
+};
+
+/* ===================== 거래처 디렉터리 API (협력사 포털 통합 관리자 계정 전용) =====================
+   role=vendor_admin(협력사 포털 통합 관리자) 또는 role=internal(사내) 세션에서만 전 거래처가 보인다.
+   협력사(role=vendor) 토큰으로 호출하면 RLS가 자기 거래처만 돌려주므로 정보 노출은 없다.
+   3,700여 개 거래처를 한 번에 내리지 않도록 ①포털 발주가 있는 거래처는 목록으로,
+   ②그 밖의 전체 거래처는 서버 검색(ilike + limit)으로 조회한다. */
+export const vendorDirApi = {
+  // 포털에 발주 데이터가 있는 거래처(발주 건수 포함) — 관리자 첫 화면 기본 목록
+  async withOrders() {
+    const { data, error } = await supabase.from("sp_order_header").select("bp_cd,vendor_name");
+    if (error) throw error;
+    const m = {};
+    (data || []).forEach((h) => {
+      const v = (m[h.bp_cd] = m[h.bp_cd] || { bp_cd: h.bp_cd, bp_nm: h.vendor_name || h.bp_cd, po_cnt: 0 });
+      v.po_cnt++;
+    });
+    return Object.values(m).sort((a, b) => b.po_cnt - a.po_cnt || String(a.bp_nm).localeCompare(String(b.bp_nm)));
+  },
+
+  // 전체 거래처 검색(ERP 거래처마스터 기준). 키워드 없으면 상위 limit건.
+  async search(keyword = "", limit = 60) {
+    let q = supabase.from("vendor_master").select("bp_cd,bp_nm,biz_no,bp_type,has_order")
+      .order("has_order", { ascending: false }).order("bp_nm").limit(limit);
+    const k = String(keyword || "").trim();
+    if (k) q = q.or(`bp_nm.ilike.%${k}%,bp_cd.ilike.%${k}%`);
+    const { data, error } = await q;
+    if (error) throw error;
+    return data || [];
+  },
+
+  // 거래처 단건 정보
+  async info(bp_cd) {
+    const { data, error } = await supabase.from("vendor_master")
+      .select("bp_cd,bp_nm,biz_no,bp_type,has_order").eq("bp_cd", bp_cd).maybeSingle();
+    if (error) throw error;
+    return data || null;
+  },
 };
 
 /* ===================== 관리자 메시지 API (사내 협력사관리 화면 전용) ===================== */

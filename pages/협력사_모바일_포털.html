@@ -162,6 +162,20 @@
   .fnode.cur .fc{background:#6b4a9a;border-color:#6b4a9a;color:#fff;box-shadow:0 0 0 3px rgba(107,74,154,.18);} .fnode.cur .fl{color:#6b4a9a;font-weight:800;}
   .fnode.skip{opacity:.4;}
 
+  /* ===== 관리자(전체 거래처 조회) 모드 ===== */
+  .adminbar{display:flex; align-items:center; gap:8px; background:#2a2140; color:#e7ddff; font-size:11.5px; padding:8px 12px;}
+  .adminbar .ab-l{background:rgba(255,255,255,.16); border-radius:20px; padding:2px 9px; font-weight:800; flex:none;}
+  .adminbar .ab-v{flex:1; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .adminbar .ab-btn{flex:none; background:#fff; color:#2a2140; border:none; border-radius:8px; padding:5px 10px; font-size:11px; font-weight:800;}
+  .vsearch{padding:10px 14px; background:#fff; border-bottom:1px solid var(--line);}
+  .vsearch input{width:100%; padding:11px 13px; border:1px solid var(--line); border-radius:11px; font-size:14px; background:var(--bg);}
+  .vitem{display:flex; align-items:center; gap:10px; padding:12px 14px; border-bottom:1px solid var(--line); background:#fff;}
+  .vitem:active{background:var(--soft);}
+  .vitem .vi-nm{flex:1; min-width:0;}
+  .vitem .vi-nm b{display:block; font-size:13.5px; color:var(--navy); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .vitem .vi-nm span{font-size:11px; color:var(--muted);}
+  .vitem .vi-cnt{flex:none; font-size:11px; font-weight:800; color:var(--purple); background:var(--softpur); border-radius:20px; padding:3px 9px;}
+
   /* ===== 실제 모바일/협소 화면: 폰 목업 베젤 제거 → 풀스크린 하이브리드 앱 ===== */
   @media (max-width:600px){
     body{padding:0; display:block; min-height:100dvh; background:var(--bg);}
@@ -186,7 +200,12 @@
       </div>
       <span class="bell" onclick="showAlerts()">🔔<b id="bellCnt"></b></span>
     </div>
-    <div class="synctag">🔗 사내 대시보드 실시간 연계 ON — 등록 즉시 구매·품질·생산·사업관리에 반영</div>
+    <div class="synctag" id="synctag">🔗 사내 대시보드 실시간 연계 ON — 등록 즉시 구매·품질·생산·사업관리에 반영</div>
+    <div class="adminbar hidden" id="adminbar">
+      <span class="ab-l">🔎 관리자 조회</span>
+      <span class="ab-v" id="ab_vendor">거래처 미선택</span>
+      <button class="ab-btn" onclick="openVendorPick()">거래처 변경</button>
+    </div>
     <div id="screen" class="screen"></div>
     <div id="composer" class="composer hidden">
       <input id="msgInput" placeholder="구매 담당자에게 메시지…" onkeydown="if(event.key==='Enter'&&!event.isComposing)sendMsg()">
@@ -206,7 +225,7 @@
 <script type="module">
 /* ===== Supabase 연동 (협력사 세션 + 발주 데이터, RLS로 자기 거래처만) ===== */
 import { supabase } from "../app/lib/supabaseClient.js";
-import { portalApi } from "../app/lib/api.js";
+import { portalApi, vendorDirApi } from "../app/lib/api.js";
 
 // JWT(base64url, UTF-8) 디코드 → app_metadata(role/vendor_bp)
 function claimsOf(session){
@@ -215,25 +234,35 @@ function claimsOf(session){
     return JSON.parse(decodeURIComponent(atob(p).split('').map(c=>'%'+c.charCodeAt(0).toString(16).padStart(2,'0')).join(''))).app_metadata||{}; }
   catch(e){ return {}; }
 }
-// 협력사 세션 확인 — 없거나 협력사 아니면 로그인 페이지로
+// 세션 확인 — ①협력사(role=vendor) ②포털 통합 관리자(role=vendor_admin) ③사내 SSO(role=internal)
+// ②③은 거래처를 골라 전 거래처를 열람하는 "관리자 조회 모드"(읽기 전용). 그 외는 로그인 페이지로.
 async function loadSession(){
   const { data:{ session } } = await supabase.auth.getSession();
   if(!session){ location.replace('../app/vendor-login.html'); return null; }
   const am = claimsOf(session);
-  if(am.role!=='vendor' || !(am.vendor_bp && am.vendor_bp.length)){
+  ADMIN = (am.role==='vendor_admin' || am.role==='internal');
+  ADMIN_KIND = ADMIN ? am.role : '';
+  if(!ADMIN && (am.role!=='vendor' || !(am.vendor_bp && am.vendor_bp.length))){
     location.replace('../app/vendor-login.html'); return null;
   }
-  VENDOR.code = am.vendor_bp[0];
   VENDOR.user = session.user.email;
+  if(ADMIN){
+    // 거래처는 사용자가 고른다(직전 선택은 탭 세션 동안 유지)
+    const saved = sessionStorage.getItem('jeilax_vp_bp') || '';
+    if(saved) await setVendor(saved, false);
+    return session;
+  }
+  VENDOR.code = am.vendor_bp[0];
   VENDOR.contact = session.user.user_metadata?.contact_name || ''; // 담당자명(본인 수정 가능) — 메시지 발신자 표기
   VENDOR.phone = session.user.user_metadata?.phone || '';
   try{ const { data:vm } = await supabase.from('vendor_master').select('bp_nm').eq('bp_cd', VENDOR.code).maybeSingle(); VENDOR.name = (vm&&vm.bp_nm) || VENDOR.code; }
   catch(e){ VENDOR.name = VENDOR.code; }
   return session;
 }
-// 발주 로드(RLS 자기 거래처만) + 사진 signed URL 일괄 발급(api.js 캐시 — 만료 자동 재발급)
+// 발주 로드(협력사=RLS 자기 거래처만 / 관리자=선택한 거래처) + 사진 signed URL 일괄 발급(api.js 캐시)
 async function loadOrders(){
-  orders = await portalApi.getOrders();
+  if(ADMIN && !VENDOR.code){ orders=[]; return; }
+  orders = await portalApi.getOrders(ADMIN ? { bp: VENDOR.code } : {});
   const paths = orders.flatMap(o=>(o.photos||[]).map(p=>p.storage_path)).filter(Boolean);
   const urls = paths.length ? await portalApi.photoUrls(paths) : {};
   orders.forEach(o=>(o.photos||[]).forEach(p=>{ p.src = urls[p.storage_path] || PHOTO_FB; }));
@@ -241,6 +270,10 @@ async function loadOrders(){
 
 /* ===== 데이터 (한일정밀, 사내 대시보드와 정합) ===== */
 let VENDOR = { code:'', name:'', contact:'', phone:'', user:'' }; // 담당 구매자는 발주별 o.buyer(실데이터)로 표시
+// 관리자 조회 모드: 거래처를 골라 전 거래처를 열람한다. 읽기 전용(쓰기는 RLS에서도 차단).
+let ADMIN = false, ADMIN_KIND = '';   // ADMIN_KIND: 'vendor_admin'(포털 관리자 계정) | 'internal'(사내 SSO)
+let VLIST = [], VQ = '', VALL = false; // 거래처 선택 목록 / 검색어 / 전체 거래처 검색 여부
+let VINFO = null;                      // 선택 거래처의 ERP 기준정보(vendor_master)
 // 상태머신 v2(08_협력사발주포털/03_실구축기획/08): 판정이 상태를 전이 — 합격→done, 불합격→rework
 const STATUS = { new:'신규 접수', prod:'생산중', insp:'검사 대기', rework:'재작업(불합격)', done:'완료' };
 const STATUS_ORDER = ['new','prod','insp','done'];            // 스텝퍼 4단 표시(재작업은 생산 위치)
@@ -268,10 +301,58 @@ async function initPortal(){
   const s = await loadSession(); if(!s) return;   // 세션 없으면 vendor-login으로 리디렉트됨
   await loadOrders();
   $('#app').classList.remove('hidden');
-  switchTab('orders');
+  if(ADMIN){
+    $('#adminbar').classList.remove('hidden');
+    $('#synctag').textContent = '🔎 관리자 조회 모드 — 전체 거래처 열람(읽기 전용) · 등록·상태변경은 협력사 계정에서만 가능합니다';
+    $('#synctag').style.background = '#efe9fb'; $('#synctag').style.color = 'var(--purple)';
+    updateAdminBar();
+    if(!VENDOR.code){ openVendorPick(); }   // 거래처 미선택 → 선택 화면부터
+    else switchTab('orders');
+  } else switchTab('orders');
   // 사내 대시보드 변경 실시간 반영
   portalApi.subscribe(async ()=>{ await loadOrders(); if(view==='thread'){ curOrder=orders.find(o=>o.no===curOrder?.no)||curOrder; renderThread(); } else render(); });
 }
+
+/* ===== 관리자 조회: 거래처 선택 ===== */
+function updateAdminBar(){
+  const el=$('#ab_vendor'); if(!el) return;
+  el.textContent = VENDOR.code ? `${VENDOR.name} (${VENDOR.code})` : '거래처 미선택 — 오른쪽에서 선택하세요';
+}
+// 거래처 확정 → 발주 재조회
+async function setVendor(bp, reload=true){
+  VENDOR.code = bp;
+  try{ VINFO = await vendorDirApi.info(bp); }catch(e){ VINFO=null; }
+  VENDOR.name = (VINFO && VINFO.bp_nm) || (VLIST.find(v=>v.bp_cd===bp)||{}).bp_nm || bp;
+  VENDOR.contact=''; VENDOR.phone='';
+  sessionStorage.setItem('jeilax_vp_bp', bp);
+  updateAdminBar();
+  if(reload){ curOrder=null; await loadOrders(); switchTab('orders'); toast(`거래처 전환: ${VENDOR.name}`); }
+}
+function openVendorPick(){ view='vendors'; curOrder=null; render(); loadVendorList(); }
+// 기본 목록 = 포털 발주가 있는 거래처, 검색 시 = ERP 거래처마스터 전체(서버 검색)
+async function loadVendorList(){
+  try{
+    if(VQ.trim().length>=1){ VALL=true; VLIST = await vendorDirApi.search(VQ.trim(), 60); }
+    else { VALL=false; VLIST = await vendorDirApi.withOrders(); }
+  }catch(e){ VLIST=[]; toast('거래처 조회 실패: '+(e.message||e)); }
+  if(view==='vendors') renderVendors();
+}
+let vqTimer;
+function setVendorQuery(v){ VQ=v; clearTimeout(vqTimer); vqTimer=setTimeout(loadVendorList, 250); }
+function renderVendors(){
+  const rows = VLIST.map(v=>`<div class="vitem" onclick="pickVendor('${String(v.bp_cd).replace(/'/g,"\'")}')">
+      <div class="vi-nm"><b>${v.bp_nm||v.bp_cd}</b><span>${v.bp_cd}${v.biz_no?` · 사업자 ${v.biz_no}`:''}</span></div>
+      ${v.po_cnt?`<span class="vi-cnt">발주 ${v.po_cnt}</span>`:(v.has_order?'<span class="vi-cnt">거래실적</span>':'')}
+    </div>`).join('');
+  // 검색창은 다시 그리지 않는다(입력 포커스·조합중 한글 보존) — 목록 영역만 갱신
+  if(!$('#vlist')){
+    screen().innerHTML=`<div class="vsearch"><input id="vq" placeholder="🔍 거래처명 · 거래처코드 검색 (전체 거래처)" value="${(VQ||'').replace(/"/g,'&quot;')}" oninput="setVendorQuery(this.value)"></div><div id="vlist"></div>`;
+  }
+  $('#vlist').innerHTML=`<div style="font-size:11.5px;color:var(--muted);padding:9px 14px 4px">${VALL?`ERP 거래처마스터 검색 결과 ${VLIST.length}건${VLIST.length>=60?' (상위 60건 — 더 좁혀 검색하세요)':''}`:`포털 발주가 등록된 거래처 ${VLIST.length}개사 · 그 밖의 거래처는 위에서 검색하세요`}</div>
+    ${rows||`<div class="empty"><span class="ic">🔍</span>조건에 맞는 거래처가 없습니다.</div>`}
+    <div class="note">관리자 조회 모드 — 선택한 거래처의 발주·사진·검수·메시지를 <b>읽기 전용</b>으로 확인합니다.</div>`;
+}
+async function pickVendor(bp){ await setVendor(bp); }
 
 function switchTab(tab){ view=tab; curOrder=null;
   document.querySelectorAll('.tabbar .tab').forEach(t=>t.classList.toggle('on', t.dataset.tab===tab));
@@ -281,10 +362,11 @@ let threadFrom='messages'; // 스레드 진입 출처(뒤로가기 복귀용)
 function openThread(no){ threadFrom=(view==='detail')?'detail':'messages';
   curOrder=orders.find(o=>o.no===no); view='thread';
   // 사내 발신분 읽음 처리(DB) + 로컬 즉시 반영(벨·미읽음 배지)
-  try{ portalApi.markRead && portalApi.markRead(no,'internal'); }catch(e){}
-  (curOrder?.msgs||[]).forEach(m=>{ if(m.who==='them'&&!m.read_at) m.read_at=new Date().toISOString(); });
+  if(!ADMIN){ try{ portalApi.markRead && portalApi.markRead(no,'internal'); }catch(e){} }
+  if(!ADMIN) (curOrder?.msgs||[]).forEach(m=>{ if(m.who==='them'&&!m.read_at) m.read_at=new Date().toISOString(); });
   render(); }
 function goBack(){
+  if(view==='vendors') return VENDOR.code ? switchTab('orders') : null;
   if(view==='detail') return switchTab('orders');
   if(view==='thread'){ // 발주 상세에서 들어왔으면 상세로 복귀
     if(threadFrom==='detail' && curOrder){ view='detail'; return render(); }
@@ -294,13 +376,15 @@ function goBack(){
 
 function render(){
   updateBell();
-  const showBack=(view==='detail'||view==='thread');
+  const showBack=(view==='detail'||view==='thread'||(view==='vendors'&&!!VENDOR.code));
   $('#backBtn').classList.toggle('hidden', !showBack);
-  $('#composer').classList.toggle('hidden', view!=='thread');
-  $('#tabbar').classList.toggle('hidden', view==='thread');
-  $('#barSub').textContent = (view==='thread'||view==='detail') ? curOrder.no : VENDOR.name;
-  const titles={orders:'발주 목록',detail:'발주 상세',photos:'사진 관리',messages:'메시지',profile:'내 정보',thread:curOrder?('💬 '+curOrder.no):'메시지'};
+  $('#composer').classList.toggle('hidden', view!=='thread' || ADMIN); // 관리자 조회는 발송 불가(읽기 전용)
+  $('#tabbar').classList.toggle('hidden', view==='thread'||view==='vendors');
+  $('#barSub').textContent = (view==='thread'||view==='detail') ? curOrder.no : (VENDOR.name || (ADMIN?'관리자 조회':''));
+  const titles={orders:'발주 목록',detail:'발주 상세',photos:'사진 관리',messages:'메시지',profile:ADMIN?'계정 정보':'내 정보',vendors:'거래처 선택',thread:curOrder?('💬 '+curOrder.no):'메시지'};
   $('#barTitle').textContent=titles[view];
+  if(view==='vendors') return renderVendors();
+  if(ADMIN && !VENDOR.code) return openVendorPick();   // 거래처 미선택 상태에서는 조회 화면 없음
   if(view==='orders') return renderOrders();
   if(view==='detail') return renderDetail();
   if(view==='photos') return renderPhotos();
@@ -317,7 +401,7 @@ function renderOrders(){
   screen().innerHTML=`<div class="searchbar"><input placeholder="🔍 발주번호 · 품명 · 품번 검색" value="${search}" oninput="setSearch(this.value)"></div>
     <div class="chips">${chip('all','전체')}${chip('new','신규')}${chip('prod','생산중')}${chip('insp','검사대기')}${chip('rework','재작업')}${chip('done','완료')}</div>
     <div class="pad">${list.length?list.map(o=>poCard(o)).join(''):`<div class="empty"><span class="ic">📭</span>조건에 맞는 발주가 없습니다.</div>`}
-      <div class="note">ERP 발주 데이터 기준 · ${VENDOR.name}(${VENDOR.code}) 자사 발주만 표시 · 등록 내용은 사내 대시보드 실시간 연계</div></div>`;
+      <div class="note">${ADMIN?`🔎 관리자 조회 — <b>${VENDOR.name}(${VENDOR.code})</b> 발주 열람(읽기 전용) · 거래처는 상단에서 변경`:`ERP 발주 데이터 기준 · ${VENDOR.name}(${VENDOR.code}) 자사 발주만 표시 · 등록 내용은 사내 대시보드 실시간 연계`}</div></div>`;
 }
 function poCard(o){
   const pCnt=o.photos.length, rej=o.photos.filter(p=>p.chk==='rej').length;
@@ -347,6 +431,14 @@ function renderDetail(){
   const o=curOrder; const st=o.status; const curIdx=stepIdx(st);
   const _insp=o.inspection||null;
   const _rej=(o.photos||[]).filter(p=>p.chk==='rej');
+  // 관리자 조회 모드(읽기 전용): 진행단계 조작·사진 등록 진입점을 제거한다(RLS로도 차단됨)
+  const _acts = ADMIN ? '' : [
+    (st==='prod'||st==='insp'||st==='rework') ? `<button class="btn ghost block sm" onclick="cancelStatus()">◀ 단계 취소</button>` : '',
+    st==='new' ? `<button class="btn pri block sm" onclick="advanceStatus()">▶ 생산 시작</button>` : '',
+    st==='prod' ? `<button class="btn pri block sm" onclick="advanceStatus()">▶ ${o.type==='DIV'?'완료 처리 (무검사)':'검수요청'}</button>` : '',
+    st==='rework' ? `<button class="btn pri block sm" onclick="advanceStatus()">▶ 재작업 완료 → 재검수요청</button>` : '',
+  ].join('');
+  const _addCell = ADMIN ? '' : `<div class="padd" onclick="openUpload()"><span class="pl">＋</span><span>사진 등록</span></div>`;
   screen().innerHTML=`<div class="pad">
     ${_insp?`<div class="card pad" style="border-left:4px solid ${_insp.result==='합격'?'var(--green)':'var(--red)'}">
       <div style="font-size:13px;font-weight:800;color:${_insp.result==='합격'?'var(--green)':'var(--red)'}">🔬 검수 결과: ${_insp.result}</div>
@@ -365,24 +457,20 @@ function renderDetail(){
     <div class="card pad"><div class="sec">🚦 진행 상태${st==='rework'?' <span style="color:var(--red);font-size:10px">· 재작업 중</span>':''}</div><div class="stepper">
       ${STATUS_ORDER.map((s,idx)=>`<div class="step ${idx<curIdx?'done':''} ${idx===curIdx?'cur':''}"><div class="dot">${idx<curIdx?'✓':idx+1}</div><div class="lb">${idx===1&&st==='rework'?'재작업':STATUS[s]}</div></div>`).join('')}</div>
       ${st==='done'?`<div style="text-align:center; color:var(--green); font-size:13px; font-weight:700; margin:12px 0 9px">✓ 완료된 발주 (${o.type==='DIV'?'무검사 입고':'검사 합격'}·매입 처리)</div>`:``}
-      <div class="btn-row" style="margin-top:${st==='done'?'0':'12px'}">
-        ${(st==='prod'||st==='insp'||st==='rework')?`<button class="btn ghost block sm" onclick="cancelStatus()">◀ 단계 취소</button>`:``}
-        ${st==='new'?`<button class="btn pri block sm" onclick="advanceStatus()">▶ 생산 시작</button>`:``}
-        ${st==='prod'?`<button class="btn pri block sm" onclick="advanceStatus()">▶ ${o.type==='DIV'?'완료 처리 (무검사)':'검수요청'}</button>`:``}
-        ${st==='rework'?`<button class="btn pri block sm" onclick="advanceStatus()">▶ 재작업 완료 → 재검수요청</button>`:``}
-      </div>
+      <div class="btn-row" style="margin-top:${st==='done'||ADMIN?'0':'12px'}">${_acts}</div>
       ${st==='insp'?`<div style="margin-top:10px; background:var(--softpur); color:var(--purple); border-radius:9px; padding:9px 12px; font-size:11.5px; font-weight:700">🔬 검수요청됨 → 검사신청 ${o.inspReqNo} · 품질팀 검사 대기 (판정 시 자동 진행)</div>`:''}
       ${st==='rework'?`<div style="margin-top:10px; background:var(--softred); color:var(--red); border-radius:9px; padding:9px 12px; font-size:11.5px; font-weight:700">🔴 검수 불합격 — 재작업 후 사진을 다시 등록하고 재검수요청해 주세요</div>`:''}</div>
     <div class="card pad"><div class="sec">📷 등록 사진 <span class="cnt">${o.photos.length}장</span> <span style="font-weight:600;color:var(--purple);font-size:10.5px">· 검사 증빙 연계</span></div>
-      <div class="pgrid"><div class="padd" onclick="openUpload()"><span class="pl">＋</span><span>사진 등록</span></div>
+      <div class="pgrid">${_addCell}
         ${o.photos.map((p,i)=>pcell(p,i)).join('')}</div></div>
-    <div class="btn-row"><button class="btn pri block" onclick="openThread('${o.no}')">💬 메시지 보내기 · 보기 (${o.msgs.length})</button></div>
+    <div class="btn-row"><button class="btn pri block" onclick="openThread('${o.no}')">💬 메시지 ${ADMIN?'보기':'보내기 · 보기'} (${o.msgs.length})</button></div>
     <div style="height:8px"></div></div>`;
 }
 function pcell(p,i){ const mark=p.chk==='ok'?`<span class="ok">✓</span>`:p.chk==='rej'?`<span class="rej">!</span>`:'';
   return `<div class="pcell" onclick="lightbox(${i})"><img src="${p.src}" onerror="photoErr(this)"><span class="tg">${p.tag}</span>${mark}</div>`; }
 // 전이표(03_실구축기획/08 §3.1)대로만 전이한다 — done은 판정(합격) 또는 DIV 무검사로만 진입
-async function advanceStatus(){ const st=curOrder.status;
+const roBlock=()=>{ if(ADMIN){ toast('읽기 전용(관리자 조회) — 등록·변경은 협력사 계정에서만 가능합니다'); return true; } return false; };
+async function advanceStatus(){ if(roBlock()) return; const st=curOrder.status;
   try{
     if(st==='new'){ await portalApi.updateStatus(curOrder.no,'prod'); curOrder.status='prod'; toast('생산 시작 (사내 대시보드 반영)'); }
     else if(st==='prod' && curOrder.type==='DIV'){ // 일반(무검사) 발주만 협력사가 직접 완료
@@ -394,7 +482,7 @@ async function advanceStatus(){ const st=curOrder.status;
     else return; // insp·done: 협력사 진행 불가(판정으로만 전이)
     render();
   }catch(e){ toast('상태 변경 실패: '+(e.message||e)); } }
-async function cancelStatus(){ const st=curOrder.status;
+async function cancelStatus(){ if(roBlock()) return; const st=curOrder.status;
   try{
     if(st==='insp'){ await portalApi.cancelInspection(curOrder.no); curOrder.inspReqNo=''; curOrder.status='prod'; } // 판정 전만 취소 가능
     else if(st==='prod'){ await portalApi.updateStatus(curOrder.no,'new'); curOrder.status='new'; }
@@ -404,7 +492,7 @@ async function cancelStatus(){ const st=curOrder.status;
   }catch(e){ toast('취소 실패: '+(e.message||e)); } }
 
 let pendingFiles=[];
-function openUpload(){ if(!curOrder){toast('발주를 먼저 선택하세요'); return;} uploadTag='작업';
+function openUpload(){ if(roBlock()) return; if(!curOrder){toast('발주를 먼저 선택하세요'); return;} uploadTag='작업';
   const bg=document.createElement('div'); bg.className='sheet-bg'; bg.id='uploadSheet';
   bg.onclick=e=>{ if(e.target===bg) closeSheet(); };
   bg.innerHTML=`<div class="sheet"><div class="grab"></div><h3>사진 등록 — ${curOrder.no}</h3>
@@ -433,10 +521,10 @@ function lightbox(i){ const p=curOrder.photos[i];
     :'<span style="opacity:.7">확인 대기중</span>';
   lb.innerHTML=`<span class="x" onclick="document.getElementById('lb').remove()">✕</span><img src="${p.src}" onerror="photoErr(this)">
     <div class="lb-meta"><div class="tg">${p.tag}</div><br>${p.cmt||''}<br><span style="opacity:.7">${p.by} · ${p.t}</span><br><br>${chkTxt}</div>
-    ${p.chk?'':`<div class="lb-act"><button class="btn ghost sm" onclick="delPhoto(${i})" style="background:rgba(255,255,255,.16);color:#fff">🗑 삭제</button></div>`}`;
+    ${(p.chk||ADMIN)?'':`<div class="lb-act"><button class="btn ghost sm" onclick="delPhoto(${i})" style="background:rgba(255,255,255,.16);color:#fff">🗑 삭제</button></div>`}`;
   $('.phone').appendChild(lb); }
 // 사진 삭제 — 검토(확인/반려) 전 본인 업로드 건만(RLS가 DB 레벨에서도 강제)
-async function delPhoto(i){ const p=curOrder.photos[i]; if(!p) return;
+async function delPhoto(i){ if(roBlock()) return; const p=curOrder.photos[i]; if(!p) return;
   if(p.chk){ toast('검토된 사진은 삭제할 수 없습니다 (증빙 보존)'); return; }
   if(!confirm('이 사진을 삭제할까요?')) return;
   const lb=$('#lb'); if(lb) lb.remove();
@@ -475,7 +563,7 @@ function renderThread(){
 }
 function msgBubble(m){ return `<div class="msg ${m.who}">${m.who==='them'?`<div class="who">${m.name||'구매 담당자'}</div>`:''}<div>${m.text}</div><div class="mt">${m.t}</div></div>`; }
 let sendingMsg=false; // 연타 중복 전송 방지
-async function sendMsg(){ const inp=$('#msgInput'); const v=inp.value.trim(); if(!v||sendingMsg||!curOrder) return;
+async function sendMsg(){ if(roBlock()) return; const inp=$('#msgInput'); const v=inp.value.trim(); if(!v||sendingMsg||!curOrder) return;
   sendingMsg=true; const btn=$('#msgSend'); if(btn) btn.disabled=true;
   inp.value='';
   // 낙관적 표시: 보내는 즉시 말풍선 추가(대기감 제거) — 실패 시 되돌림
@@ -487,6 +575,7 @@ async function sendMsg(){ const inp=$('#msgInput'); const v=inp.value.trim(); if
   finally{ sendingMsg=false; if(btn) btn.disabled=false; inp.focus(); } }
 
 function renderProfile(){
+  if(ADMIN) return renderAdminProfile();
   const total=orders.length, prod=orders.filter(o=>o.status==='prod'||o.status==='rework').length, insp=orders.filter(o=>o.status==='insp').length, done=orders.filter(o=>o.status==='done').length;
   screen().innerHTML=`<div class="pad"><div class="prof-head"><div class="av">🏭</div><div class="nm">${VENDOR.name}</div><div class="co">${VENDOR.code} · ${VENDOR.user}</div></div>
     <div class="stat-row"><div class="stat"><div class="n">${total}</div><div class="l">전체 발주</div></div>
@@ -504,7 +593,29 @@ function renderProfile(){
     <button class="btn ghost block" style="margin-top:9px" onclick="logout()">로그아웃</button>
     <div class="note">제일엠앤에스 협력사 발주·사진등록 포털 (하이브리드 앱 · Supabase 실연동)<br>등록 사진·상태·검수요청이 사내 외주 발주·검사 대시보드에 실시간 반영됩니다.</div></div>`;
 }
-async function logout(){ try{ await supabase.auth.signOut(); }catch(e){} location.replace('../app/vendor-login.html'); }
+// 관리자 조회 모드의 '계정 정보' — 선택 거래처 기준정보 + 계정/권한 안내(읽기 전용)
+function renderAdminProfile(){
+  const total=orders.length, prod=orders.filter(o=>o.status==='prod'||o.status==='rework').length,
+        insp=orders.filter(o=>o.status==='insp').length, done=orders.filter(o=>o.status==='done').length;
+  const kind = ADMIN_KIND==='internal' ? '사내 계정(Entra SSO)' : '협력사 포털 관리자 계정';
+  screen().innerHTML=`<div class="pad"><div class="prof-head"><div class="av">🔎</div>
+      <div class="nm">${VENDOR.name||'거래처 미선택'}</div><div class="co">${VENDOR.code||'-'} · 관리자 조회(읽기 전용)</div></div>
+    <div class="stat-row"><div class="stat"><div class="n">${total}</div><div class="l">전체 발주</div></div>
+      <div class="stat amber"><div class="n">${prod}</div><div class="l">생산중</div></div>
+      <div class="stat" style="--x:0"><div class="n" style="color:var(--purple)">${insp}</div><div class="l">검수요청</div></div>
+      <div class="stat green"><div class="n">${done}</div><div class="l">완료</div></div></div>
+    <div class="prow"><span>거래처명</span><span class="v">${VENDOR.name||'-'}</span></div>
+    <div class="prow"><span>거래처코드</span><span class="v">${VENDOR.code||'-'}</span></div>
+    <div class="prow"><span>사업자번호</span><span class="v">${(VINFO&&VINFO.biz_no)||'<span style="color:var(--muted)">—</span>'}</span></div>
+    <div class="prow"><span>거래처 유형</span><span class="v">${VINFO?(VINFO.bp_type==='CS'?'매입+매출 겸용':'매입거래처')+(VINFO.has_order?' · 거래실적 있음':''):'-'}</span></div>
+    <div class="prow"><span>로그인 계정</span><span class="v">${VENDOR.user||'-'}</span></div>
+    <div class="prow"><span>권한</span><span class="v" style="color:var(--purple);font-weight:700">${kind} · 전체 거래처 조회</span></div>
+    <button class="btn pri block" style="margin-top:14px" onclick="openVendorPick()">🔄 거래처 변경 · 전체 거래처 조회</button>
+    ${ADMIN_KIND==='internal'?'':`<button class="btn ghost block" style="margin-top:9px" onclick="openPwChange()">🔑 비밀번호 변경</button>`}
+    <button class="btn ghost block" style="margin-top:9px" onclick="logout()">로그아웃</button>
+    <div class="note">관리자 조회 모드입니다. 발주 상태 변경·사진 등록·메시지 발송은 <b>해당 협력사 계정</b>에서만 가능하며, 사내 처리(검수 판정·사진 검토)는 <b>사내 외주 발주·검사 대시보드</b>에서 수행합니다.</div></div>`;
+}
+async function logout(){ try{ await supabase.auth.signOut(); }catch(e){} sessionStorage.removeItem('jeilax_vp_bp'); location.replace('../app/vendor-login.html'); }
 
 // 내 정보 수정(담당자 이름·연락처) — user_metadata + vendor_account 동기(회사명은 ERP 기준정보라 사내 관리)
 function openProfileEdit(){
@@ -565,7 +676,7 @@ function toast(msg){ const t=$('#toast'); t.textContent=msg; t.classList.add('sh
   }catch(e){}
 })();
 /* 인라인 onclick(전역) 노출 — module 스코프 격리 대응 */
-Object.assign(window, { goBack, toast, switchTab, openOrder, openThread, setFilter, setSearch, advanceStatus, cancelStatus, openUpload, pickTag, closeSheet, pickFiles, lightbox, delPhoto, openPhotoLightbox, photoErr, sendMsg, logout, showAlerts, openPwChange, closePwSheet, submitPwChange, openProfileEdit, closeProfSheet, submitProfile });
+Object.assign(window, { goBack, toast, switchTab, openOrder, openThread, setFilter, setSearch, advanceStatus, cancelStatus, openUpload, pickTag, closeSheet, pickFiles, lightbox, delPhoto, openPhotoLightbox, photoErr, sendMsg, logout, showAlerts, openPwChange, closePwSheet, submitPwChange, openProfileEdit, closeProfSheet, submitProfile, openVendorPick, pickVendor, setVendorQuery });
 
 /* init: 협력사 세션 확인 → 발주 로드 */
 initPortal();

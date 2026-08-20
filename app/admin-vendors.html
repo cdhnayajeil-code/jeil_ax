@@ -143,7 +143,24 @@ tr:nth-child(even) td{background:#fafbfd;}
       <div id="bulkResult" class="cred"></div>
     </div>
 
-    <!-- 섹션2: 협력사 메시지 (Supabase sp_message 실시간 연동) -->
+    <!-- 섹션2: 협력사 포털 통합 관리자 계정 (전체 거래처 조회) -->
+    <div class="sec">
+      <h2>협력사 포털 관리자 계정 <span id="cntVAdmin" class="muted"></span></h2>
+      <div class="sub">협력사 포털(<code id="vpUrl"></code>)에 로그인해 <b>거래처를 골라 전체 거래처의 발주·사진·검수·메시지를 열람</b>할 수 있는 계정입니다. 특정 거래처에 묶이지 않습니다.
+        <br><b>읽기 전용</b> — 상태변경·사진등록·메시지 발송·검수요청은 DB 권한(RLS)에서 차단됩니다(대행 처리 금지).
+        <br><span class="muted">※ 사내(<b>@jeilm.co.kr</b>) 이메일로는 발급할 수 없습니다(Entra SSO 계정과 충돌). <b>사내 직원은 SSO 로그인 상태에서 협력사 포털 주소로 들어가면 별도 계정 없이 같은 전체 조회 화면</b>이 열립니다.</span></div>
+      <div class="rowin" style="margin-bottom:12px;max-width:720px">
+        <input type="email" id="va_email" placeholder="관리자 로그인 이메일 (사내 도메인 불가)">
+        <input type="text" id="va_name" placeholder="표시명 (예: 구매팀 공용)" style="max-width:180px">
+        <button class="btn sm ok" id="va_add">＋ 관리자 계정 생성</button>
+      </div>
+      <table>
+        <thead><tr><th>이메일(ID)</th><th>표시명</th><th>상태</th><th>발급자</th><th>발급일</th><th>최근 초기화</th><th>관리</th></tr></thead>
+        <tbody id="vaBody"><tr><td colspan="7" class="muted">불러오는 중…</td></tr></tbody>
+      </table>
+    </div>
+
+    <!-- 섹션3: 협력사 메시지 (Supabase sp_message 실시간 연동) -->
     <div class="sec">
       <h2>협력사 메시지 <span id="cntMsg" class="muted"></span></h2>
       <div class="sub">발주 건별 협력사와의 양방향 메시지(Supabase <code>sp_message</code> 실시간 연동). 협력사 포털에서 보낸 메시지가 즉시 표시되고, 스레드를 열면 자동으로 읽음 처리됩니다.</div>
@@ -164,7 +181,7 @@ tr:nth-child(even) td{background:#fafbfd;}
       </div>
     </div>
 
-    <!-- 섹션3: 감사 로그 -->
+    <!-- 섹션4: 감사 로그 -->
     <div class="sec">
       <h2>처리 로그 <span id="cntLog" class="muted"></span></h2>
       <div class="sub">계정 발급·비밀번호 초기화 등 처리 이력. 누가(처리자)·언제·무엇을 했는지 기록됩니다.</div>
@@ -174,7 +191,7 @@ tr:nth-child(even) td{background:#fafbfd;}
       </table>
     </div>
 
-    <!-- 섹션4: 관리자 지정 -->
+    <!-- 섹션5: 관리자 지정 -->
     <div class="sec">
       <h2>협력사관리 권한자 <span id="cntAdmin" class="muted"></span></h2>
       <div class="sub">협력사 계정을 발급·관리할 수 있는 사내 사용자(@jeilm.co.kr SSO)를 지정합니다. 권한자만 추가/해제할 수 있습니다.</div>
@@ -247,7 +264,8 @@ async function boot() {
 function enterApp(user) {
   $("gate").classList.add("hidden"); $("app").classList.remove("hidden");
   $("whoami").textContent = (MY_NAME && MY_NAME !== user.email.split("@")[0] ? MY_NAME + " · " : "") + user.email + " (협력사관리 권한자)";
-  loadVendors(); loadLog(); loadAdmins();
+  $("vpUrl").textContent = VENDOR_LOGIN_URL;
+  loadVendors(); loadLog(); loadAdmins(); loadVendorAdmins();
   initMessages(); // 협력사 메시지 스레드 + 실시간 구독
   // 협력사가 포털에서 담당자 이름·연락처를 수정하면 계정 그리드에 즉시 반영
   supabase.channel("admin-vendor-sync")
@@ -555,8 +573,9 @@ async function resetPw(auth_user_id, email) {
 
 // ── 발급 결과 배너 + 메일 발송(Graph) ──
 let CRED = { email: "", pw: "" };
-function showCred(email, pw) {
+function showCred(email, pw, title) {
   CRED = { email, pw };
+  $("cred").querySelector("h3").textContent = title || "🔑 계정 발급/초기화 완료 — 협력사에 전달하세요";
   $("cr_url").textContent = VENDOR_LOGIN_URL;
   $("cr_email").textContent = email;
   $("cr_pw").textContent = pw;
@@ -684,11 +703,77 @@ $("chkOnlyDeal").onchange = applyVendorFilter;
 $("th_send").onclick = sendCurMessage;
 $("th_text").addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.isComposing) sendCurMessage(); });
 
+/* ===================== 협력사 포털 통합 관리자 계정 (전체 거래처 조회 · 읽기 전용) ===================== */
+// 거래처(bp_cd)에 묶이지 않는 포털 계정. role=vendor_admin 클레임으로 전 거래처 SELECT만 허용된다.
+const VA_STAT = { active: ["p-active", "사용중"], disabled: ["p-disabled", "비활성"] };
+
+async function loadVendorAdmins() {
+  const { data, error } = await supabase.from("vendor_admin_account").select("*").order("created_at");
+  if (error) { $("vaBody").innerHTML = `<tr><td colspan="7" class="muted">조회 실패: ${esc(error.message)}</td></tr>`; return; }
+  const rows = data || [];
+  $("cntVAdmin").textContent = `(${rows.length}개)`;
+  $("vaBody").innerHTML = rows.map(a => {
+    const [c, t] = VA_STAT[a.status] || VA_STAT.active;
+    const on = a.status === "active";
+    return `<tr>
+      <td>${esc(a.email)}</td>
+      <td>${esc(a.display_name || "-")}</td>
+      <td><span class="pill ${c}">${t}</span></td>
+      <td>${esc(a.created_by || "-")}</td>
+      <td>${a.created_at ? new Date(a.created_at).toLocaleDateString("ko-KR") : "-"}</td>
+      <td>${a.last_reset_at ? new Date(a.last_reset_at).toLocaleDateString("ko-KR") : `<span class="muted">—</span>`}</td>
+      <td style="white-space:nowrap">
+        ${on ? `<button class="btn sm ok" data-va-mail="${esc(a.auth_user_id || "")}" data-va-email="${esc(a.email)}">📧 메일발송</button>
+                <button class="btn sm gray" data-va-reset="${esc(a.auth_user_id || "")}" data-va-email="${esc(a.email)}">비번 초기화</button>
+                <button class="btn sm no" data-va-disable="${esc(a.email)}">비활성</button>`
+             : `<button class="btn sm ok" data-va-enable="${esc(a.email)}">활성화</button>
+                <button class="btn sm no" data-va-delete="${esc(a.email)}">삭제</button>`}
+      </td></tr>`;
+  }).join("") || `<tr><td colspan="7" class="muted">발급된 관리자 계정이 없습니다. 위에서 이메일을 입력해 생성하세요.</td></tr>`;
+
+  const q = (sel) => $("vaBody").querySelectorAll(sel);
+  q("[data-va-mail]").forEach(b => b.onclick = () => mailAccount(b.dataset.vaMail, b.dataset.vaEmail));
+  q("[data-va-reset]").forEach(b => b.onclick = () => resetPw(b.dataset.vaReset, b.dataset.vaEmail));
+  q("[data-va-disable]").forEach(b => b.onclick = () => vaAction("disable", b.dataset.vaDisable, `${b.dataset.vaDisable} 계정을 비활성화합니다(로그인 차단).`));
+  q("[data-va-enable]").forEach(b => b.onclick = () => vaAction("enable", b.dataset.vaEnable, `${b.dataset.vaEnable} 계정을 다시 활성화합니다.`));
+  q("[data-va-delete]").forEach(b => b.onclick = () => vaAction("delete", b.dataset.vaDelete, `${b.dataset.vaDelete} 계정을 완전히 삭제합니다. 되돌릴 수 없습니다.`));
+}
+
+async function vaAction(action, email, confirmText) {
+  if (!confirm(confirmText + "\n진행할까요?")) return;
+  try {
+    show($("a_msg"), "info", "처리 중…");
+    await callFn("vendor-admin-provision", { action, email });
+    show($("a_msg"), "ok", `✅ ${esc(email)} — ${action === "delete" ? "삭제" : action === "disable" ? "비활성화" : "활성화"} 완료.`);
+    loadVendorAdmins(); loadLog();
+  } catch (e) { show($("a_msg"), "err", "처리 실패: " + (e.message || e)); }
+}
+
+$("va_add").onclick = async () => {
+  const email = $("va_email").value.trim().toLowerCase(), display_name = $("va_name").value.trim();
+  if (!email) return show($("a_msg"), "err", "관리자 로그인 이메일을 입력하세요.");
+  if (!isEmail(email)) return show($("a_msg"), "err", "이메일 형식이 올바르지 않습니다.");
+  if (email.endsWith("@jeilm.co.kr"))
+    return show($("a_msg"), "err", "사내(@jeilm.co.kr) 이메일은 Entra SSO 계정과 충돌해 발급할 수 없습니다. 사내 직원은 SSO 로그인 상태로 협력사 포털에 접속하면 동일한 전체 조회 화면이 열립니다.");
+  if (!confirm(`협력사 포털 관리자 계정을 생성합니다.\n이메일: ${email}\n권한: 전체 거래처 조회(읽기 전용)\n진행할까요?`)) return;
+  $("va_add").disabled = true;
+  try {
+    show($("a_msg"), "info", "관리자 계정 생성 중…");
+    const out = await callFn("vendor-admin-provision", { action: "create", email, display_name });
+    show($("a_msg"), "ok", `✅ 협력사 포털 관리자 계정 생성 완료 — ${esc(out.email)} (전체 거래처 읽기 전용)`);
+    $("va_email").value = ""; $("va_name").value = "";
+    showCred(out.email, out.temp_password, "🔑 협력사 포털 관리자 계정 발급 완료 — 사용자에게 전달하세요");
+    loadVendorAdmins(); loadLog();
+  } catch (e) { show($("a_msg"), "err", "생성 실패: " + (e.message || e)); }
+  finally { $("va_add").disabled = false; }
+};
+
 // ── 처리 로그 ──
 async function loadLog() {
   const { data, error } = await supabase.from("vendor_account_log").select("*").order("acted_at", { ascending: false }).limit(50);
   if (error) return;
-  const ACT = { create: "계정 생성", reset_password: "비번 초기화", disable: "비활성", enable: "활성" };
+  const ACT = { create: "계정 생성", reset_password: "비번 초기화", disable: "비활성", enable: "활성",
+    create_admin: "포털 관리자 계정 생성", disable_admin: "포털 관리자 비활성", enable_admin: "포털 관리자 활성", delete_admin: "포털 관리자 삭제" };
   $("cntLog").textContent = `(${(data || []).length}건)`;
   $("logBody").innerHTML = (data || []).map(l =>
     `<tr><td>${new Date(l.acted_at).toLocaleString("ko-KR")}</td><td>${esc(ACT[l.action] || l.action)}</td><td>${esc(l.target_email || "-")}</td><td>${esc(l.bp_cd || "-")}</td><td>${esc(l.actor_email || "-")}</td></tr>`

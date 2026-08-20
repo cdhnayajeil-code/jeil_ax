@@ -43,7 +43,8 @@ input:focus{outline:none;border-color:var(--accent);background:#fff;}
     <label>비밀번호</label>
     <input type="password" id="li_pw" placeholder="비밀번호" autocomplete="current-password">
     <button class="btn" id="btnLogin">로그인</button>
-    <div class="notice">협력사 계정은 <b>제일엠앤에스 관리자가 발급</b>합니다. 등록하신 이메일로 받은 임시 비밀번호로 로그인하세요. 계정·비밀번호 문의는 <b>구매팀</b>으로 연락 주세요.</div>
+    <div class="notice">협력사 계정은 <b>제일엠앤에스 관리자가 발급</b>합니다. 등록하신 이메일로 받은 임시 비밀번호로 로그인하세요. 계정·비밀번호 문의는 <b>구매팀</b>으로 연락 주세요.
+      <br><span style="color:#667">※ 사내 <b>관리자 계정</b>으로 로그인하면 거래처를 선택해 전체 거래처를 조회할 수 있습니다(읽기 전용).</span></div>
     <div class="msg" id="li_msg"></div>
   </div>
   <div class="foot">© 제일엠앤에스 · 협력사 계정 문의: 구매팀</div>
@@ -73,7 +74,11 @@ $("btnLogin").onclick = async () => {
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) throw error;
     const am = claimsOf(data.session);
-    if (am.role === "vendor" && am.vendor_bp?.length) {
+    if (am.role === "vendor_admin") {
+      // 제일엠앤에스 발급 통합 관리자 계정 — 거래처를 골라 전체 거래처를 열람(읽기 전용)
+      show($("li_msg"), "ok", "관리자 계정으로 로그인되었습니다. 거래처 선택 화면으로 이동합니다…");
+      setTimeout(() => location.href = "../pages/협력사_모바일_포털.html", 1000);
+    } else if (am.role === "vendor" && am.vendor_bp?.length) {
       show($("li_msg"), "ok", `로그인되었습니다(거래처 ${am.vendor_bp.join(", ")}). 발주 포털로 이동합니다…`);
       setTimeout(() => location.href = "../pages/협력사_모바일_포털.html", 1200);
     } else {

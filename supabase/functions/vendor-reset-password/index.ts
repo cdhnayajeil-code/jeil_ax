@@ -44,14 +44,21 @@ Deno.serve(async (req) => {
   try { body = await req.json(); } catch { return json({ error: "invalid json" }, 400); }
   const { auth_user_id, email } = body;
 
-  // 대상 계정 확정
-  let acc: { auth_user_id: string; email: string; bp_cd: string } | null = null;
-  if (auth_user_id) {
-    const { data } = await admin.from("vendor_account").select("auth_user_id,email,bp_cd").eq("auth_user_id", auth_user_id).maybeSingle();
-    acc = data;
-  } else if (email) {
-    const { data } = await admin.from("vendor_account").select("auth_user_id,email,bp_cd").eq("email", email).maybeSingle();
-    acc = data;
+  // 대상 계정 확정 — 거래처 계정(vendor_account) 우선, 없으면 포털 통합 관리자 계정(vendor_admin_account)
+  let acc: { auth_user_id: string; email: string; bp_cd: string | null } | null = null;
+  let table = "vendor_account";
+  const find = async (t: string, cols: string, col: string, val: string) => {
+    const { data } = await admin.from(t).select(cols).eq(col, val).maybeSingle();
+    return data as { auth_user_id: string; email: string; bp_cd?: string } | null;
+  };
+  const col = auth_user_id ? "auth_user_id" : "email";
+  const val = auth_user_id || email;
+  if (val) {
+    acc = await find("vendor_account", "auth_user_id,email,bp_cd", col, val) as typeof acc;
+    if (!acc?.auth_user_id) {
+      const a2 = await find("vendor_admin_account", "auth_user_id,email", col, val);
+      if (a2?.auth_user_id) { acc = { ...a2, bp_cd: null }; table = "vendor_admin_account"; }
+    }
   }
   if (!acc?.auth_user_id) return json({ error: "vendor account not found" }, 404);
 
@@ -59,7 +66,7 @@ Deno.serve(async (req) => {
   const { error: ue } = await admin.auth.admin.updateUserById(acc.auth_user_id, { password: pw });
   if (ue) return json({ error: "reset failed: " + ue.message }, 500);
 
-  await admin.from("vendor_account").update({ last_reset_at: new Date().toISOString() }).eq("auth_user_id", acc.auth_user_id);
+  await admin.from(table).update({ last_reset_at: new Date().toISOString() }).eq("auth_user_id", acc.auth_user_id);
   await admin.from("vendor_account_log").insert({
     action: "reset_password", target_email: acc.email, bp_cd: acc.bp_cd,
     actor_email: user.email,

@@ -168,12 +168,20 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <td><strong>행수준</strong></td>
 <td>자기 거래처(<code>bp_cd</code>) 발주만</td>
 </tr>
+<tr>
+<td>협력사 포털 관리자</td>
+<td>(사내 이메일 사용 불가 — SSO 충돌)</td>
+<td><code>vendor_admin</code>(거래처 미지정)</td>
+<td><strong>읽기 전용</strong></td>
+<td>전 거래처 발주·사진·검수·메시지 <strong>조회만</strong>(쓰기 정책 없음)</td>
+</tr>
 </tbody>
 </table>
 <ul>
 <li><strong>사내 인증</strong> = Microsoft Entra ID(SSO+MFA), 앱 <code>JEIL-AX-Portal</code>. 협력사는 동일 테넌트에 넣지 않음(<code>CLAUDE.md §5.5</code>).</li>
 <li><strong>권한 판정은 백엔드/DB에서</strong>(프론트 메뉴 숨김은 UX일 뿐 — <code>CLAUDE.md §5.4</code>).</li>
-<li>RLS 헬퍼: <code>is_vendor_admin()</code>(사내 관리자 판정), <code>vendor_bp</code> JWT 클레임(협력사 거래처 격리). 정의: <code>이관/sql/01_schema_rls.sql</code>·<code>06_vendor_provisioning.sql</code>.</li>
+<li>RLS 헬퍼: <code>is_vendor_admin()</code>(사내 관리자 판정), <code>vendor_bp</code> JWT 클레임(협력사 거래처 격리), <strong><code>is_vendor_viewer()</code></strong>(협력사 포털 관리자 계정 — 전 거래처 SELECT). 정의: <code>이관/sql/01_schema_rls.sql</code>·<code>06_vendor_provisioning.sql</code>·<strong><code>27_vendor_portal_admin.sql</code></strong>.</li>
+<li><strong>협력사 포털 관리자 계정(<code>vendor_admin</code>)</strong>: 사내 관리자가 <code>app/admin-vendors.html</code>에서 발급(Edge Function <code>vendor-admin-provision</code>), 대장 <code>vendor_admin_account</code>. 사내(@jeilm.co.kr) 이메일은 <strong>발급 금지</strong> — 같은 주소로 Entra SSO 계정이 생기면 <code>app_metadata.role</code>이 <code>vendor_admin</code>으로 고정돼 사내 권한(<code>internal</code>)을 잃는다. 사내 직원은 <strong>SSO 세션 그대로 협력사 포털에 접속</strong>하면 같은 전체 조회 화면이 열린다(<code>internal_all</code> 정책).</li>
 </ul>
 <hr />
 <h2 id="3-erp">3. ERP 테이블 매핑 카탈로그 (요약 + 포인터)</h2>
