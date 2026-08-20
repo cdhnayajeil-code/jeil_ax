@@ -892,7 +892,7 @@ Deno.serve(async (req) => {
     log("save", no, { items: items.length, dr, cr, ctrls: ctrlRows.length,
       ctrl_aware: ctrlAware, warn_cnt: warnings.length, new: !draftNo });
     return json({ ok: true, draft_no: no, dr_total: dr, cr_total: cr, warnings,
-      안내: `초안을 저장했습니다(${no}). 제출하면 회계 담당자가 ERP에 등록합니다.` });
+      안내: `초안을 저장했습니다(${no}). 제출하면 [ERP 전송] 단계로 넘어갑니다.` });
   }
 
   /* ===== op: mine — 내 초안 목록 ===== */
@@ -940,7 +940,7 @@ Deno.serve(async (req) => {
     if (error) return json({ error: "제출 실패: " + error.message }, 500);
     await syncUsage(no, "submitted");
     log("submit", no);
-    return json({ ok: true, 안내: "제출했습니다. 회계 담당자가 ERP에 등록한 뒤 전표번호가 표시됩니다." });
+    return json({ ok: true, 안내: "제출했습니다. [ERP 전송]에서 담당자가 보내면 ERP 전표번호가 표시됩니다." });
   }
 
   /* ===== op: void — 폐기(본인, 작성중·제출됨 한정) ===== */

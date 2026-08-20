@@ -420,9 +420,9 @@
     </div>
 
     <div class="banner">
-      <b>이 화면은 ERP 결의전표 <u>초안</u>을 만듭니다.</b> 제출하면 회계 담당자가 내용을 확인한 뒤
-      <b>[ERP 전송]</b> 탭에서 ERP로 보내고, ERP가 채번한 전표번호가 이 화면에 표시됩니다.
-      등록자는 회원님의 MS 계정과 연결된 ERP 사용자 ID로 자동 지정됩니다.
+      <b>이 화면은 ERP 결의전표 <u>초안</u>을 만듭니다.</b> 제출하면 <b>[ERP 전송]</b> 단계로 넘어가고,
+      담당자가 확인해 전송하면 ERP가 전표를 만들어 번호를 이 화면에 돌려줍니다 —
+      사람이 ERP에 다시 입력하지 않습니다. 등록자는 회원님의 MS 계정과 연결된 ERP 사용자 ID입니다.
     </div>
     <div class="banner err hide" id="warnBox"></div>
 
@@ -955,7 +955,7 @@ async function boot(){
   const warn = [];
   if(!d.erp_user_mapped) warn.push("⚠ MS 계정과 연결된 <b>ERP 사용자 ID를 찾지 못했습니다</b>. 전표 등록자는 ERP 계정 기준이라 초안을 저장할 수 없습니다 — 포털 관리자에게 문의하세요.");
   if(!d.accounts_loaded) warn.push("⚠ <b>계정과목 마스터가 아직 적재되지 않았습니다</b>. 관리자가 ERP 마스터를 적재한 뒤 입력할 수 있습니다.");
-  if(!d.can_input && d.can_post) warn.push("ℹ 회원님은 <b>회계 담당자 권한</b>으로 접속했습니다. 초안 작성 권한은 없습니다.");
+  if(!d.can_input && d.can_post) warn.push("ℹ 회원님은 <b>[ERP 전송] 권한</b>(회계 담당자)으로 접속했습니다. 초안 작성 권한은 없습니다.");
   if(warn.length){ $("warnBox").innerHTML = warn.join("<br>"); $("warnBox").classList.remove("hide"); }
   const blocked = !d.erp_user_mapped || !d.accounts_loaded || !d.can_input;
   $("btnSave").disabled = blocked; $("btnSubmit").disabled = blocked;
@@ -2191,7 +2191,7 @@ function submitSummary(){
       diffs.slice(0,8).forEach((d)=> lines.push(" · "+d));
     }
   }
-  lines.push("", "제출하면 수정할 수 없습니다. 회계 담당자에게 넘길까요?");
+  lines.push("", "제출하면 수정할 수 없고 [ERP 전송] 단계로 넘어갑니다. 제출할까요?");
   return lines.join("\n");
 }
 
@@ -2929,10 +2929,12 @@ async function loadTplMgr(){
           : "개인 템플릿만 만들 수 있습니다 — 전사·부서 템플릿은 회계 담당자에게 요청하세요");
     const t = $("tplMgrTbl");
     if(!list.length){ t.innerHTML = '<tr><td style="color:var(--muted);padding:20px;text-align:center;">등록된 템플릿이 없습니다. [+ 새 템플릿]으로 만들어 보세요.</td></tr>'; return; }
+    // 삭제는 그동안 편집기 안에만 있어(행 클릭 → 편집기 → 삭제) 목록에서 바로 지울 수 없었다.
+    // 편집 권한이 있는 행에만 삭제 버튼을 붙인다(권한 판정은 서버 editableTpl 이 다시 한다).
     t.innerHTML = '<colgroup><col style="width:96px"><col><col style="width:110px">'
       + '<col style="width:118px"><col style="width:62px"><col style="width:92px">'
-      + '<col style="width:74px"><col style="width:62px"></colgroup>'
-      + '<thead><tr><th>코드</th><th>이름</th><th>분류</th><th>범위</th><th>라인</th><th>금액방식</th><th>상태</th><th class="r">사용</th></tr></thead><tbody>'
+      + '<col style="width:74px"><col style="width:62px"><col style="width:72px"></colgroup>'
+      + '<thead><tr><th>코드</th><th>이름</th><th>분류</th><th>범위</th><th>라인</th><th>금액방식</th><th>상태</th><th class="r">사용</th><th>관리</th></tr></thead><tbody>'
       + list.map((x)=>
         '<tr class="'+(x.can_edit?"clk":"")+'" data-id="'+x.tpl_id+'">'
         + '<td class="mono">'+esc(x.tpl_code)+'</td><td class="tr" title="'+esc(x.tpl_nm)+'"><b>'+esc(x.tpl_nm)+'</b>'
@@ -2942,11 +2944,34 @@ async function loadTplMgr(){
         + '<td class="nw">'+(x.items||[]).length+'줄</td>'
         + '<td class="nw">'+(x.amount_mode==="total"?"총액 입력":"라인별")+'</td>'
         + '<td>'+(x.status==="active"?'<span class="pill posted">공개</span>':'<span class="tag draft">비공개</span>')+'</td>'
-        + '<td class="r">'+(x.use_cnt||0)+'</td></tr>').join("")
+        + '<td class="r">'+(x.use_cnt||0)+'</td>'
+        + '<td class="nw">'+(x.can_edit
+            ? '<button type="button" class="b gh sm" data-del="'+x.tpl_id+'"'
+              + ' data-nm="'+esc(x.tpl_nm)+'" data-use="'+(x.use_cnt||0)+'" title="이 템플릿 삭제">삭제</button>'
+            : '<span style="color:#ccd;">–</span>')+'</td></tr>').join("")
       + '</tbody>';
   }catch(e){ toast(e.message, true); }
 }
 $("tplMgrTbl").onclick = async (e)=>{
+  // 목록에서 바로 삭제 — 사용 이력이 있으면 몇 번 쓰였는지 알려 주고 되묻는다
+  const del = e.target.closest("button[data-del]");
+  if(del){
+    e.stopPropagation();
+    const id = Number(del.getAttribute("data-del"));
+    const nm = del.getAttribute("data-nm") || "";
+    const used = Number(del.getAttribute("data-use")) || 0;
+    if(!confirm("템플릿 '"+nm+"' 을(를) 삭제합니다."
+      + (used ? "\n\n이 템플릿은 "+used+"회 사용됐습니다. 이미 만들어진 전표는 그대로 남고, 앞으로 이 템플릿만 쓸 수 없게 됩니다." : "")
+      + "\n\n되돌릴 수 없습니다. 계속할까요?")) return;
+    del.disabled = true;
+    try{
+      const r = await api("tpl_delete", { tpl_id: id });
+      toast(r.안내 || "삭제했습니다.");
+      if(TPL_EDIT && TPL_EDIT.tpl_id === id){ $("tplEdit").classList.add("hide"); TPL_EDIT = null; }
+      await refreshTpls(); await loadTplMgr();
+    }catch(err){ toast(err.message, true); del.disabled = false; }
+    return;
+  }
   const tr = e.target.closest("tr[data-id]"); if(!tr || !tr.classList.contains("clk")) return;
   try{
     const r = await api("tpl_get", { tpl_id: Number(tr.getAttribute("data-id")) });
@@ -3100,7 +3125,7 @@ function ctrlRule(cd, v){
 $("btnTplFromSlip").onclick = async ()=>{
   if(!SLIP_ROWS.length){ await loadSlips(); SLIP_LOADED = true; }
   if(!SLIP_ROWS.length){
-    toast("불러올 내 ERP 전표가 없습니다 — [전표복사] 탭에서 조회 기간을 넓혀 보세요.", true); return;
+    toast("불러올 내 ERP 전표가 없습니다 — 작성 탭의 [지난 전표 복사]에서 조회 기간을 넓혀 보세요.", true); return;
   }
   openPicker({
     title:"기존 전표에서 템플릿 만들기",
