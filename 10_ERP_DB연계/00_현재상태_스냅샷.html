@@ -47,7 +47,7 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
   <div class="content">
 <h1 id="00-erp-db">00. ERP DB 연계 — 현재상태 스냅샷</h1>
 <blockquote>
-<p><strong>기준일: 2026-08-20</strong>(v0.35, 이전 v0.34 · 2026-08-20 / v0.33 · 2026-08-20 / v0.32 · 2026-08-19 / v0.31 · 2026-08-19 / v0.30 · 2026-08-18 / v0.29 · 2026-08-18 / v0.28 · 2026-08-18 / v0.27 · 2026-08-12 / v0.26 · 2026-08-12 / v0.25 · 2026-08-11 / v0.24 · 2026-08-11 / v0.23 · 2026-08-11 / v0.22 · 2026-08-11 / v0.21 · 2026-08-10 / v0.20 · 2026-08-03 / v0.19 · 2026-08-03 / v0.18 · 2026-07-31 / v0.17 · 2026-07-24 / v0.16 · 2026-07-22 / v0.15 · 2026-07-22 / v0.14 · 2026-07-22 / v0.13 · 2026-07-21 / v0.12 · 2026-07-21 / v0.11 · 2026-07-20 / v0.10 · 2026-07-13 / v0.9 · 2026-07-08 / v0.8 · 2026-07-08 / v0.7 · 2026-07-08 / v0.6 · 2026-07-08 / v0.5 · 2026-07-08 / v0.4 · 2026-07-08 / v0.3 · 2026-07-08 / v0.2 · 2026-07-07) · 관리: 최동혁 · 전담 에이전트: <code>erp-db-link-manager</code>
+<p><strong>기준일: 2026-08-20</strong>(v0.36, 이전 v0.35 · 2026-08-20 / v0.34 · 2026-08-20 / v0.33 · 2026-08-20 / v0.32 · 2026-08-19 / v0.31 · 2026-08-19 / v0.30 · 2026-08-18 / v0.29 · 2026-08-18 / v0.28 · 2026-08-18 / v0.27 · 2026-08-12 / v0.26 · 2026-08-12 / v0.25 · 2026-08-11 / v0.24 · 2026-08-11 / v0.23 · 2026-08-11 / v0.22 · 2026-08-11 / v0.21 · 2026-08-10 / v0.20 · 2026-08-03 / v0.19 · 2026-08-03 / v0.18 · 2026-07-31 / v0.17 · 2026-07-24 / v0.16 · 2026-07-22 / v0.15 · 2026-07-22 / v0.14 · 2026-07-22 / v0.13 · 2026-07-21 / v0.12 · 2026-07-21 / v0.11 · 2026-07-20 / v0.10 · 2026-07-13 / v0.9 · 2026-07-08 / v0.8 · 2026-07-08 / v0.7 · 2026-07-08 / v0.6 · 2026-07-08 / v0.5 · 2026-07-08 / v0.4 · 2026-07-08 / v0.3 · 2026-07-08 / v0.2 · 2026-07-07) · 관리: 최동혁 · 전담 에이전트: <code>erp-db-link-manager</code>
 ERP(UNIERP) DB와 AI 포털·사내 타부서 간 연계의 <strong>현황 대장(단일 출처)</strong>. 상태가 바뀌면 여기를 먼저 고치고 §7 변경 이력에 한 줄 남긴다.
 비밀값(접속 IP/ID/비밀번호)은 기록 금지 — 서버 지칭은 별칭 <strong>"ERP운영DB"</strong> 만 사용.</p>
 </blockquote>
@@ -86,6 +86,7 @@ ERP(UNIERP) DB와 AI 포털·사내 타부서 간 연계의 <strong>현황 대�
 <hr />
 <p><strong>2026-08-20(v0.34)에는 연동 현황 화면에 「데이터 업데이트」 실행 경로를 신설했다.</strong> 그동안 중간DB 적재는 관리자가 PC에서 <code>etl_run.py</code>를 직접 돌리는 것이 유일한 경로였고, 화면(<code>app/erp-status.html</code>)은 결과를 보여주기만 했다. 관리자 요청으로 화면에서 갱신을 걸 수 있게 했는데, ERP MSSQL이 사외 IDC라 브라우저·Supabase Edge에서 직접 붙을 수 없다는 제약은 그대로다 — 그래서 <strong>요청 큐</strong> 구조로 우회했다: 버튼은 Supabase <code>etl_meta.sync_request</code>에 요청만 남기고(사내 세션 전용 RPC), ERP 접속이 되는 호스트에서 새 러너 <code>etl_watch.py</code>가 그 요청을 선점해 <code>etl_run</code>을 돌리며 진행률과 job별 성패를 되쓴다. 화면은 2.5초 간격으로 상태를 폴링해 "적재 중 3/19 · 품목"처럼 보여주고, 끝나면 <code>v_erp_sync_overview</code>를 다시 그린다. 러너가 꺼져 있으면 20초 만에 "실행 러너 미가동"으로 안내해 무한 대기를 막는다. <strong>민감분(급여 <code>hr_payroll</code>, <code>erp_secure</code>)은 러너가 요청 대상에서 자동 제외</strong>해 기존 거버넌스 게이트(관리자 직접 실행)를 유지했고, 중복 실행 방지·쿨다운 60초·좀비 요청 정리도 함께 넣었다. 이번 작업의 검증은 <strong>ERP에 붙지 않은 상태에서 큐 왕복(등록→선점→진행률→종료→조회)만 실측</strong>한 것까지다 — 실제 ETL 집행은 관리자가 러너를 띄운 뒤 확인해야 한다(§6 참조). 무인 야간 스케줄러는 여전히 미도입이며, 이 러너를 작업 스케줄러에 <code>--once</code>로 등록하면 그 자리를 대신할 수 있다.</p>
 <p><strong>같은 날(2026-08-20, v0.35) 「데이터 업데이트」에서 급여 집계가 빠지는 건에 대해 관리자 확인 요청이 있었고, 관리자 결정으로 '관리자 전용 포함'을 열었다.</strong> 확인 결과 결함이 아니라 러너의 의도적 제외였다 — <code>etl_watch.py</code>가 <code>rpc="erp_secure_upsert"</code>인 job(급여 <code>hr_payroll</code>)을 요청 대상에서 자동으로 뺐고, 실측상 첫 버튼 실행(15:06 KST)에서 19종이 전부 success인 반면 급여만 2026-08-11 적재분(167행)에 머물러 있었다. 관리자 결정(2026-08-20)으로 <strong>전체관리자(<code>public.portal_admin</code>)에 한해 급여 포함을 허용</strong>한다 — 마이그레이션 <code>erp_sync_request_sensitive_v1</code>로 <code>sync_request.include_sensitive</code> 컬럼과 <code>erp_sync_caps()</code>(사내·관리자·러너생존 조회)를 신설하고, <code>erp_sync_request_create(p_jobs, p_include_sensitive)</code>가 관리자 여부를 서버에서 검증한 뒤 <strong>허용·거부 모두 <code>erp_secure.hr_access_log</code>(action=<code>sync_request_hr_payroll</code>)에 감사 기록</strong>한다(비관리자는 <code>forbidden_sensitive</code>). 러너는 <code>include_sensitive</code>일 때만 급여 job을 대상에 넣어 20종을 돌린다. 화면에는 관리자에게만 「급여 집계 포함」 체크박스가 보이지만 <strong>판정은 서버</strong>다(프론트 표시는 UX용, CLAUDE.md §5.4). 일반 사내 사용자 버튼은 종전대로 19종만 돈다.</p>
+<p><strong>같은 날(2026-08-20, v0.36) 결의전표 입력 화면에 회계 로직 개편 4건(REQ-0001~0004)이 배포됐다.</strong> 관리자 결정 <strong>C-14</strong>(B2 개정, <code>10_반복전표_자동화_기획.md §8</code>)로 부가세는 화면에서 자동계산하도록 범위를 넓혔다 — 계산은 화면에서만 하고 서버는 차대 일치·필수 관리항목 등 값 검증만 하며, 사용자가 고친 값은 덮지 않는다. 세율 판정은 운영 전표 실측 근거다(A일반세금계산서·B매입세액불공제·L신용카드는 10% 자동, K계산서·C영세율은 0%, <strong>I수입세금계산서·H통관은 과세표준에 관세가 섞여 실측 일치가 0건이라 자동계산에서 제외</strong>). <strong>U-1(부가세 처리)은 부가세 부분 해소·원천징수 부분은 계속 미결</strong>로 갱신한다(§6). 같은 배포에서 템플릿 총액 배분을 세금계산서형 우선분리(직전 회차 비율 기준, 부정확 금액은 '확인 필요' 표시)로 고도화했고, 배포 직후 발견된 결함 3건(균등분할로 합계 축소·영세율 균등분할 누락·부동소수점 반올림 오판)을 테스트가 사전 검출해 즉시 수정했으며, 전표 시작 경로 4곳을 「전표 시작 바」로 통합(전표복사 탭 제거, 5→4탭)하는 정보구조 개편도 함께 배포됐다(jsdom 렌더·상호작용 테스트 100건 이상 통과). 상세는 <code>09_결의전표_인수인계.md §2 C-14</code>·§4·§6 참조.</p>
 <h2 id="2-erpdb">2. 원천 시스템(ERP운영DB) 현황</h2>
 <table>
 <thead>
@@ -319,6 +320,10 @@ ERP(UNIERP) DB와 AI 포털·사내 타부서 간 연계의 <strong>현황 대�
 <td><strong>적용 완료</strong> — 급여(<code>hr_payroll</code>→<code>erp_secure</code>)는 웹 버튼에서 기본 제외였는데, 전체관리자(<code>portal_admin</code>)에 한해 포함 요청을 허용했다. 마이그레이션 <code>erp_sync_request_sensitive_v1</code>: <code>sync_request.include_sensitive</code> 컬럼 + <code>erp_sync_caps()</code> 신설, <code>erp_sync_request_create(p_jobs, p_include_sensitive)</code>가 서버에서 관리자 검증 → <strong>허용·거부 모두 <code>erp_secure.hr_access_log</code>(action=<code>sync_request_hr_payroll</code>) 감사 기록</strong> → 비관리자는 <code>forbidden_sensitive</code> 거부. 러너는 이 플래그일 때만 급여 job 포함(19종→20종). 화면 체크박스는 관리자에게만 노출(표시는 UX, 판정은 서버). 검증: 관리자 허용·비관리자 거부·caps 판정·job 선택 로직 실측 통과</td>
 </tr>
 <tr>
+<td><strong>결의전표 입력화면 — 부가세 자동계산 도입(C-14, B2 개정) + 총액배분 고도화·결함수정·정보구조 개편(2026-08-20)</strong></td>
+<td><strong>배포 완료</strong> — 4건(REQ-0001~0004). 부가세는 화면 자동계산(서버는 검증만, 사용자 수정값 유지) — 세율은 운영전표 실측 근거(A·B·L 10% 자동, K·C 0%, I·H는 관세 혼입으로 제외). 템플릿 총액 배분 고도화(세금계산서형 우선분리) 중 결함 3건(총액 축소·영세율 균등분할·반올림 오판) 즉시 수정. 전표 시작 경로를 「전표 시작 바」로 통합(전표복사 탭 제거, 5→4탭). 상세 <code>09_결의전표_인수인계.md §2 C-14</code></td>
+</tr>
+<tr>
 <td>ERP 매핑(가설)</td>
 <td><code>M_PUR_REQ</code>·<code>M_PUR_ORD</code>·<code>M_CONFIG_PROCESS</code>·<code>M_PUR_GOODS_MVMT</code>·<code>Q_INSPECTION</code>·<code>M_IV</code> 등 — 재고 입출고 분류 등 세부는 여전히 유니포인트 협의 전 가설</td>
 </tr>
@@ -359,8 +364,8 @@ ERP(UNIERP) DB와 AI 포털·사내 타부서 간 연계의 <strong>현황 대�
 </tr>
 <tr>
 <td>본 연계 관제 문서군</td>
-<td>v0.34 · 2026-08-20</td>
-<td><strong>갱신</strong> — "ERP 직접등록 — 1차(DEMO2)" 트랙 계속: AX001 전용 거래유형 신설(<strong>C-12</strong>)·화면 [ERP 전송] 버튼 E2E 성공(<code>AG202608200001</code>)·<strong>「전송 성공=확정」 자동화(C-13, 수기 전표번호 입력 제거)</strong>·AX001 기준 3건째 성공(<code>AG202608200003</code>) + 저장소 SQL 원본(<code>26_gl_erp_apply.sql</code>) 신설. 운영(<code>JEILMNS</code>) 쓰기는 여전히 금지(C-1 유지). 연동 현황 화면 <strong>「데이터 업데이트」 버튼</strong>(요청 큐+러너 <code>etl_watch.py</code>, 민감분 제외 19종) 신설. <strong>관리항목 참조 마스터 전면 연결(<code>ctrl_ref</code>, 27종 9,279건, 참조 보유 31종 전수연결) + 연동 현황 뷰 16→20종 확장</strong>(gl_slip 미러 소급등재 사각지대 해소 포함). 이전 v0.33: AX001·C-13 / v0.32: 1차 투입 성공(<code>AG202608190006</code>)</td>
+<td>v0.36 · 2026-08-20</td>
+<td><strong>갱신</strong> — 결의전표 입력화면 <strong>부가세 자동계산 도입(C-14, B2 개정)</strong> + 템플릿 총액배분 고도화 + 결함 3건 수정 + 정보구조 개편(전표복사 탭 제거, 5→4탭), U-1(부가세 부분 해소·원천징수 미결)로 갱신. 이전 v0.35: 급여 「데이터 업데이트」 관리자 전용 포함 / v0.34: <code>ctrl_ref</code> 전면연결·연동현황 20종 확장 / v0.33: AX001(C-12)·전송=확정(C-13) / v0.32: 1차 투입 성공(<code>AG202608190006</code>)</td>
 <td><code>10_ERP_DB연계/</code> + 정책관리 미러</td>
 </tr>
 <tr>
@@ -524,8 +529,8 @@ ERP(UNIERP) DB와 AI 포털·사내 타부서 간 연계의 <strong>현황 대�
 <td>최동혁(관리자) + 유니포인트</td>
 </tr>
 <tr>
-<td><strong>반복전표 자동화 — 승인 게이트: B1 실적재까지 완료(2026-08-12), B2-1·B3 집행 완료, B2 부분승인(계정 구성 검수 잔여), B4만 미결</strong></td>
-<td><strong>B1(완료)</strong> 마이그레이션 <code>gl_ctrl_master_v1</code> 적용(관리항목 마스터 2종 스키마·<code>erp_master_upsert</code> RPC 확장·ETL job 신설, dry-run 52행·1,001행 통과, 2026-08-11 오후) → <strong>2026-08-12 관리자 지시로 실적재까지 완료</strong> — <code>erp_ro.ctrl_item_s</code> 52/52·<code>acct_ctrl_assn_s</code> 1,002/1,002(추출=적재, 유실 0), 연동 현황 뷰 14→16종 확장. DR_FG/CR_FG 의미는 유니포인트 확인 계속 병행. <strong>B2(부분승인)</strong> 부가세·원천징수 자동계산 규칙은 범위 제외(세액은 수기 입력 + 전월값 프리필만 제공, U-1 미해소·C-2 무개정) — <strong>잔여: 시드 36건(→73건)의 계정 구성 검수</strong>(회계 담당 확인 후 등재). <strong>B2-1(적용 완료)</strong> ERP 월마감 원장 <code>C_CLOSE_STATUS</code> 실측 연동(2026-06까지 마감 Y·2026-07부터 미마감), <code>public.gl_period_lock</code>에 33개월(2023-10~2026-06) 등재 완료 — 09 §5.2 "마감월 통제 부재" 해소. 마감월 소급 등록 관찰(예외는 회계 담당이 lock 해제)·신규 마감월 수동 추가 필요는 등재만(<code>02_진행상태.md</code> §4 참조). <strong>B3(확정)</strong> <code>perm_module_catalog</code>에 <code>accounting</code>(sensitive) 신설(A3 실행) + 이훈희(<code>hh.lee2@jeilm.co.kr</code>, 총무팀)에 <code>perm_grant</code> 개인 예외 부여(<code>perm_audit</code> 감사 동반), 실측 검증 완료(이훈희 허용·<code>hk.yang</code> 차단·관리자 기허용). 부서 부여는 계속 없음(C-8 유지). <strong>B4(미결)</strong> L3 자동 초안 생성 여부 — 파일럿 회고 후 재판단. 상세는 <code>10_반복전표_자동화_기획.md §8</code>(v1.3)</td>
+<td><strong>반복전표 자동화 — 승인 게이트: B1 실적재까지 완료(2026-08-12), B2-1·B3 집행 완료, B2 부분승인 → 2026-08-20 C-14로 부가세 부분 해소(계정 구성 검수만 잔여), B4만 미결</strong></td>
+<td><strong>B1(완료)</strong> 마이그레이션 <code>gl_ctrl_master_v1</code> 적용(관리항목 마스터 2종 스키마·<code>erp_master_upsert</code> RPC 확장·ETL job 신설, dry-run 52행·1,001행 통과, 2026-08-11 오후) → <strong>2026-08-12 관리자 지시로 실적재까지 완료</strong> — <code>erp_ro.ctrl_item_s</code> 52/52·<code>acct_ctrl_assn_s</code> 1,002/1,002(추출=적재, 유실 0), 연동 현황 뷰 14→16종 확장. DR_FG/CR_FG 의미는 유니포인트 확인 계속 병행. <strong>B2(부분승인, 2026-08-11)</strong> 부가세·원천징수 자동계산 규칙은 범위 제외(세액은 수기 입력 + 전월값 프리필만 제공, U-1 미해소·C-2 무개정) — <strong>잔여: 시드 36건(→73건)의 계정 구성 검수</strong>(회계 담당 확인 후 등재). <strong>→ B2 개정(결정 C-14, 2026-08-20, 관리자 승인)</strong>: 결의전표 입력 화면에 부가세 자동계산을 도입(화면 계산·서버는 검증만, 사용자 수정값 미override) — 세율 판정은 운영전표 실측 근거(A일반세금계산서·B매입세액불공제·L신용카드 10% 자동, K계산서·C영세율 0%, I수입세금계산서·H통관은 과세표준에 관세 혼입으로 실측 불일치해 자동계산 제외). <strong>원천징수는 계속 범위 밖</strong>(계정 구성 검수 잔여도 그대로). <strong>U-1은 부가세 부분 해소·원천징수 부분 미결로 갱신</strong>. 상세는 <code>09_결의전표_인수인계.md §2 C-14</code>·<code>10_반복전표_자동화_기획.md §8</code>. <strong>B2-1(적용 완료)</strong> ERP 월마감 원장 <code>C_CLOSE_STATUS</code> 실측 연동(2026-06까지 마감 Y·2026-07부터 미마감), <code>public.gl_period_lock</code>에 33개월(2023-10~2026-06) 등재 완료 — 09 §5.2 "마감월 통제 부재" 해소. 마감월 소급 등록 관찰(예외는 회계 담당이 lock 해제)·신규 마감월 수동 추가 필요는 등재만(<code>02_진행상태.md</code> §4 참조). <strong>B3(확정)</strong> <code>perm_module_catalog</code>에 <code>accounting</code>(sensitive) 신설(A3 실행) + 이훈희(<code>hh.lee2@jeilm.co.kr</code>, 총무팀)에 <code>perm_grant</code> 개인 예외 부여(<code>perm_audit</code> 감사 동반), 실측 검증 완료(이훈희 허용·<code>hk.yang</code> 차단·관리자 기허용). 부서 부여는 계속 없음(C-8 유지). <strong>B4(미결)</strong> L3 자동 초안 생성 여부 — 파일럿 회고 후 재판단. 상세는 <code>10_반복전표_자동화_기획.md §8</code>(v1.3)</td>
 <td>B1: 완료 / B2 잔여: 회계 담당 + 최동혁 / B2-1·B3: 완료 / B4: 경영/재무 + 최동혁(파일럿 회고 후)</td>
 </tr>
 <tr>
@@ -566,6 +571,11 @@ ERP(UNIERP) DB와 AI 포털·사내 타부서 간 연계의 <strong>현황 대�
 </tr>
 </thead>
 <tbody>
+<tr>
+<td>2026-08-20</td>
+<td><strong>결의전표 입력화면 부가세 자동계산 도입(결정 C-14, B2 개정) + 총액배분 고도화·결함 3건 수정·정보구조 개편(v0.36)</strong> — 4건 배포(REQ-0001~0004). <strong>C-14</strong>: 부가세는 화면에서 자동계산(서버는 검증만, 사용자 수정값 미override) — 세율은 운영전표 실측 근거(A·B·L 10% 자동, K·C 0%, I·H는 관세 혼입으로 자동계산 제외). <strong>U-1은 부가세 부분 해소·원천징수 부분 미결로 갱신</strong>(§6). 템플릿 총액 배분을 세금계산서형 우선분리로 고도화하는 과정에서 결함 3건(균등분할로 합계 축소·영세율 균등분할 누락·반올림 오판)을 테스트가 사전 검출해 즉시 수정, 전표 시작 경로 4곳을 「전표 시작 바」로 통합(전표복사 탭 제거, 5→4탭)하는 정보구조 개편도 함께 배포됐다(jsdom 테스트 100건 이상 통과). §1·§4·§6 갱신, <code>09_결의전표_인수인계.md</code>(v1.5→v1.6) §2 C-14·§8 U-1 갱신</td>
+<td>최동혁(+Claude)</td>
+</tr>
 <tr>
 <td>2026-08-20</td>
 <td><strong>「데이터 업데이트」 급여 집계 미반영 원인 확인 + 관리자 전용 포함 허용(v0.35)</strong> — 관리자 확인 요청에 따라 조사한 결과 결함이 아니라 러너의 의도적 제외였다(<code>etl_watch.py</code>가 <code>rpc=erp_secure_upsert</code> job을 자동 제외 — 첫 실행 15:06 KST에 19종 전부 success, 급여만 08-11 적재분 167행 유지). 관리자 결정으로 전체관리자 한정 포함을 열었다: 마이그레이션 <code>erp_sync_request_sensitive_v1</code>(정본 <code>이관/sql/29_erp_sync_request.sql</code> v2) — <code>include_sensitive</code> 컬럼·<code>erp_sync_caps()</code> 신설, <code>erp_sync_request_create</code>에 <code>p_include_sensitive</code> 인자 추가(1인자 함수는 drop해 PostgREST 모호성 제거), 관리자 검증 + <code>erp_secure.hr_access_log</code> 감사 기록, <code>claim</code>/<code>status</code>가 플래그 전달. 러너는 <code>SENSITIVE_JOBS</code>를 플래그일 때만 대상에 추가(19→20종), 화면은 관리자에게만 체크박스 노출. <strong>검증</strong>: 관리자 요청 허용·비관리자 <code>forbidden_sensitive</code> 거부·<code>erp_sync_caps</code> 관리자/비관리자 판정·job 선택 로직 실측 통과(모두 롤백). 러너 재기동으로 신규 코드 반영 확인</td>
