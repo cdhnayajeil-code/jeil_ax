@@ -373,6 +373,57 @@ JOBS = {
                    NULLIF(RTRIM(ISNULL(TRACKING_NO, '')), ''), 'PM_PROJECT_MASTER_KO174', NULL
             FROM JEILMNS.dbo.PM_PROJECT_MASTER_KO174 WITH (NOLOCK)
             WHERE RTRIM(ISNULL(PJT_CD, '')) <> ''
+            UNION ALL
+            -- ── 아래 6종은 관리자 지시(2026-08-20)로 추가 연결 — 전표 입력에 필요한 항목 ──
+            -- 회사 예금계좌. 계좌번호가 곧 전표에 들어가는 코드라 그대로 싣는다.
+            -- DPST_NM 은 실측 전량 빈 문자열이라(64/64) 은행명으로 대체해야 고를 수 있다.
+            SELECT 'BA', RTRIM(d.BANK_ACCT_NO),
+                   COALESCE(NULLIF(RTRIM(ISNULL(d.DPST_NM, '')), ''),
+                            NULLIF(RTRIM(ISNULL(b.BANK_NM, '')), '')),
+                   NULLIF(RTRIM(ISNULL(d.DPST_FG, '')), ''), 'F_DPST', NULL
+            FROM JEILMNS.dbo.F_DPST d WITH (NOLOCK)
+            LEFT JOIN JEILMNS.dbo.B_BANK b WITH (NOLOCK) ON RTRIM(b.BANK_CD) = RTRIM(d.BANK_CD)
+            WHERE RTRIM(ISNULL(d.BANK_ACCT_NO, '')) <> ''
+            UNION ALL
+            -- 영업그룹·영업조직 (코드 컬럼이 _CD 접미사가 아니라 SALES_GRP / SALES_ORG)
+            SELECT 'SG', RTRIM(SALES_GRP), NULLIF(RTRIM(ISNULL(SALES_GRP_NM, '')), ''),
+                   NULL, 'B_SALES_GRP', NULL
+            FROM JEILMNS.dbo.B_SALES_GRP WITH (NOLOCK)
+            WHERE RTRIM(ISNULL(SALES_GRP, '')) <> ''
+            UNION ALL
+            SELECT 'SO', RTRIM(SALES_ORG), NULLIF(RTRIM(ISNULL(SALES_ORG_NM, '')), ''),
+                   NULL, 'B_SALES_ORG', NULL
+            FROM JEILMNS.dbo.B_SALES_ORG WITH (NOLOCK)
+            WHERE RTRIM(ISNULL(SALES_ORG, '')) <> ''
+            UNION ALL
+            -- 법인카드
+            SELECT 'D1', RTRIM(CREDIT_NO), NULLIF(RTRIM(ISNULL(CREDIT_NM, '')), ''),
+                   NULLIF(RTRIM(ISNULL(COST_CD, '')), ''), 'B_CREDIT_CARD', NULL
+            FROM JEILMNS.dbo.B_CREDIT_CARD WITH (NOLOCK)
+            WHERE RTRIM(ISNULL(CREDIT_NO, '')) <> '' AND ISNULL(USE_FG, 'Y') = 'Y'
+            UNION ALL
+            -- 어음·구매카드 — 실측상 NOTE_FG(D1/D3) 가 두 항목을 가르지 않아(어음이 양쪽을 쓴다)
+            -- 구분 없이 두 관리항목 모두에 같은 목록을 제공한다
+            SELECT n.ctrl_cd, RTRIM(f.NOTE_NO), NULLIF(RTRIM(ISNULL(f.NOTE_DESC, '')), ''),
+                   NULLIF(RTRIM(ISNULL(f.BP_CD, '')), ''), 'F_NOTE', NULL
+            FROM JEILMNS.dbo.F_NOTE f WITH (NOLOCK)
+            CROSS JOIN (SELECT 'NN' AS ctrl_cd UNION ALL SELECT 'CP') n
+            WHERE RTRIM(ISNULL(f.NOTE_NO, '')) <> ''
+            UNION ALL
+            -- 차입번호
+            SELECT 'L1', RTRIM(LOAN_NO), NULLIF(RTRIM(ISNULL(LOAN_NM, '')), ''),
+                   NULL, 'F_LN_INFO', NULL
+            FROM JEILMNS.dbo.F_LN_INFO WITH (NOLOCK)
+            WHERE RTRIM(ISNULL(LOAN_NO, '')) <> ''
+            UNION ALL
+            -- 사번 — 유일한 인사 원천. 전표에서 사람을 지정하려면 사번·성명이 있어야 한다.
+            -- ⚠ 가져오는 컬럼은 사번·성명·부서명 3개뿐. 주민번호(RES_NO)·급여(호봉)·주소·
+            --   연락처 등은 선택하지 않는다(CLAUDE.md §1.7 — 이름은 마스킹 대상 제외).
+            --   재직자만 — 퇴사자는 전표 입력 대상이 아니다.
+            SELECT 'EM', RTRIM(EMP_NO), NULLIF(RTRIM(ISNULL(NAME, '')), ''),
+                   NULLIF(RTRIM(ISNULL(DEPT_NM, '')), ''), 'HAA010T', NULL
+            FROM JEILMNS.dbo.HAA010T WITH (NOLOCK)
+            WHERE RTRIM(ISNULL(EMP_NO, '')) <> '' AND RETIRE_DT IS NULL
         """,
         "params": [],
     },

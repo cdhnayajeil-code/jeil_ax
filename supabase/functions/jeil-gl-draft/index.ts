@@ -11,9 +11,12 @@
 // v5.3(2026-08-19): [ERP 전송] 버튼 — op apply_request(전송 대기 ready 마킹)·apply_cancel(대기 취소), canPost 전용.
 //   상태머신: null → ready(버튼) → applied|failed(중계 gl_apply_demo2.py --queue/--watch 처리 결과).
 //   이 함수는 여전히 ERP에 쓰지 않는다 — 마킹만 하고, 투입은 사내 pull 중계가 수행(기회검토 채택 구조).
-// v5.7(2026-08-20): 관리항목 참조 검색 전면 연결 — op `ctrl_ref`(19종 공용) + bootstrap 의
+// v5.7(2026-08-20): 관리항목 참조 검색 전면 연결 — op `ctrl_ref`(공용) + bootstrap 의
 //   `ctrl_ref_kinds`(검색 가능 목록). 원천은 통합 미러 erp_ro.ctrl_ref_s(migration gl_ctrl_ref_v1).
-//   민감 6종(사번·계좌·신용카드·구매카드·어음·차입번호)은 적재 자체를 하지 않아 검색되지 않는다.
+//   참조가 있는 관리항목 31종 전부 연결(거래처·품목 4종은 기존 전용 RPC, 나머지 27종은 통합 미러).
+//   민감 6종(사번·계좌·신용카드·구매카드·어음·차입번호)도 전표 입력에 필요해 연결하되
+//   (관리자 지시 2026-08-20), 조회는 감사 로그에 남긴다(값 제외, 검색어 길이·결과 건수만).
+//   사번은 사번·성명·부서명만 적재한다 — 주민번호·급여·주소·연락처는 원천에서 선택하지 않는다.
 // v5.6(2026-08-20): 코스트센터 필수화(관리자 지시). save 에서 라인마다 코스트센터를 요구하고
 //   (없으면 헤더값 승계) `gl_master_get` 의 유효 목록으로 화이트리스트 재검증한다.
 //   유효 목록은 폐지분(조직개편 19801 · 명칭 '(사용금지)')을 제외한 것 — migration gl_master_cost_center_v2.
@@ -83,7 +86,8 @@ const CTRL_VAL_MAX = 30;             // 관리항목 값 — ERP A_TEMP_GL_DTL.C
 const CTRL_PER_LINE_MAX = 15;        // 라인당 관리항목 상한(실측 최대 7종 + 여유)
 const SEED_MAX = 100;                // tpl_seed_bulk 1회 상한
 // 개인 식별·금융 관리항목 — 부서/전사 템플릿에 '고정값'으로 저장·배포 금지(사번·계좌·카드·어음)
-const SENSITIVE_CTRL = new Set(["EM", "BA", "D1", "CP", "NN"]);
+// 민감 관리항목 — 전사·부서 템플릿에 고정값 저장 금지 + 참조 검색 시 감사 로그 대상
+const SENSITIVE_CTRL = new Set(["EM", "BA", "D1", "CP", "NN", "L1"]);
 
 async function verifyEntraUser(token: string): Promise<{ upn: string; name: string } | null> {
   try {
@@ -546,6 +550,12 @@ Deno.serve(async (req) => {
     if (!cd) return json({ ok: true, rows: [] });
     const { data } = await admin.rpc("gl_ctrl_ref_search",
       { p_ctrl_cd: cd, p_q: String(b.q || "").trim() });
+    // 사번·계좌·카드·어음·차입 조회는 누가 언제 봤는지 남긴다(CLAUDE.md §6 감사 로그).
+    // 값은 남기지 않는다 — 검색어와 결과 건수만.
+    if (SENSITIVE_CTRL.has(cd)) {
+      log("ctrl_ref", null, { ctrl_cd: cd, q_len: String(b.q || "").trim().length,
+                              hits: (data || []).length });
+    }
     return json({ ok: true, rows: data || [] });
   }
 
