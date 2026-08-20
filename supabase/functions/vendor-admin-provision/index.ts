@@ -20,13 +20,8 @@ const cors = {
 const json = (o: unknown, status = 200) =>
   new Response(JSON.stringify(o), { status, headers: { ...cors, "Content-Type": "application/json" } });
 
-// 임시 비밀번호(영대소문자+숫자+특수 포함, 14자 내외)
-function tempPassword(): string {
-  const bytes = new Uint8Array(12);
-  crypto.getRandomValues(bytes);
-  const b64 = btoa(String.fromCharCode(...bytes)).replace(/[+/=]/g, "");
-  return "Jm" + b64.slice(0, 10) + "7!";
-}
+// 초기 비밀번호(고정, 2026-08-20 정책) — 최초 로그인 시 새 비밀번호 설정을 강제한다.
+const INIT_PW = "jeilmns";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
@@ -81,7 +76,7 @@ Deno.serve(async (req) => {
     if (email.endsWith("@jeilm.co.kr"))
       return json({ error: "사내(@jeilm.co.kr) 이메일은 Entra SSO 계정과 충돌하므로 발급할 수 없습니다. 사내 직원은 SSO 로그인 상태로 협력사 포털에 접속하면 동일한 전체 조회 화면이 열립니다." }, 400);
 
-    const pw = tempPassword();
+    const pw = INIT_PW;
     const force = String(body.force ?? "") === "true" || (body as unknown as { force?: boolean }).force === true;
     let userId = "";
     let converted: Record<string, unknown> | null = null;
@@ -90,7 +85,7 @@ Deno.serve(async (req) => {
       email,
       password: pw,
       email_confirm: true,
-      app_metadata: { role: "vendor_admin", vendor_bp: [] },
+      app_metadata: { role: "vendor_admin", vendor_bp: [], must_change_password: true },
       user_metadata: { display_name, phone, vendor_admin: true },
     });
 
@@ -129,7 +124,7 @@ Deno.serve(async (req) => {
         password: pw,
         email_confirm: true,
         ban_duration: "none",
-        app_metadata: { role: "vendor_admin", vendor_bp: [] },
+        app_metadata: { role: "vendor_admin", vendor_bp: [], must_change_password: true },
         user_metadata: { ...(found.user_metadata ?? {}), display_name, phone, vendor_admin: true },
       });
       if (ue) return json({ error: "계정 전환 실패: " + ue.message }, 400);
@@ -143,12 +138,12 @@ Deno.serve(async (req) => {
 
     const { error: ae } = await admin.from("vendor_admin_account").upsert({
       email, auth_user_id: userId, display_name, phone,
-      status: "active", created_by: user.email,
+      status: "active", created_by: user.email, must_change_pw: true,
     }, { onConflict: "email" });
     if (ae) return json({ error: "vendor_admin_account save failed: " + ae.message }, 500);
 
     await logIt(converted ? "convert_admin" : "create_admin", email, { display_name, ...(converted ?? {}) });
-    return json({ ok: true, email, temp_password: pw, converted });
+    return json({ ok: true, email, temp_password: pw, init_password: pw, must_change: true, converted });
   }
 
   /* ── 대상 계정 조회(비활성/활성/삭제 공통) ── */

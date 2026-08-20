@@ -88,7 +88,7 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <tr>
 <td><strong>Supabase</strong></td>
 <td><strong>프로젝트 가동</strong> <code>dvzohdqtjzocgcclgwro</code> / 스키마·RLS·Hook·Storage·<strong>Azure OIDC</strong>·autoconfirm 적용</td>
-<td>협력사 발주 + <strong>관리자주도 등록</strong>(<code>portal_admin</code>·<code>vendor_account</code>·<strong><code>vendor_admin_account</code></strong>·<code>vendor_account_log</code>) 테이블, Edge Function <strong>10종</strong>(<code>approve-vendor</code>·<code>vendor-provision</code>·<strong><code>vendor-admin-provision</code></strong>·<code>vendor-reset-password</code>·<strong><code>jeil-chat</code></strong>·<strong><code>jeil-chat-admin</code></strong>·<strong><code>jeil-chat-history</code></strong>·<code>jeil-me</code>·<code>jeil-hr</code>·<strong><code>jeil-portal-request</code></strong>), <code>chat_log</code> 감사 + <strong>대화내역 3테이블</strong>(<code>chat_work</code>·<code>chat_session</code>·<code>chat_message</code> — 본인 전용, ADR-009) + <strong>요청 원장</strong>(<code>portal_request</code> — 조회불가 요청접수, ADR-011), RLS 격리검증·어드바이저 클린</td>
+<td>협력사 발주 + <strong>관리자주도 등록</strong>(<code>portal_admin</code>·<code>vendor_account</code>·<strong><code>vendor_admin_account</code></strong>·<code>vendor_account_log</code>) 테이블, Edge Function <strong>11종</strong>(<code>approve-vendor</code>·<code>vendor-provision</code>·<strong><code>vendor-admin-provision</code></strong>·<code>vendor-reset-password</code>·<strong><code>vendor-set-password</code></strong>·<strong><code>jeil-chat</code></strong>·<strong><code>jeil-chat-admin</code></strong>·<strong><code>jeil-chat-history</code></strong>·<code>jeil-me</code>·<code>jeil-hr</code>·<strong><code>jeil-portal-request</code></strong>), <code>chat_log</code> 감사 + <strong>대화내역 3테이블</strong>(<code>chat_work</code>·<code>chat_session</code>·<code>chat_message</code> — 본인 전용, ADR-009) + <strong>요청 원장</strong>(<code>portal_request</code> — 조회불가 요청접수, ADR-011), RLS 격리검증·어드바이저 클린</td>
 </tr>
 <tr>
 <td>데모 도메인</td>
@@ -340,7 +340,7 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 </tr>
 <tr>
 <td>협력사 인증</td>
-<td><strong>관리자 주도 발급</strong>(ERP 거래처 선택→담당자 이메일로 계정 생성·임시비번). Supabase Auth(이메일/비번), 로그인 시 <code>role=vendor</code>+<code>vendor_bp</code> JWT 주입 → RLS 자기거래처만. 자유가입 제거. 계정 안내는 관리자 M365 메일(Graph)</td>
+<td><strong>관리자 주도 발급</strong>(ERP 거래처 선택→담당자 이메일로 계정 생성). <strong>비밀번호 정책(2026-08-20)</strong>: 발급·초기화 시 고정 초기비번 <code>jeilmns</code> + <code>must_change_password</code> → 최초 로그인 시 새 비밀번호 설정 강제(해제는 Edge Fn <code>vendor-set-password</code>만). Supabase Auth(이메일/비번), 로그인 시 <code>role=vendor</code>+<code>vendor_bp</code> JWT 주입 → RLS 자기거래처만. 자유가입 제거. 계정 안내는 관리자 M365 메일(Graph)</td>
 </tr>
 <tr>
 <td>협력사 포털 <strong>관리자 계정</strong></td>
@@ -497,6 +497,11 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 </tr>
 </thead>
 <tbody>
+<tr>
+<td>2026-08-20</td>
+<td><strong>협력사·포털 관리자 계정 비밀번호 정책 전환 — 고정 초기비번 + 최초 로그인 강제 변경</strong>(마이그레이션 <code>vendor_force_password_change</code>, Edge Function <strong><code>vendor-set-password</code> v1 신규</strong>(총 <strong>11종</strong>)·<code>vendor-provision</code> v6·<code>vendor-reset-password</code> v7·<code>vendor-admin-provision</code> v3, 정본 SQL <code>이관/sql/28_vendor_password_policy.sql</code>) — 무작위 임시비번 전달 방식을 폐지하고 발급·초기화 비밀번호를 <strong><code>jeilmns</code>(고정)</strong> 로 통일, <code>app_metadata.must_change_password</code>(사용자 수정 불가)를 걸어 최초 로그인 시 새 비밀번호 설정을 강제한다. 플래그 해제는 <code>vendor-set-password</code>(실제 변경)만 가능하고, Auth Hook이 JWT <code>must_pw</code> 클레임으로 실어 보내 로그인 화면(오버레이)·포털(닫을 수 없는 시트)이 이를 강제한다. 관리 화면은 '초기 비밀번호' 표기 + 「초기비번」 배지. 실측: Auth 최소 길이 6자(7자 초기값 통과), Hook의 기존 <code>role</code>·<code>vendor_bp</code> 클레임 보존 확인. 기존 계정 4건은 종전 비밀번호 유지(필요 시 [비번 초기화]로 편입).</td>
+<td>최동혁(+Claude)</td>
+</tr>
 <tr>
 <td>2026-08-20</td>
 <td><strong>협력사 포털 「관리자 계정」 신설 — 전체 거래처 선택·조회(읽기 전용)</strong>(마이그레이션 <code>vendor_portal_admin_readonly</code>·<code>vendor_portal_admin_storage_read</code>, Edge Function <strong><code>vendor-admin-provision</code> v1 신규</strong>(총 10종)·<code>vendor-reset-password</code> v6, 정본 SQL <code>이관/sql/27_vendor_portal_admin.sql</code>) — 협력사 포털은 「계정 1개 = 거래처 1개」 격리 구조라 구매팀이 여러 협력사를 한 화면에서 볼 수 없었다. 거래처에 묶이지 않는 역할 <strong><code>vendor_admin</code></strong>(헬퍼 <code>is_vendor_viewer()</code>)을 신설하고 <code>sp_*</code> 6종·<code>vendor_master</code>·Storage(<code>vendor-photos</code>)에 <strong>SELECT 정책만</strong> 추가했다(쓰기 정책 미부여 — 실측 UPDATE 0행·INSERT 42501 차단). 발급 화면은 <code>app/admin-vendors.html</code> 신규 섹션(생성·메일발송·비번초기화·비활성/활성·삭제), 대장 <code>vendor_admin_account</code>, 감사 로그는 기존 <code>vendor_account_log</code>(<code>create_admin</code> 등) 재사용. 포털(<code>pages/협력사_모바일_포털.html</code>)에 <strong>거래처 선택 화면</strong>(발주 보유 거래처 기본 + ERP 거래처마스터 3,702개사 서버검색)과 읽기 전용 가드를 추가했다. <strong>사내(@jeilm.co.kr) 이메일 발급은 차단</strong> — 같은 주소로 Entra SSO 계정이 생기면 <code>app_metadata.role</code>이 고정돼 사내 권한을 잃기 때문이며, 대신 <strong>사내 SSO 세션은 포털 접속 시 그대로 동일 조회 화면</strong>으로 들어간다. 협력사 담당자 개인정보(<code>vendor_account</code>)는 이 역할에 열지 않았다. <strong>후속 픽스(같은 날)</strong>: 관리자 화면에서 계정 생성이 「아무 반응 없음」으로 보이던 문제 해소 — 원인은 ①입력한 이메일이 이미 협력사 계정으로 등록돼 Auth가 <code>422 email_exists</code>로 거부(Edge Fn 400) ②그 오류가 페이지 최상단 배너(<code>#a_msg</code>)에 떠서 화면 아래 섹션에서는 보이지 않음. 조치: 결과·오류를 섹션 안(<code>#va_msg</code>)에 표시, <code>callFn</code>이 응답 본문·상태코드를 예외에 실어 전달, Edge Fn <code>vendor-admin-provision</code> v2 — 중복 이메일을 <code>409 code:email_exists</code>로 반환하며 <strong>어떤 계정인지</strong>(협력사 계정·거래처명) 알려주고, 관리자가 확인하면 <code>force:true</code>로 <strong>기존 계정을 관리자 계정으로 전환</strong>(거래처 소속 해제·<code>vendor_account</code> 행 제거·새 임시비번, 로그 <code>convert_admin</code>).</td>

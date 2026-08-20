@@ -181,6 +181,7 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <li><strong>사내 인증</strong> = Microsoft Entra ID(SSO+MFA), 앱 <code>JEIL-AX-Portal</code>. 협력사는 동일 테넌트에 넣지 않음(<code>CLAUDE.md §5.5</code>).</li>
 <li><strong>권한 판정은 백엔드/DB에서</strong>(프론트 메뉴 숨김은 UX일 뿐 — <code>CLAUDE.md §5.4</code>).</li>
 <li>RLS 헬퍼: <code>is_vendor_admin()</code>(사내 관리자 판정), <code>vendor_bp</code> JWT 클레임(협력사 거래처 격리), <strong><code>is_vendor_viewer()</code></strong>(협력사 포털 관리자 계정 — 전 거래처 SELECT). 정의: <code>이관/sql/01_schema_rls.sql</code>·<code>06_vendor_provisioning.sql</code>·<strong><code>27_vendor_portal_admin.sql</code></strong>.</li>
+<li><strong>비밀번호 정책(협력사·포털 관리자 계정, 2026-08-20)</strong>: 발급·초기화 시 고정 초기비번 <strong><code>jeilmns</code></strong> + <code>app_metadata.must_change_password</code> → JWT <code>must_pw</code> 클레임으로 <strong>최초 로그인 시 새 비밀번호 설정 강제</strong>. 해제는 Edge Function <code>vendor-set-password</code>(실제 변경)만. 사내 계정은 Entra 관리라 대상 아님. 정의: <code>이관/sql/28_vendor_password_policy.sql</code>.</li>
 <li><strong>협력사 포털 관리자 계정(<code>vendor_admin</code>)</strong>: 사내 관리자가 <code>app/admin-vendors.html</code>에서 발급(Edge Function <code>vendor-admin-provision</code>), 대장 <code>vendor_admin_account</code>. 사내(@jeilm.co.kr) 이메일은 <strong>발급 금지</strong> — 같은 주소로 Entra SSO 계정이 생기면 <code>app_metadata.role</code>이 <code>vendor_admin</code>으로 고정돼 사내 권한(<code>internal</code>)을 잃는다. 사내 직원은 <strong>SSO 세션 그대로 협력사 포털에 접속</strong>하면 같은 전체 조회 화면이 열린다(<code>internal_all</code> 정책).</li>
 </ul>
 <hr />

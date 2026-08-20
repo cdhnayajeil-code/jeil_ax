@@ -4,7 +4,7 @@
 //
 // 반환 형태는 기존 데모 화면(협력사_모바일_포털.html)의 orders 구조에 맞춘다:
 //   { no, date, due, type, status, inspReqNo, items[], photos[], msgs[], bp }
-import { DATA_BACKEND } from "../config.js";
+import { DATA_BACKEND, SUPABASE_URL, SUPABASE_ANON_KEY } from "../config.js";
 import { supabase } from "./supabaseClient.js";
 
 // 상태머신 v2 (08_협력사발주포털/03_실구축기획/08 문서가 단일 출처)
@@ -14,6 +14,17 @@ const STEP = { new: 3, prod: 4, insp: 6, rework: 4, done: 9 };
 const fmt = (ts) => (ts ? new Date(ts).toLocaleString("ko-KR", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" }) : "");
 const _bp = {}; // po_no -> bp_cd 캐시 (쓰기 시 격리 키 재사용)
 const _urlCache = {}; // storage_path -> { url, exp } — signed URL 캐시(Realtime 재로드 시 재서명 방지)
+
+// JWT(base64url·UTF-8) → app_metadata 클레임(role / vendor_bp / must_pw)
+export function claimsOfToken(accessToken) {
+  if (!accessToken) return {};
+  try {
+    let p = accessToken.split(".")[1].replace(/-/g, "+").replace(/_/g, "/");
+    while (p.length % 4) p += "=";
+    const json = decodeURIComponent(atob(p).split("").map((c) => "%" + c.charCodeAt(0).toString(16).padStart(2, "0")).join(""));
+    return JSON.parse(json).app_metadata || {};
+  } catch { return {}; }
+}
 
 /* ===================== Supabase 어댑터 ===================== */
 const supabaseAdapter = {
@@ -204,10 +215,28 @@ const supabaseAdapter = {
     return data || [];
   },
 
-  // ---- 본인 비밀번호 변경 (협력사 세션 기반) ----
+  // ---- 본인 비밀번호 변경 (협력사/포털 관리자 세션 기반) ----
+  // 정책(2026-08-20): 발급·초기화 시 비밀번호는 고정 초기값이고 app_metadata.must_change_password가
+  // 걸린다. 이 플래그는 사용자가 지울 수 없으므로 Edge Function(vendor-set-password)으로만 변경한다
+  // (auth.updateUser 직접 호출은 플래그가 남아 강제 변경이 풀리지 않는다).
   async changePassword(newPw) {
-    const { error } = await supabase.auth.updateUser({ password: newPw });
-    if (error) throw error;
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) throw new Error("로그인이 필요합니다.");
+    const res = await fetch(SUPABASE_URL + "/functions/v1/vendor-set-password", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", apikey: SUPABASE_ANON_KEY, Authorization: "Bearer " + session.access_token },
+      body: JSON.stringify({ new_password: newPw }),
+    });
+    const out = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(out.error || ("HTTP " + res.status));
+    await supabase.auth.refreshSession();   // must_pw 클레임 갱신(강제 변경 해제 반영)
+    return out;
+  },
+
+  // ---- 최초 로그인 강제 변경 대상인가(JWT must_pw 클레임) ----
+  async mustChangePassword() {
+    const { data: { session } } = await supabase.auth.getSession();
+    return !!(session && claimsOfToken(session.access_token).must_pw);
   },
 
   // ---- 본인 프로필(담당자 이름·연락처) 수정 — user_metadata + vendor_account(RPC, 컬럼 제한) 동기 ----

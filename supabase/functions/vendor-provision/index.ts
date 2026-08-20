@@ -13,13 +13,8 @@ const cors = {
 const json = (o: unknown, status = 200) =>
   new Response(JSON.stringify(o), { status, headers: { ...cors, "Content-Type": "application/json" } });
 
-// 임시 비밀번호(영대소문자+숫자+특수 포함, 14자 내외)
-function tempPassword(): string {
-  const bytes = new Uint8Array(12);
-  crypto.getRandomValues(bytes);
-  const b64 = btoa(String.fromCharCode(...bytes)).replace(/[+/=]/g, "");
-  return "Jm" + b64.slice(0, 10) + "7!";
-}
+// 초기 비밀번호(고정, 2026-08-20 정책) — 최초 로그인 시 새 비밀번호 설정을 강제한다.
+const INIT_PW = "jeilmns";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
@@ -50,12 +45,12 @@ Deno.serve(async (req) => {
   const { data: vm } = await admin.from("vendor_master").select("bp_cd,bp_nm").eq("bp_cd", bp_cd).single();
   if (!vm) return json({ error: "unknown bp_cd" }, 400);
 
-  const pw = tempPassword();
+  const pw = INIT_PW;
   const { data: created, error: ce } = await admin.auth.admin.createUser({
     email,
     password: pw,
     email_confirm: true,
-    app_metadata: { role: "vendor", vendor_bp: [bp_cd] },
+    app_metadata: { role: "vendor", vendor_bp: [bp_cd], must_change_password: true },
     user_metadata: { contact_name: contact_name ?? null, phone: phone ?? null, bp_cd },
   });
   if (ce || !created?.user) return json({ error: "createUser failed: " + (ce?.message ?? "unknown") }, 400);
@@ -63,7 +58,7 @@ Deno.serve(async (req) => {
   const { error: ae } = await admin.from("vendor_account").upsert({
     bp_cd, email, auth_user_id: created.user.id,
     contact_name: contact_name ?? null, phone: phone ?? null,
-    status: "active", created_by: user.email,
+    status: "active", created_by: user.email, must_change_pw: true,
   }, { onConflict: "email" });
   if (ae) return json({ error: "vendor_account save failed: " + ae.message }, 500);
 
@@ -73,5 +68,5 @@ Deno.serve(async (req) => {
     actor_name: (user.user_metadata as Record<string, string>)?.name ?? null,
   });
 
-  return json({ ok: true, email, temp_password: pw, bp_nm: vm.bp_nm });
+  return json({ ok: true, email, temp_password: pw, init_password: pw, must_change: true, bp_nm: vm.bp_nm });
 });

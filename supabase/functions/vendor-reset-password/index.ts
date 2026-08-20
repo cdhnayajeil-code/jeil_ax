@@ -1,4 +1,7 @@
 // vendor-reset-password — 관리자 협력사 비밀번호 초기화 (service_role)
+// 정책(2026-08-20): 무작위 임시비번 전달 폐지 → 초기 비밀번호를 고정값 'jeilmns'로 되돌리고
+//   app_metadata.must_change_password=true 를 걸어 최초 로그인 시 새 비밀번호 설정을 강제한다.
+//   플래그 해제는 vendor-set-password(본인 변경)만 가능하다.
 // 배포: verify_jwt=false (내부에서 관리자 JWT 검증)
 // 호출: POST /functions/v1/vendor-reset-password  Authorization: Bearer <관리자 access_token>
 //   body: { auth_user_id? , email? }  (둘 중 하나)
@@ -13,12 +16,8 @@ const cors = {
 const json = (o: unknown, status = 200) =>
   new Response(JSON.stringify(o), { status, headers: { ...cors, "Content-Type": "application/json" } });
 
-function tempPassword(): string {
-  const bytes = new Uint8Array(12);
-  crypto.getRandomValues(bytes);
-  const b64 = btoa(String.fromCharCode(...bytes)).replace(/[+/=]/g, "");
-  return "Jm" + b64.slice(0, 10) + "7!";
-}
+// 초기 비밀번호(고정) — 최초 로그인 시 반드시 변경된다.
+const INIT_PW = "jeilmns";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
@@ -62,16 +61,21 @@ Deno.serve(async (req) => {
   }
   if (!acc?.auth_user_id) return json({ error: "vendor account not found" }, 404);
 
-  const pw = tempPassword();
-  const { error: ue } = await admin.auth.admin.updateUserById(acc.auth_user_id, { password: pw });
+  const pw = INIT_PW;
+  const { error: ue } = await admin.auth.admin.updateUserById(acc.auth_user_id, {
+    password: pw,
+    app_metadata: { must_change_password: true },   // 기존 role/vendor_bp는 병합 유지
+  });
   if (ue) return json({ error: "reset failed: " + ue.message }, 500);
 
-  await admin.from(table).update({ last_reset_at: new Date().toISOString() }).eq("auth_user_id", acc.auth_user_id);
+  await admin.from(table)
+    .update({ last_reset_at: new Date().toISOString(), must_change_pw: true })
+    .eq("auth_user_id", acc.auth_user_id);
   await admin.from("vendor_account_log").insert({
     action: "reset_password", target_email: acc.email, bp_cd: acc.bp_cd,
     actor_email: user.email,
     actor_name: (user.user_metadata as Record<string, string>)?.name ?? null,
   });
 
-  return json({ ok: true, email: acc.email, temp_password: pw });
+  return json({ ok: true, email: acc.email, temp_password: pw, init_password: pw, must_change: true });
 });

@@ -117,7 +117,7 @@ tr:nth-child(even) td{background:#fafbfd;}
       <h3>🔑 계정 발급/초기화 완료 — 협력사에 전달하세요</h3>
       <div class="kv">로그인 주소: <code id="cr_url"></code></div>
       <div class="kv">이메일(ID): <code id="cr_email"></code></div>
-      <div class="kv">임시 비밀번호: <code id="cr_pw"></code> <span class="muted">(최초 로그인 후 변경 권장)</span></div>
+      <div class="kv">초기 비밀번호: <code id="cr_pw"></code> <span class="muted">(<b>최초 로그인 시 새 비밀번호 설정이 강제</b>됩니다 — 설정 전에는 포털 이용 불가)</span></div>
       <div class="acts">
         <button class="btn sm ok" id="cr_mail">📧 등록 메일로 발송(SSO 메일)</button>
         <button class="btn sm ghost" id="cr_copy">복사</button>
@@ -155,6 +155,7 @@ tr:nth-child(even) td{background:#fafbfd;}
         <button class="btn sm ok" id="va_add">＋ 관리자 계정 생성</button>
       </div>
       <div class="msg" id="va_msg"></div>
+      <div class="muted" style="margin:-4px 0 12px">🔑 <b>비밀번호 정책</b> — 계정 발급·초기화 시 비밀번호는 <b>jeilmns</b>(고정)로 설정되고, <b>최초 로그인 시 새 비밀번호 설정 화면이 강제로 표시</b>됩니다. 설정 전에는 포털을 이용할 수 없습니다.</div>
       <table>
         <thead><tr><th>이메일(ID)</th><th>표시명</th><th>상태</th><th>발급자</th><th>발급일</th><th>최근 초기화</th><th>관리</th></tr></thead>
         <tbody id="vaBody"><tr><td colspan="7" class="muted">불러오는 중…</td></tr></tbody>
@@ -379,7 +380,7 @@ async function loadVendors() {
       bp_cd: v.bp_cd, bp_nm: v.bp_nm, biz_no: v.biz_no || "-",
       bp_type: v.bp_type === "CS" ? "겸용" : "매입",
       deal: v.has_order ? "있음" : "없음",
-      status: a ? a.status : "none", email: a?.email || "",
+      status: a ? a.status : "none", email: a?.email || "", _mustpw: !!a?.must_change_pw,
       name: a?.contact_name || "",   // 협력사가 포털 '내 정보 수정'으로 갱신 시 실시간 반영
       phone: a?.phone || "",
       _auth: a?.auth_user_id || "",
@@ -408,7 +409,8 @@ function buildVmGrid(rows) {
           : `<span class="muted">없음</span>` },
       { key: "status", label: "계정상태", width: "78px", align: "center",
         type: "select", options: [{ value: "none", label: "미발급" }, { value: "active", label: "발급됨" }, { value: "disabled", label: "비활성" }],
-        formatter: (v) => { const [c, t] = STAT_PILL[v] || STAT_PILL.none; return `<span class="pill ${c}">${t}</span>`; } },
+        formatter: (v, row) => { const [c, t] = STAT_PILL[v] || STAT_PILL.none;
+          return `<span class="pill ${c}">${t}</span>` + (row._mustpw ? `<span class="tag" title="초기 비밀번호 상태 — 최초 로그인 시 새 비밀번호 설정 필요">초기비번</span>` : ""); } },
       { key: "email", label: "담당자 이메일", width: "168px", type: "email", pasteKey: "email",
         editable: (row) => row.status === "none",
         validator: (v, row) => row.status !== "none" ? true : (!v ? true : (isEmail(v) || "이메일 형식 오류")),
@@ -455,8 +457,8 @@ async function sendCredMail(email, pw, token) {
   if (!token) return { ok: false, reason: "메일 발송 토큰 없음 — 'Microsoft 사내 계정으로 로그인(SSO)'으로 재로그인 + Entra Mail.Send 권한 필요" };
   const html = `<p>안녕하세요, 제일엠앤에스 협력사 포털 계정 안내입니다.</p>
     <ul><li>로그인 주소: <a href="${VENDOR_LOGIN_URL}">${VENDOR_LOGIN_URL}</a></li>
-    <li>이메일(ID): ${esc(email)}</li><li>임시 비밀번호: <b>${esc(pw)}</b></li></ul>
-    <p>최초 로그인 후 비밀번호를 변경해 주세요.</p>`;
+    <li>이메일(ID): ${esc(email)}</li><li>초기 비밀번호: <b>${esc(pw)}</b></li></ul>
+    <p><b>최초 로그인 시 새 비밀번호를 설정하는 화면이 표시됩니다.</b> 새 비밀번호를 설정해야 포털을 이용할 수 있습니다.</p>`;
   try {
     const res = await fetch("https://graph.microsoft.com/v1.0/me/sendMail", {
       method: "POST", headers: { "Authorization": "Bearer " + token, "Content-Type": "application/json" },
@@ -472,7 +474,7 @@ async function ensureGraphToken() {
   return session?.provider_token || null;
 }
 async function mailAccount(auth_user_id, email) {
-  if (!confirm(`${email}에 계정 안내 메일을 발송합니다.\n보안상 새 임시 비밀번호가 발급되어 메일로 전송됩니다. 진행할까요?`)) return;
+  if (!confirm(`${email}에 계정 안내 메일을 발송합니다.\n보안상 비밀번호가 초기값(jeilmns)으로 초기화되며(최초 로그인 시 새 비밀번호 설정 강제), 안내가 메일로 전송됩니다. 진행할까요?`)) return;
   const token = await ensureGraphToken();
   if (!token) {
     // 그래프 토큰 만료/부재 → 무프롬프트 SSO 재인증 후 복귀하여 자동 발송(resumePendingMail)
@@ -491,7 +493,7 @@ async function mailAccount(auth_user_id, email) {
 // 비번 재발급 + 메일 발송(토큰 확보된 상태에서만 호출)
 async function doMailSend(auth_user_id, email, token) {
   try {
-    show($("a_msg"), "info", "비밀번호 재발급 + 메일 발송 중…");
+    show($("a_msg"), "info", "비밀번호 초기화 + 메일 발송 중…");
     const out = await callFn("vendor-reset-password", { auth_user_id });
     const r = await sendCredMail(out.email, out.temp_password, token);
     if (r.ok) show($("a_msg"), "ok", `📧 ${esc(out.email)} 로 계정 안내 메일을 발송했습니다.`);
@@ -549,8 +551,8 @@ function showBulkResult(results) {
   const rows = results.map(r => `<tr><td>${esc(r.nm || r.bp)}</td><td>${esc(r.email)}</td><td>${r.ok ? `<code>${esc(r.pw)}</code>` : `<span style="color:var(--red)">${esc(r.err)}</span>`}</td><td style="text-align:center">${r.ok ? "✅" : "❌"}</td></tr>`).join("");
   const box = $("bulkResult");
   box.innerHTML = `<h3>📋 일괄 발급 결과 (성공 ${results.filter(r => r.ok).length} / ${results.length})</h3>
-    <div style="font-size:12px;color:var(--muted);margin-bottom:8px">임시 비밀번호를 각 협력사에 전달하거나, 위 표의 '📧 메일발송' 버튼으로 보내세요. 협력사는 최초 로그인 후 비밀번호를 변경합니다.</div>
-    <table style="background:#fff"><thead><tr><th>협력사</th><th>이메일</th><th>임시 비밀번호 / 오류</th><th>결과</th></tr></thead><tbody>${rows}</tbody></table>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:8px">초기 비밀번호는 <b>jeilmns</b>로 모두 동일합니다. 각 협력사에 전달하거나 위 표의 '📧 메일발송' 버튼으로 보내세요. <b>협력사는 최초 로그인 시 새 비밀번호를 반드시 설정</b>합니다.</div>
+    <table style="background:#fff"><thead><tr><th>협력사</th><th>이메일</th><th>초기 비밀번호 / 오류</th><th>결과</th></tr></thead><tbody>${rows}</tbody></table>
     <div class="acts"><button class="btn sm ghost" id="br_copy">전체 복사</button><button class="btn sm gray" id="br_close">닫기</button></div>`;
   box.classList.add("show");
   $("br_copy").onclick = () => {
@@ -562,7 +564,7 @@ function showBulkResult(results) {
 }
 
 async function resetPw(auth_user_id, email) {
-  if (!confirm(`${email} 비밀번호를 초기화합니다. 새 임시 비밀번호가 발급됩니다.\n진행할까요?`)) return;
+  if (!confirm(`${email} 비밀번호를 초기화합니다.\n· 비밀번호가 초기값(jeilmns)으로 변경됩니다\n· 다음 로그인 시 새 비밀번호 설정이 강제됩니다\n진행할까요?`)) return;
   try {
     show($("a_msg"), "info", "초기화 중…");
     const out = await callFn("vendor-reset-password", { auth_user_id });
@@ -586,7 +588,7 @@ function showCred(email, pw, title) {
 }
 $("cr_close").onclick = () => $("cred").classList.remove("show");
 $("cr_copy").onclick = () => {
-  navigator.clipboard.writeText(`로그인: ${VENDOR_LOGIN_URL}\n이메일: ${CRED.email}\n임시 비밀번호: ${CRED.pw}`);
+  navigator.clipboard.writeText(`로그인: ${VENDOR_LOGIN_URL}\n이메일: ${CRED.email}\n초기 비밀번호: ${CRED.pw} (최초 로그인 시 새 비밀번호 설정 필요)`);
   show($("cr_msg"), "info", "클립보드에 복사했습니다.");
 };
 $("cr_mail").onclick = async () => {
@@ -721,7 +723,7 @@ async function loadVendorAdmins() {
     return `<tr>
       <td>${esc(a.email)}</td>
       <td>${esc(a.display_name || "-")}</td>
-      <td><span class="pill ${c}">${t}</span></td>
+      <td><span class="pill ${c}">${t}</span>${a.must_change_pw ? `<span class="tag" title="초기 비밀번호 상태 — 최초 로그인 시 새 비밀번호 설정 필요">초기비번</span>` : ""}</td>
       <td>${esc(a.created_by || "-")}</td>
       <td>${a.created_at ? new Date(a.created_at).toLocaleDateString("ko-KR") : "-"}</td>
       <td>${a.last_reset_at ? new Date(a.last_reset_at).toLocaleDateString("ko-KR") : `<span class="muted">—</span>`}</td>
@@ -798,7 +800,7 @@ async function loadLog() {
   const { data, error } = await supabase.from("vendor_account_log").select("*").order("acted_at", { ascending: false }).limit(50);
   if (error) return;
   const ACT = { create: "계정 생성", reset_password: "비번 초기화", disable: "비활성", enable: "활성",
-    create_admin: "포털 관리자 계정 생성", convert_admin: "포털 관리자 계정 전환", disable_admin: "포털 관리자 비활성", enable_admin: "포털 관리자 활성", delete_admin: "포털 관리자 삭제" };
+    set_password: "본인 비밀번호 설정", create_admin: "포털 관리자 계정 생성", convert_admin: "포털 관리자 계정 전환", disable_admin: "포털 관리자 비활성", enable_admin: "포털 관리자 활성", delete_admin: "포털 관리자 삭제" };
   $("cntLog").textContent = `(${(data || []).length}건)`;
   $("logBody").innerHTML = (data || []).map(l =>
     `<tr><td>${new Date(l.acted_at).toLocaleString("ko-KR")}</td><td>${esc(ACT[l.action] || l.action)}</td><td>${esc(l.target_email || "-")}</td><td>${esc(l.bp_cd || "-")}</td><td>${esc(l.actor_email || "-")}</td></tr>`

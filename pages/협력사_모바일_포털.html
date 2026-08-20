@@ -240,6 +240,7 @@ async function loadSession(){
   const { data:{ session } } = await supabase.auth.getSession();
   if(!session){ location.replace('../app/vendor-login.html'); return null; }
   const am = claimsOf(session);
+  FORCE_PW = !!am.must_pw;   // 발급·초기화 직후 고정 초기비번 상태
   ADMIN = (am.role==='vendor_admin' || am.role==='internal');
   ADMIN_KIND = ADMIN ? am.role : '';
   if(!ADMIN && (am.role!=='vendor' || !(am.vendor_bp && am.vendor_bp.length))){
@@ -272,6 +273,7 @@ async function loadOrders(){
 let VENDOR = { code:'', name:'', contact:'', phone:'', user:'' }; // 담당 구매자는 발주별 o.buyer(실데이터)로 표시
 // 관리자 조회 모드: 거래처를 골라 전 거래처를 열람한다. 읽기 전용(쓰기는 RLS에서도 차단).
 let ADMIN = false, ADMIN_KIND = '';   // ADMIN_KIND: 'vendor_admin'(포털 관리자 계정) | 'internal'(사내 SSO)
+let FORCE_PW = false;                 // 초기 비밀번호 상태 — 새 비밀번호를 설정해야 포털 사용 가능
 let VLIST = [], VQ = '', VALL = false; // 거래처 선택 목록 / 검색어 / 전체 거래처 검색 여부
 let VINFO = null;                      // 선택 거래처의 ERP 기준정보(vendor_master)
 // 상태머신 v2(08_협력사발주포털/03_실구축기획/08): 판정이 상태를 전이 — 합격→done, 불합격→rework
@@ -301,6 +303,7 @@ async function initPortal(){
   const s = await loadSession(); if(!s) return;   // 세션 없으면 vendor-login으로 리디렉트됨
   await loadOrders();
   $('#app').classList.remove('hidden');
+  if(FORCE_PW){ openPwChange(true); }   // 새 비밀번호 설정 전에는 다른 조작을 막는다
   if(ADMIN){
     $('#adminbar').classList.remove('hidden');
     $('#synctag').textContent = '🔎 관리자 조회 모드 — 전체 거래처 열람(읽기 전용) · 등록·상태변경은 협력사 계정에서만 가능합니다';
@@ -469,7 +472,10 @@ function renderDetail(){
 function pcell(p,i){ const mark=p.chk==='ok'?`<span class="ok">✓</span>`:p.chk==='rej'?`<span class="rej">!</span>`:'';
   return `<div class="pcell" onclick="lightbox(${i})"><img src="${p.src}" onerror="photoErr(this)"><span class="tg">${p.tag}</span>${mark}</div>`; }
 // 전이표(03_실구축기획/08 §3.1)대로만 전이한다 — done은 판정(합격) 또는 DIV 무검사로만 진입
-const roBlock=()=>{ if(ADMIN){ toast('읽기 전용(관리자 조회) — 등록·변경은 협력사 계정에서만 가능합니다'); return true; } return false; };
+const roBlock=()=>{
+  if(FORCE_PW){ toast('먼저 새 비밀번호를 설정해 주세요'); openPwChange(true); return true; }
+  if(ADMIN){ toast('읽기 전용(관리자 조회) — 등록·변경은 협력사 계정에서만 가능합니다'); return true; }
+  return false; };
 async function advanceStatus(){ if(roBlock()) return; const st=curOrder.status;
   try{
     if(st==='new'){ await portalApi.updateStatus(curOrder.no,'prod'); curOrder.status='prod'; toast('생산 시작 (사내 대시보드 반영)'); }
@@ -589,7 +595,7 @@ function renderProfile(){
     <div class="prow"><span>사내 연계</span><span class="v" style="color:var(--green);font-weight:700">🔗 실시간 ON</span></div>
     <button class="btn pri block" style="margin-top:14px" onclick="openProfileEdit()">✏️ 내 정보 수정 (담당자 이름·연락처)</button>
     <div style="font-size:11.5px;color:var(--amber);background:var(--softamber);border-radius:9px;padding:9px 12px;margin-top:14px">🔑 관리자가 발급한 임시 비밀번호를 쓰고 계시면, 본인 비밀번호로 변경해 주세요.</div>
-    <button class="btn pri block" style="margin-top:9px" onclick="openPwChange()">🔑 비밀번호 변경</button>
+    <button class="btn pri block" style="margin-top:9px" onclick="openPwChange(false)">🔑 비밀번호 변경</button>
     <button class="btn ghost block" style="margin-top:9px" onclick="logout()">로그아웃</button>
     <div class="note">제일엠앤에스 협력사 발주·사진등록 포털 (하이브리드 앱 · Supabase 실연동)<br>등록 사진·상태·검수요청이 사내 외주 발주·검사 대시보드에 실시간 반영됩니다.</div></div>`;
 }
@@ -611,7 +617,7 @@ function renderAdminProfile(){
     <div class="prow"><span>로그인 계정</span><span class="v">${VENDOR.user||'-'}</span></div>
     <div class="prow"><span>권한</span><span class="v" style="color:var(--purple);font-weight:700">${kind} · 전체 거래처 조회</span></div>
     <button class="btn pri block" style="margin-top:14px" onclick="openVendorPick()">🔄 거래처 변경 · 전체 거래처 조회</button>
-    ${ADMIN_KIND==='internal'?'':`<button class="btn ghost block" style="margin-top:9px" onclick="openPwChange()">🔑 비밀번호 변경</button>`}
+    ${ADMIN_KIND==='internal'?'':`<button class="btn ghost block" style="margin-top:9px" onclick="openPwChange(false)">🔑 비밀번호 변경</button>`}
     <button class="btn ghost block" style="margin-top:9px" onclick="logout()">로그아웃</button>
     <div class="note">관리자 조회 모드입니다. 발주 상태 변경·사진 등록·메시지 발송은 <b>해당 협력사 계정</b>에서만 가능하며, 사내 처리(검수 판정·사진 검토)는 <b>사내 외주 발주·검사 대시보드</b>에서 수행합니다.</div></div>`;
 }
@@ -641,23 +647,31 @@ async function submitProfile(){
 }
 
 // 본인 비밀번호 변경
-function openPwChange(){
+// force=true: 초기 비밀번호(발급·초기화 직후) 상태 — 설정을 마칠 때까지 닫을 수 없다.
+function openPwChange(force){
+  if($('#pwSheet')) return;
   const bg=document.createElement('div'); bg.className='sheet-bg'; bg.id='pwSheet';
-  bg.onclick=e=>{ if(e.target===bg) closePwSheet(); };
-  bg.innerHTML=`<div class="sheet"><div class="grab"></div><h3>비밀번호 변경</h3>
-    <div style="font-size:11.5px;color:var(--muted)">새 비밀번호로 변경합니다. 변경 후 다음 로그인부터 적용됩니다.</div>
+  if(!force) bg.onclick=e=>{ if(e.target===bg) closePwSheet(); };
+  bg.innerHTML=`<div class="sheet"><div class="grab"></div><h3>${force?'🔑 새 비밀번호 설정':'비밀번호 변경'}</h3>
+    <div style="font-size:11.5px;color:var(--muted)">${force
+      ? '초기 비밀번호로 로그인했습니다. 계속하려면 <b>새 비밀번호를 설정</b>해야 합니다(초기 비밀번호와 다른 값).'
+      : '새 비밀번호로 변경합니다. 변경 후 다음 로그인부터 적용됩니다.'}</div>
     <div class="lab">새 비밀번호 (8자 이상)</div><input id="pw1" type="password" autocomplete="new-password" style="width:100%;padding:11px 13px;border:1px solid var(--line);border-radius:11px;font-size:14px;background:var(--bg)">
     <div class="lab">새 비밀번호 확인</div><input id="pw2" type="password" autocomplete="new-password" style="width:100%;padding:11px 13px;border:1px solid var(--line);border-radius:11px;font-size:14px;background:var(--bg)">
-    <div class="btn-row" style="margin-top:16px"><button class="btn ghost block" onclick="closePwSheet()">취소</button><button class="btn pri block" onclick="submitPwChange()">변경</button></div></div>`;
+    <div class="btn-row" style="margin-top:16px">${force?'':'<button class="btn ghost block" onclick="closePwSheet()">취소</button>'}<button class="btn pri block" onclick="submitPwChange()">${force?'설정하고 시작하기':'변경'}</button></div>
+    ${force?'<div style="font-size:11px;color:var(--muted);text-align:center;margin-top:10px"><a href="#" onclick="logout();return false;" style="color:var(--muted)">다른 계정으로 로그인</a></div>':''}</div>`;
   $('.phone').appendChild(bg);
+  setTimeout(()=>{ const el=$('#pw1'); if(el) el.focus(); }, 80);
 }
 function closePwSheet(){ const s=$('#pwSheet'); if(s) s.remove(); }
 async function submitPwChange(){
   const p1=($('#pw1')||{}).value||'', p2=($('#pw2')||{}).value||'';
   if(p1.length<8) return toast('비밀번호는 8자 이상이어야 합니다');
   if(p1!==p2) return toast('비밀번호 확인이 일치하지 않습니다');
-  try{ await portalApi.changePassword(p1); closePwSheet(); toast('✅ 비밀번호가 변경되었습니다'); }
-  catch(e){ toast('변경 실패: '+(e.message||e)); }
+  try{
+    await portalApi.changePassword(p1);   // Edge Function 경유 — 강제 플래그도 함께 해제
+    FORCE_PW=false; closePwSheet(); toast('✅ 비밀번호가 설정되었습니다');
+  }catch(e){ toast('변경 실패: '+(e.message||e)); }
 }
 
 let toastTimer;
