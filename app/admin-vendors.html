@@ -93,6 +93,7 @@ tr:nth-child(even) td{background:#fafbfd;}
   <label>이메일</label><input type="email" id="g_email" placeholder="name@jeilm.co.kr">
   <label>비밀번호</label><input type="password" id="g_pw">
   <button class="btn" id="g_btn" style="width:100%;margin-top:16px;background:rgba(26,47,78,.85)">이메일로 로그인</button>
+  <button class="btn ghost" id="g_out" style="width:100%;margin-top:8px">🚪 현재 세션 로그아웃 후 다시 로그인</button>
   <div class="msg" id="g_msg"></div>
 </div>
 
@@ -148,7 +149,7 @@ tr:nth-child(even) td{background:#fafbfd;}
       <h2>협력사 포털 관리자 계정 <span id="cntVAdmin" class="muted"></span></h2>
       <div class="sub">협력사 포털(<code id="vpUrl"></code>)에 로그인해 <b>거래처를 골라 전체 거래처의 발주·사진·검수·메시지를 열람</b>할 수 있는 계정입니다. 특정 거래처에 묶이지 않습니다.
         <br><b>읽기 전용</b> — 상태변경·사진등록·메시지 발송·검수요청은 DB 권한(RLS)에서 차단됩니다(대행 처리 금지).
-        <br><span class="muted">※ 사내(<b>@jeilm.co.kr</b>) 이메일로는 발급할 수 없습니다(Entra SSO 계정과 충돌). <b>사내 직원은 SSO 로그인 상태에서 협력사 포털 주소로 들어가면 별도 계정 없이 같은 전체 조회 화면</b>이 열립니다.<br>※ 이미 <b>협력사 계정으로 쓰이는 이메일</b>을 입력하면 어떤 계정인지 알려주고, 확인창에서 <b>관리자 계정으로 전환</b>할 수 있습니다(전환 시 기존 거래처 접근 권한 해제 + 새 임시 비밀번호 발급).</span></div>
+        <br><span class="muted">※ 사내(<b>@jeilm.co.kr</b>) 이메일로는 발급할 수 없습니다(Entra SSO 계정과 충돌). 사내 담당자도 <b>이 관리자 계정을 발급받아</b> 협력사 포털에 로그인하세요 — 협력사 포털 세션은 사내 세션과 분리돼 있어 서로 로그아웃되지 않습니다.<br>※ 이미 <b>협력사 계정으로 쓰이는 이메일</b>을 입력하면 어떤 계정인지 알려주고, 확인창에서 <b>관리자 계정으로 전환</b>할 수 있습니다(전환 시 기존 거래처 접근 권한 해제 + 새 임시 비밀번호 발급).</span></div>
       <div class="rowin" style="margin-bottom:12px;max-width:720px">
         <input type="email" id="va_email" placeholder="관리자 로그인 이메일 (사내 도메인 불가)">
         <input type="text" id="va_name" placeholder="표시명 (예: 구매팀 공용)" style="max-width:180px">
@@ -254,7 +255,7 @@ async function boot() {
   }
   if (claimsOf(session).role !== "internal") {
     $("gate").classList.remove("hidden");
-    return show($("g_msg"), "err", `사내(@jeilm.co.kr) 계정이 아닙니다(${esc(session.user.email || "")}). 로그아웃 후 사내 계정으로 로그인하세요.`);
+    return show($("g_msg"), "err", `현재 <b>${esc(session.user.email || "")}</b> 계정으로 로그인되어 있습니다 — 사내(@jeilm.co.kr) 계정이 아니라 협력사 계정 관리를 할 수 없습니다.<br>아래 <b>로그아웃</b> 후 Microsoft 사내 계정으로 다시 로그인하세요.`);
   }
   ME = session.user.email;
   MY_NAME = displayNameOf(session.user);
@@ -299,10 +300,16 @@ $("g_btn").onclick = async () => {
   finally { $("g_btn").disabled = false; }
 };
 $("logout").onclick = async () => { await supabase.auth.signOut(); location.reload(); };
+$("g_out").onclick = async () => { await supabase.auth.signOut(); location.href = location.pathname; };
 
 // ── 토큰 헤더 ──
+// 호출 직전 세션을 다시 확인한다: 같은 브라우저에서 다른 계정으로 로그인하면 세션이 바뀌어
+// 사내 전용 Edge Function이 403(forbidden: internal only)을 돌려주기 때문이다.
 async function authHeaders() {
   const { data: { session } } = await supabase.auth.getSession();
+  if (!session) throw new Error("세션이 만료됐습니다. 페이지를 새로고침해 다시 로그인하세요.");
+  if (claimsOf(session).role !== "internal")
+    throw new Error(`현재 세션이 사내 계정이 아닙니다(${session.user.email || ""}). 사내 계정으로 다시 로그인해야 계정 관리를 할 수 있습니다.`);
   return { "Content-Type": "application/json", "apikey": SUPABASE_ANON_KEY, "Authorization": "Bearer " + session.access_token };
 }
 async function callFn(name, payload) {
@@ -759,7 +766,7 @@ $("va_add").onclick = async () => {
   if (!email) return vaMsg("err", "관리자 로그인 이메일을 입력하세요.");
   if (!isEmail(email)) return vaMsg("err", "이메일 형식이 올바르지 않습니다.");
   if (email.endsWith("@jeilm.co.kr"))
-    return vaMsg("err", "사내(@jeilm.co.kr) 이메일은 Entra SSO 계정과 충돌해 발급할 수 없습니다. 사내 직원은 <b>SSO 로그인 상태로 협력사 포털에 접속</b>하면 별도 계정 없이 동일한 전체 조회 화면이 열립니다.");
+    return vaMsg("err", "사내(@jeilm.co.kr) 이메일은 Entra SSO 계정과 충돌해 발급할 수 없습니다. 사내 담당자용으로는 <b>사내 도메인이 아닌 이메일</b>로 관리자 계정을 발급해 사용하세요.");
   if (!confirm(`협력사 포털 관리자 계정을 생성합니다.\n이메일: ${email}\n권한: 전체 거래처 조회(읽기 전용)\n진행할까요?`)) return;
   await createVendorAdmin(email, display_name, false);
 };

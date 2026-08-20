@@ -27,6 +27,24 @@ input:focus{outline:none;border-color:var(--accent);background:#fff;}
 .msg.err{background:#fbecea;color:var(--red);border:1px solid #f0cfca;}
 .msg.info{background:#eef3fb;color:var(--navy2);border:1px solid #d3e0f2;}
 .foot{text-align:center;font-size:11px;color:var(--muted);padding:0 26px 22px;}
+/* 관리자 로그인 후 거래처 선택 */
+.hidden{display:none!important;}
+.pk-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px;}
+.pk-head b{font-size:14px;color:var(--navy);}
+.pk-head .who{font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.pk-list{max-height:300px;overflow-y:auto;border:1px solid var(--line);border-radius:12px;background:var(--soft);margin-top:10px;}
+.pk-item{padding:11px 13px;border-bottom:1px solid var(--line);cursor:pointer;display:flex;align-items:center;gap:8px;}
+.pk-item:last-child{border-bottom:none;}
+.pk-item:hover{background:#e9eff8;}
+.pk-item .nm{flex:1;min-width:0;}
+.pk-item .nm b{display:block;font-size:13.5px;color:var(--navy);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.pk-item .nm span{font-size:11px;color:var(--muted);}
+.pk-item .cnt{flex:none;font-size:10.5px;font-weight:700;color:#5a3f8f;background:#efe9fb;border-radius:20px;padding:2px 8px;}
+.pk-empty{padding:22px;text-align:center;color:var(--muted);font-size:12.5px;}
+.pk-foot{display:flex;gap:8px;margin-top:12px;}
+.pk-foot button{flex:1;padding:10px;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;}
+.pk-foot .go{background:var(--navy);color:#fff;}
+.pk-foot .out{background:#eef3fb;color:var(--navy2);border:1px solid #d3e0f2;}
 /* 최초 로그인 강제 비밀번호 설정 */
 .ovl{position:fixed;inset:0;background:rgba(20,28,42,.55);display:none;align-items:center;justify-content:center;padding:20px;z-index:50;}
 .ovl.show{display:flex;}
@@ -47,11 +65,25 @@ input:focus{outline:none;border-color:var(--accent);background:#fff;}
   </div>
 
   <div class="body">
-    <label>이메일</label>
-    <input type="email" id="li_email" placeholder="발급받은 이메일" autocomplete="username">
-    <label>비밀번호</label>
-    <input type="password" id="li_pw" placeholder="비밀번호" autocomplete="current-password">
-    <button class="btn" id="btnLogin">로그인</button>
+    <div id="loginForm">
+      <label>이메일</label>
+      <input type="email" id="li_email" placeholder="발급받은 이메일" autocomplete="username">
+      <label>비밀번호</label>
+      <input type="password" id="li_pw" placeholder="비밀번호" autocomplete="current-password">
+      <button class="btn" id="btnLogin">로그인</button>
+    </div>
+
+    <!-- 관리자 계정 로그인 후: 이 화면에서 바로 거래처 선택 -->
+    <div id="pickWrap" class="hidden">
+      <div class="pk-head"><b>🔎 거래처 선택</b><span class="who" id="pk_who"></span></div>
+      <div style="font-size:11.5px;color:var(--muted);line-height:1.6">조회할 협력사(거래처)를 고르세요. 선택한 거래처의 발주·사진·검수·메시지를 <b>읽기 전용</b>으로 확인합니다.</div>
+      <input type="text" id="pk_q" placeholder="🔍 거래처명 · 거래처코드 검색 (전체 거래처)" style="margin-top:10px">
+      <div class="pk-list" id="pk_list"><div class="pk-empty">불러오는 중…</div></div>
+      <div class="pk-foot">
+        <button class="out" id="pk_logout">로그아웃</button>
+        <button class="go" id="pk_go">거래처 없이 포털 열기</button>
+      </div>
+    </div>
     <div class="notice">협력사 계정은 <b>제일엠앤에스 관리자가 발급</b>합니다. 등록하신 이메일로 받은 임시 비밀번호로 로그인하세요. 계정·비밀번호 문의는 <b>구매팀</b>으로 연락 주세요.
       <br><span style="color:#667">※ 사내 <b>관리자 계정</b>으로 로그인하면 거래처를 선택해 전체 거래처를 조회할 수 있습니다(읽기 전용).</span></div>
     <div class="msg" id="li_msg"></div>
@@ -80,10 +112,11 @@ input:focus{outline:none;border-color:var(--accent);background:#fff;}
 
 <script type="module">
 import { supabase } from "./lib/supabaseClient.js";
-import { portalApi } from "./lib/api.js";
+import { portalApi, vendorDirApi } from "./lib/api.js";
 
 const $ = (id) => document.getElementById(id);
 const show = (el, type, html) => { el.className = "msg show " + type; el.innerHTML = html; };
+const esc = (v) => String(v ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;" }[c]));
 function claimsOf(session) {
   if (!session?.access_token) return {};
   try {
@@ -110,12 +143,12 @@ $("btnLogin").onclick = async () => {
   } finally { $("btnLogin").disabled = false; }
 };
 
-// 역할별 이동 — 협력사 / 포털 통합 관리자(전 거래처 조회)
+// 역할별 처리 — 관리자는 이 화면에서 바로 거래처를 고르고, 협력사는 포털로 이동
 function routeAfterLogin(session) {
   const am = claimsOf(session);
-  if (am.role === "vendor_admin") {
-    show($("li_msg"), "ok", "관리자 계정으로 로그인되었습니다. 거래처 선택 화면으로 이동합니다…");
-    setTimeout(() => location.href = "../pages/협력사_모바일_포털.html", 1000);
+  if (am.role === "vendor_admin" || am.role === "internal") {
+    show($("li_msg"), "ok", "관리자 계정으로 로그인되었습니다. 아래에서 조회할 거래처를 선택하세요.");
+    openVendorPicker(session);
   } else if (am.role === "vendor" && am.vendor_bp?.length) {
     show($("li_msg"), "ok", `로그인되었습니다(거래처 ${am.vendor_bp.join(", ")}). 발주 포털로 이동합니다…`);
     setTimeout(() => location.href = "../pages/협력사_모바일_포털.html", 1200);
@@ -147,10 +180,62 @@ $("pw_save").onclick = async () => {
 };
 $("pw2").addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.isComposing) $("pw_save").click(); });
 
-// 이미 로그인된 상태로 들어왔는데 강제 변경 대상이면 바로 설정 창을 띄운다.
+/* ===== 관리자 계정: 로그인된 화면에서 거래처 선택 ===== */
+const PORTAL_URL = "../pages/협력사_모바일_포털.html";
+let PK_LIST = [], pkTimer;
+
+function openVendorPicker(session) {
+  $("loginForm").classList.add("hidden");
+  $("pickWrap").classList.remove("hidden");
+  $("pk_who").textContent = session?.user?.email || "";
+  loadPickList();
+}
+
+// 기본 목록 = 포털 발주가 있는 거래처, 검색 시 = ERP 거래처마스터 전체(서버 검색)
+async function loadPickList() {
+  const q = $("pk_q").value.trim();
+  try {
+    PK_LIST = q ? await vendorDirApi.search(q, 60) : await vendorDirApi.withOrders();
+  } catch (e) {
+    $("pk_list").innerHTML = `<div class="pk-empty">거래처 조회 실패: ${esc(e.message || e)}</div>`;
+    return;
+  }
+  renderPickList(!!q);
+}
+
+function renderPickList(searched) {
+  if (!PK_LIST.length) {
+    $("pk_list").innerHTML = `<div class="pk-empty">${searched ? "검색 결과가 없습니다." : "포털 발주가 등록된 거래처가 없습니다. 위에서 거래처명을 검색하세요."}</div>`;
+    return;
+  }
+  $("pk_list").innerHTML = PK_LIST.map((v) => `<div class="pk-item" data-bp="${esc(v.bp_cd)}">
+      <div class="nm"><b>${esc(v.bp_nm || v.bp_cd)}</b><span>${esc(v.bp_cd)}${v.biz_no ? " · 사업자 " + esc(v.biz_no) : ""}</span></div>
+      ${v.po_cnt ? `<span class="cnt">발주 ${v.po_cnt}</span>` : (v.has_order ? `<span class="cnt">거래실적</span>` : "")}
+    </div>`).join("");
+  $("pk_list").querySelectorAll(".pk-item").forEach((el) => el.onclick = () => gotoPortal(el.dataset.bp));
+}
+
+// 선택한 거래처를 포털이 이어받는다(같은 탭 세션 저장소).
+function gotoPortal(bp) {
+  if (bp) sessionStorage.setItem("jeilax_vp_bp", bp);
+  else sessionStorage.removeItem("jeilax_vp_bp");
+  location.href = PORTAL_URL;
+}
+
+$("pk_q").addEventListener("input", () => { clearTimeout(pkTimer); pkTimer = setTimeout(loadPickList, 250); });
+$("pk_go").onclick = () => gotoPortal("");
+$("pk_logout").onclick = async () => { await supabase.auth.signOut(); sessionStorage.removeItem("jeilax_vp_bp"); location.reload(); };
+
+// 이미 로그인된 상태로 들어온 경우: 강제 변경 대상이면 설정 창, 관리자면 거래처 선택
 (async () => {
   const { data: { session } } = await supabase.auth.getSession();
-  if (session && claimsOf(session).must_pw) openForcePw();
+  if (!session) return;
+  const am = claimsOf(session);
+  if (am.must_pw) return openForcePw();
+  if (am.role === "vendor_admin" || am.role === "internal") {
+    show($("li_msg"), "info", `이미 로그인되어 있습니다(${esc(session.user.email || "")}). 조회할 거래처를 선택하세요.`);
+    openVendorPicker(session);
+  }
 })();
 </script>
 </body>
