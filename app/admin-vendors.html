@@ -707,6 +707,8 @@ $("th_text").addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.is
 /* ===================== 협력사 포털 통합 관리자 계정 (전체 거래처 조회 · 읽기 전용) ===================== */
 // 거래처(bp_cd)에 묶이지 않는 포털 계정. role=vendor_admin 클레임으로 전 거래처 SELECT만 허용된다.
 const VA_STAT = { active: ["p-active", "사용중"], disabled: ["p-disabled", "비활성"] };
+// 결과·오류는 섹션 안(#va_msg)에 표시한다 — 페이지 최상단 배너는 스크롤 밖이라 "아무 반응 없음"으로 보였다.
+const vaMsg = (type, html) => { show($("va_msg"), type, html); };
 
 async function loadVendorAdmins() {
   const { data, error } = await supabase.from("vendor_admin_account").select("*").order("created_at");
