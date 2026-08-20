@@ -149,6 +149,54 @@
   .jl .ctrls{border-top:1px dashed var(--line); padding:9px 13px; display:flex; flex-wrap:wrap; gap:6px 8px; align-items:center;}
   .jl .ctrls .cap{font-size:10.5px; font-weight:700; color:var(--muted); margin-right:2px;}
   .jl .none{padding:8px 13px; font-size:11.5px; color:#aab;}
+  /* ═══ 전표 서식(ERP 결의전표 출력물 형태) ═══
+     ERP 서식을 그대로 따라 3행 1블록: ①계정코드·CC·관리항목1~3 ②계정과목·관리항목4~7 ③적요·금액
+     회계 담당자가 ERP에서 보던 배치 그대로라 어디에 무엇이 들어가는지 바로 읽힌다. */
+  .vform{width:100%; border-collapse:collapse; font-size:12px; background:#fff;
+         border:1.5px solid #b9c7da; table-layout:fixed;}
+  .vform th,.vform td{border:1px solid #ccd7e5; padding:5px 7px; vertical-align:middle; word-break:break-all;}
+  .vform thead th{background:#dbe7f3; color:var(--navy); font-weight:700; font-size:11px; text-align:center; white-space:nowrap;}
+  .vform .no{width:34px; text-align:center; font-weight:700; color:var(--muted); background:#f7fafd;}
+  .vform .acd{font-family:'Consolas','Menlo',monospace; font-size:11.5px; color:var(--muted);}
+  .vform .anm{font-weight:700; color:var(--navy); font-size:12.5px;}
+  .vform .amt{text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap; width:104px;}
+  .vform .cur{text-align:center; width:52px; color:var(--muted); font-size:11px;}
+  .vform .dscrow td{background:#fbfcfe;}
+  .vform .dsc{color:var(--ink);}
+  .vform tr.sumrow td{background:#dbe7f3; font-weight:800; color:var(--navy);}
+  .vform tr.sumrow .lbl{text-align:center;}
+  .vform tbody tr.blk-dr .anm{color:var(--accent);}
+  .vform tbody tr.blk-cr .anm{color:var(--green);}
+  /* 관리항목 슬롯 — 이름(값) 한 칸. 비면 점선, 규칙이면 색으로 구분 */
+  .slot{display:block; width:100%; text-align:left; border:none; background:none; font-family:inherit;
+        font-size:11.5px; line-height:1.45; padding:2px 3px; border-radius:5px; cursor:pointer; color:var(--ink);}
+  .slot:hover{background:#eef4fb;}
+  .slot .snm{color:var(--muted); font-size:10.5px; display:block;}
+  .slot .sv{font-weight:700;}
+  .slot.fixed .sv{color:var(--navy);}
+  .slot.input .sv{color:var(--accent);}
+  .slot.shift .sv{color:var(--amber);}
+  .slot.none{color:#b6c0cc;}
+  .slot.none .sv{font-weight:400;}
+  .slot.req .snm::after{content:" *"; color:var(--red); font-weight:700;}
+  .vform td.slotcell{padding:3px 4px;}
+  .vform td.empty{background:#f7f9fc;}
+  /* 규칙 편집 팝오버 */
+  .ce-box{background:#fff; border-radius:13px; width:min(420px,92vw); box-shadow:0 18px 50px rgba(16,42,80,.28); overflow:hidden;}
+  .ce-head{display:flex; align-items:center; gap:8px; padding:13px 16px; background:var(--soft); border-bottom:1px solid var(--line);}
+  .ce-head .t{font-weight:800; color:var(--navy); font-size:14px;}
+  .ce-head .c{margin-left:auto; font-family:'Consolas',monospace; font-size:11px; color:var(--muted);}
+  .ce-body{padding:14px 16px; display:flex; flex-direction:column; gap:11px;}
+  .ce-opt{display:flex; gap:9px; align-items:flex-start; padding:9px 11px; border:1.5px solid var(--line);
+          border-radius:9px; cursor:pointer;}
+  .ce-opt:hover{border-color:var(--accent); background:#f7fafd;}
+  .ce-opt.on{border-color:var(--accent); background:#eef4fb;}
+  .ce-opt input{margin-top:2px;}
+  .ce-opt .nm{font-weight:700; font-size:12.5px; color:var(--navy);}
+  .ce-opt .ds{font-size:11px; color:var(--muted); line-height:1.5;}
+  .ce-body .val{border:1.5px solid var(--line); border-radius:8px; padding:8px 11px; font-family:inherit; font-size:13px;}
+  .ce-foot{display:flex; gap:8px; padding:12px 16px; border-top:1px solid var(--line); background:#fafbfd;}
+  .ce-foot .sp{margin-left:auto;}
   /* 월반복 홈(F1) */
   .recurgrid{display:grid; grid-template-columns:repeat(auto-fill,minmax(250px,1fr)); gap:10px;}
   .rcard{border:1.5px solid var(--line); border-radius:11px; padding:12px 14px; background:#fff; transition:.12s;}
@@ -572,6 +620,20 @@
           </span>
         </h2>
         <div id="tplItemGrid"></div>
+
+        <h2 style="margin-top:18px;">전표 서식 · 관리항목 지정
+          <small>ERP 결의전표 출력 서식 그대로 — <b>관리항목 칸을 클릭</b>하면 규칙(고정값·매번 입력·다음 달)을 정할 수 있습니다</small>
+        </h2>
+        <div style="overflow-x:auto;"><div id="tplForm" style="min-width:820px;"></div></div>
+        <div style="font-size:11.5px;color:var(--muted);margin-top:7px;line-height:1.7;">
+          <b style="color:var(--navy);">고정값</b> 매번 같은 값을 자동으로 채움 ·
+          <b style="color:var(--amber);">다음 달</b> 지난 값 기준 +1개월(만기일·계산서일 등) ·
+          <b style="color:var(--accent);">매번 입력</b>·<span style="color:#b6c0cc;font-weight:700;">지정 안 함</span>
+          은 작성 시 사람이 채웁니다(동작은 같고, 표기로 의도만 구분) ·
+          <span style="color:var(--red);font-weight:700;">*</span> 는 ERP 필수 항목 —
+          자동으로 채우고 싶은 칸만 <b>고정값</b>으로 지정하면 됩니다.
+        </div>
+
         <div class="btns">
           <button class="b pri" id="btnTSave">템플릿 저장</button>
           <button class="b ok" id="btnTPublish">공개</button>
@@ -1334,11 +1396,50 @@ function selectTpl(id){
   box.classList.remove("hide");
   $("tplSelNm").textContent = TPL_SEL.tpl_nm;
   $("tplTotalFld").classList.toggle("hide", TPL_SEL.amount_mode!=="total");
-  $("tplPreview").innerHTML = (TPL_SEL.items||[]).map((it)=>
-    '· '+(it.dr_cr_fg==="D"?"차변":"대변")+' <b>'+esc(it.acct_nm||it.acct_cd)+'</b> — '
-    + RULE_KO[it.amt_rule]
-    + (it.amt_rule==="pct" ? " "+Number(it.amt_value)+"%"
-      : it.amt_rule==="fixed" ? " "+won(it.amt_value)+"원" : "")).join("<br>");
+  $("tplPreview").innerHTML = tplFormHtml(TPL_SEL);
+}
+/* 적용 전 미리보기 — 편집기와 같은 ERP 서식(읽기 전용).
+   무엇이 자동으로 채워지고 무엇을 직접 써야 하는지를 적용 전에 보여준다. */
+function tplFormHtml(t){
+  const items = (t.items||[]).filter((it)=> it.acct_cd);
+  if(!items.length) return '<span style="color:var(--muted);">라인이 없는 템플릿입니다.</span>';
+  const costNmOf = (cd)=>{
+    const c = (MASTER.cost_centers||[]).find((x)=> String(x.cost_cd)===String(cd));
+    return cd ? (c && c.cost_nm ? cd+" "+c.cost_nm : cd) : "—";
+  };
+  let need = 0;
+  const body = items.map((it, i)=>{
+    const slots = ctrlSlotsFor(it.acct_cd, it.dr_cr_fg);
+    const byCd = new Map((it.ctrls||[]).map((c)=> [c.ctrl_cd, c]));
+    const cell = (n)=>{
+      const s = slots[n]; if(!s) return '<td class="empty"></td>';
+      const r = byCd.get(s.cd);
+      if(!r || r.val_rule!=="fixed") need++;
+      const cls = r ? (r.val_rule==="fixed" ? "fixed" : r.val_rule==="date_shift" ? "shift" : "input") : "none";
+      const v = !r ? "—" : r.val_rule==="fixed" ? (r.fixed_val||"(빈 값)")
+              : r.val_rule==="date_shift" ? "다음 달" : "직접 입력";
+      return '<td class="slotcell"><span class="slot '+cls+(s.req?" req":"")+'" style="cursor:default;">'
+        + '<span class="snm">'+esc(s.nm)+'</span><span class="sv">'+esc(v)+'</span></span></td>';
+    };
+    const dr = it.dr_cr_fg==="D", amt = ruleLabel(it);
+    return '<tr class="'+(dr?"blk-dr":"blk-cr")+'"><td class="no" rowspan="2">'+(i+1)+'</td>'
+      + '<td class="acd">'+esc(it.acct_cd)+'</td><td>'+esc(costNmOf(it.cost_cd||t.cost_cd))+'</td>'
+      + cell(0)+cell(1)+cell(2)
+      + '<td class="cur" rowspan="2">KRW</td>'
+      + '<td class="amt" rowspan="2">'+(dr?'<b>'+esc(amt)+'</b>':'')+'</td>'
+      + '<td class="amt" rowspan="2">'+(dr?'':'<b>'+esc(amt)+'</b>')+'</td></tr>'
+      + '<tr class="'+(dr?"blk-dr":"blk-cr")+'"><td class="anm">'+esc(it.acct_nm||"")+'</td>'
+      + cell(3)+cell(4)+cell(5)+cell(6)+'</tr>';
+  }).join("");
+  return '<div style="overflow-x:auto;"><table class="vform" style="min-width:760px;"><thead>'
+    + '<tr><th rowspan="2">No</th><th>계정코드</th><th>COST CENTER</th><th>관리항목1</th><th>관리항목2</th><th>관리항목3</th>'
+    + '<th>통화</th><th>차변</th><th>대변</th></tr>'
+    + '<tr><th>계정과목</th><th>관리항목4</th><th>관리항목5</th><th>관리항목6</th><th>관리항목7</th></tr>'
+    + '</thead><tbody>'+body+'</tbody></table></div>'
+    + '<div style="font-size:11.5px;color:var(--muted);margin-top:6px;">'
+    + (need ? '적용 후 <b style="color:var(--accent);">'+need+'칸</b>을 직접 채우면 됩니다 — 나머지는 자동으로 들어갑니다.'
+            : '관리항목이 모두 자동으로 채워집니다.')
+    + '</div>';
 }
 $("btnTplClear").onclick = ()=>{ TPL_SEL=null; $("tplApply").classList.add("hide"); renderTplCards(); };
 
@@ -1923,6 +2024,7 @@ function buildTplGrid(){
     ],
     onCellEdit:(key, field, value, row)=>{
       if(field === "amt_rule" && (value==="input"||value==="balance")) row.amt_value = "";
+      renderTplForm();   // 서식 미리보기를 즉시 따라가게 한다
     },
     // 계정과목 팝업 — 라인 그리드와 동일한 검색 선택
     onRowAction:(act, row)=>{
@@ -1931,13 +2033,169 @@ function buildTplGrid(){
         row.acct_cd = a.acct_cd; row.acct_nm = a.acct_nm || "";
         const fg = String(a.bal_fg||"").charAt(0).toUpperCase();
         if(!row.dr_cr_fg && (fg==="D"||fg==="C")) row.dr_cr_fg = fg;
-        TGRID.refresh();
+        // 계정이 바뀌면 관리항목 구성 자체가 달라진다 — 새 계정에 없는 규칙은 버린다
+        const keep = new Set(ctrlSlotsFor(row.acct_cd, row.dr_cr_fg).map((s)=> s.cd));
+        if(Array.isArray(row.__ctrls)){
+          for(let i=row.__ctrls.length-1; i>=0; i--) if(!keep.has(row.__ctrls[i].ctrl_cd)) row.__ctrls.splice(i,1);
+        }
+        TGRID.refresh(); renderTplForm();
       });
     },
   });
 }
 function tRows(){ return TGRID ? TGRID.getData() : []; }
-function setTRows(rs){ rs.forEach((r,i)=>{ r.line_seq = i+1; }); TGRID.setRows(rs); }
+/* __ctrls 는 반드시 만들어 둔다 — 그리드 getData()가 행을 얕은 복사하므로,
+   나중에 새로 대입하면 사라진다. 배열을 미리 붙여 두고 그 배열을 제자리에서 고친다. */
+function setTRows(rs){
+  rs.forEach((r,i)=>{ r.line_seq = i+1; r.__ctrls = r.__ctrls || []; });
+  TGRID.setRows(rs); renderTplForm();
+}
+
+/* ═══ 전표 서식 렌더링 (ERP 결의전표 출력물 배치) ═══
+   계정별 관리항목 슬롯 순서는 ERP 마스터(A_ACCT_CTRL_ASSN seq) 그대로.
+   ERP 서식이 7칸이라 여기서도 7칸까지 보여주고, 넘치면 아래에 이어서 표시한다. */
+const VF_SLOTS = 7;
+function ctrlSlotsFor(acctCd, drCr){
+  const defs = (CTRL_BY_ACCT.get(String(acctCd||"").trim()) || []).slice()
+    .sort((a,b)=> a.seq - b.seq);
+  return defs.map((d)=> ({ cd:d.cd, nm:(CTRL_NM.get(d.cd)||{}).ctrl_nm || d.cd,
+                           req: drCr==="D" ? d.dr : d.cr,
+                           dtype: String((CTRL_NM.get(d.cd)||{}).data_type||"").toUpperCase() }));
+}
+function slotHtml(slot, rule, lineSeq){
+  if(!slot) return '<td class="empty"></td>';
+  const cls = rule ? (rule.val_rule==="fixed" ? "fixed" : rule.val_rule==="date_shift" ? "shift" : "input") : "none";
+  const val = !rule ? "지정 안 함"
+    : rule.val_rule==="fixed" ? (rule.fixed_val || "(빈 값)")
+    : rule.val_rule==="date_shift" ? "다음 달(+1개월)" : "매번 입력";
+  return '<td class="slotcell"><button type="button" class="slot '+cls+(slot.req?" req":"")+'"'
+    + ' data-line="'+lineSeq+'" data-cd="'+esc(slot.cd)+'" title="클릭해 규칙 지정">'
+    + '<span class="snm">'+esc(slot.nm)+'</span><span class="sv">'+esc(val)+'</span></button></td>';
+}
+function ruleLabel(r){
+  return r.amt_rule==="fixed"   ? "고정 "+won(r.amt_value)
+       : r.amt_rule==="pct"     ? "비율 "+(Number(r.amt_value)||0)+"%"
+       : r.amt_rule==="balance" ? "차액 자동" : "입력";
+}
+function renderTplForm(){
+  const box = $("tplForm"); if(!box) return;
+  const rows = tRows().filter((r)=> r.acct_cd);
+  if(!rows.length){
+    box.innerHTML = '<div style="color:var(--muted);font-size:12.5px;padding:16px 4px;">'
+      + '계정과목이 지정된 라인이 없습니다 — 위 [템플릿 라인]에서 계정을 먼저 고르면 여기에 ERP 서식으로 표시됩니다.</div>';
+    return;
+  }
+  const title = ($("tTitlePattern").value.trim() || $("tDescTmpl").value.trim() || $("tName").value.trim() || "(제목 없음)");
+  const costNmOf = (cd)=>{
+    const c = (MASTER.cost_centers||[]).find((x)=> String(x.cost_cd)===String(cd));
+    return cd ? (c && c.cost_nm ? cd+" "+c.cost_nm : cd) : "—";
+  };
+  let body = "";
+  rows.forEach((r, i)=>{
+    const slots = ctrlSlotsFor(r.acct_cd, r.dr_cr_fg);
+    const byCd = new Map((r.__ctrls||[]).map((c)=> [c.ctrl_cd, c]));
+    const cell = (n)=> slotHtml(slots[n], slots[n] ? byCd.get(slots[n].cd) : null, r.line_seq);
+    const dr = r.dr_cr_fg === "D";
+    const amt = ruleLabel(r);
+    body += '<tr class="'+(dr?"blk-dr":"blk-cr")+'">'
+      + '<td class="no" rowspan="3">'+(i+1)+'</td>'
+      + '<td class="acd">'+esc(r.acct_cd)+'</td>'
+      + '<td>'+esc(costNmOf(r.cost_cd || $("tCost").value))+'</td>'
+      + cell(0) + cell(1) + cell(2)
+      + '<td class="cur" rowspan="2">KRW</td>'
+      + '<td class="amt" rowspan="2">'+(dr?'<b>'+esc(amt)+'</b>':'')+'</td>'
+      + '<td class="amt" rowspan="2">'+(dr?'':'<b>'+esc(amt)+'</b>')+'</td></tr>'
+      + '<tr class="'+(dr?"blk-dr":"blk-cr")+'">'
+      + '<td class="anm">'+esc(r.acct_nm||"")+'</td>'
+      + cell(3) + cell(4) + cell(5) + cell(6)
+      + '</tr>'
+      + '<tr class="dscrow"><td class="dsc" colspan="5">'
+      + esc(r.item_desc || $("tDescTmpl").value.trim() || "(적요 — 작성 시 입력)")
+      + '</td><td class="cur"></td><td class="amt">'+(dr?esc(amt):'')+'</td>'
+      + '<td class="amt">'+(dr?'':esc(amt))+'</td></tr>';
+    // ERP 서식은 7칸까지 — 그보다 많은 계정은 남은 항목을 이어서 보여준다(누락 방지)
+    if(slots.length > VF_SLOTS){
+      body += '<tr class="dscrow"><td colspan="5" class="slotcell">'
+        + '<div style="display:flex;flex-wrap:wrap;gap:4px 8px;">'
+        + slots.slice(VF_SLOTS).map((s)=>{
+            const rule = byCd.get(s.cd);
+            return slotHtml(s, rule, r.line_seq).replace(/^<td class="slotcell">/,'').replace(/<\/td>$/,'');
+          }).join("")
+        + '</div></td><td class="cur"></td><td class="amt"></td><td class="amt"></td></tr>';
+    }
+  });
+  const drN = rows.filter((r)=> r.dr_cr_fg==="D").length, crN = rows.length - drN;
+  box.innerHTML = '<div style="text-align:center;font-size:15px;font-weight:800;color:var(--navy);'
+      + 'padding:10px 8px 12px;border:1.5px solid #b9c7da;border-bottom:none;background:#fff;">'+esc(title)+'</div>'
+    + '<table class="vform"><thead>'
+    + '<tr><th rowspan="2">No</th><th>계정코드</th><th>COST CENTER</th><th>관리항목1</th><th>관리항목2</th><th>관리항목3</th>'
+    + '<th>통화</th><th>차변</th><th>대변</th></tr>'
+    + '<tr><th>계정과목</th><th>관리항목4</th><th>관리항목5</th><th>관리항목6</th><th>관리항목7</th>'
+    + '<th colspan="3">적요 · 금액 규칙</th></tr>'
+    + '</thead><tbody>' + body
+    + '<tr class="sumrow"><td colspan="6" class="lbl">합계 — 차변 '+drN+'줄 / 대변 '+crN+'줄</td>'
+    + '<td class="lbl">KRW</td><td class="amt">'+drN+'줄</td><td class="amt">'+crN+'줄</td></tr>'
+    + '</tbody></table>';
+}
+
+/* 관리항목 슬롯 클릭 → 규칙 편집 */
+$("tplForm").onclick = (e)=>{
+  const b = e.target.closest(".slot[data-cd]"); if(!b) return;
+  openCtrlRule(Number(b.getAttribute("data-line")), b.getAttribute("data-cd"));
+};
+function openCtrlRule(lineSeq, ctrlCd){
+  const row = tRows().find((r)=> Number(r.line_seq)===lineSeq); if(!row) return;
+  const slot = ctrlSlotsFor(row.acct_cd, row.dr_cr_fg).find((s)=> s.cd===ctrlCd); if(!slot) return;
+  const cur = (row.__ctrls||[]).find((c)=> c.ctrl_cd===ctrlCd) || null;
+  const isDate = DATE_CTRLS.has(ctrlCd) || slot.dtype==="D";
+
+  const ov = document.createElement("div"); ov.className = "pk-overlay";
+  const opt = (v, nm, ds, on)=>
+    '<label class="ce-opt'+(on?" on":"")+'"><input type="radio" name="cerule" value="'+v+'"'+(on?" checked":"")+'>'
+    + '<span><span class="nm">'+nm+'</span><br><span class="ds">'+ds+'</span></span></label>';
+  ov.innerHTML = '<div class="ce-box"><div class="ce-head"><span class="t">'+esc(slot.nm)+'</span>'
+    + '<span class="c">'+esc(ctrlCd)+(slot.req?' · ERP 필수':'')+'</span></div>'
+    + '<div class="ce-body">'
+    + opt("fixed","고정값","매번 같은 값이 자동으로 채워집니다(거래처·사업장 등).", (cur&&cur.val_rule==="fixed")||!cur)
+    + '<input type="text" class="val" id="ceVal" maxlength="100" placeholder="채워 넣을 값" value="'
+    + esc(cur&&cur.val_rule==="fixed" ? (cur.fixed_val||"") : "")+'">'
+    + opt("input","매번 입력","전표를 쓸 때 사람이 채웁니다(금액·수량처럼 매번 달라지는 값).", cur&&cur.val_rule==="input")
+    + (isDate ? opt("date_shift","다음 달(+1개월)","지난 회차 값 기준으로 한 달 뒤 날짜를 제안합니다(만기일·계산서일).", cur&&cur.val_rule==="date_shift") : "")
+    + '</div><div class="ce-foot">'
+    + '<button class="b gh sm" id="ceClear">지정 해제</button>'
+    + '<span class="sp"></span><button class="b gh sm" id="ceCancel">취소</button>'
+    + '<button class="b pri sm" id="ceOk">적용</button></div></div>';
+  document.body.appendChild(ov);
+  const close = ()=> ov.remove();
+  const valIn = ov.querySelector("#ceVal");
+  const sync = ()=>{
+    const v = ov.querySelector('input[name="cerule"]:checked')?.value;
+    ov.querySelectorAll(".ce-opt").forEach((l)=> l.classList.toggle("on", l.querySelector("input").checked));
+    valIn.style.display = v==="fixed" ? "" : "none";
+  };
+  ov.querySelectorAll('input[name="cerule"]').forEach((r)=> r.addEventListener("change", sync));
+  sync();
+  // __ctrls 배열은 제자리에서 고친다(그리드 얕은 복사 대비)
+  const writeBack = (next)=>{
+    const arr = row.__ctrls;
+    const i = arr.findIndex((c)=> c.ctrl_cd===ctrlCd);
+    if(next === null){ if(i>=0) arr.splice(i,1); }
+    else if(i>=0) arr[i] = next; else arr.push(next);
+    close(); renderTplForm();
+  };
+  ov.querySelector("#ceOk").onclick = ()=>{
+    const v = ov.querySelector('input[name="cerule"]:checked')?.value || "input";
+    if(v==="fixed" && !valIn.value.trim()){ toast("고정값으로 채울 값을 입력하세요.", true); valIn.focus(); return; }
+    writeBack({ ctrl_cd:ctrlCd, val_rule:v, fixed_val: v==="fixed" ? valIn.value.trim() : null });
+  };
+  ov.querySelector("#ceClear").onclick = ()=> writeBack(null);
+  ov.querySelector("#ceCancel").onclick = close;
+  ov.addEventListener("mousedown", (e2)=>{ if(e2.target===ov) close(); });
+  document.addEventListener("keydown", function esc2(e2){
+    if(e2.key==="Escape"){ close(); document.removeEventListener("keydown", esc2); }
+  });
+  if(valIn.style.display !== "none") valIn.focus();
+}
 
 async function loadTplMgr(){
   try{
@@ -1991,6 +2249,9 @@ function syncScopeUi(){
   $("tScopeHint").style.color = blocked ? "var(--red)" : "";
 }
 $("tScope").onchange = syncScopeUi;
+// 제목·적요·코스트센터를 고치면 서식 미리보기도 같이 움직인다
+["tTitlePattern","tDescTmpl","tName"].forEach((id)=> $(id).addEventListener("input", renderTplForm));
+$("tCost").addEventListener("change", renderTplForm);
 
 function openTplEdit(tpl, items){
   TPL_EDIT = tpl || null;
@@ -2020,6 +2281,7 @@ function openTplEdit(tpl, items){
   setTRows((items||[]).map((it)=>({ ...it, amt_locked: it.amt_locked ? "Y":"", __ctrls: it.ctrls||[] })));
   $("btnTDelete").classList.toggle("hide", !TPL_EDIT);
   $("btnTPublish").textContent = (tpl?.status==="active") ? "비공개로" : "공개";
+  renderTplForm();
   $("tplEdit").scrollIntoView({ behavior:"smooth", block:"nearest" });
 }
 $("btnTplNew").onclick = ()=> openTplEdit(null, [
