@@ -11,6 +11,9 @@
 // v5.3(2026-08-19): [ERP 전송] 버튼 — op apply_request(전송 대기 ready 마킹)·apply_cancel(대기 취소), canPost 전용.
 //   상태머신: null → ready(버튼) → applied|failed(중계 gl_apply_demo2.py --queue/--watch 처리 결과).
 //   이 함수는 여전히 ERP에 쓰지 않는다 — 마킹만 하고, 투입은 사내 pull 중계가 수행(기회검토 채택 구조).
+// v5.5(2026-08-20): 템플릿 가시성 수정 — `tpl_list all` 을 관리 권한자로 제한하던 조건 제거.
+//   일반 사용자가 자기 비공개(draft) 템플릿을 어디서도 볼 수 없어 공개조차 못 하던 막다른 길을 없앤다.
+//   범위 제한은 loadTemplates 안으로 옮겼다: 관리 권한이 없으면 '공개된 것 + 내 편집 가능한 것'까지만.
 // v5.4(2026-08-20): 「전송 성공 = 확정」 일원화(결정 C-13). 화면의 ERP 전표번호 수기 입력칸을 없애고,
 //   적용 성공 시 RPC gl_apply_record(v3)가 status 를 submitted→posted 로 닫고 ERP 채번번호를
 //   erp_temp_gl_no 에 기록한다. op post(수기 번호 회기입)는 운영 전환기 폴백으로만 남긴다 — 화면 미노출.
@@ -160,7 +163,11 @@ Deno.serve(async (req) => {
     if (!all) q = q.eq("status", "active");
     else q = q.neq("status", "archived");
     const { data: heads } = await q;
-    const list = (heads || []).filter(visibleTpl);
+    // all=true 라도 남의 미공개 전사·부서 템플릿까지 보여선 안 된다.
+    // 관리 권한이 없으면 "공개된 것 + 내가 편집할 수 있는 것(=내 개인 템플릿)"으로 좁힌다.
+    // 이 단서가 없으면 일반 사용자가 자기 비공개 템플릿을 어디서도 못 봐 공개할 수 없다(막다른 길).
+    const list = (heads || []).filter((t) =>
+      visibleTpl(t) && (!all || canManageTpl || t.status === "active" || editableTpl(t)));
     if (!list.length) return [];
     const ids = list.map((t) => t.tpl_id);
     const { data: items } = await admin.from("gl_template_item")
@@ -340,8 +347,8 @@ Deno.serve(async (req) => {
 
   /* ===== op: tpl_list — 템플릿 목록. all=true 면 관리 모드(미공개 포함) ===== */
   if (op === "tpl_list") {
-    const all = !!b.all && canManageTpl;
-    return json({ ok: true, rows: await loadTemplates(all), can_manage_tpl: canManageTpl });
+    // all 은 누구나 쓸 수 있다 — 범위 제한은 loadTemplates 안에서 한다(내 비공개 템플릿까지만 추가로 보임).
+    return json({ ok: true, rows: await loadTemplates(!!b.all), can_manage_tpl: canManageTpl });
   }
 
   /* ===== op: tpl_get — 템플릿 1건 ===== */

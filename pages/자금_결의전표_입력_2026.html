@@ -513,8 +513,8 @@
           <div class="fld">
             <label>상태</label>
             <select id="tStatus">
-              <option value="draft">비공개(초안) — 목록에 안 보임</option>
-              <option value="active">공개 — 선택 가능</option>
+              <option value="draft">비공개(초안) — 작성 탭 목록에 안 보임</option>
+              <option value="active">공개 — 작성 탭에서 선택 가능</option>
               <option value="archived">보관</option>
             </select>
           </div>
@@ -1299,9 +1299,13 @@ function renderTplCards(){
 
   const box = $("tplList");
   if(!list.length){
+    // 이 목록에는 '공개' 상태 템플릿만 나온다 — 비공개(초안)로 저장해 두고
+    // "만들었는데 안 보인다"고 오해하기 쉬우므로 어디서 공개하는지까지 알려준다.
     box.innerHTML = '<div style="grid-column:1/-1;color:var(--muted);font-size:12.5px;padding:14px 0;">'
       + (TPLS.length ? '조건에 맞는 템플릿이 없습니다.'
-                     : '등록된 템플릿이 없습니다. 자주 쓰는 분개는 <b>[템플릿 관리]</b> 탭에서 만들어 두면 다음부터 한 번에 불러올 수 있습니다.')
+                     : '사용할 수 있는 템플릿이 없습니다. <b>[템플릿 관리]</b> 탭에서 만들거나, '
+                       + '<b>비공개(초안)</b>로 저장해 둔 템플릿이 있다면 열어서 <b>[공개]</b>를 눌러 주세요 — '
+                       + '이 목록에는 공개된 템플릿만 표시됩니다.')
       + '</div>';
     return;
   }
@@ -1939,10 +1943,14 @@ async function loadTplMgr(){
   try{
     const r = await api("tpl_list", { all: true });
     CAN_MANAGE_TPL = !!r.can_manage_tpl;
-    $("tplScopeHint").textContent = CAN_MANAGE_TPL
-      ? "전사·부서·개인 템플릿을 모두 관리할 수 있습니다"
-      : "개인 템플릿만 만들 수 있습니다 — 전사·부서 템플릿은 회계 담당자에게 요청하세요";
     const list = r.rows || [];
+    // 비공개 건이 있으면 그것부터 알린다 — 작성 탭 목록에 안 나오는 이유가 바로 이것이다
+    const hidden = list.filter((x)=> x.status !== "active").length;
+    $("tplScopeHint").innerHTML = hidden
+      ? '<span style="color:var(--amber);font-weight:700;">⚠ 비공개 '+hidden+'건 — 작성 탭 목록에 나오지 않습니다. 행을 열어 [공개]를 누르세요.</span>'
+      : esc(CAN_MANAGE_TPL
+          ? "전사·부서·개인 템플릿을 모두 관리할 수 있습니다"
+          : "개인 템플릿만 만들 수 있습니다 — 전사·부서 템플릿은 회계 담당자에게 요청하세요");
     const t = $("tplMgrTbl");
     if(!list.length){ t.innerHTML = '<tr><td style="color:var(--muted);padding:20px;text-align:center;">등록된 템플릿이 없습니다. [+ 새 템플릿]으로 만들어 보세요.</td></tr>'; return; }
     t.innerHTML = '<thead><tr><th>코드</th><th>이름</th><th>분류</th><th>범위</th><th>라인</th><th>금액방식</th><th>상태</th><th class="r">사용</th></tr></thead><tbody>'
@@ -1991,10 +1999,13 @@ function openTplEdit(tpl, items){
   $("tplEditCode").textContent = tpl && tpl.tpl_code ? "· "+tpl.tpl_code : "· 새 템플릿";
   $("tName").value      = tpl?.tpl_nm || "";
   $("tCategory").value  = tpl?.category || "";
-  $("tScope").value     = tpl?.scope || (CAN_MANAGE_TPL ? "org" : "user");
+  const scope0 = tpl?.scope || (CAN_MANAGE_TPL ? "org" : "user");
+  $("tScope").value     = scope0;
   $("tDept").value      = tpl?.scope_dept_cd || "";
   $("tAmountMode").value= tpl?.amount_mode || "total";
-  $("tStatus").value    = tpl?.status || "draft";
+  // 새 템플릿 기본 상태 — 개인 템플릿은 바로 공개(나만 보이므로 검토가 필요 없다).
+  // 전사·부서는 여러 사람에게 노출되므로 비공개로 시작해 검토 후 공개한다.
+  $("tStatus").value    = tpl?.status || (scope0==="user" ? "active" : "draft");
   $("tCost").value      = tpl?.cost_cd || "";
   $("tSort").value      = tpl?.sort_no ?? 100;
   $("tCase").value      = tpl?.erp_case_cd || "";
@@ -2165,14 +2176,15 @@ async function tplFromSlip(no){
   $("tName").value     = (h.temp_gl_desc || ("전표 "+no)).slice(0,60);
   $("tDescTmpl").value = h.temp_gl_desc || "";
   $("tDescr").value    = "ERP 전표 "+no+(h.temp_gl_dt?" ("+h.temp_gl_dt+")":"")+" 에서 자동 생성";
-  $("tScope").value    = "user";      // 자동 생성분은 개인·비공개로 시작(공개는 확인 후 수동)
-  $("tStatus").value   = "draft";
+  $("tScope").value    = "user";       // 자동 생성분은 개인 범위 — 나만 보인다
+  $("tStatus").value   = "active";     // 공개까지 끝낸다. 개인 템플릿이라 남에게 노출되지 않는다
+                                       // (비공개로 두면 작성 탭 목록에 나타나지 않아 '만들었는데 없다'가 된다)
   if(h.cost_cd && (MASTER.cost_centers||[]).some((c)=> String(c.cost_cd)===String(h.cost_cd))) $("tCost").value = h.cost_cd;
   syncScopeUi();
 
-  const id = await saveTpl();   // 자동 템플릿화 — 저장까지 끝내고 편집기를 열어 둔다
+  const id = await saveTpl();   // 자동 템플릿화 — 저장·공개까지 끝내고 편집기를 열어 둔다
   toast(id
-    ? "전표 "+no+" 을(를) 템플릿으로 저장했습니다(개인·비공개) — 금액 규칙을 확인한 뒤 [공개]를 누르세요."
+    ? "전표 "+no+" 을(를) 개인 템플릿으로 저장했습니다 — [전표 작성] 탭 템플릿 목록에서 바로 쓸 수 있습니다."
     : "전표 "+no+" 을(를) 템플릿 편집기로 가져왔습니다 — 내용을 확인한 뒤 저장하세요.");
   if(missing.length) toast("⚠ 계정과목 마스터에 없어 제외한 줄: "+missing.join(", "), true);
 }
