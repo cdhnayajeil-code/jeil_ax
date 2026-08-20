@@ -14,7 +14,8 @@
          --green:#1a7f37; --red:#c0392b; --amber:#c9821a; }
   *{box-sizing:border-box; margin:0; padding:0;}
   body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif; color:var(--ink); background:var(--bg); font-size:14px; line-height:1.5;}
-  .wrap{max-width:1180px; margin:0 auto; padding:20px 18px 60px;}
+  /* 전표 서식이 980px 를 차지해 기존 1180px 에서는 목록 표가 눌려 두 줄로 접혔다 */
+  .wrap{max-width:1340px; margin:0 auto; padding:20px 18px 60px;}
   .top{display:flex; align-items:flex-start; justify-content:space-between; gap:12px; flex-wrap:wrap; padding:8px 0 14px;}
   .top h1{font-size:19px; color:var(--navy); display:flex; align-items:center; gap:9px;}
   .top .sub{font-size:12px; color:var(--muted); margin-top:3px;}
@@ -83,6 +84,19 @@
   .tbl tbody tr:nth-child(even) td{background:#fafbfd;}   /* 옅은 줄무늬 — 행 구분 인지 */
   .tbl tr.clk{cursor:pointer;}
   .tbl tr.clk:hover td{background:#eef4fb;}
+  /* 목록 표 가시성 — 짧은 값은 줄바꿈 금지, 긴 텍스트는 한 줄로 자르고 전문은 툴팁으로 */
+  .tbl td.nw,.tbl th.nw{white-space:nowrap;}
+  .tbl td.tr{max-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .tbl td.num{white-space:nowrap; text-align:right; font-variant-numeric:tabular-nums;}
+  .tbl td.mono{white-space:nowrap; font-family:'Consolas','Menlo',monospace; font-size:12px;}
+  .tbl td.sel,.tbl th.sel{width:34px; text-align:center; padding:6px 4px;}
+  .tbl td.sel input,.tbl th.sel input{cursor:pointer;}
+  /* 일괄 작업 바 — 선택 건수와 실행 버튼 */
+  .bulkbar{display:flex; align-items:center; gap:10px; flex-wrap:wrap; padding:9px 13px; margin-bottom:10px;
+           border:1.5px solid #c9dcf1; background:#eef4fb; border-radius:10px; font-size:12.5px; color:#2a4a6b;}
+  .bulkbar b{color:var(--navy);}
+  .bulkbar .sp{margin-left:auto;}
+  .bulkbar.off{opacity:.55;}
   .pill{display:inline-block; padding:2px 9px; border-radius:20px; font-size:11px; font-weight:700;}
   .pill.draft{background:#eef2f8; color:var(--muted);}
   .pill.submitted{background:#e8f1fb; color:var(--accent);}
@@ -111,13 +125,13 @@
   /* ERP 입력용 요약 */
   .erpbox{background:var(--soft); border:1px solid var(--line); border-radius:10px; padding:14px 16px; font-size:13px;}
   .erpbox .row{display:flex; gap:10px; padding:3px 0;}
-  .erpbox .row .k{color:var(--muted); min-width:88px; font-size:12px;}
-  .erpbox .row .v{font-weight:600; color:var(--navy);}
+  .erpbox .row .k{color:var(--muted); min-width:104px; flex:none; font-size:12px;}
+  .erpbox .row .v{font-weight:600; color:var(--navy); min-width:0; overflow-wrap:anywhere;}
   .erpbox.two{display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:0 22px;}
   /* ERP 전송 상태 스트립 — 상태 한 줄 + 전송 버튼(상단 고정 위치) */
   .sendbar{display:flex; align-items:center; gap:14px; flex-wrap:wrap; padding:13px 16px; border-radius:11px;
            border:1.5px solid var(--line); background:var(--soft); margin-bottom:13px;}
-  .sendbar .st{display:flex; flex-direction:column; gap:2px; min-width:0;}
+  .sendbar .st{display:flex; flex-direction:column; gap:2px; flex:none; white-space:nowrap;}
   .sendbar .st .lbl{font-size:11px; color:var(--muted); font-weight:600;}
   .sendbar .st .val{font-size:15px; font-weight:800; color:var(--navy); letter-spacing:-.01em;}
   .sendbar .st .val .no{font-family:'Consolas','Menlo',monospace; font-size:14.5px;}
@@ -530,6 +544,13 @@
             </select>
           </span>
         </h2>
+        <!-- 여러 건을 한 번에 보내는 경로. 한 건씩 여는 기존 흐름은 그대로 둔다. -->
+        <div class="bulkbar off" id="postBulk">
+          <span id="postBulkTxt">전송할 초안을 선택하세요 — 표 왼쪽 ☑ 로 고르거나 머리글 ☑ 로 전체 선택</span>
+          <span class="sp"></span>
+          <button class="b gh sm" id="btnPostSelAll">전송 가능 전체 선택</button>
+          <button class="b pri sm" id="btnPostBulkSend" disabled>🚀 선택 건 ERP 전송</button>
+        </div>
         <div style="overflow-x:auto;"><table class="tbl" id="postTbl"></table></div>
       </div>
       <div class="sec hide" id="postDetail">
@@ -1939,14 +1960,17 @@ function renderSlips(){
       + '</td></tr>';
     return;
   }
-  t.innerHTML = '<thead><tr><th>전표번호</th><th>결의일자</th><th>적요</th><th class="r">금액</th><th>라인</th><th>입력경로</th><th>승인</th><th>복사</th></tr></thead><tbody>'
+  t.innerHTML = '<colgroup><col style="width:150px"><col style="width:96px"><col>'
+    + '<col style="width:120px"><col style="width:60px"><col style="width:82px">'
+    + '<col style="width:74px"><col style="width:86px"></colgroup>'
+    + '<thead><tr><th>전표번호</th><th>결의일자</th><th>적요</th><th class="r">금액</th><th>라인</th><th>입력경로</th><th>승인</th><th>복사</th></tr></thead><tbody>'
     + list.map((x)=>
       '<tr class="clk" data-no="'+esc(x.temp_gl_no)+'">'
-      + '<td>'+esc(x.temp_gl_no)+'</td><td>'+esc(x.temp_gl_dt||"")+'</td>'
-      + '<td>'+esc(x.temp_gl_desc||"")+'</td>'
-      + '<td class="r">'+won(Math.round(Number(x.dr_loc_amt)||0))+'</td>'
-      + '<td>'+(x.line_cnt||0)+'줄</td>'
-      + '<td>'+esc(x.gl_input_type||"—")+'</td>'
+      + '<td class="mono">'+esc(x.temp_gl_no)+'</td><td class="nw">'+esc(x.temp_gl_dt||"")+'</td>'
+      + '<td class="tr" title="'+esc(x.temp_gl_desc||"")+'">'+esc(x.temp_gl_desc||"")+'</td>'
+      + '<td class="num">'+won(Math.round(Number(x.dr_loc_amt)||0))+'</td>'
+      + '<td class="nw">'+(x.line_cnt||0)+'줄</td>'
+      + '<td class="nw">'+esc(x.gl_input_type||"—")+'</td>'
       + '<td><span class="pill '+(String(x.conf_fg||"").trim()==="C"?"posted":"submitted")+'">'
       + (CONF_KO[String(x.conf_fg||"").trim()]||x.conf_fg||"—")+'</span></td>'
       + '<td><button type="button" class="b pri sm" data-copy="'+esc(x.temp_gl_no)+'" title="이 전표를 바로 복사해 새 초안 작성">📄 복사</button></td></tr>').join("")
@@ -2064,14 +2088,18 @@ async function loadMine(){
     const r = await api("mine");
     const t = $("mineTbl");
     if(!r.rows.length){ t.innerHTML = '<tr><td style="color:var(--muted);padding:20px;text-align:center;">작성한 초안이 없습니다.</td></tr>'; return; }
-    t.innerHTML = '<thead><tr><th>초안번호</th><th>결의일자</th><th>적요</th><th class="r">차변</th><th class="r">대변</th><th>상태</th><th>ERP 전표번호</th><th>ERP 적용</th></tr></thead><tbody>'
+    t.innerHTML = '<colgroup><col style="width:158px"><col style="width:96px"><col>'
+      + '<col style="width:110px"><col style="width:110px"><col style="width:74px">'
+      + '<col style="width:140px"><col style="width:120px"></colgroup>'
+      + '<thead><tr><th>초안번호</th><th>결의일자</th><th>적요</th><th class="r">차변</th><th class="r">대변</th><th>상태</th><th>ERP 전표번호</th><th>ERP 적용</th></tr></thead><tbody>'
       + r.rows.map((x)=>
         '<tr class="'+(x.status==="draft"?"clk":"")+'" data-no="'+esc(x.draft_no)+'" data-st="'+esc(x.status)+'">'
-        + '<td>'+esc(x.draft_no)+'</td><td>'+esc(x.draft_dt)+'</td><td>'+esc(x.gl_desc||"")+'</td>'
-        + '<td class="r">'+won(x.dr_total)+'</td><td class="r">'+won(x.cr_total)+'</td>'
-        + '<td><span class="pill '+esc(x.status)+'">'+(STATUS_KO[x.status]||x.status)+'</span></td>'
-        + '<td>'+(x.erp_temp_gl_no?esc(x.erp_temp_gl_no):'<span style="color:#aab;">—</span>')+'</td>'
-        + '<td>'+applyPill(x)+'</td></tr>').join("")
+        + '<td class="mono">'+esc(x.draft_no)+'</td><td class="nw">'+esc(x.draft_dt)+'</td>'
+        + '<td class="tr" title="'+esc(x.gl_desc||"")+'">'+esc(x.gl_desc||"")+'</td>'
+        + '<td class="num">'+won(x.dr_total)+'</td><td class="num">'+won(x.cr_total)+'</td>'
+        + '<td class="nw"><span class="pill '+esc(x.status)+'">'+(STATUS_KO[x.status]||x.status)+'</span></td>'
+        + '<td class="mono">'+(x.erp_temp_gl_no?esc(x.erp_temp_gl_no):'<span style="color:#aab;">—</span>')+'</td>'
+        + '<td class="nw">'+applyPill(x)+'</td></tr>').join("")
       + '</tbody>';
   }catch(e){ toast(e.message, true); }
 }
@@ -2090,21 +2118,101 @@ async function loadPost(){
     const r = await api("list", { status: $("postFilter").value });
     const t = $("postTbl");
     if(!r.rows.length){ t.innerHTML = '<tr><td style="color:var(--muted);padding:20px;text-align:center;">해당 상태의 초안이 없습니다.</td></tr>'; return; }
-    t.innerHTML = '<thead><tr><th>초안번호</th><th>결의일자</th><th>등록자</th><th>부서</th><th>적요</th><th class="r">금액</th><th>상태</th><th>ERP 전표번호</th><th>ERP 적용</th></tr></thead><tbody>'
-      + r.rows.map((x)=>
-        '<tr class="clk" data-no="'+esc(x.draft_no)+'">'
-        + '<td>'+esc(x.draft_no)+'</td><td>'+esc(x.draft_dt)+'</td>'
-        + '<td>'+esc(x.owner_nm||x.owner_erp_usr_id||"")+'</td><td>'+esc(x.dept_nm||"")+'</td>'
-        + '<td>'+esc(x.gl_desc||"")+'</td><td class="r">'+won(x.dr_total)+'</td>'
-        + '<td><span class="pill '+esc(x.status)+'">'+(STATUS_KO[x.status]||x.status)+'</span></td>'
+    POST_ROWS = r.rows;
+    // 열 폭을 고정해 둔다 — 폭이 자동이면 긴 적요가 다른 칸을 밀어 두 줄로 접힌다
+    t.innerHTML = '<colgroup><col style="width:34px"><col style="width:158px"><col style="width:96px">'
+      + '<col style="width:88px"><col style="width:96px"><col><col style="width:110px">'
+      + '<col style="width:74px"><col style="width:140px"><col style="width:120px"></colgroup>'
+      + '<thead><tr><th class="sel"><input type="checkbox" id="postChkAll" title="전송 가능 건 전체 선택"></th>'
+      + '<th>초안번호</th><th>결의일자</th><th>등록자</th><th>부서</th><th>적요</th><th class="r">금액</th>'
+      + '<th>상태</th><th>ERP 전표번호</th><th>ERP 적용</th></tr></thead><tbody>'
+      + r.rows.map((x)=>{
+        const can = canSendRow(x);
+        return '<tr class="clk" data-no="'+esc(x.draft_no)+'">'
+        + '<td class="sel">'+(can
+            ? '<input type="checkbox" data-pick="'+esc(x.draft_no)+'"'+(POST_PICK.has(x.draft_no)?" checked":"")+'>'
+            : '<span style="color:#ccd;">–</span>')+'</td>'
+        + '<td class="mono">'+esc(x.draft_no)+'</td><td class="nw">'+esc(x.draft_dt)+'</td>'
+        + '<td class="tr" title="'+esc(x.owner_nm||x.owner_erp_usr_id||"")+'">'+esc(x.owner_nm||x.owner_erp_usr_id||"")+'</td>'
+        + '<td class="nw">'+esc(x.dept_nm||"")+'</td>'
+        + '<td class="tr" title="'+esc(x.gl_desc||"")+'">'+esc(x.gl_desc||"")+'</td>'
+        + '<td class="num">'+won(x.dr_total)+'</td>'
+        + '<td class="nw"><span class="pill '+esc(x.status)+'">'+(STATUS_KO[x.status]||x.status)+'</span></td>'
         // 전표번호는 ERP가 채번한다 — 아직 전송 전이면 비어 있는 게 정상(경고 표시하지 않는다)
-        + '<td>'+(x.erp_temp_gl_no ? esc(x.erp_temp_gl_no)
+        + '<td class="mono">'+(x.erp_temp_gl_no ? esc(x.erp_temp_gl_no)
                  : x.status==="posted" ? '<span style="color:var(--red);font-weight:700;">미기입</span>'
                  : '<span style="color:#aab;">—</span>')+'</td>'
-        + '<td>'+applyPill(x)+'</td></tr>').join("")
+        + '<td class="nw">'+applyPill(x)+'</td></tr>';
+      }).join("")
       + '</tbody>';
+    // 목록이 바뀌면 사라진 건은 선택에서 뺀다
+    POST_PICK = new Set([...POST_PICK].filter((no)=> r.rows.some((x)=> x.draft_no===no && canSendRow(x))));
+    syncPostBulk();
   }catch(e){ toast(e.message, true); }
 }
+/* ═══ 일괄 ERP 전송 ═══
+   한 건씩 여는 기존 흐름은 그대로 두고, 여러 건을 한 번에 보내는 경로를 더한다.
+   서버 op(apply_request)는 건별이므로 순차 호출한다 — 중계가 선점으로 순서를 지킨다. */
+let POST_ROWS = [], POST_PICK = new Set();
+const canSendRow = (x)=> x.status === "submitted" && x.erp_apply_status !== "applied"
+                      && x.erp_apply_status !== "ready" && x.erp_apply_status !== "sending";
+function syncPostBulk(){
+  const n = POST_PICK.size;
+  const able = POST_ROWS.filter(canSendRow).length;
+  $("postBulk").classList.toggle("off", n === 0);
+  $("btnPostBulkSend").disabled = n === 0;
+  $("btnPostBulkSend").textContent = n ? "🚀 선택 "+n+"건 ERP 전송" : "🚀 선택 건 ERP 전송";
+  $("postBulkTxt").innerHTML = n
+    ? '<b>'+n+'건</b> 선택됨 · 전송 가능 '+able+'건'
+    : (able ? '전송 가능 <b>'+able+'건</b> — 표 왼쪽 ☑ 로 고르거나 [전송 가능 전체 선택]'
+            : '지금 전송할 수 있는 초안이 없습니다(제출됨·미전송 건만 대상)');
+  const all = $("postChkAll");
+  if(all){ all.checked = able > 0 && n === able; all.indeterminate = n > 0 && n < able; }
+}
+$("btnPostSelAll").onclick = ()=>{
+  const able = POST_ROWS.filter(canSendRow).map((x)=> x.draft_no);
+  POST_PICK = new Set(POST_PICK.size === able.length ? [] : able);
+  document.querySelectorAll('#postTbl input[data-pick]').forEach((c)=>{
+    c.checked = POST_PICK.has(c.getAttribute("data-pick"));
+  });
+  syncPostBulk();
+};
+$("btnPostBulkSend").onclick = async ()=>{
+  const list = [...POST_PICK];
+  if(!list.length) return;
+  const sum = POST_ROWS.filter((x)=> POST_PICK.has(x.draft_no))
+                       .reduce((s,x)=> s + (Number(x.dr_total)||0), 0);
+  if(!confirm("선택한 "+list.length+"건(합계 "+won(sum)+"원)을 ERP(DEMO2)로 전송합니다.\n\n"
+    + "· 사내 중계가 한 건씩 순차 투입합니다(중복 투입은 선점으로 차단됩니다)\n"
+    + "· 라인 대조가 어긋난 건은 그 건만 자동 취소되고 나머지는 계속됩니다\n"
+    + "· 중계가 실행 중이어야 처리됩니다\n\n계속할까요?")) return;
+  $("btnPostBulkSend").disabled = true;
+  let ok = 0; const fail = [];
+  for(const no of list){
+    $("postBulkTxt").innerHTML = '전송 요청 중… <b>'+(ok+fail.length+1)+'/'+list.length+'</b>';
+    try{ await api("apply_request", { draft_no: no }); ok++; }
+    catch(e){ fail.push(no+" — "+e.message); }
+  }
+  POST_PICK.clear();
+  toast(ok ? "✅ "+ok+"건 전송 요청 완료 — 중계가 처리하면 자동으로 반영됩니다."
+           : "전송 요청에 모두 실패했습니다.", !ok);
+  if(fail.length) toast("⚠ 실패 "+fail.length+"건: "+fail.slice(0,3).join(" / ")
+    + (fail.length>3 ? " 외 "+(fail.length-3)+"건" : ""), true);
+  await loadPost();
+  if(ok) startSendPoll(list[0]);   // 첫 건 기준으로 폴링 — 목록은 매 주기 함께 갱신된다
+};
+$("postTbl").addEventListener("change", (e)=>{
+  const c = e.target.closest("input[data-pick]"); if(!c) return;
+  const no = c.getAttribute("data-pick");
+  if(c.checked) POST_PICK.add(no); else POST_PICK.delete(no);
+  syncPostBulk();
+});
+$("postTbl").addEventListener("click", (e)=>{
+  // 체크박스 클릭은 행 상세 열기로 번지지 않게 한다
+  if(e.target.closest("input[data-pick]")) e.stopPropagation();
+  const all = e.target.closest("#postChkAll");
+  if(all){ e.stopPropagation(); $("btnPostSelAll").click(); }
+}, true);
 $("postFilter").onchange = loadPost;
 /* 코스트센터 표시명 — 코드만으로는 무엇인지 알 수 없어 이름을 함께 보인다 */
 function costNm(cd){
@@ -2495,15 +2603,18 @@ async function loadTplMgr(){
           : "개인 템플릿만 만들 수 있습니다 — 전사·부서 템플릿은 회계 담당자에게 요청하세요");
     const t = $("tplMgrTbl");
     if(!list.length){ t.innerHTML = '<tr><td style="color:var(--muted);padding:20px;text-align:center;">등록된 템플릿이 없습니다. [+ 새 템플릿]으로 만들어 보세요.</td></tr>'; return; }
-    t.innerHTML = '<thead><tr><th>코드</th><th>이름</th><th>분류</th><th>범위</th><th>라인</th><th>금액방식</th><th>상태</th><th class="r">사용</th></tr></thead><tbody>'
+    t.innerHTML = '<colgroup><col style="width:96px"><col><col style="width:110px">'
+      + '<col style="width:118px"><col style="width:62px"><col style="width:92px">'
+      + '<col style="width:74px"><col style="width:62px"></colgroup>'
+      + '<thead><tr><th>코드</th><th>이름</th><th>분류</th><th>범위</th><th>라인</th><th>금액방식</th><th>상태</th><th class="r">사용</th></tr></thead><tbody>'
       + list.map((x)=>
         '<tr class="'+(x.can_edit?"clk":"")+'" data-id="'+x.tpl_id+'">'
-        + '<td>'+esc(x.tpl_code)+'</td><td><b>'+esc(x.tpl_nm)+'</b>'
+        + '<td class="mono">'+esc(x.tpl_code)+'</td><td class="tr" title="'+esc(x.tpl_nm)+'"><b>'+esc(x.tpl_nm)+'</b>'
         + (x.descr?'<br><span style="color:var(--muted);font-size:11px;">'+esc(x.descr)+'</span>':'')+'</td>'
-        + '<td>'+esc(x.category||"—")+'</td>'
+        + '<td class="nw">'+esc(x.category||"—")+'</td>'
         + '<td><span class="tag '+esc(x.scope)+'">'+SCOPE_KO[x.scope]+(x.scope==="dept"?" · "+esc(x.scope_dept_nm||""):"")+'</span></td>'
-        + '<td>'+(x.items||[]).length+'줄</td>'
-        + '<td>'+(x.amount_mode==="total"?"총액 입력":"라인별")+'</td>'
+        + '<td class="nw">'+(x.items||[]).length+'줄</td>'
+        + '<td class="nw">'+(x.amount_mode==="total"?"총액 입력":"라인별")+'</td>'
         + '<td>'+(x.status==="active"?'<span class="pill posted">공개</span>':'<span class="tag draft">비공개</span>')+'</td>'
         + '<td class="r">'+(x.use_cnt||0)+'</td></tr>').join("")
       + '</tbody>';
