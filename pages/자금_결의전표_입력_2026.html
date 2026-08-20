@@ -33,6 +33,32 @@
   .tabs button.on{color:var(--navy); border-bottom-color:var(--accent);
                   background:linear-gradient(180deg,rgba(58,124,193,.07),rgba(58,124,193,0)); border-radius:8px 8px 0 0;}
   .tabs button:hover{color:var(--navy); background:rgba(58,124,193,.05); border-radius:8px 8px 0 0;}
+  /* 전표 시작 바 — 흩어져 있던 진입점을 한 줄로(REQ-0003) */
+  .startbar{display:flex; align-items:stretch; gap:8px; flex-wrap:wrap; margin-bottom:14px;
+            padding:10px 13px; border:1.5px solid #c9dcf1; background:#eef4fb; border-radius:12px;}
+  .startbar .lbl{align-self:center; font-size:12px; font-weight:800; color:var(--navy); padding-right:4px;}
+  .startbar .sb{display:flex; flex-direction:column; gap:1px; align-items:flex-start; text-align:left;
+    border:1.5px solid #cfdcea; background:#fff; border-radius:10px; padding:7px 14px;
+    font-family:inherit; cursor:pointer; min-width:132px;}
+  .startbar .sb b{font-size:13px; color:var(--navy); white-space:nowrap;}
+  .startbar .sb small{font-size:10.5px; color:var(--muted); white-space:nowrap;}
+  .startbar .sb:hover{border-color:var(--accent); background:#f7fbff;}
+  .startbar .sb.on{border-color:var(--navy); background:var(--navy);}
+  .startbar .sb.on b,.startbar .sb.on small{color:#fff;}
+  .startbar .sp{flex:1 1 0;}
+  .startbar .hint{align-self:center; font-size:11.5px; color:#2a4a6b;}
+  /* 모달 — 전표복사를 탭에서 떼어내 작성 흐름 안에서 연다 */
+  .modal{position:fixed; inset:0; background:rgba(16,32,56,.45); z-index:70;
+         display:flex; align-items:flex-start; justify-content:center; padding:34px 16px; overflow:auto;}
+  .modal .box{background:var(--bg); border-radius:14px; width:min(1180px,100%);
+              box-shadow:0 22px 60px rgba(16,42,80,.32); overflow:hidden;}
+  .modal .mhead{display:flex; align-items:center; gap:10px; padding:13px 18px; background:#fff;
+                border-bottom:1.5px solid var(--line);}
+  .modal .mhead .t{font-size:15px; font-weight:800; color:var(--navy);}
+  .modal .mhead .x{margin-left:auto; border:none; background:var(--soft); border-radius:8px;
+                   width:30px; height:30px; cursor:pointer; font-size:15px; color:var(--muted);}
+  .modal .mhead .x:hover{background:#fdeeec; color:var(--red);}
+  .modal .mbody{padding:14px 16px 18px;}
   /* 섹션 */
   .sec{background:#fff; border:1px solid var(--line); border-radius:13px; padding:18px 20px; margin-bottom:14px; box-shadow:0 2px 8px rgba(16,42,80,.05);}
   /* 섹션 제목 밴드 — 옅은 음영으로 구획을 인지시킨다(과하지 않게) */
@@ -187,6 +213,8 @@
          border:1.5px solid #b9c7da; table-layout:fixed;}
   .vform th,.vform td{border:1px solid #ccd7e5; padding:5px 7px; vertical-align:middle; word-break:break-all;}
   .vform thead th{background:#dbe7f3; color:var(--navy); font-weight:700; font-size:11px; text-align:center; white-space:nowrap;}
+  .vform thead th.thdr{background:#cfe0f2;} .vform thead th.thcr{background:#d3ecdb;}
+  .vform td.amt.dr{background:#fbfdff;} .vform td.amt.cr{background:#fbfefc;}
   .vform .no{width:34px; text-align:center; font-weight:700; color:var(--muted); background:#f7fafd;}
   .vform .acd{font-family:'Consolas','Menlo',monospace; font-size:11.5px; color:var(--muted);}
   .vform .anm{font-weight:700; color:var(--navy); font-size:12.5px;}
@@ -211,21 +239,26 @@
   .slot.none .sv{font-weight:400;}
   .slot.req .snm::after{content:" *"; color:var(--red); font-weight:700;}
   .vform td.slotcell{padding:3px 4px;}
-  .vform td.empty{background:#f7f9fc;}
+  .vform td.empty{background:repeating-linear-gradient(135deg,#f7f9fc,#f7f9fc 6px,#f2f5f9 6px,#f2f5f9 12px);}
   /* ── 서식 입력기(작성 탭) — 셀 안에서 바로 고친다 ── */
   .vform input,.vform select{border:1px solid transparent; border-radius:6px; padding:4px 6px; width:100%;
     font-family:inherit; font-size:12px; background:transparent; color:var(--ink); outline:none;}
   .vform input:hover,.vform select:hover{border-color:#cfdcea; background:#fbfcfe;}
   .vform input:focus,.vform select:focus{border-color:var(--accent); background:#fff; box-shadow:0 0 0 2px rgba(58,124,193,.13);}
   .vform input.miss{border-color:var(--red); background:#fdf4f3;}
+  /* 필수 관리항목 — 라벨의 * 만으로는 눈에 안 띈다. 칸 왼쪽에 띠를 둔다 */
+  .vform td.slotcell.req{box-shadow:inset 3px 0 0 rgba(192,57,43,.30);}
+  .vform td.slotcell.reqok{box-shadow:inset 3px 0 0 rgba(26,127,55,.28);}
   .vform input.suggest{background:#fffaf0; border-color:#eddcb6;}
-  .vform input.money{text-align:right; font-variant-numeric:tabular-nums; font-weight:700; font-size:13px;}
+  .vform input.money{text-align:right; font-variant-numeric:tabular-nums; font-weight:700; font-size:14px;
+    letter-spacing:-.01em; padding:6px 7px;}
   /* 자동으로 나눈 금액 — 정확한 값이 아니므로 확인을 받는다(REQ-0002) */
   .vform input.money.approx{background:#fffaf0; border-color:#eddcb6;}
   .vform .apxbadge{display:block; margin-top:2px; font-size:9.5px; font-weight:700; color:var(--amber);
     background:#fdf3e5; border-radius:4px; padding:1px 5px; text-align:center; cursor:help;}
   .vform .slbl{display:flex; align-items:center; gap:3px; font-size:10.5px; color:var(--muted); font-weight:600;
-    line-height:1.3; margin-bottom:1px; white-space:nowrap; overflow:hidden;}
+    line-height:1.25; margin-bottom:2px; min-height:13px;}
+  .vform .slbl .nmtxt{overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0;}
   .vform .slbl .req{color:var(--red);}
   .vform .slbl .fillbtn{margin-left:auto; border:none; background:#eef2f8; color:var(--muted); border-radius:4px;
     font-size:9.5px; padding:0 4px; cursor:pointer; line-height:1.5;}
@@ -242,7 +275,8 @@
   .vform .pick.has:hover{border-color:var(--accent); background:#fbfcfe;}
   .vform .pick.bad{border-color:var(--red); color:var(--red); background:#fdf4f3;}
   .vform .no input[type=checkbox]{width:auto; margin-bottom:2px;}
-  .vform td.dsccell{padding:3px 6px;}
+  .vform td.dsccell{padding:5px 7px;}
+  .vform td.dsccell .minilbl{display:block; margin-bottom:2px;}
   .vform .minilbl{font-size:10px; color:var(--muted); font-weight:600;}
   .vform tr.sumrow .amt{font-size:13.5px;}
   /* 규칙 편집 팝오버 */
@@ -394,7 +428,6 @@
 
     <div class="tabs">
       <button data-tab="write" class="on">전표 작성</button>
-      <button data-tab="copy">전표복사</button>
       <button data-tab="mine">내 초안</button>
       <button data-tab="post" class="hide" id="tabPost">ERP 전송</button>
       <button data-tab="tpl">템플릿 관리</button>
@@ -402,6 +435,19 @@
 
     <!-- ═══ 전표 작성 ═══ -->
     <div id="paneWrite">
+      <!-- 전표를 시작하는 방법은 같은 층의 선택지다 — 흩어져 있던 진입점을 한 줄로 모은다(REQ-0003) -->
+      <div class="startbar">
+        <span class="lbl">전표 시작</span>
+        <button type="button" class="sb on" id="sbNew">
+          <b>새로 작성</b><small>빈 서식에서 시작</small></button>
+        <button type="button" class="sb" id="sbCopy">
+          <b>지난 전표 복사</b><small>내 ERP 전표 가져오기</small></button>
+        <button type="button" class="sb" id="sbTpl">
+          <b>템플릿 사용</b><small id="sbTplCnt">자주 쓰는 분개</small></button>
+        <span class="sp"></span>
+        <span class="hint" id="startHint">지금은 빈 전표입니다 — 아래 서식에 바로 입력하셔도 됩니다</span>
+      </div>
+
       <div class="sec hide" id="recurSec">
         <h2>이번 달 반복 전표
           <small id="recurYmLbl">매달 쓰는 전표 — 지난달 값이 채워진 상태로 시작합니다</small>
@@ -409,7 +455,7 @@
         <div class="recurgrid" id="recurList"></div>
       </div>
 
-      <div class="sec">
+      <div class="sec hide" id="tplStartSec">
         <h2>템플릿으로 시작
           <small>자주 쓰는 분개 형태를 고르면 계정·적요·금액 배분이 자동으로 채워집니다</small>
           <span style="margin-left:auto;display:flex;gap:7px;align-items:center;">
@@ -436,7 +482,8 @@
       </div>
 
       <div class="sec">
-        <h2><span class="step">1</span> 전표 헤더 <small id="editingNo"></small></h2>
+        <h2><span class="step">1</span> 전표 헤더 <small id="editingNo"></small>
+          <small style="margin-left:auto;">아래 서식 전체에 적용됩니다</small></h2>
         <div class="form">
           <div class="fld">
             <label>결의일자<span class="req">*</span></label>
@@ -1170,8 +1217,11 @@ function slotCellHtml(r, def, shareCnt){
     + ' data-cd="'+esc(def.cd)+'" value="'+esc(val)+'"'
     + ' class="'+(miss?'miss ':'')+(sug&&val===sug?'suggest':'')+'"'
     + (sug&&val===sug?' title="전월 기준 제안값 — 실물 증빙을 확인하세요"':'')+'>';
-  return '<td class="slotcell">'
-    + '<span class="slbl">'+esc(nm)+(def.req?'<span class="req">*</span>':'')
+  // 필수 항목은 칸 왼쪽 띠로 드러낸다 — 채워지면 초록, 비어 있으면 붉은색
+  const cell = def.req ? (String(val).trim() ? "slotcell req reqok" : "slotcell req") : "slotcell";
+  return '<td class="'+cell+'">'
+    + '<span class="slbl" title="'+esc(nm)+(def.req?" (필수)":"")+'">'
+    + '<span class="nmtxt">'+esc(nm)+'</span>'+(def.req?'<span class="req">*</span>':'')
     + ((shareCnt.get(def.cd)||0) > 1
         ? '<button type="button" class="fillbtn" data-act="fill" data-seq="'+r.item_seq+'"'
           + ' data-cd="'+esc(def.cd)+'" title="같은 항목이 있는 다른 줄의 빈 칸에 이 값을 채웁니다">⤓</button>' : '')
@@ -1219,8 +1269,8 @@ function renderDraftForm(){
         + (r.cost_cd ? esc(costLabel(r.cost_cd)) : "🔍 코스트센터")+'</button></td>'
       + cell(0) + cell(1) + cell(2)
       + '<td class="cur" rowspan="3">KRW</td>'
-      + '<td class="amt" rowspan="3">'+amtIn("D")+'</td>'
-      + '<td class="amt" rowspan="3">'+amtIn("C")+'</td></tr>'
+      + '<td class="amt dr" rowspan="3">'+amtIn("D")+'</td>'
+      + '<td class="amt cr" rowspan="3">'+amtIn("C")+'</td></tr>'
       + '<tr class="'+(dr?"blk-dr":cr?"blk-cr":"")+'">'
       + '<td class="anm">'+(r.acct_cd ? esc(r.acct_nm||"(계정명 없음)") : '<span style="color:#b6c0cc;">계정 미선택</span>')+'</td>'
       + cell(3) + cell(4) + cell(5) + cell(6) + '</tr>'
@@ -1254,7 +1304,8 @@ function renderDraftForm(){
     + '<table class="vform"><thead>'
     + '<tr><th rowspan="2" style="width:38px;">No</th><th style="width:112px;">계정코드</th><th style="width:132px;">COST CENTER</th>'
     + '<th>관리항목1</th><th>관리항목2</th><th>관리항목3</th>'
-    + '<th style="width:46px;">통화</th><th style="width:112px;">차변</th><th style="width:112px;">대변</th></tr>'
+    + '<th style="width:46px;">통화</th><th class="thdr" style="width:124px;">차변</th>'
+    + '<th class="thcr" style="width:124px;">대변</th></tr>'
     + '<tr><th>계정과목</th><th>관리항목4</th><th>관리항목5</th><th>관리항목6</th><th>관리항목7</th></tr>'
     + '</thead><tbody>' + body
     + '<tr class="sumrow"><td colspan="6" class="lbl">합 계</td><td class="lbl">KRW</td>'
@@ -1784,6 +1835,7 @@ function tplCats(){
   return Array.from(s).sort();
 }
 function renderTplCards(){
+  syncStartBar();
   const q = ($("tplSearch").value||"").trim().toLowerCase();
   const cats = tplCats();
   $("tplChips").innerHTML = ['<button class="chip'+(TPL_CAT?"":" on")+'" data-cat="">전체</button>']
@@ -2035,6 +2087,8 @@ async function applyTpl(){
   //   배분 단계가 이미 총액을 세율로 갈라 놓았는데, 후처리가 비용 라인 금액을 다시
   //   '공급가액'으로 보고 재계산하면 총액이 줄어든다(352,000 → 193,600 결함의 직접 원인).
   //   총액이 없어 금액이 비어 있는 경우에만, 사용자가 값을 넣을 때 C-14 트리거가 작동한다.
+  markStart("sbTpl");
+  setStartHint("템플릿 '"+t.tpl_nm+"' 적용됨"+(approx?" — 나눠 넣은 금액 확인 필요":""));
   toast("템플릿 '"+t.tpl_nm+"' 을(를) 적용했습니다."
     + (approx ? " — 나눠 넣은 금액 "+approx+"칸은 실제 증빙과 대조해 확인하세요." : ""),
     approx > 0);
@@ -2157,7 +2211,10 @@ $("btnDelRow").onclick = ()=>{
   SELSET.clear(); setRows(rest);
 };
 $("btnSave").onclick = save;
-$("btnReset").onclick = ()=>{ if(confirm("작성 중인 내용을 지우고 새 전표를 시작할까요?")) newDraft(); };
+$("btnReset").onclick = ()=>{
+  if(!confirm("작성 중인 내용을 지우고 새 전표를 시작할까요?")) return;
+  newDraft(); markStart("sbNew"); setStartHint("빈 전표입니다 — 아래 서식에 바로 입력하세요");
+};
 $("btnSubmit").onclick = async ()=>{
   const summary = submitSummary();            // 저장 전에 요약을 만들어 사용자가 먼저 확인한다
   if(!confirm(summary)) return;
@@ -2323,6 +2380,8 @@ function copySlipData(data){
              __ctrl: ctrlBySeq[it.item_seq] || {} };
   });
   if(newRows.length) setRows(newRows);
+  closeCopyModal(); markStart("sbCopy");
+  setStartHint("전표 "+h.temp_gl_no+" 을(를) 복사했습니다 — 결의일자는 오늘로 새로 잡혔습니다");
   showTab("write");
   toast("전표 "+h.temp_gl_no+" 을(를) 복사했습니다 — 결의일자는 오늘로 새로 설정됐습니다. 관리항목은 줄을 선택(☑)하거나 [전체 펼치기]로 열어 확인·수정하세요.");
   if(missing.length) toast("⚠ 계정과목 마스터에 없는 계정은 비워 뒀습니다: "+missing.join(", ")+" — 계정을 다시 선택하세요.", true);
@@ -3130,15 +3189,67 @@ $("btnTplFromDraft").onclick = ()=>{
   toast("현재 전표 라인을 템플릿 편집기로 가져왔습니다. 금액 규칙을 정한 뒤 저장하세요.");
 };
 
+/* ═══ 전표 시작 바 (REQ-0003) ═══
+   "새로 쓸까 / 지난 걸 복사할까 / 템플릿을 쓸까"는 같은 층의 선택지인데
+   서로 다른 탭·카드에 흩어져 있어 헷갈렸다. 한 줄로 모으고, 복사는 탭 대신 모달로 연다. */
+let COPY_MODAL = null;
+function markStart(id){
+  document.querySelectorAll(".startbar .sb").forEach((b)=> b.classList.toggle("on", b.id === id));
+}
+function setStartHint(txt){ const h = $("startHint"); if(h) h.textContent = txt; }
+/* 전표복사 화면을 모달 안으로 옮겨 연다 — 마크업·핸들러를 그대로 재사용한다(id 기준 바인딩) */
+function openCopyModal(){
+  if(!COPY_MODAL){
+    COPY_MODAL = document.createElement("div");
+    COPY_MODAL.className = "modal hide";
+    COPY_MODAL.innerHTML = '<div class="box"><div class="mhead">'
+      + '<span class="t">지난 전표 복사</span>'
+      + '<small style="color:var(--muted);font-size:11.5px;">내가 ERP에 입력한 전표를 골라 그대로 가져옵니다</small>'
+      + '<button type="button" class="x" title="닫기">✕</button></div>'
+      + '<div class="mbody"></div></div>';
+    document.body.appendChild(COPY_MODAL);
+    COPY_MODAL.querySelector(".mbody").appendChild($("paneCopy"));   // 원본 노드를 그대로 이동
+    $("paneCopy").classList.remove("hide");
+    COPY_MODAL.querySelector(".mhead .x").onclick = closeCopyModal;
+    COPY_MODAL.addEventListener("mousedown", (e)=>{ if(e.target === COPY_MODAL) closeCopyModal(); });
+  }
+  COPY_MODAL.classList.remove("hide");
+  markStart("sbCopy");
+  if(!SLIP_LOADED){ SLIP_LOADED = true; loadSlips(); }
+}
+function closeCopyModal(){ if(COPY_MODAL) COPY_MODAL.classList.add("hide"); }
+$("sbNew").onclick = ()=>{
+  if(rows().some((r)=> r.acct_cd || numAmt(r.item_amt))){
+    if(!confirm("작성 중인 내용을 지우고 새 전표를 시작할까요?")) return;
+  }
+  newDraft(); markStart("sbNew"); $("tplStartSec").classList.add("hide");
+  setStartHint("빈 전표입니다 — 아래 서식에 바로 입력하세요");
+};
+$("sbCopy").onclick = openCopyModal;
+$("sbTpl").onclick = ()=>{
+  const sec = $("tplStartSec");
+  const show = sec.classList.contains("hide");
+  sec.classList.toggle("hide", !show);
+  markStart(show ? "sbTpl" : "sbNew");
+  if(show){
+    setStartHint("템플릿을 고르고 총액을 넣으면 금액이 배분됩니다");
+    sec.scrollIntoView({ behavior:"smooth", block:"nearest" });
+  }
+};
+/* 시작 방법 배지 — 템플릿 개수를 보여 준다 */
+function syncStartBar(){
+  const n = (TPLS||[]).length;
+  const el = $("sbTplCnt");
+  if(el) el.textContent = n ? n+"개 사용 가능" : "자주 쓰는 분개";
+}
+
 /* ═══ 탭 ═══ */
 function showTab(name){
   document.querySelectorAll(".tabs button").forEach((b)=> b.classList.toggle("on", b.dataset.tab===name));
   $("paneWrite").classList.toggle("hide", name!=="write");
-  $("paneCopy").classList.toggle("hide", name!=="copy");
   $("paneMine").classList.toggle("hide", name!=="mine");
   $("panePost").classList.toggle("hide", name!=="post");
   $("paneTpl").classList.toggle("hide", name!=="tpl");
-  if(name==="copy" && !SLIP_LOADED){ SLIP_LOADED = true; loadSlips(); }
   if(name==="mine") loadMine();
   if(name==="post") loadPost();
   if(name==="tpl") loadTplMgr();
