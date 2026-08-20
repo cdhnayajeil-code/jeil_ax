@@ -918,9 +918,10 @@ function fillHeader(locked){
   if(mine) $("fDept").value = mine.dept_cd;
   renderCostOptions();
   $("fDept").addEventListener("change", onDeptChange);
-  $("fCost").addEventListener("change", ()=>{ syncCostReq(); renderDraftForm(); });
+  $("fCost").addEventListener("change", commitHeaderCost);
   // 최초 진입 시에도 내 부서 기본 코스트센터를 채워 둔다(비워 두면 필수인데 빈 상태로 시작)
   if(!$("fCost").value){ const d = defaultCostFor($("fDept").value); if(d) $("fCost").value = d; }
+  HDR_COST_PREV = $("fCost").value;
   syncCostReq();
 }
 /* 부서의 기본 코스트센터 — 서버가 표시한 is_dept_default(코드 뒷자리=부서코드) 우선,
@@ -948,6 +949,28 @@ function renderCostOptions(keepCur){
   $("fCost").value = (keepCur && has(cur)) ? cur : (has(cur) ? cur : "");
   syncCostReq();
 }
+/* 헤더 코스트센터가 바뀌면 라인에도 실제로 넣는다.
+   덮어쓰는 대상은 '비어 있는 줄'과 '직전 헤더값 그대로인 줄'뿐 — 줄마다 따로 지정한 값은 지키다. */
+let HDR_COST_PREV = "";
+function applyHeaderCostToLines(next){
+  if(!next) return 0;
+  let n = 0;
+  ROWS.forEach((r)=>{
+    if(!r.cost_cd || (HDR_COST_PREV && String(r.cost_cd) === String(HDR_COST_PREV))){
+      if(String(r.cost_cd||"") !== String(next)){ r.cost_cd = next; n++; }
+      else r.cost_cd = next;
+    }
+  });
+  return n;
+}
+/* 헤더 코스트센터 확정 — 라인 반영·필수표시·재렌더를 한 곳에서 처리한다 */
+function commitHeaderCost(){
+  const next = $("fCost").value;
+  applyHeaderCostToLines(next);
+  HDR_COST_PREV = next;
+  syncCostReq();
+  renderDraftForm();
+}
 /* 부서를 바꾸면 기본 코스트센터를 넣는다 — 사용자가 이미 고른 값이 그 부서 것이면 건드리지 않는다 */
 function onDeptChange(){
   const dept = $("fDept").value;
@@ -960,11 +983,10 @@ function onDeptChange(){
     if(def){
       $("fCost").value = def;
       const nm = (MASTER.cost_centers||[]).find((c)=> c.cost_cd===def);
-      toast("코스트센터를 부서 기본값 '"+def+" · "+((nm&&nm.cost_nm)||"")+"' 으로 맞췄습니다 — 필요하면 바꾸세요.");
+      toast("코스트센터를 부서 기본값 '"+def+" · "+((nm&&nm.cost_nm)||"")+"' 으로 맞췄습니다 — 줄마다 바꿀 수 있습니다.");
     }
   }
-  syncCostReq();
-  renderDraftForm();   // 라인의 코스트센터 목록·표시도 함께 갱신
+  commitHeaderCost();
 }
 /* 필수 표시 — 비어 있으면 붉게 */
 function syncCostReq(){
@@ -1418,6 +1440,7 @@ async function startRecur(t){
     const h = prev.header;
     if(h.dept_cd) $("fDept").value = h.dept_cd;
     renderCostOptions(); if(h.cost_cd) $("fCost").value = h.cost_cd;
+    HDR_COST_PREV = $("fCost").value;
     $("fProj").value = h.project_no || "";
     // 라인 — 전월 값 전체 프리필(금액 포함). 날짜형 관리항목은 +1개월 제안값.
     const ctrlBySeq = {};
@@ -1471,6 +1494,7 @@ function loadDraftIntoForm(r){
   CURRENT_NO = h.draft_no; $("editingNo").textContent = "· "+h.draft_no+" 수정 중";
   $("fDt").value = h.draft_dt || ""; $("fType").value = h.gl_type || "";
   $("fDept").value = h.dept_cd || ""; renderCostOptions(); $("fCost").value = h.cost_cd || "";
+  HDR_COST_PREV = $("fCost").value; syncCostReq();
   $("fDesc").value = h.gl_desc || ""; $("fProj").value = h.project_no || ""; $("fRef").value = h.ref_no || "";
   setRows((r.items||[]).map((it)=>{
     const ctrl = {};
@@ -1626,6 +1650,7 @@ async function applyTpl(){
   if(t.gl_type) $("fType").value = t.gl_type;
   if(t.desc_tmpl && !$("fDesc").value.trim()) $("fDesc").value = t.desc_tmpl;
   if(t.cost_cd){ renderCostOptions(); $("fCost").value = t.cost_cd; }
+  HDR_COST_PREV = $("fCost").value; syncCostReq();
 
   const spread = spreadAmounts(t.items||[], total);
   setRows(spread.map((it)=>{
@@ -1671,8 +1696,9 @@ function newDraft(){
   CURRENT_NO = null; $("editingNo").textContent = "";
   CURRENT_TPL = null; PREV_SNAP = null;
   $("fDesc").value = ""; $("fProj").value = ""; $("fRef").value = "";
-  setRows([{ dr_cr_fg:"D", acct_cd:"", item_amt:"", item_desc:"" },
-           { dr_cr_fg:"C", acct_cd:"", item_amt:"", item_desc:"" }]);
+  const cc = $("fCost").value || "";   // 부서 기준 기본 코스트센터를 처음부터 넣어 둔다
+  setRows([{ dr_cr_fg:"D", acct_cd:"", item_amt:"", item_desc:"", cost_cd:cc },
+           { dr_cr_fg:"C", acct_cd:"", item_amt:"", item_desc:"", cost_cd:cc }]);
 }
 function collect(){
   const deptSel = $("fDept");
@@ -1744,7 +1770,12 @@ function submitSummary(){
   return lines.join("\n");
 }
 
-$("btnAddRow").onclick = ()=>{ const rs = rows(); rs.push({ dr_cr_fg:"", acct_cd:"", item_amt:"", item_desc:"" }); setRows(rs); };
+$("btnAddRow").onclick = ()=>{
+  const rs = rows();
+  // 새 줄도 전표 코스트센터를 이미 넣은 상태로 시작한다(필수값이라 빈 채로 두지 않는다)
+  rs.push({ dr_cr_fg:"", acct_cd:"", item_amt:"", item_desc:"", cost_cd: $("fCost").value || "" });
+  setRows(rs);
+};
 $("btnDelRow").onclick = ()=>{
   const sel = new Set([...SELSET].map(String));
   if(!sel.size){ toast("삭제할 행을 선택하세요(No 칸의 체크박스).", true); return; }
@@ -1883,6 +1914,7 @@ function copySlipData(data){
   if(h.dept_cd && (MASTER.depts||[]).some((d)=> String(d.dept_cd)===String(h.dept_cd))) $("fDept").value = h.dept_cd;
   renderCostOptions();
   if(h.cost_cd) $("fCost").value = h.cost_cd;
+  HDR_COST_PREV = $("fCost").value; syncCostReq();
   // 관리항목 — 라인별 첫 세트(dtl_seq 최소) 우선. 날짜형은 달력 입력형(YYYY-MM-DD)으로 정규화.
   const ctrlBySeq = {};
   (data.ctrls||[]).forEach((c)=>{
@@ -1910,7 +1942,8 @@ function copySlipData(data){
     return { dr_cr_fg:(fg==="D"||fg==="C")?fg:"", acct_cd:acct, acct_nm:acctNm,
              item_amt: it.item_loc_amt!=null ? String(Math.round(Number(it.item_loc_amt)||0)) : "",
              item_desc: it.item_desc || "", bp_cd: it.bp_cd||null, bp_nm: it.bp_nm||null,
-             cost_cd: it.cost_cd||"", project_no: it.project_no||"",
+             // 원 전표 줄에 코스트센터가 없으면 전표 기본값으로 채운다(필수값이라 빈 채로 두지 않는다)
+             cost_cd: it.cost_cd || h.cost_cd || $("fCost").value || "", project_no: it.project_no||"",
              __ctrl: ctrlBySeq[it.item_seq] || {} };
   });
   if(newRows.length) setRows(newRows);
