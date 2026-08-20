@@ -1106,7 +1106,8 @@ function rows(){ return ROWS; }
 function rowBySeq(seq){ return ROWS.find((r)=> String(r.item_seq)===String(seq)); }
 function setRows(rs){
   rs.forEach((r,i)=>{ r.item_seq = i+1; r.__ctrl = r.__ctrl || {};
-                      r.__ctrlNm = r.__ctrlNm || {}; r.__ctrlUi = r.__ctrlUi || {}; });
+                      r.__ctrlNm = r.__ctrlNm || {}; r.__ctrlUi = r.__ctrlUi || {};
+                      r.__vatFix = r.__vatFix || {}; });   // 사용자가 고친 세액 보호 플래그
   ROWS = rs;
   SELSET = new Set([...SELSET].filter((s)=> rs.some((r)=> String(r.item_seq)===String(s))));
   renderDraftForm(); updateSum();
@@ -1255,6 +1256,119 @@ function renderDraftForm(){
 }
 const numAmt = (v)=> Number(String(v||"").replace(/,/g,"")) || 0;
 const fmtMoney = (v)=> v==="" || v==null ? "" : won(numAmt(v));
+
+/* ═══ 부가세 자동 계산 (REQ-0001 · 결정 C-14, B2 개정 2026-08-20) ═══
+   공급가액·부가세액·합계는 서로 묶인 값이다. 하나를 넣으면 나머지를 채운다.
+
+   세율은 계산서유형(V4)이 정한다 — 운영 전표 실측(2026-08-20):
+     A 일반세금계산서 1,422건 평균 9.99%(정확히 10% 1,197/1,222)
+     B 매입세액불공제    22건 10.00%(22/22) · L 신용카드 12건 10.00%(11/11)
+     K 계산서 64건 · C 영세율 18건 → 세액 0
+     I 수입세금계산서 3건 · H 통관 1건 → 10% 인데 공급가액 대비 일치 0/4.
+       수입·통관은 과세표준에 관세가 섞여 비율이 성립하지 않는다 → 자동계산 제외.
+   A 유형 25건(2%)이 정확히 10%가 아니다(원단위 조정) → 자동값은 '제안'이며
+   사용자가 고친 칸은 다시 덮지 않는다(__vatFix 플래그). */
+const VAT_ACCT_CD = "11103301";                 // 부가세대급금
+const VAT_RATE = { A:0.1, B:0.1, L:0.1, F:0.1, K:0, C:0 };   // 그 외는 자동계산 안 함
+const VAT_EXCLUDE = new Set(["I", "H"]);        // 수입·통관 — 실측상 계산 불성립
+function vatRateFor(v4){
+  const cd = String(v4||"").trim().toUpperCase();
+  if(!cd || VAT_EXCLUDE.has(cd)) return null;
+  return Object.prototype.hasOwnProperty.call(VAT_RATE, cd) ? VAT_RATE[cd] : null;
+}
+/* 이 전표가 자동계산 대상인가 — 부가세 라인이 정확히 1줄이고 세율이 정해질 때만 */
+function vatCtx(){
+  const vatRows = ROWS.filter((r)=> String(r.acct_cd||"").trim() === VAT_ACCT_CD && r.dr_cr_fg === "D");
+  if(vatRows.length !== 1) return null;
+  const vat = vatRows[0];
+  const rate = vatRateFor(vat.__ctrl.V4);
+  if(rate == null) return null;
+  // 상대 라인 — 비용(차변, 부가세 아님)과 대변. 각각 1줄일 때만 금액을 건드린다.
+  const cost = ROWS.filter((r)=> r.dr_cr_fg === "D" && r !== vat && r.acct_cd);
+  const cred = ROWS.filter((r)=> r.dr_cr_fg === "C" && r.acct_cd);
+  return { vat, rate, cost, cred, one: cost.length === 1 && cred.length === 1 };
+}
+const vatFixed = (r, k)=> !!(r.__vatFix && r.__vatFix[k]);
+function markVatFix(r, k){ r.__vatFix = r.__vatFix || {}; r.__vatFix[k] = true; }
+
+/* 공급가액이 정해지면 나머지를 채운다. 사용자가 직접 고친 칸은 건너뛴다. */
+function vatApply(supply, opt){
+  const c = vatCtx(); if(!c) return false;
+  const o = opt || {};
+  const sup = Math.max(0, Math.round(supply));
+  // 세액 결정 순서: ①호출자가 준 값(세액 칸을 직접 건드린 경우) ②사용자가 고쳐 둔 값
+  // ③세율로 계산. ②가 있는 이유는 원단위 조정이 실재하기 때문이다(A 유형 2%).
+  const fixedTax = numAmt(c.vat.__ctrl.V8);
+  const tax = (o.tax != null) ? Math.max(0, Math.round(o.tax))
+    : (vatFixed(c.vat, "V8") && !o.forceTax && fixedTax > 0) ? fixedTax
+    : Math.round(sup * c.rate);
+  c.vat.__ctrl.V1 = won(sup);
+  c.vat.__ctrl.V8 = won(tax);
+  c.vat.item_amt = String(tax);
+  c.vat.dr_cr_fg = "D";
+  if(c.one){
+    c.cost[0].item_amt = String(sup);
+    c.cred[0].item_amt = String(sup + tax);
+    c.cred[0].dr_cr_fg = "C";
+  }
+  return true;
+}
+/* 입력 지점별 트리거 — 어느 칸을 건드렸느냐로 무엇이 기준값인지 정해진다 */
+function vatOnAmount(row){
+  const c = vatCtx(); if(!c) return false;
+  const n = numAmt(row.item_amt);
+  if(!(n > 0)) return false;
+  if(row === c.vat){                       // 부가세 줄 차변 = 세액. 공급가액을 역산한다.
+    markVatFix(row, "V8");
+    if(c.rate <= 0) return false;
+    return vatApply(Math.round(n / c.rate), { tax:n });   // 입력값이 곧 세액이다
+  }
+  // 비용·대변 줄에서 시작하는 계산은 라인이 1:1(비용 1줄·대변 1줄)일 때만 한다.
+  // 비용이 여러 줄이면 그 줄 금액이 공급가액 전체인지 일부인지 알 수 없다 —
+  // 여러 줄 배분은 총액 배분 규칙(REQ-0002)의 몫이다.
+  if(!c.one) return false;
+  if(row.dr_cr_fg === "D") return vatApply(n);                 // 비용 줄 차변 = 공급가액
+  if(row.dr_cr_fg === "C") return vatApply(Math.round(n / (1 + c.rate)));  // 대변 = 합계
+  return false;
+}
+/* 계산 결과를 화면에 그린다 — 전체 재렌더 대신 해당 칸만 고친다.
+   입력 도중 재렌더하면 타이핑 중인 칸의 포커스가 날아간다. */
+function paintVat(skipEl){
+  const c = vatCtx(); if(!c) return;
+  const setInp = (sel, val)=>{
+    const el = document.querySelector(sel);
+    if(el && el !== skipEl) el.value = val;
+  };
+  const amtSel = (r, side)=> '#draftForm input[data-f="amt"][data-seq="'+r.item_seq+'"][data-side="'+side+'"]';
+  const ctrlSel = (r, cd)=> '#draftForm input[data-f="ctrl"][data-seq="'+r.item_seq+'"][data-cd="'+cd+'"]';
+  setInp(amtSel(c.vat, "D"), won(numAmt(c.vat.item_amt)));
+  setInp(ctrlSel(c.vat, "V1"), c.vat.__ctrl.V1 || "");
+  setInp(ctrlSel(c.vat, "V8"), c.vat.__ctrl.V8 || "");
+  if(c.one){
+    setInp(amtSel(c.cost[0], "D"), won(numAmt(c.cost[0].item_amt)));
+    setInp(amtSel(c.cred[0], "C"), won(numAmt(c.cred[0].item_amt)));
+    markRowDir(c.cost[0]); markRowDir(c.cred[0]);
+  }
+  markRowDir(c.vat);
+  // 자동으로 채워진 관리항목은 미입력 강조를 걷어낸다
+  [ctrlSel(c.vat,"V1"), ctrlSel(c.vat,"V8")].forEach((sel)=>{
+    const el = document.querySelector(sel); if(el && el.value) el.classList.remove("miss");
+  });
+  updateSum(); updateVfSum(); updateCtrlProg();
+}
+function vatOnCtrl(row, cd){
+  const c = vatCtx(); if(!c || row !== c.vat) return false;
+  if(cd === "V1"){ return vatApply(numAmt(row.__ctrl.V1)); }
+  if(cd === "V8"){                          // 세액을 직접 고침 — 공급가액은 두고 합계만 맞춘다
+    markVatFix(row, "V8");
+    return vatApply(numAmt(row.__ctrl.V1) || 0, { tax: numAmt(row.__ctrl.V8) });
+  }
+  if(cd === "V4"){                          // 계산서유형이 바뀌면 세액을 다시 계산한다
+    if(row.__vatFix) delete row.__vatFix.V8;
+    return vatApply(numAmt(row.__ctrl.V1) || 0, { forceTax:true });
+  }
+  return false;
+}
 // 전표 적요를 고치면 서식 상단 제목도 따라간다(제목 칸만 갱신 — 입력 중 포커스 유지)
 $("fDesc").addEventListener("input", ()=>{
   const t = $("vfTitle");
@@ -1274,6 +1388,9 @@ $("draftForm").addEventListener("input", (e)=>{
     // 반대편 칸은 비운다 — 한 줄은 차변이거나 대변이거나 하나다
     const tr = el.closest("tr");
     tr.querySelectorAll('input[data-f="amt"]').forEach((o)=>{ if(o !== el) o.value = ""; });
+    // 부가세 전표면 공급가액·세액·상대 라인을 함께 맞춘다(C-14).
+    // 타이핑 중이므로 재렌더하지 않고 해당 칸만 고친다(포커스 유지).
+    if(vatOnAmount(r)) paintVat(el);
     updateSum(); updateVfSum(); markRowDir(r);
     // 차대가 바뀌면 필수(*) 표시도 달라진다 — 라벨만 다시 칠한다
     repaintReq(r);
@@ -1285,6 +1402,8 @@ $("draftForm").addEventListener("input", (e)=>{
     el.classList.remove("suggest", "miss");
     const nmEl = el.closest("td")?.querySelector(".refnm"); if(nmEl) nmEl.remove();
     updateCtrlProg();
+    // 공급가액·부가세액·계산서유형은 서로 묶여 있다 — 하나를 넣으면 나머지를 채운다(C-14)
+    if((cd === "V1" || cd === "V8" || cd === "V4") && vatOnCtrl(r, cd)) paintVat(el);
   }
 });
 $("draftForm").addEventListener("change", (e)=>{
@@ -1378,9 +1497,10 @@ $("draftForm").addEventListener("click", (e)=>{
       renderDraftForm();
     };
     const kind = b.getAttribute("data-ref");
-    if(kind === "bp") openBpPicker((x)=> pick(x.bp_cd||"", x.bp_nm||""), true);
-    else if(kind === "item") openItemPicker((x)=> pick(x.item_cd||"", x.item_nm||""));
-    else openCtrlRefPicker(cd, (x)=> pick(x.ref_cd||"", x.ref_nm||""));
+    const pick2 = (code, nm)=>{ pick(code, nm); if(vatOnCtrl(r, cd)){ renderDraftForm(); updateSum(); } };
+    if(kind === "bp") openBpPicker((x)=> pick2(x.bp_cd||"", x.bp_nm||""), true);
+    else if(kind === "item") openItemPicker((x)=> pick2(x.item_cd||"", x.item_nm||""));
+    else openCtrlRefPicker(cd, (x)=> pick2(x.ref_cd||"", x.ref_nm||""));
   } else if(act === "fill"){
     const cd = b.getAttribute("data-cd");
     const val = String(r.__ctrl[cd] ?? "").trim();
@@ -1446,7 +1566,8 @@ function updateSum(){
 /* ═══ v4 — 관리항목 패널(F5) ═══
    계정을 고르면 그 계정×차대에 연결된 관리항목 입력칸을 자동으로 만든다.
    필수(*)는 ERP 설정(A_ACCT_CTRL_ASSN 플래그 Y) 기준 — 서버도 동일 기준으로 재검증한다.
-   부가세·원천징수 자동계산은 하지 않는다(B2 결정) — 세액은 실물 증빙 값을 직접 입력한다. */
+   부가세는 계산서유형(V4)별 세율로 자동 계산한다(결정 C-14 — B2 개정 2026-08-20).
+   자동값은 제안이며 사용자가 고친 칸은 덮지 않는다. 원천징수는 여전히 수기 입력. */
 function ctrlDefsFor(row){
   // 계정코드 trim — ERP char 패딩 대비(전표복사로 들어온 코드 포함)
   const defs = (CTRL_BY_ACCT.get(String(row.acct_cd||"").trim()) || [])
