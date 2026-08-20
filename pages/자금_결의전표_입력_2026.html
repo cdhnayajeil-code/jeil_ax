@@ -789,7 +789,9 @@ function openPicker(opt){
   const run = async ()=>{
     const q = inp.value.trim(), mySeq = ++runSeq;
     if(opt.local){ draw(opt.local(q).slice(0,150), "검색 결과가 없습니다."); return; }
-    if(q.length < 2){ draw([], "2자 이상 입력하면 검색합니다."); return; }
+    // minLen 0 이면 빈 검색어로도 조회한다(선택지가 적은 코드 사전용)
+    const need = opt.minLen == null ? 2 : opt.minLen;
+    if(q.length < need){ draw([], need+"자 이상 입력하면 검색합니다."); return; }
     list.innerHTML = '<div class="pk-empty">검색 중…</div>';
     try{ const rows = await opt.remote(q); if(mySeq===runSeq) draw(rows, "검색 결과가 없습니다."); }
     catch(e){ if(mySeq===runSeq) draw([], e.message); }
@@ -879,6 +881,7 @@ async function boot(){
      ERP char 패딩(뒤 공백) 대비 — 키를 전부 trim해서 계정코드 매칭이 어긋나지 않게 한다.
      (패딩 탓에 계정별 관리항목 필드가 아예 안 뜨던 문제의 화면측 방어 — 서버는 gl_pad_trim_v1) */
   CTRLM = d.ctrl_master || CTRLM;
+  CTRL_REF_KINDS = d.ctrl_ref_kinds || {};   // {관리항목코드: 선택지수} — 🔍 버튼 대상
   (CTRLM.ctrl_items||[]).forEach((c)=> CTRL_NM.set(String(c.ctrl_cd||"").trim(), c));
   (CTRLM.acct_ctrl||[]).forEach((row)=>{
     const [acct, cd, seq, dr, cr] = row;
@@ -1015,6 +1018,23 @@ function setRows(rs){
   SELSET = new Set([...SELSET].filter((s)=> rs.some((r)=> String(r.item_seq)===String(s))));
   renderDraftForm(); updateSum();
 }
+/* 관리항목 참조 검색(프로젝트코드·은행·계산서유형 등) — 통합 미러에서 서버 검색.
+   선택지가 적은 항목도 있어 빈 검색어로도 목록을 보여준다(2자 제한 없음). */
+function openCtrlRefPicker(ctrlCd, onPick){
+  const nm = (CTRL_NM.get(ctrlCd)||{}).ctrl_nm || ctrlCd;
+  const n = CTRL_REF_KINDS[ctrlCd] || 0;
+  openPicker({
+    title: nm+" 검색",
+    placeholder:"코드 또는 명칭 입력 (비우면 전체)",
+    hint:"ERP 마스터 "+won(n)+"건 · ↑↓ 이동 · Enter 선택 · Esc 닫기",
+    remote: async (q)=> (await api("ctrl_ref", { ctrl_cd: ctrlCd, q })).rows || [],
+    minLen: 0,
+    render:(x)=> '<span class="cd">'+esc(x.ref_cd)+'</span>'
+      + '<span class="nm">'+esc(x.ref_nm||"")+'</span>'
+      + (x.ref_sub ? '<span class="sub">'+esc(x.ref_sub)+'</span>' : ''),
+    onPick });
+}
+
 /* 코스트센터 검색 — 계정과목과 같은 방식(로컬 즉시 필터). 내 부서 것을 위로 올린다. */
 function openCostPicker(onPick){
   const dept = $("fDept").value;
@@ -1057,7 +1077,7 @@ function slotCellHtml(r, def, shareCnt){
     + '</span>'
     + (refKind
         ? '<span class="wref">'+inp+'<button type="button" class="refbtn" data-act="ref" data-seq="'+r.item_seq+'"'
-          + ' data-cd="'+esc(def.cd)+'" data-ref="'+refKind+'" title="'+(refKind==="bp"?"거래처 검색":"품목 검색")+'">🔍</button></span>'
+          + ' data-cd="'+esc(def.cd)+'" data-ref="'+refKind+'" title="'+esc(nm)+' 검색">🔍</button></span>'
         : inp)
     + (refNm?'<span class="refnm">'+esc(refNm)+'</span>':'')
     + '</td>';
@@ -1253,8 +1273,10 @@ $("draftForm").addEventListener("click", (e)=>{
       r.__ctrl[cd] = code; r.__ctrlNm[cd] = nm || "";
       renderDraftForm();
     };
-    if(b.getAttribute("data-ref") === "bp") openBpPicker((x)=> pick(x.bp_cd||"", x.bp_nm||""), true);
-    else openItemPicker((x)=> pick(x.item_cd||"", x.item_nm||""));
+    const kind = b.getAttribute("data-ref");
+    if(kind === "bp") openBpPicker((x)=> pick(x.bp_cd||"", x.bp_nm||""), true);
+    else if(kind === "item") openItemPicker((x)=> pick(x.item_cd||"", x.item_nm||""));
+    else openCtrlRefPicker(cd, (x)=> pick(x.ref_cd||"", x.ref_nm||""));
   } else if(act === "fill"){
     const cd = b.getAttribute("data-cd");
     const val = String(r.__ctrl[cd] ?? "").trim();
@@ -1334,11 +1356,16 @@ function ctrlDefsFor(row){
   });
   return out;
 }
-// 참조 마스터가 미러에 있는 관리항목 — 검색 팝업 제공(ref_tbl 기준)
+/* 참조 마스터가 있는 관리항목 — 검색 팝업 제공.
+   거래처·품목은 전용 검색 RPC를 쓰고, 나머지는 통합 참조 미러(ctrl_ref_s)를 쓴다.
+   무엇이 검색 가능한지는 서버가 알려준다(CTRL_REF_KINDS) — 화면에 목록을 박아두지 않는다.
+   민감 항목(사번·계좌·카드·어음·차입)은 서버가 적재하지 않아 자동으로 빠진다. */
+let CTRL_REF_KINDS = {};
 function ctrlRefKind(cd){
   const ref = String((CTRL_NM.get(cd)||{}).ref_tbl||"").trim().toUpperCase();
   if(ref === "B_BIZ_PARTNER") return "bp";
   if(ref === "B_ITEM") return "item";
+  if(CTRL_REF_KINDS[cd] > 0) return "ref";
   return null;
 }
 /* 라인별 관리항목 입력 현황 — 그리드 배지·필수 진행률 공용 */

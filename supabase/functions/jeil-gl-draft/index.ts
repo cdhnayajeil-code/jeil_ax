@@ -11,6 +11,9 @@
 // v5.3(2026-08-19): [ERP 전송] 버튼 — op apply_request(전송 대기 ready 마킹)·apply_cancel(대기 취소), canPost 전용.
 //   상태머신: null → ready(버튼) → applied|failed(중계 gl_apply_demo2.py --queue/--watch 처리 결과).
 //   이 함수는 여전히 ERP에 쓰지 않는다 — 마킹만 하고, 투입은 사내 pull 중계가 수행(기회검토 채택 구조).
+// v5.7(2026-08-20): 관리항목 참조 검색 전면 연결 — op `ctrl_ref`(19종 공용) + bootstrap 의
+//   `ctrl_ref_kinds`(검색 가능 목록). 원천은 통합 미러 erp_ro.ctrl_ref_s(migration gl_ctrl_ref_v1).
+//   민감 6종(사번·계좌·신용카드·구매카드·어음·차입번호)은 적재 자체를 하지 않아 검색되지 않는다.
 // v5.6(2026-08-20): 코스트센터 필수화(관리자 지시). save 에서 라인마다 코스트센터를 요구하고
 //   (없으면 헤더값 승계) `gl_master_get` 의 유효 목록으로 화이트리스트 재검증한다.
 //   유효 목록은 폐지분(조직개편 19801 · 명칭 '(사용금지)')을 제외한 것 — migration gl_master_cost_center_v2.
@@ -269,6 +272,11 @@ Deno.serve(async (req) => {
       can_manage_tpl: canManageTpl,
       // v4: 관리항목 마스터(코드 사전 + 계정×차대 요건) — 화면이 계정 선택 시 필드를 자동 생성한다
       ctrl_master: await ctrlMaster(),
+      // v5.7: 검색 가능한 관리항목 목록 {ctrl_cd: 선택지수} — 화면이 🔍 버튼을 붙일 대상
+      ctrl_ref_kinds: await (async () => {
+        try { const { data } = await admin.rpc("gl_ctrl_ref_kinds"); return data || {}; }
+        catch { return {}; }
+      })(),
     });
   }
 
@@ -527,6 +535,17 @@ Deno.serve(async (req) => {
     const q = String(b.q || "").trim();
     if (q.length < 2) return json({ ok: true, rows: [] });
     const { data } = await admin.rpc("gl_bp_search", { p_q: q });
+    return json({ ok: true, rows: data || [] });
+  }
+
+  /* ===== op: ctrl_ref — 관리항목 참조 검색(프로젝트·은행·계산서유형 등 19종 공용) =====
+     어떤 관리항목이 검색 가능한지는 서버(ctrl_ref_s 적재분)가 정한다 — 화면 하드코딩 없음.
+     민감 항목(사번·계좌·카드·어음·차입)은 애초에 적재하지 않아 여기서도 조회되지 않는다. */
+  if (op === "ctrl_ref") {
+    const cd = String(b.ctrl_cd || "").trim();
+    if (!cd) return json({ ok: true, rows: [] });
+    const { data } = await admin.rpc("gl_ctrl_ref_search",
+      { p_ctrl_cd: cd, p_q: String(b.q || "").trim() });
     return json({ ok: true, rows: data || [] });
   }
 

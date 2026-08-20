@@ -285,6 +285,97 @@ JOBS = {
         """,
         "params": [],
     },
+    # ⑫-2 관리항목 참조 마스터 통합 ← 참조 테이블 21종 (관리자 지시 2026-08-20)
+    #    관리항목의 ref_tbl 이 가리키는 코드 사전을 (관리항목코드, 코드, 명칭) 3열로 모아
+    #    화면에서 같은 검색 팝업으로 고를 수 있게 한다. 마이그레이션 gl_ctrl_ref_v1.
+    #    ⚠ 민감 6종은 의도적으로 제외 — 사번(EM·HAA010T) · 계좌번호(BA·F_DPST) ·
+    #      신용카드(D1·B_CREDIT_CARD) · 구매카드/어음(CP·NN·F_NOTE) · 차입번호(L1·F_LN_INFO).
+    #      전표 미러에서도 값을 마스킹하는 항목이라 검색 목록으로 노출하지 않는다(CLAUDE.md §1.7).
+    #    거래처(BP·V6·X01)·품목(MK)은 전용 검색 RPC(gl_bp_search·gl_item_search)를 이미 쓰므로 제외.
+    "ctrl_ref": {
+        "table": "ctrl_ref_s",
+        "rpc": "erp_ctrl_ref_upsert",
+        "sql": """
+            -- 프로젝트코드: 코드는 추적번호 뷰, 명칭은 프로젝트 마스터에서 보강
+            SELECT 'PC' AS ctrl_cd, RTRIM(t.TRACKING_NO) AS ref_cd,
+                   NULLIF(RTRIM(ISNULL(p.PJT_NM, '')), '') AS ref_nm,
+                   NULLIF(RTRIM(ISNULL(t.SO_NO, '')), '') AS ref_sub,
+                   'V_SO_TRACKING' AS src_tbl, NULL AS src_updated
+            FROM JEILMNS.dbo.V_SO_TRACKING t WITH (NOLOCK)
+            LEFT JOIN JEILMNS.dbo.PM_PROJECT_MASTER_KO174 p WITH (NOLOCK)
+                   ON RTRIM(p.TRACKING_NO) = RTRIM(t.TRACKING_NO)
+            WHERE RTRIM(ISNULL(t.TRACKING_NO, '')) <> ''
+            UNION ALL
+            -- 공통코드(B_MINOR) 기반 6종 — 관리항목마다 MAJOR_CD 가 다르다
+            SELECT c.ctrl_cd, RTRIM(m.MINOR_CD), NULLIF(RTRIM(ISNULL(m.MINOR_NM, '')), ''),
+                   NULL, 'B_MINOR', NULL
+            FROM JEILMNS.dbo.B_MINOR m WITH (NOLOCK)
+            JOIN (SELECT 'V3' AS ctrl_cd, 'A1003' AS major_cd
+                  UNION ALL SELECT 'EPA', 'A5000'
+                  UNION ALL SELECT 'PJ',  'A9001'
+                  UNION ALL SELECT 'V4',  'B9001'
+                  UNION ALL SELECT 'C10', 'CM421'
+                  UNION ALL SELECT 'C0',  'CM422') c ON RTRIM(m.MAJOR_CD) = c.major_cd
+            WHERE RTRIM(ISNULL(m.MINOR_CD, '')) <> ''
+            UNION ALL
+            SELECT 'V5', RTRIM(TAX_BIZ_AREA_CD), NULLIF(RTRIM(ISNULL(TAX_BIZ_AREA_NM, '')), ''),
+                   NULL, 'B_TAX_BIZ_AREA', NULL
+            FROM JEILMNS.dbo.B_TAX_BIZ_AREA WITH (NOLOCK)
+            UNION ALL
+            SELECT 'BK', RTRIM(BANK_CD), NULLIF(RTRIM(ISNULL(BANK_NM, '')), ''),
+                   NULL, 'B_BANK', NULL
+            FROM JEILMNS.dbo.B_BANK WITH (NOLOCK)
+            UNION ALL
+            -- 사용자정의 코드 3종(차량번호·건설중자산·대체계정)
+            SELECT 'X11', RTRIM(UD_MINOR_CD), NULLIF(RTRIM(ISNULL(UD_MINOR_NM, '')), ''),
+                   NULL, 'UV_UD_MAJOR_CD1', NULL
+            FROM JEILMNS.dbo.UV_UD_MAJOR_CD1 WITH (NOLOCK)
+            UNION ALL
+            SELECT 'CA', RTRIM(UD_MINOR_CD), NULLIF(RTRIM(ISNULL(UD_MINOR_NM, '')), ''),
+                   NULL, 'UV_UD_MAJOR_CD2', NULL
+            FROM JEILMNS.dbo.UV_UD_MAJOR_CD2 WITH (NOLOCK)
+            UNION ALL
+            SELECT 'X12', RTRIM(UD_MINOR_CD), NULLIF(RTRIM(ISNULL(UD_MINOR_NM, '')), ''),
+                   NULL, 'UV_UD_MAJOR_CD3', NULL
+            FROM JEILMNS.dbo.UV_UD_MAJOR_CD3 WITH (NOLOCK)
+            UNION ALL
+            SELECT 'CC', RTRIM(COST_CD), NULLIF(RTRIM(ISNULL(COST_NM, '')), ''),
+                   NULLIF(RTRIM(ISNULL(DEPT_CD, '')), ''), 'B_COST_CENTER', NULL
+            FROM JEILMNS.dbo.B_COST_CENTER WITH (NOLOCK)
+            WHERE ISNULL(COST_NM, '') NOT LIKE '%사용금지%'
+            UNION ALL
+            SELECT 'BZ', RTRIM(BIZ_UNIT_CD), NULLIF(RTRIM(ISNULL(BIZ_UNIT_NM, '')), ''),
+                   NULL, 'B_BIZ_UNIT', NULL
+            FROM JEILMNS.dbo.B_BIZ_UNIT WITH (NOLOCK)
+            UNION ALL
+            SELECT 'PT', RTRIM(PLANT_CD), NULLIF(RTRIM(ISNULL(PLANT_NM, '')), ''),
+                   NULL, 'B_PLANT', NULL
+            FROM JEILMNS.dbo.B_PLANT WITH (NOLOCK)
+            UNION ALL
+            SELECT 'MG', RTRIM(ITEM_GROUP_CD), NULLIF(RTRIM(ISNULL(ITEM_GROUP_NM, '')), ''),
+                   NULL, 'B_ITEM_GROUP', NULL
+            FROM JEILMNS.dbo.B_ITEM_GROUP WITH (NOLOCK)
+            UNION ALL
+            -- 자산번호 — 코드가 많지 않아 전량(648행 수준)
+            SELECT 'L2', RTRIM(ASST_NO), NULLIF(RTRIM(ISNULL(ASST_NM, '')), ''),
+                   NULLIF(RTRIM(ISNULL(COST_CD, '')), ''), 'A_ASSET_MASTER', NULL
+            FROM JEILMNS.dbo.A_ASSET_MASTER WITH (NOLOCK)
+            WHERE RTRIM(ISNULL(ASST_NO, '')) <> ''
+            UNION ALL
+            -- 발주번호 — 최근분만(전량은 과다). 거래처코드를 보조 표시로
+            SELECT 'PO', RTRIM(PO_NO), NULL, NULLIF(RTRIM(ISNULL(BP_CD, '')), ''),
+                   'M_PUR_ORD_HDR', NULL
+            FROM JEILMNS.dbo.M_PUR_ORD_HDR WITH (NOLOCK)
+            WHERE RTRIM(ISNULL(PO_NO, '')) <> ''
+              AND PO_DT >= DATEADD(month, -18, GETDATE())
+            UNION ALL
+            SELECT 'TK', RTRIM(PJT_CD), NULLIF(RTRIM(ISNULL(PJT_NM, '')), ''),
+                   NULLIF(RTRIM(ISNULL(TRACKING_NO, '')), ''), 'PM_PROJECT_MASTER_KO174', NULL
+            FROM JEILMNS.dbo.PM_PROJECT_MASTER_KO174 WITH (NOLOCK)
+            WHERE RTRIM(ISNULL(PJT_CD, '')) <> ''
+        """,
+        "params": [],
+    },
     # ⑬ 결의전표 헤더 미러 ← A_TEMP_GL (TARGET_YEAR 전체, 전 입력경로) — 「전표복사」 원천
     #    결정 C-10(2026-08-18 관리자 지시): C-7(코드 마스터만)을 확장해 결의전표 미러 적재.
     #    접근은 RPC(gl_slip_list/get, service_role)가 본인(insrt_user_id) 전표만 반환 — 25_gl_slip_mirror.sql
