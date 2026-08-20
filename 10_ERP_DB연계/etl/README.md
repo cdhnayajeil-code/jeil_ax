@@ -50,6 +50,9 @@ python etl_run.py --job dept_master            # 부서 마스터(B_ACCT_DEPT) �
 | `usr_erp_module` | `Z_USR_MAST_REC_USR_ROLE_ASSO`→`Z_USR_ROLE_MNU_AUTHZTN_ASSO`→`Z_CO_MAST_MNU` | `erp_ro.usr_erp_module_s` | 사용자별 ERP 접근 모듈(ModuleInitial). 부서별 ERP 모듈 **제안값**(`v_dept_erp_suggest`)용 — 콘솔 ◆ 참고표시, 자동 덮어쓰기 아님 |
 | `hr_payroll` ⚠민감 | `HDF070T`(월급여대장)·`HGA070T`(퇴직) | **`erp_secure.hr_payroll_m`** (rpc=`erp_secure_upsert`) | 인사 급여 **집계만**(월×부서 인원·급여총액, 월×전사 퇴직). 개인별·이름·주민번호·계좌 미포함. 인사팀 전용(jeil-hr). 실 적재는 관리자 `!` 직접 실행(거버넌스 게이트) |
 | `pur_order`·`item_master`·`sales`·`purchase`·`inventory` | (기존) | `erp_ro.*` | 1차 5종 |
+| `acct_master`·`cost_center`·`ctrl_item`·`acct_ctrl_assn` | `A_ACCT`·`B_COST_CENTER`·`A_CTRL_ITEM`·`A_ACCT_CTRL_ASSN` | `erp_ro.*` | 결의전표 회계 마스터 4종(코드·설정만) |
+| `gl_slip`·`gl_slip_item`·`gl_slip_ctrl` | `A_TEMP_GL`·`_ITEM`·`_DTL` | `erp_ro.gl_slip*_s` | 결의전표 미러(「전표복사」 원천, 결정 C-10). 관리항목 값 중 민감 5종(`EM`·`BA`·`D1`·`CP`·`NN`)은 적재 시 NULL 마스킹 |
+| `ctrl_ref` | `V_SO_TRACKING`·`B_MINOR`·`B_BANK`·`F_DPST`·`B_CREDIT_CARD`·`HAA010T` 등 **25종** | **`erp_ro.ctrl_ref_s`** (rpc=`erp_ctrl_ref_upsert`) | 관리항목 🔍 검색 원천. 참조 보유 관리항목 31종 중 27종(거래처·품목 4종은 전용 RPC). **사번은 사번·성명·부서명만·재직자만** — 주민번호·급여·주소·연락처는 추출하지 않는다. 민감 항목 조회는 `gl_draft_log` 감사기록 |
 
 > **사용자↔부서↔사원 대사**: `usr_master`+`dept_master` 적재 후 `public.v_erp_user_dept`(정상 매핑)·`v_erp_user_dept_recon`(불일치)·`v_erp_dept_roster`(부서 명부)로 조회. 파싱·판정 로직은 마이그레이션 `erp_user_dept_mapping`(정본 `실제구축준비 자료/이관/sql/09_erp_user_dept_mapping.sql`).
 >
