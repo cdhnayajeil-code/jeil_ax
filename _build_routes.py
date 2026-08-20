@@ -73,8 +73,9 @@ def main():
         return 1
 
     # ── 2. vercel.json ──────────────────────────────────────
+    # 목적지는 원문(비인코딩) 경로 — 퍼센트 인코딩하면 Vercel 정적 파일 매칭에 실패한다(실측).
     def enc(p):
-        return "/" + urllib.parse.quote(p)
+        return "/" + p
 
     vercel = {
         "$schema": "https://openapi.vercel.sh/vercel.json",
