@@ -625,6 +625,7 @@ def run_job(name, spec, url, key, dry, full=False):
             rpc(url, key, "erp_etl_batch", {"p_action": "finish", "p_payload": {
                 "batch_id": batch_id, "status": "success", "rows_read": rows_read, "rows_upserted": rows_up}})
             print(f"[{name}] 완료 — 추출 {rows_read} / 적재 {rows_up}")
+        return rows_read, rows_up   # 웹 요청 러너(etl_watch.py)의 진행률 표시용 — main() 은 무시
     except Exception as e:
         if batch_id:
             rpc(url, key, "erp_etl_batch", {"p_action": "finish", "p_payload": {

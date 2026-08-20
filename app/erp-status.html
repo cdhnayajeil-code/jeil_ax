@@ -22,6 +22,16 @@
   .summary .asof{font-size:26px;font-weight:800;color:var(--navy);margin:2px 0 4px;}
   .summary .desc{font-size:12.5px;color:#33425a;}
   .summary .dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--green);margin-right:5px;vertical-align:middle;}
+  /* 데이터 업데이트(ETL 실행 요청) 컨트롤 */
+  .btn{display:inline-flex;align-items:center;gap:6px;padding:8px 15px;background:var(--navy);color:#fff;border:none;border-radius:8px;font-size:12.5px;font-weight:600;cursor:pointer;font-family:inherit;white-space:nowrap;}
+  .btn:hover:not(:disabled){background:var(--navy2);}
+  .btn:disabled{background:#9aa6b8;cursor:progress;}
+  .upd{display:flex;align-items:center;gap:11px;flex-wrap:wrap;margin-top:14px;padding-top:12px;border-top:1px dashed var(--line);}
+  .upd .msg{font-size:12px;color:var(--muted);flex:1 1 220px;}
+  .upd .msg b{color:var(--navy2);}
+  .upd .msg.err{color:var(--red);} .upd .msg.ok{color:var(--green);} .upd .msg.warn{color:var(--amber);}
+  .bar{display:none;width:100%;height:6px;border-radius:4px;background:#e2e8f1;overflow:hidden;}
+  .bar > i{display:block;height:100%;width:0;background:var(--accent);transition:width .35s;}
   /* 관리자용 상세 */
   h3{font-size:14px;color:var(--navy);margin:22px 0 9px;}
   table{width:100%;border-collapse:collapse;font-size:12.7px;}
@@ -53,6 +63,14 @@
     <div class="lb"><span class="dot"></span>ERP 데이터 최신 연동 시점</div>
     <div class="asof" id="asof">불러오는 중…</div>
     <div class="desc" id="asofDesc">Supabase 중간DB에 반영된 ERP 데이터의 기준 시각입니다.</div>
+
+    <!-- 데이터 업데이트: ERP는 사외 IDC라 브라우저에서 직접 못 붙는다 → 요청을 남기면
+         ERP 접속 호스트의 러너(etl_watch.py)가 ETL을 실행하고, 끝나면 이 화면이 자동 갱신된다. -->
+    <div class="upd" id="updBox" style="display:none;">
+      <button class="btn" id="btnUpdate">🔄 데이터 업데이트</button>
+      <span class="msg" id="updMsg">ERP에서 최신 데이터를 다시 받아옵니다(증분).</span>
+      <div class="bar" id="updBar"><i id="updBarFill"></i></div>
+    </div>
   </div>
 
   <!-- 비로그인/권한없음 안내 -->
@@ -147,7 +165,8 @@
     return true;
   }
 
-  if (await gateCheck()) try {
+  /* ===== 연동 현황 렌더(버튼으로도 다시 부른다) ===== */
+  async function loadOverview() {
     const rows = await erpApi.syncOverview();
     if (!rows.length) { el("gate").style.display = "block"; el("asof").textContent = "표시 권한 없음"; el("rows").innerHTML = ""; }
     else {
@@ -175,6 +194,97 @@
         </tr>`;
       }).join("");
     }
+  }
+
+  /* ===== 데이터 업데이트(ERP → 중간DB 재적재 요청) =====
+     ERP MSSQL은 사외 IDC + IP 허용이라 브라우저·Supabase Edge에서 직접 붙을 수 없다(CLAUDE.md §4).
+     그래서 버튼은 Supabase 큐(etl_meta.sync_request)에 요청만 등록하고, ERP 접속이 되는 호스트의
+     러너(10_ERP_DB연계/etl/etl_watch.py)가 집어가 etl_run 을 돌린다. 여기서는 상태를 폴링하다가
+     done 이면 표를 다시 그린다. 민감분(급여)은 러너가 요청 대상에서 제외한다. */
+  const POLL_MS = 2500;              // 상태 폴링 주기
+  const MAX_WAIT_MS = 15 * 60 * 1000; // 최대 대기(그 이상은 화면만 놓아준다 — 요청은 계속 살아 있음)
+  const NO_RUNNER_MS = 20 * 1000;     // 러너가 꺼져 있으면 이만큼만 기다리고 안내로 전환
+  const JOB_KO = { usr_master:"사용자마스터", dept_master:"부서마스터", usr_erp_module:"사용자 ERP모듈",
+    pur_order:"발주", pur_req:"구매요청", item_master:"품목", sales:"매출", iv_dtl:"매입상세",
+    purchase:"매입", inventory:"재고", acct_master:"계정과목", cost_center:"코스트센터",
+    ctrl_item:"관리항목", acct_ctrl_assn:"계정·관리항목", ctrl_ref:"관리항목 참조",
+    gl_slip:"결의전표", gl_slip_item:"전표라인", gl_slip_ctrl:"전표 관리항목", bp_master:"거래처" };
+  const jobKo = (k) => JOB_KO[k] || k || "";
+
+  function setMsg(html, cls) { const m = el("updMsg"); m.className = "msg" + (cls ? " " + cls : ""); m.innerHTML = html; }
+  function setBar(done, total) {
+    const bar = el("updBar");
+    if (!total) { bar.style.display = "none"; return; }
+    bar.style.display = "block";
+    el("updBarFill").style.width = Math.max(3, Math.round((done / total) * 100)) + "%";
+  }
+  function setBusy(on, label) {
+    const b = el("btnUpdate");
+    b.disabled = !!on;
+    b.textContent = on ? (label || "진행 중…") : "🔄 데이터 업데이트";
+  }
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+  async function runUpdate() {
+    setBusy(true, "요청 중…"); setBar(0, 0);
+    let req;
+    try { req = await erpApi.syncRequest(); }
+    catch (e) { setMsg("업데이트 요청 실패 — " + esc(e?.message || e), "err"); setBusy(false); return; }
+
+    if (req.forbidden) { setMsg("권한이 없습니다. 사내 계정으로 다시 로그인하세요.", "err"); setBusy(false); return; }
+    if (req.cooldown) {
+      setMsg(`방금 실행이 끝났습니다 — <b>${req.wait_sec}초</b> 후 다시 시도할 수 있습니다.`, "warn");
+      setBusy(false); await loadOverview(); return;
+    }
+    if (!req.ok || !req.request_id) { setMsg("업데이트 요청을 등록하지 못했습니다.", "err"); setBusy(false); return; }
+
+    setMsg(req.reused ? "이미 진행 중인 업데이트가 있어 그 작업에 연결했습니다." : "업데이트 요청 등록됨 — 실행 대기 중…");
+    setBusy(true, "대기 중…");
+
+    const t0 = Date.now();
+    let last = req;
+    while (Date.now() - t0 < MAX_WAIT_MS) {
+      await sleep(POLL_MS);
+      try { last = await erpApi.syncRequestStatus(req.request_id); }
+      catch (e) { setMsg("상태 확인 실패 — " + esc(e?.message || e), "err"); break; }
+      if (!last.ok) { setMsg("요청 정보를 찾을 수 없습니다.", "err"); break; }
+
+      if (last.status === "running") {
+        const d = last.progress_done || 0, t = last.progress_total || 0;
+        setBusy(true, `적재 중… ${d}/${t || "?"}`);
+        setBar(d, t);
+        setMsg(`적재 중 — <b>${jobKo(last.progress_job)}</b>${t ? ` (${d}/${t})` : ""}`
+          + (last.rows_upserted ? ` · 누적 ${num(last.rows_upserted)}건` : "")
+          + (last.runner ? ` · 실행 호스트 ${esc(last.runner)}` : ""));
+        continue;
+      }
+      if (last.status === "done" || last.status === "failed") break;
+
+      // queued: 러너가 꺼져 있으면 무한정 기다리지 않는다
+      if (!last.runner_online && Date.now() - t0 > NO_RUNNER_MS) {
+        setMsg("요청은 등록됐지만 <b>실행 러너가 가동 중이 아닙니다</b> — ERP 접속 PC에서 "
+          + "<code>python etl_watch.py</code> 를 실행하면 자동으로 처리됩니다.", "warn");
+        setBusy(false); setBar(0, 0); await loadOverview(); return;
+      }
+      setBusy(true, "대기 중…");
+      setMsg("실행 대기 중… " + (last.runner_online ? "(러너 확인됨)" : "(러너 응답 확인 중)"));
+    }
+
+    setBar(0, 0); setBusy(false);
+    if (last.status === "done") {
+      setMsg(`업데이트 완료 — 추출 ${num(last.rows_read)}건 / 적재 <b>${num(last.rows_upserted)}건</b>`, "ok");
+    } else if (last.status === "failed") {
+      setMsg("업데이트 일부/전체 실패 — " + esc(last.error_msg || "원인 미상") + " (아래 표는 최신 상태로 갱신)", "err");
+    } else if (last.status === "running" || last.status === "queued") {
+      setMsg("아직 진행 중입니다 — 잠시 후 새로고침하면 결과가 반영됩니다.", "warn");
+    }
+    await loadOverview();   // 성공·실패 무관하게 현재 상태로 다시 그린다
+  }
+
+  if (await gateCheck()) try {
+    await loadOverview();
+    el("updBox").style.display = "flex";
+    el("btnUpdate").onclick = runUpdate;
   } catch (e) {
     // 비로그인/anon/권한없음
     el("gate").style.display = "block";

@@ -425,6 +425,31 @@ export const erpApi = {
     if (error) throw error; return data || [];
   },
 
+  /* 「데이터 업데이트」 요청 큐 (etl_meta.sync_request · SQL 정본 29_erp_sync_request.sql)
+     ERP MSSQL은 사외 IDC라 브라우저·Edge에서 직접 못 붙는다 → 웹은 요청만 남기고,
+     ERP 접속 호스트의 러너(10_ERP_DB연계/etl/etl_watch.py)가 집어가 ETL을 돌린 뒤 상태를 되쓴다. */
+  // 요청 등록(사내 세션 전용). 진행 중 요청이 있으면 그 건을 그대로 돌려준다(reused=true).
+  // 반환: {ok, request_id, status, runner_online, reused} | {ok:false, cooldown, wait_sec} | {ok:false, forbidden:true}
+  async syncRequest(jobs = null) {
+    const { data, error } = await supabase.rpc("erp_sync_request_create", { p_jobs: jobs });
+    if (error) {
+      const msg = String(error.message || "");
+      if (/forbidden/i.test(msg) || error.code === "42501") return { ok: false, forbidden: true };
+      throw error;
+    }
+    return data || { ok: false };
+  },
+  // 요청 상태 폴링. 반환: {ok, status(queued|running|done|failed), progress_done/total/job, rows_*, runner_online, error_msg}
+  async syncRequestStatus(requestId) {
+    const { data, error } = await supabase.rpc("erp_sync_request_status", { p_request_id: requestId });
+    if (error) {
+      const msg = String(error.message || "");
+      if (/forbidden/i.test(msg) || error.code === "42501") return { ok: false, forbidden: true };
+      throw error;
+    }
+    return data || { ok: false };
+  },
+
   // 자금·회계 현황 종합(연/월) — 서버 RPC가 세션 부서(finance 모듈/관리자)로 강제.
   // 권한 없으면 forbidden 예외를 던진다({ forbidden:true } 로 표준화해 반환). 반환: {ok, dept, is_admin, year, month, monthly[], top_sales[], top_purchase[], years[]}
   async financeOverview(year = 2026, month = null) {
