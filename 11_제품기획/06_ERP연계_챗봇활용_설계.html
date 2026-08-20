@@ -42,14 +42,14 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <body>
 <div class="page">
   <span class="doc-label">JEIL AX 제품기획 · 대외비</span>
-  <div class="docnav"><a href="index.html">🏠 제품기획 허브</a><a href="00_제품기획_개요.html">00 개요</a><a href="01_PRD_제품요구사항정의.html">01 PRD</a><a href="02_SRS_요구사항명세.html">02 SRS</a><a href="03_시스템아키텍처_설계.html">03 아키텍처</a><a href="04_데이터베이스_설계.html">04 DB설계</a><a href="05_프론트엔드_백엔드_설계.html">05 FE·BE</a><a class="cur" href="06_ERP연계_챗봇활용_설계.html">06 ERP연계</a><a href="07_마이그레이션_Azure이관_설계.html">07 이관</a><a href="08_보안_데이터안정성.html">08 보안</a><a href="09_ADR_의사결정기록.html">09 ADR</a><a href="10_챗봇_응답렌더링_설계.html">10 응답렌더링</a><a href="11_챗봇_데이터요청접수_설계.html">11 요청접수</a><a href="README.md">README</a></div>
-  <p class="md-link">📄 Markdown 원본: <a href="06_ERP연계_챗봇활용_설계.md">06_ERP연계_챗봇활용_설계.md</a> · 허브 <a href="index.html">제품기획 개요</a></p>
+  <div class="docnav"><a href="/docs/product">🏠 제품기획 허브</a><a href="/docs/product/overview">00 개요</a><a href="/docs/product/prd">01 PRD</a><a href="/docs/product/srs">02 SRS</a><a href="/docs/product/architecture">03 아키텍처</a><a href="/docs/product/database">04 DB설계</a><a href="/docs/product/frontend-backend">05 FE·BE</a><a class="cur" href="/docs/product/erp-chatbot">06 ERP연계</a><a href="/docs/product/migration-design">07 이관</a><a href="/docs/product/security">08 보안</a><a href="/docs/product/adr">09 ADR</a><a href="/docs/product/chat-rendering">10 응답렌더링</a><a href="/docs/product/chat-data-request">11 요청접수</a><a href="README.md">README</a></div>
+  <p class="md-link">📄 Markdown 원본: <a href="06_ERP연계_챗봇활용_설계.md">06_ERP연계_챗봇활용_설계.md</a> · 허브 <a href="/docs/product">제품기획 개요</a></p>
   <div class="content">
 <h1 id="06-erp-p4">06 · ERP연계·챗봇활용 설계서 (P4 연결)</h1>
 <blockquote>
 <p>관리자: 최동혁(dh.choi@jeilm.co.kr) · 기준일: 2026-07-08 · 상태: Draft
-관련: <a href="03_시스템아키텍처_설계.md">03 아키텍처</a> · <a href="04_데이터베이스_설계.md">04 DB설계</a> · <a href="08_보안_데이터안정성.md">08 보안</a>
-ERP 연계 관제 정본(값 복제 금지): <a href="../10_ERP_DB연계/01_연계기획.md"><code>10_ERP_DB연계/01_연계기획</code></a> · <a href="../10_ERP_DB연계/03_중간DB_구축실행기획.md"><code>10_ERP_DB연계/03_중간DB_구축실행기획</code></a></p>
+관련: <a href="/docs/product/architecture">03 아키텍처</a> · <a href="/docs/product/database">04 DB설계</a> · <a href="/docs/product/security">08 보안</a>
+ERP 연계 관제 정본(값 복제 금지): <a href="/docs/erp/plan"><code>10_ERP_DB연계/01_연계기획</code></a> · <a href="/docs/erp/midway-db"><code>10_ERP_DB연계/03_중간DB_구축실행기획</code></a></p>
 </blockquote>
 <p>이 문서는 제품기획 세트의 <strong>핵심 신규 설계</strong>다. 현재 끊겨 있는 <strong>중간DB(<code>erp_ro</code>) → 앱/챗봇</strong> 구간(P4)을 안전하게 잇는 방법을 정의한다.</p>
 <hr />
@@ -123,7 +123,7 @@ erp_ro.item_master_s  ──▶ view erp_pub.v_item (품목 조회)
 </table>
 <ul>
 <li>현재 1단계 Tool 3종(포털DB)에 <strong>더해</strong> 등록. 임의 SQL 여전히 금지.</li>
-<li><strong>권한 등급</strong>: 초기에는 전 사내 사용자 동일. 이후 Entra 보안그룹(<code>AI-Portal-Finance</code>·<code>-HR</code> 등)으로 민감 Tool(자금·인사) 접근을 제한([CLAUDE.md §5], <a href="09_ADR_의사결정기록.md">09 ADR</a>). 자금·인사는 <code>erp_secure</code>(P5)까지 보류.</li>
+<li><strong>권한 등급</strong>: 초기에는 전 사내 사용자 동일. 이후 Entra 보안그룹(<code>AI-Portal-Finance</code>·<code>-HR</code> 등)으로 민감 Tool(자금·인사) 접근을 제한([CLAUDE.md §5], <a href="/docs/product/adr">09 ADR</a>). 자금·인사는 <code>erp_secure</code>(P5)까지 보류.</li>
 </ul>
 <h3 id="33">3.3 방식 비교</h3>
 <table>
@@ -177,7 +177,7 @@ erp_ro.item_master_s  ──▶ view erp_pub.v_item (품목 조회)
 <ul>
 <li><strong>조인축 <code>po_no</code></strong>: 포털 <code>sp_order_header.po_no</code> ↔ ERP <code>pur_order_s</code>의 발주번호. 매핑 테이블/뷰로 연결(현재 포털 발주는 자체 시드, 실연동 시 ERP 발주를 기준으로 전환 검토).</li>
 <li><strong>기준시각</strong>: 모든 ERP 파생 화면에 <code>v_last_success</code> 기준 표기 → 배치 실패 시 "오래된 데이터"임을 사용자가 인지.</li>
-<li><strong>증분·리프레시</strong>: 현재 롤링(매출·매입 3개월, 재고 31일) + 스냅샷. 향후 <code>pg_cron</code>으로 스케줄 자동화 검토(<a href="04_데이터베이스_설계.md">04 §7</a>).</li>
+<li><strong>증분·리프레시</strong>: 현재 롤링(매출·매입 3개월, 재고 31일) + 스냅샷. 향후 <code>pg_cron</code>으로 스케줄 자동화 검토(<a href="/docs/product/database">04 §7</a>).</li>
 </ul>
 <h2 id="7">7. 단계별 실행(요약)</h2>
 <table>
@@ -223,9 +223,9 @@ erp_ro.item_master_s  ──▶ view erp_pub.v_item (품목 조회)
 </tbody>
 </table>
 <blockquote>
-<p><strong>구현 노트(2026-07-08)</strong>: 노출은 <code>erp_pub</code>가 아닌 <strong><code>public.v_erp_*</code> <code>security_invoker</code> 뷰</strong>로 구현했다(erp_ro는 REST 비노출 유지, authenticated 최소 GRANT + 기존 <code>internal_select_*</code> RLS로 사내만 통과). 챗봇은 service_role 전용 read GRANT로 뷰를 조회한다. 재현 SQL: <a href="../실제구축준비%20자료/이관/sql/08_erp_pub_reporting_views.sql"><code>이관/sql/08_erp_pub_reporting_views.sql</code></a>. 상태 정본은 <a href="../10_ERP_DB연계/02_진행상태.md"><code>10_ERP_DB연계/02_진행상태</code></a>.
-<strong>의존성</strong>: 부서 페이지가 사용자에게 실데이터를 보이려면 내부 Entra→Supabase 세션(role=internal)이 필요하다. 현재는 사내 Supabase 세션 보유자에게만 표시되고, 그 외에는 목업으로 폴백한다(내부 세션 브리지는 <a href="09_ADR_의사결정기록.md">ADR-104/05</a> 트랙).</p>
-<p>ERP 연계의 상태·진행은 <a href="../10_ERP_DB연계/02_진행상태.md"><code>10_ERP_DB연계/02_진행상태</code></a>가 정본이다. 본 설계가 실행에 반영되면 전담 에이전트 <code>erp-db-link-manager</code>로 해당 문서를 갱신한다.</p>
+<p><strong>구현 노트(2026-07-08)</strong>: 노출은 <code>erp_pub</code>가 아닌 <strong><code>public.v_erp_*</code> <code>security_invoker</code> 뷰</strong>로 구현했다(erp_ro는 REST 비노출 유지, authenticated 최소 GRANT + 기존 <code>internal_select_*</code> RLS로 사내만 통과). 챗봇은 service_role 전용 read GRANT로 뷰를 조회한다. 재현 SQL: <a href="../실제구축준비%20자료/이관/sql/08_erp_pub_reporting_views.sql"><code>이관/sql/08_erp_pub_reporting_views.sql</code></a>. 상태 정본은 <a href="/docs/erp/progress"><code>10_ERP_DB연계/02_진행상태</code></a>.
+<strong>의존성</strong>: 부서 페이지가 사용자에게 실데이터를 보이려면 내부 Entra→Supabase 세션(role=internal)이 필요하다. 현재는 사내 Supabase 세션 보유자에게만 표시되고, 그 외에는 목업으로 폴백한다(내부 세션 브리지는 <a href="/docs/product/adr">ADR-104/05</a> 트랙).</p>
+<p>ERP 연계의 상태·진행은 <a href="/docs/erp/progress"><code>10_ERP_DB연계/02_진행상태</code></a>가 정본이다. 본 설계가 실행에 반영되면 전담 에이전트 <code>erp-db-link-manager</code>로 해당 문서를 갱신한다.</p>
 </blockquote>
   </div>
   <div class="footer"><span>JEIL M&S · AI 포털 제품기획</span><span>06 ERP연계 · 관리: 최동혁</span></div>

@@ -11,6 +11,9 @@ from pathlib import Path
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
 ROOT = Path(__file__).parent
+sys.path.insert(0, str(ROOT))
+from _routes import FILE_TO_ROUTE  # noqa: E402  (공개 URL 라우트 단일 출처)
+
 PORTAL = ROOT / "04_챗봇_포털_데모UI.html"
 OUT = ROOT / "JEIL_AX_포털데모_통합본.html"
 
@@ -35,7 +38,9 @@ html = html.replace("</head>", "<script>window.IS_BUNDLE=true;</script></head>",
 # 1) 카드 앵커 → 오버레이 버튼 치환
 replaced = 0
 for key, (rel, _t) in PAGES.items():
-    pat = re.compile(r'<a class="open-btn"([^>]*?)href="' + re.escape(rel) + r'"[^>]*>(.*?)</a>', re.S)
+    # 화면의 링크는 클린 URL(_routes.py) — 파일경로가 아니라 라우트로 찾는다
+    href = FILE_TO_ROUTE.get(rel, rel)
+    pat = re.compile(r'<a class="open-btn"([^>]*?)href="' + re.escape(href) + r'"[^>]*>(.*?)</a>', re.S)
     def sub(m, k=key):
         global replaced
         replaced += 1
@@ -49,7 +54,7 @@ css = (sv_dir / "assets/survey-style.css").read_text(encoding="utf-8")
 js = (sv_dir / "assets/datastore.js").read_text(encoding="utf-8")
 sv = sv.replace('<link rel="stylesheet" href="assets/survey-style.css">', "<style>\n" + css + "\n</style>")
 sv = sv.replace('<script src="assets/datastore.js"></script>', "<script>\n" + js + "\n</script>")
-sv = sv.replace('<a class="backlink" href="../04_챗봇_포털_데모UI.html">← 사내 AI 포털</a>', "")  # iframe 내 무효 링크 제거
+sv = sv.replace('<a class="backlink" href="/main">← 사내 AI 포털</a>', "")  # iframe 내 무효 링크 제거
 
 def b64(data: bytes) -> str:
     return base64.b64encode(data).decode("ascii")
@@ -64,7 +69,7 @@ raw = sv.encode("utf-8"); total += len(raw)
 entries.append('"survey":{"t":"AI 업무 활용 니즈조사 — 설문 작성","b":"' + b64(raw) + '"}')
 
 # 3) 사이드바 설문 링크 → 통합본에서는 내장 오버레이로 전환 (단일 파일 동작)
-ANCHOR = '<a id="surveyLink" href="05_니즈조사/01_니즈조사_설문폼.html" target="_blank"'
+ANCHOR = '<a id="surveyLink" href="/survey/form" target="_blank"'
 assert ANCHOR in html, "사이드바 설문 링크 앵커를 찾지 못했습니다"
 html = html.replace(ANCHOR, '<a id="surveyLink" href="javascript:openEmbed(\'survey\')"')
 

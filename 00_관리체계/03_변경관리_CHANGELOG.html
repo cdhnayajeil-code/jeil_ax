@@ -42,8 +42,8 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <body>
 <div class="page">
   <span class="doc-label">JEIL AX 관리체계 · 대외비</span>
-  <div class="docnav"><a href="index.html">🏠 관리체계 허브</a><a href="00_문서대장.html">00 문서대장</a><a href="01_기준정보_레지스트리.html">01 기준정보</a><a href="02_명명규칙_폴더규약.html">02 명명규칙</a><a class="cur" href="03_변경관리_CHANGELOG.html">03 변경관리</a><a href="README.md">README</a></div>
-  <p class="md-link">📄 Markdown 원본: <a href="03_변경관리_CHANGELOG.md">03_변경관리_CHANGELOG.md</a> · 허브 <a href="index.html">관리체계 대시보드</a></p>
+  <div class="docnav"><a href="/docs/governance">🏠 관리체계 허브</a><a href="/docs/governance/documents">00 문서대장</a><a href="/docs/governance/registry">01 기준정보</a><a href="/docs/governance/naming">02 명명규칙</a><a class="cur" href="/docs/governance/changelog">03 변경관리</a><a href="README.md">README</a></div>
+  <p class="md-link">📄 Markdown 원본: <a href="03_변경관리_CHANGELOG.md">03_변경관리_CHANGELOG.md</a> · 허브 <a href="/docs/governance">관리체계 대시보드</a></p>
   <div class="content">
 <h1 id="03-changelog">03. 변경관리 CHANGELOG + 문서 수명주기</h1>
 <blockquote>
@@ -107,6 +107,13 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 </tr>
 </thead>
 <tbody>
+<tr>
+<td>2026-08-20</td>
+<td>전영역·거버넌스</td>
+<td><code>_routes.py</code>·<code>_build_routes.py</code>(신규) · <code>vercel.json</code>(신규) · HTML/MD 74개 파일 내부 링크 627곳 · 빌더 4종(<code>lib/_html_builder.py</code>·<code>08/03</code>·<code>그리드</code>·<code>_build_bundle.py</code>) · <code>pages/_access-gate.js</code> · DB <code>public.portal_page.path</code> 10건 · <code>실제구축준비 자료/이관/sql/28_portal_page_clean_url.sql</code>(신규)</td>
+<td><strong>공개 URL 클린 라우트 전면 개편 — 파일명과 주소를 분리.</strong> 지금까지 라이브 주소가 파일명 그대로여서 한글이 <code>%EC%9E%90%EA%B8%88…</code>로 깨져 보이고, 번호 접두(<code>04_</code>)와 <code>.html</code> 확장자가 사용자에게 노출됐다. <strong>파일은 하나도 옮기거나 바꾸지 않고</strong>(git 이력·빌더 경로 보존) 주소 계층만 새로 얹었다 — <code>/main</code>(포털) · <code>/work/…</code>(부서 운영페이지 12) · <code>/admin/…</code>·<code>/vendor/…</code> · <code>/survey/…</code> · <code>/docs/…</code>(문서 60여) · <code>/demo/…</code> · <code>/tools/…</code>, <strong>총 97개 라우트</strong>. 예: <code>pages/자금_결의전표_입력_2026.html</code> → <strong><code>/work/voucher</code></strong>. 라우트 표의 <strong>단일 출처는 저장소 루트 <code>_routes.py</code></strong> 이고 <code>python _build_routes.py --write</code>가 <code>vercel.json</code>을 재생성하면서 문서·화면의 내부 링크 <strong>627곳을 일괄 치환</strong>한다(미매핑 0건). <strong>재생성 내구성</strong>: MD→HTML 빌더 4종이 같은 표를 참조하도록 고쳐, 문서를 다시 빌드해도 링크가 옛 파일명으로 되돌아가지 않는다. <strong>호환성</strong>: 실제 파일이 제자리에 있고 Vercel <code>cleanUrls</code>가 구 <code>.html</code> 주소를 자동 리다이렉트하므로 기존 북마크·외부 공유 링크는 그대로 살아 있다. 함께 처리한 것 — 클린 URL은 경로 깊이가 달라져 상대경로 자산이 깨지므로 11개 화면의 <code>_access-gate.js</code>·<code>grid.js/css</code>·<code>config.js</code> 참조를 루트 절대경로로 전환했고, 로그인 후 카드 경로의 정본인 <strong>DB <code>portal_page.path</code> 10건</strong>도 클린 URL로 갱신했으며, 포털에 카드가 없어 URL 직접 입력으로만 열리던 <strong>결의전표 입력 카드</strong>를 추가했다. 명명 규약은 <code>02_명명규칙_폴더규약 §2.5</code>에 신설</td>
+<td>최동혁(+Claude)</td>
+</tr>
 <tr>
 <td>2026-08-20</td>
 <td>회계·거버넌스</td>

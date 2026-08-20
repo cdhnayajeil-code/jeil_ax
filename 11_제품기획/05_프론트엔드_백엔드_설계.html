@@ -42,13 +42,13 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <body>
 <div class="page">
   <span class="doc-label">JEIL AX 제품기획 · 대외비</span>
-  <div class="docnav"><a href="index.html">🏠 제품기획 허브</a><a href="00_제품기획_개요.html">00 개요</a><a href="01_PRD_제품요구사항정의.html">01 PRD</a><a href="02_SRS_요구사항명세.html">02 SRS</a><a href="03_시스템아키텍처_설계.html">03 아키텍처</a><a href="04_데이터베이스_설계.html">04 DB설계</a><a class="cur" href="05_프론트엔드_백엔드_설계.html">05 FE·BE</a><a href="06_ERP연계_챗봇활용_설계.html">06 ERP연계</a><a href="07_마이그레이션_Azure이관_설계.html">07 이관</a><a href="08_보안_데이터안정성.html">08 보안</a><a href="09_ADR_의사결정기록.html">09 ADR</a><a href="10_챗봇_응답렌더링_설계.html">10 응답렌더링</a><a href="11_챗봇_데이터요청접수_설계.html">11 요청접수</a><a href="README.md">README</a></div>
-  <p class="md-link">📄 Markdown 원본: <a href="05_프론트엔드_백엔드_설계.md">05_프론트엔드_백엔드_설계.md</a> · 허브 <a href="index.html">제품기획 개요</a></p>
+  <div class="docnav"><a href="/docs/product">🏠 제품기획 허브</a><a href="/docs/product/overview">00 개요</a><a href="/docs/product/prd">01 PRD</a><a href="/docs/product/srs">02 SRS</a><a href="/docs/product/architecture">03 아키텍처</a><a href="/docs/product/database">04 DB설계</a><a class="cur" href="/docs/product/frontend-backend">05 FE·BE</a><a href="/docs/product/erp-chatbot">06 ERP연계</a><a href="/docs/product/migration-design">07 이관</a><a href="/docs/product/security">08 보안</a><a href="/docs/product/adr">09 ADR</a><a href="/docs/product/chat-rendering">10 응답렌더링</a><a href="/docs/product/chat-data-request">11 요청접수</a><a href="README.md">README</a></div>
+  <p class="md-link">📄 Markdown 원본: <a href="05_프론트엔드_백엔드_설계.md">05_프론트엔드_백엔드_설계.md</a> · 허브 <a href="/docs/product">제품기획 개요</a></p>
   <div class="content">
 <h1 id="05">05 · 프론트엔드·백엔드 설계서</h1>
 <blockquote>
 <p>관리자: 최동혁(dh.choi@jeilm.co.kr) · 기준일: 2026-07-08 · 상태: Draft
-관련: <a href="03_시스템아키텍처_설계.md">03 아키텍처</a> · <a href="04_데이터베이스_설계.md">04 DB설계</a> · <a href="02_SRS_요구사항명세.md">02 SRS</a></p>
+관련: <a href="/docs/product/architecture">03 아키텍처</a> · <a href="/docs/product/database">04 DB설계</a> · <a href="/docs/product/srs">02 SRS</a></p>
 </blockquote>
 <hr />
 <h2 id="a">A. 프론트엔드 설계</h2>
@@ -121,7 +121,7 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 </tbody>
 </table>
 <ul>
-<li>정적 부서 페이지는 ERP 원천 테이블을 카드에 라벨로 표기(인사 <code>HDF070T·HAA010T</code>, 자금 <code>A_GL·F_LN_INFO</code>, 영업 <code>S_BILL</code>, 구매 <code>M_IV·B_BP</code>, 품목 <code>B_ITEM</code>). 실연동 전환 설계 → <a href="06_ERP연계_챗봇활용_설계.md">06</a>.</li>
+<li>정적 부서 페이지는 ERP 원천 테이블을 카드에 라벨로 표기(인사 <code>HDF070T·HAA010T</code>, 자금 <code>A_GL·F_LN_INFO</code>, 영업 <code>S_BILL</code>, 구매 <code>M_IV·B_BP</code>, 품목 <code>B_ITEM</code>). 실연동 전환 설계 → <a href="/docs/product/erp-chatbot">06</a>.</li>
 </ul>
 <h3 id="a4">A.4 그리드 표준(편집 표)</h3>
 <ul>
@@ -203,16 +203,16 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <li><strong>Tool 3종(포털DB만, 읽기전용)</strong>: <code>get_order_summary</code>(상태별 건수·총액·납기7일), <code>get_order_detail(po_no)</code>, <code>get_inspection_pending</code>.</li>
 <li><strong>AI가 SQL을 생성/실행하지 않는다.</strong> 사전 등록 Tool만. ERP 직접조회 없음.</li>
 <li>감사: <code>chat_log</code>에 UPN·모델·토큰·추정비용·사용도구 기록(대화 원문 미저장). 기본 모델 <code>gpt-4o-mini</code>.</li>
-<li><strong>표기 불일치</strong>: 04 UI·관리자 콘솔은 "Claude" 계열 모델을 표기하나 실구현은 OpenAI → <a href="09_ADR_의사결정기록.md">09 ADR</a>.</li>
+<li><strong>표기 불일치</strong>: 04 UI·관리자 콘솔은 "Claude" 계열 모델을 표기하나 실구현은 OpenAI → <a href="/docs/product/adr">09 ADR</a>.</li>
 </ul>
 <h3 id="b4">B.4 데이터 접근 계약(프론트↔백엔드)</h3>
 <ul>
 <li>프론트는 두 경로로만 데이터에 닿는다: (1) supabase-js anon + RLS(직접 테이블/Realtime/Storage), (2) Edge Function(특권·챗봇).</li>
-<li>신규 기능은 이 두 경로 외의 우회를 만들지 않는다. ERP 사본 노출도 이 원칙 위에서 뷰/RPC/Edge Fn로 → <a href="06_ERP연계_챗봇활용_설계.md">06</a>.</li>
+<li>신규 기능은 이 두 경로 외의 우회를 만들지 않는다. ERP 사본 노출도 이 원칙 위에서 뷰/RPC/Edge Fn로 → <a href="/docs/product/erp-chatbot">06</a>.</li>
 </ul>
 <h3 id="b5">B.5 향후 백엔드 방향(참고)</h3>
 <ul>
-<li>[CLAUDE.md §3] 하이브리드 권고: 프론트/챗봇은 Node/서버리스 계열, <strong>ERP 연동 백엔드는 .NET 또는 별도 읽기 API</strong>로 분리 가능. 확정 전까지 <code>api.js</code> 어댑터로 스택 교체 비용을 낮춘다. 결정은 <a href="09_ADR_의사결정기록.md">09 ADR</a>.</li>
+<li>[CLAUDE.md §3] 하이브리드 권고: 프론트/챗봇은 Node/서버리스 계열, <strong>ERP 연동 백엔드는 .NET 또는 별도 읽기 API</strong>로 분리 가능. 확정 전까지 <code>api.js</code> 어댑터로 스택 교체 비용을 낮춘다. 결정은 <a href="/docs/product/adr">09 ADR</a>.</li>
 </ul>
   </div>
   <div class="footer"><span>JEIL M&S · AI 포털 제품기획</span><span>05 FE·BE · 관리: 최동혁</span></div>

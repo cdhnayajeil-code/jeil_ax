@@ -238,17 +238,17 @@ function claimsOf(session){
 // ②③은 거래처를 골라 전 거래처를 열람하는 "관리자 조회 모드"(읽기 전용). 그 외는 로그인 페이지로.
 async function loadSession(){
   const { data:{ session } } = await supabase.auth.getSession();
-  if(!session){ location.replace('../app/vendor-login.html'); return null; }
+  if(!session){ location.replace('/vendor/login'); return null; }
   // 저장된 토큰이 서버에서 이미 폐기됐을 수 있다(비밀번호 변경·초기화 시 GoTrue가 세션을 폐기).
   // 그대로 두면 모든 호출이 401이 되므로 진입 시 한 번 확인하고 로그인 화면으로 되돌린다.
   const { error:uerr } = await supabase.auth.getUser();
-  if(uerr){ await supabase.auth.signOut().catch(()=>{}); location.replace('../app/vendor-login.html'); return null; }
+  if(uerr){ await supabase.auth.signOut().catch(()=>{}); location.replace('/vendor/login'); return null; }
   const am = claimsOf(session);
   FORCE_PW = !!am.must_pw;   // 발급·초기화 직후 고정 초기비번 상태
   ADMIN = (am.role==='vendor_admin' || am.role==='internal');
   ADMIN_KIND = ADMIN ? am.role : '';
   if(!ADMIN && (am.role!=='vendor' || !(am.vendor_bp && am.vendor_bp.length))){
-    location.replace('../app/vendor-login.html'); return null;
+    location.replace('/vendor/login'); return null;
   }
   VENDOR.user = session.user.email;
   if(ADMIN){
@@ -625,7 +625,7 @@ function renderAdminProfile(){
     <button class="btn ghost block" style="margin-top:9px" onclick="logout()">로그아웃</button>
     <div class="note">관리자 조회 모드입니다. 발주 상태 변경·사진 등록·메시지 발송은 <b>해당 협력사 계정</b>에서만 가능하며, 사내 처리(검수 판정·사진 검토)는 <b>사내 외주 발주·검사 대시보드</b>에서 수행합니다.</div></div>`;
 }
-async function logout(){ try{ await supabase.auth.signOut(); }catch(e){} sessionStorage.removeItem('jeilax_vp_bp'); location.replace('../app/vendor-login.html'); }
+async function logout(){ try{ await supabase.auth.signOut(); }catch(e){} sessionStorage.removeItem('jeilax_vp_bp'); location.replace('/vendor/login'); }
 
 // 내 정보 수정(담당자 이름·연락처) — user_metadata + vendor_account 동기(회사명은 ERP 기준정보라 사내 관리)
 function openProfileEdit(){

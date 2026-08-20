@@ -42,16 +42,16 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <body>
 <div class="page">
   <span class="doc-label">JEIL AX 제품기획 · 대외비</span>
-  <div class="docnav"><a href="index.html">🏠 제품기획 허브</a><a href="00_제품기획_개요.html">00 개요</a><a href="01_PRD_제품요구사항정의.html">01 PRD</a><a href="02_SRS_요구사항명세.html">02 SRS</a><a href="03_시스템아키텍처_설계.html">03 아키텍처</a><a href="04_데이터베이스_설계.html">04 DB설계</a><a href="05_프론트엔드_백엔드_설계.html">05 FE·BE</a><a href="06_ERP연계_챗봇활용_설계.html">06 ERP연계</a><a class="cur" href="07_마이그레이션_Azure이관_설계.html">07 이관</a><a href="08_보안_데이터안정성.html">08 보안</a><a href="09_ADR_의사결정기록.html">09 ADR</a><a href="10_챗봇_응답렌더링_설계.html">10 응답렌더링</a><a href="11_챗봇_데이터요청접수_설계.html">11 요청접수</a><a href="README.md">README</a></div>
-  <p class="md-link">📄 Markdown 원본: <a href="07_마이그레이션_Azure이관_설계.md">07_마이그레이션_Azure이관_설계.md</a> · 허브 <a href="index.html">제품기획 개요</a></p>
+  <div class="docnav"><a href="/docs/product">🏠 제품기획 허브</a><a href="/docs/product/overview">00 개요</a><a href="/docs/product/prd">01 PRD</a><a href="/docs/product/srs">02 SRS</a><a href="/docs/product/architecture">03 아키텍처</a><a href="/docs/product/database">04 DB설계</a><a href="/docs/product/frontend-backend">05 FE·BE</a><a href="/docs/product/erp-chatbot">06 ERP연계</a><a class="cur" href="/docs/product/migration-design">07 이관</a><a href="/docs/product/security">08 보안</a><a href="/docs/product/adr">09 ADR</a><a href="/docs/product/chat-rendering">10 응답렌더링</a><a href="/docs/product/chat-data-request">11 요청접수</a><a href="README.md">README</a></div>
+  <p class="md-link">📄 Markdown 원본: <a href="07_마이그레이션_Azure이관_설계.md">07_마이그레이션_Azure이관_설계.md</a> · 허브 <a href="/docs/product">제품기획 개요</a></p>
   <div class="content">
 <h1 id="07-azure">07 · 마이그레이션·Azure 이관 설계서</h1>
 <blockquote>
 <p>관리자: 최동혁(dh.choi@jeilm.co.kr) · 기준일: 2026-07-08 · 상태: Draft
-관련: <a href="03_시스템아키텍처_설계.md">03 아키텍처 §8 어댑터경계</a> · <a href="04_데이터베이스_설계.md">04 DB설계</a> · <a href="08_보안_데이터안정성.md">08 보안</a>
-이관 관제 정본(값 복제 금지): <a href="../실제구축준비%20자료/이관/00_현재시스템_상태스냅샷.md"><code>이관/00_현재시스템_상태스냅샷</code></a> · <a href="../실제구축준비%20자료/이관/02_Azure이관계획.md"><code>이관/02_Azure이관계획</code></a></p>
+관련: <a href="/docs/product/architecture">03 아키텍처 §8 어댑터경계</a> · <a href="/docs/product/database">04 DB설계</a> · <a href="/docs/product/security">08 보안</a>
+이관 관제 정본(값 복제 금지): <a href="/docs/migration/snapshot"><code>이관/00_현재시스템_상태스냅샷</code></a> · <a href="/docs/migration/azure"><code>이관/02_Azure이관계획</code></a></p>
 </blockquote>
-<p>이 문서는 <strong>"흔들리지 않는 이관"</strong> 을 위한 설계다. 핵심 전략은 <a href="../실제구축준비%20자료/이관/02_Azure이관계획.md"><code>이관/02</code></a>의 원칙을 계승한다: <strong>재구축이 아니라 어댑터 교체 + 데이터 복사.</strong></p>
+<p>이 문서는 <strong>"흔들리지 않는 이관"</strong> 을 위한 설계다. 핵심 전략은 <a href="/docs/migration/azure"><code>이관/02</code></a>의 원칙을 계승한다: <strong>재구축이 아니라 어댑터 교체 + 데이터 복사.</strong></p>
 <hr />
 <h2 id="1">1. 이관 단계 (전체 그림)</h2>
 <pre><code>[1] GitHub Pages ──완료──▶ [2] Vercel + Supabase ──현재──▶ [3] Azure (미착수, 계획만)
@@ -61,7 +61,7 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <li>[3] Azure는 계획 수립 완료·착수 전. 트리거는 경영 의사결정(호스팅 확정, 상용/보안 요건).</li>
 </ul>
 <h2 id="2">2. 이관을 쉽게 만드는 전제 = 어댑터 경계</h2>
-<p>이관 비용을 좌우하는 것은 코드가 아니라 <strong>경계의 수와 명확성</strong>이다. JEIL AX는 <a href="03_시스템아키텍처_설계.md">03 §8</a>의 5개 경계로 백엔드 교체를 흡수한다. 이 문서는 그 경계별 Azure 매핑을 정의한다.</p>
+<p>이관 비용을 좌우하는 것은 코드가 아니라 <strong>경계의 수와 명확성</strong>이다. JEIL AX는 <a href="/docs/product/architecture">03 §8</a>의 5개 경계로 백엔드 교체를 흡수한다. 이 문서는 그 경계별 Azure 매핑을 정의한다.</p>
 <h2 id="3-supabase-azure">3. Supabase → Azure 서비스 매핑</h2>
 <table>
 <thead>
@@ -192,8 +192,8 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <h2 id="5">5. 데이터 복사 절차(개요)</h2>
 <ol>
 <li><strong>스키마 이식</strong>: <code>이관/sql/01~07</code> + <code>erp_ro</code>/<code>etl_meta</code> 마이그레이션을 Azure PostgreSQL에 적용. RLS·Hook·함수 포함.
-   - <strong>선행 개선</strong>: 현재 <code>erp_ro</code>/<code>etl_meta</code> DDL이 파일로 없으므로(직접 apply), 이관 전 마이그레이션을 파일로 추출·정리 → 재현 가능성 확보(<a href="04_데이터베이스_설계.md">04 §6</a>, <a href="09_ADR_의사결정기록.md">09 ADR</a>).</li>
-<li><strong>데이터 복사</strong>: <code>pg_dump</code>/<code>pg_restore</code> 또는 논리 복제로 <code>public</code>·<code>erp_ro</code> 복사. 대상 행수는 <a href="04_데이터베이스_설계.md">04 §2</a> 기준으로 검증.</li>
+   - <strong>선행 개선</strong>: 현재 <code>erp_ro</code>/<code>etl_meta</code> DDL이 파일로 없으므로(직접 apply), 이관 전 마이그레이션을 파일로 추출·정리 → 재현 가능성 확보(<a href="/docs/product/database">04 §6</a>, <a href="/docs/product/adr">09 ADR</a>).</li>
+<li><strong>데이터 복사</strong>: <code>pg_dump</code>/<code>pg_restore</code> 또는 논리 복제로 <code>public</code>·<code>erp_ro</code> 복사. 대상 행수는 <a href="/docs/product/database">04 §2</a> 기준으로 검증.</li>
 <li><strong>Auth 이관</strong>: 협력사 계정은 인증 방식 확정(D1) 후 재발급/마이그레이션. 사내는 Entra 유지라 무영향.</li>
 <li><strong>스토리지 복사</strong>: <code>vendor-photos</code> → Blob. 경로 규약(<code>{bp_cd}/{po_no}/{uuid}</code>)·서명 URL 재구현.</li>
 <li><strong>시크릿 이전</strong>: Key Vault로. 값은 문서에 남기지 않음.</li>
@@ -206,7 +206,7 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <li>[ ] 호스팅 확정(Azure SWA vs App Service vs 사내 IIS) — [CLAUDE.md §11-B]</li>
 <li>[ ] 협력사 인증 D1 확정(Entra External ID vs 전용)</li>
 <li>[ ] 시크릿 Key Vault 구성, <code>erp_ro</code>/<code>etl_meta</code> 마이그레이션 파일화</li>
-<li>[ ] RLS 격리 실테스트(실사용자 시나리오) 통과 — 현재 미실시(<a href="08_보안_데이터안정성.md">08</a>)</li>
+<li>[ ] RLS 격리 실테스트(실사용자 시나리오) 통과 — 현재 미실시(<a href="/docs/product/security">08</a>)</li>
 <li>[ ] Entra redirect URI에 신규 호스트 등록(관리자 작업, [CLAUDE.md §5.2])</li>
 </ul>
 <h2 id="7">7. 이관 시 위험·완화</h2>
@@ -247,7 +247,7 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 </tbody>
 </table>
 <blockquote>
-<p>세부 절차·체크리스트·롤백은 <a href="../실제구축준비%20자료/이관/02_Azure이관계획.md"><code>이관/02_Azure이관계획</code></a>이 실행 정본이다. 본 문서는 제품 관점의 설계·경계 정의를 담고, 값·현황은 이관 스냅샷을 참조한다.</p>
+<p>세부 절차·체크리스트·롤백은 <a href="/docs/migration/azure"><code>이관/02_Azure이관계획</code></a>이 실행 정본이다. 본 문서는 제품 관점의 설계·경계 정의를 담고, 값·현황은 이관 스냅샷을 참조한다.</p>
 </blockquote>
   </div>
   <div class="footer"><span>JEIL M&S · AI 포털 제품기획</span><span>07 이관 · 관리: 최동혁</span></div>

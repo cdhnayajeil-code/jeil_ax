@@ -42,13 +42,13 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <body>
 <div class="page">
   <span class="doc-label">JEIL AX 제품기획 · 대외비</span>
-  <div class="docnav"><a href="index.html">🏠 제품기획 허브</a><a class="cur" href="00_제품기획_개요.html">00 개요</a><a href="01_PRD_제품요구사항정의.html">01 PRD</a><a href="02_SRS_요구사항명세.html">02 SRS</a><a href="03_시스템아키텍처_설계.html">03 아키텍처</a><a href="04_데이터베이스_설계.html">04 DB설계</a><a href="05_프론트엔드_백엔드_설계.html">05 FE·BE</a><a href="06_ERP연계_챗봇활용_설계.html">06 ERP연계</a><a href="07_마이그레이션_Azure이관_설계.html">07 이관</a><a href="08_보안_데이터안정성.html">08 보안</a><a href="09_ADR_의사결정기록.html">09 ADR</a><a href="10_챗봇_응답렌더링_설계.html">10 응답렌더링</a><a href="11_챗봇_데이터요청접수_설계.html">11 요청접수</a><a href="README.md">README</a></div>
-  <p class="md-link">📄 Markdown 원본: <a href="00_제품기획_개요.md">00_제품기획_개요.md</a> · 허브 <a href="index.html">제품기획 개요</a></p>
+  <div class="docnav"><a href="/docs/product">🏠 제품기획 허브</a><a class="cur" href="/docs/product/overview">00 개요</a><a href="/docs/product/prd">01 PRD</a><a href="/docs/product/srs">02 SRS</a><a href="/docs/product/architecture">03 아키텍처</a><a href="/docs/product/database">04 DB설계</a><a href="/docs/product/frontend-backend">05 FE·BE</a><a href="/docs/product/erp-chatbot">06 ERP연계</a><a href="/docs/product/migration-design">07 이관</a><a href="/docs/product/security">08 보안</a><a href="/docs/product/adr">09 ADR</a><a href="/docs/product/chat-rendering">10 응답렌더링</a><a href="/docs/product/chat-data-request">11 요청접수</a><a href="README.md">README</a></div>
+  <p class="md-link">📄 Markdown 원본: <a href="00_제품기획_개요.md">00_제품기획_개요.md</a> · 허브 <a href="/docs/product">제품기획 개요</a></p>
   <div class="content">
 <h1 id="00-jeil-ax-ai">00 · 제품기획 개요 — JEIL AX 사내 AI 포털</h1>
 <blockquote>
 <p>관리자: 최동혁(dh.choi@jeilm.co.kr) · 기준일: 2026-07-08 · 상태: Draft
-관련: <a href="01_PRD_제품요구사항정의.md">01 PRD</a> · <a href="03_시스템아키텍처_설계.md">03 아키텍처</a> · <a href="08_보안_데이터안정성.md">08 보안</a> · <a href="09_ADR_의사결정기록.md">09 ADR</a></p>
+관련: <a href="/docs/product/prd">01 PRD</a> · <a href="/docs/product/architecture">03 아키텍처</a> · <a href="/docs/product/security">08 보안</a> · <a href="/docs/product/adr">09 ADR</a></p>
 </blockquote>
 <p>이 문서는 <strong>제품기획 세트의 관문(entry point)</strong> 이다. 처음 합류한 개발PM·개발자·CTO가 이 문서 하나만 읽어도 JEIL AX가 무엇이고, 지금 어디까지 와 있으며, 나머지 문서에서 무엇을 찾을 수 있는지 파악하도록 구성했다.</p>
 <hr />
@@ -58,7 +58,7 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <ul>
 <li><strong>비전</strong>: "사내 임직원과 협력사가 ERP 데이터에 안전하게, 필요한 만큼, 대화형으로 접근하는 단일 창구."</li>
 <li><strong>현재 위치(2026-07-08)</strong>: 정적 HTML 데모 → 실제 구축 전환 중. <strong>협력사 발주·검사 포털과 챗봇 게이트웨이는 Supabase 기반으로 실가동</strong>, 부서 운영페이지는 대부분 정적 샘플, <strong>ERP→중간DB 연계는 파일럿 실적재까지만 완료(앱/챗봇 미연결)</strong>.</li>
-<li>상세 운영현황(배포·계정·데이터)은 값 복제 없이 → <a href="../실제구축준비%20자료/이관/00_현재시스템_상태스냅샷.md"><code>이관/00_현재시스템_상태스냅샷</code></a> 참조.</li>
+<li>상세 운영현황(배포·계정·데이터)은 값 복제 없이 → <a href="/docs/migration/snapshot"><code>이관/00_현재시스템_상태스냅샷</code></a> 참조.</li>
 </ul>
 <h2 id="3-stakeholder">3. 이해관계자(Stakeholder)</h2>
 <table>
@@ -111,7 +111,7 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 </code></pre>
 <ul>
 <li><strong>① → ② 는 ETL 배치</strong>(읽기전용 SELECT + NOLOCK + 파라미터 바인딩, 화이트리스트 SQL 5종). 프론트/챗봇은 ①에 <strong>절대 직접 접근하지 않는다.</strong></li>
-<li><strong>② 와 ③ 은 같은 Supabase 프로젝트에 있으나 현재 단절</strong>되어 있다. 앱과 챗봇이 실제 조회하는 것은 ③(<code>public.sp_*</code>)뿐이고, ②(<code>erp_ro</code>)는 아직 화면·챗봇에 노출되지 않았다. 이 <strong>P4 단절 구간을 잇는 것이 다음 핵심 과제</strong>다 → <a href="06_ERP연계_챗봇활용_설계.md">06 ERP연계</a>.</li>
+<li><strong>② 와 ③ 은 같은 Supabase 프로젝트에 있으나 현재 단절</strong>되어 있다. 앱과 챗봇이 실제 조회하는 것은 ③(<code>public.sp_*</code>)뿐이고, ②(<code>erp_ro</code>)는 아직 화면·챗봇에 노출되지 않았다. 이 <strong>P4 단절 구간을 잇는 것이 다음 핵심 과제</strong>다 → <a href="/docs/product/erp-chatbot">06 ERP연계</a>.</li>
 <li>자금·인사 등 민감영역(<code>erp_secure</code>)은 <strong>P5로 예약, 미생성</strong>.</li>
 </ul>
 <h2 id="5">5. 세 개의 인증 경계 (요약)</h2>
@@ -145,7 +145,7 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 </tr>
 </tbody>
 </table>
-<p>사내(Entra)와 협력사(Supabase Auth) 경계는 <strong>의도적으로 분리</strong>된다. Edge Function이 Entra 토큰을 MS Graph로 검증하는 브리지 역할을 한다. 상세 → <a href="03_시스템아키텍처_설계.md">03 아키텍처 §인증</a>.</p>
+<p>사내(Entra)와 협력사(Supabase Auth) 경계는 <strong>의도적으로 분리</strong>된다. Edge Function이 Entra 토큰을 MS Graph로 검증하는 브리지 역할을 한다. 상세 → <a href="/docs/product/architecture">03 아키텍처 §인증</a>.</p>
 <h2 id="6-2026-07-08">6. 기술스택 현황 (2026-07-08 사실)</h2>
 <table>
 <thead>
@@ -179,7 +179,7 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <tr>
 <td>챗봇 LLM</td>
 <td><strong>OpenAI gpt-4o-mini</strong>(현행)</td>
-<td>UI 표기는 "Claude" — 불일치, <a href="09_ADR_의사결정기록.md">09 ADR</a> 기록</td>
+<td>UI 표기는 "Claude" — 불일치, <a href="/docs/product/adr">09 ADR</a> 기록</td>
 </tr>
 <tr>
 <td>ETL</td>
@@ -194,7 +194,7 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 </tbody>
 </table>
 <blockquote>
-<p><strong>스택은 아직 "확정"이 아니다.</strong> <code>CLAUDE.md §3</code>는 후보 A(.NET/MSSQL)·후보 B(Node/Postgres)를 비교하며 하이브리드를 권고하고, 현재 실동작은 Supabase다. 최종 확정은 <a href="09_ADR_의사결정기록.md">09 ADR</a> 미결정 항목.</p>
+<p><strong>스택은 아직 "확정"이 아니다.</strong> <code>CLAUDE.md §3</code>는 후보 A(.NET/MSSQL)·후보 B(Node/Postgres)를 비교하며 하이브리드를 권고하고, 현재 실동작은 Supabase다. 최종 확정은 <a href="/docs/product/adr">09 ADR</a> 미결정 항목.</p>
 </blockquote>
 <h2 id="7">7. 문서 지도 (무엇을 어디서 찾나)</h2>
 <table>
@@ -213,47 +213,47 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 </tr>
 <tr>
 <td>01</td>
-<td><a href="01_PRD_제품요구사항정의.md">PRD</a></td>
+<td><a href="/docs/product/prd">PRD</a></td>
 <td>목표·페르소나·유스케이스·기능/비기능 요구·성공지표</td>
 </tr>
 <tr>
 <td>02</td>
-<td><a href="02_SRS_요구사항명세.md">SRS</a></td>
+<td><a href="/docs/product/srs">SRS</a></td>
 <td>FR-ID 기능명세·상태머신·추적매트릭스</td>
 </tr>
 <tr>
 <td>03</td>
-<td><a href="03_시스템아키텍처_설계.md">시스템 아키텍처</a></td>
+<td><a href="/docs/product/architecture">시스템 아키텍처</a></td>
 <td>3계층·컴포넌트·인증 시퀀스·배포·어댑터 경계</td>
 </tr>
 <tr>
 <td>04</td>
-<td><a href="04_데이터베이스_설계.md">데이터베이스 설계</a></td>
+<td><a href="/docs/product/database">데이터베이스 설계</a></td>
 <td>스키마·ERD·RLS 매트릭스·RPC/뷰</td>
 </tr>
 <tr>
 <td>05</td>
-<td><a href="05_프론트엔드_백엔드_설계.md">프론트·백엔드 설계</a></td>
+<td><a href="/docs/product/frontend-backend">프론트·백엔드 설계</a></td>
 <td>모듈구조·화면·Edge Function 명세</td>
 </tr>
 <tr>
 <td>06</td>
-<td><a href="06_ERP연계_챗봇활용_설계.md">ERP연계·챗봇활용</a></td>
+<td><a href="/docs/product/erp-chatbot">ERP연계·챗봇활용</a></td>
 <td>P4 연결·챗봇 Tool 확장·부서 대시보드 실연동</td>
 </tr>
 <tr>
 <td>07</td>
-<td><a href="07_마이그레이션_Azure이관_설계.md">마이그레이션·Azure이관</a></td>
+<td><a href="/docs/product/migration-design">마이그레이션·Azure이관</a></td>
 <td>Supabase↔Azure 매핑·어댑터 교체·롤백</td>
 </tr>
 <tr>
 <td>08</td>
-<td><a href="08_보안_데이터안정성.md">보안·데이터안정성</a></td>
+<td><a href="/docs/product/security">보안·데이터안정성</a></td>
 <td>위협모델·라이브 실측·시크릿·감사·DR</td>
 </tr>
 <tr>
 <td>09</td>
-<td><a href="09_ADR_의사결정기록.md">ADR</a></td>
+<td><a href="/docs/product/adr">ADR</a></td>
 <td>확정결정·미결정·발견이슈</td>
 </tr>
 </tbody>
@@ -313,7 +313,7 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 </tr>
 <tr>
 <td>P0~P5</td>
-<td>ERP 연계 단계(정책→협의→중간DB→앱연결→…→민감영역). <a href="../10_ERP_DB연계/02_진행상태.md">10_ERP_DB연계</a></td>
+<td>ERP 연계 단계(정책→협의→중간DB→앱연결→…→민감영역). <a href="/docs/erp/progress">10_ERP_DB연계</a></td>
 </tr>
 <tr>
 <td>SSOT</td>

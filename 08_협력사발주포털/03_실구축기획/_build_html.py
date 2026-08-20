@@ -5,6 +5,10 @@
 사용: python _build_html.py
 """
 import os, re, markdown
+import sys as _sys
+# 공개 URL 라우트 적용 — 재생성해도 클린 URL(/docs/…) 유지
+_sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..','..','00_관리체계','lib'))
+from _html_builder import _clean_links
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 
@@ -93,7 +97,7 @@ def build():
 </body>
 </html>"""
         out=os.path.join(HERE,slug+'.html')
-        open(out,'w',encoding='utf-8').write(html)
+        open(out,'w',encoding='utf-8').write(_clean_links(HERE, html))
         print('built:',slug+'.html')
 
 if __name__=='__main__':

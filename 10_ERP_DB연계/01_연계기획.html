@@ -42,8 +42,8 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <body>
 <div class="page">
   <span class="doc-label">JEIL AX ERP DB 연계 · 대외비</span>
-  <div class="docnav"><a href="index.html">🏠 연계 허브</a><a href="00_현재상태_스냅샷.html">00 현재상태</a><a class="cur" href="01_연계기획.html">01 연계기획</a><a href="02_진행상태.html">02 진행상태</a><a href="03_중간DB_구축실행기획.html">03 중간DB 실행기획</a><a href="04_증분동기화_확장_거버넌스_기획.html">04 증분·확장·거버넌스</a><a href="05_사용자부서_매핑대사.html">05 사용자-부서 매핑</a><a href="06_결의전표_추진계획.html">06 결의전표 추진계획</a><a href="09_결의전표_인수인계.html">09 결의전표 인수인계</a><a href="10_반복전표_자동화_기획.html">10 반복전표 자동화</a><a href="11_ERP직접등록_DEMO2_1차.html">11 ERP 직접등록(DEMO2)</a><a href="README.md">README</a></div>
-  <p class="md-link">📄 Markdown 원본: <a href="01_연계기획.md">01_연계기획.md</a> · 허브 <a href="index.html">연계 허브</a></p>
+  <div class="docnav"><a href="/docs/erp">🏠 연계 허브</a><a href="/docs/erp/status">00 현재상태</a><a class="cur" href="/docs/erp/plan">01 연계기획</a><a href="/docs/erp/progress">02 진행상태</a><a href="/docs/erp/midway-db">03 중간DB 실행기획</a><a href="/docs/erp/incremental-sync">04 증분·확장·거버넌스</a><a href="/docs/erp/dept-mapping">05 사용자-부서 매핑</a><a href="/docs/erp/voucher-roadmap">06 결의전표 추진계획</a><a href="/docs/erp/voucher-handover">09 결의전표 인수인계</a><a href="/docs/erp/recurring-voucher">10 반복전표 자동화</a><a href="/docs/erp/direct-post-demo">11 ERP 직접등록(DEMO2)</a><a href="README.md">README</a></div>
+  <p class="md-link">📄 Markdown 원본: <a href="01_연계기획.md">01_연계기획.md</a> · 허브 <a href="/docs/erp">연계 허브</a></p>
   <div class="content">
 <h1 id="01-erp-db">01. ERP DB 연계 — 이후 기획 (통합 정리)</h1>
 <blockquote>
@@ -216,7 +216,7 @@ etl_meta     — 배치 실행 로그·동기화 상태
 <li>대상: <code>USE_YN='Y' AND USR_ID LIKE '%@%'</code> 99건. <code>usr_nm</code> 파싱(부서명_이름) → <code>B_ACCT_DEPT</code>와 대사해 29개 부서명 중 25개(95건) 일치, 불일치 4개(해외법인·외부회계·재무 세분화·admin 테스트계정)는 처리방침 결정 대기.</li>
 <li>노출 뷰(사내 전용, security_invoker): <code>public.v_erp_user_dept</code>(정상 매핑)·<code>v_erp_user_dept_recon</code>(대사 불일치 리포트)·<code>v_erp_dept_roster</code>(부서별 명부).</li>
 <li>스키마·뷰·ETL job(<code>usr_master</code>·<code>dept_master</code>)은 구축·적용 완료됐으나 <strong>실적재는 미실행</strong>(0행, 관리자 <code>!</code> 직접 실행 대기).</li>
-<li>상세는 전용 관리 문서 <a href="05_사용자부서_매핑대사.md"><code>05_사용자부서_매핑대사.md</code></a> 참조. 정본 SQL: <code>실제구축준비 자료/이관/sql/09_erp_user_dept_mapping.sql</code>.</li>
+<li>상세는 전용 관리 문서 <a href="/docs/erp/dept-mapping"><code>05_사용자부서_매핑대사.md</code></a> 참조. 정본 SQL: <code>실제구축준비 자료/이관/sql/09_erp_user_dept_mapping.sql</code>.</li>
 </ul>
 <h3 id="46-erp-2026-07-08">4.6 부서별 ERP 모듈 제안값(참고) (2026-07-08 신설)</h3>
 <p>관리자 콘솔(04)의 '권한 상세' 탭에서 부서별 ERP 모듈 권한(sales/purchase/pur_order/inventory/item)을 편집할 때 참고할 수 있도록, <strong>ERP 역할·메뉴 권한 기반 '제안값'</strong>을 추가했다. <code>Z_USR_MAST_REC_USR_ROLE_ASSO</code>→<code>Z_USR_ROLE_MNU_AUTHZTN_ASSO</code>(MNU_USE_YN='Y')→<code>Z_CO_MAST_MNU</code>(ModuleInitial)를 조인해 사용자별 접근 모듈(ModuleInitial∈SD/MM/IM/MDM)을 <code>erp_ro.usr_erp_module_s</code>로 추출(ETL job <code>usr_erp_module</code>)하고, §4.5의 이메일→부서 매핑(<code>v_user_dept</code>)과 결합해 <strong>부서 과반(≥50%)이 접근하는 모듈</strong>을 <code>erp_ro.v_dept_erp_suggest</code>/<code>public.v_erp_dept_erp_suggest</code>로 산출한다.</p>

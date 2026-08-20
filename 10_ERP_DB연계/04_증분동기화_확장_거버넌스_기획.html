@@ -42,14 +42,14 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <body>
 <div class="page">
   <span class="doc-label">JEIL AX ERP DB 연계 · 대외비</span>
-  <div class="docnav"><a href="index.html">🏠 연계 허브</a><a href="00_현재상태_스냅샷.html">00 현재상태</a><a href="01_연계기획.html">01 연계기획</a><a href="02_진행상태.html">02 진행상태</a><a href="03_중간DB_구축실행기획.html">03 중간DB 실행기획</a><a class="cur" href="04_증분동기화_확장_거버넌스_기획.html">04 증분·확장·거버넌스</a><a href="05_사용자부서_매핑대사.html">05 사용자-부서 매핑</a><a href="06_결의전표_추진계획.html">06 결의전표 추진계획</a><a href="09_결의전표_인수인계.html">09 결의전표 인수인계</a><a href="10_반복전표_자동화_기획.html">10 반복전표 자동화</a><a href="11_ERP직접등록_DEMO2_1차.html">11 ERP 직접등록(DEMO2)</a><a href="README.md">README</a></div>
-  <p class="md-link">📄 Markdown 원본: <a href="04_증분동기화_확장_거버넌스_기획.md">04_증분동기화_확장_거버넌스_기획.md</a> · 허브 <a href="index.html">연계 허브</a></p>
+  <div class="docnav"><a href="/docs/erp">🏠 연계 허브</a><a href="/docs/erp/status">00 현재상태</a><a href="/docs/erp/plan">01 연계기획</a><a href="/docs/erp/progress">02 진행상태</a><a href="/docs/erp/midway-db">03 중간DB 실행기획</a><a class="cur" href="/docs/erp/incremental-sync">04 증분·확장·거버넌스</a><a href="/docs/erp/dept-mapping">05 사용자-부서 매핑</a><a href="/docs/erp/voucher-roadmap">06 결의전표 추진계획</a><a href="/docs/erp/voucher-handover">09 결의전표 인수인계</a><a href="/docs/erp/recurring-voucher">10 반복전표 자동화</a><a href="/docs/erp/direct-post-demo">11 ERP 직접등록(DEMO2)</a><a href="README.md">README</a></div>
+  <p class="md-link">📄 Markdown 원본: <a href="04_증분동기화_확장_거버넌스_기획.md">04_증분동기화_확장_거버넌스_기획.md</a> · 허브 <a href="/docs/erp">연계 허브</a></p>
   <div class="content">
 <h1 id="04">04. 증분 동기화 · 대용량 확장 · 권한 거버넌스 기획</h1>
 <blockquote>
 <p>관리자: 최동혁(dh.choi@jeilm.co.kr) · 기준일: 2026-07-08 · 상태: Active
-관련: <a href="00_현재상태_스냅샷.md">00 현재상태</a> · <a href="02_진행상태.md">02 진행상태</a> · <a href="03_중간DB_구축실행기획.md">03 중간DB 실행기획</a>
-제품기획 정본: <a href="../11_제품기획/06_ERP연계_챗봇활용_설계.md"><code>11_제품기획/06 ERP연계</code></a></p>
+관련: <a href="/docs/erp/status">00 현재상태</a> · <a href="/docs/erp/progress">02 진행상태</a> · <a href="/docs/erp/midway-db">03 중간DB 실행기획</a>
+제품기획 정본: <a href="/docs/product/erp-chatbot"><code>11_제품기획/06 ERP연계</code></a></p>
 </blockquote>
 <p>ERP 데이터를 중간DB(Supabase)로 <strong>효율적·안전하게 반복 반영</strong>하고, 이후 <strong>ERP 전체(방대) 데이터로 확장·권한 관리</strong>하기 위한 방향성을 정의한다. 지금은 소규모지만 설계는 대용량·다권한을 전제로 한다.</p>
 <hr />
@@ -199,7 +199,7 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <li><strong>파티셔닝</strong>: 큰 원시 테이블은 연/월 파티션(<code>pg_partman</code> 검토), 오래된 파티션 아카이브.</li>
 <li><strong>증분 우선</strong>: 신규 테이블은 <code>UPDT_DT</code>(또는 변경 컬럼) watermark를 표준 장착.</li>
 <li><strong>전표 취소·삭제</strong>: 스냅샷은 주기 full, 대용량은 tombstone/상태컬럼 + reconcile job.</li>
-<li><strong>인덱스·튜닝</strong>: 조회 패턴 기반 인덱스(현 성능 advisor의 RLS initplan·다중정책 정리 병행 → <a href="../11_제품기획/08_보안_데이터안정성.md"><code>11_제품기획/08</code></a>).</li>
+<li><strong>인덱스·튜닝</strong>: 조회 패턴 기반 인덱스(현 성능 advisor의 RLS initplan·다중정책 정리 병행 → <a href="/docs/product/security"><code>11_제품기획/08</code></a>).</li>
 </ul>
 <h2 id="5">5. 권한·거버넌스 (디테일 관리)</h2>
 <p>데이터가 넓어질수록 <strong>누가 어디까지 보느냐</strong>가 핵심. 계층·행·열 3중 통제.</p>

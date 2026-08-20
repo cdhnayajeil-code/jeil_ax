@@ -15,7 +15,43 @@ JEIL AX 공통 문서 빌더 — .md → 공유 스타일 HTML.
 공유 톤(네이비/콜아웃/표)을 모든 영역에서 동일하게 유지하기 위한 단일 출처다.
 """
 import os
+import re
+import sys
+import urllib.parse
+
 import markdown
+
+# 공개 URL 라우트(저장소 루트 _routes.py)를 빌드에도 적용한다 — 재생성해도 클린 URL 유지.
+_REPO = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..'))
+sys.path.insert(0, _REPO)
+try:
+    from _routes import FILE_TO_ROUTE
+except ImportError:          # 라우트 표가 없으면 기존 상대경로 동작 유지
+    FILE_TO_ROUTE = {}
+
+_HREF_RE = re.compile(r'(?P<a>href=")(?P<url>[^"]+)(?P<b>")')
+
+
+def route_for(here, target):
+    """폴더 here 기준 상대 링크(.md/.html) → 클린 URL. 매핑 없으면 None."""
+    if re.match(r'^(?:[a-z]+:|//|#)', target, re.I):
+        return None
+    path, sep, frag = target.partition('#')
+    dec = urllib.parse.unquote(path)
+    if dec.lower().endswith('.md'):
+        dec = dec[:-3] + '.html'
+    elif not dec.lower().endswith('.html'):
+        return None
+    rel = os.path.relpath(os.path.normpath(os.path.join(here, dec)), _REPO).replace(os.sep, '/')
+    r = FILE_TO_ROUTE.get(rel)
+    return None if not r else r + (('#' + frag) if sep else '')
+
+
+def _clean_links(here, html):
+    def sub(m):
+        r = route_for(here, m.group('url'))
+        return m.group(0) if r is None else m.group('a') + r + m.group('b')
+    return _HREF_RE.sub(sub, html)
 
 CSS = """
 :root{--navy:#1a2f4e;--navy2:#27457a;--accent:#2f6fb3;--red:#b3402f;--green:#2e7d52;--amber:#9a6b1f;
@@ -53,11 +89,13 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 """
 
 
-def _nav_html(docs, cur_slug, hub_label):
-    items = [f'<a href="index.html">🏠 {hub_label}</a>']
+def _nav_html(here, docs, cur_slug, hub_label):
+    def h(t):
+        return route_for(here, t) or t
+    items = [f'<a href="{h("index.html")}">🏠 {hub_label}</a>']
     for slug, label, _ in docs:
         cls = ' class="cur"' if slug == cur_slug else ''
-        items.append(f'<a{cls} href="{slug}.html">{label}</a>')
+        items.append(f'<a{cls} href="{h(slug + ".html")}">{label}</a>')
     items.append('<a href="README.md">README</a>')
     return '<div class="docnav">' + ''.join(items) + '</div>'
 
@@ -73,7 +111,7 @@ def build_docs(here, docs, *, doc_label, title_mid, footer_left,
             continue
         text = open(src, encoding='utf-8').read()
         md.reset()
-        body = md.convert(text)
+        body = _clean_links(here, md.convert(text))
         html = f"""<!DOCTYPE html>
 <html lang="ko">
 <head>
@@ -85,8 +123,8 @@ def build_docs(here, docs, *, doc_label, title_mid, footer_left,
 <body>
 <div class="page">
   <span class="doc-label">{doc_label}</span>
-  {_nav_html(docs, slug, hub_label)}
-  <p class="md-link">📄 Markdown 원본: <a href="{slug}.md">{slug}.md</a> · 허브 <a href="index.html">{hub_dashboard_label}</a></p>
+  {_nav_html(here, docs, slug, hub_label)}
+  <p class="md-link">📄 Markdown 원본: <a href="{slug}.md">{slug}.md</a> · 허브 <a href="{route_for(here, 'index.html') or 'index.html'}">{hub_dashboard_label}</a></p>
   <div class="content">
 {body}
   </div>

@@ -80,7 +80,7 @@ tr:nth-child(even) td{background:#fafbfd;}
 .chat-input input{flex:1;}
 .chat-empty{flex:1;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:13px;}
 </style>
-<link rel="stylesheet" href="./lib/grid.css">
+<link rel="stylesheet" href="/app/lib/grid.css">
 </head>
 <body>
 
@@ -106,7 +106,7 @@ tr:nth-child(even) td{background:#fafbfd;}
     </div>
     <div style="text-align:right">
       <div class="who" id="whoami"></div>
-      <a href="erp-status.html" class="btn sm" style="margin-top:6px;display:inline-block;text-decoration:none;background:rgba(255,255,255,.16)">🔗 ERP 연동 현황</a>
+      <a href="/admin/erp-status" class="btn sm" style="margin-top:6px;display:inline-block;text-decoration:none;background:rgba(255,255,255,.16)">🔗 ERP 연동 현황</a>
       <button class="btn sm" id="logout" style="margin-top:6px;background:rgba(255,255,255,.16)">로그아웃</button>
     </div>
   </div>
@@ -213,13 +213,13 @@ tr:nth-child(even) td{background:#fafbfd;}
 <script type="module">
 import { supabase } from "./lib/supabaseClient.js";
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from "./config.js";
-import { createGrid } from "./lib/grid.js";
-import { adminMsgApi } from "./lib/api.js";
+import { createGrid } from "/app/lib/grid.js";
+import { adminMsgApi } from "/app/lib/api.js";
 
 const $ = (id) => document.getElementById(id);
 const show = (el, type, html) => { el.className = "msg show " + type + (el.id==="cr_msg"?"":""); el.innerHTML = html; };
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c]));
-const VENDOR_LOGIN_URL = location.origin + "/app/vendor-login.html";
+const VENDOR_LOGIN_URL = location.origin + "/vendor/login";
 let ME = "";
 let MY_NAME = ""; // 메시지 발신자 표시명 — 로그인 사용자 정보(Entra 표시명 → 이메일 앞부분)
 const displayNameOf = (u) => u?.user_metadata?.full_name || u?.user_metadata?.name || (u?.email || "").split("@")[0];

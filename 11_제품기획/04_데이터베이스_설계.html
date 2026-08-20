@@ -42,13 +42,13 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <body>
 <div class="page">
   <span class="doc-label">JEIL AX 제품기획 · 대외비</span>
-  <div class="docnav"><a href="index.html">🏠 제품기획 허브</a><a href="00_제품기획_개요.html">00 개요</a><a href="01_PRD_제품요구사항정의.html">01 PRD</a><a href="02_SRS_요구사항명세.html">02 SRS</a><a href="03_시스템아키텍처_설계.html">03 아키텍처</a><a class="cur" href="04_데이터베이스_설계.html">04 DB설계</a><a href="05_프론트엔드_백엔드_설계.html">05 FE·BE</a><a href="06_ERP연계_챗봇활용_설계.html">06 ERP연계</a><a href="07_마이그레이션_Azure이관_설계.html">07 이관</a><a href="08_보안_데이터안정성.html">08 보안</a><a href="09_ADR_의사결정기록.html">09 ADR</a><a href="10_챗봇_응답렌더링_설계.html">10 응답렌더링</a><a href="11_챗봇_데이터요청접수_설계.html">11 요청접수</a><a href="README.md">README</a></div>
-  <p class="md-link">📄 Markdown 원본: <a href="04_데이터베이스_설계.md">04_데이터베이스_설계.md</a> · 허브 <a href="index.html">제품기획 개요</a></p>
+  <div class="docnav"><a href="/docs/product">🏠 제품기획 허브</a><a href="/docs/product/overview">00 개요</a><a href="/docs/product/prd">01 PRD</a><a href="/docs/product/srs">02 SRS</a><a href="/docs/product/architecture">03 아키텍처</a><a class="cur" href="/docs/product/database">04 DB설계</a><a href="/docs/product/frontend-backend">05 FE·BE</a><a href="/docs/product/erp-chatbot">06 ERP연계</a><a href="/docs/product/migration-design">07 이관</a><a href="/docs/product/security">08 보안</a><a href="/docs/product/adr">09 ADR</a><a href="/docs/product/chat-rendering">10 응답렌더링</a><a href="/docs/product/chat-data-request">11 요청접수</a><a href="README.md">README</a></div>
+  <p class="md-link">📄 Markdown 원본: <a href="04_데이터베이스_설계.md">04_데이터베이스_설계.md</a> · 허브 <a href="/docs/product">제품기획 개요</a></p>
   <div class="content">
 <h1 id="04">04 · 데이터베이스 설계서</h1>
 <blockquote>
 <p>관리자: 최동혁(dh.choi@jeilm.co.kr) · 기준일: 2026-07-08 · 상태: Draft
-관련: <a href="03_시스템아키텍처_설계.md">03 아키텍처</a> · <a href="06_ERP연계_챗봇활용_설계.md">06 ERP연계</a> · <a href="08_보안_데이터안정성.md">08 보안</a>
+관련: <a href="/docs/product/architecture">03 아키텍처</a> · <a href="/docs/product/erp-chatbot">06 ERP연계</a> · <a href="/docs/product/security">08 보안</a>
 실제 DDL/RLS SQL 정본(값 복제 금지): <a href="../실제구축준비%20자료/이관/sql/"><code>이관/sql/01~07</code></a></p>
 </blockquote>
 <p>이 문서는 데이터 모델의 <strong>구조·격리·명명·매핑</strong>을 정의한다. 표의 행수는 2026-07-08 Supabase 라이브 조회(<code>list_tables</code>) 실측이다.</p>
@@ -97,7 +97,7 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 </table>
 <ul>
 <li>접미사 규약: <code>_m</code>(월집계) · <code>_d</code>(일집계) · <code>_s</code>(스냅샷). 공통 컬럼: <code>synced_at</code>·<code>src_updated</code>·<code>batch_id</code>(UUID).</li>
-<li><code>erp_ro</code>/<code>etl_meta</code>를 REST에 노출하지 않고, 적재는 <code>security definer</code> RPC(<code>erp_etl_upsert</code>/<code>erp_etl_batch</code>)로만. → 클라이언트가 ERP 사본을 직접 못 읽음(P4 노출은 별도 뷰/RPC 설계 필요, <a href="06_ERP연계_챗봇활용_설계.md">06</a>).</li>
+<li><code>erp_ro</code>/<code>etl_meta</code>를 REST에 노출하지 않고, 적재는 <code>security definer</code> RPC(<code>erp_etl_upsert</code>/<code>erp_etl_batch</code>)로만. → 클라이언트가 ERP 사본을 직접 못 읽음(P4 노출은 별도 뷰/RPC 설계 필요, <a href="/docs/product/erp-chatbot">06</a>).</li>
 </ul>
 <h2 id="2-rls-on">2. 테이블 목록 (라이브 실측 · RLS 전부 ON)</h2>
 <h3 id="21-public">2.1 public — 발주 포털</h3>
@@ -316,7 +316,7 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 </code></pre>
 <ul>
 <li><strong>포털 격리축</strong>: <code>bp_cd</code>(거래처). <strong>조인축</strong>: <code>po_no</code>(발주번호, <code>PO+YYYYMMDD+일련</code>).</li>
-<li>ERP 사본(<code>erp_ro</code>)과 포털(<code>public</code>)은 현재 FK로 연결돼 있지 않다. 매핑은 <a href="06_ERP연계_챗봇활용_설계.md">06</a>에서 설계.</li>
+<li>ERP 사본(<code>erp_ro</code>)과 포털(<code>public</code>)은 현재 FK로 연결돼 있지 않다. 매핑은 <a href="/docs/product/erp-chatbot">06</a>에서 설계.</li>
 </ul>
 <h2 id="4-rls">4. RLS 정책 매트릭스</h2>
 <p>전 테이블 RLS ON. 두 헬퍼가 정책 전제:</p>
@@ -392,7 +392,7 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 </tbody>
 </table>
 <ul>
-<li><code>chat_log</code>·<code>batch_run</code>의 "RLS ON + 정책 없음"은 <strong>의도된 설계</strong>(클라이언트 전면 차단, Edge Fn/RPC만 접근). 보안 advisor가 INFO로 표기하나 취약점이 아님 → <a href="08_보안_데이터안정성.md">08 보안 §실측</a>.</li>
+<li><code>chat_log</code>·<code>batch_run</code>의 "RLS ON + 정책 없음"은 <strong>의도된 설계</strong>(클라이언트 전면 차단, Edge Fn/RPC만 접근). 보안 advisor가 INFO로 표기하나 취약점이 아님 → <a href="/docs/product/security">08 보안 §실측</a>.</li>
 <li><code>is_vendor_admin()</code> = <code>is_internal()</code> AND <code>portal_admin</code> 등록. <code>set search_path=''</code>로 하드닝.</li>
 </ul>
 <h2 id="5-rpc">5. RPC / 뷰</h2>
@@ -445,7 +445,7 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 </tbody>
 </table>
 <blockquote>
-<p><strong>점검 포인트</strong>: <code>update_my_vendor_contact</code>가 anon/authenticated에 REST로 노출됨(보안 advisor WARN). 세션 없는 호출은 무효여야 하며, 자기 행만 수정하도록 내부 가드를 재확인할 것 → <a href="08_보안_데이터안정성.md">08 §실측 결과</a>, <a href="09_ADR_의사결정기록.md">09 ADR</a>.</p>
+<p><strong>점검 포인트</strong>: <code>update_my_vendor_contact</code>가 anon/authenticated에 REST로 노출됨(보안 advisor WARN). 세션 없는 호출은 무효여야 하며, 자기 행만 수정하도록 내부 가드를 재확인할 것 → <a href="/docs/product/security">08 §실측 결과</a>, <a href="/docs/product/adr">09 ADR</a>.</p>
 </blockquote>
 <h2 id="6-list_migrations-16">6. 마이그레이션 이력 (라이브 <code>list_migrations</code>, 16건)</h2>
 <table>
@@ -540,15 +540,15 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 </tbody>
 </table>
 <blockquote>
-<p>DDL·RLS의 재현 SQL은 <code>이관/sql/01~07</code>에 있으나, <code>erp_ro</code>/<code>etl_meta</code> DDL은 Supabase MCP <code>apply_migration</code>으로 직접 적용되어 <code>.sql</code> 파일이 리포에 없다(근거=마이그레이션 이력·ETL RPC 호출). <strong>개선 권고</strong>: 향후 마이그레이션은 <code>supabase/migrations/</code>에 파일로 남겨 이관·감사 가능성을 높인다 → <a href="09_ADR_의사결정기록.md">09 ADR</a>.</p>
+<p>DDL·RLS의 재현 SQL은 <code>이관/sql/01~07</code>에 있으나, <code>erp_ro</code>/<code>etl_meta</code> DDL은 Supabase MCP <code>apply_migration</code>으로 직접 적용되어 <code>.sql</code> 파일이 리포에 없다(근거=마이그레이션 이력·ETL RPC 호출). <strong>개선 권고</strong>: 향후 마이그레이션은 <code>supabase/migrations/</code>에 파일로 남겨 이관·감사 가능성을 높인다 → <a href="/docs/product/adr">09 ADR</a>.</p>
 <p><strong>추가 이력(2026-07-21, 챗봇 대화내역 — ADR-009)</strong>: <code>create_chat_work_session_message</code>(chat_work/chat_session/chat_message + RLS + chat_log 확장 + <code>chat_append_message</code> RPC) · <code>ai_gateway_config_work_context</code>(work 컨텍스트·저장 정책 6컬럼). 그 사이 2026-07-08~13의 ERP 뷰·권한·모델설정 마이그레이션 다수는 라이브 <code>list_migrations</code>가 정본.</p>
 <p><strong>추가 이력(2026-07-22, 포털 요청 원장 — ADR-011)</strong>: <code>portal_request_v1</code>(<code>portal_request</code> + 접수번호 시퀀스 + updated_at 트리거 + RLS 전면차단). 정본 SQL은 <code>실제구축준비 자료/이관/sql/18_portal_request.sql</code>.
-<strong>추가 이력(2026-07-23, 적재범위 레지스트리)</strong>: <code>erp_load_scope_v1</code>(<code>erp_load_scope</code> + module/state 인덱스 + RLS 전면차단 + 실측 시드 11행). 정본 SQL은 <code>실제구축준비 자료/이관/sql/19_erp_load_scope.sql</code>. 설계 <a href="11_챗봇_데이터요청접수_설계.md">11 §16</a>.</p>
+<strong>추가 이력(2026-07-23, 적재범위 레지스트리)</strong>: <code>erp_load_scope_v1</code>(<code>erp_load_scope</code> + module/state 인덱스 + RLS 전면차단 + 실측 시드 11행). 정본 SQL은 <code>실제구축준비 자료/이관/sql/19_erp_load_scope.sql</code>. 설계 <a href="/docs/product/chat-data-request">11 §16</a>.</p>
 </blockquote>
 <h2 id="7-vectorpg_cron">7. 확장(vector/pg_cron) 현황</h2>
 <ul>
 <li>라이브 <code>list_extensions</code> 기준 활성: <code>pgcrypto</code>, <code>supabase_vault</code>, <code>pg_stat_statements</code>, <code>uuid-ossp</code>, <code>plpgsql</code>.</li>
-<li><strong>미설치</strong>(향후 고도화 시 필요): <code>vector</code>(챗봇 문서 RAG 3단계 임베딩), <code>pg_cron</code>(중간DB 스케줄 배치·리프레시). → <a href="06_ERP연계_챗봇활용_설계.md">06</a>·<a href="09_ADR_의사결정기록.md">09 ADR</a>.</li>
+<li><strong>미설치</strong>(향후 고도화 시 필요): <code>vector</code>(챗봇 문서 RAG 3단계 임베딩), <code>pg_cron</code>(중간DB 스케줄 배치·리프레시). → <a href="/docs/product/erp-chatbot">06</a>·<a href="/docs/product/adr">09 ADR</a>.</li>
 </ul>
   </div>
   <div class="footer"><span>JEIL M&S · AI 포털 제품기획</span><span>04 DB설계 · 관리: 최동혁</span></div>

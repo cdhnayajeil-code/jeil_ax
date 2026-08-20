@@ -112,7 +112,7 @@ input:focus{outline:none;border-color:var(--accent);background:#fff;}
 
 <script type="module">
 import { supabase } from "./lib/supabaseClient.js";
-import { portalApi, vendorDirApi } from "./lib/api.js";
+import { portalApi, vendorDirApi } from "/app/lib/api.js";
 
 const $ = (id) => document.getElementById(id);
 const show = (el, type, html) => { el.className = "msg show " + type; el.innerHTML = html; };
@@ -151,7 +151,7 @@ function routeAfterLogin(session) {
     openVendorPicker(session);
   } else if (am.role === "vendor" && am.vendor_bp?.length) {
     show($("li_msg"), "ok", `로그인되었습니다(거래처 ${am.vendor_bp.join(", ")}). 발주 포털로 이동합니다…`);
-    setTimeout(() => location.href = "../pages/협력사_모바일_포털.html", 1200);
+    setTimeout(() => location.href = "/work/vendor-mobile", 1200);
   } else {
     show($("li_msg"), "info", "✅ 로그인되었습니다. 아직 거래처 권한이 연결되지 않았습니다. 제일엠앤에스 구매팀에 문의해 주세요.");
   }
@@ -187,7 +187,7 @@ $("pw_save").onclick = async () => {
 $("pw2").addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.isComposing) $("pw_save").click(); });
 
 /* ===== 관리자 계정: 로그인된 화면에서 거래처 선택 ===== */
-const PORTAL_URL = "../pages/협력사_모바일_포털.html";
+const PORTAL_URL = "/work/vendor-mobile";
 let PK_LIST = [], pkTimer;
 
 function openVendorPicker(session) {

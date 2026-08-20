@@ -1,7 +1,7 @@
 // pages/_access-gate.js — 부서 운영 페이지 접근 게이트 (서버 판정 jeil-me 강제, CLAUDE.md §5.4)
 // 사용: 각 페이지 <head>에 아래 두 줄을 넣는다.
 //   <script>window.PAGE_KEY='sales_2026';</script>
-//   <script src="_access-gate.js"></script>
+//   <script src="/pages/_access-gate.js"></script>
 // 동작: PAGE_KEY의 접근 권한을 jeil-me(Entra 토큰 Graph 재검증)로 확인 → 미허가면 화면 차단.
 //   · iframe/임베드(통합본 srcdoc) 안에서는 skip — 상위 포털이 이미 판정, 오프라인 데모 보호.
 //   · 최상위 문서(직접 URL 접근 포함)에서만 강제 → URL만 알아도 접근 불가.
@@ -12,7 +12,7 @@
   if (!key) return; // 게이트 키 미선언 페이지는 통과(설정 누락 오차단 방지)
 
   var ME_GATEWAY = "https://dvzohdqtjzocgcclgwro.supabase.co/functions/v1/jeil-me";
-  var PORTAL = "../04_챗봇_포털_데모UI.html";
+  var PORTAL = "/main";   // 공개 URL 라우트(_routes.py)
 
   function auth() {
     try { var a = JSON.parse(localStorage.getItem("jeilax_auth") || "null"); return (a && a.at && a.exp > Date.now()) ? a : null; }

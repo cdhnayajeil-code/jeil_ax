@@ -42,13 +42,13 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <body>
 <div class="page">
   <span class="doc-label">JEIL AX 제품기획 · 대외비</span>
-  <div class="docnav"><a href="index.html">🏠 제품기획 허브</a><a href="00_제품기획_개요.html">00 개요</a><a href="01_PRD_제품요구사항정의.html">01 PRD</a><a href="02_SRS_요구사항명세.html">02 SRS</a><a href="03_시스템아키텍처_설계.html">03 아키텍처</a><a href="04_데이터베이스_설계.html">04 DB설계</a><a href="05_프론트엔드_백엔드_설계.html">05 FE·BE</a><a href="06_ERP연계_챗봇활용_설계.html">06 ERP연계</a><a href="07_마이그레이션_Azure이관_설계.html">07 이관</a><a href="08_보안_데이터안정성.html">08 보안</a><a class="cur" href="09_ADR_의사결정기록.html">09 ADR</a><a href="10_챗봇_응답렌더링_설계.html">10 응답렌더링</a><a href="11_챗봇_데이터요청접수_설계.html">11 요청접수</a><a href="README.md">README</a></div>
-  <p class="md-link">📄 Markdown 원본: <a href="09_ADR_의사결정기록.md">09_ADR_의사결정기록.md</a> · 허브 <a href="index.html">제품기획 개요</a></p>
+  <div class="docnav"><a href="/docs/product">🏠 제품기획 허브</a><a href="/docs/product/overview">00 개요</a><a href="/docs/product/prd">01 PRD</a><a href="/docs/product/srs">02 SRS</a><a href="/docs/product/architecture">03 아키텍처</a><a href="/docs/product/database">04 DB설계</a><a href="/docs/product/frontend-backend">05 FE·BE</a><a href="/docs/product/erp-chatbot">06 ERP연계</a><a href="/docs/product/migration-design">07 이관</a><a href="/docs/product/security">08 보안</a><a class="cur" href="/docs/product/adr">09 ADR</a><a href="/docs/product/chat-rendering">10 응답렌더링</a><a href="/docs/product/chat-data-request">11 요청접수</a><a href="README.md">README</a></div>
+  <p class="md-link">📄 Markdown 원본: <a href="09_ADR_의사결정기록.md">09_ADR_의사결정기록.md</a> · 허브 <a href="/docs/product">제품기획 개요</a></p>
   <div class="content">
 <h1 id="09-adr">09 · ADR — 아키텍처 의사결정 기록</h1>
 <blockquote>
 <p>관리자: 최동혁(dh.choi@jeilm.co.kr) · 기준일: 2026-07-08 · 상태: Draft
-관련: <a href="00_제품기획_개요.md">00 개요</a> · <a href="03_시스템아키텍처_설계.md">03 아키텍처</a> · <a href="07_마이그레이션_Azure이관_설계.md">07 이관</a> · <a href="08_보안_데이터안정성.md">08 보안</a></p>
+관련: <a href="/docs/product/overview">00 개요</a> · <a href="/docs/product/architecture">03 아키텍처</a> · <a href="/docs/product/migration-design">07 이관</a> · <a href="/docs/product/security">08 보안</a></p>
 </blockquote>
 <p>이 문서는 <strong>결정(Accepted)·미결정(Proposed)·발견 이슈(Issue)</strong> 를 한 곳에 모은다. 상태가 바뀌면 여기에 갱신하고 관련 문서에 반영한다. 형식: 배경 → 선택지 → 결정/상태.</p>
 <p>범례: ✅ Accepted · 🕐 Proposed(결정 대기) · ⚠️ Issue(발견, 조치 필요)</p>
@@ -58,7 +58,7 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <ul>
 <li><strong>배경</strong>: ERP 운영DB에 프론트가 직접 붙으면 부하·보안·이관 리스크.</li>
 <li><strong>결정</strong>: 원천(ERP)/읽기사본(중간DB)/자체생성(포털DB) 물리 분리. 프론트는 ERP 직접 접근 금지.</li>
-<li><strong>근거</strong>: <a href="03_시스템아키텍처_설계.md">03 §1</a>, [CLAUDE.md §4].</li>
+<li><strong>근거</strong>: <a href="/docs/product/architecture">03 §1</a>, [CLAUDE.md §4].</li>
 </ul>
 <h3 id="adr-002-erp">ADR-002 ✅ ERP 읽기전용 + 화이트리스트</h3>
 <ul>
@@ -68,17 +68,17 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <h3 id="adr-003-rls">ADR-003 ✅ RLS로 백엔드 권한 판정</h3>
 <ul>
 <li><strong>결정</strong>: 권한 차단은 DB RLS/Edge Function. 프론트 메뉴 숨김은 UX만. 라이브 실측으로 전 테이블 RLS ON 확인(2026-07-08).</li>
-<li><strong>근거</strong>: <a href="08_보안_데이터안정성.md">08 §3</a>.</li>
+<li><strong>근거</strong>: <a href="/docs/product/security">08 §3</a>.</li>
 </ul>
 <h3 id="adr-004">ADR-004 ✅ 데이터 접근 단일 진입점 + 어댑터</h3>
 <ul>
 <li><strong>결정</strong>: 프론트 데이터 접근은 <code>app/lib/api.js</code> 하나로. <code>DATA_BACKEND</code> 스위치로 supabase↔mock, 향후 azure.</li>
-<li><strong>근거</strong>: <a href="03_시스템아키텍처_설계.md">03 §8</a>, [CLAUDE.md §3.3].</li>
+<li><strong>근거</strong>: <a href="/docs/product/architecture">03 §8</a>, [CLAUDE.md §3.3].</li>
 </ul>
 <h3 id="adr-005-entra-supabase-auth">ADR-005 ✅ 인증 경계 분리(Entra ↔ Supabase Auth)</h3>
 <ul>
 <li><strong>결정</strong>: 사내는 Entra, 협력사는 Supabase Auth. Edge Fn이 Entra 토큰을 Graph로 검증하는 브리지.</li>
-<li><strong>근거</strong>: <a href="03_시스템아키텍처_설계.md">03 §5</a>, [CLAUDE.md §5.5].</li>
+<li><strong>근거</strong>: <a href="/docs/product/architecture">03 §5</a>, [CLAUDE.md §5.5].</li>
 </ul>
 <h3 id="adr-006-supabase">ADR-006 ✅ 현행 실행 스택 = Supabase(잠정)</h3>
 <ul>
@@ -91,14 +91,14 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <li><strong>배경</strong>: <code>erp_ro</code>를 앱/챗봇에 노출하되 REST 비노출·사내한정·화이트리스트 원칙 유지 필요.</li>
 <li><strong>선택지</strong>: (A) <code>security definer</code> 뷰/RPC(정의자 권한, advisor 경고) / (B) <code>public</code>의 <code>security_invoker</code> 뷰 + <code>erp_ro</code> 최소 GRANT + 기존 <code>internal_select_*</code> RLS 게이트 / (C) 별도 <code>erp_pub</code> 스키마 REST 노출(프로젝트 config 변경 필요).</li>
 <li><strong>결정</strong>: <strong>(B)</strong>. <code>erp_ro</code>/<code>etl_meta</code>는 REST 비노출 유지, 진입점은 <code>public.v_erp_*</code> 뷰뿐. 사내(internal)만 RLS 통과, 협력사/anon 0행(격리 테스트 통과 ISS-203). 챗봇은 service_role 전용 read GRANT. definer-뷰 advisor 경고 회피.</li>
-<li><strong>근거</strong>: <a href="06_ERP연계_챗봇활용_설계.md">06 §3·§7</a>, <a href="../실제구축준비%20자료/이관/sql/08_erp_pub_reporting_views.sql"><code>이관/sql/08</code></a>.</li>
+<li><strong>근거</strong>: <a href="/docs/product/erp-chatbot">06 §3·§7</a>, <a href="../실제구축준비%20자료/이관/sql/08_erp_pub_reporting_views.sql"><code>이관/sql/08</code></a>.</li>
 </ul>
 <h3 id="adr-008-2026-07-20">ADR-008 ✅ 챗봇 응답 렌더링 = 마크다운 렌더 + 서버 주도 구조화 뷰 (2026-07-20)</h3>
 <ul>
 <li><strong>배경</strong>: 라이브 챗봇 렌더러가 mdLite 3줄(굵게+줄바꿈)뿐이라 표·목록이 원문 노출. 도구의 구조화 JSON을 모델이 재서술하는 과정에서 수치 오류 사고 이력(프롬프트 방어 문구가 증거).</li>
 <li><strong>선택지</strong>: (A) 마크다운 렌더만 / (B) 모델이 템플릿 블록(JSON/DSL) 방출 / (C) 마크다운 렌더 + 게이트웨이가 도구 결과를 SSE <code>jeilax</code> 이벤트로 병행 송출(서버 주도 뷰).</li>
 <li><strong>결정</strong>: <strong>(C)</strong> = P1+P2. <strong>(B)는 기각</strong> — fail-ugly(스키마 위반 시 JSON 원문 노출)·스트리밍 불가·프롬프트 비대·모델 교체 취약. 뷰는 도구별이 아니라 <strong>데이터 형태 5종 고정</strong>(series/ranking/record/list/notice, 신규 템플릿 신설 금지). 수치는 DB 직결(모델 미경유·토큰 0)로 환각을 구조적으로 차단. 렌더러는 04 인라인 배치(04는 완전 인라인 단일 파일 + 통합본이 전문 내장 — app/lib 분리 시 file://·통합본 파손).</li>
-<li><strong>근거</strong>: <a href="10_챗봇_응답렌더링_설계.md">10 응답렌더링</a>, jeil-chat v20 + 04 포털(renderMd/renderView), 단위테스트 15/15(XSS 포함).</li>
+<li><strong>근거</strong>: <a href="/docs/product/chat-rendering">10 응답렌더링</a>, jeil-chat v20 + 04 포털(renderMd/renderView), 단위테스트 15/15(XSS 포함).</li>
 </ul>
 <h3 id="adr-009-work-2-2026-07-21">ADR-009 ✅ 챗봇 대화 원문 서버 저장(본인 한정) + work 2단 구조 (2026-07-21)</h3>
 <ul>
@@ -113,7 +113,7 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <li><strong>부수 결정</strong>: 응답 중지 = 클라이언트 fetch abort → 게이트웨이 이중 감지(req.signal + write 실패)로 OpenAI 업스트림 abort(비용 차단), 부분 응답은 <code>stopped=true</code>로 저장.</li>
 <li><strong>잔여 위험(보안 셀프점검 2026-07-21, Low·정보성)</strong>: 인증이 Graph <code>/me</code> 성공+사내 도메인만으로 성립(토큰 audience 미검증 — jeil-chat 기존 패턴 승계). 이번 변경으로 이 경계가 지키는 자산이 "축적된 대화 원문"으로 커짐 → <strong>운영 전환 시 JEIL-AX 앱 전용 aud/tid 서명 검증으로 교체 검토</strong>(ADR-104·CLAUDE.md §5.6과 함께).</li>
 <li><strong>개정(2026-07-21, 팀 공유)</strong>: "본인만 열람·삭제" → <strong>"본인 또는 작업 폴더 팀원"</strong> 으로 확장(관리자 결정). 신규 <code>chat_work_member</code> + DB RPC 접근 판정(<code>chat_work_access</code>/<code>chat_session_access</code>) 일원화 — 폴더 소유자가 사내 계정을 초대(폴더당 최대 20명)하면 팀원이 그 폴더의 모든 대화를 열람·참여(공동 지시). 발화자 upn은 실작성자로 기록(감사 정확). 통제: 초대·이름/메모 수정·폴더 삭제=소유자만, 세션 삭제=접근 가능한 생성자·폴더 소유자만, 팀원은 나가기 가능. <strong>회수(revocation) 규칙</strong>: 폴더 소속 대화의 접근은 "현재" 구성원 자격 기준 — 제거·나가기 시 본인이 만든 대화 포함 폴더 대화 접근을 전면 상실하고, 대화는 폴더에 남아 팀이 유지(보안 셀프점검 F1 발견 → 즉시 수정·SQL 실측). 개인 대화(폴더 미소속)만 생성자 무조건 접근. 관리자 원문 조회 API 부재 원칙 유지. UI에 "초대한 팀원은 폴더의 모든 대화를 열람·참여" 고지. jeil-chat v25 · jeil-chat-history v2.</li>
-<li><strong>근거</strong>: 마이그레이션 <code>create_chat_work_session_message</code>·<code>ai_gateway_config_work_context</code>, jeil-chat v24 + jeil-chat-history v1 + jeil-chat-admin v9, <a href="04_데이터베이스_설계.md">04 DB설계</a>.</li>
+<li><strong>근거</strong>: 마이그레이션 <code>create_chat_work_session_message</code>·<code>ai_gateway_config_work_context</code>, jeil-chat v24 + jeil-chat-history v1 + jeil-chat-admin v9, <a href="/docs/product/database">04 DB설계</a>.</li>
 </ul>
 <h3 id="adr-010-core-grant-2026-07-22">ADR-010 ✅ 권한 모델 = 부서축 CORE + 개인 예외(grant) + 판정 단일화 (2026-07-22)</h3>
 <ul>
@@ -141,7 +141,7 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <li><strong>데이터 요청의 묶음 축 = 담당자 작업 유형</strong>(관리자 결정 2026-07-23): <code>period</code>(기간 확대)·<code>column</code>(칸 수정·추가)·<code>table</code>(새 테이블 연결). ERP 모듈이 아니라 <strong>담당자가 실제로 고치는 단위</strong>로 묶는다 — 모듈로 묶으면 반나절이면 되는 기간 확대가 유니포인트 협의가 필요한 신규 테이블과 한 묶음이 되어 전체가 대기한다. 중복 병합 키에도 <code>fix_type</code>을 포함해 같은 모듈이라도 작업이 다르면 별건으로 쌓인다.</li>
 <li><strong><code>data</code> 유형은 완료 시점을 약속하지 않는다</strong>(관리자 결정 2026-07-23): 접수·검토 착수만 통지하고 "정기 업데이트 시 적용 검토"로 회신한다. 긴급도도 처리 기한 문구를 제거하고 <strong>보통/급함 우선순위 구분 용도로만</strong> 쓴다 — 유니포인트 협의 의존분에 지킬 수 없는 기한을 화면에서 약속하지 않기 위함.</li>
 <li><strong>완료(done) 전이에 반영 검증 게이트</strong>(2026-07-23): 상태만 닫고 실제 부여를 잊는 사고를 서버가 차단한다. <code>perm</code>·<code>perm_sensitive</code>는 <code>perm_effective</code>(SSOT), <code>doc</code>은 <code>ai_document_scope</code> 활성 여부로 기계 판정 → 미반영이면 <code>409 not_fulfilled</code>. 판정 불가한 <code>data</code>·<code>feature</code>는 막지 않고 확인 안내만 반환하며, 예외는 <code>force=true</code> 명시 우회(사유는 <code>handled_note</code>에 남는다). 요청함 목록에도 <code>fulfilled</code>를 실어 완료 전에 누락을 눈으로 확인한다. <strong>실측 근거</strong>: <code>REQ-2026-0001</code>이 <code>done</code>으로 닫혔는데도 요청자 <code>erp_modules</code>가 빈 배열이었다 — 요청 처리와 권한이 끊겨 있던 것이 실제 데이터로 확인됐다.</li>
-<li><strong>잔여 미결정</strong>: 승인 라인(부서장 2단 여부)·상태이력 테이블 분리·보존기간 / <code>erp_load_scope</code> 레지스트리 신설 여부·<code>data</code> 승인의 의미(ETL 착수 확정 vs 검토 등재)·E(기능없음) 유형 노출 여부. 설계 <a href="11_챗봇_데이터요청접수_설계.md">11 요청접수</a> §14~§15.</li>
+<li><strong>잔여 미결정</strong>: 승인 라인(부서장 2단 여부)·상태이력 테이블 분리·보존기간 / <code>erp_load_scope</code> 레지스트리 신설 여부·<code>data</code> 승인의 의미(ETL 착수 확정 vs 검토 등재)·E(기능없음) 유형 노출 여부. 설계 <a href="/docs/product/chat-data-request">11 요청접수</a> §14~§15.</li>
 <li><strong>근거</strong>: 마이그레이션 <code>portal_request_v1</code>, 정본 SQL <code>실제구축준비 자료/이관/sql/18_portal_request.sql</code>, <code>jeil-portal-request</code> v3, <code>jeil-chat</code> v28.</li>
 </ul>
 <h2 id="b-proposed">B. 미결정 (Proposed — 결정 대기)</h2>
@@ -153,7 +153,7 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <h3 id="adr-102-azure-vs-iis">ADR-102 🕐 호스팅 확정(Azure vs 사내 IIS)</h3>
 <ul>
 <li><strong>선택지</strong>: Azure(Static Web Apps/App Service, 권고) vs 사내 IIS vs 기타.</li>
-<li><strong>상태</strong>: 미확정([CLAUDE.md §11-B], <a href="07_마이그레이션_Azure이관_설계.md">07 §6</a>). 인증서·이관 전략에 직결.</li>
+<li><strong>상태</strong>: 미확정([CLAUDE.md §11-B], <a href="/docs/product/migration-design">07 §6</a>). 인증서·이관 전략에 직결.</li>
 </ul>
 <h3 id="adr-103-d1">ADR-103 🕐 협력사 인증 방식(D1)</h3>
 <ul>
@@ -164,13 +164,13 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <ul>
 <li><strong>배경</strong>: 현재 localStorage 토큰은 XSS 노출 위험.</li>
 <li><strong>선택지</strong>: BFF 패턴 + HttpOnly 쿠키 / 현행 유지.</li>
-<li><strong>상태</strong>: 운영 전환 시 재설계 예정([CLAUDE.md §6], <a href="08_보안_데이터안정성.md">08 R3</a>).</li>
+<li><strong>상태</strong>: 운영 전환 시 재설계 예정([CLAUDE.md §6], <a href="/docs/product/security">08 R3</a>).</li>
 </ul>
 <h3 id="adr-105">ADR-105 🕐 마이그레이션 파일화 정책</h3>
 <ul>
 <li><strong>배경</strong>: <code>erp_ro</code>/<code>etl_meta</code> DDL이 MCP 직접 적용되어 리포에 <code>.sql</code> 파일 없음 → 이관·감사 취약.</li>
 <li><strong>선택지</strong>: 향후 모든 스키마 변경을 <code>supabase/migrations/</code> 파일로 관리 / 현행.</li>
-<li><strong>상태</strong>: 파일화 권고. 이관(ADR-102) 전제 조건(<a href="07_마이그레이션_Azure이관_설계.md">07 §5</a>).</li>
+<li><strong>상태</strong>: 파일화 권고. 이관(ADR-102) 전제 조건(<a href="/docs/product/migration-design">07 §5</a>).</li>
 </ul>
 <h3 id="adr-106-llm">ADR-106 🕐 챗봇 LLM 벤더 확정</h3>
 <ul>
@@ -187,7 +187,7 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <h3 id="iss-202-update_my_vendor_contact-rest">ISS-202 ⚠️ <code>update_my_vendor_contact</code> REST 노출</h3>
 <ul>
 <li><strong>내용</strong>: SECURITY DEFINER 함수가 anon/authenticated에 REST로 실행 가능(보안 advisor WARN).</li>
-<li><strong>조치</strong>: 세션 없는 호출 무효·자기 행만 수정 가드 재확인, 불필요 EXECUTE 회수/INVOKER 검토(<a href="08_보안_데이터안정성.md">08 R1</a>).</li>
+<li><strong>조치</strong>: 세션 없는 호출 무효·자기 행만 수정 가드 재확인, 불필요 EXECUTE 회수/INVOKER 검토(<a href="/docs/product/security">08 R1</a>).</li>
 </ul>
 <h3 id="iss-203-erp_ro-rls-2026-07-08">ISS-203 ✅ <code>erp_ro</code> RLS 격리 실테스트 (2026-07-08 해소)</h3>
 <ul>
@@ -197,7 +197,7 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <h3 id="iss-204-erp">ISS-204 ⚠️ ERP 매핑 "가설" 상태</h3>
 <ul>
 <li><strong>내용</strong>: ETL 추출 SQL·ERP 테이블 매핑이 유니포인트 뷰 스펙 확정 전 초안.</li>
-<li><strong>조치</strong>: 유니포인트 협의로 확정(전용 계정 <code>jeilax_ro</code>, 리포팅 뷰) — 관리자 진행, Claude는 요청목록 제시(<a href="06_ERP연계_챗봇활용_설계.md">06 §5</a>).</li>
+<li><strong>조치</strong>: 유니포인트 협의로 확정(전용 계정 <code>jeilax_ro</code>, 리포팅 뷰) — 관리자 진행, Claude는 요청목록 제시(<a href="/docs/product/erp-chatbot">06 §5</a>).</li>
 </ul>
 <h3 id="iss-205-configjs-anon">ISS-205 ⚠️ config.js anon 키 소스 존재</h3>
 <ul>
@@ -207,12 +207,12 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <h3 id="iss-206-p4">ISS-206 🟡 P4 단절(부서 페이지 정적) — 부분 해소 진행 중</h3>
 <ul>
 <li><strong>내용</strong>: <code>erp_ro</code>가 앱/챗봇 미노출 → 부서 페이지 정적 샘플.</li>
-<li><strong>진행(2026-07-08)</strong>: 노출 뷰 6종 + <code>erpApi</code> + 구매 페이지 파일럿 + 챗봇 ERP Tool 4종 구현·배포. 나머지 부서 페이지 확대·Entra→Supabase 세션 브리지·권한 등급(P4-4)이 남음. 설계 <a href="06_ERP연계_챗봇활용_설계.md">06 §7</a>, 상태 <a href="../10_ERP_DB연계/02_진행상태.md"><code>10_ERP_DB연계/02</code></a>.</li>
+<li><strong>진행(2026-07-08)</strong>: 노출 뷰 6종 + <code>erpApi</code> + 구매 페이지 파일럿 + 챗봇 ERP Tool 4종 구현·배포. 나머지 부서 페이지 확대·Entra→Supabase 세션 브리지·권한 등급(P4-4)이 남음. 설계 <a href="/docs/product/erp-chatbot">06 §7</a>, 상태 <a href="/docs/erp/progress"><code>10_ERP_DB연계/02</code></a>.</li>
 </ul>
 <h3 id="iss-207-entra-client-secret-2026-12-09">ISS-207 ⚠️ Entra Client Secret 만료(2026-12-09)</h3>
 <ul>
 <li><strong>내용</strong>: 미갱신 시 로그인 전면 중단.</li>
-<li><strong>조치</strong>: 11월 중 갱신·일정 등록(관리자, <a href="08_보안_데이터안정성.md">08 §4</a>).</li>
+<li><strong>조치</strong>: 11월 중 갱신·일정 등록(관리자, <a href="/docs/product/security">08 §4</a>).</li>
 </ul>
 <hr />
 <h2 id="d-cto">D. 결정 요청 요약 (경영/CTO 판단 필요)</h2>

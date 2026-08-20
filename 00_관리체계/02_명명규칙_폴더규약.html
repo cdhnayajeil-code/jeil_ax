@@ -42,8 +42,8 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <body>
 <div class="page">
   <span class="doc-label">JEIL AX 관리체계 · 대외비</span>
-  <div class="docnav"><a href="index.html">🏠 관리체계 허브</a><a href="00_문서대장.html">00 문서대장</a><a href="01_기준정보_레지스트리.html">01 기준정보</a><a class="cur" href="02_명명규칙_폴더규약.html">02 명명규칙</a><a href="03_변경관리_CHANGELOG.html">03 변경관리</a><a href="README.md">README</a></div>
-  <p class="md-link">📄 Markdown 원본: <a href="02_명명규칙_폴더규약.md">02_명명규칙_폴더규약.md</a> · 허브 <a href="index.html">관리체계 대시보드</a></p>
+  <div class="docnav"><a href="/docs/governance">🏠 관리체계 허브</a><a href="/docs/governance/documents">00 문서대장</a><a href="/docs/governance/registry">01 기준정보</a><a class="cur" href="/docs/governance/naming">02 명명규칙</a><a href="/docs/governance/changelog">03 변경관리</a><a href="README.md">README</a></div>
+  <p class="md-link">📄 Markdown 원본: <a href="02_명명규칙_폴더규약.md">02_명명규칙_폴더규약.md</a> · 허브 <a href="/docs/governance">관리체계 대시보드</a></p>
   <div class="content">
 <h1 id="02">02. 명명규칙 · 폴더규약</h1>
 <blockquote>
@@ -110,6 +110,42 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <li>형식: <strong><code>[부서]_[기능]_[연도].html</code></strong> (예: <code>구매_거래처별매입집계_2026.html</code>).</li>
 <li>부서명은 <code>01_기준정보_레지스트리 §1</code> 표준 표기를 따른다(인사팀 등).</li>
 <li><code>pages/</code> 파일은 <code>04_챗봇_포털_데모UI.html</code>·통합본·<code>이관/00_현황스냅샷</code>이 <strong>경로를 직접 참조</strong>한다 → <strong>리네임 시 참조처 동반 갱신 + 통합본 재빌드 필수</strong>(함부로 바꾸지 않는다).</li>
+</ul>
+<hr />
+<h2 id="25-url">2.5 공개 URL 라우트 (파일명 ≠ 주소)</h2>
+<p><strong>사용자에게 보이는 주소는 파일명과 분리한다.</strong> 파일은 한글·번호 접두 그대로 두고,
+웹 주소만 영문 클린 URL로 제공한다 — 한글이 <code>%EC%9E%90…</code>로 깨져 보이는 문제와
+확장자 노출이 함께 해소된다.</p>
+<table>
+<thead>
+<tr>
+<th>구분</th>
+<th>예</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>파일(저장소)</td>
+<td><code>pages/자금_결의전표_입력_2026.html</code></td>
+</tr>
+<tr>
+<td>공개 주소</td>
+<td><code>https://ai.jeilm.co.kr/work/voucher</code></td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li><strong>단일 출처</strong>: 저장소 루트 <strong><code>_routes.py</code></strong>. 여기 한 줄 추가 후 <code>python _build_routes.py --write</code>
+  → <code>vercel.json</code> 리라이트 재생성 + 문서·화면의 내부 링크를 클린 URL로 일괄 치환한다.</li>
+<li><strong>네임스페이스</strong>: <code>/main</code>(포털) · <code>/work/…</code>(부서 운영페이지) · <code>/admin/…</code>·<code>/vendor/…</code>(관리·협력사)
+  · <code>/survey/…</code>(니즈조사) · <code>/docs/…</code>(기획·관리 문서) · <code>/demo/…</code>(데모) · <code>/tools/…</code>(도구).</li>
+<li><strong>슬러그는 영문 소문자·하이픈</strong>. 연도는 붙이지 않는다(<code>/work/sales-orders</code>, <code>/work/sales-orders-2026</code> ✗).</li>
+<li><strong>기존 <code>.html</code> 주소도 계속 동작</strong>한다(파일 그대로 + Vercel <code>cleanUrls</code> 자동 리다이렉트) →
+  기존 북마크·외부 링크 무효화 없음. 리네임이 아니라 <strong>주소 계층 신설</strong>이다.</li>
+<li>빌더(<code>_html_builder.py</code>·<code>_build_bundle.py</code>·<code>08/03</code>·<code>그리드</code>)는 이 표를 참조하므로
+  <strong>재생성해도 클린 URL이 유지</strong>된다.</li>
+<li>라이브 포털의 부서 카드 경로는 <strong>DB <code>public.portal_page.path</code></strong> 가 정본 → 라우트 변경 시
+  같이 갱신한다(정본 SQL: <code>실제구축준비 자료/이관/sql/28_portal_page_clean_url.sql</code>).</li>
 </ul>
 <hr />
 <h2 id="3-vs">3. 배포본 vs 데모본 구분 (의도적 중복)</h2>

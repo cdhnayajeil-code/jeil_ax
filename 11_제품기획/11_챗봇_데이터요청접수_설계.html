@@ -42,13 +42,13 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <body>
 <div class="page">
   <span class="doc-label">JEIL AX 제품기획 · 대외비</span>
-  <div class="docnav"><a href="index.html">🏠 제품기획 허브</a><a href="00_제품기획_개요.html">00 개요</a><a href="01_PRD_제품요구사항정의.html">01 PRD</a><a href="02_SRS_요구사항명세.html">02 SRS</a><a href="03_시스템아키텍처_설계.html">03 아키텍처</a><a href="04_데이터베이스_설계.html">04 DB설계</a><a href="05_프론트엔드_백엔드_설계.html">05 FE·BE</a><a href="06_ERP연계_챗봇활용_설계.html">06 ERP연계</a><a href="07_마이그레이션_Azure이관_설계.html">07 이관</a><a href="08_보안_데이터안정성.html">08 보안</a><a href="09_ADR_의사결정기록.html">09 ADR</a><a href="10_챗봇_응답렌더링_설계.html">10 응답렌더링</a><a class="cur" href="11_챗봇_데이터요청접수_설계.html">11 요청접수</a><a href="README.md">README</a></div>
-  <p class="md-link">📄 Markdown 원본: <a href="11_챗봇_데이터요청접수_설계.md">11_챗봇_데이터요청접수_설계.md</a> · 허브 <a href="index.html">제품기획 개요</a></p>
+  <div class="docnav"><a href="/docs/product">🏠 제품기획 허브</a><a href="/docs/product/overview">00 개요</a><a href="/docs/product/prd">01 PRD</a><a href="/docs/product/srs">02 SRS</a><a href="/docs/product/architecture">03 아키텍처</a><a href="/docs/product/database">04 DB설계</a><a href="/docs/product/frontend-backend">05 FE·BE</a><a href="/docs/product/erp-chatbot">06 ERP연계</a><a href="/docs/product/migration-design">07 이관</a><a href="/docs/product/security">08 보안</a><a href="/docs/product/adr">09 ADR</a><a href="/docs/product/chat-rendering">10 응답렌더링</a><a class="cur" href="/docs/product/chat-data-request">11 요청접수</a><a href="README.md">README</a></div>
+  <p class="md-link">📄 Markdown 원본: <a href="11_챗봇_데이터요청접수_설계.md">11_챗봇_데이터요청접수_설계.md</a> · 허브 <a href="/docs/product">제품기획 개요</a></p>
   <div class="content">
 <h1 id="11">11 · 챗봇 데이터 요청접수 설계 — "조회 불가 → 요청 버튼 → 접수·처리"</h1>
 <blockquote>
 <p>관리자: 최동혁(dh.choi@jeilm.co.kr) · 기준일: 2026-07-23 · 상태: <strong>Accepted — P1(권한)·P2a(결측 표기·2분류)·완료 게이트 구현·배포 완료 / P2b~P2d 잔여 (ADR-011)</strong>
-관련: <a href="10_챗봇_응답렌더링_설계.md">10 응답렌더링</a> · <a href="05_프론트엔드_백엔드_설계.md">05 FE·BE</a> · <a href="06_ERP연계_챗봇활용_설계.md">06 ERP연계</a> · <a href="04_데이터베이스_설계.md">04 DB설계</a> · <a href="08_보안_데이터안정성.md">08 보안</a> · <a href="09_ADR_의사결정기록.md">09 ADR</a> · <code>CLAUDE.md §1.6·§5.4·§7·§13</code></p>
+관련: <a href="/docs/product/chat-rendering">10 응답렌더링</a> · <a href="/docs/product/frontend-backend">05 FE·BE</a> · <a href="/docs/product/erp-chatbot">06 ERP연계</a> · <a href="/docs/product/database">04 DB설계</a> · <a href="/docs/product/security">08 보안</a> · <a href="/docs/product/adr">09 ADR</a> · <code>CLAUDE.md §1.6·§5.4·§7·§13</code></p>
 </blockquote>
 <p>챗봇이 <strong>"그 데이터는 못 보여드립니다"</strong> 로 끝나는 지점에서, 사용자가 그 자리에서 <strong>요청 버튼</strong>을 눌러 접수하고, 관리자가 <strong>요청함</strong>에서 처리·회신하는 흐름을 설계한다.
 결론부터: <strong>새 뷰·새 화면을 만들지 않고</strong>, 이미 있는 <code>notice</code> 뷰의 <code>request</code> 정보를 실제 접수 액션으로 승격(<code>actions.kind:"request"</code> 1종 추가)하고 <strong>요청 원장 테이블 1개 + Edge Function 1개 + 관리자 콘솔 탭 1개</strong>만 신설한다. 근거는 §1~§3, 설계는 §4~§8, 단계·미결정은 §9~§11.</p>

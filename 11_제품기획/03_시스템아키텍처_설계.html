@@ -42,13 +42,13 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <body>
 <div class="page">
   <span class="doc-label">JEIL AX 제품기획 · 대외비</span>
-  <div class="docnav"><a href="index.html">🏠 제품기획 허브</a><a href="00_제품기획_개요.html">00 개요</a><a href="01_PRD_제품요구사항정의.html">01 PRD</a><a href="02_SRS_요구사항명세.html">02 SRS</a><a class="cur" href="03_시스템아키텍처_설계.html">03 아키텍처</a><a href="04_데이터베이스_설계.html">04 DB설계</a><a href="05_프론트엔드_백엔드_설계.html">05 FE·BE</a><a href="06_ERP연계_챗봇활용_설계.html">06 ERP연계</a><a href="07_마이그레이션_Azure이관_설계.html">07 이관</a><a href="08_보안_데이터안정성.html">08 보안</a><a href="09_ADR_의사결정기록.html">09 ADR</a><a href="10_챗봇_응답렌더링_설계.html">10 응답렌더링</a><a href="11_챗봇_데이터요청접수_설계.html">11 요청접수</a><a href="README.md">README</a></div>
-  <p class="md-link">📄 Markdown 원본: <a href="03_시스템아키텍처_설계.md">03_시스템아키텍처_설계.md</a> · 허브 <a href="index.html">제품기획 개요</a></p>
+  <div class="docnav"><a href="/docs/product">🏠 제품기획 허브</a><a href="/docs/product/overview">00 개요</a><a href="/docs/product/prd">01 PRD</a><a href="/docs/product/srs">02 SRS</a><a class="cur" href="/docs/product/architecture">03 아키텍처</a><a href="/docs/product/database">04 DB설계</a><a href="/docs/product/frontend-backend">05 FE·BE</a><a href="/docs/product/erp-chatbot">06 ERP연계</a><a href="/docs/product/migration-design">07 이관</a><a href="/docs/product/security">08 보안</a><a href="/docs/product/adr">09 ADR</a><a href="/docs/product/chat-rendering">10 응답렌더링</a><a href="/docs/product/chat-data-request">11 요청접수</a><a href="README.md">README</a></div>
+  <p class="md-link">📄 Markdown 원본: <a href="03_시스템아키텍처_설계.md">03_시스템아키텍처_설계.md</a> · 허브 <a href="/docs/product">제품기획 개요</a></p>
   <div class="content">
 <h1 id="03">03 · 시스템 아키텍처 설계서</h1>
 <blockquote>
 <p>관리자: 최동혁(dh.choi@jeilm.co.kr) · 기준일: 2026-07-08 · 상태: Draft
-관련: <a href="00_제품기획_개요.md">00 개요</a> · <a href="04_데이터베이스_설계.md">04 DB설계</a> · <a href="05_프론트엔드_백엔드_설계.md">05 FE·BE</a> · <a href="06_ERP연계_챗봇활용_설계.md">06 ERP연계</a> · <a href="07_마이그레이션_Azure이관_설계.md">07 이관</a></p>
+관련: <a href="/docs/product/overview">00 개요</a> · <a href="/docs/product/database">04 DB설계</a> · <a href="/docs/product/frontend-backend">05 FE·BE</a> · <a href="/docs/product/erp-chatbot">06 ERP연계</a> · <a href="/docs/product/migration-design">07 이관</a></p>
 </blockquote>
 <p>이 문서는 <strong>시스템의 구조·경계·데이터 흐름·확장 지점</strong>을 정의한다. 다이어그램은 ASCII를 정본으로 하고, 필요 시 Mermaid 코드블록을 병기한다(현재 빌더는 Mermaid를 렌더링하지 않음).</p>
 <hr />
@@ -59,7 +59,7 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <li><strong>권한은 백엔드/DB에서</strong> — 프론트 메뉴 숨김은 UX. 실제 차단은 RLS·Edge Function.</li>
 <li><strong>데이터 접근 단일 진입점</strong> — 프론트의 모든 조회/저장은 <code>app/lib/api.js</code> 한 곳을 통과(어댑터 교체점).</li>
 <li><strong>비밀값 분리</strong> — service_role·OpenAI·Entra Secret은 서버(Edge Function/Secrets)에만. 프론트는 publishable anon 키만.</li>
-<li><strong>이관 무영향 설계</strong> — 스택/호스팅 교체는 어댑터 경계에서 흡수(→ <a href="07_마이그레이션_Azure이관_설계.md">07</a>).</li>
+<li><strong>이관 무영향 설계</strong> — 스택/호스팅 교체는 어댑터 경계에서 흡수(→ <a href="/docs/product/migration-design">07</a>).</li>
 </ol>
 <h2 id="2">2. 상위 아키텍처 (현재 실동작)</h2>
 <pre><code>                          ┌───────────────────────── 클라이언트 (브라우저/모바일) ─────────────────────────┐
@@ -181,7 +181,7 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 </tbody>
 </table>
 <h2 id="4-5">4. 게이트웨이 5모듈 (논리적 책임 경계)</h2>
-<p>물리적으로는 Edge Function + RLS로 나뉘지만, 논리적 책임은 5개다(협력사 포털 정본 <a href="../08_협력사발주포털/03_실구축기획/01_아키텍처_데이터흐름_연계설계.md"><code>08/03/01</code></a>과 정합):</p>
+<p>물리적으로는 Edge Function + RLS로 나뉘지만, 논리적 책임은 5개다(협력사 포털 정본 <a href="/docs/vendor-portal/build/architecture"><code>08/03/01</code></a>과 정합):</p>
 <ol>
 <li><strong>AuthN/AuthZ</strong> — Entra(사내)·Supabase Auth(협력사) 검증, claim→RLS.</li>
 <li><strong>ERP Query</strong> — 중간DB 읽기전용 조회(현재 챗봇 Tool 3종, 향후 부서 뷰/RPC). ERP 원천 직접 없음.</li>
@@ -220,7 +220,7 @@ Supabase 프로젝트 dvzohdqtjzocgcclgwro (Postgres·Auth·Edge·Storage)
 ETL: 사내 PC에서 수동/야간 실행(현재), 운영 전환 시 서버/스케줄러
 </code></pre>
 <ul>
-<li>상세 배포·계정·시크릿 현황은 값 복제 없이 → <a href="../실제구축준비%20자료/이관/00_현재시스템_상태스냅샷.md"><code>이관/00_현재시스템_상태스냅샷</code></a>.</li>
+<li>상세 배포·계정·시크릿 현황은 값 복제 없이 → <a href="/docs/migration/snapshot"><code>이관/00_현재시스템_상태스냅샷</code></a>.</li>
 <li>환경 분리(local/staging/prod)와 스테이징 도메인(<code>ai-dev.jeilm.co.kr</code>)은 계획 단계([CLAUDE.md §11-B]).</li>
 </ul>
 <h2 id="7">7. 기술스택 현황·평가</h2>
@@ -244,13 +244,13 @@ ETL: 사내 PC에서 수동/야간 실행(현재), 운영 전환 시 서버/스�
 <td>백엔드</td>
 <td>Supabase Edge(Deno)</td>
 <td>.NET(ERP 백엔드) / Node BFF</td>
-<td>미확정(<a href="09_ADR_의사결정기록.md">09 ADR</a>)</td>
+<td>미확정(<a href="/docs/product/adr">09 ADR</a>)</td>
 </tr>
 <tr>
 <td>DB</td>
 <td>Supabase Postgres</td>
 <td>Azure DB for PostgreSQL</td>
-<td>이관 계획(<a href="07_마이그레이션_Azure이관_설계.md">07</a>)</td>
+<td>이관 계획(<a href="/docs/product/migration-design">07</a>)</td>
 </tr>
 <tr>
 <td>챗봇 LLM</td>
@@ -310,10 +310,10 @@ ETL: 사내 PC에서 수동/야간 실행(현재), 운영 전환 시 서버/스�
 </tr>
 </tbody>
 </table>
-<p>이 경계 덕에 화면 코드를 건드리지 않고 백엔드를 바꿀 수 있다. 상세 매핑 → <a href="07_마이그레이션_Azure이관_설계.md">07 이관</a>.</p>
-<h2 id="9-09-adr">9. 알려진 아키텍처 이슈 (→ <a href="09_ADR_의사결정기록.md">09 ADR</a>)</h2>
+<p>이 경계 덕에 화면 코드를 건드리지 않고 백엔드를 바꿀 수 있다. 상세 매핑 → <a href="/docs/product/migration-design">07 이관</a>.</p>
+<h2 id="9-09-adr">9. 알려진 아키텍처 이슈 (→ <a href="/docs/product/adr">09 ADR</a>)</h2>
 <ul>
-<li><strong>P4 단절</strong>: <code>erp_ro</code>가 앱/챗봇에 노출되지 않아 부서 페이지가 정적 샘플. <a href="06_ERP연계_챗봇활용_설계.md">06</a>에서 해소 설계.</li>
+<li><strong>P4 단절</strong>: <code>erp_ro</code>가 앱/챗봇에 노출되지 않아 부서 페이지가 정적 샘플. <a href="/docs/product/erp-chatbot">06</a>에서 해소 설계.</li>
 <li><strong>챗봇 표기/구현 불일치</strong>: UI="Claude", 구현=OpenAI.</li>
 <li><strong>토큰 보관</strong>: localStorage(XSS 노출) → BFF/HttpOnly 미전환.</li>
 <li><strong>스택·호스팅 미확정</strong>: 하이브리드 권고만, 확정 전.</li>

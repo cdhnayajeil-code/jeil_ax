@@ -6,6 +6,10 @@
 주의: index.html의 GRID_*_INLINE 마커 블록은 이 스크립트가 주입(그 외 영역은 직접 관리).
 """
 import os, re, markdown
+import sys as _sys
+# 공개 URL 라우트 적용 — 재생성해도 클린 URL(/docs/…) 유지
+_sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..','00_관리체계','lib'))
+from _html_builder import _clean_links
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)  # 프로젝트 루트 (app/lib/grid.js·grid.css 위치 계산용)
@@ -87,7 +91,7 @@ def build():
 </body>
 </html>"""
         out = os.path.join(HERE, slug + '.html')
-        open(out, 'w', encoding='utf-8').write(html)
+        open(out, 'w', encoding='utf-8').write(_clean_links(HERE, html))
         print('built:', slug + '.html')
 
 # ---------------------------------------------------------------------------
