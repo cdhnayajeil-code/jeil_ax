@@ -47,7 +47,7 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
   <div class="content">
 <h1 id="11-erp-1demo2">11. 결의전표 ERP 직접등록 — 1차(DEMO2) 기획·구축</h1>
 <blockquote>
-<p><strong>작성: 2026-08-19</strong>(v1.0 → v1.1 오후 → v1.2 저녁 → <strong>v1.3 · 2026-08-20 전송 E2E 성공</strong>) · 관리: 최동혁 · 전담 에이전트: <code>erp-db-link-manager</code>
+<p><strong>작성: 2026-08-19</strong>(v1.0 → v1.1 → v1.2 → v1.3 전송 E2E 성공 → <strong>v1.4 · 2026-08-20 AX001 채택</strong>) · 관리: 최동혁 · 전담 에이전트: <code>erp-db-link-manager</code>
 <strong>결정 C-11</strong>(2026-08-19 관리자 지시): AI(포털) 생성 결의전표의 ERP 직접 투입을 <strong>데모 DB <code>JEILMNS_DEMO2</code> 한정</strong>으로 1차 테스트한다.
 <strong>운영(<code>JEILMNS</code>) 쓰기는 여전히 금지</strong>(C-1 유지) — 운영 전환은 기회검토의 착수 게이트 G-1~G-8 통과 + 재심의가 선행돼야 한다.
 근거·선행: 사내 OneDrive <code>ERP_DB/회계/260819_AX_결의전표_ERP연동_기회검토/</code>(기회검토 본문 + test_demo2 리허설 킷 — <strong>투입 레시피 리허설 검증 완료</strong>)</p>
@@ -103,9 +103,24 @@ ERP 표준 채번기(<code>usp_a_tempgl_no_auto_gen 'AG'</code> — <code>B_AUTO
 <td><code>--draft</code> 단건 필수, <code>--dry-run</code>(전 과정 후 ROLLBACK) 검증 후 확정(기회검토 Do-Not 13)</td>
 </tr>
 <tr>
-<td>C-11d</td>
-<td><strong>거래유형 S0003(경비)</strong></td>
-<td><code>GL_POSTING_FG='T'</code>(TG류 귀결) 실측 확인. 허용 계정은 <code>A_JNL_ACCT_ASSN</code> 38행 범위(§5 미결)</td>
+<td>~~C-11d~~</td>
+<td>~~거래유형 S0003(경비)~~</td>
+<td><strong>C-12로 대체(2026-08-20)</strong> — S0003은 차변이 무역·수입 수수료 중심 32계정뿐이라 일반 경비를 담지 못했다</td>
+</tr>
+<tr>
+<td><strong>C-12</strong></td>
+<td><strong>AX 전용 거래유형 <code>AX001</code> 신설·채택</strong></td>
+<td>관리자가 ERP에 등록(2026-08-20, <code>biz_admin</code>): <code>AX001</code> <strong>AX자동전표</strong>, <code>GL_POSTING_FG='T'</code>·<code>BATCH_FG='A'</code>·모듈 A. AX 채널 전표를 마스터 1행으로 식별·차단(킬 스위치)할 수 있고, 거래유형별 계정 제약에서 벗어나 경비 케이스를 담는다</td>
+</tr>
+<tr>
+<td>C-12a</td>
+<td><strong>분개코드 3단계 결정</strong></td>
+<td>①<code>A_JNL_ACCT_ASSN(AX001,계정)</code> 매핑 ②<strong>계정코드 자기참조</strong>(AN005 실사용 패턴 — 경비계정은 <code>A_JNL_ITEM</code>에 자기참조 코드 등재됨) + 코스트센터 <code>DI_FG</code>로 <code>EVENT_CD</code>(I→IZ·D→DZ) ③코드형 폴백(부가세대급금 <code>A</code>·미지급금 <code>AP</code> 등 자기참조가 없는 계정). <strong>어느 경로든 <code>A_JNL_ITEM</code> 실재 확인 통과분만 사용</strong>(FK 사전 검증), 전부 실패 시 중단</td>
+</tr>
+<tr>
+<td>C-12b</td>
+<td><strong>법인카드 대변 금지 하드코딩</strong></td>
+<td>대변 <code>21100907</code>(미지급금-법인카드)은 AX 채널에서 거부 — 카드 전용 채널과 이중계상 방지(기회검토 Do-Not 9)</td>
 </tr>
 </tbody>
 </table>
@@ -209,9 +224,14 @@ ERP 표준 채번기(<code>usp_a_tempgl_no_auto_gen 'AG'</code> — <code>B_AUTO
 <td>최근 배치의 <code>INTERNAL_CD='11'</code> vs <code>B_ACCT_DEPT</code> 최신 <code>'181'</code> 불일치. 적용기는 AX 테스트 잔재(<code>REF_NO 'AX%'·'DRAFT-%'</code>)를 승계 소스에서 제외하고 최근 정상 배치를 따름 — 의미 확정은 유니포인트 협의</td>
 </tr>
 <tr>
-<td>U-B</td>
-<td><strong>S0003 허용 계정 범위 — 경비정산 커버리지 부족(2026-08-20 실증)</strong></td>
-<td>S0003 매핑 38행은 <strong>무역·수입 수수료·운반비·세금과공과 중심</strong>이라 일반 경비(복리후생비·여비교통비 등)를 담지 못한다. 실측: <code>43000501</code>(제)복리후생비(식대))·<code>53010701</code>(판)복리후생비(식대))는 <strong>AN005(법인카드연계)에만</strong> 매핑, 그 AN005는 대변이 <code>21100907</code>(미지급금-법인카드) <strong>고정</strong>이라 대변 가변인 경비정산에 쓸 수 없다 → 실제 급식대 전표가 fail-closed 로 거부됨(<code>DRAFT-20260819-0006</code>). <strong>결론: 기회검토 §4대로 경비정산용 신규 거래유형(TRANS_TYPE) 신설이 필요</strong>하다(유니포인트 협의 대상, 마스터 등록=자료직접변경요청서 표준절차). 그 전까지 1차 테스트 범위는 S0003 허용 계정 케이스로 한정한다</td>
+<td>~~U-B~~</td>
+<td>~~S0003 허용 계정 범위 — 경비정산 커버리지 부족~~</td>
+<td><strong>해소(2026-08-20 · C-12)</strong> — S0003 매핑 38행이 무역·수입 수수료 중심이라 복리후생비(식대) 전표가 거부됐던 문제는 <strong>AX 전용 거래유형 <code>AX001</code> 신설</strong>로 해소. 같은 전표(<code>DRAFT-20260819-0006</code>)를 AX001로 재전송해 <strong>라인 4/4 완전일치</strong>로 성공(<code>AG202608190007</code>). 잔여는 U-F(매핑 등재 여부)</td>
+</tr>
+<tr>
+<td>U-F</td>
+<td><strong>AX001 계정 매핑 미등재 — 정석 대비 보완 여지</strong></td>
+<td><code>AX001</code>은 현재 <code>A_JNL_FORM</code>·<code>A_JNL_ACCT_ASSN</code> <strong>0행</strong>이며, 엔진이 이를 강제하지 않아(외부 지정 계정 승계) 전송은 정상 동작한다. 다만 ERP 정의를 정본으로 삼는 것이 정석이므로 <strong>운영 확대 전 계정 매핑 등재를 권장</strong>한다(등재되면 적용기가 자동으로 ①매핑 경로로 전환 — 코드 변경 불필요). 등재 대상 계정 목록은 회계팀 확정 사항</td>
 </tr>
 <tr>
 <td>U-C</td>
@@ -242,6 +262,11 @@ ERP 표준 채번기(<code>usp_a_tempgl_no_auto_gen 'AG'</code> — <code>B_AUTO
 </tr>
 </thead>
 <tbody>
+<tr>
+<td>2026-08-20</td>
+<td><strong>AX 전용 거래유형 <code>AX001</code> 채택 — 경비 케이스 해소(v1.4, 결정 C-12)</strong> — 관리자가 ERP(DEMO2)에 <code>AX001</code> <strong>AX자동전표</strong>를 등록(<code>biz_admin</code>, <code>GL_POSTING_FG='T'</code>·<code>BATCH_FG='A'</code>·모듈 A). 적용기 기본 거래유형을 <code>S0003</code>→<strong><code>AX001</code></strong>로 전환하고 분개코드 결정을 <strong>3단계</strong>로 확장(매핑 → 계정코드 자기참조+<code>DI_FG</code> 기반 <code>EVENT_CD</code> → 코드형 폴백, 전 경로 <code>A_JNL_ITEM</code> 실재 확인). 대변 <code>21100907</code> 금지도 하드코딩. <strong>직전에 실패했던 급식대 전표(<code>DRAFT-20260819-0006</code>, 4,242,700원·4라인)를 재전송해 성공</strong> — 리허설 4/4 일치 후 확정, <code>AG202608190007</code> 생성(BATCH <code>BT202608190008</code>), 엔진 rc=1·오류 없음, 차대 4,242,700 일치, 관리항목 14건 자동 전개(줄1 <code>PC=9999-999</code> 프로젝트 필수 충족, 줄4 부가세 V1~V11), 라인별 코스트센터(C011310·C011330·C013200) 반영. 투입 실측: <code>AX001</code> / JNL <code>A</code>(코드형)·<code>43000501</code>·<code>53010701</code>(자기참조, EVENT <code>IZ</code>)·<code>AP</code>(코드형) / <code>MAKE_ACCT_FG='Y'</code>. <strong>실증 사실</strong>: <code>AX001</code>은 계정 매핑 0행이어도 엔진이 외부 지정 계정을 그대로 승계한다(→ U-F로 등재 권장 등재). AG 대역 누적 5건, TG 대역과 분리 유지</td>
+<td>최동혁(+Claude)</td>
+</tr>
 <tr>
 <td>2026-08-20</td>
 <td><strong>전송 버튼 → 중계 E2E 테스트 성공(v1.3)</strong> — ①<strong>실화면 버튼 동작 확인</strong>: <code>gl_draft_log</code> 에 <code>apply_request</code>(target <code>JEILMNS_DEMO2</code>) 기록 확인 — Edge Function v5.3·화면 버튼이 실제로 동작한다. ②<strong>성공 케이스</strong>: 신규 초안 <code>DRAFT-20260820-0007</code>(198,000원·3라인, 부가세대급금/판)지급수수료(기타)/미지급금(거래처)) 리허설 통과 후 <code>--queue</code> 로 확정 → <strong><code>AG202608200001</code></strong> 생성(BATCH <code>BT202608200001</code>), 라인 3/3 완전일치, 포털 <code>applied</code> 회기입. DEMO2 실물 확인: 결의일 2026-08-20·<code>CONF_FG=U</code>·차대 198,000 일치·등록자 <code>dh.choi@jeilm.co.kr</code>(제출자 ERP 계정 승계)·관리항목 12건 정상 전개(엔진이 슬롯 재배치, 필수 아닌 항목은 빈 슬롯 생성). ③<strong>실패 케이스(fail-closed 실증)</strong>: 같은 큐의 <code>DRAFT-20260819-0006</code>(급식대 4,242,700원)은 <strong>2번 줄 계정 <code>43000501</code>(제)복리후생비(식대))의 분개코드가 S0003 에 없어 중단</strong> — 임의 분개 없이 거부되고 <code>failed</code>+사유가 포털에 회기입됐다(화면 「ERP 적용」=적용 실패). 원인 실측: <code>43000501</code>·<code>53010701</code> 은 <strong>AN005(법인카드연계)에만</strong> 매핑돼 있고 AN005 는 대변이 <code>21100907</code> 고정이라 이 케이스(대변 <code>21100901</code>)를 담을 수 없다 → <strong>기회검토 §4 "경비정산용 신규 거래유형(TRANS_TYPE) 신설 필요"의 실증 사례</strong>(§5 U-B 로 승격). ④<strong>멱등 방어 확인</strong>: 적용 완료 건은 큐에서 자동 제외되고 단건 재실행도 거부. 전표번호 접두어 분포 <code>TG=21,988 · AG=4</code> — AI 전표가 TG 대역과 완전히 분리돼 식별된다</td>

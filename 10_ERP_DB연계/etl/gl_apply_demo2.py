@@ -43,14 +43,24 @@ from _env import load_env, need
 TARGET_DB = "JEILMNS_DEMO2"          # 대상 DB 하드코딩. 운영(JEILMNS) 금지 — CLI 파라미터 없음
 AG_TYPE = "AG"                        # AX 전용 전표번호 접두어(B_AUTO_NUMBERING 기존 유형 재사용)
 BT_TYPE = "BT"                        # 배치번호 접두어
-TRANS_TYPE_DEFAULT = "S0003"          # 경비 거래유형(GL_POSTING_FG='T' → TG 귀결, 리허설 실증)
+# AX 전용 거래유형 — 관리자가 ERP에 등록(2026-08-20, biz_admin): AX001 'AX자동전표',
+#   GL_POSTING_FG='T'(결의전표 귀결) · BATCH_FG='A'. 채널 식별·킬스위치(1행 비활성화) 목적.
+#   구 기본값 S0003(경비)은 차변이 무역·수입 수수료 중심 32계정뿐이라 일반 경비를 담지 못했다.
+TRANS_TYPE_DEFAULT = "AX001"
 VAT_ACCT = "11103301"                 # 부가세대급금 — 헤더 VAT 금액 산출 기준
-# JNL_CD/EVENT_CD 폴백(리허설 실증값) — A_JNL_ACCT_ASSN 조회 실패 시에만 사용
+# 코드형 JNL_CD 폴백 — '계정코드 자기참조'가 분개코드 마스터에 없는 계정에만 쓴다(실측 확인).
+#   11103301·21100901 은 A_JNL_ITEM 에 자기참조 코드가 없고, 기존 거래유형이 쓰는 코드형이 정답이다.
 JNL_FALLBACK = {
-    "11103301": ("A", "A"),           # 부가세대급금
-    "21100901": ("AP", ""),           # 미지급금(거래처)
-    "21100907": ("AP2", "CARDC"),     # 미지급금(법인카드) — AN005 전용. S0003 사용 시 검토 필요
+    "11103301": ("A", "A"),           # 부가세대급금 — 일반세금계산서(S0003·AN005 공통)
+    "21100901": ("AP", ""),           # 미지급금(거래처) — S0003 실증
+    "21100105": ("NP", ""),           # 지급어음
+    "11100101": ("CS", ""),           # 현금
+    "11100105": ("DP", ""),           # 보통예금
+    "11102301": ("PP", ""),           # 선급금-원부재료
+    "21100907": ("AP2", "CARDC"),     # 미지급금(법인카드) — 카드 채널 전용. AX 사용 금지(§이중계상)
 }
+# 법인카드 채널과의 이중계상 방지 — AX 채널은 이 대변 계정을 쓰지 않는다(기회검토 Do-Not 9)
+FORBIDDEN_CR_ACCT = {"21100907"}
 
 
 def rpc(url, key, fn, payload):
@@ -122,11 +132,37 @@ def fetch_draft(url, key, draft_no):
     return d
 
 
-def resolve_jnl(cur, trans_type, acct_cd, dr_cr):
-    """분개코드 결정 — 실사 확정 구조(2026-08-19):
-       ① A_JNL_ACCT_ASSN(TRANS_TYPE·ACCT_CD·DR_CR_FG) → JNL_CD
-       ② A_JNL_FORM(TRANS_TYPE·JNL_CD) → EVENT_CD
-       조회 실패 시 폴백 표 → 그래도 없으면 None(fail-closed — 임의 추정 금지)."""
+def jnl_exists(cur, jnl_cd):
+    """분개코드 마스터(A_JNL_ITEM) 존재 확인 — A_BATCH_GL_ITEM.JNL_CD 의 FK 위반을 사전 차단."""
+    if not jnl_cd:
+        return False
+    cur.execute("SELECT COUNT(*) FROM dbo.A_JNL_ITEM WITH (NOLOCK) WHERE RTRIM(JNL_CD) = ?", jnl_cd)
+    return cur.fetchone()[0] > 0
+
+
+def cost_di_fg(cur, cost_cd):
+    """코스트센터 직간접 구분 — EVENT_CD(간접 IZ / 직접 DZ) 산출 근거. AN005 규칙 계승."""
+    if not cost_cd:
+        return ""
+    cur.execute("SELECT TOP 1 RTRIM(ISNULL(DI_FG,'')) FROM dbo.B_COST_CENTER WITH (NOLOCK) "
+                "WHERE RTRIM(COST_CD) = ?", cost_cd)
+    r = cur.fetchone()
+    return (str(r[0]).strip().upper() if r else "")
+
+
+def resolve_jnl(cur, trans_type, acct_cd, dr_cr, cost_cd):
+    """분개코드(JNL_CD)·이벤트코드(EVENT_CD) 결정 — 3단계. 반환: (jnl, event, 출처) 또는 None.
+
+       ① 거래유형×계정 매핑(A_JNL_ACCT_ASSN) — 등재돼 있으면 ERP 정의가 정답이다.
+          AX001 에 매핑을 등록하면 이 경로로 자동 전환되고 아래 규칙은 쓰이지 않는다.
+       ② 계정코드 자기참조(AN005 실사용 패턴) — 경비 계정은 분개코드 마스터에 계정코드와 같은
+          JNL_CD 가 등재돼 있다(실측: 43000501·53010701·53014307 등). EVENT_CD 는 코스트센터
+          직간접 구분으로 산출(I→IZ, D→DZ) — AN005 가 쓰는 것과 같은 규칙.
+       ③ 코드형 폴백 — 자기참조가 없는 계정(부가세대급금·미지급금 등)은 기존 거래유형이 쓰는 코드형.
+
+       어느 경로든 **분개코드 마스터에 실재하는 코드만** 반환한다. 없으면 None(fail-closed) —
+       임의 코드를 만들어 넣지 않는다."""
+    # ① 마스터 매핑
     try:
         cur.execute(
             "SELECT TOP 1 RTRIM(JNL_CD) FROM dbo.A_JNL_ACCT_ASSN WITH (NOLOCK) "
@@ -144,11 +180,22 @@ def resolve_jnl(cur, trans_type, acct_cd, dr_cr):
                 "SELECT TOP 1 RTRIM(ISNULL(EVENT_CD,'')) FROM dbo.A_JNL_FORM WITH (NOLOCK) "
                 "WHERE TRANS_TYPE = ? AND RTRIM(JNL_CD) = ? ORDER BY SEQ", trans_type, jnl)
             erow = cur.fetchone()
-            return jnl, (str(erow[0]).strip() if erow else "")
+            if jnl_exists(cur, jnl):
+                return jnl, (str(erow[0]).strip() if erow else ""), "매핑"
     except Exception:
-        pass  # 스키마 상이 등 — 폴백으로
+        pass  # 스키마 상이 등 — 아래 규칙으로
+
+    # ② 계정코드 자기참조 + 코스트센터 직간접
+    if jnl_exists(cur, acct_cd):
+        di = cost_di_fg(cur, cost_cd)
+        event = "IZ" if di == "I" else ("DZ" if di == "D" else "")
+        return acct_cd, event, "자기참조"
+
+    # ③ 코드형 폴백
     if acct_cd in JNL_FALLBACK:
-        return JNL_FALLBACK[acct_cd]
+        jnl, event = JNL_FALLBACK[acct_cd]
+        if jnl_exists(cur, jnl):
+            return jnl, event, "코드형"
     return None
 
 
@@ -245,19 +292,27 @@ def apply_draft(args):
         for it in items:
             acct = str(it["acct_cd"]).strip()
             fg = "DR" if str(it["dr_cr_fg"]).strip().upper().startswith("D") else "CR"
-            jnl = resolve_jnl(cur, trans_type, acct, fg)
+            line_cost = (it.get("cost_cd") or cost_cd or "").strip()
+            # 법인카드 채널과의 이중계상 차단 — 대변 미지급금(법인카드)은 AX 채널에서 쓰지 않는다
+            if fg == "CR" and acct in FORBIDDEN_CR_ACCT:
+                raise SystemExit(f"[중단] {it['item_seq']}번 줄: 대변 계정 {acct}(미지급금-법인카드)는 "
+                                 f"AX 채널에서 사용할 수 없습니다 — 카드 전용 채널과 이중계상 위험.")
+            jnl = resolve_jnl(cur, trans_type, acct, fg, line_cost)
             if not jnl:
-                raise SystemExit(f"[중단] {it['item_seq']}번 줄 계정 {acct} 의 분개코드(JNL_CD)를 "
-                                 f"A_JNL_ACCT_ASSN({trans_type})에서 찾지 못했습니다. "
-                                 f"허용 계정인지 확인하거나 매핑을 등록하세요.")
+                raise SystemExit(f"[중단] {it['item_seq']}번 줄 계정 {acct} 의 분개코드(JNL_CD)를 정할 수 없습니다"
+                                 f"(거래유형 {trans_type} 매핑·자기참조·코드형 모두 실패). "
+                                 f"분개코드 마스터(A_JNL_ITEM) 등재 여부를 확인하거나 매핑을 등록하세요.")
             lines.append({"seq": int(it["item_seq"]), "acct": acct, "fg": fg,
                           "amt": int(it["item_amt"]), "desc": (it.get("item_desc") or gl_desc)[:200],
-                          "cost": (it.get("cost_cd") or cost_cd or "").strip(),
-                          "jnl": jnl[0], "event": jnl[1],
+                          "cost": line_cost,
+                          "jnl": jnl[0], "event": jnl[1], "src": jnl[2],
                           "ctrls": ctrl_by_seq.get(int(it["item_seq"]), [])})
         result["detail"]["resolved"] = [
-            {"seq": l["seq"], "acct": l["acct"], "fg": l["fg"], "jnl": l["jnl"], "event": l["event"]} for l in lines]
-        print(f"[분개코드] " + " · ".join(f"{l['seq']}:{l['acct']}→{l['jnl']}/{l['event'] or '-'}" for l in lines))
+            {"seq": l["seq"], "acct": l["acct"], "fg": l["fg"], "jnl": l["jnl"],
+             "event": l["event"], "src": l["src"]} for l in lines]
+        print(f"[거래유형] {trans_type}")
+        print(f"[분개코드] " + " · ".join(
+            f"{l['seq']}:{l['acct']}→{l['jnl']}/{l['event'] or '-'}({l['src']})" for l in lines))
 
         # ── 조직정보·채번 ──────────────────────────────────────────
         org, biz, internal, gaap = org_info(cur, dept_cd)
