@@ -181,6 +181,35 @@
   .slot.req .snm::after{content:" *"; color:var(--red); font-weight:700;}
   .vform td.slotcell{padding:3px 4px;}
   .vform td.empty{background:#f7f9fc;}
+  /* ── 서식 입력기(작성 탭) — 셀 안에서 바로 고친다 ── */
+  .vform input,.vform select{border:1px solid transparent; border-radius:6px; padding:4px 6px; width:100%;
+    font-family:inherit; font-size:12px; background:transparent; color:var(--ink); outline:none;}
+  .vform input:hover,.vform select:hover{border-color:#cfdcea; background:#fbfcfe;}
+  .vform input:focus,.vform select:focus{border-color:var(--accent); background:#fff; box-shadow:0 0 0 2px rgba(58,124,193,.13);}
+  .vform input.miss{border-color:var(--red); background:#fdf4f3;}
+  .vform input.suggest{background:#fffaf0; border-color:#eddcb6;}
+  .vform input.money{text-align:right; font-variant-numeric:tabular-nums; font-weight:700; font-size:13px;}
+  .vform .slbl{display:flex; align-items:center; gap:3px; font-size:10.5px; color:var(--muted); font-weight:600;
+    line-height:1.3; margin-bottom:1px; white-space:nowrap; overflow:hidden;}
+  .vform .slbl .req{color:var(--red);}
+  .vform .slbl .fillbtn{margin-left:auto; border:none; background:#eef2f8; color:var(--muted); border-radius:4px;
+    font-size:9.5px; padding:0 4px; cursor:pointer; line-height:1.5;}
+  .vform .slbl .fillbtn:hover{background:var(--accent); color:#fff;}
+  .vform .wref{display:flex; gap:2px; align-items:center;}
+  .vform .wref .refbtn{border:1px solid var(--line); background:#fff; border-radius:5px; cursor:pointer;
+    font-size:10px; padding:2px 4px; color:var(--muted); flex:none;}
+  .vform .wref .refbtn:hover{border-color:var(--accent); color:var(--accent);}
+  .vform .refnm{display:block; font-size:10px; color:var(--green); margin-top:1px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .vform .pick{width:100%; text-align:left; border:1px dashed #cfdcea; background:#fbfcfe; border-radius:6px;
+    padding:4px 6px; font-family:inherit; font-size:12px; cursor:pointer; color:var(--muted);}
+  .vform .pick:hover{border-color:var(--accent); color:var(--accent); background:#f2f7fc;}
+  .vform .pick.has{border-style:solid; border-color:transparent; background:transparent; color:var(--ink);}
+  .vform .pick.has:hover{border-color:var(--accent); background:#fbfcfe;}
+  .vform .pick.bad{border-color:var(--red); color:var(--red); background:#fdf4f3;}
+  .vform .no input[type=checkbox]{width:auto; margin-bottom:2px;}
+  .vform td.dsccell{padding:3px 6px;}
+  .vform .minilbl{font-size:10px; color:var(--muted); font-weight:600;}
+  .vform tr.sumrow .amt{font-size:13.5px;}
   /* 규칙 편집 팝오버 */
   .ce-box{background:#fff; border-radius:13px; width:min(420px,92vw); box-shadow:0 18px 50px rgba(16,42,80,.28); overflow:hidden;}
   .ce-head{display:flex; align-items:center; gap:8px; padding:13px 16px; background:var(--soft); border-bottom:1px solid var(--line);}
@@ -411,16 +440,20 @@
       </div>
 
       <div class="sec">
-        <h2><span class="step">2</span> 전표 라인
-          <small>계정과목·거래처 칸은 클릭 시 검색 팝업 · 줄 선택(☑) 시 아래에 관리항목이 열립니다 · 차대 합계 일치 필요</small>
+        <h2><span class="step">2</span> 전표 서식
+          <small>ERP 결의전표 서식 그대로 — 금액을 <b>차변·대변 칸에 직접</b> 쓰면 차대가 정해집니다 ·
+                 계정·거래처는 클릭해 검색 · 관리항목은 같은 줄 안에서 바로 입력</small>
           <span style="margin-left:auto;display:flex;gap:7px;">
             <button class="b gh sm" id="btnAddRow">+ 행 추가</button>
             <button class="b gh sm" id="btnFillDiff">선택 행에 차액 채우기</button>
             <button class="b gh sm" id="btnDelRow">선택 행 삭제</button>
           </span>
         </h2>
-        <div id="itemGrid"></div>
-        <div class="ctrlpanel" id="ctrlPanel"></div>
+        <div style="overflow-x:auto;"><div id="draftForm" style="min-width:980px;"></div></div>
+        <div id="ctrlProgBar" style="display:flex;align-items:center;gap:8px;margin-top:8px;font-size:11.5px;color:var(--muted);">
+          <span><b style="color:var(--red);">*</b> ERP 필수 · 🔍 검색 · ⤓ 다른 줄 빈 칸 채우기 · Enter 다음 칸</span>
+          <span class="prog" id="ctrlProg" style="margin-left:auto;"></span>
+        </div>
         <div class="sumbar" id="sumbar">
           <div class="it">차변 합계<b id="sumDr">0</b></div>
           <div class="it">대변 합계<b id="sumCr">0</b></div>
@@ -688,7 +721,7 @@ function applyPill(x){
   return '<span style="color:#aab;">—</span>';
 }
 
-let ME = null, MASTER = { accounts:[], cost_centers:[], depts:[] }, GRID = null;
+let ME = null, MASTER = { accounts:[], cost_centers:[], depts:[] };
 let CURRENT_NO = null;            // 수정 중인 초안번호(신규면 null)
 let POST_SEL = null;              // 회계 담당자 화면에서 선택한 초안
 let TPLS = [];                    // 선택 가능한 템플릿(공개 상태)
@@ -858,7 +891,6 @@ async function boot(){
   });
 
   fillHeader(d.locked_months || []);
-  buildGrid();
   buildTplGrid();
   renderTplCards();
   newDraft();
@@ -897,84 +929,285 @@ function renderCostOptions(){
   if(cur) $("fCost").value = cur;
 }
 
-/* ═══ 라인 그리드 (표준 컴포넌트 — CLAUDE.md §13) ═══ */
-function buildGrid(){
-  const costOptions = [{value:"",label:"—"}].concat(
-    (MASTER.cost_centers||[]).map((c)=>({ value:c.cost_cd, label:c.cost_nm||c.cost_cd })));
-
-  GRID = createGrid("#itemGrid", {
-    keyField:"item_seq", rows:[], selectable:true, sortable:false, search:false, columnFilter:false,
-    editable:true, editToggle:false, paste:false, exportCsv:true, copy:true, exportName:"결의전표라인",
-    emptyText:"라인이 없습니다. [+ 행 추가]를 눌러 시작하세요.",
-    columns:[
-      { key:"item_seq", label:"순번", width:"48px", editable:false, align:"center" },
-      { key:"dr_cr_fg", label:"차대", width:"78px", type:"select", editable:true,
-        options:[{value:"D",label:"차변"},{value:"C",label:"대변"}],
-        formatter:(v)=> v==="D" ? "차변" : v==="C" ? "대변" : "",
-        validator:(v)=> (v==="D"||v==="C") || "차변/대변을 선택하세요" },
-      // 계정과목·거래처는 셀 클릭 → 검색 팝업(691개 select 스크롤 대신 검색 선택)
-      { key:"acct_cd", label:"계정과목", width:"220px", editable:false,
-        formatter:(v,row)=> v
-          ? '<button type="button" class="cellpick has" data-row-act="pick-acct"><span>'+esc(row.acct_nm||v)+'</span><span class="cd">'+esc(v)+'</span></button>'
-          : '<button type="button" class="cellpick" data-row-act="pick-acct">🔍 계정 선택</button>',
-        validator:(v)=> !!v || "계정과목을 선택하세요" },
-      { key:"item_amt", label:"금액", width:"120px", editable:true, align:"right",
-        formatter:(v)=> v ? won(v) : "",
-        validator:(v)=>{ const n=Number(String(v||"").replace(/,/g,""));
-          return (n>0 && Number.isInteger(n)) || "0보다 큰 정수"; } },
-      { key:"item_desc", label:"적요", width:"200px", editable:true },
-      { key:"bp_nm", label:"거래처", width:"160px", editable:false,
-        formatter:(v,row)=> (v || row.bp_cd)
-          ? '<button type="button" class="cellpick has" data-row-act="pick-bp"><span>'+esc(v||row.bp_cd)+'</span></button>'
-          : '<button type="button" class="cellpick" data-row-act="pick-bp">🔍 거래처</button>' },
-      { key:"cost_cd", label:"코스트센터", width:"140px", type:"select", editable:true, options:costOptions },
-      { key:"project_no", label:"프로젝트", width:"130px", editable:true },
-      // 관리항목 입력 현황 — 클릭하면 아래 관리항목 카드로 이동(펼침+빈 칸 포커스)
-      { key:"__ctrl_stat", label:"관리항목", width:"92px", editable:false, sortable:false, align:"center",
-        exportValue:(v,row)=>{ const s=ctrlStatFor(row); return s.total ? s.filled+"/"+s.total : ""; },
-        formatter:(v,row)=> ctrlBadgeHtml(row) },
-    ],
-    onSelectionChange: ()=> renderCtrlPanel(),   // 줄 선택(☑) ↔ 해당 줄 관리항목 카드 표시 연동
-    onCellEdit:(key, field, value, row)=>{
-      updateSum();
-      if(field === "dr_cr_fg") renderCtrlPanel();
-    },
-    // 계정과목·거래처 팝업 — 선택 시 계정명 사본을 함께 채운다(ERP 코드 변경 대비 + 회계 담당자 표시용)
-    onRowAction:(act, row)=>{
-      if(!row) return;
-      if(act === "pick-acct"){
-        openAcctPicker((a)=>{
-          row.acct_cd = a.acct_cd; row.acct_nm = a.acct_nm || "";
-          // 차대 기본값 제안 — 비어 있을 때만(사용자 선택을 덮어쓰지 않는다). bal_fg 실측 'DR'/'CR'.
-          const fg = String(a.bal_fg||"").charAt(0).toUpperCase();
-          if(!row.dr_cr_fg && (fg==="D"||fg==="C")) row.dr_cr_fg = fg;
-          GRID.refresh(); updateSum(); renderCtrlPanel();
-        });
-      } else if(act === "pick-bp"){
-        openBpPicker((b)=>{
-          row.bp_cd = b.bp_cd || null; row.bp_nm = b.bp_cd ? (b.bp_nm||null) : null;
-          GRID.refresh(); renderCtrlPanel();
-        }, !!(row.bp_cd || row.bp_nm));
-      } else if(act === "goto-ctrl"){
-        if(!row.acct_cd){ toast("계정과목을 먼저 선택하세요.", true); return; }
-        row.__ctrlUi = row.__ctrlUi || {}; row.__ctrlUi.open = true; renderCtrlPanel();
-        const el = document.getElementById("ctrlrow-"+row.item_seq);
-        if(!el){ toast("이 계정에는 관리항목이 없습니다."); return; }
-        el.scrollIntoView({ behavior:"smooth", block:"center" });
-        setTimeout(()=>{ const inp = el.querySelector("input.miss") || el.querySelector("input"); if(inp) inp.focus(); }, 260);
-      }
-    },
-  });
-}
-function rows(){ return GRID ? GRID.getData() : []; }
+/* ═══ 전표 서식 입력기 ═══
+   ERP 결의전표 출력 서식(3행 1블록: 계정코드·CC·관리항목1~3 / 계정과목·관리항목4~7 / 적요·거래처)을
+   그대로 '입력 화면'으로 쓴다. 회계 담당자가 ERP에서 보던 자리에 그대로 입력한다.
+   · 금액은 차변/대변 칸에 직접 적는다 → 적은 쪽이 차대가 된다(별도 차대 선택칸 없음)
+   · 관리항목은 그 줄 안에서 바로 입력한다(별도 패널·펼치기 없음)
+   ※ CLAUDE.md §13(편집 그리드는 표준 컴포넌트) 예외: 3행 1블록 + 관리항목 7슬롯 구조는
+     행/열이 1:1인 표준 그리드로 표현할 수 없다. 관리자 확인 후 §13에 예외를 등재할 것. */
+const VF_SLOTS_W = 7;
+let ROWS = [], SELSET = new Set();
+function rows(){ return ROWS; }
+function rowBySeq(seq){ return ROWS.find((r)=> String(r.item_seq)===String(seq)); }
 function setRows(rs){
-  // __ctrl/__ctrlNm/__ctrlUi 객체를 그리드에 넣기 '전에' 만들어 둔다 — getData()가 행을 얕은
-  // 복사로 돌려주므로, 중첩 객체로 만들어야 관리항목 패널의 입력·펼침 상태가 원본 행과
-  // 같은 객체를 공유해 유실되지 않는다(원시값 속성은 복사본에 써지면 유실됨 — 주의).
   rs.forEach((r,i)=>{ r.item_seq = i+1; r.__ctrl = r.__ctrl || {};
                       r.__ctrlNm = r.__ctrlNm || {}; r.__ctrlUi = r.__ctrlUi || {}; });
-  GRID.setRows(rs); updateSum(); renderCtrlPanel();
+  ROWS = rs;
+  SELSET = new Set([...SELSET].filter((s)=> rs.some((r)=> String(r.item_seq)===String(s))));
+  renderDraftForm(); updateSum();
 }
+function costOptionsHtml(sel){
+  return '<option value="">코스트센터 —</option>' + (MASTER.cost_centers||[]).map((c)=>
+    '<option value="'+esc(c.cost_cd)+'"'+(String(sel||"")===String(c.cost_cd)?" selected":"")+'>'
+    + esc(c.cost_cd+" "+(c.cost_nm||""))+'</option>').join("");
+}
+/* 관리항목 한 칸 — 라벨(이름·필수·⤓) + 입력(날짜/텍스트/검색) */
+function slotCellHtml(r, def, shareCnt){
+  if(!def) return '<td class="empty"></td>';
+  const info = CTRL_NM.get(def.cd) || {};
+  const nm = info.ctrl_nm || def.cd;
+  const isDate = DATE_CTRLS.has(def.cd) || String(info.data_type||"").toUpperCase()==="D";
+  const val = r.__ctrl[def.cd] ?? "";
+  const sug = (r.__ctrlSug||{})[def.cd];
+  const refKind = ctrlRefKind(def.cd);
+  const miss = def.req && String(val).trim()==="";
+  const refNm = (r.__ctrlNm||{})[def.cd];
+  const inp = '<input type="'+(isDate?'date':'text')+'" data-f="ctrl" data-seq="'+r.item_seq+'"'
+    + ' data-cd="'+esc(def.cd)+'" value="'+esc(val)+'"'
+    + ' class="'+(miss?'miss ':'')+(sug&&val===sug?'suggest':'')+'"'
+    + (sug&&val===sug?' title="전월 기준 제안값 — 실물 증빙을 확인하세요"':'')+'>';
+  return '<td class="slotcell">'
+    + '<span class="slbl">'+esc(nm)+(def.req?'<span class="req">*</span>':'')
+    + ((shareCnt.get(def.cd)||0) > 1
+        ? '<button type="button" class="fillbtn" data-act="fill" data-seq="'+r.item_seq+'"'
+          + ' data-cd="'+esc(def.cd)+'" title="같은 항목이 있는 다른 줄의 빈 칸에 이 값을 채웁니다">⤓</button>' : '')
+    + '</span>'
+    + (refKind
+        ? '<span class="wref">'+inp+'<button type="button" class="refbtn" data-act="ref" data-seq="'+r.item_seq+'"'
+          + ' data-cd="'+esc(def.cd)+'" data-ref="'+refKind+'" title="'+(refKind==="bp"?"거래처 검색":"품목 검색")+'">🔍</button></span>'
+        : inp)
+    + (refNm?'<span class="refnm">'+esc(refNm)+'</span>':'')
+    + '</td>';
+}
+function renderDraftForm(){
+  const box = $("draftForm"); if(!box) return;
+  if(!ROWS.length){
+    box.innerHTML = '<div style="color:var(--muted);font-size:12.5px;padding:18px 4px;">'
+      + '라인이 없습니다. <b>[+ 행 추가]</b>를 눌러 시작하거나, 위에서 <b>템플릿</b>을 적용하세요.</div>';
+    updateCtrlProg(); return;
+  }
+  // 같은 관리항목을 쓰는 줄이 2개 이상이면 ⤓(빈 칸 일괄 채우기)를 띄운다
+  const shareCnt = new Map();
+  ROWS.forEach((r)=>{ if(r.acct_cd) ctrlDefsFor(r).forEach((d)=> shareCnt.set(d.cd, (shareCnt.get(d.cd)||0)+1)); });
+
+  let body = "";
+  ROWS.forEach((r)=>{
+    const defs = r.acct_cd ? ctrlDefsFor(r) : [];
+    const cell = (n)=> slotCellHtml(r, defs[n], shareCnt);
+    const dr = r.dr_cr_fg === "D", cr = r.dr_cr_fg === "C";
+    const seq = r.item_seq;
+    const amtIn = (side)=>{
+      const on = (side==="D" && dr) || (side==="C" && cr);
+      return '<input type="text" class="money" data-f="amt" data-side="'+side+'" data-seq="'+seq+'"'
+        + ' value="'+(on ? esc(fmtMoney(r.item_amt)) : "")+'" placeholder="0" inputmode="numeric">';
+    };
+    body += '<tr class="'+(dr?"blk-dr":cr?"blk-cr":"")+'">'
+      + '<td class="no" rowspan="3"><input type="checkbox" data-f="sel" data-seq="'+seq+'"'
+        + (SELSET.has(String(seq))?" checked":"")+'><br>'+seq+'</td>'
+      + '<td><button type="button" class="pick'+(r.acct_cd?" has":"")+'" data-act="acct" data-seq="'+seq+'">'
+        + (r.acct_cd ? '<span class="acd">'+esc(r.acct_cd)+'</span>' : '🔍 계정 선택')+'</button></td>'
+      + '<td><select data-f="cost" data-seq="'+seq+'">'+costOptionsHtml(r.cost_cd)+'</select></td>'
+      + cell(0) + cell(1) + cell(2)
+      + '<td class="cur" rowspan="3">KRW</td>'
+      + '<td class="amt" rowspan="3">'+amtIn("D")+'</td>'
+      + '<td class="amt" rowspan="3">'+amtIn("C")+'</td></tr>'
+      + '<tr class="'+(dr?"blk-dr":cr?"blk-cr":"")+'">'
+      + '<td class="anm">'+(r.acct_cd ? esc(r.acct_nm||"(계정명 없음)") : '<span style="color:#b6c0cc;">계정 미선택</span>')+'</td>'
+      + cell(3) + cell(4) + cell(5) + cell(6) + '</tr>'
+      + '<tr class="dscrow">'
+      + '<td class="dsccell" colspan="3"><span class="minilbl">적요</span>'
+        + '<input type="text" data-f="desc" data-seq="'+seq+'" maxlength="200" value="'+esc(r.item_desc||"")+'"'
+        + ' placeholder="이 줄의 적요(비우면 전표 적요를 씁니다)"></td>'
+      + '<td class="dsccell"><span class="minilbl">거래처</span>'
+        + '<button type="button" class="pick'+((r.bp_cd||r.bp_nm)?" has":"")+'" data-act="bp" data-seq="'+seq+'">'
+        + esc(r.bp_nm || r.bp_cd || "🔍 선택")+'</button></td>'
+      + '<td class="dsccell"><span class="minilbl">프로젝트</span>'
+        + '<input type="text" data-f="proj" data-seq="'+seq+'" maxlength="40" value="'+esc(r.project_no||"")+'"></td>'
+      + '</tr>';
+    // 관리항목이 7칸을 넘으면 이어서 표시(ERP 서식은 7칸까지만 인쇄된다)
+    if(defs.length > VF_SLOTS_W){
+      // 앞의 rowspan=3 셀(No·통화·차변·대변)은 이 행을 덮지 않는다 → 9열을 직접 채운다
+      body += '<tr class="dscrow"><td class="no"></td><td colspan="5" class="slotcell">'
+        + '<span class="minilbl">관리항목 '+(VF_SLOTS_W+1)+'~'+defs.length+'</span>'
+        + '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:5px 9px;">'
+        + defs.slice(VF_SLOTS_W).map((d)=> slotCellHtml(r, d, shareCnt)
+            .replace(/^<td class="slotcell">/,'<div>').replace(/<\/td>$/,'</div>')).join("")
+        + '</div></td><td class="cur"></td><td class="amt"></td><td class="amt"></td></tr>';
+    }
+  });
+  const drT = ROWS.reduce((s,r)=> s + (r.dr_cr_fg==="D" ? numAmt(r.item_amt) : 0), 0);
+  const crT = ROWS.reduce((s,r)=> s + (r.dr_cr_fg==="C" ? numAmt(r.item_amt) : 0), 0);
+  const title = $("fDesc").value.trim() || "(적요 — 상단 ① 기본정보에 입력)";
+  box.innerHTML = '<div id="vfTitle" style="text-align:center;font-size:15px;font-weight:800;color:var(--navy);'
+      + 'padding:10px 8px 12px;border:1.5px solid #b9c7da;border-bottom:none;background:#fff;">'+esc(title)+'</div>'
+    + '<table class="vform"><thead>'
+    + '<tr><th rowspan="2" style="width:38px;">No</th><th style="width:112px;">계정코드</th><th style="width:132px;">COST CENTER</th>'
+    + '<th>관리항목1</th><th>관리항목2</th><th>관리항목3</th>'
+    + '<th style="width:46px;">통화</th><th style="width:112px;">차변</th><th style="width:112px;">대변</th></tr>'
+    + '<tr><th>계정과목</th><th>관리항목4</th><th>관리항목5</th><th>관리항목6</th><th>관리항목7</th></tr>'
+    + '</thead><tbody>' + body
+    + '<tr class="sumrow"><td colspan="6" class="lbl">합 계</td><td class="lbl">KRW</td>'
+    + '<td class="amt" id="vfSumDr">'+won(drT)+'</td><td class="amt" id="vfSumCr">'+won(crT)+'</td></tr>'
+    + '</tbody></table>';
+  updateCtrlProg();
+}
+const numAmt = (v)=> Number(String(v||"").replace(/,/g,"")) || 0;
+const fmtMoney = (v)=> v==="" || v==null ? "" : won(numAmt(v));
+// 전표 적요를 고치면 서식 상단 제목도 따라간다(제목 칸만 갱신 — 입력 중 포커스 유지)
+$("fDesc").addEventListener("input", ()=>{
+  const t = $("vfTitle");
+  if(t) t.textContent = $("fDesc").value.trim() || "(적요 — 상단 ① 기본정보에 입력)";
+});
+
+/* 입력 — 모델만 고치고 화면은 최소 범위만 갱신한다(재렌더하면 포커스가 날아간다) */
+$("draftForm").addEventListener("input", (e)=>{
+  const el = e.target.closest("[data-f]"); if(!el) return;
+  const r = rowBySeq(el.getAttribute("data-seq")); if(!r) return;
+  const f = el.getAttribute("data-f");
+  if(f === "amt"){
+    const side = el.getAttribute("data-side");
+    const n = numAmt(el.value);
+    r.dr_cr_fg = n > 0 ? side : (r.dr_cr_fg === side ? "" : r.dr_cr_fg);
+    r.item_amt = n > 0 ? String(n) : "";
+    // 반대편 칸은 비운다 — 한 줄은 차변이거나 대변이거나 하나다
+    const tr = el.closest("tr");
+    tr.querySelectorAll('input[data-f="amt"]').forEach((o)=>{ if(o !== el) o.value = ""; });
+    updateSum(); updateVfSum(); markRowDir(r);
+    // 차대가 바뀌면 필수(*) 표시도 달라진다 — 라벨만 다시 칠한다
+    repaintReq(r);
+  } else if(f === "desc"){ r.item_desc = el.value; }
+  else if(f === "proj"){ r.project_no = el.value; }
+  else if(f === "ctrl"){
+    const cd = el.getAttribute("data-cd");
+    r.__ctrl[cd] = el.value;
+    if(r.__ctrlNm) delete r.__ctrlNm[cd];
+    el.classList.remove("suggest", "miss");
+    const nmEl = el.closest("td")?.querySelector(".refnm"); if(nmEl) nmEl.remove();
+    updateCtrlProg();
+  }
+});
+$("draftForm").addEventListener("change", (e)=>{
+  const el = e.target.closest("[data-f]"); if(!el) return;
+  const r = rowBySeq(el.getAttribute("data-seq")); if(!r) return;
+  if(el.getAttribute("data-f") === "cost"){ r.cost_cd = el.value; }
+  else if(el.getAttribute("data-f") === "sel"){
+    const k = String(r.item_seq);
+    if(el.checked) SELSET.add(k); else SELSET.delete(k);
+  }
+});
+// 금액 칸에서 포커스가 빠지면 천단위 콤마로 정리
+$("draftForm").addEventListener("focusout", (e)=>{
+  const el = e.target.closest('input[data-f="amt"]'); if(!el) return;
+  el.value = el.value.trim() === "" ? "" : won(numAmt(el.value));
+});
+// Enter → 다음 입력칸(입력 흐름 단축)
+$("draftForm").addEventListener("keydown", (e)=>{
+  if(e.key !== "Enter") return;
+  const el = e.target.closest("input[data-f]"); if(!el) return;
+  e.preventDefault();
+  const all = Array.from($("draftForm").querySelectorAll('input[data-f="ctrl"],input[data-f="amt"],input[data-f="desc"]'));
+  const nx = all[all.indexOf(el)+1];
+  if(nx){ nx.focus(); if(nx.select) nx.select(); }
+});
+/* 차대가 정해지면 그 블록(2행)의 색만 바꾼다 — 전체 재렌더 없이(입력 포커스 유지) */
+function markRowDir(r){
+  const on = r.dr_cr_fg === "D" ? "blk-dr" : r.dr_cr_fg === "C" ? "blk-cr" : "";
+  const cb = document.querySelector('#draftForm input[data-f="sel"][data-seq="'+r.item_seq+'"]');
+  let tr = cb ? cb.closest("tr") : null;
+  for(let k=0; k<2 && tr; k++){
+    tr.classList.remove("blk-dr","blk-cr");
+    if(on) tr.classList.add(on);
+    tr = tr.nextElementSibling;
+  }
+}
+/* 차대에 따라 필수(*) 항목이 달라진다 — 라벨의 * 와 미입력 표시만 다시 칠한다 */
+function repaintReq(r){
+  (r.acct_cd ? ctrlDefsFor(r) : []).forEach((d)=>{
+    const inp = document.querySelector('#draftForm input[data-f="ctrl"][data-seq="'+r.item_seq
+      + '"][data-cd="'+CSS.escape(d.cd)+'"]');
+    if(!inp) return;
+    const lbl = inp.closest("td")?.querySelector(".slbl");
+    if(lbl){
+      const cur = lbl.querySelector(".req");
+      if(d.req && !cur){
+        const s = document.createElement("span"); s.className = "req"; s.textContent = "*";
+        lbl.insertBefore(s, lbl.querySelector(".fillbtn"));
+      } else if(!d.req && cur) cur.remove();
+    }
+    inp.classList.toggle("miss", d.req && String(inp.value).trim()==="");
+  });
+  updateCtrlProg();
+}
+function updateVfSum(){
+  const dr = ROWS.reduce((s,r)=> s + (r.dr_cr_fg==="D" ? numAmt(r.item_amt) : 0), 0);
+  const cr = ROWS.reduce((s,r)=> s + (r.dr_cr_fg==="C" ? numAmt(r.item_amt) : 0), 0);
+  const a = $("vfSumDr"), b = $("vfSumCr");
+  if(a) a.textContent = won(dr); if(b) b.textContent = won(cr);
+}
+/* 클릭 — 계정·거래처 팝업, 관리항목 검색, ⤓ 일괄 채우기 */
+$("draftForm").addEventListener("click", (e)=>{
+  const b = e.target.closest("[data-act]"); if(!b) return;
+  const r = rowBySeq(b.getAttribute("data-seq")); if(!r) return;
+  const act = b.getAttribute("data-act");
+  if(act === "acct"){
+    openAcctPicker((a)=>{
+      r.acct_cd = a.acct_cd; r.acct_nm = a.acct_nm || "";
+      const fg = String(a.bal_fg||"").charAt(0).toUpperCase();
+      if(!r.dr_cr_fg && (fg==="D"||fg==="C")) r.dr_cr_fg = fg;
+      renderDraftForm(); updateSum();
+    });
+  } else if(act === "bp"){
+    openBpPicker((x)=>{
+      r.bp_cd = x.bp_cd || null; r.bp_nm = x.bp_cd ? (x.bp_nm||null) : null;
+      renderDraftForm();
+    }, !!(r.bp_cd || r.bp_nm));
+  } else if(act === "ref"){
+    const cd = b.getAttribute("data-cd");
+    const pick = (code, nm)=>{
+      r.__ctrl[cd] = code; r.__ctrlNm[cd] = nm || "";
+      renderDraftForm();
+    };
+    if(b.getAttribute("data-ref") === "bp") openBpPicker((x)=> pick(x.bp_cd||"", x.bp_nm||""), true);
+    else openItemPicker((x)=> pick(x.item_cd||"", x.item_nm||""));
+  } else if(act === "fill"){
+    const cd = b.getAttribute("data-cd");
+    const val = String(r.__ctrl[cd] ?? "").trim();
+    if(!val){ toast("먼저 이 칸에 값을 입력한 뒤 누르세요.", true); return; }
+    let n = 0;
+    ROWS.forEach((x)=>{
+      if(x.item_seq === r.item_seq || !x.acct_cd) return;
+      if(!ctrlDefsFor(x).some((d)=> d.cd===cd)) return;
+      if(String((x.__ctrl||{})[cd] ?? "").trim()) return;
+      x.__ctrl[cd] = val; n++;
+    });
+    if(n){ renderDraftForm();
+      toast("'"+((CTRL_NM.get(cd)||{}).ctrl_nm||cd)+"' 값을 다른 "+n+"개 줄의 빈 칸에 채웠습니다."); }
+    else toast("채울 빈 칸이 없습니다 — 다른 줄은 이미 입력돼 있습니다.", true);
+  }
+});
+/* 저장 전 검증 — 그리드 validateAll() 대체. 문제 칸을 붉게 표시하고 첫 칸으로 이동한다. */
+function validateRows(){
+  let bad = null;
+  const list = ROWS.filter((r)=> r.acct_cd || numAmt(r.item_amt) || (r.item_desc||"").trim());
+  document.querySelectorAll("#draftForm .pick.bad").forEach((el)=> el.classList.remove("bad"));
+  list.forEach((r)=>{
+    if(!r.acct_cd){
+      const el = document.querySelector('#draftForm .pick[data-act="acct"][data-seq="'+r.item_seq+'"]');
+      if(el) el.classList.add("bad");
+      bad = bad || { el, msg: r.item_seq+"번 줄 — 계정과목을 선택하세요." };
+    }
+    const n = numAmt(r.item_amt);
+    if(!(n > 0 && Number.isInteger(n)) || !r.dr_cr_fg){
+      const el = document.querySelector('#draftForm input[data-f="amt"][data-seq="'+r.item_seq+'"]');
+      if(el) el.classList.add("miss");
+      bad = bad || { el, msg: r.item_seq+"번 줄 — 차변 또는 대변 칸에 0보다 큰 정수 금액을 입력하세요." };
+    }
+  });
+  if(bad){ toast(bad.msg, true); if(bad.el){ bad.el.scrollIntoView({behavior:"smooth",block:"center"}); bad.el.focus?.(); } }
+  return !bad;
+}
+
 function updateSum(){
   let dr=0, cr=0;
   rows().forEach((r)=>{
@@ -1025,177 +1258,14 @@ function ctrlStatFor(row){
   });
   return { total:defs.length, filled, reqTotal, reqFilled, reqMiss:reqTotal>reqFilled };
 }
-function ctrlBadgeHtml(row){
-  const s = ctrlStatFor(row);
-  if(!s.total) return '<span style="color:#aab;font-size:11px;">—</span>';
-  const cls = s.reqMiss ? "warn" : (s.filled >= s.total ? "ok" : "mid");
-  return '<button type="button" class="cbadge '+cls+'" data-row-act="goto-ctrl" title="관리항목 입력으로 이동">'
-    + s.filled+'/'+s.total+(s.reqMiss?' ⚠':'')+'</button>';
-}
+/* 전표 전체의 필수 관리항목 입력 진행률 — 서식 아래 안내줄에 표시 */
 function updateCtrlProg(){
   const prog = $("ctrlProg"); if(!prog) return;
   let t = 0, f = 0;
   rows().forEach((x)=>{ const s = ctrlStatFor(x); t += s.reqTotal; f += s.reqFilled; });
-  prog.textContent = t ? "필수 "+f+"/"+t+" 입력" : "";
+  prog.textContent = t ? "필수 관리항목 "+f+"/"+t+" 입력" : "";
   prog.className = "prog " + (t && f < t ? "warn" : "ok");
 }
-// 관리항목 입력 중 그리드 배지·진행률만 부분 갱신(그리드 전체 리렌더 없이 — 포커스 유지)
-function syncCtrlBadge(seq){
-  const r = rows().find((x)=> String(x.item_seq)===String(seq));
-  const td = document.querySelector('#itemGrid tr[data-key="'+seq+'"] td[data-col="__ctrl_stat"]');
-  if(r && td) td.innerHTML = ctrlBadgeHtml(r);
-  updateCtrlProg();
-}
-/* 관리항목 패널 — 기본은 숨김. 전표 라인에서 줄을 선택(☑)하면 그 줄만 열리고,
-   [전체 펼치기]를 누르면 전부 펼쳐진다(그리드 배지 클릭으로 특정 줄만 고정 펼침도 가능). */
-let CTRL_SHOW_ALL = false;
-function renderCtrlPanel(){
-  const box = $("ctrlPanel"); if(!box) return;
-  const rs = rows();
-  const withDefs = rs.filter((r)=> r.acct_cd && ctrlDefsFor(r).length);
-  if(!withDefs.length){ box.innerHTML = ""; return; }
-  const selected = new Set((GRID ? GRID.getSelectedKeys() : []).map(String));
-  // 같은 관리항목 코드를 가진 라인 수 — 2줄 이상이면 「⤓ 전체」(빈 칸 일괄 채우기) 버튼 표시
-  const shareCnt = new Map();
-  withDefs.forEach((r)=> ctrlDefsFor(r).forEach((d)=>{ shareCnt.set(d.cd, (shareCnt.get(d.cd)||0)+1); }));
-  const parts = [];
-  const hiddenMiss = [];   // 접힌 줄의 필수 미입력 — 안내줄에 표시(놓침 방지)
-  withDefs.forEach((r)=>{
-    r.__ctrl = r.__ctrl || {}; r.__ctrlUi = r.__ctrlUi || {};
-    const defs = ctrlDefsFor(r);
-    const stat = ctrlStatFor(r);
-    const missCnt = stat.reqTotal - stat.reqFilled;
-    const isSel = selected.has(String(r.item_seq));
-    const visible = CTRL_SHOW_ALL || isSel || r.__ctrlUi.open === true;
-    if(!visible){ if(missCnt) hiddenMiss.push({ seq:r.item_seq, cnt:missCnt }); return; }
-    const flds = defs.map((d)=>{
-      const info = CTRL_NM.get(d.cd) || {};
-      const nm = info.ctrl_nm || d.cd;
-      const isDate = DATE_CTRLS.has(d.cd) || String(info.data_type||"").toUpperCase()==="D";
-      const val = r.__ctrl[d.cd] ?? "";
-      const sug = (r.__ctrlSug||{})[d.cd];
-      const refKind = ctrlRefKind(d.cd);
-      const miss = d.req && String(val).trim()==="";
-      const refNm = (r.__ctrlNm||{})[d.cd];
-      const inputHtml = '<input type="'+(isDate?'date':'text')+'" data-seq="'+r.item_seq+'" data-cd="'+esc(d.cd)+'"'
-        + ' value="'+esc(val)+'" class="'+(miss?'miss ':'')+(sug&&val===sug?'suggest':'')+'"'
-        + (sug&&val===sug?' title="전월 기준 제안값 — 실물 증빙을 확인하세요"':'')+'>';
-      return '<div class="cfld"><label><span>'+esc(d.cd)+' · '+esc(nm)+(d.req?'<span class="req">*</span>':'')+'</span>'
-        + ((shareCnt.get(d.cd)||0) > 1
-            ? '<button type="button" class="fillbtn" data-fillseq="'+r.item_seq+'" data-fillcd="'+esc(d.cd)+'"'
-              + ' title="같은 항목이 있는 다른 줄의 빈 칸에 이 값을 채웁니다">⤓ 전체</button>' : '')
-        + '</label>'
-        + (refKind
-            ? '<div class="wref">'+inputHtml
-              + '<button type="button" class="refbtn" data-seq="'+r.item_seq+'" data-cd="'+esc(d.cd)+'" data-ref="'+refKind+'"'
-              + ' title="'+(refKind==="bp"?"거래처 검색":"품목 검색")+'">🔍</button></div>'
-            : inputHtml)
-        + (sug&&val===sug?'<span class="sug">제안값 — 증빙 확인</span>':'')
-        + (refNm?'<span class="refnm">'+esc(refNm)+'</span>':'')
-        + '</div>';
-    }).join("");
-    const isD = r.dr_cr_fg==="D";
-    const amt = Number(String(r.item_amt||"").replace(/,/g,""));
-    // ✕ 닫기 — 배지 클릭으로 고정 펼침한 카드에만(줄 선택·전체 펼치기로 보이는 카드는 각각의 방법으로 닫는다)
-    const viaOpen = !CTRL_SHOW_ALL && !isSel && r.__ctrlUi.open === true;
-    parts.push('<div class="ctrlrow '+(isD?'dr':r.dr_cr_fg==="C"?'cr':'')+'" id="ctrlrow-'+r.item_seq+'">'
-      + '<div class="ttl">'
-      + '<span class="fgtag">'+(isD?"차변":r.dr_cr_fg==="C"?"대변":"—")+'</span>'
-      + r.item_seq+'번 줄 · '+esc(r.acct_nm||r.acct_cd)
-      + '<span style="color:var(--muted);font-weight:400;font-size:11px;">'+esc(String(r.acct_cd||"").trim())
-      + ' · 관리항목 '+defs.length+'종'+(stat.reqTotal?' (필수 '+stat.reqTotal+')':'')+'</span>'
-      + (missCnt?'<span class="missbadge">필수 '+missCnt+'건 미입력</span>':'')
-      + '<span class="amt">'+(amt>0?won(amt)+'원':'')+'</span>'
-      + (viaOpen?'<button type="button" class="ttlclose" data-close="'+r.item_seq+'" title="이 줄 접기">✕</button>':'')
-      + '</div><div class="flds">'+flds+'</div></div>');
-  });
-  const missSum = hiddenMiss.reduce((s,x)=> s+x.cnt, 0);
-  const missTxt = missSum
-    ? '<span class="warn">⚠ 접힌 줄에 필수 미입력 '+missSum+'건('+hiddenMiss.map((x)=> x.seq+"번 줄").join(", ")+') — 저장 전 입력 필요</span>'
-    : '';
-  const head = '<div class="ctrlhead"><span class="step">3</span> 관리항목'
-    + '<small><b style="color:var(--red);">*</b> 필수 · 🔍 검색 · ⤓ 다른 줄 빈 칸 채우기 · Enter 다음 칸</small>'
-    + '<button type="button" class="b gh sm" id="ctrlShowAll">'+(CTRL_SHOW_ALL?'▴ 전체 접기':'▾ 전체 펼치기')+'</button>'
-    + '<span class="prog" id="ctrlProg"></span></div>';
-  box.innerHTML = head
-    + (parts.length
-        ? parts.join("") + (missTxt ? '<div class="ctrlempty slim">'+missTxt+'</div>' : '')
-        : '<div class="ctrlempty">관리항목 입력칸이 접혀 있습니다 — 전표 라인에서 <b>줄을 선택(☑)</b>하거나 '
-          + '<b>[전체 펼치기]</b>를 누르면 해당 줄의 관리항목이 열립니다. '
-          + '그리드 오른쪽 <b>관리항목 배지</b>를 눌러도 그 줄만 바로 열립니다. '+missTxt+'</div>');
-  updateCtrlProg();
-}
-$("ctrlPanel").addEventListener("input", (e)=>{
-  const inp = e.target.closest("input[data-cd]"); if(!inp) return;
-  const r = rows().find((x)=> String(x.item_seq)===String(inp.getAttribute("data-seq")));
-  if(!r) return;
-  r.__ctrl = r.__ctrl || {};
-  const cd = inp.getAttribute("data-cd");
-  r.__ctrl[cd] = inp.value;
-  if(r.__ctrlNm) delete r.__ctrlNm[cd];   // 직접 수정하면 팝업 선택명 표시는 걷어낸다
-  inp.classList.remove("suggest");        // 손대는 순간 제안값 표시도 걷어낸다
-  inp.classList.remove("miss");
-  syncCtrlBadge(r.item_seq);              // 그리드 배지·진행률만 부분 갱신(포커스 유지)
-});
-// Enter → 다음 관리항목 칸으로 이동(입력 흐름 단축)
-$("ctrlPanel").addEventListener("keydown", (e)=>{
-  if(e.key !== "Enter") return;
-  const inp = e.target.closest("input[data-cd]"); if(!inp) return;
-  e.preventDefault();
-  const all = Array.from($("ctrlPanel").querySelectorAll("input[data-cd]"));
-  const next = all[all.indexOf(inp)+1];
-  if(next){ next.focus(); if(next.select) next.select(); }
-});
-// 클릭 위임 — ⤓ 일괄 채우기 / 🔍 참조 검색 / 제목 접기·펼치기
-$("ctrlPanel").addEventListener("click", (e)=>{
-  // ⤓ 같은 관리항목이 있는 다른 줄의 '빈 칸만' 채운다(기존 입력값은 보존)
-  const fb = e.target.closest("button[data-fillcd]");
-  if(fb){
-    const seq = fb.getAttribute("data-fillseq"), cd = fb.getAttribute("data-fillcd");
-    const src = rows().find((x)=> String(x.item_seq)===String(seq));
-    const val = String((src?.__ctrl||{})[cd] ?? "").trim();
-    if(!val){ toast("먼저 이 칸에 값을 입력한 뒤 누르세요.", true); return; }
-    let n = 0;
-    rows().forEach((r)=>{
-      if(String(r.item_seq)===String(seq) || !r.acct_cd) return;
-      if(!ctrlDefsFor(r).some((d)=> d.cd===cd)) return;
-      if(String((r.__ctrl||{})[cd] ?? "").trim()) return;
-      r.__ctrl = r.__ctrl || {}; r.__ctrl[cd] = val; n++;
-    });
-    if(n){ renderCtrlPanel(); GRID.refresh();
-      toast("'"+((CTRL_NM.get(cd)||{}).ctrl_nm||cd)+"' 값을 다른 "+n+"개 줄의 빈 칸에 채웠습니다."); }
-    else toast("채울 빈 칸이 없습니다 — 다른 줄은 이미 입력돼 있습니다.", true);
-    return;
-  }
-  // 🔍 참조형(거래처·품목) 검색
-  const btn = e.target.closest("button[data-ref]");
-  if(btn){
-    const r = rows().find((x)=> String(x.item_seq)===String(btn.getAttribute("data-seq")));
-    if(!r) return;
-    const cd = btn.getAttribute("data-cd");
-    const set = (code, nm)=>{
-      r.__ctrl = r.__ctrl || {}; r.__ctrl[cd] = code || "";
-      r.__ctrlNm = r.__ctrlNm || {}; if(nm) r.__ctrlNm[cd] = nm; else delete r.__ctrlNm[cd];
-      renderCtrlPanel(); syncCtrlBadge(r.item_seq);
-    };
-    if(btn.getAttribute("data-ref")==="bp") openBpPicker((b)=> set(b.bp_cd, b.bp_nm), !!(r.__ctrl||{})[cd]);
-    else openItemPicker((it)=> set(it.item_code, it.item_name));
-    return;
-  }
-  // [전체 펼치기/접기] 토글
-  if(e.target.closest("#ctrlShowAll")){
-    CTRL_SHOW_ALL = !CTRL_SHOW_ALL;
-    renderCtrlPanel();
-    return;
-  }
-  // ✕ — 배지 클릭으로 고정 펼침한 카드 접기(__ctrlUi 는 원본 행과 공유되는 객체라 상태 유지)
-  const cl = e.target.closest("button[data-close]");
-  if(cl){
-    const r = rows().find((x)=> String(x.item_seq)===String(cl.getAttribute("data-close")));
-    if(r){ r.__ctrlUi = r.__ctrlUi || {}; r.__ctrlUi.open = false; renderCtrlPanel(); }
-  }
-});
-
 /* ═══ v4 — 월반복 홈(F1)·전월 프리필(F2) ═══ */
 const RSTATUS = { none:["⚠ 이번 달 미작성","none"], draft:["✏️ 작성중","draft"],
                   submitted:["📤 제출됨","submitted"], posted:["✅ 확정됨","posted"] };
@@ -1509,8 +1579,8 @@ $("btnTplApply").onclick = applyTpl;
 
 /* 차액 채우기 — 선택한 행에 차변·대변 차액을 넣는다 */
 $("btnFillDiff").onclick = ()=>{
-  const keys = GRID.getSelectedKeys();
-  if(keys.length!==1){ toast("차액을 넣을 행 1개를 선택하세요.", true); return; }
+  const keys = [...SELSET];
+  if(keys.length!==1){ toast("차액을 넣을 행 1개를 선택하세요(No 칸의 체크박스).", true); return; }
   const rs = rows();
   const target = rs.find((x)=> String(x.item_seq)===String(keys[0]));
   if(!target || (target.dr_cr_fg!=="D" && target.dr_cr_fg!=="C")){ toast("선택한 행의 차변/대변을 먼저 정하세요.", true); return; }
@@ -1559,7 +1629,7 @@ async function save(){
   const nonEmpty = rows().filter((r)=> r.acct_cd || String(r.item_amt||"").trim() || r.dr_cr_fg);
   if(nonEmpty.length !== rows().length) setRows(nonEmpty);
   const p = collect();
-  if(!GRID.validateAll()){ toast("입력값을 확인하세요 — 빨간 셀을 수정해 주세요.", true); return null; }
+  if(!validateRows()) return null;
   try{
     const r = await api("save", { ...p, draft_no: CURRENT_NO });
     CURRENT_NO = r.draft_no; $("editingNo").textContent = "· "+r.draft_no+" 수정 중";
@@ -1604,11 +1674,11 @@ function submitSummary(){
 
 $("btnAddRow").onclick = ()=>{ const rs = rows(); rs.push({ dr_cr_fg:"", acct_cd:"", item_amt:"", item_desc:"" }); setRows(rs); };
 $("btnDelRow").onclick = ()=>{
-  const sel = new Set(GRID.getSelectedKeys().map(String));
-  if(!sel.size){ toast("삭제할 행을 선택하세요.", true); return; }
+  const sel = new Set([...SELSET].map(String));
+  if(!sel.size){ toast("삭제할 행을 선택하세요(No 칸의 체크박스).", true); return; }
   const rest = rows().filter((r)=> !sel.has(String(r.item_seq)));
   if(rest.length < 2){ toast("라인은 최소 2줄이 필요합니다.", true); return; }
-  GRID.clearSelection(); setRows(rest);
+  SELSET.clear(); setRows(rest);
 };
 $("btnSave").onclick = save;
 $("btnReset").onclick = ()=>{ if(confirm("작성 중인 내용을 지우고 새 전표를 시작할까요?")) newDraft(); };
@@ -2115,7 +2185,8 @@ function renderTplForm(){
       + '<td class="amt">'+(dr?'':esc(amt))+'</td></tr>';
     // ERP 서식은 7칸까지 — 그보다 많은 계정은 남은 항목을 이어서 보여준다(누락 방지)
     if(slots.length > VF_SLOTS){
-      body += '<tr class="dscrow"><td colspan="5" class="slotcell">'
+      // rowspan=3 셀이 덮지 않는 행이므로 No 칸부터 9열을 모두 채운다
+      body += '<tr class="dscrow"><td class="no"></td><td colspan="5" class="slotcell">'
         + '<div style="display:flex;flex-wrap:wrap;gap:4px 8px;">'
         + slots.slice(VF_SLOTS).map((s)=>{
             const rule = byCd.get(s.cd);
