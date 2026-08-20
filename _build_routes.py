@@ -73,9 +73,11 @@ def main():
         return 1
 
     # ── 2. vercel.json ──────────────────────────────────────
-    # 목적지는 원문(비인코딩) 경로 — 퍼센트 인코딩하면 Vercel 정적 파일 매칭에 실패한다(실측).
+    # 목적지 규칙(실측으로 확정):
+    #  · 원문(비인코딩) 경로를 쓴다 — 퍼센트 인코딩하면 정적 파일 매칭 실패(404).
+    #  · `.html` 을 뗀다 — cleanUrls:true 면 출력에서 확장자가 제거돼 `/foo.html` 은 존재하지 않는다.
     def enc(p):
-        return "/" + p
+        return "/" + (p[:-5] if p.lower().endswith(".html") else p)
 
     vercel = {
         "$schema": "https://openapi.vercel.sh/vercel.json",
