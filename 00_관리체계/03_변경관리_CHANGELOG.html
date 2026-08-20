@@ -108,6 +108,13 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 </thead>
 <tbody>
 <tr>
+<td>2026-08-20</td>
+<td>ERP연계</td>
+<td><code>pages/자금_결의전표_입력_2026.html</code>(탭 개명·템플릿 기능) · Supabase(migration <code>gl_erp_apply_v3_autopost</code>·<code>gl_apply_ready_submitted_only</code>) · <code>실제구축준비 자료/이관/sql/26_gl_erp_apply.sql</code>(신규) · <code>10_ERP_DB연계/etl/gl_apply_demo2.py</code> · <code>10_ERP_DB연계/11_ERP직접등록_DEMO2_1차.md</code>(v1.4→v1.5)</td>
+<td><strong>결의전표 ERP 직접등록 DEMO2 — AX001 신설(결정 C-12, 소급 등재)·「전송 성공=확정」 일원화(결정 C-13)·AX001 기준 2건째 성공.</strong> (소급) 화면 [🚀 ERP 전송] 버튼 E2E 성공(<code>AG202608200001</code>) 및 미결 U-B(S0003 허용 계정 범위 부족)를 해소한 <strong>AX 전용 거래유형 <code>AX001</code> 신설·채택</strong>(ERP DEMO2에 등록, 분개코드 결정 3단계 확장, 대변 <code>21100907</code> 법인카드 하드코딩 거부) — 급식대 전표 재전송 성공(<code>AG202608190007</code>). (신규) 화면 「회계 담당자」 탭을 <strong>「ERP 전송」 탭으로 개명</strong>하고 ERP 전표번호 수기 입력칸·[확정 기록] 버튼을 <strong>제거</strong> — 전송 성공 시 RPC <code>gl_apply_record</code>가 초안을 자동으로 <code>submitted→posted</code>(확정)로 전이하고 ERP 채번번호를 회기입한다(수기 오기입·누락 경로 차단). 안전조치로 <code>gl_apply_ready</code>는 <code>status='submitted'</code>만 반환하도록 즉시 원복(한 번 넓혔을 때 수기 등록 건이 재노출돼 이중계상 위험 확인). <strong>DEMO2 4번째 E2E 성공(AX001 기준 2건째)</strong>: <code>DRAFT-20260820-0008</code>(275,000원 3라인) → <strong><code>AG202608200002</code></strong>, 라인 3/3 완전일치. 그동안 Supabase migration으로만 존재하던 적용 계층을 저장소 SQL(<code>26_gl_erp_apply.sql</code>)로 명문화. 신규 미결 <strong>U-F</strong>(AX001 계정 매핑 등재 권장, 회계팀). 단일 출처는 <code>10_ERP_DB연계/</code>(00 v0.33·02·11 v1.5)</td>
+<td>최동혁(+Claude)</td>
+</tr>
+<tr>
 <td>2026-08-19</td>
 <td>ERP연계</td>
 <td><code>10_ERP_DB연계/etl/gl_apply_demo2.py</code>(신규) · <code>10_ERP_DB연계/11_ERP직접등록_DEMO2_1차.md</code>(신규 v1.0) · <code>jeil-gl-draft</code>(v5.2) · <code>pages/자금_결의전표_입력_2026.html</code>(「ERP 적용」 열) (커밋 <code>2737dcb</code>)</td>
