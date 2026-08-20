@@ -1897,10 +1897,39 @@ function spreadAmounts(items, total, prevRatio){
   // 배분·반올림으로 나온 값은 정확한 금액이 아니므로 '확인 필요'로 표시한다(prevRatio 인자).
   if(total > 0){
     ["D","C"].forEach((dir)=>{
-      const mine = out.filter((x)=> x.dr_cr_fg===dir && x.amt_rule==="input");
+      let mine = out.filter((x)=> x.dr_cr_fg===dir && x.amt_rule==="input");
       if(!mine.length) return;
-      const rest = total - fixedSum[dir];
+      let rest = total - fixedSum[dir];
       if(!(rest > 0)) return;
+
+      // ── 세금계산서형 우선 분리(REQ-0004) ──
+      // 부가세 라인을 다른 비용 라인과 똑같이 나누면 안 된다. 총액은 공급가액+세액이므로
+      // 세율로 먼저 갈라야 총액이 보존된다. 이 처리를 빠뜨려 균등 배분되던 결함을 고친다.
+      const vatLine = mine.find((x)=> String(x.acct_cd||"").trim() === VAT_ACCT_CD);
+      if(vatLine && mine.length > 1){
+        const v4 = (vatLine.ctrls||[]).find((c)=> c.ctrl_cd==="V4" && c.val_rule==="fixed");
+        const rate = vatRateFor(v4 && v4.fixed_val);
+        if(rate != null){
+          // 영세율·계산서(0%)면 세액은 0이고 공급가액이 총액 전부다.
+          // 0% 를 빼먹으면 부가세 라인이 다른 비용과 균등 분할돼 금액이 절반이 된다.
+          const supply = rate > 0 ? Math.round(rest / (1 + rate)) : rest;
+          const tax = rest - supply;                 // 잔액을 세액이 흡수 — 총액 보존
+          vatLine.__amt = tax;
+          vatLine.__vatSupply = supply;              // applyTpl 이 V1·V8 을 채울 때 쓴다
+          // 총액이 (1+세율)로 딱 나뉘지 않으면 공급가액·세액은 추정이다 —
+          // 실제 계산서는 90,910/9,090 일 수도 있다. 확인을 받아야 한다.
+          // 곱셈으로 되짚으면 부동소수점 때문에 딱 떨어져 보인다(90,909×1.1 = 99,999.9 → 100,000).
+          // 나눗셈이 정수로 떨어지는지로 판정한다(1e-6 은 부동소수점 오차 허용치).
+          if(rate > 0 && Math.abs(rest / (1 + rate) - supply) > 1e-6){
+            vatLine.__approx = true;
+            vatLine.__approxWhy = "총액을 세율로 나누며 원 단위를 조정한 값";
+          }
+          mine = mine.filter((x)=> x !== vatLine);   // 남은 비용 라인끼리 공급가액을 나눈다
+          rest = supply;
+          if(!mine.length) return;
+        }
+      }
+
       if(mine.length === 1){
         mine[0].__amt = rest;          // 혼자면 나눌 것이 없다 — 정확한 값
         return;
@@ -1986,6 +2015,11 @@ async function applyTpl(){
     const ctrl = {};
     (it.ctrls||[]).forEach((c)=>{ if(c.val_rule==="fixed" && c.fixed_val!=null) ctrl[c.ctrl_cd]=c.fixed_val; });
     if(it.__approx) approx++;
+    // 세금계산서형이면 배분 단계에서 나온 공급가액·세액을 관리항목에 그대로 넣는다
+    if(it.__vatSupply != null){
+      ctrl.V1 = won(it.__vatSupply);
+      ctrl.V8 = won(Number(it.__amt) || 0);
+    }
     return {
       dr_cr_fg: it.dr_cr_fg, acct_cd: it.acct_cd, acct_nm: it.acct_nm,
       item_amt: it.__amt === "" ? "" : String(it.__amt),
@@ -1997,12 +2031,10 @@ async function applyTpl(){
       __amtApprox: !!it.__approx, __amtApproxWhy: it.__approxWhy || "",
     };
   }));
-  // 부가세 전표면 방금 배분된 공급가액 기준으로 세액·합계를 다시 맞춘다(C-14 연계)
-  const vc = vatCtx();
-  if(vc && vc.one && numAmt(vc.cost[0].item_amt) > 0){
-    vatApply(numAmt(vc.cost[0].item_amt));
-    renderDraftForm();
-  }
+  // ⚠ 여기서 vatApply() 로 다시 계산하지 않는다(REQ-0004).
+  //   배분 단계가 이미 총액을 세율로 갈라 놓았는데, 후처리가 비용 라인 금액을 다시
+  //   '공급가액'으로 보고 재계산하면 총액이 줄어든다(352,000 → 193,600 결함의 직접 원인).
+  //   총액이 없어 금액이 비어 있는 경우에만, 사용자가 값을 넣을 때 C-14 트리거가 작동한다.
   toast("템플릿 '"+t.tpl_nm+"' 을(를) 적용했습니다."
     + (approx ? " — 나눠 넣은 금액 "+approx+"칸은 실제 증빙과 대조해 확인하세요." : ""),
     approx > 0);
