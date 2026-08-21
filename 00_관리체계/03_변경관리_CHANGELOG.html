@@ -110,6 +110,13 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <tr>
 <td>2026-08-21</td>
 <td>포털</td>
+<td><code>04_챗봇_포털_데모UI.html</code> · <code>JEIL_AX_포털데모_통합본.html</code> · <code>.backlog/3-done/REQ-0014</code> (커밋 <code>6a12ac0</code>)</td>
+<td><strong>구 경로 즐겨찾기 자기치유 — 라우트가 바뀌어도 ★ 표시가 따라가게(REQ-0014).</strong> 즐겨찾기 저장 키는 <strong>카드의 <code>href</code> 그 자체</strong>여서, 08-20 클린 라우트 개편으로 카드 경로가 바뀌자 그 전에 담아 둔 항목이 현재 어느 카드와도 일치하지 않게 됐다 — 칩은 남고 클릭도 되지만(구 <code>.html</code> → <code>cleanUrls</code> 리다이렉트) <strong>카드 ★ 는 꺼진 채</strong>라, 다시 누르면 같은 페이지가 새 경로로 하나 더 등록되는 중복이 생겼다. 조치는 <strong>경로 대응표를 화면에 심지 않고 카드 라벨로 대조해 따라가는 자기치유</strong> — <code>favMigratePaths()</code> 가 저장분 중 지금 유효하지 않은 경로만 골라 <strong>라벨이 정확히 하나 일치하는</strong> 카드가 있을 때만 키를 현재 경로로 옮겨 적고, 구·신 경로를 둘 다 갖고 있었으면 하나로 병합한다. <strong>일치하는 카드가 없으면 건드리지 않는다</strong>(임의 삭제 금지). 라벨 계산은 <code>favCardLabel()</code> 한 곳으로 모아 등록 경로와 대조 경로가 갈라질 수 없게 했고, 호출은 <code>applyFavStars()</code> 끝이라 로그인 후 서버 재렌더에도 다시 시도한다. <code>_routes.py</code> 표를 프런트에 복제하지 않았으므로 <strong>앞으로 라우트가 또 바뀌어도 같은 방식으로 따라간다.</strong> 검증: 로컬 5케이스(이관·무변경·중복병합·미매칭 보존·도구 무변경) + 멱등(반복 호출 시 추가 저장 0회) + 라이브 실측(3건→2건, 칩 2·★ 2 점등). REQ-0013 「잔여」의 후속</td>
+<td>최동혁(+Claude)</td>
+</tr>
+<tr>
+<td>2026-08-21</td>
+<td>포털</td>
 <td><code>04_챗봇_포털_데모UI.html</code> · <code>JEIL_AX_포털데모_통합본.html</code> · <code>.backlog/3-done/REQ-0013</code> (커밋 <code>5be4b0a</code>)</td>
 <td><strong>상단 즐겨찾기가 새로고침 후 사라지던 결함 수정(REQ-0013).</strong> 사용자 증상은 "즐겨찾기 저장이 안 된다"였지만, 실측 결과 <strong>저장은 정상</strong>(<code>localStorage jeilax_fav_v1</code> 에 값 존재)이고 <strong>다시 읽는 쪽이 비어 있었다</strong>. 원인은 초기화 순서 — 초기화 IIFE <code>teamsBoot</code>(L1607~1653)가 즐겨찾기 블록보다 <strong>위에서</strong> <code>renderDashline()</code>·<code>applyFavStars()</code>를 부르는데, 저장 키가 <code>var FAV_KEY</code>(L1680)로 선언돼 그 시점엔 호이스팅된 <code>undefined</code> 였다 → <code>localStorage.getItem(undefined)</code> 로 키 <code>"undefined"</code> 를 조회해 <strong>항상 빈 목록</strong>을 읽었다. 함수 선언은 호이스팅되므로 오류 없이 "빈 즐겨찾기"만 그려져 증상이 저장 실패처럼 보였다. 조치는 저장 키를 <strong>호이스팅되는 함수 선언 <code>favKey()</code></strong> 로 바꾼 최소 수정 — 키 이름·저장 포맷은 그대로라 이미 저장돼 있던 값이 그대로 되살아난다. 라이브 실측 검증: 등록 2건 → 새로고침 → 칩 2개·★ 2개 유지 → 해제 → 안내문 복귀. <strong>잔여</strong>: 즐겨찾기 키가 카드 <code>href</code> 라서 08-20 클린 라우트 개편 이전에 저장된 항목은 구 <code>.html</code> 경로를 갖는다(칩은 리다이렉트로 열리나 카드 ★ 표시는 안 켜짐) — 경로 정규화는 별도 요청</td>
 <td>최동혁(+Claude)</td>
