@@ -93,6 +93,16 @@
   .sumbar.ok .st{color:var(--green);}
   .sumbar.bad{background:#fdeeec; border-color:#f2c4be;}
   .sumbar.bad .st{color:var(--red);}
+  /* 총액 1칸 배분(REQ-0012) — 합계 바 안에 둔다. 합계를 보면서 넣는 값이라 자리가 여기다. */
+  .sumbar .totbox{display:flex; align-items:center; gap:7px; flex-wrap:wrap;
+                  padding-left:20px; border-left:1.5px solid var(--line);}
+  .sumbar .totbox label{font-size:12px; color:var(--muted); font-weight:700;}
+  .sumbar .totbox input{width:130px; padding:6px 9px; border:1.5px solid var(--line); border-radius:7px;
+                        font-family:inherit; font-size:14px; font-weight:700; text-align:right;
+                        font-variant-numeric:tabular-nums; background:#fff; color:var(--navy);}
+  .sumbar .totbox input:focus{outline:none; border-color:var(--accent);}
+  .sumbar .totbox .hint{font-size:11px; color:var(--muted); flex-basis:100%;}
+  @media (max-width:640px){ .sumbar .totbox{padding-left:0; border-left:none; width:100%;} }
   /* 버튼 */
   .btns{display:flex; gap:9px; flex-wrap:wrap; margin-top:15px;}
   /* 버튼 글자는 절대 줄바꿈하지 않는다 — 좁은 표 칸에서 '복 사'처럼 두 줄로 접히던 문제 */
@@ -538,6 +548,12 @@
         <div class="sumbar" id="sumbar">
           <div class="it">차변 합계<b id="sumDr">0</b></div>
           <div class="it">대변 합계<b id="sumCr">0</b></div>
+          <div class="totbox">
+            <label for="formTotal">총액</label>
+            <input type="text" id="formTotal" placeholder="예: 1,100,000" inputmode="numeric" autocomplete="off">
+            <button class="b gh sm" id="btnSpreadTotal" type="button">배분</button>
+            <span class="hint">빈 금액 칸에만 나눠 넣습니다 — 이미 넣은 금액은 그대로 둡니다</span>
+          </div>
           <div class="st" id="sumSt">—</div>
         </div>
         <div class="btns">
@@ -2115,11 +2131,110 @@ $("btnFillDiff").onclick = ()=>{
   target.item_amt = String(need); setRows(rs); toast(won(need)+"원을 채웠습니다.");
 };
 
+/* ═══ 총액 1칸 → 서식 금액 배분 (REQ-0012 · A안) ═══
+   템플릿의 spreadAmounts() 는 줄마다 금액 규칙(입력/비율/고정/차액)이 정의돼 있어야 돌아간다.
+   서식 행에는 그 메타가 없다. 그래서 규칙을 데이터에서 읽는 대신 화면 상태에서 읽는다 —
+   **사용자가 이미 넣은 금액 = 고정**, **빈 칸 = 나눠 받을 자리**.
+   차변·대변은 각각 총액이 되어야 하므로 방향별로 따로 계산한다(결과적으로 차대가 맞는다).
+   부가세 라인은 다른 줄과 똑같이 나누면 안 된다 — 총액은 공급가액+세액이라 세율로 먼저 가른다
+   (이 처리를 빠뜨려 총액이 줄던 결함이 REQ-0004 였다). */
+function spreadFormTotal(total){
+  const rs = rows();
+  const has = (r)=> numAmt(r.item_amt) > 0;
+  const res = { filled:0, kept:0, approx:0, noDir:0, over:[], noBlank:true };
+
+  rs.forEach((r)=>{ if(has(r)) res.kept++; });
+  // 계정은 골랐는데 차/대변이 안 정해진 줄 — 어디에 넣을지 알 수 없으므로 건드리지 않고 알린다
+  rs.forEach((r)=>{
+    if(String(r.acct_cd||"").trim() && r.dr_cr_fg !== "D" && r.dr_cr_fg !== "C" && !has(r)) res.noDir++;
+  });
+
+  const setAmt = (r, v, why)=>{
+    r.item_amt = String(v);
+    r.__amtApprox = !!why;
+    r.__amtApproxWhy = why || "";
+    res.filled++; if(why) res.approx++;
+  };
+
+  ["D","C"].forEach((dir)=>{
+    const dirRows = rs.filter((r)=> r.dr_cr_fg === dir);
+    if(!dirRows.length) return;
+    // 금액이 없고 계정이 정해진 줄만 채운다(계정 없는 줄은 ERP에 못 올린다)
+    let blanks = dirRows.filter((r)=> !has(r) && String(r.acct_cd||"").trim());
+    if(!blanks.length) return;                 // 이 방향은 사용자가 이미 다 채웠다
+    res.noBlank = false;
+
+    let rest = total - dirRows.filter(has).reduce((a,r)=> a + numAmt(r.item_amt), 0);
+    if(!(rest > 0)){ res.over.push(dir === "D" ? "차변" : "대변"); return; }
+
+    // ── 부가세 우선 분리 ──
+    const vatLine = blanks.find((x)=> String(x.acct_cd||"").trim() === VAT_ACCT_CD);
+    if(dir === "D" && vatLine && blanks.length > 1){
+      const rate = vatRateFor(vatLine.__ctrl && vatLine.__ctrl.V4);
+      if(rate != null){
+        // 영세율·계산서(0%)면 세액은 0이고 공급가액이 남은 금액 전부다
+        const supply = rate > 0 ? Math.round(rest / (1 + rate)) : rest;
+        const tax = rest - supply;             // 잔액을 세액이 흡수 — 총액 보존
+        // 나눗셈이 정수로 안 떨어지면 원 단위를 조정한 추정값이다(곱셈으로 되짚으면 오차가 숨는다)
+        const approx = rate > 0 && Math.abs(rest / (1 + rate) - supply) > 1e-6;
+        setAmt(vatLine, tax, approx ? "총액을 세율로 나누며 원 단위를 조정한 값" : "");
+        vatLine.__ctrl = vatLine.__ctrl || {};
+        vatLine.__ctrl.V1 = won(supply);       // 공급가액·세액 관리항목도 함께 맞춘다(C-14와 동일)
+        vatLine.__ctrl.V8 = won(tax);
+        blanks = blanks.filter((x)=> x !== vatLine);
+        rest = supply;                         // 남은 비용 줄은 공급가액을 나눠 갖는다
+        if(!blanks.length) return;
+      }
+    }
+
+    if(blanks.length === 1){ setAmt(blanks[0], rest, ""); return; }   // 혼자면 나눌 것이 없다
+    let acc = 0;
+    blanks.forEach((r, i)=>{
+      const v = (i === blanks.length - 1) ? rest - acc : Math.round(rest / blanks.length);
+      acc += v;
+      setAmt(r, v, "균등하게 나눈 값");
+    });
+  });
+
+  setRows(rs);
+  return res;
+}
+
+$("btnSpreadTotal").onclick = ()=>{
+  const total = numAmt($("formTotal").value);
+  if(!(total > 0)){ toast("총액을 원 단위 정수로 입력하세요.", true); $("formTotal").focus(); return; }
+  const r = spreadFormTotal(total);
+  if(r.noBlank && !r.filled){
+    toast("빈 금액 칸이 없습니다. 다시 나누려면 해당 칸을 비우고 눌러 주세요.", true); return;
+  }
+  if(!r.filled){
+    toast("나눠 넣을 칸을 찾지 못했습니다"
+      + (r.over.length ? " — 이미 넣은 "+r.over.join("·")+" 금액이 총액을 넘습니다." : ".") , true);
+    return;
+  }
+  const msg = [won(total)+"원을 "+r.filled+"칸에 나눴습니다"];
+  if(r.kept)  msg.push("이미 넣은 "+r.kept+"칸은 그대로 뒀습니다");
+  if(r.approx)msg.push("나눈 값 "+r.approx+"칸은 '확인 필요' — 증빙과 대조하세요");
+  if(r.noDir) msg.push("차/대변이 정해지지 않은 "+r.noDir+"칸은 제외했습니다");
+  if(r.over.length) msg.push("이미 넣은 "+r.over.join("·")+" 금액이 총액을 넘어 건너뛰었습니다");
+  toast(msg.join(" · "), r.over.length > 0);
+};
+// 총액 칸에서 Enter — 금액 칸처럼 바로 적용된다(버튼까지 마우스로 갈 필요 없이)
+$("formTotal").addEventListener("keydown", (e)=>{
+  if(e.key === "Enter"){ e.preventDefault(); $("btnSpreadTotal").click(); }
+});
+// 천 단위 구분 표시 — 입력 중에도 자릿수를 눈으로 확인할 수 있게
+$("formTotal").addEventListener("blur", ()=>{
+  const n = numAmt($("formTotal").value);
+  $("formTotal").value = n > 0 ? won(n) : "";
+});
+
 /* ═══ 작성 동작 ═══ */
 function newDraft(){
   CURRENT_NO = null; $("editingNo").textContent = "";
   CURRENT_TPL = null; PREV_SNAP = null;
   $("fDesc").value = ""; $("fProj").value = ""; HDR_PROJ_PREV = ""; syncProjLabel();
+  $("formTotal").value = "";          // 총액 배분 칸도 비운다 — 이전 전표 금액이 남으면 오배분된다
   // 부서 기준 코스트센터는 처음부터 넣어 둔다(프로젝트는 새 전표라 아직 비어 있다)
   const cc = $("fCost").value || "", pj = $("fProj").value || "";
   setRows([{ dr_cr_fg:"D", acct_cd:"", item_amt:"", item_desc:"", cost_cd:cc, project_no:pj },
