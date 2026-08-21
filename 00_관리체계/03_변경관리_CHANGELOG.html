@@ -108,6 +108,13 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 </thead>
 <tbody>
 <tr>
+<td>2026-08-21</td>
+<td>회계</td>
+<td><code>pages/자금_결의전표_입력_2026.html</code> · <code>.backlog/3-done/REQ-0012</code> (커밋 <code>95eb2de</code>)</td>
+<td><strong>전표 서식에도 총액 1칸 배분 신설(REQ-0012, A안).</strong> 총액 1칸으로 금액을 채우는 기능은 템플릿 적용 경로에만 있었다. 서식에는 총액 칸이 없어 줄마다 직접 넣어야 했고, 대체 수단 둘은 조건이 좁았다 — [선택 행에 차액 채우기]는 나머지가 이미 채워져 있어야 하고, 부가세 자동계산(C-14)은 <strong>부가세 1줄+비용 1줄+대변 1줄</strong>일 때만 작동한다(<code>vatCtx().one</code>). 즉 <strong>차변이 두 줄 이상이면 서식에서 총액으로 채울 방법이 없었다.</strong> 템플릿 엔진 <code>spreadAmounts()</code>는 줄마다 금액 규칙(입력/비율/고정/차액)이 정의돼 있어야 도는데 서식 행에는 그 메타가 없다 — 그래서 규칙을 <strong>데이터가 아니라 화면 상태에서 읽는</strong> 별도 함수 <code>spreadFormTotal()</code>을 신설했다(<strong>사용자가 이미 넣은 금액 = 고정, 빈 칸 = 나눠 받을 자리</strong>). 규칙: ①기입력 금액은 덮지 않고 방향별로 (총액−고정합계)만 나눈다 ②부가세 라인은 <strong>세율로 먼저 가른다</strong>(총액=공급가액+세액 — 이 처리를 빠뜨려 총액이 줄던 것이 REQ-0004 결함) 후 V1·V8 관리항목도 동기 ③남은 빈 줄은 균등 배분하고 <strong>마지막 줄이 잔액을 흡수</strong>해 합계 오차 0 ④나눈 값·원단위 조정분은 <strong>'확인 필요'</strong> 표시(사용자가 고치면 걷힘) ⑤계정 없는 줄·차대 미정 줄은 건드리지 않고 몇 칸을 제외했는지 알린다. <strong>템플릿 경로는 무변경</strong>(REQ-0002·0004 회귀 방지). 검증: jsdom <strong>148건 전건 통과</strong>(기존 125 + 신규 23). 라이브 <code>/work/voucher</code> 반영 확인</td>
+<td>최동혁(+Claude)</td>
+</tr>
+<tr>
 <td>2026-08-20</td>
 <td>전영역·거버넌스</td>
 <td><code>_routes.py</code>·<code>_build_routes.py</code>(신규) · <code>vercel.json</code>(신규) · HTML/MD 74개 파일 내부 링크 627곳 · 빌더 4종(<code>lib/_html_builder.py</code>·<code>08/03</code>·<code>그리드</code>·<code>_build_bundle.py</code>) · <code>pages/_access-gate.js</code> · DB <code>public.portal_page.path</code> 10건 · <code>실제구축준비 자료/이관/sql/28_portal_page_clean_url.sql</code>(신규)</td>
