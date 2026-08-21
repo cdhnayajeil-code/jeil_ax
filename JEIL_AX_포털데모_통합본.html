@@ -1677,9 +1677,12 @@ function setGbNav(key){
 /* ===== 즐겨찾기 — 상단 대시보드 라인 =====
    등록 위치 2곳: ① 사이드바 추천 업무 도구(도구 실행) ② 사내 운영 페이지 카드(페이지 열기).
    저장: localStorage 'jeilax_fav_v1' — 데모 한정(실구축 시 백엔드 사용자 설정으로 대체). */
-var FAV_KEY = 'jeilax_fav_v1';
-function favList(){ try{ var v = JSON.parse(localStorage.getItem(FAV_KEY)||'[]'); return Array.isArray(v)?v:[]; }catch(e){ return []; } }
-function favSave(list){ try{ localStorage.setItem(FAV_KEY, JSON.stringify(list)); }catch(e){} renderDashline(); refreshFavMarks(); }
+/* 저장 키는 함수로 둔다(호이스팅) — 초기화 IIFE(teamsBoot)가 이 블록보다 위에서
+   renderDashline()·applyFavStars()를 호출하므로, `var FAV_KEY` 로 두면 그 시점엔
+   undefined 라 localStorage 키를 놓쳐 저장분이 없는 것처럼 보인다(2026-08-21 수정). */
+function favKey(){ return 'jeilax_fav_v1'; }
+function favList(){ try{ var v = JSON.parse(localStorage.getItem(favKey())||'[]'); return Array.isArray(v)?v:[]; }catch(e){ return []; } }
+function favSave(list){ try{ localStorage.setItem(favKey(), JSON.stringify(list)); }catch(e){} renderDashline(); refreshFavMarks(); }
 function favHas(type, key){ return favList().some(function(f){ return f.t===type && f.k===key; }); }
 function favToggle(type, key, label, icon){
   var list = favList();
