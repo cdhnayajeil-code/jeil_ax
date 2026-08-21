@@ -109,6 +109,13 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <tbody>
 <tr>
 <td>2026-08-21</td>
+<td>포털</td>
+<td><code>04_챗봇_포털_데모UI.html</code> · <code>JEIL_AX_포털데모_통합본.html</code> · <code>.backlog/3-done/REQ-0013</code> (커밋 <code>5be4b0a</code>)</td>
+<td><strong>상단 즐겨찾기가 새로고침 후 사라지던 결함 수정(REQ-0013).</strong> 사용자 증상은 "즐겨찾기 저장이 안 된다"였지만, 실측 결과 <strong>저장은 정상</strong>(<code>localStorage jeilax_fav_v1</code> 에 값 존재)이고 <strong>다시 읽는 쪽이 비어 있었다</strong>. 원인은 초기화 순서 — 초기화 IIFE <code>teamsBoot</code>(L1607~1653)가 즐겨찾기 블록보다 <strong>위에서</strong> <code>renderDashline()</code>·<code>applyFavStars()</code>를 부르는데, 저장 키가 <code>var FAV_KEY</code>(L1680)로 선언돼 그 시점엔 호이스팅된 <code>undefined</code> 였다 → <code>localStorage.getItem(undefined)</code> 로 키 <code>"undefined"</code> 를 조회해 <strong>항상 빈 목록</strong>을 읽었다. 함수 선언은 호이스팅되므로 오류 없이 "빈 즐겨찾기"만 그려져 증상이 저장 실패처럼 보였다. 조치는 저장 키를 <strong>호이스팅되는 함수 선언 <code>favKey()</code></strong> 로 바꾼 최소 수정 — 키 이름·저장 포맷은 그대로라 이미 저장돼 있던 값이 그대로 되살아난다. 라이브 실측 검증: 등록 2건 → 새로고침 → 칩 2개·★ 2개 유지 → 해제 → 안내문 복귀. <strong>잔여</strong>: 즐겨찾기 키가 카드 <code>href</code> 라서 08-20 클린 라우트 개편 이전에 저장된 항목은 구 <code>.html</code> 경로를 갖는다(칩은 리다이렉트로 열리나 카드 ★ 표시는 안 켜짐) — 경로 정규화는 별도 요청</td>
+<td>최동혁(+Claude)</td>
+</tr>
+<tr>
+<td>2026-08-21</td>
 <td>회계</td>
 <td><code>pages/자금_결의전표_입력_2026.html</code> · <code>.backlog/3-done/REQ-0012</code> (커밋 <code>95eb2de</code>)</td>
 <td><strong>전표 서식에도 총액 1칸 배분 신설(REQ-0012, A안).</strong> 총액 1칸으로 금액을 채우는 기능은 템플릿 적용 경로에만 있었다. 서식에는 총액 칸이 없어 줄마다 직접 넣어야 했고, 대체 수단 둘은 조건이 좁았다 — [선택 행에 차액 채우기]는 나머지가 이미 채워져 있어야 하고, 부가세 자동계산(C-14)은 <strong>부가세 1줄+비용 1줄+대변 1줄</strong>일 때만 작동한다(<code>vatCtx().one</code>). 즉 <strong>차변이 두 줄 이상이면 서식에서 총액으로 채울 방법이 없었다.</strong> 템플릿 엔진 <code>spreadAmounts()</code>는 줄마다 금액 규칙(입력/비율/고정/차액)이 정의돼 있어야 도는데 서식 행에는 그 메타가 없다 — 그래서 규칙을 <strong>데이터가 아니라 화면 상태에서 읽는</strong> 별도 함수 <code>spreadFormTotal()</code>을 신설했다(<strong>사용자가 이미 넣은 금액 = 고정, 빈 칸 = 나눠 받을 자리</strong>). 규칙: ①기입력 금액은 덮지 않고 방향별로 (총액−고정합계)만 나눈다 ②부가세 라인은 <strong>세율로 먼저 가른다</strong>(총액=공급가액+세액 — 이 처리를 빠뜨려 총액이 줄던 것이 REQ-0004 결함) 후 V1·V8 관리항목도 동기 ③남은 빈 줄은 균등 배분하고 <strong>마지막 줄이 잔액을 흡수</strong>해 합계 오차 0 ④나눈 값·원단위 조정분은 <strong>'확인 필요'</strong> 표시(사용자가 고치면 걷힘) ⑤계정 없는 줄·차대 미정 줄은 건드리지 않고 몇 칸을 제외했는지 알린다. <strong>템플릿 경로는 무변경</strong>(REQ-0002·0004 회귀 방지). 검증: jsdom <strong>148건 전건 통과</strong>(기존 125 + 신규 23). 라이브 <code>/work/voucher</code> 반영 확인</td>
