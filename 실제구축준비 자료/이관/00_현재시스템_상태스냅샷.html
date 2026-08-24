@@ -81,6 +81,11 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <td>데모는 단일 파일 자기완결</td>
 </tr>
 <tr>
+<td><strong>결의전표 릴레이</strong></td>
+<td><strong>ERP 운영 서버 상시 실행</strong>(작업 스케줄러 1분 · 1회 최대 5건, 2026-08-24~)</td>
+<td>종전 워크스테이션 수동 실행 → 이전. 단일 EXE <code>gl_relay.exe</code>(서버에 파이썬 미설치), 배포 루트 <code>E:\ai.jeil\</code>, 실행 계정 ADMIN. 대상 DB <code>JEILMNS_DEMO2</code> 하드코딩(운영 쓰기는 C-1 유지). 배포·변경 절차는 <code>10_ERP_DB연계/etl/deploy/</code>(README·변경관리 런북)</td>
+</tr>
+<tr>
 <td><strong>공개 URL</strong></td>
 <td><strong>클린 라우트 97개 가동</strong>(2026-08-20) — <code>/main</code> · <code>/work/…</code> · <code>/admin/…</code> · <code>/vendor/…</code> · <code>/survey/…</code> · <code>/docs/…</code> · <code>/demo/…</code> · <code>/tools/…</code></td>
 <td>정본 <code>_routes.py</code> → <code>python _build_routes.py --write</code> 가 <code>vercel.json</code>(리라이트 97 + 307 리다이렉트 97) 생성. 파일은 그대로 두고 주소만 분리 — 구 <code>.html</code> 주소는 새 주소로 자동 수렴. 규약 <code>CLAUDE.md §15</code></td>
@@ -506,6 +511,11 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 </tr>
 </thead>
 <tbody>
+<tr>
+<td>2026-08-24</td>
+<td><strong>결의전표 전송 릴레이를 ERP 운영 서버 상시 실행으로 이전</strong>(커밋 <code>295c801</code>·<code>627f1bb</code>) — 화면에서 [ERP 전송]을 눌러도 사람이 스크립트를 손으로 돌려야만 ERP에 들어가던 구조였고, 마지막 수동 실행(08-20) 이후 4건이 적체됐다. <strong>실패가 아니라 미시도</strong>임을 실측 확인(<code>erp_apply_msg</code> 공란·<code>erp_apply_at</code> null·적용 원장 기록 0, 큐 RPC는 정상 반환). 기획서 §D2-a 「상시 가동 장비 지정 필수」 미이행분 해소. ERP 서버 실측으로 배치 가능 확인(Supabase 아웃바운드 443 통과·ODBC 17 존재·DEMO2 동일 인스턴스·외부 의존 <code>pyodbc</code> 하나). 벤더 운영 장비라 <strong>PyInstaller 단일 EXE</strong>로 배포해 파이썬을 설치하지 않는다. <code>relay.cmd</code>에서 실측으로 결함 3건(한글 배치 파싱 깨짐·괄호 블록 <code>%ERRORLEVEL%</code> 오독으로 실패가 성공 보고·<code>Get-Date</code> 포맷 공백)을 잡아 재작성했고, <code>.ps1</code>은 PowerShell 5.1 대응으로 UTF-8 BOM 저장. 서버·접속정보 변경 절차는 <code>변경관리.md</code> 런북으로 문서화. 적체 4건 중 3건 전송 성공(<code>AG202608180001</code>·<code>AG202608180002</code>·<code>AG202608240001</code>), 1건은 계정 <code>21100902</code> 분개코드 미결정으로 fail-closed(회계팀 매핑 등재 대상)</td>
+<td>최동혁(+Claude)</td>
+</tr>
 <tr>
 <td>2026-08-20</td>
 <td><strong>공개 URL 클린 라우트 전면 개편 — 파일명과 주소 분리(라우트 97개 가동)</strong>(<code>_routes.py</code>·<code>_build_routes.py</code>·<code>vercel.json</code> 신규, 정본 SQL <code>이관/sql/28_portal_page_clean_url.sql</code>) — 라이브 주소가 파일명 그대로여서 한글이 <code>%EC%9E%90%EA%B8%88…</code>로 깨져 보이고 번호 접두(<code>04_</code>)·<code>.html</code> 확장자가 노출되던 것을 해소했다. <strong>파일은 하나도 옮기지 않고</strong>(git 이력·빌더 경로 보존) 주소 계층만 얹었다 — <code>pages/자금_결의전표_입력_2026.html</code> → <strong><code>/work/voucher</code></strong>, <code>04_챗봇_포털_데모UI.html</code> → <strong><code>/main</code></strong>. 라우트 정본은 <code>_routes.py</code> 한 곳이고 <code>python _build_routes.py --write</code> 가 <code>vercel.json</code>을 재생성하면서 문서·화면 내부 링크 <strong>627곳을 일괄 치환</strong>했다(미매핑 0). MD→HTML 빌더 4종이 같은 표를 참조하므로 <strong>재빌드해도 옛 파일명으로 되돌아가지 않는다</strong>. <strong>Vercel 실측으로 확정된 표기 규칙</strong>(둘이 서로 다르다): 리라이트 <code>destination</code>은 <strong>원문(비인코딩)·확장자 제거</strong>(퍼센트 인코딩하면 정적 파일 매칭 실패), 리다이렉트 <code>source</code>는 <strong>퍼센트 인코딩</strong>(원문이면 한글 경로 미매칭), 허브는 <code>/폴더/index</code>가 아니라 <code>/폴더</code>. 구 주소 97개는 307 리다이렉트로 새 주소에 <strong>전건 수렴 확인</strong>(라이브 검증 97/97, 클린 라우트 97/97 200). 함께 처리 — 경로 깊이 변화로 깨지는 상대경로 자산(<code>_access-gate.js</code>·<code>grid.js/css</code>·<code>config.js</code>) 11개 화면을 루트 절대경로로 전환, 로그인 후 카드 경로 정본인 <strong>DB <code>portal_page.path</code> 10건</strong> 갱신, 포털에 카드가 없어 URL 직접 입력으로만 열리던 <strong>결의전표 입력 카드</strong> 추가. 규약 <code>CLAUDE.md §15</code> · <code>00_관리체계/02_명명규칙_폴더규약 §2.5</code></td>
