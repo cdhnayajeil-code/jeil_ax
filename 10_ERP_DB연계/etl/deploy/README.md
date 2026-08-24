@@ -183,6 +183,7 @@ python 10_ERP_DB연계\etl\deploy\build_exe.py
 | 선점 | `gl_apply_claim`(`FOR UPDATE SKIP LOCKED`) — 러너를 둘 띄워도 한 초안은 하나만 |
 | 멱등 3중 | `A_BATCH.REF_NO` · `A_TEMP_GL.REF_NO` 선조회 + 포털 원장 유니크 |
 | 완전대조 | 투입 후 `A_TEMP_GL` 되읽어 라인 1:1 비교, 불일치면 **ROLLBACK** |
+| **서브원장** | 엔진 뒤에 `usp_a_create_temp_gl_subsys` 를 **같은 트랜잭션**에서 호출 — 채무(`A_OPEN_AP`)·부가세(`A_VAT`) 생성 + 연결번호(`SUBSYS_NO`) 역기록. 실패하거나 연결번호가 비면 전표 생성까지 **ROLLBACK** |
 | 회수 | 죽은 러너가 `sending` 에 가둔 건을 30분 뒤 자동 반납(`gl_apply_reclaim`) |
 | 처리 상한 | `--max 5` (1회) |
 | 감사 | `gl_erp_apply_log` (mode·status·detail) |

@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>개발요청 — AX 전표 서브원장 SP 호출 추가</title>
+<style>
+:root{
+  color-scheme: light;
+  --surface-1:#fcfcfb; --plane:#f9f9f7;
+  --ink:#0b0b0b; --ink-2:#52514e; --ink-muted:#898781;
+  --grid:#e1e0d9; --axis:#c3c2b7; --border:rgba(11,11,11,0.10);
+  --s1:#2a78d6; --s2:#eb6834; --s3:#1baf7a; --s4:#eda100;
+  --good:#0ca30c; --warning:#fab219; --serious:#ec835a; --critical:#d03b3b;
+  --nodeBg:#ffffff; --nodeAlt:#f2f1ec;
+}
+@media (prefers-color-scheme: dark){
+  :root:where(:not([data-theme="light"])){
+    color-scheme: dark;
+    --surface-1:#1a1a19; --plane:#0d0d0d;
+    --ink:#ffffff; --ink-2:#c3c2b7; --ink-muted:#898781;
+    --grid:#2c2c2a; --axis:#383835; --border:rgba(255,255,255,0.10);
+    --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500;
+    --nodeBg:#232322; --nodeAlt:#2c2c2a;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme: dark;
+  --surface-1:#1a1a19; --plane:#0d0d0d;
+  --ink:#ffffff; --ink-2:#c3c2b7; --ink-muted:#898781;
+  --grid:#2c2c2a; --axis:#383835; --border:rgba(255,255,255,0.10);
+  --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500;
+  --nodeBg:#232322; --nodeAlt:#2c2c2a;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--plane);color:var(--ink);
+  font-family:system-ui,-apple-system,"Segoe UI","Malgun Gothic",sans-serif;
+  font-size:14px;line-height:1.65}
+.wrap{max-width:1120px;margin:0 auto;padding:32px 20px 80px}
+header{border-bottom:2px solid var(--s1);padding-bottom:16px;margin-bottom:8px}
+header .kicker{font-size:12px;font-weight:700;color:var(--s1);letter-spacing:.08em;margin-bottom:6px}
+header h1{font-size:25px;margin:0 0 10px;letter-spacing:-0.01em}
+.meta{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:6px 20px;font-size:12.5px;color:var(--ink-2)}
+.meta b{color:var(--ink);font-weight:650}
+.tabs{display:flex;gap:4px;margin:24px 0 20px;border-bottom:1px solid var(--grid);flex-wrap:wrap}
+.tabs button{background:none;border:0;border-bottom:2px solid transparent;
+  padding:10px 14px;font:inherit;font-weight:600;color:var(--ink-muted);cursor:pointer}
+.tabs button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--s1)}
+.panel{display:none}
+.panel.on{display:block}
+.card{background:var(--surface-1);border:1px solid var(--border);border-radius:10px;
+  padding:20px;margin-bottom:18px}
+.card h2{font-size:16px;margin:0 0 4px}
+.card h3{font-size:14px;margin:20px 0 6px}
+.card .cap{color:var(--ink-2);font-size:12.5px;margin:0 0 16px}
+.ask{background:color-mix(in srgb, var(--s1) 8%, transparent);
+  border:1px solid color-mix(in srgb, var(--s1) 35%, transparent);
+  border-radius:10px;padding:18px 20px;margin-bottom:18px}
+.ask h2{margin:0 0 8px;font-size:17px}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:18px}
+.tile{background:var(--surface-1);border:1px solid var(--border);border-radius:10px;padding:14px 16px}
+.tile .lab{font-size:12px;color:var(--ink-2);margin-bottom:4px}
+.tile .val{font-size:24px;font-weight:650;letter-spacing:-0.02em;font-variant-numeric:tabular-nums}
+.tile .note{font-size:11.5px;color:var(--ink-muted);margin-top:2px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--grid);vertical-align:top}
+th{color:var(--ink-2);font-weight:600;font-size:12px;white-space:nowrap}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+td.c,th.c{text-align:center}
+.scroll{overflow-x:auto}
+code{background:var(--plane);border:1px solid var(--border);border-radius:4px;padding:1px 5px;
+  font-size:12.5px;font-family:ui-monospace,Consolas,"Courier New",monospace}
+pre{background:var(--plane);border:1px solid var(--border);border-radius:8px;padding:14px;
+  overflow-x:auto;font-size:12.5px;line-height:1.55;
+  font-family:ui-monospace,Consolas,"Courier New",monospace}
+pre .hl{color:var(--critical);font-weight:700}
+pre .ok2{color:var(--good);font-weight:700}
+pre .cm{color:var(--ink-muted)}
+.warn{border-left:3px solid var(--warning);padding-left:12px;color:var(--ink-2);font-size:13px;margin:12px 0}
+.stop{border-left:3px solid var(--critical);padding-left:12px;color:var(--ink-2);font-size:13px;margin:12px 0}
+.ok{border-left:3px solid var(--good);padding-left:12px;color:var(--ink-2);font-size:13px;margin:12px 0}
+.pill{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:700;
+  border:1px solid var(--border);border-radius:99px;padding:1px 9px;white-space:nowrap}
+.pA{color:var(--good)} .pB{color:var(--serious)} .pC{color:var(--critical)} .pN{color:var(--ink-muted)}
+.duo{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px}
+.box{background:var(--surface-1);border:1px solid var(--border);border-radius:10px;padding:16px}
+.box h4{margin:0 0 8px;font-size:13.5px}
+ul.tight{margin:6px 0;padding-left:18px}
+ul.tight li{margin-bottom:5px}
+blockquote{margin:12px 0;padding:12px 16px;background:var(--plane);
+  border-left:3px solid var(--s1);border-radius:0 6px 6px 0;font-size:13px;color:var(--ink-2)}
+footer{color:var(--ink-muted);font-size:12px;margin-top:30px;border-top:1px solid var(--grid);padding-top:14px}
+figure{margin:0 0 6px}
+figcaption{font-size:12px;color:var(--ink-muted);margin-top:8px;text-align:center}
+svg{display:block;max-width:100%;height:auto}
+svg text{font-family:system-ui,-apple-system,"Segoe UI","Malgun Gothic",sans-serif}
+svg .nb{fill:var(--nodeBg);stroke:var(--axis);stroke-width:1}
+svg .nba{fill:var(--nodeAlt);stroke:var(--axis);stroke-width:1}
+svg .t{fill:var(--ink);font-size:12px}
+svg .tb{fill:var(--ink);font-size:12.5px;font-weight:700}
+svg .ts{fill:var(--ink-2);font-size:10.5px}
+svg .tm{fill:var(--ink-muted);font-size:10px}
+svg .lnA{stroke:var(--s1);stroke-width:1.8;fill:none}
+svg .lnG{stroke:var(--good);stroke-width:2;fill:none}
+svg .lnR{stroke:var(--critical);stroke-width:2;fill:none;stroke-dasharray:5 4}
+svg .band{fill:var(--plane);stroke:var(--grid);stroke-width:1}
+.zero{color:var(--critical);font-weight:700}
+.gd{color:var(--good);font-weight:700}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <div class="kicker">개발 요청 · ERP_DB → JEIL_AX</div>
+  <h1>AX 전표 릴레이 — 서브원장 생성 SP 호출 추가</h1>
+  <div class="meta">
+    <div><b>발신</b> ERP_DB 작업환경 (최동혁)</div>
+    <div><b>수신</b> JEIL_AX 프로젝트 / 릴레이 개발 담당</div>
+    <div><b>작성</b> 2026-08-25</div>
+    <div><b>범위</b> 향후 생성분 정상화 — <b>소급 제외</b></div>
+    <div><b>배치 제안</b> <code>10_ERP_DB연계/13_…</code></div>
+    <div><b>난이도</b> 코드 1블록 · 데이터 보정 불필요</div>
+  </div>
+</header>
+
+<div class="tabs" role="tablist">
+  <button data-p="p1" aria-selected="true">요청 요약</button>
+  <button data-p="p2" aria-selected="false">현상 · 영향</button>
+  <button data-p="p3" aria-selected="false">원인</button>
+  <button data-p="p4" aria-selected="false">사전 확인</button>
+  <button data-p="p5" aria-selected="false">개발 명세</button>
+  <button data-p="p6" aria-selected="false">검증 절차</button>
+</div>
+
+<!-- ═══════ P1 요청 요약 ═══════ -->
+<section class="panel on" id="p1">
+  <div class="ask">
+    <h2>요청 한 줄</h2>
+    <p style="font-size:15px;line-height:1.75;margin:0">
+      릴레이가 ERP 전표 생성 엔진을 호출한 뒤,
+      <strong><code>USP_A_CREATE_TEMP_GL_SUBSYS</code> 를 한 번 더 호출</strong>하도록 추가해 주십시오.
+      <strong>코드 1블록</strong>이면 됩니다 — 데이터 보정이나 마스터 등록은 필요 없습니다.
+    </p>
+  </div>
+
+  <div class="tiles">
+    <div class="tile"><div class="lab">현재 채무 생성</div><div class="val zero">0행</div><div class="note">수기는 3,054행</div></div>
+    <div class="tile"><div class="lab">현재 부가세 생성</div><div class="val zero">0행</div><div class="note">수기는 2,519행</div></div>
+    <div class="tile"><div class="lab">사전 확인</div><div class="val gd">26 / 26</div><div class="note">SP 진입판정 전건 통과</div></div>
+    <div class="tile"><div class="lab">필요 작업</div><div class="val" style="font-size:17px">호출 1블록</div><div class="note">보정 작업 없음</div></div>
+  </div>
+
+  <div class="card">
+    <h2>요청 정리</h2>
+    <div class="scroll">
+    <table>
+      <tr><th class="num">#</th><th>요청</th><th class="c">우선</th></tr>
+      <tr><td class="num">1</td><td>릴레이에 <code>USP_A_CREATE_TEMP_GL_SUBSYS</code> 호출 추가</td><td class="c"><span class="pill pC">상</span></td></tr>
+      <tr><td class="num">2</td><td>엔진 호출과 <strong>동일 트랜잭션</strong> · 실패 시 전체 롤백</td><td class="c"><span class="pill pC">상</span></td></tr>
+      <tr><td class="num">3</td><td>DEMO2 새 전표 1건으로 검증</td><td class="c"><span class="pill pC">상</span></td></tr>
+      <tr><td class="num">4</td><td>실패 시 <code>@Msg_Cd</code> 를 <code>gl_erp_apply_log</code> 에 기록</td><td class="c"><span class="pill pB">중</span></td></tr>
+      <tr><td class="num">5</td><td>NULL vs 빈 문자열 표기 검토</td><td class="c"><span class="pill pN">하</span></td></tr>
+    </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>범위 밖 · 결정 사항</h2>
+    <div class="scroll">
+    <table>
+      <tr><th>항목</th><th>결정</th></tr>
+      <tr><td><strong>기존 13건 소급 처리</strong></td><td><strong>하지 않음</strong> (2026-08-25). DEMO2 테스트 데이터이므로 실해 없음</td></tr>
+      <tr><td>예산(<code>F_BDG_GL</code>) 반영</td><td>DEMO2 는 수기 전표도 0행이라 대조 불가. 운영 데이터로 별도 확인</td></tr>
+      <tr><td>승인 시 <code>GL_NO</code> 발급 주체</td><td>미특정. 벤더 질의 T-1 — 본 건과 무관</td></tr>
+      <tr><td>채권·선급·선수·가수금 원장</td><td>AX 전표에 해당 계정이 없어 미발생. 계정 확대 시 재확인</td></tr>
+    </table>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════ P2 현상 ═══════ -->
+<section class="panel" id="p2">
+  <div class="card">
+    <h2>전표는 완벽한데 원장이 안 생긴다</h2>
+    <p class="cap">릴레이 생성분 13건과 ERP 화면 수기 입력분을 대조한 결과다.</p>
+    <div class="scroll">
+    <table>
+      <tr><th>항목</th><th class="c">릴레이 생성분</th><th class="c">수기 입력분</th></tr>
+      <tr><td>전표 헤더 · 라인 (61컬럼)</td><td class="c gd">정상 · 누락 0</td><td class="c">정상</td></tr>
+      <tr><td>관리항목 전개</td><td class="c gd">정상 · 누락 0</td><td class="c">정상</td></tr>
+      <tr><td>정식장부 전기</td><td class="c gd">정상 · 라인 일치</td><td class="c">정상</td></tr>
+      <tr style="background:color-mix(in srgb, var(--critical) 8%, transparent)"><td><code>A_TEMP_GL_ITEM.SUBSYS_NO</code> 연결번호</td><td class="c zero">0 / 26</td><td class="c">5,483 / 5,483</td></tr>
+      <tr style="background:color-mix(in srgb, var(--critical) 8%, transparent)"><td><code>A_OPEN_AP</code> 채무</td><td class="c zero">0행</td><td class="c">3,054행</td></tr>
+      <tr style="background:color-mix(in srgb, var(--critical) 8%, transparent)"><td><code>A_VAT</code> 부가세</td><td class="c zero">0행</td><td class="c">2,519행</td></tr>
+    </table>
+    </div>
+    <div class="stop">
+      2025년 이후 ERP 정식전표의 서브원장 대상 라인 <strong>4,963건 중 연결번호가 빈 것은 8건뿐이고 전부 AX 전표</strong>다.
+      다른 예외는 없다.
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>업무 영향</h2>
+    <div class="scroll">
+    <table>
+      <tr><th>영역</th><th>영향</th><th class="c">심각도</th></tr>
+      <tr><td><strong>부가세 신고</strong></td><td>AX 전표의 매입세액이 <code>A_VAT</code> 에 없어 <strong>신고자료에서 누락</strong></td><td class="c"><span class="pill pC">높음</span></td></tr>
+      <tr><td><strong>채무 관리</strong></td><td>미지급금이 <code>A_OPEN_AP</code> 에 없어 <strong>지급·반제 대상에서 누락</strong>. 거래처별 잔액·연령분석에도 안 잡힘</td><td class="c"><span class="pill pC">높음</span></td></tr>
+      <tr><td>재무제표</td><td>전표는 장부에 정상 반영 → <strong>시산표·재무제표는 정상</strong></td><td class="c"><span class="pill pA">없음</span></td></tr>
+    </table>
+    </div>
+    <blockquote>
+      전표와 시산표가 멀쩡해서 <strong>겉으로 드러나지 않는 결손</strong>이다.
+      지금은 DEMO2 라 실해가 없지만 <strong>운영 전환 전 반드시 해소</strong>해야 한다.
+    </blockquote>
+  </div>
+</section>
+
+<!-- ═══════ P3 원인 ═══════ -->
+<section class="panel" id="p3">
+  <div class="card">
+    <h2>ERP 표준 연동과의 차이는 한 곳뿐</h2>
+    <p class="cap">법인카드 연동(<code>USP_ACC2103M1_KO174_BATCH_GW</code>)과 나란히 놓고 본 것이다.</p>
+
+    <figure>
+    <svg viewBox="0 0 1060 330" role="img" aria-label="법인카드 표준 연동과 AX 릴레이 호출 순서 비교">
+      <rect class="band" x="8" y="8" width="510" height="314" rx="8"/>
+      <rect class="band" x="542" y="8" width="510" height="314" rx="8"/>
+      <text class="tb" x="263" y="32" text-anchor="middle" style="fill:var(--good)">법인카드 (ERP 표준 · 정상)</text>
+      <text class="tb" x="797" y="32" text-anchor="middle" style="fill:var(--critical)">AX 릴레이 (현재)</text>
+
+      <rect class="nb" x="36" y="48" width="454" height="38" rx="6"/>
+      <text class="t" x="52" y="72">① 전표번호 채번</text>
+      <rect class="nb" x="36" y="94" width="454" height="38" rx="6"/>
+      <text class="t" x="52" y="118">② A_BATCH / _GL / _ITEM INSERT</text>
+      <rect class="nb" x="36" y="140" width="454" height="38" rx="6"/>
+      <text class="t" x="52" y="164">③ USP_A_CREATE_GL_BY_BATCH_01</text>
+      <rect class="nb" x="36" y="186" width="454" height="52" rx="6" style="stroke:var(--good);stroke-width:2.5"/>
+      <text class="tb" x="52" y="207" style="fill:var(--good)">④ USP_A_CREATE_TEMP_GL_SUBSYS</text>
+      <text class="ts" x="52" y="225">서브원장 생성 + 연결번호 기록</text>
+      <path class="lnG" d="M263 86 V92"/><path class="lnG" d="M263 132 V138"/><path class="lnG" d="M263 178 V184"/>
+      <rect class="nb" x="36" y="250" width="454" height="50" rx="6" style="stroke:var(--good);stroke-width:2"/>
+      <text class="tb" x="52" y="270" style="fill:var(--good)">채무 · 부가세 정상 반영</text>
+      <text class="ts" x="52" y="288">SUBSYS_NO = AP… / VT…</text>
+      <path class="lnG" d="M263 238 V248" marker-end="url(#mg)"/>
+
+      <rect class="nb" x="570" y="48" width="454" height="38" rx="6"/>
+      <text class="t" x="586" y="72">① 전표번호 직접 지정 (AG…)</text>
+      <rect class="nb" x="570" y="94" width="454" height="38" rx="6"/>
+      <text class="t" x="586" y="118">② A_BATCH / _GL / _ITEM INSERT — 동일</text>
+      <rect class="nb" x="570" y="140" width="454" height="38" rx="6"/>
+      <text class="t" x="586" y="164">③ USP_A_CREATE_GL_BY_BATCH_01 — 동일</text>
+      <rect class="nb" x="570" y="186" width="454" height="52" rx="6"
+            style="stroke:var(--critical);stroke-width:2.5;stroke-dasharray:6 4"/>
+      <text class="tb" x="586" y="208" style="fill:var(--critical)">④ ✗ 호출 없음 — 여기서 끝난다</text>
+      <text class="ts" x="586" y="226">★ 이 한 줄이 요청 내용</text>
+      <path class="lnA" d="M797 86 V92"/><path class="lnA" d="M797 132 V138"/><path class="lnA" d="M797 178 V184"/>
+      <rect class="nb" x="570" y="250" width="454" height="50" rx="6" style="stroke:var(--critical);stroke-width:2"/>
+      <text class="tb" x="586" y="270" style="fill:var(--critical)">채무 0행 · 부가세 0행</text>
+      <text class="ts" x="586" y="288">SUBSYS_NO = (공백) × 26</text>
+      <path class="lnR" d="M797 238 V248" marker-end="url(#mr)"/>
+
+      <defs>
+        <marker id="mg" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+          <path d="M0 0 L8 4 L0 8 z" fill="var(--good)"/></marker>
+        <marker id="mr" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+          <path d="M0 0 L8 4 L0 8 z" fill="var(--critical)"/></marker>
+      </defs>
+    </svg>
+    <figcaption>①②③ 은 동일하다. ④ 하나가 빠져서 결과가 갈린다.</figcaption>
+    </figure>
+
+    <div class="warn">
+      <strong>엔진(<code>USP_A_CREATE_GL_BY_BATCH_01</code>)은 서브원장을 만들지 않는다.</strong>
+      호출자가 별도로 불러야 하는 구조다.
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>빠진 SP 안에 무엇이 있나</h2>
+<pre><span class="cm">-- usp_a_create_temp_gl_subsys 본문 (요약)</span>
+DECLARE CUR_SUBSYS_MAKE CURSOR FOR
+SELECT A.TEMP_GL_NO, A.ITEM_SEQ, B.SUBSYS_TYPE, …
+  FROM A_TEMP_GL_ITEM A
+  JOIN A_ACCT     B ON A.ACCT_CD    = B.ACCT_CD
+  JOIN A_TEMP_GL  C ON A.TEMP_GL_NO = C.TEMP_GL_NO
+ WHERE ISNULL(B.SUBSYS_TYPE,'') &lt;&gt; ''
+   AND B.SUBSYS_TYPE NOT IN ('OC','OD')
+   AND A.TEMP_GL_NO = @GL_NO
+
+  → EXEC <span class="ok2">usp_A_Create_Sub_Ledger</span> …   <span class="cm">-- A_OPEN_AP · A_VAT 실제 INSERT</span>
+  → EXEC <span class="ok2">usp_z_auto_numbering</span> …      <span class="cm">-- 원장번호 채번 (AP… / VT…)</span>
+  → EXEC <span class="ok2">usp_f_create_budget</span> …       <span class="cm">-- 예산 반영</span>
+  → <span class="hl">UPDATE A_TEMP_GL_ITEM
+       SET SUBSYS_TYPE = @SUBSYS_TYPE,
+           SUBSYS_NO   = @SUBSYS_NO</span>      <span class="cm">-- 연결번호 역기록</span>
+     WHERE TEMP_GL_NO = @GL_NO AND ITEM_SEQ = @ITEM_SEQ</pre>
+  </div>
+
+  <div class="card">
+    <h2>승인 시점이 아니라 결의 생성 시점이다</h2>
+    <p class="cap">"승인하면 만들어지는 것 아닌가"를 확인해 두었다. <strong>아니다.</strong></p>
+    <div class="scroll">
+    <table>
+      <tr><th>근거</th><th>실측</th></tr>
+      <tr><td>수기 미승인 전표에도 원장이 있다</td><td><code>CONF_FG='U'</code> 상태에서 이미 채무 1~4행 존재</td></tr>
+      <tr><td>생성 시각이 결의 생성과 같다</td><td><code>TG202506120005</code> — 결의 <strong>08:52</strong>:25 / 부가세 08:52:00 / 채무 08:52:00</td></tr>
+      <tr><td>AX 전표는 승인해도 0행</td><td><code>AG202608240001~3</code> 화면 승인 → <code>GL202608240001~3</code> 전기됐으나 여전히 0행</td></tr>
+    </table>
+    </div>
+    <div class="stop">
+      <strong>결의 생성 시점에 만들어야 하며, 승인 경로가 대신 만들어 주지 않는다.</strong>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════ P4 사전 확인 ═══════ -->
+<section class="panel" id="p4">
+  <div class="card">
+    <h2>데이터 보정은 불필요하다</h2>
+    <p class="cap">호출만 추가하면 되는지, 데이터도 손봐야 하는지 미리 확인했다. <strong>호출만 추가하면 된다.</strong></p>
+
+    <h3>① 계정 마스터 속성 정상</h3>
+    <div class="scroll">
+    <table>
+      <tr><th>계정</th><th class="c">재무제표구분</th><th class="c">계정특성</th><th class="c">서브시스템</th></tr>
+      <tr><td><code>11103301</code> 부가세대급금</td><td class="c"><code>BS</code></td><td class="c"><code>VP</code></td><td class="c"><code>TP</code></td></tr>
+      <tr><td><code>21100901</code> 미지급금(거래처)</td><td class="c"><code>BS</code></td><td class="c"><code>J2</code></td><td class="c"><code>AP</code></td></tr>
+      <tr><td>경비계정 (<code>43…</code> <code>53…</code>)</td><td class="c"><code>MC</code> / <code>PL</code></td><td class="c">—</td><td class="c">— (대상 아님)</td></tr>
+    </table>
+    </div>
+    <p style="margin-top:8px"><code>21100901</code> 의 <code>ACCT_TYPE='J2'</code> 는 채무 생성 요건(<code>AP_POSTING_FG='J'</code>)을 만족한다.</p>
+
+    <h3>② 전표 라인에 서브시스템이 이미 정상 승계됨</h3>
+    <p>릴레이가 만든 26개 대상 라인 전부 <code>SUBSYS_TYPE</code> 이 <code>AP</code> / <code>TP</code> 로 올바르게 들어가 있다.
+    <strong>비어 있는 것은 <code>SUBSYS_NO</code>(연결번호) 하나뿐이다.</strong></p>
+
+    <h3>③ SP 진입 판정 26/26 통과</h3>
+    <p class="cap">SP 내부의 <code>A_OBJECT</code> 매칭 조건을 그대로 재현해 전 라인에 적용했다.</p>
+    <div class="scroll">
+    <table>
+      <tr><th>조합</th><th><code>A_OBJECT</code> 행</th><th>대상 원장</th><th class="num">라인수</th><th class="c">매칭</th></tr>
+      <tr><td><code>TG</code> × <code>AP</code> × <code>CR</code></td><td><code>TG-AP</code></td><td><code>A_OPEN_AP</code></td><td class="num">13</td><td class="c gd">✓</td></tr>
+      <tr><td><code>TG</code> × <code>TP</code> × <code>DR</code></td><td><code>TG-TP</code></td><td><code>A_VAT</code></td><td class="num">13</td><td class="c gd">✓</td></tr>
+    </table>
+    </div>
+    <p style="margin-top:8px">skip 되는 라인이 없다.</p>
+
+    <h3>④ SP 가 읽는 입력필드도 수기와 동등</h3>
+    <div class="scroll">
+    <table>
+      <tr><th>필드</th><th>용도</th><th>AX</th><th>수기</th></tr>
+      <tr><td><code>REF_NO</code> (라인)</td><td>서브원장 참조번호</td><td><code>DRAFT-20260824-0014</code></td><td><code>TG202506250002</code></td></tr>
+      <tr><td><code>ISSUED_DT</code> (라인)</td><td>부가세 채번 기준일</td><td>부가세라인 실제일 / AP라인 <code>1900-01-01</code></td><td>동일 패턴</td></tr>
+      <tr><td><code>VAT_TYPE</code></td><td>계산서유형</td><td><code>A</code></td><td><code>A</code></td></tr>
+      <tr><td><code>BP_CD</code></td><td>거래처</td><td>채워짐</td><td>채워짐</td></tr>
+      <tr><td><code>GL_INPUT_TYPE</code> (헤더)</td><td><code>A_OBJECT</code> 매칭 키</td><td><code>TG</code></td><td><code>TG</code></td></tr>
+    </table>
+    </div>
+    <div class="ok" style="margin-top:14px">
+      <strong>결론</strong> — 마스터 등록도, 데이터 보정도 필요 없다. 호출 한 블록만 추가하면 된다.
+    </div>
+  </div>
+</section>
+
+<!-- ═══════ P5 개발 명세 ═══════ -->
+<section class="panel" id="p5">
+  <div class="card">
+    <h2>추가할 코드</h2>
+    <p class="cap">위치 — <code>USP_A_CREATE_GL_BY_BATCH_01</code> 호출이 성공(<code>rc=1</code>)한 <strong>직후</strong>, <strong>같은 트랜잭션 안</strong>.</p>
+<pre><span class="cm">-- ① 기존 엔진 호출</span>
+EXEC @RTN = dbo.USP_A_CREATE_GL_BY_BATCH_01
+            @REF_NO, @USR_ID, @Msg_Cd OUTPUT;
+
+IF ISNULL(@RTN,0) &lt;&gt; 1
+BEGIN
+    ROLLBACK TRANSACTION;
+    RETURN -1;                      <span class="cm">-- 기존 실패 처리</span>
+END
+
+<span class="cm">-- ② ★ 추가 — 서브원장 생성</span>
+EXEC @RTN2 = dbo.<span class="ok2">USP_A_CREATE_TEMP_GL_SUBSYS</span>
+             <span class="hl">@TEMP_GL_NO</span>,           <span class="cm">-- ★ 결의전표번호 (배치번호·REF_NO 아님)</span>
+             @USR_ID,
+             '', '',                <span class="cm">-- DbuserId · DbPwd — 법인카드 래퍼도 빈값</span>
+             @Msg_Cd OUTPUT;
+
+IF ISNULL(@RTN2,0) &lt;&gt; 1
+BEGIN
+    ROLLBACK TRANSACTION;           <span class="cm">-- 전표 생성까지 되돌린다</span>
+    <span class="cm">-- @Msg_Cd 를 gl_erp_apply_log 에 기록하고 '미적용' 상태로 남길 것</span>
+    RETURN -1;
+END</pre>
+  </div>
+
+  <div class="card">
+    <h2>SP 시그니처</h2>
+<pre>usp_a_create_temp_gl_subsys (
+    @GL_NO         nvarchar(18),      <span class="cm">-- ★ 이름은 GL_NO 지만 결의전표번호를 받음</span>
+    @UPDT_USER_ID  nvarchar(30),
+    @DbuserId      sysname,           <span class="cm">-- '' 로 호출</span>
+    @DbPwd         nvarchar(256),     <span class="cm">-- '' 로 호출</span>
+    @MSG_CD        nvarchar(100) OUTPUT
+)
+반환값 : 1 = 성공, 그 외 = 실패</pre>
+    <div class="stop">
+      <strong>가장 헷갈리는 지점</strong> — 파라미터명이 <code>@GL_NO</code> 라서 정식전표번호로 보이지만,
+      SP 본문은 <code>WHERE a.temp_gl_no = @gl_no</code> 로 쓴다.
+      <strong>결의전표번호(<code>AG…</code>)를 넘길 것.</strong>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>결의 / 회계 분기</h2>
+    <p>릴레이는 항상 결의전표(<code>GL_POSTING_FG='T'</code>)를 만들므로 <code>_TEMP_GL_SUBSYS</code> 하나면 된다.
+    다만 향후 회계전표 직행 경로가 생길 수 있으니 법인카드 래퍼처럼 분기해 두는 편이 안전하다.</p>
+<pre>IF @GL_POSTING_FG = 'G'
+    EXEC @RTN2 = dbo.USP_A_CREATE_GL_SUBSYS      @GL_NO,      @USR_ID, '', '', @Msg_Cd OUTPUT;
+ELSE
+    EXEC @RTN2 = dbo.USP_A_CREATE_TEMP_GL_SUBSYS @TEMP_GL_NO, @USR_ID, '', '', @Msg_Cd OUTPUT;</pre>
+  </div>
+
+  <div class="card">
+    <h2>트랜잭션 요건</h2>
+    <div class="ask" style="margin:0">
+      <strong>엔진 호출과 서브원장 생성을 같은 트랜잭션에 두십시오.</strong><br>
+      지금처럼 "전표는 있는데 채무가 없는" 부분 성공 상태가 다시 생기지 않도록 하는 것이 핵심입니다.
+      서브원장 생성이 실패하면 전표 생성까지 롤백하고, 포털 쪽 상태를 <strong>미적용</strong>으로 남겨
+      재시도 가능하게 해 주십시오.
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>함께 검토 부탁 (경미)</h2>
+    <h3>NULL vs 빈 문자열</h3>
+    <p>릴레이는 미사용 컬럼에 <strong>빈 문자열(<code>''</code>)</strong>, ERP 화면 수기 입력은 <strong>NULL</strong> 을 남긴다. 차이 21개 컬럼:</p>
+<pre>PROJECT_NO · IO_FG · BANK_CD · BANK_ACCT_NO · EMP_NO · CREDIT_CD · NOTE_NO
+ITEM_CD · USER_DF1~5 · DEAL_BP_CD · CARD_CO_CD · MGNT_VAL1 · MGNT_VAL2
+BDG_CD · CTRL_NO · TRACKING_NO · CASH_NO</pre>
+    <p>장부 영향은 없다. 다만 ERP 조회·리포트가 <code>IS NULL</code> 조건을 쓰는 곳이 있으면 AX 전표만 결과에서 빠질 수 있다.
+    <strong>가능하면 NULL 로 맞추는 편이 안전하다.</strong></p>
+  </div>
+</section>
+
+<!-- ═══════ P6 검증 ═══════ -->
+<section class="panel" id="p6">
+  <div class="card">
+    <h2>개발 후 검증</h2>
+    <p class="cap">DEMO2 에서 <strong>새 전표 1건</strong>을 릴레이해 확인한다. 기존 13건 소급은 대상 아님.</p>
+    <div class="scroll">
+    <table>
+      <tr><th class="num">#</th><th>확인</th><th>정상 기준</th></tr>
+      <tr><td class="num">1</td><td>엔진 반환</td><td><code>rc=1</code>, <code>MSG_CD</code> 공백</td></tr>
+      <tr><td class="num">2</td><td>서브원장 SP 반환</td><td><code>rc=1</code>, <code>MSG_CD</code> 공백</td></tr>
+      <tr style="background:color-mix(in srgb, var(--good) 8%, transparent)"><td class="num">3</td><td><strong>연결번호</strong></td><td><code>A_TEMP_GL_ITEM.SUBSYS_NO</code> 가 <code>AP…</code> · <code>VT…</code> 로 채워짐</td></tr>
+      <tr style="background:color-mix(in srgb, var(--good) 8%, transparent)"><td class="num">4</td><td><strong>채무</strong></td><td><code>A_OPEN_AP</code> 1행 — 금액·거래처가 전표 라인과 일치</td></tr>
+      <tr style="background:color-mix(in srgb, var(--good) 8%, transparent)"><td class="num">5</td><td><strong>부가세</strong></td><td><code>A_VAT</code> 1행 — <code>VAT_AMT</code> 가 전표 라인과 일치</td></tr>
+      <tr><td class="num">6</td><td>승인 후</td><td><code>A_GL_ITEM.SUBSYS_NO</code> 로 승계</td></tr>
+      <tr><td class="num">7</td><td>현업</td><td>채무관리 화면 조회 · 부가세 신고자료 집계</td></tr>
+    </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>검증 쿼리</h2>
+    <p class="cap">새로 만든 전표번호를 넣어 실행하면 된다.</p>
+<pre>DECLARE @slip nvarchar(18) = 'AG20260901xxxx';
+
+SELECT I.ITEM_SEQ, I.ACCT_CD, I.DR_CR_FG,
+       I.SUBSYS_TYPE,
+       ISNULL(NULLIF(RTRIM(I.SUBSYS_NO),''),'(비어있음)') AS 연결번호,
+       I.ITEM_AMT, I.VAT_AMT
+FROM   A_TEMP_GL_ITEM I
+JOIN   A_ACCT A ON A.ACCT_CD = I.ACCT_CD
+WHERE  I.TEMP_GL_NO = @slip
+  AND  ISNULL(A.SUBSYS_TYPE,'') &lt;&gt; ''
+ORDER  BY I.ITEM_SEQ;
+
+SELECT AP_NO, DEAL_BP_CD, ACCT_CD, AP_AMT, BAL_AMT, CONF_FG
+FROM   A_OPEN_AP WHERE TEMP_GL_NO = @slip;
+
+SELECT VAT_NO, BP_CD, ACCT_CD, NET_AMT, VAT_AMT, VAT_TYPE, IO_FG, CONF_FG
+FROM   A_VAT     WHERE TEMP_GL_NO = @slip;</pre>
+    <div class="warn">
+      <strong>판독</strong> — 연결번호가 <code>(비어있음)</code> 이면 SP 호출이 안 된 것이다.
+      연결번호는 채워졌는데 원장이 0행이면 그때 다시 봐야 한다.
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>실패 시 대응</h2>
+    <div class="scroll">
+    <table>
+      <tr><th>증상</th><th>원인 후보</th><th>대응</th></tr>
+      <tr><td><code>rc &lt;&gt; 1</code>, <code>@Msg_Cd</code> 값 있음</td><td>SP 내부 검증 실패</td><td>코드를 <code>B_MESSAGE</code> 에서 조회해 원인 확인</td></tr>
+      <tr><td>채번 오류</td><td><code>AP</code>·<code>VT</code> 채번유형 미등록</td><td><code>B_AUTO_NUMBERING</code> 확인</td></tr>
+      <tr><td>일부 라인만 생성</td><td><code>A_OBJECT</code> 매칭 실패로 skip</td><td>계정의 <code>SUBSYS_TYPE</code> 과 차대 조합 확인</td></tr>
+    </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>참고 자료 (ERP_DB 측)</h2>
+    <p class="cap"><code>ERP_DB/회계/260819_AX_결의전표_ERP연동_기회검토/</code></p>
+    <div class="scroll">
+    <table>
+      <tr><th>파일</th><th>내용</th></tr>
+      <tr><td><code>AX_서브원장_개선_20260824.html</code></td><td>원인·검토·개선안 도식판</td></tr>
+      <tr><td><code>AX_전표_ERP장부검증_20260824.md</code></td><td>전표 13건 장부·기준정보 적용 검증</td></tr>
+      <tr><td><code>ERP_전표처리방식_도해.html</code></td><td>ERP 전표 처리 전 구간 도식</td></tr>
+      <tr><td><code>INDEX.md</code></td><td>자료 인덱스</td></tr>
+    </table>
+    </div>
+    <p style="margin-top:10px">조사 로그 — <code>ERP_DB/doc/db_log_20260824_180000.md</code> · <code>db_log_20260824_193000.md</code></p>
+  </div>
+</section>
+
+<footer>
+  JEILMNS_DEMO2 실측 + 엔진 SP 소스(<code>sys.sql_modules</code>) 기반 · READ-ONLY 조사 · 접속정보 비노출 원칙 준수 ·
+  조사 시점 2026-08-24 · 요청서 작성 2026-08-25 ·
+  발신 ERP_DB 작업환경 · 원본 <code>ERP_DB/JEIL_AX연계/AX전표_서브원장_호출누락_개발요청_20260825.md</code>
+</footer>
+</div>
+
+<script>
+document.querySelectorAll('.tabs button').forEach(b=>{
+  b.addEventListener('click',()=>{
+    document.querySelectorAll('.tabs button').forEach(x=>x.setAttribute('aria-selected','false'));
+    document.querySelectorAll('.panel').forEach(x=>x.classList.remove('on'));
+    b.setAttribute('aria-selected','true');
+    document.getElementById(b.dataset.p).classList.add('on');
+  });
+});
+</script>
+</body>
+</html>

@@ -102,6 +102,7 @@ ROUTES = {
     "/docs/erp/recurring-voucher":      "10_ERP_DB연계/10_반복전표_자동화_기획.html",
     "/docs/erp/direct-post-demo":       "10_ERP_DB연계/11_ERP직접등록_DEMO2_1차.html",
     "/docs/erp/ax001-acct-mapping":     "10_ERP_DB연계/12_AX001_계정매핑_등재요청.html",
+    "/docs/erp/subledger-fix":          "10_ERP_DB연계/13_AX전표_서브원장_호출누락_개발요청.html",
 
     # ── 제품기획 ───────────────────────────────────────────
     "/docs/product":                    "11_제품기획/index.html",

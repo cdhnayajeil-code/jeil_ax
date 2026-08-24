@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>13 서브원장 호출누락 — ERP DB 연계 관제 (채무·부가세 원장 미생성 — 원인·조치·DEMO2 실증(2026-08-25 완료))</title>
+<style>
+:root{--navy:#1a2f4e;--navy2:#27457a;--accent:#2f6fb3;--red:#b3402f;--green:#2e7d52;--amber:#9a6b1f;
+--ink:#222;--muted:#666;--line:#d8dee8;--bg:#f4f6f9;--soft:#eef2f8;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;color:var(--ink);background:var(--bg);line-height:1.65;font-size:15px;}
+.page{max-width:960px;margin:0 auto;background:#fff;padding:52px 60px;box-shadow:0 2px 14px rgba(0,0,0,.08);}
+.doc-label{display:inline-block;background:var(--navy);color:#fff;font-size:12px;letter-spacing:.16em;padding:5px 14px;border-radius:3px;margin-bottom:16px;}
+.docnav{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 26px;}
+.docnav a{font-size:12px;color:var(--navy2);border:1px solid var(--line);border-radius:20px;padding:4px 12px;text-decoration:none;background:var(--soft);}
+.docnav a:hover{background:var(--navy);color:#fff;}
+.docnav a.cur{background:var(--navy);color:#fff;border-color:var(--navy);}
+.md-link{font-size:13px;margin-bottom:22px;color:var(--muted);}
+.content h1{font-size:27px;color:var(--navy);line-height:1.35;margin:6px 0 18px;}
+.content h2{font-size:20px;color:var(--navy);margin:42px 0 14px;padding-bottom:9px;border-bottom:3px solid var(--navy);}
+.content h3{font-size:16px;color:var(--navy2);margin:24px 0 9px;}
+.content p{margin:0 0 12px;}
+.content ul,.content ol{margin:0 0 14px 22px;}
+.content li{margin-bottom:6px;}
+.content blockquote{background:var(--soft);border-left:5px solid var(--navy);border-radius:0 8px 8px 0;padding:14px 20px;margin:14px 0;color:#33425a;}
+.content blockquote p{margin:0 0 6px;}
+.content table{width:100%;border-collapse:collapse;margin:14px 0 20px;font-size:13.3px;}
+.content th{background:var(--navy);color:#fff;padding:9px 11px;text-align:left;font-weight:600;}
+.content td{padding:8px 11px;border-bottom:1px solid var(--line);vertical-align:top;}
+.content tr:nth-child(even) td{background:#fafbfd;}
+.content a{color:var(--accent);}
+.content code{background:var(--soft);border:1px solid var(--line);border-radius:4px;padding:1px 6px;font-size:12.4px;font-family:Consolas,'Courier New',monospace;}
+.content pre{background:#21252e;color:#e8eaf0;border-radius:8px;padding:16px 18px;font-size:12.4px;font-family:Consolas,'Courier New',monospace;overflow-x:auto;margin:12px 0 18px;line-height:1.55;}
+.content pre code{background:none;border:none;color:inherit;padding:0;}
+.content hr{border:none;border-top:1px solid var(--line);margin:30px 0;}
+.content strong{color:var(--navy2);}
+.footer{margin-top:50px;padding-top:16px;border-top:1px solid var(--line);font-size:12px;color:var(--muted);display:flex;justify-content:space-between;}
+@media print{body{background:#fff;}.page{box-shadow:none;padding:18px 0;max-width:100%;}.docnav{display:none;}.content h2{break-after:avoid;}.content table,.content pre,.content blockquote{break-inside:avoid;}}
+@media (max-width:720px){.page{padding:30px 20px;}}
+</style>
+</head>
+<body>
+<div class="page">
+  <span class="doc-label">JEIL AX ERP DB 연계 · 대외비</span>
+  <div class="docnav"><a href="/docs/erp">🏠 연계 허브</a><a href="/docs/erp/status">00 현재상태</a><a href="/docs/erp/plan">01 연계기획</a><a href="/docs/erp/progress">02 진행상태</a><a href="/docs/erp/midway-db">03 중간DB 실행기획</a><a href="/docs/erp/incremental-sync">04 증분·확장·거버넌스</a><a href="/docs/erp/dept-mapping">05 사용자-부서 매핑</a><a href="/docs/erp/voucher-roadmap">06 결의전표 추진계획</a><a href="/docs/erp/voucher-handover">09 결의전표 인수인계</a><a href="/docs/erp/recurring-voucher">10 반복전표 자동화</a><a href="/docs/erp/direct-post-demo">11 ERP 직접등록(DEMO2)</a><a href="/docs/erp/ax001-acct-mapping">12 AX001 계정매핑 요청</a><a class="cur" href="/docs/erp/subledger-fix">13 서브원장 호출누락</a><a href="README.md">README</a></div>
+  <p class="md-link">📄 Markdown 원본: <a href="13_AX전표_서브원장_호출누락_개발요청.md">13_AX전표_서브원장_호출누락_개발요청.md</a> · 허브 <a href="/docs/erp">연계 허브</a></p>
+  <div class="content">
+<blockquote>
+<h2 id="2026-08-25">✅ 처리 완료 (2026-08-25)</h2>
+<p><strong>§5 요청대로 릴레이에 <code>usp_a_create_temp_gl_subsys</code> 호출을 추가했다.</strong>
+엔진 호출 직후·같은 트랜잭션이며, 실패하거나 연결번호가 비면 전표 생성까지 ROLLBACK 한다.</p>
+<p><strong>DEMO2 실증</strong>(§6 검증절차) — <code>DRAFT-20260824-0018</code> → <strong><code>AG202608240004</code></strong></p>
+<table>
+<thead>
+<tr>
+<th>확인</th>
+<th>결과</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>엔진 반환</td>
+<td><code>rc=1</code> · MSG_CD 공백</td>
+</tr>
+<tr>
+<td>서브원장 SP 반환</td>
+<td><code>rc=1</code> · MSG_CD 공백</td>
+</tr>
+<tr>
+<td>연결번호</td>
+<td><code>21100901/AP</code> → <strong><code>AP202608240001</code></strong> · <code>11103301/TP</code> → <strong><code>VT202608050001</code></strong></td>
+</tr>
+<tr>
+<td>채무 <code>A_OPEN_AP</code></td>
+<td><strong>1행</strong> — 275,000 (전표 라인과 일치) · 거래처 <code>03688</code></td>
+</tr>
+<tr>
+<td>부가세 <code>A_VAT</code></td>
+<td><strong>1행</strong> — 공급가 250,000 · 세액 25,000 (전표 라인과 일치) · 유형 <code>A</code> · 매입 <code>I</code></td>
+</tr>
+</tbody>
+</table>
+<p><strong>미처리로 남긴 것</strong>: §7 NULL vs 빈 문자열(우선 하). 서브원장 SP 가 이 값들을 읽으므로,
+방금 정상화한 경로를 흔들지 않기 위해 <strong>이번 변경에 묶지 않았다</strong>. 별건으로 진행한다.</p>
+<p>반영: <code>etl/gl_apply_demo2.py</code> · EXE 재빌드·재배포 · <code>etl/deploy/</code>(README·변경관리)
+커밋은 저장소 이력 참조.</p>
+</blockquote>
+<hr />
+<h1 id="ax-sp">[개발요청] AX 전표 릴레이 — 서브원장 생성 SP 호출 추가</h1>
+<blockquote>
+<p><strong>발신</strong> ERP_DB 작업환경 (최동혁) · <strong>수신</strong> JEIL_AX 프로젝트 / 릴레이 개발 담당
+<strong>작성</strong> 2026-08-25 · <strong>근거</strong> <code>ERP_DB/회계/260819_AX_결의전표_ERP연동_기회검토/</code>
+<strong>AX 프로젝트 배치 제안</strong> <code>10_ERP_DB연계/13_AX전표_서브원장_호출누락_개발요청.md</code>
+<strong>성격</strong> 향후 생성분 정상화. <strong>기존 13건 소급은 대상 아님</strong>(2026-08-25 결정)</p>
+</blockquote>
+<hr />
+<h2 id="1">1. 요청 한 줄</h2>
+<p><strong>릴레이가 ERP 전표 생성 엔진을 호출한 뒤, 서브원장 생성 SP 를 한 번 더 호출하도록 추가해 주십시오.</strong></p>
+<p>코드 1블록이면 됩니다. 데이터 보정이나 마스터 등록은 필요 없습니다 — 이미 다 갖춰져 있습니다.</p>
+<hr />
+<h2 id="2">2. 현재 무슨 일이 일어나고 있나</h2>
+<p>릴레이가 만든 전표는 <strong>전표 자체는 완벽한데 채무·부가세 원장이 생기지 않습니다.</strong></p>
+<table>
+<thead>
+<tr>
+<th>항목</th>
+<th style="text-align: right;">릴레이 생성분</th>
+<th style="text-align: right;">수기 입력분</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>전표 헤더·라인</td>
+<td style="text-align: right;">정상</td>
+<td style="text-align: right;">정상</td>
+</tr>
+<tr>
+<td>관리항목 전개</td>
+<td style="text-align: right;">정상</td>
+<td style="text-align: right;">정상</td>
+</tr>
+<tr>
+<td>정식장부 전기</td>
+<td style="text-align: right;">정상</td>
+<td style="text-align: right;">정상</td>
+</tr>
+<tr>
+<td><strong><code>A_TEMP_GL_ITEM.SUBSYS_NO</code></strong> (연결번호)</td>
+<td style="text-align: right;"><strong>0 / 26</strong></td>
+<td style="text-align: right;">5,483 / 5,483</td>
+</tr>
+<tr>
+<td><strong><code>A_OPEN_AP</code></strong> (채무)</td>
+<td style="text-align: right;"><strong>0행</strong></td>
+<td style="text-align: right;">3,054행</td>
+</tr>
+<tr>
+<td><strong><code>A_VAT</code></strong> (부가세)</td>
+<td style="text-align: right;"><strong>0행</strong></td>
+<td style="text-align: right;">2,519행</td>
+</tr>
+</tbody>
+</table>
+<p>2025년 이후 ERP 정식전표의 서브원장 대상 라인 4,963건 중 연결번호가 비어 있는 것은 <strong>8건뿐이고 전부 AX 전표</strong>입니다. 다른 예외는 없습니다.</p>
+<h3 id="_1">업무 영향</h3>
+<table>
+<thead>
+<tr>
+<th>영역</th>
+<th>영향</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>부가세 신고</strong></td>
+<td>AX 전표의 매입세액이 <code>A_VAT</code> 에 없어 신고자료에서 누락</td>
+</tr>
+<tr>
+<td><strong>채무 관리</strong></td>
+<td>미지급금이 <code>A_OPEN_AP</code> 에 없어 지급·반제 대상에서 누락. 거래처별 잔액·연령분석에도 안 잡힘</td>
+</tr>
+<tr>
+<td>재무제표</td>
+<td><strong>영향 없음</strong> — 전표는 장부에 정상 반영되므로 시산표·재무제표는 정상</td>
+</tr>
+</tbody>
+</table>
+<p>전표와 시산표가 멀쩡해서 <strong>겉으로 드러나지 않는 결손</strong>입니다. 운영 전환 전 반드시 해소해야 합니다.</p>
+<hr />
+<h2 id="3">3. 원인</h2>
+<p>ERP 표준 연동(법인카드 <code>USP_ACC2103M1_KO174_BATCH_GW</code>)과 비교하면 차이가 한 곳뿐입니다.</p>
+<table>
+<thead>
+<tr>
+<th>단계</th>
+<th>법인카드 (표준)</th>
+<th>AX 릴레이 (현재)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>① 전표번호</td>
+<td><code>USP_A_TEMPGL_NO_AUTO_GEN</code></td>
+<td>직접 지정 (<code>AG…</code>) — 무방</td>
+</tr>
+<tr>
+<td>② 투입</td>
+<td><code>A_BATCH</code> / <code>_GL</code> / <code>_ITEM</code> INSERT</td>
+<td>동일</td>
+</tr>
+<tr>
+<td>③ 전표 생성</td>
+<td><code>USP_A_CREATE_GL_BY_BATCH_01</code></td>
+<td>동일</td>
+</tr>
+<tr>
+<td><strong>④ 서브원장</strong></td>
+<td><strong><code>USP_A_CREATE_TEMP_GL_SUBSYS</code></strong></td>
+<td><strong>호출 없음</strong> ← 여기</td>
+</tr>
+</tbody>
+</table>
+<p><strong>엔진(<code>USP_A_CREATE_GL_BY_BATCH_01</code>)은 서브원장을 만들지 않습니다.</strong> 호출자가 별도로 불러야 합니다.</p>
+<p>빠진 SP 안에 아래가 전부 들어 있습니다.</p>
+<pre><code class="language-sql">-- usp_a_create_temp_gl_subsys 본문 (요약)
+DECLARE CUR_SUBSYS_MAKE CURSOR FOR
+SELECT A.TEMP_GL_NO, A.ITEM_SEQ, B.SUBSYS_TYPE, …
+  FROM A_TEMP_GL_ITEM A
+  JOIN A_ACCT     B ON A.ACCT_CD    = B.ACCT_CD
+  JOIN A_TEMP_GL  C ON A.TEMP_GL_NO = C.TEMP_GL_NO
+ WHERE ISNULL(B.SUBSYS_TYPE,'') &lt;&gt; ''
+   AND B.SUBSYS_TYPE NOT IN ('OC','OD')
+   AND A.TEMP_GL_NO = @GL_NO
+
+  → EXEC usp_A_Create_Sub_Ledger …      -- A_OPEN_AP · A_VAT 실제 INSERT
+  → EXEC usp_z_auto_numbering …         -- 원장번호 채번 (AP… / VT…)
+  → EXEC usp_f_create_budget …          -- 예산 반영
+  → UPDATE A_TEMP_GL_ITEM
+       SET SUBSYS_TYPE = @SUBSYS_TYPE,
+           SUBSYS_NO   = @SUBSYS_NO     -- 연결번호 역기록
+     WHERE TEMP_GL_NO = @GL_NO AND ITEM_SEQ = @ITEM_SEQ
+</code></pre>
+<h3 id="_2">승인 시점이 아니라 결의 생성 시점입니다</h3>
+<p>혹시 "승인하면 만들어지는 것 아닌가" 하실 수 있어 확인해 두었습니다.</p>
+<ul>
+<li>수기 <strong>미승인</strong> 전표(<code>CONF_FG='U'</code>)에도 채무가 1~4행씩 이미 존재합니다.</li>
+<li>생성 시각이 결의전표 생성과 같습니다 — <code>TG202506120005</code> : 결의 08:52:25 / 부가세 08:52:00 / 채무 08:52:00</li>
+<li>AX 전표를 ERP 화면에서 승인해도(<code>AG202608240001~3</code> → <code>GL202608240001~3</code>) <strong>여전히 0행</strong>입니다.</li>
+</ul>
+<p><strong>→ 결의 생성 시점에 만들어야 하며, 승인 경로가 대신 만들어 주지 않습니다.</strong></p>
+<hr />
+<h2 id="4">4. 사전 확인 완료 — 데이터 보정은 불필요합니다</h2>
+<p>호출만 추가하면 되는지, 데이터도 손봐야 하는지 미리 확인했습니다. <strong>호출만 추가하면 됩니다.</strong></p>
+<h3 id="41">4.1 계정 마스터 속성 정상</h3>
+<table>
+<thead>
+<tr>
+<th>계정</th>
+<th style="text-align: center;">재무제표구분</th>
+<th style="text-align: center;">계정특성</th>
+<th style="text-align: center;">서브시스템</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>11103301</code> 부가세대급금</td>
+<td style="text-align: center;"><code>BS</code></td>
+<td style="text-align: center;"><code>VP</code></td>
+<td style="text-align: center;"><code>TP</code></td>
+</tr>
+<tr>
+<td><code>21100901</code> 미지급금(거래처)</td>
+<td style="text-align: center;"><code>BS</code></td>
+<td style="text-align: center;"><code>J2</code></td>
+<td style="text-align: center;"><code>AP</code></td>
+</tr>
+<tr>
+<td>경비계정 (<code>43…</code> <code>53…</code>)</td>
+<td style="text-align: center;"><code>MC</code> / <code>PL</code></td>
+<td style="text-align: center;">—</td>
+<td style="text-align: center;">— (대상 아님)</td>
+</tr>
+</tbody>
+</table>
+<p><code>21100901</code> 의 <code>ACCT_TYPE='J2'</code> 는 채무 생성 요건(<code>AP_POSTING_FG='J'</code>)을 만족합니다.</p>
+<h3 id="42">4.2 전표 라인에 서브시스템이 이미 정상 승계됨</h3>
+<p>릴레이가 만든 26개 대상 라인 전부 <code>SUBSYS_TYPE</code> 이 <code>AP</code> / <code>TP</code> 로 올바르게 들어가 있습니다.
+<strong>비어 있는 것은 <code>SUBSYS_NO</code>(연결번호) 하나뿐입니다.</strong></p>
+<h3 id="43-sp-2626">4.3 SP 진입 판정 26/26 통과</h3>
+<p>SP 내부의 <code>A_OBJECT</code> 매칭 조건을 그대로 재현해 전 라인에 적용했습니다.</p>
+<table>
+<thead>
+<tr>
+<th>조합</th>
+<th><code>A_OBJECT</code> 행</th>
+<th>대상 원장</th>
+<th style="text-align: right;">라인수</th>
+<th style="text-align: center;">매칭</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>TG</code> × <code>AP</code> × <code>CR</code></td>
+<td><code>TG-AP</code></td>
+<td><code>A_OPEN_AP</code></td>
+<td style="text-align: right;">13</td>
+<td style="text-align: center;">✅</td>
+</tr>
+<tr>
+<td><code>TG</code> × <code>TP</code> × <code>DR</code></td>
+<td><code>TG-TP</code></td>
+<td><code>A_VAT</code></td>
+<td style="text-align: right;">13</td>
+<td style="text-align: center;">✅</td>
+</tr>
+</tbody>
+</table>
+<p>skip 되는 라인이 없습니다.</p>
+<h3 id="44-sp">4.4 SP 가 읽는 입력필드도 수기와 동등</h3>
+<table>
+<thead>
+<tr>
+<th>필드</th>
+<th>용도</th>
+<th>AX</th>
+<th>수기</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>REF_NO</code> (라인)</td>
+<td>서브원장 참조번호</td>
+<td><code>DRAFT-20260824-0014</code></td>
+<td><code>TG202506250002</code></td>
+</tr>
+<tr>
+<td><code>ISSUED_DT</code> (라인)</td>
+<td>부가세 채번 기준일</td>
+<td>부가세라인 실제일 / AP라인 <code>1900-01-01</code></td>
+<td>동일 패턴</td>
+</tr>
+<tr>
+<td><code>VAT_TYPE</code></td>
+<td>계산서유형</td>
+<td><code>A</code></td>
+<td><code>A</code></td>
+</tr>
+<tr>
+<td><code>BP_CD</code></td>
+<td>거래처</td>
+<td>채워짐</td>
+<td>채워짐</td>
+</tr>
+<tr>
+<td><code>GL_INPUT_TYPE</code> (헤더)</td>
+<td><code>A_OBJECT</code> 매칭 키</td>
+<td><code>TG</code></td>
+<td><code>TG</code></td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="5">5. 요청 내용 — 추가할 코드</h2>
+<h3 id="51">5.1 위치</h3>
+<p><code>USP_A_CREATE_GL_BY_BATCH_01</code> 호출이 성공(<code>rc = 1</code>)한 <strong>직후</strong>, <strong>같은 트랜잭션 안</strong>.</p>
+<h3 id="52">5.2 코드</h3>
+<pre><code class="language-sql">-- ① 기존 엔진 호출
+EXEC @RTN = dbo.USP_A_CREATE_GL_BY_BATCH_01
+            @REF_NO, @USR_ID, @Msg_Cd OUTPUT;
+
+IF ISNULL(@RTN,0) &lt;&gt; 1
+BEGIN
+    ROLLBACK TRANSACTION;
+    RETURN -1;                      -- 기존 실패 처리
+END
+
+-- ② ★ 추가 — 서브원장 생성
+EXEC @RTN2 = dbo.USP_A_CREATE_TEMP_GL_SUBSYS
+             @TEMP_GL_NO,           -- ★ 결의전표번호 (배치번호·REF_NO 아님)
+             @USR_ID,
+             '', '',                -- DbuserId · DbPwd — 법인카드 래퍼도 빈값
+             @Msg_Cd OUTPUT;
+
+IF ISNULL(@RTN2,0) &lt;&gt; 1
+BEGIN
+    ROLLBACK TRANSACTION;           -- 전표 생성까지 되돌린다
+    -- @Msg_Cd 를 gl_erp_apply_log 에 기록하고 '미적용' 상태로 남길 것
+    RETURN -1;
+END
+</code></pre>
+<h3 id="53-sp">5.3 SP 시그니처</h3>
+<pre><code>usp_a_create_temp_gl_subsys (
+    @GL_NO         nvarchar(18),      -- ★ 이름은 GL_NO 지만 결의전표번호를 받음
+    @UPDT_USER_ID  nvarchar(30),
+    @DbuserId      sysname,           -- '' 로 호출
+    @DbPwd         nvarchar(256),     -- '' 로 호출
+    @MSG_CD        nvarchar(100) OUTPUT
+)
+반환값 : 1 = 성공, 그 외 = 실패
+</code></pre>
+<blockquote>
+<p>⚠️ <strong>가장 헷갈리는 지점</strong> — 파라미터명이 <code>@GL_NO</code> 라서 정식전표번호로 보이지만,
+SP 본문은 <code>WHERE a.temp_gl_no = @gl_no</code> 로 씁니다. <strong>결의전표번호(<code>AG…</code>)를 넘기십시오.</strong></p>
+</blockquote>
+<h3 id="54">5.4 결의/회계 분기</h3>
+<p>릴레이는 항상 결의전표(<code>GL_POSTING_FG='T'</code>)를 만들므로 <code>_TEMP_GL_SUBSYS</code> 하나면 됩니다.
+다만 향후 회계전표 직행 경로가 생길 수 있으니 법인카드 래퍼처럼 분기해 두는 편이 안전합니다.</p>
+<pre><code class="language-sql">IF @GL_POSTING_FG = 'G'
+    EXEC @RTN2 = dbo.USP_A_CREATE_GL_SUBSYS      @GL_NO,      @USR_ID, '', '', @Msg_Cd OUTPUT;
+ELSE
+    EXEC @RTN2 = dbo.USP_A_CREATE_TEMP_GL_SUBSYS @TEMP_GL_NO, @USR_ID, '', '', @Msg_Cd OUTPUT;
+</code></pre>
+<h3 id="55">5.5 트랜잭션 요건</h3>
+<p><strong>엔진 호출과 서브원장 생성을 같은 트랜잭션에 두십시오.</strong></p>
+<p>지금처럼 "전표는 있는데 채무가 없는" 부분 성공 상태가 다시 생기지 않도록 하는 것이 핵심입니다.
+서브원장 생성이 실패하면 전표 생성까지 롤백하고, 포털 쪽 상태를 <strong>미적용</strong>으로 남겨 재시도 가능하게 해 주십시오.</p>
+<hr />
+<h2 id="6">6. 개발 후 검증 절차</h2>
+<p>DEMO2 에서 <strong>새 전표 1건</strong>을 릴레이해 확인합니다. (기존 13건 소급은 대상 아님)</p>
+<h3 id="61">6.1 확인 항목</h3>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>확인</th>
+<th>정상 기준</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>엔진 반환</td>
+<td><code>rc=1</code>, <code>MSG_CD</code> 공백</td>
+</tr>
+<tr>
+<td>2</td>
+<td>서브원장 SP 반환</td>
+<td><code>rc=1</code>, <code>MSG_CD</code> 공백</td>
+</tr>
+<tr>
+<td>3</td>
+<td><strong>연결번호</strong></td>
+<td><code>A_TEMP_GL_ITEM.SUBSYS_NO</code> 가 <code>AP…</code> · <code>VT…</code> 로 채워짐</td>
+</tr>
+<tr>
+<td>4</td>
+<td><strong>채무</strong></td>
+<td><code>A_OPEN_AP</code> 1행 — 금액·거래처가 전표 라인과 일치</td>
+</tr>
+<tr>
+<td>5</td>
+<td><strong>부가세</strong></td>
+<td><code>A_VAT</code> 1행 — <code>VAT_AMT</code> 가 전표 라인과 일치</td>
+</tr>
+<tr>
+<td>6</td>
+<td>승인 후</td>
+<td><code>A_GL_ITEM.SUBSYS_NO</code> 로 승계</td>
+</tr>
+<tr>
+<td>7</td>
+<td>현업</td>
+<td>채무관리 화면 조회 · 부가세 신고자료 집계</td>
+</tr>
+</tbody>
+</table>
+<h3 id="62">6.2 검증 쿼리</h3>
+<pre><code class="language-sql">-- 새로 만든 전표번호를 넣으십시오
+DECLARE @slip nvarchar(18) = 'AG20260901xxxx';
+
+SELECT I.ITEM_SEQ, I.ACCT_CD, I.DR_CR_FG,
+       I.SUBSYS_TYPE,
+       ISNULL(NULLIF(RTRIM(I.SUBSYS_NO),''),'(비어있음)') AS 연결번호,
+       I.ITEM_AMT, I.VAT_AMT
+FROM   A_TEMP_GL_ITEM I
+JOIN   A_ACCT A ON A.ACCT_CD = I.ACCT_CD
+WHERE  I.TEMP_GL_NO = @slip
+  AND  ISNULL(A.SUBSYS_TYPE,'') &lt;&gt; ''
+ORDER  BY I.ITEM_SEQ;
+
+SELECT AP_NO, DEAL_BP_CD, ACCT_CD, AP_AMT, BAL_AMT, CONF_FG
+FROM   A_OPEN_AP WHERE TEMP_GL_NO = @slip;
+
+SELECT VAT_NO, BP_CD, ACCT_CD, NET_AMT, VAT_AMT, VAT_TYPE, IO_FG, CONF_FG
+FROM   A_VAT     WHERE TEMP_GL_NO = @slip;
+</code></pre>
+<p><strong>연결번호가 <code>(비어있음)</code> 이면 SP 호출이 안 된 것이고, 채워졌는데 원장이 0행이면 그때 다시 봐야 합니다.</strong></p>
+<hr />
+<h2 id="7">7. 함께 확인해 주실 것 (경미)</h2>
+<h3 id="null-vs">NULL vs 빈 문자열</h3>
+<p>릴레이는 미사용 컬럼에 <strong>빈 문자열(<code>''</code>)</strong>, ERP 화면 수기 입력은 <strong>NULL</strong> 을 남깁니다. 차이 21개 컬럼:</p>
+<pre><code>PROJECT_NO · IO_FG · BANK_CD · BANK_ACCT_NO · EMP_NO · CREDIT_CD · NOTE_NO
+ITEM_CD · USER_DF1~5 · DEAL_BP_CD · CARD_CO_CD · MGNT_VAL1 · MGNT_VAL2
+BDG_CD · CTRL_NO · TRACKING_NO · CASH_NO
+</code></pre>
+<p>장부 영향은 없습니다. 다만 ERP 조회·리포트가 <code>IS NULL</code> 조건을 쓰는 곳이 있으면 AX 전표만 결과에서 빠질 수 있습니다. <strong>가능하면 NULL 로 맞추는 편이 안전합니다.</strong></p>
+<hr />
+<h2 id="8">8. 범위 밖 / 결정 사항</h2>
+<table>
+<thead>
+<tr>
+<th>항목</th>
+<th>결정</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>기존 13건 소급 처리</strong></td>
+<td><strong>하지 않음</strong> (2026-08-25). DEMO2 테스트 데이터이므로 실해 없음</td>
+</tr>
+<tr>
+<td>예산(<code>F_BDG_GL</code>) 반영</td>
+<td>DEMO2 는 수기 전표도 0행이라 대조 불가. 운영 데이터로 별도 확인</td>
+</tr>
+<tr>
+<td>승인 시 <code>GL_NO</code> 발급 주체</td>
+<td>미특정. 벤더 질의 T-1 (본 건과 무관)</td>
+</tr>
+<tr>
+<td>채권·선급·선수·가수금 원장</td>
+<td>AX 전표에 해당 계정이 없어 미발생. 계정 확대 시 재확인</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="9-erp_db">9. 참고 자료 (ERP_DB 측)</h2>
+<p><code>ERP_DB/회계/260819_AX_결의전표_ERP연동_기회검토/</code></p>
+<table>
+<thead>
+<tr>
+<th>파일</th>
+<th>내용</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>AX_서브원장_개선_20260824.html</code></td>
+<td>원인·검토·개선안 도식판 (호출체인 비교 · 기준정보 전수판정)</td>
+</tr>
+<tr>
+<td><code>AX_전표_ERP장부검증_20260824.md</code></td>
+<td>전표 13건 장부·기준정보 적용 검증</td>
+</tr>
+<tr>
+<td><code>ERP_전표처리방식_도해.html</code></td>
+<td>ERP 전표 처리 전 구간 도식</td>
+</tr>
+<tr>
+<td><code>INDEX.md</code></td>
+<td>자료 인덱스</td>
+</tr>
+</tbody>
+</table>
+<p>조사 로그: <code>ERP_DB/doc/db_log_20260824_180000.md</code> · <code>db_log_20260824_193000.md</code></p>
+<hr />
+<h2 id="10">10. 요청 정리</h2>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>요청</th>
+<th style="text-align: center;">우선</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>릴레이에 <code>USP_A_CREATE_TEMP_GL_SUBSYS</code> 호출 추가 (§5)</td>
+<td style="text-align: center;"><strong>상</strong></td>
+</tr>
+<tr>
+<td>2</td>
+<td>엔진 호출과 동일 트랜잭션 · 실패 시 전체 롤백 (§5.5)</td>
+<td style="text-align: center;"><strong>상</strong></td>
+</tr>
+<tr>
+<td>3</td>
+<td>DEMO2 새 전표 1건으로 검증 (§6)</td>
+<td style="text-align: center;"><strong>상</strong></td>
+</tr>
+<tr>
+<td>4</td>
+<td>실패 시 <code>@Msg_Cd</code> 를 <code>gl_erp_apply_log</code> 에 기록</td>
+<td style="text-align: center;">중</td>
+</tr>
+<tr>
+<td>5</td>
+<td>NULL vs 빈 문자열 표기 검토 (§7)</td>
+<td style="text-align: center;">하</td>
+</tr>
+</tbody>
+</table>
+  </div>
+  <div class="footer"><span>JEIL M&amp;S · ERP DB 연계 관제</span><span>13 서브원장 호출누락 · 관리: 최동혁</span></div>
+</div>
+</body>
+</html>

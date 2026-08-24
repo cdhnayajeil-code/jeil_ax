@@ -436,6 +436,70 @@ def apply_draft(args):
                 print(f"   생성: {x}")
             raise SystemExit("[실패] 라인 대조 불일치 — 대차 자동보정 개입 의심. 롤백합니다.")
 
+        # ── 6) 서브원장 생성 ──────────────────────────────────────
+        # 엔진(usp_a_create_gl_by_batch_01)은 전표만 만들고 **서브원장은 만들지 않는다**.
+        # 호출자가 이 SP 를 따로 불러야 채무(A_OPEN_AP)·부가세(A_VAT)가 생기고,
+        # 라인의 연결번호(SUBSYS_NO)가 역기록된다. 법인카드 래퍼도 엔진 뒤에 이걸 부른다.
+        #
+        # 이 호출이 빠져 있던 동안 만든 전표는 "전표·시산표는 멀쩡한데 채무·부가세 원장이 없는"
+        # 상태였다 — 겉으로 드러나지 않아 더 위험하다(2026-08-24 실측: 대상 26라인 SUBSYS_NO
+        # 전건 공백, 수기 5,483/5,483 대비. 2025년 이후 미채움 8건이 전부 AX 전표였다).
+        #
+        # ⚠ 파라미터명이 @GL_NO 지만 본문은 `a.temp_gl_no = @gl_no` 로 쓴다 — **결의전표번호**를 넘긴다.
+        # ⚠ 반드시 엔진과 **같은 트랜잭션**에서. 실패하면 전표 생성까지 되돌려
+        #    "전표만 있고 원장이 없는" 부분성공을 만들지 않는다.
+        # 회계전표 직행(GL_POSTING_FG='G')은 위 거래유형 확인에서 이미 차단된다 —
+        # 이 경로는 항상 결의전표라 _TEMP_GL_ 쪽 하나만 부르면 된다.
+        slip_no = str(gl[0]).strip()
+        sp = "usp_a_create_temp_gl_subsys"
+        cur.execute(
+            "SET NOCOUNT ON; DECLARE @rc2 int, @msg2 nvarchar(100); "
+            f"EXEC @rc2 = dbo.{sp} ?, ?, '', '', @msg2 OUTPUT; "
+            "SELECT @rc2, @msg2;", slip_no, user_id)
+        row2 = first_resultset(cur)
+        rc2, msg2 = (row2[0], row2[1]) if row2 else (None, None)
+        msg2 = (str(msg2).strip() if msg2 else "")
+        result["subsys"] = {"sp": sp, "rc": rc2, "msg_cd": msg2}
+        print(f"[서브원장] {sp} rc={rc2} / MSG_CD={msg2 or '(없음)'}")
+        if rc2 != 1:
+            result["detail"]["subsys_error"] = msg2
+            raise SystemExit(
+                f"[실패] 서브원장 생성 실패(rc={rc2}, MSG_CD={msg2 or '(없음)'}). "
+                "전표 생성까지 롤백합니다 — 채무·부가세 없는 전표를 남기지 않습니다.")
+
+        # ── 7) 서브원장 검증 — 연결번호·원장 실적 ──────────────────
+        # 호출이 성공(rc=1)해도 조건 불일치로 아무것도 안 만들어질 수 있어, 결과를 직접 확인한다.
+        cur.execute(
+            "SELECT i.ITEM_SEQ, RTRIM(i.ACCT_CD), RTRIM(i.DR_CR_FG), RTRIM(ISNULL(a.SUBSYS_TYPE,'')), "
+            "       RTRIM(ISNULL(i.SUBSYS_NO,'')) "
+            "FROM dbo.A_TEMP_GL_ITEM i WITH (NOLOCK) "
+            "JOIN dbo.A_ACCT a WITH (NOLOCK) ON RTRIM(a.ACCT_CD) = RTRIM(i.ACCT_CD) "
+            "WHERE i.TEMP_GL_NO = ? AND ISNULL(a.SUBSYS_TYPE,'') <> '' "
+            "  AND a.SUBSYS_TYPE NOT IN ('OC','OD') ORDER BY i.ITEM_SEQ", slip_no)
+        subs = [(r[0], str(r[1]).strip(), str(r[2]).strip()[:1], str(r[3]).strip(), str(r[4]).strip())
+                for r in cur.fetchall()]
+        empty = [s for s in subs if not s[4]]
+        result["detail"]["subsys_lines"] = [
+            {"seq": s[0], "acct": s[1], "dr_cr": s[2], "type": s[3], "no": s[4]} for s in subs]
+        if subs:
+            print("[연결번호] " + " · ".join(f"{s[0]}:{s[1]}/{s[3]}→{s[4] or '(비어있음)'}" for s in subs))
+        else:
+            print("[연결번호] 서브원장 대상 라인 없음(경비만 있는 전표) — 정상")
+        if empty:
+            raise SystemExit(
+                f"[실패] 서브원장 연결번호가 비어 있습니다({len(empty)}/{len(subs)}줄). "
+                "SP 는 성공했는데 라인이 채워지지 않았습니다 — 롤백합니다.")
+
+        for tbl, label in (("A_OPEN_AP", "채무"), ("A_VAT", "부가세")):
+            try:
+                cur.execute(f"SELECT COUNT(*) FROM dbo.{tbl} WITH (NOLOCK) WHERE TEMP_GL_NO = ?", slip_no)
+                n = cur.fetchone()[0]
+            except Exception:
+                n = None            # 환경별 컬럼 상이 — 검증 실패로 취급하지 않는다
+            if n is not None:
+                result["detail"].setdefault("subsys_rows", {})[tbl] = n
+                print(f"[{label}] {tbl} {n}행")
+
         # ── 커밋/롤백 ─────────────────────────────────────────────
         if args.dry_run:
             conn.rollback()
