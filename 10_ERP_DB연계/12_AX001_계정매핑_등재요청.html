@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>12 AX001 계정매핑 요청 — ERP DB 연계 관제 (전송이 막히는 계정 5종 실측 — 회계팀·유니포인트 등재 요청(미결 U-F))</title>
+<style>
+:root{--navy:#1a2f4e;--navy2:#27457a;--accent:#2f6fb3;--red:#b3402f;--green:#2e7d52;--amber:#9a6b1f;
+--ink:#222;--muted:#666;--line:#d8dee8;--bg:#f4f6f9;--soft:#eef2f8;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;color:var(--ink);background:var(--bg);line-height:1.65;font-size:15px;}
+.page{max-width:960px;margin:0 auto;background:#fff;padding:52px 60px;box-shadow:0 2px 14px rgba(0,0,0,.08);}
+.doc-label{display:inline-block;background:var(--navy);color:#fff;font-size:12px;letter-spacing:.16em;padding:5px 14px;border-radius:3px;margin-bottom:16px;}
+.docnav{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 26px;}
+.docnav a{font-size:12px;color:var(--navy2);border:1px solid var(--line);border-radius:20px;padding:4px 12px;text-decoration:none;background:var(--soft);}
+.docnav a:hover{background:var(--navy);color:#fff;}
+.docnav a.cur{background:var(--navy);color:#fff;border-color:var(--navy);}
+.md-link{font-size:13px;margin-bottom:22px;color:var(--muted);}
+.content h1{font-size:27px;color:var(--navy);line-height:1.35;margin:6px 0 18px;}
+.content h2{font-size:20px;color:var(--navy);margin:42px 0 14px;padding-bottom:9px;border-bottom:3px solid var(--navy);}
+.content h3{font-size:16px;color:var(--navy2);margin:24px 0 9px;}
+.content p{margin:0 0 12px;}
+.content ul,.content ol{margin:0 0 14px 22px;}
+.content li{margin-bottom:6px;}
+.content blockquote{background:var(--soft);border-left:5px solid var(--navy);border-radius:0 8px 8px 0;padding:14px 20px;margin:14px 0;color:#33425a;}
+.content blockquote p{margin:0 0 6px;}
+.content table{width:100%;border-collapse:collapse;margin:14px 0 20px;font-size:13.3px;}
+.content th{background:var(--navy);color:#fff;padding:9px 11px;text-align:left;font-weight:600;}
+.content td{padding:8px 11px;border-bottom:1px solid var(--line);vertical-align:top;}
+.content tr:nth-child(even) td{background:#fafbfd;}
+.content a{color:var(--accent);}
+.content code{background:var(--soft);border:1px solid var(--line);border-radius:4px;padding:1px 6px;font-size:12.4px;font-family:Consolas,'Courier New',monospace;}
+.content pre{background:#21252e;color:#e8eaf0;border-radius:8px;padding:16px 18px;font-size:12.4px;font-family:Consolas,'Courier New',monospace;overflow-x:auto;margin:12px 0 18px;line-height:1.55;}
+.content pre code{background:none;border:none;color:inherit;padding:0;}
+.content hr{border:none;border-top:1px solid var(--line);margin:30px 0;}
+.content strong{color:var(--navy2);}
+.footer{margin-top:50px;padding-top:16px;border-top:1px solid var(--line);font-size:12px;color:var(--muted);display:flex;justify-content:space-between;}
+@media print{body{background:#fff;}.page{box-shadow:none;padding:18px 0;max-width:100%;}.docnav{display:none;}.content h2{break-after:avoid;}.content table,.content pre,.content blockquote{break-inside:avoid;}}
+@media (max-width:720px){.page{padding:30px 20px;}}
+</style>
+</head>
+<body>
+<div class="page">
+  <span class="doc-label">JEIL AX ERP DB 연계 · 대외비</span>
+  <div class="docnav"><a href="/docs/erp">🏠 연계 허브</a><a href="/docs/erp/status">00 현재상태</a><a href="/docs/erp/plan">01 연계기획</a><a href="/docs/erp/progress">02 진행상태</a><a href="/docs/erp/midway-db">03 중간DB 실행기획</a><a href="/docs/erp/incremental-sync">04 증분·확장·거버넌스</a><a href="/docs/erp/dept-mapping">05 사용자-부서 매핑</a><a href="/docs/erp/voucher-roadmap">06 결의전표 추진계획</a><a href="/docs/erp/voucher-handover">09 결의전표 인수인계</a><a href="/docs/erp/recurring-voucher">10 반복전표 자동화</a><a href="/docs/erp/direct-post-demo">11 ERP 직접등록(DEMO2)</a><a class="cur" href="/docs/erp/ax001-acct-mapping">12 AX001 계정매핑 요청</a><a href="README.md">README</a></div>
+  <p class="md-link">📄 Markdown 원본: <a href="12_AX001_계정매핑_등재요청.md">12_AX001_계정매핑_등재요청.md</a> · 허브 <a href="/docs/erp">연계 허브</a></p>
+  <div class="content">
+<h1 id="12-ax001">12. AX001 계정매핑 등재 요청 (회계팀 · 유니포인트 협의)</h1>
+<blockquote>
+<p>결의전표 ERP 전송 파일럿에서 <strong>전송이 막히는 계정</strong>을 실측으로 뽑은 목록이다.
+포털·릴레이 쪽 문제가 아니라 <strong>ERP 마스터에 조합이 정의되지 않아</strong> 생기는 차단이며,
+등재는 ERP 마스터 변경이라 회계팀·벤더 소관이다(<code>CLAUDE.md §4.6</code> — 임의 진행 금지).</p>
+<p>기준일 2026-08-24 · 대상 DB <code>JEILMNS_DEMO2</code> · 거래유형 <code>AX001</code> · 관리: 최동혁
+관련: <code>11_ERP직접등록_DEMO2_1차</code>(결정 C-12 AX001 신설) · 미결 <strong>U-F</strong></p>
+</blockquote>
+<hr />
+<h2 id="1">1. 한 장 요약</h2>
+<ul>
+<li>포털 결의전표가 실제로 쓴 계정 <strong>12종</strong>을 AX001 기준으로 판정한 결과 <strong>7종 통과 / 5종 차단</strong>.</li>
+<li>차단된 5종은 <strong>분개코드(JNL_CD)를 정할 수 없어</strong> fail-closed 로 중단된다. ERP에는 아무것도 들어가지 않는다.</li>
+<li><strong>요청 사항</strong>: 아래 §3 의 5개 계정을 ERP 마스터에 등재(또는 매핑 등록)해 달라.</li>
+</ul>
+<hr />
+<h2 id="2-3">2. 지금 어떻게 결정되고 있나 (3단계)</h2>
+<p>릴레이는 임의 코드를 만들지 않는다. <strong>분개코드 마스터에 실재하는 코드만</strong> 쓴다.</p>
+<table>
+<thead>
+<tr>
+<th>단계</th>
+<th>방법</th>
+<th>근거 테이블</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>① 매핑</td>
+<td>거래유형×계정 매핑이 있으면 그대로</td>
+<td><code>A_JNL_ACCT_ASSN</code></td>
+</tr>
+<tr>
+<td>② 자기참조</td>
+<td>계정코드와 <strong>같은 값의 분개코드</strong>가 마스터에 있으면 그것을 씀. EVENT_CD 는 코스트센터 직간접(I→IZ, D→DZ)</td>
+<td><code>A_JNL_ITEM</code></td>
+</tr>
+<tr>
+<td>③ 코드형 폴백</td>
+<td>자기참조가 없는 계정(부가세·미지급금 등)은 기존 거래유형이 쓰는 코드형</td>
+<td>코드 내 화이트리스트</td>
+</tr>
+</tbody>
+</table>
+<p><strong>AX001 에는 ① 매핑이 0건</strong>이다. 즉 지금 통과하는 건 전부 ②·③ 덕분이고,
+②·③ 어디에도 안 걸리는 계정이 곧 차단 대상이다.</p>
+<hr />
+<h2 id="3-5">3. 등재 필요 — 5건</h2>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>계정코드</th>
+<th>차대</th>
+<th>계정명</th>
+<th>포털 사용</th>
+<th>자기참조<br>(<code>A_JNL_ITEM</code>)</th>
+<th>타 거래유형 매핑</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td><code>53013901</code></td>
+<td>차변</td>
+<td>판)지급임차료</td>
+<td><strong>4회 / 2전표</strong></td>
+<td>없음</td>
+<td>없음</td>
+</tr>
+<tr>
+<td>2</td>
+<td><code>53010601</code></td>
+<td>차변</td>
+<td>판)수도광열비</td>
+<td>2회 / 1전표</td>
+<td>없음</td>
+<td>없음</td>
+</tr>
+<tr>
+<td>3</td>
+<td><code>21100902</code></td>
+<td>차변</td>
+<td>미지급금(개인)</td>
+<td>1회 / 1전표</td>
+<td>없음</td>
+<td>없음</td>
+</tr>
+<tr>
+<td>4</td>
+<td><code>11101703</code></td>
+<td>차변</td>
+<td>미수금-현업</td>
+<td>1회 / 1전표</td>
+<td>없음</td>
+<td>없음</td>
+</tr>
+<tr>
+<td>5</td>
+<td><code>11101701</code></td>
+<td>대변</td>
+<td>미수금</td>
+<td>1회 / 1전표</td>
+<td>없음</td>
+<td><strong>있음</strong> — <code>AG001:AR</code> · <code>AS003:AR</code> · <code>AS006:AR</code> · <code>S0008:AR</code> · <code>AM003:XL/XP</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="31-511101701">3.1 5번(<code>11101701</code>)은 답이 이미 나와 있다</h3>
+<p>다른 거래유형 4종이 <strong>모두 <code>AR</code>(외상매출금)</strong> 을 쓴다. AX001 에도 같은 값으로 등재하면 된다.</p>
+<h3 id="32-14">3.2 1~4번은 판단이 필요하다</h3>
+<p>어느 거래유형에도 등재된 적이 없고 자기참조 코드도 없다. <strong>회계팀이 분개코드를 지정</strong>해야 한다.</p>
+<ul>
+<li><strong>1·2번(비용계정)</strong> — 성격이 같은 계정들은 이미 자기참조로 통과한다
+  (<code>53014307</code> 판)지급수수료 · <code>53013501</code> 판)소모품비 · <code>53010701</code> 판)복리후생비 · <code>43000501</code> 제)복리후생비).
+  즉 <strong><code>A_JNL_ITEM</code> 에 계정코드와 같은 분개코드를 추가하면</strong> 같은 방식으로 자동 해결된다.
+  현재 계정코드형 분개코드는 <strong>77건만 등재</strong>되어 있고 비용계정은 <strong>473건</strong>이다 — 일부만 등재된 상태다.</li>
+<li><strong>3번(<code>21100902</code> 미지급금-개인)</strong> — 개인경비 정산 케이스. 기회검토에서 「케이스 A 개인경비」로
+  분류돼 있고 매핑 0건인 것이 이미 확인된 항목이다.</li>
+<li><strong>4번(<code>11101703</code> 미수금-현업)</strong> — 5번(<code>11101701</code> 미수금)이 <code>AR</code> 을 쓰므로 같은 계열로 볼 수 있으나,
+  차변 사용이라 회계팀 확인이 필요하다.</li>
+</ul>
+<hr />
+<h2 id="4">4. 통과하는 계정 (참고 — 조치 불필요)</h2>
+<table>
+<thead>
+<tr>
+<th>계정코드</th>
+<th>차대</th>
+<th>계정명</th>
+<th>판정</th>
+<th>JNL_CD</th>
+<th>EVENT</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>21100901</code></td>
+<td>대변</td>
+<td>미지급금(거래처)</td>
+<td>코드형</td>
+<td><code>AP</code></td>
+<td>-</td>
+</tr>
+<tr>
+<td><code>11103301</code></td>
+<td>차변</td>
+<td>부가세대급금</td>
+<td>코드형</td>
+<td><code>A</code></td>
+<td><code>A</code></td>
+</tr>
+<tr>
+<td><code>53014307</code></td>
+<td>차변</td>
+<td>판)지급수수료(기타)</td>
+<td>자기참조</td>
+<td><code>53014307</code></td>
+<td><code>IZ</code></td>
+</tr>
+<tr>
+<td><code>43000501</code></td>
+<td>차·대</td>
+<td>제)복리후생비(식대)</td>
+<td>자기참조</td>
+<td><code>43000501</code></td>
+<td><code>IZ</code></td>
+</tr>
+<tr>
+<td><code>53010701</code></td>
+<td>차변</td>
+<td>판)복리후생비(식대)</td>
+<td>자기참조</td>
+<td><code>53010701</code></td>
+<td><code>IZ</code></td>
+</tr>
+<tr>
+<td><code>53013501</code></td>
+<td>차변</td>
+<td>판)소모품비</td>
+<td>자기참조</td>
+<td><code>53013501</code></td>
+<td><code>IZ</code></td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="5">5. 실제로 막힌 전표</h2>
+<table>
+<thead>
+<tr>
+<th>초안</th>
+<th>금액</th>
+<th>막힌 계정</th>
+<th>발생</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>DRAFT-20260820-0012</code></td>
+<td>10,000</td>
+<td><code>21100902</code></td>
+<td>2026-08-24 09:31</td>
+</tr>
+<tr>
+<td><code>DRAFT-20260824-0015</code></td>
+<td>22,508,030</td>
+<td><code>53013901</code></td>
+<td>2026-08-24 10:22</td>
+</tr>
+</tbody>
+</table>
+<p>둘 다 <strong>ROLLBACK 되어 ERP에 흔적이 없다.</strong> 매핑이 등재되면 릴레이가 다음 회차에 자동으로 재시도한다
+(별도 조작 불필요 — 초안 상태가 <code>submitted</code> 로 남아 있다).</p>
+<hr />
+<h2 id="6">6. 등재 후 확인 방법</h2>
+<pre><code>gl_relay.exe --draft &lt;초안번호&gt; --dry-run
+</code></pre>
+<p>리허설이라 ERP에 남지 않는다. <code>[분개코드] …(매핑)</code> 으로 출처가 바뀌고 라인 대조가
+완전일치로 나오면 해결된 것이다.</p>
+<hr />
+<h2 id="7">7. 권고 — 두 갈래 중 선택</h2>
+<table>
+<thead>
+<tr>
+<th>방안</th>
+<th>내용</th>
+<th>장점</th>
+<th>단점</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>A. <code>A_JNL_ITEM</code> 에 계정코드형 분개코드 추가</strong></td>
+<td>비용계정(1·2번)에 계정코드와 같은 분개코드 등재</td>
+<td>기존 통과 계정들과 <strong>같은 방식</strong>. AX001 뿐 아니라 다른 거래유형에도 재사용</td>
+<td>계정이 늘 때마다 추가 필요</td>
+</tr>
+<tr>
+<td><strong>B. <code>A_JNL_ACCT_ASSN</code> 에 AX001 매핑 등재</strong></td>
+<td>거래유형×계정 조합을 직접 등록</td>
+<td>ERP 정의가 명시적 우선(①단계)</td>
+<td>AX001 전용이라 다른 거래유형에는 무효</td>
+</tr>
+</tbody>
+</table>
+<p><strong>혼용 권고</strong> — 비용계정(1·2)은 <strong>A</strong>, 채권·채무 계정(3·4·5)은 <strong>B</strong>(특히 5번은 <code>AR</code> 로 즉시 가능).</p>
+<blockquote>
+<p>어느 쪽이든 <strong>운영 전환 전에는 정리가 필요하다.</strong> 지금은 DEMO2 라 실패해도 무해하지만,
+운영에서는 사용자가 전표를 올렸는데 계속 실패하는 상태가 된다.</p>
+</blockquote>
+<hr />
+<h2 id="8">8. 조사 방법 (재현용)</h2>
+<p><code>10_ERP_DB연계/etl/gl_apply_demo2.py</code> 의 <code>resolve_jnl()</code> 를 포털 초안이 쓴 계정 전수에 대해
+그대로 실행해 판정했다. 원천은 포털 <code>public.gl_draft_item</code>(사용 계정·차대) + DEMO2
+<code>A_JNL_ACCT_ASSN</code>·<code>A_JNL_ITEM</code>(마스터). <strong>읽기 전용 조회만</strong> 했고 ERP에 쓰지 않았다.</p>
+  </div>
+  <div class="footer"><span>JEIL M&amp;S · ERP DB 연계 관제</span><span>12 AX001 계정매핑 요청 · 관리: 최동혁</span></div>
+</div>
+</body>
+</html>
