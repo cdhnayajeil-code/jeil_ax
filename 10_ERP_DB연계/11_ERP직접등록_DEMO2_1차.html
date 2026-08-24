@@ -47,7 +47,7 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
   <div class="content">
 <h1 id="11-erp-1demo2">11. 결의전표 ERP 직접등록 — 1차(DEMO2) 기획·구축</h1>
 <blockquote>
-<p><strong>작성: 2026-08-19</strong>(v1.0 → v1.1 → v1.2 → v1.3 전송 E2E 성공 → v1.4 · 2026-08-20 AX001 채택 → v1.5 · 2026-08-20 전송=확정 일원화(C-13) + AX001 기준 2건째 성공 → <strong>v1.6 · 2026-08-20 DEMO2 5번째 E2E 성공(AX001 기준 3건째)</strong>) · 관리: 최동혁 · 전담 에이전트: <code>erp-db-link-manager</code>
+<p><strong>작성: 2026-08-19</strong>(v1.0 → v1.1 → v1.2 → v1.3 전송 E2E 성공 → v1.4 · 2026-08-20 AX001 채택 → v1.5 · 2026-08-20 전송=확정 일원화(C-13) + AX001 기준 2건째 성공 → v1.6 · 2026-08-20 DEMO2 5번째 E2E 성공(AX001 기준 3건째) → <strong>v1.7 · 2026-08-25 서브원장 생성 SP 호출 추가</strong>) · 관리: 최동혁 · 전담 에이전트: <code>erp-db-link-manager</code>
 <strong>결정 C-11</strong>(2026-08-19 관리자 지시): AI(포털) 생성 결의전표의 ERP 직접 투입을 <strong>데모 DB <code>JEILMNS_DEMO2</code> 한정</strong>으로 1차 테스트한다.
 <strong>운영(<code>JEILMNS</code>) 쓰기는 여전히 금지</strong>(C-1 유지) — 운영 전환은 기회검토의 착수 게이트 G-1~G-8 통과 + 재심의가 선행돼야 한다.
 근거·선행: 사내 OneDrive <code>ERP_DB/회계/260819_AX_결의전표_ERP연동_기회검토/</code>(기회검토 본문 + test_demo2 리허설 킷 — <strong>투입 레시피 리허설 검증 완료</strong>)</p>
@@ -67,7 +67,8 @@ ERP 표준 채번기(<code>usp_a_tempgl_no_auto_gen 'AG'</code> — <code>B_AUTO
    ①포털 RPC로 초안 회수 ②멱등 3중 확인 ③JNL/EVENT 분개코드 조회(fail-closed)
    ④AG·BT 채번 ⑤A_BATCH/A_BATCH_GL/A_BATCH_GL_ITEM 투입(관리항목 슬롯 평탄화)
    ⑥표준 엔진 usp_a_create_gl_by_batch_01 호출 ⑦라인 완전대조(계정+차대+금액)
-   ⑧대조 통과 시에만 COMMIT → ⑨포털 원장 기록 + gl_draft 회기입(AG번호)
+   ⑧서브원장 usp_a_create_temp_gl_subsys 호출(같은 트랜잭션) ⑨연결번호·채무·부가세 검증
+   ⑩전부 통과 시에만 COMMIT → ⑪포털 원장 기록 + gl_draft 회기입(AG번호)
    ▼
 [DEMO2] A_TEMP_GL 에 AG전표 생성  →  [포털 화면] 「ERP 적용」 열에 DEMO AG번호 표시
 </code></pre>
@@ -196,6 +197,42 @@ ERP 표준 채번기(<code>usp_a_tempgl_no_auto_gen 'AG'</code> — <code>B_AUTO
 조회 실패 시 실증 폴백 표(부가세대급금 A/A · 미지급금(거래처) AP · 미지급금(법인카드) AP2/CARDC), 그래도 없으면 <strong>중단</strong>(fail-closed — 임의 분개 금지, "분개는 AX가 완성하되 코드는 ERP 설정이 정답").</p>
 <h3 id="33-commit">3.3 검증(엔진 호출 후, COMMIT 전)</h3>
 <p>① <code>A_TEMP_GL</code> 전표 생성 확인 ② <strong>투입 라인 ↔ 생성 라인 완전대조</strong>(계정+차대+금액 다중집합 — 엔진이 라인을 재정렬하므로 순번 매칭 금지, 리허설 정정 3) ③ 불일치 시 대차 자동보정 개입으로 판정·ROLLBACK. 관리항목 슬롯 순서는 엔진이 재배치(정정 2 — 코드만 정확히).</p>
+<h3 id="34-v17-2026-08-25">3.4 서브원장 생성 (v1.7 신설 — 2026-08-25)</h3>
+<p><strong>엔진은 전표만 만들고 서브원장은 만들지 않는다.</strong> 호출자가 <code>usp_a_create_temp_gl_subsys</code> 를
+따로 불러야 채무(<code>A_OPEN_AP</code>)·부가세(<code>A_VAT</code>)가 생기고 라인의 연결번호(<code>SUBSYS_NO</code>)가
+역기록된다. 법인카드 래퍼(<code>USP_ACC2103M1_KO174_BATCH_GW</code>)가 쓰는 표준 구조다.</p>
+<p>이 호출이 없던 v1.6 까지의 전표는 <strong>전표·시산표는 멀쩡한데 채무·부가세 원장이 없는</strong>
+상태로 만들어졌다 — 겉으로 드러나지 않아 더 위험했다(§7 변경이력 v1.7 참조).</p>
+<table>
+<thead>
+<tr>
+<th>단계</th>
+<th>내용</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>호출</td>
+<td>라인 대조 통과 직후, <strong>엔진과 같은 트랜잭션</strong></td>
+</tr>
+<tr>
+<td>인자</td>
+<td><code>@GL_NO</code> 자리에 <strong>결의전표번호</strong>(<code>AG…</code>)를 넘긴다 — 파라미터명이 <code>GL_NO</code> 지만 본문은 <code>temp_gl_no</code> 로 쓴다</td>
+</tr>
+<tr>
+<td>실패 시</td>
+<td><code>rc&lt;&gt;1</code> 이면 <strong>전표 생성까지 ROLLBACK</strong> — "전표만 있고 원장이 없는" 부분성공을 만들지 않는다</td>
+</tr>
+<tr>
+<td>결과 검증</td>
+<td>호출 성공만 믿지 않는다. 서브원장 대상 라인의 <code>SUBSYS_NO</code> 가 <strong>하나라도 비면 ROLLBACK</strong>. <code>A_OPEN_AP</code>·<code>A_VAT</code> 행수도 로그·적용원장에 기록</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>회계전표 직행(<code>GL_POSTING_FG='G'</code>)용 <code>usp_a_create_gl_subsys</code> 분기는 두지 않았다 —
+거래유형 확인이 <code>'T'</code> 를 이미 강제해 도달할 수 없는 경로다.</p>
+</blockquote>
 <h2 id="4">4. 실행 절차</h2>
 <h3 id="41-erp-v12">4.1 화면 [🚀 ERP 전송] 방식 (v1.2 신설 — 실사용 테스트 경로)</h3>
 <p>회계 담당자가 화면에서 버튼을 눌러 전송하고, 사내 중계가 자동 투입한다.
@@ -260,6 +297,11 @@ ERP 표준 채번기(<code>usp_a_tempgl_no_auto_gen 'AG'</code> — <code>B_AUTO
 <td>U-E</td>
 <td><strong>부가세</strong></td>
 <td>헤더 VAT 는 부가세대급금(11103301) 라인 합으로 산출. 포털 화면은 아직 세액 필드 미전송 — 케이스 확대 시 보강</td>
+</tr>
+<tr>
+<td>~~U-G~~</td>
+<td>~~서브원장(채무·부가세) 미생성~~</td>
+<td><strong>해소(2026-08-25)</strong> — 엔진 뒤에 <code>usp_a_create_temp_gl_subsys</code> 호출이 빠져 있어 전표·시산표는 정상인데 <code>A_OPEN_AP</code>·<code>A_VAT</code> 가 만들어지지 않았다(실측: AX 대상 26라인 <code>SUBSYS_NO</code> 전건 공백, 수기 5,483/5,483). 같은 트랜잭션 호출 + 연결번호 검증을 추가해 해소. DEMO2 실증 <code>AG202608240004</code> — 연결번호 <code>AP202608240001</code>·<code>VT202608050001</code>, 채무 1행 275,000·부가세 1행 세액 25,000 전표와 일치. 상세 <code>13_AX전표_서브원장_호출누락_개발요청</code></td>
 </tr>
 </tbody>
 </table>

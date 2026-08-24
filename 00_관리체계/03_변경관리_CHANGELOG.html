@@ -108,6 +108,13 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 </thead>
 <tbody>
 <tr>
+<td>2026-08-25</td>
+<td>ERP연계·회계</td>
+<td><code>10_ERP_DB연계/etl/gl_apply_demo2.py</code> · <code>13_AX전표_서브원장_호출누락_개발요청.md</code>(신규) · <code>11</code>(v1.7) (커밋 <code>da0df6b</code>)</td>
+<td><strong>AX 전표의 채무·부가세 서브원장 미생성 해소.</strong> 릴레이가 만든 전표는 전표·라인·관리항목·정식장부 전기까지 정상인데 채무(<code>A_OPEN_AP</code>)·부가세(<code>A_VAT</code>) 원장이 생기지 않았다 — <strong>전표와 시산표가 멀쩡해 겉으로 드러나지 않는 결손</strong>이라 부가세 신고 매입세액 누락·미지급금 반제 누락으로 이어진다. 실측: AX 대상 26라인 연결번호 전건 공백(수기 5,483/5,483), 2025년 이후 미채움 8건이 전부 AX 전표. 원인은 표준 엔진이 전표만 만들고 서브원장은 만들지 않는데 <code>usp_a_create_temp_gl_subsys</code> 호출이 빠진 것. 엔진과 같은 트랜잭션에서 호출하도록 고치고, 실패 시 전표까지 롤백 + <strong>연결번호가 비면 롤백</strong>(호출 성공만 믿지 않음)을 더했다. DEMO2 실증 <code>AG202608240004</code> — 연결번호·채무·부가세 전건 정상, 금액 전표와 일치</td>
+<td>최동혁(+Claude)</td>
+</tr>
+<tr>
 <td>2026-08-24</td>
 <td>ERP연계·회계</td>
 <td><code>10_ERP_DB연계/12_AX001_계정매핑_등재요청.md</code>(신규) · <code>etl/deploy/</code>(6종) · <code>etl/_env.py</code> · <code>_routes.py</code> (커밋 <code>295c801</code>~<code>49874c0</code>)</td>
