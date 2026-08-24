@@ -1,4 +1,4 @@
-<#
+﻿<#
   register_task.ps1 — 결의전표 릴레이를 Windows 작업 스케줄러에 등록한다(1분 주기).
 
   ⚠ 등록 전에 반드시 README 4단계(--list → --dry-run → 실건 1건)를 통과시킬 것.
