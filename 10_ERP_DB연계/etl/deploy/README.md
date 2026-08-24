@@ -35,13 +35,27 @@ E:\ai.jeil\
 > `.env` 는 **EXE와 같은 폴더**에 둔다. EXE는 실행 시 자기 자신이 놓인 폴더에서 찾는다
 > (`_env.py:env_root()` — frozen 이면 `sys.executable` 기준).
 
+## 0. 두 경로를 구분한다
+
+| 구분 | 경로 | 성격 |
+|---|---|---|
+| **전달 폴더** | `E:\OneDrive - 제일엠앤에스\jeil_ax\relay\` | OneDrive 동기화. 워크스테이션에서 서버로 **파일을 옮기는 통로**. 여기서 실행하지 않는다 |
+| **실행 루트** | `E:\ai.jeil\` | 동기화 없음. 릴레이가 **실제로 도는 자리**. `.env` 도 여기 |
+
+> 전달 폴더에서 직접 실행하면 안 되는 이유 — 작업 스케줄러를 "로그온 여부와 관계없이 실행"으로
+> 걸면 OneDrive 클라이언트가 돌지 않는다. 파일 온디맨드 플레이스홀더 상태면 EXE 가 디스크에
+> 없어 **조용히 실패**하고, 동기화 충돌 시 `gl_relay-서버명.exe` 같은 복사본이 생겨 어느 것이
+> 도는지 모호해진다. 전달 폴더가 바뀌면 이 절과 §1 의 `$src` 만 고치면 된다.
+
+---
+
 ## 1. 파일 배치
 
 전달 폴더(OneDrive)에서 실행 루트로 **복사**한다.
 
 ```powershell
 New-Item -ItemType Directory -Force E:\ai.jeil\logs | Out-Null
-$src = "E:\OneDrive - 제일엠앤에스\ai.jeil - ax\relay"
+$src = "E:\OneDrive - 제일엠앤에스\jeil_ax\relay"
 Copy-Item "$src\gl_relay.exe","$src\deploy\relay.cmd" E:\ai.jeil\
 ```
 
@@ -87,7 +101,7 @@ cd E:\ai.jeil
 ## 4. 작업 스케줄러 등록
 
 ```powershell
-cd "E:\OneDrive - 제일엠앤에스\ai.jeil - ax\relay\deploy"
+cd "E:\OneDrive - 제일엠앤에스\jeil_ax\relay\deploy"
 .\register_task.ps1 -Account ADMIN
 ```
 
@@ -126,20 +140,23 @@ ETL 러너(`etl_watch.py`)까지 같은 서버로 옮길 계획이면 이쪽이 
 .\install.ps1 -PythonInstaller .\python-3.12.10-amd64.exe -WheelDir E:\ai.jeil\wheels
 ```
 
-이 경우 폴더 구조가 다르다 — `_env.py` 가 `.env` 를 **스크립트 기준 두 단계 위**에서 찾으므로
-저장소 구조를 그대로 만든다.
+폴더 구조는 아래와 같다. `_env.py` 가 `.env` 를 **스크립트 기준 두 단계 위**에서 찾으므로
+`pysrc\etl` 의 두 단계 위 = `E:\ai.jeil` 이 되어 **`.env` 위치가 EXE 방식과 같아진다.**
+배포 방식을 바꿔도 `.env` 는 그 자리에 그대로 둔다.
 
 ```
 E:\ai.jeil\
-├─ python312\
+├─ .env                  ← EXE 방식과 같은 자리
 ├─ relay.cmd
 ├─ logs\
-└─ jeil_ax\
-   ├─ .env
-   └─ 10_ERP_DB연계\etl\  ← gl_apply_demo2.py · _env.py · _erp_conn.py
+├─ python312\
+└─ pysrc\etl\            ← gl_apply_demo2.py · _env.py · _erp_conn.py
 ```
 
 `relay.cmd` 는 EXE 가 없으면 자동으로 이 경로를 쓴다 — 파일을 고칠 필요가 없다.
+
+> **경로에 한글을 쓰지 않는다.** `relay.cmd` 는 cmd.exe 가 코드페이지 단위로 읽어 멀티바이트
+> 문자가 있으면 파싱이 깨진다(2026-08-24 실측). 배치 파일과 그 안의 경로는 ASCII 로만 유지한다.
 
 ---
 

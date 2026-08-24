@@ -24,7 +24,9 @@ function Warn($m) { Write-Host "    !   $m" -ForegroundColor Yellow }
 if (-not (Test-Path $PythonInstaller)) { throw "설치 파일을 찾을 수 없습니다: $PythonInstaller" }
 
 $py    = Join-Path $Root "python312\python.exe"
-$etl   = Join-Path $Root "jeil_ax\10_ERP_DB연계\etl"
+# 경로는 ASCII 로만 — relay.cmd(cmd.exe)가 멀티바이트 경로에서 파싱이 깨진다(2026-08-24 실측).
+# pysrc\etl 의 두 단계 위가 $Root 라, _env.py 가 EXE 방식과 같은 자리($Root\.env)에서 .env 를 찾는다.
+$etl   = Join-Path $Root "pysrc\etl"
 $logs  = Join-Path $Root "logs"
 
 Step "폴더 생성"
@@ -75,11 +77,11 @@ Step "다음 할 일"
        →  $etl
 
   2) .env 작성 (서버에서 직접 · OneDrive 경유 금지)
-       →  $Root\jeil_ax\.env
+       →  $Root\.env          (EXE 방식과 같은 자리)
        키: SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY / ERP_DB_CONN
        작성 후:
-         icacls "$Root\jeil_ax\.env" /inheritance:r
-         icacls "$Root\jeil_ax\.env" /grant:r "Administrators:(R)" "SYSTEM:(R)"
+         icacls "$Root\.env" /inheritance:r
+         icacls "$Root\.env" /grant:r "Administrators:(R)" "SYSTEM:(R)"
 
   3) 검증 (스케줄러 등록 전에 반드시)
        cd "$etl"
