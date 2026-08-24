@@ -82,8 +82,8 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 </tr>
 <tr>
 <td><strong>결의전표 릴레이</strong></td>
-<td><strong>ERP 운영 서버 상시 실행</strong>(작업 스케줄러 1분 · 1회 최대 5건, 2026-08-24~)</td>
-<td>종전 워크스테이션 수동 실행 → 이전. 단일 EXE <code>gl_relay.exe</code>(서버에 파이썬 미설치), 배포 루트 <code>E:\ai.jeil\</code>, 실행 계정 ADMIN. 대상 DB <code>JEILMNS_DEMO2</code> 하드코딩(운영 쓰기는 C-1 유지). 배포·변경 절차는 <code>10_ERP_DB연계/etl/deploy/</code>(README·변경관리 런북)</td>
+<td><strong>ERP 운영 서버에 배포 완료 · 수동 실행 검증 통과 · 작업 스케줄러는 미등록</strong>(2026-08-24)</td>
+<td>종전 워크스테이션에서 ERP 서버로 이전. 단일 EXE <code>gl_relay.exe</code>(서버에 파이썬 미설치), 배포 루트 <code>E:\ai.jeil\relay\</code>, 실행 계정 ADMIN, 대상 DB <code>JEILMNS_DEMO2</code> 하드코딩(운영 쓰기는 C-1 유지). <code>--list</code>·<code>relay.cmd</code> 실행까지 서버에서 검증됐고, <strong>1분 주기 자동화 등록은 테스트 완료 후로 보류</strong>(관리자 결정) — 현재는 사람이 돌릴 때만 전송된다. 배포·변경 절차는 <code>10_ERP_DB연계/etl/deploy/</code>(README·변경관리 런북)</td>
 </tr>
 <tr>
 <td><strong>공개 URL</strong></td>
@@ -511,6 +511,11 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 </tr>
 </thead>
 <tbody>
+<tr>
+<td>2026-08-24</td>
+<td><strong>릴레이 배포 상태 정정 + 전송 차단 계정 5종 실측</strong> — 같은 날 앞선 기재에서 「작업 스케줄러 1분 상시 실행」으로 적었으나, <strong>실제로는 배포·수동 검증까지만 완료됐고 스케줄러는 미등록</strong>이다(관리자 결정: 테스트 완료 후 등록). 사실과 어긋나 정정한다 — 현재는 사람이 돌릴 때만 전송된다. 실행 루트는 <code>E:\ai.jeil\relay\</code>(관리자 실제 배치에 맞춰 확정, 로컬 디스크라 OneDrive 동기화 문제 없음). 함께 전송을 막는 계정 5종을 실측해 회계팀 요청서로 문서화했다(<code>10_ERP_DB연계/12</code>)</td>
+<td>최동혁(+Claude)</td>
+</tr>
 <tr>
 <td>2026-08-24</td>
 <td><strong>결의전표 전송 릴레이를 ERP 운영 서버 상시 실행으로 이전</strong>(커밋 <code>295c801</code>·<code>627f1bb</code>) — 화면에서 [ERP 전송]을 눌러도 사람이 스크립트를 손으로 돌려야만 ERP에 들어가던 구조였고, 마지막 수동 실행(08-20) 이후 4건이 적체됐다. <strong>실패가 아니라 미시도</strong>임을 실측 확인(<code>erp_apply_msg</code> 공란·<code>erp_apply_at</code> null·적용 원장 기록 0, 큐 RPC는 정상 반환). 기획서 §D2-a 「상시 가동 장비 지정 필수」 미이행분 해소. ERP 서버 실측으로 배치 가능 확인(Supabase 아웃바운드 443 통과·ODBC 17 존재·DEMO2 동일 인스턴스·외부 의존 <code>pyodbc</code> 하나). 벤더 운영 장비라 <strong>PyInstaller 단일 EXE</strong>로 배포해 파이썬을 설치하지 않는다. <code>relay.cmd</code>에서 실측으로 결함 3건(한글 배치 파싱 깨짐·괄호 블록 <code>%ERRORLEVEL%</code> 오독으로 실패가 성공 보고·<code>Get-Date</code> 포맷 공백)을 잡아 재작성했고, <code>.ps1</code>은 PowerShell 5.1 대응으로 UTF-8 BOM 저장. 서버·접속정보 변경 절차는 <code>변경관리.md</code> 런북으로 문서화. 적체 4건 중 3건 전송 성공(<code>AG202608180001</code>·<code>AG202608180002</code>·<code>AG202608240001</code>), 1건은 계정 <code>21100902</code> 분개코드 미결정으로 fail-closed(회계팀 매핑 등재 대상)</td>
