@@ -25,7 +25,7 @@
 파일 2개 + `.env` 만 두면 끝이다.
 
 ```
-E:\ai.jeil\
+E:\ai.jeil\relay\
 ├─ gl_relay.exe          ← 릴레이 본체 (약 8MB)
 ├─ .env                  ← 접속정보 3키 · ACL 잠금 · OneDrive 경유 금지
 ├─ relay.cmd             ← 작업 스케줄러 진입점
@@ -40,7 +40,7 @@ E:\ai.jeil\
 | 구분 | 경로 | 성격 |
 |---|---|---|
 | **전달 폴더** | `E:\OneDrive - 제일엠앤에스\jeil_ax\relay\` | OneDrive 동기화. 워크스테이션에서 서버로 **파일을 옮기는 통로**. 여기서 실행하지 않는다 |
-| **실행 루트** | `E:\ai.jeil\` | 동기화 없음. 릴레이가 **실제로 도는 자리**. `.env` 도 여기 |
+| **실행 루트** | `E:\ai.jeil\relay\` | 동기화 없음. 릴레이가 **실제로 도는 자리**. `.env` 도 여기 |
 
 > 전달 폴더에서 직접 실행하면 안 되는 이유 — 작업 스케줄러를 "로그온 여부와 관계없이 실행"으로
 > 걸면 OneDrive 클라이언트가 돌지 않는다. 파일 온디맨드 플레이스홀더 상태면 EXE 가 디스크에
@@ -54,9 +54,9 @@ E:\ai.jeil\
 전달 폴더(OneDrive)에서 실행 루트로 **복사**한다.
 
 ```powershell
-New-Item -ItemType Directory -Force E:\ai.jeil\logs | Out-Null
+New-Item -ItemType Directory -Force E:\ai.jeil\relay\logs | Out-Null
 $src = "E:\OneDrive - 제일엠앤에스\jeil_ax\relay"
-Copy-Item "$src\gl_relay.exe","$src\deploy\relay.cmd" E:\ai.jeil\
+Copy-Item "$src\gl_relay.exe","$src\deploy\relay.cmd" E:\ai.jeil\relay\
 ```
 
 > **OneDrive 폴더에서 직접 실행하지 않는다.** 작업 스케줄러를 "로그온 여부와 관계없이 실행"으로
@@ -65,7 +65,7 @@ Copy-Item "$src\gl_relay.exe","$src\deploy\relay.cmd" E:\ai.jeil\
 
 ## 2. `.env` 작성 — 서버에서 직접
 
-`E:\ai.jeil\.env` 에 키 3개. **OneDrive·메일을 거치지 않는다.**
+`E:\ai.jeil\relay\.env` 에 키 3개. **OneDrive·메일을 거치지 않는다.**
 
 ```
 SUPABASE_URL = ...
@@ -80,14 +80,14 @@ ERP_DB_CONN = DRIVER={ODBC Driver 17 for SQL Server};SERVER=localhost;DATABASE=J
   붙은 뒤 실제 DB명을 재확인해 다르면 **아무것도 실행하지 않고 중단**한다.
 
 ```powershell
-icacls E:\ai.jeil\.env /inheritance:r
-icacls E:\ai.jeil\.env /grant:r "Administrators:(R)" "SYSTEM:(R)"
+icacls E:\ai.jeil\relay\.env /inheritance:r
+icacls E:\ai.jeil\relay\.env /grant:r "Administrators:(R)" "SYSTEM:(R)"
 ```
 
 ## 3. 검증 — 작업 등록 **전에** 한다
 
 ```powershell
-cd E:\ai.jeil
+cd E:\ai.jeil\relay
 .\gl_relay.exe --list                        # ① 대기 건 조회 (읽기 전용)
 .\gl_relay.exe --draft <초안번호> --dry-run    # ② 리허설 — 전 과정 실행 후 ROLLBACK
 .\gl_relay.exe --draft <초안번호>              # ③ 실건 1건, 소액으로
@@ -112,7 +112,7 @@ cd "E:\OneDrive - 제일엠앤에스\jeil_ax\relay\deploy"
 
 ```powershell
 Get-ScheduledTask JEIL_AX_GL_Relay | Get-ScheduledTaskInfo    # LastTaskResult 0 = 정상
-Get-Content E:\ai.jeil\logs\relay_$(Get-Date -Format yyyyMM).log -Tail 30
+Get-Content E:\ai.jeil\relay\logs\relay_$(Get-Date -Format yyyyMM).log -Tail 30
 ```
 
 대기 건이 없을 때도 1분마다 로그가 한 줄씩 쌓이므로 살아 있는지 바로 보인다.
@@ -137,15 +137,15 @@ ETL 러너(`etl_watch.py`)까지 같은 서버로 옮길 계획이면 이쪽이 
 .\install.ps1 -PythonInstaller .\python-3.12.10-amd64.exe
 #  pypi 가 막혔으면 워크스테이션에서 휠을 받아:
 #    python -m pip download pyodbc -d .\wheels --only-binary=:all:
-.\install.ps1 -PythonInstaller .\python-3.12.10-amd64.exe -WheelDir E:\ai.jeil\wheels
+.\install.ps1 -PythonInstaller .\python-3.12.10-amd64.exe -WheelDir E:\ai.jeil\relay\wheels
 ```
 
 폴더 구조는 아래와 같다. `_env.py` 가 `.env` 를 **스크립트 기준 두 단계 위**에서 찾으므로
-`pysrc\etl` 의 두 단계 위 = `E:\ai.jeil` 이 되어 **`.env` 위치가 EXE 방식과 같아진다.**
+`pysrc\etl` 의 두 단계 위 = `E:\ai.jeil\relay` 이 되어 **`.env` 위치가 EXE 방식과 같아진다.**
 배포 방식을 바꿔도 `.env` 는 그 자리에 그대로 둔다.
 
 ```
-E:\ai.jeil\
+E:\ai.jeil\relay\
 ├─ .env                  ← EXE 방식과 같은 자리
 ├─ relay.cmd
 ├─ logs\

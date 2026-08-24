@@ -19,7 +19,7 @@ setlocal
 
 REM -- Deployment root. Change this one line when the server changes.
 REM    Overridable via the GL_RELAY_ROOT environment variable (used for tests).
-if not defined GL_RELAY_ROOT set "GL_RELAY_ROOT=E:\ai.jeil"
+if not defined GL_RELAY_ROOT set "GL_RELAY_ROOT=E:\ai.jeil\relay"
 set "ROOT=%GL_RELAY_ROOT%"
 
 set "EXE=%ROOT%\gl_relay.exe"
