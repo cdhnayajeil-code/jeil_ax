@@ -180,6 +180,8 @@ begin
                     jsonb_array_length(p->'detail'->'guard_blocks')) || E'\n' || v_blocks;
   else
     v_err := nullif(btrim(coalesce(p->>'msg_cd','') || ' ' || coalesce(p->'detail'->>'error','')), '');
+    v_err := regexp_replace(coalesce(v_err,''), '^\[(중단|실패|오류)\]\s*', '');  -- 콘솔 접두 제거
+    v_err := nullif(v_err, '');
   end if;
 
   if coalesce(p->>'mode','') = 'commit' and coalesce(p->>'status','') = 'success' then
@@ -215,14 +217,15 @@ begin
      where draft_no = p->>'draft_no';
 
   elsif coalesce(p->>'mode','') = 'precheck' then
-    -- 재판정(--recheck) — ERP 에 아무것도 넣지 않고 사유만 현행화한다.
-    -- 규칙이 바뀌면(예: 결정 C-15) 옛 사유가 남아 사람을 엉뚱한 곳으로 보낸다.
+    -- 사전점검(--precheck) · 재판정(--recheck) — ERP 에 아무것도 넣지 않고 사유만 갱신한다.
+    -- 재판정: 규칙이 바뀌면(예: 결정 C-15) 옛 사유가 남아 사람을 엉뚱한 곳으로 보낸다.
+    -- 사전점검: 아직 안 보낸 초안도 대상이므로 문구에 '재전송'을 쓰지 않는다.
     update public.gl_draft
        set erp_last_error = case
              when coalesce(p->>'status','') = 'success'
-               then '(재판정 ' || to_char(now() at time zone 'Asia/Seoul', 'MM-DD HH24:MI')
-                    || ') 현재 규칙으로는 차단되지 않습니다 — 재전송하면 투입됩니다.'
-             else left(coalesce(v_err,'재판정 실패'), 2000) end,
+               then '현재 규칙으로는 차단되지 않습니다 — 전송하면 투입됩니다. (점검 '
+                    || to_char(now() at time zone 'Asia/Seoul', 'MM-DD HH24:MI') || ')'
+             else left(coalesce(v_err,'점검 실패'), 2000) end,
            erp_last_error_at = now(),
            updated_at        = now()
      where draft_no = p->>'draft_no';
@@ -330,7 +333,7 @@ create or replace function public.gl_apply_problems(
 ) returns jsonb
   language sql security definer set search_path to ''
 as $function$
-  select coalesce(jsonb_agg(t order by t.since), '[]'::jsonb) from (
+  select coalesce(jsonb_agg(t order by t.rank, t.since), '[]'::jsonb) from (
     select d.draft_no, d.draft_dt, d.gl_desc, d.dept_nm, d.owner_nm,
            d.dr_total, d.erp_apply_status, d.erp_attempts,
            -- 사유는 보존 칸이 우선. erp_apply_msg 는 선점 중이면 워커명이라 신뢰할 수 없다.
@@ -339,9 +342,13 @@ as $function$
            d.erp_last_error_at,
            case when d.erp_apply_status = 'failed'  then 'failed'
                 when d.erp_apply_status = 'sending' then 'stuck'
-                else 'stale' end                                          as kind,
-           coalesce(d.erp_ready_at, d.erp_apply_at, d.updated_at)         as since,
-           floor(extract(epoch from (now() - coalesce(d.erp_ready_at, d.erp_apply_at, d.updated_at))) / 60)::int as wait_min
+                when d.erp_apply_status = 'ready'   then 'stale'
+                else 'precheck' end                                       as kind,
+           -- 아직 안 보낸 건(사전점검 차단)을 위로 올린다 — 지금 고칠 수 있는 것이 먼저다
+           case when d.erp_apply_status is null then 1 else 0 end         as rank,
+           coalesce(d.erp_ready_at, d.erp_apply_at, d.erp_last_error_at, d.updated_at) as since,
+           floor(extract(epoch from (now() - coalesce(d.erp_ready_at, d.erp_apply_at,
+                 d.erp_last_error_at, d.updated_at))) / 60)::int          as wait_min
       from public.gl_draft d
      where d.status = 'submitted'
        and (
@@ -350,6 +357,11 @@ as $function$
              and coalesce(d.erp_ready_at, d.updated_at) < now() - make_interval(mins => greatest(1, p_stale_min)))
          or (d.erp_apply_status = 'sending'
              and d.erp_apply_at < now() - interval '30 minutes')
+         -- 아직 안 보냈지만 사전점검에서 이미 막힌 건 — 보내 보고 알 이유가 없다.
+         -- 통과 기록('현재 규칙으로는…')은 문제가 아니므로 제외한다.
+         or (d.erp_apply_status is null and d.erp_attempts = 0
+             and d.erp_last_error is not null
+             and d.erp_last_error not like '현재 규칙으로는%')
        )
      limit 100
   ) t;

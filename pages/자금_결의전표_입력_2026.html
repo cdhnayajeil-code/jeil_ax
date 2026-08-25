@@ -221,6 +221,9 @@
         background:#fff; padding:11px 13px; margin-bottom:8px;}
   .prob.stale{border-left-color:var(--amber);}
   .prob.stuck{border-left-color:var(--accent);}
+  .prob.precheck{border-left-color:var(--navy);}
+  .prob.precheck .why{color:#33455e; background:rgba(26,47,78,.05); border-color:#ccd7e6;}
+  .tagk.precheck{background:#e9edf4; color:var(--navy);}
   .prob .hd{display:flex; align-items:center; gap:9px; flex-wrap:wrap; margin-bottom:5px;}
   .prob .hd .no{font-family:'Consolas','Menlo',monospace; font-size:12.5px; font-weight:700; color:var(--navy);}
   .prob .hd .desc{font-size:12.5px; color:var(--ink); min-width:0; overflow-wrap:anywhere;}
@@ -2815,7 +2818,8 @@ function renderProblems(rows){
   const wrap = $("probWrap");
   if(!rows.length){ wrap.classList.add("hide"); $("probList").innerHTML = ""; return; }
   wrap.classList.remove("hide");
-  const KIND = { failed:["적용 실패","failed"], stale:["대기 적체","stale"], stuck:["처리 중 멈춤","stuck"] };
+  const KIND = { failed:["적용 실패","failed"], stale:["대기 적체","stale"],
+                 stuck:["처리 중 멈춤","stuck"], precheck:["사전점검 차단","precheck"] };
   $("probSub").textContent = rows.length + "건 — 사유를 확인하고 고친 뒤 재전송하세요";
   $("probList").innerHTML = rows.map((x)=>{
     const [label, k] = KIND[x.kind] || ["확인 필요","failed"];
@@ -2827,6 +2831,9 @@ function renderProblems(rows){
       + '<div class="meta">'+esc(x.draft_dt)+' · '+esc(x.dept_nm||"")+' · '+esc(x.owner_nm||"")
       + ' · '+mins(x.wait_min)+' 경과'
       + (x.erp_attempts ? ' · 시도 '+x.erp_attempts+'회' : '')+'</div>'
+      + (x.kind === "precheck"
+          ? '<div class="meta" style="margin:-2px 0 6px;">아직 보내지 않았습니다 — '
+            + '사전점검에서 이미 막힌 건입니다. 고치고 보내세요.</div>' : '')
       + '<div class="why">'+(x.reason
           ? esc(x.reason)
           : (x.kind === "stale"
@@ -2905,7 +2912,9 @@ function renderSendBar(h){
   if(why && st !== "applied"){
     if(!box){ box = document.createElement("div"); box.id = "sendWhy"; box.className = "why";
               $("sendBar").appendChild(box); }
-    box.innerHTML = (st === "ready" ? "<b>직전 시도 사유</b>" : "<b>실패 사유</b>")
+    // 한 번도 안 보낸 초안의 사유는 '직전 시도'가 아니라 사전점검 결과다 — 말이 사실과 맞아야 한다
+    box.innerHTML = (!h.erp_attempts ? "<b>사전점검 결과</b>"
+                     : st === "ready" ? "<b>직전 시도 사유</b>" : "<b>실패 사유</b>")
       + (h.erp_last_error_at ? ' <span style="opacity:.7;">· '
           + esc(new Date(h.erp_last_error_at).toLocaleString("ko-KR")) + '</span>' : "")
       + (h.erp_attempts ? ' <span style="opacity:.7;">· 시도 '+h.erp_attempts+'회</span>' : "")

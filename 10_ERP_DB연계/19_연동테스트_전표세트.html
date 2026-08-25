@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>19 연동테스트 전표세트 — ERP DB 연계 관제 (정상 6 · 오류 8 — 재현 가능한 테스트 배치와 기대 결과, 포털이 못 만드는 유형 2종)</title>
+<style>
+:root{--navy:#1a2f4e;--navy2:#27457a;--accent:#2f6fb3;--red:#b3402f;--green:#2e7d52;--amber:#9a6b1f;
+--ink:#222;--muted:#666;--line:#d8dee8;--bg:#f4f6f9;--soft:#eef2f8;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;color:var(--ink);background:var(--bg);line-height:1.65;font-size:15px;}
+.page{max-width:960px;margin:0 auto;background:#fff;padding:52px 60px;box-shadow:0 2px 14px rgba(0,0,0,.08);}
+.doc-label{display:inline-block;background:var(--navy);color:#fff;font-size:12px;letter-spacing:.16em;padding:5px 14px;border-radius:3px;margin-bottom:16px;}
+.docnav{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 26px;}
+.docnav a{font-size:12px;color:var(--navy2);border:1px solid var(--line);border-radius:20px;padding:4px 12px;text-decoration:none;background:var(--soft);}
+.docnav a:hover{background:var(--navy);color:#fff;}
+.docnav a.cur{background:var(--navy);color:#fff;border-color:var(--navy);}
+.md-link{font-size:13px;margin-bottom:22px;color:var(--muted);}
+.content h1{font-size:27px;color:var(--navy);line-height:1.35;margin:6px 0 18px;}
+.content h2{font-size:20px;color:var(--navy);margin:42px 0 14px;padding-bottom:9px;border-bottom:3px solid var(--navy);}
+.content h3{font-size:16px;color:var(--navy2);margin:24px 0 9px;}
+.content p{margin:0 0 12px;}
+.content ul,.content ol{margin:0 0 14px 22px;}
+.content li{margin-bottom:6px;}
+.content blockquote{background:var(--soft);border-left:5px solid var(--navy);border-radius:0 8px 8px 0;padding:14px 20px;margin:14px 0;color:#33425a;}
+.content blockquote p{margin:0 0 6px;}
+.content table{width:100%;border-collapse:collapse;margin:14px 0 20px;font-size:13.3px;}
+.content th{background:var(--navy);color:#fff;padding:9px 11px;text-align:left;font-weight:600;}
+.content td{padding:8px 11px;border-bottom:1px solid var(--line);vertical-align:top;}
+.content tr:nth-child(even) td{background:#fafbfd;}
+.content a{color:var(--accent);}
+.content code{background:var(--soft);border:1px solid var(--line);border-radius:4px;padding:1px 6px;font-size:12.4px;font-family:Consolas,'Courier New',monospace;}
+.content pre{background:#21252e;color:#e8eaf0;border-radius:8px;padding:16px 18px;font-size:12.4px;font-family:Consolas,'Courier New',monospace;overflow-x:auto;margin:12px 0 18px;line-height:1.55;}
+.content pre code{background:none;border:none;color:inherit;padding:0;}
+.content hr{border:none;border-top:1px solid var(--line);margin:30px 0;}
+.content strong{color:var(--navy2);}
+.footer{margin-top:50px;padding-top:16px;border-top:1px solid var(--line);font-size:12px;color:var(--muted);display:flex;justify-content:space-between;}
+@media print{body{background:#fff;}.page{box-shadow:none;padding:18px 0;max-width:100%;}.docnav{display:none;}.content h2{break-after:avoid;}.content table,.content pre,.content blockquote{break-inside:avoid;}}
+@media (max-width:720px){.page{padding:30px 20px;}}
+</style>
+</head>
+<body>
+<div class="page">
+  <span class="doc-label">JEIL AX ERP DB 연계 · 대외비</span>
+  <div class="docnav"><a href="/docs/erp">🏠 연계 허브</a><a href="/docs/erp/status">00 현재상태</a><a href="/docs/erp/plan">01 연계기획</a><a href="/docs/erp/progress">02 진행상태</a><a href="/docs/erp/midway-db">03 중간DB 실행기획</a><a href="/docs/erp/incremental-sync">04 증분·확장·거버넌스</a><a href="/docs/erp/dept-mapping">05 사용자-부서 매핑</a><a href="/docs/erp/voucher-roadmap">06 결의전표 추진계획</a><a href="/docs/erp/voucher-handover">09 결의전표 인수인계</a><a href="/docs/erp/recurring-voucher">10 반복전표 자동화</a><a href="/docs/erp/direct-post-demo">11 ERP 직접등록(DEMO2)</a><a href="/docs/erp/ax001-acct-mapping">12 AX001 계정매핑 요청</a><a href="/docs/erp/subledger-fix">13 서브원장 호출누락</a><a href="/docs/erp/test-cases">14 테스트범위·케이스</a><a href="/docs/erp/input-guards">15 입력검증·차단규칙</a><a href="/docs/erp/trans-type-review">16 거래유형체계 검토</a><a href="/docs/erp/prod-gates">17 운영전환 게이트</a><a href="/docs/erp/jnl-rule">18 거래항목 결정규칙</a><a class="cur" href="/docs/erp/test-set">19 연동테스트 전표세트</a><a href="README.md">README</a></div>
+  <p class="md-link">📄 Markdown 원본: <a href="19_연동테스트_전표세트.md">19_연동테스트_전표세트.md</a> · 허브 <a href="/docs/erp">연계 허브</a></p>
+  <div class="content">
+<h1 id="19-erp-6-8">19. ERP 연동 테스트 전표 세트 — 정상 6 · 오류 8</h1>
+<blockquote>
+<p><strong>다양한 전표형태와 오류 유형을 한 배치로 덮는 재현 가능한 테스트 세트.</strong>
+적재 2026-08-25 · 관리: 최동혁 · 배치 <code>TESTSET-2026-08-25</code>
+생성기 <code>etl/seed_test_drafts.py</code> · 선행 <code>14_AX전표_테스트범위_및_케이스설계</code>(케이스 정의) · <code>15_AX전표_입력검증_및_차단규칙</code>(차단 규칙)</p>
+</blockquote>
+<hr />
+<h2 id="0">0. 무엇을 왜 만들었나</h2>
+<p>지금까지 테스트는 <strong>한 번에 한 케이스씩, 손으로</strong> 넣었다. 그래서 두 가지가 없었다.</p>
+<ol>
+<li><strong>재현성</strong> — 무엇을 왜 넣었는지가 남지 않아 같은 시험을 다시 돌릴 수 없다.</li>
+<li><strong>오류 쪽 커버리지</strong> — 정상 경로만 봤다. 「잘못된 전표가 들어오면 어떻게 되는가」는
+   릴레이 로그로만 확인했고, <strong>화면에서</strong> 어떻게 보이는지는 확인한 적이 없다.</li>
+</ol>
+<p>이 세트는 둘을 함께 푼다. 케이스 정의가 코드에 있고(<code>seed_test_drafts.py</code>),
+<strong>기대 결과가 케이스마다 붙어 있다.</strong> 적재는 <code>제출됨</code> 까지만 하고 <strong>전송은 사람이 누른다.</strong></p>
+<pre><code>seed_test_drafts.py --load        →  제출됨 14건
+        ↓
+gl_apply_demo2.py --precheck      →  보내기 전 판정(ERP 무투입)   ← 지금 여기까지 완료
+        ↓
+화면 [ERP 전송] → 선택 전송        →  정상 6건 AG 채번 / 오류 8건 사유와 함께 차단
+</code></pre>
+<hr />
+<h2 id="1-2026-08-25">1. 사전점검 결과 (2026-08-25 실측)</h2>
+<p><strong>정상 6건 전건 통과 · 오류 8건 전건 차단 — 설계대로다.</strong></p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th style="text-align: center;">건수</th>
+<th>결과</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>정상(P)</td>
+<td style="text-align: center;">6</td>
+<td>전건 통과 — 분개코드 해석·가드 모두 정상</td>
+</tr>
+<tr>
+<td>오류(E)</td>
+<td style="text-align: center;">8</td>
+<td>전건 차단 — <strong>의도한 규칙이 정확히 잡았다</strong></td>
+</tr>
+</tbody>
+</table>
+<p>가장 큰 수확은 <strong><code>PD</code> 에서 <code>43000501 → ADJMNT/DZ</code></strong> 가 확인된 것이다.
+거래항목 결정(C-15)에서 서브원장 무관 계정은 코스트센터 직간접으로 <code>IZ</code>/<code>DZ</code> 가 갈리는데,
+지금까지 테스트는 전부 간접(<code>C013200</code>·<code>IZ</code>)이었다 — <strong><code>DZ</code> 는 한 번도 안 타 봤다.</strong></p>
+<hr />
+<h2 id="2">2. 정상 케이스 (통과해야 정상)</h2>
+<table>
+<thead>
+<tr>
+<th>ID</th>
+<th>초안번호</th>
+<th>케이스</th>
+<th style="text-align: center;">라인</th>
+<th>왜 필요한가</th>
+<th>기대</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>P2</strong></td>
+<td><code>DRAFT-TEST-P2-0001</code></td>
+<td>미결·개인경비(OC 발생)</td>
+<td style="text-align: center;">2</td>
+<td>설계서 범위의 <strong>24.6%(2위)</strong> 인데 미수행. C-15 로 분개코드가 풀려 열렸다</td>
+<td><code>SUBSYS_NO</code> <strong>공란이 정상</strong> · 승인 후 <code>A_OPEN_ACCT</code> 에 <code>EM</code>+사번</td>
+</tr>
+<tr>
+<td><strong>P5B</strong></td>
+<td><code>DRAFT-TEST-P5B-0001</code></td>
+<td>선급금 2건 + 부가세 + 채무</td>
+<td style="text-align: center;">4</td>
+<td>선급금 라인이 2건이면 <code>PP</code> 연결번호가 <strong>각각</strong> 발급되는가(설계서 T5 검증 포인트)</td>
+<td>연결번호 4개(PP2·TP1·AP1) · <code>F_PRPAYM</code> 2행</td>
+</tr>
+<tr>
+<td><strong>P6</strong></td>
+<td><code>DRAFT-TEST-P6-0001</code></td>
+<td>매출(AR + TR)</td>
+<td style="text-align: center;">3</td>
+<td><strong>채권·매출부가세는 한 번도 투입해 본 적이 없다.</strong> AX 범위 확인도 겸한다</td>
+<td><code>AR</code>·<code>TR</code> 연결번호 · <code>A_VAT</code> <strong>매출분</strong> 1행</td>
+</tr>
+<tr>
+<td><strong>P7</strong></td>
+<td><code>DRAFT-TEST-P7-0001</code></td>
+<td>선수금(PR)</td>
+<td style="text-align: center;">2</td>
+<td>선수금 원장 생성 경로 미검증</td>
+<td><code>AR</code>·<code>PR</code> 연결번호 · <code>F_PRRCPT</code> 1행</td>
+</tr>
+<tr>
+<td><strong>P9</strong></td>
+<td><code>DRAFT-TEST-P9-0001</code></td>
+<td>다중 라인 25줄</td>
+<td style="text-align: center;">25</td>
+<td>라인마다 채번 SP 를 부른다. <strong>31줄 이상이 DEMO2 에 128전표</strong> 있는데 미검증</td>
+<td>타임아웃 없이 25줄 대조 일치 · <strong>소요시간 기록</strong></td>
+</tr>
+<tr>
+<td><strong>PD</strong></td>
+<td><code>DRAFT-TEST-PD-0001</code></td>
+<td>직접 코스트센터(<code>DI_FG='D'</code>)</td>
+<td style="text-align: center;">3</td>
+<td>C-15 의 <code>IZ</code>/<code>DZ</code> 분기 중 <strong><code>DZ</code> 미검증</strong></td>
+<td>비용 라인 <code>EVENT_CD</code> = <strong><code>DZ</code></strong> ✅ 확인됨</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>전 케이스 코스트센터는 <code>C013200</code>(총무팀·간접), <strong><code>PD</code> 만 <code>C017100</code>(생산팀·직접)</strong> 이다.</p>
+</blockquote>
+<hr />
+<h2 id="3">3. 오류 케이스 (차단돼야 정상)</h2>
+<table>
+<thead>
+<tr>
+<th>ID</th>
+<th>초안번호</th>
+<th>잘못된 점</th>
+<th style="text-align: center;">기대</th>
+<th>실측</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>E1</strong></td>
+<td><code>DRAFT-TEST-E1-0001</code></td>
+<td>채무(AP) <strong>차변</strong> 반제</td>
+<td style="text-align: center;">G5</td>
+<td>✅ <code>1번 줄 21100901(DR) — 미지급금(거래처)(AP) 채무 반제 방향</code></td>
+</tr>
+<tr>
+<td><strong>E2</strong></td>
+<td><code>DRAFT-TEST-E2-0001</code></td>
+<td>채권(AR) <strong>대변</strong> 반제</td>
+<td style="text-align: center;">G5</td>
+<td>✅ <code>2번 줄 11101701(CR) — 미수금(AR) 채권 반제 방향</code></td>
+</tr>
+<tr>
+<td><strong>E3</strong></td>
+<td><code>DRAFT-TEST-E3-0001</code></td>
+<td>선급금(PP) <strong>대변</strong> 반제</td>
+<td style="text-align: center;">G5</td>
+<td>✅ <code>2번 줄 11102301(CR) — 선급금-원부재료(PP)</code></td>
+</tr>
+<tr>
+<td><strong>E4</strong></td>
+<td><code>DRAFT-TEST-E4-0001</code></td>
+<td>선수금(PR) <strong>차변</strong> 반제</td>
+<td style="text-align: center;">G5</td>
+<td>✅ <code>1번 줄 21101902(DR) — 선수금(기타)(PR)</code></td>
+</tr>
+<tr>
+<td><strong>E5</strong></td>
+<td><code>DRAFT-TEST-E5-0001</code></td>
+<td>매입부가세(TP) <strong>대변</strong></td>
+<td style="text-align: center;">G1</td>
+<td>✅ <code>부가세대급금(TP)는 DR 만 허용</code></td>
+</tr>
+<tr>
+<td><strong>E6</strong></td>
+<td><code>DRAFT-TEST-E6-0001</code></td>
+<td>매출부가세(TR) <strong>차변</strong></td>
+<td style="text-align: center;">G1</td>
+<td>✅ <code>부가세예수금(TR)는 CR 만 허용</code></td>
+</tr>
+<tr>
+<td><strong>E7</strong></td>
+<td><code>DRAFT-TEST-E7-0001</code></td>
+<td><strong>라인</strong> 차대 불균형(헤더 합계는 일치)</td>
+<td style="text-align: center;">G2</td>
+<td>✅ <code>차변 500,000 / 대변 450,000 (차이 50,000)</code></td>
+</tr>
+<tr>
+<td><strong>E8</strong></td>
+<td><code>DRAFT-TEST-E8-0001</code></td>
+<td>법인카드 미지급금 <strong>대변</strong>(이중계상)</td>
+<td style="text-align: center;">금지계정</td>
+<td>✅ <code>21100907 … AX 채널에서 사용할 수 없습니다</code></td>
+</tr>
+</tbody>
+</table>
+<p><strong>E5·E6 이 특히 중요하다.</strong> <code>usp_a_check_acct</code> 에 TP/TR 전용 블록이 없어 <strong>ERP 가 막지 않는 구간</strong>이고,
+DEMO2 수동입력분에 위반 8라인이 실재하며 그 건들은 <code>A_VAT</code> 가 비어 있다.
+<strong>E7 도 같다</strong> — ERP 의 <code>113119</code> 차대검증은 <code>GL_INPUT_TYPE='GL'</code> 한정이라 결의전표는 대상 밖이다.
+즉 <strong>E5·E6·E7 은 AX 가 막지 않으면 아무도 안 막는다.</strong></p>
+<hr />
+<h2 id="4">4. 이 세트가 덮지 <strong>못하는</strong> 것 — 포털의 구조적 한계</h2>
+<p>설계서 케이스 중 둘은 <strong>전표를 만들 수 없어서</strong> 넣지 못했다. 빠뜨린 것이 아니라 <strong>막힌 것</strong>이다.</p>
+<h3 id="41-t8-item_amt-0">4.1 T8 마이너스·수정계산서 — <code>item_amt &gt; 0</code> 제약</h3>
+<p><code>gl_draft_item</code> 에 <code>CHECK (item_amt &gt; 0)</code> 이 걸려 있어 <strong>음수 라인을 저장할 수 없다.</strong></p>
+<p>방향을 뒤집는 우회(차변 −50,000 ≡ 대변 +50,000)는 <strong>G1/G5 가 막는다</strong> — 부가세대급금 대변이
+정확히 E5 다. 즉 <strong>두 겹으로 막혀 있다.</strong></p>
+<blockquote>
+<p><strong>영향</strong>: DEMO2 수동입력 전표 중 마이너스 라인 보유가 <strong>939전표</strong>다.
+오발행 취소·수정계산서는 이 형태이므로, 현재 포털로는 <strong>이 유형을 아예 만들 수 없다.</strong>
+운영 전환 전에 결정이 필요하다 — ①포털이 음수를 허용할 것인가(그러면 G1/G5 예외 규칙도 함께 설계)
+②아니면 수정계산서는 ERP 화면 소관으로 남길 것인가. <strong>후자라면 그 사실을 사용자에게 명시해야 한다.</strong></p>
+</blockquote>
+<h3 id="42-t10">4.2 T10 외화 — 통화·환율 필드 자체가 없다</h3>
+<p><code>gl_draft</code> 에 통화·환율 컬럼이 없고, 릴레이는 <code>DOC_CUR='KRW'</code>·<code>XCH_RATE=1.000000</code> 을
+<strong>하드코딩</strong>해 투입한다. DEMO2 외화 전표 <strong>900전표</strong>가 범위 밖이다.</p>
+<hr />
+<h2 id="5">5. 관리항목 값을 저장소에 두지 않는다</h2>
+<p>사번(<code>EM</code>)·거래처(<code>BP</code>)·프로젝트(<code>PC</code>)·신고사업장(<code>V5</code>) 값은 코드에 박지 않고
+<strong>실행 시 DEMO2 에서 해석</strong>한다 — 각 계정에서 실제로 가장 많이 쓰인 값을 고른다.</p>
+<table>
+<thead>
+<tr>
+<th>왜</th>
+<th>결과</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>CLAUDE.md §1</code> — 민감값을 코드·커밋에 넣지 않는다</td>
+<td>저장소에는 「어느 계정의 어느 항목을 쓸지」만 남는다</td>
+</tr>
+<tr>
+<td>마스터가 바뀌면 하드코딩은 썩는다</td>
+<td>다음에 돌려도 그때의 유효값을 쓴다</td>
+</tr>
+<tr>
+<td>로그에 값이 남으면 안 된다</td>
+<td>출력은 앞 2자리만(<code>52******</code>)</td>
+</tr>
+</tbody>
+</table>
+<p>계정별 필수 관리항목은 <code>A_ACCT_CTRL_ASSN</code> 실측 기준이다 —
+<code>21100901</code> BP·C1(양방향 필수) · <code>21100902</code> EM(양방향 필수) · <code>11101701</code>·<code>21101902</code>·<code>11102301</code> BP(필수) ·
+<code>11103301</code> V1·V2·V4·V5·V6(차변 필수) · <code>21102301</code> 같은 항목(<strong>대변</strong> 필수) · <code>43000501</code> PC(차변 필수).</p>
+<blockquote>
+<p><strong>주의</strong>: <code>gl_draft_item.bp_cd</code>·<code>project_no</code> 는 <strong>ERP 로 넘어가지 않는다</strong>(화면 표시용).
+ERP 에 전달되는 관리항목은 <strong><code>gl_draft_item_ctrl</code> 뿐</strong>이다.</p>
+</blockquote>
+<hr />
+<h2 id="6">6. 사용법</h2>
+<pre><code class="language-bash">python 10_ERP_DB연계/etl/seed_test_drafts.py --plan     # 설계만 출력
+python 10_ERP_DB연계/etl/seed_test_drafts.py --load     # 포털에 적재(제출됨)
+python 10_ERP_DB연계/etl/gl_apply_demo2.py  --precheck  # 보내기 전 판정(ERP 무투입)
+#  → 화면 [ERP 전송] 탭에서 선택 전송
+python 10_ERP_DB연계/etl/seed_test_drafts.py --purge    # 배치 정리(적용된 건은 보존)
+</code></pre>
+<p><code>--load</code> 는 <strong>이미 ERP 에 적용된 초안이 있으면 중단</strong>한다(덮어쓰지 않는다).</p>
+<h3 id="61-precheck">6.1 사전점검(<code>--precheck</code>)은 무엇인가</h3>
+<p><strong>보내기 전에</strong> 분개코드 해석과 입력가드를 그대로 돌린다. 쓰기 직전에서 멈추므로
+<strong>ERP 에 아무 흔적도 남지 않는다</strong>(<code>--dry-run</code> 은 전표를 만들었다 되돌려 AG 채번을 소모한다).</p>
+<p>결과는 초안에 남아 화면 「사전점검 결과」로 보이고, 막힌 건은 <strong>「손봐야 할 건」 패널에
+<code>사전점검 차단</code> 으로 올라온다</strong> — 보내 보고 실패를 확인할 이유가 없다.</p>
+<hr />
+<h2 id="7">7. 승인까지 확인할 것 (전송 성공 후)</h2>
+<p>전송이 끝나면 ERP 화면에서 승인하고 아래를 본다. 판정 기준은 설계서 §6 을 따른다.</p>
+<table>
+<thead>
+<tr>
+<th>케이스</th>
+<th>승인 후 확인</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>P2</td>
+<td><code>A_OPEN_ACCT</code> 에 <code>MGNT_CD1='EM'</code>+사번 생성 · 전표 라인 <code>SUBSYS_NO</code> 는 <strong>공란이 정상</strong></td>
+</tr>
+<tr>
+<td>P5B</td>
+<td><code>F_PRPAYM</code> 2행 · <code>PP…</code> 연결번호가 선급금 라인마다 <strong>각각</strong></td>
+</tr>
+<tr>
+<td>P6</td>
+<td><code>A_VAT</code> 에 <strong>매출분</strong> 1행 · <code>A_OPEN_ACCT</code>/채권원장</td>
+</tr>
+<tr>
+<td>P7</td>
+<td><code>F_PRRCPT</code> 1행</td>
+</tr>
+<tr>
+<td>P9</td>
+<td>소요시간 · 25줄 전건 대조 일치</td>
+</tr>
+<tr>
+<td>PD</td>
+<td>라인 <code>COST_CD</code> 가 <code>C017100</code> 로 전개 · 원가 귀속</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="8">8. 실측 조건</h2>
+<ul>
+<li>대상 <strong><code>JEILMNS_DEMO2</code></strong> · 운영(<code>JEILMNS</code>) 미접근</li>
+<li>계정 속성은 <code>A_ACCT</code>(SUBSYS_TYPE·BAL_FG), 허용 방향은 <code>A_OBJECT</code>(<code>GL_INPUT_TYPE='TG'</code>) 조회</li>
+<li>관리항목 필수 여부는 <code>A_ACCT_CTRL_ASSN</code>(DR_FG·CR_FG), 대표값은 <code>A_TEMP_GL_DTL</code> 사용빈도 1위</li>
+<li>코스트센터 직간접은 <code>B_COST_CENTER.DI_FG</code> — DEMO2 기준 직접 5 · 간접 128</li>
+<li><strong>DEMO2 는 2025-06-25 스냅샷이다.</strong> 운영 전환 전 같은 세트를 운영 마스터로 재수행해야 한다(<code>17_운영전환_게이트</code> G7)</li>
+</ul>
+  </div>
+  <div class="footer"><span>JEIL M&amp;S · ERP DB 연계 관제</span><span>19 연동테스트 전표세트 · 관리: 최동혁</span></div>
+</div>
+</body>
+</html>

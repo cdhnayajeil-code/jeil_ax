@@ -24,6 +24,7 @@ r"""gl_apply_demo2.py — 포털 결의전표 초안 → ERP 데모DB(JEILMNS_DE
   python gl_apply_demo2.py --draft DRAFT-... --cleanup   DEMO2에서 해당 건 삭제(정리) + 포털 상태 해제
   python gl_apply_demo2.py --queue                       화면 [ERP 전송] 대기(ready) 건 일괄 처리(1건씩 순차)
   python gl_apply_demo2.py --watch                       감시 모드 — 15초마다 대기 건 확인·처리(Ctrl+C 종료)
+  python gl_apply_demo2.py --precheck                    보내기 전 사전점검 — 제출됨 초안 전건(ERP 무투입)
   python gl_apply_demo2.py --recheck                     실패·적체 건 사유 재판정(ERP 무투입, 읽기 전용)
 
 전송 흐름(v1.2): 회계 담당자가 화면 [ERP 전송] 탭에서 [🚀 ERP 전송] 클릭 → erp_apply_status='ready' 마킹
@@ -874,6 +875,44 @@ def queue_run(args, url, key):
     return ok, len(rows)
 
 
+def precheck_run(args, url, key):
+    """보내기 전 사전점검 — 대상 초안을 현재 규칙으로 판정만 한다(ERP 무투입).
+
+    `--recheck` 와 다른 점: 재판정은 *이미 실패·적체된* 건이 대상이고,
+    사전점검은 *아직 안 보낸* 건이 대상이다. 둘 다 쓰기 직전에서 멈춘다.
+    결과는 초안의 `erp_last_error` 에 남아 화면 「사전점검 결과」로 보인다 —
+    보내고 나서 실패를 확인하는 대신, 보내기 전에 알 수 있다.
+    """
+    if args.draft:
+        targets = [{"draft_no": args.draft, "dr_total": 0, "gl_desc": ""}]
+    else:
+        targets = rpc(url, key, "gl_apply_ready", {"p_target": TARGET_DB}) or []
+        targets = [r for r in targets if r.get("erp_apply_status") != "applied"]
+    if not targets:
+        print("사전점검 대상이 없습니다(제출됨·미적용 초안 없음).")
+        return 0
+    print(f"사전점검 {len(targets)}건 — ERP 에는 아무것도 넣지 않습니다(읽기 검증만).\n")
+    ok, bad = [], []
+    for r in targets:
+        no = r["draft_no"]
+        print(f"──── [사전점검] {no} · {int(r.get('dr_total') or 0):,}원 "
+              f"· {(r.get('gl_desc') or '')[:40]} ────")
+        ns = argparse.Namespace(draft=no, dry_run=False, cleanup=False, precheck=True,
+                                trans_type=args.trans_type, claimed=False)
+        try:
+            (ok if apply_draft(ns) == 0 else bad).append(no)
+        except SystemExit as e:
+            print(f"[건너뜀] {no}: {e}", file=sys.stderr); bad.append(no)
+        except Exception as e:
+            print(f"[오류] {no}: {e}", file=sys.stderr); bad.append(no)
+        print()
+    print(f"[사전점검 완료] 통과 {len(ok)} / 차단 {len(bad)}")
+    if bad:
+        print("  차단: " + ", ".join(bad))
+        print("  → 화면 [ERP 전송] 탭에서 각 건의 「사전점검 결과」에 사유가 표시됩니다.")
+    return 0
+
+
 def recheck_run(args, url, key):
     """실패·적체 건의 사유를 현재 규칙으로 다시 판정한다(ERP 무투입).
 
@@ -947,6 +986,9 @@ def main():
     ap.add_argument("--watch", action="store_true", help="감시 모드 — 대기 건을 주기적으로 자동 처리")
     ap.add_argument("--recheck", action="store_true",
                     help="실패·적체 건 사유 재판정(ERP 무투입 — 읽기 검증만)")
+    ap.add_argument("--precheck", action="store_true",
+                    help="보내기 전 사전점검 — 제출됨·미적용 초안을 판정만 한다(ERP 무투입). "
+                         "--draft 를 함께 주면 그 건만")
     ap.add_argument("--stale-min", type=int, default=30,
                     help="적체 판정 임계(분, 기본 30) — --recheck 대상 선정에 사용")
     ap.add_argument("--interval", type=int, default=15, help="감시 주기(초, 기본 15)")
@@ -957,10 +999,12 @@ def main():
     args = ap.parse_args()
     if args.list:
         return list_ready()
-    if args.queue or args.watch or args.recheck:
+    if args.queue or args.watch or args.recheck or args.precheck:
         load_env()
         url = need("SUPABASE_URL").rstrip("/")
         key = need("SUPABASE_SERVICE_ROLE_KEY")
+        if args.precheck:
+            return precheck_run(args, url, key)
         if args.recheck:
             return recheck_run(args, url, key)
         if args.watch:
