@@ -107,6 +107,7 @@ ROUTES = {
     "/docs/erp/input-guards":           "10_ERP_DB연계/15_AX전표_입력검증_및_차단규칙.html",
     "/docs/erp/trans-type-review":      "10_ERP_DB연계/16_AX전표_거래유형체계_적정성검토.html",
     "/docs/erp/prod-gates":             "10_ERP_DB연계/17_운영전환_게이트.html",
+    "/docs/erp/jnl-rule":               "10_ERP_DB연계/18_거래항목_결정규칙.html",
 
     # ── 제품기획 ───────────────────────────────────────────
     "/docs/product":                    "11_제품기획/index.html",

@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>18 거래항목 결정규칙 — ERP DB 연계 관제 (결정 C-15 — 계정 성격 단일 규칙으로 차단 6종 해소, ERP 마스터 무변경)</title>
+<style>
+:root{--navy:#1a2f4e;--navy2:#27457a;--accent:#2f6fb3;--red:#b3402f;--green:#2e7d52;--amber:#9a6b1f;
+--ink:#222;--muted:#666;--line:#d8dee8;--bg:#f4f6f9;--soft:#eef2f8;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;color:var(--ink);background:var(--bg);line-height:1.65;font-size:15px;}
+.page{max-width:960px;margin:0 auto;background:#fff;padding:52px 60px;box-shadow:0 2px 14px rgba(0,0,0,.08);}
+.doc-label{display:inline-block;background:var(--navy);color:#fff;font-size:12px;letter-spacing:.16em;padding:5px 14px;border-radius:3px;margin-bottom:16px;}
+.docnav{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 26px;}
+.docnav a{font-size:12px;color:var(--navy2);border:1px solid var(--line);border-radius:20px;padding:4px 12px;text-decoration:none;background:var(--soft);}
+.docnav a:hover{background:var(--navy);color:#fff;}
+.docnav a.cur{background:var(--navy);color:#fff;border-color:var(--navy);}
+.md-link{font-size:13px;margin-bottom:22px;color:var(--muted);}
+.content h1{font-size:27px;color:var(--navy);line-height:1.35;margin:6px 0 18px;}
+.content h2{font-size:20px;color:var(--navy);margin:42px 0 14px;padding-bottom:9px;border-bottom:3px solid var(--navy);}
+.content h3{font-size:16px;color:var(--navy2);margin:24px 0 9px;}
+.content p{margin:0 0 12px;}
+.content ul,.content ol{margin:0 0 14px 22px;}
+.content li{margin-bottom:6px;}
+.content blockquote{background:var(--soft);border-left:5px solid var(--navy);border-radius:0 8px 8px 0;padding:14px 20px;margin:14px 0;color:#33425a;}
+.content blockquote p{margin:0 0 6px;}
+.content table{width:100%;border-collapse:collapse;margin:14px 0 20px;font-size:13.3px;}
+.content th{background:var(--navy);color:#fff;padding:9px 11px;text-align:left;font-weight:600;}
+.content td{padding:8px 11px;border-bottom:1px solid var(--line);vertical-align:top;}
+.content tr:nth-child(even) td{background:#fafbfd;}
+.content a{color:var(--accent);}
+.content code{background:var(--soft);border:1px solid var(--line);border-radius:4px;padding:1px 6px;font-size:12.4px;font-family:Consolas,'Courier New',monospace;}
+.content pre{background:#21252e;color:#e8eaf0;border-radius:8px;padding:16px 18px;font-size:12.4px;font-family:Consolas,'Courier New',monospace;overflow-x:auto;margin:12px 0 18px;line-height:1.55;}
+.content pre code{background:none;border:none;color:inherit;padding:0;}
+.content hr{border:none;border-top:1px solid var(--line);margin:30px 0;}
+.content strong{color:var(--navy2);}
+.footer{margin-top:50px;padding-top:16px;border-top:1px solid var(--line);font-size:12px;color:var(--muted);display:flex;justify-content:space-between;}
+@media print{body{background:#fff;}.page{box-shadow:none;padding:18px 0;max-width:100%;}.docnav{display:none;}.content h2{break-after:avoid;}.content table,.content pre,.content blockquote{break-inside:avoid;}}
+@media (max-width:720px){.page{padding:30px 20px;}}
+</style>
+</head>
+<body>
+<div class="page">
+  <span class="doc-label">JEIL AX ERP DB 연계 · 대외비</span>
+  <div class="docnav"><a href="/docs/erp">🏠 연계 허브</a><a href="/docs/erp/status">00 현재상태</a><a href="/docs/erp/plan">01 연계기획</a><a href="/docs/erp/progress">02 진행상태</a><a href="/docs/erp/midway-db">03 중간DB 실행기획</a><a href="/docs/erp/incremental-sync">04 증분·확장·거버넌스</a><a href="/docs/erp/dept-mapping">05 사용자-부서 매핑</a><a href="/docs/erp/voucher-roadmap">06 결의전표 추진계획</a><a href="/docs/erp/voucher-handover">09 결의전표 인수인계</a><a href="/docs/erp/recurring-voucher">10 반복전표 자동화</a><a href="/docs/erp/direct-post-demo">11 ERP 직접등록(DEMO2)</a><a href="/docs/erp/ax001-acct-mapping">12 AX001 계정매핑 요청</a><a href="/docs/erp/subledger-fix">13 서브원장 호출누락</a><a href="/docs/erp/test-cases">14 테스트범위·케이스</a><a href="/docs/erp/input-guards">15 입력검증·차단규칙</a><a href="/docs/erp/trans-type-review">16 거래유형체계 검토</a><a href="/docs/erp/prod-gates">17 운영전환 게이트</a><a class="cur" href="/docs/erp/jnl-rule">18 거래항목 결정규칙</a><a href="README.md">README</a></div>
+  <p class="md-link">📄 Markdown 원본: <a href="18_거래항목_결정규칙.md">18_거래항목_결정규칙.md</a> · 허브 <a href="/docs/erp">연계 허브</a></p>
+  <div class="content">
+<h1 id="18-jnl_cd-c-15">18. 거래항목(JNL_CD) 결정 규칙 — 결정 C-15</h1>
+<blockquote>
+<p><strong>AX 릴레이가 ERP에 넣는 거래항목·이벤트코드를 무엇으로 정하는가.</strong>
+결정 2026-08-25 · 관리: 최동혁 · 전담 에이전트 <code>erp-db-link-manager</code>
+선행: <code>16_AX전표_거래유형체계_적정성검토</code>(ERP_DB 발신) · <code>12_AX001_계정매핑_등재요청</code>(성격 전환)</p>
+</blockquote>
+<hr />
+<h2 id="0">0. 결론</h2>
+<p><strong>계정 성격(<code>A_ACCT.SUBSYS_TYPE</code>) 하나로 결정한다. 예외·특례 없다.
+ERP 마스터를 건드리지 않고, 회계팀 등재를 기다리지 않는다.</strong></p>
+<p>이 결정으로 <strong>차단돼 있던 계정 6종이 전부 해소</strong>됐다.</p>
+<hr />
+<h2 id="1">1. 왜 규칙으로 정해도 되는가 — 실측 근거</h2>
+<h3 id="11-jnl_cdevent_cd">1.1 <code>JNL_CD</code>·<code>EVENT_CD</code> 는 전표에 남지 않는다</h3>
+<table>
+<thead>
+<tr>
+<th>테이블</th>
+<th style="text-align: center;"><code>JNL_CD</code></th>
+<th style="text-align: center;"><code>EVENT_CD</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>A_BATCH_GL_ITEM</code> (투입 배치)</td>
+<td style="text-align: center;">있음</td>
+<td style="text-align: center;">있음</td>
+</tr>
+<tr>
+<td><strong><code>A_TEMP_GL_ITEM</code></strong> (결의전표 라인)</td>
+<td style="text-align: center;"><strong>없음</strong></td>
+<td style="text-align: center;"><strong>없음</strong></td>
+</tr>
+<tr>
+<td><strong><code>A_GL_ITEM</code></strong> (정식전표 라인)</td>
+<td style="text-align: center;"><strong>없음</strong></td>
+<td style="text-align: center;"><strong>없음</strong></td>
+</tr>
+<tr>
+<td><strong><code>A_TEMP_GL_DTL</code></strong> (관리항목)</td>
+<td style="text-align: center;"><strong>없음</strong></td>
+<td style="text-align: center;"><strong>없음</strong></td>
+</tr>
+</tbody>
+</table>
+<p>투입 배치에만 있고 <strong>전표로 넘어가지 않는다.</strong> 회계 결과에 영향이 없다.</p>
+<h3 id="12">1.2 제약도 최소다</h3>
+<table>
+<thead>
+<tr>
+<th>항목</th>
+<th>제약</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>JNL_CD</code></td>
+<td><code>A_JNL_ITEM</code> <strong>FK 하나뿐</strong> — 마스터에 있는 코드면 통과</td>
+</tr>
+<tr>
+<td><code>EVENT_CD</code></td>
+<td><strong>제약 없음</strong> — FK도 없다</td>
+</tr>
+</tbody>
+</table>
+<h3 id="13-ax001-0">1.3 AX001 매핑 0건은 의도된 상태다</h3>
+<p><code>A_JNL_ACCT_ASSN</code>·<code>A_JNL_FORM</code> 모두 0건이지만 <strong>설계가 그렇다</strong> —
+포털이 계정을 완결해 보내므로(<code>MAKE_ACCT_FG='Y'</code>) 매핑 경로를 타지 않는다(16번 §6①).</p>
+<blockquote>
+<p><strong>따라서 「회계팀이 매핑을 등재해야 풀린다」는 전제가 틀렸다.</strong>
+12번 문서는 이 전제 위에 작성됐고, 성격을 「등재 요청」에서 「코드 규칙 확정」으로 바꾼다.</p>
+</blockquote>
+<hr />
+<h2 id="2">2. 결정 규칙</h2>
+<p>계정의 <code>SUBSYS_TYPE</code> 만 보고 정한다.</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: center;">계정 성격</th>
+<th>의미</th>
+<th style="text-align: center;"><code>JNL_CD</code></th>
+<th style="text-align: center;"><code>EVENT_CD</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: center;"><code>TP</code></td>
+<td>매입부가세</td>
+<td style="text-align: center;"><code>A</code></td>
+<td style="text-align: center;"><code>A</code></td>
+</tr>
+<tr>
+<td style="text-align: center;"><code>TR</code></td>
+<td>매출부가세</td>
+<td style="text-align: center;"><code>A</code></td>
+<td style="text-align: center;"><code>A</code></td>
+</tr>
+<tr>
+<td style="text-align: center;"><code>AP</code></td>
+<td>채무</td>
+<td style="text-align: center;"><code>AP</code></td>
+<td style="text-align: center;">(공란)</td>
+</tr>
+<tr>
+<td style="text-align: center;"><code>AR</code></td>
+<td>채권</td>
+<td style="text-align: center;"><code>AR</code></td>
+<td style="text-align: center;">(공란)</td>
+</tr>
+<tr>
+<td style="text-align: center;"><code>PP</code></td>
+<td>선급금</td>
+<td style="text-align: center;"><code>PP</code></td>
+<td style="text-align: center;">(공란)</td>
+</tr>
+<tr>
+<td style="text-align: center;"><code>PR</code></td>
+<td>선수금</td>
+<td style="text-align: center;"><code>PR</code></td>
+<td style="text-align: center;">(공란)</td>
+</tr>
+<tr>
+<td style="text-align: center;"><code>OC</code> · <code>OD</code></td>
+<td>미결</td>
+<td style="text-align: center;"><code>GLITEM</code></td>
+<td style="text-align: center;">(공란)</td>
+</tr>
+<tr>
+<td style="text-align: center;"><strong>(없음)</strong></td>
+<td>비용·수익 등 서브원장 무관</td>
+<td style="text-align: center;"><strong><code>ADJMNT</code></strong></td>
+<td style="text-align: center;"><strong><code>IZ</code> / <code>DZ</code></strong></td>
+</tr>
+</tbody>
+</table>
+<p><strong><code>EVENT_CD</code> 가 값을 갖는 자리는 둘뿐이다.</strong></p>
+<ul>
+<li>부가세 → <code>A</code>(기존 채널과 동일)</li>
+<li>서브원장 무관 계정 → 코스트센터 직간접(<code>DI_FG</code> I→<code>IZ</code> · D→<code>DZ</code>)</li>
+</ul>
+<p>나머지는 공란이다. 어차피 전표에 남지 않고 제약도 없으므로 <strong>의미 없는 값을 만들지 않는다.</strong></p>
+<h3 id="21">2.1 우선순위 — 매핑이 등재되면 그쪽이 이긴다</h3>
+<pre><code>① A_JNL_ACCT_ASSN 매핑 조회      ← 등재돼 있으면 ERP 정의가 정답
+② 계정 성격 단일 규칙(위 표)      ← 현재는 항상 여기로 온다(AX001 매핑 0건)
+   → 표의 코드가 마스터에 없으면 중단(fail-closed). 임의 대체하지 않는다
+</code></pre>
+<p><strong>①을 남겨 둔 이유</strong> — 나중에 회계팀이 AX001 매핑을 등재하면 <strong>코드 변경 없이 자동 전환</strong>된다.
+ERP 정의가 생기면 그것이 우선이라는 원칙은 유지한다.</p>
+<hr />
+<h2 id="3">3. 무엇이 달라졌나</h2>
+<h3 id="31-3">3.1 종전 — 3단계 혼합</h3>
+<table>
+<thead>
+<tr>
+<th>단계</th>
+<th>방법</th>
+<th>문제</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>① 매핑</td>
+<td><code>A_JNL_ACCT_ASSN</code></td>
+<td>AX001은 0건이라 항상 미스</td>
+</tr>
+<tr>
+<td>② 자기참조</td>
+<td>계정코드와 같은 <code>JNL_CD</code></td>
+<td><code>A_JNL_ITEM</code>에 <strong>77건만 등재</strong>(비용계정 473건) — <strong>등재된 계정만 우연히 통과</strong></td>
+</tr>
+<tr>
+<td>③ 코드형 폴백</td>
+<td>계정별 하드코딩 표 7종</td>
+<td>표에 없으면 차단</td>
+</tr>
+</tbody>
+</table>
+<p><strong>세 방식이 섞여 있었다.</strong> 같은 전표 안에서 자기참조(<code>43000501</code>)와 코드형(<code>A</code>·<code>AP</code>)이 함께 나갔고,
+어느 것도 검증받지 않았다 — 16번 §6③이 「통제 없는 자유 입력 필드」로 지적한 상태다.</p>
+<h3 id="32">3.2 지금 — 성격 단일 규칙</h3>
+<p>계정 성격 하나로 결정된다. <strong>설명이 한 줄로 끝난다.</strong></p>
+<blockquote>
+<p>"AX는 계정의 서브시스템 구분에 따라 §2 표대로 거래항목을 넣는다."</p>
+</blockquote>
+<h3 id="33">3.3 계정별 변화</h3>
+<table>
+<thead>
+<tr>
+<th>계정</th>
+<th>계정명</th>
+<th>종전</th>
+<th>지금</th>
+<th>비고</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>11103301</code></td>
+<td>부가세대급금</td>
+<td><code>A</code>(코드형)</td>
+<td><code>A</code></td>
+<td>동일</td>
+</tr>
+<tr>
+<td><code>21100901</code></td>
+<td>미지급금(거래처)</td>
+<td><code>AP</code>(코드형)</td>
+<td><code>AP</code></td>
+<td>동일</td>
+</tr>
+<tr>
+<td><code>11102301</code></td>
+<td>선급금-원부재료</td>
+<td><code>PP</code>(코드형)</td>
+<td><code>PP</code></td>
+<td>동일</td>
+</tr>
+<tr>
+<td><code>53014307</code></td>
+<td>판)지급수수료</td>
+<td><code>53014307</code>(자기참조)</td>
+<td><strong><code>ADJMNT</code></strong></td>
+<td>값만 바뀜 · 결과 동일</td>
+</tr>
+<tr>
+<td><code>53013501</code></td>
+<td>판)소모품비</td>
+<td><code>53013501</code>(자기참조)</td>
+<td><strong><code>ADJMNT</code></strong></td>
+<td>〃</td>
+</tr>
+<tr>
+<td><code>53010701</code></td>
+<td>판)복리후생비</td>
+<td><code>53010701</code>(자기참조)</td>
+<td><strong><code>ADJMNT</code></strong></td>
+<td>〃</td>
+</tr>
+<tr>
+<td><code>43000501</code></td>
+<td>제)복리후생비</td>
+<td><code>43000501</code>(자기참조)</td>
+<td><strong><code>ADJMNT</code></strong></td>
+<td>〃</td>
+</tr>
+<tr>
+<td><strong><code>53013901</code></strong></td>
+<td>판)지급임차료</td>
+<td>❌ 차단</td>
+<td><strong><code>ADJMNT</code></strong></td>
+<td><strong>해소</strong></td>
+</tr>
+<tr>
+<td><strong><code>53010601</code></strong></td>
+<td>판)수도광열비</td>
+<td>❌ 차단</td>
+<td><strong><code>ADJMNT</code></strong></td>
+<td><strong>해소</strong></td>
+</tr>
+<tr>
+<td><strong><code>21100902</code></strong></td>
+<td>미지급금(개인)</td>
+<td>❌ 차단</td>
+<td><strong><code>GLITEM</code></strong></td>
+<td><strong>해소 · T2 개방</strong></td>
+</tr>
+<tr>
+<td><strong><code>11101703</code></strong></td>
+<td>미수금-현업</td>
+<td>❌ 차단</td>
+<td><strong><code>ADJMNT</code></strong></td>
+<td><strong>해소</strong></td>
+</tr>
+<tr>
+<td><strong><code>11101701</code></strong></td>
+<td>미수금</td>
+<td>❌ 차단</td>
+<td><strong><code>AR</code></strong></td>
+<td><strong>해소 · T6 개방</strong></td>
+</tr>
+<tr>
+<td><strong><code>21100101</code></strong></td>
+<td>외상매입금</td>
+<td>❌ 차단</td>
+<td><strong><code>AP</code></strong></td>
+<td><strong>해소</strong></td>
+</tr>
+<tr>
+<td><code>21101902</code></td>
+<td>선수금(기타)</td>
+<td>(미확인)</td>
+<td><code>PR</code></td>
+<td>신규 확인</td>
+</tr>
+<tr>
+<td><code>11100105</code></td>
+<td>보통예금</td>
+<td><code>DP</code>(코드형)</td>
+<td><code>ADJMNT</code></td>
+<td>값만 바뀜</td>
+</tr>
+</tbody>
+</table>
+<p><strong>15종 전수 통과 · 실패 0.</strong></p>
+<hr />
+<h2 id="4">4. 검증</h2>
+<h3 id="41">4.1 막혀 있던 실전표</h3>
+<table>
+<thead>
+<tr>
+<th>초안</th>
+<th>금액</th>
+<th>결과</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>DRAFT-20260824-0015</code></td>
+<td>22,508,030 · 9라인</td>
+<td>✅ <strong>통과</strong> — 분개코드 9줄 전건 해석, 채무 3행·부가세 1행 생성</td>
+</tr>
+<tr>
+<td><code>DRAFT-20260820-0012</code></td>
+<td>10,000</td>
+<td>🚫 <strong>여전히 차단</strong> — 다만 <strong>사유가 달라졌다</strong>(아래)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="42-draft-20260820-0012">4.2 ★ <code>DRAFT-20260820-0012</code> 는 계정 문제가 아니었다</h3>
+<p>분개코드는 이제 풀린다(<code>21100902</code>→<code>GLITEM</code>). 그런데 <strong>입력 가드가 잡았다.</strong></p>
+<pre><code>[차단] 1번 줄 21100902 DR — 미지급금(개인)(OC) 미결 반제 — 미결반제 전용화면에서 처리해야 한다
+</code></pre>
+<p><code>21100902</code>(미지급금-개인)를 <strong>차변</strong>에 넣었다 = <strong>미결 반제</strong>다.
+결의전표로 반제하면 미결원장 잔액이 정리되지 않으므로 전용화면에서 해야 한다.</p>
+<blockquote>
+<p><strong>전표 자체가 잘못돼 있었다.</strong> 종전에는 「계정 미등재」로 기록됐지만 실제로는 다른 문제였고,
+ERP도 <code>119712</code>로 막았을 건이다. <strong>가드가 먼저 잡아 정확한 사유를 남긴 사례</strong>다.
+12번 문서의 「막힌 전표 2건」 기록은 이 사실로 정정한다.</p>
+</blockquote>
+<h3 id="43-t2">4.3 T2 개방 확인</h3>
+<p>설계서 T2(개인경비, 범위의 <strong>24.6%</strong>)가 <strong>발생 방향으로는 통과</strong>한다.</p>
+<pre><code>차) 53014307 판)지급수수료  → ADJMNT/IZ (성격:일반)
+대) 21100902 미지급금(개인) → GLITEM/-  (성격:OC)
+가드: ✅ 통과
+</code></pre>
+<p><code>OC</code> 계정은 <code>SUBSYS_NO</code> 가 <strong>비어야 정상</strong>이고 승인 후 <code>A_OPEN_ACCT</code> 에 생성된다(설계서 §4).</p>
+<hr />
+<h2 id="5">5. 회계팀에 남는 것 — 등재 요청은 사라졌다</h2>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>항목</th>
+<th>성격</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td><strong><code>AX001</code> 은 분개형태·계정배정이 없는 것이 정상</strong></td>
+<td>인수인계 문구. 거래유형등록 화면에서 「설정 안 된 거래유형」으로 보인다(16번 §6①)</td>
+</tr>
+<tr>
+<td>2</td>
+<td><strong><code>MAKE_ACCT_FG='Y'</code> 전제</strong></td>
+<td>포털이 계정을 완결해 보낸다. <code>'N'</code> 이면 매핑 0건이라 <code>110423</code> 실패(16번 §6②)</td>
+</tr>
+<tr>
+<td>3</td>
+<td><code>21100902</code> 대변 사용 적정성</td>
+<td>배치 이력은 차변(반제)뿐이다. 대변(발생)에 써도 되는지는 <strong>회계 판단</strong> — 거래항목과 무관하게 남는 질문</td>
+</tr>
+</tbody>
+</table>
+<p><strong>1·2는 문서로, 3은 확인 요청이다. ERP 마스터 변경 요청은 없다.</strong></p>
+<hr />
+<h2 id="6-itgc">6. ITGC 관점 — 무엇이 나아졌나</h2>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>종전</th>
+<th>지금</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>결정 근거</td>
+<td>3단계 혼합 · 계정별 하드코딩</td>
+<td><strong>계정 성격 1개 필드</strong></td>
+</tr>
+<tr>
+<td>설명 가능성</td>
+<td>"등재된 계정은 자기참조, 없으면 표에서 찾고, 그것도 없으면 차단"</td>
+<td>"성격에 따라 표대로"</td>
+</tr>
+<tr>
+<td>예외</td>
+<td>하드코딩 7종</td>
+<td><strong>없음</strong></td>
+</tr>
+<tr>
+<td>미등재 계정</td>
+<td>차단</td>
+<td><strong>성격만 있으면 결정된다</strong></td>
+</tr>
+<tr>
+<td>감사 추적</td>
+<td>판정 출처 3종</td>
+<td>판정 출처가 <code>성격:XX</code> 로 로그·적용원장에 기록</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>「통제 없는 자유 입력 필드」(16번 §6③)에 대한 답이 이 문서다.</p>
+</blockquote>
+<hr />
+<h2 id="7">7. 이 결정이 흔들리는 경우</h2>
+<table>
+<thead>
+<tr>
+<th>조건</th>
+<th>대응</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>회계팀이 AX001 매핑을 등재</td>
+<td><strong>자동 전환</strong> — ①단계가 이긴다. 코드 변경 불필요</td>
+</tr>
+<tr>
+<td>ERP 업그레이드로 <code>JNL_CD</code> 가 전표에 남게 됨</td>
+<td><strong>재검토 필수.</strong> 이 결정의 전제가 무너진다</td>
+</tr>
+<tr>
+<td>표의 코드가 마스터에서 삭제됨</td>
+<td>fail-closed 로 중단된다 — 조용히 다른 코드를 쓰지 않는다</td>
+</tr>
+<tr>
+<td>새 서브시스템 유형 등장</td>
+<td><code>JNL_DEFAULT</code>(<code>ADJMNT</code>)로 처리된다. 부적절하면 표에 행을 추가한다</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="8">8. 실측 조건</h2>
+<ul>
+<li>대상 DB <strong><code>JEILMNS_DEMO2</code></strong> · ERP 운영DB(<code>JEILMNS</code>) 미접근</li>
+<li>컬럼 존재 여부는 <code>sys.columns</code>, FK는 <code>sys.foreign_keys</code> 조회</li>
+<li>판정 검증은 <code>resolve_jnl()</code> 을 계정 15종에 직접 실행</li>
+<li><strong>DEMO2 는 2025-06-25 스냅샷이다.</strong> 운영 전환 전 같은 판정을 운영 마스터로 재수행해야 한다
+  (<code>17_운영전환_게이트</code> G7)</li>
+</ul>
+  </div>
+  <div class="footer"><span>JEIL M&amp;S · ERP DB 연계 관제</span><span>18 거래항목 결정규칙 · 관리: 최동혁</span></div>
+</div>
+</body>
+</html>

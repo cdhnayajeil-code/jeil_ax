@@ -42,9 +42,25 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <body>
 <div class="page">
   <span class="doc-label">JEIL AX ERP DB 연계 · 대외비</span>
-  <div class="docnav"><a href="/docs/erp">🏠 연계 허브</a><a href="/docs/erp/status">00 현재상태</a><a href="/docs/erp/plan">01 연계기획</a><a href="/docs/erp/progress">02 진행상태</a><a href="/docs/erp/midway-db">03 중간DB 실행기획</a><a href="/docs/erp/incremental-sync">04 증분·확장·거버넌스</a><a href="/docs/erp/dept-mapping">05 사용자-부서 매핑</a><a href="/docs/erp/voucher-roadmap">06 결의전표 추진계획</a><a href="/docs/erp/voucher-handover">09 결의전표 인수인계</a><a href="/docs/erp/recurring-voucher">10 반복전표 자동화</a><a href="/docs/erp/direct-post-demo">11 ERP 직접등록(DEMO2)</a><a class="cur" href="/docs/erp/ax001-acct-mapping">12 AX001 계정매핑 요청</a><a href="/docs/erp/subledger-fix">13 서브원장 호출누락</a><a href="/docs/erp/test-cases">14 테스트범위·케이스</a><a href="/docs/erp/input-guards">15 입력검증·차단규칙</a><a href="/docs/erp/trans-type-review">16 거래유형체계 검토</a><a href="/docs/erp/prod-gates">17 운영전환 게이트</a><a href="README.md">README</a></div>
+  <div class="docnav"><a href="/docs/erp">🏠 연계 허브</a><a href="/docs/erp/status">00 현재상태</a><a href="/docs/erp/plan">01 연계기획</a><a href="/docs/erp/progress">02 진행상태</a><a href="/docs/erp/midway-db">03 중간DB 실행기획</a><a href="/docs/erp/incremental-sync">04 증분·확장·거버넌스</a><a href="/docs/erp/dept-mapping">05 사용자-부서 매핑</a><a href="/docs/erp/voucher-roadmap">06 결의전표 추진계획</a><a href="/docs/erp/voucher-handover">09 결의전표 인수인계</a><a href="/docs/erp/recurring-voucher">10 반복전표 자동화</a><a href="/docs/erp/direct-post-demo">11 ERP 직접등록(DEMO2)</a><a class="cur" href="/docs/erp/ax001-acct-mapping">12 AX001 계정매핑 요청</a><a href="/docs/erp/subledger-fix">13 서브원장 호출누락</a><a href="/docs/erp/test-cases">14 테스트범위·케이스</a><a href="/docs/erp/input-guards">15 입력검증·차단규칙</a><a href="/docs/erp/trans-type-review">16 거래유형체계 검토</a><a href="/docs/erp/prod-gates">17 운영전환 게이트</a><a href="/docs/erp/jnl-rule">18 거래항목 결정규칙</a><a href="README.md">README</a></div>
   <p class="md-link">📄 Markdown 원본: <a href="12_AX001_계정매핑_등재요청.md">12_AX001_계정매핑_등재요청.md</a> · 허브 <a href="/docs/erp">연계 허브</a></p>
   <div class="content">
+<blockquote>
+<h2 id="2026-08-25-c-15">✅ 해소 (2026-08-25 · 결정 C-15)</h2>
+<p><strong>이 문서의 전제가 실측으로 뒤집혔다. 등재 요청은 철회한다.</strong></p>
+<p><code>JNL_CD</code>·<code>EVENT_CD</code> 는 <code>A_BATCH_GL_ITEM</code>(투입 배치)에만 있고 <strong>전표로 넘어가지 않는다</strong> —
+<code>A_TEMP_GL_ITEM</code>·<code>A_GL_ITEM</code>·<code>A_TEMP_GL_DTL</code> 어디에도 컬럼이 없다. <code>JNL_CD</code> 는 <code>A_JNL_ITEM</code>
+FK 하나뿐이고 <code>EVENT_CD</code> 는 제약조차 없다. AX001 의 매핑 0건도 <strong>의도된 설계</strong>다(16번 §6①).
+즉 <strong>회계 결과에 영향이 없는 통과용 파라미터</strong>이며, 회계팀 등재를 기다릴 이유가 없었다.</p>
+<p><strong>조치</strong> — 릴레이가 계정 성격(<code>A_ACCT.SUBSYS_TYPE</code>) 하나로 정하는 단일 규칙으로 바꿨다.
+차단 6종 전부 해소, 계정 15종 전수 통과. 상세는 <strong><code>18_거래항목_결정규칙</code></strong>.</p>
+<p><strong>§5 「막힌 전표 2건」 정정</strong> — <code>DRAFT-20260824-0015</code>(22,508,030원)는 통과했으나,
+<code>DRAFT-20260820-0012</code> 는 <strong>계정 문제가 아니었다.</strong> <code>21100902</code> 를 차변에 넣은 미결 반제라
+입력 가드가 차단한다(ERP 도 <code>119712</code> 로 막았을 건이다). 전표 자체를 고쳐야 한다.</p>
+<p><strong>회계팀에 남는 것</strong> — ERP 마스터 변경 요청은 없다. 인수인계 문구 2건(AX001 매핑 없음이 정상 ·
+<code>MAKE_ACCT_FG='Y'</code> 전제)과 확인 1건(<code>21100902</code> 대변 사용 적정성)뿐이다.</p>
+</blockquote>
+<hr />
 <h1 id="12-ax001">12. AX001 계정매핑 등재 요청 (회계팀 · 유니포인트 협의)</h1>
 <blockquote>
 <p>결의전표 ERP 전송 파일럿에서 <strong>전송이 막히는 계정</strong>을 실측으로 뽑은 목록이다.

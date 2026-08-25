@@ -52,17 +52,33 @@ BT_TYPE = "BT"                        # 배치번호 접두어
 #   구 기본값 S0003(경비)은 차변이 무역·수입 수수료 중심 32계정뿐이라 일반 경비를 담지 못했다.
 TRANS_TYPE_DEFAULT = "AX001"
 VAT_ACCT = "11103301"                 # 부가세대급금 — 헤더 VAT 금액 산출 기준
-# 코드형 JNL_CD 폴백 — '계정코드 자기참조'가 분개코드 마스터에 없는 계정에만 쓴다(실측 확인).
-#   11103301·21100901 은 A_JNL_ITEM 에 자기참조 코드가 없고, 기존 거래유형이 쓰는 코드형이 정답이다.
-JNL_FALLBACK = {
-    "11103301": ("A", "A"),           # 부가세대급금 — 일반세금계산서(S0003·AN005 공통)
-    "21100901": ("AP", ""),           # 미지급금(거래처) — S0003 실증
-    "21100105": ("NP", ""),           # 지급어음
-    "11100101": ("CS", ""),           # 현금
-    "11100105": ("DP", ""),           # 보통예금
-    "11102301": ("PP", ""),           # 선급금-원부재료
-    "21100907": ("AP2", "CARDC"),     # 미지급금(법인카드) — 카드 채널 전용. AX 사용 금지(§이중계상)
+# ═══════════ 거래항목(JNL_CD) 결정 — 계정 성격 단일 규칙 ═══════════
+# 결정 C-15(2026-08-25): ERP 마스터를 건드리지 않고 릴레이가 규칙으로 정한다.
+#
+# 근거(실측):
+#   · JNL_CD·EVENT_CD 는 A_BATCH_GL_ITEM(투입 배치)에만 있고 **전표로 넘어가지 않는다** —
+#     A_TEMP_GL_ITEM · A_GL_ITEM · A_TEMP_GL_DTL 어디에도 컬럼이 없다.
+#   · JNL_CD 는 A_JNL_ITEM FK 만 만족하면 되고, EVENT_CD 는 **제약조차 없다**.
+#   · AX001 은 A_JNL_ACCT_ASSN·A_JNL_FORM 이 0건인데, 그것이 **의도된 상태**다 —
+#     포털이 계정을 완결해 보내므로(MAKE_ACCT_FG='Y') 매핑 경로를 타지 않는다(16번 문서 §6①).
+#   → 즉 회계 결과에 영향이 없는 통과용 파라미터다. 회계팀 등재를 기다릴 이유가 없다.
+#
+# 다만 "아무 값이나 넣어도 통과"하는 상태는 ITGC 관점에서 통제 없는 자유 입력 필드로
+# 지적될 수 있다(16번 §6③ — 실제로 종전에는 자기참조·코드형을 섞어 넣고 있었다).
+# 그래서 **계정 성격(A_ACCT.SUBSYS_TYPE) 하나로 결정되는 설명 가능한 표**로 고정한다.
+JNL_BY_SUBSYS = {
+    "TP": ("A", "A"),                 # 매입부가세 — 일반세금계산서
+    "TR": ("A", "A"),                 # 매출부가세
+    "AP": ("AP", ""),                 # 채무
+    "AR": ("AR", ""),                 # 채권
+    "PP": ("PP", ""),                 # 선급금
+    "PR": ("PR", ""),                 # 선수금
+    "OC": ("GLITEM", ""),             # 미결
+    "OD": ("GLITEM", ""),
 }
+# 서브원장 대상이 아닌 계정(비용·수익 등) — ADJUSTMENT.
+# EVENT_CD 는 코스트센터 직간접(I→IZ · D→DZ)으로 산출한다. 이건 값이 의미를 갖는 유일한 자리다.
+JNL_DEFAULT = ("ADJMNT", "")
 # 법인카드 채널과의 이중계상 방지 — AX 채널은 이 대변 계정을 쓰지 않는다(기회검토 Do-Not 9)
 FORBIDDEN_CR_ACCT = {"21100907"}
 
@@ -189,18 +205,21 @@ def resolve_jnl(cur, trans_type, acct_cd, dr_cr, cost_cd):
     except Exception:
         pass  # 스키마 상이 등 — 아래 규칙으로
 
-    # ② 계정코드 자기참조 + 코스트센터 직간접
-    if jnl_exists(cur, acct_cd):
+    # ② 계정 성격 단일 규칙(C-15) — 계정 하나로 결정된다. 예외·특례 없음.
+    cur.execute("SELECT RTRIM(ISNULL(SUBSYS_TYPE,'')) FROM dbo.A_ACCT WITH (NOLOCK) "
+                "WHERE RTRIM(ACCT_CD) = ?", acct_cd)
+    r = cur.fetchone()
+    if not r:
+        return None                       # 계정 자체가 없다 — fail-closed
+    sub = str(r[0]).strip()
+    jnl, event = JNL_BY_SUBSYS.get(sub, JNL_DEFAULT)
+    if sub == "":
+        # 서브원장 대상이 아닌 계정만 코스트센터 직간접을 반영한다(값이 의미를 갖는 유일한 자리)
         di = cost_di_fg(cur, cost_cd)
         event = "IZ" if di == "I" else ("DZ" if di == "D" else "")
-        return acct_cd, event, "자기참조"
-
-    # ③ 코드형 폴백
-    if acct_cd in JNL_FALLBACK:
-        jnl, event = JNL_FALLBACK[acct_cd]
-        if jnl_exists(cur, jnl):
-            return jnl, event, "코드형"
-    return None
+    if jnl_exists(cur, jnl):
+        return jnl, event, f"성격:{sub or '일반'}"
+    return None                           # 표의 코드가 마스터에 없다 — 임의 대체하지 않는다
 
 
 def notify(title: str, lines, bad: bool = True) -> bool:
