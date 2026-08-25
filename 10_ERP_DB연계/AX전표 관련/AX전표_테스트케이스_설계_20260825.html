@@ -1,0 +1,745 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AX 전표 테스트 범위 및 케이스 설계</title>
+<style>
+:root{
+  color-scheme: light;
+  --surface-1:#fcfcfb; --plane:#f9f9f7;
+  --ink:#0b0b0b; --ink-2:#52514e; --ink-muted:#898781;
+  --grid:#e1e0d9; --axis:#c3c2b7; --border:rgba(11,11,11,0.10);
+  --s1:#2a78d6; --s2:#eb6834; --s3:#1baf7a; --s4:#eda100;
+  --good:#0ca30c; --warning:#fab219; --serious:#ec835a; --critical:#d03b3b;
+  --nodeBg:#ffffff; --nodeAlt:#f2f1ec;
+}
+@media (prefers-color-scheme: dark){
+  :root:where(:not([data-theme="light"])){
+    color-scheme: dark;
+    --surface-1:#1a1a19; --plane:#0d0d0d;
+    --ink:#ffffff; --ink-2:#c3c2b7; --ink-muted:#898781;
+    --grid:#2c2c2a; --axis:#383835; --border:rgba(255,255,255,0.10);
+    --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500;
+    --nodeBg:#232322; --nodeAlt:#2c2c2a;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme: dark;
+  --surface-1:#1a1a19; --plane:#0d0d0d;
+  --ink:#ffffff; --ink-2:#c3c2b7; --ink-muted:#898781;
+  --grid:#2c2c2a; --axis:#383835; --border:rgba(255,255,255,0.10);
+  --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500;
+  --nodeBg:#232322; --nodeAlt:#2c2c2a;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--plane);color:var(--ink);
+  font-family:system-ui,-apple-system,"Segoe UI","Malgun Gothic",sans-serif;
+  font-size:14px;line-height:1.65}
+.wrap{max-width:1200px;margin:0 auto;padding:32px 20px 80px}
+header{border-bottom:2px solid var(--s1);padding-bottom:16px;margin-bottom:8px}
+header .kicker{font-size:12px;font-weight:700;color:var(--s1);letter-spacing:.08em;margin-bottom:6px}
+header h1{font-size:25px;margin:0 0 4px;letter-spacing:-0.01em}
+header .rev{display:inline-block;background:color-mix(in srgb, var(--s2) 18%, transparent);
+  color:var(--s2);font-size:11.5px;font-weight:700;border-radius:99px;padding:2px 10px;margin-bottom:10px}
+.meta{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:6px 20px;font-size:12.5px;color:var(--ink-2)}
+.meta b{color:var(--ink);font-weight:650}
+.tabs{display:flex;gap:4px;margin:24px 0 20px;border-bottom:1px solid var(--grid);flex-wrap:wrap}
+.tabs button{background:none;border:0;border-bottom:2px solid transparent;
+  padding:10px 14px;font:inherit;font-weight:600;color:var(--ink-muted);cursor:pointer}
+.tabs button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--s1)}
+.panel{display:none}
+.panel.on{display:block}
+.card{background:var(--surface-1);border:1px solid var(--border);border-radius:10px;
+  padding:20px;margin-bottom:18px}
+.card h2{font-size:16px;margin:0 0 4px}
+.card h3{font-size:14px;margin:20px 0 6px}
+.card .cap{color:var(--ink-2);font-size:12.5px;margin:0 0 16px}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:18px}
+.tile{background:var(--surface-1);border:1px solid var(--border);border-radius:10px;padding:14px 16px}
+.tile .lab{font-size:12px;color:var(--ink-2);margin-bottom:4px}
+.tile .val{font-size:24px;font-weight:650;letter-spacing:-0.02em;font-variant-numeric:tabular-nums}
+.tile .note{font-size:11.5px;color:var(--ink-muted);margin-top:2px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--grid);vertical-align:top}
+th{color:var(--ink-2);font-weight:600;font-size:12px;white-space:nowrap}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+td.c,th.c{text-align:center}
+.scroll{overflow-x:auto}
+code{background:var(--plane);border:1px solid var(--border);border-radius:4px;padding:1px 5px;
+  font-size:12.5px;font-family:ui-monospace,Consolas,"Courier New",monospace}
+pre{background:var(--plane);border:1px solid var(--border);border-radius:8px;padding:14px;
+  overflow-x:auto;font-size:12.5px;line-height:1.55;
+  font-family:ui-monospace,Consolas,"Courier New",monospace}
+pre .hl{color:var(--critical);font-weight:700}
+pre .ok2{color:var(--good);font-weight:700}
+pre .cm{color:var(--ink-muted)}
+.warn{border-left:3px solid var(--warning);padding-left:12px;color:var(--ink-2);font-size:13px;margin:12px 0}
+.stop{border-left:3px solid var(--critical);padding-left:12px;color:var(--ink-2);font-size:13px;margin:12px 0}
+.ok{border-left:3px solid var(--good);padding-left:12px;color:var(--ink-2);font-size:13px;margin:12px 0}
+.pill{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:700;
+  border:1px solid var(--border);border-radius:99px;padding:1px 9px;white-space:nowrap}
+.pA{color:var(--good)} .pB{color:var(--serious)} .pC{color:var(--critical)} .pN{color:var(--ink-muted)}
+.duo{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px}
+.box{background:var(--surface-1);border:1px solid var(--border);border-radius:10px;padding:16px}
+.box h4{margin:0 0 8px;font-size:13.5px}
+ul.tight{margin:6px 0;padding-left:18px}
+ul.tight li{margin-bottom:5px}
+blockquote{margin:12px 0;padding:12px 16px;background:var(--plane);
+  border-left:3px solid var(--s1);border-radius:0 6px 6px 0;font-size:13px;color:var(--ink-2)}
+footer{color:var(--ink-muted);font-size:12px;margin-top:30px;border-top:1px solid var(--grid);padding-top:14px}
+figure{margin:0 0 6px}
+figcaption{font-size:12px;color:var(--ink-muted);margin-top:8px;text-align:center}
+svg{display:block;max-width:100%;height:auto}
+svg text{font-family:system-ui,-apple-system,"Segoe UI","Malgun Gothic",sans-serif}
+svg .nb{fill:var(--nodeBg);stroke:var(--axis);stroke-width:1}
+svg .nba{fill:var(--nodeAlt);stroke:var(--axis);stroke-width:1}
+svg .t{fill:var(--ink);font-size:12px}
+svg .tb{fill:var(--ink);font-size:12.5px;font-weight:700}
+svg .ts{fill:var(--ink-2);font-size:10.5px}
+svg .tm{fill:var(--ink-muted);font-size:10px}
+svg .lnA{stroke:var(--s1);stroke-width:1.8;fill:none}
+svg .lnG{stroke:var(--good);stroke-width:2;fill:none}
+svg .lnO{stroke:var(--s2);stroke-width:2;fill:none;stroke-dasharray:6 4}
+svg .lnX{stroke:var(--ink-muted);stroke-width:1.4;fill:none;stroke-dasharray:4 4}
+svg .band{fill:var(--plane);stroke:var(--grid);stroke-width:1}
+.zero{color:var(--critical);font-weight:700}
+.gd{color:var(--good);font-weight:700}
+.bar{position:relative;background:var(--grid);border-radius:3px;height:8px;min-width:56px;overflow:hidden}
+.bar i{position:absolute;inset:0 auto 0 0;background:var(--s1);border-radius:3px}
+.tc{border-left:3px solid var(--s1);padding-left:14px;margin:18px 0}
+.tc.done{border-left-color:var(--good)}
+.tc.hot{border-left-color:var(--critical)}
+.tc h3{margin:0 0 6px;font-size:14.5px}
+.inscope{background:color-mix(in srgb, var(--good) 9%, transparent)}
+.outscope{opacity:.62}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <div class="kicker">테스트 범위 · 케이스 설계 · ERP_DB → JEIL_AX</div>
+  <h1>AX 전표 — 테스트 범위 및 케이스 설계</h1>
+  <div class="rev">개정 v2 · 범위 정정 반영</div>
+  <div class="meta">
+    <div><b>발신</b> ERP_DB 작업환경 (최동혁)</div>
+    <div><b>수신</b> JEIL_AX 프로젝트 / 릴레이 개발 담당</div>
+    <div><b>작성</b> 2026-08-25</div>
+    <div><b>근거</b> JEILMNS_DEMO2 실측 (READ-ONLY)</div>
+    <div><b>배치 제안</b> <code>10_ERP_DB연계/14_…</code></div>
+    <div><b>테스트 범위</b> 결의전표 수동입력 <b>12,085건</b></div>
+  </div>
+</header>
+
+<div class="tabs" role="tablist">
+  <button data-p="p1" aria-selected="true">★ 테스트 범위</button>
+  <button data-p="p2" aria-selected="false">AG202608250001</button>
+  <button data-p="p3" aria-selected="false">범위 내 실태</button>
+  <button data-p="p4" aria-selected="false">미결(OC) 경로</button>
+  <button data-p="p5" aria-selected="false">테스트 케이스</button>
+  <button data-p="p6" aria-selected="false">검증 쿼리</button>
+  <button data-p="p7" aria-selected="false">AX 전달 안내</button>
+</div>
+
+<!-- ═══════ P1 범위 ═══════ -->
+<section class="panel on" id="p1">
+  <div class="tiles">
+    <div class="tile"><div class="lab">테스트 범위</div><div class="val gd">12,085</div><div class="note">결의전표 수동입력</div></div>
+    <div class="tile"><div class="lab">제외</div><div class="val">9,905</div><div class="note">법인카드 · 타모듈 연동</div></div>
+    <div class="tile"><div class="lab">v1 대비 정정</div><div class="val" style="color:var(--s2)">−474</div><div class="note">법인카드 정산 배치분</div></div>
+    <div class="tile"><div class="lab">서브원장 조합</div><div class="val">19종</div><div class="note">검증완료 1종 (41.6%)</div></div>
+  </div>
+
+  <div class="card">
+    <h2>범위 원칙</h2>
+    <p style="font-size:15px;line-height:1.75;margin:0 0 12px">
+      <strong>"사람이 ERP 회계모듈 「결의전표 입력」 화면에서 직접 입력한 전표"</strong> 만 대상이다.
+    </p>
+    <p style="margin:0">
+      법인카드 연동, 타모듈(구매·영업·자금·자산) 연동, 배치로 들어온 데이터는 <strong>전부 제외</strong>한다.
+      그 경로들은 각자의 래퍼가 서브원장 처리를 이미 수행하고 있으며, AX 릴레이가 재현할 대상이 아니다.
+    </p>
+  </div>
+
+  <div class="card">
+    <h2>DEMO2 결의전표 전수 분류</h2>
+    <figure>
+    <svg viewBox="0 0 1080 330" role="img" aria-label="결의전표 생성경로 분류">
+      <rect class="nb" x="30" y="26" width="200" height="58" rx="6" style="stroke:var(--s1);stroke-width:2"/>
+      <text class="tb" x="46" y="50">A_TEMP_GL 전체</text>
+      <text class="ts" x="46" y="68">DEMO2 결의전표</text>
+      <text class="tb" x="214" y="60" text-anchor="end" style="fill:var(--ink-2)">22,007</text>
+
+      <path class="lnG" d="M230 42 H288" marker-end="url(#ng)"/>
+      <path class="lnX" d="M230 62 H288" marker-end="url(#nx)"/>
+      <path class="lnX" d="M230 78 H288" marker-end="url(#nx)"/>
+
+      <rect class="nb" x="292" y="20" width="420" height="62" rx="6" style="stroke:var(--good);stroke-width:2.5"/>
+      <text class="tb" x="308" y="42" style="fill:var(--good)">① 결의전표 수동입력 — 테스트 범위</text>
+      <text class="ts" x="308" y="60">GL_INPUT_TYPE='TG' + TRANS_TYPE 공란 + A_BATCH 미경유</text>
+      <text class="tm" x="308" y="75">= REF_NO 가 자기 전표번호</text>
+      <text class="tb" x="696" y="52" text-anchor="end" style="fill:var(--good)">12,085</text>
+
+      <rect class="nba" x="292" y="94" width="420" height="46" rx="6" style="stroke:var(--s2);stroke-width:2;stroke-dasharray:5 4"/>
+      <text class="tb" x="308" y="114" style="fill:var(--s2)">② 법인카드 정산 (배치)</text>
+      <text class="tm" x="308" y="130">TRANS_TYPE 공란이지만 A_BATCH 경유 · REF_NO='IF…'</text>
+      <text class="tb" x="696" y="120" text-anchor="end" style="fill:var(--s2)">474</text>
+
+      <rect class="nba" x="292" y="152" width="420" height="42" rx="6"/>
+      <text class="t" x="308" y="172">③ 법인카드 연동 — TRANS_TYPE='AN005'</text>
+      <text class="tb" x="696" y="176" text-anchor="end" style="fill:var(--ink-2)">5,387</text>
+
+      <rect class="nba" x="292" y="204" width="420" height="42" rx="6"/>
+      <text class="t" x="308" y="224">④ 타모듈 연동 — UX·AP·AR·FN·AQ·PR·LN·DP …</text>
+      <text class="tb" x="696" y="228" text-anchor="end" style="fill:var(--ink-2)">4,044</text>
+
+      <rect class="nba" x="292" y="256" width="420" height="42" rx="6" style="stroke:var(--s1)"/>
+      <text class="t" x="308" y="276">⑤⑥ AX 릴레이 결과물 — AX001 11 · S0003 6</text>
+      <text class="tb" x="696" y="280" text-anchor="end" style="fill:var(--s1)">17</text>
+
+      <path class="lnX" d="M230 78 Q262 78 262 175 H288" marker-end="url(#nx)"/>
+      <path class="lnX" d="M262 175 V227 H288" marker-end="url(#nx)"/>
+      <path class="lnA" d="M262 227 V277 H288" marker-end="url(#na)"/>
+
+      <rect class="nb" x="740" y="20" width="310" height="62" rx="6" style="stroke:var(--good);stroke-width:2"/>
+      <text class="tb" x="756" y="42" style="fill:var(--good)">AX 가 재현해야 할 형태</text>
+      <text class="ts" x="756" y="60">서브원장 조합 19종</text>
+      <text class="tm" x="756" y="75">검증완료 1종 (41.6%)</text>
+      <path class="lnG" d="M712 50 H736" marker-end="url(#ng)"/>
+
+      <rect class="nba" x="740" y="152" width="310" height="94" rx="6"/>
+      <text class="tb" x="756" y="174">제외 이유</text>
+      <text class="ts" x="756" y="194">각 경로가 자체 래퍼로</text>
+      <text class="ts" x="756" y="212">서브원장을 이미 처리한다</text>
+      <text class="tm" x="756" y="232">AX 가 재현할 대상이 아니다</text>
+
+      <defs>
+        <marker id="ng" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+          <path d="M0 0 L8 4 L0 8 z" fill="var(--good)"/></marker>
+        <marker id="na" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+          <path d="M0 0 L8 4 L0 8 z" fill="var(--s1)"/></marker>
+        <marker id="nx" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+          <path d="M0 0 L8 4 L0 8 z" fill="var(--ink-muted)"/></marker>
+      </defs>
+    </svg>
+    </figure>
+
+    <div class="scroll">
+    <table>
+      <tr><th class="c">#</th><th>생성 경로</th><th class="num">전표수</th><th>판별 조건</th><th class="c">대상</th></tr>
+      <tr class="inscope"><td class="c"><strong>①</strong></td><td><strong>결의전표 수동입력</strong></td><td class="num"><strong>12,085</strong></td><td><code>GL_INPUT_TYPE='TG'</code> + <code>TRANS_TYPE</code> 공란 + <strong>A_BATCH 미경유</strong></td><td class="c"><span class="pill pA">범위</span></td></tr>
+      <tr class="outscope"><td class="c">②</td><td>법인카드 정산 (배치)</td><td class="num">474</td><td>위와 같으나 <strong>A_BATCH 경유</strong> · <code>REF_NO='IF…'</code></td><td class="c"><span class="pill pN">제외</span></td></tr>
+      <tr class="outscope"><td class="c">③</td><td>법인카드 연동</td><td class="num">5,387</td><td><code>TRANS_TYPE='AN005'</code></td><td class="c"><span class="pill pN">제외</span></td></tr>
+      <tr class="outscope"><td class="c">④</td><td>타모듈 연동</td><td class="num">4,044</td><td><code>GL_INPUT_TYPE</code> ∈ <code>UX</code>·<code>AP</code>·<code>AR</code>·<code>FN</code>·<code>AQ</code>·<code>PR</code>·<code>LN</code>·<code>DP</code> …</td><td class="c"><span class="pill pN">제외</span></td></tr>
+      <tr><td class="c">⑤⑥</td><td>AX 릴레이 결과물</td><td class="num">17</td><td><code>AX001</code> 11 · <code>S0003</code> 6</td><td class="c"><span class="pill pB">결과물</span></td></tr>
+    </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>⚠️ v1 대비 정정 — 법인카드 정산 474건</h2>
+    <p class="cap">초판은 <code>TRANS_TYPE</code> 공란 = 수동입력으로 잡아 12,559건을 범위로 삼았다. 그중 474건이 법인카드 정산 배치분이었다.</p>
+<pre>TG202505230030  REF_NO=<span class="hl">IF2025052700006</span>  "5월 법인카드 정산서"
+TG202505220030  REF_NO=<span class="hl">IF2025052900024</span>  "법인카드 정산 件(5월 19일~22일 중국출장)"
+TG202504300126  REF_NO=<span class="hl">IF2025050700016</span>  "4월 법인카드 정산의 件 (국내 사용분)"</pre>
+    <div class="stop">
+      <code>TRANS_TYPE</code> 은 비어 있지만 <code>A_BATCH</code> 를 경유했고 <code>REF_NO</code> 가 인터페이스 번호(<code>IF…</code>)다.
+      <strong><code>TRANS_TYPE</code> 만으로는 수동입력을 가려낼 수 없다.</strong>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>판별 기준 — 두 가지가 정확히 일치한다</h2>
+    <div class="scroll">
+    <table>
+      <tr><th class="c">기준</th><th>조건</th><th class="num">결과</th></tr>
+      <tr><td class="c"><strong>A</strong></td><td>A_BATCH 미경유 — <code>NOT EXISTS (SELECT 1 FROM A_BATCH WHERE TEMP_GL_NO = T.TEMP_GL_NO)</code></td><td class="num">12,085</td></tr>
+      <tr><td class="c"><strong>B</strong></td><td>REF_NO = 자기 전표번호 — <code>T.REF_NO = T.TEMP_GL_NO</code></td><td class="num">12,085</td></tr>
+    </table>
+    </div>
+    <div class="ok">수동입력 12,085건은 <strong>REF_NO 가 100% 자기 전표번호</strong>다. 예외 0건. 실무에서는 <strong>B가 간편</strong>하다.</div>
+<pre><span class="cm">-- 테스트 범위 판별 (표준)</span>
+SELECT T.*
+FROM   A_TEMP_GL T
+WHERE  T.GL_INPUT_TYPE = 'TG'
+  AND  ISNULL(RTRIM(T.TRANS_TYPE),'') = ''
+  AND  <span class="ok2">T.REF_NO = T.TEMP_GL_NO</span>          <span class="cm">-- ← 수동입력 표식</span></pre>
+
+    <div class="scroll" style="margin-top:16px">
+    <table>
+      <tr><th style="width:150px">항목</th><th>값</th></tr>
+      <tr><td>전표수</td><td><strong>12,085건</strong></td></tr>
+      <tr><td>기간</td><td>2023-12-31 ~ 2026-03-25</td></tr>
+      <tr><td>전표번호 형식</td><td><code>TG</code>+<code>YYYYMMDD</code>+<code>NNNN</code> 12,083건 · <strong>비정상 2건</strong> (<code>PPJC00-00049</code>, <code>통행료 3916  (7136)</code> — 이관 잔재 추정, 테스트 대상 아님)</td></tr>
+    </table>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════ P2 점검 ═══════ -->
+<section class="panel" id="p2">
+  <div class="card">
+    <h2><code>AG202608250001</code> — 전 구간 통과</h2>
+    <div class="scroll">
+    <table>
+      <tr><th style="width:130px">항목</th><th>값</th></tr>
+      <tr><td>결의전표</td><td><code>AG202608250001</code> · 2026-08-25 · <code>AX001</code> · <code>GL_INPUT_TYPE='TG'</code></td></tr>
+      <tr><td>승인</td><td><strong><code>CONF_FG='C'</code></strong> → 정식전표 <strong><code>GL202608250001</code></strong></td></tr>
+      <tr><td>차 / 대</td><td>275,000 / 275,000 (균형)</td></tr>
+      <tr><td>포털 초안</td><td><code>DRAFT-20260825-0019</code></td></tr>
+    </table>
+    </div>
+
+    <h3>라인 — 연결번호 전건 채움</h3>
+    <div class="scroll">
+    <table>
+      <tr><th class="num">#</th><th>계정</th><th class="c">차대</th><th class="num">금액</th><th class="c">서브시스템</th><th>연결번호</th></tr>
+      <tr><td class="num">1</td><td><code>53014307</code> 판)지급수수료(기타)</td><td class="c">DR</td><td class="num">250,000</td><td class="c">—</td><td class="c">— <span class="pill pN">대상 아님</span></td></tr>
+      <tr class="inscope"><td class="num">2</td><td><code>21100901</code> 미지급금(거래처)</td><td class="c">CR</td><td class="num">275,000</td><td class="c"><code>AP</code></td><td><strong><code>AP202608250001</code></strong> ✅</td></tr>
+      <tr class="inscope"><td class="num">3</td><td><code>11103301</code> 부가세대급금</td><td class="c">DR</td><td class="num">25,000</td><td class="c"><code>TP</code></td><td><strong><code>VT202608050002</code></strong> ✅</td></tr>
+    </table>
+    </div>
+    <div class="ok">정식장부(<code>A_GL_ITEM</code>)에도 연결번호가 그대로 승계됐다. 관리항목 12건 정상 전개.</div>
+
+    <h3>서브원장</h3>
+    <div class="scroll">
+    <table>
+      <tr><th>원장</th><th>번호</th><th>내용</th><th>상태</th></tr>
+      <tr><td><code>A_OPEN_AP</code></td><td><code>AP202608250001</code></td><td>거래처 <code>03688</code> · 채무액 275,000 · 잔액 275,000</td><td><code>CONF_FG='C'</code> · <code>AP_STS='O'</code></td></tr>
+      <tr><td><code>A_VAT</code></td><td><code>VT202608050002</code></td><td>공급가 250,000 · 부가세 25,000 · <code>VAT_TYPE='A'</code> · <code>IO_FG='I'</code></td><td><code>CONF_FG='C'</code></td></tr>
+    </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>확인해 본 것 — 이상 없음</h2>
+    <p class="cap">채무원장의 공급가액·부가세액이 <code>0</code> 인 점이 눈에 띄어 대조했다.</p>
+    <div class="scroll">
+    <table>
+      <tr><th>구분</th><th class="num">공급가 0</th><th class="num">공급가 있음</th></tr>
+      <tr><td>수동입력 결의전표 채무</td><td class="num"><strong>2,704건</strong></td><td class="num">350건</td></tr>
+    </table>
+    </div>
+    <div class="ok">
+      <strong>정상이다.</strong> 결의전표 경유 채무는 <code>NET_AMT</code>·<code>VAT_AMT</code> 를 채우지 않는 것이 ERP 표준 거동이다.
+      채무액·매입총액·잔액은 정상 기록됐다.
+    </div>
+    <p>부가세번호가 <code>VT20260805…</code>(발행일 기준)로 전표일(08-25)과 다른 것도 정상 — <code>ISSUED_DT</code> 기준 채번.</p>
+    <blockquote><code>AG202608240004</code>(개선 직후)에 이어 2건차도 전 구간 통과. <strong>T1 유형은 검증 완료.</strong></blockquote>
+  </div>
+</section>
+
+<!-- ═══════ P3 실태 ═══════ -->
+<section class="panel" id="p3">
+  <div class="card">
+    <h2>서브원장 조합 19종 — 수동입력 12,085건</h2>
+    <div class="scroll">
+    <table>
+      <tr><th>조합</th><th class="num">전표수</th><th class="num">비중</th><th style="width:110px"></th><th>의미</th><th class="c">검증</th></tr>
+      <tr class="inscope"><td><strong><code>AP+TP</code></strong></td><td class="num"><strong>5,024</strong></td><td class="num">41.6%</td><td><div class="bar"><i style="width:100%"></i></div></td><td><strong>매입세금계산서</strong></td><td class="c"><span class="pill pA">완료</span></td></tr>
+      <tr style="background:color-mix(in srgb, var(--critical) 8%, transparent)"><td><strong><code>OC</code></strong></td><td class="num"><strong>2,976</strong></td><td class="num">24.6%</td><td><div class="bar"><i style="width:59%"></i></div></td><td><strong>미결 (개인경비 등)</strong></td><td class="c"><span class="pill pC">경로 다름</span></td></tr>
+      <tr><td><em>(서브원장 무관)</em></td><td class="num">1,540</td><td class="num">12.7%</td><td><div class="bar"><i style="width:31%"></i></div></td><td>순수 대체분개</td><td class="c"><span class="pill pB">미검증</span></td></tr>
+      <tr><td><code>AP</code></td><td class="num">1,358</td><td class="num">11.2%</td><td><div class="bar"><i style="width:27%"></i></div></td><td>부가세 없는 채무</td><td class="c"><span class="pill pB">미검증</span></td></tr>
+      <tr><td><code>TP</code></td><td class="num">384</td><td class="num">3.2%</td><td><div class="bar"><i style="width:8%"></i></div></td><td>매입부가세만 (수정계산서)</td><td class="c"><span class="pill pB">미검증</span></td></tr>
+      <tr><td><code>PP</code></td><td class="num">188</td><td class="num">1.6%</td><td><div class="bar"><i style="width:4%"></i></div></td><td>선급금</td><td class="c"><span class="pill pB">미검증</span></td></tr>
+      <tr><td><code>AP+PP+TP</code></td><td class="num">180</td><td class="num">1.5%</td><td><div class="bar"><i style="width:4%"></i></div></td><td>채무+선급+부가세</td><td class="c"><span class="pill pB">미검증</span></td></tr>
+      <tr><td><code>PR</code></td><td class="num">127</td><td class="num">1.1%</td><td><div class="bar"><i style="width:3%"></i></div></td><td>선수금</td><td class="c"><span class="pill pB">미검증</span></td></tr>
+      <tr><td><code>AR+TR</code></td><td class="num">75</td><td class="num">0.6%</td><td><div class="bar"><i style="width:2%"></i></div></td><td>매출 (채권+매출부가세)</td><td class="c"><span class="pill pB">미검증</span></td></tr>
+      <tr><td><code>AP+PP</code></td><td class="num">74</td><td class="num">0.6%</td><td><div class="bar"><i style="width:2%"></i></div></td><td>채무+선급</td><td class="c"><span class="pill pB">미검증</span></td></tr>
+      <tr><td><code>AR+OC</code> · <code>AR</code></td><td class="num">124</td><td class="num">1.0%</td><td><div class="bar"><i style="width:2%"></i></div></td><td>채권 계열</td><td class="c"><span class="pill pB">미검증</span></td></tr>
+      <tr><td>기타 7종</td><td class="num">35</td><td class="num">0.3%</td><td><div class="bar"><i style="width:1%"></i></div></td><td>소수 조합</td><td class="c"><span class="pill pN">—</span></td></tr>
+    </table>
+    </div>
+  </div>
+
+  <div class="duo">
+    <div class="box">
+      <h4>라인 수 분포</h4>
+      <div class="scroll">
+      <table>
+        <tr><th>구간</th><th class="num">전표수</th><th class="num">비중</th></tr>
+        <tr><td>2라인 이하</td><td class="num">2,880</td><td class="num">23.8%</td></tr>
+        <tr class="inscope"><td><strong>3~4라인</strong></td><td class="num"><strong>6,260</strong></td><td class="num">51.8%</td></tr>
+        <tr><td>5~10라인</td><td class="num">2,240</td><td class="num">18.5%</td></tr>
+        <tr><td>11~30라인</td><td class="num">577</td><td class="num">4.8%</td></tr>
+        <tr><td>31라인 이상</td><td class="num">128</td><td class="num">1.1%</td></tr>
+      </table>
+      </div>
+      <p style="margin-top:8px;font-size:12.5px;color:var(--ink-2)">AX 가 지금 만드는 것은 3~4라인 — 실무의 과반이다.</p>
+    </div>
+    <div class="box">
+      <h4>특수 케이스</h4>
+      <div class="scroll">
+      <table>
+        <tr><th>케이스</th><th class="num">전표수</th><th class="num">비중</th></tr>
+        <tr class="inscope"><td><strong>프로젝트번호 사용</strong></td><td class="num"><strong>8,847</strong></td><td class="num">73.2%</td></tr>
+        <tr class="inscope"><td><strong>제조원가(<code>MC</code>) 계정</strong></td><td class="num"><strong>6,769</strong></td><td class="num">56.0%</td></tr>
+        <tr><td>마이너스 금액 라인</td><td class="num">939</td><td class="num">7.8%</td></tr>
+        <tr><td>외화 (KRW 아님)</td><td class="num">900</td><td class="num">7.4%</td></tr>
+        <tr><td>부가세 라인 2개 이상</td><td class="num">881</td><td class="num">7.3%</td></tr>
+        <tr><td>채무 라인 2개 이상</td><td class="num">832</td><td class="num">6.9%</td></tr>
+      </table>
+      </div>
+      <p style="margin-top:8px;font-size:12.5px;color:var(--ink-2)">프로젝트번호가 <strong>73%</strong>. 제조업 특성상 사실상 기본 입력값이다.</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>서브원장 계정 사용 순위</h2>
+    <div class="scroll">
+    <table>
+      <tr><th>계정</th><th>계정명</th><th class="c">서브시스템</th><th class="c">차대</th><th class="num">라인수</th><th class="num">전표수</th></tr>
+      <tr><td><code>11103301</code></td><td>부가세대급금</td><td class="c"><code>TP</code></td><td class="c">DR</td><td class="num">7,445</td><td class="num">5,591</td></tr>
+      <tr><td><code>21100901</code></td><td>미지급금(거래처)</td><td class="c"><code>AP</code></td><td class="c">CR</td><td class="num">7,341</td><td class="num">5,279</td></tr>
+      <tr style="background:color-mix(in srgb, var(--critical) 8%, transparent)"><td><strong><code>21100902</code></strong></td><td><strong>미지급금(개인)</strong></td><td class="c"><strong><code>OC</code></strong></td><td class="c">CR</td><td class="num">3,197</td><td class="num"><strong>2,920</strong></td></tr>
+      <tr><td><code>21100101</code></td><td>외상매입금</td><td class="c"><code>AP</code></td><td class="c">CR</td><td class="num">1,170</td><td class="num">1,143</td></tr>
+      <tr><td><code>11102301</code></td><td>선급금-원부재료</td><td class="c"><code>PP</code></td><td class="c">DR</td><td class="num">408</td><td class="num">234</td></tr>
+      <tr><td><code>11102305</code></td><td>선급금-기타</td><td class="c"><code>PP</code></td><td class="c">DR</td><td class="num">556</td><td class="num">203</td></tr>
+      <tr><td><code>11101701</code></td><td>미수금</td><td class="c"><code>AR</code></td><td class="c">DR</td><td class="num">213</td><td class="num">176</td></tr>
+      <tr><td><code>21100905</code></td><td>미지급급여</td><td class="c"><code>AP</code></td><td class="c">CR</td><td class="num">220</td><td class="num">158</td></tr>
+      <tr><td><code>21100907</code></td><td>미지급금(법인카드)</td><td class="c"><code>OC</code></td><td class="c">CR</td><td class="num">659</td><td class="num">116</td></tr>
+      <tr><td><code>21101903</code></td><td>선수금(진행)</td><td class="c"><code>PR</code></td><td class="c">CR</td><td class="num">322</td><td class="num">102</td></tr>
+      <tr><td><code>21100103</code></td><td>외화외상매입금</td><td class="c"><code>AP</code></td><td class="c">CR</td><td class="num">104</td><td class="num">82</td></tr>
+      <tr><td><code>21102301</code></td><td>부가세예수금</td><td class="c"><code>TR</code></td><td class="c">CR</td><td class="num">98</td><td class="num">81</td></tr>
+    </table>
+    </div>
+    <blockquote>
+      <code>21100907</code>(법인카드 미지급금)이 116전표 남아 있다. 이는 <strong>사용자가 결의전표 화면에서 직접 법인카드 계정을 쓴 케이스</strong>로,
+      제외한 법인카드 연동(5,387+474)과는 다르다.<br><br>
+      AX 가 쓰는 <code>21100901</code> 외에 <strong><code>21100101</code> 외상매입금</strong>도 <code>AP</code> 유형으로 1,143전표 쓰인다.
+      계정만 다르고 처리 경로는 같으므로 계정 확대 시 추가 개발은 불필요할 것으로 본다(검증 필요).
+    </blockquote>
+  </div>
+</section>
+
+<!-- ═══════ P4 OC ═══════ -->
+<section class="panel" id="p4">
+  <div class="card">
+    <h2>미결(<code>OC</code>) 은 판정 기준이 다르다</h2>
+    <p class="cap">범위 내 2위 유형(24.6%)이고 서브원장 생성 경로가 다르다 — <strong>그게 정상 설계다.</strong></p>
+    <figure>
+    <svg viewBox="0 0 1080 300" role="img" aria-label="AP·TP 경로와 OC 경로 비교">
+      <rect class="nb" x="30" y="46" width="200" height="56" rx="6" style="stroke:var(--s1);stroke-width:2"/>
+      <text class="tb" x="46" y="70">결의전표 생성</text>
+      <text class="ts" x="46" y="88">A_TEMP_GL / _ITEM</text>
+
+      <path class="lnG" d="M230 62 H286" marker-end="url(#kg)"/>
+      <text class="tm" x="238" y="54">AP·TP·AR·PP·PR</text>
+      <path class="lnO" d="M230 92 H286" marker-end="url(#ko)"/>
+      <text class="tm" x="238" y="112">OC · OD</text>
+
+      <rect class="nb" x="290" y="26" width="300" height="66" rx="6" style="stroke:var(--good);stroke-width:2"/>
+      <text class="tb" x="306" y="48" style="fill:var(--good)">usp_a_create_temp_gl_subsys</text>
+      <text class="ts" x="306" y="66">결의 단계에서 즉시 생성</text>
+      <text class="tm" x="306" y="82">커서가 OC·OD 를 명시 제외</text>
+
+      <rect class="nba" x="290" y="106" width="300" height="66" rx="6" style="stroke:var(--s2);stroke-width:2;stroke-dasharray:5 4"/>
+      <text class="tb" x="306" y="128" style="fill:var(--s2)">처리되지 않음 (정상)</text>
+      <text class="ts" x="306" y="146">SUBSYS_NO 가 비어 있는 것이 맞다</text>
+      <text class="tm" x="306" y="162">승인 단계까지 대기</text>
+
+      <path class="lnG" d="M590 60 H646" marker-end="url(#kg)"/>
+      <rect class="nb" x="650" y="26" width="400" height="66" rx="6"/>
+      <text class="tb" x="666" y="48">A_OPEN_AP · A_VAT · A_OPEN_AR</text>
+      <text class="ts" x="666" y="66">F_PRPAYM · F_PRRCPT · A_RCPT</text>
+      <text class="tm" x="666" y="82">키 = TEMP_GL_NO · 연결번호 채워짐</text>
+
+      <path class="lnO" d="M440 172 V206 H646" marker-end="url(#ko)"/>
+      <text class="tm" x="452" y="200">승인 → 회계전표</text>
+
+      <rect class="nb" x="650" y="176" width="400" height="66" rx="6" style="stroke:var(--s2);stroke-width:2"/>
+      <text class="tb" x="666" y="198" style="fill:var(--s2)">A_OPEN_ACCT 미결원장</text>
+      <text class="ts" x="666" y="216">usp_a_create_gl_subsys (ERP 승인 경로)</text>
+      <text class="tm" x="666" y="232">키 = GL_NO · MGNT_CD1='EM' + 사원번호</text>
+
+      <rect class="nba" x="30" y="250" width="1020" height="36" rx="6"/>
+      <text class="ts" x="46" y="272"><tspan style="font-weight:700">AP·TP 는 연결번호로, OC 는 A_OPEN_ACCT 행 유무로</tspan> 판정해야 한다. 연결번호가 없다고 결손으로 오판하지 말 것.</text>
+
+      <defs>
+        <marker id="kg" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+          <path d="M0 0 L8 4 L0 8 z" fill="var(--good)"/></marker>
+        <marker id="ko" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+          <path d="M0 0 L8 4 L0 8 z" fill="var(--s2)"/></marker>
+      </defs>
+    </svg>
+    </figure>
+  </div>
+
+  <div class="card">
+    <h2>무엇이 다른가</h2>
+    <div class="scroll">
+    <table>
+      <tr><th>구분</th><th><code>AP</code> · <code>TP</code> 등</th><th><strong><code>OC</code> (미결)</strong></th></tr>
+      <tr><td>대상 원장</td><td><code>A_OPEN_AP</code> · <code>A_VAT</code></td><td><strong><code>A_OPEN_ACCT</code></strong></td></tr>
+      <tr><td>키</td><td><code>TEMP_GL_NO</code></td><td><strong><code>GL_NO</code></strong> (정식전표번호)</td></tr>
+      <tr><td>생성 시점</td><td>결의 단계</td><td><strong>승인 후 회계전표 단계</strong></td></tr>
+      <tr><td>생성 주체</td><td><code>usp_a_create_temp_gl_subsys</code></td><td><code>usp_a_create_gl_subsys</code></td></tr>
+      <tr><td><code>SUBSYS_NO</code></td><td>채워짐</td><td><strong>비어 있는 것이 정상</strong></td></tr>
+    </table>
+    </div>
+    <div class="warn">
+      <code>usp_a_create_temp_gl_subsys</code> 커서가 <code>SUBSYS_TYPE NOT IN ('OC','OD')</code> 로
+      미결을 <strong>명시 제외</strong>한다. 릴레이가 SP 를 불러도 <code>OC</code> 라인은 처리되지 않는다.
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>실측 근거</h2>
+    <p class="cap"><code>A_OPEN_ACCT</code> 미결원장 <strong>65,124행</strong> 중 <strong>63,967행이 <code>TG</code> 결의전표 경유</strong>.</p>
+    <div class="scroll">
+    <table>
+      <tr><th>정식전표</th><th>계정</th><th class="c">미결항목</th><th>값</th><th>적요</th></tr>
+      <tr><td><code>GL202506050010</code></td><td><code>21100902</code></td><td class="c"><code>EM</code> 사원</td><td><code>181203</code></td><td>5월분 통신비_이혜리</td></tr>
+      <tr><td><code>GL202506010002</code></td><td><code>21100902</code></td><td class="c"><code>EM</code></td><td><code>244316</code></td><td>6월 임원 통신비 청구</td></tr>
+      <tr><td><code>GL202505310009</code></td><td><code>21100902</code></td><td class="c"><code>EM</code></td><td><code>5240618</code></td><td>5월 일비+로밍</td></tr>
+    </table>
+    </div>
+    <h3>계정 속성</h3>
+    <div class="scroll">
+    <table>
+      <tr><th>계정</th><th>계정명</th><th class="c">서브시스템</th><th class="c">미결관리</th><th class="c">미결항목1</th></tr>
+      <tr><td><code>21100901</code></td><td>미지급금(거래처)</td><td class="c"><code>AP</code></td><td class="c">N</td><td class="c">—</td></tr>
+      <tr style="background:color-mix(in srgb, var(--critical) 8%, transparent)"><td><strong><code>21100902</code></strong></td><td><strong>미지급금(개인)</strong></td><td class="c"><strong><code>OC</code></strong></td><td class="c"><strong>Y</strong></td><td class="c"><strong><code>EM</code></strong></td></tr>
+      <tr><td><code>21100907</code></td><td>미지급금(법인카드)</td><td class="c"><code>OC</code></td><td class="c">Y</td><td class="c">—</td></tr>
+    </table>
+    </div>
+    <h3>확인 필요</h3>
+    <div class="scroll">
+    <table>
+      <tr><th class="num">#</th><th>질문</th><th>확인 방법</th></tr>
+      <tr><td class="num">1</td><td>AX 포털이 <code>21100902</code>(개인) 계정을 쓰는가</td><td>포털 계정매핑 — <code>12_AX001_계정매핑_등재요청</code></td></tr>
+      <tr><td class="num">2</td><td>쓴다면 승인 후 <code>A_OPEN_ACCT</code> 가 생기는가</td><td>DEMO2 테스트 후 조회</td></tr>
+      <tr><td class="num">3</td><td>미결항목 <code>EM</code>(사원번호)을 릴레이가 넘기는가</td><td>관리항목 전개 확인</td></tr>
+    </table>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════ P5 케이스 ═══════ -->
+<section class="panel" id="p5">
+  <div class="card">
+    <h2>권고 테스트 순서</h2>
+    <div class="scroll">
+    <table>
+      <tr><th class="num">순서</th><th>케이스</th><th>이유</th></tr>
+      <tr style="background:color-mix(in srgb, var(--critical) 8%, transparent)"><td class="num">1</td><td><strong>T4 순수 대체분개</strong></td><td>실패 시 <strong>정상 전표까지 롤백</strong>되는 구조적 위험</td></tr>
+      <tr style="background:color-mix(in srgb, var(--critical) 8%, transparent)"><td class="num">2</td><td><strong>T2 미결 / 개인경비</strong></td><td>범위 내 2위(24.6%) · 경로가 다름</td></tr>
+      <tr><td class="num">3</td><td>T3 부가세 없는 채무</td><td>3위(11.2%) · 난도 낮음</td></tr>
+      <tr><td class="num">4</td><td>T5 선급금</td><td>연결번호 복수 발급</td></tr>
+      <tr><td class="num">5</td><td>T8 마이너스 · 수정계산서</td><td>부가세 신고 정확성</td></tr>
+      <tr><td class="num">6</td><td>T9 다중 라인</td><td>성능</td></tr>
+      <tr><td class="num">7</td><td>T6 매출 / T7 선수금</td><td>AX 범위 확인 후</td></tr>
+      <tr><td class="num">8</td><td>T10 외화 / T11 프로젝트</td><td>부가 확인</td></tr>
+    </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>케이스 상세</h2>
+
+    <div class="tc done">
+      <h3>T1. 매입세금계산서 (<code>AP+TP</code>) <span class="pill pA">검증 완료</span></h3>
+      <p><strong>5,024전표 (41.6%)</strong> · 참조 <code>TG202506250002</code>(수동) · <code>AG202608250001</code>(AX)</p>
+      <p>(차) 경비 250,000 / (차) 부가세대급금 25,000 / (대) 미지급금(거래처) 275,000</p>
+    </div>
+
+    <div class="tc hot">
+      <h3>T2. 미결 / 개인경비 (<code>OC</code>) <span class="pill pC">최우선</span></h3>
+      <p><strong>2,976전표 (24.6%)</strong> · <code>21100902</code> 2,920전표 · 참조 <code>TG202506300008</code></p>
+      <p>(차) 제)여비교통비(해외) 533,127 / (대) 미지급금(개인) 533,127</p>
+      <p><strong>판정 기준</strong> — <code>SUBSYS_NO</code> 는 <strong>비어야 정상</strong>. 승인 후 <code>A_OPEN_ACCT</code> 에 <code>MGNT_CD1='EM'</code>+사원번호 생성 확인</p>
+    </div>
+
+    <div class="tc hot">
+      <h3>T4. 순수 대체분개 (서브원장 무관) <span class="pill pC">구조적 위험</span></h3>
+      <p><strong>1,540전표 (12.7%)</strong> · 서브원장 대상 계정이 하나도 없는 전표</p>
+      <p><strong>검증 포인트</strong> — 커서가 한 바퀴도 안 돌아도 <code>rc=1</code> 로 정상 종료하는지</p>
+      <p><strong>위험</strong> — 여기서 실패하면 릴레이가 <strong>정상 전표까지 롤백</strong>한다</p>
+    </div>
+
+    <div class="tc">
+      <h3>T3. 부가세 없는 채무 (<code>AP</code>) <span class="pill pB">상</span></h3>
+      <p><strong>1,358전표 (11.2%)</strong> · 참조 <code>TG202506300004</code>(퇴직금 지급, 6라인)</p>
+      <p>(차) 경비 / (대) 미지급금 — 부가세 라인 없음. <code>VAT_TYPE</code> 공란 처리 확인</p>
+    </div>
+
+    <div class="tc">
+      <h3>T5. 선급금 (<code>PP</code>) <span class="pill pB">중</span></h3>
+      <p><code>PP</code> 188 + <code>AP+PP</code> 74 + <code>AP+PP+TP</code> 180 = <strong>442전표</strong> · 참조 <code>TG202506180016</code> · <code>TG202506120009</code></p>
+      <p>(차) 선급금-원부재료 376,560 / (차) 부가세대급금 37,656 / (대) 외상매입금 414,216</p>
+      <p><strong>검증 포인트</strong> — 선급금 라인 2건이면 <code>PP…</code> 연결번호가 <strong>각각 2개 발급</strong></p>
+    </div>
+
+    <div class="tc">
+      <h3>T6. 매출 (<code>AR+TR</code>) <span class="pill pB">중</span></h3>
+      <p><strong>75전표</strong> + <code>AR</code> 57 + <code>TR</code> 6 · 참조 <code>TG202506180009</code>(김해공장 스크랩)</p>
+      <p>(차) 미수금 2,295,810 / (대) 잡이익 2,087,100 / (대) 부가세예수금 208,710</p>
+      <p><strong>AX 범위인지 먼저 확인 필요</strong></p>
+    </div>
+
+    <div class="tc">
+      <h3>T7. 선수금 (<code>PR</code>) <span class="pill pB">중</span></h3>
+      <p><strong>127전표</strong> · 참조 <code>TG202506050017</code></p>
+      <p>(차) 보통예금 2,000,000 / (대) 선수금(기타) 2,000,000 → <code>F_PRRCPT</code> 생성</p>
+    </div>
+
+    <div class="tc">
+      <h3>T8. 부가세만 · 수정계산서 (마이너스) <span class="pill pB">중</span></h3>
+      <p><code>TP</code> 384전표 · 마이너스 라인 <strong>939전표</strong> · 참조 <code>TG202506230011</code></p>
+      <p>(차) 부가세대급금 <strong>-4,300</strong> / (차) 부가세대급금 <strong>+4,300</strong> — 오발행 취소 + 재발행</p>
+      <p><strong>검증 포인트</strong> — 마이너스 라인에서 <code>VT…</code> 정상 발급, 신고자료 상계 반영</p>
+    </div>
+
+    <div class="tc">
+      <h3>T9. 다중 라인 <span class="pill pB">중</span></h3>
+      <p>11~30라인 577전표 · <strong>31라인 이상 128전표</strong> · 참조 <code>TG202506240012</code>(10라인)</p>
+      <p><strong>검증 포인트</strong> — 라인마다 채번 SP 호출. <strong>성능·타임아웃</strong> 확인</p>
+    </div>
+
+    <div class="tc">
+      <h3>T10 · T11. 외화 / 프로젝트 · 제조원가 <span class="pill pN">하</span></h3>
+      <p>외화 <strong>900전표</strong> — <code>DOC_CUR</code>·<code>XCH_RATE</code>·환차 계정</p>
+      <p>프로젝트 <strong>8,847전표(73.2%)</strong> · 제조원가 <strong>6,769전표(56.0%)</strong> — <code>43…</code> 계정은 프로젝트코드(<code>PC</code>) 차변 필수.
+      <code>AG202608190007</code> 에서 <code>43000501</code> 사용 실적 있고 <code>PC</code> 전개 확인됨</p>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════ P6 쿼리 ═══════ -->
+<section class="panel" id="p6">
+  <div class="card">
+    <h2>공통 검증 쿼리</h2>
+<pre>DECLARE @slip nvarchar(18) = 'AG20260901xxxx';
+
+<span class="cm">-- ① 헤더</span>
+SELECT TEMP_GL_NO, CONF_FG, ISNULL(NULLIF(RTRIM(GL_NO),''),'(미승인)') AS 회계전표,
+       DR_AMT, CR_AMT, TRANS_TYPE, GL_INPUT_TYPE, REF_NO
+FROM   A_TEMP_GL WHERE TEMP_GL_NO = @slip;
+
+<span class="cm">-- ② 라인 + 연결번호   ※ OC 계정은 연결번호가 비어 있어야 정상</span>
+SELECT I.ITEM_SEQ, I.ACCT_CD, LEFT(A.ACCT_NM,20) AS 계정명, I.DR_CR_FG, I.ITEM_AMT,
+       ISNULL(NULLIF(RTRIM(A.SUBSYS_TYPE),''),'-') AS 계정서브시스템,
+       ISNULL(NULLIF(RTRIM(I.SUBSYS_NO),''),'(비어있음)') AS 연결번호,
+       ISNULL(NULLIF(RTRIM(I.BP_CD),''),'-') AS 거래처
+FROM   A_TEMP_GL_ITEM I JOIN A_ACCT A ON A.ACCT_CD = I.ACCT_CD
+WHERE  I.TEMP_GL_NO = @slip ORDER BY I.ITEM_SEQ;
+
+<span class="cm">-- ③ 서브원장 5종</span>
+SELECT '채무 A_OPEN_AP'  AS 원장, COUNT(*) AS 행수 FROM A_OPEN_AP WHERE TEMP_GL_NO = @slip
+UNION ALL SELECT '부가세 A_VAT',   COUNT(*) FROM A_VAT     WHERE TEMP_GL_NO = @slip
+UNION ALL SELECT '채권 A_OPEN_AR', COUNT(*) FROM A_OPEN_AR WHERE TEMP_GL_NO = @slip
+UNION ALL SELECT '선급 F_PRPAYM',  COUNT(*) FROM F_PRPAYM  WHERE TEMP_GL_NO = @slip
+UNION ALL SELECT '선수 F_PRRCPT',  COUNT(*) FROM F_PRRCPT  WHERE TEMP_GL_NO = @slip;
+
+<span class="cm">-- ④ 미결원장 (OC 케이스 · 승인 후에만 · GL_NO 기준)</span>
+SELECT O.GL_NO, O.GL_SEQ, O.ACCT_CD, O.MGNT_CD1, O.MGNT_VAL1, LEFT(ISNULL(O.GL_DESC,''),30) AS 적요
+FROM   A_OPEN_ACCT O JOIN A_TEMP_GL T ON T.GL_NO = O.GL_NO
+WHERE  T.TEMP_GL_NO = @slip;
+
+<span class="cm">-- ⑤ 정식장부 연결번호 승계 (승인 후)</span>
+SELECT G.ITEM_SEQ, G.ACCT_CD, G.DR_CR_FG, G.ITEM_AMT,
+       ISNULL(NULLIF(RTRIM(G.SUBSYS_NO),''),'(비어있음)') AS 연결번호
+FROM   A_GL_ITEM G JOIN A_TEMP_GL T ON T.GL_NO = G.GL_NO
+WHERE  T.TEMP_GL_NO = @slip ORDER BY G.ITEM_SEQ;</pre>
+  </div>
+
+  <div class="card">
+    <h2>판정 기준</h2>
+    <div class="scroll">
+    <table>
+      <tr><th class="c">계정 서브시스템</th><th>연결번호</th><th>서브원장</th></tr>
+      <tr><td class="c"><code>AP</code> · <code>TP</code> · <code>TR</code> · <code>AR</code> · <code>PP</code> · <code>PR</code> · <code>SS</code></td><td><strong>채워져야 정상</strong></td><td>결의 단계 생성</td></tr>
+      <tr style="background:color-mix(in srgb, var(--s2) 10%, transparent)"><td class="c"><strong><code>OC</code> · <code>OD</code></strong></td><td><strong>비어야 정상</strong></td><td>승인 후 <code>A_OPEN_ACCT</code></td></tr>
+      <tr><td class="c">(공백)</td><td>비어야 정상</td><td>대상 아님</td></tr>
+    </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>참조 케이스 재현용 — 범위 내 전표 찾기</h2>
+<pre><span class="cm">-- 특정 조합의 수동입력 전표 찾기 (예: OC)</span>
+SELECT TOP 20 T.TEMP_GL_NO, CONVERT(varchar(10),T.TEMP_GL_DT,120) AS 전표일,
+       T.DR_AMT, LEFT(ISNULL(T.TEMP_GL_DESC,''),40) AS 적요
+FROM   A_TEMP_GL T
+WHERE  T.GL_INPUT_TYPE='TG' AND ISNULL(RTRIM(T.TRANS_TYPE),'')=''
+  AND  <span class="ok2">T.REF_NO = T.TEMP_GL_NO</span>                    <span class="cm">-- 수동입력 표식</span>
+  AND  EXISTS (SELECT 1 FROM A_TEMP_GL_ITEM I JOIN A_ACCT A ON A.ACCT_CD=I.ACCT_CD
+                WHERE I.TEMP_GL_NO=T.TEMP_GL_NO AND A.SUBSYS_TYPE=<span class="hl">'OC'</span>)
+ORDER BY T.TEMP_GL_DT DESC;</pre>
+  </div>
+</section>
+
+<!-- ═══════ P7 전달 ═══════ -->
+<section class="panel" id="p7">
+  <div class="card">
+    <h2>전달 대상</h2>
+    <div class="scroll">
+    <table>
+      <tr><th>파일</th><th>내용</th></tr>
+      <tr><td><code>AX전표_테스트케이스_설계_20260825.md</code></td><td>본 문서 (텍스트)</td></tr>
+      <tr><td><code>AX전표_테스트케이스_설계_20260825.html</code></td><td>본 문서 · 7탭 + 범위 분류 도식 + OC 경로 도식</td></tr>
+    </table>
+    </div>
+    <p style="margin-top:12px"><strong>배치 제안</strong> — AX 프로젝트 <code>10_ERP_DB연계/14_AX전표_테스트범위_및_케이스설계.{md,html}</code><br>
+    <strong>등재 위치</strong> — 해당 프로젝트 <code>02_진행상태</code></p>
+    <div class="warn">
+      ERP_DB 작업 PC 에는 <code>E:</code> 드라이브가 없어 <code>E:\OneDrive\1.JOB\JEIL_AX\</code> 에 직접 배치하지 못한다.
+      AX 프로젝트 측 PC 에서 복사해야 전달이 완료된다. (지난 <code>13_…</code> 개발요청과 동일 절차)
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>AX 측에서 확인해 주실 것</h2>
+    <div class="scroll">
+    <table>
+      <tr><th class="num">#</th><th>항목</th><th>왜 필요한가</th></tr>
+      <tr style="background:color-mix(in srgb, var(--critical) 8%, transparent)"><td class="num">1</td><td><strong>포털 계정 매핑 범위</strong> — <code>21100902</code>(개인)·<code>21100101</code>(외상매입금)·<code>11101701</code>(미수금)·선급/선수 계정 포함 여부</td><td>테스트 우선순위가 달라진다. 특히 <code>21100902</code> 포함 여부가 <strong>T2 성립을 가른다</strong></td></tr>
+      <tr><td class="num">2</td><td><strong>AX 가 다루는 업무 범위</strong> — 매입만인가, 매출(<code>AR+TR</code>)도 포함인가</td><td>T6 수행 여부 결정</td></tr>
+      <tr><td class="num">3</td><td><strong>프로젝트코드 전달 여부</strong></td><td>범위의 73%가 프로젝트를 쓴다. 제조계정은 차변 필수</td></tr>
+      <tr><td class="num">4</td><td><strong>라인 수 상한</strong></td><td>31라인 이상 128전표 존재. 성능 검토 필요</td></tr>
+      <tr><td class="num">5</td><td>릴레이 서버 실행본 교체 일정</td><td>처리완료회신 §6.2 미완 항목</td></tr>
+    </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>이 문서가 답하지 않는 것</h2>
+    <ul class="tight">
+      <li>포털 쪽 데이터 구조·초안 생성 로직 (<code>gl_draft</code> 등) — AX 프로젝트 소관</li>
+      <li>ERP 운영DB 실적 — DEMO2 만 조사했다. 운영은 수치가 다를 수 있다</li>
+      <li>소급 처리 — 하지 않기로 결정됨 (2026-08-25)</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h2>개정 이력</h2>
+    <div class="scroll">
+    <table>
+      <tr><th class="c">판</th><th>일자</th><th>내용</th></tr>
+      <tr><td class="c">v1</td><td>2026-08-25</td><td>초판. 범위를 <code>TRANS_TYPE</code> 공란(12,559건)으로 정의</td></tr>
+      <tr class="inscope"><td class="c"><strong>v2</strong></td><td>2026-08-25</td><td><strong>범위 정정</strong> — 법인카드 정산 배치분 474건 제외, <strong>12,085건</strong> 확정. 조합·라인수·특수케이스 전 지표 재집계. 범위 정의 · 전달 안내 신설</td></tr>
+    </table>
+    </div>
+  </div>
+</section>
+
+<footer>
+  JEILMNS_DEMO2 실측 · <strong>READ-ONLY</strong> SELECT 조회만 수행 · ERP 운영DB(JEILMNS) 미접근 · 접속정보 비노출 원칙 준수 ·
+  테스트 범위 정의 <code>GL_INPUT_TYPE='TG'</code> AND <code>TRANS_TYPE</code> 공란 AND <code>REF_NO = TEMP_GL_NO</code> ·
+  DEMO2 는 운영의 최신 사본이 아니므로 실적 수치는 운영과 다를 수 있다 ·
+  조사 로그 <code>ERP_DB/doc/db_log_20260825_140000.md</code> · <code>_170000.md</code>
+</footer>
+</div>
+
+<script>
+document.querySelectorAll('.tabs button').forEach(b=>{
+  b.addEventListener('click',()=>{
+    document.querySelectorAll('.tabs button').forEach(x=>x.setAttribute('aria-selected','false'));
+    document.querySelectorAll('.panel').forEach(x=>x.classList.remove('on'));
+    b.setAttribute('aria-selected','true');
+    document.getElementById(b.dataset.p).classList.add('on');
+  });
+});
+</script>
+</body>
+</html>

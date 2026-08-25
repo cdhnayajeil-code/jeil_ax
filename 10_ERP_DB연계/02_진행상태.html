@@ -42,7 +42,7 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <body>
 <div class="page">
   <span class="doc-label">JEIL AX ERP DB 연계 · 대외비</span>
-  <div class="docnav"><a href="/docs/erp">🏠 연계 허브</a><a href="/docs/erp/status">00 현재상태</a><a href="/docs/erp/plan">01 연계기획</a><a class="cur" href="/docs/erp/progress">02 진행상태</a><a href="/docs/erp/midway-db">03 중간DB 실행기획</a><a href="/docs/erp/incremental-sync">04 증분·확장·거버넌스</a><a href="/docs/erp/dept-mapping">05 사용자-부서 매핑</a><a href="/docs/erp/voucher-roadmap">06 결의전표 추진계획</a><a href="/docs/erp/voucher-handover">09 결의전표 인수인계</a><a href="/docs/erp/recurring-voucher">10 반복전표 자동화</a><a href="/docs/erp/direct-post-demo">11 ERP 직접등록(DEMO2)</a><a href="/docs/erp/ax001-acct-mapping">12 AX001 계정매핑 요청</a><a href="/docs/erp/subledger-fix">13 서브원장 호출누락</a><a href="README.md">README</a></div>
+  <div class="docnav"><a href="/docs/erp">🏠 연계 허브</a><a href="/docs/erp/status">00 현재상태</a><a href="/docs/erp/plan">01 연계기획</a><a class="cur" href="/docs/erp/progress">02 진행상태</a><a href="/docs/erp/midway-db">03 중간DB 실행기획</a><a href="/docs/erp/incremental-sync">04 증분·확장·거버넌스</a><a href="/docs/erp/dept-mapping">05 사용자-부서 매핑</a><a href="/docs/erp/voucher-roadmap">06 결의전표 추진계획</a><a href="/docs/erp/voucher-handover">09 결의전표 인수인계</a><a href="/docs/erp/recurring-voucher">10 반복전표 자동화</a><a href="/docs/erp/direct-post-demo">11 ERP 직접등록(DEMO2)</a><a href="/docs/erp/ax001-acct-mapping">12 AX001 계정매핑 요청</a><a href="/docs/erp/subledger-fix">13 서브원장 호출누락</a><a href="/docs/erp/test-cases">14 테스트범위·케이스</a><a href="README.md">README</a></div>
   <p class="md-link">📄 Markdown 원본: <a href="02_진행상태.md">02_진행상태.md</a> · 허브 <a href="/docs/erp">연계 허브</a></p>
   <div class="content">
 <h1 id="02-erp-db">02. ERP DB 연계 — 진행상태 (지속 갱신)</h1>
@@ -217,6 +217,12 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 </tr>
 </thead>
 <tbody>
+<tr>
+<td>2026-08-25</td>
+<td><strong>테스트 케이스 4종 수행·전건 통과 + 설계서 수신(14번 신설)</strong> — ERP_DB 작업환경이 DEMO2 수동입력 전표 12,085건을 실측 분류해 만든 케이스 설계서를 받아 수행했다. 포털에 테스트 전표 4건을 적요 접두 <code>ax테스트_</code> 로 생성·전송하고 ERP 화면 승인까지 마쳤다. <strong>T4 순수 대체분개</strong>(<code>AG202608250002</code>) — 설계서가 최우선 「구조적 위험」으로 지목한 항목으로, 서브원장 대상 라인이 하나도 없어도 SP 가 커서를 돌지 않고 <code>rc=1</code> 정상 종료해 <strong>정상 전표까지 롤백되는 위험이 없음</strong>을 확인. <strong>T3 부가세 없는 채무</strong>(<code>AG202608250003</code>) — <code>AP</code> 만 생성, <code>A_VAT</code> 0행이 정상. <strong>T5 선급금</strong>(<code>AG202608250004</code>) — <code>PP</code>·<code>AP</code>·<code>TP</code> 연결번호 각각 발급되고 <strong><code>F_PRPAYM</code> 선급원장 최초 생성</strong>. <strong>T11 제조원가+프로젝트</strong>(<code>AG202608250005</code>) — <code>43000501</code> + 프로젝트코드 <code>PC</code> 전개 확인(범위의 73% 유형). 4건 전부 <code>CONF_FG='C'</code> 승인·정식장부 전기·<strong>연결번호 승계 전건 부합</strong>, 서브원장도 전부 승인 상태. 금액은 서브원장↔전표 라인 전건 일치. 판정은 설계서 §6 기준(<code>AP</code>·<code>TP</code>·<code>PP</code> 채움 / <code>SUBSYS_TYPE</code> 없으면 공백)으로 <strong>위반 0줄</strong> — T4 의 공백을 결손으로 오판하지 않았다. <strong>T2(미결·개인경비) 미수행</strong> — 범위의 24.6% 를 차지하는 2순위 케이스이나 <code>21100902</code> 가 AX001 분개코드 미등재라 fail-closed 차단. <strong>회계팀 계정매핑 등재가 선행조건</strong>(12번 문서). 미수행 T6 매출(계정 미등재)·T8 마이너스·T9 다중라인·T10 외화</td>
+<td>커밋 예정, <code>14_AX전표_테스트범위_및_케이스설계.md</code>(신규)·<code>AX전표 관련/</code></td>
+<td>최동혁(+Claude)</td>
+</tr>
 <tr>
 <td>2026-08-25</td>
 <td><strong>서브원장 생성 SP 호출 추가 — 채무·부가세 원장 미생성 해소</strong> — ERP_DB 심화 검증에서 AX 전표의 서브원장 대상 26라인 <code>SUBSYS_NO</code> 전건 공백(수기 5,483/5,483)·<code>A_OPEN_AP</code> 0행·<code>A_VAT</code> 0행이 확정됐다. 2025년 이후 정식전표 4,963라인 중 미채움 8건이 전부 AX 전표. 원인은 표준 엔진이 전표만 만들고 서브원장은 만들지 않는데 <code>usp_a_create_temp_gl_subsys</code> 호출이 빠진 것(법인카드 래퍼가 표준형). 전표·시산표가 멀쩡해 드러나지 않는 결손이라 부가세 신고 매입세액 누락·미지급금 반제 누락으로 이어진다. 조치 — 라인 대조 통과 직후 <strong>같은 트랜잭션</strong>에서 호출, <code>rc&lt;&gt;1</code> 이면 전표까지 ROLLBACK, 추가로 <strong>연결번호가 하나라도 비면 ROLLBACK</strong>(호출 성공만 믿지 않는다) + <code>A_OPEN_AP</code>·<code>A_VAT</code> 행수 로깅. DEMO2 실증 <code>DRAFT-20260824-0018</code>→<code>AG202608240004</code>: 연결번호 <code>AP202608240001</code>·<code>VT202608050001</code>, 채무 1행 275,000·부가세 1행 세액 25,000 전표와 일치. EXE 재빌드·재배포. 수정 전 13건은 미채움 유지(소급 대상 아님). 미처리: NULL vs 빈문자열(우선 하, SP 가 읽는 값이라 분리 진행)</td>

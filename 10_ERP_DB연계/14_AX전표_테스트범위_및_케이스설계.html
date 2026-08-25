@@ -1,0 +1,1121 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>14 테스트범위·케이스 — ERP DB 연계 관제 (수동입력 12,085건 기준 케이스 11종 — T3·T4·T5·T11 수행 통과, T2는 계정매핑 대기)</title>
+<style>
+:root{--navy:#1a2f4e;--navy2:#27457a;--accent:#2f6fb3;--red:#b3402f;--green:#2e7d52;--amber:#9a6b1f;
+--ink:#222;--muted:#666;--line:#d8dee8;--bg:#f4f6f9;--soft:#eef2f8;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;color:var(--ink);background:var(--bg);line-height:1.65;font-size:15px;}
+.page{max-width:960px;margin:0 auto;background:#fff;padding:52px 60px;box-shadow:0 2px 14px rgba(0,0,0,.08);}
+.doc-label{display:inline-block;background:var(--navy);color:#fff;font-size:12px;letter-spacing:.16em;padding:5px 14px;border-radius:3px;margin-bottom:16px;}
+.docnav{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 26px;}
+.docnav a{font-size:12px;color:var(--navy2);border:1px solid var(--line);border-radius:20px;padding:4px 12px;text-decoration:none;background:var(--soft);}
+.docnav a:hover{background:var(--navy);color:#fff;}
+.docnav a.cur{background:var(--navy);color:#fff;border-color:var(--navy);}
+.md-link{font-size:13px;margin-bottom:22px;color:var(--muted);}
+.content h1{font-size:27px;color:var(--navy);line-height:1.35;margin:6px 0 18px;}
+.content h2{font-size:20px;color:var(--navy);margin:42px 0 14px;padding-bottom:9px;border-bottom:3px solid var(--navy);}
+.content h3{font-size:16px;color:var(--navy2);margin:24px 0 9px;}
+.content p{margin:0 0 12px;}
+.content ul,.content ol{margin:0 0 14px 22px;}
+.content li{margin-bottom:6px;}
+.content blockquote{background:var(--soft);border-left:5px solid var(--navy);border-radius:0 8px 8px 0;padding:14px 20px;margin:14px 0;color:#33425a;}
+.content blockquote p{margin:0 0 6px;}
+.content table{width:100%;border-collapse:collapse;margin:14px 0 20px;font-size:13.3px;}
+.content th{background:var(--navy);color:#fff;padding:9px 11px;text-align:left;font-weight:600;}
+.content td{padding:8px 11px;border-bottom:1px solid var(--line);vertical-align:top;}
+.content tr:nth-child(even) td{background:#fafbfd;}
+.content a{color:var(--accent);}
+.content code{background:var(--soft);border:1px solid var(--line);border-radius:4px;padding:1px 6px;font-size:12.4px;font-family:Consolas,'Courier New',monospace;}
+.content pre{background:#21252e;color:#e8eaf0;border-radius:8px;padding:16px 18px;font-size:12.4px;font-family:Consolas,'Courier New',monospace;overflow-x:auto;margin:12px 0 18px;line-height:1.55;}
+.content pre code{background:none;border:none;color:inherit;padding:0;}
+.content hr{border:none;border-top:1px solid var(--line);margin:30px 0;}
+.content strong{color:var(--navy2);}
+.footer{margin-top:50px;padding-top:16px;border-top:1px solid var(--line);font-size:12px;color:var(--muted);display:flex;justify-content:space-between;}
+@media print{body{background:#fff;}.page{box-shadow:none;padding:18px 0;max-width:100%;}.docnav{display:none;}.content h2{break-after:avoid;}.content table,.content pre,.content blockquote{break-inside:avoid;}}
+@media (max-width:720px){.page{padding:30px 20px;}}
+</style>
+</head>
+<body>
+<div class="page">
+  <span class="doc-label">JEIL AX ERP DB 연계 · 대외비</span>
+  <div class="docnav"><a href="/docs/erp">🏠 연계 허브</a><a href="/docs/erp/status">00 현재상태</a><a href="/docs/erp/plan">01 연계기획</a><a href="/docs/erp/progress">02 진행상태</a><a href="/docs/erp/midway-db">03 중간DB 실행기획</a><a href="/docs/erp/incremental-sync">04 증분·확장·거버넌스</a><a href="/docs/erp/dept-mapping">05 사용자-부서 매핑</a><a href="/docs/erp/voucher-roadmap">06 결의전표 추진계획</a><a href="/docs/erp/voucher-handover">09 결의전표 인수인계</a><a href="/docs/erp/recurring-voucher">10 반복전표 자동화</a><a href="/docs/erp/direct-post-demo">11 ERP 직접등록(DEMO2)</a><a href="/docs/erp/ax001-acct-mapping">12 AX001 계정매핑 요청</a><a href="/docs/erp/subledger-fix">13 서브원장 호출누락</a><a class="cur" href="/docs/erp/test-cases">14 테스트범위·케이스</a><a href="README.md">README</a></div>
+  <p class="md-link">📄 Markdown 원본: <a href="14_AX전표_테스트범위_및_케이스설계.md">14_AX전표_테스트범위_및_케이스설계.md</a> · 허브 <a href="/docs/erp">연계 허브</a></p>
+  <div class="content">
+<blockquote>
+<h2 id="2026-08-25">수행 결과 (2026-08-25)</h2>
+<p>설계서 §5 케이스 중 <strong>4건 수행·전건 통과</strong>. 적요 접두 <code>ax테스트_</code> 로 생성해 릴레이 전송 후 ERP 화면 승인까지 마쳤다.</p>
+<table>
+<thead>
+<tr>
+<th>케이스</th>
+<th>결의전표</th>
+<th>회계전표</th>
+<th>조합</th>
+<th>연결번호</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>T4</strong> 순수 대체분개</td>
+<td><code>AG202608250002</code></td>
+<td><code>GL202608250002</code></td>
+<td>없음</td>
+<td>전건 공백(정상)</td>
+</tr>
+<tr>
+<td><strong>T3</strong> 부가세 없는 채무</td>
+<td><code>AG202608250003</code></td>
+<td><code>GL202608250003</code></td>
+<td><code>AP</code></td>
+<td><code>AP202608250002</code></td>
+</tr>
+<tr>
+<td><strong>T5</strong> 선급금</td>
+<td><code>AG202608250004</code></td>
+<td><code>GL202608250004</code></td>
+<td><code>PP+AP+TP</code></td>
+<td><code>PP…0001</code>·<code>AP…0003</code>·<code>VT…0001</code></td>
+</tr>
+<tr>
+<td><strong>T11</strong> 제조원가+PC</td>
+<td><code>AG202608250005</code></td>
+<td><code>GL202608250005</code></td>
+<td><code>AP+TP</code></td>
+<td><code>AP…0004</code>·<code>VT…0002</code></td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li><strong>T4</strong> — 설계서가 최우선(구조적 위험)으로 지목한 항목. 서브원장 대상 라인이 하나도 없어도
+  SP 가 커서를 안 돌고 <code>rc=1</code> 정상 종료 → <strong>정상 전표까지 롤백되는 위험 없음</strong> 확인.</li>
+<li><strong>T5</strong> — <code>PP</code>·<code>AP</code>·<code>TP</code> 연결번호 각각 발급, <code>F_PRPAYM</code> 선급원장 최초 생성.</li>
+<li><strong>T11</strong> — 프로젝트코드 <code>PC</code> 전개 확인(관리항목 12행).</li>
+<li>정식장부(<code>A_GL_ITEM</code>) <strong>연결번호 승계 전건 부합</strong>, 서브원장 전부 <code>CONF_FG='C'</code>.</li>
+<li>판정은 설계서 §6 기준 적용(<code>AP</code>·<code>TP</code>·<code>PP</code> 채움 / <code>SUBSYS_TYPE</code> 없으면 공백) — <strong>위반 0줄</strong>.</li>
+</ul>
+<p><strong>❌ T2(미결·개인경비) 미수행</strong> — <code>21100902</code> 가 AX001 분개코드 미등재라 fail-closed 차단.
+범위의 24.6% 를 차지하는 2순위 케이스이며 <strong>회계팀 계정매핑 등재가 선행조건</strong>이다
+(<code>12_AX001_계정매핑_등재요청</code>). 등재되면 릴레이 코드 변경 없이 자동 전환된다.</p>
+<p><strong>미수행</strong>: T6 매출(계정 미등재) · T8 마이너스 · T9 다중라인 · T10 외화.</p>
+</blockquote>
+<hr />
+<h1 id="ax">AX 전표 — 테스트 범위 및 케이스 설계</h1>
+<blockquote>
+<p><strong>발신</strong> ERP_DB 작업환경 (최동혁) · <strong>수신</strong> JEIL_AX 프로젝트 / 릴레이 개발 담당
+<strong>작성</strong> 2026-08-25 · <strong>개정 v2</strong> (범위 정정 반영) · <strong>근거</strong> <code>JEILMNS_DEMO2</code> 실측 (READ-ONLY)
+<strong>AX 프로젝트 배치 제안</strong> <code>10_ERP_DB연계/14_AX전표_테스트범위_및_케이스설계.md</code>
+<strong>선행</strong> <code>AX전표_서브원장_호출누락_개발요청_20260825.md</code> · <code>../회계/260819_AX_.../AX전표_서브원장_처리완료회신_20260825.md</code></p>
+</blockquote>
+<hr />
+<h2 id="0">0. 이 문서의 목적</h2>
+<p>AX 릴레이가 앞으로 만들 전표를 어떤 범위에서, 어떤 케이스로 테스트할지 확정한다.</p>
+<table>
+<thead>
+<tr>
+<th>절</th>
+<th>내용</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>§1</td>
+<td><strong>테스트 범위 정의</strong> — 무엇이 대상이고 무엇이 아닌가</td>
+</tr>
+<tr>
+<td>§2</td>
+<td><code>AG202608250001</code> 승인 점검 결과</td>
+</tr>
+<tr>
+<td>§3</td>
+<td>범위 내 실태 — 조합 19종 · 라인수 · 특수 케이스</td>
+</tr>
+<tr>
+<td>§4</td>
+<td>미결(<code>OC</code>) 경로 — 판정 기준이 다르다</td>
+</tr>
+<tr>
+<td>§5</td>
+<td>테스트 케이스 11종</td>
+</tr>
+<tr>
+<td>§6</td>
+<td>공통 검증 쿼리</td>
+</tr>
+<tr>
+<td>§7</td>
+<td>AX 프로젝트 전달 안내</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="1">1. ★ 테스트 범위 정의</h2>
+<h3 id="11">1.1 원칙</h3>
+<p><strong>"사람이 ERP 회계모듈 「결의전표 입력」 화면에서 직접 입력한 전표"</strong> 만 대상이다.</p>
+<p>법인카드 연동, 타모듈(구매·영업·자금·자산) 연동, 배치로 들어온 데이터는 <strong>전부 제외</strong>한다.
+그 경로들은 각자의 래퍼가 서브원장 처리를 이미 수행하고 있으며, AX 릴레이가 재현할 대상이 아니다.</p>
+<h3 id="12-demo2">1.2 DEMO2 결의전표 전수 분류</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: center;">#</th>
+<th>생성 경로</th>
+<th style="text-align: right;">전표수</th>
+<th>판별 조건</th>
+<th style="text-align: center;">대상</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: center;"><strong>①</strong></td>
+<td><strong>결의전표 수동입력</strong></td>
+<td style="text-align: right;"><strong>12,085</strong></td>
+<td><code>GL_INPUT_TYPE='TG'</code> + <code>TRANS_TYPE</code> 공란 + <strong>A_BATCH 미경유</strong></td>
+<td style="text-align: center;">✅ <strong>테스트 범위</strong></td>
+</tr>
+<tr>
+<td style="text-align: center;">②</td>
+<td>법인카드 정산 (배치)</td>
+<td style="text-align: right;">474</td>
+<td>위와 같으나 <strong>A_BATCH 경유</strong> · <code>REF_NO='IF…'</code></td>
+<td style="text-align: center;">❌ 제외</td>
+</tr>
+<tr>
+<td style="text-align: center;">③</td>
+<td>법인카드 연동</td>
+<td style="text-align: right;">5,387</td>
+<td><code>TRANS_TYPE='AN005'</code></td>
+<td style="text-align: center;">❌ 제외</td>
+</tr>
+<tr>
+<td style="text-align: center;">④</td>
+<td>타모듈 연동</td>
+<td style="text-align: right;">4,044</td>
+<td><code>GL_INPUT_TYPE</code> ∈ <code>UX</code>·<code>AP</code>·<code>AR</code>·<code>FN</code>·<code>AQ</code>·<code>PR</code>·<code>LN</code>·<code>DP</code> …</td>
+<td style="text-align: center;">❌ 제외</td>
+</tr>
+<tr>
+<td style="text-align: center;">⑤</td>
+<td>AX 릴레이</td>
+<td style="text-align: right;">11</td>
+<td><code>TRANS_TYPE='AX001'</code></td>
+<td style="text-align: center;">— (결과물)</td>
+</tr>
+<tr>
+<td style="text-align: center;">⑥</td>
+<td>AX 초기실증</td>
+<td style="text-align: right;">6</td>
+<td><code>TRANS_TYPE='S0003'</code></td>
+<td style="text-align: center;">— (결과물)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="13-v1">1.3 ⚠️ v1 대비 정정 사항</h3>
+<p>초판(v1)은 <strong><code>TRANS_TYPE</code> 공란 = 수동입력</strong>으로 잡아 12,559건을 범위로 삼았다.
+<strong>그중 474건이 법인카드 정산 배치분</strong>이었다.</p>
+<pre><code>TG202505230030  REF_NO=IF2025052700006  &quot;5월 법인카드 정산서&quot;
+TG202505220030  REF_NO=IF2025052900024  &quot;법인카드 정산 件(5월 19일~22일 중국출장)&quot;
+TG202504300126  REF_NO=IF2025050700016  &quot;4월 법인카드 정산의 件 (국내 사용분)&quot;
+</code></pre>
+<p><code>TRANS_TYPE</code> 은 비어 있지만 <code>A_BATCH</code> 를 경유했고 <code>REF_NO</code> 가 인터페이스 번호(<code>IF…</code>)다.
+<strong><code>TRANS_TYPE</code> 만으로는 수동입력을 가려낼 수 없다.</strong></p>
+<h3 id="14">1.4 판별 기준 — 두 가지가 일치한다</h3>
+<p>수동입력 12,085건은 <strong>REF_NO 가 100% 자기 전표번호</strong>다. 예외 0건.</p>
+<table>
+<thead>
+<tr>
+<th>기준</th>
+<th>조건</th>
+<th>결과</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>A</strong> A_BATCH 미경유</td>
+<td><code>NOT EXISTS (SELECT 1 FROM A_BATCH WHERE TEMP_GL_NO = T.TEMP_GL_NO)</code></td>
+<td>12,085</td>
+</tr>
+<tr>
+<td><strong>B</strong> REF_NO = 자기 전표번호</td>
+<td><code>T.REF_NO = T.TEMP_GL_NO</code></td>
+<td>12,085</td>
+</tr>
+</tbody>
+</table>
+<p>두 기준이 정확히 같은 집합을 가리킨다. 실무에서는 <strong>B가 간편</strong>하다.</p>
+<pre><code class="language-sql">-- 테스트 범위 판별 (표준)
+SELECT T.*
+FROM   A_TEMP_GL T
+WHERE  T.GL_INPUT_TYPE = 'TG'
+  AND  ISNULL(RTRIM(T.TRANS_TYPE),'') = ''
+  AND  T.REF_NO = T.TEMP_GL_NO;          -- ← 수동입력 표식
+</code></pre>
+<h3 id="15">1.5 범위 개요</h3>
+<table>
+<thead>
+<tr>
+<th>항목</th>
+<th>값</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>전표수</td>
+<td><strong>12,085건</strong></td>
+</tr>
+<tr>
+<td>기간</td>
+<td>2023-12-31 ~ 2026-03-25</td>
+</tr>
+<tr>
+<td>전표번호 형식</td>
+<td><code>TG</code>+<code>YYYYMMDD</code>+<code>NNNN</code> 12,083건 · <strong>비정상 2건</strong> (<code>PPJC00-00049</code>, <code>통행료 3916  (7136)</code> — 이관 잔재로 추정, 테스트 대상 아님)</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="2-ag202608250001">2. <code>AG202608250001</code> 점검 결과 — 정상</h2>
+<h3 id="21">2.1 헤더</h3>
+<table>
+<thead>
+<tr>
+<th>항목</th>
+<th>값</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>결의전표</td>
+<td><code>AG202608250001</code> · 2026-08-25 · <code>AX001</code> · <code>GL_INPUT_TYPE='TG'</code></td>
+</tr>
+<tr>
+<td>승인</td>
+<td><strong><code>CONF_FG='C'</code></strong> → 정식전표 <strong><code>GL202608250001</code></strong></td>
+</tr>
+<tr>
+<td>차 / 대</td>
+<td>275,000 / 275,000 (균형)</td>
+</tr>
+<tr>
+<td>포털 초안</td>
+<td><code>DRAFT-20260825-0019</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="22">2.2 라인 — 연결번호 전건 채움 ✅</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: right;">#</th>
+<th>계정</th>
+<th style="text-align: center;">차대</th>
+<th style="text-align: right;">금액</th>
+<th style="text-align: center;">서브시스템</th>
+<th>연결번호</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: right;">1</td>
+<td><code>53014307</code> 판)지급수수료(기타)</td>
+<td style="text-align: center;">DR</td>
+<td style="text-align: right;">250,000</td>
+<td style="text-align: center;">—</td>
+<td>— <em>(대상 아님·정상)</em></td>
+</tr>
+<tr>
+<td style="text-align: right;">2</td>
+<td><code>21100901</code> 미지급금(거래처)</td>
+<td style="text-align: center;">CR</td>
+<td style="text-align: right;">275,000</td>
+<td style="text-align: center;"><code>AP</code></td>
+<td><strong><code>AP202608250001</code></strong> ✅</td>
+</tr>
+<tr>
+<td style="text-align: right;">3</td>
+<td><code>11103301</code> 부가세대급금</td>
+<td style="text-align: center;">DR</td>
+<td style="text-align: right;">25,000</td>
+<td style="text-align: center;"><code>TP</code></td>
+<td><strong><code>VT202608050002</code></strong> ✅</td>
+</tr>
+</tbody>
+</table>
+<p>정식장부(<code>A_GL_ITEM</code>)에도 연결번호가 그대로 승계됐다. 관리항목 12건 정상 전개.</p>
+<h3 id="23">2.3 서브원장</h3>
+<table>
+<thead>
+<tr>
+<th>원장</th>
+<th>번호</th>
+<th>내용</th>
+<th>상태</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>A_OPEN_AP</code></td>
+<td><code>AP202608250001</code></td>
+<td>거래처 <code>03688</code> · 채무액 275,000 · 잔액 275,000</td>
+<td><code>CONF_FG='C'</code> · <code>AP_STS='O'</code></td>
+</tr>
+<tr>
+<td><code>A_VAT</code></td>
+<td><code>VT202608050002</code></td>
+<td>공급가 250,000 · 부가세 25,000 · <code>VAT_TYPE='A'</code> · <code>IO_FG='I'</code></td>
+<td><code>CONF_FG='C'</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="24">2.4 확인해 본 것 — 이상 없음</h3>
+<p>채무원장의 공급가액·부가세액이 <code>0</code> 인 점을 대조했다. <strong>정상이다.</strong>
+수동입력 결의전표 채무도 <strong>2,704건이 공급가 0</strong>, 350건만 값이 있다. 결의전표 경유 채무는
+<code>NET_AMT</code>·<code>VAT_AMT</code> 를 채우지 않는 것이 ERP 표준 거동이다.</p>
+<p>부가세번호가 <code>VT20260805…</code>(발행일 기준)로 전표일(08-25)과 다른 것도 정상 — <code>ISSUED_DT</code> 기준 채번.</p>
+<blockquote>
+<p><code>AG202608240004</code>(개선 직후)에 이어 2건차도 전 구간 통과. <strong>T1 유형은 검증 완료.</strong></p>
+</blockquote>
+<hr />
+<h2 id="3-12085">3. 범위 내 실태 — 수동입력 12,085건</h2>
+<h3 id="31-19">3.1 서브원장 조합 19종</h3>
+<table>
+<thead>
+<tr>
+<th>조합</th>
+<th style="text-align: right;">전표수</th>
+<th style="text-align: right;">비중</th>
+<th>의미</th>
+<th style="text-align: center;">검증</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong><code>AP+TP</code></strong></td>
+<td style="text-align: right;"><strong>5,024</strong></td>
+<td style="text-align: right;">41.6%</td>
+<td><strong>매입세금계산서</strong></td>
+<td style="text-align: center;">✅ 완료</td>
+</tr>
+<tr>
+<td><strong><code>OC</code></strong></td>
+<td style="text-align: right;"><strong>2,976</strong></td>
+<td style="text-align: right;">24.6%</td>
+<td><strong>미결 (개인경비 등)</strong></td>
+<td style="text-align: center;">❌ 경로 다름 §4</td>
+</tr>
+<tr>
+<td><em>(서브원장 무관)</em></td>
+<td style="text-align: right;">1,540</td>
+<td style="text-align: right;">12.7%</td>
+<td>순수 대체분개</td>
+<td style="text-align: center;">❌</td>
+</tr>
+<tr>
+<td><code>AP</code></td>
+<td style="text-align: right;">1,358</td>
+<td style="text-align: right;">11.2%</td>
+<td>부가세 없는 채무</td>
+<td style="text-align: center;">❌</td>
+</tr>
+<tr>
+<td><code>TP</code></td>
+<td style="text-align: right;">384</td>
+<td style="text-align: right;">3.2%</td>
+<td>매입부가세만 (수정계산서)</td>
+<td style="text-align: center;">❌</td>
+</tr>
+<tr>
+<td><code>PP</code></td>
+<td style="text-align: right;">188</td>
+<td style="text-align: right;">1.6%</td>
+<td>선급금</td>
+<td style="text-align: center;">❌</td>
+</tr>
+<tr>
+<td><code>AP+PP+TP</code></td>
+<td style="text-align: right;">180</td>
+<td style="text-align: right;">1.5%</td>
+<td>채무+선급+부가세</td>
+<td style="text-align: center;">❌</td>
+</tr>
+<tr>
+<td><code>PR</code></td>
+<td style="text-align: right;">127</td>
+<td style="text-align: right;">1.1%</td>
+<td>선수금</td>
+<td style="text-align: center;">❌</td>
+</tr>
+<tr>
+<td><code>AR+TR</code></td>
+<td style="text-align: right;">75</td>
+<td style="text-align: right;">0.6%</td>
+<td>매출 (채권+매출부가세)</td>
+<td style="text-align: center;">❌</td>
+</tr>
+<tr>
+<td><code>AP+PP</code></td>
+<td style="text-align: right;">74</td>
+<td style="text-align: right;">0.6%</td>
+<td>채무+선급</td>
+<td style="text-align: center;">❌</td>
+</tr>
+<tr>
+<td><code>AR+OC</code></td>
+<td style="text-align: right;">67</td>
+<td style="text-align: right;">0.6%</td>
+<td>채권+미결</td>
+<td style="text-align: center;">❌</td>
+</tr>
+<tr>
+<td><code>AR</code></td>
+<td style="text-align: right;">57</td>
+<td style="text-align: right;">0.5%</td>
+<td>채권만</td>
+<td style="text-align: center;">❌</td>
+</tr>
+<tr>
+<td><code>AP+AR</code> · <code>AR+TP</code> · <code>AR+PR</code> · <code>TR</code> · <code>TP+TR</code> · <code>OC+TP</code> · <code>AP+OC+TP</code></td>
+<td style="text-align: right;">35</td>
+<td style="text-align: right;">0.3%</td>
+<td>소수 조합</td>
+<td style="text-align: center;">❌</td>
+</tr>
+</tbody>
+</table>
+<h3 id="32">3.2 라인 수 분포</h3>
+<table>
+<thead>
+<tr>
+<th>구간</th>
+<th style="text-align: right;">전표수</th>
+<th style="text-align: right;">비중</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>2라인 이하</td>
+<td style="text-align: right;">2,880</td>
+<td style="text-align: right;">23.8%</td>
+</tr>
+<tr>
+<td><strong>3~4라인</strong></td>
+<td style="text-align: right;"><strong>6,260</strong></td>
+<td style="text-align: right;"><strong>51.8%</strong></td>
+</tr>
+<tr>
+<td>5~10라인</td>
+<td style="text-align: right;">2,240</td>
+<td style="text-align: right;">18.5%</td>
+</tr>
+<tr>
+<td>11~30라인</td>
+<td style="text-align: right;">577</td>
+<td style="text-align: right;">4.8%</td>
+</tr>
+<tr>
+<td>31라인 이상</td>
+<td style="text-align: right;"><strong>128</strong></td>
+<td style="text-align: right;">1.1%</td>
+</tr>
+</tbody>
+</table>
+<p>AX 가 지금 만드는 것은 3~4라인 — 실무의 과반이다.</p>
+<h3 id="33">3.3 특수 케이스</h3>
+<table>
+<thead>
+<tr>
+<th>케이스</th>
+<th style="text-align: right;">전표수</th>
+<th style="text-align: right;">비중</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>프로젝트번호 사용</strong></td>
+<td style="text-align: right;"><strong>8,847</strong></td>
+<td style="text-align: right;">73.2%</td>
+</tr>
+<tr>
+<td><strong>제조원가(<code>MC</code>) 계정</strong></td>
+<td style="text-align: right;"><strong>6,769</strong></td>
+<td style="text-align: right;">56.0%</td>
+</tr>
+<tr>
+<td>마이너스 금액 라인</td>
+<td style="text-align: right;">939</td>
+<td style="text-align: right;">7.8%</td>
+</tr>
+<tr>
+<td>외화 (KRW 아님)</td>
+<td style="text-align: right;">900</td>
+<td style="text-align: right;">7.4%</td>
+</tr>
+<tr>
+<td>부가세 라인 2개 이상</td>
+<td style="text-align: right;">881</td>
+<td style="text-align: right;">7.3%</td>
+</tr>
+<tr>
+<td>채무 라인 2개 이상</td>
+<td style="text-align: right;">832</td>
+<td style="text-align: right;">6.9%</td>
+</tr>
+</tbody>
+</table>
+<p>프로젝트번호가 <strong>73%</strong> 다. 제조업 특성상 사실상 기본 입력값이다.</p>
+<h3 id="34">3.4 서브원장 계정 사용 순위</h3>
+<table>
+<thead>
+<tr>
+<th>계정</th>
+<th>계정명</th>
+<th style="text-align: center;">서브시스템</th>
+<th style="text-align: center;">차대</th>
+<th style="text-align: right;">라인수</th>
+<th style="text-align: right;">전표수</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>11103301</code></td>
+<td>부가세대급금</td>
+<td style="text-align: center;"><code>TP</code></td>
+<td style="text-align: center;">DR</td>
+<td style="text-align: right;">7,445</td>
+<td style="text-align: right;">5,591</td>
+</tr>
+<tr>
+<td><code>21100901</code></td>
+<td>미지급금(거래처)</td>
+<td style="text-align: center;"><code>AP</code></td>
+<td style="text-align: center;">CR</td>
+<td style="text-align: right;">7,341</td>
+<td style="text-align: right;">5,279</td>
+</tr>
+<tr>
+<td><strong><code>21100902</code></strong></td>
+<td><strong>미지급금(개인)</strong></td>
+<td style="text-align: center;"><strong><code>OC</code></strong></td>
+<td style="text-align: center;">CR</td>
+<td style="text-align: right;">3,197</td>
+<td style="text-align: right;"><strong>2,920</strong></td>
+</tr>
+<tr>
+<td><code>21100101</code></td>
+<td>외상매입금</td>
+<td style="text-align: center;"><code>AP</code></td>
+<td style="text-align: center;">CR</td>
+<td style="text-align: right;">1,170</td>
+<td style="text-align: right;">1,143</td>
+</tr>
+<tr>
+<td><code>11102301</code></td>
+<td>선급금-원부재료</td>
+<td style="text-align: center;"><code>PP</code></td>
+<td style="text-align: center;">DR</td>
+<td style="text-align: right;">408</td>
+<td style="text-align: right;">234</td>
+</tr>
+<tr>
+<td><code>11102305</code></td>
+<td>선급금-기타</td>
+<td style="text-align: center;"><code>PP</code></td>
+<td style="text-align: center;">DR</td>
+<td style="text-align: right;">556</td>
+<td style="text-align: right;">203</td>
+</tr>
+<tr>
+<td><code>11101701</code></td>
+<td>미수금</td>
+<td style="text-align: center;"><code>AR</code></td>
+<td style="text-align: center;">DR</td>
+<td style="text-align: right;">213</td>
+<td style="text-align: right;">176</td>
+</tr>
+<tr>
+<td><code>21100905</code></td>
+<td>미지급급여</td>
+<td style="text-align: center;"><code>AP</code></td>
+<td style="text-align: center;">CR</td>
+<td style="text-align: right;">220</td>
+<td style="text-align: right;">158</td>
+</tr>
+<tr>
+<td><code>21100907</code></td>
+<td>미지급금(법인카드)</td>
+<td style="text-align: center;"><code>OC</code></td>
+<td style="text-align: center;">CR</td>
+<td style="text-align: right;">659</td>
+<td style="text-align: right;">116</td>
+</tr>
+<tr>
+<td><code>21101903</code></td>
+<td>선수금(진행)</td>
+<td style="text-align: center;"><code>PR</code></td>
+<td style="text-align: center;">CR</td>
+<td style="text-align: right;">322</td>
+<td style="text-align: right;">102</td>
+</tr>
+<tr>
+<td><code>21100103</code></td>
+<td>외화외상매입금</td>
+<td style="text-align: center;"><code>AP</code></td>
+<td style="text-align: center;">CR</td>
+<td style="text-align: right;">104</td>
+<td style="text-align: right;">82</td>
+</tr>
+<tr>
+<td><code>21102301</code></td>
+<td>부가세예수금</td>
+<td style="text-align: center;"><code>TR</code></td>
+<td style="text-align: center;">CR</td>
+<td style="text-align: right;">98</td>
+<td style="text-align: right;">81</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><code>21100907</code>(법인카드 미지급금)이 116전표 남아 있다. 이는 <strong>사용자가 결의전표 화면에서 직접 법인카드 계정을 쓴 케이스</strong>로,
+법인카드 연동(제외분 5,387 + 474)과는 다르다. AX 가 쓸 계정은 아닐 것이나 범위 안에 있으므로 명시해 둔다.</p>
+<p>AX 가 쓰는 <code>21100901</code> 외에 <strong><code>21100101</code> 외상매입금</strong>도 <code>AP</code> 유형으로 1,143전표 쓰인다.
+계정만 다르고 처리 경로는 같으므로 계정 확대 시 추가 개발은 불필요할 것으로 본다(검증 필요).</p>
+</blockquote>
+<hr />
+<h2 id="4-oc">4. 🔴 미결(<code>OC</code>) — 판정 기준이 다르다</h2>
+<p>범위 내 2위 유형(24.6%)이고 <strong>서브원장 생성 경로가 다르다.</strong></p>
+<h3 id="41">4.1 무엇이 다른가</h3>
+<table>
+<thead>
+<tr>
+<th>구분</th>
+<th><code>AP</code> · <code>TP</code> 등</th>
+<th><strong><code>OC</code> (미결)</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>대상 원장</td>
+<td><code>A_OPEN_AP</code> · <code>A_VAT</code></td>
+<td><strong><code>A_OPEN_ACCT</code></strong></td>
+</tr>
+<tr>
+<td>키</td>
+<td><code>TEMP_GL_NO</code></td>
+<td><strong><code>GL_NO</code></strong> (정식전표번호)</td>
+</tr>
+<tr>
+<td>생성 시점</td>
+<td>결의 단계</td>
+<td><strong>승인 후 회계전표 단계</strong></td>
+</tr>
+<tr>
+<td>생성 주체</td>
+<td><code>usp_a_create_temp_gl_subsys</code></td>
+<td><code>usp_a_create_gl_subsys</code> (ERP 승인 경로)</td>
+</tr>
+<tr>
+<td><code>SUBSYS_NO</code></td>
+<td>채워짐</td>
+<td><strong>비어 있는 것이 정상</strong></td>
+</tr>
+</tbody>
+</table>
+<p><code>usp_a_create_temp_gl_subsys</code> 커서가 <code>SUBSYS_TYPE NOT IN ('OC','OD')</code> 로 <strong>미결을 명시 제외</strong>한다.
+릴레이가 SP 를 불러도 <code>OC</code> 라인은 처리되지 않는다 — <strong>그게 설계다.</strong></p>
+<h3 id="42">4.2 실측 근거</h3>
+<p><code>A_OPEN_ACCT</code> 미결원장 <strong>65,124행</strong> 중 <strong>63,967행이 <code>TG</code> 결의전표 경유</strong>다.</p>
+<table>
+<thead>
+<tr>
+<th>정식전표</th>
+<th>계정</th>
+<th style="text-align: center;">미결항목</th>
+<th>값</th>
+<th>적요</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>GL202506050010</code></td>
+<td><code>21100902</code></td>
+<td style="text-align: center;"><code>EM</code> 사원</td>
+<td><code>181203</code></td>
+<td>5월분 통신비_이혜리</td>
+</tr>
+<tr>
+<td><code>GL202506010002</code></td>
+<td><code>21100902</code></td>
+<td style="text-align: center;"><code>EM</code></td>
+<td><code>244316</code></td>
+<td>6월 임원 통신비 청구</td>
+</tr>
+<tr>
+<td><code>GL202505310009</code></td>
+<td><code>21100902</code></td>
+<td style="text-align: center;"><code>EM</code></td>
+<td><code>5240618</code></td>
+<td>5월 일비+로밍</td>
+</tr>
+</tbody>
+</table>
+<table>
+<thead>
+<tr>
+<th>계정</th>
+<th>계정명</th>
+<th style="text-align: center;">서브시스템</th>
+<th style="text-align: center;">미결관리</th>
+<th style="text-align: center;">미결항목1</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>21100901</code></td>
+<td>미지급금(거래처)</td>
+<td style="text-align: center;"><code>AP</code></td>
+<td style="text-align: center;">N</td>
+<td style="text-align: center;">—</td>
+</tr>
+<tr>
+<td><strong><code>21100902</code></strong></td>
+<td><strong>미지급금(개인)</strong></td>
+<td style="text-align: center;"><strong><code>OC</code></strong></td>
+<td style="text-align: center;"><strong>Y</strong></td>
+<td style="text-align: center;"><strong><code>EM</code></strong> (사원)</td>
+</tr>
+<tr>
+<td><code>21100907</code></td>
+<td>미지급금(법인카드)</td>
+<td style="text-align: center;"><code>OC</code></td>
+<td style="text-align: center;">Y</td>
+<td style="text-align: center;">—</td>
+</tr>
+</tbody>
+</table>
+<h3 id="43">4.3 확인 필요</h3>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>질문</th>
+<th>확인 방법</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>AX 포털이 <code>21100902</code>(개인) 계정을 쓰는가</td>
+<td>포털 계정매핑 — <code>12_AX001_계정매핑_등재요청</code></td>
+</tr>
+<tr>
+<td>2</td>
+<td>쓴다면 승인 후 <code>A_OPEN_ACCT</code> 가 생기는가</td>
+<td>DEMO2 테스트 후 조회</td>
+</tr>
+<tr>
+<td>3</td>
+<td>미결항목 <code>EM</code>(사원번호)을 릴레이가 넘기는가</td>
+<td>관리항목 전개 확인</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>주의</strong> — <code>OC</code> 계정에서 <code>SUBSYS_NO</code> 가 비어 있는 것을 <strong>결손으로 오판하지 말 것.</strong></p>
+</blockquote>
+<hr />
+<h2 id="5">5. 테스트 케이스</h2>
+<h3 id="51">5.1 권고 순서</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: center;">순서</th>
+<th>케이스</th>
+<th>이유</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: center;"><strong>1</strong></td>
+<td><strong>T4 순수 대체분개</strong></td>
+<td>실패 시 정상 전표까지 롤백되는 구조적 위험</td>
+</tr>
+<tr>
+<td style="text-align: center;"><strong>2</strong></td>
+<td><strong>T2 미결 / 개인경비</strong></td>
+<td>범위 내 2위(24.6%) · 경로가 다름</td>
+</tr>
+<tr>
+<td style="text-align: center;"><strong>3</strong></td>
+<td>T3 부가세 없는 채무</td>
+<td>3위(11.2%) · 난도 낮음</td>
+</tr>
+<tr>
+<td style="text-align: center;">4</td>
+<td>T5 선급금</td>
+<td>연결번호 복수 발급</td>
+</tr>
+<tr>
+<td style="text-align: center;">5</td>
+<td>T8 마이너스 · 수정계산서</td>
+<td>부가세 신고 정확성</td>
+</tr>
+<tr>
+<td style="text-align: center;">6</td>
+<td>T9 다중 라인</td>
+<td>성능</td>
+</tr>
+<tr>
+<td style="text-align: center;">7</td>
+<td>T6 매출 / T7 선수금</td>
+<td>AX 범위 확인 후</td>
+</tr>
+<tr>
+<td style="text-align: center;">8</td>
+<td>T10 외화 / T11 프로젝트</td>
+<td>부가 확인</td>
+</tr>
+</tbody>
+</table>
+<h3 id="52">5.2 케이스 상세</h3>
+<h4 id="t1-aptp">T1. 매입세금계산서 (<code>AP+TP</code>) — ✅ 검증 완료</h4>
+<ul>
+<li><strong>5,024전표 (41.6%)</strong> · 참조 <code>TG202506250002</code>(수동) · <code>AG202608250001</code>(AX)</li>
+<li>(차) 경비 250,000 / (차) 부가세대급금 25,000 / (대) 미지급금(거래처) 275,000</li>
+</ul>
+<h4 id="t2-oc">T2. 미결 / 개인경비 (<code>OC</code>) — 🔴 최우선</h4>
+<ul>
+<li><strong>2,976전표 (24.6%)</strong> · <code>21100902</code> 2,920전표 · 참조 <code>TG202506300008</code></li>
+<li>(차) 제)여비교통비(해외) 533,127 / (대) 미지급금(개인) 533,127</li>
+<li><strong>판정 기준</strong> — <code>SUBSYS_NO</code> 는 <strong>비어야 정상</strong>. 승인 후 <code>A_OPEN_ACCT</code> 에 <code>MGNT_CD1='EM'</code>+사원번호 생성 확인</li>
+</ul>
+<h4 id="t4">T4. 순수 대체분개 (서브원장 무관) — 🔴 구조적 위험</h4>
+<ul>
+<li><strong>1,540전표 (12.7%)</strong> · 서브원장 대상 계정이 하나도 없는 전표</li>
+<li><strong>검증 포인트</strong> — 커서가 한 바퀴도 안 돌아도 <code>rc=1</code> 로 정상 종료하는지</li>
+<li><strong>위험</strong> — 여기서 실패하면 릴레이가 <strong>정상 전표까지 롤백</strong>한다</li>
+</ul>
+<h4 id="t3-ap">T3. 부가세 없는 채무 (<code>AP</code>) — 상</h4>
+<ul>
+<li><strong>1,358전표 (11.2%)</strong> · 참조 <code>TG202506300004</code>(퇴직금 지급, 6라인)</li>
+<li>(차) 경비 / (대) 미지급금 — 부가세 라인 없음. <code>VAT_TYPE</code> 공란 처리 확인</li>
+</ul>
+<h4 id="t5-pp">T5. 선급금 (<code>PP</code>) — 중</h4>
+<ul>
+<li><code>PP</code> 188 + <code>AP+PP</code> 74 + <code>AP+PP+TP</code> 180 = <strong>442전표</strong> · 참조 <code>TG202506180016</code> · <code>TG202506120009</code></li>
+<li>(차) 선급금-원부재료 376,560 / (차) 부가세대급금 37,656 / (대) 외상매입금 414,216</li>
+<li><strong>검증 포인트</strong> — 선급금 라인 2건이면 <code>PP…</code> 연결번호가 <strong>각각 2개 발급</strong></li>
+</ul>
+<h4 id="t6-artr">T6. 매출 (<code>AR+TR</code>) — 중</h4>
+<ul>
+<li><strong>75전표</strong> + <code>AR</code> 57 + <code>TR</code> 6 · 참조 <code>TG202506180009</code>(김해공장 스크랩)</li>
+<li>(차) 미수금 2,295,810 / (대) 잡이익 2,087,100 / (대) 부가세예수금 208,710</li>
+<li><strong>AX 범위인지 먼저 확인 필요</strong></li>
+</ul>
+<h4 id="t7-pr">T7. 선수금 (<code>PR</code>) — 중</h4>
+<ul>
+<li><strong>127전표</strong> · 참조 <code>TG202506050017</code></li>
+<li>(차) 보통예금 2,000,000 / (대) 선수금(기타) 2,000,000 → <code>F_PRRCPT</code> 생성</li>
+</ul>
+<h4 id="t8">T8. 부가세만 · 수정계산서 (마이너스) — 중</h4>
+<ul>
+<li><code>TP</code> 384전표 · 마이너스 라인 <strong>939전표</strong> · 참조 <code>TG202506230011</code></li>
+<li>(차) 부가세대급금 <strong>-4,300</strong> / (차) 부가세대급금 <strong>+4,300</strong> — 오발행 취소 + 재발행</li>
+<li><strong>검증 포인트</strong> — 마이너스 라인에서 <code>VT…</code> 정상 발급, 신고자료 상계 반영</li>
+</ul>
+<h4 id="t9">T9. 다중 라인 — 중</h4>
+<ul>
+<li>11~30라인 577전표 · <strong>31라인 이상 128전표</strong> · 참조 <code>TG202506240012</code>(10라인)</li>
+<li><strong>검증 포인트</strong> — 라인마다 채번 SP 호출. <strong>성능·타임아웃</strong> 확인</li>
+</ul>
+<h4 id="t10">T10. 외화 — 하</h4>
+<ul>
+<li><strong>900전표</strong> · <code>DOC_CUR</code>·<code>XCH_RATE</code> 전달, <code>NET_LOC_AMT</code> 환산, 환차 계정</li>
+</ul>
+<h4 id="t11">T11. 프로젝트 · 제조원가 — 하 (단 실적 최대)</h4>
+<ul>
+<li>프로젝트 <strong>8,847전표(73.2%)</strong> · 제조원가 <strong>6,769전표(56.0%)</strong></li>
+<li><code>43…</code> 제조계정은 <strong>프로젝트코드(<code>PC</code>) 차변 필수</strong></li>
+<li><code>AG202608190007</code> 에서 <code>43000501</code> 사용 실적 있고 <code>PC</code> 전개 확인됨</li>
+</ul>
+<hr />
+<h2 id="6">6. 공통 검증 쿼리</h2>
+<pre><code class="language-sql">DECLARE @slip nvarchar(18) = 'AG20260901xxxx';
+
+-- ① 헤더
+SELECT TEMP_GL_NO, CONF_FG, ISNULL(NULLIF(RTRIM(GL_NO),''),'(미승인)') AS 회계전표,
+       DR_AMT, CR_AMT, TRANS_TYPE, GL_INPUT_TYPE, REF_NO
+FROM   A_TEMP_GL WHERE TEMP_GL_NO = @slip;
+
+-- ② 라인 + 연결번호   ※ OC 계정은 연결번호가 비어 있어야 정상
+SELECT I.ITEM_SEQ, I.ACCT_CD, LEFT(A.ACCT_NM,20) AS 계정명, I.DR_CR_FG, I.ITEM_AMT,
+       ISNULL(NULLIF(RTRIM(A.SUBSYS_TYPE),''),'-') AS 계정서브시스템,
+       ISNULL(NULLIF(RTRIM(I.SUBSYS_NO),''),'(비어있음)') AS 연결번호,
+       ISNULL(NULLIF(RTRIM(I.BP_CD),''),'-') AS 거래처
+FROM   A_TEMP_GL_ITEM I JOIN A_ACCT A ON A.ACCT_CD = I.ACCT_CD
+WHERE  I.TEMP_GL_NO = @slip ORDER BY I.ITEM_SEQ;
+
+-- ③ 서브원장 5종
+SELECT '채무 A_OPEN_AP'  AS 원장, COUNT(*) AS 행수 FROM A_OPEN_AP WHERE TEMP_GL_NO = @slip
+UNION ALL SELECT '부가세 A_VAT',   COUNT(*) FROM A_VAT     WHERE TEMP_GL_NO = @slip
+UNION ALL SELECT '채권 A_OPEN_AR', COUNT(*) FROM A_OPEN_AR WHERE TEMP_GL_NO = @slip
+UNION ALL SELECT '선급 F_PRPAYM',  COUNT(*) FROM F_PRPAYM  WHERE TEMP_GL_NO = @slip
+UNION ALL SELECT '선수 F_PRRCPT',  COUNT(*) FROM F_PRRCPT  WHERE TEMP_GL_NO = @slip;
+
+-- ④ 미결원장 (OC 케이스 · 승인 후에만 · GL_NO 기준)
+SELECT O.GL_NO, O.GL_SEQ, O.ACCT_CD, O.MGNT_CD1, O.MGNT_VAL1, LEFT(ISNULL(O.GL_DESC,''),30) AS 적요
+FROM   A_OPEN_ACCT O JOIN A_TEMP_GL T ON T.GL_NO = O.GL_NO
+WHERE  T.TEMP_GL_NO = @slip;
+
+-- ⑤ 정식장부 연결번호 승계 (승인 후)
+SELECT G.ITEM_SEQ, G.ACCT_CD, G.DR_CR_FG, G.ITEM_AMT,
+       ISNULL(NULLIF(RTRIM(G.SUBSYS_NO),''),'(비어있음)') AS 연결번호
+FROM   A_GL_ITEM G JOIN A_TEMP_GL T ON T.GL_NO = G.GL_NO
+WHERE  T.TEMP_GL_NO = @slip ORDER BY G.ITEM_SEQ;
+</code></pre>
+<h3 id="_1">판정 기준</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: center;">계정 서브시스템</th>
+<th>연결번호</th>
+<th>서브원장</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: center;"><code>AP</code> · <code>TP</code> · <code>TR</code> · <code>AR</code> · <code>PP</code> · <code>PR</code> · <code>SS</code></td>
+<td><strong>채워져야 정상</strong></td>
+<td>결의 단계 생성</td>
+</tr>
+<tr>
+<td style="text-align: center;"><strong><code>OC</code> · <code>OD</code></strong></td>
+<td><strong>비어야 정상</strong></td>
+<td>승인 후 <code>A_OPEN_ACCT</code></td>
+</tr>
+<tr>
+<td style="text-align: center;">(공백)</td>
+<td>비어야 정상</td>
+<td>대상 아님</td>
+</tr>
+</tbody>
+</table>
+<h3 id="_2">참조 케이스 재현용 — 범위 내 전표 조회</h3>
+<pre><code class="language-sql">-- 특정 조합의 수동입력 전표 찾기 (예: OC)
+SELECT TOP 20 T.TEMP_GL_NO, CONVERT(varchar(10),T.TEMP_GL_DT,120) AS 전표일,
+       T.DR_AMT, LEFT(ISNULL(T.TEMP_GL_DESC,''),40) AS 적요
+FROM   A_TEMP_GL T
+WHERE  T.GL_INPUT_TYPE='TG' AND ISNULL(RTRIM(T.TRANS_TYPE),'')=''
+  AND  T.REF_NO = T.TEMP_GL_NO                              -- 수동입력 표식
+  AND  EXISTS (SELECT 1 FROM A_TEMP_GL_ITEM I JOIN A_ACCT A ON A.ACCT_CD=I.ACCT_CD
+                WHERE I.TEMP_GL_NO=T.TEMP_GL_NO AND A.SUBSYS_TYPE='OC')
+ORDER BY T.TEMP_GL_DT DESC;
+</code></pre>
+<hr />
+<h2 id="7-ax">7. AX 프로젝트 전달 안내</h2>
+<h3 id="71">7.1 전달 대상</h3>
+<table>
+<thead>
+<tr>
+<th>파일</th>
+<th>내용</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>AX전표_테스트케이스_설계_20260825.md</code></td>
+<td>본 문서</td>
+</tr>
+<tr>
+<td><code>AX전표_테스트케이스_설계_20260825.html</code></td>
+<td>동일 내용 · 7탭 + 범위 분류 도식</td>
+</tr>
+</tbody>
+</table>
+<p><strong>배치 제안</strong> — AX 프로젝트 <code>10_ERP_DB연계/14_AX전표_테스트범위_및_케이스설계.{md,html}</code>
+등재 위치 — 해당 프로젝트 <code>02_진행상태</code></p>
+<blockquote>
+<p>ERP_DB 작업 PC 에는 <code>E:</code> 드라이브가 없어 <code>E:\OneDrive\1.JOB\JEIL_AX\</code> 에 직접 배치하지 못한다.
+AX 프로젝트 측 PC 에서 복사해야 전달이 완료된다. (지난 <code>13_…</code> 개발요청과 동일 절차)</p>
+</blockquote>
+<h3 id="72-ax">7.2 AX 측에서 확인해 주실 것</h3>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>항목</th>
+<th>왜 필요한가</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td><strong>포털 계정 매핑 범위</strong> — <code>21100902</code>(개인)·<code>21100101</code>(외상매입금)·<code>11101701</code>(미수금)·선급/선수 계정 포함 여부</td>
+<td>테스트 케이스 우선순위가 달라진다. 특히 <code>21100902</code> 포함 여부가 T2 성립을 가른다</td>
+</tr>
+<tr>
+<td>2</td>
+<td><strong>AX 가 다루는 업무 범위</strong> — 매입만인가, 매출(<code>AR+TR</code>)도 포함인가</td>
+<td>T6 수행 여부 결정</td>
+</tr>
+<tr>
+<td>3</td>
+<td><strong>프로젝트코드 전달 여부</strong></td>
+<td>범위의 73%가 프로젝트를 쓴다. 제조계정은 차변 필수</td>
+</tr>
+<tr>
+<td>4</td>
+<td><strong>라인 수 상한</strong></td>
+<td>31라인 이상 128전표 존재. 성능 검토 필요</td>
+</tr>
+<tr>
+<td>5</td>
+<td>릴레이 서버 실행본 교체 일정</td>
+<td>처리완료회신 §6.2 미완 항목</td>
+</tr>
+</tbody>
+</table>
+<h3 id="73">7.3 이 문서가 답하지 않는 것</h3>
+<ul>
+<li>포털 쪽 데이터 구조·초안 생성 로직 (<code>gl_draft</code> 등) — AX 프로젝트 소관</li>
+<li>ERP 운영DB 실적 — DEMO2 만 조사했다. 운영은 수치가 다를 수 있다</li>
+<li>소급 처리 — 하지 않기로 결정됨 (2026-08-25)</li>
+</ul>
+<hr />
+<h2 id="8">8. 실측 조건</h2>
+<ul>
+<li>대상 DB: <strong><code>JEILMNS_DEMO2</code></strong> 만. ERP 운영DB(<code>JEILMNS</code>) 미접근</li>
+<li>수행: <strong>READ-ONLY</strong> SELECT 조회만. 쓰기·EXEC 없음</li>
+<li>조사 로그: <code>ERP_DB/doc/db_log_20260825_140000.md</code> · <code>db_log_20260825_170000.md</code></li>
+<li>테스트 범위 정의: <code>GL_INPUT_TYPE='TG'</code> AND <code>TRANS_TYPE</code> 공란 AND <code>REF_NO = TEMP_GL_NO</code></li>
+<li>DEMO2 는 운영의 최신 사본이 아니다. 실적 수치는 DEMO2 기준</li>
+</ul>
+<h3 id="_3">개정 이력</h3>
+<table>
+<thead>
+<tr>
+<th>판</th>
+<th>일자</th>
+<th>내용</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>v1</td>
+<td>2026-08-25</td>
+<td>초판. 범위를 <code>TRANS_TYPE</code> 공란(12,559건)으로 정의</td>
+</tr>
+<tr>
+<td><strong>v2</strong></td>
+<td>2026-08-25</td>
+<td><strong>범위 정정</strong> — 법인카드 정산 배치분 474건 제외, <strong>12,085건</strong> 확정. 조합·라인수·특수케이스 전 지표 재집계. §1 범위 정의 · §7 전달 안내 신설</td>
+</tr>
+</tbody>
+</table>
+  </div>
+  <div class="footer"><span>JEIL M&amp;S · ERP DB 연계 관제</span><span>14 테스트범위·케이스 · 관리: 최동혁</span></div>
+</div>
+</body>
+</html>
