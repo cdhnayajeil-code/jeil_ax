@@ -4,7 +4,11 @@
 //   body: { op: "bootstrap"|"save"|"mine"|"get"|"submit"|"void"|"bp"|"item"|"list"|"post"
 //              |"tpl_list"|"tpl_get"|"tpl_save"|"tpl_status"|"tpl_delete"|"tpl_use"
 //              |"tpl_recur_list"|"tpl_apply_prev"|"tpl_seed_bulk"
-//              |"slip_list"|"slip_get"|"apply_request"|"apply_cancel"|"apply_health", ... }
+//              |"slip_list"|"slip_get"|"apply_request"|"apply_cancel"|"apply_health"|"unsubmit", ... }
+// v5.9(2026-08-25): op unsubmit(제출 회수) 신설 — 전송이 막힌 전표를 고칠 경로가 없었다.
+//   save·submit 은 'draft' 만 허용하는데 실패한 전표는 'submitted' 로 굳어, 화면에서 실패를
+//   보고도 손을 댈 수 없었다(폐기 후 재작성이 유일한 길). 회수는 ready·sending 을 거부한다 —
+//   회수와 투입이 엇갈리면 수정 중인 초안이 그대로 ERP 에 들어간다.
 // v5.8(2026-08-25): 전송 대기가 왜 안 끝나는지 화면에서 알 수 있게 한다(결함 3종 수정).
 //   ① 재전송이 실패 사유를 지우던 문제 — apply_request 가 erp_apply_msg 만 비우고
 //      erp_last_error(보존 칸)는 건드리지 않는다. 응답에 직전 사유를 실어 화면이 바로 띄운다.
@@ -1084,6 +1088,49 @@ Deno.serve(async (req) => {
     ]);
     if (h.error) return json({ error: "진단 조회 실패: " + h.error.message }, 500);
     return json({ ok: true, health: h.data ?? {}, problems: p.data ?? [] });
+  }
+
+  /* ===== op: unsubmit — 제출 회수(고치려고 작성중으로 되돌린다) =====
+     save·submit 은 'draft' 상태만 허용한다. 그래서 전송이 막힌 전표를 고치려면
+     먼저 회수해야 하는데 그 경로가 없어, 사용자가 실패를 보고도 손을 못 댔다.
+     중계가 집어갈 수 있는 상태(ready·sending)는 되돌리지 않는다 — 회수와 투입이
+     엇갈리면 같은 초안이 수정 중인 채로 ERP 에 들어간다. */
+  if (op === "unsubmit") {
+    const no = String(b.draft_no || "");
+    const { data: cur } = await admin.from("gl_draft")
+      .select("draft_no,status,owner_upn,erp_apply_status,erp_apply_gl_no")
+      .eq("draft_no", no).maybeSingle();
+    if (!cur) return json({ error: "초안을 찾을 수 없습니다." }, 404);
+    if (cur.owner_upn !== user.upn && !canPost) {
+      log("denied", no, { op });
+      return json({ error: "forbidden: 작성자 또는 회계 담당자만 회수할 수 있습니다." }, 403);
+    }
+    if (cur.erp_apply_status === "applied" || cur.status === "posted") {
+      return json({ error: "already_applied",
+        안내: `이미 ERP에 적용된 전표입니다(${cur.erp_apply_gl_no || ""}). `
+            + "수정하려면 ERP에서 해당 전표를 취소한 뒤 다시 시작해야 합니다." }, 409);
+    }
+    if (cur.status !== "submitted") {
+      return json({ error: cur.status === "draft"
+        ? "이미 작성중입니다 — 바로 수정할 수 있습니다."
+        : "제출됨 상태의 초안만 회수할 수 있습니다." }, 409);
+    }
+    if (cur.erp_apply_status === "ready" || cur.erp_apply_status === "sending") {
+      return json({ error: "in_flight",
+        안내: cur.erp_apply_status === "ready"
+          ? "전송 대기 중입니다 — [전송 취소]를 먼저 누른 뒤 수정하세요."
+          : "중계가 처리 중입니다 — 끝난 뒤에 수정할 수 있습니다." }, 409);
+    }
+    // 실패 사유(erp_last_error)는 지우지 않는다 — 무엇을 고쳐야 하는지가 화면에 남아야 한다.
+    const { error } = await admin.from("gl_draft").update({
+      status: "draft", submitted_at: null,
+      erp_apply_target: null, erp_ready_at: null, updated_at: nowIso,
+    }).eq("draft_no", no);
+    if (error) return json({ error: "회수 실패: " + error.message }, 500);
+    await syncUsage(no, "draft");   // 사용 이력도 작성중으로 되돌린다(허용값 4종 중 하나)
+    log("unsubmit", no, { prev_apply: cur.erp_apply_status ?? null });
+    return json({ ok: true,
+      안내: `${no} 을(를) 작성중으로 되돌렸습니다 — 고친 뒤 다시 제출·전송하세요.` });
   }
 
   /* ===== op: apply_cancel — 전송 대기 취소(중계가 아직 집지 않은 건만) ===== */

@@ -221,6 +221,21 @@
         background:#fff; padding:11px 13px; margin-bottom:8px;}
   .prob.stale{border-left-color:var(--amber);}
   .prob.stuck{border-left-color:var(--accent);}
+  /* 실패 배지 + 사유 요약 — 표에서 한 눈에 읽히게 */
+  .pill.fail{background:#fdeeec; color:var(--red);}
+  .pill.ok-lite{background:#eefaf1; color:var(--green);}
+  .why-brief{margin-top:3px; font-size:11px; line-height:1.4; color:var(--red);
+             overflow-wrap:anywhere; cursor:help;}
+  /* 표 안 인라인 액션 버튼 — 행을 열지 않고 바로 처리 */
+  .ib{border:1px solid var(--line); background:#fff; color:var(--navy); border-radius:7px;
+      padding:3px 9px; font-size:11.5px; font-weight:700; cursor:pointer; white-space:nowrap;
+      font-family:inherit;}
+  .ib:hover{background:var(--soft); border-color:#c9d5e5;}
+  .ib.pri{background:var(--navy); border-color:var(--navy); color:#fff;}
+  .ib.pri:hover{background:var(--navy2); border-color:var(--navy2);}
+  .ib + .ib{margin-left:5px;}
+  .ib:focus-visible{outline:2px solid var(--accent); outline-offset:2px;}
+  td.acts{white-space:nowrap;}
   .prob.precheck{border-left-color:var(--navy);}
   .prob.precheck .why{color:#33455e; background:rgba(26,47,78,.05); border-color:#ccd7e6;}
   .tagk.precheck{background:#e9edf4; color:var(--navy);}
@@ -698,6 +713,7 @@
           <div class="msg" id="sendMsg"></div>
           <div class="acts">
             <button class="b pri hide" id="btnErpSend">🚀 ERP 전송 (DEMO2)</button>
+            <button class="b gh hide" id="btnErpEdit" title="제출을 회수하고 [전표 작성]에서 고칩니다">✏ 수정</button>
             <button class="b gh hide" id="btnErpCancel">전송 취소</button>
             <button class="b gh" id="btnCopyErp">📋 값 복사</button>
           </div>
@@ -868,20 +884,57 @@ const won = (n)=>Number(n||0).toLocaleString("ko-KR");
 const esc = (s)=>String(s??"").replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const STATUS_KO = { draft:"작성중", submitted:"제출됨", posted:"확정됨", void:"폐기" };
 /* ERP 직접등록 1차(DEMO2, C-11) 적용 상태 표시 — 적용은 관리자 PC 적용기(gl_apply_demo2.py)가 수행 */
+/* 실패 사유를 한 줄로 — 유형과 위치만 뽑는다.
+   원문은 여러 줄이고 길어서 표 칸에 들어가지 않는다. 전문은 title 로 붙여 둔다. */
+function reasonBrief(msg){
+  const s = String(msg||"").trim();
+  if(!s || /^현재 규칙으로는/.test(s)) return "";       // 사전점검 통과 기록은 사유가 아니다
+  const kind = /차대 균형|차대 합계 불일치/.test(s) ? "차대 불일치"
+             : /반제/.test(s)                        ? "반제 방향"
+             : /만 허용/.test(s)                     ? "부가세 차대"
+             : /사용할 수 없습니다/.test(s)           ? "금지 계정"
+             : /분개코드/.test(s)                    ? "분개코드 미결정"
+             : /서브원장/.test(s)                    ? "서브원장 생성 실패"
+             : /대조|일치하지/.test(s)               ? "라인 대조 불일치"
+             : "검증 차단";
+  const at = s.match(/(\d+)번 줄\s+(\d{6,10})/);
+  return at ? kind + " · " + at[1] + "번 줄 " + at[2] : kind;
+}
+/* ERP 적용 열 — 상태 배지 + 실패 사유 요약(있을 때).
+   「전송 대기」인데 직전 시도가 막힌 건은 **실패로 표시한다** — 같은 사유로 또 막히므로
+   기다리면 되는 것처럼 보여선 안 된다. */
 function applyPill(x){
-  if(x.erp_apply_status === "applied")
+  const brief = reasonBrief(x.erp_last_error || (x.erp_apply_status==="failed" ? x.erp_apply_msg : ""));
+  const full  = esc(x.erp_last_error || x.erp_apply_msg || "");
+  const note  = brief ? '<div class="why-brief" title="'+full+'">'+esc(brief)+'</div>' : "";
+  const st = x.erp_apply_status;
+  if(st === "applied")
     return '<span class="pill posted" title="'+esc(x.erp_apply_target||"")+' 적용 완료">'
       + (String(x.erp_apply_target||"").indexOf("DEMO")>=0 ? "DEMO " : "") + esc(x.erp_apply_gl_no||"적용됨") + '</span>';
-  if(x.erp_apply_status === "ready")
-    // 직전에 실패한 적이 있으면 그 사실을 목록에서 바로 알린다 — 열어 봐야 알던 것을 앞으로 당긴다
-    return x.erp_last_error
-      ? '<span class="pill" style="background:#fff3dc;color:var(--amber);" title="'+esc(x.erp_last_error)+'">🚀 전송 대기 ⚠</span>'
-      : '<span class="pill submitted" title="사내 중계가 곧 투입합니다">🚀 전송 대기</span>';
-  if(x.erp_apply_status === "sending")
+  if(st === "sending")
     return '<span class="pill submitted" title="중계가 처리 중입니다 — 다른 실행이 끼어들지 못하도록 선점된 상태">⏳ 전송 중</span>';
-  if(x.erp_apply_status === "failed")
-    return '<span class="pill" style="background:#fdeeec;color:var(--red);" title="적용 실패 — 관리자 확인 필요">적용 실패</span>';
+  if(st === "failed")
+    return '<span class="pill fail" title="'+full+'">⛔ 실패</span>' + note;
+  if(st === "ready")
+    return brief
+      ? '<span class="pill fail" title="'+full+'">⛔ 실패 · 대기 중</span>' + note
+      : '<span class="pill submitted" title="사내 중계가 곧 투입합니다">🚀 전송 대기</span>';
+  // 미전송 — 사전점검에서 이미 막혔으면 보내기 전에 알려 준다
+  if(brief) return '<span class="pill fail" title="'+full+'">⛔ 실패 예상</span>' + note;
+  if(x.erp_last_error) return '<span class="pill ok-lite" title="사전점검 통과 — 전송하면 투입됩니다">✓ 점검 통과</span>';
   return '<span style="color:#aab;">—</span>';
+}
+/* 목록 행 액션 — 표에서 바로 취소·수정한다(패널을 열지 않아도 되게) */
+function rowActs(x){
+  const st = x.erp_apply_status;
+  if(st === "applied") return '<span style="color:#aab;">—</span>';
+  const b = [];
+  if(st === "ready")
+    b.push('<button type="button" class="ib" data-act="cancel" data-no="'+esc(x.draft_no)+'">전송취소</button>');
+  if(st !== "sending")
+    b.push('<button type="button" class="ib pri" data-act="edit" data-no="'+esc(x.draft_no)+'">수정</button>');
+  if(st === "sending") b.push('<span style="color:#aab;">처리 중</span>');
+  return b.join("");
 }
 
 let ME = null, MASTER = { accounts:[], cost_centers:[], depts:[] };
@@ -2608,12 +2661,13 @@ async function loadPost(){
     }
     POST_ROWS = r.rows;
     // 열 폭을 고정해 둔다 — 폭이 자동이면 긴 적요가 다른 칸을 밀어 두 줄로 접힌다
-    t.innerHTML = '<colgroup><col style="width:34px"><col style="width:158px"><col style="width:96px">'
-      + '<col style="width:88px"><col style="width:96px"><col><col style="width:110px">'
-      + '<col style="width:74px"><col style="width:140px"><col style="width:120px"></colgroup>'
+    t.innerHTML = '<colgroup><col style="width:34px"><col style="width:158px"><col style="width:92px">'
+      + '<col style="width:76px"><col style="width:88px"><col><col style="width:104px">'
+      + '<col style="width:70px"><col style="width:130px"><col style="width:168px">'
+      + '<col style="width:134px"></colgroup>'
       + '<thead><tr><th class="sel"><input type="checkbox" id="postChkAll" title="전송 가능 건 전체 선택"></th>'
       + '<th>초안번호</th><th>결의일자</th><th>등록자</th><th>부서</th><th>적요</th><th class="r">금액</th>'
-      + '<th>상태</th><th>ERP 전표번호</th><th>ERP 적용</th></tr></thead><tbody>'
+      + '<th>상태</th><th>ERP 전표번호</th><th>ERP 적용</th><th>작업</th></tr></thead><tbody>'
       + r.rows.map((x)=>{
         const can = canSendRow(x);
         return '<tr class="clk" data-no="'+esc(x.draft_no)+'">'
@@ -2630,7 +2684,8 @@ async function loadPost(){
         + '<td class="mono">'+(x.erp_temp_gl_no ? esc(x.erp_temp_gl_no)
                  : x.status==="posted" ? '<span style="color:var(--red);font-weight:700;">미기입</span>'
                  : '<span style="color:#aab;">—</span>')+'</td>'
-        + '<td class="nw">'+applyPill(x)+'</td></tr>';
+        + '<td>'+applyPill(x)+'</td>'
+        + '<td class="acts">'+rowActs(x)+'</td></tr>';
       }).join("")
       + '</tbody>';
     // 목록이 바뀌면 사라진 건은 선택에서 뺀다
@@ -2644,21 +2699,27 @@ async function loadPost(){
 let POST_ROWS = [], POST_PICK = new Set();
 const canSendRow = (x)=> x.status === "submitted" && x.erp_apply_status !== "applied"
                       && x.erp_apply_status !== "ready" && x.erp_apply_status !== "sending";
+// 보내면 막힐 것을 이미 아는 건. 고르는 것은 막지 않되(사용자 판단), 전체선택에서는 뺀다.
+const isBlockedRow = (x)=> !!reasonBrief(x.erp_last_error
+                                         || (x.erp_apply_status==="failed" ? x.erp_apply_msg : ""));
 function syncPostBulk(){
   const n = POST_PICK.size;
   const able = POST_ROWS.filter(canSendRow).length;
+  const blocked = POST_ROWS.filter((x)=> POST_PICK.has(x.draft_no) && isBlockedRow(x)).length;
   $("postBulk").classList.toggle("off", n === 0);
   $("btnPostBulkSend").disabled = n === 0;
   $("btnPostBulkSend").textContent = n ? "🚀 선택 "+n+"건 ERP 전송" : "🚀 선택 건 ERP 전송";
   $("postBulkTxt").innerHTML = n
     ? '<b>'+n+'건</b> 선택됨 · 전송 가능 '+able+'건'
+      + (blocked ? ' · <b style="color:var(--red);">⛔ 이미 막힌 '+blocked+'건 포함</b>' : '')
     : (able ? '전송 가능 <b>'+able+'건</b> — 표 왼쪽 ☑ 로 고르거나 [전송 가능 전체 선택]'
             : '지금 전송할 수 있는 초안이 없습니다(제출됨·미전송 건만 대상)');
   const all = $("postChkAll");
   if(all){ all.checked = able > 0 && n === able; all.indeterminate = n > 0 && n < able; }
 }
 $("btnPostSelAll").onclick = ()=>{
-  const able = POST_ROWS.filter(canSendRow).map((x)=> x.draft_no);
+  // 이미 막힌 건은 전체선택에서 뺀다 — 보나 마나 실패할 건을 한꺼번에 밀어 넣지 않는다
+  const able = POST_ROWS.filter((x)=> canSendRow(x) && !isBlockedRow(x)).map((x)=> x.draft_no);
   POST_PICK = new Set(POST_PICK.size === able.length ? [] : able);
   document.querySelectorAll('#postTbl input[data-pick]').forEach((c)=>{
     c.checked = POST_PICK.has(c.getAttribute("data-pick"));
@@ -2670,7 +2731,11 @@ $("btnPostBulkSend").onclick = async ()=>{
   if(!list.length) return;
   const sum = POST_ROWS.filter((x)=> POST_PICK.has(x.draft_no))
                        .reduce((s,x)=> s + (Number(x.dr_total)||0), 0);
+  const bad = POST_ROWS.filter((x)=> POST_PICK.has(x.draft_no) && isBlockedRow(x));
   if(!confirm("선택한 "+list.length+"건(합계 "+won(sum)+"원)을 ERP(DEMO2)로 전송합니다.\n\n"
+    + (bad.length ? "⛔ 이 중 "+bad.length+"건은 이미 막힌 건입니다 — 보내면 같은 사유로 실패합니다:\n"
+        + bad.slice(0,3).map((x)=> "   · "+x.draft_no+" — "+reasonBrief(x.erp_last_error||x.erp_apply_msg)).join("\n")
+        + (bad.length>3 ? "\n   · 외 "+(bad.length-3)+"건" : "") + "\n\n" : "")
     + "· 사내 중계가 한 건씩 순차 투입합니다(중복 투입은 선점으로 차단됩니다)\n"
     + "· 라인 대조가 어긋난 건은 그 건만 자동 취소되고 나머지는 계속됩니다\n"
     + "· 중계가 실행 중이어야 처리됩니다\n\n계속할까요?")) return;
@@ -2840,6 +2905,12 @@ function renderProblems(rows){
               ? '실패한 것이 아니라 <b>아무도 가져가지 않은</b> 상태입니다 — 중계가 돌고 있는지 위 배너를 확인하세요.'
               : '사유가 기록되지 않았습니다. 중계 로그(gl_erp_apply_log)를 확인하세요.'))+'</div>'
       + '<div class="acts">'
+      // 사유를 읽었으면 다음 행동은 '고치기'다 — 여기서 바로 작성 화면으로 넘어간다
+      + (x.kind === "stuck" ? ''
+         : '<button type="button" class="b pri sm" data-fix="'+esc(x.draft_no)+'"'
+           + ' data-ready="'+(x.erp_apply_status==="ready"?"1":"")+'">✏ 수정</button>')
+      + (x.erp_apply_status === "ready"
+         ? '<button type="button" class="b gh sm" data-cancel="'+esc(x.draft_no)+'">전송취소</button>' : '')
       + '<button type="button" class="b gh sm" data-prob="'+esc(x.draft_no)+'">열어서 보기</button>'
       // 고칠 수 없는 전표(전표 자체가 잘못된 경우)는 여기서 바로 치운다 —
       // 안 그러면 실패 목록에 영원히 남아 진짜 문제를 가린다
@@ -2848,8 +2919,12 @@ function renderProblems(rows){
   }).join("");
 }
 $("probList").onclick = async (e)=>{
+  const fix  = e.target.closest("button[data-fix]");
+  const canc = e.target.closest("button[data-cancel]");
   const open = e.target.closest("button[data-prob]");
   const del  = e.target.closest("button[data-void]");
+  if(fix)  return void startEdit(fix.getAttribute("data-fix"), !!fix.getAttribute("data-ready"));
+  if(canc) return void cancelSend(canc.getAttribute("data-cancel"));
   if(open){
     try{
       const r = await api("get", { draft_no: open.getAttribute("data-prob") });
@@ -2880,12 +2955,18 @@ $("btnRelayRefresh").onclick = ()=> loadHealth();
 /* 상단 전송 스트립 — 상태 한 줄과 실행 버튼. 전표번호는 ERP가 채번하므로 입력칸이 없다. */
 function renderSendBar(h){
   const st = h.erp_apply_status || "";
+  // 「대기 중」인데 직전 시도가 막혔으면 그것은 대기가 아니라 실패다 —
+  // 같은 사유로 또 막히므로, 기다리면 되는 것처럼 보여선 안 된다.
+  const brief = reasonBrief(h.erp_last_error || (st==="failed" ? h.erp_apply_msg : ""));
+  const blocked = !!brief && st !== "applied" && st !== "sending";
   $("sendBar").className = "sendbar" + (st==="applied" ? " applied"
-    : (st==="ready"||st==="sending") ? " ready" : st==="failed" ? " failed" : "");
+    : (st==="failed" || blocked) ? " failed"
+    : (st==="ready"||st==="sending") ? " ready" : "");
   $("sendState").innerHTML = st==="applied" ? '적용 완료 · <span class="no">'+esc(h.erp_apply_gl_no||"")+'</span>'
-    : st==="ready"   ? "전송 대기 중"
+    : st==="failed"  ? "⛔ 적용 실패"
+    : st==="ready"   ? (blocked ? "⛔ 실패 · 대기 중" : "전송 대기 중")
     : st==="sending" ? "전송 처리 중"
-    : st==="failed"  ? "적용 실패" : "미전송";
+    : blocked        ? "⛔ 실패 예상 · 미전송" : "미전송";
   // 대기 경과는 erp_ready_at 기준 — erp_apply_at 은 중계가 선점할 때 덮어써서 0으로 리셋된다
   const waited = h.erp_ready_at ? Math.floor((Date.now() - new Date(h.erp_ready_at).getTime())/60000) : null;
   const relayDown = HEALTH && HEALTH.relay_alive === false;
@@ -2893,8 +2974,14 @@ function renderSendBar(h){
   $("sendMsg").innerHTML = st==="applied"
       ? "대상 <b>"+esc(h.erp_apply_target||"")+"</b> · ERP 표준 엔진이 채번한 전표번호입니다. 같은 초안의 재전송은 자동으로 차단됩니다."
     : st==="ready"
-      // 대기 중이라고 안심시키지 않는다 — 중계가 죽어 있으면 그 사실을 여기서 말한다
-      ? (relayDown
+      // 대기 중이라고 안심시키지 않는다 — 막혀 있거나 중계가 죽었으면 그 사실을 여기서 말한다
+      // 막힌 것이 먼저다 — 중계가 살아나도 같은 사유로 실패한다. 다만 중계 상태도 사실이므로 뒤에 덧붙인다.
+      ? (blocked
+          ? "⚠ <b>이 상태로 두면 같은 사유로 다시 막힙니다.</b> 아래 사유를 고쳐야 합니다 — "
+            + "[✏ 수정]을 누르면 전송 대기를 취소하고 [전표 작성]으로 넘어갑니다."
+            + (relayDown ? " · 참고로 사내 중계도 "+mins(HEALTH.relay_idle_min)+"째 응답하지 않습니다."
+               : relayUnknown ? " · 참고로 중계 심박이 없어 가동 여부를 확인할 수 없습니다." : "")
+          : relayDown
           ? "⚠ <b>사내 중계가 응답하지 않습니다</b>(마지막 확인 "+mins(HEALTH.relay_idle_min)+" 전). "
             + "이 건은 대기열에만 올라 있고 ERP로 넘어가지 않습니다 — 중계를 실행해야 처리됩니다."
           : relayUnknown
@@ -2902,7 +2989,10 @@ function renderSendBar(h){
           : "사내 중계가 곧 가져갑니다 — 결과는 이 화면에 자동으로 반영됩니다.")
         + (waited != null && waited >= 1 ? " · 대기 "+mins(waited)+" 경과" : "")
     : st==="sending" ? "중계가 처리 중입니다(선점됨) — 다른 실행이 끼어들지 못합니다. 결과는 자동 반영됩니다."
-    : st==="failed" ? "⚠ 아래 사유를 고친 뒤 [ERP 재전송]을 누르세요."
+    : st==="failed" ? "⚠ 아래 사유를 고치세요 — <b>[✏ 수정]</b>을 누르면 [전표 작성]으로 넘어갑니다. "
+      + "사유가 전표 내용과 무관하다면 그대로 [ERP 재전송]을 눌러도 됩니다."
+    : blocked ? "⚠ <b>사전점검에서 막혔습니다</b> — 지금 보내면 실패합니다. "
+      + "[✏ 수정]으로 고친 뒤 다시 제출하세요."
     : "누르면 사내 중계가 ERP 표준 엔진으로 전표를 만듭니다(대상 <b>DEMO2</b> · AI 전용 <b>AG</b> 번호대역). "
       + "라인 대조가 어긋나면 자동 취소되고, 성공하면 전표번호가 여기에 표시됩니다.";
   // 사유 블록 — 실패했을 때는 물론, 재전송으로 '대기'가 된 뒤에도 직전 사유를 계속 보여준다.
@@ -2927,8 +3017,51 @@ function renderSendBar(h){
   $("btnErpSend").textContent = st==="sending" ? "🚀 전송 처리 중…" : st==="ready" ? "🚀 전송 대기 중…"
     : st==="failed" ? "🚀 ERP 재전송 (DEMO2)" : "🚀 ERP 전송 (DEMO2)";
   $("btnErpCancel").classList.toggle("hide", st !== "ready");
+  // 재전송 옆에 수정 — 사유를 보고 바로 고치러 갈 수 있어야 한다.
+  // 적용 완료·처리 중에는 숨긴다(되돌릴 수 없거나 중계와 엇갈린다).
+  $("btnErpEdit").classList.toggle("hide",
+    !(h.status === "submitted" && st !== "applied" && st !== "sending"));
+}
+/* ═══ 행 액션 — 전송 취소 · 수정 ═══
+   실패한 전표를 고치려면 '작성중'으로 되돌려야 한다(save·submit 은 draft 만 허용).
+   종전에는 그 경로가 없어 실패를 보고도 손을 못 대고 폐기 후 재작성밖에 길이 없었다. */
+async function cancelSend(no){
+  if(!confirm("초안 "+no+" 의 전송 대기를 취소합니다.\n(중계가 이미 처리했다면 취소되지 않습니다)\n\n계속할까요?")) return false;
+  try{
+    const r = await api("apply_cancel", { draft_no: no });
+    stopSendPoll(); toast(r.안내 || "취소했습니다."); loadPost();
+    if(POST_SEL && POST_SEL.header && POST_SEL.header.draft_no === no){
+      const g = await api("get", { draft_no: no }); POST_SEL = g; renderSendBar(g.header);
+    }
+    return true;
+  }catch(e){ toast(e.message, true); loadPost(); return false; }
+}
+async function startEdit(no, wasReady){
+  if(!confirm("초안 "+no+" 을(를) 수정합니다.\n\n"
+      + (wasReady ? "· 전송 대기를 먼저 취소합니다\n" : "")
+      + "· 제출을 회수해 [전표 작성] 탭으로 불러옵니다\n"
+      + "· 고친 뒤 다시 제출·전송해야 ERP로 넘어갑니다\n\n계속할까요?")) return;
+  try{
+    if(wasReady) await api("apply_cancel", { draft_no: no });
+    await api("unsubmit", { draft_no: no });
+    const r = await api("get", { draft_no: no });
+    stopSendPoll();
+    $("postDetail").classList.add("hide"); POST_SEL = null;
+    loadDraftIntoForm(r);                       // 폼 채우기 + [전표 작성] 탭으로 전환
+    const why = reasonBrief(r.header.erp_last_error);
+    toast(why ? "수정할 수 있습니다 — 직전 차단 사유: " + why
+              : no + " 을(를) 불러왔습니다. 고친 뒤 다시 제출하세요.");
+  }catch(e){ toast(e.message, true); loadPost(); }
 }
 $("postTbl").onclick = async (e)=>{
+  const act = e.target.closest("button[data-act]");
+  if(act){
+    e.stopPropagation();
+    const no = act.getAttribute("data-no");
+    const row = POST_ROWS.find((r)=> r.draft_no === no);
+    if(act.getAttribute("data-act") === "cancel") return void cancelSend(no);
+    return void startEdit(no, !!row && row.erp_apply_status === "ready");
+  }
   const tr = e.target.closest("tr[data-no]"); if(!tr) return;
   try{
     const r = await api("get", { draft_no: tr.getAttribute("data-no") });
@@ -3003,16 +3136,10 @@ $("btnErpSend").onclick = async ()=>{
     try{ const g = await api("get", { draft_no: no }); POST_SEL = g; renderSendBar(g.header); }catch(_){}
   }catch(e){ toast(e.message, true); $("btnErpSend").disabled = false; }
 };
-$("btnErpCancel").onclick = async ()=>{
+$("btnErpCancel").onclick = ()=>{ if(POST_SEL) cancelSend(POST_SEL.header.draft_no); };
+$("btnErpEdit").onclick = ()=>{
   if(!POST_SEL) return;
-  const no = POST_SEL.header.draft_no;
-  if(!confirm("전송 대기를 취소합니다(중계가 이미 처리했다면 취소되지 않습니다). 계속할까요?")) return;
-  try{
-    const r = await api("apply_cancel", { draft_no: no });
-    stopSendPoll(); toast(r.안내 || "취소했습니다."); loadPost();
-    const g = await api("get", { draft_no: no });
-    POST_SEL = g; renderSendBar(g.header); renderPostLines(g.items);
-  }catch(e){ toast(e.message, true); loadPost(); }
+  startEdit(POST_SEL.header.draft_no, POST_SEL.header.erp_apply_status === "ready");
 };
 
 $("btnCopyErp").onclick = ()=>{
