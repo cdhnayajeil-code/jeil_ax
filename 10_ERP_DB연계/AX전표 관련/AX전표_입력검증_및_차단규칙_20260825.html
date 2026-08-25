@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AX 전표 입력검증 및 차단규칙</title>
+<style>
+:root{
+  color-scheme: light;
+  --surface-1:#fcfcfb; --plane:#f9f9f7;
+  --ink:#0b0b0b; --ink-2:#52514e; --ink-muted:#898781;
+  --grid:#e1e0d9; --axis:#c3c2b7; --border:rgba(11,11,11,0.10);
+  --s1:#2a78d6; --s2:#eb6834; --s3:#1baf7a; --s4:#eda100;
+  --good:#0ca30c; --warning:#fab219; --serious:#ec835a; --critical:#d03b3b;
+  --nodeBg:#ffffff; --nodeAlt:#f2f1ec;
+}
+@media (prefers-color-scheme: dark){
+  :root:where(:not([data-theme="light"])){
+    color-scheme: dark;
+    --surface-1:#1a1a19; --plane:#0d0d0d;
+    --ink:#ffffff; --ink-2:#c3c2b7; --ink-muted:#898781;
+    --grid:#2c2c2a; --axis:#383835; --border:rgba(255,255,255,0.10);
+    --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500;
+    --nodeBg:#232322; --nodeAlt:#2c2c2a;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme: dark;
+  --surface-1:#1a1a19; --plane:#0d0d0d;
+  --ink:#ffffff; --ink-2:#c3c2b7; --ink-muted:#898781;
+  --grid:#2c2c2a; --axis:#383835; --border:rgba(255,255,255,0.10);
+  --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500;
+  --nodeBg:#232322; --nodeAlt:#2c2c2a;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--plane);color:var(--ink);
+  font-family:system-ui,-apple-system,"Segoe UI","Malgun Gothic",sans-serif;
+  font-size:14px;line-height:1.65}
+.wrap{max-width:1200px;margin:0 auto;padding:32px 20px 80px}
+header{border-bottom:2px solid var(--s1);padding-bottom:16px;margin-bottom:8px}
+header .kicker{font-size:12px;font-weight:700;color:var(--s1);letter-spacing:.08em;margin-bottom:6px}
+header h1{font-size:25px;margin:0 0 10px;letter-spacing:-0.01em}
+.meta{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:6px 20px;font-size:12.5px;color:var(--ink-2)}
+.meta b{color:var(--ink);font-weight:650}
+.tabs{display:flex;gap:4px;margin:24px 0 20px;border-bottom:1px solid var(--grid);flex-wrap:wrap}
+.tabs button{background:none;border:0;border-bottom:2px solid transparent;
+  padding:10px 14px;font:inherit;font-weight:600;color:var(--ink-muted);cursor:pointer}
+.tabs button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--s1)}
+.panel{display:none}
+.panel.on{display:block}
+.card{background:var(--surface-1);border:1px solid var(--border);border-radius:10px;
+  padding:20px;margin-bottom:18px}
+.card h2{font-size:16px;margin:0 0 4px}
+.card h3{font-size:14px;margin:20px 0 6px}
+.card .cap{color:var(--ink-2);font-size:12.5px;margin:0 0 16px}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:18px}
+.tile{background:var(--surface-1);border:1px solid var(--border);border-radius:10px;padding:14px 16px}
+.tile .lab{font-size:12px;color:var(--ink-2);margin-bottom:4px}
+.tile .val{font-size:24px;font-weight:650;letter-spacing:-0.02em;font-variant-numeric:tabular-nums}
+.tile .note{font-size:11.5px;color:var(--ink-muted);margin-top:2px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--grid);vertical-align:top}
+th{color:var(--ink-2);font-weight:600;font-size:12px;white-space:nowrap}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+td.c,th.c{text-align:center}
+.scroll{overflow-x:auto}
+code{background:var(--plane);border:1px solid var(--border);border-radius:4px;padding:1px 5px;
+  font-size:12.5px;font-family:ui-monospace,Consolas,"Courier New",monospace}
+pre{background:var(--plane);border:1px solid var(--border);border-radius:8px;padding:14px;
+  overflow-x:auto;font-size:12.5px;line-height:1.55;
+  font-family:ui-monospace,Consolas,"Courier New",monospace}
+pre .hl{color:var(--critical);font-weight:700}
+pre .ok2{color:var(--good);font-weight:700}
+pre .cm{color:var(--ink-muted)}
+.warn{border-left:3px solid var(--warning);padding-left:12px;color:var(--ink-2);font-size:13px;margin:12px 0}
+.stop{border-left:3px solid var(--critical);padding-left:12px;color:var(--ink-2);font-size:13px;margin:12px 0}
+.ok{border-left:3px solid var(--good);padding-left:12px;color:var(--ink-2);font-size:13px;margin:12px 0}
+.pill{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:700;
+  border:1px solid var(--border);border-radius:99px;padding:1px 9px;white-space:nowrap}
+.pA{color:var(--good)} .pB{color:var(--serious)} .pC{color:var(--critical)} .pN{color:var(--ink-muted)}
+.duo{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px}
+.box{background:var(--surface-1);border:1px solid var(--border);border-radius:10px;padding:16px}
+.box h4{margin:0 0 8px;font-size:13.5px}
+ul.tight{margin:6px 0;padding-left:18px}
+ul.tight li{margin-bottom:5px}
+blockquote{margin:12px 0;padding:12px 16px;background:var(--plane);
+  border-left:3px solid var(--s1);border-radius:0 6px 6px 0;font-size:13px;color:var(--ink-2)}
+footer{color:var(--ink-muted);font-size:12px;margin-top:30px;border-top:1px solid var(--grid);padding-top:14px}
+figure{margin:0 0 6px}
+figcaption{font-size:12px;color:var(--ink-muted);margin-top:8px;text-align:center}
+svg{display:block;max-width:100%;height:auto}
+svg text{font-family:system-ui,-apple-system,"Segoe UI","Malgun Gothic",sans-serif}
+svg .nb{fill:var(--nodeBg);stroke:var(--axis);stroke-width:1}
+svg .nba{fill:var(--nodeAlt);stroke:var(--axis);stroke-width:1}
+svg .t{fill:var(--ink);font-size:12px}
+svg .tb{fill:var(--ink);font-size:12.5px;font-weight:700}
+svg .ts{fill:var(--ink-2);font-size:10.5px}
+svg .tm{fill:var(--ink-muted);font-size:10px}
+svg .lnA{stroke:var(--s1);stroke-width:1.8;fill:none}
+svg .lnG{stroke:var(--good);stroke-width:2;fill:none}
+svg .lnR{stroke:var(--critical);stroke-width:2;fill:none}
+svg .band{fill:var(--plane);stroke:var(--grid);stroke-width:1}
+.zero{color:var(--critical);font-weight:700}
+.gd{color:var(--good);font-weight:700}
+.errbox{background:color-mix(in srgb, var(--critical) 10%, transparent);
+  border:1px solid color-mix(in srgb, var(--critical) 40%, transparent);
+  border-radius:8px;padding:14px 16px;font-family:ui-monospace,Consolas,monospace;font-size:12.5px;margin:12px 0}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <div class="kicker">입력검증 · 차단규칙 · ERP_DB → JEIL_AX</div>
+  <h1>AX 전표 — 입력검증 및 차단규칙</h1>
+  <div class="meta">
+    <div><b>발신</b> ERP_DB 작업환경 (최동혁)</div>
+    <div><b>수신</b> JEIL_AX 프로젝트 / 릴레이 개발 담당</div>
+    <div><b>작성</b> 2026-08-25</div>
+    <div><b>근거</b> DEMO2 실측 + SP 소스 (READ-ONLY)</div>
+    <div><b>배치 제안</b> <code>10_ERP_DB연계/15_…</code></div>
+    <div><b>계기</b> 결의전표 입력화면 오류 <code>119712</code></div>
+  </div>
+</header>
+
+<div class="tabs" role="tablist">
+  <button data-p="p1" aria-selected="true">결론</button>
+  <button data-p="p2" aria-selected="false">오류 분석</button>
+  <button data-p="p3" aria-selected="false">차단 규칙표</button>
+  <button data-p="p4" aria-selected="false">검증 공백</button>
+  <button data-p="p5" aria-selected="false">AX 적용</button>
+  <button data-p="p6" aria-selected="false">음성 테스트</button>
+</div>
+
+<!-- ═══════ P1 결론 ═══════ -->
+<section class="panel on" id="p1">
+  <div class="tiles">
+    <div class="tile"><div class="lab">개선 부수효과</div><div class="val gd">검증 자동 활성</div><div class="note">SP 호출로 함께 켜짐</div></div>
+    <div class="tile"><div class="lab">검증되는 서브시스템</div><div class="val gd">6종</div><div class="note">AP·AR·PP·PR·SS·OC/OD</div></div>
+    <div class="tile"><div class="lab">검증 공백</div><div class="val zero">TP·TR</div><div class="note">부가세 반제방향</div></div>
+    <div class="tile"><div class="lab">실측 위반</div><div class="val zero">8라인</div><div class="note">전부 부가세 계정</div></div>
+  </div>
+
+  <div class="card">
+    <h2>좋은 소식 — 개선이 입력검증까지 켰다</h2>
+    <p class="cap">서브원장 개선(<code>USP_A_CREATE_TEMP_GL_SUBSYS</code> 호출 추가)의 부수효과다.</p>
+<pre><span class="cm">/* usp_a_create_temp_gl_subsys 본문 — 보조부생성 가능 계정인지 CHECK한다. */</span>
+EXEC @rtn_value = dbo.<span class="ok2">usp_a_check_acct</span> @GL_NO, 'T', @MSG_CD OUTPUT
+IF (ISNULL(@rtn_value,0) &lt;&gt; 1) GOTO ERROR_RETURN</pre>
+    <p><code>usp_a_check_acct</code> 가 <strong>화면이 하던 계정 검증을 그대로 수행</strong>한다.
+    릴레이가 SP 를 부르는 순간 스크린샷의 <code>119712</code> 오류도 AX 경로에서 똑같이 발생하고,
+    같은 트랜잭션이므로 <strong>전표 생성까지 롤백</strong>된다.</p>
+    <div class="scroll">
+    <table>
+      <tr><th>시점</th><th>검증 상태</th></tr>
+      <tr><td>개선 전 (SP 미호출)</td><td class="zero">전면 우회 — 반제 방향이든 뭐든 무제한 통과</td></tr>
+      <tr style="background:color-mix(in srgb, var(--good) 9%, transparent)"><td><strong>개선 후 (SP 호출)</strong></td><td class="gd">자동 적용 — AP·AR·PP·PR·SS·OC 반제방향 차단</td></tr>
+    </table>
+    </div>
+  </div>
+
+  <div class="duo">
+    <div class="box">
+      <h4><span class="pill pA">✓</span> ERP 가 막아주는 것</h4>
+      <ul class="tight">
+        <li><code>119712</code> 반제방향 입력 (AP·AR·PP·PR·SS·OC)</li>
+        <li><code>A05191</code> 조직개편·부서 불일치</li>
+        <li><code>800420</code> 부가세계정 거래처 사업자번호 없음</li>
+        <li><code>117218</code> 사업장 불일치</li>
+        <li><code>119706</code> A_OBJECT 매핑 없음</li>
+        <li><code>110104</code> 폐쇄계정 · <code>121291</code> 마감기간</li>
+      </ul>
+      <div class="ok" style="margin-top:10px">추가 개발 불필요 — 이미 반영된 트랜잭션 구조 덕분에 성립</div>
+    </div>
+    <div class="box">
+      <h4><span class="pill pC">!</span> AX 가 막아야 할 것</h4>
+      <ul class="tight">
+        <li><strong>G1 부가세(<code>TP</code>/<code>TR</code>) 반제방향</strong> — ERP 검증 없음. 실측 위반 8라인 실재</li>
+        <li><strong>G2 차대 균형</strong> — <code>113119</code> 은 <code>GL_INPUT_TYPE='GL'</code> 한정이라 <code>TG</code> 는 미검증</li>
+        <li><strong>G5 포털 입력단계 사전차단</strong> — ERP 가 막아도 그 시점은 릴레이 실행 중이다</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════ P2 오류 분석 ═══════ -->
+<section class="panel" id="p2">
+  <div class="card">
+    <h2>스크린샷 오류의 정체</h2>
+    <div class="errbox">
+      <strong>[119712]</strong> [11100901 : CR] 계정은 본 화면에서 반제할 수 없습니다.<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[채권] 반제처리화면에서 반제 처리하십시오.
+    </div>
+    <div class="scroll">
+    <table>
+      <tr><th style="width:130px">항목</th><th>값</th></tr>
+      <tr><td>메시지 원문</td><td><code> %1 계정은 본 화면에서 반제할 수 없습니다. %2 반제처리화면에서 반제처리하십시오.</code></td></tr>
+      <tr><td>발생 SP</td><td><strong><code>usp_a_check_acct</code></strong> (<code>B_MESSAGE</code> 조회 + 소스 확인)</td></tr>
+      <tr><td>계정</td><td><code>11100901</code> 외상매출금 · <code>BAL_FG='DR'</code> · <code>SUBSYS_TYPE='AR'</code></td></tr>
+      <tr><td>입력</td><td><code>CR</code> (대변) — 계정 기본차대의 <strong>반대</strong></td></tr>
+      <tr><td>의미</td><td>AR 계정을 대변에 넣는 것 = <strong>채권 반제</strong>. 결의전표 화면이 아니라 채권반제 전용화면에서 해야 한다</td></tr>
+    </table>
+    </div>
+    <blockquote>
+      <strong>왜 막는가</strong> — 반제를 결의전표로 처리하면 <strong>채권원장(<code>A_OPEN_AR</code>)의 잔액이 정리되지 않는다.</strong>
+      전표상 채권은 줄었는데 원장에는 그대로 남아 미수채권이 실제보다 부풀려진다.
+      전용 반제화면은 원장의 특정 채권 건을 지정해 잔액을 차감한다.
+    </blockquote>
+  </div>
+
+  <div class="card">
+    <h2>검증 체계 지도</h2>
+    <figure>
+    <svg viewBox="0 0 1060 400" role="img" aria-label="전표 생성 시 검증 체계">
+      <rect class="nb" x="30" y="24" width="220" height="46" rx="6" style="stroke:var(--s1);stroke-width:2"/>
+      <text class="tb" x="46" y="44">릴레이 / 화면</text>
+      <text class="ts" x="46" y="60">A_BATCH 3종 INSERT</text>
+      <path class="lnA" d="M140 70 V96" marker-end="url(#va)"/>
+
+      <rect class="nb" x="30" y="98" width="220" height="62" rx="6"/>
+      <text class="tb" x="46" y="118">usp_a_create_gl_by_batch_01</text>
+      <text class="ts" x="46" y="134">폐쇄계정 110104</text>
+      <text class="ts" x="46" y="150">마감 121291 · 전표 생성</text>
+      <path class="lnG" d="M140 160 V186" marker-end="url(#vg)"/>
+
+      <rect class="nb" x="30" y="188" width="220" height="62" rx="6" style="stroke:var(--good);stroke-width:2.5"/>
+      <text class="tb" x="46" y="208" style="fill:var(--good)">USP_A_CREATE_TEMP_GL_SUBSYS</text>
+      <text class="ts" x="46" y="224">서브원장 생성</text>
+      <text class="tm" x="46" y="240">← 개선으로 추가된 호출</text>
+      <path class="lnG" d="M250 219 H296" marker-end="url(#vg)"/>
+
+      <rect class="nb" x="300" y="150" width="330" height="140" rx="6" style="stroke:var(--critical);stroke-width:2.5"/>
+      <text class="tb" x="316" y="172" style="fill:var(--critical)">★ usp_a_check_acct(@slip, 'T')</text>
+      <text class="ts" x="316" y="192">A05191  조직개편·부서 불일치</text>
+      <text class="ts" x="316" y="210">800420  부가세계정 사업자번호 없음</text>
+      <text class="ts" x="316" y="228">117218  사업장 불일치</text>
+      <text class="tm" x="316" y="246">113119  차대 불일치 (GL 한정)</text>
+      <text class="ts" x="316" y="266" style="fill:var(--critical);font-weight:700">119712  반제방향 입력 ← 스크린샷</text>
+      <text class="tm" x="316" y="282">119706  A_OBJECT 매핑 없음</text>
+
+      <path class="lnR" d="M465 290 V320" marker-end="url(#vr)"/>
+      <rect class="nb" x="300" y="322" width="330" height="46" rx="6" style="stroke:var(--critical);stroke-width:2"/>
+      <text class="tb" x="316" y="342" style="fill:var(--critical)">실패 → 전표 생성까지 ROLLBACK</text>
+      <text class="ts" x="316" y="358">같은 트랜잭션이므로 부분성공 없음</text>
+
+      <path class="lnG" d="M630 200 H676" marker-end="url(#vg)"/>
+      <rect class="nb" x="680" y="150" width="350" height="62" rx="6"/>
+      <text class="tb" x="696" y="172">usp_A_Create_Sub_Ledger</text>
+      <text class="ts" x="696" y="190">A_OPEN_AP · A_VAT … 원장 생성</text>
+
+      <rect class="nba" x="680" y="230" width="350" height="86" rx="6"/>
+      <text class="tb" x="696" y="252">승인 단계</text>
+      <text class="ts" x="696" y="272">USP_A_CREATE_GL_SUBSYS</text>
+      <text class="ts" x="696" y="290">└ usp_a_check_acct(@slip, <tspan style="font-weight:700">'G'</tspan>)</text>
+      <text class="tm" x="696" y="308">같은 검증을 A_GL 기준으로 재수행</text>
+
+      <defs>
+        <marker id="va" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+          <path d="M0 0 L8 4 L0 8 z" fill="var(--s1)"/></marker>
+        <marker id="vg" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+          <path d="M0 0 L8 4 L0 8 z" fill="var(--good)"/></marker>
+        <marker id="vr" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+          <path d="M0 0 L8 4 L0 8 z" fill="var(--critical)"/></marker>
+      </defs>
+    </svg>
+    <figcaption><code>usp_a_check_acct</code> 는 결의(<code>'T'</code>)·회계(<code>'G'</code>) 양쪽에서 동일하게 동작한다. 대상 테이블만 다르다.</figcaption>
+    </figure>
+  </div>
+</section>
+
+<!-- ═══════ P3 규칙표 ═══════ -->
+<section class="panel" id="p3">
+  <div class="card">
+    <h2>반제방향 차단 규칙</h2>
+    <p class="cap"><code>usp_a_check_acct</code> 는 라인마다 아래를 확인한다.</p>
+<pre>SELECT @OBJECT_ID FROM A_OBJECT
+ WHERE GL_INPUT_TYPE = @GL_INPUT_TYPE       <span class="cm">-- 'TG'</span>
+   AND SUBSYS_TYPE   = @SUBSYS_TYPE         <span class="cm">-- 계정의 서브시스템</span>
+   AND (DR_CR_FG = 'DC' OR DR_CR_FG = @DR_CR_FG)
+IF @@ROWCOUNT = 0 → <span class="hl">119712 오류</span></pre>
+    <p><code>GL_INPUT_TYPE='TG'</code> 의 <code>A_OBJECT</code> 정의가 곧 규칙표다.</p>
+    <div class="scroll">
+    <table>
+      <tr><th class="c">서브시스템</th><th>대상 원장</th><th class="c">허용 차대</th><th class="c">차단되는 입력</th><th>의미</th></tr>
+      <tr><td class="c"><code>AP</code></td><td><code>A_OPEN_AP</code></td><td class="c">CR</td><td class="c zero">DR</td><td>채무 반제</td></tr>
+      <tr style="background:color-mix(in srgb, var(--critical) 8%, transparent)"><td class="c"><code>AR</code></td><td><code>A_OPEN_AR</code></td><td class="c">DR</td><td class="c zero">CR</td><td>채권 반제 ← 스크린샷</td></tr>
+      <tr><td class="c"><code>PP</code></td><td><code>F_PRPAYM</code></td><td class="c">DR</td><td class="c zero">CR</td><td>선급금 정산</td></tr>
+      <tr><td class="c"><code>PR</code></td><td><code>F_PRRCPT</code></td><td class="c">CR</td><td class="c zero">DR</td><td>선수금 정산</td></tr>
+      <tr><td class="c"><code>SS</code></td><td><code>A_RCPT</code></td><td class="c">CR</td><td class="c zero">DR</td><td>가수금 정산</td></tr>
+      <tr style="background:color-mix(in srgb, var(--warning) 12%, transparent)"><td class="c"><code>TP</code></td><td><code>A_VAT</code></td><td class="c">DR</td><td class="c"><em>검증 없음</em></td><td>—</td></tr>
+      <tr style="background:color-mix(in srgb, var(--warning) 12%, transparent)"><td class="c"><code>TR</code></td><td><code>A_VAT</code></td><td class="c">CR</td><td class="c"><em>검증 없음</em></td><td>—</td></tr>
+      <tr><td class="c"><code>OC</code>·<code>OD</code></td><td><code>A_OPEN_ACCT</code></td><td class="c">계정 <code>BAL_FG</code></td><td class="c zero">반대</td><td>미결 반제</td></tr>
+    </table>
+    </div>
+    <div class="ok">
+      <strong>검증 블록이 존재하는 서브시스템</strong> — <code>AR</code> · <code>AP</code> · <code>PR</code> · <code>PP</code> · <code>SS</code> · <code>OC</code>/<code>OD</code><br>
+      <strong>검증 블록이 없는 것</strong> — <code>TP</code> · <code>TR</code> (부가세)
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>대상 계정별 차단표</h2>
+    <div class="scroll">
+    <table>
+      <tr><th>계정</th><th>계정명</th><th class="c">기본차대</th><th class="c">서브시스템</th><th class="c">차단되는 입력</th></tr>
+      <tr style="background:color-mix(in srgb, var(--critical) 8%, transparent)"><td><code>11100901</code></td><td>외상매출금</td><td class="c">DR</td><td class="c"><code>AR</code></td><td class="c zero">CR</td></tr>
+      <tr><td><code>11100903</code></td><td>외화외상매출금</td><td class="c">DR</td><td class="c"><code>AR</code></td><td class="c zero">CR</td></tr>
+      <tr><td><code>11101701</code></td><td>미수금</td><td class="c">DR</td><td class="c"><code>AR</code></td><td class="c zero">CR</td></tr>
+      <tr><td><code>21100101</code></td><td>외상매입금</td><td class="c">CR</td><td class="c"><code>AP</code></td><td class="c zero">DR</td></tr>
+      <tr><td><code>21100901</code></td><td>미지급금(거래처)</td><td class="c">CR</td><td class="c"><code>AP</code></td><td class="c zero">DR</td></tr>
+      <tr><td><code>21100905</code></td><td>미지급급여</td><td class="c">CR</td><td class="c"><code>AP</code></td><td class="c zero">DR</td></tr>
+      <tr><td><code>21100103</code></td><td>외화외상매입금</td><td class="c">CR</td><td class="c"><code>AP</code></td><td class="c zero">DR</td></tr>
+      <tr><td><code>11102301</code></td><td>선급금-원부재료</td><td class="c">DR</td><td class="c"><code>PP</code></td><td class="c zero">CR</td></tr>
+      <tr><td><code>11102305</code></td><td>선급금-기타</td><td class="c">DR</td><td class="c"><code>PP</code></td><td class="c zero">CR</td></tr>
+      <tr><td><code>21101902</code></td><td>선수금(기타)</td><td class="c">CR</td><td class="c"><code>PR</code></td><td class="c zero">DR</td></tr>
+      <tr><td><code>21101903</code></td><td>선수금(진행)</td><td class="c">CR</td><td class="c"><code>PR</code></td><td class="c zero">DR</td></tr>
+      <tr><td><code>21100902</code></td><td>미지급금(개인)</td><td class="c">CR</td><td class="c"><code>OC</code></td><td class="c zero">DR</td></tr>
+      <tr><td><code>21100907</code></td><td>미지급금(법인카드)</td><td class="c">CR</td><td class="c"><code>OC</code></td><td class="c zero">DR</td></tr>
+    </table>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════ P4 공백 ═══════ -->
+<section class="panel" id="p4">
+  <div class="card">
+    <h2>🔴 G1 — 부가세 반제방향은 검증되지 않는다</h2>
+    <p class="cap"><code>usp_a_check_acct</code> 소스에 <code>TP</code>/<code>TR</code> 전용 검증 블록이 없다.</p>
+<pre><span class="cm">-- 부가세는 공통입력경로를 쓴다.</span>
+IF (@SUBSYS_TYPE = 'TP' OR @SUBSYS_TYPE ='TR')
+   AND (@GL_INPUT_TYPE &lt;&gt; 'TG' AND @GL_INPUT_TYPE &lt;&gt; 'GL')
+   SET @GL_INPUT_TYPE = '*'
+<span class="hl">-- ↑ 이후 TP/TR 에 대한 A_OBJECT 매칭 검증이 없다</span></pre>
+
+    <h3>실측 — 위반이 실제로 존재한다</h3>
+    <p class="cap"><code>GL_INPUT_TYPE='TG'</code> 전체를 규칙에 걸어 스캔했다.</p>
+    <div class="scroll">
+    <table>
+      <tr><th>생성경로</th><th>위반유형</th><th class="num">위반라인</th><th class="num">위반전표</th></tr>
+      <tr><td>수동입력</td><td>서브원장 반제방향</td><td class="num zero">8</td><td class="num zero">7</td></tr>
+    </table>
+    </div>
+    <div class="scroll" style="margin-top:12px">
+    <table>
+      <tr><th>계정</th><th class="c">서브시스템</th><th class="c">기본차대</th><th class="c">입력차대</th><th class="num">위반라인</th></tr>
+      <tr><td><code>11103301</code> 부가세대급금</td><td class="c"><code>TP</code></td><td class="c">DR</td><td class="c zero">CR</td><td class="num">7</td></tr>
+      <tr><td><code>21102301</code> 부가세예수금</td><td class="c"><code>TR</code></td><td class="c">CR</td><td class="c zero">DR</td><td class="num">1</td></tr>
+    </table>
+    </div>
+    <div class="ok">
+      <strong>AP·AR·PP·PR·SS·OC 위반은 0건</strong>이다 — 검증이 실효적으로 작동하고 있다는 뜻이다. <strong>부가세만 뚫린다.</strong>
+    </div>
+
+    <h3>실제 사례</h3>
+    <div class="scroll">
+    <table>
+      <tr><th>전표</th><th class="c">승인</th><th>계정</th><th class="c">입력차대</th><th class="num">금액</th></tr>
+      <tr><td><code>TG202505090011</code></td><td class="c">C</td><td><code>11103301</code></td><td class="c zero">CR</td><td class="num">4,312,237,000</td></tr>
+      <tr><td><code>TG202411040025</code></td><td class="c">C</td><td><code>11103301</code></td><td class="c zero">CR</td><td class="num">5,205,843,024</td></tr>
+      <tr><td><code>TG202408020016</code></td><td class="c">C</td><td><code>11103301</code></td><td class="c zero">CR</td><td class="num">5,625,454,267</td></tr>
+      <tr><td><code>TG202405080032</code></td><td class="c">C</td><td><code>11103301</code></td><td class="c zero">CR</td><td class="num">7,303,470,132</td></tr>
+      <tr><td><code>TG202403310344</code></td><td class="c">C</td><td><code>21102301</code></td><td class="c zero">DR</td><td class="num">468,667,898</td></tr>
+    </table>
+    </div>
+    <blockquote>
+      금액대와 일자로 보아 <strong>부가세 신고 후 대급금·예수금 상계 전표</strong>다. 업무상 필요한 처리로 보인다.
+      다만 <code>A_VAT</code> 는 <code>A_OBJECT</code> 매칭 실패로 생성되지 않는다 — 원장 없이 전표만 남는다.<br><br>
+      <strong>AX 관점</strong> — 이 케이스는 회계팀 결산 처리다. AX 포털이 만들 전표는 아니다.
+      그러나 릴레이가 이 조합을 받으면 <strong>ERP 가 막아주지 않으므로 그대로 통과</strong>한다. AX 측 차단이 안전하다.
+    </blockquote>
+  </div>
+
+  <div class="card">
+    <h2>G2 — 차대 균형 (결의전표)</h2>
+    <p><code>113119</code> (차대변금액 불일치) 검증은 조건이 <code>AND GL_INPUT_TYPE IN ('GL')</code> 이다.
+    <strong>결의전표(<code>TG</code>)는 SP 단계에서 검증되지 않는다.</strong>
+    엔진의 <code>USP_A_RETURN_BALANCE_01</code> 이 보정을 시도하나 실측상 개입 0건이다.</p>
+    <div class="warn">
+      실측 확인 — 수동입력 12,085건 중 헤더 차대가 다른 전표 209건이 있으나
+      <strong>원화합계는 209건 전부 일치</strong>한다(외화전표, 위반 아님).
+      실질 위반은 없지만 <strong>ERP 가 막아주지 않는 구간</strong>이므로 릴레이가 자체 검산해야 한다.
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>검증 공백이 아닌 것 — 오탐 정리</h2>
+    <div class="scroll">
+    <table>
+      <tr><th>항목</th><th>스캔 결과</th><th>판정</th></tr>
+      <tr><td>차대 불균형 209건</td><td>원화합계 100% 일치</td><td class="gd">정상 — 외화전표</td></tr>
+      <tr><td>폐쇄계정 사용 10전표</td><td>전표일 2024-06-30 / 계정 폐쇄일 2024-07-26</td><td class="gd">정상 — 입력 시점엔 유효</td></tr>
+      <tr><td>마감일자 전표</td><td>수동 8,625 · 연동 4,165</td><td class="gd">정상 — 입력 후 해당 월이 마감된 것</td></tr>
+      <tr><td>부가세계정 거래처 사업자번호 없음</td><td><strong>0건</strong></td><td class="gd">검증 작동 중</td></tr>
+      <tr><td>사업장 불일치</td><td><strong>0건</strong></td><td class="gd">검증 작동 중</td></tr>
+      <tr><td>거래처 없는 채무·채권 라인</td><td><strong>0건</strong></td><td class="gd">검증 작동 중</td></tr>
+    </table>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════ P5 AX 적용 ═══════ -->
+<section class="panel" id="p5">
+  <div class="card">
+    <h2>릴레이가 이미 얻은 것 — 추가 개발 불필요</h2>
+    <div class="scroll">
+    <table>
+      <tr><th>검증</th><th class="c">메시지</th><th>효과</th></tr>
+      <tr><td>반제방향 입력 차단 (AP·AR·PP·PR·SS·OC)</td><td class="c"><code>119712</code></td><td>SP 실패 → <strong>전표 생성까지 롤백</strong></td></tr>
+      <tr><td>조직개편·부서 불일치</td><td class="c"><code>A05191</code></td><td>〃</td></tr>
+      <tr><td>부가세계정 거래처 사업자번호 없음</td><td class="c"><code>800420</code></td><td>〃</td></tr>
+      <tr><td>사업장 불일치</td><td class="c"><code>117218</code></td><td>〃</td></tr>
+      <tr><td>A_OBJECT 매핑 없음</td><td class="c"><code>119706</code></td><td>〃</td></tr>
+    </table>
+    </div>
+    <div class="ok">이미 반영된 트랜잭션 구조(실패 시 전체 롤백) 덕분에 성립한다.</div>
+  </div>
+
+  <div class="card">
+    <h2>AX 측에서 추가로 막아야 할 것</h2>
+    <div class="scroll">
+    <table>
+      <tr><th class="c">#</th><th>가드</th><th>규칙</th><th>사유</th></tr>
+      <tr style="background:color-mix(in srgb, var(--critical) 8%, transparent)"><td class="c"><strong>G1</strong></td><td><strong>부가세 반제방향 차단</strong></td><td><code>TP</code> 계정은 <code>DR</code> 만, <code>TR</code> 계정은 <code>CR</code> 만 허용</td><td>ERP 미검증 · 실측 위반 8라인 존재</td></tr>
+      <tr style="background:color-mix(in srgb, var(--critical) 8%, transparent)"><td class="c"><strong>G2</strong></td><td><strong>차대 균형 검산</strong></td><td>원화 기준 차변합 = 대변합</td><td>ERP 가 <code>TG</code> 는 검증 안 함</td></tr>
+      <tr><td class="c">G3</td><td>폐쇄계정 사전 차단</td><td><code>A_ACCT.DEL_FG='Y'</code> 거부</td><td>엔진이 막지만 사전 차단이 메시지가 명확</td></tr>
+      <tr><td class="c">G4</td><td>마감기간 사전 차단</td><td><code>B_CALENDAR.TEMP_GL_FG='C'</code> 거부</td><td>〃</td></tr>
+      <tr style="background:color-mix(in srgb, var(--s1) 8%, transparent)"><td class="c"><strong>G5</strong></td><td><strong>포털 입력단계 사전차단</strong></td><td>규칙표대로 사전 거부</td><td>ERP 가 막아도 그 시점은 릴레이 실행 중</td></tr>
+    </table>
+    </div>
+    <div class="stop">
+      <strong>G5 가 중요하다.</strong> ERP 가 막아주더라도 그 시점은 릴레이 실행 중이다.
+      사용자는 포털에서 이미 결재까지 올린 뒤 "적용 실패"만 보게 된다.
+      <strong>포털 입력 단계에서 막는 것이 사용자 경험상 맞다.</strong>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>포털 사전검증 쿼리</h2>
+    <p class="cap">릴레이 투입 전 또는 포털 저장 시 실행할 수 있다.</p>
+<pre><span class="cm">-- 반제방향 위반 검사 (G1 · G5 통합)</span>
+SELECT L.ACCT_CD, L.DR_CR_FG, A.SUBSYS_TYPE, A.BAL_FG,
+       CASE
+         WHEN A.SUBSYS_TYPE IN ('OC','OD') AND L.DR_CR_FG &lt;&gt; A.BAL_FG
+              THEN '미결 반제 — 미결반제화면에서 처리'
+         WHEN A.SUBSYS_TYPE IN ('TP','TR') AND L.DR_CR_FG &lt;&gt; A.BAL_FG
+              THEN '부가세 반대차대 — AX 자체 차단'
+         WHEN A.SUBSYS_TYPE NOT IN ('OC','OD','TP','TR')
+              AND NOT EXISTS (SELECT 1 FROM A_OBJECT O
+                               WHERE O.GL_INPUT_TYPE='TG'
+                                 AND O.SUBSYS_TYPE = A.SUBSYS_TYPE
+                                 AND (O.DR_CR_FG='DC' OR O.DR_CR_FG = L.DR_CR_FG))
+              THEN '반제방향 입력 — 전용 반제화면에서 처리'
+         ELSE NULL
+       END AS 차단사유
+FROM   @lines L
+JOIN   A_ACCT A ON A.ACCT_CD = L.ACCT_CD
+WHERE  ISNULL(A.SUBSYS_TYPE,'') &lt;&gt; '';
+<span class="cm">-- 차단사유가 NULL 이 아닌 행이 하나라도 있으면 투입 금지</span></pre>
+    <p>간단한 형태로는 <strong>계정 화이트리스트 + 허용 차대</strong>를 포털에 심는 것으로도 충분하다.</p>
+    <div class="scroll">
+    <table>
+      <tr><th>계정</th><th class="c">허용 차대</th></tr>
+      <tr><td><code>21100901</code> 미지급금(거래처)</td><td class="c">CR 만</td></tr>
+      <tr><td><code>11103301</code> 부가세대급금</td><td class="c">DR 만</td></tr>
+      <tr><td><code>53…</code> · <code>43…</code> 경비계정</td><td class="c">DR (제약 없음)</td></tr>
+    </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>AX 측 조치 요청</h2>
+    <div class="scroll">
+    <table>
+      <tr><th class="c">#</th><th>요청</th><th class="c">우선</th></tr>
+      <tr><td class="c">1</td><td><strong>G1 부가세 반제방향 차단</strong> — <code>TP</code>는 DR만, <code>TR</code>은 CR만</td><td class="c"><span class="pill pC">상</span></td></tr>
+      <tr><td class="c">2</td><td><strong>G2 차대 균형 검산</strong> — 원화 기준</td><td class="c"><span class="pill pC">상</span></td></tr>
+      <tr><td class="c">3</td><td><strong>G5 포털 입력단계 사전차단</strong> — 사용자 안내 메시지 포함</td><td class="c"><span class="pill pC">상</span></td></tr>
+      <tr><td class="c">4</td><td>음성 테스트 N1~N7 수행</td><td class="c"><span class="pill pB">중</span></td></tr>
+      <tr><td class="c">5</td><td>릴레이 실패 시 <code>@Msg_Cd</code> 를 사용자에게 해석해 표시 (<code>B_MESSAGE</code> 조인)</td><td class="c"><span class="pill pB">중</span></td></tr>
+    </table>
+    </div>
+    <h3>확인 필요</h3>
+    <ul class="tight">
+      <li>포털이 계정·차대를 사용자 자유 입력하게 하는가, 정형 템플릿인가</li>
+      <li>자유 입력이면 사전검증을 어느 시점에 걸 것인가 (저장 시 / 결재상신 시)</li>
+      <li>릴레이 실패 시 포털 상태를 어떻게 되돌리는가 (재시도 가능 여부)</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ═══════ P6 음성테스트 ═══════ -->
+<section class="panel" id="p6">
+  <div class="card">
+    <h2>음성 테스트 — 막혀야 할 것이 막히는가</h2>
+    <p class="cap">정상 생성 테스트(<code>AX전표_테스트케이스_설계_20260825</code>)와 별도 케이스다.</p>
+    <div class="scroll">
+    <table>
+      <tr><th class="c">#</th><th>케이스</th><th>투입</th><th>기대 결과</th></tr>
+      <tr><td class="c">N1</td><td>채권 반제</td><td><code>11100901</code> 외상매출금 <strong>CR</strong></td><td class="gd"><code>119712</code> · 전표 생성 롤백</td></tr>
+      <tr><td class="c">N2</td><td>채무 반제</td><td><code>21100901</code> 미지급금 <strong>DR</strong></td><td class="gd"><code>119712</code> · 롤백</td></tr>
+      <tr><td class="c">N3</td><td>선급금 정산</td><td><code>11102301</code> 선급금 <strong>CR</strong></td><td class="gd"><code>119712</code> · 롤백</td></tr>
+      <tr><td class="c">N4</td><td>선수금 정산</td><td><code>21101902</code> 선수금 <strong>DR</strong></td><td class="gd"><code>119712</code> · 롤백</td></tr>
+      <tr><td class="c">N5</td><td>미결 반제</td><td><code>21100902</code> 미지급금(개인) <strong>DR</strong></td><td class="gd"><code>119712</code> · 롤백</td></tr>
+      <tr style="background:color-mix(in srgb, var(--critical) 8%, transparent)"><td class="c"><strong>N6</strong></td><td><strong>부가세 반대차대</strong></td><td><code>11103301</code> 부가세대급금 <strong>CR</strong></td><td class="zero">ERP 통과 — AX 가 막아야 함</td></tr>
+      <tr style="background:color-mix(in srgb, var(--critical) 8%, transparent)"><td class="c"><strong>N7</strong></td><td><strong>차대 불균형</strong></td><td>차 100 / 대 90</td><td class="zero">ERP 통과 가능 — AX 가 막아야 함</td></tr>
+      <tr><td class="c">N8</td><td>폐쇄계정</td><td><code>DEL_FG='Y'</code> 계정</td><td class="gd"><code>110104</code></td></tr>
+      <tr><td class="c">N9</td><td>마감기간</td><td>마감된 월의 전표일</td><td class="gd"><code>121291</code></td></tr>
+      <tr><td class="c">N10</td><td>거래처 없는 채무</td><td><code>21100901</code> CR + <code>BP_CD</code> 공란</td><td class="gd">관리항목 <code>BP</code> 필수 위반</td></tr>
+    </table>
+    </div>
+    <div class="ok">
+      <strong>N1~N5 는 릴레이 개선 후 자동으로 막힌다.</strong> 확인만 하면 된다.<br>
+      <strong>N6·N7 은 AX 가 막지 않으면 그대로 들어간다.</strong> 개발 필요.
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>검증 방법</h2>
+<pre><span class="cm">-- 릴레이 실행 후: 전표가 생성되지 않았어야 정상</span>
+SELECT COUNT(*) AS 생성됨_0이어야정상
+FROM   A_TEMP_GL WHERE REF_NO = 'DRAFT-테스트번호';
+
+<span class="cm">-- 포털 적용원장에 오류코드가 기록됐는지</span>
+<span class="cm">-- gl_erp_apply_log 에서 @Msg_Cd 확인</span>
+<span class="cm">-- 예: REF01119712[11100901 : CR][채권]</span></pre>
+    <h3>메시지 코드 해석</h3>
+    <div class="scroll">
+    <table>
+      <tr><th class="c">코드</th><th>메시지</th></tr>
+      <tr><td class="c"><code>119712</code></td><td> %1 계정은 본 화면에서 반제할 수 없습니다. %2 반제처리화면에서 반제처리하십시오.</td></tr>
+      <tr><td class="c"><code>119706</code></td><td> %1 입력경로/Subsys유형의 %2 은 Mapping 정보가 정의되어 있지 않습니다.</td></tr>
+      <tr><td class="c"><code>A05191</code></td><td>조직개편과 부서정보가 맞지 않습니다.</td></tr>
+      <tr><td class="c"><code>800420</code></td><td>거래처정보등록에서 사업자등록번호를 등록하십시오.</td></tr>
+      <tr><td class="c"><code>117218</code></td><td>%1 입력된 사업장과 전표생성부서의 사업장이 다릅니다.</td></tr>
+      <tr><td class="c"><code>113119</code></td><td>%1 차대변금액이 일치하지 않습니다.</td></tr>
+      <tr><td class="c"><code>110104</code></td><td>%1 이미 폐쇄된 계정입니다. 사용할 수 없습니다.</td></tr>
+      <tr><td class="c"><code>121291</code></td><td>%1 이미 마감된 날짜입니다.</td></tr>
+    </table>
+    </div>
+    <blockquote>
+      릴레이 실패 시 <code>@Msg_Cd</code> 를 <code>B_MESSAGE</code> 와 조인해 사용자에게 한국어로 보여주면
+      포털에서 바로 원인을 알 수 있다. 접두어 <code>REF00</code>/<code>REF01</code> 을 떼고 6자리를 쓰면 된다.
+    </blockquote>
+  </div>
+
+  <div class="card">
+    <h2>전달 안내</h2>
+    <div class="scroll">
+    <table>
+      <tr><th>파일</th><th>내용</th></tr>
+      <tr><td><code>AX전표_입력검증_및_차단규칙_20260825.md</code></td><td>본 문서 (텍스트)</td></tr>
+      <tr><td><code>AX전표_입력검증_및_차단규칙_20260825.html</code></td><td>본 문서 · 6탭 + 검증체계 도식</td></tr>
+    </table>
+    </div>
+    <p style="margin-top:12px"><strong>배치 제안</strong> — <code>10_ERP_DB연계/15_AX전표_입력검증_및_차단규칙.{md,html}</code></p>
+    <div class="warn">
+      ERP_DB 작업 PC 에는 <code>E:</code> 드라이브가 없어 직접 배치하지 못한다. AX 측 PC 에서 복사해야 전달이 완료된다.
+    </div>
+  </div>
+</section>
+
+<footer>
+  JEILMNS_DEMO2 실측 + <code>sys.sql_modules</code> SP 소스 · <strong>READ-ONLY</strong> 조회만 · ERP 운영DB 미접근 ·
+  위반 스캔 범위 <code>GL_INPUT_TYPE='TG'</code> 전체 ·
+  조사 로그 <code>ERP_DB/doc/db_log_20260825_200000.md</code> ·
+  함께 보기 <code>AX전표_테스트케이스_설계_20260825</code> · <code>AX전표_서브원장_호출누락_개발요청_20260825</code>
+</footer>
+</div>
+
+<script>
+document.querySelectorAll('.tabs button').forEach(b=>{
+  b.addEventListener('click',()=>{
+    document.querySelectorAll('.tabs button').forEach(x=>x.setAttribute('aria-selected','false'));
+    document.querySelectorAll('.panel').forEach(x=>x.classList.remove('on'));
+    b.setAttribute('aria-selected','true');
+    document.getElementById(b.dataset.p).classList.add('on');
+  });
+});
+</script>
+</body>
+</html>

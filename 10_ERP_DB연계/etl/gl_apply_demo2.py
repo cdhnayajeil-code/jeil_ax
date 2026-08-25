@@ -203,6 +203,74 @@ def resolve_jnl(cur, trans_type, acct_cd, dr_cr, cost_cd):
     return None
 
 
+def guard_lines(cur, lines):
+    """투입 전 입력검증 — 차단 사유 목록을 돌려준다(빈 리스트면 통과).
+
+    근거: `15_AX전표_입력검증_및_차단규칙`(ERP_DB 발신 2026-08-25).
+
+    서브원장 SP(`usp_a_check_acct`)가 반제방향을 이미 막지만 **두 구멍이 남는다**.
+      · G1 부가세(TP/TR): SP 에 전용 검증 블록이 없다. DEMO2 수동입력분에 위반 8라인이 실재한다
+        (부가세대급금 CR 7건·부가세예수금 DR 1건 — 결산 상계 전표로 보이나 `A_VAT` 가 생성되지 않는다).
+      · G2 차대 균형: `113119` 검증이 `GL_INPUT_TYPE='GL'` 한정이라 결의전표(TG)는 대상이 아니다.
+    G5(반제방향 사전차단)는 ERP 도 막지만 릴레이 실행 중에야 알게 된다 — 여기서 먼저 잡아
+    사유를 남기면 화면에 그대로 뜬다.
+    """
+    out = []
+
+    # ── G2 차대 균형 — 라인에서 재계산한다 ──
+    # 헤더(dr_total/cr_total) 비교는 위에서 이미 하지만 그건 포털이 저장해 둔 값끼리의 비교다.
+    # 실제 투입 라인에서 다시 더해야 값이 어긋난 채 들어가는 것을 막는다.
+    dr = sum(l["amt"] for l in lines if l["fg"] == "DR")
+    cr = sum(l["amt"] for l in lines if l["fg"] == "CR")
+    if dr != cr:
+        out.append({"seq": 0, "acct": "-", "fg": "-", "code": "G2",
+                    "why": f"차대 균형 불일치 — 차변 {dr:,} / 대변 {cr:,} (차이 {abs(dr-cr):,}). "
+                           "ERP 는 결의전표의 차대를 검증하지 않는다"})
+
+    # ── 계정 속성 조회(서브시스템·기본차대) ──
+    accts = sorted({l["acct"] for l in lines})
+    attr = {}
+    for a in accts:
+        cur.execute("SELECT RTRIM(ISNULL(SUBSYS_TYPE,'')), RTRIM(ISNULL(BAL_FG,'')), "
+                    "RTRIM(ISNULL(ACCT_NM,'')) FROM dbo.A_ACCT WITH (NOLOCK) WHERE RTRIM(ACCT_CD)=?", a)
+        r = cur.fetchone()
+        attr[a] = (r[0], r[1][:2], r[2]) if r else ("", "", "")
+
+    for l in lines:
+        sub, bal, nm = attr.get(l["acct"], ("", "", ""))
+        if not sub:
+            continue                                  # 서브원장 대상 아님 — 제약 없음
+        fg = l["fg"][:2]                              # 'DR' | 'CR'
+        base = {"seq": l["seq"], "acct": l["acct"], "fg": fg}
+
+        # ── G1 부가세 반제방향 — ERP 미검증 구간 ──
+        if sub in ("TP", "TR"):
+            want = "DR" if sub == "TP" else "CR"
+            if fg != want:
+                out.append({**base, "code": "G1",
+                            "why": f"{nm}({sub})는 {want} 만 허용 — 반대 차대는 부가세 원장(A_VAT)이 "
+                                   "생성되지 않는다. ERP 가 막지 않으므로 AX 가 차단한다"})
+            continue
+
+        # ── 미결(OC/OD) — 계정 기본차대와 같아야 한다 ──
+        if sub in ("OC", "OD"):
+            if bal and fg != bal:
+                out.append({**base, "code": "G5",
+                            "why": f"{nm}({sub}) 미결 반제 — 미결반제 전용화면에서 처리해야 한다"})
+            continue
+
+        # ── G5 그 외(AP·AR·PP·PR·SS) — A_OBJECT 매칭(ERP와 같은 판정) ──
+        cur.execute("SELECT COUNT(*) FROM dbo.A_OBJECT WITH (NOLOCK) "
+                    "WHERE RTRIM(GL_INPUT_TYPE)='TG' AND RTRIM(SUBSYS_TYPE)=? "
+                    "  AND (RTRIM(DR_CR_FG)='DC' OR RTRIM(DR_CR_FG)=?)", sub, fg)
+        if not cur.fetchone()[0]:
+            kind = {"AP": "채무", "AR": "채권", "PP": "선급금", "PR": "선수금", "SS": "가수금"}.get(sub, sub)
+            out.append({**base, "code": "G5",
+                        "why": f"{nm}({sub}) {kind} 반제 방향 — 결의전표로 반제하면 원장 잔액이 "
+                               f"정리되지 않는다. {kind} 반제 전용화면에서 처리해야 한다(ERP 오류 119712)"})
+    return out
+
+
 def org_info(cur, dept_cd):
     """조직 정보 — ORG_CHANGE_ID(부서 최신) + BIZ_AREA/INTERNAL/GAAP(최근 '정상' 배치 승계).
        실사(2026-08-19): 최근 배치가 AX 테스트 잔재일 수 있어 REF_NO 'AX%' 는 승계 소스에서 제외한다."""
@@ -328,6 +396,19 @@ def apply_draft(args):
         print(f"[거래유형] {trans_type}")
         print(f"[분개코드] " + " · ".join(
             f"{l['seq']}:{l['acct']}→{l['jnl']}/{l['event'] or '-'}({l['src']})" for l in lines))
+
+        # ── 입력검증 가드(G1·G2·G5) ────────────────────────────────
+        # 근거: 15_AX전표_입력검증_및_차단규칙(ERP_DB 발신 2026-08-25)
+        # 서브원장 SP 호출로 반제방향 검증(119712)은 ERP가 자동 적용하지만, 두 구멍이 남는다.
+        #   G1 부가세(TP/TR) 반제방향 — usp_a_check_acct 에 TP/TR 전용 블록이 없다(수동입력분 위반 8라인 실재)
+        #   G2 차대 균형 — 113119 검증이 GL_INPUT_TYPE='GL' 한정이라 결의전표(TG)는 대상 밖
+        # G5 는 ERP가 막아주더라도 릴레이 실행 중에야 알게 되므로, 여기서 먼저 잡아 사유를 명확히 남긴다.
+        blocks = guard_lines(cur, lines)
+        if blocks:
+            result["detail"]["guard_blocks"] = blocks
+            for b in blocks:
+                print(f"[차단] {b['seq']}번 줄 {b['acct']} {b['fg']} — {b['why']}", file=sys.stderr)
+            raise SystemExit(f"[중단] 입력검증 차단 {len(blocks)}건 — 위 사유를 확인하세요. 아무것도 투입하지 않았습니다.")
 
         # ── 조직정보·채번 ──────────────────────────────────────────
         org, biz, internal, gaap = org_info(cur, dept_cd)

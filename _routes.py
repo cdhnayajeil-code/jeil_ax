@@ -104,6 +104,7 @@ ROUTES = {
     "/docs/erp/ax001-acct-mapping":     "10_ERP_DB연계/12_AX001_계정매핑_등재요청.html",
     "/docs/erp/subledger-fix":          "10_ERP_DB연계/13_AX전표_서브원장_호출누락_개발요청.html",
     "/docs/erp/test-cases":             "10_ERP_DB연계/14_AX전표_테스트범위_및_케이스설계.html",
+    "/docs/erp/input-guards":           "10_ERP_DB연계/15_AX전표_입력검증_및_차단규칙.html",
 
     # ── 제품기획 ───────────────────────────────────────────
     "/docs/product":                    "11_제품기획/index.html",
