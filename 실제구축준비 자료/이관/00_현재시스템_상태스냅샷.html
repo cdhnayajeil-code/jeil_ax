@@ -512,6 +512,11 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 </thead>
 <tbody>
 <tr>
+<td>2026-08-25</td>
+<td><strong>전송 대기 진단 체계 신설</strong>(마이그레이션 <code>gl_apply_diag</code>·<code>gl_apply_log_precheck_mode</code>, Edge Function <strong><code>jeil-gl-draft</code> v5.8</strong>(배포 버전 16), 정본 SQL <code>이관/sql/30_gl_apply_diag.sql</code>) — 화면이 「전송 대기 중 — 중계가 곧 가져갑니다」만 표시하고 실제로는 아무 일도 일어나지 않는 상태를 사용자가 알 수 없었다(실측: 요청 후 폴링 17회 무응답). 중계가 멈춰 있었고 화면엔 그 사실을 알 신호가 없었다. <strong>신설</strong> — 테이블 <code>gl_relay_heartbeat</code>(중계 심박. 적용 원장은 <em>일이 있을 때만</em> 쌓여 생존 판정에 못 쓴다), RPC <code>gl_relay_ping</code>·<code>gl_apply_health</code>·<code>gl_apply_problems</code>(전부 service_role 전용), <code>gl_draft</code> 컬럼 4종 — <code>erp_last_error</code>(<strong>재전송해도 지워지지 않는</strong> 사유 보존 칸. 종전 <code>apply_request</code> 가 <code>erp_apply_msg</code> 를 비워 직전 실패 사유가 소실됐다)·<code>erp_last_error_at</code>·<code>erp_attempts</code>·<code>erp_ready_at</code>(대기 진입 시각. <code>erp_apply_at</code> 은 선점이 <code>now()</code> 로 덮어써 경과 계산에 쓸 수 없다). 원장 <code>mode</code> 에 <code>precheck</code>(재판정 — ERP 무투입) 허용. 화면은 중계 생존 배너와 「손봐야 할 건」 패널로 사유·경과·시도횟수를 노출한다. 릴레이 <strong>v1.4</strong>(심박·<code>--recheck</code>) 재빌드·전달폴더 배포 완료 — <strong>서버 EXE 교체 필요</strong>(구버전은 심박을 남기지 않아 배너가 「알 수 없음」으로 뜬다). 함께 <strong><code>supabase/_deploy_function.py</code></strong> 신설 — 이 PC에 supabase CLI 가 없어 Edge Function 소스를 손으로 옮겨야 했던 것을 Management API 업로드로 대체(기본 User-Agent 는 WAF 가 1010 으로 막으므로 지정 필요)</td>
+<td>최동혁(+Claude)</td>
+</tr>
+<tr>
 <td>2026-08-24</td>
 <td><strong>릴레이 배포 상태 정정 + 전송 차단 계정 5종 실측</strong> — 같은 날 앞선 기재에서 「작업 스케줄러 1분 상시 실행」으로 적었으나, <strong>실제로는 배포·수동 검증까지만 완료됐고 스케줄러는 미등록</strong>이다(관리자 결정: 테스트 완료 후 등록). 사실과 어긋나 정정한다 — 현재는 사람이 돌릴 때만 전송된다. 실행 루트는 <code>E:\ai.jeil\relay\</code>(관리자 실제 배치에 맞춰 확정, 로컬 디스크라 OneDrive 동기화 문제 없음). 함께 전송을 막는 계정 5종을 실측해 회계팀 요청서로 문서화했다(<code>10_ERP_DB연계/12</code>)</td>
 <td>최동혁(+Claude)</td>

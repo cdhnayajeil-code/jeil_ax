@@ -191,6 +191,51 @@
   .sendbar.applied .val{color:var(--green);}
   .sendbar.failed{background:#fdeeec; border-color:#f2c4be;}
   .sendbar.failed .val{color:var(--red);}
+  /* 대기 중에도 보여주는 직전 실패 사유 — 사유를 감춘 채 "곧 처리됩니다"만 띄우지 않는다 */
+  .sendbar .why{flex-basis:100%; margin-top:2px; padding:8px 11px; border-radius:8px;
+                background:rgba(192,57,43,.06); border:1px solid #f0cec9; font-size:12px;
+                color:#8d2f24; line-height:1.6; overflow-wrap:anywhere;
+                /* 차단 사유는 줄마다 한 건씩 온다 — 줄바꿈을 살려야 여러 줄이 뭉치지 않는다 */
+                white-space:pre-line;}
+  .sendbar .why b{color:var(--red);}
+  /* ═══ 전송 파이프라인 진단 ═══
+     "전송 대기 중"만 떠 있고 아무 일도 안 일어나는 상태의 원인은 대개 중계가 안 도는 것이다.
+     중계 심박(gl_relay_heartbeat)을 읽어 그 사실을 화면이 먼저 말하게 한다. */
+  .relaybar{display:flex; align-items:center; gap:11px; padding:10px 14px; border-radius:10px;
+            border:1.5px solid var(--line); background:var(--soft); margin-bottom:12px; font-size:12.5px;}
+  .relaybar .dot{width:9px; height:9px; border-radius:50%; background:var(--muted); flex:none;}
+  .relaybar .txt{display:flex; flex-direction:column; gap:1px; min-width:0; flex:1 1 auto;}
+  .relaybar .txt b{font-size:13px; color:var(--navy); letter-spacing:-.01em;}
+  .relaybar .txt span{color:var(--muted); line-height:1.55; overflow-wrap:anywhere;}
+  .relaybar.ok{background:#eefaf1; border-color:#b8e2c4;}
+  .relaybar.ok .dot{background:var(--green);}
+  .relaybar.ok .txt b{color:var(--green);}
+  .relaybar.down{background:#fdeeec; border-color:#f2c4be;}
+  .relaybar.down .dot{background:var(--red);}
+  .relaybar.down .txt b{color:var(--red);}
+  .relaybar.warn{background:#fff8e8; border-color:#f0d9a8;}
+  .relaybar.warn .dot{background:var(--amber);}
+  .relaybar.warn .txt b{color:var(--amber);}
+  /* 손봐야 할 건 — 실패·적체를 한 곳에 모은다(행을 하나씩 눌러 보게 두지 않는다) */
+  .prob{border:1px solid var(--line); border-left:4px solid var(--red); border-radius:10px;
+        background:#fff; padding:11px 13px; margin-bottom:8px;}
+  .prob.stale{border-left-color:var(--amber);}
+  .prob.stuck{border-left-color:var(--accent);}
+  .prob .hd{display:flex; align-items:center; gap:9px; flex-wrap:wrap; margin-bottom:5px;}
+  .prob .hd .no{font-family:'Consolas','Menlo',monospace; font-size:12.5px; font-weight:700; color:var(--navy);}
+  .prob .hd .desc{font-size:12.5px; color:var(--ink); min-width:0; overflow-wrap:anywhere;}
+  .prob .hd .amt{margin-left:auto; font-weight:700; font-size:12.5px; color:var(--navy);
+                 font-variant-numeric:tabular-nums;}
+  .prob .meta{font-size:11.5px; color:var(--muted); margin-bottom:6px;}
+  .prob .why{font-size:12px; line-height:1.65; color:#8d2f24; background:rgba(192,57,43,.06);
+             border:1px solid #f0cec9; border-radius:7px; padding:8px 10px; overflow-wrap:anywhere;
+             white-space:pre-line;}
+  .prob.stale .why{color:#8a5c12; background:rgba(201,130,26,.08); border-color:#f0dcb4;}
+  .prob .acts{display:flex; gap:7px; margin-top:8px; flex-wrap:wrap;}
+  .tagk{display:inline-block; padding:1px 7px; border-radius:999px; font-size:10.5px; font-weight:700;
+        background:#fdeeec; color:var(--red);}
+  .tagk.stale{background:#fff3dc; color:var(--amber);}
+  .tagk.stuck{background:#e8f1fa; color:var(--accent);}
   /* 분개 카드 — 라인과 그 라인의 관리항목을 한 덩어리로 보여준다(표 2개 대조 불필요) */
   .jl{border:1px solid var(--line); border-left:4px solid var(--line); border-radius:11px; background:#fff;
       margin-bottom:9px; overflow:hidden;}
@@ -613,6 +658,17 @@
     <!-- ═══ ERP 전송 ═══ -->
     <div id="panePost" class="hide">
       <div class="sec">
+        <!-- 전송 파이프라인 진단 — "왜 대기만 하는가"에 화면이 먼저 답한다 -->
+        <div class="relaybar" id="relayBar" style="display:none;">
+          <span class="dot" id="relayDot"></span>
+          <div class="txt"><b id="relayTitle">중계 상태 확인 중…</b><span id="relayNote"></span></div>
+          <button type="button" class="b gh sm" id="btnRelayRefresh">다시 확인</button>
+        </div>
+        <!-- 실패·적체를 한 곳에 모은다 — 건별로 눌러 봐야 알던 사유를 목록에서 바로 읽는다 -->
+        <div id="probWrap" class="hide" style="margin-bottom:13px;">
+          <h2 style="margin-top:0;">손봐야 할 건 <small id="probSub">전송이 끝나지 않은 건과 그 사유</small></h2>
+          <div id="probList"></div>
+        </div>
         <h2>제출된 초안
           <small>행을 선택하면 아래에 전송 패널이 열립니다 · 전표번호는 ERP가 채번합니다</small>
           <!-- 상태 구분은 드롭다운 대신 한눈에 보이는 버튼으로(선택지가 3개뿐) -->
@@ -814,7 +870,10 @@ function applyPill(x){
     return '<span class="pill posted" title="'+esc(x.erp_apply_target||"")+' 적용 완료">'
       + (String(x.erp_apply_target||"").indexOf("DEMO")>=0 ? "DEMO " : "") + esc(x.erp_apply_gl_no||"적용됨") + '</span>';
   if(x.erp_apply_status === "ready")
-    return '<span class="pill submitted" title="사내 중계가 곧 투입합니다">🚀 전송 대기</span>';
+    // 직전에 실패한 적이 있으면 그 사실을 목록에서 바로 알린다 — 열어 봐야 알던 것을 앞으로 당긴다
+    return x.erp_last_error
+      ? '<span class="pill" style="background:#fff3dc;color:var(--amber);" title="'+esc(x.erp_last_error)+'">🚀 전송 대기 ⚠</span>'
+      : '<span class="pill submitted" title="사내 중계가 곧 투입합니다">🚀 전송 대기</span>';
   if(x.erp_apply_status === "sending")
     return '<span class="pill submitted" title="중계가 처리 중입니다 — 다른 실행이 끼어들지 못하도록 선점된 상태">⏳ 전송 중</span>';
   if(x.erp_apply_status === "failed")
@@ -2535,6 +2594,7 @@ $("mineTbl").onclick = async (e)=>{
 
 /* ═══ ERP 전송 ═══ */
 async function loadPost(){
+  loadHealth();                    // 진단은 목록과 독립 — 느려도 목록을 붙잡지 않는다
   try{
     const r = await api("list", { status: POST_FILTER });
     const t = $("postTbl");
@@ -2698,6 +2758,118 @@ function renderPostLines(items){
       + '</div>';
   }).join("");
 }
+/* 전송 패널 상단 요약 — 목록 행 클릭과 「손봐야 할 건」에서 함께 쓴다 */
+function renderErpSummary(h){
+  $("erpSummary").innerHTML = [
+    ["결의일자", h.draft_dt], ["전표형태", h.gl_type||"(기본)"],
+    ["등록자(ERP ID)", h.owner_erp_usr_id], ["부서", h.dept_nm||h.dept_cd||"—"],
+    ["코스트센터", h.cost_cd ? costNm(h.cost_cd) : "—"], ["프로젝트", h.project_no||"—"],
+    ["적요", h.gl_desc],
+    ["차변 합계", won(h.dr_total)], ["대변 합계", won(h.cr_total)],
+  ].map(([k,v])=>'<div class="row"><span class="k">'+esc(k)+'</span><span class="v">'+esc(v)+'</span></div>').join("");
+}
+
+/* ═══ 전송 파이프라인 진단 ═══
+   왜 필요한가: 「전송 대기 중 — 중계가 곧 가져갑니다」는 중계가 돌 때만 참이다.
+   중계가 멈춰 있으면 화면은 영원히 같은 문구를 보여주고, 사용자는 기다리기만 한다
+   (2026-08-25 실측: 전송 요청 후 폴링 17회 무응답, 사유 표시 0). 그래서 화면이
+   ①중계 생존 ②대기 경과 ③직전 실패 사유 를 스스로 말하게 한다. */
+let HEALTH = null;                 // 최근 진단 결과(대기 문구·버튼 안내에 재사용)
+const mins = (n)=> n == null ? "" : n < 60 ? n+"분" : Math.floor(n/60)+"시간 "+(n%60)+"분";
+
+async function loadHealth(){
+  try{
+    const r = await api("apply_health", { stale_min: 30 });
+    HEALTH = r.health || {};
+    renderRelayBar(HEALTH);
+    renderProblems(r.problems || []);
+  }catch(e){
+    // 진단 실패가 전송 화면을 막지 않게 한다 — 배너만 숨긴다
+    HEALTH = null; $("relayBar").style.display = "none"; $("probWrap").classList.add("hide");
+  }
+}
+function renderRelayBar(h){
+  const bar = $("relayBar"); bar.style.display = "flex";
+  const alive = h.relay_alive, idle = h.relay_idle_min, wait = h.waiting_cnt || 0;
+  let cls, title, note;
+  if(alive === null || alive === undefined){
+    // 심박을 한 번도 못 받았다 = 중계가 구버전이거나 아직 안 돌았다. 단정하지 않는다.
+    cls = "warn"; title = "중계 상태를 알 수 없습니다";
+    note = "심박 기록이 없습니다 — 중계(gl_apply_demo2.py)가 아직 실행된 적이 없거나 구버전입니다. "
+         + "대기 건이 있어도 자동으로 처리되지 않을 수 있습니다.";
+  }else if(alive){
+    cls = "ok"; title = "사내 중계 가동 중";
+    note = "마지막 확인 " + (idle ? mins(idle)+" 전" : "1분 이내")
+         + " · 대상 DEMO2" + (wait ? " · 전송 대기 "+wait+"건" : " · 대기 건 없음");
+  }else{
+    cls = "down"; title = "사내 중계가 응답하지 않습니다";
+    note = "마지막 확인 " + mins(idle) + " 전입니다. 이 상태에서는 [🚀 ERP 전송]을 눌러도 "
+         + "「전송 대기」에 쌓이기만 하고 ERP에 들어가지 않습니다"
+         + (wait ? " (현재 "+wait+"건 대기 중)" : "") + ". 중계를 실행해야 합니다.";
+  }
+  bar.className = "relaybar " + cls;
+  $("relayTitle").textContent = title;
+  $("relayNote").textContent = note;
+}
+function renderProblems(rows){
+  const wrap = $("probWrap");
+  if(!rows.length){ wrap.classList.add("hide"); $("probList").innerHTML = ""; return; }
+  wrap.classList.remove("hide");
+  const KIND = { failed:["적용 실패","failed"], stale:["대기 적체","stale"], stuck:["처리 중 멈춤","stuck"] };
+  $("probSub").textContent = rows.length + "건 — 사유를 확인하고 고친 뒤 재전송하세요";
+  $("probList").innerHTML = rows.map((x)=>{
+    const [label, k] = KIND[x.kind] || ["확인 필요","failed"];
+    return '<div class="prob '+k+'">'
+      + '<div class="hd"><span class="tagk '+k+'">'+label+'</span>'
+      + '<span class="no">'+esc(x.draft_no)+'</span>'
+      + '<span class="desc">'+esc(x.gl_desc||"")+'</span>'
+      + '<span class="amt">'+won(x.dr_total)+'원</span></div>'
+      + '<div class="meta">'+esc(x.draft_dt)+' · '+esc(x.dept_nm||"")+' · '+esc(x.owner_nm||"")
+      + ' · '+mins(x.wait_min)+' 경과'
+      + (x.erp_attempts ? ' · 시도 '+x.erp_attempts+'회' : '')+'</div>'
+      + '<div class="why">'+(x.reason
+          ? esc(x.reason)
+          : (x.kind === "stale"
+              ? '실패한 것이 아니라 <b>아무도 가져가지 않은</b> 상태입니다 — 중계가 돌고 있는지 위 배너를 확인하세요.'
+              : '사유가 기록되지 않았습니다. 중계 로그(gl_erp_apply_log)를 확인하세요.'))+'</div>'
+      + '<div class="acts">'
+      + '<button type="button" class="b gh sm" data-prob="'+esc(x.draft_no)+'">열어서 보기</button>'
+      // 고칠 수 없는 전표(전표 자체가 잘못된 경우)는 여기서 바로 치운다 —
+      // 안 그러면 실패 목록에 영원히 남아 진짜 문제를 가린다
+      + '<button type="button" class="b gh sm" data-void="'+esc(x.draft_no)+'">폐기</button>'
+      + '</div></div>';
+  }).join("");
+}
+$("probList").onclick = async (e)=>{
+  const open = e.target.closest("button[data-prob]");
+  const del  = e.target.closest("button[data-void]");
+  if(open){
+    try{
+      const r = await api("get", { draft_no: open.getAttribute("data-prob") });
+      POST_SEL = r; $("postDetail").classList.remove("hide");
+      $("postDetailNo").textContent = "· " + r.header.draft_no;
+      renderSendBar(r.header); renderErpSummary(r.header); renderPostLines(r.items);
+      $("postDetail").scrollIntoView({ behavior:"smooth", block:"start" });
+    }catch(e2){ toast(e2.message, true); }
+    return;
+  }
+  if(del){
+    const no = del.getAttribute("data-void");
+    const reason = prompt("초안 "+no+" 을(를) 폐기합니다.\n사유를 적어 주세요(감사 로그에 남습니다).",
+                          "전표 구성 오류 — 재작성 필요");
+    if(reason === null) return;                       // 취소
+    if(!String(reason).trim()){ toast("사유를 적어야 폐기할 수 있습니다.", true); return; }
+    try{
+      const r = await api("void", { draft_no: no, reason: String(reason).trim() });
+      toast(r.안내 || "폐기했습니다."); loadPost();
+      if(POST_SEL && POST_SEL.header && POST_SEL.header.draft_no === no){
+        $("postDetail").classList.add("hide"); POST_SEL = null;
+      }
+    }catch(e2){ toast(e2.message, true); }
+  }
+};
+$("btnRelayRefresh").onclick = ()=> loadHealth();
+
 /* 상단 전송 스트립 — 상태 한 줄과 실행 버튼. 전표번호는 ERP가 채번하므로 입력칸이 없다. */
 function renderSendBar(h){
   const st = h.erp_apply_status || "";
@@ -2707,13 +2879,39 @@ function renderSendBar(h){
     : st==="ready"   ? "전송 대기 중"
     : st==="sending" ? "전송 처리 중"
     : st==="failed"  ? "적용 실패" : "미전송";
+  // 대기 경과는 erp_ready_at 기준 — erp_apply_at 은 중계가 선점할 때 덮어써서 0으로 리셋된다
+  const waited = h.erp_ready_at ? Math.floor((Date.now() - new Date(h.erp_ready_at).getTime())/60000) : null;
+  const relayDown = HEALTH && HEALTH.relay_alive === false;
+  const relayUnknown = HEALTH && (HEALTH.relay_alive === null || HEALTH.relay_alive === undefined);
   $("sendMsg").innerHTML = st==="applied"
       ? "대상 <b>"+esc(h.erp_apply_target||"")+"</b> · ERP 표준 엔진이 채번한 전표번호입니다. 같은 초안의 재전송은 자동으로 차단됩니다."
-    : st==="ready"   ? "사내 중계가 곧 가져갑니다 — 결과는 이 화면에 자동으로 반영됩니다."
+    : st==="ready"
+      // 대기 중이라고 안심시키지 않는다 — 중계가 죽어 있으면 그 사실을 여기서 말한다
+      ? (relayDown
+          ? "⚠ <b>사내 중계가 응답하지 않습니다</b>(마지막 확인 "+mins(HEALTH.relay_idle_min)+" 전). "
+            + "이 건은 대기열에만 올라 있고 ERP로 넘어가지 않습니다 — 중계를 실행해야 처리됩니다."
+          : relayUnknown
+          ? "⚠ 중계 심박이 없어 가동 여부를 확인할 수 없습니다. 대기 상태로만 남을 수 있습니다."
+          : "사내 중계가 곧 가져갑니다 — 결과는 이 화면에 자동으로 반영됩니다.")
+        + (waited != null && waited >= 1 ? " · 대기 "+mins(waited)+" 경과" : "")
     : st==="sending" ? "중계가 처리 중입니다(선점됨) — 다른 실행이 끼어들지 못합니다. 결과는 자동 반영됩니다."
-    : st==="failed" ? "⚠ "+esc(h.erp_apply_msg||"중계 로그를 확인하세요.")
+    : st==="failed" ? "⚠ 아래 사유를 고친 뒤 [ERP 재전송]을 누르세요."
     : "누르면 사내 중계가 ERP 표준 엔진으로 전표를 만듭니다(대상 <b>DEMO2</b> · AI 전용 <b>AG</b> 번호대역). "
       + "라인 대조가 어긋나면 자동 취소되고, 성공하면 전표번호가 여기에 표시됩니다.";
+  // 사유 블록 — 실패했을 때는 물론, 재전송으로 '대기'가 된 뒤에도 직전 사유를 계속 보여준다.
+  // (종전에는 apply_request 가 사유를 지워, 왜 막혔는지 모른 채 기다리게 됐다)
+  const why = h.erp_last_error || (st === "failed" ? h.erp_apply_msg : "");
+  let box = document.getElementById("sendWhy");
+  if(why && st !== "applied"){
+    if(!box){ box = document.createElement("div"); box.id = "sendWhy"; box.className = "why";
+              $("sendBar").appendChild(box); }
+    box.innerHTML = (st === "ready" ? "<b>직전 시도 사유</b>" : "<b>실패 사유</b>")
+      + (h.erp_last_error_at ? ' <span style="opacity:.7;">· '
+          + esc(new Date(h.erp_last_error_at).toLocaleString("ko-KR")) + '</span>' : "")
+      + (h.erp_attempts ? ' <span style="opacity:.7;">· 시도 '+h.erp_attempts+'회</span>' : "")
+      + "<br>" + esc(why);
+    box.style.display = "";
+  }else if(box){ box.style.display = "none"; }
   const canSend = h.status === "submitted" && st !== "applied";
   $("btnErpSend").classList.toggle("hide", !canSend);
   $("btnErpSend").disabled = st === "ready" || st === "sending";
@@ -2729,13 +2927,7 @@ $("postTbl").onclick = async (e)=>{
     $("postDetail").classList.remove("hide");
     $("postDetailNo").textContent = "· " + h.draft_no;
     renderSendBar(h);
-    $("erpSummary").innerHTML = [
-      ["결의일자", h.draft_dt], ["전표형태", h.gl_type||"(기본)"],
-      ["등록자(ERP ID)", h.owner_erp_usr_id], ["부서", h.dept_nm||h.dept_cd||"—"],
-      ["코스트센터", h.cost_cd ? costNm(h.cost_cd) : "—"], ["프로젝트", h.project_no||"—"],
-      ["적요", h.gl_desc],
-      ["차변 합계", won(h.dr_total)], ["대변 합계", won(h.cr_total)],
-    ].map(([k,v])=>'<div class="row"><span class="k">'+esc(k)+'</span><span class="v">'+esc(v)+'</span></div>').join("");
+    renderErpSummary(h);
     renderPostLines(r.items);
     $("postDetail").scrollIntoView({ behavior:"smooth", block:"nearest" });
   }catch(e2){ toast(e2.message, true); }
@@ -2751,7 +2943,21 @@ function startSendPoll(draftNo){
   let tries = 0;
   SEND_POLL = setInterval(async ()=>{
     tries++;
-    if(tries > 40){ stopSendPoll(); return; }   // 최대 약 3분(4.5초×40) 후 중단 — 수동 새로고침 안내
+    // 최대 약 3분(4.5초×40). 종전에는 여기서 조용히 멈춰, 화면은 계속 "곧 가져갑니다"만
+    // 띄운 채 아무 일도 일어나지 않았다(2026-08-25 실측). 이제는 왜 안 끝났는지 말한다.
+    if(tries > 40){
+      stopSendPoll();
+      loadHealth().then(()=>{
+        const down = HEALTH && HEALTH.relay_alive === false;
+        const unknown = HEALTH && (HEALTH.relay_alive === null || HEALTH.relay_alive === undefined);
+        toast(down || unknown
+          ? "⚠ 3분간 응답이 없습니다 — 사내 중계가 돌고 있지 않습니다. 위 「손봐야 할 건」과 중계 상태를 확인하세요."
+          : "3분간 결과가 오지 않았습니다. 중계가 밀려 있을 수 있습니다 — 목록을 새로고침해 확인하세요.", true);
+        if(POST_SEL && POST_SEL.header && POST_SEL.header.draft_no === draftNo)
+          api("get", { draft_no: draftNo }).then((g)=>{ POST_SEL = g; renderSendBar(g.header); }).catch(()=>{});
+      });
+      return;
+    }
     try{
       const r = await api("get", { draft_no: draftNo });
       const st = r.header.erp_apply_status;
@@ -2781,8 +2987,11 @@ $("btnErpSend").onclick = async ()=>{
   $("btnErpSend").disabled = true;
   try{
     const r = await api("apply_request", { draft_no: no });
-    toast(r.안내 || "전송 요청했습니다.");
+    if(r.health) HEALTH = r.health;          // 중계가 죽어 있으면 대기 문구가 즉시 그 사실을 반영한다
+    toast(r.안내 || "전송 요청했습니다.", r.health && r.health.relay_alive === false);
     loadPost(); startSendPoll(no);
+    // 대기 상태로 바뀐 화면을 바로 다시 그린다 — 직전 실패 사유가 계속 보여야 한다
+    try{ const g = await api("get", { draft_no: no }); POST_SEL = g; renderSendBar(g.header); }catch(_){}
   }catch(e){ toast(e.message, true); $("btnErpSend").disabled = false; }
 };
 $("btnErpCancel").onclick = async ()=>{

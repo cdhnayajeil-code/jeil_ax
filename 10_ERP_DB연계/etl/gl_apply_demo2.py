@@ -24,6 +24,7 @@ r"""gl_apply_demo2.py — 포털 결의전표 초안 → ERP 데모DB(JEILMNS_DE
   python gl_apply_demo2.py --draft DRAFT-... --cleanup   DEMO2에서 해당 건 삭제(정리) + 포털 상태 해제
   python gl_apply_demo2.py --queue                       화면 [ERP 전송] 대기(ready) 건 일괄 처리(1건씩 순차)
   python gl_apply_demo2.py --watch                       감시 모드 — 15초마다 대기 건 확인·처리(Ctrl+C 종료)
+  python gl_apply_demo2.py --recheck                     실패·적체 건 사유 재판정(ERP 무투입, 읽기 전용)
 
 전송 흐름(v1.2): 회계 담당자가 화면 [ERP 전송] 탭에서 [🚀 ERP 전송] 클릭 → erp_apply_status='ready' 마킹
   → 이 스크립트(--queue/--watch, 사내 pull 중계)가 투입 → 결과 회기입 → 화면 자동 반영.
@@ -44,6 +45,7 @@ import urllib.request
 from _env import load_env, need
 
 # ═══════════ 고정 상수 — 변경 금지 ═══════════
+RELAY_VERSION = "v1.4"                # 심박에 함께 기록 — 서버에 옛 EXE가 남아 있는지 화면에서 확인 가능
 TARGET_DB = "JEILMNS_DEMO2"          # 대상 DB 하드코딩. 운영(JEILMNS) 금지 — CLI 파라미터 없음
 AG_TYPE = "AG"                        # AX 전용 전표번호 접두어(B_AUTO_NUMBERING 기존 유형 재사용)
 BT_TYPE = "BT"                        # 배치번호 접두어
@@ -283,6 +285,29 @@ def check_stale(url, key, hours: int = 6):
     return stale
 
 
+class PrecheckPassed(Exception):
+    """재판정 전용 신호 — 읽기 검증(분개코드·입력가드)까지 통과했으니 여기서 끝낸다.
+
+    ERP 에 아무것도 넣지 않는다. --dry-run 은 실제로 전표를 만들었다 되돌리므로
+    AG 채번을 소모하지만, 재판정은 '왜 막혔는지'만 알면 되므로 쓰기 지점 앞에서 멈춘다.
+    """
+
+
+def relay_ping(url, key, note: str = "") -> None:
+    """중계 심박. 화면이 '중계가 도는 중인지'를 알 수 있는 유일한 신호다.
+
+    적용 원장(gl_erp_apply_log)은 처리할 일이 있을 때만 쌓이므로,
+    '대기 건이 없어 조용한 것'과 '중계가 죽어 조용한 것'을 구분하지 못한다.
+    실패해도 조용히 넘긴다 — 심박 때문에 전송이 멈추면 본말전도다.
+    """
+    try:
+        rpc(url, key, "gl_relay_ping",
+            {"p_worker": runner_id(), "p_target": TARGET_DB,
+             "p_version": RELAY_VERSION, "p_note": note or None})
+    except Exception as e:
+        print(f"[경고] 심박 기록 실패(계속 진행): {e}", file=sys.stderr)
+
+
 def runner_id() -> str:
     """실행 주체 식별자 — `호스트/계정/실행방식`.
 
@@ -415,7 +440,7 @@ def apply_draft(args):
     # 다른 러너가 이미 선점(sending)한 건은 건드리지 않는다 — 중복 투입 차단.
     # 큐 경로는 자기가 방금 선점하고 들어오므로, 단건 수동 실행만 여기서 걸린다.
     if h.get("erp_apply_status") == "sending" and not args.cleanup \
-            and not getattr(args, "claimed", False):
+            and not getattr(args, "claimed", False) and not getattr(args, "precheck", False):
         who = (h.get("erp_apply_msg") or "다른 러너")
         raise SystemExit(f"[중단] {args.draft} 은(는) 현재 전송 처리 중입니다({who}). "
                          "중복 투입을 막기 위해 실행하지 않습니다 — 끝나기를 기다리거나 "
@@ -445,8 +470,10 @@ def apply_draft(args):
 
     conn = demo_conn()
     cur = conn.cursor()
+    mode = ("precheck" if getattr(args, "precheck", False)
+            else "dryrun" if args.dry_run else "commit")
     result = {"draft_no": args.draft, "target_db": TARGET_DB, "ref_no": ref_no,
-              "trans_type": trans_type, "mode": "dryrun" if args.dry_run else "commit",
+              "trans_type": trans_type, "mode": mode,
               "status": "failed", "applied_by": f"gl_apply_demo2.py@{runner_id()}",
               "lines_in": len(items), "detail": {}}
     try:
@@ -504,6 +531,12 @@ def apply_draft(args):
             for b in blocks:
                 print(f"[차단] {b['seq']}번 줄 {b['acct']} {b['fg']} — {b['why']}", file=sys.stderr)
             raise SystemExit(f"[중단] 입력검증 차단 {len(blocks)}건 — 위 사유를 확인하세요. 아무것도 투입하지 않았습니다.")
+
+        # ── 재판정(--recheck)은 여기서 끝난다 ──────────────────────
+        # 위까지는 전부 SELECT 다. 아래 채번부터 쓰기가 시작되므로, 사유만 알고 싶은
+        # 재판정은 쓰기 직전에서 멈춘다 — AG 채번을 소모하지 않는다(--dry-run 과의 차이).
+        if getattr(args, "precheck", False):
+            raise PrecheckPassed()
 
         # ── 조직정보·채번 ──────────────────────────────────────────
         org, biz, internal, gaap = org_info(cur, dept_cd)
@@ -685,6 +718,13 @@ def apply_draft(args):
             conn.commit()
             result["status"] = "success"
             print(f"✅ [확정 완료] {TARGET_DB} 에 전표 {gl[0]} 이(가) 생성·COMMIT 됐습니다.")
+    except PrecheckPassed:
+        try:
+            conn.rollback()
+        except Exception:
+            pass
+        result["status"] = "success"
+        print("[재판정] ✅ 현재 규칙으로는 차단되지 않습니다 — 재전송하면 투입됩니다.")
     except SystemExit as e:
         try:
             conn.rollback()
@@ -782,6 +822,10 @@ def queue_run(args, url, key):
     포털 원장 유니크는 ERP 커밋이 끝난 뒤에야 걸린다(레드팀 실측 2026-08-20).
     선점하면 한 초안은 한 러너만 가져간다. 처리 못 한 건은 반드시 반납한다.
     """
+    # 심박 — 회차마다 남긴다. 처리할 건이 0이어도 반드시 찍는다:
+    # 화면이 "중계는 살아 있는데 대기 건이 없다"와 "중계가 죽었다"를 구분하는 근거다.
+    relay_ping(url, key, note="queue")
+
     # 죽은 러너가 sending 에 가둬 둔 건을 먼저 회수(기본 30분 초과분)
     try:
         n = rpc(url, key, "gl_apply_reclaim", {"p_minutes": 30}) or 0
@@ -830,6 +874,40 @@ def queue_run(args, url, key):
     return ok, len(rows)
 
 
+def recheck_run(args, url, key):
+    """실패·적체 건의 사유를 현재 규칙으로 다시 판정한다(ERP 무투입).
+
+    왜 필요한가: 규칙이 바뀌면(예: 결정 C-15 거래항목 단일화) 초안에 남은 옛 사유가
+    사람을 엉뚱한 곳으로 보낸다. 실제로 DRAFT-20260820-0012 는 '분개코드를 정할 수 없음'
+    으로 기록돼 있었지만, C-15 이후 실제 사유는 '미결 반제(G5)' 로 전혀 다르다.
+    화면이 낡은 사유를 보여주는 것은 아무 사유도 안 보여주는 것보다 나쁘다.
+    """
+    rows = rpc(url, key, "gl_apply_problems",
+               {"p_target": TARGET_DB, "p_stale_min": args.stale_min}) or []
+    if not rows:
+        print("재판정 대상이 없습니다(실패·적체 건 없음).")
+        return 0
+    print(f"재판정 대상 {len(rows)}건 — ERP 에는 아무것도 넣지 않습니다(읽기 검증만).\n")
+    passed = 0
+    for r in rows:
+        no = r["draft_no"]
+        print(f"──── [재판정] {no} · {int(r['dr_total']):,}원 · {(r.get('gl_desc') or '')[:36]} "
+              f"({r.get('kind')} · {r.get('wait_min')}분 경과) ────")
+        ns = argparse.Namespace(draft=no, dry_run=False, cleanup=False, precheck=True,
+                                trans_type=args.trans_type, claimed=False)
+        try:
+            if apply_draft(ns) == 0:
+                passed += 1
+        except SystemExit as e:
+            print(f"[건너뜀] {no}: {e}", file=sys.stderr)
+        except Exception as e:
+            print(f"[오류] {no}: {e}", file=sys.stderr)
+        print()
+    print(f"[재판정 완료] {len(rows)}건 중 {passed}건은 현재 규칙으로 통과합니다 "
+          f"— 화면 「손봐야 할 건」에서 [재전송]을 누르면 투입됩니다.")
+    return 0
+
+
 def watch_run(args, url, key):
     """감시 모드. 적체 알림은 하루 1회로 제한한다(같은 건이 매 회차 알림을 만들지 않게)."""
     watch_run._last_stale_day = None
@@ -867,6 +945,10 @@ def main():
     ap.add_argument("--cleanup", action="store_true", help="해당 초안의 DEMO2 전표·배치 삭제(정리)")
     ap.add_argument("--queue", action="store_true", help="화면 [ERP 전송] 대기 건 일괄 처리")
     ap.add_argument("--watch", action="store_true", help="감시 모드 — 대기 건을 주기적으로 자동 처리")
+    ap.add_argument("--recheck", action="store_true",
+                    help="실패·적체 건 사유 재판정(ERP 무투입 — 읽기 검증만)")
+    ap.add_argument("--stale-min", type=int, default=30,
+                    help="적체 판정 임계(분, 기본 30) — --recheck 대상 선정에 사용")
     ap.add_argument("--interval", type=int, default=15, help="감시 주기(초, 기본 15)")
     ap.add_argument("--stale-hours", type=int, default=6,
                     help="전송대기 적체 알림 임계(시간, 기본 6) — --watch 에서만 사용")
@@ -875,10 +957,12 @@ def main():
     args = ap.parse_args()
     if args.list:
         return list_ready()
-    if args.queue or args.watch:
+    if args.queue or args.watch or args.recheck:
         load_env()
         url = need("SUPABASE_URL").rstrip("/")
         key = need("SUPABASE_SERVICE_ROLE_KEY")
+        if args.recheck:
+            return recheck_run(args, url, key)
         if args.watch:
             return watch_run(args, url, key)
         ok, total = queue_run(args, url, key)

@@ -4,7 +4,15 @@
 //   body: { op: "bootstrap"|"save"|"mine"|"get"|"submit"|"void"|"bp"|"item"|"list"|"post"
 //              |"tpl_list"|"tpl_get"|"tpl_save"|"tpl_status"|"tpl_delete"|"tpl_use"
 //              |"tpl_recur_list"|"tpl_apply_prev"|"tpl_seed_bulk"
-//              |"slip_list"|"slip_get"|"apply_request"|"apply_cancel", ... }
+//              |"slip_list"|"slip_get"|"apply_request"|"apply_cancel"|"apply_health", ... }
+// v5.8(2026-08-25): 전송 대기가 왜 안 끝나는지 화면에서 알 수 있게 한다(결함 3종 수정).
+//   ① 재전송이 실패 사유를 지우던 문제 — apply_request 가 erp_apply_msg 만 비우고
+//      erp_last_error(보존 칸)는 건드리지 않는다. 응답에 직전 사유를 실어 화면이 바로 띄운다.
+//   ② 대기 경과를 셀 수 없던 문제 — erp_ready_at(대기 진입 시각)을 기록한다.
+//      erp_apply_at 은 중계 선점이 now() 로 덮어써서 경과가 0으로 리셋된다.
+//   ③ 중계 생존을 알 수 없던 문제 — op apply_health 신설(gl_apply_health + gl_apply_problems).
+//      화면이 "중계가 N분째 조용합니다"와 「손봐야 할 건」 목록을 그린다.
+//   DDL 정본: 이관/sql/30_gl_apply_diag.sql · 마이그레이션 gl_apply_diag
 // v5.1(2026-08-18): ERP char 패딩 대응(acctCtrlFor trim, RPC btrim은 gl_pad_trim_v1) + op item(품목 검색) 추가
 // v5.2(2026-08-19): ERP 직접등록 1차(DEMO2, 결정 C-11) 적용 상태 노출 — mine/list 에 erp_apply_* 필드 추가.
 //   적용 실행은 이 함수가 아니라 관리자 PC 적용기(gl_apply_demo2.py)가 수행한다(포털은 ERP에 직접 쓰지 않음).
@@ -898,7 +906,7 @@ Deno.serve(async (req) => {
   /* ===== op: mine — 내 초안 목록 ===== */
   if (op === "mine") {
     const { data, error } = await admin.from("gl_draft")
-      .select("draft_no,draft_dt,gl_desc,dept_nm,dr_total,cr_total,status,erp_temp_gl_no,erp_apply_status,erp_apply_gl_no,erp_apply_target,created_at,submitted_at,posted_at")
+      .select("draft_no,draft_dt,gl_desc,dept_nm,dr_total,cr_total,status,erp_temp_gl_no,erp_apply_status,erp_apply_gl_no,erp_apply_target,erp_last_error,erp_last_error_at,erp_attempts,erp_ready_at,created_at,submitted_at,posted_at")
       .eq("owner_upn", user.upn).order("created_at", { ascending: false }).limit(100);
     if (error) return json({ error: "조회 실패: " + error.message }, 500);
     return json({ ok: true, rows: data || [] });
@@ -965,7 +973,7 @@ Deno.serve(async (req) => {
   if (op === "list") {
     if (!canPost) return json({ error: "forbidden: 회계 담당자 전용입니다." }, 403);
     let q = admin.from("gl_draft")
-      .select("draft_no,draft_dt,gl_type,dept_nm,cost_cd,gl_desc,ref_no,owner_upn,owner_nm,owner_erp_usr_id,dr_total,cr_total,status,erp_temp_gl_no,erp_apply_status,erp_apply_gl_no,erp_apply_target,created_at,submitted_at,posted_at")
+      .select("draft_no,draft_dt,gl_type,dept_nm,cost_cd,gl_desc,ref_no,owner_upn,owner_nm,owner_erp_usr_id,dr_total,cr_total,status,erp_temp_gl_no,erp_apply_status,erp_apply_gl_no,erp_apply_target,erp_last_error,erp_last_error_at,erp_attempts,erp_ready_at,created_at,submitted_at,posted_at")
       .order("submitted_at", { ascending: true, nullsFirst: false }).limit(300);
     const st = String(b.status || "submitted");
     if (st === "draft") return json({ error: "forbidden: 작성중(미제출) 초안은 작성자 본인만 볼 수 있습니다." }, 403);
@@ -1025,7 +1033,8 @@ Deno.serve(async (req) => {
     if (!canPost) return json({ error: "forbidden: 회계 담당자 전용입니다." }, 403);
     const no = String(b.draft_no || "");
     const { data: cur } = await admin.from("gl_draft")
-      .select("draft_no,status,erp_apply_status,erp_apply_gl_no").eq("draft_no", no).maybeSingle();
+      .select("draft_no,status,erp_apply_status,erp_apply_gl_no,erp_last_error,erp_last_error_at,erp_attempts")
+      .eq("draft_no", no).maybeSingle();
     if (!cur) return json({ error: "초안을 찾을 수 없습니다." }, 404);
     if (cur.status !== "submitted") {
       return json({ error: "제출됨 상태의 초안만 ERP로 전송할 수 있습니다." }, 409);
@@ -1035,16 +1044,46 @@ Deno.serve(async (req) => {
         안내: `이미 ERP에 적용된 초안입니다(${cur.erp_apply_gl_no || ""}).` }, 409);
     }
     if (cur.erp_apply_status === "ready") {
-      return json({ ok: true, 안내: "이미 전송 대기 중입니다 — 중계가 곧 처리합니다." });
+      return json({ ok: true, 안내: "이미 전송 대기 중입니다 — 중계가 곧 처리합니다.",
+        last_error: cur.erp_last_error || null });
     }
+    const retry = !!cur.erp_last_error;   // 직전에 실패했던 건의 재전송인가
+    // erp_last_error 는 일부러 건드리지 않는다 — 재전송해도 "직전에 왜 실패했는지"가 남아야
+    // 대기 중 화면이 그 사유를 보여줄 수 있다. 성공하면 gl_apply_record 가 비운다.
     const { error } = await admin.from("gl_draft").update({
       erp_apply_status: "ready", erp_apply_target: "JEILMNS_DEMO2",
-      erp_apply_msg: null, updated_at: nowIso,
+      erp_apply_msg: null, erp_ready_at: nowIso, updated_at: nowIso,
     }).eq("draft_no", no);
     if (error) return json({ error: "전송 요청 실패: " + error.message }, 500);
-    log("apply_request", no, { target: "JEILMNS_DEMO2" });
-    return json({ ok: true,
-      안내: "ERP 전송 대기로 등록했습니다(대상: DEMO2). 사내 중계가 자동 투입하며, 완료되면 「ERP 적용」 열에 전표번호(AG…)가 표시됩니다." });
+
+    // 중계가 살아 있는지 함께 알려준다 — 죽어 있으면 "곧 처리합니다"는 지킬 수 없는 약속이다.
+    let health: { relay_alive?: boolean | null; relay_idle_min?: number | null } | null = null;
+    try {
+      const { data } = await admin.rpc("gl_apply_health", { p_target: "JEILMNS_DEMO2" });
+      health = data ?? null;
+    } catch { /* 진단 실패는 전송을 막지 않는다 */ }
+    const alive = health?.relay_alive ?? null;
+    log("apply_request", no, { target: "JEILMNS_DEMO2", retry, relay_alive: alive });
+    const base = "ERP 전송 대기로 등록했습니다(대상: DEMO2).";
+    const idle = health?.relay_idle_min;
+    return json({ ok: true, retry, last_error: cur.erp_last_error || null, health,
+      안내: alive === false
+        ? `${base} ⚠ 다만 사내 중계가 ${idle == null ? "" : idle + "분째 "}응답이 없습니다 — 중계가 실행돼야 처리됩니다.`
+        : `${base} 사내 중계가 자동 투입하며, 완료되면 「ERP 적용」 열에 전표번호(AG…)가 표시됩니다.` });
+  }
+
+  /* ===== op: apply_health — 전송 파이프라인 진단(중계 생존 + 손봐야 할 건) =====
+     화면 상단 배너와 「손봐야 할 건」 패널이 쓴다. 조회 전용이라 로그를 남기지 않는다
+     (폴링으로 반복 호출되므로 감사 로그를 오염시킨다). */
+  if (op === "apply_health") {
+    if (!canPost) return json({ error: "forbidden: 회계 담당자 전용입니다." }, 403);
+    const staleMin = Math.min(1440, Math.max(1, Number(b.stale_min) || 30));
+    const [h, p] = await Promise.all([
+      admin.rpc("gl_apply_health",   { p_target: "JEILMNS_DEMO2", p_stale_min: staleMin }),
+      admin.rpc("gl_apply_problems", { p_target: "JEILMNS_DEMO2", p_stale_min: staleMin }),
+    ]);
+    if (h.error) return json({ error: "진단 조회 실패: " + h.error.message }, 500);
+    return json({ ok: true, health: h.data ?? {}, problems: p.data ?? [] });
   }
 
   /* ===== op: apply_cancel — 전송 대기 취소(중계가 아직 집지 않은 건만) ===== */
@@ -1058,7 +1097,7 @@ Deno.serve(async (req) => {
       return json({ error: "전송 대기 상태가 아닙니다(이미 처리됐을 수 있습니다)." }, 409);
     }
     const { error } = await admin.from("gl_draft").update({
-      erp_apply_status: null, erp_apply_target: null, updated_at: nowIso,
+      erp_apply_status: null, erp_apply_target: null, erp_ready_at: null, updated_at: nowIso,
     }).eq("draft_no", no);
     if (error) return json({ error: "취소 실패: " + error.message }, 500);
     log("apply_cancel", no);
