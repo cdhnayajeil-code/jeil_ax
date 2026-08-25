@@ -203,6 +203,82 @@ def resolve_jnl(cur, trans_type, acct_cd, dr_cr, cost_cd):
     return None
 
 
+def notify(title: str, lines, bad: bool = True) -> bool:
+    """실패·적체를 Teams 로 알린다. 웹훅이 없으면 조용히 건너뛴다(반환 False).
+
+    왜 필요한가 — 지금은 결과가 로그 파일에만 남는다. 스케줄러로 무인 운영하면
+    **아무도 보지 않는 곳에 실패가 쌓인다.** 2026-08-20~24 적체 4건이 나흘간
+    발견되지 않은 것과 같은 형태다(그때는 사람이 안 돌린 것이고, 자동화하면
+    "도는데 계속 실패하는" 형태로 바뀔 뿐 안 보이는 건 똑같다). — 2026-08-25 P2
+
+    설정: `.env` 에 `TEAMS_WEBHOOK_URL` 한 줄. Teams 채널 > 커넥터 > Incoming Webhook.
+    웹훅 URL 자체가 비밀값이므로 `.env` 에만 두고 로그·문서에 남기지 않는다.
+    알림 실패가 전송 자체를 막지 않는다 — 예외를 삼키고 진행한다.
+    """
+    hook = os.environ.get("TEAMS_WEBHOOK_URL", "").strip()
+    if not hook:
+        return False
+    body = {
+        "@type": "MessageCard", "@context": "https://schema.org/extensions",
+        "themeColor": "b3402f" if bad else "2e7d52",
+        "summary": title,
+        "title": ("🚨 " if bad else "✅ ") + title,
+        "text": "  \n".join(str(x) for x in lines) +
+                f"  \n  \n_실행 {runner_id()} · 대상 {TARGET_DB}_",
+    }
+    try:
+        req = urllib.request.Request(
+            hook, data=json.dumps(body, ensure_ascii=False).encode("utf-8"),
+            method="POST", headers={"Content-Type": "application/json"})
+        with urllib.request.urlopen(req, timeout=15):
+            return True
+    except Exception as e:                      # 알림 실패가 본작업을 막지 않는다
+        print(f"[알림 실패] {e}", file=sys.stderr)
+        return False
+
+
+def check_stale(url, key, hours: int = 6):
+    """오래된 전송대기 건을 찾아 알린다 — 「도는데 계속 실패」를 잡는 그물.
+
+    개별 실행 실패 알림만으로는 부족하다. 계정매핑처럼 **매 회차 같은 이유로 실패하는**
+    건은 알림이 매분 쏟아지거나(소음) 아무도 안 보게 된다. 대기 시간이 임계를 넘은 건만
+    묶어서 한 번 알리는 편이 실제로 읽힌다.
+    """
+    try:
+        rows = rpc(url, key, "gl_apply_ready", {"p_target": TARGET_DB}) or []
+    except Exception:
+        return []
+    now = datetime.datetime.now(datetime.timezone.utc)
+    stale = []
+    for r in rows:
+        ts = str(r.get("submitted_at") or "")
+        try:
+            t = datetime.datetime.fromisoformat(ts.replace("Z", "+00:00"))
+            if t.tzinfo is None:
+                t = t.replace(tzinfo=datetime.timezone.utc)
+        except Exception:
+            continue
+        age = (now - t).total_seconds() / 3600
+        if age >= hours:
+            stale.append((r.get("draft_no"), int(r.get("dr_total") or 0), age))
+    return stale
+
+
+def runner_id() -> str:
+    """실행 주체 식별자 — `호스트/계정/실행방식`.
+
+    종전에는 `applied_by` 가 전부 `gl_apply_demo2.py` 로 같아 **워크스테이션에서 돈 건과
+    ERP 서버에서 돈 건이 구분되지 않았다.** 운영에서 "누가 언제 어디서 이 전표를 넣었나"에
+    답하려면 최소한 호스트·계정·실행방식은 남아야 한다(2026-08-25 P1).
+
+    EXE(frozen)와 .py 실행도 구분한다 — 서버는 EXE, 워크스테이션은 대개 .py 다.
+    비밀값이 아니다(호스트명·계정명은 내부 식별자일 뿐 접속정보가 아니다).
+    """
+    how = "exe" if getattr(sys, "frozen", False) else "py"
+    user = os.environ.get("USERNAME") or os.environ.get("USER") or "?"
+    return f"{socket.gethostname()}/{user}/{how}"
+
+
 def guard_lines(cur, lines):
     """투입 전 입력검증 — 차단 사유 목록을 돌려준다(빈 리스트면 통과).
 
@@ -352,7 +428,7 @@ def apply_draft(args):
     cur = conn.cursor()
     result = {"draft_no": args.draft, "target_db": TARGET_DB, "ref_no": ref_no,
               "trans_type": trans_type, "mode": "dryrun" if args.dry_run else "commit",
-              "status": "failed", "applied_by": "gl_apply_demo2.py",
+              "status": "failed", "applied_by": f"gl_apply_demo2.py@{runner_id()}",
               "lines_in": len(items), "detail": {}}
     try:
         # ── 거래유형 확인(TG 귀결 여부) ────────────────────────────
@@ -651,7 +727,7 @@ def cleanup_draft(args):
     try:
         rpc(url, key, "gl_apply_record", {"p": {
             "draft_no": ref_no, "target_db": TARGET_DB, "ref_no": ref_no,
-            "mode": "cleanup", "status": "success", "applied_by": "gl_apply_demo2.py",
+            "mode": "cleanup", "status": "success", "applied_by": f"gl_apply_demo2.py@{runner_id()}",
             "detail": {"action": "cleanup", "deleted": True}}})
         print("[원장] 정리 기록 + 포털 적용 상태 해제")
     except Exception as e:
@@ -695,12 +771,13 @@ def queue_run(args, url, key):
     except Exception as e:
         print(f"[경고] 선점 회수 실패(계속 진행): {e}", file=sys.stderr)
 
-    worker = f"{socket.gethostname()}/{os.getpid()}"
+    worker = f"{runner_id()}/{os.getpid()}"
     rows = rpc(url, key, "gl_apply_claim",
                {"p_target": TARGET_DB, "p_max": args.max, "p_worker": worker}) or []
     if not rows:
         return 0, 0
     ok = 0
+    done_ok = set()          # 이번 회차에 성공한 초안 — 실패 알림 대상을 가르는 기준(P2)
     for r in rows:
         no = r["draft_no"]
         print(f"\n════ [전송 처리] {no} · {int(r['dr_total']):,}원 · {r.get('gl_desc','')[:36]} ════")
@@ -711,6 +788,7 @@ def queue_run(args, url, key):
         try:
             if apply_draft(ns) == 0:
                 ok += 1
+                done_ok.add(no)
             done = True          # 성공·실패 모두 gl_apply_record 가 상태를 확정한다
         except SystemExit as e:   # 개별 건 실패가 큐 전체를 멈추지 않게
             print(f"[건너뜀] {no}: {e}", file=sys.stderr)
@@ -723,15 +801,34 @@ def queue_run(args, url, key):
                 print(f"[반납] {no} — 전송 대기로 되돌렸습니다.")
             except Exception as e:
                 print(f"[경고] {no} 선점 반납 실패: {e}", file=sys.stderr)
+    # ── 실패 알림(P2) ──────────────────────────────────────────
+    # 이번 회차에서 실패한 건만 알린다. 성공은 알리지 않는다 — 매분 도는 배치라 소음이 된다.
+    failed = [r["draft_no"] for r in rows if r["draft_no"] not in done_ok]
+    if failed:
+        notify(f"결의전표 ERP 전송 실패 {len(failed)}건",
+               [f"· `{no}`" for no in failed] +
+               ["", "화면 [ERP 전송] 탭의 실패 사유를 확인하세요."])
     return ok, len(rows)
 
 
 def watch_run(args, url, key):
+    """감시 모드. 적체 알림은 하루 1회로 제한한다(같은 건이 매 회차 알림을 만들지 않게)."""
+    watch_run._last_stale_day = None
     print(f"[감시 모드] {args.interval}초 간격으로 전송 대기 건을 확인합니다 — 화면에서 [🚀 ERP 전송]을 누르면"
           f" 자동 처리됩니다. 종료: Ctrl+C")
     try:
         while True:
             ok, total = queue_run(args, url, key)
+            # 적체 감지(P2) — 개별 실패 알림만으로는 "도는데 계속 실패"를 놓친다.
+            # 임계를 넘긴 건만 묶어서, 하루 한 번만 알린다(매 회차 알리면 소음이 된다).
+            today = datetime.date.today()
+            if today != watch_run._last_stale_day:
+                stale = check_stale(url, key, hours=args.stale_hours)
+                if stale:
+                    notify(f"결의전표 전송대기 적체 {len(stale)}건",
+                           [f"· `{no}` {amt:,}원 — {age:.0f}시간 대기" for no, amt, age in stale] +
+                           ["", f"{args.stale_hours}시간 이상 대기 중입니다. 실패 사유를 확인하세요."])
+                    watch_run._last_stale_day = today
             now = datetime.datetime.now().strftime("%H:%M:%S")
             if total:
                 print(f"[{now}] 처리 {ok}/{total}건 — 계속 감시 중…")
@@ -752,6 +849,8 @@ def main():
     ap.add_argument("--queue", action="store_true", help="화면 [ERP 전송] 대기 건 일괄 처리")
     ap.add_argument("--watch", action="store_true", help="감시 모드 — 대기 건을 주기적으로 자동 처리")
     ap.add_argument("--interval", type=int, default=15, help="감시 주기(초, 기본 15)")
+    ap.add_argument("--stale-hours", type=int, default=6,
+                    help="전송대기 적체 알림 임계(시간, 기본 6) — --watch 에서만 사용")
     ap.add_argument("--max", type=int, default=5, help="1회 처리 상한(기본 5 — 대량 오전송 방지)")
     ap.add_argument("--trans-type", default=TRANS_TYPE_DEFAULT, help=f"거래유형(기본 {TRANS_TYPE_DEFAULT})")
     args = ap.parse_args()

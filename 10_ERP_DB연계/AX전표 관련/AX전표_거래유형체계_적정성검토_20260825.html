@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AX 전표 거래유형 체계 적정성 검토</title>
+<style>
+:root{
+  color-scheme: light;
+  --surface-1:#fcfcfb; --plane:#f9f9f7;
+  --ink:#0b0b0b; --ink-2:#52514e; --ink-muted:#898781;
+  --grid:#e1e0d9; --axis:#c3c2b7; --border:rgba(11,11,11,0.10);
+  --s1:#2a78d6; --s2:#eb6834; --s3:#1baf7a; --s4:#eda100;
+  --good:#0ca30c; --warning:#fab219; --serious:#ec835a; --critical:#d03b3b;
+  --nodeBg:#ffffff; --nodeAlt:#f2f1ec;
+}
+@media (prefers-color-scheme: dark){
+  :root:where(:not([data-theme="light"])){
+    color-scheme: dark;
+    --surface-1:#1a1a19; --plane:#0d0d0d;
+    --ink:#ffffff; --ink-2:#c3c2b7; --ink-muted:#898781;
+    --grid:#2c2c2a; --axis:#383835; --border:rgba(255,255,255,0.10);
+    --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500;
+    --nodeBg:#232322; --nodeAlt:#2c2c2a;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme: dark;
+  --surface-1:#1a1a19; --plane:#0d0d0d;
+  --ink:#ffffff; --ink-2:#c3c2b7; --ink-muted:#898781;
+  --grid:#2c2c2a; --axis:#383835; --border:rgba(255,255,255,0.10);
+  --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500;
+  --nodeBg:#232322; --nodeAlt:#2c2c2a;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--plane);color:var(--ink);
+  font-family:system-ui,-apple-system,"Segoe UI","Malgun Gothic",sans-serif;
+  font-size:14px;line-height:1.65}
+.wrap{max-width:1180px;margin:0 auto;padding:32px 20px 80px}
+header{border-bottom:2px solid var(--s1);padding-bottom:16px;margin-bottom:8px}
+header .kicker{font-size:12px;font-weight:700;color:var(--s1);letter-spacing:.08em;margin-bottom:6px}
+header h1{font-size:25px;margin:0 0 10px;letter-spacing:-0.01em}
+.meta{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:6px 20px;font-size:12.5px;color:var(--ink-2)}
+.meta b{color:var(--ink);font-weight:650}
+.tabs{display:flex;gap:4px;margin:24px 0 20px;border-bottom:1px solid var(--grid);flex-wrap:wrap}
+.tabs button{background:none;border:0;border-bottom:2px solid transparent;
+  padding:10px 14px;font:inherit;font-weight:600;color:var(--ink-muted);cursor:pointer}
+.tabs button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--s1)}
+.panel{display:none}
+.panel.on{display:block}
+.card{background:var(--surface-1);border:1px solid var(--border);border-radius:10px;
+  padding:20px;margin-bottom:18px}
+.card h2{font-size:16px;margin:0 0 4px}
+.card h3{font-size:14px;margin:20px 0 6px}
+.card .cap{color:var(--ink-2);font-size:12.5px;margin:0 0 16px}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:18px}
+.tile{background:var(--surface-1);border:1px solid var(--border);border-radius:10px;padding:14px 16px}
+.tile .lab{font-size:12px;color:var(--ink-2);margin-bottom:4px}
+.tile .val{font-size:22px;font-weight:650;letter-spacing:-0.02em;font-variant-numeric:tabular-nums}
+.tile .note{font-size:11.5px;color:var(--ink-muted);margin-top:2px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--grid);vertical-align:top}
+th{color:var(--ink-2);font-weight:600;font-size:12px;white-space:nowrap}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+td.c,th.c{text-align:center}
+.scroll{overflow-x:auto}
+code{background:var(--plane);border:1px solid var(--border);border-radius:4px;padding:1px 5px;
+  font-size:12.5px;font-family:ui-monospace,Consolas,"Courier New",monospace}
+pre{background:var(--plane);border:1px solid var(--border);border-radius:8px;padding:14px;
+  overflow-x:auto;font-size:12.5px;line-height:1.55;
+  font-family:ui-monospace,Consolas,"Courier New",monospace}
+pre .hl{color:var(--critical);font-weight:700}
+pre .ok2{color:var(--good);font-weight:700}
+pre .cm{color:var(--ink-muted)}
+.warn{border-left:3px solid var(--warning);padding-left:12px;color:var(--ink-2);font-size:13px;margin:12px 0}
+.stop{border-left:3px solid var(--critical);padding-left:12px;color:var(--ink-2);font-size:13px;margin:12px 0}
+.ok{border-left:3px solid var(--good);padding-left:12px;color:var(--ink-2);font-size:13px;margin:12px 0}
+.pill{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:700;
+  border:1px solid var(--border);border-radius:99px;padding:1px 9px;white-space:nowrap}
+.pA{color:var(--good)} .pB{color:var(--serious)} .pC{color:var(--critical)} .pN{color:var(--ink-muted)}
+.duo{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px}
+.box{background:var(--surface-1);border:1px solid var(--border);border-radius:10px;padding:16px}
+.box h4{margin:0 0 8px;font-size:13.5px}
+ul.tight{margin:6px 0;padding-left:18px}
+ul.tight li{margin-bottom:5px}
+blockquote{margin:12px 0;padding:12px 16px;background:var(--plane);
+  border-left:3px solid var(--s1);border-radius:0 6px 6px 0;font-size:13px;color:var(--ink-2)}
+footer{color:var(--ink-muted);font-size:12px;margin-top:30px;border-top:1px solid var(--grid);padding-top:14px}
+figure{margin:0 0 6px}
+figcaption{font-size:12px;color:var(--ink-muted);margin-top:8px;text-align:center}
+svg{display:block;max-width:100%;height:auto}
+svg text{font-family:system-ui,-apple-system,"Segoe UI","Malgun Gothic",sans-serif}
+svg .nb{fill:var(--nodeBg);stroke:var(--axis);stroke-width:1}
+svg .nba{fill:var(--nodeAlt);stroke:var(--axis);stroke-width:1}
+svg .t{fill:var(--ink);font-size:12px}
+svg .tb{fill:var(--ink);font-size:12.5px;font-weight:700}
+svg .ts{fill:var(--ink-2);font-size:10.5px}
+svg .tm{fill:var(--ink-muted);font-size:10px}
+svg .lnA{stroke:var(--s1);stroke-width:1.8;fill:none}
+svg .lnG{stroke:var(--good);stroke-width:2;fill:none}
+svg .lnO{stroke:var(--s2);stroke-width:2;fill:none}
+svg .band{fill:var(--plane);stroke:var(--grid);stroke-width:1}
+.zero{color:var(--critical);font-weight:700}
+.gd{color:var(--good);font-weight:700}
+.qa{background:color-mix(in srgb, var(--s1) 8%, transparent);
+  border:1px solid color-mix(in srgb, var(--s1) 32%, transparent);
+  border-radius:10px;padding:16px 18px;margin-bottom:16px}
+.qa .q{font-weight:700;margin-bottom:6px}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <div class="kicker">아키텍처 검토 · ERP_DB → JEIL_AX · 회계팀</div>
+  <h1>AX 전표 — 거래유형 체계 적정성 검토</h1>
+  <div class="meta">
+    <div><b>작성</b> 2026-08-25</div>
+    <div><b>근거</b> JEILMNS_DEMO2 실측 + SP 소스</div>
+    <div><b>배치 제안</b> <code>10_ERP_DB연계/16_…</code></div>
+    <div><b>질문</b> 거래유형·거래항목이 수기입력과 무관해 보이는데 AX 가 써도 되는가</div>
+  </div>
+</header>
+
+<div class="tabs" role="tablist">
+  <button data-p="p1" aria-selected="true">결론</button>
+  <button data-p="p2" aria-selected="false">두 체계</button>
+  <button data-p="p3" aria-selected="false">왜 필요했나</button>
+  <button data-p="p4" aria-selected="false">결과 비교</button>
+  <button data-p="p5" aria-selected="false">방향성 판정</button>
+  <button data-p="p6" aria-selected="false">관리사항</button>
+</div>
+
+<!-- ═══════ P1 결론 ═══════ -->
+<section class="panel on" id="p1">
+  <div class="qa">
+    <div class="q">Q. 거래항목·거래유형은 타모듈 자동분개용으로 보이는데, 결의전표 수기입력을 재현하려는 AX 가 이걸 쓰는 게 맞는가?</div>
+    <div><strong>A. 관찰이 정확하다. 무관한 기준정보가 맞다. 그럼에도 AX 가 쓰는 것은 구조적으로 불가피하고, 결과적으로 문제가 없다.</strong></div>
+  </div>
+
+  <div class="tiles">
+    <div class="tile"><div class="lab">수기입력 거래유형</div><div class="val zero">전부 공란</div><div class="note">12,085건 예외 0</div></div>
+    <div class="tile"><div class="lab">거래항목이 전표에</div><div class="val zero">남지 않음</div><div class="note">JNL_CD 는 투입 파라미터</div></div>
+    <div class="tile"><div class="lab">거래유형 없이 투입하면</div><div class="val zero">120110</div><div class="note">엔진이 생성 거부</div></div>
+    <div class="tile"><div class="lab">방향성 판정</div><div class="val gd">유지</div><div class="note">결과물 수기와 동일</div></div>
+  </div>
+
+  <div class="card">
+    <h2>네 가지 질문에 대한 답</h2>
+    <div class="scroll">
+    <table>
+      <tr><th style="width:44%">질문</th><th>답</th></tr>
+      <tr><td>거래유형·거래항목이 수기입력과 무관한가</td><td class="gd"><strong>맞다.</strong> 수기 12,085건 전부 <code>TRANS_TYPE</code> 공란</td></tr>
+      <tr><td>AX 는 왜 거래유형을 만들었나</td><td>화면이 아니라 <strong>엔진(SP)</strong> 을 쓰기 때문. <code>A_BATCH</code> 경유 SP 는 거래유형이 없으면 <code>120110</code> 오류로 실패한다 — <strong>선택의 여지가 없었다</strong></td></tr>
+      <tr><td>타모듈 연동 형태로 적용된 것인가</td><td><strong>맞다.</strong> 다만 그것이 결과를 다르게 만들지는 않는다</td></tr>
+      <tr><td>이대로 가도 되는가</td><td class="gd"><strong>된다.</strong> 최종 산출물이 수기와 동일함을 실측 확인. 단 관리사항 3건</td></tr>
+    </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>한 장 요약</h2>
+<pre>                    거래항목 · 거래유형
+                          │
+        ┌─────────────────┴─────────────────┐
+        │                                   │
+   <span class="ok2">체계 A 자동분개</span>                      <span class="ok2">체계 B 수기입력</span>
+   (타모듈 → 회계)                      (결의전표 화면)
+        │                                   │
+   계정을 <span class="hl">시스템</span>이 결정                 계정을 <span class="hl">사용자</span>가 결정
+   → 기준정보 <span class="hl">필수</span>                      → 기준정보 <span class="hl">불필요</span>
+        │                                   │
+   A_BATCH 경유 엔진                    A_TEMP_GL 직접 INSERT
+        │                                   │
+        │                              TRANS_TYPE 공란 (12,085건)
+        │
+   ┌────┴────┐
+   │         │
+ 타모듈    <span class="ok2">AX 릴레이</span>  ← 업무는 <span class="ok2">체계 B</span> 를 재현하지만
+                        수단은 <span class="ok2">체계 A</span> 를 쓴다
+                        → 거래유형 AX001 이 구조적 필수
+                        → <span class="ok2">결과물은 체계 B 와 동일</span></pre>
+    <blockquote>
+      업무 목적은 수기입력 재현이 맞다. 다만 그것을 구현하는 <strong>수단</strong>이 엔진일 뿐이고,
+      수단이 요구하는 형식(거래유형)을 갖췄다고 해서 <strong>결과가 타모듈 전표가 되지는 않는다.</strong>
+    </blockquote>
+  </div>
+</section>
+
+<!-- ═══════ P2 두 체계 ═══════ -->
+<section class="panel" id="p2">
+  <div class="card">
+    <h2>ERP 안에는 전표를 만드는 방식이 둘이다</h2>
+    <figure>
+    <svg viewBox="0 0 1060 330" role="img" aria-label="자동분개 체계와 수기입력 체계 비교">
+      <rect class="band" x="20" y="18" width="500" height="296" rx="8"/>
+      <rect class="band" x="540" y="18" width="500" height="296" rx="8"/>
+      <text class="tb" x="270" y="42" text-anchor="middle" style="fill:var(--s2)">체계 A — 자동분개 (타모듈 → 회계)</text>
+      <text class="tb" x="790" y="42" text-anchor="middle" style="fill:var(--good)">체계 B — 수기입력 (결의전표 화면)</text>
+
+      <rect class="nb" x="50" y="58" width="440" height="44" rx="6"/>
+      <text class="t" x="66" y="78">재고·구매·영업·자금·인사 업무 처리</text>
+      <text class="ts" x="66" y="94">회계전표를 시스템이 자동 생성해야 한다</text>
+
+      <rect class="nb" x="570" y="58" width="440" height="44" rx="6"/>
+      <text class="t" x="586" y="78">사용자가 결의전표 화면에서 입력</text>
+      <text class="ts" x="586" y="94">계정을 사람이 직접 고른다</text>
+
+      <path class="lnO" d="M270 102 V126" marker-end="url(#qo)"/>
+      <path class="lnG" d="M790 102 V126" marker-end="url(#qg)"/>
+
+      <rect class="nb" x="50" y="128" width="440" height="76" rx="6" style="stroke:var(--s2);stroke-width:2"/>
+      <text class="tb" x="66" y="148" style="fill:var(--s2)">기준정보 필수</text>
+      <text class="ts" x="66" y="166">거래항목 A_JNL_ITEM — 차/대변 계정 결정 항목</text>
+      <text class="ts" x="66" y="182">거래유형 A_ACCT_TRANS_TYPE — 업무별 거래 단위</text>
+      <text class="tm" x="66" y="197">+ 분개형태 · 계정배정 · 통제배정</text>
+
+      <rect class="nb" x="570" y="128" width="440" height="76" rx="6" style="stroke:var(--good);stroke-width:2"/>
+      <text class="tb" x="586" y="148" style="fill:var(--good)">기준정보 불필요</text>
+      <text class="ts" x="586" y="166">시스템이 계정을 결정할 일이 없다</text>
+      <text class="ts" x="586" y="182">거래항목·거래유형을 쓰지 않는다</text>
+      <text class="tm" x="586" y="197">→ TRANS_TYPE 공란</text>
+
+      <path class="lnO" d="M270 204 V228" marker-end="url(#qo)"/>
+      <path class="lnG" d="M790 204 V228" marker-end="url(#qg)"/>
+
+      <rect class="nba" x="50" y="230" width="440" height="66" rx="6"/>
+      <text class="ts" x="66" y="250">A_BATCH 3종 → 엔진 → A_TEMP_GL / A_GL</text>
+      <text class="tm" x="66" y="268">법인카드 5,387 · 타모듈 4,044</text>
+      <text class="tm" x="66" y="285">TRANS_TYPE = AN005 · M0001 · S0001 …</text>
+
+      <rect class="nba" x="570" y="230" width="440" height="66" rx="6"/>
+      <text class="ts" x="586" y="250">화면 → A_TEMP_GL 직접 INSERT</text>
+      <text class="tm" x="586" y="268">수기입력 12,085건</text>
+      <text class="tm" x="586" y="285" style="fill:var(--good);font-weight:700">TRANS_TYPE 전부 공란 · 예외 0</text>
+
+      <defs>
+        <marker id="qo" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+          <path d="M0 0 L8 4 L0 8 z" fill="var(--s2)"/></marker>
+        <marker id="qg" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+          <path d="M0 0 L8 4 L0 8 z" fill="var(--good)"/></marker>
+      </defs>
+    </svg>
+    </figure>
+
+    <blockquote>
+      거래항목등록 화면 설명문이 이를 그대로 말한다 —
+      <strong>"업무별로 발생할 수 있는 거래유형에 대하여 분개 시 차/대변에 발생되는 계정코드를 결정하기 위한 항목을 사전에 설정하는 화면"</strong>
+    </blockquote>
+  </div>
+
+  <div class="card">
+    <h2>🔑 거래항목(<code>JNL_CD</code>)은 전표에 남지 않는다</h2>
+    <p class="cap">이것이 이해의 열쇠다.</p>
+    <div class="scroll">
+    <table>
+      <tr><th>테이블</th><th class="c"><code>JNL_CD</code> 컬럼</th><th>의미</th></tr>
+      <tr><td><code>A_BATCH_GL_ITEM</code> (투입)</td><td class="c gd"><strong>있음</strong></td><td>엔진에 넘기는 <strong>입력 파라미터</strong></td></tr>
+      <tr style="background:color-mix(in srgb, var(--critical) 8%, transparent)"><td><code>A_TEMP_GL_ITEM</code> (결의전표)</td><td class="c zero"><strong>없음</strong></td><td>—</td></tr>
+      <tr style="background:color-mix(in srgb, var(--critical) 8%, transparent)"><td><code>A_GL_ITEM</code> (회계전표)</td><td class="c zero"><strong>없음</strong></td><td>—</td></tr>
+    </table>
+    </div>
+    <div class="ok">
+      <strong>거래항목은 전표를 만드는 순간에만 쓰이고 전표에는 흔적이 남지 않는다.</strong>
+      완성된 결의전표만 놓고 보면 수기 전표와 거래항목 측면에서 <strong>구별 자체가 불가능</strong>하다.
+      "거래항목등록 메뉴가 결의전표입력과 관계없어 보인다"는 관찰이 정확한 이유다.
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>실측 — 수기입력에 거래유형을 쓴 전표는 없다</h2>
+    <div class="scroll">
+    <table>
+      <tr><th>구분</th><th class="num">전표수</th><th><code>TRANS_TYPE</code></th></tr>
+      <tr style="background:color-mix(in srgb, var(--good) 9%, transparent)"><td><strong>결의전표 수기입력</strong></td><td class="num"><strong>12,085</strong></td><td class="gd"><strong>전부 공란</strong></td></tr>
+      <tr><td>법인카드 연동</td><td class="num">5,387</td><td><code>AN005</code></td></tr>
+      <tr><td>타모듈 연동</td><td class="num">4,044</td><td><code>M0001</code>·<code>S0001</code>·<code>FN001</code> …</td></tr>
+    </table>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════ P3 왜 필요했나 ═══════ -->
+<section class="panel" id="p3">
+  <div class="card">
+    <h2>AX 는 화면이 아니라 엔진을 쓴다</h2>
+    <p class="cap">화면 로직을 재현할 수 없으므로 SP 를 호출한다. 그 순간 제약이 생긴다.</p>
+<pre>수기입력   화면 ──────────────────────────→ A_TEMP_GL 직접 INSERT
+                                              <span class="ok2">(거래유형 불필요)</span>
+
+AX 릴레이  A_BATCH 3종 ──→ usp_a_create_gl_by_batch_01 ──→ A_TEMP_GL
+                            <span class="hl">(거래유형 필수)</span></pre>
+  </div>
+
+  <div class="card">
+    <h2>엔진이 거래유형을 요구하는 지점</h2>
+    <p class="cap"><code>USP_A_MAKE_VAT_ACCT_01</code> 첫머리다.</p>
+<pre>SELECT @CTRANS_TYPE = MIN(TRANS_TYPE) FROM A_BATCH_GL_ITEM WHERE BATCH_NO = @BATCH_NO
+IF @@ERROR &lt;&gt; 0 OR @@ROWCOUNT &lt; 1 BEGIN SET @MSG_CD = <span class="hl">'120110'</span> GOTO ERROR_RETURN END
+
+SELECT @CTRANS_TYPE = A.TRANS_TYPE, @TRANS_REVERSE_FG = A.REVERSE_FG
+FROM   A_ACCT_TRANS_TYPE A WHERE A.TRANS_TYPE = @CTRANS_TYPE
+IF @@ERROR &lt;&gt; 0 OR @@ROWCOUNT &lt; 1 BEGIN SET @MSG_CD = REF00 + <span class="hl">'120110'</span> … GOTO ERROR_RETURN END</pre>
+    <div class="stop">
+      <code>120110</code> = <strong>"거래유형 데이터가 존재하지 않아 저장에 실패했습니다."</strong>
+    </div>
+    <p>이어 <code>usp_a_create_gl_01</code> 이 거래유형에서 <strong>결의/회계 분기(<code>GL_POSTING_FG</code>)·계정합·생성순서</strong>를 읽는다.
+    거래유형이 없으면 <strong>결의전표로 떨어뜨릴지 회계전표로 떨어뜨릴지조차 정할 수 없다.</strong></p>
+  </div>
+
+  <div class="card">
+    <h2>컬럼 정의로도 확인된다</h2>
+    <div class="scroll">
+    <table>
+      <tr><th>테이블</th><th>단계</th><th class="c">NULL 허용</th><th class="c">FK</th></tr>
+      <tr><td><code>A_BATCH_GL_ITEM</code></td><td>투입</td><td class="c">허용</td><td class="c"><strong>있음</strong></td></tr>
+      <tr><td><code>A_TEMP_GL</code></td><td>결의전표</td><td class="c">허용</td><td class="c">없음</td></tr>
+      <tr><td><code>A_GL</code></td><td>회계전표</td><td class="c">허용</td><td class="c">없음</td></tr>
+    </table>
+    </div>
+    <div class="warn">
+      NULL 을 넣어도 FK 는 통과하지만 <strong>엔진이 <code>120110</code> 으로 막는다.</strong>
+      <code>usp_a_create_gl_direct</code> 등 <code>A_BATCH</code> 경유 SP 는 전부 같은 구조다.
+    </div>
+    <blockquote>
+      <strong>결론</strong> — AX 가 A_BATCH 경유 엔진을 쓰기로 한 순간 거래유형은 <strong>구조적 필수</strong>였다.
+      임의 선택이 아니라 제약이었다.
+    </blockquote>
+  </div>
+</section>
+
+<!-- ═══════ P4 결과 비교 ═══════ -->
+<section class="panel" id="p4">
+  <div class="card">
+    <h2>판정 기준은 하나 — 완성된 전표가 수기와 같은가</h2>
+    <div class="scroll">
+    <table>
+      <tr><th>항목</th><th>수기입력</th><th>AX (<code>AX001</code>)</th><th class="c">판정</th></tr>
+      <tr><td><code>A_TEMP_GL_ITEM</code> 61컬럼</td><td>기준</td><td><strong>누락 0개</strong> (전수 대조)</td><td class="c gd">동일</td></tr>
+      <tr><td>관리항목 <code>A_TEMP_GL_DTL</code></td><td>12,037전표 보유</td><td>15전표 보유</td><td class="c gd">동일</td></tr>
+      <tr><td>서브원장 (<code>A_OPEN_AP</code>·<code>A_VAT</code>·<code>F_PRPAYM</code>)</td><td>생성</td><td>생성 (개선 후)</td><td class="c gd">동일</td></tr>
+      <tr><td>연결번호 <code>SUBSYS_NO</code></td><td>채움</td><td>채움</td><td class="c gd">동일</td></tr>
+      <tr><td>정식장부 전기 · 연결번호 승계</td><td>정상</td><td>정상</td><td class="c gd">동일</td></tr>
+      <tr><td>입력검증 <code>usp_a_check_acct</code></td><td>적용</td><td>적용 (개선 후)</td><td class="c gd">동일</td></tr>
+      <tr><td><strong><code>JNL_CD</code> 거래항목</strong></td><td>전표에 없음</td><td><strong>전표에 없음</strong></td><td class="c gd">동일</td></tr>
+      <tr style="background:color-mix(in srgb, var(--s1) 9%, transparent)"><td><strong><code>TRANS_TYPE</code></strong></td><td>공란</td><td><strong><code>AX001</code></strong></td><td class="c"><span class="pill pB">유일한 차이</span></td></tr>
+    </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>그 유일한 차이는 어디에 영향을 주는가</h2>
+    <p class="cap"><code>A_TEMP_GL.TRANS_TYPE</code> 을 참조하는 DB 개체 <strong>35개를 전수 확인</strong>했다.</p>
+    <div class="scroll">
+    <table>
+      <tr><th>계열</th><th>개체</th><th class="num">개수</th></tr>
+      <tr><td>전표 <strong>생성</strong></td><td><code>usp_a_create_gl_*</code> · <code>usp_a_create_ap/ar_*</code> · <code>*_BATCH_*</code> · <code>USP_INTERFACE_KO174</code> · <code>*_POSTING</code></td><td class="num"><strong>35</strong></td></tr>
+      <tr style="background:color-mix(in srgb, var(--good) 9%, transparent)"><td>조회 · 리포트 · 집계</td><td>—</td><td class="num gd"><strong>0</strong></td></tr>
+    </table>
+    </div>
+    <div class="ok">
+      <strong><code>TRANS_TYPE</code> 은 전표를 만들 때만 쓰이고, 만들어진 뒤에는 아무도 보지 않는다.</strong>
+      조회 화면·리포트·시산표·재무제표 어디에도 영향이 없다.
+    </div>
+    <blockquote>
+      <strong>오히려 자산이다</strong> — <code>TRANS_TYPE='AX001'</code> 덕분에 AX 채널로 들어온 전표를 한 줄로 골라낼 수 있다.
+      수기 전표는 공란이라 구분이 안 된다. 감사·통계·사후 추적 관점에서 이건 손실이 아니라 이득이다.
+    </blockquote>
+  </div>
+</section>
+
+<!-- ═══════ P5 방향성 ═══════ -->
+<section class="panel" id="p5">
+  <div class="card">
+    <h2><span class="pill pA">판정</span> 이대로 가도 된다</h2>
+
+    <h3>근거 1 — 결의전표 거래유형은 이미 20종이 운영 중이다</h3>
+    <p class="cap"><code>GL_POSTING_FG='T'</code>(결의전표) 거래유형 중 실사용 실적이 있는 것들</p>
+    <div class="scroll">
+    <table>
+      <tr><th>거래유형</th><th>이름</th><th>업무</th><th class="num">결의전표수</th></tr>
+      <tr><td><code>AN005</code></td><td>법인카드연계</td><td>회계</td><td class="num">5,387</td></tr>
+      <tr><td><code>AG001</code></td><td>멀티반제</td><td>회계</td><td class="num">1,698</td></tr>
+      <tr><td><code>M0001</code></td><td>매입확정</td><td>구매</td><td class="num">1,547</td></tr>
+      <tr><td><code>S0002</code></td><td>국외매출</td><td>영업</td><td class="num">305</td></tr>
+      <tr><td><code>S0001</code></td><td>국내매출</td><td>영업</td><td class="num">230</td></tr>
+      <tr><td><code>FN001</code></td><td>어음할인</td><td>자금</td><td class="num">79</td></tr>
+      <tr><td><code>AS001</code></td><td>유형자산취득</td><td>회계</td><td class="num">53</td></tr>
+      <tr style="background:color-mix(in srgb, var(--s1) 9%, transparent)"><td><strong><code>AX001</code></strong></td><td><strong>AX자동전표</strong></td><td>—</td><td class="num"><strong>15</strong></td></tr>
+      <tr><td colspan="3">그 외 12종</td><td class="num">1~35</td></tr>
+    </table>
+    </div>
+    <div class="ok"><strong>결의전표를 거래유형으로 만드는 것은 예외가 아니라 표준이다.</strong> AX001 은 그 계열의 하나다.</div>
+
+    <h3>근거 2 — 엔진을 쓰기 때문에 공짜로 얻는 것들</h3>
+    <div class="scroll">
+    <table>
+      <tr><th>얻는 것</th><th>직접 INSERT 로 갈 경우</th></tr>
+      <tr><td>관리항목 자동 전개 (계정별 슬롯 배치)</td><td class="zero">직접 구현</td></tr>
+      <tr><td>부가세 라인 분리 (<code>ACCT_TYPE</code> VP/VR)</td><td class="zero">직접 구현</td></tr>
+      <tr><td>대차 보정 · 본지점 · 환차 처리</td><td class="zero">직접 구현</td></tr>
+      <tr><td><strong>입력검증</strong> <code>usp_a_check_acct</code></td><td class="zero">직접 구현</td></tr>
+      <tr><td><strong>서브원장 생성</strong> + 연결번호 채번</td><td class="zero">직접 구현</td></tr>
+      <tr><td>마감 · 폐쇄계정 체크</td><td class="zero">직접 구현</td></tr>
+    </table>
+    </div>
+    <div class="stop">엔진을 버리면 이 전부를 재구현해야 한다. 그리고 그것은 <strong>ERP 벤더 로직을 복제하는 일</strong>이다.</div>
+
+    <h3>근거 3 — 운영 선례가 이미 같은 구조다</h3>
+    <p><code>AG001</code>(멀티반제)는 <strong>A_BATCH 경유 + 거래유형 + 결의전표</strong>로 1,698건이 운영 중이다.
+    전표번호는 <code>TG…</code>, 채널 식별은 <code>REF_NO</code>(<code>UX…</code>). AX 가 하려는 것과 구조가 같다.</p>
+  </div>
+
+  <div class="card">
+    <h2>대안 비교</h2>
+    <div class="scroll">
+    <table>
+      <tr><th class="c">안</th><th>방식</th><th>장점</th><th>단점</th><th class="c">판정</th></tr>
+      <tr style="background:color-mix(in srgb, var(--good) 9%, transparent)"><td class="c"><strong>A</strong></td><td><strong>현행 유지</strong> — <code>AX001</code> + A_BATCH 엔진</td><td>엔진 기능 전부 활용 · 채널 추적 · 선례 존재</td><td>매핑 0건 상태 관리 필요</td><td class="c"><span class="pill pA">권장</span></td></tr>
+      <tr><td class="c">B</td><td>직접 INSERT — <code>A_TEMP_GL</code> 직접 쓰기</td><td>수기와 100% 동일</td><td>관리항목·부가세·검증·서브원장·채번 전부 재구현. <strong>벤더 로직 복제</strong></td><td class="c"><span class="pill pC">✗</span></td></tr>
+      <tr><td class="c">C</td><td>기존 거래유형 차용 — <code>S0003</code> 등</td><td>신설 불필요</td><td><strong>채널 추적 불가</strong> · 영업 업무유형 오염 · 벤더 합의 필요</td><td class="c"><span class="pill pC">✗</span></td></tr>
+      <tr><td class="c">D</td><td>거래유형 NULL 로 투입</td><td>수기와 동일 표기</td><td><strong><code>120110</code> 으로 생성 실패 — 불가능</strong></td><td class="c"><span class="pill pC">✗</span></td></tr>
+    </table>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════ P6 관리사항 ═══════ -->
+<section class="panel" id="p6">
+  <div class="card">
+    <h2>이대로 가되, 인지하고 관리할 것 3건</h2>
+
+    <h3><span class="pill pB">①</span> <code>AX001</code> 은 자동분개 매핑이 비어 있다</h3>
+    <div class="scroll">
+    <table>
+      <tr><th>계층</th><th class="num">AX001</th><th class="num">AG001</th><th class="num">AN005</th></tr>
+      <tr><td>분개형태 <code>A_JNL_FORM</code></td><td class="num zero">0</td><td class="num">18</td><td class="num">90</td></tr>
+      <tr><td>계정배정 <code>A_JNL_ACCT_ASSN</code></td><td class="num zero">0</td><td class="num">14</td><td class="num">76</td></tr>
+      <tr><td>통제배정 <code>A_JNL_CTRL_ASSN</code></td><td class="num zero">0</td><td class="num">25</td><td class="num">158</td></tr>
+    </table>
+    </div>
+    <p><strong>의도된 상태다.</strong> AX 는 포털이 계정을 완결해 보내므로(<code>MAKE_ACCT_FG='Y'</code>) 매핑을 타지 않는다.</p>
+    <div class="warn">
+      <strong>다만</strong> 회계팀이 거래유형등록 화면에서 <code>AX001</code> 을 보면 <strong>"설정이 안 된 거래유형"</strong> 으로 보인다.
+      운영 인수인계 문서에 <em>"AX001 은 외부가 계정을 직접 지정하므로 분개형태·계정배정이 없는 것이 정상"</em> 을 명시해야 한다.
+    </div>
+
+    <h3><span class="pill pC">②</span> <code>MAKE_ACCT_FG='Y'</code> 에 의존한다</h3>
+    <p>포털이 <code>MAKE_ACCT_FG='N'</code>(엔진이 계정 결정)으로 보내면 매핑 0건이라 <code>REF01 110423</code> 으로 <strong>실패</strong>한다.
+    릴레이는 <strong>항상 <code>'Y'</code> 로 고정</strong>해야 하며, 이 전제가 문서화돼 있어야 한다.</p>
+
+    <h3><span class="pill pB">③</span> 거래항목(<code>JNL_CD</code>)은 무검증 통과 파라미터다</h3>
+    <p>전표에 남지 않고 매핑도 없으므로 <strong>어떤 값을 넣어도 통과</strong>한다(<code>A_JNL_ITEM</code> FK만 만족하면 됨).
+    실제로 AX 테스트 전표는 AN005식(계정코드 자기참조 <code>43000501</code>, <code>EVENT_CD='IZ'</code>)과 S0003식(<code>A</code>·<code>AP</code>)을
+    <strong>섞어 넣었는데 아무 경고 없이 통과</strong>했다.</p>
+    <div class="stop">
+      릴레이가 넣는 <code>JNL_CD</code> 규칙을 <strong>한 가지로 고정하고 문서화</strong>해야 한다.
+      ITGC 관점에서 "통제 없는 자유 입력 필드"로 지적될 수 있다.
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>권고</h2>
+    <div class="scroll">
+    <table>
+      <tr><th class="c">#</th><th>권고</th><th class="c">대상</th></tr>
+      <tr style="background:color-mix(in srgb, var(--good) 9%, transparent)"><td class="c">1</td><td><strong>현행 <code>AX001</code> 방식 유지</strong></td><td class="c">—</td></tr>
+      <tr><td class="c">2</td><td>운영 문서에 <em>"AX001 은 분개형태·계정배정이 없는 것이 정상"</em> 명시</td><td class="c">회계팀</td></tr>
+      <tr><td class="c">3</td><td>릴레이가 <code>MAKE_ACCT_FG='Y'</code> 를 고정 사용함을 명세에 못박기</td><td class="c">JEIL_AX</td></tr>
+      <tr><td class="c">4</td><td>릴레이가 넣는 <code>JNL_CD</code> 규칙을 한 가지로 고정·문서화</td><td class="c">JEIL_AX</td></tr>
+      <tr><td class="c">5</td><td><code>MO_NM</code> 을 <code>A</code> → <code>회계</code> 로 정정 (거래유형등록 화면 업무명 표시)</td><td class="c">사용자</td></tr>
+      <tr><td class="c">6</td><td>거래유형등록 화면에서 <code>AX001</code> 의 <strong>전표구분이 <code>결의전표</code></strong> 인지 육안 확인</td><td class="c">회계팀</td></tr>
+    </table>
+    </div>
+    <div class="warn">
+      5번은 이전 검토(<code>AX001_거래유형_등록검토_20260820</code>)에서 이미 지적한 미조치 항목이다.
+      거래유형등록 화면의 "업무명" 열에 <code>회계</code> 대신 <code>A</code> 로 표시된다.
+    </div>
+  </div>
+</section>
+
+<footer>
+  JEILMNS_DEMO2 실측 + <code>sys.sql_modules</code>·<code>sys.columns</code>·<code>B_MESSAGE</code> 조회 · <strong>READ-ONLY</strong> · ERP 운영DB 미접근 ·
+  수기입력 판별 <code>GL_INPUT_TYPE='TG'</code> AND <code>TRANS_TYPE</code> 공란 AND <code>REF_NO = TEMP_GL_NO</code> ·
+  DEMO2 는 운영의 최신 사본이 아니다 ·
+  조사 로그 <code>ERP_DB/doc/db_log_20260825_234500.md</code>
+</footer>
+</div>
+
+<script>
+document.querySelectorAll('.tabs button').forEach(b=>{
+  b.addEventListener('click',()=>{
+    document.querySelectorAll('.tabs button').forEach(x=>x.setAttribute('aria-selected','false'));
+    document.querySelectorAll('.panel').forEach(x=>x.classList.remove('on'));
+    b.setAttribute('aria-selected','true');
+    document.getElementById(b.dataset.p).classList.add('on');
+  });
+});
+</script>
+</body>
+</html>
