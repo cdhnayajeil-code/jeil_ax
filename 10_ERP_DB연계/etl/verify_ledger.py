@@ -169,9 +169,11 @@ def main():
                 if lo[name][0]:
                     print(f"      ✅ {name:<4} {lo[name][0]}행 · {lo[name][1]}")
             else:
-                # 미결은 승인 시점에 생긴다 — 한쪽만 승인이면 차이가 아니라 '아직'이다
+                # 미결은 승인 시점에 생긴다 — 한쪽만 승인이면 차이가 아니라 '아직'이다.
+                # 원본에도 미결이 없으면 애초에 볼 것이 없다(대부분의 전표가 그렇다).
                 if name == "미결" and (not gl_ax or la[name][1] == "(승인 전)"):
-                    print(f"      ⏳ {name:<4} AX 승인 후에 생깁니다(원본 {lo[name][0]}행)")
+                    if lo[name][0]:
+                        print(f"      ⏳ {name:<4} AX 승인 후에 생깁니다(원본 {lo[name][0]}행 · {lo[name][1]})")
                     continue
                 problems.append(f"      ❌ {name}: 원본 {lo[name][0]}행 {lo[name][1]}"
                                 f"  ↔  AX {la[name][0]}행 {la[name][1]}")

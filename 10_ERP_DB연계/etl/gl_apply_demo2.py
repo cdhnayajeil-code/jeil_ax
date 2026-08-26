@@ -427,19 +427,48 @@ def guard_lines(cur, lines):
     return out
 
 
-def org_info(cur, dept_cd):
-    """조직 정보 — ORG_CHANGE_ID(부서 최신) + BIZ_AREA/INTERNAL/GAAP(최근 '정상' 배치 승계).
-       실사(2026-08-19): 최근 배치가 AX 테스트 잔재일 수 있어 REF_NO 'AX%' 는 승계 소스에서 제외한다."""
-    cur.execute("SELECT TOP 1 ORG_CHANGE_ID FROM dbo.B_ACCT_DEPT WITH (NOLOCK) "
-                "WHERE DEPT_CD = ? ORDER BY ORG_CHANGE_ID DESC", dept_cd)
+def check_dept_org(cur, dept_cd):
+    """부서가 **현행 조직**에 있는지 확인하고 현행 ORG_CHANGE_ID 를 돌려준다.
+
+    왜 따로 두나(2026-08-26 실측): 종전에는 「그 부서가 속한 **가장 최신** 조직」을 골랐다.
+    현행 조직에 남아 있는 부서는 그 값이 현행과 같아 문제가 없었지만, **조직개편으로
+    없어진 부서**는 과거 조직 번호가 나온다. ERP 서브원장 SP 는 전표의 조직번호가
+    현행과 맞는지 보고 다르면 `A05191`(조직개편과 부서정보가 맞지 않습니다) 로 거부한다.
+
+    그런데 그 거부는 **전표를 다 만든 뒤**에 온다 — 만들었다가 롤백하는 셈이다.
+    여기서 먼저 막으면 사전점검(--precheck)에서도 잡히고, ERP 에 아무 흔적도 남지 않는다.
+
+    실측: 부서 5100 은 조직 20251 까지만, 6630 은 20244 에만 있고 현행(20264)에는 없다 —
+    두 부서로 만든 전표가 서브원장 단계에서 전건 거부됐다.
+    """
+    cur.execute("SELECT MAX(ORG_CHANGE_ID) FROM dbo.B_ACCT_DEPT WITH (NOLOCK)")
     row = cur.fetchone()
-    org = row[0] if row else None
+    now_org = row[0] if row else None
+    if not now_org:
+        raise stop("ERP 조직 정보를 읽지 못했습니다", "관리자에게 알려 주세요")
+    cur.execute("SELECT COUNT(*) FROM dbo.B_ACCT_DEPT WITH (NOLOCK) "
+                "WHERE DEPT_CD = ? AND ORG_CHANGE_ID = ?", dept_cd, now_org)
+    if cur.fetchone()[0]:
+        return now_org
+    cur.execute("SELECT MAX(ORG_CHANGE_ID) FROM dbo.B_ACCT_DEPT WITH (NOLOCK) WHERE DEPT_CD = ?", dept_cd)
+    row = cur.fetchone()
+    last = row[0] if row else None
+    raise stop(
+        f"부서 {dept_cd} 는 현재 조직에 없습니다"
+        + (f" (조직개편 {last} 까지만 쓰던 부서입니다)" if last else " (ERP 부서 목록에 없습니다)"),
+        "전표 상단에서 지금 쓰는 부서로 바꾸세요")
+
+
+def org_info(cur, dept_cd, org):
+    """조직 정보 — BIZ_AREA/INTERNAL/GAAP 를 최근 '정상' 배치에서 승계한다.
+       ORG_CHANGE_ID 는 check_dept_org() 가 이미 확인한 현행 값을 그대로 쓴다.
+       실사(2026-08-19): 최근 배치가 AX 테스트 잔재일 수 있어 REF_NO 'AX%' 는 승계 소스에서 제외한다."""
     cur.execute("SELECT TOP 1 BIZ_AREA_CD, INTERNAL_CD, GAAP_GROUP_CD FROM dbo.A_BATCH WITH (NOLOCK) "
                 "WHERE TEMP_GL_NO IS NOT NULL AND ISNULL(REF_NO,'') NOT LIKE 'AX%' "
                 "AND ISNULL(REF_NO,'') NOT LIKE 'DRAFT-%' ORDER BY INSRT_DT DESC")
     row = cur.fetchone()
     biz, internal, gaap = (row[0], row[1], row[2]) if row else (None, None, None)
-    if not org or not biz:
+    if not biz:
         raise stop("부서 정보를 ERP에서 찾지 못했습니다", "전표 상단의 부서를 확인하세요")
     return org, biz, internal, gaap
 
@@ -523,6 +552,12 @@ def apply_draft(args):
             raise stop(f"전송 설정({trans_type})이 결의전표로 연결돼 있지 않습니다",
                        "관리자에게 알려 주세요 — 전표를 고쳐도 해결되지 않습니다")
 
+        # ── 부서 ↔ 현행 조직 확인 ──────────────────────────────────
+        # 쓰기 전에 한다. 없어진 부서면 ERP 가 서브원장 단계에서 A05191 로 거부하는데,
+        # 그건 전표를 다 만든 뒤라 만들었다 롤백하게 된다(2026-08-26 실측 2건).
+        org = check_dept_org(cur, dept_cd)
+        result["detail"]["org_change_id"] = str(org)
+
         # ── ERP측 멱등 확인 ────────────────────────────────────────
         cur.execute("SELECT COUNT(*) FROM dbo.A_BATCH WITH (NOLOCK) WHERE REF_NO = ?", ref_no)
         if cur.fetchone()[0] > 0:
@@ -582,7 +617,7 @@ def apply_draft(args):
             raise PrecheckPassed()
 
         # ── 조직정보·채번 ──────────────────────────────────────────
-        org, biz, internal, gaap = org_info(cur, dept_cd)
+        org, biz, internal, gaap = org_info(cur, dept_cd, org)
         batch_no = autogen(cur, BT_TYPE, date_str, user_id)
         ag_no = autogen(cur, AG_TYPE, date_str, user_id)
         result["batch_no"], result["gl_no"] = batch_no, ag_no
