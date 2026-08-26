@@ -189,7 +189,7 @@ V4 영업팀(<code>5100</code>·폐지) → <strong>사업운영팀(<code>6110</
 <p><code>A05191</code> = <strong>조직개편과 부서정보가 맞지 않습니다</strong> (ERP 메시지 마스터 <code>B_MESSAGE</code>)</p>
 </blockquote>
 <h3 id="_2">무엇이 문제였나</h3>
-<p><code>ORG_CHANGE_ID</code> 는 조직개편 버전이고 현행은 <strong>20264</strong> 다.
+<p><code>ORG_CHANGE_ID</code> 는 조직개편 버전이고 DEMO2 의 현행은 <strong>20264</strong> 다(운영은 <code>20261</code> — 별개 DB라 번호가 다르다).
 릴레이는 「그 부서가 속한 <strong>가장 최신</strong> 조직」을 골랐는데, 없어진 부서는 그 값이 현행보다 과거다.</p>
 <table>
 <thead>
@@ -238,51 +238,193 @@ V4 영업팀(<code>5100</code>·폐지) → <strong>사업운영팀(<code>6110</
 문제는 <strong>그 사실을 알려 주는 시점과 문구</strong>였고, 그것을 고쳤다.
 과거 전표 재현·소급 정산처럼 폐지 부서가 필요한 업무는 ERP 화면 소관으로 남는다.</p>
 </blockquote>
-<h3 id="21">2.1 파생 문제 — 화면이 폐지 부서를 아직 고르게 한다 (미결)</h3>
-<p>릴레이는 이제 막지만, <strong>입력 화면은 여전히 폐지 부서의 코스트센터를 보여준다.</strong>
-<code>gl_master_get()</code> 의 코스트센터 목록이 조직 버전을 보지 않기 때문이다
-(제외 조건은 <code>org_change_id='19801'</code> 과 이름의 '사용금지' 뿐).</p>
-<p>실측하면 이렇다.</p>
+<h3 id="21">2.1 화면도 고쳤다 — 다만 <strong>코스트센터가 아니라 부서</strong>였다</h3>
+<p>릴레이가 막아도 <strong>입력 화면이 폐지 부서를 계속 보여주면</strong> 사용자는 보내고 나서야 안다.
+그래서 <code>gl_master_get()</code> 을 고쳤는데, <strong>처음 생각한 것과 정반대 지점이었다.</strong></p>
+<p><strong>처음 가설(틀림)</strong>: 「부서가 폐지면 그 부서의 코스트센터도 막아야 한다」
+→ 코스트센터 91개 중 55개가 잘린다. 그래서 실사용을 재 봤다.</p>
 <table>
 <thead>
 <tr>
-<th></th>
-<th>값</th>
+<th>잘릴 코스트센터</th>
+<th>최근 사용</th>
+<th style="text-align: right;">라인</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>화면에 지금 노출되는 코스트센터</td>
-<td><strong>91개</strong></td>
+<td><code>C015100</code> 영업팀</td>
+<td><strong>2026-08-24</strong></td>
+<td style="text-align: right;">323</td>
 </tr>
 <tr>
-<td>그중 <strong>현행 조직 부서 소속</strong></td>
-<td><strong>36개</strong></td>
+<td><code>C016710</code> 구매파트</td>
+<td><strong>2026-08-20</strong></td>
+<td style="text-align: right;">184</td>
 </tr>
 <tr>
-<td>폐지 부서 소속(고르면 전송 실패)</td>
-<td><strong>55개</strong> — EPC그룹·전사혁신팀·원가회계팀·IT팀·영업팀·PM팀 …</td>
+<td><code>C017600</code> 방산제약사업팀</td>
+<td>2026-03-31</td>
+<td style="text-align: right;">61</td>
+</tr>
+<tr>
+<td>… 외 6개</td>
+<td></td>
+<td style="text-align: right;">합계 675</td>
 </tr>
 </tbody>
 </table>
-<p><strong>그런데 단순히 필터를 걸면 안 된다.</strong> 두 가지가 걸린다.</p>
-<ol>
-<li><strong>코스트센터는 조직개편 때 전량 재생성되지 않는다.</strong> ERP 실측: 조직 <code>20264</code>(현행)에
-   코스트센터가 <strong>4건뿐</strong>이고, 실제 쓰는 <code>C013200</code>(총무팀) 같은 것들은 <code>20244</code>·<code>20251</code> 에 남아 있다.
-   → 「코스트센터의 조직 버전」으로 거르면 4건만 남아 화면이 못 쓰게 된다.
-   올바른 기준은 <strong>소속 부서가 현행 조직에 있는가</strong> 다.</li>
-<li><strong>중간DB 미러가 한 세대 뒤처져 있다.</strong> 미러(<code>erp_ro.dept_master_s</code>)의 최신 조직은 <code>20261</code>,
-   ERP 원본은 <code>20264</code> 다. 잘못된 기준으로 55개를 없애는 셈이 된다.</li>
-</ol>
+<p><strong>폐지 부서의 코스트센터를 지금도 쓴다.</strong> 걸렀다면 현업 9개(675라인)를 끊을 뻔했다.</p>
+<p><strong>실제 경계는 헤더 부서였다.</strong> 같은 기준으로 재면 정반대가 나온다.</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>최근 사용</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>폐지 부서를 <strong>코스트센터</strong>로</td>
+<td><strong>2026-08-24</strong>(계속 쓴다)</td>
+</tr>
+<tr>
+<td>폐지 부서를 <strong>헤더 부서</strong>로</td>
+<td><strong>2026-03-31</strong>(조직개편 이후 0건)</td>
+</tr>
+</tbody>
+</table>
+<p>ERP 가 <code>A05191</code> 로 검사하는 것은 <strong>헤더 부서 하나뿐</strong>이고, 코스트센터는 과거 것도 계속 쓴다.</p>
+<p><strong>조치</strong>: <code>gl_master_get()</code> 의 <strong>부서 목록만</strong> 현행 조직으로 제한했다. 코스트센터는 그대로 둔다.</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th style="text-align: right;">전</th>
+<th style="text-align: right;">후</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>부서</td>
+<td style="text-align: right;">90</td>
+<td style="text-align: right;"><strong>35</strong></td>
+</tr>
+<tr>
+<td>코스트센터</td>
+<td style="text-align: right;">91</td>
+<td style="text-align: right;"><strong>91</strong>(불변)</td>
+</tr>
+</tbody>
+</table>
+<p>현행 부서 35개는 전부 코스트센터를 갖고 있어 누락이 없다.</p>
 <blockquote>
-<p><strong>결정 필요</strong>: ①먼저 중간DB 조직 미러를 현행(<code>20264</code>)까지 동기화하고,
-②그다음 <code>gl_master_get</code> 을 <strong>부서 기준</strong>으로 거른다 — 이 순서여야 한다.
-화면에서 55개가 사라지는 변화라 업무 영향이 있어 <strong>임의로 바꾸지 않았다</strong>(<code>CLAUDE.md §4·§10</code>).</p>
-<p><strong>지금 당장 데이터 사고는 없다</strong> — 릴레이 가드가 막고, 사전점검이 보내기 전에 알려 준다.
-남은 것은 「고를 수는 있는데 보내면 막힌다」는 불편이다.</p>
+<p><strong>정정</strong>: 앞서 「중간DB 미러가 한 세대 뒤처져 있다(20261 vs 20264)」고 적었으나 <strong>틀렸다.</strong>
+미러는 <strong>운영(<code>JEILMNS</code>)</strong> 을, 이 검증은 <strong>DEMO2</strong> 를 본 것이라 조직번호가 다를 뿐이다.
+미러는 2026-08-26 00:58 에 동기화된 최신 상태다.</p>
+<p><strong>남은 것(별건)</strong>: 사용자-부서 매핑 90명 중 <strong>41명이 폐지 부서</strong>를 가리킨다
+(<code>2200 원가회계팀</code>·<code>5000 영업부문</code>·<code>6100 PM팀</code> 등). 그 사람들은 부서를 직접 골라야 한다 —
+다만 그 부서로는 어차피 전송이 막히므로, 보내고 실패하는 대신 <strong>입력할 때</strong> 드러나는 편이 낫다.
+매핑 현행화는 인사·조직 데이터 소관이다.</p>
 </blockquote>
 <hr />
-<h2 id="3">3. 무엇을 대조하나</h2>
+<h2 id="3-ax">3. ★ 통제 대조 — 「수동으로 못 만드는 전표는 AX 로도 만들 수 없다」</h2>
+<p>원장이 맞는 것만으로는 부족하다. <strong>AX 가 수동입력보다 느슨하면 통제 우회로가 된다.</strong>
+그래서 검증 축을 하나씩 실측으로 맞춰 봤다.</p>
+<table>
+<thead>
+<tr>
+<th>축</th>
+<th>수동입력</th>
+<th>AX</th>
+<th>판정</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>계정 범위</td>
+<td><strong>제한 없음</strong> — 수기 전표 12,557건이 거래유형 공란이고, 쓴 계정 321종 중 <strong>52%가 매핑 밖</strong></td>
+<td>마스터 전량 노출</td>
+<td><strong>동일</strong>(둘 다 자유)</td>
+</tr>
+<tr>
+<td>폐지 계정</td>
+<td>못 씀</td>
+<td>ETL 이 <code>DEL_FG='Y'</code> 를 애초에 안 싣는다</td>
+<td><strong>동일</strong></td>
+</tr>
+<tr>
+<td>반제 방향</td>
+<td>ERP SP 가 막음(<code>119712</code>)</td>
+<td>가드 G5 가 <strong>먼저</strong> 막음</td>
+<td><strong>동일</strong></td>
+</tr>
+<tr>
+<td>부서 ↔ 조직</td>
+<td>ERP 가 막음(<code>A05191</code>)</td>
+<td>가드가 <strong>먼저</strong> 막음(§2)</td>
+<td><strong>동일</strong></td>
+</tr>
+<tr>
+<td>부가세 차대</td>
+<td><strong>ERP 안 막음</strong></td>
+<td>G1 이 막음</td>
+<td><strong>AX 가 엄격</strong></td>
+</tr>
+<tr>
+<td>차대 균형</td>
+<td><strong>ERP 안 막음</strong>(<code>113119</code> 는 <code>GL_INPUT_TYPE='GL'</code> 한정)</td>
+<td>G2 가 막음</td>
+<td><strong>AX 가 엄격</strong></td>
+</tr>
+<tr>
+<td>법인카드 미지급금</td>
+<td>씀(<code>AN005</code> 5,387건)</td>
+<td>금지</td>
+<td><strong>AX 가 엄격</strong>(이중계상 방지)</td>
+</tr>
+<tr>
+<td>마이너스 라인</td>
+<td>씀(939전표)</td>
+<td><strong>불가</strong>(<code>CHECK item_amt &gt; 0</code>)</td>
+<td><strong>AX 가 좁음</strong>(§5)</td>
+</tr>
+<tr>
+<td>외화</td>
+<td>씀(900전표)</td>
+<td><strong>불가</strong>(통화·환율 필드 없음)</td>
+<td><strong>AX 가 좁음</strong>(§5)</td>
+</tr>
+<tr>
+<td><strong>필수 관리항목</strong></td>
+<td><strong>막음</strong></td>
+<td><strong>안 막았다</strong> 🚨</td>
+<td><strong>← 갭이었다</strong></td>
+</tr>
+</tbody>
+</table>
+<h3 id="31">3.1 찾은 갭 — 필수 관리항목을 엔진이 검사하지 않는다</h3>
+<p>미지급금(거래처) 대변에 <strong>거래처·만기일을 통째로 빼고</strong> 넣어 봤다.</p>
+<pre><code>[엔진] rc=1 / MSG_CD=(없음)          ← 통과
+[연결번호] 2:21100901/AP→AP202608260004
+[채무] A_OPEN_AP 1행                ← 거래처 없는 채무가 섰다
+</code></pre>
+<p>수동입력 화면은 <code>A_ACCT_CTRL_ASSN</code> 의 <code>DR_FG</code>/<code>CR_FG='Y'</code> 항목이 비면 <strong>저장을 막는다.</strong>
+그런데 배치 엔진(<code>usp_a_create_gl_by_batch_01</code>)은 <strong>검사하지 않고 그대로 만든다.</strong></p>
+<p><strong>거래처 없는 채무는 반제도 지급도 할 수 없다.</strong> 장부에는 서 있는데 실무에서 쓸 수 없는 데이터다.</p>
+<h3 id="32-g6">3.2 조치 — 가드 G6 신설</h3>
+<p>투입 전에 계정×차대별 필수 관리항목을 대조한다. 기존 AX 전표 전건을 소급 점검했고 <strong>누락 0건</strong>이라
+막던 것을 새로 막는 부작용은 없다.</p>
+<pre><code>2번 줄 미지급금(거래처) 대변 — 필수 관리항목이 비어 있습니다 — 거래처, 만기일
+→ 이 항목들을 채우세요 — 비우면 원장이 만들어져도 쓸 수 없습니다
+</code></pre>
+<blockquote>
+<p><strong>가드 현황</strong>: G1 부가세 차대 · G2 차대 균형 · G5 반제 방향 · <strong>G6 필수 관리항목</strong>
+· 부서↔조직 · 금지계정(법인카드).
+이 중 <strong>G1·G2·G6 은 ERP 가 검사하지 않는 구간</strong>이다 — AX 가 안 막으면 아무도 안 막는다.</p>
+</blockquote>
+<hr />
+<h2 id="4">4. 무엇을 대조하나</h2>
 <p><code>verify_ledger.py</code> 가 AX 전표(<code>AG…</code>)와 원본(<code>TG…</code>)을 나란히 놓고 비교한다.</p>
 <table>
 <thead>
@@ -332,7 +474,7 @@ V4 영업팀(<code>5100</code>·폐지) → <strong>사업운영팀(<code>6110</
 </table>
 <p>미결은 승인 시점에 서므로, AX 쪽이 아직 승인 전이면 <strong>차이가 아니라 「아직」</strong> 으로 표시한다.</p>
 <hr />
-<h2 id="4">4. 복제 규칙 — 무엇을 그대로 두고 무엇을 옮기나</h2>
+<h2 id="5">5. 복제 규칙 — 무엇을 그대로 두고 무엇을 옮기나</h2>
 <table>
 <thead>
 <tr>
@@ -371,15 +513,15 @@ V4 영업팀(<code>5100</code>·폐지) → <strong>사업운영팀(<code>6110</
 <strong>DEMO2 는 테스트 DB 이므로 의도된 것</strong>이지만, 운영에서는 절대 이렇게 하지 않는다.</p>
 </blockquote>
 <hr />
-<h2 id="5">5. 옮길 수 없는 형태 — 실제 사례로 확인됨</h2>
+<h2 id="6">6. 옮길 수 없는 형태 — 실제 사례로 확인됨</h2>
 <p><code>TG202505270017</code>(스웨덴법인 급여, <code>AP+AR</code>)은 <strong>복제 대상에서 빠진다.</strong>
 1·2번 줄이 <strong>음수</strong>(−25,922 / −26,650)인데 포털은 <code>gl_draft_item</code> 에
 <code>CHECK (item_amt &gt; 0)</code> 이 걸려 있어 저장할 수 없다.</p>
 <p>19번 §4.1 에서 「마이너스 전표는 만들 수 없다」고 적은 한계가 <strong>실제 장부 전표로 확인된 것</strong>이다.
 차감 조정이 섞인 급여·정산 전표가 이 형태이고, DEMO2 수동입력 중 <strong>939전표</strong>가 마이너스 라인을 갖는다.
-운영 전환 전 결정이 필요하다(19번 §4.1).</p>
+운영 전환 전 결정이 필요하다(19번 §4.1). §3 표의 「AX 가 좁음」 두 줄이 이것이다.</p>
 <hr />
-<h2 id="6">6. 사용법</h2>
+<h2 id="7">7. 사용법</h2>
 <pre><code class="language-bash">python 10_ERP_DB연계/etl/seed_ledger_cases.py --plan    # 무엇을 복제할지 보기
 python 10_ERP_DB연계/etl/seed_ledger_cases.py --load    # 포털에 적재(제출됨)
 python 10_ERP_DB연계/etl/gl_apply_demo2.py  --precheck  # 보내기 전 점검(ERP 무투입)
@@ -412,7 +554,7 @@ python 10_ERP_DB연계/etl/seed_ledger_cases.py --purge   # 정리(적용된 건
 </tbody>
 </table>
 <hr />
-<h2 id="7">7. 실측 조건</h2>
+<h2 id="8">8. 실측 조건</h2>
 <ul>
 <li>대상 <strong><code>JEILMNS_DEMO2</code></strong> · 운영(<code>JEILMNS</code>) 미접근 · 대조 쿼리는 전부 <code>WITH (NOLOCK)</code> 읽기</li>
 <li>원본 선정: 승인 완료(<code>CONF_FG='C'</code>) · 2~6줄 · 서브원장 연결번호 전건 채움 · 10만~2천만원</li>

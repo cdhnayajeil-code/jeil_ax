@@ -46,7 +46,7 @@ import urllib.request
 from _env import load_env, need
 
 # ═══════════ 고정 상수 — 변경 금지 ═══════════
-RELAY_VERSION = "v1.4"                # 심박에 함께 기록 — 서버에 옛 EXE가 남아 있는지 화면에서 확인 가능
+RELAY_VERSION = "v1.6"                # 심박에 함께 기록 — 서버에 옛 EXE가 남아 있는지 화면에서 확인 가능
 TARGET_DB = "JEILMNS_DEMO2"          # 대상 DB 하드코딩. 운영(JEILMNS) 금지 — CLI 파라미터 없음
 AG_TYPE = "AG"                        # AX 전용 전표번호 접두어(B_AUTO_NUMBERING 기존 유형 재사용)
 BT_TYPE = "BT"                        # 배치번호 접두어
@@ -381,6 +381,34 @@ def guard_lines(cur, lines):
                     "RTRIM(ISNULL(ACCT_NM,'')) FROM dbo.A_ACCT WITH (NOLOCK) WHERE RTRIM(ACCT_CD)=?", a)
         r = cur.fetchone()
         attr[a] = (r[0], r[1][:2], r[2]) if r else ("", "", "")
+
+    # ── G6 필수 관리항목 — ERP 엔진이 안 막는 구간 ──
+    # 수동입력 화면은 A_ACCT_CTRL_ASSN 의 DR_FG/CR_FG='Y' 항목이 비면 저장을 막는다.
+    # 그런데 배치 엔진(usp_a_create_gl_by_batch_01)은 검사하지 않고 그대로 만든다 —
+    # 2026-08-26 실측: 미지급금(거래처) 대변에 BP·C1 을 통째로 빼고 넣었더니 rc=1 로 통과하고
+    # 채무원장(A_OPEN_AP)까지 **거래처 없이** 생성됐다. 그 원장은 반제·지급을 할 수 없다.
+    # 기준은 「수동으로 못 만드는 전표는 AX 로도 만들 수 없다」이므로 여기서 막는다.
+    need_ctrl = {}
+    for l in lines:
+        key = (l["acct"], l["fg"][:2])
+        if key not in need_ctrl:
+            col = "DR_FG" if key[1] == "DR" else "CR_FG"
+            cur.execute(
+                f"SELECT RTRIM(x.CTRL_CD), RTRIM(ISNULL(m.CTRL_NM,'')) "
+                f"FROM dbo.A_ACCT_CTRL_ASSN x WITH (NOLOCK) "
+                f"LEFT JOIN dbo.A_CTRL_ITEM m WITH (NOLOCK) ON RTRIM(m.CTRL_CD) = RTRIM(x.CTRL_CD) "
+                f"WHERE RTRIM(x.ACCT_CD) = ? AND RTRIM(ISNULL(x.{col},'')) = 'Y' "
+                f"ORDER BY x.CTRL_ITEM_SEQ", key[0])
+            need_ctrl[key] = [(r[0], r[1]) for r in cur.fetchall()]
+        have = {c[0] for c in l["ctrls"] if str(c[1]).strip()}
+        missing = [(cd, nm) for cd, nm in need_ctrl[key] if cd not in have]
+        if missing:
+            nm = attr.get(l["acct"], ("", "", ""))[2] if l["acct"] in attr else ""
+            out.append({"seq": l["seq"], "acct": l["acct"], "fg": l["fg"][:2],
+                        "nm": nm, "code": "G6",
+                        "what": "필수 관리항목이 비어 있습니다 — "
+                                + ", ".join(f"{n or c}" for c, n in missing),
+                        "fix": "이 항목들을 채우세요 — 비우면 원장이 만들어져도 쓸 수 없습니다"})
 
     # 반제(反濟)를 업무 말로 옮긴다 — 사용자는 'SUBSYS_TYPE' 이 아니라 '갚는다·받는다'로 생각한다.
     DEAL = {"AP": ("갚는 처리", "채무반제"), "AR": ("받는 처리", "채권반제"),
