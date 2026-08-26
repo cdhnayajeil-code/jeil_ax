@@ -49,7 +49,7 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <blockquote>
 <p><strong>AX 로 만든 전표가 사람이 손으로 만든 전표와 장부상 똑같은가.</strong>
 적재 2026-08-26 · 관리: 최동혁 · 배치 <code>LEDGERSET-2026-08-26</code>
-도구 <code>etl/seed_ledger_cases.py</code>(복제 적재) · <code>etl/verify_ledger.py</code>(대조)
+도구 <code>etl/seed_ledger_cases.py</code>(복제 적재) · <code>etl/verify_ledger.py</code>(장부 대조) · <code>etl/verify_guards.py</code>(가드 재검증)
 선행 <code>19_연동테스트_전표세트</code>(가드 검증) · <code>14_AX전표_테스트범위_및_케이스설계</code></p>
 </blockquote>
 <hr />
@@ -387,19 +387,19 @@ V4 영업팀(<code>5100</code>·폐지) → <strong>사업운영팀(<code>6110</
 <td>마이너스 라인</td>
 <td>씀(939전표)</td>
 <td><strong>불가</strong>(<code>CHECK item_amt &gt; 0</code>)</td>
-<td><strong>AX 가 좁음</strong>(§5)</td>
+<td><strong>AX 가 좁음</strong>(§6)</td>
 </tr>
 <tr>
 <td>외화</td>
 <td>씀(900전표)</td>
 <td><strong>불가</strong>(통화·환율 필드 없음)</td>
-<td><strong>AX 가 좁음</strong>(§5)</td>
+<td><strong>AX 가 좁음</strong>(§6)</td>
 </tr>
 <tr>
 <td><strong>필수 관리항목</strong></td>
 <td><strong>막음</strong></td>
-<td><strong>안 막았다</strong> 🚨</td>
-<td><strong>← 갭이었다</strong></td>
+<td><strong>릴레이는 안 막았다</strong> 🚨</td>
+<td><strong>← 갭이었다</strong>(§3.3 정정)</td>
 </tr>
 </tbody>
 </table>
@@ -421,10 +421,125 @@ V4 영업팀(<code>5100</code>·폐지) → <strong>사업운영팀(<code>6110</
 <blockquote>
 <p><strong>가드 현황</strong>: G1 부가세 차대 · G2 차대 균형 · G5 반제 방향 · <strong>G6 필수 관리항목</strong>
 · 부서↔조직 · 금지계정(법인카드).
-이 중 <strong>G1·G2·G6 은 ERP 가 검사하지 않는 구간</strong>이다 — AX 가 안 막으면 아무도 안 막는다.</p>
+이 중 <strong>G1·G2·G6 은 ERP 배치 엔진이 검사하지 않는 구간</strong>이다.</p>
+</blockquote>
+<h3 id="33-ax">3.3 정정 — 「AX 가 안 막았다」는 부정확했다</h3>
+<p>위 시험은 <strong>포털 DB 에 직접 INSERT</strong> 해서 만든 것이라 화면·서버 검증을 <strong>건너뛴</strong> 상태였다.
+실제로는 이미 두 층이 막고 있었다.</p>
+<table>
+<thead>
+<tr>
+<th>층</th>
+<th>상태</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>화면</td>
+<td>필수(<em>) 표시·진행률 있음. </em><em>저장 전 차단은 없었다</em>* → 이번에 추가</td>
+</tr>
+<tr>
+<td>서버(<code>op save</code>)</td>
+<td><strong>이미 하드 차단</strong>(<code>ctrl_aware=true</code> → <code>400 ctrl_required</code>)</td>
+</tr>
+<tr>
+<td>릴레이</td>
+<td><strong>없었다</strong> → 가드 G6 로 추가</td>
+</tr>
+</tbody>
+</table>
+<p>정확히는 <strong>「릴레이가 안 막았다」</strong>이고, 화면 경로로 저장한 전표는 애초에 필수 항목을 갖추고 있었다.
+그래도 릴레이 가드는 필요하다 — 저장 경로가 무엇이든 <strong>ERP 투입 직전이 마지막 관문</strong>이고,
+엔진이 검사하지 않는다는 사실은 그대로이기 때문이다.</p>
+<p><strong>이제 세 층이 같은 기준(<code>A_ACCT_CTRL_ASSN</code> 의 <code>DR_FG</code>/<code>CR_FG='Y'</code>)을 쓴다.</strong></p>
+<hr />
+<h2 id="4-1500">4. 가드 재검증 — 실제 승인 전표 1,500건에 그대로 돌렸다</h2>
+<p>가드가 잘못된 전표를 막는 것만으로는 부족하다. <strong>정상 업무를 막지 않아야</strong> 한다.
+그건 테스트 전표 몇 건으로는 알 수 없어서, <strong>ERP 에 이미 승인돼 있는 수기 전표</strong>에 그대로 돌렸다.
+회계가 승인한 전표가 곧 '정상'의 정의다. (도구 <code>etl/verify_guards.py</code>, 읽기 전용)</p>
+<p><strong>대상</strong>: 승인 완료 수기 전표 <strong>1,500건 · 15,293라인</strong> (2025-04-02 ~ 2025-06-19)</p>
+<table>
+<thead>
+<tr>
+<th>차단 사유</th>
+<th style="text-align: right;">전표</th>
+<th style="text-align: right;">비율</th>
+<th>판정</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>부서 ↔ 현행 조직</td>
+<td style="text-align: right;">578</td>
+<td style="text-align: right;">38.5%</td>
+<td><strong>시점 차이</strong> — 아래 참조</td>
+</tr>
+<tr>
+<td>금지계정(법인카드)</td>
+<td style="text-align: right;">423</td>
+<td style="text-align: right;">28.2%</td>
+<td>설계상 범위 밖(카드 채널 담당)</td>
+</tr>
+<tr>
+<td>음수 라인</td>
+<td style="text-align: right;">130</td>
+<td style="text-align: right;">8.7%</td>
+<td>포털 기능 제약(§6)</td>
+</tr>
+<tr>
+<td>G5 반제 방향</td>
+<td style="text-align: right;">129</td>
+<td style="text-align: right;">8.6%</td>
+<td>반제 전용화면 소관</td>
+</tr>
+<tr>
+<td>외화</td>
+<td style="text-align: right;">61</td>
+<td style="text-align: right;">4.1%</td>
+<td>포털 기능 제약(§6)</td>
+</tr>
+<tr>
+<td><strong>G1 부가세 차대</strong></td>
+<td style="text-align: right;"><strong>1</strong></td>
+<td style="text-align: right;"><strong>0.1%</strong></td>
+<td>실제 위반 1건(<code>TG202505090011</code>)</td>
+</tr>
+<tr>
+<td><strong>G2 차대 균형</strong></td>
+<td style="text-align: right;"><strong>0</strong></td>
+<td style="text-align: right;"><strong>0%</strong></td>
+<td>—</td>
+</tr>
+<tr>
+<td><strong>G6 필수 관리항목</strong></td>
+<td style="text-align: right;"><strong>0</strong></td>
+<td style="text-align: right;"><strong>0%</strong></td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<p><strong>핵심: G1·G2·G6 이 정상 업무를 사실상 막지 않는다.</strong> 1,500건에서 걸린 것은 단 1건이고
+그것도 <strong>진짜 위반</strong>이다(부가세대급금이 대변에 있는 전표 — <code>A_VAT</code> 가 생기지 않는다).</p>
+<p>차단의 대부분은 <strong>가드가 아니라 설계상 경계</strong>다 — 법인카드·반제·음수·외화.
+이미 알고 있던 것들이고 19번·20번에 각각 근거가 있다.</p>
+<h3 id="41-385-demo2">4.1 '부서 38.5%' 는 DEMO2 의 시점 차이다</h3>
+<p>전표는 2025-04~06 것인데 DEMO2 의 조직은 그 뒤 개편분(<code>20264</code>)이다.
+<strong>과거 전표를 미래 조직으로 재는 셈</strong>이라 나온 수치다.</p>
+<pre><code>통과 515 / 1500 (34%)
+└ '부서' 하나 때문만: 307건 → 그 몫을 빼면 822 / 1500 (54%)
+</code></pre>
+<p>운영에서는 오늘 만드는 전표가 현행 부서를 쓴다 —
+실측으로 <strong>폐지 부서를 헤더로 쓴 마지막 전표가 2026-03-31</strong>, 조직개편 이후 0건이다(§2.1).</p>
+<h3 id="42">4.2 재검증이 잡은 도구 버그</h3>
+<p>처음 돌렸을 때 <strong>G2 가 33건</strong> 나왔다. 사례를 열어 보니 차이가 41억·3.4억이었다.
+원인은 가드가 아니라 <strong>검증 도구</strong>였다 — 외화 전표의 <code>ITEM_AMT</code> 는 외화 금액인데
+그대로 더했다. 원화(<code>ITEM_LOC_AMT</code>)로 바꾸니 <strong>0건</strong>이 됐다.</p>
+<blockquote>
+<p>포털은 KRW 만 다루므로 <strong>릴레이 G2 에는 이 문제가 없다.</strong>
+다만 「실측 33건」을 그대로 믿었다면 없는 문제를 고치려 들었을 것이다.</p>
 </blockquote>
 <hr />
-<h2 id="4">4. 무엇을 대조하나</h2>
+<h2 id="5">5. 무엇을 대조하나</h2>
 <p><code>verify_ledger.py</code> 가 AX 전표(<code>AG…</code>)와 원본(<code>TG…</code>)을 나란히 놓고 비교한다.</p>
 <table>
 <thead>
@@ -474,7 +589,7 @@ V4 영업팀(<code>5100</code>·폐지) → <strong>사업운영팀(<code>6110</
 </table>
 <p>미결은 승인 시점에 서므로, AX 쪽이 아직 승인 전이면 <strong>차이가 아니라 「아직」</strong> 으로 표시한다.</p>
 <hr />
-<h2 id="5">5. 복제 규칙 — 무엇을 그대로 두고 무엇을 옮기나</h2>
+<h2 id="6">6. 복제 규칙 — 무엇을 그대로 두고 무엇을 옮기나</h2>
 <table>
 <thead>
 <tr>
@@ -513,7 +628,7 @@ V4 영업팀(<code>5100</code>·폐지) → <strong>사업운영팀(<code>6110</
 <strong>DEMO2 는 테스트 DB 이므로 의도된 것</strong>이지만, 운영에서는 절대 이렇게 하지 않는다.</p>
 </blockquote>
 <hr />
-<h2 id="6">6. 옮길 수 없는 형태 — 실제 사례로 확인됨</h2>
+<h2 id="7">7. 옮길 수 없는 형태 — 실제 사례로 확인됨</h2>
 <p><code>TG202505270017</code>(스웨덴법인 급여, <code>AP+AR</code>)은 <strong>복제 대상에서 빠진다.</strong>
 1·2번 줄이 <strong>음수</strong>(−25,922 / −26,650)인데 포털은 <code>gl_draft_item</code> 에
 <code>CHECK (item_amt &gt; 0)</code> 이 걸려 있어 저장할 수 없다.</p>
@@ -521,12 +636,13 @@ V4 영업팀(<code>5100</code>·폐지) → <strong>사업운영팀(<code>6110</
 차감 조정이 섞인 급여·정산 전표가 이 형태이고, DEMO2 수동입력 중 <strong>939전표</strong>가 마이너스 라인을 갖는다.
 운영 전환 전 결정이 필요하다(19번 §4.1). §3 표의 「AX 가 좁음」 두 줄이 이것이다.</p>
 <hr />
-<h2 id="7">7. 사용법</h2>
+<h2 id="8">8. 사용법</h2>
 <pre><code class="language-bash">python 10_ERP_DB연계/etl/seed_ledger_cases.py --plan    # 무엇을 복제할지 보기
 python 10_ERP_DB연계/etl/seed_ledger_cases.py --load    # 포털에 적재(제출됨)
 python 10_ERP_DB연계/etl/gl_apply_demo2.py  --precheck  # 보내기 전 점검(ERP 무투입)
 #  → 화면 [ERP 전송] 탭에서 보내기 → ERP 화면에서 승인
 python 10_ERP_DB연계/etl/verify_ledger.py               # 장부 대조
+python 10_ERP_DB연계/etl/verify_guards.py               # 가드 재검증(실전표 전량, 읽기 전용)
 python 10_ERP_DB연계/etl/seed_ledger_cases.py --purge   # 정리(적용된 건은 보존)
 </code></pre>
 <p><code>verify_ledger.py</code> 는 <strong>읽기 전용</strong>이고 차이가 있으면 종료코드 1을 돌려준다 — 자동화에 걸 수 있다.</p>
@@ -554,7 +670,7 @@ python 10_ERP_DB연계/etl/seed_ledger_cases.py --purge   # 정리(적용된 건
 </tbody>
 </table>
 <hr />
-<h2 id="8">8. 실측 조건</h2>
+<h2 id="9">9. 실측 조건</h2>
 <ul>
 <li>대상 <strong><code>JEILMNS_DEMO2</code></strong> · 운영(<code>JEILMNS</code>) 미접근 · 대조 쿼리는 전부 <code>WITH (NOLOCK)</code> 읽기</li>
 <li>원본 선정: 승인 완료(<code>CONF_FG='C'</code>) · 2~6줄 · 서브원장 연결번호 전건 채움 · 10만~2천만원</li>

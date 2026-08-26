@@ -286,6 +286,12 @@ def check_stale(url, key, hours: int = 6):
     return stale
 
 
+# 마스터 캐시 — 실행 중 바뀌지 않는다. 전표 수천 건에 가드를 돌릴 때 같은 질의를 반복하지 않게 한다.
+_ACCT_ATTR = {}      # 계정 → (SUBSYS_TYPE, BAL_FG, ACCT_NM)
+_REQ_CTRL = {}       # (계정, DR|CR) → [(관리항목코드, 이름)]  ※ 필수만
+_TG_ALLOW = None     # 결의전표(TG)에 허용된 (SUBSYS_TYPE, DR|CR|DC) 집합
+
+
 def stop(what: str, fix: str = "") -> SystemExit:
     """사용자에게 그대로 보이는 중단 사유 — 무엇이 잘못됐나 한 줄, 어떻게 하나 한 줄.
 
@@ -374,13 +380,18 @@ def guard_lines(cur, lines):
                     "fix": "금액을 맞춘 뒤 다시 보내세요"})
 
     # ── 계정 속성 조회(서브시스템·기본차대) ──
+    # 마스터는 실행 중 바뀌지 않으므로 프로세스 안에서 캐시한다.
+    # 한 건만 볼 때는 차이가 없지만, 전표 수천 건에 가드를 돌려 볼 때(verify_guards.py)
+    # 라인마다 같은 질의를 반복하지 않게 된다.
     accts = sorted({l["acct"] for l in lines})
     attr = {}
     for a in accts:
-        cur.execute("SELECT RTRIM(ISNULL(SUBSYS_TYPE,'')), RTRIM(ISNULL(BAL_FG,'')), "
-                    "RTRIM(ISNULL(ACCT_NM,'')) FROM dbo.A_ACCT WITH (NOLOCK) WHERE RTRIM(ACCT_CD)=?", a)
-        r = cur.fetchone()
-        attr[a] = (r[0], r[1][:2], r[2]) if r else ("", "", "")
+        if a not in _ACCT_ATTR:
+            cur.execute("SELECT RTRIM(ISNULL(SUBSYS_TYPE,'')), RTRIM(ISNULL(BAL_FG,'')), "
+                        "RTRIM(ISNULL(ACCT_NM,'')) FROM dbo.A_ACCT WITH (NOLOCK) WHERE RTRIM(ACCT_CD)=?", a)
+            r = cur.fetchone()
+            _ACCT_ATTR[a] = (r[0], r[1][:2], r[2]) if r else ("", "", "")
+        attr[a] = _ACCT_ATTR[a]
 
     # ── G6 필수 관리항목 — ERP 엔진이 안 막는 구간 ──
     # 수동입력 화면은 A_ACCT_CTRL_ASSN 의 DR_FG/CR_FG='Y' 항목이 비면 저장을 막는다.
@@ -388,7 +399,7 @@ def guard_lines(cur, lines):
     # 2026-08-26 실측: 미지급금(거래처) 대변에 BP·C1 을 통째로 빼고 넣었더니 rc=1 로 통과하고
     # 채무원장(A_OPEN_AP)까지 **거래처 없이** 생성됐다. 그 원장은 반제·지급을 할 수 없다.
     # 기준은 「수동으로 못 만드는 전표는 AX 로도 만들 수 없다」이므로 여기서 막는다.
-    need_ctrl = {}
+    need_ctrl = _REQ_CTRL
     for l in lines:
         key = (l["acct"], l["fg"][:2])
         if key not in need_ctrl:
@@ -444,10 +455,12 @@ def guard_lines(cur, lines):
             continue
 
         # ── G5 그 외(AP·AR·PP·PR·SS) — A_OBJECT 매칭(ERP와 같은 판정) ──
-        cur.execute("SELECT COUNT(*) FROM dbo.A_OBJECT WITH (NOLOCK) "
-                    "WHERE RTRIM(GL_INPUT_TYPE)='TG' AND RTRIM(SUBSYS_TYPE)=? "
-                    "  AND (RTRIM(DR_CR_FG)='DC' OR RTRIM(DR_CR_FG)=?)", sub, fg)
-        if not cur.fetchone()[0]:
+        if _TG_ALLOW is None:
+            cur.execute("SELECT RTRIM(SUBSYS_TYPE), RTRIM(DR_CR_FG) FROM dbo.A_OBJECT WITH (NOLOCK) "
+                        "WHERE RTRIM(GL_INPUT_TYPE)='TG'")
+            globals()["_TG_ALLOW"] = {(r[0], r[1]) for r in cur.fetchall()}
+        allow = (sub, fg) in _TG_ALLOW or (sub, "DC") in _TG_ALLOW
+        if not allow:
             deal, screen = DEAL.get(sub, ("반제", "반제"))
             out.append({**base, "code": "G5",
                         "what": f"{deal}(반제)라서 결의전표로는 할 수 없습니다",

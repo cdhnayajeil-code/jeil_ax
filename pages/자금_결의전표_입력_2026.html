@@ -1763,6 +1763,22 @@ function validateRows(){
     if(el){ el.classList.add("bad"); el.scrollIntoView({ behavior:"smooth", block:"center" }); el.focus?.(); }
     return false;
   }
+  /* 필수 관리항목 — 저장 버튼을 누르기 전에 여기서 먼저 잡는다.
+     서버도 같은 기준으로 막지만(ctrl_aware → 400), 저장을 눌러야 알게 되면
+     어느 칸인지 찾아 헤매게 된다. ERP 기준은 A_ACCT_CTRL_ASSN 의 DR_FG/CR_FG='Y'.
+     릴레이도 투입 직전에 한 번 더 본다(가드 G6) — 세 층이 같은 기준이다. */
+  for(const r of list){
+    if(!String(r.acct_cd||"").trim() || !r.dr_cr_fg) continue;
+    // 필수 판정은 ctrlDefsFor() 한 곳에서만 — 화면의 * 표시와 같은 기준을 쓴다
+    const miss = ctrlDefsFor(r).filter((d)=> d.req && !String((r.__ctrl||{})[d.cd] ?? "").trim());
+    if(miss.length){
+      const names = miss.map((d)=> (CTRL_NM.get(d.cd)||{}).ctrl_nm || d.cd);
+      const el = document.querySelector('#draftForm [data-ctrl="'+miss[0].cd+'"][data-seq="'+r.item_seq+'"]');
+      toast(r.item_seq+"번 줄 — 필수 관리항목을 채우세요: "+names.join(", "), true);
+      if(el){ el.classList.add("bad"); el.scrollIntoView({ behavior:"smooth", block:"center" }); el.focus?.(); }
+      return false;
+    }
+  }
   list.forEach((r)=>{
     if(!r.acct_cd){
       const el = document.querySelector('#draftForm .pick[data-act="acct"][data-seq="'+r.item_seq+'"]');
