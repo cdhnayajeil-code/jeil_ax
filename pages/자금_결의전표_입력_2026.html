@@ -217,8 +217,11 @@
   .relaybar.warn .dot{background:var(--amber);}
   .relaybar.warn .txt b{color:var(--amber);}
   /* 손봐야 할 건 — 실패·적체를 한 곳에 모은다(행을 하나씩 눌러 보게 두지 않는다) */
-  .prob{border:1px solid var(--line); border-left:4px solid var(--red); border-radius:10px;
-        background:#fff; padding:11px 13px; margin-bottom:8px;}
+  /* 작은 카드 격자 — 한 장에 담는 것은 셋뿐이다: 무엇이 막혔나 · 어떻게 하나 · 버튼.
+     사유 전문은 접어 둔다. 여섯 장이 나란히 뜨면 전문은 읽히지 않고 벽이 된다. */
+  .probgrid{display:grid; gap:9px; grid-template-columns:repeat(auto-fill, minmax(310px, 1fr));}
+  .prob{border:1px solid var(--line); border-left:3px solid var(--red); border-radius:9px;
+        background:#fff; padding:9px 11px; display:flex; flex-direction:column; gap:5px;}
   .prob.stale{border-left-color:var(--amber);}
   .prob.stuck{border-left-color:var(--accent);}
   /* 실패 배지 + 사유 요약 — 표에서 한 눈에 읽히게 */
@@ -237,23 +240,41 @@
   .ib:focus-visible{outline:2px solid var(--accent); outline-offset:2px;}
   td.acts{white-space:nowrap;}
   .prob.precheck{border-left-color:var(--navy);}
-  .prob.precheck .why{color:#33455e; background:rgba(26,47,78,.05); border-color:#ccd7e6;}
-  .tagk.precheck{background:#e9edf4; color:var(--navy);}
-  .prob .hd{display:flex; align-items:center; gap:9px; flex-wrap:wrap; margin-bottom:5px;}
-  .prob .hd .no{font-family:'Consolas','Menlo',monospace; font-size:12.5px; font-weight:700; color:var(--navy);}
-  .prob .hd .desc{font-size:12.5px; color:var(--ink); min-width:0; overflow-wrap:anywhere;}
-  .prob .hd .amt{margin-left:auto; font-weight:700; font-size:12.5px; color:var(--navy);
-                 font-variant-numeric:tabular-nums;}
-  .prob .meta{font-size:11.5px; color:var(--muted); margin-bottom:6px;}
-  .prob .why{font-size:12px; line-height:1.65; color:#8d2f24; background:rgba(192,57,43,.06);
-             border:1px solid #f0cec9; border-radius:7px; padding:8px 10px; overflow-wrap:anywhere;
-             white-space:pre-line;}
-  .prob.stale .why{color:#8a5c12; background:rgba(201,130,26,.08); border-color:#f0dcb4;}
-  .prob .acts{display:flex; gap:7px; margin-top:8px; flex-wrap:wrap;}
+  .prob .hd{display:flex; align-items:center; gap:7px; min-width:0;}
+  .prob .hd .no{font-family:'Consolas','Menlo',monospace; font-size:11.5px; font-weight:700;
+                color:var(--navy); white-space:nowrap;}
+  .prob .hd .amt{margin-left:auto; font-weight:700; font-size:12px; color:var(--navy);
+                 font-variant-numeric:tabular-nums; white-space:nowrap;}
+  .prob .desc{font-size:12px; color:var(--ink); line-height:1.4;
+              display:-webkit-box; -webkit-line-clamp:1; -webkit-box-orient:vertical; overflow:hidden;}
+  .prob .meta{font-size:11px; color:var(--muted);}
+  /* 한 줄 요약 — 무엇이 막혔나 */
+  .prob .sum{font-size:12.5px; font-weight:700; color:var(--red); line-height:1.4; overflow-wrap:anywhere;}
+  .prob.stale .sum{color:var(--amber);}
+  .prob.precheck .sum{color:var(--navy);}
+  /* 할 일 — 사유보다 이것이 먼저 읽혀야 한다 */
+  .prob .fix{font-size:12px; color:var(--ink); line-height:1.5; overflow-wrap:anywhere;}
+  .prob .more{font-size:11px; color:var(--muted); background:none; border:0; padding:0; cursor:pointer;
+              text-align:left; font-family:inherit; text-decoration:underline; text-underline-offset:2px;}
+  .prob .more:hover{color:var(--accent);}
+  .prob .full{display:none; font-size:11.5px; line-height:1.6; color:var(--muted);
+              background:var(--soft); border-radius:6px; padding:7px 9px; white-space:pre-line;
+              overflow-wrap:anywhere;}
+  .prob.open .full{display:block;}
+  .prob .acts{display:flex; gap:6px; flex-wrap:wrap; margin-top:1px;}
   .tagk{display:inline-block; padding:1px 7px; border-radius:999px; font-size:10.5px; font-weight:700;
-        background:#fdeeec; color:var(--red);}
+        background:#fdeeec; color:var(--red); white-space:nowrap;}
   .tagk.stale{background:#fff3dc; color:var(--amber);}
   .tagk.stuck{background:#e8f1fa; color:var(--accent);}
+  .tagk.precheck{background:#e9edf4; color:var(--navy);}
+  /* 상단 집계 — 몇 건이 어떤 이유로 막혔는지 한눈에 */
+  #probTally .t{display:inline-flex; align-items:center; gap:5px; padding:2px 9px; border-radius:999px;
+                font-size:11.5px; font-weight:700; background:var(--soft); color:var(--muted);}
+  #probTally .t + .t{margin-left:5px;}
+  #probTally .t.failed{background:#fdeeec; color:var(--red);}
+  #probTally .t.precheck{background:#e9edf4; color:var(--navy);}
+  #probTally .t.stale{background:#fff3dc; color:var(--amber);}
+  #probTally .t.stuck{background:#e8f1fa; color:var(--accent);}
   /* 분개 카드 — 라인과 그 라인의 관리항목을 한 덩어리로 보여준다(표 2개 대조 불필요) */
   .jl{border:1px solid var(--line); border-left:4px solid var(--line); border-radius:11px; background:#fff;
       margin-bottom:9px; overflow:hidden;}
@@ -682,11 +703,6 @@
           <div class="txt"><b id="relayTitle">중계 상태 확인 중…</b><span id="relayNote"></span></div>
           <button type="button" class="b gh sm" id="btnRelayRefresh">다시 확인</button>
         </div>
-        <!-- 실패·적체를 한 곳에 모은다 — 건별로 눌러 봐야 알던 사유를 목록에서 바로 읽는다 -->
-        <div id="probWrap" class="hide" style="margin-bottom:13px;">
-          <h2 style="margin-top:0;">손봐야 할 건 <small id="probSub">끝나지 않은 전표와 그 사유</small></h2>
-          <div id="probList"></div>
-        </div>
         <h2>제출된 초안
           <small>행을 누르면 아래에 상세가 열립니다 · 전표번호는 ERP가 매깁니다</small>
           <!-- 상태 구분은 드롭다운 대신 한눈에 보이는 버튼으로(선택지가 3개뿐) -->
@@ -721,6 +737,14 @@
         <div class="erpbox two" id="erpSummary"></div>
         <h2 style="margin-top:14px;">분개 <small>라인별 관리항목을 같은 카드에 붙여 표시합니다 — [값 복사]에 모두 포함</small></h2>
         <div id="postLines"></div>
+      </div>
+      <!-- 손봐야 할 건 — 목록·상세 아래. 먼저 표를 보고, 문제는 여기서 모아 본다.
+           카드는 작게: 한 줄 요약과 할 일만 보이고, 전문은 [자세히]로 편다. -->
+      <div class="sec hide" id="probWrap">
+        <h2 style="margin-top:0;">손봐야 할 건 <small id="probSub">끝나지 않은 전표와 그 사유</small>
+          <span class="segs" id="probTally" style="margin-left:auto;"></span>
+        </h2>
+        <div id="probList" class="probgrid"></div>
       </div>
     </div>
 
@@ -2887,45 +2911,65 @@ function renderRelayBar(h){
   $("relayTitle").textContent = title;
   $("relayNote").textContent = note;
 }
+/* 사유에서 '할 일'(→ 로 시작하는 줄)만 뽑는다. 사용자가 다음에 눌러야 할 것이 여기 있다. */
+function reasonFix(msg){
+  return String(msg||"").split("\n").filter((t)=> t.trim().startsWith("→"))
+    .map((t)=> t.replace(/^\s*→\s*/, "")).join(" · ");
+}
 function renderProblems(rows){
   const wrap = $("probWrap");
-  if(!rows.length){ wrap.classList.add("hide"); $("probList").innerHTML = ""; return; }
+  if(!rows.length){
+    wrap.classList.add("hide"); $("probList").innerHTML = ""; $("probTally").innerHTML = ""; return;
+  }
   wrap.classList.remove("hide");
   const KIND = { failed:["실패","failed"], stale:["대기만 하는 중","stale"],
                  stuck:["멈춤","stuck"], precheck:["보내면 실패","precheck"] };
-  $("probSub").textContent = rows.length + "건 — 막힌 건은 ERP에 아무것도 들어가지 않았습니다";
+  $("probSub").textContent = "막힌 건은 ERP에 아무것도 들어가지 않았습니다";
+  // 집계 칩 — 카드를 세지 않아도 규모가 먼저 보인다
+  const tally = {};
+  rows.forEach((x)=> { tally[x.kind] = (tally[x.kind]||0) + 1; });
+  $("probTally").innerHTML = Object.keys(KIND).filter((k)=> tally[k])
+    .map((k)=> '<span class="t '+KIND[k][1]+'"><b>'+tally[k]+'</b> '+KIND[k][0]+'</span>').join("");
+
   $("probList").innerHTML = rows.map((x)=>{
     const [label, k] = KIND[x.kind] || ["확인 필요","failed"];
+    const brief = reasonBrief(x.reason);
+    const fix   = reasonFix(x.reason);
+    const sum   = brief || (x.kind === "stale" ? "아직 아무도 가져가지 않았습니다" : "확인이 필요합니다");
+    const guide = fix || (x.kind === "stale" ? "위 중계 상태를 확인하세요"
+                        : x.reason ? "" : "관리자에게 알려 주세요");
     return '<div class="prob '+k+'">'
       + '<div class="hd"><span class="tagk '+k+'">'+label+'</span>'
       + '<span class="no">'+esc(x.draft_no)+'</span>'
-      + '<span class="desc">'+esc(x.gl_desc||"")+'</span>'
       + '<span class="amt">'+won(x.dr_total)+'원</span></div>'
-      + '<div class="meta">'+esc(x.draft_dt)+' · '+esc(x.dept_nm||"")+' · '+esc(x.owner_nm||"")
-      + ' · '+mins(x.wait_min)+' 경과'
-      + (x.erp_attempts ? ' · 시도 '+x.erp_attempts+'회' : '')+'</div>'
-      + (x.kind === "precheck"
-          ? '<div class="meta" style="margin:-2px 0 6px;">아직 안 보냈습니다 — 지금 보내면 실패합니다.</div>' : '')
-      + '<div class="why">'+(x.reason
-          ? esc(x.reason)
-          : (x.kind === "stale"
-              ? '실패가 아니라 <b>아직 아무도 가져가지 않았습니다.</b> 위 중계 상태를 확인하세요.'
-              : '사유가 남지 않았습니다. 관리자에게 알려 주세요.'))+'</div>'
+      + '<div class="desc" title="'+esc(x.gl_desc||"")+'">'+esc(x.gl_desc||"")+'</div>'
+      + '<div class="sum">'+esc(sum)+'</div>'
+      + (guide ? '<div class="fix">→ '+esc(guide)+'</div>' : '')
+      + '<div class="meta">'+esc(x.dept_nm||"")+' · '+esc(x.owner_nm||"")
+      + ' · '+mins(x.wait_min)+' 전'
+      + (x.erp_attempts > 1 ? ' · '+x.erp_attempts+'번째' : '')+'</div>'
+      // 전문은 접어 둔다 — 필요한 사람만 편다
+      + (x.reason ? '<button type="button" class="more" data-open>사유 전문 보기</button>'
+                    + '<div class="full">'+esc(x.reason)+'</div>' : '')
       + '<div class="acts">'
       // 사유를 읽었으면 다음 행동은 '고치기'다 — 여기서 바로 작성 화면으로 넘어간다
       + (x.kind === "stuck" ? ''
-         : '<button type="button" class="b pri sm" data-fix="'+esc(x.draft_no)+'"'
+         : '<button type="button" class="ib pri" data-fix="'+esc(x.draft_no)+'"'
            + ' data-ready="'+(x.erp_apply_status==="ready"?"1":"")+'">✏ 수정</button>')
       + (x.erp_apply_status === "ready"
-         ? '<button type="button" class="b gh sm" data-cancel="'+esc(x.draft_no)+'">전송취소</button>' : '')
-      + '<button type="button" class="b gh sm" data-prob="'+esc(x.draft_no)+'">열어서 보기</button>'
+         ? '<button type="button" class="ib" data-cancel="'+esc(x.draft_no)+'">전송취소</button>' : '')
+      + '<button type="button" class="ib" data-prob="'+esc(x.draft_no)+'">열기</button>'
       // 고칠 수 없는 전표(전표 자체가 잘못된 경우)는 여기서 바로 치운다 —
       // 안 그러면 실패 목록에 영원히 남아 진짜 문제를 가린다
-      + '<button type="button" class="b gh sm" data-void="'+esc(x.draft_no)+'">폐기</button>'
+      + '<button type="button" class="ib" data-void="'+esc(x.draft_no)+'">폐기</button>'
       + '</div></div>';
   }).join("");
 }
 $("probList").onclick = async (e)=>{
+  const more = e.target.closest("button[data-open]");
+  if(more){ more.closest(".prob").classList.toggle("open");
+            more.textContent = more.closest(".prob").classList.contains("open")
+              ? "사유 접기" : "사유 전문 보기"; return; }
   const fix  = e.target.closest("button[data-fix]");
   const canc = e.target.closest("button[data-cancel]");
   const open = e.target.closest("button[data-prob]");
