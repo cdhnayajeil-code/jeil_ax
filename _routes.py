@@ -109,6 +109,7 @@ ROUTES = {
     "/docs/erp/prod-gates":             "10_ERP_DB연계/17_운영전환_게이트.html",
     "/docs/erp/jnl-rule":               "10_ERP_DB연계/18_거래항목_결정규칙.html",
     "/docs/erp/test-set":               "10_ERP_DB연계/19_연동테스트_전표세트.html",
+    "/docs/erp/ledger-verify":          "10_ERP_DB연계/20_원장검증_실장부대조.html",
 
     # ── 제품기획 ───────────────────────────────────────────
     "/docs/product":                    "11_제품기획/index.html",

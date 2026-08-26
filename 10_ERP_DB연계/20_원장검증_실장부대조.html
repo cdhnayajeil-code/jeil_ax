@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>20 원장검증 실장부대조 — ERP DB 연계 관제 (실제 승인 전표를 복제해 채무·부가세·선급·선수·미결 원장을 원본과 1:1 대조)</title>
+<style>
+:root{--navy:#1a2f4e;--navy2:#27457a;--accent:#2f6fb3;--red:#b3402f;--green:#2e7d52;--amber:#9a6b1f;
+--ink:#222;--muted:#666;--line:#d8dee8;--bg:#f4f6f9;--soft:#eef2f8;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;color:var(--ink);background:var(--bg);line-height:1.65;font-size:15px;}
+.page{max-width:960px;margin:0 auto;background:#fff;padding:52px 60px;box-shadow:0 2px 14px rgba(0,0,0,.08);}
+.doc-label{display:inline-block;background:var(--navy);color:#fff;font-size:12px;letter-spacing:.16em;padding:5px 14px;border-radius:3px;margin-bottom:16px;}
+.docnav{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 26px;}
+.docnav a{font-size:12px;color:var(--navy2);border:1px solid var(--line);border-radius:20px;padding:4px 12px;text-decoration:none;background:var(--soft);}
+.docnav a:hover{background:var(--navy);color:#fff;}
+.docnav a.cur{background:var(--navy);color:#fff;border-color:var(--navy);}
+.md-link{font-size:13px;margin-bottom:22px;color:var(--muted);}
+.content h1{font-size:27px;color:var(--navy);line-height:1.35;margin:6px 0 18px;}
+.content h2{font-size:20px;color:var(--navy);margin:42px 0 14px;padding-bottom:9px;border-bottom:3px solid var(--navy);}
+.content h3{font-size:16px;color:var(--navy2);margin:24px 0 9px;}
+.content p{margin:0 0 12px;}
+.content ul,.content ol{margin:0 0 14px 22px;}
+.content li{margin-bottom:6px;}
+.content blockquote{background:var(--soft);border-left:5px solid var(--navy);border-radius:0 8px 8px 0;padding:14px 20px;margin:14px 0;color:#33425a;}
+.content blockquote p{margin:0 0 6px;}
+.content table{width:100%;border-collapse:collapse;margin:14px 0 20px;font-size:13.3px;}
+.content th{background:var(--navy);color:#fff;padding:9px 11px;text-align:left;font-weight:600;}
+.content td{padding:8px 11px;border-bottom:1px solid var(--line);vertical-align:top;}
+.content tr:nth-child(even) td{background:#fafbfd;}
+.content a{color:var(--accent);}
+.content code{background:var(--soft);border:1px solid var(--line);border-radius:4px;padding:1px 6px;font-size:12.4px;font-family:Consolas,'Courier New',monospace;}
+.content pre{background:#21252e;color:#e8eaf0;border-radius:8px;padding:16px 18px;font-size:12.4px;font-family:Consolas,'Courier New',monospace;overflow-x:auto;margin:12px 0 18px;line-height:1.55;}
+.content pre code{background:none;border:none;color:inherit;padding:0;}
+.content hr{border:none;border-top:1px solid var(--line);margin:30px 0;}
+.content strong{color:var(--navy2);}
+.footer{margin-top:50px;padding-top:16px;border-top:1px solid var(--line);font-size:12px;color:var(--muted);display:flex;justify-content:space-between;}
+@media print{body{background:#fff;}.page{box-shadow:none;padding:18px 0;max-width:100%;}.docnav{display:none;}.content h2{break-after:avoid;}.content table,.content pre,.content blockquote{break-inside:avoid;}}
+@media (max-width:720px){.page{padding:30px 20px;}}
+</style>
+</head>
+<body>
+<div class="page">
+  <span class="doc-label">JEIL AX ERP DB 연계 · 대외비</span>
+  <div class="docnav"><a href="/docs/erp">🏠 연계 허브</a><a href="/docs/erp/status">00 현재상태</a><a href="/docs/erp/plan">01 연계기획</a><a href="/docs/erp/progress">02 진행상태</a><a href="/docs/erp/midway-db">03 중간DB 실행기획</a><a href="/docs/erp/incremental-sync">04 증분·확장·거버넌스</a><a href="/docs/erp/dept-mapping">05 사용자-부서 매핑</a><a href="/docs/erp/voucher-roadmap">06 결의전표 추진계획</a><a href="/docs/erp/voucher-handover">09 결의전표 인수인계</a><a href="/docs/erp/recurring-voucher">10 반복전표 자동화</a><a href="/docs/erp/direct-post-demo">11 ERP 직접등록(DEMO2)</a><a href="/docs/erp/ax001-acct-mapping">12 AX001 계정매핑 요청</a><a href="/docs/erp/subledger-fix">13 서브원장 호출누락</a><a href="/docs/erp/test-cases">14 테스트범위·케이스</a><a href="/docs/erp/input-guards">15 입력검증·차단규칙</a><a href="/docs/erp/trans-type-review">16 거래유형체계 검토</a><a href="/docs/erp/prod-gates">17 운영전환 게이트</a><a href="/docs/erp/jnl-rule">18 거래항목 결정규칙</a><a href="/docs/erp/test-set">19 연동테스트 전표세트</a><a class="cur" href="/docs/erp/ledger-verify">20 원장검증 실장부대조</a><a href="README.md">README</a></div>
+  <p class="md-link">📄 Markdown 원본: <a href="20_원장검증_실장부대조.md">20_원장검증_실장부대조.md</a> · 허브 <a href="/docs/erp">연계 허브</a></p>
+  <div class="content">
+<h1 id="20-11">20. 원장 검증 — 실제 장부와 1:1 대조</h1>
+<blockquote>
+<p><strong>AX 로 만든 전표가 사람이 손으로 만든 전표와 장부상 똑같은가.</strong>
+적재 2026-08-26 · 관리: 최동혁 · 배치 <code>LEDGERSET-2026-08-26</code>
+도구 <code>etl/seed_ledger_cases.py</code>(복제 적재) · <code>etl/verify_ledger.py</code>(대조)
+선행 <code>19_연동테스트_전표세트</code>(가드 검증) · <code>14_AX전표_테스트범위_및_케이스설계</code></p>
+</blockquote>
+<hr />
+<h2 id="0-19">0. 19번과 무엇이 다른가</h2>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>19번 세트</th>
+<th><strong>20번 세트(이 문서)</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>묻는 것</td>
+<td><strong>가드가 잘 막는가</strong></td>
+<td><strong>장부에 똑같이 반영되는가</strong></td>
+</tr>
+<tr>
+<td>전표 출처</td>
+<td>설계해서 만든 것</td>
+<td><strong>실제 승인 전표를 복제</strong></td>
+</tr>
+<tr>
+<td>보는 곳</td>
+<td>전표 안(투입 라인 대조)</td>
+<td>전표 <strong>밖</strong> — 채무·부가세·선급·선수·미결 원장</td>
+</tr>
+<tr>
+<td>판정</td>
+<td>통과/차단</td>
+<td><strong>원본과 한 줄도 어긋나지 않는가</strong></td>
+</tr>
+</tbody>
+</table>
+<p>릴레이가 투입 직후 하는 라인 대조는 <em>전표 안</em>만 본다.
+<strong>회계가 실제로 쓰는 것은 전표가 아니라 그 전표가 만들어 낸 원장이다.</strong>
+채무 잔액이 서고, 부가세 신고자료가 잡히고, 선급이 정산 대기에 올라가는 — 그 결과를 본다.</p>
+<h3 id="_1">왜 실제 전표를 복제하나</h3>
+<p>발명한 전표로는 이 비교를 할 수 없다. <strong>대조할 원본이 없기 때문이다.</strong>
+DEMO2 에 이미 승인돼 있는 수기 전표를 골라 계정·차대·금액·관리항목을 그대로 복제하면,
+같은 분개가 두 경로(수기 / AX)로 들어간 셈이 되고 <strong>원장 결과를 나란히 놓고 뺄 수 있다.</strong></p>
+<hr />
+<h2 id="1-7">1. 케이스 7종 — 원장 조합별 대표 전표</h2>
+<p>DEMO2 승인 전표 500건을 원장 조합으로 분류해 조합마다 하나씩 골랐다.</p>
+<table>
+<thead>
+<tr>
+<th>ID</th>
+<th>원본</th>
+<th style="text-align: center;">원장</th>
+<th style="text-align: right;">금액</th>
+<th>무엇을 확인하나</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>V1</strong></td>
+<td><code>TG202505200022</code></td>
+<td style="text-align: center;"><code>AP+TP</code></td>
+<td style="text-align: right;">220,000</td>
+<td>부가세 신고자료의 <strong>과세표준·세액</strong>, 채무 잔액, 판관비/제조원가 분리</td>
+</tr>
+<tr>
+<td><strong>V2</strong></td>
+<td><code>TG202505210011</code></td>
+<td style="text-align: center;"><code>AP+PP+TP</code></td>
+<td style="text-align: right;">2,331,648</td>
+<td><strong>선급금 원장</strong>(<code>F_PRPAYM</code>) 생성 · 프로젝트·발주번호 승계</td>
+</tr>
+<tr>
+<td><strong>V3</strong></td>
+<td><code>TG202505230003</code></td>
+<td style="text-align: center;"><code>AP</code></td>
+<td style="text-align: right;">114,480</td>
+<td>부가세 라인이 없을 때 <strong><code>A_VAT</code> 가 생기지 않는지</strong> · 채무만 정확히</td>
+</tr>
+<tr>
+<td><strong>V4</strong></td>
+<td><code>TG202505310074</code></td>
+<td style="text-align: center;"><code>AR</code></td>
+<td style="text-align: right;">3,420,000</td>
+<td><strong>매출채권 원장</strong> · 프로젝트 매출 귀속</td>
+</tr>
+<tr>
+<td><strong>V5</strong></td>
+<td><code>TG202505210004</code></td>
+<td style="text-align: center;"><code>OC</code></td>
+<td style="text-align: right;">1,860,000</td>
+<td><strong>미결원장</strong>(<code>A_OPEN_ACCT</code>)이 사번 기준으로 서는가</td>
+</tr>
+<tr>
+<td><strong>V6</strong></td>
+<td><code>TG202505230013</code></td>
+<td style="text-align: center;"><code>PR</code></td>
+<td style="text-align: right;">1,571,004</td>
+<td><strong>선수금 원장</strong> · <strong>원 단위(6원·7원) 라인이 반올림 없이</strong> 들어가는가</td>
+</tr>
+<tr>
+<td><strong>V7</strong></td>
+<td><code>TG202505210013</code></td>
+<td style="text-align: center;">(무관)</td>
+<td style="text-align: right;">13,000,000</td>
+<td>서브원장 대상이 하나도 없을 때 총계정원장만 정확히</td>
+</tr>
+</tbody>
+</table>
+<p><strong>사전점검 7/7 통과</strong>(2026-08-26). 분개코드 해석·입력가드 전건 정상.</p>
+<p><code>V3</code> 에서 <strong><code>43000514 → ADJMNT/DZ</code></strong> 가 또 확인됐다 — 원본이 생산팀(<code>C017100</code>) 소속이라
+직접 코스트센터 경로를 자연스럽게 탔다.</p>
+<hr />
+<h2 id="2">2. 무엇을 대조하나</h2>
+<p><code>verify_ledger.py</code> 가 AX 전표(<code>AG…</code>)와 원본(<code>TG…</code>)을 나란히 놓고 비교한다.</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: center;">#</th>
+<th>대상</th>
+<th>비교 방식</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: center;">①</td>
+<td>전표 라인</td>
+<td>계정·차대·금액을 <strong>다중집합</strong>으로 — 엔진이 순서를 바꾸므로 순서는 보지 않는다</td>
+</tr>
+<tr>
+<td style="text-align: center;">②</td>
+<td>관리항목</td>
+<td>(계정·차대·코드·값) 다중집합. <strong>날짜형은 제외</strong> — 복제할 때 오늘로 옮겼다</td>
+</tr>
+<tr>
+<td style="text-align: center;">③</td>
+<td>부가세 <code>A_VAT</code></td>
+<td>건수 · 과세표준 · 세액</td>
+</tr>
+<tr>
+<td style="text-align: center;">④</td>
+<td>채무 <code>A_OPEN_AP</code></td>
+<td>건수 · 금액 · 거래처 수</td>
+</tr>
+<tr>
+<td style="text-align: center;">⑤</td>
+<td>선급 <code>F_PRPAYM</code></td>
+<td>건수 · 금액</td>
+</tr>
+<tr>
+<td style="text-align: center;">⑥</td>
+<td>선수 <code>F_PRRCPT</code></td>
+<td>건수 · 금액</td>
+</tr>
+<tr>
+<td style="text-align: center;">⑦</td>
+<td>미결 <code>A_OPEN_ACCT</code></td>
+<td>건수 · 금액 · 관리값(사번) — <strong>승인 후에만 생긴다</strong>(<code>GL_NO</code> 기준)</td>
+</tr>
+</tbody>
+</table>
+<p>미결은 승인 시점에 서므로, AX 쪽이 아직 승인 전이면 <strong>차이가 아니라 「아직」</strong> 으로 표시한다.</p>
+<hr />
+<h2 id="3">3. 복제 규칙 — 무엇을 그대로 두고 무엇을 옮기나</h2>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>처리</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>계정 · 차대 · <strong>금액</strong></td>
+<td><strong>원본 그대로.</strong> 비교 대상이 바로 이것이다</td>
+</tr>
+<tr>
+<td>거래처(BP) · 사번(EM) · 프로젝트(PC) · 발주(PO)</td>
+<td><strong>원본 그대로</strong></td>
+</tr>
+<tr>
+<td>전표일자</td>
+<td><strong>오늘로 이동</strong> — 닫힌 회계기간에는 넣을 수 없다</td>
+</tr>
+<tr>
+<td>날짜형 관리항목(계산서일 <code>V2</code>·만기일 <code>C1</code>·<code>XC1</code>)</td>
+<td>전표일자에 맞춰 이동 (그래서 대조에서 제외)</td>
+</tr>
+<tr>
+<td>적요</td>
+<td><code>ax검증_Vn &lt;원본적요&gt; (원본 TG…)</code> — 추적 가능하게</td>
+</tr>
+</tbody>
+</table>
+<h3 id="_2">민감값을 저장소에 두지 않는다</h3>
+<p>거래처·사번·계좌·프로젝트 값은 <strong>코드에 없다.</strong> 실행할 때 원본 전표에서 읽어 온다.
+저장소에 남는 것은 <strong>원본 전표번호뿐</strong>이다(<code>CLAUDE.md §1</code>). 화면 출력도 앞 2자리만 보인다.</p>
+<blockquote>
+<p><strong>주의</strong>: 같은 분개가 DEMO2 에 두 번 들어간다(원본 + 복제). 비용이 이중 계상된다.
+<strong>DEMO2 는 테스트 DB 이므로 의도된 것</strong>이지만, 운영에서는 절대 이렇게 하지 않는다.</p>
+</blockquote>
+<hr />
+<h2 id="4">4. 옮길 수 없는 형태 — 실제 사례로 확인됨</h2>
+<p><code>TG202505270017</code>(스웨덴법인 급여, <code>AP+AR</code>)은 <strong>복제 대상에서 빠진다.</strong>
+1·2번 줄이 <strong>음수</strong>(−25,922 / −26,650)인데 포털은 <code>gl_draft_item</code> 에
+<code>CHECK (item_amt &gt; 0)</code> 이 걸려 있어 저장할 수 없다.</p>
+<p>19번 §4.1 에서 「마이너스 전표는 만들 수 없다」고 적은 한계가 <strong>실제 장부 전표로 확인된 것</strong>이다.
+차감 조정이 섞인 급여·정산 전표가 이 형태이고, DEMO2 수동입력 중 <strong>939전표</strong>가 마이너스 라인을 갖는다.
+운영 전환 전 결정이 필요하다(19번 §4.1).</p>
+<hr />
+<h2 id="5">5. 사용법</h2>
+<pre><code class="language-bash">python 10_ERP_DB연계/etl/seed_ledger_cases.py --plan    # 무엇을 복제할지 보기
+python 10_ERP_DB연계/etl/seed_ledger_cases.py --load    # 포털에 적재(제출됨)
+python 10_ERP_DB연계/etl/gl_apply_demo2.py  --precheck  # 보내기 전 점검(ERP 무투입)
+#  → 화면 [ERP 전송] 탭에서 보내기 → ERP 화면에서 승인
+python 10_ERP_DB연계/etl/verify_ledger.py               # 장부 대조
+python 10_ERP_DB연계/etl/seed_ledger_cases.py --purge   # 정리(적용된 건은 보존)
+</code></pre>
+<p><code>verify_ledger.py</code> 는 <strong>읽기 전용</strong>이고 차이가 있으면 종료코드 1을 돌려준다 — 자동화에 걸 수 있다.</p>
+<h3 id="_3">판정</h3>
+<table>
+<thead>
+<tr>
+<th>결과</th>
+<th>뜻</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>✅ 라인·관리항목·원장 전부 일치</code></td>
+<td>AX 경로가 수기 경로와 <strong>장부상 구별되지 않는다</strong></td>
+</tr>
+<tr>
+<td><code>❌ &lt;원장&gt;: 원본 N행 … ↔ AX M행 …</code></td>
+<td>그 원장에서 어긋났다 — 금액·건수·거래처를 확인</td>
+</tr>
+<tr>
+<td><code>⏳ 미결 … 승인 후에 생깁니다</code></td>
+<td>차이가 아니다. ERP 에서 승인하면 채워진다</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="6">6. 실측 조건</h2>
+<ul>
+<li>대상 <strong><code>JEILMNS_DEMO2</code></strong> · 운영(<code>JEILMNS</code>) 미접근 · 대조 쿼리는 전부 <code>WITH (NOLOCK)</code> 읽기</li>
+<li>원본 선정: 승인 완료(<code>CONF_FG='C'</code>) · 2~6줄 · 서브원장 연결번호 전건 채움 · 10만~2천만원</li>
+<li><code>TG</code> 접두 = 수기, <code>AG</code> 접두 = AX — 이 구분으로 원본에서 AX 생성분을 제외했다</li>
+<li><strong>DEMO2 는 2025-06-25 스냅샷이다.</strong> 운영 전환 전 같은 대조를 운영 마스터로 재수행해야 한다
+  (<code>17_운영전환_게이트</code> G7)</li>
+</ul>
+  </div>
+  <div class="footer"><span>JEIL M&amp;S · ERP DB 연계 관제</span><span>20 원장검증 실장부대조 · 관리: 최동혁</span></div>
+</div>
+</body>
+</html>
