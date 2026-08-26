@@ -803,7 +803,7 @@ def apply_draft(args):
         except Exception:
             pass
         result["status"] = "success"
-        print("[재판정] ✅ 현재 규칙으로는 차단되지 않습니다 — 재전송하면 투입됩니다.")
+        print("[점검] ✅ 지금 보내면 정상 처리됩니다.")
     except SystemExit as e:
         try:
             conn.rollback()

@@ -158,31 +158,24 @@ DEMO2 에 이미 승인돼 있는 수기 전표를 골라 계정·차대·금액
 </tbody>
 </table>
 <h3 id="11-2026-08-26">1.1 결과 (2026-08-26 전송)</h3>
-<table>
-<thead>
-<tr>
-<th></th>
-<th>결과</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><strong>V1 · V2 · V3 · V6 · V7</strong></td>
-<td>✅ <strong>원본과 완전 일치</strong> — 라인·관리항목·부가세·채무·선급·선수 전부</td>
-</tr>
-<tr>
-<td><strong>V4 · V5</strong></td>
-<td>🚫 <strong>차단</strong> — 부서가 현행 조직에 없다(§2에 새 발견으로 정리)</td>
-</tr>
-</tbody>
-</table>
+<p><strong>7건 전건 일치 · 차이 0.</strong></p>
 <pre><code>[V1] AG202608260003 ↔ TG202505200022   부가세 과세표준 200,000 · 세액 20,000 / 채무 220,000
 [V2] AG202608260005 ↔ TG202505210011   부가세 2,119,680/211,968 · 채무 2,331,648 · 선급 2,119,680
 [V3] AG202608260004 ↔ TG202505230003   채무 114,480 (부가세 0행 — 원본과 같음)
+[V4] AG202608260006 ↔ TG202505310074   채권 AR202608260001 (채무·부가세 0행 — 원본과 같음)
+[V5] AG202608260007 ↔ TG202505210004   서브원장 대상 없음 · 미결은 승인 후(원본 1행 1,860,000)
 [V6] AG202608260001 ↔ TG202505230013   선수 2행 1,571,004  ← 6원·7원 라인 반올림 없음
 [V7] AG202608260002 ↔ TG202505210013   서브원장 0 (원본과 같음)
 </code></pre>
-<p><strong>AX 경로가 수기 경로와 장부상 구별되지 않는다</strong> — 이 5건에 대해서는 확인됐다.</p>
+<p><strong>AX 경로가 수기 경로와 장부상 구별되지 않는다</strong> — 7건 전건에서 확인됐다.</p>
+<blockquote>
+<p><strong>V4·V5 는 처음에 막혔다가(§2) 부서를 현행으로 바꿔 다시 보냈다.</strong>
+V4 영업팀(<code>5100</code>·폐지) → <strong>사업운영팀(<code>6110</code>)</strong>, V5 CM2파트(<code>6630</code>·폐지) → <strong>사업관리팀(<code>6120</code>)</strong>
+— 둘 다 현행 조직이고 상위가 사업부문(<code>6700</code>)이라 원 전표 성격에 맞다.
+코스트센터도 함께 바꿨다(<code>C016110</code>·<code>C016120</code>).
+<strong>부서가 달라도 대조는 유효하다</strong> — 비교 대상은 계정·차대·금액·관리항목·원장 금액이고
+부서는 거기 들어가지 않는다.</p>
+</blockquote>
 <p><code>V3</code> 에서 <strong><code>43000514 → ADJMNT/DZ</code></strong> 가 또 확인됐다 — 원본이 생산팀(<code>C017100</code>) 소속이라
 직접 코스트센터 경로를 자연스럽게 탔다.</p>
 <blockquote>
@@ -244,6 +237,49 @@ DEMO2 에 이미 승인돼 있는 수기 전표를 골라 계정·차대·금액
 <p><strong>운영 전환에 미치는 영향</strong>: 폐지 부서로 전표를 넣을 수 없다는 것은 정상 동작이다.
 문제는 <strong>그 사실을 알려 주는 시점과 문구</strong>였고, 그것을 고쳤다.
 과거 전표 재현·소급 정산처럼 폐지 부서가 필요한 업무는 ERP 화면 소관으로 남는다.</p>
+</blockquote>
+<h3 id="21">2.1 파생 문제 — 화면이 폐지 부서를 아직 고르게 한다 (미결)</h3>
+<p>릴레이는 이제 막지만, <strong>입력 화면은 여전히 폐지 부서의 코스트센터를 보여준다.</strong>
+<code>gl_master_get()</code> 의 코스트센터 목록이 조직 버전을 보지 않기 때문이다
+(제외 조건은 <code>org_change_id='19801'</code> 과 이름의 '사용금지' 뿐).</p>
+<p>실측하면 이렇다.</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>값</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>화면에 지금 노출되는 코스트센터</td>
+<td><strong>91개</strong></td>
+</tr>
+<tr>
+<td>그중 <strong>현행 조직 부서 소속</strong></td>
+<td><strong>36개</strong></td>
+</tr>
+<tr>
+<td>폐지 부서 소속(고르면 전송 실패)</td>
+<td><strong>55개</strong> — EPC그룹·전사혁신팀·원가회계팀·IT팀·영업팀·PM팀 …</td>
+</tr>
+</tbody>
+</table>
+<p><strong>그런데 단순히 필터를 걸면 안 된다.</strong> 두 가지가 걸린다.</p>
+<ol>
+<li><strong>코스트센터는 조직개편 때 전량 재생성되지 않는다.</strong> ERP 실측: 조직 <code>20264</code>(현행)에
+   코스트센터가 <strong>4건뿐</strong>이고, 실제 쓰는 <code>C013200</code>(총무팀) 같은 것들은 <code>20244</code>·<code>20251</code> 에 남아 있다.
+   → 「코스트센터의 조직 버전」으로 거르면 4건만 남아 화면이 못 쓰게 된다.
+   올바른 기준은 <strong>소속 부서가 현행 조직에 있는가</strong> 다.</li>
+<li><strong>중간DB 미러가 한 세대 뒤처져 있다.</strong> 미러(<code>erp_ro.dept_master_s</code>)의 최신 조직은 <code>20261</code>,
+   ERP 원본은 <code>20264</code> 다. 잘못된 기준으로 55개를 없애는 셈이 된다.</li>
+</ol>
+<blockquote>
+<p><strong>결정 필요</strong>: ①먼저 중간DB 조직 미러를 현행(<code>20264</code>)까지 동기화하고,
+②그다음 <code>gl_master_get</code> 을 <strong>부서 기준</strong>으로 거른다 — 이 순서여야 한다.
+화면에서 55개가 사라지는 변화라 업무 영향이 있어 <strong>임의로 바꾸지 않았다</strong>(<code>CLAUDE.md §4·§10</code>).</p>
+<p><strong>지금 당장 데이터 사고는 없다</strong> — 릴레이 가드가 막고, 사전점검이 보내기 전에 알려 준다.
+남은 것은 「고를 수는 있는데 보내면 막힌다」는 불편이다.</p>
 </blockquote>
 <hr />
 <h2 id="3">3. 무엇을 대조하나</h2>
