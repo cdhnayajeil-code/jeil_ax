@@ -286,6 +286,31 @@ def check_stale(url, key, hours: int = 6):
     return stale
 
 
+def stop(what: str, fix: str = "") -> SystemExit:
+    """사용자에게 그대로 보이는 중단 사유 — 무엇이 잘못됐나 한 줄, 어떻게 하나 한 줄.
+
+    이 문장은 포털 화면에 그대로 뜬다. 그래서 규칙이 있다.
+      · 테이블명(A_BATCH)·컬럼명(JNL_CD)·ERP 오류번호를 쓰지 않는다 — 회계 담당자가 읽는다.
+      · 계정은 코드가 아니라 **이름**으로 부른다(코드는 괄호에).
+      · '무엇이 잘못됐다'로 끝내지 않고 **다음에 할 일**을 붙인다.
+    기술 상세는 적용 원장(gl_erp_apply_log.detail)에 그대로 남으므로 여기서 잃지 않는다.
+    """
+    return SystemExit(what + (("\n→ " + fix) if fix else ""))
+
+
+def acct_label(cur, acct_cd: str) -> str:
+    """계정명(코드) — 사람에게는 코드보다 이름이 먼저다."""
+    nm = ""
+    try:
+        cur.execute("SELECT RTRIM(ISNULL(ACCT_NM,'')) FROM dbo.A_ACCT WITH (NOLOCK) "
+                    "WHERE RTRIM(ACCT_CD)=?", acct_cd)
+        r = cur.fetchone()
+        nm = (r[0] if r else "") or ""
+    except Exception:
+        pass
+    return f"{nm}({acct_cd})" if nm else str(acct_cd)
+
+
 class PrecheckPassed(Exception):
     """재판정 전용 신호 — 읽기 검증(분개코드·입력가드)까지 통과했으니 여기서 끝낸다.
 
@@ -344,9 +369,9 @@ def guard_lines(cur, lines):
     dr = sum(l["amt"] for l in lines if l["fg"] == "DR")
     cr = sum(l["amt"] for l in lines if l["fg"] == "CR")
     if dr != cr:
-        out.append({"seq": 0, "acct": "-", "fg": "-", "code": "G2",
-                    "why": f"차대 균형 불일치 — 차변 {dr:,} / 대변 {cr:,} (차이 {abs(dr-cr):,}). "
-                           "ERP 는 결의전표의 차대를 검증하지 않는다"})
+        out.append({"seq": 0, "acct": "-", "fg": "-", "nm": "", "code": "G2",
+                    "what": f"차변과 대변 합계가 다릅니다 — 차변 {dr:,} · 대변 {cr:,} (차이 {abs(dr-cr):,})",
+                    "fix": "금액을 맞춘 뒤 다시 보내세요"})
 
     # ── 계정 속성 조회(서브시스템·기본차대) ──
     accts = sorted({l["acct"] for l in lines})
@@ -357,27 +382,37 @@ def guard_lines(cur, lines):
         r = cur.fetchone()
         attr[a] = (r[0], r[1][:2], r[2]) if r else ("", "", "")
 
+    # 반제(反濟)를 업무 말로 옮긴다 — 사용자는 'SUBSYS_TYPE' 이 아니라 '갚는다·받는다'로 생각한다.
+    DEAL = {"AP": ("갚는 처리", "채무반제"), "AR": ("받는 처리", "채권반제"),
+            "PP": ("정산 처리", "선급금반제"), "PR": ("상계 처리", "선수금반제"),
+            "SS": ("정산 처리", "가수금반제"),
+            "OC": ("갚는 처리", "미결반제"), "OD": ("받는 처리", "미결반제")}
+
     for l in lines:
         sub, bal, nm = attr.get(l["acct"], ("", "", ""))
         if not sub:
             continue                                  # 서브원장 대상 아님 — 제약 없음
         fg = l["fg"][:2]                              # 'DR' | 'CR'
-        base = {"seq": l["seq"], "acct": l["acct"], "fg": fg}
+        base = {"seq": l["seq"], "acct": l["acct"], "fg": fg, "nm": nm}
 
         # ── G1 부가세 반제방향 — ERP 미검증 구간 ──
         if sub in ("TP", "TR"):
             want = "DR" if sub == "TP" else "CR"
             if fg != want:
+                other = "부가세예수금(대변)" if sub == "TP" else "부가세대급금(차변)"
+                side = "차변" if want == "DR" else "대변"
                 out.append({**base, "code": "G1",
-                            "why": f"{nm}({sub})는 {want} 만 허용 — 반대 차대는 부가세 원장(A_VAT)이 "
-                                   "생성되지 않는다. ERP 가 막지 않으므로 AX 가 차단한다"})
+                            "what": f"{side}에만 쓸 수 있는 계정입니다",
+                            "fix": f"{'매출' if sub == 'TP' else '매입'} 부가세라면 {other}을 쓰세요"})
             continue
 
         # ── 미결(OC/OD) — 계정 기본차대와 같아야 한다 ──
         if sub in ("OC", "OD"):
             if bal and fg != bal:
+                deal, screen = DEAL.get(sub, ("반제", "반제"))
                 out.append({**base, "code": "G5",
-                            "why": f"{nm}({sub}) 미결 반제 — 미결반제 전용화면에서 처리해야 한다"})
+                            "what": f"{deal}(반제)라서 결의전표로는 할 수 없습니다",
+                            "fix": f"ERP {screen} 화면에서 처리하세요"})
             continue
 
         # ── G5 그 외(AP·AR·PP·PR·SS) — A_OBJECT 매칭(ERP와 같은 판정) ──
@@ -385,10 +420,10 @@ def guard_lines(cur, lines):
                     "WHERE RTRIM(GL_INPUT_TYPE)='TG' AND RTRIM(SUBSYS_TYPE)=? "
                     "  AND (RTRIM(DR_CR_FG)='DC' OR RTRIM(DR_CR_FG)=?)", sub, fg)
         if not cur.fetchone()[0]:
-            kind = {"AP": "채무", "AR": "채권", "PP": "선급금", "PR": "선수금", "SS": "가수금"}.get(sub, sub)
+            deal, screen = DEAL.get(sub, ("반제", "반제"))
             out.append({**base, "code": "G5",
-                        "why": f"{nm}({sub}) {kind} 반제 방향 — 결의전표로 반제하면 원장 잔액이 "
-                               f"정리되지 않는다. {kind} 반제 전용화면에서 처리해야 한다(ERP 오류 119712)"})
+                        "what": f"{deal}(반제)라서 결의전표로는 할 수 없습니다",
+                        "fix": f"ERP {screen} 화면에서 처리하세요"})
     return out
 
 
@@ -405,7 +440,7 @@ def org_info(cur, dept_cd):
     row = cur.fetchone()
     biz, internal, gaap = (row[0], row[1], row[2]) if row else (None, None, None)
     if not org or not biz:
-        raise SystemExit(f"[중단] 조직정보 확보 실패(ORG_CHANGE_ID={org}, BIZ_AREA={biz}) — 부서코드를 확인하세요.")
+        raise stop("부서 정보를 ERP에서 찾지 못했습니다", "전표 상단의 부서를 확인하세요")
     return org, biz, internal, gaap
 
 
@@ -421,37 +456,40 @@ def apply_draft(args):
     # 적용 성공 시 포털이 초안을 '확정됨(posted)'으로 닫는다(gl_apply_record v3) →
     # 여기서 'submitted' 만 통과시키는 것이 곧 재투입 방지선이다. 정리(--cleanup)는 이 경로를 타지 않는다.
     if h.get("status") != "submitted":
-        raise SystemExit(f"[중단] 초안 상태가 '제출됨'이 아닙니다(현재: {h.get('status')}). 제출된 초안만 투입합니다.")
+        raise stop(f"제출된 전표가 아닙니다(현재 상태: {h.get('status')})",
+                   "전표를 제출한 뒤 다시 보내세요")
     if not items or len(items) < 2:
-        raise SystemExit("[중단] 라인이 2줄 미만입니다.")
+        raise stop("분개가 2줄이 안 됩니다", "차변·대변을 각각 한 줄 이상 넣으세요")
     if int(h.get("dr_total") or 0) != int(h.get("cr_total") or 0):
-        raise SystemExit("[중단] 차대 합계 불일치 — 포털 데이터가 손상됐습니다.")
+        raise stop(f"차변과 대변 합계가 다릅니다 — 차변 {int(h.get('dr_total') or 0):,} "
+                   f"· 대변 {int(h.get('cr_total') or 0):,}", "금액을 맞춘 뒤 다시 보내세요")
     user_id = (h.get("owner_erp_usr_id") or "").strip()
     if not user_id:
-        raise SystemExit("[중단] 등록자 ERP 계정이 비어 있습니다.")
+        raise stop("등록자의 ERP 계정이 연결돼 있지 않습니다", "관리자에게 계정 연결을 요청하세요")
     dept_cd = (h.get("dept_cd") or "").strip()
     cost_cd = (h.get("cost_cd") or "").strip()
     if not dept_cd:
-        raise SystemExit("[중단] 부서코드가 비어 있습니다.")
+        raise stop("부서가 비어 있습니다", "전표 상단에서 부서를 고르세요")
     if not cost_cd:
         # 라인 코스트센터가 전부 있으면 허용, 아니면 중단(엔진 요건)
         if not all((it.get("cost_cd") or "").strip() for it in items):
-            raise SystemExit("[중단] 코스트센터가 없습니다(헤더 또는 전 라인에 필요).")
+            raise stop("코스트센터가 비어 있습니다",
+                       "전표 상단에서 고르거나, 줄마다 코스트센터를 넣으세요")
 
     # 다른 러너가 이미 선점(sending)한 건은 건드리지 않는다 — 중복 투입 차단.
     # 큐 경로는 자기가 방금 선점하고 들어오므로, 단건 수동 실행만 여기서 걸린다.
     if h.get("erp_apply_status") == "sending" and not args.cleanup \
             and not getattr(args, "claimed", False) and not getattr(args, "precheck", False):
         who = (h.get("erp_apply_msg") or "다른 러너")
-        raise SystemExit(f"[중단] {args.draft} 은(는) 현재 전송 처리 중입니다({who}). "
-                         "중복 투입을 막기 위해 실행하지 않습니다 — 끝나기를 기다리거나 "
-                         "장시간 멈춰 있으면 --queue 가 30분 뒤 자동 회수합니다.")
+        raise stop("지금 다른 곳에서 전송 처리 중입니다",
+                   "끝날 때까지 기다리세요(30분 넘게 멈춰 있으면 자동으로 풀립니다)")
 
     # 포털 원장 멱등 확인(commit 성공 이력)
     ready = rpc(url, key, "gl_apply_ready", {"p_target": TARGET_DB}) or []
     if args.draft not in [r["draft_no"] for r in ready] and not args.cleanup:
         # ready 목록에 없다 = 이미 성공 적용됐거나 제출 상태가 아님(위에서 검증) → 안전하게 중단
-        raise SystemExit(f"[중단] {args.draft} 은(는) 적용 대상 목록에 없습니다(이미 적용됐을 수 있음). --list 로 확인하세요.")
+        raise stop("보낼 수 있는 전표가 아닙니다 — 이미 ERP에 등록됐을 수 있습니다",
+                   "화면에서 상태를 확인하세요")
 
     trans_type = args.trans_type
     gl_dt = str(h["draft_dt"])[:10]
@@ -482,16 +520,16 @@ def apply_draft(args):
         cur.execute("SELECT GL_POSTING_FG FROM dbo.A_ACCT_TRANS_TYPE WITH (NOLOCK) WHERE TRANS_TYPE = ?", trans_type)
         row = cur.fetchone()
         if not row or str(row[0]).strip() != "T":
-            raise SystemExit(f"[중단] 거래유형 {trans_type} 의 GL_POSTING_FG 가 'T'가 아닙니다"
-                             f"(값: {row[0] if row else '없음'}) — TG로 귀결되지 않습니다.")
+            raise stop(f"전송 설정({trans_type})이 결의전표로 연결돼 있지 않습니다",
+                       "관리자에게 알려 주세요 — 전표를 고쳐도 해결되지 않습니다")
 
         # ── ERP측 멱등 확인 ────────────────────────────────────────
         cur.execute("SELECT COUNT(*) FROM dbo.A_BATCH WITH (NOLOCK) WHERE REF_NO = ?", ref_no)
         if cur.fetchone()[0] > 0:
-            raise SystemExit(f"[중단] A_BATCH 에 REF_NO={ref_no} 가 이미 존재합니다(중복 투입 차단).")
+            raise stop("이미 ERP로 보낸 전표입니다", "같은 전표를 두 번 보낼 수 없습니다")
         cur.execute("SELECT COUNT(*) FROM dbo.A_TEMP_GL WITH (NOLOCK) WHERE REF_NO = ?", ref_no)
         if cur.fetchone()[0] > 0:
-            raise SystemExit(f"[중단] A_TEMP_GL 에 REF_NO={ref_no} 전표가 이미 존재합니다(중복 투입 차단).")
+            raise stop("이미 ERP에 전표가 만들어져 있습니다", "같은 전표를 두 번 보낼 수 없습니다")
 
         # ── JNL/EVENT 결정(fail-closed) ────────────────────────────
         lines = []
@@ -501,13 +539,14 @@ def apply_draft(args):
             line_cost = (it.get("cost_cd") or cost_cd or "").strip()
             # 법인카드 채널과의 이중계상 차단 — 대변 미지급금(법인카드)은 AX 채널에서 쓰지 않는다
             if fg == "CR" and acct in FORBIDDEN_CR_ACCT:
-                raise SystemExit(f"[중단] {it['item_seq']}번 줄: 대변 계정 {acct}(미지급금-법인카드)는 "
-                                 f"AX 채널에서 사용할 수 없습니다 — 카드 전용 채널과 이중계상 위험.")
+                raise stop(f"{it['item_seq']}번 줄 {acct_label(cur, acct)} 대변 — "
+                           "이 화면에서는 쓸 수 없는 계정입니다",
+                           "법인카드 전표는 카드 채널에서 따로 만들어집니다")
             jnl = resolve_jnl(cur, trans_type, acct, fg, line_cost)
             if not jnl:
-                raise SystemExit(f"[중단] {it['item_seq']}번 줄 계정 {acct} 의 분개코드(JNL_CD)를 정할 수 없습니다"
-                                 f"(거래유형 {trans_type} 매핑·자기참조·코드형 모두 실패). "
-                                 f"분개코드 마스터(A_JNL_ITEM) 등재 여부를 확인하거나 매핑을 등록하세요.")
+                raise stop(f"{it['item_seq']}번 줄 {acct_label(cur, acct)} — "
+                           "아직 전송할 수 없는 계정입니다",
+                           "회계팀에 이 계정의 전송 설정을 요청하세요")
             lines.append({"seq": int(it["item_seq"]), "acct": acct, "fg": fg,
                           "amt": int(it["item_amt"]), "desc": (it.get("item_desc") or gl_desc)[:200],
                           "cost": line_cost,
@@ -530,8 +569,11 @@ def apply_draft(args):
         if blocks:
             result["detail"]["guard_blocks"] = blocks
             for b in blocks:
-                print(f"[차단] {b['seq']}번 줄 {b['acct']} {b['fg']} — {b['why']}", file=sys.stderr)
-            raise SystemExit(f"[중단] 입력검증 차단 {len(blocks)}건 — 위 사유를 확인하세요. 아무것도 투입하지 않았습니다.")
+                where = (f"{b['seq']}번 줄 {b.get('nm') or b['acct']} "
+                         f"{'차변' if b['fg'] == 'DR' else '대변'} — ") if b["seq"] else ""
+                print(f"[차단] {where}{b['what']}\n       → {b['fix']}", file=sys.stderr)
+            raise stop(f"보내지 못했습니다 — 고칠 곳이 {len(blocks)}군데입니다",
+                       "ERP에는 아무것도 들어가지 않았습니다")
 
         # ── 재판정(--recheck)은 여기서 끝난다 ──────────────────────
         # 위까지는 전부 SELECT 다. 아래 채번부터 쓰기가 시작되므로, 사유만 알고 싶은
@@ -546,7 +588,7 @@ def apply_draft(args):
         result["batch_no"], result["gl_no"] = batch_no, ag_no
         cur.execute("SELECT COUNT(*) FROM dbo.A_TEMP_GL WITH (NOLOCK) WHERE TEMP_GL_NO = ?", ag_no)
         if cur.fetchone()[0] > 0:
-            raise SystemExit(f"[중단] 채번된 번호 {ag_no} 가 이미 존재합니다 — 채번 상태를 점검하세요.")
+            raise stop("전표번호가 겹쳤습니다", "잠시 뒤 다시 보내세요 — 계속되면 관리자에게 알려 주세요")
         print(f"[채번] BATCH_NO={batch_no} / 전표번호={ag_no} (AI 전용 AG 대역)")
 
         # ── 1) A_BATCH ────────────────────────────────────────────
@@ -589,7 +631,8 @@ def apply_draft(args):
         for l in lines:
             slots = l["ctrls"][:8]
             if len(l["ctrls"]) > 8:
-                raise SystemExit(f"[중단] {l['seq']}번 줄 관리항목이 8종을 넘습니다(ERP 슬롯 한계).")
+                raise stop(f"{l['seq']}번 줄 관리항목이 너무 많습니다(최대 8개)",
+                           "필요 없는 항목을 지우세요")
             ctrl_cols = "".join(f", CTRL_CD{i+1}, CTRL_VAL{i+1}" for i in range(len(slots)))
             ctrl_q = "".join(",?,?" for _ in slots)
             ctrl_vals = [v for pair in slots for v in pair]
@@ -625,7 +668,8 @@ def apply_draft(args):
         cur.execute("SELECT TEMP_GL_NO, CONF_FG, DR_AMT, CR_AMT FROM dbo.A_TEMP_GL WITH (NOLOCK) WHERE REF_NO = ?", ref_no)
         gl = cur.fetchone()
         if not gl:
-            raise SystemExit(f"[실패] A_TEMP_GL 에 전표가 생성되지 않았습니다(MSG_CD={msg_cd}). 롤백합니다.")
+            raise stop(f"ERP가 전표를 만들지 못했습니다(코드 {msg_cd})",
+                       "관리자에게 알려 주세요 — ERP에는 아무것도 남지 않았습니다")
         cur.execute("SELECT ACCT_CD, RTRIM(DR_CR_FG), ITEM_LOC_AMT FROM dbo.A_TEMP_GL_ITEM WITH (NOLOCK) "
                     "WHERE TEMP_GL_NO = ?", gl[0])
         out_lines = [(str(r[0]).strip(), str(r[1]).strip()[:1], int(r[2])) for r in cur.fetchall()]
@@ -644,7 +688,8 @@ def apply_draft(args):
                 print(f"   투입: {x}")
             for x in out_sorted:
                 print(f"   생성: {x}")
-            raise SystemExit("[실패] 라인 대조 불일치 — 대차 자동보정 개입 의심. 롤백합니다.")
+            raise stop("ERP가 만든 전표가 입력과 달라 취소했습니다",
+                       "관리자에게 알려 주세요 — ERP에는 아무것도 남지 않았습니다")
 
         # ── 6) 서브원장 생성 ──────────────────────────────────────
         # 엔진(usp_a_create_gl_by_batch_01)은 전표만 만들고 **서브원장은 만들지 않는다**.
@@ -673,9 +718,8 @@ def apply_draft(args):
         print(f"[서브원장] {sp} rc={rc2} / MSG_CD={msg2 or '(없음)'}")
         if rc2 != 1:
             result["detail"]["subsys_error"] = msg2
-            raise SystemExit(
-                f"[실패] 서브원장 생성 실패(rc={rc2}, MSG_CD={msg2 or '(없음)'}). "
-                "전표 생성까지 롤백합니다 — 채무·부가세 없는 전표를 남기지 않습니다.")
+            raise stop(f"채무·부가세 원장이 만들어지지 않아 취소했습니다(코드 {msg2 or '없음'})",
+                       "관리자에게 알려 주세요 — ERP에는 아무것도 남지 않았습니다")
 
         # ── 7) 서브원장 검증 — 연결번호·원장 실적 ──────────────────
         # 호출이 성공(rc=1)해도 조건 불일치로 아무것도 안 만들어질 수 있어, 결과를 직접 확인한다.
@@ -696,9 +740,8 @@ def apply_draft(args):
         else:
             print("[연결번호] 서브원장 대상 라인 없음(경비만 있는 전표) — 정상")
         if empty:
-            raise SystemExit(
-                f"[실패] 서브원장 연결번호가 비어 있습니다({len(empty)}/{len(subs)}줄). "
-                "SP 는 성공했는데 라인이 채워지지 않았습니다 — 롤백합니다.")
+            raise stop(f"채무·부가세 원장이 {len(empty)}줄 비어 있어 취소했습니다",
+                       "관리자에게 알려 주세요 — ERP에는 아무것도 남지 않았습니다")
 
         for tbl, label in (("A_OPEN_AP", "채무"), ("A_VAT", "부가세")):
             try:

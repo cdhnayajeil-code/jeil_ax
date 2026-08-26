@@ -684,11 +684,11 @@
         </div>
         <!-- 실패·적체를 한 곳에 모은다 — 건별로 눌러 봐야 알던 사유를 목록에서 바로 읽는다 -->
         <div id="probWrap" class="hide" style="margin-bottom:13px;">
-          <h2 style="margin-top:0;">손봐야 할 건 <small id="probSub">전송이 끝나지 않은 건과 그 사유</small></h2>
+          <h2 style="margin-top:0;">손봐야 할 건 <small id="probSub">끝나지 않은 전표와 그 사유</small></h2>
           <div id="probList"></div>
         </div>
         <h2>제출된 초안
-          <small>행을 선택하면 아래에 전송 패널이 열립니다 · 전표번호는 ERP가 채번합니다</small>
+          <small>행을 누르면 아래에 상세가 열립니다 · 전표번호는 ERP가 매깁니다</small>
           <!-- 상태 구분은 드롭다운 대신 한눈에 보이는 버튼으로(선택지가 3개뿐) -->
           <span class="segs" id="postFilter" style="margin-left:auto;">
             <button type="button" class="seg on" data-st="submitted">제출됨<b></b></button>
@@ -698,10 +698,10 @@
         </h2>
         <!-- 여러 건을 한 번에 보내는 경로. 한 건씩 여는 기존 흐름은 그대로 둔다. -->
         <div class="bulkbar off" id="postBulk">
-          <span id="postBulkTxt">전송할 초안을 선택하세요 — 표 왼쪽 ☑ 로 고르거나 머리글 ☑ 로 전체 선택</span>
+          <span id="postBulkTxt">보낼 전표를 표 왼쪽 ☑ 로 고르세요</span>
           <span class="sp"></span>
-          <button class="b gh sm" id="btnPostSelAll">전송 가능 전체 선택</button>
-          <button class="b pri sm" id="btnPostBulkSend" disabled>🚀 선택 건 ERP 전송</button>
+          <button class="b gh sm" id="btnPostSelAll">보낼 수 있는 것 전체 선택</button>
+          <button class="b pri sm" id="btnPostBulkSend" disabled>🚀 선택한 전표 보내기</button>
         </div>
         <div style="overflow-x:auto;"><table class="tbl" id="postTbl"></table></div>
       </div>
@@ -712,8 +712,8 @@
           <div class="st"><span class="lbl">ERP 적용 상태</span><span class="val" id="sendState">—</span></div>
           <div class="msg" id="sendMsg"></div>
           <div class="acts">
-            <button class="b pri hide" id="btnErpSend">🚀 ERP 전송 (DEMO2)</button>
-            <button class="b gh hide" id="btnErpEdit" title="제출을 회수하고 [전표 작성]에서 고칩니다">✏ 수정</button>
+            <button class="b pri hide" id="btnErpSend">🚀 ERP로 보내기</button>
+            <button class="b gh hide" id="btnErpEdit" title="작성 화면으로 불러와 고칩니다">✏ 수정</button>
             <button class="b gh hide" id="btnErpCancel">전송 취소</button>
             <button class="b gh" id="btnCopyErp">📋 값 복사</button>
           </div>
@@ -884,21 +884,33 @@ const won = (n)=>Number(n||0).toLocaleString("ko-KR");
 const esc = (s)=>String(s??"").replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const STATUS_KO = { draft:"작성중", submitted:"제출됨", posted:"확정됨", void:"폐기" };
 /* ERP 직접등록 1차(DEMO2, C-11) 적용 상태 표시 — 적용은 관리자 PC 적용기(gl_apply_demo2.py)가 수행 */
-/* 실패 사유를 한 줄로 — 유형과 위치만 뽑는다.
-   원문은 여러 줄이고 길어서 표 칸에 들어가지 않는다. 전문은 title 로 붙여 둔다. */
+/* 실패 사유 한 줄 요약 — 표 칸에 들어갈 만큼 짧게, 무슨 일인지 알 만큼만.
+   원문(여러 줄)은 title 로 붙여 두므로 필요하면 그대로 볼 수 있다.
+   옛 문구와 새 문구를 함께 받는다 — 서버 중계가 구버전이면 옛 문장이 그대로 온다. */
 function reasonBrief(msg){
   const s = String(msg||"").trim();
-  if(!s || /^현재 규칙으로는/.test(s)) return "";       // 사전점검 통과 기록은 사유가 아니다
-  const kind = /차대 균형|차대 합계 불일치/.test(s) ? "차대 불일치"
-             : /반제/.test(s)                        ? "반제 방향"
-             : /만 허용/.test(s)                     ? "부가세 차대"
-             : /사용할 수 없습니다/.test(s)           ? "금지 계정"
-             : /분개코드/.test(s)                    ? "분개코드 미결정"
-             : /서브원장/.test(s)                    ? "서브원장 생성 실패"
-             : /대조|일치하지/.test(s)               ? "라인 대조 불일치"
-             : "검증 차단";
-  const at = s.match(/(\d+)번 줄\s+(\d{6,10})/);
-  return at ? kind + " · " + at[1] + "번 줄 " + at[2] : kind;
+  // 점검 통과 기록은 사유가 아니다(새 문구·옛 문구 둘 다)
+  if(!s || /^지금 보내면 정상 처리됩니다|^현재 규칙으로는/.test(s)) return "";
+  const kind =
+      /합계가 다릅니다|차대 균형|차대 합계 불일치/.test(s) ? "차변·대변 안 맞음"
+    : /\(반제\)|반제/.test(s)                            ? "반제 건"
+    : /쓸 수 있는 계정|만 허용/.test(s)                   ? "차대 반대"
+    : /쓸 수 없는 계정|사용할 수 없습니다/.test(s)         ? "쓸 수 없는 계정"
+    : /전송할 수 없는 계정|분개코드/.test(s)              ? "계정 설정 필요"
+    : /원장이 .*(만들어지지|비어)|서브원장/.test(s)        ? "원장 생성 실패"
+    : /입력과 달라|대조|일치하지/.test(s)                 ? "전표 내용 불일치"
+    : /이미 ERP|이미 보낸/.test(s)                       ? "이미 보낸 전표"
+    : /코스트센터/.test(s)                               ? "코스트센터 없음"
+    : /부서/.test(s)                                     ? "부서 없음"
+    : /관리항목이 너무 많/.test(s)                        ? "관리항목 초과"
+    : /2줄이 안/.test(s)                                 ? "분개 줄 부족"
+    : "";
+  // '0번 줄'은 특정 줄이 아니라 전표 전체를 뜻하는 자리표시다 — 위치로 붙이지 않는다
+  const at = s.match(/(\d+)번 줄/);
+  if(kind) return (at && at[1] !== "0") ? kind + " · " + at[1] + "번 줄" : kind;
+  // 분류에 없는 사유는 첫 줄을 그대로 짧게 — 임의로 뭉뚱그리지 않는다
+  const head = s.split("\n")[0].trim();
+  return head.length > 34 ? head.slice(0, 33) + "…" : head;
 }
 /* ERP 적용 열 — 상태 배지 + 실패 사유 요약(있을 때).
    「전송 대기」인데 직전 시도가 막힌 건은 **실패로 표시한다** — 같은 사유로 또 막히므로
@@ -912,16 +924,16 @@ function applyPill(x){
     return '<span class="pill posted" title="'+esc(x.erp_apply_target||"")+' 적용 완료">'
       + (String(x.erp_apply_target||"").indexOf("DEMO")>=0 ? "DEMO " : "") + esc(x.erp_apply_gl_no||"적용됨") + '</span>';
   if(st === "sending")
-    return '<span class="pill submitted" title="중계가 처리 중입니다 — 다른 실행이 끼어들지 못하도록 선점된 상태">⏳ 전송 중</span>';
+    return '<span class="pill submitted" title="중계가 처리 중입니다">처리 중</span>';
   if(st === "failed")
-    return '<span class="pill fail" title="'+full+'">⛔ 실패</span>' + note;
+    return '<span class="pill fail" title="'+full+'">실패</span>' + note;
   if(st === "ready")
     return brief
-      ? '<span class="pill fail" title="'+full+'">⛔ 실패 · 대기 중</span>' + note
-      : '<span class="pill submitted" title="사내 중계가 곧 투입합니다">🚀 전송 대기</span>';
+      ? '<span class="pill fail" title="'+full+'">실패 · 대기 중</span>' + note
+      : '<span class="pill submitted" title="곧 처리됩니다">대기 중</span>';
   // 미전송 — 사전점검에서 이미 막혔으면 보내기 전에 알려 준다
-  if(brief) return '<span class="pill fail" title="'+full+'">⛔ 실패 예상</span>' + note;
-  if(x.erp_last_error) return '<span class="pill ok-lite" title="사전점검 통과 — 전송하면 투입됩니다">✓ 점검 통과</span>';
+  if(brief) return '<span class="pill fail" title="'+full+'">보내면 실패</span>' + note;
+  if(x.erp_last_error) return '<span class="pill ok-lite" title="점검 통과 — 보내면 정상 처리됩니다">점검 통과</span>';
   return '<span style="color:#aab;">—</span>';
 }
 /* 목록 행 액션 — 표에서 바로 취소·수정한다(패널을 열지 않아도 되게) */
@@ -2708,12 +2720,12 @@ function syncPostBulk(){
   const blocked = POST_ROWS.filter((x)=> POST_PICK.has(x.draft_no) && isBlockedRow(x)).length;
   $("postBulk").classList.toggle("off", n === 0);
   $("btnPostBulkSend").disabled = n === 0;
-  $("btnPostBulkSend").textContent = n ? "🚀 선택 "+n+"건 ERP 전송" : "🚀 선택 건 ERP 전송";
+  $("btnPostBulkSend").textContent = n ? "🚀 "+n+"건 보내기" : "🚀 선택한 전표 보내기";
   $("postBulkTxt").innerHTML = n
-    ? '<b>'+n+'건</b> 선택됨 · 전송 가능 '+able+'건'
-      + (blocked ? ' · <b style="color:var(--red);">⛔ 이미 막힌 '+blocked+'건 포함</b>' : '')
-    : (able ? '전송 가능 <b>'+able+'건</b> — 표 왼쪽 ☑ 로 고르거나 [전송 가능 전체 선택]'
-            : '지금 전송할 수 있는 초안이 없습니다(제출됨·미전송 건만 대상)');
+    ? '<b>'+n+'건</b> 선택 · 보낼 수 있는 것 '+able+'건'
+      + (blocked ? ' · <b style="color:var(--red);">이미 막힌 '+blocked+'건 포함</b>' : '')
+    : (able ? '보낼 수 있는 전표 <b>'+able+'건</b> — 표 왼쪽 ☑ 로 고르세요'
+            : '지금 보낼 수 있는 전표가 없습니다');
   const all = $("postChkAll");
   if(all){ all.checked = able > 0 && n === able; all.indeterminate = n > 0 && n < able; }
 }
@@ -2732,13 +2744,11 @@ $("btnPostBulkSend").onclick = async ()=>{
   const sum = POST_ROWS.filter((x)=> POST_PICK.has(x.draft_no))
                        .reduce((s,x)=> s + (Number(x.dr_total)||0), 0);
   const bad = POST_ROWS.filter((x)=> POST_PICK.has(x.draft_no) && isBlockedRow(x));
-  if(!confirm("선택한 "+list.length+"건(합계 "+won(sum)+"원)을 ERP(DEMO2)로 전송합니다.\n\n"
-    + (bad.length ? "⛔ 이 중 "+bad.length+"건은 이미 막힌 건입니다 — 보내면 같은 사유로 실패합니다:\n"
-        + bad.slice(0,3).map((x)=> "   · "+x.draft_no+" — "+reasonBrief(x.erp_last_error||x.erp_apply_msg)).join("\n")
-        + (bad.length>3 ? "\n   · 외 "+(bad.length-3)+"건" : "") + "\n\n" : "")
-    + "· 사내 중계가 한 건씩 순차 투입합니다(중복 투입은 선점으로 차단됩니다)\n"
-    + "· 라인 대조가 어긋난 건은 그 건만 자동 취소되고 나머지는 계속됩니다\n"
-    + "· 중계가 실행 중이어야 처리됩니다\n\n계속할까요?")) return;
+  if(!confirm(list.length+"건 (합계 "+won(sum)+"원)을 ERP로 보냅니다.\n"
+    + (bad.length ? "\n이 중 "+bad.length+"건은 이미 막힌 건이라 실패합니다:\n"
+        + bad.slice(0,3).map((x)=> "  · "+x.draft_no+" — "+reasonBrief(x.erp_last_error||x.erp_apply_msg)).join("\n")
+        + (bad.length>3 ? "\n  · 외 "+(bad.length-3)+"건" : "") + "\n" : "")
+    + "\n한 건씩 차례로 처리되고, 실패한 건은 그 건만 취소됩니다.")) return;
   $("btnPostBulkSend").disabled = true;
   let ok = 0; const fail = [];
   for(const no of list){
@@ -2747,9 +2757,9 @@ $("btnPostBulkSend").onclick = async ()=>{
     catch(e){ fail.push(no+" — "+e.message); }
   }
   POST_PICK.clear();
-  toast(ok ? "✅ "+ok+"건 전송 요청 완료 — 중계가 처리하면 자동으로 반영됩니다."
-           : "전송 요청에 모두 실패했습니다.", !ok);
-  if(fail.length) toast("⚠ 실패 "+fail.length+"건: "+fail.slice(0,3).join(" / ")
+  toast(ok ? ok+"건 보냈습니다 — 결과는 이 화면에 자동으로 표시됩니다."
+           : "전부 보내지 못했습니다.", !ok);
+  if(fail.length) toast("보내지 못한 "+fail.length+"건: "+fail.slice(0,3).join(" / ")
     + (fail.length>3 ? " 외 "+(fail.length-3)+"건" : ""), true);
   await loadPost();
   if(ok) startSendPoll(list[0]);   // 첫 건 기준으로 폴링 — 목록은 매 주기 함께 갱신된다
@@ -2861,19 +2871,17 @@ function renderRelayBar(h){
   const alive = h.relay_alive, idle = h.relay_idle_min, wait = h.waiting_cnt || 0;
   let cls, title, note;
   if(alive === null || alive === undefined){
-    // 심박을 한 번도 못 받았다 = 중계가 구버전이거나 아직 안 돌았다. 단정하지 않는다.
+    // 신호를 한 번도 못 받았다 = 중계가 구버전이거나 아직 안 돌았다. 단정하지 않는다.
     cls = "warn"; title = "중계 상태를 알 수 없습니다";
-    note = "심박 기록이 없습니다 — 중계(gl_apply_demo2.py)가 아직 실행된 적이 없거나 구버전입니다. "
-         + "대기 건이 있어도 자동으로 처리되지 않을 수 있습니다.";
+    note = "아직 신호를 받지 못했습니다. 보내도 처리되지 않을 수 있습니다.";
   }else if(alive){
-    cls = "ok"; title = "사내 중계 가동 중";
-    note = "마지막 확인 " + (idle ? mins(idle)+" 전" : "1분 이내")
-         + " · 대상 DEMO2" + (wait ? " · 전송 대기 "+wait+"건" : " · 대기 건 없음");
+    cls = "ok"; title = "중계 정상";
+    note = (idle ? mins(idle)+" 전 확인" : "방금 확인")
+         + " · " + (wait ? "대기 "+wait+"건" : "대기 없음");
   }else{
-    cls = "down"; title = "사내 중계가 응답하지 않습니다";
-    note = "마지막 확인 " + mins(idle) + " 전입니다. 이 상태에서는 [🚀 ERP 전송]을 눌러도 "
-         + "「전송 대기」에 쌓이기만 하고 ERP에 들어가지 않습니다"
-         + (wait ? " (현재 "+wait+"건 대기 중)" : "") + ". 중계를 실행해야 합니다.";
+    cls = "down"; title = "중계가 멈춰 있습니다";
+    note = mins(idle) + "째 응답이 없습니다. 지금 보내면 대기만 하고 ERP로 넘어가지 않습니다"
+         + (wait ? " (대기 "+wait+"건)" : "") + ".";
   }
   bar.className = "relaybar " + cls;
   $("relayTitle").textContent = title;
@@ -2883,9 +2891,9 @@ function renderProblems(rows){
   const wrap = $("probWrap");
   if(!rows.length){ wrap.classList.add("hide"); $("probList").innerHTML = ""; return; }
   wrap.classList.remove("hide");
-  const KIND = { failed:["적용 실패","failed"], stale:["대기 적체","stale"],
-                 stuck:["처리 중 멈춤","stuck"], precheck:["사전점검 차단","precheck"] };
-  $("probSub").textContent = rows.length + "건 — 사유를 확인하고 고친 뒤 재전송하세요";
+  const KIND = { failed:["실패","failed"], stale:["대기만 하는 중","stale"],
+                 stuck:["멈춤","stuck"], precheck:["보내면 실패","precheck"] };
+  $("probSub").textContent = rows.length + "건 — 막힌 건은 ERP에 아무것도 들어가지 않았습니다";
   $("probList").innerHTML = rows.map((x)=>{
     const [label, k] = KIND[x.kind] || ["확인 필요","failed"];
     return '<div class="prob '+k+'">'
@@ -2897,13 +2905,12 @@ function renderProblems(rows){
       + ' · '+mins(x.wait_min)+' 경과'
       + (x.erp_attempts ? ' · 시도 '+x.erp_attempts+'회' : '')+'</div>'
       + (x.kind === "precheck"
-          ? '<div class="meta" style="margin:-2px 0 6px;">아직 보내지 않았습니다 — '
-            + '사전점검에서 이미 막힌 건입니다. 고치고 보내세요.</div>' : '')
+          ? '<div class="meta" style="margin:-2px 0 6px;">아직 안 보냈습니다 — 지금 보내면 실패합니다.</div>' : '')
       + '<div class="why">'+(x.reason
           ? esc(x.reason)
           : (x.kind === "stale"
-              ? '실패한 것이 아니라 <b>아무도 가져가지 않은</b> 상태입니다 — 중계가 돌고 있는지 위 배너를 확인하세요.'
-              : '사유가 기록되지 않았습니다. 중계 로그(gl_erp_apply_log)를 확인하세요.'))+'</div>'
+              ? '실패가 아니라 <b>아직 아무도 가져가지 않았습니다.</b> 위 중계 상태를 확인하세요.'
+              : '사유가 남지 않았습니다. 관리자에게 알려 주세요.'))+'</div>'
       + '<div class="acts">'
       // 사유를 읽었으면 다음 행동은 '고치기'다 — 여기서 바로 작성 화면으로 넘어간다
       + (x.kind === "stuck" ? ''
@@ -2937,8 +2944,8 @@ $("probList").onclick = async (e)=>{
   }
   if(del){
     const no = del.getAttribute("data-void");
-    const reason = prompt("초안 "+no+" 을(를) 폐기합니다.\n사유를 적어 주세요(감사 로그에 남습니다).",
-                          "전표 구성 오류 — 재작성 필요");
+    const reason = prompt(no+" 을(를) 폐기합니다.\n사유를 적어 주세요(기록에 남습니다).",
+                          "전표 내용 오류 — 다시 작성");
     if(reason === null) return;                       // 취소
     if(!String(reason).trim()){ toast("사유를 적어야 폐기할 수 있습니다.", true); return; }
     try{
@@ -2962,39 +2969,35 @@ function renderSendBar(h){
   $("sendBar").className = "sendbar" + (st==="applied" ? " applied"
     : (st==="failed" || blocked) ? " failed"
     : (st==="ready"||st==="sending") ? " ready" : "");
-  $("sendState").innerHTML = st==="applied" ? '적용 완료 · <span class="no">'+esc(h.erp_apply_gl_no||"")+'</span>'
-    : st==="failed"  ? "⛔ 적용 실패"
-    : st==="ready"   ? (blocked ? "⛔ 실패 · 대기 중" : "전송 대기 중")
-    : st==="sending" ? "전송 처리 중"
-    : blocked        ? "⛔ 실패 예상 · 미전송" : "미전송";
+  $("sendState").innerHTML = st==="applied" ? 'ERP 등록 완료 · <span class="no">'+esc(h.erp_apply_gl_no||"")+'</span>'
+    : st==="failed"  ? "실패"
+    : st==="ready"   ? (blocked ? "실패 · 대기 중" : "대기 중")
+    : st==="sending" ? "처리 중"
+    : blocked        ? "보내면 실패" : "보내기 전";
   // 대기 경과는 erp_ready_at 기준 — erp_apply_at 은 중계가 선점할 때 덮어써서 0으로 리셋된다
   const waited = h.erp_ready_at ? Math.floor((Date.now() - new Date(h.erp_ready_at).getTime())/60000) : null;
   const relayDown = HEALTH && HEALTH.relay_alive === false;
   const relayUnknown = HEALTH && (HEALTH.relay_alive === null || HEALTH.relay_alive === undefined);
   $("sendMsg").innerHTML = st==="applied"
-      ? "대상 <b>"+esc(h.erp_apply_target||"")+"</b> · ERP 표준 엔진이 채번한 전표번호입니다. 같은 초안의 재전송은 자동으로 차단됩니다."
+      ? "<b>"+esc(h.erp_apply_target||"")+"</b> 에 등록됐습니다. 같은 전표는 다시 보낼 수 없습니다."
     : st==="ready"
-      // 대기 중이라고 안심시키지 않는다 — 막혀 있거나 중계가 죽었으면 그 사실을 여기서 말한다
-      // 막힌 것이 먼저다 — 중계가 살아나도 같은 사유로 실패한다. 다만 중계 상태도 사실이므로 뒤에 덧붙인다.
+      // 막힌 것이 먼저다 — 중계가 살아나도 같은 사유로 실패한다. 중계 상태는 뒤에 한 마디만.
       ? (blocked
-          ? "⚠ <b>이 상태로 두면 같은 사유로 다시 막힙니다.</b> 아래 사유를 고쳐야 합니다 — "
-            + "[✏ 수정]을 누르면 전송 대기를 취소하고 [전표 작성]으로 넘어갑니다."
-            + (relayDown ? " · 참고로 사내 중계도 "+mins(HEALTH.relay_idle_min)+"째 응답하지 않습니다."
-               : relayUnknown ? " · 참고로 중계 심박이 없어 가동 여부를 확인할 수 없습니다." : "")
+          ? "<b>이대로 두면 다시 막힙니다.</b> 아래 사유를 고치세요 — [✏ 수정]을 누르면 작성 화면으로 넘어갑니다."
+            + (relayDown ? " (중계도 "+mins(HEALTH.relay_idle_min)+"째 멈춰 있습니다)"
+               : relayUnknown ? " (중계 상태는 확인되지 않습니다)" : "")
           : relayDown
-          ? "⚠ <b>사내 중계가 응답하지 않습니다</b>(마지막 확인 "+mins(HEALTH.relay_idle_min)+" 전). "
-            + "이 건은 대기열에만 올라 있고 ERP로 넘어가지 않습니다 — 중계를 실행해야 처리됩니다."
+          ? "<b>중계가 멈춰 있습니다</b>("+mins(HEALTH.relay_idle_min)+"째 응답 없음). 대기만 하고 ERP로 넘어가지 않습니다."
           : relayUnknown
-          ? "⚠ 중계 심박이 없어 가동 여부를 확인할 수 없습니다. 대기 상태로만 남을 수 있습니다."
-          : "사내 중계가 곧 가져갑니다 — 결과는 이 화면에 자동으로 반영됩니다.")
-        + (waited != null && waited >= 1 ? " · 대기 "+mins(waited)+" 경과" : "")
-    : st==="sending" ? "중계가 처리 중입니다(선점됨) — 다른 실행이 끼어들지 못합니다. 결과는 자동 반영됩니다."
-    : st==="failed" ? "⚠ 아래 사유를 고치세요 — <b>[✏ 수정]</b>을 누르면 [전표 작성]으로 넘어갑니다. "
-      + "사유가 전표 내용과 무관하다면 그대로 [ERP 재전송]을 눌러도 됩니다."
-    : blocked ? "⚠ <b>사전점검에서 막혔습니다</b> — 지금 보내면 실패합니다. "
-      + "[✏ 수정]으로 고친 뒤 다시 제출하세요."
-    : "누르면 사내 중계가 ERP 표준 엔진으로 전표를 만듭니다(대상 <b>DEMO2</b> · AI 전용 <b>AG</b> 번호대역). "
-      + "라인 대조가 어긋나면 자동 취소되고, 성공하면 전표번호가 여기에 표시됩니다.";
+          ? "중계 상태를 알 수 없습니다. 대기만 할 수도 있습니다."
+          : "곧 처리됩니다. 결과는 이 화면에 자동으로 표시됩니다.")
+        + (waited != null && waited >= 1 ? " · "+mins(waited)+" 기다리는 중" : "")
+    : st==="sending" ? "처리 중입니다. 결과는 자동으로 표시됩니다."
+    : st==="failed" ? "아래 사유를 고치세요 — <b>[✏ 수정]</b>을 누르면 작성 화면으로 넘어갑니다. "
+      + "전표 내용과 상관없는 사유라면 그대로 다시 보내도 됩니다."
+    : blocked ? "<b>지금 보내면 실패합니다.</b> 아래 사유를 고치세요 — [✏ 수정]을 누르면 작성 화면으로 넘어갑니다."
+    : "보내면 ERP(<b>DEMO2</b>)에 전표가 만들어집니다. "
+      + "입력과 다르게 만들어지면 자동으로 취소되고, 성공하면 전표번호가 여기에 표시됩니다.";
   // 사유 블록 — 실패했을 때는 물론, 재전송으로 '대기'가 된 뒤에도 직전 사유를 계속 보여준다.
   // (종전에는 apply_request 가 사유를 지워, 왜 막혔는지 모른 채 기다리게 됐다)
   const why = h.erp_last_error || (st === "failed" ? h.erp_apply_msg : "");
@@ -3002,20 +3005,20 @@ function renderSendBar(h){
   if(why && st !== "applied"){
     if(!box){ box = document.createElement("div"); box.id = "sendWhy"; box.className = "why";
               $("sendBar").appendChild(box); }
-    // 한 번도 안 보낸 초안의 사유는 '직전 시도'가 아니라 사전점검 결과다 — 말이 사실과 맞아야 한다
-    box.innerHTML = (!h.erp_attempts ? "<b>사전점검 결과</b>"
-                     : st === "ready" ? "<b>직전 시도 사유</b>" : "<b>실패 사유</b>")
+    // 한 번도 안 보낸 초안의 사유는 '지난번'이 아니라 점검 결과다 — 말이 사실과 맞아야 한다
+    box.innerHTML = (!h.erp_attempts ? "<b>점검 결과</b>"
+                     : st === "ready" ? "<b>지난번 사유</b>" : "<b>실패 사유</b>")
       + (h.erp_last_error_at ? ' <span style="opacity:.7;">· '
           + esc(new Date(h.erp_last_error_at).toLocaleString("ko-KR")) + '</span>' : "")
-      + (h.erp_attempts ? ' <span style="opacity:.7;">· 시도 '+h.erp_attempts+'회</span>' : "")
+      + (h.erp_attempts > 1 ? ' <span style="opacity:.7;">· '+h.erp_attempts+'번째</span>' : "")
       + "<br>" + esc(why);
     box.style.display = "";
   }else if(box){ box.style.display = "none"; }
   const canSend = h.status === "submitted" && st !== "applied";
   $("btnErpSend").classList.toggle("hide", !canSend);
   $("btnErpSend").disabled = st === "ready" || st === "sending";
-  $("btnErpSend").textContent = st==="sending" ? "🚀 전송 처리 중…" : st==="ready" ? "🚀 전송 대기 중…"
-    : st==="failed" ? "🚀 ERP 재전송 (DEMO2)" : "🚀 ERP 전송 (DEMO2)";
+  $("btnErpSend").textContent = st==="sending" ? "처리 중…" : st==="ready" ? "대기 중…"
+    : st==="failed" ? "🚀 다시 보내기" : "🚀 ERP로 보내기";
   $("btnErpCancel").classList.toggle("hide", st !== "ready");
   // 재전송 옆에 수정 — 사유를 보고 바로 고치러 갈 수 있어야 한다.
   // 적용 완료·처리 중에는 숨긴다(되돌릴 수 없거나 중계와 엇갈린다).
@@ -3026,7 +3029,7 @@ function renderSendBar(h){
    실패한 전표를 고치려면 '작성중'으로 되돌려야 한다(save·submit 은 draft 만 허용).
    종전에는 그 경로가 없어 실패를 보고도 손을 못 대고 폐기 후 재작성밖에 길이 없었다. */
 async function cancelSend(no){
-  if(!confirm("초안 "+no+" 의 전송 대기를 취소합니다.\n(중계가 이미 처리했다면 취소되지 않습니다)\n\n계속할까요?")) return false;
+  if(!confirm(no+" 의 전송을 취소합니다.\n이미 처리가 시작됐다면 취소되지 않습니다.")) return false;
   try{
     const r = await api("apply_cancel", { draft_no: no });
     stopSendPoll(); toast(r.안내 || "취소했습니다."); loadPost();
@@ -3037,10 +3040,9 @@ async function cancelSend(no){
   }catch(e){ toast(e.message, true); loadPost(); return false; }
 }
 async function startEdit(no, wasReady){
-  if(!confirm("초안 "+no+" 을(를) 수정합니다.\n\n"
-      + (wasReady ? "· 전송 대기를 먼저 취소합니다\n" : "")
-      + "· 제출을 회수해 [전표 작성] 탭으로 불러옵니다\n"
-      + "· 고친 뒤 다시 제출·전송해야 ERP로 넘어갑니다\n\n계속할까요?")) return;
+  if(!confirm(no+" 을(를) 작성 화면으로 불러옵니다.\n"
+      + (wasReady ? "전송 대기는 취소됩니다.\n" : "")
+      + "고친 뒤 다시 제출하고 보내야 ERP로 넘어갑니다.")) return;
   try{
     if(wasReady) await api("apply_cancel", { draft_no: no });
     await api("unsubmit", { draft_no: no });
@@ -3049,7 +3051,7 @@ async function startEdit(no, wasReady){
     $("postDetail").classList.add("hide"); POST_SEL = null;
     loadDraftIntoForm(r);                       // 폼 채우기 + [전표 작성] 탭으로 전환
     const why = reasonBrief(r.header.erp_last_error);
-    toast(why ? "수정할 수 있습니다 — 직전 차단 사유: " + why
+    toast(why ? "불러왔습니다 — 지난번 사유: " + why
               : no + " 을(를) 불러왔습니다. 고친 뒤 다시 제출하세요.");
   }catch(e){ toast(e.message, true); loadPost(); }
 }
@@ -3093,8 +3095,8 @@ function startSendPoll(draftNo){
         const down = HEALTH && HEALTH.relay_alive === false;
         const unknown = HEALTH && (HEALTH.relay_alive === null || HEALTH.relay_alive === undefined);
         toast(down || unknown
-          ? "⚠ 3분간 응답이 없습니다 — 사내 중계가 돌고 있지 않습니다. 위 「손봐야 할 건」과 중계 상태를 확인하세요."
-          : "3분간 결과가 오지 않았습니다. 중계가 밀려 있을 수 있습니다 — 목록을 새로고침해 확인하세요.", true);
+          ? "3분째 응답이 없습니다 — 중계가 멈춰 있습니다. 위 중계 상태를 확인하세요."
+          : "3분째 결과가 오지 않았습니다. 밀려 있을 수 있으니 잠시 뒤 새로고침하세요.", true);
         if(POST_SEL && POST_SEL.header && POST_SEL.header.draft_no === draftNo)
           api("get", { draft_no: draftNo }).then((g)=>{ POST_SEL = g; renderSendBar(g.header); }).catch(()=>{});
       });
@@ -3112,9 +3114,9 @@ function startSendPoll(draftNo){
           renderSendBar(r.header); renderPostLines(r.items);
         }
         if(st === "applied")
-          toast("✅ ERP 적용 완료 — 전표번호 "+(r.header.erp_apply_gl_no||"")+" ("+(r.header.erp_apply_target||"")+") · 초안은 확정됨으로 닫혔습니다");
+          toast("ERP 등록 완료 — 전표번호 "+(r.header.erp_apply_gl_no||""));
         else
-          toast("⚠ ERP 적용 실패 — "+(r.header.erp_apply_msg||"중계 로그를 확인하세요."), true);
+          toast("실패 — "+(reasonBrief(r.header.erp_last_error||r.header.erp_apply_msg) || "아래 사유를 확인하세요"), true);
       }
     }catch(e){ /* 폴링 실패는 조용히 — 다음 주기에 재시도 */ }
   }, 4500);
@@ -3122,10 +3124,8 @@ function startSendPoll(draftNo){
 $("btnErpSend").onclick = async ()=>{
   if(!POST_SEL) return;
   const no = POST_SEL.header.draft_no;
-  if(!confirm("초안 "+no+" 을(를) ERP(DEMO2)로 전송합니다.\n\n"
-    + "· 사내 중계가 ERP 표준 엔진으로 전표를 생성합니다(AI 전용 AG 번호대역)\n"
-    + "· 라인 대조가 일치하지 않으면 자동 취소됩니다\n"
-    + "· 중계가 실행 중이어야 처리됩니다(감시 모드 또는 --queue)\n\n계속할까요?")) return;
+  if(!confirm(no+" 을(를) ERP(DEMO2)로 보냅니다.\n"
+    + "입력과 다르게 만들어지면 자동으로 취소됩니다.")) return;
   $("btnErpSend").disabled = true;
   try{
     const r = await api("apply_request", { draft_no: no });
