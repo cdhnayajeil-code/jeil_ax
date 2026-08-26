@@ -68,8 +68,8 @@ gl_apply_demo2.py --precheck      →  보내기 전 판정(ERP 무투입)   ←
 화면 [ERP 전송] → 선택 전송        →  정상 6건 AG 채번 / 오류 8건 사유와 함께 차단
 </code></pre>
 <hr />
-<h2 id="1-2026-08-25">1. 사전점검 결과 (2026-08-25 실측)</h2>
-<p><strong>정상 6건 전건 통과 · 오류 8건 전건 차단 — 설계대로다.</strong></p>
+<h2 id="1-2026-08-25-2026-08-26">1. 결과 — 완료 (2026-08-25 전송 · 2026-08-26 정리)</h2>
+<p><strong>정상 6건 전건 성공 · 오류 8건 전건 차단 — 설계대로다.</strong></p>
 <table>
 <thead>
 <tr>
@@ -82,79 +82,84 @@ gl_apply_demo2.py --precheck      →  보내기 전 판정(ERP 무투입)   ←
 <tr>
 <td>정상(P)</td>
 <td style="text-align: center;">6</td>
-<td>전건 통과 — 분개코드 해석·가드 모두 정상</td>
+<td><strong>전건 ERP 등록 성공</strong>(<code>AG202608250007</code>~<code>AG202608250012</code>)</td>
 </tr>
 <tr>
 <td>오류(E)</td>
 <td style="text-align: center;">8</td>
-<td>전건 차단 — <strong>의도한 규칙이 정확히 잡았다</strong></td>
+<td><strong>전건 차단</strong> — 의도한 규칙이 정확히 잡았다. ERP 투입 0</td>
 </tr>
 </tbody>
 </table>
-<p>가장 큰 수확은 <strong><code>PD</code> 에서 <code>43000501 → ADJMNT/DZ</code></strong> 가 확인된 것이다.
+<p>두 가지가 특히 값이 있었다.</p>
+<p><strong>① <code>PD</code> 에서 <code>43000501 → ADJMNT/DZ</code> 확인.</strong>
 거래항목 결정(C-15)에서 서브원장 무관 계정은 코스트센터 직간접으로 <code>IZ</code>/<code>DZ</code> 가 갈리는데,
 지금까지 테스트는 전부 간접(<code>C013200</code>·<code>IZ</code>)이었다 — <strong><code>DZ</code> 는 한 번도 안 타 봤다.</strong></p>
+<p><strong>② 정상 6건과 오류 8건이 같은 배치에 섞여 있었다.</strong>
+차단이 일어나도 <strong>정상 전표가 말려들지 않는다</strong>는 것이 이 배치 하나로 확인됐다.
+(설계서 T4 가 「구조적 위험」으로 지목한 지점 — 실패 한 건이 정상 전표까지 롤백시키는가)</p>
+<h3 id="11-2026-08-26">1.1 정리 (2026-08-26)</h3>
+<p>오류 케이스는 <strong>의도적으로 틀리게 만든 전표</strong>라 고칠 대상이 아니다.
+큐에 남아 있던 <strong>6건(E1·E3·E4·E5·E6·E7)을 폐기</strong>했다.</p>
+<p><strong>E2·E8 은 <code>작성중</code>으로 남아 있다</strong> — <a href="제출 회수">✏ 수정</a> 동작을 확인하느라 먼저 회수한 건이라
+큐에는 없다. 정리 여부는 별도 판단.</p>
+<pre><code>전송 대기 0 · 처리 중 0 · 실패 0 · 손봐야 할 건 0   ← 큐 비었음
+작성중 2 (E2·E8)
+</code></pre>
 <hr />
 <h2 id="2">2. 정상 케이스 (통과해야 정상)</h2>
 <table>
 <thead>
 <tr>
 <th>ID</th>
-<th>초안번호</th>
 <th>케이스</th>
 <th style="text-align: center;">라인</th>
 <th>왜 필요한가</th>
-<th>기대</th>
+<th><strong>결과</strong></th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td><strong>P2</strong></td>
-<td><code>DRAFT-TEST-P2-0001</code></td>
 <td>미결·개인경비(OC 발생)</td>
 <td style="text-align: center;">2</td>
 <td>설계서 범위의 <strong>24.6%(2위)</strong> 인데 미수행. C-15 로 분개코드가 풀려 열렸다</td>
-<td><code>SUBSYS_NO</code> <strong>공란이 정상</strong> · 승인 후 <code>A_OPEN_ACCT</code> 에 <code>EM</code>+사번</td>
+<td>✅ <code>AG202608250009</code> · 서브원장 대상 없음(<strong>공란이 정상</strong>)</td>
 </tr>
 <tr>
 <td><strong>P5B</strong></td>
-<td><code>DRAFT-TEST-P5B-0001</code></td>
 <td>선급금 2건 + 부가세 + 채무</td>
 <td style="text-align: center;">4</td>
 <td>선급금 라인이 2건이면 <code>PP</code> 연결번호가 <strong>각각</strong> 발급되는가(설계서 T5 검증 포인트)</td>
-<td>연결번호 4개(PP2·TP1·AP1) · <code>F_PRPAYM</code> 2행</td>
+<td>✅ <code>AG202608250007</code> · <strong><code>PP</code> 2개 각각 발급</strong> + <code>AP</code>·<code>TP</code></td>
 </tr>
 <tr>
 <td><strong>P6</strong></td>
-<td><code>DRAFT-TEST-P6-0001</code></td>
 <td>매출(AR + TR)</td>
 <td style="text-align: center;">3</td>
 <td><strong>채권·매출부가세는 한 번도 투입해 본 적이 없다.</strong> AX 범위 확인도 겸한다</td>
-<td><code>AR</code>·<code>TR</code> 연결번호 · <code>A_VAT</code> <strong>매출분</strong> 1행</td>
+<td>✅ <code>AG202608250010</code> · <code>AR</code>·<code>TR</code> 연결번호 · <code>A_VAT</code> 1행</td>
 </tr>
 <tr>
 <td><strong>P7</strong></td>
-<td><code>DRAFT-TEST-P7-0001</code></td>
 <td>선수금(PR)</td>
 <td style="text-align: center;">2</td>
 <td>선수금 원장 생성 경로 미검증</td>
-<td><code>AR</code>·<code>PR</code> 연결번호 · <code>F_PRRCPT</code> 1행</td>
+<td>✅ <code>AG202608250011</code> · <code>AR</code>·<strong><code>PR</code> 최초 생성</strong></td>
 </tr>
 <tr>
 <td><strong>P9</strong></td>
-<td><code>DRAFT-TEST-P9-0001</code></td>
 <td>다중 라인 25줄</td>
 <td style="text-align: center;">25</td>
 <td>라인마다 채번 SP 를 부른다. <strong>31줄 이상이 DEMO2 에 128전표</strong> 있는데 미검증</td>
-<td>타임아웃 없이 25줄 대조 일치 · <strong>소요시간 기록</strong></td>
+<td>✅ <code>AG202608250008</code> · 25줄 완전일치 · <strong>배치 16건 전체 19초</strong></td>
 </tr>
 <tr>
 <td><strong>PD</strong></td>
-<td><code>DRAFT-TEST-PD-0001</code></td>
 <td>직접 코스트센터(<code>DI_FG='D'</code>)</td>
 <td style="text-align: center;">3</td>
 <td>C-15 의 <code>IZ</code>/<code>DZ</code> 분기 중 <strong><code>DZ</code> 미검증</strong></td>
-<td>비용 라인 <code>EVENT_CD</code> = <strong><code>DZ</code></strong> ✅ 확인됨</td>
+<td>✅ <code>AG202608250012</code> · <code>43000501 → ADJMNT/</code><strong><code>DZ</code></strong></td>
 </tr>
 </tbody>
 </table>
@@ -163,72 +168,64 @@ gl_apply_demo2.py --precheck      →  보내기 전 판정(ERP 무투입)   ←
 </blockquote>
 <hr />
 <h2 id="3">3. 오류 케이스 (차단돼야 정상)</h2>
+<p>전건 차단됐고 <strong>ERP 에는 아무것도 들어가지 않았다.</strong> 사유는 화면에 뜨는 문장 그대로다.</p>
 <table>
 <thead>
 <tr>
 <th>ID</th>
-<th>초안번호</th>
 <th>잘못된 점</th>
-<th style="text-align: center;">기대</th>
-<th>실측</th>
+<th style="text-align: center;">규칙</th>
+<th>화면에 뜬 사유</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td><strong>E1</strong></td>
-<td><code>DRAFT-TEST-E1-0001</code></td>
 <td>채무(AP) <strong>차변</strong> 반제</td>
 <td style="text-align: center;">G5</td>
-<td>✅ <code>1번 줄 21100901(DR) — 미지급금(거래처)(AP) 채무 반제 방향</code></td>
+<td><code>1번 줄 미지급금(거래처) 차변 — 갚는 처리(반제)라서 결의전표로는 할 수 없습니다</code><br><code>→ ERP 채무반제 화면에서 처리하세요</code></td>
 </tr>
 <tr>
 <td><strong>E2</strong></td>
-<td><code>DRAFT-TEST-E2-0001</code></td>
 <td>채권(AR) <strong>대변</strong> 반제</td>
 <td style="text-align: center;">G5</td>
-<td>✅ <code>2번 줄 11101701(CR) — 미수금(AR) 채권 반제 방향</code></td>
+<td><code>2번 줄 미수금 대변 — 받는 처리(반제)라서…</code> <code>→ ERP 채권반제 화면에서</code></td>
 </tr>
 <tr>
 <td><strong>E3</strong></td>
-<td><code>DRAFT-TEST-E3-0001</code></td>
 <td>선급금(PP) <strong>대변</strong> 반제</td>
 <td style="text-align: center;">G5</td>
-<td>✅ <code>2번 줄 11102301(CR) — 선급금-원부재료(PP)</code></td>
+<td><code>2번 줄 선급금-원부재료 대변 — 정산 처리(반제)라서…</code> <code>→ ERP 선급금반제 화면에서</code></td>
 </tr>
 <tr>
 <td><strong>E4</strong></td>
-<td><code>DRAFT-TEST-E4-0001</code></td>
 <td>선수금(PR) <strong>차변</strong> 반제</td>
 <td style="text-align: center;">G5</td>
-<td>✅ <code>1번 줄 21101902(DR) — 선수금(기타)(PR)</code></td>
+<td><code>1번 줄 선수금(기타) 차변 — 상계 처리(반제)라서…</code> <code>→ ERP 선수금반제 화면에서</code></td>
 </tr>
 <tr>
 <td><strong>E5</strong></td>
-<td><code>DRAFT-TEST-E5-0001</code></td>
 <td>매입부가세(TP) <strong>대변</strong></td>
 <td style="text-align: center;">G1</td>
-<td>✅ <code>부가세대급금(TP)는 DR 만 허용</code></td>
+<td><code>2번 줄 부가세대급금 대변 — 차변에만 쓸 수 있는 계정입니다</code><br><code>→ 매출 부가세라면 부가세예수금(대변)을 쓰세요</code></td>
 </tr>
 <tr>
 <td><strong>E6</strong></td>
-<td><code>DRAFT-TEST-E6-0001</code></td>
 <td>매출부가세(TR) <strong>차변</strong></td>
 <td style="text-align: center;">G1</td>
-<td>✅ <code>부가세예수금(TR)는 CR 만 허용</code></td>
+<td><code>1번 줄 부가세예수금 차변 — 대변에만 쓸 수 있는 계정입니다</code><br><code>→ 매입 부가세라면 부가세대급금(차변)을 쓰세요</code></td>
 </tr>
 <tr>
 <td><strong>E7</strong></td>
-<td><code>DRAFT-TEST-E7-0001</code></td>
 <td><strong>라인</strong> 차대 불균형(헤더 합계는 일치)</td>
 <td style="text-align: center;">G2</td>
-<td>✅ <code>차변 500,000 / 대변 450,000 (차이 50,000)</code></td>
+<td><code>차변과 대변 합계가 다릅니다 — 차변 500,000 · 대변 450,000 (차이 50,000)</code><br><code>→ 금액을 맞춘 뒤 다시 보내세요</code></td>
 </tr>
 <tr>
 <td><strong>E8</strong></td>
-<td><code>DRAFT-TEST-E8-0001</code></td>
 <td>법인카드 미지급금 <strong>대변</strong>(이중계상)</td>
 <td style="text-align: center;">금지계정</td>
-<td>✅ <code>21100907 … AX 채널에서 사용할 수 없습니다</code></td>
+<td><code>2번 줄 미지급금(법인카드)(21100907) 대변 — 이 화면에서는 쓸 수 없는 계정입니다</code><br><code>→ 법인카드 전표는 카드 채널에서 따로 만들어집니다</code></td>
 </tr>
 </tbody>
 </table>
