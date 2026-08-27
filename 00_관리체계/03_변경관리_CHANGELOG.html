@@ -110,6 +110,13 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <tr>
 <td>2026-08-27</td>
 <td>회계·ERP연계</td>
+<td><code>pages/자금_결의전표_입력_2026.html</code></td>
+<td><strong>템플릿 잔여값을 목록에서 알아보게 — 「고치는 버튼」 대신 「찾는 표시」(관리자 결정).</strong> 직전 <code>TEST</code> 케이스 코드 정리에서 드러난 문제: 케이스 코드에 이상값이 있어도 <strong>편집기를 열어야만 보였다</strong>. 화면에 「연결 해제」 버튼을 다는 대신 <strong>발견만 쉽게 하고 삭제는 관리자가 DB에서</strong> 하기로 정했다(이 칸은 반복전표 분석이 붙이는 자리라 손입력 경로를 되살리면 같은 쓰레기 값이 다시 쌓인다). <strong>조치 3종</strong> — ①<strong>점검 판정 <code>tplIssues()</code></strong> — 템플릿 한 건에서 손봐야 할 것을 종류별로 뽑는다. <strong>고치는 주체가 다르므로 종류를 가른다</strong>: <code>tok</code>(월 토큰 중괄호 누락 — 화면에서 바로 고침) · <code>case</code>(출처 불명 케이스 코드 — 관리자가 DB에서 정리). <code>src_family_key</code> 가 있으면 분석이 붙인 <strong>정상 연결</strong>이므로 점검 대상이 아니다. ②<strong>목록 배지</strong> — 경고는 붉은 <code>⚠ 케이스 TEST</code>, 정상 연결은 파란 <code>ERP 케이스 FAM-0007</code>(정보). 경고 배지 툴팁에 <strong>지울 대상을 그대로 적는다</strong>(<code>gl_template.erp_case_cd, TPL-0001</code>) — 관리자가 배지만 보고 바로 SQL 을 쓸 수 있다. ③<strong>상단 안내를 종류별 전부 표시</strong> — 종전에는 우선순위 하나만 보여줘 (월 토큰 &gt; 비공개) 뒤에 있는 건을 영영 못 찾았다. 이제 월 토큰·출처 불명 케이스·비공개를 <strong>각각 한 줄씩</strong>. 편집기 제목줄도 색으로 갈랐다 — 정상 연결은 중립색, 잔여값은 붉은색 <code>⚠ ERP 케이스 TEST (출처 불명 — DB에서 정리 필요)</code>. <strong>화면은 케이스 코드를 지우지 않는다</strong> — 저장 시 원본을 그대로 되돌려 보내는 처리는 그대로다(정상 연결·잔여값 모두). 검증: jsdom 회귀 <strong>28건 신규 전건 통과</strong>(판정 6 · 목록 배지 8 · 상단 안내 4 · 제목줄 6 · 보존 회귀 4), 기존 111건 포함 <strong>139건 전건 통과</strong>(케이스 배지 신설로 낡은 픽스처 1건 현행화)</td>
+<td>최동혁(+Claude)</td>
+</tr>
+<tr>
+<td>2026-08-27</td>
+<td>회계·ERP연계</td>
 <td><code>public.gl_template</code>(데이터 정리 1행)</td>
 <td><strong><code>TPL-0001</code> 의 ERP 케이스 코드 <code>TEST</code> 제거(관리자 지시).</strong> 화면에서 케이스 코드 입력칸을 걷어낸 뒤 라이브 점검에서 드러난 잔여값 — 「(주)쿠콘 {YY}년{M}월분 국세청 스크래핑외」(부서 공용·42회 사용)에 <code>erp_case_cd='TEST'</code> 가 손입력돼 있었다. 이 칸은 <strong>반복전표 분석이 붙이는 패밀리 ID</strong> 자리이므로(<code>10_ERP_DB연계/10</code> F8) <code>TEST</code> 는 아무 데도 연결되지 않는 쓰레기 값이고, 남겨 두면 뒤에 올 일괄 등재의 케이스 대사를 흐린다. <code>src_family_key is null</code> 을 조건에 걸어 <strong>일괄 등재로 붙은 값은 건드릴 수 없게</strong> 한 뒤 <code>tpl_id=1</code> 한 행만 <code>null</code> 로 정리. 결과 — 케이스 코드가 남은 템플릿 <strong>0건/4건</strong>, 편집기 제목줄이 「템플릿 편집 · TPL-0001」 로 정상 표시(케이스 표시 사라짐). 스키마 변경 없음. <strong>남은 사항</strong>: 화면에는 케이스 코드를 지우는 수단이 없다(읽기전용 표시만) — 앞으로 같은 잔여값이 생기면 DB 정리가 필요하다</td>
 <td>최동혁(+Claude)</td>
