@@ -5,6 +5,14 @@
 //              |"tpl_list"|"tpl_get"|"tpl_save"|"tpl_status"|"tpl_delete"|"tpl_use"
 //              |"tpl_recur_list"|"tpl_apply_prev"|"tpl_seed_bulk"
 //              |"slip_list"|"slip_get"|"apply_request"|"apply_cancel"|"apply_health"|"unsubmit", ... }
+// v5.10(2026-08-27): 화면 용어 정리 + 참조번호 채번규칙 재정립(관리자 지시).
+//   ① 화면에서 「초안」을 걷어내고 「이력」·「참조번호」로 통일했다. 사용자에게 나가는 문구
+//      (error·안내)만 바꾸고, 데이터·API 이름(gl_draft·draft_no·status 'draft')은 그대로다.
+//      **아래 주석에 남은 '초안'은 데이터 개념(status='draft')을 가리킨다 — 화면 용어가 아니다.**
+//   ② 참조번호는 이제 DB 트리거가 만든다(`AX{YYMMDD}-U{작성자코드}-{순번}`, 예 AX260827-U001-003).
+//      이 함수는 채번에 관여하지 않는다 — insert 시 draft_no 를 넘기지 않으면 트리거가 채운다.
+//      종전 전역 시퀀스 기본값(`DRAFT-…`)은 해제됐다. 규칙 정본: 이관/sql/32_gl_draft_no_rule.sql
+//      마이그레이션 gl_draft_no_rule_v1 · 기존 발급분(DRAFT-*)은 그대로 둔다(ERP REF_NO 대사 유지).
 // v5.9(2026-08-25): op unsubmit(제출 회수) 신설 — 전송이 막힌 전표를 고칠 경로가 없었다.
 //   save·submit 은 'draft' 만 허용하는데 실패한 전표는 'submitted' 로 굳어, 화면에서 실패를
 //   보고도 손을 댈 수 없었다(폐기 후 재작성이 유일한 길). 회수는 ready·sending 을 거부한다 —
@@ -155,7 +163,7 @@ Deno.serve(async (req) => {
 
   if (!canInput && !canPost) {
     log("denied", null, { op });
-    return json({ error: "forbidden", 안내: "결의전표 초안 작성 권한이 없습니다. 포털 관리자에게 권한을 요청하세요." }, 403);
+    return json({ error: "forbidden", 안내: "결의전표 작성 권한이 없습니다. 포털 관리자에게 권한을 요청하세요." }, 403);
   }
 
   /* ERP 등록자 매핑 — 전표의 명의가 되는 값이라 여기서 한 번만 정한다. */
@@ -308,7 +316,7 @@ Deno.serve(async (req) => {
       me: { upn: user.upn, name: ownerNm, erp_usr_id: erpUsrId, dept_nm: eff.dept_nm || null },
       can_input: canInput, can_post: canPost, is_admin: isAdmin,
       erp_user_mapped: !!erpUsrId,
-      ...(erpUsrId ? {} : { 안내: "회원님의 MS 계정과 연결된 ERP 사용자 ID를 찾지 못했습니다. 초안을 저장할 수 없습니다 — 포털 관리자에게 문의하세요." }),
+      ...(erpUsrId ? {} : { 안내: "회원님의 MS 계정과 연결된 ERP 사용자 ID를 찾지 못했습니다. 전표를 저장할 수 없습니다 — 포털 관리자에게 문의하세요." }),
       master,
       locked_months: (locks || []).map((r) => r.ym),
       accounts_loaded: (master.accounts || []).length > 0,
@@ -547,7 +555,7 @@ Deno.serve(async (req) => {
       .update({ status: st, updated_by: user.upn, updated_at: nowIso }).eq("tpl_id", id);
     if (error) return json({ error: "상태 변경 실패: " + error.message }, 500);
     log("tpl_status", null, { tpl_id: id, status: st });
-    return json({ ok: true, 안내: st === "active" ? "템플릿을 공개했습니다." : st === "draft" ? "템플릿을 비공개(초안)로 되돌렸습니다." : "템플릿을 보관 처리했습니다." });
+    return json({ ok: true, 안내: st === "active" ? "템플릿을 공개했습니다." : st === "draft" ? "템플릿을 비공개(작성중)로 되돌렸습니다." : "템플릿을 보관 처리했습니다." });
   }
 
   /* ===== op: tpl_delete — 완전 삭제(라인 cascade) ===== */
@@ -610,7 +618,7 @@ Deno.serve(async (req) => {
   /* ===== op: slip_list — 전표복사: 본인 ERP 결의전표 목록(미러) =====
      소유 필터는 RPC 가 강제 — 여기서 넘기는 erpUsrId 는 JWT 매핑 결과뿐(위조 불가). */
   if (op === "slip_list") {
-    if (!canInput) return json({ error: "forbidden: 초안 작성 권한이 없습니다." }, 403);
+    if (!canInput) return json({ error: "forbidden: 전표 작성 권한이 없습니다." }, 403);
     if (!erpUsrId) {
       return json({ error: "erp_user_unmapped",
         안내: "MS 계정과 연결된 ERP 사용자 ID가 없어 본인 전표를 조회할 수 없습니다." }, 409);
@@ -631,7 +639,7 @@ Deno.serve(async (req) => {
 
   /* ===== op: slip_get — 전표복사: 본인 전표 1건(헤더+라인+관리항목) ===== */
   if (op === "slip_get") {
-    if (!canInput) return json({ error: "forbidden: 초안 작성 권한이 없습니다." }, 403);
+    if (!canInput) return json({ error: "forbidden: 전표 작성 권한이 없습니다." }, 403);
     if (!erpUsrId) return json({ error: "erp_user_unmapped" }, 409);
     const no = String(b.temp_gl_no || "").trim();
     if (!no) return json({ error: "전표번호가 필요합니다." }, 400);
@@ -647,11 +655,11 @@ Deno.serve(async (req) => {
 
   /* ===== op: save — 초안 저장(신규/수정). 서버 재검증이 여기 전부 모여 있다 ===== */
   if (op === "save") {
-    if (!canInput) return json({ error: "forbidden: 초안 작성 권한이 없습니다." }, 403);
+    if (!canInput) return json({ error: "forbidden: 전표 작성 권한이 없습니다." }, 403);
     if (!erpUsrId) {
       log("denied", null, { reason: "erp_user_unmapped" });
       return json({ error: "erp_user_unmapped",
-        안내: "MS 계정과 연결된 ERP 사용자 ID가 없어 초안을 만들 수 없습니다. 전표 등록자는 ERP 계정 기준이어야 합니다." }, 409);
+        안내: "MS 계정과 연결된 ERP 사용자 ID가 없어 전표를 만들 수 없습니다. 전표 등록자는 ERP 계정 기준이어야 합니다." }, 409);
     }
 
     const h = (b.header || {}) as Record<string, unknown>;
@@ -689,7 +697,7 @@ Deno.serve(async (req) => {
     } catch { /* 폴백 */ }
     if (!accounts.length) {
       return json({ error: "master_empty",
-        안내: "계정과목 마스터가 아직 적재되지 않아 초안을 검증할 수 없습니다. 관리자에게 문의하세요." }, 503);
+        안내: "계정과목 마스터가 아직 적재되지 않아 전표를 검증할 수 없습니다. 관리자에게 문의하세요." }, 503);
     }
     // deno-lint-ignore no-explicit-any
     const acctMap = new Map<string, any>(accounts.map((a) => [String(a.acct_cd), a]));
@@ -841,16 +849,16 @@ Deno.serve(async (req) => {
       // 수정 — 본인의 작성중(draft) 건만
       const { data: cur } = await admin.from("gl_draft")
         .select("draft_no,status,owner_upn").eq("draft_no", no).maybeSingle();
-      if (!cur) return json({ error: "초안을 찾을 수 없습니다." }, 404);
-      if (cur.owner_upn !== user.upn) return json({ error: "forbidden: 본인이 작성한 초안만 수정할 수 있습니다." }, 403);
-      if (cur.status !== "draft") return json({ error: "이미 제출·확정된 초안은 수정할 수 없습니다." }, 409);
+      if (!cur) return json({ error: "전표를 찾을 수 없습니다." }, 404);
+      if (cur.owner_upn !== user.upn) return json({ error: "forbidden: 본인이 작성한 전표만 수정할 수 있습니다." }, 403);
+      if (cur.status !== "draft") return json({ error: "이미 제출·확정된 전표는 수정할 수 없습니다." }, 409);
       // 위 검사는 읽고-나서-쓰기라, 확인과 저장 사이에 다른 탭이 제출하면 덮어쓸 수 있다.
       // UPDATE 조건에 상태·소유자를 함께 걸어 그 틈을 닫는다(조건에 안 맞으면 0행 → 409).
       const { data: upd, error } = await admin.from("gl_draft").update(headerRow)
         .eq("draft_no", no).eq("status", "draft").eq("owner_upn", user.upn).select("draft_no");
       if (!error && (!upd || upd.length === 0)) {
         return json({ error: "conflict",
-          안내: "저장하는 사이에 이 초안이 제출·확정됐습니다. 화면을 새로 고쳐 확인하세요." }, 409);
+          안내: "저장하는 사이에 이 전표가 제출·확정됐습니다. 화면을 새로 고쳐 확인하세요." }, 409);
       }
       if (error) return json({ error: "저장 실패: " + error.message }, 500);
       await admin.from("gl_draft_item").delete().eq("draft_no", no);
@@ -861,7 +869,7 @@ Deno.serve(async (req) => {
         .eq("owner_upn", user.upn).in("status", ["draft", "submitted"]);
       if ((count || 0) >= DRAFT_LIMIT) {
         return json({ error: "too_many_drafts",
-          안내: `미확정 초안이 ${DRAFT_LIMIT}건을 넘었습니다. 기존 초안을 제출하거나 삭제한 뒤 작성하세요.` }, 429);
+          안내: `아직 ERP로 확정되지 않은 전표가 ${DRAFT_LIMIT}건을 넘었습니다. 기존 전표를 제출하거나 폐기한 뒤 작성하세요.` }, 429);
       }
       const { data: ins, error } = await admin.from("gl_draft").insert(headerRow).select("draft_no").single();
       if (error) return json({ error: "저장 실패: " + error.message }, 500);
@@ -904,7 +912,7 @@ Deno.serve(async (req) => {
     log("save", no, { items: items.length, dr, cr, ctrls: ctrlRows.length,
       ctrl_aware: ctrlAware, warn_cnt: warnings.length, new: !draftNo });
     return json({ ok: true, draft_no: no, dr_total: dr, cr_total: cr, warnings,
-      안내: `초안을 저장했습니다(${no}). 제출하면 [ERP 전송] 단계로 넘어갑니다.` });
+      안내: `저장했습니다 — 참조번호 ${no}. 제출하면 [ERP 전송] 단계로 넘어갑니다.` });
   }
 
   /* ===== op: mine — 내 초안 목록 ===== */
@@ -920,7 +928,7 @@ Deno.serve(async (req) => {
   if (op === "get") {
     const no = String(b.draft_no || "");
     const { data: hd } = await admin.from("gl_draft").select("*").eq("draft_no", no).maybeSingle();
-    if (!hd) return json({ error: "초안을 찾을 수 없습니다." }, 404);
+    if (!hd) return json({ error: "전표를 찾을 수 없습니다." }, 404);
     // 본인 것이거나, 확정 권한자(회계 담당자)만 열람.
     // 단 타인의 미제출(draft) 초안은 회계 담당자도 열람 불가 — 제출 의사 확정 전 데이터 보호(최소권한).
     if (hd.owner_upn !== user.upn && (!canPost || hd.status === "draft")) {
@@ -941,9 +949,9 @@ Deno.serve(async (req) => {
     const no = String(b.draft_no || "");
     const { data: cur } = await admin.from("gl_draft")
       .select("draft_no,status,owner_upn,dr_total,cr_total").eq("draft_no", no).maybeSingle();
-    if (!cur) return json({ error: "초안을 찾을 수 없습니다." }, 404);
-    if (cur.owner_upn !== user.upn) return json({ error: "forbidden: 본인 초안만 제출할 수 있습니다." }, 403);
-    if (cur.status !== "draft") return json({ error: "이미 제출된 초안입니다." }, 409);
+    if (!cur) return json({ error: "전표를 찾을 수 없습니다." }, 404);
+    if (cur.owner_upn !== user.upn) return json({ error: "forbidden: 본인이 작성한 전표만 제출할 수 있습니다." }, 403);
+    if (cur.status !== "draft") return json({ error: "이미 제출된 전표입니다." }, 409);
     if (Number(cur.dr_total) !== Number(cur.cr_total)) {
       return json({ error: "차변·대변 합계가 일치하지 않아 제출할 수 없습니다." }, 400);
     }
@@ -960,7 +968,7 @@ Deno.serve(async (req) => {
     const no = String(b.draft_no || "");
     const { data: cur } = await admin.from("gl_draft")
       .select("draft_no,status,owner_upn").eq("draft_no", no).maybeSingle();
-    if (!cur) return json({ error: "초안을 찾을 수 없습니다." }, 404);
+    if (!cur) return json({ error: "전표를 찾을 수 없습니다." }, 404);
     if (cur.owner_upn !== user.upn && !canPost) return json({ error: "forbidden" }, 403);
     if (cur.status === "posted") return json({ error: "이미 ERP에 등록된 건은 폐기할 수 없습니다. 회계 담당자에게 문의하세요." }, 409);
     const { error } = await admin.from("gl_draft").update({
@@ -969,7 +977,7 @@ Deno.serve(async (req) => {
     if (error) return json({ error: "폐기 실패: " + error.message }, 500);
     await syncUsage(no, "void");
     log("void", no, { reason: clip(b.reason, 200) });
-    return json({ ok: true, 안내: "초안을 폐기했습니다." });
+    return json({ ok: true, 안내: "전표를 폐기했습니다." });
   }
 
   /* ===== op: list — 제출된 초안 목록(회계 담당자) =====
@@ -980,7 +988,7 @@ Deno.serve(async (req) => {
       .select("draft_no,draft_dt,gl_type,dept_nm,cost_cd,gl_desc,ref_no,owner_upn,owner_nm,owner_erp_usr_id,dr_total,cr_total,status,erp_temp_gl_no,erp_apply_status,erp_apply_gl_no,erp_apply_target,erp_last_error,erp_last_error_at,erp_attempts,erp_ready_at,created_at,submitted_at,posted_at")
       .order("submitted_at", { ascending: true, nullsFirst: false }).limit(300);
     const st = String(b.status || "submitted");
-    if (st === "draft") return json({ error: "forbidden: 작성중(미제출) 초안은 작성자 본인만 볼 수 있습니다." }, 403);
+    if (st === "draft") return json({ error: "forbidden: 작성중(미제출) 전표는 작성자 본인만 볼 수 있습니다." }, 403);
     if (st !== "all") q = q.eq("status", st);
     else q = q.neq("status", "draft");
     const { data, error } = await q;
@@ -1007,9 +1015,9 @@ Deno.serve(async (req) => {
     }
     const { data: cur } = await admin.from("gl_draft")
       .select("draft_no,status").eq("draft_no", no).maybeSingle();
-    if (!cur) return json({ error: "초안을 찾을 수 없습니다." }, 404);
-    if (cur.status === "posted") return json({ error: "이미 확정 처리된 초안입니다." }, 409);
-    if (cur.status === "void") return json({ error: "폐기된 초안입니다." }, 409);
+    if (!cur) return json({ error: "전표를 찾을 수 없습니다." }, 404);
+    if (cur.status === "posted") return json({ error: "이미 확정 처리된 전표입니다." }, 409);
+    if (cur.status === "void") return json({ error: "폐기된 전표입니다." }, 409);
 
     // 같은 ERP 전표번호가 다른 초안에 이미 기입돼 있으면 거부 — 이중 등록 탐지.
     // maybeSingle 은 2건 이상이면 오류로 null 이 되어 검사가 뚫린다 — 목록 조회로 판정한다.
@@ -1017,7 +1025,7 @@ Deno.serve(async (req) => {
       .select("draft_no").eq("erp_temp_gl_no", tempGlNo).neq("draft_no", no).limit(1);
     if (dups && dups.length) {
       return json({ error: "duplicate_erp_no",
-        안내: `이 ERP 전표번호(${tempGlNo})는 이미 다른 초안(${dups[0].draft_no})에 기록되어 있습니다. 중복 등록이 아닌지 확인하세요.` }, 409);
+        안내: `이 ERP 전표번호(${tempGlNo})는 이미 다른 전표(참조번호 ${dups[0].draft_no})에 기록되어 있습니다. 중복 등록이 아닌지 확인하세요.` }, 409);
     }
 
     const { error } = await admin.from("gl_draft").update({
@@ -1039,13 +1047,13 @@ Deno.serve(async (req) => {
     const { data: cur } = await admin.from("gl_draft")
       .select("draft_no,status,erp_apply_status,erp_apply_gl_no,erp_last_error,erp_last_error_at,erp_attempts")
       .eq("draft_no", no).maybeSingle();
-    if (!cur) return json({ error: "초안을 찾을 수 없습니다." }, 404);
+    if (!cur) return json({ error: "전표를 찾을 수 없습니다." }, 404);
     if (cur.status !== "submitted") {
-      return json({ error: "제출됨 상태의 초안만 ERP로 전송할 수 있습니다." }, 409);
+      return json({ error: "제출됨 상태의 전표만 ERP로 전송할 수 있습니다." }, 409);
     }
     if (cur.erp_apply_status === "applied") {
       return json({ error: "already_applied",
-        안내: `이미 ERP에 적용된 초안입니다(${cur.erp_apply_gl_no || ""}).` }, 409);
+        안내: `이미 ERP에 적용된 전표입니다(${cur.erp_apply_gl_no || ""}).` }, 409);
     }
     if (cur.erp_apply_status === "ready") {
       return json({ ok: true, 안내: "이미 전송 대기 중입니다 — 중계가 곧 처리합니다.",
@@ -1100,7 +1108,7 @@ Deno.serve(async (req) => {
     const { data: cur } = await admin.from("gl_draft")
       .select("draft_no,status,owner_upn,erp_apply_status,erp_apply_gl_no")
       .eq("draft_no", no).maybeSingle();
-    if (!cur) return json({ error: "초안을 찾을 수 없습니다." }, 404);
+    if (!cur) return json({ error: "전표를 찾을 수 없습니다." }, 404);
     if (cur.owner_upn !== user.upn && !canPost) {
       log("denied", no, { op });
       return json({ error: "forbidden: 작성자 또는 회계 담당자만 회수할 수 있습니다." }, 403);
@@ -1113,7 +1121,7 @@ Deno.serve(async (req) => {
     if (cur.status !== "submitted") {
       return json({ error: cur.status === "draft"
         ? "이미 작성중입니다 — 바로 수정할 수 있습니다."
-        : "제출됨 상태의 초안만 회수할 수 있습니다." }, 409);
+        : "제출됨 상태의 전표만 회수할 수 있습니다." }, 409);
     }
     if (cur.erp_apply_status === "ready" || cur.erp_apply_status === "sending") {
       return json({ error: "in_flight",
@@ -1139,7 +1147,7 @@ Deno.serve(async (req) => {
     const no = String(b.draft_no || "");
     const { data: cur } = await admin.from("gl_draft")
       .select("draft_no,erp_apply_status").eq("draft_no", no).maybeSingle();
-    if (!cur) return json({ error: "초안을 찾을 수 없습니다." }, 404);
+    if (!cur) return json({ error: "전표를 찾을 수 없습니다." }, 404);
     if (cur.erp_apply_status !== "ready") {
       return json({ error: "전송 대기 상태가 아닙니다(이미 처리됐을 수 있습니다)." }, 409);
     }

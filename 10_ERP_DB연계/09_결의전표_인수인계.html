@@ -103,7 +103,7 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <tr>
 <td>C-4</td>
 <td><strong>전표번호는 ERP가 채번</strong></td>
-<td>포털은 <code>DRAFT-YYYYMMDD-nnnn</code> 임시번호만 사용</td>
+<td>포털은 자체 참조번호만 쓰고 ERP 전표번호를 만들지 않는다. 참조번호 형식은 <strong>C-16으로 개정</strong>(원안 <code>DRAFT-YYYYMMDD-nnnn</code> → <code>AX{YYMMDD}-U{작성자}-{순번}</code>)</td>
 <td>2026-07-31</td>
 </tr>
 <tr>
@@ -165,6 +165,12 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <td><strong>결의전표 입력화면 — 부가세 자동계산 도입(B2 개정)</strong></td>
 <td>B2(부분승인, 2026-08-11 — 부가세·원천징수 자동계산 제외)를 개정해 <strong>부가세에 한해</strong> 자동계산을 도입한다. 계산은 <strong>화면에서만</strong> 하고 서버는 차대 일치·필수 관리항목 등 값 검증만 하며(계산 로직을 서버로 옮기지 않음), 자동값은 제안이라 사용자가 고친 값은 덮지 않는다. 세율 판정은 운영 전표 실측 근거다(A일반세금계산서·B매입세액불공제·L신용카드는 정확히 10%가 대다수라 10% 자동, K계산서·C영세율은 세액 0으로 0% 자동, <strong>I수입세금계산서·H통관은 과세표준에 관세가 섞여 실측 일치가 0건이라 자동계산에서 제외</strong>하고 수기 입력을 유지). <strong>원천징수는 계속 범위 밖</strong>(B2의 그 부분은 무개정) — <strong>U-1은 부가세 부분 해소·원천징수 부분 미결로 갱신</strong>(§8)</td>
 <td>2026-08-20</td>
+</tr>
+<tr>
+<td>C-16</td>
+<td><strong>참조번호 채번규칙 재정립 + 화면 용어 정리</strong>(C-4 개정)</td>
+<td>포털 번호를 화면에서 <strong>「참조번호」</strong>로 부르고(종전 「초안번호」), 형식을 <strong><code>AX{YYMMDD}-U{작성자코드}-{순번}</code></strong>(예 <code>AX260827-U001-003</code>, 18자)으로 바꾼다. ERP 표준 채번(<code>B_AUTO_NUMBERING</code>: 2자 유형코드+날짜+일련, <code>TG</code>/<code>AG</code>/<code>BT</code>/<code>VT</code>)의 관례를 따르되 <strong>작성자 코드를 넣어</strong> 사용자 간 충돌을 구조적으로 없애고 번호만으로 작성일·작성자·순번을 되짚을 수 있게 한다. 종전 형식은 전역 시퀀스라 날짜별 일련번호처럼 보이지만 아니었고 작성자 정보도 없었다. 채번 지점은 테이블 기본값 → <strong>BEFORE INSERT 트리거</strong>(작성자를 볼 수 있어야 함), 순번은 시퀀스가 아닌 <strong>카운터 테이블</strong>(롤백 시 되돌아가 결번이 생기지 않음). <strong>기존 발급분 <code>DRAFT-*</code> 44건은 재부여하지 않는다</strong> — 일부가 ERP <code>REF_NO</code>로 이미 들어가 있어 재부여하면 멱등 대사가 끊긴다. 화면 용어도 「초안」→「이력/전표」로 통일(데이터·API 이름 <code>gl_draft</code>·<code>draft_no</code>·<code>status='draft'</code>는 무변경). 정본 <code>이관/sql/32_gl_draft_no_rule.sql</code>, 마이그레이션 <code>gl_draft_no_rule_v1</code></td>
+<td>2026-08-27</td>
 </tr>
 </tbody>
 </table>

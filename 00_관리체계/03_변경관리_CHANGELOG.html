@@ -108,6 +108,13 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 </thead>
 <tbody>
 <tr>
+<td>2026-08-27</td>
+<td>회계·ERP연계</td>
+<td><code>이관/sql/32_gl_draft_no_rule.sql</code>(신규) · 마이그레이션 <code>gl_draft_no_rule_v1</code> · <code>supabase/functions/jeil-gl-draft/index.ts</code>(v5.10) · <code>pages/자금_결의전표_입력_2026.html</code> · <code>10_ERP_DB연계/09</code>(C-4 개정·C-16 신설)·<code>02</code></td>
+<td><strong>참조번호 채번규칙 재정립 + 결의전표 화면 용어 정리(결정 C-16).</strong> 종전 초안번호 <code>DRAFT-YYYYMMDD-nnnn</code> 은 <strong>날짜별 일련번호처럼 보이지만 아니었다</strong> — 전역 시퀀스라 날짜가 바뀌어도 이어져, <code>DRAFT-20260824-0014</code> 의 <code>0014</code> 는 그날 14번째가 아니라 개설 이래 14번째다. 작성자 정보도 없어 번호만 들고는 누가 만든 건인지 알 수 없었고, <code>DRAFT-</code> 접두는 ERP 표기 관례 밖이었다(이 번호는 그대로 ERP <code>A_BATCH.REF_NO</code>·<code>A_TEMP_GL.REF_NO</code> 로 들어가는 멱등키다). <strong>새 규칙은 <code>AX{YYMMDD}-U{작성자코드}-{순번}</code></strong>(예 <code>AX260827-U001-003</code>, 18자) — ERP 표준 채번(<code>B_AUTO_NUMBERING</code>: 2자 유형코드+날짜+일련, <code>TG</code>수기결의·<code>AG</code>AI전표·<code>BT</code>배치·<code>VT</code>부가세)의 관례를 따르되 <strong>작성자 조각을 넣어</strong> 사용자 간 충돌을 구조적으로 없애고 번호만으로 작성일·작성자·순번을 되짚게 했다. <strong>구현 두 가지가 핵심</strong> — ①채번 지점을 테이블 기본값에서 <strong>BEFORE INSERT 트리거</strong>로 옮겼다(기본값은 다른 컬럼값을 못 봐 작성자를 넣을 수 없다) ②순번을 시퀀스가 아니라 <strong>카운터 테이블</strong>로 셌다(시퀀스는 롤백해도 값이 안 돌아와 저장 실패가 곧 결번이 되는데, 회계 번호로는 부적절하다). 작성자 코드는 레지스트리에서 최초 작성 시 1회 부여하고 이후 바꾸지 않으며, 두 테이블 모두 RLS ON·정책 0 + service_role 단일 경로(C-6 계승). <strong>기존 44건(<code>DRAFT-*</code>)은 재부여하지 않는다</strong> — 일부가 ERP <code>REF_NO</code> 로 이미 들어가 있어 재부여하면 멱등 대사가 끊긴다. <strong>검증</strong>은 실제 INSERT 경로로 했다: 같은 사람 연속 <code>-001</code>·<code>-002</code>, 다른 사람 같은 날 <code>U002-001</code> 로 충돌 없음을 확인한 뒤 <strong>전량 롤백</strong>해 결번이 남지 않는 것까지 봤다(전표 44건·카운터 0행 그대로). <strong>화면 용어</strong>는 「초안」을 걷어내고 「이력·전표」로 통일했다 — 탭 <code>내 초안</code>→<strong><code>내 이력</code></strong>(순서도 맨 뒤로), 표 머리 <code>초안번호</code>→<strong><code>참조번호</code></strong>. 데이터·API 이름(<code>gl_draft</code>·<code>draft_no</code>·<code>status='draft'</code>)은 <strong>바꾸지 않았고</strong>, 화면 용어와 데이터 이름의 대응을 화면·함수 주석에 남겼다. 템플릿 상태의 <code>비공개(초안)</code>은 다른 개념이라 <code>비공개(작성중)</code>으로 갈랐다</td>
+<td>최동혁(+Claude)</td>
+</tr>
+<tr>
 <td>2026-08-25</td>
 <td>ERP연계·회계</td>
 <td><code>pages/자금_결의전표_입력_2026.html</code> · <code>supabase/functions/jeil-gl-draft/index.ts</code>(v5.8) · <code>supabase/_deploy_function.py</code>(신규) · <code>이관/sql/30_gl_apply_diag.sql</code>(신규) · <code>10_ERP_DB연계/etl/gl_apply_demo2.py</code>(v1.4)</td>

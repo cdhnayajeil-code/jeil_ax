@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link rel="icon" href="data:,">
-<title>결의전표 입력(초안) — JEIL AX</title>
+<title>결의전표 입력 — JEIL AX</title>
 <script>window.PAGE_KEY='gl_draft';</script>
 <script src="/pages/_access-gate.js"></script>
 <link rel="stylesheet" href="/app/lib/grid.css">
@@ -507,24 +507,27 @@
   <div id="app" class="hide">
     <div class="top">
       <div>
-        <h1>🧾 결의전표 입력 <small style="font-size:12px;font-weight:400;color:var(--muted);">(초안)</small></h1>
+        <h1>🧾 결의전표 입력 <small style="font-size:12px;font-weight:400;color:var(--muted);">(ERP 전송 전)</small></h1>
         <div class="sub">일반 경비 지출결의 · 파일럿</div>
       </div>
       <div class="who" id="who"></div>
     </div>
 
     <div class="banner">
-      <b>이 화면은 ERP 결의전표 <u>초안</u>을 만듭니다.</b> 제출하면 <b>[ERP 전송]</b> 단계로 넘어가고,
+      <b>이 화면에서 작성한 전표는 <u>아직 ERP에 들어가지 않은</u> 상태입니다.</b> 제출하면 <b>[ERP 전송]</b> 단계로 넘어가고,
       담당자가 확인해 전송하면 ERP가 전표를 만들어 번호를 이 화면에 돌려줍니다 —
       사람이 ERP에 다시 입력하지 않습니다. 등록자는 회원님의 MS 계정과 연결된 ERP 사용자 ID입니다.
+      저장하는 순간 <b>참조번호</b>(예: <code>AX260827-U012-001</code>)가 붙고, 그 뒤의 진행은
+      <b>[내 이력]</b> 탭에서 그 번호로 추적합니다.
     </div>
     <div class="banner err hide" id="warnBox"></div>
 
     <div class="tabs">
+      <!-- 「내 이력」은 지나간 것을 되짚는 탭이라 맨 뒤에 둔다 — 앞쪽은 지금 할 일(작성·전송·템플릿) -->
       <button data-tab="write" class="on">전표 작성</button>
-      <button data-tab="mine">내 초안</button>
       <button data-tab="post" class="hide" id="tabPost">ERP 전송</button>
       <button data-tab="tpl">템플릿 관리</button>
+      <button data-tab="mine">내 이력</button>
     </div>
 
     <!-- ═══ 전표 작성 ═══ -->
@@ -654,7 +657,7 @@
       <div class="banner" style="background:#eef4fb;border-color:#c9dcf1;border-left-color:var(--accent);color:#2a4a6b;">
         <b>본인이 ERP에서 입력한 결의전표</b>만 표시됩니다(ERP 계정 ↔ MS 계정 1:1 연결).
         전표를 골라 복사하면 <b>전표 작성</b> 탭에 계정·금액·적요·거래처·관리항목이 채워지고,
-        결의일자는 오늘로 새로 잡힙니다. 내용을 수정한 뒤 새 초안으로 저장하세요.
+        결의일자는 오늘로 새로 잡힙니다. 내용을 수정한 뒤 새 전표로 저장하세요(참조번호는 새로 붙습니다).
         데이터는 야간 동기화 사본이라 방금 ERP에 저장한 전표는 다음 동기화 후에 보입니다.
       </div>
       <div class="sec">
@@ -681,16 +684,8 @@
         <h2 style="margin-top:14px;">관리항목 <small>민감 항목(계좌·사번·카드·어음)의 값은 복사되지 않습니다 — 작성 화면에서 직접 입력</small></h2>
         <div style="overflow-x:auto;"><table class="tbl" id="slipCtrls"></table></div>
         <div class="btns">
-          <button class="b pri" id="btnSlipCopy">📄 이 전표를 복사해 새 초안 작성</button>
+          <button class="b pri" id="btnSlipCopy">📄 이 전표를 복사해 새로 작성</button>
         </div>
-      </div>
-    </div>
-
-    <!-- ═══ 내 초안 ═══ -->
-    <div id="paneMine" class="hide">
-      <div class="sec">
-        <h2>내가 작성한 초안 <small>작성중인 건을 눌러 이어서 수정할 수 있습니다</small></h2>
-        <div style="overflow-x:auto;"><table class="tbl" id="mineTbl"></table></div>
       </div>
     </div>
 
@@ -703,8 +698,8 @@
           <div class="txt"><b id="relayTitle">중계 상태 확인 중…</b><span id="relayNote"></span></div>
           <button type="button" class="b gh sm" id="btnRelayRefresh">다시 확인</button>
         </div>
-        <h2>제출된 초안
-          <small>행을 누르면 아래에 상세가 열립니다 · 전표번호는 ERP가 매깁니다</small>
+        <h2>제출된 전표
+          <small>행을 누르면 아래에 상세가 열립니다 · ERP 전표번호는 ERP가 매깁니다</small>
           <!-- 상태 구분은 드롭다운 대신 한눈에 보이는 버튼으로(선택지가 3개뿐) -->
           <span class="segs" id="postFilter" style="margin-left:auto;">
             <button type="button" class="seg on" data-st="submitted">제출됨<b></b></button>
@@ -796,7 +791,7 @@
           <div class="fld">
             <label>상태</label>
             <select id="tStatus">
-              <option value="draft">비공개(초안) — 작성 탭 목록에 안 보임</option>
+              <option value="draft">비공개(작성중) — 작성 탭 목록에 안 보임</option>
               <option value="active">공개 — 작성 탭에서 선택 가능</option>
               <option value="archived">보관</option>
             </select>
@@ -874,8 +869,24 @@
       </div>
     </div>
 
+    <!-- ═══ 내 이력 (탭 순서 맨 뒤 — 화면 순서도 같이 맞춰 둔다) ═══ -->
+    <div id="paneMine" class="hide">
+      <div class="sec">
+        <h2>내가 작성한 전표 이력
+          <small>참조번호로 추적합니다 · 작성중인 건을 눌러 이어서 수정할 수 있습니다</small></h2>
+        <div style="overflow-x:auto;"><table class="tbl" id="mineTbl"></table></div>
+        <div style="font-size:11.5px;color:var(--muted);margin-top:8px;line-height:1.7;">
+          <b style="color:var(--navy);">참조번호</b>는 저장할 때 자동으로 붙습니다 —
+          <code>AX</code>(AX 포털) · <code>260827</code>(작성일) ·
+          <code>U012</code>(작성자 고정코드) · <code>001</code>(그날 순번).
+          사람마다 코드가 달라 같은 날 여러 사람이 작성해도 번호가 겹치지 않고,
+          이 번호는 ERP 전표의 참조번호(<code>REF_NO</code>)로 그대로 들어가 나중에 되짚을 수 있습니다.
+        </div>
+      </div>
+    </div>
+
     <div class="foot">
-      데이터 출처: 포털 초안 DB(gl_draft) · 계정과목·코스트센터는 ERP 마스터 미러<br>
+      데이터 출처: 포털 전표 DB(gl_draft) · 계정과목·코스트센터는 ERP 마스터 미러<br>
       전표의 최종 효력은 ERP에 저장된 결의전표에 있습니다.
     </div>
   </div>
@@ -974,8 +985,11 @@ function rowActs(x){
 }
 
 let ME = null, MASTER = { accounts:[], cost_centers:[], depts:[] };
-let CURRENT_NO = null;            // 수정 중인 초안번호(신규면 null)
-let POST_SEL = null;              // 회계 담당자 화면에서 선택한 초안
+/* 화면 용어 ↔ 데이터 이름 대응 (2026-08-27 관리자 결정)
+   화면: 「이력」·「참조번호」 / 데이터·API: gl_draft·draft_no — 이름은 바꾸지 않는다.
+   참조번호 채번규칙 정본: 이관/sql/32_gl_draft_no_rule.sql (AX{YYMMDD}-U{작성자}-{순번}) */
+let CURRENT_NO = null;            // 수정 중인 참조번호(신규면 null — 저장 시 서버가 채번)
+let POST_SEL = null;              // 회계 담당자 화면에서 선택한 전표
 let TPLS = [];                    // 선택 가능한 템플릿(공개 상태)
 let TPL_SEL = null;               // 작성 화면에서 고른 템플릿
 let TPL_CAT = "";                 // 분류 칩 필터("" = 전체)
@@ -1120,9 +1134,9 @@ async function boot(){
 
   // 차단 사유는 감추지 않고 그대로 보여준다 — 저장이 왜 안 되는지 사용자가 알아야 한다
   const warn = [];
-  if(!d.erp_user_mapped) warn.push("⚠ MS 계정과 연결된 <b>ERP 사용자 ID를 찾지 못했습니다</b>. 전표 등록자는 ERP 계정 기준이라 초안을 저장할 수 없습니다 — 포털 관리자에게 문의하세요.");
+  if(!d.erp_user_mapped) warn.push("⚠ MS 계정과 연결된 <b>ERP 사용자 ID를 찾지 못했습니다</b>. 전표 등록자는 ERP 계정 기준이라 저장할 수 없습니다 — 포털 관리자에게 문의하세요.");
   if(!d.accounts_loaded) warn.push("⚠ <b>계정과목 마스터가 아직 적재되지 않았습니다</b>. 관리자가 ERP 마스터를 적재한 뒤 입력할 수 있습니다.");
-  if(!d.can_input && d.can_post) warn.push("ℹ 회원님은 <b>[ERP 전송] 권한</b>(회계 담당자)으로 접속했습니다. 초안 작성 권한은 없습니다.");
+  if(!d.can_input && d.can_post) warn.push("ℹ 회원님은 <b>[ERP 전송] 권한</b>(회계 담당자)으로 접속했습니다. 전표 작성 권한은 없습니다.");
   if(warn.length){ $("warnBox").innerHTML = warn.join("<br>"); $("warnBox").classList.remove("hide"); }
   const blocked = !d.erp_user_mapped || !d.accounts_loaded || !d.can_input;
   $("btnSave").disabled = blocked; $("btnSubmit").disabled = blocked;
@@ -1905,12 +1919,12 @@ $("recurList").onclick = async (e)=>{
   const id = Number(btn.getAttribute("data-id"));
   const t = RECUR_ROWS.find((x)=> x.tpl_id===id); if(!t) return;
   if(btn.getAttribute("data-act")==="continue"){
-    // 진행 중 초안 이어서 — 서버가 본인 초안번호만 내려주므로 이 버튼은 본인 건에만 뜬다
+    // 작성중인 건 이어서 — 서버가 본인 참조번호만 내려주므로 이 버튼은 본인 건에만 뜬다
     try{
       const r = await api("get", { draft_no: btn.getAttribute("data-no") });
       loadDraftIntoForm(r);
       CURRENT_TPL = { tpl_id:id, use_ym:t.ym };
-      toast("작성 중인 초안을 불러왔습니다.");
+      toast("작성 중인 전표를 불러왔습니다.");
     }catch(e2){ toast(e2.message, true); }
     return;
   }
@@ -1989,7 +2003,7 @@ async function startRecur(t){
   try{ await api("tpl_use", { tpl_id: t.tpl_id }); }catch(e){ /* 무시 */ }
   $("paneWrite").scrollIntoView({ behavior:"smooth" });
 }
-/* 초안 데이터 → 폼 (내 초안·이어서 작성 공용).
+/* 저장된 전표 → 폼 (내 이력·이어서 작성 공용).
    월반복 상태는 여기서 초기화 — [이어서 작성] 경로는 호출 직후 CURRENT_TPL 을 다시 세팅한다. */
 function loadDraftIntoForm(r){
   CURRENT_TPL = null; PREV_SNAP = null;
@@ -2030,12 +2044,12 @@ function renderTplCards(){
 
   const box = $("tplList");
   if(!list.length){
-    // 이 목록에는 '공개' 상태 템플릿만 나온다 — 비공개(초안)로 저장해 두고
+    // 이 목록에는 '공개' 상태 템플릿만 나온다 — 비공개(작성중)로 저장해 두고
     // "만들었는데 안 보인다"고 오해하기 쉬우므로 어디서 공개하는지까지 알려준다.
     box.innerHTML = '<div style="grid-column:1/-1;color:var(--muted);font-size:12.5px;padding:14px 0;">'
       + (TPLS.length ? '조건에 맞는 템플릿이 없습니다.'
                      : '사용할 수 있는 템플릿이 없습니다. <b>[템플릿 관리]</b> 탭에서 만들거나, '
-                       + '<b>비공개(초안)</b>로 저장해 둔 템플릿이 있다면 열어서 <b>[공개]</b>를 눌러 주세요 — '
+                       + '<b>비공개(작성중)</b>로 저장해 둔 템플릿이 있다면 열어서 <b>[공개]</b>를 눌러 주세요 — '
                        + '이 목록에는 공개된 템플릿만 표시됩니다.')
       + '</div>';
     return;
@@ -2507,7 +2521,7 @@ $("btnSubmit").onclick = async ()=>{
 
 /* ═══ 전표복사 — 본인 ERP 전표(야간 미러) 조회 → 작성 탭으로 복사 ═══
    ERP 전표복사 메뉴와 동일 흐름: 기간·검색으로 내 전표를 찾고, 복사하면 결의일자만 오늘로
-   새로 잡힌 채 라인 전체가 작성 탭에 채워진다. 이후 수정·저장·제출은 기존 초안 흐름 그대로
+   새로 잡힌 채 라인 전체가 작성 탭에 채워진다. 이후 수정·저장·제출은 기존 작성 흐름 그대로
    (서버 재검증 통과 필요 — 복사가 검증을 면제하지 않는다). */
 let SLIP_ROWS = [], SLIP_SEL = null, SLIP_LOADED = false;
 const CONF_KO = { C:"승인", U:"미승인" };
@@ -2559,7 +2573,7 @@ function renderSlips(){
       + '<td class="nw">'+esc(x.gl_input_type||"—")+'</td>'
       + '<td><span class="pill '+(String(x.conf_fg||"").trim()==="C"?"posted":"submitted")+'">'
       + (CONF_KO[String(x.conf_fg||"").trim()]||x.conf_fg||"—")+'</span></td>'
-      + '<td><button type="button" class="b pri sm" data-copy="'+esc(x.temp_gl_no)+'" title="이 전표를 바로 복사해 새 초안 작성">📄 복사</button></td></tr>').join("")
+      + '<td><button type="button" class="b pri sm" data-copy="'+esc(x.temp_gl_no)+'" title="이 전표를 바로 복사해 새로 작성">📄 복사</button></td></tr>').join("")
     + '</tbody>';
 }
 $("btnSlipSearch").onclick = loadSlips;
@@ -2670,16 +2684,16 @@ function copySlipData(data){
 }
 $("btnSlipCopy").onclick = ()=>{ if(SLIP_SEL) copySlipData(SLIP_SEL); };
 
-/* ═══ 내 초안 ═══ */
+/* ═══ 내 이력 ═══ */
 async function loadMine(){
   try{
     const r = await api("mine");
     const t = $("mineTbl");
-    if(!r.rows.length){ t.innerHTML = '<tr><td style="color:var(--muted);padding:20px;text-align:center;">작성한 초안이 없습니다.</td></tr>'; return; }
+    if(!r.rows.length){ t.innerHTML = '<tr><td style="color:var(--muted);padding:20px;text-align:center;">작성한 전표가 없습니다.</td></tr>'; return; }
     t.innerHTML = '<colgroup><col style="width:158px"><col style="width:96px"><col>'
       + '<col style="width:110px"><col style="width:110px"><col style="width:74px">'
       + '<col style="width:140px"><col style="width:120px"></colgroup>'
-      + '<thead><tr><th>초안번호</th><th>결의일자</th><th>적요</th><th class="r">차변</th><th class="r">대변</th><th>상태</th><th>ERP 전표번호</th><th>ERP 적용</th></tr></thead><tbody>'
+      + '<thead><tr><th>참조번호</th><th>결의일자</th><th>적요</th><th class="r">차변</th><th class="r">대변</th><th>상태</th><th>ERP 전표번호</th><th>ERP 적용</th></tr></thead><tbody>'
       + r.rows.map((x)=>
         '<tr class="'+(x.status==="draft"?"clk":"")+'" data-no="'+esc(x.draft_no)+'" data-st="'+esc(x.status)+'">'
         + '<td class="mono">'+esc(x.draft_no)+'</td><td class="nw">'+esc(x.draft_dt)+'</td>'
@@ -2708,7 +2722,7 @@ async function loadPost(){
     const t = $("postTbl");
     if(!r.rows.length){
       POST_ROWS = []; POST_PICK.clear(); syncPostBulk(); syncPostFilterCount(0);
-      t.innerHTML = '<tr><td style="color:var(--muted);padding:20px;text-align:center;">해당 구분의 초안이 없습니다.</td></tr>';
+      t.innerHTML = '<tr><td style="color:var(--muted);padding:20px;text-align:center;">해당 구분의 전표가 없습니다.</td></tr>';
       return;
     }
     POST_ROWS = r.rows;
@@ -2718,7 +2732,7 @@ async function loadPost(){
       + '<col style="width:70px"><col style="width:130px"><col style="width:168px">'
       + '<col style="width:134px"></colgroup>'
       + '<thead><tr><th class="sel"><input type="checkbox" id="postChkAll" title="전송 가능 건 전체 선택"></th>'
-      + '<th>초안번호</th><th>결의일자</th><th>등록자</th><th>부서</th><th>적요</th><th class="r">금액</th>'
+      + '<th>참조번호</th><th>결의일자</th><th>등록자</th><th>부서</th><th>적요</th><th class="r">금액</th>'
       + '<th>상태</th><th>ERP 전표번호</th><th>ERP 적용</th><th>작업</th></tr></thead><tbody>'
       + r.rows.map((x)=>{
         const can = canSendRow(x);
@@ -3065,7 +3079,7 @@ function renderSendBar(h){
   if(why && st !== "applied"){
     if(!box){ box = document.createElement("div"); box.id = "sendWhy"; box.className = "why";
               $("sendBar").appendChild(box); }
-    // 한 번도 안 보낸 초안의 사유는 '지난번'이 아니라 점검 결과다 — 말이 사실과 맞아야 한다
+    // 한 번도 안 보낸 전표의 사유는 '지난번'이 아니라 점검 결과다 — 말이 사실과 맞아야 한다
     box.innerHTML = (!h.erp_attempts ? "<b>점검 결과</b>"
                      : st === "ready" ? "<b>지난번 사유</b>" : "<b>실패 사유</b>")
       + (h.erp_last_error_at ? ' <span style="opacity:.7;">· '
@@ -3169,7 +3183,7 @@ function startSendPoll(draftNo){
         stopSendPoll();
         POST_SEL = r; loadPost();
         // 상세 패널이 같은 건을 보고 있으면 그 자리에서 갱신한다.
-        // (적용 성공 시 초안이 '확정됨'으로 바뀌어 기본 목록에서 빠지므로 행 클릭으로는 되살릴 수 없다)
+        // (적용 성공 시 전표가 '확정됨'으로 바뀌어 기본 목록에서 빠지므로 행 클릭으로는 되살릴 수 없다)
         if($("postDetailNo").textContent.indexOf(draftNo) >= 0){
           renderSendBar(r.header); renderPostLines(r.items);
         }
