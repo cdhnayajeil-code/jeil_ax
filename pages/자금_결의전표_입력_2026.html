@@ -93,6 +93,22 @@
   .grid__cell-input.srch, .vform select.srch{background-position:right 4px center; background-size:12px 12px; padding-right:19px !important;}
   /* 분류 — 등록된 분류 선택 + 새 분류 직접 입력 */
   .catbox{display:flex; flex-direction:column; gap:5px;}
+  /* 월 토큰 도구 — 버튼으로 넣고, 찍힐 값을 바로 보여주고, 중괄호 빠진 것을 잡아 준다 */
+  .tokbar{display:flex; flex-wrap:wrap; align-items:center; gap:6px; margin-top:3px;}
+  .tokbar .tk{border:1.5px solid #cfdcea; background:#f4f8fc; color:var(--navy); border-radius:7px;
+    padding:3px 9px; font-size:11.5px; font-weight:700; cursor:pointer; font-family:inherit; line-height:1.6;}
+  .tokbar .tk:hover{border-color:var(--accent); background:#e8f1fa;}
+  .tokbar .tk .v{color:var(--muted); font-weight:600; margin-left:5px;}
+  .tokbar .res{flex-basis:100%; font-size:11.5px; color:var(--muted); line-height:1.6;}
+  .tokbar .res b{color:var(--navy); font-size:12.5px;}
+  .tokbar .warn{flex-basis:100%; display:flex; flex-wrap:wrap; align-items:center; gap:8px;
+    font-size:11.5px; color:var(--red); font-weight:600; line-height:1.6;}
+  .tokbar .warn button{border:1.5px solid var(--red); background:#fff; color:var(--red); border-radius:7px;
+    padding:2px 9px; font-size:11px; font-weight:700; cursor:pointer; font-family:inherit;}
+  .tokbar .warn button:hover{background:var(--red); color:#fff;}
+  /* 템플릿 목록 — 월 토큰이 잘못된 건을 목록에서 바로 알린다 */
+  .tplwarn{display:inline-block; margin-left:6px; font-size:10.5px; font-weight:700; color:var(--red);
+    background:#fdeeec; border:1px solid #f2c4be; border-radius:6px; padding:1px 6px; white-space:nowrap;}
   /* 합계 바 */
   .sumbar{display:flex; align-items:center; gap:20px; flex-wrap:wrap; padding:12px 16px; border-radius:11px;
           background:var(--soft); border:1.5px solid var(--line); margin-top:13px;}
@@ -833,17 +849,20 @@
             <span class="hint">적요 제목의 월 숫자를 자동으로 갱신할 때의 기준</span>
           </div>
           <div class="fld wide">
-            <label>적요 제목 틀 <small style="font-weight:400;">— {YYYY}·{YY}·{MM}·{M} 토큰이 월에 맞게 치환됩니다</small></label>
+            <label>적요 제목 틀 <small style="font-weight:400;">— 아래 버튼을 눌러 월 토큰을 넣으세요</small></label>
             <input type="text" id="tTitlePattern" maxlength="200" placeholder="예: (주)쿠콘 {YY}년{M}월분 국세청 스크래핑외">
-            <span class="hint">{YYYY} 2026 · {YY} 26 · {MM} 08(두 자리) · {M} 8 — 라인 적요·기본 적요·관리항목 고정값에서도 똑같이 치환됩니다</span>
+            <div class="tokbar" id="tokTitle"></div>
+            <span class="hint">토큰은 <b>반드시 중괄호</b>로 감싸야 합니다 — <code>YY년</code>은 그냥 글자, <code>{YY}년</code>이라야 월이 채워집니다.
+              라인 적요·기본 적요·관리항목 고정값에서도 똑같이 치환됩니다.</span>
           </div>
           <div class="fld wide">
             <label>설명 <small style="font-weight:400;">— 언제 쓰는 템플릿인지</small></label>
             <input type="text" id="tDescr" maxlength="200" placeholder="예: 국내 출장 후 개인이 선지출한 교통비·숙박비를 정산할 때">
           </div>
           <div class="fld wide">
-            <label>기본 적요</label>
+            <label>기본 적요 <small style="font-weight:400;">— 제목 틀이 없을 때 쓰는 적요. 여기에도 월 토큰이 먹습니다</small></label>
             <input type="text" id="tDescTmpl" maxlength="200" placeholder="예: 국내 출장 여비 정산">
+            <div class="tokbar" id="tokDesc"></div>
           </div>
         </div>
 
@@ -1049,6 +1068,90 @@ function fmtTitle(pattern, ym, offset){
 }
 /* 문자열이면 토큰을 치환하고, 아니면 원래 값 그대로(관리항목 고정값은 문자열이 아닐 수 있다) */
 function fmtTok(v, ym, offset){ return hasTok(v) ? fmtTitle(v, ym, offset) : v; }
+
+/* ═══ 중괄호를 빠뜨린 토큰 찾기 ═══
+   실제로 등재된 템플릿이 "(주)쿠콘 YY년M월분 …" 로 저장돼 있었다 — {YY} 가 아니라 YY 라
+   치환이 걸리지 않고 적요에 「YY년M월분」이 그대로 찍혔다. 토큰이 안 먹는 가장 흔한 원인이다.
+   그렇다고 중괄호 없는 YY·M 을 토큰으로 인정할 수는 없다("3M"·"M&S" 를 숫자로 바꿔 버린다).
+   그래서 **한글 년·월 바로 앞에 붙은 것만** 후보로 보고, 사람에게 물어 고친다. */
+const BARE_RE = /(YYYY|YY)(?=년)|(MM|M)(?=월)/gi;
+/* {…} 안은 건드리지 않고 바깥 구간에만 fn 을 적용한다(이미 제대로 쓴 토큰을 겹쳐 싸지 않게) */
+function mapOutsideBraces(str, fn){
+  const s2 = String(str||""); let out = "", last = 0, m;
+  const re = /\{[^{}]*\}/g;
+  while((m = re.exec(s2))){ out += fn(s2.slice(last, m.index)) + m[0]; last = m.index + m[0].length; }
+  return out + fn(s2.slice(last));
+}
+/* 중괄호 없이 쓰인 토큰 목록(중복 제거 전) */
+function bareTokList(str){
+  const found = [];
+  mapOutsideBraces(str, (chunk)=>{ chunk.replace(BARE_RE, (t)=>{ found.push(t.toUpperCase()); return t; }); return chunk; });
+  return found;
+}
+/* 중괄호 없이 쓰인 토큰에 { } 를 씌운다 — 대소문자는 대문자로 정규화 */
+function braceBareToks(str){
+  return mapOutsideBraces(str, (chunk)=> chunk.replace(BARE_RE, (t)=> "{"+t.toUpperCase()+"}"));
+}
+
+/* 템플릿 한 건에서 중괄호를 빠뜨린 토큰을 모은다 — 목록에서 문제 건을 바로 알리는 데 쓴다.
+   토큰이 먹는 자리 전부를 본다: 제목 틀·기본 적요·라인 적요·관리항목 고정값. */
+function tplBareToks(t){
+  const found = [];
+  const scan = (v)=> found.push(...bareTokList(v));
+  scan(t?.title_pattern); scan(t?.desc_tmpl);
+  (t?.items||[]).forEach((it)=>{ scan(it.item_desc); (it.ctrls||[]).forEach((c)=> scan(c.fixed_val)); });
+  return [...new Set(found)];
+}
+
+/* ═══ 월 토큰 입력 도구 ═══
+   토큰을 외워 손으로 적게 하지 않는다 — 버튼으로 넣고, 이번 달 기준으로 무엇이 찍히는지
+   바로 보여주고, 중괄호를 빠뜨렸으면 한 번에 고쳐 준다. 제목 틀·기본 적요·관리항목 고정값에
+   같은 도구를 붙인다(토큰이 먹는 자리는 모두 같은 조작). */
+const TOK_CHIPS = [["{YYYY}","연도 4자리"], ["{YY}","연도 2자리"], ["{MM}","월 2자리"], ["{M}","월"]];
+function tokMonthBase(){
+  const off = $("tMonthOffset") ? Number($("tMonthOffset").value)||0 : 0;
+  return { ym: draftYm(), off };
+}
+function insertAtCursor(input, text){
+  const a = input.selectionStart ?? input.value.length, b = input.selectionEnd ?? a;
+  input.value = input.value.slice(0, a) + text + input.value.slice(b);
+  const pos = a + text.length;
+  input.focus();
+  try{ input.setSelectionRange(pos, pos); }catch(e){ /* type 에 따라 미지원 — 무시 */ }
+  input.dispatchEvent(new Event("input", { bubbles:true }));
+}
+function renderTokBar(host, input){
+  if(!host || !input) return;
+  const { ym, off } = tokMonthBase();
+  const raw = input.value || "";
+  const bare = [...new Set(bareTokList(raw))];
+  host.innerHTML =
+    TOK_CHIPS.map(([t, label])=>
+      '<button type="button" class="tk" data-tok="'+esc(t)+'" title="'+esc(label)+' 넣기 — 커서 자리에 들어갑니다">'
+      + esc(t) + '<span class="v">' + esc(fmtTitle(t, ym, off)) + '</span></button>').join("")
+    + (raw.trim()
+        ? '<span class="res">' + esc(ym) + ' 기준으로 찍히는 값 — <b>' + esc(fmtTitle(raw, ym, off)) + '</b></span>'
+        : '<span class="res">버튼을 누르면 커서 자리에 토큰이 들어갑니다.</span>')
+    + (bare.length
+        ? '<span class="warn">⚠ <b>' + esc(bare.join(" · ")) + '</b> 은(는) 중괄호가 없어 그냥 글자입니다 — 월이 채워지지 않습니다.'
+          + '<button type="button" data-fix="1">{ } 씌워서 고치기</button></span>'
+        : "");
+}
+function bindTokBar(host, input){
+  if(!host || !input) return;
+  host.addEventListener("click", (e)=>{
+    const tk = e.target.closest("button[data-tok]");
+    if(tk){ insertAtCursor(input, tk.getAttribute("data-tok")); return; }
+    if(e.target.closest("button[data-fix]")){
+      input.value = braceBareToks(input.value);
+      input.dispatchEvent(new Event("input", { bubbles:true }));
+      input.focus();
+      toast("중괄호를 씌웠습니다 — 아래 결과를 확인한 뒤 [템플릿 저장]을 누르세요.");
+    }
+  });
+  input.addEventListener("input", ()=> renderTokBar(host, input));
+  renderTokBar(host, input);
+}
 
 function toast(msg, bad){
   const t = document.createElement("div");
@@ -3561,6 +3664,7 @@ function openCtrlRule(lineSeq, ctrlCd){
     + opt("fixed","고정값","매번 같은 값이 자동으로 채워집니다(거래처·사업장 등).", (cur&&cur.val_rule==="fixed")||!cur)
     + '<input type="text" class="val" id="ceVal" maxlength="100" placeholder="채워 넣을 값" value="'
     + esc(cur&&cur.val_rule==="fixed" ? (cur.fixed_val||"") : "")+'">'
+    + '<div class="tokbar" id="ceTok" style="padding:0 2px 4px;"></div>'
     + opt("input","매번 입력","전표를 쓸 때 사람이 채웁니다(금액·수량처럼 매번 달라지는 값).", cur&&cur.val_rule==="input")
     + (isDate ? opt("date_shift","다음 달(+1개월)","지난 회차 값 기준으로 한 달 뒤 날짜를 제안합니다(만기일·계산서일).", cur&&cur.val_rule==="date_shift") : "")
     + '</div><div class="ce-foot">'
@@ -3569,11 +3673,14 @@ function openCtrlRule(lineSeq, ctrlCd){
     + '<button class="b pri sm" id="ceOk">적용</button></div></div>';
   document.body.appendChild(ov);
   const close = ()=> ov.remove();
-  const valIn = ov.querySelector("#ceVal");
+  const valIn = ov.querySelector("#ceVal"), tokBox = ov.querySelector("#ceTok");
+  // 고정값에도 월 토큰이 먹는다(계산서일·기간 표기) — 제목 틀과 같은 도구를 붙인다
+  bindTokBar(tokBox, valIn);
   const sync = ()=>{
     const v = ov.querySelector('input[name="cerule"]:checked')?.value;
     ov.querySelectorAll(".ce-opt").forEach((l)=> l.classList.toggle("on", l.querySelector("input").checked));
     valIn.style.display = v==="fixed" ? "" : "none";
+    tokBox.style.display = v==="fixed" ? "" : "none";
   };
   ov.querySelectorAll('input[name="cerule"]').forEach((r)=> r.addEventListener("change", sync));
   sync();
@@ -3607,7 +3714,11 @@ async function loadTplMgr(){
     TPL_MGR = list;   // 분류 선택지는 비공개 템플릿의 분류까지 포함해야 한다
     // 비공개 건이 있으면 그것부터 알린다 — 작성 탭 목록에 안 나오는 이유가 바로 이것이다
     const hidden = list.filter((x)=> x.status !== "active").length;
-    $("tplScopeHint").innerHTML = hidden
+    const bad = list.filter((x)=> x.can_edit && tplBareToks(x).length).length;
+    $("tplScopeHint").innerHTML = bad
+      ? '<span style="color:var(--red);font-weight:700;">⚠ 월 토큰이 잘못된 '+bad+'건 — 중괄호가 빠져 월이 채워지지 않습니다. '
+        + '해당 행을 열어 [{ } 씌워서 고치기]를 누르세요.</span>'
+      : hidden
       ? '<span style="color:var(--amber);font-weight:700;">⚠ 비공개 '+hidden+'건 — 작성 탭 목록에 나오지 않습니다. 행을 열어 [공개]를 누르세요.</span>'
       : esc(CAN_MANAGE_TPL
           ? "전사·부서·개인 템플릿을 모두 관리할 수 있습니다"
@@ -3623,6 +3734,9 @@ async function loadTplMgr(){
       + list.map((x)=>
         '<tr class="'+(x.can_edit?"clk":"")+'" data-id="'+x.tpl_id+'">'
         + '<td class="mono">'+esc(x.tpl_code)+'</td><td class="tr" title="'+esc(x.tpl_nm)+'"><b>'+esc(x.tpl_nm)+'</b>'
+        + ((x.can_edit && tplBareToks(x).length)
+            ? '<span class="tplwarn" title="중괄호가 빠진 월 토큰이 있어 월이 채워지지 않습니다 — 행을 열어 [{ } 씌워서 고치기]를 누르세요">'
+              + '⚠ 월 토큰 ' + esc(tplBareToks(x).join("·")) + '</span>' : '')
         + (x.descr?'<br><span style="color:var(--muted);font-size:11px;">'+esc(x.descr)+'</span>':'')+'</td>'
         + '<td class="nw">'+esc(x.category||"—")+'</td>'
         + '<td><span class="tag '+esc(x.scope)+'">'+SCOPE_KO[x.scope]+(x.scope==="dept"?" · "+esc(x.scope_dept_nm||""):"")+'</span></td>'
@@ -3716,7 +3830,14 @@ $("tScope").onchange = syncScopeUi;
 // 제목·적요·코스트센터를 고치면 서식 미리보기도 같이 움직인다
 ["tTitlePattern","tDescTmpl","tName"].forEach((id)=> $(id).addEventListener("input", renderTplForm));
 $("tCost").addEventListener("change", renderTplForm);
-$("tMonthOffset").addEventListener("change", renderTplForm);
+// 월 표기 기준이 바뀌면 서식 제목과 토큰 도구의 「찍히는 값」이 함께 움직여야 한다
+$("tMonthOffset").addEventListener("change", ()=>{ renderTplForm(); syncTokBars(); });
+bindTokBar($("tokTitle"), $("tTitlePattern"));
+bindTokBar($("tokDesc"),  $("tDescTmpl"));
+function syncTokBars(){
+  renderTokBar($("tokTitle"), $("tTitlePattern"));
+  renderTokBar($("tokDesc"),  $("tDescTmpl"));
+}
 
 function openTplEdit(tpl, items){
   TPL_EDIT = tpl || null;
@@ -3744,6 +3865,7 @@ function openTplEdit(tpl, items){
   $("tMonthOffset").value = String(tpl?.month_offset ?? 0);
   $("tTitlePattern").value = tpl?.title_pattern || "";
   syncScopeUi();
+  syncTokBars();   // 불러온 값 기준으로 「찍히는 값」·중괄호 누락 경고를 다시 계산
   // 관리항목 규칙은 행에 실어 보존한다(편집기에서 직접 수정하진 않지만 저장 시 유실 방지)
   setTRows((items||[]).map((it)=>({ ...it, amt_locked: it.amt_locked ? "Y":"", __ctrls: it.ctrls||[] })));
   $("btnTDelete").classList.toggle("hide", !TPL_EDIT);
