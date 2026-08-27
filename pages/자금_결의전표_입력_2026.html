@@ -83,6 +83,16 @@
     font-family:inherit; font-size:13.5px; background:#fff; color:var(--muted); text-align:left; cursor:pointer;}
   .pickfld:hover{border-color:var(--accent); color:var(--accent);}
   .pickfld.has{color:var(--ink); font-weight:600;}
+  /* 검색형 선택칸 — 선택지가 많은 <select> 는 클릭하면 검색 팝업이 열린다(전표 화면 공통 기본세팅).
+     네이티브 화살표를 지우고 돋보기를 달아, 눌러도 목록이 아니라 검색창이 뜨는 것을 미리 알린다. */
+  select.srch{-webkit-appearance:none; appearance:none; cursor:pointer;
+    background-image:url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none" stroke="%236b7b8f" stroke-width="1.7"><circle cx="6.8" cy="6.8" r="4.3"/><path d="M10.1 10.1 L14 14" stroke-linecap="round"/></svg>');
+    background-repeat:no-repeat; background-position:right 8px center; background-size:14px 14px;
+    padding-right:26px !important; text-overflow:ellipsis;}
+  select.srch:hover{border-color:var(--accent);}
+  .grid__cell-input.srch, .vform select.srch{background-position:right 4px center; background-size:12px 12px; padding-right:19px !important;}
+  /* 분류 — 등록된 분류 선택 + 새 분류 직접 입력 */
+  .catbox{display:flex; flex-direction:column; gap:5px;}
   /* 합계 바 */
   .sumbar{display:flex; align-items:center; gap:20px; flex-wrap:wrap; padding:12px 16px; border-radius:11px;
           background:var(--soft); border:1.5px solid var(--line); margin-top:13px;}
@@ -597,7 +607,7 @@
           </div>
           <div class="fld">
             <label>부서<span class="req">*</span></label>
-            <select id="fDept"></select>
+            <select id="fDept" data-search="on"></select>
             <!-- 코스트센터는 부서로 정해진다 — 헤더에 선택칸을 두지 않고, 줄마다 서식에서 바꾼다 -->
             <span class="hint" id="fCostHint"></span>
             <input type="hidden" id="fCost">
@@ -757,7 +767,7 @@
       </div>
 
       <div class="sec hide" id="tplEdit">
-        <h2>템플릿 편집 <small id="tplEditCode"></small></h2>
+        <h2>템플릿 편집 <small id="tplEditCode"></small><small id="tplEditCase"></small></h2>
         <div class="form">
           <div class="fld">
             <label>템플릿 이름<span class="req">*</span></label>
@@ -765,8 +775,11 @@
           </div>
           <div class="fld">
             <label>분류</label>
-            <input type="text" id="tCategory" maxlength="30" placeholder="예: 경비 · 카드 · 매입">
-            <span class="hint">같은 분류끼리 묶여서 표시됩니다</span>
+            <div class="catbox">
+              <select id="tCategory" data-search="on"></select>
+              <input type="text" id="tCategoryNew" class="hide" maxlength="30" placeholder="새 분류 이름 (예: 경비)">
+            </div>
+            <span class="hint">이미 쓰는 분류에서 고릅니다 — 없으면 <b>+ 새 분류 직접 입력</b>을 골라 새로 만드세요. 같은 분류끼리 묶여서 표시됩니다.</span>
           </div>
           <div class="fld">
             <label>공개 범위<span class="req">*</span></label>
@@ -779,7 +792,7 @@
           </div>
           <div class="fld hide" id="tDeptFld">
             <label>대상 부서<span class="req">*</span></label>
-            <select id="tDept"></select>
+            <select id="tDept" data-search="on"></select>
           </div>
           <div class="fld">
             <label>금액 입력 방식</label>
@@ -798,16 +811,11 @@
           </div>
           <div class="fld">
             <label>기본 코스트센터</label>
-            <select id="tCost"></select>
+            <select id="tCost" data-search="on"></select>
           </div>
           <div class="fld">
             <label>표시 순서</label>
             <input type="number" id="tSort" value="100">
-          </div>
-          <div class="fld">
-            <label>ERP 케이스 코드</label>
-            <input type="text" id="tCase" maxlength="30" placeholder="예: EXP-TRV-01">
-            <span class="hint">ERP_DB 기준 케이스가 확정되면 여기에 연결합니다</span>
           </div>
           <div class="fld">
             <label>월반복</label>
@@ -825,8 +833,9 @@
             <span class="hint">적요 제목의 월 숫자를 자동으로 갱신할 때의 기준</span>
           </div>
           <div class="fld wide">
-            <label>적요 제목 틀 <small style="font-weight:400;">— {YYYY}·{YY}·{M} 토큰이 월에 맞게 치환됩니다</small></label>
+            <label>적요 제목 틀 <small style="font-weight:400;">— {YYYY}·{YY}·{MM}·{M} 토큰이 월에 맞게 치환됩니다</small></label>
             <input type="text" id="tTitlePattern" maxlength="200" placeholder="예: (주)쿠콘 {YY}년{M}월분 국세청 스크래핑외">
+            <span class="hint">{YYYY} 2026 · {YY} 26 · {MM} 08(두 자리) · {M} 8 — 라인 적요·기본 적요·관리항목 고정값에서도 똑같이 치환됩니다</span>
           </div>
           <div class="fld wide">
             <label>설명 <small style="font-weight:400;">— 언제 쓰는 템플릿인지</small></label>
@@ -995,6 +1004,7 @@ let TPL_SEL = null;               // 작성 화면에서 고른 템플릿
 let TPL_CAT = "";                 // 분류 칩 필터("" = 전체)
 let CAN_MANAGE_TPL = false;       // 전사·부서 템플릿 편집 권한(관리자·회계 담당자)
 let TGRID = null, TPL_EDIT = null;// 템플릿 관리 탭의 라인 그리드 / 편집 중인 템플릿
+let TPL_MGR = [];                 // 템플릿 관리 탭 목록(비공개 포함) — 분류 선택지의 출처
 /* v4 — 월반복·관리항목 */
 let CTRLM = { ctrl_items:[], acct_ctrl:[] };  // 관리항목 마스터(bootstrap)
 const CTRL_BY_ACCT = new Map();               // acct_cd → [{cd,seq,dr,cr}]
@@ -1014,14 +1024,31 @@ function shiftMonth(iso){
   const nd = Math.min(d>=lastCur ? 31 : d, lastNew);
   return ny+"-"+String(nm).padStart(2,"0")+"-"+String(nd).padStart(2,"0");
 }
-/* 적요 제목 틀 치환 — {YYYY}·{YY}·{M} 토큰을 (회차+오프셋) 월로 */
-function fmtTitle(pattern, ym, offset){
-  const m = /^(\d{4})-(\d{2})$/.exec(String(ym||"")); if(!m || !pattern) return pattern||"";
-  let y=+m[1], mo=+m[2]+(Number(offset)||0);
-  if(mo<1){ mo+=12; y-=1; } if(mo>12){ mo-=12; y+=1; }
-  return String(pattern).replaceAll("{YYYY}", String(y)).replaceAll("{YY}", String(y%100))
-                        .replaceAll("{M}", String(mo));
+/* ═══ 월 토큰 치환 — {YYYY}·{YY}·{MM}·{M} ═══
+   지금까지는 월반복(회차) 경로에서 제목 틀에만 걸렸다. 일반 템플릿을 [적용]해도 토큰이
+   그대로 남아 "{YY}년{M}월분"이 적요에 찍히던 것이 결함이었다 — 이제 적요·라인 적요·
+   관리항목 고정값까지 같은 규칙으로 치환한다(fmtTok).
+   {YY}·{MM} 은 두 자리로 채운다(2026→26, 8월→08). 대소문자·{ M } 같은 공백 표기도 받는다. */
+const TOK_RE = /\{\s*(YYYY|YY|MM|M)\s*\}/gi;
+function hasTok(v){ return typeof v === "string" && new RegExp(TOK_RE.source, "i").test(v); }
+/* 기준 월 — 회차(ym)가 없는 일반 적용은 결의일자, 그것도 비어 있으면 오늘 */
+function draftYm(){
+  const d = String(($("fDt") && $("fDt").value) || "");
+  if(/^\d{4}-\d{2}/.test(d)) return d.slice(0,7);
+  const t = new Date();
+  return t.getFullYear() + "-" + String(t.getMonth()+1).padStart(2,"0");
 }
+function fmtTitle(pattern, ym, offset){
+  if(!pattern) return pattern || "";
+  const m = /^(\d{4})-(\d{2})$/.exec(String(ym||"")); if(!m) return String(pattern);
+  let y = +m[1], mo = +m[2] + (Number(offset)||0);
+  if(mo < 1){ mo += 12; y -= 1; } if(mo > 12){ mo -= 12; y += 1; }
+  const map = { YYYY:String(y), YY:String(y%100).padStart(2,"0"),
+                MM:String(mo).padStart(2,"0"), M:String(mo) };
+  return String(pattern).replace(TOK_RE, (_, k)=> map[k.toUpperCase()]);
+}
+/* 문자열이면 토큰을 치환하고, 아니면 원래 값 그대로(관리항목 고정값은 문자열이 아닐 수 있다) */
+function fmtTok(v, ym, offset){ return hasTok(v) ? fmtTitle(v, ym, offset) : v; }
 
 function toast(msg, bad){
   const t = document.createElement("div");
@@ -1117,6 +1144,95 @@ function openItemPicker(onPick){
     onPick });
 }
 
+/* ═══ 선택칸 텍스트 검색 (전표 화면 공통 기본세팅) ═══
+   전표 입력에서 「고르는 칸」은 부서·코스트센터처럼 선택지가 수십 개다. 네이티브 드롭다운은
+   스크롤로만 찾아야 해서 느리다 — 그래서 이 화면의 <select> 는 **클릭하면 검색 팝업**이 열린다.
+   · <select> 자체가 여전히 값의 단일 출처다(.value 읽기·쓰기 코드는 그대로 동작).
+   · 문서 전체에 위임(capture)으로 걸어 두므로, 그리드·서식처럼 **나중에 그려지는 선택칸도
+     자동으로 같은 방식**이 된다(전표 관련 입력은 앞으로 모두 동일).
+   · 선택지가 SEARCH_MIN 미만이면 검색이 오히려 번거로우므로 네이티브 그대로 둔다.
+     data-search="on" 으로 강제하고, data-search="off" 로 끈다. */
+const SEARCH_MIN = 6;
+function selSearchable(sel){
+  if(!sel || sel.tagName !== "SELECT" || sel.disabled || sel.multiple) return false;
+  const f = sel.getAttribute("data-search");
+  if(f === "off") return false;
+  if(f === "on")  return true;
+  return sel.options.length >= SEARCH_MIN;
+}
+/* 검색형인 선택칸에 돋보기 표시를 붙인다(눌러도 목록이 안 열리는 이유를 미리 알린다) */
+function tagSearchSelects(root){
+  (root || document).querySelectorAll("select").forEach((sel)=>{
+    sel.classList.toggle("srch", selSearchable(sel));
+  });
+}
+/* 선택칸의 이름 — 팝업 제목에 쓴다. .fld 라벨 → 그리드 열 헤더 → aria-label 순 */
+function selLabel(sel){
+  const fl = sel.closest(".fld");
+  if(fl && fl.querySelector("label")) return fl.querySelector("label").textContent.replace(/\*/g,"").trim();
+  const td = sel.closest("td");
+  if(td && td.closest("table")){
+    const tb = td.closest("table"), i = [...td.parentNode.children].indexOf(td);
+    const th = tb.querySelector("thead tr") && tb.querySelector("thead tr").children[i];
+    if(th) return th.textContent.trim();
+  }
+  return sel.getAttribute("aria-label") || sel.getAttribute("title") || "선택";
+}
+function openSelectPicker(sel, seed){
+  const opts = [...sel.options]
+    .map((o, i)=>({ i, v:o.value, t:(o.text||"").trim(), dis:o.disabled }))
+    .filter((o)=> !o.dis);
+  const cur = sel.value;
+  openPicker({
+    title: selLabel(sel) + " 선택",
+    placeholder: "이름·코드 일부를 입력하세요",
+    hint: "↑↓ 이동 · Enter 선택 · Esc 닫기 — 목록에서 고르거나 검색어로 좁힙니다",
+    minLen: 0,
+    local:(q)=>{
+      const s2 = q.trim().toLowerCase();
+      return !s2 ? opts : opts.filter((o)=> (o.t + " " + o.v).toLowerCase().includes(s2));
+    },
+    // 값과 표시문구가 같으면(분류처럼 코드가 없는 목록) 코드칸을 접는다
+    render:(o)=> ((o.v && o.v !== o.t && !/^__/.test(o.v)) ? '<span class="cd">' + esc(o.v) + '</span>' : '')
+      + '<span class="nm">' + esc(o.t || "(비움)") + '</span>'
+      + (String(o.v) === String(cur) ? '<span class="sub">현재 값</span>' : ''),
+    onPick:(o)=>{
+      sel.value = o.v;
+      sel.dispatchEvent(new Event("input",  { bubbles:true }));
+      sel.dispatchEvent(new Event("change", { bubbles:true }));
+      if(document.contains(sel)) sel.focus();
+    },
+  });
+  if(seed){
+    const inp = document.querySelector(".pk-overlay .pk-search input");
+    if(inp){ inp.value = seed; inp.dispatchEvent(new Event("input", { bubbles:true })); }
+  }
+}
+document.addEventListener("mousedown", (e)=>{
+  const sel = e.target && e.target.closest && e.target.closest("select");
+  if(!selSearchable(sel)) return;
+  e.preventDefault(); e.stopPropagation();
+  openSelectPicker(sel);
+}, true);
+document.addEventListener("keydown", (e)=>{
+  const sel = e.target;
+  if(!selSearchable(sel)) return;
+  const typing = e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey;
+  // 그리드 셀에서 Enter·↑↓ 는 줄 이동이다(grid.js keyboardNav) — 뺏지 않는다.
+  const gridCell = sel.classList.contains("grid__cell-input");
+  if(e.key === " " || typing || (e.key === "Enter" && !gridCell)){
+    e.preventDefault(); e.stopPropagation();
+    openSelectPicker(sel, typing && e.key !== " " ? e.key : "");
+  }
+}, true);
+/* 그리드·서식은 다시 그려질 때마다 <select> 가 새로 생긴다 — 표시를 따라 붙인다(값·동작과는 무관).
+   검색 팝업이 열려 있는 동안은 목록 innerHTML 이 계속 바뀌므로 건너뛴다(불필요한 훑기 방지). */
+let TAG_RAF = 0;
+new MutationObserver(()=>{
+  if(TAG_RAF || PK) return;
+  TAG_RAF = requestAnimationFrame(()=>{ TAG_RAF = 0; if(!PK) tagSearchSelects(); });
+}).observe(document.documentElement, { childList:true, subtree:true });
+
 /* ═══ 초기화 ═══ */
 async function boot(){
   let d;
@@ -1165,6 +1281,7 @@ async function boot(){
   newDraft();
   loadMine();
   if(!blocked) loadRecur();
+  tagSearchSelects();   // 선택지가 많은 칸에 돋보기 표시(이후 새로 그려지는 칸은 옵저버가 따라붙는다)
 }
 
 function fillHeader(locked){
@@ -1173,6 +1290,8 @@ function fillHeader(locked){
   $("fDt").addEventListener("change", ()=>{
     const ym = $("fDt").value.slice(0,7);
     if(locked.includes(ym)) toast(ym+" 은(는) 마감된 회계기간입니다. 다른 날짜를 선택하세요.", true);
+    // 월 토큰의 기준이 결의일자다 — 날짜를 바꾸면 템플릿 미리보기의 적요도 따라 바뀐다
+    if(TPL_SEL) $("tplPreview").innerHTML = tplFormHtml(TPL_SEL);
   });
   // 전표형태 — A2 승인 후 ERP 실측으로 확정(2026-08-03).
   // A_TEMP_GL 2026년 2,947건이 GL_TYPE='03' 단일값이라 선택지가 아니라 사실상 상수다.
@@ -1182,8 +1301,8 @@ function fillHeader(locked){
   $("fDept").innerHTML = '<option value="">선택</option>' + (MASTER.depts||[]).map((d)=>
     '<option value="'+esc(d.dept_cd)+'">'+esc(d.dept_nm)+'</option>').join("");
   // 내 부서를 기본 선택
-  const mine = (MASTER.depts||[]).find((d)=>d.dept_nm === ME.dept_nm);
-  if(mine) $("fDept").value = mine.dept_cd;
+  const mine = myDeptCd();
+  if(mine) $("fDept").value = mine;
   renderCostOptions();
   $("fDept").addEventListener("change", onDeptChange);
   // 코스트센터는 부서로 정해진다 — 진입 시 내 부서 기본값을 확정해 둔다
@@ -1191,6 +1310,12 @@ function fillHeader(locked){
   HDR_COST_PREV = $("fCost").value;
   syncCostReq();
   syncProjLabel();
+}
+/* 로그인한 사람의 부서코드 — ERP 사용자 매핑에는 부서명만 있어 마스터에서 코드로 되짚는다.
+   전표 헤더 부서·템플릿 대상 부서의 기본값이 모두 여기서 나온다(사람마다 자기 부서로 시작). */
+function myDeptCd(){
+  const d = (MASTER.depts||[]).find((x)=> x.dept_nm === (ME && ME.dept_nm));
+  return d ? d.dept_cd : "";
 }
 /* 부서의 기본 코스트센터 — 서버가 표시한 is_dept_default(코드 뒷자리=부서코드) 우선,
    없으면 그 부서의 첫 번째. ERP에는 '기본' 플래그가 없어 코드 규칙으로 정한다(gl_master_cost_center_v2). */
@@ -1948,8 +2073,9 @@ async function startRecur(t){
   const tpl = d.tpl || {}, prev = d.prev;
 
   // 적요 — 제목 틀(토큰)이 있으면 회차+오프셋으로 치환, 없으면 전월 적요를 그대로(사용자 수정)
+  // 제목 틀이 없으면 전월 적요(실적) → 기본 적요 순. 기본 적요에도 토큰이 있을 수 있어 함께 치환한다.
   const title = tpl.title_pattern ? fmtTitle(tpl.title_pattern, t.ym, tpl.month_offset)
-              : (prev?.header?.gl_desc || tpl.desc_tmpl || "");
+              : fmtTok(prev?.header?.gl_desc || tpl.desc_tmpl || "", t.ym, tpl.month_offset);
   $("fDesc").value = title;
 
   if(prev){
@@ -1990,10 +2116,11 @@ async function startRecur(t){
     PREV_SNAP = null;
     const newRows = (tpl.items||[]).map((it)=>{
       const ctrl = {};
-      (it.ctrls||[]).forEach((c)=>{ if(c.val_rule==="fixed" && c.fixed_val!=null) ctrl[c.ctrl_cd]=c.fixed_val; });
+      // 라인 적요·관리항목 고정값도 회차 월로 치환한다(헤더 적요와 같은 규칙)
+      (it.ctrls||[]).forEach((c)=>{ if(c.val_rule==="fixed" && c.fixed_val!=null) ctrl[c.ctrl_cd]=fmtTok(c.fixed_val, t.ym, tpl.month_offset); });
       return { dr_cr_fg:it.dr_cr_fg, acct_cd:it.acct_cd, acct_nm:it.acct_nm,
                item_amt: it.amt_rule==="fixed" ? String(it.amt_value||"") : "",
-               item_desc:it.item_desc||"", bp_cd:it.bp_cd||null, bp_nm:it.bp_nm||null,
+               item_desc:fmtTitle(it.item_desc||"", t.ym, tpl.month_offset), bp_cd:it.bp_cd||null, bp_nm:it.bp_nm||null,
                cost_cd:it.cost_cd||"", project_no:it.project_no||"",
                __ctrl:ctrl, __locked:!!it.amt_locked };
     });
@@ -2086,6 +2213,9 @@ function selectTpl(id){
 function tplFormHtml(t){
   const items = (t.items||[]).filter((it)=> it.acct_cd);
   if(!items.length) return '<span style="color:var(--muted);">라인이 없는 템플릿입니다.</span>';
+  // 미리보기도 적용과 같은 월 기준으로 토큰을 치환한다 — 보이는 대로 들어가야 한다
+  const pvYm = draftYm(), pvOff = t.month_offset;
+  const pvDesc = fmtTitle(t.title_pattern || t.desc_tmpl || "", pvYm, pvOff);
   const costNmOf = (cd)=>{
     const c = (MASTER.cost_centers||[]).find((x)=> String(x.cost_cd)===String(cd));
     return cd ? (c && c.cost_nm ? cd+" "+c.cost_nm : cd) : "—";
@@ -2099,7 +2229,7 @@ function tplFormHtml(t){
       const r = byCd.get(s.cd);
       if(!r || r.val_rule!=="fixed") need++;
       const cls = r ? (r.val_rule==="fixed" ? "fixed" : r.val_rule==="date_shift" ? "shift" : "input") : "none";
-      const v = !r ? "—" : r.val_rule==="fixed" ? (r.fixed_val||"(빈 값)")
+      const v = !r ? "—" : r.val_rule==="fixed" ? (fmtTok(r.fixed_val, pvYm, pvOff)||"(빈 값)")
               : r.val_rule==="date_shift" ? "다음 달" : "직접 입력";
       return '<td class="slotcell"><span class="slot '+cls+(s.req?" req":"")+'" style="cursor:default;">'
         + '<span class="snm">'+esc(s.nm)+'</span><span class="sv">'+esc(v)+'</span></span></td>';
@@ -2114,7 +2244,14 @@ function tplFormHtml(t){
       + '<tr class="'+(dr?"blk-dr":"blk-cr")+'"><td class="anm">'+esc(it.acct_nm||"")+'</td>'
       + cell(3)+cell(4)+cell(5)+cell(6)+'</tr>';
   }).join("");
-  return '<div style="overflow-x:auto;"><table class="vform" style="min-width:760px;"><thead>'
+  return (pvDesc
+      ? '<div style="font-size:12px;color:var(--muted);margin-bottom:6px;">적요 <b style="color:var(--navy);font-size:13px;">'
+        + esc(pvDesc) + '</b>'
+        + (hasTok(t.title_pattern || t.desc_tmpl || "")
+            ? '<span style="margin-left:8px;font-size:11px;">— ' + esc(pvYm) + ' 기준으로 치환됨</span>' : '')
+        + '</div>'
+      : '')
+    + '<div style="overflow-x:auto;"><table class="vform" style="min-width:760px;"><thead>'
     + '<tr><th rowspan="2">No</th><th>계정코드</th><th>COST CENTER</th><th>관리항목1</th><th>관리항목2</th><th>관리항목3</th>'
     + '<th>통화</th><th>차변</th><th>대변</th></tr>'
     + '<tr><th>계정과목</th><th>관리항목4</th><th>관리항목5</th><th>관리항목6</th><th>관리항목7</th></tr>'
@@ -2240,9 +2377,13 @@ async function applyTpl(){
     if(!confirm("작성 중인 라인을 템플릿 내용으로 바꿉니다. 계속할까요?")) return;
   }
   const t = TPL_SEL;
+  // 월 토큰의 기준 월 — 결의일자(없으면 오늘). 월반복이 아닌 일반 적용에도 토큰이 먹어야 한다.
+  const ym = draftYm(), moff = t.month_offset;
   // 헤더 기본값 — 비어 있는 칸만 채운다(사용자가 이미 적은 값을 덮지 않는다)
   if(t.gl_type) $("fType").value = t.gl_type;
-  if(t.desc_tmpl && !$("fDesc").value.trim()) $("fDesc").value = t.desc_tmpl;
+  // 적요는 제목 틀이 있으면 그것을, 없으면 기본 적요를 쓴다 — 어느 쪽이든 {YYYY}·{YY}·{MM}·{M} 치환
+  const headDesc = fmtTitle(t.title_pattern || t.desc_tmpl || "", ym, moff);
+  if(headDesc && !$("fDesc").value.trim()) $("fDesc").value = headDesc;
   if(t.cost_cd){ renderCostOptions(); $("fCost").value = t.cost_cd; }
   HDR_COST_PREV = $("fCost").value; syncCostReq();
 
@@ -2262,7 +2403,7 @@ async function applyTpl(){
   let approx = 0;
   setRows(spread.map((it)=>{
     const ctrl = {};
-    (it.ctrls||[]).forEach((c)=>{ if(c.val_rule==="fixed" && c.fixed_val!=null) ctrl[c.ctrl_cd]=c.fixed_val; });
+    (it.ctrls||[]).forEach((c)=>{ if(c.val_rule==="fixed" && c.fixed_val!=null) ctrl[c.ctrl_cd]=fmtTok(c.fixed_val, ym, moff); });
     if(it.__approx) approx++;
     // 세금계산서형이면 배분 단계에서 나온 공급가액·세액을 관리항목에 그대로 넣는다
     if(it.__vatSupply != null){
@@ -2272,7 +2413,7 @@ async function applyTpl(){
     return {
       dr_cr_fg: it.dr_cr_fg, acct_cd: it.acct_cd, acct_nm: it.acct_nm,
       item_amt: it.__amt === "" ? "" : String(it.__amt),
-      item_desc: it.item_desc || t.desc_tmpl || "",
+      item_desc: fmtTitle(it.item_desc || t.desc_tmpl || "", ym, moff),
       bp_cd: it.bp_cd || null, bp_nm: it.bp_nm || null,
       cost_cd: it.cost_cd || t.cost_cd || "", project_no: it.project_no || "",
       __ctrl: ctrl, __locked: !!it.amt_locked,
@@ -3336,7 +3477,15 @@ function renderTplForm(){
       + '계정과목이 지정된 라인이 없습니다 — 위 [템플릿 라인]에서 계정을 먼저 고르면 여기에 ERP 서식으로 표시됩니다.</div>';
     return;
   }
-  const title = ($("tTitlePattern").value.trim() || $("tDescTmpl").value.trim() || $("tName").value.trim() || "(제목 없음)");
+  // 제목 틀의 월 토큰은 편집기에서도 실제 치환 결과로 보여준다 — 무엇이 찍힐지 저장 전에 확인한다
+  const rawTitle = ($("tTitlePattern").value.trim() || $("tDescTmpl").value.trim() || $("tName").value.trim() || "(제목 없음)");
+  const tfYm = draftYm(), tfOff = Number($("tMonthOffset").value)||0;
+  const title = fmtTitle(rawTitle, tfYm, tfOff);
+  const tokNote = hasTok(rawTitle)
+    ? '<div style="text-align:center;font-size:11px;color:var(--muted);padding:0 8px 8px;'
+      + 'border:1.5px solid #b9c7da;border-top:none;border-bottom:none;background:#fff;">'
+      + esc(rawTitle) + ' → ' + esc(tfYm) + ' 기준 치환</div>'
+    : '';
   const costNmOf = (cd)=>{
     const c = (MASTER.cost_centers||[]).find((x)=> String(x.cost_cd)===String(cd));
     return cd ? (c && c.cost_nm ? cd+" "+c.cost_nm : cd) : "—";
@@ -3378,7 +3527,8 @@ function renderTplForm(){
   });
   const drN = rows.filter((r)=> r.dr_cr_fg==="D").length, crN = rows.length - drN;
   box.innerHTML = '<div style="text-align:center;font-size:15px;font-weight:800;color:var(--navy);'
-      + 'padding:10px 8px 12px;border:1.5px solid #b9c7da;border-bottom:none;background:#fff;">'+esc(title)+'</div>'
+      + 'padding:10px 8px '+(tokNote?'4px':'12px')+';border:1.5px solid #b9c7da;border-bottom:none;background:#fff;">'+esc(title)+'</div>'
+    + tokNote
     + '<table class="vform"><thead>'
     + '<tr><th rowspan="2">No</th><th>계정코드</th><th>COST CENTER</th><th>관리항목1</th><th>관리항목2</th><th>관리항목3</th>'
     + '<th>통화</th><th>차변</th><th>대변</th></tr>'
@@ -3454,6 +3604,7 @@ async function loadTplMgr(){
     const r = await api("tpl_list", { all: true });
     CAN_MANAGE_TPL = !!r.can_manage_tpl;
     const list = r.rows || [];
+    TPL_MGR = list;   // 분류 선택지는 비공개 템플릿의 분류까지 포함해야 한다
     // 비공개 건이 있으면 그것부터 알린다 — 작성 탭 목록에 안 나오는 이유가 바로 이것이다
     const hidden = list.filter((x)=> x.status !== "active").length;
     $("tplScopeHint").innerHTML = hidden
@@ -3513,6 +3664,39 @@ $("tplMgrTbl").onclick = async (e)=>{
   }catch(e2){ toast(e2.message, true); }
 };
 
+/* ═══ 분류 — 등록된 분류에서 고르고, 없으면 새로 입력 ═══
+   자유 입력만 두면 "경비"·"경비 "·"경 비"처럼 같은 뜻의 분류가 갈라져 칩이 지저분해진다.
+   그래서 기본은 **선택**이고, 새 분류는 [+ 새 분류 직접 입력]을 골랐을 때만 만든다. */
+const CAT_NEW = "__NEW__";        // 분류명으로 쓰이지 않는 표식(선택칸 안에서만 의미가 있다)
+function allTplCats(){
+  const s2 = new Set();
+  TPLS.forEach((t)=>{ if(t.category) s2.add(String(t.category).trim()); });
+  TPL_MGR.forEach((t)=>{ if(t.category) s2.add(String(t.category).trim()); });
+  return Array.from(s2).filter(Boolean).sort((a,b)=> a.localeCompare(b, "ko"));
+}
+function fillTplCatOptions(cur){
+  const cats = allTplCats();
+  const v = String(cur||"").trim();
+  if(v && !cats.includes(v)) cats.push(v);          // 목록에 없는 기존 값도 유지한다
+  $("tCategory").innerHTML = '<option value="">— 분류 없음</option>'
+    + cats.map((c)=> '<option value="'+esc(c)+'">'+esc(c)+'</option>').join("")
+    + '<option value="'+CAT_NEW+'">+ 새 분류 직접 입력…</option>';
+  $("tCategory").value = v;
+  $("tCategoryNew").value = "";
+  $("tCategoryNew").classList.add("hide");
+}
+$("tCategory").addEventListener("change", ()=>{
+  const isNew = $("tCategory").value === CAT_NEW;
+  $("tCategoryNew").classList.toggle("hide", !isNew);
+  if(isNew) $("tCategoryNew").focus();
+});
+/* 저장에 쓸 분류값 — 새 분류를 고른 상태면 입력칸의 값 */
+function tplCatValue(){
+  return $("tCategory").value === CAT_NEW
+    ? $("tCategoryNew").value.trim()
+    : $("tCategory").value.trim();
+}
+
 function fillTplDeptOptions(){
   $("tDept").innerHTML = '<option value="">선택</option>' + (MASTER.depts||[]).map((d)=>
     '<option value="'+esc(d.dept_cd)+'">'+esc(d.dept_nm)+'</option>').join("");
@@ -3532,6 +3716,7 @@ $("tScope").onchange = syncScopeUi;
 // 제목·적요·코스트센터를 고치면 서식 미리보기도 같이 움직인다
 ["tTitlePattern","tDescTmpl","tName"].forEach((id)=> $(id).addEventListener("input", renderTplForm));
 $("tCost").addEventListener("change", renderTplForm);
+$("tMonthOffset").addEventListener("change", renderTplForm);
 
 function openTplEdit(tpl, items){
   TPL_EDIT = tpl || null;
@@ -3539,17 +3724,20 @@ function openTplEdit(tpl, items){
   $("tplEdit").classList.remove("hide");
   $("tplEditCode").textContent = tpl && tpl.tpl_code ? "· "+tpl.tpl_code : "· 새 템플릿";
   $("tName").value      = tpl?.tpl_nm || "";
-  $("tCategory").value  = tpl?.category || "";
+  fillTplCatOptions(tpl?.category || "");
   const scope0 = tpl?.scope || (CAN_MANAGE_TPL ? "org" : "user");
   $("tScope").value     = scope0;
-  $("tDept").value      = tpl?.scope_dept_cd || "";
+  // 대상 부서 기본값 = 내 부서. 부서 템플릿은 대개 자기 부서 것을 만들기 때문에,
+  // 매번 목록에서 찾게 하지 않고 미리 골라 둔다(다른 부서면 바꾸면 된다).
+  $("tDept").value      = tpl?.scope_dept_cd || myDeptCd() || "";
   $("tAmountMode").value= tpl?.amount_mode || "total";
   // 새 템플릿 기본 상태 — 개인 템플릿은 바로 공개(나만 보이므로 검토가 필요 없다).
   // 전사·부서는 여러 사람에게 노출되므로 비공개로 시작해 검토 후 공개한다.
   $("tStatus").value    = tpl?.status || (scope0==="user" ? "active" : "draft");
   $("tCost").value      = tpl?.cost_cd || "";
   $("tSort").value      = tpl?.sort_no ?? 100;
-  $("tCase").value      = tpl?.erp_case_cd || "";
+  // ERP 케이스 코드는 사람이 적는 값이 아니다(반복전표 분석이 붙이는 패밀리 ID) — 있으면 보여만 준다
+  $("tplEditCase").textContent = tpl?.erp_case_cd ? " · ERP 케이스 " + tpl.erp_case_cd : "";
   $("tDescr").value     = tpl?.descr || "";
   $("tDescTmpl").value  = tpl?.desc_tmpl || "";
   $("tRecur").value     = tpl?.recur_cycle || "";
@@ -3581,13 +3769,15 @@ function collectTpl(){
   const deptSel = $("tDept");
   return {
     tpl:{
-      tpl_nm: $("tName").value.trim(), category: $("tCategory").value.trim(),
+      tpl_nm: $("tName").value.trim(), category: tplCatValue(),
       descr: $("tDescr").value.trim(), scope: $("tScope").value,
       scope_dept_cd: deptSel.value, scope_dept_nm: deptSel.options[deptSel.selectedIndex]?.text || "",
       gl_type: "03", cost_cd: $("tCost").value,
       desc_tmpl: $("tDescTmpl").value.trim(), ref_hint: TPL_EDIT?.ref_hint ?? null,
       amount_mode: $("tAmountMode").value, status: $("tStatus").value,
-      erp_case_cd: $("tCase").value.trim(), sort_no: Number($("tSort").value)||100,
+      // 화면에 입력칸이 없는 값 — 원본을 그대로 되돌려 보낸다(일괄 등재로 붙은 케이스 ID 보존)
+      erp_case_cd: TPL_EDIT?.erp_case_cd ?? null,
+      sort_no: Number($("tSort").value)||100,
       recur_cycle: $("tRecur").value || null,
       month_offset: Number($("tMonthOffset").value)||0,
       title_pattern: $("tTitlePattern").value.trim() || null,
