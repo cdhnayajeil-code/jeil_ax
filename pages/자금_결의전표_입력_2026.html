@@ -3535,7 +3535,15 @@ function buildTplGrid(){
           return true; } },
       { key:"item_desc", label:"라인 적요", width:"180px", editable:true },
       { key:"cost_cd", label:"코스트센터", width:"140px", type:"select", editable:true, options:costOptions },
-      { key:"project_no", label:"프로젝트", width:"120px", editable:true },
+      // 프로젝트는 ERP 마스터에서 고른다 — 코드를 외워 손으로 적던 칸이었다(계정과목과 같은 방식)
+      { key:"project_no", label:"프로젝트", width:"150px", editable:false,
+        formatter:(v)=>{
+          if(!v) return '<button type="button" class="cellpick" data-row-act="pick-proj">🔍 선택</button>';
+          const nm = String(PROJ_NM_CACHE[v]||"").trim();
+          return '<button type="button" class="cellpick has" data-row-act="pick-proj">'
+            + '<span>'+esc(nm || v)+'</span>'
+            + (nm ? '<span class="cd">'+esc(v)+'</span>' : '') + '</button>';
+        } },
       { key:"amt_locked", label:"프리필 잠금", width:"96px", type:"select", editable:true,
         options:[{value:"",label:"변동"},{value:"Y",label:"고정"}],
         formatter:(v)=> (v==="Y"||v===true) ? "🔒 고정" : "변동" },
@@ -3544,22 +3552,67 @@ function buildTplGrid(){
       if(field === "amt_rule" && (value==="input"||value==="balance")) row.amt_value = "";
       renderTplForm();   // 서식 미리보기를 즉시 따라가게 한다
     },
-    // 계정과목 팝업 — 라인 그리드와 동일한 검색 선택
+    // 계정과목·프로젝트 팝업 — 작성 화면의 라인과 동일한 검색 선택
     onRowAction:(act, row)=>{
-      if(act !== "pick-acct" || !row) return;
-      openAcctPicker((a)=>{
-        row.acct_cd = a.acct_cd; row.acct_nm = a.acct_nm || "";
-        const fg = String(a.bal_fg||"").charAt(0).toUpperCase();
-        if(!row.dr_cr_fg && (fg==="D"||fg==="C")) row.dr_cr_fg = fg;
-        // 계정이 바뀌면 관리항목 구성 자체가 달라진다 — 새 계정에 없는 규칙은 버린다
-        const keep = new Set(ctrlSlotsFor(row.acct_cd, row.dr_cr_fg).map((s)=> s.cd));
-        if(Array.isArray(row.__ctrls)){
-          for(let i=row.__ctrls.length-1; i>=0; i--) if(!keep.has(row.__ctrls[i].ctrl_cd)) row.__ctrls.splice(i,1);
-        }
-        TGRID.refresh(); renderTplForm();
-      });
+      if(!row) return;
+      if(act === "pick-acct"){
+        openAcctPicker((a)=>{
+          row.acct_cd = a.acct_cd; row.acct_nm = a.acct_nm || "";
+          const fg = String(a.bal_fg||"").charAt(0).toUpperCase();
+          if(!row.dr_cr_fg && (fg==="D"||fg==="C")) row.dr_cr_fg = fg;
+          // 계정이 바뀌면 관리항목 구성 자체가 달라진다 — 새 계정에 없는 규칙은 버린다
+          const keep = new Set(ctrlSlotsFor(row.acct_cd, row.dr_cr_fg).map((s)=> s.cd));
+          if(Array.isArray(row.__ctrls)){
+            for(let i=row.__ctrls.length-1; i>=0; i--) if(!keep.has(row.__ctrls[i].ctrl_cd)) row.__ctrls.splice(i,1);
+          }
+          // 새 계정에 프로젝트 칸이 생겼다면 이미 고른 프로젝트를 다시 걸어 준다
+          syncTplRowPC(row, row.project_no);
+          TGRID.refresh(); renderTplForm();
+        });
+        return;
+      }
+      if(act === "pick-proj"){
+        openCtrlRefPicker("PC", (x)=>{
+          const cd = x.ref_cd || "";
+          row.project_no = cd;
+          if(cd) PROJ_NM_CACHE[cd] = x.ref_nm || "";
+          syncTplRowPC(row, cd);
+          TGRID.refresh(); renderTplForm();
+        }, !!row.project_no);
+      }
     },
   });
+}
+/* 템플릿 라인의 프로젝트 ↔ 관리항목 PC(프로젝트코드) 를 맞춘다.
+   라인에 프로젝트를 지정했다는 건 「그 값으로 고정」한다는 뜻이다 — 작성 화면에서
+   라인 프로젝트를 바꾸면 그 줄의 PC 도 같이 맞추는 것과 같은 규칙(REQ 일관성).
+   PC 칸이 없는 계정이면 아무것도 하지 않는다(없는 칸에 규칙을 만들지 않는다).
+   프로젝트를 지우면, 이 동기화가 걸어 둔 고정값도 함께 푼다. */
+function syncTplRowPC(row, code){
+  if(!row) return;
+  if(!Array.isArray(row.__ctrls)) row.__ctrls = [];
+  if(!ctrlSlotsFor(row.acct_cd, row.dr_cr_fg).some((s)=> s.cd === "PC")) return;
+  const i = row.__ctrls.findIndex((c)=> c.ctrl_cd === "PC");
+  if(code){
+    const next = { ctrl_cd:"PC", val_rule:"fixed", fixed_val:code };
+    if(i >= 0) row.__ctrls[i] = next; else row.__ctrls.push(next);
+  } else if(i >= 0 && row.__ctrls[i].val_rule === "fixed"){
+    row.__ctrls.splice(i, 1);
+  }
+}
+/* 라인에 실린 프로젝트 코드의 명칭을 채운다 — 코드만 보이면 무엇인지 알 수 없다.
+   캐시에 없는 것만 조회하고(빈 값도 캐시해 재조회를 막는다), 실패하면 코드만 보여준다. */
+async function fillProjNames(codes){
+  const want = [...new Set((codes||[]).filter((c)=> c && !(c in PROJ_NM_CACHE)))];
+  if(!want.length) return;
+  await Promise.all(want.map(async (cd)=>{
+    try{
+      const r = await api("ctrl_ref", { ctrl_cd:"PC", q: cd });
+      const hit = (r.rows||[]).find((x)=> String(x.ref_cd) === String(cd));
+      PROJ_NM_CACHE[cd] = hit ? (hit.ref_nm || "") : "";
+    }catch(e){ /* 조회 실패 — 코드만 보여준다 */ }
+  }));
+  if(TGRID) TGRID.refresh();
 }
 function tRows(){ return TGRID ? TGRID.getData() : []; }
 /* __ctrls 는 반드시 만들어 둔다 — 그리드 getData()가 행을 얕은 복사하므로,
@@ -3908,6 +3961,7 @@ function openTplEdit(tpl, items){
   syncTokBars();   // 불러온 값 기준으로 「찍히는 값」·중괄호 누락 경고를 다시 계산
   // 관리항목 규칙은 행에 실어 보존한다(편집기에서 직접 수정하진 않지만 저장 시 유실 방지)
   setTRows((items||[]).map((it)=>({ ...it, amt_locked: it.amt_locked ? "Y":"", __ctrls: it.ctrls||[] })));
+  fillProjNames((items||[]).map((it)=> it.project_no));   // 코드 → 이름(비동기, 실패해도 무해)
   $("btnTDelete").classList.toggle("hide", !TPL_EDIT);
   $("btnTPublish").textContent = (tpl?.status==="active") ? "비공개로" : "공개";
   renderTplForm();
