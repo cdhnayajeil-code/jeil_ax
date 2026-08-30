@@ -27,6 +27,14 @@ r"""gl_apply_demo2.py — 포털 결의전표 초안 → ERP 데모DB(JEILMNS_DE
   python gl_apply_demo2.py --precheck                    보내기 전 사전점검 — 제출됨 초안 전건(ERP 무투입)
   python gl_apply_demo2.py --recheck                     실패·적체 건 사유 재판정(ERP 무투입, 읽기 전용)
 
+v1.7(2026-08-28, REQ-0015): 관리항목 참조값 실존 가드(G7) + ERP 오류문구 순화.
+  · G7 — 관리항목 값이 **투입 대상 DB의 마스터**에 실재하는지 확인한다. 포털도 저장·제출 때
+    확인하지만 포털이 보는 미러는 운영(JEILMNS) 기준이라, 대상 DB와 어긋나면 여기서만 잡힌다.
+    실제 사고: 손입력 거래처 '123' 이 서브원장 단계에서 A_OPEN_AR ↔ B_BIZ_PARTNER 외래키 위반
+    (AX260828-U001-002). 전표를 다 만든 뒤 터져 만들었다 롤백했다.
+  · 화면에 ODBC 원문(FK 제약조건 이름)이 그대로 뜨던 것을 사람이 읽는 문장으로 바꾼다.
+    기술 원문은 적용 원장(detail.raw_error)에 그대로 남는다.
+
 전송 흐름(v1.2): 회계 담당자가 화면 [ERP 전송] 탭에서 [🚀 ERP 전송] 클릭 → erp_apply_status='ready' 마킹
   → 이 스크립트(--queue/--watch, 사내 pull 중계)가 투입 → 결과 회기입 → 화면 자동 반영.
   성공 시 포털이 초안을 '확정됨(posted)'으로 닫고 ERP가 채번한 전표번호를 전표번호란에 기록한다
@@ -46,7 +54,7 @@ import urllib.request
 from _env import load_env, need
 
 # ═══════════ 고정 상수 — 변경 금지 ═══════════
-RELAY_VERSION = "v1.6"                # 심박에 함께 기록 — 서버에 옛 EXE가 남아 있는지 화면에서 확인 가능
+RELAY_VERSION = "v1.7"                # 심박에 함께 기록 — 서버에 옛 EXE가 남아 있는지 화면에서 확인 가능
 TARGET_DB = "JEILMNS_DEMO2"          # 대상 DB 하드코딩. 운영(JEILMNS) 금지 — CLI 파라미터 없음
 AG_TYPE = "AG"                        # AX 전용 전표번호 접두어(B_AUTO_NUMBERING 기존 유형 재사용)
 BT_TYPE = "BT"                        # 배치번호 접두어
@@ -84,6 +92,20 @@ JNL_BY_SUBSYS = {
 JNL_DEFAULT = ("ADJMNT", "")
 # 법인카드 채널과의 이중계상 방지 — AX 채널은 이 대변 계정을 쓰지 않는다(기회검토 Do-Not 9)
 FORBIDDEN_CR_ACCT = {"21100907"}
+# ═══════════ 관리항목 참조값 실존 확인(G7) — 검증된 테이블만 ═══════════
+# 왜 필요한가(2026-08-28 실측): 포털이 저장 시 값을 확인하지만 포털이 보는 미러는 **운영(JEILMNS)**
+# 기준이고, 이 릴레이가 넣는 곳은 **대상 DB(TARGET_DB)** 다. 두 마스터가 어긋나면 포털에서 통과한
+# 코드가 여기서 외래키에 걸린다. 실제로 손입력 거래처 '123' 이 서브원장 생성 단계에서
+# A_OPEN_AR ↔ B_BIZ_PARTNER 외래키를 위반했다(AX260828-U001-002).
+# 그 실패는 **전표를 다 만든 뒤**에 오므로 만들었다 롤백하게 된다 — 여기서 먼저 막는다.
+#
+# 어느 마스터를 볼지는 ERP 자신이 안다(A_CTRL_ITEM.TBL_ID). 다만 테이블마다 키 컬럼이 달라
+# **컬럼을 실측으로 확인한 것만** 검사한다 — 모르는 테이블은 확인하지 않는다(억측으로 막지 않는다).
+CTRL_REF_KEY = {
+    "B_BIZ_PARTNER": "BP_CD",     # 거래처(BP·V6·X01) — 채권·채무 원장 외래키의 실제 대상
+    "B_ITEM":        "ITEM_CD",   # 품목(MK)
+    "B_COST_CENTER": "COST_CD",   # 코스트센터(CC)
+}
 
 
 def rpc(url, key, fn, payload):
@@ -290,6 +312,46 @@ def check_stale(url, key, hours: int = 6):
 _ACCT_ATTR = {}      # 계정 → (SUBSYS_TYPE, BAL_FG, ACCT_NM)
 _REQ_CTRL = {}       # (계정, DR|CR) → [(관리항목코드, 이름)]  ※ 필수만
 _TG_ALLOW = None     # 결의전표(TG)에 허용된 (SUBSYS_TYPE, DR|CR|DC) 집합
+_CTRL_REF = {}       # 관리항목 → (참조테이블, 항목명)
+_REF_HIT = {}        # (참조테이블, 값) → True|False|None(판정 불가)
+
+
+def ctrl_ref_of(cur, ctrl_cd):
+    """관리항목이 어느 마스터를 참조하는지 — ERP 자신이 안다(A_CTRL_ITEM.TBL_ID).
+       반환: (참조테이블 대문자, 항목명). 조회 실패는 ('', 코드) — 확인 대상에서 빠진다."""
+    cd = str(ctrl_cd or "").strip().upper()
+    if cd not in _CTRL_REF:
+        tbl, nm = "", cd
+        try:
+            cur.execute("SELECT RTRIM(ISNULL(TBL_ID,'')), RTRIM(ISNULL(CTRL_NM,'')) "
+                        "FROM dbo.A_CTRL_ITEM WITH (NOLOCK) WHERE RTRIM(CTRL_CD) = ?", cd)
+            r = cur.fetchone()
+            if r:
+                tbl = str(r[0]).strip().upper()
+                nm = str(r[1]).strip() or cd
+        except Exception:
+            pass                      # 스키마 상이 등 — 확인하지 않는다
+        _CTRL_REF[cd] = (tbl, nm)
+    return _CTRL_REF[cd]
+
+
+def ref_exists(cur, tbl, val):
+    """대상 DB 마스터에 그 코드가 실재하나. 조회 자체가 안 되면 None(판정 불가) —
+       모르는 것을 '틀렸다'로 몰아 정상 전표를 막지 않는다."""
+    key = CTRL_REF_KEY.get(tbl)
+    if not key:
+        return None
+    hit = (tbl, val)
+    if hit not in _REF_HIT:
+        try:
+            # 테이블·컬럼명은 위 화이트리스트의 리터럴만 쓴다(외부 입력이 SQL에 섞이지 않는다).
+            # 값은 파라미터 바인딩(CLAUDE.md §4.5).
+            cur.execute(f"SELECT COUNT(*) FROM dbo.{tbl} WITH (NOLOCK) WHERE RTRIM({key}) = ?", val)
+            _REF_HIT[hit] = cur.fetchone()[0] > 0
+        except Exception as e:
+            print(f"[경고] {tbl} 확인을 건너뜁니다: {e}", file=sys.stderr)
+            _REF_HIT[hit] = None
+    return _REF_HIT[hit]
 
 
 def stop(what: str, fix: str = "") -> SystemExit:
@@ -302,6 +364,39 @@ def stop(what: str, fix: str = "") -> SystemExit:
     기술 상세는 적용 원장(gl_erp_apply_log.detail)에 그대로 남으므로 여기서 잃지 않는다.
     """
     return SystemExit(what + (("\n→ " + fix) if fix else ""))
+
+
+# 외래키가 가리키는 마스터를 업무 말로 — 화면에는 테이블명 대신 이 이름이 뜬다
+FK_TABLE_KO = {
+    "B_BIZ_PARTNER": "거래처", "B_ITEM": "품목", "B_COST_CENTER": "코스트센터",
+    "B_ACCT_DEPT": "부서", "A_ACCT": "계정과목", "B_BANK": "은행",
+    "B_PLANT": "공장", "B_BIZ_UNIT": "사업부", "A_JNL_ITEM": "거래항목",
+}
+
+
+def plain_db_error(e) -> str:
+    """ERP(ODBC) 오류 원문을 회계 담당자가 읽을 수 있는 한 문장으로 바꾼다.
+
+    왜(2026-08-28): 화면에 그대로 뜬 문장이
+      `IntegrityError: ('23000', '… FOREIGN KEY 제약 조건 "FK__A_OPEN_AR__DEAL___002BBFB7" …')`
+    이었다. 회계 담당자는 이걸 보고 무엇을 고쳐야 할지 알 수 없다.
+    stop() 과 같은 규칙을 따른다 — 테이블명·오류번호를 쓰지 않고, 다음에 할 일을 붙인다.
+    기술 원문은 잃지 않는다: 호출측이 적용 원장(detail.raw_error)에 그대로 남긴다.
+    """
+    s = str(e)
+    if "FOREIGN KEY" in s.upper() or "외래 키" in s:
+        # 한글판: 테이블 "dbo.B_BIZ_PARTNER", column 'BP_CD' / 영문판: table "db.dbo.B_BIZ_PARTNER", column 'BP_CD'
+        m = re.search(r'"[^"]*?\.?([A-Za-z_][A-Za-z0-9_]*)"\s*,\s*column\s*\\?\'([A-Za-z0-9_]+)', s)
+        tbl = (m.group(1).upper() if m else "")
+        ko = FK_TABLE_KO.get(tbl, "")
+        what = (f"관리항목 「{ko}」 값이 ERP에 없어" if ko
+                else "관리항목 값 중 ERP에 없는 것이 있어")
+        return (f"{what} 채무·채권 원장을 만들지 못했습니다\n"
+                "→ 전표 화면에서 🔍 검색으로 고른 값만 쓰세요. ERP에는 아무것도 남지 않았습니다.")
+    if "PRIMARY KEY" in s.upper() or "중복" in s:
+        return ("같은 전표가 이미 ERP에 있습니다\n→ 화면에서 상태를 확인하세요 — 두 번 보낼 수 없습니다.")
+    return ("ERP 처리 중 오류가 나서 취소했습니다\n"
+            "→ 관리자에게 알려 주세요 — ERP에는 아무것도 남지 않았습니다.")
 
 
 def acct_label(cur, acct_cd: str) -> str:
@@ -420,6 +515,27 @@ def guard_lines(cur, lines):
                         "what": "필수 관리항목이 비어 있습니다 — "
                                 + ", ".join(f"{n or c}" for c, n in missing),
                         "fix": "이 항목들을 채우세요 — 비우면 원장이 만들어져도 쓸 수 없습니다"})
+
+    # ── G7 관리항목 참조값 실존 — 대상 DB 마스터로 직접 확인 ──
+    # G6 는 "비었는지"를 보고, G7 은 "맞는 값인지"를 본다. 종전에는 후자를 아무도 보지 않아
+    # 손입력 코드가 ERP까지 갔다(2026-08-28). 여기는 **투입 대상 DB**를 직접 조회하므로,
+    # 포털 미러(운영 기준)와 대상 DB가 어긋난 경우도 함께 잡힌다.
+    for l in lines:
+        for cd, val in l["ctrls"]:
+            v = str(val or "").strip()
+            if not v:
+                continue
+            tbl, ctrl_nm = ctrl_ref_of(cur, cd)
+            if tbl not in CTRL_REF_KEY:
+                continue                       # 확인 대상 아님(날짜·자유입력·미검증 마스터)
+            ok = ref_exists(cur, tbl, v)
+            if ok is None or ok:
+                continue                       # 판정 불가는 막지 않는다
+            out.append({"seq": l["seq"], "acct": l["acct"], "fg": l["fg"][:2],
+                        "nm": attr.get(l["acct"], ("", "", ""))[2], "code": "G7",
+                        "what": f"{ctrl_nm} '{v}' 은(는) ERP에 없는 값입니다",
+                        "fix": "전표 화면에서 🔍 검색으로 실제 값을 고르세요 — "
+                               "이대로 보내면 ERP가 원장을 만들지 못합니다"})
 
     # 반제(反濟)를 업무 말로 옮긴다 — 사용자는 'SUBSYS_TYPE' 이 아니라 '갚는다·받는다'로 생각한다.
     DEAL = {"AP": ("갚는 처리", "채무반제"), "AR": ("받는 처리", "채권반제"),
@@ -857,8 +973,11 @@ def apply_draft(args):
             conn.rollback()
         except Exception:
             pass
-        result["detail"]["error"] = f"{type(e).__name__}: {e}"
-        print(f"[오류] {e}", file=sys.stderr)
+        # 화면에는 사람이 읽는 문장을, 원장에는 기술 원문을 남긴다(둘 다 필요하다).
+        raw = f"{type(e).__name__}: {e}"
+        result["detail"]["error"] = plain_db_error(e)
+        result["detail"]["raw_error"] = raw
+        print(f"[오류] {result['detail']['error']}\n       (원문) {raw}", file=sys.stderr)
     finally:
         conn.close()
 

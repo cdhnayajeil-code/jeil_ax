@@ -392,6 +392,10 @@
     font-size:10px; padding:2px 4px; color:var(--muted); flex:none;}
   .vform .wref .refbtn:hover{border-color:var(--accent); color:var(--accent);}
   .vform .refnm{display:block; font-size:10px; color:var(--green); margin-top:1px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  /* 관리항목 값 실시간 확인(REQ-0015) — 맞으면 이름(초록), 틀리면 경고(빨강)를 칸 바로 아래 */
+  .vform .refbad{display:block; font-size:10px; color:var(--red); margin-top:1px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .vform input.badval{border-color:var(--red); background:#fdf4f3;}
+  .vform input.chking{background-image:linear-gradient(90deg,transparent,#eef4fb,transparent); background-size:200% 100%;}
   .vform .pick{width:100%; text-align:left; border:1px dashed #cfdcea; background:#fbfcfe; border-radius:6px;
     padding:4px 6px; font-family:inherit; font-size:12px; cursor:pointer; color:var(--muted);}
   .vform .pick:hover{border-color:var(--accent); color:var(--accent); background:#f2f7fc;}
@@ -403,6 +407,41 @@
   .vform td.dsccell .minilbl{display:block; margin-bottom:2px;}
   .vform .minilbl{font-size:10px; color:var(--muted); font-weight:600;}
   .vform tr.sumrow .amt{font-size:13.5px;}
+  /* ═══ ERP 전송에서 막힌 곳 — 작성 화면 표시 (REQ-0016) ═══
+     [ERP 전송] 탭에서 [✏ 수정]으로 넘어오면 사유가 토스트로 한 번 스치고 사라졌다.
+     사유는 「N번 줄 … — … / → 조치」 구조를 갖고 있으므로(정본 31_gl_apply_plain_reasons.sql),
+     그 줄·그 칸에 그대로 얹는다. 색·문구는 전송 탭의 언어(.sendbar .why · .prob)를 계승한다. */
+  .fixerr{border:1.5px solid #f2c4be; background:#fdeeec; border-radius:11px; padding:12px 15px;
+          margin-bottom:13px;}
+  .fixerr .hd{display:flex; align-items:center; gap:9px; flex-wrap:wrap; margin-bottom:3px;}
+  .fixerr .hd b{font-size:14px; color:var(--red); letter-spacing:-.01em;}
+  .fixerr .hd .no{font-family:'Consolas','Menlo',monospace; font-size:12px; color:var(--muted);}
+  .fixerr .hd .cnt{background:var(--red); color:#fff; border-radius:20px; font-size:11px;
+                   font-weight:700; padding:1px 8px;}
+  .fixerr .hd .x{margin-left:auto; border:1px solid #f2c4be; background:#fff; color:var(--muted);
+                 border-radius:7px; padding:3px 9px; font-size:11.5px; cursor:pointer; font-family:inherit;}
+  .fixerr .hd .x:hover{border-color:var(--red); color:var(--red);}
+  .fixerr .lead{font-size:12px; color:#8d2f24; line-height:1.6; margin-bottom:8px;}
+  .fixerr .it{display:flex; gap:9px; align-items:flex-start; padding:8px 10px; background:#fff;
+              border:1px solid #f0cec9; border-radius:9px; margin-top:6px;}
+  .fixerr .it .ln{flex:none; background:#fdeeec; color:var(--red); border:1px solid #f2c4be;
+                  border-radius:7px; font-size:11px; font-weight:800; padding:2px 8px; white-space:nowrap;
+                  cursor:pointer; font-family:inherit;}
+  .fixerr .it .ln:hover{background:var(--red); color:#fff;}
+  .fixerr .it .ln.plain{cursor:default; background:#f4f6fa; color:var(--muted); border-color:var(--line);}
+  .fixerr .it .tx{min-width:0; font-size:12.5px; line-height:1.6; color:var(--ink); overflow-wrap:anywhere;}
+  .fixerr .it .tx .who{color:var(--muted); font-size:11.5px;}
+  .fixerr .it .tx .fx{display:block; margin-top:2px; color:var(--green); font-size:11.5px;}
+  .fixerr .foot{margin-top:9px; font-size:11.5px; color:var(--muted); line-height:1.55;}
+  /* 서식 안 표시 — 어느 줄인지(띠+⚠), 어느 칸인지(붉은 칸) */
+  .vform tbody tr.errln td{background:#fef7f6;}
+  .vform tbody tr.errln td.no{box-shadow:inset 3px 0 0 var(--red);}
+  .vform .errdot{display:block; color:var(--red); font-size:11px; font-weight:800; cursor:help;}
+  .vform td.slotcell.errslot{background:#fdeeec; box-shadow:inset 3px 0 0 var(--red);}
+  .vform td.slotcell.errslot input{border-color:var(--red); background:#fff;}
+  .vform .pick.errpick{border-style:solid; border-color:var(--red); color:var(--red); background:#fff;}
+  .vform tbody tr.errflash td{animation:errflash 1.4s ease-out 1;}
+  @keyframes errflash{0%,45%{background:#fbdcd8;} 100%{background:#fef7f6;}}
   /* 규칙 편집 팝오버 */
   .ce-box{background:#fff; border-radius:13px; width:min(420px,92vw); box-shadow:0 18px 50px rgba(16,42,80,.28); overflow:hidden;}
   .ce-head{display:flex; align-items:center; gap:8px; padding:13px 16px; background:var(--soft); border-bottom:1px solid var(--line);}
@@ -562,6 +601,9 @@
 
     <!-- ═══ 전표 작성 ═══ -->
     <div id="paneWrite">
+      <!-- ERP 전송에서 막힌 곳 — 사유가 화면에 머문다(REQ-0016).
+           [ERP 전송] 탭에서 [✏ 수정]으로 넘어오면 여기에 사유가 뜨고, 아래 서식의 해당 줄·칸이 표시된다. -->
+      <div class="fixerr hide" id="fixErr"></div>
       <!-- 전표를 시작하는 방법은 같은 층의 선택지다 — 흩어져 있던 진입점을 한 줄로 모은다(REQ-0003) -->
       <div class="startbar">
         <span class="lbl">전표 시작</span>
@@ -1594,6 +1636,9 @@ function setRows(rs){
   ROWS = rs;
   SELSET = new Set([...SELSET].filter((s)=> rs.some((r)=> String(r.item_seq)===String(s))));
   renderDraftForm(); updateSum();
+  // 라인 구성이 바뀌는 경로(불러오기·전표복사·템플릿·행 추가)는 옛 코드·폐지 코드를 끌고 온다
+  // → 조용히 한 번 훑어 확인한다(REQ-0015). 이미 확인한 값은 캐시라 왕복이 없다.
+  scheduleCtrlAudit();
 }
 /* 관리항목 참조 검색(프로젝트코드·은행·계산서유형 등) — 통합 미러에서 서버 검색.
    선택지가 적은 항목도 있어 빈 검색어로도 목록을 보여준다(2자 제한 없음). */
@@ -1635,6 +1680,158 @@ function openCostPicker(onPick){
     onPick });
 }
 /* 관리항목 한 칸 — 라벨(이름·필수·⤓) + 입력(날짜/텍스트/검색) */
+/* ═══ ERP 전송에서 막힌 곳 — 작성 화면 표시 (REQ-0016) ═══
+   [ERP 전송] 탭은 사유를 잘 보여준다. 그런데 [✏ 수정]으로 작성 화면에 넘어오는 순간
+   토스트 한 줄만 스치고 사라져, 정작 고쳐야 할 자리에서는 무엇이 막혔는지 알 수 없었다.
+
+   사유 문자열은 이미 줄 단위 구조를 갖고 있다(정본 `이관/sql/31_gl_apply_plain_reasons.sql`).
+
+     고칠 곳이 2군데입니다.
+
+     1번 줄 미지급금(거래처) 차변 — 갚는 처리(반제)라서 결의전표로는 할 수 없습니다
+     → ERP 채무반제 화면에서 처리하세요
+
+   그래서 새 API·새 컬럼 없이 **이 규약을 화면이 읽어** 배너 + 그 줄 + 그 칸에 얹는다.
+   문구는 서버가 만든 것을 그대로 쓴다 — 화면이 임의로 바꾸면 사유가 두 벌이 된다. */
+let FIX_ERR = null;         // { no, raw, at, status, blocks:[{seq,acct,dir,what,fix,kind,ctrls}] }
+
+function parseErpFail(raw){
+  const s = String(raw||"").replace(/\r/g,"").trim();
+  // 점검 통과 기록은 사유가 아니다(새 문구·옛 문구 둘 다) — reasonBrief 와 같은 기준
+  if(!s || /^지금 보내면 정상 처리됩니다|^현재 규칙으로는/.test(s)) return [];
+  return s.split(/\n{2,}/).map((t)=> t.trim()).filter(Boolean)
+    // 머리말("고칠 곳이 2군데입니다.")은 배너가 건수로 다시 말한다 — 항목으로 세지 않는다
+    .filter((t)=> !/^고칠 곳이\s*\d+\s*군데입니다\.?$/.test(t))
+    .map(parseErpFailBlock).filter((b)=> b.what);
+}
+function parseErpFailBlock(t){
+  const ls  = t.split("\n").map((x)=> x.trim()).filter(Boolean);
+  const fix = ls.filter((x)=> x.startsWith("→")).map((x)=> x.replace(/^→\s*/,"")).join(" · ");
+  let head  = ls.filter((x)=> !x.startsWith("→")).join(" ").trim();
+  let seq = 0, acct = "", dir = "";
+  const m = head.match(/^(\d+)\s*번\s*줄\s*/);
+  if(m){
+    seq = Number(m[1]); head = head.slice(m[0].length).trim();
+    // 위치 접두는 첫 '—' 에서 끝난다. 사유 본문에도 '—' 가 들어오므로(관리항목 목록 등)
+    // 줄번호가 붙은 블록에서만 접두를 떼어낸다.
+    const d = head.indexOf("—");
+    if(d >= 0){
+      let left = head.slice(0, d).trim();
+      const dm = left.match(/(차변|대변)$/);
+      if(dm){ dir = dm[1]==="차변" ? "D" : "C"; left = left.slice(0, left.length - dm[1].length).trim(); }
+      acct = left; head = head.slice(d + 1).trim();
+    }
+  }
+  const what = head;
+  const kind = errKindOf(what);
+  return { seq, acct, dir, what, fix, kind,
+           // 필수 관리항목 누락은 '어느 항목인지'까지 온다 — 그 칸을 직접 짚기 위해 뽑는다
+           ctrls: kind === "ctrl" ? (what.split("—")[1] || "").split(/[,·]/)
+                                      .map((x)=> x.trim()).filter(Boolean) : [] };
+}
+/* 사유 → 어느 칸을 짚을 것인가. 가드 코드(G1·G2·G6…)는 화면에 오지 않으므로 문구로 가른다. */
+function errKindOf(what){
+  const s = String(what||"");
+  return /필수 관리항목이 비어/.test(s)     ? "ctrl"
+       : /관리항목이 너무 많/.test(s)       ? "ctrlmax"
+       : /합계가 다릅니다|차대/.test(s)     ? "amt"
+       : /코스트센터/.test(s)               ? "cost"
+       : /부서/.test(s)                     ? "dept"
+       : /계정|반제|갚는 처리|받는 처리|정산 처리|상계 처리/.test(s) ? "acct"
+       : "";
+}
+/* 전표를 폼에 올릴 때 함께 세운다 — 전송 탭의 [✏ 수정]뿐 아니라
+   내 이력·반복전표에서 불러올 때도 같은 표시가 나온다(실패 이력이 남아 있으면). */
+function setFixErr(h){
+  const raw = (h && (h.erp_last_error
+              || (h.erp_apply_status === "failed" ? h.erp_apply_msg : ""))) || "";
+  const blocks = parseErpFail(raw);
+  FIX_ERR = blocks.length
+    ? { no: (h && h.draft_no) || "", raw, at: (h && (h.erp_last_error_at || h.erp_apply_at)) || "",
+        status: (h && h.erp_apply_status) || "", blocks }
+    : null;
+}
+function fixBlocksFor(seq){
+  return FIX_ERR ? FIX_ERR.blocks.filter((b)=> b.seq === Number(seq)) : [];
+}
+/* 관리항목은 이름으로 온다(A_CTRL_ITEM.CTRL_NM) — 화면 칸은 코드로 찾는다. */
+let _CTRL_REV = null, _CTRL_REV_N = -1;
+function ctrlCdByName(nm){
+  const key = String(nm||"").trim(); if(!key) return "";
+  if(CTRL_NM.has(key)) return key;                    // 이름이 없어 코드로 온 경우
+  if(_CTRL_REV_N !== CTRL_NM.size){
+    _CTRL_REV = new Map();
+    CTRL_NM.forEach((v, cd)=>{ const n = String(v.ctrl_nm||"").trim();
+                               if(n && !_CTRL_REV.has(n)) _CTRL_REV.set(n, cd); });
+    _CTRL_REV_N = CTRL_NM.size;
+  }
+  return _CTRL_REV.get(key) || "";
+}
+/* 그 줄에서 표시할 관리항목 코드 — **아직 비어 있는 것만.**
+   채우는 순간 표시가 스스로 걷힌다(고친 것까지 붉게 남으면 진짜 남은 것을 가린다). */
+function fixErrCtrlCds(row){
+  const out = new Set();
+  fixBlocksFor(row.item_seq).forEach((b)=>{
+    (b.ctrls||[]).forEach((nm)=>{
+      const cd = ctrlCdByName(nm); if(!cd) return;
+      if(String((row.__ctrl||{})[cd] ?? "").trim()) return;
+      out.add(cd);
+    });
+  });
+  return out;
+}
+function renderFixErr(){
+  const box = $("fixErr"); if(!box) return;
+  if(!FIX_ERR){ box.classList.add("hide"); box.innerHTML = ""; return; }
+  const bs = FIX_ERR.blocks;
+  let when = "";
+  if(FIX_ERR.at){
+    const d = new Date(FIX_ERR.at);
+    if(!isNaN(d)) when = d.toLocaleString("ko-KR", { month:"2-digit", day:"2-digit",
+                                                     hour:"2-digit", minute:"2-digit" });
+  }
+  box.innerHTML =
+      '<div class="hd"><b>⚠ ERP 전송에서 막혔습니다</b>'
+    + (FIX_ERR.no ? '<span class="no">'+esc(FIX_ERR.no)+'</span>' : "")
+    + '<span class="cnt">고칠 곳 '+bs.length+'</span>'
+    + (when ? '<span class="no">'+esc(when)+'</span>' : "")
+    + '<button type="button" class="x" data-fixclose title="표시만 지웁니다 — 사유는 [ERP 전송] 탭에 남습니다">'
+    + '표시 지우기</button></div>'
+    + '<div class="lead">ERP에는 <b>아무것도 들어가지 않았습니다.</b> 아래를 고친 뒤 '
+    + '<b>[저장]</b> → <b>[제출]</b> 하고, <b>[ERP 전송]</b>에서 다시 보내야 ERP로 넘어갑니다.</div>'
+    + bs.map((x)=>
+        '<div class="it">'
+      + (x.seq ? '<button type="button" class="ln" data-goto="'+x.seq+'" title="이 줄로 이동">'
+                 + x.seq+'번 줄</button>'
+               : '<span class="ln plain" title="특정 줄이 아니라 전표 전체의 문제입니다">전표 전체</span>')
+      + '<div class="tx">'
+      + (x.acct ? '<span class="who">'+esc(x.acct)
+                  + (x.dir ? " "+(x.dir==="D"?"차변":"대변") : "")+' · </span>' : "")
+      + esc(x.what)
+      + (x.fix ? '<span class="fx">→ '+esc(x.fix)+'</span>' : "")
+      + '</div></div>').join("");
+  box.classList.remove("hide");
+}
+/* 배너에서 줄을 누르면 그 줄로 간다 — 서식이 길어지면 눈으로 찾기 어렵다 */
+function gotoErrRow(seq){
+  const el = document.querySelector('#draftForm input[data-f="sel"][data-seq="'+seq+'"]');
+  const tr = el && el.closest("tr"); if(!tr) return;
+  tr.scrollIntoView({ behavior:"smooth", block:"center" });
+  const trs = [tr, tr.nextElementSibling,
+               tr.nextElementSibling && tr.nextElementSibling.nextElementSibling].filter(Boolean);
+  trs.forEach((t)=> t.classList.add("errflash"));
+  setTimeout(()=> trs.forEach((t)=> t.classList.remove("errflash")), 1500);
+}
+$("fixErr").onclick = (e)=>{
+  if(e.target.closest("button[data-fixclose]")){
+    FIX_ERR = null; renderFixErr(); renderDraftForm();
+    toast("표시를 지웠습니다 — 사유는 [ERP 전송] 탭에 그대로 남아 있습니다.");
+    return;
+  }
+  const g = e.target.closest("button[data-goto]");
+  if(g) gotoErrRow(g.getAttribute("data-goto"));
+};
+
 function slotCellHtml(r, def, shareCnt){
   if(!def) return '<td class="empty"></td>';
   const info = CTRL_NM.get(def.cd) || {};
@@ -1645,13 +1842,18 @@ function slotCellHtml(r, def, shareCnt){
   const refKind = ctrlRefKind(def.cd);
   const miss = def.req && String(val).trim()==="";
   const refNm = (r.__ctrlNm||{})[def.cd];
+  // ERP가 "이 항목이 비어 막혔다"고 한 칸(REQ-0016) — 필수 표시와 별개로 더 강하게 짚는다
+  const errC = !!(r.__errCtrl && r.__errCtrl.has(def.cd));
   const inp = '<input type="'+(isDate?'date':'text')+'" data-f="ctrl" data-seq="'+r.item_seq+'"'
     + ' data-cd="'+esc(def.cd)+'" value="'+esc(val)+'"'
     + ' class="'+(miss?'miss ':'')+(sug&&val===sug?'suggest':'')+'"'
     + (sug&&val===sug?' title="전월 기준 제안값 — 실물 증빙을 확인하세요"':'')+'>';
   // 필수 항목은 칸 왼쪽 띠로 드러낸다 — 채워지면 초록, 비어 있으면 붉은색
-  const cell = def.req ? (String(val).trim() ? "slotcell req reqok" : "slotcell req") : "slotcell";
-  return '<td class="'+cell+'">'
+  const cell = (def.req ? (String(val).trim() ? "slotcell req reqok" : "slotcell req") : "slotcell")
+             + (errC ? " errslot" : "");
+  return '<td class="'+cell+'"'
+    + (errC ? ' title="ERP 전송에서 이 항목이 비어 막혔습니다 — 값을 채우면 표시가 사라집니다"' : "")
+    + '>'
     + '<span class="slbl" title="'+esc(nm)+(def.req?" (필수)":"")+'">'
     + '<span class="nmtxt">'+esc(nm)+'</span>'+(def.req?'<span class="req">*</span>':'')
     + ((shareCnt.get(def.cd)||0) > 1
@@ -1682,6 +1884,12 @@ function renderDraftForm(){
     const cell = (n)=> slotCellHtml(r, defs[n], shareCnt);
     const dr = r.dr_cr_fg === "D", cr = r.dr_cr_fg === "C";
     const seq = r.item_seq;
+    /* ERP 전송에서 이 줄이 막혔는가(REQ-0016) — 줄 전체를 표시하고, 짚을 칸이 있으면 그 칸까지 */
+    const ebs  = fixBlocksFor(seq);
+    const eCls = ebs.length ? " errln" : "";
+    const eTip = ebs.map((x)=> x.what + (x.fix ? "\n→ "+x.fix : "")).join("\n\n");
+    const eKind = new Set(ebs.map((x)=> x.kind));
+    r.__errCtrl = fixErrCtrlCds(r);     // slotCellHtml 이 읽는다(빈 칸만 남는다)
     const amtIn = (side)=>{
       const on = (side==="D" && dr) || (side==="C" && cr);
       // 배분·반올림으로 나온 금액은 '확인 필요'로 강조한다(REQ-0002)
@@ -1691,22 +1899,25 @@ function renderDraftForm(){
         + ' value="'+(on ? esc(fmtMoney(r.item_amt)) : "")+'" placeholder="0" inputmode="numeric">'
         + (ap ? '<span class="apxbadge" title="'+esc(r.__amtApproxWhy||"")+'">확인 필요</span>' : '');
     };
-    body += '<tr class="'+(dr?"blk-dr":cr?"blk-cr":"")+'">'
+    body += '<tr class="'+(dr?"blk-dr":cr?"blk-cr":"")+eCls+'">'
       + '<td class="no" rowspan="3"><input type="checkbox" data-f="sel" data-seq="'+seq+'"'
-        + (SELSET.has(String(seq))?" checked":"")+'><br>'+seq+'</td>'
-      + '<td><button type="button" class="pick'+(r.acct_cd?" has":"")+'" data-act="acct" data-seq="'+seq+'">'
+        + (SELSET.has(String(seq))?" checked":"")+'><br>'+seq
+        + (ebs.length ? '<span class="errdot" title="'+esc(eTip)+'">⚠</span>' : "")+'</td>'
+      + '<td><button type="button" class="pick'+(r.acct_cd?" has":"")
+        + (eKind.has("acct")?" errpick":"")+'" data-act="acct" data-seq="'+seq+'">'
         + (r.acct_cd ? '<span class="acd">'+esc(r.acct_cd)+'</span>' : '🔍 계정 선택')+'</button></td>'
-      + '<td><button type="button" class="pick'+(r.cost_cd?" has":" bad")+'" data-act="cost" data-seq="'+seq+'"'
+      + '<td><button type="button" class="pick'+(r.cost_cd?" has":" bad")
+        + (eKind.has("cost")?" errpick":"")+'" data-act="cost" data-seq="'+seq+'"'
         + ' title="클릭해 코스트센터 검색·변경">'
         + (r.cost_cd ? esc(costLabel(r.cost_cd)) : "🔍 코스트센터")+'</button></td>'
       + cell(0) + cell(1) + cell(2)
       + '<td class="cur" rowspan="3">KRW</td>'
       + '<td class="amt dr" rowspan="3">'+amtIn("D")+'</td>'
       + '<td class="amt cr" rowspan="3">'+amtIn("C")+'</td></tr>'
-      + '<tr class="'+(dr?"blk-dr":cr?"blk-cr":"")+'">'
+      + '<tr class="'+(dr?"blk-dr":cr?"blk-cr":"")+eCls+'">'
       + '<td class="anm">'+(r.acct_cd ? esc(r.acct_nm||"(계정명 없음)") : '<span style="color:#b6c0cc;">계정 미선택</span>')+'</td>'
       + cell(3) + cell(4) + cell(5) + cell(6) + '</tr>'
-      + '<tr class="dscrow">'
+      + '<tr class="dscrow'+eCls+'">'
       + '<td class="dsccell" colspan="3"><span class="minilbl">적요</span>'
         + '<input type="text" data-f="desc" data-seq="'+seq+'" maxlength="200" value="'+esc(r.item_desc||"")+'"'
         + ' placeholder="이 줄의 적요(비우면 전표 적요를 씁니다)"></td>'
@@ -1720,7 +1931,7 @@ function renderDraftForm(){
     // 관리항목이 7칸을 넘으면 이어서 표시(ERP 서식은 7칸까지만 인쇄된다)
     if(defs.length > VF_SLOTS_W){
       // 앞의 rowspan=3 셀(No·통화·차변·대변)은 이 행을 덮지 않는다 → 9열을 직접 채운다
-      body += '<tr class="dscrow"><td class="no"></td><td colspan="5" class="slotcell">'
+      body += '<tr class="dscrow'+eCls+'"><td class="no"></td><td colspan="5" class="slotcell">'
         + '<span class="minilbl">관리항목 '+(VF_SLOTS_W+1)+'~'+defs.length+'</span>'
         + '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:5px 9px;">'
         + defs.slice(VF_SLOTS_W).map((d)=> slotCellHtml(r, d, shareCnt)
@@ -1744,6 +1955,8 @@ function renderDraftForm(){
     + '<td class="amt" id="vfSumDr">'+won(drT)+'</td><td class="amt" id="vfSumCr">'+won(crT)+'</td></tr>'
     + '</tbody></table>';
   updateCtrlProg();
+  // 이미 확인한 관리항목 값의 판정(초록 이름·붉은 경고)을 다시 칠한다 — 재렌더로 잃지 않게
+  repaintCtrlChecks();
 }
 const numAmt = (v)=> Number(String(v||"").replace(/,/g,"")) || 0;
 const fmtMoney = (v)=> v==="" || v==null ? "" : won(numAmt(v));
@@ -1897,7 +2110,16 @@ $("draftForm").addEventListener("input", (e)=>{
     r.__ctrl[cd] = el.value;
     if(r.__ctrlNm) delete r.__ctrlNm[cd];
     el.classList.remove("suggest", "miss");
-    const nmEl = el.closest("td")?.querySelector(".refnm"); if(nmEl) nmEl.remove();
+    // 8번째 이후 관리항목은 td 가 아니라 div 안에 그려진다 — closest("td") 로 잡으면
+    // 같은 td 의 **다른 칸** 이름표를 지운다. 입력칸 기준으로 그 칸만 건드린다.
+    slotBoxOf(el)?.querySelector(":scope > .refnm")?.remove();
+    // ERP가 "비어서 막혔다"고 짚은 칸을 채우면 그 표시를 바로 걷는다(재렌더 없이 — 포커스 유지)(REQ-0016)
+    if(r.__errCtrl && r.__errCtrl.has(cd))
+      el.closest("td")?.classList.toggle("errslot", !String(el.value||"").trim());
+    // 고치는 중에는 직전 판정을 지운다 — 타이핑 중간값에 붉은 경고를 띄우면 방해가 된다.
+    // 확인은 칸을 떠날 때 한다(아래 focusout, REQ-0015).
+    el.classList.remove("badval", "chking");
+    slotBoxOf(el)?.querySelector(":scope > .refbad")?.remove();
     updateCtrlProg();
     // 공급가액·부가세액·계산서유형은 서로 묶여 있다 — 하나를 넣으면 나머지를 채운다(C-14)
     if((cd === "V1" || cd === "V8" || cd === "V4") && vatOnCtrl(r, cd)) paintVat(el);
@@ -1915,6 +2137,12 @@ $("draftForm").addEventListener("change", (e)=>{
 $("draftForm").addEventListener("focusout", (e)=>{
   const el = e.target.closest('input[data-f="amt"]'); if(!el) return;
   el.value = el.value.trim() === "" ? "" : won(numAmt(el.value));
+});
+/* 관리항목 칸에서 포커스가 빠지면 그 값이 ERP 마스터에 있는지 바로 확인한다(REQ-0015).
+   저장을 눌러야 알게 되는 것과, 칸을 떠나면 아는 것은 회계 담당자에게 전혀 다른 경험이다. */
+$("draftForm").addEventListener("focusout", (e)=>{
+  const el = e.target.closest('input[data-f="ctrl"]'); if(!el) return;
+  checkCtrlCell(el.getAttribute("data-seq"), el.getAttribute("data-cd"), el.value);
 });
 // Enter → 다음 입력칸(입력 흐름 단축)
 $("draftForm").addEventListener("keydown", (e)=>{
@@ -1980,17 +2208,20 @@ $("draftForm").addEventListener("click", (e)=>{
     openCtrlRefPicker("PC", (x)=>{
       r.project_no = x.ref_cd || "";
       if(r.acct_cd && ctrlDefsFor(r).some((d)=> d.cd === "PC")) r.__ctrl.PC = x.ref_cd || "";
+      ctrlChkTrust("PC", x.ref_cd, x.ref_nm);   // 마스터에서 고른 값 — 다시 물어볼 필요가 없다
       renderDraftForm();
     }, !!r.project_no);
   } else if(act === "bp"){
     openBpPicker((x)=>{
       r.bp_cd = x.bp_cd || null; r.bp_nm = x.bp_cd ? (x.bp_nm||null) : null;
+      ctrlChkTrust("BP", x.bp_cd, x.bp_nm);
       renderDraftForm();
     }, !!(r.bp_cd || r.bp_nm));
   } else if(act === "ref"){
     const cd = b.getAttribute("data-cd");
     const pick = (code, nm)=>{
       r.__ctrl[cd] = code; r.__ctrlNm[cd] = nm || "";
+      ctrlChkTrust(cd, code, nm);   // 마스터 검색에서 고른 값 — 확인 왕복이 필요 없다
       renderDraftForm();
     };
     const kind = b.getAttribute("data-ref");
@@ -2038,7 +2269,10 @@ function validateRows(){
     const miss = ctrlDefsFor(r).filter((d)=> d.req && !String((r.__ctrl||{})[d.cd] ?? "").trim());
     if(miss.length){
       const names = miss.map((d)=> (CTRL_NM.get(d.cd)||{}).ctrl_nm || d.cd);
-      const el = document.querySelector('#draftForm [data-ctrl="'+miss[0].cd+'"][data-seq="'+r.item_seq+'"]');
+      // 칸을 찾는 셀렉터는 실제 속성과 같아야 한다 — `data-ctrl` 은 없는 속성이라
+      // 여태 아무 칸도 강조되지 않았다(토스트만 떴다). 정본은 `data-f="ctrl"` + `data-cd`.
+      const el = document.querySelector('#draftForm input[data-f="ctrl"][data-cd="'+miss[0].cd+'"]'
+                                        + '[data-seq="'+r.item_seq+'"]');
       toast(r.item_seq+"번 줄 — 필수 관리항목을 채우세요: "+names.join(", "), true);
       if(el){ el.classList.add("bad"); el.scrollIntoView({ behavior:"smooth", block:"center" }); el.focus?.(); }
       return false;
@@ -2105,6 +2339,124 @@ function ctrlRefKind(cd){
   if(ref === "B_ITEM") return "item";
   if(CTRL_REF_KINDS[cd] > 0) return "ref";
   return null;
+}
+/* ═══ 관리항목 값 실시간 확인(REQ-0015, 2026-08-28) ═══
+   적은 코드가 ERP 마스터에 실재하는지 **칸을 떠나는 순간** 확인해, 맞으면 이름을·틀리면 경고를
+   그 자리에 띄운다.
+   왜 필요한가(라이브 결함): 손으로 적은 거래처 `123` 이 저장·제출·전송을 모두 통과해 ERP
+   채권원장(A_OPEN_AR) 외래키에서 터졌고, 사용자에게는 읽을 수 없는 ODBC 원문만 돌아왔다.
+   판정 기준은 서버 op `ctrl_check` 하나로 모은다 — 저장·제출·전송이 쓰는 것과 같은 RPC다.
+   층마다 기준이 다르면 화면에서 통과한 값이 전송에서 막힌다.
+   결과는 (항목,값)으로 캐시한다 — 같은 거래처를 여러 줄에 쓰는 전표가 흔하다. */
+const CTRL_CHK = new Map();      // "항목코드|값" → {state:'ok'|'off'|'bad'|'unknown', nm, ctrl_nm}
+const chkKey = (cd,val)=> String(cd||"").trim().toUpperCase()+String.fromCharCode(1)+String(val??"").trim();
+function ctrlInputEl(seq, cd){
+  return document.querySelector('#draftForm input[data-f="ctrl"][data-seq="'+seq
+    + '"][data-cd="'+CSS.escape(String(cd))+'"]');
+}
+/* 그 칸 하나를 감싸는 상자. 7칸을 넘어간 관리항목은 td 가 아니라 div 안에 그려지므로
+   `closest("td")` 로 잡으면 이웃 칸의 이름표를 건드린다 — 입력칸 기준으로 올라간다. */
+function slotBoxOf(inp){
+  return (inp.closest(".wref")?.parentElement) || inp.parentElement;
+}
+/* 아직 모르는 (항목,값)만 서버에 묻는다. 조회 실패는 예외로 올린다 —
+   모르는 것을 '맞다'로 적어 두면 이번 결함(silent-pass)을 그대로 되풀이한다. */
+async function ctrlCheckValues(pairs){
+  const want = pairs
+    .map((p)=> ({ cd:String(p.cd||"").trim().toUpperCase(), val:String(p.val??"").trim() }))
+    .filter((p)=> p.cd && p.val);
+  const ask = [], asked = new Set();
+  want.forEach((p)=>{
+    const k = chkKey(p.cd,p.val);
+    if(CTRL_CHK.has(k) || asked.has(k)) return;
+    asked.add(k); ask.push(p);
+  });
+  if(ask.length){
+    const r = await api("ctrl_check", { pairs: ask });
+    (r.rows||[]).forEach((x)=> CTRL_CHK.set(chkKey(x.cd,x.val),
+      { state:x.state, nm:x.nm||"", ctrl_nm:x.ctrl_nm||x.cd }));
+  }
+  return want.map((p)=> CTRL_CHK.get(chkKey(p.cd,p.val)) || null);
+}
+/* 판정 결과를 이미 아는 값들로 캐시에 적는다(🔍 로 고른 값 — 마스터에서 왔으므로 물어볼 필요가 없다) */
+function ctrlChkTrust(cd, code, nm){
+  const v = String(code||"").trim(); if(!v) return;
+  CTRL_CHK.set(chkKey(cd,v), { state:"ok", nm:String(nm||""),
+                               ctrl_nm:(CTRL_NM.get(cd)||{}).ctrl_nm || cd });
+}
+/* 한 칸에 판정을 칠한다 — 맞으면 초록 이름, 틀리면 붉은 테두리 + 경고 */
+function paintCtrlCheck(seq, cd){
+  const inp = ctrlInputEl(seq, cd); if(!inp) return;
+  const box = slotBoxOf(inp); if(!box) return;
+  box.querySelector(":scope > .refbad")?.remove();
+  inp.classList.remove("badval","chking");
+  const val = String(inp.value||"").trim();
+  const v = val ? CTRL_CHK.get(chkKey(cd,val)) : null;
+  if(!v || v.state==="ok" || v.state==="unknown"){
+    // 코드만 보고는 제대로 골랐는지 알 수 없다 — 맞는 값이면 이름을 밑에 붙인다
+    if(v && v.state==="ok" && v.nm){
+      const cur = box.querySelector(":scope > .refnm");
+      if(cur) cur.textContent = v.nm;
+      else { const s=document.createElement("span"); s.className="refnm"; s.textContent=v.nm; box.appendChild(s); }
+    }
+    return;
+  }
+  box.querySelector(":scope > .refnm")?.remove();
+  inp.classList.add("badval");
+  const s = document.createElement("span");
+  s.className = "refbad";
+  s.textContent = v.state==="off" ? "⚠ 사용중지된 값" : "⚠ ERP에 없는 값";
+  s.title = (v.ctrl_nm||cd)+" '"+val+"' — "
+    + (v.state==="off" ? "ERP에서 사용중지된 값입니다." : "ERP 마스터에 없는 값입니다.")
+    + " 🔍 버튼으로 검색해서 고르세요. 이대로는 제출·전송할 수 없습니다.";
+  box.appendChild(s);
+}
+/* 칸을 떠날 때 그 칸 하나만 확인한다.
+   조회 실패는 조용히 넘긴다 — 네트워크 사정으로 입력이 막히면 안 된다(차단은 제출에서 한다). */
+async function checkCtrlCell(seq, cd, val){
+  const v = String(val||"").trim();
+  if(!v || CTRL_CHK.has(chkKey(cd,v))){ paintCtrlCheck(seq, cd); return; }
+  const inp = ctrlInputEl(seq, cd);
+  inp?.classList.add("chking");
+  try{ await ctrlCheckValues([{ cd, val:v }]); }
+  catch(e){ inp?.classList.remove("chking"); return; }
+  paintCtrlCheck(seq, cd);
+}
+/* 전표 전체를 한 번에 확인한다 — 제출 직전과, 전표를 불러온 직후.
+   문제 목록을 돌려준다(빈 배열이면 통과). 조회 실패는 예외로 올린다. */
+async function ctrlCheckAll(){
+  const pairs = [];
+  rows().forEach((r)=>{
+    if(!r.acct_cd) return;
+    ctrlDefsFor(r).forEach((d)=>{
+      const v = String((r.__ctrl||{})[d.cd] ?? "").trim();
+      if(v) pairs.push({ cd:d.cd, val:v, seq:r.item_seq, where:"ctrl" });
+    });
+    const bp = String(r.bp_cd||"").trim();
+    if(bp) pairs.push({ cd:"BP", val:bp, seq:r.item_seq, where:"bp" });
+  });
+  if(!pairs.length) return [];
+  await ctrlCheckValues(pairs);
+  repaintCtrlChecks();
+  const bad = [];
+  pairs.forEach((p)=>{
+    const v = CTRL_CHK.get(chkKey(p.cd,p.val));
+    if(v && (v.state==="bad" || v.state==="off")){
+      bad.push({ ...p, state:v.state, ctrl_nm:v.ctrl_nm || (CTRL_NM.get(p.cd)||{}).ctrl_nm || p.cd });
+    }
+  });
+  return bad;
+}
+/* 재렌더하면 칸이 새로 그려진다 — 이미 아는 판정을 다시 칠한다 */
+function repaintCtrlChecks(){
+  rows().forEach((r)=>{ if(r.acct_cd) ctrlDefsFor(r).forEach((d)=> paintCtrlCheck(r.item_seq, d.cd)); });
+}
+/* 전표 구성이 바뀌면(불러오기·전표복사·템플릿 적용·행 추가) 조용히 한 번 훑는다.
+   이 경로들이야말로 옛 코드·폐지 코드를 끌고 들어오는 자리다. 실패는 무시한다. */
+let CTRL_AUDIT_T = null;
+function scheduleCtrlAudit(){
+  clearTimeout(CTRL_AUDIT_T);
+  CTRL_AUDIT_T = setTimeout(()=>{ ctrlCheckAll().catch(()=>{}); }, 400);
 }
 /* 라인별 관리항목 입력 현황 — 그리드 배지·필수 진행률 공용 */
 function ctrlStatFor(row){
@@ -2267,6 +2619,8 @@ function loadDraftIntoForm(r){
   HDR_COST_PREV = $("fCost").value; syncCostReq();
   $("fDesc").value = h.gl_desc || ""; $("fProj").value = h.project_no || "";
   HDR_PROJ_PREV = $("fProj").value; syncProjLabel();
+  // ERP 전송에서 막힌 곳을 서식에 함께 얹는다(REQ-0016) — setRows 이전에 세워야 첫 렌더부터 표시된다
+  setFixErr(h); renderFixErr();
   setRows((r.items||[]).map((it)=>{
     const ctrl = {};
     (it.ctrls||[]).forEach((c)=>{ ctrl[c.ctrl_cd] = c.ctrl_val; });
@@ -2681,6 +3035,7 @@ $("formTotal").addEventListener("blur", ()=>{
 function newDraft(){
   CURRENT_NO = null; $("editingNo").textContent = "";
   CURRENT_TPL = null; PREV_SNAP = null;
+  FIX_ERR = null; renderFixErr();     // 다른 전표의 실패 표시가 새 전표에 남지 않게(REQ-0016)
   $("fDesc").value = ""; $("fProj").value = ""; HDR_PROJ_PREV = ""; syncProjLabel();
   $("formTotal").value = "";          // 총액 배분 칸도 비운다 — 이전 전표 금액이 남으면 오배분된다
   // 부서 기준 코스트센터는 처음부터 넣어 둔다(프로젝트는 새 전표라 아직 비어 있다)
@@ -2779,6 +3134,28 @@ $("btnReset").onclick = ()=>{
   newDraft(); markStart("sbNew"); setStartHint("빈 전표입니다 — 아래 서식에 바로 입력하세요");
 };
 $("btnSubmit").onclick = async ()=>{
+  /* 관리항목 값 확인이 먼저다(REQ-0015) — 제출부터는 ERP로 가는 길이라 여기서 막지 않으면
+     ERP가 읽을 수 없는 오류로 되돌려 보낸다. 요약 확인창을 띄우기 전에 본다:
+     "제출하시겠습니까"에 예를 누른 뒤 거절당하면 헛걸음이다. */
+  let refBad = [];
+  try{ refBad = await ctrlCheckAll(); }
+  catch(e){
+    toast("ERP 마스터를 조회하지 못해 관리항목 값을 확인할 수 없습니다 — 잠시 뒤 다시 시도하세요.", true);
+    return;
+  }
+  if(refBad.length){
+    const b0 = refBad[0];
+    const el = b0.where === "bp"
+      ? document.querySelector('#draftForm .pick[data-act="bp"][data-seq="'+b0.seq+'"]')
+      : ctrlInputEl(b0.seq, b0.cd);
+    if(el){ el.scrollIntoView({ behavior:"smooth", block:"center" }); el.focus?.(); }
+    const head = refBad.slice(0,3)
+      .map((x)=> x.seq+"번 줄 "+x.ctrl_nm+" '"+x.val+"'"+(x.state==="off"?"(사용중지)":"")).join(", ");
+    toast("ERP 마스터에 없는 값이 "+refBad.length+"군데 있어 제출할 수 없습니다 — "
+      + head + (refBad.length>3 ? " 외 "+(refBad.length-3)+"건" : "")
+      + ". 🔍 버튼으로 검색해서 고르세요.", true);
+    return;
+  }
   const summary = submitSummary();            // 저장 전에 요약을 만들어 사용자가 먼저 확인한다
   if(!confirm(summary)) return;
   const no = await save(); if(!no) return;
@@ -3390,9 +3767,10 @@ async function startEdit(no, wasReady){
     const r = await api("get", { draft_no: no });
     stopSendPoll();
     $("postDetail").classList.add("hide"); POST_SEL = null;
-    loadDraftIntoForm(r);                       // 폼 채우기 + [전표 작성] 탭으로 전환
+    loadDraftIntoForm(r);                       // 폼 채우기 + [전표 작성] 탭으로 전환(막힌 곳 표시 포함)
+    // 사유는 화면 맨 위 배너와 해당 줄에 남는다(REQ-0016) — 토스트는 어디를 보라는 안내만 한다
     const why = reasonBrief(r.header.erp_last_error);
-    toast(why ? "불러왔습니다 — 지난번 사유: " + why
+    toast(why ? "불러왔습니다 — 막힌 곳을 화면 위 붉은 안내와 해당 줄에 표시했습니다 ("+why+")"
               : no + " 을(를) 불러왔습니다. 고친 뒤 다시 제출하세요.");
   }catch(e){ toast(e.message, true); loadPost(); }
 }

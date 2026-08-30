@@ -4,7 +4,22 @@
 //   body: { op: "bootstrap"|"save"|"mine"|"get"|"submit"|"void"|"bp"|"item"|"list"|"post"
 //              |"tpl_list"|"tpl_get"|"tpl_save"|"tpl_status"|"tpl_delete"|"tpl_use"
 //              |"tpl_recur_list"|"tpl_apply_prev"|"tpl_seed_bulk"
-//              |"slip_list"|"slip_get"|"apply_request"|"apply_cancel"|"apply_health"|"unsubmit", ... }
+//              |"slip_list"|"slip_get"|"apply_request"|"apply_cancel"|"apply_health"|"unsubmit"
+//              |"ctrl_ref"|"ctrl_check", ... }
+// v5.11(2026-08-28): 관리항목 참조검증 복구 + 즉시 검증(REQ-0015 — 라이브 결함).
+//   ① **종전 검증은 동작하지 않았다.** refValid() 가 `erp_ro` 를 REST로 직접 조회했는데
+//      이 스키마는 REST 비노출이라 조회가 조용히 빈 결과를 돌려주고, 코드는 그것을
+//      "참조 마스터가 없는 항목"으로 해석해 **무조건 통과**시켰다. 실증: 프로젝트
+//      `999-999`(미러 701건 적재)가 그대로 저장됐고, 손입력 거래처 `123` 이 ERP까지 가
+//      채권원장(A_OPEN_AR) 외래키 위반을 냈다(AX260828-U001-002).
+//      → 판정을 RPC `gl_ctrl_ref_check`(정본 이관/sql/33)로 옮긴다. 스키마 노출과 무관하게 돈다.
+//   ② **거래처·품목이 검증 대상 밖이었다.** BP·V6·X01·MK 는 통합 미러 ctrl_ref_s 에
+//      적재하지 않는다(전용 검색 RPC를 쓰므로). RPC가 ref_tbl 을 보고 전용 미러로 판정한다.
+//   ③ **조회 실패를 더는 통과로 해석하지 않는다.** 판정 자체가 실패하면 503으로 드러낸다 —
+//      이번 결함의 근원이 silent-pass 다.
+//   ④ 차단 강도(관리자 결정 2026-08-28): 저장은 허용(작성 중일 수 있다) + warnings,
+//      **제출·ERP 전송에서 차단**. 종전 PC 하드 400 도 이 규칙에 맞춰 warnings 로 내린다.
+//   ⑤ op `ctrl_check` 신설 — 화면이 칸을 떠나는 즉시 값을 확인해 이름/경고를 그 자리에 띄운다.
 // v5.10(2026-08-27): 화면 용어 정리 + 참조번호 채번규칙 재정립(관리자 지시).
 //   ① 화면에서 「초안」을 걷어내고 「이력」·「참조번호」로 통일했다. 사용자에게 나가는 문구
 //      (error·안내)만 바꾸고, 데이터·API 이름(gl_draft·draft_no·status 'draft')은 그대로다.
@@ -233,30 +248,82 @@ Deno.serve(async (req) => {
     catch { _ctrlMaster = {}; }
     return _ctrlMaster;
   };
-  /* 참조 마스터 값 검증(2026-08-20 레드팀 조치) — 저장 시 코드가 ERP 마스터에 있는지 확인한다.
-     검색은 붙였지만 저장 검증이 없어, 복사·템플릿·API 직접호출로 임의값이 들어갈 수 있었다.
-     적재되지 않은 관리항목(참조 없음)은 검증 대상이 아니므로 통과시킨다 — 없는 걸 막을 수는 없다.
-     한 요청 안에서 같은 (항목,값)은 한 번만 조회한다(라인 수만큼 왕복하지 않게). */
-  const refCache = new Map<string, boolean>();
-  const refLoaded = new Map<string, boolean>();
-  const refValid = async (ctrlCd: string, val: string): Promise<boolean> => {
-    const cd = String(ctrlCd || "").trim();
-    const v = String(val || "").trim();
-    if (!cd || !v) return true;
-    const key = cd + " " + v;
-    if (refCache.has(key)) return refCache.get(key)!;
-    // 이 관리항목이 참조 미러에 적재돼 있는지 먼저 본다(미적재면 검증 자체를 하지 않는다)
-    if (!refLoaded.has(cd)) {
-      const { count } = await admin.schema("erp_ro").from("ctrl_ref_s")
-        .select("ref_cd", { count: "exact", head: true }).eq("ctrl_cd", cd);
-      refLoaded.set(cd, (count || 0) > 0);
+  /* 참조 마스터 값 판정(REQ-0015, 2026-08-28) — 관리항목 값이 ERP 마스터에 실재하는가.
+     판정 기준은 RPC `gl_ctrl_ref_check` 한 곳뿐이다(정본 이관/sql/33). 화면 즉시검증(op ctrl_check)·
+     저장·제출·ERP 전송이 모두 이 함수를 부른다 — 층마다 기준이 다르면 화면에서 통과한 값이
+     전송에서 막히는 일이 생긴다.
+     종전 구현(2026-08-20 레드팀 조치)은 `erp_ro` 를 REST 로 직접 조회했는데 그 스키마는 REST
+     비노출이라 조회가 조용히 빈 결과를 냈고, 코드는 그것을 '참조 마스터가 없는 항목'으로 읽어
+     **전부 통과**시켰다. 검증이 있는 줄 알았지만 없었다.
+     그래서 여기서는 **조회 실패를 통과로 해석하지 않는다** — 예외를 던져 호출측이 503 으로 드러낸다.
+     한 요청 안에서 같은 (항목,값)은 한 번만 묻는다(라인 수만큼 왕복하지 않게). */
+  type RefState = "ok" | "off" | "bad" | "unknown";
+  type RefVerdict = { state: RefState; nm: string | null; ctrl_nm: string };
+  const refSeen = new Map<string, RefVerdict>();
+  const refKey = (cd: string, val: string) =>
+    String(cd || "").trim().toUpperCase() + String.fromCharCode(1) + String(val ?? "").trim();
+  const refCheck = async (
+    pairs: { cd: string; val: string }[],
+  ): Promise<Map<string, RefVerdict>> => {
+    const want = pairs
+      .map((p) => ({ cd: String(p.cd || "").trim().toUpperCase(), val: String(p.val ?? "").trim() }))
+      .filter((p) => p.cd && p.val);
+    const ask = want.filter((p) => !refSeen.has(refKey(p.cd, p.val)));
+    if (ask.length) {
+      const { data, error } = await admin.rpc("gl_ctrl_ref_check", { p_pairs: ask });
+      if (error) throw new Error("ctrl_ref_check_unavailable: " + error.message);
+      // deno-lint-ignore no-explicit-any
+      for (const row of ((data || []) as any[])) {
+        refSeen.set(refKey(String(row.cd), String(row.val)), {
+          state: String(row.state || "unknown") as RefState,
+          nm: row.nm ?? null,
+          ctrl_nm: String(row.ctrl_nm || row.cd || ""),
+        });
+      }
+      // RPC 가 돌려주지 않은 쌍(있을 수 없지만 방어) — 판정 불가로 남긴다
+      for (const p of ask) {
+        const k = refKey(p.cd, p.val);
+        if (!refSeen.has(k)) refSeen.set(k, { state: "unknown", nm: null, ctrl_nm: p.cd });
+      }
     }
-    if (!refLoaded.get(cd)) { refCache.set(key, true); return true; }
-    const { count } = await admin.schema("erp_ro").from("ctrl_ref_s")
-      .select("ref_cd", { count: "exact", head: true }).eq("ctrl_cd", cd).eq("ref_cd", v);
-    const ok = (count || 0) > 0;
-    refCache.set(key, ok);
-    return ok;
+    const out = new Map<string, RefVerdict>();
+    for (const p of want) out.set(refKey(p.cd, p.val), refSeen.get(refKey(p.cd, p.val))!);
+    return out;
+  };
+  /* 판정을 사람이 읽는 한 줄로. 통과(ok)·판정대상아님(unknown)이면 null.
+     문구 규칙은 릴레이 stop() 과 같다 — 무엇이 잘못됐나 + 다음에 할 일. */
+  const refProblem = (
+    line: number, cd: string, val: string, v: RefVerdict | undefined,
+  ): string | null => {
+    if (!v || v.state === "ok" || v.state === "unknown") return null;
+    const nm = v.ctrl_nm || cd;
+    return v.state === "off"
+      ? `${line}번 줄: ${nm}(${cd}) '${val}' 은(는) ERP에서 사용중지된 값입니다. 🔍 검색해서 쓰는 값을 고르세요.`
+      : `${line}번 줄: ${nm}(${cd}) '${val}' 은(는) ERP 마스터에 없습니다. 🔍 검색해서 선택하세요.`;
+  };
+  /* 저장된 초안을 다시 판정한다 — 제출·ERP 전송 직전 방어선.
+     저장은 경고만 하고 통과시키므로(관리자 결정 2026-08-28), 틀린 값을 실제로 막는 곳은 여기다. */
+  const refProblemsOfDraft = async (no: string): Promise<string[]> => {
+    const { data: its } = await admin.from("gl_draft_item")
+      .select("item_seq,bp_cd,project_no").eq("draft_no", no);
+    const { data: cs } = await admin.from("gl_draft_item_ctrl")
+      .select("item_seq,ctrl_cd,ctrl_val").eq("draft_no", no);
+    const pairs: { cd: string; val: string; line: number }[] = [];
+    for (const it of (its || [])) {
+      if (it.bp_cd) pairs.push({ cd: "BP", val: String(it.bp_cd), line: Number(it.item_seq) });
+      if (it.project_no) pairs.push({ cd: "PC", val: String(it.project_no), line: Number(it.item_seq) });
+    }
+    for (const c of (cs || [])) {
+      pairs.push({ cd: String(c.ctrl_cd || ""), val: String(c.ctrl_val ?? ""), line: Number(c.item_seq) });
+    }
+    const verdicts = await refCheck(pairs);
+    const out: string[] = [];
+    for (const p of pairs) {
+      const msg = refProblem(p.line, String(p.cd).trim().toUpperCase(), String(p.val).trim(),
+                             verdicts.get(refKey(p.cd, p.val)));
+      if (msg && !out.includes(msg)) out.push(msg);
+    }
+    return out.sort();
   };
 
   // 계정×차대별 관리항목 요건: Map<acct_cd, {cd, seq, req(해당 방향 필수)}[]>
@@ -607,6 +674,36 @@ Deno.serve(async (req) => {
     return json({ ok: true, rows: data || [] });
   }
 
+  /* ===== op: ctrl_check — 관리항목 값 즉시 판정(REQ-0015) =====
+     화면이 칸을 떠나는 순간 부른다. 맞으면 코드 아래에 이름을, 틀리면 경고를 그 자리에 띄운다.
+     "저장을 눌러야 틀린 걸 안다"와 "칸을 떠나면 안다"는 회계 담당자에게 전혀 다른 경험이다.
+     판정 기준은 저장·제출·전송과 **같은 RPC 하나**다 — 층마다 다르면 화면에서 통과한 값이
+     전송에서 막히는 일이 생긴다. */
+  if (op === "ctrl_check") {
+    const raw = Array.isArray(b.pairs) ? (b.pairs as Record<string, unknown>[]) : [];
+    const pairs = raw.slice(0, 200)
+      .map((p) => ({ cd: String(p.cd || "").trim().toUpperCase(),
+                     val: (clip(p.val, CTRL_VAL_MAX) || "") }))
+      .filter((p) => p.cd && p.val);
+    if (!pairs.length) return json({ ok: true, rows: [] });
+    let verdicts: Map<string, RefVerdict>;
+    try {
+      verdicts = await refCheck(pairs);
+    } catch {
+      return json({ error: "ctrl_ref_unavailable",
+        안내: "ERP 마스터를 조회하지 못했습니다 — 잠시 뒤 다시 시도하세요." }, 503);
+    }
+    // 민감 항목(사번·계좌·카드·어음·차입) 조회는 누가 언제 봤는지 남긴다(CLAUDE.md §6).
+    // 값은 남기지 않는다 — 항목 코드와 건수만.
+    const sens = [...new Set(pairs.filter((p) => SENSITIVE_CTRL.has(p.cd)).map((p) => p.cd))];
+    if (sens.length) log("ctrl_check", null, { ctrl_cds: sens, n: pairs.length });
+    return json({ ok: true, rows: pairs.map((p) => {
+      const v = verdicts.get(refKey(p.cd, p.val));
+      return { cd: p.cd, val: p.val, state: v?.state || "unknown",
+               nm: v?.nm ?? null, ctrl_nm: v?.ctrl_nm || p.cd };
+    }) });
+  }
+
   /* ===== op: item — 품목 검색(관리항목 MK 팝업용, 2자 이상, 최대 30건) ===== */
   if (op === "item") {
     const q = String(b.q || "").trim();
@@ -705,6 +802,9 @@ Deno.serve(async (req) => {
     const costSet = new Set(costCenters.map((c) => String(c.cost_cd).trim()));
 
     const items: Record<string, unknown>[] = [];
+    // 실존 판정을 물어볼 (관리항목, 값, 줄번호) 목록. 라인 루프·관리항목 루프에서 모아
+    // 두 루프가 끝난 뒤 **한 번에** 판정한다(RPC 왕복 1회).
+    const refPairs: { cd: string; val: string; line: number }[] = [];
     let dr = 0, cr = 0;
     for (let i = 0; i < itemsIn.length; i++) {
       const r = itemsIn[i];
@@ -724,11 +824,12 @@ Deno.serve(async (req) => {
       if (String(acct.project_fg || "") === "Y" && !projectNo) {
         return json({ error: `${line}번 줄: '${acct.acct_nm}' 계정은 프로젝트가 필요합니다.` }, 400);
       }
-      // 프로젝트 코드 화이트리스트(2026-08-20) — 화면은 조회식이지만 복사·템플릿·API 직접호출로
-      // 임의값이 들어올 수 있다. 실제로 자유입력 시절 '2026-01'(월 표기)이 저장된 초안이 있었다.
-      if (projectNo && !(await refValid("PC", projectNo))) {
-        return json({ error: `${line}번 줄: 프로젝트 '${projectNo}' 는 ERP 프로젝트 마스터에 없습니다. 검색해서 선택하세요.` }, 400);
-      }
+      // 프로젝트·거래처 값은 화면이 조회식이지만 복사·템플릿·API 직접호출로 임의값이 들어올 수
+      // 있다(자유입력 시절 '2026-01' 월 표기가 저장된 초안이 실재한다). 판정은 라인마다 왕복하지
+      // 않고 아래에서 한 번에 한다 — 여기서는 물어볼 목록만 모은다.
+      if (projectNo) refPairs.push({ cd: "PC", val: projectNo, line });
+      const lineBp = clip(r.bp_cd, 30);
+      if (lineBp) refPairs.push({ cd: "BP", val: lineBp, line });
 
       // 코스트센터 필수 + 화이트리스트 재검증(화면 값만 믿지 않는다 — 폐지 코드 유입 차단)
       const lineCost = (clip(r.cost_cd, 10) || clip(h.cost_cd, 10) || "").trim();
@@ -769,10 +870,7 @@ Deno.serve(async (req) => {
       const m = await ctrlMaster();
       // deno-lint-ignore no-explicit-any
       const known = new Set(((m.ctrl_items || []) as any[]).map((c) => String(c.ctrl_cd).trim()));
-      // 오류 메시지에 코드 대신 항목명을 보여주기 위한 사전(예: PC → 프로젝트코드)
-      // deno-lint-ignore no-explicit-any
-      const ctrlNmOf = new Map<string, string>(((m.ctrl_items || []) as any[])
-        .map((c) => [String(c.ctrl_cd).trim(), String(c.ctrl_nm || "").trim()]));
+      // (항목명 사전은 판정 RPC 가 ctrl_nm 을 함께 돌려주므로 여기서 만들지 않는다 — v5.11)
       const reqD = await acctCtrlFor("D");
       const reqC = await acctCtrlFor("C");
       for (let i = 0; i < itemsIn.length; i++) {
@@ -797,15 +895,9 @@ Deno.serve(async (req) => {
           const inv = Number(c.invoice_seq);
           given.set(cd, { val, inv: Number.isInteger(inv) && inv > 0 ? inv : null });
         }
-        // 참조 마스터가 있는 관리항목은 값이 실제로 존재하는 코드인지 확인한다(2026-08-20).
-        // 틀린 코드는 ERP 투입 단계에서야 터지므로, 저장 시점에 잡아 돌려보낸다.
-        for (const [cd, v] of given) {
-          if (!(await refValid(cd, v.val))) {
-            const nm = (ctrlNmOf.get(cd) || cd);
-            return json({ error: "ctrl_ref_invalid",
-              안내: `${line}번 줄: ${nm}(${cd}) 값 '${v.val}' 은(는) ERP 마스터에 없습니다. 🔍 검색해서 선택하세요.` }, 400);
-          }
-        }
+        // 참조 마스터가 있는 관리항목은 값이 실제로 존재하는 코드인지 확인한다(REQ-0015).
+        // 판정은 아래에서 한 번에 — 여기서는 물어볼 목록만 모은다.
+        for (const [cd, v] of given) refPairs.push({ cd, val: v.val, line });
         given.forEach((v, cd) =>
           ctrlRows.push({ item_seq: line, ctrl_cd: cd, ctrl_val: v.val, invoice_seq: v.inv }));
         // V6(거래처코드) ↔ 라인 거래처 일치 — 데이터 정합(하드, 세액 계산 아님)
@@ -828,6 +920,24 @@ Deno.serve(async (req) => {
         if (v2 && /^\d{4}-\d{2}-\d{2}$/.test(v2) && v2 > draftDt) {
           warnings.push(`${line}번 줄: 계산서일(${v2})이 결의일자(${draftDt})보다 미래입니다 — 실물 계산서를 확인하세요.`);
         }
+      }
+    }
+
+    /* --- 관리항목·거래처·프로젝트 값 실존 판정(REQ-0015) ---
+       **저장은 막지 않는다** — 작성 중에 코드를 아직 못 찾았을 수 있다(관리자 결정 2026-08-28).
+       경고로 알리고, 실제 차단은 제출(op submit)·ERP 전송(op apply_request)에서 한다.
+       판정 자체가 실패하면 조용히 통과시키지 않는다 — 그 silent-pass 가 이번 결함의 근원이다. */
+    if (refPairs.length) {
+      let verdicts: Map<string, RefVerdict>;
+      try {
+        verdicts = await refCheck(refPairs);
+      } catch {
+        return json({ error: "ctrl_ref_unavailable",
+          안내: "ERP 마스터를 조회하지 못해 관리항목 값을 확인할 수 없습니다. 잠시 뒤 다시 저장하세요." }, 503);
+      }
+      for (const p of refPairs) {
+        const msg = refProblem(p.line, p.cd, p.val, verdicts.get(refKey(p.cd, p.val)));
+        if (msg && !warnings.includes(msg)) warnings.push(msg);
       }
     }
 
@@ -955,6 +1065,22 @@ Deno.serve(async (req) => {
     if (Number(cur.dr_total) !== Number(cur.cr_total)) {
       return json({ error: "차변·대변 합계가 일치하지 않아 제출할 수 없습니다." }, 400);
     }
+    /* 관리항목 값 최종 확인(REQ-0015) — 제출부터는 ERP로 가는 길이다.
+       저장은 경고만 하고 통과시키므로, 틀린 값을 실제로 막는 첫 지점이 여기다.
+       종전에는 이 확인이 없어 손입력 거래처가 ERP 채권원장 외래키에서 터졌다. */
+    let refBad: string[] = [];
+    try {
+      refBad = await refProblemsOfDraft(no);
+    } catch {
+      return json({ error: "ctrl_ref_unavailable",
+        안내: "ERP 마스터를 조회하지 못해 관리항목 값을 확인할 수 없습니다. 잠시 뒤 다시 제출하세요." }, 503);
+    }
+    if (refBad.length) {
+      log("submit_blocked", no, { reason: "ctrl_ref_invalid", n: refBad.length });
+      return json({ error: "ctrl_ref_invalid",
+        안내: "ERP 마스터에 없는 값이 있어 제출할 수 없습니다. 보내면 ERP가 거부합니다.\n"
+              + refBad.join("\n") }, 400);
+    }
     const { error } = await admin.from("gl_draft")
       .update({ status: "submitted", submitted_at: nowIso, updated_at: nowIso }).eq("draft_no", no);
     if (error) return json({ error: "제출 실패: " + error.message }, 500);
@@ -1058,6 +1184,22 @@ Deno.serve(async (req) => {
     if (cur.erp_apply_status === "ready") {
       return json({ ok: true, 안내: "이미 전송 대기 중입니다 — 중계가 곧 처리합니다.",
         last_error: cur.erp_last_error || null });
+    }
+    /* 관리항목 값 확인(REQ-0015) — 2차 방어선.
+       제출 시 이미 봤지만, 제출 회수(unsubmit) 후 값을 고치고 다시 제출하지 않은 경로와
+       제출 검증이 없던 시절에 굳은 건이 남아 있다. 대기로 올리기 전에 한 번 더 본다. */
+    let refBadApply: string[] = [];
+    try {
+      refBadApply = await refProblemsOfDraft(no);
+    } catch {
+      return json({ error: "ctrl_ref_unavailable",
+        안내: "ERP 마스터를 조회하지 못해 관리항목 값을 확인할 수 없습니다. 잠시 뒤 다시 시도하세요." }, 503);
+    }
+    if (refBadApply.length) {
+      log("apply_blocked", no, { reason: "ctrl_ref_invalid", n: refBadApply.length });
+      return json({ error: "ctrl_ref_invalid",
+        안내: "ERP 마스터에 없는 값이 있어 전송할 수 없습니다. 작성자가 제출을 회수해 값을 고쳐야 합니다.\n"
+              + refBadApply.join("\n") }, 400);
     }
     const retry = !!cur.erp_last_error;   // 직전에 실패했던 건의 재전송인가
     // erp_last_error 는 일부러 건드리지 않는다 — 재전송해도 "직전에 왜 실패했는지"가 남아야
