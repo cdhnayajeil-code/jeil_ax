@@ -47,19 +47,20 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
   <div class="content">
 <h1 id="21">21. 퇴사 처리 일괄 적용 — 기획</h1>
 <blockquote>
-<p><strong>작성일 2026-09-07 · v0.4(그룹웨어 자동화 구현 — 권한 차단 확인) · 관리: 최동혁 · 요청: 관리자</strong>
+<p><strong>작성일 2026-09-07 · v0.5(그룹웨어 자동화 실증 완료 — 3축 중 2축 자동화) · 관리: 최동혁 · 요청: 관리자</strong>
 계정 통합관리 화면(<code>/admin/accounts</code>)에서 <strong>퇴사 처리를 한 번에</strong> 걸어 ERP·그룹웨어·MS 세 시스템에
 일괄 적용하는 기능의 기획. 테스트 계정 <code>test@jeilm.co.kr</code> 로 3축 실측한 결과를 근거로 한다.
 관련: <code>00_현재상태_스냅샷</code>(v0.43) · <code>이관/sql/34·36·37</code> · 화면 <code>app/admin-accounts.html</code></p>
 </blockquote>
 <hr />
 <h2 id="1">1. 한 줄 결론</h2>
-<p><strong>ERP 는 이미 자동화 경로가 있다(v0.2 정정). 막힌 것은 그룹웨어·MS 두 축이다.</strong></p>
+<p><strong>ERP·그룹웨어 두 축은 자동화가 실증됐다(v0.5). 남은 것은 MS 한 축이다.</strong></p>
 <p>v0.1 에서 "3축 모두 쓰기 불가"라고 썼는데 <strong>틀렸다.</strong> 관리자 확인으로 ERP 퇴사 처리가
 <strong>Power Automate 흐름 + SharePoint 목록</strong>으로 이미 운영 중임을 확인했다(§3.2). 포털은 목록에
 <strong>등재만</strong> 하면 되고 ERP 쓰기는 그 흐름이 한다 — 포털이 ERP MSSQL 을 직접 건드리지 않으므로
 <code>CLAUDE.md §1.2</code> 도 지켜진다. <strong>원천을 안 보고 "불가"로 단정했던 것이 오류였다.</strong></p>
-<p>남은 것은 그룹웨어(DB 권한 없음)·MS(Graph 403) 두 축이고, 둘 다 권한 문제라 해소 경로가 분명하다.</p>
+<p>그룹웨어도 v0.5 에서 해결됐다 — DB 쓰기 권한은 여전히 없지만 <strong>관리자 화면을 Playwright 로 조작</strong>해
+테스트 계정을 실제로 사용중지 처리했다(§5.4). 남은 것은 <strong>MS 한 축</strong>(Graph 403)뿐이다.</p>
 <hr />
 <h2 id="2">2. 무엇을 만들려는가</h2>
 <p>관리자가 대사 화면에서 퇴사자를 고르고 <strong>[퇴사 처리]</strong> 를 누르면, 세 시스템에 같은 처리가 일괄 적용된다.</p>
@@ -470,42 +471,101 @@ Playwright 는 <code>page.on("dialog", ...)</code> 로 <strong>정식 처리</st
 <li><strong>금지 조작 하드코딩 차단</strong> — 삭제 버튼·메일 삭제 체크박스는 코드에서 아예 다루지 않는다.</li>
 <li><strong>UI 변경 감지</strong> — 선택자를 못 찾으면 즉시 중단하고 Phase 1 지시서로 폴백. 조용히 잘못 누르는 것보다 멈추는 게 낫다.</li>
 </ol>
-<h3 id="54-2026-09-07">5.4 구현·실행 결과 (2026-09-07, 관리자 승인 후 착수)</h3>
-<p>Playwright(1.62.0) + Chromium 설치 완료. 스크립트 <strong><code>10_ERP_DB연계/etl/gw_offboard.py</code></strong> 작성해 실행했다.</p>
-<pre><code>python gw_offboard.py --login-id wc.kim --name 김우철 --retire-date 2023-12-22          # dry-run(기본)
-python gw_offboard.py --login-id wc.kim --name 김우철 --retire-date 2023-12-22 --apply  # 실제 저장
+<h3 id="54-2026-09-07">5.4 구현·실행 결과 — <strong>실증 완료</strong> (2026-09-07)</h3>
+<p>Playwright(1.62.0) + Chromium 설치, 스크립트 <strong><code>10_ERP_DB연계/etl/gw_offboard.py</code></strong> 작성.
+관리자 계정(<code>ai.jeil@jeilm.co.kr</code>)으로 <code>.env.local</code> 을 교체받아 <strong>dry-run → 실제 저장까지 전 구간 성공</strong>했다.</p>
+<pre><code>python 10_ERP_DB연계/etl/gw_offboard.py -i test@jeilm.co.kr -n &quot;테스트 계정&quot; -d 2026-09-07 --apply
 </code></pre>
-<p><strong>검증된 것</strong>
-- 관리자 로그인 성공(자격증명은 <code>.env.local</code> 에서만 읽고 출력하지 않음)
-- 로그인 실패를 <strong>1회로 끊고 재시도하지 않는다</strong> — 계정 잠금 방지. ID 칸이 비면 제출 전에 중단
-- 관리자 콘솔 진입 성공, 단계별 증적 스크린샷 저장(<code>_gw_shots/</code>, git 제외)</p>
-<p><strong>막힌 것 — 권한</strong>
-<code>.env.local</code> 의 그룹웨어 계정은 <strong><code>조회용</code>(총무팀)</strong> 으로, 수집(SELECT) 목적의 읽기 계정이다.
-이 계정의 관리자 메뉴에는 <strong>「기본정보관리 &gt; 직원관리」가 아예 없다.</strong></p>
+<p><strong>실행 결과(테스트 계정)</strong></p>
 <table>
 <thead>
 <tr>
-<th>보이는 관리자 메뉴</th>
-<th>업무관리 · 게시판관리 · 커뮤니티관리 · 설문조사관리 · 자원관리</th>
+<th>단계</th>
+<th>결과</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td><strong>없는 메뉴</strong></td>
-<td><strong>기본정보관리(직원관리·퇴사자 조회 등)</strong></td>
+<td>1) 관리자 로그인</td>
+<td>✅ (중복 로그인 시 시크릿키로 강제 로그인)</td>
+</tr>
+<tr>
+<td>2) 직원관리 이동</td>
+<td>✅ 로그인 계정 <code>ai.jeil</code></td>
+</tr>
+<tr>
+<td>3) 기준일자 자동(2026-08-08) 검색</td>
+<td>✅ 카드 1건 <code>총무팀 사원 테스트 계정</code></td>
+</tr>
+<tr>
+<td>4~5) 편집 폼 + 3중 대조</td>
+<td>✅ 로그인ID·사원명 일치, 퇴사일 <code>2200-12-31</code>(센티넬) 판정</td>
+</tr>
+<tr>
+<td>6) 사용중지 클릭</td>
+<td>✅ <strong>confirm·alert 2개 정식 처리</strong></td>
+</tr>
+<tr>
+<td>7~8) 퇴사일 확인 · 위험 옵션 미체크</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>9) 저장</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>10) 퇴사자 조회 재검증</td>
+<td>✅ <code>사용여부=사용중지 · 퇴사일=2026-09-07</code></td>
+</tr>
+<tr>
+<td>원천 직접 확인</td>
+<td>✅ <code>useState=1(미사용)</code> · <code>endDate=2026-09-07</code></td>
 </tr>
 </tbody>
 </table>
-<p>스크립트는 이 상황을 <strong>정확히 감지하고 안전하게 중단</strong>한다(보이는 메뉴 목록까지 출력).
-조용히 엉뚱한 곳을 누르지 않는다는 점에서 설계대로 동작한 것이다.</p>
+<p><strong>돌리면서 화면이 문서와 다르게 동작한 지점 4곳을 교정했다</strong> — 실행해 보지 않았으면 못 찾았을 것들이다.</p>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>실제 동작</th>
+<th>처음 잘못 짠 것</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>「시크릿키」 칸은 <strong>첫 로그인 시도 뒤에</strong> 나타난다(중복 로그인 차단)</td>
+<td>시도 전에 찾아서 못 봄 → 2단계 로그인</td>
+</tr>
+<tr>
+<td>2</td>
+<td>좌측 하위 메뉴(<code>div.SubTab</code>, jstree)는 <strong>진입 직후 이미 Expanded</strong></td>
+<td>'기본정보관리'를 눌러 <strong>스스로 접고 있었다</strong></td>
+</tr>
+<tr>
+<td>3</td>
+<td>메뉴 <code>&lt;a&gt;</code> 안에 아이콘 자식이 있다</td>
+<td>텍스트 리프로 찾아 <strong>권한 있는 계정을 "권한 없음"으로 오판</strong></td>
+</tr>
+<tr>
+<td>4</td>
+<td>사용여부 라디오는 CSS 로 숨김, 라벨만 노출</td>
+<td><code>visible</code> 대기 → 타임아웃. <code>attached</code> 대기 + 라벨 클릭</td>
+</tr>
+</tbody>
+</table>
+<p><strong>퇴사일 센티넬은 값이 하나가 아니다</strong> — 실측 <code>2200-12-31</code> · <code>2555-07-01</code>.
+특정 값을 나열하지 않고 <strong>"오늘보다 미래면 센티넬"</strong> 로 판정한다(실제 퇴사일은 과거일 수밖에 없다).</p>
+<p><strong>도구로서의 교정 2건</strong> — 붙여넣기로 쓰는 도구인데 명령 길이·줄바꿈이 실패 원인이 됐다.
+- 인자에 섞여 들어온 개행·연속 공백을 받는 즉시 한 칸으로 정규화(검색 0건 사고)
+- 짧은 플래그(<code>-i -n -d -b</code>) + 기준일자 자동 보정(퇴사일 30일 전 → 0건이면 오늘 재시도)
+  → 명령이 한 줄에 들어가 두 줄로 쪼개지지 않는다</p>
 <blockquote>
-<p><strong>자동화가 실패한 게 아니라, 자격증명이 조회 전용이라 시작할 수 없는 상태다.</strong>
-스크립트는 완성돼 있고 권한만 열리면 그대로 돈다.</p>
+<p>⚠ <strong>테스트 계정은 그룹웨어 미러에 잡히지 않는다</strong> — 이메일이 비어 있기 때문(§3.4①).
+화면 자동화는 로그인ID 로 동작해 성공했지만, <strong>대사 화면은 이 계정을 못 본다.</strong>
+일괄 처리를 붙이려면 로그인ID 보조키(결정 항목 E)가 선행돼야 한다는 것이 실물로 확인됐다.</p>
 </blockquote>
-<p><strong>권고 — 자동화 전용 계정 신설</strong>
-<code>조회용</code> 에 쓰기 권한을 얹는 것은 계정 이름·용도와 어긋나고 수집 계정의 위험도를 올린다.
-관리자 개인 계정을 쓰는 것도 부적절하다(자격증명 보관·감사 추적이 개인에게 귀속).
-→ <strong>직원관리 권한만 가진 자동화 전용 계정</strong>(예: <code>svc.offboard</code>)을 만들고 <code>.env.local</code> 을 교체한다.</p>
 <h3 id="55">5.5 한계와 전제</h3>
 <ul>
 <li><strong>화면 자동화는 벤더 UI 변경에 취약하다.</strong> ONUL Ware 업데이트 한 번에 깨질 수 있다.
@@ -596,10 +656,16 @@ python gw_offboard.py --login-id wc.kim --name 김우철 --retire-date 2023-12-2
 <td><strong>완료</strong></td>
 </tr>
 <tr>
-<td><strong>J</strong></td>
-<td><strong>그룹웨어 자동화 전용 계정 신설 + 「기본정보관리 &gt; 직원관리」 권한 부여</strong> — 현재 <code>.env.local</code> 계정(<code>조회용</code>)에 이 메뉴가 없어 자동화가 시작조차 못 한다(§5.4). 권한만 열리면 스크립트는 그대로 동작</td>
-<td>최동혁(그룹웨어 관리자)</td>
-<td><strong>대기 · 그룹웨어 축의 유일한 차단 요인</strong></td>
+<td>~~J~~</td>
+<td>~~그룹웨어 자동화 계정 권한~~ <strong>해소</strong>(2026-09-07) — <code>.env.local</code> 을 <code>ai.jeil@jeilm.co.kr</code> 로 교체받아 실증 완료(§5.4)</td>
+<td>—</td>
+<td><strong>완료</strong></td>
+</tr>
+<tr>
+<td><strong>J2</strong></td>
+<td>그룹웨어 자동화 계정을 <strong>전용 서비스 계정</strong>으로 분리할지 — 현재 <code>ai.jeil</code> 은 다른 용도와 공유되고, 강제 로그인 시 <strong>기존 세션이 끊긴다</strong>(사람이 쓰던 중이면 튕긴다)</td>
+<td>최동혁</td>
+<td><strong>검토</strong></td>
 </tr>
 <tr>
 <td>H</td>
@@ -626,6 +692,11 @@ python gw_offboard.py --login-id wc.kim --name 김우철 --retire-date 2023-12-2
 </tr>
 </thead>
 <tbody>
+<tr>
+<td>2026-09-07</td>
+<td><strong>v0.5 — 그룹웨어 축 자동화 실증 완료.</strong> 관리자 계정(<code>ai.jeil</code>)으로 교체받아 <code>gw_offboard.py</code> 를 dry-run → <code>--apply</code> 까지 돌려 테스트 계정을 <strong>실제로 사용중지 처리</strong>했다. 저장 후 퇴사자 조회 재검증 통과, 그룹웨어 원천 직접 확인(<code>useState=1</code> · <code>endDate=2026-09-07</code>)까지 마쳤다. 실행하면서 화면이 문서와 다르게 동작하는 4곳(시크릿키 노출 시점 · 아코디언 기본 펼침 · jstree 노드 탐지 · 숨김 라디오)을 교정했고, 퇴사일 센티넬이 한 값이 아님(<code>2200-12-31</code>·<code>2555-07-01</code>)을 확인해 "미래면 센티넬" 로 일반화했다. 붙여넣기 줄바꿈으로 두 번 실패해 인자 정규화 + 짧은 플래그 + 기준일자 자동 보정을 넣었다. <strong>이로써 ERP·그룹웨어 2축 자동화가 실증되고 MS 한 축만 남았다.</strong> 다만 테스트 계정이 이메일 부재로 미러에 안 잡혀, 결정 항목 E(로그인ID 보조키)가 일괄 처리의 선행 조건임이 실물로 확인됐다</td>
+<td>최동혁(+Claude)</td>
+</tr>
 <tr>
 <td>2026-09-07</td>
 <td><strong>v0.4 — 그룹웨어 화면 자동화 구현.</strong> 관리자 승인으로 Playwright 1.62.0 + chromium 설치, <code>etl/gw_offboard.py</code> 작성(13단계 절차 코드화 · dry-run 기본 · 3중 대조 · 모달 정식 처리 · 단계별 증적 · 위험 옵션 차단). 실행 결과 <strong>로그인·관리자 진입까지 성공했으나 「기본정보관리 &gt; 직원관리」 메뉴가 없어 중단</strong> — <code>.env.local</code> 의 그룹웨어 계정이 수집용 <code>조회용</code> 이라 인사 관리 권한이 없다(§5.4). 스크립트는 이 상황을 감지해 보이는 메뉴 목록과 함께 안전 중단한다. <strong>자동화 전용 계정 신설</strong>을 권고하고 결정 항목 J 로 등재. 증적 스크린샷 폴더는 직원 정보가 찍히므로 <code>.gitignore</code> 제외</td>

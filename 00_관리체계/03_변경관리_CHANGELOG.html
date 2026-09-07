@@ -110,6 +110,13 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <tr>
 <td>2026-09-07</td>
 <td>계정관리·ERP연계</td>
+<td><code>10_ERP_DB연계/21_퇴사처리_일괄적용_기획</code>(v0.5, 신규) · <code>10_ERP_DB연계/etl/gw_offboard.py</code>(신규) · <code>10_ERP_DB연계/</code>(00 v0.44·02) · <code>.gitignore</code></td>
+<td><strong>퇴사 처리를 세 시스템에 한 번에 — ERP·그룹웨어 2축 자동화 실증(관리자 지시).</strong> 처음엔 "3축 모두 쓰기 불가"로 판단했는데 <strong>틀렸다.</strong> ERP 퇴사처리는 이미 Power Automate 흐름 + SharePoint 목록으로 돌고 있었고(관리자가 알려줌), 포털은 목록에 등재만 하면 ERP 쓰기는 그 흐름이 한다 — 운영 DB 직접 쓰기 금지(§1.2)를 지키면서 자동화된다. 원천을 보지 않고 단정한 것이 오류였다. 그룹웨어는 DB 쓰기 권한도 벤더 API 도 없어 <strong>관리자 화면을 Playwright 로 조작</strong>하는 길을 택했고, 오늘 사람이 퇴사자 8명을 실제로 처리하며 확정한 13단계를 그대로 코드로 옮겼다. 테스트 계정으로 두 축 모두 <strong>실제 처리 후 원천까지 확인</strong>했다. 자동화가 사람보다 나은 점은 속도가 아니라 <strong>빠뜨리지 않는 것</strong>이다 — 퇴사일 자동 덮어쓰기 되돌리기, 메일 삭제 체크박스 확인, 3중 신원 대조는 사람이 놓치기 쉬운데 코드는 매번 한다. 실행해 보지 않았으면 못 찾았을 화면 동작 4곳(시크릿키 노출 시점·아코디언 기본 펼침·jstree 노드 탐지·숨김 라디오)과 함정 하나(<strong>SharePoint 진행구분을 비우면 흐름이 조용히 지나간다</strong>)를 확인했다. 남은 건 MS 한 축(Graph 403)과 권한 4건</td>
+<td>최동혁(+Claude)</td>
+</tr>
+<tr>
+<td>2026-09-07</td>
+<td>계정관리·ERP연계</td>
 <td><code>이관/sql/37_account_recon_leave.sql</code>(신규, 마이그레이션 <code>account_recon_leave</code>) · <code>public.v_account_recon</code> · <code>10_ERP_DB연계/etl/etl_run.py</code>(usr_master) · <code>app/admin-accounts.html</code> · <code>10_ERP_DB연계/</code>(00 v0.43·02)</td>
 <td><strong>휴직을 「계정없음」이 아니라 「휴직」으로 보이게(관리자 확인).</strong> 자재물류팀 최원호가 조치 대상에 남아 있었는데, ERP 사용자명에는 이미 <code>(휴직)</code> 이라고 적혀 있었다. 우리가 그걸 못 보고 있던 이유는 <strong>원천을 덜 긁고 있었기 때문</strong>이다 — 휴직자는 ERP 계정을 비활성(<code>USE_YN='N'</code>)하고 이름에 표기를 붙이는 운영인데, ETL이 활성 계정만 가져와 그 행이 미러에 아예 없었다. 그래서 화면은 "인사에는 재직인데 ERP 계정이 없다 = 계정없음"으로 읽었다. <strong>원천이 말해주고 있는 것을 우리가 안 받아오고 있었던 셈</strong>이다. <code>USE_YN</code> 조건을 빼 전량(101→434행, 활성 94·휴직 5·퇴사 335)을 받고, 대사 분류에 <code>휴직</code> 갈래를 이력 뒤·계정비활성 앞에 넣었다. 파싱 자체는 이미 있었다(<code>acct_status_note</code> 가 <code>(휴직)</code>·<code>(퇴사)</code> 를 읽고 있었다) — 받아오지 않은 데이터는 아무리 잘 파싱해도 없는 것과 같다는 사례다. 판정 근거는 ERP 이름 표기 하나뿐이라(인사마스터에 휴직 컬럼이 없다) 복직해 표기를 떼면 자동으로 정상으로 돌아간다. 결과: 휴직 4명(김윤호·지민규·임소리·최원호), 계정없음 2 → <strong>0</strong>, 조치 대상 19 → <strong>15</strong>, 현재 인원 109 유지</td>
 <td>최동혁(+Claude)</td>
