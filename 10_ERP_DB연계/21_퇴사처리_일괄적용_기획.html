@@ -47,16 +47,19 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
   <div class="content">
 <h1 id="21">21. 퇴사 처리 일괄 적용 — 기획</h1>
 <blockquote>
-<p><strong>작성일 2026-09-07 · v0.1(초안, 착수 전) · 관리: 최동혁 · 요청: 관리자</strong>
+<p><strong>작성일 2026-09-07 · v0.2(ERP 축 결론 정정) · 관리: 최동혁 · 요청: 관리자</strong>
 계정 통합관리 화면(<code>/admin/accounts</code>)에서 <strong>퇴사 처리를 한 번에</strong> 걸어 ERP·그룹웨어·MS 세 시스템에
 일괄 적용하는 기능의 기획. 테스트 계정 <code>test@jeilm.co.kr</code> 로 3축 실측한 결과를 근거로 한다.
 관련: <code>00_현재상태_스냅샷</code>(v0.43) · <code>이관/sql/34·36·37</code> · 화면 <code>app/admin-accounts.html</code></p>
 </blockquote>
 <hr />
 <h2 id="1">1. 한 줄 결론</h2>
-<p><strong>지금은 만들 수 없다 — 3축 모두 쓰기 경로가 없다.</strong> 실측으로 확인했다(§3).
-그래서 이 기획은 <strong>① 오늘 권한 없이도 만들 수 있는 것</strong>(퇴사 처리 오케스트레이터 — 지시·추적·자동검증)과
-<strong>② 권한이 열려야 되는 것</strong>(실제 자동 실행)을 나누고, ①을 먼저 만들어 ②가 열리면 갈아끼우는 순서로 간다.</p>
+<p><strong>ERP 는 이미 자동화 경로가 있다(v0.2 정정). 막힌 것은 그룹웨어·MS 두 축이다.</strong></p>
+<p>v0.1 에서 "3축 모두 쓰기 불가"라고 썼는데 <strong>틀렸다.</strong> 관리자 확인으로 ERP 퇴사 처리가
+<strong>Power Automate 흐름 + SharePoint 목록</strong>으로 이미 운영 중임을 확인했다(§3.2). 포털은 목록에
+<strong>등재만</strong> 하면 되고 ERP 쓰기는 그 흐름이 한다 — 포털이 ERP MSSQL 을 직접 건드리지 않으므로
+<code>CLAUDE.md §1.2</code> 도 지켜진다. <strong>원천을 안 보고 "불가"로 단정했던 것이 오류였다.</strong></p>
+<p>남은 것은 그룹웨어(DB 권한 없음)·MS(Graph 403) 두 축이고, 둘 다 권한 문제라 해소 경로가 분명하다.</p>
 <hr />
 <h2 id="2">2. 무엇을 만들려는가</h2>
 <p>관리자가 대사 화면에서 퇴사자를 고르고 <strong>[퇴사 처리]</strong> 를 누르면, 세 시스템에 같은 처리가 일괄 적용된다.</p>
@@ -99,10 +102,10 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <tbody>
 <tr>
 <td>ERP</td>
-<td>✅ <code>usr_nm='admin_test id'</code>, 사용</td>
+<td>✅ <code>usr_nm='admin_test id'</code>, 사용, 역할 2건</td>
 <td>✅</td>
-<td>❌ <strong>정책상 금지</strong></td>
-<td><code>CLAUDE.md §1.2</code> — 운영 MSSQL 직접 쓰기 절대 금지</td>
+<td>✅ <strong>기존 자동화 경로 있음</strong>(§3.2)</td>
+<td>포털 직접 쓰기는 여전히 금지(<code>§1.2</code>)이나, <strong>SharePoint 등재 → Power Automate</strong> 경로로 우회 가능</td>
 </tr>
 <tr>
 <td>그룹웨어</td>
@@ -124,6 +127,37 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <p>⚠ <strong>오판 주의</strong> — Graph 에 값이 같은 무변경 <code>PATCH</code> 를 보내면 <strong>204</strong> 가 떨어진다.
 이걸 보고 "쓰기 권한 있다"고 판단했다가 실제 값 변경에서 403 을 받았다(2026-09-07 실제 발생).
 <strong>권한 확인은 반드시 값이 바뀌는 요청으로</strong> 한다.</p>
+</blockquote>
+<h3 id="32-erp-2026-09-07-power-automate">3.2 ERP 퇴사처리 기존 자동화 — 실물 확인 (2026-09-07, Power Automate 조회)</h3>
+<p>관리자 소유 흐름 3종이 있고, 그중 <strong><code>ERP퇴사처리 자동화 쿼리</code></strong>(2025-05-21 생성, 상태 On)가 실제 처리기다.</p>
+<pre><code>SharePoint 목록 「ERP 퇴사처리 RPA」 항목 수정/등록 (1분 폴링, GetOnUpdatedItems)
+   └ 사이트 https://jeilmns.sharepoint.com/sites/test  · 목록 GUID 505ea3f8-1568-47b9-a194-3cdd46b71f74
+        ↓ 데이터 수집 → 각각에 적용
+        ↓ 조건: 진행구분 == '-'   (미처리인 건만)
+        ├ SQL 쿼리 실행(V2) — ExecutePassThroughNativeQuery_V2 (connector shared_sql)
+        └ 진행구분·처리내용 업데이트 (SharePoint 되쓰기)
+</code></pre>
+<p>실행되는 SQL(2건):</p>
+<pre><code class="language-sql">-- 1. 사용자 정보 업데이트
+UPDATE Z_USR_MAST_REC
+   SET USR_NM = CASE WHEN USR_NM NOT LIKE '%(퇴사)%' THEN USR_NM + '(퇴사)' ELSE USR_NM END,
+       USR_VALID_DT = '{퇴사일자}',
+       UPDT_DT      = GETDATE(),
+       USE_YN       = 'N'
+ WHERE USR_ID = '{사용자 ID}';
+
+-- 2. 역할 정보 삭제
+DELETE FROM Z_USR_MAST_REC_USR_ROLE_ASSO
+ WHERE USR_ID = '{사용자 ID}';
+</code></pre>
+<p>목록 컬럼: <strong>사용자 ID</strong>(Title=이메일) · <strong>사용자명</strong>(<code>부서_이름</code>) · <strong>진행구분</strong>(<code>-</code>/<code>완료</code>) ·
+<strong>퇴사일자</strong> · <strong>처리내용</strong>(흐름이 되쓰는 결과) · <strong>마지막출근</strong> · <strong>비고</strong></p>
+<p>나머지 두 흐름: <code>ERP 퇴사처리 당일 알림 (매일 09:00)</code>(Scheduled, 활성 · 최근 4일 연속 성공) ·
+<code>ERP 퇴사처리_RPA 마지막출근일 기준 업데이트_되풀이</code>(<strong>Activity suspended — 중지 상태</strong>).</p>
+<blockquote>
+<p>⚠ <strong>DELETE 는 되돌릴 수 없다.</strong> 역할 배정을 통째로 지우고 무엇이 있었는지 남기지 않는다.
+오적용하면 복구는 ERP 에서 <strong>수동 재부여</strong>뿐이다. 대사 미러(<code>erp_ro.usr_role_s</code>)에 직전 스냅샷이
+남아 있으므로, 포털이 등재하기 <strong>전에 역할 목록을 케이스에 기록</strong>해 두는 것을 설계에 넣는다.</p>
 </blockquote>
 <h3 id="31-2">3.1 곁가지로 드러난 결함 2건 (이 기능의 전제)</h3>
 <p><strong>① 그룹웨어는 이메일이 비어 있을 수 있다 — 매칭 키가 깨진다.</strong>
@@ -216,26 +250,38 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 </thead>
 <tbody>
 <tr>
+<td><strong>ERP</strong></td>
+<td>Graph 응용 권한 <strong><code>Sites.ReadWrite.All</code></strong>(또는 목록 한정 <code>Sites.Selected</code>) — 포털이 SharePoint 목록 「ERP 퇴사처리 RPA」에 항목을 등재하면 끝. 기존 흐름이 1분 내 처리</td>
+<td><strong>가장 낮음</strong> — 새로 만들 것이 없다</td>
+<td>ERP MSSQL 은 건드리지 않는다. 등재 실패·흐름 미실행은 <code>진행구분</code>이 <code>-</code>로 남아 화면에 드러난다</td>
+</tr>
+<tr>
 <td><strong>MS</strong></td>
-<td>응용 권한 <code>User.ReadWrite.All</code> + 테넌트 관리자 동의. <code>accountEnabled</code> 변경에는 앱에 <strong>User Administrator</strong> 디렉터리 역할이 추가로 필요할 수 있음(권한 부여 후 재실측)</td>
-<td><strong>낮음</strong> — 가장 먼저 가능</td>
+<td>응용 권한 <code>User.ReadWrite.All</code> + 테넌트 관리자 동의. <code>accountEnabled</code> 변경에는 <strong>User Administrator</strong> 디렉터리 역할이 추가로 필요할 수 있음(부여 후 재실측)</td>
+<td>낮음</td>
 <td>실행 위치: 러너 또는 Edge Function</td>
 </tr>
 <tr>
 <td><strong>그룹웨어</strong></td>
 <td>벤더(ONUL Ware) 협의 — ①관리 API ②쓰기 전용 저장프로시저 ③(최후) 러너 측 UI 자동화</td>
-<td>중</td>
+<td><strong>중</strong> — 유일하게 협의가 필요</td>
 <td>DB 직접 UPDATE 는 앱 로직·이력을 우회하므로 <strong>권장하지 않음</strong></td>
-</tr>
-<tr>
-<td><strong>ERP</strong></td>
-<td>유니포인트 협의 — <strong>직접 UPDATE 는 절대 불가</strong>(§1.2). 인사 모듈 표준 퇴사 프로세스 또는 승인된 연계 API/SP</td>
-<td><strong>높음</strong></td>
-<td>인사발령·전자결재와 얽혀 있어 업무 프로세스 결정이 선행</td>
 </tr>
 </tbody>
 </table>
-<p><strong>축별 독립 승격</strong>이 핵심이다. 셋이 다 열릴 때까지 기다리지 않고, MS 가 열리면 MS 만 자동으로 돌린다.</p>
+<p><strong>축별 독립 승격</strong>이 핵심이다. 셋이 다 열릴 때까지 기다리지 않는다.
+<code>Sites.ReadWrite.All</code> 하나만 열려도 <strong>ERP 축이 완전 자동</strong>이 되고, 그룹웨어·MS 는 Phase 1 지시서로 남는다.</p>
+<h3 id="43-erp">4.3 목표 흐름 (ERP 축 자동화 시)</h3>
+<pre><code>포털 [퇴사 처리]
+  ├ ① 케이스 생성 + 현재 ERP 역할 목록을 스냅샷으로 기록(DELETE 대비)
+  ├ ② SharePoint 「ERP 퇴사처리 RPA」에 항목 등재
+  │     사용자 ID = 이메일 · 사용자명 = 부서_이름 · 퇴사일자 · 진행구분 = '-'
+  ├ ③ (1분 내) 기존 흐름이 ERP 반영 → 진행구분 '완료' + 처리내용 기록
+  ├ ④ 그룹웨어·MS 는 Phase 1 지시서로 사람이 처리(권한 열리면 자동으로 승격)
+  └ ⑤ 다음 「데이터 업데이트」 대사가 3축 완료를 자동 확인
+</code></pre>
+<p><strong>사용자명(<code>부서_이름</code>) 을 포털이 만들어 넣어야 한다.</strong> ERP <code>usr_nm</code> 형식과 같아야 하며,
+형식이 깨진 계정(§3.1②)은 등재 전에 걸러 관리자에게 확인받는다.</p>
 <hr />
 <h2 id="5">5. 안전장치 (되돌리기 어려운 작업이므로)</h2>
 <ol>
@@ -260,21 +306,39 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <tbody>
 <tr>
 <td>A</td>
-<td>MS 응용 권한 <code>User.ReadWrite.All</code> + 관리자 동의 부여</td>
+<td>Graph 응용 권한 <strong><code>Sites.ReadWrite.All</code></strong>(또는 <code>Sites.Selected</code>+목록 권한) — <strong>ERP 축 자동화의 유일한 조건</strong></td>
 <td>최동혁(Entra 앱 등록)</td>
-<td><strong>대기</strong> — Phase 2 중 가장 먼저 가능</td>
+<td><strong>대기 · 최우선</strong></td>
+</tr>
+<tr>
+<td>A2</td>
+<td>MS 응용 권한 <code>User.ReadWrite.All</code> + 관리자 동의</td>
+<td>최동혁(Entra 앱 등록)</td>
+<td><strong>대기</strong></td>
 </tr>
 <tr>
 <td>B</td>
 <td>그룹웨어 쓰기 경로 협의(API/SP/UI자동화 중 택1)</td>
 <td>ONUL Ware 벤더</td>
-<td><strong>대기</strong></td>
+<td><strong>대기</strong> — 유일하게 외부 협의</td>
 </tr>
 <tr>
 <td>C</td>
-<td>ERP 퇴사 처리 연계 방식 협의(표준 프로세스 vs 연계 API)</td>
-<td>유니포인트</td>
-<td><strong>대기</strong></td>
+<td>~~ERP 퇴사 처리 연계 방식 협의~~ <strong>불필요</strong>(기존 흐름 재사용) · 대신 <strong>흐름 소유권</strong>을 개인(최동혁)에서 공용/서비스 계정으로 옮길지 검토</td>
+<td>최동혁</td>
+<td><strong>검토</strong> — 소유자 부재 시 퇴사 처리가 멈춘다</td>
+</tr>
+<tr>
+<td>C2</td>
+<td><code>ERP 퇴사처리_RPA 마지막출근일 기준 업데이트_되풀이</code> 흐름이 <strong>중지(Activity suspended)</strong> 상태 — 의도된 것인지 확인</td>
+<td>최동혁</td>
+<td><strong>확인 필요</strong></td>
+</tr>
+<tr>
+<td>C3</td>
+<td>Power Automate 경고 — <strong>연결 35건이 재인증 필요</strong>. 퇴사처리 흐름이 쓰는 SQL/SharePoint 연결이 끊기면 조용히 실패한다</td>
+<td>최동혁</td>
+<td><strong>확인 필요</strong></td>
 </tr>
 <tr>
 <td>D</td>
@@ -307,6 +371,11 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 </tr>
 </thead>
 <tbody>
+<tr>
+<td>2026-09-07</td>
+<td><strong>v0.2 — ERP 축 결론 정정.</strong> 관리자 확인("ERP 퇴사처리는 MS workflow 에 등록되어 있다")으로 Power Automate 3종·SharePoint 목록 「ERP 퇴사처리 RPA」를 실물 확인. <strong>v0.1 의 "ERP 쓰기 불가"는 오류였다</strong> — 포털이 목록에 등재하면 기존 흐름이 ERP 를 갱신하므로 §1.2 를 지키면서 자동화된다. 실행 SQL(usr_nm+(퇴사)·USR_VALID_DT·USE_YN='N'·역할 DELETE)과 트리거 조건(진행구분='-')·목록 컬럼을 §3.2 에 기록. 난이도 순서가 뒤집혀 <strong>ERP 가 가장 쉽고 그룹웨어가 가장 어렵다</strong>. 결정 항목 A(Sites.ReadWrite.All) 최우선으로 승격, C(유니포인트 협의) 불필요로 전환, 흐름 소유권·중지된 RPA 흐름·연결 35건 재인증 경고를 신규 등재</td>
+<td>최동혁(+Claude)</td>
+</tr>
 <tr>
 <td>2026-09-07</td>
 <td>초안(v0.1) — 관리자 요청으로 기획 착수. 테스트 계정 <code>test@jeilm.co.kr</code> 로 3축 쓰기 가능 여부 실측(전 축 불가 확인) + 곁가지 결함 2건(그룹웨어 이메일 누락 7건·ERP usr_nm 형식 이탈) 기록. Phase 1/2 분리 설계</td>
