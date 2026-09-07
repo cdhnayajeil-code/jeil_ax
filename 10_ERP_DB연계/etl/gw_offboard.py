@@ -118,6 +118,7 @@ def main():
 
     cfg = load_local()
     url, uid, pw = cfg.get("GW_URL"), cfg.get("GW_ID"), cfg.get("GW_PW")
+    secret = cfg.get("GW_SECRET")   # 중복 로그인 시 강제 로그인용(있을 때만 사용)
     missing = [k for k, v in (("gw url", url), ("gw id", uid), ("gw pw", pw)) if not v]
     if missing:
         raise SystemExit(".env.local 키 누락: " + ", ".join(missing))
@@ -157,10 +158,27 @@ def main():
             page.click("button.login")
             page.wait_for_timeout(6000)
             shot(page, "01_login")
+
             body = page.inner_text("body")[:2000]
             if "잘못되었습니다" in body or "일치하지" in body:
                 raise RuntimeError("로그인 실패(자격증명 불일치) — 재시도하지 않습니다(계정 잠금 방지). "
                                    ".env.local 의 gw id/pw 를 확인하세요")
+
+            # 같은 계정이 다른 곳에서 이미 로그인돼 있으면 **첫 시도 뒤에** 「시크릿키」 칸이 나타난다
+            # (중복 로그인 차단 → 강제 로그인). 자격증명 오류가 아니므로 잠금 위험이 아니다.
+            sk = page.get_by_placeholder("시크릿키")
+            if sk.count() and sk.first.is_visible():
+                if not secret:
+                    raise RuntimeError(
+                        "이미 로그인된 세션이 있어 「시크릿키」가 필요한데 .env.local 에 `gw secret` 이 없습니다")
+                log("   이미 로그인된 세션 감지 → 시크릿키로 강제 로그인(기존 세션은 끊긴다)")
+                sk.first.fill(secret)
+                page.click("button.login")
+                page.wait_for_timeout(7000)
+                shot(page, "01b_login_forced")
+                if page.get_by_placeholder("시크릿키").count() and \
+                   page.get_by_placeholder("시크릿키").first.is_visible():
+                    raise RuntimeError("시크릿키 강제 로그인에 실패했습니다 — .env.local 의 `gw secret` 값을 확인하세요")
 
             # ── 2. 관리자 > 기본정보관리 > 직원관리 ────────────────────────
             log("2) 직원관리 이동 — 로그인 계정: %s" % (page.evaluate(
@@ -178,28 +196,30 @@ def main():
                     }""")
                 page.wait_for_timeout(5000)
                 shot(page, "02a_admin_home")
-            # 관리자 콘솔 좌측 메뉴에서 직원관리.
-            # 없으면 **권한 문제**다 — 어떤 메뉴가 보이는지 함께 알려줘야 관리자가 조치할 수 있다.
-            menus = page.evaluate(
-                """() => [...document.querySelectorAll('*')]
-                     .filter(e => e.children.length === 0 && e.offsetParent
-                                  && /관리$|조회$|Import$/.test(e.textContent.trim())
-                                  && e.textContent.trim().length <= 12)
-                     .map(e => e.textContent.trim())
-                     .filter((v, i, a) => a.indexOf(v) === i).slice(0, 20)""")
-            if "직원관리" not in menus:
+            # 좌측 하위 메뉴는 jstree(`div.SubTab`)다. **관리자 진입 직후 이미 Expanded 상태**이므로
+            # 상위(기본정보관리)를 누르면 오히려 접힌다 — 누르지 않는다(2026-09-07 실측으로 확인).
+            # 메뉴 항목은 `<a>` 안에 아이콘 등 자식이 있어 '텍스트 리프'로 찾으면 안 걸린다.
+            sub = page.evaluate(
+                """() => [...document.querySelectorAll('div.SubTab')]
+                     .map(d => ({ folded: /Folded/.test(d.className), txt: d.innerText }))""")
+            basic = next((s for s in sub if "직원관리" in (s["txt"] or "")), None)
+            if basic and basic["folded"]:
+                log("   기본정보관리 접힘 → 펼치기")
+                page.evaluate(
+                    """() => { const li = [...document.querySelectorAll('div.SubMenuLI')]
+                                 .filter(e => e.innerText.trim().startsWith('기본정보관리'))[0];
+                               li && li.click(); }""")
+                page.wait_for_timeout(2500)
+            if not basic:
+                shown = page.evaluate(
+                    """() => [...document.querySelectorAll('div.SubMenuLI')]
+                         .map(e => e.innerText.trim().split('\\n')[0]).filter(Boolean).slice(0, 25)""")
                 raise RuntimeError(
                     "이 계정에는 「기본정보관리 > 직원관리」 권한이 없습니다 — 퇴사 처리를 할 수 없습니다.\n"
                     "   보이는 관리자 메뉴: %s\n"
                     "   → 자동화 전용 계정에 직원관리 권한을 부여하거나, 권한 있는 계정으로 .env.local 을 바꾸세요."
-                    % ", ".join(menus))
-            page.evaluate(
-                """() => {
-                    const el = [...document.querySelectorAll('*')]
-                      .filter(e => e.children.length === 0 && e.textContent.trim() === '직원관리'
-                                   && e.offsetParent)[0];
-                    (el.closest('a,li,div') || el).click();
-                }""")
+                    % ", ".join(shown))
+            page.get_by_text("직원관리", exact=True).first.click()
             page.wait_for_timeout(4000)
             page.wait_for_selector("#selectDate", timeout=STEP_TIMEOUT)
             shot(page, "02_member_admin")
@@ -218,7 +238,9 @@ def main():
                     if (!b) throw new Error('수정 버튼을 찾지 못했습니다');
                     b.click();
                 }""")
-            page.wait_for_selector("#useState2", timeout=STEP_TIMEOUT)
+            # 라디오 자체는 CSS 로 숨기고 라벨만 보이는 구조라 visible 을 기다리면 안 된다.
+            page.wait_for_selector("#useState2", state="attached", timeout=STEP_TIMEOUT)
+            page.wait_for_selector('label[for="useState2"]', timeout=STEP_TIMEOUT)
             page.wait_for_timeout(1500)
 
             # ── 6. 3중 대조 (로그인ID·이름·퇴사일) ─────────────────────────
@@ -234,15 +256,20 @@ def main():
                                    % (args.login_id, got_id))
             if (got_nm or "").strip() != args.name:
                 raise RuntimeError("사원명 불일치 — 기대 %s / 화면 %s" % (args.name, got_nm))
-            # 퇴사일은 두 경우를 허용한다.
-            #   · 이미 값이 있으면 인자와 **정확히 같아야** 한다(다른 사람을 잡았을 수 있다).
-            #   · 비어 있거나 무기한 센티넬(2555-07-01)이면 신규 퇴사 처리이므로 통과시키고 뒤에서 채운다.
+            # 퇴사일 판정.
+            #   · 비어 있거나 **미래 날짜**면 재직 중이라는 뜻이다. 그룹웨어는 무기한을 미래 센티넬로
+            #     표현하는데 값이 하나가 아니다(실측: 2200-12-31 · 2555-07-01). 그래서 특정 값을
+            #     나열하지 않고 "오늘보다 뒤면 센티넬"로 본다 — 실제 퇴사일은 과거일 수밖에 없다.
+            #   · 과거 날짜가 이미 들어 있으면 인자와 **정확히 같아야** 한다(다른 사람을 잡았을 수 있다).
             cur_end = (got_end or "").strip()
-            if cur_end and cur_end not in (args.retire_date, "2555-07-01"):
-                raise RuntimeError("퇴사일 불일치 — 기대 %s / 화면 %s. 화면 값을 확인하고 인자를 맞추세요."
-                                   % (args.retire_date, cur_end))
+            today = datetime.date.today().isoformat()
             if not cur_end:
                 log("   (퇴사일 비어 있음 — 신규 퇴사 처리로 진행)")
+            elif cur_end > today:
+                log("   (퇴사일 %s = 무기한 센티넬 — 재직 중으로 보고 신규 퇴사 처리로 진행)" % cur_end)
+            elif cur_end != args.retire_date:
+                raise RuntimeError("퇴사일 불일치 — 기대 %s / 화면 %s. 화면 값을 확인하고 인자를 맞추세요."
+                                   % (args.retire_date, cur_end))
             if page.is_checked("#useState2"):
                 log("   이미 사용중지 상태입니다 — 변경할 것이 없습니다.")
                 browser.close()
