@@ -47,7 +47,7 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
   <div class="content">
 <h1 id="21">21. 퇴사 처리 일괄 적용 — 기획</h1>
 <blockquote>
-<p><strong>작성일 2026-09-07 · v0.2(ERP 축 결론 정정) · 관리: 최동혁 · 요청: 관리자</strong>
+<p><strong>작성일 2026-09-07 · v0.3(ERP 실증 완료 + 그룹웨어 Playwright 기획) · 관리: 최동혁 · 요청: 관리자</strong>
 계정 통합관리 화면(<code>/admin/accounts</code>)에서 <strong>퇴사 처리를 한 번에</strong> 걸어 ERP·그룹웨어·MS 세 시스템에
 일괄 적용하는 기능의 기획. 테스트 계정 <code>test@jeilm.co.kr</code> 로 3축 실측한 결과를 근거로 한다.
 관련: <code>00_현재상태_스냅샷</code>(v0.43) · <code>이관/sql/34·36·37</code> · 화면 <code>app/admin-accounts.html</code></p>
@@ -159,7 +159,47 @@ DELETE FROM Z_USR_MAST_REC_USR_ROLE_ASSO
 오적용하면 복구는 ERP 에서 <strong>수동 재부여</strong>뿐이다. 대사 미러(<code>erp_ro.usr_role_s</code>)에 직전 스냅샷이
 남아 있으므로, 포털이 등재하기 <strong>전에 역할 목록을 케이스에 기록</strong>해 두는 것을 설계에 넣는다.</p>
 </blockquote>
-<h3 id="31-2">3.1 곁가지로 드러난 결함 2건 (이 기능의 전제)</h3>
+<h3 id="33-erp-testjeilmcokr-2026-09-07">3.3 ERP 축 실증 테스트 — <code>test@jeilm.co.kr</code> (2026-09-07, 관리자 승인 후 실행)</h3>
+<p>목록에 항목을 등재해 <strong>실제로 ERP 가 바뀌는지</strong> 끝까지 확인했다.</p>
+<table>
+<thead>
+<tr>
+<th>단계</th>
+<th>결과</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>① 목록 등재(사용자 ID·사용자명·퇴사일자, <strong>진행구분 비움</strong>)</td>
+<td>흐름 실행됨(526ms, Succeeded) — 그러나 <strong>SQL 은 건너뜀</strong></td>
+</tr>
+<tr>
+<td>② 진행구분을 <strong><code>-</code></strong> 로 변경</td>
+<td>흐름 즉시 재실행 → <strong>처리 완료</strong></td>
+</tr>
+<tr>
+<td>③ ERP 반영 확인(미러 재적재)</td>
+<td><code>usr_nm</code> <code>테스트 계정</code> → <strong><code>테스트 계정(퇴사)</code></strong> · <code>USE_YN</code> Y → <strong>N</strong> · 역할 2건 → <strong>원천에서 삭제됨</strong></td>
+</tr>
+<tr>
+<td>④ SharePoint 되쓰기</td>
+<td>진행구분 <strong>완료</strong> · 처리내용 <code>test@jeilm.co.kr / admin_test id 퇴사 처리완료</code></td>
+</tr>
+<tr>
+<td>⑤ 대사 화면 반영</td>
+<td><code>recon_type</code> = <strong>계정비활성</strong></td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>🔑 <strong>진행구분을 비워 두면 아무 일도 일어나지 않는다.</strong> 신규 항목의 기본값은 빈 값이고,
+흐름 조건은 <code>진행구분 == '-'</code> 이라 조건 불일치로 조용히 지나간다(실패로도 안 뜬다).
+<strong>포털이 등재할 때 진행구분을 반드시 <code>-</code> 로 채워야 한다.</strong> 선택지는 <code>대기</code> · <code>-</code> · <code>완료</code> 3종.</p>
+</blockquote>
+<p><strong>원복 필요</strong>: 테스트 계정은 현재 ERP 에서 퇴사 처리된 상태다. 역할 2건
+(<code>7.사업관리_프로젝트등록권한(영업포함 전체)</code> · <code>0.공통_설정권한</code>)은 <strong>DELETE 되어 되돌아오지 않는다</strong> —
+필요하면 관리자가 ERP 에서 수동 재부여해야 한다(목록 항목 「비고」에도 역할명을 남겨 뒀다).</p>
+<h3 id="34-3">3.4 곁가지로 드러난 결함 3건 (이 기능의 전제)</h3>
 <p><strong>① 그룹웨어는 이메일이 비어 있을 수 있다 — 매칭 키가 깨진다.</strong>
 그룹웨어 뷰 517행 중 이메일이 있는 건 471행. 이메일 없이 <strong>사용중</strong>인 계정이 7건이고,
 수집기가 <code>email LIKE '%@%'</code> 로 걸러 미러에 넣지 않는다. 그래서 대사가 이들을 <strong>"그룹웨어 없음"으로 오판</strong>한다.</p>
@@ -203,8 +243,16 @@ DELETE FROM Z_USR_MAST_REC_USR_ROLE_ASSO
 <code>test@jeilm.co.kr</code> 처럼 로그인ID 자체가 이메일 형태인 경우가 있어 실효가 있다.
 이 보정 없이는 일괄 처리가 <strong>대상을 못 찾는다</strong>.</p>
 <p><strong>② ERP <code>usr_nm</code> 이 규칙에서 벗어난 계정이 있다.</strong>
-파싱 규칙은 <code>부서명_이름[(휴직)|(퇴사)]</code> 인데 테스트 계정은 <code>admin_test id</code> 다.
+파싱 규칙은 <code>부서명_이름[(휴직)|(퇴사)]</code> 인데 테스트 계정은 <code>admin_test id</code> 였다.
 일괄 처리는 이 필드에 <code>(퇴사)</code> 를 붙이는 조작이므로, <strong>형식이 깨진 계정은 예외 처리</strong>가 필요하다.</p>
+<p><strong>③ <code>usr_role</code> 미러에 삭제 잔재가 남는다 — 권한 회수 검증이 거짓말을 한다.</strong>
+§3.3 테스트에서 ERP 원천의 역할이 1,723 → 1,721 건으로 줄었는데(=테스트 계정 2건 DELETE),
+<strong>미러는 여전히 1,723 건</strong>이고 삭제된 2건이 그대로 남아 있었다(그 행만 <code>synced_at</code> 이 옛 실행 시각).
+<code>usr_role</code> job 이 증분 upsert 만 하고 원천에서 사라진 행을 지우지 않기 때문으로,
+<code>usr_master</code> 에서 이미 겪은 것과 <strong>똑같은 함정</strong>이다(§14 reconcile 로 해소한 그 결함).
+퇴사 처리의 핵심 확인 항목이 "권한이 회수됐는가" 인데, 미러가 옛 역할을 계속 보여주면
+<strong>대사가 "권한이 아직 살아 있다"고 잘못 말한다.</strong>
+→ <strong>대책</strong>: <code>usr_role</code> 도 전량 스냅샷으로 바꾸거나 <code>usr_master</code> 처럼 정합(reconcile) 후처리를 붙인다.</p>
 <hr />
 <h2 id="4-2">4. 설계 — 2단계</h2>
 <h3 id="41-phase-1">4.1 Phase 1 — 퇴사 처리 오케스트레이터 (권한 없이 지금 가능)</h3>
@@ -281,9 +329,157 @@ DELETE FROM Z_USR_MAST_REC_USR_ROLE_ASSO
   └ ⑤ 다음 「데이터 업데이트」 대사가 3축 완료를 자동 확인
 </code></pre>
 <p><strong>사용자명(<code>부서_이름</code>) 을 포털이 만들어 넣어야 한다.</strong> ERP <code>usr_nm</code> 형식과 같아야 하며,
-형식이 깨진 계정(§3.1②)은 등재 전에 걸러 관리자에게 확인받는다.</p>
+형식이 깨진 계정(§3.4②)은 등재 전에 걸러 관리자에게 확인받는다.</p>
 <hr />
-<h2 id="5">5. 안전장치 (되돌리기 어려운 작업이므로)</h2>
+<h2 id="5-playwright-2026-09-07">5. 그룹웨어 축 — 화면 자동화(Playwright) 기획 (관리자 지시 2026-09-07)</h2>
+<p>그룹웨어는 DB 쓰기 권한이 없고 벤더 API 도 없다. 남은 길은 <strong>관리자 화면을 그대로 조작</strong>하는 것이다.
+사람이 하던 절차를 코드가 대신 하므로, <strong>먼저 절차를 확정하고 그다음 자동화</strong>한다.</p>
+<h3 id="51">5.1 절차 확정 — 오늘 사람이 직접 해서 검증한 순서</h3>
+<p>2026-09-07 퇴사자 8명을 이 순서로 실제 처리했다(전건 성공, 퇴사자 명부로 재검증 완료).
+<strong>추측이 아니라 실행으로 확정된 절차</strong>다.</p>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>동작</th>
+<th>놓치면 생기는 일</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>관리자 로그인(<code>?loginType=admin</code>) → 관리자 &gt; 기본정보관리 &gt; <strong>직원관리</strong></td>
+<td>—</td>
+</tr>
+<tr>
+<td>2</td>
+<td><strong>기준일자를 대상자의 퇴사일 이전으로 변경</strong></td>
+<td><strong>이걸 안 하면 검색해도 0건.</strong> 퇴사자는 오늘 기준 조직도에 없다</td>
+</tr>
+<tr>
+<td>3</td>
+<td>우측 상단 검색창에 이름 입력 → 검색</td>
+<td>—</td>
+</tr>
+<tr>
+<td>4</td>
+<td>결과 카드 클릭 → 사원 정보관리 상세</td>
+<td>—</td>
+</tr>
+<tr>
+<td>5</td>
+<td><strong><code>수정</code></strong> 클릭 → 편집 폼</td>
+<td>—</td>
+</tr>
+<tr>
+<td>6</td>
+<td><strong>퇴사일·입사일·사번을 기대값과 대조</strong></td>
+<td>동명이인 오처리(실사례: 박준수 <code>js.park2</code>/<code>js.park4</code>)</td>
+</tr>
+<tr>
+<td>7</td>
+<td><code>사용여부</code> → <strong>사용중지</strong> 클릭</td>
+<td>—</td>
+</tr>
+<tr>
+<td>8</td>
+<td>confirm「퇴사 처리하시겠습니까?」 → 확인</td>
+<td>—</td>
+</tr>
+<tr>
+<td>9</td>
+<td>alert「퇴사일 기본값이 자동 입력됨」 → 닫기</td>
+<td>—</td>
+</tr>
+<tr>
+<td>10</td>
+<td><strong>퇴사일을 실제 값으로 되돌림</strong></td>
+<td><strong>오늘 날짜로 덮어써져 실제 퇴사일이 유실된다</strong></td>
+</tr>
+<tr>
+<td>11</td>
+<td><code>메일 삭제여부</code> 체크박스가 <strong>꺼져 있는지 확인</strong></td>
+<td>켜면 메일계정·메일정보가 <strong>일괄 삭제</strong>된다</td>
+</tr>
+<tr>
+<td>12</td>
+<td><strong><code>수정</code></strong> 저장</td>
+<td>—</td>
+</tr>
+<tr>
+<td>13</td>
+<td><code>퇴사자 조회</code>에서 사용여부 <code>사용중지</code> 재확인</td>
+<td>저장 실패를 모르고 넘어감</td>
+</tr>
+</tbody>
+</table>
+<h3 id="52">5.2 자동화 설계</h3>
+<p><strong>도구</strong>: Playwright(Python) — 러너 호스트(<code>DESKTOP-1UUKNSM</code>, 이미 ETL·그룹웨어 DB 접근이 되는 곳)에서 headless 실행.
+Chrome MCP 가 아니라 Playwright 를 쓰는 이유는 <strong>무인 실행·재시도·증적 저장</strong>이 필요하기 때문이다.</p>
+<p><strong>Playwright 를 쓰면 유리한 점 — 모달 처리</strong>
+이 화면은 7~9단계에서 <code>confirm</code>/<code>alert</code> 를 띄운다. 브라우저 자동화에서 모달은 흔한 실패 지점인데,
+Playwright 는 <code>page.on("dialog", ...)</code> 로 <strong>정식 처리</strong>한다. (오늘 Chrome MCP 로 할 때는 <code>window.alert</code>·
+<code>window.confirm</code> 을 덮어써서 우회해야 했다 — 임시방편이라 무인 운영에는 부적합하다.)</p>
+<p><strong>실측 확보한 선택자</strong>(오늘 DOM 조사로 확인 — iframe 없음, 단일 문서)</p>
+<table>
+<thead>
+<tr>
+<th>대상</th>
+<th>선택자 / 호출</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>기준일자</td>
+<td><code>#selectDate</code> (값 설정 후 <code>getReferenceCompany(); UpdateMemberCountView();</code> 호출로 갱신)</td>
+</tr>
+<tr>
+<td>검색어 · 검색</td>
+<td><code>#searchString</code> · <code>#memberSearchButton</code></td>
+</tr>
+<tr>
+<td>결과 카드</td>
+<td><code>div.each_file</code> (인라인 <code>onclick="setSelectMemberView(...)"</code>)</td>
+</tr>
+<tr>
+<td>사용여부</td>
+<td><code>#useState1</code>(사용중) · <code>#useState2</code>(사용중지) — <strong>라벨을 클릭</strong>해야 이벤트가 뜬다</td>
+</tr>
+<tr>
+<td>입사일 · 퇴사일</td>
+<td><code>#memberDetail_startDate</code> · <code>#memberDetail_endDate</code></td>
+</tr>
+<tr>
+<td>저장</td>
+<td><code>input.btn01[value="수정"]</code></td>
+</tr>
+<tr>
+<td><strong>금지</strong></td>
+<td><code>input.btn02[value="삭제"]</code> · <code>메일 삭제여부</code> 체크박스 — <strong>절대 클릭하지 않는다</strong></td>
+</tr>
+</tbody>
+</table>
+<p><strong>자격증명</strong>: 관리자 ID/PW 는 <code>.env.local</code> 에만 둔다(이미 보관 중). 로그에 남기지 않는다(<code>CLAUDE.md §1.8</code>).</p>
+<h3 id="53">5.3 안전장치 (화면 자동화라서 더 엄격하게)</h3>
+<ol>
+<li><strong>3중 대조 후 진행</strong> — 로그인ID·이름·퇴사일이 모두 맞을 때만 12단계로 간다. 하나라도 어긋나면 <strong>중단</strong>.</li>
+<li><strong>dry-run 기본</strong> — 저장 직전까지만 수행하고 화면 상태를 리포트. <code>--apply</code> 를 줘야 실제 저장.</li>
+<li><strong>증적 스크린샷</strong> — 처리 전·후를 파일로 남긴다(감사 로그, <code>CLAUDE.md §6</code>).</li>
+<li><strong>1건씩 순차, 실패 시 전체 중단</strong> — 부분 성공 상태로 방치하지 않는다.</li>
+<li><strong>저장 후 재검증</strong> — <code>퇴사자 조회</code>에서 사용중지를 확인해야 성공으로 친다.</li>
+<li><strong>금지 조작 하드코딩 차단</strong> — 삭제 버튼·메일 삭제 체크박스는 코드에서 아예 다루지 않는다.</li>
+<li><strong>UI 변경 감지</strong> — 선택자를 못 찾으면 즉시 중단하고 Phase 1 지시서로 폴백. 조용히 잘못 누르는 것보다 멈추는 게 낫다.</li>
+</ol>
+<h3 id="54">5.4 한계와 전제</h3>
+<ul>
+<li><strong>화면 자동화는 벤더 UI 변경에 취약하다.</strong> ONUL Ware 업데이트 한 번에 깨질 수 있다.
+  그래서 이건 <strong>임시 수단</strong>이고, 벤더 API 가 열리면 즉시 갈아탄다(§4.2 B 항).</li>
+<li><strong>Playwright 가 아직 설치돼 있지 않다</strong>(실측: Python·Node 모두 미설치). 도입하려면
+  <code>pip install playwright</code> + <code>playwright install chromium</code>(브라우저 바이너리 수백 MB) 이 필요하다 → 관리자 승인 필요(§6 G).</li>
+<li>그룹웨어 계정은 <strong>이메일이 비어 있을 수 있다</strong>(§3.4①). 화면 검색은 이름으로 하되
+  <strong>로그인ID 로 대상을 확정</strong>해야 동명이인 오처리를 막는다.</li>
+</ul>
+<h2 id="6">6. 안전장치 (되돌리기 어려운 작업이므로)</h2>
 <ol>
 <li><strong>2단계 확인</strong> — 대상자 명단·퇴사일·축별 적용 내용을 보여주고 재확인. 이름만이 아니라 <strong>이메일·사번</strong>까지 표시(동명이인 오탐 실사례 있음 — <code>js.park2</code>/<code>js.park4</code> 박준수).</li>
 <li><strong>파괴적 옵션 자동화 금지</strong> — 메일함 삭제, 계정 삭제, 라이선스 회수는 이 기능의 범위 밖. 차단·표기까지만.</li>
@@ -293,7 +489,7 @@ DELETE FROM Z_USR_MAST_REC_USR_ROLE_ASSO
 <li><strong>드라이런</strong> — 자동 실행 단계에서도 "무엇이 바뀔지"를 먼저 보여주고 실행한다.</li>
 </ol>
 <hr />
-<h2 id="6">6. 관리자 결정·의뢰가 필요한 항목</h2>
+<h2 id="7">7. 관리자 결정·의뢰가 필요한 항목</h2>
 <table>
 <thead>
 <tr>
@@ -348,7 +544,7 @@ DELETE FROM Z_USR_MAST_REC_USR_ROLE_ASSO
 </tr>
 <tr>
 <td>E</td>
-<td>그룹웨어 로그인ID 보조키 반영(§3.1①) — 이 기능의 전제</td>
+<td>그룹웨어 로그인ID 보조키 반영(§3.4①) — 이 기능의 전제</td>
 <td>관리자 승인 후 Claude</td>
 <td><strong>대기</strong></td>
 </tr>
@@ -358,10 +554,28 @@ DELETE FROM Z_USR_MAST_REC_USR_ROLE_ASSO
 <td>관리자</td>
 <td><strong>결정 대기</strong></td>
 </tr>
+<tr>
+<td>G</td>
+<td><strong>Playwright 도입 승인</strong>(러너 호스트에 <code>pip install playwright</code> + chromium 바이너리) — 그룹웨어 축 자동화의 전제</td>
+<td>관리자</td>
+<td><strong>결정 대기</strong></td>
+</tr>
+<tr>
+<td>H</td>
+<td>테스트 계정 <code>test@jeilm.co.kr</code> <strong>ERP 원복</strong> — 현재 퇴사 처리 상태, 역할 2건은 수동 재부여만 가능</td>
+<td>최동혁(ERP)</td>
+<td><strong>대기</strong></td>
+</tr>
+<tr>
+<td>I</td>
+<td><code>usr_role</code> 미러 삭제 잔재 해소(§3.4③) — 권한 회수 검증의 전제</td>
+<td>관리자 승인 후 Claude</td>
+<td><strong>대기</strong></td>
+</tr>
 </tbody>
 </table>
 <hr />
-<h2 id="7">7. 변경 이력</h2>
+<h2 id="8">8. 변경 이력</h2>
 <table>
 <thead>
 <tr>
@@ -371,6 +585,11 @@ DELETE FROM Z_USR_MAST_REC_USR_ROLE_ASSO
 </tr>
 </thead>
 <tbody>
+<tr>
+<td>2026-09-07</td>
+<td><strong>v0.3 — ERP 축 실증 완료 + 그룹웨어 화면 자동화 기획.</strong> 관리자 승인 후 <code>test@jeilm.co.kr</code> 로 SharePoint 등재 → 흐름 실행 → ERP 반영까지 <strong>끝까지 태워 성공</strong>(§3.3). 그 과정에서 <strong>진행구분을 비우면 흐름이 조용히 지나간다</strong>는 것을 발견 — 포털은 반드시 <code>-</code> 로 채워야 한다(선택지 <code>대기</code>·<code>-</code>·<code>완료</code>). 관리자 지시로 <strong>그룹웨어 축을 Playwright 화면 자동화로 설계</strong>(§5) — 오늘 사람이 8명을 실제 처리하며 확정한 13단계 절차를 그대로 코드화하고, 실측 선택자·모달 처리·안전장치를 명시. 결함 ③(<code>usr_role</code> 미러 삭제 잔재 — 권한 회수 검증이 거짓말을 한다) 신규 발견. 결정 항목 G(Playwright 도입)·H(테스트 계정 원복)·I(usr_role 정합) 추가</td>
+<td>최동혁(+Claude)</td>
+</tr>
 <tr>
 <td>2026-09-07</td>
 <td><strong>v0.2 — ERP 축 결론 정정.</strong> 관리자 확인("ERP 퇴사처리는 MS workflow 에 등록되어 있다")으로 Power Automate 3종·SharePoint 목록 「ERP 퇴사처리 RPA」를 실물 확인. <strong>v0.1 의 "ERP 쓰기 불가"는 오류였다</strong> — 포털이 목록에 등재하면 기존 흐름이 ERP 를 갱신하므로 §1.2 를 지키면서 자동화된다. 실행 SQL(usr_nm+(퇴사)·USR_VALID_DT·USE_YN='N'·역할 DELETE)과 트리거 조건(진행구분='-')·목록 컬럼을 §3.2 에 기록. 난이도 순서가 뒤집혀 <strong>ERP 가 가장 쉽고 그룹웨어가 가장 어렵다</strong>. 결정 항목 A(Sites.ReadWrite.All) 최우선으로 승격, C(유니포인트 협의) 불필요로 전환, 흐름 소유권·중지된 RPA 흐름·연결 35건 재인증 경고를 신규 등재</td>
