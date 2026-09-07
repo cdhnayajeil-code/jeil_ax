@@ -109,6 +109,15 @@ def main():
     ap.add_argument("--headed", action="store_true", help="브라우저 창을 띄워 눈으로 확인")
     args = ap.parse_args()
 
+    # 터미널에서 명령이 줄바꿈되며 붙여넣기되면 인자 안에 개행·연속 공백이 섞여 들어온다
+    # (실제로 `테스트 계정` 이 `테스트\n  계정` 으로 들어와 검색 0건이 됐다 — 2026-09-07).
+    # 화면 검색어는 공백에 민감하므로 여기서 한 칸으로 정규화한다.
+    args.name = re.sub(r"\s+", " ", args.name).strip()
+    args.login_id = args.login_id.strip()
+    args.retire_date = args.retire_date.strip()
+    if args.base_date:
+        args.base_date = args.base_date.strip()
+
     if not re.match(r"^\d{4}-\d{2}-\d{2}$", args.retire_date):
         raise SystemExit("--retire-date 형식은 YYYY-MM-DD 입니다")
     base_date = args.base_date
@@ -254,7 +263,7 @@ def main():
             if (got_id or "").strip() != args.login_id:
                 raise RuntimeError("로그인ID 불일치 — 기대 %s / 화면 %s (동명이인 가능성)"
                                    % (args.login_id, got_id))
-            if (got_nm or "").strip() != args.name:
+            if re.sub(r"\s+", " ", got_nm or "").strip() != args.name:
                 raise RuntimeError("사원명 불일치 — 기대 %s / 화면 %s" % (args.name, got_nm))
             # 퇴사일 판정.
             #   · 비어 있거나 **미래 날짜**면 재직 중이라는 뜻이다. 그룹웨어는 무기한을 미래 센티넬로
