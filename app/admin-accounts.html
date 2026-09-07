@@ -107,10 +107,14 @@
         이메일 한 줄에 <b>ERP계정 · 인사 · 그룹웨어 · MS</b> 보유 여부와 <b>권한 등록 여부</b>를 붙였습니다.
         연결키는 <b>이메일</b>입니다(<code>HAA010T.EMAIL_ADDR = usr_id</code>) — 부서·이름 대조는 키가 아니라
         <b>표기가 어긋난 계정을 드러내는 검증</b>으로 씁니다.
+        <br>조치가 필요 없는 두 가지는 판정에서 뺐습니다(2026-09-07):
+        <b>①ERP를 쓰지 않는 부서</b>(현재 <b>생산팀</b>)는 ERP 계정이 없어도 <b>정상</b>으로 보고 <span class="badge b">ERP면제</span> 배지를 답니다.
+        <b>②회의실·차량·공유메일함·시스템 계정</b>처럼 사람이 아닌 ID는 <b>현재 인원에서 제외</b>합니다.
+        등재되지 않은 새 계정은 그대로 조치 대상으로 보이므로, 빠뜨리면 이 화면이 알려줍니다.
       </div>
       <div class="bar">
         <input type="search" id="qRecon" placeholder="이메일 · 이름 · 부서 검색">
-        <label><input type="checkbox" id="curOnly" checked> 현재 인원만 (퇴사 이력 숨김)</label>
+        <label><input type="checkbox" id="curOnly" checked> 현재 인원만 <span class="muted">(퇴사 이력 · 회의실·차량·공유메일함 같은 공용·설비 계정 숨김)</span></label>
         <span id="chips"></span>
       </div>
       <div class="tblwrap">
@@ -224,7 +228,9 @@
     "정상": "g", "계정없음": "r", "인사없음": "a", "계정비활성": "n",
     "퇴사자계정활성": "r", "부서표기불일치": "a", "권한미등록": "a", "재입사": "b",
     "ERP·인사없음": "a", "그룹웨어없음": "a", "MS없음": "a",
-    "퇴사이력": "n", "비활성이력": "n"
+    "퇴사이력": "n", "비활성이력": "n",
+    // 사람이 아닌 계정(회의실·차량·공유메일함·시스템). is_current=false 라 「현재 인원만」에선 안 보인다.
+    "공용·설비계정": "n"
   };
   var msMark = function (r) {
     if (!MS.length) return '<span class="na" title="원천 미연결">–</span>';
@@ -307,7 +313,11 @@
     el("c-recon").textContent = "(" + rows.length + ")";
     el("reconRows").innerHTML = rows.length ? rows.map(function (r) {
       return '<tr>' +
-        '<td><span class="badge ' + (TYPE_BADGE[r.recon_type] || "b") + '">' + esc(r.recon_type) + '</span></td>' +
+        '<td><span class="badge ' + (TYPE_BADGE[r.recon_type] || "b") + '">' + esc(r.recon_type) + '</span>' +
+          // 왜 '정상'인지 근거를 함께 보여준다 — ERP를 쓰지 않는 부서라 계정 미발급이 정상인 경우
+          (r.erp_exempt ? ' <span class="badge b" title="ERP를 쓰지 않는 부서라 계정 미발급이 정상입니다(부서 정책: acct_erp_optional_dept)">ERP면제</span>' : '') +
+          (r.nonhuman_kind ? ' <span class="badge n" title="사람이 아닌 계정 — 현재 인원에서 제외">' + esc(r.nonhuman_kind) + '</span>' : '') +
+          '</td>' +
         '<td class="mono">' + esc(r.email) + '</td>' +
         '<td>' + esc(r.emp_nm || "—") + '</td>' +
         '<td>' + esc(r.dept_nm || "—") +
