@@ -47,7 +47,7 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
   <div class="content">
 <h1 id="21">21. 퇴사 처리 일괄 적용 — 기획</h1>
 <blockquote>
-<p><strong>작성일 2026-09-07 · v0.3(ERP 실증 완료 + 그룹웨어 Playwright 기획) · 관리: 최동혁 · 요청: 관리자</strong>
+<p><strong>작성일 2026-09-07 · v0.4(그룹웨어 자동화 구현 — 권한 차단 확인) · 관리: 최동혁 · 요청: 관리자</strong>
 계정 통합관리 화면(<code>/admin/accounts</code>)에서 <strong>퇴사 처리를 한 번에</strong> 걸어 ERP·그룹웨어·MS 세 시스템에
 일괄 적용하는 기능의 기획. 테스트 계정 <code>test@jeilm.co.kr</code> 로 3축 실측한 결과를 근거로 한다.
 관련: <code>00_현재상태_스냅샷</code>(v0.43) · <code>이관/sql/34·36·37</code> · 화면 <code>app/admin-accounts.html</code></p>
@@ -470,12 +470,47 @@ Playwright 는 <code>page.on("dialog", ...)</code> 로 <strong>정식 처리</st
 <li><strong>금지 조작 하드코딩 차단</strong> — 삭제 버튼·메일 삭제 체크박스는 코드에서 아예 다루지 않는다.</li>
 <li><strong>UI 변경 감지</strong> — 선택자를 못 찾으면 즉시 중단하고 Phase 1 지시서로 폴백. 조용히 잘못 누르는 것보다 멈추는 게 낫다.</li>
 </ol>
-<h3 id="54">5.4 한계와 전제</h3>
+<h3 id="54-2026-09-07">5.4 구현·실행 결과 (2026-09-07, 관리자 승인 후 착수)</h3>
+<p>Playwright(1.62.0) + Chromium 설치 완료. 스크립트 <strong><code>10_ERP_DB연계/etl/gw_offboard.py</code></strong> 작성해 실행했다.</p>
+<pre><code>python gw_offboard.py --login-id wc.kim --name 김우철 --retire-date 2023-12-22          # dry-run(기본)
+python gw_offboard.py --login-id wc.kim --name 김우철 --retire-date 2023-12-22 --apply  # 실제 저장
+</code></pre>
+<p><strong>검증된 것</strong>
+- 관리자 로그인 성공(자격증명은 <code>.env.local</code> 에서만 읽고 출력하지 않음)
+- 로그인 실패를 <strong>1회로 끊고 재시도하지 않는다</strong> — 계정 잠금 방지. ID 칸이 비면 제출 전에 중단
+- 관리자 콘솔 진입 성공, 단계별 증적 스크린샷 저장(<code>_gw_shots/</code>, git 제외)</p>
+<p><strong>막힌 것 — 권한</strong>
+<code>.env.local</code> 의 그룹웨어 계정은 <strong><code>조회용</code>(총무팀)</strong> 으로, 수집(SELECT) 목적의 읽기 계정이다.
+이 계정의 관리자 메뉴에는 <strong>「기본정보관리 &gt; 직원관리」가 아예 없다.</strong></p>
+<table>
+<thead>
+<tr>
+<th>보이는 관리자 메뉴</th>
+<th>업무관리 · 게시판관리 · 커뮤니티관리 · 설문조사관리 · 자원관리</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>없는 메뉴</strong></td>
+<td><strong>기본정보관리(직원관리·퇴사자 조회 등)</strong></td>
+</tr>
+</tbody>
+</table>
+<p>스크립트는 이 상황을 <strong>정확히 감지하고 안전하게 중단</strong>한다(보이는 메뉴 목록까지 출력).
+조용히 엉뚱한 곳을 누르지 않는다는 점에서 설계대로 동작한 것이다.</p>
+<blockquote>
+<p><strong>자동화가 실패한 게 아니라, 자격증명이 조회 전용이라 시작할 수 없는 상태다.</strong>
+스크립트는 완성돼 있고 권한만 열리면 그대로 돈다.</p>
+</blockquote>
+<p><strong>권고 — 자동화 전용 계정 신설</strong>
+<code>조회용</code> 에 쓰기 권한을 얹는 것은 계정 이름·용도와 어긋나고 수집 계정의 위험도를 올린다.
+관리자 개인 계정을 쓰는 것도 부적절하다(자격증명 보관·감사 추적이 개인에게 귀속).
+→ <strong>직원관리 권한만 가진 자동화 전용 계정</strong>(예: <code>svc.offboard</code>)을 만들고 <code>.env.local</code> 을 교체한다.</p>
+<h3 id="55">5.5 한계와 전제</h3>
 <ul>
 <li><strong>화면 자동화는 벤더 UI 변경에 취약하다.</strong> ONUL Ware 업데이트 한 번에 깨질 수 있다.
   그래서 이건 <strong>임시 수단</strong>이고, 벤더 API 가 열리면 즉시 갈아탄다(§4.2 B 항).</li>
-<li><strong>Playwright 가 아직 설치돼 있지 않다</strong>(실측: Python·Node 모두 미설치). 도입하려면
-  <code>pip install playwright</code> + <code>playwright install chromium</code>(브라우저 바이너리 수백 MB) 이 필요하다 → 관리자 승인 필요(§6 G).</li>
+<li>~~Playwright 미설치~~ <strong>설치 완료</strong>(playwright 1.62.0 + chromium, 2026-09-07 관리자 승인).</li>
 <li>그룹웨어 계정은 <strong>이메일이 비어 있을 수 있다</strong>(§3.4①). 화면 검색은 이름으로 하되
   <strong>로그인ID 로 대상을 확정</strong>해야 동명이인 오처리를 막는다.</li>
 </ul>
@@ -556,9 +591,15 @@ Playwright 는 <code>page.on("dialog", ...)</code> 로 <strong>정식 처리</st
 </tr>
 <tr>
 <td>G</td>
-<td><strong>Playwright 도입 승인</strong>(러너 호스트에 <code>pip install playwright</code> + chromium 바이너리) — 그룹웨어 축 자동화의 전제</td>
-<td>관리자</td>
-<td><strong>결정 대기</strong></td>
+<td>~~Playwright 도입 승인~~ <strong>완료</strong>(1.62.0 + chromium 설치, 스크립트 <code>gw_offboard.py</code> 작성·검증)</td>
+<td>—</td>
+<td><strong>완료</strong></td>
+</tr>
+<tr>
+<td><strong>J</strong></td>
+<td><strong>그룹웨어 자동화 전용 계정 신설 + 「기본정보관리 &gt; 직원관리」 권한 부여</strong> — 현재 <code>.env.local</code> 계정(<code>조회용</code>)에 이 메뉴가 없어 자동화가 시작조차 못 한다(§5.4). 권한만 열리면 스크립트는 그대로 동작</td>
+<td>최동혁(그룹웨어 관리자)</td>
+<td><strong>대기 · 그룹웨어 축의 유일한 차단 요인</strong></td>
 </tr>
 <tr>
 <td>H</td>
@@ -585,6 +626,11 @@ Playwright 는 <code>page.on("dialog", ...)</code> 로 <strong>정식 처리</st
 </tr>
 </thead>
 <tbody>
+<tr>
+<td>2026-09-07</td>
+<td><strong>v0.4 — 그룹웨어 화면 자동화 구현.</strong> 관리자 승인으로 Playwright 1.62.0 + chromium 설치, <code>etl/gw_offboard.py</code> 작성(13단계 절차 코드화 · dry-run 기본 · 3중 대조 · 모달 정식 처리 · 단계별 증적 · 위험 옵션 차단). 실행 결과 <strong>로그인·관리자 진입까지 성공했으나 「기본정보관리 &gt; 직원관리」 메뉴가 없어 중단</strong> — <code>.env.local</code> 의 그룹웨어 계정이 수집용 <code>조회용</code> 이라 인사 관리 권한이 없다(§5.4). 스크립트는 이 상황을 감지해 보이는 메뉴 목록과 함께 안전 중단한다. <strong>자동화 전용 계정 신설</strong>을 권고하고 결정 항목 J 로 등재. 증적 스크린샷 폴더는 직원 정보가 찍히므로 <code>.gitignore</code> 제외</td>
+<td>최동혁(+Claude)</td>
+</tr>
 <tr>
 <td>2026-09-07</td>
 <td><strong>v0.3 — ERP 축 실증 완료 + 그룹웨어 화면 자동화 기획.</strong> 관리자 승인 후 <code>test@jeilm.co.kr</code> 로 SharePoint 등재 → 흐름 실행 → ERP 반영까지 <strong>끝까지 태워 성공</strong>(§3.3). 그 과정에서 <strong>진행구분을 비우면 흐름이 조용히 지나간다</strong>는 것을 발견 — 포털은 반드시 <code>-</code> 로 채워야 한다(선택지 <code>대기</code>·<code>-</code>·<code>완료</code>). 관리자 지시로 <strong>그룹웨어 축을 Playwright 화면 자동화로 설계</strong>(§5) — 오늘 사람이 8명을 실제 처리하며 확정한 13단계 절차를 그대로 코드화하고, 실측 선택자·모달 처리·안전장치를 명시. 결함 ③(<code>usr_role</code> 미러 삭제 잔재 — 권한 회수 검증이 거짓말을 한다) 신규 발견. 결정 항목 G(Playwright 도입)·H(테스트 계정 원복)·I(usr_role 정합) 추가</td>
