@@ -34,6 +34,7 @@ ROUTES = {
     "/admin/erp-status":        "app/erp-status.html",
     "/admin/vendors":           "app/admin-vendors.html",
     "/admin/user-dept":         "app/admin-user-dept.html",
+    "/admin/accounts":          "app/admin-accounts.html",
     "/vendor/login":            "app/vendor-login.html",
 
     # ── 니즈조사 ───────────────────────────────────────────

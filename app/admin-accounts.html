@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>계정 통합관리 · 대사 — JEIL AX</title>
+<style>
+  :root{--navy:#1a2f4e;--navy2:#27457a;--accent:#2f6fb3;--red:#b3402f;--green:#2e7d52;--amber:#9a6b1f;
+    --ink:#222;--muted:#666;--line:#d8dee8;--bg:#f4f6f9;--soft:#eef2f8;--softgreen:#ecf5f0;--softamber:#faf3e4;--softred:#fbeeec;}
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;color:var(--ink);background:var(--bg);line-height:1.6;font-size:14px;}
+  .page{max-width:1320px;margin:0 auto;background:#fff;padding:30px 36px 40px;box-shadow:0 2px 14px rgba(0,0,0,.08);min-height:100vh;}
+  .head{display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px;border-bottom:3px solid var(--navy);padding-bottom:14px;margin-bottom:16px;}
+  .head h1{font-size:21px;color:var(--navy);}
+  .head .sub{font-size:12.5px;color:var(--muted);margin-top:3px;}
+  .head .sub a{color:var(--accent);text-decoration:none;} .head .sub a:hover{text-decoration:underline;}
+  .badge{display:inline-block;font-size:11px;border-radius:10px;padding:2px 9px;font-weight:600;white-space:nowrap;}
+  .badge.g{background:var(--softgreen);color:var(--green);} .badge.a{background:var(--softamber);color:var(--amber);}
+  .badge.b{background:var(--soft);color:var(--navy2);} .badge.r{background:var(--softred);color:var(--red);}
+  .badge.n{background:#f2f4f7;color:#8a93a0;}
+
+  .stats{display:grid;grid-template-columns:repeat(5,1fr);gap:11px;margin-bottom:18px;}
+  .stat{background:linear-gradient(135deg,#f7fafd,#eef4fb);border:1px solid var(--line);border-radius:10px;padding:13px 15px;}
+  .stat.ok{border-left:5px solid var(--green);} .stat.warn{border-left:5px solid var(--amber);}
+  .stat.info{border-left:5px solid var(--accent);} .stat.off{border-left:5px solid #b9c0cb;}
+  .stat .lb{font-size:11.5px;color:var(--muted);}
+  .stat .v{font-size:25px;font-weight:800;color:var(--navy);line-height:1.15;margin-top:2px;}
+  .stat .u{font-size:11.5px;color:#33425a;}
+
+  .tabs{display:flex;gap:4px;border-bottom:2px solid var(--line);margin-bottom:14px;flex-wrap:wrap;}
+  .tabs button{background:none;border:none;border-bottom:3px solid transparent;margin-bottom:-2px;padding:9px 15px;
+    font-family:inherit;font-size:13.5px;color:var(--muted);cursor:pointer;font-weight:600;}
+  .tabs button.on{color:var(--navy);border-bottom-color:var(--navy);}
+  .tabs button .cnt{font-weight:400;font-size:11.5px;color:#98a2b0;margin-left:4px;}
+  .panel{display:none;} .panel.on{display:block;}
+
+  .bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:2px 0 11px;}
+  .bar input[type=search]{width:250px;max-width:100%;padding:7px 11px;border:1px solid var(--line);border-radius:7px;font-size:13px;font-family:inherit;}
+  .bar label{font-size:12.5px;color:var(--muted);display:flex;align-items:center;gap:5px;cursor:pointer;}
+  .chip{background:#fff;border:1px solid var(--line);border-radius:14px;padding:3px 11px;font-size:12px;cursor:pointer;color:#4a5566;font-family:inherit;}
+  .chip.on{background:var(--navy);border-color:var(--navy);color:#fff;}
+  .chip .n{opacity:.72;margin-left:4px;}
+
+  .tblwrap{overflow-x:auto;border:1px solid var(--line);border-radius:9px;}
+  table{width:100%;border-collapse:collapse;font-size:12.7px;min-width:760px;}
+  th{background:var(--navy);color:#fff;padding:8px 10px;text-align:left;font-weight:600;white-space:nowrap;}
+  td{padding:7px 10px;border-bottom:1px solid var(--line);vertical-align:middle;}
+  tr:nth-child(even) td{background:#fafbfd;}
+  td.r,th.r{text-align:right;} td.c,th.c{text-align:center;}
+  td.mono{font-family:Consolas,monospace;font-size:11.5px;}
+  .yes{color:var(--green);font-weight:700;} .no{color:#c9ced6;font-weight:700;} .na{color:#c9ced6;}
+  .trunc{max-width:340px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block;vertical-align:bottom;}
+
+  .note{background:var(--soft);border:1px solid var(--line);border-radius:9px;padding:11px 15px;font-size:12px;color:#4a5566;margin-bottom:12px;}
+  .note.warn{background:var(--softamber);border-color:#e6d5a8;color:#6b5320;}
+  .note b{color:var(--navy2);}
+  code{font-family:Consolas,monospace;font-size:11px;background:#fff;border:1px solid var(--line);border-radius:4px;padding:0 5px;}
+  .gate{display:none;background:var(--softamber);border:1px solid var(--amber);border-radius:9px;padding:16px 20px;margin:14px 0;font-size:13px;color:#5a4520;}
+  .src{margin-top:20px;background:var(--soft);border:1px solid var(--line);border-radius:9px;padding:12px 16px;font-size:11.7px;color:var(--muted);}
+  .src b{color:var(--navy2);}
+  .foot{margin-top:22px;padding-top:12px;border-top:1px solid var(--line);font-size:11px;color:var(--muted);display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px;}
+  .muted{color:var(--muted);}
+  @media (max-width:1100px){.stats{grid-template-columns:repeat(3,1fr);}}
+  @media (max-width:700px){.stats{grid-template-columns:repeat(2,1fr);} .page{padding:20px 14px 30px;}}
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="head">
+    <div>
+      <h1>🔗 계정 통합관리 · 대사</h1>
+      <div class="sub">
+        <b>ERP 계정</b>(<code>Z_USR_MAST_REC.usr_id</code> = 이메일)이 정본이고, <b>인사</b>(<code>HAA010T</code>)·그룹웨어·MS를 이메일로 붙입니다
+        · <span class="badge b">관리자 전용</span>
+        · <a href="/admin/user-dept">사용자·부서 매핑 →</a>
+        · <a href="/admin/erp-status">ERP 연동 현황 →</a>
+      </div>
+    </div>
+    <div><span class="badge a">읽기전용</span></div>
+  </div>
+
+  <div class="gate" id="gate">
+    <b>사내 로그인이 필요합니다.</b> <span id="g_msg">포털에서 Microsoft 계정으로 로그인한 뒤 다시 열어주세요.</span>
+    <div style="margin-top:10px;"><a href="/main" style="color:#8a6d1f;">← 포털로 이동</a></div>
+  </div>
+
+  <div id="app" style="display:none;">
+    <div class="stats">
+      <div class="stat ok"><div class="lb">ERP 계정 (활성)</div><div class="v" id="sAcct">—</div><div class="u" id="sAcctU">정본</div></div>
+      <div class="stat info"><div class="lb">인사 재직자</div><div class="v" id="sHr">—</div><div class="u" id="sHrU">HAA010T</div></div>
+      <div class="stat warn"><div class="lb">대사 조치 대상</div><div class="v" id="sIssue">—</div><div class="u" id="sIssueU">현재 인원 기준</div></div>
+      <div class="stat off"><div class="lb">그룹웨어</div><div class="v" id="sGw">—</div><div class="u" id="sGwU">—</div></div>
+      <div class="stat off"><div class="lb">MS (Entra)</div><div class="v" id="sMs">—</div><div class="u" id="sMsU">—</div></div>
+    </div>
+
+    <div class="tabs">
+      <button id="t-recon" class="on" data-tab="recon">대사<span class="cnt" id="c-recon"></span></button>
+      <button id="t-erp"   data-tab="erp">ERP 계정·권한<span class="cnt" id="c-erp"></span></button>
+      <button id="t-hr"    data-tab="hr">인사<span class="cnt" id="c-hr"></span></button>
+      <button id="t-gw"    data-tab="gw">그룹웨어<span class="cnt" id="c-gw"></span></button>
+      <button id="t-ms"    data-tab="ms">MS<span class="cnt" id="c-ms"></span></button>
+    </div>
+
+    <!-- ── 대사 ─────────────────────────────────────────────── -->
+    <div class="panel on" id="p-recon">
+      <div class="note">
+        이메일 한 줄에 <b>ERP계정 · 인사 · 그룹웨어 · MS</b> 보유 여부와 <b>권한 등록 여부</b>를 붙였습니다.
+        연결키는 <b>이메일</b>입니다(<code>HAA010T.EMAIL_ADDR = usr_id</code>) — 부서·이름 대조는 키가 아니라
+        <b>표기가 어긋난 계정을 드러내는 검증</b>으로 씁니다.
+      </div>
+      <div class="bar">
+        <input type="search" id="qRecon" placeholder="이메일 · 이름 · 부서 검색">
+        <label><input type="checkbox" id="curOnly" checked> 현재 인원만 (퇴사 이력 숨김)</label>
+        <span id="chips"></span>
+      </div>
+      <div class="tblwrap">
+        <table>
+          <thead><tr>
+            <th>구분</th><th>이메일</th><th>이름</th><th>부서</th><th>직위</th>
+            <th class="c">ERP</th><th class="c">인사</th><th class="c">그룹웨어</th><th class="c">MS</th>
+            <th class="c">권한등록</th><th class="c">사번</th><th class="c">재입사</th>
+          </tr></thead>
+          <tbody id="reconRows"><tr><td colspan="12" class="c muted" style="padding:16px;">불러오는 중…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ── ERP 계정·권한 ────────────────────────────────────── -->
+    <div class="panel" id="p-erp">
+      <div class="note">
+        <b>정본 테이블.</b> <code>Z_USR_MAST_REC</code>는 로그인 계정이라 사람당 1행이고 <b>사번·부서코드 컬럼이 없습니다</b>.
+        부서·이름은 <code>usr_nm</code>의 <code>부서명_이름</code> 표기이며, 사번·직위는 이메일로 붙인 인사 값입니다.
+        권한은 ERP 역할(<code>Z_USR_ROLE</code>) 배정 여부입니다 — 기존 모듈 4종은 전원이 전모듈이라 변별력이 없어 역할로 바꿨습니다.
+      </div>
+      <div class="bar"><input type="search" id="qErp" placeholder="이메일 · 계정명 검색"></div>
+      <div class="tblwrap">
+        <table>
+          <thead><tr>
+            <th>이메일</th><th>계정 표기</th><th class="c">활성</th><th class="c">사번</th>
+            <th>인사 부서</th><th>직위</th><th class="c">권한등록</th><th class="r">역할수</th><th>역할</th>
+          </tr></thead>
+          <tbody id="erpRows"><tr><td colspan="9" class="c muted" style="padding:16px;">—</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ── 인사 ─────────────────────────────────────────────── -->
+    <div class="panel" id="p-hr">
+      <div class="note">
+        <b>서브 테이블.</b> <code>HAA010T</code>는 PK가 <b>사번</b>이라 재입사하면 <b>한 사람이 2행</b>이 됩니다
+        (<code>RE_ENTR_DT</code>는 전건 비어 있어 쓰이지 않습니다). 아래는 그 행들을 <b>이메일 단위로 접은</b> 결과입니다.
+        주민번호·주소·연락처·급여는 애초에 가져오지 않습니다.
+      </div>
+      <div class="bar"><input type="search" id="qHr" placeholder="이메일 · 이름 · 부서 검색"></div>
+      <div class="tblwrap">
+        <table>
+          <thead><tr>
+            <th>이메일</th><th>이름</th><th>부서</th><th>직위</th><th class="c">재직</th>
+            <th class="c">사번</th><th class="c">인사행</th><th>사번 이력</th><th class="c">최초입사</th><th class="c">퇴사</th>
+          </tr></thead>
+          <tbody id="hrRows"><tr><td colspan="10" class="c muted" style="padding:16px;">—</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ── 그룹웨어 ─────────────────────────────────────────── -->
+    <div class="panel" id="p-gw">
+      <div class="note" id="gwNote">
+        그룹웨어(ONUL Ware) 인사정보 뷰를 <b>읽기전용</b>으로 수집합니다. 매 실행마다 <b>전량 스냅샷</b>이라
+        원천에서 사라진 계정은 함께 지워집니다(증분 잔재 방지). 개인 연락처는 가져오지 않습니다.
+        <b>상태는 원천 <code>useState</code> 기준이며 0=사용·1=미사용</b>으로, 이름과 반대라 주의가 필요합니다
+        — 실측으로 확정했습니다(사용 117명이 ERP 활성 계정 93·인사 재직 95와 겹칩니다).
+      </div>
+      <div class="bar"><input type="search" id="qGw" placeholder="이메일 · 이름 검색"></div>
+      <div class="tblwrap">
+        <table>
+          <thead><tr><th>이메일</th><th>로그인 ID</th><th>이름</th><th>부서</th><th>직위</th><th class="c">상태</th><th class="c">수집시각</th></tr></thead>
+          <tbody id="gwRows"><tr><td colspan="7" class="c muted" style="padding:16px;">—</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ── MS ───────────────────────────────────────────────── -->
+    <div class="panel" id="p-ms">
+      <div class="note warn" id="msNote">
+        <b>원천 미연결.</b> Entra 앱에 디렉터리 열거 권한(<code>User.Read.All</code>, 응용 권한 + 테넌트 관리자 동의)이
+        아직 없어 전 직원 MS 계정을 읽을 수 없습니다. 현재 앱은 위임 권한(<code>User.Read</code>)뿐이라
+        <b>로그인한 본인만</b> 조회됩니다.
+      </div>
+      <div class="bar"><input type="search" id="qMs" placeholder="이메일 · 이름 검색"></div>
+      <div class="tblwrap">
+        <table>
+          <thead><tr><th>이메일(UPN)</th><th>표시 이름</th><th>부서</th><th>직책</th><th class="c">사용</th><th class="c">유형</th><th class="c">수집시각</th></tr></thead>
+          <tbody id="msRows"><tr><td colspan="7" class="c muted" style="padding:16px;">—</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="src" id="srcNote">불러오는 중…</div>
+  </div>
+
+  <div class="foot">
+    <span>JEIL AX · 계정 통합관리</span>
+    <span>관리자 전용 · 읽기전용 · 조회는 <code>jeil-accounts</code> 경유</span>
+  </div>
+</div>
+
+<script>
+(function () {
+  var API = "https://dvzohdqtjzocgcclgwro.supabase.co/functions/v1/jeil-accounts";
+  var el = function (id) { return document.getElementById(id); };
+  var esc = function (s) { return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) {
+    return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); };
+  var num = function (n) { return (n == null ? 0 : n).toLocaleString("ko-KR"); };
+  var dt = function (t) { return t ? new Date(t).toLocaleString("ko-KR",
+    { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" }) : "—"; };
+  var d10 = function (t) { return t ? String(t).slice(0, 10) : "—"; };
+  var mark = function (b) { return b ? '<span class="yes">●</span>' : '<span class="no">○</span>'; };
+
+  // 대사 구분별 배지색 — 조치가 필요한 것일수록 눈에 띄게
+  var TYPE_BADGE = {
+    "정상": "g", "계정없음": "r", "인사없음": "a", "계정비활성": "n",
+    "퇴사자계정활성": "r", "부서표기불일치": "a", "권한미등록": "a", "재입사": "b",
+    "그룹웨어만": "a", "그룹웨어없음": "a", "퇴사이력": "n", "그룹웨어이력": "n"
+  };
+  // 그룹웨어는 3상태다 — 사용중 / 미사용(계정은 있음) / 없음. ○ 하나로 뭉개면 구분이 사라진다.
+  var gwMark = function (r) {
+    if (!GW.length) return '<span class="na" title="원천 미연결">–</span>';
+    if (r.has_gw) return '<span class="yes" title="사용중">●</span>';
+    if (r.gw_status) return '<span class="badge n" title="그룹웨어 계정은 있으나 미사용">미사용</span>';
+    return '<span class="no" title="그룹웨어 계정 없음">○</span>';
+  };
+
+  function auth() {
+    try {
+      var a = JSON.parse(localStorage.getItem("jeilax_auth") || "null");
+      return (a && a.at && a.exp > Date.now()) ? a : null;
+    } catch (e) { return null; }
+  }
+
+  function api(scope) {
+    var a = auth();
+    if (!a) return Promise.reject(new Error("로그인이 필요합니다"));
+    return fetch(API, {
+      method: "POST",
+      headers: { Authorization: "Bearer " + a.at, "Content-Type": "application/json" },
+      body: JSON.stringify({ scope: scope })
+    }).then(function (r) {
+      return r.text().then(function (t) {
+        var j = null; try { j = JSON.parse(t); } catch (e) { /* 콜드스타트 비-JSON 대비 */ }
+        if (!r.ok) throw new Error((j && j.error) || ("오류 " + r.status));
+        return j.data;
+      });
+    });
+  }
+
+  function showGate(msg) {
+    el("gate").style.display = "block";
+    el("app").style.display = "none";
+    if (msg) el("g_msg").textContent = msg;
+  }
+
+  var RECON = [], ERP = [], HR = [], GW = [], MS = [], TYPE_FILTER = "";
+
+  function reconView() {
+    var q = el("qRecon").value.trim().toLowerCase();
+    var curOnly = el("curOnly").checked;
+    return RECON.filter(function (r) {
+      if (curOnly && !r.is_current) return false;
+      if (TYPE_FILTER && r.recon_type !== TYPE_FILTER) return false;
+      if (!q) return true;
+      return (r.email + " " + (r.emp_nm || "") + " " + (r.dept_nm || "")).toLowerCase().indexOf(q) >= 0;
+    });
+  }
+
+  function renderChips() {
+    var curOnly = el("curOnly").checked;
+    var pool = RECON.filter(function (r) { return !curOnly || r.is_current; });
+    var by = {};
+    pool.forEach(function (r) { by[r.recon_type] = (by[r.recon_type] || 0) + 1; });
+    // 조치가 필요한 것을 앞에, '정상'은 뒤로
+    var keys = Object.keys(by).sort(function (a, b) {
+      if (a === "정상") return 1; if (b === "정상") return -1; return by[b] - by[a];
+    });
+    el("chips").innerHTML =
+      '<button class="chip' + (TYPE_FILTER ? "" : " on") + '" data-t="">전체<span class="n">' + pool.length + '</span></button>' +
+      keys.map(function (k) {
+        return '<button class="chip' + (TYPE_FILTER === k ? " on" : "") + '" data-t="' + esc(k) + '">' +
+          esc(k) + '<span class="n">' + by[k] + '</span></button>';
+      }).join("");
+    Array.prototype.forEach.call(el("chips").querySelectorAll(".chip"), function (b) {
+      b.onclick = function () { TYPE_FILTER = b.getAttribute("data-t"); renderChips(); renderRecon(); };
+    });
+  }
+
+  function renderRecon() {
+    var rows = reconView();
+    el("c-recon").textContent = "(" + rows.length + ")";
+    el("reconRows").innerHTML = rows.length ? rows.map(function (r) {
+      return '<tr>' +
+        '<td><span class="badge ' + (TYPE_BADGE[r.recon_type] || "b") + '">' + esc(r.recon_type) + '</span></td>' +
+        '<td class="mono">' + esc(r.email) + '</td>' +
+        '<td>' + esc(r.emp_nm || "—") + '</td>' +
+        '<td>' + esc(r.dept_nm || "—") +
+          (r.dept_mismatch ? ' <span class="badge a" title="계정 표기: ' + esc(r.acct_dept_nm || "") + '">표기≠</span>' : '') + '</td>' +
+        '<td>' + esc(r.position_nm || "—") + '</td>' +
+        '<td class="c">' + mark(r.has_erp) + '</td>' +
+        '<td class="c">' + mark(r.has_hr) + '</td>' +
+        '<td class="c">' + gwMark(r) + '</td>' +
+        '<td class="c">' + (MS.length ? mark(r.has_ms) : '<span class="na" title="원천 미연결">–</span>') + '</td>' +
+        '<td class="c">' + (r.erp_perm_registered
+            ? '<span class="badge g">등록 ' + r.erp_role_cnt + '</span>'
+            : (r.has_erp ? '<span class="badge r">미등록</span>' : '<span class="na">–</span>')) +
+          (r.portal_admin ? ' <span class="badge b" title="포털 전체 관리자">전권</span>' : '') + '</td>' +
+        '<td class="c mono">' + esc(r.emp_no || "—") + '</td>' +
+        '<td class="c">' + (r.rehire_cnt > 0 ? '<span class="badge b">' + r.rehire_cnt + '회</span>' : '<span class="na">–</span>') + '</td>' +
+        '</tr>';
+    }).join("") : '<tr><td colspan="12" class="c muted" style="padding:16px;">조건에 맞는 계정이 없습니다.</td></tr>';
+  }
+
+  function renderErp() {
+    var q = el("qErp").value.trim().toLowerCase();
+    var rows = q ? ERP.filter(function (r) {
+      return (r.email + " " + (r.acct_nm_raw || "")).toLowerCase().indexOf(q) >= 0; }) : ERP;
+    el("c-erp").textContent = "(" + ERP.length + ")";
+    el("erpRows").innerHTML = rows.length ? rows.map(function (r) {
+      return '<tr>' +
+        '<td class="mono">' + esc(r.email) + '</td>' +
+        '<td>' + esc(r.acct_nm_raw || "—") +
+          (r.acct_status_note !== "재직" ? ' <span class="badge a">' + esc(r.acct_status_note) + '</span>' : '') + '</td>' +
+        '<td class="c">' + (r.acct_active ? '<span class="badge g">활성</span>'
+            : '<span class="badge n" title="' + dt(r.deactivated_at) + ' 원천에서 사라짐">비활성</span>') + '</td>' +
+        '<td class="c mono">' + esc(r.emp_no || '<span class="na">미연결</span>') + '</td>' +
+        '<td>' + esc(r.dept_nm || "—") +
+          (r.dept_mismatch ? ' <span class="badge a" title="계정 표기: ' + esc(r.acct_dept_nm || "") + '">표기≠</span>' : '') + '</td>' +
+        '<td>' + esc(r.roll_pstn || "—") + '</td>' +
+        '<td class="c">' + (r.erp_perm_registered ? '<span class="badge g">등록</span>' : '<span class="badge r">미등록</span>') + '</td>' +
+        '<td class="r">' + num(r.erp_role_cnt) + '</td>' +
+        '<td><span class="trunc muted" title="' + esc(r.roles || "") + '">' + esc(r.roles || "—") + '</span></td>' +
+        '</tr>';
+    }).join("") : '<tr><td colspan="9" class="c muted" style="padding:16px;">해당 계정 없음</td></tr>';
+  }
+
+  function renderHr() {
+    var q = el("qHr").value.trim().toLowerCase();
+    var rows = q ? HR.filter(function (r) {
+      return (r.email + " " + (r.emp_nm || "") + " " + (r.dept_nm || "")).toLowerCase().indexOf(q) >= 0; }) : HR;
+    el("c-hr").textContent = "(" + HR.length + ")";
+    el("hrRows").innerHTML = rows.length ? rows.map(function (r) {
+      return '<tr>' +
+        '<td class="mono">' + esc(r.email) + '</td>' +
+        '<td>' + esc(r.emp_nm || "—") + '</td>' +
+        '<td>' + esc(r.dept_nm || "—") + '</td>' +
+        '<td>' + esc(r.roll_pstn || "—") + '</td>' +
+        '<td class="c">' + (r.hr_active ? '<span class="badge g">재직</span>' : '<span class="badge n">퇴사</span>') + '</td>' +
+        '<td class="c mono">' + esc(r.emp_no || "—") + '</td>' +
+        '<td class="c">' + (r.emp_rec_cnt > 1 ? '<span class="badge b">' + r.emp_rec_cnt + '행</span>' : r.emp_rec_cnt) + '</td>' +
+        '<td class="mono muted">' + esc((r.emp_no_list || []).join(", ")) + '</td>' +
+        '<td class="c muted">' + d10(r.first_entr_dt) + '</td>' +
+        '<td class="c muted">' + d10(r.retire_dt) + '</td>' +
+        '</tr>';
+    }).join("") : '<tr><td colspan="10" class="c muted" style="padding:16px;">해당 인사 레코드 없음</td></tr>';
+  }
+
+  function renderSimple(kind) {
+    var isGw = kind === "gw";
+    var arr = isGw ? GW : MS;
+    var q = el(isGw ? "qGw" : "qMs").value.trim().toLowerCase();
+    var rows = q ? arr.filter(function (r) {
+      return (r.email + " " + (isGw ? (r.emp_nm || "") : (r.display_name || ""))).toLowerCase().indexOf(q) >= 0; }) : arr;
+    el("c-" + kind).textContent = "(" + arr.length + ")";
+    var body = el(kind + "Rows");
+    if (!arr.length) {
+      body.innerHTML = '<tr><td colspan="7" class="c muted" style="padding:18px;">원천 미연결 — 수집된 계정이 없습니다.</td></tr>';
+      return;
+    }
+    // '미연결' 경고만 걷는다. 설명용 안내는 데이터가 있어도 남긴다.
+    var note = el(kind + "Note");
+    if (note && note.classList.contains("warn")) note.style.display = "none";
+    body.innerHTML = rows.map(function (r) {
+      return isGw
+        ? '<tr><td class="mono">' + esc(r.email) + '</td><td class="mono">' + esc(r.login_id || "—") + '</td>' +
+          '<td>' + esc(r.emp_nm || "—") + '</td><td>' + esc(r.dept_nm || "—") + '</td>' +
+          '<td>' + esc(r.position_nm || "—") + '</td><td class="c">' + esc(r.status || "—") + '</td>' +
+          '<td class="c muted">' + dt(r.collected_at) + '</td></tr>'
+        : '<tr><td class="mono">' + esc(r.email) + '</td><td>' + esc(r.display_name || "—") + '</td>' +
+          '<td>' + esc(r.dept_nm || "—") + '</td><td>' + esc(r.job_title || "—") + '</td>' +
+          '<td class="c">' + (r.account_enabled ? '<span class="badge g">사용</span>' : '<span class="badge n">차단</span>') + '</td>' +
+          '<td class="c">' + esc(r.user_type || "—") + '</td>' +
+          '<td class="c muted">' + dt(r.collected_at) + '</td></tr>';
+    }).join("");
+  }
+
+  function renderSummary(s) {
+    el("sAcct").textContent = num(s.acct_active);
+    el("sAcctU").textContent = "미러 " + num(s.acct_total) + " · 비활성 " + num(s.acct_off);
+    el("sHr").textContent = num(s.hr_active);
+    el("sHrU").textContent = "이메일 " + num(s.hr_total) + " · 재입사 " + num(s.rehire);
+    var issue = RECON.filter(function (r) { return r.is_current && r.recon_type !== "정상"; }).length;
+    el("sIssue").textContent = num(issue);
+    el("sIssueU").textContent = "현재 인원 " + num(RECON.filter(function (r) { return r.is_current; }).length) + "명 중";
+    el("sGw").textContent = s.gw_total ? num(s.gw_total) : "—";
+    el("sGwU").textContent = s.gw_total ? dt(s.gw_synced_at) : "원천 미연결";
+    el("sMs").textContent = s.ms_total ? num(s.ms_total) : "—";
+    el("sMsU").textContent = s.ms_total ? dt(s.ms_synced_at) : "권한 대기";
+    el("srcNote").innerHTML =
+      '<b>데이터 출처</b> — ERP 계정 <code>Z_USR_MAST_REC</code> · 인사 <code>HAA010T</code> · 역할 <code>Z_USR_ROLE</code> ' +
+      '→ ETL(읽기전용) → Supabase <code>erp_ro</code> → RPC <code>account_recon_get</code> → Edge Function <code>jeil-accounts</code>. ' +
+      '연결키는 <b>이메일</b>이며 부서·이름 대조는 검증 표시로만 씁니다. ' +
+      '<b>최신 적재</b> — 계정 ' + dt(s.acct_synced_at) + ' · 인사 ' + dt(s.hr_synced_at) + ' · 역할 ' + dt(s.role_synced_at) + '. ' +
+      '<b>수동 배치</b>라 이 시각 이후 ERP 변경은 반영되지 않았습니다.';
+  }
+
+  // 탭 전환
+  Array.prototype.forEach.call(document.querySelectorAll(".tabs button"), function (b) {
+    b.onclick = function () {
+      var t = b.getAttribute("data-tab");
+      Array.prototype.forEach.call(document.querySelectorAll(".tabs button"), function (x) { x.classList.remove("on"); });
+      Array.prototype.forEach.call(document.querySelectorAll(".panel"), function (x) { x.classList.remove("on"); });
+      b.classList.add("on"); el("p-" + t).classList.add("on");
+    };
+  });
+
+  function boot() {
+    if (!auth()) { showGate(); return; }
+    Promise.all([api("summary"), api("recon"), api("erp"), api("hr"), api("gw"), api("ms")])
+      .then(function (r) {
+        var s = r[0]; RECON = r[1] || []; ERP = r[2] || []; HR = r[3] || []; GW = r[4] || []; MS = r[5] || [];
+        el("gate").style.display = "none"; el("app").style.display = "block";
+        renderSummary(s); renderChips(); renderRecon(); renderErp(); renderHr();
+        renderSimple("gw"); renderSimple("ms");
+      })
+      .catch(function (e) {
+        var m = e && e.message || String(e);
+        showGate(/forbidden|관리자/.test(m) ? "이 화면은 포털 전체 관리자만 볼 수 있습니다." : m);
+      });
+  }
+
+  el("qRecon").addEventListener("input", renderRecon);
+  el("curOnly").addEventListener("change", function () { renderChips(); renderRecon(); });
+  el("qErp").addEventListener("input", renderErp);
+  el("qHr").addEventListener("input", renderHr);
+  el("qGw").addEventListener("input", function () { renderSimple("gw"); });
+  el("qMs").addEventListener("input", function () { renderSimple("ms"); });
+
+  boot();
+})();
+</script>
+</body>
+</html>

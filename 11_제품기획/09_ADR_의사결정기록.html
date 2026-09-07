@@ -144,6 +144,32 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <li><strong>잔여 미결정</strong>: 승인 라인(부서장 2단 여부)·상태이력 테이블 분리·보존기간 / <code>erp_load_scope</code> 레지스트리 신설 여부·<code>data</code> 승인의 의미(ETL 착수 확정 vs 검토 등재)·E(기능없음) 유형 노출 여부. 설계 <a href="/docs/product/chat-data-request">11 요청접수</a> §14~§15.</li>
 <li><strong>근거</strong>: 마이그레이션 <code>portal_request_v1</code>, 정본 SQL <code>실제구축준비 자료/이관/sql/18_portal_request.sql</code>, <code>jeil-portal-request</code> v3, <code>jeil-chat</code> v28.</li>
 </ul>
+<h3 id="adr-012-erp-2026-09-07">ADR-012 ✅ 계정 정본 = ERP 계정, 인사마스터는 서브 · 연결키는 이메일 (2026-09-07)</h3>
+<ul>
+<li><strong>배경</strong>: ERP·그룹웨어·MS 세 계정을 한 사람으로 묶어 관리해야 하는데, ERP 안에서만도 <strong>계정과 인사가 별개 테이블</strong>이다. <code>Z_USR_MAST_REC</code>(로그인 계정, PK=<code>usr_id</code>=이메일, <code>usr_nm</code>='부서명_이름')에는 <strong>사번·부서코드 컬럼이 아예 없고</strong>, <code>HAA010T</code>(인사 사원, PK=<code>EMP_NO</code>)는 <strong>재입사 시 새 사번이 생겨 한 사람이 2행</strong>이 된다. 둘을 무엇으로 잇고 무엇을 정본으로 삼을지가 먼저 정해져야 했다.</li>
+<li><strong>선택지(정본)</strong>: (A) 인사마스터 기준 / (B) <strong>ERP 계정 기준</strong>.</li>
+<li><strong>결정(정본) = (B)</strong> — 관리 목적이 <strong>계정 관리</strong>이므로 계정이 모수다(활성 94명). 인사는 계정에 붙는 <strong>서브 정보</strong>로 다룬다. (A)를 택하면 인사 745행·퇴사자 514명이 모수가 되어 관리 대상이 흐려진다.</li>
+<li><strong>선택지(연결키)</strong>: (A) <code>HAA010T.EMAIL_ADDR = usr_id</code> <strong>이메일 직결</strong> / (B) <code>usr_nm</code> 파싱 <strong>부서+이름 매칭</strong>.</li>
+<li><strong>결정(연결키) = (A)</strong>, 실측 근거로 (B)를 기각했다. 관리자 최초 지시는 (B)였으나 데이터가 반대를 가리켰다.
+  · 이메일 직결 <strong>88/94(93.6%)</strong> vs 부서+이름 <strong>85/94(90.4%)</strong> — 이메일이 더 많이 붙는다.
+  · 이메일로 못 붙는 6명을 부서+이름으로 건지는 수 <strong>0명</strong> — 폴백 효용이 없다.
+  · 부서+이름은 후보가 2건 이상인 계정이 <strong>8명</strong> — 사번을 특정할 수 없다(재직자 한정 시 충돌 0이나, 그러면 재입사 판별에 필요한 퇴사 행을 못 붙인다).
+  · 두 방식이 <strong>다른 사번을 가리키는 건 0명</strong> — 이메일을 써도 잃는 정보가 없다.
+  · <code>usr_nm</code>의 부서가 인사 부서와 다른 계정이 <strong>4명</strong>(부서 이동 후 계정명 미수정) — 이걸 키로 쓰면 이 4명이 깨진다.</li>
+<li><strong>부서+이름 대조는 버리지 않고 「검증 표시」로 전환</strong>: <code>dept_mismatch</code>·<code>name_mismatch</code> 컬럼으로 남겨 위 4명 같은 <strong>표기 낡음을 화면이 드러낸다</strong>. 키가 아니라 대사 신호다.</li>
+<li><strong>재입사 처리</strong>: <code>RE_ENTR_DT</code> 컬럼은 745행 <strong>전부 비어 있어</strong> 쓰이지 않는다. 재입사는 <strong>같은 이메일 + 새 사번</strong>으로 나타나며(실측 10명 — 재직+퇴사 혼재 1·둘 다 퇴사 9), 뷰 <code>erp_ro.v_hr_by_email</code>이 이메일 단위로 접어 <code>rehire_cnt</code>·<code>emp_no_list</code>로 보여준다.</li>
+<li><strong>근거</strong>: 마이그레이션 <code>identity_accounts_tables</code>·<code>identity_accounts_views</code>·<code>identity_accounts_rpc</code>·<code>account_recon_retired_history</code>, 정본 SQL <code>실제구축준비 자료/이관/sql/34_identity_accounts.sql</code>, Edge Function <code>jeil-accounts</code> v1, 화면 <code>/admin/accounts</code>, ETL job <code>hr_emp</code>(745행)·<code>usr_role</code>(1,723행). 상태 <a href="/docs/erp/status"><code>10_ERP_DB연계/00</code></a> v0.40.</li>
+</ul>
+<h3 id="adr-013-2026-09-07">ADR-013 ✅ 미러 정합은 삭제가 아니라 비활성 표시 (2026-09-07)</h3>
+<ul>
+<li><strong>배경</strong>: <code>usr_master</code> ETL이 증분(<code>USE_YN='Y' AND UPDT_DT &gt;= watermark</code>)이라, ERP에서 <strong>비활성화된 계정은 조건에 걸리지 않아 다시 조회되지도 삭제되지도 않았다.</strong> 실측 결과 <strong>미러 101건 vs 원천 94건</strong>으로 7건이 유령처럼 남아 있었고, 이 상태로 대사 화면을 만들면 <strong>비활성 7명을 현직으로 표시</strong>하게 된다. 증분 upsert를 쓰는 다른 job에도 같은 구멍이 있다.</li>
+<li><strong>선택지</strong>: (A) 원천에 없는 행 <strong>삭제</strong> / (B) <strong><code>use_yn=false</code> + <code>deactivated_at</code> 표시</strong> / (C) 미러는 두고 화면에 경고만.</li>
+<li><strong>결정 = (B)</strong> (관리자 결정). 되돌릴 수 있고 <strong>언제 비활성화됐는지 이력이 남는다</strong>. (A)는 되돌릴 수 없고 "언제 사라졌나"를 영영 잃는다. (C)는 문제를 화면마다 반복 처리해야 해 근본 해결이 아니다.</li>
+<li><strong>안전장치</strong>: 정합 RPC <code>erp_usr_master_reconcile</code>은 <strong>원천 목록이 비면 예외를 던져 거부</strong>한다 — ERP 조회가 실패했을 때 전건 비활성화되는 사고를 막는다. ETL 쪽에서도 빈 목록이면 RPC를 부르지 않는다.</li>
+<li><strong>실행 결과</strong>: 2026-09-07 적용 후 <strong>정확히 7건 비활성 표시</strong>(deactivated 7 / reactivated 0 / source_count 94) — 예측치와 일치.</li>
+<li><strong>교훈(REQ-0015와 같은 계열)</strong>: 「증분이라 최신이다」는 <strong>최신 행에만 참</strong>이고 사라진 행에는 거짓이다. 미러 건수는 주기적으로 <strong>원천과 대조해야</strong> 하며, 문서에 적힌 동작이 실제로 도는지는 실측으로 확인한다.</li>
+<li><strong>근거</strong>: <code>10_ERP_DB연계/etl/etl_run.py</code>의 <code>usr_master.reconcile</code> 후처리, RPC <code>public.erp_usr_master_reconcile</code>, <code>erp_ro.usr_master_s.deactivated_at</code>.</li>
+</ul>
 <h2 id="b-proposed">B. 미결정 (Proposed — 결정 대기)</h2>
 <h3 id="adr-101">ADR-101 🕐 백엔드 스택 최종 확정</h3>
 <ul>

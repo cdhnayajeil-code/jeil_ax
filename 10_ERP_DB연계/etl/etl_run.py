@@ -35,7 +35,17 @@ JOBS = {
             WHERE USE_YN = 'Y' AND USR_ID LIKE '%@%'
         """,
         "params": [],
-        "incr_sql": " AND UPDT_DT >= ?",   # 증분: 변경된 계정만(watermark 이후). 미사용 전환분은 --full 정합으로 정리
+        "incr_sql": " AND UPDT_DT >= ?",   # 증분: 변경된 계정만(watermark 이후)
+        # 정합 후처리 — 증분이라 ERP 에서 USE_YN='N' 이 된 계정은 조건에 안 걸려 다시 조회되지도
+        # 삭제되지도 않는다(실측 2026-09-07: 원천 94 vs 미러 101, 잔재 7건). 매 실행마다 원천의
+        # 활성 계정 전량(가벼운 목록 조회)을 따로 읽어 미러의 잔재를 use_yn=false 로 표시한다.
+        # 삭제하지 않는 이유 — 되돌릴 수 있고 비활성 시점 이력이 남는다(관리자 결정 2026-09-07).
+        "reconcile": {
+            "rpc": "erp_usr_master_reconcile",
+            "param": "p_active_emails",
+            "sql": "SELECT USR_ID FROM JEILMNS.dbo.Z_USR_MAST_REC WITH (NOLOCK) "
+                   "WHERE USE_YN = 'Y' AND USR_ID LIKE '%@%'",
+        },
     },
     # ⑥ 부서 마스터 스냅샷 ← B_ACCT_DEPT (파싱 부서명 대사·부서-사원 관계 기준, 소형·전량 upsert)
     "dept_master": {
@@ -62,6 +72,52 @@ JOBS = {
             JOIN JEILMNS.dbo.Z_CO_MAST_MNU mm WITH (NOLOCK)
                  ON mm.MNU_ID = m.MNU_ID AND mm.MNU_TYPE = m.MNU_TYPE
             WHERE a.USR_ID LIKE '%@%' AND mm.ModuleInitial IN ('SD','MM','IM','MDM')
+        """,
+        "params": [],
+    },
+    # ⑦-2 인사 사원마스터 ← HAA010T — 계정(Z_USR_MAST_REC)에 붙는 '서브' 정보
+    #    두 테이블은 다른 것을 담는다. 계정은 PK=usr_id(이메일)로 사람당 1행이고,
+    #    인사는 PK=EMP_NO 라 재입사하면 새 사번이 생겨 같은 이메일에 2행이 된다(실측 10명).
+    #    연결키는 **이메일**(EMAIL_ADDR = usr_id) — 실측 88/94(93.6%) 로 부서+이름 매칭(85/94)보다
+    #    많이 붙고, 부서+이름이 추가로 건지는 건 0명이며 후보 2건 이상이 8명이라 특정도 안 된다.
+    #    ⚠ 사번·이름·부서·직위·이메일·입퇴사일·그룹웨어ID 만 추출한다. 주민번호(RES_NO·RES_NO_PRVC)·
+    #      주소·연락처·급여(호봉)·CARD_ID 는 선택하지 않는다(CLAUDE.md §1.7).
+    #    퇴사자도 적재한다 — 재입사 이력과 '퇴사자 계정 활성' 대사가 퇴사 행을 필요로 한다.
+    "hr_emp": {
+        "table": "hr_emp_s",
+        "rpc": "erp_identity_upsert",
+        "sql": """
+            SELECT RTRIM(EMP_NO) AS emp_no,
+                   NULLIF(RTRIM(ISNULL(NAME, '')), '') AS emp_nm,
+                   NULLIF(RTRIM(ISNULL(DEPT_CD, '')), '') AS dept_cd,
+                   NULLIF(RTRIM(ISNULL(DEPT_NM, '')), '') AS dept_nm,
+                   NULLIF(RTRIM(ISNULL(ROLL_PSTN, '')), '') AS roll_pstn,
+                   NULLIF(RTRIM(ISNULL(EMAIL_ADDR, '')), '') AS email,
+                   ENTR_DT AS entr_dt,
+                   RETIRE_DT AS retire_dt,
+                   NULLIF(RTRIM(ISNULL(ENTR_CD, '')), '') AS entr_cd,
+                   NULLIF(RTRIM(ISNULL(grw_id, '')), '') AS grw_id,
+                   UPDT_DT AS src_updated
+            FROM JEILMNS.dbo.HAA010T WITH (NOLOCK)
+            WHERE RTRIM(ISNULL(EMP_NO, '')) <> ''
+        """,
+        "params": [],
+    },
+    # ⑦-3 ERP 권한 등록정보(역할) ← Z_USR_MAST_REC_USR_ROLE_ASSO ⋈ Z_USR_ROLE
+    #    기존 usr_erp_module(모듈 4종)은 실측상 전원이 전모듈이라(SD 101·MDM 101·MM 100·IM 99)
+    #    변별력이 없다. 역할은 마스터 69개(실사용 61)·배정 1,920행·사용자당 평균 18.5개로
+    #    "권한이 등록돼 있는가"를 실제로 가른다. 역할명이 'N.모듈_권한명' 형식이라 분류도 된다.
+    "usr_role": {
+        "table": "usr_role_s",
+        "rpc": "erp_identity_upsert",
+        "sql": """
+            SELECT DISTINCT LOWER(RTRIM(a.USR_ID)) AS email,
+                   RTRIM(a.USR_ROLE_ID) AS role_id,
+                   NULLIF(RTRIM(ISNULL(m.USR_ROLE_NM, '')), '') AS role_nm
+            FROM JEILMNS.dbo.Z_USR_MAST_REC_USR_ROLE_ASSO a WITH (NOLOCK)
+            LEFT JOIN JEILMNS.dbo.Z_USR_ROLE m WITH (NOLOCK)
+                   ON RTRIM(m.USR_ROLE_ID) = RTRIM(a.USR_ROLE_ID)
+            WHERE a.USR_ID LIKE '%@%'
         """,
         "params": [],
     },
@@ -619,6 +675,24 @@ def run_job(name, spec, url, key, dry, full=False):
                     buf = []
             if buf and not dry:
                 rows_up += int(rpc(url, key, upsert_fn, {"p_table": spec["table"], "p_rows": buf}) or 0)
+
+        # 정합 후처리 — 원천에 없는 미러 잔재를 비활성 표시(증분 job 이 스스로 못 지우는 구멍)
+        rec = spec.get("reconcile")
+        if rec:
+            if dry:
+                print(f"[{name}] (dry-run) 정합 생략")
+            else:
+                with pyodbc.connect(conn_str, timeout=30) as conn2:
+                    c2 = conn2.cursor()
+                    c2.execute(rec["sql"])
+                    live_keys = [str(r[0]).strip() for r in c2 if r[0] and str(r[0]).strip()]
+                if not live_keys:
+                    # 원천이 0건이면 전건 비활성화가 되므로 RPC 가 거부한다. 여기서 먼저 멈춘다.
+                    print(f"[{name}] 정합 건너뜀 — 원천 목록이 비어 있음(전건 비활성화 방지)",
+                          file=sys.stderr)
+                else:
+                    print(f"[{name}] 정합 — 원천 {len(live_keys)}건 → "
+                          f"{rpc(url, key, rec['rpc'], {rec['param']: live_keys})}")
         if dry:
             print(f"[{name}] (dry-run) 추출 {rows_read}행 — 적재 생략")
         else:
