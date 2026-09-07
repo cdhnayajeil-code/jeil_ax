@@ -110,6 +110,13 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <tr>
 <td>2026-09-07</td>
 <td>ERP연계·계정관리</td>
+<td><code>10_ERP_DB연계/etl/etl_watch.py</code>·<code>ms_collect.py</code>·<code>gw_collect.py</code> · <code>이관/sql/35_sync_overview_accounts.sql</code>(신규, 마이그레이션 <code>sync_overview_accounts</code>) · <code>app/erp-status.html</code> · <code>10_ERP_DB연계/</code>(00 v0.41·02)</td>
+<td><strong>「데이터 업데이트」 한 번에 ERP·MS·그룹웨어가 같이 갱신되게(관리자 지시).</strong> 연동현황 화면의 🔄 버튼은 ERP 21종만 다시 받아오고 <strong>MS(Entra)·그룹웨어 계정은 손대지 않았다.</strong> 그래서 계정 통합관리·대사 화면이 <em>ERP는 오늘 데이터, 계정은 며칠 전 데이터</em>인 상태로 조용히 어긋났다 — 같은 날 그룹웨어 퇴사자 8명을 사용중지로 바꾼 직후에도 미러는 예전 그대로였다. 이런 어긋남은 화면에 오류로 뜨지 않아 <strong>틀린 대사 결과를 맞는 것처럼 보여주는 것</strong>이 문제였다. 러너(<code>etl_watch.py</code>)에 계정 수집기 2종(<code>ms_account</code>·<code>gw_account</code>)을 <strong>ERP job 뒤에 이어 실행</strong>하도록 붙였고(ERP 사용자마스터가 먼저 갱신돼야 같은 시점으로 맞춰진다), 두 수집기는 CLI·러너 공용 진입점 <code>collect()</code>로 정리하면서 실패를 <code>SystemExit</code>→<code>RuntimeError</code>로 바꿨다(전자는 <code>except Exception</code>에 안 걸려 <strong>상주 러너를 통째로 죽인다</strong>). 연동현황 표에도 두 축을 등재해 「최신 연동」 시각이 보이게 했는데, 건수는 실테이블 count가 아니라 배치 이력을 쓴다 — 두 계정 테이블은 사내 사용자에게 SELECT 권한이 없어 count하면 화면 전체가 403이 된다(2026-07-21 iv_dtl 사고와 같은 유형). 한 축이 실패해도 나머지는 계속 간다. 검증: 러너 경유 실행으로 MS 483행·그룹웨어 471행 적재, 뷰 최신 연동 시각 표시, 사내 사용자 권한 조회 정상</td>
+<td>최동혁(+Claude)</td>
+</tr>
+<tr>
+<td>2026-09-07</td>
+<td>ERP연계·계정관리</td>
 <td><code>10_ERP_DB연계/</code>(00·01·02·05) · <code>erp_ro.hr_emp_s</code>·<code>usr_role_s</code> · <code>public.acct_groupware</code>·<code>acct_ms</code> · <code>supabase/functions/jeil-accounts</code>(v1) · <code>app/admin-accounts.html</code></td>
 <td><strong>계정 통합관리·대사(REQ-0018) 구축·실적재 완료</strong> — ERP 계정(<code>Z_USR_MAST_REC</code>, 이메일 SSOT)·인사(<code>HAA010T</code>)·그룹웨어·MS(Entra) 4원천을 이메일 공통키로 대사. 관리자 지시로 <strong>정본=ERP 계정, 서브=인사</strong>를 확정(목적이 계정 관리이므로). 인사 745행 실측(재직 96명), <code>RE_ENTR_DT</code> 전량 공백 확인으로 <strong>재입사는 새 사번 발급으로 표현됨</strong>을 확정(10명). 연결키 비교(이메일 직결 93.6% vs 부서+이름 90.4%, 다른 사번 지목 0건)로 이메일 채택. <code>usr_master</code> 증분 job의 미러-원천 불일치(101 vs 94) 발견 → 정합(reconcile) 로직으로 비활성 7건 표시 해소. 신규 테이블·뷰·RPC·ETL job 구축(정본 SQL <code>이관/sql/34_identity_accounts.sql</code>), 게이트 API <code>jeil-accounts</code> v1 ACTIVE(무토큰·위조토큰 401 실측), 관리자 화면 <code>/admin/accounts</code>(5탭) 배포. 대사 결과(102명): 정상 83·계정없음 8·인사없음 6·부서표기불일치 3·권한미등록 1·재입사 1. 잔여: 그룹웨어 수집경로·MS Entra 응용권한 승인·<code>ENTR_CD</code> 코드 의미(사람 작업). 개인정보 최소수집 준수(주민번호·주소·연락처·급여·CARD_ID 미추출)</td>
 <td>최동혁(+Claude)</td>

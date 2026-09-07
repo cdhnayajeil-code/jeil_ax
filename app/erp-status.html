@@ -74,7 +74,7 @@
       <label class="sens" id="sensBox" style="display:none;">
         <input type="checkbox" id="chkSens"> 급여 집계 포함 <span class="badge a">관리자</span>
       </label>
-      <span class="msg" id="updMsg">ERP에서 최신 데이터를 다시 받아옵니다(증분).</span>
+      <span class="msg" id="updMsg">ERP에서 최신 데이터를 다시 받아옵니다(증분). <b>MS(Entra)·그룹웨어 계정</b>도 함께 갱신됩니다.</span>
       <div class="bar" id="updBar"><i id="updBarFill"></i></div>
     </div>
   </div>
@@ -98,6 +98,8 @@
     <b>동작 방식</b> — ERP(UNIERP) 운영DB → 야간/수동 배치(ETL, 읽기전용) → Supabase <code>erp_ro</code> 스키마 적재 → 사내 전용 뷰 <code>public.v_erp_*</code>로 화면·챗봇에 제공.
     <code>erp_ro</code>는 REST에 직접 노출되지 않으며(보안), 이 페이지는 <code>public.v_erp_sync_overview</code> 뷰를 조회합니다.
     데이터는 유니포인트 매핑 확정 전 <b>파일럿</b>이며, 최신 연동 시점 이후의 ERP 변경은 다음 배치에서 반영됩니다.
+    <br><b>계정 두 축</b>(MS(Entra)·그룹웨어)은 ERP가 아닌 별도 원천이라 <b>전량 스냅샷</b>으로 받아옵니다(원천에서 지워진 계정은 미러에서도 삭제).
+    「데이터 업데이트」 한 번에 ERP 뒤로 이어서 갱신되므로, 계정 통합관리·대사 화면이 ERP만 새 데이터인 상태로 어긋나지 않습니다.
   </div>
 
   <h3 style="margin-top:22px;">연결 정보</h3>
@@ -106,7 +108,8 @@
       <tr><td style="width:170px;"><b>원천 시스템</b></td><td>UNIERP · MS SQL Server(사외 IDC) — DB <code>JEILMNS</code></td></tr>
       <tr><td><b>접속 방식</b></td><td>ODBC(SQL Server Driver 18/17) · <b>읽기전용</b> 조회만(<code>SELECT … WITH (NOLOCK)</code>) · 화이트리스트 SQL 고정, DDL/DML 없음</td></tr>
       <tr><td><b>적재 경로</b></td><td>ETL 스크립트(<code>10_ERP_DB연계/etl/etl_run.py</code>) → Supabase RPC <code>erp_etl_upsert</code>(민감분 <code>erp_secure_upsert</code>) → <code>erp_ro</code>/<code>erp_secure</code></td></tr>
-      <tr><td><b>실행 방식</b></td><td><b>수동 실행</b>(자동 스케줄러 미도입) — 배치 이력은 <code>etl_meta.batch_run</code>에 기록. 상단 표의 "최신 연동"이 각 소스의 마지막 성공 시각</td></tr>
+      <tr><td><b>계정 원천(ERP 외)</b></td><td>MS(Entra) <code>Microsoft Graph /users</code>(앱 전용 토큰, 응용권한 User.Read.All) · 그룹웨어 <code>ONUL Ware</code> 인사정보 뷰(MS SQL, 읽기전용) — 수집기 <code>ms_collect.py</code>·<code>gw_collect.py</code> → RPC <code>acct_source_upsert</code> → <code>public.acct_ms</code>·<code>public.acct_groupware</code>. <b>전량 스냅샷</b>(원천에 없는 계정 삭제) · 비밀번호·개인 연락처 미수집</td></tr>
+      <tr><td><b>실행 방식</b></td><td><b>수동 실행</b>(자동 스케줄러 미도입) — 「데이터 업데이트」 1회에 ERP job 21종 + 계정 2종이 순서대로 실행됩니다. 배치 이력은 <code>etl_meta.batch_run</code>에 기록. 상단 표의 "최신 연동"이 각 소스의 마지막 성공 시각</td></tr>
       <tr><td><b>접속 정보 보관</b></td><td>서버·계정·비밀번호는 <b>소스·문서에 기재하지 않음</b> — 실행 환경의 <code>.env</code>(git 제외)에만 보관</td></tr>
       <tr><td><b>데이터 격리</b></td><td>RLS로 사내(internal) 세션만 조회 · 협력사·anon 0행 · 급여 등 민감분은 <code>erp_secure</code> 분리 후 전용 RPC로만 접근(접근 감사 기록)</td></tr>
     </tbody>
@@ -214,7 +217,9 @@
     pur_order:"발주", pur_req:"구매요청", item_master:"품목", sales:"매출", iv_dtl:"매입상세",
     purchase:"매입", inventory:"재고", acct_master:"계정과목", cost_center:"코스트센터",
     ctrl_item:"관리항목", acct_ctrl_assn:"계정·관리항목", ctrl_ref:"관리항목 참조",
-    gl_slip:"결의전표", gl_slip_item:"전표라인", gl_slip_ctrl:"전표 관리항목", bp_master:"거래처" };
+    gl_slip:"결의전표", gl_slip_item:"전표라인", gl_slip_ctrl:"전표 관리항목", bp_master:"거래처",
+    // ERP 밖 원천 — 계정 대사(REQ-0018)의 나머지 두 축. ERP job 뒤에 이어서 돈다.
+    ms_account:"MS(Entra) 계정", gw_account:"그룹웨어 계정" };
   const jobKo = (k) => JOB_KO[k] || k || "";
 
   function setMsg(html, cls) { const m = el("updMsg"); m.className = "msg" + (cls ? " " + cls : ""); m.innerHTML = html; }

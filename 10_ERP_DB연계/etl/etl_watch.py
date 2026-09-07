@@ -4,6 +4,8 @@
 #   그래서 화면(app/erp-status.html)의 「🔄 데이터 업데이트」 버튼은 Supabase 큐
 #   (etl_meta.sync_request)에 "요청"만 남기고, ERP 접속이 되는 이 호스트에서 이 러너가
 #   요청을 집어가 etl_run.run_job 을 돌리고 진행률·결과를 되쓴다. 화면은 그 상태를 폴링한다.
+#   ERP job 을 다 돌린 뒤 **MS(Entra)·그룹웨어 계정 수집기**도 이어서 돌린다(COLLECTORS) —
+#   계정 대사 화면이 ERP 만 새 데이터, 계정은 옛 데이터인 상태로 어긋나지 않게 하기 위해서다.
 #
 # 실행:
 #   python etl_watch.py                 # 상주(기본 20초 주기 폴링) — 콘솔 켜두면 됨
@@ -19,6 +21,7 @@
 #     허용·거부 모두 erp_secure.hr_access_log 에 감사 기록한다. 일반 사내 사용자 요청엔 붙지 않는다.
 import argparse
 import datetime
+import importlib
 import json
 import socket
 import sys
@@ -34,6 +37,17 @@ SAFE_JOBS = [n for n, s in JOBS.items() if s.get("rpc") != "erp_secure_upsert"]
 # 민감 job(급여 hr_payroll → erp_secure). 요청에 include_sensitive=true 가 있을 때만 돈다 —
 # 그 플래그는 DB RPC 가 전체관리자(portal_admin)에게만 허용하고 hr_access_log 에 감사 기록한다.
 SENSITIVE_JOBS = [n for n, s in JOBS.items() if s.get("rpc") == "erp_secure_upsert"]
+
+# 계정 대사(REQ-0018)의 ERP 밖 두 축 — 웹 「데이터 업데이트」로 ERP job 과 함께 돈다.
+#   ms_account : Microsoft Graph /users        → public.acct_ms
+#   gw_account : 그룹웨어(ONUL Ware) MSSQL 뷰   → public.acct_groupware
+# 원천도 접속 방식도 ERP 와 달라 etl_run.JOBS 에 넣지 않고 여기서 별도 단계로 돌린다.
+# 둘 다 **전량 스냅샷**이라 증분(--full) 개념이 없고, 한 쪽이 실패해도 나머지는 계속 간다.
+# (계정 정보만 늦게 갱신되면 대사 화면이 조용히 틀린 값을 보여준다 — 2026-09-07 관리자 지시로 편입)
+COLLECTORS = {
+    "ms_account": ("ms_collect", "MS(Entra) 계정"),
+    "gw_account": ("gw_collect", "그룹웨어 계정"),
+}
 
 POLL_SEC = 20          # 기본 폴링 주기
 HTTP_TIMEOUT = 60
@@ -70,10 +84,39 @@ def rpc(url, key, fn, payload):
 
 def targets_for(req_jobs, include_sensitive=False):
     """요청이 지정한 job ∩ 허용 목록. 비었으면 허용 목록 전체(기본 세트).
-    include_sensitive 는 관리자 요청에서만 참 — 이때만 급여(erp_secure) job 이 목록에 붙는다."""
-    allowed = list(SAFE_JOBS) + (list(SENSITIVE_JOBS) if include_sensitive else [])
+    include_sensitive 는 관리자 요청에서만 참 — 이때만 급여(erp_secure) job 이 목록에 붙는다.
+    계정 수집기(COLLECTORS)는 항상 허용이며 **ERP job 뒤**에 붙인다 — ERP 사용자마스터가
+    먼저 갱신돼야 계정 대사가 같은 시점의 데이터로 맞춰진다."""
+    allowed = (list(SAFE_JOBS)
+               + (list(SENSITIVE_JOBS) if include_sensitive else [])
+               + list(COLLECTORS))
     asked = [j for j in (req_jobs or []) if j in allowed]
     return asked or allowed
+
+
+def run_collector(name, url, key, dry):
+    """계정 수집기 1종 실행 → (추출건수, 적재건수).
+
+    ERP job 과 똑같이 etl_meta.batch_run 에 start/finish 를 남긴다 — 그래야 연동현황 화면의
+    「최신 연동」(v_erp_sync_overview) 에 MS·그룹웨어 행이 뜬다."""
+    mod_name, label = COLLECTORS[name]
+    mod = importlib.import_module(mod_name)
+    log(f"  · {label} 수집")
+    batch_id = None if dry else rpc(url, key, "erp_etl_batch",
+                                    {"p_action": "start", "p_payload": {"job_name": name}})
+    try:
+        read, up = mod.collect(url, key, dry)
+    except Exception as e:
+        if batch_id:
+            rpc(url, key, "erp_etl_batch", {"p_action": "finish", "p_payload": {
+                "batch_id": batch_id, "status": "failed", "rows_read": 0,
+                "error_msg": str(e)[:500]}})
+        raise
+    if batch_id:
+        rpc(url, key, "erp_etl_batch", {"p_action": "finish", "p_payload": {
+            "batch_id": batch_id, "status": "success",
+            "rows_read": read, "rows_upserted": up}})
+    return read, up
 
 
 def handle(url, key, runner, req, dry, full):
@@ -94,7 +137,10 @@ def handle(url, key, runner, req, dry, full):
             {"p_request_id": rid, "p_done": i + 1, "p_total": total, "p_job": name,
              "p_rows_read": read_sum, "p_rows_upserted": up_sum})
         try:
-            got = run_job(name, JOBS[name], url, key, dry, full)
+            if name in COLLECTORS:
+                got = run_collector(name, url, key, dry)
+            else:
+                got = run_job(name, JOBS[name], url, key, dry, full)
             rd, up = got if got else (0, 0)
             read_sum += rd
             up_sum += up
@@ -116,7 +162,8 @@ def handle(url, key, runner, req, dry, full):
 
 def tick(url, key, runner, dry, full):
     """하트비트 1회 + 대기 요청 있으면 1건 처리. 처리했으면 True."""
-    rpc(url, key, "erp_sync_runner_ping", {"p_runner": runner, "p_note": f"jobs={len(SAFE_JOBS)}"})
+    rpc(url, key, "erp_sync_runner_ping",
+        {"p_runner": runner, "p_note": f"jobs={len(SAFE_JOBS)}+acct{len(COLLECTORS)}"})
     req = rpc(url, key, "erp_sync_request_claim", {"p_runner": runner})
     if not req:
         return False
@@ -147,6 +194,7 @@ def main():
     runner = socket.gethostname()
 
     log(f"러너 시작 — host={runner} · 기본 job {len(SAFE_JOBS)}종"
+        f" + 계정수집 {len(COLLECTORS)}종({'·'.join(COLLECTORS)})"
         f"(+관리자 요청 시 민감 {len(SENSITIVE_JOBS)}종)"
         + (" · dry-run" if args.dry_run else "") + (" · full" if args.full else ""))
     if args.once:

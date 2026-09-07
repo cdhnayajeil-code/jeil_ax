@@ -17,6 +17,10 @@
 사용:
   python ms_collect.py --dry-run   # 조회·집계만
   python ms_collect.py             # 실적재
+
+웹 「데이터 업데이트」(app/erp-status.html) 로도 함께 돈다 — 러너(etl_watch.py)가 `collect()` 를
+직접 호출한다. 그래서 이 파일의 실패는 **RuntimeError 로만** 올린다. SystemExit 를 던지면
+상주 러너가 통째로 죽어 다른 job 까지 멈춘다(BaseException 이라 `except Exception` 에 안 걸린다).
 """
 import argparse
 import json
@@ -60,7 +64,7 @@ def get_token(tenant, client_id, secret):
         except Exception:
             pass
         # 응답에 시크릿이 되돌아오는 일은 없지만 방어적으로 지운다
-        raise SystemExit("토큰 발급 실패 HTTP %s: %s" % (e.code, detail.replace(secret, "***")[:400]))
+        raise RuntimeError("토큰 발급 실패 HTTP %s: %s" % (e.code, detail.replace(secret, "***")[:400]))
 
 
 def fetch_users(token):
@@ -79,22 +83,20 @@ def fetch_users(token):
             except Exception:
                 pass
             if e.code == 403:
-                raise SystemExit(
-                    "Graph 403 — 앱에 응용 권한 User.Read.All 이 없거나 관리자 동의가 안 됐습니다.\n"
+                raise RuntimeError(
+                    "Graph 403 — 앱에 응용 권한 User.Read.All 이 없거나 관리자 동의가 안 됐습니다. "
                     + detail[:300])
-            raise SystemExit("Graph 조회 실패 HTTP %s: %s" % (e.code, detail[:400]))
+            raise RuntimeError("Graph 조회 실패 HTTP %s: %s" % (e.code, detail[:400]))
         out.extend(d.get("value") or [])
         url = d.get("@odata.nextLink")
     return out
 
 
-def main():
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--dry-run", action="store_true", help="조회·집계만(적재 안 함)")
-    ap.add_argument("--all", action="store_true",
-                    help="게스트·비사내 도메인까지 포함(기본은 @jeilm.co.kr 만)")
-    args = ap.parse_args()
+def collect(url=None, key=None, dry=False, include_all=False):
+    """Entra 계정 전량 스냅샷 수집 → public.acct_ms. `(추출건수, 적재건수)` 를 돌려준다.
 
+    CLI(main)와 웹 러너(etl_watch.py)가 함께 쓰는 단일 진입점이다. url/key 를 주지 않으면
+    `.env` 에서 읽는다. 실패는 RuntimeError — 러너가 부분 실패로 처리하고 다음 job 을 이어간다."""
     load_env()
     tenant = need("ENTRA_TENANT_ID")
     client_id = need("ENTRA_CLIENT_ID")
@@ -113,7 +115,7 @@ def main():
         if "@" not in email:
             skipped["이메일없음"] += 1
             continue
-        if not args.all and not email.endswith("@jeilm.co.kr"):
+        if not include_all and not email.endswith("@jeilm.co.kr"):
             skipped["사외도메인"] += 1
             continue
         rows.append({
@@ -140,17 +142,32 @@ def main():
              " · ".join("%s %d" % kv for kv in sorted(types.items()))))
     print("[ms] 제외 — %s" % " · ".join("%s %d" % kv for kv in skipped.items()))
 
-    if args.dry_run:
+    if dry:
         print("[ms] (dry-run) 적재 생략")
-        return 0
+        return len(rows), 0
     if not rows:
-        print("[ms] 대상 0건 — 전건 삭제를 막기 위해 적재를 중단합니다", file=sys.stderr)
-        return 1
+        # 0건 적재는 acct_source_upsert 가 거부하지만, 여기서 먼저 멈춰 원인을 분명히 남긴다
+        raise RuntimeError("대상 0건 — 전건 삭제를 막기 위해 적재를 중단합니다")
 
-    url = need("SUPABASE_URL").rstrip("/")
-    key = need("SUPABASE_SERVICE_ROLE_KEY")
-    print("[ms] 적재 완료 — %s" % rpc(url, key, "acct_source_upsert",
-                                    {"p_source": "ms", "p_rows": rows}))
+    url = url or need("SUPABASE_URL").rstrip("/")
+    key = key or need("SUPABASE_SERVICE_ROLE_KEY")
+    res = rpc(url, key, "acct_source_upsert", {"p_source": "ms", "p_rows": rows})
+    print("[ms] 적재 완료 — %s" % res)
+    up = int((res or {}).get("upserted") or 0) if isinstance(res, dict) else len(rows)
+    return len(rows), up
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--dry-run", action="store_true", help="조회·집계만(적재 안 함)")
+    ap.add_argument("--all", action="store_true",
+                    help="게스트·비사내 도메인까지 포함(기본은 @jeilm.co.kr 만)")
+    args = ap.parse_args()
+    try:
+        collect(dry=args.dry_run, include_all=args.all)
+    except RuntimeError as e:
+        print("[ms] 실패: %s" % e, file=sys.stderr)
+        return 1
     return 0
 
 

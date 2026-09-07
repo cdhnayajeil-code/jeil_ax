@@ -16,6 +16,10 @@
 사용:
   python gw_collect.py --dry-run   # 추출·집계만, 적재 안 함
   python gw_collect.py             # 실적재
+
+웹 「데이터 업데이트」(app/erp-status.html) 로도 함께 돈다 — 러너(etl_watch.py)가 `collect()` 를
+직접 호출한다. 그래서 이 파일의 실패는 **RuntimeError 로만** 올린다. SystemExit 를 던지면
+상주 러너가 통째로 죽어 다른 job 까지 멈춘다(BaseException 이라 `except Exception` 에 안 걸린다).
 """
 import argparse
 import io
@@ -74,27 +78,27 @@ SELECT_SQL = """
 """
 
 
-def main():
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--dry-run", action="store_true", help="추출·집계만 확인(적재 안 함)")
-    args = ap.parse_args()
+def collect(url=None, key=None, dry=False):
+    """그룹웨어 계정 전량 스냅샷 수집 → public.acct_groupware. `(추출건수, 적재건수)` 반환.
 
+    CLI(main)와 웹 러너(etl_watch.py)가 함께 쓰는 단일 진입점이다. url/key 를 주지 않으면
+    `.env` 에서 읽는다. 실패는 RuntimeError — 러너가 부분 실패로 처리하고 다음 job 을 이어간다."""
     cfg = load_local()
     need_keys = ["GW_DB_HOST", "GW_DB_NAME", "GW_TABLE_ID", "GW_TABLE_PW", "GW_TABLE_NAME"]
     missing = [k for k in need_keys if not cfg.get(k)]
     if missing:
-        raise SystemExit(".env.local 키 누락: " + ", ".join(missing))
+        raise RuntimeError(".env.local 키 누락: " + ", ".join(missing))
 
     server, _, port = cfg["GW_DB_HOST"].partition(":")
     port = port or "1433"
     view = cfg["GW_TABLE_NAME"]
     if not re.match(r"^[A-Za-z0-9_]+$", view):
-        raise SystemExit("뷰 이름에 허용되지 않은 문자가 있습니다")
+        raise RuntimeError("뷰 이름에 허용되지 않은 문자가 있습니다")
 
     import pyodbc
     drivers = [d for d in pyodbc.drivers() if "SQL Server" in d]
     if not drivers:
-        raise SystemExit("SQL Server ODBC 드라이버가 없습니다")
+        raise RuntimeError("SQL Server ODBC 드라이버가 없습니다")
     drv = next((d for d in ("ODBC Driver 18 for SQL Server",
                             "ODBC Driver 17 for SQL Server") if d in drivers), drivers[0])
     cs = ("DRIVER={%s};SERVER=%s,%s;DATABASE=%s;UID=%s;PWD=%s;"
@@ -134,7 +138,7 @@ def main():
                 })
     except Exception as e:
         msg = str(e).replace(cfg["GW_TABLE_PW"], "***").replace(cfg["GW_DB_HOST"], "***")
-        raise SystemExit("[gw] 추출 실패: " + msg[:400])
+        raise RuntimeError("그룹웨어 DB 추출 실패: " + msg[:400])
 
     # 이메일 중복 제거(마지막 행 우선) — PK 충돌 방지
     dedup = {}
@@ -148,18 +152,31 @@ def main():
     print("[gw] 추출 %d행 (이메일 기준) — 상태별 %s"
           % (len(rows), " · ".join("%s %d" % kv for kv in sorted(by_status.items()))))
 
-    if args.dry_run:
+    if dry:
         print("[gw] (dry-run) 적재 생략")
-        return 0
+        return len(rows), 0
     if not rows:
-        print("[gw] 추출 0행 — 전건 삭제를 막기 위해 적재를 중단합니다", file=sys.stderr)
-        return 1
+        # 0건 적재는 acct_source_upsert 가 거부하지만, 여기서 먼저 멈춰 원인을 분명히 남긴다
+        raise RuntimeError("추출 0행 — 전건 삭제를 막기 위해 적재를 중단합니다")
 
     load_env()
-    url = need("SUPABASE_URL").rstrip("/")
-    key = need("SUPABASE_SERVICE_ROLE_KEY")
+    url = url or need("SUPABASE_URL").rstrip("/")
+    key = key or need("SUPABASE_SERVICE_ROLE_KEY")
     res = rpc(url, key, "acct_source_upsert", {"p_source": "gw", "p_rows": rows})
     print("[gw] 적재 완료 — %s" % res)
+    up = int((res or {}).get("upserted") or 0) if isinstance(res, dict) else len(rows)
+    return len(rows), up
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--dry-run", action="store_true", help="추출·집계만 확인(적재 안 함)")
+    args = ap.parse_args()
+    try:
+        collect(dry=args.dry_run)
+    except RuntimeError as e:
+        print("[gw] 실패: %s" % e, file=sys.stderr)
+        return 1
     return 0
 
 

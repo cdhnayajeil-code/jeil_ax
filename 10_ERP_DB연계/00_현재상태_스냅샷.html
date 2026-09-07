@@ -47,7 +47,7 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
   <div class="content">
 <h1 id="00-erp-db">00. ERP DB 연계 — 현재상태 스냅샷</h1>
 <blockquote>
-<p><strong>기준일: 2026-09-07</strong>(v0.40, 이전 v0.39 · 2026-08-27 / v0.38 · 2026-08-25 / v0.37 · 2026-08-24 / v0.36 · 2026-08-20 / v0.35 · 2026-08-20 / v0.34 · 2026-08-20 / v0.33 · 2026-08-20 / v0.32 · 2026-08-19 / v0.31 · 2026-08-19 / v0.30 · 2026-08-18 / v0.29 · 2026-08-18 / v0.28 · 2026-08-18 / v0.27 · 2026-08-12 / v0.26 · 2026-08-12 / v0.25 · 2026-08-11 / v0.24 · 2026-08-11 / v0.23 · 2026-08-11 / v0.22 · 2026-08-11 / v0.21 · 2026-08-10 / v0.20 · 2026-08-03 / v0.19 · 2026-08-03 / v0.18 · 2026-07-31 / v0.17 · 2026-07-24 / v0.16 · 2026-07-22 / v0.15 · 2026-07-22 / v0.14 · 2026-07-22 / v0.13 · 2026-07-21 / v0.12 · 2026-07-21 / v0.11 · 2026-07-20 / v0.10 · 2026-07-13 / v0.9 · 2026-07-08 / v0.8 · 2026-07-08 / v0.7 · 2026-07-08 / v0.6 · 2026-07-08 / v0.5 · 2026-07-08 / v0.4 · 2026-07-08 / v0.3 · 2026-07-08 / v0.2 · 2026-07-07) · 관리: 최동혁 · 전담 에이전트: <code>erp-db-link-manager</code>
+<p><strong>기준일: 2026-09-07</strong>(v0.41, 이전 v0.40 · 2026-09-07 / v0.39 · 2026-08-27 / v0.38 · 2026-08-25 / v0.37 · 2026-08-24 / v0.36 · 2026-08-20 / v0.35 · 2026-08-20 / v0.34 · 2026-08-20 / v0.33 · 2026-08-20 / v0.32 · 2026-08-19 / v0.31 · 2026-08-19 / v0.30 · 2026-08-18 / v0.29 · 2026-08-18 / v0.28 · 2026-08-18 / v0.27 · 2026-08-12 / v0.26 · 2026-08-12 / v0.25 · 2026-08-11 / v0.24 · 2026-08-11 / v0.23 · 2026-08-11 / v0.22 · 2026-08-11 / v0.21 · 2026-08-10 / v0.20 · 2026-08-03 / v0.19 · 2026-08-03 / v0.18 · 2026-07-31 / v0.17 · 2026-07-24 / v0.16 · 2026-07-22 / v0.15 · 2026-07-22 / v0.14 · 2026-07-22 / v0.13 · 2026-07-21 / v0.12 · 2026-07-21 / v0.11 · 2026-07-20 / v0.10 · 2026-07-13 / v0.9 · 2026-07-08 / v0.8 · 2026-07-08 / v0.7 · 2026-07-08 / v0.6 · 2026-07-08 / v0.5 · 2026-07-08 / v0.4 · 2026-07-08 / v0.3 · 2026-07-08 / v0.2 · 2026-07-07) · 관리: 최동혁 · 전담 에이전트: <code>erp-db-link-manager</code>
 ERP(UNIERP) DB와 AI 포털·사내 타부서 간 연계의 <strong>현황 대장(단일 출처)</strong>. 상태가 바뀌면 여기를 먼저 고치고 §7 변경 이력에 한 줄 남긴다.
 비밀값(접속 IP/ID/비밀번호)은 기록 금지 — 서버 지칭은 별칭 <strong>"ERP운영DB"</strong> 만 사용.</p>
 </blockquote>
@@ -199,7 +199,7 @@ ERP(UNIERP) DB와 AI 포털·사내 타부서 간 연계의 <strong>현황 대�
 </tr>
 <tr>
 <td>중간 DB — ETL 스크립트</td>
-<td><code>10_ERP_DB연계/etl/</code>: <code>load_table_dict.py</code>·<code>etl_run.py</code>(1차 5종, <code>--dry-run</code> 지원) <strong>실행 완료</strong>(2026-07-07) + <code>etl_watch.py</code>(웹 「데이터 업데이트」 요청 러너, 2026-08-20 신설). 야간배치 정기 가동(무인 스케줄러)은 여전히 미구성 — 현재는 <strong>수동 실행 + 화면 요청 실행</strong> 2경로</td>
+<td><code>10_ERP_DB연계/etl/</code>: <code>load_table_dict.py</code>·<code>etl_run.py</code>(1차 5종, <code>--dry-run</code> 지원) <strong>실행 완료</strong>(2026-07-07) + <code>etl_watch.py</code>(웹 「데이터 업데이트」 요청 러너, 2026-08-20 신설) + 계정 수집기 <code>ms_collect.py</code>·<code>gw_collect.py</code>(2026-09-07, 러너가 ERP job 뒤에 함께 실행). 야간배치 정기 가동(무인 스케줄러)은 여전히 미구성 — 현재는 <strong>수동 실행 + 화면 요청 실행</strong> 2경로</td>
 </tr>
 <tr>
 <td><strong>중간 DB — 노출 계층(P4)</strong></td>
@@ -311,7 +311,7 @@ ERP(UNIERP) DB와 AI 포털·사내 타부서 간 연계의 <strong>현황 대�
 </tr>
 <tr>
 <td><strong>연동 현황 화면 「데이터 업데이트」 버튼 — 요청 큐 + 실행 러너(2026-08-20)</strong></td>
-<td><strong>신설·가동(플러밍 검증 완료, ERP 미접속 상태에서 큐·RPC 왕복 확인)</strong> — <code>app/erp-status.html</code>에 <strong>🔄 데이터 업데이트</strong> 버튼 신설. ERP MSSQL은 사외 IDC라 브라우저·Edge에서 직접 못 붙으므로 <strong>요청 큐 방식</strong>: 버튼 → Supabase <code>etl_meta.sync_request</code> 요청 등록(사내 세션만, RPC <code>erp_sync_request_create</code>) → ERP 접속 호스트의 러너 <code>10_ERP_DB연계/etl/etl_watch.py</code>가 선점(<code>erp_sync_request_claim</code>)해 <code>etl_run.run_job</code> 실행 → 진행률(<code>erp_sync_request_progress</code>)·결과(<code>erp_sync_request_finish</code>) 기록 → 화면이 2.5초 폴링하다 완료 시 <code>v_erp_sync_overview</code>를 다시 그린다. 대상 job은 <strong>민감분(급여 <code>hr_payroll</code>/<code>erp_secure</code>) 제외 19종</strong>(거버넌스 게이트 유지 — 급여는 관리자 직접 실행만). 중복 실행 방지(진행 중 요청 재사용)·쿨다운 60초·좀비 정리(running 2h·queued 4h)·러너 하트비트(<code>etl_meta.runner_heartbeat</code>, 3분) 포함 — 러너 미가동이면 화면이 즉시 안내한다. SQL 정본 <code>이관/sql/29_erp_sync_request.sql</code>(마이그레이션 <code>erp_sync_request_v1</code>)</td>
+<td><strong>신설·가동(플러밍 검증 완료, ERP 미접속 상태에서 큐·RPC 왕복 확인)</strong> — <code>app/erp-status.html</code>에 <strong>🔄 데이터 업데이트</strong> 버튼 신설. ERP MSSQL은 사외 IDC라 브라우저·Edge에서 직접 못 붙으므로 <strong>요청 큐 방식</strong>: 버튼 → Supabase <code>etl_meta.sync_request</code> 요청 등록(사내 세션만, RPC <code>erp_sync_request_create</code>) → ERP 접속 호스트의 러너 <code>10_ERP_DB연계/etl/etl_watch.py</code>가 선점(<code>erp_sync_request_claim</code>)해 <code>etl_run.run_job</code> 실행 → 진행률(<code>erp_sync_request_progress</code>)·결과(<code>erp_sync_request_finish</code>) 기록 → 화면이 2.5초 폴링하다 완료 시 <code>v_erp_sync_overview</code>를 다시 그린다. 대상 job은 <strong>민감분(급여 <code>hr_payroll</code>/<code>erp_secure</code>) 제외 ERP 21종 + 계정 수집 2종</strong>(거버넌스 게이트 유지 — 급여는 관리자 직접 실행만). <strong>2026-09-07 확장</strong>: ERP job 뒤에 계정 대사의 ERP 밖 두 축 <code>ms_account</code>(Graph <code>/users</code> → <code>public.acct_ms</code>)·<code>gw_account</code>(그룹웨어 뷰 → <code>public.acct_groupware</code>)를 이어 돌린다(<code>COLLECTORS</code>). ERP만 새 데이터이고 계정은 며칠 전 데이터인 어긋남을 없애기 위한 것으로, 두 수집기는 전량 스냅샷이라 증분 개념이 없고 한 쪽이 실패해도 나머지는 계속 간다. 수집기 실패는 <code>RuntimeError</code>로만 올린다(<code>SystemExit</code>는 <code>except Exception</code>에 안 걸려 상주 러너를 통째로 죽인다). 중복 실행 방지(진행 중 요청 재사용)·쿨다운 60초·좀비 정리(running 2h·queued 4h)·러너 하트비트(<code>etl_meta.runner_heartbeat</code>, 3분) 포함 — 러너 미가동이면 화면이 즉시 안내한다. SQL 정본 <code>이관/sql/29_erp_sync_request.sql</code>(마이그레이션 <code>erp_sync_request_v1</code>)</td>
 </tr>
 <tr>
 <td><strong>관리항목 참조 마스터 통합 연동(<code>ctrl_ref</code>) — 신설·실적재 완료(2026-08-20)</strong></td>
@@ -475,14 +475,14 @@ ERP(UNIERP) DB와 AI 포털·사내 타부서 간 연계의 <strong>현황 대�
 <td>최동혁(+인사/해당 부서 확인)</td>
 </tr>
 <tr>
-<td><strong>계정 통합관리·대사 — 그룹웨어(ONUL Ware) 수집 경로 미정(신규, 2026-09-07)</strong></td>
-<td><code>public.acct_groupware</code> 테이블·화면 탭은 준비됐으나 0행 — 그룹웨어(<code>gw.jeilm.co.kr</code>) 조회용 뷰테이블 접속 정보를 관리자가 제공하기로 했으나 아직 미기재(<code>.env.local</code>). 값 입력 전까지 대사 화면의 그룹웨어 탭은 빈 상태</td>
-<td>최동혁(관리자)</td>
+<td>~~<strong>계정 통합관리·대사 — 그룹웨어(ONUL Ware) 수집 경로 미정(2026-09-07)</strong>~~ <strong>→ 해소(2026-09-07)</strong></td>
+<td>관리자가 <code>.env.local</code>에 조회 뷰 접속 정보를 기재해 <code>gw_collect.py</code> 가동 — <code>public.acct_groupware</code> <strong>471행</strong> 적재(사용 105·미사용 366). 이후 「데이터 업데이트」에 편입돼 ERP와 함께 갱신된다</td>
+<td>— (완료)</td>
 </tr>
 <tr>
-<td><strong>계정 통합관리·대사 — MS(Entra) 응용 권한·테넌트 관리자 동의 필요(신규, 2026-09-07)</strong></td>
-<td><code>public.acct_ms</code> 0행 — 앱(<code>JEIL-AX-Portal</code>)에 현재 위임 권한 <code>User.Read</code>만 있어 로그인 본인만 조회 가능. 전 직원 MS 계정 목록을 대사하려면 <strong>응용 권한 <code>User.Read.All</code> 부여 + 테넌트 관리자 동의</strong>가 필요(Entra 앱 설정 변경은 관리자 직접, <code>CLAUDE.md §5.2</code>)</td>
-<td>최동혁(관리자, Entra 앱 등록)</td>
+<td>~~<strong>계정 통합관리·대사 — MS(Entra) 응용 권한·테넌트 관리자 동의 필요(2026-09-07)</strong>~~ <strong>→ 해소(2026-09-07)</strong></td>
+<td>관리자가 앱(<code>JEIL-AX-Portal</code>)에 응용 권한 <code>User.Read.All</code> + 테넌트 관리자 동의를 부여해 <code>ms_collect.py</code> 가동 — <code>public.acct_ms</code> <strong>483행</strong> 적재(디렉터리 523건 중 사내 도메인, 사용 133·차단 350). 이후 「데이터 업데이트」에 편입. ⚠ 시크릿 만료 <strong>2026-12-09</strong> — 갱신 안 하면 이 수집과 포털 로그인이 함께 멈춘다</td>
+<td>— (완료, 만료 갱신은 §6 별건)</td>
 </tr>
 <tr>
 <td><strong>계정 통합관리·대사 — <code>HAA010T.ENTR_CD</code>(입사구분) 코드 의미 미확인(신규, 2026-09-07)</strong></td>
@@ -602,6 +602,11 @@ ERP(UNIERP) DB와 AI 포털·사내 타부서 간 연계의 <strong>현황 대�
 </tr>
 </thead>
 <tbody>
+<tr>
+<td>2026-09-07</td>
+<td><strong>「데이터 업데이트」에 MS·그룹웨어 계정 수집 편입(v0.41)</strong> — 관리자 지시("ERP 데이터 연동 현황에서 업데이트할 때 MS정보와 그룹웨어정보도 같이 업데이트"). 그동안 버튼은 ERP 21종만 갱신하고 계정 두 축은 손대지 않아, 계정 통합관리·대사 화면이 <strong>ERP는 새 데이터·계정은 옛 데이터</strong>인 상태로 조용히 어긋났다(그룹웨어 퇴사자 8명 사용중지 처리 직후 미러가 그대로였던 실사례). 러너 <code>etl_watch.py</code>에 <code>COLLECTORS</code>(<code>ms_account</code>·<code>gw_account</code>) 추가 — ERP job 뒤에 이어 실행하고 <code>etl_meta.batch_run</code>에 동일 형식으로 기록. <code>ms_collect.py</code>·<code>gw_collect.py</code>는 CLI/러너 공용 진입점 <code>collect(url, key, dry) → (추출, 적재)</code>로 리팩터링하고 실패를 <code>SystemExit</code>→<code>RuntimeError</code>로 교체(상주 러너 사망 방지). 연동현황 뷰 <code>v_erp_sync_overview</code>에 2행 추가(마이그레이션 <code>sync_overview_accounts</code>, 정본 <code>이관/sql/35_sync_overview_accounts.sql</code>) — 실테이블 count 대신 <code>batch_run</code> 적재건수 사용(두 테이블은 <code>authenticated</code> SELECT 없음, count하면 화면 전체 403). 검증: 러너 경유 실행 MS 483행·그룹웨어 471행 적재, 뷰에 최신 연동 시각 표시, <code>authenticated</code> 권한 조회 정상</td>
+<td>최동혁(+Claude)</td>
+</tr>
 <tr>
 <td>2026-09-07</td>
 <td><strong>계정 통합관리·대사(REQ-0018) 구축·실적재 완료(v0.40)</strong> — ERP 계정(<code>Z_USR_MAST_REC</code>, 이메일 SSOT)을 정본, 인사(<code>HAA010T</code>)를 서브로 확정(관리자 지시). 인사 745행 실측(재직 96명), 재입사는 <code>RE_ENTR_DT</code>가 아니라 새 사번 발급으로 표현됨을 확정(10명). 연결키는 이메일 직결(93.6%) 채택, 부서+이름(90.4%)은 검증 표시로만. 신규 테이블 <code>erp_ro.hr_emp_s</code>(745행)·<code>usr_role_s</code>(1,723행)·<code>public.acct_groupware</code>·<code>acct_ms</code>(수집 대기) + 뷰 3종·RPC 3종·ETL job 2종(<code>hr_emp</code>·<code>usr_role</code>) + <code>usr_master</code> 정합(reconcile) 후처리(미러-원천 불일치 발견·비활성 7건 표시로 해소). 게이트 API <code>jeil-accounts</code> v1 ACTIVE, 화면 <code>app/admin-accounts.html</code>(<code>/admin/accounts</code>, 5탭). 대사 결과(102명): 정상 83·계정없음 8·인사없음 6·부서표기불일치 3·권한미등록 1·재입사 1. 잔여: 그룹웨어 수집 경로·MS Entra 응용권한 승인·<code>ENTR_CD</code> 코드 의미(§6). §1·§4·§5·§6 갱신, <code>05_사용자부서_매핑대사.md</code>(v1.3)에 관계 명시 추가</td>
