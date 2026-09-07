@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>21 퇴사처리 일괄적용 — ERP DB 연계 관제 (ERP·그룹웨어·MS 3축 일괄 퇴사 처리 — 3축 쓰기 불가 실측, Phase 1(오케스트레이터)/2(자동실행) 분리)</title>
+<style>
+:root{--navy:#1a2f4e;--navy2:#27457a;--accent:#2f6fb3;--red:#b3402f;--green:#2e7d52;--amber:#9a6b1f;
+--ink:#222;--muted:#666;--line:#d8dee8;--bg:#f4f6f9;--soft:#eef2f8;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;color:var(--ink);background:var(--bg);line-height:1.65;font-size:15px;}
+.page{max-width:960px;margin:0 auto;background:#fff;padding:52px 60px;box-shadow:0 2px 14px rgba(0,0,0,.08);}
+.doc-label{display:inline-block;background:var(--navy);color:#fff;font-size:12px;letter-spacing:.16em;padding:5px 14px;border-radius:3px;margin-bottom:16px;}
+.docnav{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 26px;}
+.docnav a{font-size:12px;color:var(--navy2);border:1px solid var(--line);border-radius:20px;padding:4px 12px;text-decoration:none;background:var(--soft);}
+.docnav a:hover{background:var(--navy);color:#fff;}
+.docnav a.cur{background:var(--navy);color:#fff;border-color:var(--navy);}
+.md-link{font-size:13px;margin-bottom:22px;color:var(--muted);}
+.content h1{font-size:27px;color:var(--navy);line-height:1.35;margin:6px 0 18px;}
+.content h2{font-size:20px;color:var(--navy);margin:42px 0 14px;padding-bottom:9px;border-bottom:3px solid var(--navy);}
+.content h3{font-size:16px;color:var(--navy2);margin:24px 0 9px;}
+.content p{margin:0 0 12px;}
+.content ul,.content ol{margin:0 0 14px 22px;}
+.content li{margin-bottom:6px;}
+.content blockquote{background:var(--soft);border-left:5px solid var(--navy);border-radius:0 8px 8px 0;padding:14px 20px;margin:14px 0;color:#33425a;}
+.content blockquote p{margin:0 0 6px;}
+.content table{width:100%;border-collapse:collapse;margin:14px 0 20px;font-size:13.3px;}
+.content th{background:var(--navy);color:#fff;padding:9px 11px;text-align:left;font-weight:600;}
+.content td{padding:8px 11px;border-bottom:1px solid var(--line);vertical-align:top;}
+.content tr:nth-child(even) td{background:#fafbfd;}
+.content a{color:var(--accent);}
+.content code{background:var(--soft);border:1px solid var(--line);border-radius:4px;padding:1px 6px;font-size:12.4px;font-family:Consolas,'Courier New',monospace;}
+.content pre{background:#21252e;color:#e8eaf0;border-radius:8px;padding:16px 18px;font-size:12.4px;font-family:Consolas,'Courier New',monospace;overflow-x:auto;margin:12px 0 18px;line-height:1.55;}
+.content pre code{background:none;border:none;color:inherit;padding:0;}
+.content hr{border:none;border-top:1px solid var(--line);margin:30px 0;}
+.content strong{color:var(--navy2);}
+.footer{margin-top:50px;padding-top:16px;border-top:1px solid var(--line);font-size:12px;color:var(--muted);display:flex;justify-content:space-between;}
+@media print{body{background:#fff;}.page{box-shadow:none;padding:18px 0;max-width:100%;}.docnav{display:none;}.content h2{break-after:avoid;}.content table,.content pre,.content blockquote{break-inside:avoid;}}
+@media (max-width:720px){.page{padding:30px 20px;}}
+</style>
+</head>
+<body>
+<div class="page">
+  <span class="doc-label">JEIL AX ERP DB 연계 · 대외비</span>
+  <div class="docnav"><a href="/docs/erp">🏠 연계 허브</a><a href="/docs/erp/status">00 현재상태</a><a href="/docs/erp/plan">01 연계기획</a><a href="/docs/erp/progress">02 진행상태</a><a href="/docs/erp/midway-db">03 중간DB 실행기획</a><a href="/docs/erp/incremental-sync">04 증분·확장·거버넌스</a><a href="/docs/erp/dept-mapping">05 사용자-부서 매핑</a><a href="/docs/erp/voucher-roadmap">06 결의전표 추진계획</a><a href="/docs/erp/voucher-handover">09 결의전표 인수인계</a><a href="/docs/erp/recurring-voucher">10 반복전표 자동화</a><a href="/docs/erp/direct-post-demo">11 ERP 직접등록(DEMO2)</a><a href="/docs/erp/ax001-acct-mapping">12 AX001 계정매핑 요청</a><a href="/docs/erp/subledger-fix">13 서브원장 호출누락</a><a href="/docs/erp/test-cases">14 테스트범위·케이스</a><a href="/docs/erp/input-guards">15 입력검증·차단규칙</a><a href="/docs/erp/trans-type-review">16 거래유형체계 검토</a><a href="/docs/erp/prod-gates">17 운영전환 게이트</a><a href="/docs/erp/jnl-rule">18 거래항목 결정규칙</a><a href="/docs/erp/test-set">19 연동테스트 전표세트</a><a href="/docs/erp/ledger-verify">20 원장검증 실장부대조</a><a class="cur" href="21_퇴사처리_일괄적용_기획.html">21 퇴사처리 일괄적용</a><a href="README.md">README</a></div>
+  <p class="md-link">📄 Markdown 원본: <a href="21_퇴사처리_일괄적용_기획.md">21_퇴사처리_일괄적용_기획.md</a> · 허브 <a href="/docs/erp">연계 허브</a></p>
+  <div class="content">
+<h1 id="21">21. 퇴사 처리 일괄 적용 — 기획</h1>
+<blockquote>
+<p><strong>작성일 2026-09-07 · v0.1(초안, 착수 전) · 관리: 최동혁 · 요청: 관리자</strong>
+계정 통합관리 화면(<code>/admin/accounts</code>)에서 <strong>퇴사 처리를 한 번에</strong> 걸어 ERP·그룹웨어·MS 세 시스템에
+일괄 적용하는 기능의 기획. 테스트 계정 <code>test@jeilm.co.kr</code> 로 3축 실측한 결과를 근거로 한다.
+관련: <code>00_현재상태_스냅샷</code>(v0.43) · <code>이관/sql/34·36·37</code> · 화면 <code>app/admin-accounts.html</code></p>
+</blockquote>
+<hr />
+<h2 id="1">1. 한 줄 결론</h2>
+<p><strong>지금은 만들 수 없다 — 3축 모두 쓰기 경로가 없다.</strong> 실측으로 확인했다(§3).
+그래서 이 기획은 <strong>① 오늘 권한 없이도 만들 수 있는 것</strong>(퇴사 처리 오케스트레이터 — 지시·추적·자동검증)과
+<strong>② 권한이 열려야 되는 것</strong>(실제 자동 실행)을 나누고, ①을 먼저 만들어 ②가 열리면 갈아끼우는 순서로 간다.</p>
+<hr />
+<h2 id="2">2. 무엇을 만들려는가</h2>
+<p>관리자가 대사 화면에서 퇴사자를 고르고 <strong>[퇴사 처리]</strong> 를 누르면, 세 시스템에 같은 처리가 일괄 적용된다.</p>
+<table>
+<thead>
+<tr>
+<th>축</th>
+<th>퇴사 처리의 정의(현행 운영 실측)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>ERP</strong>(UNIERP)</td>
+<td>인사 퇴사 처리 + 계정 <code>USE_YN='N'</code> + <code>usr_nm</code> 에 <code>(퇴사)</code> 접미</td>
+</tr>
+<tr>
+<td><strong>그룹웨어</strong>(ONUL Ware)</td>
+<td>직원관리에서 <code>사용여부 → 사용중지</code>(내부 <code>useState 0→1</code>) + 퇴사일 기입</td>
+</tr>
+<tr>
+<td><strong>MS</strong>(Entra)</td>
+<td><code>accountEnabled=false</code> + 표시이름 앞에 <code>[퇴사]</code>(또는 <code>(퇴사)</code>) 접두</td>
+</tr>
+</tbody>
+</table>
+<p>세 축의 "퇴사 표현"이 서로 다르고 필드도 다르다. <strong>공통 필드는 없고, 축마다 별도 조작이 필요</strong>하다.</p>
+<hr />
+<h2 id="3-3-2026-09-07-testjeilmcokr">3. 실측 — 3축 쓰기 가능 여부 (2026-09-07, <code>test@jeilm.co.kr</code>)</h2>
+<p>관리자가 세 시스템에 등록해 둔 테스트 계정으로 직접 확인했다.</p>
+<table>
+<thead>
+<tr>
+<th>축</th>
+<th>계정 존재</th>
+<th>읽기</th>
+<th><strong>쓰기</strong></th>
+<th>근거</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>ERP</td>
+<td>✅ <code>usr_nm='admin_test id'</code>, 사용</td>
+<td>✅</td>
+<td>❌ <strong>정책상 금지</strong></td>
+<td><code>CLAUDE.md §1.2</code> — 운영 MSSQL 직접 쓰기 절대 금지</td>
+</tr>
+<tr>
+<td>그룹웨어</td>
+<td>✅ 로그인ID <code>test@jeilm.co.kr</code>, 사용중, 총무팀</td>
+<td>✅ 뷰 SELECT</td>
+<td>❌ <strong>권한 없음</strong></td>
+<td>DB 사용자 <code>onul_member</code> — 뷰 <code>UPDATE=0</code>, DB <code>INSERT=0</code>, 권한은 <code>CONNECT</code> 뿐</td>
+</tr>
+<tr>
+<td>MS(Entra)</td>
+<td>✅ <code>테스트계정</code>, 활성</td>
+<td>✅ <code>User.Read.All</code></td>
+<td>❌ <strong>403</strong></td>
+<td><code>PATCH /users</code> → <code>Insufficient privileges to complete the operation.</code></td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>⚠ <strong>오판 주의</strong> — Graph 에 값이 같은 무변경 <code>PATCH</code> 를 보내면 <strong>204</strong> 가 떨어진다.
+이걸 보고 "쓰기 권한 있다"고 판단했다가 실제 값 변경에서 403 을 받았다(2026-09-07 실제 발생).
+<strong>권한 확인은 반드시 값이 바뀌는 요청으로</strong> 한다.</p>
+</blockquote>
+<h3 id="31-2">3.1 곁가지로 드러난 결함 2건 (이 기능의 전제)</h3>
+<p><strong>① 그룹웨어는 이메일이 비어 있을 수 있다 — 매칭 키가 깨진다.</strong>
+그룹웨어 뷰 517행 중 이메일이 있는 건 471행. 이메일 없이 <strong>사용중</strong>인 계정이 7건이고,
+수집기가 <code>email LIKE '%@%'</code> 로 걸러 미러에 넣지 않는다. 그래서 대사가 이들을 <strong>"그룹웨어 없음"으로 오판</strong>한다.</p>
+<table>
+<thead>
+<tr>
+<th>로그인ID</th>
+<th>이름</th>
+<th>부서</th>
+<th>비고</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ks.ryu</code></td>
+<td>유계상</td>
+<td>생산팀</td>
+<td><strong>실제 재직자</strong> — 대사에서 <code>has_gw=false</code> 로 잘못 표시 중</td>
+</tr>
+<tr>
+<td><code>test@jeilm.co.kr</code></td>
+<td>테스트 계정</td>
+<td>총무팀</td>
+<td>이번 테스트 계정 — 이래서 미러에 없었다</td>
+</tr>
+<tr>
+<td><code>acct5·6·7·10</code></td>
+<td>재무5·6·7·10</td>
+<td>재무팀</td>
+<td>공용 계정</td>
+</tr>
+<tr>
+<td><code>jeil8060</code></td>
+<td>조회용</td>
+<td>총무팀</td>
+<td>공용 계정</td>
+</tr>
+</tbody>
+</table>
+<p>→ <strong>대책</strong>: 그룹웨어 축의 보조키로 <strong>로그인ID</strong> 를 함께 싣는다(이메일이 없으면 로그인ID로 매칭).
+<code>test@jeilm.co.kr</code> 처럼 로그인ID 자체가 이메일 형태인 경우가 있어 실효가 있다.
+이 보정 없이는 일괄 처리가 <strong>대상을 못 찾는다</strong>.</p>
+<p><strong>② ERP <code>usr_nm</code> 이 규칙에서 벗어난 계정이 있다.</strong>
+파싱 규칙은 <code>부서명_이름[(휴직)|(퇴사)]</code> 인데 테스트 계정은 <code>admin_test id</code> 다.
+일괄 처리는 이 필드에 <code>(퇴사)</code> 를 붙이는 조작이므로, <strong>형식이 깨진 계정은 예외 처리</strong>가 필요하다.</p>
+<hr />
+<h2 id="4-2">4. 설계 — 2단계</h2>
+<h3 id="41-phase-1">4.1 Phase 1 — 퇴사 처리 오케스트레이터 (권한 없이 지금 가능)</h3>
+<p>시스템이 <strong>대신 실행하지는 않지만</strong>, 무엇을 어디서 어떻게 해야 하는지 지시하고,
+사람이 처리한 결과를 <strong>대사로 자동 검증</strong>해 체크를 켜 준다. 오늘 8명을 손으로 정리하며 겪은
+누락·중복·"어디까지 했더라"를 없애는 것이 목적이다.</p>
+<pre><code>[대사 화면] 대상 선택 → [퇴사 처리 시작]
+      │
+      ├─ 포털DB에 케이스 생성 (offboarding_case: 이메일·성명·퇴사일·요청자·요청시각)
+      │
+      ├─ 축별 작업 3건 생성 (offboarding_task: erp / gw / ms)
+      │     각 작업에 &quot;그 시스템에서 할 일&quot;을 구체 절차로 표시
+      │
+      ├─ 사람이 각 시스템에서 처리
+      │
+      └─ 다음 「데이터 업데이트」 후 → 대사 결과로 축별 완료 자동 판정 → 체크 자동 점등
+            · ERP 완료  : usr_master_s.use_yn=false  AND usr_nm LIKE '%(퇴사)%'
+            · 그룹웨어 완료: acct_groupware.status='미사용'  (또는 원천 useState=1)
+            · MS 완료   : acct_ms.account_enabled=false AND display_name LIKE '%퇴사%'
+</code></pre>
+<p><strong>화면에 그대로 띄울 절차</strong>(오늘 실측으로 확정한 것):</p>
+<ul>
+<li><strong>그룹웨어</strong> — 관리자 &gt; 기본정보관리 &gt; 직원관리 → <strong>기준일자를 퇴사일 이전으로 변경</strong>(이걸 안 하면 검색해도 안 나온다) → 우측 상단 검색 → 카드 클릭 → <code>수정</code> → <code>사용여부 → 사용중지</code> → <code>수정</code> 저장</li>
+<li>⚠ 사용중지를 누르면 <strong>퇴사일이 오늘 날짜로 자동 덮어쓰기</strong>된다. 저장 전에 실제 퇴사일로 되돌릴 것</li>
+<li>⚠ 같이 나타나는 <strong><code>메일 삭제여부</code> 체크박스는 절대 건드리지 않는다</strong>(메일계정·메일정보 일괄 삭제)</li>
+<li><strong>MS</strong> — Entra 관리센터 &gt; 사용자 &gt; 로그인 차단 + 표시이름에 <code>[퇴사]</code> 접두</li>
+<li>표기 형식이 <code>[퇴사]</code> 320건 / <code>(퇴사)</code> 26건으로 섞여 있다 → <strong><code>[퇴사]</code> 로 통일</strong> 권고</li>
+<li><strong>ERP</strong> — 인사 퇴사 처리 후 계정 비활성 + <code>usr_nm</code> 에 <code>(퇴사)</code> (유니포인트 표준 프로세스 확인 필요)</li>
+</ul>
+<p><strong>Phase 1 만으로 얻는 것</strong>: 누락 방지(3축 체크리스트), 진행 상황 가시화, 처리 이력(감사),
+그리고 <strong>"했다고 생각했는데 안 된 것"을 대사가 잡아낸다</strong>. 오늘 그룹웨어 퇴사자 13명 중 9명이
+계정 사용중으로 남아 있던 것이 정확히 이 유형이다.</p>
+<h3 id="42-phase-2">4.2 Phase 2 — 실제 자동 실행 (권한 확보 후, 축별 독립 승격)</h3>
+<p>인터페이스(케이스·작업·검증)는 Phase 1 그대로 두고, 작업의 <code>실행 방식</code>만 <code>수동</code> → <code>자동</code> 으로 바꾼다.</p>
+<table>
+<thead>
+<tr>
+<th>축</th>
+<th>필요한 것</th>
+<th>난이도</th>
+<th>비고</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>MS</strong></td>
+<td>응용 권한 <code>User.ReadWrite.All</code> + 테넌트 관리자 동의. <code>accountEnabled</code> 변경에는 앱에 <strong>User Administrator</strong> 디렉터리 역할이 추가로 필요할 수 있음(권한 부여 후 재실측)</td>
+<td><strong>낮음</strong> — 가장 먼저 가능</td>
+<td>실행 위치: 러너 또는 Edge Function</td>
+</tr>
+<tr>
+<td><strong>그룹웨어</strong></td>
+<td>벤더(ONUL Ware) 협의 — ①관리 API ②쓰기 전용 저장프로시저 ③(최후) 러너 측 UI 자동화</td>
+<td>중</td>
+<td>DB 직접 UPDATE 는 앱 로직·이력을 우회하므로 <strong>권장하지 않음</strong></td>
+</tr>
+<tr>
+<td><strong>ERP</strong></td>
+<td>유니포인트 협의 — <strong>직접 UPDATE 는 절대 불가</strong>(§1.2). 인사 모듈 표준 퇴사 프로세스 또는 승인된 연계 API/SP</td>
+<td><strong>높음</strong></td>
+<td>인사발령·전자결재와 얽혀 있어 업무 프로세스 결정이 선행</td>
+</tr>
+</tbody>
+</table>
+<p><strong>축별 독립 승격</strong>이 핵심이다. 셋이 다 열릴 때까지 기다리지 않고, MS 가 열리면 MS 만 자동으로 돌린다.</p>
+<hr />
+<h2 id="5">5. 안전장치 (되돌리기 어려운 작업이므로)</h2>
+<ol>
+<li><strong>2단계 확인</strong> — 대상자 명단·퇴사일·축별 적용 내용을 보여주고 재확인. 이름만이 아니라 <strong>이메일·사번</strong>까지 표시(동명이인 오탐 실사례 있음 — <code>js.park2</code>/<code>js.park4</code> 박준수).</li>
+<li><strong>파괴적 옵션 자동화 금지</strong> — 메일함 삭제, 계정 삭제, 라이선스 회수는 이 기능의 범위 밖. 차단·표기까지만.</li>
+<li><strong>퇴사일은 사람이 넣은 값을 정본으로</strong> — 그룹웨어의 오늘 날짜 자동 덮어쓰기를 그대로 두면 실제 퇴사일이 유실된다.</li>
+<li><strong>실행 로그</strong> — 누가·언제·어떤 축에·무엇을 했는지 포털 DB에 남긴다(<code>CLAUDE.md §6</code> 감사 로그).</li>
+<li><strong>롤백 절차 문서화</strong> — 축별 원복 방법(MS 재활성·그룹웨어 사용중·ERP 계정 복구)을 케이스 화면에 함께 표시.</li>
+<li><strong>드라이런</strong> — 자동 실행 단계에서도 "무엇이 바뀔지"를 먼저 보여주고 실행한다.</li>
+</ol>
+<hr />
+<h2 id="6">6. 관리자 결정·의뢰가 필요한 항목</h2>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>항목</th>
+<th>대상</th>
+<th>상태</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>A</td>
+<td>MS 응용 권한 <code>User.ReadWrite.All</code> + 관리자 동의 부여</td>
+<td>최동혁(Entra 앱 등록)</td>
+<td><strong>대기</strong> — Phase 2 중 가장 먼저 가능</td>
+</tr>
+<tr>
+<td>B</td>
+<td>그룹웨어 쓰기 경로 협의(API/SP/UI자동화 중 택1)</td>
+<td>ONUL Ware 벤더</td>
+<td><strong>대기</strong></td>
+</tr>
+<tr>
+<td>C</td>
+<td>ERP 퇴사 처리 연계 방식 협의(표준 프로세스 vs 연계 API)</td>
+<td>유니포인트</td>
+<td><strong>대기</strong></td>
+</tr>
+<tr>
+<td>D</td>
+<td>Phase 1(오케스트레이터)만 먼저 착수할지 여부</td>
+<td>관리자</td>
+<td><strong>결정 대기</strong></td>
+</tr>
+<tr>
+<td>E</td>
+<td>그룹웨어 로그인ID 보조키 반영(§3.1①) — 이 기능의 전제</td>
+<td>관리자 승인 후 Claude</td>
+<td><strong>대기</strong></td>
+</tr>
+<tr>
+<td>F</td>
+<td>MS 퇴사 표기 <code>[퇴사]</code> 로 통일할지(현재 320 vs 26 혼용)</td>
+<td>관리자</td>
+<td><strong>결정 대기</strong></td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="7">7. 변경 이력</h2>
+<table>
+<thead>
+<tr>
+<th>일자</th>
+<th>내용</th>
+<th>작성</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>2026-09-07</td>
+<td>초안(v0.1) — 관리자 요청으로 기획 착수. 테스트 계정 <code>test@jeilm.co.kr</code> 로 3축 쓰기 가능 여부 실측(전 축 불가 확인) + 곁가지 결함 2건(그룹웨어 이메일 누락 7건·ERP usr_nm 형식 이탈) 기록. Phase 1/2 분리 설계</td>
+<td>최동혁(+Claude)</td>
+</tr>
+</tbody>
+</table>
+  </div>
+  <div class="footer"><span>JEIL M&amp;S · ERP DB 연계 관제</span><span>21 퇴사처리 일괄적용 · 관리: 최동혁</span></div>
+</div>
+</body>
+</html>
