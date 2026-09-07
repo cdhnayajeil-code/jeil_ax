@@ -100,11 +100,12 @@ def open_member(page, name, base_date):
 
 def main():
     ap = argparse.ArgumentParser(description="그룹웨어 퇴사 처리 화면 자동화")
-    ap.add_argument("--login-id", required=True, help="그룹웨어 로그인ID (신원 확정 키)")
-    ap.add_argument("--name", required=True, help="사원명 (화면 검색어)")
-    ap.add_argument("--retire-date", required=True, help="실제 퇴사일 YYYY-MM-DD (자동 덮어쓰기를 되돌릴 값)")
-    ap.add_argument("--base-date", default=None,
-                    help="검색 기준일자 YYYY-MM-DD (기본: 퇴사일 30일 전 — 퇴사자는 오늘 기준으로 안 잡힌다)")
+    # 짧은 플래그를 함께 둔다 — 명령이 길면 터미널에서 줄바꿈되며 두 줄로 쪼개져 실행된다(실제 발생).
+    ap.add_argument("-i", "--login-id", required=True, help="그룹웨어 로그인ID (신원 확정 키)")
+    ap.add_argument("-n", "--name", required=True, help="사원명 (화면 검색어)")
+    ap.add_argument("-d", "--retire-date", required=True, help="실제 퇴사일 YYYY-MM-DD (자동 덮어쓰기를 되돌릴 값)")
+    ap.add_argument("-b", "--base-date", default=None,
+                    help="검색 기준일자 YYYY-MM-DD (생략 시 자동: 퇴사일 30일 전 → 안 잡히면 오늘로 재시도)")
     ap.add_argument("--apply", action="store_true", help="실제 저장(주지 않으면 dry-run)")
     ap.add_argument("--headed", action="store_true", help="브라우저 창을 띄워 눈으로 확인")
     args = ap.parse_args()
@@ -234,8 +235,24 @@ def main():
             shot(page, "02_member_admin")
 
             # ── 3~4. 기준일자 변경 + 검색 + 카드 열기 ──────────────────────
-            log("3) 기준일자 %s 로 검색 — '%s'" % (base_date, args.name))
-            open_member(page, args.name, base_date)
+            # 기준일자는 **퇴사일 이전**이어야 퇴사자가 조직도에 잡힌다. 다만 아직 재직 중인
+            # 사람(무기한 센티넬)은 오늘 기준으로 찾는 게 맞다. 둘 중 어느 쪽인지 미리 알 수 없으므로
+            # 관리자가 지정하지 않았으면 두 후보를 차례로 시도한다.
+            candidates = [base_date] if args.base_date else \
+                         [base_date, datetime.date.today().isoformat()]
+            last_err = None
+            for i, bd in enumerate(candidates):
+                log("3) 기준일자 %s 로 검색 — '%s'%s"
+                    % (bd, args.name, "" if i == 0 else " (재시도)"))
+                try:
+                    open_member(page, args.name, bd)
+                    base_date = bd
+                    break
+                except RuntimeError as e:
+                    last_err = e
+                    if i == len(candidates) - 1:
+                        raise
+                    log("   %s → 다음 기준일자로 재시도" % str(e)[:90])
             shot(page, "03_detail")
 
             # ── 5. 편집 폼 열기 ───────────────────────────────────────────
