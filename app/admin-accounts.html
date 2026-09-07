@@ -182,10 +182,12 @@
 
     <!-- ── MS ───────────────────────────────────────────────── -->
     <div class="panel" id="p-ms">
-      <div class="note warn" id="msNote">
-        <b>원천 미연결.</b> Entra 앱에 디렉터리 열거 권한(<code>User.Read.All</code>, 응용 권한 + 테넌트 관리자 동의)이
-        아직 없어 전 직원 MS 계정을 읽을 수 없습니다. 현재 앱은 위임 권한(<code>User.Read</code>)뿐이라
-        <b>로그인한 본인만</b> 조회됩니다.
+      <div class="note" id="msNote">
+        Entra 디렉터리를 Graph <code>/users</code> 로 <b>앱 전용 토큰</b>(응용 권한 <code>User.Read.All</code>,
+        관리자 동의 2026-09-07)으로 읽습니다. <b>전량 스냅샷</b>이라 Entra 에서 삭제된 계정은 함께 지워집니다.
+        기본은 <code>@jeilm.co.kr</code>만 담고 사외 도메인은 제외합니다.
+        <b>「차단」은 계정은 있으나 <code>accountEnabled=false</code></b> 인 상태로, 보유로 세지 않습니다.
+        ⚠ 클라이언트 시크릿이 만료되면 이 수집과 포털 로그인이 함께 멈춥니다.
       </div>
       <div class="bar"><input type="search" id="qMs" placeholder="이메일 · 이름 검색"></div>
       <div class="tblwrap">
@@ -221,7 +223,14 @@
   var TYPE_BADGE = {
     "정상": "g", "계정없음": "r", "인사없음": "a", "계정비활성": "n",
     "퇴사자계정활성": "r", "부서표기불일치": "a", "권한미등록": "a", "재입사": "b",
-    "그룹웨어만": "a", "그룹웨어없음": "a", "퇴사이력": "n", "그룹웨어이력": "n"
+    "ERP·인사없음": "a", "그룹웨어없음": "a", "MS없음": "a",
+    "퇴사이력": "n", "비활성이력": "n"
+  };
+  var msMark = function (r) {
+    if (!MS.length) return '<span class="na" title="원천 미연결">–</span>';
+    if (r.has_ms) return '<span class="yes" title="사용중">●</span>';
+    if (r.ms_exists) return '<span class="badge n" title="MS 계정은 있으나 차단됨">차단</span>';
+    return '<span class="no" title="MS 계정 없음">○</span>';
   };
   // 그룹웨어는 3상태다 — 사용중 / 미사용(계정은 있음) / 없음. ○ 하나로 뭉개면 구분이 사라진다.
   var gwMark = function (r) {
@@ -307,7 +316,7 @@
         '<td class="c">' + mark(r.has_erp) + '</td>' +
         '<td class="c">' + mark(r.has_hr) + '</td>' +
         '<td class="c">' + gwMark(r) + '</td>' +
-        '<td class="c">' + (MS.length ? mark(r.has_ms) : '<span class="na" title="원천 미연결">–</span>') + '</td>' +
+        '<td class="c">' + msMark(r) + '</td>' +
         '<td class="c">' + (r.erp_perm_registered
             ? '<span class="badge g">등록 ' + r.erp_role_cnt + '</span>'
             : (r.has_erp ? '<span class="badge r">미등록</span>' : '<span class="na">–</span>')) +

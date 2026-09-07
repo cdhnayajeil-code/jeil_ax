@@ -609,3 +609,104 @@ comment on view public.v_account_recon is
   '계정 대사 — 이메일 1행에 ERP계정/인사/그룹웨어/MS 보유 여부와 권한 등록 여부를 붙인다. 기준은 ERP 계정이지만 "계정이 없는 재직자"도 보여야 대사가 되므로 4축 합집합으로 만든다. 그룹웨어는 status=사용 만 보유로 센다(useState 0=사용·1=미사용, 이름과 반대). MS 원천이 비어 있으면 has_ms 는 전건 false — 화면이 미연결과 부재를 구분해 표시한다.';
 
 revoke all on public.v_account_recon from anon, authenticated;
+
+-- ============================================================================
+-- 14. 후속 — MS(Entra) 축 연결 · 대사 뷰 최종 (2026-09-07, 마이그레이션 account_recon_with_ms)
+--
+-- Entra 앱에 응용 권한 User.Read.All + 테넌트 관리자 동의가 부여돼(2026-09-07) Graph
+-- /users 를 앱 전용 토큰으로 읽을 수 있게 됐다. §13 의 v_account_recon 정의는 이 절이
+-- 대체한다(파일을 처음부터 순서대로 적용하면 최종 상태가 된다).
+--
+-- 핵심 원칙 — **'보유'는 쓸 수 있는 상태만 센다.**
+--   · ERP  : usr_master_s.use_yn
+--   · 그룹웨어: status='사용'  (useState 0=사용 · 1=미사용, 이름과 반대)
+--   · MS   : accountEnabled = true
+--   계정이 존재해도 미사용·차단이면 보유로 세지 않는다. 그러지 않으면 "정리 안 된 계정"이
+--   "쓰고 있는 계정"으로 둔갑해 대사가 거짓말을 한다(MS 483건 중 차단이 341건이다).
+--
+-- 실측 (2026-09-07)
+--   MS 483건(사용 142) · 사외도메인 40건 제외 · 게스트 0
+--   MS사용 ∩ 인사재직 96(재직자 전원) · ∩ ERP활성 92 · ∩ 그룹웨어사용 103
+--   ERP활성 94 중 MS사용 없음 2 / MS사용 142 중 인사재직 아님 46
+--
+--   최종 대사 — 현재 인원 157
+--     정상 87 · ERP·인사없음 51 · 계정없음 8 · 인사없음 6
+--     · 부서표기불일치 3 · 권한미등록 1 · 재입사 1
+--   이력: 퇴사이력 510 · 비활성이력 271 · 계정비활성 7
+-- ============================================================================
+
+drop view if exists public.v_account_recon;
+
+create view public.v_account_recon
+with (security_invoker = true) as
+with emails as (
+  select lower(trim(usr_id)) as email from erp_ro.usr_master_s where usr_id like '%@%'
+  union select email from erp_ro.v_hr_by_email
+  union select lower(trim(email)) from public.acct_groupware
+  union select lower(trim(email)) from public.acct_ms
+)
+select
+  e.email,
+  coalesce(a.acct_emp_nm, h.emp_nm, g.emp_nm, m.display_name) as emp_nm,
+  coalesce(h.dept_nm, a.acct_dept_nm, g.dept_nm, m.dept_nm)   as dept_nm,
+  coalesce(h.roll_pstn, g.position_nm, m.job_title)           as position_nm,
+  a.acct_dept_nm,
+  a.acct_status_note,
+  h.hr_active,
+  coalesce(h.rehire_cnt, 0)                                   as rehire_cnt,
+  h.emp_no,
+  h.emp_no_list,
+  h.first_entr_dt,
+  h.retire_dt,
+  (a.email is not null and a.acct_active)                     as has_erp,
+  (h.email is not null)                                       as has_hr,
+  (g.email is not null and g.status = '사용')                  as has_gw,
+  (m.email is not null and m.account_enabled)                 as has_ms,
+  g.status                                                    as gw_status,
+  g.login_id                                                  as gw_login_id,
+  (m.email is not null)                                       as ms_exists,
+  m.account_enabled                                           as ms_enabled,
+  m.user_type                                                 as ms_user_type,
+  coalesce(a.erp_role_cnt, 0)                                 as erp_role_cnt,
+  coalesce(a.erp_perm_registered, false)                      as erp_perm_registered,
+  (pa.email is not null)                                      as portal_admin,
+  coalesce(a.dept_mismatch, false)                            as dept_mismatch,
+  (coalesce(a.acct_active, false) or coalesce(h.hr_active, false)
+   or (g.email is not null and g.status = '사용')
+   or (m.email is not null and m.account_enabled))            as is_current,
+  case
+    -- ① 이력 먼저 걸러낸다. 그래야 남은 분류가 '지금 조치할 것'만 남는다.
+    when a.email is null and h.email is not null and not h.hr_active
+         and not (g.email is not null and g.status = '사용')
+         and not (m.email is not null and m.account_enabled)             then '퇴사이력'
+    when a.email is null and h.email is null
+         and not (g.email is not null and g.status = '사용')
+         and not (m.email is not null and m.account_enabled)             then '비활성이력'
+    when a.email is not null and not a.acct_active                       then '계정비활성'
+    -- ② 조치 대상
+    when a.email is null and h.email is not null and h.hr_active         then '계정없음'
+    when a.email is null and h.email is null                             then 'ERP·인사없음'
+    when a.email is not null and h.email is null                         then '인사없음'
+    when h.email is not null and not h.hr_active
+         and a.email is not null and a.acct_active                       then '퇴사자계정활성'
+    when a.email is not null and a.acct_active
+         and not (g.email is not null and g.status = '사용')              then '그룹웨어없음'
+    when a.email is not null and a.acct_active
+         and not (m.email is not null and m.account_enabled)             then 'MS없음'
+    when coalesce(a.dept_mismatch, false)                                then '부서표기불일치'
+    when a.email is not null and a.acct_active
+         and not coalesce(a.erp_perm_registered, false)                  then '권한미등록'
+    when coalesce(h.rehire_cnt, 0) > 0                                   then '재입사'
+    else '정상'
+  end                                                         as recon_type
+from emails e
+left join public.v_account_identity a  on a.email = e.email
+left join erp_ro.v_hr_by_email       h  on h.email = e.email
+left join public.acct_groupware      g  on lower(trim(g.email)) = e.email
+left join public.acct_ms             m  on lower(trim(m.email)) = e.email
+left join public.portal_admin        pa on lower(trim(pa.email)) = e.email;
+
+comment on view public.v_account_recon is
+  '계정 대사 — 이메일 1행에 ERP계정/인사/그룹웨어/MS 보유 여부와 권한 등록 여부를 붙인다. 기준은 ERP 계정이지만 "계정이 없는 재직자"도 보여야 대사가 되므로 4축 합집합으로 만든다. 보유는 "쓸 수 있는 상태"만 센다 — 그룹웨어 status=사용(useState 0=사용·1=미사용, 이름과 반대), MS accountEnabled=true. is_current=false 는 어느 축에서도 살아 있지 않은 이력이다.';
+
+revoke all on public.v_account_recon from anon, authenticated;
