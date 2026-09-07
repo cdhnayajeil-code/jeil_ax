@@ -111,6 +111,8 @@
         <b>①ERP를 쓰지 않는 부서</b>(현재 <b>생산팀</b>)는 ERP 계정이 없어도 <b>정상</b>으로 보고 <span class="badge b">ERP면제</span> 배지를 답니다.
         <b>②회의실·차량·공유메일함·시스템 계정</b>처럼 사람이 아닌 ID는 <b>현재 인원에서 제외</b>합니다.
         등재되지 않은 새 계정은 그대로 조치 대상으로 보이므로, 빠뜨리면 이 화면이 알려줍니다.
+        <b>③휴직</b>은 ERP 사용자명의 <code>(휴직)</code> 표기로 판정합니다 — 사람은 있고 계정만 잠긴 상태라
+        현재 인원에는 넣되 조치 대상에서는 뺍니다. 복직해 ERP에서 표기를 떼면 자동으로 <b>정상</b>이 됩니다.
       </div>
       <div class="bar">
         <input type="search" id="qRecon" placeholder="이메일 · 이름 · 부서 검색">
@@ -230,8 +232,12 @@
     "ERP·인사없음": "a", "그룹웨어없음": "a", "MS없음": "a",
     "퇴사이력": "n", "비활성이력": "n",
     // 사람이 아닌 계정(회의실·차량·공유메일함·시스템). is_current=false 라 「현재 인원만」에선 안 보인다.
-    "공용·설비계정": "n"
+    "공용·설비계정": "n",
+    // 휴직 — 사람은 있고 ERP 계정만 잠긴 상태. 조치 대상이 아니라 상태 표시다.
+    "휴직": "b"
   };
+  // 조치가 필요 없는 구분 — 상단 「대사 조치 대상」 집계에서 뺀다.
+  var TYPE_OK = { "정상": 1, "휴직": 1 };
   var msMark = function (r) {
     if (!MS.length) return '<span class="na" title="원천 미연결">–</span>';
     if (r.has_ms) return '<span class="yes" title="사용중">●</span>';
@@ -295,7 +301,7 @@
     pool.forEach(function (r) { by[r.recon_type] = (by[r.recon_type] || 0) + 1; });
     // 조치가 필요한 것을 앞에, '정상'은 뒤로
     var keys = Object.keys(by).sort(function (a, b) {
-      if (a === "정상") return 1; if (b === "정상") return -1; return by[b] - by[a];
+      if (TYPE_OK[a] && !TYPE_OK[b]) return 1; if (TYPE_OK[b] && !TYPE_OK[a]) return -1; return by[b] - by[a];
     });
     el("chips").innerHTML =
       '<button class="chip' + (TYPE_FILTER ? "" : " on") + '" data-t="">전체<span class="n">' + pool.length + '</span></button>' +
@@ -415,7 +421,7 @@
     el("sAcctU").textContent = "미러 " + num(s.acct_total) + " · 비활성 " + num(s.acct_off);
     el("sHr").textContent = num(s.hr_active);
     el("sHrU").textContent = "이메일 " + num(s.hr_total) + " · 재입사 " + num(s.rehire);
-    var issue = RECON.filter(function (r) { return r.is_current && r.recon_type !== "정상"; }).length;
+    var issue = RECON.filter(function (r) { return r.is_current && !TYPE_OK[r.recon_type]; }).length;
     el("sIssue").textContent = num(issue);
     el("sIssueU").textContent = "현재 인원 " + num(RECON.filter(function (r) { return r.is_current; }).length) + "명 중";
     el("sGw").textContent = s.gw_total ? num(s.gw_total) : "—";

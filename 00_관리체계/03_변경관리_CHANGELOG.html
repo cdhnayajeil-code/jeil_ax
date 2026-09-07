@@ -109,6 +109,13 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <tbody>
 <tr>
 <td>2026-09-07</td>
+<td>계정관리·ERP연계</td>
+<td><code>이관/sql/37_account_recon_leave.sql</code>(신규, 마이그레이션 <code>account_recon_leave</code>) · <code>public.v_account_recon</code> · <code>10_ERP_DB연계/etl/etl_run.py</code>(usr_master) · <code>app/admin-accounts.html</code> · <code>10_ERP_DB연계/</code>(00 v0.43·02)</td>
+<td><strong>휴직을 「계정없음」이 아니라 「휴직」으로 보이게(관리자 확인).</strong> 자재물류팀 최원호가 조치 대상에 남아 있었는데, ERP 사용자명에는 이미 <code>(휴직)</code> 이라고 적혀 있었다. 우리가 그걸 못 보고 있던 이유는 <strong>원천을 덜 긁고 있었기 때문</strong>이다 — 휴직자는 ERP 계정을 비활성(<code>USE_YN='N'</code>)하고 이름에 표기를 붙이는 운영인데, ETL이 활성 계정만 가져와 그 행이 미러에 아예 없었다. 그래서 화면은 "인사에는 재직인데 ERP 계정이 없다 = 계정없음"으로 읽었다. <strong>원천이 말해주고 있는 것을 우리가 안 받아오고 있었던 셈</strong>이다. <code>USE_YN</code> 조건을 빼 전량(101→434행, 활성 94·휴직 5·퇴사 335)을 받고, 대사 분류에 <code>휴직</code> 갈래를 이력 뒤·계정비활성 앞에 넣었다. 파싱 자체는 이미 있었다(<code>acct_status_note</code> 가 <code>(휴직)</code>·<code>(퇴사)</code> 를 읽고 있었다) — 받아오지 않은 데이터는 아무리 잘 파싱해도 없는 것과 같다는 사례다. 판정 근거는 ERP 이름 표기 하나뿐이라(인사마스터에 휴직 컬럼이 없다) 복직해 표기를 떼면 자동으로 정상으로 돌아간다. 결과: 휴직 4명(김윤호·지민규·임소리·최원호), 계정없음 2 → <strong>0</strong>, 조치 대상 19 → <strong>15</strong>, 현재 인원 109 유지</td>
+<td>최동혁(+Claude)</td>
+</tr>
+<tr>
+<td>2026-09-07</td>
 <td>계정관리</td>
 <td><code>이관/sql/36_account_recon_policy.sql</code>(신규, 마이그레이션 <code>account_recon_policy</code>) · <code>public.acct_erp_optional_dept</code>·<code>acct_nonhuman</code>(신규) · <code>public.v_account_recon</code> · <code>app/admin-accounts.html</code> · <code>10_ERP_DB연계/</code>(00 v0.42·02)</td>
 <td><strong>계정 대사에서 「조치할 필요가 없는 것」을 걷어냄(관리자 지시).</strong> 대사 화면은 조치할 것만 보여야 쓸모가 있는데, 두 종류가 계속 빨간 줄로 남아 시야를 가렸다. ①<strong>생산팀은 ERP를 쓰지 않는다</strong> — 계정을 안 만드는 게 정상인데 대사는 "인사 재직인데 ERP 계정 없음 = 계정없음(조치 필요)"으로 6명을 찍었다. ②<strong>회의실·차량·공유메일함은 사람이 아니다</strong> — 차량관리·법인차량예약·서울 2층 대회의실 같은 26건이 '현재 인원'에 섞여 인원수를 부풀리고 조치 대상 목록에 앉아 있었다. 둘 다 뷰에 이름을 박아 넣지 않고 <strong>관리표 2개</strong>(<code>acct_erp_optional_dept</code>·<code>acct_nonhuman</code>)로 뺐다 — 회의실·차량은 계속 늘고 줄며 부서도 조직개편으로 바뀌므로 한 줄 INSERT/DELETE로 운영하는 편이 맞고, 이름·이메일 패턴으로 자동 추정하면 <strong>사람 계정을 조용히 감출 위험</strong>이 있어 쓰지 않았다. 등재하지 않은 새 계정은 그대로 조치 대상으로 드러나므로 누락은 화면이 알려준다. 외부 회계사·외부인처럼 <strong>사람은 넣지 않았다</strong>(인원에서 감추면 계정 관리 사각지대가 된다). 화면은 '정상' 옆에 <code>ERP면제</code> 배지로 근거를 보여주고, 공용·설비 계정은 종류(회의실·차량 등)를 배지로 단다. 결과: 현재 인원 135 → <strong>109</strong>, 조치 대상 51 → <strong>19</strong>(정상 84→90 · 계정없음 8→2 · ERP·인사없음 32→6)</td>

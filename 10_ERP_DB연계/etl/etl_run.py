@@ -22,9 +22,13 @@ TARGET_YEAR = 2026  # 연도 필터 — pur_order·sales·purchase 공통(2026�
 LOOKBACK_DAYS = 2   # 증분 안전버퍼 — watermark보다 이만큼 앞선 변경분까지 재추출(경계 유실·지연도착 방지)
 
 JOBS = {
-    # ⑤ 사용자 마스터 스냅샷 ← Z_USR_MAST_REC (사용·이메일 계정만 — 사용자↔부서↔사원 대사용)
+    # ⑤ 사용자 마스터 스냅샷 ← Z_USR_MAST_REC (이메일 계정 전량 — 사용자↔부서↔사원 대사용)
     #    usr_id=MS 이메일(SSOT), usr_nm='부서명_이름[(휴직)|(퇴사)]'. 부서/사원 파싱은 중간DB 뷰(v_user_dept_map).
     #    ⚠ EMP_NO/DEPT_CD 컬럼 없음 — 부서 정보는 usr_nm 텍스트가 유일 소스(구조 확인 2026-07-08).
+    #    ⚠ USE_YN='Y' 조건을 뺐다(2026-09-07). 휴직자는 ERP 계정을 비활성(USE_YN='N')하고 usr_nm 에
+    #      '(휴직)'을 붙이는데, 활성만 긁으면 그 행이 미러에 아예 없어서 화면이 "계정없음"으로
+    #      오판했다(실측: 자재물류팀 최원호 — ERP 에는 (휴직) 표기가 있는데 미러에 부재).
+    #      상태는 use_yn 컬럼이 이미 들고 있으므로 전량을 받아도 '보유' 판정(acct_active)은 그대로다.
     "usr_master": {
         "table": "usr_master_s",
         "sql": """
@@ -32,7 +36,7 @@ JOBS = {
                    CONVERT(bit, CASE WHEN USE_YN = 'Y' THEN 1 ELSE 0 END) AS use_yn,
                    UPDT_DT AS src_updated
             FROM JEILMNS.dbo.Z_USR_MAST_REC WITH (NOLOCK)
-            WHERE USE_YN = 'Y' AND USR_ID LIKE '%@%'
+            WHERE USR_ID LIKE '%@%'
         """,
         "params": [],
         "incr_sql": " AND UPDT_DT >= ?",   # 증분: 변경된 계정만(watermark 이후)
