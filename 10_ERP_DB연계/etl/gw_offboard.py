@@ -108,8 +108,34 @@ def main():
                     help="검색 기준일자 YYYY-MM-DD (생략 시 자동: 퇴사일 30일 전 → 안 잡히면 오늘로 재시도)")
     ap.add_argument("--apply", action="store_true", help="실제 저장(주지 않으면 dry-run)")
     ap.add_argument("--headed", action="store_true", help="브라우저 창을 띄워 눈으로 확인")
-    args = ap.parse_args()
+    return _exit_code(run(ap.parse_args()))
 
+
+def _exit_code(res):
+    """CLI 종료코드. 러너는 dict 를 그대로 쓰고, 사람은 0/1 만 보면 된다."""
+    if not res.get("ok"):
+        log("실패: %s" % str(res.get("msg"))[:400])
+        return 1
+    return 0
+
+
+class _Args(object):
+    """러너가 CLI 없이 호출할 때 쓰는 인자 묶음."""
+    def __init__(self, **kw):
+        self.__dict__.update(kw)
+
+
+def offboard(login_id, name, retire_date, base_date=None, apply=False, headed=False):
+    """퇴사 처리 1건 실행 진입점 — CLI(main)와 러너(etl_watch)가 **같은 경로**를 탄다.
+
+    화면에서 누른 요청과 사람이 손으로 돌린 명령이 다른 코드를 타면, 한쪽에서만 나는 결함이
+    생긴다. 그래서 인자만 다르게 만들고 본문은 하나로 둔다.
+    반환: {"ok": bool, "msg": str, ...} — 예외를 밖으로 던지지 않는다(러너가 다음 대상을 계속 처리한다)."""
+    return run(_Args(login_id=login_id, name=name, retire_date=retire_date,
+                     base_date=base_date, apply=bool(apply), headed=bool(headed)))
+
+
+def run(args):
     # 터미널에서 명령이 줄바꿈되며 붙여넣기되면 인자 안에 개행·연속 공백이 섞여 들어온다
     # (실제로 `테스트 계정` 이 `테스트\n  계정` 으로 들어와 검색 0건이 됐다 — 2026-09-07).
     # 화면 검색어는 공백에 민감하므로 여기서 한 칸으로 정규화한다.
@@ -120,7 +146,7 @@ def main():
         args.base_date = args.base_date.strip()
 
     if not re.match(r"^\d{4}-\d{2}-\d{2}$", args.retire_date):
-        raise SystemExit("--retire-date 형식은 YYYY-MM-DD 입니다")
+        return {"ok": False, "msg": "퇴사일 형식은 YYYY-MM-DD 입니다: %s" % args.retire_date}
     base_date = args.base_date
     if not base_date:
         d = datetime.date.fromisoformat(args.retire_date) - datetime.timedelta(days=30)
@@ -131,7 +157,7 @@ def main():
     secret = cfg.get("GW_SECRET")   # 중복 로그인 시 강제 로그인용(있을 때만 사용)
     missing = [k for k, v in (("gw url", url), ("gw id", uid), ("gw pw", pw)) if not v]
     if missing:
-        raise SystemExit(".env.local 키 누락: " + ", ".join(missing))
+        return {"ok": False, "msg": ".env.local 키 누락: " + ", ".join(missing)}
 
     from playwright.sync_api import sync_playwright
 
@@ -299,7 +325,8 @@ def main():
             if page.is_checked("#useState2"):
                 log("   이미 사용중지 상태입니다 — 변경할 것이 없습니다.")
                 browser.close()
-                return 0
+                return {"ok": True, "msg": "이미 사용중지 상태", "changed": False,
+                        "login_id": args.login_id, "name": args.name}
 
             # ── 7~9. 사용중지 클릭 (confirm·alert 발생) ────────────────────
             log("6) 사용여부 → 사용중지")
@@ -334,7 +361,9 @@ def main():
                 log("9) (dry-run) 저장하지 않고 종료 — 저장 직전 상태: 사용중지=%s · 퇴사일=%s"
                     % (state["stop"], state["end"]))
                 browser.close()
-                return 0
+                return {"ok": True, "msg": "점검 완료(저장 안 함)", "changed": False, "dry_run": True,
+                        "login_id": args.login_id, "name": args.name,
+                        "would_set": {"사용중지": state["stop"], "퇴사일": state["end"]}}
 
             log("9) 저장(수정)")
             page.click('input.btn01[value="수정"]')
@@ -363,7 +392,9 @@ def main():
                 raise RuntimeError("저장은 됐으나 사용여부가 '%s' 입니다 — 확인 필요" % row[4])
             log("완료 — %s(%s) 사용중지 처리됨" % (args.name, args.login_id))
             browser.close()
-            return 0
+            return {"ok": True, "msg": "사용중지 처리 완료", "changed": True,
+                    "login_id": args.login_id, "name": args.name,
+                    "verified": {"사용여부": row[4], "퇴사일": row[6], "부서": row[2]}}
 
         except Exception as e:
             log("실패: %s" % str(e)[:400])
@@ -374,7 +405,8 @@ def main():
                 pass
             if dialogs:
                 log("발생한 모달: %s" % dialogs)
-            return 1
+            return {"ok": False, "msg": str(e)[:400], "changed": False,
+                    "login_id": args.login_id, "name": args.name, "dialogs": dialogs}
 
 
 if __name__ == "__main__":

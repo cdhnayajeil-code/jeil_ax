@@ -160,10 +160,70 @@ def handle(url, key, runner, req, dry, full):
         + (f" · 실패 {len(fails)}" if fails else ""))
 
 
+def handle_offboard(url, key, runner, req):
+    """퇴사 처리 요청 1건 — 대상별로 그룹웨어 화면 자동화를 돌린다.
+
+    브라우저는 그룹웨어 관리자 화면에 붙을 수 없어서(사외 호스트 + 화면 조작 필요) 화면은
+    요청만 남기고 여기서 실행한다. 「데이터 업데이트」와 같은 구조다.
+    한 사람이 실패해도 나머지는 계속한다 — 부분 성공이라도 처리된 건 처리된 것이다."""
+    import gw_offboard  # 지연 import — playwright 미설치 호스트에서도 러너 자체는 뜬다
+
+    rid = req["request_id"]
+    mode = req.get("mode") or "check"
+    targets = req.get("targets") or []
+    total = len(targets)
+    log(f"퇴사 처리 요청 {rid[:8]}… (요청자 {req.get('requested_by') or '-'}) — 대상 {total}명 · "
+        + ("실제 저장" if mode == "apply" else "점검(저장 안 함)"))
+
+    detail, fails = [], []
+    for i, t in enumerate(targets):
+        who = f"{t.get('emp_nm')}({t.get('gw_login_id')})"
+        rpc(url, key, "offboard_request_progress",
+            {"p_request_id": rid, "p_done": i, "p_total": total, "p_target": who})
+        try:
+            res = gw_offboard.offboard(
+                login_id=t.get("gw_login_id"), name=t.get("emp_nm"),
+                retire_date=t.get("retire_dt"), apply=(mode == "apply"))
+        except Exception as e:                       # 예상 못 한 오류도 한 사람으로 가둔다
+            res = {"ok": False, "msg": str(e)[:300]}
+        res = dict(res or {})
+        res["email"] = t.get("email")
+        detail.append(res)
+        if not res.get("ok"):
+            fails.append(who)
+            log(f"  ! {who} 실패: {str(res.get('msg'))[:180]}")
+        else:
+            log(f"  · {who} — {res.get('msg')}")
+
+    rpc(url, key, "offboard_request_progress",
+        {"p_request_id": rid, "p_done": total, "p_total": total, "p_target": None})
+    status = "failed" if fails else "done"
+    err = f"{len(fails)}명 실패: {', '.join(fails)}" if fails else None
+    rpc(url, key, "offboard_request_finish",
+        {"p_request_id": rid, "p_status": status,
+         "p_result": {"mode": mode, "targets": detail}, "p_error": err})
+    log(f"퇴사 처리 종료 {rid[:8]}… — {status} · 성공 {total - len(fails)} / {total}")
+
+
 def tick(url, key, runner, dry, full):
-    """하트비트 1회 + 대기 요청 있으면 1건 처리. 처리했으면 True."""
+    """하트비트 1회 + 대기 요청 있으면 1건 처리. 처리했으면 True.
+    ETL 요청과 퇴사 처리 요청 **둘 다** 본다 — 한 번에 하나만 처리해 브라우저·ERP 부하가 겹치지 않는다."""
     rpc(url, key, "erp_sync_runner_ping",
-        {"p_runner": runner, "p_note": f"jobs={len(SAFE_JOBS)}+acct{len(COLLECTORS)}"})
+        {"p_runner": runner, "p_note": f"jobs={len(SAFE_JOBS)}+acct{len(COLLECTORS)}+offboard"})
+
+    off = rpc(url, key, "offboard_request_claim", {"p_runner": runner})
+    if off:
+        try:
+            handle_offboard(url, key, runner, off)
+        except Exception as e:
+            log(f"퇴사 처리 중 오류: {e}")
+            try:
+                rpc(url, key, "offboard_request_finish",
+                    {"p_request_id": off["request_id"], "p_status": "failed", "p_error": str(e)[:500]})
+            except Exception:
+                pass
+        return True
+
     req = rpc(url, key, "erp_sync_request_claim", {"p_runner": runner})
     if not req:
         return False

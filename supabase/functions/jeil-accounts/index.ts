@@ -2,13 +2,18 @@
 // 배포: verify_jwt=false (Entra 토큰을 내부에서 Graph로 검증)
 // 호출: POST /functions/v1/jeil-accounts  Authorization: Bearer <Entra access_token>
 //   { scope: 'summary' | 'recon' | 'erp' | 'hr' | 'gw' | 'ms', q?: string } → { ok, scope, data }
+//   { scope: 'offboard_create', emails: string[], mode: 'check'|'apply' } → 퇴사 처리 요청 등록
+//   { scope: 'offboard_status', requestId: string }                       → 요청 진행 상태
 //
 // 정본은 ERP 계정(Z_USR_MAST_REC.usr_id = 이메일)이고 인사(HAA010T)는 이메일로 붙는 서브다.
 // 조회는 반드시 RPC account_recon_get 경유 — erp_ro 는 REST 비노출 스키마라
 // supabase-js 로 테이블/뷰를 직접 읽으면 service_role 이어도 '오류 없이 빈 결과'가 돌아온다
 // (REQ-0015 에서 실제로 당한 함정이라 이 함수는 from() 을 쓰지 않는다).
 //
-// 읽기 전용이다. 계정 생성·삭제·비밀번호 변경은 이 함수의 일이 아니다.
+// 조회는 읽기 전용이다. 계정 생성·삭제·비밀번호 변경은 이 함수의 일이 아니다.
+// 예외는 퇴사 처리 **요청 등록**뿐인데, 이것도 계정을 직접 건드리지 않는다 —
+// 큐에 한 줄 넣을 뿐이고 실제 처리는 그룹웨어에 붙을 수 있는 호스트의 러너가 한다.
+// 대상 정보(이름·로그인ID·퇴사일)는 화면 값을 쓰지 않고 DB(v_account_recon)가 만든다.
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
 const cors = {
@@ -20,6 +25,7 @@ const json = (o: unknown, status = 200) =>
   new Response(JSON.stringify(o), { status, headers: { ...cors, "Content-Type": "application/json" } });
 
 const SCOPES = ["summary", "recon", "erp", "hr", "gw", "ms"];
+const ACTIONS = ["offboard_create", "offboard_status"];
 
 async function verifyEntraUser(token: string): Promise<{ upn: string } | null> {
   try {
@@ -53,6 +59,26 @@ Deno.serve(async (req) => {
 
   const body = await req.json().catch(() => ({} as Record<string, unknown>));
   const scope = String(body.scope || "recon");
+
+  // ── 퇴사 처리 요청/상태 ──────────────────────────────────────────────
+  if (ACTIONS.includes(scope)) {
+    if (scope === "offboard_create") {
+      const emails = Array.isArray(body.emails) ? body.emails.map((e) => String(e)).slice(0, 50) : [];
+      const mode = String(body.mode || "check") === "apply" ? "apply" : "check";
+      if (!emails.length) return json({ error: "대상이 없습니다" }, 400);
+      const { data, error } = await admin.rpc("offboard_request_create", {
+        p_emails: emails, p_mode: mode, p_requested_by: user.upn,
+      });
+      if (error) return json({ error: "요청 등록 실패: " + error.message }, 500);
+      return json({ ok: true, scope, data, viewer: user.upn });
+    }
+    const rid = String(body.requestId || "");
+    if (!/^[0-9a-f-]{36}$/i.test(rid)) return json({ error: "requestId 형식 오류" }, 400);
+    const { data, error } = await admin.rpc("offboard_request_status", { p_request_id: rid });
+    if (error) return json({ error: "상태 조회 실패: " + error.message }, 500);
+    return json({ ok: true, scope, data, viewer: user.upn });
+  }
+
   if (!SCOPES.includes(scope)) return json({ error: "허용되지 않은 scope: " + scope }, 400);
   const q = body.q ? String(body.q).slice(0, 100) : null;
 
