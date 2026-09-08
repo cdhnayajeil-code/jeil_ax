@@ -125,7 +125,7 @@
           <div class="card" data-go="offboard">
             <h4>🚪 퇴사 처리</h4>
             <p>퇴사자의 ERP·그룹웨어·MS 계정을 한 번에 정리합니다. 축별 자동화 상태와 잔여 조치 대상을 봅니다.</p>
-            <div class="meta"><span class="badge b">3축 일괄</span><span class="badge n" id="cOff">—</span></div>
+            <div class="meta"><span class="badge b">3축 일괄</span><span class="badge a">초안</span><span class="badge n" id="cOff">—</span></div>
           </div>
           <div class="card" onclick="location.href='/admin/erp-status'">
             <h4>🔄 원천·수집 <span class="badge n">외부</span></h4>
@@ -152,69 +152,15 @@
       <iframe class="frame" id="f-dept" title="사용자·부서 매핑" data-src="/admin/user-dept?embed=1"></iframe>
     </div>
 
-    <!-- ── 퇴사 처리 ─────────────────────────────────────────────── -->
+    <!-- ── 퇴사 처리 (독립 화면 임베드) ────────────────────────── -->
     <div class="mod" id="m-offboard">
-      <div class="pad">
-        <div class="note">
-          퇴사자는 <b>세 시스템에서 각각</b> 정리해야 합니다. 한 곳만 빠져도 계정이 살아 있고, 그 사실은 어디에도 오류로 뜨지 않습니다
-          — 2026-09-07 그룹웨어 퇴사자 13명 중 9명이 이 상태였습니다.
-          아래 목록은 <b>인사상 퇴사인데 계정이 아직 살아 있는</b> 사람입니다.
-        </div>
-
-        <h3>축별 자동화 상태</h3>
-        <div class="axis">
-          <div class="a ok">
-            <h5>ERP — 자동 <span class="badge g">실증 완료</span></h5>
-            <p>SharePoint 목록 「ERP 퇴사처리 RPA」에 등재하면 기존 Power Automate 흐름이 1분 내 처리합니다.
-               <b>진행구분을 <code>-</code> 로 채워야</b> 실행됩니다(비우면 조용히 지나갑니다).</p>
-          </div>
-          <div class="a ok">
-            <h5>그룹웨어 — 자동 <span class="badge g">실증 완료</span></h5>
-            <p>화면 자동화 스크립트로 처리합니다. 기준일자·퇴사일 복원·메일 삭제 방지까지 코드가 매번 확인합니다.</p>
-          </div>
-          <div class="a warn">
-            <h5>MS(Entra) — 수동 <span class="badge a">권한 대기</span></h5>
-            <p>Graph 쓰기가 403입니다(<code>User.ReadWrite.All</code> 미부여). 지금은 Entra 관리센터에서
-               로그인 차단 + 표시이름 <code>[퇴사]</code> 접두를 직접 넣어야 합니다.</p>
-          </div>
-        </div>
-
-        <h3>잔여 조치 대상 <span class="cnt" id="hOff"></span></h3>
-        <div class="tblwrap">
-          <table>
-            <thead><tr>
-              <th>이름</th><th>이메일</th><th>부서</th><th class="c">퇴사일</th>
-              <th class="c">ERP</th><th class="c">그룹웨어</th><th class="c">MS</th><th>남은 조치</th>
-            </tr></thead>
-            <tbody id="offRows"><tr><td colspan="8" class="c muted" style="padding:16px;">불러오는 중…</td></tr></tbody>
-          </table>
-        </div>
-
-        <h3>실행 방법</h3>
-        <div class="note warn">
-          <b>되돌리기 어려운 작업입니다.</b> ERP 흐름은 사용자 역할을 <b>DELETE</b> 하고 무엇이 있었는지 남기지 않습니다.
-          등재 전에 역할 목록을 따로 적어 두세요. 그룹웨어의 <b>「메일 삭제여부」 체크박스는 절대 켜지 마세요</b>(메일계정·메일정보 일괄 삭제).
-        </div>
-        <p style="font-size:12.5px;color:#4a5566;margin:10px 0 2px;"><b>그룹웨어</b> — 러너 호스트에서 실행합니다. <code>--apply</code> 없이 먼저 돌리면 저장 직전 상태만 보여줍니다.</p>
-        <pre>python 10_ERP_DB연계/etl/gw_offboard.py -i wc.kim -n 김우철 -d 2023-12-22          # 점검
-python 10_ERP_DB연계/etl/gw_offboard.py -i wc.kim -n 김우철 -d 2023-12-22 --apply  # 실제 처리</pre>
-        <p style="font-size:12.5px;color:#4a5566;margin:10px 0 2px;"><b>ERP</b> — SharePoint 목록에 한 줄 등재하면 끝입니다.</p>
-        <pre>사용자 ID = 이메일 · 사용자명 = 부서_이름 · 퇴사일자 = 실제 퇴사일 · <b>진행구분 = -</b></pre>
-        <p style="font-size:12.5px;color:#4a5566;margin:10px 0 2px;"><b>MS</b> — Entra 관리센터에서 직접(권한 부여 시 자동화 예정).</p>
-        <pre>로그인 차단(accountEnabled=false) + 표시이름 앞에 [퇴사] 접두</pre>
-
-        <div class="note" style="margin-top:16px;">
-          처리 후 <b>「데이터 업데이트」</b>(<a href="/admin/erp-status">ERP 연동 현황</a>)를 한 번 돌리면
-          ERP·MS·그룹웨어를 다시 받아와 이 목록에서 자동으로 빠집니다. 기획 정본은
-          <code>10_ERP_DB연계/21_퇴사처리_일괄적용_기획</code> 입니다.
-        </div>
-      </div>
+      <iframe class="frame" id="f-offboard" title="퇴사 처리" data-src="/admin/offboarding?embed=1"></iframe>
     </div>
   </div>
 
   <div class="foot">
     <span>JEIL M&amp;S · 계정·조직 통합관리 플랫폼</span>
-    <span>모듈은 각자 독립 화면 — <code>/admin/accounts</code> · <code>/admin/user-dept</code> 단독 주소 유지</span>
+    <span>모듈은 각자 독립 화면 — <code>/admin/accounts</code> · <code>/admin/user-dept</code> · <code>/admin/offboarding</code> 단독 주소 유지</span>
   </div>
 </div>
 
@@ -271,37 +217,17 @@ python 10_ERP_DB연계/etl/gw_offboard.py -i wc.kim -n 김우철 -d 2023-12-22 -
     c.onclick = function () { go(c.getAttribute("data-go")); };
   });
 
-  /* 잔여 조치 대상 — 인사상 퇴사인데 어느 축이든 계정이 살아 있는 사람.
-     '공용·설비계정'은 사람이 아니므로 제외한다(is_person=false). */
-  function renderOff(rows) {
-    var t = rows.filter(function (r) {
+  /* 잔여 조치 대상 **건수만** 센다. 목록은 /admin/offboarding 이 단일 출처이고
+     이 셸은 그 화면을 모듈로 얹기만 한다 — 같은 표를 두 곳에서 그리면 어긋난다.
+     인사상 퇴사인데 어느 축이든 계정이 살아 있는 사람(공용·설비 계정 제외). */
+  function countOff(rows) {
+    var n = rows.filter(function (r) {
       return r.has_hr && r.hr_active === false && r.is_person !== false &&
              (r.has_erp || r.has_gw || r.has_ms);
-    }).sort(function (a, b) { return String(a.retire_dt || "").localeCompare(String(b.retire_dt || "")); });
-
-    el("hOff").textContent = "(" + t.length + "명)";
-    el("n-off").textContent = t.length;
-    el("cOff").textContent = t.length === 0 ? "잔여 없음" : t.length + "명 남음";
-    el("kOff").textContent = num(t.length);
-
-    el("offRows").innerHTML = t.length ? t.map(function (r) {
-      var todo = [];
-      if (r.has_erp) todo.push("ERP 계정 비활성");
-      if (r.has_gw) todo.push("그룹웨어 사용중지");
-      if (r.has_ms) todo.push("MS 차단·[퇴사] 표기");
-      var mk = function (on) { return on ? '<span class="no">●</span>' : '<span class="yes">○</span>'; };
-      return '<tr>' +
-        '<td>' + esc(r.emp_nm || "—") + '</td>' +
-        '<td class="mono">' + esc(r.email) + '</td>' +
-        '<td>' + esc(r.dept_nm || "—") + '</td>' +
-        '<td class="c">' + esc(r.retire_dt || "—") + '</td>' +
-        '<td class="c">' + mk(r.has_erp) + '</td>' +
-        '<td class="c">' + mk(r.has_gw) + '</td>' +
-        '<td class="c">' + mk(r.has_ms) + '</td>' +
-        '<td>' + esc(todo.join(" · ")) + '</td>' +
-        '</tr>';
-    }).join("") : '<tr><td colspan="8" class="c" style="padding:18px;color:#2e7d52;font-weight:600;">' +
-                  '잔여 조치 대상이 없습니다 — 퇴사자 계정이 세 축 모두 정리돼 있습니다.</td></tr>';
+    }).length;
+    el("n-off").textContent = n;
+    el("cOff").textContent = n === 0 ? "잔여 없음" : n + "명 남음";
+    el("kOff").textContent = num(n);
   }
 
   function boot() {
@@ -324,11 +250,10 @@ python 10_ERP_DB연계/etl/gw_offboard.py -i wc.kim -n 김우철 -d 2023-12-22 -
       var asof = [s.acct_synced_at, s.gw_synced_at, s.ms_synced_at].filter(Boolean).sort();
       el("kAsof").textContent = asof.length ? dt(asof[asof.length - 1]) : "—";
 
-      renderOff(rows);
+      countOff(rows);
     }).catch(function (e) {
       el("gate").style.display = "block";
       el("g_msg").textContent = "데이터를 불러오지 못했습니다 — " + e.message;
-      el("offRows").innerHTML = '<tr><td colspan="8" class="c muted" style="padding:16px;">불러오지 못했습니다.</td></tr>';
     });
   }
 

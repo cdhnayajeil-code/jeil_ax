@@ -37,6 +37,7 @@ ROUTES = {
     "/admin/identity":          "app/admin-identity.html",
     "/admin/user-dept":         "app/admin-user-dept.html",
     "/admin/accounts":          "app/admin-accounts.html",
+    "/admin/offboarding":       "app/admin-offboarding.html",
     "/vendor/login":            "app/vendor-login.html",
 
     # ── 니즈조사 ───────────────────────────────────────────

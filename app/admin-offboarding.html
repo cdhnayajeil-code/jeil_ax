@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>퇴사 처리 — JEIL AX</title>
+<style>
+  :root{--navy:#1a2f4e;--navy2:#27457a;--accent:#2f6fb3;--red:#b3402f;--green:#2e7d52;--amber:#9a6b1f;
+    --ink:#222;--muted:#666;--line:#d8dee8;--bg:#f4f6f9;--soft:#eef2f8;--softgreen:#ecf5f0;--softamber:#faf3e4;--softred:#fbeeec;}
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;color:var(--ink);background:var(--bg);line-height:1.6;font-size:14px;}
+  .page{max-width:1240px;margin:0 auto;background:#fff;padding:30px 36px 40px;box-shadow:0 2px 14px rgba(0,0,0,.08);min-height:100vh;}
+  .head{display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px;border-bottom:3px solid var(--navy);padding-bottom:14px;margin-bottom:16px;}
+  .head h1{font-size:21px;color:var(--navy);}
+  .head .sub{font-size:12.5px;color:var(--muted);margin-top:3px;}
+  .head .sub a{color:var(--accent);text-decoration:none;} .head .sub a:hover{text-decoration:underline;}
+  .badge{display:inline-block;font-size:11px;border-radius:10px;padding:2px 9px;font-weight:600;white-space:nowrap;}
+  .badge.g{background:var(--softgreen);color:var(--green);} .badge.a{background:var(--softamber);color:var(--amber);}
+  .badge.b{background:var(--soft);color:var(--navy2);} .badge.r{background:var(--softred);color:var(--red);}
+  .badge.n{background:#f2f4f7;color:#8a93a0;}
+
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:11px;margin-bottom:18px;}
+  .stat{background:linear-gradient(135deg,#f7fafd,#eef4fb);border:1px solid var(--line);border-radius:10px;padding:13px 15px;}
+  .stat.ok{border-left:5px solid var(--green);} .stat.warn{border-left:5px solid var(--amber);}
+  .stat.info{border-left:5px solid var(--accent);} .stat.off{border-left:5px solid #b9c0cb;}
+  .stat .lb{font-size:11.5px;color:var(--muted);}
+  .stat .v{font-size:25px;font-weight:800;color:var(--navy);line-height:1.15;margin-top:2px;}
+  .stat .u{font-size:11.5px;color:#33425a;}
+
+  h3{font-size:14px;color:var(--navy);margin:24px 0 9px;display:flex;align-items:center;gap:8px;}
+  h3 .cnt{font-size:11.5px;font-weight:400;color:var(--muted);}
+  .axis{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;}
+  .axis .a{border:1px solid var(--line);border-radius:10px;padding:13px 15px;}
+  .axis .a.ok{border-left:5px solid var(--green);background:var(--softgreen);}
+  .axis .a.warn{border-left:5px solid var(--amber);background:var(--softamber);}
+  .axis .a h5{font-size:13px;color:var(--navy);display:flex;align-items:center;gap:6px;}
+  .axis .a p{font-size:11.8px;color:#4a5566;margin-top:5px;}
+
+  .tblwrap{overflow-x:auto;border:1px solid var(--line);border-radius:9px;}
+  table{width:100%;border-collapse:collapse;font-size:12.7px;min-width:820px;}
+  th{background:var(--navy);color:#fff;padding:8px 10px;text-align:left;font-weight:600;white-space:nowrap;}
+  td{padding:7px 10px;border-bottom:1px solid var(--line);vertical-align:middle;}
+  tr:nth-child(even) td{background:#fafbfd;}
+  td.c,th.c{text-align:center;} td.mono{font-family:Consolas,monospace;font-size:11.5px;}
+  .done{color:var(--green);font-weight:700;} .todo{color:var(--red);font-weight:700;}
+  .mini{background:#eef2f8;border:1px solid var(--line);border-radius:6px;padding:2px 8px;font-size:11px;
+    font-family:inherit;color:#3a4757;cursor:pointer;}
+  .mini:hover{background:#e2e9f4;}
+
+  .note{background:var(--soft);border:1px solid var(--line);border-radius:9px;padding:11px 15px;font-size:12.2px;color:#4a5566;margin-bottom:12px;}
+  .note.warn{background:var(--softamber);border-color:#e6d5a8;color:#6b5320;}
+  .note.draft{background:#f3eefb;border-color:#d9c9ee;color:#4b3a68;}
+  .note b{color:var(--navy2);}
+  code{font-family:Consolas,monospace;font-size:11px;background:#fff;border:1px solid var(--line);border-radius:4px;padding:0 5px;}
+  pre{background:#1e2a3a;color:#e6edf5;border-radius:8px;padding:11px 14px;font-family:Consolas,monospace;
+    font-size:11.6px;overflow-x:auto;margin:8px 0;line-height:1.7;white-space:pre-wrap;word-break:break-all;}
+  pre b{color:#ffd479;}
+  .steps{counter-reset:s;margin:6px 0 0;}
+  .step{position:relative;padding:9px 0 9px 34px;border-bottom:1px dashed var(--line);font-size:12.6px;color:#3a4757;}
+  .step:last-child{border-bottom:0;}
+  .step::before{counter-increment:s;content:counter(s);position:absolute;left:0;top:9px;width:22px;height:22px;
+    border-radius:50%;background:var(--navy);color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;}
+  .step b{color:var(--navy2);}
+  .step .warn{color:var(--red);font-weight:600;}
+  .gate{display:none;background:var(--softamber);border:1px solid var(--amber);border-radius:9px;padding:16px 20px;margin:14px 0;font-size:13px;color:#5a4520;}
+  .foot{margin-top:26px;padding-top:12px;border-top:1px solid var(--line);font-size:11px;color:var(--muted);display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px;}
+  .muted{color:var(--muted);}
+  /* 통합 플랫폼(/admin/identity) 안에 iframe 으로 얹힐 때 — 제목·푸터를 숨긴다.
+     이 페이지는 단독 주소(/admin/offboarding)로도 계속 동작한다. */
+  body.embed .head, body.embed .foot { display:none; }
+  body.embed .page { box-shadow:none; padding:16px 18px; min-height:0; max-width:none; }
+  body.embed { background:#fff; }
+  @media (max-width:1000px){.stats{grid-template-columns:repeat(2,1fr);} .axis{grid-template-columns:1fr;}}
+  @media (max-width:700px){.page{padding:20px 14px 30px;}}
+</style>
+</head>
+<body>
+<script>
+  if (new URLSearchParams(location.search).get("embed") === "1") document.body.classList.add("embed");
+</script>
+
+<div class="page">
+  <div class="head">
+    <div>
+      <h1>🚪 퇴사 처리</h1>
+      <div class="sub">
+        퇴사자의 <b>ERP · 그룹웨어 · MS</b> 계정을 한 번에 정리합니다
+        · <span class="badge b">관리자 전용</span>
+        · <a href="/admin/identity">← 통합관리 플랫폼</a>
+        · <a href="/docs/erp/offboarding">기획 문서 →</a>
+      </div>
+    </div>
+    <div><span class="badge a">초안</span></div>
+  </div>
+
+  <div class="note draft">
+    <b>이 화면은 초안입니다.</b> 지금은 <b>무엇이 남았는지 보여주고 어떻게 처리하는지 안내</b>하는 데까지입니다.
+    화면에서 버튼 한 번으로 세 시스템을 처리하려면 권한 두 가지가 더 필요합니다 —
+    SharePoint 쓰기(<code>Sites.ReadWrite.All</code>)와 MS 쓰기(<code>User.ReadWrite.All</code>).
+    ERP·그룹웨어는 <b>이미 자동 처리가 실증</b>돼 있어, 권한만 열리면 이 화면에서 바로 실행하도록 바꿉니다.
+  </div>
+
+  <div class="gate" id="gate">
+    <b>사내 로그인이 필요합니다.</b> <span id="g_msg">포털에서 Microsoft 계정으로 로그인한 뒤 다시 열어주세요.</span>
+    <div style="margin-top:10px;"><a href="/main" style="color:#8a6d1f;">← 포털로 이동</a></div>
+  </div>
+
+  <div id="app" style="display:none;">
+    <div class="stats">
+      <div class="stat warn"><div class="lb">잔여 조치 대상</div><div class="v" id="kOff">—</div><div class="u">퇴사자인데 계정 살아있음</div></div>
+      <div class="stat off"><div class="lb">ERP 계정 남음</div><div class="v" id="kErp">—</div><div class="u">비활성 처리 필요</div></div>
+      <div class="stat off"><div class="lb">그룹웨어 남음</div><div class="v" id="kGw">—</div><div class="u">사용중지 필요</div></div>
+      <div class="stat off"><div class="lb">MS 남음</div><div class="v" id="kMs">—</div><div class="u">차단 · [퇴사] 표기 필요</div></div>
+    </div>
+
+    <h3>축별 처리 방식</h3>
+    <div class="axis">
+      <div class="a ok">
+        <h5>ERP <span class="badge g">자동 · 실증</span></h5>
+        <p>SharePoint 목록 「ERP 퇴사처리 RPA」에 한 줄 등재하면 기존 Power Automate 흐름이 1분 내 처리합니다.
+           계정명에 <code>(퇴사)</code>를 붙이고 <code>USE_YN='N'</code>, 역할을 회수합니다.</p>
+      </div>
+      <div class="a ok">
+        <h5>그룹웨어 <span class="badge g">자동 · 실증</span></h5>
+        <p>관리자 화면 자동화 스크립트가 처리합니다. 기준일자 이동·퇴사일 복원·메일 삭제 방지를
+           매번 확인하므로 사람이 놓치던 것을 빠뜨리지 않습니다.</p>
+      </div>
+      <div class="a warn">
+        <h5>MS(Entra) <span class="badge a">수동 · 권한 대기</span></h5>
+        <p>Graph 쓰기가 <code>403</code>입니다. 지금은 Entra 관리센터에서 로그인 차단 +
+           표시이름 <code>[퇴사]</code> 접두를 직접 넣어야 합니다.</p>
+      </div>
+    </div>
+
+    <h3>잔여 조치 대상 <span class="cnt" id="hOff"></span></h3>
+    <div class="note">
+      <b>인사에서 퇴사</b>인데 세 축 중 하나라도 계정이 살아 있는 사람입니다.
+      한 곳만 빠져도 계정은 열려 있고, 그 사실은 어디에도 오류로 뜨지 않습니다 —
+      2026-09-07 그룹웨어 퇴사자 13명 중 9명이 이 상태였습니다.
+      회의실·차량 같은 <b>공용·설비 계정은 제외</b>합니다.
+    </div>
+    <div class="tblwrap">
+      <table>
+        <thead><tr>
+          <th>이름</th><th>이메일</th><th>부서</th><th class="c">퇴사일</th>
+          <th class="c">ERP</th><th class="c">그룹웨어</th><th class="c">MS</th><th>남은 조치</th><th class="c">처리</th>
+        </tr></thead>
+        <tbody id="offRows"><tr><td colspan="9" class="c muted" style="padding:16px;">불러오는 중…</td></tr></tbody>
+      </table>
+    </div>
+    <div id="cmdBox" style="display:none;margin-top:12px;">
+      <div style="font-size:12.5px;color:#4a5566;margin-bottom:4px;"><b id="cmdWho"></b> 처리 명령 — 러너 호스트에서 실행하세요</div>
+      <pre id="cmdText"></pre>
+    </div>
+
+    <h3>처리 절차</h3>
+    <div class="steps">
+      <div class="step"><b>대상 확인</b> — 위 표에서 이름·이메일·<b>퇴사일</b>을 확인합니다.
+        동명이인이 있으므로 이메일까지 봐야 합니다(실사례: 박준수 <code>js.park2</code>/<code>js.park4</code>).</div>
+      <div class="step"><b>ERP</b> — SharePoint 목록 「ERP 퇴사처리 RPA」에 등재합니다.
+        <code>사용자 ID=이메일</code> · <code>사용자명=부서_이름</code> · <code>퇴사일자</code> ·
+        <span class="warn">진행구분 = <code>-</code></span>
+        <span class="muted">(비워 두면 흐름이 조용히 지나갑니다 — 실패로도 안 뜹니다)</span></div>
+      <div class="step"><b>그룹웨어</b> — 위 표의 <span class="mini">명령</span> 버튼으로 명령을 만들고 러너에서 실행합니다.
+        <code>--apply</code> 없이 먼저 돌리면 저장 직전 상태만 보여줍니다(점검용).</div>
+      <div class="step"><b>MS</b> — Entra 관리센터에서 로그인 차단 + 표시이름 앞에 <code>[퇴사]</code>.
+        표기는 <code>[퇴사]</code>로 통일 권고(현재 <code>[퇴사]</code> 320건 / <code>(퇴사)</code> 26건 혼용).</div>
+      <div class="step"><b>확인</b> — <a href="/admin/erp-status">ERP 연동 현황</a>에서 「데이터 업데이트」를 한 번 돌리면
+        세 원천을 다시 받아와 <b>이 목록에서 자동으로 빠집니다</b>.</div>
+    </div>
+
+    <h3>안전 규칙</h3>
+    <div class="note warn">
+      <b>되돌리기 어려운 작업입니다.</b>
+      <ul style="margin:6px 0 0 18px;">
+        <li>ERP 흐름은 사용자 역할을 <b>DELETE</b> 하고 무엇이 있었는지 남기지 않습니다 — 등재 전에 역할 목록을 적어 두세요.</li>
+        <li>그룹웨어의 <b>「메일 삭제여부」 체크박스는 절대 켜지 마세요</b>(메일계정·메일정보 일괄 삭제). 자동화 스크립트는 켜져 있으면 저장하지 않고 멈춥니다.</li>
+        <li>그룹웨어는 사용중지 시 <b>퇴사일이 오늘 날짜로 덮어써집니다</b> — 실제 퇴사일로 되돌린 뒤 저장해야 합니다.</li>
+        <li>계정 삭제·라이선스 회수는 이 화면의 범위가 아닙니다. <b>차단·표기까지만</b> 합니다.</li>
+      </ul>
+    </div>
+
+    <div class="note" style="margin-top:14px;">
+      <b>동작 방식</b> — 이 화면은 계정 대사(<code>public.v_account_recon</code>)를 그대로 읽습니다.
+      별도 상태를 저장하지 않으므로 <b>처리 결과가 곧 목록</b>입니다 — 처리했는데 목록에 남아 있으면 실제로 안 된 것입니다.
+      기획 정본은 <a href="/docs/erp/offboarding">21 퇴사처리 일괄적용</a> 입니다.
+    </div>
+  </div>
+
+  <div class="foot">
+    <span>JEIL M&amp;S · 퇴사 처리(초안)</span>
+    <span>조회는 <code>jeil-accounts</code> 경유 · 처리 실행은 러너/관리센터</span>
+  </div>
+</div>
+
+<script>
+(function () {
+  var API = "https://dvzohdqtjzocgcclgwro.supabase.co/functions/v1/jeil-accounts";
+  var el = function (id) { return document.getElementById(id); };
+  var esc = function (s) { return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) {
+    return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); };
+  var num = function (n) { return (n == null ? 0 : n).toLocaleString("ko-KR"); };
+
+  function auth() {
+    try {
+      var a = JSON.parse(localStorage.getItem("jeilax_auth") || "null");
+      return (a && a.at && a.exp > Date.now()) ? a : null;
+    } catch (e) { return null; }
+  }
+  function api(scope) {
+    var a = auth();
+    if (!a) return Promise.reject(new Error("로그인이 필요합니다"));
+    return fetch(API, {
+      method: "POST",
+      headers: { Authorization: "Bearer " + a.at, "Content-Type": "application/json" },
+      body: JSON.stringify({ scope: scope })
+    }).then(function (r) {
+      return r.text().then(function (t) {
+        var j = null; try { j = JSON.parse(t); } catch (e) { /* 콜드스타트 비-JSON 대비 */ }
+        if (!r.ok) throw new Error((j && j.error) || ("오류 " + r.status));
+        return j.data;
+      });
+    });
+  }
+
+  var TARGETS = [];
+
+  /* 그룹웨어 처리 명령을 만들어 보여준다. 화면에서 직접 실행하지는 않는다 —
+     브라우저에서 러너를 부를 경로가 없고, 실행은 사람이 확인하고 하는 게 맞다. */
+  function showCmd(i) {
+    var r = TARGETS[i];
+    var id = (r.gw_login_id || (r.email || "").split("@")[0]);
+    var d = r.retire_dt || "YYYY-MM-DD";
+    el("cmdWho").textContent = (r.emp_nm || r.email) + " —";
+    el("cmdText").innerHTML =
+      '# 점검(저장 안 함)\n' +
+      'python 10_ERP_DB연계/etl/gw_offboard.py -i ' + esc(id) + ' -n "' + esc(r.emp_nm || "") + '" -d ' + esc(d) + '\n\n' +
+      '# 실제 처리\n' +
+      'python 10_ERP_DB연계/etl/gw_offboard.py -i ' + esc(id) + ' -n "' + esc(r.emp_nm || "") + '" -d ' + esc(d) + ' <b>--apply</b>';
+    el("cmdBox").style.display = "block";
+    el("cmdBox").scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }
+  window.__gwCmd = showCmd;
+
+  function render(rows) {
+    var t = rows.filter(function (r) {
+      return r.has_hr && r.hr_active === false && r.is_person !== false &&
+             (r.has_erp || r.has_gw || r.has_ms);
+    }).sort(function (a, b) { return String(a.retire_dt || "").localeCompare(String(b.retire_dt || "")); });
+    TARGETS = t;
+
+    el("kOff").textContent = num(t.length);
+    el("kErp").textContent = num(t.filter(function (r) { return r.has_erp; }).length);
+    el("kGw").textContent = num(t.filter(function (r) { return r.has_gw; }).length);
+    el("kMs").textContent = num(t.filter(function (r) { return r.has_ms; }).length);
+    el("hOff").textContent = "(" + t.length + "명)";
+
+    var mk = function (on) { return on ? '<span class="todo">남음</span>' : '<span class="done">완료</span>'; };
+    el("offRows").innerHTML = t.length ? t.map(function (r, i) {
+      var todo = [];
+      if (r.has_erp) todo.push("ERP 비활성");
+      if (r.has_gw) todo.push("그룹웨어 사용중지");
+      if (r.has_ms) todo.push("MS 차단·표기");
+      return '<tr>' +
+        '<td>' + esc(r.emp_nm || "—") + '</td>' +
+        '<td class="mono">' + esc(r.email) + '</td>' +
+        '<td>' + esc(r.dept_nm || "—") + '</td>' +
+        '<td class="c">' + esc(r.retire_dt || "—") + '</td>' +
+        '<td class="c">' + mk(r.has_erp) + '</td>' +
+        '<td class="c">' + mk(r.has_gw) + '</td>' +
+        '<td class="c">' + mk(r.has_ms) + '</td>' +
+        '<td>' + esc(todo.join(" · ")) + '</td>' +
+        '<td class="c">' + (r.has_gw
+          ? '<button class="mini" onclick="__gwCmd(' + i + ')">명령</button>'
+          : '<span class="muted">–</span>') + '</td>' +
+        '</tr>';
+    }).join("") : '<tr><td colspan="9" class="c" style="padding:20px;color:#2e7d52;font-weight:600;">' +
+                  '잔여 조치 대상이 없습니다 — 퇴사자 계정이 세 축 모두 정리돼 있습니다.</td></tr>';
+  }
+
+  if (!auth()) {
+    el("gate").style.display = "block";
+  } else {
+    el("app").style.display = "block";
+    api("recon").then(render).catch(function (e) {
+      el("gate").style.display = "block";
+      el("g_msg").textContent = "데이터를 불러오지 못했습니다 — " + e.message;
+      el("offRows").innerHTML = '<tr><td colspan="9" class="c muted" style="padding:16px;">불러오지 못했습니다.</td></tr>';
+    });
+  }
+})();
+</script>
+</body>
+</html>
