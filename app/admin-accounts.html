@@ -62,9 +62,19 @@
   .muted{color:var(--muted);}
   @media (max-width:1100px){.stats{grid-template-columns:repeat(3,1fr);}}
   @media (max-width:700px){.stats{grid-template-columns:repeat(2,1fr);} .page{padding:20px 14px 30px;}}
+  /* 통합 플랫폼(/admin/identity) 안에 iframe 으로 얹힐 때 — 제목·푸터를 숨기고 여백을 줄인다.
+     이 페이지는 단독 주소로도 계속 동작한다(북마크 보존). */
+  body.embed .head, body.embed .foot { display:none; }
+  body.embed .page { box-shadow:none; padding:16px 18px; min-height:0; max-width:none; }
+  body.embed { background:#fff; }
 </style>
 </head>
 <body>
+<script>
+  // ?embed=1 이면 플랫폼 셸이 껍데기를 그리므로 이 페이지의 머리말·꼬리말을 감춘다.
+  if (new URLSearchParams(location.search).get("embed") === "1") document.body.classList.add("embed");
+</script>
+
 <div class="page">
   <div class="head">
     <div>
@@ -72,6 +82,7 @@
       <div class="sub">
         <b>ERP 계정</b>(<code>Z_USR_MAST_REC.usr_id</code> = 이메일)이 정본이고, <b>인사</b>(<code>HAA010T</code>)·그룹웨어·MS를 이메일로 붙입니다
         · <span class="badge b">관리자 전용</span>
+        · <a href="/admin/identity">← 통합관리 플랫폼</a>
         · <a href="/admin/user-dept">사용자·부서 매핑 →</a>
         · <a href="/admin/erp-status">ERP 연동 현황 →</a>
       </div>

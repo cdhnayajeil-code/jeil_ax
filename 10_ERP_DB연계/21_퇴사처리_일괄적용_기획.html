@@ -42,7 +42,7 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <body>
 <div class="page">
   <span class="doc-label">JEIL AX ERP DB 연계 · 대외비</span>
-  <div class="docnav"><a href="/docs/erp">🏠 연계 허브</a><a href="/docs/erp/status">00 현재상태</a><a href="/docs/erp/plan">01 연계기획</a><a href="/docs/erp/progress">02 진행상태</a><a href="/docs/erp/midway-db">03 중간DB 실행기획</a><a href="/docs/erp/incremental-sync">04 증분·확장·거버넌스</a><a href="/docs/erp/dept-mapping">05 사용자-부서 매핑</a><a href="/docs/erp/voucher-roadmap">06 결의전표 추진계획</a><a href="/docs/erp/voucher-handover">09 결의전표 인수인계</a><a href="/docs/erp/recurring-voucher">10 반복전표 자동화</a><a href="/docs/erp/direct-post-demo">11 ERP 직접등록(DEMO2)</a><a href="/docs/erp/ax001-acct-mapping">12 AX001 계정매핑 요청</a><a href="/docs/erp/subledger-fix">13 서브원장 호출누락</a><a href="/docs/erp/test-cases">14 테스트범위·케이스</a><a href="/docs/erp/input-guards">15 입력검증·차단규칙</a><a href="/docs/erp/trans-type-review">16 거래유형체계 검토</a><a href="/docs/erp/prod-gates">17 운영전환 게이트</a><a href="/docs/erp/jnl-rule">18 거래항목 결정규칙</a><a href="/docs/erp/test-set">19 연동테스트 전표세트</a><a href="/docs/erp/ledger-verify">20 원장검증 실장부대조</a><a class="cur" href="21_퇴사처리_일괄적용_기획.html">21 퇴사처리 일괄적용</a><a href="README.md">README</a></div>
+  <div class="docnav"><a href="/docs/erp">🏠 연계 허브</a><a href="/docs/erp/status">00 현재상태</a><a href="/docs/erp/plan">01 연계기획</a><a href="/docs/erp/progress">02 진행상태</a><a href="/docs/erp/midway-db">03 중간DB 실행기획</a><a href="/docs/erp/incremental-sync">04 증분·확장·거버넌스</a><a href="/docs/erp/dept-mapping">05 사용자-부서 매핑</a><a href="/docs/erp/voucher-roadmap">06 결의전표 추진계획</a><a href="/docs/erp/voucher-handover">09 결의전표 인수인계</a><a href="/docs/erp/recurring-voucher">10 반복전표 자동화</a><a href="/docs/erp/direct-post-demo">11 ERP 직접등록(DEMO2)</a><a href="/docs/erp/ax001-acct-mapping">12 AX001 계정매핑 요청</a><a href="/docs/erp/subledger-fix">13 서브원장 호출누락</a><a href="/docs/erp/test-cases">14 테스트범위·케이스</a><a href="/docs/erp/input-guards">15 입력검증·차단규칙</a><a href="/docs/erp/trans-type-review">16 거래유형체계 검토</a><a href="/docs/erp/prod-gates">17 운영전환 게이트</a><a href="/docs/erp/jnl-rule">18 거래항목 결정규칙</a><a href="/docs/erp/test-set">19 연동테스트 전표세트</a><a href="/docs/erp/ledger-verify">20 원장검증 실장부대조</a><a class="cur" href="/docs/erp/offboarding">21 퇴사처리 일괄적용</a><a href="README.md">README</a></div>
   <p class="md-link">📄 Markdown 원본: <a href="21_퇴사처리_일괄적용_기획.md">21_퇴사처리_일괄적용_기획.md</a> · 허브 <a href="/docs/erp">연계 허브</a></p>
   <div class="content">
 <h1 id="21">21. 퇴사 처리 일괄 적용 — 기획</h1>
@@ -254,6 +254,46 @@ DELETE FROM Z_USR_MAST_REC_USR_ROLE_ASSO
 퇴사 처리의 핵심 확인 항목이 "권한이 회수됐는가" 인데, 미러가 옛 역할을 계속 보여주면
 <strong>대사가 "권한이 아직 살아 있다"고 잘못 말한다.</strong>
 → <strong>대책</strong>: <code>usr_role</code> 도 전량 스냅샷으로 바꾸거나 <code>usr_master</code> 처럼 정합(reconcile) 후처리를 붙인다.</p>
+<hr />
+<h2 id="35-2026-09-08">3.5 화면 — 계정·조직 통합관리 플랫폼 (2026-09-08 신설)</h2>
+<p>퇴사 처리는 <strong>계정 대사와 부서 매핑을 함께 봐야</strong> 하는 일인데, 두 화면이 따로 있어 어느 쪽에도
+자리가 없었다. 그래서 셸 화면 <strong><code>/admin/identity</code></strong> 를 만들고 그 안에 모듈로 넣었다.</p>
+<table>
+<thead>
+<tr>
+<th>모듈</th>
+<th>내용</th>
+<th>구현</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>🏠 현황판</td>
+<td>현재 인원·조치 대상·퇴사 미정리 KPI + 모듈 진입</td>
+<td>신규</td>
+</tr>
+<tr>
+<td>🔗 계정 대사</td>
+<td>4축 대사(기존 화면)</td>
+<td><code>/admin/accounts?embed=1</code></td>
+</tr>
+<tr>
+<td>👥 사용자·부서</td>
+<td>매핑 대사(기존 화면)</td>
+<td><code>/admin/user-dept?embed=1</code></td>
+</tr>
+<tr>
+<td>🚪 <strong>퇴사 처리</strong></td>
+<td>축별 자동화 상태 · <strong>잔여 조치 대상</strong> · 실행 방법</td>
+<td>신규</td>
+</tr>
+</tbody>
+</table>
+<p><strong>두 기존 화면은 단독 주소도 그대로 유지</strong>한다(북마크 보존). <code>?embed=1</code> 일 때만 자기 머리말·꼬리말을
+감추고 셸이 껍데기를 그린다. 모듈은 처음 열릴 때만 로드해 Edge Function 콜드스타트가 겹치지 않게 했다.</p>
+<p>「잔여 조치 대상」은 대사 데이터에서 <strong>인사상 퇴사인데 어느 축이든 계정이 살아 있는 사람</strong>을 뽑는다
+(<code>has_hr &amp;&amp; !hr_active &amp;&amp; (has_erp || has_gw || has_ms)</code>, 공용·설비 계정 제외). 축별로 무엇이
+남았는지까지 보여주므로, 처리 후 「데이터 업데이트」를 돌리면 목록에서 자동으로 빠진다.</p>
 <hr />
 <h2 id="4-2">4. 설계 — 2단계</h2>
 <h3 id="41-phase-1">4.1 Phase 1 — 퇴사 처리 오케스트레이터 (권한 없이 지금 가능)</h3>

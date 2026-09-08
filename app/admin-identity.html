@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>계정·조직 통합관리 플랫폼 — JEIL AX</title>
+<style>
+  :root{--navy:#1a2f4e;--navy2:#27457a;--accent:#2f6fb3;--red:#b3402f;--green:#2e7d52;--amber:#9a6b1f;
+    --ink:#222;--muted:#666;--line:#d8dee8;--bg:#f4f6f9;--soft:#eef2f8;--softgreen:#ecf5f0;--softamber:#faf3e4;--softred:#fbeeec;}
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;color:var(--ink);background:var(--bg);line-height:1.6;font-size:14px;}
+  .page{max-width:1320px;margin:0 auto;background:#fff;box-shadow:0 2px 14px rgba(0,0,0,.08);min-height:100vh;}
+  .head{padding:26px 36px 0;}
+  .head h1{font-size:21px;color:var(--navy);}
+  .head .sub{font-size:12.5px;color:var(--muted);margin-top:3px;}
+  .head .sub a{color:var(--accent);text-decoration:none;} .head .sub a:hover{text-decoration:underline;}
+  .badge{display:inline-block;font-size:11px;border-radius:10px;padding:2px 9px;font-weight:600;white-space:nowrap;}
+  .badge.g{background:var(--softgreen);color:var(--green);} .badge.a{background:var(--softamber);color:var(--amber);}
+  .badge.b{background:var(--soft);color:var(--navy2);} .badge.r{background:var(--softred);color:var(--red);}
+  .badge.n{background:#f2f4f7;color:#8a93a0;}
+
+  /* 서브 시스템 전환 바 — 모듈마다 독립된 관리 화면이다 */
+  .modbar{display:flex;gap:2px;align-items:flex-end;border-bottom:3px solid var(--navy);padding:14px 36px 0;flex-wrap:wrap;}
+  .modbar button{background:#eef2f8;border:1px solid var(--line);border-bottom:none;border-radius:9px 9px 0 0;
+    padding:9px 17px;font-family:inherit;font-size:13.5px;color:#55606f;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:7px;}
+  .modbar button.on{background:var(--navy);border-color:var(--navy);color:#fff;}
+  .modbar button .n{font-size:11px;font-weight:700;background:rgba(255,255,255,.22);border-radius:9px;padding:1px 7px;}
+  .modbar button:not(.on) .n{background:#dde4ee;color:#5b6675;}
+  .body{padding:0 0 40px;}
+  .mod{display:none;} .mod.on{display:block;}
+  .pad{padding:20px 36px 0;}
+
+  .stats{display:grid;grid-template-columns:repeat(5,1fr);gap:11px;margin-bottom:18px;}
+  .stat{background:linear-gradient(135deg,#f7fafd,#eef4fb);border:1px solid var(--line);border-radius:10px;padding:13px 15px;}
+  .stat.ok{border-left:5px solid var(--green);} .stat.warn{border-left:5px solid var(--amber);}
+  .stat.info{border-left:5px solid var(--accent);} .stat.off{border-left:5px solid #b9c0cb;}
+  .stat .lb{font-size:11.5px;color:var(--muted);}
+  .stat .v{font-size:25px;font-weight:800;color:var(--navy);line-height:1.15;margin-top:2px;}
+  .stat .u{font-size:11.5px;color:#33425a;}
+
+  .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:13px;margin-top:6px;}
+  .card{border:1px solid var(--line);border-radius:11px;padding:15px 17px;background:#fff;cursor:pointer;transition:.12s;}
+  .card:hover{border-color:var(--accent);box-shadow:0 3px 12px rgba(47,111,179,.13);transform:translateY(-1px);}
+  .card h4{font-size:14.5px;color:var(--navy);display:flex;align-items:center;gap:7px;}
+  .card p{font-size:12.3px;color:var(--muted);margin-top:5px;line-height:1.55;}
+  .card .meta{margin-top:9px;display:flex;gap:6px;flex-wrap:wrap;}
+
+  h3{font-size:14px;color:var(--navy);margin:22px 0 9px;display:flex;align-items:center;gap:8px;}
+  h3 .cnt{font-size:11.5px;font-weight:400;color:var(--muted);}
+  .tblwrap{overflow-x:auto;border:1px solid var(--line);border-radius:9px;}
+  table{width:100%;border-collapse:collapse;font-size:12.7px;min-width:700px;}
+  th{background:var(--navy);color:#fff;padding:8px 10px;text-align:left;font-weight:600;white-space:nowrap;}
+  td{padding:7px 10px;border-bottom:1px solid var(--line);vertical-align:middle;}
+  tr:nth-child(even) td{background:#fafbfd;}
+  td.c,th.c{text-align:center;} td.mono{font-family:Consolas,monospace;font-size:11.5px;}
+  .yes{color:var(--green);font-weight:700;} .no{color:#c9ced6;font-weight:700;}
+
+  .note{background:var(--soft);border:1px solid var(--line);border-radius:9px;padding:11px 15px;font-size:12.2px;color:#4a5566;margin-bottom:12px;}
+  .note.warn{background:var(--softamber);border-color:#e6d5a8;color:#6b5320;}
+  .note b{color:var(--navy2);}
+  code{font-family:Consolas,monospace;font-size:11px;background:#fff;border:1px solid var(--line);border-radius:4px;padding:0 5px;}
+  pre{background:#1e2a3a;color:#e6edf5;border-radius:8px;padding:11px 14px;font-family:Consolas,monospace;
+    font-size:11.6px;overflow-x:auto;margin:8px 0;line-height:1.65;}
+  .gate{display:none;background:var(--softamber);border:1px solid var(--amber);border-radius:9px;padding:16px 20px;margin:18px 36px;font-size:13px;color:#5a4520;}
+  .frame{width:100%;border:0;display:block;min-height:1400px;}
+  .foot{margin:26px 36px 0;padding-top:12px;border-top:1px solid var(--line);font-size:11px;color:var(--muted);display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px;}
+  .muted{color:var(--muted);}
+  .axis{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:10px 0 4px;}
+  .axis .a{border:1px solid var(--line);border-radius:10px;padding:13px 15px;}
+  .axis .a.ok{border-left:5px solid var(--green);background:var(--softgreen);}
+  .axis .a.warn{border-left:5px solid var(--amber);background:var(--softamber);}
+  .axis .a h5{font-size:13px;color:var(--navy);}
+  .axis .a p{font-size:11.8px;color:#4a5566;margin-top:4px;}
+  @media (max-width:1100px){.stats{grid-template-columns:repeat(3,1fr);} .axis{grid-template-columns:1fr;}}
+  @media (max-width:700px){.stats{grid-template-columns:repeat(2,1fr);} .pad,.head,.modbar{padding-left:14px;padding-right:14px;} .foot{margin-left:14px;margin-right:14px;}}
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="head">
+    <h1>🪪 계정·조직 통합관리 플랫폼</h1>
+    <div class="sub">
+      계정 대사 · 사용자/부서 매핑 · 퇴사 처리를 한 곳에서 봅니다. 각 모듈은 <b>독립된 관리 시스템</b>이며 단독 주소로도 열립니다
+      · <span class="badge b">관리자 전용</span>
+      · <a href="/admin/erp-status">ERP 연동 현황 →</a>
+    </div>
+  </div>
+
+  <div class="modbar" id="modbar">
+    <button class="on" data-mod="home">🏠 현황판</button>
+    <button data-mod="recon">🔗 계정 대사<span class="n" id="n-recon">–</span></button>
+    <button data-mod="dept">👥 사용자·부서</button>
+    <button data-mod="offboard">🚪 퇴사 처리<span class="n" id="n-off">–</span></button>
+  </div>
+
+  <div class="gate" id="gate">
+    <b>사내 로그인이 필요합니다.</b> <span id="g_msg">포털에서 Microsoft 계정으로 로그인한 뒤 다시 열어주세요.</span>
+    <div style="margin-top:10px;"><a href="/main" style="color:#8a6d1f;">← 포털로 이동</a></div>
+  </div>
+
+  <div class="body" id="body">
+    <!-- ── 현황판 ─────────────────────────────────────────────── -->
+    <div class="mod on" id="m-home">
+      <div class="pad">
+        <div class="stats">
+          <div class="stat ok"><div class="lb">현재 인원</div><div class="v" id="kCur">—</div><div class="u">공용·설비 계정 제외</div></div>
+          <div class="stat warn"><div class="lb">대사 조치 대상</div><div class="v" id="kIssue">—</div><div class="u">정상·휴직 제외</div></div>
+          <div class="stat info"><div class="lb">ERP 계정 (활성)</div><div class="v" id="kErp">—</div><div class="u">정본 Z_USR_MAST_REC</div></div>
+          <div class="stat off"><div class="lb">퇴사 미정리</div><div class="v" id="kOff">—</div><div class="u">퇴사자인데 계정 살아있음</div></div>
+          <div class="stat off"><div class="lb">데이터 기준</div><div class="v" id="kAsof" style="font-size:14px;font-weight:700;padding-top:7px;">—</div><div class="u">원천 수집 시각</div></div>
+        </div>
+
+        <h3>서브 시스템</h3>
+        <div class="cards">
+          <div class="card" data-go="recon">
+            <h4>🔗 계정 대사</h4>
+            <p>ERP 계정을 정본으로 인사·그룹웨어·MS 네 축을 이메일로 묶어 대조합니다. 조치가 필요한 계정만 골라 보여줍니다.</p>
+            <div class="meta"><span class="badge b">4축 대사</span><span class="badge n" id="cRecon">—</span></div>
+          </div>
+          <div class="card" data-go="dept">
+            <h4>👥 사용자·부서 매핑</h4>
+            <p>ERP 사용자명(<code>부서명_이름</code>)을 파싱해 사용자↔부서↔사원 관계를 만듭니다. 표기가 어긋난 계정을 드러냅니다.</p>
+            <div class="meta"><span class="badge b">연동 기준</span></div>
+          </div>
+          <div class="card" data-go="offboard">
+            <h4>🚪 퇴사 처리</h4>
+            <p>퇴사자의 ERP·그룹웨어·MS 계정을 한 번에 정리합니다. 축별 자동화 상태와 잔여 조치 대상을 봅니다.</p>
+            <div class="meta"><span class="badge b">3축 일괄</span><span class="badge n" id="cOff">—</span></div>
+          </div>
+          <div class="card" onclick="location.href='/admin/erp-status'">
+            <h4>🔄 원천·수집 <span class="badge n">외부</span></h4>
+            <p>ERP·MS·그룹웨어 원천에서 언제 얼마나 받아왔는지 확인하고, 「데이터 업데이트」로 다시 받아옵니다.</p>
+            <div class="meta"><span class="badge b">ERP 연동 현황</span></div>
+          </div>
+        </div>
+
+        <div class="note" style="margin-top:20px;">
+          <b>왜 한 곳에 모았나</b> — 계정 대사와 부서 매핑은 같은 원천(<code>Z_USR_MAST_REC</code>)을 다른 각도로 보는 화면입니다.
+          따로 열면 같은 사람을 두 번 찾아야 하고, 퇴사 처리처럼 <b>두 화면의 결과를 함께 봐야 하는 일</b>은 어느 쪽에도 자리가 없었습니다.
+          모듈은 각자 독립 화면이라 단독 주소(<code>/admin/accounts</code> · <code>/admin/user-dept</code>)로도 그대로 열립니다.
+        </div>
+      </div>
+    </div>
+
+    <!-- ── 계정 대사 (독립 화면 임베드) ──────────────────────────── -->
+    <div class="mod" id="m-recon">
+      <iframe class="frame" id="f-recon" title="계정 대사" data-src="/admin/accounts?embed=1"></iframe>
+    </div>
+
+    <!-- ── 사용자·부서 매핑 (독립 화면 임베드) ────────────────────── -->
+    <div class="mod" id="m-dept">
+      <iframe class="frame" id="f-dept" title="사용자·부서 매핑" data-src="/admin/user-dept?embed=1"></iframe>
+    </div>
+
+    <!-- ── 퇴사 처리 ─────────────────────────────────────────────── -->
+    <div class="mod" id="m-offboard">
+      <div class="pad">
+        <div class="note">
+          퇴사자는 <b>세 시스템에서 각각</b> 정리해야 합니다. 한 곳만 빠져도 계정이 살아 있고, 그 사실은 어디에도 오류로 뜨지 않습니다
+          — 2026-09-07 그룹웨어 퇴사자 13명 중 9명이 이 상태였습니다.
+          아래 목록은 <b>인사상 퇴사인데 계정이 아직 살아 있는</b> 사람입니다.
+        </div>
+
+        <h3>축별 자동화 상태</h3>
+        <div class="axis">
+          <div class="a ok">
+            <h5>ERP — 자동 <span class="badge g">실증 완료</span></h5>
+            <p>SharePoint 목록 「ERP 퇴사처리 RPA」에 등재하면 기존 Power Automate 흐름이 1분 내 처리합니다.
+               <b>진행구분을 <code>-</code> 로 채워야</b> 실행됩니다(비우면 조용히 지나갑니다).</p>
+          </div>
+          <div class="a ok">
+            <h5>그룹웨어 — 자동 <span class="badge g">실증 완료</span></h5>
+            <p>화면 자동화 스크립트로 처리합니다. 기준일자·퇴사일 복원·메일 삭제 방지까지 코드가 매번 확인합니다.</p>
+          </div>
+          <div class="a warn">
+            <h5>MS(Entra) — 수동 <span class="badge a">권한 대기</span></h5>
+            <p>Graph 쓰기가 403입니다(<code>User.ReadWrite.All</code> 미부여). 지금은 Entra 관리센터에서
+               로그인 차단 + 표시이름 <code>[퇴사]</code> 접두를 직접 넣어야 합니다.</p>
+          </div>
+        </div>
+
+        <h3>잔여 조치 대상 <span class="cnt" id="hOff"></span></h3>
+        <div class="tblwrap">
+          <table>
+            <thead><tr>
+              <th>이름</th><th>이메일</th><th>부서</th><th class="c">퇴사일</th>
+              <th class="c">ERP</th><th class="c">그룹웨어</th><th class="c">MS</th><th>남은 조치</th>
+            </tr></thead>
+            <tbody id="offRows"><tr><td colspan="8" class="c muted" style="padding:16px;">불러오는 중…</td></tr></tbody>
+          </table>
+        </div>
+
+        <h3>실행 방법</h3>
+        <div class="note warn">
+          <b>되돌리기 어려운 작업입니다.</b> ERP 흐름은 사용자 역할을 <b>DELETE</b> 하고 무엇이 있었는지 남기지 않습니다.
+          등재 전에 역할 목록을 따로 적어 두세요. 그룹웨어의 <b>「메일 삭제여부」 체크박스는 절대 켜지 마세요</b>(메일계정·메일정보 일괄 삭제).
+        </div>
+        <p style="font-size:12.5px;color:#4a5566;margin:10px 0 2px;"><b>그룹웨어</b> — 러너 호스트에서 실행합니다. <code>--apply</code> 없이 먼저 돌리면 저장 직전 상태만 보여줍니다.</p>
+        <pre>python 10_ERP_DB연계/etl/gw_offboard.py -i wc.kim -n 김우철 -d 2023-12-22          # 점검
+python 10_ERP_DB연계/etl/gw_offboard.py -i wc.kim -n 김우철 -d 2023-12-22 --apply  # 실제 처리</pre>
+        <p style="font-size:12.5px;color:#4a5566;margin:10px 0 2px;"><b>ERP</b> — SharePoint 목록에 한 줄 등재하면 끝입니다.</p>
+        <pre>사용자 ID = 이메일 · 사용자명 = 부서_이름 · 퇴사일자 = 실제 퇴사일 · <b>진행구분 = -</b></pre>
+        <p style="font-size:12.5px;color:#4a5566;margin:10px 0 2px;"><b>MS</b> — Entra 관리센터에서 직접(권한 부여 시 자동화 예정).</p>
+        <pre>로그인 차단(accountEnabled=false) + 표시이름 앞에 [퇴사] 접두</pre>
+
+        <div class="note" style="margin-top:16px;">
+          처리 후 <b>「데이터 업데이트」</b>(<a href="/admin/erp-status">ERP 연동 현황</a>)를 한 번 돌리면
+          ERP·MS·그룹웨어를 다시 받아와 이 목록에서 자동으로 빠집니다. 기획 정본은
+          <code>10_ERP_DB연계/21_퇴사처리_일괄적용_기획</code> 입니다.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="foot">
+    <span>JEIL M&amp;S · 계정·조직 통합관리 플랫폼</span>
+    <span>모듈은 각자 독립 화면 — <code>/admin/accounts</code> · <code>/admin/user-dept</code> 단독 주소 유지</span>
+  </div>
+</div>
+
+<script>
+(function () {
+  var API = "https://dvzohdqtjzocgcclgwro.supabase.co/functions/v1/jeil-accounts";
+  var el = function (id) { return document.getElementById(id); };
+  var esc = function (s) { return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) {
+    return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); };
+  var num = function (n) { return (n == null ? 0 : n).toLocaleString("ko-KR"); };
+  var dt = function (t) { return t ? new Date(t).toLocaleString("ko-KR",
+    { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" }) : "—"; };
+
+  function auth() {
+    try {
+      var a = JSON.parse(localStorage.getItem("jeilax_auth") || "null");
+      return (a && a.at && a.exp > Date.now()) ? a : null;
+    } catch (e) { return null; }
+  }
+  function api(scope) {
+    var a = auth();
+    if (!a) return Promise.reject(new Error("로그인이 필요합니다"));
+    return fetch(API, {
+      method: "POST",
+      headers: { Authorization: "Bearer " + a.at, "Content-Type": "application/json" },
+      body: JSON.stringify({ scope: scope })
+    }).then(function (r) {
+      return r.text().then(function (t) {
+        var j = null; try { j = JSON.parse(t); } catch (e) { /* 콜드스타트 비-JSON 대비 */ }
+        if (!r.ok) throw new Error((j && j.error) || ("오류 " + r.status));
+        return j.data;
+      });
+    });
+  }
+
+  /* 모듈 전환. iframe 은 **처음 열릴 때만** 로드한다 — 다섯 화면을 한꺼번에 띄우면
+     Edge Function 을 동시에 두드려 콜드스타트가 겹친다. */
+  function go(mod) {
+    Array.prototype.forEach.call(document.querySelectorAll(".mod"), function (m) {
+      m.classList.toggle("on", m.id === "m-" + mod);
+    });
+    Array.prototype.forEach.call(el("modbar").querySelectorAll("button"), function (b) {
+      b.classList.toggle("on", b.getAttribute("data-mod") === mod);
+    });
+    var f = el("f-" + mod);
+    if (f && !f.src && f.getAttribute("data-src")) f.src = f.getAttribute("data-src");
+    if (location.hash.slice(1) !== mod) history.replaceState(null, "", "#" + mod);
+    window.scrollTo(0, 0);
+  }
+  Array.prototype.forEach.call(el("modbar").querySelectorAll("button"), function (b) {
+    b.onclick = function () { go(b.getAttribute("data-mod")); };
+  });
+  Array.prototype.forEach.call(document.querySelectorAll(".card[data-go]"), function (c) {
+    c.onclick = function () { go(c.getAttribute("data-go")); };
+  });
+
+  /* 잔여 조치 대상 — 인사상 퇴사인데 어느 축이든 계정이 살아 있는 사람.
+     '공용·설비계정'은 사람이 아니므로 제외한다(is_person=false). */
+  function renderOff(rows) {
+    var t = rows.filter(function (r) {
+      return r.has_hr && r.hr_active === false && r.is_person !== false &&
+             (r.has_erp || r.has_gw || r.has_ms);
+    }).sort(function (a, b) { return String(a.retire_dt || "").localeCompare(String(b.retire_dt || "")); });
+
+    el("hOff").textContent = "(" + t.length + "명)";
+    el("n-off").textContent = t.length;
+    el("cOff").textContent = t.length === 0 ? "잔여 없음" : t.length + "명 남음";
+    el("kOff").textContent = num(t.length);
+
+    el("offRows").innerHTML = t.length ? t.map(function (r) {
+      var todo = [];
+      if (r.has_erp) todo.push("ERP 계정 비활성");
+      if (r.has_gw) todo.push("그룹웨어 사용중지");
+      if (r.has_ms) todo.push("MS 차단·[퇴사] 표기");
+      var mk = function (on) { return on ? '<span class="no">●</span>' : '<span class="yes">○</span>'; };
+      return '<tr>' +
+        '<td>' + esc(r.emp_nm || "—") + '</td>' +
+        '<td class="mono">' + esc(r.email) + '</td>' +
+        '<td>' + esc(r.dept_nm || "—") + '</td>' +
+        '<td class="c">' + esc(r.retire_dt || "—") + '</td>' +
+        '<td class="c">' + mk(r.has_erp) + '</td>' +
+        '<td class="c">' + mk(r.has_gw) + '</td>' +
+        '<td class="c">' + mk(r.has_ms) + '</td>' +
+        '<td>' + esc(todo.join(" · ")) + '</td>' +
+        '</tr>';
+    }).join("") : '<tr><td colspan="8" class="c" style="padding:18px;color:#2e7d52;font-weight:600;">' +
+                  '잔여 조치 대상이 없습니다 — 퇴사자 계정이 세 축 모두 정리돼 있습니다.</td></tr>';
+  }
+
+  function boot() {
+    if (!auth()) {
+      el("gate").style.display = "block";
+      el("body").style.display = "none";
+      return;
+    }
+    Promise.all([api("summary"), api("recon")]).then(function (r) {
+      var s = r[0] || {}, rows = r[1] || [];
+      var cur = rows.filter(function (x) { return x.is_current; });
+      var OK = { "정상": 1, "휴직": 1 };
+      var issue = cur.filter(function (x) { return !OK[x.recon_type]; }).length;
+
+      el("kCur").textContent = num(cur.length);
+      el("kIssue").textContent = num(issue);
+      el("kErp").textContent = num(s.acct_active);
+      el("n-recon").textContent = issue;
+      el("cRecon").textContent = issue === 0 ? "조치 없음" : issue + "건 조치";
+      var asof = [s.acct_synced_at, s.gw_synced_at, s.ms_synced_at].filter(Boolean).sort();
+      el("kAsof").textContent = asof.length ? dt(asof[asof.length - 1]) : "—";
+
+      renderOff(rows);
+    }).catch(function (e) {
+      el("gate").style.display = "block";
+      el("g_msg").textContent = "데이터를 불러오지 못했습니다 — " + e.message;
+      el("offRows").innerHTML = '<tr><td colspan="8" class="c muted" style="padding:16px;">불러오지 못했습니다.</td></tr>';
+    });
+  }
+
+  var start = (location.hash || "").slice(1);
+  go(["home", "recon", "dept", "offboard"].indexOf(start) >= 0 ? start : "home");
+  boot();
+})();
+</script>
+</body>
+</html>

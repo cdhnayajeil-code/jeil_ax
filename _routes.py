@@ -33,6 +33,8 @@ ROUTES = {
     # ── 관리자 / 협력사 ────────────────────────────────────
     "/admin/erp-status":        "app/erp-status.html",
     "/admin/vendors":           "app/admin-vendors.html",
+    # 계정·조직 통합관리 플랫폼(셸). 아래 두 화면은 이 안의 모듈이면서 단독 주소도 유지한다.
+    "/admin/identity":          "app/admin-identity.html",
     "/admin/user-dept":         "app/admin-user-dept.html",
     "/admin/accounts":          "app/admin-accounts.html",
     "/vendor/login":            "app/vendor-login.html",
@@ -111,6 +113,7 @@ ROUTES = {
     "/docs/erp/jnl-rule":               "10_ERP_DB연계/18_거래항목_결정규칙.html",
     "/docs/erp/test-set":               "10_ERP_DB연계/19_연동테스트_전표세트.html",
     "/docs/erp/ledger-verify":          "10_ERP_DB연계/20_원장검증_실장부대조.html",
+    "/docs/erp/offboarding":            "10_ERP_DB연계/21_퇴사처리_일괄적용_기획.html",
 
     # ── 제품기획 ───────────────────────────────────────────
     "/docs/product":                    "11_제품기획/index.html",
