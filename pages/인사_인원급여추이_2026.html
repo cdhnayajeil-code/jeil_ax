@@ -6,6 +6,7 @@
 <script>window.PAGE_KEY='hr_2026';</script>
 <script src="/pages/_access-gate.js"></script>
 <title>인사팀 — 2026년 인원 및 급여 추이</title>
+<link rel="stylesheet" href="/app/lib/querybar.css">
 <style>
   :root{
     --navy:#1a2f4e; --navy2:#27457a; --accent:#2f6fb3; --accent2:#4a8ed0;
@@ -79,18 +80,21 @@
 
   <div class="head">
     <div>
-      <h1>👥 2026년 인원 및 급여 추이</h1>
+      <h1>👥 인원 및 급여 추이<span class="qbar-period" data-qbar-period>2026년 연간</span></h1>
       <div class="sub">인사팀 운영 페이지 · <span class="badge b">부서 전용</span> <span class="badge r">개인정보 마스킹 적용</span> <span class="badge a">읽기전용 추출</span></div>
     </div>
-    <div class="right">기준일: 2026-06-12<br>최종 추출: 2026-05-22 (급여 4월분 마감)</div>
+    <div class="right">데이터 원천: HAA010T · HDF070T · 급여 4월분 마감</div>
   </div>
+
+  <!-- 표준 조회 플랫폼 (app/lib/querybar.js) -->
+  <div id="qbar"></div>
 
   <!-- KPI -->
   <div class="kpis">
-    <div class="kpi"><div class="lb">전사 인원 (급여대상)</div><div class="v">91명</div><div class="delta dn">▼ 전월(6월) 98 → 7월 91</div></div>
+    <div class="kpi" id="kpiHead"><div class="lb">전사 인원 (급여대상)</div><div class="v">91명</div><div class="delta dn">▼ 전월(6월) 98 → 7월 91</div></div>
     <div class="kpi"><div class="lb">2026 누적 입사</div><div class="v">7명</div><div class="delta">신입 3 · 경력 4</div></div>
     <div class="kpi"><div class="lb">2026 누적 퇴사</div><div class="v">5명</div><div class="delta dn">4월 집중 (A22 신고분)</div></div>
-    <div class="kpi" data-sensitive="pay"><div class="lb">월평균 급여총액</div><div class="v">412<small> 백만원</small></div><div class="delta up">▲ 전년 대비 +3.1%</div></div>
+    <div class="kpi" id="kpiPay" data-sensitive="pay"><div class="lb">월평균 급여총액</div><div class="v">412<small> 백만원</small></div><div class="delta up">▲ 전년 대비 +3.1%</div></div>
     <div class="kpi" data-sensitive="pay"><div class="lb">4월 퇴직급여 정산</div><div class="v">69.5<small> 백만원</small></div><div class="delta">IRP 과세이연 · 소득세 0</div></div>
   </div>
 
@@ -98,26 +102,26 @@
   <div class="grid2">
     <div class="sec">
       <h3>월별 인원 추이 (급여대상, 명) <span class="badge g">ERP 실데이터 · 2026-07-24 기준</span></h3>
-      <div class="chart">
-        <div class="cbar"><span class="val">113</span><div class="bar" style="height:95%"></div><span class="lab">1월</span></div>
-        <div class="cbar"><span class="val">119</span><div class="bar" style="height:100%"></div><span class="lab">2월</span></div>
-        <div class="cbar"><span class="val">101</span><div class="bar" style="height:85%"></div><span class="lab">3월</span></div>
-        <div class="cbar"><span class="val">100</span><div class="bar" style="height:84%"></div><span class="lab">4월</span></div>
-        <div class="cbar"><span class="val">94</span><div class="bar" style="height:79%"></div><span class="lab">5월</span></div>
-        <div class="cbar"><span class="val">98</span><div class="bar" style="height:82%"></div><span class="lab">6월</span></div>
-        <div class="cbar"><span class="val">91</span><div class="bar fcst" style="height:76%"></div><span class="lab">7월(진행)</span></div>
+      <div class="chart" id="mHead">
+        <div class="cbar" data-m="1"><span class="val">113</span><div class="bar" style="height:95%"></div><span class="lab">1월</span></div>
+        <div class="cbar" data-m="2"><span class="val">119</span><div class="bar" style="height:100%"></div><span class="lab">2월</span></div>
+        <div class="cbar" data-m="3"><span class="val">101</span><div class="bar" style="height:85%"></div><span class="lab">3월</span></div>
+        <div class="cbar" data-m="4"><span class="val">100</span><div class="bar" style="height:84%"></div><span class="lab">4월</span></div>
+        <div class="cbar" data-m="5"><span class="val">94</span><div class="bar" style="height:79%"></div><span class="lab">5월</span></div>
+        <div class="cbar" data-m="6"><span class="val">98</span><div class="bar" style="height:82%"></div><span class="lab">6월</span></div>
+        <div class="cbar" data-m="7"><span class="val">91</span><div class="bar fcst" style="height:76%"></div><span class="lab">7월(진행)</span></div>
       </div>
       <div class="legend"><span><i style="background:var(--accent)"></i>마감</span><span><i style="background:#b9cfe6"></i>진행 중(미마감)</span> · HDF070T 급여대상 인원(마감 전 변동 가능)</div>
     </div>
     <div class="sec" data-sensitive="pay">
       <h3>월별 급여총액 추이 (백만원) <span class="badge b">SUM(PAY_TOT_AMT)</span></h3>
-      <div class="chart">
-        <div class="cbar"><span class="val">398</span><div class="bar" style="height:72%"></div><span class="lab">1월</span></div>
-        <div class="cbar"><span class="val">405</span><div class="bar" style="height:75%"></div><span class="lab">2월</span></div>
-        <div class="cbar"><span class="val">486</span><div class="bar" style="height:95%"></div><span class="lab">3월<br>(상여)</span></div>
-        <div class="cbar"><span class="val">421</span><div class="bar" style="height:80%"></div><span class="lab">4월</span></div>
-        <div class="cbar"><span class="val">409</span><div class="bar" style="height:77%"></div><span class="lab">5월</span></div>
-        <div class="cbar"><span class="val">—</span><div class="bar fcst" style="height:77%"></div><span class="lab">6월(예정)</span></div>
+      <div class="chart" id="mPay">
+        <div class="cbar" data-m="1"><span class="val">398</span><div class="bar" style="height:72%"></div><span class="lab">1월</span></div>
+        <div class="cbar" data-m="2"><span class="val">405</span><div class="bar" style="height:75%"></div><span class="lab">2월</span></div>
+        <div class="cbar" data-m="3"><span class="val">486</span><div class="bar" style="height:95%"></div><span class="lab">3월<br>(상여)</span></div>
+        <div class="cbar" data-m="4"><span class="val">421</span><div class="bar" style="height:80%"></div><span class="lab">4월</span></div>
+        <div class="cbar" data-m="5"><span class="val">409</span><div class="bar" style="height:77%"></div><span class="lab">5월</span></div>
+        <div class="cbar" data-m="6"><span class="val">—</span><div class="bar fcst" style="height:77%"></div><span class="lab">6월(예정)</span></div>
       </div>
       <div class="legend"><span>3월 정기상여 포함 · 퇴직급여 별도(HGA070T)</span></div>
     </div>
@@ -145,14 +149,15 @@
     </div>
     <div class="sec">
       <h3>2026년 입·퇴사 현황 (HAA010T: ENTR_DT / RETIRE_DT)</h3>
-      <table>
+      <table data-m-off="hide">
         <tr><th>월</th><th class="c">입사</th><th class="c">퇴사</th><th class="c">순증감</th><th>비고</th></tr>
-        <tr><td>1월</td><td class="c">1</td><td class="c">0</td><td class="c" style="color:var(--green); font-weight:700;">+1</td><td>경력 1 (설계)</td></tr>
-        <tr><td>2월</td><td class="c">1</td><td class="c">0</td><td class="c" style="color:var(--green); font-weight:700;">+1</td><td>신입 1 (생산)</td></tr>
-        <tr><td>3월</td><td class="c">2</td><td class="c">0</td><td class="c" style="color:var(--green); font-weight:700;">+2</td><td>신입 2 (생산·품질)</td></tr>
-        <tr><td>4월</td><td class="c">4</td><td class="c" style="color:var(--red); font-weight:700;">5</td><td class="c" style="color:var(--red); font-weight:700;">−1</td><td>퇴직정산 5건 (하단 상세)</td></tr>
-        <tr><td>5월</td><td class="c">0</td><td class="c">0</td><td class="c">—</td><td></td></tr>
-        <tr><td>6월(진행)</td><td class="c">0</td><td class="c">0</td><td class="c">—</td><td></td></tr>
+        <tr data-m="1"><td>1월</td><td class="c">1</td><td class="c">0</td><td class="c" style="color:var(--green); font-weight:700;">+1</td><td>경력 1 (설계)</td></tr>
+        <tr data-m="2"><td>2월</td><td class="c">1</td><td class="c">0</td><td class="c" style="color:var(--green); font-weight:700;">+1</td><td>신입 1 (생산)</td></tr>
+        <tr data-m="3"><td>3월</td><td class="c">2</td><td class="c">0</td><td class="c" style="color:var(--green); font-weight:700;">+2</td><td>신입 2 (생산·품질)</td></tr>
+        <tr data-m="4"><td>4월</td><td class="c">4</td><td class="c" style="color:var(--red); font-weight:700;">5</td><td class="c" style="color:var(--red); font-weight:700;">−1</td><td>퇴직정산 5건 (하단 상세)</td></tr>
+        <tr data-m="5"><td>5월</td><td class="c">0</td><td class="c">0</td><td class="c">—</td><td></td></tr>
+        <tr data-m="6"><td>6월(진행)</td><td class="c">0</td><td class="c">0</td><td class="c">—</td><td></td></tr>
+        <tr data-m-empty class="qbar-hide"><td colspan="5" style="text-align:center;color:var(--muted);padding:14px;">선택한 월의 입·퇴사 데이터가 없습니다 (급여 마감 전).</td></tr>
       </table>
     </div>
   </div>
@@ -222,6 +227,39 @@
     })
     .catch(function(){ /* 실패 → 마스킹 유지 */ });
 })();
+</script>
+<!-- 표준 조회 플랫폼 — 기준·기간·새로고침은 전 부서 화면 공통 (CLAUDE.md §16) -->
+<script type="module">
+  import { createQueryBar, readMonthSeries, numOf } from "/app/lib/querybar.js";
+
+  // 화면에 이미 그려진 월별 수치를 읽어 쓴다 — 숫자를 스크립트에 중복 기입하지 않는다.
+  const HEAD = readMonthSeries("#mHead");   // 월별 급여대상 인원(명)
+  const PAY  = readMonthSeries("#mPay");    // 월별 급여총액(백만원)
+  const kHead = document.getElementById("kpiHead"), kPay = document.getElementById("kpiPay");
+  const HEAD_YEAR = kHead.innerHTML, PAY_YEAR = kPay.innerHTML;
+
+  createQueryBar("#qbar", {
+    years: [2026], year: 2026,
+    months: [1, 2, 3, 4, 5, 6, 7], monthLabels: { 7: "7월(진행)" },
+    asOf: "2026-07-24",
+    basis: "인원 HDF070T 2026-07-24 기준 · 급여 4월분 마감(추출 2026-05-22)",
+    mode: "mock",
+    onQuery: (q) => {
+      if (q.month == null) { kHead.innerHTML = HEAD_YEAR; kPay.innerHTML = PAY_YEAR; return; }
+      const hc = HEAD[q.month], prev = HEAD[q.month - 1];
+      const diff = (hc != null && prev != null) ? numOf(hc) - numOf(prev) : null;
+      kHead.innerHTML = '<div class="lb">' + q.label + ' 급여대상 인원</div>'
+        + '<div class="v">' + (hc ?? "—") + (hc != null ? "명" : "") + "</div>"
+        + '<div class="delta' + (diff > 0 ? " up" : diff < 0 ? " dn" : "") + '">'
+        + (diff == null ? "전월 비교 자료 없음" : (diff > 0 ? "▲ +" : diff < 0 ? "▼ " : "± ") + diff + "명 (전월 대비)") + "</div>";
+
+      const pay = PAY[q.month];
+      const paid = pay != null && pay !== "—";
+      kPay.innerHTML = '<div class="lb">' + q.label + ' 급여총액</div>'
+        + '<div class="v">' + (paid ? pay : "—") + (paid ? "<small> 백만원</small>" : "") + "</div>"
+        + '<div class="delta">' + (paid ? "SUM(PAY_TOT_AMT) · 퇴직급여 별도" : "급여 마감 전 (미집계)") + "</div>";
+    },
+  });
 </script>
 </body>
 </html>

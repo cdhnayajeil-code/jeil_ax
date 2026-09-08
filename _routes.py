@@ -134,6 +134,10 @@ ROUTES = {
     "/docs/grid":               "그리드/index.html",
     "/docs/grid/guide":         "그리드/표준그리드_가이드.html",
 
+    # ── 조회 플랫폼 표준 ───────────────────────────────────
+    "/docs/querybar":           "조회플랫폼/index.html",
+    "/docs/querybar/guide":     "조회플랫폼/조회플랫폼_가이드.html",
+
     # ── 실구축 준비 ────────────────────────────────────────
     "/docs/build":                  "실제구축준비 자료/00_실제구축_종합기획서.html",
     "/docs/build/infra":            "실제구축준비 자료/01_도메인_DNS_인프라구성.html",

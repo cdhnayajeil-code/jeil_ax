@@ -6,6 +6,7 @@
 <script>window.PAGE_KEY='finance_daily';</script>
 <script src="/pages/_access-gate.js"></script>
 <title>자금팀 — 자금일보 대시보드</title>
+<link rel="stylesheet" href="/app/lib/querybar.css">
 <style>
   :root{
     --navy:#1a2f4e; --navy2:#27457a; --accent:#2f6fb3; --accent2:#4a8ed0;
@@ -68,16 +69,19 @@
 
   <div class="head">
     <div>
-      <h1>💰 자금일보 대시보드</h1>
+      <h1>💰 자금일보 대시보드<span class="qbar-period" data-qbar-period>2026년 연간</span></h1>
       <div class="sub">자금팀(재무·회계) 운영 페이지 · <span class="badge b">부서 전용</span> <span class="badge r">민감 — 임원·자금팀 한정</span> <span class="badge a">읽기전용 추출</span></div>
     </div>
-    <div class="right">기준일: <b>2026-06-12 (금)</b><br>확정 전표 기준 (A_GL · CONF_FG=1)</div>
+    <div class="right">데이터 원천: 확정 전표(A_GL · CONF_FG=1)</div>
   </div>
+
+  <!-- 표준 조회 플랫폼 (app/lib/querybar.js) -->
+  <div id="qbar"></div>
 
   <!-- KPI : 자금 포지션 -->
   <div class="kpis">
     <div class="kpi gr"><div class="lb">현금성 자산 합계</div><div class="v">4,581<small> 백만원</small></div><div class="delta">현금 12 + 보통예금 4,569</div></div>
-    <div class="kpi"><div class="lb">당일 순변동</div><div class="v" style="color:var(--green);">+102<small> 백만원</small></div><div class="delta up">입금 348 − 출금 246</div></div>
+    <div class="kpi" id="kpiPeriod"><div class="lb">당일 순변동</div><div class="v" style="color:var(--green);">+102<small> 백만원</small></div><div class="delta up">입금 348 − 출금 246</div></div>
     <div class="kpi am"><div class="lb">매출채권 (외상+어음)</div><div class="v">2,672<small> 백만원</small></div><div class="delta">외상 1,820 + 받을어음 852</div></div>
     <div class="kpi rd"><div class="lb">매입채무</div><div class="v">1,264<small> 백만원</small></div><div class="delta">외상매입+미지급금</div></div>
     <div class="kpi rd"><div class="lb">차입금 잔액</div><div class="v">4,500<small> 백만원</small></div><div class="delta">단기 3,000 + 장기 1,500</div></div>
@@ -119,13 +123,13 @@
   <div class="sec">
     <h3>월별 수금 · 지출 흐름 (2026 · 백만원) <span class="badge b">S계열(수금) vs M·E계열(지출)</span></h3>
     <div class="dwrap">
-      <div class="dual">
-        <div class="dgroup"><div class="gin" style="height:35%"></div><div class="gout" style="height:30%"></div><span class="lab">1월<br>+62</span></div>
-        <div class="dgroup"><div class="gin" style="height:95%"></div><div class="gout" style="height:58%"></div><span class="lab">2월<br>+430</span></div>
-        <div class="dgroup"><div class="gin" style="height:42%"></div><div class="gout" style="height:52%"></div><span class="lab">3월<br>−118</span></div>
-        <div class="dgroup"><div class="gin" style="height:72%"></div><div class="gout" style="height:55%"></div><span class="lab">4월<br>+204</span></div>
-        <div class="dgroup"><div class="gin" style="height:55%"></div><div class="gout" style="height:63%"></div><span class="lab">5월<br>−92</span></div>
-        <div class="dgroup"><div class="gin" style="height:38%"></div><div class="gout" style="height:28%"></div><span class="lab">6월(진행)<br>+115</span></div>
+      <div class="dual" id="mChart">
+        <div class="dgroup" data-m="1"><div class="gin" style="height:35%"></div><div class="gout" style="height:30%"></div><span class="lab">1월<br><span class="val">+62</span></span></div>
+        <div class="dgroup" data-m="2"><div class="gin" style="height:95%"></div><div class="gout" style="height:58%"></div><span class="lab">2월<br><span class="val">+430</span></span></div>
+        <div class="dgroup" data-m="3"><div class="gin" style="height:42%"></div><div class="gout" style="height:52%"></div><span class="lab">3월<br><span class="val">−118</span></span></div>
+        <div class="dgroup" data-m="4"><div class="gin" style="height:72%"></div><div class="gout" style="height:55%"></div><span class="lab">4월<br><span class="val">+204</span></span></div>
+        <div class="dgroup" data-m="5"><div class="gin" style="height:55%"></div><div class="gout" style="height:63%"></div><span class="lab">5월<br><span class="val">−92</span></span></div>
+        <div class="dgroup" data-m="6"><div class="gin" style="height:38%"></div><div class="gout" style="height:28%"></div><span class="lab">6월(진행)<br><span class="val">+115</span></span></div>
       </div>
       <div class="legend"><span><i style="background:var(--green)"></i>수금 (매출수금·이자수익)</span><span><i style="background:var(--red)"></i>지출 (매입·외주·급여·이자)</span><span>막대 하단 수치 = 월 순변동</span></div>
     </div>
@@ -181,5 +185,29 @@
     <span>등록: 재무·회계팀 · 공개범위: 부서 전용+임원 (관리자 콘솔 권한 적용)</span>
   </div>
 </div>
+<!-- 표준 조회 플랫폼 — 기준·기간·새로고침은 전 부서 화면 공통 (CLAUDE.md §16) -->
+<script type="module">
+  import { createQueryBar, readMonthSeries, numOf } from "/app/lib/querybar.js";
+
+  // 화면에 이미 그려진 월 순변동(백만원)을 읽어 쓴다 — 숫자를 스크립트에 중복 기입하지 않는다.
+  const NET = readMonthSeries("#mChart");
+  const kpi = document.getElementById("kpiPeriod");
+  const KPI_DAY = kpi.innerHTML;
+
+  createQueryBar("#qbar", {
+    years: [2026], year: 2026,
+    months: [1, 2, 3, 4, 5, 6], monthLabels: { 6: "6월(진행)" },
+    asOf: "2026-06-12",
+    basis: "확정 전표 기준(A_GL · CONF_FG=1)",
+    mode: "mock",
+    onQuery: (q) => {
+      if (q.month == null) { kpi.innerHTML = KPI_DAY; return; }
+      const raw = NET[q.month], v = numOf(raw);
+      kpi.innerHTML = '<div class="lb">' + q.label + ' 순변동</div>'
+        + '<div class="v" style="color:var(--' + (v >= 0 ? "green" : "red") + ');">' + (raw ?? "—") + "<small> 백만원</small></div>"
+        + '<div class="delta' + (v >= 0 ? " up" : " dn") + '">수금 − 지출 (월 합계)</div>';
+    },
+  });
+</script>
 </body>
 </html>

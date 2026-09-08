@@ -6,6 +6,7 @@
 <script>window.PAGE_KEY='purchase_2026';</script>
 <script src="/pages/_access-gate.js"></script>
 <title>구매팀 — 2026년 거래처별 매입금액 집계</title>
+<link rel="stylesheet" href="/app/lib/querybar.css">
 <style>
   :root{
     --navy:#1a2f4e; --navy2:#27457a; --accent:#2f6fb3; --accent2:#4a8ed0;
@@ -70,15 +71,18 @@
 
   <div class="head">
     <div>
-      <h1>📦 2026년 거래처별 매입금액 집계</h1>
-      <div class="sub">구매팀 운영 페이지 · <span class="badge b">부서 전용</span> <span class="badge a">읽기전용 추출</span> · 기간: 2026-01-01 ~ 2026-06-12</div>
+      <h1>📦 거래처별 매입금액 집계<span class="qbar-period" data-qbar-period>2026년 연간</span></h1>
+      <div class="sub">구매팀 운영 페이지 · <span class="badge b">부서 전용</span> <span class="badge a">읽기전용 추출</span></div>
     </div>
-    <div class="right">기준일: 2026-06-12<br>전표 기준: 매입확정(M_IV) · 부가세 별도</div>
+    <div class="right">데이터 원천: 매입확정(M_IV) · 부가세 별도</div>
   </div>
+
+  <!-- 표준 조회 플랫폼 (app/lib/querybar.js) -->
+  <div id="qbar"></div>
 
   <!-- KPI -->
   <div class="kpis">
-    <div class="kpi"><div class="lb">2026 누적 매입액</div><div class="v">1,284<small> 백만원</small></div><div class="delta">공급가 기준 (VAT 별도)</div></div>
+    <div class="kpi" id="kpiPeriod"><div class="lb">2026 누적 매입액</div><div class="v">1,284<small> 백만원</small></div><div class="delta">공급가 기준 (VAT 별도)</div></div>
     <div class="kpi"><div class="lb">거래 거래처 수</div><div class="v">94<small> 개사</small></div><div class="delta">발주 1건 이상</div></div>
     <div class="kpi"><div class="lb">매입전표 건수</div><div class="v">1,127<small> 건</small></div><div class="delta">DIV·SIE·SIF·SIX·SIE-1</div></div>
     <div class="kpi"><div class="lb">전자세금계산서 수취</div><div class="v">897<small> 건</small></div><div class="delta">A_TS_ETAX_MASTER 기준</div></div>
@@ -104,13 +108,13 @@
   <div class="grid2">
     <div class="sec">
       <h3>월별 매입금액 추이 (백만원) <span class="badge b">M_IV_HDR · IV_DOC_AMT</span></h3>
-      <div class="chart">
-        <div class="cbar"><span class="val">142</span><div class="bar" style="height:42%"></div><span class="lab">1월</span></div>
-        <div class="cbar"><span class="val">318</span><div class="bar" style="height:94%"></div><span class="lab">2월</span></div>
-        <div class="cbar"><span class="val">196</span><div class="bar" style="height:58%"></div><span class="lab">3월</span></div>
-        <div class="cbar"><span class="val">231</span><div class="bar" style="height:68%"></div><span class="lab">4월</span></div>
-        <div class="cbar"><span class="val">275</span><div class="bar" style="height:81%"></div><span class="lab">5월</span></div>
-        <div class="cbar"><span class="val">122</span><div class="bar fcst" style="height:36%"></div><span class="lab">6월(진행)</span></div>
+      <div class="chart" id="mChart">
+        <div class="cbar" data-m="1"><span class="val">142</span><div class="bar" style="height:42%"></div><span class="lab">1월</span></div>
+        <div class="cbar" data-m="2"><span class="val">318</span><div class="bar" style="height:94%"></div><span class="lab">2월</span></div>
+        <div class="cbar" data-m="3"><span class="val">196</span><div class="bar" style="height:58%"></div><span class="lab">3월</span></div>
+        <div class="cbar" data-m="4"><span class="val">231</span><div class="bar" style="height:68%"></div><span class="lab">4월</span></div>
+        <div class="cbar" data-m="5"><span class="val">275</span><div class="bar" style="height:81%"></div><span class="lab">5월</span></div>
+        <div class="cbar" data-m="6"><span class="val">122</span><div class="bar fcst" style="height:36%"></div><span class="lab">6월(진행)</span></div>
       </div>
       <div class="legend"><span>2월 피크: 대신스텐레스 사급용 원자재 일괄 발주(DO 40건·207라인) 반영</span></div>
     </div>
@@ -199,48 +203,88 @@
   </div>
 </div>
 
-<!-- ERP 중간DB 실데이터 로더 (사내 전용 뷰 public.v_erp_purchase_monthly) -->
+<!-- 표준 조회 플랫폼 + ERP 중간DB 실데이터 로더 (사내 전용 뷰 public.v_erp_purchase_monthly) -->
 <script type="module">
-  import { erpApi } from "../app/lib/api.js";
+  import { erpApi } from "/app/lib/api.js";
+  import { createQueryBar, readMonthSeries, numOf } from "/app/lib/querybar.js";
+
   const won = (n) => Number(n || 0).toLocaleString("ko-KR");
   const mil = (n) => (Number(n || 0) / 1_000_000).toLocaleString("ko-KR", { maximumFractionDigits: 0 });
   const el = (id) => document.getElementById(id);
-  try {
-    const [rows, asof] = await Promise.all([erpApi.purchaseMonthly(), erpApi.dataAsof()]);
-    if (!rows.length) { el("liveErpHint").style.display = "block"; }
-    else {
-      // 거래처 집계(전 월 합산)
-      const byBp = {};
-      let totAmt = 0, totCnt = 0; const months = new Set();
-      for (const r of rows) {
-        months.add(r.ym);
-        totAmt += Number(r.purchase_amt || 0); totCnt += Number(r.iv_cnt || 0);
-        const b = (byBp[r.bp_code] = byBp[r.bp_code] || { name: r.bp_name || r.bp_code, amt: 0, cnt: 0 });
-        b.amt += Number(r.purchase_amt || 0); b.cnt += Number(r.iv_cnt || 0);
-      }
-      const top = Object.values(byBp).sort((a, b) => b.amt - a.amt).slice(0, 10);
-      const max = top[0]?.amt || 1;
-      // 기준시각
-      const ts = asof.purchase?.last_success;
-      el("liveAsof").textContent = ts ? "데이터 기준: " + new Date(ts).toLocaleString("ko-KR") : "기준시각 미상";
-      // KPI
-      el("liveKpis").innerHTML =
-        `<div class="kpi"><div class="lb">매입액 합계(실데이터)</div><div class="v">${mil(totAmt)}<small> 백만원</small></div><div class="delta">${won(totAmt)} 원</div></div>` +
-        `<div class="kpi"><div class="lb">거래 거래처 수</div><div class="v">${Object.keys(byBp).length}<small> 개사</small></div><div class="delta">매입 1건 이상</div></div>` +
-        `<div class="kpi"><div class="lb">매입전표 건수</div><div class="v">${won(totCnt)}<small> 건</small></div></div>` +
-        `<div class="kpi"><div class="lb">집계 월수</div><div class="v">${months.size}<small> 개월</small></div><div class="delta">롤링 범위</div></div>`;
-      // Top 거래처 바
-      el("liveTop").innerHTML = top.map((t) =>
-        `<div class="brow"><span class="lab">${t.name}</span><div class="track"><i style="width:${Math.max(2, Math.round(t.amt / max * 100))}%"></i></div>` +
-        `<span class="cnt">${mil(t.amt)}백만 (${t.cnt}건)</span></div>`).join("");
-      el("liveMonths").textContent = "집계 월: " + [...months].sort().join(", ");
-      el("liveErp").style.display = "block";
-    }
-  } catch (e) {
-    // 비로그인/anon/권한없음 → 격리로 조회 불가. 안내만 표시(목업 유지).
-    el("liveErpHint").style.display = "block";
-    console.warn("[erp] 실데이터 조회 불가(사내 세션 필요):", e?.message || e);
+
+  /* ── 목업 KPI: 화면에 이미 그려진 월별 수치를 읽어 기간에 맞춰 바꾼다 ── */
+  const SERIES = readMonthSeries("#mChart");
+  const YEAR_TOTAL = Object.values(SERIES).reduce((a, v) => a + numOf(v), 0);
+  const kpi = el("kpiPeriod");
+  const KPI_YEAR = kpi.innerHTML;
+  function paintMockKpi(q) {
+    if (q.month == null) { kpi.innerHTML = KPI_YEAR; return; }
+    const v = SERIES[q.month];
+    const share = YEAR_TOTAL ? Math.round((numOf(v) / YEAR_TOTAL) * 100) : 0;
+    kpi.innerHTML = '<div class="lb">' + q.label + ' 매입액</div>'
+      + '<div class="v">' + (v ?? "—") + '<small> 백만원</small></div>'
+      + '<div class="delta">연간 ' + won(YEAR_TOTAL) + '백만 중 ' + share + '%</div>';
   }
+
+  /* ── ERP 실데이터: 조회바의 기간으로 걸러 집계한다 ── */
+  let CACHE = null;   // {rows, asof} — 새로고침일 때만 다시 받는다
+  async function loadLive(q, reason) {
+    if (!CACHE || reason === "refresh" || reason === "auto") {
+      const [rows, asof] = await Promise.all([erpApi.purchaseMonthly(), erpApi.dataAsof()]);
+      CACHE = { rows, asof };
+    }
+    const { rows, asof } = CACHE;
+    const inPeriod = rows.filter((r) => {
+      const ym = String(r.ym || "");
+      return q.month == null ? ym.startsWith(q.year + "-") : ym === q.ym;
+    });
+    if (!rows.length) { el("liveErp").style.display = "none"; el("liveErpHint").style.display = "block"; return; }
+    el("liveErpHint").style.display = "none";
+
+    const byBp = {};
+    let totAmt = 0, totCnt = 0; const months = new Set();
+    for (const r of inPeriod) {
+      months.add(r.ym);
+      totAmt += Number(r.purchase_amt || 0); totCnt += Number(r.iv_cnt || 0);
+      const b = (byBp[r.bp_code] = byBp[r.bp_code] || { name: r.bp_name || r.bp_code, amt: 0, cnt: 0 });
+      b.amt += Number(r.purchase_amt || 0); b.cnt += Number(r.iv_cnt || 0);
+    }
+    const top = Object.values(byBp).sort((a, b) => b.amt - a.amt).slice(0, 10);
+    const max = top[0]?.amt || 1;
+
+    const ts = asof.purchase?.last_success;
+    el("liveAsof").textContent = ts ? "데이터 기준: " + new Date(ts).toLocaleString("ko-KR") : "기준시각 미상";
+    el("liveKpis").innerHTML =
+      `<div class="kpi"><div class="lb">매입액 합계(실데이터)</div><div class="v">${mil(totAmt)}<small> 백만원</small></div><div class="delta">${won(totAmt)} 원</div></div>` +
+      `<div class="kpi"><div class="lb">거래 거래처 수</div><div class="v">${Object.keys(byBp).length}<small> 개사</small></div><div class="delta">매입 1건 이상</div></div>` +
+      `<div class="kpi"><div class="lb">매입전표 건수</div><div class="v">${won(totCnt)}<small> 건</small></div></div>` +
+      `<div class="kpi"><div class="lb">조회 기간</div><div class="v">${months.size}<small> 개월</small></div><div class="delta">${q.label}</div></div>`;
+    el("liveTop").innerHTML = top.length
+      ? top.map((t) =>
+          `<div class="brow"><span class="lab">${t.name}</span><div class="track"><i style="width:${Math.max(2, Math.round(t.amt / max * 100))}%"></i></div>` +
+          `<span class="cnt">${mil(t.amt)}백만 (${t.cnt}건)</span></div>`).join("")
+      : '<p style="font-size:12.5px;color:var(--muted);margin:6px 0;">선택한 기간에 해당하는 실데이터가 없습니다.</p>';
+    el("liveMonths").textContent = months.size ? "집계 월: " + [...months].sort().join(", ") : "";
+    el("liveErp").style.display = "block";
+  }
+
+  createQueryBar("#qbar", {
+    years: [2026], year: 2026,
+    months: [1, 2, 3, 4, 5, 6], monthLabels: { 6: "6월(진행)" },
+    asOf: "2026-06-12",
+    basis: "매입확정(M_IV) · 부가세 별도",
+    mode: "mock", modeLabel: "목업 + ERP 실데이터",
+    onQuery: async (q, ctx) => {
+      paintMockKpi(q);
+      try { await loadLive(q, ctx.reason); }
+      catch (e) {
+        // 비로그인/anon/권한없음 → 격리로 조회 불가. 안내만 표시(목업 유지).
+        el("liveErp").style.display = "none";
+        el("liveErpHint").style.display = "block";
+        console.warn("[erp] 실데이터 조회 불가(사내 세션 필요):", e?.message || e);
+      }
+    },
+  });
 </script>
 </body>
 </html>

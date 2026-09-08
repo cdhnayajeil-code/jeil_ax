@@ -1,0 +1,731 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>표준 조회 플랫폼 데모 — JEIL AX</title>
+<style>
+  :root{
+    --navy:#1a2f4e; --navy2:#27457a; --accent:#2f6fb3; --accent2:#4a8ed0;
+    --red:#b3402f; --green:#2e7d52; --amber:#9a6b1f;
+    --ink:#222; --muted:#666; --line:#d8dee8; --bg:#f4f6f9;
+    --soft:#eef2f8; --softred:#fbeeec; --softgreen:#ecf5f0; --softamber:#faf3e4;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif; color:var(--ink); background:var(--bg); line-height:1.6; font-size:14px;}
+  .page{max-width:1080px; margin:0 auto; background:#fff; padding:34px 44px 60px; box-shadow:0 2px 14px rgba(0,0,0,.08); min-height:100vh;}
+  .doc-label{display:inline-block;background:var(--navy);color:#fff;font-size:12px;letter-spacing:.16em;padding:5px 14px;border-radius:3px;margin-bottom:16px;}
+  .docnav{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 26px;}
+  .docnav a{font-size:12px;color:var(--navy2);border:1px solid var(--line);border-radius:20px;padding:4px 12px;text-decoration:none;background:var(--soft);}
+  .docnav a:hover{background:var(--navy);color:#fff;}
+  .docnav a.cur{background:var(--navy);color:#fff;border-color:var(--navy);}
+  .head{display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:10px; border-bottom:3px solid var(--navy); padding-bottom:14px; margin-bottom:20px;}
+  .head h1{font-size:22px; color:var(--navy);}
+  .head .sub{font-size:12.5px; color:var(--muted); margin-top:3px;}
+  .head .right{text-align:right; font-size:12px; color:var(--muted);}
+  .badge{display:inline-block; font-size:11px; border-radius:10px; padding:2px 9px; font-weight:600;}
+  .badge.g{background:var(--softgreen); color:var(--green);} .badge.a{background:var(--softamber); color:var(--amber);}
+  .badge.b{background:var(--soft); color:var(--navy2);}
+  h2.sec-t{font-size:17px; color:var(--navy); margin:38px 0 12px; padding-bottom:8px; border-bottom:2px solid var(--navy);}
+  h3.sub-t{font-size:14.5px; color:var(--navy2); margin:20px 0 8px;}
+  p.lead{color:var(--muted); font-size:13px; margin-bottom:12px;}
+  .kpis{display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:12px; margin:14px 0;}
+  .kpi{background:#fff; border:1px solid var(--line); border-radius:11px; padding:14px 16px; border-top:4px solid var(--accent);}
+  .kpi .lb{font-size:11.5px; color:var(--muted); font-weight:600;}
+  .kpi .v{font-size:23px; font-weight:700; color:var(--navy); margin-top:3px;}
+  .kpi .v small{font-size:12px; font-weight:600; color:var(--muted);}
+  .kpi .delta{font-size:11.5px; color:var(--muted); margin-top:3px;}
+  .kpi .delta.up{color:var(--green);} .kpi .delta.dn{color:var(--red);}
+  .sec{background:#fff; border:1px solid var(--line); border-radius:11px; padding:16px 18px; margin:14px 0;}
+  .chart{display:flex; align-items:flex-end; gap:12px; height:170px; padding:10px 4px 0;}
+  .cbar{flex:1; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; height:100%; gap:5px;}
+  .cbar .val{font-size:11.5px; font-weight:700; color:var(--navy2);}
+  .cbar .bar{width:100%; max-width:52px; background:linear-gradient(180deg,var(--accent2),var(--accent)); border-radius:5px 5px 0 0;}
+  .cbar .bar.fcst{background:#b9cfe6;}
+  .cbar .lab{font-size:11px; color:var(--muted);}
+  table{width:100%; border-collapse:collapse; font-size:13px; margin-top:8px;}
+  th{background:var(--navy); color:#fff; padding:8px 10px; text-align:left; font-weight:600; font-size:12px;}
+  td{padding:7px 10px; border-bottom:1px solid var(--line);}
+  td.c{text-align:center;} td.r{text-align:right;}
+  pre{background:#21252e; color:#e8eaf0; border-radius:8px; padding:15px 17px; font-size:12.2px; font-family:Consolas,'Courier New',monospace; overflow-x:auto; margin:10px 0 16px; line-height:1.55;}
+  code{background:var(--soft); border:1px solid var(--line); border-radius:4px; padding:1px 6px; font-size:12.2px; font-family:Consolas,'Courier New',monospace;}
+  pre code{background:none;border:none;padding:0;color:inherit;}
+  .log{background:#0f1720; color:#8fd6a0; border-radius:8px; padding:12px 14px; font-family:Consolas,monospace; font-size:12px; height:150px; overflow-y:auto; white-space:pre-wrap;}
+  .foot{margin-top:44px; padding-top:14px; border-top:1px solid var(--line); font-size:12px; color:var(--muted); display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px;}
+  @media (max-width:760px){ .page{padding:22px 16px;} }
+</style>
+
+<!-- [QBAR_CSS_INLINE 시작] app/lib/querybar.css 원본을 _build_html.py 가 주입한다. 직접 고치지 말 것 -->
+<style>
+/* app/lib/querybar.css — JEIL_AX 표준 조회 플랫폼 (바닐라, 의존성 0)
+   단일 출처: 조회플랫폼/조회플랫폼_가이드.md · 데모: 조회플랫폼/index.html
+   스타일 격리 규칙: 셀렉터는 전부 .qbar__ 스코프. 전역 select/button/table 재정의 금지.
+   호스트 :root 팔레트(--navy/--accent/--line/--muted/--green/--red/--soft…)를 재사용하되,
+   팔레트가 없는 화면에서도 깨지지 않도록 var() 두 번째 인자로 기본값을 둔다. */
+
+.qbar{
+  display:flex; flex-wrap:wrap; align-items:center; gap:10px 14px;
+  background:var(--soft,#eef2f8);
+  border:1px solid var(--line,#d8dee8);
+  border-radius:11px;
+  padding:11px 14px;
+  margin:0 0 16px;
+  font-size:13px;
+  color:var(--ink,#222);
+}
+.qbar__grp{ display:flex; align-items:center; gap:6px; }
+.qbar__lb{
+  font-size:11.5px; font-weight:700; letter-spacing:.02em;
+  color:var(--navy,#1a2f4e); white-space:nowrap;
+}
+.qbar__sel, .qbar__inp{
+  font-family:inherit; font-size:13px; color:var(--ink,#222);
+  background:#fff; border:1px solid var(--line,#d8dee8); border-radius:7px;
+  padding:6px 9px; min-height:32px; cursor:pointer;
+}
+.qbar__inp{ cursor:text; }
+.qbar__sel:focus-visible, .qbar__inp:focus-visible, .qbar__chip:focus-visible,
+.qbar__btn:focus-visible, .qbar__reset:focus-visible{
+  outline:2px solid var(--accent,#2f6fb3); outline-offset:1px;
+}
+.qbar__sel:disabled, .qbar__inp:disabled{ background:#f3f5f8; color:var(--muted,#666); cursor:not-allowed; }
+
+/* 빠른 기간 칩 */
+.qbar__chips{ display:flex; gap:5px; }
+.qbar__chip{
+  font-family:inherit; font-size:12px; font-weight:600;
+  background:#fff; color:var(--navy2,#27457a);
+  border:1px solid var(--line,#d8dee8); border-radius:16px;
+  padding:5px 12px; min-height:30px; cursor:pointer; white-space:nowrap;
+}
+.qbar__chip:hover{ border-color:var(--accent,#2f6fb3); color:var(--accent,#2f6fb3); }
+.qbar__chip[aria-pressed="true"]{
+  background:var(--navy,#1a2f4e); border-color:var(--navy,#1a2f4e); color:#fff;
+}
+
+/* 오른쪽 정보 영역 */
+.qbar__sp{ flex:1 1 auto; }
+.qbar__meta{
+  font-size:11.5px; line-height:1.5; color:var(--muted,#666);
+  text-align:right; white-space:nowrap;
+}
+.qbar__meta b{ color:var(--navy2,#27457a); }
+.qbar__badge{
+  display:inline-block; font-size:10.5px; font-weight:700; border-radius:10px;
+  padding:2px 8px; margin-left:6px; vertical-align:1px;
+}
+.qbar__badge--live{ background:var(--softgreen,#ecf5f0); color:var(--green,#2e7d52); }
+.qbar__badge--mock{ background:var(--softamber,#faf3e4); color:var(--amber,#9a6b1f); }
+
+/* 새로고침 */
+.qbar__btn{
+  font-family:inherit; font-size:12.5px; font-weight:700;
+  display:inline-flex; align-items:center; gap:6px;
+  background:var(--navy,#1a2f4e); color:#fff;
+  border:none; border-radius:8px; padding:7px 14px; min-height:32px; cursor:pointer;
+}
+.qbar__btn:hover{ background:var(--navy2,#27457a); }
+.qbar__btn:disabled{ opacity:.6; cursor:progress; }
+.qbar__ic{ display:inline-block; font-size:13px; line-height:1; }
+.qbar__btn:disabled .qbar__ic{ animation:qbar-spin .9s linear infinite; }
+@keyframes qbar-spin{ to{ transform:rotate(360deg); } }
+
+.qbar__reset{
+  font-family:inherit; font-size:12px; color:var(--muted,#666);
+  background:none; border:none; padding:4px 2px; cursor:pointer; text-decoration:underline;
+}
+.qbar__reset:hover{ color:var(--red,#b3402f); }
+
+/* 조회 시각 */
+.qbar__stamp{ font-size:11.5px; color:var(--muted,#666); white-space:nowrap; }
+.qbar__stamp b{ color:var(--navy2,#27457a); font-weight:700; }
+
+/* 오류 줄 */
+.qbar__err{
+  flex:1 1 100%; font-size:12px; color:var(--red,#b3402f);
+  background:var(--softred,#fbeeec); border-radius:7px; padding:7px 10px;
+}
+
+/* 제목 옆 기간 배지 — <span class="qbar-period" data-qbar-period></span> */
+.qbar-period{
+  display:inline-block; font-size:12.5px; font-weight:700; vertical-align:3px;
+  background:var(--soft,#eef2f8); color:var(--navy2,#27457a);
+  border:1px solid var(--line,#d8dee8); border-radius:14px;
+  padding:2px 11px; margin-left:8px; white-space:nowrap;
+}
+
+/* ── 기간 강조 훅 ───────────────────────────────────────────
+   페이지 요소에 data-m="5" (또는 data-m="1,2") 를 붙이면
+   월 선택 시 컴포넌트가 아래 클래스를 자동으로 붙인다. */
+.qbar-on{ /* 선택된 월 */ }
+.qbar-dim{ opacity:.28; filter:saturate(.35); transition:opacity .18s, filter .18s; }
+.qbar-hide{ display:none !important; }
+tr.qbar-on > td{ background:var(--soft,#eef2f8); }
+
+@media (max-width:760px){
+  .qbar{ font-size:12.5px; padding:10px 11px; gap:8px 10px; }
+  .qbar__sp{ flex-basis:100%; height:0; }
+  .qbar__meta{ text-align:left; white-space:normal; }
+}
+@media print{
+  .qbar{ background:none; border:1px solid #ccc; }
+  .qbar__btn, .qbar__chips, .qbar__reset{ display:none; }
+  .qbar-dim{ opacity:1; filter:none; }
+}
+
+</style>
+<!-- [QBAR_CSS_INLINE 끝] -->
+</head>
+<body>
+<div class="page">
+  <span class="doc-label">JEIL AX · 표준 조회 플랫폼</span>
+  <div class="docnav">
+    <a class="cur" href="/docs/querybar">🔎 조회 플랫폼 데모</a>
+    <a href="/docs/querybar/guide">표준 조회 플랫폼 가이드</a>
+    <a href="/docs/grid">🧩 그리드 표준</a>
+  </div>
+
+  <div class="head">
+    <div>
+      <h1>🔎 표준 조회 플랫폼 데모<span class="qbar-period" data-qbar-period></span></h1>
+      <div class="sub">부서 운영페이지 상단 공통 규격 · <span class="badge b">app/lib/querybar.js</span> <span class="badge a">의존성 0</span></div>
+    </div>
+    <div class="right">단일 출처: <code>조회플랫폼_가이드.md</code></div>
+  </div>
+
+  <p class="lead">
+    아래 조회바는 실제 부서 화면에 붙어 있는 것과 <b>같은 컴포넌트</b>다. 월을 바꾸거나 새로고침을 눌러
+    KPI·차트·표가 어떻게 반응하는지 확인할 수 있다. 이 페이지는 자기완결(파일 더블클릭으로도 동작)이다.
+  </p>
+
+  <h2 class="sec-t">A. 기본형 — 대시보드 (연·월 + 빠른칩 + 새로고침)</h2>
+  <div id="qbar"></div>
+
+  <div class="kpis">
+    <div class="kpi" id="kpiPeriod"><div class="lb">2026 누적 매입액</div><div class="v">1,284<small> 백만원</small></div><div class="delta">공급가 기준 (VAT 별도)</div></div>
+    <div class="kpi"><div class="lb">거래 거래처 수</div><div class="v">94<small> 개사</small></div><div class="delta">기간 무관 · 고정 KPI 예시</div></div>
+    <div class="kpi"><div class="lb">매입전표 건수</div><div class="v">1,127<small> 건</small></div><div class="delta">DIV·SIE·SIF·SIX</div></div>
+  </div>
+
+  <div class="sec">
+    <h3 class="sub-t">월별 매입금액 추이 (백만원) — <code>data-m</code> + 기본 <code>dim</code></h3>
+    <div class="chart" id="mChart">
+      <div class="cbar" data-m="1"><span class="val">142</span><div class="bar" style="height:42%"></div><span class="lab">1월</span></div>
+      <div class="cbar" data-m="2"><span class="val">318</span><div class="bar" style="height:94%"></div><span class="lab">2월</span></div>
+      <div class="cbar" data-m="3"><span class="val">196</span><div class="bar" style="height:58%"></div><span class="lab">3월</span></div>
+      <div class="cbar" data-m="4"><span class="val">231</span><div class="bar" style="height:68%"></div><span class="lab">4월</span></div>
+      <div class="cbar" data-m="5"><span class="val">275</span><div class="bar" style="height:81%"></div><span class="lab">5월</span></div>
+      <div class="cbar" data-m="6"><span class="val">122</span><div class="bar fcst" style="height:36%"></div><span class="lab">6월(진행)</span></div>
+    </div>
+  </div>
+
+  <div class="sec">
+    <h3 class="sub-t">월별 명세 — <code>data-m-off="hide"</code> + <code>data-m-empty</code></h3>
+    <table data-m-off="hide">
+      <tr><th>월</th><th class="r">매입액(백만원)</th><th class="c">전표</th><th>비고</th></tr>
+      <tr data-m="1"><td>1월</td><td class="r">142</td><td class="c">121</td><td>연초 소진</td></tr>
+      <tr data-m="2"><td>2월</td><td class="r">318</td><td class="c">246</td><td>사급 원자재 일괄 발주</td></tr>
+      <tr data-m="3"><td>3월</td><td class="r">196</td><td class="c">173</td><td></td></tr>
+      <tr data-m="4"><td>4월</td><td class="r">231</td><td class="c">198</td><td></td></tr>
+      <tr data-m="5"><td>5월</td><td class="r">275</td><td class="c">221</td><td></td></tr>
+      <tr data-m="6"><td>6월(진행)</td><td class="r">122</td><td class="c">168</td><td>마감 전</td></tr>
+      <tr data-m-empty class="qbar-hide"><td colspan="4" style="text-align:center;color:var(--muted);padding:14px;">선택한 월의 데이터가 없습니다.</td></tr>
+    </table>
+  </div>
+
+  <div class="sec">
+    <h3 class="sub-t">onQuery 호출 로그</h3>
+    <div class="log" id="log"></div>
+  </div>
+
+  <h2 class="sec-t">B. 조건 확장형 — extras + 조건 초기화</h2>
+  <p class="lead">화면별 검색어·날짜·체크박스를 같은 줄에 붙인다(외주발주 진행현황이 이 형태). 값은 <code>q.extras</code> 로 들어온다.</p>
+  <div id="qbar2"></div>
+  <div class="sec"><div class="log" id="log2" style="height:90px;"></div></div>
+
+  <h2 class="sec-t">C. 검색형 — 기간 축 없음 (<code>months: false</code>)</h2>
+  <p class="lead">품목 조회처럼 기간 개념이 없는 화면. 기준 표시와 새로고침만 남는다.</p>
+  <div id="qbar3"></div>
+  <div class="sec"><div class="log" id="log3" style="height:70px;"></div></div>
+
+  <h2 class="sec-t">D. 붙이는 법</h2>
+<pre><code>&lt;link rel="stylesheet" href="/app/lib/querybar.css"&gt;
+&lt;div id="qbar"&gt;&lt;/div&gt;
+
+&lt;script type="module"&gt;
+  import { createQueryBar, readMonthSeries, numOf } from "/app/lib/querybar.js";
+
+  const SERIES = readMonthSeries("#mChart");
+  const TOTAL  = Object.values(SERIES).reduce((a,v)=&gt;a+numOf(v), 0);
+
+  createQueryBar("#qbar", {
+    years:[2026], year:2026,
+    months:[1,2,3,4,5,6], monthLabels:{ 6:"6월(진행)" },
+    asOf:"2026-06-12",
+    basis:"매입확정(M_IV) · 부가세 별도",
+    mode:"mock",
+    onQuery: (q, ctx) =&gt; {
+      // q.year · q.month(null=연간) · q.ym · q.from · q.to · q.label · q.extras
+      // ctx.reason: "init" | "change" | "quick" | "refresh" | "auto"
+    },
+  });
+&lt;/script&gt;</code></pre>
+
+  <p class="lead">상세 옵션·API·규약은 <a href="/docs/querybar/guide">표준 조회 플랫폼 가이드</a>를 본다. 규칙 정본은 <code>CLAUDE.md §16</code>.</p>
+
+  <div class="foot">
+    <span>JEIL M&amp;S · AI 포털 표준 조회 플랫폼</span>
+    <span>단일 출처: app/lib/querybar.js · 관리: 최동혁</span>
+  </div>
+</div>
+
+<!-- [QBAR_JS_INLINE 시작] app/lib/querybar.js 원본을 _build_html.py 가 비모듈로 변환해 주입한다. 직접 고치지 말 것 -->
+<script>
+// app/lib/querybar.js — JEIL_AX 표준 조회 플랫폼 (바닐라 ESM, 의존성 0)
+// 단일 출처: 조회플랫폼/조회플랫폼_가이드.md · 데모: 조회플랫폼/index.html
+// 규칙: UI·기간 상태만 담당한다. 데이터 조회/집계는 onQuery 콜백에서 호출측이 처리한다.
+//       (그리드 표준 app/lib/grid.js 와 같은 역할 분리 — CLAUDE.md §13.3 / §16)
+//
+// 사용:
+//   import { createQueryBar } from "/app/lib/querybar.js";
+//   const bar = createQueryBar("#qbar", {
+//     years:[2026,2025], year:2026, months:[1,2,3,4,5,6], monthLabels:{6:"6월(진행)"},
+//     asOf:"2026-06-12", basis:"매출/수금 확정(S_BILL)", mode:"mock",
+//     onQuery: async (q, ctx) => { /* q.year, q.month, q.ym, q.from, q.to, q.extras */ }
+//   });
+
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const pad2 = (n) => String(n).padStart(2, "0");
+const lastDay = (y, m) => new Date(y, m, 0).getDate();
+
+function createQueryBar(container, options = {}) {
+  const root = typeof container === "string" ? document.querySelector(container) : container;
+  if (!root) throw new Error("createQueryBar: container를 찾을 수 없습니다 — " + container);
+
+  const now = new Date();
+  const o = Object.assign({
+    // 기간 축
+    years: null,                 // [2026,2025] · null 이면 year 한 개만
+    year: now.getFullYear(),
+    months: null,                // [1..12] · false 면 기간 축 자체를 감춤(검색형 화면)
+    month: null,                 // null = 연간(전체)
+    monthLabels: {},             // {6:"6월(진행)"}
+    allowAll: true,              // "연간(전체)" 옵션
+    quick: true,                 // 당월·전월·연간 칩
+    // 기준 표시
+    asOf: null,                  // 기준일 "2026-06-12"
+    basis: null,                 // "확정 전표 기준(A_GL · CONF_FG=1)"
+    mode: null,                  // "live" | "mock" | null
+    modeLabel: null,             // 배지 문구 재정의
+    // 추가 조회조건 슬롯
+    extras: [],                  // [{id,label,type:'text'|'select'|'date'|'checkbox',options,value,placeholder,width}]
+    reset: false,                // "조건 초기화" 링크
+    // 동작
+    refreshLabel: "새로고침",
+    autoRefreshSec: 0,           // 0 = 사용 안 함
+    urlSync: true,
+    persist: (typeof window !== "undefined" && window.PAGE_KEY) || null,
+    scope: null,                 // data-m 자동 강조 대상 루트(기본 document)
+    autoApply: true,             // data-m / data-qbar-period 자동 반영
+    runOnInit: true,
+    onQuery: null,
+  }, options);
+
+  const hasPeriod = o.months !== false;
+  const years = (o.years && o.years.length) ? o.years.slice() : [o.year];
+  let months = (o.months && o.months.length) ? o.months.slice() : (hasPeriod ? [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12] : []);
+
+  const state = {
+    year: Number(o.year), month: (o.month == null ? null : Number(o.month)),
+    extras: {}, loading: false, stampAt: null, err: null,
+  };
+  o.extras.forEach((x) => { state.extras[x.id] = x.value != null ? x.value : (x.type === "checkbox" ? false : ""); });
+
+  /* ---------- 상태 복원: URL > localStorage > options ---------- */
+  const LS_KEY = o.persist ? "qbar:" + o.persist : null;
+  function restore() {
+    let src = null;
+    if (LS_KEY) { try { src = JSON.parse(localStorage.getItem(LS_KEY) || "null"); } catch (e) { src = null; } }
+    if (src) {
+      if (years.includes(Number(src.year))) state.year = Number(src.year);
+      if (src.month == null || months.includes(Number(src.month))) state.month = src.month == null ? null : Number(src.month);
+      if (src.extras) for (const k of Object.keys(state.extras)) if (k in src.extras) state.extras[k] = src.extras[k];
+    }
+    if (!o.urlSync) return;
+    const p = new URLSearchParams(location.search);
+    if (p.has("y") && years.includes(Number(p.get("y")))) state.year = Number(p.get("y"));
+    if (p.has("m")) {
+      const v = p.get("m");
+      if (v === "" || v === "all") state.month = null;
+      else if (months.includes(Number(v))) state.month = Number(v);
+    }
+    for (const x of o.extras) {
+      if (!p.has(x.id)) continue;
+      state.extras[x.id] = x.type === "checkbox" ? p.get(x.id) === "1" : p.get(x.id);
+    }
+  }
+  function persist() {
+    if (LS_KEY) { try { localStorage.setItem(LS_KEY, JSON.stringify({ year: state.year, month: state.month, extras: state.extras })); } catch (e) {} }
+    if (!o.urlSync) return;
+    const u = new URL(location.href);
+    if (hasPeriod) {
+      u.searchParams.set("y", state.year);
+      if (state.month == null) u.searchParams.delete("m"); else u.searchParams.set("m", state.month);
+    }
+    for (const x of o.extras) {
+      const v = state.extras[x.id];
+      const empty = x.type === "checkbox" ? !v : !String(v || "").length;
+      if (empty) u.searchParams.delete(x.id);
+      else u.searchParams.set(x.id, x.type === "checkbox" ? "1" : v);
+    }
+    try { history.replaceState(null, "", u.pathname + (u.search ? u.search : "") + u.hash); } catch (e) {}
+  }
+  restore();
+
+  /* ---------- 조회 조건 값 ---------- */
+  function periodLabel() {
+    if (!hasPeriod) return "";
+    return state.month == null ? state.year + "년 연간" : state.year + "년 " + state.month + "월";
+  }
+  function value() {
+    const y = state.year, m = state.month;
+    const from = !hasPeriod ? null : (m == null ? y + "-01-01" : y + "-" + pad2(m) + "-01");
+    const to = !hasPeriod ? null : (m == null ? y + "-12-31" : y + "-" + pad2(m) + "-" + pad2(lastDay(y, m)));
+    return {
+      year: y, month: m,
+      ym: (!hasPeriod || m == null) ? null : y + "-" + pad2(m),
+      from, to, label: periodLabel(),
+      extras: Object.assign({}, state.extras),
+    };
+  }
+
+  /* ---------- 마크업 ---------- */
+  const monthOptions = () => {
+    const head = o.allowAll ? '<option value="">연간(전체)</option>' : "";
+    return head + months.map((m) => '<option value="' + m + '">' + esc(o.monthLabels[m] || (m + "월")) + "</option>").join("");
+  };
+  const extraField = (x) => {
+    const w = x.width ? ' style="min-width:' + esc(x.width) + '"' : "";
+    if (x.type === "checkbox") {
+      return '<label class="qbar__grp" style="cursor:pointer" title="' + esc(x.title || "") + '">'
+        + '<input type="checkbox" class="qbar__x" data-x="' + esc(x.id) + '">'
+        + '<span class="qbar__lb" style="font-weight:600">' + esc(x.label) + "</span></label>";
+    }
+    let field;
+    if (x.type === "select") {
+      field = '<select class="qbar__sel qbar__x" data-x="' + esc(x.id) + '"' + w + ">"
+        + (x.options || []).map((op) => {
+          const v = (op && typeof op === "object") ? op.value : op;
+          const l = (op && typeof op === "object") ? op.label : op;
+          return '<option value="' + esc(v) + '">' + esc(l) + "</option>";
+        }).join("") + "</select>";
+    } else {
+      field = '<input type="' + (x.type === "date" ? "date" : "text") + '" class="qbar__inp qbar__x" data-x="' + esc(x.id) + '"'
+        + (x.placeholder ? ' placeholder="' + esc(x.placeholder) + '"' : "") + w + ">";
+    }
+    return '<div class="qbar__grp"><span class="qbar__lb">' + esc(x.label) + "</span>" + field + "</div>";
+  };
+
+  const badge = (() => {
+    if (!o.mode) return "";
+    const cls = o.mode === "live" ? "live" : "mock";
+    const txt = o.modeLabel || (o.mode === "live" ? "ERP 실데이터" : "목업 데이터");
+    return '<span class="qbar__badge qbar__badge--' + cls + '">' + esc(txt) + "</span>";
+  })();
+
+  root.classList.add("qbar");
+  root.setAttribute("role", "search");
+  root.innerHTML =
+    (hasPeriod
+      ? '<div class="qbar__grp"><span class="qbar__lb">기간</span>'
+      + '<select class="qbar__sel" id="qbY" aria-label="조회 연도">'
+      + years.map((y) => '<option value="' + y + '">' + y + "년</option>").join("")
+      + "</select>"
+      + '<select class="qbar__sel" id="qbM" aria-label="조회 월">' + monthOptions() + "</select></div>"
+      : "")
+    + (hasPeriod && o.quick
+      ? '<div class="qbar__chips" id="qbQuick">'
+      + '<button type="button" class="qbar__chip" data-q="cur">당월</button>'
+      + '<button type="button" class="qbar__chip" data-q="prev">전월</button>'
+      + '<button type="button" class="qbar__chip" data-q="all">연간</button></div>'
+      : "")
+    + o.extras.map(extraField).join("")
+    + (o.reset ? '<button type="button" class="qbar__reset" id="qbReset">조건 초기화</button>' : "")
+    + '<span class="qbar__sp"></span>'
+    + '<span class="qbar__meta" id="qbMeta"></span>'
+    + '<button type="button" class="qbar__btn" id="qbRefresh" title="현재 조건으로 다시 조회합니다">'
+    + '<span class="qbar__ic">🔄</span><span>' + esc(o.refreshLabel) + "</span></button>"
+    + '<span class="qbar__stamp" id="qbStamp"></span>'
+    + '<div class="qbar__err" id="qbErr" hidden></div>';
+
+  const $ = (id) => root.querySelector("#" + id);
+  const elY = $("qbY"), elM = $("qbM"), elMeta = $("qbMeta"), elStamp = $("qbStamp"),
+    elBtn = $("qbRefresh"), elErr = $("qbErr");
+
+  /* ---------- 표시 갱신 ---------- */
+  function relTime(d) {
+    const s = Math.floor((Date.now() - d.getTime()) / 1000);
+    if (s < 10) return "방금 전";
+    if (s < 60) return s + "초 전";
+    if (s < 3600) return Math.floor(s / 60) + "분 전";
+    return Math.floor(s / 3600) + "시간 전";
+  }
+  function paintMeta() {
+    const bits = [];
+    if (o.asOf) bits.push("기준일 <b>" + esc(o.asOf) + "</b>");
+    if (o.basis) bits.push(esc(o.basis));
+    elMeta.innerHTML = bits.join(" · ") + badge;
+  }
+  function paintStamp() {
+    if (!state.stampAt) { elStamp.textContent = ""; return; }
+    const t = state.stampAt;
+    elStamp.innerHTML = "최종 조회 <b>" + pad2(t.getHours()) + ":" + pad2(t.getMinutes()) + ":" + pad2(t.getSeconds())
+      + "</b> (" + relTime(t) + ")";
+  }
+  // "당월" = 기준일(asOf)의 월. 기준일이 없으면 오늘. 데이터에 없는 월이면 가장 늦은 월.
+  function curMonth() {
+    if (!months.length) return null;
+    const base = o.asOf ? new Date(o.asOf + "T00:00:00") : new Date();
+    let m = (base.getFullYear() === state.year) ? base.getMonth() + 1 : months[months.length - 1];
+    if (!months.includes(m)) m = months[months.length - 1];
+    return m;
+  }
+  function paintControls() {
+    if (elY) elY.value = String(state.year);
+    if (elM) elM.value = state.month == null ? "" : String(state.month);
+    root.querySelectorAll(".qbar__x").forEach((el) => {
+      const k = el.dataset.x;
+      if (el.type === "checkbox") el.checked = !!state.extras[k]; else el.value = state.extras[k] ?? "";
+    });
+    const quick = root.querySelector("#qbQuick");
+    if (quick) {
+      const cur = curMonth(), prev = (cur && cur > 1) ? cur - 1 : null;
+      quick.querySelectorAll(".qbar__chip").forEach((c) => {
+        const q = c.dataset.q;
+        const on = (q === "all" && state.month == null)
+          || (q === "cur" && state.month === cur)
+          || (q === "prev" && prev != null && state.month === prev);
+        c.setAttribute("aria-pressed", on ? "true" : "false");
+        if (q === "prev") c.disabled = (prev == null);
+      });
+    }
+  }
+
+  /* ---------- data-m 자동 강조 ---------- */
+  function applyPeriod() {
+    if (!o.autoApply) return;
+    const sc = (typeof o.scope === "string" ? document.querySelector(o.scope) : o.scope) || document;
+    sc.querySelectorAll("[data-qbar-period]").forEach((el) => { el.textContent = periodLabel(); });
+    if (o.asOf) sc.querySelectorAll("[data-qbar-asof]").forEach((el) => { el.textContent = o.asOf; });
+    sc.querySelectorAll("[data-m]").forEach((el) => {
+      el.classList.remove("qbar-on", "qbar-dim", "qbar-hide");
+      if (state.month == null) return;
+      const list = String(el.dataset.m).split(",").map((v) => Number(v.trim()));
+      if (list.includes(state.month)) { el.classList.add("qbar-on"); return; }
+      const holder = el.closest("[data-m-off]");
+      el.classList.add((holder && holder.dataset.mOff) === "hide" ? "qbar-hide" : "qbar-dim");
+    });
+    // 행을 숨기는 그룹에서 남는 행이 없으면 [data-m-empty] 안내를 대신 보여준다(빈 표 방지)
+    sc.querySelectorAll('[data-m-off="hide"]').forEach((g) => {
+      const empty = g.querySelector("[data-m-empty]");
+      if (!empty) return;
+      const gone = state.month != null
+        && [...g.querySelectorAll("[data-m]")].every((el) => el.classList.contains("qbar-hide"));
+      empty.classList.toggle("qbar-hide", !gone);
+    });
+  }
+
+  /* ---------- 조회 실행 ---------- */
+  let seq = 0;
+  async function run(reason) {
+    persist(); paintControls(); applyPeriod();
+    if (typeof o.onQuery !== "function") { state.stampAt = new Date(); paintStamp(); return; }
+    const my = ++seq;
+    setLoading(true); setError(null);
+    try {
+      await o.onQuery(value(), { reason, bar: api });
+      if (my !== seq) return;                 // 더 늦은 조회가 이미 시작됨 → 결과 버림
+      state.stampAt = new Date(); paintStamp();
+    } catch (e) {
+      if (my !== seq) return;
+      setError((e && e.message) || "조회 중 오류가 발생했습니다.");
+    } finally {
+      if (my === seq) setLoading(false);
+    }
+  }
+  function setLoading(on) {
+    state.loading = !!on;
+    elBtn.disabled = !!on;
+    root.querySelectorAll(".qbar__sel, .qbar__inp").forEach((el) => { el.disabled = !!on; });
+  }
+  function setError(msg) {
+    state.err = msg || null;
+    elErr.hidden = !msg;
+    elErr.textContent = msg || "";
+  }
+
+  /* ---------- 이벤트 ---------- */
+  if (elY) elY.onchange = () => { state.year = Number(elY.value); state.month = null; run("change"); };
+  if (elM) elM.onchange = () => { state.month = elM.value === "" ? null : Number(elM.value); run("change"); };
+  const quickEl = root.querySelector("#qbQuick");
+  if (quickEl) quickEl.onclick = (e) => {
+    const b = e.target.closest(".qbar__chip"); if (!b || b.disabled) return;
+    const cur = curMonth();
+    state.month = b.dataset.q === "all" ? null : (b.dataset.q === "cur" ? cur : (cur > 1 ? cur - 1 : null));
+    run("quick");
+  };
+  root.querySelectorAll(".qbar__x").forEach((el) => {
+    const k = el.dataset.x;
+    const spec = o.extras.find((x) => x.id === k) || {};
+    const fire = () => { state.extras[k] = (el.type === "checkbox") ? el.checked : el.value; run("change"); };
+    if (el.tagName === "INPUT" && el.type === "text") {
+      let t = null;
+      el.oninput = () => { clearTimeout(t); t = setTimeout(fire, spec.debounce != null ? spec.debounce : 300); };
+      el.onchange = fire;
+    } else el.onchange = fire;
+  });
+  const elReset = root.querySelector("#qbReset");
+  if (elReset) elReset.onclick = () => {
+    state.month = null;
+    o.extras.forEach((x) => { state.extras[x.id] = x.value != null ? x.value : (x.type === "checkbox" ? false : ""); });
+    run("change");
+  };
+  elBtn.onclick = () => run("refresh");
+
+  const tick = setInterval(paintStamp, 30000);
+  let autoT = null;
+  if (o.autoRefreshSec > 0) autoT = setInterval(() => { if (!document.hidden && !state.loading) run("auto"); }, o.autoRefreshSec * 1000);
+
+  /* ---------- 공개 API ---------- */
+  const api = {
+    el: root,
+    value, get loading() { return state.loading; },
+    refresh: () => run("refresh"),
+    setLoading, setError,
+    setMonths(list, labels) {
+      months = (list || []).slice();
+      if (labels) Object.assign(o.monthLabels, labels);
+      if (state.month != null && !months.includes(state.month)) state.month = null;
+      if (elM) elM.innerHTML = monthOptions();
+      paintControls();
+    },
+    // 조회 가능한 연도가 서버 응답으로 정해지는 화면(실연계)에서 첫 조회 뒤에 목록을 채운다.
+    setYears(list) {
+      const arr = (list || []).map(Number).filter((n) => Number.isFinite(n));
+      if (!arr.length) return;
+      years.length = 0; years.push(...arr);
+      if (o.urlSync) {                       // 이제 유효해진 URL 연도를 뒤늦게 받아준다
+        const p = new URLSearchParams(location.search);
+        if (p.has("y") && years.includes(Number(p.get("y")))) state.year = Number(p.get("y"));
+      }
+      if (!years.includes(state.year)) state.year = years[0];
+      if (elY) elY.innerHTML = years.map((y) => '<option value="' + y + '">' + y + "년</option>").join("");
+      paintControls();
+    },
+    setMeta(m = {}) {
+      if ("asOf" in m) o.asOf = m.asOf;
+      if ("basis" in m) o.basis = m.basis;
+      paintMeta(); applyPeriod();
+    },
+    setPeriod(year, month, silent) {
+      if (year != null) state.year = Number(year);
+      state.month = (month == null) ? null : Number(month);
+      if (silent) { persist(); paintControls(); applyPeriod(); } else run("change");
+    },
+    applyPeriod,
+    destroy() { clearInterval(tick); if (autoT) clearInterval(autoT); root.innerHTML = ""; root.classList.remove("qbar"); },
+  };
+
+  paintMeta(); paintControls(); applyPeriod(); paintStamp();
+  if (o.runOnInit) run("init");
+  return api;
+}
+
+/**
+ * data-m 으로 표시해 둔 월별 요소에서 화면에 이미 그려진 수치를 읽어 { 월: "문자열" } 로 돌려준다.
+ * 목업 화면이 "화면에 있는 값"만으로 기간별 KPI 를 다시 계산하게 해서, 숫자를 스크립트에 중복 기입하지 않게 한다.
+ * ERP 실연계로 바뀌면 이 함수 대신 API 응답을 쓰면 된다.
+ *   const S = readMonthSeries("#mChart");   // {1:"2.2", 2:"24.1", …}
+ */
+function readMonthSeries(container, valueSelector = ".val") {
+  const root = typeof container === "string" ? document.querySelector(container) : container;
+  const out = {};
+  if (!root) return out;
+  root.querySelectorAll("[data-m]").forEach((el) => {
+    const v = valueSelector ? el.querySelector(valueSelector) : el;
+    if (!v) return;
+    String(el.dataset.m).split(",").forEach((m) => { out[Number(m.trim())] = v.textContent.trim(); });
+  });
+  return out;
+}
+
+/** "1,284" · "+430" · "−118" 같은 표시 문자열에서 첫 숫자를 뽑는다. 숫자가 없으면 0.
+ *  화면에는 유니코드 마이너스(−)·en dash 가 쓰이므로 ASCII 하이픈으로 정규화한 뒤 읽는다. */
+function numOf(s) {
+  const m = String(s ?? "").replace(/,/g, "").replace(/[−–—]/g, "-").match(/-?\d+(\.\d+)?/);
+  return m ? parseFloat(m[0]) : 0;
+}
+
+/* (인라인 빌드) export default 제거 */
+
+</script>
+<!-- [QBAR_JS_INLINE 끝] -->
+
+<script>
+/* 데모 전용 스크립트 — 표준 컴포넌트가 아니다 */
+(function(){
+  var logEl = document.getElementById('log');
+  function log(el, s){ el.textContent = new Date().toLocaleTimeString('ko-KR') + '  ' + s + '\n' + el.textContent; }
+
+  /* A. 기본형 */
+  var SERIES = readMonthSeries('#mChart');
+  var TOTAL  = Object.values(SERIES).reduce(function(a,v){ return a + numOf(v); }, 0);
+  var kpi = document.getElementById('kpiPeriod');
+  var KPI_YEAR = kpi.innerHTML;
+
+  createQueryBar('#qbar', {
+    years:[2026, 2025], year:2026,
+    months:[1,2,3,4,5,6], monthLabels:{ 6:'6월(진행)' },
+    asOf:'2026-06-12',
+    basis:'매입확정(M_IV) · 부가세 별도',
+    mode:'mock',
+    persist:'qbar_demo_a',
+    onQuery: function(q, ctx){
+      log(logEl, 'reason=' + ctx.reason + ' · ' + q.label + ' · from=' + q.from + ' to=' + q.to + ' · ym=' + q.ym);
+      if(q.month == null){ kpi.innerHTML = KPI_YEAR; return; }
+      var v = SERIES[q.month];
+      var share = TOTAL ? Math.round(numOf(v) / TOTAL * 100) : 0;
+      kpi.innerHTML = '<div class="lb">' + q.label + ' 매입액</div>'
+        + '<div class="v">' + (v == null ? '—' : v) + '<small> 백만원</small></div>'
+        + '<div class="delta">연간 ' + TOTAL.toLocaleString('ko-KR') + '백만 중 ' + share + '%</div>';
+    }
+  });
+
+  /* B. extras */
+  var log2 = document.getElementById('log2');
+  createQueryBar('#qbar2', {
+    years:[2026], year:2026, months:[1,2,3,4,5,6],
+    basis:'발주일(ORD_DT) 기준', mode:'live', reset:true, persist:'qbar_demo_b', urlSync:false,  /* 데모라 바가 3개다 — 주소 동기화는 A 하나만 */
+    extras:[
+      { id:'kw',   label:'거래처·품목', type:'text', placeholder:'거래처 또는 품목명', width:'180px' },
+      { id:'stage', label:'단계', type:'select', options:[{value:'',label:'전체'},{value:'po',label:'발주'},{value:'in',label:'입고'},{value:'iv',label:'매입완료'}] },
+      { id:'from', label:'발주일 상세', type:'date' },
+      { id:'onlyLink', label:'협력사 등록건만', type:'checkbox' }
+    ],
+    onQuery: function(q, ctx){
+      log(log2, 'reason=' + ctx.reason + ' · ' + q.label + ' · extras=' + JSON.stringify(q.extras));
+    }
+  });
+
+  /* C. 검색형 */
+  var log3 = document.getElementById('log3');
+  createQueryBar('#qbar3', {
+    months:false,
+    basis:'품목 마스터(B_ITEM) · 발주 이력 참조 건수',
+    mode:'mock', persist:'qbar_demo_c', urlSync:false,
+    onQuery: function(q, ctx){ log(log3, 'reason=' + ctx.reason + ' · 기간 축 없음 · extras=' + JSON.stringify(q.extras)); }
+  });
+})();
+</script>
+</body>
+</html>

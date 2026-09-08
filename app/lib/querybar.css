@@ -1,0 +1,115 @@
+/* app/lib/querybar.css — JEIL_AX 표준 조회 플랫폼 (바닐라, 의존성 0)
+   단일 출처: 조회플랫폼/조회플랫폼_가이드.md · 데모: 조회플랫폼/index.html
+   스타일 격리 규칙: 셀렉터는 전부 .qbar__ 스코프. 전역 select/button/table 재정의 금지.
+   호스트 :root 팔레트(--navy/--accent/--line/--muted/--green/--red/--soft…)를 재사용하되,
+   팔레트가 없는 화면에서도 깨지지 않도록 var() 두 번째 인자로 기본값을 둔다. */
+
+.qbar{
+  display:flex; flex-wrap:wrap; align-items:center; gap:10px 14px;
+  background:var(--soft,#eef2f8);
+  border:1px solid var(--line,#d8dee8);
+  border-radius:11px;
+  padding:11px 14px;
+  margin:0 0 16px;
+  font-size:13px;
+  color:var(--ink,#222);
+}
+.qbar__grp{ display:flex; align-items:center; gap:6px; }
+.qbar__lb{
+  font-size:11.5px; font-weight:700; letter-spacing:.02em;
+  color:var(--navy,#1a2f4e); white-space:nowrap;
+}
+.qbar__sel, .qbar__inp{
+  font-family:inherit; font-size:13px; color:var(--ink,#222);
+  background:#fff; border:1px solid var(--line,#d8dee8); border-radius:7px;
+  padding:6px 9px; min-height:32px; cursor:pointer;
+}
+.qbar__inp{ cursor:text; }
+.qbar__sel:focus-visible, .qbar__inp:focus-visible, .qbar__chip:focus-visible,
+.qbar__btn:focus-visible, .qbar__reset:focus-visible{
+  outline:2px solid var(--accent,#2f6fb3); outline-offset:1px;
+}
+.qbar__sel:disabled, .qbar__inp:disabled{ background:#f3f5f8; color:var(--muted,#666); cursor:not-allowed; }
+
+/* 빠른 기간 칩 */
+.qbar__chips{ display:flex; gap:5px; }
+.qbar__chip{
+  font-family:inherit; font-size:12px; font-weight:600;
+  background:#fff; color:var(--navy2,#27457a);
+  border:1px solid var(--line,#d8dee8); border-radius:16px;
+  padding:5px 12px; min-height:30px; cursor:pointer; white-space:nowrap;
+}
+.qbar__chip:hover{ border-color:var(--accent,#2f6fb3); color:var(--accent,#2f6fb3); }
+.qbar__chip[aria-pressed="true"]{
+  background:var(--navy,#1a2f4e); border-color:var(--navy,#1a2f4e); color:#fff;
+}
+
+/* 오른쪽 정보 영역 */
+.qbar__sp{ flex:1 1 auto; }
+.qbar__meta{
+  font-size:11.5px; line-height:1.5; color:var(--muted,#666);
+  text-align:right; white-space:nowrap;
+}
+.qbar__meta b{ color:var(--navy2,#27457a); }
+.qbar__badge{
+  display:inline-block; font-size:10.5px; font-weight:700; border-radius:10px;
+  padding:2px 8px; margin-left:6px; vertical-align:1px;
+}
+.qbar__badge--live{ background:var(--softgreen,#ecf5f0); color:var(--green,#2e7d52); }
+.qbar__badge--mock{ background:var(--softamber,#faf3e4); color:var(--amber,#9a6b1f); }
+
+/* 새로고침 */
+.qbar__btn{
+  font-family:inherit; font-size:12.5px; font-weight:700;
+  display:inline-flex; align-items:center; gap:6px;
+  background:var(--navy,#1a2f4e); color:#fff;
+  border:none; border-radius:8px; padding:7px 14px; min-height:32px; cursor:pointer;
+}
+.qbar__btn:hover{ background:var(--navy2,#27457a); }
+.qbar__btn:disabled{ opacity:.6; cursor:progress; }
+.qbar__ic{ display:inline-block; font-size:13px; line-height:1; }
+.qbar__btn:disabled .qbar__ic{ animation:qbar-spin .9s linear infinite; }
+@keyframes qbar-spin{ to{ transform:rotate(360deg); } }
+
+.qbar__reset{
+  font-family:inherit; font-size:12px; color:var(--muted,#666);
+  background:none; border:none; padding:4px 2px; cursor:pointer; text-decoration:underline;
+}
+.qbar__reset:hover{ color:var(--red,#b3402f); }
+
+/* 조회 시각 */
+.qbar__stamp{ font-size:11.5px; color:var(--muted,#666); white-space:nowrap; }
+.qbar__stamp b{ color:var(--navy2,#27457a); font-weight:700; }
+
+/* 오류 줄 */
+.qbar__err{
+  flex:1 1 100%; font-size:12px; color:var(--red,#b3402f);
+  background:var(--softred,#fbeeec); border-radius:7px; padding:7px 10px;
+}
+
+/* 제목 옆 기간 배지 — <span class="qbar-period" data-qbar-period></span> */
+.qbar-period{
+  display:inline-block; font-size:12.5px; font-weight:700; vertical-align:3px;
+  background:var(--soft,#eef2f8); color:var(--navy2,#27457a);
+  border:1px solid var(--line,#d8dee8); border-radius:14px;
+  padding:2px 11px; margin-left:8px; white-space:nowrap;
+}
+
+/* ── 기간 강조 훅 ───────────────────────────────────────────
+   페이지 요소에 data-m="5" (또는 data-m="1,2") 를 붙이면
+   월 선택 시 컴포넌트가 아래 클래스를 자동으로 붙인다. */
+.qbar-on{ /* 선택된 월 */ }
+.qbar-dim{ opacity:.28; filter:saturate(.35); transition:opacity .18s, filter .18s; }
+.qbar-hide{ display:none !important; }
+tr.qbar-on > td{ background:var(--soft,#eef2f8); }
+
+@media (max-width:760px){
+  .qbar{ font-size:12.5px; padding:10px 11px; gap:8px 10px; }
+  .qbar__sp{ flex-basis:100%; height:0; }
+  .qbar__meta{ text-align:left; white-space:normal; }
+}
+@media print{
+  .qbar{ background:none; border:1px solid #ccc; }
+  .qbar__btn, .qbar__chips, .qbar__reset{ display:none; }
+  .qbar-dim{ opacity:1; filter:none; }
+}

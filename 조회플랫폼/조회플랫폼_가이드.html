@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>표준 조회 플랫폼 가이드 — JEIL AX 표준 조회 플랫폼 (app/lib/querybar.js 사용법·API·규약(단일 출처))</title>
+<style>
+:root{--navy:#1a2f4e;--navy2:#27457a;--accent:#2f6fb3;--red:#b3402f;--green:#2e7d52;--amber:#9a6b1f;
+--ink:#222;--muted:#666;--line:#d8dee8;--bg:#f4f6f9;--soft:#eef2f8;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;color:var(--ink);background:var(--bg);line-height:1.65;font-size:15px;}
+.page{max-width:960px;margin:0 auto;background:#fff;padding:52px 60px;box-shadow:0 2px 14px rgba(0,0,0,.08);}
+.doc-label{display:inline-block;background:var(--navy);color:#fff;font-size:12px;letter-spacing:.16em;padding:5px 14px;border-radius:3px;margin-bottom:16px;}
+.docnav{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 26px;}
+.docnav a{font-size:12px;color:var(--navy2);border:1px solid var(--line);border-radius:20px;padding:4px 12px;text-decoration:none;background:var(--soft);}
+.docnav a:hover{background:var(--navy);color:#fff;}
+.docnav a.cur{background:var(--navy);color:#fff;border-color:var(--navy);}
+.md-link{font-size:13px;margin-bottom:22px;color:var(--muted);}
+.content h1{font-size:27px;color:var(--navy);line-height:1.35;margin:6px 0 18px;}
+.content h2{font-size:20px;color:var(--navy);margin:42px 0 14px;padding-bottom:9px;border-bottom:3px solid var(--navy);}
+.content h3{font-size:16px;color:var(--navy2);margin:24px 0 9px;}
+.content p{margin:0 0 12px;}
+.content ul,.content ol{margin:0 0 14px 22px;}
+.content li{margin-bottom:6px;}
+.content blockquote{background:var(--soft);border-left:5px solid var(--navy);border-radius:0 8px 8px 0;padding:14px 20px;margin:14px 0;color:#33425a;}
+.content blockquote p{margin:0 0 6px;}
+.content table{width:100%;border-collapse:collapse;margin:14px 0 20px;font-size:13.3px;}
+.content th{background:var(--navy);color:#fff;padding:9px 11px;text-align:left;font-weight:600;}
+.content td{padding:8px 11px;border-bottom:1px solid var(--line);vertical-align:top;}
+.content tr:nth-child(even) td{background:#fafbfd;}
+.content a{color:var(--accent);}
+.content code{background:var(--soft);border:1px solid var(--line);border-radius:4px;padding:1px 6px;font-size:12.4px;font-family:Consolas,'Courier New',monospace;}
+.content pre{background:#21252e;color:#e8eaf0;border-radius:8px;padding:16px 18px;font-size:12.4px;font-family:Consolas,'Courier New',monospace;overflow-x:auto;margin:12px 0 18px;line-height:1.55;}
+.content pre code{background:none;border:none;color:inherit;padding:0;}
+.content hr{border:none;border-top:1px solid var(--line);margin:30px 0;}
+.content strong{color:var(--navy2);}
+.footer{margin-top:50px;padding-top:16px;border-top:1px solid var(--line);font-size:12px;color:var(--muted);display:flex;justify-content:space-between;}
+@media print{body{background:#fff;}.page{box-shadow:none;padding:18px 0;max-width:100%;}.docnav{display:none;}.content h2{break-after:avoid;}.content table,.content pre,.content blockquote{break-inside:avoid;}}
+@media (max-width:720px){.page{padding:30px 20px;}}
+</style>
+</head>
+<body>
+<div class="page">
+  <span class="doc-label">JEIL AX · 표준 조회 플랫폼</span>
+  <div class="docnav"><a href="/docs/querybar">🔎 조회 플랫폼 데모</a><a class="cur" href="/docs/querybar/guide">표준 조회 플랫폼 가이드</a><a href="/docs/grid">🧩 그리드 표준</a></div>
+  <p class="md-link">📄 Markdown 원본: <a href="/docs/querybar/guide">조회플랫폼_가이드.md</a> · 데모 <a href="/docs/querybar">조회 플랫폼 데모</a></p>
+  <div class="content">
+<h1 id="_1">표준 조회 플랫폼 가이드</h1>
+<blockquote>
+<p>부서 운영페이지 상단의 <strong>조회조건·기준 표시·새로고침</strong>을 화면마다 새로 만들지 않는다.
+<code>app/lib/querybar.js</code> 한 곳에서 만들고, 화면은 그 결과를 받아 그리기만 한다.
+이 문서가 <strong>단일 출처</strong>다. 데모는 <a href="/docs/querybar"><code>조회플랫폼/index.html</code></a>, 규칙 정본은 <code>CLAUDE.md §16</code>.</p>
+</blockquote>
+<hr />
+<h2 id="1">1. 왜 만들었나</h2>
+<p>같은 개념을 화면마다 다른 모양·다른 코드로 만들고 있었다.</p>
+<table>
+<thead>
+<tr>
+<th>화면</th>
+<th>이전 상태</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>영업·구매·인사·자금일보·자재</td>
+<td>기준일이 <strong>정적 텍스트</strong>. 기간을 바꿀 방법이 없다</td>
+</tr>
+<tr>
+<td>외주발주 진행현황</td>
+<td>자체 <code>.query</code> 블록(검색·발주일 from~to·체크박스) + 자체 <code>↻ 새로고침</code>(실은 재조회가 아니라 재필터)</td>
+</tr>
+<tr>
+<td>자금현황(실연동)</td>
+<td>자체 <code>&lt;select id="fy"&gt;/&lt;select id="fm"&gt;</code> 를 대시보드 HTML 안에서 매번 다시 그림</td>
+</tr>
+</tbody>
+</table>
+<p>ERP 실연계로 넘어가면 <strong>화면 수만큼 조회 계약을 다시 짜야 한다.</strong> 그래서 상단을 컴포넌트 하나로 못 박았다.</p>
+<hr />
+<h2 id="2">2. 조회 플랫폼이 보장하는 것</h2>
+<p>모든 대시보드·현황 화면 상단에 <strong>같은 자리, 같은 모양</strong>으로 아래가 있다.</p>
+<pre><code>[기간] [2026년 ▾] [연간(전체) ▾]  [당월][전월][연간]   …   기준일 2026-06-12 · 확정 전표 기준  [🔄 새로고침]  최종 조회 15:41:02 (방금 전)
+</code></pre>
+<ol>
+<li><strong>기간(연·월)</strong> — 월을 고르면 화면이 그 월로 좁혀진다. <code>연간(전체)</code> 이 기본.</li>
+<li><strong>빠른 기간 칩</strong> — 당월·전월·연간. "당월"은 <strong>기준일(asOf)의 월</strong>이지 오늘이 아니다(마감 데이터 기준).</li>
+<li><strong>기준 표시</strong> — 기준일 + 전표 기준 + 데이터 성격 배지(<code>목업 데이터</code> / <code>ERP 실데이터</code>).</li>
+<li><strong>새로고침</strong> — 조회 중에는 버튼이 돌고 입력이 잠긴다. 끝나면 <strong>최종 조회 시각</strong>이 갱신된다.</li>
+<li><strong>상태 유지</strong> — 주소(<code>?y=2026&amp;m=5</code>)와 <code>localStorage</code> 에 남는다. 링크를 그대로 공유할 수 있고, 다시 열면 마지막 기간이 복원된다.</li>
+<li><strong>추가 조회조건 슬롯(extras)</strong> — 화면별 검색어·날짜·체크박스를 같은 줄에 붙인다.</li>
+</ol>
+<hr />
+<h2 id="3-133">3. 역할 분리 (그리드 표준 §13.3 과 동일)</h2>
+<p><code>querybar.js</code> 는 <strong>UI·기간 상태만</strong> 담당한다. <strong>데이터 조회/집계는 <code>onQuery</code> 콜백에서 호출측이 한다.</strong>
+컴포넌트 안에 DB·Edge Function 호출을 심지 않는다. 데이터 접근은 <code>app/lib/api.js</code> 로 모은다.</p>
+<pre><code>[조회 플랫폼]  기간·조건을 소유 → onQuery(q, ctx)  ──▶  [화면]  api.js 로 조회 → 그리기
+      ▲                                                      │
+      └──────────── setYears/setMonths/setMeta ◀─────────────┘   (서버가 알려준 기간을 되먹임)
+</code></pre>
+<hr />
+<h2 id="4-4">4. 붙이는 법 (4단계)</h2>
+<h3 id="1-head-css">1) <code>&lt;head&gt;</code> 에 CSS</h3>
+<pre><code class="language-html">&lt;link rel=&quot;stylesheet&quot; href=&quot;/app/lib/querybar.css&quot;&gt;
+</code></pre>
+<p>경로는 <strong>루트 절대경로</strong>다. 클린 URL(<code>/work/…</code>)은 파일보다 경로 깊이가 달라 상대경로가 깨진다(<code>CLAUDE.md §15.4</code>).</p>
+<h3 id="2_1">2) 제목 옆 기간 배지 + 조회바 자리</h3>
+<pre><code class="language-html">&lt;div class=&quot;head&quot;&gt;
+  &lt;div&gt;
+    &lt;h1&gt;📈 수주현황 대시보드&lt;span class=&quot;qbar-period&quot; data-qbar-period&gt;2026년 연간&lt;/span&gt;&lt;/h1&gt;
+    &lt;div class=&quot;sub&quot;&gt;영업팀 운영 페이지 · &lt;span class=&quot;badge b&quot;&gt;부서 전용&lt;/span&gt;&lt;/div&gt;
+  &lt;/div&gt;
+  &lt;div class=&quot;right&quot;&gt;데이터 원천: 매출/수금 확정(S_BILL)&lt;/div&gt;
+&lt;/div&gt;
+
+&lt;div id=&quot;qbar&quot;&gt;&lt;/div&gt;
+</code></pre>
+<p><code>.head .right</code> 에 <strong>기준일을 다시 쓰지 않는다.</strong> 기준일·전표기준은 조회바가 소유한다.</p>
+<h3 id="3-data-m">3) 월에 반응할 요소에 <code>data-m</code> 표시</h3>
+<pre><code class="language-html">&lt;div class=&quot;chart&quot; id=&quot;mChart&quot;&gt;
+  &lt;div class=&quot;cbar&quot; data-m=&quot;1&quot;&gt;&lt;span class=&quot;val&quot;&gt;2.2&lt;/span&gt;…&lt;/div&gt;
+  &lt;div class=&quot;cbar&quot; data-m=&quot;2&quot;&gt;&lt;span class=&quot;val&quot;&gt;24.1&lt;/span&gt;…&lt;/div&gt;
+&lt;/div&gt;
+
+&lt;table data-m-off=&quot;hide&quot;&gt;
+  &lt;tr data-m=&quot;1&quot;&gt;&lt;td&gt;1월&lt;/td&gt;…&lt;/tr&gt;
+  &lt;tr data-m=&quot;2&quot;&gt;&lt;td&gt;2월&lt;/td&gt;…&lt;/tr&gt;
+  &lt;tr data-m-empty class=&quot;qbar-hide&quot;&gt;&lt;td colspan=&quot;5&quot;&gt;선택한 월의 데이터가 없습니다.&lt;/td&gt;&lt;/tr&gt;
+&lt;/table&gt;
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>표시</th>
+<th>뜻</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>data-m="5"</code></td>
+<td>5월 요소. <code>data-m="1,2"</code> 처럼 여러 월도 가능</td>
+</tr>
+<tr>
+<td><code>data-m-off="dim"</code> (기본)</td>
+<td>선택 월이 아니면 <strong>흐리게</strong>. 데이터가 사라지지 않아 맥락이 유지된다</td>
+</tr>
+<tr>
+<td><code>data-m-off="hide"</code></td>
+<td>선택 월이 아니면 <strong>숨김</strong>. 월별 표처럼 행이 곧 월일 때</td>
+</tr>
+<tr>
+<td><code>data-m-empty</code></td>
+<td><code>hide</code> 그룹에서 남는 행이 없을 때만 보이는 안내 행(빈 표 방지)</td>
+</tr>
+<tr>
+<td><code>data-qbar-period</code></td>
+<td>기간 라벨(<code>2026년 5월</code>)이 자동으로 채워지는 자리</td>
+</tr>
+<tr>
+<td><code>data-qbar-asof</code></td>
+<td>기준일이 자동으로 채워지는 자리</td>
+</tr>
+</tbody>
+</table>
+<h3 id="4">4) 조회바 생성</h3>
+<pre><code class="language-html">&lt;script type=&quot;module&quot;&gt;
+  import { createQueryBar, readMonthSeries, numOf } from &quot;/app/lib/querybar.js&quot;;
+
+  const SERIES = readMonthSeries(&quot;#mChart&quot;);            // 화면에 이미 있는 월별 수치를 읽는다
+  const TOTAL  = Object.values(SERIES).reduce((a,v)=&gt;a+numOf(v), 0);
+
+  createQueryBar(&quot;#qbar&quot;, {
+    years:[2026], year:2026,
+    months:[1,2,3,4,5,6], monthLabels:{ 6:&quot;6월(진행)&quot; },
+    asOf:&quot;2026-06-12&quot;,
+    basis:&quot;매출/수금 확정(S_BILL)&quot;,
+    mode:&quot;mock&quot;,
+    onQuery: (q, ctx) =&gt; {
+      // q.year · q.month(null=연간) · q.ym · q.from · q.to · q.label · q.extras
+      // ctx.reason: &quot;init&quot; | &quot;change&quot; | &quot;quick&quot; | &quot;refresh&quot; | &quot;auto&quot;
+    },
+  });
+&lt;/script&gt;
+</code></pre>
+<hr />
+<h2 id="5">5. 옵션</h2>
+<table>
+<thead>
+<tr>
+<th>옵션</th>
+<th>기본</th>
+<th>설명</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>years</code></td>
+<td><code>[올해]</code></td>
+<td>연도 목록. 서버가 정하면 <code>setYears()</code> 로 나중에 채운다</td>
+</tr>
+<tr>
+<td><code>year</code></td>
+<td>올해</td>
+<td>초기 연도</td>
+</tr>
+<tr>
+<td><code>months</code></td>
+<td>1~12</td>
+<td>조회 가능한 월. <strong><code>false</code> 면 기간 축 자체를 감춘다</strong>(검색형 화면)</td>
+</tr>
+<tr>
+<td><code>month</code></td>
+<td><code>null</code></td>
+<td>초기 월. <code>null</code> = 연간(전체)</td>
+</tr>
+<tr>
+<td><code>monthLabels</code></td>
+<td><code>{}</code></td>
+<td><code>{6:"6월(진행)"}</code> 처럼 월 표기 재정의</td>
+</tr>
+<tr>
+<td><code>allowAll</code></td>
+<td><code>true</code></td>
+<td>"연간(전체)" 옵션 노출</td>
+</tr>
+<tr>
+<td><code>quick</code></td>
+<td><code>true</code></td>
+<td>당월·전월·연간 칩</td>
+</tr>
+<tr>
+<td><code>asOf</code></td>
+<td><code>null</code></td>
+<td>기준일. <strong>"당월" 판정 기준이기도 하다</strong></td>
+</tr>
+<tr>
+<td><code>basis</code></td>
+<td><code>null</code></td>
+<td>전표·집계 기준 문구</td>
+</tr>
+<tr>
+<td><code>mode</code></td>
+<td><code>null</code></td>
+<td><code>"mock"</code> | <code>"live"</code> → 데이터 성격 배지</td>
+</tr>
+<tr>
+<td><code>modeLabel</code></td>
+<td>자동</td>
+<td>배지 문구 직접 지정</td>
+</tr>
+<tr>
+<td><code>extras</code></td>
+<td><code>[]</code></td>
+<td>추가 조회조건. <code>{id,label,type,options,value,placeholder,width,title,debounce}</code> · type: <code>text</code>|<code>select</code>|<code>date</code>|<code>checkbox</code></td>
+</tr>
+<tr>
+<td><code>reset</code></td>
+<td><code>false</code></td>
+<td>"조건 초기화" 링크</td>
+</tr>
+<tr>
+<td><code>refreshLabel</code></td>
+<td><code>"새로고침"</code></td>
+<td>버튼 문구</td>
+</tr>
+<tr>
+<td><code>autoRefreshSec</code></td>
+<td><code>0</code></td>
+<td>자동 재조회 주기(초). <code>0</code> = 사용 안 함. 탭이 숨겨져 있으면 건너뛴다</td>
+</tr>
+<tr>
+<td><code>urlSync</code></td>
+<td><code>true</code></td>
+<td>주소 <code>?y=&amp;m=&amp;&lt;extra id&gt;=</code> 동기화</td>
+</tr>
+<tr>
+<td><code>persist</code></td>
+<td><code>window.PAGE_KEY</code></td>
+<td><code>localStorage</code> 키. <code>null</code> 이면 저장 안 함</td>
+</tr>
+<tr>
+<td><code>scope</code></td>
+<td><code>document</code></td>
+<td><code>data-m</code> 자동 강조 대상 루트</td>
+</tr>
+<tr>
+<td><code>autoApply</code></td>
+<td><code>true</code></td>
+<td><code>data-m</code>·<code>data-qbar-*</code> 자동 반영</td>
+</tr>
+<tr>
+<td><code>runOnInit</code></td>
+<td><code>true</code></td>
+<td>생성 직후 1회 조회</td>
+</tr>
+<tr>
+<td><code>onQuery</code></td>
+<td><code>null</code></td>
+<td><code>(q, ctx) =&gt; void \| Promise</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="api">인스턴스 API</h3>
+<table>
+<thead>
+<tr>
+<th>호출</th>
+<th>용도</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>bar.value()</code></td>
+<td>현재 조회 조건</td>
+</tr>
+<tr>
+<td><code>bar.refresh()</code></td>
+<td>새로고침과 동일(reason <code>"refresh"</code>)</td>
+</tr>
+<tr>
+<td><code>bar.setYears([2026,2025])</code></td>
+<td>서버가 알려준 연도로 목록 교체. <strong>이때 URL 의 연도를 뒤늦게 받아준다</strong></td>
+</tr>
+<tr>
+<td><code>bar.setMonths([1,2,3], {3:"3월(진행)"})</code></td>
+<td>실제 데이터가 있는 월로 교체</td>
+</tr>
+<tr>
+<td><code>bar.setMeta({asOf, basis})</code></td>
+<td>기준 표시 갱신</td>
+</tr>
+<tr>
+<td><code>bar.setPeriod(y, m, silent)</code></td>
+<td>기간을 코드로 지정. <code>silent=true</code> 면 조회하지 않는다</td>
+</tr>
+<tr>
+<td><code>bar.applyPeriod()</code></td>
+<td><strong>화면을 다시 그린 뒤</strong> 강조를 재적용</td>
+</tr>
+<tr>
+<td><code>bar.setLoading(bool)</code> / <code>setError(msg)</code></td>
+<td>로딩·오류 표시 직접 제어</td>
+</tr>
+<tr>
+<td><code>bar.destroy()</code></td>
+<td>타이머 정리 + 비우기</td>
+</tr>
+</tbody>
+</table>
+<h3 id="_2">보조 함수</h3>
+<table>
+<thead>
+<tr>
+<th>함수</th>
+<th>용도</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>readMonthSeries(sel, valueSel=".val")</code></td>
+<td><code>data-m</code> 요소에서 <strong>화면에 이미 그려진 수치</strong>를 <code>{월:"문자열"}</code> 로 읽는다. 목업 화면이 숫자를 스크립트에 중복 기입하지 않게 한다</td>
+</tr>
+<tr>
+<td><code>numOf(s)</code></td>
+<td><code>"1,284"</code>·<code>"+430"</code>·<code>"−118"</code> 에서 숫자를 뽑는다(유니코드 마이너스 정규화 포함)</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="6">6. 실연동 화면에서 주의할 것</h2>
+<ol>
+<li><strong>연 단위로 받아 월은 화면에서 계산</strong>하는 RPC(<code>erp_finance_overview</code>)라면, 연도가 바뀔 때만 재조회한다.
+   <code>ctx.reason</code> 과 마지막 조회 연도를 비교해 불필요한 왕복을 막는다.</li>
+<li><strong>재렌더 뒤에는 <code>bar.applyPeriod()</code></strong> 를 부른다. <code>innerHTML</code> 로 새로 그린 DOM 에는 강조가 없다.</li>
+<li><strong>조회바를 재렌더 영역 밖에</strong> 둔다. <code>$("app").innerHTML = …</code> 안에 있으면 매번 날아간다.</li>
+<li>조회 가능한 연·월은 <strong>데이터에서 뽑아</strong> <code>setYears</code>/<code>setMonths</code> 로 채운다. 없는 기간을 고르게 두지 않는다.</li>
+<li>권한 게이트에 걸리면 조회바도 함께 감춘다(<code>hidden</code>). 못 보는 화면에 조회 UI 만 남기지 않는다.</li>
+</ol>
+<hr />
+<h2 id="7">7. 규약</h2>
+<ol>
+<li><strong>전역 셀렉터를 만들지 않는다.</strong> CSS 는 <code>.qbar__</code> 스코프만 쓴다(같은 화면의 다른 표·폼 오염 금지).
+   호스트 <code>:root</code> 팔레트(navy/accent/line/muted/green/red/soft…)를 재사용하되, 팔레트가 없는 화면에서도
+   깨지지 않도록 <code>var(--x, 기본값)</code> 형태로 쓴다.</li>
+<li><strong>외부 라이브러리·CDN 금지.</strong> 자기완결 바닐라 ESM(의존성 0).</li>
+<li><strong>비즈니스 로직을 컴포넌트에 심지 않는다.</strong> DB·Edge Function 호출은 <code>onQuery</code> 안, <code>api.js</code> 경유.</li>
+<li><strong>기준일을 두 곳에 쓰지 않는다.</strong> <code>asOf</code> 가 유일한 출처이고, 화면은 <code>data-qbar-asof</code> 로 받아 쓴다.</li>
+<li><strong>없는 데이터를 만들어내지 않는다.</strong> 월 선택으로 KPI 를 바꿀 때는 화면에 이미 있는 값(<code>readMonthSeries</code>)이나
+   서버 응답만 쓴다. 마감 전이면 <code>—</code> 로 두고 사유를 적는다.</li>
+<li>새 조회 화면은 이 표준으로 통일한다. 예외를 두려면 사유를 <code>CLAUDE.md §16</code> 에 적는다.</li>
+</ol>
+<hr />
+<h2 id="8-2026-09-08">8. 적용 현황 (2026-09-08)</h2>
+<table>
+<thead>
+<tr>
+<th>화면</th>
+<th>라우트</th>
+<th>기간</th>
+<th>extras</th>
+<th>데이터</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>영업 수주현황</td>
+<td><code>/work/sales-orders</code></td>
+<td>1~6월</td>
+<td>—</td>
+<td>목업</td>
+</tr>
+<tr>
+<td>구매 거래처별 매입집계</td>
+<td><code>/work/purchase-vendor</code></td>
+<td>1~6월</td>
+<td>—</td>
+<td>목업 + ERP 실데이터</td>
+</tr>
+<tr>
+<td>인사 인원·급여 추이</td>
+<td><code>/work/hr-payroll</code></td>
+<td>1~7월</td>
+<td>—</td>
+<td>목업</td>
+</tr>
+<tr>
+<td>자금일보</td>
+<td><code>/work/cash-daily</code></td>
+<td>1~6월</td>
+<td>—</td>
+<td>목업</td>
+</tr>
+<tr>
+<td>자재 재고 입·출고</td>
+<td><code>/work/inventory</code></td>
+<td>1~6월</td>
+<td>—</td>
+<td>목업</td>
+</tr>
+<tr>
+<td>외주발주 진행현황</td>
+<td><code>/work/subcon-inspection</code></td>
+<td>데이터에서 산출</td>
+<td>거래처·품목 / 발주일 상세 / 협력사 등록건만</td>
+<td>ERP 실데이터</td>
+</tr>
+<tr>
+<td>자금·경영 현황</td>
+<td><code>/work/cash-status</code></td>
+<td>서버 응답에서 산출</td>
+<td>—</td>
+<td>ERP 실데이터</td>
+</tr>
+<tr>
+<td>품목 존재/중복 조회</td>
+<td><code>/work/item-duplicates</code></td>
+<td><strong>없음</strong>(검색형)</td>
+<td>—</td>
+<td>목업</td>
+</tr>
+</tbody>
+</table>
+<p><strong>제외</strong> — 결의전표 입력(<code>/work/voucher</code>)은 입력 화면이라 조회 플랫폼 대상이 아니다.
+프로젝트원가 2종은 프로젝트 단위 문서라 월 축이 없다.</p>
+  </div>
+  <div class="footer"><span>JEIL M&amp;S · AI 포털 표준 조회 플랫폼</span><span>표준 조회 플랫폼 가이드 · 관리: 최동혁</span></div>
+</div>
+</body>
+</html>

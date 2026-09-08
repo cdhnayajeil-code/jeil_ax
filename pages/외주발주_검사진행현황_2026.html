@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>외주 발주 전체 프로세스 현황 — 구매요청·발주·협력사·입고·매입</title>
+<link rel="stylesheet" href="/app/lib/querybar.css">
 <style>
   :root{
     --navy:#1a2f4e; --navy2:#27457a; --accent:#2f6fb3; --accent2:#4a8ed0;
@@ -33,12 +34,6 @@
   .lbtn.solid{background:var(--purple); color:#fff;}
 
   /* 조회 조건 바 */
-  .query{display:flex; flex-wrap:wrap; gap:10px 16px; align-items:flex-end; background:var(--soft); border:1px solid var(--line); border-radius:11px; padding:12px 16px; margin-bottom:14px;}
-  .qf{display:flex; flex-direction:column; gap:4px;}
-  .qf label{font-size:11px; color:var(--muted); font-weight:700;}
-  .qf select,.qf input{border:1px solid var(--line); border-radius:8px; padding:8px 11px; font-size:13px; background:#fff; font-family:inherit; min-width:150px;}
-  .qf.chkrow{flex-direction:row; align-items:center; gap:6px; padding-bottom:7px;}
-  .qf .reset{border:1px solid var(--line); background:#fff; color:var(--muted); border-radius:8px; padding:8px 12px; font-size:12px; cursor:pointer;}
 
   .kpis{display:grid; grid-template-columns:repeat(5,1fr); gap:10px; margin:2px 0 12px;}
   .kpi{background:#fff; border:1px solid var(--line); border-radius:11px; padding:12px 14px; border-top:4px solid var(--accent); text-align:center;}
@@ -121,7 +116,7 @@
   .src b{color:var(--navy2);} code{font-family:Consolas,monospace; font-size:11px; background:#fff; border:1px solid var(--line); border-radius:4px; padding:0 5px;}
   .foot{margin-top:22px; padding-top:12px; border-top:1px solid var(--line); font-size:11px; color:var(--muted); display:flex; justify-content:space-between; flex-wrap:wrap; gap:6px;}
   .hide{display:none !important;}
-  @media print{ .demo-banner,.linkbar,.query{display:none;} .page{box-shadow:none; max-width:100%;} }
+  @media print{ .demo-banner,.linkbar{display:none;} .page{box-shadow:none; max-width:100%;} }
   @media (max-width:880px){ .page{padding:20px 14px;} .kpis{grid-template-columns:repeat(2,1fr);} }
   .msgbox{position:fixed;inset:0;background:rgba(10,15,22,.5);z-index:320;display:none;align-items:center;justify-content:center;padding:20px;}
   .msgbox.on{display:flex;}
@@ -147,31 +142,20 @@
 
   <div class="head">
     <div>
-      <h1>🔄 발주 진행현황</h1>
+      <h1>🔄 발주 진행현황<span class="qbar-period" data-qbar-period></span></h1>
       <div class="sub">발주 → 입고 → 매입 진행상태를 발주별로 한눈에</div>
     </div>
-    <div class="right">기준일: <span id="baseDate">—</span></div>
+    <div class="right">데이터 원천: ERP 발주원장(v_erp_pur_order_hdr) + 협력사 포털</div>
   </div>
 
   <div class="linkbar">
     <span class="dot"></span>
     <span class="txt"><span id="linkState">— 확인 중…</span><small id="linkMeta">협력사 등록 사진·검수·메시지는 실시간 반영됩니다.</small></span>
-    <span class="sp"><button class="lbtn" onclick="render()">↻ 새로고침</button><button class="lbtn solid" onclick="openPortal()">📱 협력사 포털</button></span>
+    <span class="sp"><button class="lbtn solid" onclick="openPortal()">📱 협력사 포털</button></span>
   </div>
 
-  <!-- 조회 조건 -->
-  <div class="query">
-    <div class="qf"><label>거래처 · 품목 조회</label><input id="fItem" placeholder="거래처 또는 품목명 입력" oninput="debouncedRender()"></div>
-    <div class="qf"><label>발주일 (기간)</label>
-      <div style="display:flex;align-items:center;gap:6px">
-        <input type="date" id="fFrom" onchange="render()" style="min-width:140px">
-        <span style="color:var(--muted)">~</span>
-        <input type="date" id="fTo" onchange="render()" style="min-width:140px">
-      </div>
-    </div>
-    <div class="qf chkrow"><input type="checkbox" id="onlyLink" onchange="render()"><label for="onlyLink" style="font-weight:600;color:var(--ink)" title="협력사 포털에 사진·검수·메시지가 등록된 발주만 표시합니다">협력사 등록건만 <small style="font-weight:400;color:var(--muted)">(사진·검수·메시지 있는 발주)</small></label></div>
-    <div class="qf"><button class="reset" onclick="resetQ()">조건 초기화</button></div>
-  </div>
+  <!-- 표준 조회 플랫폼 (app/lib/querybar.js) -->
+  <div id="qbar"></div>
 
   <div class="kpis" id="kpis"></div>
 
@@ -218,8 +202,9 @@
 </div>
 
 <script type="module">
-import { supabase } from "../app/lib/supabaseClient.js";
-import { portalApi, erpApi } from "../app/lib/api.js";
+import { supabase } from "/app/lib/supabaseClient.js";
+import { portalApi, erpApi } from "/app/lib/api.js";
+import { createQueryBar } from "/app/lib/querybar.js";
 
 // JWT(base64url, UTF-8) 디코드 → app_metadata(role 등)
 function claimsOf(session){ if(!session||!session.access_token) return {}; try{ let p=session.access_token.split('.')[1].replace(/-/g,'+').replace(/_/g,'/'); while(p.length%4)p+='='; return JSON.parse(decodeURIComponent(atob(p).split('').map(c=>'%'+c.charCodeAt(0).toString(16).padStart(2,'0')).join(''))).app_metadata||{}; }catch(e){ return {}; } }
@@ -228,7 +213,9 @@ function autoSSO(){ const u=new URL(location.href); u.searchParams.set('sso','1'
 // 발주 캐시: ERP 발주원장(v_erp_pur_order_hdr) 기본 + 협력사 포털(sp_*) 오버레이. RLS상 사내는 전체.
 let ORDERS=[];
 // 성능: 필터 결과를 1회만 계산해 재사용(CURROWS) + 카드 점진 렌더(SHOWN/PAGE_SIZE)로 초기 DOM 최소화
-let CURROWS=[], SHOWN=0; const PAGE_SIZE=60; let _searchTimer=null;
+let CURROWS=[], SHOWN=0; const PAGE_SIZE=60;
+// 조회 조건은 표준 조회 플랫폼(app/lib/querybar.js)이 소유한다 — 화면은 그 값을 읽어 거를 뿐이다.
+let QBAR=null, QV={ year:null, month:null, from:null, to:null, extras:{} };
 async function loadData(){
   const [erpHdrs, supOrders] = await Promise.all([
     erpApi.purOrderHeaders().catch(e=>{ console.warn('ERP 발주원장 로드 실패:', e.message||e); return []; }),
@@ -388,16 +375,16 @@ function buildRows(){
 }
 function visibleRows(){
   let rows=buildRows();
-  const q=document.getElementById('fItem').value.trim().toLowerCase();
-  const from=document.getElementById('fFrom').value;
-  const to=document.getElementById('fTo').value;
-  if(document.getElementById('onlyLink').checked) rows=rows.filter(r=>r.link);
-  if(q) rows=rows.filter(r=> (r.bp+' '+r.item+' '+r.po+' '+r.proj).toLowerCase().includes(q));
+  const kw=String(QV.extras.kw||'').trim().toLowerCase();
+  // 발주일 기간 = 조회바가 고른 연/월. 그 안에서 상세 from~to 로 더 좁힐 수 있다.
+  const from=[QV.from, QV.extras.from].filter(Boolean).sort().pop();
+  const to  =[QV.to,   QV.extras.to  ].filter(Boolean).sort().shift();
+  if(QV.extras.onlyLink) rows=rows.filter(r=>r.link);
+  if(kw) rows=rows.filter(r=> (r.bp+' '+r.item+' '+r.po+' '+r.proj).toLowerCase().includes(kw));
   if(from) rows=rows.filter(r=> String(r.odt||'')>=from);
   if(to)   rows=rows.filter(r=> String(r.odt||'')<=to);
   return rows;
 }
-function resetQ(){ document.getElementById('fItem').value=''; document.getElementById('fFrom').value=''; document.getElementById('fTo').value=''; document.getElementById('onlyLink').checked=false; render(); }
 
 function curBadge(r){ if(r.fail) return '<span class="stg s-hold">재작업 · 불합격</span>';
   if(r.done) return '<span class="stg s-done">완료 · 매입</span>';
@@ -571,8 +558,26 @@ function renderDist(){ const rows=CURROWS; const C=rows.map(cat);
 function openPortal(){ window.open('/work/vendor-mobile','_blank'); }
 // 필터/데이터 변경 시: 결과 1회 계산 → 페이지 초기화 → KPI·분포·보드 렌더
 function render(){ CURROWS=visibleRows(); SHOWN=PAGE_SIZE; renderKPI(); renderDist(); renderBoard(); }
+
+// 적재된 발주일에서 조회 가능한 연·월을 뽑는다(데이터가 없는 기간을 고르게 두지 않는다).
+const ALL_MONTHS=[1,2,3,4,5,6,7,8,9,10,11,12];
+function periodsFromData(year){
+  const ys=new Set(), ms=new Set();
+  for(const r of buildRows()){
+    const d=String(r.odt||''); if(d.length<7) continue;
+    const y=Number(d.slice(0,4));
+    ys.add(y);
+    if(y===year) ms.add(Number(d.slice(5,7)));
+  }
+  return { years:[...ys].sort((a,b)=>b-a), months:[...ms].sort((a,b)=>a-b) };
+}
+function syncPeriods(){
+  if(!QBAR) return;
+  const { years, months } = periodsFromData(QV.year);
+  if(years.length) QBAR.setYears(years);
+  QBAR.setMonths(months.length?months:ALL_MONTHS);
+}
 // 검색어 입력은 220ms 디바운스(매 키입력 전체 재렌더 방지)
-function debouncedRender(){ clearTimeout(_searchTimer); _searchTimer=setTimeout(render,220); }
 
 // 사내(internal) 세션 게이트 → 데이터 로드 → 렌더 + Realtime
 async function boot(){
@@ -584,14 +589,37 @@ async function boot(){
     return;
   }
   // 기준일 오늘 기준 표시
-  var today=new Date(); document.getElementById('baseDate').textContent=today.toISOString().slice(0,10);
   // 내 표기(부서 · 이름) — 메시지 전송 시 발신자명으로 사용. 실패해도 화면은 정상 동작.
   try{ MY_LABEL = await erpApi.myLabel(); }catch(e){ MY_LABEL = null; }
-  await loadData(); render();
-  portalApi.subscribe(async()=>{ await loadData(); render(); var mb=document.getElementById('msgbox'); if(mb&&mb.classList.contains('on')) renderMsgBox(); });
+  await loadData();
+  // 조회바를 만들기 전에 적재 데이터에서 연·월을 뽑아 둔다(첫 화면부터 실제 있는 기간만 보이게).
+  const Y0 = periodsFromData(0).years[0] || new Date().getFullYear();
+  const P0 = periodsFromData(Y0);
+  let LAST_Y = null;
+  QBAR = createQueryBar('#qbar', {
+    years: P0.years.length ? P0.years : [Y0], year: Y0,
+    months: P0.months.length ? P0.months : ALL_MONTHS,
+    basis:'발주일(ORD_DT) 기준 · 협력사 등록분 실시간 반영',
+    mode:'live', persist:'subcon_progress', reset:true,
+    extras:[
+      { id:'kw',       label:'거래처·품목', type:'text', placeholder:'거래처 또는 품목명', width:'190px' },
+      { id:'from',     label:'발주일 상세', type:'date' },
+      { id:'to',       label:'~',           type:'date' },
+      { id:'onlyLink', label:'협력사 등록건만', type:'checkbox', title:'협력사 포털에 사진·검수·메시지가 등록된 발주만 표시합니다' },
+    ],
+    onQuery: async (q, ctx) => {
+      QV = q;
+      const reload = (ctx.reason==='refresh' || ctx.reason==='auto');
+      if(reload) await loadData();
+      if(reload || q.year !== LAST_Y) syncPeriods();   // 연도가 바뀌면 그 해에 실제 있는 월로 갈아끼운다
+      LAST_Y = q.year;
+      render();
+    },
+  });
+  portalApi.subscribe(async()=>{ await loadData(); syncPeriods(); render(); var mb=document.getElementById('msgbox'); if(mb&&mb.classList.contains('on')) renderMsgBox(); });
 }
 // 인라인 onclick(전역) 노출 — module 스코프 격리 대응
-Object.assign(window, { render, debouncedRender, loadMore, openPortal, resetQ, lbxOpen, lbxClose, imgFb, reviewCur, openMsg, closeMsg, sendMsgD, openInspect, closeInspect, submitInspect, toggleDet });
+Object.assign(window, { render, loadMore, openPortal, lbxOpen, lbxClose, imgFb, reviewCur, openMsg, closeMsg, sendMsgD, openInspect, closeInspect, submitInspect, toggleDet });
 boot();
 </script>
 </body>

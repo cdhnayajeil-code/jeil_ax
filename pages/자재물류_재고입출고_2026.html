@@ -6,6 +6,7 @@
 <script>window.PAGE_KEY='inventory_2026';</script>
 <script src="/pages/_access-gate.js"></script>
 <title>자재물류팀 — 2026년 재고 입·출고 현황</title>
+<link rel="stylesheet" href="/app/lib/querybar.css">
 <style>
   :root{
     --navy:#1a2f4e; --navy2:#27457a; --accent:#2f6fb3; --accent2:#4a8ed0;
@@ -69,16 +70,19 @@
 
   <div class="head">
     <div>
-      <h1>📦 2026년 재고 입·출고 현황 대시보드</h1>
-      <div class="sub">자재물류팀 운영 페이지 · <span class="badge b">주관: 자재물류팀</span> <span class="badge g">공유: 구매팀 · 사업관리팀</span> <span class="badge a">읽기전용 추출</span> · 기간: 2026-01-01 ~ 2026-06-12</div>
+      <h1>📦 재고 입·출고 현황 대시보드<span class="qbar-period" data-qbar-period>2026년 연간</span></h1>
+      <div class="sub">자재물류팀 운영 페이지 · <span class="badge b">주관: 자재물류팀</span> <span class="badge g">공유: 구매팀 · 사업관리팀</span> <span class="badge a">읽기전용 추출</span></div>
     </div>
-    <div class="right">기준일: 2026-06-12<br>수불 확정 전표 기준 (POST_FLAG=Y)</div>
+    <div class="right">데이터 원천: 수불 확정 전표(POST_FLAG=Y)</div>
   </div>
+
+  <!-- 표준 조회 플랫폼 (app/lib/querybar.js) -->
+  <div id="qbar"></div>
 
   <!-- KPI -->
   <div class="kpis">
-    <div class="kpi gr"><div class="lb">2026 누적 입고액</div><div class="v">1,196<small> 백만원</small></div><div class="delta">구매입고 R01 중심</div></div>
-    <div class="kpi"><div class="lb">2026 누적 출고액</div><div class="v">1,042<small> 백만원</small></div><div class="delta">프로젝트 출고 T62 중심</div></div>
+    <div class="kpi gr" id="kpiIn"><div class="lb">2026 누적 입고액</div><div class="v">1,196<small> 백만원</small></div><div class="delta">구매입고 R01 중심</div></div>
+    <div class="kpi" id="kpiOut"><div class="lb">2026 누적 출고액</div><div class="v">1,042<small> 백만원</small></div><div class="delta">프로젝트 출고 T62 중심</div></div>
     <div class="kpi"><div class="lb">현재고 금액</div><div class="v">684<small> 백만원</small></div><div class="delta">원재료+부자재 (창고합)</div></div>
     <div class="kpi am"><div class="lb">장기 체화 재고 (6개월+)</div><div class="v">92<small> 백만원</small></div><div class="delta">현재고의 13.5%</div></div>
     <div class="kpi"><div class="lb">프로젝트 연계 수불</div><div class="v">38<small> 개 PJT</small></div><div class="delta">TRACKING_NO 기준</div></div>
@@ -88,13 +92,13 @@
   <div class="sec">
     <h3>월별 입·출고 금액 추이 (2026 · 백만원) <span class="badge b">수불 전표 일계</span></h3>
     <div class="dwrap">
-      <div class="dual">
-        <div class="dgroup"><div class="gin" style="height:38%"></div><div class="gout" style="height:30%"></div><span class="lab">1월<br>입132/출104</span></div>
-        <div class="dgroup"><div class="gin" style="height:95%"></div><div class="gout" style="height:42%"></div><span class="lab">2월<br>입331/출146</span></div>
-        <div class="dgroup"><div class="gin" style="height:50%"></div><div class="gout" style="height:62%"></div><span class="lab">3월<br>입174/출216</span></div>
-        <div class="dgroup"><div class="gin" style="height:58%"></div><div class="gout" style="height:70%"></div><span class="lab">4월<br>입202/출244</span></div>
-        <div class="dgroup"><div class="gin" style="height:68%"></div><div class="gout" style="height:64%"></div><span class="lab">5월<br>입237/출223</span></div>
-        <div class="dgroup"><div class="gin" style="height:34%"></div><div class="gout" style="height:31%"></div><span class="lab">6월(진행)<br>입120/출109</span></div>
+      <div class="dual" id="mChart">
+        <div class="dgroup" data-m="1"><div class="gin" style="height:38%"></div><div class="gout" style="height:30%"></div><span class="lab">1월<br>입<span class="vin">132</span>/출<span class="vout">104</span></span></div>
+        <div class="dgroup" data-m="2"><div class="gin" style="height:95%"></div><div class="gout" style="height:42%"></div><span class="lab">2월<br>입<span class="vin">331</span>/출<span class="vout">146</span></span></div>
+        <div class="dgroup" data-m="3"><div class="gin" style="height:50%"></div><div class="gout" style="height:62%"></div><span class="lab">3월<br>입<span class="vin">174</span>/출<span class="vout">216</span></span></div>
+        <div class="dgroup" data-m="4"><div class="gin" style="height:58%"></div><div class="gout" style="height:70%"></div><span class="lab">4월<br>입<span class="vin">202</span>/출<span class="vout">244</span></span></div>
+        <div class="dgroup" data-m="5"><div class="gin" style="height:68%"></div><div class="gout" style="height:64%"></div><span class="lab">5월<br>입<span class="vin">237</span>/출<span class="vout">223</span></span></div>
+        <div class="dgroup" data-m="6"><div class="gin" style="height:34%"></div><div class="gout" style="height:31%"></div><span class="lab">6월(진행)<br>입<span class="vin">120</span>/출<span class="vout">109</span></span></div>
       </div>
       <div class="legend"><span><i style="background:var(--green)"></i>입고 (구매·반품회수)</span><span><i style="background:var(--navy2)"></i>출고 (프로젝트·공정·소모)</span></div>
     </div>
@@ -190,5 +194,33 @@
     <span>주관: 자재물류팀 · 공유: 구매팀 · 사업관리팀 (지정 부서 공유)</span>
   </div>
 </div>
+<!-- 표준 조회 플랫폼 — 기준·기간·새로고침은 전 부서 화면 공통 (CLAUDE.md §16) -->
+<script type="module">
+  import { createQueryBar, readMonthSeries, numOf } from "/app/lib/querybar.js";
+
+  // 화면에 이미 그려진 월별 입·출고액(백만원)을 읽어 쓴다 — 숫자를 스크립트에 중복 기입하지 않는다.
+  const IN = readMonthSeries("#mChart", ".vin");
+  const OUT = readMonthSeries("#mChart", ".vout");
+  const kIn = document.getElementById("kpiIn"), kOut = document.getElementById("kpiOut");
+  const IN_YEAR = kIn.innerHTML, OUT_YEAR = kOut.innerHTML;
+
+  createQueryBar("#qbar", {
+    years: [2026], year: 2026,
+    months: [1, 2, 3, 4, 5, 6], monthLabels: { 6: "6월(진행)" },
+    asOf: "2026-06-12",
+    basis: "수불 확정 전표 기준(POST_FLAG=Y)",
+    mode: "mock",
+    onQuery: (q) => {
+      if (q.month == null) { kIn.innerHTML = IN_YEAR; kOut.innerHTML = OUT_YEAR; return; }
+      const i = IN[q.month], o = OUT[q.month];
+      const net = numOf(i) - numOf(o);
+      kIn.innerHTML = '<div class="lb">' + q.label + ' 입고액</div>'
+        + '<div class="v">' + (i ?? "—") + '<small> 백만원</small></div><div class="delta">구매입고 R01 중심</div>';
+      kOut.innerHTML = '<div class="lb">' + q.label + ' 출고액</div>'
+        + '<div class="v">' + (o ?? "—") + '<small> 백만원</small></div>'
+        + '<div class="delta' + (net >= 0 ? " up" : " dn") + '">입−출 ' + (net >= 0 ? "+" : "") + net + '백만</div>';
+    },
+  });
+</script>
 </body>
 </html>

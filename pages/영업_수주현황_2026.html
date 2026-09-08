@@ -6,6 +6,7 @@
 <script>window.PAGE_KEY='sales_2026';</script>
 <script src="/pages/_access-gate.js"></script>
 <title>영업팀 — 2026년 수주현황 대시보드</title>
+<link rel="stylesheet" href="/app/lib/querybar.css">
 <style>
   :root{
     --navy:#1a2f4e; --navy2:#27457a; --accent:#2f6fb3; --accent2:#4a8ed0;
@@ -69,15 +70,18 @@
 
   <div class="head">
     <div>
-      <h1>📈 2026년 수주현황 대시보드</h1>
-      <div class="sub">영업팀 운영 페이지 · <span class="badge b">부서 전용</span> <span class="badge a">읽기전용 추출</span> · 기간: 2026-01-01 ~ 2026-06-12</div>
+      <h1>📈 수주현황 대시보드<span class="qbar-period" data-qbar-period>2026년 연간</span></h1>
+      <div class="sub">영업팀 운영 페이지 · <span class="badge b">부서 전용</span> <span class="badge a">읽기전용 추출</span></div>
     </div>
-    <div class="right">기준일: 2026-06-12<br>전표 기준: 매출/수금 확정(S_BILL)</div>
+    <div class="right">데이터 원천: 매출/수금 확정(S_BILL)</div>
   </div>
+
+  <!-- 표준 조회 플랫폼 (app/lib/querybar.js) -->
+  <div id="qbar"></div>
 
   <!-- KPI -->
   <div class="kpis">
-    <div class="kpi"><div class="lb">2026 수주 총액</div><div class="v">49.4<small> 억원</small></div><div class="delta up">▲ 전년 동기 대비 +12%</div></div>
+    <div class="kpi" id="kpiPeriod"><div class="lb">2026 수주 총액</div><div class="v">49.4<small> 억원</small></div><div class="delta up">▲ 전년 동기 대비 +12%</div></div>
     <div class="kpi"><div class="lb">수주 건수</div><div class="v">10<small> 건</small></div><div class="delta">진행 8 · 완료 2</div></div>
     <div class="kpi"><div class="lb">누적 수금액</div><div class="v">31.2<small> 억원</small></div><div class="delta">수금률 63%</div></div>
     <div class="kpi"><div class="lb">미수금 잔액</div><div class="v">18.2<small> 억원</small></div><div class="delta">중도금·잔금 일정 관리</div></div>
@@ -88,13 +92,13 @@
   <div class="grid2">
     <div class="sec">
       <h3>월별 수주금액 추이 (억원) <span class="badge b">S_BILL_HDR · BILL_DT</span></h3>
-      <div class="chart">
-        <div class="cbar"><span class="val">2.2</span><div class="bar" style="height:12%"></div><span class="lab">1월</span></div>
-        <div class="cbar"><span class="val">24.1</span><div class="bar" style="height:95%"></div><span class="lab">2월</span></div>
-        <div class="cbar"><span class="val">3.3</span><div class="bar" style="height:17%"></div><span class="lab">3월</span></div>
-        <div class="cbar"><span class="val">17.5</span><div class="bar" style="height:70%"></div><span class="lab">4월</span></div>
-        <div class="cbar"><span class="val">1.5</span><div class="bar" style="height:9%"></div><span class="lab">5월</span></div>
-        <div class="cbar"><span class="val">0.8</span><div class="bar fcst" style="height:6%"></div><span class="lab">6월(진행)</span></div>
+      <div class="chart" id="mChart">
+        <div class="cbar" data-m="1"><span class="val">2.2</span><div class="bar" style="height:12%"></div><span class="lab">1월</span></div>
+        <div class="cbar" data-m="2"><span class="val">24.1</span><div class="bar" style="height:95%"></div><span class="lab">2월</span></div>
+        <div class="cbar" data-m="3"><span class="val">3.3</span><div class="bar" style="height:17%"></div><span class="lab">3월</span></div>
+        <div class="cbar" data-m="4"><span class="val">17.5</span><div class="bar" style="height:70%"></div><span class="lab">4월</span></div>
+        <div class="cbar" data-m="5"><span class="val">1.5</span><div class="bar" style="height:9%"></div><span class="lab">5월</span></div>
+        <div class="cbar" data-m="6"><span class="val">0.8</span><div class="bar fcst" style="height:6%"></div><span class="lab">6월(진행)</span></div>
       </div>
       <div class="legend"><span>2월: 2026-013-NSY-EI(22.7억) · 4월: 2026-032-NSY-EI(17.0억) 대형 수주 반영</span></div>
     </div>
@@ -169,5 +173,32 @@
     <span>등록: 영업팀 · 공개범위: 부서 전용 (관리자 콘솔 권한 적용)</span>
   </div>
 </div>
+
+<!-- 표준 조회 플랫폼 — 기준·기간·새로고침은 전 부서 화면 공통 (CLAUDE.md §16) -->
+<script type="module">
+  import { createQueryBar, readMonthSeries, numOf } from "/app/lib/querybar.js";
+
+  // 화면에 이미 그려진 월별 수주금액(억원)을 읽어 쓴다 — 숫자를 스크립트에 중복 기입하지 않는다.
+  const SERIES = readMonthSeries("#mChart");
+  const YEAR_TOTAL = Object.values(SERIES).reduce((a, v) => a + numOf(v), 0);
+  const kpi = document.getElementById("kpiPeriod");
+  const KPI_YEAR = kpi.innerHTML;
+
+  createQueryBar("#qbar", {
+    years: [2026], year: 2026,
+    months: [1, 2, 3, 4, 5, 6], monthLabels: { 6: "6월(진행)" },
+    asOf: "2026-06-12",
+    basis: "매출/수금 확정(S_BILL) · 추출 2026-01-01~06-12",
+    mode: "mock",
+    onQuery: (q) => {
+      if (q.month == null) { kpi.innerHTML = KPI_YEAR; return; }
+      const v = SERIES[q.month];
+      const share = YEAR_TOTAL ? Math.round((numOf(v) / YEAR_TOTAL) * 100) : 0;
+      kpi.innerHTML = '<div class="lb">' + q.label + " 수주액</div>"
+        + '<div class="v">' + (v ?? "—") + "<small> 억원</small></div>"
+        + '<div class="delta">연간 ' + YEAR_TOTAL.toFixed(1) + "억 중 " + share + "%</div>";
+    },
+  });
+</script>
 </body>
 </html>
