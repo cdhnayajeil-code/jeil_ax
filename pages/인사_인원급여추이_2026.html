@@ -81,9 +81,9 @@
   <div class="head">
     <div>
       <h1>👥 인원 및 급여 추이<span class="qbar-period" data-qbar-period>2026년 연간</span></h1>
-      <div class="sub">인사팀 운영 페이지 · <span class="badge b">부서 전용</span> <span class="badge r">개인정보 마스킹 적용</span> <span class="badge a">읽기전용 추출</span></div>
+      <div class="sub">인사팀 운영 페이지 · <span class="badge b">부서 전용</span> <span class="badge r">개인정보 마스킹 적용</span> <span class="badge a">차트 = 목업</span> <span class="badge g">실집계 = 인사팀 전용 섹션</span></div>
     </div>
-    <div class="right">데이터 원천: HAA010T · HDF070T · 급여 4월분 마감</div>
+    <div class="right">실 급여 집계(erp_secure)는 <b>인사팀 전용 섹션</b>에 표시됩니다</div>
   </div>
 
   <!-- 표준 조회 플랫폼 (app/lib/querybar.js) -->
@@ -101,7 +101,7 @@
   <!-- 월별 추이 -->
   <div class="grid2">
     <div class="sec">
-      <h3>월별 인원 추이 (급여대상, 명) <span class="badge g">ERP 실데이터 · 2026-07-24 기준</span></h3>
+      <h3>월별 인원 추이 (급여대상, 명) <span class="badge a">목업 · 2026-07-24 기준 (실집계와 일치, 7월까지)</span></h3>
       <div class="chart" id="mHead">
         <div class="cbar" data-m="1"><span class="val">113</span><div class="bar" style="height:95%"></div><span class="lab">1월</span></div>
         <div class="cbar" data-m="2"><span class="val">119</span><div class="bar" style="height:100%"></div><span class="lab">2월</span></div>
@@ -114,7 +114,7 @@
       <div class="legend"><span><i style="background:var(--accent)"></i>마감</span><span><i style="background:#b9cfe6"></i>진행 중(미마감)</span> · HDF070T 급여대상 인원(마감 전 변동 가능)</div>
     </div>
     <div class="sec" data-sensitive="pay">
-      <h3>월별 급여총액 추이 (백만원) <span class="badge b">SUM(PAY_TOT_AMT)</span></h3>
+      <h3>월별 급여총액 추이 (백만원) <span class="badge r">목업 · 실집계와 수치가 다름</span></h3>
       <div class="chart" id="mPay">
         <div class="cbar" data-m="1"><span class="val">398</span><div class="bar" style="height:72%"></div><span class="lab">1월</span></div>
         <div class="cbar" data-m="2"><span class="val">405</span><div class="bar" style="height:75%"></div><span class="lab">2월</span></div>
@@ -128,6 +128,11 @@
   </div>
 
   <!-- 인사팀 권한자 전용: erp_secure 실 급여 집계(jeil-hr) — 미권한/데모엔 미표시 -->
+  <div class="callout amber" style="margin:0 0 14px;">
+    <b>이 화면의 차트는 목업입니다</b> — 위 <b>인원</b> 추이는 실집계와 일치하지만 <b>2026-07까지</b>만 반영돼 있고,
+    <b>급여총액</b> 목업은 실집계(<code>erp_secure.hr_payroll_m</code>)와 <b>수치가 다릅니다</b>.
+    현재 값은 아래 <b>인사팀 전용 실 급여 집계</b> 섹션에서 확인하세요(인사팀·관리자만 표시).
+  </div>
   <div id="hrLiveAgg" style="margin:0 0 14px;"></div>
 
   <!-- 부서별 / 입퇴사 -->
@@ -212,7 +217,7 @@
     hr.payroll.forEach(function(r){ var m=(byYm[r.ym]=byYm[r.ym]||{hc:0,pay:0,ret:0}); m.hc+=Number(r.headcount||0); m.pay+=Number(r.pay_tot_amt||0); m.ret+=Number(r.retire_amt||0); });
     var yms = Object.keys(byYm).sort();
     var rows = yms.map(function(ym){ var m=byYm[ym]; return '<tr><td>'+esc(ym)+'</td><td class="r">'+won(m.hc)+'</td><td class="r">'+won(m.pay)+'</td><td class="r">'+won(m.ret)+'</td></tr>'; }).join('');
-    el.innerHTML = '<div class="sec"><h3>2026 실 급여 집계 (erp_secure · 인사팀 전용) <span class="badge g">실데이터</span></h3>'
+    el.innerHTML = '<div class="sec" style="border-top:4px solid var(--green);"><h3>● 실 급여 집계 (erp_secure · 인사팀 전용) <span class="badge g">실데이터 · 위 목업 차트보다 최신</span></h3>'
       + '<p style="color:#666;font-size:11.5px;margin:0 0 8px;">개인별·주민번호·계좌 미포함(집계만). 게이트 API(jeil-hr) 경유 · 접근 감사 기록됨.</p>'
       + '<table><tr><th>귀속월</th><th class="r">급여대상 인원</th><th class="r">급여총액(원)</th><th class="r">퇴직급여(원)</th></tr>'+rows+'</table></div>';
   }
@@ -240,24 +245,26 @@
 
   createQueryBar("#qbar", {
     years: [2026], year: 2026,
-    months: [1, 2, 3, 4, 5, 6, 7], monthLabels: { 7: "7월(진행)" },
-    asOf: "2026-07-24",
-    basis: "인원 HDF070T 2026-07-24 기준 · 급여 4월분 마감(추출 2026-05-22)",
-    mode: "mock",
+    // 실집계(erp_secure.hr_payroll_m)는 2026-08까지 적재돼 있다(실측). 목업 차트는 인원 7월·급여 5월까지.
+    months: [1, 2, 3, 4, 5, 6, 7, 8],
+    basis: "차트 = 목업(인원 2026-07-24 기준 · 급여는 실집계와 불일치) · 실집계는 인사팀 전용 섹션",
+    mode: "mock", modeLabel: "목업 차트 + 실집계 섹션",
     onQuery: (q) => {
       if (q.month == null) { kHead.innerHTML = HEAD_YEAR; kPay.innerHTML = PAY_YEAR; return; }
       const hc = HEAD[q.month], prev = HEAD[q.month - 1];
       const diff = (hc != null && prev != null) ? numOf(hc) - numOf(prev) : null;
-      kHead.innerHTML = '<div class="lb">' + q.label + ' 급여대상 인원</div>'
+      kHead.innerHTML = '<div class="lb">' + q.label + ' 급여대상 인원(목업)</div>'
         + '<div class="v">' + (hc ?? "—") + (hc != null ? "명" : "") + "</div>"
         + '<div class="delta' + (diff > 0 ? " up" : diff < 0 ? " dn" : "") + '">'
-        + (diff == null ? "전월 비교 자료 없음" : (diff > 0 ? "▲ +" : diff < 0 ? "▼ " : "± ") + diff + "명 (전월 대비)") + "</div>";
+        + (hc == null ? "목업에 없는 달 — 실집계 섹션 참조"
+           : diff == null ? "전월 비교 자료 없음"
+           : (diff > 0 ? "▲ +" : diff < 0 ? "▼ " : "± ") + diff + "명 (전월 대비)") + "</div>";
 
       const pay = PAY[q.month];
       const paid = pay != null && pay !== "—";
-      kPay.innerHTML = '<div class="lb">' + q.label + ' 급여총액</div>'
+      kPay.innerHTML = '<div class="lb">' + q.label + ' 급여총액(목업)</div>'
         + '<div class="v">' + (paid ? pay : "—") + (paid ? "<small> 백만원</small>" : "") + "</div>"
-        + '<div class="delta">' + (paid ? "SUM(PAY_TOT_AMT) · 퇴직급여 별도" : "급여 마감 전 (미집계)") + "</div>";
+        + '<div class="delta">' + (paid ? "목업 · 실집계와 수치 다름" : "목업에 없는 달 — 실집계 섹션 참조") + "</div>";
     },
   });
 </script>

@@ -72,9 +72,9 @@
   <div class="head">
     <div>
       <h1>📦 거래처별 매입금액 집계<span class="qbar-period" data-qbar-period>2026년 연간</span></h1>
-      <div class="sub">구매팀 운영 페이지 · <span class="badge b">부서 전용</span> <span class="badge a">읽기전용 추출</span></div>
+      <div class="sub">구매팀 운영 페이지 · <span class="badge b">부서 전용</span> <span class="badge a">상단 = 목업(2026-06-12)</span> <span class="badge g">하단 = ERP 실데이터</span></div>
     </div>
-    <div class="right">데이터 원천: 매입확정(M_IV) · 부가세 별도</div>
+    <div class="right">아래 <b>ERP 실데이터 섹션</b>이 현재 값입니다 (목업과 수치가 다릅니다)</div>
   </div>
 
   <!-- 표준 조회 플랫폼 (app/lib/querybar.js) -->
@@ -93,9 +93,12 @@
   <div class="sec" id="liveErp" style="border-top:4px solid var(--green); display:none;">
     <h3>● ERP 실데이터 — 거래처별 매입 <span class="badge g" id="liveAsof">불러오는 중…</span></h3>
     <div class="callout amber" style="margin-top:0;">
-      <b>파일럿 연동</b> — 아래는 ERP 야간배치 사본(<code>erp_ro.purchase_m</code>)을 사내 전용 뷰 <code>public.v_erp_purchase_monthly</code>로 조회한 <b>실데이터</b>입니다. 위쪽 목업 수치와 별개이며, ERP 매핑은 유니포인트 확정 전 가설입니다.
+      <b>이 섹션이 현재 값입니다</b> — ERP 야간배치 사본(<code>erp_ro.purchase_m</code>)을 사내 전용 뷰 <code>public.v_erp_purchase_monthly</code>로 조회한 <b>실데이터</b>입니다. 위쪽 목업(2026-06-12 기준)과는 <b>수치가 다릅니다</b> — 목업은 데모용 샘플이고 이쪽이 ERP 실적입니다. ERP 매핑은 유니포인트 확정 전 가설입니다.
     </div>
     <div class="kpis" id="liveKpis"></div>
+    <div class="chart" id="liveChart"></div>
+    <div class="legend" id="liveLegend"></div>
+    <h3 style="margin-top:16px;">거래처별 매입 (선택 기간)</h3>
     <div class="barlist" id="liveTop" style="margin-top:10px;"></div>
     <p style="font-size:11px; color:var(--muted); margin-top:8px;" id="liveMonths"></p>
   </div>
@@ -107,7 +110,7 @@
   <!-- 월별 추이 + 매입형태 -->
   <div class="grid2">
     <div class="sec">
-      <h3>월별 매입금액 추이 (백만원) <span class="badge b">M_IV_HDR · IV_DOC_AMT</span></h3>
+      <h3>월별 매입금액 추이 (백만원) <span class="badge a">목업 · 2026-06-12 기준</span></h3>
       <div class="chart" id="mChart">
         <div class="cbar" data-m="1"><span class="val">142</span><div class="bar" style="height:42%"></div><span class="lab">1월</span></div>
         <div class="cbar" data-m="2"><span class="val">318</span><div class="bar" style="height:94%"></div><span class="lab">2월</span></div>
@@ -214,24 +217,37 @@
 
   /* ── 목업 KPI: 화면에 이미 그려진 월별 수치를 읽어 기간에 맞춰 바꾼다 ── */
   const SERIES = readMonthSeries("#mChart");
+  const MOCK_MONTHS = Object.keys(SERIES).map(Number).sort((a, b) => a - b);
   const YEAR_TOTAL = Object.values(SERIES).reduce((a, v) => a + numOf(v), 0);
   const kpi = el("kpiPeriod");
   const KPI_YEAR = kpi.innerHTML;
   function paintMockKpi(q) {
     if (q.month == null) { kpi.innerHTML = KPI_YEAR; return; }
     const v = SERIES[q.month];
+    if (v == null) {   // 목업에 없는 달 — 없는 값을 만들지 않는다
+      kpi.innerHTML = '<div class="lb">' + q.label + ' 매입액(목업)</div><div class="v">—</div>'
+        + '<div class="delta">목업은 ' + MOCK_MONTHS[MOCK_MONTHS.length - 1] + '월까지 · 아래 실데이터 참조</div>';
+      return;
+    }
     const share = YEAR_TOTAL ? Math.round((numOf(v) / YEAR_TOTAL) * 100) : 0;
-    kpi.innerHTML = '<div class="lb">' + q.label + ' 매입액</div>'
-      + '<div class="v">' + (v ?? "—") + '<small> 백만원</small></div>'
-      + '<div class="delta">연간 ' + won(YEAR_TOTAL) + '백만 중 ' + share + '%</div>';
+    kpi.innerHTML = '<div class="lb">' + q.label + ' 매입액(목업)</div>'
+      + '<div class="v">' + v + '<small> 백만원</small></div>'
+      + '<div class="delta">목업 연간 ' + won(YEAR_TOTAL) + '백만 중 ' + share + '%</div>';
   }
 
   /* ── ERP 실데이터: 조회바의 기간으로 걸러 집계한다 ── */
   let CACHE = null;   // {rows, asof} — 새로고침일 때만 다시 받는다
-  async function loadLive(q, reason) {
+  async function loadLive(q, reason, bar) {
     if (!CACHE || reason === "refresh" || reason === "auto") {
       const [rows, asof] = await Promise.all([erpApi.purchaseMonthly(), erpApi.dataAsof()]);
       CACHE = { rows, asof };
+      // 조회 가능한 월 = 목업 ∪ 실데이터 (실데이터가 8월까지면 7·8월도 고를 수 있어야 한다)
+      const live = rows.filter((r) => String(r.ym || "").startsWith(q.year + "-"))
+                       .map((r) => Number(String(r.ym).slice(5)));
+      const all = [...new Set([...MOCK_MONTHS, ...live])].sort((a, b) => a - b);
+      if (all.length) bar.setMonths(all);
+      const ts = asof.purchase?.last_success;
+      if (ts) bar.setMeta({ asOf: new Date(ts).toISOString().slice(0, 10) });
     }
     const { rows, asof } = CACHE;
     const inPeriod = rows.filter((r) => {
@@ -252,6 +268,21 @@
     const top = Object.values(byBp).sort((a, b) => b.amt - a.amt).slice(0, 10);
     const max = top[0]?.amt || 1;
 
+    // 월별 추이(연 단위) — data-m 을 붙여 조회바가 선택 월을 강조하게 한다
+    const byYm = {};
+    for (const r of rows.filter((r) => String(r.ym || "").startsWith(q.year + "-")))
+      byYm[r.ym] = (byYm[r.ym] || 0) + Number(r.purchase_amt || 0);
+    const yms = Object.keys(byYm).sort();
+    const cmax = Math.max(1, ...yms.map((k) => byYm[k]));
+    el("liveChart").innerHTML = yms.length ? yms.map((ym) => {
+      const m = Number(ym.slice(5));
+      return '<div class="cbar" data-m="' + m + '"><span class="val">' + mil(byYm[ym]) + '</span>'
+        + '<div class="bar" style="height:' + Math.max(2, Math.round(byYm[ym] / cmax * 100)) + '%"></div>'
+        + '<span class="lab">' + m + '월</span></div>';
+    }).join("") : '<div style="color:var(--muted);font-size:12.5px;padding:20px;">해당 연도 매입 데이터가 없습니다.</div>';
+    el("liveLegend").innerHTML = '<span>매입금액(백만원) · 원천 <code>erp_ro.purchase_m</code></span>'
+      + '<span>적재 월: ' + (yms.join(", ") || "-") + '</span>';
+
     const ts = asof.purchase?.last_success;
     el("liveAsof").textContent = ts ? "데이터 기준: " + new Date(ts).toLocaleString("ko-KR") : "기준시각 미상";
     el("liveKpis").innerHTML =
@@ -270,13 +301,12 @@
 
   createQueryBar("#qbar", {
     years: [2026], year: 2026,
-    months: [1, 2, 3, 4, 5, 6], monthLabels: { 6: "6월(진행)" },
-    asOf: "2026-06-12",
-    basis: "매입확정(M_IV) · 부가세 별도",
+    months: MOCK_MONTHS.length ? MOCK_MONTHS : [1, 2, 3, 4, 5, 6], monthLabels: { 6: "6월(진행)" },
+    basis: "상단 = 2026-06-12 파일추출 목업 · 하단 = ERP 중간DB(purchase_m) 실데이터",
     mode: "mock", modeLabel: "목업 + ERP 실데이터",
     onQuery: async (q, ctx) => {
       paintMockKpi(q);
-      try { await loadLive(q, ctx.reason); }
+      try { await loadLive(q, ctx.reason, ctx.bar); ctx.bar.applyPeriod(); }
       catch (e) {
         // 비로그인/anon/권한없음 → 격리로 조회 불가. 안내만 표시(목업 유지).
         el("liveErp").style.display = "none";

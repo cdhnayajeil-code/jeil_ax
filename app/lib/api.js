@@ -372,6 +372,20 @@ export const adminMsgApi = {
 // 협력사·비로그인은 0행 또는 권한오류. 화면은 데이터가 비면 샘플/안내로 폴백한다.
 // 데이터 출처는 ERP 야간배치 사본이며, 유니포인트 매핑 확정 전 '파일럿·가설'임에 유의.
 export const erpApi = {
+  // PostgREST 는 응답 행 수에 서버 상한(기본 1000)이 있다. .limit(5000) 을 줘도 그 위에서 잘리며
+  // 오류가 아니라 "적은 행"으로 돌아와 집계가 조용히 틀어진다(2026-09-08 재고 출고수량 실제 발생).
+  // 그래서 상한을 넘길 수 있는 조회는 range() 로 끝까지 받아온다.
+  async _pageAll(build, { page = 1000, cap = 50000 } = {}) {
+    const out = [];
+    for (let from = 0; from < cap; from += page) {
+      const { data, error } = await build().range(from, from + page - 1);
+      if (error) throw error;
+      const rows = data || [];
+      out.push(...rows);
+      if (rows.length < page) break;      // 마지막 페이지
+    }
+    return out;
+  },
   // 매출 월집계(거래처×월): {ym, bp_code, bp_name, order_amt, sales_amt, collect_amt, order_cnt}
   async salesMonthly() {
     const { data, error } = await supabase.from("v_erp_sales_monthly")
@@ -385,10 +399,10 @@ export const erpApi = {
     if (error) throw error; return data || [];
   },
   // 재고 입출고 일집계(품목×창고×일): {ymd, item_code, wh_code, in_qty, out_qty, stock_qty}
-  async inventoryDaily(days = 31) {
-    const { data, error } = await supabase.from("v_erp_inventory_daily")
-      .select("*").order("ymd", { ascending: false }).limit(5000);
-    if (error) throw error; return data || [];
+  async inventoryDaily() {
+    // 일집계라 행이 많다(2026-09 기준 2,777행) — 서버 상한에 걸리지 않게 끝까지 받는다.
+    return this._pageAll(() => supabase.from("v_erp_inventory_daily")
+      .select("*").order("ymd", { ascending: false }));
   },
   // 품목 조회(키워드 부분일치, 대량이라 반드시 필터+상한)
   async items(keyword = "", limit = 200) {
@@ -406,12 +420,15 @@ export const erpApi = {
   },
   // 발주 헤더 집계(po_no 단위, v_erp_pur_order_hdr): 외주발주 프로세스 현황 보드 기본 소스.
   // {po_no, po_dt, dlvy_dt, bp_code, bp_name, line_cnt, item_cnt, amt, po_qty, rcpt_qty, po_sts(PO/GR/IV·최소진행), subcontra_flg, items_txt}
-  async purOrderHeaders({ bp_code, po_sts, limit = 1000 } = {}) {
-    let q = supabase.from("v_erp_pur_order_hdr").select("*").order("po_dt", { ascending: false }).limit(limit);
-    if (bp_code) q = q.eq("bp_code", bp_code);
-    if (po_sts) q = q.eq("po_sts", po_sts);
-    const { data, error } = await q; if (error) throw error;
-    return (data || []).map((r) => ({ ...r, amt: Number(r.amt) || 0, po_qty: Number(r.po_qty) || 0, rcpt_qty: Number(r.rcpt_qty) || 0 }));
+  async purOrderHeaders({ bp_code, po_sts } = {}) {
+    // 발주가 늘면 서버 상한(1000)에 걸린다 — 2026-09 기준 이미 890행이라 페이징으로 받는다.
+    const data = await this._pageAll(() => {
+      let q = supabase.from("v_erp_pur_order_hdr").select("*").order("po_dt", { ascending: false });
+      if (bp_code) q = q.eq("bp_code", bp_code);
+      if (po_sts) q = q.eq("po_sts", po_sts);
+      return q;
+    });
+    return data.map((r) => ({ ...r, amt: Number(r.amt) || 0, po_qty: Number(r.po_qty) || 0, rcpt_qty: Number(r.rcpt_qty) || 0 }));
   },
   // 데이터 기준시각(job별 최신 성공): { sales:{last_success,rows_upserted}, ... }
   async dataAsof() {

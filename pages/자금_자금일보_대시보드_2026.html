@@ -70,13 +70,19 @@
   <div class="head">
     <div>
       <h1>💰 자금일보 대시보드<span class="qbar-period" data-qbar-period>2026년 연간</span></h1>
-      <div class="sub">자금팀(재무·회계) 운영 페이지 · <span class="badge b">부서 전용</span> <span class="badge r">민감 — 임원·자금팀 한정</span> <span class="badge a">읽기전용 추출</span></div>
+      <div class="sub">자금팀(재무·회계) 운영 페이지 · <span class="badge b">부서 전용</span> <span class="badge r">민감 — 임원·자금팀 한정</span> <span class="badge a">전체 목업 · 2026-06-12 기준</span></div>
     </div>
-    <div class="right">데이터 원천: 확정 전표(A_GL · CONF_FG=1)</div>
+    <div class="right">현재 값은 <a href="/work/cash-status" style="color:var(--accent);font-weight:700;">자금·경영 현황(ERP 실연동)</a>에서 보세요</div>
   </div>
 
   <!-- 표준 조회 플랫폼 (app/lib/querybar.js) -->
   <div id="qbar"></div>
+
+  <div class="callout amber" style="margin:0 0 14px;">
+    <b>이 화면은 전부 목업입니다 (2026-06-12 기준).</b> 현금성자산·차입금·매출채권·매입채무 등 자금 지표는
+    중간DB(<code>erp_ro</code>)에 원천이 없어 실연계 대상이 아닙니다. ERP 실데이터로 보는 매출·매입·발주·수지는
+    <a href="/work/cash-status" style="font-weight:700;">자금·경영 현황 대시보드</a>(서버에서 자금 권한 강제)에서 확인하세요.
+  </div>
 
   <!-- KPI : 자금 포지션 -->
   <div class="kpis">
@@ -198,8 +204,8 @@
     years: [2026], year: 2026,
     months: [1, 2, 3, 4, 5, 6], monthLabels: { 6: "6월(진행)" },
     asOf: "2026-06-12",
-    basis: "확정 전표 기준(A_GL · CONF_FG=1)",
-    mode: "mock",
+    basis: "전체 목업 · 자금 지표는 중간DB에 원천 없음 — 실데이터는 /work/cash-status",
+    mode: "mock", modeLabel: "목업 (실연계 대상 아님)",
     onQuery: (q) => {
       if (q.month == null) { kpi.innerHTML = KPI_DAY; return; }
       const raw = NET[q.month], v = numOf(raw);

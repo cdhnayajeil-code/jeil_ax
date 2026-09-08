@@ -71,9 +71,9 @@
   <div class="head">
     <div>
       <h1>📈 수주현황 대시보드<span class="qbar-period" data-qbar-period>2026년 연간</span></h1>
-      <div class="sub">영업팀 운영 페이지 · <span class="badge b">부서 전용</span> <span class="badge a">읽기전용 추출</span></div>
+      <div class="sub">영업팀 운영 페이지 · <span class="badge b">부서 전용</span> <span class="badge a">수주·미수 = 목업(2026-06-12 파일추출)</span> <span class="badge g">매출 = ERP 실데이터</span></div>
     </div>
-    <div class="right">데이터 원천: 매출/수금 확정(S_BILL)</div>
+    <div class="right">수주·수금은 ERP 미연계 — 아래 <b>실데이터 섹션</b>이 현재 값입니다</div>
   </div>
 
   <!-- 표준 조회 플랫폼 (app/lib/querybar.js) -->
@@ -91,7 +91,7 @@
   <!-- 월별 + 거래처별 -->
   <div class="grid2">
     <div class="sec">
-      <h3>월별 수주금액 추이 (억원) <span class="badge b">S_BILL_HDR · BILL_DT</span></h3>
+      <h3>월별 수주금액 추이 (억원) <span class="badge a">목업 · 2026-06-12 기준</span></h3>
       <div class="chart" id="mChart">
         <div class="cbar" data-m="1"><span class="val">2.2</span><div class="bar" style="height:12%"></div><span class="lab">1월</span></div>
         <div class="cbar" data-m="2"><span class="val">24.1</span><div class="bar" style="height:95%"></div><span class="lab">2월</span></div>
@@ -164,6 +164,27 @@
     </div>
   </div>
 
+  <!-- ● 실데이터 연동 (ERP 중간DB · 사내 로그인 시) — REQ-0021 -->
+  <div class="sec" id="liveErp" style="border-top:4px solid var(--green); display:none;">
+    <h3>● ERP 실데이터 — 월별 매출 <span class="badge g" id="liveAsof">불러오는 중…</span></h3>
+    <div class="callout blue" style="margin-top:0;">
+      <b>수주·수금은 아직 ERP에서 오지 않습니다</b> — 중간DB <code>erp_ro.sales_orders_m</code>의
+      수주액·수금액이 <b>전 기간 0</b>입니다(유니포인트 매핑 확정 전). 아래는 <b>매출(확정 청구)</b> 실데이터이며,
+      위쪽 수주 목업과는 별개 지표입니다. 위 목업은 2026-06-12 파일 추출본에서 갱신되지 않았습니다.
+    </div>
+    <div class="kpis" id="liveKpis"></div>
+    <div class="chart" id="liveChart"></div>
+    <div class="legend" id="liveLegend"></div>
+    <h3 style="margin-top:16px;">거래처별 매출 (선택 기간)</h3>
+    <div class="barlist" id="liveTop"></div>
+    <p style="font-size:11px; color:var(--muted); margin-top:8px;" id="liveMonths"></p>
+  </div>
+  <div class="sec" id="liveErpHint" style="border-top:4px solid var(--line); display:none;">
+    <h3>● ERP 실데이터 연동 대기</h3>
+    <p style="font-size:12.5px; color:var(--muted);">사내(Entra) 계정으로 로그인한 Supabase 세션에서만 ERP 실데이터가 표시됩니다.
+    위 수치는 <b>2026-06-12 기준 목업</b>이며 현재 값이 아닙니다. (협력사·비로그인은 데이터가 격리되어 표시되지 않습니다.)</p>
+  </div>
+
   <div class="src">
     <b>데이터 원천 (UNIERP · 읽기전용)</b> — 매출/청구 <code>S_BILL_HDR/S_BILL_DTL</code> (BILL_NO, BILL_DT, BILL_AMT_LOC, TRACKING_NO) · 수금 <code>S_BILL_COLLECTING</code> · 프로젝트 마스터 <code>PM_PROJECT_MASTER</code> · 회계 연계 <code>A_GL_ITEM</code>. 추출 경로: ERP_DB\영업, ERP_DB\사업관리\프로젝트원가 자료\2025-2026 (수금데이터 CSV). 수금 단계·미수 잔액은 마감 전 추정 포함.
   </div>
@@ -174,29 +195,121 @@
   </div>
 </div>
 
-<!-- 표준 조회 플랫폼 — 기준·기간·새로고침은 전 부서 화면 공통 (CLAUDE.md §16) -->
+<!-- 표준 조회 플랫폼 + ERP 중간DB 실데이터 로더 (사내 전용 뷰 public.v_erp_sales_monthly) -->
 <script type="module">
+  import { erpApi } from "/app/lib/api.js";
   import { createQueryBar, readMonthSeries, numOf } from "/app/lib/querybar.js";
 
-  // 화면에 이미 그려진 월별 수주금액(억원)을 읽어 쓴다 — 숫자를 스크립트에 중복 기입하지 않는다.
-  const SERIES = readMonthSeries("#mChart");
-  const YEAR_TOTAL = Object.values(SERIES).reduce((a, v) => a + numOf(v), 0);
-  const kpi = document.getElementById("kpiPeriod");
-  const KPI_YEAR = kpi.innerHTML;
+  const el = (id) => document.getElementById(id);
+  const eok = (n) => (Number(n || 0) / 100000000).toLocaleString("ko-KR", { maximumFractionDigits: 2 });
+  const esc = (t) => String(t == null ? "" : t).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
-  createQueryBar("#qbar", {
+  /* ── 목업 KPI: 화면에 이미 그려진 월별 수주(억)를 읽어 기간에 맞춰 바꾼다 ── */
+  const SERIES = readMonthSeries("#mChart");
+  const MOCK_MONTHS = Object.keys(SERIES).map(Number).sort((a, b) => a - b);
+  const YEAR_TOTAL = Object.values(SERIES).reduce((a, v) => a + numOf(v), 0);
+  const kpi = el("kpiPeriod");
+  const KPI_YEAR = kpi.innerHTML;
+  function paintMockKpi(q) {
+    if (q.month == null) { kpi.innerHTML = KPI_YEAR; return; }
+    const v = SERIES[q.month];
+    if (v == null) {   // 목업에 없는 달 — 없는 값을 만들지 않는다
+      kpi.innerHTML = '<div class="lb">' + q.label + ' 수주액</div><div class="v">—</div>'
+        + '<div class="delta">목업은 ' + MOCK_MONTHS[MOCK_MONTHS.length - 1] + '월까지 · 수주는 ERP 미연계</div>';
+      return;
+    }
+    const share = YEAR_TOTAL ? Math.round((numOf(v) / YEAR_TOTAL) * 100) : 0;
+    kpi.innerHTML = '<div class="lb">' + q.label + ' 수주액</div>'
+      + '<div class="v">' + v + '<small> 억원</small></div>'
+      + '<div class="delta">목업 연간 ' + YEAR_TOTAL.toFixed(1) + '억 중 ' + share + '%</div>';
+  }
+
+  /* ── ERP 실데이터(월별 매출): 조회바의 기간으로 걸러 집계한다 ── */
+  let CACHE = null;
+  async function loadLive(q, reason, bar) {
+    if (!CACHE || reason === "refresh" || reason === "auto") {
+      const [rows, asof] = await Promise.all([erpApi.salesMonthly(), erpApi.dataAsof()]);
+      CACHE = { rows, asof };
+      // 조회 가능한 월 = 목업 ∪ 실데이터 (실데이터가 8·9월까지 있으면 그 달도 고를 수 있어야 한다)
+      const live = rows.filter((r) => String(r.ym || "").startsWith(q.year + "-"))
+                       .map((r) => Number(String(r.ym).slice(5)));
+      const all = [...new Set([...MOCK_MONTHS, ...live])].sort((a, b) => a - b);
+      if (all.length) bar.setMonths(all);
+      const ts = asof.sales?.last_success;
+      if (ts) bar.setMeta({ asOf: new Date(ts).toISOString().slice(0, 10) });
+    }
+    const { rows, asof } = CACHE;
+    if (!rows.length) { el("liveErp").style.display = "none"; el("liveErpHint").style.display = "block"; return; }
+    el("liveErpHint").style.display = "none";
+
+    const yr = rows.filter((r) => String(r.ym || "").startsWith(q.year + "-"));
+    const inPeriod = q.month == null ? yr : yr.filter((r) => r.ym === q.ym);
+
+    // 월별 합계 → 차트
+    const byYm = {};
+    for (const r of yr) {
+      const b = (byYm[r.ym] = byYm[r.ym] || { amt: 0, cnt: 0 });
+      b.amt += Number(r.sales_amt || 0);
+      b.cnt += Number(r.order_cnt || 0);
+    }
+    const yms = Object.keys(byYm).sort();
+    const max = Math.max(1, ...yms.map((k) => byYm[k].amt));
+    el("liveChart").innerHTML = yms.length ? yms.map((ym) => {
+      const m = Number(ym.slice(5)), a = byYm[ym].amt;
+      return '<div class="cbar" data-m="' + m + '"><span class="val">' + eok(a) + '</span>'
+        + '<div class="bar" style="height:' + Math.max(2, Math.round(a / max * 100)) + '%"></div>'
+        + '<span class="lab">' + m + '월</span></div>';
+    }).join("") : '<div style="color:var(--muted);font-size:12.5px;padding:20px;">해당 연도 매출 데이터가 없습니다.</div>';
+    el("liveLegend").innerHTML = '<span>매출(확정 청구) · 단위 억원 · 원천 <code>erp_ro.sales_orders_m</code></span>'
+      + '<span>수주액·수금액은 전 기간 0 — ERP 미연계</span>';
+
+    // 선택 기간 KPI
+    const amt = inPeriod.reduce((a, r) => a + Number(r.sales_amt || 0), 0);
+    const cnt = inPeriod.reduce((a, r) => a + Number(r.order_cnt || 0), 0);
+    const bps = new Set(inPeriod.map((r) => r.bp_code)).size;
+    const ordAmt = inPeriod.reduce((a, r) => a + Number(r.order_amt || 0), 0);
+    const colAmt = inPeriod.reduce((a, r) => a + Number(r.collect_amt || 0), 0);
+    el("liveKpis").innerHTML =
+      '<div class="kpi"><div class="lb">매출액 (실데이터)</div><div class="v">' + eok(amt) + '<small> 억원</small></div><div class="delta">' + esc(q.label) + '</div></div>'
+      + '<div class="kpi"><div class="lb">청구 건수</div><div class="v">' + cnt + '<small> 건</small></div></div>'
+      + '<div class="kpi"><div class="lb">거래처 수</div><div class="v">' + bps + '<small> 개사</small></div></div>'
+      + '<div class="kpi"><div class="lb">수주액 · 수금액</div><div class="v" style="font-size:18px;">' + eok(ordAmt) + ' · ' + eok(colAmt) + '</div><div class="delta">0 = ERP 미연계(매핑 확정 전)</div></div>';
+
+    // 거래처별
+    const byBp = {};
+    for (const r of inPeriod) {
+      const b = (byBp[r.bp_code] = byBp[r.bp_code] || { name: r.bp_name || r.bp_code, amt: 0 });
+      b.amt += Number(r.sales_amt || 0);
+    }
+    const top = Object.values(byBp).sort((a, b) => b.amt - a.amt).slice(0, 10);
+    const tmax = top[0]?.amt || 1;
+    el("liveTop").innerHTML = top.length
+      ? top.map((t) => '<div class="brow"><span class="lab">' + esc(t.name) + '</span>'
+          + '<div class="track"><i style="width:' + Math.max(2, Math.round(t.amt / tmax * 100)) + '%"></i></div>'
+          + '<span class="cnt">' + eok(t.amt) + '억</span></div>').join("")
+      : '<p style="font-size:12.5px;color:var(--muted);margin:6px 0;">선택한 기간에 해당하는 매출 실데이터가 없습니다.</p>';
+
+    const ts = asof.sales?.last_success;
+    el("liveAsof").textContent = ts ? "데이터 기준: " + new Date(ts).toLocaleString("ko-KR") : "기준시각 미상";
+    el("liveMonths").textContent = yms.length ? "적재 월: " + yms.join(", ") : "";
+    el("liveErp").style.display = "block";
+  }
+
+  const bar = createQueryBar("#qbar", {
     years: [2026], year: 2026,
-    months: [1, 2, 3, 4, 5, 6], monthLabels: { 6: "6월(진행)" },
-    asOf: "2026-06-12",
-    basis: "매출/수금 확정(S_BILL) · 추출 2026-01-01~06-12",
-    mode: "mock",
-    onQuery: (q) => {
-      if (q.month == null) { kpi.innerHTML = KPI_YEAR; return; }
-      const v = SERIES[q.month];
-      const share = YEAR_TOTAL ? Math.round((numOf(v) / YEAR_TOTAL) * 100) : 0;
-      kpi.innerHTML = '<div class="lb">' + q.label + " 수주액</div>"
-        + '<div class="v">' + (v ?? "—") + "<small> 억원</small></div>"
-        + '<div class="delta">연간 ' + YEAR_TOTAL.toFixed(1) + "억 중 " + share + "%</div>";
+    months: MOCK_MONTHS.length ? MOCK_MONTHS : [1, 2, 3, 4, 5, 6],
+    monthLabels: { 6: "6월(진행)" },
+    basis: "수주·미수 = 2026-06-12 파일추출 목업 · 매출 = ERP 중간DB(sales_orders_m)",
+    mode: "mock", modeLabel: "목업 + ERP 실데이터",
+    onQuery: async (q, ctx) => {
+      paintMockKpi(q);
+      try { await loadLive(q, ctx.reason, ctx.bar); ctx.bar.applyPeriod(); }
+      catch (e) {
+        // 비로그인/anon/권한없음 → 격리로 조회 불가. 안내만 표시(목업 유지).
+        el("liveErp").style.display = "none";
+        el("liveErpHint").style.display = "block";
+        console.warn("[erp] 매출 실데이터 조회 불가(사내 세션 필요):", e?.message || e);
+      }
     },
   });
 </script>

@@ -60,7 +60,7 @@
 </style>
 </head>
 <body>
-<div class="demo-banner">⚠ 목업 데모 — 샘플 품목 데이터 기준 동작합니다. 실서비스에서는 UNIERP 품목 마스터(B_ITEM)를 실시간 조회합니다.</div>
+<div class="demo-banner">⚠ 위쪽 중복 판정은 <b>샘플 데이터</b> 기준입니다. 아래 <b>● ERP 품목 마스터 실검색</b> 결과가 실제 등록 현황입니다(사내 로그인 시).</div>
 <div class="page">
 
   <div class="head">
@@ -90,6 +90,18 @@
   <!-- 결과 -->
   <div class="result" id="result">
     <div class="empty">품명이나 코드를 입력하면 등록 여부·중복 현황이 표시됩니다.<br><span style="font-size:12px;">위 샘플 버튼으로 바로 체험해 보세요.</span></div>
+  </div>
+
+  <!-- ● 실데이터 연동 (ERP 중간DB 품목 마스터) — REQ-0021 -->
+  <div class="sec" id="liveErp" style="border-top:4px solid var(--green); background:#fff; border:1px solid var(--line); border-radius:11px; padding:16px 18px; margin:14px 0; display:none;">
+    <h3 style="font-size:13.5px; color:var(--navy); margin-bottom:10px;">● ERP 품목 마스터 실검색 <span class="badge g" id="liveAsof">불러오는 중…</span></h3>
+    <div id="liveResult"></div>
+    <p style="font-size:11px; color:var(--muted); margin-top:8px;" id="liveNote"></p>
+  </div>
+  <div class="sec" id="liveErpHint" style="background:#fff; border:1px solid var(--line); border-radius:11px; padding:16px 18px; margin:14px 0; display:none;">
+    <h3 style="font-size:13.5px; color:var(--navy); margin-bottom:8px;">● ERP 품목 마스터 실검색 대기</h3>
+    <p style="font-size:12.5px; color:var(--muted); margin:0;">사내(Entra) 계정으로 로그인한 Supabase 세션에서만 실제 품목 마스터를 검색합니다.
+    위 결과는 <b>샘플 데이터</b> 기준이라 실제 등록 여부와 다를 수 있습니다.</p>
   </div>
 
   <div class="src">
@@ -212,19 +224,85 @@ function doSearch(){
 }
 function esc(s){ return String(s).replace(/</g,'&lt;'); }
 </script>
-<!-- 표준 조회 플랫폼 — 기준·새로고침은 전 부서 화면 공통 (CLAUDE.md §16) -->
+<!-- 표준 조회 플랫폼 + ERP 품목 마스터 실검색 (사내 전용 뷰 public.v_erp_item) -->
 <script type="module">
+  import { erpApi } from "/app/lib/api.js";
   import { createQueryBar } from "/app/lib/querybar.js";
+
+  const el = (id) => document.getElementById(id);
+  const esc = (t) => String(t == null ? "" : t).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  let ASOF = null;
+
+  // 규격이 같은데 코드가 다르면 중복 후보다 — 실 마스터에서도 같은 기준으로 묶는다.
+  const keyOf = (r) => String(r.spec || "").replace(/[\s×xX*]/g, "").toUpperCase();
+
+  async function liveSearch(kw) {
+    if (!kw) { el("liveErp").style.display = "none"; el("liveErpHint").style.display = "none"; return; }
+    const [rows, asof] = await Promise.all([erpApi.items(kw, 200), ASOF ? Promise.resolve(ASOF) : erpApi.dataAsof()]);
+    ASOF = asof;
+    el("liveErpHint").style.display = "none";
+    const ts = asof.item_master?.last_success;
+    el("liveAsof").textContent = ts ? "데이터 기준: " + new Date(ts).toLocaleString("ko-KR") : "기준시각 미상";
+
+    if (!rows.length) {
+      el("liveResult").innerHTML = '<div class="verdict none"><span class="ic">🆕</span><div>'
+        + '<b>"' + esc(kw) + '" ERP 미등록</b> — 품목 마스터에 일치하는 코드·품명이 없습니다.<br>'
+        + '<span style="font-size:12.5px;color:var(--muted);">신규 등록을 진행하세요. 규격·단위를 정확히 입력하면 이후 중복을 예방할 수 있습니다.</span></div></div>';
+      el("liveNote").textContent = "원천: erp_ro.item_master_s (사내 전용 뷰 v_erp_item) · 코드·품명 부분일치";
+      el("liveErp").style.display = "block";
+      return;
+    }
+
+    // 규격 기준 중복 그룹
+    const groups = {};
+    for (const r of rows) { const k = keyOf(r); if (!k) continue; (groups[k] = groups[k] || []).push(r); }
+    const dup = Object.values(groups).filter((g) => g.length > 1);
+
+    const head = dup.length
+      ? '<div class="verdict dup"><span class="ic">⚠️</span><div><b>ERP 등록 존재 — 동일 규격 중복 ' + dup.length + '개 그룹</b> (검색 ' + rows.length + '건)<br>'
+        + '<span style="font-size:12.5px;color:var(--muted);">같은 규격이 여러 코드로 등록돼 있습니다. 신규 코드를 만들기 전에 기존 코드를 확인하세요.</span></div></div>'
+      : '<div class="verdict found"><span class="ic">✅</span><div><b>ERP 등록 존재</b> (검색 ' + rows.length + '건)<br>'
+        + '<span style="font-size:12.5px;color:var(--muted);">동일 규격 중복은 발견되지 않았습니다.</span></div></div>';
+
+    const tbl = '<table><tr><th>품목코드</th><th>품명</th><th>규격</th><th class="c">단위</th><th class="c">계정</th><th class="c">사용</th></tr>'
+      + rows.slice(0, 60).map((r) => {
+          const isDup = (groups[keyOf(r)] || []).length > 1;
+          return '<tr' + (isDup ? ' style="background:var(--softamber);"' : '') + '>'
+            + '<td><b>' + esc(r.item_code) + '</b></td><td>' + esc(r.item_name) + '</td><td>' + esc(r.spec) + '</td>'
+            + '<td class="c">' + esc(r.unit) + '</td><td class="c">' + esc(r.item_class) + '</td>'
+            + '<td class="c">' + (String(r.use_yn).toUpperCase() === "N" ? "중지" : "사용") + '</td></tr>';
+        }).join("") + '</table>';
+
+    el("liveResult").innerHTML = head + tbl;
+    el("liveNote").textContent = "원천: erp_ro.item_master_s (사내 전용 뷰 v_erp_item) · 코드·품명 부분일치 상위 200건"
+      + (rows.length > 60 ? " · 표는 60건까지 표시" : "") + " · 규격 문자열이 다르면 같은 실물이어도 중복으로 묶이지 않습니다";
+    el("liveErp").style.display = "block";
+  }
+
+  async function runBoth() {
+    const kw = (el("q").value || "").trim();
+    if (kw) doSearch();                       // 샘플 기준 중복 판정(기존 동작 유지)
+    try { await liveSearch(kw); }
+    catch (e) {
+      el("liveErp").style.display = "none";
+      if (kw) el("liveErpHint").style.display = "block";
+      console.warn("[erp] 품목 마스터 실검색 불가(사내 세션 필요):", e?.message || e);
+    }
+  }
+
   createQueryBar("#qbar", {
     months: false,                                   // 기간 축이 없는 조회 화면
-    basis: "품목 마스터(B_ITEM) · 발주 이력 M_PUR_ORD_DTL 참조 건수",
-    mode: "mock",
-    onQuery: () => {
-      // 입력어가 있을 때만 다시 조회한다(빈 검색으로 결과를 지우지 않는다).
-      const q = document.getElementById("q");
-      if (q && q.value.trim()) doSearch();
-    },
+    basis: "샘플 = 데모 데이터 · 실검색 = ERP 품목 마스터(erp_ro.item_master_s)",
+    mode: "mock", modeLabel: "샘플 + ERP 실검색",
+    onQuery: () => runBoth(),
   });
+
+  // 기존 조회 버튼·Enter·샘플칩이 실검색도 함께 돌게 한다(기존 함수는 그대로 둔다)
+  window.addEventListener("click", (e) => {
+    const b = e.target.closest(".searchbox button, .chips button");
+    if (b) setTimeout(runBoth, 0);
+  });
+  el("q").addEventListener("keydown", (e) => { if (e.key === "Enter") setTimeout(runBoth, 0); });
 </script>
 </body>
 </html>
