@@ -161,48 +161,59 @@ def handle(url, key, runner, req, dry, full):
 
 
 def handle_offboard(url, key, runner, req):
-    """퇴사 처리 요청 1건 — 대상별로 그룹웨어 화면 자동화를 돌린다.
+    """퇴사 처리 요청 1건 — 대상별로 요청된 축(ERP·그룹웨어·MS)을 실행한다.
 
     브라우저는 그룹웨어 관리자 화면에 붙을 수 없어서(사외 호스트 + 화면 조작 필요) 화면은
     요청만 남기고 여기서 실행한다. 「데이터 업데이트」와 같은 구조다.
-    한 사람이 실패해도 나머지는 계속한다 — 부분 성공이라도 처리된 건 처리된 것이다."""
-    import gw_offboard  # 지연 import — playwright 미설치 호스트에서도 러너 자체는 뜬다
+    한 사람·한 축이 실패해도 나머지는 계속한다 — 부분 성공이라도 처리된 건 처리된 것이다.
+    대상별로 담을 축은 **서버가 정해서** 보낸다(이미 정리된 축은 아예 안 온다)."""
+    import offboard_axes  # 지연 import — playwright 미설치 호스트에서도 러너 자체는 뜬다
 
     rid = req["request_id"]
     mode = req.get("mode") or "check"
     targets = req.get("targets") or []
     total = len(targets)
+    apply = (mode == "apply")
     log(f"퇴사 처리 요청 {rid[:8]}… (요청자 {req.get('requested_by') or '-'}) — 대상 {total}명 · "
-        + ("실제 저장" if mode == "apply" else "점검(저장 안 함)"))
+        + ("실제 처리" if apply else "점검(변경 없음)"))
+
+    # Graph 토큰은 한 번만 받아 모든 대상·축이 함께 쓴다(대상마다 받으면 토큰 요청이 대상 수만큼 난다).
+    tok = None
+    if any("erp" in (t.get("axes") or []) or "ms" in (t.get("axes") or []) for t in targets):
+        try:
+            tok = offboard_axes._token()
+        except Exception as e:
+            log(f"  ! Graph 토큰 발급 실패(ERP·MS 축 건너뜀): {str(e)[:160]}")
 
     detail, fails = [], []
     for i, t in enumerate(targets):
-        who = f"{t.get('emp_nm')}({t.get('gw_login_id')})"
+        who = f"{t.get('emp_nm')}({t.get('email')})"
+        axes = t.get("axes") or []
         rpc(url, key, "offboard_request_progress",
-            {"p_request_id": rid, "p_done": i, "p_total": total, "p_target": who})
+            {"p_request_id": rid, "p_done": i, "p_total": total,
+             "p_target": f"{who} [{'·'.join(axes)}]"})
         try:
-            res = gw_offboard.offboard(
-                login_id=t.get("gw_login_id"), name=t.get("emp_nm"),
-                retire_date=t.get("retire_dt"), apply=(mode == "apply"))
+            axr = offboard_axes.run_axes(t, axes, apply=apply, tok=tok)
         except Exception as e:                       # 예상 못 한 오류도 한 사람으로 가둔다
-            res = {"ok": False, "msg": str(e)[:300]}
-        res = dict(res or {})
-        res["email"] = t.get("email")
-        detail.append(res)
-        if not res.get("ok"):
+            axr = [{"ok": False, "axis": a, "msg": str(e)[:300]} for a in axes]
+
+        ok_all = all(x.get("ok") for x in axr) if axr else False
+        detail.append({"email": t.get("email"), "name": t.get("emp_nm"),
+                       "ok": ok_all, "axes": axr,
+                       "msg": " / ".join("%s: %s" % (x.get("axis"), x.get("msg")) for x in axr)})
+        if not ok_all:
             fails.append(who)
-            log(f"  ! {who} 실패: {str(res.get('msg'))[:180]}")
-        else:
-            log(f"  · {who} — {res.get('msg')}")
+        for x in axr:
+            log(("  · " if x.get("ok") else "  ! ") + f"{who} [{x.get('axis')}] {str(x.get('msg'))[:150]}")
 
     rpc(url, key, "offboard_request_progress",
         {"p_request_id": rid, "p_done": total, "p_total": total, "p_target": None})
     status = "failed" if fails else "done"
-    err = f"{len(fails)}명 실패: {', '.join(fails)}" if fails else None
+    err = f"{len(fails)}명 일부 축 실패: {', '.join(fails)}" if fails else None
     rpc(url, key, "offboard_request_finish",
         {"p_request_id": rid, "p_status": status,
          "p_result": {"mode": mode, "targets": detail}, "p_error": err})
-    log(f"퇴사 처리 종료 {rid[:8]}… — {status} · 성공 {total - len(fails)} / {total}")
+    log(f"퇴사 처리 종료 {rid[:8]}… — {status} · 전축성공 {total - len(fails)} / {total}")
 
 
 def tick(url, key, runner, dry, full):

@@ -65,6 +65,11 @@
   .gate{display:none;background:var(--softamber);border:1px solid var(--amber);border-radius:9px;padding:16px 20px;margin:14px 0;font-size:13px;color:#5a4520;}
   .foot{margin-top:26px;padding-top:12px;border-top:1px solid var(--line);font-size:11px;color:var(--muted);display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px;}
   .muted{color:var(--muted);}
+  .searchbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:2px 0 0;}
+  .searchbar input[type=search]{width:300px;max-width:100%;padding:7px 11px;border:1px solid var(--line);
+    border-radius:7px;font-size:13px;font-family:inherit;}
+  .searchbar input[type=date]{padding:6px 9px;border:1px solid var(--line);border-radius:7px;font-size:12.5px;font-family:inherit;}
+  .searchbar .ax{font-size:12.5px;color:#3a4757;display:flex;align-items:center;gap:4px;cursor:pointer;}
   .runbar{display:flex;gap:9px;align-items:center;flex-wrap:wrap;background:var(--soft);border:1px solid var(--line);
     border-radius:9px;padding:11px 14px;margin:10px 0 0;}
   .runbar .sel{font-size:12.5px;color:#3a4757;font-weight:600;}
@@ -178,6 +183,37 @@
     <div id="cmdBox" style="display:none;margin-top:12px;">
       <div style="font-size:12.5px;color:#4a5566;margin-bottom:4px;"><b id="cmdWho"></b> 처리 명령 — 러너 호스트에서 실행하세요</div>
       <pre id="cmdText"></pre>
+    </div>
+
+    <h3>사원 검색으로 처리</h3>
+    <div class="note">
+      잔여 목록에 없는 사람도 처리할 수 있습니다. <b>퇴사 처리는 인사 반영보다 먼저 오는 일이 많아서</b>,
+      인사에 아직 퇴사가 안 찍힌 사람도 검색해 고를 수 있게 했습니다 —
+      그런 경우 <b>퇴사일을 직접 입력</b>해야 하고, 화면이 「인사상 재직 중」이라고 경고합니다.
+    </div>
+    <div class="searchbar">
+      <input type="search" id="qEmp" placeholder="이름 · 이메일 · 부서 · 사번으로 검색" autocomplete="off">
+      <button class="btn ghost" id="btnSearch">검색</button>
+      <label class="ax"><input type="checkbox" class="axis-pick" value="erp" checked> ERP</label>
+      <label class="ax"><input type="checkbox" class="axis-pick" value="gw" checked> 그룹웨어</label>
+      <label class="ax"><input type="checkbox" class="axis-pick" value="ms" checked> MS</label>
+      <label class="ax">퇴사일 <input type="date" id="dRetire" title="인사에 퇴사일이 없을 때만 씁니다"></label>
+    </div>
+    <div class="tblwrap" id="searchWrap" style="display:none;margin-top:10px;">
+      <table>
+        <thead><tr>
+          <th class="c" style="width:34px;"></th>
+          <th>이름</th><th>이메일</th><th>부서</th><th class="c">상태</th><th class="c">퇴사일</th>
+          <th class="c">ERP</th><th class="c">그룹웨어</th><th class="c">MS</th>
+        </tr></thead>
+        <tbody id="searchRows"></tbody>
+      </table>
+    </div>
+    <div class="runbar" id="searchRun" style="display:none;">
+      <span class="sel" id="selInfo2">선택 0명</span>
+      <button class="btn ghost" id="btnCheck2" disabled>점검 실행</button>
+      <button class="btn danger" id="btnApply2" disabled>퇴사 처리 실행</button>
+      <span class="muted" style="font-size:11.8px;">선택한 축 중 <b>아직 남은 축만</b> 처리됩니다</span>
     </div>
 
     <h3>처리 절차</h3>
@@ -342,6 +378,7 @@
     var n = selected().length;
     el("selInfo").textContent = "선택 " + n + "명";
     el("btnCheck").disabled = el("btnApply").disabled = (n === 0 || RUNNING);
+    if (window.__sel2) window.__sel2();   // 검색 쪽 버튼도 실행 중이면 같이 잠긴다
   }
   window.__sel = syncSel;
   el("chkAll").onchange = function () {
@@ -434,6 +471,121 @@
   }
   el("btnCheck").onclick = function () { runReq("check"); };
   el("btnApply").onclick = function () { runReq("apply"); };
+
+
+  /* ── 사원 검색 ─────────────────────────────────────────────
+     잔여 목록은 "인사상 퇴사인데 계정이 남은 사람"만 보여준다. 하지만 퇴사 처리는
+     인사 반영보다 먼저 오는 일이 많아서, 그 목록만으로는 정작 필요한 순간에 쓸 수 없다.
+     그래서 전 사원을 검색해 고를 수 있게 하고, 재직자는 경고 + 퇴사일 직접 입력을 요구한다. */
+  var FOUND = [];
+
+  function axesPicked() {
+    return Array.prototype.slice.call(document.querySelectorAll(".axis-pick:checked"))
+      .map(function (c) { return c.value; });
+  }
+  function selected2() {
+    return Array.prototype.slice.call(document.querySelectorAll(".pick2:checked"))
+      .map(function (c) { return c.getAttribute("data-email"); });
+  }
+  function syncSel2() {
+    var n = selected2().length;
+    el("selInfo2").textContent = "선택 " + n + "명";
+    el("btnCheck2").disabled = el("btnApply2").disabled = (n === 0 || RUNNING || !axesPicked().length);
+  }
+  window.__sel2 = syncSel2;
+  Array.prototype.forEach.call(document.querySelectorAll(".axis-pick"), function (c) {
+    c.onchange = syncSel2;
+  });
+
+  function renderSearch(rows) {
+    FOUND = rows || [];
+    el("searchWrap").style.display = FOUND.length ? "block" : "none";
+    el("searchRun").style.display = FOUND.length ? "flex" : "none";
+    if (!FOUND.length) { msg("검색 결과가 없습니다.", ""); return; }
+    var mk = function (on) { return on ? '<span class="todo">남음</span>' : '<span class="done">완료</span>'; };
+    el("searchRows").innerHTML = FOUND.map(function (r) {
+      var live = r.hr_active === true;
+      var any = r.has_erp || r.has_gw || r.has_ms;
+      return '<tr>' +
+        '<td class="c">' + (any
+          ? '<input type="checkbox" class="pick2" data-email="' + esc(r.email) + '" onchange="__sel2()">'
+          : '<span class="muted" title="세 축 모두 정리됨">–</span>') + '</td>' +
+        '<td>' + esc(r.emp_nm || "—") + '</td>' +
+        '<td class="mono">' + esc(r.email) + '</td>' +
+        '<td>' + esc(r.dept_nm || "—") + '</td>' +
+        '<td class="c">' + (live ? '<span class="badge a">재직</span>' : '<span class="badge n">퇴사</span>') + '</td>' +
+        '<td class="c">' + esc(r.retire_dt || "—") + '</td>' +
+        '<td class="c">' + mk(r.has_erp) + '</td>' +
+        '<td class="c">' + mk(r.has_gw) + '</td>' +
+        '<td class="c">' + mk(r.has_ms) + '</td>' +
+        '</tr>';
+    }).join("");
+    syncSel2();
+  }
+
+  function doSearch() {
+    var q = el("qEmp").value.trim();
+    if (q.length < 2) { msg("두 글자 이상 입력하세요.", "err"); return; }
+    msg("검색 중…");
+    api2("search", { q: q }).then(function (rows) {
+      msg("");
+      renderSearch(rows);
+    }).catch(function (e) { msg("검색 실패 — " + esc(e.message), "err"); });
+  }
+  el("btnSearch").onclick = doSearch;
+  el("qEmp").onkeydown = function (e) { if (e.key === "Enter") doSearch(); };
+
+  function runSearchReq(mode) {
+    var emails = selected2(), axes = axesPicked();
+    if (!emails.length || !axes.length) return;
+    var picked = FOUND.filter(function (r) { return emails.indexOf(r.email) >= 0; });
+    var live = picked.filter(function (r) { return r.hr_active === true; });
+    var noDate = picked.filter(function (r) { return !r.retire_dt; });
+    var override = el("dRetire").value;
+    if (noDate.length && !override) {
+      msg("퇴사일이 없는 대상이 있습니다 — 위 <b>퇴사일</b> 칸에 날짜를 입력하세요: "
+          + noDate.map(function (r) { return esc(r.emp_nm || r.email); }).join(", "), "err");
+      return;
+    }
+    if (mode === "apply") {
+      var warn = live.length
+        ? "\n\n⚠ 인사상 재직 중인 대상이 있습니다 — 퇴사 반영 전입니다:\n"
+          + live.map(function (r) { return "  " + (r.emp_nm || "") + "(" + r.email + ")"; }).join("\n")
+        : "";
+      if (!confirm("선택한 축(" + axes.join(", ") + ")을 처리합니다. 되돌리려면 각 시스템에서 직접 해제해야 합니다.\n\n"
+                   + picked.map(function (r) { return (r.emp_nm || "") + "(" + r.email + ")"; }).join("\n")
+                   + warn + "\n\n진행할까요?")) return;
+    }
+    RUNNING = true; syncSel(); syncSel2();
+    el("resList").innerHTML = "";
+    msg(mode === "apply" ? "요청 등록 중…" : "점검 요청 등록 중…");
+    var payload = { emails: emails, mode: mode, axes: axes };
+    if (override) payload.retireDt = override;
+    api2("offboard_create", payload).then(function (d) {
+      if (!d || !d.ok) {
+        RUNNING = false; syncSel(); syncSel2();
+        var rj0 = (d && d.rejected) || [];
+        msg("요청하지 못했습니다 — " + esc((d && d.msg) || "원인 미상")
+            + (rj0.length ? "<br>" + rj0.map(function (x) { return esc(x.email) + ": " + esc(x.reason); }).join("<br>") : ""), "err");
+        return;
+      }
+      var rj = d.rejected || [], tg = d.targets || [];
+      var pre = rj.map(function (x) {
+        return '<div><span class="ng">–</span> ' + esc(x.email) + " — 제외: " + esc(x.reason) + '</div>';
+      }).concat(tg.filter(function (x) { return x.warn; }).map(function (x) {
+        return '<div><span class="ng">⚠</span> ' + esc(x.emp_nm || x.email) + " — " + esc(x.warn) + '</div>';
+      }));
+      if (pre.length) el("resList").innerHTML = pre.join("");
+      if (d.reused) msg("이미 진행 중인 요청이 있어 그 작업에 연결했습니다.");
+      POLL = setInterval(function () { poll(d.request_id); }, 3000);
+      poll(d.request_id);
+    }).catch(function (e) {
+      RUNNING = false; syncSel(); syncSel2();
+      msg("요청 실패 — " + esc(e.message), "err");
+    });
+  }
+  el("btnCheck2").onclick = function () { runSearchReq("check"); };
+  el("btnApply2").onclick = function () { runSearchReq("apply"); };
 
 
   if (!auth()) {

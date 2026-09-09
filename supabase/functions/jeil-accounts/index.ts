@@ -2,7 +2,8 @@
 // 배포: verify_jwt=false (Entra 토큰을 내부에서 Graph로 검증)
 // 호출: POST /functions/v1/jeil-accounts  Authorization: Bearer <Entra access_token>
 //   { scope: 'summary' | 'recon' | 'erp' | 'hr' | 'gw' | 'ms', q?: string } → { ok, scope, data }
-//   { scope: 'offboard_create', emails: string[], mode: 'check'|'apply' } → 퇴사 처리 요청 등록
+//   { scope: 'search', q: string }                                        → 사원 검색(퇴사 처리 대상)
+//   { scope: 'offboard_create', emails, mode, axes?, retireDt? }           → 퇴사 처리 요청 등록
 //   { scope: 'offboard_status', requestId: string }                       → 요청 진행 상태
 //
 // 정본은 ERP 계정(Z_USR_MAST_REC.usr_id = 이메일)이고 인사(HAA010T)는 이메일로 붙는 서브다.
@@ -25,7 +26,7 @@ const json = (o: unknown, status = 200) =>
   new Response(JSON.stringify(o), { status, headers: { ...cors, "Content-Type": "application/json" } });
 
 const SCOPES = ["summary", "recon", "erp", "hr", "gw", "ms"];
-const ACTIONS = ["offboard_create", "offboard_status"];
+const ACTIONS = ["offboard_create", "offboard_status", "search"];
 
 async function verifyEntraUser(token: string): Promise<{ upn: string } | null> {
   try {
@@ -62,12 +63,25 @@ Deno.serve(async (req) => {
 
   // ── 퇴사 처리 요청/상태 ──────────────────────────────────────────────
   if (ACTIONS.includes(scope)) {
+    if (scope === "search") {
+      const q = String(body.q || "").trim().slice(0, 60);
+      if (q.length < 2) return json({ error: "두 글자 이상 입력하세요" }, 400);
+      const { data, error } = await admin.rpc("offboard_search", { p_q: q, p_limit: 30 });
+      if (error) return json({ error: "검색 실패: " + error.message }, 500);
+      return json({ ok: true, scope, data, viewer: user.upn });
+    }
     if (scope === "offboard_create") {
       const emails = Array.isArray(body.emails) ? body.emails.map((e) => String(e)).slice(0, 50) : [];
       const mode = String(body.mode || "check") === "apply" ? "apply" : "check";
+      // 축은 화이트리스트로 거른다 — 화면이 무엇을 보내든 허용된 셋만 통과한다.
+      const axes = (Array.isArray(body.axes) ? body.axes.map((a) => String(a)) : ["gw"])
+        .filter((a) => ["erp", "gw", "ms"].includes(a));
+      const rd = /^\d{4}-\d{2}-\d{2}$/.test(String(body.retireDt || "")) ? String(body.retireDt) : null;
       if (!emails.length) return json({ error: "대상이 없습니다" }, 400);
+      if (!axes.length) return json({ error: "처리할 축을 하나 이상 고르세요" }, 400);
       const { data, error } = await admin.rpc("offboard_request_create", {
         p_emails: emails, p_mode: mode, p_requested_by: user.upn,
+        p_axes: axes, p_retire_dt: rd,
       });
       if (error) return json({ error: "요청 등록 실패: " + error.message }, 500);
       return json({ ok: true, scope, data, viewer: user.upn });
