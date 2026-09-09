@@ -70,9 +70,30 @@ $branch$;
   execute replace(src, needle, branch || needle);
 end $mig$;
 
--- 적용 후 확인(2026-09-09): 분기 8개(기존 7 + wh_master_s), 정책 1, 뷰 security_invoker=true, 미러 0행.
+-- 적용 후 확인(2026-09-09): 분기 8개(기존 7 + wh_master_s), 정책 1, 뷰 security_invoker=true.
 --
--- ■ 실적재는 관리자가 직접 실행한다(ERP 운영DB 접속이 필요하므로):
+-- ■ 실적재 완료(2026-09-09, 관리자 직접 실행) — 추출 53 / 적재 53, 유실 0.
 --     python 10_ERP_DB연계/etl/etl_run.py --job wh_master
---   적재 전에는 화면이 창고코드를 그대로 보여주고 "이름은 아직 연계 전" 안내를 띄운다(폴백 정상).
---   적재 후에는 자재 출고현황 「창고별 출고」에 창고명이 붙는다(코드는 옆에 작게 남는다).
+--   화면 확인: 「창고별 출고」가 제조_부자재창고(이천) PL120 / 제조_원자재창고(이천) PL170 …
+--   형태로 바뀌었고, 적재 전 폴백 안내("이름은 아직 연계 전")는 자동으로 사라졌다.
+--   내부창고(SL_TYPE='I') 6곳에 수불이 있고, 나머지 47곳은 외주처 창고(SL_TYPE='E')로 2026년 출고 0.
+
+-- 연동 현황 뷰 등재 — 마이그레이션 `erp_sync_overview_wh_master` (2026-09-09), 16→17종.
+-- 기존 16개 소스 블록을 손으로 옮겨 적지 않고 현재 정의를 읽어 UNION ALL 한 덩어리만 덧붙였다.
+do $sync$
+declare body text; addon text;
+begin
+  select pg_get_viewdef('public.v_erp_sync_overview'::regclass, true) into body;
+  if position('wh_master' in body) > 0 then raise notice '이미 등재됨'; return; end if;
+  body := rtrim(body);
+  if right(body, 1) = ';' then body := left(body, length(body) - 1); end if;
+  addon := $add$
+UNION ALL
+ SELECT 'wh_master'::text AS source_key, '창고 마스터'::text AS source_label,
+    'B_STORAGE_LOCATION'::text AS erp_src,
+    ( SELECT last_ok.finished_at FROM last_ok WHERE last_ok.job_name = 'wh_master'::text) AS last_sync,
+    ( SELECT count(*) AS count FROM erp_ro.wh_master_s) AS row_count,
+    NULL::text AS period_min, NULL::text AS period_max, false AS sensitive, 130 AS sort$add$;
+  execute 'create or replace view public.v_erp_sync_overview with (security_invoker = true) as '
+          || body || addon;
+end $sync$;
