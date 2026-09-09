@@ -100,7 +100,14 @@ def run_collector(name, url, key, dry):
     ERP job 과 똑같이 etl_meta.batch_run 에 start/finish 를 남긴다 — 그래야 연동현황 화면의
     「최신 연동」(v_erp_sync_overview) 에 MS·그룹웨어 행이 뜬다."""
     mod_name, label = COLLECTORS[name]
+    # 매번 **다시 읽는다**. import_module 은 sys.modules 캐시를 돌려주므로, 상주 러너에서는
+    # 수집기 파일을 고쳐도 재시작 전까지 옛 코드가 돈다 — 실제로 18일 동안 옛 코드로
+    # 동작한 적이 있다(2026-09-07). reload 실패는 무시하고 캐시본으로 이어간다.
     mod = importlib.import_module(mod_name)
+    try:
+        mod = importlib.reload(mod)
+    except Exception as e:
+        log(f"  · {label} 모듈 재적재 실패(캐시본 사용): {str(e)[:120]}")
     log(f"  · {label} 수집")
     batch_id = None if dry else rpc(url, key, "erp_etl_batch",
                                     {"p_action": "start", "p_payload": {"job_name": name}})
@@ -168,6 +175,12 @@ def handle_offboard(url, key, runner, req):
     한 사람·한 축이 실패해도 나머지는 계속한다 — 부분 성공이라도 처리된 건 처리된 것이다.
     대상별로 담을 축은 **서버가 정해서** 보낸다(이미 정리된 축은 아예 안 온다)."""
     import offboard_axes  # 지연 import — playwright 미설치 호스트에서도 러너 자체는 뜬다
+    # 수집기와 같은 이유로 매번 다시 읽는다 — 상주 러너는 sys.modules 캐시를 들고 있어서
+    # 퇴사 처리 로직을 고쳐도 재시작 전까지 옛 코드가 돈다.
+    try:
+        offboard_axes = importlib.reload(offboard_axes)
+    except Exception as e:
+        log(f"  · 퇴사 처리 모듈 재적재 실패(캐시본 사용): {str(e)[:120]}")
 
     rid = req["request_id"]
     mode = req.get("mode") or "check"

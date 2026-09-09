@@ -223,7 +223,8 @@
   function countOff(rows) {
     var n = rows.filter(function (r) {
       return r.has_hr && r.hr_active === false && r.is_person !== false &&
-             (r.has_erp || r.has_gw || r.has_ms);
+             // MS 는 ms_todo(차단 미완 또는 직접 라이선스 잔존)로 본다 — 퇴사 처리 화면과 같은 기준.
+             (r.has_erp || r.has_gw || r.ms_todo || r.has_ms);
     }).length;
     el("n-off").textContent = n;
     el("cOff").textContent = n === 0 ? "잔여 없음" : n + "명 남음";

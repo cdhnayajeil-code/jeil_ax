@@ -39,7 +39,13 @@ for _s in (sys.stdout, sys.stderr):
         _s.reconfigure(encoding="utf-8", errors="replace")
 
 GRAPH = "https://graph.microsoft.com/v1.0"
-SELECT = "id,userPrincipalName,mail,displayName,department,jobTitle,accountEnabled,userType"
+# 라이선스도 **목록 조회 한 번에** 딸려 온다(사용자당 추가 호출이 없다).
+#   assignedLicenses        — 붙어 있는 SKU 목록
+#   licenseAssignmentStates — 그 SKU 가 직접 할당인지 그룹 상속인지(assignedByGroup)
+# 이 둘을 안 담으면 대사가 라이선스를 모른다 → 로그인만 차단해도 'MS 정리 완료'로 보이고
+# 좌석·비용은 계속 나간다(2026-09-09 테스트 계정에서 실제로 그 상태를 확인).
+SELECT = ("id,userPrincipalName,mail,displayName,department,jobTitle,accountEnabled,userType,"
+          "assignedLicenses,licenseAssignmentStates")
 
 
 def get_token(tenant, client_id, secret):
@@ -92,6 +98,41 @@ def fetch_users(token):
     return out
 
 
+def sku_name_map(token, users):
+    """skuId → 사람이 읽는 이름(skuPartNumber) 맵.
+
+    테넌트 SKU 목록 `/subscribedSkus` 가 정석이지만 이 앱에는 **403** 이다
+    (Organization.Read.All 이 없다 — 응용 권한은 User.Read.All 계열만 동의돼 있다).
+    대신 사용자별 `licenseDetails` 는 200 이므로, **SKU 종류마다 한 명씩만** 골라
+    이름을 읽는다. 사내 SKU 는 십여 종이라 호출은 그만큼만 늘어난다.
+
+    이름을 못 읽어도 수집을 멈추지 않는다 — 이름은 표시용이고, 회수 판단에 쓰는 건
+    건수(직접/그룹)다. 실패한 SKU 는 id 앞 8자로 남긴다."""
+    rep = {}          # skuId -> 그 SKU 를 가진 대표 사용자 id
+    for u in users:
+        for lic in (u.get("assignedLicenses") or []):
+            sid = lic.get("skuId")
+            if sid and sid not in rep and u.get("id"):
+                rep[sid] = u["id"]
+    names = {}
+    for sid, uid in rep.items():
+        if sid in names:
+            continue
+        try:
+            req = urllib.request.Request(
+                "%s/users/%s/licenseDetails?$select=skuId,skuPartNumber" % (GRAPH, uid),
+                headers={"Authorization": "Bearer " + token})
+            with urllib.request.urlopen(req, timeout=30) as r:
+                for d in (json.loads(r.read().decode()).get("value") or []):
+                    if d.get("skuId") and d.get("skuPartNumber"):
+                        names[d["skuId"]] = d["skuPartNumber"]
+        except Exception:
+            pass      # 이름은 부가 정보다. 못 읽었다고 수집 전체를 실패시키지 않는다.
+    for sid in rep:
+        names.setdefault(sid, sid[:8])
+    return names
+
+
 def collect(url=None, key=None, dry=False, include_all=False):
     """Entra 계정 전량 스냅샷 수집 → public.acct_ms. `(추출건수, 적재건수)` 를 돌려준다.
 
@@ -107,6 +148,8 @@ def collect(url=None, key=None, dry=False, include_all=False):
     print("[ms] Graph /users 조회")
     users = fetch_users(token)
     print("[ms] 디렉터리 전체 %d건" % len(users))
+    sku = sku_name_map(token, users)
+    print("[ms] 라이선스 SKU %d종" % len(sku))
 
     rows, skipped = [], {"이메일없음": 0, "사외도메인": 0}
     for u in users:
@@ -118,6 +161,16 @@ def collect(url=None, key=None, dry=False, include_all=False):
         if not include_all and not email.endswith("@jeilm.co.kr"):
             skipped["사외도메인"] += 1
             continue
+        # 직접 할당분과 그룹 상속분을 갈라 센다. **퇴사 처리에서 회수할 수 있는 건 직접 할당분뿐**이고,
+        # 그룹 상속분은 assignLicense API 가 거부한다(그룹에서 사용자를 빼야 한다).
+        # 둘을 뭉뚱그리면 "회수했는데 왜 아직 남지?"를 설명할 수 없다.
+        direct, by_group = set(), set()
+        for st in (u.get("licenseAssignmentStates") or []):
+            sid = st.get("skuId")
+            if not sid:
+                continue
+            (by_group if st.get("assignedByGroup") else direct).add(sid)
+        all_sku = [lic.get("skuId") for lic in (u.get("assignedLicenses") or []) if lic.get("skuId")]
         rows.append({
             "email": email,
             "display_name": u.get("displayName") or None,
@@ -126,6 +179,10 @@ def collect(url=None, key=None, dry=False, include_all=False):
             "account_enabled": bool(u.get("accountEnabled")),
             "user_type": u.get("userType") or None,
             "object_id": u.get("id") or None,
+            "license_cnt": len(all_sku),
+            "license_direct": len(direct),
+            "license_group": len(by_group),
+            "license_names": sorted({sku.get(s, s[:8]) for s in all_sku}) or None,
         })
 
     dedup = {}
@@ -141,6 +198,13 @@ def collect(url=None, key=None, dry=False, include_all=False):
           % (len(rows), on, len(rows) - on,
              " · ".join("%s %d" % kv for kv in sorted(types.items()))))
     print("[ms] 제외 — %s" % " · ".join("%s %d" % kv for kv in skipped.items()))
+    lic_d = sum(1 for r in rows if r["license_direct"])
+    lic_g = sum(1 for r in rows if r["license_group"])
+    stale = sum(1 for r in rows if not r["account_enabled"] and r["license_direct"])
+    print("[ms] 라이선스 — 직접할당 %d명 · 그룹상속 %d명" % (lic_d, lic_g))
+    if stale:
+        # 차단됐는데 라이선스가 남은 계정 — 좌석과 비용이 그대로 나가는 상태다. 조용히 넘기지 않는다.
+        print("[ms] ⚠ 차단됐는데 라이선스가 남은 계정 %d건 — 퇴사 처리 MS 축 대상입니다" % stale)
 
     if dry:
         print("[ms] (dry-run) 적재 생략")

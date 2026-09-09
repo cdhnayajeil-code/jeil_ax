@@ -5,6 +5,8 @@
 //   { scope: 'search', q: string }                                        → 사원 검색(퇴사 처리 대상)
 //   { scope: 'offboard_create', emails, mode, axes?, retireDt? }           → 퇴사 처리 요청 등록
 //   { scope: 'offboard_status', requestId: string }                       → 요청 진행 상태
+//   { scope: 'refresh' }                                                  → 계정·권한 전량 재수집 요청
+//   { scope: 'refresh_status', requestId: string }                        → 재수집 진행 상태
 //
 // 정본은 ERP 계정(Z_USR_MAST_REC.usr_id = 이메일)이고 인사(HAA010T)는 이메일로 붙는 서브다.
 // 조회는 반드시 RPC account_recon_get 경유 — erp_ro 는 REST 비노출 스키마라
@@ -26,7 +28,7 @@ const json = (o: unknown, status = 200) =>
   new Response(JSON.stringify(o), { status, headers: { ...cors, "Content-Type": "application/json" } });
 
 const SCOPES = ["summary", "recon", "erp", "hr", "gw", "ms"];
-const ACTIONS = ["offboard_create", "offboard_status", "search"];
+const ACTIONS = ["offboard_create", "offboard_status", "search", "refresh", "refresh_status"];
 
 async function verifyEntraUser(token: string): Promise<{ upn: string } | null> {
   try {
@@ -86,8 +88,20 @@ Deno.serve(async (req) => {
       if (error) return json({ error: "요청 등록 실패: " + error.message }, 500);
       return json({ ok: true, scope, data, viewer: user.upn });
     }
+    // 계정·권한 전량 재수집 — MS(라이선스 포함)·그룹웨어만. ERP 배치는 부르지 않는다.
+    // 화면이 대사를 보기 전에 최신 상태로 맞출 수 있어야, 이미 처리된 축을 또 건드리지 않는다.
+    if (scope === "refresh") {
+      const { data, error } = await admin.rpc("offboard_refresh_accounts", { p_requested_by: user.upn });
+      if (error) return json({ error: "갱신 요청 실패: " + error.message }, 500);
+      return json({ ok: true, scope, data, viewer: user.upn });
+    }
     const rid = String(body.requestId || "");
     if (!/^[0-9a-f-]{36}$/i.test(rid)) return json({ error: "requestId 형식 오류" }, 400);
+    if (scope === "refresh_status") {
+      const { data, error } = await admin.rpc("offboard_refresh_status", { p_request_id: rid });
+      if (error) return json({ error: "상태 조회 실패: " + error.message }, 500);
+      return json({ ok: true, scope, data, viewer: user.upn });
+    }
     const { data, error } = await admin.rpc("offboard_request_status", { p_request_id: rid });
     if (error) return json({ error: "상태 조회 실패: " + error.message }, 500);
     return json({ ok: true, scope, data, viewer: user.upn });
