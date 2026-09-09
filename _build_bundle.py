@@ -19,16 +19,32 @@ PORTAL = ROOT / "04_챗봇_포털_데모UI.html"
 OUT = ROOT / "JEIL_AX_포털데모_통합본.html"
 
 PAGES = {  # key: (상대경로, 오버레이 제목)
+    # 오프라인에서 실제로 내용을 보여줄 수 있는 화면만 남긴다.
+    # 부서 대시보드 6종은 2026-09-09 실데이터 단일화(REQ-0022)로 목업이 사라져,
+    # 오프라인에서는 "사내 로그인 필요" 안내만 뜨는 빈 껍데기가 된다 — 공유본에 넣을 이유가 없다.
+    # 협력사 모바일 포털도 전부 라이브(Supabase) 구동이라 같은 이유로 제외.
     "cost1": ("pages/2025-095-SUL-EC_원가현황_20260514.html", "프로젝트 원가관리 시스템 — 2025-095-SUL-EC"),
     "cost2": ("pages/프로젝트원가_요약_2025-095-SUL-EC.html", "프로젝트 원가 요약 (ERP DB 추출) — 2025-095-SUL-EC"),
-    "sales": ("pages/영업_수주현황_2026.html", "영업팀 — 2026년 수주현황 대시보드"),
-    "pur":   ("pages/구매_거래처별매입집계_2026.html", "구매팀 — 2026년 거래처별 매입금액 집계"),
-    "hr":    ("pages/인사_인원급여추이_2026.html", "인사팀 — 2026년 인원 및 급여 추이"),
-    "fin":   ("pages/자금_자금일보_대시보드_2026.html", "자금팀 — 자금일보 대시보드"),
-    "wh":    ("pages/자재물류_재고입출고_2026.html", "자재물류팀 — 2026년 재고 입·출고 현황"),
-    "item":  ("pages/품목중복_조회_2026.html", "품목 존재/중복 조회 (검색형)"),
-    "subc":  ("pages/외주발주_검사진행현황_2026.html", "외주 발주·검사 진행현황 — 구매·품질·생산·사업관리 공유"),
-    "mob":   ("pages/협력사_모바일_포털.html", "협력사 모바일 발주·사진등록 포털 (사내 연계)"),
+}
+
+# 통합본에 싣지 않는 화면 — 포털 카드는 잠금 버튼으로 바꿔 이유를 알린다(죽은 링크로 두지 않는다).
+LIVE_ONLY = {
+    "pages/영업_수주현황_2026.html": "영업 매출현황",
+    "pages/구매_거래처별매입집계_2026.html": "구매 매입현황",
+    "pages/인사_인원급여추이_2026.html": "인원 및 급여 현황",
+    "pages/자재물류_재고입출고_2026.html": "자재 출고현황",
+    "pages/품목중복_조회_2026.html": "품목 존재/중복 조회",
+    "pages/외주발주_검사진행현황_2026.html": "외주발주 진행현황",
+    "pages/자금현황_대시보드.html": "자금·경영 현황",   # 2026-09-09 자금일보 통합본
+    "pages/협력사_모바일_포털.html": "협력사 모바일 포털",
+    "pages/자금_결의전표_입력_2026.html": "결의전표 입력",
+    # 관리자·협력사 화면도 전부 라이브 구동이라 오프라인에선 열리지 않는다 — 죽은 링크로 두지 않는다.
+    "app/admin-vendors.html": "협력사 계정관리",
+    "app/admin-identity.html": "계정·조직 통합관리",
+    "app/admin-accounts.html": "계정 대사",
+    "app/admin-user-dept.html": "사용자·부서 매핑",
+    "app/erp-status.html": "ERP 연동 현황",
+    "app/vendor-login.html": "협력사 로그인",
 }
 
 html = PORTAL.read_text(encoding="utf-8")
@@ -47,6 +63,21 @@ for key, (rel, _t) in PAGES.items():
         replaced += 1
         return f'<button class="open-btn"{m.group(1)}onclick="openEmbed(\'{k}\')">{m.group(2)}</button>'
     html = pat.sub(sub, html)
+
+# 1-b) 통합본에 싣지 않는 화면 — 죽은 링크 대신 잠금 버튼(이유를 화면에서 알린다)
+locked = 0
+for rel, label in LIVE_ONLY.items():
+    href = FILE_TO_ROUTE.get(rel, rel)
+    pat = re.compile(r'<a class="open-btn"([^>]*?)href="' + re.escape(href) + r'"[^>]*>(.*?)</a>', re.S)
+
+    def sub_lock(m, lb=label):
+        global locked
+        locked += 1
+        return ('<button class="open-btn lock" disabled '
+                f'title="{lb} — ERP 실데이터 화면입니다. 사내 계정으로 로그인해 ai.jeilm.co.kr 에서 보세요.">'
+                '🔒 사내 전용</button>')
+
+    html = pat.sub(sub_lock, html)
 
 # 2) 니즈조사 설문폼 — assets 인라인 후 내장
 sv_dir = ROOT / "05_니즈조사"
@@ -164,6 +195,7 @@ html = html.replace(
 assert "var EMBED_PAGES = " + "{{" not in overlay, "EMBED_PAGES 이중 중괄호 — 오버레이 스크립트가 죽습니다"
 html = html.replace("</body>", overlay + "\n</body>")
 OUT.write_text(html, encoding="utf-8")
-print(f"치환된 카드 버튼: {replaced}개 (10 기대)")
-print(f"내장 콘텐츠 합계: {total/1024:.0f} KB (설문폼 포함 9종)")
+print(f"치환된 카드 버튼: {replaced}개 ({len(PAGES)} 기대) · 잠금 처리: {locked}개")
+assert replaced == len(PAGES), f"오버레이 카드 치환 누락 — {replaced}/{len(PAGES)}"
+print(f"내장 콘텐츠 합계: {total/1024:.0f} KB (설문폼 포함 {len(PAGES)+1}종)")
 print(f"통합본 크기: {OUT.stat().st_size/1024:.0f} KB -> {OUT.name}")

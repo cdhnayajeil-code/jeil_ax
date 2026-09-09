@@ -3,197 +3,44 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<script>window.PAGE_KEY='finance_daily';</script>
-<script src="/pages/_access-gate.js"></script>
-<title>자금팀 — 자금일보 대시보드</title>
-<link rel="stylesheet" href="/app/lib/querybar.css">
+<title>자금일보 → 자금·경영 현황으로 통합됨</title>
+<!-- 2026-09-09 통합(관리자 결정): 자금일보와 자금·경영 현황이 같은 원천(확정 매출·매입)을 쓰게 되면서
+     두 화면의 내용이 겹쳤다. 자금·경영 현황(/work/cash-status)으로 합치고, 이 주소는 안내 후 넘긴다.
+     파일을 지우지 않는 이유는 기존 북마크·문서 링크를 깨뜨리지 않기 위해서다. -->
 <style>
-  :root{
-    --navy:#1a2f4e; --navy2:#27457a; --accent:#2f6fb3; --accent2:#4a8ed0;
-    --red:#b3402f; --green:#2e7d52; --amber:#9a6b1f;
-    --ink:#222; --muted:#666; --line:#d8dee8; --bg:#f4f6f9;
-    --soft:#eef2f8; --softred:#fbeeec; --softgreen:#ecf5f0; --softamber:#faf3e4;
-  }
+  :root{ --navy:#1a2f4e; --navy2:#27457a; --accent:#2f6fb3; --muted:#666; --line:#d8dee8; --bg:#f4f6f9; --soft:#eef2f8; }
   *{box-sizing:border-box; margin:0; padding:0;}
-  body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif; color:var(--ink); background:var(--bg); line-height:1.6; font-size:14px;}
-  .demo-banner{background:var(--amber); color:#fff; text-align:center; font-size:12px; padding:6px 10px;}
-  .page{max-width:1100px; margin:0 auto; background:#fff; padding:34px 44px; box-shadow:0 2px 14px rgba(0,0,0,.08); min-height:100vh;}
-  .head{display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:10px; border-bottom:3px solid var(--navy); padding-bottom:14px; margin-bottom:20px;}
-  .head h1{font-size:22px; color:var(--navy);}
-  .head .sub{font-size:12.5px; color:var(--muted); margin-top:3px;}
-  .head .right{text-align:right; font-size:12px; color:var(--muted);}
-  .badge{display:inline-block; font-size:11px; border-radius:10px; padding:2px 9px; font-weight:600;}
-  .badge.g{background:var(--softgreen); color:var(--green);} .badge.a{background:var(--softamber); color:var(--amber);}
-  .badge.b{background:var(--soft); color:var(--navy2);} .badge.r{background:var(--softred); color:var(--red);}
-  .kpis{display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:12px; margin:14px 0;}
-  .kpi{background:#fff; border:1px solid var(--line); border-radius:11px; padding:14px 16px; border-top:4px solid var(--accent);}
-  .kpi.gr{border-top-color:var(--green);} .kpi.rd{border-top-color:var(--red);} .kpi.am{border-top-color:var(--amber);}
-  .kpi .lb{font-size:11.5px; color:var(--muted);}
-  .kpi .v{font-size:22px; font-weight:800; color:var(--navy); margin-top:3px;}
-  .kpi .v small{font-size:12px; color:var(--muted); font-weight:500;}
-  .kpi .delta{font-size:11px; margin-top:2px; color:var(--muted);}
-  .kpi .delta.up{color:var(--green);} .kpi .delta.dn{color:var(--red);}
-  .grid2{display:grid; grid-template-columns:1fr 1fr; gap:16px;}
-  .sec{background:#fff; border:1px solid var(--line); border-radius:11px; padding:16px 18px; margin-bottom:14px;}
-  .sec h3{font-size:13.5px; color:var(--navy); margin-bottom:10px;}
-  table{width:100%; border-collapse:collapse; font-size:12.5px;}
-  th{background:var(--navy); color:#fff; padding:7px 10px; text-align:left; font-weight:600;}
-  td{padding:6px 10px; border-bottom:1px solid var(--line);}
-  tr:nth-child(even) td{background:#fafbfd;}
-  td.r,th.r{text-align:right;} td.c,th.c{text-align:center;}
-  td.plus{color:var(--green); font-weight:700;} td.minus{color:var(--red); font-weight:700;}
-  /* 수금/지출 듀얼 차트 */
-  .dual{display:flex; align-items:flex-end; gap:10px; height:180px; padding:8px 4px 0; border-bottom:2px solid var(--navy); margin:6px 0 4px;}
-  .dgroup{flex:1; display:flex; align-items:flex-end; justify-content:center; gap:3px; height:100%; position:relative;}
-  .dgroup .gin,.dgroup .gout{width:34%; border-radius:4px 4px 0 0; position:relative;}
-  .dgroup .gin{background:linear-gradient(180deg,#5da27e,var(--green));}
-  .dgroup .gout{background:linear-gradient(180deg,#d98a7d,var(--red));}
-  .dgroup .lab{position:absolute; bottom:-22px; left:0; right:0; text-align:center; font-size:10.5px; color:var(--muted);}
-  .dwrap{padding-bottom:26px;}
-  .legend{display:flex; gap:14px; font-size:11px; color:var(--muted); margin-top:6px; flex-wrap:wrap;}
-  .legend i{display:inline-block; width:10px; height:10px; border-radius:3px; margin-right:4px; vertical-align:-1px;}
-  .src{margin-top:18px; background:var(--soft); border:1px solid var(--line); border-radius:9px; padding:11px 16px; font-size:11.5px; color:var(--muted);}
-  .src b{color:var(--navy2);}
-  code{font-family:Consolas,monospace; font-size:11px; background:#fff; border:1px solid var(--line); border-radius:4px; padding:0 5px;}
-  .callout{border-radius:8px; padding:11px 15px; margin:10px 0; font-size:12.5px;}
-  .callout.amber{background:var(--softamber); border-left:4px solid var(--amber);}
-  .callout.blue{background:var(--soft); border-left:4px solid var(--accent);}
-  .loading{text-align:center; color:var(--muted); padding:46px 10px; font-size:13.5px;}
-  .notice{background:var(--soft); border:1px solid var(--line); border-left:4px solid var(--accent); border-radius:8px; padding:11px 15px; margin:12px 0; font-size:12.5px; color:var(--muted);}
-  .notice b{color:var(--navy2);}
-  .foot{margin-top:24px; padding-top:12px; border-top:1px solid var(--line); font-size:11px; color:var(--muted); display:flex; justify-content:space-between;}
-  @media print{ .demo-banner{display:none;} .page{box-shadow:none; max-width:100%;} }
-  @media (max-width:760px){ .page{padding:22px 16px;} .grid2{grid-template-columns:1fr;} }
+  body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif; color:#222; background:var(--bg);
+       display:flex; align-items:center; justify-content:center; min-height:100vh; padding:20px;}
+  .box{max-width:520px; background:#fff; border:1px solid var(--line); border-radius:14px;
+       padding:38px 34px; text-align:center; box-shadow:0 4px 18px rgba(0,0,0,.07);}
+  .ic{font-size:44px; line-height:1;}
+  h1{font-size:19px; color:var(--navy); margin:14px 0 10px;}
+  p{color:var(--muted); font-size:13.5px; line-height:1.75; margin:0 0 8px;}
+  .why{background:var(--soft); border-left:4px solid var(--accent); border-radius:0 8px 8px 0;
+       padding:12px 15px; margin:18px 0 22px; text-align:left; font-size:12.5px; color:#33425a;}
+  a.go{display:inline-block; background:var(--navy); color:#fff; text-decoration:none;
+       padding:11px 24px; border-radius:9px; font-size:14px; font-weight:700;}
+  a.go:hover{background:var(--navy2);}
+  .sub{font-size:12px; color:#99a2ad; margin-top:14px;}
 </style>
 </head>
 <body>
-<div class="page">
-
-  <div class="head">
-    <div>
-      <h1>💰 자금 수지현황<span class="qbar-period" data-qbar-period></span></h1>
-      <div class="sub">자금팀(재무·회계) 운영 페이지 · <span class="badge b">부서 전용</span> <span class="badge r">자금팀·관리자만 열람</span></div>
-    </div>
-    <div class="right">ERP 실적 · <span data-qbar-asof>—</span> 기준</div>
+<div class="box">
+  <div class="ic">💰</div>
+  <h1>자금일보는 「자금·경영 현황」으로 통합되었습니다</h1>
+  <p>잠시 후 자동으로 이동합니다.</p>
+  <div class="why">
+    두 화면이 <b>같은 원천(확정 매출·매입)</b>을 쓰게 되면서 내용이 겹쳤습니다.
+    월별 수입·지출·수지차와 상위 거래처는 통합 화면에서 그대로 보실 수 있습니다.<br>
+    현금성자산·차입금·매출채권 등은 ERP 연계 준비 중이라 두 화면 모두 표시하지 않습니다.
   </div>
-
-  <!-- 표준 조회 플랫폼 (app/lib/querybar.js) -->
-  <div id="qbar"></div>
-
-  <div id="app">
-    <div class="loading">자금 수지를 불러오는 중…</div>
-  </div>
-
-  <div class="foot">
-    <span>자금팀 운영 페이지 · 자금 수지현황</span>
-    <span>등록: 재무·회계팀 · 공개범위: 부서 전용 + 임원</span>
-  </div>
+  <a class="go" href="/work/cash-status">자금·경영 현황 열기 →</a>
+  <div class="sub">이 주소(<code>/work/cash-daily</code>)는 기존 북마크를 위해 유지됩니다.</div>
 </div>
-
-<script type="module">
-  import { erpApi } from "/app/lib/api.js";
-  import { createQueryBar } from "/app/lib/querybar.js";
-
-  const app = document.getElementById("app");
-  const esc = (t) => String(t == null ? "" : t).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
-  const mil = (n) => Math.round(Number(n || 0) / 1e6).toLocaleString("ko-KR");
-  const kpi = (lb, v, unit, sub, cls) =>
-    '<div class="kpi"><div class="lb">' + esc(lb) + '</div><div class="v"' + (cls === "neg" ? ' style="color:var(--red);"' : cls === "pos" ? ' style="color:var(--green);"' : '') + '>' + v
-    + (unit ? '<small> ' + unit + '</small>' : '') + '</div>'
-    + (sub ? '<div class="delta">' + sub + '</div>' : '') + '</div>';
-
-  let DATA = null, LOADED_YEAR = null;
-
-  async function load(q, reason, bar) {
-    if (DATA == null || LOADED_YEAR !== q.year || reason === "refresh" || reason === "auto") {
-      const d = await erpApi.financeOverview(q.year, null);
-      if (d && d.forbidden) { DATA = { denied: true }; render(q); return; }
-      if (d && d.unauthorized) { DATA = { expired: true }; render(q); return; }
-      if (!d || !d.ok) { DATA = { empty: true }; render(q); return; }
-      DATA = d; LOADED_YEAR = q.year;
-      if (Array.isArray(d.years) && d.years.length) bar.setYears(d.years.map(Number).sort((a, b) => b - a));
-      const ms = (d.monthly || []).map((m) => Number(String(m.ym).slice(5))).filter(Boolean);
-      if (ms.length) bar.setMonths([...new Set(ms)].sort((a, b) => a - b));
-      const last = (d.monthly || []).map((m) => m.ym).sort().pop();
-      if (last) bar.setMeta({ asOf: last + " 마감" });
-    }
-    render(q);
-  }
-
-  function render(q) {
-    if (DATA && DATA.denied) {
-      app.innerHTML = '<div class="notice">이 화면의 <b>자금 데이터</b>는 자금팀·회계 부서·전체 관리자만 열람할 수 있습니다.<br>'
-        + '열람이 필요하면 관리자에게 자금(finance) 권한을 요청하세요.</div>';
-      return;
-    }
-    if (DATA && DATA.expired) { app.innerHTML = '<div class="notice">세션이 만료되었습니다. 다시 로그인해 주세요.</div>'; return; }
-    if (!DATA || DATA.empty || !(DATA.monthly || []).length) {
-      app.innerHTML = '<div class="notice">' + esc(q.year) + '년 자금 수지 데이터가 없습니다.</div>';
-      return;
-    }
-
-    const monthly = DATA.monthly.filter((m) => String(m.ym).startsWith(q.year + "-"));
-    const rows = q.month == null ? monthly : monthly.filter((m) => m.ym === q.ym);
-    const sum = (k) => rows.reduce((a, m) => a + Number(m[k] || 0), 0);
-    const sales = sum("sales_amt"), purchase = sum("purchase_amt"), po = sum("po_amt");
-    const net = sales - purchase;
-
-    const maxV = Math.max(1, ...monthly.map((m) => Math.max(Number(m.sales_amt || 0), Number(m.purchase_amt || 0))));
-
-    app.innerHTML =
-      '<div class="kpis">'
-      + kpi("수입 (매출)", mil(sales), "백만원", esc(q.label))
-      + kpi("지출 (매입)", mil(purchase), "백만원", esc(q.label))
-      + kpi("수지차", mil(net), "백만원", net >= 0 ? "흑자" : "적자", net >= 0 ? "pos" : "neg")
-      + kpi("발주액", mil(po), "백만원", "구매발주 기준")
-      + '</div>'
-
-      + '<div class="sec"><h3>월별 수입 · 지출 흐름 (백만원)</h3><div class="dwrap"><div class="dual">'
-      + monthly.map((m) => {
-          const mm = Number(String(m.ym).slice(5));
-          const s = Number(m.sales_amt || 0), p = Number(m.purchase_amt || 0), n = s - p;
-          return '<div class="dgroup" data-m="' + mm + '">'
-            + '<div class="gin" style="height:' + Math.max(2, Math.round(s / maxV * 100)) + '%"></div>'
-            + '<div class="gout" style="height:' + Math.max(2, Math.round(p / maxV * 100)) + '%"></div>'
-            + '<span class="lab">' + mm + '월<br><span style="color:' + (n >= 0 ? "var(--green)" : "var(--red)") + '">'
-            + (n >= 0 ? "+" : "−") + mil(Math.abs(n)) + '</span></span></div>';
-        }).join("")
-      + '</div><div class="legend"><span><i style="background:var(--green)"></i>수입(매출)</span>'
-      + '<span><i style="background:var(--red)"></i>지출(매입)</span><span>막대 아래 숫자 = 월 수지(백만원)</span></div></div></div>'
-
-      + '<div class="grid2">'
-      + topTable("수입 상위 거래처", DATA.top_sales)
-      + topTable("지출 상위 거래처", DATA.top_purchase)
-      + '</div>'
-
-      + '<div class="notice">현금성자산·차입금·매출채권·매입채무는 <b>ERP 연계 준비 중</b>이라 이 화면에 표시되지 않습니다. '
-      + '현재 보이는 값은 확정 매출·매입 기준 수지입니다.</div>';
-  }
-
-  function topTable(title, rows) {
-    rows = rows || [];
-    const body = rows.length
-      ? rows.slice(0, 8).map((r, i) => '<tr><td class="c">' + (i + 1) + '</td><td>' + esc(r.bp_name || "-") + '</td><td class="r">' + mil(r.amt) + '</td></tr>').join("")
-      : '<tr><td colspan="3" style="text-align:center;color:var(--muted);padding:16px;">데이터 없음</td></tr>';
-    return '<div class="sec"><h3>' + esc(title) + '</h3><table>'
-      + '<tr><th class="c" style="width:14%;">순위</th><th>거래처</th><th class="r">금액(백만원)</th></tr>' + body + '</table></div>';
-  }
-
-  createQueryBar("#qbar", {
-    years: [new Date().getFullYear()], year: new Date().getFullYear(),
-    months: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
-    basis: "확정 매출·매입 기준",
-    mode: "live",
-    onQuery: async (q, ctx) => {
-      try { await load(q, ctx.reason, ctx.bar); ctx.bar.applyPeriod(); }
-      catch (e) {
-        app.innerHTML = '<div class="notice">자금 수지를 불러오지 못했습니다. 사내 계정으로 로그인했는지 확인해 주세요.<br>'
-          + '<span style="color:#99a2ad;">' + esc(e?.message || "") + '</span></div>';
-        throw e;
-      }
-    },
-  });
+<script>
+  // 사용자가 무슨 일이 일어났는지 읽을 시간을 준 뒤 넘긴다(즉시 이동하면 통합 사실을 모른 채 지나간다).
+  setTimeout(function () { location.replace("/work/cash-status"); }, 4000);
 </script>
-
 </body>
 </html>
