@@ -74,8 +74,12 @@ SELECT_SQL = """
            useState                                 AS use_state,
            endDate                                  AS end_dt
     FROM [{view}]
-    WHERE LTRIM(RTRIM(ISNULL(email, ''))) LIKE '%@%'
 """
+# ⚠ 예전에는 여기 `WHERE email LIKE '%@%'` 가 있었다. 그런데 그룹웨어는 이메일 칸이 빈 계정이
+#   있어서(517행 중 46행), 그 필터가 **원천에 멀쩡히 있는 계정을 통째로 안 보이게** 만들었다.
+#   대사는 "그룹웨어 없음"으로 오판했고 퇴사 처리 자동화는 대상을 못 찾았다(2026-09-09 실측).
+#   이제 전량을 읽어 파이썬에서 판단한다 — 로그인ID가 이메일 형태면 보정하고, 그것도 없으면
+#   **누가 빠졌는지 로그로 남긴다**(조용히 버리지 않는다).
 
 
 def collect(url=None, key=None, dry=False):
@@ -113,10 +117,23 @@ def collect(url=None, key=None, dry=False):
             cur = conn.cursor()
             cur.execute(SELECT_SQL.format(view=view))
             cols = [c[0] for c in cur.description]
+            skipped_no_mail = []
             for rec in cur:
                 r = dict(zip(cols, rec))
                 email = (r.get("email") or "").strip().lower()
+                login = (r.get("login_id") or "").strip().lower()
+                # 그룹웨어는 이메일 칸이 비어 있는 계정이 있다(실측 517행 중 46행).
+                # 우리 대사는 이메일이 키라, 그대로 두면 **그룹웨어에 멀쩡히 있는 계정을
+                # "그룹웨어 없음"으로 오판**한다(생산팀 유계상 실사례). 게다가 퇴사 처리
+                # 자동화가 대상을 못 찾아 그룹웨어 축이 통째로 빠진다(2026-09-09 실측).
+                # 로그인ID 자체가 이메일 형태인 경우가 있어(test@jeilm.co.kr 등) 그것만 보정한다.
+                # 로그인ID에 도메인을 갖다 붙이는 추측은 하지 않는다 — 공용 계정에 존재하지
+                # 않는 주소를 만들어 대사를 더 어지럽힌다.
+                if "@" not in email and "@" in login:
+                    email = login
                 if "@" not in email:
+                    if r.get("use_state") == 0:
+                        skipped_no_mail.append(login or (r.get("emp_nm") or "?"))
                     continue
                 # 사용 여부는 useState 로만 본다. **0 = 사용중, 1 = 미사용**이다(정지 플래그로 읽힌다).
                 # 이름과 반대라 헷갈리므로 실측 근거를 남긴다(2026-09-07):
@@ -151,6 +168,10 @@ def collect(url=None, key=None, dry=False):
         by_status[r["status"]] = by_status.get(r["status"], 0) + 1
     print("[gw] 추출 %d행 (이메일 기준) — 상태별 %s"
           % (len(rows), " · ".join("%s %d" % kv for kv in sorted(by_status.items()))))
+    if skipped_no_mail:
+        # 조용히 버리면 대사가 "그룹웨어 없음"으로 거짓말을 한다 — 누가 빠졌는지 남긴다.
+        print("[gw] ⚠ 이메일 없어 제외된 사용중 계정 %d건: %s"
+              % (len(skipped_no_mail), ", ".join(skipped_no_mail[:12])))
 
     if dry:
         print("[gw] (dry-run) 적재 생략")
