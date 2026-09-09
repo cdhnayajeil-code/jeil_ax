@@ -60,249 +60,110 @@
 </style>
 </head>
 <body>
-<div class="demo-banner">⚠ 위쪽 중복 판정은 <b>샘플 데이터</b> 기준입니다. 아래 <b>● ERP 품목 마스터 실검색</b> 결과가 실제 등록 현황입니다(사내 로그인 시).</div>
 <div class="page">
 
   <div class="head">
-    <h1>🔍 품목 존재/중복 조회</h1>
-    <div class="sub">설계·생산·사업관리팀 운영 페이지 · <span class="badge b">주관: 설계팀 · 생산팀 · 사업관리팀</span> <span class="badge g">공유: 구매·자재팀</span> <span class="badge a">읽기전용</span> — 신규 등록·BOM 작성·발주 의뢰 전, 품명·코드·규격으로 기존 등록 여부를 먼저 확인하세요.</div>
+    <h1>🔍 품목 존재/중복 조회<span class="qbar-period" data-qbar-period></span></h1>
+    <div class="sub">설계·생산·사업관리팀 운영 페이지 · <span class="badge b">주관: 설계 · 생산 · 사업관리</span> <span class="badge g">공유: 구매 · 자재</span>
+      — 신규 등록·BOM 작성·발주 의뢰 전에 품명·코드·규격으로 <b>기존 등록 여부</b>를 먼저 확인하세요.</div>
   </div>
 
   <!-- 표준 조회 플랫폼 (app/lib/querybar.js) — 기간 축이 없는 검색형 화면 -->
   <div id="qbar"></div>
 
-  <!-- 검색 -->
   <div class="searchbox">
-    <input type="text" id="q" placeholder="품명 · 품목코드 · 규격 입력  (예: 육각볼트 M10, BOLT-1042, 베어링 6204)" onkeydown="if(event.key==='Enter')doSearch()">
-    <button onclick="doSearch()">조회</button>
-  </div>
-  <div class="chips">
-    <span class="lb">샘플 검색:</span>
-    <button onclick="quick('육각볼트 M10')">육각볼트 M10</button>
-    <button onclick="quick('베어링 6204')">베어링 6204</button>
-    <button onclick="quick('오링 P-22')">오링 P-22</button>
-    <button onclick="quick('유니온 25A')">유니온 25A</button>
-    <button onclick="quick('ROSC01')">ROSC01</button>
-    <button onclick="quick('케이블타이 300')">케이블타이 300</button>
-    <button onclick="quick('티타늄 플레이트')">티타늄 플레이트 (미등록 예시)</button>
+    <input type="text" id="q" placeholder="품명 · 품목코드 · 규격 입력  (예: 육각볼트, BOLT, 베어링)" autocomplete="off">
+    <button id="btnSearch">조회</button>
   </div>
 
-  <!-- 결과 -->
   <div class="result" id="result">
-    <div class="empty">품명이나 코드를 입력하면 등록 여부·중복 현황이 표시됩니다.<br><span style="font-size:12px;">위 샘플 버튼으로 바로 체험해 보세요.</span></div>
-  </div>
-
-  <!-- ● 실데이터 연동 (ERP 중간DB 품목 마스터) — REQ-0021 -->
-  <div class="sec" id="liveErp" style="border-top:4px solid var(--green); background:#fff; border:1px solid var(--line); border-radius:11px; padding:16px 18px; margin:14px 0; display:none;">
-    <h3 style="font-size:13.5px; color:var(--navy); margin-bottom:10px;">● ERP 품목 마스터 실검색 <span class="badge g" id="liveAsof">불러오는 중…</span></h3>
-    <div id="liveResult"></div>
-    <p style="font-size:11px; color:var(--muted); margin-top:8px;" id="liveNote"></p>
-  </div>
-  <div class="sec" id="liveErpHint" style="background:#fff; border:1px solid var(--line); border-radius:11px; padding:16px 18px; margin:14px 0; display:none;">
-    <h3 style="font-size:13.5px; color:var(--navy); margin-bottom:8px;">● ERP 품목 마스터 실검색 대기</h3>
-    <p style="font-size:12.5px; color:var(--muted); margin:0;">사내(Entra) 계정으로 로그인한 Supabase 세션에서만 실제 품목 마스터를 검색합니다.
-    위 결과는 <b>샘플 데이터</b> 기준이라 실제 등록 여부와 다를 수 있습니다.</p>
-  </div>
-
-  <div class="src">
-    <b>동작 안내</b> — 입력어를 정규화(공백·대소문자·×/x 무시)하여 품명·코드·규격에서 부분일치 검색합니다. 동일 규격 품목이 2건 이상이면 <b>중복 경고</b>와 함께 대표코드(거래 이력 최다)를 안내합니다. 실서비스 원천: <code>B_ITEM</code>(품목 마스터) + 발주 이력 <code>M_PUR_ORD_DTL</code> 참조 건수.
+    <div class="empty">품명이나 코드를 입력하면 ERP에 등록된 품목과 <b>동일 규격 중복</b>을 보여줍니다.</div>
   </div>
 
   <div class="foot">
     <span>설계·생산·사업관리팀 운영 페이지 · 품목 존재/중복 조회</span>
-    <span>주관: 설계·생산·사업관리팀 · 공유: 구매·자재팀 (지정 부서 공유)</span>
+    <span>공개범위: 지정 부서 공유</span>
   </div>
 </div>
 
-<script>
-/* ===== 샘플 품목 마스터 (B_ITEM 발췌 형태) =====
-   group: 같은 실물로 판단되는 중복 그룹 키 (null = 단독) */
-var ITEMS = [
-  // 육각볼트 M10×30 — 거래처별 중복 등록 4건
-  {cd:'BOLT-1042', nm:'육각볼트 M10×30 SUS304', spec:'M10×30 SUS304', unit:'EA', acct:'부자재', bp:'오성테크',        last:'2026-05-21', refs:412, use:true,  group:'bolt-m10', rep:true},
-  {cd:'BOLT-2208', nm:'육각볼트 M10*30 스텐',    spec:'M10×30 SUS304', unit:'EA', acct:'부자재', bp:'해광볼트공업',     last:'2026-03-02', refs:67,  use:true,  group:'bolt-m10'},
-  {cd:'BT-M1030S', nm:'HEX BOLT M10X30 SUS',   spec:'M10×30 SUS304', unit:'EA', acct:'부자재', bp:'(주)경기종합볼트', last:'2025-11-14', refs:23,  use:true,  group:'bolt-m10'},
-  {cd:'BOLT-3317', nm:'육각볼트M10x30(SUS)',    spec:'M10×30 SUS304', unit:'BOX',acct:'부자재', bp:'병동종합공구',     last:'2024-08-30', refs:4,   use:false, group:'bolt-m10'},
-  // 베어링 6204ZZ — 2건
-  {cd:'BRG-6204Z', nm:'볼베어링 6204ZZ',        spec:'6204ZZ',        unit:'EA', acct:'부자재', bp:'이천베아링',       last:'2026-05-31', refs:188, use:true,  group:'brg-6204', rep:true},
-  {cd:'BEA-0117',  nm:'베어링 6204-ZZ NSK',     spec:'6204ZZ',        unit:'EA', acct:'부자재', bp:'이천베아링',       last:'2025-06-19', refs:12,  use:true,  group:'brg-6204'},
-  // 오링 P-22 — 3건
-  {cd:'ORG-P22N',  nm:'오링 P-22 NBR',          spec:'P-22 NBR',      unit:'EA', acct:'부자재', bp:'신호종합배관',     last:'2026-04-18', refs:96,  use:true,  group:'oring-p22', rep:true},
-  {cd:'OR-22NBR',  nm:'O-RING P22 (NBR)',       spec:'P-22 NBR',      unit:'EA', acct:'부자재', bp:'오성테크',         last:'2025-09-03', refs:31,  use:true,  group:'oring-p22'},
-  {cd:'ORG-0089',  nm:'오링 P22 고무',           spec:'P-22',          unit:'EA', acct:'소모품', bp:'병동종합공구',     last:'2024-12-11', refs:7,   use:false, group:'oring-p22'},
-  // 유니온 25A — 단위 상이 2건
-  {cd:'UNI-25A-S', nm:'유니온 배관 25A SUS',     spec:'25A SUS304',    unit:'EA', acct:'원재료', bp:'신호종합배관',     last:'2026-06-02', refs:144, use:true,  group:'union-25a', rep:true},
-  {cd:'PIPE-U25',  nm:'유니온 25A (세트)',       spec:'25A SUS304',    unit:'SET',acct:'원재료', bp:'대신스텐레스',     last:'2025-10-27', refs:18,  use:true,  group:'union-25a'},
-  // 케이블타이 — 2건
-  {cd:'CTI-300B',  nm:'케이블타이 300mm 흑색',   spec:'300mm',         unit:'EA', acct:'소모품', bp:'오성테크',         last:'2026-05-09', refs:58,  use:true,  group:'ctie-300', rep:true},
-  {cd:'CT-300',    nm:'CABLE TIE 300',          spec:'(규격 미입력)',  unit:'EA', acct:'소모품', bp:'병동종합공구',     last:'2025-02-20', refs:9,   use:true,  group:'ctie-300'},
-  // ROSC01 — 미사용 5건 (실사례)
-  {cd:'ROSC01-00003', nm:'ROSC01 부품-03', spec:'(이관 품목)', unit:'EA', acct:'원재료', bp:'-', last:'2023-04-12', refs:3, use:false, group:'rosc01'},
-  {cd:'ROSC01-00004', nm:'ROSC01 부품-04', spec:'(이관 품목)', unit:'EA', acct:'원재료', bp:'-', last:'2023-04-12', refs:3, use:false, group:'rosc01'},
-  {cd:'ROSC01-00005', nm:'ROSC01 부품-05', spec:'(이관 품목)', unit:'EA', acct:'원재료', bp:'-', last:'2023-02-08', refs:2, use:false, group:'rosc01'},
-  {cd:'ROSC01-00008', nm:'ROSC01 부품-08', spec:'(이관 품목)', unit:'EA', acct:'원재료', bp:'-', last:'-',          refs:1, use:false, group:'rosc01'},
-  {cd:'ROSC01-00009', nm:'ROSC01 부품-09', spec:'(이관 품목)', unit:'EA', acct:'원재료', bp:'-', last:'-',          refs:1, use:false, group:'rosc01'},
-  // 단독 품목 (중복 없음)
-  {cd:'HOSE-S12',  nm:'실리콘 호스 Ø12',        spec:'Ø12×t2',        unit:'M',  acct:'부자재', bp:'신호종합배관',   last:'2026-01-15', refs:41, use:true, group:null},
-  {cd:'PMP-T520',  nm:'TACMINA 정량펌프',       spec:'T-520',         unit:'EA', acct:'제품·상품', bp:'(주)지아이텍', last:'2026-02-12', refs:6,  use:true, group:null},
-  {cd:'PLT-AL5T',  nm:'알루미늄 플레이트 5T',    spec:'5T×1000×2000',  unit:'EA', acct:'원재료', bp:'대신스텐레스',   last:'2026-04-22', refs:27, use:true, group:null}
-];
-
-function norm(s){
-  return String(s||'').toLowerCase().replace(/[×*]/g,'x').replace(/[\s\-_()]/g,'');
-}
-function matches(item, q){
-  return norm(item.cd).indexOf(q)>=0 || norm(item.nm).indexOf(q)>=0 || norm(item.spec).indexOf(q)>=0;
-}
-function quick(s){ document.getElementById('q').value=s; doSearch(); }
-
-function row(it, isRep){
-  return '<tr class="'+(isRep?'rep':'')+'">'+
-    '<td class="code">'+it.cd+'</td>'+
-    '<td>'+it.nm+(isRep?' <span class="badge g">대표코드</span>':'')+'</td>'+
-    '<td>'+it.spec+'</td>'+
-    '<td class="c">'+it.unit+'</td>'+
-    '<td class="c"><span class="badge b">'+it.acct+'</span></td>'+
-    '<td>'+it.bp+'</td>'+
-    '<td class="c">'+it.last+'</td>'+
-    '<td class="c">'+it.refs+'</td>'+
-    '<td class="c">'+(it.use?'<span class="badge g">사용중</span>':'<span class="badge r">사용중지/미사용</span>')+'</td>'+
-  '</tr>';
-}
-function tableOf(list, repCd){
-  return '<table><tr><th>품목코드</th><th>품명</th><th>규격</th><th class="c">단위</th><th class="c">계정</th><th>주거래처</th><th class="c">최근발주</th><th class="c">참조건수</th><th class="c">상태</th></tr>'+
-    list.map(function(it){ return row(it, it.cd===repCd); }).join('')+'</table>';
-}
-
-function doSearch(){
-  var raw = document.getElementById('q').value.trim();
-  var host = document.getElementById('result');
-  if(!raw){ host.innerHTML='<div class="empty">검색어를 입력해 주세요.</div>'; return; }
-  var q = norm(raw);
-  var hit = ITEMS.filter(function(it){ return matches(it,q); });
-
-  if(!hit.length){
-    host.innerHTML =
-      '<div class="verdict none"><span class="ic">🆕</span><div><b>"'+esc(raw)+'" 미등록</b> — 일치하는 품목이 없습니다.<br>'+
-      '<span style="font-size:12.5px; color:var(--muted);">신규 등록을 진행하세요. 등록 시 규격·단위를 정확히 입력하면 이후 중복을 예방할 수 있습니다.</span></div></div>';
-    return;
-  }
-
-  // 검색 결과에 포함된 중복 그룹 확장 (같은 실물의 다른 코드도 함께 표시)
-  var groups = {};
-  hit.forEach(function(it){ if(it.group) groups[it.group]=1; });
-  var expanded = ITEMS.filter(function(it){
-    return hit.indexOf(it)>=0 || (it.group && groups[it.group]);
-  });
-
-  var dupGroups = Object.keys(groups).filter(function(g){
-    return ITEMS.filter(function(it){return it.group===g;}).length > 1;
-  });
-
-  var html='';
-  if(dupGroups.length){
-    // 그룹별로 정리해 표시
-    html += '<div class="verdict dup"><span class="ic">⚠️</span><div><b>등록 존재 — 중복 '+dupGroups.length+'개 그룹 발견</b> (총 '+expanded.length+'건)<br>'+
-      '<span style="font-size:12.5px; color:var(--muted);">동일 규격 품목이 여러 코드로 등록되어 있습니다. <b>대표코드(참조건수 최다)</b>로 발주하세요. 신규 코드 생성 금지.</span></div></div>';
-    dupGroups.forEach(function(g){
-      var list = ITEMS.filter(function(it){return it.group===g;}).sort(function(a,b){return b.refs-a.refs;});
-      var rep = list[0].cd;
-      html += tableOf(list, rep);
-      html += '<p class="hint">↳ 위 '+list.length+'건은 동일 실물로 판단되는 중복 그룹입니다. 대표코드 <b>'+rep+'</b> 외 코드는 정비(사용중지) 대상.</p>';
-    });
-    // 그룹에 속하지 않은 단독 일치 건
-    var solo = expanded.filter(function(it){ return !it.group || dupGroups.indexOf(it.group)<0; });
-    if(solo.length){
-      html += '<p class="hint" style="margin-top:14px;"><b>그 외 일치 품목</b></p>'+tableOf(solo, null);
-    }
-  } else {
-    html += '<div class="verdict found"><span class="ic">✅</span><div><b>등록 존재 — '+expanded.length+'건 일치, 중복 없음</b><br>'+
-      '<span style="font-size:12.5px; color:var(--muted);">기존 코드를 그대로 사용하세요. 신규 등록이 필요하지 않습니다.</span></div></div>';
-    html += tableOf(expanded, null);
-  }
-  host.innerHTML = html;
-}
-function esc(s){ return String(s).replace(/</g,'&lt;'); }
-</script>
-<!-- 표준 조회 플랫폼 + ERP 품목 마스터 실검색 (사내 전용 뷰 public.v_erp_item) -->
 <script type="module">
   import { erpApi } from "/app/lib/api.js";
   import { createQueryBar } from "/app/lib/querybar.js";
 
-  const el = (id) => document.getElementById(id);
+  const host = document.getElementById("result");
+  const input = document.getElementById("q");
   const esc = (t) => String(t == null ? "" : t).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
-  let ASOF = null;
 
-  // 규격이 같은데 코드가 다르면 중복 후보다 — 실 마스터에서도 같은 기준으로 묶는다.
-  const keyOf = (r) => String(r.spec || "").replace(/[\s×xX*]/g, "").toUpperCase();
+  // 규격이 같은데 코드가 다르면 중복 후보다. 공백·곱셈기호 표기 차이는 무시하고 비교한다.
+  const specKey = (r) => String(r.spec || "").replace(/[\s×xX*・·]/g, "").toUpperCase();
 
-  async function liveSearch(kw) {
-    if (!kw) { el("liveErp").style.display = "none"; el("liveErpHint").style.display = "none"; return; }
-    const [rows, asof] = await Promise.all([erpApi.items(kw, 200), ASOF ? Promise.resolve(ASOF) : erpApi.dataAsof()]);
-    ASOF = asof;
-    el("liveErpHint").style.display = "none";
-    const ts = asof.item_master?.last_success;
-    el("liveAsof").textContent = ts ? "데이터 기준: " + new Date(ts).toLocaleString("ko-KR") : "기준시각 미상";
+  async function search() {
+    const kw = (input.value || "").trim();
+    if (!kw) {
+      host.innerHTML = '<div class="empty">품명이나 코드를 입력하면 ERP에 등록된 품목과 <b>동일 규격 중복</b>을 보여줍니다.</div>';
+      return;
+    }
+    host.innerHTML = '<div class="empty">조회 중…</div>';
+    let rows;
+    try { rows = await erpApi.items(kw, 200); }
+    catch (e) {
+      host.innerHTML = '<div class="empty">품목을 조회하지 못했습니다. 사내 계정으로 로그인했는지 확인해 주세요.<br>'
+        + '<span style="font-size:12px;color:#99a2ad;">' + esc(e?.message || "") + '</span></div>';
+      throw e;
+    }
 
     if (!rows.length) {
-      el("liveResult").innerHTML = '<div class="verdict none"><span class="ic">🆕</span><div>'
-        + '<b>"' + esc(kw) + '" ERP 미등록</b> — 품목 마스터에 일치하는 코드·품명이 없습니다.<br>'
-        + '<span style="font-size:12.5px;color:var(--muted);">신규 등록을 진행하세요. 규격·단위를 정확히 입력하면 이후 중복을 예방할 수 있습니다.</span></div></div>';
-      el("liveNote").textContent = "원천: erp_ro.item_master_s (사내 전용 뷰 v_erp_item) · 코드·품명 부분일치";
-      el("liveErp").style.display = "block";
+      host.innerHTML = '<div class="verdict none"><span class="ic">🆕</span><div>'
+        + '<b>"' + esc(kw) + '" 미등록</b> — 일치하는 품목이 없습니다.<br>'
+        + '<span style="font-size:12.5px;color:var(--muted);">신규 등록을 진행하세요. 규격·단위를 정확히 입력하면 이후 중복을 예방할 수 있습니다.</span>'
+        + '</div></div>';
       return;
     }
 
-    // 규격 기준 중복 그룹
     const groups = {};
-    for (const r of rows) { const k = keyOf(r); if (!k) continue; (groups[k] = groups[k] || []).push(r); }
-    const dup = Object.values(groups).filter((g) => g.length > 1);
+    for (const r of rows) { const k = specKey(r); if (!k) continue; (groups[k] = groups[k] || []).push(r); }
+    const dup = Object.values(groups).filter((g) => g.length > 1).sort((a, b) => b.length - a.length);
+    const dupCodes = new Set(dup.flat().map((r) => r.item_code));
 
     const head = dup.length
-      ? '<div class="verdict dup"><span class="ic">⚠️</span><div><b>ERP 등록 존재 — 동일 규격 중복 ' + dup.length + '개 그룹</b> (검색 ' + rows.length + '건)<br>'
-        + '<span style="font-size:12.5px;color:var(--muted);">같은 규격이 여러 코드로 등록돼 있습니다. 신규 코드를 만들기 전에 기존 코드를 확인하세요.</span></div></div>'
-      : '<div class="verdict found"><span class="ic">✅</span><div><b>ERP 등록 존재</b> (검색 ' + rows.length + '건)<br>'
+      ? '<div class="verdict dup"><span class="ic">⚠️</span><div>'
+        + '<b>등록 존재 — 동일 규격 중복 ' + dup.length + '개 그룹</b> (검색 ' + rows.length + '건)<br>'
+        + '<span style="font-size:12.5px;color:var(--muted);">같은 규격이 여러 코드로 등록돼 있습니다. <b>신규 코드를 만들기 전에</b> 아래 표에서 기존 코드를 확인하세요.</span>'
+        + '</div></div>'
+      : '<div class="verdict found"><span class="ic">✅</span><div>'
+        + '<b>등록 존재</b> (검색 ' + rows.length + '건)<br>'
         + '<span style="font-size:12.5px;color:var(--muted);">동일 규격 중복은 발견되지 않았습니다.</span></div></div>';
 
-    const tbl = '<table><tr><th>품목코드</th><th>품명</th><th>규격</th><th class="c">단위</th><th class="c">계정</th><th class="c">사용</th></tr>'
-      + rows.slice(0, 60).map((r) => {
-          const isDup = (groups[keyOf(r)] || []).length > 1;
-          return '<tr' + (isDup ? ' style="background:var(--softamber);"' : '') + '>'
-            + '<td><b>' + esc(r.item_code) + '</b></td><td>' + esc(r.item_name) + '</td><td>' + esc(r.spec) + '</td>'
+    // 중복 그룹을 위로 올려 보여준다
+    const ordered = [...dup.flat(), ...rows.filter((r) => !dupCodes.has(r.item_code))];
+
+    const table = '<table><tr><th>품목코드</th><th>품명</th><th>규격</th><th class="c">단위</th><th class="c">분류</th><th class="c">상태</th></tr>'
+      + ordered.slice(0, 80).map((r) => {
+          const isDup = dupCodes.has(r.item_code);
+          return '<tr' + (isDup ? ' style="background:var(--softred);"' : '') + '>'
+            + '<td><b>' + esc(r.item_code) + '</b>' + (isDup ? ' <span class="badge r">중복</span>' : '') + '</td>'
+            + '<td>' + esc(r.item_name) + '</td><td>' + esc(r.spec) + '</td>'
             + '<td class="c">' + esc(r.unit) + '</td><td class="c">' + esc(r.item_class) + '</td>'
             + '<td class="c">' + (String(r.use_yn).toUpperCase() === "N" ? "중지" : "사용") + '</td></tr>';
-        }).join("") + '</table>';
+        }).join("")
+      + '</table>';
 
-    el("liveResult").innerHTML = head + tbl;
-    el("liveNote").textContent = "원천: erp_ro.item_master_s (사내 전용 뷰 v_erp_item) · 코드·품명 부분일치 상위 200건"
-      + (rows.length > 60 ? " · 표는 60건까지 표시" : "") + " · 규격 문자열이 다르면 같은 실물이어도 중복으로 묶이지 않습니다";
-    el("liveErp").style.display = "block";
+    const more = ordered.length > 80
+      ? '<p class="hint">검색어와 일치하는 품목이 많습니다 — 위 80건만 표시했습니다. 검색어를 더 좁혀 주세요.</p>' : "";
+
+    host.innerHTML = head + table + more;
   }
 
-  async function runBoth() {
-    const kw = (el("q").value || "").trim();
-    if (kw) doSearch();                       // 샘플 기준 중복 판정(기존 동작 유지)
-    try { await liveSearch(kw); }
-    catch (e) {
-      el("liveErp").style.display = "none";
-      if (kw) el("liveErpHint").style.display = "block";
-      console.warn("[erp] 품목 마스터 실검색 불가(사내 세션 필요):", e?.message || e);
-    }
-  }
+  document.getElementById("btnSearch").onclick = search;
+  input.addEventListener("keydown", (e) => { if (e.key === "Enter") search(); });
 
   createQueryBar("#qbar", {
     months: false,                                   // 기간 축이 없는 조회 화면
-    basis: "샘플 = 데모 데이터 · 실검색 = ERP 품목 마스터(erp_ro.item_master_s)",
-    mode: "mock", modeLabel: "샘플 + ERP 실검색",
-    onQuery: () => runBoth(),
+    basis: "ERP 품목 마스터 · 코드·품명 부분일치",
+    mode: "live",
+    onQuery: () => search(),
   });
-
-  // 기존 조회 버튼·Enter·샘플칩이 실검색도 함께 돌게 한다(기존 함수는 그대로 둔다)
-  window.addEventListener("click", (e) => {
-    const b = e.target.closest(".searchbox button, .chips button");
-    if (b) setTimeout(runBoth, 0);
-  });
-  el("q").addEventListener("keydown", (e) => { if (e.key === "Enter") setTimeout(runBoth, 0); });
 </script>
+
 </body>
 </html>

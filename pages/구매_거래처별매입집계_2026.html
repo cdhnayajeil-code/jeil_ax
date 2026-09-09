@@ -60,258 +60,143 @@
   code{font-family:Consolas,monospace; font-size:11px; background:#fff; border:1px solid var(--line); border-radius:4px; padding:0 5px;}
   .callout{border-radius:8px; padding:11px 15px; margin:10px 0; font-size:12.5px;}
   .callout.amber{background:var(--softamber); border-left:4px solid var(--amber);}
+  .loading{text-align:center; color:var(--muted); padding:46px 10px; font-size:13.5px;}
+  .notice{background:var(--soft); border:1px solid var(--line); border-left:4px solid var(--accent); border-radius:8px; padding:11px 15px; margin:12px 0; font-size:12.5px; color:var(--muted);}
+  .notice b{color:var(--navy2);}
   .foot{margin-top:24px; padding-top:12px; border-top:1px solid var(--line); font-size:11px; color:var(--muted); display:flex; justify-content:space-between;}
   @media print{ .demo-banner{display:none;} .page{box-shadow:none; max-width:100%;} }
   @media (max-width:760px){ .page{padding:22px 16px;} .grid2{grid-template-columns:1fr;} .brow{grid-template-columns:100px 1fr 90px;} }
 </style>
 </head>
 <body>
-<div class="demo-banner">⚠ 목업 데모 — UNIERP DB 구조·일부 실데이터 기반 샘플입니다. 수치는 검증 전 참고용이며 최종 확인은 구매팀 책임입니다.</div>
 <div class="page">
 
   <div class="head">
     <div>
-      <h1>📦 거래처별 매입금액 집계<span class="qbar-period" data-qbar-period>2026년 연간</span></h1>
-      <div class="sub">구매팀 운영 페이지 · <span class="badge b">부서 전용</span> <span class="badge a">상단 = 목업(2026-06-12)</span> <span class="badge g">하단 = ERP 실데이터</span></div>
+      <h1>📦 구매 매입현황<span class="qbar-period" data-qbar-period></span></h1>
+      <div class="sub">구매팀 운영 페이지 · <span class="badge b">부서 전용</span></div>
     </div>
-    <div class="right">아래 <b>ERP 실데이터 섹션</b>이 현재 값입니다 (목업과 수치가 다릅니다)</div>
+    <div class="right">ERP 실적 · <span data-qbar-asof>—</span> 기준</div>
   </div>
 
   <!-- 표준 조회 플랫폼 (app/lib/querybar.js) -->
   <div id="qbar"></div>
 
-  <!-- KPI -->
-  <div class="kpis">
-    <div class="kpi" id="kpiPeriod"><div class="lb">2026 누적 매입액</div><div class="v">1,284<small> 백만원</small></div><div class="delta">공급가 기준 (VAT 별도)</div></div>
-    <div class="kpi"><div class="lb">거래 거래처 수</div><div class="v">94<small> 개사</small></div><div class="delta">발주 1건 이상</div></div>
-    <div class="kpi"><div class="lb">매입전표 건수</div><div class="v">1,127<small> 건</small></div><div class="delta">DIV·SIE·SIF·SIX·SIE-1</div></div>
-    <div class="kpi"><div class="lb">전자세금계산서 수취</div><div class="v">897<small> 건</small></div><div class="delta">A_TS_ETAX_MASTER 기준</div></div>
-    <div class="kpi"><div class="lb">상위 5개사 집중도</div><div class="v">38%</div><div class="delta">금액 기준</div></div>
-  </div>
-
-  <!-- ● 실데이터 연동 (ERP 중간DB · 사내 로그인 시) -->
-  <div class="sec" id="liveErp" style="border-top:4px solid var(--green); display:none;">
-    <h3>● ERP 실데이터 — 거래처별 매입 <span class="badge g" id="liveAsof">불러오는 중…</span></h3>
-    <div class="callout amber" style="margin-top:0;">
-      <b>이 섹션이 현재 값입니다</b> — ERP 야간배치 사본(<code>erp_ro.purchase_m</code>)을 사내 전용 뷰 <code>public.v_erp_purchase_monthly</code>로 조회한 <b>실데이터</b>입니다. 위쪽 목업(2026-06-12 기준)과는 <b>수치가 다릅니다</b> — 목업은 데모용 샘플이고 이쪽이 ERP 실적입니다. ERP 매핑은 유니포인트 확정 전 가설입니다.
-    </div>
-    <div class="kpis" id="liveKpis"></div>
-    <div class="chart" id="liveChart"></div>
-    <div class="legend" id="liveLegend"></div>
-    <h3 style="margin-top:16px;">거래처별 매입 (선택 기간)</h3>
-    <div class="barlist" id="liveTop" style="margin-top:10px;"></div>
-    <p style="font-size:11px; color:var(--muted); margin-top:8px;" id="liveMonths"></p>
-  </div>
-  <div class="sec" id="liveErpHint" style="border-top:4px solid var(--line); display:none;">
-    <h3>● ERP 실데이터 연동 대기</h3>
-    <p style="font-size:12.5px; color:var(--muted);">사내(Entra) 계정으로 로그인한 Supabase 세션에서만 ERP 실데이터가 표시됩니다. 아래는 목업 데모 수치입니다. (협력사·비로그인은 데이터가 격리되어 표시되지 않습니다.)</p>
-  </div>
-
-  <!-- 월별 추이 + 매입형태 -->
-  <div class="grid2">
-    <div class="sec">
-      <h3>월별 매입금액 추이 (백만원) <span class="badge a">목업 · 2026-06-12 기준</span></h3>
-      <div class="chart" id="mChart">
-        <div class="cbar" data-m="1"><span class="val">142</span><div class="bar" style="height:42%"></div><span class="lab">1월</span></div>
-        <div class="cbar" data-m="2"><span class="val">318</span><div class="bar" style="height:94%"></div><span class="lab">2월</span></div>
-        <div class="cbar" data-m="3"><span class="val">196</span><div class="bar" style="height:58%"></div><span class="lab">3월</span></div>
-        <div class="cbar" data-m="4"><span class="val">231</span><div class="bar" style="height:68%"></div><span class="lab">4월</span></div>
-        <div class="cbar" data-m="5"><span class="val">275</span><div class="bar" style="height:81%"></div><span class="lab">5월</span></div>
-        <div class="cbar" data-m="6"><span class="val">122</span><div class="bar fcst" style="height:36%"></div><span class="lab">6월(진행)</span></div>
-      </div>
-      <div class="legend"><span>2월 피크: 대신스텐레스 사급용 원자재 일괄 발주(DO 40건·207라인) 반영</span></div>
-    </div>
-    <div class="sec">
-      <h3>매입형태별 구성 (2026 누적)</h3>
-      <div class="stack">
-        <div style="width:54%; background:var(--navy2);">DIV 국내매입 54%</div>
-        <div style="width:18%; background:var(--accent);">SIE 외주제작 18%</div>
-        <div style="width:14%; background:var(--accent2);">SIF 외주설치 14%</div>
-        <div style="width:8%; background:var(--amber);">SIE-1 8%</div>
-        <div style="width:6%; background:var(--green);">SIX 6%</div>
-      </div>
-      <table>
-        <tr><th>형태</th><th>분개</th><th>처리</th><th class="r">비고</th></tr>
-        <tr><td><b>DIV</b> 국내매입</td><td>M0001</td><td>원재료 자산화 (11200901)</td><td class="r">입고 연동</td></tr>
-        <tr><td><b>SIE</b> 외주제작</td><td>M0008</td><td>매입가계정 상계 (99900101)</td><td class="r">입고→상계</td></tr>
-        <tr><td><b>SIF</b> 외주설치</td><td>M0009</td><td>현장 설치비</td><td class="r">수불 없음</td></tr>
-        <tr><td><b>SIX</b> 외주수수료</td><td>M0010 <span class="badge g">신규</span></td><td>부대비 (43003702)</td><td class="r">입고 미반영</td></tr>
-        <tr><td><b>SIE-1</b> 외주제작(수불X)</td><td>M0011 <span class="badge g">신규</span></td><td>가공비 (43003701)</td><td class="r">입고 미반영</td></tr>
-      </table>
-    </div>
-  </div>
-
-  <!-- 거래처 Top -->
-  <div class="sec">
-    <h3>거래처별 매입금액 Top 10 (2026 누적 · 백만원) <span class="badge b">B_BP × M_IV_HDR</span></h3>
-    <div class="barlist">
-      <div class="brow"><span class="lab">(주)대신스텐레스</span><div class="track"><i style="width:100%"></i></div><span class="cnt">186.2 (14.5%)</span></div>
-      <div class="brow"><span class="lab">오성테크</span><div class="track"><i style="width:71%"></i></div><span class="cnt">132.4 (10.3%)</span></div>
-      <div class="brow"><span class="lab">거래처 01921 (외주)</span><div class="track"><i style="width:48%"></i></div><span class="cnt">89.7 (7.0%)</span></div>
-      <div class="brow"><span class="lab">해광볼트공업</span><div class="track"><i style="width:42%"></i></div><span class="cnt">78.1 (6.1%)</span></div>
-      <div class="brow"><span class="lab">(주)지아이텍</span><div class="track"><i style="width:37%"></i></div><span class="cnt">68.1 (5.3%)</span></div>
-      <div class="brow"><span class="lab">이천베아링</span><div class="track"><i style="width:28%"></i></div><span class="cnt">52.6 (4.1%)</span></div>
-      <div class="brow"><span class="lab">신호종합배관</span><div class="track"><i style="width:23%"></i></div><span class="cnt">43.0 (3.3%)</span></div>
-      <div class="brow"><span class="lab">(주)인텍어드밴스</span><div class="track"><i style="width:17%"></i></div><span class="cnt">32.0 (2.5%)</span></div>
-      <div class="brow"><span class="lab">(주)경기종합볼트</span><div class="track"><i style="width:10%"></i></div><span class="cnt">18.9 (1.5%)</span></div>
-      <div class="brow"><span class="lab">신우산업</span><div class="track"><i style="width:6%"></i></div><span class="cnt">11.2 (0.9%)</span></div>
-    </div>
-    <p style="font-size:11px; color:var(--muted); margin-top:8px;">부자재(볼트·너트류) 거래 집중 — 오성테크 737품목·5,039 발주라인, 해광볼트 481품목·4,427라인 (B_ITEM × M_PUR_ORD_DTL 누적)</p>
-  </div>
-
-  <!-- 주요 거래 내역 (실데이터) -->
-  <div class="grid2">
-    <div class="sec">
-      <h3>주요 매입 거래 내역 <span class="badge g">실데이터 발췌</span></h3>
-      <table>
-        <tr><th>일자</th><th>거래처</th><th>형태</th><th class="r">금액(원)</th></tr>
-        <tr><td>02-12</td><td>대신스텐레스</td><td><span class="badge b">DIV</span> 사급 원자재</td><td class="r">51,452,660</td></tr>
-        <tr><td>04-30</td><td>신우산업</td><td><span class="badge b">SIE</span> 외주제작</td><td class="r">275,000</td></tr>
-        <tr><td>04-30</td><td>이천베아링</td><td><span class="badge b">DIV+SIE-1</span> 3전표</td><td class="r">(분할 처리)</td></tr>
-        <tr><td>05-08</td><td>거래처 01921</td><td><span class="badge b">SIE</span> 외주제작</td><td class="r">1,650,000</td></tr>
-        <tr><td>05-08</td><td>거래처 01921</td><td><span class="badge b">SIF</span> 외주설치</td><td class="r">22,000,000</td></tr>
-        <tr><td>05-31</td><td>이천베아링</td><td><span class="badge b">DIV×3+SIE-1</span> 4전표</td><td class="r">(분할 처리)</td></tr>
-      </table>
-      <p style="font-size:11px; color:var(--muted); margin-top:6px;">※ 금액은 부가세 포함 전표가액(IV_DOC_AMT). 전표번호 예: IV202605080001~2</p>
-    </div>
-    <div class="sec">
-      <h3>품목계정별 매입 구성 <span class="badge b">B_ITEM · ITEM_ACCT</span></h3>
-      <div class="stack">
-        <div style="width:45%; background:var(--navy2);">원재료 45.4%</div>
-        <div style="width:33%; background:var(--accent);">부자재 32.8%</div>
-        <div style="width:19%; background:var(--accent2);">제품/상품 19.2%</div>
-        <div style="width:3%; background:var(--amber);">2.6%</div>
-      </div>
-      <table>
-        <tr><th>계정</th><th class="r">품목 수</th><th>회계 처리</th></tr>
-        <tr><td>30 원재료</td><td class="r">25,161</td><td>11200901 자산화</td></tr>
-        <tr><td>35 부자재</td><td class="r">18,182</td><td>11201101 자산화</td></tr>
-        <tr><td>20/10 제품·상품</td><td class="r">12,138</td><td>11200101 자산화</td></tr>
-        <tr><td>33 소모품</td><td class="r">1,432</td><td>43002503 즉시 비용화</td></tr>
-      </table>
-    </div>
-  </div>
-
-  <div class="callout amber">
-    <b>운영 이슈 (구매팀 관리 포인트)</b> — ① 2026년 외주가공 분개 분리(SIX·SIE-1 신설)로 <b>세금계산서 1장 = 매입전표 2~4건</b> 분할 발생 → 거래처 정산 시 전표 합산 대사 필요. ② 공급자 세금계산서번호(<code>SPPL_IV_NO</code>) 입력률 0% → 세금계산서↔전표 대사가 수기 의존, 입력 규율 또는 자동 매핑 개선 검토.
-  </div>
-
-  <div class="src">
-    <b>데이터 원천 (UNIERP · 읽기전용)</b> — 매입전표 <code>M_IV_HDR/M_IV_DTL</code> · 발주 <code>M_PUR_ORD_HDR/DTL</code> · 거래처 <code>B_BP</code> · 품목 <code>B_ITEM</code> · 전자세금계산서 <code>A_TS_ETAX_MASTER</code>(2026년 897건). 추출 경로: ERP_DB\구매\매입형태구분 정리 (2026-06-12 검증). 월별 합계·Top10 비중은 마감 전 추정치 포함.
+  <div id="app">
+    <div class="loading">매입 실적을 불러오는 중…</div>
   </div>
 
   <div class="foot">
-    <span>구매팀 운영 페이지 · 2026년 거래처별 매입금액 집계</span>
-    <span>등록: 구매팀 · 공개범위: 부서 전용 (관리자 콘솔 권한 적용)</span>
+    <span>구매팀 운영 페이지 · 매입현황</span>
+    <span>등록: 구매팀 · 공개범위: 부서 전용</span>
   </div>
 </div>
 
-<!-- 표준 조회 플랫폼 + ERP 중간DB 실데이터 로더 (사내 전용 뷰 public.v_erp_purchase_monthly) -->
 <script type="module">
   import { erpApi } from "/app/lib/api.js";
-  import { createQueryBar, readMonthSeries, numOf } from "/app/lib/querybar.js";
+  import { createQueryBar } from "/app/lib/querybar.js";
 
-  const won = (n) => Number(n || 0).toLocaleString("ko-KR");
-  const mil = (n) => (Number(n || 0) / 1_000_000).toLocaleString("ko-KR", { maximumFractionDigits: 0 });
-  const el = (id) => document.getElementById(id);
+  const app = document.getElementById("app");
+  const esc = (t) => String(t == null ? "" : t).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const mil = (n) => Math.round(Number(n || 0) / 1e6).toLocaleString("ko-KR");
+  const num = (n) => Number(n || 0).toLocaleString("ko-KR");
+  const kpi = (lb, v, unit, sub, cls) =>
+    '<div class="kpi"><div class="lb">' + esc(lb) + '</div><div class="v">' + v
+    + (unit ? '<small> ' + unit + '</small>' : '') + '</div>'
+    + (sub ? '<div class="delta' + (cls ? " " + cls : "") + '">' + sub + '</div>' : '') + '</div>';
 
-  /* ── 목업 KPI: 화면에 이미 그려진 월별 수치를 읽어 기간에 맞춰 바꾼다 ── */
-  const SERIES = readMonthSeries("#mChart");
-  const MOCK_MONTHS = Object.keys(SERIES).map(Number).sort((a, b) => a - b);
-  const YEAR_TOTAL = Object.values(SERIES).reduce((a, v) => a + numOf(v), 0);
-  const kpi = el("kpiPeriod");
-  const KPI_YEAR = kpi.innerHTML;
-  function paintMockKpi(q) {
-    if (q.month == null) { kpi.innerHTML = KPI_YEAR; return; }
-    const v = SERIES[q.month];
-    if (v == null) {   // 목업에 없는 달 — 없는 값을 만들지 않는다
-      kpi.innerHTML = '<div class="lb">' + q.label + ' 매입액(목업)</div><div class="v">—</div>'
-        + '<div class="delta">목업은 ' + MOCK_MONTHS[MOCK_MONTHS.length - 1] + '월까지 · 아래 실데이터 참조</div>';
-      return;
-    }
-    const share = YEAR_TOTAL ? Math.round((numOf(v) / YEAR_TOTAL) * 100) : 0;
-    kpi.innerHTML = '<div class="lb">' + q.label + ' 매입액(목업)</div>'
-      + '<div class="v">' + v + '<small> 백만원</small></div>'
-      + '<div class="delta">목업 연간 ' + won(YEAR_TOTAL) + '백만 중 ' + share + '%</div>';
-  }
+  let CACHE = null;
 
-  /* ── ERP 실데이터: 조회바의 기간으로 걸러 집계한다 ── */
-  let CACHE = null;   // {rows, asof} — 새로고침일 때만 다시 받는다
-  async function loadLive(q, reason, bar) {
+  async function load(q, reason, bar) {
     if (!CACHE || reason === "refresh" || reason === "auto") {
       const [rows, asof] = await Promise.all([erpApi.purchaseMonthly(), erpApi.dataAsof()]);
       CACHE = { rows, asof };
-      // 조회 가능한 월 = 목업 ∪ 실데이터 (실데이터가 8월까지면 7·8월도 고를 수 있어야 한다)
-      const live = rows.filter((r) => String(r.ym || "").startsWith(q.year + "-"))
-                       .map((r) => Number(String(r.ym).slice(5)));
-      const all = [...new Set([...MOCK_MONTHS, ...live])].sort((a, b) => a - b);
-      if (all.length) bar.setMonths(all);
+      const years = [...new Set(rows.map((r) => Number(String(r.ym).slice(0, 4))))].filter(Boolean).sort((a, b) => b - a);
+      if (years.length) bar.setYears(years);
       const ts = asof.purchase?.last_success;
       if (ts) bar.setMeta({ asOf: new Date(ts).toISOString().slice(0, 10) });
     }
-    const { rows, asof } = CACHE;
-    const inPeriod = rows.filter((r) => {
-      const ym = String(r.ym || "");
-      return q.month == null ? ym.startsWith(q.year + "-") : ym === q.ym;
-    });
-    if (!rows.length) { el("liveErp").style.display = "none"; el("liveErpHint").style.display = "block"; return; }
-    el("liveErpHint").style.display = "none";
+    const { rows } = CACHE;
+    const yr = rows.filter((r) => String(r.ym || "").startsWith(q.year + "-"));
+    const months = [...new Set(yr.map((r) => Number(String(r.ym).slice(5))))].sort((a, b) => a - b);
+    if (months.length) bar.setMonths(months);
+    render(q, yr);
+  }
+
+  function render(q, yr) {
+    if (!yr.length) { app.innerHTML = '<div class="notice">' + esc(q.year) + '년 매입 실적이 없습니다.</div>'; return; }
+    const inPeriod = q.month == null ? yr : yr.filter((r) => r.ym === q.ym);
+
+    const byYm = {};
+    for (const r of yr) {
+      const b = (byYm[r.ym] = byYm[r.ym] || { amt: 0, cnt: 0 });
+      b.amt += Number(r.purchase_amt || 0); b.cnt += Number(r.iv_cnt || 0);
+    }
+    const yms = Object.keys(byYm).sort();
+    const max = Math.max(1, ...yms.map((k) => byYm[k].amt));
+
+    const amt = inPeriod.reduce((a, r) => a + Number(r.purchase_amt || 0), 0);
+    const cnt = inPeriod.reduce((a, r) => a + Number(r.iv_cnt || 0), 0);
+    const bps = new Set(inPeriod.map((r) => r.bp_code)).size;
+    const avg = yms.length ? yms.reduce((a, k) => a + byYm[k].amt, 0) / yms.length : 0;
+
+    let cmp = "";
+    if (q.month != null) {
+      const prev = byYm[q.year + "-" + String(q.month - 1).padStart(2, "0")];
+      if (prev && prev.amt) {
+        const d = Math.round(((amt - prev.amt) / prev.amt) * 100);
+        cmp = (d > 0 ? "▲ +" : d < 0 ? "▼ " : "± ") + d + "% (전월 대비)";
+      }
+    }
 
     const byBp = {};
-    let totAmt = 0, totCnt = 0; const months = new Set();
     for (const r of inPeriod) {
-      months.add(r.ym);
-      totAmt += Number(r.purchase_amt || 0); totCnt += Number(r.iv_cnt || 0);
       const b = (byBp[r.bp_code] = byBp[r.bp_code] || { name: r.bp_name || r.bp_code, amt: 0, cnt: 0 });
       b.amt += Number(r.purchase_amt || 0); b.cnt += Number(r.iv_cnt || 0);
     }
-    const top = Object.values(byBp).sort((a, b) => b.amt - a.amt).slice(0, 10);
-    const max = top[0]?.amt || 1;
+    const top = Object.values(byBp).sort((a, b) => b.amt - a.amt).slice(0, 12);
+    const tmax = top[0]?.amt || 1;
+    const total = Object.values(byBp).reduce((a, t) => a + t.amt, 0);
+    const top5 = top.slice(0, 5).reduce((a, t) => a + t.amt, 0);
 
-    // 월별 추이(연 단위) — data-m 을 붙여 조회바가 선택 월을 강조하게 한다
-    const byYm = {};
-    for (const r of rows.filter((r) => String(r.ym || "").startsWith(q.year + "-")))
-      byYm[r.ym] = (byYm[r.ym] || 0) + Number(r.purchase_amt || 0);
-    const yms = Object.keys(byYm).sort();
-    const cmax = Math.max(1, ...yms.map((k) => byYm[k]));
-    el("liveChart").innerHTML = yms.length ? yms.map((ym) => {
-      const m = Number(ym.slice(5));
-      return '<div class="cbar" data-m="' + m + '"><span class="val">' + mil(byYm[ym]) + '</span>'
-        + '<div class="bar" style="height:' + Math.max(2, Math.round(byYm[ym] / cmax * 100)) + '%"></div>'
-        + '<span class="lab">' + m + '월</span></div>';
-    }).join("") : '<div style="color:var(--muted);font-size:12.5px;padding:20px;">해당 연도 매입 데이터가 없습니다.</div>';
-    el("liveLegend").innerHTML = '<span>매입금액(백만원) · 원천 <code>erp_ro.purchase_m</code></span>'
-      + '<span>적재 월: ' + (yms.join(", ") || "-") + '</span>';
+    app.innerHTML =
+      '<div class="kpis">'
+      + kpi("매입액", mil(amt), "백만원", q.month == null ? "연간 누계 · 부가세 별도" : (cmp || q.month + "월"), cmp.startsWith("▲") ? "up" : "")
+      + kpi("매입전표 건수", num(cnt), "건", esc(q.label))
+      + kpi("거래 거래처", num(bps), "개사", "매입 1건 이상")
+      + kpi("상위 5개사 집중도", total ? Math.round(top5 / total * 100) + "%" : "—", "", "금액 기준")
+      + '</div>'
 
-    const ts = asof.purchase?.last_success;
-    el("liveAsof").textContent = ts ? "데이터 기준: " + new Date(ts).toLocaleString("ko-KR") : "기준시각 미상";
-    el("liveKpis").innerHTML =
-      `<div class="kpi"><div class="lb">매입액 합계(실데이터)</div><div class="v">${mil(totAmt)}<small> 백만원</small></div><div class="delta">${won(totAmt)} 원</div></div>` +
-      `<div class="kpi"><div class="lb">거래 거래처 수</div><div class="v">${Object.keys(byBp).length}<small> 개사</small></div><div class="delta">매입 1건 이상</div></div>` +
-      `<div class="kpi"><div class="lb">매입전표 건수</div><div class="v">${won(totCnt)}<small> 건</small></div></div>` +
-      `<div class="kpi"><div class="lb">조회 기간</div><div class="v">${months.size}<small> 개월</small></div><div class="delta">${q.label}</div></div>`;
-    el("liveTop").innerHTML = top.length
-      ? top.map((t) =>
-          `<div class="brow"><span class="lab">${t.name}</span><div class="track"><i style="width:${Math.max(2, Math.round(t.amt / max * 100))}%"></i></div>` +
-          `<span class="cnt">${mil(t.amt)}백만 (${t.cnt}건)</span></div>`).join("")
-      : '<p style="font-size:12.5px;color:var(--muted);margin:6px 0;">선택한 기간에 해당하는 실데이터가 없습니다.</p>';
-    el("liveMonths").textContent = months.size ? "집계 월: " + [...months].sort().join(", ") : "";
-    el("liveErp").style.display = "block";
+      + '<div class="sec"><h3>월별 매입 추이 (백만원)</h3><div class="chart">'
+      + yms.map((ym) => {
+          const m = Number(ym.slice(5)), a = byYm[ym].amt;
+          return '<div class="cbar" data-m="' + m + '"><span class="val">' + mil(a) + '</span>'
+            + '<div class="bar" style="height:' + Math.max(2, Math.round(a / max * 100)) + '%"></div>'
+            + '<span class="lab">' + m + '월</span></div>';
+        }).join("")
+      + '</div></div>'
+
+      + '<div class="sec"><h3>거래처별 매입 <small style="font-weight:400;color:var(--muted);">' + esc(q.label) + ' · 상위 12개사</small></h3>'
+      + '<div class="barlist">'
+      + (top.length ? top.map((t) =>
+          '<div class="brow"><span class="lab">' + esc(t.name) + '</span>'
+          + '<div class="track"><i style="width:' + Math.max(2, Math.round(t.amt / tmax * 100)) + '%"></i></div>'
+          + '<span class="cnt">' + mil(t.amt) + '백만 (' + t.cnt + '건)</span></div>').join("")
+        : '<p style="font-size:12.5px;color:var(--muted);">선택한 기간에 매입이 없습니다.</p>')
+      + '</div></div>';
   }
 
   createQueryBar("#qbar", {
-    years: [2026], year: 2026,
-    months: MOCK_MONTHS.length ? MOCK_MONTHS : [1, 2, 3, 4, 5, 6], monthLabels: { 6: "6월(진행)" },
-    basis: "상단 = 2026-06-12 파일추출 목업 · 하단 = ERP 중간DB(purchase_m) 실데이터",
-    mode: "mock", modeLabel: "목업 + ERP 실데이터",
+    years: [new Date().getFullYear()], year: new Date().getFullYear(),
+    months: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+    basis: "확정 매입 기준 · 부가세 별도",
+    mode: "live",
     onQuery: async (q, ctx) => {
-      paintMockKpi(q);
-      try { await loadLive(q, ctx.reason, ctx.bar); ctx.bar.applyPeriod(); }
+      try { await load(q, ctx.reason, ctx.bar); ctx.bar.applyPeriod(); }
       catch (e) {
-        // 비로그인/anon/권한없음 → 격리로 조회 불가. 안내만 표시(목업 유지).
-        el("liveErp").style.display = "none";
-        el("liveErpHint").style.display = "block";
-        console.warn("[erp] 실데이터 조회 불가(사내 세션 필요):", e?.message || e);
+        app.innerHTML = '<div class="notice">매입 실적을 불러오지 못했습니다. 사내 계정으로 로그인했는지 확인해 주세요.<br>'
+          + '<span style="color:#99a2ad;">' + esc(e?.message || "") + '</span></div>';
+        throw e;
       }
     },
   });

@@ -58,162 +58,142 @@
   .callout{border-radius:8px; padding:11px 15px; margin:10px 0; font-size:12.5px;}
   .callout.amber{background:var(--softamber); border-left:4px solid var(--amber);}
   .callout.blue{background:var(--soft); border-left:4px solid var(--accent);}
+  .loading{text-align:center; color:var(--muted); padding:46px 10px; font-size:13.5px;}
+  .notice{background:var(--soft); border:1px solid var(--line); border-left:4px solid var(--accent); border-radius:8px; padding:11px 15px; margin:12px 0; font-size:12.5px; color:var(--muted);}
+  .notice b{color:var(--navy2);}
   .foot{margin-top:24px; padding-top:12px; border-top:1px solid var(--line); font-size:11px; color:var(--muted); display:flex; justify-content:space-between;}
   @media print{ .demo-banner{display:none;} .page{box-shadow:none; max-width:100%;} }
   @media (max-width:760px){ .page{padding:22px 16px;} .grid2{grid-template-columns:1fr;} }
 </style>
 </head>
 <body>
-<div class="demo-banner">⚠ 목업 데모 — UNIERP DB 구조·계정체계 기반 샘플입니다. 수치는 검증 전 참고용이며 최종 확인은 자금팀(재무·회계) 책임입니다.</div>
 <div class="page">
 
   <div class="head">
     <div>
-      <h1>💰 자금일보 대시보드<span class="qbar-period" data-qbar-period>2026년 연간</span></h1>
-      <div class="sub">자금팀(재무·회계) 운영 페이지 · <span class="badge b">부서 전용</span> <span class="badge r">민감 — 임원·자금팀 한정</span> <span class="badge a">전체 목업 · 2026-06-12 기준</span></div>
+      <h1>💰 자금 수지현황<span class="qbar-period" data-qbar-period></span></h1>
+      <div class="sub">자금팀(재무·회계) 운영 페이지 · <span class="badge b">부서 전용</span> <span class="badge r">자금팀·관리자만 열람</span></div>
     </div>
-    <div class="right">현재 값은 <a href="/work/cash-status" style="color:var(--accent);font-weight:700;">자금·경영 현황(ERP 실연동)</a>에서 보세요</div>
+    <div class="right">ERP 실적 · <span data-qbar-asof>—</span> 기준</div>
   </div>
 
   <!-- 표준 조회 플랫폼 (app/lib/querybar.js) -->
   <div id="qbar"></div>
 
-  <div class="callout amber" style="margin:0 0 14px;">
-    <b>이 화면은 전부 목업입니다 (2026-06-12 기준).</b> 현금성자산·차입금·매출채권·매입채무 등 자금 지표는
-    중간DB(<code>erp_ro</code>)에 원천이 없어 실연계 대상이 아닙니다. ERP 실데이터로 보는 매출·매입·발주·수지는
-    <a href="/work/cash-status" style="font-weight:700;">자금·경영 현황 대시보드</a>(서버에서 자금 권한 강제)에서 확인하세요.
-  </div>
-
-  <!-- KPI : 자금 포지션 -->
-  <div class="kpis">
-    <div class="kpi gr"><div class="lb">현금성 자산 합계</div><div class="v">4,581<small> 백만원</small></div><div class="delta">현금 12 + 보통예금 4,569</div></div>
-    <div class="kpi" id="kpiPeriod"><div class="lb">당일 순변동</div><div class="v" style="color:var(--green);">+102<small> 백만원</small></div><div class="delta up">입금 348 − 출금 246</div></div>
-    <div class="kpi am"><div class="lb">매출채권 (외상+어음)</div><div class="v">2,672<small> 백만원</small></div><div class="delta">외상 1,820 + 받을어음 852</div></div>
-    <div class="kpi rd"><div class="lb">매입채무</div><div class="v">1,264<small> 백만원</small></div><div class="delta">외상매입+미지급금</div></div>
-    <div class="kpi rd"><div class="lb">차입금 잔액</div><div class="v">4,500<small> 백만원</small></div><div class="delta">단기 3,000 + 장기 1,500</div></div>
-  </div>
-
-  <!-- 당일 자금 이동 + 은행별 -->
-  <div class="grid2">
-    <div class="sec">
-      <h3>당일 자금 이동 (2026-06-12) <span class="badge b">A_GL_ITEM 일계</span></h3>
-      <table>
-        <tr><th>구분</th><th>내역</th><th class="r">금액(백만원)</th></tr>
-        <tr><td rowspan="3" style="vertical-align:middle;"><b style="color:var(--green);">입금</b></td><td>매출 수금 — 엔시스 중도금 (S0001)</td><td class="r plus">+290</td></tr>
-        <tr><td>매출 수금 — 삼성SDI CS (S0001)</td><td class="r plus">+50</td></tr>
-        <tr><td>이자수익 등 기타</td><td class="r plus">+8</td></tr>
-        <tr><td rowspan="4" style="vertical-align:middle;"><b style="color:var(--red);">출금</b></td><td>매입대금 — 대신스텐레스 외 (M0001)</td><td class="r minus">−147</td></tr>
-        <tr><td>외주가공비 — 외주 정산 (M0008/0011)</td><td class="r minus">−62</td></tr>
-        <tr><td>차입금 이자 (FI006 미지급이자 결제)</td><td class="r minus">−19</td></tr>
-        <tr><td>경비·기타 지출</td><td class="r minus">−18</td></tr>
-        <tr style="font-weight:700;"><td colspan="2">당일 순변동</td><td class="r" style="color:var(--green);">+102</td></tr>
-        <tr style="font-weight:700;"><td colspan="2">금일 말 현금성 잔액 (예상)</td><td class="r" style="color:var(--navy);">4,581</td></tr>
-      </table>
-    </div>
-    <div class="sec">
-      <h3>은행별 예금·차입 현황 <span class="badge b">B_BANK × B_BANK_ACCT</span></h3>
-      <table>
-        <tr><th>금융기관</th><th class="r">예금 잔액</th><th class="r">차입 잔액</th><th>비고</th></tr>
-        <tr><td>KB국민은행 (004)</td><td class="r">1,842</td><td class="r">2,000</td><td>주거래 · 운전자금</td></tr>
-        <tr><td>중소기업은행 (307)</td><td class="r">1,164</td><td class="r">1,500</td><td>시설자금 (장기)</td></tr>
-        <tr><td>우리은행 (020)</td><td class="r">872</td><td class="r">1,000</td><td>무역금융 한도</td></tr>
-        <tr><td>SC제일은행 (003)</td><td class="r">486</td><td class="r">—</td><td>외화계좌 (USD)</td></tr>
-        <tr><td>농협 (011)</td><td class="r">205</td><td class="r">—</td><td>급여·경비 계좌</td></tr>
-        <tr style="font-weight:700;"><td>합계 (백만원)</td><td class="r">4,569</td><td class="r">4,500</td><td>순현금 +69</td></tr>
-      </table>
-      <p style="font-size:11px; color:var(--muted); margin-top:6px;">※ 은행코드는 ERP 은행 마스터(B_BANK · 36행) 기준. 외화예금은 기준일 환율 환산.</p>
-    </div>
-  </div>
-
-  <!-- 월별 수금/지출 흐름 -->
-  <div class="sec">
-    <h3>월별 수금 · 지출 흐름 (2026 · 백만원) <span class="badge b">S계열(수금) vs M·E계열(지출)</span></h3>
-    <div class="dwrap">
-      <div class="dual" id="mChart">
-        <div class="dgroup" data-m="1"><div class="gin" style="height:35%"></div><div class="gout" style="height:30%"></div><span class="lab">1월<br><span class="val">+62</span></span></div>
-        <div class="dgroup" data-m="2"><div class="gin" style="height:95%"></div><div class="gout" style="height:58%"></div><span class="lab">2월<br><span class="val">+430</span></span></div>
-        <div class="dgroup" data-m="3"><div class="gin" style="height:42%"></div><div class="gout" style="height:52%"></div><span class="lab">3월<br><span class="val">−118</span></span></div>
-        <div class="dgroup" data-m="4"><div class="gin" style="height:72%"></div><div class="gout" style="height:55%"></div><span class="lab">4월<br><span class="val">+204</span></span></div>
-        <div class="dgroup" data-m="5"><div class="gin" style="height:55%"></div><div class="gout" style="height:63%"></div><span class="lab">5월<br><span class="val">−92</span></span></div>
-        <div class="dgroup" data-m="6"><div class="gin" style="height:38%"></div><div class="gout" style="height:28%"></div><span class="lab">6월(진행)<br><span class="val">+115</span></span></div>
-      </div>
-      <div class="legend"><span><i style="background:var(--green)"></i>수금 (매출수금·이자수익)</span><span><i style="background:var(--red)"></i>지출 (매입·외주·급여·이자)</span><span>막대 하단 수치 = 월 순변동</span></div>
-    </div>
-    <div class="callout blue">
-      <b>흐름 해석</b> — 2월 대형 수주 계약금(엔시스 22.7억 건) 유입으로 순+430. 3·5월은 외주 정산·급여 집중으로 순유출. 6월 중도금 수금 예정(엔시스 2026-032) 반영 시 상반기 누적 <b>+701백만원</b> 전망.
-    </div>
-  </div>
-
-  <!-- 채권채무 / 차입 상세 -->
-  <div class="grid2">
-    <div class="sec">
-      <h3>채권·채무 현황 (계정과목 기준)</h3>
-      <table>
-        <tr><th>계정</th><th>계정코드</th><th class="r">잔액(백만원)</th></tr>
-        <tr><td>외상매출금</td><td><code>11100901</code></td><td class="r">1,820</td></tr>
-        <tr><td>받을어음</td><td><code>11100905</code></td><td class="r">852</td></tr>
-        <tr><td>할인어음 (차감)</td><td><code>11100906</code></td><td class="r">−300</td></tr>
-        <tr><td>미수금</td><td><code>11101701</code></td><td class="r">95</td></tr>
-        <tr style="border-top:2px solid var(--navy);"><td>외상매입금</td><td><code>21100101</code></td><td class="r">986</td></tr>
-        <tr><td>미지급금</td><td><code>21101501</code></td><td class="r">278</td></tr>
-        <tr><td>선수금 (수주 계약금)</td><td><code>21102701</code></td><td class="r">1,393</td></tr>
-        <tr><td>미지급이자</td><td><code>22101701</code></td><td class="r">19</td></tr>
-      </table>
-      <p style="font-size:11px; color:var(--muted);">매출채권 회전: 영업팀 미수금 18.2억과 정합 (수주현황 페이지 연계). 받을어음 만기 3건 — 6월 내 1건(2.1억).</p>
-    </div>
-    <div class="sec">
-      <h3>차입금 상세 <span class="badge b">F_LN_INFO</span></h3>
-      <table>
-        <tr><th>구분</th><th>은행</th><th class="r">잔액</th><th class="r">금리</th><th>만기</th></tr>
-        <tr><td><span class="badge a">단기</span> 운전</td><td>KB국민</td><td class="r">2,000</td><td class="r">5.2%</td><td>2026-10</td></tr>
-        <tr><td><span class="badge a">단기</span> 무역</td><td>우리</td><td class="r">1,000</td><td class="r">4.9%</td><td>2026-09</td></tr>
-        <tr><td><span class="badge b">장기</span> 시설</td><td>기업은행</td><td class="r">1,500</td><td class="r">4.3%</td><td>2028-03</td></tr>
-        <tr style="font-weight:700;"><td colspan="2">합계 (백만원)</td><td class="r">4,500</td><td class="r">평균 4.8%</td><td>—</td></tr>
-      </table>
-      <table style="margin-top:10px;">
-        <tr><th>월 이자 부담</th><th class="r">금액(백만원)</th><th>처리</th></tr>
-        <tr><td>이자비용 월결산</td><td class="r">약 18.0</td><td>FI005 선급 / FI006 미지급</td></tr>
-        <tr><td>만기 관리</td><td class="r">—</td><td>FI007 만기연장 · 2건 4Q 도래</td></tr>
-      </table>
-    </div>
-  </div>
-
-  <div class="callout amber">
-    <b>자금팀 관리 포인트</b> — ① 단기차입 3,000 중 2건이 3·4Q 만기 도래 → 연장(FI007) 또는 상환(FI002) 의사결정 9월 내 필요. ② 수주 집중(엔시스 92%)으로 중도금 수금 일정이 자금 계획의 핵심 변수 — 영업팀 수주현황 페이지와 주간 연동 점검. ③ 받을어음 852 중 할인 300 — 할인료 비용과 자금 여력 균형 관리(FN002).
-  </div>
-
-  <div class="src">
-    <b>데이터 원천 (UNIERP · 읽기전용)</b> — 확정전표 <code>A_GL/A_GL_ITEM</code>(305,864행) · 기초잔액 <code>A_OPEN_ACCT/A_OPEN_AR/A_OPEN_AP</code> · 차입금 <code>F_LN_INFO</code> · 어음 <code>F_NOTE</code> · 예금 <code>F_DPST</code> · 은행 <code>B_BANK/B_BANK_ACCT</code>(36행). 계정: 현금 <code>11100101</code> · 보통예금 <code>11100105</code> · 단기차입 <code>22101101</code> · 장기차입 <code>23101101</code>. 자금 거래유형: FI001~FI007(차입), FN001~FN006(어음). 추출 경로: ERP_DB\회계, doc\modules\09_Cash_Budget_Analysis.
+  <div id="app">
+    <div class="loading">자금 수지를 불러오는 중…</div>
   </div>
 
   <div class="foot">
-    <span>자금팀 운영 페이지 · 자금일보 대시보드 (일 단위 갱신)</span>
-    <span>등록: 재무·회계팀 · 공개범위: 부서 전용+임원 (관리자 콘솔 권한 적용)</span>
+    <span>자금팀 운영 페이지 · 자금 수지현황</span>
+    <span>등록: 재무·회계팀 · 공개범위: 부서 전용 + 임원</span>
   </div>
 </div>
-<!-- 표준 조회 플랫폼 — 기준·기간·새로고침은 전 부서 화면 공통 (CLAUDE.md §16) -->
-<script type="module">
-  import { createQueryBar, readMonthSeries, numOf } from "/app/lib/querybar.js";
 
-  // 화면에 이미 그려진 월 순변동(백만원)을 읽어 쓴다 — 숫자를 스크립트에 중복 기입하지 않는다.
-  const NET = readMonthSeries("#mChart");
-  const kpi = document.getElementById("kpiPeriod");
-  const KPI_DAY = kpi.innerHTML;
+<script type="module">
+  import { erpApi } from "/app/lib/api.js";
+  import { createQueryBar } from "/app/lib/querybar.js";
+
+  const app = document.getElementById("app");
+  const esc = (t) => String(t == null ? "" : t).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const mil = (n) => Math.round(Number(n || 0) / 1e6).toLocaleString("ko-KR");
+  const kpi = (lb, v, unit, sub, cls) =>
+    '<div class="kpi"><div class="lb">' + esc(lb) + '</div><div class="v"' + (cls === "neg" ? ' style="color:var(--red);"' : cls === "pos" ? ' style="color:var(--green);"' : '') + '>' + v
+    + (unit ? '<small> ' + unit + '</small>' : '') + '</div>'
+    + (sub ? '<div class="delta">' + sub + '</div>' : '') + '</div>';
+
+  let DATA = null, LOADED_YEAR = null;
+
+  async function load(q, reason, bar) {
+    if (DATA == null || LOADED_YEAR !== q.year || reason === "refresh" || reason === "auto") {
+      const d = await erpApi.financeOverview(q.year, null);
+      if (d && d.forbidden) { DATA = { denied: true }; render(q); return; }
+      if (d && d.unauthorized) { DATA = { expired: true }; render(q); return; }
+      if (!d || !d.ok) { DATA = { empty: true }; render(q); return; }
+      DATA = d; LOADED_YEAR = q.year;
+      if (Array.isArray(d.years) && d.years.length) bar.setYears(d.years.map(Number).sort((a, b) => b - a));
+      const ms = (d.monthly || []).map((m) => Number(String(m.ym).slice(5))).filter(Boolean);
+      if (ms.length) bar.setMonths([...new Set(ms)].sort((a, b) => a - b));
+      const last = (d.monthly || []).map((m) => m.ym).sort().pop();
+      if (last) bar.setMeta({ asOf: last + " 마감" });
+    }
+    render(q);
+  }
+
+  function render(q) {
+    if (DATA && DATA.denied) {
+      app.innerHTML = '<div class="notice">이 화면의 <b>자금 데이터</b>는 자금팀·회계 부서·전체 관리자만 열람할 수 있습니다.<br>'
+        + '열람이 필요하면 관리자에게 자금(finance) 권한을 요청하세요.</div>';
+      return;
+    }
+    if (DATA && DATA.expired) { app.innerHTML = '<div class="notice">세션이 만료되었습니다. 다시 로그인해 주세요.</div>'; return; }
+    if (!DATA || DATA.empty || !(DATA.monthly || []).length) {
+      app.innerHTML = '<div class="notice">' + esc(q.year) + '년 자금 수지 데이터가 없습니다.</div>';
+      return;
+    }
+
+    const monthly = DATA.monthly.filter((m) => String(m.ym).startsWith(q.year + "-"));
+    const rows = q.month == null ? monthly : monthly.filter((m) => m.ym === q.ym);
+    const sum = (k) => rows.reduce((a, m) => a + Number(m[k] || 0), 0);
+    const sales = sum("sales_amt"), purchase = sum("purchase_amt"), po = sum("po_amt");
+    const net = sales - purchase;
+
+    const maxV = Math.max(1, ...monthly.map((m) => Math.max(Number(m.sales_amt || 0), Number(m.purchase_amt || 0))));
+
+    app.innerHTML =
+      '<div class="kpis">'
+      + kpi("수입 (매출)", mil(sales), "백만원", esc(q.label))
+      + kpi("지출 (매입)", mil(purchase), "백만원", esc(q.label))
+      + kpi("수지차", mil(net), "백만원", net >= 0 ? "흑자" : "적자", net >= 0 ? "pos" : "neg")
+      + kpi("발주액", mil(po), "백만원", "구매발주 기준")
+      + '</div>'
+
+      + '<div class="sec"><h3>월별 수입 · 지출 흐름 (백만원)</h3><div class="dwrap"><div class="dual">'
+      + monthly.map((m) => {
+          const mm = Number(String(m.ym).slice(5));
+          const s = Number(m.sales_amt || 0), p = Number(m.purchase_amt || 0), n = s - p;
+          return '<div class="dgroup" data-m="' + mm + '">'
+            + '<div class="gin" style="height:' + Math.max(2, Math.round(s / maxV * 100)) + '%"></div>'
+            + '<div class="gout" style="height:' + Math.max(2, Math.round(p / maxV * 100)) + '%"></div>'
+            + '<span class="lab">' + mm + '월<br><span style="color:' + (n >= 0 ? "var(--green)" : "var(--red)") + '">'
+            + (n >= 0 ? "+" : "−") + mil(Math.abs(n)) + '</span></span></div>';
+        }).join("")
+      + '</div><div class="legend"><span><i style="background:var(--green)"></i>수입(매출)</span>'
+      + '<span><i style="background:var(--red)"></i>지출(매입)</span><span>막대 아래 숫자 = 월 수지(백만원)</span></div></div></div>'
+
+      + '<div class="grid2">'
+      + topTable("수입 상위 거래처", DATA.top_sales)
+      + topTable("지출 상위 거래처", DATA.top_purchase)
+      + '</div>'
+
+      + '<div class="notice">현금성자산·차입금·매출채권·매입채무는 <b>ERP 연계 준비 중</b>이라 이 화면에 표시되지 않습니다. '
+      + '현재 보이는 값은 확정 매출·매입 기준 수지입니다.</div>';
+  }
+
+  function topTable(title, rows) {
+    rows = rows || [];
+    const body = rows.length
+      ? rows.slice(0, 8).map((r, i) => '<tr><td class="c">' + (i + 1) + '</td><td>' + esc(r.bp_name || "-") + '</td><td class="r">' + mil(r.amt) + '</td></tr>').join("")
+      : '<tr><td colspan="3" style="text-align:center;color:var(--muted);padding:16px;">데이터 없음</td></tr>';
+    return '<div class="sec"><h3>' + esc(title) + '</h3><table>'
+      + '<tr><th class="c" style="width:14%;">순위</th><th>거래처</th><th class="r">금액(백만원)</th></tr>' + body + '</table></div>';
+  }
 
   createQueryBar("#qbar", {
-    years: [2026], year: 2026,
-    months: [1, 2, 3, 4, 5, 6], monthLabels: { 6: "6월(진행)" },
-    asOf: "2026-06-12",
-    basis: "전체 목업 · 자금 지표는 중간DB에 원천 없음 — 실데이터는 /work/cash-status",
-    mode: "mock", modeLabel: "목업 (실연계 대상 아님)",
-    onQuery: (q) => {
-      if (q.month == null) { kpi.innerHTML = KPI_DAY; return; }
-      const raw = NET[q.month], v = numOf(raw);
-      kpi.innerHTML = '<div class="lb">' + q.label + ' 순변동</div>'
-        + '<div class="v" style="color:var(--' + (v >= 0 ? "green" : "red") + ');">' + (raw ?? "—") + "<small> 백만원</small></div>"
-        + '<div class="delta' + (v >= 0 ? " up" : " dn") + '">수금 − 지출 (월 합계)</div>';
+    years: [new Date().getFullYear()], year: new Date().getFullYear(),
+    months: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+    basis: "확정 매출·매입 기준",
+    mode: "live",
+    onQuery: async (q, ctx) => {
+      try { await load(q, ctx.reason, ctx.bar); ctx.bar.applyPeriod(); }
+      catch (e) {
+        app.innerHTML = '<div class="notice">자금 수지를 불러오지 못했습니다. 사내 계정으로 로그인했는지 확인해 주세요.<br>'
+          + '<span style="color:#99a2ad;">' + esc(e?.message || "") + '</span></div>';
+        throw e;
+      }
     },
   });
 </script>
+
 </body>
 </html>

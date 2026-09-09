@@ -59,214 +59,185 @@
   .brow .cnt{font-weight:700; color:var(--navy); text-align:right;}
   .src{margin-top:18px; background:var(--soft); border:1px solid var(--line); border-radius:9px; padding:11px 16px; font-size:11.5px; color:var(--muted);}
   .src b{color:var(--navy2);}
-  /* 급여 마스킹 — 인사팀 권한자만 해제. 미권한/데모(통합본)/오프라인은 기본 마스킹(fail-safe) */
-  body:not(.pay-authorized) [data-sensitive="pay"]{filter:blur(7px); pointer-events:none; user-select:none;}
-  .pay-gate{display:none; background:var(--softred); border:1px solid var(--red); color:#7a2a1e; border-radius:9px; padding:10px 14px; margin:0 0 14px; font-size:12.5px;}
-  body:not(.pay-authorized) .pay-gate{display:block;}
+  /* 급여 데이터는 이제 서버(jeil-hr)가 권한을 판정해 아예 내려주지 않는다 — CSS 마스킹 규칙은 제거했다 */
   code{font-family:Consolas,monospace; font-size:11px; background:#fff; border:1px solid var(--line); border-radius:4px; padding:0 5px;}
   .callout{border-radius:8px; padding:11px 15px; margin:10px 0; font-size:12.5px;}
   .callout.red{background:var(--softred); border-left:4px solid var(--red);}
   .callout.amber{background:var(--softamber); border-left:4px solid var(--amber);}
+  .loading{text-align:center; color:var(--muted); padding:46px 10px; font-size:13.5px;}
+  .notice{background:var(--soft); border:1px solid var(--line); border-left:4px solid var(--accent); border-radius:8px; padding:11px 15px; margin:12px 0; font-size:12.5px; color:var(--muted);}
+  .notice b{color:var(--navy2);}
   .foot{margin-top:24px; padding-top:12px; border-top:1px solid var(--line); font-size:11px; color:var(--muted); display:flex; justify-content:space-between;}
   @media print{ .demo-banner{display:none;} .page{box-shadow:none; max-width:100%;} }
   @media (max-width:760px){ .page{padding:22px 16px;} .grid2{grid-template-columns:1fr;} }
 </style>
 </head>
 <body>
-<div class="demo-banner">⚠ 목업 데모 — UNIERP DB 구조·일부 실데이터 기반 샘플입니다. 수치는 검증 전 참고용이며 최종 확인은 인사팀 책임입니다.</div>
 <div class="page">
-
-  <div class="pay-gate">🔒 <b>급여 항목은 인사팀 권한자에게만 표시됩니다.</b> 현재 마스킹 상태입니다(데모·미로그인·타부서). 급여 수치는 인사팀(또는 관리자) 로그인 시에만 해제됩니다.</div>
 
   <div class="head">
     <div>
-      <h1>👥 인원 및 급여 추이<span class="qbar-period" data-qbar-period>2026년 연간</span></h1>
-      <div class="sub">인사팀 운영 페이지 · <span class="badge b">부서 전용</span> <span class="badge r">개인정보 마스킹 적용</span> <span class="badge a">차트 = 목업</span> <span class="badge g">실집계 = 인사팀 전용 섹션</span></div>
+      <h1>👥 인원 및 급여 현황<span class="qbar-period" data-qbar-period></span></h1>
+      <div class="sub">인사팀 운영 페이지 · <span class="badge b">부서 전용</span> <span class="badge r">인사팀·관리자만 열람</span></div>
     </div>
-    <div class="right">실 급여 집계(erp_secure)는 <b>인사팀 전용 섹션</b>에 표시됩니다</div>
+    <div class="right">ERP 실적 · <span data-qbar-asof>—</span> 기준</div>
   </div>
 
   <!-- 표준 조회 플랫폼 (app/lib/querybar.js) -->
   <div id="qbar"></div>
 
-  <!-- KPI -->
-  <div class="kpis">
-    <div class="kpi" id="kpiHead"><div class="lb">전사 인원 (급여대상)</div><div class="v">91명</div><div class="delta dn">▼ 전월(6월) 98 → 7월 91</div></div>
-    <div class="kpi"><div class="lb">2026 누적 입사</div><div class="v">7명</div><div class="delta">신입 3 · 경력 4</div></div>
-    <div class="kpi"><div class="lb">2026 누적 퇴사</div><div class="v">5명</div><div class="delta dn">4월 집중 (A22 신고분)</div></div>
-    <div class="kpi" id="kpiPay" data-sensitive="pay"><div class="lb">월평균 급여총액</div><div class="v">412<small> 백만원</small></div><div class="delta up">▲ 전년 대비 +3.1%</div></div>
-    <div class="kpi" data-sensitive="pay"><div class="lb">4월 퇴직급여 정산</div><div class="v">69.5<small> 백만원</small></div><div class="delta">IRP 과세이연 · 소득세 0</div></div>
-  </div>
-
-  <!-- 월별 추이 -->
-  <div class="grid2">
-    <div class="sec">
-      <h3>월별 인원 추이 (급여대상, 명) <span class="badge a">목업 · 2026-07-24 기준 (실집계와 일치, 7월까지)</span></h3>
-      <div class="chart" id="mHead">
-        <div class="cbar" data-m="1"><span class="val">113</span><div class="bar" style="height:95%"></div><span class="lab">1월</span></div>
-        <div class="cbar" data-m="2"><span class="val">119</span><div class="bar" style="height:100%"></div><span class="lab">2월</span></div>
-        <div class="cbar" data-m="3"><span class="val">101</span><div class="bar" style="height:85%"></div><span class="lab">3월</span></div>
-        <div class="cbar" data-m="4"><span class="val">100</span><div class="bar" style="height:84%"></div><span class="lab">4월</span></div>
-        <div class="cbar" data-m="5"><span class="val">94</span><div class="bar" style="height:79%"></div><span class="lab">5월</span></div>
-        <div class="cbar" data-m="6"><span class="val">98</span><div class="bar" style="height:82%"></div><span class="lab">6월</span></div>
-        <div class="cbar" data-m="7"><span class="val">91</span><div class="bar fcst" style="height:76%"></div><span class="lab">7월(진행)</span></div>
-      </div>
-      <div class="legend"><span><i style="background:var(--accent)"></i>마감</span><span><i style="background:#b9cfe6"></i>진행 중(미마감)</span> · HDF070T 급여대상 인원(마감 전 변동 가능)</div>
-    </div>
-    <div class="sec" data-sensitive="pay">
-      <h3>월별 급여총액 추이 (백만원) <span class="badge r">목업 · 실집계와 수치가 다름</span></h3>
-      <div class="chart" id="mPay">
-        <div class="cbar" data-m="1"><span class="val">398</span><div class="bar" style="height:72%"></div><span class="lab">1월</span></div>
-        <div class="cbar" data-m="2"><span class="val">405</span><div class="bar" style="height:75%"></div><span class="lab">2월</span></div>
-        <div class="cbar" data-m="3"><span class="val">486</span><div class="bar" style="height:95%"></div><span class="lab">3월<br>(상여)</span></div>
-        <div class="cbar" data-m="4"><span class="val">421</span><div class="bar" style="height:80%"></div><span class="lab">4월</span></div>
-        <div class="cbar" data-m="5"><span class="val">409</span><div class="bar" style="height:77%"></div><span class="lab">5월</span></div>
-        <div class="cbar" data-m="6"><span class="val">—</span><div class="bar fcst" style="height:77%"></div><span class="lab">6월(예정)</span></div>
-      </div>
-      <div class="legend"><span>3월 정기상여 포함 · 퇴직급여 별도(HGA070T)</span></div>
-    </div>
-  </div>
-
-  <!-- 인사팀 권한자 전용: erp_secure 실 급여 집계(jeil-hr) — 미권한/데모엔 미표시 -->
-  <div class="callout amber" style="margin:0 0 14px;">
-    <b>이 화면의 차트는 목업입니다</b> — 위 <b>인원</b> 추이는 실집계와 일치하지만 <b>2026-07까지</b>만 반영돼 있고,
-    <b>급여총액</b> 목업은 실집계(<code>erp_secure.hr_payroll_m</code>)와 <b>수치가 다릅니다</b>.
-    현재 값은 아래 <b>인사팀 전용 실 급여 집계</b> 섹션에서 확인하세요(인사팀·관리자만 표시).
-  </div>
-  <div id="hrLiveAgg" style="margin:0 0 14px;"></div>
-
-  <!-- 부서별 / 입퇴사 -->
-  <div class="grid2">
-    <div class="sec">
-      <h3>부서별 인원 분포 (2026-06 기준 87명)</h3>
-      <div class="barlist">
-        <div class="brow"><span class="lab">생산</span><div class="track"><i style="width:100%"></i></div><span class="cnt">24명 (28%)</span></div>
-        <div class="brow"><span class="lab">영업</span><div class="track"><i style="width:50%"></i></div><span class="cnt">12명 (14%)</span></div>
-        <div class="brow"><span class="lab">구매·자재</span><div class="track"><i style="width:38%"></i></div><span class="cnt">9명 (10%)</span></div>
-        <div class="brow"><span class="lab">품질</span><div class="track"><i style="width:33%"></i></div><span class="cnt">8명 (9%)</span></div>
-        <div class="brow"><span class="lab">사업관리</span><div class="track"><i style="width:33%"></i></div><span class="cnt">8명 (9%)</span></div>
-        <div class="brow"><span class="lab">설계</span><div class="track"><i style="width:33%"></i></div><span class="cnt">8명 (9%)</span></div>
-        <div class="brow"><span class="lab">재무·회계</span><div class="track"><i style="width:25%"></i></div><span class="cnt">6명 (7%)</span></div>
-        <div class="brow"><span class="lab">인사·총무</span><div class="track"><i style="width:21%"></i></div><span class="cnt">5명 (6%)</span></div>
-        <div class="brow"><span class="lab">경영기획</span><div class="track"><i style="width:17%"></i></div><span class="cnt">4명 (5%)</span></div>
-        <div class="brow"><span class="lab">IT·전산</span><div class="track"><i style="width:13%"></i></div><span class="cnt">3명 (3%)</span></div>
-      </div>
-    </div>
-    <div class="sec">
-      <h3>2026년 입·퇴사 현황 (HAA010T: ENTR_DT / RETIRE_DT)</h3>
-      <table data-m-off="hide">
-        <tr><th>월</th><th class="c">입사</th><th class="c">퇴사</th><th class="c">순증감</th><th>비고</th></tr>
-        <tr data-m="1"><td>1월</td><td class="c">1</td><td class="c">0</td><td class="c" style="color:var(--green); font-weight:700;">+1</td><td>경력 1 (설계)</td></tr>
-        <tr data-m="2"><td>2월</td><td class="c">1</td><td class="c">0</td><td class="c" style="color:var(--green); font-weight:700;">+1</td><td>신입 1 (생산)</td></tr>
-        <tr data-m="3"><td>3월</td><td class="c">2</td><td class="c">0</td><td class="c" style="color:var(--green); font-weight:700;">+2</td><td>신입 2 (생산·품질)</td></tr>
-        <tr data-m="4"><td>4월</td><td class="c">4</td><td class="c" style="color:var(--red); font-weight:700;">5</td><td class="c" style="color:var(--red); font-weight:700;">−1</td><td>퇴직정산 5건 (하단 상세)</td></tr>
-        <tr data-m="5"><td>5월</td><td class="c">0</td><td class="c">0</td><td class="c">—</td><td></td></tr>
-        <tr data-m="6"><td>6월(진행)</td><td class="c">0</td><td class="c">0</td><td class="c">—</td><td></td></tr>
-        <tr data-m-empty class="qbar-hide"><td colspan="5" style="text-align:center;color:var(--muted);padding:14px;">선택한 월의 입·퇴사 데이터가 없습니다 (급여 마감 전).</td></tr>
-      </table>
-    </div>
-  </div>
-
-  <!-- 퇴직 정산 (데모 샘플 — 개인별 실데이터 미포함) -->
-  <div class="sec" data-sensitive="pay">
-    <h3>2026년 4월 퇴직급여 정산 내역 <span class="badge a">샘플(데모) · 개인 실데이터 미포함</span> <span class="badge r">인사팀 전용</span></h3>
-    <table>
-      <tr><th>사번</th><th>성명</th><th>퇴사일</th><th class="r">총지급액 (원)</th><th class="r">소득세</th><th class="r">지방세</th><th class="c">가입유형</th></tr>
-      <tr><td>S-001</td><td>샘플직원1</td><td>2026-04-05</td><td class="r">12,000,000</td><td class="r">0</td><td class="r">0</td><td class="c"><span class="badge b">샘플</span></td></tr>
-      <tr><td>S-002</td><td>샘플직원2</td><td>2026-04-11</td><td class="r">15,000,000</td><td class="r">0</td><td class="r">0</td><td class="c"><span class="badge b">샘플</span></td></tr>
-      <tr><td>S-003</td><td>샘플직원3</td><td>2026-04-18</td><td class="r">10,000,000</td><td class="r">0</td><td class="r">0</td><td class="c"><span class="badge b">샘플</span></td></tr>
-      <tr><td>S-004</td><td>샘플직원4</td><td>2026-04-22</td><td class="r">18,000,000</td><td class="r">0</td><td class="r">0</td><td class="c"><span class="badge b">샘플</span></td></tr>
-      <tr><td>S-005</td><td>샘플직원5</td><td>2026-04-26</td><td class="r">14,000,000</td><td class="r">0</td><td class="r">0</td><td class="c"><span class="badge b">샘플</span></td></tr>
-      <tr style="font-weight:700;"><td colspan="3">합계 (샘플)</td><td class="r" style="color:var(--navy);">69,000,000</td><td class="r">0</td><td class="r">0</td><td class="c">5건</td></tr>
-    </table>
-    <div class="callout amber">
-      <b>처리 메모(샘플)</b> — 본 표는 데모용 <b>샘플 수치</b>이며 개인별 실제 급여·퇴직정산 데이터를 포함하지 않습니다. 실제 개인별 정산은 ERP 인사 권한자(인사팀)만 원 시스템에서 조회하며, 중간DB에는 <b>집계(총액·인원)만</b> 반입됩니다(개인별·주민번호·계좌 미연계).
-    </div>
-  </div>
-
-  <div class="callout red">
-    <b>개인정보 보호</b> — 본 페이지는 사번 뒷자리·성명을 마스킹하여 표시하며, 원본 식별 데이터는 ERP 권한자만 조회할 수 있습니다. 급여 개인별 상세는 본 페이지에서 제공하지 않습니다(부서 합계·평균만).
-  </div>
-
-  <div class="src">
-    <b>데이터 원천 (UNIERP · 읽기전용)</b> — 사원기본 <code>HAA010T</code> · 월별급여대장 <code>HDF070T</code> (PAY_YYMM, DEPT_NM, PAY_TOT_AMT) · 퇴직금 <code>HGA040T/HGA070T</code> · 원천징수 A22 집계 <code>TH101BA1_AUTOCREATE</code>. 추출 경로: ERP_DB\인사\원천징수이행상황신고서 (2026-05-26 검증). 월별 인원·급여 합계는 마감 전 수치로 결산 시 변동될 수 있음.
+  <div id="app">
+    <div class="loading">인원·급여 집계를 불러오는 중…</div>
   </div>
 
   <div class="foot">
-    <span>인사팀 운영 페이지 · 2026년 인원 및 급여 추이</span>
-    <span>등록: 인사팀 · 공개범위: 부서 전용 (관리자 콘솔 권한 적용)</span>
+    <span>인사팀 운영 페이지 · 인원 및 급여 현황</span>
+    <span>등록: 인사팀 · 공개범위: 부서 전용</span>
   </div>
 </div>
-<script>
-/* 급여(data-sensitive=pay) 마스킹 — 인사팀(payroll 모듈) 권한자만 해제. 게이트와 독립.
-   통합본(iframe)·미로그인·오프라인 → 마스킹 유지(fail-safe). 값은 이미 데모 샘플(실데이터 미포함). */
-(function(){
-  try{ if(window.self !== window.top) return; }catch(e){ return; }  // 임베드(통합본)면 마스킹 유지
-  var a; try{ a = JSON.parse(localStorage.getItem('jeilax_auth')||'null'); }catch(e){ a=null; }
-  if(!(a && a.at && a.exp > Date.now())) return;                     // 미로그인 → 마스킹 유지
-  var BASE='https://dvzohdqtjzocgcclgwro.supabase.co/functions/v1/', H={ Authorization:'Bearer '+a.at };
-  function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
-  function won(n){ return (Number(n)||0).toLocaleString('ko-KR'); }
-  function renderHrAgg(hr){
-    var el = document.getElementById('hrLiveAgg'); if(!el) return;
-    if(!hr || !hr.allowed || !Array.isArray(hr.payroll) || !hr.payroll.length){
-      el.innerHTML = '<div class="sec"><h3>2026 실 급여 집계 (erp_secure) <span class="badge g">인사팀 전용</span></h3><p style="color:#888;font-size:12.5px;margin:0;">급여 집계 데이터가 아직 적재되지 않았습니다(적재 대기). 적재 후 월별 인원·급여총액·퇴직 집계가 표시됩니다.</p></div>';
+
+<script type="module">
+  import { createQueryBar } from "/app/lib/querybar.js";
+
+  const app = document.getElementById("app");
+  const esc = (t) => String(t == null ? "" : t).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const mil = (n) => Math.round(Number(n || 0) / 1e6).toLocaleString("ko-KR");
+  const num = (n) => Number(n || 0).toLocaleString("ko-KR");
+  const kpi = (lb, v, unit, sub, cls) =>
+    '<div class="kpi"><div class="lb">' + esc(lb) + '</div><div class="v">' + v
+    + (unit ? '<small> ' + unit + '</small>' : '') + '</div>'
+    + (sub ? '<div class="delta' + (cls ? " " + cls : "") + '">' + sub + '</div>' : '') + '</div>';
+
+  const BASE = "https://dvzohdqtjzocgcclgwro.supabase.co/functions/v1/";
+  function auth() {
+    try { const a = JSON.parse(localStorage.getItem("jeilax_auth") || "null"); return (a && a.at && a.exp > Date.now()) ? a : null; }
+    catch (e) { return null; }
+  }
+
+  let CACHE = null;   // [{ym, dept_nm, headcount, pay_tot_amt, retire_amt}]
+
+  async function load(q, reason, bar) {
+    if (!CACHE || reason === "refresh" || reason === "auto") {
+      const a = auth();
+      if (!a) throw new Error("사내 로그인이 필요합니다.");
+      const r = await fetch(BASE + "jeil-hr", { method: "POST", headers: { Authorization: "Bearer " + a.at } });
+      const hr = r.ok ? await r.json() : null;
+      if (!hr || !hr.allowed) { CACHE = { denied: true }; render(q); return; }
+      CACHE = { rows: hr.payroll || [] };
+      const years = [...new Set(CACHE.rows.map((x) => Number(String(x.ym).slice(0, 4))))].filter(Boolean).sort((a2, b) => b - a2);
+      if (years.length) bar.setYears(years);
+      const last = CACHE.rows.map((x) => String(x.ym)).sort().pop();
+      if (last) bar.setMeta({ asOf: last.slice(0, 4) + "-" + last.slice(4, 6) + " 마감" });
+    }
+    if (!CACHE.denied) {
+      const yr = CACHE.rows.filter((x) => String(x.ym).startsWith(String(q.year)));
+      const months = [...new Set(yr.map((x) => Number(String(x.ym).slice(4, 6))))].sort((a, b) => a - b);
+      if (months.length) bar.setMonths(months);
+    }
+    render(q);
+  }
+
+  function render(q) {
+    if (CACHE && CACHE.denied) {
+      app.innerHTML = '<div class="notice">이 화면의 <b>인원·급여 집계</b>는 인사팀·전체 관리자만 열람할 수 있습니다.<br>'
+        + '열람이 필요하면 관리자에게 인사(payroll) 권한을 요청하세요.</div>';
       return;
     }
-    var byYm = {};
-    hr.payroll.forEach(function(r){ var m=(byYm[r.ym]=byYm[r.ym]||{hc:0,pay:0,ret:0}); m.hc+=Number(r.headcount||0); m.pay+=Number(r.pay_tot_amt||0); m.ret+=Number(r.retire_amt||0); });
-    var yms = Object.keys(byYm).sort();
-    var rows = yms.map(function(ym){ var m=byYm[ym]; return '<tr><td>'+esc(ym)+'</td><td class="r">'+won(m.hc)+'</td><td class="r">'+won(m.pay)+'</td><td class="r">'+won(m.ret)+'</td></tr>'; }).join('');
-    el.innerHTML = '<div class="sec" style="border-top:4px solid var(--green);"><h3>● 실 급여 집계 (erp_secure · 인사팀 전용) <span class="badge g">실데이터 · 위 목업 차트보다 최신</span></h3>'
-      + '<p style="color:#666;font-size:11.5px;margin:0 0 8px;">개인별·주민번호·계좌 미포함(집계만). 게이트 API(jeil-hr) 경유 · 접근 감사 기록됨.</p>'
-      + '<table><tr><th>귀속월</th><th class="r">급여대상 인원</th><th class="r">급여총액(원)</th><th class="r">퇴직급여(원)</th></tr>'+rows+'</table></div>';
-  }
-  fetch(BASE+'jeil-me', { method:'POST', headers:H })
-    .then(function(r){ return r.ok ? r.json() : null; })
-    .then(function(me){
-      if(!(me && Array.isArray(me.erp_modules) && me.erp_modules.indexOf('payroll') >= 0)) return;  // 인사팀/관리자 아니면 마스킹 유지
-      document.body.classList.add('pay-authorized');                 // 급여 마스킹 해제
-      return fetch(BASE+'jeil-hr', { method:'POST', headers:H })     // erp_secure 실 집계
-        .then(function(r){ return r.ok ? r.json() : null; })
-        .then(renderHrAgg);
-    })
-    .catch(function(){ /* 실패 → 마스킹 유지 */ });
-})();
-</script>
-<!-- 표준 조회 플랫폼 — 기준·기간·새로고침은 전 부서 화면 공통 (CLAUDE.md §16) -->
-<script type="module">
-  import { createQueryBar, readMonthSeries, numOf } from "/app/lib/querybar.js";
+    const rows = (CACHE && CACHE.rows) || [];
+    const yr = rows.filter((x) => String(x.ym).startsWith(String(q.year)));
+    if (!yr.length) { app.innerHTML = '<div class="notice">' + esc(q.year) + '년 급여 집계가 없습니다.</div>'; return; }
 
-  // 화면에 이미 그려진 월별 수치를 읽어 쓴다 — 숫자를 스크립트에 중복 기입하지 않는다.
-  const HEAD = readMonthSeries("#mHead");   // 월별 급여대상 인원(명)
-  const PAY  = readMonthSeries("#mPay");    // 월별 급여총액(백만원)
-  const kHead = document.getElementById("kpiHead"), kPay = document.getElementById("kpiPay");
-  const HEAD_YEAR = kHead.innerHTML, PAY_YEAR = kPay.innerHTML;
+    const ymKey = q.month == null ? null : String(q.year) + String(q.month).padStart(2, "0");
+    const inPeriod = ymKey == null ? yr : yr.filter((x) => String(x.ym) === ymKey);
+
+    const byYm = {};
+    for (const r of yr) {
+      const b = (byYm[r.ym] = byYm[r.ym] || { hc: 0, pay: 0, ret: 0 });
+      b.hc += Number(r.headcount || 0); b.pay += Number(r.pay_tot_amt || 0); b.ret += Number(r.retire_amt || 0);
+    }
+    const yms = Object.keys(byYm).sort();
+    const hcMax = Math.max(1, ...yms.map((k) => byYm[k].hc));
+    const payMax = Math.max(1, ...yms.map((k) => byYm[k].pay));
+
+    // 선택 기간: 월이면 그 달, 연간이면 최근 달의 인원 + 급여 합계
+    const lastYm = yms[yms.length - 1];
+    const hc = ymKey ? (byYm[ymKey]?.hc || 0) : (byYm[lastYm]?.hc || 0);
+    const pay = inPeriod.reduce((a, r) => a + Number(r.pay_tot_amt || 0), 0);
+    const ret = inPeriod.reduce((a, r) => a + Number(r.retire_amt || 0), 0);
+    const depts = new Set(inPeriod.map((r) => r.dept_nm)).size;
+
+    let hcCmp = "";
+    if (ymKey) {
+      const pm = q.month > 1 ? String(q.year) + String(q.month - 1).padStart(2, "0") : null;
+      const prev = pm && byYm[pm] ? byYm[pm].hc : null;
+      if (prev != null) {
+        const d = hc - prev;
+        hcCmp = (d > 0 ? "▲ +" : d < 0 ? "▼ " : "± ") + d + "명 (전월 대비)";
+      }
+    }
+
+    // 부서별 인원 (선택 기간 · 월 기준)
+    const byDept = {};
+    for (const r of inPeriod) {
+      const b = (byDept[r.dept_nm] = byDept[r.dept_nm] || { hc: 0, pay: 0 });
+      b.hc += Number(r.headcount || 0); b.pay += Number(r.pay_tot_amt || 0);
+    }
+    const depList = Object.entries(byDept).map(([k, v]) => ({ nm: k, hc: v.hc, pay: v.pay }))
+      .sort((a, b) => b.hc - a.hc).slice(0, 14);
+    const dmax = depList[0]?.hc || 1;
+
+    const label = (k) => Number(String(k).slice(4, 6)) + "월";
+
+    app.innerHTML =
+      '<div class="kpis">'
+      + kpi("급여대상 인원", num(hc), "명", ymKey ? (hcCmp || q.month + "월") : label(lastYm) + " 기준", hcCmp.startsWith("▲") ? "up" : hcCmp.startsWith("▼") ? "dn" : "")
+      + kpi("급여총액", mil(pay), "백만원", esc(q.label))
+      + kpi("퇴직급여", mil(ret), "백만원", esc(q.label))
+      + kpi("집계 부서", num(depts), "개", "급여 발생 부서")
+      + '</div>'
+
+      + '<div class="grid2">'
+      + '<div class="sec"><h3>월별 인원 추이 (명)</h3><div class="chart">'
+      + yms.map((k) => {
+          const m = Number(String(k).slice(4, 6)), v = byYm[k].hc;
+          return '<div class="cbar" data-m="' + m + '"><span class="val">' + num(v) + '</span>'
+            + '<div class="bar" style="height:' + Math.max(2, Math.round(v / hcMax * 100)) + '%"></div>'
+            + '<span class="lab">' + m + '월</span></div>';
+        }).join("")
+      + '</div></div>'
+      + '<div class="sec"><h3>월별 급여총액 (백만원)</h3><div class="chart">'
+      + yms.map((k) => {
+          const m = Number(String(k).slice(4, 6)), v = byYm[k].pay;
+          return '<div class="cbar" data-m="' + m + '"><span class="val">' + mil(v) + '</span>'
+            + '<div class="bar" style="height:' + Math.max(2, Math.round(v / payMax * 100)) + '%"></div>'
+            + '<span class="lab">' + m + '월</span></div>';
+        }).join("")
+      + '</div></div>'
+      + '</div>'
+
+      + '<div class="sec"><h3>부서별 인원 <small style="font-weight:400;color:var(--muted);">' + esc(q.label) + '</small></h3>'
+      + '<table><tr><th>부서</th><th class="r">인원</th><th class="r">급여총액(백만원)</th></tr>'
+      + depList.map((d) => '<tr><td>' + esc(d.nm) + '</td><td class="r">' + num(d.hc) + '</td><td class="r">' + mil(d.pay) + '</td></tr>').join("")
+      + '</table></div>'
+
+      + '<div class="notice">개인별 급여·주민번호·계좌는 이 화면에 포함되지 않습니다. 집계만 표시되며 열람 기록이 남습니다.</div>';
+  }
 
   createQueryBar("#qbar", {
-    years: [2026], year: 2026,
-    // 실집계(erp_secure.hr_payroll_m)는 2026-08까지 적재돼 있다(실측). 목업 차트는 인원 7월·급여 5월까지.
-    months: [1, 2, 3, 4, 5, 6, 7, 8],
-    basis: "차트 = 목업(인원 2026-07-24 기준 · 급여는 실집계와 불일치) · 실집계는 인사팀 전용 섹션",
-    mode: "mock", modeLabel: "목업 차트 + 실집계 섹션",
-    onQuery: (q) => {
-      if (q.month == null) { kHead.innerHTML = HEAD_YEAR; kPay.innerHTML = PAY_YEAR; return; }
-      const hc = HEAD[q.month], prev = HEAD[q.month - 1];
-      const diff = (hc != null && prev != null) ? numOf(hc) - numOf(prev) : null;
-      kHead.innerHTML = '<div class="lb">' + q.label + ' 급여대상 인원(목업)</div>'
-        + '<div class="v">' + (hc ?? "—") + (hc != null ? "명" : "") + "</div>"
-        + '<div class="delta' + (diff > 0 ? " up" : diff < 0 ? " dn" : "") + '">'
-        + (hc == null ? "목업에 없는 달 — 실집계 섹션 참조"
-           : diff == null ? "전월 비교 자료 없음"
-           : (diff > 0 ? "▲ +" : diff < 0 ? "▼ " : "± ") + diff + "명 (전월 대비)") + "</div>";
-
-      const pay = PAY[q.month];
-      const paid = pay != null && pay !== "—";
-      kPay.innerHTML = '<div class="lb">' + q.label + ' 급여총액(목업)</div>'
-        + '<div class="v">' + (paid ? pay : "—") + (paid ? "<small> 백만원</small>" : "") + "</div>"
-        + '<div class="delta">' + (paid ? "목업 · 실집계와 수치 다름" : "목업에 없는 달 — 실집계 섹션 참조") + "</div>";
+    years: [new Date().getFullYear()], year: new Date().getFullYear(),
+    months: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+    basis: "급여 마감 기준",
+    mode: "live",
+    onQuery: async (q, ctx) => {
+      try { await load(q, ctx.reason, ctx.bar); ctx.bar.applyPeriod(); }
+      catch (e) {
+        app.innerHTML = '<div class="notice">인원·급여 집계를 불러오지 못했습니다. 사내 계정으로 로그인했는지 확인해 주세요.<br>'
+          + '<span style="color:#99a2ad;">' + esc(e?.message || "") + '</span></div>';
+        throw e;
+      }
     },
   });
 </script>
+
 </body>
 </html>

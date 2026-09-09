@@ -62,7 +62,7 @@
   <div class="top" id="topbar" hidden>
     <div>
       <h1>📊 자금·경영 현황 대시보드<span class="qbar-period" data-qbar-period></span></h1>
-      <div class="sub">ERP 중간DB(<code>erp_ro</code>) 월집계 · 서버에서 자금 권한을 강제합니다</div>
+      <div class="sub">자금팀·회계 부서·관리자 전용 · ERP 실적 기준</div>
     </div>
     <span class="who" id="whoami"></span>
   </div>
@@ -121,7 +121,7 @@
     BAR = createQueryBar("#qbar", {
       years:[new Date().getFullYear()], year:new Date().getFullYear(),
       months:[1,2,3,4,5,6,7,8,9,10,11,12],
-      basis:"ERP 중간DB(erp_ro) 월집계 · 서버 권한 강제(erp_finance_overview)",
+      basis:"확정 매출·매입 기준",
       mode:"live", persist:"finance_status", scope:".wrap",
       onQuery: (q, ctx) => query(q, ctx.reason),
     });
@@ -191,7 +191,7 @@
       +   topTable('🏢 매출 상위 거래처', d.top_sales, 'amt', esc(periodLabel))
       +   topTable('📦 매입 상위 거래처', d.top_purchase, 'amt', esc(periodLabel))
       + '</div>'
-      + '<div class="sec" style="padding:14px 18px;"><div class="note">💡 이 화면의 자금 데이터는 <b>자금·회계 부서·관리자</b>만 열람하도록 서버에서 강제됩니다(<code>erp_finance_overview</code>). 수치는 ERP 중간DB(<code>erp_ro</code>) 월집계 기준이며, 수금(collect)·일부 항목은 유니포인트 매핑 확정 전이라 0으로 표시될 수 있습니다.</div></div>'
+      + '<div class="sec" style="padding:14px 18px;"><div class="note">💡 이 화면은 <b>자금팀·회계 부서·관리자</b>만 열람할 수 있습니다. 수주·수금은 ERP 연계 준비 중이라 0으로 표시됩니다.</div></div>'
       + '<div class="foot">JEIL AX · 자금·경영 현황 대시보드 · 사내 전용</div>';
 
     // 새로 그린 차트에 선택 월 강조를 다시 적용한다(조회바가 그리기 전에 DOM 이 없었으므로).
