@@ -404,6 +404,14 @@ export const erpApi = {
     return this._pageAll(() => supabase.from("v_erp_inventory_daily")
       .select("*").order("ymd", { ascending: false }));
   },
+  // 창고코드 → 창고명 사전. 소형 마스터(53행)라 전량 받아 캐시한다.
+  // 적재 전이면 빈 객체가 돌아오고, 화면은 코드를 그대로 보여주도록 폴백한다.
+  async warehouses() {
+    const { data, error } = await supabase.from("v_erp_wh").select("sl_cd,sl_nm");
+    if (error) throw error;
+    const m = {}; for (const r of data || []) m[r.sl_cd] = r.sl_nm;
+    return m;
+  },
   // 품목코드 → 품목명·규격 사전. 화면에 코드만 덩그러니 나오지 않게 이름을 붙이는 용도다.
   // 코드 목록으로만 조회하므로 전체 스캔이 아니고, URL 길이 제한 때문에 100개씩 끊어 부른다.
   async itemsByCode(codes = []) {

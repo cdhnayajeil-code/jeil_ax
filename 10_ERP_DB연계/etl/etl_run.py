@@ -2,7 +2,7 @@
 # 원칙(CLAUDE.md §4): 운영 MSSQL은 읽기 전용 SELECT만(파라미터 바인딩), 포털은 중간DB만 조회.
 #   ⚠ 아래 추출 SQL은 유니포인트 뷰 스펙 협의 전 초안 — 실행 전 사용자(관리자) 확인 필수.
 # 실행: python etl_run.py --job all            (전체)
-#       python etl_run.py --job item_master    (개별: item_master|sales|purchase|inventory)
+#       python etl_run.py --job item_master    (개별: item_master|sales|purchase|inventory|wh_master)
 #       python etl_run.py --job all --dry-run  (추출·건수만 확인, 적재 안 함)
 import argparse
 import datetime
@@ -314,6 +314,20 @@ JOBS = {
                    COST_TYPE AS cost_type, DI_FG AS di_fg, PLANT_CD AS plant_cd,
                    UPDT_DT AS src_updated
             FROM JEILMNS.dbo.B_COST_CENTER WITH (NOLOCK)
+        """,
+        "params": [],
+    },
+    # 창고(저장위치) 마스터 ← B_STORAGE_LOCATION (전량, 소형 53행)
+    #    자재 화면이 창고코드(MVMT_SL_CD)만 보여주고 있어 이름을 붙이기 위한 코드 사전.
+    #    마이그레이션 `erp_wh_master_mirror`·`erp_master_upsert_wh_master` (2026-09-09).
+    "wh_master": {
+        "table": "wh_master_s",
+        "rpc": "erp_master_upsert",
+        "sql": """
+            SELECT RTRIM(SL_CD) AS sl_cd, SL_NM AS sl_nm, RTRIM(SL_TYPE) AS sl_type,
+                   RTRIM(SL_GROUP_CD) AS sl_group_cd, RTRIM(PLANT_CD) AS plant_cd,
+                   UPDT_DT AS src_updated
+            FROM JEILMNS.dbo.B_STORAGE_LOCATION WITH (NOLOCK)
         """,
         "params": [],
     },

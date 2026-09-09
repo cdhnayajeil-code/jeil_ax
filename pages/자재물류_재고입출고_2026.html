@@ -61,6 +61,12 @@
   .chart .bar{width:68%; background:linear-gradient(180deg,#7da4cc,var(--navy2)); border-radius:4px 4px 0 0;}
   .chart .val{font-size:10px; font-weight:700; color:var(--navy2);}
   .chart .lab{font-size:10.5px; color:var(--muted); padding:4px 0 0;}
+  .barlist{display:flex; flex-direction:column; gap:7px;}
+  .brow{display:grid; grid-template-columns:210px 1fr 130px; align-items:center; gap:8px; font-size:12px;}
+  .brow .lab{color:var(--navy2); text-align:right; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .brow .track{height:15px; background:var(--soft); border-radius:4px; overflow:hidden;}
+  .brow .track i{display:block; height:100%; background:linear-gradient(90deg,var(--navy2),#7da4cc); border-radius:4px; min-width:2px;}
+  .brow .cnt{font-weight:700; color:var(--navy); text-align:right; font-size:11.5px;}
   .callout{border-radius:8px; padding:11px 15px; margin:10px 0; font-size:12.5px;}
   .callout.amber{background:var(--softamber); border-left:4px solid var(--amber);}
   .callout.blue{background:var(--soft); border-left:4px solid var(--accent);}
@@ -69,7 +75,7 @@
   .notice b{color:var(--navy2);}
   .foot{margin-top:24px; padding-top:12px; border-top:1px solid var(--line); font-size:11px; color:var(--muted); display:flex; justify-content:space-between;}
   @media print{ .demo-banner{display:none;} .page{box-shadow:none; max-width:100%;} }
-  @media (max-width:760px){ .page{padding:22px 16px;} .grid2{grid-template-columns:1fr;} }
+  @media (max-width:760px){ .page{padding:22px 16px;} .brow{grid-template-columns:130px 1fr 100px;} .grid2{grid-template-columns:1fr;} }
 </style>
 </head>
 <body>
@@ -110,6 +116,7 @@
 
   let CACHE = null;
   let ITEMS = {};        // 품목코드 → {item_name, spec, unit} — 코드만 보여주지 않기 위한 사전
+  let WHS = {};          // 창고코드 → 창고명. 적재 전이면 비어 있고, 그때는 코드를 그대로 보여준다.
 
   // 규격이 품목명을 앞에 그대로 달고 있는 경우가 많다
   //   "기계배관용튜빙, Φ15X1.0T, SUS"  ·  "튜빙 고정 BRACKET Φ8, 홀 1개"
@@ -129,6 +136,8 @@
     if (!CACHE || reason === "refresh" || reason === "auto") {
       const [rows, asof] = await Promise.all([erpApi.inventoryDaily(), erpApi.dataAsof()]);
       CACHE = { rows, asof };
+      try { WHS = await erpApi.warehouses(); }
+      catch (e) { WHS = {}; console.warn("[erp] 창고명 조회 실패(코드로 표시):", e?.message || e); }
       const years = [...new Set(rows.map((r) => Number(String(r.ymd).slice(0, 4))))].filter(Boolean).sort((a, b) => b - a);
       if (years.length) bar.setYears(years);
       const ts = asof.inventory?.last_success;
@@ -207,10 +216,14 @@
       + '</div></div>'
 
       + '<div class="sec"><h3>창고별 출고 <small style="font-weight:400;color:var(--muted);">' + esc(q.label) + '</small></h3><div class="barlist">'
-      + (whs.length ? whs.map((w) =>
-          '<div class="brow"><span class="lab">' + esc(w.code) + '</span>'
-          + '<div class="track"><i style="width:' + Math.max(2, Math.round(w.out / wmax * 100)) + '%"></i></div>'
-          + '<span class="cnt">' + num(w.out) + ' (' + w.items + '종)</span></div>').join("")
+      + (whs.length ? whs.map((w) => {
+          const nm = WHS[w.code];
+          return '<div class="brow"><span class="lab" title="' + esc(w.code) + '">'
+            + esc(nm || w.code) + (nm ? ' <span style="color:var(--muted);font-size:11px;">' + esc(w.code) + '</span>' : '')
+            + '</span>'
+            + '<div class="track"><i style="width:' + Math.max(2, Math.round(w.out / wmax * 100)) + '%"></i></div>'
+            + '<span class="cnt">' + num(w.out) + ' (' + w.items + '종)</span></div>';
+        }).join("")
         : '<p style="font-size:12.5px;color:var(--muted);">데이터 없음</p>')
       + '</div></div>'
 
@@ -230,8 +243,9 @@
           : '<p style="font-size:12.5px;color:var(--muted);">데이터 없음</p>')
       + '</div>'
 
-      + '<div class="notice">입고수량·재고량·금액은 <b>ERP 연계 준비 중</b>이라 이 화면에 표시되지 않습니다. 현재 보이는 값은 출고 실적입니다.<br>'
-      + '창고는 이름이 아직 연계되지 않아 <b>코드로만</b> 표시됩니다.</div>';
+      + '<div class="notice">입고수량·재고량·금액은 <b>ERP 연계 준비 중</b>이라 이 화면에 표시되지 않습니다. 현재 보이는 값은 출고 실적입니다.'
+      + (Object.keys(WHS).length ? '' : '<br>창고 이름은 아직 연계 전이라 <b>코드로만</b> 표시됩니다.')
+      + '</div>';
   }
 
   createQueryBar("#qbar", {
