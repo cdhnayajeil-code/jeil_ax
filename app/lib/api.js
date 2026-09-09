@@ -404,6 +404,19 @@ export const erpApi = {
     return this._pageAll(() => supabase.from("v_erp_inventory_daily")
       .select("*").order("ymd", { ascending: false }));
   },
+  // 품목코드 → 품목명·규격 사전. 화면에 코드만 덩그러니 나오지 않게 이름을 붙이는 용도다.
+  // 코드 목록으로만 조회하므로 전체 스캔이 아니고, URL 길이 제한 때문에 100개씩 끊어 부른다.
+  async itemsByCode(codes = []) {
+    const uniq = [...new Set((codes || []).filter(Boolean))];
+    const out = {};
+    for (let i = 0; i < uniq.length; i += 100) {
+      const { data, error } = await supabase.from("v_erp_item")
+        .select("item_code,item_name,spec,unit").in("item_code", uniq.slice(i, i + 100));
+      if (error) throw error;
+      for (const r of data || []) out[r.item_code] = r;
+    }
+    return out;
+  },
   // 품목 조회(키워드 부분일치, 대량이라 반드시 필터+상한)
   async items(keyword = "", limit = 200) {
     let q = supabase.from("v_erp_item").select("*").limit(limit);

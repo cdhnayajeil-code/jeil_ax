@@ -109,6 +109,21 @@
     + (sub ? '<div class="delta' + (cls ? " " + cls : "") + '">' + sub + '</div>' : '') + '</div>';
 
   let CACHE = null;
+  let ITEMS = {};        // 품목코드 → {item_name, spec, unit} — 코드만 보여주지 않기 위한 사전
+
+  // 규격이 품목명을 앞에 그대로 달고 있는 경우가 많다
+  //   "기계배관용튜빙, Φ15X1.0T, SUS"  ·  "튜빙 고정 BRACKET Φ8, 홀 1개"
+  // 콤마가 있든 없든 앞의 이름 부분을 떼어 규격만 남긴다(공백 표기가 달라도 맞춘다).
+  function cleanSpec(name, spec) {
+    let t = String(spec || "").trim();
+    if (!t) return "";
+    const squash = (x) => String(x || "").replace(/\s+/g, "");
+    const n = squash(name);
+    if (!n || !squash(t).startsWith(n)) return t;
+    let i = 0, c = 0;
+    while (i < t.length && c < n.length) { if (!/\s/.test(t[i])) c++; i++; }
+    return t.slice(i).replace(/^[\s,·\-]+/, "").trim();
+  }
 
   async function load(q, reason, bar) {
     if (!CACHE || reason === "refresh" || reason === "auto") {
@@ -123,10 +138,10 @@
     const yr = rows.filter((r) => String(r.ymd || "").startsWith(q.year + "-"));
     const months = [...new Set(yr.map((r) => Number(String(r.ymd).slice(5, 7))))].sort((a, b) => a - b);
     if (months.length) bar.setMonths(months);
-    render(q, yr);
+    await render(q, yr);
   }
 
-  function render(q, yr) {
+  async function render(q, yr) {
     if (!yr.length) { app.innerHTML = '<div class="notice">' + esc(q.year) + '년 수불 실적이 없습니다.</div>'; return; }
     const ymOf = (r) => String(r.ymd).slice(0, 7);
     const inPeriod = q.month == null ? yr : yr.filter((r) => ymOf(r) === q.ym);
@@ -165,8 +180,14 @@
     const byItem = {};
     for (const r of inPeriod) byItem[r.item_code] = (byItem[r.item_code] || 0) + Number(r.out_qty || 0);
     const topItems = Object.entries(byItem).map(([k, v]) => ({ code: k, out: v }))
-      .sort((a, b) => b.out - a.out).slice(0, 10);
-    const imax = topItems[0]?.out || 1;
+      .sort((a, b) => b.out - a.out).slice(0, 15);
+
+    // 코드만으로는 무슨 자재인지 알 수 없다 — 품목명·규격을 붙여 준다(모르는 코드만 추가로 조회).
+    const need = topItems.map((t) => t.code).filter((c) => !(c in ITEMS));
+    if (need.length) {
+      try { Object.assign(ITEMS, await erpApi.itemsByCode(need)); }
+      catch (e) { console.warn("[erp] 품목명 조회 실패:", e?.message || e); }
+    }
 
     app.innerHTML =
       '<div class="kpis">'
@@ -185,7 +206,6 @@
         }).join("")
       + '</div></div>'
 
-      + '<div class="grid2">'
       + '<div class="sec"><h3>창고별 출고 <small style="font-weight:400;color:var(--muted);">' + esc(q.label) + '</small></h3><div class="barlist">'
       + (whs.length ? whs.map((w) =>
           '<div class="brow"><span class="lab">' + esc(w.code) + '</span>'
@@ -193,16 +213,25 @@
           + '<span class="cnt">' + num(w.out) + ' (' + w.items + '종)</span></div>').join("")
         : '<p style="font-size:12.5px;color:var(--muted);">데이터 없음</p>')
       + '</div></div>'
-      + '<div class="sec"><h3>출고 상위 품목 <small style="font-weight:400;color:var(--muted);">상위 10</small></h3><div class="barlist">'
-      + (topItems.length ? topItems.map((t) =>
-          '<div class="brow"><span class="lab">' + esc(t.code) + '</span>'
-          + '<div class="track"><i style="width:' + Math.max(2, Math.round(t.out / imax * 100)) + '%"></i></div>'
-          + '<span class="cnt">' + num(t.out) + '</span></div>').join("")
-        : '<p style="font-size:12.5px;color:var(--muted);">데이터 없음</p>')
-      + '</div></div>'
+
+      + '<div class="sec"><h3>출고 상위 품목 <small style="font-weight:400;color:var(--muted);">' + esc(q.label) + ' · 상위 15</small></h3>'
+      + (topItems.length
+          ? '<table><tr><th style="width:15%;">품목코드</th><th style="width:26%;">품목명</th><th>규격</th><th class="c" style="width:8%;">단위</th><th class="r" style="width:13%;">출고수량</th></tr>'
+            + topItems.map((t) => {
+                const it = ITEMS[t.code] || {};
+                const spec = cleanSpec(it.item_name, it.spec);
+                return '<tr><td><b>' + esc(t.code) + '</b></td>'
+                  + '<td>' + esc(it.item_name || "—") + '</td>'
+                  + '<td style="color:var(--muted);">' + (spec ? esc(spec) : "—") + '</td>'
+                  + '<td class="c">' + esc(it.unit || "—") + '</td>'
+                  + '<td class="r"><b>' + num(t.out) + '</b></td></tr>';
+              }).join("")
+            + '</table>'
+          : '<p style="font-size:12.5px;color:var(--muted);">데이터 없음</p>')
       + '</div>'
 
-      + '<div class="notice">입고수량·재고량·금액은 <b>ERP 연계 준비 중</b>이라 이 화면에 표시되지 않습니다. 현재 보이는 값은 출고 실적입니다.</div>';
+      + '<div class="notice">입고수량·재고량·금액은 <b>ERP 연계 준비 중</b>이라 이 화면에 표시되지 않습니다. 현재 보이는 값은 출고 실적입니다.<br>'
+      + '창고는 이름이 아직 연계되지 않아 <b>코드로만</b> 표시됩니다.</div>';
   }
 
   createQueryBar("#qbar", {

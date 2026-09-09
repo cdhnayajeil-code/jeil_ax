@@ -97,6 +97,20 @@
   // 규격이 같은데 코드가 다르면 중복 후보다. 공백·곱셈기호 표기 차이는 무시하고 비교한다.
   const specKey = (r) => String(r.spec || "").replace(/[\s×xX*・·]/g, "").toUpperCase();
 
+  // 규격이 품목명을 앞에 그대로 달고 있는 경우가 많다
+  //   "기계배관용튜빙, Φ15X1.0T, SUS"  ·  "튜빙 고정 BRACKET Φ8, 홀 1개"
+  // 콤마가 있든 없든 앞의 이름 부분을 떼어 규격만 남긴다(공백 표기가 달라도 맞춘다).
+  function cleanSpec(name, spec) {
+    let t = String(spec || "").trim();
+    if (!t) return "";
+    const squash = (x) => String(x || "").replace(/\s+/g, "");
+    const n = squash(name);
+    if (!n || !squash(t).startsWith(n)) return t;
+    let i = 0, c = 0;
+    while (i < t.length && c < n.length) { if (!/\s/.test(t[i])) c++; i++; }
+    return t.slice(i).replace(/^[\s,·\-]+/, "").trim();
+  }
+
   async function search() {
     const kw = (input.value || "").trim();
     if (!kw) {
@@ -137,13 +151,14 @@
     // 중복 그룹을 위로 올려 보여준다
     const ordered = [...dup.flat(), ...rows.filter((r) => !dupCodes.has(r.item_code))];
 
-    const table = '<table><tr><th>품목코드</th><th>품명</th><th>규격</th><th class="c">단위</th><th class="c">분류</th><th class="c">상태</th></tr>'
+    const table = '<table><tr><th style="width:16%;">품목코드</th><th style="width:26%;">품명</th><th>규격</th><th class="c" style="width:8%;">단위</th><th class="c" style="width:8%;">상태</th></tr>'
       + ordered.slice(0, 80).map((r) => {
           const isDup = dupCodes.has(r.item_code);
           return '<tr' + (isDup ? ' style="background:var(--softred);"' : '') + '>'
             + '<td><b>' + esc(r.item_code) + '</b>' + (isDup ? ' <span class="badge r">중복</span>' : '') + '</td>'
-            + '<td>' + esc(r.item_name) + '</td><td>' + esc(r.spec) + '</td>'
-            + '<td class="c">' + esc(r.unit) + '</td><td class="c">' + esc(r.item_class) + '</td>'
+            + '<td>' + esc(r.item_name || "—") + '</td>'
+            + '<td style="color:var(--muted);">' + esc(cleanSpec(r.item_name, r.spec) || "—") + '</td>'
+            + '<td class="c">' + esc(r.unit || "—") + '</td>'
             + '<td class="c">' + (String(r.use_yn).toUpperCase() === "N" ? "중지" : "사용") + '</td></tr>';
         }).join("")
       + '</table>';
