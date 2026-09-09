@@ -6,15 +6,16 @@
   · ERP       : SharePoint 목록 「ERP 퇴사처리 RPA」에 등재 → 기존 Power Automate 흐름이 처리
                 (포털이 ERP MSSQL 을 직접 건드리지 않는다 — CLAUDE.md §1.2)
   · 그룹웨어   : 관리자 화면 자동화(Playwright) — gw_offboard.py
-  · MS(Entra) : Graph `PATCH /users` — 로그인 차단 + 표시이름 `[퇴사]` 접두
+  · MS(Entra) : Graph — 로그인 차단 + 표시이름 `[퇴사]` 접두 + **라이선스 회수**
 
-ERP·MS 는 **앱 권한이 아직 없다**(실측 2026-09-09: 둘 다 403).
-그래서 이 모듈은 "권한이 없으니 나중에 만들자" 가 아니라 **지금 다 만들어 두고, 권한이
-없으면 그 사실을 결과로 돌려준다.** 권한이 부여되는 순간 코드 변경 없이 동작한다.
-필요한 것:
-  · ERP  : Graph 응용 권한 `Sites.ReadWrite.All`(또는 `Sites.Selected` + 해당 사이트 권한)
-  · MS   : Graph 응용 권한 `User.ReadWrite.All` (+ 계정 차단에는 User Administrator 역할이
-           추가로 필요할 수 있음 — 부여 후 재실측)
+앱 권한은 2026-09-09 부여 완료(`Sites.ReadWrite.All` · `User.ReadWrite.All`).
+실측으로 확인한 것:
+  · 계정 차단(accountEnabled=false)에 **User Administrator 역할은 필요 없었다** — User.ReadWrite.All 로 충분.
+  · 라이선스 회수는 `POST /users/{id}/assignLicense` 로 되고, 테넌트가 바쁘면 **409(동시 요청)**
+    가 나므로 재시도가 필요하다(실측).
+  · **그룹 기반 라이선스는 이 API 로 못 뗀다** — 그룹에서 사용자를 빼야 한다. 구분해서
+    직접 할당분만 회수하고, 그룹 상속분은 결과에 남겨 사람이 처리하게 한다.
+  · Graph 는 최종 일관성이라 방금 바꾼 값을 곧바로 읽으면 옛 값이 올 수 있다(실측).
 
 반환은 모두 같은 모양이다 — {"ok": bool, "msg": str, ...}. 예외를 밖으로 던지지 않는다.
 러너가 한 사람·한 축에서 실패해도 나머지를 계속 처리해야 하기 때문이다.
@@ -143,31 +144,101 @@ def erp_offboard(email, emp_nm, retire_dt, acct_nm=None, apply=False, tok=None):
 MS_PREFIX = "[퇴사]"   # 실측 표기 분포 [퇴사] 320 / (퇴사) 26 → 많은 쪽으로 통일
 
 
-def ms_offboard(email, apply=False, tok=None):
+def _ms_licenses(tok, uid):
+    """(직접 할당 skuId 목록, 그룹 상속 skuId 목록, 표시용 이름).
+
+    **그룹 기반 라이선스는 assignLicense 로 못 뗀다** — 그룹에서 사용자를 빼야 한다.
+    구분하지 않고 지우려 들면 조용히 실패하거나 오류만 남으므로, 나눠서 다루고
+    그룹 상속분은 사람이 처리하도록 결과에 적어 돌려준다."""
+    direct, by_group, names = [], [], []
+    st, a = _graph(tok, "GET", "/users/%s?$select=licenseAssignmentStates" % uid)
+    if st == 200:
+        for s in (a.get("licenseAssignmentStates") or []):
+            sku = s.get("skuId")
+            if not sku:
+                continue
+            (by_group if s.get("assignedByGroup") else direct).append(sku)
+    st2, l = _graph(tok, "GET", "/users/%s/licenseDetails" % uid)
+    if st2 == 200:
+        names = [x.get("skuPartNumber") for x in (l.get("value") or [])]
+    return direct, by_group, names
+
+
+def _assign_license(tok, uid, add, remove, tries=4):
+    """assignLicense 는 테넌트가 바쁘면 409(concurrent requests)를 돌려준다(실측).
+    한 번 실패했다고 라이선스가 남은 채로 끝나면 안 되므로 잠깐 쉬었다 다시 건다."""
+    import time
+    last = (0, "")
+    for i in range(tries):
+        last = _graph(tok, "POST", "/users/%s/assignLicense" % uid,
+                      {"addLicenses": add, "removeLicenses": remove})
+        if last[0] in (200, 202):
+            return last
+        if last[0] != 409:
+            return last
+        time.sleep(6 * (i + 1))
+    return last
+
+
+def ms_offboard(email, apply=False, tok=None, revoke_license=True):
+    """MS 퇴사 처리 — ①로그인 차단 ②표시이름 [퇴사] 접두 ③라이선스 회수.
+
+    ⚠ 라이선스를 떼면 **사서함이 30일 보존 후 삭제**된다(Microsoft 정책). 되돌리려면
+    그 기간 안에 같은 라이선스를 다시 할당해야 한다. 그래서 회수는 옵션으로 두고,
+    화면이 그 사실을 알린 뒤 켜도록 한다."""
     tok = tok or _token()
-    st, u = _graph(tok, "GET", "/users/%s?$select=id,displayName,accountEnabled" % email)
+    st, u = _graph(tok, "GET", "/users/%s?$select=id,displayName,accountEnabled,usageLocation" % email)
     if st != 200:
         return {"ok": False, "axis": "ms", "msg": _perm_msg("ms", st, str(u)[:180])}
 
+    uid = u["id"]
     name = u.get("displayName") or ""
     already_marked = ("퇴사" in name)
-    if not u.get("accountEnabled") and already_marked:
-        return {"ok": True, "axis": "ms", "changed": False, "msg": "이미 차단·표기 완료"}
+    direct, by_group, lic_names = ([], [], [])
+    if revoke_license:
+        direct, by_group, lic_names = _ms_licenses(tok, uid)
 
     patch = {}
     if u.get("accountEnabled"):
         patch["accountEnabled"] = False
     if not already_marked:
         patch["displayName"] = MS_PREFIX + name
+
+    todo = []
+    if patch:
+        todo.append("차단·표기 " + json.dumps(patch, ensure_ascii=False))
+    if direct:
+        todo.append("라이선스 회수 %s" % (", ".join(lic_names) or "%d건" % len(direct)))
+    if by_group:
+        todo.append("⚠ 그룹 상속 라이선스 %d건은 그룹에서 제외해야 함(자동 회수 불가)" % len(by_group))
+
+    if not patch and not direct:
+        return {"ok": True, "axis": "ms", "changed": False,
+                "msg": "이미 처리됨" + (" · " + todo[-1] if by_group else ""),
+                "license_by_group": by_group}
     if not apply:
         return {"ok": True, "axis": "ms", "changed": False, "dry_run": True,
-                "msg": "점검 — 적용할 값: %s" % json.dumps(patch, ensure_ascii=False)}
+                "msg": "점검 — " + " / ".join(todo)}
 
-    st, res = _graph(tok, "PATCH", "/users/" + u["id"], patch)
-    if st not in (200, 204):
-        return {"ok": False, "axis": "ms", "msg": _perm_msg("ms", st, str(res)[:180])}
-    return {"ok": True, "axis": "ms", "changed": True,
-            "msg": "차단·표기 완료 — " + json.dumps(patch, ensure_ascii=False)}
+    done = []
+    if patch:
+        st, res = _graph(tok, "PATCH", "/users/" + uid, patch)
+        if st not in (200, 204):
+            return {"ok": False, "axis": "ms", "msg": _perm_msg("ms", st, str(res)[:180])}
+        done.append("차단·표기 " + json.dumps(patch, ensure_ascii=False))
+    if direct:
+        st, res = _assign_license(tok, uid, [], direct)
+        if st not in (200, 202):
+            # 차단은 됐는데 라이선스만 남은 상태 — 절반만 됐다는 것을 분명히 말한다.
+            return {"ok": False, "axis": "ms", "changed": bool(done),
+                    "msg": "차단·표기는 됐으나 라이선스 회수 실패 — " + _perm_msg("ms", st, str(res)[:160])}
+        done.append("라이선스 회수 %s" % (", ".join(lic_names) or "%d건" % len(direct)))
+
+    msg = " / ".join(done)
+    if by_group:
+        msg += " / ⚠ 그룹 상속 라이선스 %d건 남음 — 그룹에서 제외 필요" % len(by_group)
+    return {"ok": True, "axis": "ms", "changed": True, "msg": msg,
+            "license_removed": lic_names, "license_by_group": by_group}
 
 
 # ─────────────────────────────────────────────────────────────────────────
@@ -200,7 +271,8 @@ def run_axes(target, axes, apply=False, tok=None):
                 r = gw_offboard_axis(target.get("gw_login_id"), target.get("emp_nm"),
                                      target.get("retire_dt"), apply=apply)
             else:
-                r = ms_offboard(target.get("email"), apply=apply, tok=tok)
+                r = ms_offboard(target.get("email"), apply=apply, tok=tok,
+                                revoke_license=target.get("revoke_license", True))
         except Exception as e:                       # 예상 못 한 오류도 축 하나로 가둔다
             r = {"ok": False, "axis": ax, "msg": str(e)[:300]}
         out.append(r)

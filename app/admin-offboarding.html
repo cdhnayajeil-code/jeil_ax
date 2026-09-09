@@ -110,15 +110,14 @@
         · <a href="/docs/erp/offboarding">기획 문서 →</a>
       </div>
     </div>
-    <div><span class="badge a">초안</span></div>
+    <div><span class="badge g">3축 자동</span></div>
   </div>
 
-  <div class="note draft">
-    <b>그룹웨어 축은 이 화면에서 바로 처리됩니다.</b> 인원을 고르고 <b>점검 실행</b>으로 먼저 확인한 뒤
-    <b>퇴사 처리 실행</b>을 누르면, 요청이 큐에 들어가고 러너가 그룹웨어 관리자 화면을 자동으로 조작합니다
-    (「데이터 업데이트」와 같은 구조 &mdash; 브라우저는 그룹웨어에 직접 붙을 수 없습니다).
-    <b>ERP·MS는 아직 권한이 없어</b> 아래 절차대로 직접 하셔야 합니다 &mdash;
-    SharePoint 쓰기(<code>Sites.ReadWrite.All</code>)·MS 쓰기(<code>User.ReadWrite.All</code>)가 부여되면 같은 버튼에 붙입니다.
+  <div class="note">
+    <b>세 시스템 모두 이 화면에서 처리됩니다.</b> 인원을 고르고 <b>점검 실행</b>으로 무엇이 바뀔지 먼저 확인한 뒤
+    <b>퇴사 처리 실행</b>을 누르면, 요청이 큐에 들어가고 러너가 축별로 처리합니다
+    (「데이터 업데이트」와 같은 구조 &mdash; 브라우저가 ERP·그룹웨어에 직접 붙을 수 없기 때문입니다).
+    이미 정리된 축은 <b>대상에서 자동으로 빠지므로</b> 같은 조작을 두 번 하지 않습니다.
   </div>
 
   <div class="gate" id="gate">
@@ -146,10 +145,11 @@
         <p>관리자 화면 자동화 스크립트가 처리합니다. 기준일자 이동·퇴사일 복원·메일 삭제 방지를
            매번 확인하므로 사람이 놓치던 것을 빠뜨리지 않습니다.</p>
       </div>
-      <div class="a warn">
-        <h5>MS(Entra) <span class="badge a">수동 · 권한 대기</span></h5>
-        <p>Graph 쓰기가 <code>403</code>입니다. 지금은 Entra 관리센터에서 로그인 차단 +
-           표시이름 <code>[퇴사]</code> 접두를 직접 넣어야 합니다.</p>
+      <div class="a ok">
+        <h5>MS(Entra) <span class="badge g">자동 · 실증</span></h5>
+        <p>로그인 차단 + 표시이름 <code>[퇴사]</code> 접두 + <b>라이선스 회수</b>를 함께 합니다.
+           그룹으로 상속된 라이선스는 API 로 뗄 수 없어 <b>남았다고 결과에 표시</b>합니다 &mdash;
+           그건 그룹에서 사용자를 빼야 합니다.</p>
       </div>
     </div>
 
@@ -172,9 +172,10 @@
     </div>
     <div class="runbar">
       <span class="sel" id="selInfo">선택 0명</span>
+      <span class="muted" style="font-size:11.8px;">축은 아래 <b>사원 검색</b> 칸의 선택을 따릅니다</span>
       <button class="btn ghost" id="btnCheck" disabled>점검 실행</button>
       <button class="btn danger" id="btnApply" disabled>퇴사 처리 실행</button>
-      <span class="muted" style="font-size:11.8px;">그룹웨어 축만 자동 실행 — ERP·MS는 아래 절차대로 직접</span>
+      <span class="muted" style="font-size:11.8px;">선택한 축 중 <b>아직 남은 축만</b> 처리됩니다</span>
     </div>
     <div class="prog" id="prog"><i id="progFill"></i></div>
     <div class="runmsg" id="runMsg"></div>
@@ -226,8 +227,8 @@
         <span class="muted">(비워 두면 흐름이 조용히 지나갑니다 — 실패로도 안 뜹니다)</span></div>
       <div class="step"><b>그룹웨어</b> — 위 표의 <span class="mini">명령</span> 버튼으로 명령을 만들고 러너에서 실행합니다.
         <code>--apply</code> 없이 먼저 돌리면 저장 직전 상태만 보여줍니다(점검용).</div>
-      <div class="step"><b>MS</b> — Entra 관리센터에서 로그인 차단 + 표시이름 앞에 <code>[퇴사]</code>.
-        표기는 <code>[퇴사]</code>로 통일 권고(현재 <code>[퇴사]</code> 320건 / <code>(퇴사)</code> 26건 혼용).</div>
+      <div class="step"><b>MS</b> — 자동 처리됩니다(로그인 차단 · <code>[퇴사]</code> 접두 · 라이선스 회수).
+        <span class="warn">그룹 상속 라이선스</span>가 있으면 결과에 남으니, 그때만 해당 그룹에서 사용자를 빼주세요.</div>
       <div class="step"><b>확인</b> — <a href="/admin/erp-status">ERP 연동 현황</a>에서 「데이터 업데이트」를 한 번 돌리면
         세 원천을 다시 받아와 <b>이 목록에서 자동으로 빠집니다</b>.</div>
     </div>
@@ -239,7 +240,9 @@
         <li>ERP 흐름은 사용자 역할을 <b>DELETE</b> 하고 무엇이 있었는지 남기지 않습니다 — 등재 전에 역할 목록을 적어 두세요.</li>
         <li>그룹웨어의 <b>「메일 삭제여부」 체크박스는 절대 켜지 마세요</b>(메일계정·메일정보 일괄 삭제). 자동화 스크립트는 켜져 있으면 저장하지 않고 멈춥니다.</li>
         <li>그룹웨어는 사용중지 시 <b>퇴사일이 오늘 날짜로 덮어써집니다</b> — 실제 퇴사일로 되돌린 뒤 저장해야 합니다.</li>
-        <li>계정 삭제·라이선스 회수는 이 화면의 범위가 아닙니다. <b>차단·표기까지만</b> 합니다.</li>
+        <li><b>MS 라이선스를 회수하면 사서함이 30일 보존 후 삭제</b>됩니다(Microsoft 정책).
+            되돌리려면 그 기간 안에 같은 라이선스를 다시 할당해야 합니다.</li>
+        <li>계정 <b>삭제</b>는 이 화면의 범위가 아닙니다. 차단·표기·라이선스 회수까지만 합니다.</li>
       </ul>
     </div>
 
@@ -377,7 +380,8 @@
   function syncSel() {
     var n = selected().length;
     el("selInfo").textContent = "선택 " + n + "명";
-    el("btnCheck").disabled = el("btnApply").disabled = (n === 0 || RUNNING);
+    el("btnCheck").disabled = el("btnApply").disabled =
+      (n === 0 || RUNNING || (window.__axesPicked ? !window.__axesPicked().length : false));
     if (window.__sel2) window.__sel2();   // 검색 쪽 버튼도 실행 중이면 같이 잠긴다
   }
   window.__sel = syncSel;
@@ -447,7 +451,8 @@
     RUNNING = true; syncSel();
     el("resList").innerHTML = "";
     msg(mode === "apply" ? "요청 등록 중…" : "점검 요청 등록 중…");
-    api2("offboard_create", { emails: emails, mode: mode }).then(function (d) {
+    // 축은 아래 검색 칸의 체크박스를 그대로 따른다 — 두 곳에 따로 두면 어느 쪽이 적용됐는지 헷갈린다.
+    api2("offboard_create", { emails: emails, mode: mode, axes: axesPicked() }).then(function (d) {
       if (!d || !d.ok) {
         RUNNING = false; syncSel();
         var rj0 = (d && d.rejected) || [];
@@ -493,6 +498,7 @@
     el("btnCheck2").disabled = el("btnApply2").disabled = (n === 0 || RUNNING || !axesPicked().length);
   }
   window.__sel2 = syncSel2;
+  window.__axesPicked = axesPicked;
   Array.prototype.forEach.call(document.querySelectorAll(".axis-pick"), function (c) {
     c.onchange = syncSel2;
   });
