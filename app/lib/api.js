@@ -419,7 +419,7 @@ export const erpApi = {
     const out = {};
     for (let i = 0; i < uniq.length; i += 100) {
       const { data, error } = await supabase.from("v_erp_item")
-        .select("item_code,item_name,spec,unit").in("item_code", uniq.slice(i, i + 100));
+        .select("item_code,item_name,spec,unit,item_group_nm").in("item_code", uniq.slice(i, i + 100));
       if (error) throw error;
       for (const r of data || []) out[r.item_code] = r;
     }

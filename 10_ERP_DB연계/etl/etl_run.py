@@ -2,7 +2,7 @@
 # 원칙(CLAUDE.md §4): 운영 MSSQL은 읽기 전용 SELECT만(파라미터 바인딩), 포털은 중간DB만 조회.
 #   ⚠ 아래 추출 SQL은 유니포인트 뷰 스펙 협의 전 초안 — 실행 전 사용자(관리자) 확인 필수.
 # 실행: python etl_run.py --job all            (전체)
-#       python etl_run.py --job item_master    (개별: item_master|sales|purchase|inventory|wh_master)
+#       python etl_run.py --job item_master    (개별: item_master|sales|purchase|inventory|wh_master|item_group)
 #       python etl_run.py --job all --dry-run  (추출·건수만 확인, 적재 안 함)
 import argparse
 import datetime
@@ -206,6 +206,7 @@ JOBS = {
         "sql": """
             SELECT ITEM_CD AS item_code, ITEM_NM AS item_name, SPEC AS spec,
                    BASIC_UNIT AS unit, ITEM_ACCT AS item_class,
+                   RTRIM(ITEM_GROUP_CD) AS item_group_cd,
                    CONVERT(bit, CASE WHEN VALID_FLG = 'Y' THEN 1 ELSE 0 END) AS use_yn,
                    UPDT_DT AS src_updated
             FROM JEILMNS.dbo.B_ITEM WITH (NOLOCK)
@@ -314,6 +315,22 @@ JOBS = {
                    COST_TYPE AS cost_type, DI_FG AS di_fg, PLANT_CD AS plant_cd,
                    UPDT_DT AS src_updated
             FROM JEILMNS.dbo.B_COST_CENTER WITH (NOLOCK)
+        """,
+        "params": [],
+    },
+    # 품목그룹 마스터 ← B_ITEM_GROUP (전량, 2,298행)
+    #    품목계정(ITEM_ACCT, 2자리)에는 코드명 원천이 없어, 사람이 읽을 수 있는 분류명은 여기서 온다.
+    #    마이그레이션 `erp_item_group_mirror`·`erp_master_upsert_item_group` (2026-09-09).
+    "item_group": {
+        "table": "item_group_s",
+        "rpc": "erp_master_upsert",
+        "sql": """
+            SELECT RTRIM(ITEM_GROUP_CD) AS item_group_cd, ITEM_GROUP_NM AS item_group_nm,
+                   RTRIM(UPPER_ITEM_GROUP_CD) AS upper_group_cd,
+                   CONVERT(int, ITEM_GROUP_LEVEL) AS group_level,
+                   LEAF_FLG AS leaf_flg, DEL_FLG AS del_flg,
+                   UPDT_DT AS src_updated
+            FROM JEILMNS.dbo.B_ITEM_GROUP WITH (NOLOCK)
         """,
         "params": [],
     },

@@ -229,13 +229,14 @@
 
       + '<div class="sec"><h3>출고 상위 품목 <small style="font-weight:400;color:var(--muted);">' + esc(q.label) + ' · 상위 15</small></h3>'
       + (topItems.length
-          ? '<table><tr><th style="width:15%;">품목코드</th><th style="width:26%;">품목명</th><th>규격</th><th class="c" style="width:8%;">단위</th><th class="r" style="width:13%;">출고수량</th></tr>'
+          ? '<table><tr><th style="width:14%;">품목코드</th><th style="width:23%;">품목명</th><th>규격</th><th style="width:16%;">품목그룹</th><th class="c" style="width:7%;">단위</th><th class="r" style="width:12%;">출고수량</th></tr>'
             + topItems.map((t) => {
                 const it = ITEMS[t.code] || {};
                 const spec = cleanSpec(it.item_name, it.spec);
                 return '<tr><td><b>' + esc(t.code) + '</b></td>'
                   + '<td>' + esc(it.item_name || "—") + '</td>'
                   + '<td style="color:var(--muted);">' + (spec ? esc(spec) : "—") + '</td>'
+                  + '<td style="color:var(--muted);">' + esc(it.item_group_nm || "—") + '</td>'
                   + '<td class="c">' + esc(it.unit || "—") + '</td>'
                   + '<td class="r"><b>' + num(t.out) + '</b></td></tr>';
               }).join("")

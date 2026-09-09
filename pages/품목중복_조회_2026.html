@@ -151,13 +151,14 @@
     // 중복 그룹을 위로 올려 보여준다
     const ordered = [...dup.flat(), ...rows.filter((r) => !dupCodes.has(r.item_code))];
 
-    const table = '<table><tr><th style="width:16%;">품목코드</th><th style="width:26%;">품명</th><th>규격</th><th class="c" style="width:8%;">단위</th><th class="c" style="width:8%;">상태</th></tr>'
+    const table = '<table><tr><th style="width:15%;">품목코드</th><th style="width:24%;">품명</th><th>규격</th><th style="width:17%;">품목그룹</th><th class="c" style="width:7%;">단위</th><th class="c" style="width:7%;">상태</th></tr>'
       + ordered.slice(0, 80).map((r) => {
           const isDup = dupCodes.has(r.item_code);
           return '<tr' + (isDup ? ' style="background:var(--softred);"' : '') + '>'
             + '<td><b>' + esc(r.item_code) + '</b>' + (isDup ? ' <span class="badge r">중복</span>' : '') + '</td>'
             + '<td>' + esc(r.item_name || "—") + '</td>'
             + '<td style="color:var(--muted);">' + esc(cleanSpec(r.item_name, r.spec) || "—") + '</td>'
+            + '<td style="color:var(--muted);">' + esc(r.item_group_nm || "—") + '</td>'
             + '<td class="c">' + esc(r.unit || "—") + '</td>'
             + '<td class="c">' + (String(r.use_yn).toUpperCase() === "N" ? "중지" : "사용") + '</td></tr>';
         }).join("")
