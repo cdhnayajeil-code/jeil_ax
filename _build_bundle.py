@@ -43,6 +43,7 @@ LIVE_ONLY = {
     "app/admin-identity.html": "계정·조직 통합관리",
     "app/admin-accounts.html": "계정 대사",
     "app/admin-user-dept.html": "사용자·부서 매핑",
+    "app/admin-permissions.html": "권한 설정",
     "app/erp-status.html": "ERP 연동 현황",
     "app/vendor-login.html": "협력사 로그인",
 }

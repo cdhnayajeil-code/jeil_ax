@@ -108,6 +108,20 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 </thead>
 <tbody>
 <tr>
+<td>2026-09-10</td>
+<td>인증·권한·관리 화면</td>
+<td><code>app/admin-permissions.html</code>(신설) · <code>04_챗봇_포털_데모UI.html</code> · <code>app/admin-identity.html</code> · <code>app/admin-accounts.html</code> · <code>app/admin-user-dept.html</code> · <code>supabase/functions/jeil-chat-admin/index.ts</code>(v11) · <code>_routes.py</code>·<code>vercel.json</code>(<code>/admin/permissions</code>, 리라이트 113) · <code>_build_bundle.py</code>·통합본 · ADR-014</td>
+<td><strong>권한 설정을 독립 화면 하나로 모으고, 관리자 콘솔과 계정·조직 통합관리가 같은 화면을 임베드하게 했다(관리자 결정 4건 · REQ-0026 · ADR-014).</strong> 콘솔의 권한 관련 3탭(권한 설정·사용자·부서·권한 상세)은 <strong>「권한·계정」 1탭</strong>으로 줄었고(iframe 내장, 라이브 전용), 통합 플랫폼에는 <strong>「🔐 권한 설정」 모듈</strong>이 생겼다. 새 화면은 3탭 — 부서 권한(ERP 모듈 매트릭스 + 페이지 공개) / 개인 권한(사람 선택 → 부서·재직·ERP/GW/MS 보유·ERP 역할·포털 권한 카드 → 실판정 유효 권한 → 개인 예외 부여·현황) / 관리자·감사. <strong>사람 목록은 계정 통합관리(현재 인원 107명)로 통일</strong>했고, <code>perm_effective</code>의 부서 원천(<code>v_erp_user_dept</code> 88명)에 없는 사람은 「부서 매핑 없음 — 부서 권한 0」 경고를 단다. 계정 대사 행에 🔐 딥링크(<code>?upn=</code> · 셸 해시 <code>#perm?upn=</code>)와 「포털 권한」열을 넣고 「권한등록」은 <strong>「ERP 역할」</strong>로 명칭을 바로잡았다(ERP 역할 배정 여부지 포털 권한이 아니다). 정적 안내표 3개는 판정 규칙 요약 한 문단으로, <strong>부서 관리자 축(<code>dept_permission</code>, 라이브 0명·효과 사실상 없음)은 UI에서 제거</strong>하되 표·판정 함수는 그대로 뒀다(drop 시 게이트 전부 fail-closed). <code>/admin/user-dept</code>는 Supabase 세션 로그인에서 콘솔과 같은 Entra 토큰(<code>jeil-chat-admin scope=dept</code>)으로 바꿔 <strong>플랫폼 안 2차 로그인을 없앴다</strong>(그 대신 관리자 전용). <code>jeil-chat-admin</code> v11(Supabase 카운터 14)에 부분 조회 <code>scope perm|dept</code>를 더했고 빈 바디는 종전 전체 응답 그대로다. 미로그인 방문자에게 콘솔 버튼이 기본 노출되던 결함도 함께 정리(04 −467줄). 검증: 인라인 스크립트 5파일 구문 검사 통과 · 게이트 무토큰/위조토큰 401 실측 · 4관점 리뷰 + 건별 3인 적대 검증(결과는 REQ-0026 문서). <strong>범위 밖 발견(inbox)</strong>: 관리자 게이트 3원 구조 · 유령 부서명 3건 · <code>finance_dashboard</code> 공유 부서 무시 · 퇴사 시 포털 권한 미회수 · <code>admin-vendors</code>/<code>vendor-login</code> 상대 import 404</td>
+<td>최동혁(+Claude)</td>
+</tr>
+<tr>
+<td>2026-09-10</td>
+<td>보안·DB</td>
+<td>Supabase(마이그레이션 <code>rpc_execute_public_revoke</code>) · <code>이관/sql/42_rpc_execute_public_revoke.sql</code>(신설) · ISS-208</td>
+<td><strong>서비스롤 전용 RPC 12종에 남아 있던 PUBLIC EXECUTE를 회수했다(절대우선 fix · REQ-0027).</strong> REQ-0026 조사 중 DB 실측으로 발견 — 계정 대사·퇴사 처리 RPC(<code>account_recon_get</code>·<code>offboard_request_create</code>·<code>offboard_search</code> 등 12종, 전부 <code>SECURITY DEFINER</code>)의 회수문이 <code>from anon, authenticated</code>만이라 <strong>PUBLIC 기본 EXECUTE가 남아 공개 anon 키로 전 직원 명부 조회·퇴사 큐 투입이 가능한 상태</strong>였다(anon 키 REST 호출 200 확인). 34/38/39/41 정본 SQL의 패턴 누락이 원인이고 17번(<code>perm_*</code>)은 <code>from public</code> 포함으로 정상이었다. 관리자 승인 즉시 <code>revoke … from public, anon, authenticated</code> + <code>grant … to service_role</code> 적용 → 12/12 차단 확인(anon 키 호출 <strong>401 42501</strong>). 호출자(Edge Function <code>jeil-accounts</code>·ETL 4종)는 전부 service_role이라 동작 영향 0. 규칙: 서비스롤 전용 함수는 반드시 <code>from public</code>을 포함한다(42번 헤더에 검증 쿼리 동봉)</td>
+<td>최동혁(+Claude)</td>
+</tr>
+<tr>
 <td>2026-09-09</td>
 <td>부서 운영페이지·배포</td>
 <td><code>_build_bundle.py</code> · <code>JEIL_AX_포털데모_통합본.html</code> · <code>04_챗봇_포털_데모UI.html</code> · <code>pages/자금_자금일보_대시보드_2026.html</code>(리다이렉트로 교체) · Supabase(<code>portal_page_merge_finance_daily</code>)</td>

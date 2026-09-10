@@ -58,7 +58,7 @@
   <div class="head">
     <div>
       <h1>👥 사용자·부서 매핑 대사</h1>
-      <div class="sub">ERP <code>Z_USR_MAST_REC</code>의 이메일(=MS 계정)·사용자명(<code>부서명_이름</code>)을 대사해 사용자↔부서↔사원 관계를 관리합니다 · <span class="badge b">사내 전용</span> · <a href="/admin/identity">← 통합관리 플랫폼</a> · <a href="/admin/accounts">계정 대사 →</a> · <a href="/admin/erp-status">ERP 연동 현황 →</a></div>
+      <div class="sub">ERP <code>Z_USR_MAST_REC</code>의 이메일(=MS 계정)·사용자명(<code>부서명_이름</code>)을 대사해 사용자↔부서↔사원 관계를 관리합니다 · <span class="badge b">관리자 전용</span> · <a href="/admin/identity">← 통합관리 플랫폼</a> · <a href="/admin/accounts">계정 대사 →</a> · <a href="/admin/permissions">권한 설정 →</a> · <a href="/admin/erp-status">ERP 연동 현황 →</a></div>
     </div>
     <div><span class="badge a">읽기전용</span></div>
   </div>
@@ -73,12 +73,8 @@
 
   <!-- 비로그인/권한없음 안내 -->
   <div class="gate" id="gate">
-    <b>사내 로그인이 필요합니다.</b><br>
-    사용자·부서 매핑은 사내(@jeilm.co.kr) 계정으로 로그인한 경우에만 표시됩니다. 협력사·비로그인 사용자에게는 데이터가 격리되어 표시되지 않습니다.
-    <div style="margin-top:12px;">
-      <button id="g_ms" style="background:#2f2f7a;color:#fff;border:0;border-radius:8px;padding:10px 16px;font-size:13px;font-weight:600;cursor:pointer;">🔐 Microsoft 사내 계정으로 로그인 (Entra SSO)</button>
-    </div>
-    <div id="g_msg" style="margin-top:8px;font-size:12.5px;"></div>
+    <b>사내 로그인이 필요합니다.</b> <span id="g_msg">포털에서 Microsoft 계정으로 로그인한 뒤 다시 열어주세요. (포털 전체 관리자만 볼 수 있습니다)</span>
+    <div style="margin-top:10px;"><a href="/main" style="color:#8a6d1f;">← 포털로 이동</a></div>
   </div>
 
   <!-- 대사 불일치 (확인 대상 우선) -->
@@ -116,105 +112,117 @@
 
   <div class="foot">
     <span>JEIL AX · 사용자·부서 매핑 대사</span>
-    <span>사내 전용 · 읽기전용</span>
+    <span>관리자 전용 · 읽기전용 · 조회는 <code>jeil-chat-admin</code>(scope=dept) 경유 — 포털·계정 통합관리와 같은 로그인</span>
   </div>
 </div>
 
-<script type="module">
-  import { erpApi } from "../app/lib/api.js";
-  import { supabase } from "../app/lib/supabaseClient.js";
-  const el = (id) => document.getElementById(id);
-  const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
-  const fmtDt = (ts) => ts ? new Date(ts).toLocaleString("ko-KR", { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" }) : "—";
-  const RECON_BADGE = { "형식오류": "r", "상태이상": "a", "부서불일치": "a", "테스트계정": "b" };
+<script>
+/* 2026-09-10(REQ-0026): Supabase Auth 세션(별도 로그인) → 포털과 같은 Entra 토큰(localStorage jeilax_auth)으로 전환.
+   통합관리 플랫폼(/admin/identity) 안에서 이 화면만 2차 로그인이 떴던 원인이 인증 경로가 달랐기 때문이다.
+   데이터는 같은 뷰 3개(v_erp_user_dept · v_erp_user_dept_recon · v_erp_dept_roster)를 jeil-chat-admin(scope=dept)이 읽는다 —
+   관리자 콘솔의 옛 「사용자·부서」 탭과 같은 응답이라 이 화면이 그 탭을 대체한다. */
+(function () {
+  var API = "https://dvzohdqtjzocgcclgwro.supabase.co/functions/v1/jeil-chat-admin";
+  var el = function (id) { return document.getElementById(id); };
+  var esc = function (v) { return String(v == null ? "" : v).replace(/[&<>"]/g, function (c) {
+    return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); };
+  var fmtDt = function (ts) { return ts ? new Date(ts).toLocaleString("ko-KR", { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" }) : "—"; };
+  var RECON_BADGE = { "형식오류": "r", "상태이상": "a", "부서불일치": "a", "테스트계정": "b" };
 
-  // access_token(JWT)에서 app_metadata 클레임 추출(role=internal 확인용)
-  function claimsOf(session) {
+  function auth() {
     try {
-      let p = session.access_token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/");
-      while (p.length % 4) p += "=";
-      const j = decodeURIComponent(atob(p).split("").map((c) => "%" + c.charCodeAt(0).toString(16).padStart(2, "0")).join(""));
-      return JSON.parse(j).app_metadata || {};
-    } catch { return {}; }
+      var a = JSON.parse(localStorage.getItem("jeilax_auth") || "null");
+      return (a && a.at && a.exp > Date.now()) ? a : null;
+    } catch (e) { return null; }
   }
-
   function showGate(msg) {
     el("gate").style.display = "block";
-    ["sMap", "sRecon", "sDept"].forEach((id) => (el(id).textContent = "—"));
+    ["sMap", "sRecon", "sDept"].forEach(function (id) { el(id).textContent = "—"; });
     el("sAsof").textContent = "권한 없음";
-    el("reconRows").innerHTML = `<tr><td colspan="6" class="c muted" style="padding:16px;">사내 로그인 필요</td></tr>`;
-    el("rosterRows").innerHTML = `<tr><td colspan="3" class="c muted" style="padding:16px;">사내 로그인 필요</td></tr>`;
-    el("mapRows").innerHTML = `<tr><td colspan="4" class="c muted" style="padding:16px;">사내 로그인 필요</td></tr>`;
+    el("reconRows").innerHTML = '<tr><td colspan="6" class="c muted" style="padding:16px;">사내 로그인 필요</td></tr>';
+    el("rosterRows").innerHTML = '<tr><td colspan="3" class="c muted" style="padding:16px;">사내 로그인 필요</td></tr>';
+    el("mapRows").innerHTML = '<tr><td colspan="4" class="c muted" style="padding:16px;">사내 로그인 필요</td></tr>';
     if (msg) el("g_msg").textContent = msg;
   }
-
-  let MAP = []; // 정상 매핑 캐시(검색용)
-  function renderMap(filter = "") {
-    const f = filter.trim().toLowerCase();
-    const rows = f ? MAP.filter((r) => `${r.email} ${r.dept_nm} ${r.emp_nm}`.toLowerCase().includes(f)) : MAP;
-    el("hMap").textContent = `(${rows.length}${f ? ` / 총 ${MAP.length}` : ""}명)`;
-    el("mapRows").innerHTML = rows.length ? rows.map((r) => `<tr>
-      <td>${esc(r.email)}</td><td>${esc(r.dept_nm)}</td><td>${esc(r.emp_nm)}</td>
-      <td class="c muted">${esc(r.matched_dept_cd || "-")}</td></tr>`).join("")
-      : `<tr><td colspan="4" class="c muted" style="padding:16px;">일치하는 사용자 없음</td></tr>`;
+  // 셸(iframe)에 내 높이를 알린다 — 같은 origin 의 부모만 받는다. 단독으로 열렸으면 아무 일도 없다.
+  var _szT = null, _szW = 0, _szLast = 0;
+  function notifySize() {
+    if (window.parent === window) return;
+    clearTimeout(_szT);
+    _szT = setTimeout(function () {
+      // 뷰포트가 아니라 **콘텐츠** 높이를 보낸다. documentElement.scrollHeight 는 max(콘텐츠, 뷰포트)라
+      // 부모가 iframe 을 키우면 다시 커진 값을 보내는 되먹임 루프가 생긴다(리뷰에서 실측 재현).
+      var h = Math.ceil(document.body.offsetHeight);
+      if (!h || h === _szLast) return;
+      _szLast = h;
+      try { window.parent.postMessage({ jeilax: "resize", h: h }, location.origin); } catch (e) { /* */ }
+    }, 60);
+  }
+  // 창 resize 는 부모가 높이를 바꿀 때마다 오므로, **폭이 바뀐 경우**(줄바꿈으로 높이가 달라질 때)만 다시 잰다.
+  function onWinResize() {
+    if (window.innerWidth === _szW) return;
+    _szW = window.innerWidth; notifySize();
   }
 
-  async function loadData() {
-    const [map, recon, roster, asof] = await Promise.all([
-      erpApi.userDept(), erpApi.userDeptRecon(), erpApi.deptRoster(), erpApi.dataAsof(),
-    ]);
+  var MAP = []; // 정상 매핑 캐시(검색용)
+  function renderMap(filter) {
+    var f = String(filter || "").trim().toLowerCase();
+    var rows = f ? MAP.filter(function (r) { return (r.email + " " + r.dept_nm + " " + r.emp_nm).toLowerCase().indexOf(f) >= 0; }) : MAP;
+    el("hMap").textContent = "(" + rows.length + (f ? " / 총 " + MAP.length : "") + "명)";
+    el("mapRows").innerHTML = rows.length ? rows.map(function (r) {
+      return '<tr><td>' + esc(r.email) + '</td><td>' + esc(r.dept_nm) + '</td><td>' + esc(r.emp_nm) + '</td>' +
+        '<td class="c muted">' + esc(r.matched_dept_cd || "-") + '</td></tr>';
+    }).join("") : '<tr><td colspan="4" class="c muted" style="padding:16px;">일치하는 사용자 없음</td></tr>';
+    notifySize();
+  }
+
+  function render(d) {
+    var dm = d.dept_mapping || {};
+    var map = dm.users || [], recon = dm.recon || [], roster = dm.roster || [];
     el("gate").style.display = "none";
     MAP = map;
-    // 요약
     el("sMap").textContent = map.length.toLocaleString("ko-KR");
     el("sRecon").textContent = recon.length.toLocaleString("ko-KR");
-    const byType = recon.reduce((m, r) => ((m[r.recon_type] = (m[r.recon_type] || 0) + 1), m), {});
-    el("sReconU").textContent = Object.entries(byType).map(([k, v]) => `${k} ${v}`).join(" · ") || "없음";
+    var byType = {}; recon.forEach(function (r) { byType[r.recon_type] = (byType[r.recon_type] || 0) + 1; });
+    el("sReconU").textContent = Object.keys(byType).map(function (k) { return k + " " + byType[k]; }).join(" · ") || "없음";
     el("sDept").textContent = roster.length.toLocaleString("ko-KR");
-    el("sAsof").textContent = fmtDt(asof.usr_master?.last_success);
+    el("sAsof").textContent = fmtDt(d.asof_usr_master);
 
-    // 대사 불일치
-    el("hRecon").textContent = `(${recon.length}건 · 자동제외)`;
-    el("reconRows").innerHTML = recon.length ? recon.map((r) => `<tr>
-      <td><span class="badge ${RECON_BADGE[r.recon_type] || "b"}">${esc(r.recon_type)}</span></td>
-      <td>${esc(r.email)}</td><td>${esc(r.dept_nm)}</td><td>${esc(r.emp_nm)}</td>
-      <td class="c">${esc(r.status)}</td><td class="muted">${esc(r.usr_nm_raw)}</td></tr>`).join("")
-      : `<tr><td colspan="6" class="c muted" style="padding:16px;">불일치 없음</td></tr>`;
+    el("hRecon").textContent = "(" + recon.length + "건 · 자동제외)";
+    el("reconRows").innerHTML = recon.length ? recon.map(function (r) {
+      return '<tr><td><span class="badge ' + (RECON_BADGE[r.recon_type] || "b") + '">' + esc(r.recon_type) + '</span></td>' +
+        '<td>' + esc(r.email) + '</td><td>' + esc(r.dept_nm) + '</td><td>' + esc(r.emp_nm) + '</td>' +
+        '<td class="c">' + esc(r.status) + '</td><td class="muted">' + esc(r.usr_nm_raw) + '</td></tr>';
+    }).join("") : '<tr><td colspan="6" class="c muted" style="padding:16px;">불일치 없음</td></tr>';
 
-    // 부서 명부
-    el("hRoster").textContent = `(${roster.length}개 부서)`;
-    el("rosterRows").innerHTML = roster.map((r) => `<tr>
-      <td><b>${esc(r.dept_nm)}</b></td><td class="c">${r.emp_cnt}</td>
-      <td class="muted">${esc(r.members)}</td></tr>`).join("");
+    el("hRoster").textContent = "(" + roster.length + "개 부서)";
+    el("rosterRows").innerHTML = roster.length ? roster.map(function (r) {
+      return '<tr><td><b>' + esc(r.dept_nm) + '</b></td><td class="c">' + r.emp_cnt + '</td><td class="muted">' + esc(r.members) + '</td></tr>';
+    }).join("") : '<tr><td colspan="3" class="c muted" style="padding:16px;">부서 없음</td></tr>';
 
-    // 사용자 검색
-    renderMap();
-    el("q").addEventListener("input", (e) => renderMap(e.target.value));
+    renderMap(el("q").value);
   }
 
-  // Entra SSO 로그인 — 성공 시 세션 persist + 콜백 복귀하면 boot가 데이터 로드
-  el("g_ms").onclick = async () => {
-    el("g_ms").disabled = true;
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: "azure",
-      options: { scopes: "openid email profile", redirectTo: location.href.split("#")[0] },
-    });
-    if (error) { el("g_msg").textContent = "Microsoft 로그인 실패: " + error.message; el("g_ms").disabled = false; }
-  };
-
-  // 인증 게이트: 세션 + role=internal 확인 후에만 조회(비내부·비로그인은 게이트)
-  try {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) { showGate(); }
-    else if (claimsOf(session).role !== "internal") {
-      showGate(`사내(@jeilm.co.kr) 계정이 아닙니다(${session.user.email || ""}). 로그아웃 후 사내 계정으로 로그인하세요.`);
-    } else {
-      await loadData();
-    }
-  } catch (e) {
-    showGate();
-    console.warn("[admin-user-dept] 조회 불가:", e?.message || e);
+  function boot() {
+    var a = auth();
+    if (!a) { showGate(); return; }
+    fetch(API, { method: "POST", headers: { Authorization: "Bearer " + a.at, "Content-Type": "application/json" },
+      body: JSON.stringify({ scope: "dept" }) })
+      .then(function (r) { return r.text().then(function (t) {
+        var j = null; try { j = JSON.parse(t); } catch (e) { /* 콜드스타트 비-JSON 대비 */ }
+        if (!r.ok) throw new Error((j && j.error) || ("오류 " + r.status));
+        return j;
+      }); })
+      .then(render)
+      .catch(function (e) {
+        var m = e && e.message || String(e);
+        showGate(/forbidden|관리자/.test(m) ? "이 화면은 포털 전체 관리자만 볼 수 있습니다." : m);
+      });
   }
+  el("q").addEventListener("input", function (e) { renderMap(e.target.value); });
+  _szW = window.innerWidth; window.addEventListener("resize", onWinResize);
+  boot();
+})();
 </script>
 </body>
 </html>

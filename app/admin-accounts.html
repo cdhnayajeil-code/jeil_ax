@@ -84,6 +84,7 @@
         · <span class="badge b">관리자 전용</span>
         · <a href="/admin/identity">← 통합관리 플랫폼</a>
         · <a href="/admin/user-dept">사용자·부서 매핑 →</a>
+        · <a href="/admin/permissions">권한 설정 →</a>
         · <a href="/admin/erp-status">ERP 연동 현황 →</a>
       </div>
     </div>
@@ -122,6 +123,9 @@
         <b>①ERP를 쓰지 않는 부서</b>(현재 <b>생산팀</b>)는 ERP 계정이 없어도 <b>정상</b>으로 보고 <span class="badge b">ERP면제</span> 배지를 답니다.
         <b>②회의실·차량·공유메일함·시스템 계정</b>처럼 사람이 아닌 ID는 <b>현재 인원에서 제외</b>합니다.
         등재되지 않은 새 계정은 그대로 조치 대상으로 보이므로, 빠뜨리면 이 화면이 알려줍니다.
+        <br><b>「ERP 역할」</b>은 ERP 안의 역할(<code>Z_USR_ROLE</code>) 배정 여부이고(구분 「권한미등록」= ERP 역할 미배정),
+        <b>「포털 권한」</b>은 이 포털의 권한(전체 관리자 · 개인 예외 · 부서 기준)입니다 — 둘은 다른 것이라 열을 나눴습니다.
+        「포털 권한」 칸의 <b>🔐</b>을 누르면 그 사람이 선택된 채로 권한 설정이 열립니다.
         <b>③휴직</b>은 ERP 사용자명의 <code>(휴직)</code> 표기로 판정합니다 — 사람은 있고 계정만 잠긴 상태라
         현재 인원에는 넣되 조치 대상에서는 뺍니다. 복직해 ERP에서 표기를 떼면 자동으로 <b>정상</b>이 됩니다.
       </div>
@@ -135,9 +139,9 @@
           <thead><tr>
             <th>구분</th><th>이메일</th><th>이름</th><th>부서</th><th>직위</th>
             <th class="c">ERP</th><th class="c">인사</th><th class="c">그룹웨어</th><th class="c">MS</th>
-            <th class="c">권한등록</th><th class="c">사번</th><th class="c">재입사</th>
+            <th class="c">ERP 역할</th><th>포털 권한</th><th class="c">사번</th><th class="c">재입사</th>
           </tr></thead>
-          <tbody id="reconRows"><tr><td colspan="12" class="c muted" style="padding:16px;">불러오는 중…</td></tr></tbody>
+          <tbody id="reconRows"><tr><td colspan="13" class="c muted" style="padding:16px;">불러오는 중…</td></tr></tbody>
         </table>
       </div>
     </div>
@@ -154,7 +158,7 @@
         <table>
           <thead><tr>
             <th>이메일</th><th>계정 표기</th><th class="c">활성</th><th class="c">사번</th>
-            <th>인사 부서</th><th>직위</th><th class="c">권한등록</th><th class="r">역할수</th><th>역할</th>
+            <th>인사 부서</th><th>직위</th><th class="c">ERP 역할</th><th class="r">역할수</th><th>역할</th>
           </tr></thead>
           <tbody id="erpRows"><tr><td colspan="9" class="c muted" style="padding:16px;">—</td></tr></tbody>
         </table>
@@ -227,6 +231,8 @@
 <script>
 (function () {
   var API = "https://dvzohdqtjzocgcclgwro.supabase.co/functions/v1/jeil-accounts";
+  var ADMIN_API = "https://dvzohdqtjzocgcclgwro.supabase.co/functions/v1/jeil-chat-admin"; // 포털 권한(전체 관리자·개인 예외·부서 매핑) — 같은 토큰
+  var EMBED = document.body.classList.contains("embed");
   var el = function (id) { return document.getElementById(id); };
   var esc = function (s) { return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) {
     return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); };
@@ -293,6 +299,29 @@
   }
 
   var RECON = [], ERP = [], HR = [], GW = [], MS = [], TYPE_FILTER = "";
+  // 포털 권한 — jeil-chat-admin(scope=perm)에서 받는다. 실패해도 대사는 그대로 보이고 이 열만 「—」가 된다.
+  var PERM = null; // { admins:{email:1}, grants:{email:n}, mapped:{email:1} }
+  function permCell(r) {
+    var em = String(r.email || "").toLowerCase();
+    var link = '<a class="permlink" href="/admin/permissions?upn=' + encodeURIComponent(em) + '" data-upn="' + esc(em) + '" title="권한 설정에서 이 사람 보기" style="text-decoration:none;margin-left:4px;">🔐</a>';
+    if (!PERM) return '<span class="na" title="권한 정보를 불러오지 못했습니다">—</span>' + link;
+    if (PERM.admins[em] || r.portal_admin) return '<span class="badge b" title="포털 전체 관리자 — 모든 모듈·페이지">전권</span>' + link;
+    var n = PERM.grants[em] || 0;
+    var base = PERM.mapped[em] ? '<span class="badge g" title="ERP 계정 표기 부서의 권한이 적용됩니다">부서 기준</span>'
+             : (r.is_current ? '<span class="badge a" title="ERP 계정 표기(부서명_이름)에서 부서를 찾지 못해 부서 기준 권한이 0입니다">⚠ 부서 없음</span>' : '<span class="na">–</span>');
+    return base + (n ? ' <span class="badge a" title="적용중 개인 예외">예외 ' + n + '</span>' : '') + link;
+  }
+  function loadPerm() {
+    var a = auth(); if (!a) return Promise.resolve();
+    return fetch(ADMIN_API, { method: "POST", headers: { Authorization: "Bearer " + a.at, "Content-Type": "application/json" },
+      body: JSON.stringify({ scope: "perm" }) }).then(function (r) { return r.ok ? r.json() : null; }).then(function (p) {
+        if (!p) return;
+        PERM = { admins: {}, grants: {}, mapped: {} };
+        (p.admins || []).forEach(function (x) { PERM.admins[String(x.email).toLowerCase()] = 1; });
+        (p.perm_grants || []).forEach(function (g) { if (g.active) { var k = String(g.upn).toLowerCase(); PERM.grants[k] = (PERM.grants[k] || 0) + 1; } });
+        ((p.dept_mapping && p.dept_mapping.users) || []).forEach(function (u) { PERM.mapped[String(u.email).toLowerCase()] = 1; });
+      }).catch(function () { /* 열만 비운다 */ });
+  }
 
   function reconView() {
     var q = el("qRecon").value.trim().toLowerCase();
@@ -345,13 +374,42 @@
         '<td class="c">' + gwMark(r) + '</td>' +
         '<td class="c">' + msMark(r) + '</td>' +
         '<td class="c">' + (r.erp_perm_registered
-            ? '<span class="badge g">등록 ' + r.erp_role_cnt + '</span>'
-            : (r.has_erp ? '<span class="badge r">미등록</span>' : '<span class="na">–</span>')) +
-          (r.portal_admin ? ' <span class="badge b" title="포털 전체 관리자">전권</span>' : '') + '</td>' +
+            ? '<span class="badge g" title="ERP 역할 ' + r.erp_role_cnt + '건 배정">역할 ' + r.erp_role_cnt + '</span>'
+            : (r.has_erp ? '<span class="badge r" title="ERP 계정은 있으나 역할 미배정">미등록</span>' : '<span class="na">–</span>')) + '</td>' +
+        '<td>' + permCell(r) + '</td>' +
         '<td class="c mono">' + esc(r.emp_no || "—") + '</td>' +
         '<td class="c">' + (r.rehire_cnt > 0 ? '<span class="badge b">' + r.rehire_cnt + '회</span>' : '<span class="na">–</span>') + '</td>' +
         '</tr>';
-    }).join("") : '<tr><td colspan="12" class="c muted" style="padding:16px;">조건에 맞는 계정이 없습니다.</td></tr>';
+    }).join("") : '<tr><td colspan="13" class="c muted" style="padding:16px;">조건에 맞는 계정이 없습니다.</td></tr>';
+    // 🔐 — 셸(통합 플랫폼) 안이면 셸에게 모듈 전환을 부탁하고, 단독이면 권한 화면으로 이동한다(href 가 그대로 폴백).
+    Array.prototype.forEach.call(el("reconRows").querySelectorAll(".permlink"), function (a) {
+      a.onclick = function (ev) {
+        if (!EMBED || window.parent === window) return; // 단독 화면 — 링크 그대로
+        ev.preventDefault();
+        try { window.parent.postMessage({ jeilax: "go", mod: "perm", q: "upn=" + encodeURIComponent(a.getAttribute("data-upn")) }, location.origin); }
+        catch (e) { location.href = a.href; }
+      };
+    });
+    notifySize();
+  }
+  // 셸(iframe)에 내 높이를 알린다 — 같은 origin 의 부모만 받는다. 단독으로 열렸으면 아무 일도 없다.
+  var _szT = null, _szW = 0, _szLast = 0;
+  function notifySize() {
+    if (window.parent === window) return;
+    clearTimeout(_szT);
+    _szT = setTimeout(function () {
+      // 뷰포트가 아니라 **콘텐츠** 높이를 보낸다. documentElement.scrollHeight 는 max(콘텐츠, 뷰포트)라
+      // 부모가 iframe 을 키우면 다시 커진 값을 보내는 되먹임 루프가 생긴다(리뷰에서 실측 재현).
+      var h = Math.ceil(document.body.offsetHeight);
+      if (!h || h === _szLast) return;
+      _szLast = h;
+      try { window.parent.postMessage({ jeilax: "resize", h: h }, location.origin); } catch (e) { /* */ }
+    }, 60);
+  }
+  // 창 resize 는 부모가 높이를 바꿀 때마다 오므로, **폭이 바뀐 경우**(줄바꿈으로 높이가 달라질 때)만 다시 잰다.
+  function onWinResize() {
+    if (window.innerWidth === _szW) return;
+    _szW = window.innerWidth; notifySize();
   }
 
   function renderErp() {
@@ -370,7 +428,7 @@
         '<td>' + esc(r.dept_nm || "—") +
           (r.dept_mismatch ? ' <span class="badge a" title="계정 표기: ' + esc(r.acct_dept_nm || "") + '">표기≠</span>' : '') + '</td>' +
         '<td>' + esc(r.roll_pstn || "—") + '</td>' +
-        '<td class="c">' + (r.erp_perm_registered ? '<span class="badge g">등록</span>' : '<span class="badge r">미등록</span>') + '</td>' +
+        '<td class="c">' + (r.erp_perm_registered ? '<span class="badge g">배정</span>' : '<span class="badge r">미배정</span>') + '</td>' +
         '<td class="r">' + num(r.erp_role_cnt) + '</td>' +
         '<td><span class="trunc muted" title="' + esc(r.roles || "") + '">' + esc(r.roles || "—") + '</span></td>' +
         '</tr>';
@@ -454,12 +512,14 @@
       Array.prototype.forEach.call(document.querySelectorAll(".tabs button"), function (x) { x.classList.remove("on"); });
       Array.prototype.forEach.call(document.querySelectorAll(".panel"), function (x) { x.classList.remove("on"); });
       b.classList.add("on"); el("p-" + t).classList.add("on");
+      notifySize();
     };
   });
+  _szW = window.innerWidth; window.addEventListener("resize", onWinResize);
 
   function boot() {
     if (!auth()) { showGate(); return; }
-    Promise.all([api("summary"), api("recon"), api("erp"), api("hr"), api("gw"), api("ms")])
+    Promise.all([api("summary"), api("recon"), api("erp"), api("hr"), api("gw"), api("ms"), loadPerm()])
       .then(function (r) {
         var s = r[0]; RECON = r[1] || []; ERP = r[2] || []; HR = r[3] || []; GW = r[4] || []; MS = r[5] || [];
         el("gate").style.display = "none"; el("app").style.display = "block";

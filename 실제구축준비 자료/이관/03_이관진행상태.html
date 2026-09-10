@@ -47,7 +47,7 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
   <div class="content">
 <h1 id="03">03. 이관 진행 상태 (추적표)</h1>
 <blockquote>
-<p><strong>최종 갱신: 2026-06-29</strong> · 관리: 최동혁
+<p><strong>최종 갱신: 2026-09-10</strong> · 관리: 최동혁
 이 문서는 <strong>작업할 때마다 갱신하는 진행 로그</strong>다. 단계 완료 시 체크하고, §3 작업로그에 날짜·내용을 남긴다. 시스템 상태가 바뀌면 <code>00_현황스냅샷</code>도 함께 갱신한다.</p>
 </blockquote>
 <hr />
@@ -257,6 +257,18 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <td>협력사 포털 <strong>관리자 계정</strong> 신설 — <code>role=vendor_admin</code>(전 거래처 읽기전용) + 발급 UI(<code>app/admin-vendors.html</code>) + 포털 거래처 선택 화면</td>
 <td>마이그레이션 2건·Edge Function <code>vendor-admin-provision</code> v1(총 10종)·<code>vendor-reset-password</code> v6 배포, 정본 SQL <code>sql/27_vendor_portal_admin.sql</code>, RLS 읽기/쓰기 실측 검증</td>
 <td>관리자: 화면에서 계정 발급 후 포털 로그인 E2E 확인</td>
+</tr>
+<tr>
+<td>2026-09-10</td>
+<td><strong>RPC PUBLIC EXECUTE 회수</strong>(REQ-0027) — 계정·퇴사 RPC 12종 <code>revoke … from public</code> 누락 발견·즉시 조치</td>
+<td>마이그레이션 <code>rpc_execute_public_revoke</code> · 정본 <code>sql/42</code> · 12/12 차단 + anon 키 호출 401 실측</td>
+<td>서비스롤 전용 함수 신설 시 <code>from public</code> 포함 규칙 준수</td>
+</tr>
+<tr>
+<td>2026-09-10</td>
+<td><strong>권한 설정 화면 통합</strong>(REQ-0026 · ADR-014) — <code>app/admin-permissions.html</code> 신설, 콘솔 3탭 → 1탭(iframe), 플랫폼 <code>#perm</code> 모듈, 계정 대사 🔐 딥링크·「포털 권한」열, <code>/admin/user-dept</code> 인증 전환, <code>jeil-chat-admin</code> v11 scope 부분 조회</td>
+<td>Edge Function 배포 14 · 라우트 113 · 통합본 재생성 · 구문 검사 5파일 통과 · 4관점 리뷰+적대 검증</td>
+<td>main 푸시(라이브) 후 브라우저 실측: 콘솔 5탭·권한 화면 부여/회수/유효권한·플랫폼 5모듈 재로그인 없음 · inbox 6건 후속</td>
 </tr>
 </tbody>
 </table>

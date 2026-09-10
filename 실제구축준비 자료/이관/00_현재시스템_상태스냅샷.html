@@ -47,7 +47,7 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
   <div class="content">
 <h1 id="00">00. 현재 시스템 상태 스냅샷 (현황 대장)</h1>
 <blockquote>
-<p><strong>기준일: 2026-06-29</strong> · 관리: 최동혁(dh.choi@jeilm.co.kr)
+<p><strong>기준일: 2026-09-10</strong> · 관리: 최동혁(dh.choi@jeilm.co.kr)
 이 문서는 <strong>시스템이 바뀔 때마다 갱신하는 단일 출처(Single Source of Truth)</strong> 다. 배포·데이터·인증·계정 상태가 변하면 여기를 먼저 고치고, §9 변경 이력에 한 줄 남긴다.
 비밀값(Entra Secret, DB 접속, 키)은 <strong>이 문서에 적지 않는다</strong>(<code>CLAUDE.md §1</code>). 이름·존재 여부만 기록한다.</p>
 </blockquote>
@@ -98,7 +98,7 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <tr>
 <td><strong>Supabase</strong></td>
 <td><strong>프로젝트 가동</strong> <code>dvzohdqtjzocgcclgwro</code> / 스키마·RLS·Hook·Storage·<strong>Azure OIDC</strong>·autoconfirm 적용</td>
-<td>협력사 발주 + <strong>관리자주도 등록</strong>(<code>portal_admin</code>·<code>vendor_account</code>·<strong><code>vendor_admin_account</code></strong>·<code>vendor_account_log</code>) 테이블, Edge Function <strong>11종</strong>(<code>approve-vendor</code>·<code>vendor-provision</code>·<strong><code>vendor-admin-provision</code></strong>·<code>vendor-reset-password</code>·<strong><code>vendor-set-password</code></strong>·<strong><code>jeil-chat</code></strong>·<strong><code>jeil-chat-admin</code></strong>·<strong><code>jeil-chat-history</code></strong>·<code>jeil-me</code>·<code>jeil-hr</code>·<strong><code>jeil-portal-request</code></strong>), <code>chat_log</code> 감사 + <strong>대화내역 3테이블</strong>(<code>chat_work</code>·<code>chat_session</code>·<code>chat_message</code> — 본인 전용, ADR-009) + <strong>요청 원장</strong>(<code>portal_request</code> — 조회불가 요청접수, ADR-011), RLS 격리검증·어드바이저 클린</td>
+<td>협력사 발주 + <strong>관리자주도 등록</strong>(<code>portal_admin</code>·<code>vendor_account</code>·<strong><code>vendor_admin_account</code></strong>·<code>vendor_account_log</code>) 테이블, Edge Function <strong>13종</strong>(<code>approve-vendor</code>·<code>vendor-provision</code>·<code>vendor-admin-provision</code>·<code>vendor-reset-password</code>·<code>vendor-set-password</code>·<code>jeil-chat</code>·<code>jeil-chat-admin</code>(v11 · 배포 14)·<code>jeil-chat-history</code>·<code>jeil-me</code>·<code>jeil-hr</code>·<code>jeil-portal-request</code>·<code>jeil-gl-draft</code>·<code>jeil-accounts</code>), <code>chat_log</code> 감사 + <strong>대화내역 3테이블</strong>(<code>chat_work</code>·<code>chat_session</code>·<code>chat_message</code> — 본인 전용, ADR-009) + <strong>요청 원장</strong>(<code>portal_request</code> — 조회불가 요청접수, ADR-011), RLS 격리검증·어드바이저 클린</td>
 </tr>
 <tr>
 <td>데모 도메인</td>
@@ -362,7 +362,7 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 </tr>
 </tbody>
 </table>
-<h3 id="51-2026-07-22-v1">5.1 권한 체계 (2026-07-22 통합 — 권한 코어 v1)</h3>
+<h3 id="51-2026-07-22-v1-2026-09-10">5.1 권한 체계 (2026-07-22 통합 — 권한 코어 v1 · 2026-09-10 관리 화면 통합)</h3>
 <table>
 <thead>
 <tr>
@@ -380,32 +380,37 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <tr>
 <td><strong>① 부서(CORE)</strong></td>
 <td><code>dept_erp_scope</code>(모듈) · <code>portal_page</code>(페이지 공개범위)</td>
-<td>23부서 118행 / 페이지 9개. <strong>기본은 전부 부서로 부여</strong></td>
+<td>25부서 129행(그중 3부서는 ERP 표기에 없는 유령 이름 — inbox) / 페이지 10개(활성 9). <strong>기본은 전부 부서로 부여</strong>(2026-09-10 실측)</td>
 </tr>
 <tr>
 <td><strong>② 개인 예외</strong></td>
-<td><code>perm_grant</code>(신설)</td>
-<td><code>scope_type</code>= role·dept·erp_module·page·<strong>onedrive(확장 자리)</strong>. <code>deny &gt; allow &gt; 부서</code>, <code>valid_to</code> 기간 만료 자동 소멸, <strong>사유 필수</strong>. 현재 활성 0건(전원 부서 권한만 — 권장 기본값)</td>
+<td><code>perm_grant</code></td>
+<td><code>scope_type</code>= role·dept·erp_module·page·<strong>onedrive(확장 자리)</strong>. <code>deny &gt; allow &gt; 부서</code>, <code>valid_to</code> 기간 만료 자동 소멸, <strong>사유 필수</strong>. 활성 3건(role:admin 2 — 둘 다 portal_admin 등재자 · erp_module:accounting 1), 회수 3(2026-09-10 실측)</td>
 </tr>
 <tr>
 <td><strong>③ 전권</strong></td>
 <td><code>portal_admin</code></td>
-<td><strong>1명</strong>(dh.choi@jeilm.co.kr). 개인 예외 <code>role:admin</code>으로도 부여 가능(기간 지정 가능해 상시 전권보다 안전)</td>
+<td><strong>3명</strong>(2026-09-10). 개인 예외 <code>role:admin</code>으로도 부여 가능(기간 지정 가능해 상시 전권보다 안전). ⚠ 관리 Edge Function(<code>jeil-chat-admin</code>·<code>jeil-accounts</code>)은 <code>portal_admin</code> 표만 보므로 <code>role:admin</code>만 받은 사람은 콘솔 API 403 — 게이트 통일은 inbox</td>
+</tr>
+<tr>
+<td><strong>부서 관리자(폐지 UI)</strong></td>
+<td><code>dept_permission.dept_admin_email</code></td>
+<td>라이브 0명. 효과는 자기 부서 페이지 열람 허용뿐이라 <strong>2026-09-10 UI 제거(관리자 결정)</strong> — 표·<code>perm_effective</code> 참조는 그대로(drop 금지). 역할은 전체 관리자 / 일반 2단</td>
 </tr>
 <tr>
 <td><strong>모듈 카탈로그</strong></td>
-<td><code>perm_module_catalog</code>(신설)</td>
-<td>8종. <code>sensitive</code>=급여·자금 — 개인 페이지 예외만으로 열리지 않음(모듈 권한 필수)</td>
+<td><code>perm_module_catalog</code></td>
+<td>9종(accounting 추가). <code>sensitive</code>=급여·자금·회계 — 개인 페이지 예외만으로 열리지 않음(모듈 권한 필수)</td>
 </tr>
 <tr>
 <td><strong>감사</strong></td>
-<td><code>perm_audit</code>(신설) · <code>hr_access_log</code></td>
-<td>부여·회수·유효권한 조회까지 기록. 관리자 콘솔 「권한 변경 감사」에 최근 100건 표시</td>
+<td><code>perm_audit</code> · <code>hr_access_log</code></td>
+<td>부여·회수·유효권한 조회까지 기록(10행 — <code>view_effective</code> 0건 = 시뮬레이터가 운영에서 성공 호출된 적 없음, 2026-09-10 실측). 권한 화면 「관리자·감사」 탭에 최근 100건</td>
 </tr>
 <tr>
 <td><strong>관리 UI</strong></td>
-<td>04 관리자 콘솔 › 권한 설정</td>
-<td>개인 예외 부여/회수 + <strong>유효 권한 시뮬레이터</strong>(선택 사용자가 지금 무엇을 볼 수 있는지 서버 판정 그대로 조회 — 「왜 안 보이나요」 문의 대응)</td>
+<td><strong><code>/admin/permissions</code></strong>(독립 화면, 2026-09-10 ADR-014)</td>
+<td>콘솔 「권한·계정」 탭과 계정·조직 통합관리 플랫폼(<code>/admin/identity#perm</code>)이 <strong>같은 화면을 임베드</strong>. 3탭: 부서 권한(ERP 모듈 매트릭스·페이지 공개) / 개인 권한(사람 카드 → 실판정 유효 권한 → 개인 예외) / 관리자·감사. 사람 목록은 계정 통합관리(<code>v_account_recon</code> 현재 인원 107)로 통일 — <code>v_erp_user_dept</code>(88)에 없는 사람은 「부서 매핑 없음」 경고. 계정 대사 🔐 → <code>?upn=</code> 딥링크</td>
 </tr>
 </tbody>
 </table>
@@ -511,6 +516,16 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 </tr>
 </thead>
 <tbody>
+<tr>
+<td>2026-09-10</td>
+<td><strong>권한 설정 화면 통합 — <code>/admin/permissions</code> 신설, 콘솔 3탭 → 「권한·계정」 1탭, 통합 플랫폼에 권한 모듈</strong>(REQ-0026 · ADR-014 · Edge Function <code>jeil-chat-admin</code> v11 = 배포 14 · 라우트 113) — 콘솔과 계정·조직 통합관리가 같은 사람을 다른 목록(88 vs 107명)으로 보여 주고 콘솔 「사용자·부서」탭이 <code>/admin/user-dept</code>와 중복이던 구조를 정리했다. 판정 함수·스키마는 무변경. 부서 관리자 축 UI 제거(표 유지), 「권한등록」→「ERP 역할」 명칭 정정 + 「포털 권한」열 신설, 계정 대사 🔐 딥링크, <code>/admin/user-dept</code> 인증을 Entra 토큰으로 전환(플랫폼 안 2차 로그인 해소, 관리자 전용화), 미로그인 콘솔 버튼 노출 결함 정리. 04 파일 −467줄</td>
+<td>최동혁(+Claude)</td>
+</tr>
+<tr>
+<td>2026-09-10</td>
+<td><strong>서비스롤 전용 RPC 12종 PUBLIC EXECUTE 회수</strong>(REQ-0027 · ISS-208 · 마이그레이션 <code>rpc_execute_public_revoke</code> · 정본 <code>sql/42</code>) — 계정 대사·퇴사 처리 RPC가 <code>from anon, authenticated</code>만 회수해 PUBLIC 기본 EXECUTE로 anon 키 REST 호출이 가능했다(실측 200 → 조치 후 401 42501). Edge Function·ETL은 service_role이라 영향 0</td>
+<td>최동혁(+Claude)</td>
+</tr>
 <tr>
 <td>2026-08-25</td>
 <td><strong>전송 대기 진단 체계 신설</strong>(마이그레이션 <code>gl_apply_diag</code>·<code>gl_apply_log_precheck_mode</code>, Edge Function <strong><code>jeil-gl-draft</code> v5.8</strong>(배포 버전 16), 정본 SQL <code>이관/sql/30_gl_apply_diag.sql</code>) — 화면이 「전송 대기 중 — 중계가 곧 가져갑니다」만 표시하고 실제로는 아무 일도 일어나지 않는 상태를 사용자가 알 수 없었다(실측: 요청 후 폴링 17회 무응답). 중계가 멈춰 있었고 화면엔 그 사실을 알 신호가 없었다. <strong>신설</strong> — 테이블 <code>gl_relay_heartbeat</code>(중계 심박. 적용 원장은 <em>일이 있을 때만</em> 쌓여 생존 판정에 못 쓴다), RPC <code>gl_relay_ping</code>·<code>gl_apply_health</code>·<code>gl_apply_problems</code>(전부 service_role 전용), <code>gl_draft</code> 컬럼 4종 — <code>erp_last_error</code>(<strong>재전송해도 지워지지 않는</strong> 사유 보존 칸. 종전 <code>apply_request</code> 가 <code>erp_apply_msg</code> 를 비워 직전 실패 사유가 소실됐다)·<code>erp_last_error_at</code>·<code>erp_attempts</code>·<code>erp_ready_at</code>(대기 진입 시각. <code>erp_apply_at</code> 은 선점이 <code>now()</code> 로 덮어써 경과 계산에 쓸 수 없다). 원장 <code>mode</code> 에 <code>precheck</code>(재판정 — ERP 무투입) 허용. 화면은 중계 생존 배너와 「손봐야 할 건」 패널로 사유·경과·시도횟수를 노출한다. 릴레이 <strong>v1.4</strong>(심박·<code>--recheck</code>) 재빌드·전달폴더 배포 완료 — <strong>서버 EXE 교체 필요</strong>(구버전은 심박을 남기지 않아 배너가 「알 수 없음」으로 뜬다). 함께 <strong><code>supabase/_deploy_function.py</code></strong> 신설 — 이 PC에 supabase CLI 가 없어 Edge Function 소스를 손으로 옮겨야 했던 것을 Management API 업로드로 대체(기본 User-Agent 는 WAF 가 1010 으로 막으므로 지정 필요)</td>

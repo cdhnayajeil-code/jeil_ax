@@ -80,7 +80,7 @@
   <div class="head">
     <h1>🪪 계정·조직 통합관리 플랫폼</h1>
     <div class="sub">
-      계정 대사 · 사용자/부서 매핑 · 퇴사 처리를 한 곳에서 봅니다. 각 모듈은 <b>독립된 관리 시스템</b>이며 단독 주소로도 열립니다
+      계정 대사 · 사용자/부서 매핑 · 권한 설정 · 퇴사 처리를 한 곳에서 봅니다. 각 모듈은 <b>독립된 관리 시스템</b>이며 단독 주소로도 열립니다
       · <span class="badge b">관리자 전용</span>
       · <a href="/admin/erp-status">ERP 연동 현황 →</a>
     </div>
@@ -90,6 +90,7 @@
     <button class="on" data-mod="home">🏠 현황판</button>
     <button data-mod="recon">🔗 계정 대사<span class="n" id="n-recon">–</span></button>
     <button data-mod="dept">👥 사용자·부서</button>
+    <button data-mod="perm">🔐 권한 설정<span class="n" id="n-perm">–</span></button>
     <button data-mod="offboard">🚪 퇴사 처리<span class="n" id="n-off">–</span></button>
   </div>
 
@@ -122,6 +123,11 @@
             <p>ERP 사용자명(<code>부서명_이름</code>)을 파싱해 사용자↔부서↔사원 관계를 만듭니다. 표기가 어긋난 계정을 드러냅니다.</p>
             <div class="meta"><span class="badge b">연동 기준</span></div>
           </div>
+          <div class="card" data-go="perm">
+            <h4>🔐 권한 설정</h4>
+            <p>부서별 ERP 모듈·페이지 공개범위와 개인 예외를 관리하고, 사람을 골라 <b>지금 실제로 무엇을 볼 수 있는지</b>(실판정)를 확인합니다. 계정 대사의 사람이 그대로 이어집니다.</p>
+            <div class="meta"><span class="badge b">부서 기준 + 개인 예외</span><span class="badge n" id="cPerm">—</span></div>
+          </div>
           <div class="card" data-go="offboard">
             <h4>🚪 퇴사 처리</h4>
             <p>퇴사자의 ERP·그룹웨어·MS 계정을 한 번에 정리합니다. 축별 자동화 상태와 잔여 조치 대상을 봅니다.</p>
@@ -137,7 +143,8 @@
         <div class="note" style="margin-top:20px;">
           <b>왜 한 곳에 모았나</b> — 계정 대사와 부서 매핑은 같은 원천(<code>Z_USR_MAST_REC</code>)을 다른 각도로 보는 화면입니다.
           따로 열면 같은 사람을 두 번 찾아야 하고, 퇴사 처리처럼 <b>두 화면의 결과를 함께 봐야 하는 일</b>은 어느 쪽에도 자리가 없었습니다.
-          모듈은 각자 독립 화면이라 단독 주소(<code>/admin/accounts</code> · <code>/admin/user-dept</code>)로도 그대로 열립니다.
+          모듈은 각자 독립 화면이라 단독 주소(<code>/admin/accounts</code> · <code>/admin/user-dept</code> · <code>/admin/permissions</code>)로도 그대로 열립니다.
+          <b>권한 설정</b>도 같은 사람 목록 위에서 움직입니다 — 계정 대사에서 사람을 찾아 「권한」을 누르면 그 사람이 선택된 채로 권한 화면이 열립니다(포털 관리자 콘솔의 「권한·계정」 탭도 같은 화면).
         </div>
       </div>
     </div>
@@ -152,6 +159,11 @@
       <iframe class="frame" id="f-dept" title="사용자·부서 매핑" data-src="/admin/user-dept?embed=1"></iframe>
     </div>
 
+    <!-- ── 권한 설정 (독립 화면 임베드 · 사람 딥링크 ?upn=) ────────────── -->
+    <div class="mod" id="m-perm">
+      <iframe class="frame" id="f-perm" title="권한 설정" data-src="/admin/permissions?embed=1"></iframe>
+    </div>
+
     <!-- ── 퇴사 처리 (독립 화면 임베드) ────────────────────────── -->
     <div class="mod" id="m-offboard">
       <iframe class="frame" id="f-offboard" title="퇴사 처리" data-src="/admin/offboarding?embed=1"></iframe>
@@ -160,13 +172,14 @@
 
   <div class="foot">
     <span>JEIL M&amp;S · 계정·조직 통합관리 플랫폼</span>
-    <span>모듈은 각자 독립 화면 — <code>/admin/accounts</code> · <code>/admin/user-dept</code> · <code>/admin/offboarding</code> 단독 주소 유지</span>
+    <span>모듈은 각자 독립 화면 — <code>/admin/accounts</code> · <code>/admin/user-dept</code> · <code>/admin/permissions</code> · <code>/admin/offboarding</code> 단독 주소 유지</span>
   </div>
 </div>
 
 <script>
 (function () {
   var API = "https://dvzohdqtjzocgcclgwro.supabase.co/functions/v1/jeil-accounts";
+  var ADMIN_API = "https://dvzohdqtjzocgcclgwro.supabase.co/functions/v1/jeil-chat-admin"; // 권한 모듈 배지(개인 예외 건수)용
   var el = function (id) { return document.getElementById(id); };
   var esc = function (s) { return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) {
     return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); };
@@ -197,8 +210,14 @@
   }
 
   /* 모듈 전환. iframe 은 **처음 열릴 때만** 로드한다 — 다섯 화면을 한꺼번에 띄우면
-     Edge Function 을 동시에 두드려 콜드스타트가 겹친다. */
-  function go(mod) {
+     Edge Function 을 동시에 두드려 콜드스타트가 겹친다.
+     해시 규약: `#모듈` 또는 `#모듈?쿼리` — 예) `#perm?upn=a@jeilm.co.kr` 은 권한 모듈을 그 사람이 선택된 채로 연다.
+     쿼리는 자식 iframe 의 주소로 그대로 넘긴다(이미 열려 있으면 postMessage 로 선택만 바꾼다). */
+  function parseHash() {
+    var h = (location.hash || "").slice(1), i = h.indexOf("?");
+    return { mod: i >= 0 ? h.slice(0, i) : h, q: i >= 0 ? h.slice(i + 1) : "" };
+  }
+  function go(mod, q) {
     Array.prototype.forEach.call(document.querySelectorAll(".mod"), function (m) {
       m.classList.toggle("on", m.id === "m-" + mod);
     });
@@ -206,10 +225,33 @@
       b.classList.toggle("on", b.getAttribute("data-mod") === mod);
     });
     var f = el("f-" + mod);
-    if (f && !f.src && f.getAttribute("data-src")) f.src = f.getAttribute("data-src");
-    if (location.hash.slice(1) !== mod) history.replaceState(null, "", "#" + mod);
+    if (f && f.getAttribute("data-src")) {
+      if (!f.src) f.src = f.getAttribute("data-src") + (q ? "&" + q : "");
+      else if (q) {
+        // 이미 로드된 자식에게는 선택만 전달(재로드 없음). 권한 모듈의 upn 딥링크가 대상.
+        var upn = new URLSearchParams(q).get("upn");
+        if (upn && f.contentWindow) { try { f.contentWindow.postMessage({ jeilax: "select", upn: upn }, location.origin); } catch (e) { /* */ } }
+      }
+    }
+    var want = "#" + mod + (q ? "?" + q : "");
+    if (location.hash !== want) history.replaceState(null, "", want);
     window.scrollTo(0, 0);
   }
+  // 자식 화면이 자기 높이를 알려오면 그 iframe 만 늘린다(같은 origin 만 신뢰). 안 보내는 화면은 min-height 로 남는다.
+  window.addEventListener("message", function (ev) {
+    if (ev.origin !== location.origin || !ev.data || ev.data.jeilax !== "resize") return;
+    Array.prototype.forEach.call(document.querySelectorAll("iframe.frame"), function (f) {
+      if (f.contentWindow !== ev.source || !(ev.data.h > 300)) return;
+      var px = Math.ceil(ev.data.h) + "px";          // 여유분을 더하지 않는다 — 더하면 자식이 그만큼 큰 값을 다시 보내 끝없이 자란다
+      if (f.style.height !== px) f.style.height = px;
+    });
+  });
+  // 자식(계정 대사)이 「권한」을 눌러 사람을 넘길 때 — 셸이 모듈을 바꾸고 딥링크로 연다.
+  window.addEventListener("message", function (ev) {
+    if (ev.origin !== location.origin || !ev.data || ev.data.jeilax !== "go") return;
+    go(String(ev.data.mod || "home"), ev.data.q ? String(ev.data.q) : "");
+  });
+  window.addEventListener("hashchange", function () { var h = parseHash(); if (MODS.indexOf(h.mod) >= 0) go(h.mod, h.q); });
   Array.prototype.forEach.call(el("modbar").querySelectorAll("button"), function (b) {
     b.onclick = function () { go(b.getAttribute("data-mod")); };
   });
@@ -232,7 +274,8 @@
   }
 
   function boot() {
-    if (!auth()) {
+    var a0 = auth();
+    if (!a0) {
       el("gate").style.display = "block";
       el("body").style.display = "none";
       return;
@@ -252,14 +295,23 @@
       el("kAsof").textContent = asof.length ? dt(asof[asof.length - 1]) : "—";
 
       countOff(rows);
+      // 권한 모듈 배지 — 적용중 개인 예외 건수. 권한 API 가 늦거나 실패해도 셸은 영향 없다.
+      fetch(ADMIN_API, { method: "POST", headers: { Authorization: "Bearer " + a0.at, "Content-Type": "application/json" },
+        body: JSON.stringify({ scope: "perm" }) }).then(function (r) { return r.ok ? r.json() : null; }).then(function (p) {
+          if (!p) return;
+          var n = (p.perm_grants || []).filter(function (g) { return g.active; }).length;
+          el("n-perm").textContent = n;
+          el("cPerm").textContent = "관리자 " + ((p.admins || []).length) + " · 개인 예외 " + n;
+        }).catch(function () { /* 배지만 비워둔다 */ });
     }).catch(function (e) {
       el("gate").style.display = "block";
       el("g_msg").textContent = "데이터를 불러오지 못했습니다 — " + e.message;
     });
   }
 
-  var start = (location.hash || "").slice(1);
-  go(["home", "recon", "dept", "offboard"].indexOf(start) >= 0 ? start : "home");
+  var MODS = ["home", "recon", "dept", "perm", "offboard"];
+  var start = parseHash();
+  go(MODS.indexOf(start.mod) >= 0 ? start.mod : "home", start.q);
   boot();
 })();
 </script>

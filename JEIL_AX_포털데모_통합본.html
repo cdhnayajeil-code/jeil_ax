@@ -538,7 +538,7 @@
       </div>
     </div>
     <button class="admin-open" onclick="showPages()">📁 사내 운영 페이지</button>
-    <button class="admin-open" id="adminConsoleBtn" onclick="showAdmin()">⚙ 관리자 콘솔</button>
+    <button class="admin-open" id="adminConsoleBtn" onclick="showAdmin()" style="display:none;">⚙ 관리자 콘솔</button>
   </aside>
 
   <!-- 메인 -->
@@ -624,7 +624,7 @@
           <span class="ic">🪪</span>
           <h4>계정·조직 통합관리</h4>
           <div class="metarow"><span class="badge b">관리자 전용</span><span class="badge g">읽기전용</span></div>
-          <p>계정 대사 · 사용자/부서 매핑 · 퇴사 처리를 한 곳에서 — 들어가서 모듈로 갈라집니다</p>
+          <p>계정 대사 · 사용자/부서 매핑 · 권한 설정 · 퇴사 처리를 한 곳에서 — 들어가서 모듈로 갈라집니다</p>
           <button class="open-btn lock" disabled title="계정·조직 통합관리 — ERP 실데이터 화면입니다. 사내 계정으로 로그인해 ai.jeilm.co.kr 에서 보세요.">🔒 사내 전용</button>
         </div>
         <div class="pgcard">
@@ -725,9 +725,7 @@
         <button id="tab-api" class="on" onclick="showTab('api')">API 설정</button>
         <button id="tab-usage" onclick="showTab('usage')">사용량 설정</button>
         <button id="tab-model" onclick="showTab('model')">모델 설정</button>
-        <button id="tab-perm" onclick="showTab('perm')">권한 설정</button>
-        <button id="tab-userdept" onclick="showTab('userdept')">사용자·부서</button>
-        <button id="tab-permdetail" onclick="showTab('permdetail')">권한 상세</button>
+        <button id="tab-permacct" onclick="showTab('permacct')">권한·계정</button>
         <button id="tab-requests" onclick="showTab('requests')">요청함 <span id="reqBadge" style="display:none; background:#c0392b; color:#fff; border-radius:9px; padding:1px 6px; font-size:10.5px; margin-left:3px;">0</span></button>
       </div>
       <button class="back-chat" onclick="showChat()">← 챗봇으로</button>
@@ -777,7 +775,7 @@
           <tr><td>대화 저장</td><td>「모델 설정」 탭의 저장·보존 정책에 따름 — 원문은 본인만 열람·삭제</td></tr>
           <tr><td>감사 로그</td><td>chat_log에 호출 메타데이터 기록(원문 미저장) — 「사용량」 탭에서 확인</td></tr>
         </table>
-        <p class="admin-note">위 정책은 게이트웨이(jeil-chat)와 DB RLS로 실제 강제됩니다. 세부 설정은 「모델 설정」·「권한 상세」 탭에서 관리합니다.</p>
+        <p class="admin-note">위 정책은 게이트웨이(jeil-chat)와 DB RLS로 실제 강제됩니다. 세부 설정은 「모델 설정」·「권한·계정」 탭에서 관리합니다.</p>
       </div>
     </div>
 
@@ -859,176 +857,22 @@
       </div>
     </div>
 
-    <!-- 패널 4: 권한 설정 -->
-    <div class="panel" id="panel-perm">
+    <!-- 패널 4: 권한·계정 — 권한 설정은 독립 화면(/admin/permissions)으로 옮겨 계정·조직 통합관리 플랫폼과 같은 사람 목록 위에서
+         관리한다(2026-09-10 REQ-0026). 여기서는 그 화면을 그대로 띄운다(같은 Entra 토큰이라 재로그인 없음).
+         옛 3탭(권한 설정·사용자·부서·권한 상세)의 부서 매트릭스·페이지 공개·개인 예외·유효 권한·감사는 전부 그 화면에 있고,
+         「사용자·부서」는 /admin/user-dept(통합관리 플랫폼 모듈)가 대체한다. 부서 관리자 축(dept_permission)은 UI 에서 제거(관리자 결정). -->
+    <div class="panel" id="panel-permacct" style="max-width:none;">
       <div class="sec">
-        <h3>현재 적용 중인 권한 <span style="font-size:11px;color:var(--green,#1a7f37);">● 실데이터</span></h3>
-        <table>
-          <tr><th style="width:16%;">구분</th><th>현재 적용(실측)</th><th>다음 단계(기획)</th></tr>
-          <tr><td><b>챗봇 사용</b></td><td id="lpChat">사내 전 직원(@jeilm.co.kr) — Entra SSO·MFA 통과 시 허용, 전원 동일 권한</td><td>Entra 보안그룹(AI-Portal-*) 기반 등급·모델 차등</td></tr>
-          <tr><td><b>데이터 접근</b></td><td><b>1단계 가동</b> — 포털DB 발주·검사 조회 도구 3종(발주 현황 요약·발주 상세·검수 판정대기). 읽기전용, 게이트웨이 등록 도구만 실행(임의 SQL 불가)</td><td>2단계 ERP 중간DB 읽기 Tool(부서 매핑) → 3단계 문서 RAG</td></tr>
-          <tr><td><b>사용 감사</b></td><td>chat_log 기록(사용자·모델·분량·<b>토큰·추정비용·사용 도구</b>) — 관리자만 Edge Function 경유 조회(RLS 차단)</td><td>월 사용자 한도·초과 알림</td></tr>
-        </table>
-        <table id="lpAdmins" style="margin-top:10px;">
-          <tr><th>전체 관리자 (portal_admin)</th><th>부여</th><th>부여일</th><th class="r">관리</th></tr>
-        </table>
-        <div style="margin-top:10px; padding:12px 14px; background:var(--soft,#eef2f8); border:1px solid var(--line,#d8dee8); border-radius:9px;">
-          <b style="font-size:12.5px; color:var(--navy);">전체권한(전체 관리자) 수동 부여</b>
-          <span style="font-size:11px; color:var(--muted);"> — 지정한 사내 이메일에 <b>모든 페이지·ERP 모듈(급여 포함) 열람 + 권한/설정 편집</b> 권한을 부여합니다. (portal_admin 등록)</span>
-          <div style="margin-top:8px; display:flex; gap:8px; flex-wrap:wrap;">
-            <input id="adminEmailIn" type="email" placeholder="user@jeilm.co.kr" autocomplete="off" style="flex:1; min-width:220px; padding:7px 11px; border:1px solid var(--line,#d8dee8); border-radius:7px; font-size:13px;">
-            <button class="save" onclick="grantAdmin()">전체권한 부여</button>
-          </div>
-        </div>
-        <p class="admin-note">전체권한은 최고 권한(설정 편집·급여 포함)입니다. 최소 인원에게만 부여하세요.</p>
-      </div>
-      <div class="cards">
-        <div class="card"><div class="lb">전체 관리자</div><div class="v" id="lpAdminCnt">—</div></div>
-        <div class="card"><div class="lb">매핑된 부서</div><div class="v" id="lpDeptCnt">—</div></div>
-        <div class="card"><div class="lb">매핑된 사용자</div><div class="v" id="lpUserCnt">—</div></div>
-      </div>
-
-      <div class="sec">
-        <h3>역할별 권한 매트릭스 <span style="font-size:11px;color:var(--muted);">읽기전용 · 역할 정의</span></h3>
-        <table>
-          <tr><th>기능 영역</th><th class="c">전체 관리자</th><th class="c">부서 관리자</th><th class="c">일반 사용자</th></tr>
-          <tr><td>챗봇 사용</td><td class="c mat-y">●</td><td class="c mat-y">●</td><td class="c mat-y">●</td></tr>
-          <tr><td>부서 운영 페이지 열람</td><td class="c mat-y">● 전체</td><td class="c mat-p">▲ 소속 부서 + 전사공개</td><td class="c mat-p">▲ 소속 부서 + 전사공개</td></tr>
-          <tr><td>운영 페이지 공개범위 지정</td><td class="c mat-y">● 전체</td><td class="c mat-p">▲ 소속 부서만</td><td class="c mat-n">✕</td></tr>
-          <tr><td>ERP 연계 데이터 조회 범위</td><td class="c mat-y">● 전체 모듈</td><td class="c mat-p">▲ 부서 매핑 모듈</td><td class="c mat-p">▲ 부서 매핑 모듈 (조회만)</td></tr>
-          <tr><td>대화 로그 감사 조회</td><td class="c mat-y">●</td><td class="c mat-n">✕</td><td class="c mat-n">✕</td></tr>
-          <tr><td>모델 · 게이트웨이 · 보안 설정</td><td class="c mat-y">●</td><td class="c mat-n">✕</td><td class="c mat-n">✕</td></tr>
-          <tr><td>권한 부여 · 부서 설정</td><td class="c mat-y">●</td><td class="c mat-p">▲ 소속 부서만</td><td class="c mat-n">✕</td></tr>
-          <tr><td>개인 예외 권한 부여·회수</td><td class="c mat-y">●</td><td class="c mat-n">✕ (요청만)</td><td class="c mat-n">✕</td></tr>
-        </table>
-        <p class="admin-note">● 전체 허용 · ▲ 범위 제한 · ✕ 불가. <b>권한 판정은 서버 단일 함수 <code>perm_effective</code></b>가 수행하며 챗봇·운영페이지·급여·자금 게이트가 모두 이 결과를 강제합니다(판정 중복 없음). 축은 3개 — ① 부서(기본): <code>dept_erp_scope</code>·<code>portal_page</code>, ② 개인 예외: <code>perm_grant</code>(차단&gt;허용&gt;부서, 기간 만료 지원), ③ 전권: <code>portal_admin</code>. 향후 OneDrive 팀 폴더 권한도 같은 축(<code>scope_type='onedrive'</code>)으로 확장합니다.</p>
-      </div>
-
-      <div class="sec">
-        <h3>부서별 권한 설정 <span style="font-size:11px;color:var(--green,#1a7f37);">● 실데이터(ERP 부서 기준)</span> <span><button class="save" onclick="saveDeptPerm()">저장</button></span></h3>
-        <p class="admin-note">부서 목록은 <b>사용자·부서 매핑</b>(ERP <code>Z_USR_MAST_REC</code> 대사)의 실제 부서를 기준으로 자동 구성됩니다. 부서 관리자는 해당 부서 구성원 중에서 지정하며, 저장 시 <code>dept_permission</code>에 즉시 영속됩니다.</p>
-        <table>
-          <thead><tr><th>부서</th><th class="c">인원</th><th>부서 관리자</th><th>ERP 데이터 접근 범위</th><th>페이지 공개범위</th></tr></thead>
-          <tbody id="permDeptRows"><tr><td colspan="5" class="c" style="color:#888;padding:14px;">MS 로그인(관리자) 시 부서 목록 표시 — '사용자·부서' 탭의 매핑 데이터 기준</td></tr></tbody>
-        </table>
-        <p class="admin-note">부서 관리자는 소속 부서의 사용자·운영 페이지·크레딧 신청만 관리합니다. ERP 접근 범위는 게이트웨이에서 모듈 단위로 차단됩니다. 부서명 기준은 ERP 매핑과 동기화됩니다.</p>
-      </div>
-
-      <div class="sec">
-        <h3>개인 예외 권한 <span style="font-size:11px;color:var(--green,#1a7f37);">● 실데이터</span> <span style="font-size:11px;color:var(--muted);">부서축으로 못 푸는 예외만</span></h3>
-        <p class="admin-note">권한의 <b>기본 축은 부서</b>입니다(위 「부서별 ERP 모듈 권한」). 겸직·업무대행·프로젝트처럼 <b>특정 인원에게만</b> 권한이 필요할 때 여기서 개인 단위로 더하거나(허용) 빼세요(차단). 판정 우선순위는 <b>차단 &gt; 개인 허용 &gt; 부서 권한</b>이며, <b>만료일</b>을 넣으면 그날 자동으로 사라집니다(회수를 잊어도 권한이 남지 않음).</p>
-        <div style="padding:12px 14px; background:var(--soft,#eef2f8); border:1px solid var(--line,#d8dee8); border-radius:9px;">
-          <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:8px;">
-            <label style="font-size:11px;color:var(--muted);">대상 사용자<select class="sel" id="pgUser" style="width:100%;margin-top:3px;"></select></label>
-            <label style="font-size:11px;color:var(--muted);">권한 유형<select class="sel" id="pgScopeType" onchange="pgScopeKeys()" style="width:100%;margin-top:3px;">
-              <option value="erp_module">ERP 모듈</option><option value="dept">부서 추가(겸직·대행)</option>
-              <option value="page">운영 페이지</option><option value="role">역할(전권·감사자)</option>
-              <option value="onedrive">OneDrive 폴더(준비 중)</option></select></label>
-            <label style="font-size:11px;color:var(--muted);">대상<select class="sel" id="pgScopeKey" style="width:100%;margin-top:3px;"></select></label>
-            <label style="font-size:11px;color:var(--muted);">효과<select class="sel" id="pgEffect" style="width:100%;margin-top:3px;">
-              <option value="allow">허용(추가 부여)</option><option value="deny">차단(부서 권한에서 제외)</option></select></label>
-            <label style="font-size:11px;color:var(--muted);">만료일(선택)<input type="date" id="pgValidTo" style="width:100%;margin-top:3px;padding:6px 8px;border:1px solid var(--line,#d8dee8);border-radius:6px;font-size:12.5px;"></label>
-          </div>
-          <div style="margin-top:8px; display:flex; gap:8px; flex-wrap:wrap;">
-            <input id="pgReason" placeholder="사유(필수) — 예: 자재물류팀 업무대행(2026-08-31까지)" style="flex:1; min-width:260px; padding:7px 11px; border:1px solid var(--line,#d8dee8); border-radius:7px; font-size:13px;">
-            <button class="save" onclick="grantPerm()">권한 부여</button>
-          </div>
-        </div>
-        <table style="margin-top:10px;">
-          <thead><tr><th style="width:8%;">상태</th><th style="width:22%;">대상자</th><th style="width:10%;">유형</th><th style="width:14%;">대상</th><th class="c" style="width:7%;">효과</th><th class="c" style="width:9%;">만료</th><th>사유·부여자</th><th class="r" style="width:7%;">관리</th></tr></thead>
-          <tbody id="pgRows"><tr><td colspan="8" class="c" style="color:#888;padding:14px;">MS 로그인(관리자) 시 표시</td></tr></tbody>
-        </table>
-      </div>
-
-      <div class="sec">
-        <h3>유효 권한 확인 <span style="font-size:11px;color:var(--green,#1a7f37);">● 실판정</span> <span style="font-size:11px;color:var(--muted);">부여 전 영향 확인 · 문의 대응</span></h3>
-        <p class="admin-note">선택한 사용자가 <b>지금 실제로 무엇을 볼 수 있는지</b>를 서버 판정 함수(<code>perm_effective</code>)로 그대로 조회합니다 — 화면 계산이 아니라 실제 접근 판정과 동일한 결과입니다. 「왜 이 페이지가 안 보이나요」 문의에 바로 답할 수 있습니다.</p>
-        <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:flex-end;">
-          <select class="sel" id="pgCheckUser" style="flex:1; min-width:260px;"></select>
-          <button class="save" onclick="checkEffective()">유효 권한 조회</button>
-        </div>
-        <div id="pgEffOut" style="margin-top:10px;"></div>
-      </div>
-
-      <div class="sec">
-        <h3>권한 변경 감사 <span style="font-size:11px;color:var(--green,#1a7f37);">● 실데이터</span> <span style="font-size:11px;color:var(--muted);">최근 100건</span></h3>
-        <p class="admin-note">누가·언제·누구에게 어떤 권한을 부여/회수했는지 서버에 기록됩니다(<code>perm_audit</code>). 권한 조회(시뮬레이터) 사용도 함께 남습니다.</p>
-        <table>
-          <thead><tr><th style="width:14%;">시각</th><th style="width:12%;">동작</th><th style="width:22%;">수행자</th><th style="width:22%;">대상</th><th>내용</th></tr></thead>
-          <tbody id="pgAuditRows"><tr><td colspan="5" class="c" style="color:#888;padding:14px;">MS 로그인(관리자) 시 표시</td></tr></tbody>
-        </table>
-      </div>
-
-      <div class="sec">
-        <h3>권한별 제한영역 <span style="font-size:11px;color:var(--muted);">읽기전용 · 정책 안내</span></h3>
-        <table>
-          <tr><th style="width:16%;">역할</th><th style="width:22%;">제한 영역</th><th>제한 내용</th></tr>
-          <tr><td><span class="badge b">일반 사용자</span></td><td>ERP 데이터</td><td>소속 부서에 매핑된 모듈만 조회. 원장 수정·삭제 불가(전 역할 공통, 읽기전용 원칙)</td></tr>
-          <tr><td><span class="badge b">일반 사용자</span></td><td>운영 페이지</td><td>타 부서 전용 페이지 접근 불가(잠금 표시). 필요 시 해당 부서 관리자에게 권한 요청</td></tr>
-          <tr><td><span class="badge b">일반 사용자</span></td><td>개인정보·기밀</td><td>급여·주민번호 등 민감 데이터 질의는 응답 억제, 인사 데이터는 담당 부서 안내로 대체</td></tr>
-          <tr><td><span class="badge a">부서 관리자</span></td><td>관리 범위</td><td>소속 부서 구성원·페이지만 관리. 전사 설정(모델·게이트웨이·보안) 변경 불가</td></tr>
-          <tr><td><span class="badge g">전체 관리자</span></td><td>변경 통제</td><td>권한·설정 변경은 관리자 콘솔 저장 액션으로만 반영(서버 감사). 백업 관리자 1인 지정 권장</td></tr>
-        </table>
-      </div>
-    </div>
-
-    <!-- 패널 5: 사용자·부서 매핑 (ERP 대사) -->
-    <div class="panel" id="panel-userdept">
-      <div class="sec">
-        <h3>사용자·부서 매핑 대사 <span style="font-size:11px;color:var(--green,#1a7f37);">● 실데이터</span> <button class="save" onclick="loadAdminLive(true)">새로고침</button></h3>
-        <p class="admin-note">ERP 사용자 마스터(Z_USR_MAST_REC)의 이메일(=MS 계정)·사용자명(<b>부서명_이름</b>)을 대사한 결과입니다 — 아래 <b>권한 설정</b>의 부서 기준이 되는 데이터. 불일치(부서불일치·상태이상·테스트)는 정상 매핑에서 자동제외되어 확인 대상으로 표시됩니다.</p>
-        <div class="cards">
-          <div class="card"><div class="lb">정상 매핑(연동용)</div><div class="v" id="ud_map">—</div></div>
-          <div class="card"><div class="lb">대사 불일치</div><div class="v" id="ud_recon">—</div></div>
-          <div class="card"><div class="lb">부서 수</div><div class="v" id="ud_dept">—</div></div>
-        </div>
-      </div>
-      <div class="sec">
-        <h3>⚠ 대사 불일치 <span style="font-size:11px;color:var(--muted,#888);font-weight:400;">자동제외 · 확인 대상</span></h3>
-        <table>
-          <thead><tr><th>유형</th><th>이메일(MS 계정)</th><th>부서명</th><th>사원</th><th class="c">상태</th><th>원문(usr_nm)</th></tr></thead>
-          <tbody id="ud_recon_rows"><tr><td colspan="6" class="c" style="color:#888;padding:14px;">MS 로그인(관리자) 시 실데이터 표시</td></tr></tbody>
-        </table>
-      </div>
-      <div class="sec">
-        <h3>부서별 사원 명부</h3>
-        <table>
-          <thead><tr><th>부서명</th><th class="c">인원</th><th>구성원</th></tr></thead>
-          <tbody id="ud_roster_rows"><tr><td colspan="3" class="c" style="color:#888;padding:14px;">MS 로그인(관리자) 시 실데이터 표시</td></tr></tbody>
-        </table>
-      </div>
-      <div class="sec">
-        <h3>사용자 매핑 조회</h3>
-        <input id="ud_q" oninput="renderUdUsers(this.value)" placeholder="이메일·이름·부서 검색…" autocomplete="off" style="padding:7px 11px;border:1px solid var(--line,#d8dee8);border-radius:7px;width:280px;max-width:100%;margin-bottom:9px;font-size:13px;">
-        <table>
-          <thead><tr><th>이메일(MS 계정)</th><th>부서명</th><th>사원</th><th class="c">부서코드</th></tr></thead>
-          <tbody id="ud_user_rows"><tr><td colspan="4" class="c" style="color:#888;padding:14px;">MS 로그인(관리자) 시 실데이터 표시</td></tr></tbody>
-        </table>
-      </div>
-    </div>
-
-    <!-- 패널 6: 권한 상세 (페이지 공개 + 부서별 ERP 모듈, 실제 강제 대상) -->
-    <div class="panel" id="panel-permdetail">
-      <div class="sec">
-        <h3>페이지 공개 설정 <span style="font-size:11px;color:var(--green,#1a7f37);">● 실데이터·강제</span> <button class="save" onclick="savePagePerm()">저장</button></h3>
-        <p class="admin-note">부서 운영 페이지의 <b>소유 부서·공개범위·지정 공유 부서·ERP 모듈</b>을 설정합니다. 저장 시 <code>portal_page</code>에 영속되고, <b>포털 카드 노출 + 페이지 URL 직접 접근</b>이 이 값으로 서버 판정(jeil-me)·강제됩니다.</p>
-        <table>
-          <thead><tr><th>페이지</th><th>소유 부서</th><th>공개범위</th><th>지정 공유 부서(쉼표)</th><th>ERP 모듈</th><th class="c">활성</th></tr></thead>
-          <tbody id="ppRows"><tr><td colspan="6" class="c" style="color:#888;padding:14px;">MS 로그인(관리자) 시 표시</td></tr></tbody>
-        </table>
-      </div>
-      <div class="sec">
-        <h3>부서별 ERP 모듈 권한 <span style="font-size:11px;color:var(--green,#1a7f37);">● 실데이터·강제</span>
-          <span style="float:right;">
-            <button class="save" style="background:#fff;color:var(--accent);border:1px solid var(--accent);" onclick="erpBulk('suggest')" title="ERP 역할 제안(◆) 기준으로 일괄 체크(민감 제외)">◆ 제안 일괄</button>
-            <button class="save" style="background:#fff;color:var(--accent);border:1px solid var(--accent);" onclick="erpBulk('all')" title="민감 제외 전체 선택">전체 선택</button>
-            <button class="save" style="background:#fff;color:var(--accent);border:1px solid var(--accent);" onclick="erpBulk('none')" title="민감 제외 전체 해제">전체 해제</button>
-            <button class="save" onclick="saveDeptErp()">저장</button>
+        <h3>권한 설정 <span style="font-size:11px;color:var(--green,#1a7f37);">● 실데이터 · 저장 즉시 적용</span>
+          <span style="float:right; display:flex; gap:6px;">
+            <a class="save" href="/admin/identity" target="_blank" style="text-decoration:none; background:#fff; color:var(--accent); border:1px solid var(--accent);">🪪 계정·조직 통합관리 ↗</a>
+            <a class="save" href="/admin/permissions" target="_blank" style="text-decoration:none;">새 창으로 열기 ↗</a>
           </span></h3>
-        <p class="admin-note">부서별 허용 ERP 데이터 모듈(챗봇·ERP 페이지 접근 강제). 체크된 모듈만 해당 부서가 조회할 수 있습니다(전체 관리자는 전 모듈). <b style="color:#2f6fb3;">◆</b> = ERP 역할·메뉴 권한상 그 부서가 <b>실제 접근하는 모듈(제안값·참고)</b> — 체크(실제 적용)와 별개. <b style="color:#b3402f;">⚠ 급여</b>는 <b>민감 모듈(인사팀 전용)</b>로 일괄·제안 대상에서 제외되며 개별 지정만 가능합니다. 상단 <b>◆ 제안 일괄·전체 선택/해제</b> 버튼과 열 헤더 <b>열전체</b> 체크로 여러 부서를 한 번에 설정할 수 있습니다(민감 제외).</p>
-        <div class="tblwrap" style="overflow-x:auto;">
-          <table id="erpMatrix"><thead id="erpMatrixHead"></thead><tbody id="erpMatrixRows"><tr><td class="c" style="color:#888;padding:14px;">MS 로그인(관리자) 시 표시</td></tr></tbody></table>
-        </div>
+        <p class="admin-note">부서별 ERP 모듈·페이지 공개범위 · 개인 예외 · 유효 권한 확인 · 전체 관리자 · 감사를 한 화면에서 관리합니다.
+          사람 목록은 <b>계정·조직 통합관리</b>(계정 대사)와 같은 원천이라, 대사에서 사람을 찾아 <b>🔐</b>을 누르면 그 사람이 선택된 채로 이 화면이 열립니다.
+          판정은 서버 함수 <code>perm_effective</code> 하나가 하며 챗봇·운영페이지·급여·자금 게이트가 모두 그 결과를 따릅니다.</p>
+        <iframe id="permFrame" title="권한 설정" data-src="/admin/permissions?embed=1" style="width:100%; border:0; min-height:1100px; display:block; border-top:1px solid var(--line);"></iframe>
+        <p class="admin-note" id="permFrameNote" style="display:none;"></p>
       </div>
     </div>
 
@@ -1045,7 +889,7 @@
             </select>
             <button class="save" onclick="loadRequests()">새로고침</button>
           </span></h3>
-        <p class="admin-note">챗봇이 <b>“조회할 수 없다”</b>고 답한 지점에서 사용자가 직접 접수한 요청입니다. 같은 부서·같은 대상의 요청은 <b>자동 병합</b>되어 <b>동조 인원</b>으로 누적됩니다 — 인원이 많으면 개인 예외보다 <b>부서 단위 부여</b>를 검토하세요. <b>권한 부여는 이 화면에서 실행되지 않습니다</b>: 「권한 상세」 탭의 부서별 ERP 모듈 권한 또는 「권한 설정」의 개인 예외에서 관리자가 직접 부여한 뒤, 여기서 <b>완료</b> 처리하세요.</p>
+        <p class="admin-note">챗봇이 <b>“조회할 수 없다”</b>고 답한 지점에서 사용자가 직접 접수한 요청입니다. 같은 부서·같은 대상의 요청은 <b>자동 병합</b>되어 <b>동조 인원</b>으로 누적됩니다 — 인원이 많으면 개인 예외보다 <b>부서 단위 부여</b>를 검토하세요. <b>권한 부여는 이 화면에서 실행되지 않습니다</b>: 「권한·계정」 탭(부서별 ERP 모듈 또는 개인 예외)에서 관리자가 직접 부여한 뒤, 여기서 <b>완료</b> 처리하세요.</p>
         <div class="cards" id="reqStatCards"></div>
         <div class="tblwrap" style="overflow-x:auto; margin-top:12px;">
           <table>
@@ -1896,12 +1740,36 @@ function applyFavStars(){
   refreshFavMarks();
 }
 function showTab(key){
-  ['api','usage','model','perm','userdept','permdetail','requests'].forEach(k=>{
+  ['api','usage','model','permacct','requests'].forEach(k=>{
     document.getElementById('panel-'+k).classList.toggle('on', k===key);
     document.getElementById('tab-'+k).classList.toggle('on', k===key);
   });
   if(key === 'requests'){ loadRequests(); loadScope(); }
+  if(key === 'permacct') loadPermFrame();
 }
+/* 권한·계정 탭 — 독립 화면(/admin/permissions)을 처음 열 때만 iframe 에 싣는다(콜드스타트 분산).
+   오프라인 통합본(IS_BUNDLE)·미로그인에서는 빈 프레임 대신 이유를 적는다. 자식이 알려오는 높이로 프레임을 늘린다(같은 origin 만). */
+function loadPermFrame(){
+  var f = document.getElementById('permFrame'), n = document.getElementById('permFrameNote'); if(!f) return;
+  if(window.IS_BUNDLE){ f.style.display='none'; if(n){ n.style.display=''; n.innerHTML='🔒 오프라인 통합본에서는 권한 설정을 열 수 없습니다 — 사내 로그인 후 <b>ai.jeilm.co.kr</b> 관리자 콘솔에서 사용하세요.'; } return; }
+  if(!getLiveAuth()){ f.style.display='none'; if(n){ n.style.display=''; n.textContent='👁 MS 로그인(관리자) 후 권한 설정이 표시됩니다.'; } return; }
+  f.style.display=''; if(n) n.style.display='none';
+  if(!f.src && f.getAttribute('data-src')) f.src = f.getAttribute('data-src');
+}
+window.addEventListener('message', function(ev){
+  if(ev.origin !== location.origin || !ev.data) return;
+  var f = document.getElementById('permFrame');
+  if(!f || f.contentWindow !== ev.source) return;
+  if(ev.data.jeilax === 'resize' && ev.data.h > 300){
+    var px = Math.ceil(ev.data.h) + 'px';   // 여유분을 더하지 않는다 — 더하면 자식이 그만큼 큰 값을 다시 보내 끝없이 자란다
+    if(f.style.height !== px) f.style.height = px;
+  }
+  // 권한 화면이 「계정 대사에서 보기」를 눌렀을 때 — 콘솔 패널 안에 플랫폼을 중첩하지 않고 새 탭으로 연다
+  if(ev.data.jeilax === 'go'){
+    var mod = String(ev.data.mod || 'home'), q = ev.data.q ? ('?' + String(ev.data.q)) : '';
+    window.open('/admin/identity#' + mod + q, '_blank');
+  }
+});
 
 /* ===== 실제 AI 연결 — jeil-chat 게이트웨이(Supabase Edge Function → OpenAI) =====
    원칙: OpenAI API 키는 서버(Supabase Secret)에만 존재. 프론트는 Entra 토큰으로 인증만.
@@ -2453,7 +2321,12 @@ async function fetchMe(){
 
 /* ===== 부서 운영 페이지 카드 게이팅 (jeil-me 서버 판정) ===== */
 async function loadPagePerms(){
-  if(window.IS_BUNDLE) return; // 오프라인 통합본: 정적 오버레이 버튼 유지(서버 판정 미적용)
+  if(window.IS_BUNDLE){
+    // 오프라인 통합본: 정적 오버레이 버튼 유지(서버 판정 미적용). 콘솔 버튼은 기본 숨김이라 데모용으로 여기서 켠다
+    // (라이브에서는 applyMyDept 가 is_admin 일 때만 켠다). 실데이터 탭은 「MS 로그인 후 표시」 안내만 뜬다.
+    var ab0 = document.getElementById('adminConsoleBtn'); if(ab0) ab0.style.display = '';
+    return;
+  }
   var grid = document.getElementById('deptPageGrid'); if(!grid) return;
   if(!getLiveAuth() && !hasStoredAuth()){ grid.innerHTML = '<div class="pgcard locked"><span class="ic">🔒</span><h4>부서 운영 페이지</h4><div class="metarow"><span class="badge r">로그인 필요</span></div><p>MS 사내 로그인 후 소속 부서·권한에 따라 페이지가 표시됩니다.</p></div>'; return; }
   var me = await fetchMe();
@@ -2528,20 +2401,7 @@ async function loadAdminLive(force){
           var cost = (r.est_cost_usd!=null) ? ('$'+Number(r.est_cost_usd).toFixed(4)) : '-';
           return '<tr><td>'+fmtKST(r.created_at)+'</td><td>'+escHtml(r.upn_label||r.upn)+'</td><td>'+escHtml(r.model)+'</td><td>'+tools+'</td><td class="r">'+tok+'</td><td class="r">'+cost+'</td></tr>';
         }).join('');
-    // 권한 탭 — 실데이터 카운트(관리자·부서·사용자)
-    setTxt('lpAdminCnt', (d.admins ? d.admins.length : 0) + '명');
-    setTxt('lpDeptCnt', ((d.dept_mapping && d.dept_mapping.counts && d.dept_mapping.counts.depts) || 0) + '개');
-    setTxt('lpUserCnt', ((d.dept_mapping && d.dept_mapping.counts && d.dept_mapping.counts.users) || 0) + '명');
-    var ad = document.getElementById('lpAdmins');
-    if(ad) ad.innerHTML = '<tr><th>전체 관리자 (portal_admin)</th><th>부여</th><th>부여일</th><th class="r">관리</th></tr>'
-      + d.admins.map(function(a){ return '<tr><td>'+escHtml(a.email)+'</td><td>'+escHtml(a.granted_by||'-')+'</td><td>'+(a.granted_at||'').slice(0,10)+'</td><td class="r"><button data-email="'+escHtml(a.email)+'" onclick="revokeAdmin(this.getAttribute(\'data-email\'))" style="background:#fff;color:var(--red);border:1px solid var(--red);border-radius:6px;padding:2px 10px;font-size:11px;cursor:pointer;">해제</button></td></tr>'; }).join('');
-    // 사용자·부서 탭 + 권한 설정 부서표 (ERP 매핑 기준)
-    if(d.dept_mapping) renderUserDept(d.dept_mapping);
-    renderDeptPerm(d.dept_mapping || { roster: [], users: [] }, d.dept_permissions || []);
-    // 권한 상세 탭 (페이지 공개 + 부서 ERP 모듈)
-    renderPermDetail(d);
-    // 개인 예외 권한(perm_grant) + 권한 변경 감사 — 부서축으로 못 푸는 예외 관리
-    renderPermGrants(d);
+    // 권한·계정 탭은 독립 화면(/admin/permissions)을 iframe 으로 싣는다 — 여기서 렌더하지 않는다(REQ-0026).
     // 모델 설정 탭 (사용모델 카탈로그 + 게이트웨이 설정 + 라우팅 규칙)
     if(d.model_settings) renderModelSettings(d.model_settings);
     if(d.erp_sync) renderErpSync(d.erp_sync);
@@ -2551,7 +2411,7 @@ async function loadAdminLive(force){
 }
 
 /* ===== 요청함(ADR-011) — portal_request 조회·상태 전이 (jeil-portal-request, 관리자 전용) =====
-   이 화면은 권한을 부여하지 않는다. 부여는 「권한 상세」·「권한 설정」 탭에서 관리자가 직접 실행하고,
+   이 화면은 권한을 부여하지 않는다. 부여는 「권한·계정」 탭(/admin/permissions)에서 관리자가 직접 실행하고,
    여기서는 그 결과를 요청에 반영(완료·반려)한다 — CLAUDE.md §1.6·§5.4. */
 var REQ_STATUS_KO = { open:'접수', ack:'확인', doing:'처리중', done:'완료', rejected:'반려', duplicate:'중복', cancelled:'취소' };
 var REQ_STATUS_BADGE = { open:'r', ack:'a', doing:'a', done:'g', rejected:'b', duplicate:'b', cancelled:'b' };
@@ -2712,284 +2572,9 @@ async function reqTransition(reqNo, to){
   else alert((out && (out['안내'] || out.error)) || '상태 변경에 실패했습니다.');
 }
 
-/* ===== 사용자·부서 매핑 + 부서별 권한 설정 렌더 (jeil-chat-admin d.dept_mapping) ===== */
-var UD_USERS = [];
-var UD_RECON_BADGE = { '형식오류':'r', '상태이상':'a', '부서불일치':'a', '테스트계정':'b' };
-
-function renderUserDept(dm){
-  setTxt('ud_map', (dm.counts && dm.counts.users!=null) ? dm.counts.users.toLocaleString() : '—');
-  setTxt('ud_recon', (dm.counts && dm.counts.recon!=null) ? dm.counts.recon.toLocaleString() : '—');
-  setTxt('ud_dept', (dm.counts && dm.counts.depts!=null) ? dm.counts.depts.toLocaleString() : '—');
-  var rb = document.getElementById('ud_recon_rows');
-  if(rb) rb.innerHTML = (dm.recon && dm.recon.length) ? dm.recon.map(function(r){
-    return '<tr><td><span class="badge '+(UD_RECON_BADGE[r.recon_type]||'b')+'">'+escHtml(r.recon_type||'')+'</span></td><td>'+escHtml(r.email||'')+'</td><td>'+escHtml(r.dept_nm||'')+'</td><td>'+escHtml(r.emp_nm||'')+'</td><td class="c">'+escHtml(r.status||'')+'</td><td style="color:#888">'+escHtml(r.usr_nm_raw||'')+'</td></tr>';
-  }).join('') : '<tr><td colspan="6" class="c" style="color:#888;padding:14px;">불일치 없음</td></tr>';
-  var ro = document.getElementById('ud_roster_rows');
-  if(ro) ro.innerHTML = (dm.roster && dm.roster.length) ? dm.roster.map(function(r){
-    return '<tr><td><b>'+escHtml(r.dept_nm||'')+'</b></td><td class="c">'+(r.emp_cnt||0)+'</td><td style="color:#555">'+escHtml(r.members||'')+'</td></tr>';
-  }).join('') : '<tr><td colspan="3" class="c" style="color:#888;padding:14px;">부서 없음</td></tr>';
-  UD_USERS = dm.users || [];
-  var q = document.getElementById('ud_q');
-  renderUdUsers(q ? q.value : '');
-}
-
-function renderUdUsers(filter){
-  var f = (filter||'').trim().toLowerCase();
-  var rows = f ? UD_USERS.filter(function(u){ return ((u.email||'')+' '+(u.dept_nm||'')+' '+(u.emp_nm||'')).toLowerCase().indexOf(f)>=0; }) : UD_USERS;
-  var tb = document.getElementById('ud_user_rows'); if(!tb) return;
-  tb.innerHTML = rows.length ? rows.map(function(u){
-    return '<tr><td>'+escHtml(u.email||'')+'</td><td>'+escHtml(u.dept_nm||'')+'</td><td>'+escHtml(u.emp_nm||'')+'</td><td class="c" style="color:#888">'+escHtml(u.matched_dept_cd||'-')+'</td></tr>';
-  }).join('') : '<tr><td colspan="4" class="c" style="color:#888;padding:14px;">일치하는 사용자 없음</td></tr>';
-}
-
-function renderDeptPerm(dm, perms){
-  var tb = document.getElementById('permDeptRows'); if(!tb) return;
-  var byDept = {}; (perms||[]).forEach(function(p){ byDept[p.dept_nm]=p; });
-  var mem = {}; (dm.users||[]).forEach(function(u){ (mem[u.dept_nm]=mem[u.dept_nm]||[]).push(u); });
-  var roster = dm.roster || [];
-  if(!roster.length){ tb.innerHTML = '<tr><td colspan="5" class="c" style="color:#888;padding:14px;">부서 데이터 없음 — MS 로그인(관리자) 필요</td></tr>'; return; }
-  var VIS = ['부서 전용','전사 공개','지정 부서 공유'];
-  tb.innerHTML = roster.map(function(r){
-    var p = byDept[r.dept_nm] || {};
-    var opts = '<option value="">(미지정)</option>' + (mem[r.dept_nm]||[]).map(function(u){
-      return '<option value="'+escHtml(u.email)+'"'+(p.dept_admin_email===u.email?' selected':'')+'>'+escHtml(u.emp_nm)+'</option>';
-    }).join('');
-    var visOpts = VIS.map(function(v){ return '<option'+(((p.page_visibility||'부서 전용')===v)?' selected':'')+'>'+v+'</option>'; }).join('');
-    var tip = p.updated_by ? ' title="최종 저장: '+escHtml(p.updated_by)+' '+((p.updated_at||'').slice(0,10))+'"' : '';
-    return '<tr data-dept="'+escHtml(r.dept_nm)+'"'+tip+'><td><b>'+escHtml(r.dept_nm)+'</b></td><td class="c">'+(r.emp_cnt||0)+'</td>'
-      + '<td><select class="sel pd-admin">'+opts+'</select></td>'
-      + '<td><input class="pd-scope" value="'+escHtml(p.erp_scope||'')+'" placeholder="예: 발주·매입·재고 (읽기전용)" style="width:100%;padding:5px 8px;border:1px solid var(--line,#d8dee8);border-radius:6px;font-size:12.5px;"></td>'
-      + '<td><select class="sel pd-vis">'+visOpts+'</select></td></tr>';
-  }).join('');
-}
-
-async function saveDeptPerm(){
-  var auth = getLiveAuth();
-  if(!auth){ alert('MS 로그인(관리자) 후 저장할 수 있습니다.'); return; }
-  var trs = document.querySelectorAll('#permDeptRows tr[data-dept]');
-  if(!trs.length){ alert('저장할 부서가 없습니다. 먼저 사용자·부서 매핑을 불러오세요.'); return; }
-  var rows = Array.prototype.map.call(trs, function(tr){
-    return {
-      dept_nm: tr.getAttribute('data-dept'),
-      dept_admin_email: (tr.querySelector('.pd-admin')||{}).value || null,
-      erp_scope: (tr.querySelector('.pd-scope')||{}).value || null,
-      page_visibility: (tr.querySelector('.pd-vis')||{}).value || '부서 전용'
-    };
-  });
-  try{
-    var res = await fetch(ADMIN_GATEWAY, { method:'POST', headers:{ Authorization:'Bearer '+auth.at, 'Content-Type':'application/json' }, body: JSON.stringify({ action:'save_dept_perm', rows: rows }) });
-    var d = await res.json().catch(function(){ return {}; });
-    if(!res.ok || !d.ok) throw new Error(d.error || ('오류 '+res.status));
-    alert('부서별 권한 저장 완료 — '+d.saved+'개 부서 (저장자: '+(d.updated_by||'')+')');
-  }catch(e){ alert('저장 실패: '+(e.message||e)); }
-}
-
-/* ===== 권한 상세: 페이지 공개 설정 + 부서별 ERP 모듈 매트릭스 ===== */
-var PERM_DEPTS = [], PERM_CATALOG = [];
-
-function deptUniverse(d){
-  var s = {};
-  ((d.dept_mapping && d.dept_mapping.roster) || []).forEach(function(r){ if(r.dept_nm) s[r.dept_nm]=1; });
-  (d.portal_pages || []).forEach(function(p){ if(p.dept_nm) s[p.dept_nm]=1; (p.shared_depts||[]).forEach(function(x){ if(x) s[x]=1; }); });
-  (d.dept_erp_scope || []).forEach(function(e){ if(e.dept_nm) s[e.dept_nm]=1; });
-  return Object.keys(s).sort();
-}
-
-// 민감 모듈 — 일괄/제안 제외, 개별 지정만. v2: 서버 카탈로그(perm_module_catalog.sensitive)가 SSOT.
-var SENSITIVE_MODS = { payroll: 1, finance: 1 }; // 서버 응답이 없을 때의 폴백
-function catalogWithSensitive(cat){
-  var c = (cat||[]).slice();
-  if(!c.length) c = [{key:'payroll',label:'급여·인사',sensitive:true}];
-  c.forEach(function(x){ if(x.sensitive) SENSITIVE_MODS[x.key] = 1; else if(SENSITIVE_MODS[x.key]) x.sensitive = true; });
-  return c;
-}
-function renderPermDetail(d){
-  PERM_CATALOG = catalogWithSensitive(d.catalog);
-  PERM_DEPTS = deptUniverse(d);
-  var VIS = ['부서 전용','전사 공개','지정 부서 공유'];
-  var deptOpts = function(sel){ return '<option value="">(미지정)</option>'+PERM_DEPTS.map(function(dn){ return '<option'+(dn===sel?' selected':'')+'>'+escHtml(dn)+'</option>'; }).join(''); };
-  // A. 페이지 공개 설정 (민감 모듈 페이지 ⚠ 표시)
-  var pt = document.getElementById('ppRows'); var pages = d.portal_pages||[];
-  window.__PERM_PAGES = pages; // 개인 예외 권한(페이지 지정)의 선택 목록으로 재사용
-  if(pt) pt.innerHTML = pages.length ? pages.map(function(p){
-    var visOpts = VIS.map(function(v){ return '<option'+((p.visibility===v)?' selected':'')+'>'+v+'</option>'; }).join('');
-    var modOpts = '<option value="">(없음)</option>'+PERM_CATALOG.map(function(c){ return '<option value="'+c.key+'"'+((p.erp_module===c.key)?' selected':'')+'>'+escHtml(c.label)+(c.sensitive?' ⚠':'')+'</option>'; }).join('');
-    var shared = (p.shared_depts||[]).join(', ');
-    var sens = (p.erp_module && SENSITIVE_MODS[p.erp_module]) ? ' <span class="badge r" style="font-size:9.5px;">민감·인사팀 전용</span>' : '';
-    return '<tr data-key="'+escHtml(p.page_key)+'" data-title="'+escHtml(p.title||'')+'" data-path="'+escHtml(p.path||'')+'" data-icon="'+escHtml(p.icon||'')+'">'
-      + '<td><b>'+escHtml((p.icon||'')+' '+(p.title||p.page_key))+'</b>'+sens+'<br><span style="color:#999;font-size:11px">'+escHtml(p.path||'')+'</span></td>'
-      + '<td><select class="sel pp-dept">'+deptOpts(p.dept_nm)+'</select></td>'
-      + '<td><select class="sel pp-vis">'+visOpts+'</select></td>'
-      + '<td><input class="pp-shared" value="'+escHtml(shared)+'" placeholder="부서A, 부서B" style="width:100%;padding:5px 8px;border:1px solid var(--line,#d8dee8);border-radius:6px;font-size:12px;"></td>'
-      + '<td><select class="sel pp-mod">'+modOpts+'</select></td>'
-      + '<td class="c"><input type="checkbox" class="pp-active"'+((p.active!==false)?' checked':'')+'></td></tr>';
-  }).join('') : '<tr><td colspan="6" class="c" style="color:#888;padding:14px;">페이지 없음</td></tr>';
-  // B. 부서별 ERP 모듈 매트릭스 (열 전체선택 + 일괄, 민감 모듈은 개별만)
-  var scopeSet = {}; (d.dept_erp_scope||[]).forEach(function(e){ (scopeSet[e.dept_nm]=scopeSet[e.dept_nm]||{})[e.module_key]=1; });
-  var sugSet = {}; (d.dept_erp_suggest||[]).forEach(function(e){ (sugSet[e.dept_nm]=sugSet[e.dept_nm]||{})[e.module_key]=1; });
-  window.__PERM_SUG = sugSet; // erpBulk('suggest')에서 참조
-  var head = document.getElementById('erpMatrixHead');
-  if(head) head.innerHTML = '<tr><th>부서</th>'+PERM_CATALOG.map(function(c){
-      if(c.sensitive) return '<th class="c" title="민감 모듈(급여) — 일괄 제외, 개별 지정만">'+escHtml(c.label)+' ⚠<br><span style="font-weight:400;font-size:9.5px;color:#b3402f;">민감·개별만</span></th>';
-      return '<th class="c">'+escHtml(c.label)+'<br><label style="font-weight:400;font-size:9.5px;color:#888;cursor:pointer;"><input type="checkbox" class="em-col" data-mod="'+c.key+'" onclick="erpColToggle(this)"> 열전체</label></th>';
-    }).join('')+'</tr>';
-  var mb = document.getElementById('erpMatrixRows');
-  if(mb) mb.innerHTML = PERM_DEPTS.length ? PERM_DEPTS.map(function(dn){
-    var sc = scopeSet[dn]||{}; var su = sugSet[dn]||{};
-    return '<tr data-dept="'+escHtml(dn)+'"><td><b>'+escHtml(dn)+'</b></td>'
-      + PERM_CATALOG.map(function(c){
-          var mark = (!c.sensitive && su[c.key]) ? ' <span title="ERP 역할·메뉴상 이 부서가 실제 접근하는 모듈(제안값)" style="color:#2f6fb3;font-size:10px;">◆</span>' : '';
-          var scls = c.sensitive ? ' em-sens' : '';
-          var tip = c.sensitive ? ' title="민감(급여) — 인사팀만 지정. 일괄 대상 아님"' : '';
-          return '<td class="c"'+(c.sensitive?' style="background:#fbeeec;"':'')+'><input type="checkbox" class="em-chk'+scls+'" data-mod="'+c.key+'"'+(sc[c.key]?' checked':'')+tip+'>'+mark+'</td>';
-        }).join('')+'</tr>';
-  }).join('') : '<tr><td class="c" style="color:#888;padding:14px;">부서 없음</td></tr>';
-}
-
-// 열(모듈) 전체선택/해제 — 민감 모듈은 헤더에 체크박스 없음(호출 안 됨)
-function erpColToggle(box){
-  var mod = box.getAttribute('data-mod'); var on = box.checked;
-  Array.prototype.forEach.call(document.querySelectorAll('#erpMatrixRows .em-chk[data-mod="'+mod+'"]:not(.em-sens)'), function(c){ c.checked = on; });
-}
-// 일괄: suggest(◆ 제안 적용) / all(전체 선택) / none(전체 해제) — 민감 모듈(payroll)은 제외
-function erpBulk(mode){
-  if(mode==='all' || mode==='none'){
-    Array.prototype.forEach.call(document.querySelectorAll('#erpMatrixRows .em-chk:not(.em-sens)'), function(c){ c.checked = (mode==='all'); });
-  } else if(mode==='suggest'){
-    var sug = window.__PERM_SUG || {};
-    Array.prototype.forEach.call(document.querySelectorAll('#erpMatrixRows tr[data-dept]'), function(tr){
-      var su = sug[tr.getAttribute('data-dept')] || {};
-      Array.prototype.forEach.call(tr.querySelectorAll('.em-chk:not(.em-sens)'), function(c){ c.checked = !!su[c.getAttribute('data-mod')]; });
-    });
-  }
-  Array.prototype.forEach.call(document.querySelectorAll('#erpMatrixHead .em-col'), function(c){ c.checked = false; });
-}
-
-/* ===== 개인 예외 권한(perm_grant) — 부서축 CORE의 예외를 개인 단위로 가감 =====
-   원칙: 기본은 부서 권한. 겸직·대행·프로젝트처럼 부서로 못 푸는 경우만 개인 예외로 처리한다.
-   deny > allow > 부서. 기간(만료일)을 넣으면 그날 자동 소멸 — 회수를 잊어도 권한이 남지 않는다.
-   판정은 서버 단일 함수 public.perm_effective가 수행하고, 이 화면은 부여·회수·확인 UI일 뿐이다. */
-var PG_USERS = [], PG_GRANTS = [];
-var PG_SCOPE_LABEL = { role:'역할', dept:'부서 추가', erp_module:'ERP 모듈', page:'페이지', onedrive:'OneDrive 폴더' };
-
-function renderPermGrants(d){
-  PG_USERS = (d.dept_mapping && d.dept_mapping.users) || [];
-  PG_GRANTS = d.perm_grants || [];
-  // 대상 사용자 셀렉트(부서_이름_아이디 표기)
-  var userOpts = '<option value="">(사용자 선택)</option>' + PG_USERS.map(function(u){
-    return '<option value="'+escHtml(u.email)+'">'+escHtml((u.dept_nm||'미매핑')+'_'+(u.emp_nm||'-')+'_'+u.email)+'</option>';
-  }).join('');
-  var us = document.getElementById('pgUser'); if(us) us.innerHTML = userOpts;
-  var cu = document.getElementById('pgCheckUser'); if(cu) cu.innerHTML = userOpts;
-  pgScopeKeys(); // 유형에 맞는 대상 목록 채우기
-  // 부여 현황
-  var tb = document.getElementById('pgRows');
-  if(tb) tb.innerHTML = PG_GRANTS.length ? PG_GRANTS.map(function(g){
-    var st = g.active ? '<span class="badge g">적용중</span>'
-           : (g.revoked_at ? '<span class="badge b">회수됨</span>' : '<span class="badge a">만료</span>');
-    var ef = g.effect==='deny' ? '<span class="badge r">차단</span>' : '<span class="badge a">허용</span>';
-    var exp = g.valid_to ? String(g.valid_to).slice(0,10) : '무기한';
-    return '<tr><td>'+st+'</td><td><b>'+escHtml(g.emp_label||'')+'</b><br><span style="color:#999;font-size:11px">'+escHtml(g.upn)+'</span></td>'
-      + '<td>'+escHtml(PG_SCOPE_LABEL[g.scope_type]||g.scope_type)+'</td><td><span class="keychip">'+escHtml(g.scope_key)+'</span></td>'
-      + '<td class="c">'+ef+'</td><td class="c">'+escHtml(exp)+'</td>'
-      + '<td style="color:#555">'+escHtml(g.reason||'')+'<br><span style="color:#999;font-size:11px">'+escHtml(g.granted_by||'')+' · '+String(g.granted_at||'').slice(0,10)+'</span></td>'
-      + '<td class="r">'+(g.active ? '<button data-id="'+g.id+'" onclick="revokeGrant(this.getAttribute(\'data-id\'))" style="background:#fff;color:var(--red);border:1px solid var(--red);border-radius:6px;padding:2px 10px;font-size:11px;cursor:pointer;">회수</button>' : '')+'</td></tr>';
-  }).join('') : '<tr><td colspan="8" class="c" style="color:#888;padding:14px;">개인 예외 권한 없음 — 전원이 소속 부서 권한만 적용받는 상태입니다(권장 기본값)</td></tr>';
-  // 권한 변경 감사(최근 100건)
-  var ab = document.getElementById('pgAuditRows');
-  var AUD_KO = { grant:'권한 부여', revoke:'권한 회수', view_effective:'유효권한 조회' };
-  if(ab) ab.innerHTML = (d.perm_audit||[]).length ? d.perm_audit.map(function(a){
-    var det = a.detail ? Object.keys(a.detail).filter(function(k){ return a.detail[k]!=null && k!=='grant_id'; })
-                          .map(function(k){ return k+'='+a.detail[k]; }).join(' · ') : '';
-    return '<tr><td>'+String(a.at||'').slice(0,16).replace('T',' ')+'</td><td>'+escHtml(AUD_KO[a.action]||a.action)+'</td>'
-      + '<td>'+escHtml(a.actor||'')+'</td><td>'+escHtml(a.target||'')+'</td><td style="color:#666">'+escHtml(det)+'</td></tr>';
-  }).join('') : '<tr><td colspan="5" class="c" style="color:#888;padding:14px;">권한 변경 이력 없음</td></tr>';
-}
-
-// 권한 유형에 따라 '대상' 목록을 바꿔준다(오타로 잘못된 키가 저장되지 않도록 선택식)
-function pgScopeKeys(){
-  var t = (document.getElementById('pgScopeType')||{}).value || 'erp_module';
-  var sel = document.getElementById('pgScopeKey'); if(!sel) return;
-  var opts = [];
-  if(t==='erp_module') opts = PERM_CATALOG.map(function(c){ return { v:c.key, t:c.label+(c.sensitive?' ⚠ 민감':'') }; });
-  else if(t==='dept')  opts = PERM_DEPTS.map(function(dn){ return { v:dn, t:dn }; });
-  else if(t==='page')  opts = (window.__PERM_PAGES||[]).map(function(p){ return { v:p.page_key, t:(p.title||p.page_key) }; });
-  else if(t==='role')  opts = [{ v:'admin', t:'전체 관리자(admin) — 전권' }, { v:'auditor', t:'감사자(auditor) — 열람 전용' }];
-  else opts = []; // onedrive: 폴더 연계 후 목록 제공(2단계)
-  sel.innerHTML = opts.length ? opts.map(function(o){ return '<option value="'+escHtml(o.v)+'">'+escHtml(o.t)+'</option>'; }).join('')
-                              : '<option value="">(대상 없음 — OneDrive 폴더 연계는 준비 중)</option>';
-}
-
-async function grantPerm(){
-  var auth = getLiveAuth(); if(!auth){ alert('MS 로그인(관리자) 후 부여할 수 있습니다.'); return; }
-  var v = function(id){ var e=document.getElementById(id); return e ? String(e.value||'').trim() : ''; };
-  var payload = { action:'grant_perm', upn:v('pgUser'), scope_type:v('pgScopeType'), scope_key:v('pgScopeKey'),
-                  effect:v('pgEffect'), reason:v('pgReason'), valid_to: v('pgValidTo') ? (v('pgValidTo')+'T23:59:59+09:00') : null };
-  if(!payload.upn){ alert('대상 사용자를 선택하세요.'); return; }
-  if(!payload.scope_key){ alert('부여할 대상을 선택하세요.'); return; }
-  if(!payload.reason){ alert('사유는 필수입니다(감사 추적용).'); return; }
-  if(payload.scope_type==='role' && payload.scope_key==='admin'
-     && !confirm('전체 관리자(전권)는 급여·자금을 포함한 모든 데이터와 설정 편집이 가능합니다. 정말 부여할까요?')) return;
-  try{
-    var res = await fetch(ADMIN_GATEWAY, { method:'POST', headers:{ Authorization:'Bearer '+auth.at, 'Content-Type':'application/json' }, body: JSON.stringify(payload) });
-    var d = await res.json().catch(function(){ return {}; });
-    if(!res.ok || !d.ok) throw new Error(d.error || ('오류 '+res.status));
-    var r = document.getElementById('pgReason'); if(r) r.value = '';
-    alert('개인 예외 권한을 부여했습니다.');
-    loadAdminLive(true);
-  }catch(e){ alert('부여 실패: '+(e.message||e)); }
-}
-
-async function revokeGrant(id){
-  var auth = getLiveAuth(); if(!auth){ alert('MS 로그인(관리자) 후 회수할 수 있습니다.'); return; }
-  if(!confirm('이 개인 예외 권한을 회수할까요? (이력은 감사에 남습니다)')) return;
-  try{
-    var res = await fetch(ADMIN_GATEWAY, { method:'POST', headers:{ Authorization:'Bearer '+auth.at, 'Content-Type':'application/json' }, body: JSON.stringify({ action:'revoke_perm', id: Number(id) }) });
-    var d = await res.json().catch(function(){ return {}; });
-    if(!res.ok || !d.ok) throw new Error(d.error || ('오류 '+res.status));
-    loadAdminLive(true);
-  }catch(e){ alert('회수 실패: '+(e.message||e)); }
-}
-
-/* 유효 권한 시뮬레이터 — "이 사람은 지금 무엇을 볼 수 있나"를 실제 판정 함수(perm_effective)로 그대로 확인.
-   권한 부여 전 영향 확인·문의 대응용. 화면 계산이 아니라 서버 판정 결과라 실제 접근과 100% 일치한다. */
-async function checkEffective(){
-  var auth = getLiveAuth(); if(!auth){ alert('MS 로그인(관리자) 후 조회할 수 있습니다.'); return; }
-  var upn = (document.getElementById('pgCheckUser')||{}).value || '';
-  var out = document.getElementById('pgEffOut'); if(!upn){ alert('조회할 사용자를 선택하세요.'); return; }
-  if(out) out.innerHTML = '<span style="color:#888">조회 중…</span>';
-  try{
-    var res = await fetch(ADMIN_GATEWAY, { method:'POST', headers:{ Authorization:'Bearer '+auth.at, 'Content-Type':'application/json' }, body: JSON.stringify({ action:'effective_perm', upn: upn }) });
-    var d = await res.json().catch(function(){ return {}; });
-    if(!res.ok || !d.ok) throw new Error(d.error || ('오류 '+res.status));
-    var e = d.effective || {};
-    var ROLE_KO = { admin:'전체 관리자(전권)', dept_admin:'부서 관리자', user:'일반 사용자' };
-    var mods = (e.erp_modules||[]).map(function(m){
-      var c = PERM_CATALOG.filter(function(x){ return x.key===m; })[0];
-      return '<span class="keychip">'+escHtml(c?c.label:m)+(c&&c.sensitive?' ⚠':'')+'</span>';
-    }).join(' ') || '<span style="color:#b3402f">없음</span>';
-    var pages = (e.pages||[]);
-    var okp = pages.filter(function(p){ return p.allowed; });
-    var pgList = pages.map(function(p){
-      return '<tr><td>'+(p.allowed?'<span class="badge g">가능</span>':'<span class="badge b">불가</span>')+'</td>'
-        + '<td>'+escHtml(p.title||p.page_key)+'</td><td>'+escHtml(p.dept_nm||'-')+'</td>'
-        + '<td>'+escHtml(p.visibility||'')+'</td><td style="color:#666">'+escHtml(p.reason||'')+'</td></tr>';
-    }).join('');
-    var gr = (e.grants||[]).map(function(g){
-      return '<span class="keychip">'+escHtml((PG_SCOPE_LABEL[g.scope_type]||g.scope_type)+':'+g.scope_key)
-        + (g.effect==='deny'?' 차단':'') + (g.valid_to?(' ~'+String(g.valid_to).slice(0,10)):'') + '</span>';
-    }).join(' ') || '<span style="color:#888">없음(부서 권한만 적용)</span>';
-    if(out) out.innerHTML =
-      '<table style="margin-top:6px;"><tr><th style="width:18%;">계정</th><td>'+escHtml((e.dept_nm||'미매핑')+'_'+(e.emp_nm||'-')+'_'+(e.upn||''))+'</td></tr>'
-      + '<tr><th>역할</th><td>'+escHtml(ROLE_KO[e.role]||e.role||'')+((e.dept_admin_of||[]).length?(' · 담당부서 '+escHtml(e.dept_admin_of.join(', '))):'')+'</td></tr>'
-      + '<tr><th>적용 부서</th><td>'+escHtml((e.depts||[]).join(' · ')||'없음')+((e.depts||[]).length>1?' <span class="badge a">겸직·대행 포함</span>':'')+'</td></tr>'
-      + '<tr><th>ERP 모듈</th><td>'+mods+'</td></tr>'
-      + '<tr><th>개인 예외</th><td>'+gr+'</td></tr>'
-      + '<tr><th>운영 페이지</th><td>접근가능 <b>'+okp.length+'</b> / 전체 '+pages.length+'</td></tr></table>'
-      + '<table style="margin-top:8px;"><tr><th style="width:9%;">접근</th><th>페이지</th><th style="width:14%;">담당부서</th><th style="width:14%;">공개범위</th><th style="width:26%;">판정 사유</th></tr>'+pgList+'</table>';
-  }catch(e){ if(out) out.innerHTML = '<span style="color:var(--red)">조회 실패: '+escHtml(e.message||String(e))+'</span>'; }
-}
-
+/* (2026-09-10 REQ-0026) 옛 권한 3탭 렌더·저장 함수(renderUserDept·renderDeptPerm·renderPermDetail·renderPermGrants·
+   grantPerm·revokeGrant·checkEffective·savePagePerm·saveDeptErp·manageAdminReq)는 app/admin-permissions.html 로 옮겼다.
+   postAdmin 은 모델 설정 3종 저장이 계속 쓴다. */
 async function postAdmin(payload, label){
   var auth = getLiveAuth(); if(!auth){ alert('MS 로그인(관리자) 후 저장할 수 있습니다.'); return; }
   try{
@@ -3142,44 +2727,6 @@ function saveAiRouting(){
   });
   if(!rows.length){ alert('저장할 규칙이 없습니다.'); return; }
   postAdmin({ action:'save_ai_routing', rows:rows }, '라우팅 규칙');
-}
-
-/* 전체권한(portal_admin) 부여/해제 — 특정 이메일 수동 지정 */
-async function manageAdminReq(sub, email, label){
-  var auth = getLiveAuth(); if(!auth){ alert('MS 로그인(관리자) 후 가능합니다.'); return; }
-  email = (email||'').trim().toLowerCase();
-  if(!email){ alert('사내 이메일을 입력하세요.'); return; }
-  if(email.indexOf('@jeilm.co.kr') < 0){ alert('사내(@jeilm.co.kr) 이메일만 가능합니다.'); return; }
-  try{
-    var res = await fetch(ADMIN_GATEWAY, { method:'POST', headers:{ Authorization:'Bearer '+auth.at, 'Content-Type':'application/json' }, body: JSON.stringify({ action:'manage_admin', sub:sub, email:email }) });
-    var d = await res.json().catch(function(){ return {}; });
-    if(!res.ok || !d.ok) throw new Error(d.error || ('오류 '+res.status));
-    alert(label+' 완료 — '+d.email);
-    var el=document.getElementById('adminEmailIn'); if(el && sub==='add') el.value='';
-    loadAdminLive(true);
-  }catch(e){ alert(label+' 실패: '+(e.message||e)); }
-}
-function grantAdmin(){ var el=document.getElementById('adminEmailIn'); manageAdminReq('add', el&&el.value, '전체권한 부여'); }
-function revokeAdmin(email){ if(!confirm(email+' 의 전체권한(전체 관리자)을 해제할까요?')) return; manageAdminReq('remove', email, '전체권한 해제'); }
-
-function savePagePerm(){
-  var rows = Array.prototype.map.call(document.querySelectorAll('#ppRows tr[data-key]'), function(tr){
-    var shared = (tr.querySelector('.pp-shared').value||'').split(',').map(function(s){return s.trim();}).filter(Boolean);
-    return { page_key: tr.getAttribute('data-key'), title: tr.getAttribute('data-title'), path: tr.getAttribute('data-path'), icon: tr.getAttribute('data-icon'),
-      dept_nm: tr.querySelector('.pp-dept').value||null, visibility: tr.querySelector('.pp-vis').value||'부서 전용',
-      shared_depts: shared, erp_module: tr.querySelector('.pp-mod').value||null, active: tr.querySelector('.pp-active').checked };
-  });
-  if(!rows.length){ alert('저장할 페이지가 없습니다.'); return; }
-  postAdmin({ action:'save_page_perm', rows:rows }, '페이지 공개 설정');
-}
-
-function saveDeptErp(){
-  var rows = Array.prototype.map.call(document.querySelectorAll('#erpMatrixRows tr[data-dept]'), function(tr){
-    var mods = Array.prototype.map.call(tr.querySelectorAll('.em-chk:checked'), function(c){ return c.getAttribute('data-mod'); });
-    return { dept_nm: tr.getAttribute('data-dept'), modules: mods };
-  });
-  if(!rows.length){ alert('저장할 부서가 없습니다.'); return; }
-  postAdmin({ action:'save_dept_erp', rows:rows }, '부서별 ERP 모듈 권한');
 }
 
 async function send(){

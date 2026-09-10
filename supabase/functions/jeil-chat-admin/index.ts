@@ -2,10 +2,15 @@
 // 배포: verify_jwt=false (Entra 토큰을 내부에서 Graph로 검증)
 // 호출: POST /functions/v1/jeil-chat-admin  Authorization: Bearer <Entra access_token>
 //   조회(빈 바디): { gateway, usage, admins, dept_mapping, dept_permissions, portal_pages, dept_erp_scope, catalog, model_settings } — 관리자만
+//   부분 조회({scope:'perm'}): { admins, dept_mapping, portal_pages, dept_erp_scope, dept_erp_suggest, catalog, perm_grants, perm_audit, as_of }
+//   부분 조회({scope:'dept'}): { dept_mapping, as_of }
 //   저장({action:'save_dept_perm'|'save_page_perm'|'save_dept_erp'|'save_ai_models'|'save_ai_config'|'save_ai_routing'|'manage_admin', ...}): 관리자만 → { ok, saved }
 //   v9: save_ai_config에 work 컨텍스트 적용범위·대화 저장 정책 6필드 추가. usage에 세션·메시지 건수(원문은 반환하지 않음 — 본인 전용 jeil-chat-history뿐).
 //   v10(2026-07-22): 권한 코어 통합 — 개인 예외 권한 액션 3종(grant_perm·revoke_perm·effective_perm) 추가,
 //     조회 응답에 perm_grants·perm_audit 포함, 모듈 카탈로그 SSOT를 DB(perm_module_catalog)로 이관.
+//   v11(2026-09-10, REQ-0026): 부분 조회 scope('perm'|'dept') — 권한 설정 독립 화면(/admin/permissions)과
+//     사용자·부서 화면(/admin/user-dept)이 대화 로그 2,000건·모델 설정까지 매번 받지 않게. 빈 바디는 종전과 같은 전체 응답(호환).
+//     save_dept_perm 은 호출 화면이 사라졌지만(부서 관리자 축 UI 제거 — 관리자 결정) 호환을 위해 남긴다.
 // 원칙: chat_log·erp 매핑 뷰는 RLS로 클라이언트 차단 → 이 함수(service_role)가 유일한 조회/저장 경로.
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
@@ -271,6 +276,67 @@ Deno.serve(async (req) => {
     return json({ ok: true, saved: rows.length, updated_by: user.upn, updated_at: nowIso });
   }
 
+  // 2-i) v11: 조회 묶음 — 전체 응답과 부분 조회(scope)가 같은 쿼리를 쓰도록 한 곳에 둔다.
+  //   dept_mapping: 사용자↔부서↔사원 매핑(ERP Z_USR_MAST_REC 대사). service_role은 RLS 우회 → 사내 전용 뷰 전량 조회.
+  //   perm: 권한 설정 화면이 쓰는 것 전부(전체 관리자·페이지·부서 ERP 모듈·제안·카탈로그·개인 예외·감사).
+  const qDeptMapping = () => Promise.all([
+    admin.from("v_erp_user_dept").select("email,dept_nm,emp_nm,matched_dept_cd,dept_matched").order("dept_nm").order("emp_nm"),
+    admin.from("v_erp_user_dept_recon").select("email,usr_nm_raw,dept_nm,emp_nm,status,recon_type").order("recon_type").order("dept_nm"),
+    admin.from("v_erp_dept_roster").select("dept_nm,emp_cnt,dept_matched,members").order("emp_cnt", { ascending: false }),
+  ]);
+  const qPerm = () => Promise.all([
+    admin.from("portal_admin").select("email,granted_by,granted_at").order("granted_at"),
+    admin.from("portal_page").select("*").order("sort"),
+    admin.from("dept_erp_scope").select("dept_nm,module_key"),
+    admin.from("v_erp_dept_erp_suggest").select("dept_nm,module_key"),
+    admin.from("perm_module_catalog").select("module_key,label,sensitive,sort").order("sort"),
+    admin.rpc("perm_grant_list"),                                     // 개인 예외 권한(활성+회수 이력)
+    admin.from("perm_audit").select("actor,action,target,detail,at").order("at", { ascending: false }).limit(100),
+  ]);
+  // deno-lint-ignore no-explicit-any
+  const buildDeptMapping = (udUsers: any, udRecon: any, udRoster: any) => ({
+    counts: {
+      users: (udUsers.data || []).length,
+      recon: (udRecon.data || []).length,
+      depts: (udRoster.data || []).length,
+    },
+    users: udUsers.data || [],   // 정상 매핑(재직·부서일치)
+    recon: udRecon.data || [],   // 대사 불일치(자동제외·확인대상)
+    roster: udRoster.data || [], // 부서별 사원 명부
+    error: udUsers.error?.message || udRoster.error?.message || null,
+  });
+  // 모듈 카탈로그(SSOT: perm_module_catalog). sensitive=민감(급여·자금) — 콘솔에서 ⚠ 표시·일괄부여 제외.
+  // deno-lint-ignore no-explicit-any
+  const buildCatalog = (catalogRes: any) => (catalogRes.data || []).length
+    ? (catalogRes.data as { module_key: string; label: string; sensitive: boolean }[])
+        .map((c) => ({ key: c.module_key, label: c.label, sensitive: c.sensitive }))
+    : CATALOG_FALLBACK;
+
+  // 2-j) v11: 부분 조회 — 권한 화면(scope:'perm')·사용자부서 화면(scope:'dept').
+  //   chat_log 2,000건·모델 설정·ERP 연동 현황은 읽지 않는다. 빈 바디/그 외 값은 아래 전체 응답으로.
+  const scope = String((body as Record<string, unknown>).scope || "");
+  if (scope === "perm" || scope === "dept") {
+    const [udUsers, udRecon, udRoster] = await qDeptMapping();
+    const dept_mapping = buildDeptMapping(udUsers, udRecon, udRoster);
+    if (scope === "dept") {
+      // 사용자·부서 화면의 「데이터 기준」 타일 — 계정 미러(usr_master) 마지막 성공 적재 시각
+      const asof = await admin.from("v_erp_data_asof").select("job_name,last_success").eq("job_name", "usr_master").maybeSingle();
+      return json({ dept_mapping, asof_usr_master: asof.data?.last_success || null, as_of: nowIso });
+    }
+    const [adminsRes, pagesRes, deptErpRes, deptErpSuggestRes, catalogRes, grantsRes, permAuditRes] = await qPerm();
+    return json({
+      admins: adminsRes.data || [],
+      dept_mapping,
+      portal_pages: pagesRes.data || [],
+      dept_erp_scope: deptErpRes.data || [],
+      dept_erp_suggest: deptErpSuggestRes.data || [],
+      catalog: buildCatalog(catalogRes),
+      perm_grants: grantsRes.data || [],
+      perm_audit: permAuditRes.data || [],
+      as_of: nowIso,
+    });
+  }
+
   // 3) 사용량 집계 (최근 2000건 기준 — 현 규모에 충분, 대량화 시 SQL 집계로 전환)
   const { data: logs, error: le } = await admin
     .from("chat_log")
@@ -305,32 +371,23 @@ Deno.serve(async (req) => {
     if (r.created_at > u.last) u.last = r.created_at;
   }
 
-  const { data: admins } = await admin.from("portal_admin").select("email,granted_by,granted_at").order("granted_at");
-
   // 대화내역 규모 통계(건수만 — 원문은 절대 반환하지 않는다. 원문 열람은 본인 전용 jeil-chat-history뿐)
-  const [sessCntRes, msgCntRes] = await Promise.all([
-    admin.from("chat_session").select("id", { count: "exact", head: true }).is("deleted_at", null),
-    admin.from("chat_message").select("id", { count: "exact", head: true }),
-  ]);
-
-  // 4) 사용자↔부서↔사원 매핑(ERP Z_USR_MAST_REC 대사) + 부서별 권한 설정
-  //    service_role은 RLS 우회 → 사내 전용 뷰 전량 조회. 부서명 기준으로 권한 설정과 결합.
-  const [udUsers, udRecon, udRoster, deptPerm, pagesRes, deptErpRes, deptErpSuggestRes, aiModelsRes, aiCfgRes, aiRulesRes,
-         catalogRes, grantsRes, permAuditRes] = await Promise.all([
-    admin.from("v_erp_user_dept").select("email,dept_nm,emp_nm,matched_dept_cd,dept_matched").order("dept_nm").order("emp_nm"),
-    admin.from("v_erp_user_dept_recon").select("email,usr_nm_raw,dept_nm,emp_nm,status,recon_type").order("recon_type").order("dept_nm"),
-    admin.from("v_erp_dept_roster").select("dept_nm,emp_cnt,dept_matched,members").order("emp_cnt", { ascending: false }),
+  // 4) 사용자↔부서↔사원 매핑 + 권한 묶음(v11: qDeptMapping/qPerm 공용) + 부서별 권한 설정(레거시) + 모델 설정
+  const [[sessCntRes, msgCntRes], [udUsers, udRecon, udRoster],
+         [adminsRes, pagesRes, deptErpRes, deptErpSuggestRes, catalogRes, grantsRes, permAuditRes],
+         deptPerm, aiModelsRes, aiCfgRes, aiRulesRes] = await Promise.all([
+    Promise.all([
+      admin.from("chat_session").select("id", { count: "exact", head: true }).is("deleted_at", null),
+      admin.from("chat_message").select("id", { count: "exact", head: true }),
+    ]),
+    qDeptMapping(),
+    qPerm(),
     admin.from("dept_permission").select("dept_nm,dept_admin_email,erp_scope,page_visibility,note,updated_by,updated_at"),
-    admin.from("portal_page").select("*").order("sort"),
-    admin.from("dept_erp_scope").select("dept_nm,module_key"),
-    admin.from("v_erp_dept_erp_suggest").select("dept_nm,module_key"),
     admin.from("ai_model").select("*").order("sort"),
     admin.from("ai_gateway_config").select("*").eq("id", 1).maybeSingle(),
     admin.from("ai_routing_rule").select("*").order("seq"),
-    admin.from("perm_module_catalog").select("module_key,label,sensitive,sort").order("sort"),
-    admin.rpc("perm_grant_list"),                                     // 개인 예외 권한(활성+회수 이력)
-    admin.from("perm_audit").select("actor,action,target,detail,at").order("at", { ascending: false }).limit(100),
   ]);
+  const admins = adminsRes.data;
 
   // ERP DB 연동 현황(소스별 최신 연동시각·건수·기간) — 관리자 콘솔 표시용.
   // service_role이라 RLS 우회. 급여는 뷰 자체가 민감 실테이블을 세지 않고 배치 건수만 노출한다.
@@ -386,28 +443,14 @@ Deno.serve(async (req) => {
       recent: rows.slice(0, 20).map((r) => ({ ...r, upn_label: uLabel(r.upn) })),
     },
     admins: admins || [],
-    // 사용자↔부서↔사원 매핑(ERP 대사) — 콘솔 '사용자·부서' 탭 + '권한 설정' 부서표 기준 데이터
-    dept_mapping: {
-      counts: {
-        users: (udUsers.data || []).length,
-        recon: (udRecon.data || []).length,
-        depts: (udRoster.data || []).length,
-      },
-      users: udUsers.data || [],   // 정상 매핑(재직·부서일치)
-      recon: udRecon.data || [],   // 대사 불일치(자동제외·확인대상)
-      roster: udRoster.data || [], // 부서별 사원 명부
-      error: udUsers.error?.message || udRoster.error?.message || null,
-    },
-    dept_permissions: deptPerm.data || [], // 저장된 부서별 권한 설정
-    // 권한 상세: 페이지 레지스트리 + 부서별 ERP 모듈 권한 + 모듈 카탈로그
+    // 사용자↔부서↔사원 매핑(ERP 대사) — /admin/user-dept · /admin/permissions 기준 데이터
+    dept_mapping: buildDeptMapping(udUsers, udRecon, udRoster),
+    dept_permissions: deptPerm.data || [], // 저장된 부서별 권한 설정(레거시 — v11부터 편집 화면 없음, 0행)
+    // 권한: 페이지 레지스트리 + 부서별 ERP 모듈 권한 + 모듈 카탈로그
     portal_pages: pagesRes.data || [],
     dept_erp_scope: deptErpRes.data || [],
     dept_erp_suggest: deptErpSuggestRes.data || [], // ERP 역할·메뉴 권한 기반 제안값(참고용)
-    // 모듈 카탈로그(SSOT: perm_module_catalog). sensitive=민감(급여·자금) — 콘솔에서 ⚠ 표시·일괄부여 제외.
-    catalog: (catalogRes.data || []).length
-      ? (catalogRes.data as { module_key: string; label: string; sensitive: boolean }[])
-          .map((c) => ({ key: c.module_key, label: c.label, sensitive: c.sensitive }))
-      : CATALOG_FALLBACK,
+    catalog: buildCatalog(catalogRes),
     // 개인 예외 권한(부서축으로 못 푸는 예외) + 권한 변경 감사
     perm_grants: grantsRes.data || [],
     perm_audit: permAuditRes.data || [],

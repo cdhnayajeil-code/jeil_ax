@@ -114,6 +114,20 @@
 - **교훈(REQ-0015와 같은 계열)**: 「증분이라 최신이다」는 **최신 행에만 참**이고 사라진 행에는 거짓이다. 미러 건수는 주기적으로 **원천과 대조해야** 하며, 문서에 적힌 동작이 실제로 도는지는 실측으로 확인한다.
 - **근거**: `10_ERP_DB연계/etl/etl_run.py`의 `usr_master.reconcile` 후처리, RPC `public.erp_usr_master_reconcile`, `erp_ro.usr_master_s.deactivated_at`.
 
+### ADR-014 ✅ 권한 설정은 독립 화면 하나로 — 관리자 콘솔과 계정·조직 통합관리가 같은 화면을 임베드 (2026-09-10)
+- **배경**: 권한 관리가 두 곳에 갈라져 있었다. 포털 관리자 콘솔(`/main`)의 3탭(권한 설정·사용자·부서·권한 상세)과 계정·조직 통합관리 플랫폼(`/admin/identity`)이 **같은 사람을 다른 목록으로**(콘솔 `v_erp_user_dept` 88명 vs 플랫폼 `v_account_recon` 현재 인원 107명) 보여 줬고, 콘솔 「사용자·부서」탭은 `/admin/user-dept`와 같은 표의 중복 구현이었다. 권한 설정 탭에는 코드가 채우지 않는 정적 안내표 3개(역할 매트릭스의 「부서 관리자」열은 구현과 불일치)와 **판정에 쓰이지 않는 입력**(`dept_permission.erp_scope`·`page_visibility` — 라이브 0행)이 실데이터 조작과 섞여 있었다. 「유효 권한 확인」은 운영에서 성공 호출 0건(감사 `view_effective` 0). 조사(6축 병렬 실측)는 REQ-0026 문서에 있다.
+- **선택지**: (A) 콘솔 3탭을 그대로 두고 플랫폼에서 링크만 — 중복·원천 불일치 지속 / (B) **권한 설정을 독립 화면(`/admin/permissions`)으로 빼고 콘솔 탭과 플랫폼 모듈이 그 화면을 임베드** / (C) `jeil-accounts`에 권한 scope를 얹어 플랫폼 안에서만 관리 — 함수 역할 경계 훼손, 콘솔은 그대로 남음.
+- **결정 = (B)** (관리자 결정 2026-09-10). 판정 SSOT `perm_effective`(ADR-010)는 **손대지 않는다** — 바뀐 것은 그 함수가 읽는 값을 편집하는 화면의 위치와 사람 목록의 원천뿐이다.
+  - **화면 하나**: `app/admin-permissions.html`(3탭 — 부서 권한 / 개인 권한 / 관리자·감사). 콘솔은 3탭 → **「권한·계정」 1탭**(iframe 내장, 라이브 전용·통합본은 잠금 안내)으로 줄고, 플랫폼은 **「🔐 권한 설정」 모듈**을 얻는다. 단독 주소도 유지.
+  - **사람 원천 통일**: 개인 예외·유효 권한의 사람 선택은 **계정 통합관리(`v_account_recon` 현재 인원 ∧ 사람 계정)** 를 쓰고, 부서·직위·재직·ERP/그룹웨어/MS 보유·ERP 역할 수·포털 권한을 카드로 함께 보여 준다. `perm_effective`의 부서 원천은 여전히 `v_erp_user_dept`이므로 **거기 없는 사람(20명 실측)은 「부서 매핑 없음 — 부서 권한 0」 경고**를 달고 개인 예외만 적용됨을 명시한다.
+  - **상호 진입(딥링크)**: 계정 대사 행의 🔐 → `/admin/permissions?upn=…`(단독) 또는 셸 해시 `#perm?upn=…`(플랫폼 안 — 자식이 `postMessage {jeilax:'go'}`로 셸에 요청, 이미 열린 권한 화면에는 `{jeilax:'select'}`). 자식 → 부모 `{jeilax:'resize'}`로 iframe 높이 자동. **전부 같은 origin 검사** 후에만 처리.
+  - **부서 관리자 축 UI 제거**(관리자 결정): `dept_permission.dept_admin_email`은 라이브 0명 지정이고 효과는 자기 부서 페이지 열람 허용뿐(부서원이면 이미 가능)이라 역할을 **전체 관리자 / 일반(부서 기준+개인 예외) 2단**으로 단순화했다. **표와 판정 함수는 그대로 둔다** — `perm_effective`가 이 표를 읽으므로 drop 하면 게이트 전부가 fail-closed 된다. `save_dept_perm` op도 호환용으로 남긴다.
+  - **명칭 정정**: 계정 대사의 「권한등록」열은 ERP 역할(`Z_USR_ROLE`) 배정 여부였는데 포털 권한으로 오해될 수 있어 **「ERP 역할」**로 바꾸고, **「포털 권한」열**(전권 / 부서 기준 / ⚠ 부서 없음 / 예외 N)을 따로 뒀다.
+  - **API**: `jeil-chat-admin` v11(Supabase 배포 카운터 14) — 부분 조회 `{scope:'perm'|'dept'}` 추가(권한 화면이 대화 로그 2,000건·모델 설정을 매번 받지 않게). 빈 바디는 종전과 같은 전체 응답(호환). `/admin/user-dept`는 Supabase 세션 로그인(ESM)에서 이 API(Entra 토큰)로 전환 — 플랫폼 안에서 그 모듈만 2차 로그인이 뜨던 원인이 인증 경로 차이였다. 그 결과 이 화면은 사내 전원 → **관리자 전용**이 된다(플랫폼과 동일 경계).
+- **부수 조치**: 미로그인 방문자에게 사이드바 「⚙ 관리자 콘솔」 버튼이 기본 노출되던 결함(`display:none` 기본값 부재) 정리. 콘솔 `04` 파일 −467줄.
+- **잔여(inbox 등재)**: 관리자 게이트 3원 구조(콘솔·계정 API = `portal_admin` 직접 / 요청함·프론트 = `perm_effective.is_admin`) 통일 방향 · `dept_erp_scope`·`portal_page.shared_depts`의 유령 부서명 3건 정리 · `finance_dashboard` 「부서 전용」+shared_depts 조합(공유 부서 무시됨) · `v_erp_user_dept` use_yn 필터 · 퇴사 처리 흐름에 포털 권한(`perm_grant`·`portal_admin`) 회수 없음 · Entra 보안그룹 RBAC 채택 여부.
+- **근거**: `app/admin-permissions.html` · `04_챗봇_포털_데모UI.html`(`#panel-permacct`·`loadPermFrame`) · `app/admin-identity.html`(모듈 `perm`·`parseHash`) · `app/admin-accounts.html`(`permCell`) · `app/admin-user-dept.html` · `supabase/functions/jeil-chat-admin/index.ts` v11 · `_routes.py`(`/admin/permissions`, 리라이트 113) · 백로그 REQ-0026.
+
 ## B. 미결정 (Proposed — 결정 대기)
 
 ### ADR-101 🕐 백엔드 스택 최종 확정
@@ -174,6 +188,11 @@
 - **조치**: 11월 중 갱신·일정 등록(관리자, [08 §4](08_보안_데이터안정성.md)).
 
 ---
+
+### ISS-208 ✅ 서비스롤 전용 RPC 12종에 PUBLIC EXECUTE 잔존 (2026-09-10 발견·같은 날 해소)
+- **내용**: 계정 대사·퇴사 처리 RPC(`account_recon_get`·`acct_source_upsert`·`erp_identity_upsert`·`erp_usr_master_reconcile`·`offboard_search`·`offboard_request_create/status/claim/progress/finish`·`offboard_refresh_accounts/status`, 전부 `SECURITY DEFINER`)의 회수문이 `from anon, authenticated`만이라 **PUBLIC 기본 EXECUTE가 남아** 공개 anon 키로 REST `/rpc/…` 호출이 가능했다(실측: `has_function_privilege('anon', …)=true`, anon 키 호출 200). 전 직원 명부 조회·미러 upsert·퇴사 큐 투입이 열려 있던 셈이다. `perm_*` 5종(17번)은 `from public` 포함으로 정상.
+- **조치**: 마이그레이션 `rpc_execute_public_revoke`(정본 `이관/sql/42_rpc_execute_public_revoke.sql`) — 12종 `revoke … from public, anon, authenticated` + `grant … to service_role`. 검증 12/12 `anon_x=false·auth_x=false·svc_x=true`, anon 키 호출 **401 42501 permission denied**. 호출자(Edge Function·ETL)는 전부 service_role이라 영향 0. 백로그 **REQ-0027**.
+- **재발 방지**: 서비스롤 전용 함수는 반드시 `from public`을 포함한다(42번 헤더에 규칙·검증 쿼리 동봉).
 
 ## D. 결정 요청 요약 (경영/CTO 판단 필요)
 

@@ -33,10 +33,11 @@ ROUTES = {
     # ── 관리자 / 협력사 ────────────────────────────────────
     "/admin/erp-status":        "app/erp-status.html",
     "/admin/vendors":           "app/admin-vendors.html",
-    # 계정·조직 통합관리 플랫폼(셸). 아래 두 화면은 이 안의 모듈이면서 단독 주소도 유지한다.
+    # 계정·조직 통합관리 플랫폼(셸). 아래 네 화면은 이 안의 모듈이면서 단독 주소도 유지한다.
     "/admin/identity":          "app/admin-identity.html",
     "/admin/user-dept":         "app/admin-user-dept.html",
     "/admin/accounts":          "app/admin-accounts.html",
+    "/admin/permissions":       "app/admin-permissions.html",   # 권한 설정(2026-09-10 REQ-0026) — 콘솔 「권한·계정」 탭도 이 화면을 내장
     "/admin/offboarding":       "app/admin-offboarding.html",
     "/vendor/login":            "app/vendor-login.html",
 
