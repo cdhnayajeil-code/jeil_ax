@@ -139,9 +139,9 @@
           <thead><tr>
             <th>구분</th><th>이메일</th><th>이름</th><th>부서</th><th>직위</th>
             <th class="c">ERP</th><th class="c">인사</th><th class="c">그룹웨어</th><th class="c">MS</th>
-            <th class="c">ERP 역할</th><th>포털 권한</th><th class="c">사번</th><th class="c">재입사</th>
+            <th class="c">ERP 역할</th><th>포털 권한</th><th class="c">사번</th>
           </tr></thead>
-          <tbody id="reconRows"><tr><td colspan="13" class="c muted" style="padding:16px;">불러오는 중…</td></tr></tbody>
+          <tbody id="reconRows"><tr><td colspan="12" class="c muted" style="padding:16px;">불러오는 중…</td></tr></tbody>
         </table>
       </div>
     </div>
@@ -168,7 +168,7 @@
     <!-- ── 인사 ─────────────────────────────────────────────── -->
     <div class="panel" id="p-hr">
       <div class="note">
-        <b>서브 테이블.</b> <code>HAA010T</code>는 PK가 <b>사번</b>이라 재입사하면 <b>한 사람이 2행</b>이 됩니다
+        <b>서브 테이블.</b> <code>HAA010T</code>는 PK가 <b>사번</b>이라 사번이 다시 발급되면(재입사·사번 변경) <b>한 사람이 2행</b>이 됩니다. 드물게 <b>다른 두 사람이 이메일을 공유</b>한 경우도 2행으로 보이므로 「사번 이력」은 확인용입니다
         (<code>RE_ENTR_DT</code>는 전건 비어 있어 쓰이지 않습니다). 아래는 그 행들을 <b>이메일 단위로 접은</b> 결과입니다.
         주민번호·주소·연락처·급여는 애초에 가져오지 않습니다.
       </div>
@@ -245,7 +245,7 @@
   // 대사 구분별 배지색 — 조치가 필요한 것일수록 눈에 띄게
   var TYPE_BADGE = {
     "정상": "g", "계정없음": "r", "인사없음": "a", "계정비활성": "n",
-    "퇴사자계정활성": "r", "부서표기불일치": "a", "권한미등록": "a", "재입사": "b",
+    "퇴사자계정활성": "r", "부서표기불일치": "a", "권한미등록": "a",
     "ERP·인사없음": "a", "그룹웨어없음": "a", "MS없음": "a",
     "퇴사이력": "n", "비활성이력": "n",
     // 사람이 아닌 계정(회의실·차량·공유메일함·시스템). is_current=false 라 「현재 인원만」에선 안 보인다.
@@ -378,9 +378,8 @@
             : (r.has_erp ? '<span class="badge r" title="ERP 계정은 있으나 역할 미배정">미등록</span>' : '<span class="na">–</span>')) + '</td>' +
         '<td>' + permCell(r) + '</td>' +
         '<td class="c mono">' + esc(r.emp_no || "—") + '</td>' +
-        '<td class="c">' + (r.rehire_cnt > 0 ? '<span class="badge b">' + r.rehire_cnt + '회</span>' : '<span class="na">–</span>') + '</td>' +
         '</tr>';
-    }).join("") : '<tr><td colspan="13" class="c muted" style="padding:16px;">조건에 맞는 계정이 없습니다.</td></tr>';
+    }).join("") : '<tr><td colspan="12" class="c muted" style="padding:16px;">조건에 맞는 계정이 없습니다.</td></tr>';
     // 🔐 — 셸(통합 플랫폼) 안이면 셸에게 모듈 전환을 부탁하고, 단독이면 권한 화면으로 이동한다(href 가 그대로 폴백).
     Array.prototype.forEach.call(el("reconRows").querySelectorAll(".permlink"), function (a) {
       a.onclick = function (ev) {
@@ -489,7 +488,7 @@
     el("sAcct").textContent = num(s.acct_active);
     el("sAcctU").textContent = "미러 " + num(s.acct_total) + " · 비활성 " + num(s.acct_off);
     el("sHr").textContent = num(s.hr_active);
-    el("sHrU").textContent = "이메일 " + num(s.hr_total) + " · 재입사 " + num(s.rehire);
+    el("sHrU").textContent = "이메일 " + num(s.hr_total) + " · 사번 2개 이상 " + num(s.rehire); // 재입사·사번 변경·이메일 공유가 섞여 있어 '재입사'라 부르지 않는다(2026-09-11)
     var issue = RECON.filter(function (r) { return r.is_current && !TYPE_OK[r.recon_type]; }).length;
     el("sIssue").textContent = num(issue);
     el("sIssueU").textContent = "현재 인원 " + num(RECON.filter(function (r) { return r.is_current; }).length) + "명 중";
