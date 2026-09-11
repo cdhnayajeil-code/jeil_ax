@@ -160,6 +160,8 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <li>[ ] MS(Entra) 응용 권한 <code>User.Read.All</code> + 테넌트 관리자 동의 — 현재 위임 <code>User.Read</code>뿐이라 본인만 조회 가능(관리자 직접 처리)</li>
 <li>[x] <strong>품목 존재/중복 조회(REQ-0030) — <code>item_master</code> 전량 재적재 완료(2026-09-11 10:41 KST)</strong>: 관리자 직접 실행(<code>python 10_ERP_DB연계/etl/etl_run.py --job item_master --full</code>) — 추출 59,267행·적재 59,267행(31초), 미러 <code>erp_ro.item_master_s</code> 59,267행 = ERP <code>B_ITEM</code> 59,267행 일치. 24건 미적재 갭 해소, 삭제 잔재 0건·계산 칼럼 불일치 0건 확인</li>
 <li>[ ] <strong><code>item_master</code> job — 삭제 정합(reconcile) 로직 부재</strong>: 증분·전량 재적재 모두 원천에서 삭제된 품목코드가 미러에 그대로 남는 구조적 한계는 로직 신설 없이 남아 있다. 2026-09-11 전량 재적재 시점 기준 잔재는 0건(삭제분이 없었을 뿐)이라 당장 증상은 없음 — 필요 시 별도 요청으로 검토(임의 조치 없음)</li>
+<li>[x] <strong>품목분류 4개 카테고리 구축 완료(REQ-0044, 2026-09-11)</strong> — 품목계정(<code>B_ITEM.ITEM_ACCT</code>)+품목그룹 대·중·소(<code>B_ITEM_GROUP</code> 3단) 실측·매핑 뷰·ETL 스키마 준비 완료(정본 <code>이관/sql/47_item_category.sql</code>, 마이그레이션 <code>item_category_4level</code>). 그룹 3단 확인(대 53·중 382·소 1,953), 품목 59,264건 전량 소분류 매달림(미연결 3), 품목계정 6값(10·20·30·33·35·F0) 확인. 화면 <code>/work/item-duplicates</code>·자재 상위 품목에 「분류」열 반영</li>
+<li>[ ] <strong><code>ud_code</code> 실적재 — 관리자 <code>!</code> 직접 실행 대기(REQ-0044, 2026-09-11)</strong> — ERP 사용자정의 코드표 미러 <code>erp_ro.ud_code_s</code>(예상 727행) 스키마·job 준비 완료(<code>etl_run.py --job ud_code</code>). 실적재 후 <code>select * from public.v_item_acct</code>로 품목계정 이름 자동탐색 여부 확인 → 없으면 관리자가 <code>item_acct_name</code>에 6건 직접 등록 필요</li>
 </ul>
 <blockquote>
 <p>상세 실행 체크리스트는 <code>03_중간DB_구축실행기획 §7·§8</code>을 따른다(§7-C 내부 구축 항목 중 스키마·RLS·ETL 스크립트 작성 완료, RLS 격리 테스트 완료 반영).</p>
@@ -232,6 +234,12 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 </tr>
 </thead>
 <tbody>
+<tr>
+<td>2026-09-11</td>
+<td><strong>품목분류 4개 카테고리 구축(REQ-0044)</strong> — 품목계정(<code>B_ITEM.ITEM_ACCT</code>)+품목그룹 대·중·소(<code>B_ITEM_GROUP</code> 3단) 실측·매핑 뷰·ETL 스키마 준비 완료(정본 <code>47_item_category.sql</code>, 마이그레이션 <code>item_category_4level</code>, 커밋 <code>cf685ff</code>). 그룹 3단 확인(대 53·중 382·소 1,953), 품목 59,264건 전량 소분류 매달림(미연결 3), 품목계정 6값(10·20·30·33·35·F0) 확인. 이름 원천 확보용 ERP 사용자정의 코드표 미러 <code>erp_ro.ud_code_s</code>(예상 727행) 신설·연동 현황 뷰 정의 18→19종 확장(실적재는 관리자 <code>!</code> 직접 실행 대기). 화면 <code>/work/item-duplicates</code>·자재 상위 품목에 「분류」열 반영</td>
+<td><code>10_ERP_DB연계/00_현재상태_스냅샷.md §1·§4·§6·§7</code>(v0.49) + <code>02_진행상태.md</code></td>
+<td>최동혁(+Claude)</td>
+</tr>
 <tr>
 <td>2026-09-11</td>
 <td><strong>퇴사 처리에 예약 기능 도입(REQ-0029, ADR-015)</strong> — 큐(<code>offboard_request</code>)에 일시 지정 예약 신설(<code>etl_meta.offboard_schedule</code>, 상태 scheduled/promoted/cancelled/expired), pg_cron 1.6.4 설치 + job 2개(매분 승격·매일 03:15 KST 정리)로 도래 시 그 시점 기준 재산정 후 큐 투입. 「자동 적용」은 큐 투입까지, 실제 실행(러너 기동)은 계속 수동 유지(관리자 결정). 유예 7일(강등/실패), 재직 중·퇴사일 미도래 대상 보류. 게이트 API <code>jeil-accounts</code> v2.1(배포 6) — 예약 생성/목록/확정/취소, 화면 <code>/admin/offboarding</code> 예약 바·목록(60초 갱신), 러너 <code>etl_watch.py</code> Teams 알림 추가. <strong>검증</strong>: DB 실측 6경로(등록→대기→취소·도래 자동→만료·유예 초과→강등·재직자 자동 보류·큐 7일 만료·중복 재사용) 전부 통과, 라이브 UI 실측 통과(콘솔 오류 0), 적대 리뷰 13건 반영. 21번 기획서도 v0.6으로 갱신(§7 A·A2를 2026-09-09 완료로 정정, §6.2 라이선스 회수 반영)</td>
