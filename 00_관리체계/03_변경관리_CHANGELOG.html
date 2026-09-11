@@ -109,6 +109,13 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <tbody>
 <tr>
 <td>2026-09-11</td>
+<td>니즈조사·배포</td>
+<td><code>05_니즈조사/00~05_*.html</code> · <code>_build_bundle.py</code></td>
+<td><strong>니즈조사 설문 화면이 스타일 없이 뜨고 제출도 안 되던 것을 고쳤다(절대우선 fix · 사용자 신고 · REQ-0047).</strong> 포털 카드 「📋 AI 니즈조사 설문 참여」로 들어가면 <code>/survey/form</code> 이 기본 HTML 로만 보였다. 원인은 2026-08-20 클린 URL 도입(§15) — 6개 화면이 CSS·JS 를 파일 기준 상대경로(<code>assets/…</code>)로 불러, 주소가 <code>/survey/form</code> 이 되자 <code>/survey/assets/…</code> 로 풀려 <strong>404</strong> 가 났다. 모양만 깨진 게 아니라 <code>datastore.js</code> 가 안 떠 <strong>부서 목록·선택지가 비고 [저장]이 동작하지 않았다</strong>(헤드리스 실측: <code>Cannot read properties of undefined (reading '부서목록')</code>). 구 <code>.html</code> 주소도 <code>/survey/form</code> 으로 넘어가 우회로가 없었다. §15.4 대로 <strong>루트 절대경로</strong>(<code>/05_니즈조사/assets/…</code>)로 바꿨고, 통합본 빌더의 인라인 치환은 정확 문자열 일치라 경로만 바꾸면 <strong>오류 없이 치환이 빠지므로</strong> 대상이 없으면 빌드를 중단하게 했다(음성 테스트로 중단 확인 · 재빌드한 통합본은 수정 전과 바이트 동일). 같은 원인의 협력사 2화면은 REQ-0035(별건). <strong>범위 밖 발견(inbox)</strong>: 설문폼의 로그인 안내 링크가 구 github.io 주소 · 라우트 상대경로 점검 상설화</td>
+<td>최동혁(+Claude)</td>
+</tr>
+<tr>
+<td>2026-09-11</td>
 <td>ERP연계·부서 운영페이지</td>
 <td>Supabase(마이그레이션 <code>item_acct_p1001</code>) · <code>이관/sql/48</code>(신설) · <code>10_ERP_DB연계/etl/etl_run.py</code>(job <code>sys_code</code>) · <code>pages/품목중복_조회_2026.html</code> · <code>pages/자재물류_재고입출고_2026.html</code></td>
 <td><strong>품목계정을 숫자가 아닌 이름으로 보이게 했다(관리자 지시 · REQ-0045).</strong> REQ-0044 에서 품목계정(10·20·30·33·35·F0)은 「ERP 에 이름 표가 없다」고 보고 코드 + 「이름 매핑 전」으로 두었는데, 사내 ERP 메타의 화면 도움말에 <strong>「품목계정 : 종합코드(P1001)에 등록된 항목」</strong>이라고 명시돼 있었다 — 원천은 사용자정의 코드표가 아니라 <strong>시스템 종합코드 B_MINOR(P1001)</strong>. 그 코드표를 미러(<code>erp_ro.sys_code_s</code>, 화이트리스트 major 만)로 받아 <code>v_item_acct</code> 의 이름 원천 1순위로 두었고(P1001 &gt; 수동 보충표 &gt; 사용자정의 코드표), 화면·필터·CSV 는 이 뷰를 쓰므로 자동 반영된다. 실적재 8행: 10 제품 · 20 반제품 · 25 재공품 · 30 원자재 · <strong>33 소모품</strong> · 35 부자재 · 50 상품 · <strong>F0 설비수리자재</strong> — 도움말 표준값(33 저장품, F0 없음)과 달라 <strong>표준값을 적어 넣었다면 틀렸을 것</strong>이다(추측 금지 원칙이 맞았다). 필터 선택지는 「원자재 (26,843)」처럼 이름으로, 코드는 배지 툴팁·CSV 에 남겼다. 검증: 사용 코드 6개 전부 ERP 이름 연결 · 헤드리스 실데이터 9항목 통과. REQ-0025(품목계정 코드명 원천 조사 spike)의 답이 됐다</td>
