@@ -110,6 +110,13 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <tr>
 <td>2026-09-11</td>
 <td>ERP연계·부서 운영페이지</td>
+<td>Supabase(마이그레이션 <code>item_acct_p1001</code>) · <code>이관/sql/48</code>(신설) · <code>10_ERP_DB연계/etl/etl_run.py</code>(job <code>sys_code</code>) · <code>pages/품목중복_조회_2026.html</code> · <code>pages/자재물류_재고입출고_2026.html</code></td>
+<td><strong>품목계정을 숫자가 아닌 이름으로 보이게 했다(관리자 지시 · REQ-0045).</strong> REQ-0044 에서 품목계정(10·20·30·33·35·F0)은 「ERP 에 이름 표가 없다」고 보고 코드 + 「이름 매핑 전」으로 두었는데, 사내 ERP 메타의 화면 도움말에 <strong>「품목계정 : 종합코드(P1001)에 등록된 항목」</strong>이라고 명시돼 있었다 — 원천은 사용자정의 코드표가 아니라 <strong>시스템 종합코드 B_MINOR(P1001)</strong>. 그 코드표를 미러(<code>erp_ro.sys_code_s</code>, 화이트리스트 major 만)로 받아 <code>v_item_acct</code> 의 이름 원천 1순위로 두었고(P1001 &gt; 수동 보충표 &gt; 사용자정의 코드표), 화면·필터·CSV 는 이 뷰를 쓰므로 자동 반영된다. 실적재 8행: 10 제품 · 20 반제품 · 25 재공품 · 30 원자재 · <strong>33 소모품</strong> · 35 부자재 · 50 상품 · <strong>F0 설비수리자재</strong> — 도움말 표준값(33 저장품, F0 없음)과 달라 <strong>표준값을 적어 넣었다면 틀렸을 것</strong>이다(추측 금지 원칙이 맞았다). 필터 선택지는 「원자재 (26,843)」처럼 이름으로, 코드는 배지 툴팁·CSV 에 남겼다. 검증: 사용 코드 6개 전부 ERP 이름 연결 · 헤드리스 실데이터 9항목 통과. REQ-0025(품목계정 코드명 원천 조사 spike)의 답이 됐다</td>
+<td>최동혁(+Claude)</td>
+</tr>
+<tr>
+<td>2026-09-11</td>
+<td>ERP연계·부서 운영페이지</td>
 <td>Supabase(마이그레이션 <code>item_category_4level</code>) · <code>이관/sql/47</code>(신설) · <code>10_ERP_DB연계/etl/etl_run.py</code>(job <code>ud_code</code>) · <code>app/lib/api.js</code> · <code>pages/품목중복_조회</code> · <code>pages/자재물류_재고입출고</code></td>
 <td><strong>품목분류를 4개 카테고리(품목계정 + 대·중·소분류)로 보여 준다(관리자 지시 · REQ-0044).</strong> 지금까지 화면은 소분류 이름 1칸만 보여 줬다. 실측으로 품목그룹(B_ITEM_GROUP)이 3단(대 53·중 382·소 1,953)이고 품목 전부가 소분류에 매달려 있음을 확인해, 잎 코드 하나로 대·중·소를 푸는 경로 뷰 <code>v_erp_item_group_path</code>를 두고 <code>v_erp_item</code>·<code>item_dup_search</code>(반환 8열 + 계정/대분류 필터 2개)에 실었다. 품목계정(ITEM_ACCT 6값)은 ERP에 이름 표가 없어 <strong>추측해 붙이지 않고</strong> 두 갈래를 뒀다 — ERP 사용자정의 코드표(B_USER_DEFINED_MAJOR/MINOR, 727행)를 미러 <code>erp_ro.ud_code_s</code>로 받아 자동 탐색(ETL job <code>ud_code</code>, 연동 현황 19종) + 관리자 매핑표 <code>public.item_acct_name</code>(우선). 이름이 없으면 화면은 코드 그대로 보이고 「이름 매핑 전」이라고 적는다. 화면: 품목중복 조회에 품목계정·대분류 필터 2칸(선택지는 품목 수와 함께 서버에서), 「분류」열(계정 배지 · 대›중›소 경로), CSV 8열 추가, 판정 기준 안내 / 자재 출고 상위 품목 「분류」열. <strong>남은 것</strong>: 관리자가 <code>python 10_ERP_DB연계/etl/etl_run.py --job ud_code</code> 실행 → 품목계정 이름이 코드표에 있으면 자동으로 붙고, 없으면 6개 이름을 <code>item_acct_name</code>에 등록</td>
 <td>최동혁(+Claude)</td>

@@ -350,6 +350,24 @@ JOBS = {
         """,
         "params": [],
     },
+    # 시스템 종합코드 ← B_MINOR ⋈ B_MAJOR — 화이트리스트 major 만(소형) — REQ-0045(2026-09-11)
+    #    품목계정(ITEM_ACCT) 이름은 사용자정의 코드표가 아니라 종합코드 P1001 에 있다
+    #    (ERP 화면 도움말: 「품목계정 : 종합코드(P1001)에 등록된 항목들이 표시 됩니다」).
+    #    이름이 필요한 코드 그룹이 더 생기면 IN 목록에 major 를 더한다(전체 13,293행을 받지 않는다).
+    #    마이그레이션 `item_acct_p1001`(48번) 의 erp_master_upsert 분기 'sys_code_s'.
+    "sys_code": {
+        "table": "sys_code_s",
+        "rpc": "erp_master_upsert",
+        "sql": """
+            SELECT RTRIM(n.MAJOR_CD) AS major_cd, RTRIM(m.MAJOR_NM) AS major_nm,
+                   RTRIM(n.MINOR_CD) AS minor_cd, RTRIM(n.MINOR_NM) AS minor_nm,
+                   RTRIM(n.MINOR_TYPE) AS minor_type, n.UPDT_DT AS src_updated
+            FROM JEILMNS.dbo.B_MINOR n WITH (NOLOCK)
+            LEFT JOIN JEILMNS.dbo.B_MAJOR m WITH (NOLOCK) ON m.MAJOR_CD = n.MAJOR_CD
+            WHERE n.MAJOR_CD IN ('P1001')
+        """,
+        "params": [],
+    },
     # 창고(저장위치) 마스터 ← B_STORAGE_LOCATION (전량, 소형 53행)
     #    자재 화면이 창고코드(MVMT_SL_CD)만 보여주고 있어 이름을 붙이기 위한 코드 사전.
     #    마이그레이션 `erp_wh_master_mirror`·`erp_master_upsert_wh_master` (2026-09-09).

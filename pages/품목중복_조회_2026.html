@@ -162,7 +162,7 @@
     <!-- 분류 필터(REQ-0044) — 품목계정·대분류로 좁힌다. 글자 조건이 있어야 조회되는 규칙은 그대로다. -->
     <div class="fields cat">
       <div class="fld">
-        <label for="fAcct">품목계정<small>ERP ITEM_ACCT</small></label>
+        <label for="fAcct">품목계정<small>제품·원자재·부자재 등</small></label>
         <select id="fAcct"><option value="">전체</option></select>
       </div>
       <div class="fld">
@@ -190,7 +190,7 @@
       <li><b>중복 묶음</b> = 품명과 규격을 비교용으로 정리한 값이 같은 코드들. 띄어쓰기·대소문자·구분기호·지름기호·전각 문자·「사용금지」 표기는 무시하고, 소수점(.)과 분수(/)는 구분합니다(1.5T ≠ 15T).</li>
       <li><b>사용 가능</b> = ERP 사용 여부가 Y 이고 품명·규격에 「사용금지」 표기가 없는 코드. <b>미정리</b>는 사용 가능한 코드가 2개 이상, <b>정리됨</b>은 1개만 남은 묶음입니다.</li>
       <li><b>규격 같음·품명 다름</b>은 재질·용도가 달라 정상일 수 있는 <b>후보</b>입니다. 규격이 짧을수록(예: 25A) 우연히 겹칠 수 있습니다.</li>
-      <li><b>분류 4칸</b> = 품목계정(B_ITEM.ITEM_ACCT) + 품목그룹 대·중·소(B_ITEM_GROUP 3단). 품목계정 이름은 ERP 에 표가 없어 사내 매핑표(<code>item_acct_name</code>)나 ERP 사용자정의 코드표에서 붙이며, 없으면 <b>코드 그대로</b> 보입니다(추측해 붙이지 않습니다).</li>
+      <li><b>분류 4칸</b> = 품목계정(B_ITEM.ITEM_ACCT) + 품목그룹 대·중·소(B_ITEM_GROUP 3단). 품목계정 이름은 <b>ERP 종합코드 P1001</b>(공통기준정보에 등록된 이름 — 예: 원자재·부자재·소모품)을 그대로 씁니다. 코드는 배지에 마우스를 올리면 보이고 CSV 에도 남습니다. ERP 에 없는 코드는 추측하지 않고 <b>코드 그대로</b> 보입니다.</li>
       <li>원천: ERP 품목 마스터(B_ITEM) 중간DB 사본 전체 — 기준일은 위 조회바. 코드 정리·사용금지 처리는 ERP 에서 합니다.</li>
     </ul>
   </div>
@@ -249,11 +249,13 @@
     // 분류 선택지는 서버에서 받아 채운다(주소의 acct/grp1 은 채워진 뒤 복원).
     erpApi.itemCategoryStat().then((rows) => {
       const acct = rows.filter((r) => r.kind === "acct"), grp1 = rows.filter((r) => r.kind === "grp1" && r.code);
-      const opt = (r, showCode) => '<option value="' + esc(r.code || "") + '">' + esc(r.name ? (showCode ? r.code + " " + r.name : r.name) : (r.code || "(없음)")) + " (" + fmt(r.item_cnt) + ")</option>";
-      fAcct.innerHTML = '<option value="">전체</option>' + acct.map((r) => opt(r, true)).join("");
-      fGrp1.innerHTML = '<option value="">전체</option>' + grp1.map((r) => opt(r, false)).join("");
+      // 선택지는 이름으로 보인다(REQ-0045 — 품목계정은 ERP 종합코드 P1001 이름). 이름이 없을 때만 코드.
+      const opt = (r) => '<option value="' + esc(r.code || "") + '"' + (r.name ? ' title="코드 ' + esc(r.code) + '"' : "") + ">"
+        + esc(r.name || r.code || "(없음)") + " (" + fmt(r.item_cnt) + ")</option>";
+      fAcct.innerHTML = '<option value="">전체</option>' + acct.map(opt).join("");
+      fGrp1.innerHTML = '<option value="">전체</option>' + grp1.map(opt).join("");
       fAcct.value = p.get("acct") || ""; fGrp1.value = p.get("grp1") || "";
-      if (!acct.some((r) => r.name)) $("catHint").textContent = "품목계정 이름은 아직 매핑 전이라 코드로 보입니다.";
+      if (!acct.some((r) => r.name)) $("catHint").textContent = "품목계정 이름(ERP 종합코드)이 아직 적재 전이라 코드로 보입니다.";
     }).catch((e) => console.warn("[erp] 분류 선택지 조회 실패:", e?.message || e));
   }
 
@@ -430,7 +432,7 @@
   // 분류 4칸 — 「계정 · 대 › 중 › 소」. 계정 이름이 없으면 코드, 그룹 이름이 번호뿐이면 코드(groupName 과 같은 규칙).
   const gn = (nm, cd) => { nm = String(nm || "").trim(); cd = String(cd || "").trim(); if (!nm) return cd; return /^\d{1,3}$/.test(nm) ? cd : nm; };
   const catCell = (r) => {
-    const acct = r.item_acct ? '<span class="acct" title="품목계정 ' + esc(r.item_acct) + (r.item_acct_nm ? '" >' + esc(r.item_acct_nm) : ' — 이름 매핑 전">' + esc(r.item_acct)) + '</span>' : "";
+    const acct = r.item_acct ? '<span class="acct" title="품목계정 ' + esc(r.item_acct) + (r.item_acct_nm ? '" >' + esc(r.item_acct_nm) : ' — ERP 종합코드에 이름 없음">' + esc(r.item_acct)) + '</span>' : "";
     const parts = [gn(r.grp1_nm, r.grp1_cd), gn(r.grp2_nm, r.grp2_cd), gn(r.grp3_nm, r.grp3_cd)].filter(Boolean);
     if (!acct && !parts.length) return '<span class="muted">—</span>';
     const path = parts.length ? '<span class="path" title="' + esc([r.grp1_cd, r.grp2_cd, r.grp3_cd].filter(Boolean).join(" › ")) + '">'
