@@ -192,6 +192,14 @@
       .sort((a, b) => b.out - a.out).slice(0, 15);
 
     // 코드만으로는 무슨 자재인지 알 수 없다 — 품목명·규격을 붙여 준다(모르는 코드만 추가로 조회).
+    // 분류 4칸(REQ-0044) — 「계정 · 대 › 중 › 소」. 계정 이름이 없으면 코드 그대로, 그룹 이름이 번호뿐이면 코드.
+    const gn = (nm, cd) => { nm = String(nm || "").trim(); cd = String(cd || "").trim(); if (!nm) return cd; return /^\d{1,3}$/.test(nm) ? cd : nm; };
+    const catCell = (it) => {
+      const acct = it.item_class ? '<span style="display:inline-block;background:#eef2f8;color:#27457a;border-radius:6px;padding:0 6px;font-size:11px;font-weight:700;margin-right:5px;" title="품목계정 ' + esc(it.item_class) + (it.item_acct_nm ? '">' + esc(it.item_acct_nm) : ' — 이름 매핑 전">' + esc(it.item_class)) + '</span>' : "";
+      const parts = [gn(it.grp1_nm, ""), gn(it.grp2_nm, ""), gn(it.grp3_nm, "")].filter(Boolean);
+      if (!acct && !parts.length) return "—";
+      return acct + parts.map((x, i) => (i === parts.length - 1 ? "<b style=\"color:#3a4757;font-weight:600;\">" + esc(x) + "</b>" : esc(x))).join('<span style="color:#aab4c0;margin:0 3px;">›</span>');
+    };
     const need = topItems.map((t) => t.code).filter((c) => !(c in ITEMS));
     if (need.length) {
       try { Object.assign(ITEMS, await erpApi.itemsByCode(need)); }
@@ -229,14 +237,14 @@
 
       + '<div class="sec"><h3>출고 상위 품목 <small style="font-weight:400;color:var(--muted);">' + esc(q.label) + ' · 상위 15</small></h3>'
       + (topItems.length
-          ? '<table><tr><th style="width:14%;">품목코드</th><th style="width:23%;">품목명</th><th>규격</th><th style="width:16%;">품목그룹</th><th class="c" style="width:7%;">단위</th><th class="r" style="width:12%;">출고수량</th></tr>'
+          ? '<table><tr><th style="width:13%;">품목코드</th><th style="width:20%;">품목명</th><th>규격</th><th style="width:26%;">분류 <small style="font-weight:400;">계정 · 대›중›소</small></th><th class="c" style="width:6%;">단위</th><th class="r" style="width:11%;">출고수량</th></tr>'
             + topItems.map((t) => {
                 const it = ITEMS[t.code] || {};
                 const spec = cleanSpec(it.item_name, it.spec);
                 return '<tr><td><b>' + esc(t.code) + '</b></td>'
                   + '<td>' + esc(it.item_name || "—") + '</td>'
                   + '<td style="color:var(--muted);">' + (spec ? esc(spec) : "—") + '</td>'
-                  + '<td style="color:var(--muted);">' + esc(it.item_group_nm || "—") + '</td>'
+                  + '<td style="color:var(--muted);font-size:12px;line-height:1.35;">' + catCell(it) + '</td>'
                   + '<td class="c">' + esc(it.unit || "—") + '</td>'
                   + '<td class="r"><b>' + num(t.out) + '</b></td></tr>';
               }).join("")

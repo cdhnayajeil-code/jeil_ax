@@ -2,7 +2,7 @@
 # 원칙(CLAUDE.md §4): 운영 MSSQL은 읽기 전용 SELECT만(파라미터 바인딩), 포털은 중간DB만 조회.
 #   ⚠ 아래 추출 SQL은 유니포인트 뷰 스펙 협의 전 초안 — 실행 전 사용자(관리자) 확인 필수.
 # 실행: python etl_run.py --job all            (전체)
-#       python etl_run.py --job item_master    (개별: item_master|sales|purchase|inventory|wh_master|item_group)
+#       python etl_run.py --job item_master    (개별: item_master|sales|purchase|inventory|wh_master|item_group|ud_code)
 #       python etl_run.py --job all --dry-run  (추출·건수만 확인, 적재 안 함)
 import argparse
 import datetime
@@ -331,6 +331,22 @@ JOBS = {
                    LEAF_FLG AS leaf_flg, DEL_FLG AS del_flg,
                    UPDT_DT AS src_updated
             FROM JEILMNS.dbo.B_ITEM_GROUP WITH (NOLOCK)
+        """,
+        "params": [],
+    },
+    # 사용자정의 코드표 ← B_USER_DEFINED_MAJOR ⋈ MINOR (전량, 소형 약 727행) — REQ-0044(2026-09-11)
+    #    코드값(품목계정 등)에 이름을 붙일 때 첫 번째로 뒤지는 사전. 원천에 갱신일 컬럼이 없어 src_updated 는 NULL.
+    #    마이그레이션 `item_category_4level`(47번) 의 erp_master_upsert 분기 'ud_code_s'.
+    "ud_code": {
+        "table": "ud_code_s",
+        "rpc": "erp_master_upsert",
+        "sql": """
+            SELECT RTRIM(m.UD_MAJOR_CD) AS ud_major_cd, RTRIM(m.UD_MAJOR_NM) AS ud_major_nm,
+                   RTRIM(n.UD_MINOR_CD) AS ud_minor_cd, RTRIM(n.UD_MINOR_NM) AS ud_minor_nm,
+                   RTRIM(n.UD_REFERENCE) AS ud_reference,
+                   CONVERT(datetime, NULL) AS src_updated
+            FROM JEILMNS.dbo.B_USER_DEFINED_MINOR n WITH (NOLOCK)
+            JOIN JEILMNS.dbo.B_USER_DEFINED_MAJOR m WITH (NOLOCK) ON m.UD_MAJOR_CD = n.UD_MAJOR_CD
         """,
         "params": [],
     },

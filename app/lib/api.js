@@ -418,8 +418,9 @@ export const erpApi = {
     const uniq = [...new Set((codes || []).filter(Boolean))];
     const out = {};
     for (let i = 0; i < uniq.length; i += 100) {
+      // 4카테고리(REQ-0044): 품목계정(item_class·item_acct_nm) + 대·중·소분류(grp1~3) — v_erp_item 이 실어 준다(47번).
       const { data, error } = await supabase.from("v_erp_item")
-        .select("item_code,item_name,spec,unit,item_group_nm").in("item_code", uniq.slice(i, i + 100));
+        .select("item_code,item_name,spec,unit,item_group_nm,item_class,item_acct_nm,grp1_nm,grp2_nm,grp3_nm").in("item_code", uniq.slice(i, i + 100));
       if (error) throw error;
       for (const r of data || []) out[r.item_code] = r;
     }
@@ -430,10 +431,19 @@ export const erpApi = {
   // 「◆사용금지◆」 표기 차이는 서버가 무시한다. 결과에는 검색에 걸린 품목과 **품명+규격이 같은 전체 마스터의 다른 코드**가
   // 함께 온다(matched=false). 행마다 dup_cnt·dup_valid_cnt·spec_cnt·spec_name_cnt·match_total·row_total 이 실린다.
   // 2글자 이상 조각이 없으면 서버가 빈 배열을 돌려준다. 상한 기본 1,000행(최대 3,000).
-  async itemDupSearch({ name = "", spec = "", all = "", limit = 1000 } = {}) {
+  // 4카테고리(REQ-0044·47번): 행마다 item_acct·item_acct_nm·grp1~3_cd/nm 이 실리고, acct/grp1 로 좁힐 수 있다(코드 값).
+  async itemDupSearch({ name = "", spec = "", all = "", limit = 1000, acct = "", grp1 = "" } = {}) {
     const { data, error } = await supabase.rpc("item_dup_search", {
       p_name: name || null, p_spec: spec || null, p_all: all || null, p_limit: limit,
+      p_acct: acct || null, p_grp1: grp1 || null,
     });
+    if (error) throw error;
+    return data || [];
+  },
+  // 분류 필터 선택지 — 품목계정(kind=acct)·대분류(kind=grp1)별 품목 수. 이름이 없는 계정은 name=null(코드 그대로 표시).
+  async itemCategoryStat() {
+    const { data, error } = await supabase.from("v_erp_item_category_stat").select("kind,code,name,item_cnt,sort")
+      .order("kind").order("sort").order("item_cnt", { ascending: false });
     if (error) throw error;
     return data || [];
   },

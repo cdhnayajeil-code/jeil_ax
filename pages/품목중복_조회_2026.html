@@ -34,6 +34,13 @@
   .fld label small{font-weight:400; color:var(--muted); margin-left:4px;}
   .fld input{width:100%; border:1.5px solid #b9c7da; border-radius:9px; padding:10px 12px; font-family:inherit; font-size:14.5px; outline:none; background:#fff;}
   .fld input:focus{border-color:var(--accent); box-shadow:0 0 0 3px rgba(47,111,179,.15);}
+  .fld select{width:100%; border:1.5px solid #b9c7da; border-radius:9px; padding:9px 10px; font-family:inherit; font-size:13.5px; background:#fff; color:var(--ink);}
+  .fld select:focus{border-color:var(--accent); box-shadow:0 0 0 3px rgba(47,111,179,.15); outline:none;}
+  .fields.cat{grid-template-columns:1fr 1fr auto; margin-top:8px;}
+  /* 분류 4칸 — 계정 배지 + 대 › 중 › 소 경로(REQ-0044) */
+  .cat-cell{font-size:12px; line-height:1.35; color:#3a4757;}
+  .cat-cell .acct{display:inline-block; background:#eef2f8; color:var(--navy2); border-radius:6px; padding:0 6px; font-size:11px; font-weight:700; margin-right:5px;}
+  .cat-cell .path{color:#5b6b7d;} .cat-cell .path b{color:#3a4757; font-weight:600;} .cat-cell .sep{color:#aab4c0; margin:0 3px;}
   .acts{display:flex; gap:6px;}
   .btn{background:var(--navy); color:#fff; border:1.5px solid var(--navy); border-radius:9px; padding:10px 20px; font-size:14px; font-weight:700; cursor:pointer; font-family:inherit; white-space:nowrap;}
   .btn:hover{background:var(--navy2);}
@@ -152,8 +159,21 @@
         <button type="button" class="btn ghost" id="btnReset">초기화</button>
       </div>
     </div>
+    <!-- 분류 필터(REQ-0044) — 품목계정·대분류로 좁힌다. 글자 조건이 있어야 조회되는 규칙은 그대로다. -->
+    <div class="fields cat">
+      <div class="fld">
+        <label for="fAcct">품목계정<small>ERP ITEM_ACCT</small></label>
+        <select id="fAcct"><option value="">전체</option></select>
+      </div>
+      <div class="fld">
+        <label for="fGrp1">대분류<small>품목그룹 1단계</small></label>
+        <select id="fGrp1"><option value="">전체</option></select>
+      </div>
+      <div class="fld" style="align-self:end;"><span class="hint" style="margin:0;" id="catHint">분류는 위 글자 조건과 함께 적용됩니다.</span></div>
+    </div>
     <div class="hint">채운 칸을 <b>모두 만족</b>하는 품목을 찾습니다 · 한 칸에 여러 단어는 순서 상관없음 ·
-      띄어쓰기·대소문자·구분기호(× x * , -)·지름기호(Ø Φ)·전각·품명의 「◆사용금지◆」 표기 차이는 무시합니다.</div>
+      띄어쓰기·대소문자·구분기호(× x * , -)·지름기호(Ø Φ)·전각·품명의 「◆사용금지◆」 표기 차이는 무시합니다.
+      결과의 <b>분류</b>는 <b>품목계정 · 대분류 › 중분류 › 소분류</b> 4칸입니다.</div>
     <div class="chips" id="examples">
       <span class="lb">예시</span>
       <button type="button" data-ex='{"name":"STS304 플랜지","spec":"25A x 10K"}'>품명 STS304 플랜지 + 규격 25A x 10K</button>
@@ -170,6 +190,7 @@
       <li><b>중복 묶음</b> = 품명과 규격을 비교용으로 정리한 값이 같은 코드들. 띄어쓰기·대소문자·구분기호·지름기호·전각 문자·「사용금지」 표기는 무시하고, 소수점(.)과 분수(/)는 구분합니다(1.5T ≠ 15T).</li>
       <li><b>사용 가능</b> = ERP 사용 여부가 Y 이고 품명·규격에 「사용금지」 표기가 없는 코드. <b>미정리</b>는 사용 가능한 코드가 2개 이상, <b>정리됨</b>은 1개만 남은 묶음입니다.</li>
       <li><b>규격 같음·품명 다름</b>은 재질·용도가 달라 정상일 수 있는 <b>후보</b>입니다. 규격이 짧을수록(예: 25A) 우연히 겹칠 수 있습니다.</li>
+      <li><b>분류 4칸</b> = 품목계정(B_ITEM.ITEM_ACCT) + 품목그룹 대·중·소(B_ITEM_GROUP 3단). 품목계정 이름은 ERP 에 표가 없어 사내 매핑표(<code>item_acct_name</code>)나 ERP 사용자정의 코드표에서 붙이며, 없으면 <b>코드 그대로</b> 보입니다(추측해 붙이지 않습니다).</li>
       <li>원천: ERP 품목 마스터(B_ITEM) 중간DB 사본 전체 — 기준일은 위 조회바. 코드 정리·사용금지 처리는 ERP 에서 합니다.</li>
     </ul>
   </div>
@@ -210,12 +231,13 @@
   const isValid = (r) => r.use_yn !== false && !r.forbid;
 
   /* ---------- 조건 ↔ 입력칸 ↔ 주소 ---------- */
-  const readCond = () => ({ name: fName.value.trim(), spec: fSpec.value.trim(), all: fAll.value.trim() });
-  function writeCond(c) { fName.value = c.name || ""; fSpec.value = c.spec || ""; fAll.value = c.all || ""; }
+  const fAcct = $("fAcct"), fGrp1 = $("fGrp1");
+  const readCond = () => ({ name: fName.value.trim(), spec: fSpec.value.trim(), all: fAll.value.trim(), acct: fAcct.value, grp1: fGrp1.value });
+  function writeCond(c) { fName.value = c.name || ""; fSpec.value = c.spec || ""; fAll.value = c.all || ""; fAcct.value = c.acct || ""; fGrp1.value = c.grp1 || ""; }
   function syncUrl(c) {
     try {
       const u = new URL(location.href);
-      for (const [k, v] of [["name", c.name], ["spec", c.spec], ["q", c.all]]) {
+      for (const [k, v] of [["name", c.name], ["spec", c.spec], ["q", c.all], ["acct", c.acct], ["grp1", c.grp1]]) {
         if (v) u.searchParams.set(k, v); else u.searchParams.delete(k);
       }
       history.replaceState(null, "", u.pathname + u.search + u.hash);
@@ -224,6 +246,15 @@
   {
     const p = new URLSearchParams(location.search);   // 공유 링크로 열면 조건을 채워 바로 조회한다
     writeCond({ name: p.get("name") || "", spec: p.get("spec") || "", all: p.get("q") || "" });
+    // 분류 선택지는 서버에서 받아 채운다(주소의 acct/grp1 은 채워진 뒤 복원).
+    erpApi.itemCategoryStat().then((rows) => {
+      const acct = rows.filter((r) => r.kind === "acct"), grp1 = rows.filter((r) => r.kind === "grp1" && r.code);
+      const opt = (r, showCode) => '<option value="' + esc(r.code || "") + '">' + esc(r.name ? (showCode ? r.code + " " + r.name : r.name) : (r.code || "(없음)")) + " (" + fmt(r.item_cnt) + ")</option>";
+      fAcct.innerHTML = '<option value="">전체</option>' + acct.map((r) => opt(r, true)).join("");
+      fGrp1.innerHTML = '<option value="">전체</option>' + grp1.map((r) => opt(r, false)).join("");
+      fAcct.value = p.get("acct") || ""; fGrp1.value = p.get("grp1") || "";
+      if (!acct.some((r) => r.name)) $("catHint").textContent = "품목계정 이름은 아직 매핑 전이라 코드로 보입니다.";
+    }).catch((e) => console.warn("[erp] 분류 선택지 조회 실패:", e?.message || e));
   }
 
   /* ---------- 조회 ---------- */
@@ -243,7 +274,13 @@
       }).catch((e) => console.warn("[erp] 품목 마스터 기준일 조회 실패:", e?.message || e));
     }
     const my = ++reqSeq;
-    if (!cond.name && !cond.spec && !cond.all) { LAST = null; host.innerHTML = introHtml(); return; }
+    if (!cond.name && !cond.spec && !cond.all) {
+      LAST = null;
+      host.innerHTML = (cond.acct || cond.grp1)
+        ? '<div class="empty">분류만으로는 조회하지 않습니다 — 품명·규격·통합 칸에 두 글자 이상 넣으면 그 결과를 선택한 분류로 좁혀 보여 줍니다.</div>'
+        : introHtml();
+      return;
+    }
     if (!usable(cond)) {
       LAST = null;
       host.innerHTML = '<div class="empty">두 글자 이상 입력해 주세요. 한 글자 조건은 거의 모든 품목에 걸려 확인에 도움이 되지 않습니다.</div>';
@@ -390,6 +427,17 @@
       : '<span title="' + esc(cd) + '">' + esc(nm) + "</span>";
   };
 
+  // 분류 4칸 — 「계정 · 대 › 중 › 소」. 계정 이름이 없으면 코드, 그룹 이름이 번호뿐이면 코드(groupName 과 같은 규칙).
+  const gn = (nm, cd) => { nm = String(nm || "").trim(); cd = String(cd || "").trim(); if (!nm) return cd; return /^\d{1,3}$/.test(nm) ? cd : nm; };
+  const catCell = (r) => {
+    const acct = r.item_acct ? '<span class="acct" title="품목계정 ' + esc(r.item_acct) + (r.item_acct_nm ? '" >' + esc(r.item_acct_nm) : ' — 이름 매핑 전">' + esc(r.item_acct)) + '</span>' : "";
+    const parts = [gn(r.grp1_nm, r.grp1_cd), gn(r.grp2_nm, r.grp2_cd), gn(r.grp3_nm, r.grp3_cd)].filter(Boolean);
+    if (!acct && !parts.length) return '<span class="muted">—</span>';
+    const path = parts.length ? '<span class="path" title="' + esc([r.grp1_cd, r.grp2_cd, r.grp3_cd].filter(Boolean).join(" › ")) + '">'
+      + parts.map((x, i) => (i === parts.length - 1 ? "<b>" + esc(x) + "</b>" : esc(x))).join('<span class="sep">›</span>') + "</span>" : "";
+    return '<div class="cat-cell">' + acct + path + "</div>";
+  };
+
   /* 중복 묶음 */
   function dupView(L) {
     if (!L.dupGroups.length) {
@@ -426,16 +474,16 @@
     return '<div class="gcard ' + g.status + '">'
       + '<div class="ghead"><span class="st ' + g.status + '">' + ST_LABEL[g.status] + "</span>"
       + '<div class="gtitle"><b>' + esc(stripMark(rep.item_name) || "—") + '</b><span class="gspec">' + esc(rep.spec || "—") + "</span></div>"
-      + '<div class="gmeta">코드 <b>' + fmt(g.dupCnt) + "</b>개 · 사용 가능 <b>" + fmt(g.validCnt) + "</b> · 품목그룹 " + fmt(grps.size) + "개" + variants + "</div></div>"
+      + '<div class="gmeta">코드 <b>' + fmt(g.dupCnt) + "</b>개 · 사용 가능 <b>" + fmt(g.validCnt) + "</b> · 소분류 " + fmt(grps.size) + "개" + variants + "</div></div>"
       + '<div class="gnote">' + desc + "</div>"
-      + '<div class="tbl-wrap"><table><tr><th style="width:14%;">품목코드</th><th>품명(원문)</th><th>규격(원문)</th><th style="width:16%;">품목그룹</th><th class="c" style="width:6%;">단위</th><th class="c" style="width:12%;">상태</th></tr>'
+      + '<div class="tbl-wrap"><table><tr><th style="width:14%;">품목코드</th><th>품명(원문)</th><th>규격(원문)</th><th style="width:24%;">분류 <small style="font-weight:400;">계정 · 대›중›소</small></th><th class="c" style="width:6%;">단위</th><th class="c" style="width:11%;">상태</th></tr>'
       + rows.map((r) => {
           const cls = [r.matched && g.rows.some((x) => !x.matched) ? "hit" : "", g.status === "done" && isValid(r) ? "valid" : ""].filter(Boolean).join(" ");
           return "<tr" + (cls ? ' class="' + cls + '"' : "") + ">"
             + '<td class="code">' + esc(r.item_code) + (cls.includes("hit") ? '<span class="tag">찾은 코드</span>' : "") + "</td>"
             + "<td>" + esc(r.item_name || "—") + "</td>"
             + '<td class="spec">' + esc(r.spec || "—") + "</td>"
-            + '<td class="muted">' + groupName(r) + "</td>"
+            + "<td>" + catCell(r) + "</td>"
             + '<td class="c">' + esc(r.unit || "—") + "</td>"
             + '<td class="c">' + statusCell(r, g) + "</td></tr>";
         }).join("")
@@ -485,14 +533,14 @@
   function flatView(L) {
     const gBy = new Map(L.dupGroups.map((g) => [g.key, g]));
     const shown = L.rows.slice(0, VIEW.flatLimit);
-    return '<div class="tbl-wrap"><table><tr><th style="width:13%;">품목코드</th><th>품명</th><th>규격</th><th style="width:15%;">품목그룹</th><th class="c" style="width:6%;">단위</th><th class="c" style="width:11%;">상태</th><th class="c" style="width:10%;">같은 품명·규격</th></tr>'
+    return '<div class="tbl-wrap"><table><tr><th style="width:13%;">품목코드</th><th>품명</th><th>규격</th><th style="width:22%;">분류 <small style="font-weight:400;">계정 · 대›중›소</small></th><th class="c" style="width:6%;">단위</th><th class="c" style="width:10%;">상태</th><th class="c" style="width:9%;">같은 품명·규격</th></tr>'
       + shown.map((r) => {
           const g = gBy.get(r.dup_key);
           return "<tr" + (r.matched ? "" : ' class="pulled" title="검색 조건에는 안 걸렸지만 같은 품명·규격이라 함께 표시"') + ">"
             + '<td class="code">' + esc(r.item_code) + (r.matched ? "" : '<span class="tag">묶음</span>') + "</td>"
             + "<td>" + esc(r.item_name || "—") + "</td>"
             + '<td class="spec">' + esc(r.spec || "—") + "</td>"
-            + '<td class="muted">' + groupName(r) + "</td>"
+            + "<td>" + catCell(r) + "</td>"
             + '<td class="c">' + esc(r.unit || "—") + "</td>"
             + '<td class="c">' + statusCell(r, g) + "</td>"
             + '<td class="c">' + (r.dup_cnt > 1 ? '<span class="badge r">' + fmt(r.dup_cnt) + "개</span>" : '<span class="muted">—</span>') + "</td></tr>";
@@ -512,12 +560,13 @@
     else if (VIEW.tab === "spec") rows = L.specGroups.flatMap((s) => s.rows);
     else rows = L.rows;
     const head = ["묶음번호", "묶음상태", "같은품명규격_코드수", "사용가능_코드수", "같은규격_코드수", "같은규격_품명수",
-      "품목코드", "품명", "규격", "품목그룹코드", "품목그룹명", "단위", "ERP사용", "사용금지표기", "검색일치"];
+      "품목코드", "품명", "규격", "품목계정코드", "품목계정명", "대분류코드", "대분류명", "중분류코드", "중분류명", "소분류코드", "소분류명",
+      "단위", "ERP사용", "사용금지표기", "검색일치"];
     const body = rows.map((r) => {
       const g = gBy.get(r.dup_key);
       return [g ? g.no : "", g ? ST_LABEL[g.status] : "", r.dup_cnt, r.dup_valid_cnt, r.spec_cnt, r.spec_name_cnt,
-        r.item_code, r.item_name, r.spec, r.item_group_cd, r.item_group_nm, r.unit,
-        r.use_yn === false ? "N" : "Y", r.forbid ? "Y" : "N", r.matched ? "Y" : "N"];
+        r.item_code, r.item_name, r.spec, r.item_acct, r.item_acct_nm, r.grp1_cd, r.grp1_nm, r.grp2_cd, r.grp2_nm, r.grp3_cd, r.grp3_nm,
+        r.unit, r.use_yn === false ? "N" : "Y", r.forbid ? "Y" : "N", r.matched ? "Y" : "N"];
     });
     const cell = (v) => { const s = String(v ?? ""); return /[",\r\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
     const csv = [head, ...body].map((line) => line.map(cell).join(",")).join("\r\n");
@@ -540,6 +589,7 @@
 
   $("btnSearch").onclick = () => bar.refresh();
   $("btnReset").onclick = () => { writeCond({}); bar.refresh(); fName.focus(); };
+  [fAcct, fGrp1].forEach((el) => el.addEventListener("change", () => bar.refresh()));
   // keyup 으로 받는다 — 한글 조합 중 Enter(keydown, isComposing)를 받으면 두 번 눌러야 조회되는 문제를 피한다.
   [fName, fSpec, fAll].forEach((el) => el.addEventListener("keyup", (e) => { if (e.key === "Enter") bar.refresh(); }));
   $("examples").addEventListener("click", (e) => {

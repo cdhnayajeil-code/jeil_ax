@@ -518,6 +518,11 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <tbody>
 <tr>
 <td>2026-09-11</td>
+<td><strong>품목분류 4카테고리</strong>(REQ-0044 · 마이그레이션 <code>item_category_4level</code> · 정본 <code>sql/47</code>) — 미러 <code>erp_ro.ud_code_s</code>(사용자정의 코드표, ETL job <code>ud_code</code> 신설·연동 현황 19종) · <code>public.item_acct_name</code>(품목계정 이름 매핑표) · <code>v_erp_item_group_path</code>·<code>v_item_acct</code>·<code>v_erp_item_category_stat</code> · <code>v_erp_item</code> 확장 · <code>item_dup_search</code> 반환 8열+필터 2개(drop 후 재생성, authenticated 전용 유지). 화면 2종(품목중복 조회·자재 상위 품목) 「분류」열</td>
+<td>최동혁(+Claude)</td>
+</tr>
+<tr>
+<td>2026-09-11</td>
 <td><strong>퇴사 처리 예약 도입</strong>(REQ-0029 · ADR-015 · 마이그레이션 4건 · 정본 <code>sql/45</code>·<code>46</code>(리뷰 반영) · Edge <code>jeil-accounts</code> v2.1=배포 6 · <strong>pg_cron 설치 + 1분 job</strong>) — 별도 예약 표 <code>etl_meta.offboard_schedule</code>, 큐 <code>offboard_request</code>에 <code>origin</code>·<code>schedule_id</code> 추가, 도래 시 대상 재산정 후 큐 투입. 「자동 적용」은 큐 투입까지(러너 수동 유지 — 관리자 결정), 유예 7일 초과 시 강등. <code>offboard_request_create</code> 재사용 규칙 축소·<code>claim</code> 이중 선점 방어(skip locked). 러너 <code>etl_watch.py</code>에 Teams <code>notify()</code>(웹훅 미설정 시 건너뜀). 화면 <code>/admin/offboarding</code> 예약 바·목록</td>
 <td>최동혁(+Claude)</td>
 </tr>
