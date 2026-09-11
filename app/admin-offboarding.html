@@ -74,7 +74,16 @@
   .searchbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:2px 0 0;}
   .searchbar input[type=search]{width:300px;max-width:100%;padding:7px 11px;border:1px solid var(--line);
     border-radius:7px;font-size:13px;font-family:inherit;}
-  .searchbar input[type=date]{padding:6px 9px;border:1px solid var(--line);border-radius:7px;font-size:12.5px;font-family:inherit;}
+  .searchbar input[type=date],.searchbar input[type=datetime-local],.schedbar input[type=datetime-local],.schedbar input[type=text]{padding:6px 9px;border:1px solid var(--line);border-radius:7px;font-size:12.5px;font-family:inherit;}
+  /* 예약 바 — 즉시 실행 바(.runbar) 아래에 붙는 두 번째 줄. 일시 + 자동 적용 + 메모 */
+  .schedbar{display:flex;gap:9px;align-items:center;flex-wrap:wrap;background:#f3f6fb;border:1px dashed var(--line);
+    border-radius:9px;padding:10px 14px;margin:8px 0 0;font-size:12.5px;color:#3a4757;}
+  .schedbar label{display:flex;align-items:center;gap:5px;cursor:pointer;}
+  .schedbar .btn{padding:7px 13px;font-size:12.5px;}
+  .st-wait{background:var(--soft);color:var(--navy2);} .st-due{background:var(--softamber);color:var(--amber);}
+  .st-auto{background:#e8f0fb;color:#2f6fb3;} .st-run{background:var(--softgreen);color:var(--green);}
+  .st-off{background:#f2f4f7;color:#8a93a0;} .st-fail{background:var(--softred);color:var(--red);}
+  tr.due td{background:#fffbea !important;}
   .searchbar .ax{font-size:12.5px;color:#3a4757;display:flex;align-items:center;gap:4px;cursor:pointer;}
   .runbar{display:flex;gap:9px;align-items:center;flex-wrap:wrap;background:var(--soft);border:1px solid var(--line);
     border-radius:9px;padding:11px 14px;margin:10px 0 0;}
@@ -116,7 +125,7 @@
         · <a href="/docs/erp/offboarding">기획 문서 →</a>
       </div>
     </div>
-    <div><span class="badge g">3축 자동</span></div>
+    <div><span class="badge g">3축 자동</span> <span class="badge b">예약 가능</span></div>
   </div>
 
   <div class="note">
@@ -227,6 +236,38 @@
       <button class="btn danger" id="btnApply2" disabled>퇴사 처리 실행</button>
       <span class="muted" style="font-size:11.8px;">선택한 축 중 <b>아직 남은 축만</b> 처리됩니다</span>
     </div>
+    <!-- 예약(REQ-0029) — 지금 말고 정한 일시에. 대상·축·퇴사일은 위 검색 칸을 그대로 쓴다. -->
+    <div class="schedbar" id="schedBar" style="display:none;">
+      <b>⏰ 예약</b>
+      <label>적용 일시 <input type="datetime-local" id="schedAt" step="60"></label>
+      <label title="일시가 되면 사람 확인 없이 큐에 넣습니다. 실제 실행은 러너가 켜져 있을 때입니다."><input type="checkbox" id="schedAuto"> 자동 적용</label>
+      <input type="text" id="schedMemo" placeholder="메모(선택) — 예: 9/30 퇴사, 인수인계 후" maxlength="200" style="min-width:220px;">
+      <button class="btn" id="btnSched" disabled>예약 등록</button>
+      <span class="muted" style="font-size:11.8px;">체크 안 하면 일시가 됐을 때 <b>「도래 — 확인 필요」</b>로 뜨고, 관리자가 「지금 적용」을 눌러야 실행됩니다</span>
+    </div>
+    <div class="runmsg" id="schedMsg"></div>
+
+    <h3>예약 목록 <span class="cnt" id="hSched"></span>
+      <span class="hact">
+        <span class="muted" id="schedRunner"></span>
+        <button class="btn ghost mini2" id="btnSchedReload">새로고침</button>
+      </span>
+    </h3>
+    <div class="note" id="schedNote">
+      예약은 <b>일시가 되면 그 시점 기준으로 대상을 다시 산정</b>해 처리 큐에 넣습니다(예약 뒤 인사 반영·계정 정리가 생겨도 옛 정보로 조작하지 않습니다).
+      <b>자동 적용</b>은 큐 투입까지 자동이고, <b>실제 처리는 러너가 켜져 있을 때</b> 됩니다 — 러너가 꺼져 있으면 큐에서 기다렸다가 켜지는 순간 실행됩니다.
+      도래 후 7일이 지나도록 실행되지 못한 자동 건은 자동을 풀고 「확인 필요」로 돌리고, 큐에 들어간 뒤 7일이 지나도 러너가 집지 못한 건은 실행하지 않고 실패로 닫습니다.
+      <b>자동 적용이라도 도래 시점에 인사상 재직 중이거나 퇴사일이 아직인 사람이 있으면 자동으로 처리하지 않고</b> 「확인 필요」로 돌립니다(퇴사 철회 대비).
+    </div>
+    <div class="tblwrap">
+      <table>
+        <thead><tr>
+          <th>상태</th><th class="c">적용 일시</th><th>대상</th><th class="c">축</th><th class="c">자동</th><th>등록</th><th>메모 · 진행</th><th class="c">관리</th>
+        </tr></thead>
+        <tbody id="schedRows"><tr><td colspan="8" class="c muted" style="padding:16px;">불러오는 중…</td></tr></tbody>
+      </table>
+    </div>
+    <div class="runmsg" id="schedMsg2"></div>
 
     <h3>처리 절차</h3>
     <div class="steps">
@@ -242,6 +283,9 @@
         <span class="warn">그룹 상속 라이선스</span>가 있으면 결과에 남으니, 그때만 해당 그룹에서 사용자를 빼주세요.</div>
       <div class="step"><b>확인</b> — <a href="/admin/erp-status">ERP 연동 현황</a>에서 「데이터 업데이트」를 한 번 돌리면
         세 원천을 다시 받아와 <b>이 목록에서 자동으로 빠집니다</b>.</div>
+      <div class="step"><b>예약(선택)</b> — 지금이 아니라 정한 일시에 처리하려면 검색에서 대상을 고르고 <b>⏰ 예약</b>에 일시를 넣습니다.
+        「자동 적용」을 켜면 일시가 됐을 때 확인 없이 큐에 들어가고, 끄면 「도래 — 확인 필요」로 떠서 <b>「지금 적용」</b>을 눌러야 갑니다.
+        <span class="muted">ERP 축은 러너가 실행하는 시점에 SharePoint 에 등재되고 약 1분 안에 비활성(USE_YN=N)됩니다 — 러너가 꺼져 있으면 켠 뒤에 반영됩니다.</span></div>
     </div>
 
     <h3>안전 규칙</h3>
@@ -260,12 +304,13 @@
     <div class="note" style="margin-top:14px;">
       <b>동작 방식</b> — 이 화면은 계정 대사(<code>public.v_account_recon</code>)를 그대로 읽습니다.
       별도 상태를 저장하지 않으므로 <b>처리 결과가 곧 목록</b>입니다 — 처리했는데 목록에 남아 있으면 실제로 안 된 것입니다.
+      예외는 <b>예약</b>뿐입니다(예약·승격·취소 이력을 <code>offboard_schedule</code>에 남깁니다).
       기획 정본은 <a href="/docs/erp/offboarding">21 퇴사처리 일괄적용</a> 입니다.
     </div>
   </div>
 
   <div class="foot">
-    <span>JEIL M&amp;S · 퇴사 처리(초안)</span>
+    <span>JEIL M&amp;S · 퇴사 처리</span>
     <span>조회는 <code>jeil-accounts</code> 경유 · 처리 실행은 러너/관리센터</span>
   </div>
 </div>
@@ -277,6 +322,22 @@
   var esc = function (s) { return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) {
     return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); };
   var num = function (n) { return (n == null ? 0 : n).toLocaleString("ko-KR"); };
+  // 예약 일시는 timestamptz — 표시는 반드시 KST 로 고정한다(브라우저 로컬이 아니라).
+  var dtK = function (t) { return t ? new Date(t).toLocaleString("ko-KR", { timeZone: "Asia/Seoul",
+    year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false }) : "—"; };
+  // 셸(iframe)에 내 높이를 알린다 — 같은 origin 의 부모만 받는다. 단독으로 열렸으면 아무 일도 없다.
+  var _szT = null, _szW = 0, _szLast = 0;
+  function notifySize() {
+    if (window.parent === window) return;
+    clearTimeout(_szT);
+    _szT = setTimeout(function () {
+      var h = Math.ceil(document.body.offsetHeight);   // 콘텐츠 높이만 — 뷰포트 높이를 보내면 되먹임 루프가 생긴다
+      if (!h || h === _szLast) return;
+      _szLast = h;
+      try { window.parent.postMessage({ jeilax: "resize", h: h }, location.origin); } catch (e) { /* */ }
+    }, 60);
+  }
+  function onWinResize() { if (window.innerWidth === _szW) return; _szW = window.innerWidth; notifySize(); }
 
   function auth() {
     try {
@@ -338,7 +399,7 @@
   }
   window.__gwCmd = showCmd;
 
-  function render(rows) {
+  function render(rows) {   // (예약: 끝에서 notifySize — 아래 boot 의 then 에서 호출)
     var t = rows.filter(function (r) {
       // MS 는 has_ms(=차단 여부)가 아니라 ms_todo 로 본다. 차단만 하고 라이선스를
       // 남겨 둔 계정이 '완료'로 빠지면, 좌석은 반납되지 않은 채 목록에서 사라진다.
@@ -409,6 +470,8 @@
      화면은 요청만 남긴다. 실제 조작은 그룹웨어에 붙을 수 있는 호스트의 러너가 한다
      (브라우저에서 사외 관리자 화면을 조작할 방법이 없다 — 「데이터 업데이트」와 같은 이유). */
   function msg(t, cls) { var m = el("runMsg"); m.className = "runmsg" + (cls ? " " + cls : ""); m.innerHTML = t; }
+  // 예약 액션의 결과는 예약 바·표 바로 아래에 쓴다(#runMsg 는 화면 위쪽이라 임베드에서는 보이지 않는다 — 리뷰 반영)
+  function smsg(t, cls, which) { var m = el(which === 2 ? "schedMsg2" : "schedMsg"); if (!m) return; m.className = "runmsg" + (cls ? " " + cls : ""); m.innerHTML = t; notifySize(); }
   function bar(done, total) {
     var p = el("prog");
     if (!total) { p.style.display = "none"; return; }
@@ -436,7 +499,7 @@
             (d.progress_target ? " · " + esc(d.progress_target) : ""));
       } else {
         if (POLL) { clearInterval(POLL); POLL = null; }
-        RUNNING = false; syncSel();
+        RUNNING = false; syncSel(); if (window.__sel2) window.__sel2();
         showRes(d.result);
         bar(d.progress_total || 1, d.progress_total || 1);
         if (d.status === "done") {
@@ -445,7 +508,9 @@
         } else {
           msg("일부/전체 실패 — " + esc(d.error_msg || "원인 미상"), "err");
         }
+        if (d.origin === "schedule") loadSched();   // 예약 승격 건이면 목록의 진행 표시도 마무리한다
       }
+      notifySize();
     }).catch(function (e) {
       if (POLL) { clearInterval(POLL); POLL = null; }
       RUNNING = false; syncSel();
@@ -577,6 +642,9 @@
     var n = selected2().length;
     el("selInfo2").textContent = "선택 " + n + "명";
     el("btnCheck2").disabled = el("btnApply2").disabled = (n === 0 || RUNNING || !axesPicked().length);
+    el("btnSched").disabled = (n === 0 || RUNNING || !axesPicked().length || !el("schedAt").value);
+    // 예약 표의 「지금 적용」도 같은 잠금을 따른다 — 진행 중 폴링을 다른 요청이 가로채지 않게(리뷰 반영)
+    Array.prototype.forEach.call(document.querySelectorAll(".schedgo"), function (b) { b.disabled = RUNNING; });
   }
   window.__sel2 = syncSel2;
   window.__axesPicked = axesPicked;
@@ -588,6 +656,7 @@
     FOUND = rows || [];
     el("searchWrap").style.display = FOUND.length ? "block" : "none";
     el("searchRun").style.display = FOUND.length ? "flex" : "none";
+    el("schedBar").style.display = FOUND.length ? "flex" : "none";
     if (!FOUND.length) { msg("검색 결과가 없습니다.", ""); return; }
     var mk = function (on) { return on ? '<span class="todo">남음</span>' : '<span class="done">완료</span>'; };
     el("searchRows").innerHTML = FOUND.map(function (r) {
@@ -608,6 +677,7 @@
         '</tr>';
     }).join("");
     syncSel2();
+    notifySize();
   }
 
   function doSearch() {
@@ -674,6 +744,163 @@
   el("btnCheck2").onclick = function () { runSearchReq("check"); };
   el("btnApply2").onclick = function () { runSearchReq("apply"); };
 
+  /* ── 예약(REQ-0029) ────────────────────────────────────────
+     지금 말고 정한 일시에 처리한다. 화면은 대상(이메일)·축·퇴사일·일시·자동 여부만 보내고,
+     일시가 되면 서버가 그 시점 기준으로 대상을 다시 산정해 큐에 넣는다(pg_cron 1분 · 러너 · 이 목록 조회 중 먼저 오는 것).
+     「자동 적용」은 큐 투입까지 자동이고 실제 실행은 러너가 켜져 있을 때다 — 그래서 러너 상태를 같이 보여준다. */
+  var SCHED = [], SCHED_T = null;
+  var ST = { waiting: ["st-wait", "대기"], due: ["st-due", "도래 — 확인 필요"], due_auto: ["st-auto", "도래 — 자동 승격 중"],
+             promoted: ["st-run", "큐 투입됨"], cancelled: ["st-off", "취소"], expired: ["st-off", "만료"] };
+  // datetime-local(초 없음) → KST 고정 오프셋으로 보낸다. 브라우저 시간대가 무엇이든 관리자가 본 숫자가 한국시간이다.
+  function schedIso() { var v = el("schedAt").value; return v ? (v + ":00+09:00") : null; }
+  function minLocal() { var d = new Date(Date.now() + 5 * 60000); var p = function (n) { return String(n).padStart(2, "0"); };
+    return d.getFullYear() + "-" + p(d.getMonth() + 1) + "-" + p(d.getDate()) + "T" + p(d.getHours()) + ":" + p(d.getMinutes()); }
+
+  function createSched() {
+    var emails = selected2(), axes = axesPicked(), at = schedIso();
+    if (!emails.length || !axes.length || !at) return;
+    var picked = FOUND.filter(function (r) { return emails.indexOf(r.email) >= 0; });
+    var noDate = picked.filter(function (r) { return !r.retire_dt; });
+    var override = el("dRetire").value;
+    if (noDate.length && !override) {
+      smsg("퇴사일이 없는 대상이 있습니다 — 위 <b>퇴사일</b> 칸에 날짜를 입력하세요: "
+          + noDate.map(function (r) { return esc(r.emp_nm || r.email); }).join(", "), "err");
+      return;
+    }
+    var auto = el("schedAuto").checked;
+    var live = picked.filter(function (r) { return r.hr_active === true; });
+    var liveWarn = live.length
+      ? "\n\n⚠ 인사상 재직 중인 대상이 있습니다(퇴사 반영 전):\n" + live.map(function (r) { return "  " + (r.emp_nm || "") + "(" + r.email + ")"; }).join("\n")
+        + (auto ? "\n  → 도래 시점에도 재직 중이면 자동 처리하지 않고 「확인 필요」로 돌립니다." : "")
+      : "";
+    if (!confirm((auto ? "⏰ 자동 적용 예약" : "⏰ 예약(도래 시 확인)") + " — " + dtK(at) + " (한국시간)\n\n"
+                 + "축: " + axes.join(", ") + "\n"
+                 + picked.map(function (r) { return (r.emp_nm || "") + "(" + r.email + ")"; }).join("\n") + liveWarn
+                 + (auto ? "\n\n일시가 되면 확인 없이 처리 큐에 들어갑니다(실제 실행은 러너 가동 시). 되돌리기 어려운 작업(ERP 역할 삭제·라이선스 회수)입니다. 등록할까요?"
+                         : "\n\n일시가 되면 「도래 — 확인 필요」로 뜨고, 「지금 적용」을 눌러야 처리됩니다. 등록할까요?"))) return;
+    el("btnSched").disabled = true;
+    smsg("예약 등록 중…");
+    var payload = { emails: emails, axes: axes, scheduledAt: at, autoApply: auto, memo: el("schedMemo").value.trim() || null };
+    if (override) payload.retireDt = override;
+    api2("offboard_schedule_create", payload).then(function (d) {
+      if (!d || !d.ok) {
+        var rj0 = (d && d.rejected) || [];
+        smsg("예약하지 못했습니다 — " + esc((d && d.msg) || "원인 미상")
+            + (rj0.length ? "<br>" + rj0.map(function (x) { return esc(x.email) + ": " + esc(x.reason); }).join("<br>") : ""), "err");
+        return;
+      }
+      var w = (d.warnings || []).map(function (x) { return "⚠ " + esc(x); }).join("<br>");
+      var rj = (d.rejected || []).map(function (x) { return "– " + esc(x.email) + " 제외: " + esc(x.reason); }).join("<br>");
+      smsg((d.reused ? "이미 같은 예약이 있어 그대로 둡니다 — " : "예약 등록 완료 — ") + dtK(d.scheduled_at) + (d.auto_apply ? " 자동 적용" : " 도래 시 확인")
+          + " · 지금 기준 대상 " + (d.targets || []).length + "명" + (w ? "<br>" + w : "") + (rj ? "<br>" + rj : ""), "ok");
+      // 같은 값으로 다시 눌러 중복 등록되지 않게 입력을 비운다(서버도 같은 사람·대상·일시면 재사용하지만, 화면에서 먼저 막는다)
+      el("schedMemo").value = ""; el("schedAuto").checked = false; el("schedAt").value = "";
+      Array.prototype.forEach.call(document.querySelectorAll(".pick2:checked"), function (c) { c.checked = false; });
+      loadSched();
+    }).catch(function (e) { smsg("예약 실패 — " + esc(e.message), "err"); })
+      .then(function () { syncSel2(); });
+  }
+
+  function renderSched(d) {
+    SCHED = (d && d.rows) || [];
+    var live = SCHED.filter(function (r) { return r.status === "scheduled" || (r.status === "promoted" && r.request && (r.request.status === "queued" || r.request.status === "running")); });
+    el("hSched").textContent = "(" + live.length + "건" + (SCHED.length > live.length ? " · 최근 30일 이력 " + (SCHED.length - live.length) : "") + ")";
+    el("schedRunner").innerHTML = d ? (d.runner_online
+        ? '<span class="badge g">러너 가동 중</span>'
+        : '<span class="badge a" title="자동 적용해도 큐에서 기다렸다가 러너가 켜지면 실행됩니다">러너 미가동 — 도래해도 즉시 실행되지 않습니다</span>')
+        + (d.cron ? "" : ' <span class="badge r">DB 스케줄러 없음</span>') : "";
+    el("schedRows").innerHTML = SCHED.length ? SCHED.map(function (r) {
+      var st = ST[r.state] || ["st-off", r.state];
+      var req = r.request || null;
+      var prog = "";
+      if (r.status === "promoted" && req) {
+        prog = req.status === "queued" ? "큐 대기(러너 " + (d.runner_online ? "가동" : "미가동") + ")"
+             : req.status === "running" ? "진행 " + (req.progress_done || 0) + "/" + (req.progress_total || 0)
+             : req.status === "done" ? "완료 ✔ " + (req.ok_cnt || 0) + "명"
+             : "실패 ✖ " + (req.fail_cnt || 0) + "명" + (req.error_msg ? " — " + esc(req.error_msg) : "");
+        if (r.promoted_kind === "auto") prog = "자동 승격 → " + prog;
+      } else if (r.status === "expired") { prog = "도래 시 처리 대상 없음(이미 정리됨)"; }
+      else if (r.status === "cancelled") { prog = "취소: " + esc(r.cancel_reason || "") + " · " + esc(r.cancelled_by || ""); }
+      var tg = (r.preview && r.preview.targets) || [];
+      var names = tg.length ? tg.map(function (t) { return esc(t.emp_nm || t.email); }).join(", ") : (r.emails || []).map(esc).join(", ");
+      var act = "";
+      if (r.status === "scheduled") {
+        act = '<button class="mini schedgo" data-id="' + esc(r.schedule_id) + '"' + (RUNNING ? " disabled" : "") + '>' + (r.due ? "지금 적용" : "즉시 적용") + '</button> '
+            + '<button class="mini schedcancel" data-id="' + esc(r.schedule_id) + '">취소</button>';
+      } else if (r.status === "promoted" && req && (req.status === "queued" || req.status === "running")) {
+        act = '<button class="mini schedwatch" data-rid="' + esc(r.request_id) + '">진행 보기</button>';
+      }
+      return '<tr' + (r.state === "due" ? ' class="due"' : "") + '>' +
+        '<td><span class="badge ' + st[0] + '">' + esc(st[1]) + '</span></td>' +
+        '<td class="c">' + dtK(r.scheduled_at) + '</td>' +
+        '<td>' + names + ' <span class="muted">(' + (r.emails || []).length + '명)</span></td>' +
+        '<td class="c">' + (r.axes || []).join("·") + '</td>' +
+        '<td class="c">' + (r.auto_apply ? '<span class="badge b">자동</span>' : '<span class="muted">확인</span>') + '</td>' +
+        '<td><span class="muted">' + esc(r.created_by || "") + '</span><br><span class="muted" style="font-size:11px">' + dtK(r.created_at) + '</span></td>' +
+        '<td>' + (r.memo ? esc(r.memo) + (prog ? "<br>" : "") : "") + '<span class="muted">' + prog + '</span></td>' +
+        '<td class="c" style="white-space:nowrap;">' + act + '</td></tr>';
+    }).join("") : '<tr><td colspan="8" class="c muted" style="padding:16px;">예약 없음</td></tr>';
+    Array.prototype.forEach.call(el("schedRows").querySelectorAll(".schedgo"), function (b) { b.onclick = function () { confirmSched(b.getAttribute("data-id")); }; });
+    Array.prototype.forEach.call(el("schedRows").querySelectorAll(".schedcancel"), function (b) { b.onclick = function () { cancelSched(b.getAttribute("data-id")); }; });
+    Array.prototype.forEach.call(el("schedRows").querySelectorAll(".schedwatch"), function (b) { b.onclick = function () { watchReq(b.getAttribute("data-rid")); }; });
+    notifySize();
+  }
+  function loadSched() {
+    return api2("offboard_schedule_list", {}).then(renderSched).catch(function (e) {
+      el("schedRows").innerHTML = '<tr><td colspan="8" class="c muted" style="padding:16px;">예약 목록을 불러오지 못했습니다 — ' + esc(e.message) + '</td></tr>';
+    });
+  }
+  function watchReq(rid) {
+    if (POLL) { clearInterval(POLL); POLL = null; }
+    RUNNING = true; syncSel(); syncSel2();
+    el("resList").innerHTML = "";
+    POLL = setInterval(function () { poll(rid); }, 3000);
+    poll(rid);
+    var y = el("runMsg").getBoundingClientRect().top + window.scrollY - 120;
+    if (window.parent !== window) { try { window.parent.postMessage({ jeilax: "scrollto", y: y }, location.origin); } catch (e) { /* */ } }
+    else window.scrollTo({ top: y, behavior: "smooth" });
+  }
+  function confirmSched(id) {
+    if (RUNNING) { smsg("다른 처리가 진행 중입니다 — 끝난 뒤 다시 눌러 주세요.", "err", 2); return; }
+    var r = SCHED.filter(function (x) { return x.schedule_id === id; })[0]; if (!r) return;
+    smsg("현재 기준 대상을 확인하는 중…", "", 2);
+    // 승인 전에 **지금 기준**으로 대상·경고를 다시 산정해 보여 준다(예약 때 스냅샷은 낡았을 수 있다 — 리뷰 반영)
+    api2("offboard_schedule_preview", { scheduleId: id }).then(function (pv) {
+      var cur = (pv && pv.current) || {}, tg = cur.targets || [], rj = cur.rejected || [];
+      if (!tg.length) {
+        smsg("지금 기준으로 처리할 대상이 없습니다 — 「지금 적용」을 누르면 예약이 만료 처리됩니다."
+             + (rj.length ? "<br>" + rj.map(function (x) { return esc(x.email) + ": " + esc(x.reason); }).join("<br>") : ""), "err", 2);
+      }
+      var warns = tg.filter(function (t) { return t.warn; });
+      if (!confirm("이 예약을 지금 처리 큐에 넣습니다 — 대상은 **지금 기준**입니다.\n\n"
+                   + (tg.length ? tg.map(function (t) { return (t.emp_nm || "") + "(" + t.email + ") [" + (t.axes || []).join("·") + "]" + (t.warn ? " ⚠ " + t.warn : ""); }).join("\n") : "(처리 대상 없음 → 만료 처리)")
+                   + (rj.length ? "\n\n제외: " + rj.map(function (x) { return x.email + " — " + x.reason; }).join("\n") : "")
+                   + (warns.length ? "\n\n⚠ 인사상 재직 중인 대상이 " + warns.length + "명 있습니다. 퇴사가 맞는지 확인하세요." : "")
+                   + "\n\n되돌리려면 각 시스템에서 직접 해제해야 합니다. 진행할까요?")) { smsg("", "", 2); return; }
+      return api2("offboard_schedule_confirm", { scheduleId: id }).then(function (d) {
+        if (!d || !d.ok) { smsg("적용하지 못했습니다 — " + esc((d && d.msg) || "원인 미상"), "err", 2); loadSched(); return; }
+        smsg("예약을 큐에 넣었습니다 — 아래 진행 상황을 표시합니다.", "ok", 2);
+        loadSched(); watchReq(d.request_id);
+      });
+    }).catch(function (e) { smsg("적용 실패 — " + esc(e.message), "err", 2); });
+  }
+  function cancelSched(id) {
+    var why = prompt("예약을 취소합니다. 사유(선택):", "");
+    if (why === null) return;
+    api2("offboard_schedule_cancel", { scheduleId: id, reason: why }).then(function (d) {
+      if (!d || !d.ok) smsg("취소하지 못했습니다 — " + esc((d && d.msg) || "원인 미상"), "err", 2);
+      else smsg("예약을 취소했습니다.", "ok", 2);
+      loadSched();
+    }).catch(function (e) { smsg("취소 실패 — " + esc(e.message), "err", 2); });
+  }
+  el("btnSched").onclick = createSched;
+  el("btnSchedReload").onclick = loadSched;
+  el("schedAt").min = minLocal();
+  el("schedAt").onchange = syncSel2;
+  el("schedAt").oninput = syncSel2;
+  // 도래 여부는 시간이 지나면 바뀐다 — 60초마다, 그리고 탭이 다시 보일 때 다시 읽는다(목록 조회가 도래 자동 건을 승격시키기도 한다).
+  document.addEventListener("visibilitychange", function () { if (!document.hidden && auth()) loadSched(); });
+
 
   if (!auth()) {
     el("gate").style.display = "block";
@@ -683,7 +910,10 @@
       el("gate").style.display = "block";
       el("g_msg").textContent = "데이터를 불러오지 못했습니다 — " + e.message;
       el("offRows").innerHTML = '<tr><td colspan="10" class="c muted" style="padding:16px;">불러오지 못했습니다.</td></tr>';
-    });
+    }).then(notifySize);
+    loadSched();
+    SCHED_T = setInterval(function () { if (!document.hidden) loadSched(); }, 60000);
+    _szW = window.innerWidth; window.addEventListener("resize", onWinResize);
   }
 })();
 </script>

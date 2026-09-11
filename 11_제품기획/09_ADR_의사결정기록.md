@@ -128,6 +128,24 @@
 - **잔여(inbox 등재)**: 관리자 게이트 3원 구조(콘솔·계정 API = `portal_admin` 직접 / 요청함·프론트 = `perm_effective.is_admin`) 통일 방향 · `dept_erp_scope`·`portal_page.shared_depts`의 유령 부서명 3건 정리 · `finance_dashboard` 「부서 전용」+shared_depts 조합(공유 부서 무시됨) · `v_erp_user_dept` use_yn 필터 · 퇴사 처리 흐름에 포털 권한(`perm_grant`·`portal_admin`) 회수 없음 · Entra 보안그룹 RBAC 채택 여부.
 - **근거**: `app/admin-permissions.html` · `04_챗봇_포털_데모UI.html`(`#panel-permacct`·`loadPermFrame`) · `app/admin-identity.html`(모듈 `perm`·`parseHash`) · `app/admin-accounts.html`(`permCell`) · `app/admin-user-dept.html` · `supabase/functions/jeil-chat-admin/index.ts` v11 · `_routes.py`(`/admin/permissions`, 리라이트 113) · 백로그 REQ-0026.
 
+### ADR-015 ✅ 퇴사 처리 예약 = 별도 예약 표 + 도래 시 재산정 · 「자동 적용」은 큐 투입까지 (2026-09-11)
+- **배경**: 관리자 지시 — "퇴사 처리에 예약 기능: 일자(시간까지) 예약을 등록하고 일자가 되면 확인되게, 자동 적용 체크 시 자동으로 적용되게". 조사 결과 큐(`etl_meta.offboard_request`, 38·39·41)에는 「언제 실행」 개념이 없었고(등록 즉시 `queued`), 실행 주체 `etl_watch.py`는 **관리자 PC에서 사람이 켤 때만 도는 수동 프로세스**(작업 스케줄러 미등록, 마지막 심박 09-09)였다. 같은 자리에 함정 둘 — `offboard_request_create`의 「2시간 내 진행 건이면 무조건 재사용」(예약 승격 건과 수동 요청이 서로를 삼킴), `offboard_request_claim`의 이중 선점 무방비(status 재확인·skip locked 없음).
+- **선택지**: (A) 큐 행에 `status='scheduled'`를 추가 — 러너 claim·화면 폴링·check 제약을 전부 고쳐야 하고 화면은 queued/running 외 상태를 「실패」로 표시 / (B) **별도 예약 표 `offboard_schedule` + 도래 시 큐에 새 행 insert** — 러너·폴링 코드 무변경 / (C) Power Automate 「마지막출근일 기준 업데이트_되풀이」(중지 상태)에 예약을 맡김 — ERP 한 축뿐이고 포털에서 보이지 않음.
+- **결정 = (B)** (관리자 결정 4건 2026-09-11: 병렬 착수 · **러너 수동 유지** · **pg_cron 설치** · 알림 코드 선반영). 구조:
+  - **예약 표** `etl_meta.offboard_schedule`(emails·axes·retire_dt_override·`scheduled_at timestamptz`·`auto_apply`·status scheduled|promoted|cancelled|expired·snapshot·history). 큐 행에는 `origin`(manual|schedule)·`schedule_id`만 추가.
+  - **도래 시 재산정**: 예약은 「누구를」만 저장하고, 승격 순간 공용 `offboard_build_targets`로 그 시점의 `v_account_recon` 기준 대상을 다시 만든다(예약 뒤 인사 반영·계정 정리·퇴사 취소가 반영된다). 대상이 0이면 큐에 넣지 않고 `expired`.
+  - **승격 세 겹**: ① pg_cron 1분 `offboard_schedule_promote_due()` ② 러너 `claim` 진입 ③ 목록 조회 진입(promote-on-read). 「도래 — 확인 필요」는 저장하지 않는 파생 상태(`scheduled ∧ scheduled_at ≤ now() ∧ ¬auto`).
+  - **「자동 적용」의 보장 범위 = 큐 투입까지.** 실제 실행은 러너가 켜져 있을 때다(관리자 결정으로 러너는 당분간 수동). 화면은 러너 미가동 배지로 이 사실을 항상 보여 준다. 도래 후 **7일**이 지나도록 승격되지 못한 자동 건은 자동을 풀고 확인 필요로 강등(스케줄러·러너 모두 멈춘 경우 며칠 지난 퇴사가 몰래 실행되지 않게).
+  - **함정 정리**: create의 재사용 규칙을 「같은 요청자·같은 대상 집합·5분 내」(더블클릭 방지)로 축소, claim에 `for update skip locked` + 바깥 `status='queued'` 재확인, 승격은 create를 거치지 않고 직접 insert.
+  - **시간대**: DB UTC. 화면 `datetime-local`(KST) + `':00+09:00'` → timestamptz. 도래 판정은 `scheduled_at <= now()`, 날짜 파생은 `at time zone 'Asia/Seoul'`, 표시는 `toLocaleString('ko-KR',{timeZone:'Asia/Seoul'})`(브라우저 로컬 시간대에 기대지 않는다).
+  - **알림**: 러너 `notify()`(Teams 웹훅) — 예약 승격 건은 결과와 무관하게, 수동 건은 실패 시. `TEAMS_WEBHOOK_URL` 미설정이면 조용히 건너뛴다(관리자가 나중에 `.env`에 등록). 운영전환 게이트 G8(알림 없이 무인 실행 금지)의 부분 충족 — 웹훅 등록 전까지는 화면이 유일한 확인 수단이다.
+- **§1.6과의 관계**: 「자동 적용」은 관리자가 예약 등록 시 **confirm에서 대상·일시·자동 여부를 보고 승인**한 범위 안에서만 돈다. 기본값은 자동 OFF(도래 시 확인). 되돌리기 어려운 조작(ERP 역할 DELETE·라이선스 회수)이라 예약 등록 confirm 문구에 그 사실을 적었다.
+- **역할 분담**: Power Automate 「마지막출근일 기준 업데이트_되풀이」(중지)는 그대로 중지 — 포털 예약이 정본. 재가동하면 이중 처리 위험(21 기획서 §7 갱신 대상).
+- **실측**: 마이그레이션 4건(`offboard_schedule_pg_cron`·`offboard_schedule`·`offboard_schedule_create_fix_warn`·`offboard_schedule_hardening`), cron job 2개(승격 1분·실행이력 정리 일 1회), 새 RPC 전부 anon/authenticated 실행 불가. 등록→대기→취소 / 도래 자동→대상 없음→만료 / 유예 초과→강등 / **재직자 자동 승격 보류** / **큐 7일 유예 만료** / **중복 예약 재사용** 흐름 DB 실측 통과(테스트 행 삭제). 회귀 테스트가 `text[] || '문자열'` 배열 리터럴 결함을 잡아 정정.
+- **적대 리뷰 반영(정본 `sql/46`)**: 3관점 리뷰 + 건별 3인 검증에서 확정된 것 — ① 즉시 요청 재사용 키에 mode·축·원문 이메일(`req_emails`)이 없어 「점검」이 「실행」을 삼키던 것 ② pg_cron이 즉시 승격해 45번의 7일 강등이 큐 단계를 덮지 못하던 것(claim이 7일 넘은 큐 예약 건을 실패로 닫음) ③ 자동 승격이 「인사상 재직 중」(퇴사 철회) 대상을 걸러내지 않던 것(보류 → 확인 필요) + 수동 확인 전 현재 기준 미리보기 ④ 중복 예약·Teams 워크플로 웹훅(Adaptive Card) 미지원·러너 예외 경로 알림 누락·URL 스킴 검사·화면 잠금 동기화·ERP 즉시성 문구 오류·cron 실행이력 무한 누적.
+- **잔여(별건)**: 러너 상시화(작업 스케줄러 `--once` 1분 — PC 절전·파일 로그·알림 선행) · Teams 웹훅 등록 · 퇴사 시 포털 권한(perm_grant·portal_admin) 회수(ADR-014 잔여) · 그룹웨어 자동화 계정의 무인 야간 로그인이 사람 세션을 끊는 문제(21 §7 J2).
+- **근거**: `실제구축준비 자료/이관/sql/45_offboard_schedule.sql` · `supabase/functions/jeil-accounts/index.ts` v2 · `app/admin-offboarding.html` · `10_ERP_DB연계/etl/etl_watch.py` `notify()` · 백로그 REQ-0029.
+
 ## B. 미결정 (Proposed — 결정 대기)
 
 ### ADR-101 🕐 백엔드 스택 최종 확정

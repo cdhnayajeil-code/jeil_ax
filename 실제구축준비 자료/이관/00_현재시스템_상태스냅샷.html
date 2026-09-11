@@ -98,7 +98,7 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <tr>
 <td><strong>Supabase</strong></td>
 <td><strong>프로젝트 가동</strong> <code>dvzohdqtjzocgcclgwro</code> / 스키마·RLS·Hook·Storage·<strong>Azure OIDC</strong>·autoconfirm 적용</td>
-<td>협력사 발주 + <strong>관리자주도 등록</strong>(<code>portal_admin</code>·<code>vendor_account</code>·<strong><code>vendor_admin_account</code></strong>·<code>vendor_account_log</code>) 테이블, Edge Function <strong>13종</strong>(<code>approve-vendor</code>·<code>vendor-provision</code>·<code>vendor-admin-provision</code>·<code>vendor-reset-password</code>·<code>vendor-set-password</code>·<code>jeil-chat</code>·<code>jeil-chat-admin</code>(v11 · 배포 14)·<code>jeil-chat-history</code>·<code>jeil-me</code>·<code>jeil-hr</code>·<code>jeil-portal-request</code>·<code>jeil-gl-draft</code>·<code>jeil-accounts</code>), <code>chat_log</code> 감사 + <strong>대화내역 3테이블</strong>(<code>chat_work</code>·<code>chat_session</code>·<code>chat_message</code> — 본인 전용, ADR-009) + <strong>요청 원장</strong>(<code>portal_request</code> — 조회불가 요청접수, ADR-011), RLS 격리검증·어드바이저 클린</td>
+<td>협력사 발주 + <strong>관리자주도 등록</strong>(<code>portal_admin</code>·<code>vendor_account</code>·<strong><code>vendor_admin_account</code></strong>·<code>vendor_account_log</code>) 테이블, Edge Function <strong>13종</strong>(<code>approve-vendor</code>·<code>vendor-provision</code>·<code>vendor-admin-provision</code>·<code>vendor-reset-password</code>·<code>vendor-set-password</code>·<code>jeil-chat</code>·<code>jeil-chat-admin</code>(v11 · 배포 14)·<code>jeil-chat-history</code>·<code>jeil-me</code>·<code>jeil-hr</code>·<code>jeil-portal-request</code>·<code>jeil-gl-draft</code>·<code>jeil-accounts</code>(v2 · 배포 5 — 퇴사 예약 4액션)) + <strong>pg_cron 1.6.4</strong>(2026-09-11 설치 · job <code>offboard_schedule_promote_due</code> 1분), <code>chat_log</code> 감사 + <strong>대화내역 3테이블</strong>(<code>chat_work</code>·<code>chat_session</code>·<code>chat_message</code> — 본인 전용, ADR-009) + <strong>요청 원장</strong>(<code>portal_request</code> — 조회불가 요청접수, ADR-011), RLS 격리검증·어드바이저 클린</td>
 </tr>
 <tr>
 <td>데모 도메인</td>
@@ -516,6 +516,11 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 </tr>
 </thead>
 <tbody>
+<tr>
+<td>2026-09-11</td>
+<td><strong>퇴사 처리 예약 도입</strong>(REQ-0029 · ADR-015 · 마이그레이션 4건 · 정본 <code>sql/45</code>·<code>46</code>(리뷰 반영) · Edge <code>jeil-accounts</code> v2.1=배포 6 · <strong>pg_cron 설치 + 1분 job</strong>) — 별도 예약 표 <code>etl_meta.offboard_schedule</code>, 큐 <code>offboard_request</code>에 <code>origin</code>·<code>schedule_id</code> 추가, 도래 시 대상 재산정 후 큐 투입. 「자동 적용」은 큐 투입까지(러너 수동 유지 — 관리자 결정), 유예 7일 초과 시 강등. <code>offboard_request_create</code> 재사용 규칙 축소·<code>claim</code> 이중 선점 방어(skip locked). 러너 <code>etl_watch.py</code>에 Teams <code>notify()</code>(웹훅 미설정 시 건너뜀). 화면 <code>/admin/offboarding</code> 예약 바·목록</td>
+<td>최동혁(+Claude)</td>
+</tr>
 <tr>
 <td>2026-09-11</td>
 <td><strong>품목 중복조회 서버 조회 신설</strong>(REQ-0030 · 마이그레이션 <code>item_dup_norm_functions</code>·<code>item_master_dup_keys</code>·<code>item_dup_search_rpc</code>·<code>item_dup_norm_loose_separators</code>·<code>item_dup_search_rpc_plan_fix</code> · 정본 <code>sql/44</code>) — <code>erp_ro.item_master_s</code> 에 정규화 계산 칼럼 <code>name_key</code>·<code>spec_key</code>(GENERATED STORED, ETL 무변경) + 인덱스 2종, <code>erp_ro</code> 정규화 함수 4종, RPC <code>public.item_dup_search</code>(SECURITY INVOKER · authenticated 전용 · anon/PUBLIC 회수). ⚠ 정규화 규칙을 바꾸면 계산 칼럼 전건 재계산 필요(sql/44 헤더)</td>

@@ -23,6 +23,7 @@ import argparse
 import datetime
 import importlib
 import json
+import os
 import socket
 import sys
 import time
@@ -55,6 +56,75 @@ HTTP_TIMEOUT = 60
 
 def log(msg):
     print(f"[{datetime.datetime.now():%H:%M:%S}] {msg}", flush=True)
+
+
+def notify(title, lines, bad=False):
+    """퇴사 처리 결과를 Teams 로 알린다(REQ-0029). 웹훅이 없으면 조용히 건너뛴다(반환 False).
+
+    예약 자동 적용은 사람이 화면을 보고 있지 않을 때 돈다 — 결과가 콘솔에만 남으면 아무도 모른다
+    (운영전환 게이트 G8: 알림 없이 무인 실행 금지). 설정은 루트 `.env` 의 `TEAMS_WEBHOOK_URL` 한 줄.
+    URL 형식으로 페이로드를 가른다(jeil-portal-request 와 같은 규칙):
+      · logic.azure.com  = Teams 「워크플로」 웹훅 → Adaptive Card (구 커넥터는 신규 발급이 막혀 이쪽이 기본)
+      · webhook.office.com = 구 O365 Incoming Webhook → MessageCard
+    URL 자체가 비밀값이라 로그·문서에 남기지 않는다 — 형식이 틀려도 값을 찍지 않고 종류만 적는다(§1.8).
+    알림 실패가 본작업을 막지 않는다 — 예외를 삼키고 진행한다."""
+    hook = os.environ.get("TEAMS_WEBHOOK_URL", "").strip()
+    if not hook:
+        return False
+    if not hook.startswith("https://"):
+        log("  · Teams 알림 건너뜀: TEAMS_WEBHOOK_URL 형식 오류(https:// 필요)")
+        return False
+    text = "  \n".join(str(x) for x in lines) + f"  \n  \n_러너 {socket.gethostname()} · {datetime.datetime.now():%Y-%m-%d %H:%M}_"
+    head = ("🚨 " if bad else "✅ ") + title
+    if "webhook.office.com" in hook:
+        body = {"@type": "MessageCard", "@context": "https://schema.org/extensions",
+                "themeColor": "b3402f" if bad else "2e7d52", "summary": title, "title": head, "text": text}
+    else:
+        body = {"type": "message", "attachments": [{
+            "contentType": "application/vnd.microsoft.card.adaptive",
+            "content": {"type": "AdaptiveCard", "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+                        "version": "1.4", "body": [
+                            {"type": "TextBlock", "text": head, "weight": "Bolder", "size": "Medium", "wrap": True,
+                             "color": "Attention" if bad else "Good"},
+                            {"type": "TextBlock", "text": text, "wrap": True}]}}]}
+    try:
+        req = urllib.request.Request(hook, data=json.dumps(body, ensure_ascii=False).encode("utf-8"),
+                                     method="POST", headers={"Content-Type": "application/json"})
+        with urllib.request.urlopen(req, timeout=15):
+            return True
+    except urllib.error.HTTPError as e:            # 알림 실패가 본작업을 막지 않는다 — URL 은 찍지 않는다
+        log(f"  · Teams 알림 실패(무시): HTTP {e.code}")
+        return False
+    except Exception as e:
+        log(f"  · Teams 알림 실패(무시): {type(e).__name__}")
+        return False
+
+
+_DUE_NOTIFIED_AT = 0.0
+
+
+def notify_due_schedules(url, key):
+    """도래했는데 사람 확인을 기다리는 예약·자동 보류(강등) 건을 하루 한 번 Teams 로 묶어 알린다(리뷰 반영).
+    러너가 도는 동안만 동작한다(러너는 수동 기동) — 그래도 화면을 열지 않은 관리자에게 닿는 유일한 경로다."""
+    global _DUE_NOTIFIED_AT
+    if time.time() - _DUE_NOTIFIED_AT < 6 * 3600:
+        return
+    _DUE_NOTIFIED_AT = time.time()
+    try:
+        lst = rpc(url, key, "offboard_schedule_list", {"p_days_back": 7}) or {}
+    except Exception as e:
+        log(f"  · 예약 목록 조회 실패(알림 생략): {type(e).__name__}")
+        return
+    rows = lst.get("rows") or []
+    due = [r for r in rows if r.get("state") == "due"]
+    if not due:
+        return
+    def line(r):
+        who = ", ".join((t.get("emp_nm") or t.get("email") or "") for t in ((r.get("preview") or {}).get("targets") or [])) or ", ".join(r.get("emails") or [])
+        hist = r.get("history") or []
+        why = "자동 보류(재직·유예)" if any(h.get("act") == "downgrade" for h in hist) else "도래 시 확인"
+        return f"• {str(r.get('scheduled_at'))[:16].replace('T', ' ')}Z — {who} [{why}]"
+    notify(f"퇴사 예약 도래 — 확인 필요 {len(due)}건", ["/admin/offboarding 에서 「지금 적용」 또는 「취소」를 눌러 주세요."] + [line(r) for r in due[:15]], bad=False)
 
 
 def rpc(url, key, fn, payload):
@@ -187,7 +257,9 @@ def handle_offboard(url, key, runner, req):
     targets = req.get("targets") or []
     total = len(targets)
     apply = (mode == "apply")
-    log(f"퇴사 처리 요청 {rid[:8]}… (요청자 {req.get('requested_by') or '-'}) — 대상 {total}명 · "
+    scheduled = (req.get("origin") == "schedule")   # 예약 승격 건(REQ-0029) — 사람이 보고 있지 않을 수 있어 결과를 알린다
+    log(f"퇴사 처리 요청 {rid[:8]}… (요청자 {req.get('requested_by') or '-'}"
+        + (" · 예약 승격" if scheduled else "") + f") — 대상 {total}명 · "
         + ("실제 처리" if apply else "점검(변경 없음)"))
 
     # Graph 토큰은 한 번만 받아 모든 대상·축이 함께 쓴다(대상마다 받으면 토큰 요청이 대상 수만큼 난다).
@@ -227,6 +299,12 @@ def handle_offboard(url, key, runner, req):
         {"p_request_id": rid, "p_status": status,
          "p_result": {"mode": mode, "targets": detail}, "p_error": err})
     log(f"퇴사 처리 종료 {rid[:8]}… — {status} · 전축성공 {total - len(fails)} / {total}")
+    # 알림 — 예약 승격 건은 결과와 무관하게, 수동 건은 실패했을 때만(관리자 결정 2026-09-11: 웹훅은 있으면 쓰고 없으면 건너뜀).
+    if apply and (scheduled or fails):
+        notify(("퇴사 예약 자동 처리 " if scheduled else "퇴사 처리 ") + ("실패 있음" if fails else "완료"),
+               [f"요청 {rid[:8]}… · 요청자 {req.get('requested_by') or '-'} · 대상 {total}명 · 전축성공 {total - len(fails)}"]
+               + [("✖ " if not d.get("ok") else "✔ ") + f"{d.get('name') or d.get('email')} — {str(d.get('msg'))[:160]}" for d in detail[:20]],
+               bad=bool(fails))
 
 
 def tick(url, key, runner, dry, full):
@@ -234,6 +312,8 @@ def tick(url, key, runner, dry, full):
     ETL 요청과 퇴사 처리 요청 **둘 다** 본다 — 한 번에 하나만 처리해 브라우저·ERP 부하가 겹치지 않는다."""
     rpc(url, key, "erp_sync_runner_ping",
         {"p_runner": runner, "p_note": f"jobs={len(SAFE_JOBS)}+acct{len(COLLECTORS)}+offboard"})
+
+    notify_due_schedules(url, key)   # 도래·보류 예약을 하루 한 번 묶어 알린다(웹훅 있을 때만)
 
     off = rpc(url, key, "offboard_request_claim", {"p_runner": runner})
     if off:
@@ -246,6 +326,10 @@ def tick(url, key, runner, dry, full):
                     {"p_request_id": off["request_id"], "p_status": "failed", "p_error": str(e)[:500]})
             except Exception:
                 pass
+            # 예약 자동 건은 handle_offboard 안의 알림에 못 미쳤어도 실패를 알린다(리뷰 반영 — 무인 실행의 실패가 묻히지 않게)
+            if off.get("origin") == "schedule" and (off.get("mode") == "apply"):
+                notify("퇴사 예약 자동 처리 실패(러너 오류)",
+                       [f"요청 {str(off.get('request_id'))[:8]}… · 대상 {len(off.get('targets') or [])}명", f"{type(e).__name__}: {str(e)[:200]}"], bad=True)
         return True
 
     req = rpc(url, key, "erp_sync_request_claim", {"p_runner": runner})

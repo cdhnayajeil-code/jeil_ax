@@ -7,6 +7,17 @@
 //   { scope: 'offboard_status', requestId: string }                       → 요청 진행 상태
 //   { scope: 'refresh' }                                                  → 계정·권한 전량 재수집 요청
 //   { scope: 'refresh_status', requestId: string }                        → 재수집 진행 상태
+//   { scope: 'offboard_schedule_create', emails, axes?, retireDt?, scheduledAt(ISO, +09:00), autoApply?, memo? }
+//                                                                          → 퇴사 처리 예약 등록(REQ-0029)
+//   { scope: 'offboard_schedule_list', daysBack? }                         → 예약 목록(도래 자동 건은 조회 시 승격)
+//   { scope: 'offboard_schedule_preview', scheduleId }                     → 승인 전 현재 기준 대상·경고(v2.1)
+//   { scope: 'offboard_schedule_confirm', scheduleId }                     → 도래 건 확인 → 큐 투입
+//   { scope: 'offboard_schedule_cancel', scheduleId, reason? }             → 예약 취소
+//   v2(2026-09-11, REQ-0029): 예약 4액션. 예약은 큐에 넣지 않고 별도 표에 두며, 일시가 되면
+//     (pg_cron 1분·러너·목록 조회 중 먼저 오는 것이) 대상을 다시 산정해 큐에 넣는다. 자동 적용은 큐 투입까지 자동이고
+//     실제 실행은 러너가 켜져 있을 때다(관리자 결정: 러너 수동 유지).
+//   v2.1(2026-09-11, 리뷰 반영): scheduledAt 은 시간대 오프셋 필수(없으면 Edge(UTC)가 9시간 어긋나게 해석) ·
+//     offboard_schedule_preview 추가(수동 확인 전 현재 기준 대상·경고).
 //
 // 정본은 ERP 계정(Z_USR_MAST_REC.usr_id = 이메일)이고 인사(HAA010T)는 이메일로 붙는 서브다.
 // 조회는 반드시 RPC account_recon_get 경유 — erp_ro 는 REST 비노출 스키마라
@@ -28,7 +39,9 @@ const json = (o: unknown, status = 200) =>
   new Response(JSON.stringify(o), { status, headers: { ...cors, "Content-Type": "application/json" } });
 
 const SCOPES = ["summary", "recon", "erp", "hr", "gw", "ms"];
-const ACTIONS = ["offboard_create", "offboard_status", "search", "refresh", "refresh_status"];
+const ACTIONS = ["offboard_create", "offboard_status", "search", "refresh", "refresh_status",
+  "offboard_schedule_create", "offboard_schedule_list", "offboard_schedule_confirm", "offboard_schedule_cancel", "offboard_schedule_preview"];
+const AXES = ["erp", "gw", "ms"];
 
 async function verifyEntraUser(token: string): Promise<{ upn: string } | null> {
   try {
@@ -86,6 +99,50 @@ Deno.serve(async (req) => {
         p_axes: axes, p_retire_dt: rd,
       });
       if (error) return json({ error: "요청 등록 실패: " + error.message }, 500);
+      return json({ ok: true, scope, data, viewer: user.upn });
+    }
+    // ── 예약(REQ-0029) ──────────────────────────────────────────────
+    if (scope === "offboard_schedule_create") {
+      const emails = Array.isArray(body.emails) ? body.emails.map((e) => String(e)).slice(0, 50) : [];
+      const axes = (Array.isArray(body.axes) ? body.axes.map((a) => String(a)) : AXES).filter((a) => AXES.includes(a));
+      const rd = /^\d{4}-\d{2}-\d{2}$/.test(String(body.retireDt || "")) ? String(body.retireDt) : null;
+      // 화면은 datetime-local(KST) 값에 '+09:00' 을 붙여 보낸다. 시간대가 없으면 Edge(UTC)가 로컬로 해석해 9시간 어긋나므로
+      // 오프셋을 **필수**로 요구한다 — 시각이 틀린 예약이 제일 위험하다.
+      const atRaw = String(body.scheduledAt || "");
+      const at = new Date(atRaw);
+      if (!emails.length) return json({ error: "대상이 없습니다" }, 400);
+      if (!axes.length) return json({ error: "처리할 축을 하나 이상 고르세요" }, 400);
+      if (!/T\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:?\d{2})$/.test(atRaw)) return json({ error: "적용 일시에 시간대가 없습니다(예: 2026-09-30T18:00:00+09:00)" }, 400);
+      if (Number.isNaN(at.getTime())) return json({ error: "적용 일시 형식 오류" }, 400);
+      const { data, error } = await admin.rpc("offboard_schedule_create", {
+        p_actor: user.upn, p_emails: emails, p_axes: axes, p_retire_dt: rd,
+        p_scheduled_at: at.toISOString(), p_auto_apply: body.autoApply === true,
+        p_memo: body.memo != null ? String(body.memo).slice(0, 200) : null,
+      });
+      if (error) return json({ error: "예약 등록 실패: " + error.message }, 500);
+      return json({ ok: true, scope, data, viewer: user.upn });
+    }
+    if (scope === "offboard_schedule_list") {
+      const days = Math.min(365, Math.max(1, Number(body.daysBack) || 30));
+      const { data, error } = await admin.rpc("offboard_schedule_list", { p_days_back: days });
+      if (error) return json({ error: "예약 목록 조회 실패: " + error.message }, 500);
+      return json({ ok: true, scope, data, viewer: user.upn });
+    }
+    if (scope === "offboard_schedule_preview") {
+      const sid = String(body.scheduleId || "");
+      if (!/^[0-9a-f-]{36}$/i.test(sid)) return json({ error: "scheduleId 형식 오류" }, 400);
+      const { data, error } = await admin.rpc("offboard_schedule_preview", { p_schedule_id: sid });
+      if (error) return json({ error: "예약 미리보기 실패: " + error.message }, 500);
+      return json({ ok: true, scope, data, viewer: user.upn });
+    }
+    if (scope === "offboard_schedule_confirm" || scope === "offboard_schedule_cancel") {
+      const sid = String(body.scheduleId || "");
+      if (!/^[0-9a-f-]{36}$/i.test(sid)) return json({ error: "scheduleId 형식 오류" }, 400);
+      const { data, error } = scope === "offboard_schedule_confirm"
+        ? await admin.rpc("offboard_schedule_promote", { p_actor: user.upn, p_schedule_id: sid, p_kind: "manual" })
+        : await admin.rpc("offboard_schedule_cancel", { p_actor: user.upn, p_schedule_id: sid,
+            p_reason: body.reason != null ? String(body.reason).slice(0, 200) : null });
+      if (error) return json({ error: (scope === "offboard_schedule_confirm" ? "예약 적용 실패: " : "예약 취소 실패: ") + error.message }, 500);
       return json({ ok: true, scope, data, viewer: user.upn });
     }
     // 계정·권한 전량 재수집 — MS(라이선스 포함)·그룹웨어만. ERP 배치는 부르지 않는다.

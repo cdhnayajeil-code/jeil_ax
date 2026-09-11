@@ -246,6 +246,14 @@
       if (f.style.height !== px) f.style.height = px;
     });
   });
+  // 자식이 스크롤 위치를 부탁할 때(iframe 은 스스로 스크롤하지 못한다) — iframe 상단 + 자식 좌표로 옮긴다.
+  window.addEventListener("message", function (ev) {
+    if (ev.origin !== location.origin || !ev.data || ev.data.jeilax !== "scrollto") return;
+    Array.prototype.forEach.call(document.querySelectorAll("iframe.frame"), function (f) {
+      if (f.contentWindow !== ev.source) return;
+      window.scrollTo({ top: f.getBoundingClientRect().top + window.scrollY + Number(ev.data.y || 0), behavior: "smooth" });
+    });
+  });
   // 자식(계정 대사)이 「권한」을 눌러 사람을 넘길 때 — 셸이 모듈을 바꾸고 딥링크로 연다.
   window.addEventListener("message", function (ev) {
     if (ev.origin !== location.origin || !ev.data || ev.data.jeilax !== "go") return;
