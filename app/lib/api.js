@@ -425,11 +425,17 @@ export const erpApi = {
     }
     return out;
   },
-  // 품목 조회(키워드 부분일치, 대량이라 반드시 필터+상한)
-  async items(keyword = "", limit = 200) {
-    let q = supabase.from("v_erp_item").select("*").limit(limit);
-    if (keyword) q = q.or(`item_code.ilike.%${keyword}%,item_name.ilike.%${keyword}%`);
-    const { data, error } = await q; if (error) throw error; return data || [];
+  // 품목 존재/중복 조회(RPC item_dup_search · SQL 정본 44_item_dup_search.sql · REQ-0030)
+  // name/spec/all 중 채운 칸은 모두 만족(AND), 칸 안의 여러 단어는 순서 무관. 띄어쓰기·대소문자·×/x/*·Ø/Φ·전각·
+  // 「◆사용금지◆」 표기 차이는 서버가 무시한다. 결과에는 검색에 걸린 품목과 **품명+규격이 같은 전체 마스터의 다른 코드**가
+  // 함께 온다(matched=false). 행마다 dup_cnt·dup_valid_cnt·spec_cnt·spec_name_cnt·match_total·row_total 이 실린다.
+  // 2글자 이상 조각이 없으면 서버가 빈 배열을 돌려준다. 상한 기본 1,000행(최대 3,000).
+  async itemDupSearch({ name = "", spec = "", all = "", limit = 1000 } = {}) {
+    const { data, error } = await supabase.rpc("item_dup_search", {
+      p_name: name || null, p_spec: spec || null, p_all: all || null, p_limit: limit,
+    });
+    if (error) throw error;
+    return data || [];
   },
   // 발주 스냅샷(2026): 필터 {bp_code, subcontra_flg, po_sts} 선택
   async purOrders({ bp_code, subcontra_flg, po_sts, limit = 500 } = {}) {

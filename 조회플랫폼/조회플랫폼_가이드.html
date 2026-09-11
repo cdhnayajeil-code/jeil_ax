@@ -42,7 +42,7 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <body>
 <div class="page">
   <span class="doc-label">JEIL AX · 표준 조회 플랫폼</span>
-  <div class="docnav"><a href="/docs/querybar">🔎 조회 플랫폼 데모</a><a class="cur" href="/docs/querybar/guide">표준 조회 플랫폼 가이드</a><a href="/docs/grid">🧩 그리드 표준</a></div>
+  <div class="docnav"><a href="/docs/querybar">🔎 조회 플랫폼 데모</a><a class="cur" href="/docs/querybar/guide">표준 조회 플랫폼 가이드</a><a href="/그리드/index.html">🧩 그리드 표준</a></div>
   <p class="md-link">📄 Markdown 원본: <a href="/docs/querybar/guide">조회플랫폼_가이드.md</a> · 데모 <a href="/docs/querybar">조회 플랫폼 데모</a></p>
   <div class="content">
 <h1 id="_1">표준 조회 플랫폼 가이드</h1>
@@ -455,11 +455,15 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <td>품목 존재/중복 조회</td>
 <td><code>/work/item-duplicates</code></td>
 <td><strong>없음</strong>(검색형)</td>
-<td>—</td>
-<td>목업</td>
+<td>— ※</td>
+<td>ERP 실데이터(RPC <code>item_dup_search</code>)</td>
 </tr>
 </tbody>
 </table>
+<p>※ <strong>예외(2026-09-11 · REQ-0030)</strong> — 품목 존재/중복 조회의 조회조건(품명·규격·통합 3칸)은 조회바 <code>extras</code> 가 아니라
+화면 본문의 검색 패널에 둔다. <code>extras</code> 텍스트 칸은 <strong>입력 중 자동 조회(debounce) + 조회 중 입력 잠금</strong>으로 동작하는데,
+이 화면은 서버에서 5.9만 건을 정규화 비교하는 검색(0.1~1초)이라 타이핑 도중 칸이 잠기고 헛조회가 쌓인다.
+조회바는 기준일·기준 문구·새로고침·최종 조회 시각·오류 표시를 그대로 맡고, 조건은 주소(<code>?name=&amp;spec=&amp;q=</code>)로 공유한다.</p>
 <p><strong>제외</strong> — 결의전표 입력(<code>/work/voucher</code>)은 입력 화면이라 조회 플랫폼 대상이 아니다.
 프로젝트원가 2종은 프로젝트 단위 문서라 월 축이 없다.</p>
   </div>
