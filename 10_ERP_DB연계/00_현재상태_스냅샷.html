@@ -47,7 +47,7 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
   <div class="content">
 <h1 id="00-erp-db">00. ERP DB 연계 — 현재상태 스냅샷</h1>
 <blockquote>
-<p><strong>기준일: 2026-09-11</strong>(v0.49, 이전 v0.48 · 2026-09-11 / v0.47 · 2026-09-11 / v0.46 · 2026-09-11 / v0.45 · 2026-09-08 / v0.44 · 2026-09-07 / v0.43 · 2026-09-07 / v0.42 · 2026-09-07 / v0.41 · 2026-09-07 / v0.40 · 2026-09-07 / v0.39 · 2026-08-27 / v0.38 · 2026-08-25 / v0.37 · 2026-08-24 / v0.36 · 2026-08-20 / v0.35 · 2026-08-20 / v0.34 · 2026-08-20 / v0.33 · 2026-08-20 / v0.32 · 2026-08-19 / v0.31 · 2026-08-19 / v0.30 · 2026-08-18 / v0.29 · 2026-08-18 / v0.28 · 2026-08-18 / v0.27 · 2026-08-12 / v0.26 · 2026-08-12 / v0.25 · 2026-08-11 / v0.24 · 2026-08-11 / v0.23 · 2026-08-11 / v0.22 · 2026-08-11 / v0.21 · 2026-08-10 / v0.20 · 2026-08-03 / v0.19 · 2026-08-03 / v0.18 · 2026-07-31 / v0.17 · 2026-07-24 / v0.16 · 2026-07-22 / v0.15 · 2026-07-22 / v0.14 · 2026-07-22 / v0.13 · 2026-07-21 / v0.12 · 2026-07-21 / v0.11 · 2026-07-20 / v0.10 · 2026-07-13 / v0.9 · 2026-07-08 / v0.8 · 2026-07-08 / v0.7 · 2026-07-08 / v0.6 · 2026-07-08 / v0.5 · 2026-07-08 / v0.4 · 2026-07-08 / v0.3 · 2026-07-08 / v0.2 · 2026-07-07) · 관리: 최동혁 · 전담 에이전트: <code>erp-db-link-manager</code>
+<p><strong>기준일: 2026-09-11</strong>(v0.50, 이전 v0.49 · 2026-09-11 / v0.48 · 2026-09-11 / v0.47 · 2026-09-11 / v0.46 · 2026-09-11 / v0.45 · 2026-09-08 / v0.44 · 2026-09-07 / v0.43 · 2026-09-07 / v0.42 · 2026-09-07 / v0.41 · 2026-09-07 / v0.40 · 2026-09-07 / v0.39 · 2026-08-27 / v0.38 · 2026-08-25 / v0.37 · 2026-08-24 / v0.36 · 2026-08-20 / v0.35 · 2026-08-20 / v0.34 · 2026-08-20 / v0.33 · 2026-08-20 / v0.32 · 2026-08-19 / v0.31 · 2026-08-19 / v0.30 · 2026-08-18 / v0.29 · 2026-08-18 / v0.28 · 2026-08-18 / v0.27 · 2026-08-12 / v0.26 · 2026-08-12 / v0.25 · 2026-08-11 / v0.24 · 2026-08-11 / v0.23 · 2026-08-11 / v0.22 · 2026-08-11 / v0.21 · 2026-08-10 / v0.20 · 2026-08-03 / v0.19 · 2026-08-03 / v0.18 · 2026-07-31 / v0.17 · 2026-07-24 / v0.16 · 2026-07-22 / v0.15 · 2026-07-22 / v0.14 · 2026-07-22 / v0.13 · 2026-07-21 / v0.12 · 2026-07-21 / v0.11 · 2026-07-20 / v0.10 · 2026-07-13 / v0.9 · 2026-07-08 / v0.8 · 2026-07-08 / v0.7 · 2026-07-08 / v0.6 · 2026-07-08 / v0.5 · 2026-07-08 / v0.4 · 2026-07-08 / v0.3 · 2026-07-08 / v0.2 · 2026-07-07) · 관리: 최동혁 · 전담 에이전트: <code>erp-db-link-manager</code>
 ERP(UNIERP) DB와 AI 포털·사내 타부서 간 연계의 <strong>현황 대장(단일 출처)</strong>. 상태가 바뀌면 여기를 먼저 고치고 §7 변경 이력에 한 줄 남긴다.
 비밀값(접속 IP/ID/비밀번호)은 기록 금지 — 서버 지칭은 별칭 <strong>"ERP운영DB"</strong> 만 사용.</p>
 </blockquote>
@@ -361,6 +361,10 @@ ERP(UNIERP) DB와 AI 포털·사내 타부서 간 연계의 <strong>현황 대�
 <td>관리자 지시 「품목분류 4개 카테고리」(품목계정 <code>B_ITEM.ITEM_ACCT</code> + 품목그룹 대·중·소 <code>B_ITEM_GROUP</code> 3단)를 실측·구축(정본 <code>이관/sql/47_item_category.sql</code>, 마이그레이션 <code>item_category_4level</code>). 그룹 3단 확인(대 53·중 382·소 1,953), 품목 59,264건 전량 소분류 매달림(미연결 3), 품목계정 6값(10·20·30·33·35·F0) 확인. 이름 원천은 신규 미러 <code>erp_ro.ud_code_s</code>(<code>B_USER_DEFINED_MAJOR</code>⋈<code>MINOR</code>, 예상 727행)로 확보 예정 — 스키마·<code>erp_master_upsert</code> 분기·RLS·뷰(<code>v_erp_ud_code</code>)·ETL job(<code>ud_code</code>) 준비 완료, <strong>실적재는 관리자 <code>!</code> 직접 실행 대기</strong>(연동 현황 뷰는 정의만 19종, §6). 매핑 뷰 <code>v_item_acct</code>(관리자표 <code>item_acct_name</code> ∪ 코드표 자동탐색, 추측 이름 금지 원칙 유지)·<code>v_erp_item_group_path</code>·<code>v_erp_item</code> 7열·<code>item_dup_search</code> 8열+필터 2종·<code>v_erp_item_category_stat</code> 신설. 화면 <code>/work/item-duplicates</code>·자재 상위 품목에 「분류」열 반영</td>
 </tr>
 <tr>
+<td><strong>품목계정 이름 연결 — 종합코드 <code>P1001</code> 확인·연동 완료, 연동 현황 뷰 19→20종(REQ-0045, 2026-09-11)</strong></td>
+<td>REQ-0044(v0.49)는 품목계정(<code>B_ITEM.ITEM_ACCT</code>) 이름 원천을 사용자정의 코드표(<code>ud_code</code>)로 가정하고 적재 대기로 남겼으나, 사내 ERP 메타(화면 도움말)에 "품목계정 : 종합코드(P1001)에 등록된 항목들이 표시됩니다"가 명시돼 있어 <strong>실제 원천은 시스템 종합코드 <code>B_MINOR</code>⋈<code>B_MAJOR</code>, Major <code>P1001</code></strong>(테이블 사전: <code>B_MAJOR</code> 1,588·<code>B_MINOR</code> 13,293행)임을 확인했다. 신규 미러 <code>erp_ro.sys_code_s</code>(major_cd·major_nm·minor_cd·minor_nm·minor_type·src_updated, PK major+minor, RLS <code>internal_select</code>) + <code>public.v_erp_sys_code</code>(security_invoker) + <code>erp_master_upsert</code> 신규 분기 + ETL job <strong><code>sys_code</code></strong>(<code>B_MINOR n LEFT JOIN B_MAJOR m</code> WHERE <code>n.MAJOR_CD IN ('P1001')</code> — 화이트리스트 major만, 전체 13,293행은 미적재) 신설(정본 <code>이관/sql/48_item_acct_p1001.sql</code>, 마이그레이션 <code>item_acct_p1001</code>, 커밋 <code>55c9941</code>). <strong>dry-run 8행 → 관리자 승인으로 실적재 8/8 완료</strong>(2026-09-11) — P1001 = 10 제품·20 반제품·25 재공품·30 원자재·<strong>33 소모품</strong>·35 부자재·50 상품·<strong>F0 설비수리자재</strong>(ERP 도움말 표준값 33 저장품·F0 없음과는 다름 — 추측 대신 실측 확인). <code>public.v_item_acct</code> 이름 원천 우선순위를 <strong>ERP P1001 &gt; <code>item_acct_name</code>(수동 보충) &gt; <code>ud_code</code></strong>로 확정(<code>name_src</code> 컬럼 <code>erp_p1001</code>/<code>manual</code>/<code>ud_code</code>, 정렬은 코드 순). <strong>결과</strong>: 사용 중 품목계정 6개 전부 ERP 이름 연결(10 1,095·20 11,191·30 26,843·33 1,599·35 18,538·F0 1) — 화면(<code>/work/item-duplicates</code> 계정 배지·필터·CSV, 자재 상위 품목) 이름 표시 반영, 헤드리스 실데이터 검증 9항목 통과·라이브 배포. 열 구조 동일(<code>v_erp_item</code>·<code>item_dup_search</code>·<code>v_erp_item_category_stat</code> 무변경). 연동 현황 뷰 <code>v_erp_sync_overview</code> <strong>19→20종</strong> 확장(신규 source_key <code>sys_code</code>, 「종합코드(품목계정 등)」)</td>
+</tr>
+<tr>
 <td>ERP 매핑(가설)</td>
 <td><code>M_PUR_REQ</code>·<code>M_PUR_ORD</code>·<code>M_CONFIG_PROCESS</code>·<code>M_PUR_GOODS_MVMT</code>·<code>Q_INSPECTION</code>·<code>M_IV</code> 등 — 재고 입출고 분류 등 세부는 여전히 유니포인트 협의 전 가설</td>
 </tr>
@@ -642,14 +646,14 @@ ERP(UNIERP) DB와 AI 포털·사내 타부서 간 연계의 <strong>현황 대�
 <td>— (완료)</td>
 </tr>
 <tr>
-<td><strong>품목분류 4카테고리 — <code>ud_code</code> 실적재 대기(신규, 2026-09-11, REQ-0044)</strong></td>
-<td>ERP 사용자정의 코드표 미러 <code>erp_ro.ud_code_s</code>(원천 <code>B_USER_DEFINED_MAJOR</code>⋈<code>MINOR</code>, 예상 727행) 스키마·ETL job·뷰(<code>v_erp_ud_code</code>)까지 준비 완료됐으나 실적재는 아직이다. 관리자가 <code>python 10_ERP_DB연계/etl/etl_run.py --job ud_code</code>를 직접 실행해야 한다(본 에이전트는 실행 불가)</td>
-<td>최동혁(관리자)</td>
+<td><strong>품목분류 4카테고리 — <code>ud_code</code> 실적재, 선택사항으로 강등(2026-09-11 → 2026-09-11, REQ-0044/0045)</strong></td>
+<td>품목계정 이름은 REQ-0045(종합코드 <code>P1001</code>)로 이미 해결됐다(아래 §4 참조) — <code>ud_code</code>(ERP 사용자정의 코드표) 실적재는 더 이상 필수가 아니며, <strong>다른 코드의 이름이 추가로 필요할 때만</strong> 검토하는 선택사항으로 낮춘다. 스키마·job(<code>etl_run.py --job ud_code</code>)은 계속 준비 상태로 유지(변경 없음)</td>
+<td>최동혁(관리자, 필요 시)</td>
 </tr>
 <tr>
-<td><strong>품목계정(<code>ITEM_ACCT</code>) 이름 매핑 — 원천 확인 대기(신규, 2026-09-11, REQ-0044)</strong></td>
-<td>품목계정 값 6종(10·20·30·33·35·F0)은 확인됐으나 이름 원천이 아직 없다. <code>ud_code</code> 실적재 후 <code>select * from public.v_item_acct</code>로 코드표에서 "품목계정" major가 자동 탐색되는지 먼저 확인하고, 없으면 관리자가 <code>item_acct_name</code> 매핑표에 6건을 직접 등록해야 한다(추측 이름 금지, REQ-0025 스파이크의 답이 여기서 나올 수 있음)</td>
-<td>최동혁(관리자)</td>
+<td>~~품목계정(<code>ITEM_ACCT</code>) 이름 매핑 — 원천 확인 대기(2026-09-11, REQ-0044)~~ → <strong>해소(2026-09-11, REQ-0045)</strong></td>
+<td>이름 원천은 ERP 화면 도움말이 명시한 <strong>종합코드 <code>P1001</code></strong>(<code>B_MAJOR</code>⋈<code>B_MINOR</code>)로 확인·연동 완료 — 신규 미러 <code>erp_ro.sys_code_s</code>·뷰 <code>v_erp_sys_code</code>·job <code>sys_code</code>(§4). 사용 중 품목계정 6개 전부 이름 연결, <code>v_item_acct</code> 우선순위 ERP P1001 &gt; 수동 보충 &gt; <code>ud_code</code>로 확정. <strong>REQ-0025(스파이크) 질문의 답도 이걸로 해소됐다</strong></td>
+<td>— (완료)</td>
 </tr>
 <tr>
 <td><strong>관리항목 참조 마스터 — 민감 6종 포함 여부(참고 — 결정 완료, 2026-08-20)</strong></td>
@@ -669,6 +673,11 @@ ERP(UNIERP) DB와 AI 포털·사내 타부서 간 연계의 <strong>현황 대�
 </tr>
 </thead>
 <tbody>
+<tr>
+<td>2026-09-11</td>
+<td><strong>품목계정 이름 연결 — 종합코드 <code>P1001</code> 확인·연동, 연동 현황 19→20종(REQ-0045, v0.50)</strong> — REQ-0044(v0.49)가 이름 원천을 사용자정의 코드표(<code>ud_code</code>)로 가정하고 적재 대기로 남겼던 것을, 사내 ERP 메타(화면 도움말 "품목계정 : 종합코드(P1001)에 등록된 항목들이 표시됩니다")로 <strong>실제 원천이 시스템 종합코드 <code>B_MINOR</code>⋈<code>B_MAJOR</code>(Major <code>P1001</code>)</strong>임을 확인해 정정했다. 신규 미러 <code>erp_ro.sys_code_s</code> + 뷰 <code>public.v_erp_sys_code</code> + ETL job <code>sys_code</code>(화이트리스트 <code>P1001</code>만, 전체 코드표 13,293행 중 미적재)를 신설(정본 <code>이관/sql/48_item_acct_p1001.sql</code>, 마이그레이션 <code>item_acct_p1001</code>, 커밋 <code>55c9941</code>). dry-run 8행 → 관리자 승인으로 <strong>실적재 8/8 완료</strong> — P1001 8값 확인(10·20·25·30·<strong>33 소모품</strong>·35·50·<strong>F0 설비수리자재</strong>, ERP 도움말 표준값과 다름 — 추측 금지 원칙이 유효했음을 재확인). <code>public.v_item_acct</code> 이름 우선순위를 <strong>ERP P1001 &gt; <code>item_acct_name</code>(수동) &gt; <code>ud_code</code></strong>로 확정, 사용 중 품목계정 6개 전부 이름 연결(10 1,095·20 11,191·30 26,843·33 1,599·35 18,538·F0 1) — 화면(품목중복 조회·자재 상위 품목) 계정 배지·필터·CSV에 이름 표시 반영, 헤드리스 실데이터 검증 9항목 통과·라이브 배포. <strong>결정대기 정리</strong>: v0.49의 "<code>ud_code</code> 실적재 대기"는 <strong>선택사항으로 강등</strong>(품목계정은 P1001로 해결, ud_code는 다른 코드 이름이 필요할 때만), "품목계정 이름 원천 미상"은 <strong>해소</strong>, REQ-0025(스파이크) 질문도 답변 완료. 연동 현황 뷰 19→20종 확장(신규 source_key <code>sys_code</code>). §1·§4·§6 갱신, 미러 동기화(버전 0.50·20260911)</td>
+<td>최동혁(+Claude)</td>
+</tr>
 <tr>
 <td>2026-09-11</td>
 <td><strong>품목분류 4개 카테고리 구축 — 품목계정+그룹 대·중·소(REQ-0044, v0.49)</strong> — 관리자 지시로 「품목분류 4개 카테고리」(품목계정 <code>B_ITEM.ITEM_ACCT</code> + 품목그룹 대·중·소 <code>B_ITEM_GROUP</code> 3단)를 실측·구축했다(정본 <code>실제구축준비 자료/이관/sql/47_item_category.sql</code>, 마이그레이션 <code>item_category_4level</code>, 커밋 <code>cf685ff</code>). 그룹은 3단 구조로 확인(대분류 53·중분류 382·소분류 1,953), 품목 59,264건 전량이 소분류에 매달려 있고 미연결 3건. 품목계정 값 6종(10·20·30·33·35·F0)은 확인됐으나 이름 원천이 없어, ERP 사용자정의 코드표(<code>B_USER_DEFINED_MAJOR</code>⋈<code>MINOR</code>)를 신규 미러 <code>erp_ro.ud_code_s</code>(예상 727행)로 추가하기로 하고 스키마·<code>erp_master_upsert</code> 적재분기·RLS·뷰(<code>v_erp_ud_code</code>)·ETL job(<code>ud_code</code>)까지 준비했다(연동 현황 뷰 정의 18→19종, 실적재는 관리자 <code>!</code> 직접 실행 대기). 품목계정 이름은 관리자 매핑표 <code>public.item_acct_name</code>(코드표 자동탐색 우선하는 <code>v_item_acct</code>)으로 설계 — 추측 이름 금지(40번 원칙), 없으면 코드+"이름 매핑 전" 표기. 잎 코드→대/중/소 역추적 뷰 <code>v_erp_item_group_path</code>·<code>v_erp_item</code> 7열 확장·<code>item_dup_search</code> 8열 반환+<code>p_acct</code>/<code>p_grp1</code> 필터 2종·<code>v_erp_item_category_stat</code> 신설. 화면 <code>/work/item-duplicates</code>에 품목계정·대분류 필터+「분류」열(계정 · 대›중›소)+CSV 8열, 자재 상위 품목에도 「분류」열 반영(<code>app/lib/api.js</code> 확장). 커스텀 분류표 <code>B_ITEM_GROUP_KO174</code>(454행)는 이번엔 쓰지 않음(의미 확인은 별건)</td>

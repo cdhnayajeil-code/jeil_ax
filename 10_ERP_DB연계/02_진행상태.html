@@ -161,7 +161,8 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <li>[x] <strong>품목 존재/중복 조회(REQ-0030) — <code>item_master</code> 전량 재적재 완료(2026-09-11 10:41 KST)</strong>: 관리자 직접 실행(<code>python 10_ERP_DB연계/etl/etl_run.py --job item_master --full</code>) — 추출 59,267행·적재 59,267행(31초), 미러 <code>erp_ro.item_master_s</code> 59,267행 = ERP <code>B_ITEM</code> 59,267행 일치. 24건 미적재 갭 해소, 삭제 잔재 0건·계산 칼럼 불일치 0건 확인</li>
 <li>[ ] <strong><code>item_master</code> job — 삭제 정합(reconcile) 로직 부재</strong>: 증분·전량 재적재 모두 원천에서 삭제된 품목코드가 미러에 그대로 남는 구조적 한계는 로직 신설 없이 남아 있다. 2026-09-11 전량 재적재 시점 기준 잔재는 0건(삭제분이 없었을 뿐)이라 당장 증상은 없음 — 필요 시 별도 요청으로 검토(임의 조치 없음)</li>
 <li>[x] <strong>품목분류 4개 카테고리 구축 완료(REQ-0044, 2026-09-11)</strong> — 품목계정(<code>B_ITEM.ITEM_ACCT</code>)+품목그룹 대·중·소(<code>B_ITEM_GROUP</code> 3단) 실측·매핑 뷰·ETL 스키마 준비 완료(정본 <code>이관/sql/47_item_category.sql</code>, 마이그레이션 <code>item_category_4level</code>). 그룹 3단 확인(대 53·중 382·소 1,953), 품목 59,264건 전량 소분류 매달림(미연결 3), 품목계정 6값(10·20·30·33·35·F0) 확인. 화면 <code>/work/item-duplicates</code>·자재 상위 품목에 「분류」열 반영</li>
-<li>[ ] <strong><code>ud_code</code> 실적재 — 관리자 <code>!</code> 직접 실행 대기(REQ-0044, 2026-09-11)</strong> — ERP 사용자정의 코드표 미러 <code>erp_ro.ud_code_s</code>(예상 727행) 스키마·job 준비 완료(<code>etl_run.py --job ud_code</code>). 실적재 후 <code>select * from public.v_item_acct</code>로 품목계정 이름 자동탐색 여부 확인 → 없으면 관리자가 <code>item_acct_name</code>에 6건 직접 등록 필요</li>
+<li>[x] <strong>품목계정 이름 매핑 — 종합코드 <code>P1001</code>로 해결(REQ-0045, 2026-09-11)</strong> — ERP 화면 도움말("품목계정 : 종합코드(P1001)에 등록된 항목들이 표시됩니다")로 이름 원천이 <code>ud_code</code>가 아니라 <strong>시스템 종합코드 <code>B_MAJOR</code>⋈<code>B_MINOR</code>(Major <code>P1001</code>)</strong>임을 확인. 신규 미러 <code>erp_ro.sys_code_s</code>·뷰 <code>v_erp_sys_code</code>·ETL job <code>sys_code</code>(화이트리스트 <code>P1001</code>만) 신설(정본 <code>이관/sql/48_item_acct_p1001.sql</code>, 커밋 <code>55c9941</code>), dry-run 8행 → 관리자 승인으로 <strong>실적재 8/8 완료</strong>. <code>v_item_acct</code> 우선순위를 ERP P1001 &gt; 수동 보충 &gt; <code>ud_code</code>로 확정 — 사용 중 품목계정 6개 전부 이름 연결(10·20·30·33·35·F0). REQ-0025(스파이크) 질문도 이걸로 답변 완료</li>
+<li>[ ] <strong><code>ud_code</code> 실적재 — 선택사항으로 강등(REQ-0044→0045, 2026-09-11)</strong> — 품목계정 이름은 위 항목(P1001)으로 해결됐으므로 <code>ud_code</code>(ERP 사용자정의 코드표) 실적재는 더 이상 필수가 아니다. <strong>다른 코드의 이름이 추가로 필요할 때만</strong> 관리자가 <code>etl_run.py --job ud_code</code>를 검토 실행(스키마·job은 준비 상태 유지)</li>
 </ul>
 <blockquote>
 <p>상세 실행 체크리스트는 <code>03_중간DB_구축실행기획 §7·§8</code>을 따른다(§7-C 내부 구축 항목 중 스키마·RLS·ETL 스크립트 작성 완료, RLS 격리 테스트 완료 반영).</p>
@@ -234,6 +235,12 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 </tr>
 </thead>
 <tbody>
+<tr>
+<td>2026-09-11</td>
+<td><strong>품목계정 이름 연결 — 종합코드 <code>P1001</code> 확인·연동(REQ-0045)</strong> — 위 REQ-0044(v0.49)가 이름 원천을 사용자정의 코드표(<code>ud_code</code>)로 가정하고 적재 대기로 남겼던 것을, 사내 ERP 메타(화면 도움말)로 <strong>실제 원천이 시스템 종합코드 <code>B_MINOR</code>⋈<code>B_MAJOR</code>(Major <code>P1001</code>)</strong>임을 확인해 정정했다. 신규 미러 <code>erp_ro.sys_code_s</code>+뷰 <code>v_erp_sys_code</code>+ETL job <code>sys_code</code>(화이트리스트 <code>P1001</code>만, 코드표 전체 13,293행 중 미적재) 신설, dry-run 8행 → 관리자 승인으로 <strong>실적재 8/8 완료</strong> — P1001 8값(10·20·25·30·33 소모품·35·50·F0 설비수리자재, ERP 도움말 표준값과 다름). <code>v_item_acct</code> 이름 우선순위를 ERP P1001 &gt; 수동 보충 &gt; <code>ud_code</code>로 확정, 사용 중 품목계정 6개 전부 이름 연결(10 1,095·20 11,191·30 26,843·33 1,599·35 18,538·F0 1) — 화면(품목중복 조회·자재 상위 품목) 배지·필터·CSV 반영, 헤드리스 실데이터 9항목 통과·라이브 배포. <strong>결정대기 정리</strong>: <code>ud_code</code> 실적재 대기 → 선택사항 강등, 품목계정 이름 원천 미상 → 해소, REQ-0025(스파이크) 답변 완료. 연동 현황 뷰 19→20종 확장</td>
+<td>정본 <code>이관/sql/48_item_acct_p1001.sql</code>, 마이그레이션 <code>item_acct_p1001</code>, 커밋 <code>55c9941</code>; <code>10_ERP_DB연계/00_현재상태_스냅샷.md §4·§6·§7</code>(v0.50) + <code>02_진행상태.md</code></td>
+<td>최동혁(+Claude)</td>
+</tr>
 <tr>
 <td>2026-09-11</td>
 <td><strong>품목분류 4개 카테고리 구축(REQ-0044)</strong> — 품목계정(<code>B_ITEM.ITEM_ACCT</code>)+품목그룹 대·중·소(<code>B_ITEM_GROUP</code> 3단) 실측·매핑 뷰·ETL 스키마 준비 완료(정본 <code>47_item_category.sql</code>, 마이그레이션 <code>item_category_4level</code>, 커밋 <code>cf685ff</code>). 그룹 3단 확인(대 53·중 382·소 1,953), 품목 59,264건 전량 소분류 매달림(미연결 3), 품목계정 6값(10·20·30·33·35·F0) 확인. 이름 원천 확보용 ERP 사용자정의 코드표 미러 <code>erp_ro.ud_code_s</code>(예상 727행) 신설·연동 현황 뷰 정의 18→19종 확장(실적재는 관리자 <code>!</code> 직접 실행 대기). 화면 <code>/work/item-duplicates</code>·자재 상위 품목에 「분류」열 반영</td>
