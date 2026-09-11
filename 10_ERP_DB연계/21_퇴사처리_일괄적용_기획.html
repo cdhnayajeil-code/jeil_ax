@@ -47,10 +47,10 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
   <div class="content">
 <h1 id="21">21. 퇴사 처리 일괄 적용 — 기획</h1>
 <blockquote>
-<p><strong>작성일 2026-09-07 · v0.5(그룹웨어 자동화 실증 완료 — 3축 중 2축 자동화) · 관리: 최동혁 · 요청: 관리자</strong>
+<p><strong>작성일 2026-09-07 · v0.6(예약 기능 도입 — 3축 자동화 위에 일시 지정 예약 추가) · 관리: 최동혁 · 요청: 관리자</strong>
 계정 통합관리 화면(<code>/admin/accounts</code>)에서 <strong>퇴사 처리를 한 번에</strong> 걸어 ERP·그룹웨어·MS 세 시스템에
 일괄 적용하는 기능의 기획. 테스트 계정 <code>test@jeilm.co.kr</code> 로 3축 실측한 결과를 근거로 한다.
-관련: <code>00_현재상태_스냅샷</code>(v0.43) · <code>이관/sql/34·36·37</code> · 화면 <code>app/admin-accounts.html</code></p>
+관련: <code>00_현재상태_스냅샷</code>(v0.48) · <code>이관/sql/34·36·37·45·46</code> · 화면 <code>app/admin-accounts.html</code>·<code>app/admin-offboarding.html</code></p>
 </blockquote>
 <hr />
 <h2 id="1">1. 한 줄 결론</h2>
@@ -617,7 +617,7 @@ Playwright 는 <code>page.on("dialog", ...)</code> 로 <strong>정식 처리</st
 <h2 id="6">6. 안전장치 (되돌리기 어려운 작업이므로)</h2>
 <ol>
 <li><strong>2단계 확인</strong> — 대상자 명단·퇴사일·축별 적용 내용을 보여주고 재확인. 이름만이 아니라 <strong>이메일·사번</strong>까지 표시(동명이인 오탐 실사례 있음 — <code>js.park2</code>/<code>js.park4</code> 박준수).</li>
-<li><strong>파괴적 옵션 자동화 금지</strong> — 메일함 삭제, 계정 삭제, 라이선스 회수는 이 기능의 범위 밖. 차단·표기까지만.</li>
+<li><strong>파괴적 옵션 자동화 금지</strong> — 메일함 삭제·계정 삭제는 이 기능의 범위 밖(변경 없음). <strong>라이선스 회수는 2026-09-09부터 범위 안으로 바뀌었다</strong> — 로그인 차단·<code>[퇴사]</code> 표기만으로는 좌석이 반납되지 않는다는 것이 실측으로 드러나(차단됐는데 라이선스가 남은 계정 23건, 유료 1·무료 22) Graph <code>assignLicense</code>로 <strong>직접 할당분만</strong> 회수한다(그룹 상속 라이선스는 API로 뗄 수 없어 대상에서 제외 — 건수만 표시하고 사람이 그룹에서 뺀다). <strong>주의</strong>: 라이선스를 떼면 사서함이 30일 보존 후 삭제된다.</li>
 <li><strong>퇴사일은 사람이 넣은 값을 정본으로</strong> — 그룹웨어의 오늘 날짜 자동 덮어쓰기를 그대로 두면 실제 퇴사일이 유실된다.</li>
 <li><strong>실행 로그</strong> — 누가·언제·어떤 축에·무엇을 했는지 포털 DB에 남긴다(<code>CLAUDE.md §6</code> 감사 로그).</li>
 <li><strong>롤백 절차 문서화</strong> — 축별 원복 방법(MS 재활성·그룹웨어 사용중·ERP 계정 복구)을 케이스 화면에 함께 표시.</li>
@@ -637,15 +637,15 @@ Playwright 는 <code>page.on("dialog", ...)</code> 로 <strong>정식 처리</st
 <tbody>
 <tr>
 <td>A</td>
-<td>Graph 응용 권한 <strong><code>Sites.ReadWrite.All</code></strong>(또는 <code>Sites.Selected</code>+목록 권한) — <strong>ERP 축 자동화의 유일한 조건</strong></td>
+<td>~~Graph 응용 권한 <strong><code>Sites.ReadWrite.All</code></strong>(또는 <code>Sites.Selected</code>+목록 권한) — ERP 축 자동화의 유일한 조건~~ <strong>→ 해소(2026-09-09)</strong></td>
 <td>최동혁(Entra 앱 등록)</td>
-<td><strong>대기 · 최우선</strong></td>
+<td><strong>완료</strong> — 부여 완료, ERP 축 자동 등재 가동</td>
 </tr>
 <tr>
 <td>A2</td>
-<td>MS 응용 권한 <code>User.ReadWrite.All</code> + 관리자 동의</td>
+<td>~~MS 응용 권한 <code>User.ReadWrite.All</code> + 관리자 동의~~ <strong>→ 해소(2026-09-09)</strong></td>
 <td>최동혁(Entra 앱 등록)</td>
-<td><strong>대기</strong></td>
+<td><strong>완료</strong> — 부여 완료, MS 축 차단·표기·라이선스 회수 가동(계정 차단엔 User Administrator 역할 불필요, <code>User.ReadWrite.All</code>만으로 충분함을 실측 확인)</td>
 </tr>
 <tr>
 <td>B</td>
@@ -719,6 +719,12 @@ Playwright 는 <code>page.on("dialog", ...)</code> 로 <strong>정식 처리</st
 <td>관리자 승인 후 Claude</td>
 <td><strong>대기</strong></td>
 </tr>
+<tr>
+<td>K</td>
+<td>~~예약 기능 도입 여부(REQ-0029)~~ <strong>→ 완료(2026-09-11)</strong> — 큐(<code>offboard_request</code>)에 일시 지정 예약 신설, pg_cron 1.6.4 설치. 도래 시 그 시점 기준 재산정 후 큐 투입까지는 자동, <strong>실제 실행(러너 기동)은 계속 사람이 하는 수동 방식으로 유지</strong>(관리자 결정). DB 실측 6경로·라이브 UI 실측 통과, 적대 리뷰 13건 반영(ADR-015, 커밋 <code>62421f1</code>)</td>
+<td>최동혁(+Claude)</td>
+<td><strong>완료</strong></td>
+</tr>
 </tbody>
 </table>
 <hr />
@@ -732,6 +738,11 @@ Playwright 는 <code>page.on("dialog", ...)</code> 로 <strong>정식 처리</st
 </tr>
 </thead>
 <tbody>
+<tr>
+<td>2026-09-11</td>
+<td><strong>v0.6 — 예약 기능 도입(REQ-0029, ADR-015) + 실체와 어긋난 §6.2·§7 A·A2 정정.</strong> 큐(<code>offboard_request</code>)에 일시 지정 예약을 추가(커밋 <code>62421f1</code>) — 신규 표 <code>etl_meta.offboard_schedule</code>, pg_cron 1.6.4 설치 + job 2개로 도래 시 그 시점 기준 재산정 후 큐 투입까지 자동화하되 <strong>실제 실행(러너 기동)은 계속 수동으로 유지</strong>(관리자 결정). 유예 7일, 재직 중·퇴사일 미도래 대상 보류. 게이트 API <code>jeil-accounts</code> v2.1(배포 6), 화면 <code>/admin/offboarding</code>. DB 실측 6경로·라이브 UI 실측 통과, 적대 리뷰 13건 반영(§7 K 신규, <strong>완료</strong>). <strong>같은 갱신에서 이미 2026-09-09에 일어났던 사실과 어긋나 있던 서술 2건을 정정</strong>했다 — ①§7 A(Graph <code>Sites.ReadWrite.All</code>)·A2(<code>User.ReadWrite.All</code>)는 실제로는 <strong>2026-09-09 이미 부여 완료</strong>돼 있었는데(코드 주석 <code>offboard_axes.py</code>로 확인) 이 문서에는 여전히 "대기·최우선"으로 남아 있었다 — <strong>완료</strong>로 정정. ②§6 안전장치 2번("라이선스 회수는 범위 밖")도 <strong>2026-09-09부터 이미 범위 안</strong>으로 바뀌어 있었다(차단만으로는 좌석이 반납되지 않음을 실측 확인, 직접 할당 라이선스만 회수·그룹 상속분은 제외, 사서함 30일 보존 경고 추가) — 문구를 실제 동작에 맞게 수정. 두 정정 모두 코드 검토 결과이며 이번에 새로 구현한 것은 아니다</td>
+<td>최동혁(+Claude)</td>
+</tr>
 <tr>
 <td>2026-09-07</td>
 <td><strong>v0.5 — 그룹웨어 축 자동화 실증 완료.</strong> 관리자 계정(<code>ai.jeil</code>)으로 교체받아 <code>gw_offboard.py</code> 를 dry-run → <code>--apply</code> 까지 돌려 테스트 계정을 <strong>실제로 사용중지 처리</strong>했다. 저장 후 퇴사자 조회 재검증 통과, 그룹웨어 원천 직접 확인(<code>useState=1</code> · <code>endDate=2026-09-07</code>)까지 마쳤다. 실행하면서 화면이 문서와 다르게 동작하는 4곳(시크릿키 노출 시점 · 아코디언 기본 펼침 · jstree 노드 탐지 · 숨김 라디오)을 교정했고, 퇴사일 센티넬이 한 값이 아님(<code>2200-12-31</code>·<code>2555-07-01</code>)을 확인해 "미래면 센티넬" 로 일반화했다. 붙여넣기 줄바꿈으로 두 번 실패해 인자 정규화 + 짧은 플래그 + 기준일자 자동 보정을 넣었다. <strong>이로써 ERP·그룹웨어 2축 자동화가 실증되고 MS 한 축만 남았다.</strong> 다만 테스트 계정이 이메일 부재로 미러에 안 잡혀, 결정 항목 E(로그인ID 보조키)가 일괄 처리의 선행 조건임이 실물로 확인됐다</td>
