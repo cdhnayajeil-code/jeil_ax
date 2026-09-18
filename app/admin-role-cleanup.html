@@ -1,0 +1,319 @@
+<!DOCTYPE html><html lang="ko"><head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script>window.PAGE_KEY='erp_role_cleanup';</script>
+<script src="/pages/_access-gate.js"></script>
+<title>ERP 권한정리 내역 (관리)</title>
+<link rel="stylesheet" href="/app/lib/querybar.css">
+<style>
+:root{
+  --navy:#1a2f4e; --navy2:#27457a; --accent:#2f6fb3; --accent2:#4a8ed0;
+  --red:#b3402f; --green:#2e7d52; --amber:#9a6b1f; --grey:#5f6b7a;
+  --ink:#222; --muted:#666; --line:#d8dee8; --bg:#f4f6f9;
+  --soft:#eef2f8; --softred:#fbeeec; --softgreen:#ecf5f0; --softamber:#faf3e4; --softgrey:#f1f3f6;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Malgun Gothic","맑은 고딕",sans-serif;
+  font-size:14px;line-height:1.5}
+.page{max-width:1500px;margin:0 auto;padding:18px}
+.head{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap;
+  border-bottom:2px solid var(--navy);padding-bottom:10px;margin-bottom:12px}
+.head h1{margin:0;font-size:21px;color:var(--navy)}
+.head .sub{margin-top:4px;color:var(--muted);font-size:12.5px}
+.head .right{color:var(--muted);font-size:12.5px;text-align:right}
+.badge{display:inline-block;padding:1px 7px;border-radius:10px;font-size:11.5px;margin-left:4px;
+  border:1px solid var(--line);background:#fff}
+.badge.b{color:var(--accent);border-color:var(--accent2);background:var(--soft)}
+
+.notice{border:1px solid var(--line);background:#fff;border-radius:8px;padding:12px 14px;color:var(--muted)}
+.notice.warn{border-color:#dcc48a;background:var(--softamber);color:#7a5514}
+.loading{padding:40px;text-align:center;color:var(--muted)}
+.foot{margin-top:16px;padding-top:10px;border-top:1px solid var(--line);
+  display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;color:var(--muted);font-size:12px}
+.gate{max-width:560px;margin:60px auto;text-align:center;background:#fff;border:1px solid var(--line);
+  border-radius:10px;padding:34px 26px}
+.gate .ic{font-size:40px}
+.gate h2{margin:10px 0 6px;font-size:18px;color:var(--navy)}
+.gate p{color:var(--muted);margin:0 0 14px}
+.gate button{padding:8px 16px;border:1px solid var(--accent);background:var(--accent);color:#fff;
+  border-radius:6px;cursor:pointer;font-size:13px}
+
+.layout{display:grid;grid-template-columns:272px minmax(0,1fr);gap:14px;align-items:start}
+@media (max-width:980px){.layout{grid-template-columns:1fr}}
+.card{background:#fff;border:1px solid var(--line);border-radius:9px}
+.card > h3{margin:0;padding:9px 12px;font-size:13px;color:var(--navy);
+  border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;gap:8px}
+.card > h3 .sm{font-weight:400;color:var(--muted);font-size:11.5px}
+
+.tree{max-height:70vh;overflow:auto;padding:5px 0}
+.tnode{display:flex;align-items:center;gap:6px;padding:3px 9px;cursor:pointer;font-size:13px;white-space:nowrap}
+.tnode:hover{background:var(--soft)}
+.tnode.sel{background:var(--soft);box-shadow:inset 3px 0 0 var(--accent);font-weight:600}
+.tnode .nm{overflow:hidden;text-overflow:ellipsis}
+.tnode .sp{flex:1 1 auto}
+.tnode .cnt{color:var(--muted);font-size:11.5px}
+.tnode .hot{color:var(--red);font-weight:700;font-size:11.5px}
+
+.sum{display:flex;align-items:center;gap:15px;flex-wrap:wrap;padding:10px 12px;
+  border-bottom:1px solid var(--line);font-size:13px}
+.sum .si{color:var(--navy);font-weight:700;white-space:nowrap}
+.sum .si b{color:var(--muted);font-weight:600;font-size:12px;margin-right:4px}
+.sum .si.hot{color:var(--red)}
+.pane{padding:11px}
+.tools{display:flex;gap:7px;align-items:center;flex-wrap:wrap;margin-bottom:8px}
+.tools button{padding:4px 10px;border:1px solid var(--line);background:#fff;border-radius:6px;
+  cursor:pointer;font-size:12px;color:var(--navy)}
+.tools button:hover{background:var(--soft)}
+.tools button.on{background:var(--soft);border-color:var(--accent2);color:var(--accent);font-weight:700}
+.tools button.go{border-color:var(--accent);background:var(--accent);color:#fff;font-weight:700}
+.tools button[disabled]{opacity:.45;cursor:not-allowed}
+.legend{font-size:11.5px;color:var(--muted)}
+
+table{border-collapse:collapse;width:100%;font-size:12.5px}
+th,td{border:1px solid var(--line);padding:5px 8px;text-align:left;vertical-align:top}
+th{background:var(--soft);color:var(--navy);font-weight:700;white-space:nowrap}
+td.c{text-align:center}
+tr.done > td{background:var(--softgreen)}
+tr.cancel > td{color:var(--muted);text-decoration:line-through}
+.st{font-size:10.5px;padding:0 6px;border-radius:8px;border:1px solid var(--line);white-space:nowrap}
+.st.requested{color:var(--red);background:var(--softred);border-color:#e3b3aa}
+.st.applied{color:var(--green);background:var(--softgreen);border-color:#a9d3bd}
+.st.cancelled{color:var(--muted);background:var(--softgrey)}
+</style>
+</head><body>
+<div class="page">
+  <div class="head">
+    <div>
+      <h1>🧹 ERP 권한정리 내역 <span class="badge b">관리자</span></h1>
+      <div class="sub">
+        팀장·부서장이 <a href="/work/erp-roles">ERP 권한 조직별 현황</a>의 「권한정리」 탭에서 올린 <b>제외 요청</b>을 모아 봅니다
+        · ERP 회수는 사람이 실행합니다
+      </div>
+    </div>
+    <div class="right">ERP 권한 마스터 · <span data-qbar-asof>—</span> 기준</div>
+  </div>
+
+  <div id="qbar" hidden></div>
+  <div id="app"><div class="loading">권한정리 내역을 불러오는 중…</div></div>
+
+  <div class="foot">
+    <span>제일엠앤에스 AI 포털 · ERP 권한정리 내역</span>
+    <span>정본 SQL <code>52_erp_role_cleanup.sql</code> · REQ-0057</span>
+  </div>
+</div>
+
+<script type="module">
+  import { supabase } from "/app/lib/supabaseClient.js";
+  import { erpApi } from "/app/lib/api.js";
+  import { createQueryBar } from "/app/lib/querybar.js";
+
+  const $   = (id) => document.getElementById(id);
+  const esc = (s) => String(s == null ? "" : s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+  const num = (n) => Number(n || 0).toLocaleString("ko-KR");
+  const ST  = { requested:'요청', applied:'처리완료', cancelled:'취소' };
+
+  /* 사내 세션 게이트 — /pages/_access-gate.js 는 Entra 토큰만 본다(§자금현황 패턴) */
+  function claimsOf(session){
+    if(!session || !session.access_token) return {};
+    try{
+      let p = session.access_token.split('.')[1].replace(/-/g,'+').replace(/_/g,'/');
+      while(p.length % 4) p += '=';
+      return JSON.parse(decodeURIComponent(atob(p).split('').map(c=>'%'+c.charCodeAt(0).toString(16).padStart(2,'0')).join(''))).app_metadata || {};
+    }catch(e){ return {}; }
+  }
+  function autoSSO(){
+    const u = new URL(location.href); u.searchParams.set('sso','1');
+    supabase.auth.signInWithOAuth({ provider:'azure', options:{ scopes:'openid email profile', redirectTo:u.toString() } });
+  }
+  function gate(icon, title, msg, btn){
+    $("qbar").hidden = true;
+    $("app").innerHTML = '<div class="gate"><div class="ic">'+icon+'</div><h2>'+esc(title)+'</h2><p>'+msg+'</p>'
+      + (btn ? '<button id="gsso">'+esc(btn)+'</button>' : '') + '</div>';
+    const b = $("gsso"); if(b) b.onclick = async () => { try{ await supabase.auth.signOut(); }catch(e){} autoSSO(); };
+  }
+
+  let BAR = null, TREE = null, DATA = null, SEL = null, STF = 'requested';
+  const SELROW = new Set();
+
+  async function boot(){
+    const { data:{ session } } = await supabase.auth.getSession();
+    if(!session){
+      if(!new URLSearchParams(location.search).get('sso')){ autoSSO(); return; }
+      return gate('🔐','사내 로그인이 필요합니다','사내(@jeilm.co.kr) 계정으로 로그인해야 볼 수 있습니다.','사내 계정으로 로그인');
+    }
+    if(claimsOf(session).role !== 'internal'){
+      return gate('🔒','사내 전용 화면','현재 협력사(또는 권한 없는) 계정으로 로그인되어 있습니다.','사내 계정으로 다시 로그인');
+    }
+    $("qbar").hidden = false;
+    BAR = createQueryBar("#qbar", {
+      months: false,
+      basis: "권한정리 요청 장부(role_cleanup)",
+      mode: "live", modeLabel: "실연동", reset: true, refreshLabel: "다시 조회",
+      extras: [
+        { id:"q",   label:"검색", type:"text", placeholder:"이름·부서·ROLE·요청자", width:"200px", debounce:250 },
+        { id:"st",  label:"상태", type:"select", value:"requested",
+          options:[["requested","요청"],["applied","처리완료"],["cancelled","취소"],["all","전체"]] },
+      ],
+      onQuery: (q, ctx) => run(q, ctx),
+    });
+  }
+
+  async function run(q, ctx){
+    const ex = (q && q.extras) || {};
+    const st = ex.st || 'requested';
+    try{
+      if(!TREE){
+        const t = await erpApi.erpRoleOrgTree();
+        if(t && t.forbidden) return gate('🔒','열람 권한이 필요합니다',
+          '이 화면은 <b>관리자</b>이거나 <b>페이지 권한(erp_role_cleanup)</b>을 받은 사용자만 볼 수 있습니다.', null);
+        if(t && t.unauthorized) return gate('🔐','인증 필요','세션이 만료되었습니다. 다시 로그인하세요.','다시 로그인');
+        if(t && t.ok){ TREE = t; if(BAR) BAR.setMeta({ asOf: (t.as_of && String(t.as_of.usr_role||'').slice(0,10)) || null }); }
+      }
+      const r = await erpApi.erpRoleCleanupList({ status: st === 'all' ? null : st, limit: 2000 });
+      if(r && r.forbidden) return gate('🔒','열람 권한이 필요합니다',
+        '이 화면은 <b>관리자</b>이거나 <b>페이지 권한(erp_role_cleanup)</b>을 받은 사용자만 볼 수 있습니다.', null);
+      if(r && r.unauthorized) return gate('🔐','인증 필요','세션이 만료되었습니다. 다시 로그인하세요.','다시 로그인');
+      DATA = (r && r.ok) ? r : { rows:[], summary:{} };
+      STF = st;
+      render(ex);
+    }catch(e){
+      console.error(e);
+      $("app").innerHTML = '<div class="notice">내역을 불러오지 못했습니다. 사내 계정으로 로그인했는지 확인해 주세요.<br><small>'+esc(e.message||e)+'</small></div>';
+      throw e;
+    }
+  }
+
+  const rowsAll = () => (DATA && DATA.rows) || [];
+  function rows(ex){
+    const kw = String(ex.q || '').trim().toLowerCase();
+    return rowsAll().filter(r => {
+      if(SEL && r.dept_cd !== SEL) return false;
+      if(!kw) return true;
+      return [r.emp_nm, r.email, r.dept_nm, r.role_nm, r.role_id, r.requested_by_nm, r.requested_by]
+        .some(v => String(v||'').toLowerCase().includes(kw));
+    });
+  }
+
+  function render(ex){
+    $("app").innerHTML = '<div class="layout"><div class="card" id="pTree"></div><div class="card" id="pList"></div></div>';
+    renderTree(ex); renderList(ex);
+    if(BAR) BAR.applyPeriod();
+  }
+
+  /* 조직도 — 정리 내역이 있는 조직만 보여준다(빈 조직을 훑을 이유가 없다) */
+  function renderTree(ex){
+    const byDept = {};
+    rowsAll().forEach(r => { byDept[r.dept_cd] = (byDept[r.dept_cd] || 0) + 1; });
+    const nodes = ((TREE && TREE.nodes) || []).filter(n => byDept[n.dept_cd]);
+    const extra = Object.keys(byDept).filter(cd => !nodes.some(n => n.dept_cd === cd));
+
+    const row = (cd, nm, lvl, cnt) =>
+      '<div class="tnode'+(SEL===cd?' sel':'')+'" data-cd="'+esc(cd)+'" style="padding-left:'+(9+(lvl-1)*13)+'px">'
+      + '<span class="nm">'+esc(nm)+'</span><span class="sp"></span>'
+      + '<span class="hot">'+cnt+'</span></div>';
+
+    $("pTree").innerHTML =
+      '<h3>조직 <span class="sm">내역 '+num(rowsAll().length)+'건</span></h3>'
+      + '<div class="tree">'
+      +   '<div class="tnode'+(SEL===null?' sel':'')+'" data-cd=""><span class="nm">전체</span>'
+      +     '<span class="sp"></span><span class="cnt">'+num(rowsAll().length)+'</span></div>'
+      +   nodes.map(n => row(n.dept_cd, n.dept_nm, n.lvl, byDept[n.dept_cd])).join('')
+      +   extra.map(cd => row(cd, cd === '__unassigned__' ? '외부' : cd, 1, byDept[cd])).join('')
+      +   (rowsAll().length ? '' : '<div class="notice" style="margin:9px;border:none">해당 상태의 내역이 없습니다.</div>')
+      + '</div>';
+
+    $("pTree").querySelectorAll('.tnode').forEach(el => el.onclick = () => {
+      SEL = el.dataset.cd || null; SELROW.clear(); render(ex);
+    });
+  }
+
+  function renderList(ex){
+    const list = rows(ex), s = (DATA && DATA.summary) || {};
+    const canMark = DATA && DATA.is_admin;
+    $("pList").innerHTML =
+      '<h3>'+(SEL ? esc((TREE.nodes.find(n => n.dept_cd === SEL) || {}).dept_nm || (SEL === '__unassigned__' ? '외부' : SEL)) : '전체')
+      + ' <span class="sm">'+num(list.length)+'건</span></h3>'
+      + '<div class="sum">'
+      +   '<span class="si hot"><b>요청</b>'+num(s.requested)+'</span>'
+      +   '<span class="si"><b>처리완료</b>'+num(s.applied)+'</span>'
+      +   '<span class="si"><b>취소</b>'+num(s.cancelled)+'</span>'
+      +   '<span class="si"><b>저장 묶음</b>'+num(s.batches)+'</span>'
+      +   '<span class="si"><b>조직</b>'+num(s.depts)+'</span>'
+      + '</div><div class="pane" id="pane"></div>';
+
+    let html = '<div class="tools">'
+      + '<button id="csv">CSV 내보내기</button>'
+      + (canMark
+          ? '<button class="go" id="mkA" disabled>처리완료로</button>'
+            + '<button id="mkC" disabled>취소로</button>'
+            + '<button id="mkR" disabled>요청으로 되돌리기</button>'
+          : '')
+      + '<span class="legend">'+(canMark ? '행을 체크해 상태를 바꿉니다 — 실제 ERP 회수는 사람이 실행합니다' : '상태 변경은 관리자만 할 수 있습니다')+'</span></div>';
+
+    if(!list.length){ html += '<div class="notice">조건에 맞는 내역이 없습니다.</div>'; $("pane").innerHTML = html; bind(ex, list); return; }
+
+    html += '<table><thead><tr>'
+      + (canMark ? '<th class="c"><input type="checkbox" id="all"></th>' : '')
+      + '<th>부서</th><th>대상</th><th>ROLE</th><th>상태</th><th>요청자</th><th>요청일시</th><th>메모</th></tr></thead><tbody>'
+      + list.map(r => '<tr class="'+(r.status==='applied'?'done':(r.status==='cancelled'?'cancel':''))+'">'
+          + (canMark ? '<td class="c"><input type="checkbox" data-id="'+r.id+'"'+(SELROW.has(r.id)?' checked':'')+'></td>' : '')
+          + '<td>'+esc(r.dept_nm || r.dept_cd)+'</td>'
+          + '<td>'+esc(r.emp_nm || r.email)+'</td>'
+          + '<td title="'+esc(r.role_id)+'">'+esc(r.role_nm || r.role_id)+'</td>'
+          + '<td><span class="st '+esc(r.status)+'">'+esc(ST[r.status] || r.status)+'</span></td>'
+          + '<td>'+esc(r.requested_by_nm || r.requested_by)+'</td>'
+          + '<td>'+esc(String(r.requested_at||'').slice(0,16).replace('T',' '))+'</td>'
+          + '<td>'+esc(r.note || '')+'</td></tr>').join('')
+      + '</tbody></table>';
+    $("pane").innerHTML = html;
+    bind(ex, list);
+  }
+
+  function bind(ex, list){
+    const sync = () => {
+      const n = SELROW.size;
+      ['mkA','mkC','mkR'].forEach(id => { const b = $(id); if(b) b.disabled = !n; });
+    };
+    $("pane").querySelectorAll('input[data-id]').forEach(c => c.onchange = () => {
+      const id = Number(c.dataset.id);
+      if(c.checked) SELROW.add(id); else SELROW.delete(id);
+      sync();
+    });
+    const all = $("all");
+    if(all) all.onchange = () => {
+      SELROW.clear();
+      $("pane").querySelectorAll('input[data-id]').forEach(c => {
+        c.checked = all.checked; if(all.checked) SELROW.add(Number(c.dataset.id));
+      });
+      sync();
+    };
+    sync();
+    const mark = async (st) => {
+      const r = await erpApi.erpRoleCleanupMark([...SELROW], st);
+      if(!r || !r.ok) return alert(r && r.message ? r.message : '상태를 바꾸지 못했습니다.');
+      SELROW.clear(); if(BAR) BAR.refresh();
+    };
+    const a = $("mkA"); if(a) a.onclick = () => mark('applied');
+    const c = $("mkC"); if(c) c.onclick = () => mark('cancelled');
+    const q = $("mkR"); if(q) q.onclick = () => mark('requested');
+    $("csv").onclick = () => {
+      const out = [['부서','대상','이메일','ROLE ID','ROLE명','상태','요청자','요청일시','메모','처리자','처리일시']];
+      list.forEach(r => out.push([r.dept_nm || r.dept_cd, r.emp_nm || '', r.email, r.role_id, r.role_nm || '',
+        ST[r.status] || r.status, r.requested_by_nm || r.requested_by,
+        String(r.requested_at||'').slice(0,19).replace('T',' '), r.note || '',
+        r.applied_by || '', String(r.applied_at||'').slice(0,19).replace('T',' ')]));
+      const cell = (v) => { const x = String(v == null ? '' : v); return /[",\n]/.test(x) ? '"'+x.replace(/"/g,'""')+'"' : x; };
+      const blob = new Blob(["﻿" + out.map(r => r.map(cell).join(',')).join('\r\n')],
+                            { type:'text/csv;charset=utf-8;' });
+      const el = document.createElement('a');
+      el.href = URL.createObjectURL(blob);
+      el.download = 'ERP권한정리내역_'+new Date().toISOString().slice(0,10).replace(/-/g,'')+'.csv';
+      el.click();
+      setTimeout(() => URL.revokeObjectURL(el.href), 1000);
+    };
+  }
+
+  boot();
+</script>
+</body></html>

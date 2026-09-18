@@ -118,6 +118,18 @@ tr.lead > td:first-child{font-weight:700}
 .mx__wrap tfoot td{position:sticky;bottom:0;background:var(--soft);font-weight:700}
 .mx__o{color:var(--navy2);font-weight:700} .mx__m{color:#ccd3dc}
 .mx__wrap td.mx__fix{cursor:pointer}
+.mx__wrap td.mx__n input{cursor:pointer;margin:0}
+
+/* 권한정리 */
+.cl__bar{display:flex;gap:9px;align-items:center;flex-wrap:wrap;padding:9px 11px;margin-bottom:9px;
+  border:1px solid var(--line);border-radius:7px;background:var(--soft)}
+.cl__bar input[type=text]{padding:5px 9px;border:1px solid var(--line);border-radius:6px;font-size:12.5px}
+.cl__bar .go{border-color:var(--accent);background:var(--accent);color:#fff;font-weight:700}
+.cl__bar .go[disabled]{opacity:.45;cursor:not-allowed}
+.cl__pick{border:1px solid #e3b3aa;background:var(--softred);border-radius:7px;padding:8px 11px;margin-bottom:9px}
+.cl__pick .x{cursor:pointer;color:var(--red);margin-left:5px;font-weight:700}
+.cl__ok{border:1px solid #a9d3bd;background:var(--softgreen);color:#1c6b45;border-radius:7px;
+  padding:9px 12px;margin-bottom:9px}
 
 /* Role 상세 팝업 */
 .ov{position:fixed;inset:0;background:rgba(20,30,45,.45);display:flex;align-items:center;
@@ -209,6 +221,8 @@ tr.lead > td:first-child{font-weight:700}
   const RCACHE = new Map();   // role_id → 상세(메뉴·보유자)
   let ROLEMOD = 'all';        // 권한별 탭 모듈 필터
   let ROLEDEPT = false;       // 권한별 탭 「선택 조직만」
+  let PICK = new Map();       // 권한정리 — 제외 담기 (key: email|role_id)
+  let CLCONFIRM = '', CLNOTE = '', CLDONE = null, CLLOG = null;
 
   async function boot(){
     const { data:{ session } } = await supabase.auth.getSession();
@@ -433,10 +447,14 @@ tr.lead > td:first-child{font-weight:700}
       +   tabBtn('matrix','Matrix')
       +   tabBtn('member','구성원 '+m.length)
       +   tabBtn('role','권한별')
+      +   tabBtn('clean','권한정리'+(PICK.size ? ' '+PICK.size : ''))
       + '</div><div class="pane" id="pane"></div>';
 
     $("pDet").querySelectorAll('.tab').forEach(t => t.onclick = () => { TAB = t.dataset.k; renderDetail(ex); });
-    if(TAB === 'matrix') paneMatrix(ex); else if(TAB === 'role') paneRoleList(ex); else paneMembers(ex);
+    if(TAB === 'matrix') paneMatrix(ex);
+    else if(TAB === 'role') paneRoleList(ex);
+    else if(TAB === 'clean') paneClean(ex);
+    else paneMembers(ex);
   }
   function tabBtn(k, lb){ return '<div class="tab'+(TAB===k?' on':'')+'" data-k="'+k+'">'+esc(lb)+'</div>'; }
 
@@ -648,6 +666,138 @@ tr.lead > td:first-child{font-weight:700}
       c.onclick = () => openPerson(c.dataset.pem));
     bindModalClose();
   }
+  /* 권한정리 — 팀장·부서장이 「이 권한은 빼자」를 표시해 장부에 남긴다.
+     ERP 에서 실제로 회수하지는 않는다(CLAUDE.md §1.6 — 실거래 액션은 사람이 실행).
+     저장자 이름은 서버가 붙인다. 확인 문구를 정확히 입력해야 저장된다. */
+  const CLTEXT = '권한확인 완료';
+  const pkey = (em, rid) => em + '|' + rid;
+
+  function paneClean(ex){
+    const mem = members();
+    const map = {};
+    mem.forEach(mm => (mm.roles || []).forEach(r => {
+      if(!map[r.role_id]) map[r.role_id] = { r, holders:{} };
+      map[r.role_id].holders[mm.email] = true;
+    }));
+    const roles = Object.values(map).sort((a,b) =>
+      String(a.r.module_label||'').localeCompare(String(b.r.module_label||''),'ko')
+      || String(a.r.role_nm).localeCompare(String(b.r.role_nm),'ko'));
+
+    const canSave = PICK.size > 0 && CLCONFIRM.trim() === CLTEXT;
+    let html = '';
+
+    if(CLDONE){
+      html += '<div class="cl__ok">저장했습니다 \u2014 <b>'+num(CLDONE.saved)+'건</b>'
+        + (CLDONE.skipped ? ' · 제외 '+num(CLDONE.skipped)+'건(이미 등록됐거나 대상이 아님)' : '')
+        + ' · 저장자 <b>'+esc(CLDONE.by||'')+'</b></div>';
+    }
+
+    html += '<div class="cl__bar">'
+      + '<button id="clAdd">권한제외 담기</button>'
+      + '<button id="clClear">선택 비우기</button>'
+      + '<span class="legend">담긴 '+PICK.size+'건</span>'
+      + '<span style="flex:1 1 auto"></span>'
+      + '<input type="text" id="clNote" placeholder="메모(선택)" style="width:180px" value="'+esc(CLNOTE)+'">'
+      + '<input type="text" id="clOk" placeholder="'+CLTEXT+'" style="width:150px" value="'+esc(CLCONFIRM)+'">'
+      + '<button class="go" id="clSave"'+(canSave?'':' disabled')+'>저장</button>'
+      + '<button id="clLog">내역 보기</button></div>';
+
+    if(PICK.size){
+      html += '<div class="cl__pick"><b>제외할 권한 '+PICK.size+'건</b><br>'
+        + [...PICK.values()].map(v => '<span class="chip flat">'+esc(v.emp_nm)+' \u2190 '+esc(v.role_nm)
+            + '<span class="x" data-del="'+esc(pkey(v.email, v.role_id))+'">\u00d7</span></span>').join('')
+        + '</div>';
+    }
+
+    if(CLLOG){
+      html += '<div class="grp">최근 정리 내역 '+num((CLLOG.rows||[]).length)+'건</div>'
+        + ((CLLOG.rows||[]).length
+            ? '<table><thead><tr><th>대상</th><th>ROLE</th><th>상태</th><th>요청자</th><th>일시</th></tr></thead><tbody>'
+              + CLLOG.rows.map(r => '<tr><td>'+esc(r.emp_nm||r.email)+'</td><td>'+esc(r.role_nm||r.role_id)+'</td>'
+                  + '<td>'+esc(r.status)+'</td><td>'+esc(r.requested_by_nm||r.requested_by)+'</td>'
+                  + '<td>'+esc(String(r.requested_at||'').slice(0,16).replace('T',' '))+'</td></tr>').join('')
+              + '</tbody></table>'
+            : '<div class="notice">이 조직의 정리 내역이 아직 없습니다.</div>');
+    }
+
+    if(!mem.length || !roles.length){
+      html += '<div class="notice">표시할 데이터가 없습니다.</div>';
+      $("pane").innerHTML = html; bindClean(ex); return;
+    }
+
+    html += '<div class="legend" style="margin-bottom:6px">ROLE 이름을 누르면 전원 선택\u00b7해제됩니다 \u2014 '
+      + '체크한 뒤 「권한제외 담기」, 확인 문구 <b>'+CLTEXT+'</b> 를 입력하고 저장합니다</div>'
+      + '<div class="mx__wrap"><table><thead><tr>'
+      + '<th class="mx__fix">ROLE</th><th class="mx__n">보유</th>'
+      + mem.map(mm => '<th class="mx__n" title="'+esc(mm.email)+'">'+esc(mm.emp_nm || mm.email)+'</th>').join('')
+      + '</tr></thead><tbody>';
+    roles.forEach(({ r, holders }) => {
+      html += '<tr><td class="mx__fix" data-rowsel="'+esc(r.role_id)+'" title="전원 선택\u00b7해제">'
+        + '<span class="legend">'+esc(r.module_label || r.module || '기타')+'</span><br>'
+        + esc(r.role_label || r.role_nm)+'</td>'
+        + '<td class="mx__n">'+Object.keys(holders).length+'</td>'
+        + mem.map(mm => holders[mm.email]
+            ? '<td class="mx__n"><input type="checkbox" data-em="'+esc(mm.email)+'" data-rid="'+esc(r.role_id)+'"'
+              + (PICK.has(pkey(mm.email, r.role_id)) ? ' checked' : '')+'></td>'
+            : '<td class="mx__n mx__m">\u00b7</td>').join('')
+        + '</tr>';
+    });
+    html += '</tbody></table></div>';
+    $("pane").innerHTML = html;
+    bindClean(ex, mem, roles);
+  }
+
+  function bindClean(ex, mem, roles){
+    const note = $("clNote"), ok = $("clOk");
+    if(note) note.oninput = () => { CLNOTE = note.value; };
+    if(ok) ok.oninput = () => {
+      CLCONFIRM = ok.value;
+      const b = $("clSave"); if(b) b.disabled = !(PICK.size > 0 && CLCONFIRM.trim() === CLTEXT);
+    };
+    const add = $("clAdd");
+    if(add) add.onclick = () => {
+      $("pane").querySelectorAll('input[type=checkbox][data-em]:checked').forEach(c => {
+        const em = c.dataset.em, rid = c.dataset.rid;
+        const mm = (mem || []).find(x => x.email === em);
+        const rr = (roles || []).find(x => x.r.role_id === rid);
+        PICK.set(pkey(em, rid), { email: em, role_id: rid,
+          emp_nm: (mm && mm.emp_nm) || em, role_nm: (rr && (rr.r.role_nm)) || rid });
+      });
+      CLDONE = null; renderDetail(ex);
+    };
+    const clr = $("clClear");
+    if(clr) clr.onclick = () => { PICK.clear(); CLDONE = null; renderDetail(ex); };
+    $("pane").querySelectorAll('[data-del]').forEach(el =>
+      el.onclick = () => { PICK.delete(el.dataset.del); renderDetail(ex); });
+    $("pane").querySelectorAll('td[data-rowsel]').forEach(td => td.onclick = () => {
+      const rid = td.dataset.rowsel;
+      const boxes = [...$("pane").querySelectorAll('input[data-rid="'+rid+'"]')];
+      const allOn = boxes.every(b => b.checked);
+      boxes.forEach(b => { b.checked = !allOn; });
+    });
+    const log = $("clLog");
+    if(log) log.onclick = async () => {
+      const r = await erpApi.erpRoleCleanupList({ deptCd: SEL });
+      CLLOG = (r && r.ok) ? r : { rows: [] };
+      renderDetail(ex);
+    };
+    const save = $("clSave");
+    if(save) save.onclick = async () => {
+      save.disabled = true;
+      const r = await erpApi.erpRoleCleanupSave(SEL, [...PICK.values()].map(v =>
+        ({ email: v.email, role_id: v.role_id })), CLCONFIRM, CLNOTE || null);
+      if(r && r.ok){
+        CLDONE = r; PICK.clear(); CLCONFIRM = ''; CLNOTE = '';
+        const l = await erpApi.erpRoleCleanupList({ deptCd: SEL });
+        CLLOG = (l && l.ok) ? l : null;
+      }else{
+        alert(r && r.message ? r.message
+              : (r && r.forbidden ? '이 조직의 권한을 정리할 권한이 없습니다.' : '저장하지 못했습니다.'));
+      }
+      renderDetail(ex);
+    };
+  }
+
   /* 사람 한 명의 ERP 권한 — 권한별 탭의 보유자·조직도 인원에서 연다 */
   const PCACHE = new Map();
   async function openPerson(email){

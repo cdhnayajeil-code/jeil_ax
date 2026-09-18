@@ -617,6 +617,55 @@ export const erpApi = {
     return data || { ok: false };
   },
 
+  /* ── ERP 권한 정리(제외 요청) 장부 — 팀장·부서장이 표시하고 관리자가 모아 본다 ──────────
+     ERP 에서 실제로 회수하지는 않는다. 회수는 사람이 실행한다(CLAUDE.md §1.6).           */
+
+  // 저장. confirm 은 「권한확인 완료」 를 그대로 받아야 서버가 통과시킨다(오조작 방지).
+  // 저장자 이름은 서버가 붙인다 — 화면이 보낸 이름은 쓰지 않는다.
+  // items: [{ email, role_id }]
+  async erpRoleCleanupSave(deptCd, items, confirm, note = null, orgChangeId = null) {
+    const { data, error } = await supabase.rpc("erp_role_cleanup_save", {
+      p_dept_cd: String(deptCd || "").trim(), p_items: items || [],
+      p_confirm: String(confirm || ""), p_note: note || null,
+      p_org_change_id: orgChangeId || null,
+    });
+    if (error) {
+      const msg = String(error.message || "");
+      if (/forbidden/i.test(msg) || error.code === "42501") return { ok: false, forbidden: true };
+      if (/unauthorized/i.test(msg) || error.code === "28000") return { ok: false, unauthorized: true };
+      return { ok: false, message: msg };   // 확인 문구 불일치 등은 사용자에게 그대로 보여준다
+    }
+    return data || { ok: false };
+  },
+
+  // 내역 조회. 관리자는 전사, 그 외는 부여받은 부서만.
+  async erpRoleCleanupList({ deptCd = null, status = null, limit = 500, orgChangeId = null } = {}) {
+    const { data, error } = await supabase.rpc("erp_role_cleanup_list", {
+      p_dept_cd: deptCd || null, p_status: status || null,
+      p_limit: limit, p_org_change_id: orgChangeId || null,
+    });
+    if (error) {
+      const msg = String(error.message || "");
+      if (/forbidden/i.test(msg) || error.code === "42501") return { ok: false, forbidden: true };
+      if (/unauthorized/i.test(msg) || error.code === "28000") return { ok: false, unauthorized: true };
+      throw error;
+    }
+    return data || { ok: false };
+  },
+
+  // 상태 전이(관리자 전용) — 실제 ERP 회수는 사람이 하고 여기서는 처리 표시만 한다.
+  async erpRoleCleanupMark(ids, status) {
+    const { data, error } = await supabase.rpc("erp_role_cleanup_mark", {
+      p_ids: ids || [], p_status: status,
+    });
+    if (error) {
+      const msg = String(error.message || "");
+      if (/forbidden/i.test(msg) || error.code === "42501") return { ok: false, forbidden: true };
+      return { ok: false, message: msg };
+    }
+    return data || { ok: false };
+  },
+
   // 전사 요약(관리자 전용) — 모듈별 집계·무관 상위 role·표준 미수립 부서·회수 잔재.
   // 반환: {ok, totals, by_module[], top_unrelated[], dept_no_standard[], as_of, mirror}
   async erpRoleSummary(orgChangeId = null) {

@@ -429,7 +429,18 @@ with ver as (
          (h.dept_nm is not null
            and btrim(h.dept_nm) is distinct from a.acct_dept_nm) as dept_label_stale,
          coalesce(h.hr_active, false)                     as hr_active,
-         nullif(split_part(btrim(coalesce(g.position_nm, '')), ' ', 2), '') as gw_title,
+         -- 팀장 판정 — 그룹웨어 position_nm 은 '직급 직책' 2토큰이다. 종전에는 둘째(직책)만 봤는데
+         -- 사업관리팀 홍대기가 '팀장 팀원'(직급 팀장 / 직책 팀원)이라 팀원으로 보였다(2026-09-18 관리자 지적).
+         -- 둘 중 하나라도 리더 직함이면 리더로 본다 — 실측상 부서당 리더가 정확히 1명씩 잡힌다.
+         case
+           when split_part(btrim(coalesce(g.position_nm, '')), ' ', 1)
+                in ('대표','부문장','법인장','팀장')
+             then split_part(btrim(coalesce(g.position_nm, '')), ' ', 1)
+           when split_part(btrim(coalesce(g.position_nm, '')), ' ', 2)
+                in ('대표','부문장','법인장','팀장')
+             then split_part(btrim(coalesce(g.position_nm, '')), ' ', 2)
+           else nullif(split_part(btrim(coalesce(g.position_nm, '')), ' ', 2), '')
+         end                                              as gw_title,
          (g.email is not null and g.status = '사용')       as gw_active
     from acct a
     cross join ver
