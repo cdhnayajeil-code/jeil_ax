@@ -14,6 +14,10 @@ def env_root() -> str:
     · PyInstaller EXE: **exe 가 놓인 폴더**. 번들은 실행 시 임시폴더에 풀리므로
       `__file__` 을 쓰면 그 임시폴더를 가리켜 .env 를 영영 못 찾는다(sys.executable 이 정답).
     """
+    override = os.environ.get("JEIL_AX_ENV_ROOT", "").strip()
+    if override:
+        # 연동 러너(jeil_runner, REQ-0046)가 자식 작업에 넘기는 루트 — 부모와 같은 .env/.env.local 을 읽게 한다
+        return os.path.abspath(override)
     if getattr(sys, "frozen", False):
         return os.path.dirname(os.path.abspath(sys.executable))
     here = os.path.dirname(os.path.abspath(__file__))

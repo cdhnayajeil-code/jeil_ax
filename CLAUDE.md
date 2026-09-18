@@ -317,3 +317,26 @@ JEIL_AX/
    **부분 예외**(2026-09-11 · REQ-0030): 품목중복 조회의 조건 3칸(품명·규격·통합)은 `extras` 가 아니라 화면 본문 검색 패널에 둔다 —
    서버 정규화 검색(0.1~1초)이라 `extras` 의 입력 중 자동 조회·조회 중 입력 잠금이 맞지 않는다. 기준·새로고침은 조회바가 맡는다.
    새 조회 화면은 이 표준으로 통일한다.
+
+---
+
+## 17. 연동 러너 — 단일 통합 프로그램 (서버 배포본)
+
+> ERP 서버에서 도는 **자동화·배치·연동 실행은 전부 `jeil_runner.exe` 하나**에 모은다(2026-09-18 r1.3).
+> 소스는 `10_ERP_DB연계/etl/`, 진입점은 `jeil_runner.py`, 빌드는 `deploy/build_exe.py`.
+
+1. **EXE 는 하나다.** 서버에 두는 실행 파일은 `jeil_runner.exe` 뿐이다. 새 실행 파일을 따로 만들지 않는다 —
+   파일이 둘이면 한쪽만 낡는다(2026-09-11 릴레이 서버 v1.6 / 전달본 v1.7 실제 사례).
+2. **러너 관련 기능을 추가할 때는 두 지점만 건드린다.**
+   - 사람이 부르는 CLI → `jeil_runner.py` 의 `CLI_TOOLS` 에 한 줄(`이름: (모듈, 설명)`). 모듈에 `main()` 이 있어야 한다.
+   - 스케줄로 도는 작업 → `runner_core.py` 의 `JOB_KINDS` + `PARAM_KEYS`(+ 필요하면 `DEFAULT_JOBS`)에 한 줄,
+     실행부는 `jeil_runner.py` 의 `_run_kind()` 에 분기 하나.
+   **로직은 각 모듈이 갖는다.** 러너는 이름을 이어 줄 뿐, 비즈니스 로직을 여기에 심지 않는다(§13.3·§16.3 과 같은 원칙).
+3. **새 모듈을 붙이면 `deploy/build_exe.py` 의 `hidden` 목록에 이름을 넣는다.** PyInstaller 정적 분석에
+   안 잡히면 EXE 에서만 `ModuleNotFoundError` 가 난다 — 빌드 후 `jeil_runner.exe <서브커맨드> --help` 로 확인한다.
+4. **회귀는 빌드 전에 돌린다**: `python -m unittest test_runner_core test_runner_cli test_offboard_axes`
+   (실제 릴레이·ETL·퇴사를 절대 실행하지 않는 헤드리스 테스트다).
+5. **서버 적용은 관리자가 직접** 한다(§1.5 · 벤더 운영 서버). Claude 는 EXE 를 만들고 경로·절차만 제시한다.
+   배포 절차 정본은 `10_ERP_DB연계/etl/deploy/README.md`(C안), 변경 이력은 같은 폴더 `변경관리.md`.
+6. 능력이 안 되는 호스트에서는 **조용히 건너뛰지 않는다** — `runner_core.detect_capabilities()` 가 판정하고
+   요청 결과에 사유를 남긴다(예: playwright 없는 서버는 퇴사 큐를 선점하지 않는다).

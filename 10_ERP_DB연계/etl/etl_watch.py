@@ -24,13 +24,14 @@ import datetime
 import importlib
 import json
 import os
+import re
 import socket
 import sys
 import time
 import urllib.error
 import urllib.request
 
-from _env import load_env, need
+from _env import env_root, load_env, need
 from etl_run import JOBS, run_job
 
 # 웹 요청으로 항상 허용하는 job = 민감 스키마(erp_secure)로 가지 않는 것 전부.
@@ -52,6 +53,21 @@ COLLECTORS = {
 
 POLL_SEC = 20          # 기본 폴링 주기
 HTTP_TIMEOUT = 60
+
+# 접속 오류 원문에서 계정·서버 정보를 가린다 — 요청 결과(sync_request.result/error_msg)는 사내 로그인 사용자가
+# 조회할 수 있어 ODBC 원문(「Login failed for user '...'」·연결 문자열 조각·IP)이 그대로 가면 안 된다(재검증 반영).
+_REDACT_RULES = [
+    (re.compile(r"(?i)(user\s+')[^']*(')"), r"\1***\2"),
+    (re.compile(r"(?i)\b(UID|PWD|PASSWORD|USER ID|SERVER|DATA SOURCE|ADDRESS|DATABASE)\s*=\s*[^;'\"\]\)]*"), r"\1=***"),
+    (re.compile(r"\b\d{1,3}(?:\.\d{1,3}){3}(?:[,:]\d+)?\b"), "***"),
+]
+
+
+def _redact(msg):
+    s = str(msg)
+    for rx, rep in _REDACT_RULES:
+        s = rx.sub(rep, s)
+    return s
 
 
 def log(msg):
@@ -103,13 +119,38 @@ def notify(title, lines, bad=False):
 _DUE_NOTIFIED_AT = 0.0
 
 
+def _due_stamp_path():
+    return os.path.join(env_root(), "logs", "due_notified.at")
+
+
+def _due_stamp_read():
+    try:
+        with open(_due_stamp_path(), encoding="utf-8") as f:
+            return float(f.read().strip() or 0)
+    except (OSError, ValueError):
+        return 0.0
+
+
+def _due_stamp_write(ts):
+    try:
+        p = _due_stamp_path()
+        os.makedirs(os.path.dirname(p), exist_ok=True)
+        with open(p, "w", encoding="utf-8") as f:
+            f.write(str(ts))
+    except OSError:
+        pass
+
+
 def notify_due_schedules(url, key):
     """도래했는데 사람 확인을 기다리는 예약·자동 보류(강등) 건을 하루 한 번 Teams 로 묶어 알린다(리뷰 반영).
     러너가 도는 동안만 동작한다(러너는 수동 기동) — 그래도 화면을 열지 않은 관리자에게 닿는 유일한 경로다."""
     global _DUE_NOTIFIED_AT
-    if time.time() - _DUE_NOTIFIED_AT < 6 * 3600:
+    now = time.time()
+    # 억제 시각을 파일에도 남긴다 — 연동 러너는 회차마다 새 프로세스라 전역 변수만으로는 매분 알림이 나간다(리뷰 반영)
+    if now - max(_DUE_NOTIFIED_AT, _due_stamp_read()) < 6 * 3600:
         return
-    _DUE_NOTIFIED_AT = time.time()
+    _DUE_NOTIFIED_AT = now
+    _due_stamp_write(now)
     try:
         lst = rpc(url, key, "offboard_schedule_list", {"p_days_back": 7}) or {}
     except Exception as e:
@@ -152,16 +193,44 @@ def rpc(url, key, fn, payload):
         return raw
 
 
-def targets_for(req_jobs, include_sensitive=False):
-    """요청이 지정한 job ∩ 허용 목록. 비었으면 허용 목록 전체(기본 세트).
-    include_sensitive 는 관리자 요청에서만 참 — 이때만 급여(erp_secure) job 이 목록에 붙는다.
-    계정 수집기(COLLECTORS)는 항상 허용이며 **ERP job 뒤**에 붙인다 — ERP 사용자마스터가
-    먼저 갱신돼야 계정 대사가 같은 시점의 데이터로 맞춰진다."""
-    allowed = (list(SAFE_JOBS)
-               + (list(SENSITIVE_JOBS) if include_sensitive else [])
-               + list(COLLECTORS))
-    asked = [j for j in (req_jobs or []) if j in allowed]
-    return asked or allowed
+def _allowed_collectors(collectors):
+    """collectors 인자 → 이 러너가 돌릴 수집기 이름 목록. True=전부 · 거짓=없음 · 목록=그중 아는 것만."""
+    if collectors is True:
+        return list(COLLECTORS)
+    if not collectors:
+        return []
+    want = set(collectors)
+    return [n for n in COLLECTORS if n in want]
+
+
+def plan_targets(req_jobs, include_sensitive=False, collectors=True, allow_sensitive=True):
+    """요청 → (이 러너가 돌릴 job 목록, 생략 목록[(job, 사유)]).
+
+    · 요청 job 이 비었으면 기본 세트 = ERP 안전 job + 허용 수집기(+ 관리자 요청 시 급여).
+      계정 수집기는 **ERP job 뒤**에 붙인다 — ERP 사용자마스터가 먼저 갱신돼야 계정 대사가 같은 시점으로 맞는다.
+    · 이 호스트가 못 하는 수집기(접속정보 없음)·급여(러너 설정) 는 조용히 빼지 않고 **생략으로 돌려준다**
+      — 요청 결과에 남겨 「완료」 오해를 막는다(REQ-0046 리뷰).
+    · 지정 job 이 전부 이 러너 밖이면 빈 목록 — 요청과 무관한 전체 세트로 바꿔 돌리지 않는다.
+      (모르는 job 이름만 온 요청은 종전처럼 기본 세트)"""
+    acc = _allowed_collectors(collectors)
+    sens_ok = bool(include_sensitive) and bool(allow_sensitive)
+    allowed = list(SAFE_JOBS) + (list(SENSITIVE_JOBS) if sens_ok else []) + acc
+    host_skip = {n: "이 러너에 접속정보 없음" for n in COLLECTORS if n not in acc}
+    if include_sensitive and not allow_sensitive:
+        host_skip.update({n: "이 러너는 급여(민감) job 을 처리하지 않도록 설정됨" for n in SENSITIVE_JOBS})
+    req = [j for j in (req_jobs or []) if isinstance(j, str)]
+    if req:
+        asked = [j for j in req if j in allowed]
+        skipped = [(j, host_skip[j]) for j in req if j in host_skip]
+        if not asked and not skipped:
+            asked = allowed
+        return asked, skipped
+    return allowed, list(host_skip.items())
+
+
+def targets_for(req_jobs, include_sensitive=False, collectors=True):
+    """(호환용) plan_targets 의 실행 목록만."""
+    return plan_targets(req_jobs, include_sensitive, collectors)[0]
 
 
 def run_collector(name, url, key, dry):
@@ -183,11 +252,15 @@ def run_collector(name, url, key, dry):
                                     {"p_action": "start", "p_payload": {"job_name": name}})
     try:
         read, up = mod.collect(url, key, dry)
-    except Exception as e:
+    except (Exception, SystemExit) as e:
+        # need() 는 SystemExit — 러너 전체가 멈추지 않게 일반 예외로 바꿔 올린다(원문의 계정·서버 정보는 가림)
+        msg = _redact(str(e.code) if isinstance(e, SystemExit) else str(e))
         if batch_id:
             rpc(url, key, "erp_etl_batch", {"p_action": "finish", "p_payload": {
                 "batch_id": batch_id, "status": "failed", "rows_read": 0,
-                "error_msg": str(e)[:500]}})
+                "error_msg": msg[:500]}})
+        if isinstance(e, SystemExit):
+            raise RuntimeError(msg) from None
         raise
     if batch_id:
         rpc(url, key, "erp_etl_batch", {"p_action": "finish", "p_payload": {
@@ -196,13 +269,30 @@ def run_collector(name, url, key, dry):
     return read, up
 
 
-def handle(url, key, runner, req, dry, full):
+def handle(url, key, runner, req, dry, full, collectors=True, allow_sensitive=True):
+    """「데이터 업데이트」 요청 1건. 반환 "done"/"failed".
+
+    실패로 닫는 경우: job 실패가 있거나, 이 러너가 못 해 **생략한 job 이 하나라도** 있을 때(계정 수집·급여).
+    생략을 「완료」로 닫으면 화면이 초록 「업데이트 완료」만 띄워 계정·급여가 옛 값인 것을 아무도 모른다(재검증 반영).
+    데이터 업데이트 화면의 실패 문구는 「일부/전체 실패 — 사유 (아래 표는 최신 상태로 갱신)」이라,
+    ERP 는 갱신됐고 무엇이 빠졌는지가 그대로 보인다."""
     rid = req["request_id"]
     sens = bool(req.get("include_sensitive"))
-    names = targets_for(req.get("jobs"), sens)
+    names, skipped = plan_targets(req.get("jobs"), sens, collectors, allow_sensitive)
     total = len(names)
     log(f"요청 수락 {rid[:8]}… (요청자 {req.get('requested_by') or '-'}) — job {total}종"
-        + (" · 급여 포함(관리자 요청)" if sens else ""))
+        + (" · 급여 포함(관리자 요청)" if sens else "")
+        + (f" · 생략 {len(skipped)}종" if skipped else ""))
+
+    skip_detail = [{"job": n, "status": "skipped", "reason": why} for n, why in skipped]
+    skip_msg = ("생략 %d종(러너 %s 에서 불가): %s" % (len(skipped), runner, ", ".join(n for n, _ in skipped))) if skipped else None
+    if not names:
+        err = f"이 러너({runner})가 처리할 수 있는 job 이 없습니다 — " + (skip_msg or "요청 job 확인")
+        rpc(url, key, "erp_sync_request_finish",
+            {"p_request_id": rid, "p_status": "failed", "p_result": {"jobs": skip_detail, "dry_run": bool(dry)},
+             "p_rows_read": 0, "p_rows_upserted": 0, "p_error": err[:500]})
+        log(f"요청 종료 {rid[:8]}… — failed · {err[:160]}")
+        return "failed"
 
     rpc(url, key, "erp_sync_request_progress",
         {"p_request_id": rid, "p_done": 0, "p_total": total, "p_job": names[0]})
@@ -222,23 +312,32 @@ def handle(url, key, runner, req, dry, full):
             read_sum += rd
             up_sum += up
             detail.append({"job": name, "status": "success", "read": rd, "upserted": up})
-        except Exception as e:
-            # 한 job이 실패해도 나머지는 계속 — 부분 성공도 데이터는 갱신된다
+        except (Exception, SystemExit) as e:
+            # 한 job이 실패해도 나머지는 계속 — 부분 성공도 데이터는 갱신된다.
+            # need() 는 SystemExit 을 던진다 — 잡지 않으면 요청이 running 에 2시간 갇힌다
+            msg = _redact(str(e.code) if isinstance(e, SystemExit) else str(e))
             fails.append(name)
-            detail.append({"job": name, "status": "failed", "error": str(e)[:300]})
-            log(f"  ! {name} 실패: {str(e)[:200]}")
+            detail.append({"job": name, "status": "failed", "error": msg[:300]})
+            log(f"  ! {name} 실패: {msg[:200]}")
 
-    status = "failed" if fails else "done"
-    err = f"{len(fails)}개 job 실패: {', '.join(fails)}" if fails else None
+    status = "failed" if (fails or skipped) else "done"
+    parts = []
+    if fails:
+        parts.append(f"{len(fails)}개 job 실패: {', '.join(fails)}")
+    if skip_msg:
+        parts.append(skip_msg)
+    err = " · ".join(parts) or None
     rpc(url, key, "erp_sync_request_finish",
-        {"p_request_id": rid, "p_status": status, "p_result": {"jobs": detail, "dry_run": bool(dry)},
-         "p_rows_read": read_sum, "p_rows_upserted": up_sum, "p_error": err})
+        {"p_request_id": rid, "p_status": status,
+         "p_result": {"jobs": detail + skip_detail, "dry_run": bool(dry)},
+         "p_rows_read": read_sum, "p_rows_upserted": up_sum, "p_error": err[:500] if err else None})
     log(f"요청 종료 {rid[:8]}… — {status} · 추출 {read_sum} / 적재 {up_sum}"
-        + (f" · 실패 {len(fails)}" if fails else ""))
+        + (f" · 실패 {len(fails)}" if fails else "") + (f" · 생략 {len(skipped)}" if skipped else ""))
+    return status
 
 
 def handle_offboard(url, key, runner, req):
-    """퇴사 처리 요청 1건 — 대상별로 요청된 축(ERP·그룹웨어·MS)을 실행한다.
+    """퇴사 처리 요청 1건 — 대상별로 요청된 축(ERP·그룹웨어·MS)을 실행한다. 반환 "done"/"failed".
 
     브라우저는 그룹웨어 관리자 화면에 붙을 수 없어서(사외 호스트 + 화면 조작 필요) 화면은
     요청만 남기고 여기서 실행한다. 「데이터 업데이트」와 같은 구조다.
@@ -263,12 +362,18 @@ def handle_offboard(url, key, runner, req):
         + ("실제 처리" if apply else "점검(변경 없음)"))
 
     # Graph 토큰은 한 번만 받아 모든 대상·축이 함께 쓴다(대상마다 받으면 토큰 요청이 대상 수만큼 난다).
-    tok = None
+    tok, tok_err = None, None
     if any("erp" in (t.get("axes") or []) or "ms" in (t.get("axes") or []) for t in targets):
         try:
             tok = offboard_axes._token()
+        except SystemExit as e:
+            # need() — 접속정보 자체가 없다(설정 누락, 다시 받아도 같다). 축 함수가 토큰을 또 받으려다
+            # SystemExit 으로 러너째 죽지 않게, 토큰이 꼭 필요한 축(MS 전부 · ERP 실제 적용)은 실행하지 않는다
+            tok_err = _redact(str(e.code))[:160]
+            log(f"  ! Graph 접속정보 없음(MS 축·ERP 실제 적용은 실행하지 않음): {tok_err}")
         except Exception as e:
-            log(f"  ! Graph 토큰 발급 실패(ERP·MS 축 건너뜀): {str(e)[:160]}")
+            # 일시 오류(네트워크·503 등) — 종전처럼 축마다 토큰을 다시 받게 둔다(재검증 반영)
+            log(f"  ! Graph 토큰 1차 발급 실패(축별로 다시 받음): {_redact(str(e))[:160]}")
 
     detail, fails = [], []
     for i, t in enumerate(targets):
@@ -277,10 +382,18 @@ def handle_offboard(url, key, runner, req):
         rpc(url, key, "offboard_request_progress",
             {"p_request_id": rid, "p_done": i, "p_total": total,
              "p_target": f"{who} [{'·'.join(axes)}]"})
-        try:
-            axr = offboard_axes.run_axes(t, axes, apply=apply, tok=tok)
-        except Exception as e:                       # 예상 못 한 오류도 한 사람으로 가둔다
-            axr = [{"ok": False, "axis": a, "msg": str(e)[:300]} for a in axes]
+        # 점검(check) 모드의 ERP 축은 토큰 없이 판정한다 — 실제 적용일 때만 막는다
+        blocked = [a for a in axes if a == "ms" or (a == "erp" and apply)] if tok_err else []
+        run = [a for a in axes if a not in blocked]
+        axr = [{"ok": False, "axis": a, "msg": "Graph 접속정보 없음 — 실행하지 않음: " + tok_err} for a in blocked]
+        if run:
+            try:
+                axr += offboard_axes.run_axes(t, run, apply=apply, tok=tok)
+            except (Exception, SystemExit) as e:     # 예상 못 한 오류도 한 사람으로 가둔다
+                msg = str(e.code) if isinstance(e, SystemExit) else str(e)
+                axr += [{"ok": False, "axis": a, "msg": msg[:300]} for a in run]
+        order = {a: k for k, a in enumerate(axes)}
+        axr.sort(key=lambda x: order.get(x.get("axis"), 99))
 
         ok_all = all(x.get("ok") for x in axr) if axr else False
         detail.append({"email": t.get("email"), "name": t.get("emp_nm"),
@@ -305,55 +418,75 @@ def handle_offboard(url, key, runner, req):
                [f"요청 {rid[:8]}… · 요청자 {req.get('requested_by') or '-'} · 대상 {total}명 · 전축성공 {total - len(fails)}"]
                + [("✖ " if not d.get("ok") else "✔ ") + f"{d.get('name') or d.get('email')} — {str(d.get('msg'))[:160]}" for d in detail[:20]],
                bad=bool(fails))
+    return status
 
 
-def tick(url, key, runner, dry, full):
-    """하트비트 1회 + 대기 요청 있으면 1건 처리. 처리했으면 True.
-    ETL 요청과 퇴사 처리 요청 **둘 다** 본다 — 한 번에 하나만 처리해 브라우저·ERP 부하가 겹치지 않는다."""
+def _ping_note(offboard, collectors, allow_sensitive=True):
+    """러너 심박 메모 — 이 러너가 할 수 있는 일(`jobs=N+acctK[+offboard][+nosens]`). SQL 49 의 선점·가동 판정이 이 표식을 본다.
+    `+nosens` 는 급여(민감) 요청을 처리하지 않는 러너 표식 — 표식이 없는 옛 러너는 종전처럼 처리 가능으로 본다."""
+    return (f"jobs={len(SAFE_JOBS)}+acct{len(_allowed_collectors(collectors))}"
+            + ("+offboard" if offboard else "") + ("" if allow_sensitive else "+nosens"))
+
+
+def tick(url, key, runner, dry, full, offboard=True, collectors=True, allow_sensitive=True):
+    """하트비트 1회 + 대기 요청 있으면 1건 처리. 반환 False(할 일 없음) · "done" · "failed".
+    (참/거짓 판정은 종전과 같다 — 처리했으면 참)
+
+    ETL 요청과 퇴사 처리 요청 **둘 다** 본다 — 한 번에 하나만 처리해 브라우저·ERP 부하가 겹치지 않는다.
+    offboard=False 면 퇴사 처리 큐를 **선점조차 하지 않고** 예약 도래 알림도 보내지 않는다 — 브라우저(Playwright)가
+    없는 호스트(ERP 서버 러너, REQ-0046)가 실제 적용 건을 집어 실패로 만들지 않기 위해서다.
+    collectors 는 True(전부)·False(없음)·이름 목록 — 접속정보 없는 수집기는 생략으로 기록된다."""
     rpc(url, key, "erp_sync_runner_ping",
-        {"p_runner": runner, "p_note": f"jobs={len(SAFE_JOBS)}+acct{len(COLLECTORS)}+offboard"})
+        {"p_runner": runner, "p_note": _ping_note(offboard, collectors, allow_sensitive)})
 
-    notify_due_schedules(url, key)   # 도래·보류 예약을 하루 한 번 묶어 알린다(웹훅 있을 때만)
+    if offboard:
+        notify_due_schedules(url, key)   # 도래·보류 예약을 6시간에 한 번 묶어 알린다(웹훅 있을 때만)
 
-    off = rpc(url, key, "offboard_request_claim", {"p_runner": runner})
+    off = rpc(url, key, "offboard_request_claim", {"p_runner": runner}) if offboard else None
     if off:
         try:
-            handle_offboard(url, key, runner, off)
-        except Exception as e:
-            log(f"퇴사 처리 중 오류: {e}")
+            return handle_offboard(url, key, runner, off)
+        except (Exception, SystemExit) as e:
+            msg = str(e.code) if isinstance(e, SystemExit) else str(e)
+            log(f"퇴사 처리 중 오류: {msg[:300]}")
             try:
                 rpc(url, key, "offboard_request_finish",
-                    {"p_request_id": off["request_id"], "p_status": "failed", "p_error": str(e)[:500]})
+                    {"p_request_id": off["request_id"], "p_status": "failed", "p_error": msg[:500]})
             except Exception:
                 pass
             # 예약 자동 건은 handle_offboard 안의 알림에 못 미쳤어도 실패를 알린다(리뷰 반영 — 무인 실행의 실패가 묻히지 않게)
             if off.get("origin") == "schedule" and (off.get("mode") == "apply"):
                 notify("퇴사 예약 자동 처리 실패(러너 오류)",
-                       [f"요청 {str(off.get('request_id'))[:8]}… · 대상 {len(off.get('targets') or [])}명", f"{type(e).__name__}: {str(e)[:200]}"], bad=True)
-        return True
+                       [f"요청 {str(off.get('request_id'))[:8]}… · 대상 {len(off.get('targets') or [])}명", f"{type(e).__name__}: {msg[:200]}"], bad=True)
+            return "failed"
 
     req = rpc(url, key, "erp_sync_request_claim", {"p_runner": runner})
     if not req:
         return False
     try:
-        handle(url, key, runner, req, dry, full)
-    except Exception as e:
+        return handle(url, key, runner, req, dry, full, collectors, allow_sensitive)
+    except (Exception, SystemExit) as e:
         # handle 자체가 깨진 경우(네트워크 등) — 요청을 running 으로 방치하지 않는다
-        log(f"요청 처리 중 오류: {e}")
+        msg = _redact(str(e.code) if isinstance(e, SystemExit) else str(e))
+        log(f"요청 처리 중 오류: {msg[:300]}")
         try:
             rpc(url, key, "erp_sync_request_finish",
-                {"p_request_id": req["request_id"], "p_status": "failed", "p_error": str(e)[:500]})
+                {"p_request_id": req["request_id"], "p_status": "failed", "p_error": msg[:500]})
         except Exception:
             pass
-    return True
+        return "failed"
 
 
 def main():
     ap = argparse.ArgumentParser(description="웹 「데이터 업데이트」 요청 감시·실행 러너")
-    ap.add_argument("--once", action="store_true", help="1회만 확인하고 종료(작업 스케줄러용)")
+    ap.add_argument("--once", action="store_true", help="1회만 확인하고 종료(작업 스케줄러용) — 요청 실패 시 exit 1")
     ap.add_argument("--interval", type=int, default=POLL_SEC, help=f"폴링 주기(초, 기본 {POLL_SEC})")
     ap.add_argument("--dry-run", action="store_true", help="적재 없이 추출 건수만(흐름 검증)")
     ap.add_argument("--full", action="store_true", help="증분 무시하고 전량 재적재")
+    ap.add_argument("--no-offboard", action="store_true",
+                    help="퇴사 처리 큐를 보지 않는다(브라우저 없는 호스트 — ERP 서버 러너)")
+    ap.add_argument("--no-collectors", action="store_true",
+                    help="계정 수집기(MS·그룹웨어)를 대상에서 뺀다(접속정보 없는 호스트 — 요청 결과에 생략으로 기록)")
     args = ap.parse_args()
 
     load_env()
@@ -365,20 +498,22 @@ def main():
         f" + 계정수집 {len(COLLECTORS)}종({'·'.join(COLLECTORS)})"
         f"(+관리자 요청 시 민감 {len(SENSITIVE_JOBS)}종)"
         + (" · dry-run" if args.dry_run else "") + (" · full" if args.full else ""))
+    if args.no_offboard or args.no_collectors:
+        log("옵션: " + " · ".join(x for x, on in (("퇴사 처리 제외", args.no_offboard), ("계정 수집 제외", args.no_collectors)) if on))
+    opts = dict(offboard=not args.no_offboard, collectors=not args.no_collectors)
     if args.once:
-        return 0 if tick(url, key, runner, args.dry_run, args.full) is not None else 1
+        return 1 if tick(url, key, runner, args.dry_run, args.full, **opts) == "failed" else 0
 
     try:
         while True:
             try:
-                if not tick(url, key, runner, args.dry_run, args.full):
+                if not tick(url, key, runner, args.dry_run, args.full, **opts):
                     time.sleep(max(5, args.interval))
             except Exception as e:
                 log(f"폴링 오류(계속 재시도): {str(e)[:200]}")
                 time.sleep(max(5, args.interval))
     except KeyboardInterrupt:
         log("러너 종료(Ctrl+C)")
-    return 0
 
 
 if __name__ == "__main__":
