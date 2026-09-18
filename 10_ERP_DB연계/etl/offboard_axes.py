@@ -6,7 +6,8 @@
   · ERP       : SharePoint 목록 「ERP 퇴사처리 RPA」에 등재 → 기존 Power Automate 흐름이 처리
                 (포털이 ERP MSSQL 을 직접 건드리지 않는다 — CLAUDE.md §1.2)
   · 그룹웨어   : 관리자 화면 자동화(Playwright) — gw_offboard.py
-  · MS(Entra) : Graph — 로그인 차단 + 표시이름 `[퇴사]` 접두 + **라이선스 회수**
+  · MS(Entra) : Graph — 로그인 차단 + 이름·표시이름 `[퇴사]` 접두 + **라이선스 회수**
+                + Exchange — **사서함 공유 전환**(exo_admin.py · Graph 로는 못 하는 단계)
 
 앱 권한은 2026-09-09 부여 완료(`Sites.ReadWrite.All` · `User.ReadWrite.All`).
 실측으로 확인한 것:
@@ -139,9 +140,36 @@ def erp_offboard(email, emp_nm, retire_dt, acct_nm=None, apply=False, tok=None):
 
 
 # ─────────────────────────────────────────────────────────────────────────
-# MS(Entra) — 로그인 차단 + 표시이름 [퇴사] 접두
+# MS(Entra) — 로그인 차단 + [퇴사] 표기 + 라이선스 회수 + 사서함 공유 전환
 # ─────────────────────────────────────────────────────────────────────────
 MS_PREFIX = "[퇴사]"   # 실측 표기 분포 [퇴사] 320 / (퇴사) 26 → 많은 쪽으로 통일
+
+# 표기를 붙일 필드. displayName 만 바꾸면 **Teams·연락처 카드에는 퇴사가 안 보인다**
+# (2026-09-17 관리자 실측 — 연락처 정보 관리 화면의 「이름」은 givenName 이다).
+# 그래서 이름 필드까지 함께 접두한다. 성(surname)은 사내 계정 대부분이 비어 있고,
+# 채워진 경우에도 이름 쪽 접두만으로 카드에 드러나므로 건드리지 않는다.
+MS_NAME_FIELDS = ("displayName", "givenName")
+
+
+def _exo():
+    """Exchange 모듈을 그때그때 다시 읽는다 — 상주 러너가 옛 코드를 들고 있지 않도록
+    (offboard_axes 자체를 매번 reload 하는 것과 같은 이유)."""
+    import importlib
+    import exo_admin
+    try:
+        return importlib.reload(exo_admin)
+    except Exception:
+        return exo_admin
+
+
+def _want_shared(flag):
+    """사서함 공유 전환을 할지. 기본은 **한다** — 퇴사자 메일을 남기려고 넣은 단계다.
+    끄려면 `.env` 에 `MS_SHARED_MAILBOX=off`."""
+    if flag is not None:
+        return bool(flag)
+    load_env()
+    return (os.environ.get("MS_SHARED_MAILBOX", "on") or "on").strip().lower() not in (
+        "off", "0", "false", "no")
 
 
 def _ms_licenses(tok, uid):
@@ -180,65 +208,113 @@ def _assign_license(tok, uid, add, remove, tries=4):
     return last
 
 
-def ms_offboard(email, apply=False, tok=None, revoke_license=True):
-    """MS 퇴사 처리 — ①로그인 차단 ②표시이름 [퇴사] 접두 ③라이선스 회수.
+def _name_patch(u):
+    """[퇴사] 를 붙일 이름 필드만 골라 담는다. 이미 표기된 필드는 건드리지 않는다
+    (두 번 돌려도 `[퇴사][퇴사]` 가 되지 않아야 한다)."""
+    patch = {}
+    for f in MS_NAME_FIELDS:
+        v = (u.get(f) or "").strip()
+        if v and "퇴사" not in v:
+            patch[f] = MS_PREFIX + v
+    return patch
 
-    ⚠ 라이선스를 떼면 **사서함이 30일 보존 후 삭제**된다(Microsoft 정책). 되돌리려면
-    그 기간 안에 같은 라이선스를 다시 할당해야 한다. 그래서 회수는 옵션으로 두고,
-    화면이 그 사실을 알린 뒤 켜도록 한다."""
+
+def ms_offboard(email, apply=False, tok=None, revoke_license=True, shared_mailbox=None):
+    """MS 퇴사 처리 — ①사서함 공유 전환 ②로그인 차단 ③[퇴사] 표기 ④라이선스 회수.
+
+    순서에 이유가 있다. 사서함은 **라이선스가 살아 있을 때** 공유로 바꿔야 하고,
+    공유로 바뀐 뒤에 라이선스를 떼야 메일이 남는다(공유 사서함 50GB 미만은 라이선스 불필요).
+    ⚠ 공유로 바꾸지 못한 채 라이선스를 떼면 **사서함이 30일 보존 후 삭제**된다 —
+    그래서 전환이 불가능하거나 실패하면 **라이선스 회수를 하지 않는다**. 절반만 하고
+    메일을 잃는 것보다, 라이선스가 남아 대사 목록에 계속 뜨는 편이 낫다.
+
+    표기는 displayName 과 givenName 에 함께 붙인다 — displayName 만으로는 Teams·연락처
+    카드에 퇴사가 드러나지 않는다(2026-09-17 관리자 실측)."""
     tok = tok or _token()
-    st, u = _graph(tok, "GET", "/users/%s?$select=id,displayName,accountEnabled,usageLocation" % email)
+    st, u = _graph(tok, "GET",
+                   "/users/%s?$select=id,displayName,givenName,surname,accountEnabled,usageLocation"
+                   % email)
     if st != 200:
         return {"ok": False, "axis": "ms", "msg": _perm_msg("ms", st, str(u)[:180])}
 
     uid = u["id"]
-    name = u.get("displayName") or ""
-    already_marked = ("퇴사" in name)
+    want_shared = _want_shared(shared_mailbox)
     direct, by_group, lic_names = ([], [], [])
     if revoke_license:
         direct, by_group, lic_names = _ms_licenses(tok, uid)
 
-    patch = {}
+    patch = _name_patch(u)
     if u.get("accountEnabled"):
         patch["accountEnabled"] = False
-    if not already_marked:
-        patch["displayName"] = MS_PREFIX + name
+
+    # ① 사서함 — 점검이든 실제든 먼저 본다. 여기 결과가 라이선스 회수 여부를 정한다.
+    sh, hold_msg = None, None
+    if want_shared:
+        sh = _exo().to_shared(email, apply=apply)
+        if not sh.get("available"):
+            # 권한 미구성은 오류가 아니다. 다만 사서함을 지킬 수 없으니 라이선스는 손대지 않는다.
+            hold_msg = ("⚠ 사서함 공유 전환 불가 — %s · 사서함이 삭제될 수 있어 라이선스 회수를 보류했습니다"
+                        % sh.get("msg"))
+        elif not sh.get("ok"):
+            # 권한은 있는데 전환이 안 됐다 — 진짜 오류. 라이선스·차단은 건드리지 않고 멈춘다.
+            return {"ok": False, "axis": "ms", "changed": False,
+                    "msg": "사서함 공유 전환 실패 — %s (라이선스·차단은 건드리지 않았습니다)"
+                           % sh.get("msg")}
+
+    if hold_msg:
+        direct = []          # 보류 — 회수 대상에서 뺀다(사유는 아래 메시지에 남는다)
 
     todo = []
+    if sh and sh.get("state") == "user" and not hold_msg:
+        todo.append(sh.get("msg"))
     if patch:
         todo.append("차단·표기 " + json.dumps(patch, ensure_ascii=False))
     if direct:
         todo.append("라이선스 회수 %s" % (", ".join(lic_names) or "%d건" % len(direct)))
     if by_group:
         todo.append("⚠ 그룹 상속 라이선스 %d건은 그룹에서 제외해야 함(자동 회수 불가)" % len(by_group))
+    if hold_msg:
+        todo.append(hold_msg)
 
-    if not patch and not direct:
+    nothing_left = (not patch and not direct and not (sh and sh.get("state") == "user"))
+    if nothing_left:
+        tail = [x for x in (hold_msg,
+                            ("⚠ 그룹 상속 라이선스 %d건 남음 — 그룹에서 제외 필요" % len(by_group))
+                            if by_group else None) if x]
         return {"ok": True, "axis": "ms", "changed": False,
-                "msg": "이미 처리됨" + (" · " + todo[-1] if by_group else ""),
-                "license_by_group": by_group}
+                "msg": "이미 처리됨" + ("" if not tail else " · " + " / ".join(tail)),
+                "license_by_group": by_group, "mailbox": (sh or {}).get("state")}
     if not apply:
         return {"ok": True, "axis": "ms", "changed": False, "dry_run": True,
                 "msg": "점검 — " + " / ".join(todo)}
 
     done = []
+    if sh and sh.get("changed"):
+        done.append(sh.get("msg"))
+    # ② 차단·표기
     if patch:
         st, res = _graph(tok, "PATCH", "/users/" + uid, patch)
         if st not in (200, 204):
-            return {"ok": False, "axis": "ms", "msg": _perm_msg("ms", st, str(res)[:180])}
+            return {"ok": False, "axis": "ms", "changed": bool(done),
+                    "msg": (" / ".join(done) + " / " if done else "") + _perm_msg("ms", st, str(res)[:180])}
         done.append("차단·표기 " + json.dumps(patch, ensure_ascii=False))
+    # ③ 라이선스 회수 — 사서함이 안전할 때만 여기 온다(보류했으면 direct 가 비어 있다)
     if direct:
         st, res = _assign_license(tok, uid, [], direct)
         if st not in (200, 202):
             # 차단은 됐는데 라이선스만 남은 상태 — 절반만 됐다는 것을 분명히 말한다.
             return {"ok": False, "axis": "ms", "changed": bool(done),
-                    "msg": "차단·표기는 됐으나 라이선스 회수 실패 — " + _perm_msg("ms", st, str(res)[:160])}
+                    "msg": " / ".join(done) + " / 라이선스 회수 실패 — " + _perm_msg("ms", st, str(res)[:160])}
         done.append("라이선스 회수 %s" % (", ".join(lic_names) or "%d건" % len(direct)))
 
-    msg = " / ".join(done)
+    msg = " / ".join([d for d in done if d]) or "변경 없음"
     if by_group:
         msg += " / ⚠ 그룹 상속 라이선스 %d건 남음 — 그룹에서 제외 필요" % len(by_group)
+    if hold_msg:
+        msg += " / " + hold_msg
     return {"ok": True, "axis": "ms", "changed": True, "msg": msg,
-            "license_removed": lic_names, "license_by_group": by_group}
+            "license_removed": lic_names, "license_by_group": by_group,
+            "mailbox": (sh or {}).get("state")}
 
 
 # ─────────────────────────────────────────────────────────────────────────
@@ -272,15 +348,17 @@ def run_axes(target, axes, apply=False, tok=None):
                                      target.get("retire_dt"), apply=apply)
             else:
                 r = ms_offboard(target.get("email"), apply=apply, tok=tok,
-                                revoke_license=target.get("revoke_license", True))
+                                revoke_license=target.get("revoke_license", True),
+                                shared_mailbox=target.get("shared_mailbox"))
         except Exception as e:                       # 예상 못 한 오류도 축 하나로 가둔다
             r = {"ok": False, "axis": ax, "msg": str(e)[:300]}
         out.append(r)
     return out
 
 
-if __name__ == "__main__":
-    # 점검용 CLI — 실제 변경 없이 각 축이 무엇을 하려는지, 권한이 있는지 확인한다.
+def main():
+    """점검용 CLI — 실제 변경 없이 각 축이 무엇을 하려는지, 권한이 있는지 확인한다.
+    통합 러너에서는 `jeil_runner.exe offboard ...` 로 같은 것을 부른다."""
     import argparse
     ap = argparse.ArgumentParser(description="퇴사 처리 3축 점검(기본 dry-run)")
     ap.add_argument("-e", "--email", required=True)
@@ -295,5 +373,12 @@ if __name__ == "__main__":
             _s.reconfigure(encoding="utf-8", errors="replace")
     tgt = {"email": a.email, "emp_nm": a.name, "retire_dt": a.retire_date,
            "gw_login_id": a.gw_login_id}
+    bad = 0
     for r in run_axes(tgt, [x.strip() for x in a.axes.split(",")], apply=a.apply):
         print("[%s] %s — %s" % (r.get("axis"), "OK" if r.get("ok") else "실패", r.get("msg")))
+        bad += 0 if r.get("ok") else 1
+    return 1 if bad else 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

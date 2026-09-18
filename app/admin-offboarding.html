@@ -145,7 +145,7 @@
       <div class="stat warn"><div class="lb">잔여 조치 대상</div><div class="v" id="kOff">—</div><div class="u">퇴사자인데 계정 살아있음</div></div>
       <div class="stat off"><div class="lb">ERP 계정 남음</div><div class="v" id="kErp">—</div><div class="u">비활성 처리 필요</div></div>
       <div class="stat off"><div class="lb">그룹웨어 남음</div><div class="v" id="kGw">—</div><div class="u">사용중지 필요</div></div>
-      <div class="stat off"><div class="lb">MS 남음</div><div class="v" id="kMs">—</div><div class="u">차단 · [퇴사] 표기 · 라이선스 회수</div></div>
+      <div class="stat off"><div class="lb">MS 남음</div><div class="v" id="kMs">—</div><div class="u">차단 · [퇴사] 표기 · 사서함 공유 · 라이선스 회수</div></div>
     </div>
 
     <h3>축별 처리 방식</h3>
@@ -162,9 +162,12 @@
       </div>
       <div class="a ok">
         <h5>MS(Entra) <span class="badge g">자동 · 실증</span></h5>
-        <p>로그인 차단 + 표시이름 <code>[퇴사]</code> 접두 + <b>라이선스 회수</b>를 함께 합니다.
-           그룹으로 상속된 라이선스는 API 로 뗄 수 없어 <b>남았다고 결과에 표시</b>합니다 &mdash;
-           그건 그룹에서 사용자를 빼야 합니다.</p>
+        <p>로그인 차단 + <b>이름·표시이름</b>에 <code>[퇴사]</code> 접두 + <b>사서함 공유 전환</b> + <b>라이선스 회수</b>를 함께 합니다.
+           표시이름만 바꾸면 <b>Teams·연락처 카드에는 퇴사가 보이지 않아</b> 이름(givenName)까지 함께 바꿉니다.</p>
+        <p class="muted" style="margin-top:6px;">사서함은 <b>공유 사서함으로 바꾼 뒤에</b> 라이선스를 뗍니다 &mdash; 그래야 메일이 남습니다.
+           전환에는 Exchange 권한이 따로 필요해서(<code>Exchange.ManageAsApp</code> + 앱에 <b>Exchange 관리자</b> 역할),
+           <b>권한이 없으면 전환을 건너뛰고 라이선스 회수도 보류</b>합니다(사서함이 사라지지 않게).
+           그룹으로 상속된 라이선스는 API 로 뗄 수 없어 <b>남았다고 결과에 표시</b>합니다 &mdash; 그건 그룹에서 사용자를 빼야 합니다.</p>
       </div>
     </div>
 
@@ -279,8 +282,9 @@
         <span class="muted">(비워 두면 흐름이 조용히 지나갑니다 — 실패로도 안 뜹니다)</span></div>
       <div class="step"><b>그룹웨어</b> — 위 표의 <span class="mini">명령</span> 버튼으로 명령을 만들고 러너에서 실행합니다.
         <code>--apply</code> 없이 먼저 돌리면 저장 직전 상태만 보여줍니다(점검용).</div>
-      <div class="step"><b>MS</b> — 자동 처리됩니다(로그인 차단 · <code>[퇴사]</code> 접두 · 라이선스 회수).
-        <span class="warn">그룹 상속 라이선스</span>가 있으면 결과에 남으니, 그때만 해당 그룹에서 사용자를 빼주세요.</div>
+      <div class="step"><b>MS</b> — 자동 처리됩니다(사서함 공유 전환 · 로그인 차단 · 이름·표시이름 <code>[퇴사]</code> 접두 · 라이선스 회수).
+        <span class="warn">그룹 상속 라이선스</span>가 있으면 결과에 남으니, 그때만 해당 그룹에서 사용자를 빼주세요.
+        <span class="muted">Exchange 권한이 아직 없으면 결과에 「사서함 공유 전환 불가 — 라이선스 회수 보류」로 뜹니다.</span></div>
       <div class="step"><b>확인</b> — <a href="/admin/erp-status">ERP 연동 현황</a>에서 「데이터 업데이트」를 한 번 돌리면
         세 원천을 다시 받아와 <b>이 목록에서 자동으로 빠집니다</b>.</div>
       <div class="step"><b>예약(선택)</b> — 지금이 아니라 정한 일시에 처리하려면 검색에서 대상을 고르고 <b>⏰ 예약</b>에 일시를 넣습니다.
@@ -296,7 +300,8 @@
         <li>그룹웨어의 <b>「메일 삭제여부」 체크박스는 절대 켜지 마세요</b>(메일계정·메일정보 일괄 삭제). 자동화 스크립트는 켜져 있으면 저장하지 않고 멈춥니다.</li>
         <li>그룹웨어는 사용중지 시 <b>퇴사일이 오늘 날짜로 덮어써집니다</b> — 실제 퇴사일로 되돌린 뒤 저장해야 합니다.</li>
         <li><b>MS 라이선스를 회수하면 사서함이 30일 보존 후 삭제</b>됩니다(Microsoft 정책).
-            되돌리려면 그 기간 안에 같은 라이선스를 다시 할당해야 합니다.</li>
+            그래서 <b>공유 사서함으로 먼저 바꾼 뒤</b> 라이선스를 뗍니다 &mdash; 공유로 바뀌면 라이선스 없이도 메일이 남습니다.
+            <b>전환하지 못하면 라이선스 회수를 하지 않습니다</b>(대사 목록에 계속 남아 눈에 띕니다).</li>
         <li>계정 <b>삭제</b>는 이 화면의 범위가 아닙니다. 차단·표기·라이선스 회수까지만 합니다.</li>
       </ul>
     </div>
