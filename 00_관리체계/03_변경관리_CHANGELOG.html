@@ -109,6 +109,20 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <tbody>
 <tr>
 <td>2026-09-18</td>
+<td>ERP DB 연계 · 문서 정합화</td>
+<td><code>10_ERP_DB연계/00_현재상태_스냅샷.md</code>(v0.58)·<code>02_진행상태.md</code>·정책관리 미러</td>
+<td><strong>REQ-0057 후속 문서 정정 — 총괄관리자 대사 중 발견한 불일치 2건 수정.</strong> ①<strong>그룹웨어 조직도 실측 완료 반영</strong>: <code>22_그룹웨어_조직도_실측대사.md</code>(v0.2)가 실측을 완료했는데(주소록 조직도 트리 38노드 전수 확인 — 그룹웨어와 ERP <code>org_change_id='20261'</code> 계층은 사실상 동일, 차이는 원가부서 더미·영업자문·해외법인 팀 세분화·법인명 표기 4건뿐) 00·02번 문서에는 여전히 "미완료"로 남아 있었다. 그룹웨어 인원 집계 3종 불일치(주소록 123/사용중 112/미러 104명)는 계속 원인 미확인 — REQ-0060으로 추적 ②<strong>RPC 개수 오기 정정</strong>: REQ-0057 신규 RPC를 "9종(service_role 전용 4)"으로 잘못 집계했던 것을 정본 SQL(<code>이관/sql/50_erp_role_matrix.sql</code>) 함수 정의 재확인으로 <strong>10종(화면용 3+보조 2+service_role 전용 5)</strong>으로 정정. 원본 갱신 후 HTML 재생성·정책관리 미러 버전 사본 추가(v0.58·20260918)</td>
+<td>최동혁(+Claude)</td>
+</tr>
+<tr>
+<td>2026-09-18</td>
+<td>ERP 권한 · 운영페이지</td>
+<td><code>pages/ERP권한_조직별현황.html</code> · <code>조회플랫폼/조회플랫폼_가이드</code>(§8)</td>
+<td><strong>화면이 복잡하다는 관리자 피드백을 받아 단순화(REQ-0057 후속).</strong> 「부서 표준 세트」 탭을 제거했다 — <strong>표준 세트의 기준을 다시 정의할 예정</strong>이라 지금 보여주면 오히려 헷갈린다는 관리자 판단이다. Role×구성원 격자(매트릭스)는 읽기가 어려워 <strong>「Role별」 목록</strong>으로 바꿨다: role 한 줄을 누르면 보유자 명단이 펼쳐지고, 조직도에서 부서를 고른 뒤 role 단위로 파고드는 동선이 비로소 화면에 생겼다. KPI 박스 6개는 <strong>분류 한 줄 요약</strong>(표준·별도·무관·기준 미수립·회수 + 인원·쓰기·민감)으로 접었고, <strong>색 강조는 「무관」에만</strong> 남겼다 — 기준이 바뀌어도 화면이 덜 흔들리게 하기 위해서다. 트리 배지도 무관 하나로, 분류 필터는 5→4개, 구성원 표는 8→6열(계정 상태는 이상할 때만 표기). 배포 <code>e693d83</code>. 표준 세트 기준 재정의는 REQ-0059 와 함께 다룬다</td>
+<td>최동혁(+Claude)</td>
+</tr>
+<tr>
+<td>2026-09-18</td>
 <td>ERP 권한 · 운영페이지 · ERP연계</td>
 <td><code>pages/ERP권한_조직별현황.html</code>(신규) · <code>_routes.py</code>(<code>/work/erp-roles</code>) · <code>app/lib/api.js</code>(erpApi 3종) · <code>이관/sql/50_erp_role_matrix.sql</code>+<code>_rollback.sql</code>(신규) · <code>10_ERP_DB연계/etl/seed_role_standard.py</code>(신규)·<code>etl_run.py</code>·<code>jeil_runner.py</code>·<code>deploy/build_exe.py</code>·<code>test_runner_cli.py</code> · <code>조회플랫폼/조회플랫폼_가이드</code>(§8) · <code>CLAUDE.md §16.8</code></td>
 <td><strong>ERP 권한을 조직도에서 보고 「부서와 무관한 권한」을 찾아내는 운영페이지 신설(REQ-0057, 관리자 지시).</strong> 권한 데이터는 그동안 사외 PowerShell 배치 + 정적 HTML로만 봤는데, <strong>같은 원천이 이미 중간DB에 적재돼 있었다</strong>(<code>erp_ro.usr_role_s</code> 1,752행·<code>dept_master_s</code> 조직 계층 351행) — 쓰이지 않고 있었을 뿐이라 스냅샷 없이 곧장 실연동으로 갔다. 부서 키는 이름이 아니라 <strong><code>dept_cd</code></strong> 로 잡았다(인사 <code>dept_cd</code> ↔ 부서마스터 87/87 유령 0건. 이름 매칭이 REQ-0032·0033의 원인이다). <strong>만들기 전에 고쳐야 했던 것</strong>: <code>usr_role</code> 은 전량 스냅샷인데 upsert만 해서 ERP에서 회수된 배정이 미러에 영영 남았다 — <code>batch_id</code> 워터마크로 대조하니 <strong>잔재 61행(최다 <code>PMS_I</code> 39건)</strong>. 그대로 뒀으면 사업운영팀·사업관리팀 30명 전원이 프로젝트등록권한 보유로 보여 <strong>화면의 1번 발견 항목이 통째로 허위</strong>가 됐을 것이다. <code>revoked_at</code> + 백필 + 상시 정합 RPC + <code>etl_run.py</code> reconcile 블록으로 해소(엔진 수정 없이 기존 범용 러너가 처리). 덤으로 <code>hr_emp</code>·<code>usr_role</code> 을 연동현황 뷰에 등재(16→22종). <strong>판정 기준</strong>은 부서 표준 role 세트 대비 차집합 — 사내 엑셀(2025-07, 606행·구 37부서)을 시드하고 구 조직→현행 매핑은 관리자가 결정(사업관리1/2팀→사업관리팀, CM·PM·EPC·방산제약·영업→사업운영팀). <strong>설계 함정 2건을 실측이 잡았다</strong>: ①부서 소관 모듈을 표준 전체에서 도출하니 <code>BP_S</code>(재무회계<strong>조회</strong>) 같은 전사 공통 조회권한이 재무회계 모듈을 모든 부서 소관으로 끌어와 「무관」이 2건으로 붕괴 → <strong>쓰기 권한만</strong> 근거로 변경. ②회수된 <code>PMS_I</code> 를 표준에서 빼니 사업관리 모듈이 소관에서 빠져 28명의 <code>PMS_END_S</code> 가 무관으로 오탐 → 역할 목록이 회수분도 포함하도록 변경. 기준이 없는 부서는 붉게 칠하지 않고 <strong>「기준없음」으로 비워 둔다</strong>(기준 없이 경고하면 화면이 거짓말을 한다). 결과: 표준 1,426 / 별도 67 / <strong>무관 37(19명)</strong> / 기준없음 74(5명) / 회수 37 — 민감·쓰기 4건이 최상단(인사팀 전자금융CMS 관리자 · 인사부문 회계관리 관리자·금융등록 · 내부회계관리팀 임시추가 확인권한). 열람은 관리자 전용(<code>portal_page.dept_nm = null</code> 로 비관리자 fail-closed) + 부서장은 <code>perm_grant(page)</code>·<code>perm_grant(dept)</code> 2건으로 부여하며, <strong>자기 부서 자동 열람은 넣지 않았다</strong>(동료 감시가 된다). 응답에 사번·입퇴사일·직위코드를 넣지 않는다(§1.7). 회귀 86건 통과. 남은 것: 그룹웨어 조직도 크롬 실측(로그인 필요)·라이브 배포 후 브라우저 검증</td>
