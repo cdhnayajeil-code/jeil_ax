@@ -775,6 +775,51 @@ class TestEtlWatch(unittest.TestCase):
         self.assertEqual(called, [(["erp", "gw", "ms"], None)], "토큰 없이 넘겨 축마다 다시 받게 한다")
         self.assertEqual(fin["p_status"], "done")
 
+    def _offboard_with_axes(self, axr, collect=None):
+        """퇴사 요청 1건을 돌리고 (반환상태, finish 페이로드) 를 준다. 축 결과를 원하는 대로 준다."""
+        import offboard_axes as oa
+        import ms_collect
+        self.patch(w, "importlib", types.SimpleNamespace(reload=lambda m: m, import_module=importlib.import_module))
+        self.patch(w, "notify_due_schedules", lambda *a, **k: None)
+        self.patch(oa, "_token", lambda: "tok")
+        self.patch(oa, "run_axes", lambda t, axes, apply=False, tok=None: list(axr))
+        if collect is not None:
+            self.patch(ms_collect, "collect", collect)
+        fake = FakeRpc({"offboard_request_claim": {
+            "request_id": "o2-bbbbbbbb", "mode": "apply", "origin": "manual",
+            "targets": [{"email": "a@x", "emp_nm": "가", "axes": ["ms"]}]}})
+        self.patch(w, "rpc", fake)
+        res = w.tick("u", "k", "ws", False, False, offboard=True, collectors=True)
+        return res, fake.last("offboard_request_finish")
+
+    def test_ms_mirror_is_refreshed_when_ms_axis_changed(self):
+        """MS 축이 실제로 바꿨으면 미러를 바로 갱신한다 — 화면이 옛 미러로 「남음」을 보이지 않게."""
+        calls = []
+        res, fin = self._offboard_with_axes(
+            [{"ok": True, "axis": "ms", "changed": True, "msg": "차단·표기"}],
+            collect=lambda url=None, key=None, **k: (calls.append((url, key)) or (484, 484)))
+        self.assertEqual(res, "done")
+        self.assertEqual(len(calls), 1, "MS 축이 바뀌었는데 미러를 갱신하지 않았다")
+        self.assertIn("484건", fin["p_result"]["ms_refresh"])
+
+    def test_ms_mirror_is_not_refreshed_when_nothing_changed(self):
+        """이미 처리된 계정이면 갱신하지 않는다 — 요청마다 Graph 전량 조회를 돌릴 이유가 없다."""
+        calls = []
+        res, fin = self._offboard_with_axes(
+            [{"ok": True, "axis": "ms", "changed": False, "msg": "이미 처리됨"}],
+            collect=lambda url=None, key=None, **k: calls.append(1))
+        self.assertEqual(calls, [])
+        self.assertIsNone(fin["p_result"]["ms_refresh"])
+
+    def test_ms_mirror_refresh_failure_does_not_break_offboard(self):
+        """미러 갱신이 실패해도 이미 끝난 퇴사 처리를 뒤집지 않는다."""
+        def boom(url=None, key=None, **k):
+            raise SystemExit("환경변수 ENTRA_CLIENT_ID 가 없습니다")
+        res, fin = self._offboard_with_axes(
+            [{"ok": True, "axis": "ms", "changed": True, "msg": "차단·표기"}], collect=boom)
+        self.assertEqual(res, "done", "미러 갱신 실패가 퇴사 처리 상태를 바꾸면 안 된다")
+        self.assertIn("건너뜀", fin["p_result"]["ms_refresh"])
+
     def test_due_notice_throttle_survives_new_process(self):
         root = _tmp(self)
         old = os.environ.get("JEIL_AX_ENV_ROOT")

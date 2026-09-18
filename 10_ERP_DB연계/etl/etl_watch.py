@@ -408,9 +408,27 @@ def handle_offboard(url, key, runner, req):
         {"p_request_id": rid, "p_done": total, "p_total": total, "p_target": None})
     status = "failed" if fails else "done"
     err = f"{len(fails)}명 일부 축 실패: {', '.join(fails)}" if fails else None
+
+    # MS 축이 **실제로 뭔가 바꿨으면** 계정 미러를 그 자리에서 맞춘다.
+    # 안 하면 화면이 옛 미러를 보고 「MS 남음」으로 계속 표시한다 — 처리는 됐는데 안 된 줄 안다
+    # (2026-09-18 실제로 두 번 오해가 났다). 사람이 [데이터 업데이트]를 따로 누르지 않아도 되게 한다.
+    # 미러 갱신이 실패해도 퇴사 처리 결과는 그대로다 — 이미 끝난 일을 뒤집지 않는다.
+    ms_refresh = None
+    if apply and any(x.get("axis") == "ms" and x.get("changed")
+                     for d in detail for x in (d.get("axes") or [])):
+        try:
+            import ms_collect
+            _read, up = ms_collect.collect(url, key)
+            ms_refresh = "MS 계정 미러 갱신 %d건" % up
+            log("  · " + ms_refresh)
+        except (Exception, SystemExit) as e:       # 접속정보 없는 호스트면 need() 가 SystemExit 이다
+            m = str(e.code) if isinstance(e, SystemExit) else str(e)
+            ms_refresh = "MS 계정 미러 갱신 건너뜀 — " + _redact(m)[:200]
+            log("  ! " + ms_refresh)
+
     rpc(url, key, "offboard_request_finish",
         {"p_request_id": rid, "p_status": status,
-         "p_result": {"mode": mode, "targets": detail}, "p_error": err})
+         "p_result": {"mode": mode, "targets": detail, "ms_refresh": ms_refresh}, "p_error": err})
     log(f"퇴사 처리 종료 {rid[:8]}… — {status} · 전축성공 {total - len(fails)} / {total}")
     # 알림 — 예약 승격 건은 결과와 무관하게, 수동 건은 실패했을 때만(관리자 결정 2026-09-11: 웹훅은 있으면 쓰고 없으면 건너뜀).
     if apply and (scheduled or fails):
