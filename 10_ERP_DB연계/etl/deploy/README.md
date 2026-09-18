@@ -69,15 +69,24 @@ Copy-Item "$src\gl_relay.exe","$src\deploy\relay.cmd" E:\ai.jeil\relay\
 
 ## 2. `.env` 작성 — 서버에서 직접
 
-`E:\ai.jeil\relay\.env` 에 키 3개. **OneDrive·메일을 거치지 않는다.**
+`E:\ai.jeil\relay\.env` 에 키 6개. **OneDrive·메일을 거치지 않는다.**
 
 ```
 SUPABASE_URL = ...
 SUPABASE_SERVICE_ROLE_KEY = ...
 ERP_DB_CONN = DRIVER={ODBC Driver 17 for SQL Server};SERVER=localhost;DATABASE=JEILMNS;UID=...;PWD=...;TrustServerCertificate=yes;
+ENTRA_TENANT_ID = ...
+ENTRA_CLIENT_ID = ...
+ENTRA_CLIENT_SECRET = ...
 ```
 
 - `SUPABASE_*` 2개는 워크스테이션 `.env` 의 같은 키를 옮긴다.
+- **`ENTRA_*` 3개는 2026-09-18 부터 넣는다**(관리자 결정). 이게 있어야 이 서버가 **MS 계정 수집**과
+  **퇴사 MS축**(차단·`[퇴사]` 표기·라이선스 회수·사서함 공유 전환)을 할 수 있다. 없으면 능력이 꺼져
+  요청을 집고도 계정 수집을 생략하고, 관리자 PC 러너가 꺼져 있으면 계정 요청이 **4시간 뒤 만료**된다
+  (2026-09-17 실제 발생). 값은 워크스테이션 `.env` 의 같은 키를 옮긴다.
+- ⚠ `ENTRA_CLIENT_SECRET` 은 **2026-12-09 만료**다. 갱신할 때 워크스테이션과 **이 서버 두 곳을 모두**
+  바꿔야 한다 — 한쪽만 바꾸면 그쪽 러너의 계정 수집이 조용히 실패한다.
 - 워크스테이션의 `%USERPROFILE%\.erp\` DPAPI 저장소는 **계정·장비에 묶여 서버에서
   복호화되지 않는다.** 서버는 `ERP_DB_CONN` 경로만 동작한다.
 - `DATABASE=JEILMNS` 로 둬도 된다 — 릴레이가 접속 시 `JEILMNS_DEMO2` 로 강제 치환하고,
@@ -196,7 +205,8 @@ E:\ai.jeil\relay\
 | 항목 | 서버 러너 동작 | 요청 결과 |
 |---|---|---|
 | 퇴사 처리(브라우저 자동화) | Playwright·그룹웨어 접속정보가 없으면 **퇴사 큐를 선점조차 하지 않는다**. 설정으로도 켤 수 없다(능력이 상한) | 관리자 PC 러너가 처리 |
-| 계정 수집(MS·그룹웨어) | `.env` 의 `ENTRA_*` / `.env.local` 의 `GW_DB_*` 가 없으면 생략 | **일부 실패** — 「생략 2종(러너 …에서 불가)」 사유가 데이터 업데이트 화면에 그대로 뜬다(ERP 데이터는 적재됨) · 계정만 요청한 건은 처리 불가로 실패 |
+| 계정 수집(MS) | **2026-09-18 부터 가능** — `.env` 에 `ENTRA_*` 3키를 넣었다(§2). 넣기 전에는 생략됐다 | 정상 수집 |
+| 계정 수집(그룹웨어) | `.env.local` 의 `GW_DB_*` 가 없으면 생략 | **일부 실패** — 「생략 1종(러너 …에서 불가)」 사유가 데이터 업데이트 화면에 그대로 뜬다(ERP·MS 는 적재됨) · 그룹웨어만 요청한 건은 처리 불가로 실패 |
 | 급여(erp_secure) 포함 요청 | 기본 **처리 안 함**([연동 기준] 「급여(민감) 포함 요청도 처리」로 켬) | 생략했으면 **실패** |
 | 접속 오류 원문 | 요청 결과·오류문에 남기기 전에 계정명·서버·IP·UID/PWD 를 `***` 로 가린다 | — |
 
