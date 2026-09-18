@@ -157,6 +157,10 @@ def collect(url=None, key=None, dry=False):
         msg = str(e).replace(cfg["GW_TABLE_PW"], "***").replace(cfg["GW_DB_HOST"], "***")
         raise RuntimeError("그룹웨어 DB 추출 실패: " + msg[:400])
 
+    # 겸직 보관 — 아래 dedup 에서 사라지는 행이 바로 주소록의 「(겸)」 이다.
+    # 대사용 1인 1행(acct_groupware)은 그대로 두고, 배치 전량은 gw_member_dept 에 따로 담는다.
+    all_rows = [dict(r) for r in rows]
+
     # 이메일 중복 제거(마지막 행 우선) — PK 충돌 방지
     dedup = {}
     for r in rows:
@@ -185,6 +189,12 @@ def collect(url=None, key=None, dry=False):
     key = key or need("SUPABASE_SERVICE_ROLE_KEY")
     res = rpc(url, key, "acct_source_upsert", {"p_source": "gw", "p_rows": rows})
     print("[gw] 적재 완료 — %s" % res)
+    # 겸직 배치 전량(전량 교체). 실패해도 계정 대사는 이미 끝났으므로 여기서 죽이지 않는다.
+    try:
+        print("[gw] 배치(겸직) — %s"
+              % rpc(url, key, "gw_member_dept_replace", {"p_rows": all_rows}))
+    except Exception as e:
+        print("[gw] ⚠ 배치(겸직) 적재 실패 — %s" % str(e)[:200], file=sys.stderr)
     up = int((res or {}).get("upserted") or 0) if isinstance(res, dict) else len(rows)
     return len(rows), up
 

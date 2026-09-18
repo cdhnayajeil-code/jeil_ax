@@ -396,6 +396,11 @@ with ver as (
   select max(d.org_change_id) as v
     from erp_ro.dept_master_s d where d.org_change_id ~ '^[0-9]+$'
 ), acct as (
+  -- 비이메일 ERP 계정도 포함한다(관리자 지시 2026-09-18) — 외부 회계사 acct2·acct3·acct4·ACCT8·ACCT10,
+  -- ERP 관리자 biz_admin. 종전 `usr_id like '%@%'` 필터가 이들을 통째로 가렸다.
+  -- ⚠ 필터를 전부 걷으면 사번 기반 중복 계정 365개가 쏟아진다(같은 사람의 옛 로그인·시스템 계정).
+  --   실측: 비이메일 활성 371개 중 살아있는 역할을 가진 것은 6개뿐이다.
+  --   이 화면은 ERP 권한을 보는 화면이라 "권한이 하나도 없는 계정은 사람으로 세지 않는다"로 자른다.
   select lower(btrim(u.usr_id))                       as email,
          u.usr_nm,
          u.use_yn,
@@ -403,6 +408,8 @@ with ver as (
          nullif(btrim(regexp_replace(split_part(u.usr_nm, '_', 2), '\s*\(.*$', '')), '') as acct_emp_nm
     from erp_ro.usr_master_s u
    where u.usr_id like '%@%'
+      or exists (select 1 from erp_ro.usr_role_s r
+                  where lower(btrim(r.email)) = lower(btrim(u.usr_id)) and r.revoked_at is null)
 ), namecd as (
   select btrim(d.dept_nm) as dept_nm, min(btrim(d.dept_cd)) as dept_cd
     from erp_ro.dept_master_s d, ver
@@ -413,7 +420,7 @@ with ver as (
          a.email,
          a.usr_nm,
          a.use_yn                                         as account_active,
-         coalesce(h.emp_nm, a.acct_emp_nm)                as emp_nm,
+         coalesce(h.emp_nm, a.acct_emp_nm, a.usr_nm)      as emp_nm,
          coalesce(btrim(h.dept_cd), n.dept_cd)            as dept_cd,
          case when h.dept_cd is not null then 'hr'
               when n.dept_cd is not null then 'name'

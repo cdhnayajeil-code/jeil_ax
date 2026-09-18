@@ -601,6 +601,22 @@ export const erpApi = {
     return data || { ok: false };
   },
 
+  // 사람 한 명의 ERP 권한 목록(권한별 탭 보유자·조직도 인원에서 연다).
+  // 비관리자는 부여받은 부서 범위의 사람만 열 수 있다(서버가 다시 확인한다).
+  // 반환: {ok, user{email,emp_nm,dept_nm,title,account_active,gw_active,external}, roles[]}
+  async erpUserRoles(email, orgChangeId = null) {
+    const { data, error } = await supabase.rpc("erp_user_roles", {
+      p_email: String(email || "").trim(), p_org_change_id: orgChangeId || null,
+    });
+    if (error) {
+      const msg = String(error.message || "");
+      if (/forbidden/i.test(msg) || error.code === "42501") return { ok: false, forbidden: true };
+      if (/unauthorized/i.test(msg) || error.code === "28000") return { ok: false, unauthorized: true };
+      throw error;
+    }
+    return data || { ok: false };
+  },
+
   // 전사 요약(관리자 전용) — 모듈별 집계·무관 상위 role·표준 미수립 부서·회수 잔재.
   // 반환: {ok, totals, by_module[], top_unrelated[], dept_no_standard[], as_of, mirror}
   async erpRoleSummary(orgChangeId = null) {

@@ -434,3 +434,154 @@ grant execute on function public.erp_menu_reconcile(text, uuid, int) to service_
 --     (참조 프로젝트 실측: ACCT_S_A 1578 · ACCT_J_S 238 · ACCT_J_I 199 · SALE_I 122 · STOC_I 49)
 --   select * from erp_ro.v_menu_path order by sort_key limit 20;
 -- ============================================================================
+
+
+-- ─────────────────────────────────────────────────────────────────────────
+-- §8. 화면 2차 개선 (관리자 지시 2026-09-18)
+--   · 「소속 미확인」 → 「외부」 로 부른다. 외부 회계사·ERP 관리자 계정이라 '미확인'이 아니라 '외부'가 사실이다.
+--   · 권한별 탭에서 보유자를 누르면 그 사람의 권한을 본다 → erp_user_roles
+--   · 그룹웨어 겸직 보관 → public.gw_member_dept
+--     ⚠ 실측 결과 현재 원천(GW_TABLE_NAME 이 가리키는 뷰)에는 겸직이 없다 — 474행 전부 1인 1행이고
+--       gw_member_dept_replace 의 multi_dept 가 0 이다. 주소록 화면의 「(겸)」 은 다른 테이블에서 오며
+--       우리 DB 계정은 그 뷰 하나만 볼 수 있다. 원천이 확장되면 이 표가 그대로 받는다.
+-- ─────────────────────────────────────────────────────────────────────────
+
+create or replace function public.erp_role_dept_label(p_cd text)
+returns text language sql immutable set search_path to '' as $fn$
+  select case when p_cd = '__unassigned__' then '외부' else p_cd end;
+$fn$;
+
+create table if not exists public.gw_member_dept (
+  id           bigint generated always as identity primary key,
+  email        text not null,
+  login_id     text,
+  emp_nm       text,
+  dept_nm      text,
+  position_nm  text,
+  status       text,
+  collected_at timestamptz not null default now()
+);
+create index if not exists gw_member_dept_email_ix on public.gw_member_dept (lower(email));
+comment on table public.gw_member_dept is
+  '그룹웨어 조직 배치 전량(겸직 포함). 1인 1행인 acct_groupware 와 달리 같은 이메일이 여러 행일 수 있다. '
+  '2026-09-18 실측 시점에는 원천에 겸직이 없어 474행 전부 1인 1행이다.';
+
+alter table public.gw_member_dept enable row level security;
+revoke all on public.gw_member_dept from anon, authenticated;
+grant select, insert, update, delete on public.gw_member_dept to service_role;
+
+-- 전량 교체(517행 규모라 한 번에 보낸다). delete 에 where true 를 붙이는 건 플랫폼 안전장치 때문이다.
+create or replace function public.gw_member_dept_replace(p_rows jsonb)
+returns jsonb
+language plpgsql
+security definer
+set search_path to ''
+as $fn$
+declare v_n int := coalesce(jsonb_array_length(p_rows), 0); v_ins int := 0;
+begin
+  if v_n = 0 then
+    raise exception '그룹웨어 배치 목록이 비어 있습니다 — 전건 삭제를 막기 위해 거부합니다';
+  end if;
+  if v_n < 100 then
+    raise exception '배치가 %건뿐입니다 — 부분 추출로 보여 거부합니다(실측 정상치 500건대)', v_n;
+  end if;
+
+  delete from public.gw_member_dept where true;
+  insert into public.gw_member_dept (email, login_id, emp_nm, dept_nm, position_nm, status, collected_at)
+  select lower(btrim(x.email)), x.login_id, x.emp_nm, x.dept_nm, x.position_nm, x.status, now()
+    from jsonb_to_recordset(p_rows) as x(email text, login_id text, emp_nm text,
+                                         dept_nm text, position_nm text, status text);
+  get diagnostics v_ins = row_count;
+  return jsonb_build_object('received', v_n, 'inserted', v_ins,
+    'multi_dept', (select count(*) from (
+        select lower(email) e from public.gw_member_dept where status = '사용'
+         group by 1 having count(distinct dept_nm) > 1) t));
+end $fn$;
+
+-- 사람 한 명의 ERP 권한. 보유자 목록은 이미 열람 범위로 걸러져 오지만, 이 RPC 도 스스로 다시 확인한다
+-- (화면을 우회해 직접 불러도 남의 부서 사람을 열지 못하게).
+create or replace function public.erp_user_roles(
+  p_email         text,
+  p_org_change_id text default null
+) returns jsonb
+language plpgsql
+security definer
+set search_path to ''
+as $fn$
+declare
+  v_upn   text := lower(btrim(coalesce(auth.jwt() ->> 'email', '')));
+  v_eff   jsonb; v_admin boolean; v_ver text; v_scope text[] := null;
+  v_em    text := lower(btrim(coalesce(p_email, '')));
+  v_dept  text;
+begin
+  if not public.is_internal() then
+    raise exception 'forbidden: 사내 계정만 조회할 수 있습니다.' using errcode = '42501';
+  end if;
+  if v_upn = '' then
+    raise exception 'unauthorized: 로그인 세션이 필요합니다.' using errcode = '28000';
+  end if;
+  if v_em = '' then
+    raise exception '계정이 필요합니다.' using errcode = '22023';
+  end if;
+
+  v_ver := coalesce(nullif(btrim(coalesce(p_org_change_id, '')), ''),
+                    (select max(d.org_change_id) from erp_ro.dept_master_s d
+                      where d.org_change_id ~ '^[0-9]+$'));
+
+  v_eff   := public.perm_effective(v_upn);
+  v_admin := coalesce((v_eff ->> 'is_admin')::boolean, false);
+  if not v_admin then
+    if not exists (
+      select 1 from jsonb_array_elements(coalesce(v_eff -> 'pages', '[]'::jsonb)) e
+       where e ->> 'page_key' = 'erp_role_matrix' and coalesce((e ->> 'allowed')::boolean, false)
+    ) then
+      raise exception 'forbidden: ERP 권한현황 열람 권한이 필요합니다.' using errcode = '42501';
+    end if;
+    select coalesce(array_agg(distinct t.dept_cd), '{}') into v_scope
+      from erp_ro.v_dept_tree t
+     where t.org_change_id = v_ver
+       and exists (
+             select 1 from public.perm_grant g
+               join erp_ro.v_dept_tree a
+                 on a.org_change_id = t.org_change_id and a.dept_cd = any (t.path_cd)
+              where lower(g.upn) = v_upn and g.revoked_at is null
+                and g.scope_type = 'dept' and g.effect = 'allow'
+                and g.valid_from <= now() and (g.valid_to is null or g.valid_to > now())
+                and btrim(g.scope_key) in (a.dept_cd, a.dept_nm));
+    select m.dept_cd into v_dept from erp_ro.v_dept_member m
+     where m.email = v_em and m.org_change_id = v_ver limit 1;
+    if v_dept is null or not (v_dept = any (coalesce(v_scope, '{}'))) then
+      raise exception 'forbidden: 이 사용자를 열람할 권한이 없습니다.' using errcode = '42501';
+    end if;
+  end if;
+
+  return jsonb_build_object(
+    'ok', true,
+    'user', (select jsonb_build_object('email', m.email, 'emp_nm', m.emp_nm,
+                                       'dept_nm', coalesce(m.dept_nm_raw, '외부'),
+                                       'title', m.gw_title,
+                                       'account_active', m.account_active,
+                                       'gw_active', m.gw_active,
+                                       'external', (m.dept_cd is null))
+               from erp_ro.v_dept_member m
+              where m.email = v_em and m.org_change_id = v_ver limit 1),
+    'roles', coalesce((
+      select jsonb_agg(jsonb_build_object(
+               'role_id', p.role_id, 'role_nm', p.role_nm, 'role_label', p.role_label,
+               'module', p.role_module_key, 'module_label', mm.label,
+               'is_write', p.is_write, 'sensitive', coalesce(mm.sensitive, false),
+               'menu_cnt', (select count(*)::int from erp_ro.role_menu_s rm
+                             where rm.role_id = p.role_id and rm.revoked_at is null))
+             order by mm.sort, p.role_nm)
+        from erp_ro.v_usr_role_parsed p
+        left join public.erp_role_module_map mm on mm.role_module_key = p.role_module_key
+       where p.email = v_em and p.revoked_at is null), '[]'::jsonb)
+  );
+end $fn$;
+
+revoke all on function public.gw_member_dept_replace(jsonb) from public, anon, authenticated;
+grant execute on function public.gw_member_dept_replace(jsonb) to service_role;
+revoke all on function public.erp_user_roles(text, text) from public, anon;
+grant execute on function public.erp_user_roles(text, text) to authenticated, service_role;
+revoke all on function public.erp_role_dept_label(text) from public, anon;
+grant execute on function public.erp_role_dept_label(text) to authenticated, service_role;

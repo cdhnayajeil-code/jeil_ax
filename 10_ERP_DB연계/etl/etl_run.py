@@ -36,7 +36,11 @@ JOBS = {
                    CONVERT(bit, CASE WHEN USE_YN = 'Y' THEN 1 ELSE 0 END) AS use_yn,
                    UPDT_DT AS src_updated
             FROM JEILMNS.dbo.Z_USR_MAST_REC WITH (NOLOCK)
-            WHERE USR_ID LIKE '%@%'
+            WHERE LTRIM(RTRIM(ISNULL(USR_ID, ''))) <> ''
+            -- ⚠ 예전에는 여기 `USR_ID LIKE '%@%'` 가 있었다. 그런데 ERP 에는 이메일이 아닌 계정이 있고
+            --   (외부 회계사 acct2·acct3·acct4·ACCT8·ACCT10 등) 그 필터가 **원천에 멀쩡히 있는 계정을
+            --   통째로 안 보이게** 만들었다 — 그룹웨어 수집에서 똑같은 실수를 이미 겪었다(gw_collect.py 주석).
+            --   사외 인력의 ERP 권한은 오히려 먼저 봐야 할 대상이라 필터를 걷어낸다(2026-09-18).
         """,
         "params": [],
         "incr_sql": " AND UPDT_DT >= ?",   # 증분: 변경된 계정만(watermark 이후)
@@ -47,8 +51,9 @@ JOBS = {
         "reconcile": {
             "rpc": "erp_usr_master_reconcile",
             "param": "p_active_emails",
+            # 추출과 같은 범위를 봐야 한다 — 한쪽만 넓히면 비이메일 계정이 매번 비활성으로 찍힌다
             "sql": "SELECT USR_ID FROM JEILMNS.dbo.Z_USR_MAST_REC WITH (NOLOCK) "
-                   "WHERE USE_YN = 'Y' AND USR_ID LIKE '%@%'",
+                   "WHERE USE_YN = 'Y' AND LTRIM(RTRIM(ISNULL(USR_ID, ''))) <> ''",
         },
     },
     # ⑥ 부서 마스터 스냅샷 ← B_ACCT_DEPT (파싱 부서명 대사·부서-사원 관계 기준, 소형·전량 upsert)
@@ -159,7 +164,7 @@ JOBS = {
             FROM JEILMNS.dbo.Z_USR_MAST_REC_USR_ROLE_ASSO a WITH (NOLOCK)
             LEFT JOIN JEILMNS.dbo.Z_USR_ROLE m WITH (NOLOCK)
                    ON RTRIM(m.USR_ROLE_ID) = RTRIM(a.USR_ROLE_ID)
-            WHERE a.USR_ID LIKE '%@%'
+            WHERE LTRIM(RTRIM(ISNULL(a.USR_ID, ''))) <> ''
         """,
         "params": [],
         # 정합 후처리 — 이 job 은 incr_sql 이 없는 **전량 스냅샷**이지만 upsert 만 하므로
@@ -173,7 +178,7 @@ JOBS = {
             "param": "p_active_keys",
             "sql": "SELECT DISTINCT LOWER(RTRIM(a.USR_ID)) + '|' + LOWER(RTRIM(a.USR_ROLE_ID)) "
                    "FROM JEILMNS.dbo.Z_USR_MAST_REC_USR_ROLE_ASSO a WITH (NOLOCK) "
-                   "WHERE a.USR_ID LIKE '%@%'",
+                   "WHERE LTRIM(RTRIM(ISNULL(a.USR_ID, ''))) <> ''",
         },
     },
     # ⑧ 인사 급여 '집계' ← HDF070T(월급여대장)·HGA070T(퇴직) — erp_secure(민감·인사팀 전용)
