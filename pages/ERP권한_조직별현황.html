@@ -68,16 +68,6 @@ body{margin:0;background:var(--bg);color:var(--ink);
 .tb.q{color:var(--grey);background:var(--softgrey);border-color:var(--line)}
 .tfootnote{border-top:1px solid var(--line);padding:7px 11px;color:var(--muted);font-size:11.5px;line-height:1.7}
 
-/* KPI */
-.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(112px,1fr));gap:8px;padding:11px}
-.kpi{border:1px solid var(--line);border-radius:7px;padding:8px 10px;background:#fff}
-.kpi .lb{font-size:11.5px;color:var(--muted)}
-.kpi .v{font-size:19px;font-weight:700;color:var(--navy);margin-top:1px}
-.kpi.red{background:var(--softred);border-color:#e3b3aa} .kpi.red .v{color:var(--red)}
-.kpi.amb{background:var(--softamber);border-color:#dcc48a} .kpi.amb .v{color:var(--amber)}
-.kpi.grn{background:var(--softgreen);border-color:#a9d3bd} .kpi.grn .v{color:var(--green)}
-.kpi.gry .v{color:var(--grey)}
-
 /* 탭 */
 .tabs{display:flex;gap:2px;padding:0 11px;border-bottom:1px solid var(--line);flex-wrap:wrap}
 .tab{padding:7px 13px;border:1px solid transparent;border-bottom:none;border-radius:7px 7px 0 0;
@@ -92,14 +82,12 @@ th{background:var(--soft);color:var(--navy);font-weight:700;white-space:nowrap}
 td.r{text-align:right} td.c{text-align:center}
 tr.risk > td{background:var(--softred)}
 tr.risk > td:first-child{box-shadow:inset 3px 0 0 var(--red)}
-tr.warn > td{background:var(--softamber)}
-tr.warn > td:first-child{box-shadow:inset 3px 0 0 var(--amber)}
 tr.mem{cursor:pointer}
 tr.mem:hover > td{filter:brightness(0.985)}
 .chip{display:inline-block;padding:1px 7px;margin:2px 3px 2px 0;border-radius:10px;font-size:11.5px;
   border:1px solid var(--line);background:#fff;white-space:nowrap}
 .chip.std{color:var(--navy2)}
-.chip.etc{color:var(--amber);background:var(--softamber);border-color:#dcc48a}
+.chip.etc{color:var(--grey)}
 .chip.unrel{color:var(--red);background:var(--softred);border-color:#e3b3aa;font-weight:600}
 .chip.exc{color:var(--green);background:var(--softgreen);border-color:#a9d3bd}
 .chip.undef{color:var(--grey);background:var(--softgrey)}
@@ -113,18 +101,17 @@ tr.mem:hover > td{filter:brightness(0.985)}
 .tools label{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:4px}
 .legend{font-size:11.5px;color:var(--muted)}
 
-/* Role × 구성원 매트릭스 — .mx__ 스코프만 쓴다(전역 table 재정의 금지, §13.4) */
-.mx__wrap{overflow:auto;max-height:66vh;border:1px solid var(--line);border-radius:7px}
-.mx__wrap table{font-size:12px;border:none}
-.mx__wrap th{position:sticky;top:0;z-index:3}
-.mx__wrap th.mx__fix,.mx__wrap td.mx__fix{position:sticky;left:0;background:#fff;z-index:2;min-width:220px}
-.mx__wrap th.mx__fix{z-index:4;background:var(--soft)}
-.mx__wrap td.mx__n{text-align:center;min-width:34px}
-.mx__wrap tr.mx__gap > td,.mx__wrap tr.mx__gap > th{border-top:2px solid var(--navy2)}
-.mx__wrap tfoot td{position:sticky;bottom:0;background:var(--soft);font-weight:700}
-.mx__o{color:var(--navy2)} .mx__e{color:var(--amber);font-weight:700}
-.mx__x{color:var(--red);font-weight:700} .mx__q{color:var(--grey)}
-.mx__m{color:#c3cad4}
+/* 분류 요약 한 줄 — 「무관」만 강조하고 나머지는 숫자로 둔다.
+   표준 세트 기준이 재정의될 예정이라(관리자 결정 2026-09-18) 표준·별도를 색으로 단정하지 않는다. */
+.sum{display:flex;align-items:center;gap:15px;flex-wrap:wrap;padding:10px 12px;
+  border-bottom:1px solid var(--line);font-size:13px}
+.sum .si{color:var(--navy);font-weight:700;white-space:nowrap}
+.sum .si b{color:var(--muted);font-weight:600;font-size:12px;margin-right:4px}
+.sum .si.hot{color:var(--red)}
+.sum .si.hot b{color:var(--red);opacity:.8}
+.sum .sp{flex:1 1 auto}
+.sum .sr{color:var(--muted);font-size:12px;font-weight:400;white-space:nowrap}
+.sub-note{padding:0 12px 10px;color:var(--muted);font-size:12px}
 </style>
 </head><body>
 <div class="page">
@@ -132,7 +119,7 @@ tr.mem:hover > td{filter:brightness(0.985)}
     <div>
       <h1>🔑 ERP 권한(role) 조직별 현황</h1>
       <div class="sub">
-        그룹웨어 조직 기준 · 부서 표준 세트 대비 <b>표준 / 별도 / 무관</b> 3분류
+        조직도에서 조직을 고르면 구성원과 ERP 권한이 보입니다 · 강조는 <b>부서와 무관한 권한</b>만
         <span class="badge r" id="bScope">열람범위 확인 중</span>
       </div>
     </div>
@@ -214,7 +201,7 @@ tr.mem:hover > td{filter:brightness(0.985)}
       extras: [
         { id:"q",     label:"검색",     type:"text",   placeholder:"이름·이메일·Role", width:"190px", debounce:250 },
         { id:"cls",   label:"분류",     type:"select", value:"all",
-          options:[["all","전체"],["risk","별도+무관"],["unrel","무관만"],["etc","별도만"],["revoked","회수 이력"]] },
+          options:[["all","전체"],["unrel","무관만"],["risk","별도+무관"],["revoked","회수 이력"]] },
         { id:"child", label:"하위부서 포함", type:"checkbox", value:false },
         { id:"empty", label:"인원 없는 조직 표시", type:"checkbox", value:false },
       ],
@@ -328,9 +315,8 @@ tr.mem:hover > td{filter:brightness(0.985)}
       const b = [];
       if(lock){ b.push('<span class="tb q">·</span>'); }
       else{
+        // 배지는 「무관」 하나만 단다 — 나머지 분류는 오른쪽 요약 줄에서 본다(2026-09-18 단순화)
         if((n.unrel_cnt || 0) > 0) b.push('<span class="tb u" title="부서와 관련없는 권한">!'+n.unrel_cnt+'</span>');
-        if((n.etc_cnt || 0) > 0)   b.push('<span class="tb e" title="부서 표준 밖 별도 권한">^'+n.etc_cnt+'</span>');
-        if(n.std_state === 'none' && (n.member_cnt||0) > 0) b.push('<span class="tb q" title="부서 표준 세트 미수립">?</span>');
       }
       const cnt = (n.member_cnt || 0) > 0 ? n.member_cnt
                 : ((n.member_cnt_desc || 0) > 0 ? '<span style="opacity:.55">'+n.member_cnt_desc+'</span>' : '');
@@ -361,7 +347,7 @@ tr.mem:hover > td{filter:brightness(0.985)}
       + '<div class="tfootnote">'
       +   (un > 0 && !TREE.is_admin
             ? '<span class="tb q">?</span> 소속 미확인 <b>'+un+'명</b> — 관리자만 열람할 수 있습니다.<br>' : '')
-      +   '<span class="tb u">!</span> 무관 · <span class="tb e">^</span> 별도 · 🔒 열람 범위 밖'
+      +   '<span class="tb u">!</span> 무관 · 🔒 열람 범위 밖'
       + '</div>';
 
     $("pTree").querySelectorAll('.tnode').forEach(el => {
@@ -398,49 +384,44 @@ tr.mem:hover > td{filter:brightness(0.985)}
         + ' — 회수된 권한은 집계에서 제외되며 「회수 이력」 분류로 볼 수 있습니다.</div>'
       : '';
 
-    const kpi = noStd
-      ? '<div class="kpis">'
-        + kpiBox('인원', num(m.length)+'명','')
-        + kpiBox('표준','—','gry') + kpiBox('별도','—','gry') + kpiBox('무관','—','gry')
-        + kpiBox('쓰기 권한', num(s.write_roles), (s.write_roles||0)>0 ? 'amb' : '')
-        + kpiBox('민감 모듈', num(s.sensitive_roles), (s.sensitive_roles||0)>0 ? 'red' : '')
-        + '</div><div class="notice warn" style="margin:0 11px 11px">'
+    const sum = sumStrip([
+      ['표준',       noStd ? '—' : num(s['표준'])],
+      ['별도',       noStd ? '—' : num(s['별도'])],
+      ['무관',       noStd ? '—' : num(s['무관']), !noStd && (s['무관'] || 0) > 0],
+      ['기준 미수립', num(s['기준없음'])],
+      ['회수',       num(s['회수'])],
+    ], '인원 ' + num(m.length) + '명 · 쓰기 ' + num(s.write_roles) + ' · 민감 ' + num(s.sensitive_roles));
+
+    const note = noStd
+      ? '<div class="sub-note">'
         + (SEL === UNASSIGNED
-            ? '<b>소속이 확인되지 않은 계정입니다.</b> 인사 마스터에도 부서 마스터에도 소속이 없어 '
-              + '비교할 부서 표준이 없습니다 — 3분류 대신 <b>쓰기 권한·민감 모듈 보유 수</b>로 판단하세요. '
-              + '조직도 밖에 있어 평소 눈에 띄지 않는 만큼 오히려 먼저 확인할 대상입니다.'
-            : '<b>부서 표준 세트가 아직 없습니다.</b> 기준이 없으면 3분류를 계산하지 않습니다 — '
-              + '모든 권한을 「무관」으로 표시하면 화면이 거짓말을 하기 때문입니다. '
-              + '표준 세트를 시드하면 즉시 분류가 나타납니다.')
+            ? '소속이 확인되지 않은 계정이라 비교할 부서 표준이 없습니다 — <b>쓰기·민감 보유 수</b>로 판단하세요.'
+            : '이 부서는 표준 세트가 없어 표준·별도·무관을 계산하지 않습니다(기준 없이 경고하지 않습니다).')
         + '</div>'
-      : '<div class="kpis">'
-        + kpiBox('인원', num(m.length)+'명','')
-        + kpiBox('표준', num(s['표준']), 'grn')
-        + kpiBox('별도', num(s['별도']), (s['별도']||0)>0 ? 'amb' : '')
-        + kpiBox('무관', num(s['무관']), (s['무관']||0)>0 ? 'red' : 'grn')
-        + kpiBox('쓰기 권한', num(s.write_roles), '')
-        + kpiBox('민감 모듈', num(s.sensitive_roles), (s.sensitive_roles||0)>0 ? 'amb' : '')
-        + '</div>';
+      : '';
 
     $("pDet").innerHTML =
       '<h3>'+esc(d.dept_nm || SEL)
       +  '<span class="sm">'+esc(d.path_nm || '')
       +   (d.leader_nm ? ' · 부서장 '+esc(d.leader_nm) : '')
       +   (d.include_desc ? ' · 하위부서 포함' : '')
-      +   ' · 표준 '+num(d.std_role_cnt)+'종</span></h3>'
-      + warn + kpi
+      + '</span></h3>'
+      + warn + sum + note
       + '<div class="tabs">'
       +   tabBtn('member','구성원 '+m.length)
-      +   tabBtn('matrix','Role 매트릭스')
-      +   tabBtn('std','부서 표준 세트')
+      +   tabBtn('role','Role별')
       + '</div><div class="pane" id="pane"></div>';
 
     $("pDet").querySelectorAll('.tab').forEach(t => t.onclick = () => {
       TAB = t.dataset.k; renderDetail(ex);
     });
-    if(TAB === 'matrix') paneMatrix(ex); else if(TAB === 'std') paneStd(ex); else paneMembers(ex);
+    if(TAB === 'role') paneRoles(ex); else paneMembers(ex);
   }
-  function kpiBox(lb, v, cls){ return '<div class="kpi '+cls+'"><div class="lb">'+lb+'</div><div class="v">'+v+'</div></div>'; }
+  function sumStrip(items, right){
+    return '<div class="sum">'
+      + items.map(it => '<span class="si'+(it[2] ? ' hot' : '')+'"><b>'+esc(it[0])+'</b>'+it[1]+'</span>').join('')
+      + '<span class="sp"></span><span class="sr">'+esc(right)+'</span></div>';
+  }
   function tabBtn(k, lb){ return '<div class="tab'+(TAB===k?' on':'')+'" data-k="'+k+'">'+esc(lb)+'</div>'; }
 
   /* 분류 필터 + 검색 */
@@ -473,28 +454,29 @@ tr.mem:hover > td{filter:brightness(0.985)}
     const noStd = (DETAIL.dept && DETAIL.dept.std_state || 'none') === 'none';
     let html = '<div class="tools">'
       + '<button id="csv">CSV 내보내기</button>'
-      + '<span class="legend">(o) 표준 · <span style="color:var(--amber)">(^) 별도</span> · '
-      + '<span style="color:var(--red)">(x) 무관</span> · (?) 기준 미수립 · (–) 회수</span></div>';
+      + '<span class="legend">행을 누르면 보유 권한이 펼쳐집니다 · 붉은 행 = 부서와 무관한 권한 보유</span></div>';
 
     if(!rows.length){ html += '<div class="notice">조건에 맞는 구성원이 없습니다.</div>'; $("pane").innerHTML = html; return; }
 
-    html += '<table><thead><tr><th>이름</th><th>직책</th><th>계정</th>'
-      + '<th class="c">보유</th><th class="c">표준</th><th class="c">별도</th><th class="c">무관</th><th></th></tr></thead><tbody>';
+    html += '<table><thead><tr><th>이름</th><th>직책</th>'
+      + '<th class="c">보유</th><th class="c">별도</th><th class="c">무관</th><th></th></tr></thead><tbody>';
     rows.forEach(mm => {
-      const cls = noStd ? '' : ((mm.unrel||0) > 0 ? 'risk' : ((mm.etc||0) > 0 ? 'warn' : ''));
-      const acct = (mm.gw_active ? '사용' : 'GW없음') + (mm.account_active ? '' : ' / ERP정지')
-                 + (mm.dept_src === 'none' ? ' / 소속미확인' : '');
+      // 강조는 「무관」에만 — 표준 세트 기준이 재정의될 예정이라 별도까지 색으로 단정하지 않는다
+      const cls = (!noStd && (mm.unrel || 0) > 0) ? 'risk' : '';
+      const odd = [];
+      if(!mm.gw_active) odd.push('GW없음');
+      if(!mm.account_active) odd.push('ERP정지');
+      if(mm.dept_src === 'none') odd.push('소속미확인');
       html += '<tr class="mem '+cls+'" data-em="'+esc(mm.email)+'">'
-        + '<td>'+(cls==='risk'?'! ':(cls==='warn'?'^ ':''))+esc(mm.emp_nm || mm.email)+'</td>'
+        + '<td>'+(cls ? '! ' : '')+esc(mm.emp_nm || mm.email)
+        +   (odd.length ? ' <span class="legend">'+esc(odd.join(' · '))+'</span>' : '')+'</td>'
         + '<td>'+esc(mm.title || '—')+'</td>'
-        + '<td>'+esc(acct)+'</td>'
         + '<td class="c">'+num(mm.role_cnt)+'</td>'
-        + '<td class="c">'+(noStd?'—':num(mm.std))+'</td>'
         + '<td class="c">'+(noStd?'—':num(mm.etc))+'</td>'
         + '<td class="c">'+(noStd?'—':num(mm.unrel))+'</td>'
         + '<td class="c">'+(EXPANDED_ROW.has(mm.email)?'▾':'▸')+'</td></tr>';
       if(EXPANDED_ROW.has(mm.email)){
-        html += '<tr><td colspan="8" style="background:#fcfdfe">'+rolesBlock(mm._roles)+'</td></tr>';
+        html += '<tr><td colspan="6" style="background:#fcfdfe">'+rolesBlock(mm._roles)+'</td></tr>';
       }
     });
     html += '</tbody></table>';
@@ -524,79 +506,61 @@ tr.mem:hover > td{filter:brightness(0.985)}
     ).join('');
   }
 
-  /* 탭 2 — Role × 구성원 매트릭스
-     참조 프로젝트(role-management.html)의 Role×부서 매트릭스를 부서 단위 화면에 맞게 축을 바꿔 이식.
-     외부 라이브러리는 쓰지 않는다(엑셀 내보내기는 CSV+BOM). */
-  function paneMatrix(ex){
+  /* 탭 2 — Role별 (조직도에서 고른 부서의 권한을 role 하나씩 본다)
+     참조 프로젝트의 Role×구성원 격자는 읽기가 어려워 목록으로 바꿨다(관리자 결정 2026-09-18).
+     외부 라이브러리는 쓰지 않는다 — 내보내기는 CSV+BOM. */
+  function paneRoles(ex){
     const mem = filterMembers(ex);
-    const roleMap = {};
+    const noStd = (DETAIL.dept && DETAIL.dept.std_state || 'none') === 'none';
+    const map = {};
     mem.forEach(mm => (mm._roles || []).forEach(r => {
       const k = r.role_id;
-      if(!roleMap[k]) roleMap[k] = { r, holders:{} };
-      roleMap[k].holders[mm.email] = r.cls;
+      if(!map[k]) map[k] = { r, holders: [] };
+      map[k].holders.push(mm);
     }));
-    const roles = Object.values(roleMap)
-      .sort((a,b) => String(a.r.module_label||'').localeCompare(String(b.r.module_label||''),'ko')
-                  || String(a.r.role_nm).localeCompare(String(b.r.role_nm),'ko'));
-    if(!mem.length || !roles.length){ $("pane").innerHTML = '<div class="notice">표시할 데이터가 없습니다.</div>'; return; }
+    const roles = Object.values(map).sort((a, b) =>
+      (CLS_ORDER[a.r.cls] - CLS_ORDER[b.r.cls])
+      || (b.holders.length - a.holders.length)
+      || String(a.r.role_nm).localeCompare(String(b.r.role_nm), 'ko'));
 
-    let prevGrp = null;
-    let html = '<div class="tools"><button id="csvm">CSV 내보내기</button>'
-      + '<span class="legend">행 = Role · 열 = 구성원 · 셀 = 분류 기호</span></div>'
-      + '<div class="mx__wrap"><table><thead><tr>'
-      + '<th class="mx__fix">ROLE</th><th class="mx__n">보유</th>'
-      + mem.map(mm => '<th class="mx__n" title="'+esc(mm.email)+'">'+esc(mm.emp_nm || mm.email)+'</th>').join('')
-      + '</tr></thead><tbody>';
+    const unrel = roles.filter(x => x.r.cls === '무관').length;
+    let html = '<div class="tools"><button id="csvr">CSV 내보내기</button>'
+      + '<span class="legend">Role ' + roles.length + '종'
+      + (noStd ? '' : ' · 무관 ' + unrel + '종') + ' · 행을 누르면 보유자가 펼쳐집니다</span></div>';
+
+    if(!roles.length){ html += '<div class="notice">조건에 맞는 권한이 없습니다.</div>'; $("pane").innerHTML = html; return; }
+
+    html += '<table><thead><tr><th>ROLE</th><th>모듈</th><th>분류</th>'
+      + '<th class="c">보유</th><th></th></tr></thead><tbody>';
     roles.forEach(({ r, holders }) => {
-      const grp = r.module_label || r.module || '기타';
-      const gap = (prevGrp !== null && grp !== prevGrp) ? ' class="mx__gap"' : '';
-      prevGrp = grp;
-      const cnt = Object.keys(holders).length;
-      html += '<tr'+gap+'><td class="mx__fix" title="'+esc(r.role_id)+'"><span class="legend">'+esc(grp)+'</span><br>'
-        + esc(r.role_label || r.role_nm)+'</td><td class="mx__n">'+cnt+'</td>'
-        + mem.map(mm => {
-            const c = holders[mm.email];
-            const k = CLS_CHIP[c] || '';
-            const sym = c ? (CLS_MARK[c] || 'O') : '';
-            const cl = c === '무관' ? 'mx__x' : c === '별도' ? 'mx__e' : c === '기준없음' ? 'mx__q'
-                     : c ? 'mx__o' : 'mx__m';
-            return '<td class="mx__n '+cl+'" title="'+esc(c||'')+'">'+ (sym || '·') +'</td>';
-          }).join('')
-        + '</tr>';
+      const cls = (!noStd && r.cls === '무관') ? 'risk' : '';
+      const open = EXPANDED_ROW.has('R:' + r.role_id);
+      html += '<tr class="mem ' + cls + '" data-rid="' + esc(r.role_id) + '">'
+        + '<td title="' + esc(r.role_id) + '">' + (cls ? '! ' : '') + esc(r.role_label || r.role_nm)
+        +   (r.is_write ? ' <span class="legend">쓰기</span>' : '')
+        +   (r.sensitive ? ' <span class="legend">민감</span>' : '') + '</td>'
+        + '<td>' + esc(r.module_label || r.module || '') + '</td>'
+        + '<td>' + esc(noStd ? '—' : r.cls) + '</td>'
+        + '<td class="c">' + holders.length + (r.dept_size ? ' / ' + r.dept_size : '') + '</td>'
+        + '<td class="c">' + (open ? '▾' : '▸') + '</td></tr>';
+      if(open){
+        html += '<tr><td colspan="5" style="background:#fcfdfe">'
+          + (noStd ? '' : '<div class="grp">' + esc(r.why || '') + '</div>')
+          + holders.map(h => '<span class="chip" title="' + esc(h.email) + '">'
+              + esc(h.emp_nm || h.email) + (h.title ? '<span class="w">' + esc(h.title) + '</span>' : '')
+              + '</span>').join('')
+          + '</td></tr>';
+      }
     });
-    html += '</tbody><tfoot><tr><td class="mx__fix">구성원별 합계</td><td class="mx__n">—</td>'
-      + mem.map(mm => '<td class="mx__n">'+(mm._roles||[]).length+'</td>').join('')
-      + '</tr></tfoot></table></div>';
+    html += '</tbody></table>';
     $("pane").innerHTML = html;
-    $("csvm").onclick = () => exportMatrix(mem, roles);
-  }
 
-  /* 탭 3 — 부서 표준 세트 (읽기 전용. 편집은 별도 REQ) */
-  function paneStd(ex){
-    const d = DETAIL.dept || {};
-    if((d.std_state || 'none') === 'none'){
-      $("pane").innerHTML = '<div class="notice warn"><b>이 부서의 표준 세트가 아직 없습니다.</b><br>'
-        + '<code>seed_role_standard.py</code> 로 엑셀 기준선을 시드하거나, 다수결 후보를 만들어 승인하세요.</div>';
-      return;
-    }
-    const std = {};
-    (DETAIL.members || []).forEach(mm => (mm.roles || []).forEach(r => {
-      if(r.cls === '표준'){ std[r.role_id] = std[r.role_id] || { r, n:0 }; std[r.role_id].n++; }
-    }));
-    const miss = DETAIL.std_missing || [];
-    const list = Object.values(std).sort((a,b) => b.n - a.n || String(a.r.role_nm).localeCompare(String(b.r.role_nm),'ko'));
-
-    let html = '<div class="tools"><span class="legend">표준 '+list.length+'종 보유 중 · 미보유 '+miss.length+'종 · '
-      + '출처 '+esc(d.std_source || '—')+(d.mapping_conf ? ' · 매핑 신뢰도 '+esc(d.mapping_conf) : '')+'</span></div>';
-    html += '<table><thead><tr><th>ROLE</th><th>모듈</th><th class="c">보유 인원</th></tr></thead><tbody>'
-      + list.map(x => '<tr><td title="'+esc(x.r.role_id)+'">'+esc(x.r.role_nm)+'</td><td>'+esc(x.r.module_label||'')+'</td>'
-          + '<td class="c">'+x.n+'</td></tr>').join('')
-      + (miss.length ? miss.map(x => '<tr class="warn"><td title="'+esc(x.role_id)+'">'+esc(x.role_nm || x.role_id)
-          + '</td><td><span class="legend">표준인데 미보유</span></td><td class="c">'+num(x.holders)+' / '+num(x.dept_size)+'</td></tr>').join('') : '')
-      + '</tbody></table>'
-      + '<div class="notice" style="margin-top:9px">표준 세트 <b>편집</b>은 이번 범위에 없습니다 — '
-      + '쓰기 권한·승인 흐름·감사기록이 함께 필요하므로 별도 요청으로 분리했습니다.</div>';
-    $("pane").innerHTML = html;
+    $("pane").querySelectorAll('tr.mem').forEach(tr => tr.onclick = () => {
+      const k = 'R:' + tr.dataset.rid;
+      if(EXPANDED_ROW.has(k)) EXPANDED_ROW.delete(k); else EXPANDED_ROW.add(k);
+      paneRoles(ex);
+    });
+    $("csvr").onclick = () => exportRoles(roles);
   }
 
   /* CSV — UTF-8 BOM (엑셀 한글 깨짐 방지, §13.5) */
@@ -613,18 +577,21 @@ tr.mem:hover > td{filter:brightness(0.985)}
     const out = [['부서','이름','직책','계정','ROLE ID','ROLE명','모듈','분류','사유','쓰기','민감','부서보유']];
     rows.forEach(mm => (mm._roles || []).forEach(r => out.push([
       (DETAIL.dept||{}).dept_nm, mm.emp_nm, mm.title || '',
-      (mm.gw_active?'사용':'GW없음') + (mm.account_active?'':'/ERP정지'),
+      [(!mm.gw_active?'GW없음':''), (!mm.account_active?'ERP정지':''),
+       (mm.dept_src==='none'?'소속미확인':'')].filter(Boolean).join(' · '),
       r.role_id, r.role_nm, r.module_label || '', r.cls, r.why || '',
       r.is_write ? '쓰기' : '조회', r.sensitive ? '민감' : '',
       (r.peer_cnt != null ? r.peer_cnt + '/' + r.dept_size : '')])));
     download('ERP권한_'+((DETAIL.dept||{}).dept_nm||SEL)+'_'+stamp()+'.csv', out);
   }
-  function exportMatrix(mem, roles){
-    const out = [['ROLE ID','ROLE명','모듈','보유'].concat(mem.map(m => m.emp_nm || m.email))];
-    roles.forEach(({ r, holders }) => out.push(
-      [r.role_id, r.role_nm, r.module_label || '', Object.keys(holders).length]
-        .concat(mem.map(m => holders[m.email] || ''))));
-    download('ERP권한매트릭스_'+((DETAIL.dept||{}).dept_nm||SEL)+'_'+stamp()+'.csv', out);
+  function exportRoles(roles){
+    const out = [['부서','ROLE ID','ROLE명','모듈','분류','사유','쓰기','민감','보유','부서인원','보유자']];
+    roles.forEach(({ r, holders }) => out.push([
+      (DETAIL.dept||{}).dept_nm, r.role_id, r.role_nm, r.module_label || '', r.cls, r.why || '',
+      r.is_write ? '쓰기' : '조회', r.sensitive ? '민감' : '',
+      holders.length, r.dept_size || '',
+      holders.map(h => h.emp_nm || h.email).join(' · ')]));
+    download('ERP권한_Role별_'+((DETAIL.dept||{}).dept_nm||SEL)+'_'+stamp()+'.csv', out);
   }
 
   boot();
