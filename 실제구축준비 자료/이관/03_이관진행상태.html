@@ -47,7 +47,7 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
   <div class="content">
 <h1 id="03">03. 이관 진행 상태 (추적표)</h1>
 <blockquote>
-<p><strong>최종 갱신: 2026-09-10</strong> · 관리: 최동혁
+<p><strong>최종 갱신: 2026-09-11</strong> · 관리: 최동혁
 이 문서는 <strong>작업할 때마다 갱신하는 진행 로그</strong>다. 단계 완료 시 체크하고, §3 작업로그에 날짜·내용을 남긴다. 시스템 상태가 바뀌면 <code>00_현황스냅샷</code>도 함께 갱신한다.</p>
 </blockquote>
 <hr />
@@ -281,6 +281,12 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <td><strong>품목분류 4카테고리</strong>(REQ-0044) — 그룹 경로 뷰·계정 매핑표·코드표 미러·조회 RPC 확장·화면 2종</td>
 <td>마이그레이션 1건 · 경로/필터 실측 통과 · 구문 검사</td>
 <td>관리자 <code>!</code>로 <code>etl_run.py --job ud_code</code> 실행 → 품목계정 이름 확인, 없으면 <code>item_acct_name</code> 6건 등록</td>
+</tr>
+<tr>
+<td>2026-09-11</td>
+<td><strong>ERP운영서버 트레이 스케줄 러너 <code>jeil_runner</code> r1.2</strong>(REQ-0046) — 결의전표 전송 큐·데이터 업데이트 요청·야간 배치를 트레이 아이콘+창에서 보고·실행·중지·설정하는 단일 EXE(서버에 파이썬 불필요), 자식 프로세스 작업 개체 트리 관리·한 PC 한 러너, 서버 러너는 ERP job 만. 계기: 「<code>gl_relay.exe</code>·<code>relay.cmd</code> 가 꺼져 ETL 이 안 된다」 문의 → 둘 다 정상, 원인은 관리자 PC 에서만 수동 기동하는 ETL 러너(<code>etl_watch.py</code>)가 꺼져 있던 것. 릴레이·ETL 연동 보강 + DB 보강 <code>sql/49</code>(러너 능력별 선점·재사용·가동 판정) 준비</td>
+<td>코드 완료·<strong>서버 미적용</strong> · 단위 테스트 59건 · frozen EXE 자체 점검 통과 · 두 번째 인스턴스 차단 확인 · 적대적 리뷰 2회(20건·19건) 반영 · <code>sql/49</code>(+되돌리기) 트랜잭션 되돌림 구문 검증, <strong>미적용·승인 대기</strong> · 관리자 PC 러너 17:17 재가동으로 14:28·15:42(퇴사 처리) 요청 완료, 09-10 계정 전용 요청은 4시간 만료</td>
+<td>관리자: 서버 적용(폴더 잠금·자체 점검·실행·선택 자동 시작 등록) · <code>sql/49</code> 승인·적용 · REQ-0017 릴레이 v1.7 실행 루트 교체</td>
 </tr>
 </tbody>
 </table>
