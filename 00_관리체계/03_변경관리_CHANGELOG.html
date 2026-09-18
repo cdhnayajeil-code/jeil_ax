@@ -110,6 +110,13 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <tr>
 <td>2026-09-18</td>
 <td>ERP DB 연계 · 연동 러너</td>
+<td><code>10_ERP_DB연계/etl/deploy/README.md</code>(§2 서버 <code>.env</code> 키 3→6개, C-0 「이 호스트가 못 하는 일」 MS 계정 수집 행 분리) · <code>00_현재상태_스냅샷.md</code>(v0.55, §4·§6·§7) · <code>02_진행상태.md</code></td>
+<td><strong>서버 러너에도 MS 계정수집·퇴사 MS축 처리 능력을 추가하기로 결정(결정 B)</strong> — 서버 러너는 계정 수집 능력이 0종(<code>+acct0+nosens</code>)이라 MS 계정 수집·퇴사 MS축을 못 했고, 실제로 요청이 만료된 이력(<code>etl_meta.sync_request</code> 2026-09-17 01:58 UTC, 4시간 만료·<code>failed</code>)까지 확인됐다. 서버 <code>.env</code>에 <code>ENTRA_TENANT_ID</code>·<code>ENTRA_CLIENT_ID</code>·<code>ENTRA_CLIENT_SECRET</code> 3키를 추가하기로 결정(값은 관리자가 서버에서 직접 입력). 한계: 그룹웨어 퇴사 축은 여전히 서버 불가·SQL 49 미적용·시크릿 갱신 지점이 워크스테이션+서버 두 곳으로 늘어남. 곁들여 발견: 차단됐는데 라이선스 남은 계정 22건 미처리(후속 과제), 「MS 남음」 표시는 미러 지연이었음(재수집으로 해소). REQ 번호 신규 부여 없음(관리자 직접 지시)</td>
+<td>최동혁(+Claude)</td>
+</tr>
+<tr>
+<td>2026-09-18</td>
+<td>ERP DB 연계 · 연동 러너</td>
 <td><code>10_ERP_DB연계/etl/jeil_runner.py</code>(<code>CLI_TOOLS</code> 신설)·<code>runner_core.py</code>(RUNNER_VERSION r1.3)·<code>offboard_axes.py</code>·<code>exo_admin.py</code>(<code>main()</code> 추출)·<code>deploy/build_exe.py</code>·<code>deploy/relay.cmd</code>·신규 <code>test_runner_cli.py</code>(8건) · <code>00_현재상태_스냅샷.md</code>(v0.54)·<code>02_진행상태.md</code></td>
 <td><strong>연동 러너를 단일 통합 프로그램으로 합쳤다 — 서버에 두는 EXE가 <code>gl_relay.exe</code>+<code>jeil_runner.exe</code> 2개에서 <code>jeil_runner.exe</code> 1개로 줄었다(r1.2→r1.3).</strong> 서브커맨드 테이블 <code>CLI_TOOLS</code>로 relay(구 gl_relay)·sync·etl·offboard·mailbox를 한 EXE에 묶었다(로직은 각 모듈 <code>main()</code>이 그대로 보유). <code>--console</code> 빌드 전환 중 실측 결함(콘솔 cp949로 <code>—</code>·<code>·</code> 출력 시 <code>UnicodeEncodeError</code>, EXE 실물에서만 재현)을 잡아 <code>use_utf8_console()</code>로 해소. 신규 테스트 8건 + 기존 75건 통과, EXE <code>--smoke</code> 통과, 산출물을 사내 전달 폴더에 배치 완료 — <strong>REQ-0051(서버 적용) 전제 갱신</strong>: 서버에 올릴 파일 1개로 확정, 빌드·배치까지 끝났고 남은 건 관리자의 서버 교체·기동뿐. <code>CLAUDE.md §17</code> 신설. 배포 절차 정본은 <code>etl/deploy/README.md</code>·<code>변경관리.md</code>(관리자 갱신). REQ 번호 신규 부여 없음(관리자 직접 지시), 코드는 아직 미커밋</td>
 <td>최동혁(+Claude)</td>
