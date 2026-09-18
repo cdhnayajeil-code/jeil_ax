@@ -503,9 +503,8 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <li>[ ] 데모 호스트의 <strong>Entra redirect URI 추가</strong>(관리자 직접 — <code>01_실행가이드</code> G절 목록)</li>
 <li>[ ] 디렉터리 분리(<code>demo/</code>·<code>app/</code>·<code>api/</code>·<code>docs/</code>) 적용 시점</li>
 <li>[ ] Entra Client Secret 갱신(2026-12-09)</li>
-<li>[ ] <strong>ERP운영서버 트레이 스케줄 러너 <code>jeil_runner</code> r1.2 적용 대기</strong>(REQ-0046 · 코드 완료·서버 미배포) — 관리자 직접: 폴더 잠금·자체 점검·실행·선택 자동 시작 등록(절차 <code>10_ERP_DB연계/etl/deploy/README.md</code> C안). 적용 전까지 화면 [데이터 업데이트] 요청은 관리자 PC 러너(<code>etl_watch.py</code>, 수동 기동)가 켜져 있을 때만 처리된다</li>
+<li>[ ] <strong>ERP운영서버 트레이 스케줄 러너 <code>jeil_runner</code> r1.3 적용 대기</strong>(REQ-0051 · 빌드·전달 폴더 배치 완료·서버 미교체 — 2026-09-18 부터 릴레이까지 합친 <strong>단일 EXE</strong> 라 올릴 파일은 이것 하나다) — 관리자 직접: 폴더 잠금·자체 점검·실행·선택 자동 시작 등록(절차 <code>10_ERP_DB연계/etl/deploy/README.md</code> C안). 적용 전까지 화면 [데이터 업데이트] 요청은 관리자 PC 러너(<code>etl_watch.py</code>, 수동 기동)가 켜져 있을 때만 처리된다</li>
 <li>[ ] <strong>DB 보강 <code>sql/49_runner_capability_online</code> 승인·적용 대기</strong>(REQ-0046 · 미적용) — 요청 선점·재사용·「러너 가동」 판정을 러너 능력별로 가르는 함수 9종 교체 + <code>etl_meta.runner_online</code> 신설, 되돌리기 <code>49_runner_capability_online_rollback.sql</code> 동봉</li>
-<li>[ ] <strong>MS 퇴사 처리 사서함 공유 전환용 Exchange 관리 권한 미구성</strong>(관리자 직접 지시 2026-09-17 · 코드 완료·미커밋) — 관리자 직접: 앱에 응용 권한 <code>Exchange.ManageAsApp</code> 추가 + 관리자 동의, 서비스 주체에 <strong>Exchange 관리자</strong> 역할 부여. 부여 전까지 퇴사 처리는 차단·이름 표기만 적용되고 사서함 공유 전환·라이선스 회수는 보류된다(상세 <code>10_ERP_DB연계/21_퇴사처리_일괄적용_기획.md</code> §7 L)</li>
 <li>상세 진척은 <code>03_이관진행상태</code> 참조.</li>
 </ul>
 <hr />
@@ -519,6 +518,11 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 </tr>
 </thead>
 <tbody>
+<tr>
+<td>2026-09-18</td>
+<td><strong>MS 퇴사 처리 사서함 공유 전환용 Exchange 권한 확보</strong> — 응용 권한 <code>Exchange.ManageAsApp</code>(관리자 동의) + <strong>Exchange RBAC 역할 그룹 <code>Recipient Management</code></strong> 에 서비스 주체 등록(<code>New-ServicePrincipal</code> → <code>Add-RoleGroupMember</code>). Entra 디렉터리 역할이 아니라 Exchange 자체 RBAC 라 <strong>Entra Premium 이 필요 없고</strong> 사서함 관리 권한만 갖는다. 실계정 1건으로 이름 접두·차단·사서함 공유 전환·라이선스 회수 4항목 검증 완료. 상세 <code>10_ERP_DB연계/21_퇴사처리_일괄적용_기획.md</code> §3.6·§7 L</td>
+<td>최동혁(+Claude)</td>
+</tr>
 <tr>
 <td>2026-09-11</td>
 <td><strong>품목계정 이름 연결</strong>(REQ-0045 · 마이그레이션 <code>item_acct_p1001</code> · 정본 <code>sql/48</code>) — <code>erp_ro.sys_code_s</code>(ERP 종합코드 B_MINOR⋈B_MAJOR, 화이트리스트 P1001, ETL job <code>sys_code</code> 8행 적재) + RLS internal + <code>v_erp_sys_code</code>, <code>erp_master_upsert</code> 분기, 연동 현황 등재, <code>v_item_acct</code> 이름 원천 1순위를 P1001 로(수동표·ud_code 는 보충)</td>
