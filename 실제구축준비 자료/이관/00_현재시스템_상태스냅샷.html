@@ -93,12 +93,12 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <tr>
 <td><strong>Vercel</strong></td>
 <td><strong>jeil-ax 프로젝트 가동</strong>(팀 jeil_Ax · GitHub main 자동배포 READY)</td>
-<td>REST는 <code>.env</code> <code>VERCEL_TOKEN</code>으로 점검. claude.ai 통합은 타계정(cdhrich)이라 미사용. Hobby=비상업 유의</td>
+<td>REST는 <code>.env</code> <code>VERCEL_TOKEN</code>으로 점검. claude.ai 통합은 타계정(cdhrich)이라 미사용. Hobby=비상업 유의 · <strong>플랜 실측 2026-09-15: 팀 Hobby(무료)</strong> — 유료 전환 검토 <code>09_비용_호스팅/JEIL_AX_호스팅_기획서</code> §5</td>
 </tr>
 <tr>
 <td><strong>Supabase</strong></td>
 <td><strong>프로젝트 가동</strong> <code>dvzohdqtjzocgcclgwro</code> / 스키마·RLS·Hook·Storage·<strong>Azure OIDC</strong>·autoconfirm 적용</td>
-<td>협력사 발주 + <strong>관리자주도 등록</strong>(<code>portal_admin</code>·<code>vendor_account</code>·<strong><code>vendor_admin_account</code></strong>·<code>vendor_account_log</code>) 테이블, Edge Function <strong>13종</strong>(<code>approve-vendor</code>·<code>vendor-provision</code>·<code>vendor-admin-provision</code>·<code>vendor-reset-password</code>·<code>vendor-set-password</code>·<code>jeil-chat</code>·<code>jeil-chat-admin</code>(v11 · 배포 14)·<code>jeil-chat-history</code>·<code>jeil-me</code>·<code>jeil-hr</code>·<code>jeil-portal-request</code>·<code>jeil-gl-draft</code>·<code>jeil-accounts</code>(v2 · 배포 5 — 퇴사 예약 4액션)) + <strong>pg_cron 1.6.4</strong>(2026-09-11 설치 · job <code>offboard_schedule_promote_due</code> 1분), <code>chat_log</code> 감사 + <strong>대화내역 3테이블</strong>(<code>chat_work</code>·<code>chat_session</code>·<code>chat_message</code> — 본인 전용, ADR-009) + <strong>요청 원장</strong>(<code>portal_request</code> — 조회불가 요청접수, ADR-011), RLS 격리검증·어드바이저 클린</td>
+<td>협력사 발주 + <strong>관리자주도 등록</strong>(<code>portal_admin</code>·<code>vendor_account</code>·<strong><code>vendor_admin_account</code></strong>·<code>vendor_account_log</code>) 테이블, Edge Function <strong>13종</strong>(<code>approve-vendor</code>·<code>vendor-provision</code>·<code>vendor-admin-provision</code>·<code>vendor-reset-password</code>·<code>vendor-set-password</code>·<code>jeil-chat</code>·<code>jeil-chat-admin</code>(v11 · 배포 14)·<code>jeil-chat-history</code>·<code>jeil-me</code>·<code>jeil-hr</code>·<code>jeil-portal-request</code>·<code>jeil-gl-draft</code>·<code>jeil-accounts</code>(v2 · 배포 5 — 퇴사 예약 4액션)) + <strong>pg_cron 1.6.4</strong>(2026-09-11 설치 · job <code>offboard_schedule_promote_due</code> 1분), <code>chat_log</code> 감사 + <strong>대화내역 3테이블</strong>(<code>chat_work</code>·<code>chat_session</code>·<code>chat_message</code> — 본인 전용, ADR-009) + <strong>요청 원장</strong>(<code>portal_request</code> — 조회불가 요청접수, ADR-011), RLS 격리검증·어드바이저 클린 · <strong>플랜 실측 2026-09-15: 조직 Free</strong>(DB 91MB/500MB · 자동 백업 없음)</td>
 </tr>
 <tr>
 <td>데모 도메인</td>
@@ -503,6 +503,9 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <li>[ ] 데모 호스트의 <strong>Entra redirect URI 추가</strong>(관리자 직접 — <code>01_실행가이드</code> G절 목록)</li>
 <li>[ ] 디렉터리 분리(<code>demo/</code>·<code>app/</code>·<code>api/</code>·<code>docs/</code>) 적용 시점</li>
 <li>[ ] Entra Client Secret 갱신(2026-12-09)</li>
+<li>[ ] <strong>ERP운영서버 트레이 스케줄 러너 <code>jeil_runner</code> r1.2 적용 대기</strong>(REQ-0046 · 코드 완료·서버 미배포) — 관리자 직접: 폴더 잠금·자체 점검·실행·선택 자동 시작 등록(절차 <code>10_ERP_DB연계/etl/deploy/README.md</code> C안). 적용 전까지 화면 [데이터 업데이트] 요청은 관리자 PC 러너(<code>etl_watch.py</code>, 수동 기동)가 켜져 있을 때만 처리된다</li>
+<li>[ ] <strong>DB 보강 <code>sql/49_runner_capability_online</code> 승인·적용 대기</strong>(REQ-0046 · 미적용) — 요청 선점·재사용·「러너 가동」 판정을 러너 능력별로 가르는 함수 9종 교체 + <code>etl_meta.runner_online</code> 신설, 되돌리기 <code>49_runner_capability_online_rollback.sql</code> 동봉</li>
+<li>[ ] <strong>MS 퇴사 처리 사서함 공유 전환용 Exchange 관리 권한 미구성</strong>(관리자 직접 지시 2026-09-17 · 코드 완료·미커밋) — 관리자 직접: 앱에 응용 권한 <code>Exchange.ManageAsApp</code> 추가 + 관리자 동의, 서비스 주체에 <strong>Exchange 관리자</strong> 역할 부여. 부여 전까지 퇴사 처리는 차단·이름 표기만 적용되고 사서함 공유 전환·라이선스 회수는 보류된다(상세 <code>10_ERP_DB연계/21_퇴사처리_일괄적용_기획.md</code> §7 L)</li>
 <li>상세 진척은 <code>03_이관진행상태</code> 참조.</li>
 </ul>
 <hr />

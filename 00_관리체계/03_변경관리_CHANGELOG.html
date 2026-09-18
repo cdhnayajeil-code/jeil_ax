@@ -108,6 +108,41 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 </thead>
 <tbody>
 <tr>
+<td>2026-09-18</td>
+<td>ERP DB 연계 · 연동 러너</td>
+<td><code>10_ERP_DB연계/etl/jeil_runner.py</code>(<code>CLI_TOOLS</code> 신설)·<code>runner_core.py</code>(RUNNER_VERSION r1.3)·<code>offboard_axes.py</code>·<code>exo_admin.py</code>(<code>main()</code> 추출)·<code>deploy/build_exe.py</code>·<code>deploy/relay.cmd</code>·신규 <code>test_runner_cli.py</code>(8건) · <code>00_현재상태_스냅샷.md</code>(v0.54)·<code>02_진행상태.md</code></td>
+<td><strong>연동 러너를 단일 통합 프로그램으로 합쳤다 — 서버에 두는 EXE가 <code>gl_relay.exe</code>+<code>jeil_runner.exe</code> 2개에서 <code>jeil_runner.exe</code> 1개로 줄었다(r1.2→r1.3).</strong> 서브커맨드 테이블 <code>CLI_TOOLS</code>로 relay(구 gl_relay)·sync·etl·offboard·mailbox를 한 EXE에 묶었다(로직은 각 모듈 <code>main()</code>이 그대로 보유). <code>--console</code> 빌드 전환 중 실측 결함(콘솔 cp949로 <code>—</code>·<code>·</code> 출력 시 <code>UnicodeEncodeError</code>, EXE 실물에서만 재현)을 잡아 <code>use_utf8_console()</code>로 해소. 신규 테스트 8건 + 기존 75건 통과, EXE <code>--smoke</code> 통과, 산출물을 사내 전달 폴더에 배치 완료 — <strong>REQ-0051(서버 적용) 전제 갱신</strong>: 서버에 올릴 파일 1개로 확정, 빌드·배치까지 끝났고 남은 건 관리자의 서버 교체·기동뿐. <code>CLAUDE.md §17</code> 신설. 배포 절차 정본은 <code>etl/deploy/README.md</code>·<code>변경관리.md</code>(관리자 갱신). REQ 번호 신규 부여 없음(관리자 직접 지시), 코드는 아직 미커밋</td>
+<td>최동혁(+Claude)</td>
+</tr>
+<tr>
+<td>2026-09-18</td>
+<td>계정 통합관리 · 퇴사 처리</td>
+<td><code>10_ERP_DB연계/21_퇴사처리_일괄적용_기획.md</code>(v0.8, §3.6 신설) · <code>00_현재상태_스냅샷.md</code>(v0.53) · <code>02_진행상태.md</code></td>
+<td><strong>퇴사 처리 MS축 — Exchange 관리 권한 해소 + 실계정 실증 완료(관리자 직접 실행, 코드 변경 없음).</strong> 어제 등재한 해소 방법(Entra 디렉터리 역할 Exchange 관리자 부여)이 실제와 달랐다 — 응용 권한 <code>Exchange.ManageAsApp</code>만으로는 HTTP 403(RBAC 없음)이었고, 실제로는 <strong>Exchange 자체 RBAC</strong>로 풀었다: 관리자가 별도 PowerShell 창에서 <code>New-ServicePrincipal</code>+<code>Add-RoleGroupMember</code>로 앱 서비스 주체를 Exchange 역할그룹 <strong><code>Recipient Management</code></strong> 멤버로 추가(Entra 디렉터리 역할은 미부여, 최소권한). 테스트 계정은 <code>givenName</code> 공백·사서함 이미 공유라 검증 불가해, 대사 잔여 대상 <strong>정우영</strong>(퇴사일 2026-09-11)에 관리자 승인 받아 MS축 실제 적용 — 원천 재조회로 이름 접두·계정 차단·사서함 공유 전환·라이선스 회수(0건) 전부 확인. 이로써 <strong>ERP·그룹웨어·MS 3축 퇴사 처리 자동화가 모두 실증 완료</strong> 상태가 됐다. 코드는 2026-09-17분 그대로 미커밋 유지</td>
+<td>최동혁(+Claude)</td>
+</tr>
+<tr>
+<td>2026-09-17</td>
+<td>계정 통합관리 · 퇴사 처리</td>
+<td><code>10_ERP_DB연계/etl/offboard_axes.py</code>·<code>exo_admin.py</code>(신설)·<code>test_offboard_axes.py</code>(신설, 16건)·<code>etl/deploy/build_exe.py</code>·<code>.env.example</code>·<code>app/admin-offboarding.html</code> · <code>10_ERP_DB연계/21_퇴사처리_일괄적용_기획.md</code>(v0.7) · <code>00_현재상태_스냅샷.md</code>(v0.52)</td>
+<td><strong>퇴사 처리 MS축을 확장했다 — 이름(<code>givenName</code>)에도 <code>[퇴사]</code>를 붙이고 사서함을 공유 사서함으로 전환한다(관리자 직접 지시 2건, 코드 반영·테스트 통과·미커밋).</strong> 종전엔 <code>displayName</code>만 바꿔 Teams·Exchange 연락처 카드의 「이름」엔 퇴사 표기가 보이지 않았다(관리자가 Exchange 연락처 정보 관리 화면에서 직접 확인). 실행 순서를 <strong>①사서함 공유 전환 → ②로그인 차단·이름 표기 → ③라이선스 회수</strong>로 재배열(사서함은 라이선스가 살아 있을 때 공유로 바꿔야 하고, 전환 뒤에 라이선스를 떼야 메일이 남는다). 안전장치: 전환이 권한 미구성으로 불가능하면 라이선스 회수만 보류, 권한은 있는데 전환이 실패하면 축 전체 중단(전환 실패한 사서함에서 라이선스를 떼면 30일 보존 후 삭제되기 때문). 신규 모듈 <code>exo_admin.py</code> — Graph에는 사서함 유형을 바꾸는 API가 없어 EXO PowerShell이 쓰는 내부 REST 엔드포인트를 표준 라이브러리로 직접 호출(의존성 0 유지). <strong>실측 제약</strong>: 이 앱엔 아직 Exchange 관리 권한이 없어(<code>exo_admin.py</code> 테스트 HTTP 401) 지금은 사서함 공유 전환·라이선스 회수가 매번 보류·건너뛰기된다(차단·이름 표기는 정상). 해소는 관리자의 Entra 작업(응용 권한 <code>Exchange.ManageAsApp</code> + 서비스 주체 Exchange 관리자 역할) 필요 — <code>21_퇴사처리_일괄적용_기획.md §7 L</code> 신규 등재. 서버 트레이 러너(<code>jeil_runner</code>) EXE는 이 모듈 포함해 재빌드 필요(REQ-0046과 함께). <strong>아직 git 커밋 전</strong> — 관리자 테스트 후 커밋 예정</td>
+<td>최동혁(+Claude)</td>
+</tr>
+<tr>
+<td>2026-09-15</td>
+<td>비용·호스팅</td>
+<td><code>09_비용_호스팅/JEIL_AX_비용기획_보고서</code>(.md·.html) · <code>JEIL_AX_호스팅_기획서</code>(.md·.html·.docx) · <code>JEIL_AX_비용계산기.html</code> · <code>09_비용_호스팅/_build_html.py</code>(신설) · <code>이관/00</code> 플랜 표기</td>
+<td><strong>비용·호스팅 기획을 06-18 추정치에서 09-15 실측·공식 단가 기준으로 현행화했다(REQ-0054).</strong> 실측 — Vercel 팀 Hobby·Supabase 조직 Free(둘 다 무료, DB 91MB/500MB), 챗봇 누적 218건 $0.27(요청당 입력 6,600/출력 280 토큰), 재직 95명 → 산정 기준 200명에서 100명으로. 단가 — Sonnet 5 $2/$10(정가 확정, 새 토크나이저로 토큰 약 30%↑)·Opus 5·gpt-5.6, 6월 판 「GPT-5.5 mini/nano」는 공식표에 없어 정정. <strong>Claude Enterprise 과금 구조 정정</strong>: 좌석 $20/월(연납) + 전 사용량 API 단가 별도, 최소 20석(셀프)/50석(영업) — 6월 판 「시트 약 $60·최소 70석」은 구 체계. 100명 권고 표준형(포털 라우팅 + Enterprise 20석 + 인프라 유료화) 월 약 ₩213만·연 약 ₩2,550만. 무료 플랜 약관·백업 리스크와 단기 정상화안(Vercel Pro + Supabase Pro 월 $45)을 호스팅 기획서에 명시(결정·결제는 관리자). HTML 은 손으로 고치지 않고 신설 빌더로 MD 에서 재생성, 계산기 기본값 = 보고서 표준형</td>
+<td>최동혁(+Claude)</td>
+</tr>
+<tr>
+<td>2026-09-11</td>
+<td>ERP연계·배포</td>
+<td><code>10_ERP_DB연계/etl/jeil_runner.py</code>·<code>runner_core.py</code>·<code>runner_ui.py</code>·<code>test_runner_core.py</code>(신설) · <code>etl_watch.py</code>·<code>_env.py</code> · <code>etl/deploy/build_exe.py</code>·<code>register_runner_task.ps1</code>(신설)·<code>README.md</code>(C안)·<code>변경관리.md</code> · <code>.gitignore</code> · <code>이관/sql/49</code>+되돌리기(신설·미적용)</td>
+<td><strong>ERP운영서버 트레이 스케줄 러너 <code>jeil_runner</code> r1.2 신설(REQ-0046 · 코드 완료·서버 미적용) + 릴레이·ETL 연동 보강 + DB 보강 SQL 49 준비(승인 대기).</strong> 계기는 사용자 문의 「ERP운영서버에서 <code>gl_relay.exe</code> 가 바로 꺼지고 <code>relay.cmd</code> 창이 사라져 ETL 이 안 된다」. 진단하니 둘 다 정상이었고(인자 없는 EXE 는 즉시 종료, <code>relay.cmd</code> 는 로그 파일로 출력), <strong>실제 원인은 화면 [데이터 업데이트] 요청을 처리하는 ETL 러너(<code>etl_watch.py</code>)가 관리자 PC 에서만 수동 기동이라 꺼져 있던 것</strong>이다(17:17 재가동으로 14:28·15:42 퇴사 처리 요청은 완료, 09-10 계정 전용 요청은 4시간 만료). 그래서 결의전표 전송 큐·데이터 업데이트 요청·야간 배치를 트레이 아이콘+창에서 보고·실행·중지·설정하는 <strong>상주 앱</strong>을 만들었다 — 단일 EXE(서버에 파이썬 불필요), 자식 프로세스를 Windows 작업 개체로 트리째 관리(중지·시간 상한·종료), 한 PC 한 러너, 비정상 종료 실행 기록, <code>.env</code> 비주입. 서버 러너는 <strong>ERP job 만</strong> 처리한다(퇴사 처리 큐 미선점 · 계정 수집은 접속정보 없으면 생략→「일부 실패」로 사유 표시 · 급여 요청 기본 미처리 · 접속 오류 원문 가림). 능력이 다른 러너 둘이 같은 큐를 보게 되므로 <code>sql/49</code> 로 요청 선점·재사용·「러너 가동」 판정을 <strong>러너 능력(퇴사 처리·계정 수집·급여)별로</strong> 가른다(함수 9종 교체 + <code>etl_meta.runner_online</code> 신설, 2026-09-11 라이브 정의 기준, 되돌리기 동봉, 트랜잭션 되돌림으로 구문 검증). 검증: 단위 테스트 59건 · frozen EXE 자체 점검 통과 · 두 번째 인스턴스 차단 확인 · 적대적 리뷰 2회(20건·19건) 반영. <strong>남은 일</strong>: 서버 적용(관리자 직접 — 폴더 잠금·자체 점검·실행·선택 자동 시작 등록) · SQL 49 승인·적용 · REQ-0017 릴레이 v1.7 실행 루트 교체</td>
+<td>최동혁(+Claude)</td>
+</tr>
+<tr>
 <td>2026-09-11</td>
 <td>니즈조사·배포</td>
 <td><code>05_니즈조사/00~05_*.html</code> · <code>_build_bundle.py</code></td>
