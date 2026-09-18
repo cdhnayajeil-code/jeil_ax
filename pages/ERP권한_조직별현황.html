@@ -269,8 +269,12 @@ tr.mem:hover > td{filter:brightness(0.985)}
     return erp || gw || null;
   }
 
+  const UNASSIGNED = '__unassigned__';   // 인사·부서 마스터에 소속이 없는 계정(관리자 전용 가상 노드)
   function nodes(){ return (TREE && TREE.nodes) || []; }
-  function byCd(cd){ return nodes().find(n => n.dept_cd === cd) || null; }
+  function byCd(cd){
+    if(cd === UNASSIGNED) return { dept_cd:UNASSIGNED, dept_nm:'소속 미확인', visible: !!(TREE && TREE.is_admin) };
+    return nodes().find(n => n.dept_cd === cd) || null;
+  }
 
   /* 기본 펼침: 깊이 2까지 + 무관이 있는 부서의 조상 경로는 강제로 편다.
      붉은 게 접혀서 안 보이는 상황을 만들지 않는다. */
@@ -347,8 +351,16 @@ tr.mem:hover > td{filter:brightness(0.985)}
       '<h3>조직도 <span class="sm">'+num((TREE.nodes||[]).reduce((s,n)=>s+(n.member_cnt||0),0))+'명 · '
         + esc(TREE.org_change_id)+'</span></h3>'
       + '<div class="tree">' + (rows || '<div class="notice" style="margin:9px;border:none">표시할 조직이 없습니다.</div>') + '</div>'
+      + (un > 0 && TREE.is_admin
+          ? '<div class="tnode'+(SEL===UNASSIGNED?' sel':'')+'" data-cd="'+UNASSIGNED+'" data-kids="0"'
+            + ' style="border-top:1px solid var(--line);padding:6px 9px"'
+            + ' title="인사·부서 마스터에 소속이 없는 ERP 계정 — 조직도 밖이라 묻히기 쉬운 검토 대상입니다">'
+            + '<span class="tw">?</span><span class="nm">소속 미확인</span><span class="sp"></span>'
+            + '<span class="cnt">'+un+'</span></div>'
+          : '')
       + '<div class="tfootnote">'
-      +   (un > 0 ? '<span class="tb q">?</span> 소속 미확인 <b>'+un+'명</b> — 인사·부서 마스터에 소속이 없는 계정입니다.<br>' : '')
+      +   (un > 0 && !TREE.is_admin
+            ? '<span class="tb q">?</span> 소속 미확인 <b>'+un+'명</b> — 관리자만 열람할 수 있습니다.<br>' : '')
       +   '<span class="tb u">!</span> 무관 · <span class="tb e">^</span> 별도 · 🔒 열람 범위 밖'
       + '</div>';
 
@@ -390,10 +402,17 @@ tr.mem:hover > td{filter:brightness(0.985)}
       ? '<div class="kpis">'
         + kpiBox('인원', num(m.length)+'명','')
         + kpiBox('표준','—','gry') + kpiBox('별도','—','gry') + kpiBox('무관','—','gry')
+        + kpiBox('쓰기 권한', num(s.write_roles), (s.write_roles||0)>0 ? 'amb' : '')
+        + kpiBox('민감 모듈', num(s.sensitive_roles), (s.sensitive_roles||0)>0 ? 'red' : '')
         + '</div><div class="notice warn" style="margin:0 11px 11px">'
-        + '<b>부서 표준 세트가 아직 없습니다.</b> 기준이 없으면 3분류를 계산하지 않습니다 — '
-        + '모든 권한을 「무관」으로 표시하면 화면이 거짓말을 하기 때문입니다. '
-        + '표준 세트를 시드하면 즉시 분류가 나타납니다.</div>'
+        + (SEL === UNASSIGNED
+            ? '<b>소속이 확인되지 않은 계정입니다.</b> 인사 마스터에도 부서 마스터에도 소속이 없어 '
+              + '비교할 부서 표준이 없습니다 — 3분류 대신 <b>쓰기 권한·민감 모듈 보유 수</b>로 판단하세요. '
+              + '조직도 밖에 있어 평소 눈에 띄지 않는 만큼 오히려 먼저 확인할 대상입니다.'
+            : '<b>부서 표준 세트가 아직 없습니다.</b> 기준이 없으면 3분류를 계산하지 않습니다 — '
+              + '모든 권한을 「무관」으로 표시하면 화면이 거짓말을 하기 때문입니다. '
+              + '표준 세트를 시드하면 즉시 분류가 나타납니다.')
+        + '</div>'
       : '<div class="kpis">'
         + kpiBox('인원', num(m.length)+'명','')
         + kpiBox('표준', num(s['표준']), 'grn')

@@ -725,6 +725,10 @@ declare
   v_admin  boolean;
   v_ver    text;
   v_cd     text := btrim(coalesce(p_dept_cd, ''));
+  -- 「소속 미확인」 가상 부서 — 인사·부서 마스터에 소속이 없는 계정(실측 4명: 외부 회계사 2·CRO·헝가리 주재원).
+  -- 조직도 밖이라 평소 눈에 안 띄는데 실제로는 재무회계 관리자급 권한을 다수 보유하고 있었다.
+  -- 부서 범위(perm_grant dept)로 지정할 수 없는 대상이라 관리자 전용으로 연다.
+  v_unassigned boolean := (btrim(coalesce(p_dept_cd, '')) = '__unassigned__');
   v_scope  text[] := null;
   v_targets text[];
   v_members jsonb;
@@ -755,6 +759,9 @@ begin
     ) then
       raise exception 'forbidden: ERP 권한현황 열람 권한이 필요합니다.' using errcode = '42501';
     end if;
+    if v_unassigned then
+      raise exception 'forbidden: 「소속 미확인」 계정은 관리자만 열람할 수 있습니다.' using errcode = '42501';
+    end if;
 
     select coalesce(array_agg(distinct t.dept_cd), '{}') into v_scope
       from erp_ro.v_dept_tree t
@@ -775,6 +782,14 @@ begin
     end if;
   end if;
 
+  if v_unassigned then
+    v_targets := '{}';
+    v_dept := jsonb_build_object(
+      'dept_cd', '__unassigned__', 'dept_nm', '소속 미확인',
+      'path_nm', '인사·부서 마스터에 소속이 없는 ERP 계정', 'lvl', 0,
+      'include_desc', false, 'std_state', 'none', 'std_source', null,
+      'mapping_conf', null, 'std_role_cnt', 0, 'scope_modules', '[]'::jsonb, 'leader_nm', null);
+  else
   -- 대상 부서(옵션에 따라 하위 포함). 권한 범위 밖 하위는 제외한다.
   select coalesce(array_agg(t.dept_cd), array[v_cd]) into v_targets
     from erp_ro.v_dept_tree t
@@ -802,6 +817,7 @@ begin
     left join public.dept_role_standard_status stt
            on stt.org_change_id = v_ver and stt.dept_cd = t.dept_cd
    where t.org_change_id = v_ver and t.dept_cd = v_cd;
+  end if;
 
   select jsonb_agg(x.j order by x.unrel desc, x.etc desc, x.role_cnt desc, x.emp_nm)
     into v_members
@@ -841,8 +857,9 @@ begin
                on r.email = m.email and r.org_change_id = m.org_change_id
               and (p_include_revoked or r.cls <> '회수')
        where m.org_change_id = v_ver
-         and m.dept_cd = any (v_targets)
          and m.account_active
+         and (case when v_unassigned then m.dept_cd is null
+                   else m.dept_cd = any (v_targets) end)
        group by m.email, m.emp_nm, m.dept_cd, m.dept_nm_raw, m.dept_src,
                 m.dept_label_stale, m.gw_title, m.account_active, m.hr_active, m.gw_active
     ) x;
@@ -870,15 +887,16 @@ begin
                'write_roles',     count(*) filter (where is_write and cls <> '회수'),
                'sensitive_roles', count(*) filter (where module_sensitive and cls <> '회수'))
         from erp_ro.v_dept_role_matrix
-       where org_change_id = v_ver and dept_cd = any (v_targets) and account_active
+       where org_change_id = v_ver and account_active
+         and (case when v_unassigned then dept_cd is null else dept_cd = any (v_targets) end)
     ),
     'members', coalesce(v_members, '[]'::jsonb),
-    'std_missing', coalesce((
+    'std_missing', case when v_unassigned then '[]'::jsonb else coalesce((
       select jsonb_agg(jsonb_build_object('role_id', ms.role_id, 'role_nm', ms.role_nm,
                                           'holders', ms.holders, 'dept_size', ms.dept_size)
                        order by ms.role_nm)
         from erp_ro.v_dept_role_missing ms
-       where ms.org_change_id = v_ver and ms.dept_cd = any (v_targets)), '[]'::jsonb),
+       where ms.org_change_id = v_ver and ms.dept_cd = any (v_targets)), '[]'::jsonb) end,
     'as_of', public.erp_role_as_of(),
     'mirror', public.erp_role_mirror_health()
   );
