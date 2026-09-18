@@ -116,6 +116,13 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 </tr>
 <tr>
 <td>2026-09-18</td>
+<td>ERP 권한 · ERP연계</td>
+<td><code>이관/sql/51_erp_role_menu.sql</code>(신규) · <code>erp_ro.menu_master_s</code>·<code>role_menu_s</code>(신규) · <code>10_ERP_DB연계/etl/etl_run.py</code>(job 2종·배치 워터마크 정합) · <code>app/lib/api.js</code> · <code>pages/ERP권한_조직별현황.html</code> · <code>조회플랫폼/조회플랫폼_가이드</code>(§8)</td>
+<td><strong>Role 을 누르면 실제 메뉴 권한이 열리게 — 역할↔메뉴 미러 신설(관리자 지시).</strong> 지금까지 미러의 메뉴 정보는 <code>usr_erp_module_s</code>(모듈 약어 SD/MM/IM/MDM 4종)뿐이었고 <strong>전원이 전 모듈을 갖고 있어 변별력이 0</strong>이었다. "이 role 이 실제로 어떤 화면을 여는가"를 답할 수 없어 role 을 눌러도 보여줄 상세가 없었다. ERP 원천에는 그대로 있고(<code>Z_USR_ROLE_MNU_AUTHZTN_ASSO</code>) 기존 job 이 이미 같은 테이블을 읽고 있었다 — 축약하지 말고 받아 왔다. <strong>메뉴 트리 3,560행 · 역할-메뉴 6,633행</strong> 적재(참조 프로젝트 실측과 근사: ACCT_S_A 1558 vs 1578 · ACCTAUTH 525 vs 535). 적재 중 <code>MNU_SEQ</code> 가 정수가 아님을 실측으로 발견(<code>A7</code> 같은 값) — text 로 정정. 정합은 키 배열 대신 <strong>배치 워터마크</strong>로 바꿨다(키가 6,633건이라 배열로 보내면 무겁다). 화면도 관리자 지시대로 재구성: <strong>매트릭스 복원</strong>(Role×구성원, ROLE 칸 클릭 → 메뉴 권한 팝업), <strong>표준/별도/무관/기준미수립 분류 표시 제거</strong>(기준을 다시 정의할 예정), <strong>팀장·부문장을 구성원 맨 앞</strong>으로, <strong>「권한별」 탭 신설</strong>(전사 59 role · 모듈 칩 필터 · 「선택 조직만」 토글 · 사용자수·메뉴수), 조회조건은 <strong>이름·부서 / 권한·메뉴 2칸</strong>으로 나누고(메뉴명 검색은 서버가 판단) 분류 필터와 「인원 없는 조직 표시」 체크는 제거 — 인원 없는 조직은 항상 제외한다</td>
+<td>최동혁(+Claude)</td>
+</tr>
+<tr>
+<td>2026-09-18</td>
 <td>ERP 권한 · 운영페이지</td>
 <td><code>pages/ERP권한_조직별현황.html</code> · <code>조회플랫폼/조회플랫폼_가이드</code>(§8)</td>
 <td><strong>화면이 복잡하다는 관리자 피드백을 받아 단순화(REQ-0057 후속).</strong> 「부서 표준 세트」 탭을 제거했다 — <strong>표준 세트의 기준을 다시 정의할 예정</strong>이라 지금 보여주면 오히려 헷갈린다는 관리자 판단이다. Role×구성원 격자(매트릭스)는 읽기가 어려워 <strong>「Role별」 목록</strong>으로 바꿨다: role 한 줄을 누르면 보유자 명단이 펼쳐지고, 조직도에서 부서를 고른 뒤 role 단위로 파고드는 동선이 비로소 화면에 생겼다. KPI 박스 6개는 <strong>분류 한 줄 요약</strong>(표준·별도·무관·기준 미수립·회수 + 인원·쓰기·민감)으로 접었고, <strong>색 강조는 「무관」에만</strong> 남겼다 — 기준이 바뀌어도 화면이 덜 흔들리게 하기 위해서다. 트리 배지도 무관 하나로, 분류 필터는 5→4개, 구성원 표는 8→6열(계정 상태는 이상할 때만 표기). 배포 <code>e693d83</code>. 표준 세트 기준 재정의는 REQ-0059 와 함께 다룬다</td>

@@ -79,6 +79,44 @@ JOBS = {
         """,
         "params": [],
     },
+    # ⑦-1-b ERP 메뉴 트리 ← Z_FULL_MENU(LANG_CD='KO')
+    #    역할별 메뉴 권한을 화면에 트리로 보여주려면 메뉴 이름·상위메뉴·정렬순서가 필요하다.
+    #    usr_erp_module 은 ModuleInitial 4종으로 축약해 버려서(전원이 전 모듈 보유 = 변별력 0)
+    #    "이 role 이 실제로 어떤 화면을 여는가"를 답할 수 없었다. 축약하지 않고 그대로 받는다.
+    "menu_master": {
+        "table": "menu_master_s",
+        "rpc": "erp_identity_upsert",
+        "sql": """
+            SELECT RTRIM(f.MNU_ID) AS mnu_id, RTRIM(f.MNU_TYPE) AS mnu_type,
+                   RTRIM(ISNULL(f.MNU_NM, '')) AS mnu_nm,
+                   RTRIM(ISNULL(f.UPPER_MNU_ID, '')) AS upper_mnu_id,
+                   f.MNU_SEQ AS mnu_seq,
+                   RTRIM(ISNULL(f.SYS_LVL, '')) AS sys_lvl
+            FROM JEILMNS.dbo.Z_FULL_MENU f WITH (NOLOCK)
+            WHERE f.LANG_CD = 'KO'
+        """,
+        "params": [],
+        # 전량 스냅샷 — 원천에서 사라진 메뉴는 배치 워터마크로 판별해 revoked_at 표시
+        "reconcile": {"mode": "batch", "rpc": "erp_menu_reconcile", "min_rows": 100},
+    },
+    # ⑦-1-c 역할별 메뉴 권한 ← Z_USR_ROLE_MNU_AUTHZTN_ASSO (MNU_USE_YN='Y' 만)
+    #    ACTION_ID: A=전체권한 · E=조회/엑셀 · Q=조회 (참조 프로젝트 query_role_menu.sql 에서 확인)
+    "role_menu": {
+        "table": "role_menu_s",
+        "rpc": "erp_identity_upsert",
+        "sql": """
+            SELECT RTRIM(rm.USR_ROLE_ID) AS role_id, RTRIM(rm.MNU_ID) AS mnu_id,
+                   RTRIM(rm.MNU_TYPE) AS mnu_type,
+                   RTRIM(ISNULL(rm.ACTION_ID, '')) AS action_id,
+                   RTRIM(ISNULL(cm.ModuleInitial, '')) AS module_initial
+            FROM JEILMNS.dbo.Z_USR_ROLE_MNU_AUTHZTN_ASSO rm WITH (NOLOCK)
+            LEFT JOIN JEILMNS.dbo.Z_CO_MAST_MNU cm WITH (NOLOCK)
+                   ON cm.MNU_ID = rm.MNU_ID AND cm.MNU_TYPE = rm.MNU_TYPE
+            WHERE rm.MNU_USE_YN = 'Y'
+        """,
+        "params": [],
+        "reconcile": {"mode": "batch", "rpc": "erp_menu_reconcile", "min_rows": 500},
+    },
     # ⑦-2 인사 사원마스터 ← HAA010T — 계정(Z_USR_MAST_REC)에 붙는 '서브' 정보
     #    두 테이블은 다른 것을 담는다. 계정은 PK=usr_id(이메일)로 사람당 1행이고,
     #    인사는 PK=EMP_NO 라 재입사하면 새 사번이 생겨 같은 이메일에 2행이 된다(실측 10명).
@@ -760,7 +798,15 @@ def run_job(name, spec, url, key, dry, full=False):
 
         # 정합 후처리 — 원천에 없는 미러 잔재를 비활성 표시(증분 job 이 스스로 못 지우는 구멍)
         rec = spec.get("reconcile")
-        if rec:
+        if rec and rec.get("mode") == "batch":
+            # 배치 워터마크 정합 — 전량 스냅샷 job 전용. 원천 키를 다시 읽지 않고
+            # "이번 배치가 안 덮은 행 = 원천에 없는 행"으로 판별한다(키가 수만 건인 메뉴 권한용).
+            if dry:
+                print(f"[{name}] (dry-run) 정합 생략")
+            else:
+                print(f"[{name}] 정합(배치) — "
+                      f"{rpc(url, key, rec['rpc'], {'p_table': spec['table'], 'p_batch_id': batch_id, 'p_min_rows': rec.get('min_rows', 100)})}")
+        elif rec:
             if dry:
                 print(f"[{name}] (dry-run) 정합 생략")
             else:

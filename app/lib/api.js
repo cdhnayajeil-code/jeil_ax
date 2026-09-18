@@ -569,6 +569,38 @@ export const erpApi = {
     return data || { ok: false };
   },
 
+  // ERP 역할 목록(사용자수·메뉴수). deptCd 를 주면 그 부서 보유분만, q 는 Role ID·명, menuQ 는 메뉴명 검색.
+  // 메뉴명 검색은 role_menu 6,633행 × menu_master 3,560행 조인이라 서버에서 한다.
+  // 반환: {ok, org_change_id, is_admin, dept_cd, menu_as_of, roles[]}
+  async erpRoleList({ deptCd = null, q = null, menuQ = null, orgChangeId = null } = {}) {
+    const { data, error } = await supabase.rpc("erp_role_list", {
+      p_dept_cd: deptCd || null, p_q: q || null,
+      p_menu_q: menuQ || null, p_org_change_id: orgChangeId || null,
+    });
+    if (error) {
+      const msg = String(error.message || "");
+      if (/forbidden/i.test(msg) || error.code === "42501") return { ok: false, forbidden: true };
+      if (/unauthorized/i.test(msg) || error.code === "28000") return { ok: false, unauthorized: true };
+      throw error;
+    }
+    return data || { ok: false };
+  },
+
+  // 역할 하나의 메뉴 권한 트리 + 보유자. 메뉴는 전사 공통이고 보유자만 열람 범위로 제한된다.
+  // 반환: {ok, role, menu_cnt, menus[{mnu_id,mnu_nm,path_nm,depth,action_id,action_nm}], holders[]}
+  async erpRoleMenuDetail(roleId, orgChangeId = null) {
+    const { data, error } = await supabase.rpc("erp_role_menu_detail", {
+      p_role_id: String(roleId || "").trim(), p_org_change_id: orgChangeId || null,
+    });
+    if (error) {
+      const msg = String(error.message || "");
+      if (/forbidden/i.test(msg) || error.code === "42501") return { ok: false, forbidden: true };
+      if (/unauthorized/i.test(msg) || error.code === "28000") return { ok: false, unauthorized: true };
+      throw error;
+    }
+    return data || { ok: false };
+  },
+
   // 전사 요약(관리자 전용) — 모듈별 집계·무관 상위 role·표준 미수립 부서·회수 잔재.
   // 반환: {ok, totals, by_module[], top_unrelated[], dept_no_standard[], as_of, mirror}
   async erpRoleSummary(orgChangeId = null) {

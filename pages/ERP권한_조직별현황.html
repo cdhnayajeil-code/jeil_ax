@@ -16,7 +16,7 @@
 body{margin:0;background:var(--bg);color:var(--ink);
   font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Malgun Gothic","맑은 고딕",sans-serif;
   font-size:14px;line-height:1.5}
-.page{max-width:1500px;margin:0 auto;padding:18px}
+.page{max-width:1560px;margin:0 auto;padding:18px}
 .head{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap;
   border-bottom:2px solid var(--navy);padding-bottom:10px;margin-bottom:12px}
 .head h1{margin:0;font-size:21px;color:var(--navy)}
@@ -25,9 +25,7 @@ body{margin:0;background:var(--bg);color:var(--ink);
 .badge{display:inline-block;padding:1px 7px;border-radius:10px;font-size:11.5px;margin-left:4px;
   border:1px solid var(--line);background:#fff}
 .badge.b{color:var(--accent);border-color:var(--accent2);background:var(--soft)}
-.badge.g{color:var(--green);border-color:#a9d3bd;background:var(--softgreen)}
 .badge.a{color:var(--amber);border-color:#dcc48a;background:var(--softamber)}
-.badge.r{color:var(--red);border-color:#e3b3aa;background:var(--softred)}
 
 .notice{border:1px solid var(--line);background:#fff;border-radius:8px;padding:12px 14px;color:var(--muted)}
 .notice.warn{border-color:#dcc48a;background:var(--softamber);color:#7a5514}
@@ -43,75 +41,95 @@ body{margin:0;background:var(--bg);color:var(--ink);
 .gate button{padding:8px 16px;border:1px solid var(--accent);background:var(--accent);color:#fff;
   border-radius:6px;cursor:pointer;font-size:13px}
 
-/* ── 2단: 조직트리 + 상세 ── */
-.layout{display:grid;grid-template-columns:306px minmax(0,1fr);gap:14px;align-items:start}
+.layout{display:grid;grid-template-columns:292px minmax(0,1fr);gap:14px;align-items:start}
 @media (max-width:980px){.layout{grid-template-columns:1fr}}
 .card{background:#fff;border:1px solid var(--line);border-radius:9px}
 .card > h3{margin:0;padding:9px 12px;font-size:13px;color:var(--navy);
   border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;gap:8px}
 .card > h3 .sm{font-weight:400;color:var(--muted);font-size:11.5px}
 
-/* 조직 트리 */
-.tree{max-height:70vh;overflow:auto;padding:5px 0}
+/* 조직 트리 — 인원 없는 조직은 아예 그리지 않는다(체크박스 없음) */
+.tree{max-height:72vh;overflow:auto;padding:5px 0}
 .tnode{display:flex;align-items:center;gap:5px;padding:3px 9px;cursor:pointer;font-size:13px;white-space:nowrap}
 .tnode:hover{background:var(--soft)}
 .tnode.sel{background:var(--soft);box-shadow:inset 3px 0 0 var(--accent);font-weight:600}
 .tnode.locked{color:#a3adba;cursor:not-allowed}
 .tnode.locked:hover{background:transparent}
+.tnode.hit{background:#fff8dd}
 .tnode .tw{width:13px;flex:0 0 13px;color:var(--muted);font-size:10px;text-align:center}
 .tnode .nm{overflow:hidden;text-overflow:ellipsis}
 .tnode .sp{flex:1 1 auto}
 .tnode .cnt{color:var(--muted);font-size:11.5px}
-.tb{font-size:10.5px;padding:0 5px;border-radius:8px;border:1px solid transparent}
-.tb.u{color:var(--red);background:var(--softred);border-color:#e3b3aa}
-.tb.e{color:var(--amber);background:var(--softamber);border-color:#dcc48a}
-.tb.q{color:var(--grey);background:var(--softgrey);border-color:var(--line)}
 .tfootnote{border-top:1px solid var(--line);padding:7px 11px;color:var(--muted);font-size:11.5px;line-height:1.7}
 
-/* 탭 */
+.sum{display:flex;align-items:center;gap:15px;flex-wrap:wrap;padding:10px 12px;
+  border-bottom:1px solid var(--line);font-size:13px}
+.sum .si{color:var(--navy);font-weight:700;white-space:nowrap}
+.sum .si b{color:var(--muted);font-weight:600;font-size:12px;margin-right:4px}
+.sum .sp{flex:1 1 auto}
+.sum .sr{color:var(--muted);font-size:12px;font-weight:400;white-space:nowrap}
+
 .tabs{display:flex;gap:2px;padding:0 11px;border-bottom:1px solid var(--line);flex-wrap:wrap}
-.tab{padding:7px 13px;border:1px solid transparent;border-bottom:none;border-radius:7px 7px 0 0;
+.tab{padding:7px 14px;border:1px solid transparent;border-bottom:none;border-radius:7px 7px 0 0;
   cursor:pointer;font-size:12.5px;color:var(--muted);margin-bottom:-1px}
 .tab.on{background:#fff;border-color:var(--line);color:var(--navy);font-weight:700}
 .pane{padding:11px}
 
-/* 표 (읽기 전용 — 표준 그리드 대상 아님, CLAUDE.md §13) */
 table{border-collapse:collapse;width:100%;font-size:12.5px}
 th,td{border:1px solid var(--line);padding:5px 8px;text-align:left;vertical-align:top}
 th{background:var(--soft);color:var(--navy);font-weight:700;white-space:nowrap}
 td.r{text-align:right} td.c{text-align:center}
-tr.risk > td{background:var(--softred)}
-tr.risk > td:first-child{box-shadow:inset 3px 0 0 var(--red)}
-tr.mem{cursor:pointer}
-tr.mem:hover > td{filter:brightness(0.985)}
+tr.click{cursor:pointer}
+tr.click:hover > td{background:var(--soft)}
+tr.lead > td:first-child{font-weight:700}
 .chip{display:inline-block;padding:1px 7px;margin:2px 3px 2px 0;border-radius:10px;font-size:11.5px;
-  border:1px solid var(--line);background:#fff;white-space:nowrap}
-.chip.std{color:var(--navy2)}
-.chip.etc{color:var(--grey)}
-.chip.unrel{color:var(--red);background:var(--softred);border-color:#e3b3aa;font-weight:600}
-.chip.exc{color:var(--green);background:var(--softgreen);border-color:#a9d3bd}
-.chip.undef{color:var(--grey);background:var(--softgrey)}
-.chip.revoked{color:var(--muted);text-decoration:line-through}
-.chip .w{opacity:.65;font-size:10.5px;margin-left:3px}
+  border:1px solid var(--line);background:#fff;white-space:nowrap;cursor:pointer}
+.chip:hover{background:var(--soft)}
+.chip.flat{cursor:default}
+.chip .w{opacity:.6;font-size:10.5px;margin-left:3px}
 .grp{margin:7px 0 2px;font-size:11.5px;color:var(--muted);font-weight:700}
 .tools{display:flex;gap:7px;align-items:center;flex-wrap:wrap;margin-bottom:8px}
 .tools button{padding:4px 10px;border:1px solid var(--line);background:#fff;border-radius:6px;
   cursor:pointer;font-size:12px;color:var(--navy)}
 .tools button:hover{background:var(--soft)}
-.tools label{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:4px}
+.tools button.on{background:var(--soft);border-color:var(--accent2);color:var(--accent);font-weight:700}
+.tools label{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:4px;cursor:pointer}
 .legend{font-size:11.5px;color:var(--muted)}
 
-/* 분류 요약 한 줄 — 「무관」만 강조하고 나머지는 숫자로 둔다.
-   표준 세트 기준이 재정의될 예정이라(관리자 결정 2026-09-18) 표준·별도를 색으로 단정하지 않는다. */
-.sum{display:flex;align-items:center;gap:15px;flex-wrap:wrap;padding:10px 12px;
-  border-bottom:1px solid var(--line);font-size:13px}
-.sum .si{color:var(--navy);font-weight:700;white-space:nowrap}
-.sum .si b{color:var(--muted);font-weight:600;font-size:12px;margin-right:4px}
-.sum .si.hot{color:var(--red)}
-.sum .si.hot b{color:var(--red);opacity:.8}
-.sum .sp{flex:1 1 auto}
-.sum .sr{color:var(--muted);font-size:12px;font-weight:400;white-space:nowrap}
-.sub-note{padding:0 12px 10px;color:var(--muted);font-size:12px}
+/* Role × 구성원 매트릭스 — .mx__ 스코프만 쓴다(전역 table 재정의 금지, §13.4) */
+.mx__wrap{overflow:auto;max-height:64vh;border:1px solid var(--line);border-radius:7px}
+.mx__wrap table{font-size:12px;border:none}
+.mx__wrap th{position:sticky;top:0;z-index:3}
+.mx__wrap th.mx__fix,.mx__wrap td.mx__fix{position:sticky;left:0;background:#fff;z-index:2;min-width:250px}
+.mx__wrap th.mx__fix{z-index:4;background:var(--soft)}
+.mx__wrap td.mx__n{text-align:center;min-width:32px}
+.mx__wrap tr.mx__gap > td{border-top:2px solid var(--navy2)}
+.mx__wrap tbody tr:hover > td{background:var(--soft)}
+.mx__wrap tfoot td{position:sticky;bottom:0;background:var(--soft);font-weight:700}
+.mx__o{color:var(--navy2);font-weight:700} .mx__m{color:#ccd3dc}
+.mx__wrap td.mx__fix{cursor:pointer}
+
+/* Role 상세 팝업 */
+.ov{position:fixed;inset:0;background:rgba(20,30,45,.45);display:flex;align-items:center;
+  justify-content:center;padding:24px;z-index:50}
+.mo{background:#fff;border-radius:10px;width:min(980px,100%);max-height:88vh;display:flex;flex-direction:column;
+  box-shadow:0 12px 40px rgba(0,0,0,.25)}
+.mo > header{padding:13px 16px;border-bottom:1px solid var(--line);display:flex;
+  justify-content:space-between;align-items:flex-start;gap:12px}
+.mo h4{margin:0;font-size:15px;color:var(--navy)}
+.mo .x{border:none;background:transparent;font-size:20px;cursor:pointer;color:var(--muted);line-height:1}
+.mo > .body{padding:13px 16px;overflow:auto}
+.mo .cols{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:16px}
+@media (max-width:820px){.mo .cols{grid-template-columns:1fr}}
+.mtree{border:1px solid var(--line);border-radius:7px;max-height:54vh;overflow:auto}
+.mrow{display:flex;align-items:center;gap:8px;padding:3px 9px;font-size:12.5px;border-bottom:1px solid #f0f3f7}
+.mrow:last-child{border-bottom:none}
+.mrow .mn{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mrow .sp{flex:1 1 auto}
+.act{font-size:10.5px;padding:0 6px;border-radius:8px;border:1px solid var(--line);white-space:nowrap}
+.act.A{color:var(--red);background:var(--softred);border-color:#e3b3aa}
+.act.E{color:var(--accent);background:var(--soft);border-color:var(--accent2)}
+.act.Q{color:var(--grey);background:var(--softgrey)}
 </style>
 </head><body>
 <div class="page">
@@ -119,8 +137,8 @@ tr.mem:hover > td{filter:brightness(0.985)}
     <div>
       <h1>🔑 ERP 권한(role) 조직별 현황</h1>
       <div class="sub">
-        조직도에서 조직을 고르면 구성원과 ERP 권한이 보입니다 · 강조는 <b>부서와 무관한 권한</b>만
-        <span class="badge r" id="bScope">열람범위 확인 중</span>
+        조직도에서 조직을 고르면 구성원·권한이 보입니다 · Role 을 누르면 <b>메뉴 권한</b>까지 열립니다
+        <span class="badge a" id="bScope">열람범위 확인 중</span>
       </div>
     </div>
     <div class="right">ERP 권한 마스터 · <span data-qbar-asof>—</span> 기준</div>
@@ -128,10 +146,11 @@ tr.mem:hover > td{filter:brightness(0.985)}
 
   <div id="qbar" hidden></div>
   <div id="app"><div class="loading">권한 현황을 불러오는 중…</div></div>
+  <div id="modal"></div>
 
   <div class="foot">
     <span>제일엠앤에스 AI 포털 · ERP 권한 조직별 현황</span>
-    <span>주관: 관리자 전용 · 정본 SQL <code>50_erp_role_matrix.sql</code> · REQ-0057</span>
+    <span>주관: 관리자 전용 · 정본 SQL <code>50_erp_role_matrix.sql</code> · <code>51_erp_role_menu.sql</code></span>
   </div>
 </div>
 
@@ -140,9 +159,11 @@ tr.mem:hover > td{filter:brightness(0.985)}
   import { erpApi } from "/app/lib/api.js";
   import { createQueryBar } from "/app/lib/querybar.js";
 
-  const $  = (id) => document.getElementById(id);
+  const $   = (id) => document.getElementById(id);
   const esc = (s) => String(s == null ? "" : s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
   const num = (n) => Number(n || 0).toLocaleString("ko-KR");
+  const LEAD = ['대표','부문장','법인장','팀장'];   // 구성원 목록에서 앞에 세울 직책(그룹웨어 직책 토큰)
+  const UNASSIGNED = '__unassigned__';
 
   /* ── 사내(internal) 세션 게이트 — pages/자금현황_대시보드.html 과 동일 패턴 ────────────
      /pages/_access-gate.js 는 Entra 토큰만 본다. Supabase 세션이 없으면 게이트는 통과하고
@@ -168,17 +189,15 @@ tr.mem:hover > td{filter:brightness(0.985)}
 
   /* ── 상태 ── */
   let BAR = null;
-  let TREE = null;          // erp_role_org_tree 응답
-  let DETAIL = null;        // erp_role_dept_detail 응답
-  let SEL = null;           // 선택 dept_cd
-  let TAB = "member";
-  let OPEN = new Set();     // 펼친 노드
-  let OPENEDONCE = false;
-  const EXPANDED_ROW = new Set();   // 구성원 상세 펼침(email)
-
-  const CLS_ORDER = { "무관":0, "별도":1, "예외승인":2, "기준없음":3, "표준":4, "회수":5 };
-  const CLS_CHIP  = { "무관":"unrel", "별도":"etc", "예외승인":"exc", "기준없음":"undef", "표준":"std", "회수":"revoked" };
-  const CLS_MARK  = { "무관":"(x)", "별도":"(^)", "예외승인":"(=)", "기준없음":"(?)", "표준":"(o)", "회수":"(–)" };
+  let TREE = null;     // erp_role_org_tree
+  let DETAIL = null;   // erp_role_dept_detail(선택 조직)
+  let ROLES = null;    // erp_role_list(전사) — 권한별 탭 + 권한/메뉴 검색
+  let SEL = null, TAB = "member";
+  let OPEN = new Set(), OPENED = false;
+  const EXPANDED = new Set();
+  const RCACHE = new Map();   // role_id → 상세(메뉴·보유자)
+  let ROLEMOD = 'all';        // 권한별 탭 모듈 필터
+  let ROLEDEPT = false;       // 권한별 탭 「선택 조직만」
 
   async function boot(){
     const { data:{ session } } = await supabase.auth.getSession();
@@ -196,23 +215,23 @@ tr.mem:hover > td{filter:brightness(0.985)}
     BAR = createQueryBar("#qbar", {
       // 기간 축 없음 — usr_role_s 에 부여일자 컬럼이 없다. 고를 수 없는 기간을 만들지 않는다(§16.6).
       months: false,
-      basis: "ERP 권한 마스터(usr_role_s) · 부서 표준 세트 대비",
+      basis: "ERP 권한 마스터(usr_role_s · role_menu_s)",
       mode: "live", modeLabel: "실연동", reset: true, refreshLabel: "다시 조회",
       extras: [
-        { id:"q",     label:"검색",     type:"text",   placeholder:"이름·이메일·Role", width:"190px", debounce:250 },
-        { id:"cls",   label:"분류",     type:"select", value:"all",
-          options:[["all","전체"],["unrel","무관만"],["risk","별도+무관"],["revoked","회수 이력"]] },
+        { id:"q",     label:"이름·부서", type:"text", placeholder:"사람 이름 또는 부서명", width:"175px", debounce:250 },
+        { id:"rq",    label:"권한·메뉴", type:"text", placeholder:"Role명 또는 메뉴명",   width:"175px", debounce:350 },
         { id:"child", label:"하위부서 포함", type:"checkbox", value:false },
-        { id:"empty", label:"인원 없는 조직 표시", type:"checkbox", value:false },
       ],
       onQuery: (q, ctx) => run(q, ctx),
     });
   }
 
-  /* 서버 재조회가 필요한 조건만 RPC 를 다시 부른다(자금현황 needFetch 패턴). */
-  let LAST = { dept:null, child:null, rev:null };
+  let LAST = { dept:null, child:null, rq:null };
   async function run(q, ctx){
     const reason = ctx && ctx.reason;
+    const ex = (q && q.extras) || {};
+    const child = !!ex.child;
+    const rq = String(ex.rq || '').trim();
     try{
       if(!TREE || reason === 'refresh' || reason === 'auto'){
         const t = await erpApi.erpRoleOrgTree();
@@ -226,21 +245,24 @@ tr.mem:hover > td{filter:brightness(0.985)}
         $("bScope").className = 'badge ' + (t.is_admin ? 'b' : 'a');
         $("bScope").textContent = t.is_admin ? '열람범위: 전 조직 (관리자)'
           : '열람범위: 지정 부서 ' + ((t.visible_dept_cds || []).length) + '곳';
-        if(!OPENEDONCE) initOpen();
+        if(!OPENED) initOpen();
         if(!SEL) SEL = pickDefault();
       }
 
-      const wantRev = (q.extras && q.extras.cls) === 'revoked';
-      const child = !!(q.extras && q.extras.child);
-      if(SEL && (LAST.dept !== SEL || LAST.child !== child || LAST.rev !== wantRev
-                 || reason === 'refresh' || reason === 'auto')){
-        const d = await erpApi.erpRoleDeptDetail(SEL, { includeDesc: child, includeRevoked: wantRev });
-        if(d && d.forbidden){ DETAIL = { forbidden:true }; }
-        else if(d && d.unauthorized) return gate('🔐','인증 필요','세션이 만료되었습니다. 다시 로그인하세요.','다시 로그인');
-        else DETAIL = (d && d.ok) ? d : null;
-        LAST = { dept:SEL, child, rev:wantRev };
+      // 권한·메뉴 검색은 서버가 판단한다 — 메뉴명은 role_menu 6,633행 × menu_master 3,560행 조인이라
+      // 화면으로 내려보낼 수 없다.
+      if(!ROLES || LAST.rq !== rq || reason === 'refresh' || reason === 'auto'){
+        const r = await erpApi.erpRoleList({ q: rq || null, menuQ: rq || null });
+        ROLES = (r && r.ok) ? r : { ok:false, roles:[] };
+        LAST.rq = rq;
       }
-      render(q);
+
+      if(SEL && (LAST.dept !== SEL || LAST.child !== child || reason === 'refresh' || reason === 'auto')){
+        const d = await erpApi.erpRoleDeptDetail(SEL, { includeDesc: child });
+        DETAIL = (d && d.forbidden) ? { forbidden:true } : ((d && d.ok) ? d : null);
+        LAST.dept = SEL; LAST.child = child;
+      }
+      render(ex);
     }catch(e){
       console.error(e);
       $("app").innerHTML = '<div class="notice">권한 현황을 불러오지 못했습니다. 사내 계정으로 로그인했는지 확인해 주세요.<br><small>'+esc(e.message||e)+'</small></div>';
@@ -256,87 +278,68 @@ tr.mem:hover > td{filter:brightness(0.985)}
     return erp || gw || null;
   }
 
-  const UNASSIGNED = '__unassigned__';   // 인사·부서 마스터에 소속이 없는 계정(관리자 전용 가상 노드)
-  function nodes(){ return (TREE && TREE.nodes) || []; }
+  const nodes = () => (TREE && TREE.nodes) || [];
   function byCd(cd){
     if(cd === UNASSIGNED) return { dept_cd:UNASSIGNED, dept_nm:'소속 미확인', visible: !!(TREE && TREE.is_admin) };
     return nodes().find(n => n.dept_cd === cd) || null;
   }
+  // 인원 없는 조직(원가부서·빈 법인)은 그리지 않는다 — 토글 없이 항상 제외
+  const shownNodes = () => nodes().filter(n => (n.member_cnt_desc || 0) > 0);
 
-  /* 기본 펼침: 깊이 2까지 + 무관이 있는 부서의 조상 경로는 강제로 편다.
-     붉은 게 접혀서 안 보이는 상황을 만들지 않는다. */
   function initOpen(){
-    OPENEDONCE = true;
-    const map = {}; nodes().forEach(n => map[n.dept_cd] = n);
+    OPENED = true;
     nodes().forEach(n => { if(n.lvl <= 2 && n.has_child) OPEN.add(n.dept_cd); });
-    nodes().forEach(n => {
-      if((n.unrel_cnt || 0) > 0){
-        let p = n.par_dept_cd;
-        while(p && map[p]){ OPEN.add(p); p = map[p].par_dept_cd; }
-      }
-    });
   }
   function pickDefault(){
-    const vis = nodes().filter(n => n.visible && (n.member_cnt || 0) > 0);
-    vis.sort((a,b) => (b.unrel_cnt||0)-(a.unrel_cnt||0) || (b.member_cnt||0)-(a.member_cnt||0));
+    const vis = shownNodes().filter(n => n.visible && (n.member_cnt || 0) > 0);
+    vis.sort((a,b) => (b.member_cnt||0) - (a.member_cnt||0));
     return vis.length ? vis[0].dept_cd : (nodes()[0] ? nodes()[0].dept_cd : null);
   }
+  // 권한·메뉴 검색이 걸려 있으면 그 결과 role 만 본다
+  function roleFilterSet(rq){
+    if(!rq) return null;
+    return new Set(((ROLES && ROLES.roles) || []).map(r => r.role_id));
+  }
 
-  function render(q){
-    const ex = (q && q.extras) || {};
-    $("app").innerHTML =
-      '<div class="layout">'
-      +  '<div class="card" id="pTree"></div>'
-      +  '<div class="card" id="pDet"></div>'
-      + '</div>';
-    renderTree(ex);
-    renderDetail(ex);
+  function render(ex){
+    $("app").innerHTML = '<div class="layout"><div class="card" id="pTree"></div><div class="card" id="pDet"></div></div>';
+    renderTree(ex); renderDetail(ex);
     if(BAR) BAR.applyPeriod();
   }
 
   /* ── 조직 트리 ── */
   function renderTree(ex){
-    const all = nodes();
+    const all = shownNodes();
     const map = {}; all.forEach(n => map[n.dept_cd] = n);
-    const showEmpty = !!ex.empty;
+    const kw = String(ex.q || '').trim().toLowerCase();
 
-    const shown = all.filter(n => {
-      if(!showEmpty && (n.member_cnt_desc || 0) === 0) return false;    // 원가부서·빈 법인
+    const visible = all.filter(n => {
       let p = n.par_dept_cd;
       while(p && map[p]){ if(!OPEN.has(p)) return false; p = map[p].par_dept_cd; }
       return true;
     });
 
-    const rows = shown.map(n => {
-      const kids = all.some(x => x.par_dept_cd === n.dept_cd
-                                 && (showEmpty || (x.member_cnt_desc || 0) > 0));
+    const rows = visible.map(n => {
+      const kids = all.some(x => x.par_dept_cd === n.dept_cd);
       const tw = kids ? (OPEN.has(n.dept_cd) ? '▾' : '▸') : '·';
       const lock = !n.visible;
-      const b = [];
-      if(lock){ b.push('<span class="tb q">·</span>'); }
-      else{
-        // 배지는 「무관」 하나만 단다 — 나머지 분류는 오른쪽 요약 줄에서 본다(2026-09-18 단순화)
-        if((n.unrel_cnt || 0) > 0) b.push('<span class="tb u" title="부서와 관련없는 권한">!'+n.unrel_cnt+'</span>');
-      }
-      const cnt = (n.member_cnt || 0) > 0 ? n.member_cnt
-                : ((n.member_cnt_desc || 0) > 0 ? '<span style="opacity:.55">'+n.member_cnt_desc+'</span>' : '');
-      return '<div class="tnode'+(n.dept_cd===SEL?' sel':'')+(lock?' locked':'')+'"'
+      const hit = kw && String(n.dept_nm || '').toLowerCase().includes(kw);
+      return '<div class="tnode'+(n.dept_cd===SEL?' sel':'')+(lock?' locked':'')+(hit?' hit':'')+'"'
         + ' data-cd="'+esc(n.dept_cd)+'" data-kids="'+(kids?1:0)+'"'
         + ' title="'+esc(n.path_nm || n.dept_nm)+(lock?' — 열람 범위 밖':'')+'"'
         + ' style="padding-left:'+(9 + (n.lvl-1)*13)+'px">'
         +   '<span class="tw">'+tw+'</span>'
         +   '<span class="nm">'+esc(n.dept_nm)+(lock?' 🔒':'')+'</span>'
         +   '<span class="sp"></span>'
-        +   b.join('')
-        +   '<span class="cnt">'+cnt+'</span>'
+        +   '<span class="cnt">'+((n.member_cnt||0) > 0 ? n.member_cnt
+              : '<span style="opacity:.5">'+(n.member_cnt_desc||0)+'</span>')+'</span>'
         + '</div>';
     }).join('');
 
     const un = TREE.unassigned_cnt || 0;
     $("pTree").innerHTML =
-      '<h3>조직도 <span class="sm">'+num((TREE.nodes||[]).reduce((s,n)=>s+(n.member_cnt||0),0))+'명 · '
-        + esc(TREE.org_change_id)+'</span></h3>'
-      + '<div class="tree">' + (rows || '<div class="notice" style="margin:9px;border:none">표시할 조직이 없습니다.</div>') + '</div>'
+      '<h3>조직도 <span class="sm">'+num(nodes().reduce((s,n)=>s+(n.member_cnt||0),0))+'명</span></h3>'
+      + '<div class="tree">' + (rows || '<div class="notice" style="margin:9px;border:none">표시할 조직이 없습니다.</div>')
       + (un > 0 && TREE.is_admin
           ? '<div class="tnode'+(SEL===UNASSIGNED?' sel':'')+'" data-cd="'+UNASSIGNED+'" data-kids="0"'
             + ' style="border-top:1px solid var(--line);padding:6px 9px"'
@@ -344,23 +347,18 @@ tr.mem:hover > td{filter:brightness(0.985)}
             + '<span class="tw">?</span><span class="nm">소속 미확인</span><span class="sp"></span>'
             + '<span class="cnt">'+un+'</span></div>'
           : '')
-      + '<div class="tfootnote">'
-      +   (un > 0 && !TREE.is_admin
-            ? '<span class="tb q">?</span> 소속 미확인 <b>'+un+'명</b> — 관리자만 열람할 수 있습니다.<br>' : '')
-      +   '<span class="tb u">!</span> 무관 · 🔒 열람 범위 밖'
-      + '</div>';
+      + '</div>'
+      + '<div class="tfootnote">인원이 없는 조직(원가부서·빈 법인)은 표시하지 않습니다 · 🔒 열람 범위 밖</div>';
 
     $("pTree").querySelectorAll('.tnode').forEach(el => {
       el.onclick = (e) => {
-        const cd = el.dataset.cd;
-        const n = byCd(cd);
-        // 펼침 토글은 화살표 영역에서만 — 이름을 누르면 선택이 되게 한다
+        const cd = el.dataset.cd, n = byCd(cd);
         if(el.dataset.kids === '1' && e.target.classList.contains('tw')){
           if(OPEN.has(cd)) OPEN.delete(cd); else OPEN.add(cd);
-          return renderTree(BAR ? (BAR.value().extras||{}) : {});
+          return renderTree(BAR ? (BAR.value().extras || {}) : {});
         }
         if(!n || !n.visible) return;
-        SEL = cd; EXPANDED_ROW.clear();
+        SEL = cd; EXPANDED.clear();
         if(BAR) BAR.refresh();
       };
     });
@@ -375,195 +373,255 @@ tr.mem:hover > td{filter:brightness(0.985)}
     }
     if(!DETAIL){ $("pDet").innerHTML = '<div class="pane"><div class="loading">불러오는 중…</div></div>'; return; }
 
-    const d = DETAIL.dept || {}, s = DETAIL.summary || {}, m = DETAIL.members || [];
-    const noStd = (d.std_state || 'none') === 'none';
+    const d = DETAIL.dept || {}, m = members();
     const mir = DETAIL.mirror || {};
     const warn = (mir.reconcile_ok === false || (mir.role_rows_revoked || 0) > 0)
-      ? '<div class="notice warn" style="margin:11px 11px 0">⚠ ERP 미러에 <b>회수 잔재 '+num(mir.role_rows_revoked)+'건</b>이 있습니다'
-        + (mir.reconcile_ok === false ? ' · <b>정합 미완료</b>' : '')
-        + ' — 회수된 권한은 집계에서 제외되며 「회수 이력」 분류로 볼 수 있습니다.</div>'
+      ? '<div class="notice warn" style="margin:11px 11px 0">⚠ ERP 미러에 <b>회수 잔재 '+num(mir.role_rows_revoked)+'건</b>이 있습니다 — 회수된 권한은 집계에서 제외됩니다.</div>'
       : '';
 
-    const sum = sumStrip([
-      ['표준',       noStd ? '—' : num(s['표준'])],
-      ['별도',       noStd ? '—' : num(s['별도'])],
-      ['무관',       noStd ? '—' : num(s['무관']), !noStd && (s['무관'] || 0) > 0],
-      ['기준 미수립', num(s['기준없음'])],
-      ['회수',       num(s['회수'])],
-    ], '인원 ' + num(m.length) + '명 · 쓰기 ' + num(s.write_roles) + ' · 민감 ' + num(s.sensitive_roles));
-
-    const note = noStd
-      ? '<div class="sub-note">'
-        + (SEL === UNASSIGNED
-            ? '소속이 확인되지 않은 계정이라 비교할 부서 표준이 없습니다 — <b>쓰기·민감 보유 수</b>로 판단하세요.'
-            : '이 부서는 표준 세트가 없어 표준·별도·무관을 계산하지 않습니다(기준 없이 경고하지 않습니다).')
-        + '</div>'
-      : '';
+    const roleSet = new Set();
+    m.forEach(mm => (mm.roles || []).forEach(r => roleSet.add(r.role_id)));
+    const assign = m.reduce((s, mm) => s + (mm.roles || []).length, 0);
 
     $("pDet").innerHTML =
       '<h3>'+esc(d.dept_nm || SEL)
       +  '<span class="sm">'+esc(d.path_nm || '')
       +   (d.leader_nm ? ' · 부서장 '+esc(d.leader_nm) : '')
-      +   (d.include_desc ? ' · 하위부서 포함' : '')
-      + '</span></h3>'
-      + warn + sum + note
+      +   (d.include_desc ? ' · 하위부서 포함' : '') + '</span></h3>'
+      + warn
+      + '<div class="sum">'
+      +   '<span class="si"><b>인원</b>'+num(m.length)+'명</span>'
+      +   '<span class="si"><b>보유 권한</b>'+num(roleSet.size)+'종</span>'
+      +   '<span class="si"><b>부여 건수</b>'+num(assign)+'</span>'
+      +   '<span class="sp"></span>'
+      +   '<span class="sr">Role 을 누르면 메뉴 권한이 열립니다</span>'
+      + '</div>'
       + '<div class="tabs">'
       +   tabBtn('member','구성원 '+m.length)
-      +   tabBtn('role','Role별')
+      +   tabBtn('matrix','Matrix')
+      +   tabBtn('role','권한별')
       + '</div><div class="pane" id="pane"></div>';
 
-    $("pDet").querySelectorAll('.tab').forEach(t => t.onclick = () => {
-      TAB = t.dataset.k; renderDetail(ex);
-    });
-    if(TAB === 'role') paneRoles(ex); else paneMembers(ex);
-  }
-  function sumStrip(items, right){
-    return '<div class="sum">'
-      + items.map(it => '<span class="si'+(it[2] ? ' hot' : '')+'"><b>'+esc(it[0])+'</b>'+it[1]+'</span>').join('')
-      + '<span class="sp"></span><span class="sr">'+esc(right)+'</span></div>';
+    $("pDet").querySelectorAll('.tab').forEach(t => t.onclick = () => { TAB = t.dataset.k; renderDetail(ex); });
+    if(TAB === 'matrix') paneMatrix(ex); else if(TAB === 'role') paneRoleList(ex); else paneMembers(ex);
   }
   function tabBtn(k, lb){ return '<div class="tab'+(TAB===k?' on':'')+'" data-k="'+k+'">'+esc(lb)+'</div>'; }
 
-  /* 분류 필터 + 검색 */
-  function passCls(cls, want){
-    if(want === 'unrel')   return cls === '무관';
-    if(want === 'etc')     return cls === '별도';
-    if(want === 'risk')    return cls === '무관' || cls === '별도';
-    if(want === 'revoked') return cls === '회수';
-    return true;
-  }
-  function filterMembers(ex){
+  /* 구성원 — 팀장·부문장이 맨 앞. 이름·부서 검색과 권한/메뉴 검색이 함께 걸린다. */
+  function members(){
+    const ex = BAR ? (BAR.value().extras || {}) : {};
     const kw = String(ex.q || '').trim().toLowerCase();
-    const want = ex.cls || 'all';
-    return (DETAIL.members || []).map(mm => {
-      const roles = (mm.roles || []).filter(r => passCls(r.cls, want));
-      return Object.assign({}, mm, { _roles: roles });
-    }).filter(mm => {
-      if(want !== 'all' && mm._roles.length === 0) return false;
-      if(!kw) return true;
-      if(String(mm.emp_nm||'').toLowerCase().includes(kw)) return true;
-      if(String(mm.email||'').toLowerCase().includes(kw)) return true;
-      return mm._roles.some(r => String(r.role_nm||'').toLowerCase().includes(kw)
-                              || String(r.role_id||'').toLowerCase().includes(kw));
-    });
+    const rq = String(ex.rq || '').trim();
+    const keep = roleFilterSet(rq);
+    return (DETAIL.members || [])
+      .map(mm => Object.assign({}, mm, {
+        roles: (mm.roles || []).filter(r => !keep || keep.has(r.role_id)),
+      }))
+      .filter(mm => {
+        if(keep && mm.roles.length === 0) return false;
+        if(!kw) return true;
+        return String(mm.emp_nm||'').toLowerCase().includes(kw)
+            || String(mm.email||'').toLowerCase().includes(kw)
+            || String(mm.dept_nm||'').toLowerCase().includes(kw);
+      })
+      .sort((a,b) => {
+        const ra = LEAD.indexOf(a.title || ''), rb = LEAD.indexOf(b.title || '');
+        const ka = ra < 0 ? 99 : ra, kb = rb < 0 ? 99 : rb;   // 대표 → 부문장 → 법인장 → 팀장 → 그 외
+        return ka - kb
+            || (b.roles.length - a.roles.length)
+            || String(a.emp_nm||'').localeCompare(String(b.emp_nm||''), 'ko');
+      });
   }
 
-  /* 탭 1 — 구성원 */
   function paneMembers(ex){
-    const rows = filterMembers(ex);
-    const noStd = (DETAIL.dept && DETAIL.dept.std_state || 'none') === 'none';
-    let html = '<div class="tools">'
-      + '<button id="csv">CSV 내보내기</button>'
-      + '<span class="legend">행을 누르면 보유 권한이 펼쳐집니다 · 붉은 행 = 부서와 무관한 권한 보유</span></div>';
-
+    const rows = members();
+    let html = '<div class="tools"><button id="csv">CSV 내보내기</button>'
+      + '<span class="legend">팀장·부문장이 맨 앞 · 행을 누르면 보유 권한, 권한을 누르면 메뉴가 열립니다</span></div>';
     if(!rows.length){ html += '<div class="notice">조건에 맞는 구성원이 없습니다.</div>'; $("pane").innerHTML = html; return; }
 
-    html += '<table><thead><tr><th>이름</th><th>직책</th>'
-      + '<th class="c">보유</th><th class="c">별도</th><th class="c">무관</th><th></th></tr></thead><tbody>';
+    html += '<table><thead><tr><th>이름</th><th>직책</th><th>부서</th><th class="c">보유 권한</th><th></th></tr></thead><tbody>';
     rows.forEach(mm => {
-      // 강조는 「무관」에만 — 표준 세트 기준이 재정의될 예정이라 별도까지 색으로 단정하지 않는다
-      const cls = (!noStd && (mm.unrel || 0) > 0) ? 'risk' : '';
       const odd = [];
       if(!mm.gw_active) odd.push('GW없음');
       if(!mm.account_active) odd.push('ERP정지');
-      if(mm.dept_src === 'none') odd.push('소속미확인');
-      html += '<tr class="mem '+cls+'" data-em="'+esc(mm.email)+'">'
-        + '<td>'+(cls ? '! ' : '')+esc(mm.emp_nm || mm.email)
+      const lead = LEAD.indexOf(mm.title || '') >= 0;
+      html += '<tr class="click '+(lead?'lead':'')+'" data-em="'+esc(mm.email)+'">'
+        + '<td>'+esc(mm.emp_nm || mm.email)
         +   (odd.length ? ' <span class="legend">'+esc(odd.join(' · '))+'</span>' : '')+'</td>'
         + '<td>'+esc(mm.title || '—')+'</td>'
-        + '<td class="c">'+num(mm.role_cnt)+'</td>'
-        + '<td class="c">'+(noStd?'—':num(mm.etc))+'</td>'
-        + '<td class="c">'+(noStd?'—':num(mm.unrel))+'</td>'
-        + '<td class="c">'+(EXPANDED_ROW.has(mm.email)?'▾':'▸')+'</td></tr>';
-      if(EXPANDED_ROW.has(mm.email)){
-        html += '<tr><td colspan="6" style="background:#fcfdfe">'+rolesBlock(mm._roles)+'</td></tr>';
+        + '<td>'+esc(mm.dept_nm || '—')+'</td>'
+        + '<td class="c">'+num(mm.roles.length)+'</td>'
+        + '<td class="c">'+(EXPANDED.has(mm.email)?'▾':'▸')+'</td></tr>';
+      if(EXPANDED.has(mm.email)){
+        html += '<tr><td colspan="5" style="background:#fcfdfe">'+roleChips(mm.roles)+'</td></tr>';
       }
     });
     html += '</tbody></table>';
     $("pane").innerHTML = html;
 
-    $("pane").querySelectorAll('tr.mem').forEach(tr => tr.onclick = () => {
+    $("pane").querySelectorAll('tr.click').forEach(tr => tr.onclick = () => {
       const em = tr.dataset.em;
-      if(EXPANDED_ROW.has(em)) EXPANDED_ROW.delete(em); else EXPANDED_ROW.add(em);
+      if(EXPANDED.has(em)) EXPANDED.delete(em); else EXPANDED.add(em);
       paneMembers(ex);
     });
+    $("pane").querySelectorAll('.chip[data-rid]').forEach(c =>
+      c.onclick = (e) => { e.stopPropagation(); openRole(c.dataset.rid); });
     $("csv").onclick = () => exportMembers(rows);
   }
 
-  function rolesBlock(roles){
+  function roleChips(roles){
     if(!roles.length) return '<span class="legend">표시할 권한이 없습니다.</span>';
     const g = {};
-    roles.slice().sort((a,b) => (CLS_ORDER[a.cls]-CLS_ORDER[b.cls]) || String(a.role_nm).localeCompare(String(b.role_nm),'ko'))
+    roles.slice().sort((a,b) => String(a.role_nm).localeCompare(String(b.role_nm),'ko'))
       .forEach(r => { const k = r.module_label || r.module || '기타'; (g[k] = g[k] || []).push(r); });
-    return Object.keys(g).map(k =>
+    return Object.keys(g).sort().map(k =>
       '<div class="grp">'+esc(k)+'</div>'
-      + g[k].map(r => '<span class="chip '+(CLS_CHIP[r.cls]||'')+'" title="'+esc(r.role_id+' · '+r.cls+' — '+(r.why||''))
-          + (r.peer_cnt!=null ? '\n같은 부서 보유 '+r.peer_cnt+'/'+r.dept_size : '')+'">'
-          + (CLS_MARK[r.cls]||'') + ' ' + esc(r.role_label || r.role_nm)
+      + g[k].map(r => '<span class="chip" data-rid="'+esc(r.role_id)+'" title="'+esc(r.role_id)+' — 눌러서 메뉴 권한 보기">'
+          + esc(r.role_label || r.role_nm)
           + (r.is_write ? '<span class="w">쓰기</span>' : '')
-          + (r.sensitive ? '<span class="w">민감</span>' : '')
           + '</span>').join('')
     ).join('');
   }
 
-  /* 탭 2 — Role별 (조직도에서 고른 부서의 권한을 role 하나씩 본다)
-     참조 프로젝트의 Role×구성원 격자는 읽기가 어려워 목록으로 바꿨다(관리자 결정 2026-09-18).
-     외부 라이브러리는 쓰지 않는다 — 내보내기는 CSV+BOM. */
-  function paneRoles(ex){
-    const mem = filterMembers(ex);
-    const noStd = (DETAIL.dept && DETAIL.dept.std_state || 'none') === 'none';
+  /* Matrix — 행 = Role, 열 = 구성원. ROLE 칸을 누르면 메뉴 권한 팝업이 열린다. */
+  function paneMatrix(ex){
+    const mem = members();
     const map = {};
-    mem.forEach(mm => (mm._roles || []).forEach(r => {
-      const k = r.role_id;
-      if(!map[k]) map[k] = { r, holders: [] };
-      map[k].holders.push(mm);
+    mem.forEach(mm => (mm.roles || []).forEach(r => {
+      if(!map[r.role_id]) map[r.role_id] = { r, holders:{} };
+      map[r.role_id].holders[mm.email] = true;
     }));
-    const roles = Object.values(map).sort((a, b) =>
-      (CLS_ORDER[a.r.cls] - CLS_ORDER[b.r.cls])
-      || (b.holders.length - a.holders.length)
-      || String(a.r.role_nm).localeCompare(String(b.r.role_nm), 'ko'));
+    const roles = Object.values(map).sort((a,b) =>
+      String(a.r.module_label||'').localeCompare(String(b.r.module_label||''),'ko')
+      || String(a.r.role_nm).localeCompare(String(b.r.role_nm),'ko'));
+    if(!mem.length || !roles.length){ $("pane").innerHTML = '<div class="notice">표시할 데이터가 없습니다.</div>'; return; }
 
-    const unrel = roles.filter(x => x.r.cls === '무관').length;
-    let html = '<div class="tools"><button id="csvr">CSV 내보내기</button>'
-      + '<span class="legend">Role ' + roles.length + '종'
-      + (noStd ? '' : ' · 무관 ' + unrel + '종') + ' · 행을 누르면 보유자가 펼쳐집니다</span></div>';
-
-    if(!roles.length){ html += '<div class="notice">조건에 맞는 권한이 없습니다.</div>'; $("pane").innerHTML = html; return; }
-
-    html += '<table><thead><tr><th>ROLE</th><th>모듈</th><th>분류</th>'
-      + '<th class="c">보유</th><th></th></tr></thead><tbody>';
+    let prev = null;
+    let html = '<div class="tools"><button id="csvm">CSV 내보내기</button>'
+      + '<span class="legend">행 = Role · 열 = 구성원 · ROLE 칸을 누르면 메뉴 권한이 열립니다</span></div>'
+      + '<div class="mx__wrap"><table><thead><tr>'
+      + '<th class="mx__fix">ROLE</th><th class="mx__n">보유</th>'
+      + mem.map(mm => '<th class="mx__n" title="'+esc(mm.email)+'">'+esc(mm.emp_nm || mm.email)+'</th>').join('')
+      + '</tr></thead><tbody>';
     roles.forEach(({ r, holders }) => {
-      const cls = (!noStd && r.cls === '무관') ? 'risk' : '';
-      const open = EXPANDED_ROW.has('R:' + r.role_id);
-      html += '<tr class="mem ' + cls + '" data-rid="' + esc(r.role_id) + '">'
-        + '<td title="' + esc(r.role_id) + '">' + (cls ? '! ' : '') + esc(r.role_label || r.role_nm)
-        +   (r.is_write ? ' <span class="legend">쓰기</span>' : '')
-        +   (r.sensitive ? ' <span class="legend">민감</span>' : '') + '</td>'
-        + '<td>' + esc(r.module_label || r.module || '') + '</td>'
-        + '<td>' + esc(noStd ? '—' : r.cls) + '</td>'
-        + '<td class="c">' + holders.length + (r.dept_size ? ' / ' + r.dept_size : '') + '</td>'
-        + '<td class="c">' + (open ? '▾' : '▸') + '</td></tr>';
-      if(open){
-        html += '<tr><td colspan="5" style="background:#fcfdfe">'
-          + (noStd ? '' : '<div class="grp">' + esc(r.why || '') + '</div>')
-          + holders.map(h => '<span class="chip" title="' + esc(h.email) + '">'
-              + esc(h.emp_nm || h.email) + (h.title ? '<span class="w">' + esc(h.title) + '</span>' : '')
-              + '</span>').join('')
-          + '</td></tr>';
-      }
+      const grp = r.module_label || r.module || '기타';
+      const gap = (prev !== null && grp !== prev) ? ' class="mx__gap"' : '';
+      prev = grp;
+      html += '<tr'+gap+'><td class="mx__fix" data-rid="'+esc(r.role_id)+'" title="'+esc(r.role_id)+' — 눌러서 메뉴 권한 보기">'
+        + '<span class="legend">'+esc(grp)+'</span><br>'+esc(r.role_label || r.role_nm)+'</td>'
+        + '<td class="mx__n">'+Object.keys(holders).length+'</td>'
+        + mem.map(mm => '<td class="mx__n '+(holders[mm.email]?'mx__o':'mx__m')+'">'
+            + (holders[mm.email] ? 'O' : '·') + '</td>').join('')
+        + '</tr>';
     });
-    html += '</tbody></table>';
+    html += '</tbody><tfoot><tr><td class="mx__fix">구성원별 합계</td><td class="mx__n">—</td>'
+      + mem.map(mm => '<td class="mx__n">'+(mm.roles||[]).length+'</td>').join('')
+      + '</tr></tfoot></table></div>';
     $("pane").innerHTML = html;
-
-    $("pane").querySelectorAll('tr.mem').forEach(tr => tr.onclick = () => {
-      const k = 'R:' + tr.dataset.rid;
-      if(EXPANDED_ROW.has(k)) EXPANDED_ROW.delete(k); else EXPANDED_ROW.add(k);
-      paneRoles(ex);
-    });
-    $("csvr").onclick = () => exportRoles(roles);
+    $("pane").querySelectorAll('td.mx__fix[data-rid]').forEach(td => td.onclick = () => openRole(td.dataset.rid));
+    $("csvm").onclick = () => exportMatrix(mem, roles);
   }
 
-  /* CSV — UTF-8 BOM (엑셀 한글 깨짐 방지, §13.5) */
+  /* 권한별 — 기본은 전사, 「선택 조직만」 을 켜면 고른 부서 보유분으로 좁힌다. */
+  function paneRoleList(ex){
+    const all = (ROLES && ROLES.roles) || [];
+    let list = all.slice();
+    if(ROLEDEPT){
+      const own = new Set();
+      members().forEach(mm => (mm.roles || []).forEach(r => own.add(r.role_id)));
+      list = list.filter(r => own.has(r.role_id));
+    }
+    const mods = {};
+    all.forEach(r => { const k = r.module_label || r.module || '기타'; mods[k] = (mods[k] || 0) + 1; });
+    if(ROLEMOD !== 'all') list = list.filter(r => (r.module_label || r.module || '기타') === ROLEMOD);
+    list.sort((a,b) => (b.user_cnt - a.user_cnt) || String(a.role_nm).localeCompare(String(b.role_nm),'ko'));
+
+    let html = '<div class="tools">'
+      + '<button class="'+(ROLEMOD==='all'?'on':'')+'" data-mod="all">전체 '+all.length+'</button>'
+      + Object.keys(mods).sort().map(k => '<button class="'+(ROLEMOD===k?'on':'')+'" data-mod="'+esc(k)+'">'+esc(k)+' '+mods[k]+'</button>').join('')
+      + '<span style="flex:1 1 auto"></span>'
+      + '<label><input type="checkbox" id="rdept"'+(ROLEDEPT?' checked':'')+'> 선택 조직만</label>'
+      + '<button id="csvr">CSV 내보내기</button></div>';
+
+    if(!list.length){
+      html += '<div class="notice">조건에 맞는 권한이 없습니다.</div>';
+      $("pane").innerHTML = html; bindRoleTools(ex, list); return;
+    }
+
+    html += '<table><thead><tr><th>ROLE ID</th><th>ROLE명</th><th class="c">사용자</th><th class="c">메뉴</th></tr></thead><tbody>'
+      + list.map(r => '<tr class="click" data-rid="'+esc(r.role_id)+'">'
+          + '<td><code>'+esc(r.role_id)+'</code></td>'
+          + '<td>'+esc(r.role_nm)+(r.sensitive?' <span class="legend">민감</span>':'')+'</td>'
+          + '<td class="c">'+num(r.user_cnt)+'</td>'
+          + '<td class="c">'+num(r.menu_cnt)+'</td></tr>').join('')
+      + '</tbody></table>';
+    $("pane").innerHTML = html;
+    $("pane").querySelectorAll('tr.click').forEach(tr => tr.onclick = () => openRole(tr.dataset.rid));
+    bindRoleTools(ex, list);
+  }
+  function bindRoleTools(ex, list){
+    $("pane").querySelectorAll('button[data-mod]').forEach(b =>
+      b.onclick = () => { ROLEMOD = b.dataset.mod; paneRoleList(ex); });
+    const c = $("rdept"); if(c) c.onchange = () => { ROLEDEPT = c.checked; paneRoleList(ex); };
+    const x = $("csvr"); if(x) x.onclick = () => exportRoleList(list || []);
+  }
+
+  /* ── Role 상세 팝업 — 메뉴 권한 트리 + 보유자 ── */
+  async function openRole(roleId){
+    if(!roleId) return;
+    $("modal").innerHTML = '<div class="ov"><div class="mo"><header><h4>'+esc(roleId)+'</h4>'
+      + '<button class="x" id="mx">×</button></header><div class="body"><div class="loading">메뉴 권한을 불러오는 중…</div></div></div></div>';
+    bindModalClose();
+    let d = RCACHE.get(roleId);
+    if(!d){
+      d = await erpApi.erpRoleMenuDetail(roleId);
+      if(d && d.ok) RCACHE.set(roleId, d);
+    }
+    if(!$("modal").querySelector('.mo')) return;   // 불러오는 사이 닫혔으면 그만둔다
+    if(!d || !d.ok){
+      $("modal").querySelector('.body').innerHTML =
+        '<div class="notice warn">'+(d && d.forbidden ? '이 권한의 상세를 볼 수 없습니다.' : '상세를 불러오지 못했습니다.')+'</div>';
+      return;
+    }
+    const role = d.role || {}, menus = d.menus || [], holders = d.holders || [];
+    const byDept = {};
+    holders.forEach(h => { const k = h.dept_nm || '소속 미확인'; (byDept[k] = byDept[k] || []).push(h); });
+
+    $("modal").querySelector('header').innerHTML =
+      '<div><h4>'+esc(role.role_nm || roleId)+'</h4>'
+      + '<div class="legend"><code>'+esc(roleId)+'</code>'+(role.module_label ? ' · '+esc(role.module_label) : '')+'</div></div>'
+      + '<button class="x" id="mx">×</button>';
+    $("modal").querySelector('.body').innerHTML =
+      '<div class="cols">'
+      + '<div><div class="grp">메뉴 권한 '+num(d.menu_cnt)+'건</div>'
+      +   (menus.length
+            ? '<div class="mtree">' + menus.map(mn =>
+                '<div class="mrow" style="padding-left:'+(9 + Math.min(mn.depth||0, 8)*13)+'px" title="'+esc(mn.path_nm||'')+'">'
+                + '<span class="mn">'+esc(mn.mnu_nm)+'</span><span class="sp"></span>'
+                + '<span class="act '+esc(mn.action_id||'')+'">'+esc(mn.action_nm||'')+'</span></div>').join('')
+              + '</div>'
+            : '<div class="notice">이 권한에 연결된 메뉴가 없습니다.</div>')
+      + '</div>'
+      + '<div><div class="grp">사용자 '+num(holders.length)+'명</div>'
+      +   (holders.length
+            ? Object.keys(byDept).sort().map(k =>
+                '<div class="grp">'+esc(k)+' '+byDept[k].length+'</div>'
+                + byDept[k].map(h => '<span class="chip flat" title="'+esc(h.email)+'">'+esc(h.emp_nm || h.email)
+                    + (h.title ? '<span class="w">'+esc(h.title)+'</span>' : '')+'</span>').join('')).join('')
+            : '<div class="notice">보유자가 없습니다(열람 범위 안 기준).</div>')
+      + '</div></div>';
+    bindModalClose();
+  }
+  function bindModalClose(){
+    const close = () => { $("modal").innerHTML = ''; document.removeEventListener('keydown', onEsc); };
+    const onEsc = (e) => { if(e.key === 'Escape') close(); };
+    const x = $("mx"); if(x) x.onclick = close;
+    const ov = $("modal").querySelector('.ov');
+    if(ov) ov.onclick = (e) => { if(e.target === ov) close(); };
+    document.addEventListener('keydown', onEsc);
+  }
+
+  /* ── CSV — UTF-8 BOM (엑셀 한글 깨짐 방지, §13.5) ── */
   function csvCell(v){ const s = String(v == null ? '' : v); return /[",\n]/.test(s) ? '"'+s.replace(/"/g,'""')+'"' : s; }
   function download(name, rows){
     const blob = new Blob(["﻿" + rows.map(r => r.map(csvCell).join(',')).join('\r\n')],
@@ -572,26 +630,27 @@ tr.mem:hover > td{filter:brightness(0.985)}
     a.href = URL.createObjectURL(blob); a.download = name; a.click();
     setTimeout(() => URL.revokeObjectURL(a.href), 1000);
   }
-  function stamp(){ return new Date().toISOString().slice(0,10).replace(/-/g,''); }
+  const stamp  = () => new Date().toISOString().slice(0,10).replace(/-/g,'');
+  const deptNm = () => (DETAIL && DETAIL.dept && DETAIL.dept.dept_nm) || SEL || '';
   function exportMembers(rows){
-    const out = [['부서','이름','직책','계정','ROLE ID','ROLE명','모듈','분류','사유','쓰기','민감','부서보유']];
-    rows.forEach(mm => (mm._roles || []).forEach(r => out.push([
-      (DETAIL.dept||{}).dept_nm, mm.emp_nm, mm.title || '',
-      [(!mm.gw_active?'GW없음':''), (!mm.account_active?'ERP정지':''),
-       (mm.dept_src==='none'?'소속미확인':'')].filter(Boolean).join(' · '),
-      r.role_id, r.role_nm, r.module_label || '', r.cls, r.why || '',
-      r.is_write ? '쓰기' : '조회', r.sensitive ? '민감' : '',
-      (r.peer_cnt != null ? r.peer_cnt + '/' + r.dept_size : '')])));
-    download('ERP권한_'+((DETAIL.dept||{}).dept_nm||SEL)+'_'+stamp()+'.csv', out);
+    const out = [['부서','이름','직책','ROLE ID','ROLE명','모듈','쓰기']];
+    rows.forEach(mm => (mm.roles || []).forEach(r => out.push([
+      mm.dept_nm || deptNm(), mm.emp_nm, mm.title || '',
+      r.role_id, r.role_nm, r.module_label || '', r.is_write ? '쓰기' : '조회'])));
+    download('ERP권한_구성원_'+deptNm()+'_'+stamp()+'.csv', out);
   }
-  function exportRoles(roles){
-    const out = [['부서','ROLE ID','ROLE명','모듈','분류','사유','쓰기','민감','보유','부서인원','보유자']];
-    roles.forEach(({ r, holders }) => out.push([
-      (DETAIL.dept||{}).dept_nm, r.role_id, r.role_nm, r.module_label || '', r.cls, r.why || '',
-      r.is_write ? '쓰기' : '조회', r.sensitive ? '민감' : '',
-      holders.length, r.dept_size || '',
-      holders.map(h => h.emp_nm || h.email).join(' · ')]));
-    download('ERP권한_Role별_'+((DETAIL.dept||{}).dept_nm||SEL)+'_'+stamp()+'.csv', out);
+  function exportMatrix(mem, roles){
+    const out = [['ROLE ID','ROLE명','모듈','보유'].concat(mem.map(m => m.emp_nm || m.email))];
+    roles.forEach(({ r, holders }) => out.push(
+      [r.role_id, r.role_nm, r.module_label || '', Object.keys(holders).length]
+        .concat(mem.map(m => holders[m.email] ? 'O' : ''))));
+    download('ERP권한_매트릭스_'+deptNm()+'_'+stamp()+'.csv', out);
+  }
+  function exportRoleList(list){
+    const out = [['ROLE ID','ROLE명','모듈','사용자','메뉴','민감']];
+    list.forEach(r => out.push([r.role_id, r.role_nm, r.module_label || '',
+                                r.user_cnt, r.menu_cnt, r.sensitive ? '민감' : '']));
+    download('ERP권한_목록_'+(ROLEDEPT ? deptNm()+'_' : '전사_')+stamp()+'.csv', out);
   }
 
   boot();
