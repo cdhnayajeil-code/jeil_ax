@@ -124,6 +124,19 @@ JOBS = {
             WHERE a.USR_ID LIKE '%@%'
         """,
         "params": [],
+        # 정합 후처리 — 이 job 은 incr_sql 이 없는 **전량 스냅샷**이지만 upsert 만 하므로
+        # ERP 에서 회수된 역할 배정이 미러에 영영 남는다(실측 2026-09-18: 미러 1,752 vs 원천 1,691,
+        # 잔재 61건 · 최다 PMS_I 39건). 권한 과다를 찾는 화면(/work/erp-roles)에서 이 잔재는
+        # 그대로 오탐이 되므로 매 실행마다 원천의 살아있는 (계정|역할) 키 전량으로 대조한다.
+        # 삭제하지 않고 revoked_at 으로 표시한다 — 되돌릴 수 있고 회수 시점 이력이 남는다.
+        # ⚠ 여기에 incr_sql 을 추가하면 전량 스냅샷 전제가 깨져 이 정합이 전건 회수로 오작동한다.
+        "reconcile": {
+            "rpc": "erp_usr_role_reconcile",
+            "param": "p_active_keys",
+            "sql": "SELECT DISTINCT LOWER(RTRIM(a.USR_ID)) + '|' + LOWER(RTRIM(a.USR_ROLE_ID)) "
+                   "FROM JEILMNS.dbo.Z_USR_MAST_REC_USR_ROLE_ASSO a WITH (NOLOCK) "
+                   "WHERE a.USR_ID LIKE '%@%'",
+        },
     },
     # ⑧ 인사 급여 '집계' ← HDF070T(월급여대장)·HGA070T(퇴직) — erp_secure(민감·인사팀 전용)
     #    ⚠ 집계만(월×부서 인원·급여총액, 월×전사 퇴직). 개인 행·이름·주민번호(RES_NO)·계좌 절대 미추출.

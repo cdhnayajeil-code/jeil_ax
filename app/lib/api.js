@@ -531,6 +531,57 @@ export const erpApi = {
     return data || { ok: false };
   },
 
+  /* ── ERP 권한(role) 조직별 현황 — 정본 SQL 50_erp_role_matrix.sql · REQ-0057 ────────────
+     erp_ro 는 REST 비노출이라 화면은 RPC 로만 받는다(직접 from() 하면 오류 없이 빈 결과 — REQ-0015).
+     행 수준 권한은 서버가 강제한다: 관리자=전 조직 / 그 외=perm_grant(scope_type='dept')로
+     지정된 부서와 그 하위만. 권한 오류는 예외가 아니라 플래그로 표준화한다(financeOverview 패턴).
+     응답이 jsonb 한 덩이라 PostgREST 1000행 상한과 무관 → _pageAll 을 쓰지 않는다.            */
+
+  // 조직 트리 + 부서별 분류 집계(집계만 — 개인 행 없음). orgChangeId 생략 시 서버가 현행 버전을 고른다.
+  // 반환: {ok, org_change_id, org_versions[], is_admin, scope, visible_dept_cds, unassigned_cnt, as_of, mirror, nodes[]}
+  async erpRoleOrgTree(orgChangeId = null) {
+    const { data, error } = await supabase.rpc("erp_role_org_tree", { p_org_change_id: orgChangeId || null });
+    if (error) {
+      const msg = String(error.message || "");
+      if (/forbidden/i.test(msg) || error.code === "42501") return { ok: false, forbidden: true };
+      if (/unauthorized/i.test(msg) || error.code === "28000") return { ok: false, unauthorized: true };
+      throw error;
+    }
+    return data || { ok: false };
+  },
+
+  // 선택 부서의 구성원 + role 상세(표준/별도/무관/예외승인/회수 + 같은 부서 보유율).
+  // deptCd 는 필수 — 전사 상세는 응답이 커서 내려주지 않는다(전사는 erpRoleSummary).
+  // 반환: {ok, org_change_id, dept, summary, members[], std_missing[], as_of, mirror}
+  async erpRoleDeptDetail(deptCd, { orgChangeId = null, includeDesc = false, includeRevoked = false } = {}) {
+    const { data, error } = await supabase.rpc("erp_role_dept_detail", {
+      p_dept_cd: String(deptCd || "").trim(),
+      p_org_change_id: orgChangeId || null,
+      p_include_desc: !!includeDesc,
+      p_include_revoked: !!includeRevoked,
+    });
+    if (error) {
+      const msg = String(error.message || "");
+      if (/forbidden/i.test(msg) || error.code === "42501") return { ok: false, forbidden: true };
+      if (/unauthorized/i.test(msg) || error.code === "28000") return { ok: false, unauthorized: true };
+      throw error;
+    }
+    return data || { ok: false };
+  },
+
+  // 전사 요약(관리자 전용) — 모듈별 집계·무관 상위 role·표준 미수립 부서·회수 잔재.
+  // 반환: {ok, totals, by_module[], top_unrelated[], dept_no_standard[], as_of, mirror}
+  async erpRoleSummary(orgChangeId = null) {
+    const { data, error } = await supabase.rpc("erp_role_summary", { p_org_change_id: orgChangeId || null });
+    if (error) {
+      const msg = String(error.message || "");
+      if (/forbidden/i.test(msg) || error.code === "42501") return { ok: false, forbidden: true };
+      if (/unauthorized/i.test(msg) || error.code === "28000") return { ok: false, unauthorized: true };
+      throw error;
+    }
+    return data || { ok: false };
+  },
+
   // 사용자↔부서↔사원 정상 매핑(연동용): {email, dept_nm, emp_nm, matched_dept_cd, dept_matched, src_updated, synced_at}
   // 재직·형식정상·비테스트·부서일치만(불일치는 userDeptRecon). 이메일=MS 계정.
   async userDept() {

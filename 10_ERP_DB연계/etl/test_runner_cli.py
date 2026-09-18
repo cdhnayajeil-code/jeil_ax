@@ -36,7 +36,7 @@ class CliToolsTest(unittest.TestCase):
 
     def test_tool_names_are_stable(self):
         """서버 문서·relay.cmd 가 이 이름을 그대로 친다 — 바꾸면 배포본이 깨진다."""
-        self.assertEqual(set(jr.CLI_TOOLS), {"relay", "sync", "etl", "offboard", "mailbox"})
+        self.assertEqual(set(jr.CLI_TOOLS), {"relay", "sync", "etl", "offboard", "mailbox", "roleseed"})
 
     def test_subcommand_passes_argv_through(self):
         import gl_apply_demo2 as g

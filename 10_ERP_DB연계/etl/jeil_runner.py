@@ -55,6 +55,7 @@ CLI_TOOLS = {
     "etl":      ("etl_run",        "ERP→중간DB 적재 배치"),
     "offboard": ("offboard_axes",  "퇴사 처리 3축 점검·실행(기본 dry-run)"),
     "mailbox":  ("exo_admin",      "Exchange 사서함 공유 전환(기본 dry-run)"),
+    "roleseed": ("seed_role_standard", "부서 표준 ERP role 세트 시드(엑셀→매핑→DB)"),
 }
 
 

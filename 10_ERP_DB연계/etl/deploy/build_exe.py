@@ -41,7 +41,8 @@ TARGETS = {
         # 자식 작업·서브커맨드가 import 하는 모듈은 정적 분석에 안 잡힐 수 있어 명시한다
         "hidden": ["pyodbc", "pystray._win32", "PIL.Image", "PIL.ImageDraw",
                    "gl_apply_demo2", "etl_watch", "etl_run", "_erp_conn", "_env",
-                   "ms_collect", "gw_collect", "gw_offboard", "offboard_axes", "exo_admin"],
+                   "ms_collect", "gw_collect", "gw_offboard", "offboard_axes", "exo_admin",
+                   "seed_role_standard"],
         # 브라우저 자동화(그룹웨어 퇴사 축)는 서버 대상이 아니다 — 번들 제외(용량·의존 차단).
         # 러너가 능력 감지로 알아서 끈다(runner_core.detect_capabilities).
         "exclude": ["playwright"],
