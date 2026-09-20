@@ -118,6 +118,22 @@ tr.lead > td:first-child{font-weight:700}
 .mx__wrap tfoot td{position:sticky;bottom:0;background:var(--soft);font-weight:700}
 .mx__o{color:var(--navy2);font-weight:700} .mx__m{color:#ccd3dc}
 .mx__wrap td.mx__fix{cursor:pointer}
+
+/* 눈에 띄어야 할 줄만 — 왼쪽 띠와 작은 꼬리표로만 표시한다.
+   행 전체를 칠하면 매트릭스가 읽히지 않아서, 색은 최소로 쓴다. */
+.mx__wrap td.mx__fix.f1{box-shadow:inset 3px 0 0 var(--amber)}
+.mx__wrap td.mx__fix.f2{box-shadow:inset 3px 0 0 var(--red)}
+.mx__tag{display:inline-block;margin-left:5px;padding:0 5px;border-radius:9px;
+  font-size:10.5px;font-weight:700;border:1px solid;white-space:nowrap}
+.mx__tag.f1{color:var(--amber);border-color:#dcc48a;background:var(--softamber)}
+.mx__tag.f2{color:var(--red);border-color:#e3b3aa;background:var(--softred)}
+.mx__wrap td.mx__n.h1{background:var(--softamber)}
+.mx__wrap td.mx__n.h2{background:var(--softred)}
+.mx__hint{display:flex;gap:7px 14px;align-items:center;flex-wrap:wrap;
+  margin:0 0 8px;font-size:11.5px;color:var(--muted);line-height:1.6}
+.mx__hint .k{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:5px}
+.mx__hint .k.f1{background:var(--amber)} .mx__hint .k.f2{background:var(--red)}
+.mx__hint b{color:var(--ink)}
 .mx__wrap td.mx__n input{cursor:pointer;margin:0}
 
 /* 권한정리 */
@@ -421,10 +437,6 @@ tr.lead > td:first-child{font-weight:700}
     if(!DETAIL){ $("pDet").innerHTML = '<div class="pane"><div class="loading">불러오는 중…</div></div>'; return; }
 
     const d = DETAIL.dept || {}, m = members();
-    const mir = DETAIL.mirror || {};
-    const warn = (mir.reconcile_ok === false || (mir.role_rows_revoked || 0) > 0)
-      ? '<div class="notice warn" style="margin:11px 11px 0">⚠ ERP 미러에 <b>회수 잔재 '+num(mir.role_rows_revoked)+'건</b>이 있습니다 — 회수된 권한은 집계에서 제외됩니다.</div>'
-      : '';
 
     const roleSet = new Set();
     m.forEach(mm => (mm.roles || []).forEach(r => roleSet.add(r.role_id)));
@@ -435,7 +447,6 @@ tr.lead > td:first-child{font-weight:700}
       +  '<span class="sm">'+esc(SEL === UNASSIGNED ? '사내 조직에 속하지 않은 ERP 계정(외부 회계사·관리자 계정)' : (d.path_nm || ''))
       +   (d.leader_nm ? ' · 부서장 '+esc(d.leader_nm) : '')
       +   (d.include_desc ? ' · 하위부서 포함' : '') + '</span></h3>'
-      + warn
       + '<div class="sum">'
       +   '<span class="si"><b>인원</b>'+num(m.length)+'명</span>'
       +   '<span class="si"><b>보유 권한</b>'+num(roleSet.size)+'종</span>'
@@ -535,6 +546,77 @@ tr.lead > td:first-child{font-weight:700}
   }
 
   /* Matrix — 행 = Role, 열 = 구성원. ROLE 칸을 누르면 메뉴 권한 팝업이 열린다. */
+  /* 눈에 띄어야 할 권한 고르기 — 기준표 없이 **데이터가 스스로 말하는 것**만 쓴다.
+     (부서 표준 세트는 2026-09-18 관리자 지시로 화면에서 뺐다. 여기서 되살리지 않는다.)
+
+     두 가지만 본다
+       · 이 부서에서 **몇 명이나 갖고 있나** — 서버가 준 peer_cnt/dept_size(회수분 제외, 자기 부서 기준)
+         화면에서 세지 않는 이유: 「하위부서 포함」으로 보면 분모가 부문 전체가 돼
+         팀 전원이 가진 권한도 소수처럼 보인다.
+       · 그게 **쓰기 권한이거나 민감 모듈이거나, 이 부서가 거의 안 쓰는 모듈**인가
+
+     f2(빨강) = 소수 보유 + (쓰기 | 민감 | 이 부서가 거의 안 쓰는 모듈)  → 먼저 볼 것
+     f1(주황) = 소수 보유 (조회 위주)                                   → 참고
+     인원이 적은 조직(3명 미만)은 무엇이든 소수라서 판정하지 않는다. */
+  function flagRoles(mem, roles){
+    // 이 부서가 실제로 쓰는 모듈 — 구성원 중 몇 %가 그 모듈 권한을 갖는가
+    const modUse = {}, N = mem.length;
+    mem.forEach(mm => {
+      const seen = {};
+      (mm.roles || []).forEach(r => { seen[r.module_label || r.module || '기타'] = true; });
+      Object.keys(seen).forEach(k => { modUse[k] = (modUse[k] || 0) + 1; });
+    });
+
+    const out = {};
+    roles.forEach(({ r, holders }) => {
+      const hs = Object.keys(holders);
+      // 보유자들이 각자 자기 부서에서 차지하는 비율 중 가장 큰 값
+      let best = null, cnt = null, size = null;
+      hs.forEach(em => {
+        const mm = mem.find(x => x.email === em);
+        const rr = mm && (mm.roles || []).find(x => x.role_id === r.role_id);
+        if(!rr || !rr.dept_size || rr.dept_size < 3) return;
+        const ratio = (rr.peer_ratio != null) ? Number(rr.peer_ratio) : (rr.peer_cnt / rr.dept_size);
+        if(best === null || ratio > best){ best = ratio; cnt = rr.peer_cnt; size = rr.dept_size; }
+      });
+      if(best === null || best > 0.34) return;          // 부서에서 흔한 권한 → 표시 안 함
+
+      const grp = r.module_label || r.module || '기타';
+      const rare = N >= 4 && (modUse[grp] || 0) / N < 0.25;   // 이 부서가 거의 안 쓰는 모듈
+      const hard = !!r.is_write || !!r.sensitive || rare;
+      // 작은 팀(6명 미만)에서 「몇 명만 보유」는 당연해서 신호가 되지 못한다.
+      // 쓰기·민감·타 모듈처럼 내용 자체가 눈에 띄는 것만 남기고 조회성은 표시하지 않는다.
+      if(!hard && size < 6) return;
+      const who = (cnt === 1) ? '이 부서에서 한 명만' : ('이 부서 ' + size + '명 중 ' + cnt + '명만');
+      const why = [
+        who + ' 보유',
+        r.is_write ? '쓰기 권한' : null,
+        r.sensitive ? '민감 모듈' : null,
+        rare ? '이 부서가 거의 안 쓰는 모듈(' + grp + ')' : null,
+      ].filter(Boolean).join(' · ');
+
+      out[r.role_id] = {
+        lv: hard ? 2 : 1,
+        tag: hard ? '확인' : '소수',
+        why: why + (hard ? ' — 업무상 필요한지 확인해 주세요' : ''),
+        hs: holders,
+      };
+    });
+    return out;
+  }
+
+  /* 매트릭스 위 안내 한 줄 */
+  function flagHint(fl){
+    const n2 = Object.values(fl).filter(f => f.lv === 2).length;
+    const n1 = Object.values(fl).filter(f => f.lv === 1).length;
+    if(!n1 && !n2) return '<div class="mx__hint">이 조직에서 <b>유난히 튀는 권한은 없습니다</b> — '
+      + '모든 권한을 부서원 다수가 함께 갖고 있습니다.</div>';
+    return '<div class="mx__hint"><span><b>색이 있는 줄만 보시면 됩니다.</b></span>'
+      + (n2 ? '<span><i class="k f2"></i>확인 <b>'+n2+'건</b> — 소수만 가진 쓰기·민감·타 모듈 권한</span>' : '')
+      + (n1 ? '<span><i class="k f1"></i>소수 <b>'+n1+'건</b> — 부서원 일부만 가진 조회성 권한</span>' : '')
+      + '<span>나머지는 부서에서 흔한 권한입니다.</span></div>';
+  }
+
   function paneMatrix(ex){
     const mem = members();
     const map = {};
@@ -547,9 +629,11 @@ tr.lead > td:first-child{font-weight:700}
       || String(a.r.role_nm).localeCompare(String(b.r.role_nm),'ko'));
     if(!mem.length || !roles.length){ $("pane").innerHTML = '<div class="notice">표시할 데이터가 없습니다.</div>'; return; }
 
+    const FL = flagRoles(mem, roles);
     let prev = null;
     let html = '<div class="tools"><button id="csvm">CSV 내보내기</button>'
       + '<span class="legend">행 = Role · 열 = 구성원 · ROLE 칸을 누르면 메뉴 권한이 열립니다</span></div>'
+      + flagHint(FL)
       + '<div class="mx__wrap"><table><thead><tr>'
       + '<th class="mx__fix">ROLE</th><th class="mx__n">보유</th>'
       + mem.map(mm => '<th class="mx__n" title="'+esc(mm.email)+'">'+esc(mm.emp_nm || mm.email)+'</th>').join('')
@@ -558,10 +642,15 @@ tr.lead > td:first-child{font-weight:700}
       const grp = r.module_label || r.module || '기타';
       const gap = (prev !== null && grp !== prev) ? ' class="mx__gap"' : '';
       prev = grp;
-      html += '<tr'+gap+'><td class="mx__fix" data-rid="'+esc(r.role_id)+'" title="'+esc(r.role_id)+' — 눌러서 메뉴 권한 보기">'
-        + '<span class="legend">'+esc(grp)+'</span><br>'+esc(r.role_label || r.role_nm)+'</td>'
+      const f = FL[r.role_id];
+      const fc = f ? ' f'+f.lv : '';
+      const hc = f ? ' h'+f.lv : '';
+      html += '<tr'+gap+'><td class="mx__fix'+fc+'" data-rid="'+esc(r.role_id)+'" title="'
+        + esc(f ? f.why : (r.role_id + ' — 눌러서 메뉴 권한 보기'))+'">'
+        + '<span class="legend">'+esc(grp)+'</span><br>'+esc(r.role_label || r.role_nm)
+        + (f ? '<span class="mx__tag f'+f.lv+'">'+f.tag+'</span>' : '')+'</td>'
         + '<td class="mx__n">'+Object.keys(holders).length+'</td>'
-        + mem.map(mm => '<td class="mx__n '+(holders[mm.email]?'mx__o':'mx__m')+'">'
+        + mem.map(mm => '<td class="mx__n '+(holders[mm.email]?'mx__o'+hc:'mx__m')+'">'
             + (holders[mm.email] ? 'O' : '·') + '</td>').join('')
         + '</tr>';
     });
@@ -725,16 +814,21 @@ tr.lead > td:first-child{font-weight:700}
       $("pane").innerHTML = html; bindClean(ex); return;
     }
 
+    const FL = flagRoles(mem, roles);
     html += '<div class="legend" style="margin-bottom:6px">ROLE 이름을 누르면 전원 선택\u00b7해제됩니다 \u2014 '
       + '체크한 뒤 「권한제외 담기」, 확인 문구 <b>'+CLTEXT+'</b> 를 입력하고 저장합니다</div>'
+      + flagHint(FL)
       + '<div class="mx__wrap"><table><thead><tr>'
       + '<th class="mx__fix">ROLE</th><th class="mx__n">보유</th>'
       + mem.map(mm => '<th class="mx__n" title="'+esc(mm.email)+'">'+esc(mm.emp_nm || mm.email)+'</th>').join('')
       + '</tr></thead><tbody>';
     roles.forEach(({ r, holders }) => {
-      html += '<tr><td class="mx__fix" data-rowsel="'+esc(r.role_id)+'" title="전원 선택\u00b7해제">'
+      const f = FL[r.role_id];
+      html += '<tr><td class="mx__fix'+(f?' f'+f.lv:'')+'" data-rowsel="'+esc(r.role_id)+'" title="'
+        + esc(f ? f.why + ' / 눌러서 전원 선택·해제' : '전원 선택·해제')+'">'
         + '<span class="legend">'+esc(r.module_label || r.module || '기타')+'</span><br>'
-        + esc(r.role_label || r.role_nm)+'</td>'
+        + esc(r.role_label || r.role_nm)
+        + (f ? '<span class="mx__tag f'+f.lv+'">'+f.tag+'</span>' : '')+'</td>'
         + '<td class="mx__n">'+Object.keys(holders).length+'</td>'
         + mem.map(mm => holders[mm.email]
             ? '<td class="mx__n"><input type="checkbox" data-em="'+esc(mm.email)+'" data-rid="'+esc(r.role_id)+'"'
