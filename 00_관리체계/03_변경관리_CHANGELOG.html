@@ -116,6 +116,13 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 </tr>
 <tr>
 <td>2026-09-21</td>
+<td>ERP 권한 · 권한정리</td>
+<td><code>pages/ERP권한_조직별현황.html</code> · <code>app/admin-role-cleanup.html</code></td>
+<td><strong>손이 덜 가게 단순화 + 시각 오류 수정</strong>(관리자 지시). ① <strong>버그</strong> — 확인완료 배너가 「그 저장 묶음의 건수」(<code>exclude_cnt</code>)를 보여줬다. 「수정」 후 다시 저장하면 이미 올린 건은 잠겨 있어 새 묶음이 0건이 되므로, <strong>요청이 살아 있는데도 「변경없음」</strong>이라고 말했다 → <strong>지금 살아 있는 요청 수</strong>를 세어 표시. ② 「권한제외 담기」·「선택 비우기」 <strong>제거</strong> — 체크 자체가 선택이고, 확인 문구를 넣고 저장하면 그대로 올라간다. (재렌더로 체크가 날아가지 않게 <code>PICK</code> 에 옮겨만 둔다 — 버튼은 없애되 작업은 잃지 않는다) ③ 상단 <strong>정리내역 표와 「내역 보기」 제거</strong> — 이미 올린 권한은 ROLE 행에서 <strong>「정리완료」</strong>로만 알리고, 물리는 것도 같은 행의 <strong>「삭제」</strong> 하나로 한다. 상태·요청자 열은 두지 않는다(팀장에게 필요한 건 「뺐나 안 뺐나」뿐). 「삭제」는 <strong>「수정」으로 잠금을 푼 뒤에만</strong> 뜬다. ⚠ 장부에는 <code>cancelled</code> 로 남긴다 — 완전히 지우면 「누가 뭘 올렸다 물렸는지」가 사라져 나중에 회수 누락을 따질 수 없다. ④ <strong>시각을 전부 한국시간으로</strong> — <code>timestamptz</code> 를 ISO 문자열로 잘라 쓰고 있어 UTC 가 그대로 보였다(<strong>9시간 어긋남</strong>). <code>Intl.DateTimeFormat(timeZone:Asia/Seoul, hourCycle:h23)</code> 로 통일. 관리 페이지 목록·CSV·툴팁도 같이 고쳤다. 라이브 검증: 2건 저장 → 배너 「제외 2건」 → 수정 → 1건 추가 저장 → <strong>「제외 3건」</strong>(묶음 건수였다면 「1건」) → 수정 → 삭제 → 행 음영 해제·체크박스 복귀. 테스트 기록은 삭제(관리자 본인 기록은 보존)</td>
+<td>최동혁(+Claude)</td>
+</tr>
+<tr>
+<td>2026-09-21</td>
 <td>ERP 권한 · 권한정리 · 관리</td>
 <td><code>public.role_cleanup_confirm</code>(신규) · RPC <code>erp_role_cleanup_reopen</code>(신규)·<code>_save</code>·<code>_list</code> · <code>pages/ERP권한_조직별현황.html</code> · <code>app/admin-role-cleanup.html</code> · <code>app/lib/api.js</code> · <code>이관/sql/52_erp_role_cleanup.sql</code></td>
 <td><strong>「뺄 게 없다」도 결과다 — 부서 단위 확인완료 신설</strong>(관리자 지시). 종전에는 제외할 권한을 <strong>하나 이상 골라야만</strong> 저장됐다. 그래서 훑어보고 뺄 게 없는 팀은 <strong>아무 기록도 남기지 못했고</strong>, 관리 화면에서 「아직 안 한 팀」과 구분되지 않았다 — 이 화면의 목적(팀장이 다 훑었는지 확인)이 통째로 무너지는 구멍이었다. ① 제외 0건 저장을 허용하고, 0건이면 <strong>서버가 메모에 「변경없음」</strong>을 넣는다. ② 신규 표 <code>role_cleanup_confirm</code> — 부서당 살아 있는 확인은 하나(부분 unique). 권한정리 탭 상단에 <strong>「✅ 권한확인 완료 — 이름 · 일시 · 변경없음」</strong> 배너를 띄우고 체크·저장을 잠근다. ③ <strong>「수정」</strong>(<code>erp_role_cleanup_reopen</code>) 을 눌러야 다시 고를 수 있다 — 지우지 않고 <code>reopened</code> 로 눕혀 언제 누가 다시 열었는지 남긴다. 이미 올린 제외 요청은 건드리지 않는다(그건 각 행의 「취소」가 맡는다). ④ 취소한 내역은 팀장 화면 목록에서 숨긴다(장부·관리 화면에는 그대로 — 감사 기록은 지우지 않는다). ⑤ 권한별 탭은 <strong>「선택 조직만」 고정</strong>(체크박스 제거) — 전사 목록은 「전체 권한 조회」가 맡으므로 같은 일을 두 곳에서 하지 않는다. ⑥ 관리 화면 조직도 기준을 <strong>「확인했는가」</strong>로 바꿨다 — 미확인(빨강) · 처리대기(주황) · 확인완료(초록). ⚠ 요청 건수만 보면 <strong>「변경없음」으로 확인을 마친 팀이 안 한 팀으로 보인다</strong>. 라이브 검증: 자금팀에 빈 저장 → 「변경없음 · 최동혁」 배너·잠금 확인 → 「수정」 → 잠금 해제·체크박스 9개 복귀 확인 후 테스트 기록 삭제</td>
