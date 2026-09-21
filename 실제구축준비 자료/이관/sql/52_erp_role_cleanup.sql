@@ -93,6 +93,18 @@ grant execute on function public.erp_role_cleanup_list(text, text, int, text) to
 revoke all on function public.erp_role_cleanup_mark(bigint[], text) from public, anon;
 grant execute on function public.erp_role_cleanup_mark(bigint[], text) to authenticated, service_role;
 
+--   · erp_role_cleanup_cancel(p_ids bigint[])  (2026-09-21 추가)
+--       **본인이 올린 미처리 요청만** 스스로 취소한다.
+--       종전에는 상태 변경이 관리자 전용(mark)이라 팀장이 자기 실수를 못 물렸다.
+--       지우지 않고 'cancelled' 로 남긴다 — 누가 무엇을 물렸는지가 이 장부의 값이다.
+--       where 절 두 조건이 전부다: status='requested' and lower(requested_by)=호출자.
+--       (화면이 보낸 id 를 믿지 않는다 — 남의 id 를 넣어도 0건이 바뀐다)
+revoke all on function public.erp_role_cleanup_cancel(bigint[]) from public, anon;
+grant execute on function public.erp_role_cleanup_cancel(bigint[]) to authenticated, service_role;
+
+--   · erp_role_cleanup_list 응답에 me(호출자 UPN)·rows[].mine 추가 (2026-09-21)
+--       화면이 세션에서 스스로 짐작하면 대소문자·별칭에서 어긋난다. 서버가 판정해 내려보낸다.
+
 
 -- ─────────────────────────────────────────────────────────────────────────
 -- §4. 관리자 페이지 등재 — /admin/role-cleanup
