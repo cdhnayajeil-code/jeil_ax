@@ -130,6 +130,16 @@ tr.cancel > td{color:var(--muted);text-decoration:line-through}
   const esc = (s) => String(s == null ? "" : s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
   const num = (n) => Number(n || 0).toLocaleString("ko-KR");
   const ST  = { requested:'요청', applied:'처리완료', cancelled:'취소' };
+  /* 한국시간 — timestamptz 를 문자열로 자르면 UTC 가 그대로 보인다(9시간 어긋남) */
+  function kst(v){
+    if(!v) return '';
+    const d = new Date(v);
+    if(isNaN(d.getTime())) return String(v).slice(0,16).replace('T',' ');
+    const p = new Intl.DateTimeFormat('ko-KR', { timeZone:'Asia/Seoul', year:'numeric', month:'2-digit',
+      day:'2-digit', hour:'2-digit', minute:'2-digit', hourCycle:'h23' })
+      .formatToParts(d).reduce((a,x)=>(a[x.type]=x.value,a),{});
+    return p.year+'-'+p.month+'-'+p.day+' '+p.hour+':'+p.minute;
+  }
 
   /* 사내 세션 게이트 — /pages/_access-gate.js 는 Entra 토큰만 본다(§자금현황 패턴) */
   function claimsOf(session){
@@ -257,7 +267,7 @@ tr.cancel > td{color:var(--muted);text-decoration:line-through}
       return '<div class="tnode st-'+st.k+(SEL===cd?' sel':'')+'" data-cd="'+esc(cd)+'"'
         + ' style="padding-left:'+(9+(lvl-1)*13)+'px" title="'
         + esc(nm+' — '+st.label+(cf ? ' (확인 '+(cf.by||'')+' · '
-              +String(cf.at||'').slice(0,10)+')' : ' — 팀장 확인이 아직 없습니다'))+'">'
+              +kst(cf.at).slice(0,10)+')' : ' — 팀장 확인이 아직 없습니다'))+'">'
         + '<span class="dot"></span><span class="nm">'+esc(nm)+'</span><span class="sp"></span>'
         + '<span class="stg">'+esc(st.label)+'</span></div>';
     };
@@ -319,7 +329,7 @@ tr.cancel > td{color:var(--muted);text-decoration:line-through}
           + '<td title="'+esc(r.role_id)+'">'+esc(r.role_nm || r.role_id)+'</td>'
           + '<td><span class="st '+esc(r.status)+'">'+esc(ST[r.status] || r.status)+'</span></td>'
           + '<td>'+esc(r.requested_by_nm || r.requested_by)+'</td>'
-          + '<td>'+esc(String(r.requested_at||'').slice(0,16).replace('T',' '))+'</td>'
+          + '<td>'+esc(kst(r.requested_at))+'</td>'
           + '<td>'+esc(r.note || '')+'</td></tr>').join('')
       + '</tbody></table>';
     $("pane").innerHTML = html;
@@ -357,7 +367,7 @@ tr.cancel > td{color:var(--muted);text-decoration:line-through}
       const out = [['부서','대상','이메일','ROLE ID','ROLE명','상태','요청자','요청일시','메모','처리자','처리일시']];
       list.forEach(r => out.push([r.dept_nm || r.dept_cd, r.emp_nm || '', r.email, r.role_id, r.role_nm || '',
         ST[r.status] || r.status, r.requested_by_nm || r.requested_by,
-        String(r.requested_at||'').slice(0,19).replace('T',' '), r.note || '',
+        kst(r.requested_at), r.note || '',
         r.applied_by || '', String(r.applied_at||'').slice(0,19).replace('T',' ')]));
       const cell = (v) => { const x = String(v == null ? '' : v); return /[",\n]/.test(x) ? '"'+x.replace(/"/g,'""')+'"' : x; };
       const blob = new Blob(["﻿" + out.map(r => r.map(cell).join(',')).join('\r\n')],
