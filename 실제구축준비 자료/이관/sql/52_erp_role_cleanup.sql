@@ -107,6 +107,51 @@ grant execute on function public.erp_role_cleanup_cancel(bigint[]) to authentica
 
 
 -- ─────────────────────────────────────────────────────────────────────────
+-- §3-2. 부서 단위 「권한확인 완료」 (2026-09-21 관리자 지시)
+--   종전에는 제외할 권한을 하나 이상 골라야만 저장됐다. 그래서 **훑어보고 뺄 게 없는 팀은
+--   아무 기록도 남기지 못했고**, 관리 화면에서 「아직 안 한 팀」과 구분되지 않았다.
+--   확인 자체가 결과다 — 제외 0건이어도 「확인했고 변경 없음」을 남긴다.
+-- ─────────────────────────────────────────────────────────────────────────
+create table if not exists public.role_cleanup_confirm (
+  id               bigint generated always as identity primary key,
+  org_change_id    text not null,
+  dept_cd          text not null,
+  dept_nm          text,
+  batch_id         uuid,                       -- 같이 저장된 제외 요청 묶음(없으면 null)
+  exclude_cnt      int  not null default 0,
+  note             text,                       -- 제외 0건이면 서버가 '변경없음'을 넣는다
+  confirm_text     text not null,
+  confirmed_by     text not null,
+  confirmed_by_nm  text,
+  confirmed_at     timestamptz not null default now(),
+  status           text not null default 'confirmed',   -- confirmed | reopened
+  reopened_by      text,
+  reopened_at      timestamptz,
+  constraint rcc_status_chk check (status in ('confirmed','reopened'))
+);
+-- 한 부서에 살아 있는 확인은 하나뿐. 「수정」은 reopened 로 눕히고 새로 쓴다.
+create unique index if not exists role_cleanup_confirm_open_uq
+  on public.role_cleanup_confirm (org_change_id, dept_cd) where status = 'confirmed';
+create index if not exists role_cleanup_confirm_dept_ix
+  on public.role_cleanup_confirm (org_change_id, dept_cd, status);
+
+alter table public.role_cleanup_confirm enable row level security;
+revoke all on public.role_cleanup_confirm from anon, authenticated;
+grant select, insert, update, delete on public.role_cleanup_confirm to service_role;
+
+--   · erp_role_cleanup_save  — 제외 0건 거부를 없앴다. 0건이면 note='변경없음'.
+--       저장할 때마다 기존 confirmed 를 reopened 로 눕히고 새 확인을 쓴다.
+--   · erp_role_cleanup_reopen(p_dept_cd, p_org_change_id)  (신규)
+--       「수정」 — 확인을 풀어 다시 고를 수 있게 한다. 지우지 않고 reopened 로 남긴다.
+--       이미 올린 제외 요청은 건드리지 않는다(그건 각 행의 「취소」가 따로 맡는다).
+--   · erp_role_cleanup_list  — confirm(고른 부서) · confirms(범위 전체) 추가.
+--       관리 화면 조직도가 「확인했는가」로 부서를 칠하는 데 쓴다 —
+--       ⚠ 요청 건수만 보면 **「변경없음」으로 확인을 마친 팀이 안 한 팀으로 보인다**.
+revoke all on function public.erp_role_cleanup_reopen(text, text) from public, anon;
+grant execute on function public.erp_role_cleanup_reopen(text, text) to authenticated, service_role;
+
+
+-- ─────────────────────────────────────────────────────────────────────────
 -- §4. 관리자 페이지 등재 — /admin/role-cleanup
 --   dept_nm 을 null 로 두는 이유는 50번 §11 과 같다(비관리자 fail-closed).
 -- ─────────────────────────────────────────────────────────────────────────
