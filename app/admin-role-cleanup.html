@@ -54,6 +54,24 @@ body{margin:0;background:var(--bg);color:var(--ink);
 .tnode .sp{flex:1 1 auto}
 .tnode .cnt{color:var(--muted);font-size:11.5px}
 .tnode .hot{color:var(--red);font-weight:700;font-size:11.5px}
+.tnode .dot{width:8px;height:8px;border-radius:50%;flex:0 0 auto;background:var(--line)}
+.tnode .stg{font-size:11px;font-weight:700;white-space:nowrap}
+.tnode.st-none .dot{background:var(--red)}    .tnode.st-none .stg{color:var(--red)}
+.tnode.st-none .nm{font-weight:700}
+.tnode.st-req  .dot{background:var(--amber)}  .tnode.st-req  .stg{color:var(--amber)}
+.tnode.st-done .dot{background:var(--green)}  .tnode.st-done .stg{color:var(--green);opacity:.75}
+.tnode.st-done .nm{color:var(--muted)}
+.dash{display:flex;gap:6px;margin:0 9px 8px}
+.dash .d{flex:1 1 0;border:1px solid var(--line);border-radius:7px;padding:6px 4px;text-align:center}
+.dash .d b{display:block;font-size:17px;line-height:1.2}
+.dash .d span{font-size:10.5px;color:var(--muted)}
+.dash .d.st-none{border-color:#e3b3aa;background:var(--softred)}
+.dash .d.st-none b{color:var(--red)}
+.dash .d.st-req{border-color:#dcc48a;background:var(--softamber)}
+.dash .d.st-req b{color:var(--amber)}
+.dash .d.st-done{border-color:#a9d3bd;background:var(--softgreen)}
+.dash .d.st-done b{color:var(--green)}
+.tfoot{padding:7px 9px;border-top:1px solid var(--line);color:var(--muted);font-size:11px}
 
 .sum{display:flex;align-items:center;gap:15px;flex-wrap:wrap;padding:10px 12px;
   border-bottom:1px solid var(--line);font-size:13px}
@@ -172,7 +190,9 @@ tr.cancel > td{color:var(--muted);text-decoration:line-through}
         if(t && t.unauthorized) return gate('🔐','인증 필요','세션이 만료되었습니다. 다시 로그인하세요.','다시 로그인');
         if(t && t.ok){ TREE = t; if(BAR) BAR.setMeta({ asOf: (t.as_of && String(t.as_of.usr_role||'').slice(0,10)) || null }); }
       }
-      const r = await erpApi.erpRoleCleanupList({ status: st === 'all' ? null : st, limit: 2000 });
+      // 상태는 화면에서 거른다. 조직도가 「이 부서는 아직 손도 안 댔다」를 말하려면
+      // 상태에 상관없이 전체 내역을 쥐고 있어야 하기 때문이다.
+      const r = await erpApi.erpRoleCleanupList({ status: null, limit: 2000 });
       if(r && r.forbidden) return gate('🔒','열람 권한이 필요합니다',
         '이 화면은 <b>관리자</b>이거나 <b>페이지 권한(erp_role_cleanup)</b>을 받은 사용자만 볼 수 있습니다.', null);
       if(r && r.unauthorized) return gate('🔐','인증 필요','세션이 만료되었습니다. 다시 로그인하세요.','다시 로그인');
@@ -190,6 +210,7 @@ tr.cancel > td{color:var(--muted);text-decoration:line-through}
   function rows(ex){
     const kw = String(ex.q || '').trim().toLowerCase();
     return rowsAll().filter(r => {
+      if(STF !== 'all' && r.status !== STF) return false;
       if(SEL && r.dept_cd !== SEL) return false;
       if(!kw) return true;
       return [r.emp_nm, r.email, r.dept_nm, r.role_nm, r.role_id, r.requested_by_nm, r.requested_by]
@@ -203,27 +224,54 @@ tr.cancel > td{color:var(--muted);text-decoration:line-through}
     if(BAR) BAR.applyPeriod();
   }
 
-  /* 조직도 — 정리 내역이 있는 조직만 보여준다(빈 조직을 훑을 이유가 없다) */
+  /* 조직도 — **전 조직**을 보여주고 정리 상태로 칠한다(2026-09-21 관리자 지시).
+     내역이 있는 조직만 보여주면 정작 알아야 할 「아직 손도 안 댄 부서」가 목록에서 사라진다.
+       미검토(빨강) : 이 부서가 올린 요청이 0건 — 팀장에게 독촉할 대상
+       요청 N(주황) : 올렸고 아직 처리 전 — 관리자가 회수할 대상
+       완료(초록)   : 올린 것이 모두 처리완료/취소됨
+     인원이 없는 조직(원가부서·빈 법인)은 정리할 것이 없으므로 세지 않는다. */
+  function deptState(cd){
+    const rs = rowsAll().filter(r => r.dept_cd === cd);
+    if(!rs.length) return { k:'none', label:'미검토', n:0 };
+    const req = rs.filter(r => r.status === 'requested').length;
+    return req ? { k:'req', label:'요청 '+req, n:req }
+               : { k:'done', label:'완료', n:rs.length };
+  }
+
   function renderTree(ex){
+    const all = ((TREE && TREE.nodes) || []).filter(n => (n.member_cnt || 0) > 0);
     const byDept = {};
     rowsAll().forEach(r => { byDept[r.dept_cd] = (byDept[r.dept_cd] || 0) + 1; });
-    const nodes = ((TREE && TREE.nodes) || []).filter(n => byDept[n.dept_cd]);
-    const extra = Object.keys(byDept).filter(cd => !nodes.some(n => n.dept_cd === cd));
+    // 조직도에 없는 부서코드(외부 등)도 내역이 있으면 뒤에 붙인다
+    const extra = Object.keys(byDept).filter(cd => !all.some(n => n.dept_cd === cd));
 
-    const row = (cd, nm, lvl, cnt) =>
-      '<div class="tnode'+(SEL===cd?' sel':'')+'" data-cd="'+esc(cd)+'" style="padding-left:'+(9+(lvl-1)*13)+'px">'
-      + '<span class="nm">'+esc(nm)+'</span><span class="sp"></span>'
-      + '<span class="hot">'+cnt+'</span></div>';
+    let none = 0, req = 0, done = 0;
+    all.forEach(n => { const st = deptState(n.dept_cd);
+      if(st.k === 'none') none++; else if(st.k === 'req') req++; else done++; });
+
+    const row = (cd, nm, lvl) => {
+      const st = deptState(cd);
+      return '<div class="tnode st-'+st.k+(SEL===cd?' sel':'')+'" data-cd="'+esc(cd)+'"'
+        + ' style="padding-left:'+(9+(lvl-1)*13)+'px" title="'+esc(nm+' — '+st.label)+'">'
+        + '<span class="dot"></span><span class="nm">'+esc(nm)+'</span><span class="sp"></span>'
+        + '<span class="stg">'+esc(st.label)+'</span></div>';
+    };
 
     $("pTree").innerHTML =
-      '<h3>조직 <span class="sm">내역 '+num(rowsAll().length)+'건</span></h3>'
+      '<h3>조직 <span class="sm">'+num(all.length)+'개 부서</span></h3>'
+      + '<div class="dash">'
+      +   '<div class="d st-none"><b>'+num(none)+'</b><span>미검토</span></div>'
+      +   '<div class="d st-req"><b>'+num(req)+'</b><span>요청 있음</span></div>'
+      +   '<div class="d st-done"><b>'+num(done)+'</b><span>완료</span></div>'
+      + '</div>'
       + '<div class="tree">'
-      +   '<div class="tnode'+(SEL===null?' sel':'')+'" data-cd=""><span class="nm">전체</span>'
-      +     '<span class="sp"></span><span class="cnt">'+num(rowsAll().length)+'</span></div>'
-      +   nodes.map(n => row(n.dept_cd, n.dept_nm, n.lvl, byDept[n.dept_cd])).join('')
-      +   extra.map(cd => row(cd, cd === '__unassigned__' ? '외부' : cd, 1, byDept[cd])).join('')
-      +   (rowsAll().length ? '' : '<div class="notice" style="margin:9px;border:none">해당 상태의 내역이 없습니다.</div>')
-      + '</div>';
+      +   '<div class="tnode'+(SEL===null?' sel':'')+'" data-cd=""><span class="dot" style="visibility:hidden"></span>'
+      +     '<span class="nm">전체</span><span class="sp"></span>'
+      +     '<span class="cnt">'+num(rowsAll().length)+'건</span></div>'
+      +   all.map(n => row(n.dept_cd, n.dept_nm, n.lvl)).join('')
+      +   extra.map(cd => row(cd, cd === '__unassigned__' ? '외부' : cd, 1)).join('')
+      + '</div>'
+      + '<div class="tfoot">인원이 없는 조직(원가부서·빈 법인)은 정리 대상이 아니라 세지 않습니다</div>';
 
     $("pTree").querySelectorAll('.tnode').forEach(el => el.onclick = () => {
       SEL = el.dataset.cd || null; SELROW.clear(); render(ex);
