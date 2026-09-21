@@ -27,6 +27,7 @@ ROUTES = {
     "/work/subcon-inspection":  "pages/외주발주_검사진행현황_2026.html",
     "/work/item-duplicates":    "pages/품목중복_조회_2026.html",
     "/work/erp-roles":          "pages/ERP권한_조직별현황.html",
+    "/docs/erp/role-cleanup":   "pages/ERP권한정리_사용안내.html",
     "/work/project-cost":       "pages/프로젝트원가_요약_2025-095-SUL-EC.html",
     "/work/project-cost-detail":"pages/2025-095-SUL-EC_원가현황_20260514.html",
     "/work/vendor-mobile":      "pages/협력사_모바일_포털.html",
