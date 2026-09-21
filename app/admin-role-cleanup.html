@@ -148,8 +148,10 @@ tr.cancel > td{color:var(--muted);text-decoration:line-through}
     $("qbar").hidden = false;
     BAR = createQueryBar("#qbar", {
       months: false,
-      basis: "권한정리 요청 장부(role_cleanup)",
-      mode: "live", modeLabel: "실연동", reset: true, refreshLabel: "다시 조회",
+      // 기준·모드 배지와 「최종 조회」 시각은 뺀다(2026-09-21 관리자 지시) —
+      // 기간 축이 없고, 같은 정보가 머리말에 이미 있다. 조회플랫폼 가이드 §6 참조.
+      meta: false, stamp: false,
+      reset: true, refreshLabel: "다시 조회",
       extras: [
         { id:"q",   label:"검색", type:"text", placeholder:"이름·부서·ROLE·요청자", width:"200px", debounce:250 },
         { id:"st",  label:"상태", type:"select", value:"requested",
