@@ -533,12 +533,16 @@ export const erpApi = {
 
   /* ── ERP 권한(role) 조직별 현황 — 정본 SQL 50_erp_role_matrix.sql · REQ-0057 ────────────
      erp_ro 는 REST 비노출이라 화면은 RPC 로만 받는다(직접 from() 하면 오류 없이 빈 결과 — REQ-0015).
-     행 수준 권한은 서버가 강제한다: 관리자=전 조직 / 그 외=perm_grant(scope_type='dept')로
-     지정된 부서와 그 하위만. 권한 오류는 예외가 아니라 플래그로 표준화한다(financeOverview 패턴).
+     행 수준 권한은 서버가 강제한다(정본 53_erp_role_company_read.sql · REQ-0065):
+       · 페이지가 「전사 공개」면 사내 로그인 사용자 전원이 **전 조직**을 본다(scope='all').
+       · 「부서 전용」이면 관리자=전 조직 / 그 외=perm_grant(scope_type='dept')로 지정된 부서와 하위만.
+       · 쓰기(권한정리 저장·상태변경)는 열람과 분리 — 관리자/부서 부여자만(can_write).
+     권한 오류는 예외가 아니라 플래그로 표준화한다(financeOverview 패턴).
      응답이 jsonb 한 덩이라 PostgREST 1000행 상한과 무관 → _pageAll 을 쓰지 않는다.            */
 
   // 조직 트리 + 부서별 분류 집계(집계만 — 개인 행 없음). orgChangeId 생략 시 서버가 현행 버전을 고른다.
-  // 반환: {ok, org_change_id, org_versions[], is_admin, scope, visible_dept_cds, unassigned_cnt, as_of, mirror, nodes[]}
+  // 반환: {ok, org_change_id, org_versions[], is_admin, can_write, scope, visible_dept_cds, unassigned_cnt, as_of, mirror, nodes[]}
+  //   scope='all' → 전 조직(관리자이거나 전사 공개) · can_write=false 면 화면이 권한정리 탭을 숨긴다
   async erpRoleOrgTree(orgChangeId = null) {
     const { data, error } = await supabase.rpc("erp_role_org_tree", { p_org_change_id: orgChangeId || null });
     if (error) {

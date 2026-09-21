@@ -289,6 +289,13 @@ tr.lead > td:first-child{font-weight:700}
   let PICK = new Map();       // 권한정리 — 제외 담기 (key: email|role_id)
   let CLCONFIRM = '', CLNOTE = '', CLDONE = null, CLLOG = null, CLBUSY = false;
 
+  /* 전사 열람(REQ-0065 · 2026-09-21 관리자 지시) — 페이지가 「전사 공개」인 동안에는
+     서버가 전 조직을 내려준다(scope='all'). 「부서 전용」으로 되돌리면 옛 동작
+     (perm_grant dept 로 지정된 부서만)으로 자동 복귀하므로 화면도 두 경우를 다 견뎌야 한다.
+     쓰기(권한정리 저장·상태변경)는 넓어지지 않는다 — 관리자/부서 범위 부여자만(can_write). */
+  const readsAll = () => !!(TREE && (TREE.is_admin || TREE.scope === 'all'));
+  const canWrite = () => !!(TREE && TREE.can_write);
+
   async function boot(){
     const { data:{ session } } = await supabase.auth.getSession();
     if(!session){
@@ -329,15 +336,17 @@ tr.lead > td:first-child{font-weight:700}
       if(!TREE || reason === 'refresh' || reason === 'auto'){
         const t = await erpApi.erpRoleOrgTree();
         if(t && t.forbidden) return gate('🔒','열람 권한이 필요합니다',
-          'ERP 권한 현황은 <b>관리자</b>이거나, 관리자에게 <b>페이지 권한(erp_role_matrix)</b>을 받은 사용자만 볼 수 있습니다.<br>'
-          + '부서장 열람은 <b>부서 범위(perm_grant · dept)</b>도 함께 필요합니다.', null);
+          '이 화면은 지금 <b>부서 전용</b>으로 설정되어 있습니다 — <b>관리자</b>이거나, '
+          + '관리자에게 <b>부서 범위(perm_grant · dept)</b>를 받은 사용자만 볼 수 있습니다.<br>'
+          + '전 직원에게 열려면 관리자가 관리 화면에서 이 페이지를 <b>「전사 공개」</b>로 바꾸면 됩니다.', null);
         if(t && t.unauthorized) return gate('🔐','인증 필요','세션이 만료되었습니다. 다시 로그인하세요.','다시 로그인');
         if(!t || !t.ok) return gate('⚠','데이터 없음','표시할 조직 데이터가 없습니다.', null);
         TREE = t;
         if(BAR) BAR.setMeta({ asOf: asOfLabel(t.as_of) });
-        $("bScope").className = 'badge ' + (t.is_admin ? 'b' : 'a');
+        $("bScope").className = 'badge ' + (readsAll() ? 'b' : 'a');
         $("bScope").textContent = t.is_admin ? '열람범위: 전 조직 (관리자)'
-          : '열람범위: 지정 부서 ' + ((t.visible_dept_cds || []).length) + '곳';
+          : (t.scope === 'all' ? '열람범위: 전 조직 (전사 공개)'
+          : '열람범위: 지정 부서 ' + ((t.visible_dept_cds || []).length) + '곳');
         if(!OPENED) initOpen();
         if(!SEL) SEL = pickDefault();
       }
@@ -375,7 +384,7 @@ tr.lead > td:first-child{font-weight:700}
 
   const nodes = () => (TREE && TREE.nodes) || [];
   function byCd(cd){
-    if(cd === UNASSIGNED) return { dept_cd:UNASSIGNED, dept_nm:'외부', visible: !!(TREE && TREE.is_admin) };
+    if(cd === UNASSIGNED) return { dept_cd:UNASSIGNED, dept_nm:'외부', visible: readsAll() };
     return nodes().find(n => n.dept_cd === cd) || null;
   }
   // 인원 없는 조직(원가부서·빈 법인)은 그리지 않는다 — 토글 없이 항상 제외
@@ -466,7 +475,7 @@ tr.lead > td:first-child{font-weight:700}
                       : '「'+esc(kw)+'」와 이름이 같은 부서는 없습니다 — 사람 이름이면 오른쪽 목록에서 찾습니다')
             + '</div>' : '')
       + '<div class="tree">' + (rows || '<div class="notice" style="margin:9px;border:none">표시할 조직이 없습니다.</div>')
-      + (un > 0 && TREE.is_admin
+      + (un > 0 && readsAll()
           ? '<div class="tnode'+(SEL===UNASSIGNED?' sel':'')+'" data-cd="'+UNASSIGNED+'" data-kids="0"'
             + ' style="border-top:1px solid var(--line);padding:6px 9px"'
             + ' title="사내 조직에 속하지 않은 ERP 계정 — 외부 회계사·ERP 관리자 등. 조직도 밖이라 묻히기 쉬운 검토 대상입니다">'
@@ -508,6 +517,8 @@ tr.lead > td:first-child{font-weight:700}
     }
     if(!DETAIL){ $("pDet").innerHTML = '<div class="pane"><div class="loading">불러오는 중…</div></div>'; return; }
 
+    // 쓰기 권한이 없으면 권한정리 탭 자체를 두지 않는다 — 눌러도 저장이 거부되는 탭은 두지 않는다(REQ-0065)
+    if(TAB === 'clean' && !canWrite()) TAB = 'matrix';
     const d = DETAIL.dept || {}, m = members();
 
     const roleSet = new Set();
@@ -530,7 +541,7 @@ tr.lead > td:first-child{font-weight:700}
       +   tabBtn('matrix','Matrix')
       +   tabBtn('member','구성원 '+m.length)
       +   tabBtn('role','권한별')
-      +   tabBtn('clean','권한정리'+(PICK.size ? ' '+PICK.size : ''))
+      +   (canWrite() ? tabBtn('clean','권한정리'+(PICK.size ? ' '+PICK.size : '')) : '')
       + '</div><div class="pane" id="pane"></div>';
 
     $("pDet").querySelectorAll('.tab').forEach(t => t.onclick = () => { TAB = t.dataset.k; renderDetail(ex); });
