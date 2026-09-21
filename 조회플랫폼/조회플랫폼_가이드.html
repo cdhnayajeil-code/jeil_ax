@@ -42,7 +42,7 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <body>
 <div class="page">
   <span class="doc-label">JEIL AX · 표준 조회 플랫폼</span>
-  <div class="docnav"><a href="/docs/querybar">🔎 조회 플랫폼 데모</a><a class="cur" href="/docs/querybar/guide">표준 조회 플랫폼 가이드</a><a href="/docs/grid">🧩 그리드 표준</a></div>
+  <div class="docnav"><a href="/docs/querybar">🔎 조회 플랫폼 데모</a><a class="cur" href="/docs/querybar/guide">표준 조회 플랫폼 가이드</a><a href="/그리드/index.html">🧩 그리드 표준</a></div>
   <p class="md-link">📄 Markdown 원본: <a href="/docs/querybar/guide">조회플랫폼_가이드.md</a> · 데모 <a href="/docs/querybar">조회 플랫폼 데모</a></p>
   <div class="content">
 <h1 id="_1">표준 조회 플랫폼 가이드</h1>
@@ -249,6 +249,16 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <td>배지 문구 직접 지정</td>
 </tr>
 <tr>
+<td><code>meta</code></td>
+<td><code>true</code></td>
+<td>기준일·기준·모드 배지 표시. <code>false</code> 면 그 자리를 <strong>아예 만들지 않는다</strong></td>
+</tr>
+<tr>
+<td><code>stamp</code></td>
+<td><code>true</code></td>
+<td>「최종 조회 hh:mm:ss (n분 전)」 표시. <code>false</code> 면 숨긴다</td>
+</tr>
+<tr>
 <td><code>extras</code></td>
 <td><code>[]</code></td>
 <td>추가 조회조건. <code>{id,label,type,options,value,placeholder,width,title,debounce}</code> · type: <code>text</code>|<code>select</code>|<code>date</code>|<code>checkbox</code></td>
@@ -377,6 +387,17 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <li>권한 게이트에 걸리면 조회바도 함께 감춘다(<code>hidden</code>). 못 보는 화면에 조회 UI 만 남기지 않는다.</li>
 </ol>
 <hr />
+<h3 id="metafalse-stampfalse">기준 표시를 끌 때 (<code>meta:false</code> · <code>stamp:false</code>)</h3>
+<p>§5 의 「기준일은 조회바가 유일한 출처」 원칙은 <strong>기간 축이 있는 화면</strong> 이야기다.
+기간 개념이 없고(<code>months:false</code>) 알려 줄 기준이 사실상 하나뿐인 화면에서는
+조회바의 기준 배지가 머리말과 같은 말을 두 번 하는 군더더기가 된다.
+이때만 <code>meta:false</code>·<code>stamp:false</code> 로 끄고 <strong>「다시 조회」 버튼만</strong> 남긴다.</p>
+<ul>
+<li>끄기로 했으면 <strong>기준을 화면 어딘가에는 반드시 남긴다</strong>(머리말 <code>data-qbar-asof</code> 등).
+  둘 다 지우면 사용자가 "이게 언제 자료냐"를 물을 곳이 없어진다.</li>
+<li>기간 축이 있는 화면에서는 끄지 않는다 — 월을 고르는데 기준일이 없으면 해석이 불가능하다.</li>
+<li>선례: ERP 권한 조직별 현황(<code>/work/erp-roles</code>, 2026-09-21) — 기간 축 없음 + 머리말에 기준 표기.</li>
+</ul>
 <h2 id="7">7. 규약</h2>
 <ol>
 <li><strong>전역 셀렉터를 만들지 않는다.</strong> CSS 는 <code>.qbar__</code> 스코프만 쓴다(같은 화면의 다른 표·폼 오염 금지).

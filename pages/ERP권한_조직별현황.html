@@ -122,17 +122,15 @@ tr.lead > td:first-child{font-weight:700}
 /* 눈에 띄어야 할 줄만 — 왼쪽 띠와 작은 꼬리표로만 표시한다.
    행 전체를 칠하면 매트릭스가 읽히지 않아서, 색은 최소로 쓴다. */
 .mx__wrap td.mx__fix.f1{box-shadow:inset 3px 0 0 var(--amber)}
-.mx__wrap td.mx__fix.f2{box-shadow:inset 3px 0 0 var(--red)}
 .mx__tag{display:inline-block;margin-left:5px;padding:0 5px;border-radius:9px;
   font-size:10.5px;font-weight:700;border:1px solid;white-space:nowrap}
 .mx__tag.f1{color:var(--amber);border-color:#dcc48a;background:var(--softamber)}
-.mx__tag.f2{color:var(--red);border-color:#e3b3aa;background:var(--softred)}
 .mx__wrap td.mx__n.h1{background:var(--softamber)}
-.mx__wrap td.mx__n.h2{background:var(--softred)}
 .mx__hint{display:flex;gap:7px 14px;align-items:center;flex-wrap:wrap;
   margin:0 0 8px;font-size:11.5px;color:var(--muted);line-height:1.6}
 .mx__hint .k{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:5px}
-.mx__hint .k.f1{background:var(--amber)} .mx__hint .k.f2{background:var(--red)}
+.mx__hint .k.f1{background:var(--amber)}
+.mx__hint .warn{color:#7a5514}
 .mx__hint b{color:var(--ink)}
 .mx__wrap th.mx__n .mx__dp{display:block;font-weight:400;font-size:9.5px;color:var(--muted);
   margin-top:2px;white-space:nowrap}
@@ -173,6 +171,9 @@ tr.lead > td:first-child{font-weight:700}
 .cl__pick .x{cursor:pointer;color:var(--red);margin-left:5px;font-weight:700}
 .cl__ok{border:1px solid #a9d3bd;background:var(--softgreen);color:#1c6b45;border-radius:7px;
   padding:9px 12px;margin-bottom:9px}
+.cl__adm{display:inline-block;padding:5px 10px;border:1px solid var(--line);border-radius:6px;
+  background:#fff;color:var(--navy2);font-size:12.5px;text-decoration:none;font-weight:600}
+.cl__adm:hover{border-color:var(--accent);color:var(--accent)}
 
 /* Role 상세 팝업 */
 .ov{position:fixed;inset:0;background:rgba(20,30,45,.45);display:flex;align-items:center;
@@ -288,8 +289,10 @@ tr.lead > td:first-child{font-weight:700}
     BAR = createQueryBar("#qbar", {
       // 기간 축 없음 — usr_role_s 에 부여일자 컬럼이 없다. 고를 수 없는 기간을 만들지 않는다(§16.6).
       months: false,
-      basis: "ERP 권한 마스터(usr_role_s · role_menu_s)",
-      mode: "live", modeLabel: "실연동", reset: true, refreshLabel: "다시 조회",
+      // 기준·모드 배지와 「최종 조회」 시각은 뺀다(2026-09-21 관리자 지시) —
+      // 기간 축이 없는 화면이라 알려 줄 게 없고, 같은 정보가 머리말에 이미 있다.
+      meta: false, stamp: false,
+      reset: true, refreshLabel: "다시 조회",
       extras: [
         { id:"q",     label:"이름·부서", type:"text", placeholder:"사람 이름 또는 부서명", width:"175px", debounce:250 },
         { id:"rq",    label:"권한(Role)", type:"text", placeholder:"Role명 또는 ID",       width:"175px", debounce:350 },
@@ -607,8 +610,9 @@ tr.lead > td:first-child{font-weight:700}
          팀 전원이 가진 권한도 소수처럼 보인다.
        · 그게 **쓰기 권한이거나 민감 모듈이거나, 이 부서가 거의 안 쓰는 모듈**인가
 
-     f2(빨강) = 소수 보유 + (쓰기 | 민감 | 이 부서가 거의 안 쓰는 모듈)  → 먼저 볼 것
-     f1(주황) = 소수 보유 (조회 위주)                                   → 참고
+     표시는 「확인」 하나뿐이다(2026-09-21 관리자 지시 — 등급을 나누면 낮은 등급이 안전해 보인다).
+     이건 **예상**이지 판정이 아니다. 기준표가 없으니 "다른 사람과 다르다"까지만 말할 수 있고,
+     진짜 타부서 권한인데 부서원 다수가 함께 갖고 있으면 여기 뜨지 않는다.
      인원이 적은 조직(3명 미만)은 무엇이든 소수라서 판정하지 않는다. */
   function flagRoles(mem, roles){
     // 이 부서가 실제로 쓰는 모듈 — 구성원 중 몇 %가 그 모듈 권한을 갖는가
@@ -648,25 +652,27 @@ tr.lead > td:first-child{font-weight:700}
       ].filter(Boolean).join(' · ');
 
       out[r.role_id] = {
-        lv: hard ? 2 : 1,
-        tag: hard ? '확인' : '소수',
-        why: why + (hard ? ' — 업무상 필요한지 확인해 주세요' : ''),
+        lv: 1,                      // 등급을 나누지 않는다 — 전부 「확인」
+        tag: '확인',
+        why: why + ' — 소수 권한 또는 타부서 권한으로 예상됩니다. 업무상 필요한지 확인해 주세요',
         hs: holders,
       };
     });
     return out;
   }
 
-  /* 매트릭스 위 안내 한 줄 */
+  /* 매트릭스 위 안내 — 「여기 없으면 안전하다」로 읽히지 않게 쓴다.
+     부서원 다수가 함께 가진 타부서 권한은 이 표시에 걸리지 않기 때문이다. */
+  const FLNOTE = '⚠ <b>이 표시만 보고 판단하지 마세요.</b> 실제 타부서 권한인데 부서원 다수가 '
+    + '함께 갖고 있으면 여기 뜨지 않습니다 — 전체 권한을 함께 살펴봐 주세요.';
   function flagHint(fl){
-    const n2 = Object.values(fl).filter(f => f.lv === 2).length;
-    const n1 = Object.values(fl).filter(f => f.lv === 1).length;
-    if(!n1 && !n2) return '<div class="mx__hint">이 조직에서 <b>유난히 튀는 권한은 없습니다</b> — '
-      + '모든 권한을 부서원 다수가 함께 갖고 있습니다.</div>';
-    return '<div class="mx__hint"><span><b>색이 있는 줄만 보시면 됩니다.</b></span>'
-      + (n2 ? '<span><i class="k f2"></i>확인 <b>'+n2+'건</b> — 소수만 가진 쓰기·민감·타 모듈 권한</span>' : '')
-      + (n1 ? '<span><i class="k f1"></i>소수 <b>'+n1+'건</b> — 부서원 일부만 가진 조회성 권한</span>' : '')
-      + '<span>나머지는 부서에서 흔한 권한입니다.</span></div>';
+    const n = Object.keys(fl).length;
+    if(!n) return '<div class="mx__hint"><span>이 조직에는 <b>눈에 띄는 권한이 없습니다</b> — '
+      + '모든 권한을 부서원 다수가 함께 갖고 있습니다.</span><span>'+FLNOTE+'</span></div>';
+    return '<div class="mx__hint">'
+      + '<span><i class="k f1"></i><b>확인 '+n+'건</b> — 소수 권한 또는 타부서 권한으로 '
+      + '<b>예상되는</b> 권한입니다</span>'
+      + '<span>'+FLNOTE+'</span></div>';
   }
 
   function paneMatrix(ex){
@@ -978,7 +984,12 @@ tr.lead > td:first-child{font-weight:700}
       + '<input type="text" id="clNote" placeholder="메모(선택)" style="width:180px" value="'+esc(CLNOTE)+'">'
       + '<input type="text" id="clOk" placeholder="'+CLTEXT+'" style="width:150px" value="'+esc(CLCONFIRM)+'">'
       + '<button class="go" id="clSave"'+(canSave?'':' disabled')+'>저장</button>'
-      + '<button id="clLog">내역 보기</button></div>';
+      + '<button id="clLog">내역 보기</button>'
+      + (TREE && TREE.is_admin
+          ? '<a class="cl__adm" href="/admin/role-cleanup" target="_blank" rel="noopener"'
+            + ' title="관리자용 — 전 조직의 권한정리 요청을 모아 보고 처리 상태를 바꿉니다">'
+            + '🧹 정리 내역 관리</a>' : '')
+      + '</div>';
 
     if(PICK.size){
       html += '<div class="cl__pick"><b>제외할 권한 '+PICK.size+'건</b><br>'
