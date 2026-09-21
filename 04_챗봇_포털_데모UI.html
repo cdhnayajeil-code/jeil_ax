@@ -425,6 +425,8 @@
     <h2 style="font-size:24px;">JEIL AI Portal</h2>
     <p class="sub">제일엠앤에스(JEIL M&amp;S) 사내 업무지원 AI 포털</p>
     <p style="font-size:14px; color:#444; margin:20px 0 24px;">회사 계정(<b>@jeilm.co.kr</b>)으로 로그인하면<br>바로 이용할 수 있습니다.</p>
+    <!-- 부서 운영 페이지 링크로 들어온 미로그인 방문자 안내 — 로그인 후 그 화면으로 되돌아간다(REQ-0062) -->
+    <p id="nextHint" style="display:none; font-size:13px; color:#1a2f4e; background:#eef2f8; border:1px solid #d8dee8; border-radius:9px; padding:10px 12px; margin:-8px 0 20px; text-align:center; line-height:1.6;"></p>
     <button class="ms-btn" style="width:100%; display:flex; align-items:center; justify-content:center; gap:9px; padding:12px 30px; font-size:14.5px;" onclick="doLogin()">
       <span class="ms-sq" style="grid-gap:1.5px;"><i></i><i></i><i></i><i></i></span> Microsoft 계정으로 로그인
     </button>
@@ -1357,9 +1359,58 @@ function demoEnter(){
   document.getElementById('loginOv').style.display='none';
   setAuthBadge('👁 데모 모드 — 미인증 (예시 데이터)');
 }
+
+/* ===== 로그인 후 돌아갈 화면(REQ-0062) =====
+   부서 운영 페이지 게이트(pages/_access-gate.js)가 미로그인 방문자를 여기로 보낼 때
+   원래 주소를 sessionStorage('jeilax_next')와 쿼리(?next=)로 함께 넘긴다.
+   Entra 왕복에서 쿼리는 사라지므로 실제 운반은 sessionStorage가 한다(PKCE verifier와 동일).
+   보안: 같은 출처의 경로만 허용한다 — 외부 URL·프로토콜 상대주소(//)는 무시(오픈 리다이렉트 차단). */
+function safeNext(p){
+  if(!p) return null;
+  p = String(p);
+  if(p.charAt(0) !== '/') return null;                       // 절대 URL·상대경로 모두 거부
+  if(p.charAt(1) === '/' || p.charAt(1) === '\\') return null; // //evil.example → 외부 출처
+  if(/^\/main(\/|\?|#|$)/.test(p)) return null;               // 포털 자신 → 순환 방지
+  return p;
+}
+var PENDING_NEXT = (function(){
+  var q = new URLSearchParams(location.search);
+  if(q.has('teamsauth') || (function(){ try{ return sessionStorage.getItem('teams_auth_popup') === '1'; }catch(e){ return false; } })()){
+    return null;   // Teams 인증 팝업 창은 토큰만 넘기고 닫힌다 — 이동시키지 않는다
+  }
+  var raw = q.get('next');
+  if(raw){
+    try{ sessionStorage.setItem('jeilax_next', raw); }catch(e){}
+    try{ // 주소창에서 next만 제거(code·state 등 다른 쿼리는 보존)
+      q.delete('next');
+      var rest = q.toString();
+      history.replaceState(null, '', location.pathname + (rest ? '?' + rest : '') + location.hash);
+    }catch(e){}
+  }
+  if(!raw){ try{ raw = sessionStorage.getItem('jeilax_next'); }catch(e){} }
+  return safeNext(raw);
+})();
+/* 로그인(실토큰) 직후 1회만 이동. 읽는 즉시 지워 재방문 시 다시 튕기지 않는다. */
+function consumePendingNext(){
+  if(!PENDING_NEXT) return false;
+  var to = PENDING_NEXT; PENDING_NEXT = null;
+  try{ sessionStorage.removeItem('jeilax_next'); sessionStorage.removeItem('jeilax_next_name'); }catch(e){}
+  location.replace(to);
+  return true;
+}
+/* 미로그인 화면에 "로그인하면 어디로 가는지" 알린다 — 링크를 받고 들어온 사람이 길을 잃지 않게. */
+function showNextHint(){
+  var el = document.getElementById('nextHint'); if(!el) return;
+  if(!PENDING_NEXT){ el.style.display='none'; return; }
+  var nm = ''; try{ nm = sessionStorage.getItem('jeilax_next_name') || ''; }catch(e){}
+  el.innerHTML = '🔗 로그인하면 <b>' + escHtml(nm || PENDING_NEXT) + '</b> 화면으로 이동합니다.';
+  el.style.display = '';
+}
+
 function authDone(claims){
   document.getElementById('loginOv').style.display='none';
   var live = !!getLiveAuth();   // 실제 사용 가능한 액세스 토큰 유무 — 배지/사용 상태의 진실
+  if(live && consumePendingNext()) return;   // 게이트에서 넘어온 화면으로 복귀(REQ-0062)
   if(claims){
     setUser(claims.name || '인증 사용자', claims.preferred_username || claims.email, (claims.preferred_username||'') + (live ? ' · MFA 인증' : ' · 제한 모드'));
   } else {
@@ -1484,6 +1535,7 @@ function doLogin(){ if(IN_TEAMS){ loginInTeams(); } else { msLogin('select_accou
   // ── 일반 브라우저 / Teams 탭 임베드 공통 흐름 ──
   handleAuthCallback();
   restoreSessionUI();   // 저장된(유효/갱신가능) 토큰이면 로그인 UI 복원 — 재로드 후에도 실데이터 유지
+  showNextHint();       // 게이트에서 넘어왔으면 "로그인하면 〈화면〉으로 이동" 안내(REQ-0062)
   scheduleTokenRefresh(); // 만료 전 사전 갱신 예약(세션 자동 유지)
   loadPagePerms(); // 초기 로드 시 부서 운영 카드를 권한 기준으로 구성(미로그인=잠금)
   renderDashline(); applyFavStars(); // 상단 즐겨찾기 대시보드 라인 + 운영 페이지 카드 ★

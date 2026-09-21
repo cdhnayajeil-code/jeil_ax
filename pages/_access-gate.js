@@ -5,6 +5,7 @@
 // 동작: PAGE_KEY의 접근 권한을 jeil-me(Entra 토큰 Graph 재검증)로 확인 → 미허가면 화면 차단.
 //   · iframe/임베드(통합본 srcdoc) 안에서는 skip — 상위 포털이 이미 판정, 오프라인 데모 보호.
 //   · 최상위 문서(직접 URL 접근 포함)에서만 강제 → URL만 알아도 접근 불가.
+//   · 미로그인이면 포털로 보내되 "돌아올 주소"를 함께 넘긴다(REQ-0062) — 포털이 로그인 직후 이 화면으로 되돌린다.
 (function () {
   // 임베드(통합본 오버레이·미리보기) 안에서는 게이트 미적용
   try { if (window.self !== window.top) return; } catch (e) { /* cross-origin 임베드 → 계속(차단측 안전) */ }
@@ -17,6 +18,19 @@
   function auth() {
     try { var a = JSON.parse(localStorage.getItem("jeilax_auth") || "null"); return (a && a.at && a.exp > Date.now()) ? a : null; }
     catch (e) { return null; }
+  }
+
+  /* 미로그인 → 포털(로그인)로 보내면서 돌아올 주소를 남긴다.
+     Entra 왕복(/main → login.microsoftonline.com → / → /main?code=…)에서 쿼리는 사라지므로
+     실제 운반은 같은 탭의 sessionStorage 가 한다(PKCE verifier·state 와 같은 방식).
+     쿼리 next 는 이미 로그인된 탭에서 곧바로 되돌리기 위한 보조 경로 + 사람이 읽는 흔적. */
+  function toPortalForLogin() {
+    var here = location.pathname + location.search + location.hash;
+    try {
+      sessionStorage.setItem("jeilax_next", here);
+      sessionStorage.setItem("jeilax_next_name", (document.title || "").slice(0, 120));
+    } catch (e) { /* 저장 불가(사생활 보호 모드 등) → 포털에 머문다 */ }
+    location.replace(PORTAL + "?next=" + encodeURIComponent(here));
   }
   function block(title, msg) {
     document.documentElement.innerHTML =
@@ -32,7 +46,7 @@
 
   function gate() {
     var a = auth();
-    if (!a) { location.replace(PORTAL); return; } // 미로그인 → 포털(로그인)로
+    if (!a) { toPortalForLogin(); return; } // 미로그인 → 포털(로그인)로, 로그인 후 이 화면으로 복귀
     // 판정 전까지 본문 숨김(권한 없는 내용의 순간 노출 방지)
     var hide = document.createElement("style");
     hide.id = "__gate_hide"; hide.textContent = "body{visibility:hidden !important;}";
