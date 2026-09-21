@@ -230,12 +230,15 @@ tr.cancel > td{color:var(--muted);text-decoration:line-through}
        요청 N(주황) : 올렸고 아직 처리 전 — 관리자가 회수할 대상
        완료(초록)   : 올린 것이 모두 처리완료/취소됨
      인원이 없는 조직(원가부서·빈 법인)은 정리할 것이 없으므로 세지 않는다. */
+  /* 부서 상태 — 「팀장이 확인했는가」가 1차 기준이다.
+     제외 요청 0건도 확인이므로(변경없음), 요청 건수만으로는 「안 한 팀」을 가려낼 수 없다. */
+  const confirmOf = (cd) => ((DATA && DATA.confirms) || []).find(c => c.dept_cd === cd) || null;
   function deptState(cd){
-    const rs = rowsAll().filter(r => r.dept_cd === cd);
-    if(!rs.length) return { k:'none', label:'미검토', n:0 };
-    const req = rs.filter(r => r.status === 'requested').length;
-    return req ? { k:'req', label:'요청 '+req, n:req }
-               : { k:'done', label:'완료', n:rs.length };
+    const cf  = confirmOf(cd);
+    const req = rowsAll().filter(r => r.dept_cd === cd && r.status === 'requested').length;
+    if(!cf)  return { k:'none', label:'미확인', n:0 };
+    if(req)  return { k:'req',  label:'처리대기 '+req, n:req };
+    return { k:'done', label:'확인완료'+(cf.note ? ' · '+cf.note : ''), n:0 };
   }
 
   function renderTree(ex){
@@ -250,9 +253,11 @@ tr.cancel > td{color:var(--muted);text-decoration:line-through}
       if(st.k === 'none') none++; else if(st.k === 'req') req++; else done++; });
 
     const row = (cd, nm, lvl) => {
-      const st = deptState(cd);
+      const st = deptState(cd), cf = confirmOf(cd);
       return '<div class="tnode st-'+st.k+(SEL===cd?' sel':'')+'" data-cd="'+esc(cd)+'"'
-        + ' style="padding-left:'+(9+(lvl-1)*13)+'px" title="'+esc(nm+' — '+st.label)+'">'
+        + ' style="padding-left:'+(9+(lvl-1)*13)+'px" title="'
+        + esc(nm+' — '+st.label+(cf ? ' (확인 '+(cf.by||'')+' · '
+              +String(cf.at||'').slice(0,10)+')' : ' — 팀장 확인이 아직 없습니다'))+'">'
         + '<span class="dot"></span><span class="nm">'+esc(nm)+'</span><span class="sp"></span>'
         + '<span class="stg">'+esc(st.label)+'</span></div>';
     };
@@ -260,9 +265,9 @@ tr.cancel > td{color:var(--muted);text-decoration:line-through}
     $("pTree").innerHTML =
       '<h3>조직 <span class="sm">'+num(all.length)+'개 부서</span></h3>'
       + '<div class="dash">'
-      +   '<div class="d st-none"><b>'+num(none)+'</b><span>미검토</span></div>'
-      +   '<div class="d st-req"><b>'+num(req)+'</b><span>요청 있음</span></div>'
-      +   '<div class="d st-done"><b>'+num(done)+'</b><span>완료</span></div>'
+      +   '<div class="d st-none"><b>'+num(none)+'</b><span>미확인</span></div>'
+      +   '<div class="d st-req"><b>'+num(req)+'</b><span>처리대기</span></div>'
+      +   '<div class="d st-done"><b>'+num(done)+'</b><span>확인완료</span></div>'
       + '</div>'
       + '<div class="tree">'
       +   '<div class="tnode'+(SEL===null?' sel':'')+'" data-cd=""><span class="dot" style="visibility:hidden"></span>'
@@ -271,7 +276,8 @@ tr.cancel > td{color:var(--muted);text-decoration:line-through}
       +   all.map(n => row(n.dept_cd, n.dept_nm, n.lvl)).join('')
       +   extra.map(cd => row(cd, cd === '__unassigned__' ? '외부' : cd, 1)).join('')
       + '</div>'
-      + '<div class="tfoot">인원이 없는 조직(원가부서·빈 법인)은 정리 대상이 아니라 세지 않습니다</div>';
+      + '<div class="tfoot">🔴 <b>미확인</b> = 팀장 확인이 아직 없는 부서 · 🟠 <b>처리대기</b> = 확인은 끝났고 ERP 회수가 남은 부서 · '
+      + '🟢 <b>확인완료</b>(제외 0건이면 「변경없음」)<br>인원이 없는 조직(원가부서·빈 법인)은 정리 대상이 아니라 세지 않습니다</div>';
 
     $("pTree").querySelectorAll('.tnode').forEach(el => el.onclick = () => {
       SEL = el.dataset.cd || null; SELROW.clear(); render(ex);
