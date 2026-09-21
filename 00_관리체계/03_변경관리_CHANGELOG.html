@@ -116,6 +116,13 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 </tr>
 <tr>
 <td>2026-09-21</td>
+<td>ERP 권한 · 운영페이지 · 중간DB</td>
+<td><code>pages/ERP권한_조직별현황.html</code> · <code>이관/sql/51_erp_role_menu.sql</code>(§9) · <code>erp_ro.mv_menu_name</code>(신규) · <code>erp_role_menu_detail</code>·<code>erp_role_list</code>·<code>erp_menu_reconcile</code></td>
+<td><strong>검색이 하위 조직을 못 찾던 버그 + 메뉴가 코드로 보이던 문제 + 메뉴 검색 분리</strong>(관리자 지시). ① <strong>버그</strong>: 조직도가 「펼쳐진 노드만」 그려서, 부서명을 검색해도 부모가 접혀 있으면 아예 렌더되지 않았다 (「사업관리팀」 검색 → 트리에 0건). 하위부서 포함을 켜도 트리는 그대로였다. → 검색에 걸린 부서·선택한 부서의 <strong>경로만 이번 렌더에서 펼친다</strong>(<code>OPEN</code> 은 보존 — 검색어를 지우면 접어 둔 모양이 돌아온다). 매트릭스·권한정리 <strong>열 머리에 부서명</strong>을 덧붙여 하위부서를 구분한다. ② <strong>메뉴명</strong>: <code>role_menu</code> 코드 2,455종 중 <strong>76종이 메뉴 마스터에 없었다</strong> — 참조 ERP 내보내기도 같은 코드를 보여주니 우리 미러가 빠뜨린 게 아니라 원천에 이름이 없다. 그중 <strong>49종은 <code>_KO174</code>·<code>_CKO174</code> 법인 변형</strong>이라 기본 코드의 이름을 빌려 쓰고 변형 코드를 함께 띄운다(<code>A5101M1_KO174</code> → 결의전표등록 <code>KO174</code>). 남는 <strong>27종은 코드 그대로 두고 「메뉴명 미등록」</strong>이라 적는다. ③ 조회조건에서 <strong>메뉴명 검색을 빼고</strong> 조직과 무관한 <strong>「전체 권한 조회」 버튼</strong>으로 옮겼다 — 권한 58종 목록(모듈 묶음·Role명·메뉴명 검색) + 메뉴 권한 트리 + 보유자. 메뉴는 조직과 무관한 마스터라 부서를 고를 때마다 서버를 때릴 이유가 없다. ⚠ <strong>함정 2개를 실제로 밟고 고쳤다</strong>: (가) 메뉴명 뷰를 평범한 뷰로 만들었더니 재귀 CTE 를 <strong>행마다</strong> 다시 돌려 <strong>7.9초</strong>(loops=2455) — 화면이 「불러오는 중…」에서 멈췄다. 실체화 뷰로 바꿔 <strong>3.8ms</strong>, 갱신은 <code>erp_menu_reconcile</code> 안에 붙여 조용히 낡지 않게 했다. (나) 조회 실패 시 <code>busy</code> 플래그가 풀리지 않아 이후 조회가 전부 무시됐다 → <code>try/finally</code>. 또한 조사용 쿼리에서 상관 서브쿼리의 컬럼을 한정하지 않아 「76종 중 73종 해석 가능」이라는 <strong>틀린 수</strong>가 나왔다(실제 49종) — 51번 §9 에 경고로 남김</td>
+<td>최동혁(+Claude)</td>
+</tr>
+<tr>
+<td>2026-09-21</td>
 <td>ERP 권한 · 운영페이지</td>
 <td><code>pages/ERP권한_조직별현황.html</code></td>
 <td><strong>경고를 줄이고 눈에 띌 것만 눈에 띄게</strong>(관리자 지시). ① 「ERP 미러에 회수 잔재 N건」 배너를 <strong>제거</strong>했다 — 실측 결과 69건 <strong>전부 <code>revoked_at</code> 이 찍힌 정상 회수 이력</strong>이고 집계에서 이미 빠져 있었다. 정상 동작을 매번 경고로 띄우면 진짜 경고가 묻힌다. ② 매트릭스·권한정리 탭에 <strong>튀는 권한 표시</strong>를 넣었다 — 빨강 「확인」(소수 보유 + 쓰기·민감·부서가 거의 안 쓰는 모듈) · 주황 「소수」(부서원 일부만 가진 조회성). 색은 <strong>왼쪽 3px 띠와 작은 꼬리표</strong>로만 쓰고 행 전체를 칠하지 않는다 — 다 칠하면 매트릭스가 안 읽힌다. 위에 한 줄 안내(「색이 있는 줄만 보시면 됩니다」 + 건수)를 붙였다. ⚠ <strong>부서 표준 세트를 되살린 게 아니다</strong>(2026-09-18 결정 유지) — 기준표 없이 <strong>데이터가 스스로 말하는 것</strong>만 쓴다: 서버가 주는 <code>peer_cnt</code>·<code>dept_size</code>(자기 부서 기준·회수분 제외)로 보유율 ≤34% 를 잡는다. 화면에서 세지 않는 이유는 「하위부서 포함」 시 분모가 부문 전체가 돼 팀 전원 보유 권한도 소수로 보이기 때문. 작은 팀(6명 미만)의 조회성 권한은 「몇 명만」이 당연해 표시하지 않는다. 실측 밀도 <strong>378칸 중 17칸(4.5%)</strong> — 인사팀 전자금융CMS 관리자, 사업운영팀 설정권한 등이 잡힌다</td>

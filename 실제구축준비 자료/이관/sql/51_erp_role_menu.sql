@@ -611,28 +611,52 @@ grant execute on function public.erp_role_dept_label(text) to authenticated, ser
 --     가 m2 자기 자신과 비교되어 "76종 중 73종 해석 가능"이라는 틀린 수를 냈다(실제 49종).
 --     반드시 바깥 별칭을 붙일 것.
 -- ─────────────────────────────────────────────────────────────────────────
-create or replace view erp_ro.v_menu_name with (security_invoker = true) as
+--   ⚠ 성능 — 처음엔 평범한 뷰(LATERAL + v_menu_path)로 만들었는데, 재귀 CTE 를 **행마다**
+--     다시 돌려 실측 7.9초가 나왔다(loops=2455). 메뉴명 검색이 화면에서 멈췄다.
+--     메뉴 마스터는 ETL 주기로만 바뀌므로 실체화가 맞다 → 3.8ms.
+create materialized view erp_ro.mv_menu_name as
+with p as (
+  select btrim(mnu_id) as id, mnu_type, mnu_nm, path_nm, depth, sort_key
+    from erp_ro.v_menu_path
+),
+pit as (   -- 코드+타입당 대표 1행
+  select distinct on (id, mnu_type) id, mnu_type, mnu_nm, path_nm, depth, sort_key
+    from p order by id, mnu_type, sort_key
+),
+pid as (   -- 코드당 대표 1행(타입 무시) — 변형 코드의 기본형을 찾을 때 쓴다
+  select distinct on (id) id, mnu_type, mnu_nm, path_nm, depth, sort_key
+    from p order by id, sort_key
+),
+rm as (select distinct btrim(mnu_id) as mnu_id, mnu_type from erp_ro.role_menu_s)
 select rm.mnu_id,
        rm.mnu_type,
-       coalesce(hit.mnu_nm,   rm.mnu_id)  as mnu_nm,
-       coalesce(hit.path_nm,  rm.mnu_id)  as path_nm,
-       coalesce(hit.depth,    0)          as depth,
-       coalesce(hit.sort_key, rm.mnu_id)  as sort_key,
-       case when hit.mnu_id is null              then 'code'
-            when btrim(hit.mnu_id) = rm.mnu_id   then 'exact'
-            else 'variant' end             as name_src,
-       case when hit.mnu_id is not null and btrim(hit.mnu_id) <> rm.mnu_id
+       coalesce(e.mnu_nm,   a.mnu_nm,   b.mnu_nm,   rm.mnu_id) as mnu_nm,
+       coalesce(e.path_nm,  a.path_nm,  b.path_nm,  rm.mnu_id) as path_nm,
+       coalesce(e.depth,    a.depth,    b.depth,    0)         as depth,
+       coalesce(e.sort_key, a.sort_key, b.sort_key, rm.mnu_id) as sort_key,
+       case when e.id is not null or a.id is not null then 'exact'
+            when b.id is not null                     then 'variant'
+            else 'code' end                                    as name_src,
+       case when e.id is null and a.id is null and b.id is not null
             then substring(rm.mnu_id from '_(C?KO[0-9]+)$') end as variant_cd
-  from (select distinct btrim(mnu_id) as mnu_id, mnu_type from erp_ro.role_menu_s) rm
-  left join lateral (
-       select p.mnu_id, p.mnu_nm, p.path_nm, p.depth, p.sort_key
-         from erp_ro.v_menu_path p
-        where btrim(p.mnu_id) in (rm.mnu_id, regexp_replace(rm.mnu_id, '_C?KO[0-9]+$', ''))
-        order by (btrim(p.mnu_id) = rm.mnu_id) desc,
-                 (p.mnu_type = rm.mnu_type)    desc,
-                 p.sort_key
-        limit 1) hit on true;
+  from rm
+  left join pit e on e.id = rm.mnu_id and e.mnu_type = rm.mnu_type
+  left join pid a on e.id is null and a.id = rm.mnu_id
+  left join pid b on e.id is null and a.id is null
+                 and b.id = regexp_replace(rm.mnu_id, '_C?KO[0-9]+$', '');
 
+create unique index mv_menu_name_uq on erp_ro.mv_menu_name (mnu_id, mnu_type);
+
+-- 이름은 v_menu_name 으로 유지한다 — RPC 들이 이 이름을 부른다
+create view erp_ro.v_menu_name with (security_invoker = true) as
+  select * from erp_ro.mv_menu_name;
+
+-- ⚠ 적재 경로에 갱신을 붙여 둔다 — 빼면 ETL 이 새 메뉴를 넣어도 화면엔 옛 이름이 남는다.
+--   public.erp_menu_reconcile 끝에 refresh materialized view erp_ro.mv_menu_name;
+--   (마이그레이션 req0057_menu_reconcile_refresh_mv)
+
+revoke all on erp_ro.mv_menu_name from anon, authenticated;
+grant  select on erp_ro.mv_menu_name to service_role;
 revoke all on erp_ro.v_menu_name from anon, authenticated;
 grant select on erp_ro.v_menu_name to service_role;
 
