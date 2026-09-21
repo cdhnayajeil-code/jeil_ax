@@ -799,9 +799,11 @@ tr.lead > td:first-child{font-weight:700}
     if(CAT.busy) return;
     CAT.busy = true;
     if($("rcL")) $("rcL").innerHTML = '<div class="loading">불러오는 중…</div>';
-    const r = await erpApi.erpRoleList({
-      q: CAT.q.trim() || null, menuQ: CAT.mq.trim() || null });
-    CAT.busy = false;
+    let r;
+    // finally 로 푸는 이유: 한 번이라도 던지면 busy 가 켜진 채 남아
+    // 이후 모든 조회가 조용히 무시된다(「불러오는 중…」에서 멈춘 채로).
+    try { r = await erpApi.erpRoleList({ q: CAT.q.trim() || null, menuQ: CAT.mq.trim() || null }); }
+    finally { CAT.busy = false; }
     if(!$("rcL")) return;                       // 그 사이 닫혔으면 그만둔다
     if(!r || !r.ok){
       $("rcL").innerHTML = '<div class="notice warn">'
