@@ -151,6 +151,13 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 </tr>
 <tr>
 <td>2026-09-21</td>
+<td>ERP 권한 · 관리 화면</td>
+<td><code>app/admin-role-cleanup.html</code></td>
+<td><strong>권한정리 장부에 「권한확인 완료 내역」을 세웠다(관리자 지시 · REQ-0067).</strong> 현업이 「뺄 것 없음」으로 확인 완료하면 제외 요청 행이 0건이라 <strong>관리자 목록에 아무것도 보이지 않았다</strong> — 실측으로 확인 기록 2건 중 1건이 <code>exclude_cnt=0</code>(경영지원부문 「변경없음」)이었고 장부에서 통째로 사라져 있었다. 데이터는 서버가 이미 내려주고 있었다(<code>erp_role_cleanup_list.confirms</code>) — 조직도 색칠에만 쓰이던 것을 내역 표로 세웠다: 부서 · 확인자 · 확인일시 · 제외(저장 시) · <strong>현재 요청</strong> · 메모. 저장 시점 건수와 지금 살아 있는 요청 수를 <strong>함께</strong> 적는다 — 확인 뒤 관리자가 처리·취소하면 줄어들어 하나만 보면 「처리했는데도 남은 것처럼」 읽힌다(같은 함정을 현황 화면에서 이미 한 번 겪었다). 제외 요청이 0건일 때도 확인 내역은 계속 보이게 렌더 순서를 고쳤고(종전엔 조기 return 으로 화면이 끝났다), 요약 바에 「확인완료」 칩, CSV 는 제외요청·확인내역 2종으로 분리(UTF-8 BOM 배관 공유). 흐름 정리 — <strong>현업: 권한현황 화면에서 확인 완료 저장 → 관리자: 장부에서 내역 확인 후 실제 정리</strong></td>
+<td>최동혁(+Claude)</td>
+</tr>
+<tr>
+<td>2026-09-21</td>
 <td>ERP 권한 · 인증·권한 · DB</td>
 <td>Supabase(마이그레이션 <code>erp_role_cleanup_admin_ledger_req0065</code>) · <code>이관/sql/55</code>(신설, 롤백 동반) · <code>public.erp_role_cleanup_open</code>(신설)</td>
 <td><strong>권한정리 장부 화면(<code>/admin/role-cleanup</code>)을 관리자 전용으로 분리했다(관리자 지시 · REQ-0065 후속).</strong> 같은 날 전사 개방(53·54)의 부수효과로 장부 화면까지 읽기가 열렸는데, 판정 근거는 이미 데이터에 있었다 — <code>portal_page</code> 에 <code>erp_role_matrix</code>(/work/erp-roles, <strong>전사 공개</strong>)와 <code>erp_role_cleanup</code>(/admin/role-cleanup, <strong>부서 전용</strong>)이 <strong>따로</strong> 있다. 그래서 화면 경로가 아니라 <strong>페이지별 공개설정</strong>으로 판정을 나눴다(신설 <code>erp_role_cleanup_open()</code>). 나누는 축은 호출 형태가 이미 제공했다(실측) — 현업 권한정리 탭은 <code>cleanup_list(deptCd=선택부서)</code>, 장부 화면은 <code>cleanup_list(전사, limit 2000)</code>. 따라서 <strong>부서 미지정(전사) 조회만</strong> 장부 페이지 설정에 걸어 막고 <strong>부서 지정 조회는 열어 뒀다</strong>. 여기까지 막으면 54 로 연 저장 기능이 반쪽이 된다 — 현업이 방금 저장한 「확인 완료」·「정리완료」 표시를 자기 화면에서 못 보게 되기 때문. 쓰기 권한 무변경(<code>save</code>·<code>reopen</code> 전사 · <code>mark</code> 관리자 · <code>cancel</code> 본인 요청만). 검증: 비관리자(생산팀 계정) — 부서 지정 ok · <strong>전사 조회 42501 차단</strong> · 저장 여전히 가능(되감김), 관리자 — 전사 장부 ok(43행). 되돌리려면 SQL 없이 관리 화면에서 <code>erp_role_cleanup</code> 을 「전사 공개」로 바꾸면 된다</td>

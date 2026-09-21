@@ -89,6 +89,8 @@ body{margin:0;background:var(--bg);color:var(--ink);
 .legend{font-size:11.5px;color:var(--muted)}
 
 table{border-collapse:collapse;width:100%;font-size:12.5px}
+.ch{margin:18px 0 7px;font-size:13.5px;color:var(--navy,#123);border-top:1px solid var(--line,#e5e7eb);padding-top:12px}
+.ch .sm{font-weight:400;color:var(--muted,#6b7280);font-size:11.5px;margin-left:6px}
 th,td{border:1px solid var(--line);padding:5px 8px;text-align:left;vertical-align:top}
 th{background:var(--soft);color:var(--navy);font-weight:700;white-space:nowrap}
 td.c{text-align:center}
@@ -294,6 +296,46 @@ tr.cancel > td{color:var(--muted);text-decoration:line-through}
     });
   }
 
+  /* 권한확인 완료 내역 — 「제외 요청」만 보여 주면 **뺄 것이 없어 「변경없음」으로 확인한 부서**가
+     목록에서 통째로 사라진다(요청 행이 0건이라 표에 뜰 게 없다). 관리자가 이 화면에서 보려는 것은
+     「누가 언제 확인했는가」이므로 확인 기록 자체를 내역으로 보여 준다(2026-09-21 관리자 지시).
+     데이터는 이미 서버가 내려주고 있었다(erp_role_cleanup_list.confirms) — 조직도 색칠에만 쓰였다. */
+  function confirmsFiltered(ex){
+    const kw = String((ex && ex.q) || '').trim().toLowerCase();
+    return ((DATA && DATA.confirms) || [])
+      .filter(c => !SEL || c.dept_cd === SEL)
+      .filter(c => !kw || [c.dept_nm, c.dept_cd, c.by, c.note]
+                      .some(v => String(v||'').toLowerCase().includes(kw)))
+      .slice()
+      .sort((a, b) => String(b.at||'').localeCompare(String(a.at||'')));
+  }
+  // 저장 시점의 제외 건수와 **지금 살아 있는 요청 수**는 다르다 — 확인 뒤 관리자가 처리·취소하면 줄어든다.
+  // 하나만 보여 주면 「처리했는데도 몇 건 남은 것처럼」 보이므로 둘 다 적는다.
+  const liveReqOf = (cd) => rowsAll().filter(r => r.dept_cd === cd && r.status === 'requested').length;
+
+  function confirmsHtml(ex){
+    const cs = confirmsFiltered(ex);
+    const h = '<h3 class="ch">권한확인 완료 내역 <span class="sm">'+num(cs.length)+'개 부서'
+            + (SEL ? ' · 선택 조직' : '')+'</span></h3>';
+    if(!cs.length){
+      return h + '<div class="notice">아직 권한확인 완료로 저장한 부서가 없습니다 — '
+        + '현업이 <b>ERP 권한 현황</b> 화면의 「권한정리」 탭에서 확인 완료를 저장하면 여기에 쌓입니다.</div>';
+    }
+    return h + '<table><thead><tr><th>부서</th><th>확인자</th><th>확인일시</th>'
+      + '<th class="c">제외(저장 시)</th><th class="c">현재 요청</th><th>메모</th></tr></thead><tbody>'
+      + cs.map(c => {
+          const live = liveReqOf(c.dept_cd);
+          return '<tr><td>'+esc(c.dept_nm || c.dept_cd)+'</td>'
+            + '<td>'+esc(c.by || '')+'</td>'
+            + '<td>'+esc(kst(c.at))+'</td>'
+            + '<td class="c">'+(c.exclude_cnt ? num(c.exclude_cnt)+'건'
+                                              : '<span class="st cancelled">변경없음</span>')+'</td>'
+            + '<td class="c">'+(live ? '<b>'+num(live)+'</b>' : '—')+'</td>'
+            + '<td>'+esc(c.note || '')+'</td></tr>';
+        }).join('')
+      + '</tbody></table>';
+  }
+
   function renderList(ex){
     const list = rows(ex), s = (DATA && DATA.summary) || {};
     const canMark = DATA && DATA.is_admin;
@@ -306,10 +348,11 @@ tr.cancel > td{color:var(--muted);text-decoration:line-through}
       +   '<span class="si"><b>취소</b>'+num(s.cancelled)+'</span>'
       +   '<span class="si"><b>저장 묶음</b>'+num(s.batches)+'</span>'
       +   '<span class="si"><b>조직</b>'+num(s.depts)+'</span>'
+      +   '<span class="si"><b>확인완료</b>'+num(confirmsFiltered(ex).length)+'</span>'
       + '</div><div class="pane" id="pane"></div>';
 
     let html = '<div class="tools">'
-      + '<button id="csv">CSV 내보내기</button>'
+      + '<button id="csv">제외요청 CSV</button><button id="csvC">확인내역 CSV</button>'
       + (canMark
           ? '<button class="go" id="mkA" disabled>처리완료로</button>'
             + '<button id="mkC" disabled>취소로</button>'
@@ -317,7 +360,12 @@ tr.cancel > td{color:var(--muted);text-decoration:line-through}
           : '')
       + '<span class="legend">'+(canMark ? '행을 체크해 상태를 바꿉니다 — 실제 ERP 회수는 사람이 실행합니다' : '상태 변경은 관리자만 할 수 있습니다')+'</span></div>';
 
-    if(!list.length){ html += '<div class="notice">조건에 맞는 내역이 없습니다.</div>'; $("pane").innerHTML = html; bind(ex, list); return; }
+    if(!list.length){
+      html += '<div class="notice">조건에 맞는 <b>제외 요청</b>이 없습니다 — 아래 '
+            + '「권한확인 완료 내역」에서 누가 언제 확인했는지(제외 0건 = 변경없음 포함) 볼 수 있습니다.</div>'
+            + confirmsHtml(ex);
+      $("pane").innerHTML = html; bind(ex, list); return;
+    }
 
     html += '<table><thead><tr>'
       + (canMark ? '<th class="c"><input type="checkbox" id="all"></th>' : '')
@@ -331,7 +379,8 @@ tr.cancel > td{color:var(--muted);text-decoration:line-through}
           + '<td>'+esc(r.requested_by_nm || r.requested_by)+'</td>'
           + '<td>'+esc(kst(r.requested_at))+'</td>'
           + '<td>'+esc(r.note || '')+'</td></tr>').join('')
-      + '</tbody></table>';
+      + '</tbody></table>'
+      + confirmsHtml(ex);
     $("pane").innerHTML = html;
     bind(ex, list);
   }
@@ -363,20 +412,33 @@ tr.cancel > td{color:var(--muted);text-decoration:line-through}
     const a = $("mkA"); if(a) a.onclick = () => mark('applied');
     const c = $("mkC"); if(c) c.onclick = () => mark('cancelled');
     const q = $("mkR"); if(q) q.onclick = () => mark('requested');
+    // CSV 두 벌(제외 요청 · 확인 내역)이 같은 배관을 쓴다. UTF-8 BOM 은 엑셀 한글 깨짐 방지(§13.5)
+    const csvDownload = (fname, out) => {
+      const cell = (v) => { const x = String(v == null ? '' : v); return /[",\n]/.test(x) ? '"'+x.replace(/"/g,'""')+'"' : x; };
+      const blob = new Blob(["﻿" + out.map(r => r.map(cell).join(',')).join('\r\n')],
+                            { type:'text/csv;charset=utf-8;' });
+      const el = document.createElement('a');
+      el.href = URL.createObjectURL(blob);
+      el.download = fname+'_'+new Date().toISOString().slice(0,10).replace(/-/g,'')+'.csv';
+      el.click();
+      setTimeout(() => URL.revokeObjectURL(el.href), 1000);
+    };
     $("csv").onclick = () => {
       const out = [['부서','대상','이메일','ROLE ID','ROLE명','상태','요청자','요청일시','메모','처리자','처리일시']];
       list.forEach(r => out.push([r.dept_nm || r.dept_cd, r.emp_nm || '', r.email, r.role_id, r.role_nm || '',
         ST[r.status] || r.status, r.requested_by_nm || r.requested_by,
         kst(r.requested_at), r.note || '',
         r.applied_by || '', String(r.applied_at||'').slice(0,19).replace('T',' ')]));
-      const cell = (v) => { const x = String(v == null ? '' : v); return /[",\n]/.test(x) ? '"'+x.replace(/"/g,'""')+'"' : x; };
-      const blob = new Blob(["﻿" + out.map(r => r.map(cell).join(',')).join('\r\n')],
-                            { type:'text/csv;charset=utf-8;' });
-      const el = document.createElement('a');
-      el.href = URL.createObjectURL(blob);
-      el.download = 'ERP권한정리내역_'+new Date().toISOString().slice(0,10).replace(/-/g,'')+'.csv';
-      el.click();
-      setTimeout(() => URL.revokeObjectURL(el.href), 1000);
+      csvDownload('ERP권한정리내역', out);
+    };
+    const cb = $("csvC");
+    if(cb) cb.onclick = () => {
+      const out = [['부서','부서코드','확인자','확인일시','제외(저장 시)','현재 요청','메모']];
+      confirmsFiltered(ex).forEach(c => out.push([
+        c.dept_nm || c.dept_cd, c.dept_cd, c.by || '', kst(c.at),
+        c.exclude_cnt ? String(c.exclude_cnt) : '변경없음',
+        String(liveReqOf(c.dept_cd)), c.note || '']));
+      csvDownload('ERP권한확인내역', out);
     };
   }
 
