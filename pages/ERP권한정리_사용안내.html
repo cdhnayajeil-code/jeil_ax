@@ -1,0 +1,206 @@
+<!DOCTYPE html><html lang="ko"><head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ERP 권한정리 사용 안내 (팀장용)</title>
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+     ✏️ 편집 안내 — 최동혁 관리자용
+
+     ● 글자만 고칠 때
+         아래 본문(<body>)에서 보이는 한글을 그대로 고치면 됩니다.
+         메모장·VS Code 무엇으로 열어도 됩니다. 저장 후 브라우저에서 새로고침.
+
+     ● 캡처 그림을 바꿀 때
+         assets/erp-role-cleanup/ 폴더의 jpg 파일을 같은 이름으로 덮어쓰면 됩니다.
+           step1-정리하기.jpg   ← 1쪽 그림
+           step2-저장후.jpg     ← 2쪽 그림
+         그림 크기가 달라져도 자동으로 폭에 맞춰집니다.
+
+     ● 번호(①②③…)나 빨간 네모를 옮길 때
+         그림 바로 아래 <span class="pin"> / <span class="box"> 의
+         top·left·width·height 숫자(%)만 바꾸면 됩니다.
+           top  = 위에서부터 몇 % 지점인가
+           left = 왼쪽에서부터 몇 % 지점인가
+         번호는 네모의 **왼쪽 위 모서리**에 붙도록 같은 top·left 를 씁니다.
+
+     ● 단계를 더하거나 뺄 때
+         <ol class="steps"> 안의 <li> 한 덩이를 복사·삭제하면 번호가 자동으로 다시 매겨집니다.
+         2쪽은 <ol class="steps cont"> 라서 ⑤부터 이어서 셉니다
+         (1쪽 단계 수가 바뀌면 아래 CSS 의 `counter-reset:s 4` 숫자를 맞춰 주세요).
+
+     ● 인쇄
+         브라우저에서 Ctrl+P → 용지 A4 · 방향 가로 → PDF 로 저장.
+         딱 2쪽으로 떨어지게 맞춰 두었습니다.
+     ═══════════════════════════════════════════════════════════════════════ -->
+
+<style>
+:root{
+  --navy:#1a2f4e; --accent:#2f6fb3; --red:#b3402f; --green:#2e7d52; --amber:#9a6b1f;
+  --ink:#222; --muted:#666; --line:#d8dee8; --soft:#eef2f8;
+  --softred:#fbeeec; --softgreen:#ecf5f0; --softamber:#faf3e4;
+}
+*{box-sizing:border-box}
+body{margin:0;background:#e9edf3;color:var(--ink);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Malgun Gothic","맑은 고딕",sans-serif;
+  font-size:14px;line-height:1.55}
+.sheet{width:1080px;max-width:100%;margin:18px auto;background:#fff;padding:26px 30px 30px;
+  border:1px solid var(--line);border-radius:8px;box-shadow:0 2px 10px rgba(0,0,0,.06)}
+.sheet + .sheet{margin-top:26px}
+h1{margin:0 0 3px;font-size:22px;color:var(--navy)}
+.sub{color:var(--muted);font-size:13px;margin-bottom:4px}
+.pg{float:right;color:var(--muted);font-size:12px;border:1px solid var(--line);
+  border-radius:12px;padding:1px 10px}
+h2{font-size:16px;color:var(--navy);margin:16px 0 10px;padding-bottom:6px;border-bottom:2px solid var(--navy)}
+
+/* 캡처 + 번호·네모 (좌표는 그림 크기에 대한 %) */
+.shot{position:relative;border:1px solid var(--line);border-radius:6px;overflow:hidden;line-height:0}
+.shot img{width:100%;display:block}
+.pin{position:absolute;transform:translate(-55%,-55%);
+  width:24px;height:24px;border-radius:50%;background:var(--red);color:#fff;
+  font-size:13.5px;font-weight:800;line-height:24px;text-align:center;
+  box-shadow:0 0 0 2.5px #fff, 0 1px 5px rgba(0,0,0,.4);z-index:3}
+.box{position:absolute;border:2.5px solid var(--red);border-radius:5px;
+  box-shadow:0 0 0 3px rgba(179,64,47,.14);z-index:1}
+
+/* 단계 설명 */
+ol.steps{list-style:none;counter-reset:s;margin:14px 0 0;padding:0;
+  display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px 16px}
+ol.steps.cont{counter-reset:s 4}   /* 캡처의 ⑤부터 이어 센다 */
+ol.steps li{counter-increment:s;position:relative;padding:8px 10px 8px 40px;
+  border:1px solid var(--line);border-radius:7px;background:var(--soft)}
+ol.steps li::before{content:counter(s);position:absolute;left:9px;top:8px;
+  width:22px;height:22px;border-radius:50%;background:var(--red);color:#fff;
+  font-size:12.5px;font-weight:800;line-height:22px;text-align:center}
+ol.steps b{color:var(--navy)}
+ol.steps .d{display:block;color:var(--muted);font-size:12.5px;margin-top:1px}
+
+.note{margin-top:13px;border:1px solid #dcc48a;background:var(--softamber);color:#6b4a12;
+  border-radius:7px;padding:10px 13px;font-size:13px}
+.note b{color:#5a3d0d}
+.ok{margin-top:13px;border:1px solid #a9d3bd;background:var(--softgreen);color:#1c6b45;
+  border-radius:7px;padding:10px 13px;font-size:13px}
+.foot{margin-top:16px;padding-top:9px;border-top:1px solid var(--line);
+  color:var(--muted);font-size:11.5px;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}
+code{background:var(--soft);padding:1px 5px;border-radius:4px;font-size:12.5px}
+kbd{background:#fff;border:1px solid var(--line);border-bottom-width:2px;border-radius:4px;
+  padding:1px 6px;font-size:12.5px;font-weight:700;color:var(--navy)}
+
+@media print{
+  body{background:#fff}
+  .sheet{width:auto;margin:0;border:none;border-radius:0;box-shadow:none;padding:0 0 12px;
+    page-break-after:always}
+  .sheet:last-child{page-break-after:auto}
+  @page{size:A4 landscape;margin:12mm}
+}
+</style>
+</head><body>
+
+<!-- ══════════════════════ 1 쪽 : 정리하기 ══════════════════════ -->
+<div class="sheet">
+  <span class="pg">1 / 2</span>
+  <h1>🔑 ERP 권한정리 사용 안내</h1>
+  <div class="sub">팀장·부서장용 · 예시는 <b>총무팀</b> · 화면 주소 <code>ai.jeilm.co.kr/work/erp-roles</code></div>
+
+  <h2>정리하기 — 네 단계면 끝납니다</h2>
+
+  <div class="shot">
+    <img src="/pages/assets/erp-role-cleanup/step1-정리하기.jpg"
+         alt="권한정리 탭에서 권한을 체크하고 저장하는 화면">
+
+    <!-- ① 우리 팀 선택 -->
+    <span class="box" style="top:70.5%;left:1.2%;width:19.5%;height:6.5%"></span>
+    <span class="pin" style="top:70.5%;left:3.2%">1</span>
+
+    <!-- ② 권한정리 탭 -->
+    <span class="box" style="top:33.5%;left:37.2%;width:5.2%;height:6.5%"></span>
+    <span class="pin" style="top:33.5%;left:37.2%">2</span>
+
+    <!-- ③ 뺄 권한 체크 -->
+    <span class="box" style="top:70%;left:59.5%;width:39.5%;height:24%"></span>
+    <span class="pin" style="top:70%;left:59.5%">3</span>
+
+    <!-- ④ 확인 문구 입력 후 저장 -->
+    <span class="box" style="top:39.5%;left:79.5%;width:19.5%;height:8.5%"></span>
+    <span class="pin" style="top:39.5%;left:79.5%">4</span>
+  </div>
+
+  <ol class="steps">
+    <li><b>왼쪽 조직도에서 우리 팀을 클릭</b>
+        <span class="d">팀 이름을 누르면 오른쪽에 우리 팀 사람과 권한이 나옵니다.</span></li>
+    <li><b>「권한정리」 탭을 클릭</b>
+        <span class="d">먼저 「Matrix」 탭에서 누가 어떤 권한을 갖고 있는지 훑어보셔도 됩니다.</span></li>
+    <li><b>뺄 권한에 체크</b>
+        <span class="d">가로 = 권한, 세로 = 팀원. 빼야 할 칸을 체크합니다.
+        권한 이름을 누르면 그 줄 <b>전원이 한 번에</b> 선택·해제됩니다.</span></li>
+    <li><b><code>권한확인 완료</code> 입력 후 <kbd>저장</kbd></b>
+        <span class="d">문구를 정확히 입력해야 저장 버튼이 열립니다. 메모는 선택입니다.</span></li>
+  </ol>
+
+  <div class="note">
+    <b>뺄 권한이 없어도 꼭 저장해 주세요.</b>
+    체크 없이 <code>권한확인 완료</code>만 입력하고 저장하면 <b>「변경없음」</b>으로 기록됩니다.
+    저장하지 않으면 관리자 화면에서 <b>「아직 확인 안 한 팀」</b>으로 남습니다.
+  </div>
+
+  <div class="foot">
+    <span>제일엠앤에스 AI 포털 · ERP 권한정리 사용 안내</span>
+    <span>2026-09-21 · 문의: 최동혁</span>
+  </div>
+</div>
+
+<!-- ══════════════════════ 2 쪽 : 저장한 뒤 ══════════════════════ -->
+<div class="sheet">
+  <span class="pg">2 / 2</span>
+  <h1>🔑 저장한 뒤 — 확인과 수정</h1>
+  <div class="sub">저장하면 화면이 아래처럼 바뀝니다</div>
+
+  <div class="shot">
+    <img src="/pages/assets/erp-role-cleanup/step2-저장후.jpg"
+         alt="저장 후 확인완료 배너와 정리완료 표시가 나타난 화면">
+
+    <!-- ⑤ 확인완료 초록 띠 -->
+    <span class="box" style="top:39%;left:22%;width:70%;height:9.5%"></span>
+    <span class="pin" style="top:39%;left:22%">5</span>
+
+    <!-- ⑥ 정리완료 표시 -->
+    <span class="box" style="top:83.5%;left:22%;width:50%;height:15%"></span>
+    <span class="pin" style="top:83.5%;left:21.3%">6</span>
+
+    <!-- ⑦ 수정 버튼 -->
+    <span class="box" style="top:39.5%;left:92.8%;width:5.6%;height:9%"></span>
+    <span class="pin" style="top:39.5%;left:92.8%">7</span>
+  </div>
+
+  <ol class="steps cont">
+    <li><b>초록 띠 = 확인 완료</b>
+        <span class="d">누가 언제 확인했는지와 제외 건수가 남습니다.
+        뺄 것이 없었으면 <b>「변경없음」</b>으로 표시됩니다.</span></li>
+    <li><b>「정리완료」 표시</b>
+        <span class="d">이미 올린 권한은 줄이 초록으로 바뀌고, 해당 팀원 칸은
+        체크 대신 <b>✓</b> 로 잠깁니다(마우스를 올리면 누가 언제 올렸는지 나옵니다).</span></li>
+    <li><b>고치려면 <kbd>수정</kbd></b>
+        <span class="d">잠금이 풀려 다시 체크할 수 있고, 잘못 올린 줄에는
+        <b>「삭제」</b> 버튼이 생깁니다. 고친 뒤 다시 <code>권한확인 완료</code>를 입력해 저장하세요.</span></li>
+  </ol>
+
+  <div class="ok">
+    <b>이 화면은 ERP 권한을 실제로 회수하지 않습니다.</b>
+    「이 권한은 빼 주세요」라고 <b>요청을 남기는</b> 곳입니다.
+    실제 회수는 관리자가 ERP에서 처리한 뒤 완료로 표시합니다.
+  </div>
+
+  <div class="note">
+    <b>자주 묻는 것</b><br>
+    · <b>저장 버튼이 안 눌려요</b> — <code>권한확인 완료</code> 를 띄어쓰기까지 똑같이 입력했는지 확인해 주세요.<br>
+    · <b>체크가 안 되는 칸이 있어요</b> — 이미 정리 요청을 올린 칸(<b>✓</b>)입니다. <kbd>수정</kbd> → <b>삭제</b> 후 다시 하세요.<br>
+    · <b>「확인」 이라고 붙은 권한은 뭔가요</b> — 팀에서 소수만 가졌거나 다른 부서 업무로 <b>보이는</b> 권한입니다.
+      참고 표시일 뿐이니, <b>표시가 없는 권한도 함께</b> 봐 주세요.
+  </div>
+
+  <div class="foot">
+    <span>제일엠앤에스 AI 포털 · ERP 권한정리 사용 안내</span>
+    <span>2026-09-21 · 문의: 최동혁</span>
+  </div>
+</div>
+
+</body></html>

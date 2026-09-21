@@ -666,6 +666,34 @@ export const erpApi = {
     return data || { ok: false };
   },
 
+  // 부서의 「권한확인 완료」를 풀어 다시 고를 수 있게 한다(기록은 reopened 로 남는다).
+  async erpRoleCleanupReopen(deptCd, orgChangeId = null) {
+    const { data, error } = await supabase.rpc("erp_role_cleanup_reopen", {
+      p_dept_cd: deptCd, p_org_change_id: orgChangeId,
+    });
+    if (error) {
+      const msg = String(error.message || "");
+      if (/forbidden/i.test(msg) || error.code === "42501") return { ok: false, forbidden: true };
+      if (/unauthorized/i.test(msg) || error.code === "28000") return { ok: false, unauthorized: true };
+      return { ok: false, message: msg };
+    }
+    return data || { ok: false };
+  },
+
+  // 본인이 올린 미처리 정리 요청 취소. 남의 요청·처리된 건은 서버가 걸러낸다.
+  async erpRoleCleanupCancel(ids) {
+    const { data, error } = await supabase.rpc("erp_role_cleanup_cancel", {
+      p_ids: ids || [],
+    });
+    if (error) {
+      const msg = String(error.message || "");
+      if (/forbidden/i.test(msg) || error.code === "42501") return { ok: false, forbidden: true };
+      if (/unauthorized/i.test(msg) || error.code === "28000") return { ok: false, unauthorized: true };
+      return { ok: false, message: msg };
+    }
+    return data || { ok: false };
+  },
+
   // 전사 요약(관리자 전용) — 모듈별 집계·무관 상위 role·표준 미수립 부서·회수 잔재.
   // 반환: {ok, totals, by_module[], top_unrelated[], dept_no_standard[], as_of, mirror}
   async erpRoleSummary(orgChangeId = null) {

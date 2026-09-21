@@ -585,3 +585,89 @@ revoke all on function public.erp_user_roles(text, text) from public, anon;
 grant execute on function public.erp_user_roles(text, text) to authenticated, service_role;
 revoke all on function public.erp_role_dept_label(text) from public, anon;
 grant execute on function public.erp_role_dept_label(text) to authenticated, service_role;
+
+-- ─────────────────────────────────────────────────────────────────────────
+-- §9. 메뉴명 해석 (2026-09-21 · 관리자 지적 "A5101M1_KO174 처럼 코드로 보인다")
+--
+--   role_menu_s 가 쓰는 메뉴 코드 2,455종 중 76종이 Z_FULL_MENU(메뉴 마스터)에 없다.
+--   ※ 참조 자료 ERP전체권한현황(ERP 직접 내보내기)도 같은 코드를 그대로 보여준다 —
+--     우리 미러가 빠뜨린 게 아니라 원천에 이름이 없는 것이다.
+--
+--   실측 내역
+--     · 2,379종 — 마스터와 정확히 일치 (name_src='exact')
+--     ·    49종 — '_KO174' · '_CKO174' 같은 **법인 변형 접미사**만 다르고
+--                 기본 코드는 마스터에 있다 (name_src='variant')
+--                 예) A5101M1_KO174 → A5101M1 = 결의전표등록
+--     ·    27종 — 기본 코드조차 없어 이름을 만들 수 없다 (name_src='code')
+--                 예) CEXRATE · H6011Q1_KO174 · HA112M1
+--
+--   변형분은 기본 메뉴의 이름을 빌려 쓰되 **화면에 변형 코드를 함께 띄운다**.
+--   이름이 없는 27종은 코드 그대로 두고 「메뉴명 미등록」이라고 적는다 —
+--   모르는 것을 아는 척하지 않는다.
+--
+--   ⚠ 진단 쿼리를 쓸 때 주의: 상관 서브쿼리 안에서 컬럼명을 한정하지 않으면
+--     안쪽 테이블에 먼저 묶인다. 이 조사에서 실제로
+--       exists (select 1 from menu_master_s m2 where btrim(m2.mnu_id) = regexp_replace(mnu_id, ...))
+--     가 m2 자기 자신과 비교되어 "76종 중 73종 해석 가능"이라는 틀린 수를 냈다(실제 49종).
+--     반드시 바깥 별칭을 붙일 것.
+-- ─────────────────────────────────────────────────────────────────────────
+--   ⚠ 성능 — 처음엔 평범한 뷰(LATERAL + v_menu_path)로 만들었는데, 재귀 CTE 를 **행마다**
+--     다시 돌려 실측 7.9초가 나왔다(loops=2455). 메뉴명 검색이 화면에서 멈췄다.
+--     메뉴 마스터는 ETL 주기로만 바뀌므로 실체화가 맞다 → 3.8ms.
+create materialized view erp_ro.mv_menu_name as
+with p as (
+  select btrim(mnu_id) as id, mnu_type, mnu_nm, path_nm, depth, sort_key
+    from erp_ro.v_menu_path
+),
+pit as (   -- 코드+타입당 대표 1행
+  select distinct on (id, mnu_type) id, mnu_type, mnu_nm, path_nm, depth, sort_key
+    from p order by id, mnu_type, sort_key
+),
+pid as (   -- 코드당 대표 1행(타입 무시) — 변형 코드의 기본형을 찾을 때 쓴다
+  select distinct on (id) id, mnu_type, mnu_nm, path_nm, depth, sort_key
+    from p order by id, sort_key
+),
+rm as (select distinct btrim(mnu_id) as mnu_id, mnu_type from erp_ro.role_menu_s)
+select rm.mnu_id,
+       rm.mnu_type,
+       coalesce(e.mnu_nm,   a.mnu_nm,   b.mnu_nm,   rm.mnu_id) as mnu_nm,
+       coalesce(e.path_nm,  a.path_nm,  b.path_nm,  rm.mnu_id) as path_nm,
+       coalesce(e.depth,    a.depth,    b.depth,    0)         as depth,
+       coalesce(e.sort_key, a.sort_key, b.sort_key, rm.mnu_id) as sort_key,
+       case when e.id is not null or a.id is not null then 'exact'
+            when b.id is not null                     then 'variant'
+            else 'code' end                                    as name_src,
+       case when e.id is null and a.id is null and b.id is not null
+            then substring(rm.mnu_id from '_(C?KO[0-9]+)$') end as variant_cd
+  from rm
+  left join pit e on e.id = rm.mnu_id and e.mnu_type = rm.mnu_type
+  left join pid a on e.id is null and a.id = rm.mnu_id
+  left join pid b on e.id is null and a.id is null
+                 and b.id = regexp_replace(rm.mnu_id, '_C?KO[0-9]+$', '');
+
+create unique index mv_menu_name_uq on erp_ro.mv_menu_name (mnu_id, mnu_type);
+
+-- 이름은 v_menu_name 으로 유지한다 — RPC 들이 이 이름을 부른다
+create view erp_ro.v_menu_name with (security_invoker = true) as
+  select * from erp_ro.mv_menu_name;
+
+-- ⚠ 적재 경로에 갱신을 붙여 둔다 — 빼면 ETL 이 새 메뉴를 넣어도 화면엔 옛 이름이 남는다.
+--   public.erp_menu_reconcile 끝에 refresh materialized view erp_ro.mv_menu_name;
+--   (마이그레이션 req0057_menu_reconcile_refresh_mv)
+
+revoke all on erp_ro.mv_menu_name from anon, authenticated;
+grant  select on erp_ro.mv_menu_name to service_role;
+revoke all on erp_ro.v_menu_name from anon, authenticated;
+grant select on erp_ro.v_menu_name to service_role;
+
+-- 적용처 (본문은 라이브 정의와 동일 — 마이그레이션
+--   req0057_menu_name_resolve / req0057_menu_detail_use_menu_name /
+--   req0057_role_list_menu_search_via_menu_name 참조)
+--   · erp_role_menu_detail — menus[] 에 name_src·variant_cd 를 함께 내려보낸다
+--   · erp_role_list        — 메뉴명 검색이 변형 코드까지 찾아낸다
+--                            (변형만 가진 역할이 검색에서 빠지던 문제)
+
+-- 검증
+--   select name_src, count(*) from erp_ro.v_menu_name group by 1;   -- exact 2379 / variant 49 / code 27
+--   select mnu_nm, name_src, variant_cd from erp_ro.v_menu_name where mnu_id = 'A5101M1_KO174';
+--                                                                   -- 결의전표등록 / variant / KO174

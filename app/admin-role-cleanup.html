@@ -54,6 +54,24 @@ body{margin:0;background:var(--bg);color:var(--ink);
 .tnode .sp{flex:1 1 auto}
 .tnode .cnt{color:var(--muted);font-size:11.5px}
 .tnode .hot{color:var(--red);font-weight:700;font-size:11.5px}
+.tnode .dot{width:8px;height:8px;border-radius:50%;flex:0 0 auto;background:var(--line)}
+.tnode .stg{font-size:11px;font-weight:700;white-space:nowrap}
+.tnode.st-none .dot{background:var(--red)}    .tnode.st-none .stg{color:var(--red)}
+.tnode.st-none .nm{font-weight:700}
+.tnode.st-req  .dot{background:var(--amber)}  .tnode.st-req  .stg{color:var(--amber)}
+.tnode.st-done .dot{background:var(--green)}  .tnode.st-done .stg{color:var(--green);opacity:.75}
+.tnode.st-done .nm{color:var(--muted)}
+.dash{display:flex;gap:6px;margin:0 9px 8px}
+.dash .d{flex:1 1 0;border:1px solid var(--line);border-radius:7px;padding:6px 4px;text-align:center}
+.dash .d b{display:block;font-size:17px;line-height:1.2}
+.dash .d span{font-size:10.5px;color:var(--muted)}
+.dash .d.st-none{border-color:#e3b3aa;background:var(--softred)}
+.dash .d.st-none b{color:var(--red)}
+.dash .d.st-req{border-color:#dcc48a;background:var(--softamber)}
+.dash .d.st-req b{color:var(--amber)}
+.dash .d.st-done{border-color:#a9d3bd;background:var(--softgreen)}
+.dash .d.st-done b{color:var(--green)}
+.tfoot{padding:7px 9px;border-top:1px solid var(--line);color:var(--muted);font-size:11px}
 
 .sum{display:flex;align-items:center;gap:15px;flex-wrap:wrap;padding:10px 12px;
   border-bottom:1px solid var(--line);font-size:13px}
@@ -112,6 +130,16 @@ tr.cancel > td{color:var(--muted);text-decoration:line-through}
   const esc = (s) => String(s == null ? "" : s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
   const num = (n) => Number(n || 0).toLocaleString("ko-KR");
   const ST  = { requested:'요청', applied:'처리완료', cancelled:'취소' };
+  /* 한국시간 — timestamptz 를 문자열로 자르면 UTC 가 그대로 보인다(9시간 어긋남) */
+  function kst(v){
+    if(!v) return '';
+    const d = new Date(v);
+    if(isNaN(d.getTime())) return String(v).slice(0,16).replace('T',' ');
+    const p = new Intl.DateTimeFormat('ko-KR', { timeZone:'Asia/Seoul', year:'numeric', month:'2-digit',
+      day:'2-digit', hour:'2-digit', minute:'2-digit', hourCycle:'h23' })
+      .formatToParts(d).reduce((a,x)=>(a[x.type]=x.value,a),{});
+    return p.year+'-'+p.month+'-'+p.day+' '+p.hour+':'+p.minute;
+  }
 
   /* 사내 세션 게이트 — /pages/_access-gate.js 는 Entra 토큰만 본다(§자금현황 패턴) */
   function claimsOf(session){
@@ -148,8 +176,10 @@ tr.cancel > td{color:var(--muted);text-decoration:line-through}
     $("qbar").hidden = false;
     BAR = createQueryBar("#qbar", {
       months: false,
-      basis: "권한정리 요청 장부(role_cleanup)",
-      mode: "live", modeLabel: "실연동", reset: true, refreshLabel: "다시 조회",
+      // 기준·모드 배지와 「최종 조회」 시각은 뺀다(2026-09-21 관리자 지시) —
+      // 기간 축이 없고, 같은 정보가 머리말에 이미 있다. 조회플랫폼 가이드 §6 참조.
+      meta: false, stamp: false,
+      reset: true, refreshLabel: "다시 조회",
       extras: [
         { id:"q",   label:"검색", type:"text", placeholder:"이름·부서·ROLE·요청자", width:"200px", debounce:250 },
         { id:"st",  label:"상태", type:"select", value:"requested",
@@ -170,7 +200,9 @@ tr.cancel > td{color:var(--muted);text-decoration:line-through}
         if(t && t.unauthorized) return gate('🔐','인증 필요','세션이 만료되었습니다. 다시 로그인하세요.','다시 로그인');
         if(t && t.ok){ TREE = t; if(BAR) BAR.setMeta({ asOf: (t.as_of && String(t.as_of.usr_role||'').slice(0,10)) || null }); }
       }
-      const r = await erpApi.erpRoleCleanupList({ status: st === 'all' ? null : st, limit: 2000 });
+      // 상태는 화면에서 거른다. 조직도가 「이 부서는 아직 손도 안 댔다」를 말하려면
+      // 상태에 상관없이 전체 내역을 쥐고 있어야 하기 때문이다.
+      const r = await erpApi.erpRoleCleanupList({ status: null, limit: 2000 });
       if(r && r.forbidden) return gate('🔒','열람 권한이 필요합니다',
         '이 화면은 <b>관리자</b>이거나 <b>페이지 권한(erp_role_cleanup)</b>을 받은 사용자만 볼 수 있습니다.', null);
       if(r && r.unauthorized) return gate('🔐','인증 필요','세션이 만료되었습니다. 다시 로그인하세요.','다시 로그인');
@@ -188,6 +220,7 @@ tr.cancel > td{color:var(--muted);text-decoration:line-through}
   function rows(ex){
     const kw = String(ex.q || '').trim().toLowerCase();
     return rowsAll().filter(r => {
+      if(STF !== 'all' && r.status !== STF) return false;
       if(SEL && r.dept_cd !== SEL) return false;
       if(!kw) return true;
       return [r.emp_nm, r.email, r.dept_nm, r.role_nm, r.role_id, r.requested_by_nm, r.requested_by]
@@ -201,27 +234,60 @@ tr.cancel > td{color:var(--muted);text-decoration:line-through}
     if(BAR) BAR.applyPeriod();
   }
 
-  /* 조직도 — 정리 내역이 있는 조직만 보여준다(빈 조직을 훑을 이유가 없다) */
+  /* 조직도 — **전 조직**을 보여주고 정리 상태로 칠한다(2026-09-21 관리자 지시).
+     내역이 있는 조직만 보여주면 정작 알아야 할 「아직 손도 안 댄 부서」가 목록에서 사라진다.
+       미검토(빨강) : 이 부서가 올린 요청이 0건 — 팀장에게 독촉할 대상
+       요청 N(주황) : 올렸고 아직 처리 전 — 관리자가 회수할 대상
+       완료(초록)   : 올린 것이 모두 처리완료/취소됨
+     인원이 없는 조직(원가부서·빈 법인)은 정리할 것이 없으므로 세지 않는다. */
+  /* 부서 상태 — 「팀장이 확인했는가」가 1차 기준이다.
+     제외 요청 0건도 확인이므로(변경없음), 요청 건수만으로는 「안 한 팀」을 가려낼 수 없다. */
+  const confirmOf = (cd) => ((DATA && DATA.confirms) || []).find(c => c.dept_cd === cd) || null;
+  function deptState(cd){
+    const cf  = confirmOf(cd);
+    const req = rowsAll().filter(r => r.dept_cd === cd && r.status === 'requested').length;
+    if(!cf)  return { k:'none', label:'미확인', n:0 };
+    if(req)  return { k:'req',  label:'처리대기 '+req, n:req };
+    return { k:'done', label:'확인완료'+(cf.note ? ' · '+cf.note : ''), n:0 };
+  }
+
   function renderTree(ex){
+    const all = ((TREE && TREE.nodes) || []).filter(n => (n.member_cnt || 0) > 0);
     const byDept = {};
     rowsAll().forEach(r => { byDept[r.dept_cd] = (byDept[r.dept_cd] || 0) + 1; });
-    const nodes = ((TREE && TREE.nodes) || []).filter(n => byDept[n.dept_cd]);
-    const extra = Object.keys(byDept).filter(cd => !nodes.some(n => n.dept_cd === cd));
+    // 조직도에 없는 부서코드(외부 등)도 내역이 있으면 뒤에 붙인다
+    const extra = Object.keys(byDept).filter(cd => !all.some(n => n.dept_cd === cd));
 
-    const row = (cd, nm, lvl, cnt) =>
-      '<div class="tnode'+(SEL===cd?' sel':'')+'" data-cd="'+esc(cd)+'" style="padding-left:'+(9+(lvl-1)*13)+'px">'
-      + '<span class="nm">'+esc(nm)+'</span><span class="sp"></span>'
-      + '<span class="hot">'+cnt+'</span></div>';
+    let none = 0, req = 0, done = 0;
+    all.forEach(n => { const st = deptState(n.dept_cd);
+      if(st.k === 'none') none++; else if(st.k === 'req') req++; else done++; });
+
+    const row = (cd, nm, lvl) => {
+      const st = deptState(cd), cf = confirmOf(cd);
+      return '<div class="tnode st-'+st.k+(SEL===cd?' sel':'')+'" data-cd="'+esc(cd)+'"'
+        + ' style="padding-left:'+(9+(lvl-1)*13)+'px" title="'
+        + esc(nm+' — '+st.label+(cf ? ' (확인 '+(cf.by||'')+' · '
+              +kst(cf.at).slice(0,10)+')' : ' — 팀장 확인이 아직 없습니다'))+'">'
+        + '<span class="dot"></span><span class="nm">'+esc(nm)+'</span><span class="sp"></span>'
+        + '<span class="stg">'+esc(st.label)+'</span></div>';
+    };
 
     $("pTree").innerHTML =
-      '<h3>조직 <span class="sm">내역 '+num(rowsAll().length)+'건</span></h3>'
+      '<h3>조직 <span class="sm">'+num(all.length)+'개 부서</span></h3>'
+      + '<div class="dash">'
+      +   '<div class="d st-none"><b>'+num(none)+'</b><span>미확인</span></div>'
+      +   '<div class="d st-req"><b>'+num(req)+'</b><span>처리대기</span></div>'
+      +   '<div class="d st-done"><b>'+num(done)+'</b><span>확인완료</span></div>'
+      + '</div>'
       + '<div class="tree">'
-      +   '<div class="tnode'+(SEL===null?' sel':'')+'" data-cd=""><span class="nm">전체</span>'
-      +     '<span class="sp"></span><span class="cnt">'+num(rowsAll().length)+'</span></div>'
-      +   nodes.map(n => row(n.dept_cd, n.dept_nm, n.lvl, byDept[n.dept_cd])).join('')
-      +   extra.map(cd => row(cd, cd === '__unassigned__' ? '외부' : cd, 1, byDept[cd])).join('')
-      +   (rowsAll().length ? '' : '<div class="notice" style="margin:9px;border:none">해당 상태의 내역이 없습니다.</div>')
-      + '</div>';
+      +   '<div class="tnode'+(SEL===null?' sel':'')+'" data-cd=""><span class="dot" style="visibility:hidden"></span>'
+      +     '<span class="nm">전체</span><span class="sp"></span>'
+      +     '<span class="cnt">'+num(rowsAll().length)+'건</span></div>'
+      +   all.map(n => row(n.dept_cd, n.dept_nm, n.lvl)).join('')
+      +   extra.map(cd => row(cd, cd === '__unassigned__' ? '외부' : cd, 1)).join('')
+      + '</div>'
+      + '<div class="tfoot">🔴 <b>미확인</b> = 팀장 확인이 아직 없는 부서 · 🟠 <b>처리대기</b> = 확인은 끝났고 ERP 회수가 남은 부서 · '
+      + '🟢 <b>확인완료</b>(제외 0건이면 「변경없음」)<br>인원이 없는 조직(원가부서·빈 법인)은 정리 대상이 아니라 세지 않습니다</div>';
 
     $("pTree").querySelectorAll('.tnode').forEach(el => el.onclick = () => {
       SEL = el.dataset.cd || null; SELROW.clear(); render(ex);
@@ -263,7 +329,7 @@ tr.cancel > td{color:var(--muted);text-decoration:line-through}
           + '<td title="'+esc(r.role_id)+'">'+esc(r.role_nm || r.role_id)+'</td>'
           + '<td><span class="st '+esc(r.status)+'">'+esc(ST[r.status] || r.status)+'</span></td>'
           + '<td>'+esc(r.requested_by_nm || r.requested_by)+'</td>'
-          + '<td>'+esc(String(r.requested_at||'').slice(0,16).replace('T',' '))+'</td>'
+          + '<td>'+esc(kst(r.requested_at))+'</td>'
           + '<td>'+esc(r.note || '')+'</td></tr>').join('')
       + '</tbody></table>';
     $("pane").innerHTML = html;
@@ -301,7 +367,7 @@ tr.cancel > td{color:var(--muted);text-decoration:line-through}
       const out = [['부서','대상','이메일','ROLE ID','ROLE명','상태','요청자','요청일시','메모','처리자','처리일시']];
       list.forEach(r => out.push([r.dept_nm || r.dept_cd, r.emp_nm || '', r.email, r.role_id, r.role_nm || '',
         ST[r.status] || r.status, r.requested_by_nm || r.requested_by,
-        String(r.requested_at||'').slice(0,19).replace('T',' '), r.note || '',
+        kst(r.requested_at), r.note || '',
         r.applied_by || '', String(r.applied_at||'').slice(0,19).replace('T',' ')]));
       const cell = (v) => { const x = String(v == null ? '' : v); return /[",\n]/.test(x) ? '"'+x.replace(/"/g,'""')+'"' : x; };
       const blob = new Blob(["﻿" + out.map(r => r.map(cell).join(',')).join('\r\n')],

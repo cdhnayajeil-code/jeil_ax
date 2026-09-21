@@ -34,6 +34,8 @@ export function createQueryBar(container, options = {}) {
     basis: null,                 // "확정 전표 기준(A_GL · CONF_FG=1)"
     mode: null,                  // "live" | "mock" | null
     modeLabel: null,             // 배지 문구 재정의
+    meta: true,                  // 기준일·기준·모드 배지 표시 (false = 숨김)
+    stamp: true,                 // "최종 조회 hh:mm:ss (n분 전)" 표시 (false = 숨김)
     // 추가 조회조건 슬롯
     extras: [],                  // [{id,label,type:'text'|'select'|'date'|'checkbox',options,value,placeholder,width}]
     reset: false,                // "조건 초기화" 링크
@@ -169,10 +171,10 @@ export function createQueryBar(container, options = {}) {
     + o.extras.map(extraField).join("")
     + (o.reset ? '<button type="button" class="qbar__reset" id="qbReset">조건 초기화</button>' : "")
     + '<span class="qbar__sp"></span>'
-    + '<span class="qbar__meta" id="qbMeta"></span>'
+    + (o.meta ? '<span class="qbar__meta" id="qbMeta"></span>' : "")
     + '<button type="button" class="qbar__btn" id="qbRefresh" title="현재 조건으로 다시 조회합니다">'
     + '<span class="qbar__ic">🔄</span><span>' + esc(o.refreshLabel) + "</span></button>"
-    + '<span class="qbar__stamp" id="qbStamp"></span>'
+    + (o.stamp ? '<span class="qbar__stamp" id="qbStamp"></span>' : "")
     + '<div class="qbar__err" id="qbErr" hidden></div>';
 
   const $ = (id) => root.querySelector("#" + id);
@@ -188,12 +190,14 @@ export function createQueryBar(container, options = {}) {
     return Math.floor(s / 3600) + "시간 전";
   }
   function paintMeta() {
+    if (!elMeta) return;                 // meta:false — 슬롯 자체가 없다
     const bits = [];
     if (o.asOf) bits.push("기준일 <b>" + esc(o.asOf) + "</b>");
     if (o.basis) bits.push(esc(o.basis));
     elMeta.innerHTML = bits.join(" · ") + badge;
   }
   function paintStamp() {
+    if (!elStamp) return;                // stamp:false — 슬롯 자체가 없다
     if (!state.stampAt) { elStamp.textContent = ""; return; }
     const t = state.stampAt;
     elStamp.innerHTML = "최종 조회 <b>" + pad2(t.getHours()) + ":" + pad2(t.getMinutes()) + ":" + pad2(t.getSeconds())

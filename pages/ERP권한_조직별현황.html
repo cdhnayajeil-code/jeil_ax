@@ -118,6 +118,47 @@ tr.lead > td:first-child{font-weight:700}
 .mx__wrap tfoot td{position:sticky;bottom:0;background:var(--soft);font-weight:700}
 .mx__o{color:var(--navy2);font-weight:700} .mx__m{color:#ccd3dc}
 .mx__wrap td.mx__fix{cursor:pointer}
+
+/* 눈에 띄어야 할 줄만 — 왼쪽 띠와 작은 꼬리표로만 표시한다.
+   행 전체를 칠하면 매트릭스가 읽히지 않아서, 색은 최소로 쓴다. */
+.mx__wrap td.mx__fix.f1{box-shadow:inset 3px 0 0 var(--amber)}
+.mx__tag{display:inline-block;margin-left:5px;padding:0 5px;border-radius:9px;
+  font-size:10.5px;font-weight:700;border:1px solid;white-space:nowrap}
+.mx__tag.f1{color:var(--amber);border-color:#dcc48a;background:var(--softamber)}
+.mx__wrap td.mx__n.h1{background:var(--softamber)}
+.mx__hint{display:flex;gap:7px 14px;align-items:center;flex-wrap:wrap;
+  margin:0 0 8px;font-size:11.5px;color:var(--muted);line-height:1.6}
+.mx__hint .k{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:5px}
+.mx__hint .k.f1{background:var(--amber)}
+.mx__hint .mx__note{color:var(--muted);font-size:11px}
+.mx__hint b{color:var(--ink)}
+.mx__wrap th.mx__n .mx__dp{display:block;font-weight:400;font-size:9.5px;color:var(--muted);
+  margin-top:2px;white-space:nowrap}
+.tsearch{margin:0 9px 6px;padding:5px 8px;border-radius:6px;background:var(--soft);
+  font-size:11px;color:var(--muted)}
+.tsearch b{color:var(--accent)}
+.mn .vr{margin-left:5px;padding:0 4px;border:1px solid var(--line);border-radius:7px;
+  font-size:9.5px;color:var(--muted);background:var(--softgrey)}
+.mn .cd{color:var(--muted);font-size:11px}
+
+/* 전체 권한 조회 — 조직과 무관하게 Role 과 메뉴를 훑어보는 패널 */
+.rc__btn{border-color:var(--accent);color:var(--accent);font-weight:700}
+.rc__wrap{display:grid;grid-template-columns:minmax(320px,2fr) 3fr;gap:12px;align-items:start}
+.rc__bar{display:flex;gap:7px;align-items:center;flex-wrap:wrap;margin-bottom:9px}
+.rc__bar input{padding:5px 9px;border:1px solid var(--line);border-radius:6px;font-size:12.5px}
+.rc__gt{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px}
+.rc__gt button{padding:2px 9px;border:1px solid var(--line);border-radius:12px;background:#fff;
+  font-size:11px;color:var(--muted);cursor:pointer}
+.rc__gt button.on{background:var(--navy2);border-color:var(--navy2);color:#fff;font-weight:700}
+.rc__list{max-height:min(62vh,620px);overflow:auto;border:1px solid var(--line);border-radius:7px}
+.rc__list .it{display:flex;gap:7px;align-items:baseline;padding:6px 9px;cursor:pointer;
+  border-bottom:1px solid var(--line)}
+.rc__list .it:last-child{border-bottom:none}
+.rc__list .it:hover{background:var(--soft)}
+.rc__list .it.on{background:var(--softgreen)}
+.rc__list .it .nm{flex:1 1 auto;font-size:12.5px}
+.rc__list .it .n{font-size:11px;color:var(--muted);white-space:nowrap}
+.rc__det{max-height:min(62vh,620px);overflow:auto}
 .mx__wrap td.mx__n input{cursor:pointer;margin:0}
 
 /* 권한정리 */
@@ -126,16 +167,37 @@ tr.lead > td:first-child{font-weight:700}
 .cl__bar input[type=text]{padding:5px 9px;border:1px solid var(--line);border-radius:6px;font-size:12.5px}
 .cl__bar .go{border-color:var(--accent);background:var(--accent);color:#fff;font-weight:700}
 .cl__bar .go[disabled]{opacity:.45;cursor:not-allowed}
-.cl__pick{border:1px solid #e3b3aa;background:var(--softred);border-radius:7px;padding:8px 11px;margin-bottom:9px}
-.cl__pick .x{cursor:pointer;color:var(--red);margin-left:5px;font-weight:700}
 .cl__ok{border:1px solid #a9d3bd;background:var(--softgreen);color:#1c6b45;border-radius:7px;
   padding:9px 12px;margin-bottom:9px}
+.cl__cf{display:flex;align-items:center;gap:10px;border:1px solid #a9d3bd;background:var(--softgreen);
+  color:#1c6b45;border-radius:7px;padding:9px 12px;margin-bottom:9px;font-size:13px}
+.cl__cf .ic{font-size:17px}
+.cl__cf .sp{flex:1 1 auto}
+.cl__cf button{padding:4px 12px;border:1px solid var(--green);background:#fff;color:var(--green);
+  border-radius:6px;cursor:pointer;font-size:12.5px;font-weight:700}
+.cl__cf button:hover{background:var(--softgreen)}
+.cl__lock{opacity:.55;pointer-events:none}
+/* 이미 정리 요청을 올린 권한 — 줄 전체를 눌러 두고 더 고르지 못하게 한다 */
+.mx__wrap tr.cl__done > td{background:var(--softgreen)!important;color:#4b6b5c}
+.mx__wrap tr.cl__done td.mx__fix{box-shadow:inset 3px 0 0 var(--green)}
+.cl__done .mx__tag{opacity:.45}
+.cl__dn{display:inline-block;margin-left:5px;padding:0 6px;border-radius:9px;font-size:10.5px;
+  font-weight:700;color:var(--green);border:1px solid #a9d3bd;background:#fff;white-space:nowrap}
+.cl__help{padding:5px 9px;border:1px solid var(--line);border-radius:6px;background:#fff;
+  color:var(--navy2);font-size:12px;text-decoration:none;white-space:nowrap}
+.cl__help:hover{border-color:var(--accent);color:var(--accent)}
+.cl__x{margin-left:6px;padding:1px 8px;border:1px solid #e3b3aa;border-radius:6px;
+  background:#fff;font-size:11px;cursor:pointer;color:var(--red);font-weight:700}
+.cl__x:hover{background:var(--softred)}
+.cl__x[disabled]{opacity:.4;cursor:not-allowed}
 
 /* Role 상세 팝업 */
 .ov{position:fixed;inset:0;background:rgba(20,30,45,.45);display:flex;align-items:center;
   justify-content:center;padding:24px;z-index:50}
 .mo{background:#fff;border-radius:10px;width:min(980px,100%);max-height:88vh;display:flex;flex-direction:column;
   box-shadow:0 12px 40px rgba(0,0,0,.25)}
+.mo.wide{width:min(1340px,100%);max-height:92vh}
+@media (max-width:900px){.rc__wrap{grid-template-columns:1fr}}
 .mo > header{padding:13px 16px;border-bottom:1px solid var(--line);display:flex;
   justify-content:space-between;align-items:flex-start;gap:12px}
 .mo h4{margin:0;font-size:15px;color:var(--navy)}
@@ -163,7 +225,10 @@ tr.lead > td:first-child{font-weight:700}
         <span class="badge a" id="bScope">열람범위 확인 중</span>
       </div>
     </div>
-    <div class="right">ERP 권한 마스터 · <span data-qbar-asof>—</span> 기준</div>
+    <div class="right">
+      <button class="rc__btn" id="bCat" title="조직과 상관없이 ERP 권한(Role)과 그 메뉴를 훑어봅니다">📖 전체 권한 조회</button>
+      <div style="margin-top:6px">ERP 권한 마스터 · <span data-qbar-asof>—</span> 기준</div>
+    </div>
   </div>
 
   <div id="qbar" hidden></div>
@@ -220,9 +285,9 @@ tr.lead > td:first-child{font-weight:700}
   const EXPANDED = new Set();
   const RCACHE = new Map();   // role_id → 상세(메뉴·보유자)
   let ROLEMOD = 'all';        // 권한별 탭 모듈 필터
-  let ROLEDEPT = false;       // 권한별 탭 「선택 조직만」
+  let ROLEDEPT = true;        // 권한별 탭은 선택 조직만 — 전사는 「전체 권한 조회」가 맡는다
   let PICK = new Map();       // 권한정리 — 제외 담기 (key: email|role_id)
-  let CLCONFIRM = '', CLNOTE = '', CLDONE = null, CLLOG = null;
+  let CLCONFIRM = '', CLNOTE = '', CLDONE = null, CLLOG = null, CLBUSY = false;
 
   async function boot(){
     const { data:{ session } } = await supabase.auth.getSession();
@@ -240,15 +305,18 @@ tr.lead > td:first-child{font-weight:700}
     BAR = createQueryBar("#qbar", {
       // 기간 축 없음 — usr_role_s 에 부여일자 컬럼이 없다. 고를 수 없는 기간을 만들지 않는다(§16.6).
       months: false,
-      basis: "ERP 권한 마스터(usr_role_s · role_menu_s)",
-      mode: "live", modeLabel: "실연동", reset: true, refreshLabel: "다시 조회",
+      // 기준·모드 배지와 「최종 조회」 시각은 뺀다(2026-09-21 관리자 지시) —
+      // 기간 축이 없는 화면이라 알려 줄 게 없고, 같은 정보가 머리말에 이미 있다.
+      meta: false, stamp: false,
+      reset: true, refreshLabel: "다시 조회",
       extras: [
         { id:"q",     label:"이름·부서", type:"text", placeholder:"사람 이름 또는 부서명", width:"175px", debounce:250 },
-        { id:"rq",    label:"권한·메뉴", type:"text", placeholder:"Role명 또는 메뉴명",   width:"175px", debounce:350 },
+        { id:"rq",    label:"권한(Role)", type:"text", placeholder:"Role명 또는 ID",       width:"175px", debounce:350 },
         { id:"child", label:"하위부서 포함", type:"checkbox", value:false },
       ],
       onQuery: (q, ctx) => run(q, ctx),
     });
+    $("bCat").onclick = () => openCatalog();
   }
 
   let LAST = { dept:null, child:null, rq:null };
@@ -277,7 +345,8 @@ tr.lead > td:first-child{font-weight:700}
       // 권한·메뉴 검색은 서버가 판단한다 — 메뉴명은 role_menu 6,633행 × menu_master 3,560행 조인이라
       // 화면으로 내려보낼 수 없다.
       if(!ROLES || LAST.rq !== rq || reason === 'refresh' || reason === 'auto'){
-        const r = await erpApi.erpRoleList({ q: rq || null, menuQ: rq || null });
+        // 메뉴명 검색은 조회조건에서 뺐다(2026-09-21 관리자 지시) — 「전체 권한 조회」가 맡는다
+        const r = await erpApi.erpRoleList({ q: rq || null });
         ROLES = (r && r.ok) ? r : { ok:false, roles:[] };
         LAST.rq = rq;
       }
@@ -286,6 +355,7 @@ tr.lead > td:first-child{font-weight:700}
         const d = await erpApi.erpRoleDeptDetail(SEL, { includeDesc: child });
         DETAIL = (d && d.forbidden) ? { forbidden:true } : ((d && d.ok) ? d : null);
         LAST.dept = SEL; LAST.child = child;
+        CLLOG = null; CLDONE = null;      // 부서가 바뀌면 정리 내역도 다시 읽는다
       }
       render(ex);
     }catch(e){
@@ -338,15 +408,29 @@ tr.lead > td:first-child{font-weight:700}
     const map = {}; all.forEach(n => map[n.dept_cd] = n);
     const kw = String(ex.q || '').trim().toLowerCase();
 
+    /* 이번 렌더에서만 펼칠 노드 — OPEN 자체는 건드리지 않는다.
+       검색어를 지우면 사용자가 접어 둔 모양이 그대로 돌아와야 한다. */
+    const open = new Set(OPEN);
+    const openPath = cd => {          // 조상들을 펼쳐 그 노드가 화면에 나오게 한다
+      let p = (map[cd] || {}).par_dept_cd;
+      while(p && map[p]){ open.add(p); p = map[p].par_dept_cd; }
+    };
+    if(SEL) openPath(SEL);                       // 고른 조직이 접혀서 사라지지 않게
+    if(ex.child && SEL) open.add(SEL);           // 하위부서 포함 → 하위가 보여야 말이 된다
+    if(kw) all.forEach(n => {                    // 검색에 걸린 부서는 경로째 펼친다
+      if(String(n.dept_nm || '').toLowerCase().includes(kw)) openPath(n.dept_cd);
+    });
+
     const visible = all.filter(n => {
       let p = n.par_dept_cd;
-      while(p && map[p]){ if(!OPEN.has(p)) return false; p = map[p].par_dept_cd; }
+      while(p && map[p]){ if(!open.has(p)) return false; p = map[p].par_dept_cd; }
       return true;
     });
+    const hitCnt = kw ? all.filter(n => String(n.dept_nm||'').toLowerCase().includes(kw)).length : 0;
 
     const rows = visible.map(n => {
       const kids = all.some(x => x.par_dept_cd === n.dept_cd);
-      const tw = kids ? (OPEN.has(n.dept_cd) ? '−' : '+') : '·';
+      const tw = kids ? (open.has(n.dept_cd) ? '−' : '+') : '·';
       const lock = !n.visible;
       const hit = kw && String(n.dept_nm || '').toLowerCase().includes(kw);
       const hasMem = (n.member_cnt || 0) > 0 && !lock;
@@ -377,6 +461,10 @@ tr.lead > td:first-child{font-weight:700}
     const un = TREE.unassigned_cnt || 0;
     $("pTree").innerHTML =
       '<h3>조직도 <span class="sm">'+num(nodes().reduce((s,n)=>s+(n.member_cnt||0),0))+'명</span></h3>'
+      + (kw ? '<div class="tsearch">'
+            + (hitCnt ? '「'+esc(kw)+'」 부서 <b>'+hitCnt+'곳</b> — 경로를 펼쳐 표시했습니다'
+                      : '「'+esc(kw)+'」와 이름이 같은 부서는 없습니다 — 사람 이름이면 오른쪽 목록에서 찾습니다')
+            + '</div>' : '')
       + '<div class="tree">' + (rows || '<div class="notice" style="margin:9px;border:none">표시할 조직이 없습니다.</div>')
       + (un > 0 && TREE.is_admin
           ? '<div class="tnode'+(SEL===UNASSIGNED?' sel':'')+'" data-cd="'+UNASSIGNED+'" data-kids="0"'
@@ -421,10 +509,6 @@ tr.lead > td:first-child{font-weight:700}
     if(!DETAIL){ $("pDet").innerHTML = '<div class="pane"><div class="loading">불러오는 중…</div></div>'; return; }
 
     const d = DETAIL.dept || {}, m = members();
-    const mir = DETAIL.mirror || {};
-    const warn = (mir.reconcile_ok === false || (mir.role_rows_revoked || 0) > 0)
-      ? '<div class="notice warn" style="margin:11px 11px 0">⚠ ERP 미러에 <b>회수 잔재 '+num(mir.role_rows_revoked)+'건</b>이 있습니다 — 회수된 권한은 집계에서 제외됩니다.</div>'
-      : '';
 
     const roleSet = new Set();
     m.forEach(mm => (mm.roles || []).forEach(r => roleSet.add(r.role_id)));
@@ -435,7 +519,6 @@ tr.lead > td:first-child{font-weight:700}
       +  '<span class="sm">'+esc(SEL === UNASSIGNED ? '사내 조직에 속하지 않은 ERP 계정(외부 회계사·관리자 계정)' : (d.path_nm || ''))
       +   (d.leader_nm ? ' · 부서장 '+esc(d.leader_nm) : '')
       +   (d.include_desc ? ' · 하위부서 포함' : '') + '</span></h3>'
-      + warn
       + '<div class="sum">'
       +   '<span class="si"><b>인원</b>'+num(m.length)+'명</span>'
       +   '<span class="si"><b>보유 권한</b>'+num(roleSet.size)+'종</span>'
@@ -535,6 +618,77 @@ tr.lead > td:first-child{font-weight:700}
   }
 
   /* Matrix — 행 = Role, 열 = 구성원. ROLE 칸을 누르면 메뉴 권한 팝업이 열린다. */
+  /* 눈에 띄어야 할 권한 고르기 — 기준표 없이 **데이터가 스스로 말하는 것**만 쓴다.
+     (부서 표준 세트는 2026-09-18 관리자 지시로 화면에서 뺐다. 여기서 되살리지 않는다.)
+
+     두 가지만 본다
+       · 이 부서에서 **몇 명이나 갖고 있나** — 서버가 준 peer_cnt/dept_size(회수분 제외, 자기 부서 기준)
+         화면에서 세지 않는 이유: 「하위부서 포함」으로 보면 분모가 부문 전체가 돼
+         팀 전원이 가진 권한도 소수처럼 보인다.
+       · 그게 **쓰기 권한이거나 민감 모듈이거나, 이 부서가 거의 안 쓰는 모듈**인가
+
+     표시는 「확인」 하나뿐이다(2026-09-21 관리자 지시 — 등급을 나누면 낮은 등급이 안전해 보인다).
+     이건 **예상**이지 판정이 아니다. 기준표가 없으니 "다른 사람과 다르다"까지만 말할 수 있고,
+     진짜 타부서 권한인데 부서원 다수가 함께 갖고 있으면 여기 뜨지 않는다.
+     인원이 적은 조직(3명 미만)은 무엇이든 소수라서 판정하지 않는다. */
+  function flagRoles(mem, roles){
+    // 이 부서가 실제로 쓰는 모듈 — 구성원 중 몇 %가 그 모듈 권한을 갖는가
+    const modUse = {}, N = mem.length;
+    mem.forEach(mm => {
+      const seen = {};
+      (mm.roles || []).forEach(r => { seen[r.module_label || r.module || '기타'] = true; });
+      Object.keys(seen).forEach(k => { modUse[k] = (modUse[k] || 0) + 1; });
+    });
+
+    const out = {};
+    roles.forEach(({ r, holders }) => {
+      const hs = Object.keys(holders);
+      // 보유자들이 각자 자기 부서에서 차지하는 비율 중 가장 큰 값
+      let best = null, cnt = null, size = null;
+      hs.forEach(em => {
+        const mm = mem.find(x => x.email === em);
+        const rr = mm && (mm.roles || []).find(x => x.role_id === r.role_id);
+        if(!rr || !rr.dept_size || rr.dept_size < 3) return;
+        const ratio = (rr.peer_ratio != null) ? Number(rr.peer_ratio) : (rr.peer_cnt / rr.dept_size);
+        if(best === null || ratio > best){ best = ratio; cnt = rr.peer_cnt; size = rr.dept_size; }
+      });
+      if(best === null || best > 0.34) return;          // 부서에서 흔한 권한 → 표시 안 함
+
+      const grp = r.module_label || r.module || '기타';
+      const rare = N >= 4 && (modUse[grp] || 0) / N < 0.25;   // 이 부서가 거의 안 쓰는 모듈
+      const hard = !!r.is_write || !!r.sensitive || rare;
+      // 작은 팀(6명 미만)에서 「몇 명만 보유」는 당연해서 신호가 되지 못한다.
+      // 쓰기·민감·타 모듈처럼 내용 자체가 눈에 띄는 것만 남기고 조회성은 표시하지 않는다.
+      if(!hard && size < 6) return;
+      const who = (cnt === 1) ? '이 부서에서 한 명만' : ('이 부서 ' + size + '명 중 ' + cnt + '명만');
+      const why = [
+        who + ' 보유',
+        r.is_write ? '쓰기 권한' : null,
+        r.sensitive ? '민감 모듈' : null,
+        rare ? '이 부서가 거의 안 쓰는 모듈(' + grp + ')' : null,
+      ].filter(Boolean).join(' · ');
+
+      out[r.role_id] = {
+        lv: 1,                      // 등급을 나누지 않는다 — 전부 「확인」
+        tag: '확인',
+        why: why + ' — 소수 권한 또는 타부서 권한으로 예상됩니다. 업무상 필요한지 확인해 주세요',
+        hs: holders,
+      };
+    });
+    return out;
+  }
+
+  /* 매트릭스 위 안내 — 「여기 없으면 안전하다」로 읽히지 않게 쓴다.
+     부서원 다수가 함께 가진 타부서 권한은 이 표시에 걸리지 않기 때문이다. */
+  const FLNOTE = '(다수가 함께 가진 타부서 권한은 표시되지 않습니다 — 전체를 함께 확인)';
+  function flagHint(fl){
+    const n = Object.keys(fl).length;
+    return '<div class="mx__hint"><span>'
+      + (n ? '<i class="k f1"></i><b>확인 '+n+'건</b> — 소수 권한 또는 타부서 권한으로 예상되는 권한입니다'
+           : '<b>눈에 띄는 권한 없음</b> — 모든 권한을 부서원 다수가 함께 갖고 있습니다')
+      + ' <span class="mx__note">'+FLNOTE+'</span></span></div>';
+  }
+
   function paneMatrix(ex){
     const mem = members();
     const map = {};
@@ -547,21 +701,30 @@ tr.lead > td:first-child{font-weight:700}
       || String(a.r.role_nm).localeCompare(String(b.r.role_nm),'ko'));
     if(!mem.length || !roles.length){ $("pane").innerHTML = '<div class="notice">표시할 데이터가 없습니다.</div>'; return; }
 
+    const FL = flagRoles(mem, roles);
+    const multiDept = new Set(mem.map(mm => mm.dept_nm || '')).size > 1;
     let prev = null;
     let html = '<div class="tools"><button id="csvm">CSV 내보내기</button>'
       + '<span class="legend">행 = Role · 열 = 구성원 · ROLE 칸을 누르면 메뉴 권한이 열립니다</span></div>'
+      + flagHint(FL)
       + '<div class="mx__wrap"><table><thead><tr>'
       + '<th class="mx__fix">ROLE</th><th class="mx__n">보유</th>'
-      + mem.map(mm => '<th class="mx__n" title="'+esc(mm.email)+'">'+esc(mm.emp_nm || mm.email)+'</th>').join('')
+      + mem.map(mm => '<th class="mx__n" title="'+esc(mm.email)+'">'+esc(mm.emp_nm || mm.email)
+          + (multiDept ? '<span class="mx__dp">'+esc(mm.dept_nm || '')+'</span>' : '')+'</th>').join('')
       + '</tr></thead><tbody>';
     roles.forEach(({ r, holders }) => {
       const grp = r.module_label || r.module || '기타';
       const gap = (prev !== null && grp !== prev) ? ' class="mx__gap"' : '';
       prev = grp;
-      html += '<tr'+gap+'><td class="mx__fix" data-rid="'+esc(r.role_id)+'" title="'+esc(r.role_id)+' — 눌러서 메뉴 권한 보기">'
-        + '<span class="legend">'+esc(grp)+'</span><br>'+esc(r.role_label || r.role_nm)+'</td>'
+      const f = FL[r.role_id];
+      const fc = f ? ' f'+f.lv : '';
+      const hc = f ? ' h'+f.lv : '';
+      html += '<tr'+gap+'><td class="mx__fix'+fc+'" data-rid="'+esc(r.role_id)+'" title="'
+        + esc(f ? f.why : (r.role_id + ' — 눌러서 메뉴 권한 보기'))+'">'
+        + '<span class="legend">'+esc(grp)+'</span><br>'+esc(r.role_label || r.role_nm)
+        + (f ? '<span class="mx__tag f'+f.lv+'">'+f.tag+'</span>' : '')+'</td>'
         + '<td class="mx__n">'+Object.keys(holders).length+'</td>'
-        + mem.map(mm => '<td class="mx__n '+(holders[mm.email]?'mx__o':'mx__m')+'">'
+        + mem.map(mm => '<td class="mx__n '+(holders[mm.email]?'mx__o'+hc:'mx__m')+'">'
             + (holders[mm.email] ? 'O' : '·') + '</td>').join('')
         + '</tr>';
     });
@@ -591,7 +754,7 @@ tr.lead > td:first-child{font-weight:700}
       + '<button class="'+(ROLEMOD==='all'?'on':'')+'" data-mod="all">전체 '+all.length+'</button>'
       + Object.keys(mods).sort().map(k => '<button class="'+(ROLEMOD===k?'on':'')+'" data-mod="'+esc(k)+'">'+esc(k)+' '+mods[k]+'</button>').join('')
       + '<span style="flex:1 1 auto"></span>'
-      + '<label><input type="checkbox" id="rdept"'+(ROLEDEPT?' checked':'')+'> 선택 조직만</label>'
+      + '<span class="legend">이 조직이 보유한 권한만 · 전사는 상단 「전체 권한 조회」</span>'
       + '<button id="csvr">CSV 내보내기</button></div>';
 
     if(!list.length){
@@ -613,11 +776,147 @@ tr.lead > td:first-child{font-weight:700}
   function bindRoleTools(ex, list){
     $("pane").querySelectorAll('button[data-mod]').forEach(b =>
       b.onclick = () => { ROLEMOD = b.dataset.mod; paneRoleList(ex); });
-    const c = $("rdept"); if(c) c.onchange = () => { ROLEDEPT = c.checked; paneRoleList(ex); };
     const x = $("csvr"); if(x) x.onclick = () => exportRoleList(list || []);
   }
 
   /* ── Role 상세 팝업 — 메뉴 권한 트리 + 보유자 ── */
+  /* ── 전체 권한 조회 ──────────────────────────────────────────────────
+     조직을 고르지 않고 ERP 권한(Role) 전체를 훑는 창. 참조 자료
+     「ERP전체권한현황」의 쓰임새(권한 목록 ↔ 메뉴 트리)를 그대로 가져왔다.
+     · 왼쪽: Role 목록 — 모듈 묶음 단추 + Role명 검색 + **메뉴명 검색**(서버)
+     · 오른쪽: 고른 Role 의 메뉴 권한 트리 + 보유자
+     메뉴명 검색을 여기에 둔 이유: 조회조건에 있으면 부서를 고를 때마다 서버를
+     다시 때리는데, 메뉴는 조직과 무관한 마스터라 그럴 이유가 없다. */
+  let CAT = { q:'', mq:'', mod:'all', rid:null, roles:null, busy:false, t:null };
+
+  async function openCatalog(){
+    $("modal").innerHTML =
+      '<div class="ov"><div class="mo wide"><header>'
+      + '<div><h4>📖 전체 권한 조회</h4>'
+      +   '<div class="legend">조직과 상관없이 ERP 권한(Role)과 그 메뉴를 봅니다 · '
+      +   'Role 을 고르면 오른쪽에 메뉴 권한과 보유자가 열립니다</div></div>'
+      + '<button class="x" id="mx">×</button></header>'
+      + '<div class="body"><div class="rc__wrap">'
+      +   '<div><div class="rc__bar">'
+      +     '<input type="text" id="rcQ" placeholder="Role명 · ID" style="width:150px" value="'+esc(CAT.q)+'">'
+      +     '<input type="text" id="rcM" placeholder="메뉴명으로 찾기" style="width:170px" value="'+esc(CAT.mq)+'">'
+      +     '<span class="legend" id="rcN"></span></div>'
+      +     '<div class="rc__gt" id="rcG"></div>'
+      +     '<div class="rc__list" id="rcL"><div class="loading">불러오는 중…</div></div></div>'
+      +   '<div class="rc__det" id="rcD"><div class="notice">왼쪽에서 권한을 고르세요.</div></div>'
+      + '</div></div></div></div>';
+    bindModalClose();
+    const q = $("rcQ"), m = $("rcM");
+    const kick = () => { clearTimeout(CAT.t); CAT.t = setTimeout(() => {
+      CAT.q = q.value; CAT.mq = m.value; loadCatalog(); }, 350); };
+    q.oninput = kick; m.oninput = kick;
+    q.focus();
+    await loadCatalog();
+  }
+
+  async function loadCatalog(){
+    if(CAT.busy) return;
+    CAT.busy = true;
+    if($("rcL")) $("rcL").innerHTML = '<div class="loading">불러오는 중…</div>';
+    let r;
+    // finally 로 푸는 이유: 한 번이라도 던지면 busy 가 켜진 채 남아
+    // 이후 모든 조회가 조용히 무시된다(「불러오는 중…」에서 멈춘 채로).
+    try { r = await erpApi.erpRoleList({ q: CAT.q.trim() || null, menuQ: CAT.mq.trim() || null }); }
+    finally { CAT.busy = false; }
+    if(!$("rcL")) return;                       // 그 사이 닫혔으면 그만둔다
+    if(!r || !r.ok){
+      $("rcL").innerHTML = '<div class="notice warn">'
+        + (r && r.forbidden ? '권한 목록을 볼 수 없습니다.' : '목록을 불러오지 못했습니다.')+'</div>';
+      return;
+    }
+    CAT.roles = r.roles || [];
+    renderCatalog();
+  }
+
+  function renderCatalog(){
+    const all = CAT.roles || [];
+    const mods = {};
+    all.forEach(r => { const k = r.module_label || r.module || '기타'; mods[k] = (mods[k]||0)+1; });
+    if(CAT.mod !== 'all' && !mods[CAT.mod]) CAT.mod = 'all';
+    const list = (CAT.mod === 'all' ? all
+                  : all.filter(r => (r.module_label || r.module || '기타') === CAT.mod))
+                 .slice().sort((a,b) => String(a.role_nm).localeCompare(String(b.role_nm),'ko'));
+
+    $("rcN").textContent = CAT.mq.trim()
+      ? '메뉴 「'+CAT.mq.trim()+'」 를 가진 권한 '+all.length+'종'
+      : '권한 '+all.length+'종';
+    $("rcG").innerHTML = '<button class="'+(CAT.mod==='all'?'on':'')+'" data-m="all">전체 '+all.length+'</button>'
+      + Object.keys(mods).sort().map(k =>
+          '<button class="'+(CAT.mod===k?'on':'')+'" data-m="'+esc(k)+'">'+esc(k)+' '+mods[k]+'</button>').join('');
+    $("rcG").querySelectorAll('button').forEach(b =>
+      b.onclick = () => { CAT.mod = b.dataset.m; renderCatalog(); });
+
+    $("rcL").innerHTML = list.length
+      ? list.map(r => '<div class="it'+(CAT.rid===r.role_id?' on':'')+'" data-rid="'+esc(r.role_id)+'">'
+          + '<span class="nm">'+esc(r.role_nm)
+          +   (r.sensitive ? ' <span class="legend">민감</span>' : '')
+          +   '<br><code class="legend">'+esc(r.role_id)+'</code></span>'
+          + '<span class="n">메뉴 '+num(r.menu_cnt)+' · 사용자 '+num(r.user_cnt)+'</span></div>').join('')
+      : '<div class="notice">조건에 맞는 권한이 없습니다.</div>';
+    $("rcL").querySelectorAll('.it').forEach(el =>
+      el.onclick = () => { CAT.rid = el.dataset.rid; renderCatalog(); loadCatalogDetail(); });
+
+    if(CAT.rid && list.some(r => r.role_id === CAT.rid)) loadCatalogDetail();
+  }
+
+  async function loadCatalogDetail(){
+    const rid = CAT.rid;
+    if(!rid || !$("rcD")) return;
+    let d = RCACHE.get(rid);
+    if(!d){
+      $("rcD").innerHTML = '<div class="loading">메뉴 권한을 불러오는 중…</div>';
+      d = await erpApi.erpRoleMenuDetail(rid);
+      if(d && d.ok) RCACHE.set(rid, d);
+    }
+    if(!$("rcD") || CAT.rid !== rid) return;
+    if(!d || !d.ok){
+      $("rcD").innerHTML = '<div class="notice warn">상세를 불러오지 못했습니다.</div>';
+      return;
+    }
+    const role = d.role || {}, menus = d.menus || [], holders = d.holders || [];
+    const mq = CAT.mq.trim().toLowerCase();
+    const shown = mq ? menus.filter(mn => String(mn.mnu_nm||'').toLowerCase().includes(mq)
+                                       || String(mn.mnu_id||'').toLowerCase().includes(mq)) : menus;
+    const byDept = {};
+    holders.forEach(h => { const k = h.dept_nm || '외부'; (byDept[k] = byDept[k] || []).push(h); });
+
+    $("rcD").innerHTML =
+      '<div class="grp">'+esc(role.role_nm || rid)
+      + ' <span class="legend"><code>'+esc(rid)+'</code>'
+      + (role.module_label ? ' · '+esc(role.module_label) : '')+'</span></div>'
+      + '<div class="grp">메뉴 권한 '+num(d.menu_cnt)
+      +   (mq ? ' <span class="legend">— 「'+esc(CAT.mq.trim())+'」 일치 '+num(shown.length)+'건만 표시</span>' : '')
+      + '</div>'
+      + (shown.length ? '<div class="mtree" style="max-height:38vh">'+shown.map(menuRow).join('')+'</div>'
+                      : '<div class="notice">표시할 메뉴가 없습니다.</div>')
+      + '<div class="grp">보유자 '+num(holders.length)+'명</div>'
+      + (holders.length
+          ? Object.keys(byDept).sort().map(k => '<div class="grp">'+esc(k)+' '+byDept[k].length+'</div>'
+              + byDept[k].map(h => '<span class="chip flat">'+esc(h.emp_nm || h.email)
+                  + (h.title ? '<span class="w">'+esc(h.title)+'</span>' : '')+'</span>').join('')).join('')
+          : '<div class="notice">보유자가 없습니다(열람 범위 안 기준).</div>');
+  }
+
+  /* 메뉴 한 줄 — 이름이 코드로만 오는 경우를 숨기지 않고 있는 그대로 알린다.
+     name_src: exact(마스터 정확일치) / variant(법인 변형 접미사를 뗀 기본 코드의 이름) / code(이름 없음) */
+  function menuRow(mn){
+    const src = mn.name_src || 'exact';
+    const nm = src === 'code'
+      ? '<span class="cd">'+esc(mn.mnu_nm)+'</span> <span class="vr">메뉴명 미등록</span>'
+      : esc(mn.mnu_nm) + (src === 'variant'
+          ? '<span class="vr" title="법인 변형 코드 '+esc(mn.mnu_id||'')+' — 기본 메뉴의 이름을 씁니다">'
+            + esc(mn.variant_cd || '변형')+'</span>' : '');
+    return '<div class="mrow" style="padding-left:'+(9 + Math.min(mn.depth||0, 8)*13)+'px"'
+      + ' title="'+esc((mn.path_nm||'') + ' · ' + (mn.mnu_id||''))+'">'
+      + '<span class="mn">'+nm+'</span><span class="sp"></span>'
+      + '<span class="act '+esc(mn.action_id||'')+'">'+esc(mn.action_nm||'')+'</span></div>';
+  }
+
   async function openRole(roleId){
     if(!roleId) return;
     $("modal").innerHTML = '<div class="ov"><div class="mo"><header><h4>'+esc(roleId)+'</h4>'
@@ -647,9 +946,7 @@ tr.lead > td:first-child{font-weight:700}
       + '<div><div class="grp">메뉴 권한 '+num(d.menu_cnt)+'건</div>'
       +   (menus.length
             ? '<div class="mtree">' + menus.map(mn =>
-                '<div class="mrow" style="padding-left:'+(9 + Math.min(mn.depth||0, 8)*13)+'px" title="'+esc(mn.path_nm||'')+'">'
-                + '<span class="mn">'+esc(mn.mnu_nm)+'</span><span class="sp"></span>'
-                + '<span class="act '+esc(mn.action_id||'')+'">'+esc(mn.action_nm||'')+'</span></div>').join('')
+                menuRow(mn)).join('')
               + '</div>'
             : '<div class="notice">이 권한에 연결된 메뉴가 없습니다.</div>')
       + '</div>'
@@ -672,7 +969,40 @@ tr.lead > td:first-child{font-weight:700}
   const CLTEXT = '권한확인 완료';
   const pkey = (em, rid) => em + '|' + rid;
 
+  /* 한국시간으로 찍는다 — timestamptz 를 문자열로 잘라 쓰면 UTC 가 그대로 보인다(9시간 어긋남) */
+  function kst(v){
+    if(!v) return '';
+    const d = new Date(v);
+    if(isNaN(d.getTime())) return String(v).slice(0, 16).replace('T', ' ');
+    const p = new Intl.DateTimeFormat('ko-KR', { timeZone:'Asia/Seoul', year:'numeric', month:'2-digit',
+      day:'2-digit', hour:'2-digit', minute:'2-digit', hourCycle:'h23' })
+      .formatToParts(d).reduce((a, x) => (a[x.type] = x.value, a), {});
+    return p.year+'-'+p.month+'-'+p.day+' '+p.hour+':'+p.minute;
+  }
+
+  /* 권한정리 — 팀장·부서장이 「이 권한은 빼자」를 표시해 장부에 남긴다.
+     ERP 에서 실제로 회수하지는 않는다(CLAUDE.md §1.6 — 실거래 액션은 사람이 실행).
+
+     화면 규칙(2026-09-21 관리자 지시로 단순화)
+       · 체크 → 「권한확인 완료」 입력 → 저장. **담기·비우기 단계를 없앴다.**
+       · 이미 올린 권한은 ROLE 행에서 **「정리완료」** 로만 알리고, 상태·요청자 표는 두지 않는다.
+       · 물리는 것도 ROLE 행의 **「삭제」** 하나로 한다(장부에는 '취소'로 남는다 — 감사 기록은 지우지 않는다).
+       · 시각은 전부 한국시간. */
   function paneClean(ex){
+    // 이 부서의 정리 내역을 먼저 읽어 둔다 — 이미 올린 권한을 눌러 두려면 필요하다.
+    if(CLLOG === null && !CLBUSY){
+      CLBUSY = true;
+      erpApi.erpRoleCleanupList({ deptCd: SEL })
+        .then(r => { CLLOG = (r && r.ok) ? r : { rows: [] }; })
+        .catch(() => { CLLOG = { rows: [] }; })
+        .finally(() => { CLBUSY = false; if(TAB === 'clean') renderDetail(ex); });
+    }
+    const done = {};      // role_id → 살아 있는(미처리) 제외 요청
+    ((CLLOG && CLLOG.rows) || []).forEach(r => {
+      if(r.status === 'requested') (done[r.role_id] = done[r.role_id] || []).push(r);
+    });
+    const liveCnt = Object.values(done).reduce((n, a) => n + a.length, 0);
+
     const mem = members();
     const map = {};
     mem.forEach(mm => (mm.roles || []).forEach(r => {
@@ -683,63 +1013,81 @@ tr.lead > td:first-child{font-weight:700}
       String(a.r.module_label||'').localeCompare(String(b.r.module_label||''),'ko')
       || String(a.r.role_nm).localeCompare(String(b.r.role_nm),'ko'));
 
-    const canSave = PICK.size > 0 && CLCONFIRM.trim() === CLTEXT;
+    const CF = (CLLOG && CLLOG.confirm) || null;   // 확인완료 → 「수정」 전까지 잠금
+    const canSave = !CF && CLCONFIRM.trim() === CLTEXT;
     let html = '';
 
+    if(CF){
+      // ⚠ 저장 묶음의 건수(exclude_cnt)가 아니라 **지금 살아 있는 요청 수**를 센다.
+      //   수정 후 다시 저장하면 새 묶음은 0건이라, 묶음 건수를 쓰면 요청이 남아 있는데도
+      //   「변경없음」이라고 말한다(2026-09-21 관리자 지적).
+      html += '<div class="cl__cf"><span class="ic">\u2705</span>'
+        + '<div><b>권한확인 완료</b> \u2014 '+esc(CF.by || '')+' · '+esc(kst(CF.at))
+        +   ' · '+(liveCnt ? '제외 '+num(liveCnt)+'건' : '변경없음')
+        + '</div><span class="sp"></span>'
+        + '<button id="clEdit">수정</button></div>';
+    }
+
     if(CLDONE){
-      html += '<div class="cl__ok">저장했습니다 \u2014 <b>'+num(CLDONE.saved)+'건</b>'
-        + (CLDONE.skipped ? ' · 제외 '+num(CLDONE.skipped)+'건(이미 등록됐거나 대상이 아님)' : '')
+      html += '<div class="cl__ok">권한확인 완료로 저장했습니다 \u2014 '
+        + (CLDONE.saved ? '<b>제외 '+num(CLDONE.saved)+'건</b>' : '<b>변경없음</b>')
+        + (CLDONE.skipped ? ' · 건너뜀 '+num(CLDONE.skipped)+'건(이미 등록됐거나 대상이 아님)' : '')
         + ' · 저장자 <b>'+esc(CLDONE.by||'')+'</b></div>';
     }
 
-    html += '<div class="cl__bar">'
-      + '<button id="clAdd">권한제외 담기</button>'
-      + '<button id="clClear">선택 비우기</button>'
-      + '<span class="legend">담긴 '+PICK.size+'건</span>'
+    html += '<div class="cl__bar'+(CF ? ' cl__lock' : '')+'">'
+      + '<span class="legend">체크한 권한 <b>'+PICK.size+'</b>건</span>'
       + '<span style="flex:1 1 auto"></span>'
-      + '<input type="text" id="clNote" placeholder="메모(선택)" style="width:180px" value="'+esc(CLNOTE)+'">'
+      + '<input type="text" id="clNote" placeholder="메모(선택)" style="width:170px" value="'+esc(CLNOTE)+'">'
       + '<input type="text" id="clOk" placeholder="'+CLTEXT+'" style="width:150px" value="'+esc(CLCONFIRM)+'">'
-      + '<button class="go" id="clSave"'+(canSave?'':' disabled')+'>저장</button>'
-      + '<button id="clLog">내역 보기</button></div>';
-
-    if(PICK.size){
-      html += '<div class="cl__pick"><b>제외할 권한 '+PICK.size+'건</b><br>'
-        + [...PICK.values()].map(v => '<span class="chip flat">'+esc(v.emp_nm)+' \u2190 '+esc(v.role_nm)
-            + '<span class="x" data-del="'+esc(pkey(v.email, v.role_id))+'">\u00d7</span></span>').join('')
-        + '</div>';
-    }
-
-    if(CLLOG){
-      html += '<div class="grp">최근 정리 내역 '+num((CLLOG.rows||[]).length)+'건</div>'
-        + ((CLLOG.rows||[]).length
-            ? '<table><thead><tr><th>대상</th><th>ROLE</th><th>상태</th><th>요청자</th><th>일시</th></tr></thead><tbody>'
-              + CLLOG.rows.map(r => '<tr><td>'+esc(r.emp_nm||r.email)+'</td><td>'+esc(r.role_nm||r.role_id)+'</td>'
-                  + '<td>'+esc(r.status)+'</td><td>'+esc(r.requested_by_nm||r.requested_by)+'</td>'
-                  + '<td>'+esc(String(r.requested_at||'').slice(0,16).replace('T',' '))+'</td></tr>').join('')
-              + '</tbody></table>'
-            : '<div class="notice">이 조직의 정리 내역이 아직 없습니다.</div>');
-    }
+      + '<button class="go" id="clSave"'+(canSave?'':' disabled')+'>'
+      +   (PICK.size ? '저장 ('+PICK.size+'건 제외)' : '저장 (변경없음)')+'</button>'
+      + '<a class="cl__help" href="/docs/erp/role-cleanup" target="_blank" rel="noopener"'
+      +   ' title="캡처 2장으로 보는 사용 안내">📄 사용 안내</a></div>';
 
     if(!mem.length || !roles.length){
       html += '<div class="notice">표시할 데이터가 없습니다.</div>';
       $("pane").innerHTML = html; bindClean(ex); return;
     }
 
-    html += '<div class="legend" style="margin-bottom:6px">ROLE 이름을 누르면 전원 선택\u00b7해제됩니다 \u2014 '
-      + '체크한 뒤 「권한제외 담기」, 확인 문구 <b>'+CLTEXT+'</b> 를 입력하고 저장합니다</div>'
+    const FL = flagRoles(mem, roles);
+    const multiDept = new Set(mem.map(mm => mm.dept_nm || '')).size > 1;
+    html += '<div class="legend" style="margin-bottom:6px">'
+      + '뺄 권한을 <b>체크</b>하고 확인 문구 <b>'+CLTEXT+'</b> 를 입력한 뒤 저장합니다 '
+      + '\u00b7 ROLE 이름을 누르면 그 줄 전원이 선택\u00b7해제됩니다 '
+      + '\u00b7 뺄 것이 없으면 체크 없이 저장하면 <b>변경없음</b>으로 기록됩니다</div>'
+      + flagHint(FL)
       + '<div class="mx__wrap"><table><thead><tr>'
       + '<th class="mx__fix">ROLE</th><th class="mx__n">보유</th>'
-      + mem.map(mm => '<th class="mx__n" title="'+esc(mm.email)+'">'+esc(mm.emp_nm || mm.email)+'</th>').join('')
+      + mem.map(mm => '<th class="mx__n" title="'+esc(mm.email)+'">'+esc(mm.emp_nm || mm.email)
+          + (multiDept ? '<span class="mx__dp">'+esc(mm.dept_nm || '')+'</span>' : '')+'</th>').join('')
       + '</tr></thead><tbody>';
     roles.forEach(({ r, holders }) => {
-      html += '<tr><td class="mx__fix" data-rowsel="'+esc(r.role_id)+'" title="전원 선택\u00b7해제">'
+      const f  = FL[r.role_id];
+      const dn = done[r.role_id];                       // 살아 있는 제외 요청
+      const byEm = {};
+      (dn || []).forEach(x => { byEm[String(x.email || '').toLowerCase()] = x; });
+      const mineIds = (dn || []).filter(x => x.mine).map(x => x.id);
+      html += '<tr'+(dn ? ' class="cl__done"' : '')+'>'
+        + '<td class="mx__fix'+(f && !dn ? ' f'+f.lv : '')+'" data-rowsel="'+esc(r.role_id)+'" title="'
+        + esc(dn ? '정리 요청을 올린 권한입니다' : (f ? f.why + ' / 눌러서 전원 선택·해제' : '전원 선택·해제'))+'">'
         + '<span class="legend">'+esc(r.module_label || r.module || '기타')+'</span><br>'
-        + esc(r.role_label || r.role_nm)+'</td>'
+        + esc(r.role_label || r.role_nm)
+        + (f ? '<span class="mx__tag f'+f.lv+'">'+f.tag+'</span>' : '')
+        + (dn ? '<span class="cl__dn">정리완료</span>' : '')
+        // 삭제는 「수정」으로 잠금을 푼 뒤에만. 내가 올린 건만 지워진다(판정은 서버가 다시 한다).
+        + (dn && !CF && mineIds.length
+            ? '<button class="cl__x" data-cx="'+esc(mineIds.join(','))+'" title="이 권한의 정리 요청을 지웁니다">삭제</button>' : '')
+        + '</td>'
         + '<td class="mx__n">'+Object.keys(holders).length+'</td>'
-        + mem.map(mm => holders[mm.email]
-            ? '<td class="mx__n"><input type="checkbox" data-em="'+esc(mm.email)+'" data-rid="'+esc(r.role_id)+'"'
-              + (PICK.has(pkey(mm.email, r.role_id)) ? ' checked' : '')+'></td>'
-            : '<td class="mx__n mx__m">\u00b7</td>').join('')
+        + mem.map(mm => {
+            if(!holders[mm.email]) return '<td class="mx__n mx__m">\u00b7</td>';
+            const hit = byEm[String(mm.email).toLowerCase()];
+            // 이미 올린 대상은 다시 담지 못하게 잠근다(서버도 중복을 막지만 화면에서 먼저 알린다)
+            if(hit) return '<td class="mx__n" title="'+esc((hit.requested_by_nm||'')+' · '+kst(hit.requested_at))+'">\u2713</td>';
+            return '<td class="mx__n"><input type="checkbox" data-em="'+esc(mm.email)+'" data-rid="'+esc(r.role_id)+'"'
+              + (PICK.has(pkey(mm.email, r.role_id)) ? ' checked' : '')+'></td>';
+          }).join('')
         + '</tr>';
     });
     html += '</tbody></table></div>';
@@ -752,38 +1100,75 @@ tr.lead > td:first-child{font-weight:700}
     if(note) note.oninput = () => { CLNOTE = note.value; };
     if(ok) ok.oninput = () => {
       CLCONFIRM = ok.value;
-      const b = $("clSave"); if(b) b.disabled = !(PICK.size > 0 && CLCONFIRM.trim() === CLTEXT);
+      const b = $("clSave");
+      if(b) b.disabled = !!(CLLOG && CLLOG.confirm) || CLCONFIRM.trim() !== CLTEXT;
     };
-    const add = $("clAdd");
-    if(add) add.onclick = () => {
-      $("pane").querySelectorAll('input[type=checkbox][data-em]:checked').forEach(c => {
-        const em = c.dataset.em, rid = c.dataset.rid;
+
+    /* 체크 자체가 선택이다 — 「담기」 단계를 없앴다(2026-09-21).
+       다만 화면이 다시 그려져도 체크가 날아가지 않도록 PICK 에 그대로 옮겨 둔다. */
+    const sync = (c) => {
+      const em = c.dataset.em, rid = c.dataset.rid, k = pkey(em, rid);
+      if(c.checked){
         const mm = (mem || []).find(x => x.email === em);
         const rr = (roles || []).find(x => x.r.role_id === rid);
-        PICK.set(pkey(em, rid), { email: em, role_id: rid,
-          emp_nm: (mm && mm.emp_nm) || em, role_nm: (rr && (rr.r.role_nm)) || rid });
-      });
-      CLDONE = null; renderDetail(ex);
+        PICK.set(k, { email: em, role_id: rid,
+          emp_nm: (mm && mm.emp_nm) || em, role_nm: (rr && rr.r.role_nm) || rid });
+      }else PICK.delete(k);
     };
-    const clr = $("clClear");
-    if(clr) clr.onclick = () => { PICK.clear(); CLDONE = null; renderDetail(ex); };
-    $("pane").querySelectorAll('[data-del]').forEach(el =>
-      el.onclick = () => { PICK.delete(el.dataset.del); renderDetail(ex); });
-    $("pane").querySelectorAll('td[data-rowsel]').forEach(td => td.onclick = () => {
+    const paintCnt = () => {
+      const el = $("pane").querySelector('.cl__bar .legend b'); if(el) el.textContent = PICK.size;
+      const b = $("clSave");
+      if(b) b.textContent = PICK.size ? '저장 ('+PICK.size+'건 제외)' : '저장 (변경없음)';
+    };
+    $("pane").querySelectorAll('input[type=checkbox][data-em]').forEach(c =>
+      c.onchange = () => { sync(c); CLDONE = null; paintCnt(); });
+
+    $("pane").querySelectorAll('td[data-rowsel]').forEach(td => td.onclick = (e) => {
+      if(e.target.classList.contains('cl__x')) return;      // 삭제 버튼은 따로 논다
       const rid = td.dataset.rowsel;
       const boxes = [...$("pane").querySelectorAll('input[data-rid="'+rid+'"]')];
+      if(!boxes.length) return;
       const allOn = boxes.every(b => b.checked);
-      boxes.forEach(b => { b.checked = !allOn; });
+      boxes.forEach(b => { b.checked = !allOn; sync(b); });
+      CLDONE = null; paintCnt();
     });
-    const log = $("clLog");
-    if(log) log.onclick = async () => {
-      const r = await erpApi.erpRoleCleanupList({ deptCd: SEL });
-      CLLOG = (r && r.ok) ? r : { rows: [] };
+
+    const ed = $("clEdit");
+    if(ed) ed.onclick = async () => {
+      ed.disabled = true;
+      const r = await erpApi.erpRoleCleanupReopen(SEL);
+      if(r && r.ok){
+        const l = await erpApi.erpRoleCleanupList({ deptCd: SEL });
+        CLLOG = (l && l.ok) ? l : { rows: [] };
+        CLDONE = null;
+      }else{
+        alert(r && r.message ? r.message : '수정 상태로 바꾸지 못했습니다.');
+        ed.disabled = false;
+      }
       renderDetail(ex);
     };
+
+    // ROLE 행의 「삭제」 — 그 권한에 대해 내가 올린 요청을 한 번에 물린다
+    $("pane").querySelectorAll('[data-cx]').forEach(b => b.onclick = async (e) => {
+      e.stopPropagation();
+      b.disabled = true;
+      const ids = String(b.dataset.cx).split(',').map(Number).filter(Boolean);
+      const r = await erpApi.erpRoleCleanupCancel(ids);
+      if(r && r.ok && r.cancelled > 0){
+        const l = await erpApi.erpRoleCleanupList({ deptCd: SEL });
+        CLLOG = (l && l.ok) ? l : { rows: [] };
+        CLDONE = null;
+      }else{
+        alert(r && r.message ? r.message : '지우지 못했습니다 — 본인이 올린 미처리 건만 지울 수 있습니다.');
+        b.disabled = false;
+      }
+      renderDetail(ex);
+    });
+
     const save = $("clSave");
     if(save) save.onclick = async () => {
       save.disabled = true;
+      // 제외 0건이어도 보낸다 — 서버가 「변경없음」으로 기록한다
       const r = await erpApi.erpRoleCleanupSave(SEL, [...PICK.values()].map(v =>
         ({ email: v.email, role_id: v.role_id })), CLCONFIRM, CLNOTE || null);
       if(r && r.ok){
