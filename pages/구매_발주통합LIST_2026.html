@@ -243,8 +243,6 @@
       <button class="btn" id="bPreset" data-mode="basic" title="엑셀 23열 + 보조 5열 전체를 보려면 누르세요">기본 열</button>
       <button class="btn" id="bFit" aria-pressed="false" title="모든 열을 화면 폭 안에 넣습니다 — 긴 글자는 …으로 줄고 마우스를 올리면 전체가 보입니다">↔ 화면맞춤</button>
       <span class="cap" id="fitNote" hidden style="color:var(--amber);"></span>
-      <span class="lb" style="margin-left:6px;">열로 이동</span>
-      <select id="selJump" class="btn" style="padding:5px 8px;" title="고른 열까지 표가 이동합니다"></select>
       <span class="lb" style="margin-left:6px;">표시</span>
       <select id="selShow" class="btn" style="padding:5px 8px;">
         <option value="300" selected>300행</option>
@@ -255,7 +253,10 @@
     </div>
   </div>
 
-  <div class="cap" style="margin:-2px 0 5px;">💡 <b>행을 누르면</b> 그 건의 모든 칸을 한 화면에서 봅니다(↑↓ 로 앞뒤 행, Esc 로 닫기) · <b>열 경계를 끌면</b> 폭이 조절됩니다(두 번 누르면 원래대로) · 표를 누른 뒤 <b>방향키</b>로 칸 사이를 옮겨 다닙니다(Enter 로 상세) · NO.·구분 두 칸은 왼쪽에 고정됩니다</div>
+  <div class="cap" style="margin:-2px 0 5px;">💡 <b>행을 누르면</b> 그 건의 모든 칸을 한 화면에서 봅니다(↑↓ 로 앞뒤 행, Esc 로 닫기) · 표 오른쪽 위 <b>「▦ 항목」</b> 으로 열을 <b>넣고 뺍니다</b>(끌면 순서도 바뀜) · <b>CSV·복사는 보이는 열만</b> 나갑니다<!--
+  ↓ 표준 그리드가 검색·필터 범위를 「보이는 열만」으로 좁혔다(2026-09-22). 그 결정이 되돌아가면
+    이 span 하나만 지우면 된다 — 나머지 문장은 그대로 참이다. -->
+      <span id="hintSearchScope"> · <b>표 안 검색·필터도 보이는 열만</b> 찾습니다(뺀 열의 값으로 찾으려면 위 조회조건을 쓰거나 그 열을 넣으세요)</span> · <b>열 경계를 끌면</b> 폭이 조절됩니다(두 번 누르면 원래대로) · 표를 누른 뒤 <b>방향키</b>로 칸 사이를 옮겨 다닙니다(Enter 로 상세) · NO.·구분 두 칸은 왼쪽에 고정됩니다</div>
 
   <!-- 표 위쪽 가로 스크롤바 — 아래까지 내려가지 않고도 좌우로 옮길 수 있게 -->
   <div class="hbar" id="hbarTop" aria-hidden="true"><div></div></div>
@@ -311,6 +312,7 @@
   let SHOW = 300;         // 첫 화면은 가볍게 — 더 보려면 「표시」에서 올린다(정렬·검색·CSV 는 늘 전량 기준)
   let FIT = false;        // 화면맞춤(모든 열을 화면 폭 안에)
   let COLW = {};          // 사용자가 끌어서 정한 열 폭
+  let COLS_ST = null;     // 열 구성(순서·뺀 열) — 「▦ 항목」에서 바뀐다
   let PICK = { gubun: new Set(), sts: new Set() };
   let DEPTS = new Set();  // 요청부서 옵션 — 받은 데이터에서 누적(서버 왕복 추가 없음)
   let reqSeq = 0;         // 늦게 도착한 옛 조회 결과를 버린다
@@ -337,16 +339,17 @@
     COLW = p.colW && typeof p.colW === "object" ? p.colW : {};
     FIT = !!p.fit;
     if (p.show != null) SHOW = Number(p.show) || 0;
+    COLS_ST = p.cols && Array.isArray(p.cols.order) ? p.cols : null;
   }
-  const savePref = () => safeSet(localStorage, PREF_KEY, { colW: COLW, fit: FIT, show: SHOW });
+  const savePref = () => safeSet(localStorage, PREF_KEY, { colW: COLW, fit: FIT, show: SHOW, cols: COLS_ST });
 
   /* ── 컬럼 정의: 엑셀 A~W 23개를 순서·이름 그대로 + 보조 4개(전체 프리셋에서만) ── */
   const dash = '<span class="muted">—</span>';
   const pend = () => '<span class="muted" title="ERP 추출 확장 대기 — 아래 안내 참조">—</span>';
   const COLS = [
     /* 폭은 CSS 의 --pl-w1/--pl-w2 와 같은 값이어야 한다(고정열 left 오프셋이 이 폭을 누적한다) */
-    { key: "no",          label: "NO.",              width: "54px",  align: "right",  base: true, cssClass: "pl-fix1", fixedWidth: true, filter: false, sortable: false },
-    { key: "gubun",       label: "구분",              width: "74px",  align: "center", base: true, cssClass: "pl-fix2", fixedWidth: true,
+    { key: "no",          label: "NO.",              width: "54px",  align: "right",  base: true, cssClass: "pl-fix1", fixedWidth: true, required: true, filter: false, sortable: false },
+    { key: "gubun",       label: "구분",              width: "74px",  align: "center", base: true, cssClass: "pl-fix2", fixedWidth: true, required: true,
       formatter: (v, r) => (v ? esc(v) : '<span class="muted" title="' + esc("품목계정 " + (r.item_class || "?") + " 이름 미등재") + '">—</span>') },
     /* 엑셀 C열. 2026-09-22 원천 확정 — `M_PUR_REQ.EXT1_CD`(ERP 확장슬롯). 한 결재 아래 요청 여러 건이 달린다. */
     { key: "pu_no",       label: "요청번호(결재)",     width: "138px", fitMin: 110, base: true, mono: true,
@@ -428,8 +431,8 @@
   };
   const pendingNow = () => COLS.filter((c) => c.pending && !FILLED.has(c.key));
   const PENDING_LABELS = COLS.filter((c) => c.pending).map((c) => c.label);
+  /** 「기본 열」에 들어가는 열 — 엑셀 기본칸 + 값이 들어온 대기 칸. hiddenFor() 가 이 반대를 숨긴다 */
   const basicCols = () => COLS.filter((c) => c.base || FILLED.has(c.key));
-  const label = (p) => (p === "basic" ? "기본 " + basicCols().length + "열" : "전체 " + COLS.length + "열");
 
   /* ── 조건 읽기/쓰기/주소동기화 (품목중복 조회 선례) ── */
   function readCond() {
@@ -564,29 +567,56 @@
   }
 
   function renderGrid() {
-    const cols = PRESET === "basic" ? basicCols() : COLS;
     closeDetail();                     // 표를 갈아 끼우면 펼쳐 둔 행도 사라진다
     if (GRID) { GRID.destroy(); GRID = null; }
     $("listGrid").innerHTML = "";
     GRID = createGrid("#listGrid", {
-      columns: cols, rows: ROWS, keyField: null,
+      // **늘 30열 전부**를 넘기고, 보일지 말지는 그리드의 hidden 이 정한다.
+      // 프리셋으로 컬럼 배열 자체를 갈아 끼우면 「항목 고르기」와 진실이 둘로 갈린다.
+      columns: COLS, rows: ROWS, keyField: null,
       search: true, columnFilter: true, sortable: true,
       editable: false, paste: false, selectable: false,
       exportCsv: true, copy: true, exportName: "발주통합관리LIST_" + YEAR + "_" + kst(Date.now()).replace(/-/g, ""),
       stickyHeader: true, keyboardNav: false,
       // 넓은 목록용 3종 — 폭 조절·화면맞춤·방향키 칸 이동(§5.2)
       resizable: true, fitWidth: true, cellNav: true,
+      columnPicker: true, columnPickerLabel: "▦ 항목",
       onColResize: (key, px, all) => { COLW = all; savePref(); },
+      onColumnsChange: (st) => { COLS_ST = st; savePref(); syncPresetBtn(); syncFitBtn(); },
       onCellActivate: (row) => { const tr = rowTr(row); if (tr) openDetail(tr); },
       pageSize: SHOW,                  // 렌더만 자른다 — 검색·정렬·CSV 는 전량 기준(grid.js:145 vs :318)
       emptyText: "조건에 맞는 자료가 없습니다.",
     });
+    GRID.setColumnState(COLS_ST || { hidden: hiddenFor("basic") });
     GRID.setColWidths(COLW);
     if (FIT) GRID.setFit(true);
-    $("bPreset").textContent = label(PRESET);
+    syncPresetBtn();
     syncFitBtn();                        // setFit 뒤 — 남은 폭을 알아야 안내를 쓸 수 있다
-    fillJump(cols);
     wireScrollAids();
+  }
+
+  /* ── 열 구성 ────────────────────────────────────────────────────────
+     「▦ 항목」 팝업에서 넣고 빼는 게 정본이고, 「기본 열/전체 열」은 그 위에 얹은 빠른 버튼이다.
+     둘 다 같은 hidden 세트를 건드리므로 화면에 보이는 열은 언제나 한 가지 진실만 갖는다. */
+  const hiddenFor = (preset) => {
+    if (preset === "all") return [];
+    const keep = new Set(basicCols().map((c) => c.key));
+    return COLS.filter((c) => !keep.has(c.key)).map((c) => c.key);
+  };
+
+  const sameSet = (a, b) => a.length === b.length && a.every((k) => b.indexOf(k) >= 0);
+
+  function syncPresetBtn() {
+    const b = $("bPreset");
+    const hid = GRID ? GRID.getColumnState().hidden : [];
+    const shown = COLS.length - hid.length;
+    const isBasic = sameSet(hid, hiddenFor("basic"));
+    const isAll = hid.length === 0;
+    PRESET = isBasic ? "basic" : isAll ? "all" : "custom";
+    b.textContent = isBasic ? "기본 " + shown + "열" : isAll ? "전체 " + shown + "열" : "직접 고른 " + shown + "열";
+    b.title = PRESET === "custom"
+      ? "누르면 기본 열 구성으로 되돌립니다 — 지금은 「▦ 항목」에서 직접 고른 구성입니다"
+      : "기본 열 ↔ 전체 열 · 더 세밀하게는 「▦ 항목」";
   }
 
   /* 화면맞춤 — 켜면 모든 열이 화면 폭 안에 들어온다. 열마다 최소폭(fitMin)이 있어
@@ -603,14 +633,8 @@
     const el = $("fitNote");
     if (!over) { el.hidden = true; return; }
     el.hidden = false;
-    el.innerHTML = "화면이 좁아 <b>" + num(over) + "px</b> 이 남습니다 — 창을 넓히거나 「기본 열」로 줄이면 다 들어옵니다";
+    el.innerHTML = "화면이 좁아 <b>" + num(over) + "px</b> 이 남습니다 — <b>「▦ 항목」에서 열을 빼면</b> 다 들어옵니다";
   };
-
-  function fillJump(cols) {
-    const sel = $("selJump");
-    sel.innerHTML = '<option value="">열 선택…</option>'
-      + cols.map((c) => '<option value="' + esc(c.key) + '">' + esc(c.label) + "</option>").join("");
-  }
 
   /** 행 객체 → 화면에 그려진 <tr> (셀 커서 Enter 에서 상세를 열 때 쓴다) */
   function rowTr(row) {
@@ -782,13 +806,15 @@
   /* CSV 는 「화면에 그린 만큼」이 아니라 조건 전량을 담는다 — 표준 그리드가 렌더 상한과
      무관하게 보유 행 전체를 내보낸다(§13). 조회 자체가 이미 전량이다. */
   $("bCsv").onclick = () => { GRID && GRID.exportCsv(); };
-  $("bPreset").onclick = () => { PRESET = PRESET === "basic" ? "all" : "basic"; renderGrid(); };
-  $("bFit").onclick = () => { FIT = !FIT; GRID && GRID.setFit(FIT); syncFitBtn(); savePref(); wireScrollAids(); };
-  $("selJump").onchange = (e) => {
-    const k = e.target.value; if (!k || !GRID) return;
-    GRID.scrollToColumn(k);
-    e.target.value = "";                 // 같은 열을 다시 골라도 또 이동하게
+  /* 기본 ↔ 전체 토글. 직접 고른 구성이면 먼저 기본으로 되돌린다(한 번 더 누르면 전체). */
+  $("bPreset").onclick = () => {
+    if (!GRID) return;
+    const next = PRESET === "basic" ? "all" : "basic";
+    GRID.setColumnState({ order: GRID.getColumnState().order, hidden: hiddenFor(next) });
+    COLS_ST = GRID.getColumnState(); savePref();
+    syncPresetBtn(); syncFitBtn();
   };
+  $("bFit").onclick = () => { FIT = !FIT; GRID && GRID.setFit(FIT); syncFitBtn(); savePref(); wireScrollAids(); };
   $("selShow").onchange = (e) => { SHOW = Number(e.target.value) || 0; savePref(); renderGrid(); renderCap(false); };
   $("chipBox").onclick = (e) => {
     const t = e.target.closest("[data-chip]"); if (!t) return;
@@ -824,7 +850,6 @@
   /* ── 기동 ── */
   loadPref();                // 열 폭·화면맞춤·표시행수는 지난번 그대로
   $("selShow").value = String(SHOW);
-  $("bPreset").textContent = label("basic");
   syncFitBtn();
   renderPendNote();          // 첫 조회 전에도 무엇이 비어 있는지 먼저 알린다
   writeCond(condFromUrl() || {});
