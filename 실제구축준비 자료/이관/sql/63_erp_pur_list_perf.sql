@@ -1,33 +1,31 @@
--- 61_erp_pur_list_v2.sql
--- ⚠ 2026-09-22 **63번으로 대체됨** — 이 파일의 프로젝트명 lateral 조인이 발주 가지에서
---   인덱스를 못 타 사내 사용자 조회가 타임아웃났다(62,878ms). 값은 같고 조인만 바꾼
---   63_erp_pur_list_perf.sql 을 쓴다. 이 파일은 그 판정 근거(담당자·외주·입고창고)의 기록으로 남긴다.
+-- 63_erp_pur_list_perf.sql
+-- v_erp_pur_list — 프로젝트명(계약내역)을 행마다가 아니라 한 번만 찾는다 (2026-09-22)
 --
--- 발주통합관리 LIST 뷰 v2 — 적재 후 판정 반영 (2026-09-22 · REQ-0070)
+-- 61번(v2)은 프로젝트명을 `left join lateral (… order by PC 우선 limit 1)` 로 붙였다.
+-- 요청(PR) 가지는 `ref_cd = r.tracking_no` 라 인덱스(idx_ctrl_ref_s_refcd)를 제대로 타는데,
+-- **발주(PO) 가지는 조인 키가 `coalesce(nullif(btrim(o.tracking_no), ''), r.tracking_no)` 라
+-- 그 인덱스를 못 타고** 엉뚱한 ctrl_ref_s_nm_idx 로 매 행마다 PC·TK 1,399행을 읽고 1,397행을 버렸다.
+--   실행계획 실측: 전체 버퍼 830,414 중 **794,468(96%)** 이 이 한 곳 · Heap Blocks 678,993.
 --
--- 57번(1차 정의)을 대체한다. 2026-09-22 `--full` 백필(4,618행) 뒤 미러에서 가린 결과:
+-- PC·TK 는 9,512행 중 1,399행뿐이다. 한 번 추려 두고 해시로 붙이면 된다.
+--   `distinct on (ref_cd) … order by ref_cd, PC 우선` = lateral 의 `order by … limit 1` 과 같은 값
 --
---   F 담당자  = **INSRT_USER_ID(등록자)**
---               AGENT 전건 빈값 · APPLICANT 전건 'CKOET00174'(법인코드) · 등록자 분포가 엑셀과 일치
---               (장민지 2,067·정희원 1,900·김윤정 383·박태랑 223 ↔ 엑셀 2,138·2,029·506·266)
---               usr_master_s 로 '부서명_이름[(퇴사)]' → 이름만 쓰고 전체는 agent_full(툴팁)
---   M 입고창고 = **DTL.SL_CD → wh_master_s.sl_nm**. HDR.DELIVERY_PLCE 는 전건 빈값이었다.
---               ⚠ 엑셀 「입고처」(본사·이천 2공장·협력사명)와 **다른 개념** — 그쪽 값은 ERP 에 없다.
---   B 외주    = **품번 ROS 접두**(발주 578 + 미발주 요청 221 = 799 ↔ 엑셀 738)
---               SUBCONTRA_FLG 는 전건 'N' 이라 못 쓴다. 발주유형 SE1·SF(514)의 품번도 512행이 ROS 라
---               같은 것을 가리키지만, ROS 규칙은 **발주 전 요청에도 적용**돼 목록 전체를 덮는다.
---   C 결재번호 = **여전히 미확인**. REF_NO 는 전건 빈값이라 후보에서 탈락 → pu_no 는 NULL 유지.
---               남은 추적은 `10_ERP_DB연계/etl/sql/ERP원천조사_구매.sql §4~§5`(관리자 실행).
---   T/N/W    = 단가 4,618 · 비고 2,713 · 적요 3,234 로 채워졌다.
+-- 결과는 전부 동일하다(적용 전후 실측):
+--   전체 5,609 · 단가 4,618 · 담당자 4,618 · 입고창고 5,607 · 계약내역 5,605
+--   · 비고 2,713 · 적요 3,234 · 결재번호 0 · 외주 799 · 금액 10,267백만
+-- 바뀐 것은 조인 방식뿐이며, 62번(RLS)과 합쳐 **62,878ms → 459ms**(화면 1차 1,000행 199ms).
 --
--- 컬럼 순서가 바뀌고(agent_full·whs_cd 추가) 늘 빈 컬럼(ref_no)을 빼므로 replace 가 아니라 재생성한다.
--- 이 뷰에 의존하는 DB 객체는 없다(화면·api 만 읽는다).
---
--- 되돌리기: 57번을 다시 실행하면 1차 정의로 돌아간다(신규 컬럼은 NULL 로 보인다).
+-- 되돌리기: 61_erp_pur_list_v2.sql 을 다시 실행하면 lateral 판으로 돌아간다(느려진다).
+-- 컬럼 이름·순서·개수가 61번과 같으므로 replace 로 바꿀 수 있다.
 
-drop view if exists public.v_erp_pur_list;
-
-create view public.v_erp_pur_list with (security_invoker = true) as
+create or replace view public.v_erp_pur_list with (security_invoker = true) as
+with prj_ref as (
+  -- 프로젝트명 사전: ref_cd 당 1행(PC 우선). 조인 전에 한 번만 만든다.
+  select distinct on (ref_cd) ref_cd, ref_nm
+    from erp_ro.ctrl_ref_s
+   where ctrl_cd in ('PC', 'TK')
+   order by ref_cd, case ctrl_cd when 'PC' then 0 else 1 end
+)
 select
   'PO'::text as row_kind, o.po_no, o.po_seq, o.pr_no,
   null::text as pu_no,                                   -- C 결재번호: REF_NO 전건 빈값(실측) → 원천 미확인 유지
@@ -68,17 +66,12 @@ select
   nullif(btrim(ag.usr_nm), '') as agent_full,            -- 담당자 전체 표기(툴팁)
   nullif(btrim(o.sl_cd), '') as whs_cd                   -- 입고창고 코드(툴팁)
 from erp_ro.pur_order_s o
-left join erp_ro.pur_req_s     r  on r.pr_no = o.pr_no
-left join public.v_erp_item    im on im.item_code = o.item_code
-left join erp_ro.usr_master_s  u  on lower(u.usr_id) = lower(r.req_prsn)
-left join erp_ro.usr_master_s  ag on lower(ag.usr_id) = lower(o.insrt_user_id)
-left join erp_ro.wh_master_s   wh on wh.sl_cd = o.sl_cd
--- 프로젝트명: PC·TK 양쪽에 같은 코드가 있어 그냥 조인하면 행이 2배가 된다 → lateral + limit 1
-left join lateral (
-  select c.ref_nm from erp_ro.ctrl_ref_s c
-  where c.ref_cd = coalesce(nullif(btrim(o.tracking_no), ''), r.tracking_no) and c.ctrl_cd in ('PC', 'TK')
-  order by case c.ctrl_cd when 'PC' then 0 else 1 end limit 1
-) prj on true
+left join erp_ro.pur_req_s     r   on r.pr_no = o.pr_no
+left join public.v_erp_item    im  on im.item_code = o.item_code
+left join erp_ro.usr_master_s  u   on lower(u.usr_id) = lower(r.req_prsn)
+left join erp_ro.usr_master_s  ag  on lower(ag.usr_id) = lower(o.insrt_user_id)
+left join erp_ro.wh_master_s   wh  on wh.sl_cd = o.sl_cd
+left join prj_ref              prj on prj.ref_cd = coalesce(nullif(btrim(o.tracking_no), ''), r.tracking_no)
 -- 입고일: 분할 매입은 라인당 여러 건이라 조인하면 1행이 여러 행이 된다 → 집계로 흡수
 left join lateral (
   select min(iv.iv_dt) as iv_first_dt, max(iv.iv_dt) as iv_last_dt,
@@ -114,14 +107,10 @@ select
   r.req_dt, null::date, null::text,
   null::text, nullif(btrim(r.sl_cd), '')
 from erp_ro.pur_req_s r
-left join public.v_erp_item   im on im.item_code = r.item_code
-left join erp_ro.usr_master_s u  on lower(u.usr_id) = lower(r.req_prsn)
+left join public.v_erp_item   im  on im.item_code = r.item_code
+left join erp_ro.usr_master_s u   on lower(u.usr_id) = lower(r.req_prsn)
 left join erp_ro.wh_master_s  wh2 on wh2.sl_cd = r.sl_cd
-left join lateral (
-  select c.ref_nm from erp_ro.ctrl_ref_s c
-  where c.ref_cd = r.tracking_no and c.ctrl_cd in ('PC', 'TK')
-  order by case c.ctrl_cd when 'PC' then 0 else 1 end limit 1
-) prj on true
+left join prj_ref             prj on prj.ref_cd = r.tracking_no
 where not exists (select 1 from erp_ro.pur_order_s o2 where o2.pr_no = r.pr_no);
 
 comment on view public.v_erp_pur_list is
@@ -131,7 +120,8 @@ grant select on public.v_erp_pur_list to authenticated, service_role;
 
 -- ── 확인 ─────────────────────────────────────────────────────────────────────
 -- select count(*) 전체, count(price) 단가, count(agent_nm) 담당자, count(whs_nm) 입고창고,
---        count(hdr_remark) 비고, count(dtl_remark) 적요, count(pu_no) 결재번호
---   from public.v_erp_pur_list;                                   -- 5,609 / 4,618 / 4,618 / 5,607 / 2,713 / 3,234 / 0
+--        count(prj_nm) 계약내역, count(hdr_remark) 비고, count(dtl_remark) 적요, count(pu_no) 결재번호
+--   from public.v_erp_pur_list;   -- 5,609 / 4,618 / 4,618 / 5,607 / 5,605 / 2,713 / 3,234 / 0
 -- select gubun, count(*) from public.v_erp_pur_list group by 1 order by 2 desc;
 --   -- 원자재 2,768 · 부자재 1,376 · 외주 799 · 소모품 663  ↔ 엑셀 2,478 / 1,156 / 738 / 638
+-- 소요시간은 62번 주석의 do 블록으로 잰다(반드시 authenticated 로).
