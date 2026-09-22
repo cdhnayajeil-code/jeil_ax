@@ -32,10 +32,10 @@
 --   ERP 공개 뷰 25종 전수 회귀: 오류 0 · 최대 322 ms.
 --
 -- ── 범위 ────────────────────────────────────────────────────────────────────
--- 발주통합 LIST 가 조인하는 9종만 고쳤다. 나머지 8종(bp_master_s · dept_master_s ·
+-- 발주통합 LIST 가 조인하는 9종을 여기서 고쳤다. 나머지 8종(bp_master_s · dept_master_s ·
 -- inventory_d · item_group_s · purchase_m · sales_orders_m · table_dict ·
--- usr_erp_module_s)은 같은 함정을 안고 있지만 해당 화면이 아직 안 느려
--- **REQ-0040 잔여분으로 남긴다**(적용은 동일한 한 줄 치환).
+-- usr_erp_module_s)은 당시 해당 화면이 안 느려 남겼다가, 같은 날 관리자 승인으로
+-- **64_erp_ro_rls_initplan_rest.sql** 에서 함께 적용했다 → erp_ro 17종 전부 완료.
 
 alter policy internal_select_pur_order_s   on erp_ro.pur_order_s
   using ((select coalesce(((auth.jwt() -> 'app_metadata') ->> 'role'), '') = 'internal'));
