@@ -265,7 +265,7 @@ JOBS = {
                    r.DW_NO1 AS dw_no1, r.TRACKING_NO AS tracking_no, r.CHANGE_ORDER AS change_order,
                    r.MRP_ORD_NO AS mrp_ord_no, r.INSRT_DT AS insrt_dt,
                    r.INSRT_USER_ID AS insrt_user_id, r.UPDT_USER_ID AS updt_user_id,
-                   -- 확장슬롯 3칸(2026-09-22 · REQ-0071): ERP 가 구매요청에 붙여 쓰는 자리다.
+                   -- 확장슬롯 3칸(2026-09-22 · REQ-0073): ERP 가 구매요청에 붙여 쓰는 자리다.
                    --   EXT1_CD = **구매요청 결재번호 `PU2026…`** — 엑셀 C열의 원천.
                    --     그룹웨어 전자결재 연동표 INTERFACE_KO174(IF_TYPE='PR0')의 KEY1 과 같은 값이며,
                    --     그쪽에는 PR 번호가 없어 **여기가 유일한 연결고리**다(2026 고유 1,133건).
