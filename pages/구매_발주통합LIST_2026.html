@@ -129,7 +129,7 @@
         <button class="btn" id="bReset">조건 초기화</button>
       </div>
       <div class="btns">
-        <button class="btn" id="bCsv" title="현재 조건에 맞는 전량을 CSV로 내려받습니다(화면 표시 수와 무관)">⬇ CSV</button>
+        <button class="btn" id="bCsv" title="현재 조건의 전량을 CSV로 내려받습니다 — 아직 전량을 받지 않았으면 먼저 받습니다">⬇ CSV</button>
       </div>
     </div>
 
@@ -229,6 +229,10 @@
   let DEPTS = new Set();  // 요청부서 옵션 — 받은 데이터에서 누적(서버 왕복 추가 없음)
   let reqSeq = 0;         // 늦게 도착한 옛 조회 결과를 버린다
   let BAR = null;
+  /* 왕복 1회당 고정비가 ~0.8초라(라이브 실측) 전량 5,594행은 15초가 걸린다.
+     그래서 기본은 최신 1,000행만 받고(≈2초), 전량은 사용자가 눌러서 받는다. */
+  const FIRST_CAP = 1000, FULL_CAP = 20000;
+  let CAP = FIRST_CAP, HASMORE = false;
 
   /* ── 컬럼 정의: 엑셀 A~W 23개를 순서·이름 그대로 + 보조 4개(전체 프리셋에서만) ── */
   const dash = '<span class="muted">—</span>';
@@ -357,9 +361,10 @@
     const c = readCond();
     syncUrl(c);
     const my = ++reqSeq;
-    const rows = await erpApi.purList(c);
+    const res = await erpApi.purList(c, CAP);
     if (my !== reqSeq) return;          // 더 늦게 시작한 조회가 있으면 이 결과는 버린다
-    ROWS = rows;
+    ROWS = res.rows; HASMORE = res.hasMore;
+    const rows = ROWS;
     rows.forEach((r) => { if (r.req_dept) DEPTS.add(r.req_dept); });
     fillDepts();
     renderGrid();
@@ -370,13 +375,23 @@
   function renderCap(byNo) {
     const n = ROWS.length, shown = SHOW === 0 ? n : Math.min(SHOW, n);
     const cap = $("cap");
-    let s = "조건 결과 <b>" + num(n) + "건</b>";
-    if (shown < n) s += " 중 <b>상위 " + num(shown) + "건</b>을 화면에 그립니다 — 표 안 검색·정렬·CSV 는 " + num(n) + "건 <b>전량</b> 기준입니다";
-    else s += " 전부 표시";
+    let s;
+    if (HASMORE && CAP === FIRST_CAP) {
+      // 상한에 닿았다 = 더 있다. 몇 건인지는 세지 않는다(count 만으로도 4초가 걸린다)
+      s = "최신 <b>" + num(n) + "건</b>만 받았습니다 — 조건을 좁히거나 "
+        + '<button class="btn" id="bFull" style="padding:2px 9px;font-size:12px;">전량 받기</button>'
+        + ' <span class="muted">(2026년 전체 5,594건 · 약 15초)</span>';
+    } else {
+      s = "조건 결과 <b>" + num(n) + "건</b>";
+      if (shown < n) s += " 중 <b>상위 " + num(shown) + "건</b>을 화면에 그립니다 — 표 안 검색·정렬·CSV 는 " + num(n) + "건 <b>전량</b> 기준입니다";
+      else s += " 전부 표시";
+    }
     if (byNo) s += ' · <span style="color:var(--amber)">번호로 찾을 때는 기간 조건을 무시합니다</span>';
-    if (n >= 20000) { cap.className = "cap warn"; s += " · ⚠ 수신 상한(20,000행)에 걸렸습니다 — 조건을 좁혀 주세요"; }
+    if (HASMORE && CAP === FULL_CAP) { cap.className = "cap warn"; s += " · ⚠ 수신 상한(20,000행)에 걸렸습니다 — 조건을 좁혀 주세요"; }
     else cap.className = "cap";
     cap.innerHTML = s;
+    const bf = $("bFull");
+    if (bf) bf.onclick = () => { CAP = FULL_CAP; bf.textContent = "받는 중…"; bf.disabled = true; BAR && BAR.refresh(); };
   }
 
   function renderGrid() {
@@ -409,9 +424,20 @@
     + "<b>수량·금액</b>은 ERP 현재값이라 취소·정정된 건은 엑셀과 다를 수 있습니다(엑셀은 요청 당시 값을 그대로 둡니다).";
 
   /* ── 이벤트 ── */
-  $("bGo").onclick = () => BAR && BAR.refresh();
-  $("bReset").onclick = () => { writeCond({}); DEPTS = new Set(); if (BAR) BAR.refresh(); $("f_q").focus(); };
-  $("bCsv").onclick = () => GRID && GRID.exportCsv();
+  const requery = () => { CAP = FIRST_CAP; BAR && BAR.refresh(); };   // 조건이 바뀌면 다시 1,000행부터
+  $("bGo").onclick = requery;
+  $("bReset").onclick = () => { writeCond({}); DEPTS = new Set(); CAP = FIRST_CAP; if (BAR) BAR.refresh(); $("f_q").focus(); };
+  /* CSV 는 엑셀 대체의 핵심이라 「받은 만큼」이 아니라 조건 전량을 담는다 —
+     아직 전량을 받지 않았으면 먼저 받고 내보낸다. */
+  $("bCsv").onclick = async () => {
+    if (HASMORE && CAP === FIRST_CAP) {
+      const b = $("bCsv"); const old = b.textContent;
+      b.textContent = "전량 받는 중…"; b.disabled = true;
+      CAP = FULL_CAP;
+      try { await load("csv"); renderGrid(); renderCap(false); } finally { b.textContent = old; b.disabled = false; }
+    }
+    GRID && GRID.exportCsv();
+  };
   $("bPreset").onclick = (e) => {
     PRESET = PRESET === "basic" ? "all" : "basic";
     e.currentTarget.textContent = LABEL[PRESET];
@@ -422,14 +448,14 @@
     const t = e.target.closest("[data-chip]"); if (!t) return;
     const set = PICK[t.dataset.chip];
     if (set.has(t.dataset.v)) set.delete(t.dataset.v); else set.add(t.dataset.v);
-    renderChips(); BAR && BAR.refresh();
+    renderChips(); requery();
   };
   // Enter 는 keyup 으로 받는다 — 한글 조합 중 keydown Enter 를 먹으면 두 번 눌러야 조회된다
   document.querySelectorAll(".panel input[type=text], .panel input:not([type])").forEach((el) => {
-    el.addEventListener("keyup", (ev) => { if (ev.key === "Enter" && !ev.isComposing) BAR && BAR.refresh(); });
+    el.addEventListener("keyup", (ev) => { if (ev.key === "Enter" && !ev.isComposing) requery(); });
   });
-  ["f_dept", "f_dbase", "f_from", "f_to"].forEach((id) => { $(id).onchange = () => BAR && BAR.refresh(); });
-  ["f_noorder", "f_norecv", "f_overdue"].forEach((id) => { $(id).onchange = () => BAR && BAR.refresh(); });
+  ["f_dept", "f_dbase", "f_from", "f_to"].forEach((id) => { $(id).onchange = requery; });
+  ["f_noorder", "f_norecv", "f_overdue"].forEach((id) => { $(id).onchange = requery; });
 
   /* ── 기동 ── */
   $("bPreset").textContent = LABEL.basic;
