@@ -229,10 +229,11 @@
   let DEPTS = new Set();  // 요청부서 옵션 — 받은 데이터에서 누적(서버 왕복 추가 없음)
   let reqSeq = 0;         // 늦게 도착한 옛 조회 결과를 버린다
   let BAR = null;
-  /* 왕복 1회당 고정비가 ~0.8초라(라이브 실측) 전량 5,594행은 15초가 걸린다.
-     그래서 기본은 최신 1,000행만 받고(≈2초), 전량은 사용자가 눌러서 받는다. */
-  const FIRST_CAP = 1000, FULL_CAP = 20000;
-  let CAP = FIRST_CAP, HASMORE = false;
+  /* 엑셀 대체 화면이라 **처음부터 조건 전량**을 받는다 — 2026년 전체 5,609행이 2.2초(라이브 실측 09-22).
+     한때 1,000행씩 나눠 받았는데, 그건 RLS 가 술어를 행마다 계산해 조회가 63초 걸리던 시절의 우회였다
+     (`이관/sql/62_erp_ro_rls_initplan.sql`·`63_erp_pur_list_perf.sql` 로 해소). 상한은 사고 방지용으로만 남긴다. */
+  const ROW_CAP = 20000;
+  let HASMORE = false;
 
   /* ── 컬럼 정의: 엑셀 A~W 23개를 순서·이름 그대로 + 보조 4개(전체 프리셋에서만) ── */
   const dash = '<span class="muted">—</span>';
@@ -380,7 +381,7 @@
     const c = readCond();
     syncUrl(c);
     const my = ++reqSeq;
-    const res = await erpApi.purList(c, CAP);
+    const res = await erpApi.purList(c, ROW_CAP);
     if (my !== reqSeq) return;          // 더 늦게 시작한 조회가 있으면 이 결과는 버린다
     ROWS = res.rows; HASMORE = res.hasMore;
     const rows = ROWS;
@@ -395,23 +396,13 @@
   function renderCap(byNo) {
     const n = ROWS.length, shown = SHOW === 0 ? n : Math.min(SHOW, n);
     const cap = $("cap");
-    let s;
-    if (HASMORE && CAP === FIRST_CAP) {
-      // 상한에 닿았다 = 더 있다. 몇 건인지는 세지 않는다(count 만으로도 4초가 걸린다)
-      s = "최신 <b>" + num(n) + "건</b>만 받았습니다 — 조건을 좁히거나 "
-        + '<button class="btn" id="bFull" style="padding:2px 9px;font-size:12px;">전량 받기</button>'
-        + ' <span class="muted">(2026년 전체 5,594건 · 약 15초)</span>';
-    } else {
-      s = "조건 결과 <b>" + num(n) + "건</b>";
-      if (shown < n) s += " 중 <b>상위 " + num(shown) + "건</b>을 화면에 그립니다 — 표 안 검색·정렬·CSV 는 " + num(n) + "건 <b>전량</b> 기준입니다";
-      else s += " 전부 표시";
-    }
+    let s = "조건 결과 <b>" + num(n) + "건</b>";
+    if (shown < n) s += " 중 <b>상위 " + num(shown) + "건</b>을 화면에 그립니다 — 표 안 검색·정렬·CSV 는 " + num(n) + "건 <b>전량</b> 기준입니다";
+    else s += " 전부 표시";
     if (byNo) s += ' · <span style="color:var(--amber)">번호로 찾을 때는 기간 조건을 무시합니다</span>';
-    if (HASMORE && CAP === FULL_CAP) { cap.className = "cap warn"; s += " · ⚠ 수신 상한(20,000행)에 걸렸습니다 — 조건을 좁혀 주세요"; }
+    if (HASMORE) { cap.className = "cap warn"; s += " · ⚠ 수신 상한(20,000행)에 걸렸습니다 — 조건을 좁혀 주세요"; }
     else cap.className = "cap";
     cap.innerHTML = s;
-    const bf = $("bFull");
-    if (bf) bf.onclick = () => { CAP = FULL_CAP; bf.textContent = "받는 중…"; bf.disabled = true; BAR && BAR.refresh(); };
   }
 
   function renderGrid() {
@@ -461,20 +452,12 @@
     + "<b>수량·금액</b>은 ERP 현재값이라 취소·정정된 건은 엑셀과 다를 수 있습니다(엑셀은 요청 당시 값을 그대로 둡니다).";
 
   /* ── 이벤트 ── */
-  const requery = () => { CAP = FIRST_CAP; BAR && BAR.refresh(); };   // 조건이 바뀌면 다시 1,000행부터
+  const requery = () => { BAR && BAR.refresh(); };
   $("bGo").onclick = requery;
-  $("bReset").onclick = () => { writeCond({}); DEPTS = new Set(); CAP = FIRST_CAP; if (BAR) BAR.refresh(); $("f_q").focus(); };
-  /* CSV 는 엑셀 대체의 핵심이라 「받은 만큼」이 아니라 조건 전량을 담는다 —
-     아직 전량을 받지 않았으면 먼저 받고 내보낸다. */
-  $("bCsv").onclick = async () => {
-    if (HASMORE && CAP === FIRST_CAP) {
-      const b = $("bCsv"); const old = b.textContent;
-      b.textContent = "전량 받는 중…"; b.disabled = true;
-      CAP = FULL_CAP;
-      try { await load("csv"); renderGrid(); renderCap(false); } finally { b.textContent = old; b.disabled = false; }
-    }
-    GRID && GRID.exportCsv();
-  };
+  $("bReset").onclick = () => { writeCond({}); DEPTS = new Set(); if (BAR) BAR.refresh(); $("f_q").focus(); };
+  /* CSV 는 「화면에 그린 만큼」이 아니라 조건 전량을 담는다 — 표준 그리드가 렌더 상한과
+     무관하게 보유 행 전체를 내보낸다(§13). 조회 자체가 이미 전량이다. */
+  $("bCsv").onclick = () => { GRID && GRID.exportCsv(); };
   $("bPreset").onclick = (e) => {
     PRESET = PRESET === "basic" ? "all" : "basic";
     e.currentTarget.textContent = LABEL[PRESET];
