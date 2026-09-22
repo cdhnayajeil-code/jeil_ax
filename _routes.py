@@ -22,6 +22,7 @@ ROUTES = {
     "/work/cash-status":        "pages/자금현황_대시보드.html",
     "/work/sales-orders":       "pages/영업_수주현황_2026.html",
     "/work/purchase-vendor":    "pages/구매_거래처별매입집계_2026.html",
+    "/work/purchase-orders":    "pages/구매_발주관리_2026.html",
     "/work/hr-payroll":         "pages/인사_인원급여추이_2026.html",
     "/work/inventory":          "pages/자재물류_재고입출고_2026.html",
     "/work/subcon-inspection":  "pages/외주발주_검사진행현황_2026.html",

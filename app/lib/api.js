@@ -467,6 +467,28 @@ export const erpApi = {
     });
     return data.map((r) => ({ ...r, amt: Number(r.amt) || 0, po_qty: Number(r.po_qty) || 0, rcpt_qty: Number(r.rcpt_qty) || 0 }));
   },
+  /* 구매요청 원장(v_erp_pur_req) — 구매팀 발주관리 화면(REQ-0068).
+     ① 기간 KPI·월별 추이용: 요청일·상태 2컬럼만 받는다(2026년 5,535행이라 전 컬럼을 받으면 수백 KB).
+        전송량 축소는 REQ-0009 와 같은 갈래다 — 월집계 뷰가 생기면 이 함수를 그 뷰로 갈아끼운다. */
+  async purReqDates({ year } = {}) {
+    return this._pageAll(() => {
+      let q = supabase.from("v_erp_pur_req").select("req_dt,pr_sts").order("req_dt", { ascending: false });
+      if (year) q = q.gte("req_dt", year + "-01-01").lte("req_dt", year + "-12-31");
+      return q;
+    });
+  },
+  /* ② 미결 구매요청(RQ 요청·CF 확정 = 아직 발주 안 난 건). 실측상 이 두 상태는 부분발주가 없다
+     (ord_qty>0 인 행 0건, 2026-09-22) — 그래서 「미발주 잔량」 판정에 수량 비교를 쓰지 않는다.
+     기간과 무관하게 「지금 열려 있는 것」을 돌려준다(화면이 그렇게 밝혀 적는다). */
+  async purReqOpen({ limit = 2000 } = {}) {
+    const { data, error } = await supabase.from("v_erp_pur_req")
+      .select("pr_no,pr_sts,item_code,item_name,req_qty,req_unit,req_dt,dlvy_dt,req_dept,req_dept_resolved,req_prsn,sppl_name")
+      .in("pr_sts", ["RQ", "CF"])
+      .order("dlvy_dt", { ascending: true })
+      .limit(limit);
+    if (error) throw error;
+    return (data || []).map((r) => ({ ...r, req_qty: Number(r.req_qty) || 0 }));
+  },
   // 데이터 기준시각(job별 최신 성공): { sales:{last_success,rows_upserted}, ... }
   async dataAsof() {
     const { data, error } = await supabase.from("v_erp_data_asof").select("*");

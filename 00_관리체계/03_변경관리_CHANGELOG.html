@@ -115,6 +115,13 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <td>최동혁(+Claude)</td>
 </tr>
 <tr>
+<td>2026-09-22</td>
+<td>구매 · 운영페이지 · 포털등재</td>
+<td><code>pages/구매_발주관리_2026.html</code>(신규) · <code>app/lib/api.js</code>(읽기 2종) · <code>_routes.py</code>(<code>/work/purchase-orders</code>)·<code>vercel.json</code> · <code>이관/sql/56_portal_page_purchase_order.sql</code>(신규 · <strong>승인 대기</strong>)</td>
+<td><strong>구매팀이 「진행 중인 일」을 볼 화면 — 발주·구매요청 진행현황 1차 초안</strong>(관리자 지시 · REQ-0068). 구매팀 운영페이지는 「거래처별 매입금액 집계」 하나뿐이었고 그건 <strong>이미 끝난 매입(IV)</strong> 만 본다 — 요청이 발주로 넘어갔는지, 발주가 납기를 지키는지 볼 화면이 없었다. 미러에는 데이터가 이미 있었다(<code>v_erp_pur_req</code> 5,535건 · <code>v_erp_pur_order_hdr</code> 974발주). 구성: ①기간 KPI(요청·발주 건수·금액·입고완료율) ②<strong>「지금 열려 있는 건」</strong>(기간과 무관 · 오늘 기준) — 미발주 요청 <strong>986건</strong>(납기 전 87 / 경과 30일 이내 121 / 30~90일 222 / <strong>90일 초과 556</strong>) · 미입고 발주 <strong>545건 8,853백만원</strong>(47/153/210/<strong>135</strong>) ③월별 추이(요청·발주 2줄, 조회바 <code>data-m</code> 연동) ④미발주 요청·미입고 발주 목록(오래 열린 순) ⑤거래처별 발주·요청부서별 집계. ⚠ <strong>경과 건수를 「지연」으로 단정하지 않는다</strong> — ERP 에서 취소·보류된 건이 상태로 표현되지 않고 남아 있을 수 있어, 화면이 스스로 「정리 대상 후보」라고 밝히고 판단은 구매팀에 맡긴다(없는 사실을 만들지 않는다 §16.6). 기준일은 <strong>한국시간</strong>으로 계산해 REQ-0043(UTC 하루 전) 함정을 피했고, 데이터 접근은 <code>api.js</code> 한 곳에 모았다(§3.3). 권한: <code>erp_module='pur_order'</code>(카탈로그에 이미 있던 「발주·구매요청」의 첫 사용처) · 공개범위는 최소 노출 <strong>구매팀 부서 전용</strong>으로 제안하고 요청부서 공유는 SQL 「선택 2」로 남겼다. ⚠ 원문 inbox 파일이 <strong>0바이트(빈 파일)</strong> 라 요구 내용은 ERP 미러 실측에서 도출했다 — 초안 위에서 고치는 방식. 검증: 페이지 스크립트를 그대로 실행하는 렌더 회귀 <strong>28건 전건 통과</strong>(구간 경계·월 전환·빈 기간·undefined/NaN 없음) + 실브라우저 세션으로 두 쿼리 RLS·컬럼 확인(986행). <strong>포털 카드·접근은 SQL 56 적용 후 열린다</strong>(그 전까지 화면은 게이트가 전원 차단)</td>
+<td>최동혁(+Claude)</td>
+</tr>
+<tr>
 <td>2026-09-21</td>
 <td>포털 · 로그인 · 운영페이지</td>
 <td><code>pages/_access-gate.js</code> · <code>04_챗봇_포털_데모UI.html</code> · <code>JEIL_AX_포털데모_통합본.html</code></td>

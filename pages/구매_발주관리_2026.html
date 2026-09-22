@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script>window.PAGE_KEY='purchase_order_2026';</script>
+<script src="/pages/_access-gate.js"></script>
+<title>구매팀 — 2026년 발주·구매요청 진행현황</title>
+<link rel="stylesheet" href="/app/lib/querybar.css">
+<style>
+  :root{
+    --navy:#1a2f4e; --navy2:#27457a; --accent:#2f6fb3; --accent2:#4a8ed0;
+    --red:#b3402f; --green:#2e7d52; --amber:#9a6b1f; --grey:#5f6b7a;
+    --ink:#222; --muted:#666; --line:#d8dee8; --bg:#f4f6f9;
+    --soft:#eef2f8; --softred:#fbeeec; --softgreen:#ecf5f0; --softamber:#faf3e4; --softgrey:#f1f3f6;
+  }
+  *{box-sizing:border-box}
+  body{margin:0; background:var(--bg); color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Malgun Gothic","맑은 고딕",sans-serif;
+    font-size:14px; line-height:1.5;}
+  .page{max-width:1280px; margin:0 auto; padding:24px 26px 34px; background:#fff; min-height:100vh;
+    box-shadow:0 0 22px rgba(0,0,0,.05);}
+  .head{display:flex; justify-content:space-between; align-items:flex-end; gap:12px; flex-wrap:wrap;
+    border-bottom:2px solid var(--navy); padding-bottom:12px; margin-bottom:6px;}
+  .head h1{font-size:21px; color:var(--navy); margin:0 0 4px;}
+  .head .sub{font-size:12.5px; color:var(--muted);}
+  .head .right{font-size:11.5px; color:var(--muted); text-align:right;}
+  .badge{display:inline-block; font-size:11px; padding:1px 7px; border-radius:10px; border:1px solid var(--line);
+    background:var(--soft); color:var(--navy2);}
+  .navlinks{margin:12px 0 2px; font-size:12px;}
+  .navlinks a{color:var(--accent); text-decoration:none; margin-right:14px;}
+  .navlinks a:hover{text-decoration:underline;}
+
+  .kpis{display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin:16px 0 4px;}
+  .kpi{border:1px solid var(--line); border-radius:10px; padding:13px 15px; background:var(--softgrey);}
+  .kpi .lb{font-size:11.5px; color:var(--muted); margin-bottom:5px;}
+  .kpi .v{font-size:22px; font-weight:700; color:var(--navy); line-height:1.2;}
+  .kpi .v small{font-size:12px; font-weight:500; color:var(--muted);}
+  .kpi .delta{font-size:11px; color:var(--muted); margin-top:4px;}
+  .kpi .delta.up{color:var(--green);} .kpi .delta.warn{color:var(--red);}
+
+  .sec{margin-top:26px;}
+  .sec h3{font-size:15px; color:var(--navy); margin:0 0 4px; padding-bottom:6px; border-bottom:1px solid var(--line);}
+  .sec .hint{font-size:11.5px; color:var(--muted); margin:6px 0 10px;}
+
+  .chart{display:flex; align-items:flex-end; gap:10px; height:150px; padding:10px 4px 0;
+    border-bottom:1px solid var(--line);}
+  .cbar{flex:1; display:flex; flex-direction:column; justify-content:flex-end; align-items:center; height:100%;}
+  .cbar .val{font-size:10.5px; color:var(--muted); margin-bottom:3px;}
+  .cbar .bar{width:100%; max-width:46px; background:linear-gradient(180deg,var(--accent2),var(--accent));
+    border-radius:4px 4px 0 0;}
+  .cbar .bar.b2{background:linear-gradient(180deg,#c9d6e8,#8fa8c6);}
+  .cbar .lab{font-size:10.5px; color:var(--muted); margin-top:5px;}
+
+  .agebar{display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin:12px 0 4px;}
+  .age{border:1px solid var(--line); border-radius:9px; padding:11px 13px; background:#fff;}
+  .age .n{font-size:19px; font-weight:700; color:var(--navy);}
+  .age .t{font-size:11.5px; color:var(--muted); margin-top:3px;}
+  .age.due{background:var(--softgreen); border-color:#cfe4d8;}
+  .age.b30{background:#fff;}
+  .age.b90{background:var(--softamber); border-color:#ecdcb8;}
+  .age.b90p{background:var(--softred); border-color:#efd3cd;}
+
+  table{width:100%; border-collapse:collapse; font-size:12.5px;}
+  th,td{border-bottom:1px solid var(--line); padding:7px 9px; text-align:left; vertical-align:top;}
+  th{background:var(--soft); color:var(--navy2); font-size:11.5px; font-weight:600; white-space:nowrap;}
+  td.r,th.r{text-align:right; white-space:nowrap;}
+  td.c,th.c{text-align:center; white-space:nowrap;}
+  tr:hover td{background:#fafcff;}
+  .tag{display:inline-block; font-size:10.5px; padding:1px 6px; border-radius:9px; border:1px solid var(--line);}
+  .tag.warn{background:var(--softamber); border-color:#ecdcb8; color:var(--amber);}
+  .tag.bad{background:var(--softred); border-color:#efd3cd; color:var(--red);}
+  .tag.ok{background:var(--softgreen); border-color:#cfe4d8; color:var(--green);}
+  .tbl-wrap{overflow-x:auto;}
+
+  .barlist{margin-top:10px;}
+  .brow{display:grid; grid-template-columns:200px 1fr 150px; gap:10px; align-items:center; padding:5px 0;
+    border-bottom:1px solid #eef1f5; font-size:12.5px;}
+  .brow .lab{color:var(--navy2); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .brow .track{background:var(--softgrey); border-radius:4px; height:13px; overflow:hidden;}
+  .brow .track i{display:block; height:100%; background:linear-gradient(90deg,var(--accent2),var(--accent));}
+  .brow .cnt{text-align:right; color:var(--muted); font-size:11.5px;}
+
+  .notice{background:var(--soft); border:1px solid var(--line); border-left:4px solid var(--accent);
+    border-radius:8px; padding:11px 15px; margin:12px 0; font-size:12.5px; color:var(--muted);}
+  .notice b{color:var(--navy2);}
+  .notice.amber{background:var(--softamber); border-color:#ecdcb8; border-left-color:var(--amber);}
+  .loading{text-align:center; color:var(--muted); padding:46px 10px; font-size:13.5px;}
+  code{font-family:Consolas,monospace; font-size:11px; background:var(--softgrey); border:1px solid var(--line);
+    border-radius:4px; padding:0 5px;}
+  .foot{margin-top:26px; padding-top:12px; border-top:1px solid var(--line); font-size:11px; color:var(--muted);
+    display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap;}
+  @media (max-width:880px){
+    .page{padding:20px 16px;}
+    .kpis{grid-template-columns:repeat(2,1fr);}
+    .agebar{grid-template-columns:repeat(2,1fr);}
+    .brow{grid-template-columns:120px 1fr 110px;}
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="head">
+    <div>
+      <h1>📋 발주·구매요청 진행현황<span class="qbar-period" data-qbar-period></span></h1>
+      <div class="sub">구매팀 운영 페이지 · <span class="badge">부서 전용</span> · 조회 전용(ERP 쓰기 없음)</div>
+    </div>
+    <div class="right">ERP 미러 · <span data-qbar-asof>—</span> 기준</div>
+  </div>
+
+  <div class="navlinks">
+    <a href="/main">← 포털</a>
+    <a href="/work/purchase-vendor">📦 거래처별 매입금액 집계</a>
+    <a href="/work/inventory">🚚 재고 입·출고</a>
+    <a href="/work/item-duplicates">🔍 품목 조회</a>
+  </div>
+
+  <!-- 표준 조회 플랫폼 (app/lib/querybar.js · CLAUDE.md §16) -->
+  <div id="qbar"></div>
+
+  <div id="app">
+    <div class="loading">구매요청·발주 현황을 불러오는 중…</div>
+  </div>
+
+  <div class="foot">
+    <span>구매팀 운영 페이지 · 발주관리 (1차 초안)</span>
+    <span>출처: ERP 미러 <code>v_erp_pur_req</code> · <code>v_erp_pur_order_hdr</code> · 공개범위: 부서 전용</span>
+  </div>
+</div>
+
+<script type="module">
+  import { erpApi } from "/app/lib/api.js";
+  import { createQueryBar } from "/app/lib/querybar.js";
+
+  const app = document.getElementById("app");
+  const esc = (t) => String(t == null ? "" : t).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const num = (n) => Number(n || 0).toLocaleString("ko-KR");
+  const mil = (n) => Math.round(Number(n || 0) / 1e6).toLocaleString("ko-KR");
+
+  /* 날짜는 한국시간으로 본다 — 적재가 새벽(KST)에 돌면 UTC 로 자르면 하루 전이 찍힌다(REQ-0043 과 같은 함정).
+     sv-SE 로케일은 YYYY-MM-DD 로 포맷된다. */
+  const KST = new Intl.DateTimeFormat("sv-SE", { timeZone: "Asia/Seoul", year: "numeric", month: "2-digit", day: "2-digit" });
+  const kst = (v) => (v ? KST.format(new Date(v)) : null);
+  const TODAY = kst(Date.now());
+  const DAY = 86400000;
+  // 경과일: 양수면 그 날짜가 지났다는 뜻. 날짜 문자열(YYYY-MM-DD)끼리 비교하므로 시간대 영향 없음.
+  const over = (d) => (d ? Math.round((Date.parse(TODAY) - Date.parse(d)) / DAY) : null);
+  const BUCKETS = [
+    ["due",  "납기 도래 전"],
+    ["b30",  "경과 30일 이내"],
+    ["b90",  "경과 30~90일"],
+    ["b90p", "경과 90일 초과"],
+  ];
+  // 납기일이 오늘이면 아직 넘긴 게 아니므로 '도래 전'으로 센다(od <= 0).
+  const bucketOf = (od) => (od == null ? null : od <= 0 ? "due" : od <= 30 ? "b30" : od <= 90 ? "b90" : "b90p");
+  const ageTag = (od) => {
+    if (od == null) return '<span class="tag">납기 미정</span>';
+    if (od < 0) return '<span class="tag ok">' + num(-od) + "일 남음</span>";
+    if (od === 0) return '<span class="tag ok">납기 오늘</span>';
+    if (od <= 30) return '<span class="tag">' + num(od) + "일 경과</span>";
+    if (od <= 90) return '<span class="tag warn">' + num(od) + "일 경과</span>";
+    return '<span class="tag bad">' + num(od) + "일 경과</span>";
+  };
+  const kpi = (lb, v, unit, sub, cls) =>
+    '<div class="kpi"><div class="lb">' + esc(lb) + '</div><div class="v">' + v
+    + (unit ? '<small> ' + unit + "</small>" : "") + "</div>"
+    + (sub ? '<div class="delta' + (cls ? " " + cls : "") + '">' + sub + "</div>" : "") + "</div>";
+
+  const STS = { RQ: "요청", CF: "확정", PO: "발주", GR: "입고", IV: "매입" };
+
+  const CACHE = { year: null, reqDates: null, open: null, hdrs: null, asof: null };
+
+  async function load(q, reason, bar) {
+    const fresh = reason === "refresh" || reason === "auto";
+    if (fresh || !CACHE.hdrs) {
+      const [open, hdrs, asof] = await Promise.all([erpApi.purReqOpen(), erpApi.purOrderHeaders(), erpApi.dataAsof()]);
+      CACHE.open = open; CACHE.hdrs = hdrs; CACHE.asof = asof; CACHE.year = null;
+      const ts = [asof.pur_req?.last_success, asof.pur_order?.last_success].filter(Boolean).sort().pop();
+      if (ts) bar.setMeta({ asOf: kst(ts) });
+      const years = [...new Set(hdrs.map((r) => Number(String(r.po_dt || "").slice(0, 4))))].filter(Boolean).sort((a, b) => b - a);
+      if (years.length) bar.setYears(years);
+    }
+    if (fresh || CACHE.year !== q.year) {
+      CACHE.reqDates = await erpApi.purReqDates({ year: q.year });
+      CACHE.year = q.year;
+    }
+    const months = [...new Set(CACHE.hdrs
+      .filter((r) => String(r.po_dt || "").startsWith(q.year + "-"))
+      .map((r) => Number(String(r.po_dt).slice(5, 7))))].sort((a, b) => a - b);
+    if (months.length) bar.setMonths(months);
+    render(q);
+  }
+
+  function render(q) {
+    const { reqDates, open, hdrs } = CACHE;
+    const inP = (d) => {
+      const s = String(d || "");
+      return q.ym ? s.startsWith(q.ym) : s.startsWith(q.year + "-");
+    };
+
+    /* ── 기간 집계 ── */
+    const reqP = reqDates.filter((r) => inP(r.req_dt));
+    const poP = hdrs.filter((r) => inP(r.po_dt));
+    const poAmt = poP.reduce((a, r) => a + Number(r.amt || 0), 0);
+    const doneP = poP.filter((r) => Number(r.rcpt_qty || 0) >= Number(r.po_qty || 0) && Number(r.po_qty || 0) > 0).length;
+    const rate = poP.length ? Math.round((doneP / poP.length) * 100) : null;
+
+    /* ── 열린 건(기간 무관 · 오늘 기준) ── */
+    const openReq = open.map((r) => ({ ...r, od: over(r.dlvy_dt) }));
+    const openPo = hdrs.filter((r) => Number(r.rcpt_qty || 0) < Number(r.po_qty || 0))
+      .map((r) => ({ ...r, od: over(r.dlvy_dt) }));
+    const cnt = (arr, key) => arr.filter((r) => bucketOf(r.od) === key).length;
+    const openPoAmt = openPo.reduce((a, r) => a + Number(r.amt || 0), 0);
+
+    /* ── 월별 추이 ── */
+    const byMonth = {};
+    for (const r of reqDates) {
+      const m = Number(String(r.req_dt || "").slice(5, 7));
+      if (m) (byMonth[m] = byMonth[m] || { req: 0, po: 0, amt: 0 }).req++;
+    }
+    for (const r of hdrs) {
+      if (!String(r.po_dt || "").startsWith(q.year + "-")) continue;
+      const m = Number(String(r.po_dt).slice(5, 7));
+      if (!m) continue;
+      const b = (byMonth[m] = byMonth[m] || { req: 0, po: 0, amt: 0 });
+      b.po++; b.amt += Number(r.amt || 0);
+    }
+    const ms = Object.keys(byMonth).map(Number).sort((a, b) => a - b);
+    const maxReq = Math.max(1, ...ms.map((m) => byMonth[m].req));
+    const maxPo = Math.max(1, ...ms.map((m) => byMonth[m].po));
+
+    /* ── 거래처·요청부서 (기간) ── */
+    const byBp = {};
+    for (const r of poP) {
+      const b = (byBp[r.bp_code || r.bp_name] = byBp[r.bp_code || r.bp_name] || { name: r.bp_name || r.bp_code, amt: 0, cnt: 0 });
+      b.amt += Number(r.amt || 0); b.cnt++;
+    }
+    const topBp = Object.values(byBp).sort((a, b) => b.amt - a.amt).slice(0, 12);
+    const bpMax = topBp[0]?.amt || 1;
+
+    const byDept = {};
+    for (const r of openReq) {
+      const k = r.req_dept_resolved || r.req_dept || "(미확인)";
+      byDept[k] = (byDept[k] || 0) + 1;
+    }
+    const topDept = Object.entries(byDept).sort((a, b) => b[1] - a[1]).slice(0, 8);
+    const deptMax = topDept[0]?.[1] || 1;
+
+    if (!reqP.length && !poP.length) {
+      app.innerHTML = '<div class="notice">' + esc(q.label) + " 구매요청·발주 실적이 없습니다.</div>";
+      return;
+    }
+
+    const LIST_MAX = 40;
+    const reqRows = openReq.slice().sort((a, b) => (b.od ?? -1e9) - (a.od ?? -1e9)).slice(0, LIST_MAX);
+    const poRows = openPo.slice().sort((a, b) => (b.od ?? -1e9) - (a.od ?? -1e9)).slice(0, LIST_MAX);
+
+    app.innerHTML =
+      '<div class="kpis">'
+      + kpi("구매요청", num(reqP.length), "건", esc(q.label) + " 요청일 기준")
+      + kpi("발주", num(poP.length), "건", esc(q.label) + " 발주일 기준")
+      + kpi("발주금액", mil(poAmt), "백만원", "부가세 별도")
+      + kpi("입고 완료", rate == null ? "—" : rate + "%", "", poP.length ? num(doneP) + " / " + num(poP.length) + "건 전량 입고" : "발주 없음",
+            rate != null && rate < 50 ? "warn" : "")
+      + "</div>"
+
+      /* ── 지금 열려 있는 건 ── */
+      + '<div class="sec"><h3>지금 열려 있는 건 <small style="font-weight:400;color:var(--muted);">오늘(' + esc(TODAY) + ') 기준 · 기간 선택과 무관</small></h3>'
+      + '<div class="hint">희망납기(요청)·납기일(발주)이 지난 정도로 나눴습니다. 기간을 바꿔도 이 값은 바뀌지 않습니다.</div>'
+
+      + '<div style="font-size:12.5px;font-weight:600;color:var(--navy2);margin:6px 0 2px;">미발주 구매요청 '
+      + num(openReq.length) + '건 <span style="font-weight:400;color:var(--muted);">— 상태 RQ(요청)·CF(확정)</span></div>'
+      + '<div class="agebar">'
+      + BUCKETS.map(([k, t]) => '<div class="age ' + k + '"><div class="n">' + num(cnt(openReq, k))
+          + '</div><div class="t">' + t + "</div></div>").join("")
+      + "</div>"
+
+      + '<div style="font-size:12.5px;font-weight:600;color:var(--navy2);margin:14px 0 2px;">미입고 발주 '
+      + num(openPo.length) + '건 · ' + mil(openPoAmt) + '백만원 <span style="font-weight:400;color:var(--muted);">— 입고수량 &lt; 발주수량</span></div>'
+      + '<div class="agebar">'
+      + BUCKETS.map(([k, t]) => '<div class="age ' + k + '"><div class="n">' + num(cnt(openPo, k))
+          + '</div><div class="t">' + t + "</div></div>").join("")
+      + "</div>"
+
+      + '<div class="notice amber">⚠ <b>경과 건수를 그대로 「지연」으로 읽지 마세요.</b> ERP 에서 취소·보류된 요청·발주가 '
+      + '상태로 표현되지 않고 남아 있을 수 있습니다(미러는 ERP 상태를 그대로 옮깁니다). '
+      + '경과 90일 초과 구간은 <b>정리 대상 후보</b>로 보고, 실제 처리 여부는 ERP 에서 확인해 주세요.</div>'
+      + "</div>"
+
+      /* ── 월별 추이 ── */
+      + '<div class="sec"><h3>월별 추이 <small style="font-weight:400;color:var(--muted);">' + esc(q.year) + "년</small></h3>"
+      + '<div class="hint">왼쪽 진한 막대 = 구매요청 건수 · 오른쪽 옅은 막대 = 발주 건수. 월을 고르면 해당 월만 진하게 표시됩니다.</div>'
+      + '<div class="chart">'
+      + ms.map((m) => '<div class="cbar" data-m="' + m + '"><span class="val">' + num(byMonth[m].req) + "</span>"
+          + '<div class="bar" style="height:' + Math.max(2, Math.round(byMonth[m].req / maxReq * 100)) + '%"></div>'
+          + '<span class="lab">' + m + "월</span></div>").join("")
+      + "</div>"
+      + '<div class="chart" style="margin-top:10px;">'
+      + ms.map((m) => '<div class="cbar" data-m="' + m + '"><span class="val">' + num(byMonth[m].po) + "건 · " + mil(byMonth[m].amt) + "백만</span>"
+          + '<div class="bar b2" style="height:' + Math.max(2, Math.round(byMonth[m].po / maxPo * 100)) + '%"></div>'
+          + '<span class="lab">' + m + "월</span></div>").join("")
+      + "</div></div>"
+
+      /* ── 미발주 요청 목록 ── */
+      + '<div class="sec"><h3>미발주 구매요청 <small style="font-weight:400;color:var(--muted);">오래 열린 순 · 상위 '
+      + num(Math.min(LIST_MAX, openReq.length)) + " / " + num(openReq.length) + "건</small></h3>"
+      + '<div class="tbl-wrap"><table><thead><tr>'
+      + "<th>요청번호</th><th>상태</th><th>요청일</th><th>희망납기</th><th class=\"c\">경과</th>"
+      + "<th>품목</th><th class=\"r\">요청수량</th><th>요청부서</th><th>요청자</th><th>예정 거래처</th>"
+      + "</tr></thead><tbody>"
+      + (reqRows.length ? reqRows.map((r) =>
+          "<tr><td><code>" + esc(r.pr_no) + "</code></td>"
+          + '<td><span class="tag">' + esc(STS[r.pr_sts] || r.pr_sts) + "</span></td>"
+          + "<td>" + esc(r.req_dt || "—") + "</td><td>" + esc(r.dlvy_dt || "—") + "</td>"
+          + '<td class="c">' + ageTag(r.od) + "</td>"
+          + "<td>" + esc(r.item_name || r.item_code || "—") + "</td>"
+          + '<td class="r">' + num(r.req_qty) + " " + esc(String(r.req_unit || "").trim()) + "</td>"
+          + "<td>" + esc(r.req_dept_resolved || r.req_dept || "—") + "</td>"
+          + "<td>" + esc(r.req_prsn || "—") + "</td>"
+          + "<td>" + esc(r.sppl_name || "—") + "</td></tr>").join("")
+        : '<tr><td colspan="10" style="color:var(--muted);">미발주 구매요청이 없습니다.</td></tr>')
+      + "</tbody></table></div></div>"
+
+      /* ── 미입고 발주 목록 ── */
+      + '<div class="sec"><h3>미입고 발주 <small style="font-weight:400;color:var(--muted);">오래 열린 순 · 상위 '
+      + num(Math.min(LIST_MAX, openPo.length)) + " / " + num(openPo.length) + "건</small></h3>"
+      + '<div class="tbl-wrap"><table><thead><tr>'
+      + "<th>발주번호</th><th>발주일</th><th>납기</th><th class=\"c\">경과</th><th>거래처</th>"
+      + "<th class=\"r\">발주수량</th><th class=\"r\">입고수량</th><th class=\"r\">금액(백만)</th><th>품목</th>"
+      + "</tr></thead><tbody>"
+      + (poRows.length ? poRows.map((r) =>
+          "<tr><td><code>" + esc(r.po_no) + "</code></td>"
+          + "<td>" + esc(r.po_dt || "—") + "</td><td>" + esc(r.dlvy_dt || "—") + "</td>"
+          + '<td class="c">' + ageTag(r.od) + "</td>"
+          + "<td>" + esc(r.bp_name || r.bp_code || "—") + "</td>"
+          + '<td class="r">' + num(r.po_qty) + '</td><td class="r">' + num(r.rcpt_qty) + "</td>"
+          + '<td class="r">' + mil(r.amt) + "</td>"
+          + '<td title="' + esc(r.items_txt || "") + '">' + esc(String(r.items_txt || "—").slice(0, 40)) + "</td></tr>").join("")
+        : '<tr><td colspan="9" style="color:var(--muted);">미입고 발주가 없습니다.</td></tr>')
+      + "</tbody></table></div></div>"
+
+      /* ── 거래처별 발주 (기간) ── */
+      + '<div class="sec"><h3>거래처별 발주 <small style="font-weight:400;color:var(--muted);">' + esc(q.label) + " · 금액 상위 12개사</small></h3>"
+      + '<div class="barlist">'
+      + (topBp.length ? topBp.map((t) =>
+          '<div class="brow"><span class="lab" title="' + esc(t.name) + '">' + esc(t.name) + "</span>"
+          + '<div class="track"><i style="width:' + Math.max(2, Math.round(t.amt / bpMax * 100)) + '%"></i></div>'
+          + '<span class="cnt">' + mil(t.amt) + "백만 (" + num(t.cnt) + "건)</span></div>").join("")
+        : '<p style="font-size:12.5px;color:var(--muted);">선택한 기간에 발주가 없습니다.</p>')
+      + "</div></div>"
+
+      /* ── 요청부서별 미발주 ── */
+      + '<div class="sec"><h3>요청부서별 미발주 요청 <small style="font-weight:400;color:var(--muted);">오늘 기준 · 상위 8</small></h3>'
+      + '<div class="barlist">'
+      + (topDept.length ? topDept.map(([d, c]) =>
+          '<div class="brow"><span class="lab">' + esc(d) + "</span>"
+          + '<div class="track"><i style="width:' + Math.max(2, Math.round(c / deptMax * 100)) + '%"></i></div>'
+          + '<span class="cnt">' + num(c) + "건</span></div>").join("")
+        : '<p style="font-size:12.5px;color:var(--muted);">미발주 요청이 없습니다.</p>')
+      + "</div></div>"
+
+      + '<div class="notice">상태 코드 — <b>RQ</b> 요청 · <b>CF</b> 확정 · <b>PO</b> 발주 · <b>GR</b> 입고 · <b>IV</b> 매입. '
+      + "이 화면은 <b>조회 전용</b>입니다(ERP 쓰기 없음). 발주 생성·상태 변경은 ERP(UNIERP)에서 진행합니다. "
+      + "외주 발주·검사 진행은 <a href=\"/work/subcon-inspection\">외주발주 진행현황</a>이 맡습니다.</div>";
+  }
+
+  createQueryBar("#qbar", {
+    years: [new Date().getFullYear()], year: new Date().getFullYear(),
+    months: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+    basis: "ERP 미러 · 구매요청=요청일 / 발주=발주일 기준",
+    mode: "live",
+    onQuery: async (q, ctx) => {
+      try { await load(q, ctx.reason, ctx.bar); ctx.bar.applyPeriod(); }
+      catch (e) {
+        app.innerHTML = '<div class="notice">구매요청·발주 현황을 불러오지 못했습니다. 사내 계정으로 로그인했는지 확인해 주세요.<br>'
+          + '<span style="color:#99a2ad;">' + esc(e?.message || "") + "</span></div>";
+        throw e;
+      }
+    },
+  });
+</script>
+</body>
+</html>
