@@ -104,7 +104,9 @@ export function createGrid(container, options = {}) {
     if (o.selectable) head += `<th class="grid__th grid__th--check"><input type="checkbox" class="grid__check" data-act="sel-all"></th>`;
     head += cols.map((c) => {
       const sortable = o.sortable && c.sortable !== false;
-      const cls = ["grid__th", sortable ? "grid__th--sortable" : "", state.sort.key === c.key ? (state.sort.dir === 1 ? "grid__th--sorted-asc" : "grid__th--sorted-desc") : ""].join(" ");
+      // cssClass 는 td 뿐 아니라 헤더에도 붙인다 — 고정열(sticky left)은 헤더가 같이 고정되지 않으면
+      // 가로 스크롤 때 본문만 남아 헤더를 뚫고 올라온다(2026-09-22 발주통합 LIST 실측)
+      const cls = ["grid__th", sortable ? "grid__th--sortable" : "", state.sort.key === c.key ? (state.sort.dir === 1 ? "grid__th--sorted-asc" : "grid__th--sorted-desc") : "", c.cssClass || ""].join(" ");
       return `<th class="${cls}" data-act="${sortable ? "sort" : ""}" data-col="${esc(c.key)}" ${c.width ? `style="min-width:${c.width}"` : ""}>${esc(c.label)}${sortMark(c)}</th>`;
     }).join("");
     head += "</tr>";
@@ -112,16 +114,25 @@ export function createGrid(container, options = {}) {
       head += `<tr class="grid__filter-row">`;
       if (o.selectable) head += `<th></th>`;
       head += cols.map((c) => {
-        if (c.filter === false) return "<th></th>";
+        const fcls = c.cssClass ? ` class="${esc(c.cssClass)}"` : "";
+        if (c.filter === false) return `<th${fcls}></th>`;
         if (c.type === "select" && c.options) {
           const opts = c.options.map((op) => `<option value="${esc(op.value ?? op)}">${esc(op.label ?? op)}</option>`).join("");
-          return `<th><select data-act="filter" data-col="${esc(c.key)}"><option value="">전체</option>${opts}</select></th>`;
+          return `<th${fcls}><select data-act="filter" data-col="${esc(c.key)}"><option value="">전체</option>${opts}</select></th>`;
         }
-        return `<th><input type="text" data-act="filter" data-col="${esc(c.key)}" placeholder="필터" value="${esc(state.filters[c.key] || "")}"></th>`;
+        return `<th${fcls}><input type="text" data-act="filter" data-col="${esc(c.key)}" placeholder="필터" value="${esc(state.filters[c.key] || "")}"></th>`;
       }).join("");
       head += "</tr>";
     }
     elThead.innerHTML = head;
+  }
+
+  /* 필터행이 헤더 바로 밑에 붙도록 실제 헤더 높이를 CSS 변수로 넘긴다.
+     고정값(31px)이면 글꼴·패딩이 조금만 달라도 틈이 생겨 그 사이로 본문이 비친다. */
+  function syncHeadOffset() {
+    if (!o.columnFilter) return;
+    const tr = elThead.firstElementChild;
+    if (tr && tr.offsetHeight) root.style.setProperty("--g-head-h", tr.offsetHeight + "px");
   }
 
   /* ---------- 본문 셀 ---------- */
@@ -167,7 +178,7 @@ export function createGrid(container, options = {}) {
     root.classList.toggle("grid--bulk-on", state.editMode);
   }
 
-  function render() { renderActions(); renderHead(); renderBody(); renderFooter(); }
+  function render() { renderActions(); renderHead(); renderBody(); renderFooter(); syncHeadOffset(); }
 
   /* ---------- dirty 기록 ---------- */
   function setCell(key, field, value) {
@@ -210,11 +221,18 @@ export function createGrid(container, options = {}) {
   });
   // formatter 내부 버튼: data-row-act 도 지원 (위 click의 fallback)
 
+  /* 검색·필터는 글자마다 본문을 다시 그린다. 수천 행 화면에서는 이게 그대로 입력 지연이 된다
+     (5,609행 렌더 1.9초 실측) — 입력이 멎은 뒤 한 번만 그린다. 값은 즉시 반영하므로 결과는 같다. */
+  let inputTimer = null;
+  const deferView = () => {
+    clearTimeout(inputTimer);
+    inputTimer = setTimeout(() => { computeView(); renderBody(); renderFooter(); }, 120);
+  };
   root.addEventListener("input", (e) => {
     const t = e.target.closest("[data-act]"); if (!t) return;
     const act = t.getAttribute("data-act");
-    if (act === "search") { state.query = t.value; computeView(); renderBody(); renderFooter(); }
-    else if (act === "filter") { state.filters[t.getAttribute("data-col")] = t.value; computeView(); renderBody(); renderFooter(); }
+    if (act === "search") { state.query = t.value; deferView(); }
+    else if (act === "filter") { state.filters[t.getAttribute("data-col")] = t.value; deferView(); }
     else if (act === "edit") { setCell(t.getAttribute("data-key"), t.getAttribute("data-col"), t.value); markRowDirty(t); }
   });
   root.addEventListener("change", (e) => {
@@ -349,7 +367,8 @@ export function createGrid(container, options = {}) {
       render(); return state.errors.size === 0;
     },
     hasErrors() { return state.errors.size > 0; },
-    exportCsv, copyToClipboard, destroy() { root.innerHTML = ""; root.classList.remove("grid", "grid--bulk-on"); },
+    exportCsv, copyToClipboard,
+    destroy() { clearTimeout(inputTimer); root.innerHTML = ""; root.classList.remove("grid", "grid--bulk-on"); },
   };
 
   render();

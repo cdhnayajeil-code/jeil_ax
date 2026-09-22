@@ -34,7 +34,10 @@
 .grid__scroll{border:1px solid var(--g-line);border-radius:12px;overflow:auto;max-height:70vh;background:#fff;}
 .grid__table{width:100%;border-collapse:separate;border-spacing:0;}
 .grid__table th,.grid__table td{padding:7px 10px;text-align:left;vertical-align:middle;white-space:nowrap;}
-.grid__th{position:sticky;top:0;z-index:2;background:var(--g-navy);color:#fff;font-weight:600;font-size:12px;
+/* 층 순서 규약 — 화면이 왼쪽 고정열(position:sticky;left:…)을 얹을 때 이 순서를 지킨다.
+   일반 td 0 · 고정열 td 2 · 필터행 th 3 · 헤더 th 4 · 고정열 헤더/필터 th 5
+   (고정열 td 가 헤더보다 위면 세로 스크롤 때 지나간 행이 헤더를 뚫고 보인다) */
+.grid__th{position:sticky;top:0;z-index:4;background:var(--g-navy);color:#fff;font-weight:600;font-size:12px;
   border-bottom:1px solid var(--g-navy2);user-select:none;}
 .grid__th--sortable{cursor:pointer;}
 .grid__th--sortable:hover{background:var(--g-navy2);}
@@ -43,7 +46,8 @@
 .grid__th--check,.grid__td--check{width:34px;text-align:center;padding-left:6px;padding-right:6px;}
 
 /* 컬럼 필터 행 */
-.grid__filter-row th{position:sticky;top:31px;z-index:1;background:var(--g-soft);padding:4px 8px;border-bottom:1px solid var(--g-line);}
+/* top 은 grid.js 가 실제 헤더 높이를 재어 --g-head-h 로 넘긴다(고정값이면 틈으로 본문이 비친다) */
+.grid__filter-row th{position:sticky;top:var(--g-head-h,32px);z-index:3;background:var(--g-soft);padding:4px 8px;border-bottom:1px solid var(--g-line);}
 .grid__filter-row input,.grid__filter-row select{width:100%;padding:4px 7px;border:1px solid var(--g-line);border-radius:6px;
   font-size:11.5px;background:#fff;}
 .grid__filter-row input:focus,.grid__filter-row select:focus{outline:none;border-color:var(--g-accent);}

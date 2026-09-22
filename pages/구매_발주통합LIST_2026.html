@@ -67,11 +67,38 @@
   .tools .lb{font-size:11px; color:var(--muted); font-weight:600;}
 
   /* ── 그리드: .grid__ 스코프는 건드리지 않고(§13.4) 이 화면 안에서만 폭·고정열을 얹는다 ── */
-  #listGrid .grid__scroll{max-height:none; height:calc(100vh - 330px); min-height:340px;}
+  #listGrid{--pl-w1:54px; --pl-w2:74px;}
+  #listGrid .grid__scroll{max-height:none; height:calc(100vh - 330px); min-height:340px; overscroll-behavior-x:contain;}
   #listGrid .grid__td, #listGrid .grid__th{white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
-  #listGrid .pl-fix1{position:sticky; left:0; background:#fff; z-index:2;}
-  #listGrid .pl-fix2{position:sticky; left:52px; background:#fff; z-index:2;}
-  #listGrid .grid__th.pl-fix1, #listGrid .grid__th.pl-fix2{z-index:4; background:var(--soft);}
+  #listGrid .grid__row{cursor:pointer;}
+
+  /* 왼쪽 고정 2열 — 헤더·필터행까지 같이 고정한다(grid.js 가 cssClass 를 th 에도 붙인다).
+     폭을 width/min/max 셋으로 못박아야 left 오프셋(앞 열 누적폭)과 실제 렌더폭이 어긋나지 않는다. */
+  #listGrid .pl-fix1, #listGrid .pl-fix2{position:sticky; z-index:2; background:#fff;}
+  #listGrid .pl-fix1{left:0;            width:var(--pl-w1); min-width:var(--pl-w1); max-width:var(--pl-w1);}
+  #listGrid .pl-fix2{left:var(--pl-w1); width:var(--pl-w2); min-width:var(--pl-w2); max-width:var(--pl-w2);}
+  /* 줄무늬·호버가 고정열에서도 살아 있어야 같은 행으로 읽힌다(고정열 배경이 불투명이라 직접 다시 준다) */
+  #listGrid .grid__row:nth-child(even) .pl-fix1,
+  #listGrid .grid__row:nth-child(even) .pl-fix2{background:#fafbfd;}
+  #listGrid .grid__row:hover .pl-fix1,
+  #listGrid .grid__row:hover .pl-fix2{background:#f1f6fc;}
+  #listGrid .grid__row--cur .grid__td{background:#e8f0fa;}
+  #listGrid .grid__row--cur .pl-fix1, #listGrid .grid__row--cur .pl-fix2{background:#dde9f7;}
+  /* 고정 구간 오른쪽 경계 — 가로로 끌 때 「여기까지가 고정」이 보이게 */
+  #listGrid .pl-fix2{box-shadow:7px 0 9px -7px rgba(26,47,78,.45);}
+  #listGrid .grid__th.pl-fix1, #listGrid .grid__th.pl-fix2{z-index:5; background:var(--navy);}
+  #listGrid .grid__filter-row th.pl-fix1,
+  #listGrid .grid__filter-row th.pl-fix2{z-index:5; background:var(--soft);}
+  /* 엑셀 23칸 ↔ 보조 항목 경계 */
+  #listGrid .pl-sep{border-left:2px solid #c3cddc;}
+
+  /* 가로로 끌어서 이동 — 끄는 동안만 커서·선택을 바꾼다 */
+  #listGrid .grid__scroll.panning{cursor:grabbing; user-select:none;}
+  /* 표 위쪽 가로 스크롤바 — 28열이라 아래까지 내려가야 잡히는 것을 피한다 */
+  .hbar{display:none; overflow-x:auto; overflow-y:hidden; height:13px;}
+  .hbar.on{display:block;}
+  .hbar > div{height:1px;}
+
   #listGrid .muted{color:#a2abb5;}
   #listGrid .tag{display:inline-block; font-size:10px; padding:0 5px; border-radius:8px; border:1px solid var(--line);
     background:var(--soft); color:var(--grey); margin-left:3px;}
@@ -79,6 +106,37 @@
   #listGrid .st-발주{color:var(--navy2);}
   #listGrid .st-부분입고{color:var(--accent);}
   #listGrid .st-입고완료, #listGrid .st-매입완료{color:var(--green);}
+
+  /* ── 행 상세: 28칸을 가로 스크롤 없이 한 화면에서 ── */
+  .dw{position:fixed; inset:0; z-index:50; display:flex; justify-content:flex-end;}
+  .dw[hidden]{display:none;}
+  .dw__bd{position:absolute; inset:0; background:rgba(26,47,78,.28);}
+  .dw__panel{position:relative; width:min(620px, 96vw); background:#fff; height:100%; display:flex; flex-direction:column;
+    box-shadow:-10px 0 28px rgba(26,47,78,.22); animation:dwIn .16s ease-out;}
+  @keyframes dwIn{from{transform:translateX(24px); opacity:.4;} to{transform:none; opacity:1;}}
+  .dw__head{display:flex; justify-content:space-between; align-items:flex-start; gap:12px;
+    padding:14px 18px 11px; border-bottom:2px solid var(--navy);}
+  .dw__head h2{margin:2px 0 0; font-size:16px; color:var(--navy); line-height:1.35;}
+  .dw__no{font-size:11.5px; color:var(--muted);}
+  .dw__nav{display:flex; gap:5px; flex-shrink:0;}
+  .dw__nav .btn{padding:4px 9px;}
+  .dw__body{overflow-y:auto; padding:6px 18px 24px;}
+  .dw__sec{margin-top:14px; font-size:11px; font-weight:700; color:var(--navy2); letter-spacing:.04em;
+    border-bottom:1px solid var(--line); padding-bottom:4px;}
+  .dw__grid{display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:0 16px;}
+  .dw__f{padding:7px 0 6px; border-bottom:1px dotted var(--line); min-width:0;}
+  .dw__f.wide{grid-column:1 / -1;}
+  .dw__f dt{font-size:10.5px; color:var(--muted); font-weight:600; margin-bottom:2px;}
+  .dw__f dd{margin:0; font-size:13px; word-break:break-word; white-space:normal;}
+  .dw__f dd .tag{display:inline-block; font-size:10px; padding:0 5px; border-radius:8px; border:1px solid var(--line);
+    background:var(--soft); color:var(--grey); margin-left:3px;}
+  .dw__f dd .muted{color:#a2abb5;}
+  .dw__f dd .st-미발주{color:var(--amber); font-weight:600;}
+  .dw__f dd .st-발주{color:var(--navy2);}
+  .dw__f dd .st-부분입고{color:var(--accent);}
+  .dw__f dd .st-입고완료, .dw__f dd .st-매입완료{color:var(--green);}
+  .dw__hint{font-size:11px; color:var(--muted); margin-top:14px;}
+  @media (max-width:640px){ .dw__grid{grid-template-columns:1fr;} }
 
   .notice{background:var(--soft); border:1px solid var(--line); border-left:4px solid var(--accent);
     border-radius:8px; padding:10px 14px; margin:12px 0; font-size:12.5px; color:var(--muted);}
@@ -187,16 +245,39 @@
       <span class="lb" style="margin-left:6px;">표시</span>
       <select id="selShow" class="btn" style="padding:5px 8px;">
         <option value="300">300행</option>
-        <option value="1000">1,000행</option>
+        <option value="1000" selected>1,000행</option>
         <option value="3000">3,000행</option>
         <option value="0">전체</option>
       </select>
     </div>
   </div>
 
+  <div class="cap" style="margin:-2px 0 5px;">💡 <b>행을 누르면</b> 그 건의 모든 칸을 한 화면에서 봅니다(↑↓ 로 앞뒤 행, Esc 로 닫기) · 표는 <b>끌어서</b> 좌우로 움직입니다 · NO.·구분 두 칸은 왼쪽에 고정됩니다</div>
+
+  <!-- 표 위쪽 가로 스크롤바 — 아래까지 내려가지 않고도 좌우로 옮길 수 있게 -->
+  <div class="hbar" id="hbarTop" aria-hidden="true"><div></div></div>
   <div id="listGrid"><div class="loading">발주·구매요청 목록을 불러오는 중…</div></div>
 
   <div class="notice amber" id="pendNote"></div>
+
+  <!-- 행 상세 — 가로로 끝까지 끌지 않고 한 건의 전모를 본다 -->
+  <div class="dw" id="dw" hidden>
+    <div class="dw__bd" data-dw-close></div>
+    <aside class="dw__panel" role="dialog" aria-modal="true" aria-labelledby="dwTitle">
+      <header class="dw__head">
+        <div style="min-width:0;">
+          <div class="dw__no" id="dwNo"></div>
+          <h2 id="dwTitle">—</h2>
+        </div>
+        <div class="dw__nav">
+          <button class="btn" id="dwPrev" title="이전 행 (↑)">↑</button>
+          <button class="btn" id="dwNext" title="다음 행 (↓)">↓</button>
+          <button class="btn" id="dwClose" title="닫기 (Esc)" data-dw-close>✕</button>
+        </div>
+      </header>
+      <div class="dw__body" id="dwBody"></div>
+    </aside>
+  </div>
 
   <div class="foot">
     <span>구매팀 운영 페이지 · 발주통합관리 LIST</span>
@@ -224,7 +305,7 @@
   let ROWS = [];          // 현재 조건으로 받은 전량(그리드의 검색·필터·CSV 는 이 전량 기준)
   let GRID = null;
   let PRESET = "basic";
-  let SHOW = 300;
+  let SHOW = 1000;        // 조건을 좁힌 조회는 대개 한 번에 다 그려진다(300 이면 늘 「상위 300건」이 떴다)
   let PICK = { gubun: new Set(), sts: new Set() };
   let DEPTS = new Set();  // 요청부서 옵션 — 받은 데이터에서 누적(서버 왕복 추가 없음)
   let reqSeq = 0;         // 늦게 도착한 옛 조회 결과를 버린다
@@ -239,10 +320,14 @@
   const dash = '<span class="muted">—</span>';
   const pend = () => '<span class="muted" title="ERP 추출 확장 대기 — 아래 안내 참조">—</span>';
   const COLS = [
-    { key: "no",          label: "NO.",              width: "52px",  align: "right",  base: true, cssClass: "pl-fix1", filter: false, sortable: false },
-    { key: "gubun",       label: "구분",              width: "70px",  align: "center", base: true, cssClass: "pl-fix2",
+    /* 폭은 CSS 의 --pl-w1/--pl-w2 와 같은 값이어야 한다(고정열 left 오프셋이 이 폭을 누적한다) */
+    { key: "no",          label: "NO.",              width: "54px",  align: "right",  base: true, cssClass: "pl-fix1", filter: false, sortable: false },
+    { key: "gubun",       label: "구분",              width: "74px",  align: "center", base: true, cssClass: "pl-fix2",
       formatter: (v, r) => (v ? esc(v) : '<span class="muted" title="' + esc("품목계정 " + (r.item_class || "?") + " 이름 미등재") + '">—</span>') },
-    { key: "pu_no",       label: "요청번호(결재)",     width: "128px", pending: true },
+    /* 엑셀 C열. 고정열 바로 뒤·구매요청번호 앞 자리를 비워 둔다 — 값이 들어오면 그 자리에 그대로 선다.
+       폭은 PU+YYYYMMDD+4자리(14자) 기준 */
+    { key: "pu_no",       label: "요청번호(결재)",     width: "138px", pending: true, mono: true,
+      tip: () => "그룹웨어 전자결재 문서번호 — ERP 구매 테이블에 없어 원천 조사 중" },
     { key: "pr_no",       label: "구매요청번호",       width: "128px", base: true, formatter: (v) => (v ? "<code>" + esc(v) + "</code>" : dash) },
     { key: "po_dt",       label: "발주일자",           width: "92px",  align: "center", base: true, formatter: (v) => (v ? esc(v) : dash) },
     { key: "agent_nm",    label: "담당자",             width: "86px",  pending: true,
@@ -278,7 +363,7 @@
     { key: "req_user_nm", label: "요청자",             width: "136px", base: true, formatter: (v) => (v ? esc(v) : dash) },
     { key: "dtl_remark",  label: "적요",              width: "180px", pending: true },
     // ── 보조(엑셀에는 없지만 상태 판단에 필요) ──
-    { key: "status_kr",   label: "상태",              width: "78px",  align: "center", base: true, extra: true,
+    { key: "status_kr",   label: "상태",              width: "78px",  align: "center", base: true, extra: true, cssClass: "pl-sep",
       formatter: (v) => (v ? '<span class="st-' + esc(v) + '">' + esc(v) + "</span>" : dash) },
     { key: "rcpt_qty",    label: "입고수량",           width: "76px",  align: "right",  extra: true, formatter: (v) => num(v) || dash, exportValue: (v) => (v == null ? "" : v) },
     { key: "req_dept",    label: "요청부서",           width: "104px", extra: true, formatter: (v) => (v ? esc(v) : dash) },
@@ -296,19 +381,25 @@
     if (!c.pending) return;
     const isNum = c.key === "price";
     const tip = c.tip;
+    const mono = c.mono;
     c.formatter = (v, r) => {
       if (v == null || v === "") return pend();
-      const body = isNum ? num(v) : esc(v);
+      const body = isNum ? num(v) : mono ? "<code>" + esc(v) + "</code>" : esc(v);
       return tip ? '<span title="' + esc(tip(r || {})) + '">' + body + "</span>" : body;
     };
     c.exportValue = (v) => (v == null ? "" : v);
   });
 
-  // 대기 안내는 **실제로 비어 있는 칸만** 말한다 — 채워진 뒤에도 「대기」라고 적으면 화면이 거짓말을 한다
-  const pendingNow = () => COLS.filter((c) => c.pending && !ROWS.some((r) => r[c.key] != null && r[c.key] !== ""));
+  /* 대기 칸에 값이 들어왔는지는 **조회할 때마다 다시 센다.** 채워진 칸은
+     그 순간부터 기본 열에 합류하고 검색칸도 열린다 — 적재가 되는 날 코드를 고치지 않아도 된다. */
+  let FILLED = new Set();
+  const scanFilled = () => {
+    FILLED = new Set(COLS.filter((c) => c.pending && ROWS.some((r) => r[c.key] != null && r[c.key] !== "")).map((c) => c.key));
+  };
+  const pendingNow = () => COLS.filter((c) => c.pending && !FILLED.has(c.key));
   const PENDING_LABELS = COLS.filter((c) => c.pending).map((c) => c.label);
-  const BASE_N = COLS.filter((c) => c.base).length;   // 기본 프리셋 열 수
-  const LABEL = { basic: "기본 " + BASE_N + "열", all: "전체 " + COLS.length + "열" };
+  const basicCols = () => COLS.filter((c) => c.base || FILLED.has(c.key));
+  const label = (p) => (p === "basic" ? "기본 " + basicCols().length + "열" : "전체 " + COLS.length + "열");
 
   /* ── 조건 읽기/쓰기/주소동기화 (품목중복 조회 선례) ── */
   function readCond() {
@@ -387,6 +478,8 @@
     const rows = ROWS;
     rows.forEach((r) => { if (r.req_dept) DEPTS.add(r.req_dept); });
     fillDepts();
+    scanFilled();                       // 대기 칸에 값이 들어왔으면 이번 조회부터 기본 열·검색칸이 열린다
+    syncPendingInputs();
     renderGrid();
     renderPendNote();
     const byNo = !!(c.pr || c.po || c.pu);
@@ -405,8 +498,22 @@
     cap.innerHTML = s;
   }
 
+  /* 값이 들어온 대기 칸은 검색조건도 같이 열어 준다(결재번호 칸의 「조사 중」 꼬리표를 지운다).
+     대기 컬럼 ↔ 검색 입력칸 대응 — 현재는 결재번호 한 쌍뿐이다. */
+  const PEND_INPUT = { pu_no: "f_pu" };
+  function syncPendingInputs() {
+    Object.entries(PEND_INPUT).forEach(([key, id]) => {
+      const el = $(id); if (!el) return;
+      const on = FILLED.has(key);
+      el.disabled = !on;
+      const why = el.parentElement.querySelector(".why");
+      if (why) why.hidden = on;
+    });
+  }
+
   function renderGrid() {
-    const cols = COLS.filter((c) => (PRESET === "basic" ? c.base : true));
+    const cols = PRESET === "basic" ? basicCols() : COLS;
+    closeDetail();                     // 표를 갈아 끼우면 펼쳐 둔 행도 사라진다
     if (GRID) { GRID.destroy(); GRID = null; }
     $("listGrid").innerHTML = "";
     GRID = createGrid("#listGrid", {
@@ -418,6 +525,116 @@
       pageSize: SHOW,                  // 렌더만 자른다 — 검색·정렬·CSV 는 전량 기준(grid.js:145 vs :318)
       emptyText: "조건에 맞는 자료가 없습니다.",
     });
+    $("bPreset").textContent = label(PRESET);
+    wireScrollAids();
+  }
+
+  /* ── 가로 이동 보조 ────────────────────────────────────────────────
+     28열이라 가로 스크롤이 필수인데, 스크롤바가 표 맨 아래에만 있어 잡기 어렵다.
+     ① 표 위에도 같은 스크롤바를 두고 ② 표를 끌어서 밀 수 있게 한다. */
+  let PANNED = false;   // 끌고 난 직후의 click 은 행 상세·정렬로 새지 않게 막는다
+
+  function wireScrollAids() {
+    const sc = $("listGrid").querySelector(".grid__scroll");
+    const bar = $("hbarTop");
+    if (!sc) { bar.classList.remove("on"); return; }
+    syncHBar(sc);
+    /* 두 스크롤바를 서로 맞춘다. scroll 이벤트는 대입 뒤 **다음 차례에** 오므로 플래그 잠금은
+       소용이 없다 — 이미 같은 값이면 대입하지 않는 것으로 되울림을 끊는다. */
+    const same = (a, b) => Math.abs(a - b) < 1;
+    bar.onscroll = () => { if (!same(sc.scrollLeft, bar.scrollLeft)) sc.scrollLeft = bar.scrollLeft; };
+    sc.addEventListener("scroll", () => { if (!same(bar.scrollLeft, sc.scrollLeft)) bar.scrollLeft = sc.scrollLeft; }, { passive: true });
+
+    /* 끌어서 이동 — 입력칸·버튼 위에서는 시작하지 않고, 5px 넘게 움직였을 때만 패닝으로 본다
+       (그 전에는 평범한 클릭·글자선택이어야 한다). */
+    let sx = 0, sy = 0, sl = 0, st = 0, down = false, moved = false;
+    sc.addEventListener("pointerdown", (e) => {
+      if (e.button !== 0 || e.target.closest("input, select, button, a")) return;
+      down = true; moved = false; PANNED = false;
+      sx = e.clientX; sy = e.clientY; sl = sc.scrollLeft; st = sc.scrollTop;
+    });
+    sc.addEventListener("pointermove", (e) => {
+      if (!down) return;
+      const dx = e.clientX - sx, dy = e.clientY - sy;
+      if (!moved && Math.abs(dx) + Math.abs(dy) < 5) return;
+      if (!moved) { moved = true; sc.classList.add("panning"); try { sc.setPointerCapture(e.pointerId); } catch (err) {} }
+      sc.scrollLeft = sl - dx; sc.scrollTop = st - dy;
+      e.preventDefault();
+    });
+    const endPan = () => { if (!down) return; down = false; PANNED = moved; sc.classList.remove("panning"); };
+    sc.addEventListener("pointerup", endPan);
+    sc.addEventListener("pointercancel", endPan);
+    // 캡처 단계에서 막아야 그리드 자신의 정렬 클릭까지 함께 눌린다
+    sc.addEventListener("click", (e) => {
+      if (!PANNED) return;
+      PANNED = false; e.stopPropagation(); e.preventDefault();
+    }, true);
+  }
+
+  function syncHBar(sc) {
+    const bar = $("hbarTop");
+    const need = sc.scrollWidth > sc.clientWidth + 1;
+    bar.classList.toggle("on", need);
+    if (need) bar.firstElementChild.style.width = sc.scrollWidth + "px";
+  }
+  addEventListener("resize", () => {
+    const sc = $("listGrid").querySelector(".grid__scroll");
+    if (sc) syncHBar(sc);
+  });
+
+  /* ── 행 상세: 한 건의 28칸 전부를 가로 스크롤 없이 ──────────────────
+     표의 formatter 를 그대로 재사용한다 — 표와 상세가 다른 말을 하지 않게. */
+  const DW_SECTIONS = [
+    ["요청·발주",  ["pu_no", "pr_no", "po_no", "po_type_cd", "status_kr", "gubun"]],
+    ["일정",       ["req_dt", "po_dt", "dlvy_dt", "po_dlvy_dt", "iv_last_dt"]],
+    ["품목",       ["item_code", "item_name", "spec", "qty", "unit", "price", "amt", "rcpt_qty"]],
+    ["상대·소속",  ["bp_name", "p_code", "prj_nm", "req_user_nm", "req_dept", "agent_nm", "whs_nm"]],
+    ["메모",       ["hdr_remark", "dtl_remark"]],
+  ];
+  const DW_WIDE = new Set(["prj_nm", "item_name", "spec", "hdr_remark", "dtl_remark"]);
+  let DW_TR = null;   // 지금 펼쳐 둔 행의 <tr>
+
+  const colOf = (k) => COLS.find((c) => c.key === k);
+  const cellOf = (c, r) => (typeof c.formatter === "function" ? c.formatter(r[c.key], r) : esc(r[c.key] ?? ""));
+
+  function rowOfTr(tr) {
+    const k = Number(tr && tr.dataset.key);
+    return Number.isInteger(k) ? ROWS[k] : null;
+  }
+
+  function openDetail(tr) {
+    const r = rowOfTr(tr);
+    if (!r) return;
+    if (DW_TR) DW_TR.classList.remove("grid__row--cur");
+    DW_TR = tr; tr.classList.add("grid__row--cur");
+
+    $("dwNo").textContent = "NO. " + num(r.no) + " · " + (r.status_kr || "상태 미상") + (r.gubun ? " · " + r.gubun : "");
+    $("dwTitle").textContent = r.item_name || r.item_code || r.pr_no || "(품목명 없음)";
+    $("dwBody").innerHTML = DW_SECTIONS.map(([title, keys]) => {
+      const fields = keys.map((k) => {
+        const c = colOf(k); if (!c) return "";
+        return '<div class="dw__f' + (DW_WIDE.has(k) ? " wide" : "") + '"><dt>' + esc(c.label) + "</dt><dd>" + cellOf(c, r) + "</dd></div>";
+      }).join("");
+      return '<div class="dw__sec">' + esc(title) + '</div><dl class="dw__grid">' + fields + "</dl>";
+    }).join("")
+      + '<div class="dw__hint">↑ ↓ 로 앞뒤 행 · Esc 로 닫기 · 회색 <span class="muted">—</span> 는 ERP 에 값이 없는 칸입니다.</div>';
+    $("dw").hidden = false;
+  }
+
+  function closeDetail() {
+    $("dw").hidden = true;
+    if (DW_TR) DW_TR.classList.remove("grid__row--cur");
+    DW_TR = null;
+  }
+
+  function stepDetail(delta) {
+    // 표가 다시 그려졌으면 들고 있던 <tr> 이 문서에서 떨어져 나간다 — 엉뚱한 행으로 튀지 않게 닫는다
+    if (!DW_TR || !DW_TR.isConnected) { closeDetail(); return; }
+    const trs = [...$("listGrid").querySelectorAll("tbody tr[data-key]")];
+    const next = trs[trs.indexOf(DW_TR) + delta];
+    if (!next) return;
+    openDetail(next);
+    next.scrollIntoView({ block: "nearest" });
   }
 
   /* ── 대기 컬럼 안내: 무엇이 왜 비어 있는지 화면이 스스로 밝힌다(조회 뒤 실제 상태로 갱신) ── */
@@ -437,7 +654,14 @@
   const PEND_HTML = (left, filled) =>
     "⚠ <b>아직 비어 있는 칸 " + left.length + "개 — " + left.map(esc).join(" · ") + "</b>"
     + (filled.length ? ' <span style="color:var(--green)">(채워짐: ' + filled.map(esc).join(" · ") + ")</span>" : "") + "<br>"
-    + "<b>요청번호(결재)</b> 는 ERP 구매 테이블에 결재번호 컬럼이 없어(사전 실측) 원천을 조사하는 중입니다. "
+    + "<b>요청번호(결재)</b>(엑셀 C열 <code>PU…</code>)는 <b>ERP 구매 모듈에 아예 없습니다</b> — 2026-09-22 확인: "
+    + "구매 3테이블(<code>M_PUR_REQ</code>·<code>M_PUR_ORD_HDR</code>·<code>M_PUR_ORD_DTL</code>) 230개 컬럼에 결재문서번호 칸이 없고"
+    + "('결재'가 붙은 <code>PAY_DUR</code>·<code>PAY_METH</code>는 <b>대금지급 조건</b>이지 전자결재가 아닙니다), "
+    + "미러에 들어온 후보 5개(<code>ref_no</code> 4,619행 중 1건 · <code>tracking_no</code>=P-CODE · "
+    + "<code>dw_no1</code>=도면번호 · <code>mrp_ord_no</code>=MRP오더 · <code>change_order</code> 전건 빈값)도 "
+    + "<code>PU</code> 형식이 <b>0건</b>입니다. 그룹웨어 전자결재 문서번호를 엑셀에 손으로 적은 값으로 보이며, "
+    + "ERP 원천 확정은 관리자 조사(<code>ERP원천조사_구매.sql</code> §4~§5) 뒤에 연결합니다. "
+    + "<b>값이 적재되면 이 칸은 자동으로 기본 열에 나타나고 검색칸도 열립니다</b>(자리는 구매요청번호 앞에 비워 두었습니다). "
     + "<b>담당자·비고·단가·적요</b> 는 2026-09-22 추출 확장으로 채워졌습니다. "
     + "엑셀 「발주일자」 칸의 <code>선진행</code> 같은 수기 메모(3,128건)와 「입고일」의 <code>Y</code>·<code>완료</code>(77건)는 "
     + "ERP 에 없는 값이라 이 화면에 없습니다 — 웹에서 직접 적는 기능은 별도 승인 후 추가합니다.<br>"
@@ -458,11 +682,7 @@
   /* CSV 는 「화면에 그린 만큼」이 아니라 조건 전량을 담는다 — 표준 그리드가 렌더 상한과
      무관하게 보유 행 전체를 내보낸다(§13). 조회 자체가 이미 전량이다. */
   $("bCsv").onclick = () => { GRID && GRID.exportCsv(); };
-  $("bPreset").onclick = (e) => {
-    PRESET = PRESET === "basic" ? "all" : "basic";
-    e.currentTarget.textContent = LABEL[PRESET];
-    renderGrid();
-  };
+  $("bPreset").onclick = () => { PRESET = PRESET === "basic" ? "all" : "basic"; renderGrid(); };
   $("selShow").onchange = (e) => { SHOW = Number(e.target.value) || 0; renderGrid(); renderCap(false); };
   $("chipBox").onclick = (e) => {
     const t = e.target.closest("[data-chip]"); if (!t) return;
@@ -477,8 +697,26 @@
   ["f_dept", "f_dbase", "f_from", "f_to"].forEach((id) => { $(id).onchange = requery; });
   ["f_noorder", "f_norecv", "f_overdue"].forEach((id) => { $(id).onchange = requery; });
 
+  /* 행 클릭 → 상세. 그리드가 표를 다시 그려도 살아 있게 컨테이너에 위임한다.
+     (정렬 헤더·필터칸·끌어서 이동은 상세를 열지 않는다) */
+  $("listGrid").addEventListener("click", (e) => {
+    if (PANNED) return;
+    if (e.target.closest("thead, input, select, button, a")) return;
+    const tr = e.target.closest("tbody tr[data-key]");
+    if (tr) openDetail(tr);
+  });
+  $("dw").addEventListener("click", (e) => { if (e.target.closest("[data-dw-close]")) closeDetail(); });
+  $("dwPrev").onclick = () => stepDetail(-1);
+  $("dwNext").onclick = () => stepDetail(1);
+  addEventListener("keydown", (e) => {
+    if ($("dw").hidden) return;
+    if (e.key === "Escape") { closeDetail(); return; }
+    if (e.key === "ArrowUp") { e.preventDefault(); stepDetail(-1); }
+    else if (e.key === "ArrowDown") { e.preventDefault(); stepDetail(1); }
+  });
+
   /* ── 기동 ── */
-  $("bPreset").textContent = LABEL.basic;
+  $("bPreset").textContent = label("basic");
   renderPendNote();          // 첫 조회 전에도 무엇이 비어 있는지 먼저 알린다
   writeCond(condFromUrl() || {});
   let ASOF_DONE = false;
