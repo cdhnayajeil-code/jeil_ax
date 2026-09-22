@@ -334,11 +334,26 @@ JEIL_AX/
    - 스케줄로 도는 작업 → `runner_core.py` 의 `JOB_KINDS` + `PARAM_KEYS`(+ 필요하면 `DEFAULT_JOBS`)에 한 줄,
      실행부는 `jeil_runner.py` 의 `_run_kind()` 에 분기 하나.
    **로직은 각 모듈이 갖는다.** 러너는 이름을 이어 줄 뿐, 비즈니스 로직을 여기에 심지 않는다(§13.3·§16.3 과 같은 원칙).
+   ⚠ **ETL 추출 SQL(`etl_run.py`)을 한 줄만 고쳐도 EXE 재빌드가 필요하다** — 소스가 EXE 안에 통째로 박히기 때문이다.
+   고친 뒤 §17.5 의 3경로 절차를 그대로 밟는다. 신규 컬럼은 증분(`UPDT_DT >= watermark`)으로 기존 행이 안 채워져
+   **최초 1회 `--full` 백필**이 따로 필요하다.
 3. **새 모듈을 붙이면 `deploy/build_exe.py` 의 `hidden` 목록에 이름을 넣는다.** PyInstaller 정적 분석에
    안 잡히면 EXE 에서만 `ModuleNotFoundError` 가 난다 — 빌드 후 `jeil_runner.exe <서브커맨드> --help` 로 확인한다.
 4. **회귀는 빌드 전에 돌린다**: `python -m unittest test_runner_core test_runner_cli test_offboard_axes`
    (실제 릴레이·ETL·퇴사를 절대 실행하지 않는 헤드리스 테스트다).
 5. **서버 적용은 관리자가 직접** 한다(§1.5 · 벤더 운영 서버). Claude 는 EXE 를 만들고 경로·절차만 제시한다.
    배포 절차 정본은 `10_ERP_DB연계/etl/deploy/README.md`(C안), 변경 이력은 같은 폴더 `변경관리.md`.
+   **ERP 동기화 산출물은 「저장소 → 전달 폴더 → 서버」 세 경로를 거친다.** 가운데를 건너뛰면 서버가 옛 EXE 를 계속 돈다
+   (2026-09-11 실제 발생 — 서버 v1.6 / 전달본 v1.7).
+
+   | | 경로 | 누가 채우나 |
+   |---|---|---|
+   | ① 정본 | 저장소 `10_ERP_DB연계/etl/` | 사람(커밋) |
+   | ② 전달 | 사내 OneDrive 릴레이 폴더 — 경로는 `.claude/erp_relay.path`(저장소에 적지 않는다 §1.3) | **`python 10_ERP_DB연계/etl/deploy/_sync_relay.py`** |
+   | ③ 실행 | ERP 서버 실행 루트 | 관리자가 ②에서 복사 |
+
+   순서는 **정본 수정 → `build_exe.py` → `_sync_relay.py` → 관리자 서버 교체 → (컬럼이 늘었으면) `--full` 백필 1회**.
+   전달 폴더에는 EXE·배포문서·조사SQL·안내문만 둔다 — `.env`(접속정보)는 **OneDrive 를 경유시키지 않고**,
+   `logs/`·`runner_config.json`·`runner_history.jsonl` 은 서버가 쓰는 것이라 **반대 방향**이다.
 6. 능력이 안 되는 호스트에서는 **조용히 건너뛰지 않는다** — `runner_core.detect_capabilities()` 가 판정하고
    요청 결과에 사유를 남긴다(예: playwright 없는 서버는 퇴사 큐를 선점하지 않는다).
