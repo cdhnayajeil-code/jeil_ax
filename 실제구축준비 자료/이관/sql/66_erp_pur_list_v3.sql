@@ -1,24 +1,22 @@
--- 63_erp_pur_list_perf.sql
--- ⚠ 2026-09-22 **66번으로 대체됨** — 결재번호(pu_no)를 실체화했다. 조인·성능 구조는 이 파일 그대로다.
+-- 66_erp_pur_list_v3.sql
+-- 발주통합관리 LIST 뷰 v3 — 결재번호(PU…) 실체화 (2026-09-22 · REQ-0071)
 --
--- v_erp_pur_list — 프로젝트명(계약내역)을 행마다가 아니라 한 번만 찾는다 (2026-09-22)
+-- 63번을 대체한다. 바뀐 것은 셋뿐이고 나머지는 63번 그대로다(조인·성능 구조 동일).
+--   ① `pu_no` : `null::text` → **`r.pu_no`**(요청의 EXT1_CD). 65번이 미러에 채운 값이다.
+--   ② `req_title`·`dw_ref` 추가 — 같은 확장슬롯의 건명·도번/품명
+--   ③ 코멘트 갱신
 --
--- 61번(v2)은 프로젝트명을 `left join lateral (… order by PC 우선 limit 1)` 로 붙였다.
--- 요청(PR) 가지는 `ref_cd = r.tracking_no` 라 인덱스(idx_ctrl_ref_s_refcd)를 제대로 타는데,
--- **발주(PO) 가지는 조인 키가 `coalesce(nullif(btrim(o.tracking_no), ''), r.tracking_no)` 라
--- 그 인덱스를 못 타고** 엉뚱한 ctrl_ref_s_nm_idx 로 매 행마다 PC·TK 1,399행을 읽고 1,397행을 버렸다.
---   실행계획 실측: 전체 버퍼 830,414 중 **794,468(96%)** 이 이 한 곳 · Heap Blocks 678,993.
+-- ⚠ 발주(PO) 행의 결재번호는 **요청에서 따라온다**. 발주 자체에는 결재번호가 없고 엑셀도 같은 구조다
+--    (한 결재 아래 요청 여러 건 → 각 요청이 발주로 나간다). 발주 라인의 pr_no 가 비면 결재번호도 빈다.
 --
--- PC·TK 는 9,512행 중 1,399행뿐이다. 한 번 추려 두고 해시로 붙이면 된다.
---   `distinct on (ref_cd) … order by ref_cd, PC 우선` = lateral 의 `order by … limit 1` 과 같은 값
+-- 실측(적용 후 · authenticated):
+--   전체 5,611 · 결재번호 5,301(고유 1,133) · 건명 5,396 · 도번 3,441
+--   · 발주 4,619 / 미발주 992 · 단가 4,618 · 담당자 4,618 · 계약내역 5,607 · 외주 800 · 금액 10,267백만
+--   전량 245ms · 결재번호 단건 검색 50ms   ← 전량 재적재 뒤에는 analyze 를 해야 이 수치가 나온다
+--     analyze erp_ro.pur_req_s; analyze erp_ro.pur_order_s;
 --
--- 결과는 전부 동일하다(적용 전후 실측):
---   전체 5,609 · 단가 4,618 · 담당자 4,618 · 입고창고 5,607 · 계약내역 5,605
---   · 비고 2,713 · 적요 3,234 · 결재번호 0 · 외주 799 · 금액 10,267백만
--- 바뀐 것은 조인 방식뿐이며, 62번(RLS)과 합쳐 **62,878ms → 459ms**(화면 1차 1,000행 199ms).
---
--- 되돌리기: 61_erp_pur_list_v2.sql 을 다시 실행하면 lateral 판으로 돌아간다(느려진다).
--- 컬럼 이름·순서·개수가 61번과 같으므로 replace 로 바꿀 수 있다.
+-- 되돌리기: 63_erp_pur_list_perf.sql 을 다시 실행하면 pu_no 가 NULL 인 판으로 돌아간다.
+-- 컬럼이 뒤에 append 되므로 replace 로 바꿀 수 있다.
 
 create or replace view public.v_erp_pur_list with (security_invoker = true) as
 with prj_ref as (
@@ -30,7 +28,7 @@ with prj_ref as (
 )
 select
   'PO'::text as row_kind, o.po_no, o.po_seq, o.pr_no,
-  null::text as pu_no,                                   -- C 결재번호: REF_NO 전건 빈값(실측) → 원천 미확인 유지
+  r.pu_no,                                               -- C 결재번호 ← 요청의 EXT1_CD (65번에서 연결)
   o.po_dt,
   coalesce(nullif(split_part(ag.usr_nm, '_', 2), ''), nullif(btrim(o.insrt_user_id), '')) as agent_nm,  -- F 담당자
   coalesce(nullif(btrim(o.tracking_no), ''), r.tracking_no) as p_code,   -- G 발주 기준 우선
@@ -66,7 +64,8 @@ select
   o.dlvy_dt as po_dlvy_dt,                               -- 발주 납기(협력사 약속일)
   nullif(btrim(o.po_type_cd), '') as po_type_cd,         -- 발주유형(외주 판정 근거 되짚기)
   nullif(btrim(ag.usr_nm), '') as agent_full,            -- 담당자 전체 표기(툴팁)
-  nullif(btrim(o.sl_cd), '') as whs_cd                   -- 입고창고 코드(툴팁)
+  nullif(btrim(o.sl_cd), '') as whs_cd,                  -- 입고창고 코드(툴팁)
+  r.req_title, r.dw_ref                                  -- 건명 · 도번/품명(요청 확장슬롯 EXT2·EXT3)
 from erp_ro.pur_order_s o
 left join erp_ro.pur_req_s     r   on r.pr_no = o.pr_no
 left join public.v_erp_item    im  on im.item_code = o.item_code
@@ -87,7 +86,7 @@ union all
 -- 발주가 아직 안 난 구매요청 (엑셀에서 PONO 가 빈칸·'-' 인 행)
 select
   'PR'::text, null::text, null::integer, r.pr_no,
-  null::text, null::date, null::text,
+  r.pu_no, null::date, null::text,
   r.tracking_no, prj.ref_nm,
   nullif(btrim(r.sppl_code), ''),
   coalesce(nullif(btrim(r.sppl_name), ''), nullif(btrim(r.sppl_code), '')),
@@ -107,7 +106,8 @@ select
   true, true,
   (r.dlvy_dt < current_date), r.synced_at,
   r.req_dt, null::date, null::text,
-  null::text, nullif(btrim(r.sl_cd), '')
+  null::text, nullif(btrim(r.sl_cd), ''),
+  r.req_title, r.dw_ref
 from erp_ro.pur_req_s r
 left join public.v_erp_item   im  on im.item_code = r.item_code
 left join erp_ro.usr_master_s u   on lower(u.usr_id) = lower(r.req_prsn)
@@ -116,14 +116,15 @@ left join prj_ref             prj on prj.ref_cd = r.tracking_no
 where not exists (select 1 from erp_ro.pur_order_s o2 where o2.pr_no = r.pr_no);
 
 comment on view public.v_erp_pur_list is
-  '구매팀 발주통합관리 LIST(REQ-0069·0070) — 발주 라인 + 발주 없는 구매요청. 엑셀 23칸 대응. 담당자=등록자·외주=품번 ROS 접두(2026-09-22 적재 후 판정). 결재번호(pu_no)만 원천 미확인.';
+  '구매팀 발주통합관리 LIST(REQ-0069·0070·0071) — 발주 라인 + 발주 없는 구매요청. 엑셀 23칸 전부 대응. 담당자=등록자·외주=품번 ROS 접두·결재번호=M_PUR_REQ.EXT1_CD.';
 
 grant select on public.v_erp_pur_list to authenticated, service_role;
 
 -- ── 확인 ─────────────────────────────────────────────────────────────────────
--- select count(*) 전체, count(price) 단가, count(agent_nm) 담당자, count(whs_nm) 입고창고,
---        count(prj_nm) 계약내역, count(hdr_remark) 비고, count(dtl_remark) 적요, count(pu_no) 결재번호
---   from public.v_erp_pur_list;   -- 5,609 / 4,618 / 4,618 / 5,607 / 5,605 / 2,713 / 3,234 / 0
+-- select count(*) 전체, count(pu_no) 결재번호, count(distinct pu_no) 결재고유,
+--        count(req_title) 건명, count(dw_ref) 도번, count(price) 단가, count(agent_nm) 담당자,
+--        count(whs_nm) 입고창고, count(prj_nm) 계약내역
+--   from public.v_erp_pur_list;   -- 5,611 / 5,301 / 1,133 / 5,396 / 3,441 / 4,618 / 4,618 / 5,607 / 5,607
 -- select gubun, count(*) from public.v_erp_pur_list group by 1 order by 2 desc;
---   -- 원자재 2,768 · 부자재 1,376 · 외주 799 · 소모품 663  ↔ 엑셀 2,478 / 1,156 / 738 / 638
+--   -- 원자재 2,769 · 부자재 1,376 · 외주 800 · 소모품 663  ↔ 엑셀 2,478 / 1,156 / 738 / 638
 -- 소요시간은 62번 주석의 do 블록으로 잰다(반드시 authenticated 로).

@@ -533,7 +533,7 @@ export const erpApi = {
       if (c.overdue) q = q.eq("overdue_unreceived", true);
       if (c.q) {
         const v = orSafe(c.q);
-        if (v) q = q.or(["pr_no", "po_no", "item_code", "item_name", "bp_name", "p_code", "prj_nm"]
+        if (v) q = q.or(["pr_no", "po_no", "pu_no", "item_code", "item_name", "bp_name", "p_code", "prj_nm", "req_title"]
           .map((k) => `${k}.ilike.%${v}%`).join(","));
       }
       return q;

@@ -196,7 +196,7 @@
       <div class="fld">
         <label for="f_pu">구매요청결재번호</label>
         <input id="f_pu" data-f="pu" placeholder="PU2026…" autocomplete="off" disabled>
-        <span class="why">ERP 원천 조사 중 — 연결 후 열립니다</span>
+        <span class="why">해당 기간에 결재번호가 없습니다</span>
       </div>
       <div class="fld"><label for="f_po">발주번호(PONO.)</label><input id="f_po" data-f="po" placeholder="PO2026…" autocomplete="off"></div>
       <div class="fld"><label for="f_item">품번</label><input id="f_item" data-f="item" autocomplete="off"></div>
@@ -324,11 +324,17 @@
     { key: "no",          label: "NO.",              width: "54px",  align: "right",  base: true, cssClass: "pl-fix1", filter: false, sortable: false },
     { key: "gubun",       label: "구분",              width: "74px",  align: "center", base: true, cssClass: "pl-fix2",
       formatter: (v, r) => (v ? esc(v) : '<span class="muted" title="' + esc("품목계정 " + (r.item_class || "?") + " 이름 미등재") + '">—</span>') },
-    /* 엑셀 C열. 고정열 바로 뒤·구매요청번호 앞 자리를 비워 둔다 — 값이 들어오면 그 자리에 그대로 선다.
-       폭은 PU+YYYYMMDD+4자리(14자) 기준 */
-    { key: "pu_no",       label: "요청번호(결재)",     width: "138px", pending: true, mono: true,
-      tip: () => "그룹웨어 전자결재 문서번호 — ERP 구매 테이블에 없어 원천 조사 중" },
+    /* 엑셀 C열. 2026-09-22 원천 확정 — `M_PUR_REQ.EXT1_CD`(ERP 확장슬롯). 한 결재 아래 요청 여러 건이 달린다. */
+    { key: "pu_no",       label: "요청번호(결재)",     width: "138px", base: true, mono: true,
+      tip: (r) => "구매요청 결재번호" + (r.req_title ? " · " + r.req_title : ""),
+      formatter: (v) => (v ? "<code>" + esc(v) + "</code>" : dash) },
     { key: "pr_no",       label: "구매요청번호",       width: "128px", base: true, formatter: (v) => (v ? "<code>" + esc(v) + "</code>" : dash) },
+    { key: "req_title",   label: "건명",               width: "260px",
+      tip: () => "구매요청 건명(ERP M_PUR_REQ.EXT2_CD) — 결재 한 건에 묶인 요청들이 같은 값을 갖습니다",
+      formatter: (v) => (v ? esc(v) : dash) },
+    { key: "dw_ref",      label: "도번/품명",          width: "180px",
+      tip: () => "요청 라인의 도번·품명(ERP M_PUR_REQ.EXT3_CD)",
+      formatter: (v) => (v ? esc(v) : dash) },
     { key: "po_dt",       label: "발주일자",           width: "92px",  align: "center", base: true, formatter: (v) => (v ? esc(v) : dash) },
     { key: "agent_nm",    label: "담당자",             width: "86px",  pending: true,
       tip: (r) => "발주 등록자" + (r.agent_full ? " · " + r.agent_full : "") },
@@ -654,14 +660,15 @@
   const PEND_HTML = (left, filled) =>
     "⚠ <b>아직 비어 있는 칸 " + left.length + "개 — " + left.map(esc).join(" · ") + "</b>"
     + (filled.length ? ' <span style="color:var(--green)">(채워짐: ' + filled.map(esc).join(" · ") + ")</span>" : "") + "<br>"
-    + "<b>요청번호(결재)</b>(엑셀 C열 <code>PU…</code>)는 <b>ERP 구매 모듈에 아예 없습니다</b> — 2026-09-22 확인: "
-    + "구매 3테이블(<code>M_PUR_REQ</code>·<code>M_PUR_ORD_HDR</code>·<code>M_PUR_ORD_DTL</code>) 230개 컬럼에 결재문서번호 칸이 없고"
-    + "('결재'가 붙은 <code>PAY_DUR</code>·<code>PAY_METH</code>는 <b>대금지급 조건</b>이지 전자결재가 아닙니다), "
-    + "미러에 들어온 후보 5개(<code>ref_no</code> 4,619행 중 1건 · <code>tracking_no</code>=P-CODE · "
-    + "<code>dw_no1</code>=도면번호 · <code>mrp_ord_no</code>=MRP오더 · <code>change_order</code> 전건 빈값)도 "
-    + "<code>PU</code> 형식이 <b>0건</b>입니다. 그룹웨어 전자결재 문서번호를 엑셀에 손으로 적은 값으로 보이며, "
-    + "ERP 원천 확정은 관리자 조사(<code>ERP원천조사_구매.sql</code> §4~§5) 뒤에 연결합니다. "
-    + "<b>값이 적재되면 이 칸은 자동으로 기본 열에 나타나고 검색칸도 열립니다</b>(자리는 구매요청번호 앞에 비워 두었습니다). "
+    + "<b>요청번호(결재)</b>(엑셀 C열 <code>PU…</code>)는 <b>2026-09-22 연결했습니다</b> — 원천은 "
+    + "<code>M_PUR_REQ.EXT1_CD</code>(ERP 확장슬롯)입니다. 이름에 '결재'가 없어 오래 못 찾았습니다: "
+    + "구매 3테이블 230개 컬럼에 결재문서번호라는 이름의 칸이 없고(<code>PAY_DUR</code>·<code>PAY_METH</code>는 "
+    + "<b>대금지급 조건</b>입니다), 그룹웨어 전자결재 연동표(<code>INTERFACE_KO174</code>)에는 "
+    + "결재번호만 있고 <b>구매요청번호가 없어</b> 그쪽만으로는 이을 수 없었습니다. "
+    + "2026년 요청 5,551라인 중 <b>5,292건(95.3%)</b>에 결재번호가 있고 <b>고유 1,133건</b>입니다"
+    + "(빈 259건은 ERP 에 결재번호가 없는 건입니다 — 지어내지 않고 <code>—</code> 로 둡니다). "
+    + "<b>한 결재 아래 요청이 여러 건</b> 달립니다(1건 530 · 2건 223 · 3건 91 … 최대 25) — 엑셀과 같은 구조입니다. "
+    + "같은 확장슬롯의 <b>건명</b>·<b>도번/품명</b> 도 함께 가져와 전체 컬럼에서 볼 수 있습니다. "
     + "<b>담당자·비고·단가·적요</b> 는 2026-09-22 추출 확장으로 채워졌습니다. "
     + "엑셀 「발주일자」 칸의 <code>선진행</code> 같은 수기 메모(3,128건)와 「입고일」의 <code>Y</code>·<code>완료</code>(77건)는 "
     + "ERP 에 없는 값이라 이 화면에 없습니다 — 웹에서 직접 적는 기능은 별도 승인 후 추가합니다.<br>"

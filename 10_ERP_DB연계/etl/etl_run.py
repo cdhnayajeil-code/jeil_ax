@@ -265,6 +265,12 @@ JOBS = {
                    r.DW_NO1 AS dw_no1, r.TRACKING_NO AS tracking_no, r.CHANGE_ORDER AS change_order,
                    r.MRP_ORD_NO AS mrp_ord_no, r.INSRT_DT AS insrt_dt,
                    r.INSRT_USER_ID AS insrt_user_id, r.UPDT_USER_ID AS updt_user_id,
+                   -- 확장슬롯 3칸(2026-09-22 · REQ-0071): ERP 가 구매요청에 붙여 쓰는 자리다.
+                   --   EXT1_CD = **구매요청 결재번호 `PU2026…`** — 엑셀 C열의 원천.
+                   --     그룹웨어 전자결재 연동표 INTERFACE_KO174(IF_TYPE='PR0')의 KEY1 과 같은 값이며,
+                   --     그쪽에는 PR 번호가 없어 **여기가 유일한 연결고리**다(2026 고유 1,133건).
+                   --   EXT2_CD = 건명(프로젝트_설명), EXT3_CD = 도번/품명.
+                   r.EXT1_CD AS pu_no, r.EXT2_CD AS req_title, r.EXT3_CD AS dw_ref,
                    r.UPDT_DT AS src_updated
             FROM JEILMNS.dbo.M_PUR_REQ r WITH (NOLOCK)
             LEFT JOIN JEILMNS.dbo.B_ITEM i WITH (NOLOCK) ON i.ITEM_CD = r.ITEM_CD
@@ -273,6 +279,8 @@ JOBS = {
         """,
         "params": ["year_start", "year_end"],
         "incr_sql": " AND r.UPDT_DT >= ?",   # 증분: 변경분만(watermark 이후)
+        # 공용 erp_etl_upsert(19개 job 공용)를 건드리지 않는다 — job 전용 RPC 로 분리(pur_order 선례)
+        "rpc": "erp_etl_upsert_pur_req",
     },
     # ① 품목 마스터 스냅샷 ← B_ITEM (전체 재적재)
     "item_master": {
