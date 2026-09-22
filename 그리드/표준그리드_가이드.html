@@ -155,12 +155,21 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <td><code>cssClass</code></td>
 <td>셀 추가 클래스 — <strong>본문 td·헤더 th·컬럼필터 th 세 곳 모두</strong>에 붙는다(§5.1 고정열)</td>
 </tr>
+<tr>
+<td><code>fixedWidth</code></td>
+<td><code>true</code> 면 폭 조절·화면맞춤에서 <strong>제외</strong>(고정열용 · §5.2)</td>
+</tr>
+<tr>
+<td><code>fitMin</code></td>
+<td>화면맞춤이 줄일 수 있는 하한 px. 없으면 <code>minColWidth</code>(46)</td>
+</tr>
 </tbody>
 </table>
 <p>행 내 커스텀 버튼은 formatter에서 <code>data-row-act="액션명"</code>을 넣으면 클릭 시 <code>onRowAction(액션명, row)</code>로 전달된다.</p>
 <hr />
 <h2 id="3-options">3. options &amp; 콜백</h2>
-<p><strong>options</strong>: <code>columns, rows, keyField, selectable, search, columnFilter, sortable, editable, editToggle, editToggleLabels, paste, exportCsv, copy, exportName, stickyHeader, keyboardNav, pageSize, emptyText, loadingText, rowClass, bulkActions</code>.</p>
+<p><strong>options</strong>: <code>columns, rows, keyField, selectable, search, columnFilter, sortable, editable, editToggle, editToggleLabels, paste, exportCsv, copy, exportName, stickyHeader, keyboardNav, pageSize, emptyText, loadingText, rowClass, bulkActions</code>
++ 넓은 목록용(§5.2, 전부 옵트인) <code>resizable, fitWidth, cellNav, defaultColWidth, minColWidth</code>.</p>
 <p><strong>bulkActions</strong>: <code>[{ id, label, btnClass }]</code> — 툴바 버튼. 클릭 시 <code>onBulkAction(id, gridInstance)</code>.</p>
 <table>
 <thead>
@@ -262,6 +271,69 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <p><strong>대용량 목록의 입력 반응</strong> — 검색·컬럼필터는 입력이 멎고 120ms 뒤에 한 번만 다시 그린다.
 수천 행에서 글자마다 렌더하면 그대로 입력 지연이 된다(5,609행 렌더 1.9초 실측).</p>
 <hr />
+<h2 id="52">5.2 넓은 목록 — 폭 조절 · 화면맞춤 · 항목간 이동</h2>
+<p>열이 20개를 넘으면 가로 스크롤이 기본값이 된다. 세 가지를 <strong>옵트인</strong>으로 켤 수 있다.
+켜지 않은 화면은 동작이 종전과 완전히 같다.</p>
+<pre><code class="language-js">createGrid(&quot;#myGrid&quot;, {
+  columns: [...], rows,
+  resizable: true,   // 열 경계를 끌어 폭 조절(두 번 누르면 그 열만 원래대로)
+  fitWidth: true,    // setFit(true) 로 화면 폭에 맞추기
+  cellNav: true,     // 방향키로 셀 커서 이동 · Enter 로 onCellActivate
+  onColResize: (key, px, all) =&gt; savePref(all),   // 저장은 호출측이 한다
+  onCellActivate: (row) =&gt; openDetail(row),
+});
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>인스턴스 메서드</th>
+<th>하는 일</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>setFit(on)</code></td>
+<td>화면맞춤 켜기/끄기</td>
+</tr>
+<tr>
+<td><code>getFitOverflow()</code></td>
+<td>맞춤을 켰는데도 화면 밖에 남은 px(0 이면 다 들어옴)</td>
+</tr>
+<tr>
+<td><code>refitWidths()</code></td>
+<td>창 크기가 바뀌었을 때 다시 계산</td>
+</tr>
+<tr>
+<td><code>getColWidths()</code> / <code>setColWidths(w)</code></td>
+<td>사람이 정한 폭 읽기/복원</td>
+</tr>
+<tr>
+<td><code>scrollToColumn(key)</code></td>
+<td>그 열까지 스르륵 이동 + 잠깐 강조(열 점프)</td>
+</tr>
+<tr>
+<td><code>focusTable()</code></td>
+<td>표에 키보드 초점(모달을 닫고 방향키로 이어 갈 때)</td>
+</tr>
+</tbody>
+</table>
+<p><strong>반드시 알아야 할 것</strong></p>
+<ol>
+<li><strong><code>table-layout:fixed</code> 는 표 폭이 <code>auto</code> 면 무시된다.</strong> 그래서 <code>renderColgroup()</code> 이
+   열 폭 합계를 <strong>인라인 <code>width</code></strong> 로 표에 직접 박는다. CSS 에서 <code>.grid__table--fixed</code> 에
+   <code>width</code> 를 주면 안 된다 — 2026-09-22 실측에서 <code>&lt;col&gt;</code> 에 600px 을 줘도 열 폭이 1px 도
+   안 변했고, 폭 제어 전체가 조용히 죽어 있었다.</li>
+<li><strong>고정열에는 <code>fixedWidth: true</code></strong> 를 준다. 맞춤이 폭을 바꾸면 화면이 계산해 둔
+   sticky <code>left</code> 오프셋과 어긋나 고정열이 겹친다(§5.1).</li>
+<li><strong>직접 끌어 정한 폭은 맞춤이 덮지 않는다.</strong> 사람이 정한 열은 그대로 두고 나머지가
+   남는 자리를 나눠 갖는다 — 조절한 의미가 사라지지 않게.</li>
+<li><strong><code>fitMin</code> 을 열마다 준다.</strong> 없으면 46px 까지 줄어 값을 알아볼 수 없다. 최소폭 합이
+   화면보다 크면 <strong>가로 스크롤이 남는다</strong> — <code>getFitOverflow()</code> 로 얼마나 모자란지
+   화면이 말하게 한다. 조용히 실패하지 않는다.</li>
+<li><strong>셀 커서와 모달의 방향키가 부딪히지 않게</strong> 한다. 모달을 열 때 초점을 모달로 옮기고
+   (<code>focus()</code>), 닫을 때 <code>focusTable()</code> 로 돌려준다.</li>
+</ol>
+<hr />
 <h2 id="6">6. 새 편집 화면 추가 레시피</h2>
 <ol>
 <li>화면에 <code>&lt;div id="xGrid"&gt;</code> + <code>grid.css</code> 링크, <code>&lt;script type="module"&gt;</code>에서 <code>createGrid</code> import.</li>
@@ -297,7 +369,7 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <tr>
 <td>발주통합관리 LIST</td>
 <td><code>pages/구매_발주통합LIST_2026.html</code> <code>#listGrid</code></td>
-<td><strong>읽기 전용 대용량 목록</strong> 첫 사례 — 28열 5,609행. 검색·컬럼필터·정렬·CSV(BOM)·복사만 켜고 편집·붙여넣기는 끈다. <code>pageSize</code> 는 렌더만 자르므로 화면이 「N건 중 M건」을 따로 고지한다. 컬럼 프리셋(기본/전체)은 그리드 재생성으로 구현(표준에 컬럼 토글 없음). <strong>왼쪽 고정열(§5.1) 첫 사례</strong> — 가로 드래그 이동·표 위 가로 스크롤바·행 상세 패널은 화면 쪽 코드다</td>
+<td><strong>읽기 전용 대용량 목록</strong> 첫 사례 — 28열 5,609행. 검색·컬럼필터·정렬·CSV(BOM)·복사만 켜고 편집·붙여넣기는 끈다. <code>pageSize</code> 는 렌더만 자르므로 화면이 「N건 중 M건」을 따로 고지한다. 컬럼 프리셋(기본/전체)은 그리드 재생성으로 구현(표준에 컬럼 토글 없음). <strong>왼쪽 고정열(§5.1)·폭 제어(§5.2) 첫 사례</strong> — 화면맞춤·열폭 드래그·방향키 칸 이동. 가로 드래그·표 위 스크롤바·행 상세 패널·직전결과 캐시는 화면 쪽 코드다</td>
 </tr>
 <tr>
 <td>(표준 데모)</td>

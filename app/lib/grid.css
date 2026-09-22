@@ -32,7 +32,17 @@
 
 /* 스크롤 영역 + 스티키 헤더 */
 .grid__scroll{border:1px solid var(--g-line);border-radius:12px;overflow:auto;max-height:70vh;background:#fff;}
+/* cellNav 가 켜지면 표가 키보드 초점을 받는다 — 어디에 초점이 있는지 보이게 */
+.grid__scroll:focus{outline:none;border-color:var(--g-accent);}
+.grid__scroll:focus-visible{outline:2px solid var(--g-accent);outline-offset:1px;}
 .grid__table{width:100%;border-collapse:separate;border-spacing:0;}
+/* 폭 지정 모드 — colgroup 이 정한 폭이 그대로 먹게 한다(자동 레이아웃은 내용이 열을 늘린다).
+   실제 폭은 grid.js 가 인라인으로 넣는다 — 여기서 width 를 잡으면 안 된다(auto 면 fixed 가 무시된다). */
+.grid__table--fixed{table-layout:fixed;min-width:100%;}
+.grid__table--fixed th,.grid__table--fixed td{overflow:hidden;text-overflow:ellipsis;}
+/* 화면맞춤: 폭이 줄어든 만큼 여백도 줄여 글자 자리를 번다 */
+.grid--fit .grid__table th,.grid--fit .grid__table td{padding:6px 7px;font-size:12.2px;}
+.grid--fit .grid__filter-row th{padding:3px 5px;}
 .grid__table th,.grid__table td{padding:7px 10px;text-align:left;vertical-align:middle;white-space:nowrap;}
 /* 층 순서 규약 — 화면이 왼쪽 고정열(position:sticky;left:…)을 얹을 때 이 순서를 지킨다.
    일반 td 0 · 고정열 td 2 · 필터행 th 3 · 헤더 th 4 · 고정열 헤더/필터 th 5
@@ -44,6 +54,15 @@
 .grid__th .grid__sort{opacity:.45;margin-left:4px;font-size:10px;}
 .grid__th--sorted-asc .grid__sort,.grid__th--sorted-desc .grid__sort{opacity:1;}
 .grid__th--check,.grid__td--check{width:34px;text-align:center;padding-left:6px;padding-right:6px;}
+/* 열 경계 손잡이 — 헤더 오른쪽 끝(th 가 sticky 라 그 자체로 기준 상자가 된다).
+   정렬 클릭 영역을 가리지 않게 7px 만 차지한다 */
+.grid__resizer{position:absolute;top:0;right:0;width:7px;height:100%;cursor:col-resize;
+  user-select:none;touch-action:none;}
+.grid__resizer:hover,.grid--resizing .grid__resizer{background:var(--g-accent);opacity:.75;}
+.grid--resizing{cursor:col-resize;user-select:none;}
+/* 열 점프가 짚어 준 열 */
+.grid__th--flash{animation:gridFlash .9s ease-out;}
+@keyframes gridFlash{0%,55%{background:var(--g-accent);}100%{background:var(--g-navy);}}
 
 /* 컬럼 필터 행 */
 /* top 은 grid.js 가 실제 헤더 높이를 재어 --g-head-h 로 넘긴다(고정값이면 틈으로 본문이 비친다) */

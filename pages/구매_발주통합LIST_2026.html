@@ -241,17 +241,21 @@
     <div class="tools">
       <span class="lb">컬럼</span>
       <button class="btn" id="bPreset" data-mode="basic" title="엑셀 23열 + 보조 5열 전체를 보려면 누르세요">기본 열</button>
+      <button class="btn" id="bFit" aria-pressed="false" title="모든 열을 화면 폭 안에 넣습니다 — 긴 글자는 …으로 줄고 마우스를 올리면 전체가 보입니다">↔ 화면맞춤</button>
+      <span class="cap" id="fitNote" hidden style="color:var(--amber);"></span>
+      <span class="lb" style="margin-left:6px;">열로 이동</span>
+      <select id="selJump" class="btn" style="padding:5px 8px;" title="고른 열까지 표가 이동합니다"></select>
       <span class="lb" style="margin-left:6px;">표시</span>
       <select id="selShow" class="btn" style="padding:5px 8px;">
-        <option value="300">300행</option>
-        <option value="1000" selected>1,000행</option>
+        <option value="300" selected>300행</option>
+        <option value="1000">1,000행</option>
         <option value="3000">3,000행</option>
         <option value="0">전체</option>
       </select>
     </div>
   </div>
 
-  <div class="cap" style="margin:-2px 0 5px;">💡 <b>행을 누르면</b> 그 건의 모든 칸을 한 화면에서 봅니다(↑↓ 로 앞뒤 행, Esc 로 닫기) · 표는 <b>끌어서</b> 좌우로 움직입니다 · NO.·구분 두 칸은 왼쪽에 고정됩니다</div>
+  <div class="cap" style="margin:-2px 0 5px;">💡 <b>행을 누르면</b> 그 건의 모든 칸을 한 화면에서 봅니다(↑↓ 로 앞뒤 행, Esc 로 닫기) · <b>열 경계를 끌면</b> 폭이 조절됩니다(두 번 누르면 원래대로) · 표를 누른 뒤 <b>방향키</b>로 칸 사이를 옮겨 다닙니다(Enter 로 상세) · NO.·구분 두 칸은 왼쪽에 고정됩니다</div>
 
   <!-- 표 위쪽 가로 스크롤바 — 아래까지 내려가지 않고도 좌우로 옮길 수 있게 -->
   <div class="hbar" id="hbarTop" aria-hidden="true"><div></div></div>
@@ -304,7 +308,9 @@
   let ROWS = [];          // 현재 조건으로 받은 전량(그리드의 검색·필터·CSV 는 이 전량 기준)
   let GRID = null;
   let PRESET = "basic";
-  let SHOW = 1000;        // 조건을 좁힌 조회는 대개 한 번에 다 그려진다(300 이면 늘 「상위 300건」이 떴다)
+  let SHOW = 300;         // 첫 화면은 가볍게 — 더 보려면 「표시」에서 올린다(정렬·검색·CSV 는 늘 전량 기준)
+  let FIT = false;        // 화면맞춤(모든 열을 화면 폭 안에)
+  let COLW = {};          // 사용자가 끌어서 정한 열 폭
   let PICK = { gubun: new Set(), sts: new Set() };
   let DEPTS = new Set();  // 요청부서 옵션 — 받은 데이터에서 누적(서버 왕복 추가 없음)
   let reqSeq = 0;         // 늦게 도착한 옛 조회 결과를 버린다
@@ -315,68 +321,87 @@
   const ROW_CAP = 20000;
   let HASMORE = false;
 
+  /* ── 사용자 설정·직전 결과 보관 ──────────────────────────────────
+     **열 폭·화면맞춤**은 취향이라 오래 남긴다(localStorage).
+     **조회 결과**는 발주 금액이 들어 있어 디스크에 남기지 않는다 — 탭을 닫으면 사라지는
+     sessionStorage 에만, 그것도 첫 화면에 그릴 만큼(CACHE_N 행)만 둔다(CLAUDE.md §1.7·§6).
+     저장이 막힌 브라우저(시크릿 창·정책)에서도 화면은 그냥 평소대로 돈다. */
+  const PREF_KEY = "purlist_pref_v1";
+  const CACHE_KEY = "purlist_cache_v1";
+  const CACHE_N = 400;
+  const safeGet = (store, key) => { try { const v = store.getItem(key); return v ? JSON.parse(v) : null; } catch (e) { return null; } };
+  const safeSet = (store, key, val) => { try { store.setItem(key, JSON.stringify(val)); } catch (e) {} };
+
+  function loadPref() {
+    const p = safeGet(localStorage, PREF_KEY) || {};
+    COLW = p.colW && typeof p.colW === "object" ? p.colW : {};
+    FIT = !!p.fit;
+    if (p.show != null) SHOW = Number(p.show) || 0;
+  }
+  const savePref = () => safeSet(localStorage, PREF_KEY, { colW: COLW, fit: FIT, show: SHOW });
+
   /* ── 컬럼 정의: 엑셀 A~W 23개를 순서·이름 그대로 + 보조 4개(전체 프리셋에서만) ── */
   const dash = '<span class="muted">—</span>';
   const pend = () => '<span class="muted" title="ERP 추출 확장 대기 — 아래 안내 참조">—</span>';
   const COLS = [
     /* 폭은 CSS 의 --pl-w1/--pl-w2 와 같은 값이어야 한다(고정열 left 오프셋이 이 폭을 누적한다) */
-    { key: "no",          label: "NO.",              width: "54px",  align: "right",  base: true, cssClass: "pl-fix1", filter: false, sortable: false },
-    { key: "gubun",       label: "구분",              width: "74px",  align: "center", base: true, cssClass: "pl-fix2",
+    { key: "no",          label: "NO.",              width: "54px",  align: "right",  base: true, cssClass: "pl-fix1", fixedWidth: true, filter: false, sortable: false },
+    { key: "gubun",       label: "구분",              width: "74px",  align: "center", base: true, cssClass: "pl-fix2", fixedWidth: true,
       formatter: (v, r) => (v ? esc(v) : '<span class="muted" title="' + esc("품목계정 " + (r.item_class || "?") + " 이름 미등재") + '">—</span>') },
     /* 엑셀 C열. 2026-09-22 원천 확정 — `M_PUR_REQ.EXT1_CD`(ERP 확장슬롯). 한 결재 아래 요청 여러 건이 달린다. */
-    { key: "pu_no",       label: "요청번호(결재)",     width: "138px", base: true, mono: true,
+    { key: "pu_no",       label: "요청번호(결재)",     width: "138px", fitMin: 110, base: true, mono: true,
       tip: (r) => "구매요청 결재번호" + (r.req_title ? " · " + r.req_title : ""),
       formatter: (v) => (v ? "<code>" + esc(v) + "</code>" : dash) },
-    { key: "pr_no",       label: "구매요청번호",       width: "128px", base: true, formatter: (v) => (v ? "<code>" + esc(v) + "</code>" : dash) },
-    { key: "req_title",   label: "건명",               width: "260px",
+    { key: "pr_no",       label: "구매요청번호",       width: "128px", fitMin: 104, base: true, formatter: (v) => (v ? "<code>" + esc(v) + "</code>" : dash) },
+    { key: "req_title",   label: "건명",               width: "260px", fitMin: 110,
       tip: () => "구매요청 건명(ERP M_PUR_REQ.EXT2_CD) — 결재 한 건에 묶인 요청들이 같은 값을 갖습니다",
       formatter: (v) => (v ? esc(v) : dash) },
-    { key: "dw_ref",      label: "도번/품명",          width: "180px",
+    { key: "dw_ref",      label: "도번/품명",          width: "180px", fitMin: 90,
       tip: () => "요청 라인의 도번·품명(ERP M_PUR_REQ.EXT3_CD)",
       formatter: (v) => (v ? esc(v) : dash) },
-    { key: "po_dt",       label: "발주일자",           width: "92px",  align: "center", base: true, formatter: (v) => (v ? esc(v) : dash) },
-    { key: "agent_nm",    label: "담당자",             width: "86px",  pending: true,
+    { key: "po_dt",       label: "발주일자",           width: "92px", fitMin: 78,  align: "center", base: true, formatter: (v) => (v ? esc(v) : dash) },
+    { key: "agent_nm",    label: "담당자",             width: "86px", fitMin: 66,  pending: true,
       tip: (r) => "발주 등록자" + (r.agent_full ? " · " + r.agent_full : "") },
-    { key: "p_code",      label: "P-CODE",            width: "120px", base: true, formatter: (v) => (v ? esc(v) : dash) },
-    { key: "prj_nm",      label: "계약내역",           width: "240px", base: true,
+    { key: "p_code",      label: "P-CODE",            width: "120px", fitMin: 96, base: true, formatter: (v) => (v ? esc(v) : dash) },
+    { key: "prj_nm",      label: "계약내역",           width: "240px", fitMin: 110, base: true,
       formatter: (v) => (v ? '<span title="' + esc(v) + '">' + esc(v) + "</span>" : dash) },
-    { key: "bp_name",     label: "공급처",             width: "140px", base: true,
+    { key: "bp_name",     label: "공급처",             width: "140px", fitMin: 84, base: true,
       formatter: (v, r) => (v ? '<span title="' + esc((r.bp_code || "") + " " + v) + '">' + esc(v) + "</span>" : dash) },
-    { key: "po_no",       label: "PONO.",             width: "128px", base: true,
+    { key: "po_no",       label: "PONO.",             width: "128px", fitMin: 104, base: true,
       formatter: (v, r) => (v ? "<code>" + esc(v) + "</code>" + (r.po_seq != null ? '<span class="tag">' + esc(r.po_seq) + "</span>" : "") : dash) },
-    { key: "dlvy_dt",     label: "입고요청일",         width: "92px",  align: "center", base: true,
+    { key: "dlvy_dt",     label: "입고요청일",         width: "92px", fitMin: 78,  align: "center", base: true,
       formatter: (v, r) => (v ? '<span title="' + esc("요청 희망납기" + (r.po_dlvy_dt && r.po_dlvy_dt !== v ? " · 발주 납기는 " + r.po_dlvy_dt : "")) + '">' + esc(v)
         + (r.po_dlvy_dt && r.po_dlvy_dt !== v ? '<span class="tag">조정</span>' : "") + "</span>" : dash) },
-    { key: "iv_last_dt",  label: "입고일",             width: "96px",  align: "center", base: true,
+    { key: "iv_last_dt",  label: "입고일",             width: "96px", fitMin: 80,  align: "center", base: true,
       formatter: (v, r) => {
         if (v) return esc(v) + (r.iv_cnt > 1 ? '<span class="tag" title="' + esc("분할 매입 " + r.iv_cnt + "회 · " + r.iv_first_dt + " ~ " + r.iv_last_dt) + '">' + r.iv_cnt + "회</span>" : "");
         if (Number(r.rcpt_qty) > 0) return '<span class="muted" title="입고수량은 있으나 매입(송장) 기록이 없어 날짜를 알 수 없습니다">입고(날짜 미보유)</span>';
         return dash;
       } },
-    { key: "whs_nm",      label: "입고창고",           width: "150px", pending: true,
+    { key: "whs_nm",      label: "입고창고",           width: "150px", fitMin: 84, pending: true,
       tip: (r) => "ERP 저장위치" + (r.whs_cd ? " " + r.whs_cd : "") + " — 엑셀 「입고처」와 다른 개념입니다" },
-    { key: "hdr_remark",  label: "비고",              width: "180px", pending: true },
-    { key: "item_code",   label: "품번",              width: "136px", base: true, formatter: (v) => (v ? "<code>" + esc(v) + "</code>" : dash) },
-    { key: "item_name",   label: "품목명",             width: "210px", base: true,
+    { key: "hdr_remark",  label: "비고",              width: "180px", fitMin: 90, pending: true },
+    { key: "item_code",   label: "품번",              width: "136px", fitMin: 104, base: true, formatter: (v) => (v ? "<code>" + esc(v) + "</code>" : dash) },
+    { key: "item_name",   label: "품목명",             width: "210px", fitMin: 110, base: true,
       formatter: (v) => (v ? '<span title="' + esc(v) + '">' + esc(v) + "</span>" : dash) },
-    { key: "spec",        label: "규격",              width: "200px",
+    { key: "spec",        label: "규격",              width: "200px", fitMin: 90,
       formatter: (v) => (v ? '<span title="' + esc(v) + '">' + esc(v) + "</span>" : dash) },
-    { key: "qty",         label: "수량",              width: "72px",  align: "right",  base: true, formatter: (v) => num(v) || dash, exportValue: (v) => (v == null ? "" : v) },
-    { key: "unit",        label: "단위",              width: "54px",  align: "center", formatter: (v) => (v ? esc(v) : dash) },
-    { key: "price",       label: "단가",              width: "86px",  align: "right",  pending: true },
-    { key: "amt",         label: "금액",              width: "104px", align: "right",  base: true, formatter: (v) => num(v) || dash, exportValue: (v) => (v == null ? "" : v) },
-    { key: "req_user_nm", label: "요청자",             width: "136px", base: true, formatter: (v) => (v ? esc(v) : dash) },
-    { key: "dtl_remark",  label: "적요",              width: "180px", pending: true },
+    { key: "qty",         label: "수량",              width: "72px", fitMin: 52,  align: "right",  base: true, formatter: (v) => num(v) || dash, exportValue: (v) => (v == null ? "" : v) },
+    { key: "unit",        label: "단위",              width: "54px", fitMin: 44,  align: "center", formatter: (v) => (v ? esc(v) : dash) },
+    { key: "price",       label: "단가",              width: "86px", fitMin: 70,  align: "right",  pending: true },
+    { key: "amt",         label: "금액",              width: "104px", fitMin: 84, align: "right",  base: true, formatter: (v) => num(v) || dash, exportValue: (v) => (v == null ? "" : v) },
+    { key: "req_user_nm", label: "요청자",             width: "136px", fitMin: 84, base: true, formatter: (v) => (v ? esc(v) : dash) },
+    { key: "dtl_remark",  label: "적요",              width: "180px", fitMin: 90, pending: true },
     // ── 보조(엑셀에는 없지만 상태 판단에 필요) ──
-    { key: "status_kr",   label: "상태",              width: "78px",  align: "center", base: true, extra: true, cssClass: "pl-sep",
+    { key: "status_kr",   label: "상태",              width: "78px", fitMin: 66,  align: "center", base: true, extra: true, cssClass: "pl-sep",
       formatter: (v) => (v ? '<span class="st-' + esc(v) + '">' + esc(v) + "</span>" : dash) },
-    { key: "rcpt_qty",    label: "입고수량",           width: "76px",  align: "right",  extra: true, formatter: (v) => num(v) || dash, exportValue: (v) => (v == null ? "" : v) },
-    { key: "req_dept",    label: "요청부서",           width: "104px", extra: true, formatter: (v) => (v ? esc(v) : dash) },
-    { key: "req_dt",      label: "요청일",             width: "92px",  align: "center", extra: true, formatter: (v) => (v ? esc(v) : dash) },
-    { key: "po_dlvy_dt",  label: "발주납기",           width: "92px",  align: "center", extra: true,
+    { key: "rcpt_qty",    label: "입고수량",           width: "76px", fitMin: 60,  align: "right",  extra: true, formatter: (v) => num(v) || dash, exportValue: (v) => (v == null ? "" : v) },
+    { key: "req_dept",    label: "요청부서",           width: "104px", fitMin: 72, extra: true, formatter: (v) => (v ? esc(v) : dash) },
+    { key: "req_dt",      label: "요청일",             width: "92px", fitMin: 78,  align: "center", extra: true, formatter: (v) => (v ? esc(v) : dash) },
+    { key: "po_dlvy_dt",  label: "발주납기",           width: "92px", fitMin: 78,  align: "center", extra: true,
       formatter: (v) => (v ? esc(v) : '<span class="muted" title="발주 전">—</span>') },
     // ERP 원문(발주유형) — 외주 판정 근거를 되짚을 수 있게 남긴다. 참조번호(REF_NO)는 전건 빈값이라 뺐다(REQ-0070)
-    { key: "po_type_cd",  label: "발주유형",           width: "76px",  align: "center", extra: true,
+    { key: "po_type_cd",  label: "발주유형",           width: "76px", fitMin: 62,  align: "center", extra: true,
       formatter: (v) => (v ? esc(v) : dash) },
   ];
   /* ERP 추출 확장 대기 컬럼 — **값이 들어오면 그대로 보여 준다.**
@@ -472,6 +497,25 @@
     sel.value = cur;
   }
 
+  /* ── 직전 결과 즉시 표시 ──────────────────────────────────────────
+     같은 조건이면 저장해 둔 앞부분을 **기다림 없이** 먼저 그리고, 진짜 데이터가 도착하면
+     조용히 갈아 끼운다. 저장본은 첫 화면에 그릴 만큼(CACHE_N)뿐이라 「전량 기준」인
+     정렬·검색·CSV 는 갱신이 끝난 뒤에 정확해진다 — 그 사이는 화면이 그렇다고 말한다. */
+  const condKey = (c) => JSON.stringify(c, Object.keys(c).sort());
+  let STALE = false;                  // 지금 그려진 게 저장본인가
+
+  function paintCached(c) {
+    const hit = safeGet(sessionStorage, CACHE_KEY);
+    if (!hit || hit.k !== condKey(c) || !Array.isArray(hit.rows) || !hit.rows.length) return false;
+    ROWS = hit.rows; HASMORE = false; STALE = true;
+    scanFilled(); renderGrid(); renderPendNote(); renderCap(false);
+    return true;
+  }
+
+  function saveCache(c) {
+    safeSet(sessionStorage, CACHE_KEY, { k: condKey(c), at: Date.now(), rows: ROWS.slice(0, CACHE_N) });
+  }
+
   /* ── 조회 ── */
   async function load(reason) {
     const c = readCond();
@@ -479,7 +523,7 @@
     const my = ++reqSeq;
     const res = await erpApi.purList(c, ROW_CAP);
     if (my !== reqSeq) return;          // 더 늦게 시작한 조회가 있으면 이 결과는 버린다
-    ROWS = res.rows; HASMORE = res.hasMore;
+    ROWS = res.rows; HASMORE = res.hasMore; STALE = false;
     const rows = ROWS;
     rows.forEach((r) => { if (r.req_dept) DEPTS.add(r.req_dept); });
     fillDepts();
@@ -489,6 +533,7 @@
     renderPendNote();
     const byNo = !!(c.pr || c.po || c.pu);
     renderCap(byNo);
+    saveCache(c);
   }
 
   function renderCap(byNo) {
@@ -500,6 +545,7 @@
     if (byNo) s += ' · <span style="color:var(--amber)">번호로 찾을 때는 기간 조건을 무시합니다</span>';
     if (HASMORE) { cap.className = "cap warn"; s += " · ⚠ 수신 상한(20,000행)에 걸렸습니다 — 조건을 좁혀 주세요"; }
     else cap.className = "cap";
+    if (STALE) s = "직전에 보던 " + num(n) + "건을 먼저 보여 드립니다 · <span style=\"color:var(--accent)\">⟳ 최신 확인 중…</span>";
     cap.innerHTML = s;
   }
 
@@ -528,11 +574,49 @@
       editable: false, paste: false, selectable: false,
       exportCsv: true, copy: true, exportName: "발주통합관리LIST_" + YEAR + "_" + kst(Date.now()).replace(/-/g, ""),
       stickyHeader: true, keyboardNav: false,
+      // 넓은 목록용 3종 — 폭 조절·화면맞춤·방향키 칸 이동(§5.2)
+      resizable: true, fitWidth: true, cellNav: true,
+      onColResize: (key, px, all) => { COLW = all; savePref(); },
+      onCellActivate: (row) => { const tr = rowTr(row); if (tr) openDetail(tr); },
       pageSize: SHOW,                  // 렌더만 자른다 — 검색·정렬·CSV 는 전량 기준(grid.js:145 vs :318)
       emptyText: "조건에 맞는 자료가 없습니다.",
     });
+    GRID.setColWidths(COLW);
+    if (FIT) GRID.setFit(true);
     $("bPreset").textContent = label(PRESET);
+    syncFitBtn();                        // setFit 뒤 — 남은 폭을 알아야 안내를 쓸 수 있다
+    fillJump(cols);
     wireScrollAids();
+  }
+
+  /* 화면맞춤 — 켜면 모든 열이 화면 폭 안에 들어온다. 열마다 최소폭(fitMin)이 있어
+     화면이 너무 좁으면 다 못 들어가고 조금 남는데, 억지로 뭉개는 것보다 낫다. */
+  const syncFitBtn = () => {
+    const b = $("bFit");
+    b.textContent = FIT ? "↔ 화면맞춤 켬" : "↔ 화면맞춤";
+    b.setAttribute("aria-pressed", String(FIT));
+    b.style.background = FIT ? "var(--navy)" : "";
+    b.style.color = FIT ? "#fff" : "";
+    b.style.borderColor = FIT ? "var(--navy)" : "";
+    /* 열마다 최소폭이 있어 화면이 좁으면 다 못 들어간다. 조용히 실패하지 말고 얼마나 모자란지 말한다 */
+    const over = FIT && GRID ? GRID.getFitOverflow() : 0;
+    const el = $("fitNote");
+    if (!over) { el.hidden = true; return; }
+    el.hidden = false;
+    el.innerHTML = "화면이 좁아 <b>" + num(over) + "px</b> 이 남습니다 — 창을 넓히거나 「기본 열」로 줄이면 다 들어옵니다";
+  };
+
+  function fillJump(cols) {
+    const sel = $("selJump");
+    sel.innerHTML = '<option value="">열 선택…</option>'
+      + cols.map((c) => '<option value="' + esc(c.key) + '">' + esc(c.label) + "</option>").join("");
+  }
+
+  /** 행 객체 → 화면에 그려진 <tr> (셀 커서 Enter 에서 상세를 열 때 쓴다) */
+  function rowTr(row) {
+    const i = ROWS.indexOf(row);
+    const k = i >= 0 ? i : (row && row.__k);
+    return k == null ? null : $("listGrid").querySelector('tbody tr[data-key="' + CSS.escape(String(k)) + '"]');
   }
 
   /* ── 가로 이동 보조 ────────────────────────────────────────────────
@@ -583,21 +667,26 @@
     bar.classList.toggle("on", need);
     if (need) bar.firstElementChild.style.width = sc.scrollWidth + "px";
   }
+  let fitTimer = null;
   addEventListener("resize", () => {
-    const sc = $("listGrid").querySelector(".grid__scroll");
-    if (sc) syncHBar(sc);
+    clearTimeout(fitTimer);
+    fitTimer = setTimeout(() => {
+      if (FIT && GRID) GRID.refitWidths();     // 창 크기가 바뀌면 맞춤 폭도 다시 잡는다
+      const sc = $("listGrid").querySelector(".grid__scroll");
+      if (sc) syncHBar(sc);
+    }, 150);
   });
 
   /* ── 행 상세: 한 건의 28칸 전부를 가로 스크롤 없이 ──────────────────
      표의 formatter 를 그대로 재사용한다 — 표와 상세가 다른 말을 하지 않게. */
   const DW_SECTIONS = [
-    ["요청·발주",  ["pu_no", "pr_no", "po_no", "po_type_cd", "status_kr", "gubun"]],
+    ["요청·발주",  ["pu_no", "pr_no", "req_title", "po_no", "po_type_cd", "status_kr", "gubun"]],
     ["일정",       ["req_dt", "po_dt", "dlvy_dt", "po_dlvy_dt", "iv_last_dt"]],
-    ["품목",       ["item_code", "item_name", "spec", "qty", "unit", "price", "amt", "rcpt_qty"]],
+    ["품목",       ["item_code", "item_name", "spec", "dw_ref", "qty", "unit", "price", "amt", "rcpt_qty"]],
     ["상대·소속",  ["bp_name", "p_code", "prj_nm", "req_user_nm", "req_dept", "agent_nm", "whs_nm"]],
     ["메모",       ["hdr_remark", "dtl_remark"]],
   ];
-  const DW_WIDE = new Set(["prj_nm", "item_name", "spec", "hdr_remark", "dtl_remark"]);
+  const DW_WIDE = new Set(["prj_nm", "item_name", "spec", "req_title", "dw_ref", "hdr_remark", "dtl_remark"]);
   let DW_TR = null;   // 지금 펼쳐 둔 행의 <tr>
 
   const colOf = (k) => COLS.find((c) => c.key === k);
@@ -625,12 +714,16 @@
     }).join("")
       + '<div class="dw__hint">↑ ↓ 로 앞뒤 행 · Esc 로 닫기 · 회색 <span class="muted">—</span> 는 ERP 에 값이 없는 칸입니다.</div>';
     $("dw").hidden = false;
+    // 초점을 패널로 — 표에 남아 있으면 ↑↓ 가 셀 커서와 행 이동 양쪽에서 먹는다
+    $("dwClose").focus({ preventScroll: true });
   }
 
   function closeDetail() {
+    const was = !$("dw").hidden;
     $("dw").hidden = true;
     if (DW_TR) DW_TR.classList.remove("grid__row--cur");
     DW_TR = null;
+    if (was && GRID) GRID.focusTable();     // 닫은 자리에서 바로 방향키로 이어 간다
   }
 
   function stepDetail(delta) {
@@ -690,7 +783,13 @@
      무관하게 보유 행 전체를 내보낸다(§13). 조회 자체가 이미 전량이다. */
   $("bCsv").onclick = () => { GRID && GRID.exportCsv(); };
   $("bPreset").onclick = () => { PRESET = PRESET === "basic" ? "all" : "basic"; renderGrid(); };
-  $("selShow").onchange = (e) => { SHOW = Number(e.target.value) || 0; renderGrid(); renderCap(false); };
+  $("bFit").onclick = () => { FIT = !FIT; GRID && GRID.setFit(FIT); syncFitBtn(); savePref(); wireScrollAids(); };
+  $("selJump").onchange = (e) => {
+    const k = e.target.value; if (!k || !GRID) return;
+    GRID.scrollToColumn(k);
+    e.target.value = "";                 // 같은 열을 다시 골라도 또 이동하게
+  };
+  $("selShow").onchange = (e) => { SHOW = Number(e.target.value) || 0; savePref(); renderGrid(); renderCap(false); };
   $("chipBox").onclick = (e) => {
     const t = e.target.closest("[data-chip]"); if (!t) return;
     const set = PICK[t.dataset.chip];
@@ -723,9 +822,14 @@
   });
 
   /* ── 기동 ── */
+  loadPref();                // 열 폭·화면맞춤·표시행수는 지난번 그대로
+  $("selShow").value = String(SHOW);
   $("bPreset").textContent = label("basic");
+  syncFitBtn();
   renderPendNote();          // 첫 조회 전에도 무엇이 비어 있는지 먼저 알린다
   writeCond(condFromUrl() || {});
+  /* 조건이 정해진 뒤, 조회가 나가기 **전에** 저장본을 먼저 그린다 — 화면이 비어 있는 시간을 없앤다 */
+  paintCached(readCond());
   let ASOF_DONE = false;
   BAR = createQueryBar("#qbar", {
     months: false,                       // 기간 축은 검색 패널이 맡는다(기준을 고를 수 있어야 해서)

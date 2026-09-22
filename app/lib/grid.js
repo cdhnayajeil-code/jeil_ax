@@ -27,8 +27,15 @@ export function createGrid(container, options = {}) {
     stickyHeader: true, keyboardNav: true, pageSize: 0,
     emptyText: "데이터가 없습니다.", loadingText: "불러오는 중…",
     rowClass: null, bulkActions: [],
+    /* 넓은 목록용(전부 옵트인 — 켜지 않으면 동작이 종전과 같다) */
+    resizable: false,        // 열 경계를 끌어 폭 조절 + 더블클릭 초기화
+    fitWidth: false,         // setFit() 로 화면 폭에 맞추기(폭 지정 모드가 같이 켜진다)
+    cellNav: false,          // 방향키 셀 커서 이동
+    defaultColWidth: 120, minColWidth: 46,
     onSave: null, onSelectionChange: null, onBulkAction: null,
     onRowAction: null, onCellEdit: null, onPaste: null,
+    onColResize: null,       // (key, px, allWidths) — 저장은 호출측이 한다(grid 는 저장소를 모른다)
+    onCellActivate: null,    // (row, col) — 셀 커서에서 Enter
   }, options);
 
   const cols = o.columns;
@@ -38,6 +45,10 @@ export function createGrid(container, options = {}) {
     rows: [], view: [], selected: new Set(), dirty: new Map(),
     sort: { key: null, dir: 1 }, filters: {}, query: "",
     editMode: o.editable && !o.editToggle, loading: false, errors: new Map(),
+    colW: {},          // 지금 그리는 폭 — 화면맞춤이 덮어쓴다
+    userW: {},         // 사람이 끌어서 정한 폭 — 맞춤을 끄면 이쪽으로 돌아온다
+    fit: false,        // 화면맞춤 켜짐
+    cur: null,         // 셀 커서 { key, col }
   };
 
   // 행에 안정적 내부 키 부여(keyField 없을 때)
@@ -79,11 +90,34 @@ export function createGrid(container, options = {}) {
       </div>
       <div class="grid__toolbar-right" data-el="actions"></div>
     </div>
-    <div class="grid__scroll" data-el="scroll"><table class="grid__table"><thead data-el="thead"></thead><tbody data-el="tbody"></tbody></table></div>
+    <div class="grid__scroll" data-el="scroll" ${o.cellNav ? 'tabindex="0"' : ""}><table class="grid__table"><colgroup data-el="colgroup"></colgroup><thead data-el="thead"></thead><tbody data-el="tbody"></tbody></table></div>
     <div class="grid__footer"><span data-el="foot"></span></div>`;
   const $ = (sel) => root.querySelector(sel);
   const elScroll = $('[data-el="scroll"]'), elThead = $('[data-el="thead"]'), elTbody = $('[data-el="tbody"]');
   const elCount = $('[data-el="count"]'), elActions = $('[data-el="actions"]'), elFoot = $('[data-el="foot"]');
+  const elColgroup = $('[data-el="colgroup"]'), elTable = $(".grid__table");
+
+  /* ---------- 열 폭 ----------
+     `resizable` 이나 화면맞춤을 쓰면 표를 고정 레이아웃으로 바꾼다. 그래야 지정한 폭이
+     그대로 먹는다(자동 레이아웃에서는 내용이 길면 열이 제멋대로 늘어난다).
+     `fixedWidth` 컬럼은 맞춤·드래그 양쪽에서 제외한다 — 화면이 sticky left 오프셋을
+     그 폭으로 계산하고 있으면 폭이 변하는 순간 고정열이 어긋난다. */
+  const WIDTH_MODE = !!(o.resizable || o.fitWidth);
+  const defW = (c) => parseInt(c.width, 10) || o.defaultColWidth;
+  const minW = (c) => c.fitMin || o.minColWidth;
+  if (WIDTH_MODE) elTable.classList.add("grid__table--fixed");
+
+  function renderColgroup() {
+    if (!WIDTH_MODE) return;
+    let total = o.selectable ? 34 : 0;
+    const h = (o.selectable ? `<col style="width:34px">` : "")
+      + cols.map((c) => { const w = state.colW[c.key] ?? defW(c); total += w; return `<col style="width:${w}px">`; }).join("");
+    elColgroup.innerHTML = h;
+    /* 표에 **구체적인 폭**을 줘야 한다 — `table-layout:fixed` 는 폭이 auto 면 무시되고
+       브라우저가 자동 레이아웃으로 되돌아간다(그러면 col 폭이 통째로 먹히지 않는다).
+       2026-09-22 실측: col 에 600px 을 줘도 열 폭이 1px 도 안 변했다. */
+    elTable.style.width = total + "px";
+  }
 
   /* ---------- 툴바 액션 버튼 ---------- */
   function renderActions() {
@@ -107,7 +141,11 @@ export function createGrid(container, options = {}) {
       // cssClass 는 td 뿐 아니라 헤더에도 붙인다 — 고정열(sticky left)은 헤더가 같이 고정되지 않으면
       // 가로 스크롤 때 본문만 남아 헤더를 뚫고 올라온다(2026-09-22 발주통합 LIST 실측)
       const cls = ["grid__th", sortable ? "grid__th--sortable" : "", state.sort.key === c.key ? (state.sort.dir === 1 ? "grid__th--sorted-asc" : "grid__th--sorted-desc") : "", c.cssClass || ""].join(" ");
-      return `<th class="${cls}" data-act="${sortable ? "sort" : ""}" data-col="${esc(c.key)}" ${c.width ? `style="min-width:${c.width}"` : ""}>${esc(c.label)}${sortMark(c)}</th>`;
+      // 폭 지정 모드에서는 colgroup 이 폭을 맡는다 — min-width 를 남기면 그 아래로 줄지 않아 맞춤이 안 된다
+      const style = WIDTH_MODE ? "" : (c.width ? ` style="min-width:${c.width}"` : "");
+      const grip = o.resizable && !c.fixedWidth
+        ? `<span class="grid__resizer" data-act="resize" data-col="${esc(c.key)}" title="끌어서 폭 조절 · 두 번 누르면 원래대로"></span>` : "";
+      return `<th class="${cls}"${style} data-act="${sortable ? "sort" : ""}" data-col="${esc(c.key)}">${esc(c.label)}${sortMark(c)}${grip}</th>`;
     }).join("");
     head += "</tr>";
     if (o.columnFilter) {
@@ -133,6 +171,127 @@ export function createGrid(container, options = {}) {
     if (!o.columnFilter) return;
     const tr = elThead.firstElementChild;
     if (tr && tr.offsetHeight) root.style.setProperty("--g-head-h", tr.offsetHeight + "px");
+  }
+
+  /* ---------- 화면맞춤 ----------
+     남는 폭을 기본폭 비율대로 나눠 준다. 최소폭에 걸린 열은 더 줄지 않으므로, 모자란 만큼을
+     아직 여유 있는 열에서 다시 걷는다(3회면 수렴한다). 그래도 안 들어가면 가로 스크롤이
+     남는다 — 억지로 글자를 뭉개는 것보다 솔직하다. */
+  /** 맞춤에서 건드리지 않는 열 — 고정열과 **사람이 직접 끌어 정한 열**.
+      직접 정한 폭을 맞춤이 덮으면 조절한 의미가 없다. 나머지가 남는 자리를 나눠 갖는다. */
+  const pinned = (c) => c.fixedWidth || state.userW[c.key] != null;
+  const pinnedW = (c) => (c.fixedWidth ? defW(c) : state.userW[c.key]);
+
+  function computeFit() {
+    const avail = elScroll.clientWidth - (o.selectable ? 34 : 0) - 2;
+    if (avail <= 0) return null;
+    const flex = cols.filter((c) => !pinned(c));
+    const fixed = cols.filter(pinned).reduce((s, c) => s + pinnedW(c), 0);
+    let target = avail - fixed;
+    if (!flex.length || target <= 0) return null;
+
+    const w = {};
+    cols.forEach((c) => { if (pinned(c)) w[c.key] = pinnedW(c); });
+    let open = flex.slice(), budget = target;
+    for (let pass = 0; pass < 3 && open.length; pass++) {
+      const weight = open.reduce((s, c) => s + defW(c), 0) || 1;
+      const scale = budget / weight;
+      const stuck = [];
+      open.forEach((c) => {
+        const want = Math.round(defW(c) * scale);
+        if (want < minW(c)) { w[c.key] = minW(c); stuck.push(c); }
+        else w[c.key] = want;
+      });
+      if (!stuck.length) break;
+      budget -= stuck.reduce((s, c) => s + minW(c), 0);
+      open = open.filter((c) => !stuck.includes(c));
+      if (budget <= 0) { open.forEach((c) => { w[c.key] = minW(c); }); break; }
+    }
+    // 반올림으로 남은 몇 px 은 가장 넓은 열이 흡수한다(오른쪽에 빈 틈이 생기지 않게)
+    const sum = cols.reduce((s, c) => s + w[c.key], 0);
+    const slack = avail - sum;
+    if (slack > 0 && flex.length) {
+      const widest = flex.reduce((a, b) => (w[a.key] >= w[b.key] ? a : b));
+      w[widest.key] += slack;
+    }
+    return w;
+  }
+
+  function applyWidths() { renderColgroup(); syncHeadOffset(); }
+
+  /* 계산만으로는 몇 px 이 남는다 — 테두리·여백을 전부 미리 셈할 수 없어서다. 그려 놓고 실제로
+     재서 넘친 만큼을 줄일 수 있는 열에서 다시 걷는다. 이 한 번이면 가로 스크롤이 사라진다. */
+  function trimOverflow() {
+    const over = elScroll.scrollWidth - elScroll.clientWidth;
+    state.fitOver = Math.max(0, over);
+    if (over <= 0) return;
+    const flex = cols.filter((c) => !pinned(c) && state.colW[c.key] > minW(c));
+    if (!flex.length) return;             // 전부 최소폭 — 더 줄이면 값을 못 읽는다
+    let left = over;
+    const room = flex.reduce((s, c) => s + (state.colW[c.key] - minW(c)), 0);
+    flex.forEach((c) => {
+      if (left <= 0) return;
+      const give = Math.min(state.colW[c.key] - minW(c), Math.ceil(over * (state.colW[c.key] - minW(c)) / room), left);
+      state.colW[c.key] -= give; left -= give;
+    });
+    renderColgroup();
+    state.fitOver = Math.max(0, elScroll.scrollWidth - elScroll.clientWidth);
+  }
+
+  function setFit(on) {
+    state.fit = !!on;
+    root.classList.toggle("grid--fit", state.fit);
+    if (state.fit) {
+      const w = computeFit();
+      if (w) state.colW = w;
+      applyWidths();
+      trimOverflow();
+    } else {
+      state.colW = Object.assign({}, state.userW);
+      applyWidths();
+    }
+    return state.fit;
+  }
+
+  /* ---------- 열 경계 드래그 ---------- */
+  if (o.resizable) {
+    let rz = null;
+    elThead.addEventListener("pointerdown", (e) => {
+      const g = e.target.closest('[data-act="resize"]'); if (!g) return;
+      e.preventDefault(); e.stopPropagation();          // 정렬 클릭과 겹치지 않게
+      const key = g.getAttribute("data-col");
+      const c = cols.find((x) => x.key === key); if (!c) return;
+      const th = g.closest("th");
+      rz = { key, c, x0: e.clientX, w0: th.getBoundingClientRect().width };
+      root.classList.add("grid--resizing");
+      try { g.setPointerCapture(e.pointerId); } catch (err) {}
+    });
+    elThead.addEventListener("pointermove", (e) => {
+      if (!rz) return;
+      const w = Math.max(minW(rz.c), Math.round(rz.w0 + (e.clientX - rz.x0)));
+      state.colW[rz.key] = w; state.userW[rz.key] = w;
+      renderColgroup();
+    });
+    const endRz = () => {
+      if (!rz) return;
+      const key = rz.key; rz = null;
+      root.classList.remove("grid--resizing");
+      syncHeadOffset();
+      if (o.onColResize) o.onColResize(key, state.colW[key], Object.assign({}, state.userW));
+    };
+    elThead.addEventListener("pointerup", endRz);
+    elThead.addEventListener("pointercancel", endRz);
+    // 두 번 누르면 그 열만 원래 폭으로
+    elThead.addEventListener("dblclick", (e) => {
+      const g = e.target.closest('[data-act="resize"]'); if (!g) return;
+      e.preventDefault(); e.stopPropagation();
+      const key = g.getAttribute("data-col");
+      delete state.userW[key];
+      // 맞춤 중이면 그 열만 되돌리는 게 아니라 전체를 다시 나눈다(합이 화면 폭에 맞아야 한다)
+      if (state.fit) setFit(true);
+      else { state.colW[key] = defW(cols.find((c) => c.key === key)); applyWidths(); }
+      if (o.onColResize) o.onColResize(key, state.colW[key], Object.assign({}, state.userW));
+    });
   }
 
   /* ---------- 본문 셀 ---------- */
@@ -178,7 +337,89 @@ export function createGrid(container, options = {}) {
     root.classList.toggle("grid--bulk-on", state.editMode);
   }
 
-  function render() { renderActions(); renderHead(); renderBody(); renderFooter(); syncHeadOffset(); }
+  function render() { renderActions(); renderColgroup(); renderHead(); renderBody(); renderFooter(); syncHeadOffset(); paintCursor(); }
+
+  /* ---------- 셀 커서 (읽기 화면의 항목간 이동) ----------
+     편집 모드의 keyboardNav 와 다르다 — 저쪽은 입력칸 사이를 옮기고, 이쪽은 **보기만 하는 표**에서
+     어느 칸을 보고 있는지 표시하며 화면 밖 열로 가면 표를 따라 스크롤한다. */
+  const cellAt = (key, colKey) =>
+    elTbody.querySelector(`tr[data-key="${CSS.escape(String(key))}"] td[data-col="${CSS.escape(colKey)}"]`);
+
+  function paintCursor() {
+    if (!o.cellNav) return;
+    elTbody.querySelectorAll(".grid__cell--focus").forEach((el) => el.classList.remove("grid__cell--focus"));
+    if (!state.cur) return;
+    const td = cellAt(state.cur.key, state.cur.col);
+    if (td) td.classList.add("grid__cell--focus");
+    else state.cur = null;                 // 필터·정렬로 그 행이 사라졌다
+  }
+
+  function setCursor(key, colKey, scroll = true) {
+    if (!o.cellNav) return;
+    state.cur = { key, col: colKey };
+    paintCursor();
+    if (scroll) {
+      const td = cellAt(key, colKey);
+      if (td) td.scrollIntoView({ block: "nearest", inline: "nearest" });
+    }
+  }
+
+  function moveCursor(dRow, dCol) {
+    if (!o.cellNav) return false;
+    const trs = [...elTbody.querySelectorAll("tr[data-key]")];
+    if (!trs.length) return false;
+    const colKeys = cols.map((c) => c.key);
+    if (!state.cur) { setCursor(trs[0].getAttribute("data-key"), colKeys[0]); return true; }
+    let ri = trs.findIndex((tr) => tr.getAttribute("data-key") === String(state.cur.key));
+    let ci = colKeys.indexOf(state.cur.col);
+    if (ri < 0) ri = 0;
+    if (ci < 0) ci = 0;
+    const nr = Math.min(trs.length - 1, Math.max(0, ri + dRow));
+    const nc = Math.min(colKeys.length - 1, Math.max(0, ci + dCol));
+    if (nr === ri && nc === ci) return false;
+    setCursor(trs[nr].getAttribute("data-key"), colKeys[nc]);
+    return true;
+  }
+
+  /** 그 열이 보이도록 표를 가로로 옮긴다(열 점프). */
+  function scrollToColumn(colKey) {
+    const th = elThead.querySelector(`tr:first-child th[data-col="${CSS.escape(colKey)}"]`);
+    if (!th) return false;
+    const sr = elScroll.getBoundingClientRect(), tr = th.getBoundingClientRect();
+    const pad = 12;
+    let dx = 0;
+    if (tr.left < sr.left + pad) dx = tr.left - sr.left - pad;
+    else if (tr.right > sr.right - pad) dx = tr.right - sr.right + pad;
+    if (dx) elScroll.scrollBy({ left: dx, behavior: "smooth" });
+    th.classList.add("grid__th--flash");
+    setTimeout(() => th.classList.remove("grid__th--flash"), 900);
+    return true;
+  }
+
+  if (o.cellNav) {
+    elTbody.addEventListener("pointerdown", (e) => {
+      const td = e.target.closest("td[data-col]"); const tr = e.target.closest("tr[data-key]");
+      if (td && tr) setCursor(tr.getAttribute("data-key"), td.getAttribute("data-col"), false);
+    });
+    elScroll.addEventListener("keydown", (e) => {
+      if (e.target.closest("input, select, textarea")) return;   // 필터칸 입력 중에는 건드리지 않는다
+      const K = e.key;
+      let handled = true;
+      if (K === "ArrowLeft") handled = moveCursor(0, -1);
+      else if (K === "ArrowRight") handled = moveCursor(0, 1);
+      else if (K === "ArrowUp") handled = moveCursor(-1, 0);
+      else if (K === "ArrowDown") handled = moveCursor(1, 0);
+      else if (K === "Home") handled = moveCursor(0, -cols.length);
+      else if (K === "End") handled = moveCursor(0, cols.length);
+      else if (K === "PageUp") handled = moveCursor(-15, 0);
+      else if (K === "PageDown") handled = moveCursor(15, 0);
+      else if (K === "Enter" && state.cur && o.onCellActivate) {
+        const row = state.rows.find((r, i) => String(keyOf(r, i)) === String(state.cur.key));
+        if (row) o.onCellActivate(row, cols.find((c) => c.key === state.cur.col));
+      } else handled = false;
+      if (handled) e.preventDefault();
+    });
+  }
 
   /* ---------- dirty 기록 ---------- */
   function setCell(key, field, value) {
@@ -368,7 +609,15 @@ export function createGrid(container, options = {}) {
     },
     hasErrors() { return state.errors.size > 0; },
     exportCsv, copyToClipboard,
-    destroy() { clearTimeout(inputTimer); root.innerHTML = ""; root.classList.remove("grid", "grid--bulk-on"); },
+    /* 넓은 목록용 */
+    setFit, isFit() { return state.fit; }, refitWidths() { if (state.fit) setFit(true); },
+    /** 맞춤을 켰는데도 화면 밖으로 남은 폭(px). 0 이면 전부 들어왔다. */
+    getFitOverflow() { return state.fit ? (state.fitOver || 0) : 0; },
+    getColWidths() { return Object.assign({}, state.userW); },
+    setColWidths(w) { state.userW = Object.assign({}, w || {}); if (!state.fit) state.colW = Object.assign({}, state.userW); applyWidths(); },
+    scrollToColumn, setCursor, getCursor() { return state.cur && Object.assign({}, state.cur); },
+    focusTable() { elScroll.focus(); },
+    destroy() { clearTimeout(inputTimer); root.innerHTML = ""; root.classList.remove("grid", "grid--bulk-on", "grid--fit"); },
   };
 
   render();
