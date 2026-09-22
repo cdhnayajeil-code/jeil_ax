@@ -282,10 +282,24 @@
     { key: "req_dt",      label: "요청일",             width: "92px",  align: "center", extra: true, formatter: (v) => (v ? esc(v) : dash) },
     { key: "po_dlvy_dt",  label: "발주납기",           width: "92px",  align: "center", extra: true,
       formatter: (v) => (v ? esc(v) : '<span class="muted" title="발주 전">—</span>') },
+    // ERP 원문 그대로 — 결재번호·외주 판정의 정답이 확정되면 위 엑셀 칸으로 옮긴다(REQ-0070)
+    { key: "ref_no",      label: "참조번호(ERP)",      width: "128px", extra: true,
+      formatter: (v) => (v ? "<code>" + esc(v) + "</code>" : dash) },
+    { key: "po_type_cd",  label: "발주유형",           width: "76px",  align: "center", extra: true,
+      formatter: (v) => (v ? esc(v) : dash) },
   ];
-  // ERP 추출 확장 대기 컬럼은 전부 같은 모양으로 비운다(빈칸을 값처럼 보이게 하지 않는다 · §16.6)
-  COLS.forEach((c) => { if (c.pending) { c.formatter = pend; c.exportValue = () => ""; c.filter = false; c.sortable = false; } });
+  /* ERP 추출 확장 대기 컬럼 — **값이 들어오면 그대로 보여 준다.**
+     배치(`pur_order` --full)가 돌면 뷰가 값을 채우므로 화면 코드를 고치지 않아도 칸이 살아난다.
+     아직 비어 있는 동안에만 「대기」로 표시한다(빈칸을 값처럼 보이게 하지 않는다 · §16.6). */
+  COLS.forEach((c) => {
+    if (!c.pending) return;
+    const isNum = c.key === "price";
+    c.formatter = (v) => (v == null || v === "" ? pend() : (isNum ? num(v) : esc(v)));
+    c.exportValue = (v) => (v == null ? "" : v);
+  });
 
+  // 대기 안내는 **실제로 비어 있는 칸만** 말한다 — 채워진 뒤에도 「대기」라고 적으면 화면이 거짓말을 한다
+  const pendingNow = () => COLS.filter((c) => c.pending && !ROWS.some((r) => r[c.key] != null && r[c.key] !== ""));
   const PENDING_LABELS = COLS.filter((c) => c.pending).map((c) => c.label);
   const BASE_N = COLS.filter((c) => c.base).length;   // 기본 프리셋 열 수
   const LABEL = { basic: "기본 " + BASE_N + "열", all: "전체 " + COLS.length + "열" };
@@ -368,6 +382,7 @@
     rows.forEach((r) => { if (r.req_dept) DEPTS.add(r.req_dept); });
     fillDepts();
     renderGrid();
+    renderPendNote();
     const byNo = !!(c.pr || c.po || c.pu);
     renderCap(byNo);
   }
@@ -409,9 +424,23 @@
     });
   }
 
-  /* ── 대기 컬럼 안내: 무엇이 왜 비어 있는지 화면이 스스로 밝힌다 ── */
-  $("pendNote").innerHTML =
-    "⚠ <b>아직 비어 있는 칸 " + PENDING_LABELS.length + "개 — " + PENDING_LABELS.map(esc).join(" · ") + "</b><br>"
+  /* ── 대기 컬럼 안내: 무엇이 왜 비어 있는지 화면이 스스로 밝힌다(조회 뒤 실제 상태로 갱신) ── */
+  function renderPendNote() {
+    const left = pendingNow().map((c) => c.label);
+    const filled = PENDING_LABELS.filter((l) => !left.includes(l));
+    const el = $("pendNote");
+    if (!left.length) {
+      el.className = "notice";
+      el.innerHTML = "✔ ERP 연동 대기였던 칸이 모두 채워졌습니다. "
+        + "「구분」의 <b>외주</b> 판정과 「입고일」(매입 기준)·「입고요청일」(요청 희망납기) 주의는 그대로입니다 — 아래 설명을 참고하세요.";
+      return;
+    }
+    el.className = "notice amber";
+    el.innerHTML = PEND_HTML(left, filled);
+  }
+  const PEND_HTML = (left, filled) =>
+    "⚠ <b>아직 비어 있는 칸 " + left.length + "개 — " + left.map(esc).join(" · ") + "</b>"
+    + (filled.length ? ' <span style="color:var(--green)">(채워짐: ' + filled.map(esc).join(" · ") + ")</span>" : "") + "<br>"
     + "<b>요청번호(결재)</b> 는 ERP 구매 테이블에 결재번호 컬럼이 없어(사전 실측) 원천을 조사하는 중입니다. "
     + "<b>담당자·입고처·비고·단가·적요</b> 는 ERP 원천에는 있으나 미러 추출에서 빠져 있어, 추출 확장 후 같은 자리에 채워집니다. "
     + "엑셀 「발주일자」 칸의 <code>선진행</code> 같은 수기 메모(3,128건)와 「입고일」의 <code>Y</code>·<code>완료</code>(77건)는 "
@@ -459,6 +488,7 @@
 
   /* ── 기동 ── */
   $("bPreset").textContent = LABEL.basic;
+  renderPendNote();          // 첫 조회 전에도 무엇이 비어 있는지 먼저 알린다
   writeCond(condFromUrl() || {});
   let ASOF_DONE = false;
   BAR = createQueryBar("#qbar", {

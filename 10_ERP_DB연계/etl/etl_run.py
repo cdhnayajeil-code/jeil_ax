@@ -219,6 +219,21 @@ JOBS = {
                    d.RCPT_QTY AS rcpt_qty,
                    h.SUBCONTRA_FLG AS subcontra_flg, h.CLS_FLG AS cls_flg,
                    d.PR_NO AS pr_no,
+                   -- 발주통합관리 LIST 확충(2026-09-22 · REQ-0070) — 구매팀 엑셀 23칸을 채우기 위한 11컬럼.
+                   -- 담당자(엑셀 F)·입고처(M)는 원천 컬럼이 어느 것인지 확정 전이라 **후보를 모두** 가져온다.
+                   -- 셋 다 좁은 텍스트라 전송 비용이 미미하고, 조사 왕복(관리자 실행) 한 번을 아낀다.
+                   -- 어느 것이 맞는지는 적재 후 미러에서 엑셀 분포와 대조해 판정한다(sql/ERP원천조사_구매.sql §7).
+                   d.PO_PRC AS po_prc,                 -- T 단가
+                   d.REMRK AS dtl_remark,              -- W 적요
+                   h.REMARK AS hdr_remark,             -- N 비고
+                   h.DELIVERY_PLCE AS delivery_plce,   -- M 입고처 후보 A(자유입력)
+                   d.SL_CD AS sl_cd,                   -- M 입고처 후보 B(창고코드 → wh_master_s)
+                   h.AGENT AS agent_id,                -- F 담당자 후보 A
+                   h.APPLICANT AS applicant_id,        -- F 담당자 후보 B
+                   h.INSRT_USER_ID AS insrt_user_id,   -- F 담당자 후보 C(등록자)
+                   h.PO_TYPE_CD AS po_type_cd,         -- B 구분의 「외주」 판정 후보(SUBCONTRA_FLG 는 전건 'N')
+                   h.REF_NO AS ref_no,                 -- C 결재번호 후보(참조번호) — 형식이 PU… 인지 적재 후 확인
+                   ISNULL(d.TRACKING_NO, h.TRACKING_NO) AS tracking_no,  -- G P-CODE(발주 기준)
                    h.UPDT_DT AS src_updated
             FROM JEILMNS.dbo.M_PUR_ORD_HDR h WITH (NOLOCK)
             JOIN JEILMNS.dbo.M_PUR_ORD_DTL d WITH (NOLOCK) ON d.PO_NO = h.PO_NO
@@ -228,6 +243,9 @@ JOBS = {
         """,
         "params": ["year_start", "year_end"],
         "incr_sql": " AND h.UPDT_DT >= ?",   # 증분: 연 범위 내 변경분만(watermark 이후)
+        # 컬럼이 27개로 늘어 공유 erp_etl_upsert(19개 job 공용) 대신 이 job 전용 RPC 를 쓴다(REQ-0070).
+        # ⚠ 신규 컬럼은 증분(UPDT_DT 이후)만으로는 기존 행이 안 채워진다 — 최초 1회 `--full` 백필 필요.
+        "rpc": "erp_etl_upsert_pur_order",
     },
     # ⓪-2 구매요청 원장 ← M_PUR_REQ (2026년 요청분, PR_NO 기준) — 발주(pur_order_s.pr_no)와 연결
     "pur_req": {
