@@ -522,11 +522,20 @@
      정렬·검색·CSV 는 갱신이 끝난 뒤에 정확해진다 — 그 사이는 화면이 그렇다고 말한다. */
   const condKey = (c) => JSON.stringify(c, Object.keys(c).sort());
   let STALE = false;                  // 지금 그려진 게 저장본인가
+  let STALE_AT = 0;                   // 그 저장본을 언제 받았나
+  /* 저장본 수명. 지나면 그냥 조회를 기다린다 — 어제 받은 걸 「직전에 보던」이라고 내놓지 않는다. */
+  const CACHE_MAX_AGE = 6 * 3600 * 1000;
+  const HM = new Intl.DateTimeFormat("ko-KR", { timeZone: "Asia/Seoul", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" });
 
   function paintCached(c) {
     const hit = safeGet(sessionStorage, CACHE_KEY);
     if (!hit || hit.k !== condKey(c) || !Array.isArray(hit.rows) || !hit.rows.length) return false;
-    ROWS = hit.rows; HASMORE = false; STALE = true;
+    /* 「납기경과·미입고」는 서버가 **오늘** 기준으로 가린 결과다 — 날이 바뀌면 그 집합이 달라지므로
+       저장본을 먼저 내놓지 않는다(잠깐이라도 어제 기준을 오늘 것처럼 보이면 안 된다). */
+    if (c.overdue) return false;
+    const age = Date.now() - (hit.at || 0);
+    if (!(age >= 0 && age < CACHE_MAX_AGE)) return false;   // 시계가 튄 경우(age<0)도 버린다
+    ROWS = hit.rows; HASMORE = false; STALE = true; STALE_AT = hit.at;
     scanFilled(); renderGrid(); renderPendNote(); renderCap(false);
     return true;
   }
@@ -564,7 +573,8 @@
     if (byNo) s += ' · <span style="color:var(--amber)">번호로 찾을 때는 기간 조건을 무시합니다</span>';
     if (HASMORE) { cap.className = "cap warn"; s += " · ⚠ 수신 상한(20,000행)에 걸렸습니다 — 조건을 좁혀 주세요"; }
     else cap.className = "cap";
-    if (STALE) s = "직전에 보던 " + num(n) + "건을 먼저 보여 드립니다 · <span style=\"color:var(--accent)\">⟳ 최신 확인 중…</span>";
+    if (STALE) s = "<b>" + esc(HM.format(new Date(STALE_AT))) + "</b> 에 받은 " + num(n) + "건을 먼저 보여 드립니다 · "
+      + "<span style=\"color:var(--accent)\">⟳ 최신 확인 중…</span>";
     cap.innerHTML = s;
     cap.title = cap.textContent;       // 툴바에서 …으로 잘려도 전문을 볼 수 있게
   }
