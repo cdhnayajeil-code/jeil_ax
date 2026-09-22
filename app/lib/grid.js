@@ -32,10 +32,13 @@ export function createGrid(container, options = {}) {
     fitWidth: false,         // setFit() 로 화면 폭에 맞추기(폭 지정 모드가 같이 켜진다)
     cellNav: false,          // 방향키 셀 커서 이동
     defaultColWidth: 120, minColWidth: 46,
+    columnPicker: false,     // 「항목 고르기」 — 표에 넣을 열을 고르고 순서를 바꾼다(피벗식 두 칸)
+    columnPickerLabel: "▦ 항목",
     onSave: null, onSelectionChange: null, onBulkAction: null,
     onRowAction: null, onCellEdit: null, onPaste: null,
     onColResize: null,       // (key, px, allWidths) — 저장은 호출측이 한다(grid 는 저장소를 모른다)
     onCellActivate: null,    // (row, col) — 셀 커서에서 Enter
+    onColumnsChange: null,   // ({order, hidden}) — 저장은 호출측이 한다(grid 는 저장소를 모른다)
   }, options);
 
   const cols = o.columns;
@@ -49,7 +52,23 @@ export function createGrid(container, options = {}) {
     userW: {},         // 사람이 끌어서 정한 폭 — 맞춤을 끄면 이쪽으로 돌아온다
     fit: false,        // 화면맞춤 켜짐
     cur: null,         // 셀 커서 { key, col }
+    order: [],         // 열 순서(키 배열) — 항목 고르기에서 바꾼다
+    hidden: new Set(), // 표에서 빼 둔 열
+    pickOpen: false,   // 항목 고르기 패널 열림
   };
+
+  /* ---------- 지금 표에 그릴 열 ----------
+     `cols` 는 화면이 준 정의 그대로 두고, **실제로 그리는 열**은 여기서 만든다.
+     순서가 적용되고 빼 둔 열이 빠진 목록이다 — 렌더·화면맞춤·내보내기·셀이동이 전부 이걸 본다.
+     `cols` 를 그대로 도는 곳이 한 군데라도 남으면 뺀 열이 그 경로에서만 되살아난다
+     (헤더에는 없는데 CSV 에는 있는 식). 열을 세는 모든 자리를 함께 옮겨야 하는 이유다. */
+  const byKey = {};
+  cols.forEach((c) => { byKey[c.key] = c; });
+  state.order = cols.map((c) => c.key);
+  cols.forEach((c) => { if (c.hidden) state.hidden.add(c.key); });
+  const vcols = () => state.order.map((k) => byKey[k]).filter((c) => c && !state.hidden.has(c.key));
+  /** 뺄 수 없는 열 — 화면이 `required:true` 로 지정한다(키·구분처럼 없으면 행을 못 읽는 열). */
+  const canHide = (c) => !c.required;
 
   // 행에 안정적 내부 키 부여(keyField 없을 때)
   function ingest(rows) {
@@ -62,10 +81,11 @@ export function createGrid(container, options = {}) {
   /* ---------- view: 검색 + 컬럼필터 + 정렬 ---------- */
   function computeView() {
     let v = state.rows.slice();
-    const q = norm(state.query);
-    if (q) v = v.filter((r) => cols.some((c) => norm(r[c.key]).includes(q)));
+    const q = norm(state.query), vc = vcols();
+    // 검색·필터는 **보이는 열**에서만 건다 — 빼 둔 열에서 맞아 행이 나오면 왜 나왔는지 알 수 없다
+    if (q) v = v.filter((r) => vc.some((c) => norm(r[c.key]).includes(q)));
     for (const [k, val] of Object.entries(state.filters)) {
-      if (!val) continue; const fv = norm(val);
+      if (!val || state.hidden.has(k)) continue; const fv = norm(val);
       v = v.filter((r) => norm(r[k]).includes(fv));
     }
     if (state.sort.key) {
@@ -91,11 +111,12 @@ export function createGrid(container, options = {}) {
       <div class="grid__toolbar-right" data-el="actions"></div>
     </div>
     <div class="grid__scroll" data-el="scroll" ${o.cellNav ? 'tabindex="0"' : ""}><table class="grid__table"><colgroup data-el="colgroup"></colgroup><thead data-el="thead"></thead><tbody data-el="tbody"></tbody></table></div>
-    <div class="grid__footer"><span data-el="foot"></span></div>`;
+    <div class="grid__footer"><span data-el="foot"></span></div>
+    ${o.columnPicker ? `<div class="grid__picker" data-el="picker" hidden></div>` : ""}`;
   const $ = (sel) => root.querySelector(sel);
   const elScroll = $('[data-el="scroll"]'), elThead = $('[data-el="thead"]'), elTbody = $('[data-el="tbody"]');
   const elCount = $('[data-el="count"]'), elActions = $('[data-el="actions"]'), elFoot = $('[data-el="foot"]');
-  const elColgroup = $('[data-el="colgroup"]'), elTable = $(".grid__table");
+  const elColgroup = $('[data-el="colgroup"]'), elTable = $(".grid__table"), elPicker = $('[data-el="picker"]');
 
   /* ---------- 열 폭 ----------
      `resizable` 이나 화면맞춤을 쓰면 표를 고정 레이아웃으로 바꾼다. 그래야 지정한 폭이
@@ -111,7 +132,7 @@ export function createGrid(container, options = {}) {
     if (!WIDTH_MODE) return;
     let total = o.selectable ? 34 : 0;
     const h = (o.selectable ? `<col style="width:34px">` : "")
-      + cols.map((c) => { const w = state.colW[c.key] ?? defW(c); total += w; return `<col style="width:${w}px">`; }).join("");
+      + vcols().map((c) => { const w = state.colW[c.key] ?? defW(c); total += w; return `<col style="width:${w}px">`; }).join("");
     elColgroup.innerHTML = h;
     /* 표에 **구체적인 폭**을 줘야 한다 — `table-layout:fixed` 는 폭이 auto 면 무시되고
        브라우저가 자동 레이아웃으로 되돌아간다(그러면 col 폭이 통째로 먹히지 않는다).
@@ -125,6 +146,10 @@ export function createGrid(container, options = {}) {
     let h = "";
     if (o.editToggle) h += btn("toggle-edit", state.editMode ? o.editToggleLabels.on : o.editToggleLabels.off, state.editMode ? "ghost" : "ghost");
     (o.bulkActions || []).forEach((b) => { h += `<button class="grid__btn grid__btn--${b.btnClass || "ok"} btn sm ${b.btnClass || "ok"}" data-act="bulk:${b.id}">${esc(b.label)}</button>`; });
+    if (o.columnPicker) {
+      // 「보이는 개수/전체」를 버튼에 그대로 적는다 — 열이 빠져 있다는 걸 패널을 열지 않고도 알게
+      h += `<button class="grid__btn grid__btn--ghost btn sm ghost${state.pickOpen ? " grid__btn--on" : ""}" data-act="pick-toggle" title="표에 넣을 항목 고르기 · 순서 바꾸기">${esc(o.columnPickerLabel)} <b>${vcols().length}</b>/${cols.length}</button>`;
+    }
     if (o.copy) h += btn("copy", "📋 복사", "ghost");
     if (o.exportCsv) h += btn("export", "⬇ CSV", "ghost");
     elActions.innerHTML = h;
@@ -136,7 +161,8 @@ export function createGrid(container, options = {}) {
       ? `<span class="grid__sort">${state.sort.key === c.key ? (state.sort.dir === 1 ? "▲" : "▼") : "↕"}</span>` : "";
     let head = "<tr>";
     if (o.selectable) head += `<th class="grid__th grid__th--check"><input type="checkbox" class="grid__check" data-act="sel-all"></th>`;
-    head += cols.map((c) => {
+    const vc = vcols();
+    head += vc.map((c) => {
       const sortable = o.sortable && c.sortable !== false;
       // cssClass 는 td 뿐 아니라 헤더에도 붙인다 — 고정열(sticky left)은 헤더가 같이 고정되지 않으면
       // 가로 스크롤 때 본문만 남아 헤더를 뚫고 올라온다(2026-09-22 발주통합 LIST 실측)
@@ -151,7 +177,7 @@ export function createGrid(container, options = {}) {
     if (o.columnFilter) {
       head += `<tr class="grid__filter-row">`;
       if (o.selectable) head += `<th></th>`;
-      head += cols.map((c) => {
+      head += vc.map((c) => {
         const fcls = c.cssClass ? ` class="${esc(c.cssClass)}"` : "";
         if (c.filter === false) return `<th${fcls}></th>`;
         if (c.type === "select" && c.options) {
@@ -185,13 +211,14 @@ export function createGrid(container, options = {}) {
   function computeFit() {
     const avail = elScroll.clientWidth - (o.selectable ? 34 : 0) - 2;
     if (avail <= 0) return null;
-    const flex = cols.filter((c) => !pinned(c));
-    const fixed = cols.filter(pinned).reduce((s, c) => s + pinnedW(c), 0);
+    const vc = vcols();
+    const flex = vc.filter((c) => !pinned(c));
+    const fixed = vc.filter(pinned).reduce((s, c) => s + pinnedW(c), 0);
     let target = avail - fixed;
     if (!flex.length || target <= 0) return null;
 
     const w = {};
-    cols.forEach((c) => { if (pinned(c)) w[c.key] = pinnedW(c); });
+    vc.forEach((c) => { if (pinned(c)) w[c.key] = pinnedW(c); });
     let open = flex.slice(), budget = target;
     for (let pass = 0; pass < 3 && open.length; pass++) {
       const weight = open.reduce((s, c) => s + defW(c), 0) || 1;
@@ -208,7 +235,7 @@ export function createGrid(container, options = {}) {
       if (budget <= 0) { open.forEach((c) => { w[c.key] = minW(c); }); break; }
     }
     // 반올림으로 남은 몇 px 은 가장 넓은 열이 흡수한다(오른쪽에 빈 틈이 생기지 않게)
-    const sum = cols.reduce((s, c) => s + w[c.key], 0);
+    const sum = vc.reduce((s, c) => s + w[c.key], 0);
     const slack = avail - sum;
     if (slack > 0 && flex.length) {
       const widest = flex.reduce((a, b) => (w[a.key] >= w[b.key] ? a : b));
@@ -225,7 +252,7 @@ export function createGrid(container, options = {}) {
     const over = elScroll.scrollWidth - elScroll.clientWidth;
     state.fitOver = Math.max(0, over);
     if (over <= 0) return;
-    const flex = cols.filter((c) => !pinned(c) && state.colW[c.key] > minW(c));
+    const flex = vcols().filter((c) => !pinned(c) && state.colW[c.key] > minW(c));
     if (!flex.length) return;             // 전부 최소폭 — 더 줄이면 값을 못 읽는다
     let left = over;
     const room = flex.reduce((s, c) => s + (state.colW[c.key] - minW(c)), 0);
@@ -311,16 +338,17 @@ export function createGrid(container, options = {}) {
   }
 
   function renderBody() {
-    if (state.loading) { elTbody.innerHTML = `<tr><td colspan="${cols.length + (o.selectable ? 1 : 0)}"><div class="grid__loading">${esc(o.loadingText)}</div></td></tr>`; return; }
+    const vc = vcols(), span = vc.length + (o.selectable ? 1 : 0);
+    if (state.loading) { elTbody.innerHTML = `<tr><td colspan="${span}"><div class="grid__loading">${esc(o.loadingText)}</div></td></tr>`; return; }
     const view = o.pageSize > 0 ? state.view.slice(0, o.pageSize) : state.view;
-    if (!view.length) { elTbody.innerHTML = `<tr><td colspan="${cols.length + (o.selectable ? 1 : 0)}"><div class="grid__empty">${esc(o.emptyText)}</div></td></tr>`; return; }
+    if (!view.length) { elTbody.innerHTML = `<tr><td colspan="${span}"><div class="grid__empty">${esc(o.emptyText)}</div></td></tr>`; return; }
     elTbody.innerHTML = view.map((row, i) => {
       const key = keyOf(row, state.rows.indexOf(row));
       const sel = state.selected.has(String(key)), dirty = state.dirty.has(String(key));
       const extra = o.rowClass ? (o.rowClass(row) || "") : "";
       let tds = "";
       if (o.selectable) tds += `<td class="grid__td grid__td--check"><input type="checkbox" class="grid__check" data-act="sel" data-key="${esc(key)}" ${sel ? "checked" : ""}></td>`;
-      tds += cols.map((c) => {
+      tds += vc.map((c) => {
         const editable = state.editMode && (typeof c.editable === "function" ? c.editable(row) : c.editable) && !c.readOnly;
         const err = state.errors.has(key + "|" + c.key);
         const cls = ["grid__td", editable ? "grid__td--editable" : "grid__td--readonly", c.align === "right" || c.type === "number" ? "grid__td--num" : "", c.align === "center" ? "grid__td--center" : "", err ? "grid__td--error" : "", c.cssClass || ""].join(" ");
@@ -368,7 +396,7 @@ export function createGrid(container, options = {}) {
     if (!o.cellNav) return false;
     const trs = [...elTbody.querySelectorAll("tr[data-key]")];
     if (!trs.length) return false;
-    const colKeys = cols.map((c) => c.key);
+    const colKeys = vcols().map((c) => c.key);   // 빼 둔 열은 방향키로도 건너뛴다
     if (!state.cur) { setCursor(trs[0].getAttribute("data-key"), colKeys[0]); return true; }
     let ri = trs.findIndex((tr) => tr.getAttribute("data-key") === String(state.cur.key));
     let ci = colKeys.indexOf(state.cur.col);
@@ -415,10 +443,163 @@ export function createGrid(container, options = {}) {
       else if (K === "PageDown") handled = moveCursor(15, 0);
       else if (K === "Enter" && state.cur && o.onCellActivate) {
         const row = state.rows.find((r, i) => String(keyOf(r, i)) === String(state.cur.key));
-        if (row) o.onCellActivate(row, cols.find((c) => c.key === state.cur.col));
+        if (row) o.onCellActivate(row, byKey[state.cur.col]);
       } else handled = false;
       if (handled) e.preventDefault();
     });
+  }
+
+
+  /* ---------- 항목 고르기 (피벗식 두 칸) ----------
+     왼쪽이 「표에 넣은 항목」(표의 순서 그대로), 오른쪽이 「뺀 항목」이다. 항목을 누르면 반대편으로
+     건너가고, 끌어다 놓으면 순서까지 바뀐다. 체크박스 목록 대신 두 칸으로 나눈 이유는
+     **무엇이 빠져 있는지**가 한눈에 보여야 하기 때문이다 — 체크가 풀린 줄은 눈에 띄지 않는다.
+     저장은 하지 않는다(§13.3) — `onColumnsChange` 로 넘기고 보관은 화면이 한다. */
+  const docOff = [];
+
+  function getColumnState() { return { order: state.order.slice(), hidden: [...state.hidden] }; }
+
+  /** 저장해 둔 구성을 되돌린다. 화면 쪽 저장·복원 담당(onColumnsChange 를 다시 부르지 않는다). */
+  function setColumnState(s) {
+    if (!s) return;
+    if (Array.isArray(s.order)) {
+      // 저장한 뒤에 열이 늘었을 수 있다 — 모르는 키는 버리고, 빠진 키는 원래 순서대로 뒤에 붙인다
+      const known = s.order.filter((k) => byKey[k]);
+      state.order = known.concat(cols.map((c) => c.key).filter((k) => known.indexOf(k) < 0));
+    }
+    if (Array.isArray(s.hidden)) state.hidden = new Set(s.hidden.filter((k) => byKey[k] && canHide(byKey[k])));
+    computeView(); render(); renderPicker();
+    if (state.fit) setFit(true);
+  }
+
+  function resetColumns() {
+    state.order = cols.map((c) => c.key);
+    state.hidden = new Set(cols.filter((c) => c.hidden).map((c) => c.key));
+    applyColumns();
+  }
+
+  function toggleColumn(key) {
+    const c = byKey[key]; if (!c || !canHide(c)) return;
+    if (state.hidden.has(key)) state.hidden.delete(key); else state.hidden.add(key);
+    applyColumns();
+  }
+
+  /** 열 구성이 바뀌면 한 번에 다시 그린다 — 맞춤 중이면 남는 폭을 다시 나눠야 한다. */
+  function applyColumns() {
+    computeView(); render(); renderPicker();
+    if (state.fit) setFit(true);
+    if (o.onColumnsChange) o.onColumnsChange(getColumnState());
+  }
+
+  /** key 를 zone("on"=표에 넣기 / "off"=빼기)으로 옮기고, refKey 앞(또는 뒤)에 끼운다. */
+  function moveColumn(key, zone, refKey, after) {
+    const c = byKey[key]; if (!c) return;
+    if (zone === "off") { if (!canHide(c)) return; state.hidden.add(key); }
+    else state.hidden.delete(key);
+    if (refKey && refKey !== key) {
+      const rest = state.order.filter((k) => k !== key);
+      const at = rest.indexOf(refKey);
+      if (at < 0) rest.push(key); else rest.splice(at + (after ? 1 : 0), 0, key);
+      state.order = rest;
+    }
+    applyColumns();
+  }
+
+  function renderPicker() {
+    if (!o.columnPicker || !elPicker) return;
+    const on = vcols();
+    const off = state.order.map((k) => byKey[k]).filter((c) => c && state.hidden.has(c.key));
+    const item = (c, zone) => {
+      const lock = !canHide(c);
+      const tip = lock ? "항상 표시되는 항목입니다"
+        : (zone === "on" ? "누르면 표에서 뺍니다 · 끌면 순서가 바뀝니다" : "누르면 표에 넣습니다");
+      return `<li class="grid__picker-item${lock ? " grid__picker-item--locked" : ""}"`
+        + ` data-act="${lock ? "" : "pick-item"}" data-col="${esc(c.key)}" data-zone="${zone}"`
+        + ` draggable="${lock ? "false" : "true"}" title="${esc(tip)}">`
+        + `<span class="grid__picker-grip">${lock ? "🔒" : "⠿"}</span>`
+        + `<span class="grid__picker-nm">${esc(c.label)}</span>`
+        + `<span class="grid__picker-act">${lock ? "" : (zone === "on" ? "−" : "+")}</span></li>`;
+    };
+    const list = (arr, zone, empty) => `<ul class="grid__picker-list" data-zone="${zone}">`
+      + (arr.length ? arr.map((c) => item(c, zone)).join("") : `<li class="grid__picker-empty">${empty}</li>`)
+      + `</ul>`;
+    elPicker.innerHTML =
+      `<div class="grid__picker-head"><b>항목 고르기</b>`
+      + `<span class="grid__picker-hint">눌러서 넣고 빼기 · 끌어서 순서 바꾸기</span>`
+      + `<button class="grid__picker-x" data-act="pick-close" title="닫기">✕</button></div>`
+      + `<div class="grid__picker-cols">`
+      + `<div class="grid__picker-box grid__picker-box--on"><div class="grid__picker-cap">표에 넣은 항목 <b>${on.length}</b></div>`
+      + list(on, "on", "표가 비었습니다.<br>오른쪽 항목을 끌어다 놓으세요.") + `</div>`
+      + `<div class="grid__picker-box grid__picker-box--off"><div class="grid__picker-cap">뺀 항목 <b>${off.length}</b></div>`
+      + list(off, "off", "뺀 항목이 없습니다.<br>왼쪽 항목을 여기로 끌면 표에서 빠집니다.") + `</div>`
+      + `</div>`
+      + `<div class="grid__picker-foot"><button data-act="pick-all">전부 넣기</button>`
+      + `<button data-act="pick-reset">처음 상태로</button></div>`;
+  }
+
+  function togglePicker(on) {
+    if (!o.columnPicker || !elPicker) return;
+    state.pickOpen = on == null ? !state.pickOpen : !!on;
+    elPicker.hidden = !state.pickOpen;
+    if (state.pickOpen) renderPicker();
+    renderActions();
+  }
+
+  if (o.columnPicker) {
+    let dragKey = null;
+    const clearMark = () => {
+      elPicker.querySelectorAll(".grid__picker-item--over-a,.grid__picker-item--over-b")
+        .forEach((el) => el.classList.remove("grid__picker-item--over-a", "grid__picker-item--over-b"));
+      elPicker.querySelectorAll(".grid__picker-list--over")
+        .forEach((el) => el.classList.remove("grid__picker-list--over"));
+    };
+    /** 끌고 있는 항목이 이 항목의 위쪽 절반인지 아래쪽 절반인지 — 끼울 자리를 정한다. */
+    const halfAfter = (el, y) => { const r = el.getBoundingClientRect(); return y > r.top + r.height / 2; };
+
+    elPicker.addEventListener("dragstart", (e) => {
+      const li = e.target.closest(".grid__picker-item");
+      if (!li || li.classList.contains("grid__picker-item--locked")) { e.preventDefault(); return; }
+      dragKey = li.getAttribute("data-col");
+      li.classList.add("grid__picker-item--drag");
+      if (e.dataTransfer) { e.dataTransfer.effectAllowed = "move"; try { e.dataTransfer.setData("text/plain", dragKey); } catch (err) {} }
+    });
+    elPicker.addEventListener("dragend", () => { dragKey = null; clearMark(); renderPicker(); });
+    elPicker.addEventListener("dragover", (e) => {
+      if (!dragKey) return;
+      const ul = e.target.closest(".grid__picker-list"); if (!ul) return;
+      e.preventDefault();
+      if (e.dataTransfer) e.dataTransfer.dropEffect = "move";
+      clearMark(); ul.classList.add("grid__picker-list--over");
+      const over = e.target.closest(".grid__picker-item");
+      if (over && over.getAttribute("data-col") !== dragKey) {
+        over.classList.add(halfAfter(over, e.clientY) ? "grid__picker-item--over-b" : "grid__picker-item--over-a");
+      }
+    });
+    elPicker.addEventListener("drop", (e) => {
+      if (!dragKey) return;
+      const ul = e.target.closest(".grid__picker-list"); if (!ul) return;
+      e.preventDefault();
+      const over = e.target.closest(".grid__picker-item");
+      let refKey = null, after = false;
+      if (over && over.getAttribute("data-col") !== dragKey) {
+        refKey = over.getAttribute("data-col"); after = halfAfter(over, e.clientY);
+      }
+      const key = dragKey; dragKey = null; clearMark();
+      moveColumn(key, ul.getAttribute("data-zone"), refKey, after);
+    });
+
+    /* 바깥을 누르거나 Esc 를 누르면 닫는다. document 에 거는 만큼 destroy() 에서 반드시 뗀다
+       — 한 페이지에 그리드를 여러 번 만들고 지우면 핸들러가 계속 쌓인다. */
+    const onDocDown = (e) => {
+      if (!state.pickOpen) return;
+      if (e.target.closest(".grid__picker") || e.target.closest('[data-act="pick-toggle"]')) return;
+      togglePicker(false);
+    };
+    const onDocKey = (e) => { if (e.key === "Escape" && state.pickOpen) togglePicker(false); };
+    document.addEventListener("pointerdown", onDocDown, true);
+    document.addEventListener("keydown", onDocKey);
+    docOff.push(() => document.removeEventListener("pointerdown", onDocDown, true));
+    docOff.push(() => document.removeEventListener("keydown", onDocKey));
   }
 
   /* ---------- dirty 기록 ---------- */
@@ -455,6 +636,11 @@ export function createGrid(container, options = {}) {
     else if (act === "sel-all") { toggleAll(t.checked); }
     else if (act === "sel") { toggleOne(t.getAttribute("data-key"), t.checked); }
     else if (act === "toggle-edit") { state.editMode = !state.editMode; render(); }
+    else if (act === "pick-toggle") { togglePicker(); }
+    else if (act === "pick-close") { togglePicker(false); }
+    else if (act === "pick-all") { cols.forEach((c) => state.hidden.delete(c.key)); applyColumns(); }
+    else if (act === "pick-reset") { resetColumns(); }
+    else if (act === "pick-item") { toggleColumn(t.getAttribute("data-col")); }
     else if (act === "copy") { copyToClipboard(); }
     else if (act === "export") { exportCsv(); }
     else if (act.startsWith("bulk:")) { if (o.onBulkAction) o.onBulkAction(act.slice(5), instance); }
@@ -522,8 +708,9 @@ export function createGrid(container, options = {}) {
 
   // 붙여넣기 파싱·반영: pasteKey(email/name/code) 자동 인식, code=keyField 정확매칭, 없으면 시작행부터 순서
   function applyPaste(text, startKey) {
-    const editCols = cols.filter((c) => c.editable && c.pasteKey !== "none");
-    const codeCol = cols.find((c) => c.pasteKey === "code");
+    const vc = vcols();                 // 안 보이는 열에는 붙지 않는다
+    const editCols = vc.filter((c) => c.editable && c.pasteKey !== "none");
+    const codeCol = vc.find((c) => c.pasteKey === "code");
     const emailCol = editCols.find((c) => c.pasteKey === "email") || editCols.find((c) => c.type === "email");
     const nameCol = editCols.find((c) => c.pasteKey === "name");
     const order = state.view.map((r) => String(keyOf(r, state.rows.indexOf(r))));
@@ -564,8 +751,9 @@ export function createGrid(container, options = {}) {
 
   /* ---------- CSV / 클립보드 ---------- */
   function rowsToMatrix(rows) {
-    const header = cols.map((c) => c.label);
-    const body = rows.map((r) => cols.map((c) => {
+    const vc = vcols();                 // 보이는 대로 내보낸다 — 화면과 파일이 다르면 그게 더 혼란스럽다
+    const header = vc.map((c) => c.label);
+    const body = rows.map((r) => vc.map((c) => {
       const v = r[c.key];
       return typeof c.exportValue === "function" ? c.exportValue(v, r) : (v ?? "");
     }));
@@ -615,9 +803,18 @@ export function createGrid(container, options = {}) {
     getFitOverflow() { return state.fit ? (state.fitOver || 0) : 0; },
     getColWidths() { return Object.assign({}, state.userW); },
     setColWidths(w) { state.userW = Object.assign({}, w || {}); if (!state.fit) state.colW = Object.assign({}, state.userW); applyWidths(); },
+    /* 항목 고르기 — 구성 저장·복원은 화면이 한다(grid 는 저장소를 모른다) */
+    getColumnState, setColumnState, resetColumns,
+    showColumn(key, on) {
+      const c = byKey[key]; if (!c) return;
+      if (on === false) { if (canHide(c)) state.hidden.add(key); } else state.hidden.delete(key);
+      applyColumns();
+    },
+    getVisibleColumns() { return vcols().map((c) => c.key); },
+    openColumnPicker(on) { togglePicker(on == null ? true : on); },
     scrollToColumn, setCursor, getCursor() { return state.cur && Object.assign({}, state.cur); },
     focusTable() { elScroll.focus(); },
-    destroy() { clearTimeout(inputTimer); root.innerHTML = ""; root.classList.remove("grid", "grid--bulk-on", "grid--fit"); },
+    destroy() { clearTimeout(inputTimer); docOff.forEach((f) => f()); root.innerHTML = ""; root.classList.remove("grid", "grid--bulk-on", "grid--fit"); },
   };
 
   render();

@@ -18,6 +18,8 @@
   font-family: 'Pretendard','Malgun Gothic',sans-serif;
   color: var(--g-ink);
   font-size: 12.8px;
+  /* 항목 고르기 패널이 툴바 아래에 떠야 한다 — 기준 상자를 여기로 잡는다 */
+  position: relative;
 }
 
 /* 툴바: 검색 + 액션 버튼 */
@@ -119,6 +121,46 @@
 .grid__btn--ghost{background:#eef3fb;color:var(--g-navy2);border:1px solid #d3e0f2;}
 .grid__btn--gray{background:#5b6b7a;}
 .grid__btn:disabled{opacity:.55;cursor:wait;}
+
+/* ---------- 항목 고르기 (피벗식 두 칸) ----------
+   왼쪽 = 표에 넣은 항목, 오른쪽 = 뺀 항목. 두 칸으로 나눠야 "무엇이 빠졌는지"가 보인다.
+   전역 ul/li/button 을 건드리지 않게 .grid__picker 안에서만 초기화한다. */
+.grid__btn--on{background:var(--g-navy) !important;color:#fff !important;border-color:var(--g-navy) !important;}
+.grid__picker{position:absolute;right:0;top:40px;z-index:30;width:520px;max-width:calc(100vw - 32px);
+  background:#fff;border:1px solid var(--g-line);border-radius:12px;padding:12px 13px 11px;
+  box-shadow:0 14px 34px rgba(16,32,60,.20);}
+.grid__picker[hidden]{display:none;}
+.grid__picker-head{display:flex;align-items:center;gap:8px;margin-bottom:9px;}
+.grid__picker-head b{font-size:13px;color:var(--g-navy);}
+.grid__picker-hint{flex:1;font-size:11.5px;color:var(--g-muted);}
+.grid__picker-x{border:none;background:none;cursor:pointer;color:var(--g-muted);font-size:13px;line-height:1;padding:3px 4px;}
+.grid__picker-x:hover{color:var(--g-red);}
+.grid__picker-cols{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.grid__picker-box{border:1px solid var(--g-line);border-radius:10px;overflow:hidden;background:var(--g-soft);}
+.grid__picker-cap{padding:6px 10px;background:#e9eff8;border-bottom:1px solid var(--g-line);
+  font-size:11.5px;font-weight:700;color:var(--g-navy2);}
+.grid__picker-cap b{color:var(--g-accent);}
+.grid__picker-list{list-style:none;margin:0;padding:6px;min-height:140px;max-height:240px;overflow:auto;}
+.grid__picker-list--over{background:#e3edfa;}
+.grid__picker-item{display:flex;align-items:center;gap:7px;margin:0 0 4px;padding:5px 8px;background:#fff;
+  border:1px solid var(--g-line);border-radius:8px;font-size:12.3px;cursor:pointer;user-select:none;}
+.grid__picker-item:hover{border-color:var(--g-accent);background:#f2f7fd;}
+.grid__picker-item--drag{opacity:.38;}
+.grid__picker-item--over-a{box-shadow:inset 0 2px 0 var(--g-accent);}
+.grid__picker-item--over-b{box-shadow:inset 0 -2px 0 var(--g-accent);}
+.grid__picker-item--locked{cursor:default;color:var(--g-muted);background:#f6f7f9;}
+.grid__picker-item--locked:hover{border-color:var(--g-line);background:#f6f7f9;}
+.grid__picker-grip{color:#9aa6b8;font-size:11px;cursor:grab;}
+.grid__picker-nm{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.grid__picker-act{width:17px;height:17px;border-radius:5px;background:#eef3fb;color:var(--g-navy2);
+  font-size:12px;font-weight:700;line-height:17px;text-align:center;}
+.grid__picker-item:hover .grid__picker-act{background:var(--g-accent);color:#fff;}
+.grid__picker-empty{list-style:none;padding:30px 10px;text-align:center;font-size:11.5px;color:var(--g-muted);line-height:1.6;}
+.grid__picker-foot{display:flex;gap:7px;margin-top:9px;}
+.grid__picker-foot button{padding:5px 11px;border:1px solid var(--g-line);border-radius:7px;background:#fff;
+  font-size:11.8px;color:var(--g-navy2);cursor:pointer;}
+.grid__picker-foot button:hover{background:var(--g-soft);border-color:var(--g-accent);}
+@media(max-width:640px){.grid__picker{width:calc(100vw - 24px);}.grid__picker-cols{grid-template-columns:1fr;}}
 
 /* 반응형 */
 @media(max-width:720px){

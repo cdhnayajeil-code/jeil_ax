@@ -169,7 +169,8 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <hr />
 <h2 id="3-options">3. options &amp; 콜백</h2>
 <p><strong>options</strong>: <code>columns, rows, keyField, selectable, search, columnFilter, sortable, editable, editToggle, editToggleLabels, paste, exportCsv, copy, exportName, stickyHeader, keyboardNav, pageSize, emptyText, loadingText, rowClass, bulkActions</code>
-+ 넓은 목록용(§5.2, 전부 옵트인) <code>resizable, fitWidth, cellNav, defaultColWidth, minColWidth</code>.</p>
++ 넓은 목록용(§5.2, 전부 옵트인) <code>resizable, fitWidth, cellNav, defaultColWidth, minColWidth</code>.
++ 항목 고르기(§5.3) <code>columnPicker, columnPickerLabel</code>.</p>
 <p><strong>bulkActions</strong>: <code>[{ id, label, btnClass }]</code> — 툴바 버튼. 클릭 시 <code>onBulkAction(id, gridInstance)</code>.</p>
 <table>
 <thead>
@@ -202,6 +203,18 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <tr>
 <td><code>onPaste(touchedKeys)</code></td>
 <td>엑셀 붙여넣기 반영 후</td>
+</tr>
+<tr>
+<td><code>onColResize(key, px, all)</code></td>
+<td>열 경계를 끌어 폭을 바꾼 뒤(§5.2)</td>
+</tr>
+<tr>
+<td><code>onCellActivate(row, col)</code></td>
+<td>셀 커서에서 Enter(§5.2)</td>
+</tr>
+<tr>
+<td><code>onColumnsChange({order, hidden})</code></td>
+<td>항목을 넣고 빼거나 순서를 바꾼 뒤(§5.3) — <strong>저장은 화면이</strong></td>
 </tr>
 </tbody>
 </table>
@@ -332,6 +345,91 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
    화면이 말하게 한다. 조용히 실패하지 않는다.</li>
 <li><strong>셀 커서와 모달의 방향키가 부딪히지 않게</strong> 한다. 모달을 열 때 초점을 모달로 옮기고
    (<code>focus()</code>), 닫을 때 <code>focusTable()</code> 로 돌려준다.</li>
+</ol>
+<hr />
+<h2 id="53">5.3 항목 고르기 — 표에 넣을 열을 사람이 고른다 (피벗식)</h2>
+<p>열이 많아지면 "다 보여 주기"와 "필요한 것만 보기"가 부딪힌다. 화면마다 프리셋 버튼을
+만들지 말고 <strong>표준 열 선택기</strong>를 켠다. 한 화면에 진실이 하나만 남는다.</p>
+<pre><code class="language-js">createGrid(&quot;#myGrid&quot;, {
+  columns: [
+    { key:&quot;no&quot;,   label:&quot;NO.&quot;,   width:&quot;54px&quot;, cssClass:&quot;pl-fix1&quot;, required:true },  // 못 빼는 열
+    { key:&quot;memo&quot;, label:&quot;비고&quot;,  width:&quot;200px&quot;, hidden:true },                        // 처음엔 빼 둔 열
+    ...
+  ],
+  columnPicker: true,            // 툴바에 「▦ 항목 10/12」 버튼이 생긴다
+  columnPickerLabel: &quot;▦ 항목&quot;,   // 라벨을 바꾸고 싶을 때만
+  onColumnsChange: (st) =&gt; localStorage.setItem(KEY, JSON.stringify(st)),
+});
+// 복원
+const st = JSON.parse(localStorage.getItem(KEY) || &quot;null&quot;);
+if (st) grid.setColumnState(st);
+</code></pre>
+<p><strong>화면에 보이는 것</strong> — 툴바 버튼을 누르면 두 칸 패널이 열린다.
+왼쪽이 <strong>표에 넣은 항목</strong>(표의 순서 그대로), 오른쪽이 <strong>뺀 항목</strong>.
+항목을 누르면 반대편으로 건너가고, 끌어다 놓으면 순서까지 바뀐다.
+체크박스 한 줄짜리 목록이 아니라 두 칸으로 나눈 이유는 <strong>무엇이 빠져 있는지</strong>가
+한눈에 보여야 하기 때문이다 — 체크가 풀린 줄은 눈에 띄지 않는다.</p>
+<table>
+<thead>
+<tr>
+<th>columns 속성</th>
+<th>뜻</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>required: true</code></td>
+<td>항목 고르기에서 <strong>뺄 수 없다</strong>. 🔒 로 표시된다. 키 열, 그리고 §5.1 왼쪽 고정열에 준다 — 고정열이 빠지면 뒤 열의 sticky <code>left</code> 오프셋이 어긋난다</td>
+</tr>
+<tr>
+<td><code>hidden: true</code></td>
+<td>처음부터 빼 둔 상태로 시작</td>
+</tr>
+</tbody>
+</table>
+<table>
+<thead>
+<tr>
+<th>인스턴스 메서드</th>
+<th>하는 일</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>getColumnState()</code> / <code>setColumnState(st)</code></td>
+<td><code>{order, hidden}</code> 읽기·복원. <strong>복원은 <code>onColumnsChange</code> 를 다시 부르지 않는다</strong>(저장 루프 방지)</td>
+</tr>
+<tr>
+<td><code>resetColumns()</code></td>
+<td>처음 상태(=<code>columns</code> 정의)로</td>
+</tr>
+<tr>
+<td><code>showColumn(key, on)</code></td>
+<td>한 열만 넣기/빼기</td>
+</tr>
+<tr>
+<td><code>getVisibleColumns()</code></td>
+<td>지금 보이는 열 키 배열</td>
+</tr>
+<tr>
+<td><code>openColumnPicker(on)</code></td>
+<td>패널 열기/닫기</td>
+</tr>
+</tbody>
+</table>
+<p><strong>반드시 알아야 할 것</strong></p>
+<ol>
+<li><strong>빼 둔 열은 화면에서만 빠지는 게 아니다.</strong> 검색·컬럼필터·CSV·복사·방향키 이동이
+   전부 보이는 열만 본다. 안 보이는 열에서 검색이 맞아 행이 나오면 <em>왜 나왔는지</em> 알 수 없고,
+   화면과 내려받은 파일이 다르면 그게 더 혼란스럽다.</li>
+<li><strong>저장은 화면이 한다</strong>(§13.3). <code>grid.js</code> 는 저장소를 모른다. <code>onColumnsChange</code> 로 받아
+   화면이 보관한다. 금액·개인정보가 실린 화면은 <code>localStorage</code> 대신 <code>sessionStorage</code> 를
+   쓰거나 저장하지 않는다(§1.7 · §6).</li>
+<li><strong>저장해 둔 뒤에 열이 늘 수 있다.</strong> <code>setColumnState()</code> 는 모르는 키를 버리고,
+   저장본에 없던 새 열을 뒤에 붙인다 — 배포 뒤에 새 열이 사라져 보이지 않게.</li>
+<li><strong>화면맞춤과 같이 쓰면</strong> 열을 넣고 뺄 때마다 남는 폭을 다시 나눈다. 따로 부를 것 없다.</li>
+<li>패널은 <code>.grid</code> 를 기준으로 툴바 오른쪽 아래에 뜬다. 표 위 두세 줄을 잠깐 덮지만
+   닫으면 바로 보인다 — 표를 밀어내지 않는 쪽을 골랐다.</li>
 </ol>
 <hr />
 <h2 id="6">6. 새 편집 화면 추가 레시피</h2>

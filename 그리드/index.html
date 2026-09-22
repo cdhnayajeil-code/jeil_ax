@@ -29,6 +29,8 @@
   font-family: 'Pretendard','Malgun Gothic',sans-serif;
   color: var(--g-ink);
   font-size: 12.8px;
+  /* 항목 고르기 패널이 툴바 아래에 떠야 한다 — 기준 상자를 여기로 잡는다 */
+  position: relative;
 }
 
 /* 툴바: 검색 + 액션 버튼 */
@@ -131,6 +133,46 @@
 .grid__btn--gray{background:#5b6b7a;}
 .grid__btn:disabled{opacity:.55;cursor:wait;}
 
+/* ---------- 항목 고르기 (피벗식 두 칸) ----------
+   왼쪽 = 표에 넣은 항목, 오른쪽 = 뺀 항목. 두 칸으로 나눠야 "무엇이 빠졌는지"가 보인다.
+   전역 ul/li/button 을 건드리지 않게 .grid__picker 안에서만 초기화한다. */
+.grid__btn--on{background:var(--g-navy) !important;color:#fff !important;border-color:var(--g-navy) !important;}
+.grid__picker{position:absolute;right:0;top:40px;z-index:30;width:520px;max-width:calc(100vw - 32px);
+  background:#fff;border:1px solid var(--g-line);border-radius:12px;padding:12px 13px 11px;
+  box-shadow:0 14px 34px rgba(16,32,60,.20);}
+.grid__picker[hidden]{display:none;}
+.grid__picker-head{display:flex;align-items:center;gap:8px;margin-bottom:9px;}
+.grid__picker-head b{font-size:13px;color:var(--g-navy);}
+.grid__picker-hint{flex:1;font-size:11.5px;color:var(--g-muted);}
+.grid__picker-x{border:none;background:none;cursor:pointer;color:var(--g-muted);font-size:13px;line-height:1;padding:3px 4px;}
+.grid__picker-x:hover{color:var(--g-red);}
+.grid__picker-cols{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.grid__picker-box{border:1px solid var(--g-line);border-radius:10px;overflow:hidden;background:var(--g-soft);}
+.grid__picker-cap{padding:6px 10px;background:#e9eff8;border-bottom:1px solid var(--g-line);
+  font-size:11.5px;font-weight:700;color:var(--g-navy2);}
+.grid__picker-cap b{color:var(--g-accent);}
+.grid__picker-list{list-style:none;margin:0;padding:6px;min-height:140px;max-height:240px;overflow:auto;}
+.grid__picker-list--over{background:#e3edfa;}
+.grid__picker-item{display:flex;align-items:center;gap:7px;margin:0 0 4px;padding:5px 8px;background:#fff;
+  border:1px solid var(--g-line);border-radius:8px;font-size:12.3px;cursor:pointer;user-select:none;}
+.grid__picker-item:hover{border-color:var(--g-accent);background:#f2f7fd;}
+.grid__picker-item--drag{opacity:.38;}
+.grid__picker-item--over-a{box-shadow:inset 0 2px 0 var(--g-accent);}
+.grid__picker-item--over-b{box-shadow:inset 0 -2px 0 var(--g-accent);}
+.grid__picker-item--locked{cursor:default;color:var(--g-muted);background:#f6f7f9;}
+.grid__picker-item--locked:hover{border-color:var(--g-line);background:#f6f7f9;}
+.grid__picker-grip{color:#9aa6b8;font-size:11px;cursor:grab;}
+.grid__picker-nm{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.grid__picker-act{width:17px;height:17px;border-radius:5px;background:#eef3fb;color:var(--g-navy2);
+  font-size:12px;font-weight:700;line-height:17px;text-align:center;}
+.grid__picker-item:hover .grid__picker-act{background:var(--g-accent);color:#fff;}
+.grid__picker-empty{list-style:none;padding:30px 10px;text-align:center;font-size:11.5px;color:var(--g-muted);line-height:1.6;}
+.grid__picker-foot{display:flex;gap:7px;margin-top:9px;}
+.grid__picker-foot button{padding:5px 11px;border:1px solid var(--g-line);border-radius:7px;background:#fff;
+  font-size:11.8px;color:var(--g-navy2);cursor:pointer;}
+.grid__picker-foot button:hover{background:var(--g-soft);border-color:var(--g-accent);}
+@media(max-width:640px){.grid__picker{width:calc(100vw - 24px);}.grid__picker-cols{grid-template-columns:1fr;}}
+
 /* 반응형 */
 @media(max-width:720px){
   .grid__search input{width:100%;}
@@ -161,19 +203,40 @@
     font-family:Consolas,monospace;white-space:pre-wrap;max-height:160px;overflow:auto;display:none;}
   .out.show{display:block;}
   .note{font-size:12px;color:var(--muted);margin-top:10px;}
+  /* 데모 컨트롤 바 — 화면맞춤·열 점프처럼 **화면이 가지는** 버튼은 그리드 툴바가 아니라 여기에 둔다 */
+  .ctl{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-bottom:11px;padding:9px 11px;
+    background:var(--soft);border:1px solid var(--line);border-radius:10px;}
+  .ctl-tip{font-size:11.5px;color:var(--muted);margin-left:auto;}
+  .ctl-tip b{color:var(--accent);}
+  .btn.on{background:var(--navy);color:#fff;}
+  .guide{display:grid;grid-template-columns:repeat(auto-fit,minmax(232px,1fr));gap:10px;margin-top:14px;}
+  .guide div{background:var(--soft);border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-size:12px;line-height:1.6;}
+  .guide b{color:var(--navy);display:block;margin-bottom:2px;font-size:12.5px;}
+  .guide code{background:#e6ecf6;border-radius:4px;padding:1px 5px;font-family:Consolas,monospace;font-size:11.5px;}
 </style>
 </head>
 <body>
 <div class="top">
   <h1>JEIL_AX 표준 편집 그리드 — 데모 · 레퍼런스</h1>
-  <p>app/lib/grid.js · grid.css · 체크박스 선택 · 조회/필터 · 정렬 · 인라인 편집 · 엑셀 붙여넣기 · CSV 다운로드/복사</p>
+  <p>app/lib/grid.js · grid.css · <b>열 폭 조절</b> · <b>항목 고르기(피벗식)</b> · 화면맞춤 · 방향키 칸 이동 · 선택 · 조회/필터 · 정렬 · 인라인 편집 · 엑셀 붙여넣기 · CSV</p>
 </div>
 <div class="wrap">
   <div class="sec">
     <h2>협력사 거래처 그리드 (전체 기능 시연)</h2>
-    <div class="sub">상단 "📋 일괄 편집"으로 편집 모드 진입 → 셀 수정 또는 엑셀에서 [거래처코드·이메일·담당자] 복사해 붙여넣기. 선택 후 일괄 작업·CSV 내보내기.</div>
+    <div class="sub"><b>열 경계를 끌어</b> 폭을 바꾸고(두 번 누르면 원래대로), 툴바의 <b>▦ 항목</b> 에서 표에 넣을 항목을 고릅니다. 바꾼 구성과 폭은 이 브라우저에 기억됩니다. 편집은 <b>일괄 편집</b> 버튼으로.</div>
+    <div class="ctl">
+      <button class="btn sm ghost" id="bFit" title="모든 열을 화면 폭 안에 넣습니다">↔ 화면맞춤</button>
+      <button class="btn sm ghost" id="bReset" title="열 구성·폭을 처음 상태로">↺ 구성 초기화</button>
+      <span class="ctl-tip" id="tipState"></span>
+    </div>
     <div id="demoGrid"></div>
     <div id="out" class="out"></div>
+    <div class="guide">
+      <div><b>열 폭 조절</b>헤더 오른쪽 경계를 좌우로 끌면 폭이 바뀝니다. 경계를 두 번 누르면 그 열만 원래 폭으로.<br><code>resizable:true</code></div>
+      <div><b>항목 고르기</b>툴바 <code>▦ 항목</code> → 왼쪽이 표에 넣은 항목, 오른쪽이 뺀 항목. 눌러서 옮기고 끌어서 순서를 바꿉니다.<br><code>columnPicker:true</code></div>
+      <div><b>화면맞춤</b>가로 스크롤 없이 모든 열을 화면 폭에 넣습니다. 직접 끌어 정한 열과 고정열은 그대로 둡니다.<br><code>fitWidth:true</code> + <code>grid.setFit()</code></div>
+      <div><b>칸 이동</b>표를 한 번 누른 뒤 방향키로 칸을 옮깁니다. 화면 밖 열로 가면 표가 따라옵니다.<br><code>cellNav:true</code></div>
+    </div>
     <div class="note">※ 이 화면은 mock 데이터입니다. 실제 화면은 데이터 조회/저장을 <code>app/lib/api.js</code> 또는 Edge Function 콜백으로 연결합니다.</div>
   </div>
 </div>
@@ -214,10 +277,13 @@ function createGrid(container, options = {}) {
     fitWidth: false,         // setFit() 로 화면 폭에 맞추기(폭 지정 모드가 같이 켜진다)
     cellNav: false,          // 방향키 셀 커서 이동
     defaultColWidth: 120, minColWidth: 46,
+    columnPicker: false,     // 「항목 고르기」 — 표에 넣을 열을 고르고 순서를 바꾼다(피벗식 두 칸)
+    columnPickerLabel: "▦ 항목",
     onSave: null, onSelectionChange: null, onBulkAction: null,
     onRowAction: null, onCellEdit: null, onPaste: null,
     onColResize: null,       // (key, px, allWidths) — 저장은 호출측이 한다(grid 는 저장소를 모른다)
     onCellActivate: null,    // (row, col) — 셀 커서에서 Enter
+    onColumnsChange: null,   // ({order, hidden}) — 저장은 호출측이 한다(grid 는 저장소를 모른다)
   }, options);
 
   const cols = o.columns;
@@ -231,7 +297,23 @@ function createGrid(container, options = {}) {
     userW: {},         // 사람이 끌어서 정한 폭 — 맞춤을 끄면 이쪽으로 돌아온다
     fit: false,        // 화면맞춤 켜짐
     cur: null,         // 셀 커서 { key, col }
+    order: [],         // 열 순서(키 배열) — 항목 고르기에서 바꾼다
+    hidden: new Set(), // 표에서 빼 둔 열
+    pickOpen: false,   // 항목 고르기 패널 열림
   };
+
+  /* ---------- 지금 표에 그릴 열 ----------
+     `cols` 는 화면이 준 정의 그대로 두고, **실제로 그리는 열**은 여기서 만든다.
+     순서가 적용되고 빼 둔 열이 빠진 목록이다 — 렌더·화면맞춤·내보내기·셀이동이 전부 이걸 본다.
+     `cols` 를 그대로 도는 곳이 한 군데라도 남으면 뺀 열이 그 경로에서만 되살아난다
+     (헤더에는 없는데 CSV 에는 있는 식). 열을 세는 모든 자리를 함께 옮겨야 하는 이유다. */
+  const byKey = {};
+  cols.forEach((c) => { byKey[c.key] = c; });
+  state.order = cols.map((c) => c.key);
+  cols.forEach((c) => { if (c.hidden) state.hidden.add(c.key); });
+  const vcols = () => state.order.map((k) => byKey[k]).filter((c) => c && !state.hidden.has(c.key));
+  /** 뺄 수 없는 열 — 화면이 `required:true` 로 지정한다(키·구분처럼 없으면 행을 못 읽는 열). */
+  const canHide = (c) => !c.required;
 
   // 행에 안정적 내부 키 부여(keyField 없을 때)
   function ingest(rows) {
@@ -244,10 +326,11 @@ function createGrid(container, options = {}) {
   /* ---------- view: 검색 + 컬럼필터 + 정렬 ---------- */
   function computeView() {
     let v = state.rows.slice();
-    const q = norm(state.query);
-    if (q) v = v.filter((r) => cols.some((c) => norm(r[c.key]).includes(q)));
+    const q = norm(state.query), vc = vcols();
+    // 검색·필터는 **보이는 열**에서만 건다 — 빼 둔 열에서 맞아 행이 나오면 왜 나왔는지 알 수 없다
+    if (q) v = v.filter((r) => vc.some((c) => norm(r[c.key]).includes(q)));
     for (const [k, val] of Object.entries(state.filters)) {
-      if (!val) continue; const fv = norm(val);
+      if (!val || state.hidden.has(k)) continue; const fv = norm(val);
       v = v.filter((r) => norm(r[k]).includes(fv));
     }
     if (state.sort.key) {
@@ -273,11 +356,12 @@ function createGrid(container, options = {}) {
       <div class="grid__toolbar-right" data-el="actions"></div>
     </div>
     <div class="grid__scroll" data-el="scroll" ${o.cellNav ? 'tabindex="0"' : ""}><table class="grid__table"><colgroup data-el="colgroup"></colgroup><thead data-el="thead"></thead><tbody data-el="tbody"></tbody></table></div>
-    <div class="grid__footer"><span data-el="foot"></span></div>`;
+    <div class="grid__footer"><span data-el="foot"></span></div>
+    ${o.columnPicker ? `<div class="grid__picker" data-el="picker" hidden></div>` : ""}`;
   const $ = (sel) => root.querySelector(sel);
   const elScroll = $('[data-el="scroll"]'), elThead = $('[data-el="thead"]'), elTbody = $('[data-el="tbody"]');
   const elCount = $('[data-el="count"]'), elActions = $('[data-el="actions"]'), elFoot = $('[data-el="foot"]');
-  const elColgroup = $('[data-el="colgroup"]'), elTable = $(".grid__table");
+  const elColgroup = $('[data-el="colgroup"]'), elTable = $(".grid__table"), elPicker = $('[data-el="picker"]');
 
   /* ---------- 열 폭 ----------
      `resizable` 이나 화면맞춤을 쓰면 표를 고정 레이아웃으로 바꾼다. 그래야 지정한 폭이
@@ -293,7 +377,7 @@ function createGrid(container, options = {}) {
     if (!WIDTH_MODE) return;
     let total = o.selectable ? 34 : 0;
     const h = (o.selectable ? `<col style="width:34px">` : "")
-      + cols.map((c) => { const w = state.colW[c.key] ?? defW(c); total += w; return `<col style="width:${w}px">`; }).join("");
+      + vcols().map((c) => { const w = state.colW[c.key] ?? defW(c); total += w; return `<col style="width:${w}px">`; }).join("");
     elColgroup.innerHTML = h;
     /* 표에 **구체적인 폭**을 줘야 한다 — `table-layout:fixed` 는 폭이 auto 면 무시되고
        브라우저가 자동 레이아웃으로 되돌아간다(그러면 col 폭이 통째로 먹히지 않는다).
@@ -307,6 +391,10 @@ function createGrid(container, options = {}) {
     let h = "";
     if (o.editToggle) h += btn("toggle-edit", state.editMode ? o.editToggleLabels.on : o.editToggleLabels.off, state.editMode ? "ghost" : "ghost");
     (o.bulkActions || []).forEach((b) => { h += `<button class="grid__btn grid__btn--${b.btnClass || "ok"} btn sm ${b.btnClass || "ok"}" data-act="bulk:${b.id}">${esc(b.label)}</button>`; });
+    if (o.columnPicker) {
+      // 「보이는 개수/전체」를 버튼에 그대로 적는다 — 열이 빠져 있다는 걸 패널을 열지 않고도 알게
+      h += `<button class="grid__btn grid__btn--ghost btn sm ghost${state.pickOpen ? " grid__btn--on" : ""}" data-act="pick-toggle" title="표에 넣을 항목 고르기 · 순서 바꾸기">${esc(o.columnPickerLabel)} <b>${vcols().length}</b>/${cols.length}</button>`;
+    }
     if (o.copy) h += btn("copy", "📋 복사", "ghost");
     if (o.exportCsv) h += btn("export", "⬇ CSV", "ghost");
     elActions.innerHTML = h;
@@ -318,7 +406,8 @@ function createGrid(container, options = {}) {
       ? `<span class="grid__sort">${state.sort.key === c.key ? (state.sort.dir === 1 ? "▲" : "▼") : "↕"}</span>` : "";
     let head = "<tr>";
     if (o.selectable) head += `<th class="grid__th grid__th--check"><input type="checkbox" class="grid__check" data-act="sel-all"></th>`;
-    head += cols.map((c) => {
+    const vc = vcols();
+    head += vc.map((c) => {
       const sortable = o.sortable && c.sortable !== false;
       // cssClass 는 td 뿐 아니라 헤더에도 붙인다 — 고정열(sticky left)은 헤더가 같이 고정되지 않으면
       // 가로 스크롤 때 본문만 남아 헤더를 뚫고 올라온다(2026-09-22 발주통합 LIST 실측)
@@ -333,7 +422,7 @@ function createGrid(container, options = {}) {
     if (o.columnFilter) {
       head += `<tr class="grid__filter-row">`;
       if (o.selectable) head += `<th></th>`;
-      head += cols.map((c) => {
+      head += vc.map((c) => {
         const fcls = c.cssClass ? ` class="${esc(c.cssClass)}"` : "";
         if (c.filter === false) return `<th${fcls}></th>`;
         if (c.type === "select" && c.options) {
@@ -367,13 +456,14 @@ function createGrid(container, options = {}) {
   function computeFit() {
     const avail = elScroll.clientWidth - (o.selectable ? 34 : 0) - 2;
     if (avail <= 0) return null;
-    const flex = cols.filter((c) => !pinned(c));
-    const fixed = cols.filter(pinned).reduce((s, c) => s + pinnedW(c), 0);
+    const vc = vcols();
+    const flex = vc.filter((c) => !pinned(c));
+    const fixed = vc.filter(pinned).reduce((s, c) => s + pinnedW(c), 0);
     let target = avail - fixed;
     if (!flex.length || target <= 0) return null;
 
     const w = {};
-    cols.forEach((c) => { if (pinned(c)) w[c.key] = pinnedW(c); });
+    vc.forEach((c) => { if (pinned(c)) w[c.key] = pinnedW(c); });
     let open = flex.slice(), budget = target;
     for (let pass = 0; pass < 3 && open.length; pass++) {
       const weight = open.reduce((s, c) => s + defW(c), 0) || 1;
@@ -390,7 +480,7 @@ function createGrid(container, options = {}) {
       if (budget <= 0) { open.forEach((c) => { w[c.key] = minW(c); }); break; }
     }
     // 반올림으로 남은 몇 px 은 가장 넓은 열이 흡수한다(오른쪽에 빈 틈이 생기지 않게)
-    const sum = cols.reduce((s, c) => s + w[c.key], 0);
+    const sum = vc.reduce((s, c) => s + w[c.key], 0);
     const slack = avail - sum;
     if (slack > 0 && flex.length) {
       const widest = flex.reduce((a, b) => (w[a.key] >= w[b.key] ? a : b));
@@ -407,7 +497,7 @@ function createGrid(container, options = {}) {
     const over = elScroll.scrollWidth - elScroll.clientWidth;
     state.fitOver = Math.max(0, over);
     if (over <= 0) return;
-    const flex = cols.filter((c) => !pinned(c) && state.colW[c.key] > minW(c));
+    const flex = vcols().filter((c) => !pinned(c) && state.colW[c.key] > minW(c));
     if (!flex.length) return;             // 전부 최소폭 — 더 줄이면 값을 못 읽는다
     let left = over;
     const room = flex.reduce((s, c) => s + (state.colW[c.key] - minW(c)), 0);
@@ -493,16 +583,17 @@ function createGrid(container, options = {}) {
   }
 
   function renderBody() {
-    if (state.loading) { elTbody.innerHTML = `<tr><td colspan="${cols.length + (o.selectable ? 1 : 0)}"><div class="grid__loading">${esc(o.loadingText)}</div></td></tr>`; return; }
+    const vc = vcols(), span = vc.length + (o.selectable ? 1 : 0);
+    if (state.loading) { elTbody.innerHTML = `<tr><td colspan="${span}"><div class="grid__loading">${esc(o.loadingText)}</div></td></tr>`; return; }
     const view = o.pageSize > 0 ? state.view.slice(0, o.pageSize) : state.view;
-    if (!view.length) { elTbody.innerHTML = `<tr><td colspan="${cols.length + (o.selectable ? 1 : 0)}"><div class="grid__empty">${esc(o.emptyText)}</div></td></tr>`; return; }
+    if (!view.length) { elTbody.innerHTML = `<tr><td colspan="${span}"><div class="grid__empty">${esc(o.emptyText)}</div></td></tr>`; return; }
     elTbody.innerHTML = view.map((row, i) => {
       const key = keyOf(row, state.rows.indexOf(row));
       const sel = state.selected.has(String(key)), dirty = state.dirty.has(String(key));
       const extra = o.rowClass ? (o.rowClass(row) || "") : "";
       let tds = "";
       if (o.selectable) tds += `<td class="grid__td grid__td--check"><input type="checkbox" class="grid__check" data-act="sel" data-key="${esc(key)}" ${sel ? "checked" : ""}></td>`;
-      tds += cols.map((c) => {
+      tds += vc.map((c) => {
         const editable = state.editMode && (typeof c.editable === "function" ? c.editable(row) : c.editable) && !c.readOnly;
         const err = state.errors.has(key + "|" + c.key);
         const cls = ["grid__td", editable ? "grid__td--editable" : "grid__td--readonly", c.align === "right" || c.type === "number" ? "grid__td--num" : "", c.align === "center" ? "grid__td--center" : "", err ? "grid__td--error" : "", c.cssClass || ""].join(" ");
@@ -550,7 +641,7 @@ function createGrid(container, options = {}) {
     if (!o.cellNav) return false;
     const trs = [...elTbody.querySelectorAll("tr[data-key]")];
     if (!trs.length) return false;
-    const colKeys = cols.map((c) => c.key);
+    const colKeys = vcols().map((c) => c.key);   // 빼 둔 열은 방향키로도 건너뛴다
     if (!state.cur) { setCursor(trs[0].getAttribute("data-key"), colKeys[0]); return true; }
     let ri = trs.findIndex((tr) => tr.getAttribute("data-key") === String(state.cur.key));
     let ci = colKeys.indexOf(state.cur.col);
@@ -597,10 +688,163 @@ function createGrid(container, options = {}) {
       else if (K === "PageDown") handled = moveCursor(15, 0);
       else if (K === "Enter" && state.cur && o.onCellActivate) {
         const row = state.rows.find((r, i) => String(keyOf(r, i)) === String(state.cur.key));
-        if (row) o.onCellActivate(row, cols.find((c) => c.key === state.cur.col));
+        if (row) o.onCellActivate(row, byKey[state.cur.col]);
       } else handled = false;
       if (handled) e.preventDefault();
     });
+  }
+
+
+  /* ---------- 항목 고르기 (피벗식 두 칸) ----------
+     왼쪽이 「표에 넣은 항목」(표의 순서 그대로), 오른쪽이 「뺀 항목」이다. 항목을 누르면 반대편으로
+     건너가고, 끌어다 놓으면 순서까지 바뀐다. 체크박스 목록 대신 두 칸으로 나눈 이유는
+     **무엇이 빠져 있는지**가 한눈에 보여야 하기 때문이다 — 체크가 풀린 줄은 눈에 띄지 않는다.
+     저장은 하지 않는다(§13.3) — `onColumnsChange` 로 넘기고 보관은 화면이 한다. */
+  const docOff = [];
+
+  function getColumnState() { return { order: state.order.slice(), hidden: [...state.hidden] }; }
+
+  /** 저장해 둔 구성을 되돌린다. 화면 쪽 저장·복원 담당(onColumnsChange 를 다시 부르지 않는다). */
+  function setColumnState(s) {
+    if (!s) return;
+    if (Array.isArray(s.order)) {
+      // 저장한 뒤에 열이 늘었을 수 있다 — 모르는 키는 버리고, 빠진 키는 원래 순서대로 뒤에 붙인다
+      const known = s.order.filter((k) => byKey[k]);
+      state.order = known.concat(cols.map((c) => c.key).filter((k) => known.indexOf(k) < 0));
+    }
+    if (Array.isArray(s.hidden)) state.hidden = new Set(s.hidden.filter((k) => byKey[k] && canHide(byKey[k])));
+    computeView(); render(); renderPicker();
+    if (state.fit) setFit(true);
+  }
+
+  function resetColumns() {
+    state.order = cols.map((c) => c.key);
+    state.hidden = new Set(cols.filter((c) => c.hidden).map((c) => c.key));
+    applyColumns();
+  }
+
+  function toggleColumn(key) {
+    const c = byKey[key]; if (!c || !canHide(c)) return;
+    if (state.hidden.has(key)) state.hidden.delete(key); else state.hidden.add(key);
+    applyColumns();
+  }
+
+  /** 열 구성이 바뀌면 한 번에 다시 그린다 — 맞춤 중이면 남는 폭을 다시 나눠야 한다. */
+  function applyColumns() {
+    computeView(); render(); renderPicker();
+    if (state.fit) setFit(true);
+    if (o.onColumnsChange) o.onColumnsChange(getColumnState());
+  }
+
+  /** key 를 zone("on"=표에 넣기 / "off"=빼기)으로 옮기고, refKey 앞(또는 뒤)에 끼운다. */
+  function moveColumn(key, zone, refKey, after) {
+    const c = byKey[key]; if (!c) return;
+    if (zone === "off") { if (!canHide(c)) return; state.hidden.add(key); }
+    else state.hidden.delete(key);
+    if (refKey && refKey !== key) {
+      const rest = state.order.filter((k) => k !== key);
+      const at = rest.indexOf(refKey);
+      if (at < 0) rest.push(key); else rest.splice(at + (after ? 1 : 0), 0, key);
+      state.order = rest;
+    }
+    applyColumns();
+  }
+
+  function renderPicker() {
+    if (!o.columnPicker || !elPicker) return;
+    const on = vcols();
+    const off = state.order.map((k) => byKey[k]).filter((c) => c && state.hidden.has(c.key));
+    const item = (c, zone) => {
+      const lock = !canHide(c);
+      const tip = lock ? "항상 표시되는 항목입니다"
+        : (zone === "on" ? "누르면 표에서 뺍니다 · 끌면 순서가 바뀝니다" : "누르면 표에 넣습니다");
+      return `<li class="grid__picker-item${lock ? " grid__picker-item--locked" : ""}"`
+        + ` data-act="${lock ? "" : "pick-item"}" data-col="${esc(c.key)}" data-zone="${zone}"`
+        + ` draggable="${lock ? "false" : "true"}" title="${esc(tip)}">`
+        + `<span class="grid__picker-grip">${lock ? "🔒" : "⠿"}</span>`
+        + `<span class="grid__picker-nm">${esc(c.label)}</span>`
+        + `<span class="grid__picker-act">${lock ? "" : (zone === "on" ? "−" : "+")}</span></li>`;
+    };
+    const list = (arr, zone, empty) => `<ul class="grid__picker-list" data-zone="${zone}">`
+      + (arr.length ? arr.map((c) => item(c, zone)).join("") : `<li class="grid__picker-empty">${empty}</li>`)
+      + `</ul>`;
+    elPicker.innerHTML =
+      `<div class="grid__picker-head"><b>항목 고르기</b>`
+      + `<span class="grid__picker-hint">눌러서 넣고 빼기 · 끌어서 순서 바꾸기</span>`
+      + `<button class="grid__picker-x" data-act="pick-close" title="닫기">✕</button></div>`
+      + `<div class="grid__picker-cols">`
+      + `<div class="grid__picker-box grid__picker-box--on"><div class="grid__picker-cap">표에 넣은 항목 <b>${on.length}</b></div>`
+      + list(on, "on", "표가 비었습니다.<br>오른쪽 항목을 끌어다 놓으세요.") + `</div>`
+      + `<div class="grid__picker-box grid__picker-box--off"><div class="grid__picker-cap">뺀 항목 <b>${off.length}</b></div>`
+      + list(off, "off", "뺀 항목이 없습니다.<br>왼쪽 항목을 여기로 끌면 표에서 빠집니다.") + `</div>`
+      + `</div>`
+      + `<div class="grid__picker-foot"><button data-act="pick-all">전부 넣기</button>`
+      + `<button data-act="pick-reset">처음 상태로</button></div>`;
+  }
+
+  function togglePicker(on) {
+    if (!o.columnPicker || !elPicker) return;
+    state.pickOpen = on == null ? !state.pickOpen : !!on;
+    elPicker.hidden = !state.pickOpen;
+    if (state.pickOpen) renderPicker();
+    renderActions();
+  }
+
+  if (o.columnPicker) {
+    let dragKey = null;
+    const clearMark = () => {
+      elPicker.querySelectorAll(".grid__picker-item--over-a,.grid__picker-item--over-b")
+        .forEach((el) => el.classList.remove("grid__picker-item--over-a", "grid__picker-item--over-b"));
+      elPicker.querySelectorAll(".grid__picker-list--over")
+        .forEach((el) => el.classList.remove("grid__picker-list--over"));
+    };
+    /** 끌고 있는 항목이 이 항목의 위쪽 절반인지 아래쪽 절반인지 — 끼울 자리를 정한다. */
+    const halfAfter = (el, y) => { const r = el.getBoundingClientRect(); return y > r.top + r.height / 2; };
+
+    elPicker.addEventListener("dragstart", (e) => {
+      const li = e.target.closest(".grid__picker-item");
+      if (!li || li.classList.contains("grid__picker-item--locked")) { e.preventDefault(); return; }
+      dragKey = li.getAttribute("data-col");
+      li.classList.add("grid__picker-item--drag");
+      if (e.dataTransfer) { e.dataTransfer.effectAllowed = "move"; try { e.dataTransfer.setData("text/plain", dragKey); } catch (err) {} }
+    });
+    elPicker.addEventListener("dragend", () => { dragKey = null; clearMark(); renderPicker(); });
+    elPicker.addEventListener("dragover", (e) => {
+      if (!dragKey) return;
+      const ul = e.target.closest(".grid__picker-list"); if (!ul) return;
+      e.preventDefault();
+      if (e.dataTransfer) e.dataTransfer.dropEffect = "move";
+      clearMark(); ul.classList.add("grid__picker-list--over");
+      const over = e.target.closest(".grid__picker-item");
+      if (over && over.getAttribute("data-col") !== dragKey) {
+        over.classList.add(halfAfter(over, e.clientY) ? "grid__picker-item--over-b" : "grid__picker-item--over-a");
+      }
+    });
+    elPicker.addEventListener("drop", (e) => {
+      if (!dragKey) return;
+      const ul = e.target.closest(".grid__picker-list"); if (!ul) return;
+      e.preventDefault();
+      const over = e.target.closest(".grid__picker-item");
+      let refKey = null, after = false;
+      if (over && over.getAttribute("data-col") !== dragKey) {
+        refKey = over.getAttribute("data-col"); after = halfAfter(over, e.clientY);
+      }
+      const key = dragKey; dragKey = null; clearMark();
+      moveColumn(key, ul.getAttribute("data-zone"), refKey, after);
+    });
+
+    /* 바깥을 누르거나 Esc 를 누르면 닫는다. document 에 거는 만큼 destroy() 에서 반드시 뗀다
+       — 한 페이지에 그리드를 여러 번 만들고 지우면 핸들러가 계속 쌓인다. */
+    const onDocDown = (e) => {
+      if (!state.pickOpen) return;
+      if (e.target.closest(".grid__picker") || e.target.closest('[data-act="pick-toggle"]')) return;
+      togglePicker(false);
+    };
+    const onDocKey = (e) => { if (e.key === "Escape" && state.pickOpen) togglePicker(false); };
+    document.addEventListener("pointerdown", onDocDown, true);
+    document.addEventListener("keydown", onDocKey);
+    docOff.push(() => document.removeEventListener("pointerdown", onDocDown, true));
+    docOff.push(() => document.removeEventListener("keydown", onDocKey));
   }
 
   /* ---------- dirty 기록 ---------- */
@@ -637,6 +881,11 @@ function createGrid(container, options = {}) {
     else if (act === "sel-all") { toggleAll(t.checked); }
     else if (act === "sel") { toggleOne(t.getAttribute("data-key"), t.checked); }
     else if (act === "toggle-edit") { state.editMode = !state.editMode; render(); }
+    else if (act === "pick-toggle") { togglePicker(); }
+    else if (act === "pick-close") { togglePicker(false); }
+    else if (act === "pick-all") { cols.forEach((c) => state.hidden.delete(c.key)); applyColumns(); }
+    else if (act === "pick-reset") { resetColumns(); }
+    else if (act === "pick-item") { toggleColumn(t.getAttribute("data-col")); }
     else if (act === "copy") { copyToClipboard(); }
     else if (act === "export") { exportCsv(); }
     else if (act.startsWith("bulk:")) { if (o.onBulkAction) o.onBulkAction(act.slice(5), instance); }
@@ -704,8 +953,9 @@ function createGrid(container, options = {}) {
 
   // 붙여넣기 파싱·반영: pasteKey(email/name/code) 자동 인식, code=keyField 정확매칭, 없으면 시작행부터 순서
   function applyPaste(text, startKey) {
-    const editCols = cols.filter((c) => c.editable && c.pasteKey !== "none");
-    const codeCol = cols.find((c) => c.pasteKey === "code");
+    const vc = vcols();                 // 안 보이는 열에는 붙지 않는다
+    const editCols = vc.filter((c) => c.editable && c.pasteKey !== "none");
+    const codeCol = vc.find((c) => c.pasteKey === "code");
     const emailCol = editCols.find((c) => c.pasteKey === "email") || editCols.find((c) => c.type === "email");
     const nameCol = editCols.find((c) => c.pasteKey === "name");
     const order = state.view.map((r) => String(keyOf(r, state.rows.indexOf(r))));
@@ -746,8 +996,9 @@ function createGrid(container, options = {}) {
 
   /* ---------- CSV / 클립보드 ---------- */
   function rowsToMatrix(rows) {
-    const header = cols.map((c) => c.label);
-    const body = rows.map((r) => cols.map((c) => {
+    const vc = vcols();                 // 보이는 대로 내보낸다 — 화면과 파일이 다르면 그게 더 혼란스럽다
+    const header = vc.map((c) => c.label);
+    const body = rows.map((r) => vc.map((c) => {
       const v = r[c.key];
       return typeof c.exportValue === "function" ? c.exportValue(v, r) : (v ?? "");
     }));
@@ -797,9 +1048,18 @@ function createGrid(container, options = {}) {
     getFitOverflow() { return state.fit ? (state.fitOver || 0) : 0; },
     getColWidths() { return Object.assign({}, state.userW); },
     setColWidths(w) { state.userW = Object.assign({}, w || {}); if (!state.fit) state.colW = Object.assign({}, state.userW); applyWidths(); },
+    /* 항목 고르기 — 구성 저장·복원은 화면이 한다(grid 는 저장소를 모른다) */
+    getColumnState, setColumnState, resetColumns,
+    showColumn(key, on) {
+      const c = byKey[key]; if (!c) return;
+      if (on === false) { if (canHide(c)) state.hidden.add(key); } else state.hidden.delete(key);
+      applyColumns();
+    },
+    getVisibleColumns() { return vcols().map((c) => c.key); },
+    openColumnPicker(on) { togglePicker(on == null ? true : on); },
     scrollToColumn, setCursor, getCursor() { return state.cur && Object.assign({}, state.cur); },
     focusTable() { elScroll.focus(); },
-    destroy() { clearTimeout(inputTimer); root.innerHTML = ""; root.classList.remove("grid", "grid--bulk-on", "grid--fit"); },
+    destroy() { clearTimeout(inputTimer); docOff.forEach((f) => f()); root.innerHTML = ""; root.classList.remove("grid", "grid--bulk-on", "grid--fit"); },
   };
 
   render();
@@ -816,40 +1076,72 @@ window.gridEsc = esc; window.gridIsEmail = isEmail; /* (인라인 빌드) 모듈
 const log = (label, data) => { const el = document.getElementById("out"); el.classList.add("show"); el.textContent = label + "\n" + JSON.stringify(data, null, 2); };
 
 const ROWS = [
-  { bp_cd:"00206", bp_nm:"(주)대신스틸", biz_no:"206-81-55012", status:"active",  email:"daesin@corp.com", name:"김대신" },
-  { bp_cd:"02128", bp_nm:"(주)삼성티",   biz_no:"128-81-43021", status:"active",  email:"three@corp.com",  name:"이삼성" },
-  { bp_cd:"00324", bp_nm:"(주)상우터",   biz_no:"324-81-61018", status:"disabled",email:"sangwoo@corp.com",name:"" },
-  { bp_cd:"00209", bp_nm:"(주)서일텐",   biz_no:"209-81-60113", status:"none",    email:"", name:"" },
-  { bp_cd:"01699", bp_nm:"(주)신호관",   biz_no:"699-81-94021", status:"none",    email:"", name:"" },
-  { bp_cd:"01768", bp_nm:"(주)엠텍",     biz_no:"768-81-50017", status:"none",    email:"", name:"" },
+  { bp_cd:"00206", bp_nm:"(주)대신스틸", biz_no:"206-81-55012", status:"active",  email:"daesin@corp.com", name:"김대신", tel:"031-555-0206", area:"경기", item:"STS 강판·판재",     last_dt:"2026-09-12", amt:18420000 },
+  { bp_cd:"02128", bp_nm:"(주)삼성티",   biz_no:"128-81-43021", status:"active",  email:"three@corp.com",  name:"이삼성", tel:"031-555-2128", area:"경기", item:"배관 피팅류",       last_dt:"2026-09-18", amt:7350000 },
+  { bp_cd:"00324", bp_nm:"(주)상우터",   biz_no:"324-81-61018", status:"disabled",email:"sangwoo@corp.com",name:"",       tel:"051-700-0324", area:"부산", item:"모터·감속기",       last_dt:"2026-06-30", amt:2110000 },
+  { bp_cd:"00209", bp_nm:"(주)서일텐",   biz_no:"209-81-60113", status:"none",    email:"", name:"",                      tel:"041-330-0209", area:"충남", item:"컨베이어 벨트",     last_dt:"2026-08-27", amt:9640000 },
+  { bp_cd:"01699", bp_nm:"(주)신호관",   biz_no:"699-81-94021", status:"none",    email:"", name:"",                      tel:"055-210-1699", area:"경남", item:"유압 실린더",       last_dt:"2026-09-02", amt:4820000 },
+  { bp_cd:"01768", bp_nm:"(주)엠텍",     biz_no:"768-81-50017", status:"none",    email:"", name:"",                      tel:"032-440-1768", area:"인천", item:"제어반·판넬",       last_dt:"2026-09-16", amt:13270000 },
+  { bp_cd:"00912", bp_nm:"(주)한중정밀", biz_no:"912-81-22047", status:"active",  email:"hanjung@corp.com",name:"박한중", tel:"054-330-0912", area:"경북", item:"정밀 가공품",       last_dt:"2026-09-19", amt:26150000 },
+  { bp_cd:"01055", bp_nm:"대한열처리",   biz_no:"055-81-77310", status:"none",    email:"", name:"",                      tel:"031-989-1055", area:"경기", item:"열처리 외주",       last_dt:"2026-07-21", amt:1580000 },
+  { bp_cd:"01340", bp_nm:"(주)유진산업",  biz_no:"340-81-10285", status:"active", email:"yujin@corp.com",  name:"최유진", tel:"062-950-1340", area:"광주", item:"도장·표면처리",     last_dt:"2026-09-08", amt:6090000 },
+  { bp_cd:"01487", bp_nm:"세아기전",     biz_no:"487-81-63194", status:"disabled",email:"seah@corp.com",   name:"정세아", tel:"043-260-1487", area:"충북", item:"전장 부품",         last_dt:"2026-05-14", amt:740000 },
+  { bp_cd:"01822", bp_nm:"(주)태광metal",biz_no:"822-81-40096", status:"none",    email:"", name:"",                      tel:"052-270-1822", area:"울산", item:"주물·소재",         last_dt:"2026-09-11", amt:11930000 },
+  { bp_cd:"02051", bp_nm:"신한플랜트",   biz_no:"051-81-58822", status:"none",    email:"", name:"",                      tel:"061-790-2051", area:"전남", item:"설치·시운전 용역",  last_dt:"2026-08-05", amt:3460000 },
 ];
 const PILL = { active:["p-active","발급됨"], disabled:["p-disabled","비활성"], none:["p-none","미발급"] };
+const won = (v) => (v == null || v === "") ? "—" : Number(v).toLocaleString("ko-KR");
+
+/* 열 정의를 변수로 빼 둔다 — 안내문의 「표시 n/전체」 가 같은 출처를 본다 */
+const COLS = [
+  // required:true — 항목 고르기에서 뺄 수 없는 열(키라서 빠지면 행을 못 읽는다)
+  { key:"bp_cd", label:"거래처코드", width:"96px", pasteKey:"code", required:true },
+  { key:"bp_nm", label:"협력사명", width:"158px" },
+  { key:"biz_no", label:"사업자번호", width:"118px", filter:false },
+  { key:"status", label:"상태", width:"82px", align:"center",
+    type:"select", options:[{value:"none",label:"미발급"},{value:"active",label:"발급됨"},{value:"disabled",label:"비활성"}],
+    formatter:(v)=>{ const [c,t]=PILL[v]||PILL.none; return `<span class="pill ${c}">${t}</span>`; } },
+  { key:"email", label:"담당자 이메일", width:"186px", pasteKey:"email", type:"email",
+    editable:(row)=>row.status==="none",
+    validator:(v,row)=> row.status!=="none" ? true : (!v ? true : (/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v) || "이메일 형식 오류")),
+    formatter:(v)=> v?`<span>${v}</span>`:`<span style="color:#aab">미입력</span>` },
+  { key:"name", label:"담당자명", width:"92px", pasteKey:"name", editable:(row)=>row.status==="none",
+    formatter:(v)=> v||`<span style="color:#aab">—</span>` },
+  // hidden:true — 처음에는 빼 둔 열. 「▦ 항목」 오른쪽 칸에 들어 있다
+  { key:"tel", label:"연락처", width:"118px", hidden:true },
+  { key:"area", label:"지역", width:"74px", align:"center" },
+  { key:"item", label:"주요 품목", width:"150px" },
+  { key:"last_dt", label:"최근 거래일", width:"106px", align:"center", hidden:true },
+  { key:"amt", label:"최근 거래액", width:"112px", type:"number", align:"right",
+    formatter:(v)=>won(v), exportValue:(v)=>v ?? "" },
+  { key:"_act", label:"관리", width:"126px", filter:false, sortable:false,
+    formatter:(_,row)=> row.status==="none"
+      ? `<button class="btn sm ok" data-row-act="provision">계정 생성</button>`
+      : `<button class="btn sm ghost" data-row-act="mail">메일</button> <button class="btn sm no" data-row-act="reset">초기화</button>` },
+];
+
+/* 열 구성·폭 보관은 **화면 몫**이다 — grid.js 는 저장소를 모른다(§13.3).
+   데모라 localStorage 를 쓰지만, 금액·개인정보가 실린 실화면은 sessionStorage 를 쓰거나 저장하지 않는다. */
+const LS = "gridDemo.view.v1";
+const saveView = () => { try { localStorage.setItem(LS, JSON.stringify({ cols: grid.getColumnState(), w: grid.getColWidths(), fit: grid.isFit() })); } catch (e) {} };
+const loadView = () => { try { return JSON.parse(localStorage.getItem(LS) || "null"); } catch (e) { return null; } };
 
 const grid = createGrid("#demoGrid", {
   keyField: "bp_cd",
   selectable: true, search: true, columnFilter: true, sortable: true,
   editable: true, editToggle: true, editToggleLabels:{ off:"📋 일괄 편집", on:"✏️ 편집 중" },
   paste: true, exportCsv: true, copy: true, exportName: "협력사거래처",
+  // 이번에 보태진 것 — 전부 옵트인이다
+  resizable: true,      // 헤더 경계를 끌어 폭 조절 · 두 번 누르면 그 열만 원래대로
+  fitWidth: true,       // setFit() 로 화면 폭 맞춤
+  cellNav: true,        // 방향키로 칸 이동
+  columnPicker: true,   // ▦ 항목 — 넣고 빼고 순서 바꾸기
   rows: ROWS,
-  columns: [
-    { key:"bp_cd", label:"거래처코드", width:"90px", pasteKey:"code" },
-    { key:"bp_nm", label:"협력사명", width:"150px" },
-    { key:"biz_no", label:"사업자번호", width:"120px", filter:false },
-    { key:"status", label:"상태", width:"80px", align:"center",
-      type:"select", options:[{value:"none",label:"미발급"},{value:"active",label:"발급됨"},{value:"disabled",label:"비활성"}],
-      formatter:(v)=>{ const [c,t]=PILL[v]||PILL.none; return `<span class="pill ${c}">${t}</span>`; } },
-    { key:"email", label:"담당자 이메일", width:"190px", pasteKey:"email", type:"email",
-      editable:(row)=>row.status==="none",
-      validator:(v,row)=> row.status!=="none" ? true : (!v ? true : (/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v) || "이메일 형식 오류")),
-      formatter:(v)=> v?`<span>${v}</span>`:`<span style="color:#aab">미입력</span>` },
-    { key:"name", label:"담당자명", width:"100px", pasteKey:"name", editable:(row)=>row.status==="none",
-      formatter:(v)=> v||`<span style="color:#aab">—</span>` },
-    { key:"_act", label:"관리", width:"120px", filter:false, sortable:false,
-      formatter:(_,row)=> row.status==="none"
-        ? `<button class="btn sm ok" data-row-act="provision">계정 생성</button>`
-        : `<button class="btn sm ghost" data-row-act="mail">메일</button> <button class="btn sm no" data-row-act="reset">초기화</button>` },
-  ],
+  columns: COLS,
   bulkActions: [{ id:"issue", label:"💾 선택/입력 일괄 발급", btnClass:"ok" }],
+  onColResize: () => { saveView(); syncCtl(); },
+  onColumnsChange: (st) => { saveView(); syncCtl(); log("[onColumnsChange] 화면이 받아서 보관", st); },
+  onCellActivate: (row, col) => log("[onCellActivate] Enter", { 행: row.bp_cd, 칸: col && col.label, 값: row[col && col.key] }),
   onBulkAction: (id, g) => {
     const dirty = g.getDirty().filter(d => d.row.status==="none" && d.row.email);
     const selected = g.getSelected();
@@ -860,6 +1152,38 @@ const grid = createGrid("#demoGrid", {
   onSelectionChange: (rows) => { /* 선택 변경 시 처리 */ },
   onSave: (changes) => log("[onSave]", changes),
 });
+
+/* ---------- 화면이 맡는 조작 ---------- */
+const elFit = document.getElementById("bFit");
+const elReset = document.getElementById("bReset");
+const elTip = document.getElementById("tipState");
+
+function syncCtl() {
+  const vis = grid.getVisibleColumns();
+  elFit.classList.toggle("on", grid.isFit());
+  const over = grid.getFitOverflow();
+  elTip.innerHTML = `표시 <b>${vis.length}</b>/${COLS.length}칸`
+    + (grid.isFit() ? (over ? ` · 맞췄지만 <b>${over}px</b> 남았습니다(최소폭 한계)` : " · 가로 스크롤 없음") : "");
+}
+
+elFit.addEventListener("click", () => { grid.setFit(!grid.isFit()); saveView(); syncCtl(); });
+elReset.addEventListener("click", () => {
+  grid.setFit(false); grid.setColWidths({}); grid.resetColumns();
+  try { localStorage.removeItem(LS); } catch (e) {}
+  syncCtl();
+});
+// 창 폭이 바뀌면 맞춤을 다시 계산한다 — 안 하면 맞춰 둔 표가 창을 줄일 때 넘친다
+let rz; window.addEventListener("resize", () => { clearTimeout(rz); rz = setTimeout(() => { grid.refitWidths(); syncCtl(); }, 150); });
+
+/* 저장해 둔 구성 복원 — 순서는 열 구성 → 폭 → 맞춤 */
+const saved = loadView();
+if (saved) {
+  if (saved.cols) grid.setColumnState(saved.cols);
+  if (saved.w) grid.setColWidths(saved.w);
+  if (saved.fit) grid.setFit(true);
+}
+syncCtl();
+
 window.demoGrid = grid; // 콘솔 디버깅용
 </script>
 </body>
