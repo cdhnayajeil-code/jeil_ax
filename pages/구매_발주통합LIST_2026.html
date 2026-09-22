@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script>window.PAGE_KEY='purchase_list_2026';</script>
+<script src="/pages/_access-gate.js"></script>
+<title>구매팀 — 발주통합관리 LIST (2026)</title>
+<link rel="stylesheet" href="/app/lib/querybar.css">
+<link rel="stylesheet" href="/app/lib/grid.css">
+<style>
+  :root{
+    --navy:#1a2f4e; --navy2:#27457a; --accent:#2f6fb3; --accent2:#4a8ed0;
+    --red:#b3402f; --green:#2e7d52; --amber:#9a6b1f; --grey:#5f6b7a;
+    --ink:#222; --muted:#666; --line:#d8dee8; --bg:#f4f6f9;
+    --soft:#eef2f8; --softred:#fbeeec; --softgreen:#ecf5f0; --softamber:#faf3e4; --softgrey:#f1f3f6;
+  }
+  *{box-sizing:border-box}
+  body{margin:0; background:var(--bg); color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Malgun Gothic","맑은 고딕",sans-serif;
+    font-size:14px; line-height:1.5;}
+  /* 23컬럼 목록 화면 — 폭을 제한하지 않는다(요약 화면과 다른 점) */
+  .page{margin:0 auto; padding:20px 22px 30px; background:#fff; min-height:100vh;}
+  .head{display:flex; justify-content:space-between; align-items:flex-end; gap:12px; flex-wrap:wrap;
+    border-bottom:2px solid var(--navy); padding-bottom:11px;}
+  .head h1{font-size:20px; color:var(--navy); margin:0 0 4px;}
+  .head .sub{font-size:12.5px; color:var(--muted);}
+  .head .right{font-size:11.5px; color:var(--muted); text-align:right;}
+  .badge{display:inline-block; font-size:11px; padding:1px 7px; border-radius:10px; border:1px solid var(--line);
+    background:var(--soft); color:var(--navy2);}
+  .navlinks{margin:11px 0 3px; font-size:12px;}
+  .navlinks a{color:var(--accent); text-decoration:none; margin-right:14px;}
+  .navlinks a:hover{text-decoration:underline;}
+
+  /* ── 검색 패널 (조회바 extras 가 아니라 본문 — §16.8 부분예외) ── */
+  .panel{border:1px solid var(--line); border-radius:9px; background:var(--softgrey); padding:12px 14px; margin:12px 0 10px;}
+  .prow{display:grid; gap:9px 12px; align-items:end; margin-bottom:9px;}
+  .prow:last-child{margin-bottom:0;}
+  .prow.r1{grid-template-columns:minmax(220px,2fr) auto auto;}
+  .prow.r2{grid-template-columns:repeat(5, minmax(120px,1fr));}
+  .prow.r3{grid-template-columns:repeat(5, minmax(120px,1fr));}
+  .prow.r4{grid-template-columns:auto auto auto minmax(140px,1fr) auto;}
+  .fld{display:flex; flex-direction:column; gap:3px; min-width:0;}
+  .fld label{font-size:11px; color:var(--muted); font-weight:600; white-space:nowrap;}
+  .fld input, .fld select{border:1px solid var(--line); border-radius:6px; padding:5px 7px; font-size:12.5px;
+    font-family:inherit; background:#fff; min-width:0;}
+  .fld input:disabled, .fld select:disabled{background:#f2f4f7; color:#9aa3ad; cursor:not-allowed;}
+  .fld .why{font-size:10.5px; color:var(--amber);}
+  .btns{display:flex; gap:6px; align-items:flex-end;}
+  .btn{border:1px solid var(--line); background:#fff; color:var(--navy2); border-radius:6px; padding:6px 13px;
+    font-size:12.5px; font-family:inherit; cursor:pointer;}
+  .btn:hover{background:var(--soft);}
+  .btn.go{background:var(--navy); border-color:var(--navy); color:#fff; font-weight:600;}
+  .btn.go:hover{background:var(--navy2);}
+  .chips{display:flex; flex-wrap:wrap; gap:5px; align-items:center;}
+  .chip{border:1px solid var(--line); background:#fff; border-radius:12px; padding:3px 10px; font-size:11.5px;
+    cursor:pointer; user-select:none; color:var(--grey);}
+  .chip.on{background:var(--navy); border-color:var(--navy); color:#fff;}
+  .tog{display:flex; align-items:center; gap:4px; font-size:12px; color:var(--grey); cursor:pointer; white-space:nowrap;}
+
+  /* ── 표 위 안내·도구 ── */
+  .toolbar{display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; margin:10px 0 6px;}
+  .cap{font-size:12px; color:var(--muted);}
+  .cap b{color:var(--navy2);}
+  .cap.warn{color:var(--red);}
+  .tools{display:flex; gap:6px; align-items:center; flex-wrap:wrap;}
+  .tools .lb{font-size:11px; color:var(--muted); font-weight:600;}
+
+  /* ── 그리드: .grid__ 스코프는 건드리지 않고(§13.4) 이 화면 안에서만 폭·고정열을 얹는다 ── */
+  #listGrid .grid__scroll{max-height:none; height:calc(100vh - 330px); min-height:340px;}
+  #listGrid .grid__td, #listGrid .grid__th{white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  #listGrid .pl-fix1{position:sticky; left:0; background:#fff; z-index:2;}
+  #listGrid .pl-fix2{position:sticky; left:52px; background:#fff; z-index:2;}
+  #listGrid .grid__th.pl-fix1, #listGrid .grid__th.pl-fix2{z-index:4; background:var(--soft);}
+  #listGrid .muted{color:#a2abb5;}
+  #listGrid .tag{display:inline-block; font-size:10px; padding:0 5px; border-radius:8px; border:1px solid var(--line);
+    background:var(--soft); color:var(--grey); margin-left:3px;}
+  #listGrid .st-미발주{color:var(--amber); font-weight:600;}
+  #listGrid .st-발주{color:var(--navy2);}
+  #listGrid .st-부분입고{color:var(--accent);}
+  #listGrid .st-입고완료, #listGrid .st-매입완료{color:var(--green);}
+
+  .notice{background:var(--soft); border:1px solid var(--line); border-left:4px solid var(--accent);
+    border-radius:8px; padding:10px 14px; margin:12px 0; font-size:12.5px; color:var(--muted);}
+  .notice b{color:var(--navy2);}
+  .notice.amber{background:var(--softamber); border-color:#ecdcb8; border-left-color:var(--amber);}
+  .loading{text-align:center; color:var(--muted); padding:40px 10px; font-size:13.5px;}
+  code{font-family:Consolas,monospace; font-size:11px; background:var(--softgrey); border:1px solid var(--line);
+    border-radius:4px; padding:0 4px;}
+  .foot{margin-top:20px; padding-top:11px; border-top:1px solid var(--line); font-size:11px; color:var(--muted);
+    display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap;}
+  @media (max-width:1100px){
+    .prow.r1, .prow.r2, .prow.r3, .prow.r4{grid-template-columns:repeat(2, minmax(120px,1fr));}
+    #listGrid .pl-fix1, #listGrid .pl-fix2{position:static;}
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="head">
+    <div>
+      <h1>📑 발주통합관리 LIST <span style="font-size:13px;font-weight:400;color:var(--muted);">2026</span></h1>
+      <div class="sub">구매팀 운영 페이지 · <span class="badge">부서 전용</span> · 조회 전용(ERP 쓰기 없음) · 구매팀 엑셀 「발주통합관리 LIST」 대응</div>
+    </div>
+    <div class="right">ERP 미러 · <span data-qbar-asof>—</span> 기준</div>
+  </div>
+
+  <div class="navlinks">
+    <a href="/main">← 포털</a>
+    <a href="/work/purchase-orders">📋 발주·구매요청 진행현황(요약)</a>
+    <a href="/work/purchase-vendor">📦 거래처별 매입금액</a>
+    <a href="/work/inventory">🚚 재고 입·출고</a>
+    <a href="/work/item-duplicates">🔍 품목 조회</a>
+  </div>
+
+  <!-- 표준 조회 플랫폼 — 기간 축 없음(months:false). 기준일·기준·다시 조회만 맡는다 -->
+  <div id="qbar"></div>
+
+  <!-- 조회조건: 서버 원장 검색이라 조회바 extras 가 아니라 본문 패널에 둔다(§16.8) -->
+  <div class="panel" role="search" aria-label="발주통합 LIST 조회조건">
+    <div class="prow r1">
+      <div class="fld">
+        <label for="f_q">통합검색 <span style="font-weight:400;">— 구매요청번호·발주번호·품번·품목명·거래처·P-CODE·계약내역</span></label>
+        <input id="f_q" data-f="q" placeholder="번호를 붙여넣거나 이름 일부를 입력 (2글자 이상)" autocomplete="off">
+      </div>
+      <div class="btns">
+        <button class="btn go" id="bGo">조회</button>
+        <button class="btn" id="bReset">조건 초기화</button>
+      </div>
+      <div class="btns">
+        <button class="btn" id="bCsv" title="현재 조건에 맞는 전량을 CSV로 내려받습니다(화면 표시 수와 무관)">⬇ CSV</button>
+      </div>
+    </div>
+
+    <div class="prow r2">
+      <div class="fld"><label for="f_pr">구매요청번호</label><input id="f_pr" data-f="pr" placeholder="PR2026…" autocomplete="off"></div>
+      <div class="fld">
+        <label for="f_pu">구매요청결재번호</label>
+        <input id="f_pu" data-f="pu" placeholder="PU2026…" autocomplete="off" disabled>
+        <span class="why">ERP 원천 조사 중 — 연결 후 열립니다</span>
+      </div>
+      <div class="fld"><label for="f_po">발주번호(PONO.)</label><input id="f_po" data-f="po" placeholder="PO2026…" autocomplete="off"></div>
+      <div class="fld"><label for="f_item">품번</label><input id="f_item" data-f="item" autocomplete="off"></div>
+      <div class="fld"><label for="f_iname">품목명</label><input id="f_iname" data-f="iname" autocomplete="off"></div>
+    </div>
+
+    <div class="prow r3">
+      <div class="fld"><label for="f_bp">공급처</label><input id="f_bp" data-f="bp" autocomplete="off"></div>
+      <div class="fld"><label for="f_pcode">P-CODE</label><input id="f_pcode" data-f="pcode" placeholder="2026-013-NSY" autocomplete="off"></div>
+      <div class="fld"><label for="f_prj">계약내역(프로젝트)</label><input id="f_prj" data-f="prj" autocomplete="off"></div>
+      <div class="fld"><label for="f_reqp">요청자</label><input id="f_reqp" data-f="reqp" placeholder="생산팀_홍길동" autocomplete="off"></div>
+      <div class="fld"><label for="f_dept">요청부서</label><select id="f_dept" data-f="dept"><option value="">전체</option></select></div>
+    </div>
+
+    <div class="prow r4">
+      <div class="fld">
+        <label for="f_dbase">기간 기준</label>
+        <select id="f_dbase" data-f="dbase">
+          <option value="list">발주일(없으면 요청일)</option>
+          <option value="req">요청일</option>
+          <option value="dlvy">입고요청일</option>
+        </select>
+      </div>
+      <div class="fld"><label for="f_from">부터</label><input id="f_from" data-f="from" type="date"></div>
+      <div class="fld"><label for="f_to">까지</label><input id="f_to" data-f="to" type="date"></div>
+      <div class="fld">
+        <label>구분 · 상태</label>
+        <div class="chips" id="chipBox"></div>
+      </div>
+      <div class="fld">
+        <label>추가 조건</label>
+        <div class="chips">
+          <label class="tog"><input type="checkbox" id="f_noorder" data-f="noorder"> 미발주만</label>
+          <label class="tog"><input type="checkbox" id="f_norecv" data-f="norecv"> 미입고만</label>
+          <label class="tog"><input type="checkbox" id="f_overdue" data-f="overdue"> 납기경과·미입고</label>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="toolbar">
+    <div class="cap" id="cap">불러오는 중…</div>
+    <div class="tools">
+      <span class="lb">컬럼</span>
+      <button class="btn" id="bPreset" data-mode="basic" title="엑셀 23열 + 보조 5열 전체를 보려면 누르세요">기본 열</button>
+      <span class="lb" style="margin-left:6px;">표시</span>
+      <select id="selShow" class="btn" style="padding:5px 8px;">
+        <option value="300">300행</option>
+        <option value="1000">1,000행</option>
+        <option value="3000">3,000행</option>
+        <option value="0">전체</option>
+      </select>
+    </div>
+  </div>
+
+  <div id="listGrid"><div class="loading">발주·구매요청 목록을 불러오는 중…</div></div>
+
+  <div class="notice amber" id="pendNote"></div>
+
+  <div class="foot">
+    <span>구매팀 운영 페이지 · 발주통합관리 LIST</span>
+    <span>출처: ERP 미러 <code>v_erp_pur_list</code>(발주 라인 + 발주 없는 구매요청) · 공개범위: 부서 전용</span>
+  </div>
+</div>
+
+<script type="module">
+  import { erpApi } from "/app/lib/api.js";
+  import { createQueryBar } from "/app/lib/querybar.js";
+  import { createGrid } from "/app/lib/grid.js";
+
+  const $ = (id) => document.getElementById(id);
+  const esc = (t) => String(t == null ? "" : t).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const num = (n) => (n == null || n === "" ? "" : Number(n).toLocaleString("ko-KR"));
+  /* 날짜는 한국시간으로 본다 — 적재가 새벽(KST)에 돌면 UTC 로 자르면 하루 전이 찍힌다(REQ-0043). */
+  const KST = new Intl.DateTimeFormat("sv-SE", { timeZone: "Asia/Seoul", year: "numeric", month: "2-digit", day: "2-digit" });
+  const kst = (v) => (v ? KST.format(new Date(v)) : null);
+  const YEAR = Number(kst(Date.now()).slice(0, 4));
+
+  const GUBUN = ["원자재", "부자재", "소모품", "외주"];
+  const STATUS = ["미발주", "발주", "부분입고", "입고완료", "매입완료"];
+  const TEXT_FIELDS = ["q", "pr", "pu", "po", "item", "iname", "bp", "pcode", "prj", "reqp"];
+
+  let ROWS = [];          // 현재 조건으로 받은 전량(그리드의 검색·필터·CSV 는 이 전량 기준)
+  let GRID = null;
+  let PRESET = "basic";
+  let SHOW = 300;
+  let PICK = { gubun: new Set(), sts: new Set() };
+  let DEPTS = new Set();  // 요청부서 옵션 — 받은 데이터에서 누적(서버 왕복 추가 없음)
+  let reqSeq = 0;         // 늦게 도착한 옛 조회 결과를 버린다
+  let BAR = null;
+
+  /* ── 컬럼 정의: 엑셀 A~W 23개를 순서·이름 그대로 + 보조 4개(전체 프리셋에서만) ── */
+  const dash = '<span class="muted">—</span>';
+  const pend = () => '<span class="muted" title="ERP 추출 확장 대기 — 아래 안내 참조">—</span>';
+  const COLS = [
+    { key: "no",          label: "NO.",              width: "52px",  align: "right",  base: true, cssClass: "pl-fix1", filter: false, sortable: false },
+    { key: "gubun",       label: "구분",              width: "70px",  align: "center", base: true, cssClass: "pl-fix2",
+      formatter: (v, r) => (v ? esc(v) : '<span class="muted" title="' + esc("품목계정 " + (r.item_class || "?") + " 이름 미등재") + '">—</span>') },
+    { key: "pu_no",       label: "요청번호(결재)",     width: "128px", pending: true },
+    { key: "pr_no",       label: "구매요청번호",       width: "128px", base: true, formatter: (v) => (v ? "<code>" + esc(v) + "</code>" : dash) },
+    { key: "po_dt",       label: "발주일자",           width: "92px",  align: "center", base: true, formatter: (v) => (v ? esc(v) : dash) },
+    { key: "agent_nm",    label: "담당자",             width: "78px",  pending: true },
+    { key: "p_code",      label: "P-CODE",            width: "120px", base: true, formatter: (v) => (v ? esc(v) : dash) },
+    { key: "prj_nm",      label: "계약내역",           width: "240px", base: true,
+      formatter: (v) => (v ? '<span title="' + esc(v) + '">' + esc(v) + "</span>" : dash) },
+    { key: "bp_name",     label: "공급처",             width: "140px", base: true,
+      formatter: (v, r) => (v ? '<span title="' + esc((r.bp_code || "") + " " + v) + '">' + esc(v) + "</span>" : dash) },
+    { key: "po_no",       label: "PONO.",             width: "128px", base: true,
+      formatter: (v, r) => (v ? "<code>" + esc(v) + "</code>" + (r.po_seq != null ? '<span class="tag">' + esc(r.po_seq) + "</span>" : "") : dash) },
+    { key: "dlvy_dt",     label: "입고요청일",         width: "92px",  align: "center", base: true,
+      formatter: (v, r) => (v ? '<span title="' + esc("요청 희망납기" + (r.po_dlvy_dt && r.po_dlvy_dt !== v ? " · 발주 납기는 " + r.po_dlvy_dt : "")) + '">' + esc(v)
+        + (r.po_dlvy_dt && r.po_dlvy_dt !== v ? '<span class="tag">조정</span>' : "") + "</span>" : dash) },
+    { key: "iv_last_dt",  label: "입고일",             width: "96px",  align: "center", base: true,
+      formatter: (v, r) => {
+        if (v) return esc(v) + (r.iv_cnt > 1 ? '<span class="tag" title="' + esc("분할 매입 " + r.iv_cnt + "회 · " + r.iv_first_dt + " ~ " + r.iv_last_dt) + '">' + r.iv_cnt + "회</span>" : "");
+        if (Number(r.rcpt_qty) > 0) return '<span class="muted" title="입고수량은 있으나 매입(송장) 기록이 없어 날짜를 알 수 없습니다">입고(날짜 미보유)</span>';
+        return dash;
+      } },
+    { key: "whs_nm",      label: "입고처",             width: "92px",  pending: true },
+    { key: "hdr_remark",  label: "비고",              width: "180px", pending: true },
+    { key: "item_code",   label: "품번",              width: "136px", base: true, formatter: (v) => (v ? "<code>" + esc(v) + "</code>" : dash) },
+    { key: "item_name",   label: "품목명",             width: "210px", base: true,
+      formatter: (v) => (v ? '<span title="' + esc(v) + '">' + esc(v) + "</span>" : dash) },
+    { key: "spec",        label: "규격",              width: "200px",
+      formatter: (v) => (v ? '<span title="' + esc(v) + '">' + esc(v) + "</span>" : dash) },
+    { key: "qty",         label: "수량",              width: "72px",  align: "right",  base: true, formatter: (v) => num(v) || dash, exportValue: (v) => (v == null ? "" : v) },
+    { key: "unit",        label: "단위",              width: "54px",  align: "center", formatter: (v) => (v ? esc(v) : dash) },
+    { key: "price",       label: "단가",              width: "86px",  align: "right",  pending: true },
+    { key: "amt",         label: "금액",              width: "104px", align: "right",  base: true, formatter: (v) => num(v) || dash, exportValue: (v) => (v == null ? "" : v) },
+    { key: "req_user_nm", label: "요청자",             width: "136px", base: true, formatter: (v) => (v ? esc(v) : dash) },
+    { key: "dtl_remark",  label: "적요",              width: "180px", pending: true },
+    // ── 보조(엑셀에는 없지만 상태 판단에 필요) ──
+    { key: "status_kr",   label: "상태",              width: "78px",  align: "center", base: true, extra: true,
+      formatter: (v) => (v ? '<span class="st-' + esc(v) + '">' + esc(v) + "</span>" : dash) },
+    { key: "rcpt_qty",    label: "입고수량",           width: "76px",  align: "right",  extra: true, formatter: (v) => num(v) || dash, exportValue: (v) => (v == null ? "" : v) },
+    { key: "req_dept",    label: "요청부서",           width: "104px", extra: true, formatter: (v) => (v ? esc(v) : dash) },
+    { key: "req_dt",      label: "요청일",             width: "92px",  align: "center", extra: true, formatter: (v) => (v ? esc(v) : dash) },
+    { key: "po_dlvy_dt",  label: "발주납기",           width: "92px",  align: "center", extra: true,
+      formatter: (v) => (v ? esc(v) : '<span class="muted" title="발주 전">—</span>') },
+  ];
+  // ERP 추출 확장 대기 컬럼은 전부 같은 모양으로 비운다(빈칸을 값처럼 보이게 하지 않는다 · §16.6)
+  COLS.forEach((c) => { if (c.pending) { c.formatter = pend; c.exportValue = () => ""; c.filter = false; c.sortable = false; } });
+
+  const PENDING_LABELS = COLS.filter((c) => c.pending).map((c) => c.label);
+  const BASE_N = COLS.filter((c) => c.base).length;   // 기본 프리셋 열 수
+  const LABEL = { basic: "기본 " + BASE_N + "열", all: "전체 " + COLS.length + "열" };
+
+  /* ── 조건 읽기/쓰기/주소동기화 (품목중복 조회 선례) ── */
+  function readCond() {
+    const c = {};
+    TEXT_FIELDS.forEach((f) => { const v = ($('f_' + f) || {}).value; if (v && v.trim()) c[f] = v.trim(); });
+    const dept = $("f_dept").value; if (dept) c.dept = [dept];
+    c.dbase = $("f_dbase").value || "list";
+    const from = $("f_from").value, to = $("f_to").value;
+    if (from) c.from = from;
+    if (to) c.to = to;
+    if (PICK.gubun.size) c.gubun = [...PICK.gubun];
+    if (PICK.sts.size) c.sts = [...PICK.sts];
+    if ($("f_noorder").checked) c.noorder = 1;
+    if ($("f_norecv").checked) c.norecv = 1;
+    if ($("f_overdue").checked) c.overdue = 1;
+    return c;
+  }
+  function writeCond(c) {
+    c = c || {};
+    TEXT_FIELDS.forEach((f) => { const el = $('f_' + f); if (el) el.value = c[f] || ""; });
+    $("f_dept").value = (c.dept && c.dept[0]) || "";
+    $("f_dbase").value = c.dbase || "list";
+    $("f_from").value = c.from || (YEAR + "-01-01");
+    $("f_to").value = c.to || (YEAR + "-12-31");
+    PICK.gubun = new Set(c.gubun || []);
+    PICK.sts = new Set(c.sts || []);
+    $("f_noorder").checked = !!c.noorder;
+    $("f_norecv").checked = !!c.norecv;
+    $("f_overdue").checked = !!c.overdue;
+    renderChips();
+  }
+  function syncUrl(c) {
+    const p = new URLSearchParams();
+    Object.keys(c).forEach((k) => {
+      const v = c[k];
+      if (v == null || v === "" ) return;
+      if (Array.isArray(v)) { if (v.length) p.set(k, v.join("|")); return; }
+      p.set(k, String(v));
+    });
+    try { history.replaceState(null, "", location.pathname + (p.toString() ? "?" + p : "")); } catch (e) {}
+  }
+  function condFromUrl() {
+    const p = new URLSearchParams(location.search);
+    if (![...p.keys()].length) return null;
+    const c = {};
+    TEXT_FIELDS.forEach((f) => { if (p.get(f)) c[f] = p.get(f); });
+    ["dept", "gubun", "sts"].forEach((k) => { if (p.get(k)) c[k] = p.get(k).split("|").filter(Boolean); });
+    ["dbase", "from", "to"].forEach((k) => { if (p.get(k)) c[k] = p.get(k); });
+    ["noorder", "norecv", "overdue"].forEach((k) => { if (p.get(k)) c[k] = 1; });
+    return c;
+  }
+
+  function renderChips() {
+    const box = $("chipBox");
+    box.innerHTML =
+      GUBUN.map((g) => '<span class="chip' + (PICK.gubun.has(g) ? " on" : "") + '" data-chip="gubun" data-v="' + esc(g) + '">' + esc(g) + "</span>").join("")
+      + '<span style="width:8px"></span>'
+      + STATUS.map((s) => '<span class="chip' + (PICK.sts.has(s) ? " on" : "") + '" data-chip="sts" data-v="' + esc(s) + '">' + esc(s) + "</span>").join("");
+  }
+
+  function fillDepts() {
+    const sel = $("f_dept"), cur = sel.value;
+    const list = [...DEPTS].filter(Boolean).sort((a, b) => a.localeCompare(b, "ko"));
+    sel.innerHTML = '<option value="">전체</option>' + list.map((d) => '<option value="' + esc(d) + '">' + esc(d) + "</option>").join("");
+    sel.value = cur;
+  }
+
+  /* ── 조회 ── */
+  async function load(reason) {
+    const c = readCond();
+    syncUrl(c);
+    const my = ++reqSeq;
+    const rows = await erpApi.purList(c);
+    if (my !== reqSeq) return;          // 더 늦게 시작한 조회가 있으면 이 결과는 버린다
+    ROWS = rows;
+    rows.forEach((r) => { if (r.req_dept) DEPTS.add(r.req_dept); });
+    fillDepts();
+    renderGrid();
+    const byNo = !!(c.pr || c.po || c.pu);
+    renderCap(byNo);
+  }
+
+  function renderCap(byNo) {
+    const n = ROWS.length, shown = SHOW === 0 ? n : Math.min(SHOW, n);
+    const cap = $("cap");
+    let s = "조건 결과 <b>" + num(n) + "건</b>";
+    if (shown < n) s += " 중 <b>상위 " + num(shown) + "건</b>을 화면에 그립니다 — 표 안 검색·정렬·CSV 는 " + num(n) + "건 <b>전량</b> 기준입니다";
+    else s += " 전부 표시";
+    if (byNo) s += ' · <span style="color:var(--amber)">번호로 찾을 때는 기간 조건을 무시합니다</span>';
+    if (n >= 20000) { cap.className = "cap warn"; s += " · ⚠ 수신 상한(20,000행)에 걸렸습니다 — 조건을 좁혀 주세요"; }
+    else cap.className = "cap";
+    cap.innerHTML = s;
+  }
+
+  function renderGrid() {
+    const cols = COLS.filter((c) => (PRESET === "basic" ? c.base : true));
+    if (GRID) { GRID.destroy(); GRID = null; }
+    $("listGrid").innerHTML = "";
+    GRID = createGrid("#listGrid", {
+      columns: cols, rows: ROWS, keyField: null,
+      search: true, columnFilter: true, sortable: true,
+      editable: false, paste: false, selectable: false,
+      exportCsv: true, copy: true, exportName: "발주통합관리LIST_" + YEAR + "_" + kst(Date.now()).replace(/-/g, ""),
+      stickyHeader: true, keyboardNav: false,
+      pageSize: SHOW,                  // 렌더만 자른다 — 검색·정렬·CSV 는 전량 기준(grid.js:145 vs :318)
+      emptyText: "조건에 맞는 자료가 없습니다.",
+    });
+  }
+
+  /* ── 대기 컬럼 안내: 무엇이 왜 비어 있는지 화면이 스스로 밝힌다 ── */
+  $("pendNote").innerHTML =
+    "⚠ <b>아직 비어 있는 칸 " + PENDING_LABELS.length + "개 — " + PENDING_LABELS.map(esc).join(" · ") + "</b><br>"
+    + "<b>요청번호(결재)</b> 는 ERP 구매 테이블에 결재번호 컬럼이 없어(사전 실측) 원천을 조사하는 중입니다. "
+    + "<b>담당자·입고처·비고·단가·적요</b> 는 ERP 원천에는 있으나 미러 추출에서 빠져 있어, 추출 확장 후 같은 자리에 채워집니다. "
+    + "엑셀 「발주일자」 칸의 <code>선진행</code> 같은 수기 메모(3,128건)와 「입고일」의 <code>Y</code>·<code>완료</code>(77건)는 "
+    + "ERP 에 없는 값이라 이 화면에 없습니다 — 웹에서 직접 적는 기능은 별도 승인 후 추가합니다.<br>"
+    + "「구분」의 <b>외주</b> 는 현재 판정할 수 없어 품목계정(원자재·부자재·소모품)으로만 나옵니다 — 미러의 외주구분이 전건 'N' 이라 ERP 발주유형 실측이 필요합니다.<br>"
+    + "엑셀과 값이 다를 수 있는 칸 — <b>입고일</b>은 <b>매입(송장) 기준</b>이라 실제 입고일과 다를 수 있습니다(입고 여부는 「입고수량」으로 판단). "
+    + "<b>입고요청일</b>은 요청 희망납기이고, 발주 때 협력사와 조정된 날짜는 전체 컬럼의 「발주납기」에 따로 있습니다(조정된 행에는 <span class=\"tag\">조정</span> 표시). "
+    + "<b>공급처</b>는 <b>발주가 난 행만</b> 있습니다 — ERP 구매요청에는 공급처 칸이 전건 비어 있어(실측) 미발주 행의 예정 거래처는 알 수 없습니다. "
+    + "<b>계약내역</b>은 ERP 프로젝트명이라 엑셀처럼 고객사명이 앞에 붙지 않습니다. "
+    + "<b>수량·금액</b>은 ERP 현재값이라 취소·정정된 건은 엑셀과 다를 수 있습니다(엑셀은 요청 당시 값을 그대로 둡니다).";
+
+  /* ── 이벤트 ── */
+  $("bGo").onclick = () => BAR && BAR.refresh();
+  $("bReset").onclick = () => { writeCond({}); DEPTS = new Set(); if (BAR) BAR.refresh(); $("f_q").focus(); };
+  $("bCsv").onclick = () => GRID && GRID.exportCsv();
+  $("bPreset").onclick = (e) => {
+    PRESET = PRESET === "basic" ? "all" : "basic";
+    e.currentTarget.textContent = LABEL[PRESET];
+    renderGrid();
+  };
+  $("selShow").onchange = (e) => { SHOW = Number(e.target.value) || 0; renderGrid(); renderCap(false); };
+  $("chipBox").onclick = (e) => {
+    const t = e.target.closest("[data-chip]"); if (!t) return;
+    const set = PICK[t.dataset.chip];
+    if (set.has(t.dataset.v)) set.delete(t.dataset.v); else set.add(t.dataset.v);
+    renderChips(); BAR && BAR.refresh();
+  };
+  // Enter 는 keyup 으로 받는다 — 한글 조합 중 keydown Enter 를 먹으면 두 번 눌러야 조회된다
+  document.querySelectorAll(".panel input[type=text], .panel input:not([type])").forEach((el) => {
+    el.addEventListener("keyup", (ev) => { if (ev.key === "Enter" && !ev.isComposing) BAR && BAR.refresh(); });
+  });
+  ["f_dept", "f_dbase", "f_from", "f_to"].forEach((id) => { $(id).onchange = () => BAR && BAR.refresh(); });
+  ["f_noorder", "f_norecv", "f_overdue"].forEach((id) => { $(id).onchange = () => BAR && BAR.refresh(); });
+
+  /* ── 기동 ── */
+  $("bPreset").textContent = LABEL.basic;
+  writeCond(condFromUrl() || {});
+  let ASOF_DONE = false;
+  BAR = createQueryBar("#qbar", {
+    months: false,                       // 기간 축은 검색 패널이 맡는다(기준을 고를 수 있어야 해서)
+    basis: "ERP 미러 · 발주 라인 + 발주 없는 구매요청",
+    mode: "live",
+    refreshLabel: "다시 조회",
+    onQuery: async (q, ctx) => {
+      try {
+        await load(ctx.reason);
+        if (!ASOF_DONE) {
+          const asof = await erpApi.dataAsof();
+          const ts = [asof.pur_order?.last_success, asof.pur_req?.last_success].filter(Boolean).sort().pop();
+          if (ts) { ctx.bar.setMeta({ asOf: kst(ts) }); ASOF_DONE = true; }
+        }
+      } catch (e) {
+        $("listGrid").innerHTML = '<div class="notice">목록을 불러오지 못했습니다. 사내 계정으로 로그인했는지 확인해 주세요.<br>'
+          + '<span style="color:#99a2ad;">' + esc(e?.message || "") + "</span></div>";
+        $("cap").textContent = "";
+        throw e;
+      }
+    },
+  });
+</script>
+</body>
+</html>

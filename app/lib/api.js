@@ -489,6 +489,58 @@ export const erpApi = {
     if (error) throw error;
     return (data || []).map((r) => ({ ...r, req_qty: Number(r.req_qty) || 0 }));
   },
+  /* 구매팀 발주통합관리 LIST(REQ-0069) — 구매팀 엑셀 23컬럼을 그대로 재현하는 목록.
+     원천 뷰 `v_erp_pur_list` = 발주 라인 + 발주 없는 구매요청(2026 실측 4,609 + 985 = 5,594행).
+     거르기는 **서버에서** 한다 — 전 컬럼을 브라우저로 내려 거르면 2~4MB 라 첫 화면이 느려진다.
+     ⚠ 번호(pr·po·pu)가 들어오면 **기간을 무시**한다. 번호를 아는데 기간 때문에 못 찾는 사고를 막는다.
+     정렬은 (list_dt desc, po_no, po_seq, pr_no) — 페이징이 겹치거나 빠지지 않게 유일해야 한다. */
+  async purList(cond = {}) {
+    const c = cond || {};
+    // PostgREST or=(…) 안에서는 쉼표·괄호가 구분자다. 품목명에 쉼표가 흔해 공백으로 눕힌다(검색 결과는 같다).
+    const orSafe = (v) => String(v == null ? "" : v).replace(/[,()*]/g, " ").trim();
+    const byNo = !!(c.pr || c.po || c.pu);
+    const dateCol = c.dbase === "req" ? "req_dt" : c.dbase === "dlvy" ? "dlvy_dt" : "list_dt";
+    const rows = await this._pageAll(() => {
+      let q = supabase.from("v_erp_pur_list").select("*")
+        .order("list_dt", { ascending: false })
+        .order("po_no", { ascending: false, nullsFirst: false })
+        .order("po_seq", { ascending: true })
+        .order("pr_no", { ascending: true });
+      if (!byNo) {
+        if (c.from) q = q.gte(dateCol, c.from);
+        if (c.to) q = q.lte(dateCol, c.to);
+      }
+      if (c.pr) q = q.ilike("pr_no", "%" + c.pr.trim() + "%");
+      if (c.po) q = q.ilike("po_no", "%" + c.po.trim() + "%");
+      if (c.pu) q = q.ilike("pu_no", "%" + c.pu.trim() + "%");
+      if (c.item) q = q.ilike("item_code", "%" + c.item.trim() + "%");
+      if (c.iname) q = q.ilike("item_name", "%" + c.iname.trim() + "%");
+      if (c.pcode) q = q.ilike("p_code", "%" + c.pcode.trim() + "%");
+      if (c.prj) q = q.ilike("prj_nm", "%" + c.prj.trim() + "%");
+      if (c.reqp) q = q.ilike("req_user_nm", "%" + c.reqp.trim() + "%");
+      if (c.bp) { const v = orSafe(c.bp); if (v) q = q.or(`bp_name.ilike.%${v}%,bp_code.ilike.%${v}%`); }
+      if (c.dept && c.dept.length) q = q.in("req_dept", c.dept);
+      if (c.gubun && c.gubun.length) q = q.in("gubun", c.gubun);
+      if (c.sts && c.sts.length) q = q.in("status_kr", c.sts);
+      if (c.noorder) q = q.eq("is_unordered", true);
+      if (c.norecv) q = q.eq("is_unreceived", true);
+      if (c.overdue) q = q.eq("overdue_unreceived", true);
+      if (c.q) {
+        const v = orSafe(c.q);
+        if (v) q = q.or(["pr_no", "po_no", "item_code", "item_name", "bp_name", "p_code", "prj_nm"]
+          .map((k) => `${k}.ilike.%${v}%`).join(","));
+      }
+      return q;
+    }, { page: 1000, cap: 20000 });
+    // 표시용 순번은 받은 뒤에 붙인다(정렬·필터에 따라 바뀌는 값이라 뷰에 두지 않는다 — 엑셀 A열 대응)
+    return rows.map((r, i) => ({
+      ...r, no: i + 1,
+      qty: r.qty == null ? null : Number(r.qty),
+      amt: r.amt == null ? null : Number(r.amt),
+      price: r.price == null ? null : Number(r.price),
+      rcpt_qty: r.rcpt_qty == null ? null : Number(r.rcpt_qty),
+    }));
+  },
   // 데이터 기준시각(job별 최신 성공): { sales:{last_success,rows_upserted}, ... }
   async dataAsof() {
     const { data, error } = await supabase.from("v_erp_data_asof").select("*");
