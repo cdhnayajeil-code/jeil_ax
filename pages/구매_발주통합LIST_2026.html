@@ -195,8 +195,7 @@
       <div class="fld"><label for="f_pr">구매요청번호</label><input id="f_pr" data-f="pr" placeholder="PR2026…" autocomplete="off"></div>
       <div class="fld">
         <label for="f_pu">구매요청결재번호</label>
-        <input id="f_pu" data-f="pu" placeholder="PU2026…" autocomplete="off" disabled>
-        <span class="why">해당 기간에 결재번호가 없습니다</span>
+        <input id="f_pu" data-f="pu" placeholder="PU2026…" autocomplete="off">
       </div>
       <div class="fld"><label for="f_po">발주번호(PONO.)</label><input id="f_po" data-f="po" placeholder="PO2026…" autocomplete="off"></div>
       <div class="fld"><label for="f_item">품번</label><input id="f_item" data-f="item" autocomplete="off"></div>
@@ -504,9 +503,10 @@
     cap.innerHTML = s;
   }
 
-  /* 값이 들어온 대기 칸은 검색조건도 같이 열어 준다(결재번호 칸의 「조사 중」 꼬리표를 지운다).
-     대기 컬럼 ↔ 검색 입력칸 대응 — 현재는 결재번호 한 쌍뿐이다. */
-  const PEND_INPUT = { pu_no: "f_pu" };
+  /* 값이 들어온 대기 칸은 검색조건도 같이 열어 준다(대기 컬럼 ↔ 검색 입력칸 대응).
+     결재번호는 2026-09-22 원천을 찾아 상시 컬럼이 됐으므로 여기서 뺐다 —
+     ⚠ 대기(pending)를 푸는 컬럼은 이 표에서도 같이 빼야 한다. 안 그러면 검색칸이 잠긴 채 남는다. */
+  const PEND_INPUT = {};
   function syncPendingInputs() {
     Object.entries(PEND_INPUT).forEach(([key, id]) => {
       const el = $(id); if (!el) return;
