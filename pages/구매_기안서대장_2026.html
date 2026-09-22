@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script>window.PAGE_KEY='purchase_proposal_2026';</script>
+<script src="/pages/_access-gate.js"></script>
+<title>구매팀 — 2026년 기안서 대장</title>
+<link rel="stylesheet" href="/app/lib/querybar.css">
+<link rel="stylesheet" href="/app/lib/grid.css">
+<style>
+  :root{
+    --navy:#1a2f4e; --navy2:#27457a; --accent:#2f6fb3; --accent2:#4a8ed0;
+    --red:#b3402f; --green:#2e7d52; --amber:#9a6b1f;
+    --ink:#222; --muted:#666; --line:#d8dee8; --bg:#f4f6f9;
+    --soft:#eef2f8; --softred:#fbeeec; --softgreen:#ecf5f0; --softamber:#faf3e4;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif; color:var(--ink); background:var(--bg); line-height:1.6; font-size:14px;}
+  .draft-banner{background:var(--amber); color:#fff; text-align:center; font-size:12px; padding:6px 10px;}
+  .page{max-width:1240px; margin:0 auto; background:#fff; padding:34px 44px; box-shadow:0 2px 14px rgba(0,0,0,.08); min-height:100vh;}
+  .head{display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:10px; border-bottom:3px solid var(--navy); padding-bottom:14px; margin-bottom:20px;}
+  .head h1{font-size:22px; color:var(--navy);}
+  .head .sub{font-size:12.5px; color:var(--muted); margin-top:3px;}
+  .head .right{text-align:right; font-size:12px; color:var(--muted);}
+  .badge{display:inline-block; font-size:11px; border-radius:10px; padding:2px 9px; font-weight:600;}
+  .badge.g{background:var(--softgreen); color:var(--green);} .badge.a{background:var(--softamber); color:var(--amber);}
+  .badge.b{background:var(--soft); color:var(--navy2);} .badge.r{background:var(--softred); color:var(--red);}
+  .kpis{display:grid; grid-template-columns:repeat(auto-fit,minmax(178px,1fr)); gap:12px; margin:14px 0;}
+  .kpi{background:#fff; border:1px solid var(--line); border-radius:11px; padding:14px 16px; border-top:4px solid var(--accent);}
+  .kpi.warn{border-top-color:var(--amber);} .kpi.bad{border-top-color:var(--red);} .kpi.ok{border-top-color:var(--green);}
+  .kpi .lb{font-size:11.5px; color:var(--muted);}
+  .kpi .v{font-size:23px; font-weight:800; color:var(--navy); margin-top:3px;}
+  .kpi .v small{font-size:12px; color:var(--muted); font-weight:500;}
+  .kpi .delta{font-size:11px; margin-top:2px; color:var(--muted);}
+  .kpi .delta.r{color:var(--red);} .kpi .delta.g{color:var(--green);}
+  .grid2{display:grid; grid-template-columns:1fr 1fr; gap:16px;}
+  .sec{background:#fff; border:1px solid var(--line); border-radius:11px; padding:16px 18px; margin-bottom:14px;}
+  .sec h3{font-size:13.5px; color:var(--navy); margin-bottom:4px;}
+  .sec .note{font-size:11px; color:var(--muted); margin-bottom:10px;}
+  table{width:100%; border-collapse:collapse; font-size:12.5px;}
+  th{background:var(--navy); color:#fff; padding:7px 10px; text-align:left; font-weight:600;}
+  td{padding:6px 10px; border-bottom:1px solid var(--line);}
+  tr:nth-child(even) td{background:#fafbfd;}
+  td.r,th.r{text-align:right;} td.c,th.c{text-align:center;}
+  tr.dim td{opacity:.42;}
+  .chart{display:flex; align-items:flex-end; gap:10px; height:186px; padding:8px 4px 0; border-bottom:2px solid var(--navy); margin:6px 0 4px;}
+  .cbar{flex:1; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; gap:4px; height:100%;}
+  .cbar .stackbar{width:66%; display:flex; flex-direction:column; justify-content:flex-end; border-radius:4px 4px 0 0; overflow:hidden;}
+  .cbar .stackbar .done{background:linear-gradient(180deg,var(--accent2),var(--accent));}
+  .cbar .stackbar .open{background:repeating-linear-gradient(45deg,#e0b877,#e0b877 5px,#efd4a6 5px,#efd4a6 10px);}
+  .cbar .val{font-size:10.5px; font-weight:700; color:var(--navy2);}
+  .cbar .lab{font-size:10.5px; color:var(--muted); padding:4px 0 0;}
+  .cbar.qbar-on .val{color:var(--red);}
+  .legend{display:flex; gap:14px; font-size:11px; color:var(--muted); margin-top:6px; flex-wrap:wrap;}
+  .legend i{display:inline-block; width:11px; height:11px; border-radius:2px; margin-right:4px; vertical-align:-1px;}
+  .barlist{display:flex; flex-direction:column; gap:7px;}
+  .brow{display:grid; grid-template-columns:118px 1fr 92px; align-items:center; gap:8px; font-size:12px;}
+  .brow .lab{color:var(--navy2); text-align:right; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .brow .track{height:15px; background:var(--soft); border-radius:4px; overflow:hidden; display:flex;}
+  .brow .track i{display:block; height:100%; background:linear-gradient(90deg,var(--accent),var(--accent2)); min-width:2px;}
+  .brow .track i.open{background:linear-gradient(90deg,#c08a2e,#e0b877);}
+  .brow .cnt{font-weight:700; color:var(--navy); text-align:right; font-size:11.5px;}
+  .src{margin-top:18px; background:var(--soft); border:1px solid var(--line); border-radius:9px; padding:13px 18px; font-size:11.5px; color:var(--muted);}
+  .src b{color:var(--navy2);} .src ul{margin:6px 0 0 16px;} .src li{margin:3px 0;}
+  code{font-family:Consolas,monospace; font-size:11px; background:#fff; border:1px solid var(--line); border-radius:4px; padding:0 5px;}
+  .callout{border-radius:8px; padding:11px 15px; margin:10px 0; font-size:12.5px;}
+  .callout.amber{background:var(--softamber); border-left:4px solid var(--amber);}
+  .callout.blue{background:var(--soft); border-left:4px solid var(--accent);}
+  .callout b{color:var(--navy2);}
+  .loading{text-align:center; color:var(--muted); padding:46px 10px; font-size:13.5px;}
+  .foot{margin-top:24px; padding-top:12px; border-top:1px solid var(--line); font-size:11px; color:var(--muted); display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap;}
+  /* 관리대상 그리드 — 위험도 행 강조 (.grid__ 스코프만 건드린다 §13.4) */
+  #mgGrid .grid__row.row-long td{background:var(--softred);}
+  #mgGrid .grid__row.row-scan td{background:var(--softamber);}
+  #mgGrid .pill{display:inline-block; font-size:10.5px; border-radius:9px; padding:1px 7px; font-weight:700;}
+  #mgGrid .pill.r{background:var(--softred); color:var(--red);}
+  #mgGrid .pill.g{background:var(--softgreen); color:var(--green);}
+  #mgGrid .pill.a{background:var(--softamber); color:var(--amber);}
+  .fitbtn{float:right; border:1px solid var(--line); background:#fff; border-radius:7px; font-size:11.5px;
+          padding:3px 10px; cursor:pointer; color:var(--navy2); font-weight:600;}
+  .fitbtn[aria-pressed="true"]{background:var(--navy); border-color:var(--navy); color:#fff;}
+  #mgGrid .ecm{border:1px solid var(--line); background:#fff; border-radius:6px; font-size:10.5px; padding:1px 6px; cursor:pointer; color:var(--navy2);}
+  @media print{ .draft-banner{display:none;} .page{box-shadow:none; max-width:100%;} }
+  @media (max-width:900px){ .page{padding:22px 16px;} .grid2{grid-template-columns:1fr;} .brow{grid-template-columns:92px 1fr 78px;} }
+</style>
+</head>
+<body>
+<div class="draft-banner">초안(draft) — 구매팀 「기안서 목록대장(2026)」 추출본 분석 화면. 관리 대상 169건만 담겨 있고, 전체 830건 조회는 대장 실연동(중간DB) 이후입니다.</div>
+<div class="page">
+
+  <div class="head">
+    <div>
+      <h1>📝 기안서 대장<span class="qbar-period" data-qbar-period></span></h1>
+      <div class="sub">구매팀 운영 페이지 · <span class="badge b">부서 전용</span> <span class="badge a">초안</span></div>
+    </div>
+    <div class="right">
+      원천: 구매팀 기안서 목록대장(Teams 정본)<br>
+      스캔본: 문서중앙화 <code>system.filename:{권}-{번호}.pdf</code>
+    </div>
+  </div>
+
+  <!-- 표준 조회 플랫폼 (app/lib/querybar.js §16) -->
+  <div id="qbar"></div>
+
+  <!-- 기간·조건에 반응하는 영역 -->
+  <div id="app"><div class="loading">대장 분석 결과를 불러오는 중…</div></div>
+
+  <!-- 관리 대상 목록 (표준 그리드 §13) — 재렌더 영역 밖 -->
+  <div class="sec">
+    <h3>🔎 관리 대상 <span id="mgCount" class="badge b">—</span><button type="button" id="bFit" class="fitbtn" title="모든 열을 화면 폭 안에 넣습니다">↔ 화면맞춤</button></h3>
+    <div class="note">
+      미종결·부분종결·스캔본 누락 건을 모았다. <b>1행 = 1건</b>(권-번호)이고, 대장에서 업체·품목별로 쪼개진
+      행은 <code>행수</code>·<code>미발행</code> 칸에 합쳐 두었다. <code>스캔</code>의 <b>검색어</b> 버튼을 누르면
+      문서중앙화 검색어가 클립보드에 복사된다.
+    </div>
+    <div id="mgGrid"></div>
+  </div>
+
+  <!-- 연간 고정 집계 -->
+  <div id="fixed"></div>
+
+  <div class="src">
+    <b>데이터 원천과 연계 설계</b>
+    <ul>
+      <li><b>대장 정본</b>은 Teams(SharePoint)의 <code>기안서 목록대장(2026).xlsx</code> 다. 사내 공유드라이브 사본은 낡아 있어 참조하지 않는다.</li>
+      <li><b>연결 키는 <code>{권}-{번호}</code></b> 다. 권은 100건 묶음의 <b>물리 바인더</b>이지 날짜 구간이 아니고,
+          번호 순서가 날짜 순서와 일치하지도 않는다(829건 중 402건 역전). <b>날짜로 스캔본을 역추적하면 안 된다.</b></li>
+      <li><b>스캔본</b>은 문서중앙화 보호 영역에 있어 이 화면은 <b>파일을 품지 않고 검색어만</b> 만든다.
+          실파일 반출은 별도 승인 사안이다.</li>
+      <li><b>ERP 접점</b>: 대장의 전표번호(<code>TG…</code> 821건 · <code>IV…</code> 123건)가 결의전표·매입과 붙는 칸이다.
+          연동 1단계는 <b>메타데이터만</b>(대장 + 스캔본 목록) 중간DB에 적재해 누락 감시·리드타임 관리를 얻는다.</li>
+      <li><b>제안 테이블</b>: <code>pur_proposal</code>(권·번호·일자·기안자·생산번호·고객사·업체·금액·<b>통화</b>·종결여부·전표번호 3종),
+          <code>pur_proposal_scan</code>(권·번호·파일명·크기·수정일·매칭). 통화 컬럼은 <b>신설이 필요</b>하다 — 현 대장에 없다.</li>
+    </ul>
+  </div>
+
+  <div class="foot">
+    <span>구매팀 운영 페이지 · 기안서 대장(초안)</span>
+    <span>등록: 구매팀 · 공개범위: 부서 전용 · 기준 <span data-qbar-asof>—</span></span>
+  </div>
+</div>
+
+<script type="module">
+  import { createQueryBar } from "/app/lib/querybar.js";
+  import { createGrid } from "/app/lib/grid.js";
+
+  /* 화면 시드 — 대장(2026-09-21 정본) + 스캔본 대사(2026-09-22)에서 뽑은 집계와 관리 대상.
+     종결 완료 663건의 건별 상세는 담지 않는다(실연동 후 중간DB 조회). */
+  const S = {"asof":"2026-09-21","scanAsof":"2026-09-22","kpi":{"cases":830,"lines":1102,"closed":663,"open":166,"partial":1,"noslip_lines":191,"noslip_cases":147,"scan_miss":11,"amt_total":12172658158,"amt_open":6635145177,"long_open":34,"amt_long_open":1430514138},"mon":{"2026-01":{"cases":47,"amt":425497877,"open":0},"2026-02":{"cases":44,"amt":1089066500,"open":2},"2026-03":{"cases":67,"amt":794671600,"open":5},"2026-04":{"cases":99,"amt":829642142,"open":4},"2026-05":{"cases":101,"amt":657071670,"open":6},"2026-06":{"cases":141,"amt":584982815,"open":7},"2026-07":{"cases":116,"amt":1487595810,"open":14},"2026-08":{"cases":126,"amt":4772774868,"open":49},"2026-09":{"cases":88,"amt":1526354876,"open":80},"미상":{"cases":1,"amt":5000000,"open":0}},"vol":{"1":{"cases":100,"scan":99,"open":4,"amt":1685316077,"from":"2026-01-05","to":"2026-03-16"},"2":{"cases":100,"scan":100,"open":5,"amt":690639068,"from":"2026-02-26","to":"2026-04-20"},"3":{"cases":100,"scan":100,"open":4,"amt":1032268836,"from":"2026-04-17","to":"2026-05-18"},"4":{"cases":100,"scan":100,"open":5,"amt":593043084,"from":"2026-05-15","to":"2026-06-10"},"5":{"cases":100,"scan":100,"open":6,"amt":646211915,"from":"2026-05-14","to":"2026-07-02"},"6":{"cases":100,"scan":100,"open":13,"amt":1106982344,"from":"2026-06-30","to":"2026-07-29"},"7":{"cases":100,"scan":99,"open":25,"amt":2480358068,"from":"2026-07-10","to":"2026-08-25"},"8":{"cases":100,"scan":98,"open":75,"amt":3729709130,"from":"2026-08-13","to":"2026-09-11"},"9":{"cases":30,"scan":23,"open":30,"amt":208129636,"from":"2026-09-10","to":"2026-09-18"}},"by":{"정희원":{"cases":399,"open":91,"amt":6775979740},"김윤정":{"cases":93,"open":1,"amt":582438540},"차상우":{"cases":28,"open":2,"amt":579688500},"장민지":{"cases":240,"open":11,"amt":1152896448},"박태랑":{"cases":70,"open":62,"amt":3081654930}},"cust":[{"cust":"엔시스","cases":311,"amt":1840994411},{"cust":"삼성SDI 계열","cases":261,"amt":6396934734},{"cust":"StarPlus Energy","cases":57,"amt":2183810370},{"cust":"LIG넥스원","cases":50,"amt":814493310},{"cust":"(미기재)","cases":36,"amt":56769794},{"cust":"한화 계열","cases":28,"amt":358601500},{"cust":"제뉴원사이언스","cases":16,"amt":14409802},{"cust":"에스티엠㈜","cases":12,"amt":7422277},{"cust":"CMTECH CHINA","cases":12,"amt":74787060},{"cust":"서브원","cases":8,"amt":42396000}],"vendor":[{"v":"(주)삼성에스티","cases":66,"amt":333891987},{"v":"주식회사 대신스텐레스","cases":62,"amt":345384100},{"v":"오성테크","cases":52,"amt":34741308},{"v":"이천베아링","cases":39,"amt":48060000},{"v":"선준테크(주)","cases":34,"amt":73831570},{"v":"경인SNS, 경인엔지니어링","cases":33,"amt":97676200},{"v":"주식회사 신호종합배관","cases":32,"amt":16876400},{"v":"(주)우주기계","cases":29,"amt":476120000},{"v":"(주)의성쎄니타리","cases":29,"amt":20463850},{"v":"(주)서일스텐","cases":24,"amt":56176680}],"quality":{"date_str":1,"amt_str":6,"amt_neg":1,"slip_dirty":7,"slip_tg":821,"slip_iv":123,"proj_blank":58,"cust_variants":46,"memo":4},"lead":{"n":876,"med":9,"p90":32,"neg":90},"rows":[{"key":"1-42","g":1,"n":42,"date":"2026-02-11","m":"02","age":223,"by":"정희원","cust":"StarPlus Energy","job":"2023-020-SIN","vendor":"(주)지스타텍","desc":"현장 파견","amt":18000000,"amtTxt":"","closed":"Y","lines":1,"nslip":0,"scan":"NONE","risk":"scan"},{"key":"1-78","g":1,"n":78,"date":"2026-02-24","m":"02","age":210,"by":"차상우","cust":"동국제약","job":"2026-016-FPH-CS","vendor":"이글버그만코리아(주)","desc":"MECHANICAL SEAL 구매","amt":6000000,"amtTxt":"","closed":"N","lines":1,"nslip":1,"scan":"OK","risk":"long"},{"key":"1-89","g":1,"n":89,"date":"2026-02-25","m":"02","age":209,"by":"김윤정","cust":"LG에너지솔루션","job":"2022-257","vendor":"주식회사 씨제이케이","desc":"DI-WATER 생성기 (RO UNIT) 계약금액 변경","amt":309000000,"amtTxt":"","closed":"N","lines":1,"nslip":0,"scan":"OK","risk":"long"},{"key":"1-87","g":1,"n":87,"date":"2026-03-03","m":"03","age":203,"by":"정희원","cust":"삼성SDI 계열","job":"2025-103-SGH-CO1","vendor":"(주)선명테크","desc":"플랙시블 암후드 발주","amt":1000000,"amtTxt":"","closed":"N","lines":1,"nslip":1,"scan":"OK","risk":"long"},{"key":"1-96","g":1,"n":96,"date":"2026-03-04","m":"03","age":202,"by":"정희원","cust":"한화 계열","job":"2025-114-HAS-I","vendor":"티유브이 슈드 코리아","desc":"인증 컨설팅 외주","amt":136000000,"amtTxt":"","closed":"N","lines":1,"nslip":1,"scan":"OK","risk":"long"},{"key":"2-129","g":2,"n":129,"date":"2026-03-11","m":"03","age":195,"by":"차상우","cust":"StarPlus Energy","job":"2023-020-SIN","vendor":"그린아이엘에스㈜","desc":"SPE 공사 재개로 인한 현지업체 유니온 인력투입 외주","amt":409000000,"amtTxt":"","closed":"N","lines":1,"nslip":0,"scan":"OK","risk":"long"},{"key":"2-139","g":2,"n":139,"date":"2026-03-23","m":"03","age":183,"by":"정희원","cust":"StarPlus Energy","job":"2023-091-SIN","vendor":"킬텍주식회사","desc":"에어호이스트(4EA) 국내 수리 외주","amt":12990000,"amtTxt":"","closed":"N","lines":1,"nslip":1,"scan":"OK","risk":"long"},{"key":"2-141","g":2,"n":141,"date":"2026-03-26","m":"03","age":180,"by":"정희원","cust":"LIG넥스원","job":"2025-060-LNX-EI","vendor":"케이에스테크","desc":"스트럭쳐 외 설계외주","amt":36500000,"amtTxt":"","closed":"N","lines":2,"nslip":0,"scan":"OK","risk":"long"},{"key":"2-166","g":2,"n":166,"date":"2026-04-02","m":"04","age":173,"by":"정희원","cust":"아이마켓코리아","job":"2026-027-IMK-P","vendor":"제이에스필터(주)","desc":"카트리지 필터","amt":945000,"amtTxt":"","closed":"N","lines":2,"nslip":0,"scan":"OK","risk":"long"},{"key":"2-193","g":2,"n":193,"date":"2026-04-17","m":"04","age":158,"by":"정희원","cust":"엔시스","job":"2026-032-NSY-EI","vendor":"선준테크(주)","desc":"RUBBER JOINT 자재, 금형제작 발주","amt":5000000,"amtTxt":"","closed":"N","lines":1,"nslip":1,"scan":"OK","risk":"long"},{"key":"3-214","g":3,"n":214,"date":"2026-04-20","m":"04","age":155,"by":"장민지","cust":"삼성SDI 계열","job":"2026-012-SGH-P","vendor":"오성테크","desc":"ADAPTER 구매","amt":43700,"amtTxt":"","closed":"P","lines":3,"nslip":1,"scan":"OK","risk":"long"},{"key":"3-247","g":3,"n":247,"date":"2026-04-29","m":"04","age":146,"by":"정희원","cust":"엔시스","job":"2026-032-NSY-EI","vendor":"경인SNS, 경인엔지니어링","desc":"PRESSURE TRANSMITTER 외 구매","amt":5500000,"amtTxt":"","closed":"N","lines":1,"nslip":1,"scan":"OK","risk":"long"},{"key":"3-264","g":3,"n":264,"date":"2026-05-04","m":"05","age":141,"by":"정희원","cust":"엔시스","job":"2026-009-NSY-EI","vendor":"경인SNS, 경인엔지니어링","desc":"THERMOCOUPLE 구매","amt":139000,"amtTxt":"","closed":"N","lines":1,"nslip":1,"scan":"OK","risk":"long"},{"key":"3-262","g":3,"n":262,"date":"2026-05-06","m":"05","age":139,"by":"정희원","cust":"한화 계열","job":"2024-114-HAS","vendor":"주식회사 두일엔지니어링","desc":"FIRE PROTECTION SYSTEM 구매","amt":49000000,"amtTxt":"","closed":"N","lines":1,"nslip":0,"scan":"OK","risk":"long"},{"key":"4-312","g":4,"n":312,"date":"2026-05-20","m":"05","age":125,"by":"정희원","cust":"삼성SDI 계열","job":"2026-026-SPE-E","vendor":"Shangshui Smartech Ltd.","desc":"SERVO MOTOR 구매","amt":38438,"amtTxt":"","closed":"N","lines":1,"nslip":1,"scan":"OK","risk":"long"},{"key":"4-345","g":4,"n":345,"date":"2026-05-22","m":"05","age":123,"by":"정희원","cust":"엔시스","job":"2026-032-NSY-EI","vendor":"경인SNS, 경인엔지니어링","desc":"PROXIMITY SWITCH 구매","amt":3200000,"amtTxt":"","closed":"N","lines":1,"nslip":1,"scan":"OK","risk":"long"},{"key":"4-336","g":4,"n":336,"date":"2026-05-27","m":"05","age":118,"by":"정희원","cust":"엔시스","job":"2026-032-NSY-EI","vendor":"제일분체기계","desc":"틸팅 장치 외 구매","amt":175000000,"amtTxt":"","closed":"N","lines":1,"nslip":0,"scan":"OK","risk":"long"},{"key":"4-352","g":4,"n":352,"date":"2026-05-28","m":"05","age":117,"by":"정희원","cust":"티에스아이","job":"2025-011-TSI-EI","vendor":"경인SNS, 경인엔지니어링","desc":"Light Bracket 구매","amt":1020000,"amtTxt":"","closed":"N","lines":1,"nslip":1,"scan":"OK","risk":"long"},{"key":"4-359","g":4,"n":359,"date":"2026-06-02","m":"06","age":112,"by":"정희원","cust":"엔시스","job":"2026-032-NSY-EI","vendor":"(주)청산에스티엠","desc":"PERMANENT MAGNET 구매","amt":480000,"amtTxt":"","closed":"N","lines":2,"nslip":2,"scan":"OK","risk":"long"},{"key":"5-423","g":5,"n":423,"date":"2026-06-15","m":"06","age":99,"by":"정희원","cust":"엔시스","job":"2026-009-NSY-EI","vendor":"우성진공상사","desc":"진공오일 구매","amt":160000,"amtTxt":"","closed":"N","lines":1,"nslip":1,"scan":"OK","risk":"long"},{"key":"5-425","g":5,"n":425,"date":"2026-06-15","m":"06","age":99,"by":"정희원","cust":"엔시스","job":"2026-032-NSY-EI","vendor":"경인SNS, 경인엔지니어링","desc":"VIBRATE SENSOR 구매","amt":4620000,"amtTxt":"","closed":"N","lines":1,"nslip":1,"scan":"OK","risk":"long"},{"key":"5-433","g":5,"n":433,"date":"2026-06-17","m":"06","age":97,"by":"정희원","cust":"StarPlus Energy","job":"2023-091-SIN","vendor":"경인SNS, 경인엔지니어링","desc":"리미트스위치 구매","amt":25000,"amtTxt":"","closed":"N","lines":1,"nslip":1,"scan":"OK","risk":"long"},{"key":"5-439","g":5,"n":439,"date":"2026-06-17","m":"06","age":97,"by":"장민지","cust":"제뉴원사이언스","job":"2026-043-FPH-EI","vendor":"써스팜","desc":"제뉴원사이언스 고형제 Drum Mixer 제작용 DRUM 구매","amt":3900000,"amtTxt":"","closed":"N","lines":1,"nslip":1,"scan":"OK","risk":"long"},{"key":"5-441","g":5,"n":441,"date":"2026-06-18","m":"06","age":96,"by":"정희원","cust":"삼성SDI 계열","job":"2024-065-SCH","vendor":"주식회사 제이앤아이일렉트릭스","desc":"리크센서 구매","amt":120000,"amtTxt":"","closed":"N","lines":1,"nslip":1,"scan":"OK","risk":"long"},{"key":"5-467","g":5,"n":467,"date":"2026-06-24","m":"06","age":90,"by":"정희원","cust":"아이마켓코리아","job":"2026-057-IMK-P","vendor":"(주)인텍어드밴스","desc":"필터링 테스터기 제작","amt":1500000,"amtTxt":"","closed":"N","lines":1,"nslip":1,"scan":"OK","risk":"long"},{"key":"6-510","g":6,"n":510,"date":"2026-07-02","m":"07","age":82,"by":"장민지","cust":"엔시스","job":"2026-013-NSY-EI","vendor":"정우기공","desc":"MIXER BOWL 및 FRAME ASS'Y 외주가공 구매","amt":71450000,"amtTxt":"","closed":"N","lines":1,"nslip":0,"scan":"OK","risk":"long"},{"key":"6-506","g":6,"n":506,"date":"2026-07-07","m":"07","age":77,"by":"정희원","cust":"엔시스","job":"2026-032-NSY-EI","vendor":"(주)청류에프앤에스","desc":"필터 구매","amt":1188000,"amtTxt":"","closed":"N","lines":1,"nslip":1,"scan":"OK","risk":"long"},{"key":"6-530","g":6,"n":530,"date":"2026-07-09","m":"07","age":75,"by":"장민지","cust":"아이마켓코리아","job":"2026-057-IMK-P","vendor":"경인SNS, 경인엔지니어링","desc":"PRESSURE GAUGE 구매","amt":70000,"amtTxt":"","closed":"N","lines":1,"nslip":1,"scan":"OK","risk":"long"},{"key":"6-549","g":6,"n":549,"date":"2026-07-14","m":"07","age":70,"by":"정희원","cust":"삼성SDI 계열","job":"2026-026-SPE-E","vendor":"(주)우주기계","desc":"유량계 구매","amt":110000000,"amtTxt":"","closed":"N","lines":1,"nslip":0,"scan":"OK","risk":"long"},{"key":"6-554","g":6,"n":554,"date":"2026-07-14","m":"07","age":70,"by":"장민지","cust":"LIG넥스원","job":"2026-069-LNX-CS","vendor":"경인SNS, 경인엔지니어링","desc":"공사부품 RECORDER, PANEL METER 구매","amt":2100000,"amtTxt":"","closed":"N","lines":1,"nslip":1,"scan":"OK","risk":"long"},{"key":"6-556","g":6,"n":556,"date":"2026-07-14","m":"07","age":70,"by":"장민지","cust":"엔시스","job":"2026-013-NSY-EI","vendor":"(주)함감속기제작소","desc":"SHAFT 및 GEAR HOUSING 외주 가공 구매","amt":38400000,"amtTxt":"","closed":"N","lines":1,"nslip":1,"scan":"OK","risk":"long"},{"key":"6-570","g":6,"n":570,"date":"2026-07-20","m":"07","age":64,"by":"정희원","cust":"삼성SDI 계열","job":"2026-062-SEM-CS","vendor":"(주)인텍어드밴스","desc":"현장 전기,프로그램 외주","amt":40000000,"amtTxt":"","closed":"N","lines":1,"nslip":0,"scan":"OK","risk":"long"},{"key":"6-571","g":6,"n":571,"date":"2026-07-20","m":"07","age":64,"by":"정희원","cust":"제뉴원사이언스","job":"2026-043-FPH-EI","vendor":"(주)인텍어드밴스","desc":"판넬 제작 및 설치 외주","amt":4500000,"amtTxt":"","closed":"N","lines":1,"nslip":1,"scan":"OK","risk":"long"},{"key":"6-579","g":6,"n":579,"date":"2026-07-23","m":"07","age":61,"by":"정희원","cust":"삼성SDI 계열","job":"2026-049-SAP-P","vendor":"(주)혜성하이테크","desc":"Z-KEY 구매","amt":1560000,"amtTxt":"","closed":"N","lines":1,"nslip":1,"scan":"OK","risk":"long"},{"key":"6-586","g":6,"n":586,"date":"2026-07-23","m":"07","age":61,"by":"정희원","cust":"GREATB 미국 뉴욕","job":"2026-038-LIX-EI","vendor":"경인SNS, 경인엔지니어링","desc":"온도센서 수리","amt":65000,"amtTxt":"","closed":"N","lines":1,"nslip":1,"scan":"OK","risk":"long"},{"key":"6-576","g":6,"n":576,"date":"2026-07-24","m":"07","age":60,"by":"정희원","cust":"삼성SDI 계열","job":"2026-026-SPE-E","vendor":"(주)코마텍","desc":"로터리밸브 외 구매","amt":30000000,"amtTxt":"","closed":"N","lines":1,"nslip":1,"scan":"OK","risk":"normal"},{"key":"6-577","g":6,"n":577,"date":"2026-07-24","m":"07","age":60,"by":"정희원","cust":"엔시스","job":"2026-032-NSY-EI","vendor":"경인SNS, 경인엔지니어링","desc":"Barrier 외 구매","amt":1587000,"amtTxt":"","closed":"N","lines":1,"nslip":1,"scan":"OK","risk":"normal"},{"key":"6-590","g":6,"n":590,"date":"2026-07-28","m":"07","age":56,"by":"정희원","cust":"삼성SDI 계열","job":"2026-026-SPE-E","vendor":"(주)엠워텍","desc":"밸브 구매","amt":28710000,"amtTxt":"","closed":"N","lines":1,"nslip":1,"scan":"OK","risk":"normal"},{"key":"7-608","g":7,"n":608,"date":"2026-07-31","m":"07","age":53,"by":"장민지","cust":"엔시스","job":"2026-013-NSY-EI","vendor":"정우기공","desc":"ROTATING HOUSING 구매","amt":38000000,"amtTxt":"","closed":"N","lines":1,"nslip":0,"scan":"OK","risk":"normal"},{"key":"7-627","g":7,"n":627,"date":"2026-08-04","m":"08","age":49,"by":"장민지","cust":"(미기재)","job":"9999-999","vendor":"대성종합기술","desc":"C02 토치홀더 구매","amt":105000,"amtTxt":"","closed":"Y","lines":1,"nslip":0,"scan":"NONE","risk":"scan"},{"key":"7-618","g":7,"n":618,"date":"2026-08-05","m":"08","age":48,"by":"정희원","cust":"삼성SDI 계열","job":"2026-059A-SCH-EI","vendor":"Shangshui Smartech Ltd.","desc":"인버터 구매","amt":19675,"amtTxt":"","closed":"N","lines":1,"nslip":1,"scan":"OK","risk":"normal"},{"key":"7-620","g":7,"n":620,"date":"2026-08-05","m":"08","age":48,"by":"정희원","cust":"엔시스","job":"2026-032-NSY-EI","vendor":"케이에스테크","desc":"구조설계 외주","amt":7000000,"amtTxt":"","closed":"N","lines":1,"nslip":0,"scan":"OK","risk":"normal"},{"key":"7-622","g":7,"n":622,"date":"2026-08-05","m":"08","age":48,"by":"정희원","cust":"삼성SDI 계열","job":"2026-026-SPE-E","vendor":"Shangshui Smartech Ltd.","desc":"인버터 구매","amt":125734,"amtTxt":"","closed":"N","lines":1,"nslip":1,"scan":"OK","risk":"normal"},{"key":"7-641","g":7,"n":641,"date":"2026-08-06","m":"08","age":47,"by":"정희원","cust":"삼성SDI 계열","job":"2026-026-SPE-E","vendor":"Shangshui Smartech Ltd.","desc":"배송비 정산","amt":1154,"amtTxt":"","closed":"N","lines":1,"nslip":1,"scan":"OK","risk":"normal"},{"key":"7-637","g":7,"n":637,"date":"2026-08-07","m":"08","age":46,"by":"정희원","cust":"엔시스","job":"2026-032-NSY-EI","vendor":"(주)피씨엠엠","desc":"현장 3차원 측정","amt":6500000,"amtTxt":"","closed":"N","lines":1,"nslip":0,"scan":"OK","risk":"normal"},{"key":"7-642","g":7,"n":642,"date":"2026-08-10","m":"08","age":43,"by":"정희원","cust":"삼성SDI 계열","job":"2026-059-SCH-EI","vendor":"(주)우주기계","desc":"유량계 구매","amt":41600000,"amtTxt":"","closed":"N","lines":1,"nslip":0,"scan":"OK","risk":"normal"},{"key":"7-647","g":7,"n":647,"date":"2026-08-11","m":"08","age":42,"by":"장민지","cust":"엔시스","job":"2026-042-NSY-EI","vendor":"(주)혜성하이테크","desc":"BEARING HOUSING 외 외주가공 구매","amt":9690000,"amtTxt":"","closed":"N","lines":1,"nslip":1,"scan":"OK","risk":"normal"},{"key":"7-656","g":7,"n":656,"date":"2026-08-12","m":"08","age":41,"by":"장민지","cust":"Lyten Sweden AB","job":"2026-078-LYT-P","vendor":"(주)엠워텍","desc":"BINDER MIXER/BINDER DOSING VALVE 용 부품 구매","amt":936000,"amtTxt":"","closed":"N","lines":1,"nslip":1,"scan":"OK","risk":"normal"},{"key":"7-662","g":7,"n":662,"date":"2026-08-13","m":"08","age":40,"by":"정희원","cust":"삼성SDI 계열","job":"2026-026-SPE-E","vendor":"대신전기상사(김기일)","desc":"솔밸브 부속 자재 구매","amt":1049970,"amtTxt":"","closed":"N","lines":1,"nslip":1,"scan":"OK","risk":"normal"},{"key":"7-664","g":7,"n":664,"date":"2026-08-13","m":"08","age":40,"by":"정희원","cust":"삼성SDI 계열","job":"2026-026-SPE-E","vendor":"주식회사 대은에이치피에스","desc":"솔밸브 부속 자재 구매","amt":1780000,"amtTxt":"","closed":"N","lines":1,"nslip":1,"scan":"OK","risk":"normal"},{"key":"7-666","g":7,"n":666,"date":"2026-08-13","m":"08","age":40,"by":"박태랑","cust":"LIG넥스원","job":"2026-032-NSY-EI, NS…","vendor":"(주)중원이앤지","desc":"장비 반입설치 및 배관","amt":132000000,"amtTxt":"","closed":"N","lines":1,"nslip":0,"scan":"OK","risk":"normal"},{"key":"7-667","g":7,"n":667,"date":"2026-08-13","m":"08","age":40,"by":"박태랑","cust":"LIG넥스원","job":"2026-032-NSY-EI, NS…","vendor":"주식회사 대은에이치피에스","desc":"Lifting, Tilting 설비 외","amt":420000000,"amtTxt":"","closed":"N","lines":1,"nslip":0,"scan":"OK","risk":"normal"},{"key":"8-719","g":8,"n":719,"date":"2026-08-13","m":"08","age":40,"by":"박태랑","cust":"엔시스","job":"2026-032-NSY-EI","vendor":"(주)중원이앤지","desc":"장비 반입 및 현장 배관 공사","amt":132000000,"amtTxt":"","closed":"N","lines":1,"nslip":1,"scan":"OK","risk":"normal"},{"key":"7-670","g":7,"n":670,"date":"2026-08-18","m":"08","age":35,"by":"정희원","cust":"삼성SDI 계열","job":"2024-056-SCH","vendor":"(주)인텍어드밴스","desc":"안정화 프로그래머 외주","amt":28000000,"amtTxt":"","closed":"N","lines":1,"nslip":1,"scan":"OK","risk":"normal"},{"key":"7-685","g":7,"n":685,"date":"2026-08-18","m":"08","age":35,"by":"정희원","cust":"삼성SDI 계열","job":"2026-059-SCH-EI","vendor":"(주)인텍어드밴스","desc":"판넬 제작","amt":300000000,"amtTxt":"","closed":"N","lines":2,"nslip":0,"scan":"OK","risk":"normal"},{"key":"7-686","g":7,"n":686,"date":"2026-08-18","m":"08","age":35,"by":"정희원","cust":"삼성SDI 계열","job":"2026-055-SIN-EI","vendor":"(주)모펙","desc":"CIRCULATION TANK, WATER COOLER 외주 제작","amt":356000000,"amtTxt":"","closed":"N","lines":1,"nslip":0,"scan":"OK","risk":"normal"},{"key":"7-669","g":7,"n":669,"date":"2026-08-19","m":"08","age":34,"by":"정희원","cust":"삼성SDI 계열","job":"2026-059-SCH-EI","vendor":"(주)에스엠텍","desc":"플랫폼 스케일 구매","amt":9200000,"amtTxt":"","closed":"N","lines":1,"nslip":1,"scan":"OK","risk":"normal"},{"key":"7-673","g":7,"n":673,"date":"2026-08-19","m":"08","age":34,"by":"정희원","cust":"한화 계열","job":"2025-076-HAS-P","vendor":"(주)삼성정밀엔지니어링","desc":"GARLOCK SEAL 구매","amt":7536000,"amtTxt":"","closed":"N","lines":1,"nslip":1,"scan":"OK","risk":"normal"},{"key":"7-674","g":7,"n":674,"date":"2026-08-19","m":"08","age":34,"by":"정희원","cust":"한화 계열","job":"2025-076-HAS-P","vendor":"주식회사 두일엔지니어링","desc":"RUPTURE DISC HOLDER 구매","amt":3600000,"amtTxt":"","closed":"N","lines":1,"nslip":1,"scan":"OK","risk":"normal"},{"key":"7-687","g":7,"n":687,"date":"2026-08-20","m":"08","age":33,"by":"정희원","cust":"삼성SDI 계열","job":"2026-026-SPE-E","vendor":"대신전기상사(김기일)","desc":"레귤레이터 유닛 구매","amt":2403700,"amtTxt":"","closed":"N","lines":1,"nslip":1,"scan":"OK","risk":"normal"},{"key":"7-682","g":7,"n":682,"date":"2026-08-21","m":"08","age":32,"by":"장민지","cust":"CMTECH CHINA","job":"2026-044-FPH-EI","vendor":"(주)혜성하이테크","desc":"SCRAPER BRACKET 외주가공 구매","amt":7250000,"amtTxt":"","closed":"N","lines":1,"nslip":1,"scan":"OK","risk":"normal"},{"key":"8-720","g":8,"n":720,"date":"2026-08-21","m":"08","age":32,"by":"박태랑","cust":"삼성SDI 계열","job":"2026-026-SPE-E","vendor":"주식회사 대은에이치피에스","desc":"Sol. valve 구매","amt":5000000,"amtTxt":"","closed":"N","lines":1,"nslip":1,"scan":"OK","risk":"normal"},{"key":"7-690","g":7,"n":690,"date":"2026-08-25","m":"08","age":28,"by":"정희원","cust":"엔시스","job":"2026-042-NSY-EI","vendor":"(주)삼성정밀엔지니어링","desc":"GARLOCK SEAL 구매","amt":1160000,"amtTxt":"","closed":"N","lines":1,"nslip":1,"scan":"OK","risk":"normal"},{"key":"7-691","g":7,"n":691,"date":"2026-08-25","m":"08","age":28,"by":"정희원","cust":"엔시스","job":"2026-042-NSY-EI","vendor":"선준테크(주)","desc":"오링 구매","amt":270900,"amtTxt":"","closed":"N","lines":1,"nslip":1,"scan":"OK","risk":"normal"},{"key":"7-697","g":7,"n":697,"date":"2026-08-25","m":"08","age":28,"by":"정희원","cust":"한화 계열","job":"2025-076-HAS-P","vendor":"주식회사 두일엔지니어링","desc":"Fire Protection System 구매","amt":80400000,"amtTxt":"","closed":"N","lines":1,"nslip":0,"scan":"OK","risk":"normal"},{"key":"7-699","g":7,"n":699,"date":"2026-08-25","m":"08","age":28,"by":"장민지","cust":"StarPlus Energy","job":"2023-091-SIN","vendor":"경인SNS, 경인엔지니어링","desc":"센서 외 구매","amt":1693000,"amtTxt":"","closed":"N","lines":1,"nslip":1,"scan":"OK","risk":"normal"},{"key":"8-722","g":8,"n":722,"date":"2026-08-25","m":"08","age":28,"by":"박태랑","cust":"엔시스","job":"2026-032-NSY-EI","vendor":"(주)에스티엠자동화","desc":"Servo driver용 Cable 구매","amt":38000,"amtTxt":"","closed":"N","lines":1,"nslip":1,"scan":"OK","risk":"normal"},{"key":"8-723","g":8,"n":723,"date":"2026-08-25","m":"08","age":28,"by":"박태랑","cust":"엔시스","job":"2026-013-NSY-EI","vendor":"주식회사 신호종합배관","desc":"부자재 2차","amt":825480,"amtTxt":"","closed":"N","lines":1,"nslip":1,"scan":"OK","risk":"normal"},{"key":"8-724","g":8,"n":724,"date":"2026-08-25","m":"08","age":28,"by":"박태랑","cust":"삼성SDI 계열","job":"2026-026-SPE-E","vendor":"(주)지스타텍","desc":"장비 setup, Structure 조립 외주 용역","amt":710000000,"amtTxt":"","closed":"N","lines":1,"nslip":1,"scan":"OK","risk":"normal"},{"key":"8-706","g":8,"n":706,"date":"2026-08-26","m":"08","age":27,"by":"정희원","cust":"삼성SDI 계열","job":"2026-026-SPE-E","vendor":"경인SNS, 경인엔지니어링","desc":"계측기 구매","amt":15099000,"amtTxt":"","closed":"N","lines":1,"nslip":1,"scan":"OK","risk":"normal"},{"key":"8-708","g":8,"n":708,"date":"2026-08-26","m":"08","age":27,"by":"정희원","cust":"삼성SDI 계열","job":"2026-026-SPE-E","vendor":"경인SNS, 경인엔지니어링","desc":"압력계 구매","amt":1862000,"amtTxt":"","closed":"N","lines":1,"nslip":1,"scan":"OK","risk":"normal"},{"key":"8-750","g":8,"n":750,"date":"2026-08-26","m":"08","age":27,"by":"정희원","cust":"삼성SDI 계열","job":"2026-026-SPE-E","vendor":"(주)인텍어드밴스","desc":"Panel 제작","amt":1180000000,"amtTxt":"","closed":"N","lines":2,"nslip":2,"scan":"OK","risk":"normal"},{"key":"8-725","g":8,"n":725,"date":"2026-08-27","m":"08","age":26,"by":"박태랑","cust":"풍산","job":"2026-086","vendor":"선준테크(주)","desc":"Oring for discharge valve","amt":175850,"amtTxt":"","closed":"N","lines":1,"nslip":1,"scan":"OK","risk":"normal"},{"key":"8-726","g":8,"n":726,"date":"2026-08-27","m":"08","age":26,"by":"박태랑","cust":"엔시스","job":"2026-013-NSY-EI","vendor":"경인SNS, 경인엔지니어링","desc":"부자재 1차","amt":52000,"amtTxt":"","closed":"N","lines":1,"nslip":1,"scan":"OK","risk":"normal"},{"key":"8-727","g":8,"n":727,"date":"2026-08-27","m":"08","age":26,"by":"박태랑","cust":"엔시스","job":"2026-013-NSY-EI","vendor":"동양종합상사","desc":"부자재","amt":500000,"amtTxt":"","closed":"N","lines":1,"nslip":1,"scan":"OK","risk":"normal"},{"key":"8-728","g":8,"n":728,"date":"2026-08-27","m":"08","age":26,"by":"박태랑","cust":"삼성SDI 계열","job":"2026-059A-SCH-EI","vendor":"모벤시스코리아","desc":"진동센서","amt":7500000,"amtTxt":"","closed":"N","lines":1,"nslip":1,"scan":"NONE","risk":"scan"},{"key":"8-713","g":8,"n":713,"date":"2026-08-28","m":"08","age":25,"by":"정희원","cust":"삼성SDI 계열","job":"2026-026-SPE-E","vendor":"(주)태일인더스트리","desc":"카트리지필터 구매","amt":1500000,"amtTxt":"","closed":"N","lines":1,"nslip":1,"scan":"OK","risk":"normal"},{"key":"8-715","g":8,"n":715,"date":"2026-08-28","m":"08","age":25,"by":"정희원","cust":"한화 계열","job":"2024-114-HAS","vendor":"(주)삼성에스티","desc":"원자재 구매","amt":623200,"amtTxt":"","closed":"N","lines":2,"nslip":2,"scan":"OK","risk":"normal"},{"key":"8-716","g":8,"n":716,"date":"2026-08-28","m":"08","age":25,"by":"정희원","cust":"엔시스","job":"2026-042-NSY-EI","vendor":"이천베아링","desc":"베어링 구매","amt":136900,"amtTxt":"","closed":"N","lines":1,"nslip":1,"scan":"OK","risk":"normal"},{"key":"8-729","g":8,"n":729,"date":"2026-08-28","m":"08","age":25,"by":"박태랑","cust":"삼성SDI 계열","job":"2026-059A-SCH-EI","vendor":"킬텍주식회사","desc":"원료 분체 투입구","amt":33000000,"amtTxt":"","closed":"N","lines":1,"nslip":1,"scan":"OK","risk":"normal"},{"key":"8-730","g":8,"n":730,"date":"2026-08-28","m":"08","age":25,"by":"박태랑","cust":"삼성SDI 계열","job":"2026-059-SCH-EI","vendor":"(주)코리아인더스","desc":"전기 Hoist","amt":35000000,"amtTxt":"","closed":"N","lines":1,"nslip":0,"scan":"OK","risk":"normal"},{"key":"8-731","g":8,"n":731,"date":"2026-08-28","m":"08","age":25,"by":"박태랑","cust":"삼성SDI 계열","job":"2024-056-SCH","vendor":"주식회사 제이앤아이일렉트릭스","desc":"생산 대응 Progmmer 상주","amt":14200000,"amtTxt":"","closed":"N","lines":1,"nslip":1,"scan":"OK","risk":"normal"},{"key":"8-732","g":8,"n":732,"date":"2026-08-28","m":"08","age":25,"by":"박태랑","cust":"엔시스","job":"2026-013-NSY-EI","vendor":"주식회사 대신스텐레스","desc":"환봉","amt":150000,"amtTxt":"","closed":"N","lines":1,"nslip":1,"scan":"OK","risk":"normal"},{"key":"8-733","g":8,"n":733,"date":"2026-08-28","m":"08","age":25,"by":"박태랑","cust":"한화 계열","job":"2026-080-HAS-CS","vendor":"삼성에스디에스(주)","desc":"Manhole cover 자재","amt":253400,"amtTxt":"","closed":"N","lines":1,"nslip":1,"scan":"OK","risk":"normal"},{"key":"8-734","g":8,"n":734,"date":"2026-08-28","m":"08","age":25,"by":"박태랑","cust":"풍산","job":"2026-086","vendor":"(주)국제씨에스","desc":"BFM connector","amt":1160000,"amtTxt":"","closed":"N","lines":1,"nslip":1,"scan":"OK","risk":"normal"},{"key":"8-735","g":8,"n":735,"date":"2026-08-28","m":"08","age":25,"by":"박태랑","cust":"삼성SDI 계열","job":"2026-026-SPE-E","vendor":"(주)일성메탈","desc":"Blinde flange 외","amt":1380000,"amtTxt":"","closed":"N","lines":1,"nslip":1,"scan":"OK","risk":"normal"},{"key":"8-736","g":8,"n":736,"date":"2026-08-31","m":"08","age":22,"by":"박태랑","cust":"StarPlus Energy","job":"2023-091-SIN","vendor":"오성테크","desc":"Plug (PP-4)","amt":35000,"amtTxt":"","closed":"N","lines":1,"nslip":1,"scan":"OK","risk":"normal"},{"key":"8-737","g":8,"n":737,"date":"2026-08-31","m":"08","age":22,"by":"박태랑","cust":"엔시스","job":"2026-013-NSY-EI","vendor":"경인SNS, 경인엔지니어링","desc":"thermo couple외","amt":220200,"amtTxt":"","closed":"N","lines":1,"nslip":1,"scan":"OK","risk":"normal"},{"key":"8-738","g":8,"n":738,"date":"2026-08-31","m":"08","age":22,"by":"박태랑","cust":"삼성SDI 계열","job":"2026-055-SIN-EI","vendor":"대건ENG","desc":"structure 외주제작","amt":140000000,"amtTxt":"","closed":"N","lines":1,"nslip":1,"scan":"OK","risk":"normal"},{"key":"8-741","g":8,"n":741,"date":"2026-09-01","m":"09","age":21,"by":"박태랑","cust":"엔시스","job":"2026-032-NSY-EI","vendor":"주식회사 대은에이치피에스","desc":"speed control valve","amt":195000,"amtTxt":"","closed":"N","lines":1,"nslip":1,"scan":"OK","risk":"normal"},{"key":"8-742","g":8,"n":742,"date":"2026-09-01","m":"09","age":21,"by":"박태랑","cust":"엔시스","job":"2026-032-NSY-EI","vendor":"(주)피씨엠엠","desc":"laser tracker, 3차원 측정 service","amt":6500000,"amtTxt":"","closed":"N","lines":1,"nslip":1,"scan":"OK","risk":"normal"},{"key":"8-743","g":8,"n":743,"date":"2026-09-01","m":"09","age":21,"by":"박태랑","cust":"삼성SDI 계열","job":"2026-059-SCH-EI","vendor":"(주)모펙","desc":"Cooler 외주제작","amt":37000000,"amtTxt":"","closed":"N","lines":1,"nslip":0,"scan":"OK","risk":"normal"},{"key":"8-744","g":8,"n":744,"date":"2026-09-01","m":"09","age":21,"by":"박태랑","cust":"삼성SDI 계열","job":"2026-059A-SCH-EI","vendor":"오성테크","desc":"Set anchor","amt":275700,"amtTxt":"","closed":"N","lines":3,"nslip":3,"scan":"OK","risk":"normal"},{"key":"8-745","g":8,"n":745,"date":"2026-09-01","m":"09","age":21,"by":"박태랑","cust":"삼성SDI 계열","job":"2026-075-SCH-P","vendor":"(주)일성메탈","desc":"부자재","amt":111000,"amtTxt":"","closed":"N","lines":2,"nslip":2,"scan":"OK","risk":"normal"},{"key":"8-751","g":8,"n":751,"date":"2026-09-01","m":"09","age":21,"by":"정희원","cust":"(미기재)","job":"2026-086-PAG-P","vendor":"주식회사 대신스텐레스","desc":"환봉 구매","amt":1409000,"amtTxt":"","closed":"N","lines":1,"nslip":1,"scan":"OK","risk":"normal"},{"key":"8-754","g":8,"n":754,"date":"2026-09-01","m":"09","age":21,"by":"정희원","cust":"(미기재)","job":"2024-114-HAS","vendor":"주식회사 신호종합배관","desc":"안전변 외 구매","amt":194740,"amtTxt":"","closed":"N","lines":1,"nslip":1,"scan":"OK","risk":"normal"},{"key":"8-755","g":8,"n":755,"date":"2026-09-01","m":"09","age":21,"by":"정희원","cust":"(미기재)","job":"2024-114-HAS","vendor":"(주)엠워텍","desc":"밸브 구매","amt":8960000,"amtTxt":"","closed":"N","lines":1,"nslip":1,"scan":"OK","risk":"normal"},{"key":"8-747","g":8,"n":747,"date":"2026-09-02","m":"09","age":20,"by":"박태랑","cust":"엔시스","job":"2026-032-NSY-EI","vendor":"동화에스티","desc":"STS304 모형, 판재, NBR 모형, AL 판재","amt":1200000,"amtTxt":"","closed":"N","lines":5,"nslip":5,"scan":"OK","risk":"normal"},{"key":"8-756","g":8,"n":756,"date":"2026-09-02","m":"09","age":20,"by":"정희원","cust":"(미기재)","job":"2026-026-SPE-E","vendor":"(주)에스티엠자동화","desc":"리엑터 구매","amt":6291000,"amtTxt":"","closed":"N","lines":1,"nslip":1,"scan":"OK","risk":"normal"},{"key":"8-757","g":8,"n":757,"date":"2026-09-02","m":"09","age":20,"by":"정희원","cust":"(미기재)","job":"2026-032-NSY-EI","vendor":"(주)의성쎄니타리","desc":"롱패롤 구매","amt":920000,"amtTxt":"","closed":"N","lines":1,"nslip":1,"scan":"OK","risk":"normal"},{"key":"8-763","g":8,"n":763,"date":"2026-09-02","m":"09","age":20,"by":"정희원","cust":"한화 계열","job":"2024-114-HAS","vendor":"경인SNS, 경인엔지니어링","desc":"PRESSURE TRANSMITTER 외 구매","amt":1928000,"amtTxt":"","closed":"N","lines":1,"nslip":1,"scan":"OK","risk":"normal"},{"key":"8-748","g":8,"n":748,"date":"2026-09-03","m":"09","age":19,"by":"박태랑","cust":"(미기재)","job":"2026-085","vendor":"주식회사 대신스텐레스","desc":"환봉류 품의","amt":5173000,"amtTxt":"","closed":"N","lines":3,"nslip":3,"scan":"OK","risk":"normal"},{"key":"8-749","g":8,"n":749,"date":"2026-09-03","m":"09","age":19,"by":"박태랑","cust":"삼성SDI 계열","job":"2026-055-SIN-EI","vendor":"(주)인텍어드밴스","desc":"Panel 제작","amt":780000000,"amtTxt":"","closed":"N","lines":2,"nslip":2,"scan":"OK","risk":"normal"},{"key":"8-771","g":8,"n":771,"date":"2026-09-07","m":"09","age":15,"by":"정희원","cust":"(미기재)","job":"9999-999","vendor":"이천베아링","desc":"베어링 구매","amt":11500,"amtTxt":"","closed":"N","lines":1,"nslip":1,"scan":"OK","risk":"normal"},{"key":"8-772","g":8,"n":772,"date":"2026-09-07","m":"09","age":15,"by":"정희원","cust":"삼성SDI 계열","job":"2026-026-SPE-E","vendor":"대보마그네틱(주)","desc":"마그네틱 필터 구매","amt":462000,"amtTxt":"","closed":"N","lines":1,"nslip":1,"scan":"OK","risk":"normal"},{"key":"8-773","g":8,"n":773,"date":"2026-09-07","m":"09","age":15,"by":"정희원","cust":"엔시스","job":"2026-013-NSY-EI","vendor":"(주)삼성에스티","desc":"원자재 구매","amt":541200,"amtTxt":"","closed":"N","lines":2,"nslip":2,"scan":"OK","risk":"normal"},{"key":"8-760","g":8,"n":760,"date":"2026-09-08","m":"09","age":14,"by":"정희원","cust":"(미기재)","job":"2026-084-PAG-P","vendor":"(주)우주기계","desc":"모터 외 구매","amt":2600000,"amtTxt":"","closed":"N","lines":1,"nslip":1,"scan":"OK","risk":"normal"},{"key":"8-766","g":8,"n":766,"date":"2026-09-08","m":"09","age":14,"by":"정희원","cust":"엔시스","job":"2026-013-NSY-EI","vendor":"주식회사 대신스텐레스","desc":"환봉 구매","amt":96000,"amtTxt":"","closed":"N","lines":1,"nslip":1,"scan":"OK","risk":"normal"},{"key":"8-767","g":8,"n":767,"date":"2026-09-08","m":"09","age":14,"by":"정희원","cust":"삼성SDI 계열","job":"2026-055-SIN-EI","vendor":"(주)의성쎄니타리","desc":"샘플링밸브 패드 구매","amt":716000,"amtTxt":"","closed":"N","lines":1,"nslip":1,"scan":"OK","risk":"normal"},{"key":"8-768","g":8,"n":768,"date":"2026-09-08","m":"09","age":14,"by":"정희원","cust":"CMTECH CHINA","job":"2026-044-FPH-EI","vendor":"선준테크(주)","desc":"오링 구매","amt":42000,"amtTxt":"","closed":"N","lines":1,"nslip":1,"scan":"OK","risk":"normal"},{"key":"8-764","g":8,"n":764,"date":"2026-09-09","m":"09","age":13,"by":"정희원","cust":"CMTECH CHINA","job":"2026-044-FPH-EI","vendor":"(주)엠워텍","desc":"밸브 구매","amt":5100000,"amtTxt":"","closed":"N","lines":1,"nslip":1,"scan":"OK","risk":"normal"},{"key":"8-765","g":8,"n":765,"date":"2026-09-09","m":"09","age":13,"by":"정희원","cust":"엔시스","job":"2026-032-NSY-EI","vendor":"주식회사 대신스텐레스","desc":"환봉 구매","amt":60000,"amtTxt":"","closed":"N","lines":1,"nslip":1,"scan":"OK","risk":"normal"},{"key":"8-800","g":8,"n":800,"date":"2026-09-10","m":"09","age":12,"by":"정희원","cust":"엔시스","job":"2026-032-NSY-EI","vendor":"주식회사 대신스텐레스","desc":"환봉 구매","amt":1476000,"amtTxt":"","closed":"N","lines":1,"nslip":1,"scan":"OK","risk":"normal"},{"key":"9-801","g":9,"n":801,"date":"2026-09-10","m":"09","age":12,"by":"정희원","cust":"엔시스","job":"2026-021-NSY-EI","vendor":"동명피엔티(주)","desc":"도장 외주","amt":950000,"amtTxt":"","closed":"N","lines":1,"nslip":1,"scan":"OK","risk":"normal"},{"key":"9-802","g":9,"n":802,"date":"2026-09-10","m":"09","age":12,"by":"정희원","cust":"엔시스","job":"2026-032-NSY-EI","vendor":"동화에스티","desc":"원자재 구매","amt":410210,"amtTxt":"","closed":"N","lines":1,"nslip":1,"scan":"OK","risk":"normal"},{"key":"9-803","g":9,"n":803,"date":"2026-09-10","m":"09","age":12,"by":"정희원","cust":"엔시스","job":"2026-032-NSY-EI","vendor":"동화에스티","desc":"원자재 구매","amt":7160,"amtTxt":"","closed":"N","lines":1,"nslip":1,"scan":"OK","risk":"normal"},{"key":"9-806","g":9,"n":806,"date":"2026-09-10","m":"09","age":12,"by":"정희원","cust":"엔시스","job":"2026-032-NSY-EI","vendor":"주식회사 대신스텐레스","desc":"평철 외 구매","amt":1863600,"amtTxt":"","closed":"N","lines":1,"nslip":1,"scan":"OK","risk":"normal"},{"key":"8-774","g":8,"n":774,"date":"2026-09-11","m":"09","age":11,"by":"박태랑","cust":"CMTECH CHINA","job":"2026-044-FPH-EI","vendor":"삼성에스디에스(주)","desc":"sus plate","amt":750000,"amtTxt":"","closed":"N","lines":1,"nslip":1,"scan":"OK","risk":"normal"},{"key":"8-775","g":8,"n":775,"date":"2026-09-11","m":"09","age":11,"by":"박태랑","cust":"삼성SDI 계열","job":"2026-048-SAP-I","vendor":"상하이TQL테크","desc":"외주 용역-overhaul","amt":0,"amtTxt":"CNY 532,000","closed":"N","lines":1,"nslip":1,"scan":"NONE","risk":"scan"},{"key":"8-776","g":8,"n":776,"date":"2026-09-11","m":"09","age":11,"by":"박태랑","cust":"한화 계열","job":"2026-080-HAS-CS","vendor":"이천베아링","desc":"handle","amt":404000,"amtTxt":"","closed":"N","lines":4,"nslip":4,"scan":"OK","risk":"normal"},{"key":"8-777","g":8,"n":777,"date":"2026-09-11","m":"09","age":11,"by":"박태랑","cust":"(미기재)","job":"9999-999","vendor":"오성테크","desc":"단프라박스, Nut, washer","amt":334800,"amtTxt":"","closed":"N","lines":3,"nslip":3,"scan":"OK","risk":"normal"},{"key":"8-778","g":8,"n":778,"date":"2026-09-11","m":"09","age":11,"by":"박태랑","cust":"StarPlus Energy","job":"2023-091C-SIN","vendor":"주식회사 대신스텐레스","desc":"sus 환봉","amt":1124000,"amtTxt":"","closed":"N","lines":2,"nslip":2,"scan":"OK","risk":"normal"},{"key":"8-779","g":8,"n":779,"date":"2026-09-11","m":"09","age":11,"by":"박태랑","cust":"엔시스","job":"2026-042-NSY-EI","vendor":"주식회사 대은에이치피에스","desc":"Hydro unit","amt":23000000,"amtTxt":"","closed":"N","lines":1,"nslip":1,"scan":"OK","risk":"normal"},{"key":"8-780","g":8,"n":780,"date":"2026-09-11","m":"09","age":11,"by":"박태랑","cust":"삼성SDI 계열","job":"2026-055-SIN-EI","vendor":"(주)모펙","desc":"structure 외주제작","amt":125000000,"amtTxt":"","closed":"N","lines":1,"nslip":1,"scan":"OK","risk":"normal"},{"key":"8-781","g":8,"n":781,"date":"2026-09-11","m":"09","age":11,"by":"박태랑","cust":"풍산","job":"2026-084-PAG-P","vendor":"주식회사 유공이엔지","desc":"Rotary feeder","amt":6500000,"amtTxt":"","closed":"N","lines":1,"nslip":1,"scan":"OK","risk":"normal"},{"key":"8-782","g":8,"n":782,"date":"2026-09-11","m":"09","age":11,"by":"박태랑","cust":"(미기재)","job":"2026-081-FPH-CS","vendor":"(주)지스타텍","desc":"외주 공사","amt":2000000,"amtTxt":"","closed":"N","lines":1,"nslip":1,"scan":"OK","risk":"normal"},{"key":"8-783","g":8,"n":783,"date":"2026-09-11","m":"09","age":11,"by":"박태랑","cust":"삼성SDI 계열","job":"2026-059A-SCH-EI","vendor":"(주)삼성에스티","desc":"sus plate","amt":824000,"amtTxt":"","closed":"N","lines":2,"nslip":2,"scan":"OK","risk":"normal"},{"key":"8-784","g":8,"n":784,"date":"2026-09-11","m":"09","age":11,"by":"박태랑","cust":"삼성SDI 계열","job":"2026-026-SPE-E","vendor":"(주)삼성에스티","desc":"sus plate","amt":2138800,"amtTxt":"","closed":"N","lines":2,"nslip":2,"scan":"OK","risk":"normal"},{"key":"8-785","g":8,"n":785,"date":"2026-09-11","m":"09","age":11,"by":"박태랑","cust":"삼성SDI 계열","job":"2026-055-SIN-EI","vendor":"(주)의성쎄니타리","desc":"Long ferrule 모형","amt":960000,"amtTxt":"","closed":"N","lines":2,"nslip":2,"scan":"OK","risk":"normal"},{"key":"8-786","g":8,"n":786,"date":"2026-09-11","m":"09","age":11,"by":"박태랑","cust":"엔시스","job":"2026-042-NSY-EI","vendor":"(주)일성메탈","desc":"부자재","amt":39000,"amtTxt":"","closed":"N","lines":2,"nslip":2,"scan":"OK","risk":"normal"},{"key":"8-787","g":8,"n":787,"date":"2026-09-11","m":"09","age":11,"by":"박태랑","cust":"엔시스","job":"2026-032-NSY-EI","vendor":"주식회사 대신스텐레스","desc":"형강류","amt":29044000,"amtTxt":"","closed":"N","lines":1,"nslip":1,"scan":"OK","risk":"normal"},{"key":"8-788","g":8,"n":788,"date":"2026-09-11","m":"09","age":11,"by":"박태랑","cust":"엔시스","job":"2026-032-NSY-EI","vendor":"주식회사 대신스텐레스","desc":"형강류","amt":2256000,"amtTxt":"","closed":"N","lines":1,"nslip":1,"scan":"OK","risk":"normal"},{"key":"8-789","g":8,"n":789,"date":"2026-09-11","m":"09","age":11,"by":"박태랑","cust":"삼성SDI 계열","job":"2026-055-SIN-EI","vendor":"(주)삼성에스티","desc":"sus plate","amt":1366200,"amtTxt":"","closed":"N","lines":1,"nslip":1,"scan":"OK","risk":"normal"},{"key":"8-790","g":8,"n":790,"date":"2026-09-11","m":"09","age":11,"by":"박태랑","cust":"엔시스","job":"2026-042-NSY-EI","vendor":"동화에스티","desc":"sus plate","amt":430000,"amtTxt":"","closed":"N","lines":3,"nslip":3,"scan":"OK","risk":"normal"},{"key":"8-791","g":8,"n":791,"date":"2026-09-11","m":"09","age":11,"by":"박태랑","cust":"엔시스","job":"2026-013-NSY-EI","vendor":"(주)우주기계","desc":"Rotary gear pump","amt":3900000,"amtTxt":"","closed":"N","lines":1,"nslip":1,"scan":"OK","risk":"normal"},{"key":"8-792","g":8,"n":792,"date":"2026-09-11","m":"09","age":11,"by":"박태랑","cust":"엔시스","job":"2026-013-NSY-EI","vendor":"(주)우명엔지니어링","desc":"Blade & Shaft 가공","amt":60000000,"amtTxt":"","closed":"N","lines":1,"nslip":1,"scan":"OK","risk":"normal"},{"key":"8-793","g":8,"n":793,"date":"2026-09-11","m":"09","age":11,"by":"박태랑","cust":"엔시스","job":"2026-032-NSY-EI","vendor":"정우기공","desc":"structure 외주 제작","amt":49500000,"amtTxt":"","closed":"N","lines":1,"nslip":1,"scan":"OK","risk":"normal"},{"key":"8-794","g":8,"n":794,"date":"2026-09-11","m":"09","age":11,"by":"박태랑","cust":"엔시스","job":"2026-013-NSY-EI","vendor":"경인SNS, 경인엔지니어링","desc":"Instruments","amt":19900000,"amtTxt":"","closed":"N","lines":2,"nslip":2,"scan":"OK","risk":"normal"},{"key":"8-795","g":8,"n":795,"date":"2026-09-11","m":"09","age":11,"by":"박태랑","cust":"엔시스","job":"2026-013-NSY-EI","vendor":"(주)우주기계","desc":"V-pulley","amt":7000000,"amtTxt":"","closed":"N","lines":1,"nslip":1,"scan":"OK","risk":"normal"},{"key":"8-796","g":8,"n":796,"date":"2026-09-11","m":"09","age":11,"by":"박태랑","cust":"삼성SDI 계열","job":"2026-055-SIN-EI","vendor":"(주)삼성에스티","desc":"sus plate - 재상신","amt":1024000,"amtTxt":"","closed":"N","lines":1,"nslip":1,"scan":"OK","risk":"normal"},{"key":"8-797","g":8,"n":797,"date":"2026-09-11","m":"09","age":11,"by":"박태랑","cust":"풍산","job":"2026-084-PAG-P","vendor":"선준테크(주)","desc":"Oring","amt":300,"amtTxt":"","closed":"N","lines":1,"nslip":1,"scan":"OK","risk":"normal"},{"key":"8-798","g":8,"n":798,"date":"2026-09-11","m":"09","age":11,"by":"박태랑","cust":"엔시스","job":"2026-013-NSY-EI","vendor":"용화로프상사","desc":"Ibolt(유럽형)","amt":480000,"amtTxt":"","closed":"N","lines":2,"nslip":2,"scan":"OK","risk":"normal"},{"key":"8-799","g":8,"n":799,"date":"2026-09-11","m":"09","age":11,"by":"박태랑","cust":"풍산","job":"2026-084-PAG-P","vendor":"엘에스테크","desc":"spray nozzle","amt":40000,"amtTxt":"","closed":"N","lines":1,"nslip":1,"scan":"OK","risk":"normal"},{"key":"9-804","g":9,"n":804,"date":"2026-09-11","m":"09","age":11,"by":"정희원","cust":"엔시스","job":"2026-042-NSY-EI","vendor":"(주)상우웰스터","desc":"캐스터 구매","amt":204000,"amtTxt":"","closed":"N","lines":1,"nslip":1,"scan":"OK","risk":"normal"},{"key":"9-805","g":9,"n":805,"date":"2026-09-11","m":"09","age":11,"by":"정희원","cust":"엔시스","job":"2026-013-NSY-EI","vendor":"(주)삼성에스티","desc":"원자재 구매","amt":317800,"amtTxt":"","closed":"N","lines":1,"nslip":1,"scan":"OK","risk":"normal"},{"key":"9-807","g":9,"n":807,"date":"2026-09-11","m":"09","age":11,"by":"정희원","cust":"엔시스","job":"2026-042-NSY-EI","vendor":"경인SNS, 경인엔지니어링","desc":"THERMOCOUPLE 구매","amt":278000,"amtTxt":"","closed":"N","lines":1,"nslip":1,"scan":"OK","risk":"normal"},{"key":"9-808","g":9,"n":808,"date":"2026-09-14","m":"09","age":8,"by":"정희원","cust":"삼성SDI 계열","job":"2026-026-SPE-E","vendor":"주식회사 대은에이치피에스","desc":"솔밸브 부속 자재 구매","amt":3392200,"amtTxt":"","closed":"N","lines":1,"nslip":1,"scan":"OK","risk":"normal"},{"key":"9-819","g":9,"n":819,"date":"2026-09-14","m":"09","age":8,"by":"정희원","cust":"삼성SDI 계열","job":"2026-026-SPE-E","vendor":"오성테크","desc":"소모품 구매","amt":1204440,"amtTxt":"","closed":"N","lines":1,"nslip":1,"scan":"OK","risk":"normal"},{"key":"9-820","g":9,"n":820,"date":"2026-09-14","m":"09","age":8,"by":"정희원","cust":"엔시스","job":"2026-013-NSY-EI","vendor":"(주)경기종합볼트","desc":"볼트류 구매","amt":209090,"amtTxt":"","closed":"N","lines":2,"nslip":2,"scan":"OK","risk":"normal"},{"key":"9-823","g":9,"n":823,"date":"2026-09-14","m":"09","age":8,"by":"정희원","cust":"엔시스","job":"2026-042-NSY-EI","vendor":"존크레인코리아 (주)","desc":"MECHANICAL SEAL 구매","amt":6500000,"amtTxt":"","closed":"N","lines":1,"nslip":1,"scan":"OK","risk":"normal"},{"key":"9-824","g":9,"n":824,"date":"2026-09-14","m":"09","age":8,"by":"정희원","cust":"(미기재)","job":"9999-999","vendor":"오성테크","desc":"소모품 구매","amt":398736,"amtTxt":"","closed":"N","lines":3,"nslip":3,"scan":"OK","risk":"normal"},{"key":"9-821","g":9,"n":821,"date":"2026-09-15","m":"09","age":7,"by":"정희원","cust":"엔시스","job":"2026-032-NSY-EI","vendor":"선준테크(주)","desc":"오링 구매","amt":219050,"amtTxt":"","closed":"N","lines":2,"nslip":2,"scan":"OK","risk":"normal"},{"key":"9-822","g":9,"n":822,"date":"2026-09-15","m":"09","age":7,"by":"정희원","cust":"(미기재)","job":"2026-026-SPE-EI","vendor":"대신전기상사(김기일)","desc":"피팅 외 구매","amt":1504440,"amtTxt":"","closed":"N","lines":1,"nslip":1,"scan":"OK","risk":"normal"},{"key":"9-825","g":9,"n":825,"date":"2026-09-16","m":"09","age":6,"by":"정희원","cust":"엔시스","job":"2026-042-NSY-EI","vendor":"이천베아링","desc":"베어링 외 구매","amt":250550,"amtTxt":"","closed":"N","lines":1,"nslip":1,"scan":"OK","risk":"normal"},{"key":"9-809","g":9,"n":809,"date":"2026-09-17","m":"09","age":5,"by":"박태랑","cust":"삼성SDI 계열","job":"2026-059A-SCH-EI","vendor":"신흥휠타산업(주)","desc":"filter","amt":2700000,"amtTxt":"","closed":"N","lines":1,"nslip":1,"scan":"NONE","risk":"scan"},{"key":"9-810","g":9,"n":810,"date":"2026-09-17","m":"09","age":5,"by":"박태랑","cust":"삼성SDI 계열","job":"2026-059A-SCH-EI","vendor":"대보마그네틱(주)","desc":"filter","amt":2562000,"amtTxt":"","closed":"N","lines":1,"nslip":1,"scan":"NONE","risk":"scan"},{"key":"9-811","g":9,"n":811,"date":"2026-09-17","m":"09","age":5,"by":"박태랑","cust":"삼성SDI 계열","job":"2026-059A-SCH-EI","vendor":"(주)의성쎄니타리","desc":"ferrule nozzle","amt":350000,"amtTxt":"","closed":"N","lines":1,"nslip":1,"scan":"NONE","risk":"scan"},{"key":"9-812","g":9,"n":812,"date":"2026-09-17","m":"09","age":5,"by":"박태랑","cust":"삼성SDI 계열","job":"2026-033-SCH-P","vendor":"대신전기상사(김기일)","desc":"pressure sensor","amt":117400,"amtTxt":"","closed":"N","lines":1,"nslip":1,"scan":"NONE","risk":"scan"},{"key":"9-813","g":9,"n":813,"date":"2026-09-17","m":"09","age":5,"by":"박태랑","cust":"삼성SDI 계열","job":"2026-059A-SCH-EI","vendor":"(주)우명엔지니어링","desc":"structure 외주제작","amt":160000000,"amtTxt":"","closed":"N","lines":1,"nslip":1,"scan":"NONE","risk":"scan"},{"key":"9-814","g":9,"n":814,"date":"2026-09-17","m":"09","age":5,"by":"박태랑","cust":"엔시스","job":"2026-032-NSY-EI","vendor":"영진기계","desc":"mixer bowl 가공","amt":2800000,"amtTxt":"","closed":"N","lines":1,"nslip":1,"scan":"NONE","risk":"scan"},{"key":"9-815","g":9,"n":815,"date":"2026-09-17","m":"09","age":5,"by":"박태랑","cust":"삼성SDI 계열","job":"2026-059A-SCH-EI","vendor":"주식회사 대신스텐레스","desc":"환봉, pipe, 형강류 구매","amt":1521000,"amtTxt":"","closed":"N","lines":4,"nslip":4,"scan":"NONE","risk":"scan"},{"key":"9-816","g":9,"n":816,"date":"2026-09-17","m":"09","age":5,"by":"정희원","cust":"(미기재)","job":"9999-999","vendor":"오성테크","desc":"소모품 구매","amt":1267980,"amtTxt":"","closed":"N","lines":4,"nslip":4,"scan":"OK","risk":"normal"},{"key":"9-826","g":9,"n":826,"date":"2026-09-17","m":"09","age":5,"by":"정희원","cust":"삼성SDI 계열","job":"2026-059-SCH-EI","vendor":"(주)삼성에스티","desc":"원자재 구매","amt":7515300,"amtTxt":"","closed":"N","lines":3,"nslip":3,"scan":"OK","risk":"normal"},{"key":"9-827","g":9,"n":827,"date":"2026-09-17","m":"09","age":5,"by":"정희원","cust":"엔시스","job":"2026-032-NSY-EI","vendor":"동화에스티","desc":"원자재 구매","amt":891000,"amtTxt":"","closed":"N","lines":3,"nslip":3,"scan":"OK","risk":"normal"},{"key":"9-828","g":9,"n":828,"date":"2026-09-17","m":"09","age":5,"by":"정희원","cust":"삼성SDI 계열","job":"2026-059-SCH-EI","vendor":"주식회사 대신스텐레스","desc":"사각파이프 외 구매","amt":1232800,"amtTxt":"","closed":"N","lines":2,"nslip":2,"scan":"OK","risk":"normal"},{"key":"9-829","g":9,"n":829,"date":"2026-09-17","m":"09","age":5,"by":"정희원","cust":"CMTECH CHINA","job":"2026-044-FPH-EI","vendor":"(주)의성쎄니타리","desc":"롱페롤 외 구매","amt":95880,"amtTxt":"","closed":"N","lines":1,"nslip":1,"scan":"OK","risk":"normal"},{"key":"9-817","g":9,"n":817,"date":"2026-09-18","m":"09","age":4,"by":"정희원","cust":"삼성SDI 계열","job":"2026-055-SIN-EI","vendor":"미래엔지니어링","desc":"LEVEL SWITCH 구매","amt":8400000,"amtTxt":"","closed":"N","lines":1,"nslip":1,"scan":"OK","risk":"normal"},{"key":"9-818","g":9,"n":818,"date":"2026-09-18","m":"09","age":4,"by":"정희원","cust":"엔시스","job":"2026-021-NSY-EI","vendor":"(주)삼성에스티","desc":"원자재 구매","amt":764000,"amtTxt":"","closed":"N","lines":2,"nslip":2,"scan":"OK","risk":"normal"},{"key":"9-830","g":9,"n":830,"date":"2026-09-18","m":"09","age":4,"by":"정희원","cust":"한화 계열","job":"2024-114-HAS","vendor":"주식회사 대신스텐레스","desc":"환봉 외 구매","amt":203000,"amtTxt":"","closed":"N","lines":1,"nslip":1,"scan":"OK","risk":"normal"}]};
+
+  /* 경과일은 화면을 여는 날 기준으로 다시 센다 — 시드에 박아 두면 날이 갈수록 조용히 틀려진다.
+     (시드의 age·risk 는 생성 시점 2026-09-22 기준값이고, 여기서 오늘 기준으로 덮어쓴다) */
+  const DAY = 86400000;
+  const TODAY = new Date(new Date().toLocaleDateString("sv-SE") + "T00:00:00");   // UTC 아닌 로컬 날짜
+  S.rows.forEach((r) => {
+    const d = /^\d{4}-\d{2}-\d{2}$/.test(r.date) ? new Date(r.date + "T00:00:00") : null;
+    if (d) r.age = Math.floor((TODAY - d) / DAY);
+    r.risk = (r.closed !== "Y" && (r.age || 0) > 60) ? "long" : (r.scan === "NONE" ? "scan" : "normal");
+  });
+  const LONG = S.rows.filter((r) => r.risk === "long");
+  S.kpi.long_open = LONG.length;
+  S.kpi.amt_long_open = LONG.reduce((a, r) => a + (r.amt || 0), 0);
+  const LONG_MAX = LONG.reduce((a, r) => Math.max(a, r.age || 0), 0);
+
+  const app = document.getElementById("app");
+  const fixed = document.getElementById("fixed");
+  const esc = (t) => String(t == null ? "" : t).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const num = (n) => Number(n || 0).toLocaleString("ko-KR");
+  const eok = (n) => (Number(n || 0) / 1e8).toFixed(1);
+  const MONS = Object.keys(S.mon).filter((k) => /^\d{4}-\d{2}$/.test(k)).sort();
+  const mnum = (ym) => Number(ym.slice(5, 7));
+
+  const kpi = (lb, v, unit, sub, cls, box) =>
+    '<div class="kpi' + (box ? " " + box : "") + '"><div class="lb">' + esc(lb) + '</div><div class="v">' + v
+    + (unit ? '<small> ' + unit + "</small>" : "") + "</div>"
+    + (sub ? '<div class="delta' + (cls ? " " + cls : "") + '">' + sub + "</div>" : "") + "</div>";
+
+  /* ── 조건에 맞는 관리 대상 행 ───────────────────────────── */
+  function pick(q) {
+    const mm = q.month ? String(q.month).padStart(2, "0") : null;
+    const risk = q.extras.risk || "";
+    const owner = q.extras.owner || "";
+    return S.rows.filter((r) => {
+      if (mm && r.m !== mm) return false;
+      if (owner && r.by !== owner) return false;
+      if (risk === "long" && r.risk !== "long") return false;
+      if (risk === "noslip" && !(r.nslip > 0)) return false;
+      if (risk === "scan" && r.scan !== "NONE") return false;
+      if (risk === "open" && r.closed === "Y") return false;
+      return true;
+    });
+  }
+
+  /* ── 기간 반응 영역 ─────────────────────────────────────── */
+  function renderApp(q, bar) {
+    const mm = q.month ? String(q.month).padStart(2, "0") : null;
+    const ym = mm ? "2026-" + mm : null;
+    const m = ym ? (S.mon[ym] || { cases: 0, amt: 0, open: 0 }) : null;
+    /* 월을 고르면 그 월 값, 연간이면 전건 합계 — 화면에 있는 값만 쓴다(§16.6) */
+    const cases = m ? m.cases : S.kpi.cases;
+    const amt = m ? m.amt : S.kpi.amt_total;
+    const open = m ? m.open : (S.kpi.open + S.kpi.partial);
+    const inMonth = S.rows.filter((r) => !mm || r.m === mm);
+    const long = inMonth.filter((r) => r.risk === "long").length;
+    const noslip = inMonth.filter((r) => r.nslip > 0).length;
+    const scanMiss = inMonth.filter((r) => r.scan === "NONE").length;
+    const amtOpen = m ? null : S.kpi.amt_open;
+
+    const maxC = Math.max(...MONS.map((k) => S.mon[k].cases));
+    const bars = MONS.map((k) => {
+      const v = S.mon[k];
+      const h = Math.round((v.cases / maxC) * 100);
+      const openPct = v.cases ? Math.round((v.open / v.cases) * 100) : 0;
+      return '<div class="cbar" data-m="' + mnum(k) + '">'
+        + '<span class="val">' + v.cases + "</span>"
+        + '<div class="stackbar" style="height:' + h + '%">'
+        + '<div class="open" style="height:' + openPct + '%"></div>'
+        + '<div class="done" style="height:' + (100 - openPct) + '%"></div>'
+        + "</div>"
+        + '<span class="lab">' + mnum(k) + "월</span></div>";
+    }).join("");
+
+    const volRows = Object.keys(S.vol).sort((a, b) => a - b).map((g) => {
+      const v = S.vol[g];
+      const miss = v.cases - v.scan;
+      return "<tr><td class='c'>" + g + "권</td>"
+        + "<td class='r'>" + v.cases + "</td>"
+        + "<td class='r'>" + v.scan + "</td>"
+        + "<td class='c'>" + (miss ? '<span class="badge r">' + miss + "</span>" : '<span class="badge g">0</span>') + "</td>"
+        + "<td class='r'>" + v.open + "</td>"
+        + "<td class='r'>" + eok(v.amt) + "</td>"
+        + "<td>" + esc(v.from) + " ~ " + esc(v.to) + "</td></tr>";
+    }).join("");
+
+    const owners = Object.keys(S.by).sort((a, b) => S.by[b].cases - S.by[a].cases);
+    const maxO = Math.max(...owners.map((k) => S.by[k].cases));
+    const ownerRows = owners.map((k) => {
+      const v = S.by[k];
+      const w = Math.round((v.cases / maxO) * 100);
+      const ow = v.cases ? Math.round((v.open / v.cases) * w) : 0;
+      return '<div class="brow"><span class="lab">' + esc(k) + "</span>"
+        + '<span class="track"><i class="open" style="width:' + ow + '%"></i><i style="width:' + (w - ow) + '%"></i></span>'
+        + '<span class="cnt">' + v.cases + "건 / 미결 " + v.open + "</span></div>";
+    }).join("");
+
+    app.innerHTML =
+      '<div class="kpis">'
+      + kpi("기안 건수", num(cases), "건", (m ? "선택 월" : "연간 · 대장 " + num(S.kpi.lines) + "행") + " · 1건 = 권-번호", "", "")
+      + kpi("미종결", num(open), "건", m ? "선택 월 기준" : "부분종결 " + S.kpi.partial + "건 포함 · " + eok(amtOpen) + "억", "r", "warn")
+      + kpi("장기 미결 (60일↑)", num(long), "건", m ? "선택 월 기안분" : "연간 " + eok(S.kpi.amt_long_open) + "억 · 최장 " + LONG_MAX + "일", "r", "bad")
+      + kpi("전표 미발행", num(noslip), "건", m ? "선택 월 기안분" : "대장 " + S.kpi.noslip_lines + "행 · 전부 미종결", "", "warn")
+      + kpi("스캔본 누락", num(scanMiss), "건", m ? "선택 월 기안분" : "대사 " + S.kpi.cases + "건 중 · 고아 파일 0건", "", (scanMiss ? "warn" : "ok"))
+      + kpi("기안 금액", eok(amt), "억", "통화 혼재 — 외화 9행 단순 합산", "", "")
+      + "</div>"
+
+      + '<div class="callout amber"><b>이 수치를 읽을 때 주의</b> — 대장은 <b>1,102행이지만 830건</b>이다(업체·품목별로 한 건이 여러 행). '
+      + "행을 그대로 세면 건수가 33% 과다 집계된다. 금액은 <b>통화 구분 칸이 없어</b> 원화·EUR·CNY가 한 칸에 섞여 있다 — "
+      + "합계는 참고용이고, 정확한 집계는 통화 컬럼 신설 이후에 가능하다.</div>"
+
+      + '<div class="sec"><h3>📈 월별 기안 추이</h3>'
+      + '<div class="note">막대 높이 = 기안 건수, 빗금 = 아직 미종결. 조회바에서 월을 고르면 그 달이 강조된다.</div>'
+      + '<div class="chart" id="mChart">' + bars + "</div>"
+      + '<div class="legend"><span><i style="background:var(--accent)"></i>종결</span>'
+      + '<span><i style="background:#e0b877"></i>미종결</span>'
+      + "<span>8~9월 미종결이 많은 것은 <b>정상 진행 중</b>이다(전표 발행 중앙값 " + S.lead.med + "일).</span></div></div>"
+
+      + '<div class="grid2">'
+      + '<div class="sec"><h3>📚 권(바인더)별 진행</h3>'
+      + '<div class="note">권은 100건 묶음의 물리 바인더다 — <b>월 선택과 무관</b>하게 연간 전체를 보여준다(권끼리 날짜가 겹친다).</div>'
+      + "<table><tr><th class='c'>권</th><th class='r'>대장</th><th class='r'>스캔</th><th class='c'>누락</th><th class='r'>미종결</th><th class='r'>금액(억)</th><th>기안일 범위</th></tr>"
+      + volRows + "</table></div>"
+      + '<div class="sec"><h3>👤 기안자별 현황</h3>'
+      + '<div class="note">연간 기준(월별 분해는 관리 대상 건에 대해서만 가능하다 — 전건 월별은 실연동 후).</div>'
+      + '<div class="barlist">' + ownerRows + "</div>"
+      + '<div class="legend"><span><i style="background:#c08a2e"></i>미종결</span><span><i style="background:var(--accent)"></i>종결</span></div></div>'
+      + "</div>";
+
+    /* innerHTML 로 다시 그렸으니 월 강조를 다시 입힌다 (§16.5) */
+    bar.applyPeriod();
+  }
+
+  /* ── 연간 고정 집계 (기간과 무관) ───────────────────────── */
+  function renderFixed() {
+    const q = S.quality;
+    const maxC = Math.max(...S.cust.map((c) => c.cases));
+    const custRows = S.cust.map((c) =>
+      '<div class="brow"><span class="lab">' + esc(c.cust) + "</span>"
+      + '<span class="track"><i style="width:' + Math.round((c.cases / maxC) * 100) + '%"></i></span>'
+      + '<span class="cnt">' + c.cases + "건 · " + eok(c.amt) + "억</span></div>").join("");
+
+    const qRows = [
+      ["통화 구분 칸 없음", "외화 9행(EUR·CNY)이 원화와 한 칸에 섞임", "금액 합산 불가", "r"],
+      ["금액에 문자 혼입", q.amt_str + "행 — <code>매월 ₩1,936,000</code> · <code>무상</code> · <code>CNY 532,000</code>", "숫자 집계에서 누락", "r"],
+      ["고객사 표기 분산", q.cust_variants + "종 — <code>(주)엔시스</code>/<code>㈜ 엔시스</code>, 삼성SDI 계열 4종", "고객별 집계가 쪼개짐", "a"],
+      ["프로젝트 빈칸", q.proj_blank + "행", "고객사 미기재 36건", "a"],
+      ["일자 문자열", q.date_str + "행 — <code>08/21</code>(7-696)", "날짜 파싱 실패", "a"],
+      ["전표번호 공백·탭", q.slip_dirty + "건 — 앞에 탭/공백이 붙음", "ERP 대사 시 불일치", "a"],
+      ["음수 금액", q.amt_neg + "행 — 반품 처리(1-22)", "합계 왜곡(의도된 값)", "b"],
+      ["건 간 참조가 자유 메모", q.memo + "행 — <code>계약 변경으로 인한 재상신 (1-47)</code>", "재상신 관계를 기계가 못 읽음", "b"],
+    ].map((r) => "<tr><td>" + r[0] + "</td><td>" + r[1] + "</td><td>" + r[2]
+      + "</td><td class='c'><span class='badge " + r[3] + "'>"
+      + ({ r: "차단", a: "주의", b: "참고" }[r[3]]) + "</span></td></tr>").join("");
+
+    fixed.innerHTML =
+      '<div class="grid2">'
+      + '<div class="sec"><h3>🏢 고객사별 기안 (표기 정규화 후)</h3>'
+      + '<div class="note">대장의 <code>프로젝트</code> 칸 앞부분을 대표명으로 묶었다. 원문 표기는 ' + S.quality.cust_variants + "종이다.</div>"
+      + '<div class="barlist">' + custRows + "</div></div>"
+      + '<div class="sec"><h3>⏱ 전표 발행 리드타임</h3>'
+      + '<div class="note">기안일 → 잔금 전표 발행일 (' + S.lead.n + "행)</div>"
+      + "<table><tr><th>지표</th><th class='r'>일</th><th>읽는 법</th></tr>"
+      + "<tr><td>중앙값</td><td class='r'><b>" + S.lead.med + "</b></td><td>기안 후 약 9일에 전표가 난다</td></tr>"
+      + "<tr><td>p90</td><td class='r'>" + S.lead.p90 + "</td><td>이 선을 넘으면 지연으로 본다</td></tr>"
+      + "<tr><td>기안일 이전 발행</td><td class='r'>" + S.lead.neg + "</td><td>전표가 먼저 난 건 — 기안 소급 작성 의심</td></tr>"
+      + "</table>"
+      + '<div class="callout blue" style="margin-bottom:0"><b>스캔 리드타임</b>은 중앙값 4일(p90 9일)이다. '
+      + "9일을 넘긴 미스캔은 추적 대상으로 본다.</div></div>"
+      + "</div>"
+
+      + '<div class="sec"><h3>⚠ 데이터 품질 — 연동 전에 정리할 것</h3>'
+      + '<div class="note">아래는 대장 1,102행 전수 점검 결과다. <b>차단</b>은 중간DB 적재 전에 해결해야 하는 항목이다.</div>'
+      + "<table><tr><th>항목</th><th>실태</th><th>영향</th><th class='c'>등급</th></tr>" + qRows + "</table></div>";
+  }
+
+  /* ── 관리 대상 그리드 (표준 그리드 §13) ─────────────────── */
+  const ageFmt = (v) => {
+    const n = Number(v || 0);
+    const cls = n > 60 ? "r" : (n > 30 ? "a" : "g");
+    return '<span class="pill ' + cls + '">' + n + "일</span>";
+  };
+  /* 화면 설정(열 폭·화면맞춤)은 화면이 갖는다 — 컴포넌트는 UI만 담당(§13.3) */
+  const PREF_KEY = "jeilax_prop_ledger_v1";
+  let PREF = { fit: true, colW: null };
+  try { PREF = Object.assign(PREF, JSON.parse(localStorage.getItem(PREF_KEY) || "{}")); } catch (e) { /* 저장 불가 환경 */ }
+  const savePref = () => { try { localStorage.setItem(PREF_KEY, JSON.stringify(PREF)); } catch (e) {} };
+  const cut = (v) => '<span title="' + esc(v) + '">' + esc(v) + "</span>";   // 맞춤에서 잘린 칸은 마우스를 올려 본다
+
+  const GRID = createGrid("#mgGrid", {
+    keyField: "key",
+    search: true, columnFilter: true, sortable: true, exportCsv: true, copy: true,
+    pageSize: 25, exportName: "기안서대장_관리대상_2026",
+    emptyText: "조건에 맞는 관리 대상이 없습니다.",
+    resizable: true, fitWidth: true,                 // 표준 §5.2 — 열 경계 드래그 + 화면 폭 맞춤
+    onColResize: (key, px, all) => { PREF.colW = all; savePref(); },
+    rowClass: (r) => (r.risk === "long" ? "row-long" : (r.scan === "NONE" ? "row-scan" : "")),
+    columns: [
+      { key: "key", label: "권-번호", width: "74px", fitMin: 62, align: "center" },
+      { key: "date", label: "기안일", width: "88px", fitMin: 78, align: "center" },
+      { key: "age", label: "경과", width: "68px", fitMin: 56, align: "center", formatter: ageFmt, exportValue: (v) => v },
+      { key: "by", label: "기안자", width: "72px", fitMin: 66 },
+      { key: "cust", label: "고객사", width: "118px", fitMin: 78, formatter: cut },
+      { key: "job", label: "생산번호", width: "122px", fitMin: 84, formatter: cut },
+      { key: "vendor", label: "업체명", width: "158px", fitMin: 84, formatter: cut },
+      { key: "desc", label: "내용", width: "224px", fitMin: 100, formatter: cut },
+      {
+        key: "amt", label: "금액", width: "108px", fitMin: 84, align: "right",
+        formatter: (v, r) => (r.amtTxt ? '<span title="문자 혼입 — 숫자 집계 불가">' + esc(r.amtTxt) + "</span>" : num(v)),
+        exportValue: (v, r) => (r.amtTxt ? r.amtTxt : v),
+      },
+      { key: "lines", label: "행수", width: "58px", fitMin: 52, align: "center", filter: false },
+      {
+        key: "nslip", label: "미발", width: "66px", fitMin: 60, align: "center", filter: false,
+        formatter: (v) => (Number(v) > 0 ? '<span class="pill r">' + v + "행</span>" : '<span class="pill g">완료</span>'),
+      },
+      {
+        key: "closed", label: "종결", width: "62px", fitMin: 54, align: "center",
+        formatter: (v) => '<span class="pill ' + (v === "Y" ? "g" : (v === "P" ? "a" : "r")) + '">'
+          + ({ Y: "종결", N: "미결", P: "부분" }[v] || v) + "</span>",
+      },
+      {
+        key: "scan", label: "스캔", width: "84px", fitMin: 68, align: "center",
+        formatter: (v) => (v === "OK"
+          ? '<button class="ecm" data-row-act="ecm" title="문서중앙화 검색어 복사">검색어</button>'
+          : '<span class="pill a">누락</span>'),
+        exportValue: (v) => (v === "OK" ? "OK" : "누락"),
+      },
+    ],
+    onRowAction: (act, row) => {
+      if (act !== "ecm") return;
+      const qs = "system.filename:" + row.key + ".pdf";
+      navigator.clipboard?.writeText(qs).then(
+        () => alertLine("복사했습니다 — 문서중앙화 검색창에 붙여넣으세요: " + qs),
+        () => alertLine("복사 실패 — 검색어: " + qs));
+    },
+  });
+
+  /* 저장된 열 폭 복원 → 화면맞춤 상태 반영 */
+  if (PREF.colW) GRID.setColWidths(PREF.colW);
+  const bFit = document.getElementById("bFit");
+  function syncFit() {
+    bFit.setAttribute("aria-pressed", String(!!PREF.fit));
+    bFit.textContent = PREF.fit ? "↔ 화면맞춤 켬" : "↔ 화면맞춤";
+  }
+  GRID.setFit(!!PREF.fit); syncFit();
+  bFit.onclick = () => { PREF.fit = !PREF.fit; GRID.setFit(PREF.fit); syncFit(); savePref(); };
+  let rzT = null;
+  addEventListener("resize", () => {            // 창 폭이 바뀌면 맞춤 폭을 다시 잡는다
+    clearTimeout(rzT);
+    rzT = setTimeout(() => { if (PREF.fit) GRID.refitWidths(); }, 180);
+  });
+
+  function alertLine(msg) {
+    /* 브라우저 모달을 띄우지 않는다(조회 흐름이 끊긴다) — 조회바 아래 한 줄로 알린다 */
+    let el = document.getElementById("mgToast");
+    if (!el) {
+      el = document.createElement("div");
+      el.id = "mgToast"; el.className = "callout blue"; el.style.margin = "0 0 10px";
+      document.getElementById("mgGrid").before(el);
+    }
+    el.textContent = msg;
+    clearTimeout(alertLine._t);
+    alertLine._t = setTimeout(() => el.remove(), 6000);
+  }
+
+  /* ── 조회바 ─────────────────────────────────────────────── */
+  const BAR = createQueryBar("#qbar", {
+    years: [2026],
+    months: MONS.map(mnum),                      // 데이터가 있는 월만 고를 수 있게 한다 (§16.5)
+    monthLabels: { 9: "9월(진행)" },
+    asOf: S.asof,
+    basis: "기안일 기준 · 1건 = 권-번호",
+    mode: "mock", modeLabel: "대장 추출본 · 실연동 전",
+    extras: [
+      {
+        id: "risk", label: "관리구분", type: "select", width: "148px",
+        options: [
+          { value: "", label: "전체(관리 대상)" },
+          { value: "open", label: "미종결" },
+          { value: "long", label: "장기 미결(60일↑)" },
+          { value: "noslip", label: "전표 미발행" },
+          { value: "scan", label: "스캔본 누락" },
+        ],
+      },
+      {
+        id: "owner", label: "기안자", type: "select", width: "120px",
+        options: [{ value: "", label: "전체" }].concat(
+          Object.keys(S.by).sort((a, b) => S.by[b].cases - S.by[a].cases).map((k) => ({ value: k, label: k }))),
+      },
+    ],
+    reset: true,
+    onQuery: (q, ctx) => {
+      renderApp(q, ctx.bar);
+      const rows = pick(q);
+      GRID.setRows(rows);
+      document.getElementById("mgCount").textContent = rows.length + "건";
+    },
+  });
+
+  renderFixed();
+</script>
+</body>
+</html>
