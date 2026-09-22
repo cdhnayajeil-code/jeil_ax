@@ -109,6 +109,13 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <tbody>
 <tr>
 <td>2026-09-22</td>
+<td>구매 · ERP연계 · 중간DB</td>
+<td><code>erp_ro.pur_order_s</code>(백필 4,618행) · <code>이관/sql/61_erp_pur_list_v2.sql</code>(신규 · 57 대체) · <code>pages/구매_발주통합LIST_2026.html</code></td>
+<td><strong>적재 후 정답을 가렸다 — 담당자·외주·입고처·결재번호</strong>(REQ-0070 마무리). 관리자 <code>--full</code> 백필로 신규 11컬럼이 채워진 뒤 미러에서 판정했다. ① <strong>담당자 = 등록자(<code>INSRT_USER_ID</code>)</strong> — <code>AGENT</code> 는 전건 빈값, <code>APPLICANT</code> 는 전건 <code>CKOET00174</code>(법인코드)라 둘 다 탈락. 등록자 분포(장민지 2,067·정희원 1,900·김윤정 383·박태랑 223)가 엑셀(2,138·2,029·506·266)과 <strong>순서·규모 모두 일치</strong>. ⚠ 뷰가 후보를 <code>AGENT → APPLICANT → 등록자</code> 순으로 보게 돼 있어 <strong>그대로 뒀으면 전건에 법인코드가 담당자로 찍힐 뻔</strong>했다 — 판정 즉시 등록자 단독으로 고쳤다. ② <strong>외주 = 품번 <code>ROS</code> 접두</strong>(799건) — ERP 외주구분은 전건 'N' 이라 못 쓰고, 발주유형 SE1·SF(514)의 품번도 512행이 ROS 라 같은 것을 가리키는데 <strong>ROS 규칙은 발주 전 요청에도 적용</strong>돼 목록 전체를 덮는다. 구분 분포가 엑셀과 나란해졌다(원자재 2,768·부자재 1,376·외주 799·소모품 663 ↔ 2,478·1,156·738·638). ③ <strong>입고처는 다른 개념이었다</strong> — <code>DELIVERY_PLCE</code> 는 전건 빈값이고 <code>SL_CD</code> 는 <strong>ERP 저장위치</strong>(제조_원자재창고(이천) 2,320 등)라, 엑셀의 「입고처」(본사·이천 2공장·협력사명)와 같은 것이 아니다. 열 이름을 <strong>「입고창고」</strong>로 바꿔 오해를 막고 화면이 그 차이를 적는다. ④ <strong>결재번호는 여전히 미확인</strong> — <code>REF_NO</code> 가 전건 빈값이라 후보에서 탈락했다. <code>pu_no</code> 는 NULL 유지, 검색칸도 잠긴 채 둔다. 곁들여 늘 빈 열이던 「참조번호」를 뷰·화면에서 제거했다(항상 빈 열을 만들지 않는다 — 같은 날 요약 화면에서 고친 원칙). 채움: 단가 4,618 · 적요 3,234 · 비고 2,713 · 입고창고 5,607 · 담당자 4,618 / 전체 5,609행 · 금액합계 10,267백만</td>
+<td>최동혁(+Claude)</td>
+</tr>
+<tr>
+<td>2026-09-22</td>
 <td>구매 · 운영페이지</td>
 <td><code>pages/구매_발주관리_2026.html</code> · <code>app/lib/api.js</code></td>
 <td><strong>항상 빈 열을 실제 값으로 바꿨다</strong> — 발주·구매요청 진행현황의 「예정 거래처」는 ERP 구매요청 원천에 공급처가 <strong>전건 비어 있어</strong>(<code>pur_req_s.sppl_code</code>·<code>sppl_name</code> 5,535행 전부 공백) 실데이터에서 늘 <code>—</code> 였다. REQ-0068 때는 합성 데이터로 렌더만 검증해 못 봤고, 발주통합 LIST 를 만들며 드러났다. <strong>프로젝트(P-CODE)</strong> 로 교체 — <code>tracking_no</code> 는 5,534/5,535(99.98%) 채워져 있다. <code>purReqOpen</code> 의 select 목록도 함께 교체(명시 목록이라 안 넣으면 안 온다)</td>
