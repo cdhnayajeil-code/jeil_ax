@@ -479,10 +479,12 @@ export const erpApi = {
   },
   /* ② 미결 구매요청(RQ 요청·CF 확정 = 아직 발주 안 난 건). 실측상 이 두 상태는 부분발주가 없다
      (ord_qty>0 인 행 0건, 2026-09-22) — 그래서 「미발주 잔량」 판정에 수량 비교를 쓰지 않는다.
-     기간과 무관하게 「지금 열려 있는 것」을 돌려준다(화면이 그렇게 밝혀 적는다). */
+     기간과 무관하게 「지금 열려 있는 것」을 돌려준다(화면이 그렇게 밝혀 적는다).
+     ⚠ `sppl_name`(예정 거래처)은 받지 않는다 — ERP 구매요청 원천이 **전건 비어 있다**
+        (5,535행 실측 2026-09-22). 화면에 항상 빈 열을 두느니 실제로 있는 프로젝트 코드를 보여 준다. */
   async purReqOpen({ limit = 2000 } = {}) {
     const { data, error } = await supabase.from("v_erp_pur_req")
-      .select("pr_no,pr_sts,item_code,item_name,req_qty,req_unit,req_dt,dlvy_dt,req_dept,req_dept_resolved,req_prsn,sppl_name")
+      .select("pr_no,pr_sts,item_code,item_name,req_qty,req_unit,req_dt,dlvy_dt,req_dept,req_dept_resolved,req_prsn,tracking_no")
       .in("pr_sts", ["RQ", "CF"])
       .order("dlvy_dt", { ascending: true })
       .limit(limit);
