@@ -1,4 +1,4 @@
--- 71_etax_vat_mirror_rollback.sql
+-- 73_etax_vat_mirror_rollback.sql
 -- 되돌리기: 국세청(e세로) 전자세금계산서 + 부가세 계산서 원장 미러 (REQ-0082)
 --
 -- ⚠ 순서가 있다. 표를 먼저 지우면 `proposal_recon_detail` 이 깨진다 —
