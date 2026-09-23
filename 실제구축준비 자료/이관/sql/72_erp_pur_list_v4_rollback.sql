@@ -1,0 +1,10 @@
+-- 72_erp_pur_list_v4_rollback.sql — v4 되돌리기 (REQ-0080)
+--
+-- 66_erp_pur_list_v3.sql 을 그대로 다시 실행하면 된다. v4 가 더한 rcpt_* 4컬럼이 사라지므로
+-- `create or replace` 로는 안 되고(뒤가 아니라 가운데에 끼워 넣었다) **drop 후 재생성**이다.
+--
+--   drop view public.v_erp_pur_list;
+--   \i 66_erp_pur_list_v3.sql
+--
+-- ⚠ 화면(pages/구매_발주통합LIST_2026.html)이 rcpt_last_dt 를 읽는다. 뷰만 되돌리면
+--    입고일 칸이 빈다 — 화면도 같은 커밋으로 함께 되돌린다(git revert).

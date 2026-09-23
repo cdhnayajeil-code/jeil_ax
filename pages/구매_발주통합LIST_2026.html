@@ -403,10 +403,22 @@
     { key: "dlvy_dt",     label: "입고요청일",         width: "92px", fitMin: 78,  align: "center", base: true,
       formatter: (v, r) => (v ? '<span title="' + esc("요청 희망납기" + (r.po_dlvy_dt && r.po_dlvy_dt !== v ? " · 발주 납기는 " + r.po_dlvy_dt : "")) + '">' + esc(v)
         + (r.po_dlvy_dt && r.po_dlvy_dt !== v ? '<span class="tag">조정</span>' : "") + "</span>" : dash) },
-    { key: "iv_last_dt",  label: "입고일",             width: "96px", fitMin: 80,  align: "center", base: true,
+    /* L 입고일 — **실제 입고일**(ERP 입출고 M_PUR_GOODS_MVMT.MVMT_RCPT_DT)이 정답이다.
+       적재 전이거나 그 건에 입출고 기록이 없으면 매입일로 대신하되 「매입」 꼬리표를 달아
+       그 값이 송장 기준임을 숨기지 않는다. 둘 다 없는데 입고수량만 있으면 모른다고 말한다. */
+    { key: "iv_last_dt",  label: "입고일",             width: "104px", fitMin: 80, align: "center", base: true,
+      exportValue: (v, r) => (r && r.rcpt_last_dt) || v || "",
       formatter: (v, r) => {
-        if (v) return esc(v) + (r.iv_cnt > 1 ? '<span class="tag" title="' + esc("분할 매입 " + r.iv_cnt + "회 · " + r.iv_first_dt + " ~ " + r.iv_last_dt) + '">' + r.iv_cnt + "회</span>" : "");
-        if (Number(r.rcpt_qty) > 0) return '<span class="muted" title="입고수량은 있으나 매입(송장) 기록이 없어 날짜를 알 수 없습니다">입고(날짜 미보유)</span>';
+        if (r.rcpt_last_dt) {
+          const many = r.rcpt_cnt > 1;
+          return '<span title="' + esc("실제 입고일(ERP 입출고)"
+                   + (many ? " · 분할 입고 " + r.rcpt_cnt + "회 · " + r.rcpt_first_dt + " ~ " + r.rcpt_last_dt : "")) + '">'
+               + esc(r.rcpt_last_dt) + (many ? '<span class="tag">' + r.rcpt_cnt + "회</span>" : "") + "</span>";
+        }
+        if (v) return '<span title="' + esc("실제 입고 기록이 없어 매입(송장) 날짜로 대신합니다"
+                 + (r.iv_cnt > 1 ? " · 분할 매입 " + r.iv_cnt + "회 · " + r.iv_first_dt + " ~ " + r.iv_last_dt : "")) + '">'
+               + esc(v) + '<span class="tag">매입</span></span>';
+        if (Number(r.rcpt_qty) > 0) return '<span class="muted" title="입고수량은 있으나 입출고·매입 기록이 없어 날짜를 알 수 없습니다">날짜 미보유</span>';
         return dash;
       } },
     { key: "whs_nm",      label: "입고창고",           width: "150px", fitMin: 84, pending: true,
@@ -426,6 +438,14 @@
     // ── 보조(엑셀에는 없지만 상태 판단에 필요) ──
     { key: "status_kr",   label: "상태",              width: "78px", fitMin: 66,  align: "center", base: true, extra: true, cssClass: "pl-sep",
       formatter: (v) => (v ? '<span class="st-' + esc(v) + '">' + esc(v) + "</span>" : dash) },
+    /* 매입일 — 「입고일」이 실입고로 바뀌면서 갈 곳이 없어진 값. 회계 대조에 쓰이므로 보조 열로 남긴다.
+       iv_last_dt 는 이미 「입고일」이 쓰고 있어 키를 따로 준다(그리드는 key 로 열을 가른다). */
+    { key: "iv_last_dt2", label: "매입일",             width: "96px", fitMin: 80,  align: "center", extra: true,
+      formatter: (v, r) => (r.iv_last_dt
+        ? '<span title="매입(송장) 기준 — 회계 대조용">' + esc(r.iv_last_dt)
+          + (r.iv_cnt > 1 ? '<span class="tag">' + r.iv_cnt + "회</span>" : "") + "</span>"
+        : dash),
+      exportValue: (v, r) => (r && r.iv_last_dt) || "" },
     { key: "rcpt_qty",    label: "입고수량",           width: "76px", fitMin: 60,  align: "right",  extra: true, formatter: (v) => num(v) || dash, exportValue: (v) => (v == null ? "" : v) },
     { key: "req_dept",    label: "요청부서",           width: "104px", fitMin: 72, extra: true, formatter: (v) => (v ? esc(v) : dash) },
     { key: "req_dt",      label: "요청일",             width: "92px", fitMin: 78,  align: "center", extra: true, formatter: (v) => (v ? esc(v) : dash) },
@@ -770,7 +790,7 @@
      표의 formatter 를 그대로 재사용한다 — 표와 상세가 다른 말을 하지 않게. */
   const DW_SECTIONS = [
     ["요청·발주",  ["pu_no", "pr_no", "req_title", "po_no", "po_type_cd", "status_kr", "gubun"]],
-    ["일정",       ["req_dt", "po_dt", "dlvy_dt", "po_dlvy_dt", "iv_last_dt"]],
+    ["일정",       ["req_dt", "po_dt", "dlvy_dt", "po_dlvy_dt", "iv_last_dt", "iv_last_dt2"]],
     ["품목",       ["item_code", "item_name", "spec", "dw_ref", "qty", "unit", "price", "amt", "rcpt_qty"]],
     ["상대·소속",  ["bp_name", "p_code", "prj_nm", "req_user_nm", "req_dept", "agent_nm", "whs_nm"]],
     ["메모",       ["hdr_remark", "dtl_remark"]],
@@ -846,7 +866,7 @@
       : "엑셀과 다를 수 있는 칸") + " · <span style=\"color:var(--accent)\">자세히</span></summary>"
     + (filled.length ? '<p style="color:var(--green)">채워짐: ' + filled.map(esc).join(" · ") + "</p>" : "")
     + "<ul>"
-    + "<li><b>입고일</b>은 <b>매입(송장) 기준</b>이라 실제 입고일과 다를 수 있습니다 — 입고 여부는 「입고수량」으로 판단하세요.</li>"
+    + "<li><b>입고일</b>은 <b>실제 입고일</b>(ERP 입출고)입니다. 그 기록이 없는 건만 매입(송장) 날짜로 대신하고 <span class=\"tag\">매입</span> 을 붙입니다 — 매입일만 따로 보려면 「▦ 항목」에서 <b>매입일</b> 열을 넣으세요.</li>"
     + "<li><b>입고요청일</b>은 요청 희망납기입니다. 협력사와 조정된 날짜는 「발주납기」에 따로 있습니다(조정된 행에 <span class=\"tag\">조정</span>).</li>"
     + "<li><b>공급처</b>는 <b>발주가 난 행만</b> 있습니다 — ERP 구매요청에 공급처 칸이 전건 비어 있습니다.</li>"
     + "<li><b>입고창고</b>는 ERP 저장위치라 엑셀 「입고처」(본사·이천 2공장·협력사명)와 <b>다른 개념</b>입니다.</li>"

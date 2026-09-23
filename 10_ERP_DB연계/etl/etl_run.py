@@ -337,6 +337,31 @@ JOBS = {
         "params": ["year_start", "year_end"],
         "incr_sql": " AND d.UPDT_DT >= ?",   # 증분: 변경분만(watermark 이후)
     },
+    # 실제 입고일(REQ-0080) — 「입고일」이 매입(송장) 날짜라 실제 입고일과 어긋나던 것을 바로잡는다.
+    # M_PUR_GOODS_MVMT 는 PO_NO+PO_SEQ_NO 로 발주 라인과 직결돼 요청→발주→입출고가 한 줄로 꿰진다.
+    # ⚠ 전용 RPC 를 쓴다 — 공용 erp_etl_upsert 는 19개 job 이 함께 쓰는 한 덩어리 함수라
+    #   가지를 더하려면 통째로 다시 써야 한다(pur_order 와 같은 선택).
+    # ⚠ 신규 테이블이라 **최초 1회 `--job pur_goods_mvmt --full`** 이 필요하다(증분만으로는 안 채워진다).
+    "pur_goods_mvmt": {
+        "table": "pur_goods_mvmt_s",
+        "sql": """
+            SELECT g.MVMT_NO AS mvmt_no,
+                   g.PO_NO AS po_no, g.PO_SEQ_NO AS po_seq_no,
+                   g.ITEM_CD AS item_code, g.IO_TYPE_CD AS io_type_cd,
+                   CONVERT(date, g.MVMT_DT) AS mvmt_dt,
+                   CONVERT(date, g.MVMT_RCPT_DT) AS rcpt_dt,   -- ★ 실제 입고일
+                   g.MVMT_RCPT_QTY AS rcpt_qty,
+                   g.MVMT_RCPT_SL_CD AS rcpt_sl_cd,
+                   g.MVMT_QTY AS mvmt_qty,
+                   g.INSPECT_REQ_NO AS inspect_req_no,
+                   g.UPDT_DT AS src_updated
+            FROM JEILMNS.dbo.M_PUR_GOODS_MVMT g WITH (NOLOCK)
+            WHERE g.MVMT_DT >= ? AND g.MVMT_DT < ?
+        """,
+        "params": ["year_start", "year_end"],
+        "incr_sql": " AND g.UPDT_DT >= ?",   # 증분: 연 범위 내 변경분만(watermark 이후)
+        "rpc": "erp_etl_upsert_pur_goods_mvmt",
+    },
     "purchase": {
         "table": "purchase_m",
         "sql": """
