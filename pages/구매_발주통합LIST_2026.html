@@ -6,7 +6,6 @@
 <script>window.PAGE_KEY='purchase_list_2026';</script>
 <script src="/pages/_access-gate.js"></script>
 <title>구매팀 — 발주통합관리 LIST (2026)</title>
-<link rel="stylesheet" href="/app/lib/querybar.css">
 <link rel="stylesheet" href="/app/lib/grid.css">
 <style>
   :root{
@@ -154,6 +153,19 @@
   .dw__hint{font-size:11px; color:var(--muted); margin-top:14px;}
   @media (max-width:640px){ .dw__grid{grid-template-columns:1fr;} }
 
+  /* 접어 두는 안내 — 펼쳐 두면 표를 덮는다. 요약 한 줄만 보이고 필요한 사람만 연다 */
+  .tips, .notice details{font-size:12px;}
+  .tips{border:1px solid var(--line); border-radius:8px; background:var(--softgrey); padding:6px 12px; margin:6px 0 8px;}
+  .tips > summary, .notice summary{cursor:pointer; color:var(--navy2); font-weight:600; list-style:none;}
+  .tips > summary::-webkit-details-marker, .notice summary::-webkit-details-marker{display:none;}
+  .tips > summary::before, .notice summary::before{content:"▸ "; color:var(--accent);}
+  .tips[open] > summary::before, .notice details[open] summary::before{content:"▾ ";}
+  .tips ul, .notice ul{margin:8px 0 4px 18px; padding:0; color:var(--muted); line-height:1.75;}
+  .tips li, .notice li{margin:0 0 2px;}
+  .tips kbd{border:1px solid var(--line); border-bottom-width:2px; border-radius:4px; padding:0 4px;
+    background:#fff; font-family:inherit; font-size:11px; color:var(--navy2);}
+  .cap .hint{color:#9aa3ad;}
+
   .notice{background:var(--soft); border:1px solid var(--line); border-left:4px solid var(--accent);
     border-radius:8px; padding:10px 14px; margin:12px 0; font-size:12.5px; color:var(--muted);}
   .notice b{color:var(--navy2);}
@@ -175,9 +187,8 @@
   <div class="head">
     <div>
       <h1>📑 발주통합관리 LIST <span style="font-size:13px;font-weight:400;color:var(--muted);">2026</span></h1>
-      <div class="sub">구매팀 운영 페이지 · <span class="badge">부서 전용</span> · 조회 전용(ERP 쓰기 없음) · 구매팀 엑셀 「발주통합관리 LIST」 대응</div>
+      <div class="sub">구매팀 엑셀 「발주통합관리 LIST」 대응</div>
     </div>
-    <div class="right">ERP 미러 · <span data-qbar-asof>—</span> 기준</div>
   </div>
 
   <div class="navlinks">
@@ -188,15 +199,12 @@
     <a href="/work/item-duplicates">🔍 품목 조회</a>
   </div>
 
-  <!-- 표준 조회 플랫폼 — 기간 축 없음(months:false). 기준일·기준·다시 조회만 맡는다 -->
-  <div id="qbar"></div>
-
   <!-- 조회조건: 서버 원장 검색이라 조회바 extras 가 아니라 본문 패널에 둔다(§16.8) -->
   <div class="panel" role="search" aria-label="발주통합 LIST 조회조건">
     <div class="prow r1">
       <div class="fld">
-        <label for="f_q">통합검색 <span style="font-weight:400;">— 구매요청번호·발주번호·품번·품목명·거래처·P-CODE·계약내역</span></label>
-        <input id="f_q" data-f="q" placeholder="번호를 붙여넣거나 이름 일부를 입력 (2글자 이상)" autocomplete="off">
+        <label for="f_q">통합검색</label>
+        <input id="f_q" data-f="q" placeholder="구매요청번호·발주번호·품번·품목명·거래처·P-CODE·계약내역에서 찾기 (2글자 이상)" autocomplete="off">
       </div>
       <div class="btns">
         <button class="btn go" id="bGo">조회</button>
@@ -269,10 +277,16 @@
     </div>
   </div>
 
-  <div class="cap" style="margin:-2px 0 5px;">💡 <b>행을 누르면</b> 그 건의 모든 칸을 한 화면에서 봅니다(↑↓ 로 앞뒤 행, Esc 로 닫기) · 표 오른쪽 위 <b>「▦ 항목」</b> 으로 열을 <b>넣고 뺍니다</b>(끌면 순서도 바뀜) · <b>CSV·복사는 보이는 열만</b> 나갑니다<!--
-  ↓ 표준 그리드가 검색·필터 범위를 「보이는 열만」으로 좁혔다(2026-09-22). 그 결정이 되돌아가면
-    이 span 하나만 지우면 된다 — 나머지 문장은 그대로 참이다. -->
-      <span id="hintSearchScope"> · <b>표 안 검색·필터도 보이는 열만</b> 찾습니다(뺀 열의 값으로 찾으려면 위 조회조건을 쓰거나 그 열을 넣으세요)</span> · <b>열 경계를 끌면</b> 폭이 조절됩니다(두 번 누르면 원래대로) · 표를 누른 뒤 <b>방향키</b>로 칸 사이를 옮겨 다닙니다(Enter 로 상세) · NO.·구분 두 칸은 왼쪽에 고정됩니다</div>
+  <details class="tips">
+    <summary>화면 쓰는 법</summary>
+    <ul>
+      <li><b>행을 누르면</b> 그 건의 모든 칸이 한 화면에 펼쳐집니다 — <kbd>↑</kbd><kbd>↓</kbd> 앞뒤 행, <kbd>Esc</kbd> 닫기</li>
+      <li><b>「▦ 항목」</b> 으로 열을 넣고 뺍니다. 끌면 순서도 바뀝니다</li>
+      <li><b>열 경계를 끌면</b> 폭이 바뀝니다. 두 번 누르면 원래대로</li>
+      <li>표를 누른 뒤 <b>방향키</b>로 칸 사이를 옮겨 다닙니다 (<kbd>Enter</kbd> 상세)</li>
+      <li id="hintSearchScope"><b>표 안 검색·필터·CSV 는 보이는 열만</b> 봅니다 — 뺀 열의 값으로 찾으려면 위 조회조건을 쓰거나 그 열을 넣으세요</li>
+    </ul>
+  </details>
 
   <!-- 표 위쪽 가로 스크롤바 — 아래까지 내려가지 않고도 좌우로 옮길 수 있게 -->
   <div class="hbar" id="hbarTop" aria-hidden="true"><div></div></div>
@@ -300,14 +314,13 @@
   </div>
 
   <div class="foot">
-    <span>구매팀 운영 페이지 · 발주통합관리 LIST</span>
-    <span>출처: ERP 미러 <code>v_erp_pur_list</code>(발주 라인 + 발주 없는 구매요청) · 공개범위: 부서 전용</span>
+    <span>구매팀 전용 · 조회 전용</span>
+    <span>ERP 미러 <code>v_erp_pur_list</code> · <span id="footAsof">—</span> 기준</span>
   </div>
 </div>
 
 <script type="module">
   import { erpApi } from "/app/lib/api.js";
-  import { createQueryBar } from "/app/lib/querybar.js";
   import { createGrid } from "/app/lib/grid.js";
 
   const $ = (id) => document.getElementById(id);
@@ -332,7 +345,6 @@
   let PICK = { gubun: new Set(), sts: new Set() };
   let DEPTS = new Set();  // 요청부서 옵션 — 받은 데이터에서 누적(서버 왕복 추가 없음)
   let reqSeq = 0;         // 늦게 도착한 옛 조회 결과를 버린다
-  let BAR = null;
   /* 엑셀 대체 화면이라 **처음부터 조건 전량**을 받는다 — 2026년 전체 5,609행이 2.2초(라이브 실측 09-22).
      한때 1,000행씩 나눠 받았는데, 그건 RLS 가 술어를 행마다 계산해 조회가 63초 걸리던 시절의 우회였다
      (`이관/sql/62_erp_ro_rls_initplan.sql`·`63_erp_pur_list_perf.sql` 로 해소). 상한은 사고 방지용으로만 남긴다. */
@@ -568,8 +580,7 @@
     const n = ROWS.length, shown = SHOW === 0 ? n : Math.min(SHOW, n);
     const cap = CAP;
     let s = "조건 결과 <b>" + num(n) + "건</b>";
-    if (shown < n) s += " 중 <b>상위 " + num(shown) + "건</b>을 화면에 그립니다 — 표 안 검색·정렬·CSV 는 " + num(n) + "건 <b>전량</b> 기준입니다";
-    else s += " 전부 표시";
+    if (shown < n) s += " 중 <b>" + num(shown) + "건</b> 표시 <span class=\"hint\">(검색·정렬·CSV 는 전량 기준)</span>";
     if (byNo) s += ' · <span style="color:var(--amber)">번호로 찾을 때는 기간 조건을 무시합니다</span>';
     if (HASMORE) { cap.className = "cap warn"; s += " · ⚠ 수신 상한(20,000행)에 걸렸습니다 — 조건을 좁혀 주세요"; }
     else cap.className = "cap";
@@ -821,42 +832,35 @@
     const el = $("pendNote");
     if (!left.length) {
       el.className = "notice";
-      el.innerHTML = "✔ ERP 연동 대기였던 칸이 모두 채워졌습니다. "
-        + "「구분」의 <b>외주</b> 판정과 「입고일」(매입 기준)·「입고요청일」(요청 희망납기) 주의는 그대로입니다 — 아래 설명을 참고하세요.";
+      el.innerHTML = PEND_HTML([], []);
       return;
     }
     el.className = "notice amber";
     el.innerHTML = PEND_HTML(left, filled);
   }
+  /* 엑셀과 다를 수 있는 칸들 — 내용은 그대로 두되 **접어 둔다.**
+     늘 펼쳐 두면 1,350자가 표 위를 덮어 정작 표를 못 본다. 필요한 사람만 연다. */
   const PEND_HTML = (left, filled) =>
-    "⚠ <b>아직 비어 있는 칸 " + left.length + "개 — " + left.map(esc).join(" · ") + "</b>"
-    + (filled.length ? ' <span style="color:var(--green)">(채워짐: ' + filled.map(esc).join(" · ") + ")</span>" : "") + "<br>"
-    + "<b>요청번호(결재)</b>(엑셀 C열 <code>PU…</code>)는 <b>2026-09-22 연결했습니다</b> — 원천은 "
-    + "<code>M_PUR_REQ.EXT1_CD</code>(ERP 확장슬롯)입니다. 이름에 '결재'가 없어 오래 못 찾았습니다: "
-    + "구매 3테이블 230개 컬럼에 결재문서번호라는 이름의 칸이 없고(<code>PAY_DUR</code>·<code>PAY_METH</code>는 "
-    + "<b>대금지급 조건</b>입니다), 그룹웨어 전자결재 연동표(<code>INTERFACE_KO174</code>)에는 "
-    + "결재번호만 있고 <b>구매요청번호가 없어</b> 그쪽만으로는 이을 수 없었습니다. "
-    + "2026년 요청 5,551라인 중 <b>5,292건(95.3%)</b>에 결재번호가 있고 <b>고유 1,133건</b>입니다"
-    + "(빈 259건은 ERP 에 결재번호가 없는 건입니다 — 지어내지 않고 <code>—</code> 로 둡니다). "
-    + "<b>한 결재 아래 요청이 여러 건</b> 달립니다(1건 530 · 2건 223 · 3건 91 … 최대 25) — 엑셀과 같은 구조입니다. "
-    + "같은 확장슬롯의 <b>건명</b>·<b>도번/품명</b> 도 함께 가져와 전체 컬럼에서 볼 수 있습니다. "
-    + "<b>담당자·비고·단가·적요</b> 는 2026-09-22 추출 확장으로 채워졌습니다. "
-    + "엑셀 「발주일자」 칸의 <code>선진행</code> 같은 수기 메모(3,128건)와 「입고일」의 <code>Y</code>·<code>완료</code>(77건)는 "
-    + "ERP 에 없는 값이라 이 화면에 없습니다 — 웹에서 직접 적는 기능은 별도 승인 후 추가합니다.<br>"
-    + "「구분」의 <b>외주</b> 는 <b>품번이 ROS 로 시작하는 건</b>으로 가립니다(799건) — ERP 외주구분(SUBCONTRA_FLG)이 전건 'N' 이라 쓸 수 없고, "
-    + "발주유형 SE1·SF 의 품번도 대부분 ROS 라 같은 것을 가리킵니다. 이 규칙은 발주 전 요청에도 적용됩니다.<br>"
-    + "엑셀과 값이 다를 수 있는 칸 — <b>입고일</b>은 <b>매입(송장) 기준</b>이라 실제 입고일과 다를 수 있습니다(입고 여부는 「입고수량」으로 판단). "
-    + "<b>입고요청일</b>은 요청 희망납기이고, 발주 때 협력사와 조정된 날짜는 전체 컬럼의 「발주납기」에 따로 있습니다(조정된 행에는 <span class=\"tag\">조정</span> 표시). "
-    + "<b>공급처</b>는 <b>발주가 난 행만</b> 있습니다 — ERP 구매요청에는 공급처 칸이 전건 비어 있어(실측) 미발주 행의 예정 거래처는 알 수 없습니다. "
-    + "<b>계약내역</b>은 ERP 프로젝트명이라 엑셀처럼 고객사명이 앞에 붙지 않습니다. "
-    + "<b>입고창고</b>는 ERP 저장위치(제조_원자재창고 등)라 엑셀 「입고처」(본사·이천 2공장·협력사명)와 <b>다른 개념</b>입니다 — 엑셀 쪽 값은 ERP 에 없습니다. "
-    + "<b>담당자</b>는 발주 등록자이고, 퇴사자는 이름 뒤에 표시됩니다. "
-    + "<b>수량·금액</b>은 ERP 현재값이라 취소·정정된 건은 엑셀과 다를 수 있습니다(엑셀은 요청 당시 값을 그대로 둡니다).";
+    "<details><summary>" + (left.length
+      ? "아직 비어 있는 칸 <b>" + left.length + "개</b> — " + left.map(esc).join(" · ")
+      : "엑셀과 다를 수 있는 칸") + " · <span style=\"color:var(--accent)\">자세히</span></summary>"
+    + (filled.length ? '<p style="color:var(--green)">채워짐: ' + filled.map(esc).join(" · ") + "</p>" : "")
+    + "<ul>"
+    + "<li><b>입고일</b>은 <b>매입(송장) 기준</b>이라 실제 입고일과 다를 수 있습니다 — 입고 여부는 「입고수량」으로 판단하세요.</li>"
+    + "<li><b>입고요청일</b>은 요청 희망납기입니다. 협력사와 조정된 날짜는 「발주납기」에 따로 있습니다(조정된 행에 <span class=\"tag\">조정</span>).</li>"
+    + "<li><b>공급처</b>는 <b>발주가 난 행만</b> 있습니다 — ERP 구매요청에 공급처 칸이 전건 비어 있습니다.</li>"
+    + "<li><b>입고창고</b>는 ERP 저장위치라 엑셀 「입고처」(본사·이천 2공장·협력사명)와 <b>다른 개념</b>입니다.</li>"
+    + "<li><b>계약내역</b>은 ERP 프로젝트명이라 엑셀처럼 고객사명이 앞에 붙지 않습니다.</li>"
+    + "<li><b>구분</b>의 <b>외주</b>는 품번이 ROS 로 시작하는 건입니다(799건) — ERP 외주구분이 전건 'N' 이라 쓸 수 없습니다.</li>"
+    + "<li><b>수량·금액</b>은 ERP 현재값이라 취소·정정된 건은 엑셀과 다를 수 있습니다.</li>"
+    + "<li><b>담당자</b>는 발주 등록자입니다(퇴사자는 이름 뒤에 표시).</li>"
+    + "<li>엑셀 「발주일자」의 <code>선진행</code> 메모(3,128건)와 「입고일」의 <code>Y</code>·<code>완료</code>(77건)는 ERP 에 없어 이 화면에 없습니다.</li>"
+    + "</ul></details>";
 
   /* ── 이벤트 ── */
-  const requery = () => { BAR && BAR.refresh(); };
+  const requery = () => runQuery("manual");
   $("bGo").onclick = requery;
-  $("bReset").onclick = () => { writeCond({}); DEPTS = new Set(); if (BAR) BAR.refresh(); $("f_q").focus(); };
+  $("bReset").onclick = () => { writeCond({}); DEPTS = new Set(); requery(); $("f_q").focus(); };
   /* CSV 는 「화면에 그린 만큼」이 아니라 조건 전량을 담는다 — 표준 그리드가 렌더 상한과
      무관하게 보유 행 전체를 내보낸다(§13). 조회 자체가 이미 전량이다. */
   $("bCsv").onclick = () => { GRID && GRID.exportCsv(); };
@@ -912,31 +916,25 @@
      PKCE verifier 가 서로 덮어써지고 로그인이 깨진다 — 한 곳에서만 한다. */
   /* 조건이 정해진 뒤, 조회가 나가기 **전에** 저장본을 먼저 그린다 — 화면이 비어 있는 시간을 없앤다 */
   paintCached(readCond());
-  startBar();
+  runQuery("init");
 
   let ASOF_DONE = false;
-  function startBar() {
-  BAR = createQueryBar("#qbar", {
-    months: false,                       // 기간 축은 검색 패널이 맡는다(기준을 고를 수 있어야 해서)
-    basis: "ERP 미러 · 발주 라인 + 발주 없는 구매요청",
-    mode: "live",
-    refreshLabel: "다시 조회",
-    onQuery: async (q, ctx) => {
-      try {
-        await load(ctx.reason);
-        if (!ASOF_DONE) {
-          const asof = await erpApi.dataAsof();
-          const ts = [asof.pur_order?.last_success, asof.pur_req?.last_success].filter(Boolean).sort().pop();
-          if (ts) { ctx.bar.setMeta({ asOf: kst(ts) }); ASOF_DONE = true; }
-        }
-      } catch (e) {
-        $("listGrid").innerHTML = '<div class="notice">목록을 불러오지 못했습니다. 사내 계정으로 로그인했는지 확인해 주세요.<br>'
-          + '<span style="color:#99a2ad;">' + esc(e?.message || "") + "</span></div>";
-        CAP.textContent = "";
-        throw e;
+  /* 조회바를 걷어내고(사용자 지시 2026-09-23) 화면이 직접 조회한다.
+     이 화면은 본문 조회 패널에 「조회」 버튼이 따로 있어 상단 「다시 조회」가 중복이었고,
+     기준일은 아래 각주로 내렸다. */
+  async function runQuery(reason) {
+    try {
+      await load(reason);
+      if (!ASOF_DONE) {
+        const asof = await erpApi.dataAsof();
+        const ts = [asof.pur_order?.last_success, asof.pur_req?.last_success].filter(Boolean).sort().pop();
+        if (ts) { $("footAsof").textContent = kst(ts); ASOF_DONE = true; }
       }
-    },
-  });
+    } catch (e) {
+      $("listGrid").innerHTML = '<div class="notice">목록을 불러오지 못했습니다. 사내 계정으로 로그인했는지 확인해 주세요.<br>'
+        + '<span style="color:#99a2ad;">' + esc(e?.message || "") + "</span></div>";
+      CAP.textContent = "";
+    }
   }
 </script>
 </body>
