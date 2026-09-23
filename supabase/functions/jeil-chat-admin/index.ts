@@ -2,15 +2,20 @@
 // 배포: verify_jwt=false (Entra 토큰을 내부에서 Graph로 검증)
 // 호출: POST /functions/v1/jeil-chat-admin  Authorization: Bearer <Entra access_token>
 //   조회(빈 바디): { gateway, usage, admins, dept_mapping, dept_permissions, portal_pages, dept_erp_scope, catalog, model_settings } — 관리자만
-//   부분 조회({scope:'perm'}): { admins, dept_mapping, portal_pages, dept_erp_scope, dept_erp_suggest, catalog, perm_grants, perm_audit, as_of }
+//   부분 조회({scope:'perm'}): { org_nodes, page_scopes, dept_modules, admins, dept_mapping, portal_pages, dept_erp_scope, dept_erp_suggest, catalog, perm_grants, perm_audit, as_of }
 //   부분 조회({scope:'dept'}): { dept_mapping, as_of }
-//   저장({action:'save_dept_perm'|'save_page_perm'|'save_dept_erp'|'save_ai_models'|'save_ai_config'|'save_ai_routing'|'manage_admin', ...}): 관리자만 → { ok, saved }
+//   저장({action:'save_dept_perm'|'save_page_scope'|'save_dept_module'|'preview_page_scope'|'save_ai_models'|'save_ai_config'|'save_ai_routing'|'manage_admin', ...}): 관리자만 → { ok, saved }
 //   v9: save_ai_config에 work 컨텍스트 적용범위·대화 저장 정책 6필드 추가. usage에 세션·메시지 건수(원문은 반환하지 않음 — 본인 전용 jeil-chat-history뿐).
 //   v10(2026-07-22): 권한 코어 통합 — 개인 예외 권한 액션 3종(grant_perm·revoke_perm·effective_perm) 추가,
 //     조회 응답에 perm_grants·perm_audit 포함, 모듈 카탈로그 SSOT를 DB(perm_module_catalog)로 이관.
 //   v11(2026-09-10, REQ-0026): 부분 조회 scope('perm'|'dept') — 권한 설정 독립 화면(/admin/permissions)과
 //     사용자·부서 화면(/admin/user-dept)이 대화 로그 2,000건·모델 설정까지 매번 받지 않게. 빈 바디는 종전과 같은 전체 응답(호환).
 //     save_dept_perm 은 호출 화면이 사라졌지만(부서 관리자 축 UI 제거 — 관리자 결정) 호환을 위해 남긴다.
+//   v12(2026-09-23, REQ-0078 · ADR-107): 부서 키 = 부서코드 + 조직도 상속(하위 포함).
+//     scope:'perm' 에 org_nodes(현행 조직)·page_scopes·dept_modules 추가.
+//     저장은 DB RPC 로 — save_page_scope(perm_page_scope_save) · save_dept_module(perm_dept_module_save),
+//     미리보기 preview_page_scope(perm_preview_page). 검증·감사·옛 컬럼 미러는 RPC 가 한다(트랜잭션 하나).
+//     옛 저장 save_page_perm·save_dept_erp 는 **거부(410)** — 판정이 새 표만 보므로 받아 주면 저장이 조용히 무시된다.
 // 원칙: chat_log·erp 매핑 뷰는 RLS로 클라이언트 차단 → 이 함수(service_role)가 유일한 조회/저장 경로.
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
@@ -84,45 +89,42 @@ Deno.serve(async (req) => {
     return json({ ok: true, saved: rows.length, updated_by: user.upn, updated_at: nowIso });
   }
 
-  // 2-c) 저장 액션 — 페이지 공개 설정(portal_page upsert).
-  if (body && (body as Record<string, unknown>).action === "save_page_perm") {
-    const rowsIn = Array.isArray((body as Record<string, unknown>).rows) ? (body as Record<string, unknown>).rows as Record<string, unknown>[] : [];
-    const rows = rowsIn.filter((r) => r && r.page_key).map((r) => ({
-      page_key: String(r.page_key),
-      title: r.title != null ? String(r.title) : undefined,
-      path: r.path != null ? String(r.path) : undefined,
-      icon: r.icon != null ? String(r.icon) : undefined,
-      dept_nm: r.dept_nm ? String(r.dept_nm) : null,
-      visibility: r.visibility ? String(r.visibility) : "부서 전용",
-      shared_depts: Array.isArray(r.shared_depts) ? (r.shared_depts as unknown[]).map(String) : [],
-      erp_module: r.erp_module ? String(r.erp_module) : null,
-      active: r.active !== false,
-      updated_by: user.upn, updated_at: nowIso,
-    }));
-    if (!rows.length) return json({ error: "저장할 페이지가 없습니다." }, 400);
-    const { error: pe } = await admin.from("portal_page").upsert(rows, { onConflict: "page_key" });
-    if (pe) return json({ error: "페이지 권한 저장 실패: " + pe.message }, 500);
-    return json({ ok: true, saved: rows.length, updated_by: user.upn, updated_at: nowIso });
+  // 2-c0) v12: 옛 저장 액션 거부 — 판정(perm_effective)이 코드 표(portal_page_scope·dept_module_scope)만 본다.
+  //   예전 화면이 브라우저에 남아 저장하면 성공처럼 보이고 아무 효과가 없게 되므로, 새로고침을 요구한다.
+  if (body && ["save_page_perm", "save_dept_erp"].includes(String((body as Record<string, unknown>).action))) {
+    return json({ error: "권한 설정 화면이 조직도 방식으로 바뀌었습니다. 화면을 새로고침(Ctrl+F5)한 뒤 다시 저장하세요." }, 410);
   }
 
-  // 2-d) 저장 액션 — 부서별 ERP 모듈 권한(제공 부서 범위를 삭제 후 재삽입).
-  if (body && (body as Record<string, unknown>).action === "save_dept_erp") {
-    const rowsIn = Array.isArray((body as Record<string, unknown>).rows) ? (body as Record<string, unknown>).rows as Record<string, unknown>[] : [];
-    const depts = rowsIn.map((r) => String(r.dept_nm || "")).filter(Boolean);
-    if (!depts.length) return json({ error: "저장할 부서가 없습니다." }, 400);
-    const { error: de } = await admin.from("dept_erp_scope").delete().in("dept_nm", depts);
-    if (de) return json({ error: "ERP 모듈 권한 갱신 실패: " + de.message }, 500);
-    const ins: Record<string, unknown>[] = [];
-    for (const r of rowsIn) {
-      const dn = String(r.dept_nm || ""); if (!dn) continue;
-      const mods = Array.isArray(r.modules) ? (r.modules as unknown[]).map(String) : [];
-      for (const m of mods) ins.push({ dept_nm: dn, module_key: m, updated_by: user.upn, updated_at: nowIso });
-    }
-    if (ins.length) {
-      const { error: ie } = await admin.from("dept_erp_scope").insert(ins);
-      if (ie) return json({ error: "ERP 모듈 권한 저장 실패: " + ie.message }, 500);
-    }
-    return json({ ok: true, saved: depts.length, modules: ins.length, updated_by: user.upn, updated_at: nowIso });
+  // 2-c1) v12: 페이지 공개 설정 1건 저장 — 검증·감사·옛 컬럼 미러는 RPC(perm_page_scope_save)가 한 트랜잭션으로.
+  if (body && (body as Record<string, unknown>).action === "save_page_scope") {
+    const page = (body as Record<string, unknown>).page;
+    if (!page || typeof page !== "object") return json({ error: "저장할 페이지 설정이 없습니다." }, 400);
+    const { data, error } = await admin.rpc("perm_page_scope_save", { p_actor: user.upn, p_page: page });
+    if (error) return json({ error: "페이지 공개 설정 저장 실패: " + error.message }, 400);
+    return json({ ok: true, result: data, updated_by: user.upn, updated_at: nowIso });
+  }
+
+  // 2-c2) v12: 부서 1건의 ERP 모듈 저장 — 민감 모듈 상속 금지·신규 민감 부여 사유 필수(RPC·트리거가 강제).
+  if (body && (body as Record<string, unknown>).action === "save_dept_module") {
+    const b = body as Record<string, unknown>;
+    const deptCd = String(b.dept_cd || "").trim();
+    if (!deptCd) return json({ error: "부서 코드가 필요합니다." }, 400);
+    const rows = Array.isArray(b.rows) ? b.rows : [];
+    const { data, error } = await admin.rpc("perm_dept_module_save", {
+      p_actor: user.upn, p_dept_cd: deptCd, p_rows: rows,
+      p_reason: b.reason != null ? String(b.reason).slice(0, 400) : null,
+    });
+    if (error) return json({ error: "ERP 모듈 저장 실패: " + error.message }, 400);
+    return json({ ok: true, result: data, updated_by: user.upn, updated_at: nowIso });
+  }
+
+  // 2-c3) v12: 미리보기 — 저장하지 않은 페이지 설정으로 「어느 부서·몇 명이 보게 되나」(판정과 같은 규칙).
+  if (body && (body as Record<string, unknown>).action === "preview_page_scope") {
+    const page = (body as Record<string, unknown>).page;
+    if (!page || typeof page !== "object") return json({ error: "미리볼 페이지 설정이 없습니다." }, 400);
+    const { data, error } = await admin.rpc("perm_preview_page", { p_page: page });
+    if (error) return json({ error: "미리보기 실패: " + error.message }, 400);
+    return json({ ok: true, preview: data });
   }
 
   // 2-e) 전체권한(전체 관리자=portal_admin) 부여/해제 — 관리자만. 특정 이메일 수동 지정.
@@ -292,6 +294,10 @@ Deno.serve(async (req) => {
     admin.from("perm_module_catalog").select("module_key,label,sensitive,sort").order("sort"),
     admin.rpc("perm_grant_list"),                                     // 개인 예외 권한(활성+회수 이력)
     admin.from("perm_audit").select("actor,action,target,detail,at").order("at", { ascending: false }).limit(100),
+    // v12: 조직도 기반 권한(ADR-107) — 현행 조직 노드·페이지 공유 범위·부서 모듈(코드)
+    admin.from("v_perm_org_node").select("dept_cd,dept_nm,par_dept_cd,lvl,path_cd,path_nm,sort_key,has_child,org_change_id,member_cnt,hr_cnt,is_cost").order("sort_key"),
+    admin.from("portal_page_scope").select("page_key,dept_cd,include_sub,org_change_id,updated_by,updated_at"),
+    admin.from("dept_module_scope").select("dept_cd,module_key,include_sub,org_change_id,updated_by,updated_at"),
   ]);
   // deno-lint-ignore no-explicit-any
   const buildDeptMapping = (udUsers: any, udRecon: any, udRoster: any) => ({
@@ -323,8 +329,13 @@ Deno.serve(async (req) => {
       const asof = await admin.from("v_erp_data_asof").select("job_name,last_success").eq("job_name", "usr_master").maybeSingle();
       return json({ dept_mapping, asof_usr_master: asof.data?.last_success || null, as_of: nowIso });
     }
-    const [adminsRes, pagesRes, deptErpRes, deptErpSuggestRes, catalogRes, grantsRes, permAuditRes] = await qPerm();
+    const [adminsRes, pagesRes, deptErpRes, deptErpSuggestRes, catalogRes, grantsRes, permAuditRes,
+           orgRes, pageScopeRes, deptModRes] = await qPerm();
     return json({
+      org_nodes: orgRes.data || [],
+      page_scopes: pageScopeRes.data || [],
+      dept_modules: deptModRes.data || [],
+      org_error: orgRes.error?.message || pageScopeRes.error?.message || deptModRes.error?.message || null,
       admins: adminsRes.data || [],
       dept_mapping,
       portal_pages: pagesRes.data || [],

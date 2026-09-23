@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>권한 설정 조직도 목업 — JEIL AX</title>
+<style>
+  /* 팔레트·톤은 app/admin-permissions.html 과 같다 — 실구현 시 그대로 옮겨 쓸 수 있게 */
+  :root{--navy:#1a2f4e;--navy2:#27457a;--accent:#2f6fb3;--red:#b3402f;--green:#2e7d52;--amber:#9a6b1f;
+    --ink:#222;--muted:#666;--line:#d8dee8;--bg:#f4f6f9;--soft:#eef2f8;--softgreen:#ecf5f0;--softamber:#faf3e4;--softred:#fbeeec;}
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;color:var(--ink);background:var(--bg);line-height:1.55;font-size:13.5px;}
+  .page{max-width:1400px;margin:0 auto;background:#fff;padding:24px 28px 36px;box-shadow:0 2px 14px rgba(0,0,0,.08);min-height:100vh;}
+  .mockbar{background:repeating-linear-gradient(135deg,#fff7e0,#fff7e0 10px,#fdf0cc 10px,#fdf0cc 20px);border:1px solid #e6d5a8;color:#6b5320;
+    border-radius:9px;padding:9px 14px;font-size:12.5px;margin-bottom:14px;}
+  .mockbar b{color:#5a4520;}
+  .head{display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:10px;border-bottom:3px solid var(--navy);padding-bottom:12px;margin-bottom:14px;}
+  .head h1{font-size:20px;color:var(--navy);}
+  .head .sub{font-size:12.5px;color:var(--muted);margin-top:3px;}
+  .head a{color:var(--accent);text-decoration:none;}
+  .badge{display:inline-block;font-size:11px;border-radius:10px;padding:1px 8px;font-weight:600;white-space:nowrap;}
+  .badge.g{background:var(--softgreen);color:var(--green);} .badge.a{background:var(--softamber);color:var(--amber);}
+  .badge.b{background:var(--soft);color:var(--navy2);} .badge.r{background:var(--softred);color:var(--red);}
+  .badge.n{background:#f2f4f7;color:#8a93a0;}
+  .muted{color:var(--muted);}
+  code{font-family:Consolas,monospace;font-size:11px;background:#f6f8fb;border:1px solid var(--line);border-radius:4px;padding:0 4px;}
+
+  .toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px;}
+  .seg{display:inline-flex;border:1px solid var(--navy);border-radius:8px;overflow:hidden;}
+  .seg button{background:#fff;color:var(--navy);border:0;padding:7px 14px;font:inherit;font-weight:600;cursor:pointer;}
+  .seg button.on{background:var(--navy);color:#fff;}
+  .toolbar .sp{flex:1;}
+  .toolbar label{font-size:12.5px;color:var(--muted);display:flex;gap:5px;align-items:center;cursor:pointer;}
+
+  /* 정리 필요(유령) */
+  .fix{border:1px solid #e6d5a8;background:var(--softamber);border-radius:9px;padding:9px 13px;margin-bottom:12px;font-size:12.3px;color:#5a4520;}
+  .fix summary{cursor:pointer;font-weight:700;}
+  .fix ul{margin:7px 0 2px 18px;} .fix li{margin:3px 0;}
+  .fix .sug{color:var(--accent);}
+
+  .cols{display:grid;grid-template-columns:minmax(260px,1fr) minmax(320px,1.35fr) minmax(260px,1fr);gap:12px;align-items:start;}
+  .card{border:1px solid var(--line);border-radius:10px;background:#fff;overflow:hidden;}
+  .card > h3{font-size:13.5px;color:#fff;background:var(--navy);padding:8px 12px;display:flex;gap:8px;align-items:center;}
+  .card > h3 .sp{flex:1;} .card > h3 .badge{font-weight:600;}
+  .card .body{padding:10px 12px;}
+
+  /* 조직도 트리 (실구현: app/lib/orgtree.js · .otree__ 스코프) */
+  .otree__search{width:100%;padding:7px 10px;border:1px solid var(--line);border-radius:7px;font:inherit;margin-bottom:8px;}
+  .otree__list{max-height:560px;overflow:auto;}
+  .otree__node{display:flex;align-items:center;gap:5px;padding:3px 4px;border-radius:6px;cursor:pointer;white-space:nowrap;}
+  .otree__node:hover{background:#f3f6fb;}
+  .otree__node.sel{background:#e3ecf8;outline:1px solid #b9cbe6;}
+  .otree__node.hit .otree__nm{background:#fff2b3;}
+  .otree__tw{width:16px;text-align:center;color:#7a8699;font-size:11px;flex:0 0 16px;}
+  .otree__chk{width:16px;height:16px;flex:0 0 16px;border:1.5px solid #9aa6b8;border-radius:4px;display:inline-flex;align-items:center;justify-content:center;font-size:11px;background:#fff;}
+  .otree__chk.on{background:var(--accent);border-color:var(--accent);color:#fff;}
+  .otree__chk.inh{background:#dbe7f6;border-color:#9dbbe0;color:var(--accent);}
+  .otree__chk.own{background:var(--green);border-color:var(--green);color:#fff;}
+  .otree__chk.dis{opacity:.35;}
+  .otree__nm{font-weight:600;color:var(--navy);}
+  .otree__nm.zero{color:#9aa3af;font-weight:500;}
+  .otree__cnt{font-size:11px;color:#7a8699;}
+  .otree__tag{font-size:10px;border-radius:8px;padding:0 6px;font-weight:600;}
+  .otree__tag.own{background:var(--softgreen);color:var(--green);}
+  .otree__tag.sub{background:var(--soft);color:var(--navy2);}
+  .otree__tag.inh{background:#f2f4f7;color:#7a8699;}
+  .otree__tag.sens{background:var(--softred);color:var(--red);}
+  .legend{display:flex;gap:10px;flex-wrap:wrap;font-size:11px;color:var(--muted);margin-top:8px;border-top:1px dashed var(--line);padding-top:7px;}
+  .legend span{display:inline-flex;gap:4px;align-items:center;}
+
+  /* 설정 */
+  .field{margin-bottom:11px;}
+  .field > .lb{font-size:11.5px;color:var(--muted);margin-bottom:4px;display:flex;gap:6px;align-items:center;}
+  .sel{padding:7px 10px;border:1px solid var(--line);border-radius:7px;font:inherit;background:#fff;max-width:100%;width:100%;}
+  .radios{display:flex;gap:6px;flex-wrap:wrap;}
+  .radios label{border:1px solid var(--line);border-radius:7px;padding:6px 11px;cursor:pointer;font-size:12.5px;display:flex;gap:5px;align-items:center;}
+  .radios label.on{border-color:var(--navy);background:var(--soft);color:var(--navy);font-weight:600;}
+  .chips{display:flex;flex-wrap:wrap;gap:6px;min-height:34px;border:1px dashed var(--line);border-radius:8px;padding:6px;}
+  .chips.off{opacity:.45;pointer-events:none;}
+  .chip{display:inline-flex;align-items:center;gap:6px;background:var(--soft);border:1px solid #c8d5e8;border-radius:16px;padding:2px 4px 2px 10px;font-size:12px;color:var(--navy2);}
+  .chip .sw{font-size:10.5px;border:1px solid #9dbbe0;border-radius:10px;padding:0 6px;cursor:pointer;background:#fff;color:var(--muted);}
+  .chip .sw.on{background:var(--accent);border-color:var(--accent);color:#fff;}
+  .chip .x{border:0;background:none;cursor:pointer;color:#8a93a0;font-size:14px;line-height:1;padding:0 4px;}
+  .chip.ghost{background:#f2f4f7;border-style:dashed;color:#8a93a0;text-decoration:line-through;}
+  .hint{font-size:11.5px;color:var(--muted);margin-top:5px;}
+  .warn{background:var(--softamber);border:1px solid #e6d5a8;color:#6b5320;border-radius:8px;padding:7px 10px;font-size:12px;margin-top:6px;}
+  .danger{background:var(--softred);border:1px solid #efc3bb;color:#8a2f22;border-radius:8px;padding:7px 10px;font-size:12px;margin-top:6px;}
+
+  table.t{width:100%;border-collapse:collapse;font-size:12.3px;}
+  table.t th{background:#f3f6fb;color:var(--navy);padding:6px 8px;text-align:left;font-weight:600;border-bottom:1px solid var(--line);white-space:nowrap;}
+  table.t td{padding:6px 8px;border-bottom:1px solid #edf0f5;vertical-align:middle;}
+  table.t td.c,table.t th.c{text-align:center;}
+  .tbl{overflow-x:auto;border:1px solid var(--line);border-radius:8px;}
+
+  /* 미리보기 */
+  .kpis{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:9px;}
+  .kpi{border:1px solid var(--line);border-radius:9px;padding:8px 11px;background:linear-gradient(135deg,#f7fafd,#eef4fb);}
+  .kpi .lb{font-size:11px;color:var(--muted);} .kpi .v{font-size:22px;font-weight:800;color:var(--navy);line-height:1.2;}
+  .kpi .d{font-size:11.5px;font-weight:700;} .up{color:var(--red);} .down{color:var(--green);} .same{color:#9aa3af;}
+  .plist{list-style:none;max-height:260px;overflow:auto;border:1px solid var(--line);border-radius:8px;}
+  .plist li{display:flex;justify-content:space-between;gap:8px;padding:5px 9px;border-bottom:1px solid #edf0f5;font-size:12.3px;}
+  .plist li:last-child{border-bottom:0;}
+  .plist li .why{font-size:11px;color:var(--muted);}
+  .plist li.new{background:#fff8e6;} .plist li.gone{background:#f7f7f7;color:#9aa3af;text-decoration:line-through;}
+  .btns{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;}
+  .btn{background:var(--navy);color:#fff;border:1px solid var(--navy);border-radius:7px;padding:7px 14px;font:inherit;font-size:12.5px;font-weight:600;cursor:pointer;}
+  .btn.o{background:#fff;color:var(--accent);border-color:var(--accent);font-weight:500;}
+  .btn:disabled{opacity:.45;cursor:not-allowed;}
+
+  .info dl{display:grid;grid-template-columns:88px 1fr;gap:4px 8px;font-size:12.3px;}
+  .info dt{color:var(--muted);} .info dd{color:var(--ink);word-break:keep-all;}
+  .toast{position:fixed;left:50%;bottom:calc(22px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--navy);color:#fff;border-radius:9px;
+    padding:10px 16px;font-size:12.8px;box-shadow:0 6px 20px rgba(0,0,0,.2);max-width:calc(100% - 32px);}
+  .foot{margin-top:18px;padding-top:10px;border-top:1px solid var(--line);font-size:11px;color:var(--muted);}
+  [hidden]{display:none!important;}
+
+  @media (max-width:1100px){.cols{grid-template-columns:1fr 1fr;} .cols > .c3{grid-column:1 / -1;}}
+  @media (max-width:760px){.page{padding:16px 16px 28px;} .cols{grid-template-columns:1fr;} .otree__list{max-height:380px;}}
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="mockbar"><b>기획 목업</b> — 실데이터와 연결되지 않고 저장도 되지 않습니다. 조직도와 페이지 목록은 2026-09-23 현행 조직(20261) 구조를 옮겨 둔 것이고, 인원은 활성 계정 수입니다.
+    설계서: <a href="/docs/product/org-permission">12 · 조직도 기반 공개설정 설계</a> · REQ-0078 · ADR-107 · 실제 화면은 <a href="/admin/permissions">/admin/permissions</a></div>
+
+  <div class="head">
+    <div>
+      <h1>🔐 권한 설정 — 조직도 기반 <span class="badge a">목업</span></h1>
+      <div class="sub">조직도에서 클릭해 공개 범위를 정하고, 저장하기 <b>전에</b> 누가 보게 되는지 확인합니다 · 부서 기준 키 = 부서코드(<code>dept_cd</code>)</div>
+    </div>
+    <div class="muted" style="font-size:12px;">기준 조직 <b>20261</b> · 인원 = 활성 계정</div>
+  </div>
+
+  <div class="toolbar">
+    <div class="seg" role="tablist" aria-label="보기 전환">
+      <button id="vPage" class="on" type="button">📄 페이지 → 조직</button>
+      <button id="vDept" type="button">🏢 조직 → 페이지</button>
+    </div>
+    <span class="muted" id="viewHint" style="font-size:12px;">이 페이지를 누가 보나?</span>
+    <span class="sp"></span>
+    <label><input type="checkbox" id="showCost"> 원가부서 표시(인원 0)</label>
+  </div>
+
+  <details class="fix" id="fixBox">
+    <summary>⚠ 정리 필요 <span id="fixCnt"></span> — 현행 조직에 없는 부서명이 설정에 남아 있습니다(누구에게도 적용되지 않음)</summary>
+    <ul id="fixList"></ul>
+    <div class="hint">실구현에서는 <code>dept_map_legacy</code> 후보로 [바꾸기]/[삭제] 버튼이 붙습니다. 결정은 관리자(REQ-0032).</div>
+  </details>
+
+  <div class="cols">
+    <!-- ① 조직도 -->
+    <section class="card c1">
+      <h3>① 조직도 <span class="sp"></span><span class="badge b" id="treeMode">공유 부서 지정</span></h3>
+      <div class="body">
+        <input class="otree__search" id="q" type="search" placeholder="부서 검색 — 예: 설계, 자재, 6120">
+        <div class="otree__list" id="tree" role="tree"></div>
+        <div class="legend" id="legend"></div>
+      </div>
+    </section>
+
+    <!-- ② 설정 -->
+    <section class="card c2">
+      <h3 id="midTitle">② 페이지 공개 설정</h3>
+      <div class="body" id="mid"></div>
+    </section>
+
+    <!-- ③ 영향 미리보기 + 조직 기준정보 -->
+    <section class="c3" style="display:flex;flex-direction:column;gap:12px;">
+      <div class="card">
+        <h3 id="rightTitle">③ 영향 미리보기 <span class="sp"></span><span class="badge a">저장 전</span></h3>
+        <div class="body" id="preview"></div>
+      </div>
+      <div class="card info">
+        <h3>🏷 조직 기준정보</h3>
+        <div class="body" id="info"><span class="muted">조직도에서 부서 이름을 누르면 코드·경로·인원·권한이 여기에 나옵니다.</span></div>
+      </div>
+    </section>
+  </div>
+
+  <div class="foot">목업 파일 · 11_제품기획/12_권한_조직도기반_공개설정_목업.html — 트리 UI 는 실구현 시 <code>app/lib/orgtree.js</code>(바닐라·의존성 0)로 분리, 판정·미리보기는 서버 <code>perm_effective</code>·<code>perm_preview</code> 가 한다.</div>
+</div>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+(function () {
+  "use strict";
+  /* ── 샘플 데이터 (현행 org 20261 구조 · 인원 = 활성 계정 수) ───────────── */
+  var NODES = [
+    ["0000","제일엠앤에스",null,3],
+    ["0200","BDP본부","0000",2],
+    ["0100","품질부문","0200",1], ["7400","품질팀","0100",5],
+    ["6700","사업부문","0200",0], ["5200","구매팀","6700",2], ["6110","사업운영팀","6700",20], ["6120","사업관리팀","6700",10],
+    ["6900","설계부문","0200",0], ["6210","제어설계팀","6900",1], ["6220","공정설계팀","6900",6], ["6910","R&D팀","6900",1], ["8100","기계설계팀","6900",5],
+    ["7000","생산부문","0200",1], ["7100","생산팀","7000",14], ["7200","자재물류팀","7000",3],
+    ["1000","경영기획부문","0000",1], ["1100","경영기획팀","1000",1], ["2400","내부회계관리팀","1000",1],
+    ["1300","공통예산","0000",0,"cost"], ["1310","제조공통","0000",0,"cost"], ["1320","연구공통","0000",0,"cost"], ["1330","판관공통","0000",0,"cost"],
+    ["2000","재무부문","0000",0], ["2100","재무팀","2000",0], ["2300","자금팀","2000",1],
+    ["3000","경영지원부문","0000",0], ["3200","총무팀","3000",4],
+    ["3100","인사부문","0000",1], ["3150","인사팀","3100",3],
+    ["9900","해외법인관리","0000",0], ["9910","헝가리법인","9900",1], ["9920","스웨덴법인","9900",0], ["9930","미국법인","9900",2], ["9940","캐나다법인","9900",0]
+  ].map(function (r) { return { cd: r[0], nm: r[1], par: r[2], n: r[3], cost: r[4] === "cost" }; });
+  var BY = {}, KIDS = {};
+  NODES.forEach(function (x) { BY[x.cd] = x; (KIDS[x.par || ""] = KIDS[x.par || ""] || []).push(x.cd); });
+  NODES.forEach(function (x) { var l = 1, p = x.par; while (p) { l++; p = BY[p].par; } x.lvl = l; });
+
+  var MODS = [
+    { k: "sales", l: "매출" }, { k: "purchase", l: "매입" }, { k: "inventory", l: "재고" }, { k: "item", l: "품목" },
+    { k: "pur_order", l: "발주·구매요청" }, { k: "user_dept", l: "사용자·부서" },
+    { k: "payroll", l: "급여·인사", s: 1 }, { k: "finance", l: "자금·회계", s: 1 }, { k: "accounting", l: "회계(결의전표)", s: 1 }
+  ];
+  var MOD = {}; MODS.forEach(function (m) { MOD[m.k] = m; });
+  var VIS = ["부서 전용", "전사 공개", "지정 부서 공유"];
+
+  // 현재 portal_page 를 코드로 옮긴 모습. ghost = 현행 트리에 없는 옛 이름(변환 불가), note = 조합 모순
+  var PAGES = [
+    { key: "inventory_2026", t: "재고 입·출고 현황 2026", owner: "7200", vis: "지정 부서 공유", mod: "inventory", scope: [{ cd: "5200", sub: false }, { cd: "6120", sub: false }] },
+    { key: "item_search", t: "품목 존재/중복 조회", owner: "6120", vis: "지정 부서 공유", mod: "item",
+      scope: [{ cd: "5200", sub: false }, { cd: "7200", sub: false }, { cd: "7100", sub: false }, { cd: "8100", sub: false }, { cd: "6220", sub: false }] },
+    { key: "gl_draft", t: "결의전표 입력(초안)", owner: "2300", vis: "지정 부서 공유", mod: "accounting", scope: [], ghost: ["회계"] },
+    { key: "finance_dashboard", t: "자금·경영 현황 (월별 수지)", owner: "2300", vis: "부서 전용", mod: "finance", scope: [{ cd: "1100", sub: false }],
+      ghost: ["재무회계팀", "내부회계팀"], note: "「부서 전용」인데 공유 부서가 저장돼 있어 공유가 무시되고 있습니다(현재 자금팀만 봄)." },
+    { key: "hr_2026", t: "인원 및 급여 추이 2026", owner: "3150", vis: "부서 전용", mod: "payroll", scope: [] },
+    { key: "sales_2026", t: "수주현황 대시보드 2026", owner: "6120", vis: "부서 전용", mod: "sales", scope: [] },
+    { key: "purchase_2026", t: "거래처별 매입금액 집계 2026", owner: "5200", vis: "부서 전용", mod: "purchase", scope: [] },
+    { key: "purchase_list_2026", t: "발주통합관리 LIST 2026", owner: "5200", vis: "부서 전용", mod: "pur_order", scope: [],
+      note: "공유 부서에 자기 부서(구매팀)가 중복 저장돼 있었습니다 — 코드 이관 시 자동 제거." },
+    { key: "purchase_order_2026", t: "발주·구매요청 진행현황 2026", owner: "5200", vis: "부서 전용", mod: "pur_order", scope: [] },
+    { key: "purchase_proposal_2026", t: "기안서 대장 2026", owner: "5200", vis: "부서 전용", mod: null, scope: [] },
+    { key: "cost_summary_095", t: "프로젝트 원가 요약", owner: "6120", vis: "부서 전용", mod: null, scope: [] },
+    { key: "erp_role_matrix", t: "ERP 권한(role) 조직별 현황", owner: null, vis: "전사 공개", mod: null, scope: [] }
+  ];
+  // 부서 ERP 모듈 — 22행이 같은 기본 5모듈이던 것을 「최상위 1행 + 예외」로 압축한 모습(설계서 Q4)
+  var DMOD = [
+    { cd: "0000", k: "sales", sub: true }, { cd: "0000", k: "purchase", sub: true }, { cd: "0000", k: "inventory", sub: true },
+    { cd: "0000", k: "item", sub: true }, { cd: "0000", k: "pur_order", sub: true },
+    { cd: "3150", k: "payroll", sub: false }, { cd: "2300", k: "finance", sub: false }, { cd: "2400", k: "finance", sub: false }
+  ];
+  var GHOST_MOD = ["재무회계팀(자금·회계 포함)", "내부회계팀", "영업팀", "헝가리지원팀", "회계"];
+  var SUGGEST = { "회계": "재무팀(2100)?", "재무회계팀": "재무팀(2100)?", "내부회계팀": "내부회계관리팀(2400)?", "영업팀": "삭제?", "헝가리지원팀": "헝가리법인(9910)?" };
+
+  var ORIG = JSON.parse(JSON.stringify(PAGES));   // 「변경 전」 비교용
+  var ORIG_DMOD = JSON.parse(JSON.stringify(DMOD));
+
+  /* ── 상태 ─────────────────────────────────────────────── */
+  var VIEW = "page", CUR = PAGES[0].key, DEPT = "5200", INFO = null, Q = "", OPEN = {};
+  ["0000", "0200", "6700", "7000"].forEach(function (c) { OPEN[c] = true; });
+  var el = function (id) { return document.getElementById(id); };
+  var esc = function (s) { return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); };
+  var page = function () { return PAGES.filter(function (p) { return p.key === CUR; })[0]; };
+  var nm = function (cd) { return cd && BY[cd] ? BY[cd].nm : "—"; };
+  function anc(cd) { var a = [], p = BY[cd] && BY[cd].par; while (p) { a.push(p); p = BY[p].par; } return a; }
+  function desc(cd) { var out = [cd]; (KIDS[cd] || []).forEach(function (k) { out = out.concat(desc(k)); }); return out; }
+  function pathNm(cd) { return anc(cd).reverse().concat([cd]).map(nm).join(" › "); }
+  function visible(x) { return el("showCost").checked || !x.cost; }
+
+  /* ── 판정 흉내 (실구현: 서버 perm_effective / perm_preview) ───────── */
+  function coverage(p) {                     // 이 페이지를 볼 수 있는 부서 → 사유
+    var m = {};
+    if (p.vis === "전사 공개") { NODES.forEach(function (x) { m[x.cd] = "전사 공개"; }); return m; }
+    if (p.owner) m[p.owner] = "소유 부서";
+    if (p.vis === "지정 부서 공유") p.scope.forEach(function (s) {
+      (s.sub ? desc(s.cd) : [s.cd]).forEach(function (c) {
+        if (!m[c]) m[c] = c === s.cd ? "공유(직접)" : "공유 — " + nm(s.cd) + " 하위 포함";
+      });
+    });
+    return m;
+  }
+  function sum(m) { return Object.keys(m).reduce(function (a, c) { return a + (BY[c] ? BY[c].n : 0); }, 0); }
+  function modState(cd, k, list) {           // 부서의 모듈: 직접 / 상속(출처) / 없음
+    list = list || DMOD;
+    var d = list.filter(function (r) { return r.cd === cd && r.k === k; })[0];
+    if (d) return { st: "direct", sub: d.sub };
+    var a = anc(cd);
+    for (var i = 0; i < a.length; i++) {
+      var r = list.filter(function (x) { return x.cd === a[i] && x.k === k && x.sub; })[0];
+      if (r) return { st: "inh", from: a[i] };
+    }
+    return { st: "none" };
+  }
+
+  /* ── ① 조직도 ─────────────────────────────────────────── */
+  function treeRows() {
+    var q = Q.trim().toLowerCase(), hits = {}, show = {};
+    if (q) NODES.forEach(function (x) {
+      if (visible(x) && (x.nm.toLowerCase().indexOf(q) >= 0 || x.cd.indexOf(q) >= 0)) {
+        hits[x.cd] = 1; show[x.cd] = 1; anc(x.cd).forEach(function (a) { show[a] = 1; });
+      }
+    });
+    var rows = [];
+    (function walk(cd) {
+      var x = BY[cd];
+      if (!visible(x)) return;
+      if (q && !show[cd]) return;
+      rows.push({ x: x, hit: !!hits[cd] });
+      var kids = (KIDS[cd] || []).filter(function (k) { return visible(BY[k]); });
+      if (kids.length && (q || OPEN[cd])) kids.forEach(walk);
+    })("0000");
+    return rows;
+  }
+  function renderTree() {
+    var p = page(), cov = VIEW === "page" ? coverage(p) : null;
+    var direct = {}; if (VIEW === "page") p.scope.forEach(function (s) { direct[s.cd] = s; });
+    var shareOn = VIEW === "page" && p.vis === "지정 부서 공유";
+    el("tree").innerHTML = treeRows().map(function (r) {
+      var x = r.x, kids = (KIDS[x.cd] || []).filter(function (k) { return visible(BY[k]); });
+      var tw = kids.length ? (Q || OPEN[x.cd] ? "▾" : "▸") : "";
+      var chk = "", tags = "";
+      if (VIEW === "page") {
+        var why = cov[x.cd];
+        if (p.owner === x.cd) { chk = '<span class="otree__chk own" title="소유 부서">■</span>'; tags += '<span class="otree__tag own">소유</span>'; }
+        else if (direct[x.cd]) { chk = '<span class="otree__chk on" data-act="chk">✓</span>'; if (direct[x.cd].sub && kids.length) tags += '<span class="otree__tag sub">⤵ 하위 포함</span>'; }
+        else if (why && why !== "전사 공개") { chk = '<span class="otree__chk inh" title="' + esc(why) + '">◩</span>'; tags += '<span class="otree__tag inh">상속</span>'; }
+        else if (why === "전사 공개") chk = '<span class="otree__chk inh" title="전사 공개">●</span>';
+        else chk = '<span class="otree__chk' + (shareOn ? "" : " dis") + '" data-act="chk"></span>';
+      } else {
+        var ms = MODS.filter(function (m) { return m.s && modState(x.cd, m.k).st === "direct"; });
+        if (ms.length) tags += '<span class="otree__tag sens" title="민감 모듈 직접 지정">⚠ ' + esc(ms.map(function (m) { return m.l; }).join("·")) + '</span>';
+        var own = PAGES.filter(function (pp) { return pp.owner === x.cd; }).length;
+        if (own) tags += '<span class="otree__tag own">페이지 ' + own + '</span>';
+      }
+      var sel = (VIEW === "dept" && DEPT === x.cd) || INFO === x.cd;
+      return '<div class="otree__node' + (sel ? " sel" : "") + (r.hit ? " hit" : "") + '" role="treeitem" data-cd="' + x.cd + '" style="padding-left:' + (4 + (x.lvl - 1) * 16) + 'px">' +
+        '<span class="otree__tw" data-act="tw">' + tw + '</span>' + chk +
+        '<span class="otree__nm' + (x.n ? "" : " zero") + '" data-act="nm">' + esc(x.nm) + '</span>' +
+        '<span class="otree__cnt">' + x.n + '</span> ' + tags + '</div>';
+    }).join("") || '<div class="muted" style="padding:10px;">일치하는 부서가 없습니다.</div>';
+    el("legend").innerHTML = VIEW === "page"
+      ? '<span><span class="otree__chk own">■</span>소유</span><span><span class="otree__chk on">✓</span>직접 공유</span><span><span class="otree__chk inh">◩</span>상위에서 상속</span><span>숫자 = 활성 인원</span>'
+      : '<span>부서를 누르면 그 부서가 볼 수 있는 페이지·모듈이 가운데에 나옵니다</span>';
+    el("treeMode").textContent = VIEW === "page" ? (shareOn ? "공유 부서 지정" : "공유 없음(" + p.vis + ")") : "부서 선택";
+  }
+  el("tree").addEventListener("click", function (ev) {
+    var row = ev.target.closest(".otree__node"); if (!row) return;
+    var cd = row.getAttribute("data-cd"), act = ev.target.getAttribute("data-act");
+    if (act === "tw") { OPEN[cd] = !OPEN[cd]; renderTree(); return; }
+    if (act === "chk" && VIEW === "page") {
+      var p = page(); if (p.vis !== "지정 부서 공유") { toast("공개범위가 「지정 부서 공유」일 때만 공유 부서를 고를 수 있습니다."); return; }
+      var i = p.scope.findIndex(function (s) { return s.cd === cd; });
+      if (i >= 0) p.scope.splice(i, 1); else p.scope.push({ cd: cd, sub: !!(KIDS[cd] || []).length });
+      INFO = cd; renderAll(); return;
+    }
+    if (VIEW === "dept") DEPT = cd;
+    INFO = cd; renderAll();
+  });
+
+  /* ── ② 설정 (페이지 모드) ───────────────────────────────── */
+  function renderPageMid() {
+    var p = page();
+    var opts = PAGES.map(function (x) { return '<option value="' + x.key + '"' + (x.key === CUR ? " selected" : "") + '>' + esc(x.t) + (x.mod && MOD[x.mod].s ? " ⚠" : "") + '</option>'; }).join("");
+    var owner = '<option value="">(없음 — 관리자 전용)</option>' + NODES.filter(visible).map(function (x) {
+      return '<option value="' + x.cd + '"' + (p.owner === x.cd ? " selected" : "") + '>' + "　".repeat(x.lvl - 1) + esc(x.nm) + " (" + x.cd + ")</option>";
+    }).join("");
+    var radios = VIS.map(function (v) { return '<label class="' + (p.vis === v ? "on" : "") + '"><input type="radio" name="vis" value="' + v + '"' + (p.vis === v ? " checked" : "") + '> ' + v + '</label>'; }).join("");
+    var share = p.vis === "지정 부서 공유";
+    var chips = p.scope.map(function (s) {
+      var leaf = !(KIDS[s.cd] || []).length;
+      return '<span class="chip">' + esc(nm(s.cd)) + ' <span class="muted" style="font-size:10.5px">' + s.cd + '</span>' +
+        (leaf ? "" : '<span class="sw' + (s.sub ? " on" : "") + '" data-sub="' + s.cd + '" title="켜면 이 조직 아래 모든 팀이 함께 포함됩니다">⤵ 하위 포함</span>') +
+        '<button class="x" data-rm="' + s.cd + '" title="빼기">×</button></span>';
+    }).join("") + (p.ghost || []).map(function (g) { return '<span class="chip ghost" title="현행 조직에 없는 옛 이름 — 적용되지 않음">' + esc(g) + '</span>'; }).join("");
+    var mod = '<option value="">(없음)</option>' + MODS.map(function (m) { return '<option value="' + m.k + '"' + (p.mod === m.k ? " selected" : "") + '>' + esc(m.l) + (m.s ? " ⚠ 민감" : "") + '</option>'; }).join("");
+    el("mid").innerHTML =
+      '<div class="field"><div class="lb">페이지</div><select class="sel" id="fPage">' + opts + '</select></div>' +
+      '<div class="field"><div class="lb">소유 부서 <span class="badge n">트리 순서 · 코드로 저장</span></div><select class="sel" id="fOwner">' + owner + '</select></div>' +
+      '<div class="field"><div class="lb">공개범위</div><div class="radios" id="fVis">' + radios + '</div>' +
+        (share ? "" : '<div class="hint">「' + esc(p.vis) + '」에서는 공유 부서가 쓰이지 않으므로 칩 입력을 잠급니다.</div>') + '</div>' +
+      '<div class="field"><div class="lb">지정 공유 부서 <span class="muted">— 왼쪽 조직도에서 체크하세요 (글자 입력 없음)</span></div>' +
+        '<div class="chips' + (share ? "" : " off") + '" id="fChips">' + (chips || '<span class="muted" style="font-size:12px;padding:4px;">없음</span>') + '</div>' +
+        (p.note ? '<div class="warn">⚠ ' + esc(p.note) + '</div>' : "") +
+        ((p.ghost || []).length ? '<div class="warn">취소선 칩은 옛 부서명이라 <b>아무에게도 적용되지 않습니다</b>. 이관 단계에서 코드로 바꾸거나 지웁니다.</div>' : "") + '</div>' +
+      '<div class="field"><div class="lb">ERP 모듈</div><select class="sel" id="fMod">' + mod + '</select>' +
+        (p.mod && MOD[p.mod].s ? '<div class="danger">⚠ 민감 모듈 페이지 — 공개 범위를 넓힐 때는 사유와 확인 단계가 추가됩니다.</div>' : "") + '</div>';
+    el("fPage").onchange = function () { CUR = this.value; INFO = null; renderAll(); };
+    el("fOwner").onchange = function () { page().owner = this.value || null; renderAll(); };
+    Array.prototype.forEach.call(el("fVis").querySelectorAll("input"), function (r) { r.onchange = function () { page().vis = r.value; renderAll(); }; });
+    el("fMod").onchange = function () { page().mod = this.value || null; renderAll(); };
+    Array.prototype.forEach.call(el("fChips").querySelectorAll("[data-sub]"), function (b) {
+      b.onclick = function () { var s = page().scope.filter(function (x) { return x.cd === b.getAttribute("data-sub"); })[0]; s.sub = !s.sub; renderAll(); };
+    });
+    Array.prototype.forEach.call(el("fChips").querySelectorAll("[data-rm]"), function (b) {
+      b.onclick = function () { var p = page(); p.scope = p.scope.filter(function (x) { return x.cd !== b.getAttribute("data-rm"); }); renderAll(); };
+    });
+  }
+
+  /* ── ③ 미리보기 (페이지 모드) ────────────────────────────── */
+  function renderPreview() {
+    var p = page(), o = ORIG.filter(function (x) { return x.key === p.key; })[0];
+    var now = coverage(p), was = coverage(o);
+    var nD = Object.keys(now).length, wD = Object.keys(was).length, nP = sum(now), wP = sum(was);
+    var diff = function (a, b) { var d = a - b; return d > 0 ? '<span class="d up">▲ +' + d + '</span>' : d < 0 ? '<span class="d down">▼ ' + d + '</span>' : '<span class="d same">변화 없음</span>'; };
+    var keys = Object.keys(now).concat(Object.keys(was).filter(function (c) { return !now[c]; }));
+    keys.sort(function (a, b) { return NODES.indexOf(BY[a]) - NODES.indexOf(BY[b]); });
+    var list = keys.filter(function (c) { return visible(BY[c]); }).map(function (c) {
+      var cls = !now[c] ? "gone" : !was[c] ? "new" : "";
+      return '<li class="' + cls + '"><span><b>' + esc(nm(c)) + '</b> <span class="why">' + esc(now[c] || "제외됨") + (cls === "new" ? " · 새로 열림" : "") + '</span></span><span>' + BY[c].n + '명</span></li>';
+    }).join("");
+    var changed = JSON.stringify(p) !== JSON.stringify(o);
+    var widen = nP > wP;
+    el("preview").innerHTML =
+      '<div class="kpis"><div class="kpi"><div class="lb">볼 수 있는 부서</div><div class="v">' + nD + '</div>' + diff(nD, wD) + '</div>' +
+      '<div class="kpi"><div class="lb">볼 수 있는 인원(활성)</div><div class="v">' + nP + '</div>' + diff(nP, wP) + '</div></div>' +
+      (p.vis === "전사 공개" ? '<div class="hint">전사 공개 — 조직 전체(' + nP + '명)가 봅니다.</div>' :
+        '<ul class="plist">' + (list || '<li><span class="muted">아무도 볼 수 없습니다(관리자만)</span></li>') + '</ul>') +
+      (widen && p.mod && MOD[p.mod].s ? '<div class="danger">⚠ 민감 모듈(' + esc(MOD[p.mod].l) + ') 페이지의 공개 범위가 넓어집니다 — 저장 시 사유 입력과 확인이 필요합니다.</div>' : "") +
+      '<div class="hint">실구현: 이 숫자는 화면 계산이 아니라 서버 <code>perm_preview</code> 결과(판정 함수와 같은 규칙)입니다.</div>' +
+      '<div class="btns"><button class="btn" id="bSave"' + (changed ? "" : " disabled") + '>저장</button><button class="btn o" id="bReset"' + (changed ? "" : " disabled") + '>되돌리기</button></div>';
+    el("bSave").onclick = function () {
+      toast("목업이라 저장하지 않습니다 — 실제로는 save_page_scope 호출(서버가 코드 존재·조합·민감 사유 검증) 후 감사 기록.");
+    };
+    el("bReset").onclick = function () { var i = PAGES.indexOf(p); PAGES[i] = JSON.parse(JSON.stringify(o)); renderAll(); };
+  }
+
+  /* ── ② 설정 (조직 모드) — 이 부서가 무엇을 보나 ─────────────── */
+  function renderDeptMid() {
+    var cd = DEPT, x = BY[cd], leaf = !(KIDS[cd] || []).length;
+    var rows = PAGES.map(function (p) {
+      var why = coverage(p)[cd];
+      return '<tr><td>' + (why ? '<span class="badge g">가능</span>' : '<span class="badge n">불가</span>') + '</td><td>' + esc(p.t) +
+        (p.mod && MOD[p.mod].s ? ' <span class="badge r">민감</span>' : "") + '</td><td class="muted">' + esc(why || (p.vis === "부서 전용" ? nm(p.owner) + " 전용" : "공유 대상 아님")) + '</td></tr>';
+    }).join("");
+    var mrows = MODS.map(function (m) {
+      var s = modState(cd, m.k), cell;
+      if (s.st === "direct") cell = '<span class="badge g">직접</span>' + (s.sub && !leaf ? ' <span class="badge b">⤵ 하위 포함</span>' : "");
+      else if (s.st === "inh") cell = '<span class="badge n">상속 ← ' + esc(nm(s.from)) + '</span>';
+      else cell = '<span class="muted">—</span>';
+      var ctl = s.st === "inh" ? '<span class="muted" style="font-size:11px">상위에서 관리</span>' :
+        '<label style="font-size:11.5px;cursor:pointer;"><input type="checkbox" data-mod="' + m.k + '"' + (s.st === "direct" ? " checked" : "") + '> 지정</label>' +
+        (!leaf && !m.s && s.st === "direct" ? ' <label style="font-size:11.5px;cursor:pointer;"><input type="checkbox" data-msub="' + m.k + '"' + (s.sub ? " checked" : "") + '> 하위 포함</label>' : "");
+      return '<tr><td>' + esc(m.l) + (m.s ? ' <span class="badge r">⚠ 민감</span>' : "") + '</td><td>' + cell + '</td><td>' + ctl + '</td></tr>';
+    }).join("");
+    el("mid").innerHTML =
+      '<div class="field"><div class="lb">선택한 부서</div><div style="font-size:15px;font-weight:800;color:var(--navy);">' + esc(x.nm) +
+        ' <span class="muted" style="font-size:12px;font-weight:400;">' + esc(pathNm(cd)) + '</span></div></div>' +
+      '<div class="field"><div class="lb">볼 수 있는 운영 페이지 <span class="muted">— 판정 사유 포함</span></div><div class="tbl"><table class="t"><tr><th style="width:60px">접근</th><th>페이지</th><th>사유</th></tr>' + rows + '</table></div></div>' +
+      '<div class="field"><div class="lb">ERP 모듈 <span class="muted">— 최상위에 한 번 지정하면 아래 조직이 상속</span></div><div class="tbl"><table class="t"><tr><th>모듈</th><th>상태</th><th>편집</th></tr>' + mrows + '</table></div>' +
+        '<div class="hint">⚠ 민감 모듈(급여·자금·회계)은 <b>상속 금지</b> — 말단 부서에 직접 지정할 때만 유효합니다(DB 제약으로 강제).</div></div>';
+    Array.prototype.forEach.call(el("mid").querySelectorAll("[data-mod]"), function (c) {
+      c.onchange = function () {
+        var k = c.getAttribute("data-mod");
+        DMOD = DMOD.filter(function (r) { return !(r.cd === cd && r.k === k); });
+        if (c.checked) DMOD.push({ cd: cd, k: k, sub: !MOD[k].s && !leaf });
+        renderAll();
+      };
+    });
+    Array.prototype.forEach.call(el("mid").querySelectorAll("[data-msub]"), function (c) {
+      c.onchange = function () { DMOD.forEach(function (r) { if (r.cd === cd && r.k === c.getAttribute("data-msub")) r.sub = c.checked; }); renderAll(); };
+    });
+  }
+  function renderDeptRight() {
+    var cd = DEPT, affected = desc(cd).filter(function (c) { return visible(BY[c]); });
+    var changed = JSON.stringify(DMOD) !== JSON.stringify(ORIG_DMOD);
+    var mods = MODS.filter(function (m) { return modState(cd, m.k).st !== "none"; });
+    el("preview").innerHTML =
+      '<div class="kpis"><div class="kpi"><div class="lb">볼 수 있는 페이지</div><div class="v">' + PAGES.filter(function (p) { return coverage(p)[cd]; }).length + '</div><span class="d same">/ ' + PAGES.length + '</span></div>' +
+      '<div class="kpi"><div class="lb">ERP 모듈</div><div class="v">' + mods.length + '</div><span class="d same">' + esc(mods.map(function (m) { return m.l; }).join("·") || "없음") + '</span></div></div>' +
+      (affected.length > 1 ? '<div class="hint">이 부서에 「하위 포함」으로 지정하면 <b>' + (affected.length - 1) + '개 하위 조직 · ' + affected.reduce(function (a, c) { return a + BY[c].n; }, 0) + '명</b>이 함께 영향을 받습니다.</div>' : "") +
+      '<div class="btns"><button class="btn" id="bSave"' + (changed ? "" : " disabled") + '>모듈 저장</button><button class="btn o" id="bReset"' + (changed ? "" : " disabled") + '>되돌리기</button></div>';
+    el("bSave").onclick = function () { toast("목업이라 저장하지 않습니다 — 실제로는 save_dept_module(민감 모듈 하위 포함은 서버가 거부)."); };
+    el("bReset").onclick = function () { DMOD = JSON.parse(JSON.stringify(ORIG_DMOD)); renderAll(); };
+  }
+
+  /* ── 조직 기준정보 패널 ──────────────────────────────────── */
+  function renderInfo() {
+    var cd = VIEW === "dept" ? DEPT : INFO;
+    if (!cd) { el("info").innerHTML = '<span class="muted">조직도에서 부서 이름을 누르면 코드·경로·인원·권한이 여기에 나옵니다.</span>'; return; }
+    var x = BY[cd], kids = KIDS[cd] || [];
+    var own = PAGES.filter(function (p) { return p.owner === cd; }).map(function (p) { return p.t; });
+    var shared = PAGES.filter(function (p) { var w = coverage(p)[cd]; return w && w.indexOf("공유") === 0; }).map(function (p) { return p.t; });
+    var warn = [];
+    if (x.cost) warn.push("원가부서 — 인원이 없어 권한 대상이 아님");
+    else if (!x.n) warn.push("활성 인원 0 — 지정해도 당장 보는 사람이 없음");
+    if (cd === "9900") warn.push("그룹웨어에는 해외법인 하위팀이 더 있음(ERP 가 원천 — 트리에 넣지 않음)");
+    el("info").innerHTML = '<dl>' +
+      '<dt>부서</dt><dd><b>' + esc(x.nm) + '</b> <code>' + x.cd + '</code></dd>' +
+      '<dt>상위</dt><dd>' + esc(x.par ? nm(x.par) + " (" + x.par + ")" : "— (최상위)") + '</dd>' +
+      '<dt>경로</dt><dd>' + esc(pathNm(cd)) + '</dd>' +
+      '<dt>레벨</dt><dd>' + x.lvl + (kids.length ? " · 하위 " + kids.length + "개" : " · 말단") + '</dd>' +
+      '<dt>활성 인원</dt><dd>' + x.n + '명' + (kids.length ? ' <span class="muted">(하위 포함 ' + desc(cd).reduce(function (a, c) { return a + BY[c].n; }, 0) + '명)</span>' : "") + '</dd>' +
+      '<dt>소유 페이지</dt><dd>' + (own.length ? esc(own.join(", ")) : '<span class="muted">없음</span>') + '</dd>' +
+      '<dt>공유받음</dt><dd>' + (shared.length ? esc(shared.join(", ")) : '<span class="muted">없음</span>') + '</dd>' +
+      '<dt>출처</dt><dd class="muted" style="font-size:11.5px;">v_dept_tree(org 20261) · v_dept_member(account_active)</dd>' +
+      '</dl>' + warn.map(function (w) { return '<div class="warn">⚠ ' + esc(w) + '</div>'; }).join("");
+  }
+
+  /* ── 정리 필요 ─────────────────────────────────────────── */
+  function renderFix() {
+    var items = [];
+    PAGES.forEach(function (p) { (p.ghost || []).forEach(function (g) { items.push('<b>' + esc(g) + '</b> — 페이지 「' + esc(p.t) + '」 공유 <span class="sug">→ 후보: ' + esc(SUGGEST[g] || "없음") + '</span>'); }); });
+    GHOST_MOD.forEach(function (g) { var k = g.replace(/\(.*\)/, ""); items.push('<b>' + esc(g) + '</b> — 부서 ERP 모듈 설정 <span class="sug">→ 후보: ' + esc(SUGGEST[k] || "없음") + '</span>'); });
+    el("fixCnt").textContent = items.length + "건";
+    el("fixList").innerHTML = items.map(function (i) { return "<li>" + i + "</li>"; }).join("");
+  }
+
+  /* ── 공통 ─────────────────────────────────────────────── */
+  var _tt = null;
+  function toast(m) { var t = el("toast"); t.textContent = m; t.hidden = false; clearTimeout(_tt); _tt = setTimeout(function () { t.hidden = true; }, 4200); }
+  function renderAll() {
+    el("vPage").classList.toggle("on", VIEW === "page"); el("vDept").classList.toggle("on", VIEW === "dept");
+    el("viewHint").textContent = VIEW === "page" ? "이 페이지를 누가 보나?" : "이 부서는 무엇을 보나?";
+    el("midTitle").textContent = VIEW === "page" ? "② 페이지 공개 설정" : "② 부서 권한 — 페이지 · ERP 모듈";
+    el("rightTitle").innerHTML = (VIEW === "page" ? "③ 영향 미리보기" : "③ 부서 요약") + ' <span class="sp"></span><span class="badge a">저장 전</span>';
+    renderTree();
+    if (VIEW === "page") { renderPageMid(); renderPreview(); } else { renderDeptMid(); renderDeptRight(); }
+    renderInfo();
+  }
+  el("vPage").onclick = function () { VIEW = "page"; renderAll(); };
+  el("vDept").onclick = function () { VIEW = "dept"; INFO = DEPT; anc(DEPT).forEach(function (a) { OPEN[a] = true; }); renderAll(); };
+  el("q").addEventListener("input", function () { Q = this.value; renderTree(); });
+  el("showCost").onchange = renderAll;
+  renderFix(); renderAll();
+})();
+</script>
+</body>
+</html>

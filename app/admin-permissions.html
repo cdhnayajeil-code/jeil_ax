@@ -83,6 +83,78 @@
   .form{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;}
   .form label{font-size:11px;color:var(--muted);display:block;}
   .form label > *{width:100%;margin-top:3px;}
+  /* 조직도 기반 부서 권한(v2 · ADR-107) — 이 화면 전용 스코프(o*, otree__). 전역 셀렉터는 건드리지 않는다. */
+  .otb{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:10px;}
+  .otb .sp{flex:1;}
+  .seg{display:inline-flex;border:1px solid var(--navy);border-radius:8px;overflow:hidden;}
+  .seg button{background:#fff;color:var(--navy);border:0;padding:7px 14px;font:inherit;font-size:13px;font-weight:600;cursor:pointer;}
+  .seg button.on{background:var(--navy);color:#fff;}
+  .fixbox{border:1px solid #e6d5a8;background:var(--softamber);border-radius:9px;padding:8px 13px;margin-bottom:10px;font-size:12.3px;color:#5a4520;}
+  .fixbox summary{cursor:pointer;font-weight:700;}
+  .fixbox ul{margin:6px 0 2px 18px;} .fixbox li{margin:3px 0;}
+  .ocols{display:grid;grid-template-columns:minmax(250px,1fr) minmax(330px,1.4fr) minmax(260px,1fr);gap:12px;align-items:start;}
+  .ocol3{display:flex;flex-direction:column;gap:12px;min-width:0;}
+  .ocard{border:1px solid var(--line);border-radius:10px;background:#fff;overflow:hidden;min-width:0;}
+  .ocard > h4{font-size:13.5px;color:#fff;background:var(--navy);padding:8px 12px;display:flex;gap:8px;align-items:center;}
+  .ocard > h4 .sp{flex:1;}
+  .obody{padding:10px 12px;}
+  .otree__search{width:100%;padding:7px 10px;border:1px solid var(--line);border-radius:7px;font:inherit;font-size:13px;margin-bottom:8px;}
+  .otree__list{max-height:560px;overflow:auto;}
+  .otree__node{display:flex;align-items:center;gap:5px;padding:3px 4px;border-radius:6px;cursor:pointer;white-space:nowrap;}
+  .otree__node:hover{background:#f3f6fb;}
+  .otree__node.sel{background:#e3ecf8;outline:1px solid #b9cbe6;}
+  .otree__node.hit .otree__nm{background:#fff2b3;}
+  .otree__tw{width:16px;text-align:center;color:#7a8699;font-size:11px;flex:0 0 16px;}
+  .otree__chk{width:16px;height:16px;flex:0 0 16px;border:1.5px solid #9aa6b8;border-radius:4px;display:inline-flex;align-items:center;justify-content:center;font-size:11px;background:#fff;}
+  .otree__chk.on{background:var(--accent);border-color:var(--accent);color:#fff;}
+  .otree__chk.inh{background:#dbe7f6;border-color:#9dbbe0;color:var(--accent);}
+  .otree__chk.own{background:var(--green);border-color:var(--green);color:#fff;}
+  .otree__chk.dis{opacity:.35;}
+  .otree__nm{font-weight:600;color:var(--navy);}
+  .otree__nm.zero{color:#9aa3af;font-weight:500;}
+  .otree__cnt{font-size:11px;color:#7a8699;}
+  .otree__tag{font-size:10px;border-radius:8px;padding:0 6px;font-weight:600;}
+  .otree__tag.own{background:var(--softgreen);color:var(--green);}
+  .otree__tag.sub{background:var(--soft);color:var(--navy2);}
+  .otree__tag.inh{background:#f2f4f7;color:#7a8699;}
+  .otree__tag.sens{background:var(--softred);color:var(--red);}
+  .olegend{display:flex;gap:10px;flex-wrap:wrap;font-size:11px;color:var(--muted);margin-top:8px;border-top:1px dashed var(--line);padding-top:7px;}
+  .olegend span{display:inline-flex;gap:4px;align-items:center;}
+  .ofield{margin-bottom:11px;}
+  .ofield > .lb{font-size:11.5px;color:var(--muted);margin-bottom:4px;display:flex;gap:6px;align-items:center;flex-wrap:wrap;}
+  .ofield .sel{width:100%;}
+  .oradios{display:flex;gap:6px;flex-wrap:wrap;}
+  .oradios label{border:1px solid var(--line);border-radius:7px;padding:6px 11px;cursor:pointer;font-size:12.5px;display:flex;gap:5px;align-items:center;}
+  .oradios label.on{border-color:var(--navy);background:var(--soft);color:var(--navy);font-weight:600;}
+  .ochips{display:flex;flex-wrap:wrap;gap:6px;min-height:34px;border:1px dashed var(--line);border-radius:8px;padding:6px;}
+  .ochips.off{opacity:.45;pointer-events:none;}
+  .ochip{display:inline-flex;align-items:center;gap:6px;background:var(--soft);border:1px solid #c8d5e8;border-radius:16px;padding:2px 4px 2px 10px;font-size:12px;color:var(--navy2);}
+  .ochip .sw{font-size:10.5px;border:1px solid #9dbbe0;border-radius:10px;padding:0 6px;cursor:pointer;background:#fff;color:var(--muted);}
+  .ochip .sw.on{background:var(--accent);border-color:var(--accent);color:#fff;}
+  .ochip .x{border:0;background:none;cursor:pointer;color:#8a93a0;font-size:14px;line-height:1;padding:0 4px;}
+  .ochip.ghost{background:#f2f4f7;border-style:dashed;color:#8a93a0;text-decoration:line-through;}
+  .ohint{font-size:11.5px;color:var(--muted);margin-top:5px;}
+  .owarn{background:var(--softamber);border:1px solid #e6d5a8;color:#6b5320;border-radius:8px;padding:7px 10px;font-size:12px;margin-top:6px;}
+  .odanger{background:var(--softred);border:1px solid #efc3bb;color:#8a2f22;border-radius:8px;padding:7px 10px;font-size:12px;margin-top:6px;}
+  .okpis{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:9px;}
+  .okpi{border:1px solid var(--line);border-radius:9px;padding:8px 11px;background:linear-gradient(135deg,#f7fafd,#eef4fb);}
+  .okpi .lb{font-size:11px;color:var(--muted);} .okpi .v{font-size:22px;font-weight:800;color:var(--navy);line-height:1.2;}
+  .okpi .d{font-size:11.5px;font-weight:700;} .up{color:var(--red);} .down{color:var(--green);} .same{color:#9aa3af;}
+  .oplist{list-style:none;max-height:280px;overflow:auto;border:1px solid var(--line);border-radius:8px;}
+  .oplist li{display:flex;justify-content:space-between;gap:8px;padding:5px 9px;border-bottom:1px solid #edf0f5;font-size:12.3px;}
+  .oplist li:last-child{border-bottom:0;}
+  .oplist li .why{font-size:11px;color:var(--muted);}
+  .oplist li.new{background:#fff8e6;} .oplist li.gone{background:#f7f7f7;color:#9aa3af;text-decoration:line-through;}
+  .oplist li.nomod{color:#9aa3af;}
+  .obtns{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;align-items:center;}
+  .oinfo dl{display:grid;grid-template-columns:88px 1fr;gap:4px 8px;font-size:12.3px;}
+  .oinfo dt{color:var(--muted);} .oinfo dd{color:var(--ink);word-break:keep-all;}
+  table.ot{width:100%;min-width:0;border-collapse:collapse;font-size:12.3px;}
+  table.ot th{background:#f3f6fb;color:var(--navy);padding:6px 8px;border-bottom:1px solid var(--line);font-weight:600;}
+  table.ot td{padding:5px 8px;border-bottom:1px solid #edf0f5;}
+  table.ot tr:nth-child(even) td{background:#fff;}
+  @media (max-width:1250px){.ocols{grid-template-columns:1fr 1fr;} .ocol3{grid-column:1 / -1;}}
+  @media (max-width:760px){.ocols{grid-template-columns:1fr;} .otree__list{max-height:380px;}}
   @media (max-width:1100px){.stats{grid-template-columns:repeat(2,1fr);} .rules{grid-template-columns:1fr;} .grid2{grid-template-columns:1fr;}}
   @media (max-width:700px){.page{padding:20px 14px 30px;}}
   /* 통합 플랫폼(/admin/identity)·관리자 콘솔 안에 iframe 으로 얹힐 때 — 제목·푸터를 숨기고 여백을 줄인다.
@@ -121,7 +193,7 @@
   <div id="app" style="display:none;">
     <div class="stats">
       <div class="stat info"><div class="lb">전체 관리자</div><div class="v" id="kAdmin">—</div><div class="u">portal_admin · 전권</div></div>
-      <div class="stat ok"><div class="lb">부서 (ERP 매핑)</div><div class="v" id="kDept">—</div><div class="u" id="kDeptU">—</div></div>
+      <div class="stat ok"><div class="lb">부서 (조직도)</div><div class="v" id="kDept">—</div><div class="u" id="kDeptU">—</div></div>
       <div class="stat ok"><div class="lb">현재 인원</div><div class="v" id="kPeople">—</div><div class="u" id="kPeopleU">계정 통합관리 기준</div></div>
       <div class="stat warn"><div class="lb">개인 예외 (적용중)</div><div class="v" id="kGrant">—</div><div class="u" id="kGrantU">—</div></div>
     </div>
@@ -129,7 +201,7 @@
     <div class="note">
       <b>판정은 서버 함수 하나</b>(<code>perm_effective</code>)가 하고 챗봇·운영페이지·급여·자금 게이트가 모두 그 결과를 따릅니다. 이 화면은 그 함수가 읽는 값을 편집할 뿐입니다.
       <div class="rules">
-        <div class="r"><b>① 부서 기준 (기본)</b>소속 부서에 체크된 ERP 모듈 + 페이지 공개범위. 부서는 ERP 계정 표기(<code>부서명_이름</code>)에서 옵니다.</div>
+        <div class="r"><b>① 부서 기준 (기본)</b>조직도(ERP 부서 마스터)에서 고른 부서코드 기준. 상위 조직에 「하위 포함」으로 주면 아래 팀이 상속합니다(민감 모듈 제외). 사람의 부서는 ERP 계정 표기(<code>부서명_이름</code>)에서 옵니다.</div>
         <div class="r"><b>② 개인 예외</b>겸직·대행·프로젝트만. 우선순위 <b>차단 &gt; 개인 허용 &gt; 부서</b>. 만료일을 넣으면 그날 자동 소멸.</div>
         <div class="r"><b>③ 전체 관리자</b>모든 모듈(급여 포함)·모든 페이지·설정 편집. 최소 인원에게만.</div>
       </div>
@@ -142,26 +214,46 @@
     </div>
 
     <!-- ── 부서 권한 ────────────────────────────────────────── -->
+    <!-- v2(2026-09-23 · REQ-0078 · ADR-107): 부서를 글자로 적지 않는다 — 조직도(ERP 부서 마스터 현행 org)에서 클릭으로 고르고,
+         저장 전에 「누가 보게 되나」를 서버 미리보기(perm_preview_page — 판정과 같은 규칙)로 확인한다. 부서 키 = 부서코드. -->
     <div class="panel on" id="p-dept">
-      <div class="sec">
-        <h3>부서별 ERP 모듈 <span class="badge g">실데이터 · 강제</span><span class="sp"></span>
-          <button class="btn o" id="bSuggest" title="ERP 역할·메뉴 권한상 그 부서가 실제 접근하는 모듈(◆) 기준으로 일괄 체크(민감 제외)">◆ 제안 일괄</button>
-          <button class="btn o" id="bAll" title="민감 제외 전체 선택">전체 선택</button>
-          <button class="btn o" id="bNone" title="민감 제외 전체 해제">전체 해제</button>
-          <button class="btn" id="bSaveErp">저장</button></h3>
-        <div class="note">체크된 모듈만 그 부서가 챗봇·ERP 페이지에서 조회할 수 있습니다(전체 관리자는 전 모듈).
-          <b style="color:#2f6fb3;">◆</b> = ERP 역할상 실제 접근 모듈(제안값 · 체크와 별개). <b style="color:#b3402f;">⚠ 민감</b> 모듈(급여·자금·회계)은 일괄·제안에서 빠지고 개별로만 지정합니다.
-          <span id="ghostNote"></span></div>
-        <div class="tblwrap"><table id="erpMatrix"><thead id="erpHead"></thead><tbody id="erpRows"><tr><td class="c muted" style="padding:16px;">불러오는 중…</td></tr></tbody></table></div>
+      <div class="otb">
+        <div class="seg" role="tablist" aria-label="보기 전환">
+          <button id="vPage" class="on" type="button">📄 페이지 → 조직</button>
+          <button id="vDept" type="button">🏢 조직 → 페이지</button>
+        </div>
+        <span class="muted" id="viewHint" style="font-size:12px;">이 페이지를 누가 보나?</span>
+        <span class="sp"></span>
+        <label class="muted" style="font-size:12px;cursor:pointer;"><input type="checkbox" id="showCost"> 원가부서 표시(인원 0)</label>
+        <span class="badge b" id="orgBadge">조직 —</span>
       </div>
-      <div class="sec">
-        <h3>페이지 공개 설정 <span class="badge g">실데이터 · 강제</span><span class="sp"></span><button class="btn" id="bSavePage">저장</button></h3>
-        <div class="note">부서 운영 페이지의 <b>소유 부서 · 공개범위 · 지정 공유 부서 · ERP 모듈</b>. 저장 시 포털 카드 노출과 URL 직접 접근이 함께 강제됩니다.
-          「지정 부서 공유」일 때만 공유 부서 칸이 판정에 쓰입니다.</div>
-        <div class="tblwrap"><table>
-          <thead><tr><th>페이지</th><th>소유 부서</th><th>공개범위</th><th>지정 공유 부서(쉼표)</th><th>ERP 모듈</th><th class="c">활성</th></tr></thead>
-          <tbody id="pageRows"><tr><td colspan="6" class="c muted" style="padding:16px;">불러오는 중…</td></tr></tbody>
-        </table></div>
+      <details class="fixbox" id="fixBox" hidden>
+        <summary>⚠ 정리 필요 <span id="fixCnt"></span></summary>
+        <ul id="fixList"></ul>
+      </details>
+      <div class="ocols">
+        <section class="ocard">
+          <h4>① 조직도 <span class="sp"></span><span class="badge b" id="treeMode">—</span></h4>
+          <div class="obody">
+            <input class="otree__search" id="oq" type="search" placeholder="부서 검색 — 이름 또는 코드(예: 설계, 6120)">
+            <div class="otree__list" id="otree" role="tree"><div class="muted" style="padding:10px;">불러오는 중…</div></div>
+            <div class="olegend" id="olegend"></div>
+          </div>
+        </section>
+        <section class="ocard">
+          <h4 id="midTitle">② 페이지 공개 설정</h4>
+          <div class="obody" id="omid"><span class="muted">불러오는 중…</span></div>
+        </section>
+        <section class="ocol3">
+          <div class="ocard">
+            <h4 id="rightTitle">③ 영향 미리보기</h4>
+            <div class="obody" id="oprev"></div>
+          </div>
+          <div class="ocard">
+            <h4>🏷 조직 기준정보</h4>
+            <div class="obody oinfo" id="oinfo"><span class="muted">조직도에서 부서 이름을 누르면 코드·경로·인원·권한이 여기에 나옵니다.</span></div>
+          </div>
+        </section>
       </div>
     </div>
 
@@ -301,7 +393,7 @@
   var PEOPLE = [];         // 계정 통합관리(v_account_recon) 현재 인원 — 사람 피커의 단일 원천
   var BY_EMAIL = {};       // email → recon 행
   var MAPPED = {};         // email → v_erp_user_dept 행(부서 권한이 붙는 사람)
-  var CATALOG = [], UNIVERSE = [], ROSTER = [], ROSTER_SET = {}, SUGGEST = {};
+  var CATALOG = [], ROSTER = [], ROSTER_SET = {};
   var SEL = "";            // 선택한 사람(upn)
   var PENDING_UPN = "";    // 데이터 로드 전에 들어온 딥링크·선택 메시지(로드 후 적용)
   var SENS = { payroll: 1, finance: 1 }; // 서버 카탈로그(sensitive)가 SSOT — 없을 때의 폴백
@@ -311,13 +403,6 @@
     if (!c.length) c = [{ key: "payroll", label: "급여·인사", sensitive: true }];
     c.forEach(function (x) { if (x.sensitive) SENS[x.key] = 1; else if (SENS[x.key]) x.sensitive = true; });
     return c;
-  }
-  function deptUniverse(d) {
-    var s = {};
-    ((d.dept_mapping && d.dept_mapping.roster) || []).forEach(function (r) { if (r.dept_nm) s[r.dept_nm] = 1; });
-    (d.portal_pages || []).forEach(function (p) { if (p.dept_nm) s[p.dept_nm] = 1; (p.shared_depts || []).forEach(function (x) { if (x) s[x] = 1; }); });
-    (d.dept_erp_scope || []).forEach(function (e) { if (e.dept_nm) s[e.dept_nm] = 1; });
-    return Object.keys(s).sort();
   }
   function personLabel(p) {
     return (p.dept_nm || "부서없음") + "_" + (p.emp_nm || "-") + "_" + p.email;
@@ -333,9 +418,9 @@
   function renderTop() {
     var active = (D.perm_grants || []).filter(function (g) { return g.active; });
     el("kAdmin").textContent = num((D.admins || []).length);
-    el("kDept").textContent = num(ROSTER.length);
-    var ghosts = UNIVERSE.filter(function (dn) { return !ROSTER_SET[dn]; });
-    el("kDeptU").textContent = ghosts.length ? "설정만 남은 부서 " + ghosts.length : "ERP 계정 표기 기준";
+    var orgN = (D.org_nodes || []).length, withPpl = (D.org_nodes || []).filter(function (n) { return n.member_cnt > 0; }).length;
+    el("kDept").textContent = num(orgN);
+    el("kDeptU").textContent = orgN ? "조직도 기준 · 인원 있는 부서 " + withPpl : "조직 정보를 불러오지 못함";
     el("kPeople").textContent = num(PEOPLE.length);
     var unmapped = PEOPLE.filter(function (p) { return !MAPPED[p.email]; }).length;
     el("kPeopleU").textContent = unmapped ? "부서 매핑 없음 " + unmapped + "명" : "전원 부서 매핑됨";
@@ -345,95 +430,405 @@
     el("c-person").textContent = "(" + active.length + ")";
     el("c-admin").textContent = "(" + (D.admins || []).length + ")";
     el("srcNote").innerHTML =
-      "<b>데이터 출처</b> — 부서·모듈·페이지·개인 예외·감사는 <code>jeil-chat-admin</code>(scope=perm) · " +
+      "<b>데이터 출처</b> — 조직도는 ERP 부서 마스터 현행 조직(<code>v_perm_org_node</code>) · 부서·모듈·페이지·개인 예외·감사는 <code>jeil-chat-admin</code>(scope=perm) · " +
       "사람 목록은 <code>jeil-accounts</code>(계정 통합관리, 현재 인원 " + num(PEOPLE.length) + "명) · 기준 " + dt(D.as_of) + ". " +
-      "부서 권한은 <b>ERP 계정 표기 부서</b>(<code>v_erp_user_dept</code>, " + num(Object.keys(MAPPED).length) + "명)에만 붙습니다 — " +
+      "부서 권한은 <b>ERP 계정 표기 부서</b>(<code>v_erp_user_dept</code>, " + num(Object.keys(MAPPED).length) + "명)를 현행 부서코드로 바꿔 붙습니다 — " +
       "매핑이 없는 사람은 개인 예외만 적용되며, 그 사실을 사람 카드에 표시합니다.";
   }
 
-  /* ── 부서 권한: ERP 모듈 매트릭스 + 페이지 ─────────────────── */
-  function renderDept() {
-    var scopeSet = {}; (D.dept_erp_scope || []).forEach(function (e) { (scopeSet[e.dept_nm] = scopeSet[e.dept_nm] || {})[e.module_key] = 1; });
-    SUGGEST = {}; (D.dept_erp_suggest || []).forEach(function (e) { (SUGGEST[e.dept_nm] = SUGGEST[e.dept_nm] || {})[e.module_key] = 1; });
-    el("erpHead").innerHTML = "<tr><th>부서</th><th class=\"c\">인원</th>" + CATALOG.map(function (c) {
-      if (c.sensitive) return '<th class="c" title="민감 모듈 — 일괄 제외, 개별 지정만">' + esc(c.label) + ' ⚠<br><span style="font-weight:400;font-size:9.5px;color:#f3b9ad;">민감 · 개별만</span></th>';
-      return '<th class="c">' + esc(c.label) + '<br><label style="font-weight:400;font-size:9.5px;color:#c9d3e2;cursor:pointer;"><input type="checkbox" class="em-col" data-mod="' + esc(c.key) + '"> 열전체</label></th>';
-    }).join("") + "</tr>";
-    var cnt = {}; ROSTER.forEach(function (r) { cnt[r.dept_nm] = r.emp_cnt || 0; });
-    el("erpRows").innerHTML = UNIVERSE.length ? UNIVERSE.map(function (dn) {
-      var sc = scopeSet[dn] || {}, su = SUGGEST[dn] || {}, ghost = !ROSTER_SET[dn];
-      return '<tr data-dept="' + esc(dn) + '"' + (ghost ? ' class="ghost"' : '') + '><td><b>' + esc(dn) + '</b>' +
-        (ghost ? ' <span class="badge n" title="ERP 계정 표기에 이 부서명이 없어 소속 인원이 0명입니다. 설정(모듈·페이지 공유)만 남아 있는 부서명 — 정리 대상">인원 0 · 표기 없음</span>' : '') + '</td>' +
-        '<td class="c">' + (ghost ? "0" : num(cnt[dn])) + '</td>' +
-        CATALOG.map(function (c) {
-          var sug = (!c.sensitive && su[c.key]) ? ' <span title="ERP 역할·메뉴상 이 부서가 실제 접근하는 모듈(제안값)" style="color:#2f6fb3;font-size:10px;">◆</span>' : '';
-          return '<td class="c' + (c.sensitive ? ' sens' : '') + '"><input type="checkbox" class="em-chk' + (c.sensitive ? ' em-sens' : '') + '" data-mod="' + esc(c.key) + '"' + (sc[c.key] ? ' checked' : '') +
-            (c.sensitive ? ' title="민감 — 개별 지정만, 일괄 대상 아님"' : '') + '>' + sug + '</td>';
-        }).join("") + "</tr>";
-    }).join("") : '<tr><td class="c muted" style="padding:16px;">부서 없음</td></tr>';
-    var ghosts = UNIVERSE.filter(function (dn) { return !ROSTER_SET[dn]; });
-    el("ghostNote").innerHTML = ghosts.length
-      ? ' <span class="badge n">인원 0 · 표기 없음</span> ' + ghosts.length + '개 부서(' + esc(ghosts.join(", ")) + ')는 ERP 계정 표기에 없는 이름이라 <b>누구에게도 적용되지 않습니다</b>. 부서명이 바뀐 흔적이면 새 이름에 다시 체크하세요.'
-      : "";
-    Array.prototype.forEach.call(el("erpHead").querySelectorAll(".em-col"), function (box) {
-      box.onchange = function () {
-        var mod = box.getAttribute("data-mod");
-        Array.prototype.forEach.call(el("erpRows").querySelectorAll('.em-chk[data-mod="' + mod + '"]:not(.em-sens)'), function (c) { c.checked = box.checked; });
+  /* ── 부서 권한 v2: 조직도 기반(REQ-0078 · ADR-107) ──────────────────────────────
+     부서는 글자가 아니라 부서코드(ERP 부서 마스터 현행 org)로 고른다. 판정은 서버 perm_effective 하나 —
+     이 화면의 트리 표시·부서 보기 계산은 참고용이고, 페이지 미리보기는 서버 perm_preview_page(판정과 같은 규칙) 결과다. */
+  var ORG = [], BYCD = {}, KIDS = {}, BYNM = {};   // 현행 조직 노드(v_perm_org_node)
+  var PSCOPE = {};                                  // page_key → [{dept_cd, include_sub}]
+  var DMODS = [];                                   // dept_module_scope 행
+  var OV = { view: "page", page: "", dept: "", info: "", q: "", open: {}, draft: null, ddraft: null, prev: null, prevOrig: null };
+  var _pvT = null, _pvSeq = 0;
+
+  function orgInit() {
+    ORG = (D.org_nodes || []).slice().sort(function (a, b) { return a.sort_key < b.sort_key ? -1 : a.sort_key > b.sort_key ? 1 : 0; });
+    BYCD = {}; KIDS = {}; BYNM = {};
+    ORG.forEach(function (n) { BYCD[n.dept_cd] = n; BYNM[n.dept_nm] = n.dept_cd; (KIDS[n.par_dept_cd || ""] = KIDS[n.par_dept_cd || ""] || []).push(n.dept_cd); });
+    PSCOPE = {}; (D.page_scopes || []).forEach(function (s) { (PSCOPE[s.page_key] = PSCOPE[s.page_key] || []).push({ dept_cd: s.dept_cd, include_sub: !!s.include_sub }); });
+    DMODS = (D.dept_modules || []).map(function (r) { return { dept_cd: r.dept_cd, module_key: r.module_key, include_sub: !!r.include_sub }; });
+    if (!Object.keys(OV.open).length) ORG.forEach(function (n) { if (n.lvl <= 2) OV.open[n.dept_cd] = true; });
+    var pages = D.portal_pages || [];
+    if (!OV.page || !pages.some(function (p) { return p.page_key === OV.page; })) OV.page = pages.length ? pages[0].page_key : "";
+    if (!OV.dept || !BYCD[OV.dept]) OV.dept = ORG.length ? ORG[0].dept_cd : "";
+    OV.draft = pageDraft(OV.page); OV.ddraft = deptDraft(OV.dept); OV.prevOrig = null; OV.prev = null;
+  }
+  var onm = function (cd) { return cd && BYCD[cd] ? BYCD[cd].dept_nm : (cd || "—"); };
+  function oanc(cd) { var n = BYCD[cd]; return n && n.path_cd ? n.path_cd.slice(0, -1) : []; }   // 조상(자기 제외)
+  function odesc(cd) { var out = [cd]; (KIDS[cd] || []).forEach(function (k) { out = out.concat(odesc(k)); }); return out; }
+  function oleaf(cd) { return !(KIDS[cd] || []).length; }
+  function costShown(n) { return el("showCost").checked || !n.is_cost; }
+  function pageRow(key) { return (D.portal_pages || []).filter(function (p) { return p.page_key === key; })[0]; }
+  function pageDraft(key) {
+    var p = pageRow(key); if (!p) return null;
+    return { page_key: p.page_key, owner_dept_cd: p.owner_dept_cd || "", visibility: p.visibility || "부서 전용",
+             erp_module: p.erp_module || "", active: p.active !== false,
+             scopes: (PSCOPE[p.page_key] || []).map(function (s) { return { dept_cd: s.dept_cd, include_sub: s.include_sub }; }) };
+  }
+  function pageOrig() { return pageDraft(OV.page); }
+  function draftChanged() { return JSON.stringify(OV.draft) !== JSON.stringify(pageOrig()); }
+  function deptDraft(cd) {
+    var m = {}; DMODS.forEach(function (r) { if (r.dept_cd === cd) m[r.module_key] = { include_sub: r.include_sub }; });
+    return { dept_cd: cd, mods: m };
+  }
+  function ddraftChanged() { return JSON.stringify(OV.ddraft) !== JSON.stringify(deptDraft(OV.dept)); }
+
+  // 부서의 ERP 모듈 상태: 직접 / 상속(출처) / 없음 — 판정(perm_effective)과 같은 규칙(하위 포함 행만 내려간다)
+  function modState(cd, k, rows) {
+    rows = rows || DMODS;
+    var d = rows.filter(function (r) { return r.dept_cd === cd && r.module_key === k; })[0];
+    if (d) return { st: "direct", sub: d.include_sub };
+    var a = oanc(cd).slice().reverse();
+    for (var i = 0; i < a.length; i++) {
+      if (rows.some(function (r) { return r.dept_cd === a[i] && r.module_key === k && r.include_sub; })) return { st: "inh", from: a[i] };
+    }
+    return { st: "none" };
+  }
+  // 페이지 초안이 트리에서 어떻게 칠해지나(화면 표시용) — 소유 / 직접 공유 / 하위 포함 상속
+  function coverage(dr) {
+    var m = {};
+    if (!dr) return m;
+    if (dr.visibility === "전사 공개") { ORG.forEach(function (n) { m[n.dept_cd] = "전사 공개"; }); return m; }
+    if (dr.owner_dept_cd) m[dr.owner_dept_cd] = "소유 부서";
+    if (dr.visibility === "지정 부서 공유") dr.scopes.forEach(function (s) {
+      (s.include_sub ? odesc(s.dept_cd) : [s.dept_cd]).forEach(function (c) {
+        if (!m[c]) m[c] = c === s.dept_cd ? "공유(직접)" : "공유 — " + onm(s.dept_cd) + " 하위 포함";
+      });
+    });
+    return m;
+  }
+
+  /* 트리 */
+  function treeRows() {
+    var q = OV.q.trim().toLowerCase(), hits = {}, show = {};
+    if (q) ORG.forEach(function (n) {
+      if (costShown(n) && (n.dept_nm.toLowerCase().indexOf(q) >= 0 || n.dept_cd.indexOf(q) >= 0)) {
+        hits[n.dept_cd] = 1; (n.path_cd || [n.dept_cd]).forEach(function (a) { show[a] = 1; });
+      }
+    });
+    var rows = [];
+    (function walk(list) {
+      list.forEach(function (cd) {
+        var n = BYCD[cd]; if (!n || !costShown(n)) return;
+        if (q && !show[cd]) return;
+        rows.push({ n: n, hit: !!hits[cd] });
+        if (q || OV.open[cd]) walk(KIDS[cd] || []);
+      });
+    })(KIDS[""] || []);
+    return rows;
+  }
+  function renderTree() {
+    var dr = OV.draft, cov = OV.view === "page" ? coverage(dr) : null;
+    var direct = {}; if (OV.view === "page" && dr) dr.scopes.forEach(function (s) { direct[s.dept_cd] = s; });
+    var shareOn = OV.view === "page" && dr && dr.visibility === "지정 부서 공유";
+    var rows = treeRows();
+    el("otree").innerHTML = rows.length ? rows.map(function (r) {
+      var n = r.n, kids = (KIDS[n.dept_cd] || []).filter(function (k) { return costShown(BYCD[k]); });
+      var tw = kids.length ? (OV.q || OV.open[n.dept_cd] ? "▾" : "▸") : "";
+      var chk = "", tags = "";
+      if (OV.view === "page") {
+        var why = cov[n.dept_cd];
+        if (dr && dr.owner_dept_cd === n.dept_cd) { chk = '<span class="otree__chk own" title="소유 부서">■</span>'; tags += '<span class="otree__tag own">소유</span>'; }
+        else if (direct[n.dept_cd]) { chk = '<span class="otree__chk on" data-act="chk" title="클릭하면 공유 해제">✓</span>'; if (direct[n.dept_cd].include_sub && kids.length) tags += '<span class="otree__tag sub">⤵ 하위 포함</span>'; }
+        else if (why && why !== "전사 공개") { chk = '<span class="otree__chk inh" title="' + esc(why) + '">◩</span>'; tags += '<span class="otree__tag inh">상속</span>'; }
+        else if (why === "전사 공개") chk = '<span class="otree__chk inh" title="전사 공개">●</span>';
+        else chk = '<span class="otree__chk' + (shareOn ? "" : " dis") + '" data-act="chk" title="' + (shareOn ? "클릭하면 공유 부서에 추가" : "「지정 부서 공유」일 때만 고를 수 있습니다") + '"></span>';
+      } else {
+        var sens = CATALOG.filter(function (c) { return c.sensitive && modState(n.dept_cd, c.key).st === "direct"; });
+        if (sens.length) tags += '<span class="otree__tag sens" title="민감 모듈 직접 지정">⚠ ' + esc(sens.map(function (c) { return c.label; }).join("·")) + '</span>';
+        var own = (D.portal_pages || []).filter(function (p) { return p.owner_dept_cd === n.dept_cd; }).length;
+        if (own) tags += '<span class="otree__tag own">페이지 ' + own + '</span>';
+        var subs = DMODS.filter(function (x) { return x.dept_cd === n.dept_cd && x.include_sub; }).length;
+        if (subs) tags += '<span class="otree__tag sub" title="하위 조직에 내려주는 모듈 ' + subs + '개">⤵ ' + subs + '</span>';
+      }
+      var sel = (OV.view === "dept" && OV.dept === n.dept_cd) || OV.info === n.dept_cd;
+      return '<div class="otree__node' + (sel ? " sel" : "") + (r.hit ? " hit" : "") + '" role="treeitem" data-cd="' + esc(n.dept_cd) + '" style="padding-left:' + (4 + (n.lvl - 1) * 16) + 'px">' +
+        '<span class="otree__tw" data-act="tw">' + tw + '</span>' + chk +
+        '<span class="otree__nm' + (n.member_cnt ? "" : " zero") + '" data-act="nm" title="' + esc(n.path_nm + " (" + n.dept_cd + ")") + '">' + esc(n.dept_nm) + '</span>' +
+        '<span class="otree__cnt" title="권한 대상 인원(ERP 계정 부서 기준)">' + n.member_cnt + '</span> ' + tags + '</div>';
+    }).join("") : '<div class="muted" style="padding:10px;">' + (ORG.length ? "일치하는 부서가 없습니다." : "조직 정보를 불러오지 못했습니다" + (D.org_error ? " — " + esc(D.org_error) : "") + ".") + '</div>';
+    el("olegend").innerHTML = OV.view === "page"
+      ? '<span><span class="otree__chk own">■</span>소유</span><span><span class="otree__chk on">✓</span>직접 공유</span><span><span class="otree__chk inh">◩</span>상위에서 상속</span><span>숫자 = 권한 대상 인원</span>'
+      : '<span>부서를 누르면 그 부서가 볼 수 있는 페이지·ERP 모듈이 가운데에 나옵니다 · ⤵ = 하위로 내려주는 모듈 수</span>';
+    el("treeMode").textContent = OV.view === "page" ? (shareOn ? "공유 부서 지정" : "공유 없음(" + (dr ? dr.visibility : "—") + ")") : "부서 선택";
+  }
+
+  /* ② 페이지 설정 */
+  function renderPageMid() {
+    var dr = OV.draft, pages = D.portal_pages || [];
+    if (!dr) { el("omid").innerHTML = '<span class="muted">페이지가 없습니다.</span>'; return; }
+    var p = pageRow(dr.page_key) || {};
+    var popts = pages.map(function (x) { return '<option value="' + esc(x.page_key) + '"' + (x.page_key === dr.page_key ? " selected" : "") + '>' + esc((x.icon || "") + " " + (x.title || x.page_key)) + (x.erp_module && SENS[x.erp_module] ? " ⚠" : "") + (x.active === false ? " (비활성)" : "") + '</option>'; }).join("");
+    var owner = '<option value="">(없음 — 관리자·공유 대상만)</option>' + ORG.filter(function (n) { return costShown(n) || n.dept_cd === dr.owner_dept_cd; }).map(function (n) {
+      return '<option value="' + esc(n.dept_cd) + '"' + (dr.owner_dept_cd === n.dept_cd ? " selected" : "") + '>' + "　".repeat(Math.max(0, n.lvl - 1)) + esc(n.dept_nm) + " (" + esc(n.dept_cd) + ")</option>";
+    }).join("");
+    var radios = ["부서 전용", "전사 공개", "지정 부서 공유"].map(function (v) { return '<label class="' + (dr.visibility === v ? "on" : "") + '"><input type="radio" name="ovis" value="' + v + '"' + (dr.visibility === v ? " checked" : "") + '> ' + v + '</label>'; }).join("");
+    var share = dr.visibility === "지정 부서 공유";
+    var chips = dr.scopes.map(function (s) {
+      var gone = !BYCD[s.dept_cd];
+      return '<span class="ochip' + (gone ? " ghost" : "") + '"' + (gone ? ' title="현행 조직에 없는 코드 — 판정에서 빠집니다. ×로 지우세요"' : "") + '>' + esc(onm(s.dept_cd)) + ' <span class="muted" style="font-size:10.5px">' + esc(s.dept_cd) + '</span>' +
+        (gone || oleaf(s.dept_cd) ? "" : '<span class="sw' + (s.include_sub ? " on" : "") + '" data-sub="' + esc(s.dept_cd) + '" title="켜면 이 조직 아래 모든 팀이 함께 포함됩니다">⤵ 하위 포함</span>') +
+        '<button class="x" type="button" data-rm="' + esc(s.dept_cd) + '" title="빼기">×</button></span>';
+    }).join("");
+    var legacy = (!share && (p.shared_depts || []).length) ? '<div class="owarn">예전 설정에 공유 부서(' + esc((p.shared_depts || []).join(", ")) + ')가 남아 있지만 「' + esc(dr.visibility) + '」라 <b>판정에 쓰이지 않습니다</b>. 공유하려면 「지정 부서 공유」로 바꾸고 조직도에서 고르세요. 저장하면 정리됩니다.</div>' : "";
+    var mods = '<option value="">(없음)</option>' + CATALOG.map(function (c) { return '<option value="' + esc(c.key) + '"' + (dr.erp_module === c.key ? " selected" : "") + '>' + esc(c.label) + (c.sensitive ? " ⚠ 민감" : "") + '</option>'; }).join("");
+    var sens = dr.erp_module && SENS[dr.erp_module];
+    el("omid").innerHTML =
+      '<div class="ofield"><div class="lb">페이지</div><select class="sel" id="oPage">' + popts + '</select>' +
+        '<div class="ohint">' + esc(p.path || "") + '</div></div>' +
+      '<div class="ofield"><div class="lb">소유 부서 <span class="badge n">조직도 순서 · 코드로 저장</span></div><select class="sel" id="oOwner">' + owner + '</select></div>' +
+      '<div class="ofield"><div class="lb">공개범위</div><div class="oradios" id="oVis">' + radios + '</div>' +
+        (share ? "" : '<div class="ohint">「' + esc(dr.visibility) + '」에서는 공유 부서를 쓰지 않으므로 조직도 체크가 잠깁니다.</div>') + '</div>' +
+      '<div class="ofield"><div class="lb">지정 공유 부서 <span class="muted">— 왼쪽 조직도에서 체크하세요(글자 입력 없음)</span></div>' +
+        '<div class="ochips' + (share ? "" : " off") + '" id="oChips">' + (chips || '<span class="muted" style="font-size:12px;padding:4px;">없음</span>') + '</div>' + legacy + '</div>' +
+      '<div class="ofield"><div class="lb">ERP 모듈 <span class="muted">— 이 모듈이 없는 부서는 공유돼도 못 봅니다</span></div><select class="sel" id="oMod">' + mods + '</select>' +
+        (sens ? '<div class="odanger">⚠ 민감 모듈 페이지 — 공유·전사 공개로 저장할 때는 사유가 필요합니다.</div>' : "") + '</div>' +
+      '<div class="ofield"><label style="font-size:12.5px;cursor:pointer;"><input type="checkbox" id="oActive"' + (dr.active ? " checked" : "") + '> 활성(끄면 포털 카드·URL 접근 모두 닫힘)</label></div>';
+    el("oPage").onchange = function () { selectPage(this.value); };
+    el("oOwner").onchange = function () { OV.draft.owner_dept_cd = this.value; OV.draft.scopes = OV.draft.scopes.filter(function (s) { return s.dept_cd !== OV.draft.owner_dept_cd; }); changed(); };
+    Array.prototype.forEach.call(el("oVis").querySelectorAll("input"), function (r) {
+      r.onchange = function () {
+        OV.draft.visibility = r.value;
+        if (r.value !== "지정 부서 공유" && OV.draft.scopes.length) OV.draft.scopes = [];   // 서버가 거부하는 조합을 화면에서 먼저 막는다
+        changed();
       };
     });
+    el("oMod").onchange = function () { OV.draft.erp_module = this.value; changed(); };
+    el("oActive").onchange = function () { OV.draft.active = this.checked; changed(); };
+    Array.prototype.forEach.call(el("oChips").querySelectorAll("[data-sub]"), function (b) {
+      b.onclick = function () { OV.draft.scopes.forEach(function (s) { if (s.dept_cd === b.getAttribute("data-sub")) s.include_sub = !s.include_sub; }); changed(); };
+    });
+    Array.prototype.forEach.call(el("oChips").querySelectorAll("[data-rm]"), function (b) {
+      b.onclick = function () { OV.draft.scopes = OV.draft.scopes.filter(function (s) { return s.dept_cd !== b.getAttribute("data-rm"); }); changed(); };
+    });
+  }
+  function selectPage(key) { OV.page = key; OV.draft = pageDraft(key); OV.prevOrig = null; OV.prev = null; OV.info = ""; renderOrgAll(); schedulePreview(0); }
+  function changed() { renderOrgAll(); schedulePreview(350); }
 
-    var deptOpts = function (sel) { return '<option value="">(미지정)</option>' + UNIVERSE.map(function (dn) { return '<option' + (dn === sel ? ' selected' : '') + '>' + esc(dn) + '</option>'; }).join(""); };
-    var pages = D.portal_pages || [];
-    el("pageRows").innerHTML = pages.length ? pages.map(function (p) {
-      var visOpts = VIS.map(function (v) { return '<option' + ((p.visibility === v) ? ' selected' : '') + '>' + v + '</option>'; }).join("");
-      var modOpts = '<option value="">(없음)</option>' + CATALOG.map(function (c) { return '<option value="' + esc(c.key) + '"' + ((p.erp_module === c.key) ? ' selected' : '') + '>' + esc(c.label) + (c.sensitive ? ' ⚠' : '') + '</option>'; }).join("");
-      var sens = (p.erp_module && SENS[p.erp_module]) ? ' <span class="badge r" style="font-size:9.5px;">민감</span>' : '';
-      return '<tr data-key="' + esc(p.page_key) + '" data-title="' + esc(p.title || "") + '" data-path="' + esc(p.path || "") + '" data-icon="' + esc(p.icon || "") + '">' +
-        '<td><b>' + esc((p.icon || "") + " " + (p.title || p.page_key)) + '</b>' + sens + '<br><span class="muted" style="font-size:11px">' + esc(p.path || "") + '</span></td>' +
-        '<td><select class="sel pp-dept">' + deptOpts(p.dept_nm) + '</select></td>' +
-        '<td><select class="sel pp-vis">' + visOpts + '</select></td>' +
-        '<td><input class="sel pp-shared" value="' + esc((p.shared_depts || []).join(", ")) + '" placeholder="부서A, 부서B" style="width:100%;"></td>' +
-        '<td><select class="sel pp-mod">' + modOpts + '</select></td>' +
-        '<td class="c"><input type="checkbox" class="pp-active"' + ((p.active !== false) ? ' checked' : '') + '></td></tr>';
-    }).join("") : '<tr><td colspan="6" class="c muted" style="padding:16px;">페이지 없음</td></tr>';
+  /* ③ 미리보기 — 서버 perm_preview_page(판정과 같은 규칙). 원래 설정 결과와 나란히 비교한다. */
+  function previewBody(dr) {
+    return { owner_dept_cd: dr.owner_dept_cd || null, visibility: dr.visibility, erp_module: dr.erp_module || null,
+             scopes: dr.visibility === "지정 부서 공유" ? dr.scopes.filter(function (s) { return BYCD[s.dept_cd]; }) : [] };
   }
-  function erpBulk(mode) {
-    if (mode === "all" || mode === "none") {
-      Array.prototype.forEach.call(el("erpRows").querySelectorAll(".em-chk:not(.em-sens)"), function (c) { c.checked = (mode === "all"); });
-    } else {
-      Array.prototype.forEach.call(el("erpRows").querySelectorAll("tr[data-dept]"), function (tr) {
-        var su = SUGGEST[tr.getAttribute("data-dept")] || {};
-        Array.prototype.forEach.call(tr.querySelectorAll(".em-chk:not(.em-sens)"), function (c) { c.checked = !!su[c.getAttribute("data-mod")]; });
-      });
+  function schedulePreview(ms) {
+    clearTimeout(_pvT);
+    _pvT = setTimeout(function () {
+      var seq = ++_pvSeq, dr = OV.draft; if (!dr) return;
+      var jobs = [post({ action: "preview_page_scope", page: previewBody(dr) })];
+      if (!OV.prevOrig) jobs.push(post({ action: "preview_page_scope", page: previewBody(pageOrig()) }));
+      Promise.all(jobs).then(function (r) {
+        if (seq !== _pvSeq) return;                       // 더 새 요청이 있으면 버린다(늦게 온 응답이 덮지 않게)
+        OV.prev = r[0].preview; if (r[1]) OV.prevOrig = r[1].preview;
+        if (OV.view === "page") renderPagePreview();
+      }).catch(function (e) { if (seq === _pvSeq && OV.view === "page") el("oprev").innerHTML = '<span style="color:var(--red)">미리보기 실패: ' + esc(e.message) + '</span>'; });
+    }, ms);
+  }
+  function renderPagePreview() {
+    var dr = OV.draft, pv = OV.prev, po = OV.prevOrig || pv, ch = draftChanged();
+    var head = '<div class="obtns" style="margin-top:0;margin-bottom:9px;">' +
+      (dr && dr.erp_module && SENS[dr.erp_module] ? '<input type="text" id="oReason" class="sel" placeholder="사유(민감 모듈 공유·전사 공개 시 필수)" style="flex:1;min-width:180px;">' : '') +
+      '<button class="btn" id="oSave"' + (ch ? "" : " disabled") + '>저장</button><button class="btn o" id="oReset"' + (ch ? "" : " disabled") + '>되돌리기</button></div>';
+    if (!pv) { el("oprev").innerHTML = head + '<span class="muted">미리보기 계산 중…</span>'; bindPageSave(); return; }
+    var diff = function (a, b) { var d = a - b; return d > 0 ? '<span class="d up">▲ +' + d + '</span>' : d < 0 ? '<span class="d down">▼ ' + d + '</span>' : '<span class="d same">변화 없음</span>'; };
+    var was = {}; (po.depts || []).forEach(function (x) { if (x.mod_ok) was[x.dept_cd] = 1; });
+    var now = {}; (pv.depts || []).forEach(function (x) { if (x.mod_ok) now[x.dept_cd] = 1; });
+    var items = (pv.depts || []).map(function (x) {
+      var cls = !x.mod_ok ? "nomod" : !was[x.dept_cd] ? "new" : "";
+      return '<li class="' + cls + '"><span><b>' + esc(x.dept_nm) + '</b> <span class="why">' + esc(x.why) + (x.mod_ok ? (cls === "new" ? " · 새로 열림" : "") : " · ERP 모듈(" + esc(dr.erp_module) + ") 없음 → 못 봄") + '</span></span><span>' + x.member_cnt + '명</span></li>';
+    }).concat((po.depts || []).filter(function (x) { return x.mod_ok && !now[x.dept_cd]; }).map(function (x) {
+      return '<li class="gone"><span><b>' + esc(x.dept_nm) + '</b> <span class="why">닫힘</span></span><span>' + x.member_cnt + '명</span></li>';
+    })).join("");
+    var widen = pv.member_cnt > po.member_cnt || pv.dept_cnt > po.dept_cnt;
+    el("oprev").innerHTML = head +
+      '<div class="okpis"><div class="okpi"><div class="lb">볼 수 있는 부서</div><div class="v">' + pv.dept_cnt + '</div>' + (ch ? diff(pv.dept_cnt, po.dept_cnt) : '<span class="d same">저장된 설정</span>') + '</div>' +
+      '<div class="okpi"><div class="lb">볼 수 있는 인원</div><div class="v">' + pv.member_cnt + '</div>' + (ch ? diff(pv.member_cnt, po.member_cnt) : '<span class="d same">부서 기준</span>') + '</div></div>' +
+      (dr.visibility === "전사 공개" ? '<div class="ohint">전사 공개 — ERP 모듈이 있는 모든 부서가 봅니다.</div>' : "") +
+      '<ul class="oplist">' + (items || '<li><span class="muted">부서 기준으로는 아무도 볼 수 없습니다(전체 관리자·개인 예외만)</span></li>') + '</ul>' +
+      (widen && pv.sensitive ? '<div class="odanger">⚠ 민감 모듈 페이지의 공개 범위가 넓어집니다. 저장 전에 대상 부서를 다시 확인하세요.</div>' : "") +
+      (pv.blocked_by_module ? '<div class="owarn">공유했지만 ERP 모듈이 없어 못 보는 부서 ' + pv.blocked_by_module + '곳 — 「조직 → 페이지」에서 그 부서에 모듈을 주거나, 페이지의 ERP 모듈을 조정하세요.</div>' : "") +
+      '<div class="ohint">서버 판정 규칙(perm_preview_page)으로 계산한 부서 단위 결과입니다. 전체 관리자·개인 예외(허용·차단)는 여기 포함되지 않습니다 — 사람별 확인은 「개인 권한」 탭의 유효 권한.</div>';
+    bindPageSave();
+  }
+  function bindPageSave() {
+    var s = el("oSave"), r = el("oReset");
+    if (s) s.onclick = savePageScope;
+    if (r) r.onclick = function () { OV.draft = pageOrig(); OV.prev = OV.prevOrig; renderOrgAll(); };
+  }
+  function savePageScope() {
+    var dr = OV.draft, pv = OV.prev, po = OV.prevOrig;
+    var reason = el("oReason") ? el("oReason").value.trim() : "";
+    var body = { page_key: dr.page_key, owner_dept_cd: dr.owner_dept_cd || null, visibility: dr.visibility, erp_module: dr.erp_module || null,
+                 active: dr.active, scopes: dr.visibility === "지정 부서 공유" ? dr.scopes : [], reason: reason || null };
+    if (pv && po && pv.member_cnt > po.member_cnt &&
+        !confirm("공개 범위가 넓어집니다 — 부서 " + po.dept_cnt + "→" + pv.dept_cnt + " · 인원 " + po.member_cnt + "→" + pv.member_cnt + "명.\n저장할까요?")) return;
+    busy("oSave", true);
+    post({ action: "save_page_scope", page: body }).then(function () { return load(); })
+      .then(function () { toastMsg("페이지 공개 설정을 저장했습니다 — 포털 카드·URL 접근에 바로 적용됩니다."); })
+      .catch(function (e) { alert("저장 실패: " + e.message); busy("oSave", false); });
+  }
+
+  /* ② 조직 → 페이지 */
+  function renderDeptMid() {
+    var cd = OV.dept, n = BYCD[cd];
+    if (!n) { el("omid").innerHTML = '<span class="muted">조직도에서 부서를 고르세요.</span>'; return; }
+    var leaf = oleaf(cd), rows = draftRows();
+    var mods = {}; CATALOG.forEach(function (c) { if (modState(cd, c.key, rows).st !== "none") mods[c.key] = 1; });
+    var pagesHtml = (D.portal_pages || []).map(function (p) {
+      var why = coverage(pageDraft(p.page_key))[cd];
+      var modOk = !p.erp_module || mods[p.erp_module];
+      var ok = p.active !== false && why && modOk;
+      var reason = p.active === false ? "비활성 페이지" : !why ? (p.visibility === "부서 전용" ? (p.owner_dept_cd ? onm(p.owner_dept_cd) + " 전용" : "관리자 전용(소유 부서 없음)") : "공유 대상 아님") : !modOk ? "ERP 모듈(" + p.erp_module + ") 없음" : why;
+      return '<tr><td>' + (ok ? '<span class="badge g">가능</span>' : '<span class="badge n">불가</span>') + '</td><td><a href="#" class="opg" data-k="' + esc(p.page_key) + '" style="color:var(--navy2);text-decoration:none;">' + esc(p.title || p.page_key) + '</a>' +
+        (p.erp_module && SENS[p.erp_module] ? ' <span class="badge r">민감</span>' : "") + '</td><td class="muted">' + esc(reason) + '</td></tr>';
+    }).join("");
+    var sug = {}; (D.dept_erp_suggest || []).forEach(function (s) { if (s.dept_nm === n.dept_nm) sug[s.module_key] = 1; });
+    var mrows = CATALOG.map(function (c) {
+      var s = modState(cd, c.key, rows), cell;
+      if (s.st === "direct") cell = '<span class="badge g">직접</span>' + (s.sub && !leaf ? ' <span class="badge b">⤵ 하위 포함</span>' : "");
+      else if (s.st === "inh") cell = '<span class="badge n">상속 ← ' + esc(onm(s.from)) + '</span>';
+      else cell = '<span class="muted">—</span>';
+      var ctl = s.st === "inh" ? '<span class="muted" style="font-size:11px">상위(' + esc(onm(s.from)) + ')에서 관리</span>' :
+        '<label style="font-size:11.5px;cursor:pointer;"><input type="checkbox" data-mod="' + esc(c.key) + '"' + (s.st === "direct" ? " checked" : "") + '> 지정</label>' +
+        (!leaf && !c.sensitive && s.st === "direct" ? ' <label style="font-size:11.5px;cursor:pointer;margin-left:6px;"><input type="checkbox" data-msub="' + esc(c.key) + '"' + (s.sub ? " checked" : "") + '> 하위 포함</label>' : "");
+      return '<tr><td>' + esc(c.label) + (c.sensitive ? ' <span class="badge r">⚠ 민감</span>' : "") + (sug[c.key] && !c.sensitive ? ' <span title="ERP 역할·메뉴상 이 부서가 실제 접근하는 모듈(제안값)" style="color:#2f6fb3;font-size:10px;">◆</span>' : "") + '</td><td>' + cell + '</td><td>' + ctl + '</td></tr>';
+    }).join("");
+    el("omid").innerHTML =
+      '<div class="ofield"><div class="lb">선택한 부서</div><div style="font-size:15px;font-weight:800;color:var(--navy);">' + esc(n.dept_nm) +
+        ' <span class="muted" style="font-size:12px;font-weight:400;">' + esc(n.path_nm) + ' · ' + esc(cd) + '</span></div></div>' +
+      '<div class="ofield"><div class="lb">ERP 모듈 <span class="muted">— 상위에 「하위 포함」으로 한 번 주면 아래 조직이 상속합니다</span></div>' +
+        '<div class="tblwrap"><table class="ot"><tr><th>모듈</th><th>상태</th><th>편집</th></tr>' + mrows + '</table></div>' +
+        '<div class="ohint">⚠ 민감 모듈(급여·자금·회계)은 <b>상속 금지</b> — 부서마다 직접 지정할 때만 유효합니다(서버가 강제). <b style="color:#2f6fb3;">◆</b> = ERP 역할상 실제 접근 모듈(제안값).</div></div>' +
+      '<div class="ofield"><div class="lb">볼 수 있는 운영 페이지 <span class="muted">— 부서 기준 계산(편집 중인 모듈 반영 · 개인 예외 제외)</span></div>' +
+        '<div class="tblwrap"><table class="ot"><tr><th style="width:56px">접근</th><th>페이지</th><th>사유</th></tr>' + pagesHtml + '</table></div></div>';
+    Array.prototype.forEach.call(el("omid").querySelectorAll("[data-mod]"), function (c) {
+      c.onchange = function () {
+        var k = c.getAttribute("data-mod");
+        if (c.checked) OV.ddraft.mods[k] = { include_sub: false };   // 하위 포함은 따로 켠다(민감 모듈은 켤 수 없음) else delete OV.ddraft.mods[k];
+        renderOrgAll();
+      };
+    });
+    Array.prototype.forEach.call(el("omid").querySelectorAll("[data-msub]"), function (c) {
+      c.onchange = function () { var k = c.getAttribute("data-msub"); if (OV.ddraft.mods[k]) OV.ddraft.mods[k].include_sub = c.checked; renderOrgAll(); };
+    });
+    Array.prototype.forEach.call(el("omid").querySelectorAll(".opg"), function (a) {
+      a.onclick = function (ev) { ev.preventDefault(); OV.view = "page"; selectPage(a.getAttribute("data-k")); };
+    });
+  }
+  // 편집 중인 부서 모듈을 반영한 전체 행(부서 보기의 상속·페이지 계산용)
+  function draftRows() {
+    var cd = OV.dept, rows = DMODS.filter(function (r) { return r.dept_cd !== cd; });
+    Object.keys(OV.ddraft.mods).forEach(function (k) { rows.push({ dept_cd: cd, module_key: k, include_sub: !!OV.ddraft.mods[k].include_sub }); });
+    return rows;
+  }
+  function renderDeptRight() {
+    var cd = OV.dept, n = BYCD[cd]; if (!n) { el("oprev").innerHTML = ""; return; }
+    var ch = ddraftChanged(), rows = draftRows(), before = deptDraft(cd).mods;
+    var aff = odesc(cd).filter(function (c) { return BYCD[c]; });
+    var affN = aff.reduce(function (a, c) { return a + (BYCD[c].member_cnt || 0); }, 0);
+    var newSens = Object.keys(OV.ddraft.mods).filter(function (k) { return SENS[k] && !before[k]; });
+    var mods = CATALOG.filter(function (c) { return modState(cd, c.key, rows).st !== "none"; });
+    var subOn = Object.keys(OV.ddraft.mods).filter(function (k) { return OV.ddraft.mods[k].include_sub; });
+    el("oprev").innerHTML =
+      '<div class="okpis"><div class="okpi"><div class="lb">ERP 모듈</div><div class="v">' + mods.length + '</div><span class="d same">' + esc(mods.map(function (c) { return c.label; }).join("·") || "없음") + '</span></div>' +
+      '<div class="okpi"><div class="lb">이 부서 인원</div><div class="v">' + (n.member_cnt || 0) + '</div><span class="d same">' + (aff.length > 1 ? "하위 포함 " + affN + "명" : "말단 부서") + '</span></div></div>' +
+      (subOn.length && aff.length > 1 ? '<div class="owarn">「하위 포함」 모듈 ' + subOn.length + '개가 <b>하위 ' + (aff.length - 1) + '개 조직 · ' + (affN - (n.member_cnt || 0)) + '명</b>에게 함께 적용됩니다.</div>' : "") +
+      (newSens.length ? '<div class="odanger">⚠ 민감 모듈을 새로 부여합니다(' + esc(newSens.join(", ")) + ') — 사유가 필요합니다.</div><input type="text" id="oMReason" class="sel" placeholder="사유(필수) — 예: 결산 업무 대행(2026-10-31까지)" style="width:100%;margin-top:6px;">' : "") +
+      '<div class="obtns"><button class="btn" id="oMSave"' + (ch ? "" : " disabled") + '>모듈 저장</button><button class="btn o" id="oMReset"' + (ch ? "" : " disabled") + '>되돌리기</button></div>';
+    el("oMSave").onclick = saveDeptModule;
+    el("oMReset").onclick = function () { OV.ddraft = deptDraft(OV.dept); renderOrgAll(); };
+  }
+  function saveDeptModule() {
+    var cd = OV.dept, reason = el("oMReason") ? el("oMReason").value.trim() : "";
+    var rows = Object.keys(OV.ddraft.mods).map(function (k) { return { module_key: k, include_sub: !!OV.ddraft.mods[k].include_sub }; });
+    busy("oMSave", true);
+    post({ action: "save_dept_module", dept_cd: cd, rows: rows, reason: reason || null }).then(function () { return load(); })
+      .then(function () { toastMsg(onm(cd) + " ERP 모듈을 저장했습니다 — 챗봇·운영페이지에 바로 적용됩니다."); })
+      .catch(function (e) { alert("저장 실패: " + e.message); busy("oMSave", false); });
+  }
+
+  /* 조직 기준정보 */
+  function renderInfo() {
+    var cd = OV.view === "dept" ? OV.dept : OV.info;
+    if (!cd || !BYCD[cd]) { el("oinfo").innerHTML = '<span class="muted">조직도에서 부서 이름을 누르면 코드·경로·인원·권한이 여기에 나옵니다.</span>'; return; }
+    var n = BYCD[cd], kids = KIDS[cd] || [];
+    var subN = odesc(cd).reduce(function (a, c) { return a + ((BYCD[c] || {}).member_cnt || 0); }, 0);
+    var own = (D.portal_pages || []).filter(function (p) { return p.owner_dept_cd === cd; }).map(function (p) { return p.title || p.page_key; });
+    var shared = (D.portal_pages || []).filter(function (p) { var w = coverage(pageDraft(p.page_key))[cd]; return w && w.indexOf("공유") === 0; }).map(function (p) { return p.title || p.page_key; });
+    var warn = [];
+    if (n.is_cost) warn.push("원가부서 — 사람이 없어 권한 대상이 아닙니다");
+    else if (!n.member_cnt) warn.push("권한 대상 인원 0 — ERP 계정 표기(부서명_이름)에 이 부서명이 없습니다");
+    if (n.hr_cnt && n.hr_cnt !== n.member_cnt) warn.push("인사 재직 " + n.hr_cnt + "명 ↔ 권한 대상 " + n.member_cnt + "명 — 계정 표기가 다른 사람이 있습니다(계정 대사에서 확인)");
+    el("oinfo").innerHTML = '<dl>' +
+      '<dt>부서</dt><dd><b>' + esc(n.dept_nm) + '</b> <code>' + esc(n.dept_cd) + '</code></dd>' +
+      '<dt>상위</dt><dd>' + esc(n.par_dept_cd ? onm(n.par_dept_cd) + " (" + n.par_dept_cd + ")" : "— (최상위)") + '</dd>' +
+      '<dt>경로</dt><dd>' + esc(n.path_nm) + '</dd>' +
+      '<dt>레벨</dt><dd>' + n.lvl + (kids.length ? " · 하위 " + kids.length + "개" : " · 말단") + '</dd>' +
+      '<dt>권한 대상</dt><dd>' + (n.member_cnt || 0) + '명' + (kids.length ? ' <span class="muted">(하위 포함 ' + subN + '명)</span>' : "") + ' <span class="muted">· 인사 재직 ' + (n.hr_cnt || 0) + '명</span></dd>' +
+      '<dt>소유 페이지</dt><dd>' + (own.length ? esc(own.join(", ")) : '<span class="muted">없음</span>') + '</dd>' +
+      '<dt>공유받음</dt><dd>' + (shared.length ? esc(shared.join(", ")) : '<span class="muted">없음</span>') + '</dd>' +
+      '<dt>조직 버전</dt><dd class="muted" style="font-size:11.5px;">' + esc(n.org_change_id || "") + ' · ERP 부서 마스터(v_dept_tree)</dd>' +
+      '</dl>' + warn.map(function (w) { return '<div class="owarn">⚠ ' + esc(w) + '</div>'; }).join("");
+  }
+
+  /* 정리 필요 — 판정에 쓰이지 않는 옛 값·개편으로 사라진 코드 */
+  function renderFix() {
+    var items = [];
+    (D.page_scopes || []).forEach(function (s) { if (!BYCD[s.dept_cd]) items.push("페이지 「" + esc((pageRow(s.page_key) || {}).title || s.page_key) + "」 공유 코드 <b>" + esc(s.dept_cd) + "</b> — 현행 조직에 없음(판정 제외). 페이지를 열어 ×로 지우고 저장하세요."); });
+    DMODS.forEach(function (r) { if (!BYCD[r.dept_cd]) items.push("ERP 모듈 " + esc(r.module_key) + " 부서 코드 <b>" + esc(r.dept_cd) + "</b> — 현행 조직에 없음(판정 제외)."); });
+    (D.portal_pages || []).forEach(function (p) {
+      if (p.owner_dept_cd && !BYCD[p.owner_dept_cd]) items.push("페이지 「" + esc(p.title || p.page_key) + "」 소유 부서 코드 <b>" + esc(p.owner_dept_cd) + "</b> — 현행 조직에 없음.");
+      if (p.visibility !== "지정 부서 공유" && (p.shared_depts || []).length) items.push("페이지 「" + esc(p.title || p.page_key) + "」 — 「" + esc(p.visibility) + "」인데 예전 공유 부서(" + esc(p.shared_depts.join(", ")) + ")가 남아 있음(판정에 안 쓰임). 한 번 저장하면 정리됩니다.");
+    });
+    el("fixBox").hidden = !items.length;
+    el("fixCnt").textContent = items.length + "건";
+    el("fixList").innerHTML = items.map(function (i) { return "<li>" + i + "</li>"; }).join("");
+  }
+
+  function renderOrgAll() {
+    if (!D) return;
+    el("vPage").classList.toggle("on", OV.view === "page"); el("vDept").classList.toggle("on", OV.view === "dept");
+    el("viewHint").textContent = OV.view === "page" ? "이 페이지를 누가 보나?" : "이 부서는 무엇을 보나?";
+    el("midTitle").textContent = OV.view === "page" ? "② 페이지 공개 설정" : "② 부서 권한 — ERP 모듈 · 볼 수 있는 페이지";
+    el("rightTitle").textContent = OV.view === "page" ? "③ 영향 미리보기 (저장 전)" : "③ 부서 요약 (저장 전)";
+    var org = ORG.length ? ORG[0].org_change_id : "";
+    el("orgBadge").textContent = "기준 조직 " + (org || "—") + " · " + ORG.length + "개 부서";
+    renderTree();
+    if (OV.view === "page") { renderPageMid(); renderPagePreview(); } else { renderDeptMid(); renderDeptRight(); }
+    renderInfo(); renderFix(); notifySize();
+  }
+  function renderDept() { orgInit(); renderOrgAll(); if (OV.view === "page") schedulePreview(0); }
+
+  var _tt = null;
+  function toastMsg(m) {
+    var t = el("otoast"); if (!t) { t = document.createElement("div"); t.id = "otoast"; t.style.cssText = "position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:var(--navy);color:#fff;border-radius:9px;padding:10px 16px;font-size:12.8px;box-shadow:0 6px 20px rgba(0,0,0,.2);z-index:50;max-width:calc(100% - 32px);"; document.body.appendChild(t); }
+    t.textContent = m; t.hidden = false; clearTimeout(_tt); _tt = setTimeout(function () { t.hidden = true; }, 4200);
+  }
+
+  el("otree").addEventListener("click", function (ev) {
+    var row = ev.target.closest(".otree__node"); if (!row) return;
+    var cd = row.getAttribute("data-cd"), act = ev.target.getAttribute("data-act");
+    if (act === "tw") { OV.open[cd] = !OV.open[cd]; renderTree(); notifySize(); return; }
+    if (act === "chk" && OV.view === "page") {
+      var dr = OV.draft; if (!dr) return;
+      if (dr.visibility !== "지정 부서 공유") { toastMsg("공개범위가 「지정 부서 공유」일 때만 공유 부서를 고를 수 있습니다."); return; }
+      var i = -1; dr.scopes.forEach(function (s, j) { if (s.dept_cd === cd) i = j; });
+      if (i >= 0) dr.scopes.splice(i, 1); else dr.scopes.push({ dept_cd: cd, include_sub: !oleaf(cd) });
+      OV.info = cd; changed(); return;
     }
-    Array.prototype.forEach.call(el("erpHead").querySelectorAll(".em-col"), function (c) { c.checked = false; });
-  }
-  function saveDeptErp() {
-    var rows = Array.prototype.map.call(el("erpRows").querySelectorAll("tr[data-dept]"), function (tr) {
-      return { dept_nm: tr.getAttribute("data-dept"),
-        modules: Array.prototype.map.call(tr.querySelectorAll(".em-chk:checked"), function (c) { return c.getAttribute("data-mod"); }) };
-    });
-    if (!rows.length) { alert("저장할 부서가 없습니다."); return; }
-    busy("bSaveErp", true);
-    post({ action: "save_dept_erp", rows: rows }).then(function (d) {
-      alert("부서별 ERP 모듈 저장 완료 — " + d.saved + "개 부서 / 모듈 " + d.modules + " (저장자: " + (d.updated_by || "") + ")");
-      return load();
-    }).catch(function (e) { alert("저장 실패: " + e.message); }).then(function () { busy("bSaveErp", false); });
-  }
-  function savePagePerm() {
-    var rows = Array.prototype.map.call(el("pageRows").querySelectorAll("tr[data-key]"), function (tr) {
-      var shared = (tr.querySelector(".pp-shared").value || "").split(",").map(function (s) { return s.trim(); }).filter(Boolean);
-      return { page_key: tr.getAttribute("data-key"), title: tr.getAttribute("data-title"), path: tr.getAttribute("data-path"), icon: tr.getAttribute("data-icon"),
-        dept_nm: tr.querySelector(".pp-dept").value || null, visibility: tr.querySelector(".pp-vis").value || "부서 전용",
-        shared_depts: shared, erp_module: tr.querySelector(".pp-mod").value || null, active: tr.querySelector(".pp-active").checked };
-    });
-    if (!rows.length) { alert("저장할 페이지가 없습니다."); return; }
-    busy("bSavePage", true);
-    post({ action: "save_page_perm", rows: rows }).then(function (d) {
-      alert("페이지 공개 설정 저장 완료 — " + d.saved + "건 (저장자: " + (d.updated_by || "") + ")");
-      return load();
-    }).catch(function (e) { alert("저장 실패: " + e.message); }).then(function () { busy("bSavePage", false); });
-  }
+    if (OV.view === "dept") {
+      if (cd !== OV.dept && ddraftChanged() && !confirm("저장하지 않은 모듈 변경이 있습니다. 버리고 다른 부서로 갈까요?")) return;
+      OV.dept = cd; OV.ddraft = deptDraft(cd);
+    }
+    OV.info = cd; renderOrgAll();
+  });
+  el("vPage").onclick = function () { OV.view = "page"; renderOrgAll(); schedulePreview(0); };
+  el("vDept").onclick = function () { OV.view = "dept"; if (OV.info && BYCD[OV.info]) { OV.dept = OV.info; OV.ddraft = deptDraft(OV.dept); } (BYCD[OV.dept] ? BYCD[OV.dept].path_cd : []).forEach(function (a) { OV.open[a] = true; }); renderOrgAll(); };
+  el("oq").addEventListener("input", function () { OV.q = this.value; renderTree(); notifySize(); });
+  el("showCost").onchange = renderOrgAll;
 
   /* ── 개인 권한: 사람 피커 · 카드 · 유효 권한 · 예외 ───────────── */
   function peopleView() {
@@ -650,7 +1045,6 @@
       CATALOG = catalogWithSensitive(D.catalog);
       ROSTER = (D.dept_mapping && D.dept_mapping.roster) || [];
       ROSTER_SET = {}; ROSTER.forEach(function (r) { ROSTER_SET[r.dept_nm] = 1; });
-      UNIVERSE = deptUniverse(D);
       el("gate").style.display = "none"; el("app").style.display = "block";
       renderAll();
     });
@@ -672,11 +1066,6 @@
   }
 
   Array.prototype.forEach.call(document.querySelectorAll(".tabs button"), function (b) { b.onclick = function () { showTab(b.getAttribute("data-tab")); }; });
-  el("bSuggest").onclick = function () { erpBulk("suggest"); };
-  el("bAll").onclick = function () { erpBulk("all"); };
-  el("bNone").onclick = function () { erpBulk("none"); };
-  el("bSaveErp").onclick = saveDeptErp;
-  el("bSavePage").onclick = savePagePerm;
   el("qPerson").addEventListener("input", renderPicker);
   el("selPerson").onchange = function () { selectPerson(el("selPerson").value, false); };
   el("bEffective").onclick = checkEffective;

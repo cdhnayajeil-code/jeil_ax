@@ -138,6 +138,8 @@ ROUTES = {
     "/docs/product/adr":                "11_제품기획/09_ADR_의사결정기록.html",
     "/docs/product/chat-rendering":     "11_제품기획/10_챗봇_응답렌더링_설계.html",
     "/docs/product/chat-data-request":  "11_제품기획/11_챗봇_데이터요청접수_설계.html",
+    "/docs/product/org-permission":     "11_제품기획/12_권한_조직도기반_공개설정_설계.html",
+    "/docs/product/org-permission-mockup": "11_제품기획/12_권한_조직도기반_공개설정_목업.html",
 
     # ── 그리드 표준 ────────────────────────────────────────
     "/docs/grid":               "그리드/index.html",

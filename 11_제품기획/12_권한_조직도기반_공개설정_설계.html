@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>12 조직도권한 — JEIL AX 제품기획 (조직도 트리 공개설정·dept_cd 키·하위포함)</title>
+<style>
+:root{--navy:#1a2f4e;--navy2:#27457a;--accent:#2f6fb3;--red:#b3402f;--green:#2e7d52;--amber:#9a6b1f;
+--ink:#222;--muted:#666;--line:#d8dee8;--bg:#f4f6f9;--soft:#eef2f8;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;color:var(--ink);background:var(--bg);line-height:1.65;font-size:15px;}
+.page{max-width:960px;margin:0 auto;background:#fff;padding:52px 60px;box-shadow:0 2px 14px rgba(0,0,0,.08);}
+.doc-label{display:inline-block;background:var(--navy);color:#fff;font-size:12px;letter-spacing:.16em;padding:5px 14px;border-radius:3px;margin-bottom:16px;}
+.docnav{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 26px;}
+.docnav a{font-size:12px;color:var(--navy2);border:1px solid var(--line);border-radius:20px;padding:4px 12px;text-decoration:none;background:var(--soft);}
+.docnav a:hover{background:var(--navy);color:#fff;}
+.docnav a.cur{background:var(--navy);color:#fff;border-color:var(--navy);}
+.md-link{font-size:13px;margin-bottom:22px;color:var(--muted);}
+.content h1{font-size:27px;color:var(--navy);line-height:1.35;margin:6px 0 18px;}
+.content h2{font-size:20px;color:var(--navy);margin:42px 0 14px;padding-bottom:9px;border-bottom:3px solid var(--navy);}
+.content h3{font-size:16px;color:var(--navy2);margin:24px 0 9px;}
+.content p{margin:0 0 12px;}
+.content ul,.content ol{margin:0 0 14px 22px;}
+.content li{margin-bottom:6px;}
+.content blockquote{background:var(--soft);border-left:5px solid var(--navy);border-radius:0 8px 8px 0;padding:14px 20px;margin:14px 0;color:#33425a;}
+.content blockquote p{margin:0 0 6px;}
+.content table{width:100%;border-collapse:collapse;margin:14px 0 20px;font-size:13.3px;}
+.content th{background:var(--navy);color:#fff;padding:9px 11px;text-align:left;font-weight:600;}
+.content td{padding:8px 11px;border-bottom:1px solid var(--line);vertical-align:top;}
+.content tr:nth-child(even) td{background:#fafbfd;}
+.content a{color:var(--accent);}
+.content code{background:var(--soft);border:1px solid var(--line);border-radius:4px;padding:1px 6px;font-size:12.4px;font-family:Consolas,'Courier New',monospace;}
+.content pre{background:#21252e;color:#e8eaf0;border-radius:8px;padding:16px 18px;font-size:12.4px;font-family:Consolas,'Courier New',monospace;overflow-x:auto;margin:12px 0 18px;line-height:1.55;}
+.content pre code{background:none;border:none;color:inherit;padding:0;}
+.content hr{border:none;border-top:1px solid var(--line);margin:30px 0;}
+.content strong{color:var(--navy2);}
+.footer{margin-top:50px;padding-top:16px;border-top:1px solid var(--line);font-size:12px;color:var(--muted);display:flex;justify-content:space-between;}
+@media print{body{background:#fff;}.page{box-shadow:none;padding:18px 0;max-width:100%;}.docnav{display:none;}.content h2{break-after:avoid;}.content table,.content pre,.content blockquote{break-inside:avoid;}}
+@media (max-width:720px){.page{padding:30px 20px;}}
+</style>
+</head>
+<body>
+<div class="page">
+  <span class="doc-label">JEIL AX 제품기획 · 대외비</span>
+  <div class="docnav"><a href="/docs/product">🏠 제품기획 허브</a><a href="/docs/product/overview">00 개요</a><a href="/docs/product/prd">01 PRD</a><a href="/docs/product/srs">02 SRS</a><a href="/docs/product/architecture">03 아키텍처</a><a href="/docs/product/database">04 DB설계</a><a href="/docs/product/frontend-backend">05 FE·BE</a><a href="/docs/product/erp-chatbot">06 ERP연계</a><a href="/docs/product/migration-design">07 이관</a><a href="/docs/product/security">08 보안</a><a href="/docs/product/adr">09 ADR</a><a href="/docs/product/chat-rendering">10 응답렌더링</a><a href="/docs/product/chat-data-request">11 요청접수</a><a class="cur" href="/docs/product/org-permission">12 조직도권한</a><a href="README.md">README</a></div>
+  <p class="md-link">📄 Markdown 원본: <a href="12_권한_조직도기반_공개설정_설계.md">12_권한_조직도기반_공개설정_설계.md</a> · 허브 <a href="/docs/product">제품기획 개요</a></p>
+  <div class="content">
+<h1 id="12">12 · 권한 설정 — 조직도 기반 페이지 공개·권한 설정 설계</h1>
+<blockquote>
+<p>관리자: 최동혁(dh.choi@jeilm.co.kr) · 기준일: 2026-09-23 · 상태: <strong>Accepted — 1차 구현·배포 완료 2026-09-23 (ADR-107)</strong> · 구현 결과는 §12
+관련: <a href="/docs/product/adr">09 ADR</a>(ADR-010 권한 코어 · ADR-014 권한 화면 일원화 · <strong>ADR-107</strong>) · <a href="/docs/product/frontend-backend">05 FE·BE</a> · <a href="/docs/product/database">04 DB설계</a> · <a href="/docs/product/security">08 보안</a> · 목업 <a href="/docs/product/org-permission-mockup"><code>12_권한_조직도기반_공개설정_목업.html</code></a> · 백로그 REQ-0078 · <code>CLAUDE.md §5·§13·§15</code></p>
+</blockquote>
+<p>지금 권한 설정 화면(<code>/admin/permissions</code>)은 <strong>부서를 글자로 적는 화면</strong>입니다. 공유 부서는 쉼표로 타이핑하고, 소유 부서는 이름 목록에서 고릅니다. 조직 계층은 보이지 않습니다.
+이 문서는 권한 설정을 <strong>조직도 트리를 보면서 클릭으로 지정하고, 누가 실제로 보게 되는지 즉시 확인하는 화면</strong>으로 바꾸는 설계입니다.</p>
+<p><strong>결론부터</strong>
+1. 조직 원천은 이미 있습니다. ERP 부서 마스터가 중간DB 재귀 뷰 <code>erp_ro.v_dept_tree</code>로 들어와 있습니다(현행 조직 <code>20261</code>, 35개 부서).
+2. 부서의 기준 키를 <strong>부서명에서 부서코드(<code>dept_cd</code>)로</strong> 바꿉니다. 상위 조직을 지정할 때는 노드마다 <strong>「하위 포함」을 선택</strong>할 수 있게 합니다(기본은 켜짐).
+3. 판정은 지금처럼 <strong><code>perm_effective</code> 함수 하나</strong>에서만 바꿉니다(ADR-010). 전환기에는 이름 판정과 코드 판정을 함께 둡니다.
+4. 화면은 <strong>좌 조직도 / 중 설정 / 우 영향 미리보기</strong>의 3분할이고, 「페이지 → 조직」과 「조직 → 페이지」 두 방향 보기를 둡니다.</p>
+<p>근거는 §1~§2, 설계는 §3~§7, 이관·단계·미결정은 §8~§11에 있습니다.</p>
+<hr />
+<h2 id="1-2026-09-23">1. 현재 상태 (실측, 2026-09-23)</h2>
+<h3 id="1-1">1-1. 화면: 부서를 글자로 적는다</h3>
+<p><code>app/admin-permissions.html</code>의 「부서 권한」 탭은 두 표로 되어 있습니다.</p>
+<table>
+<thead>
+<tr>
+<th>영역</th>
+<th>현재 입력 방식</th>
+<th>문제</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>부서별 ERP 모듈(<code>#erpMatrix</code>, :355-399)</td>
+<td>부서 행 × 모듈 열 체크 매트릭스. 부서는 <strong>이름을 가나다순으로 나열</strong></td>
+<td>계층이 없습니다. 본부·부문·팀이 같은 줄에 섞여 27행입니다. 상위에 한 번 주는 방법이 없습니다.</td>
+</tr>
+<tr>
+<td>페이지 공개 설정(<code>#pageRows</code>, :385-397)</td>
+<td>소유 부서는 드롭다운, <strong>지정 공유 부서는 쉼표 텍스트 입력</strong>(<code>pp-shared</code>)</td>
+<td>오타가 나도 그대로 저장됩니다. 누가 실제로 보게 되는지 알 수 없습니다.</td>
+</tr>
+</tbody>
+</table>
+<p>드롭다운 후보 <code>deptUniverse()</code>(:315-321)는 "ERP 계정 표기 부서 + 이미 설정에 들어간 이름"의 합집합입니다. 그래서 <strong>유령 부서명도 선택지로 계속 다시 나타납니다.</strong></p>
+<h3 id="1-2">1-2. 데이터: 이미 유령 부서명이 저장돼 있다</h3>
+<p>라이브 값을 읽기 전용으로 조회한 결과입니다.</p>
+<table>
+<thead>
+<tr>
+<th>위치</th>
+<th>유령 이름(현행 조직에 없음)</th>
+<th>영향</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>portal_page.shared_depts</code></td>
+<td><code>재무회계팀</code>·<code>내부회계팀</code>(<code>finance_dashboard</code>·<code>finance_daily</code>), <code>회계</code>(<code>gl_draft</code>)</td>
+<td>아무에게도 적용되지 않습니다. <code>gl_draft</code>는 「지정 부서 공유」인데 공유 대상이 사실상 0명입니다.</td>
+</tr>
+<tr>
+<td><code>dept_erp_scope</code></td>
+<td><code>재무회계팀</code>·<code>내부회계팀</code>·<code>영업팀</code>·<code>헝가리지원팀</code>·<code>회계</code> (5종)</td>
+<td>설정 행만 차지하고 효과가 없습니다. 부서명이 바뀐 흔적입니다(REQ-0032).</td>
+</tr>
+<tr>
+<td><code>portal_page</code> 조합 모순</td>
+<td><code>finance_dashboard</code>: 「부서 전용」인데 공유 부서 4개 / <code>purchase_list_2026</code>: 공유 부서에 자기 부서 중복</td>
+<td>공유 부서가 판정에서 <strong>무시</strong>되는데 화면에는 공유처럼 보입니다.</td>
+</tr>
+</tbody>
+</table>
+<p><code>dept_erp_scope</code> 27행 중 <strong>22행이 같은 기본 5모듈</strong>(매출·매입·재고·품목·발주)입니다. 다른 점은 민감 모듈을 가진 4곳(인사팀 <code>payroll</code>, 자금팀·내부회계관리팀·재무회계팀 <code>finance</code>)뿐입니다. 조직도 상속을 쓰면 <strong>최상위 1행 + 예외 3~4행</strong>으로 줄일 수 있습니다.</p>
+<h3 id="1-3">1-3. 판정: 부서명 완전일치, 하위 조직 개념 없음</h3>
+<ul>
+<li><code>perm_effective</code>(라이브 정의, 정본 SQL <code>17_perm_core.sql</code>에는 계약만 있음)는 사용자 소속을 <code>v_erp_user_dept.dept_nm</code> 하나로 잡습니다. ERP 계정 표기 <code>부서명_이름</code>을 파싱한 값입니다. 여기에 개인 예외 <code>perm_grant(dept)</code>를 더합니다.</li>
+<li>페이지 판정은 <code>p.dept_nm = any(v_depts)</code>, <code>sd = any(v_depts)</code>이고, 모듈 판정도 <code>dept_erp_scope.dept_nm = any(v_depts)</code>입니다. 전부 <strong>문자열 완전일치</strong>입니다.</li>
+<li>서버 저장 <code>jeil-chat-admin</code>의 <code>save_page_perm</code>(:88-106)은 받은 이름을 <strong>검증 없이 upsert</strong>합니다.</li>
+</ul>
+<p><strong>그래서</strong> 부서명이 한 글자만 달라도 권한이 조용히 사라집니다. 오류 없이 0명이 됩니다. 조직개편으로 이름이 바뀌어도 같은 일이 일어납니다.</p>
+<hr />
+<h2 id="2">2. 조직 기준정보 원천</h2>
+<table>
+<thead>
+<tr>
+<th>항목</th>
+<th>원천</th>
+<th>비고</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>부서 마스터</td>
+<td>ERP <code>B_ACCT_DEPT</code> → ETL → <code>erp_ro.dept_master_s</code></td>
+<td>컬럼: <code>org_change_id</code>·<code>dept_cd</code>·<code>dept_nm</code>·<code>par_dept_cd</code>·<code>end_dept_fg</code>. <strong>정렬·사용여부 컬럼은 없습니다.</strong></td>
+</tr>
+<tr>
+<td>계층</td>
+<td><code>erp_ro.v_dept_tree</code>(정본 <code>sql/50_erp_role_matrix.sql:169-208</code>)</td>
+<td><code>lvl</code>·<code>path_cd[]</code>·<code>path_nm</code>·<code>sort_key</code>·<code>has_child</code>·<code>is_current</code>. 조직 버전은 7개이고 현행은 <code>20261</code>입니다.</td>
+</tr>
+<tr>
+<td>소속 인원</td>
+<td><code>erp_ro.v_dept_member</code></td>
+<td>1순위는 인사 <code>hr_emp_s.dept_cd</code>(부서 마스터와 87/87 일치, 유령 0), 폴백은 계정명 파싱입니다. <code>account_active</code>·<code>hr_active</code>를 함께 줍니다.</td>
+</tr>
+<tr>
+<td>구명칭 → 현행 코드</td>
+<td><code>public.dept_map_legacy</code>(시드 <code>etl/seed/dept_map_legacy.csv</code>, 37종)</td>
+<td>규칙은 same·rename·merge·split·unmapped입니다. 이관 때 그대로 씁니다.</td>
+</tr>
+<tr>
+<td>그룹웨어 조직도</td>
+<td><strong>원천으로 쓰지 않습니다</strong></td>
+<td>GW에는 <code>partName</code> 문자열만 있고 코드와 상위 부서가 없습니다. 계층은 ERP와 사실상 같습니다(<code>10_ERP_DB연계/22_그룹웨어_조직도_실측대사</code>). 대사 신호로만 씁니다.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>현행 조직도 (org 20261, 활성 계정 수 기준)</strong></p>
+<pre><code>제일엠앤에스(0000)
+├─ BDP본부(0200)
+│  ├─ 품질부문(0100) ─ 품질팀(7400)
+│  ├─ 사업부문(6700) ─ 구매팀(5200) · 사업운영팀(6110) · 사업관리팀(6120)
+│  ├─ 설계부문(6900) ─ 제어설계팀(6210) · 공정설계팀(6220) · R&amp;D팀(6910) · 기계설계팀(8100)
+│  └─ 생산부문(7000) ─ 생산팀(7100) · 자재물류팀(7200)
+├─ 경영기획부문(1000) ─ 경영기획팀(1100) · 내부회계관리팀(2400)
+├─ 재무부문(2000) ─ 재무팀(2100) · 자금팀(2300)
+├─ 경영지원부문(3000) ─ 총무팀(3200)
+├─ 인사부문(3100) ─ 인사팀(3150)
+├─ 공통예산(1300) · 제조공통(1310) · 연구공통(1320) · 판관공통(1330)   ← 원가부서(인원 0)
+└─ 해외법인관리(9900) ─ 헝가리법인 · 스웨덴법인 · 미국법인 · 캐나다법인
+</code></pre>
+<p><strong>함정 (구현 시 필수 확인)</strong>
+- <code>dept_cd</code>는 <code>char(10)</code> 공백 패딩이고, 루트의 <code>par_dept_cd</code>는 공백 문자열입니다. <code>btrim</code> 없이 <code>is null</code>로 루트를 판정하면 트리가 <strong>조용히 0행</strong>이 됩니다.
+- <code>dept_full_nm</code>은 경로가 아닙니다. 경로는 <code>v_dept_tree.path_nm</code>을 씁니다.
+- <code>v_dept_member</code>에는 비활성·퇴사 계정 행도 들어 있습니다. 화면의 "인원"은 <strong><code>account_active</code> 기준</strong>으로 셉니다(REQ-0033과 같은 이유).</p>
+<hr />
+<h2 id="3">3. 화면 설계 — 「조직도로 보고, 클릭으로 정하고, 결과를 먼저 본다」</h2>
+<p>목업은 <a href="/docs/product/org-permission-mockup"><code>12_권한_조직도기반_공개설정_목업.html</code></a>에 있습니다(라우트 <code>/docs/product/org-permission-mockup</code>).</p>
+<h3 id="3-1-3">3-1. 배치 — 3분할</h3>
+<pre><code>┌ 보기: [페이지 → 조직] [조직 → 페이지] ─────────────────── 기준 조직 20261 · 활성 계정 기준 ┐
+│ ① 조직도 트리          │ ② 설정                          │ ③ 영향 미리보기             │
+│ 🔍 부서 검색           │ 페이지: 재고 입·출고 현황        │ 볼 수 있는 부서 6 · 인원 21 │
+│ ▾ 제일엠앤에스   3     │ 소유 부서: 자재물류팀 [트리에서]  │  · 자재물류팀(소유)  3       │
+│   ▾ BDP본부      2     │ 공개범위: ○부서전용 ○전사 ●지정  │  · 구매팀            2       │
+│     ▸ 품질부문         │ 공유 부서(칩):                  │  · 사업관리팀        10      │
+│     ▾ 사업부문    ☑    │  [사업부문 ⤵하위포함 ×]          │  · 사업운영팀        20 ←新  │
+│        구매팀     ☑    │  [자재물류팀 ×]                  │ ⚠ 민감 모듈 아님            │
+│        사업운영팀 ☑    │ ERP 모듈: 재고                   │ 변경 전 대비 +1부서 +20명   │
+│        사업관리팀 ☑    │                                  │ [저장] [되돌리기]           │
+└────────────────────────┴──────────────────────────────────┴──────────────────────────────┘
+</code></pre>
+<ul>
+<li><strong>① 조직도 트리</strong></li>
+<li><code>v_dept_tree</code> 순서(<code>sort_key</code>)대로 표시하고 펼치기·접기를 지원합니다.</li>
+<li>검색하면 일치하는 노드의 경로를 자동으로 펼칩니다.</li>
+<li>노드마다 <strong>활성 인원 수</strong>와 <strong>현재 권한 배지</strong>(소유·공유·하위 포함으로 상속)를 표시합니다.</li>
+<li>체크는 3상태입니다: ☑ 직접 지정 / ◩ 상위의 하위 포함으로 상속됨 / ☐ 없음.</li>
+<li>상속된 노드는 따로 체크할 필요가 없으므로 흐리게 표시하고 "↑ 사업부문에서 상속" 툴팁을 답니다.</li>
+<li><strong>② 설정</strong></li>
+<li>기존 입력 칸(소유 부서·공개범위·공유 부서·ERP 모듈·활성)을 그대로 두되, 부서는 <strong>트리에서 고른 칩</strong>으로만 입력합니다. 자유 텍스트 입력은 없앱니다.</li>
+<li>칩마다 「⤵ 하위 포함」 토글이 있고, 기본은 켜짐입니다. 말단 부서에서는 토글을 숨깁니다.</li>
+<li>「전사 공개」를 고르면 공유 칩을 비활성화하고 "전사 공개에서는 공유 부서가 쓰이지 않습니다"라고 알립니다. <code>finance_dashboard</code> 같은 모순 조합을 <strong>화면에서 원천 차단</strong>합니다.</li>
+<li><strong>③ 영향 미리보기</strong></li>
+<li>저장 전에 <strong>실제로 보게 되는 부서 목록과 활성 인원 합계</strong>, 변경 전 대비 증감(+부서·+인원)을 보여 줍니다.</li>
+<li>민감 모듈(급여·자금·회계)이 걸린 페이지를 넓힐 때는 <strong>빨간 경고와 확인 단계</strong>를 둡니다.</li>
+<li>미리보기 계산은 화면 추정이 아니라 서버 <code>perm_preview</code>(§5)의 결과를 씁니다. 목업에서는 화면 계산으로 흉내 냅니다.</li>
+</ul>
+<h3 id="3-2">3-2. 두 방향 보기</h3>
+<table>
+<thead>
+<tr>
+<th>보기</th>
+<th>질문</th>
+<th>좌 트리</th>
+<th>중·우</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>페이지 → 조직</strong></td>
+<td>"이 페이지를 누가 보나?"</td>
+<td>선택한 페이지의 공개 범위가 트리에 칠해짐</td>
+<td>페이지 설정 + 영향 미리보기</td>
+</tr>
+<tr>
+<td><strong>조직 → 페이지</strong></td>
+<td>"이 부서는 무엇을 보나?"</td>
+<td>부서 하나 선택</td>
+<td>그 부서가 볼 수 있는 <strong>페이지 목록(판정 사유 포함)</strong> + <strong>ERP 모듈</strong>(직접·상속 구분)</td>
+</tr>
+</tbody>
+</table>
+<p>「조직 → 페이지」에서 ERP 모듈은 <strong>트리 상속형 매트릭스</strong>로 편집합니다. 최상위 「제일엠앤에스 ⤵하위포함」에 기본 5모듈을 한 번 지정하고, 인사팀 <code>payroll</code>·자금팀 <code>finance</code> 같은 예외만 따로 추가합니다.
+<strong>민감 모듈은 상속을 허용하지 않습니다.</strong> 말단 부서에 직접 지정할 때만 유효합니다. 상위에 급여를 걸면 하위 전원이 급여를 보게 되는 사고를 구조적으로 막기 위해서입니다.</p>
+<h3 id="3-3">3-3. 조직 기준정보 패널</h3>
+<p>트리에서 노드를 클릭하면 아래에 패널이 열립니다.</p>
+<table>
+<thead>
+<tr>
+<th>항목</th>
+<th>출처</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>부서코드 · 부서명 · 상위 부서 · 경로(<code>path_nm</code>) · 레벨 · 말단 여부</td>
+<td><code>v_dept_tree</code></td>
+</tr>
+<tr>
+<td>활성 인원 / 인사 재직 인원 / 전체 계정</td>
+<td><code>v_dept_member</code>(<code>account_active</code>·<code>hr_active</code>)</td>
+</tr>
+<tr>
+<td>이 부서가 소유한 페이지 · 공유받은 페이지 · ERP 모듈(직접/상속)</td>
+<td><code>portal_page</code>·<code>portal_page_scope</code>·<code>dept_module_scope</code></td>
+</tr>
+<tr>
+<td>경고</td>
+<td>인원 0(원가부서) · 계정 표기 부서와 인사 부서 불일치 수 · 그룹웨어에만 있는 하위팀</td>
+</tr>
+</tbody>
+</table>
+<p>이름은 실명으로 표시해도 됩니다(CLAUDE.md §1.7, 관리자 전용 화면). 인원 목록을 펼치면 <code>v_account_recon</code> 카드(ADR-014)로 연결합니다.</p>
+<h3 id="3-4">3-4. 유령·미매핑 처리 화면</h3>
+<p>화면 상단에 <strong>「정리 필요」 배지 영역</strong>을 두고, 저장된 값 중 현행 트리에 없는 것을 모아 보여 줍니다.
+- 예: "<code>재무회계팀</code>(finance_dashboard 공유) — 현행 조직에 없음 → [재무팀으로 바꾸기] [삭제]"
+- 후보는 <code>dept_map_legacy</code>에서 제안합니다.
+- 버튼이 실제로 동작하는 것은 이관 단계(§8)부터이고, 그 전에는 목록만 보여 줍니다.</p>
+<hr />
+<h2 id="4-adr-107">4. 데이터 모델 (ADR-107 제안)</h2>
+<h3 id="4-1-dept_cd-dept_cd-include_sub">4-1. 키 = <code>dept_cd</code>, 범위 = <code>(dept_cd, include_sub)</code></h3>
+<pre><code class="language-sql">-- 페이지 공개 범위(공유 부서) — shared_depts text[] 를 대체
+create table public.portal_page_scope (
+  page_key     text   not null references public.portal_page(page_key) on delete cascade,
+  dept_cd      text   not null,            -- btrim 된 코드. 현행 v_dept_tree 존재 검증(서버)
+  include_sub  boolean not null default true,
+  org_change_id text  not null,            -- 지정 당시 조직 버전(개편 감지용)
+  updated_by   text, updated_at timestamptz default now(),
+  primary key (page_key, dept_cd)
+);
+alter table public.portal_page add column owner_dept_cd text;   -- dept_nm 과 병행(전환기)
+
+-- 부서 ERP 모듈 — dept_erp_scope(dept_nm, module_key) 를 대체
+create table public.dept_module_scope (
+  dept_cd      text not null,
+  module_key   text not null references public.perm_module_catalog(module_key),
+  include_sub  boolean not null default true,   -- 민감 모듈은 check 로 false 강제
+  org_change_id text not null,
+  updated_by text, updated_at timestamptz default now(),
+  primary key (dept_cd, module_key)
+);
+</code></pre>
+<ul>
+<li>민감 모듈의 상속 금지는 <strong>DB 제약</strong>(트리거 또는 check + 카탈로그 조인)으로 강제합니다. 화면 검증만으로는 부족합니다(CLAUDE.md §5.4).</li>
+<li>기존 <code>portal_page.dept_nm</code>·<code>shared_depts</code>·<code>dept_erp_scope</code>는 <strong>전환기 동안 남겨 둡니다.</strong> 삭제는 §8 5단계에서 합니다.</li>
+</ul>
+<h3 id="4-2">4-2. 사용자 소속</h3>
+<table>
+<thead>
+<tr>
+<th>순위</th>
+<th>원천</th>
+<th>이유</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td><code>hr_emp_s.dept_cd</code>(인사) — <code>v_dept_member.dept_src='hr'</code></td>
+<td>코드 원천이고 유령이 0건입니다. 부서 이동이 인사 발령으로 반영됩니다.</td>
+</tr>
+<tr>
+<td>2</td>
+<td>ERP 계정 표기 파싱 → <code>dept_map_legacy</code>로 코드 변환</td>
+<td>인사 행이 없는 계정(외부·공용)용 폴백입니다.</td>
+</tr>
+<tr>
+<td>3</td>
+<td>개인 예외 <code>perm_grant(scope_type='dept')</code>의 <code>scope_key</code></td>
+<td>전환기에는 코드와 이름을 모두 허용합니다(<code>erp_role_org_tree</code>:603 선례).</td>
+</tr>
+</tbody>
+</table>
+<p>계정이 비활성(<code>account_active=false</code>)이면 소속을 부여하지 않습니다(REQ-0033 해소 방향).</p>
+<h3 id="4-3-perm_effective">4-3. 판정 (<code>perm_effective</code> 단일 수정)</h3>
+<pre><code>user_path  := 사용자 소속 dept_cd 의 v_dept_tree.path_cd   -- 예) {0000,0200,6700,5200}
+페이지 허용 :
+  is_admin
+  or 전사 공개
+  or owner_dept_cd = any(user_depts)
+  or (지정 부서 공유 and exists(
+        select 1 from portal_page_scope s
+        where s.page_key = p.page_key
+          and ( s.dept_cd = any(user_depts)                      -- 그 부서 자체
+             or (s.include_sub and s.dept_cd = any(user_path)) ))) -- 상위 지정 + 하위 포함
+  or 개인 예외(page) allow, 단 deny 가 최우선
+</code></pre>
+<ul>
+<li>우선순위 <strong>차단 &gt; 개인 허용 &gt; 부서</strong>(ADR-010)는 그대로입니다.</li>
+<li>전환기에는 기존 이름 판정 결과와 <strong>OR</strong>로 합칩니다. 이관이 끝나고 두 판정의 차이가 0건임을 확인하면 이름 판정을 제거합니다.</li>
+<li>반환 값의 <code>pages[].reason</code>에 "사업부문(하위 포함)에서 공유" 같은 <strong>판정 사유</strong>를 넣어, 「유효 권한」 화면과 미리보기가 같은 문장을 쓰게 합니다.</li>
+</ul>
+<hr />
+<h2 id="5-api-jeil-chat-admin">5. API (<code>jeil-chat-admin</code> 확장)</h2>
+<table>
+<thead>
+<tr>
+<th>요청</th>
+<th>동작</th>
+<th>비고</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>{scope:"org"}</code></td>
+<td>현행 조직 트리 + 부서별 활성 인원 + 현재 범위 지정</td>
+<td>무거운 <code>erp_role_org_tree</code>(role 집계 포함, 페이지 권한 요구) 대신 <strong>경량 RPC <code>perm_org_tree()</code></strong> 를 신설합니다. 관리자만 호출할 수 있습니다.</td>
+</tr>
+<tr>
+<td><code>save_page_scope</code></td>
+<td>페이지 1건의 <code>owner_dept_cd</code>·공개범위·scope 행 전체 교체</td>
+<td>서버 검증: 모든 코드가 현행 <code>v_dept_tree</code>에 있는지, 공개범위와 scope 조합이 맞는지(전사·부서 전용이면 scope 0행), 민감 모듈이면 사유가 필수인지 확인합니다.</td>
+</tr>
+<tr>
+<td><code>save_dept_module</code></td>
+<td>부서 1건의 모듈 행 교체</td>
+<td>민감 모듈에 <code>include_sub=true</code>가 오면 거부합니다.</td>
+</tr>
+<tr>
+<td><code>perm_preview</code></td>
+<td>저장하지 않은 변경안을 받아 <strong>영향 부서·활성 인원·증감</strong> 반환</td>
+<td>판정 함수와 같은 규칙을 씁니다. 화면 계산을 신뢰하지 않습니다.</td>
+</tr>
+</tbody>
+</table>
+<p>모든 저장은 <code>perm_audit</code>에 변경 전·후 값을 남깁니다(기존 <code>page_perm</code> 동작 확장). 저장 성공 판정은 지금처럼 <code>ok===true</code>로만 합니다(:287-293).</p>
+<hr />
+<h2 id="6-appliborgtreejs">6. 공통 컴포넌트 — <code>app/lib/orgtree.js</code></h2>
+<ul>
+<li><strong>출발점</strong>: <code>pages/ERP권한_조직별현황.html</code>의 <code>renderTree()</code>(:415-484)입니다. <code>par_dept_cd</code> 펼치기, 검색 시 경로 자동 펼치기, 선택 표시, 인원 수가 이미 들어 있습니다.</li>
+<li><strong>추출</strong>: <code>app/lib/orgtree.js</code> + <code>orgtree.css</code>(바닐라 ESM, 의존성 0, CDN 금지).</li>
+<li>스타일 스코프는 <code>.otree__</code>만 쓰고, 전역 셀렉터는 재정의하지 않습니다(§13·§16과 같은 원칙).</li>
+<li><strong>API 초안</strong>:
+  <code>js
+  createOrgTree(container, {
+    nodes,                    // [{dept_cd, dept_nm, par_dept_cd, lvl, sort_key, member_cnt}]
+    mode: "single"|"multi",   // 조직→페이지는 single, 공유 부서 지정은 multi
+    value: [{dept_cd, include_sub}],
+    badges: (node) =&gt; [...],  // 소유·공유·모듈 배지 — 호출측이 계산
+    onChange(value), onSelect(node)
+  })</code></li>
+<li><strong>역할 분리</strong>: UI와 상속 표시 계산만 맡습니다. 조회·저장·판정은 호출측과 <code>api.js</code>가 합니다(§13.3과 같은 원칙).</li>
+<li><strong>재사용 대상</strong>: 조직별현황(<code>/work/erp-roles</code>), 권한 설정, 이후 퇴사·계정 화면의 부서 필터.</li>
+</ul>
+<hr />
+<h2 id="7">7. 보안·운영 원칙</h2>
+<ul>
+<li>권한 판정은 <strong>서버에서만</strong> 합니다. 트리 배지와 미리보기는 참고 표시일 뿐입니다(CLAUDE.md §5.4).</li>
+<li>민감 모듈(급여·자금·회계)은 <strong>상속을 금지</strong>하고, 개별 지정할 때 사유를 필수로 받습니다.</li>
+<li>공개 범위를 넓히는 저장(+인원)은 증감 요약을 확인하는 단계를 거칩니다. 좁히는 저장은 바로 반영합니다.</li>
+<li>화면과 API 응답에는 부서·인원 수·이름까지만 담습니다. 급여·평가 값은 싣지 않습니다(§1.7).</li>
+</ul>
+<hr />
+<h2 id="8">8. 이관 계획 (이름 → 코드)</h2>
+<table>
+<thead>
+<tr>
+<th>단계</th>
+<th>내용</th>
+<th>되돌리기</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>8-1</td>
+<td>기존 <code>dept_nm</code>·<code>shared_depts</code>·<code>dept_erp_scope.dept_nm</code>을 <code>dept_map_legacy</code>와 <code>v_dept_tree</code> 현행 이름으로 <strong>코드 변환 드라이런</strong>하고, 변환 불가(유령) 목록을 산출합니다</td>
+<td>조회만 하므로 되돌릴 것이 없습니다</td>
+</tr>
+<tr>
+<td>8-2</td>
+<td>유령 처리는 <strong>관리자가 결정</strong>합니다(REQ-0032). 예: <code>재무회계팀</code>→재무팀(2100)? 삭제?</td>
+<td>결정 기록</td>
+</tr>
+<tr>
+<td>8-3</td>
+<td>새 표(<code>portal_page_scope</code>·<code>dept_module_scope</code>)를 채웁니다. 모듈 22행이 같다면 <strong>최상위 1행 + 예외</strong>로 압축할지 관리자에게 확인합니다</td>
+<td>새 표만 truncate</td>
+</tr>
+<tr>
+<td>8-4</td>
+<td><code>perm_effective</code>를 <strong>이중 판정</strong>(이름 OR 코드)으로 바꾸고, 활성 전원에 대해 옛 판정과 새 판정의 차이를 리포트합니다</td>
+<td>함수 이전 정의 복원(정본 SQL 보관)</td>
+</tr>
+<tr>
+<td>8-5</td>
+<td>차이 0건이 확인되면 이름 판정과 옛 컬럼을 제거하고 화면을 교체합니다</td>
+<td>옛 컬럼은 30일간 보관 뒤 drop</td>
+</tr>
+</tbody>
+</table>
+<p><code>finance_dashboard</code>의 「부서 전용 + 공유 4」는 8-2에서 <strong>「지정 부서 공유」로 바꿀지, 공유를 비울지</strong> 함께 결정합니다.</p>
+<hr />
+<h2 id="9">9. 조직개편 대응</h2>
+<ul>
+<li>판정은 항상 <strong>현행 org</strong>(<code>is_current</code>)를 따릅니다.</li>
+<li>scope 행의 <code>org_change_id</code>가 현행과 다르면, 그 코드가 현행 트리에 <strong>여전히 있는지</strong> 확인합니다.</li>
+<li>있으면: 조용히 현행으로 갱신합니다(코드가 유지된 개편).</li>
+<li>없으면: 「정리 필요」 배지(§3-4)에 올리고 판정에서 <strong>제외(fail-closed)</strong> 합니다. <code>dept_map_legacy</code>에 매핑이 있으면 후보로 제안합니다.</li>
+<li>ETL이 새 <code>org_change_id</code>를 적재하면 관리자 콘솔에 "조직개편 감지 — 권한 재확인 N건"을 알립니다.</li>
+</ul>
+<hr />
+<h2 id="10-req">10. 단계별 구현 로드맵 (후속 REQ로 분리)</h2>
+<table>
+<thead>
+<tr>
+<th>단계</th>
+<th>산출물</th>
+<th>검증</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>① SQL·RPC</td>
+<td><code>sql/5x_perm_org_scope.sql</code>: 표 2개, <code>perm_org_tree</code>, <code>perm_preview</code>, 민감 상속 금지 제약</td>
+<td>루트 판정 <code>btrim</code> 테스트, 민감+하위 포함 insert 거부</td>
+</tr>
+<tr>
+<td>② Edge Function</td>
+<td><code>jeil-chat-admin</code> <code>scope:"org"</code>·<code>save_page_scope</code>·<code>save_dept_module</code>·<code>perm_preview</code></td>
+<td>유령 코드 저장 거부, 조합 모순 거부, 감사 행 생성</td>
+</tr>
+<tr>
+<td>③ <code>orgtree.js</code></td>
+<td>공통 트리 + 조직별현황 화면 이관</td>
+<td>jsdom 렌더: 3상태·상속 표시·검색 펼치기</td>
+</tr>
+<tr>
+<td>④ 화면 교체</td>
+<td><code>admin-permissions.html</code> 「부서 권한」 탭을 3분할 + 두 방향 보기로 교체</td>
+<td>목업 시나리오 3종을 라이브에서 확인</td>
+</tr>
+<tr>
+<td>⑤ 이관·정리</td>
+<td>§8의 8-1~8-5</td>
+<td>옛·새 판정 차이 0건 리포트</td>
+</tr>
+</tbody>
+</table>
+<p>①·②는 <strong>스키마·권한 판정 변경</strong>이라 관리자 승인과 <code>/security-review</code>가 필요합니다. 정본 SQL은 <code>실제구축준비 자료/이관/sql/</code>에 번호를 붙여 두고, 라이브 정의 드리프트(REQ-0071)와 함께 정리합니다.</p>
+<hr />
+<h2 id="11">11. 미결정 · 관리자 확인 사항</h2>
+<blockquote>
+<p>2026-09-23 결정: <strong>Q1</strong>(유령 부서명)은 권고대로 이관했습니다 — 회계·재무회계팀→재무팀(2100), 내부회계팀→내부회계관리팀(2400), 헝가리지원팀→헝가리법인(9910), 영업팀→삭제. <strong>Q2</strong>는 권고대로 원가부서를 기본 숨김으로 하고 토글을 뒀습니다. <strong>Q4</strong>(최상위 1행 압축)는 자동으로 하지 않았습니다. 관리자가 「조직 → 페이지」에서 필요할 때 직접 정리합니다(§12).</p>
+</blockquote>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>질문</th>
+<th>권고</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Q1</td>
+<td>유령 부서명 5종(<code>재무회계팀</code>·<code>내부회계팀</code>·<code>영업팀</code>·<code>헝가리지원팀</code>·<code>회계</code>)을 새 코드로 옮길지, 삭제할지</td>
+<td><code>회계</code>(gl_draft 공유)와 <code>재무회계팀</code>은 재무팀(2100)으로 옮기고, 나머지는 삭제를 권고합니다. 인원 확인 후 결정합니다.</td>
+</tr>
+<tr>
+<td>Q2</td>
+<td>원가부서 4종(공통예산·제조공통·연구공통·판관공통, 인원 0)을 트리에 보일지</td>
+<td><strong>숨김이 기본</strong>이고 「원가부서 표시」 토글을 둡니다. 권한 대상이 될 사람이 없습니다.</td>
+</tr>
+<tr>
+<td>Q3</td>
+<td>그룹웨어에만 있는 해외법인 하위팀·영업자문</td>
+<td>권한 트리에는 넣지 않고 기준정보 패널의 경고로만 보여 줍니다(ERP가 원천).</td>
+</tr>
+<tr>
+<td>Q4</td>
+<td>모듈 기본값을 최상위 1행으로 압축할지</td>
+<td>압축을 권고합니다. 새 부서가 생기면 자동으로 기본 모듈을 받습니다. 대신 신설 부서가 원치 않는 모듈을 받을 수 있으니 조직개편 알림(§9)과 함께 둡니다.</td>
+</tr>
+<tr>
+<td>Q5</td>
+<td>Entra 보안그룹(RBAC, CLAUDE.md §5.3)과의 관계</td>
+<td>부서는 ERP 트리, 역할(관리자·감사자)은 Entra 그룹으로 나눕니다. 이 설계는 부서 축만 다룹니다.</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="12-1-2026-09-23">12. 구현 결과 (1차 · 2026-09-23)</h2>
+<table>
+<thead>
+<tr>
+<th>영역</th>
+<th>산출물</th>
+<th>비고</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>DB</td>
+<td><code>이관/sql/69_perm_org_scope.sql</code>(+<code>_rollback</code>)</td>
+<td>뷰 <code>v_perm_org_node</code>, 함수 <code>perm_dept_cd_of</code>, 표 <code>portal_page_scope</code>·<code>dept_module_scope</code>(+민감 상속 금지 트리거), <code>portal_page.owner_dept_cd</code>, RPC <code>perm_preview_page</code>·<code>perm_page_scope_save</code>·<code>perm_dept_module_save</code>, <code>perm_effective_v2</code> → <code>perm_effective</code> 위임</td>
+</tr>
+<tr>
+<td>이관</td>
+<td>같은 SQL ⑥</td>
+<td>소유 부서 15건 전부 코드로 변환, 공유 범위 8행(「지정 부서 공유」 페이지만), 부서 모듈 119행(23개 부서, 전부 직접 지정·<code>include_sub=false</code>라 <strong>동작 동일</strong>)</td>
+</tr>
+<tr>
+<td>판정</td>
+<td>전원 대조</td>
+<td>99명(ERP 계정·개인 예외·관리자·활성 계정 합집합). 모듈·허용 페이지·부서·역할 <strong>차이 0건</strong>. 호출당 약 12ms</td>
+</tr>
+<tr>
+<td>API</td>
+<td><code>jeil-chat-admin</code> v12(배포 15)</td>
+<td><code>scope:perm</code>에 조직·범위를 추가하고 <code>save_page_scope</code>·<code>save_dept_module</code>·<code>preview_page_scope</code>를 신설. 옛 <code>save_page_perm</code>·<code>save_dept_erp</code>는 410으로 거부</td>
+</tr>
+<tr>
+<td>화면</td>
+<td><code>app/admin-permissions.html</code> 「부서 권한」 탭</td>
+<td>조직도 3분할, 두 방향 보기, 칩 입력, 서버 미리보기(증감·모듈 없어 못 보는 부서 표시), 민감 사유 입력, 정리 필요 목록, 조직 기준정보 패널</td>
+</tr>
+</tbody>
+</table>
+<p><strong>시험(롤백 트랜잭션)</strong>
+- 사업부문(하위 포함)을 공유하면 사업운영팀의 판정이 "공유 부서(사업부문 하위 포함)"로 나옵니다.
+- 「부서 전용」에 공유 부서를 넣으면 거부합니다.
+- 없는 코드(9999)는 거부합니다.
+- 급여 모듈을 하위로 상속하려 하면 트리거가 거부합니다.
+- 급여 페이지를 사유 없이 전사 공개하려 하면 거부합니다.</p>
+<p><strong>화면 시험</strong>: Playwright로 실데이터 모의 응답을 붙여 확인했습니다. 트리 21행 렌더, 공유 체크 시 +1부서 +20명, 저장 페이로드, 공개범위 변경 시 칩 정리, 부서 모듈 하위 포함 저장, 민감 모듈의 하위 포함 컨트롤이 없음, 검색, 420px 폭 가로 넘침 0, 콘솔 오류 0.</p>
+<p><strong>남은 일(후속)</strong>
+- 사용자 소속 원천을 인사 <code>hr_emp_s.dept_cd</code> 1순위로 전환합니다(§4-2). 현재는 계정 표기 이름을 코드로 바꿔 씁니다.
+- 부서 모듈 22행 반복을 최상위 「하위 포함」 1행으로 압축할지 관리자가 판단합니다(화면에서 가능).
+- 조직도 공통 컴포넌트 <code>app/lib/orgtree.js</code>를 추출하고 조직별현황 화면을 재사용 이관합니다(§6).
+- 옛 컬럼(<code>portal_page.dept_nm</code>·<code>shared_depts</code>, <code>dept_erp_scope</code>)은 미러로 유지하다가, 30일 안정 운영 뒤 제거를 검토합니다.</p>
+  </div>
+  <div class="footer"><span>JEIL M&S · AI 포털 제품기획</span><span>12 조직도권한 · 관리: 최동혁</span></div>
+</div>
+</body>
+</html>

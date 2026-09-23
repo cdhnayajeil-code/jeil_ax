@@ -47,7 +47,7 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
   <div class="content">
 <h1 id="00">00. 현재 시스템 상태 스냅샷 (현황 대장)</h1>
 <blockquote>
-<p><strong>기준일: 2026-09-10</strong> · 관리: 최동혁(dh.choi@jeilm.co.kr)
+<p><strong>기준일: 2026-09-23</strong> · 관리: 최동혁(dh.choi@jeilm.co.kr)
 이 문서는 <strong>시스템이 바뀔 때마다 갱신하는 단일 출처(Single Source of Truth)</strong> 다. 배포·데이터·인증·계정 상태가 변하면 여기를 먼저 고치고, §9 변경 이력에 한 줄 남긴다.
 비밀값(Entra Secret, DB 접속, 키)은 <strong>이 문서에 적지 않는다</strong>(<code>CLAUDE.md §1</code>). 이름·존재 여부만 기록한다.</p>
 </blockquote>
@@ -362,7 +362,7 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 </tr>
 </tbody>
 </table>
-<h3 id="51-2026-07-22-v1-2026-09-10">5.1 권한 체계 (2026-07-22 통합 — 권한 코어 v1 · 2026-09-10 관리 화면 통합)</h3>
+<h3 id="51-2026-07-22-v1-2026-09-10-2026-09-23">5.1 권한 체계 (2026-07-22 통합 — 권한 코어 v1 · 2026-09-10 관리 화면 통합 · 2026-09-23 부서 키 = 부서코드·조직도 상속)</h3>
 <table>
 <thead>
 <tr>
@@ -374,13 +374,13 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <tbody>
 <tr>
 <td><strong>판정(단일 출처)</strong></td>
-<td><code>public.perm_effective(upn)</code> — DB 함수</td>
+<td><code>public.perm_effective(upn)</code> — DB 함수(2026-09-23부터 본문은 <code>perm_effective_v2</code>에 위임 · 교체 전 99명 대조 차이 0)</td>
 <td><strong>게이트 4종이 모두 이 함수만 강제</strong>(<code>jeil-me</code> v4·<code>jeil-chat</code> v27·<code>jeil-hr</code> v2·<code>erp_finance_overview</code>). 판정 로직 중복 제거(이전에는 4곳 각자 구현, <code>jeil-hr</code>는 <code>dept='인사팀'</code> 하드코딩이라 콘솔 설정과 어긋났음)</td>
 </tr>
 <tr>
 <td><strong>① 부서(CORE)</strong></td>
-<td><code>dept_erp_scope</code>(모듈) · <code>portal_page</code>(페이지 공개범위)</td>
-<td>25부서 129행(그중 3부서는 ERP 표기에 없는 유령 이름 — inbox) / 페이지 10개(활성 9). <strong>기본은 전부 부서로 부여</strong>(2026-09-10 실측)</td>
+<td><strong><code>dept_module_scope</code>(모듈) · <code>portal_page.owner_dept_cd</code> + <code>portal_page_scope</code>(페이지 공유)</strong> — 키 = <strong>부서코드</strong>(ERP 부서 마스터 현행 org, 뷰 <code>v_perm_org_node</code>). <code>include_sub</code>=하위 조직 상속(민감 모듈은 트리거로 금지)</td>
+<td>2026-09-23 이관(ADR-107 · <code>sql/69</code>): 모듈 119행/23부서 · 공유 8행 · 소유 15건 전부 코드화. 유령 부서명 5종은 관리자 결정대로 매핑(회계·재무회계팀→2100 · 내부회계팀→2400 · 헝가리지원팀→9910 · 영업팀 삭제). 옛 <code>dept_erp_scope</code>·<code>shared_depts</code>·<code>dept_nm</code>은 <strong>저장 RPC가 미러로 계속 씀(롤백용, 판정엔 안 쓰임)</strong>. 사용자 소속은 여전히 <code>v_erp_user_dept.dept_nm</code>(계정 표기) → 현행 코드 변환</td>
 </tr>
 <tr>
 <td><strong>② 개인 예외</strong></td>
@@ -410,7 +410,7 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <tr>
 <td><strong>관리 UI</strong></td>
 <td><strong><code>/admin/permissions</code></strong>(독립 화면, 2026-09-10 ADR-014)</td>
-<td>콘솔 「권한·계정」 탭과 계정·조직 통합관리 플랫폼(<code>/admin/identity#perm</code>)이 <strong>같은 화면을 임베드</strong>. 3탭: 부서 권한(ERP 모듈 매트릭스·페이지 공개) / 개인 권한(사람 카드 → 실판정 유효 권한 → 개인 예외) / 관리자·감사. 사람 목록은 계정 통합관리(<code>v_account_recon</code> 현재 인원 107)로 통일 — <code>v_erp_user_dept</code>(88)에 없는 사람은 「부서 매핑 없음」 경고. 계정 대사 🔐 → <code>?upn=</code> 딥링크</td>
+<td>콘솔 「권한·계정」 탭과 계정·조직 통합관리 플랫폼(<code>/admin/identity#perm</code>)이 <strong>같은 화면을 임베드</strong>. 3탭: 부서 권한(<strong>2026-09-23 조직도 3분할</strong> — 페이지→조직 / 조직→페이지 두 방향, 서버 미리보기 <code>perm_preview_page</code>) / 개인 권한(사람 카드 → 실판정 유효 권한 → 개인 예외) / 관리자·감사. 사람 목록은 계정 통합관리(<code>v_account_recon</code> 현재 인원 107)로 통일 — <code>v_erp_user_dept</code>(88)에 없는 사람은 「부서 매핑 없음」 경고. 계정 대사 🔐 → <code>?upn=</code> 딥링크</td>
 </tr>
 </tbody>
 </table>
@@ -517,6 +517,11 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 </tr>
 </thead>
 <tbody>
+<tr>
+<td>2026-09-23</td>
+<td><strong>권한 부서 키 = 부서코드 + 조직도 상속</strong>(REQ-0078 · ADR-107 · 마이그레이션 <code>perm_org_scope_69</code>·<code>perm_effective_v2_tree_once_69</code>·<code>perm_effective_swap_69</code> · 정본 <code>sql/69</code> + 롤백) — 권한 설정의 공유 부서가 <strong>쉼표 텍스트</strong>, 판정이 <strong>부서명 완전일치</strong>라 유령 이름이 조용히 0명에게 적용되던 구조를 바꿨다. 새 표 <code>portal_page_scope</code>·<code>dept_module_scope</code>(+<code>portal_page.owner_dept_cd</code>), 현행 조직 뷰 <code>v_perm_org_node</code>, 저장·미리보기 RPC 3종(서버 검증: 현행 조직에 없는 코드·공개범위 모순·민감 모듈 상속·민감 공유 사유 누락 거부 + <code>perm_audit</code> 기록). <code>perm_effective</code>는 <code>perm_effective_v2</code>에 위임 — <strong>교체 전 99명 전원 대조에서 모듈·페이지·부서·역할 차이 0</strong>, 호출당 약 12ms(조직 트리 1회 로드). <code>jeil-chat-admin</code> <strong>v12</strong>(배포 15): 조직·범위 조회 + <code>save_page_scope</code>·<code>save_dept_module</code>·<code>preview_page_scope</code>, 옛 저장 2종 410 거부. 화면 <code>/admin/permissions</code> 「부서 권한」 탭을 조직도 3분할로 교체</td>
+<td>최동혁(+Claude)</td>
+</tr>
 <tr>
 <td>2026-09-21</td>
 <td><strong>권한정리 장부(<code>/admin/role-cleanup</code>) 관리자 전용 분리</strong>(REQ-0065 후속 · 마이그레이션 <code>erp_role_cleanup_admin_ledger_req0065</code> · 정본 <code>sql/55</code> + 롤백) — 전사 개방의 부수효과로 장부 화면까지 읽기가 열렸던 것을 닫았다. <code>portal_page</code> 에 현황 화면(<code>erp_role_matrix</code>, 전사 공개)과 장부 화면(<code>erp_role_cleanup</code>, 부서 전용)이 <strong>따로</strong> 있으므로 <strong>페이지별 공개설정으로 판정을 분리</strong>(신설 <code>erp_role_cleanup_open()</code>). <code>cleanup_list</code> 의 <strong>전사(부서 미지정) 조회만</strong> 장부 설정에 걸고, <strong>부서 지정 조회는 유지</strong> — 현업 권한정리 탭이 자기 부서의 「확인 완료」 표시를 계속 읽어야 하기 때문. 검증: 비관리자 부서 지정 ok · 전사 42501 차단 · 저장 가능 유지, 관리자 전사 장부 ok(43행)</td>
