@@ -85,6 +85,11 @@ create policy internal_select_pur_proposal_scan on public.pur_proposal_scan
 
 grant select on public.pur_proposal, public.pur_proposal_scan to authenticated;
 grant all    on public.pur_proposal, public.pur_proposal_scan to service_role;
+-- 기본 권한(anon 조회·authenticated 쓰기)을 걷어낸다. RLS 가 이미 막지만, 집계 뷰는
+-- 행이 걸러져도 **0 으로 채운 한 줄**을 돌려주므로 열어 둘 이유가 없다(2026-09-23 실측).
+revoke all on public.pur_proposal, public.pur_proposal_scan from anon;
+revoke insert, update, delete, truncate, references, trigger
+    on public.pur_proposal, public.pur_proposal_scan from authenticated;
 
 -- ── 4. 건(권-번호) 단위 뷰 — 화면이 조회하는 것 ───────────────────────────────
 create or replace view public.v_pur_proposal_case with (security_invoker = true) as
@@ -164,6 +169,9 @@ select
 from public.pur_proposal;
 
 grant select on public.v_pur_proposal_quality to authenticated, service_role;
+revoke all on public.v_pur_proposal_case, public.v_pur_proposal_quality from anon;
+revoke insert, update, delete, truncate, references, trigger
+    on public.v_pur_proposal_case, public.v_pur_proposal_quality from authenticated;
 
 -- ── 6. 적재 RPC — 러너(service_role)가 부른다 ─────────────────────────────────
 -- ERP ETL 의 erp_etl_upsert 계열과 같은 모양(p_table 대신 고정 테이블). 전량 교체가 기본이다:
