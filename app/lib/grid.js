@@ -34,6 +34,7 @@ export function createGrid(container, options = {}) {
     defaultColWidth: 120, minColWidth: 46,
     columnPicker: false,     // 「항목 고르기」 — 표에 넣을 열을 고르고 순서를 바꾼다(피벗식 두 칸)
     columnPickerLabel: "▦ 항목",
+    groupHeader: false,      // 2단 헤더(열 그룹) — 켜지 않으면 기존 6종 화면과 DOM·CSS·스크롤이 한 픽셀도 같지 않다
     onSave: null, onSelectionChange: null, onBulkAction: null,
     onRowAction: null, onCellEdit: null, onPaste: null,
     onColResize: null,       // (key, px, allWidths) — 저장은 호출측이 한다(grid 는 저장소를 모른다)
@@ -156,12 +157,36 @@ export function createGrid(container, options = {}) {
   }
 
   /* ---------- 헤더 ---------- */
+  /** 2단 헤더 그룹 칸. **표에 보이는 순서**(vc)를 훑어 group 값이 같은 것이 연달아 있으면
+      colspan 으로 묶는다 — 순서는 항목 고르기로 바뀔 수 있으니 저장해 두지 않고 매번 다시 계산한다.
+      group 이 없는 열은 빈 칸이고, 연달은 빈 칸도 하나로 묶는다(같은 group 이 떨어져 있으면 묶지 않는다 —
+      루프가 vc 순서대로만 훑으므로 자연히 그렇게 된다). */
+  function renderGroupCells(vc) {
+    let h = "", i = 0;
+    while (i < vc.length) {
+      const g = vc[i].group || "";
+      let j = i + 1;
+      while (j < vc.length && (vc[j].group || "") === g) j++;
+      const gc = vc.slice(i, j).map((c) => c.groupClass).find(Boolean) || "";
+      h += `<th class="grid__th grid__gth${gc ? " " + gc : ""}" colspan="${j - i}">${g ? esc(g) : ""}</th>`;
+      i = j;
+    }
+    return h;
+  }
+
   function renderHead() {
     const sortMark = (c) => o.sortable && c.sortable !== false
       ? `<span class="grid__sort">${state.sort.key === c.key ? (state.sort.dir === 1 ? "▲" : "▼") : "↕"}</span>` : "";
-    let head = "<tr>";
-    if (o.selectable) head += `<th class="grid__th grid__th--check"><input type="checkbox" class="grid__check" data-act="sel-all"></th>`;
     const vc = vcols();
+    let head = "";
+    if (o.groupHeader) {
+      head += `<tr class="grid__group-row">`;
+      if (o.selectable) head += `<th class="grid__th grid__gth grid__th--check"></th>`;
+      head += renderGroupCells(vc);
+      head += `</tr>`;
+    }
+    head += `<tr class="grid__head-row">`;
+    if (o.selectable) head += `<th class="grid__th grid__th--check"><input type="checkbox" class="grid__check" data-act="sel-all"></th>`;
     head += vc.map((c) => {
       const sortable = o.sortable && c.sortable !== false;
       // cssClass 는 td 뿐 아니라 헤더에도 붙인다 — 고정열(sticky left)은 헤더가 같이 고정되지 않으면
@@ -192,10 +217,16 @@ export function createGrid(container, options = {}) {
   }
 
   /* 필터행이 헤더 바로 밑에 붙도록 실제 헤더 높이를 CSS 변수로 넘긴다.
-     고정값(31px)이면 글꼴·패딩이 조금만 달라도 틈이 생겨 그 사이로 본문이 비친다. */
+     고정값(31px)이면 글꼴·패딩이 조금만 달라도 틈이 생겨 그 사이로 본문이 비친다.
+     groupHeader 가 꺼져 있으면 --g-group-h 를 아예 설정하지 않는다 — CSS 쪽 기본값(0px)이
+     그대로 먹어 그룹 행이 없던 기존 화면과 동작이 한 픽셀도 다르지 않다. */
   function syncHeadOffset() {
+    if (o.groupHeader) {
+      const gtr = elThead.querySelector(".grid__group-row");
+      if (gtr && gtr.offsetHeight) root.style.setProperty("--g-group-h", gtr.offsetHeight + "px");
+    }
     if (!o.columnFilter) return;
-    const tr = elThead.firstElementChild;
+    const tr = elThead.querySelector(".grid__head-row") || elThead.firstElementChild;
     if (tr && tr.offsetHeight) root.style.setProperty("--g-head-h", tr.offsetHeight + "px");
   }
 
@@ -411,7 +442,8 @@ export function createGrid(container, options = {}) {
 
   /** 그 열이 보이도록 표를 가로로 옮긴다(열 점프). */
   function scrollToColumn(colKey) {
-    const th = elThead.querySelector(`tr:first-child th[data-col="${CSS.escape(colKey)}"]`);
+    // groupHeader 가 켜져 있으면 첫 행이 그룹 행(data-col 없음)이라 .grid__head-row 로 콕 짚는다.
+    const th = elThead.querySelector(`.grid__head-row th[data-col="${CSS.escape(colKey)}"]`);
     if (!th) return false;
     const sr = elScroll.getBoundingClientRect(), tr = th.getBoundingClientRect();
     const pad = 12;
@@ -513,11 +545,12 @@ export function createGrid(container, options = {}) {
       const lock = !canHide(c);
       const tip = lock ? "항상 표시되는 항목입니다"
         : (zone === "on" ? "누르면 표에서 뺍니다 · 끌면 순서가 바뀝니다" : "누르면 표에 넣습니다");
+      const nm = c.group ? `${c.group} · ${c.label}` : c.label;   // 2단 헤더 열은 그룹까지 보여야 구분된다
       return `<li class="grid__picker-item${lock ? " grid__picker-item--locked" : ""}"`
         + ` data-act="${lock ? "" : "pick-item"}" data-col="${esc(c.key)}" data-zone="${zone}"`
         + ` draggable="${lock ? "false" : "true"}" title="${esc(tip)}">`
         + `<span class="grid__picker-grip">${lock ? "🔒" : "⠿"}</span>`
-        + `<span class="grid__picker-nm">${esc(c.label)}</span>`
+        + `<span class="grid__picker-nm">${esc(nm)}</span>`
         + `<span class="grid__picker-act">${lock ? "" : (zone === "on" ? "−" : "+")}</span></li>`;
     };
     const list = (arr, zone, empty) => `<ul class="grid__picker-list" data-zone="${zone}">`
@@ -752,7 +785,9 @@ export function createGrid(container, options = {}) {
   /* ---------- CSV / 클립보드 ---------- */
   function rowsToMatrix(rows) {
     const vc = vcols();                 // 보이는 대로 내보낸다 — 화면과 파일이 다르면 그게 더 혼란스럽다
-    const header = vc.map((c) => c.label);
+    // 헤더는 한 줄이다. 2단 헤더(groupHeader)에서 그룹이 있는 열은 "그룹 라벨"로 내야
+    // 같은 하위열 이름(예: 「비율」)이 그룹마다 반복돼도 CSV 에서 구분된다. exportLabel 이 있으면 최우선.
+    const header = vc.map((c) => c.exportLabel || (o.groupHeader && c.group ? `${c.group} ${c.label}` : c.label));
     const body = rows.map((r) => vc.map((c) => {
       const v = r[c.key];
       return typeof c.exportValue === "function" ? c.exportValue(v, r) : (v ?? "");

@@ -399,6 +399,14 @@ export const erpApi = {
     return this._pageAll(() => supabase.from("v_pur_proposal_case")
       .select("*").order("no", { ascending: false }));
   },
+  /* 대장 **행 그대로**(1,102행) — 엑셀 한 줄이 한 행이다. 화면의 목록대장 표가 이걸 쓴다.
+     건 단위 뷰(830건)와 축이 다르다: 한 기안이 업체·품목별로 여러 행이라, 엑셀과 같은 모습으로
+     보여 주려면 합치지 말고 행을 그대로 그려야 한다(합치면 업체·금액·전표가 뭉개진다).
+     1,000행을 넘으므로 `_pageAll` 로 나눠 받는다 — 한 번에 받으면 PostgREST 상한에 조용히 잘린다. */
+  async proposalRows() {
+    return this._pageAll(() => supabase.from("pur_proposal")
+      .select("*").order("vol").order("no").order("seq"));
+  },
   // 대장 품질·리드타임 한 줄(행수·건수·이상치·전표/스캔 리드타임·적재시각)
   async proposalQuality() {
     const { data, error } = await supabase.from("v_pur_proposal_quality").select("*").maybeSingle();

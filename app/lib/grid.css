@@ -47,10 +47,17 @@
 .grid--fit .grid__filter-row th{padding:3px 5px;}
 .grid__table th,.grid__table td{padding:7px 10px;text-align:left;vertical-align:middle;white-space:nowrap;}
 /* 층 순서 규약 — 화면이 왼쪽 고정열(position:sticky;left:…)을 얹을 때 이 순서를 지킨다.
-   일반 td 0 · 고정열 td 2 · 필터행 th 3 · 헤더 th 4 · 고정열 헤더/필터 th 5
-   (고정열 td 가 헤더보다 위면 세로 스크롤 때 지나간 행이 헤더를 뚫고 보인다) */
-.grid__th{position:sticky;top:0;z-index:4;background:var(--g-navy);color:#fff;font-weight:600;font-size:12px;
+   일반 td 0 · 고정열 td 2 · 필터행 th 3 · 헤더 th 4 · 그룹행 th 5 · 고정열 헤더/필터 th 5
+   (고정열 td 가 헤더보다 위면 세로 스크롤 때 지나간 행이 헤더를 뚫고 보인다)
+   그룹행(§13 groupHeader, 옵트인)이 켜지면 세 층이 된다 — 위에서부터 그룹행 0 · 헤더행
+   --g-group-h · 필터행 --g-group-h + --g-head-h. 꺼져 있으면 --g-group-h 가 설정되지 않아
+   기본값 0px 이 먹고, 아래 top 값은 그룹행이 없던 종전과 완전히 같아진다. */
+.grid__th{position:sticky;top:var(--g-group-h,0px);z-index:4;background:var(--g-navy);color:#fff;font-weight:600;font-size:12px;
   border-bottom:1px solid var(--g-navy2);user-select:none;}
+/* 2단 헤더 — 그룹행은 항상 맨 위(top:0)에 붙고, 그 아래 헤더행이 --g-group-h 만큼 내려온다.
+   빈 그룹 칸(group 없는 열의 묶음)도 같은 스타일을 쓴다 — 별도 표시가 없는 게 오히려 "그룹 없음"을 조용히 보여준다. */
+.grid__group-row th.grid__gth{position:sticky;top:0;z-index:5;background:var(--g-navy);color:#fff;font-weight:700;
+  font-size:11.5px;text-align:center;border-bottom:1px solid var(--g-navy2);user-select:none;}
 .grid__th--sortable{cursor:pointer;}
 .grid__th--sortable:hover{background:var(--g-navy2);}
 .grid__th .grid__sort{opacity:.45;margin-left:4px;font-size:10px;}
@@ -67,8 +74,9 @@
 @keyframes gridFlash{0%,55%{background:var(--g-accent);}100%{background:var(--g-navy);}}
 
 /* 컬럼 필터 행 */
-/* top 은 grid.js 가 실제 헤더 높이를 재어 --g-head-h 로 넘긴다(고정값이면 틈으로 본문이 비친다) */
-.grid__filter-row th{position:sticky;top:var(--g-head-h,32px);z-index:3;background:var(--g-soft);padding:4px 8px;border-bottom:1px solid var(--g-line);}
+/* top 은 grid.js 가 실제 헤더 높이를 재어 --g-head-h 로 넘긴다(고정값이면 틈으로 본문이 비친다).
+   groupHeader 가 꺼져 있으면 --g-group-h 가 없어 calc(0px + --g-head-h)로 종전과 같다. */
+.grid__filter-row th{position:sticky;top:calc(var(--g-group-h,0px) + var(--g-head-h,32px));z-index:3;background:var(--g-soft);padding:4px 8px;border-bottom:1px solid var(--g-line);}
 .grid__filter-row input,.grid__filter-row select{width:100%;padding:4px 7px;border:1px solid var(--g-line);border-radius:6px;
   font-size:11.5px;background:#fff;}
 .grid__filter-row input:focus,.grid__filter-row select:focus{outline:none;border-color:var(--g-accent);}

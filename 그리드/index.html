@@ -58,10 +58,17 @@
 .grid--fit .grid__filter-row th{padding:3px 5px;}
 .grid__table th,.grid__table td{padding:7px 10px;text-align:left;vertical-align:middle;white-space:nowrap;}
 /* 층 순서 규약 — 화면이 왼쪽 고정열(position:sticky;left:…)을 얹을 때 이 순서를 지킨다.
-   일반 td 0 · 고정열 td 2 · 필터행 th 3 · 헤더 th 4 · 고정열 헤더/필터 th 5
-   (고정열 td 가 헤더보다 위면 세로 스크롤 때 지나간 행이 헤더를 뚫고 보인다) */
-.grid__th{position:sticky;top:0;z-index:4;background:var(--g-navy);color:#fff;font-weight:600;font-size:12px;
+   일반 td 0 · 고정열 td 2 · 필터행 th 3 · 헤더 th 4 · 그룹행 th 5 · 고정열 헤더/필터 th 5
+   (고정열 td 가 헤더보다 위면 세로 스크롤 때 지나간 행이 헤더를 뚫고 보인다)
+   그룹행(§13 groupHeader, 옵트인)이 켜지면 세 층이 된다 — 위에서부터 그룹행 0 · 헤더행
+   --g-group-h · 필터행 --g-group-h + --g-head-h. 꺼져 있으면 --g-group-h 가 설정되지 않아
+   기본값 0px 이 먹고, 아래 top 값은 그룹행이 없던 종전과 완전히 같아진다. */
+.grid__th{position:sticky;top:var(--g-group-h,0px);z-index:4;background:var(--g-navy);color:#fff;font-weight:600;font-size:12px;
   border-bottom:1px solid var(--g-navy2);user-select:none;}
+/* 2단 헤더 — 그룹행은 항상 맨 위(top:0)에 붙고, 그 아래 헤더행이 --g-group-h 만큼 내려온다.
+   빈 그룹 칸(group 없는 열의 묶음)도 같은 스타일을 쓴다 — 별도 표시가 없는 게 오히려 "그룹 없음"을 조용히 보여준다. */
+.grid__group-row th.grid__gth{position:sticky;top:0;z-index:5;background:var(--g-navy);color:#fff;font-weight:700;
+  font-size:11.5px;text-align:center;border-bottom:1px solid var(--g-navy2);user-select:none;}
 .grid__th--sortable{cursor:pointer;}
 .grid__th--sortable:hover{background:var(--g-navy2);}
 .grid__th .grid__sort{opacity:.45;margin-left:4px;font-size:10px;}
@@ -78,8 +85,9 @@
 @keyframes gridFlash{0%,55%{background:var(--g-accent);}100%{background:var(--g-navy);}}
 
 /* 컬럼 필터 행 */
-/* top 은 grid.js 가 실제 헤더 높이를 재어 --g-head-h 로 넘긴다(고정값이면 틈으로 본문이 비친다) */
-.grid__filter-row th{position:sticky;top:var(--g-head-h,32px);z-index:3;background:var(--g-soft);padding:4px 8px;border-bottom:1px solid var(--g-line);}
+/* top 은 grid.js 가 실제 헤더 높이를 재어 --g-head-h 로 넘긴다(고정값이면 틈으로 본문이 비친다).
+   groupHeader 가 꺼져 있으면 --g-group-h 가 없어 calc(0px + --g-head-h)로 종전과 같다. */
+.grid__filter-row th{position:sticky;top:calc(var(--g-group-h,0px) + var(--g-head-h,32px));z-index:3;background:var(--g-soft);padding:4px 8px;border-bottom:1px solid var(--g-line);}
 .grid__filter-row input,.grid__filter-row select{width:100%;padding:4px 7px;border:1px solid var(--g-line);border-radius:6px;
   font-size:11.5px;background:#fff;}
 .grid__filter-row input:focus,.grid__filter-row select:focus{outline:none;border-color:var(--g-accent);}
@@ -213,6 +221,20 @@
   .guide div{background:var(--soft);border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-size:12px;line-height:1.6;}
   .guide b{color:var(--navy);display:block;margin-bottom:2px;font-size:12.5px;}
   .guide code{background:#e6ecf6;border-radius:4px;padding:1px 5px;font-family:Consolas,monospace;font-size:11.5px;}
+  /* ---------- 2단 헤더(groupHeader) 데모 전용 — 호스트 CSS, .grid__ 스코프 규칙(§13.4)은
+     grid.css 안에서만 지킨다. 여기는 §5.1 패턴 그대로 왼쪽 고정열 하나(권)를 얹고,
+     그룹마다 옅은 색을 준다(groupClass). ID 접두로 grid.css 보다 우선하게 한다. */
+  #groupGrid{--gw1:52px;}
+  #groupGrid .g-fix1{position:sticky;left:0;z-index:2;background:#fff;width:var(--gw1);min-width:var(--gw1);max-width:var(--gw1);text-align:center;}
+  #groupGrid .grid__th.g-fix1,#groupGrid .grid__gth.g-fix1{z-index:5;background:var(--navy);}
+  #groupGrid .grid__filter-row th.g-fix1{z-index:5;background:var(--soft);}
+  #groupGrid .grid__row:nth-child(even) .g-fix1{background:#fafbfd;}
+  #groupGrid .grid__row:hover .g-fix1{background:#f1f6fc;}
+  #groupGrid .grid__row--selected .g-fix1{background:#eaf2fb !important;}
+  @media(max-width:1100px){#groupGrid .g-fix1{position:static;}}
+  #groupGrid .g-cont{background:#e5eff9 !important;}
+  #groupGrid .g-mid{background:#e8f4ec !important;}
+  #groupGrid .g-bal{background:#fbf2df !important;}
 </style>
 </head>
 <body>
@@ -238,6 +260,23 @@
       <div><b>칸 이동</b>표를 한 번 누른 뒤 방향키로 칸을 옮깁니다. 화면 밖 열로 가면 표가 따라옵니다.<br><code>cellNav:true</code></div>
     </div>
     <div class="note">※ 이 화면은 mock 데이터입니다. 실제 화면은 데이터 조회/저장을 <code>app/lib/api.js</code> 또는 Edge Function 콜백으로 연결합니다.</div>
+  </div>
+
+  <div class="sec">
+    <h2>2단 헤더 — 열 그룹 (<code>groupHeader</code>, 옵트인)</h2>
+    <div class="sub">구매팀 기안서 목록대장처럼 <b>계약금·중도금·잔금</b> 상위 그룹이 <b>비율·발행금액·전표번호·발행일</b> 네 하위 열을 묶는 표입니다. <code>groupHeader:true</code> 하나로 헤더 맨 위에 그룹 행이 생깁니다 — 끄면(기본값) 그룹 행 자체가 그려지지 않아 기존 화면은 그대로입니다.</div>
+    <div class="ctl">
+      <button class="btn sm ghost" id="bGFit" title="모든 열을 화면 폭 안에 넣습니다">↔ 화면맞춤</button>
+      <span class="ctl-tip" id="gTip"></span>
+    </div>
+    <div id="groupGrid"></div>
+    <div class="guide">
+      <div><b>group</b>표에 보이는 순서대로 같은 <code>group</code> 값이 연달으면 <code>colspan</code>으로 묶습니다. 없으면 빈 칸.<br><code>{ group:"계약금" }</code></div>
+      <div><b>groupClass</b>그룹 칸에 색을 구분해 줍니다(계약금·중도금·잔금 옅은 색).<br><code>{ groupClass:"g-cont" }</code></div>
+      <div><b>CSV/복사 헤더</b>같은 하위 열 이름(「비율」)이 세 번 나와도 <code>"계약금 비율"</code>처럼 그룹이 붙어 구분됩니다.</div>
+      <div><b>항목 고르기</b><code>▦ 항목</code> 목록에 <code>그룹 · 라벨</code>로 표시됩니다 — 순서를 바꾸면 그룹도 다시 계산됩니다.</div>
+    </div>
+    <div class="note">※ 왼쪽 <b>권</b> 열은 고정열(§5.1)입니다 — 가로로 스크롤해도 그대로 남습니다. 세로로 스크롤하며 그룹 행·헤더 행·필터 행 세 층이 겹치지 않고 순서대로 쌓이는지 확인해 보세요.</div>
   </div>
 </div>
 
@@ -279,6 +318,7 @@ function createGrid(container, options = {}) {
     defaultColWidth: 120, minColWidth: 46,
     columnPicker: false,     // 「항목 고르기」 — 표에 넣을 열을 고르고 순서를 바꾼다(피벗식 두 칸)
     columnPickerLabel: "▦ 항목",
+    groupHeader: false,      // 2단 헤더(열 그룹) — 켜지 않으면 기존 6종 화면과 DOM·CSS·스크롤이 한 픽셀도 같지 않다
     onSave: null, onSelectionChange: null, onBulkAction: null,
     onRowAction: null, onCellEdit: null, onPaste: null,
     onColResize: null,       // (key, px, allWidths) — 저장은 호출측이 한다(grid 는 저장소를 모른다)
@@ -401,12 +441,36 @@ function createGrid(container, options = {}) {
   }
 
   /* ---------- 헤더 ---------- */
+  /** 2단 헤더 그룹 칸. **표에 보이는 순서**(vc)를 훑어 group 값이 같은 것이 연달아 있으면
+      colspan 으로 묶는다 — 순서는 항목 고르기로 바뀔 수 있으니 저장해 두지 않고 매번 다시 계산한다.
+      group 이 없는 열은 빈 칸이고, 연달은 빈 칸도 하나로 묶는다(같은 group 이 떨어져 있으면 묶지 않는다 —
+      루프가 vc 순서대로만 훑으므로 자연히 그렇게 된다). */
+  function renderGroupCells(vc) {
+    let h = "", i = 0;
+    while (i < vc.length) {
+      const g = vc[i].group || "";
+      let j = i + 1;
+      while (j < vc.length && (vc[j].group || "") === g) j++;
+      const gc = vc.slice(i, j).map((c) => c.groupClass).find(Boolean) || "";
+      h += `<th class="grid__th grid__gth${gc ? " " + gc : ""}" colspan="${j - i}">${g ? esc(g) : ""}</th>`;
+      i = j;
+    }
+    return h;
+  }
+
   function renderHead() {
     const sortMark = (c) => o.sortable && c.sortable !== false
       ? `<span class="grid__sort">${state.sort.key === c.key ? (state.sort.dir === 1 ? "▲" : "▼") : "↕"}</span>` : "";
-    let head = "<tr>";
-    if (o.selectable) head += `<th class="grid__th grid__th--check"><input type="checkbox" class="grid__check" data-act="sel-all"></th>`;
     const vc = vcols();
+    let head = "";
+    if (o.groupHeader) {
+      head += `<tr class="grid__group-row">`;
+      if (o.selectable) head += `<th class="grid__th grid__gth grid__th--check"></th>`;
+      head += renderGroupCells(vc);
+      head += `</tr>`;
+    }
+    head += `<tr class="grid__head-row">`;
+    if (o.selectable) head += `<th class="grid__th grid__th--check"><input type="checkbox" class="grid__check" data-act="sel-all"></th>`;
     head += vc.map((c) => {
       const sortable = o.sortable && c.sortable !== false;
       // cssClass 는 td 뿐 아니라 헤더에도 붙인다 — 고정열(sticky left)은 헤더가 같이 고정되지 않으면
@@ -437,10 +501,16 @@ function createGrid(container, options = {}) {
   }
 
   /* 필터행이 헤더 바로 밑에 붙도록 실제 헤더 높이를 CSS 변수로 넘긴다.
-     고정값(31px)이면 글꼴·패딩이 조금만 달라도 틈이 생겨 그 사이로 본문이 비친다. */
+     고정값(31px)이면 글꼴·패딩이 조금만 달라도 틈이 생겨 그 사이로 본문이 비친다.
+     groupHeader 가 꺼져 있으면 --g-group-h 를 아예 설정하지 않는다 — CSS 쪽 기본값(0px)이
+     그대로 먹어 그룹 행이 없던 기존 화면과 동작이 한 픽셀도 다르지 않다. */
   function syncHeadOffset() {
+    if (o.groupHeader) {
+      const gtr = elThead.querySelector(".grid__group-row");
+      if (gtr && gtr.offsetHeight) root.style.setProperty("--g-group-h", gtr.offsetHeight + "px");
+    }
     if (!o.columnFilter) return;
-    const tr = elThead.firstElementChild;
+    const tr = elThead.querySelector(".grid__head-row") || elThead.firstElementChild;
     if (tr && tr.offsetHeight) root.style.setProperty("--g-head-h", tr.offsetHeight + "px");
   }
 
@@ -656,7 +726,8 @@ function createGrid(container, options = {}) {
 
   /** 그 열이 보이도록 표를 가로로 옮긴다(열 점프). */
   function scrollToColumn(colKey) {
-    const th = elThead.querySelector(`tr:first-child th[data-col="${CSS.escape(colKey)}"]`);
+    // groupHeader 가 켜져 있으면 첫 행이 그룹 행(data-col 없음)이라 .grid__head-row 로 콕 짚는다.
+    const th = elThead.querySelector(`.grid__head-row th[data-col="${CSS.escape(colKey)}"]`);
     if (!th) return false;
     const sr = elScroll.getBoundingClientRect(), tr = th.getBoundingClientRect();
     const pad = 12;
@@ -758,11 +829,12 @@ function createGrid(container, options = {}) {
       const lock = !canHide(c);
       const tip = lock ? "항상 표시되는 항목입니다"
         : (zone === "on" ? "누르면 표에서 뺍니다 · 끌면 순서가 바뀝니다" : "누르면 표에 넣습니다");
+      const nm = c.group ? `${c.group} · ${c.label}` : c.label;   // 2단 헤더 열은 그룹까지 보여야 구분된다
       return `<li class="grid__picker-item${lock ? " grid__picker-item--locked" : ""}"`
         + ` data-act="${lock ? "" : "pick-item"}" data-col="${esc(c.key)}" data-zone="${zone}"`
         + ` draggable="${lock ? "false" : "true"}" title="${esc(tip)}">`
         + `<span class="grid__picker-grip">${lock ? "🔒" : "⠿"}</span>`
-        + `<span class="grid__picker-nm">${esc(c.label)}</span>`
+        + `<span class="grid__picker-nm">${esc(nm)}</span>`
         + `<span class="grid__picker-act">${lock ? "" : (zone === "on" ? "−" : "+")}</span></li>`;
     };
     const list = (arr, zone, empty) => `<ul class="grid__picker-list" data-zone="${zone}">`
@@ -997,7 +1069,9 @@ function createGrid(container, options = {}) {
   /* ---------- CSV / 클립보드 ---------- */
   function rowsToMatrix(rows) {
     const vc = vcols();                 // 보이는 대로 내보낸다 — 화면과 파일이 다르면 그게 더 혼란스럽다
-    const header = vc.map((c) => c.label);
+    // 헤더는 한 줄이다. 2단 헤더(groupHeader)에서 그룹이 있는 열은 "그룹 라벨"로 내야
+    // 같은 하위열 이름(예: 「비율」)이 그룹마다 반복돼도 CSV 에서 구분된다. exportLabel 이 있으면 최우선.
+    const header = vc.map((c) => c.exportLabel || (o.groupHeader && c.group ? `${c.group} ${c.label}` : c.label));
     const body = rows.map((r) => vc.map((c) => {
       const v = r[c.key];
       return typeof c.exportValue === "function" ? c.exportValue(v, r) : (v ?? "");
@@ -1185,6 +1259,76 @@ if (saved) {
 syncCtl();
 
 window.demoGrid = grid; // 콘솔 디버깅용
+
+/* ---------- 2단 헤더(groupHeader) 데모 ---------- */
+const GCOLS = [
+  { key:"vol",    label:"권",    width:"52px", cssClass:"g-fix1", required:true, align:"center", filter:false, sortable:false },
+  { key:"no",     label:"번호",   width:"92px" },
+  { key:"dt",     label:"일자",   width:"92px", align:"center" },
+  { key:"writer", label:"기안자", width:"70px", align:"center" },
+  { key:"vendor", label:"업체명", width:"150px" },
+  { key:"amt",    label:"금액",   width:"108px", type:"number", align:"right", formatter:(v)=>won(v), exportValue:(v)=>v ?? "" },
+  { key:"dp_rate", label:"비율",     width:"58px",  align:"center", group:"계약금", groupClass:"g-cont" },
+  { key:"dp_amt",  label:"발행금액", width:"98px",  align:"right",  group:"계약금", groupClass:"g-cont", formatter:(v)=>won(v) },
+  { key:"dp_slip", label:"전표번호", width:"100px", align:"center", group:"계약금", groupClass:"g-cont" },
+  { key:"dp_dt",   label:"발행일",   width:"92px",  align:"center", group:"계약금", groupClass:"g-cont" },
+  { key:"mp_rate", label:"비율",     width:"58px",  align:"center", group:"중도금", groupClass:"g-mid" },
+  { key:"mp_amt",  label:"발행금액", width:"98px",  align:"right",  group:"중도금", groupClass:"g-mid", formatter:(v)=>won(v) },
+  { key:"mp_slip", label:"전표번호", width:"100px", align:"center", group:"중도금", groupClass:"g-mid" },
+  { key:"mp_dt",   label:"발행일",   width:"92px",  align:"center", group:"중도금", groupClass:"g-mid" },
+  { key:"bal_rate", label:"비율",     width:"58px",  align:"center", group:"잔금", groupClass:"g-bal" },
+  { key:"bal_amt",  label:"발행금액", width:"98px",  align:"right",  group:"잔금", groupClass:"g-bal", formatter:(v)=>won(v) },
+  { key:"bal_slip", label:"전표번호", width:"100px", align:"center", group:"잔금", groupClass:"g-bal" },
+  { key:"bal_dt",   label:"발행일",   width:"92px",  align:"center", group:"잔금", groupClass:"g-bal" },
+];
+const GROWS = [
+  { vol:"1", no:"2026-101", dt:"2026-01-08", writer:"김구매", vendor:"(주)대신스틸", amt:82000000,
+    dp_rate:"20%", dp_amt:16400000, dp_slip:"AP-260112", dp_dt:"2026-01-12",
+    mp_rate:"40%", mp_amt:32800000, mp_slip:"AP-260305", mp_dt:"2026-03-05",
+    bal_rate:"40%", bal_amt:32800000, bal_slip:"AP-260420", bal_dt:"2026-04-20" },
+  { vol:"1", no:"2026-108", dt:"2026-01-22", writer:"이자재", vendor:"(주)한중정밀", amt:41500000,
+    dp_rate:"30%", dp_amt:12450000, dp_slip:"AP-260128", dp_dt:"2026-01-28",
+    mp_rate:"30%", mp_amt:12450000, mp_slip:"AP-260310", mp_dt:"2026-03-10",
+    bal_rate:"40%", bal_amt:16600000, bal_slip:"", bal_dt:"" },
+  { vol:"2", no:"2026-142", dt:"2026-02-14", writer:"박외주", vendor:"신한플랜트", amt:9800000,
+    dp_rate:"50%", dp_amt:4900000, dp_slip:"AP-260220", dp_dt:"2026-02-20",
+    mp_rate:"", mp_amt:"", mp_slip:"", mp_dt:"",
+    bal_rate:"50%", bal_amt:4900000, bal_slip:"", bal_dt:"" },
+  { vol:"2", no:"2026-156", dt:"2026-03-02", writer:"김구매", vendor:"(주)유진산업", amt:63200000,
+    dp_rate:"20%", dp_amt:12640000, dp_slip:"AP-260305", dp_dt:"2026-03-05",
+    mp_rate:"50%", mp_amt:31600000, mp_slip:"AP-260418", mp_dt:"2026-04-18",
+    bal_rate:"30%", bal_amt:18960000, bal_slip:"", bal_dt:"" },
+  { vol:"2", no:"2026-171", dt:"2026-03-19", writer:"이자재", vendor:"세아기전", amt:5400000,
+    dp_rate:"100%", dp_amt:5400000, dp_slip:"AP-260322", dp_dt:"2026-03-22",
+    mp_rate:"", mp_amt:"", mp_slip:"", mp_dt:"",
+    bal_rate:"", bal_amt:"", bal_slip:"", bal_dt:"" },
+  { vol:"3", no:"2026-203", dt:"2026-04-11", writer:"박외주", vendor:"(주)태광metal", amt:27300000,
+    dp_rate:"30%", dp_amt:8190000, dp_slip:"AP-260415", dp_dt:"2026-04-15",
+    mp_rate:"40%", mp_amt:10920000, mp_slip:"", mp_dt:"",
+    bal_rate:"30%", bal_amt:8190000, bal_slip:"", bal_dt:"" },
+];
+
+const groupGrid = createGrid("#groupGrid", {
+  keyField: null,
+  selectable: true, search: true, columnFilter: true, sortable: true,
+  resizable: true, fitWidth: true, columnPicker: true,
+  groupHeader: true,           // ← 이번에 보태진 옵션. 이거 하나로 그룹 행이 생긴다
+  exportCsv: true, copy: true, exportName: "기안서목록대장_데모",
+  columns: GCOLS, rows: GROWS,
+});
+
+const gFit = document.getElementById("bGFit");
+const gTip = document.getElementById("gTip");
+function syncGCtl() {
+  gFit.classList.toggle("on", groupGrid.isFit());
+  const over = groupGrid.getFitOverflow();
+  gTip.innerHTML = groupGrid.isFit() ? (over ? `맞췄지만 <b>${over}px</b> 남았습니다(최소폭 한계)` : "가로 스크롤 없음") : "";
+}
+gFit.addEventListener("click", () => { groupGrid.setFit(!groupGrid.isFit()); syncGCtl(); });
+let gRz; window.addEventListener("resize", () => { clearTimeout(gRz); gRz = setTimeout(() => { groupGrid.refitWidths(); syncGCtl(); }, 150); });
+syncGCtl();
+
+window.groupGrid = groupGrid; // 콘솔 디버깅용
 </script>
 </body>
 </html>

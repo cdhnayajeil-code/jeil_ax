@@ -163,6 +163,18 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <td><code>fitMin</code></td>
 <td>화면맞춤이 줄일 수 있는 하한 px. 없으면 <code>minColWidth</code>(46)</td>
 </tr>
+<tr>
+<td><code>group</code></td>
+<td>2단 헤더(§5.4, 옵트인) 상위 그룹 라벨. <code>groupHeader:true</code> 일 때만 그려진다</td>
+</tr>
+<tr>
+<td><code>groupClass</code></td>
+<td>그 그룹 칸에 붙는 CSS 클래스(색 구분용, §5.4)</td>
+</tr>
+<tr>
+<td><code>exportLabel</code></td>
+<td>CSV/복사 헤더에 쓸 이름을 직접 지정(최우선, §5.4)</td>
+</tr>
 </tbody>
 </table>
 <p>행 내 커스텀 버튼은 formatter에서 <code>data-row-act="액션명"</code>을 넣으면 클릭 시 <code>onRowAction(액션명, row)</code>로 전달된다.</p>
@@ -170,7 +182,8 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <h2 id="3-options">3. options &amp; 콜백</h2>
 <p><strong>options</strong>: <code>columns, rows, keyField, selectable, search, columnFilter, sortable, editable, editToggle, editToggleLabels, paste, exportCsv, copy, exportName, stickyHeader, keyboardNav, pageSize, emptyText, loadingText, rowClass, bulkActions</code>
 + 넓은 목록용(§5.2, 전부 옵트인) <code>resizable, fitWidth, cellNav, defaultColWidth, minColWidth</code>.
-+ 항목 고르기(§5.3) <code>columnPicker, columnPickerLabel</code>.</p>
++ 항목 고르기(§5.3) <code>columnPicker, columnPickerLabel</code>.
++ 2단 헤더(§5.4, 옵트인) <code>groupHeader</code>.</p>
 <p><strong>bulkActions</strong>: <code>[{ id, label, btnClass }]</code> — 툴바 버튼. 클릭 시 <code>onBulkAction(id, gridInstance)</code>.</p>
 <table>
 <thead>
@@ -432,6 +445,86 @@ if (st) grid.setColumnState(st);
    닫으면 바로 보인다 — 표를 밀어내지 않는 쪽을 골랐다.</li>
 </ol>
 <hr />
+<h2 id="54-2">5.4 2단 헤더 — 열 그룹(옵트인)</h2>
+<p>엑셀 서식을 그대로 옮겨야 하는 표는 상위 그룹(예: 계약금/중도금/잔금)이 하위 열 여러 개를 묶는다.
+하위 열 이름이 그룹마다 같으면(예: 「비율」이 세 번) 한 줄 헤더로는 라벨을 길게 늘여 써야 해서
+열이 좁아진다. <code>groupHeader:true</code> 를 켜면 헤더 맨 위에 그룹 행이 하나 더 생긴다 —
+<strong>켜지 않으면(기본값 <code>false</code>) 기존 화면의 DOM·CSS·스크롤이 한 픽셀도 달라지지 않는다.</strong></p>
+<pre><code class="language-js">createGrid(&quot;#el&quot;, {
+  groupHeader: true,
+  columns: [
+    { key:&quot;vol&quot;,      label:&quot;권&quot; },                                 // group 없음 → 빈 칸
+    { key:&quot;dp_rate&quot;,  label:&quot;비율&quot;,     group:&quot;계약금&quot; },
+    { key:&quot;dp_amt&quot;,   label:&quot;발행금액&quot;, group:&quot;계약금&quot; },
+    { key:&quot;dp_slip&quot;,  label:&quot;전표번호&quot;, group:&quot;계약금&quot; },
+    { key:&quot;dp_dt&quot;,    label:&quot;발행일&quot;,   group:&quot;계약금&quot; },
+    { key:&quot;mp_rate&quot;,  label:&quot;비율&quot;,     group:&quot;중도금&quot; },
+    // ...
+  ],
+});
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>columns 속성</th>
+<th>뜻</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>group</code></td>
+<td>상위 그룹 라벨. <strong>표에 보이는 열 순서</strong>를 훑어 값이 같은 열이 연달아 있으면 <code>colspan</code> 으로 묶는다. 없으면 빈 칸(연달은 빈 칸도 하나로 묶인다). 같은 <code>group</code> 이 열 순서상 떨어져 있으면 묶지 않고 각각 별 칸으로 그린다</td>
+</tr>
+<tr>
+<td><code>groupClass</code></td>
+<td>그 그룹 칸(<code>th.grid__gth</code>)에 붙는 CSS 클래스(색 구분용) — 같은 그룹의 열 중 하나라도 지정하면 그 그룹 칸에 적용</td>
+</tr>
+<tr>
+<td><code>exportLabel</code></td>
+<td>CSV/복사 헤더에 쓸 이름을 직접 지정한다(있으면 항상 최우선)</td>
+</tr>
+</tbody>
+</table>
+<p><strong>동작 규칙</strong></p>
+<ol>
+<li>열 순서가 「항목 고르기」(columnPicker)로 바뀌면 그룹 묶음도 <strong>그때그때 보이는 순서로 다시 계산</strong>한다 — 결과를 저장해 두지 않는다.</li>
+<li>CSV/복사 헤더는 계속 한 줄이다. <code>groupHeader</code> 가 켜져 있고 그 열에 <code>group</code> 이 있으면 헤더 이름을 <code>"계약금 비율"</code>(그룹 + 공백 + 라벨)로 낸다 — 안 그러면 같은 하위 열 이름이 여러 번 나와 구분이 안 된다. <code>exportLabel</code> 이 있으면 그게 항상 최우선이다.</li>
+<li>「항목 고르기」 목록은 <code>그룹 · 라벨</code>로 보여 준다(그룹 없는 열은 라벨만).</li>
+<li>화면맞춤(<code>fitWidth</code>)·열폭 드래그(<code>resizable</code>)와 같이 써도 된다 — 폭은 <code>colgroup</code> 이 맡고 그룹 칸은 <code>colspan</code> 만 맞추면 되므로 그대로 동작한다.</li>
+</ol>
+<p><strong>sticky 층 — §5.1 왼쪽 고정열과 같이 쓸 때</strong></p>
+<table>
+<thead>
+<tr>
+<th>행</th>
+<th>top</th>
+<th>z-index</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>그룹 행 <code>.grid__group-row th</code></td>
+<td><code>0</code></td>
+<td><code>5</code></td>
+</tr>
+<tr>
+<td>헤더 행 <code>.grid__th</code></td>
+<td><code>var(--g-group-h,0px)</code></td>
+<td><code>4</code></td>
+</tr>
+<tr>
+<td>필터 행 <code>.grid__filter-row th</code></td>
+<td><code>calc(var(--g-group-h,0px) + var(--g-head-h,32px))</code></td>
+<td><code>3</code></td>
+</tr>
+</tbody>
+</table>
+<p><code>--g-group-h</code> 는 <code>groupHeader</code> 가 켜졌을 때만 실제 그룹 행 높이로 채워진다(<code>syncHeadOffset()</code>).
+꺼져 있으면 이 변수를 아예 설정하지 않아 CSS 기본값 <code>0px</code> 이 그대로 먹고, 위 표의 top 값은
+그룹 행이 없던 기존 화면(§8 적용 사례)과 완전히 같아진다. 왼쪽 고정열(§5.1)의 <code>pl-fix1</code> 류
+셀렉터를 <code>groupHeader</code> 화면에서 쓸 때는 <code>.grid__gth.pl-fix1</code> 도 함께 <code>position:sticky;left:…</code>
+로 고정해야 가로 스크롤 때 그룹 칸이 밀리지 않는다.</p>
+<hr />
 <h2 id="6">6. 새 편집 화면 추가 레시피</h2>
 <ol>
 <li>화면에 <code>&lt;div id="xGrid"&gt;</code> + <code>grid.css</code> 링크, <code>&lt;script type="module"&gt;</code>에서 <code>createGrid</code> import.</li>
@@ -468,6 +561,11 @@ if (st) grid.setColumnState(st);
 <td>발주통합관리 LIST</td>
 <td><code>pages/구매_발주통합LIST_2026.html</code> <code>#listGrid</code></td>
 <td><strong>읽기 전용 대용량 목록</strong> 첫 사례 — 28열 5,609행. 검색·컬럼필터·정렬·CSV(BOM)·복사만 켜고 편집·붙여넣기는 끈다. <code>pageSize</code> 는 렌더만 자르므로 화면이 「N건 중 M건」을 따로 고지한다. 컬럼 프리셋(기본/전체)은 그리드 재생성으로 구현(표준에 컬럼 토글 없음). <strong>왼쪽 고정열(§5.1)·폭 제어(§5.2) 첫 사례</strong> — 화면맞춤·열폭 드래그·방향키 칸 이동. 가로 드래그·표 위 스크롤바·행 상세 패널·직전결과 캐시는 화면 쪽 코드다</td>
+</tr>
+<tr>
+<td>기안서 목록대장</td>
+<td><code>pages/구매_기안서대장_2026.html</code> <code>#mgGrid</code></td>
+<td><strong>2단 헤더(§5.4) 첫 실적용</strong> — 구매팀 엑셀 대장(22열 1,102행)을 열 순서·머리글까지 그대로 옮겼다. <code>계약금</code>·<code>중도금</code>·<code>잔금</code> 그룹 × 비율·발행금액·전표번호·발행일. 엑셀이 숨겨 둔 두 열(스캔 파일명·비고)은 <code>hidden:true</code> 로 두고 「▦ 항목」에서 켠다 — <strong><code>columnPicker</code> 로 프리셋을 대신한 첫 사례</strong>(발주LIST 처럼 그리드를 다시 만들지 않는다). ⚠ <code>fitWidth</code> 를 <strong>기본으로 켜지 않는다</strong>: 22열은 화면 폭에 다 들어가지 않아 맞춤을 켜도 스크롤이 남는다 — 엑셀처럼 가로로 스크롤하는 것이 읽기 쉽다. ⚠ <code>formatter</code> 는 <code>(값, 행)</code> 두 인자뿐이라 단계별 셀 렌더는 <strong>클로저로 단계를 고정</strong>한다(열 정의를 세 번째 인자로 기대하면 조용히 빈 칸이 된다 — 2026-09-23 실측)</td>
 </tr>
 <tr>
 <td>(표준 데모)</td>

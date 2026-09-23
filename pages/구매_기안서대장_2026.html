@@ -45,23 +45,6 @@
   tr:nth-child(even) td{background:#fafbfd;}
   td.r,th.r{text-align:right;} td.c,th.c{text-align:center;}
   tr.dim td{opacity:.42;}
-  .chart{display:flex; align-items:flex-end; gap:10px; height:186px; padding:8px 4px 0; border-bottom:2px solid var(--navy); margin:6px 0 4px;}
-  .cbar{flex:1; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; gap:4px; height:100%;}
-  .cbar .stackbar{width:66%; display:flex; flex-direction:column; justify-content:flex-end; border-radius:4px 4px 0 0; overflow:hidden;}
-  .cbar .stackbar .done{background:linear-gradient(180deg,var(--accent2),var(--accent));}
-  .cbar .stackbar .open{background:repeating-linear-gradient(45deg,#e0b877,#e0b877 5px,#efd4a6 5px,#efd4a6 10px);}
-  .cbar .val{font-size:10.5px; font-weight:700; color:var(--navy2);}
-  .cbar .lab{font-size:10.5px; color:var(--muted); padding:4px 0 0;}
-  .cbar.qbar-on .val{color:var(--red);}
-  .legend{display:flex; gap:14px; font-size:11px; color:var(--muted); margin-top:6px; flex-wrap:wrap;}
-  .legend i{display:inline-block; width:11px; height:11px; border-radius:2px; margin-right:4px; vertical-align:-1px;}
-  .barlist{display:flex; flex-direction:column; gap:7px;}
-  .brow{display:grid; grid-template-columns:118px 1fr 92px; align-items:center; gap:8px; font-size:12px;}
-  .brow .lab{color:var(--navy2); text-align:right; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
-  .brow .track{height:15px; background:var(--soft); border-radius:4px; overflow:hidden; display:flex;}
-  .brow .track i{display:block; height:100%; background:linear-gradient(90deg,var(--accent),var(--accent2)); min-width:2px;}
-  .brow .track i.open{background:linear-gradient(90deg,#c08a2e,#e0b877);}
-  .brow .cnt{font-weight:700; color:var(--navy); text-align:right; font-size:11.5px;}
   .src{margin-top:18px; background:var(--soft); border:1px solid var(--line); border-radius:9px; padding:13px 18px; font-size:11.5px; color:var(--muted);}
   .src b{color:var(--navy2);} .src ul{margin:6px 0 0 16px;} .src li{margin:3px 0;}
   code{font-family:Consolas,monospace; font-size:11px; background:#fff; border:1px solid var(--line); border-radius:4px; padding:0 5px;}
@@ -109,12 +92,23 @@
                 border-top:0; padding-top:3px;}
   .dw tr.nts code{font-size:11.5px; color:var(--navy);}
   .dw .lbl{display:inline-block; min-width:52px; color:#94a3b8;}
+  /* 2단 헤더 — 그룹이 없는 앞 10열 위는 엑셀에서도 빈 칸이다. 네이비로 차 있으면
+     헤더가 두 줄인지 안 읽히므로 한 톤 낮춰 「빈 칸」으로 보이게 한다(컴포넌트는 그대로 둔다). */
+  #mgGrid .grid__group-row th:empty{background:var(--navy2); box-shadow:inset 0 -1px 0 rgba(255,255,255,.14);}
+  #mgGrid .grid__gth:not(:empty){letter-spacing:.02em;}
+  .chk{padding:0;} .chk>summary{cursor:pointer; padding:12px 16px; font-size:12.5px; font-weight:700;
+       color:var(--navy); list-style:none;}
+  .chk>summary::-webkit-details-marker{display:none;}
+  .chk>summary::before{content:"▸ "; color:var(--muted);}
+  .chk[open]>summary::before{content:"▾ ";}
+  .chk[open]{padding-bottom:14px;} .chk>*:not(summary){padding:0 16px;}
+  .chk h4{font-size:12px; color:var(--navy); margin:0 0 4px;}
   .fitbtn{float:right; border:1px solid var(--line); background:#fff; border-radius:7px; font-size:11.5px;
           padding:3px 10px; cursor:pointer; color:var(--navy2); font-weight:600;}
   .fitbtn[aria-pressed="true"]{background:var(--navy); border-color:var(--navy); color:#fff;}
   #mgGrid .ecm{border:1px solid var(--line); background:#fff; border-radius:6px; font-size:10.5px; padding:1px 6px; cursor:pointer; color:var(--navy2);}
   @media print{ .draft-banner{display:none;} .page{box-shadow:none; max-width:100%;} }
-  @media (max-width:900px){ .page{padding:22px 16px;} .grid2{grid-template-columns:1fr;} .brow{grid-template-columns:92px 1fr 78px;} }
+  @media (max-width:900px){ .page{padding:22px 16px;} .grid2{grid-template-columns:1fr;} }
 </style>
 </head>
 <body>
@@ -138,20 +132,20 @@
   <!-- 기간·조건에 반응하는 영역 -->
   <div id="app"><div class="loading">중간DB에서 대장을 불러오는 중…</div></div>
 
-  <!-- 관리 대상 목록 (표준 그리드 §13) — 재렌더 영역 밖 -->
+  <!-- 기안서 목록대장 (표준 그리드 §13 · 2단 헤더) — 재렌더 영역 밖 -->
   <div class="sec" id="mgSection">
-    <h3>🔎 관리 대상 <span id="mgCount" class="badge b">—</span><button type="button" id="bFit" class="fitbtn" title="모든 열을 화면 폭 안에 넣습니다">↔ 화면맞춤</button></h3>
+    <h3>📋 기안서 목록대장 <span id="mgCount" class="badge b">—</span><button type="button" id="bFit" class="fitbtn" title="열 폭을 화면에 맞춰 줄입니다. 22열이라 다 들어가지는 않아 가로 스크롤이 남습니다 — 끄면 엑셀과 같은 폭입니다">↔ 화면맞춤</button></h3>
     <div class="note">
-      기본은 <b>관리 대상</b>(미종결·부분종결·스캔본 누락)이고, 조회바의 관리구분을 「전체」로 바꾸면 대장 전건을 본다.
-      <b>1행 = 1건</b>(권-번호)이고, 대장에서 업체·품목별로 쪼개진
-      행은 <code>행수</code>·<code>미발행</code> 칸에 합쳐 두었다. <code>스캔</code>의 <b>검색어</b> 버튼을 누르면
-      문서중앙화 검색어가 클립보드에 복사된다.
-      <b>행을 누르면</b> 그 건의 계약금·중도금·잔금 전표와 전자세금계산서 내역이 오른쪽에 열린다.
+      엑셀 대장과 <b>같은 열·같은 순서</b>다 — 오른쪽으로 스크롤하면 <b>계약금 · 중도금 · 잔금</b> 아래
+      비율 · 발행금액 · 전표번호 · 발행일이 나온다. <b>엑셀 한 줄이 한 행</b>이라 한 기안에 업체가 여럿이면 행도 여럿이다.
+      기본은 <b>관리 대상</b>(미종결·부분종결·스캔본 누락)이고, 조회바 관리구분을 「전체」로 바꾸면 대장 전행을 본다.
+      <b>▦ 항목</b>에서 엑셀이 숨겨 둔 비고·파생 열을 켜거나 단계 열을 끌 수 있고,
+      <b>행을 누르면</b> 그 건의 전표 분개와 전자세금계산서·국세청 승인번호가 열린다.
     </div>
     <div id="mgGrid"></div>
   </div>
 
-  <!-- 연간 고정 집계 -->
+  <!-- 대장 점검 (접어 둔 연간 자료) -->
   <div id="fixed"></div>
 
   <!-- 행 상세 — 한 건의 전표·계산서 근거를 한 화면에서 -->
@@ -205,8 +199,16 @@
   import { supabase } from "/app/lib/supabaseClient.js";
 
   /* 데이터는 중간DB(public.pur_proposal)에서 온다 — 러너 `jeil_runner proposal` 이 구매팀 Teams
-     엑셀 대장을 읽어 적재한다. 화면은 건 단위 뷰(v_pur_proposal_case)와 품질 뷰만 조회한다.
-     정적 시드를 두지 않는다: 정적 HTML 은 URL 만 알면 소스가 읽히고, 날짜 파생값은 굳어서 틀려진다. */
+     엑셀 대장을 읽어 적재한다. 정적 시드를 두지 않는다: 정적 HTML 은 URL 만 알면 소스가 읽히고,
+     날짜 파생값은 굳어서 틀려진다.
+
+     ⭐ 이 화면의 표는 **엑셀 대장 그대로 행 단위(1,102행)** 다(2026-09-23 관리자 지시
+     「엑셀 형태를 최대한 유지」). 건 단위(830건)로 합치면 한 기안의 업체·금액·전표가 뭉개진다 —
+     엑셀 한 줄이 곧 「업체 하나에 대한 발주 한 건」이고, 계약금·중도금·잔금 전표가 그 줄에 붙는다.
+     그래서 조회는 세 축을 함께 쓴다:
+       · `pur_proposal`        행 그대로        → 표의 본문(엑셀 열 순서·2단 헤더)
+       · `v_pur_proposal_case` 건 단위 집계     → 종결 판정·스캔본 유무(행에는 없는 정보)
+       · `proposal_recon_list` 칸 단위 ERP 대사 → 전표번호 칸마다 배지(건으로 접지 않는다) */
 
   const app = document.getElementById("app");
   const fixed = document.getElementById("fixed");
@@ -241,75 +243,71 @@
     return '<span class="pill ' + m.pill + '" title="' + esc(title || m.hint) + '">' + m.lb + "</span>";
   };
 
-  /* ── 대사 결과를 건 단위로 접는다 ────────────────────────────────────────
-     RPC 는 **칸 단위**(대장 행 × 계약금/중도금/잔금)로 준다. 한 건에 칸이 여럿이면
-     **가장 나쁜 등급이 그 건을 대표한다** — 평균이나 다수결은 문제를 숨긴다. */
-  function foldRecon(payload) {
-    const byCase = {};
-    for (const c of ((payload && payload.rows) || [])) {
-      const k = c.key;
-      const b = (byCase[k] = byCase[k] || {
-        cells: [], worst: "", inv_supply: 0, inv_vat: 0, ledger: 0,
-        flags: new Set(), cohabit: 0,
-      });
-      b.cells.push(c);
-      b.inv_supply += Number(c.inv_supply) || 0;
-      b.inv_vat += Number(c.inv_vat) || 0;
-      b.ledger += Number(c.ledger_amt) || 0;
-      b.cohabit = Math.max(b.cohabit, Number(c.cohabit) || 0);
-      (c.flags || []).forEach((f) => b.flags.add(f));
-      const cur = RECON[c.recon] || RECON[""];
-      const old = RECON[b.worst] || RECON[""];
-      if (cur.rank < old.rank) b.worst = c.recon;
-    }
-    for (const k in byCase) byCase[k].flags = [...byCase[k].flags];
-    return byCase;
-  }
-
-  /* ── 뷰 행 → 화면 행 (경과일·위험도는 여는 날 기준으로 계산) ───────────── */
-  function prep(raw) {
+  /* ── 대장 행 → 화면 행 ────────────────────────────────────────────────
+     엑셀 한 줄 = 화면 한 행이다. 행에 없는 정보(종결 판정·스캔본)는 **건 단위 뷰**에서 끌어와
+     같은 권-번호의 모든 행에 얹는다 — 그 둘은 원래 건의 속성이라 행마다 다를 수 없다.
+     경과일·위험도는 파생값이라 **여는 날 기준으로 매번 계산**한다(굳혀 두면 틀려진다). */
+  function prepRows(raw, caseMap, cellMap) {
     return (raw || []).map((r) => {
-      const amt = Number(r.amt) || 0;              // PostgREST 는 numeric 을 문자열로 준다
+      const key = r.vol + "-" + r.no;
+      const c = caseMap[key] || {};
       const date = r.draft_dt || "";
       const age = ageOf(date);
-      const scanOk = !!r.scan_ok;
-      const closed = r.closed || "N";
-      return {
-        key: r.key, vol: r.vol, no: r.no,
-        date: date || (r.draft_dt_raw || "—"), m: date.slice(5, 7),
-        age, by: r.drafter || "", cust: r.customer || "(미기재)", job: r.job_no || "",
-        vendor: r.vendor || "", desc: String(r.content || "").replace(/\s+/g, " ").trim(),
-        amt, amtTxt: r.amt_raw || "", lines: Number(r.lines) || 1, nslip: Number(r.no_slip_lines) || 0,
-        closed, scan: scanOk ? "OK" : "NONE",
-        risk: (closed !== "Y" && (age || 0) > 60) ? "long" : (scanOk ? "normal" : "scan"),
-        manage: (closed !== "Y" || !scanOk),       // 관리 대상 = 미종결·부분종결·스캔 누락
-        recon: "", reconInv: 0, reconFlags: [],    // 아래에서 대사 결과를 얹는다
+      const scanOk = !!c.scan_ok;
+      const closed = c.closed || r.closed_yn || "N";
+      const stage = (pre, st) => {
+        const cell = cellMap[key + "|" + r.seq + "|" + st] || null;
+        return {
+          rate: r[pre + "_rate"], amt: r[pre + "_amt"], slip: r[pre + "_slip"], dt: r[pre + "_dt"],
+          recon: cell ? cell.recon : "", cell,
+        };
       };
+      const row = {
+        rk: r.vol + "-" + r.no + "-" + r.seq,      // 행 고유키(그리드) — 건 키와 다르다
+        key, vol: r.vol, no: r.no, seq: r.seq,
+        date: date || (r.draft_dt_raw || ""), dateRaw: r.draft_dt_raw || "",
+        m: date.slice(5, 7), age,
+        by: r.drafter || "", job: r.job_no || "", project: r.project || "",
+        cust: r.customer || "(미기재)",
+        desc: String(r.content || "").replace(/\s+/g, " ").trim(),
+        vendor: r.vendor || "", amt: Number(r.amt) || 0, amtTxt: r.amt_raw || "",
+        remark: String(r.remark || "").replace(/\s+/g, " ").trim(),
+        memo: r.memo || "",
+        closed, scan: scanOk ? "OK" : "NONE",
+        lines: Number(c.lines) || 1, nslip: Number(c.no_slip_lines) || 0,
+        /* 단계는 두 모양으로 들고 있는다 — 그리드 열은 **납작한 키**(`dp_slip` …)를 읽고,
+           대사 배지·필터는 **묶음**(`row.dp.recon`)을 본다. 한 쪽만 두면 둘 중 하나가 빈다. */
+        dp_rate: r.dp_rate, dp_amt: r.dp_amt, dp_slip: r.dp_slip, dp_dt: r.dp_dt,
+        mp_rate: r.mp_rate, mp_amt: r.mp_amt, mp_slip: r.mp_slip, mp_dt: r.mp_dt,
+        bp_rate: r.bp_rate, bp_amt: r.bp_amt, bp_slip: r.bp_slip, bp_dt: r.bp_dt,
+        dp: stage("dp", "dp"), mp: stage("mp", "mp"), bp: stage("bp", "bp"),
+      };
+      row.risk = (closed !== "Y" && (age || 0) > 60) ? "long" : (scanOk ? "normal" : "scan");
+      row.manage = (closed !== "Y" || !scanOk);        // 관리 대상 = 미종결·부분종결·스캔 누락
+      // 이 행에서 가장 나쁜 대사 등급 — 필터와 행 강조에 쓴다(표시는 칸마다 따로 한다)
+      row.recon = [row.dp, row.mp, row.bp].reduce((worst, st) => {
+        if (!st.slip) return worst;
+        const cur = RECON[st.recon] || RECON[""];
+        return cur.rank < (RECON[worst] || RECON[""]).rank ? st.recon : worst;
+      }, "");
+      return row;
     });
   }
 
-  /* 대사 결과를 행에 얹는다 — 화면 행(건)과 RPC(칸)의 단위가 달라 여기서 만난다 */
-  function attachRecon(rows, byCase) {
-    for (const r of rows) {
-      const b = byCase[r.key];
-      if (!b) { r.recon = ""; continue; }
-      r.recon = b.worst || "";
-      r.reconInv = b.inv_supply;
-      r.reconVat = b.inv_vat;
-      r.reconFlags = b.flags;
-      r.reconCohabit = b.cohabit;
-      r.reconTip = (RECON[r.recon] || RECON[""]).hint
-        + (b.inv_supply ? " · 계산서 공급가 " + num(b.inv_supply) : "")
-        + (b.ledger ? " / 대장 " + num(b.ledger) : "")
-        + (b.flags.length ? " · " + b.flags.join("·") : "");
-    }
-    return rows;
+  /* 대사 칸을 「건|행순번|단계」로 색인한다 — 행 단위 표라 건으로 접지 않는다(접으면 어느 칸이
+     문제인지 사라진다). RPC 는 원래 이 단위로 주므로 여기서는 색인만 만든다. */
+  function indexCells(payload) {
+    const m = {};
+    for (const c of ((payload && payload.rows) || [])) m[c.key + "|" + c.seq + "|" + c.stage] = c;
+    return m;
   }
 
-  /* ── 집계는 받은 행에서 만든다(§16.6 — 없는 데이터를 지어내지 않는다) ──── */
-  function aggregate(rows) {
-    const mon = {}, vol = {}, by = {}, cust = {};
-    for (const r of rows) {
+  /* ── 집계는 받은 데이터에서 만든다(§16.6 — 없는 데이터를 지어내지 않는다) ────
+     축을 섞지 않는다: 월·권·기안자는 **건 단위**(한 기안을 여러 번 세면 안 된다),
+     금액·전표 미발행은 **행 단위**(엑셀 금액 칸이 행마다 있다). */
+  function aggregate(cases) {
+    const mon = {}, vol = {}, by = {};
+    for (const r of cases) {
       const ym = isDate(r.date) ? r.date.slice(0, 7) : "미상";
       (mon[ym] = mon[ym] || { cases: 0, amt: 0, open: 0 });
       mon[ym].cases++; mon[ym].amt += r.amt; if (r.closed !== "Y") mon[ym].open++;
@@ -324,176 +322,103 @@
       }
       const b = (by[r.by] = by[r.by] || { cases: 0, open: 0, amt: 0 });
       b.cases++; b.amt += r.amt; if (r.closed !== "Y") b.open++;
-
-      const c = (cust[r.cust] = cust[r.cust] || { cases: 0, amt: 0 });
-      c.cases++; c.amt += r.amt;
     }
-    return { mon, vol, by, cust };
+    return { mon, vol, by };
   }
 
-  /* ── 조건에 맞는 행 ─────────────────────────────────────────────────── */
+  /* ── 조건에 맞는 행 (엑셀 행 단위) ──────────────────────────────────── */
   function pick(q) {
     const mm = q.month ? String(q.month).padStart(2, "0") : null;
     const risk = q.extras.risk == null ? "" : q.extras.risk;
     const rec = q.extras.recon || "";
     const owner = q.extras.owner || "";
     /* 「관리구분」은 대장 기준 진척, 「대사」는 ERP 대조 결과 — 축이 다르다.
-       대사 조건만 골랐는데 기본값(관리 대상 169건)이 남아 있으면 종결된 건이 안 보여
+       대사 조건만 골랐는데 기본값(관리 대상)이 남아 있으면 종결된 건이 안 보여
        사람이 「0건」을 오해한다 → 대사 조건이 걸리면 모집단을 전건으로 넓힌다. */
     const riskAll = (rec && risk === "");
+    const hasRec = (r, code) => [r.dp, r.mp, r.bp].some((st) => st.slip && st.recon === code);
     return DATA.rows.filter((r) => {
       if (mm && r.m !== mm) return false;
       if (owner && r.by !== owner) return false;
-      if (rec === "todo" && !(r.recon === "diff" || r.recon === "noslip")) return false;
-      if (rec && rec !== "todo" && r.recon !== rec) return false;
+      if (rec === "todo" && !(hasRec(r, "diff") || hasRec(r, "noslip"))) return false;
+      if (rec && rec !== "todo" && !hasRec(r, rec)) return false;
       if (riskAll) return true;
       if (risk === "") return r.manage;                 // 기본 = 관리 대상만
       if (risk === "all") return true;
       if (risk === "long") return r.risk === "long";
-      if (risk === "noslip") return r.nslip > 0;
+      if (risk === "noslip") return !r.dp.slip && !r.mp.slip && !r.bp.slip;
       if (risk === "scan") return r.scan === "NONE";
       if (risk === "open") return r.closed !== "Y";
       return true;
     });
   }
 
-  /* ── 기간 반응 영역 ─────────────────────────────────────────────────── */
+  /* ── 기간 반응 영역 — 목록대장이 주인공이라 요약은 한 줄로만 둔다 ──────
+     2026-09-23 관리자 지시로 분석 섹션(월별 추이 차트·기안자별·고객사별·리드타임)을 걷어냈다.
+     이 화면의 목적은 **대장을 대장처럼 보는 것**이고, 그 표 위에 숫자가 두 줄씩 쌓이면
+     정작 표가 화면 밖으로 밀린다. 남긴 다섯 칸은 「지금 손댈 일이 있는가」만 답한다. */
   function renderApp(q, bar) {
     const mm = q.month ? String(q.month).padStart(2, "0") : null;
-    const inMonth = DATA.rows.filter((r) => !mm || r.m === mm);
-    const cases = inMonth.length;
-    const amt = inMonth.reduce((a, r) => a + r.amt, 0);
+    const inMonth = DATA.cases.filter((r) => !mm || r.m === mm);      // 건 단위
+    const lines = DATA.rows.filter((r) => !mm || r.m === mm);         // 행 단위
     const open = inMonth.filter((r) => r.closed !== "Y").length;
     const partial = inMonth.filter((r) => r.closed === "P").length;
-    const amtOpen = inMonth.filter((r) => r.closed !== "Y").reduce((a, r) => a + r.amt, 0);
     const long = inMonth.filter((r) => r.risk === "long");
     const longMax = long.reduce((a, r) => Math.max(a, r.age || 0), 0);
-    const noslip = inMonth.filter((r) => r.nslip > 0).length;
+    const noslip = lines.filter((r) => !r.dp.slip && !r.mp.slip && !r.bp.slip).length;
     const scanMiss = inMonth.filter((r) => r.scan === "NONE").length;
+    const amt = lines.reduce((a, r) => a + r.amt, 0);
 
-    /* ERP 대사 집계 — 칸(대장 행 × 단계) 단위다. 선택한 월의 기안분만 센다. */
+    /* ERP 대사 — 대장이 전표번호를 적은 **칸** 단위다(행 × 계약금/중도금/잔금) */
     const keys = new Set(inMonth.map((r) => r.key));
     const cells = (DATA.recon || []).filter((c) => keys.has(c.key));
     const cnt = (code) => cells.filter((c) => c.recon === code).length;
-    const rc = {
-      withSlip: cells.length,
-      linked: cells.filter((c) => c.n_found > 0).length,
-      match: cnt("match"), vat: cnt("vat"), split: cnt("split"),
-      noinv: cnt("noinv"), noslip: cnt("noslip"), diff: cnt("diff"),
-      invSupply: cells.reduce((a, c) => a + (Number(c.inv_supply) || 0), 0),
-      invVat: cells.reduce((a, c) => a + (Number(c.inv_vat) || 0), 0),
-    };
-    rc.todo = rc.diff + rc.noslip;
-    rc.linkedPct = rc.withSlip ? Math.round((rc.linked / rc.withSlip) * 1000) / 10 : 0;
-
-    const months = Object.keys(DATA.mon).filter((k) => /^\d{4}-\d{2}$/.test(k)).sort();
-    const maxC = Math.max(1, ...months.map((k) => DATA.mon[k].cases));
-    const bars = months.map((k) => {
-      const v = DATA.mon[k];
-      const h = Math.round((v.cases / maxC) * 100);
-      const openPct = v.cases ? Math.round((v.open / v.cases) * 100) : 0;
-      return '<div class="cbar" data-m="' + Number(k.slice(5, 7)) + '">'
-        + '<span class="val">' + v.cases + "</span>"
-        + '<div class="stackbar" style="height:' + h + '%">'
-        + '<div class="open" style="height:' + openPct + '%"></div>'
-        + '<div class="done" style="height:' + (100 - openPct) + '%"></div>'
-        + "</div>"
-        + '<span class="lab">' + Number(k.slice(5, 7)) + "월</span></div>";
-    }).join("");
-
-    const volRows = Object.keys(DATA.vol).map(Number).sort((a, b) => a - b).map((g) => {
-      const v = DATA.vol[g];
-      const miss = v.cases - v.scan;
-      return "<tr><td class='c'>" + g + "권</td>"
-        + "<td class='r'>" + v.cases + "</td>"
-        + "<td class='r'>" + v.scan + "</td>"
-        + "<td class='c'>" + (miss ? '<span class="badge r">' + miss + "</span>" : '<span class="badge g">0</span>') + "</td>"
-        + "<td class='r'>" + v.open + "</td>"
-        + "<td class='r'>" + eok(v.amt) + "</td>"
-        + "<td>" + esc(v.from || "—") + " ~ " + esc(v.to || "—") + "</td></tr>";
-    }).join("");
-
-    const owners = Object.keys(DATA.by).sort((a, b) => DATA.by[b].cases - DATA.by[a].cases);
-    const maxO = Math.max(1, ...owners.map((k) => DATA.by[k].cases));
-    const ownerRows = owners.map((k) => {
-      const v = DATA.by[k];
-      const w = Math.round((v.cases / maxO) * 100);
-      const ow = v.cases ? Math.round((v.open / v.cases) * w) : 0;
-      return '<div class="brow"><span class="lab">' + esc(k || "(미기재)") + "</span>"
-        + '<span class="track"><i class="open" style="width:' + ow + '%"></i><i style="width:' + (w - ow) + '%"></i></span>'
-        + '<span class="cnt">' + v.cases + "건 / 미결 " + v.open + "</span></div>";
-    }).join("");
+    const linked = cells.filter((c) => c.n_found > 0).length;
+    const todo = cnt("diff") + cnt("noslip");
+    const linkedPct = cells.length ? Math.round((linked / cells.length) * 1000) / 10 : 0;
 
     app.innerHTML =
       '<div class="kpis">'
-      + kpi("기안 건수", num(cases), "건", (mm ? "선택 월" : "연간 · 대장 " + num(DATA.q.lines) + "행") + " · 1건 = 권-번호", "", "")
-      + kpi("미종결", num(open), "건", (partial ? "부분종결 " + partial + "건 포함 · " : "") + eok(amtOpen) + "억", "r", "warn")
-      + kpi("장기 미결 (60일↑)", num(long.length), "건",
-            long.length ? eok(long.reduce((a, r) => a + r.amt, 0)) + "억 · 최장 " + longMax + "일" : "해당 없음",
-            "r", (long.length ? "bad" : "ok"))
-      + kpi("전표 미발행", num(noslip), "건", mm ? "선택 월 기안분" : "대장 " + num(DATA.noslipLines) + "행 · 전부 미종결", "", "warn")
-      + kpi("스캔본 누락", num(scanMiss), "건", mm ? "선택 월 기안분" : "대사 " + num(DATA.rows.length) + "건 중 · 고아 파일 0건", "", (scanMiss ? "warn" : "ok"))
-      + kpi("기안 금액", eok(amt), "억", "통화 혼재 — 외화 포함 단순 합산", "", "")
+      + kpi("대장", num(lines.length), "행", num(inMonth.length) + "건"
+            + (mm ? " · 선택 월" : " · 연간") + " — 엑셀 한 줄이 한 행이다", "", "")
+      + kpi("미종결", num(open), "건", (partial ? "부분종결 " + partial + "건 포함 · " : "")
+            + (long.length ? "60일↑ " + long.length + "건(최장 " + longMax + "일)" : "장기 미결 없음"),
+            "r", (long.length ? "bad" : "warn"))
+      + kpi("전표 미발행", num(noslip), "행", "세 단계 모두 비어 있는 행", "", (noslip ? "warn" : "ok"))
+      + kpi("스캔본 누락", num(scanMiss), "건", "문서중앙화에서 못 찾은 건", "", (scanMiss ? "warn" : "ok"))
+      + kpi("ERP 대사", linkedPct + "%", "연결",
+            "전표칸 " + num(cells.length) + " 중 " + num(linked) + " 연결"
+            + (todo ? " · <b>확인 필요 " + todo + "</b>" : " · 확인 필요 없음"),
+            (todo ? "r" : ""), (todo ? "bad" : "ok"))
+      + kpi("금액", eok(amt), "억", "통화 칸이 없어 외화가 섞여 있다 — 참고용", "", "")
       + "</div>"
-
-      /* ── ERP 대사(2줄째) — 위가 「대장 기준 진척」이면 여기는 「ERP 기준 사실」이다 ── */
-      + '<div class="sec" style="padding:12px 16px 4px; margin-bottom:0; border:none; background:transparent;">'
-      + '<h3 style="margin-bottom:2px;">🔗 ERP 대사<span style="font-weight:400; color:var(--muted); font-size:11.5px;">'
-      + " · 전표 미러 " + esc(String(DATA.recon_as_of || "").slice(0, 10) || "—") + " 기준</span></h3></div>"
-      + '<div class="kpis">'
-      + kpi("전표 연결", rc.linked + " / " + rc.withSlip, "칸",
-            "대장이 적은 전표 중 ERP에서 찾은 비율 " + rc.linkedPct + "%", "", (rc.linkedPct >= 95 ? "ok" : "warn"))
-      + kpi("금액 일치", num(rc.match), "칸",
-            "세액차 " + rc.vat + " · 합산·분할 " + rc.split + " · 계산서없음 " + rc.noinv, "", "")
-      + kpi("확인 필요", num(rc.todo), "칸",
-            rc.todo ? "금액 불일치 " + rc.diff + " · 전표 미발견 " + rc.noslip : "없음",
-            "r", (rc.todo ? "bad" : "ok"))
-      + kpi("계산서 기준 금액", eok(rc.invSupply), "억",
-            "공급가 기준 · 부가세 " + eok(rc.invVat) + "억 — <b>ERP 확정 원화</b>", "", "ok")
-      + "</div>"
-
-      + '<div class="callout amber"><b>이 수치를 읽을 때 주의</b> — 대장은 <b>' + num(DATA.q.lines) + "행이지만 "
-      + num(DATA.q.cases) + "건</b>이다(업체·품목별로 한 건이 여러 행). "
-      + "행을 그대로 세면 건수가 " + Math.round((DATA.q.lines / DATA.q.cases - 1) * 100) + "% 과다 집계된다. "
-      + "금액은 <b>통화 구분 칸이 없어</b> 원화·EUR·CNY가 한 칸에 섞여 있다 — "
-      + "합계는 참고용이고, 정확한 집계는 통화 컬럼 신설 이후에 가능하다.</div>"
-
-      + '<div class="sec"><h3>📈 월별 기안 추이</h3>'
-      + '<div class="note">막대 높이 = 기안 건수, 빗금 = 아직 미종결. 조회바에서 월을 고르면 그 달이 강조된다.</div>'
-      + '<div class="chart" id="mChart">' + bars + "</div>"
-      + '<div class="legend"><span><i style="background:var(--accent)"></i>종결</span>'
-      + '<span><i style="background:#e0b877"></i>미종결</span>'
-      + "<span>최근 달의 미종결이 많은 것은 <b>정상 진행 중</b>이다(전표 발행 중앙값 " + DATA.q.lead_med + "일).</span></div></div>"
-
-      + '<div class="grid2">'
-      + '<div class="sec"><h3>📚 권(바인더)별 진행</h3>'
-      + '<div class="note">권은 100건 묶음의 물리 바인더다 — <b>월 선택과 무관</b>하게 연간 전체를 보여준다(권끼리 날짜가 겹친다).</div>'
-      + "<table><tr><th class='c'>권</th><th class='r'>대장</th><th class='r'>스캔</th><th class='c'>누락</th><th class='r'>미종결</th><th class='r'>금액(억)</th><th>기안일 범위</th></tr>"
-      + volRows + "</table></div>"
-      + '<div class="sec"><h3>👤 기안자별 현황</h3>'
-      + '<div class="note">연간 기준. 특정 달만 보려면 조회바에서 월을 고른 뒤 아래 관리 대상 표를 본다.</div>'
-      + '<div class="barlist">' + ownerRows + "</div>"
-      + '<div class="legend"><span><i style="background:#c08a2e"></i>미종결</span><span><i style="background:var(--accent)"></i>종결</span></div></div>'
+      + '<div class="note" style="margin:-4px 0 12px;">'
+      + "표는 <b>엑셀 대장 그대로</b>다 — 열 순서·2단 헤더(계약금·중도금·잔금)까지 같다. "
+      + "엑셀에서 숨겨 둔 <b>비고</b>와 파생 열은 표 위 <b>▦ 항목</b>에서 켤 수 있다. "
+      + "전표번호 칸의 배지는 ERP 대조 결과이고, 행을 누르면 그 건의 전표·세금계산서 근거가 열린다."
       + "</div>";
 
     if (bar) bar.applyPeriod();     // innerHTML 로 다시 그렸으니 월 강조를 다시 입힌다 (§16.5)
   }
 
-  /* ── 연간 고정 집계 (기간과 무관) ───────────────────────────────────── */
+  /* ── 대장 점검 (기간과 무관 · 접어 둔다) ─────────────────────────────────
+     목록대장 아래에 둔다. 매일 보는 것이 아니라 **대장을 정리할 때** 펼치는 자료다. */
   function renderFixed() {
     const q = DATA.q;
-    const cust = Object.keys(DATA.cust).map((k) => ({ cust: k, ...DATA.cust[k] }))
-      .sort((a, b) => b.cases - a.cases).slice(0, 10);
-    const maxC = Math.max(1, ...cust.map((c) => c.cases));
-    const custRows = cust.map((c) =>
-      '<div class="brow"><span class="lab">' + esc(c.cust) + "</span>"
-      + '<span class="track"><i style="width:' + Math.round((c.cases / maxC) * 100) + '%"></i></span>'
-      + '<span class="cnt">' + c.cases + "건 · " + eok(c.amt) + "억</span></div>").join("");
+    const volRows = Object.keys(DATA.vol).map(Number).sort((a, b) => a - b).map((g) => {
+      const v = DATA.vol[g];
+      const miss = v.cases - v.scan;
+      return "<tr><td class='c'>" + g + "권</td><td class='r'>" + v.cases + "</td>"
+        + "<td class='r'>" + v.scan + "</td>"
+        + "<td class='c'>" + (miss ? '<span class="badge r">' + miss + "</span>" : '<span class="badge g">0</span>') + "</td>"
+        + "<td class='r'>" + v.open + "</td><td class='r'>" + eok(v.amt) + "</td>"
+        + "<td>" + esc(v.from || "—") + " ~ " + esc(v.to || "—") + "</td></tr>";
+    }).join("");
 
     const qRows = [
       ["통화 구분 칸 없음", "외화(EUR·CNY)가 원화와 한 칸에 섞임 — 적재 시에도 추정하지 않는다", "금액 합산 불가", "r"],
       ["금액에 문자 혼입", q.amt_str + "행 — <code>매월 ₩1,936,000</code> · <code>무상</code> · <code>CNY 532,000</code>", "숫자 집계에서 누락", "r"],
-      ["고객사 표기 분산", q.cust_variants + "종(원문) — <code>(주)엔시스</code>/<code>㈜ 엔시스</code>, 삼성SDI 계열 4종", "적재 시 대표명으로 묶어 보정", "a"],
+      ["고객사 표기 분산", q.cust_variants + "종(원문) — <code>(주)엔시스</code>/<code>㈜ 엔시스</code>, 삼성SDI 계열 4종", "집계는 대표명으로 묶어 보정", "a"],
       ["프로젝트 빈칸", q.proj_blank + "행", "고객사 미기재", "a"],
       ["일자 문자열", q.date_str + "행 — <code>08/21</code> 처럼 날짜로 못 읽는 값", "날짜 파싱 실패(원문 보존)", "a"],
       ["전표번호 공백·탭", q.slip_dirty + "행 — 앞에 탭/공백이 붙음", "ERP 대사 시 불일치", "a"],
@@ -504,86 +429,111 @@
       + ({ r: "차단", a: "주의", b: "참고" }[r[3]]) + "</span></td></tr>").join("");
 
     fixed.innerHTML =
-      '<div class="grid2">'
-      + '<div class="sec"><h3>🏢 고객사별 기안 (표기 정규화 후)</h3>'
-      + '<div class="note">대장의 <code>프로젝트</code> 칸 앞부분을 대표명으로 묶었다(적재 단계). 원문 표기는 ' + q.cust_variants + "종이다.</div>"
-      + '<div class="barlist">' + custRows + "</div></div>"
-      + '<div class="sec"><h3>⏱ 전표 발행 리드타임</h3>'
-      + '<div class="note">기안일 → 잔금 전표 발행일 (' + num(q.lead_n) + "행)</div>"
-      + "<table><tr><th>지표</th><th class='r'>일</th><th>읽는 법</th></tr>"
-      + "<tr><td>중앙값</td><td class='r'><b>" + q.lead_med + "</b></td><td>기안 후 이 정도에 전표가 난다</td></tr>"
-      + "<tr><td>p90</td><td class='r'>" + q.lead_p90 + "</td><td>이 선을 넘으면 지연으로 본다</td></tr>"
-      + "<tr><td>기안일 이전 발행</td><td class='r'>" + q.lead_neg + "</td><td>전표가 먼저 난 건 — 기안 소급 작성 의심</td></tr>"
-      + "</table>"
-      + '<div class="callout blue" style="margin-bottom:0"><b>스캔 리드타임</b>은 중앙값 ' + q.scan_med + "일(p90 " + q.scan_p90 + "일)이다. "
-      + "p90 을 넘긴 미스캔은 추적 대상으로 본다.</div></div>"
+      '<details class="sec chk"><summary>🔍 대장 점검 — 권(바인더)별 진행 · 데이터 품질'
+      + ' <span class="badge b">' + num(q.lines) + "행 전수</span></summary>"
+      + '<div class="grid2" style="margin-top:12px;">'
+      + "<div><h4>📚 권(바인더)별 진행</h4>"
+      + '<div class="note">권은 100건 묶음의 물리 바인더다 — 월 선택과 무관하게 연간 전체를 보여준다.</div>'
+      + "<table><tr><th class='c'>권</th><th class='r'>건</th><th class='r'>스캔</th><th class='c'>누락</th>"
+      + "<th class='r'>미종결</th><th class='r'>금액(억)</th><th>기안일 범위</th></tr>" + volRows + "</table></div>"
+      + "<div><h4>⚠ 대장에서 정리할 것</h4>"
+      + '<div class="note">적재할 때마다 전수로 다시 센다. <b>차단</b>은 금액을 신뢰하려면 먼저 해결해야 한다.</div>'
+      + "<table><tr><th>항목</th><th>실태</th><th>영향</th><th class='c'>등급</th></tr>" + qRows + "</table></div>"
       + "</div>"
-
-      + '<div class="sec"><h3>⚠ 데이터 품질 — 대장에서 정리할 것</h3>'
-      + '<div class="note">대장 ' + num(q.lines) + "행 전수 점검 결과다(적재 때마다 다시 센다). <b>차단</b>은 금액을 신뢰하려면 먼저 해결해야 하는 항목이다.</div>"
-      + "<table><tr><th>항목</th><th>실태</th><th>영향</th><th class='c'>등급</th></tr>" + qRows + "</table></div>";
+      + '<div class="note" style="margin:10px 0 0;">전표 발행 리드타임 중앙값 ' + q.lead_med + "일(p90 "
+      + q.lead_p90 + "일) · 스캔 " + q.scan_med + "일(p90 " + q.scan_p90 + "일) · 기안일 이전 발행 "
+      + q.lead_neg + "행.</div></details>";
   }
 
-  /* ── 관리 대상 그리드 (표준 그리드 §13) ─────────────────────────────── */
-  const ageFmt = (v) => {
-    if (v == null) return '<span class="pill a">—</span>';
-    const n = Number(v);
-    return '<span class="pill ' + (n > 60 ? "r" : (n > 30 ? "a" : "g")) + '">' + n + "일</span>";
-  };
-  const PREF_KEY = "jeilax_prop_ledger_v1";
-  let PREF = { fit: true, colW: null };
+  /* ── 목록대장 표 (표준 그리드 §13 · 2단 헤더) ─────────────────────────
+     엑셀 열 순서를 그대로 따른다. 엑셀에서 **숨겨 둔 두 열**(스캔 파일명·비고)도 숨김으로 두고,
+     표 위 「▦ 항목」에서 켤 수 있게 한다 — 대장을 쓰는 사람의 눈에 익은 모습이 기본값이다.
+     가로로 2,200px 쯤 되므로 **화면맞춤을 기본으로 켜지 않는다**: 엑셀도 가로로 스크롤하고,
+     23열을 억지로 눌러 넣으면 프로젝트·내용이 읽히지 않는다. */
+  const PREF_KEY = "jeilax_prop_ledger_v2";   // v1 은 건 단위 표의 열폭이라 재사용하지 않는다
+  let PREF = { fit: false, colW: null, cols: null };
   try { PREF = Object.assign(PREF, JSON.parse(localStorage.getItem(PREF_KEY) || "{}")); } catch (e) { /* 저장 불가 환경 */ }
   const savePref = () => { try { localStorage.setItem(PREF_KEY, JSON.stringify(PREF)); } catch (e) {} };
-  const cut = (v) => '<span title="' + esc(v) + '">' + esc(v) + "</span>";   // 맞춤에서 잘린 칸은 마우스를 올려 본다
+
+  const cut = (v) => '<span title="' + esc(v) + '">' + esc(v) + "</span>";   // 잘린 칸은 마우스를 올려 본다
+  const dateCell = (v, r) => (v ? esc(v) : (r.dateRaw ? '<span class="pill a" title="날짜로 읽을 수 없는 원문">' + esc(r.dateRaw) + "</span>" : "—"));
+  const rateCell = (v) => (v == null || v === "" ? "" : (Math.round(Number(v) * 1000) / 10) + "%");
+  const amtCell = (v) => (v == null || v === "" || Number(v) === 0 ? "" : num(v));
+  /* 전표번호 칸이 대사 결과를 데리고 다닌다 — 열을 따로 만들지 않는다(엑셀에 없는 열이고,
+     어느 단계가 안 맞는지는 그 칸에 붙어 있을 때 가장 빨리 읽힌다). */
+  /* ⚠ grid.js 의 formatter 는 `(값, 행)` 두 인자다 — 열 정의는 넘어오지 않는다.
+     단계를 세 번째 인자로 받으려다 조용히 빈 칸이 됐다(2026-09-23 실측). 클로저로 고정한다. */
+  const slipCell = (pre) => (v, r) => {
+    if (!v) return "";
+    const st = r[pre];
+    const tip = st && st.cell
+      ? (RECON[st.recon] || RECON[""]).hint
+        + (st.cell.inv_supply ? " · 계산서 공급가 " + num(st.cell.inv_supply) : "")
+        + (st.cell.ledger_amt ? " / 대장 " + num(st.cell.ledger_amt) : "")
+        + ((st.cell.flags || []).length ? " · " + st.cell.flags.join("·") : "")
+      : "";
+    return "<code>" + esc(String(v).replace(/\s+/g, " ").trim()) + "</code>"
+      + (st && st.recon ? " " + reconBadge(st.recon, tip) : "");
+  };
+
+  const stageCols = (pre, label) => ([
+    { key: pre + "_rate", label: "비율", group: label, width: "58px", fitMin: 46, align: "center",
+      formatter: rateCell, exportValue: (v) => v, filter: false },
+    { key: pre + "_amt", label: "발행금액", group: label, width: "104px", fitMin: 76, align: "right",
+      formatter: amtCell, filter: false },
+    { key: pre + "_slip", label: "전표번호", group: label, width: "134px", fitMin: 92,
+      formatter: slipCell(pre), exportValue: (v) => v },
+    { key: pre + "_dt", label: "발행일", group: label, width: "92px", fitMin: 78, align: "center",
+      formatter: (v) => (v ? esc(v) : ""), filter: false },
+  ]);
 
   const GRID = createGrid("#mgGrid", {
-    keyField: "key",
+    keyField: "rk",                                  // 행 고유키 = 권-번호-행순번 (건 키가 아니다)
     search: true, columnFilter: true, sortable: true, exportCsv: true, copy: true,
-    /* ⚠ pageSize 는 **렌더만 자른다**(grid.js) — 페이저가 없어서 25 로 두면 화면이
-       「169건」이라 적고 25행만 보여준다. 확인할 건을 찾는 표에서는 치명적이라 전량 그린다.
-       830건 렌더는 실측 문제없다(검색·정렬·CSV 는 원래 전량 기준이다). */
-    pageSize: 0, exportName: "기안서대장_2026",
-    emptyText: "조건에 맞는 건이 없습니다.",
+    columnPicker: true, groupHeader: true,           // 2단 헤더 — 계약금/중도금/잔금
+    /* ⚠ pageSize 는 **렌더만 자른다**(grid.js) — 페이저가 없어서 값을 두면 화면이
+       「1,102행」이라 적고 일부만 보여준다. 대장을 훑는 표에서는 치명적이라 전량 그린다. */
+    pageSize: 0, exportName: "기안서목록대장_2026",
+    emptyText: "조건에 맞는 행이 없습니다.",
     loadingText: "대장을 불러오는 중…",
-    resizable: true, fitWidth: true,                 // 표준 §5.2 — 열 경계 드래그 + 화면 폭 맞춤
+    resizable: true, fitWidth: true,                 // 기능은 켜 두고 기본값만 끈다(아래 setFit)
     onColResize: (key, px, all) => { PREF.colW = all; savePref(); },
+    onColumnsChange: (st) => { PREF.cols = st; savePref(); },
     rowClass: (r) => (r.risk === "long" ? "row-long" : (r.scan === "NONE" ? "row-scan" : "")),
     columns: [
-      { key: "key", label: "권-번호", width: "74px", fitMin: 62, align: "center" },
-      { key: "date", label: "기안일", width: "88px", fitMin: 78, align: "center" },
-      { key: "age", label: "경과", width: "68px", fitMin: 56, align: "center", formatter: ageFmt, exportValue: (v) => v },
-      { key: "by", label: "기안자", width: "72px", fitMin: 66 },
-      { key: "cust", label: "고객사", width: "118px", fitMin: 78, formatter: cut },
-      { key: "job", label: "생산번호", width: "122px", fitMin: 84, formatter: cut },
-      { key: "vendor", label: "업체명", width: "158px", fitMin: 84, formatter: cut },
-      { key: "desc", label: "내용", width: "224px", fitMin: 100, formatter: cut },
-      {
-        key: "amt", label: "금액", width: "108px", fitMin: 84, align: "right",
-        formatter: (v, r) => (r.amtTxt ? '<span title="문자 혼입 — 숫자 집계 불가">' + esc(r.amtTxt) + "</span>" : num(v)),
-        exportValue: (v, r) => (r.amtTxt ? r.amtTxt : v),
-      },
-      { key: "lines", label: "행수", width: "58px", fitMin: 52, align: "center", filter: false },
-      {
-        key: "nslip", label: "미발", width: "66px", fitMin: 60, align: "center", filter: false,
-        formatter: (v) => (Number(v) > 0 ? '<span class="pill r">' + v + "행</span>" : '<span class="pill g">완료</span>'),
-      },
-      {
-        key: "closed", label: "종결", width: "62px", fitMin: 54, align: "center",
-        formatter: (v) => '<span class="pill ' + (v === "Y" ? "g" : (v === "P" ? "a" : "r")) + '">'
-          + ({ Y: "종결", N: "미결", P: "부분" }[v] || v) + "</span>",
-      },
-      {
-        key: "scan", label: "스캔", width: "84px", fitMin: 68, align: "center",
+      /* ── 엑셀 2행 머리글 그대로 ── */
+      { key: "vol", label: "권", width: "46px", fitMin: 40, align: "center" },
+      { key: "no", label: "번호", width: "60px", fitMin: 48, align: "center" },
+      /* 엑셀 4열(숨김) `system.filename:{권}-{번호}.pdf` 자리 — 우리는 검색어 버튼으로 쓴다 */
+      { key: "scan", label: "스캔", width: "84px", fitMin: 68, align: "center", hidden: true,
         formatter: (v) => (v === "OK"
           ? '<button class="ecm" data-row-act="ecm" title="문서중앙화 검색어 복사">검색어</button>'
           : '<span class="pill a">누락</span>'),
-        exportValue: (v) => (v === "OK" ? "OK" : "누락"),
-      },
-      {
-        key: "recon", label: "대사", width: "78px", fitMin: 66, align: "center",
-        formatter: (v, r) => reconBadge(v, r.reconTip),
-        exportValue: (v) => (RECON[v] || RECON[""]).lb,
-      },
+        exportValue: (v) => (v === "OK" ? "OK" : "누락") },
+      { key: "date", label: "일 자", width: "86px", fitMin: 76, align: "center",
+        formatter: dateCell, exportValue: (v, r) => (v || r.dateRaw) },
+      { key: "by", label: "기안자", width: "70px", fitMin: 62 },
+      { key: "job", label: "생산번호", width: "118px", fitMin: 82, formatter: cut },
+      { key: "project", label: "프로젝트", width: "300px", fitMin: 120, formatter: cut },
+      { key: "desc", label: "내 용", width: "160px", fitMin: 92, formatter: cut },
+      { key: "vendor", label: "업체명", width: "124px", fitMin: 84, formatter: cut },
+      { key: "amt", label: "금 액", width: "108px", fitMin: 84, align: "right",
+        formatter: (v, r) => (r.amtTxt ? '<span title="문자 혼입 — 숫자 집계 불가">' + esc(r.amtTxt) + "</span>" : num(v)),
+        exportValue: (v, r) => (r.amtTxt ? r.amtTxt : v) },
+      { key: "closed", label: "종결", width: "58px", fitMin: 52, align: "center",
+        formatter: (v) => '<span class="pill ' + (v === "Y" ? "g" : (v === "P" ? "a" : "r")) + '">'
+          + ({ Y: "종결", N: "미결", P: "부분" }[v] || v) + "</span>" },
+      /* 엑셀 13열(숨김) 비 고 — 811행에 값이 있다. 엑셀처럼 숨겨 두고 항목에서 켠다 */
+      { key: "remark", label: "비 고", width: "180px", fitMin: 100, hidden: true, formatter: cut },
+      /* ── 엑셀 1행 그룹 머리글: 계약금 · 중도금 · 잔금 ── */
+      ...stageCols("dp", "계약금"),
+      ...stageCols("mp", "중도금"),
+      ...stageCols("bp", "잔금"),
+      /* ── 엑셀에 없는 파생 열 — 기본 숨김 ── */
+      { key: "cust", label: "고객사", group: "파생", width: "120px", fitMin: 80, hidden: true, formatter: cut },
+      { key: "age", label: "경과", group: "파생", width: "68px", fitMin: 56, align: "center", hidden: true,
+        formatter: (v) => (v == null ? "—" : '<span class="pill ' + (v > 60 ? "r" : (v > 30 ? "a" : "g")) + '">' + v + "일</span>"),
+        exportValue: (v) => v, filter: false },
     ],
     onRowAction: (act, row) => {
       if (act !== "ecm") return;
@@ -594,6 +544,7 @@
     },
   });
 
+  if (PREF.cols) { try { GRID.setColumnState(PREF.cols); } catch (e) { /* 옛 저장값은 무시 */ } }
   if (PREF.colW) GRID.setColWidths(PREF.colW);
   const bFit = document.getElementById("bFit");
   function syncFit() {
@@ -625,7 +576,8 @@
      표준 그리드에 확장행 기능이 없고, 넣으려면 컴포넌트를 고쳐야 한다(§13.4 위반).
      드로어는 그리드 **밖**이라 컴포넌트를 건드리지 않는다. */
   const STAGE_NM = { dp: "계약금", mp: "중도금", bp: "잔금" };
-  let ROWS = [];              // 지금 표에 그려진 행(↑↓ 이동용)
+  let SHOWN = [];             // 지금 표에 그려진 **행**(rk → 건 키를 찾는다)
+  let ROWS = [];              // 그 행들의 **건** 목록(중복 제거) — ↑↓ 이동용
   let DRAWER_KEY = null;      // 열어 둔 건 — 표가 다시 그려져도 키로 되찾는다
   const dw = document.getElementById("dw");
   const dwBody = document.getElementById("dwBody");
@@ -769,9 +721,13 @@
 
   document.getElementById("mgGrid").addEventListener("click", (e) => {
     if (e.target.closest("[data-row-act]")) return;            // 「검색어」 버튼은 상세를 열지 않는다
-    if (e.target.closest("th, .grid__toolbar, .grid__filter-row")) return;
+    if (e.target.closest("th, .grid__toolbar, .grid__filter-row, .grid__picker")) return;
     const tr = e.target.closest("tr.grid__row");
-    if (tr && tr.dataset.key) openDetail(tr.dataset.key);
+    if (!tr || !tr.dataset.key) return;
+    /* 표는 **행**(권-번호-순번) 단위인데 상세는 **건**(권-번호) 단위다 — 여기서 갈아탄다.
+       같은 건의 행이 여럿이면 어느 행을 눌러도 같은 상세가 열린다(전표는 건에 붙어 있다). */
+    const row = (SHOWN || []).find((r) => r.rk === tr.dataset.key);
+    if (row) openDetail(row.key);
   });
   dw.addEventListener("click", (e) => {
     if (e.target.closest("[data-dw-close]")) { closeDetail(); return; }
@@ -793,19 +749,38 @@
   async function fetchAll() {
     GRID.setLoading(true);
     try {
-      const [raw, q, rec] = await Promise.all([
-        erpApi.proposalCases(), erpApi.proposalQuality(),
+      const [raw, cases, q, rec] = await Promise.all([
+        erpApi.proposalRows(),          // 엑셀 행 그대로 — 표의 본문
+        erpApi.proposalCases(),         // 건 단위 — 종결 판정·스캔본 유무·집계
+        erpApi.proposalQuality(),
         // 대사는 ERP 미러에 의존한다 — 실패해도 대장 화면은 살려 둔다(§16.6: 없는 건 없다고 말한다)
         erpApi.proposalRecon().catch((e) => { console.warn("[대사] 조회 실패:", e); return null; }),
       ]);
-      const rows = prep(raw);
       if (!q) throw new Error("품질 집계를 받지 못했습니다");
-      attachRecon(rows, foldRecon(rec));
-      DATA = Object.assign({ rows, q }, aggregate(rows));
+      const caseRows = (cases || []).map((r) => {
+        const date = r.draft_dt || "";
+        const closed = r.closed || "N";
+        const age = ageOf(date);
+        return {
+          key: r.key, vol: r.vol, no: r.no, date, m: date.slice(5, 7), age,
+          by: r.drafter || "", amt: Number(r.amt) || 0, closed,
+          scan: r.scan_ok ? "OK" : "NONE",
+          lines: Number(r.lines) || 1, no_slip_lines: Number(r.no_slip_lines) || 0,
+          scan_ok: !!r.scan_ok,
+          risk: (closed !== "Y" && (age || 0) > 60) ? "long" : (r.scan_ok ? "normal" : "scan"),
+        };
+      });
+      const caseMap = {};
+      for (const c of caseRows) caseMap[c.key] = c;
+      const rows = prepRows(raw, caseMap, indexCells(rec));
+      DATA = Object.assign({ rows, cases: caseRows, q }, aggregate(caseRows));
       DATA.recon = (rec && rec.rows) || [];
       DATA.recon_as_of = rec && rec.mirror_as_of;
       DATA.reconOk = !!rec;
-      DATA.noslipLines = rows.reduce((a, r) => a + r.nslip, 0);
+      /* 행과 건이 맞는지 한 번 센다 — 두 조회가 다른 시점의 적재를 보면(러너가 도는 중) 조용히 어긋난다 */
+      const orphan = rows.filter((r) => !caseMap[r.key]).length;
+      if (orphan) console.warn("[대장] 건 단위 뷰에 없는 행", orphan, "개 — 적재 중일 수 있습니다");
+      DATA.orphan = orphan;
       return DATA;
     } finally {
       GRID.setLoading(false);
@@ -936,10 +911,13 @@
       }
       renderApp(q, ctx.bar);
       const rows = pick(q);
-      ROWS = rows;
+      SHOWN = rows;
+      // ↑↓ 는 건 단위로 움직인다 — 같은 건의 행이 여럿이면 한 번만 들른다
+      ROWS = rows.filter((r, i) => rows.findIndex((x) => x.key === r.key) === i);
       GRID.setRows(rows);
       document.getElementById("mgCount").textContent =
-        rows.length + "건" + (rows.length === DATA.rows.length ? "" : " / 전체 " + DATA.rows.length + "건");
+        num(rows.length) + "행 · " + num(ROWS.length) + "건"
+        + (rows.length === DATA.rows.length ? "" : " / 전체 " + num(DATA.rows.length) + "행");
       /* 대사 조건을 고르면 모집단이 전건으로 넓어진다 — 그 사실을 상시 한 줄로 알린다(토스트 아님) */
       const wide = !!(q.extras.recon && !(q.extras.risk || ""));
       let note = document.getElementById("mgScope");
