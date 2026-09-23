@@ -47,7 +47,7 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
   <div class="content">
 <h1 id="01-erp-db">01. ERP DB 연계 — 이후 기획 (통합 정리)</h1>
 <blockquote>
-<p><strong>기준일: 2026-07-03</strong>(2026-07-08 §4.4 P4 노출 계층, §4.5 사용자-부서 매핑, §4.6 부서별 ERP 모듈 제안값, §4.7 급여 민감권한·<code>erp_secure</code> 착수 → 같은 날 실적재 완료로 갱신 / 2026-07-20 §4.8 챗봇 권한체계 연결·포털 도구 권한구멍 차단 추가 / 2026-07-21 §4.9 연동 현황 뷰 10종 전체 노출·관리자 콘솔 반영 추가, §4.10 매입 상세(<code>iv_dtl</code>) 신규 연동·구매요청 상세 백필 실적재 완료 추가 / 2026-07-22 §4.11 협력사 거래처마스터(<code>vendor_master</code>) 재적재·정합화 + ERP 거래처마스터 원천 연동(<code>bp_master</code>) 스키마·ETL 준비 추가 / 2026-07-24 §4.11 <code>bp_master</code> 실적재 완료(적재버그 RCA·수정 포함)로 갱신 / 2026-09-07 §4.12 계정 통합관리·대사(REQ-0018, ERP 계정 정본+인사 HAA010T 서브) 신설·실적재 완료 추가) · 관리: 최동혁
+<p><strong>기준일: 2026-07-03</strong>(2026-07-08 §4.4 P4 노출 계층, §4.5 사용자-부서 매핑, §4.6 부서별 ERP 모듈 제안값, §4.7 급여 민감권한·<code>erp_secure</code> 착수 → 같은 날 실적재 완료로 갱신 / 2026-07-20 §4.8 챗봇 권한체계 연결·포털 도구 권한구멍 차단 추가 / 2026-07-21 §4.9 연동 현황 뷰 10종 전체 노출·관리자 콘솔 반영 추가, §4.10 매입 상세(<code>iv_dtl</code>) 신규 연동·구매요청 상세 백필 실적재 완료 추가 / 2026-07-22 §4.11 협력사 거래처마스터(<code>vendor_master</code>) 재적재·정합화 + ERP 거래처마스터 원천 연동(<code>bp_master</code>) 스키마·ETL 준비 추가 / 2026-07-24 §4.11 <code>bp_master</code> 실적재 완료(적재버그 RCA·수정 포함)로 갱신 / 2026-09-07 §4.12 계정 통합관리·대사(REQ-0018, ERP 계정 정본+인사 HAA010T 서브) 신설·실적재 완료 추가 / 2026-09-23 §4.13 비ERP 원천(구매 기안서 대장, REQ-0077) 연동 패턴 신설 추가) · 관리: 최동혁
 ERP 데이터 활용은 <strong>두 축</strong>으로 진행된다: <strong>A) 사내 타부서 데이터 개방</strong>(마스터플랜 v2.0)과 <strong>B) AI 포털·챗봇 연계</strong>(중간DB 연계설계). 본 문서는 두 기획을 하나의 그림으로 통합 정리한 것이다. 상세는 각 원본 문서를 따른다.</p>
 </blockquote>
 <hr />
@@ -281,6 +281,15 @@ etl_meta     — 배치 실행 로그·동기화 상태
 <li><strong>보안</strong>: <code>erp_ro</code> REST 비노출 유지(화면은 RPC 경유만), 신규 테이블 4종 전부 RLS ON·정책 0개·anon/authenticated 회수. 인사에서 주민번호·주소·연락처·급여(호봉)·<code>CARD_ID</code>는 추출하지 않음(<code>CLAUDE.md §1.7</code>).</li>
 <li><strong>미결(사람 작업)</strong>: ①그룹웨어(ONUL Ware) 수집 경로 — 관리자가 조회용 뷰테이블 접속 정보 제공 예정(미기재). ②MS(Entra) 응용 권한 <code>User.Read.All</code>+테넌트 관리자 동의 필요(현재 위임 <code>User.Read</code>뿐). ③<code>HAA010T.ENTR_CD</code>(입사구분) 코드 의미 — 유니포인트 확인 대상.</li>
 <li>05 문서(부서 대사)와의 관계: <a href="/docs/erp/dept-mapping"><code>05_사용자부서_매핑대사.md</code></a> 참조(주제·키는 겹치나 대사 대상이 다름 — 05는 부서, 본 절은 계정+인사). 상세 진행은 <code>02_진행상태.md</code> §2 P3·§3, 결과 반영은 <code>00_현재상태_스냅샷.md</code> §1·§4·§5·§6·§7 참조.</li>
+</ul>
+<h3 id="413-erp-req-0077-2026-09-23">4.13 비ERP 원천(사람이 관리하는 엑셀 원장) 연동 패턴 — 구매 기안서 대장(REQ-0077, 2026-09-23 신설)</h3>
+<p>지금까지 §4.1~§4.12는 전부 ERP(UNIERP MSSQL)를 원천으로 하는 연동이었다. 구매 기안서 대장은 <strong>원천 자체가 ERP가 아닌 첫 사례</strong>다 — 구매팀이 손으로 관리하는 Teams(SharePoint) 엑셀 <code>기안서 목록대장(2026).xlsx</code>가 원천이고, ERP에는 결의전표(<code>TG…</code>)·매입전표(<code>IV…</code>) 번호만 참조로 남는다. 이 차이 때문에 적재 방식도 ERP 연동과 갈라진다.</p>
+<ul>
+<li><strong>적재 대상 분리</strong>: ERP 미러는 <code>erp_ro</code>(사내 전용, REST 비노출)에 두지만, 엑셀 원장은 <strong>포털 전용 <code>public</code></strong> 스키마에 바로 둔다(<code>public.pur_proposal</code>·<code>public.pur_proposal_scan</code>) — ERP 규약을 그대로 적용하면 오히려 "ERP에서 온 데이터"로 오인될 수 있어서다.</li>
+<li><strong>적재 방식 분리</strong>: ERP job은 <code>UPDT_DT</code> 워터마크 증분이 표준이지만, 사람이 관리하는 엑셀은 <strong>행이 통째로 사라질 수 있어 전량 교체가 기본</strong>이다(RPC <code>pur_proposal_upsert</code>/<code>pur_proposal_scan_upsert</code>가 매회 전량 갈아끼움). 함정 2건을 겪었다 — Supabase가 <code>WHERE</code> 없는 <code>DELETE</code>를 21000으로 막아 <code>delete … where true</code>로 우회했고, 뷰 컬럼을 늘릴 때 <code>create or replace view</code>가 42P16으로 막혀 <code>drop → create</code>가 필요했다.</li>
+<li><strong>읽기 형식은 ERP 도구를 재사용</strong>: 파서(<code>10_ERP_DB연계/etl/proposal_ledger.py</code>)는 외부 라이브러리 없이 zipfile+xml로 xlsx를 직접 읽는다(ETL 실행 호스트에 openpyxl이 없는 것을 고려). 러너 편입도 ERP job과 동일한 틀(<code>jeil_runner proposal</code> 서브커맨드, <code>JOB_KINDS</code>의 <code>proposal_ledger</code>)을 그대로 썼다 — 사람이 보는 창구(관리 콘솔·데이터 업데이트 흐름)를 원천별로 나누지 않기 위해서다. 원천 파일 경로가 없는 호스트는 조용히 건너뛰지 않고 사유를 남기고 실패한다(<code>CLAUDE.md §17.6</code>).</li>
+<li><strong>다음 단계 후보</strong>: 대장의 전표번호(<code>TG…</code>·<code>IV…</code>)를 ERP 결의전표/매입전표 미러(§4.5 이후 구축된 <code>gl_slip_s</code>·<code>iv_dtl_s</code>)와 대사하면, "대장에는 있는데 ERP엔 없는 건"을 자동으로 잡아낼 수 있다 — 이 경우 처음으로 <strong>비ERP 원장과 ERP 미러를 교차 대사</strong>하는 사례가 된다. 착수 여부는 결정 대기(<code>00_현재상태_스냅샷.md §6</code>).</li>
+<li>상세 진행은 <code>02_진행상태.md</code> §2 P3·§3, 결과 반영은 <code>00_현재상태_스냅샷.md §1·§4·§6·§7</code> 참조. 정본 SQL <code>실제구축준비 자료/이관/sql/68_pur_proposal_ledger.sql</code>(+<code>_rollback</code>).</li>
 </ul>
 <h2 id="5">5. 단계별 로드맵 (통합)</h2>
 <table>
