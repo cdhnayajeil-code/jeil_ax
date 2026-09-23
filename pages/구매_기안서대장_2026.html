@@ -19,7 +19,9 @@
   *{box-sizing:border-box; margin:0; padding:0;}
   body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif; color:var(--ink); background:var(--bg); line-height:1.6; font-size:14px;}
   .draft-banner{background:var(--amber); color:#fff; text-align:center; font-size:12px; padding:6px 10px;}
-  .page{max-width:1240px; margin:0 auto; background:#fff; padding:34px 44px; box-shadow:0 2px 14px rgba(0,0,0,.08); min-height:100vh;}
+  /* 목록대장이 22열이라 폭을 제한하지 않는다 — 1,240px 안에서는 화면맞춤을 켜도 504px 넘쳤다.
+     화면 전체를 쓰면 1,600px 이상에서 전 열이 들어간다(발주통합 LIST 와 같은 방식). */
+  .page{margin:0 auto; background:#fff; padding:26px 24px 30px; min-height:100vh;}
   .head{display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:10px; border-bottom:3px solid var(--navy); padding-bottom:14px; margin-bottom:20px;}
   .head h1{font-size:22px; color:var(--navy);}
   .head .sub{font-size:12.5px; color:var(--muted); margin-top:3px;}
@@ -45,8 +47,6 @@
   tr:nth-child(even) td{background:#fafbfd;}
   td.r,th.r{text-align:right;} td.c,th.c{text-align:center;}
   tr.dim td{opacity:.42;}
-  .src{margin-top:18px; background:var(--soft); border:1px solid var(--line); border-radius:9px; padding:13px 18px; font-size:11.5px; color:var(--muted);}
-  .src b{color:var(--navy2);} .src ul{margin:6px 0 0 16px;} .src li{margin:3px 0;}
   code{font-family:Consolas,monospace; font-size:11px; background:#fff; border:1px solid var(--line); border-radius:4px; padding:0 5px;}
   .callout{border-radius:8px; padding:11px 15px; margin:10px 0; font-size:12.5px;}
   .callout.amber{background:var(--softamber); border-left:4px solid var(--amber);}
@@ -94,6 +94,18 @@
   .dw .lbl{display:inline-block; min-width:52px; color:#94a3b8;}
   /* 2단 헤더 — 그룹이 없는 앞 10열 위는 엑셀에서도 빈 칸이다. 네이비로 차 있으면
      헤더가 두 줄인지 안 읽히므로 한 톤 낮춰 「빈 칸」으로 보이게 한다(컴포넌트는 그대로 둔다). */
+  /* 전표번호 칸의 ERP 대사 색 — 배지를 옆에 붙이지 않고 번호를 물들인다(폭 0) */
+  /* 행 배경(장기 미결·스캔 누락)이 이미 옅은 색이라, 칸 색은 **테두리까지** 줘야 칩으로 읽힌다 */
+  code.sl{display:inline-block; max-width:100%; overflow:hidden; text-overflow:ellipsis;
+          white-space:nowrap; vertical-align:middle;}
+  code.sl--g{background:#dcfce7; border-color:#86c99b; color:#14532d;}
+  code.sl--b{background:#e4edfa; border-color:#93b4dd; color:var(--navy);}
+  code.sl--n{background:#eceff3; border-color:#c3cbd6; color:#5b6672;}
+  code.sl--a{background:#fdedd3; border-color:#e0ac57; color:#7c4a03;}
+  code.sl--r{background:#fde2e2; border-color:#e08585; color:#991b1b; font-weight:700;}
+  .slkey{display:flex; gap:14px; flex-wrap:wrap; align-items:center; font-size:11px;
+         color:var(--muted); margin:8px 0 0;}
+  .slkey code{font-size:10.5px;}
   #mgGrid .grid__group-row th:empty{background:var(--navy2); box-shadow:inset 0 -1px 0 rgba(255,255,255,.14);}
   #mgGrid .grid__gth:not(:empty){letter-spacing:.02em;}
   .chk{padding:0;} .chk>summary{cursor:pointer; padding:12px 16px; font-size:12.5px; font-weight:700;
@@ -107,7 +119,7 @@
           padding:3px 10px; cursor:pointer; color:var(--navy2); font-weight:600;}
   .fitbtn[aria-pressed="true"]{background:var(--navy); border-color:var(--navy); color:#fff;}
   #mgGrid .ecm{border:1px solid var(--line); background:#fff; border-radius:6px; font-size:10.5px; padding:1px 6px; cursor:pointer; color:var(--navy2);}
-  @media print{ .draft-banner{display:none;} .page{box-shadow:none; max-width:100%;} }
+  @media print{ .draft-banner{display:none;} .page{box-shadow:none;} }
   @media (max-width:900px){ .page{padding:22px 16px;} .grid2{grid-template-columns:1fr;} }
 </style>
 </head>
@@ -134,13 +146,20 @@
 
   <!-- 기안서 목록대장 (표준 그리드 §13 · 2단 헤더) — 재렌더 영역 밖 -->
   <div class="sec" id="mgSection">
-    <h3>📋 기안서 목록대장 <span id="mgCount" class="badge b">—</span><button type="button" id="bFit" class="fitbtn" title="열 폭을 화면에 맞춰 줄입니다. 22열이라 다 들어가지는 않아 가로 스크롤이 남습니다 — 끄면 엑셀과 같은 폭입니다">↔ 화면맞춤</button></h3>
+    <h3>📋 기안서 목록대장 <span id="mgCount" class="badge b">—</span><button type="button" id="bFit" class="fitbtn" title="열 폭을 화면에 맞춰 줄여 전 열을 보여줍니다. 끄면 엑셀과 같은 폭(가로 스크롤)이 됩니다">↔ 화면맞춤</button></h3>
     <div class="note">
-      엑셀 대장과 <b>같은 열·같은 순서</b>다 — 오른쪽으로 스크롤하면 <b>계약금 · 중도금 · 잔금</b> 아래
-      비율 · 발행금액 · 전표번호 · 발행일이 나온다. <b>엑셀 한 줄이 한 행</b>이라 한 기안에 업체가 여럿이면 행도 여럿이다.
+      엑셀 대장과 <b>같은 열·같은 순서</b>다 — <b>계약금 · 중도금 · 잔금</b> 아래 비율 · 발행금액 · 전표번호 · 발행일이 붙는다.
+      <b>엑셀 한 줄이 한 행</b>이라 한 기안에 업체가 여럿이면 행도 여럿이다.
       기본은 <b>관리 대상</b>(미종결·부분종결·스캔본 누락)이고, 조회바 관리구분을 「전체」로 바꾸면 대장 전행을 본다.
       <b>▦ 항목</b>에서 엑셀이 숨겨 둔 비고·파생 열을 켜거나 단계 열을 끌 수 있고,
       <b>행을 누르면</b> 그 건의 전표 분개와 전자세금계산서·국세청 승인번호가 열린다.
+    </div>
+    <div class="slkey"><b style="color:var(--navy2)">전표번호 색 = ERP 대사</b>
+      <span><code class="sl sl--g">일치</code> 금액이 같다</span>
+      <span><code class="sl sl--b">세액차</code> 공급가/합계 차이(정상)</span>
+      <span><code class="sl sl--n">판단 불가</code> 한 전표에 여러 기안 · 계산서 없음</span>
+      <span><code class="sl sl--a">전표 없음</code> ERP 미러에 없다</span>
+      <span><code class="sl sl--r">확인 필요</code> 금액이 안 맞는다</span>
     </div>
     <div id="mgGrid"></div>
   </div>
@@ -165,25 +184,6 @@
       </header>
       <div class="dw__body" id="dwBody"></div>
     </aside>
-  </div>
-
-  <div class="src">
-    <b>데이터가 화면에 오기까지</b>
-    <ul>
-      <li><b>대장 정본</b>은 Teams(SharePoint)의 <code>기안서 목록대장(2026).xlsx</code> 다. 구매팀이 직접 관리하고, 이 화면은 읽기만 한다.</li>
-      <li><b>적재</b>는 연동 러너가 한다 — <code>jeil_runner proposal</code>(모듈 <code>10_ERP_DB연계/etl/proposal_ledger.py</code>).
-          엑셀을 <b>행 그대로</b> <code>public.pur_proposal</code> 에 넣고(1건이 여러 행), 건 집계는 뷰 <code>v_pur_proposal_case</code> 가 한다.
-          대장은 행이 사라지기도 해서 <b>매번 전량 교체</b>한다 — 증분만 하면 지워진 행이 미러에 남는다.</li>
-      <li><b>연결 키는 <code>{권}-{번호}</code></b> 다. 권은 100건 묶음의 <b>물리 바인더</b>이지 날짜 구간이 아니고,
-          번호 순서가 날짜 순서와 일치하지도 않는다. <b>날짜로 스캔본을 역추적하면 안 된다.</b></li>
-      <li><b>스캔본</b>은 문서중앙화 보호 영역에 있어 러너가 자동으로 읽지 못한다(대화형 세션 전용).
-          사람이 뽑은 목록을 <code>--scan</code> 으로 넣으면 존재 여부만 <code>pur_proposal_scan</code> 에 들어간다 —
-          이 화면은 <b>파일을 품지 않고 검색어만</b> 만든다.</li>
-      <li><b>ERP 접점</b>: 대장의 전표번호(<code>TG…</code> 결의전표 · <code>IV…</code> 매입)가 ERP 와 붙는 칸이다.
-          다음 단계는 이 번호로 실제 전표를 대사해 「대장에는 있는데 ERP 에 없는 건」을 잡는 것이다.</li>
-      <li><b>통화 컬럼은 비어 있다</b> — 대장에 칸이 없어서다. 적재도 추정하지 않는다(컬럼만 준비돼 있다).
-          구매팀이 대장에 통화 칸을 만들면 그때부터 채워진다.</li>
-    </ul>
   </div>
 
   <div class="foot">
@@ -448,10 +448,11 @@
   /* ── 목록대장 표 (표준 그리드 §13 · 2단 헤더) ─────────────────────────
      엑셀 열 순서를 그대로 따른다. 엑셀에서 **숨겨 둔 두 열**(스캔 파일명·비고)도 숨김으로 두고,
      표 위 「▦ 항목」에서 켤 수 있게 한다 — 대장을 쓰는 사람의 눈에 익은 모습이 기본값이다.
-     가로로 2,200px 쯤 되므로 **화면맞춤을 기본으로 켜지 않는다**: 엑셀도 가로로 스크롤하고,
-     23열을 억지로 눌러 넣으면 프로젝트·내용이 읽히지 않는다. */
+     **화면맞춤을 기본으로 켠다**(2026-09-23 관리자 지시 「전체 데이터가 모두 보이게」) — 페이지 폭
+     제한을 없앴으므로 1,600px 이상 화면에서는 22열이 다 들어간다. 그보다 좁으면 최소폭에 걸린
+     만큼 가로 스크롤이 남는다 — 글자를 뭉개는 것보다 솔직하다(grid.js 의 맞춤 규약). */
   const PREF_KEY = "jeilax_prop_ledger_v2";   // v1 은 건 단위 표의 열폭이라 재사용하지 않는다
-  let PREF = { fit: false, colW: null, cols: null };
+  let PREF = { fit: true, colW: null, cols: null };
   try { PREF = Object.assign(PREF, JSON.parse(localStorage.getItem(PREF_KEY) || "{}")); } catch (e) { /* 저장 불가 환경 */ }
   const savePref = () => { try { localStorage.setItem(PREF_KEY, JSON.stringify(PREF)); } catch (e) {} };
 
@@ -472,18 +473,21 @@
         + (st.cell.ledger_amt ? " / 대장 " + num(st.cell.ledger_amt) : "")
         + ((st.cell.flags || []).length ? " · " + st.cell.flags.join("·") : "")
       : "";
-    return "<code>" + esc(String(v).replace(/\s+/g, " ").trim()) + "</code>"
-      + (st && st.recon ? " " + reconBadge(st.recon, tip) : "");
+    const m = RECON[(st && st.recon) || ""] || RECON[""];
+    /* 배지를 옆에 붙이면 40px 를 더 먹어 전표번호(14자)가 잘린다 — **번호 자체에 색을 입힌다**.
+       폭을 전혀 쓰지 않고, 무슨 색인지는 표 위 범례와 마우스 설명이 알려 준다. */
+    return '<code class="sl sl--' + m.pill + '" title="' + esc((st && st.recon ? m.lb + " — " : "") + tip) + '">'
+      + esc(String(v).replace(/\s+/g, " ").trim()) + "</code>";
   };
 
   const stageCols = (pre, label) => ([
-    { key: pre + "_rate", label: "비율", group: label, width: "58px", fitMin: 46, align: "center",
+    { key: pre + "_rate", label: "비율", group: label, width: "58px", fitMin: 58, align: "center",
       formatter: rateCell, exportValue: (v) => v, filter: false },
-    { key: pre + "_amt", label: "발행금액", group: label, width: "104px", fitMin: 76, align: "right",
+    { key: pre + "_amt", label: "발행금액", group: label, width: "104px", fitMin: 88, align: "right",
       formatter: amtCell, filter: false },
-    { key: pre + "_slip", label: "전표번호", group: label, width: "134px", fitMin: 92,
+    { key: pre + "_slip", label: "전표번호", group: label, width: "134px", fitMin: 126,
       formatter: slipCell(pre), exportValue: (v) => v },
-    { key: pre + "_dt", label: "발행일", group: label, width: "92px", fitMin: 78, align: "center",
+    { key: pre + "_dt", label: "발행일", group: label, width: "92px", fitMin: 88, align: "center",
       formatter: (v) => (v ? esc(v) : ""), filter: false },
   ]);
 
@@ -502,25 +506,25 @@
     rowClass: (r) => (r.risk === "long" ? "row-long" : (r.scan === "NONE" ? "row-scan" : "")),
     columns: [
       /* ── 엑셀 2행 머리글 그대로 ── */
-      { key: "vol", label: "권", width: "46px", fitMin: 40, align: "center" },
-      { key: "no", label: "번호", width: "60px", fitMin: 48, align: "center" },
+      { key: "vol", label: "권", width: "52px", fitMin: 46, align: "center" },
+      { key: "no", label: "번호", width: "62px", fitMin: 56, align: "center" },
       /* 엑셀 4열(숨김) `system.filename:{권}-{번호}.pdf` 자리 — 우리는 검색어 버튼으로 쓴다 */
       { key: "scan", label: "스캔", width: "84px", fitMin: 68, align: "center", hidden: true,
         formatter: (v) => (v === "OK"
           ? '<button class="ecm" data-row-act="ecm" title="문서중앙화 검색어 복사">검색어</button>'
           : '<span class="pill a">누락</span>'),
         exportValue: (v) => (v === "OK" ? "OK" : "누락") },
-      { key: "date", label: "일 자", width: "86px", fitMin: 76, align: "center",
+      { key: "date", label: "일 자", width: "90px", fitMin: 88, align: "center",
         formatter: dateCell, exportValue: (v, r) => (v || r.dateRaw) },
-      { key: "by", label: "기안자", width: "70px", fitMin: 62 },
+      { key: "by", label: "기안자", width: "76px", fitMin: 72 },
       { key: "job", label: "생산번호", width: "118px", fitMin: 82, formatter: cut },
-      { key: "project", label: "프로젝트", width: "300px", fitMin: 120, formatter: cut },
-      { key: "desc", label: "내 용", width: "160px", fitMin: 92, formatter: cut },
-      { key: "vendor", label: "업체명", width: "124px", fitMin: 84, formatter: cut },
-      { key: "amt", label: "금 액", width: "108px", fitMin: 84, align: "right",
+      { key: "project", label: "프로젝트", width: "300px", fitMin: 94, formatter: cut },
+      { key: "desc", label: "내 용", width: "160px", fitMin: 78, formatter: cut },
+      { key: "vendor", label: "업체명", width: "124px", fitMin: 78, formatter: cut },
+      { key: "amt", label: "금 액", width: "108px", fitMin: 92, align: "right",
         formatter: (v, r) => (r.amtTxt ? '<span title="문자 혼입 — 숫자 집계 불가">' + esc(r.amtTxt) + "</span>" : num(v)),
         exportValue: (v, r) => (r.amtTxt ? r.amtTxt : v) },
-      { key: "closed", label: "종결", width: "58px", fitMin: 52, align: "center",
+      { key: "closed", label: "종결", width: "62px", fitMin: 60, align: "center",
         formatter: (v) => '<span class="pill ' + (v === "Y" ? "g" : (v === "P" ? "a" : "r")) + '">'
           + ({ Y: "종결", N: "미결", P: "부분" }[v] || v) + "</span>" },
       /* 엑셀 13열(숨김) 비 고 — 811행에 값이 있다. 엑셀처럼 숨겨 두고 항목에서 켠다 */
