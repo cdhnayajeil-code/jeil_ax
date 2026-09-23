@@ -208,7 +208,7 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <p>[x] <strong>입고일 실측 전환 — <code>M_PUR_GOODS_MVMT</code> 신규 미러 + job 신설, 코드·정책 적용 완료(REQ-0080, 2026-09-23, 소급 등재)</strong> — 발주통합 LIST 입고일이 매입(송장) 날짜(<code>iv_dtl</code>+<code>iv_hdr.iv_dt</code>)였던 것을 실제 입고일(<code>MVMT_RCPT_DT</code>)로 전환. 신규 미러 <code>erp_ro.pur_goods_mvmt_s</code>(인덱스 2·RLS InitPlan·전용 upsert RPC), 뷰 <code>v_erp_pur_list</code> v4(<code>rcpt_last_dt</code>·<code>rcpt_first_dt</code>·<code>rcpt_cnt</code>·<code>rcpt_qty_sum</code> 추가, 기존 <code>iv_*</code> 매입일은 그대로 유지). 정본 SQL <code>이관/sql/71_erp_pur_goods_mvmt.sql</code>·<code>72_erp_pur_list_v4.sql</code>(+<code>_rollback</code>). ETL job <code>pur_goods_mvmt</code> 신설(<code>etl_run.py</code>), 러너 재빌드·전달 폴더 동기화 완료(18.0MB). 화면(<code>pages/구매_발주통합LIST_2026.html</code>)은 분할입고=마지막 날+N회, 기록 없는 건은 매입일+「매입」 꼬리표로 대체</p>
 </li>
 <li>[x] <strong><code>pur_goods_mvmt</code> 야간배치 첫 실행 실패 → RPC 인자 규약 핫픽스 완료(REQ-0080 핫픽스, 2026-09-23)</strong> — 2026-09-23 야간배치(성공 27/실패 1)에서 job 전용 RPC <code>erp_etl_upsert_pur_goods_mvmt</code>가 <code>(p_rows)</code> 단일 인자로 만들어져 있었는데 ETL은 공용과 같이 <code>(p_table, p_rows)</code> 2인자를 보내 <code>PGRST202</code>로 실패(ERP 추출 500행 자체는 성공). <code>(p_table text, p_rows jsonb)</code>로 재생성(엉뚱한 테이블명이면 22023 거부), 초판 drop, 삽입→재적재(upsert)→정리 스모크 통과. <strong>EXE 재빌드 불필요</strong>(ETL 코드는 처음부터 맞았음), 커밋 <code>96e52e2</code></li>
-<li>[ ] <strong><code>pur_goods_mvmt</code> 최초 <code>--full</code> 백필 — 관리자 실행 대기(REQ-0080, 2026-09-23)</strong> — 신규 테이블이라 증분만으로는 채워지지 않음. <code>jeil_runner.exe etl --job pur_goods_mvmt --full</code> 1회 필요. 현재 <code>erp_ro.pur_goods_mvmt_s</code> 0행(뷰는 정상 동작, 매입일 기준 표시 유지 중 — 전체 5,616·매입일 3,194·실입고일 0). 확인 쿼리: <code>select count(*), count(rcpt_dt) from erp_ro.pur_goods_mvmt_s;</code></li>
+<li>[x] <strong><code>pur_goods_mvmt</code> 전량(<code>--full</code>) 백필 — 완료(REQ-0080, 2026-09-23)</strong> — <code>etl_run.py --job pur_goods_mvmt --full</code> 로 <strong>2,933행 적재</strong>(발주 614건 · 입고일 2026-01-05~09-22 · 전건 입고수량 보유). 뷰 기준 <strong>실입고일 2,901행</strong>이 채워지고 463행만 매입일로 대체된다. <strong>둘 다 있는 2,739행 중 1,048행(38%)이 서로 다른 날짜</strong>였다 — 평균 8.7일, 최대 63일 차이. 즉 그동안 화면이 보여 주던 입고일의 38%가 실제 입고일이 아니었다.</li>
 </ul>
 <blockquote>
 <p>상세 실행 체크리스트는 <code>03_중간DB_구축실행기획 §7·§8</code>을 따른다(§7-C 내부 구축 항목 중 스키마·RLS·ETL 스크립트 작성 완료, RLS 격리 테스트 완료 반영).</p>
@@ -303,6 +303,12 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <td><strong>[소급 등재] 발주통합 LIST 입고일 — 매입(송장) 날짜에서 실제 입고일로 전환(REQ-0080)</strong> — 「입고일」이 물건이 들어온 날이 아니라 세금계산서가 끊긴 날(<code>iv_dtl</code>+<code>iv_hdr.iv_dt</code>)이던 문제를 원천 <code>M_PUR_GOODS_MVMT.MVMT_RCPT_DT</code>로 교체. 같은 행의 <code>PO_NO</code>+<code>PO_SEQ_NO</code>가 발주 라인과 직결돼 요청→발주→입출고가 한 줄로 이어진다.</td>
 <td>신규 미러 <code>erp_ro.pur_goods_mvmt_s</code>(정본 SQL <code>이관/sql/71</code>)·뷰 <code>v_erp_pur_list</code> v4(<code>72</code>, <code>rcpt_*</code> 4컬럼 추가, 기존 <code>iv_*</code> 유지)·ETL job <code>pur_goods_mvmt</code>(<code>etl_run.py</code>)·<code>jeil_runner.exe</code> 재빌드(18.0MB)+전달 폴더 동기화·화면(<code>pages/구매_발주통합LIST_2026.html</code>) 표기 전환. 커밋 <code>dd11280</code></td>
 <td>최동혁(+Claude)</td>
+</tr>
+<tr>
+<td>2026-09-23</td>
+<td><strong><code>pur_goods_mvmt</code> 전량 백필 실행 — 입고일 실측 전환 완결(REQ-0080)</strong> — 2,933행 적재(발주 614건). 뷰 실입고일 2,901행. 매입일과 <strong>둘 다 있는 2,739행 중 1,048행(38%)이 불일치</strong>(평균 8.7일·최대 63일) — 그동안 입고일의 38%가 실제 입고일이 아니었다는 뜻이다. 관리자 지시로 실행.</td>
+<td></td>
+<td></td>
 </tr>
 <tr>
 <td>2026-09-23</td>

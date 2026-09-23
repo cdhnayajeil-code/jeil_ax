@@ -863,9 +863,9 @@ ERP(UNIERP) DB와 AI 포털·사내 타부서 간 연계의 <strong>현황 대�
 <td>최동혁(관리자)</td>
 </tr>
 <tr>
-<td><strong><code>pur_goods_mvmt</code> 최초 <code>--full</code> 백필 1회 필요(REQ-0080, 2026-09-23)</strong></td>
-<td>신규 미러 <code>erp_ro.pur_goods_mvmt_s</code>는 증분 조건(<code>UPDT_DT &gt;= watermark</code>)만으로는 기존 5,616행이 채워지지 않는다(2026-09-23 야간배치는 핫픽스 전이라 애초 실패). <code>jeil_runner.exe etl --job pur_goods_mvmt --full</code> 1회 실행 필요(서버 EXE가 이미 최신 전달본이면 재교체는 불필요). 확인 쿼리: <code>select count(*), count(rcpt_dt) from erp_ro.pur_goods_mvmt_s;</code></td>
-<td>최동혁(관리자)</td>
+<td>~~<strong><code>pur_goods_mvmt</code> 최초 <code>--full</code> 백필 1회 필요(REQ-0080, 2026-09-23)</strong>~~ <strong>→ 해소(2026-09-23, 관리자 지시로 실행)</strong></td>
+<td><strong>2,933행 적재 완료</strong>(발주 614건 · 2026-01-05~09-22). 뷰 실입고일 2,901행 · 매입 대체 463행. 매입일과 둘 다 있는 2,739행 중 <strong>1,048행(38%)이 불일치</strong>(평균 8.7일·최대 63일) — 전환의 효과가 수치로 확인됐다.</td>
+<td></td>
 </tr>
 <tr>
 <td>~~<strong><code>erp_ro</code> RLS InitPlan 성능 함정 — 잔여 8종 미적용(REQ-0040, 2026-09-22)</strong>~~ <strong>→ 해소(2026-09-22, 관리자 지시로 즉시 적용, 커밋 <code>f0954e8</code>)</strong></td>
