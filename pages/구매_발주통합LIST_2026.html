@@ -307,7 +307,6 @@
 
 <script type="module">
   import { erpApi } from "/app/lib/api.js";
-  import { supabase } from "/app/lib/supabaseClient.js";
   import { createQueryBar } from "/app/lib/querybar.js";
   import { createGrid } from "/app/lib/grid.js";
 
@@ -902,63 +901,18 @@
     else if (e.key === "ArrowDown") { e.preventDefault(); stepDetail(1); }
   });
 
-  /* ── 사내(internal) 세션 게이트 ─────────────────────────────────────
-     `/pages/_access-gate.js` 는 **Entra 토큰만** 본다. 데이터는 Supabase 로 읽으므로
-     Supabase 세션이 없으면 게이트는 통과시켜 놓고 조회만 `anon` 으로 나가고,
-     `erp_ro` 에는 anon 권한이 없어 **permission denied for table pur_order_s** 로 떨어진다
-     (2026-09-23 구매팀 신규 사용자 실제 발생 — 화면은 떴는데 표만 빨간 오류).
-     그래서 화면이 세션을 직접 확인한다. 자금현황·ERP권한 화면과 같은 패턴. */
-  function claimsOf(session) {
-    if (!session || !session.access_token) return {};
-    try {
-      let p = session.access_token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/");
-      while (p.length % 4) p += "=";
-      return JSON.parse(decodeURIComponent(atob(p).split("").map((c) => "%" + c.charCodeAt(0).toString(16).padStart(2, "0")).join(""))).app_metadata || {};
-    } catch (e) { return {}; }
-  }
-  function autoSSO() {
-    const u = new URL(location.href); u.searchParams.set("sso", "1");
-    supabase.auth.signInWithOAuth({ provider: "azure", options: { scopes: "openid email profile", redirectTo: u.toString() } });
-  }
-  function sessionGate(icon, title, msg, btn) {
-    document.querySelector(".panel").hidden = true;
-    document.querySelector(".toolbar").hidden = true;
-    $("qbar").hidden = true;
-    $("pendNote").hidden = true;
-    $("listGrid").innerHTML = '<div class="notice" style="text-align:center; padding:34px 20px;">'
-      + '<div style="font-size:40px; line-height:1;">' + icon + "</div>"
-      + '<h2 style="font-size:17px; color:var(--navy); margin:12px 0 6px;">' + esc(title) + "</h2>"
-      + '<p style="margin:0 0 18px;">' + msg + "</p>"
-      + (btn ? '<button class="btn go" id="gsso">' + esc(btn) + "</button>" : "") + "</div>";
-    const b = $("gsso");
-    if (b) b.onclick = async () => { try { await supabase.auth.signOut(); } catch (e) {} autoSSO(); };
-  }
-
   /* ── 기동 ── */
   loadPref();                // 열 폭·화면맞춤·표시행수는 지난번 그대로
   $("selShow").value = String(SHOW);
   syncFitBtn();
   renderPendNote();          // 첫 조회 전에도 무엇이 비어 있는지 먼저 알린다
   writeCond(condFromUrl() || {});
-  boot();
-
-  async function boot() {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) {
-      // 한 번은 조용히 SSO 를 시도한다(이미 Entra 에 로그인돼 있으면 왕복이 안 보인다).
-      // 돌아왔는데도 세션이 없으면(?sso=1) 무한 왕복 대신 버튼을 보여 준다.
-      if (!new URLSearchParams(location.search).get("sso")) { autoSSO(); return; }
-      return sessionGate("🔐", "사내 로그인이 필요합니다",
-        "발주통합관리 LIST 는 사내(@jeilm.co.kr) 계정으로 로그인해야 볼 수 있습니다.", "사내 계정으로 로그인");
-    }
-    if (claimsOf(session).role !== "internal") {
-      return sessionGate("🔒", "사내 전용 화면",
-        "현재 협력사(또는 권한 없는) 계정으로 로그인되어 있어 표시할 수 없습니다.", "사내 계정으로 다시 로그인");
-    }
-    /* 조건이 정해진 뒤, 조회가 나가기 **전에** 저장본을 먼저 그린다 — 화면이 비어 있는 시간을 없앤다 */
-    paintCached(readCond());
-    startBar();
-  }
+  /* 사내 세션 확인은 **공용 게이트가 맡는다**(`/pages/_access-gate.js` §②).
+     화면이 같은 확인을 또 하면 게이트와 동시에 `signInWithOAuth` 가 불려
+     PKCE verifier 가 서로 덮어써지고 로그인이 깨진다 — 한 곳에서만 한다. */
+  /* 조건이 정해진 뒤, 조회가 나가기 **전에** 저장본을 먼저 그린다 — 화면이 비어 있는 시간을 없앤다 */
+  paintCached(readCond());
+  startBar();
 
   let ASOF_DONE = false;
   function startBar() {
