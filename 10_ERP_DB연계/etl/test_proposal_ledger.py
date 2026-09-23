@@ -122,5 +122,33 @@ class WiringTest(unittest.TestCase):
         self.assertIsInstance(caps["proposal_ledger"], bool)
 
 
+class ConfigTest(unittest.TestCase):
+    """설정 창(runner_ui)이 이 작업의 파라미터를 읽고 쓰는가 — 창을 띄우지 않고 표만 본다."""
+
+    def test_저장_분기가_있다(self):
+        """분기가 없으면 창에서 [저장] 할 때 params 가 {} 로 날아간다(대장 경로 유실)."""
+        import inspect, runner_ui
+        src = inspect.getsource(runner_ui.JobsTab.collect) if hasattr(runner_ui, "JobsTab")             else inspect.getsource(runner_ui)
+        self.assertIn('r["kind"] == "proposal_ledger"', src)
+        for key in ("file", "scan", "dry_run", "append"):
+            self.assertIn('"%s"' % key, src, "저장 시 %s 파라미터를 읽어야 한다" % key)
+
+    def test_파일이_없으면_설정_경고가_뜬다(self):
+        job = {"id": "proposal_ledger", "kind": "proposal_ledger", "params": {}}
+        warns = core.param_warnings(job, {"supabase": True, "proposal_ledger": False})
+        self.assertTrue(any("PROPOSAL_LEDGER_XLSX" in w for w in warns),
+                        "대장 파일이 안 보이는 호스트면 사유를 보여줘야 한다")
+
+    def test_경로를_직접_준_경우엔_경고하지_않는다(self):
+        job = {"id": "proposal_ledger", "kind": "proposal_ledger", "params": {"file": "D:/x.xlsx"}}
+        warns = core.param_warnings(job, {"supabase": True, "proposal_ledger": False})
+        self.assertFalse(any("PROPOSAL_LEDGER_XLSX" in w for w in warns))
+
+    def test_supabase_접속정보가_없으면_경고한다(self):
+        job = {"id": "proposal_ledger", "kind": "proposal_ledger", "params": {"file": "D:/x.xlsx"}}
+        warns = core.param_warnings(job, {"supabase": False, "proposal_ledger": True})
+        self.assertTrue(any("Supabase" in w for w in warns))
+
+
 if __name__ == "__main__":
     unittest.main()

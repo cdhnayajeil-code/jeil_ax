@@ -626,6 +626,22 @@ class SettingsPanel:
                 "·".join(n for n in core.COLLECTOR_NAMES if caps.get(n)) or "불가",
                 "가능" if caps.get("offboard") else "불가(브라우저·그룹웨어 접속정보 없음 — 퇴사 큐를 보지 않음)")
             ttk.Label(p, text=can, foreground="#5b6470").grid(row=2, column=0, columnspan=8, sticky="w", pady=(4, 0))
+        elif kind == "proposal_ledger":
+            # 대장 경로는 보통 .env(PROPOSAL_LEDGER_XLSX)에 둔다. 여기 칸은 그 호스트에서만
+            # 다른 파일을 쓸 때의 예외용 — 비워 두면 .env 값을 쓴다.
+            ttk.Label(p, text="대장 파일(비우면 .env)").grid(row=1, column=0, sticky="w")
+            r["file"] = tk.StringVar(value=str(params.get("file") or ""))
+            ttk.Entry(p, textvariable=r["file"], width=52).grid(row=1, column=1, columnspan=3, sticky="w", padx=(4, 12))
+            ttk.Label(p, text="스캔 대사 CSV(선택)").grid(row=2, column=0, sticky="w")
+            r["scan"] = tk.StringVar(value=str(params.get("scan") or ""))
+            ttk.Entry(p, textvariable=r["scan"], width=52).grid(row=2, column=1, columnspan=3, sticky="w", padx=(4, 12))
+            r["dry_run"] = tk.BooleanVar(value=bool(params.get("dry_run", False)))
+            ttk.Checkbutton(p, text="리허설(dry-run · 읽기만, 적재 안 함)", variable=r["dry_run"]).grid(row=3, column=1, sticky="w", padx=(4, 0))
+            r["append"] = tk.BooleanVar(value=bool(params.get("append", False)))
+            ttk.Checkbutton(p, text="전량 교체하지 않음(덮어쓰기만)", variable=r["append"]).grid(row=3, column=2, sticky="w")
+            seen = "보임" if caps.get("proposal_ledger") else "안 보임 — .env 의 PROPOSAL_LEDGER_XLSX 를 확인하세요"
+            ttk.Label(p, text="이 호스트에서 대장 파일: " + seen, foreground="#5b6470").grid(
+                row=4, column=0, columnspan=8, sticky="w", pady=(4, 0))
         elif kind == "etl_batch":
             ttk.Label(p, text="대상 job (선택 없음 = 전체)").grid(row=1, column=0, sticky="nw")
             lb = tk.Listbox(p, selectmode="multiple", height=6, width=24, exportselection=False)
@@ -674,6 +690,9 @@ class SettingsPanel:
                 params = {"jobs": [lb.get(i) for i in lb.curselection()],
                           "include_sensitive": r["include_sensitive"].get(), "full": r["full"].get(),
                           "dry_run": r["dry_run"].get()}
+            elif r["kind"] == "proposal_ledger":
+                params = {"file": r["file"].get().strip(), "scan": r["scan"].get().strip(),
+                          "dry_run": r["dry_run"].get(), "append": r["append"].get()}
             elif r["kind"] == "noop":
                 st = self.engine.jobs.get(r["id_var"].get())
                 params = dict((st.cfg.get("params") if st else {}) or {})

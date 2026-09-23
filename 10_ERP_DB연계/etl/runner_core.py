@@ -603,8 +603,11 @@ def param_warnings(job, caps):
     raw = job.get("params") or {}
     out = []
     kind = job["kind"]
-    if kind in ("relay_queue", "etl_sync", "etl_batch") and not caps.get("supabase"):
+    if kind in ("relay_queue", "etl_sync", "etl_batch", "proposal_ledger") and not caps.get("supabase"):
         out.append(".env 에 Supabase 접속정보가 없어(또는 읽을 수 없어) 실패합니다")
+    if kind == "proposal_ledger" and not (raw.get("file") or caps.get("proposal_ledger")):
+        out.append("이 호스트에서 대장 파일을 찾을 수 없습니다 — .env 의 PROPOSAL_LEDGER_XLSX 를 넣거나 "
+                   "「대장 파일」 칸에 경로를 적으세요(대장이 동기화된 PC 에서만 켭니다)")
     if kind == "etl_sync":
         if raw.get("offboard") in (True, "on") and not caps.get("offboard"):
             out.append("퇴사 처리 「포함」이지만 이 호스트는 불가(브라우저·그룹웨어 접속정보 없음) — 큐를 보지 않습니다")
