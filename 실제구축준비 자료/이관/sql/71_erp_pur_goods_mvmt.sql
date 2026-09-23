@@ -59,7 +59,12 @@ create policy internal_select_pur_goods_mvmt on erp_ro.pur_goods_mvmt_s
 -- 거기에 가지를 더하려면 **19개 job 이 함께 쓰는 함수를 통째로 다시 써야** 하고, 그 과정에서
 -- 다른 가지를 건드릴 위험이 있다. 그래서 이 job 은 **전용 RPC** 를 둔다 —
 -- `pur_order`(REQ-0070)가 컬럼이 늘었을 때 택한 방식과 같다.
-create or replace function public.erp_etl_upsert_pur_goods_mvmt(p_rows jsonb)
+--
+-- ⚠ 인자는 **반드시 `(p_table text, p_rows jsonb)`** 다. 전용 RPC 라도 ETL 은 공용과 똑같이
+--   두 인자를 보낸다. `p_rows` 하나로 만들었다가 적재가 PGRST202(함수 없음)로 통째로 실패했다
+--   (2026-09-23 실측 — ERP 추출은 성공해 500행을 읽고도 밀어넣기에서 떨어졌다).
+--   p_table 은 쓰지 않지만 자리를 지키고, 엉뚱한 테이블명이 오면 막는다.
+create or replace function public.erp_etl_upsert_pur_goods_mvmt(p_table text, p_rows jsonb)
 returns integer
 language plpgsql
 security definer
@@ -67,6 +72,11 @@ set search_path to ''
 as $$
 declare n integer := 0;
 begin
+  if p_table is distinct from 'pur_goods_mvmt_s' then
+    raise exception 'erp_etl_upsert_pur_goods_mvmt: 이 RPC 는 pur_goods_mvmt_s 전용입니다 (받은 값: %)', p_table
+      using errcode = '22023';
+  end if;
+
   insert into erp_ro.pur_goods_mvmt_s (
     mvmt_no, po_no, po_seq_no, item_code, io_type_cd,
     mvmt_dt, rcpt_dt, rcpt_qty, rcpt_sl_cd, mvmt_qty, inspect_req_no,
@@ -92,11 +102,14 @@ begin
   return n;
 end $$;
 
-revoke all on function public.erp_etl_upsert_pur_goods_mvmt(jsonb) from public, anon, authenticated;
-grant execute on function public.erp_etl_upsert_pur_goods_mvmt(jsonb) to service_role;
+revoke all on function public.erp_etl_upsert_pur_goods_mvmt(text, jsonb) from public, anon, authenticated;
+grant execute on function public.erp_etl_upsert_pur_goods_mvmt(text, jsonb) to service_role;
 
 -- ── 적용 후 확인 ──
--- select count(*) from erp_ro.pur_goods_mvmt_s;                       -- 적재 전 0
+-- select count(*), count(rcpt_dt) from erp_ro.pur_goods_mvmt_s;       -- 적재 전 0
+-- select p.proname, pg_get_function_identity_arguments(p.oid) from pg_proc p
+--   join pg_namespace n on n.oid=p.pronamespace
+--  where n.nspname='public' and p.proname like 'erp_etl_upsert_pur%';  -- 셋 다 (p_table, p_rows) 인지
 -- select tablename, policyname, qual from pg_policies
 --  where schemaname='erp_ro' and tablename='pur_goods_mvmt_s';        -- (select is_internal()) 모양인지
 -- select grantee, privilege_type from information_schema.role_table_grants

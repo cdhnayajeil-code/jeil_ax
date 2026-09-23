@@ -6,7 +6,8 @@
 --
 -- 적재된 행도 함께 사라진다. 다시 채우려면 ETL `--job pur_goods_mvmt --full` 을 돌린다.
 
-drop function if exists public.erp_etl_upsert_pur_goods_mvmt(jsonb);
+drop function if exists public.erp_etl_upsert_pur_goods_mvmt(text, jsonb);
+drop function if exists public.erp_etl_upsert_pur_goods_mvmt(jsonb);   -- 초판(인자 1개) 잔재
 
 drop policy if exists internal_select_pur_goods_mvmt on erp_ro.pur_goods_mvmt_s;
 
