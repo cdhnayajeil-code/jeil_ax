@@ -1,4 +1,6 @@
 -- 70_pur_proposal_recon.sql
+-- 2026-09-23 갱신(REQ-0082): 계산서 축을 **부가세 원장**(erp_ro.vat_s · SQL 71)으로 올렸다.
+--   관리항목(V1/V8)은 원장에 없는 전표의 대체 경로로 남는다. 응답에 'src' 와 국세청 'nts' 가 추가됐다.
 -- 구매 기안서 대장 ↔ ERP 전표·세금계산서 대사 (2026-09-23 · REQ-0081 · 결정 C-15)
 --
 -- 배경: 대장(`public.pur_proposal`)에는 구매팀이 손으로 적은 전표번호가 있다(`TG…` 결의전표 · `IV…` 매입).
@@ -380,28 +382,61 @@ begin
               from erp_ro.gl_slip_item_s i
               left join erp_ro.acct_master_s a on a.acct_cd = i.acct_cd
              where i.temp_gl_no = p.slip_no)                                    as lines,
-           (select jsonb_agg(x.o order by x.item_seq) from (
-              select c.item_seq, jsonb_build_object(
-                       'seq', c.item_seq,
-                       'dt',      max(c.ctrl_val) filter (where c.ctrl_cd = 'V2'),
-                       'type',    max(c.ctrl_val) filter (where c.ctrl_cd = 'V4'),
-                       'type_nm', (select r.ref_nm from erp_ro.ctrl_ref_s r
-                                    where r.ctrl_cd = 'V4'
-                                      and r.ref_cd = max(c.ctrl_val) filter (where c.ctrl_cd = 'V4')),
-                       'elec',    max(c.ctrl_val) filter (where c.ctrl_cd = 'V11'),
-                       'tax_area',max(c.ctrl_val) filter (where c.ctrl_cd = 'V5'),
-                       'bp',      max(c.ctrl_val) filter (where c.ctrl_cd = 'V6'),
-                       'supply',  sum(nullif(replace(coalesce(c.ctrl_val,''), ',', ''), '')::numeric)
-                                    filter (where c.ctrl_cd = 'V1'),
-                       'vat',     sum(nullif(replace(coalesce(c.ctrl_val,''), ',', ''), '')::numeric)
-                                    filter (where c.ctrl_cd = 'V8')) as o
-                from erp_ro.gl_slip_ctrl_s c
-               where c.temp_gl_no = p.slip_no
-                 and c.ctrl_cd in ('V1','V2','V4','V5','V6','V8','V11')
-               group by c.item_seq
-               having sum(nullif(replace(coalesce(c.ctrl_val,''), ',', ''), '')::numeric)
-                        filter (where c.ctrl_cd = 'V1') is not null
-                   or max(c.ctrl_val) filter (where c.ctrl_cd = 'V2') is not null) x) as invoices,
+           -- 세금계산서 — ① 부가세 원장(A_VAT 미러 · SQL 71)이 정본이다. 전표번호를 컬럼으로 들고 있어
+           --   추정이 없고, 금액도 ERP자료대사(CM903M2) 화면과 오차 0 으로 맞는다(2026-09-23 실측).
+           --   국세청(e세로) 승인번호·발급일은 A_VAT 에 없어 「구분+작성일+상대 사업자번호+공급가액」 4축으로 잇는다
+           --   (기안이 참조한 전표 478칸 전부 승인번호 확보 — 실측).
+           -- ② 원장에 없으면(조회연도 밖 등) 전표 관리항목(V1/V2/V4/V8/V11)으로 되돌아간다.
+           coalesce(
+             (select jsonb_agg(z.o order by z.dt, z.vat_no) from (
+                select v.issued_dt as dt, v.vat_no, jsonb_build_object(
+                         'src', 'vat', 'vat_no', v.vat_no, 'seq', v.temp_item_seq,
+                         'dt', v.issued_dt, 'type', v.vat_type,
+                         'type_nm', (select r.ref_nm from erp_ro.ctrl_ref_s r
+                                      where r.ctrl_cd = 'V4' and r.ref_cd = v.vat_type),
+                         'tax_area', v.report_biz_area_cd, 'tax_area_nm', v.report_biz_area_nm,
+                         'bp', v.bp_cd, 'bp_rgst', v.bp_rgst_no,
+                         'supply', v.net_loc_amt, 'vat', v.vat_loc_amt,
+                         'conf', v.conf_fg, 'gl_no', v.gl_no, 'io_fg', v.io_fg,
+                         'nts', case when e.etax_id is null then null else jsonb_build_object(
+                                  'aprv_no', e.aprv_no, 'write_date', e.write_date,
+                                  'issue_date', e.issue_date, 'transfer_date', e.transfer_date,
+                                  'kind', e.etax_kind, 'etax_type', e.etax_type,
+                                  'issue_type', e.issue_type, 'sup_nm', e.sup_comp_nm,
+                                  'item_nm', e.item_nm, 'supply', e.sup_amt, 'vat', e.vat_amt) end) as o
+                  from erp_ro.vat_s v
+                  left join lateral (
+                    select e2.* from erp_ro.etax_master_s e2
+                     where e2.sapu_type = v.io_fg
+                       and e2.write_date = v.issued_dt
+                       and coalesce(e2.sup_amt, 0) = coalesce(v.net_loc_amt, 0)
+                       and (case when v.io_fg = 'I' then e2.sup_busi_no else e2.buy_busi_no end)
+                           = v.bp_rgst_no
+                     limit 1) e on true
+                 where v.temp_gl_no = p.slip_no) z),
+             (select jsonb_agg(x.o order by x.item_seq) from (
+                select c.item_seq, jsonb_build_object(
+                         'src', 'ctrl', 'seq', c.item_seq,
+                         'dt',      max(c.ctrl_val) filter (where c.ctrl_cd = 'V2'),
+                         'type',    max(c.ctrl_val) filter (where c.ctrl_cd = 'V4'),
+                         'type_nm', (select r.ref_nm from erp_ro.ctrl_ref_s r
+                                      where r.ctrl_cd = 'V4'
+                                        and r.ref_cd = max(c.ctrl_val) filter (where c.ctrl_cd = 'V4')),
+                         'elec',    max(c.ctrl_val) filter (where c.ctrl_cd = 'V11'),
+                         'tax_area',max(c.ctrl_val) filter (where c.ctrl_cd = 'V5'),
+                         'bp',      max(c.ctrl_val) filter (where c.ctrl_cd = 'V6'),
+                         'supply',  sum(nullif(replace(coalesce(c.ctrl_val,''), ',', ''), '')::numeric)
+                                      filter (where c.ctrl_cd = 'V1'),
+                         'vat',     sum(nullif(replace(coalesce(c.ctrl_val,''), ',', ''), '')::numeric)
+                                      filter (where c.ctrl_cd = 'V8')) as o
+                  from erp_ro.gl_slip_ctrl_s c
+                 where c.temp_gl_no = p.slip_no
+                   and c.ctrl_cd in ('V1','V2','V4','V5','V6','V8','V11')
+                 group by c.item_seq
+                 having sum(nullif(replace(coalesce(c.ctrl_val,''), ',', ''), '')::numeric)
+                          filter (where c.ctrl_cd = 'V1') is not null
+                     or max(c.ctrl_val) filter (where c.ctrl_cd = 'V2') is not null) x)
+           )                                                                    as invoices,
            (select jsonb_agg(jsonb_build_object(
                      'seq', d.iv_seq_no, 'item_code', d.item_code, 'item_name', d.item_name,
                      'qty', d.iv_qty, 'price', d.iv_prc, 'amt', d.iv_loc_amt,

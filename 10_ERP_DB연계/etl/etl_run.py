@@ -721,6 +721,94 @@ JOBS = {
         "params": ["year_start", "year_end"],
         "incr_sql": " AND h.UPDT_DT >= ?",
     },
+    # ⑭ 국세청(e세로) 전자세금계산서 ← A_TS_ETAX_MASTER (TARGET_YEAR 작성일 기준)
+    #    ERP 메뉴 「전자금융CMS > 홈택스(Vat) > 전자세금계산서조회/ERP자료대사(CM903M1·M2)」의 **e세로 축**.
+    #    ERP 저장프로시저 USP_CREATE_ETAX_REP 가 이 테이블을 집계한다 —
+    #    SAPU_TYPE(I 매입/O 매출) + BUY_BUSI_NO(우리 사업자번호) + WRITE_DATE(작성일) 3축으로
+    #    매수 COUNT(APRV_NO) · 금액 SUM(SUP_AMT/VAT_AMT/TOT_AMT). 2026-09-23 실측으로 화면 수치 완전 재현.
+    #    ⚠ 원시 수집표 A_SCR_WTESEROLISTTOTAL_GET 은 **품목(라인) 단위**라 헤더가 중복된다(집계하면 어긋남).
+    #      이 테이블이 문서 단위로 정리한 사본이고 APRV_NO↔APPROVAL_CODE 매칭률 100%(2026 매입 1,525/1,525).
+    #    ⚠ 보안: 대표자명(SUP_CEO_NAME·BUY_CEO_NAME)·이메일(SUP_EMAIL·BUY_EMAIL1·BUY_EMAIL2)·
+    #      주소(ADDR·ADDR1)는 의도적으로 SELECT 하지 않는다(§6 최소수집). 컬럼 추가 시 이 원칙을 지킬 것.
+    "etax_master": {
+        "table": "etax_master_s",
+        "rpc": "erp_vat_upsert",
+        "sql": """
+            SELECT m.ETAX_ID AS etax_id, NULLIF(RTRIM(m.SAPU_TYPE), '') AS sapu_type,
+                   CASE WHEN m.WRITE_DATE LIKE '[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]'
+                        THEN CONVERT(date, m.WRITE_DATE) END AS write_date,
+                   CASE WHEN m.ISSUE_DATE LIKE '[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]'
+                        THEN CONVERT(date, m.ISSUE_DATE) END AS issue_date,
+                   CASE WHEN m.TRANSFER_DATE LIKE '[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]'
+                        THEN CONVERT(date, m.TRANSFER_DATE) END AS transfer_date,
+                   NULLIF(RTRIM(m.APRV_NO), '') AS aprv_no,
+                   NULLIF(RTRIM(m.SUP_BUSI_NO), '') AS sup_busi_no, m.SUP_COMP_NAME AS sup_comp_nm,
+                   NULLIF(RTRIM(m.BUY_BUSI_NO), '') AS buy_busi_no, m.BUY_COMP_NAME AS buy_comp_nm,
+                   m.SUP_AMT AS sup_amt, m.VAT_AMT AS vat_amt, m.TOT_AMT AS tot_amt,
+                   NULLIF(RTRIM(m.ETAX_KIND), '') AS etax_kind,
+                   NULLIF(RTRIM(m.ETAX_TYPE), '') AS etax_type,
+                   NULLIF(RTRIM(m.ISSUE_TYPE), '') AS issue_type,
+                   NULLIF(RTRIM(m.SUP_SUB_BUSI_NO), '') AS sup_sub_busi_no,
+                   NULLIF(RTRIM(m.BUY_SUB_BUSI_NO), '') AS buy_sub_busi_no,
+                   CASE WHEN m.ITEM_DATE LIKE '[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]'
+                        THEN CONVERT(date, m.ITEM_DATE) END AS item_dt,
+                   m.ITEM_NAME AS item_nm, m.ITEM_SPEC AS item_spec, m.REMARK AS remark,
+                   m.UPDT_DT AS src_updated
+            FROM JEILMNS.dbo.A_TS_ETAX_MASTER m WITH (NOLOCK)
+            WHERE m.WRITE_DATE >= ? AND m.WRITE_DATE < ?
+        """,
+        "params": ["ymd_start", "ymd_end"],   # WRITE_DATE 가 nvarchar(8) — 날짜가 아니라 'YYYYMMDD' 문자열로 비교
+        "incr_sql": " AND m.UPDT_DT >= ?",
+    },
+    # ⑮ 부가세 계산서 원장 ← A_VAT (TARGET_YEAR 발행일 기준) — ERP자료대사의 **ERP 축**
+    #    ⭐ 이 테이블이 「세금계산서 ↔ 결의전표」를 직접 잇는다: TEMP_GL_NO·TEMP_ITEM_SEQ(결의전표)와
+    #      GL_NO·ITEM_SEQ(확정전표). 뷰 AV_A_VAT_ETAX 가 MGT_NO1 = GL_NO 있으면 GL_NO, 없으면 TEMP_GL_NO 로
+    #      노출하는 그 값이다. 전표 관리항목(V1/V8)으로 계산하면 매수는 맞고 금액이 0.09% 어긋났는데
+    #      (2026-09-23 실측) 이 원장이 오차 없는 정본이다.
+    #    ⚠⚠ **모집단은 A_VAT 전량이 아니다.** 뷰 AV_A_VAT_ETAX 가 B_TAX_BIZ_AREA·B_CONFIGURATION 에
+    #      INNER JOIN 하고 ISSUE_DT_FG='Y' 로 거른다 — 2026년 기준 원본 1,783 → 뷰 1,760(23건 차이).
+    #      원본만 긁으면 ERP 화면과 어긋나므로 **여기서 같은 조건을 그대로 복제**한다(2026-09-23 실측).
+    #    ⚠ `OWN_RGST_NO` 는 우리가 아니라 **거래처(상대방) 사업자번호**다(뷰 정의로 확인 —
+    #      매입이면 공급자, 매출이면 공급받는자). 우리 쪽(신고사업장) 번호는 B_TAX_BIZ_AREA 에서 가져온다.
+    #      둘 다 하이픈을 제거해 적재한다 — e세로 쪽(A_TS_ETAX_MASTER)이 하이픈 없는 10자리라 축을 맞춘다.
+    #    ⚠ 보안: 신용카드번호(CREDIT_CD)·현금영수증번호(CASH_NO)는 의도적으로 SELECT 하지 않는다
+    #      (§6 금융정보 최소수집). 컬럼 추가 시 이 원칙을 지킬 것.
+    "vat_ledger": {
+        "table": "vat_s",
+        "rpc": "erp_vat_upsert",
+        "sql": """
+            SELECT v.VAT_NO AS vat_no, CONVERT(date, v.ISSUED_DT) AS issued_dt,
+                   NULLIF(REPLACE(RTRIM(v.OWN_RGST_NO), '-', ''), '') AS bp_rgst_no,
+                   NULLIF(REPLACE(RTRIM(b.OWN_RGST_NO), '-', ''), '') AS report_rgst_no,
+                   NULLIF(RTRIM(v.REPORT_BIZ_AREA_CD), '') AS report_biz_area_cd,
+                   b.TAX_BIZ_AREA_FULL_NM AS report_biz_area_nm,
+                   NULLIF(RTRIM(v.BIZ_AREA_CD), '') AS biz_area_cd,
+                   NULLIF(RTRIM(v.BP_CD), '') AS bp_cd, NULLIF(RTRIM(v.ACCT_CD), '') AS acct_cd,
+                   NULLIF(RTRIM(v.REF_NO), '') AS ref_no, NULLIF(RTRIM(v.IO_FG), '') AS io_fg,
+                   NULLIF(RTRIM(v.VAT_TYPE), '') AS vat_type, v.VAT_RATE AS vat_rate,
+                   v.NET_LOC_AMT AS net_loc_amt, v.VAT_LOC_AMT AS vat_loc_amt,
+                   NULLIF(RTRIM(v.MADE_VAT_FG), '') AS made_vat_fg,
+                   NULLIF(RTRIM(v.CONF_FG), '') AS conf_fg,
+                   NULLIF(RTRIM(v.GL_NO), '') AS gl_no, v.ITEM_SEQ AS item_seq,
+                   NULLIF(RTRIM(v.TEMP_GL_NO), '') AS temp_gl_no, v.TEMP_ITEM_SEQ AS temp_item_seq,
+                   NULLIF(RTRIM(v.AR_NO), '') AS ar_no, NULLIF(RTRIM(v.AP_NO), '') AS ap_no,
+                   v.VAT_DESC AS vat_desc, NULLIF(RTRIM(v.MISS_FG), '') AS miss_fg,
+                   NULLIF(RTRIM(v.EXCLUSION_FG), '') AS exclusion_fg,
+                   NULLIF(RTRIM(v.INPUT_TAX_FG), '') AS input_tax_fg,
+                   NULLIF(RTRIM(v.ZEROTAX_TYPE), '') AS zerotax_type,
+                   v.UPDT_DT AS src_updated
+            FROM JEILMNS.dbo.A_VAT v WITH (NOLOCK)
+            JOIN JEILMNS.dbo.B_TAX_BIZ_AREA b WITH (NOLOCK)
+              ON b.TAX_BIZ_AREA_CD = v.REPORT_BIZ_AREA_CD
+            WHERE ISNULL(v.ISSUE_DT_FG, '') = 'Y'
+              AND EXISTS (SELECT 1 FROM JEILMNS.dbo.B_CONFIGURATION c WITH (NOLOCK)
+                           WHERE c.MINOR_CD = v.VAT_TYPE AND c.MAJOR_CD = 'B9001'
+                             AND c.SEQ_NO IN (3, 4) AND c.REFERENCE = 'Y')
+              AND v.ISSUED_DT >= ? AND v.ISSUED_DT < ?
+        """,
+        "params": ["year_start", "year_end"],
+        "incr_sql": " AND v.UPDT_DT >= ?",
+    },
     # ④ 거래처마스터 ← B_BIZ_PARTNER (전량, 연도 무관)
     # 협력사 계정발급(app/admin-vendors.html)·협력사 모바일 포털이 쓰는 public.vendor_master 의 원천.
     # ⚠ 보안: 대표자주민등록번호(REPRE_RGST_NO, REPRE_RGST_NO_PRVC)·은행계좌번호(BANK_ACCT_NO*)는
@@ -795,6 +883,10 @@ def param_value(name):
         return datetime.date(TARGET_YEAR, 1, 1)
     if name == "year_end":
         return datetime.date(TARGET_YEAR + 1, 1, 1)
+    if name == "ymd_start":           # nvarchar(8) 일자 컬럼용 문자열 필터(YYYYMMDD)
+        return f"{TARGET_YEAR}0101"
+    if name == "ymd_end":
+        return f"{TARGET_YEAR + 1}0101"
     if name == "ym_start":            # 급여 귀속월 문자열 필터(YYYYMM)
         return f"{TARGET_YEAR}01"
     if name == "ym_end":

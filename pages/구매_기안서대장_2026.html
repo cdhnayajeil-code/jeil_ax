@@ -105,6 +105,10 @@
   .dw .stg .lb{font-size:11.5px; color:var(--muted); padding-top:3px;}
   .dw .none{color:var(--muted); font-size:11.5px;}
   .dw .keys a{color:var(--accent); cursor:pointer; text-decoration:underline; margin-right:6px;}
+  .dw tr.nts td{background:#f8fafc; color:var(--muted); font-size:11.5px; line-height:1.55;
+                border-top:0; padding-top:3px;}
+  .dw tr.nts code{font-size:11.5px; color:var(--navy);}
+  .dw .lbl{display:inline-block; min-width:52px; color:#94a3b8;}
   .fitbtn{float:right; border:1px solid var(--line); background:#fff; border-radius:7px; font-size:11.5px;
           padding:3px 10px; cursor:pointer; color:var(--navy2); font-weight:600;}
   .fitbtn[aria-pressed="true"]{background:var(--navy); border-color:var(--navy); color:#fff;}
@@ -671,17 +675,38 @@
         + (String(st.tok || "").slice(2, 6) !== "2026" ? " — <b>조회연도 밖</b>(미러는 2026년만 적재)" : "")
         + ".</div>";
 
+    // 계산서는 두 출처가 있다. src="vat" = ERP 부가세 계산서 원장(A_VAT) — ERP자료대사(CM903M2) 화면과
+    // 같은 축이라 금액이 오차 없이 맞고, 국세청(e세로) 원본을 4축으로 이어 승인번호까지 보여준다.
+    // src="ctrl" = 전표 관리항목 — 원장에 없을 때(조회연도 밖 등)만 쓰는 대체 경로다.
     const invTbl = inv.length
-      ? "<table><tr><th class='c'>#</th><th>작성일</th><th>유형</th><th class='r'>공급가액</th>"
-        + "<th class='r'>부가세</th><th class='c'>전자</th><th class='c'>신고사업장</th></tr>"
-        + inv.map((v) => "<tr><td class='c'>" + dash(v.seq) + "</td><td>" + dash(v.dt) + "</td>"
-            + "<td>" + dash(v.type_nm || v.type) + "</td><td class='r'><b>" + money(v.supply) + "</b></td>"
-            + "<td class='r'>" + money(v.vat) + "</td>"
-            + "<td class='c'>" + (v.elec === "Y" ? '<span class="pill g">Y</span>' : dash(v.elec)) + "</td>"
-            + "<td class='c'>" + dash(v.tax_area) + "</td></tr>").join("")
+      ? "<table><tr><th>작성일</th><th>유형</th><th class='r'>공급가액</th>"
+        + "<th class='r'>부가세</th><th class='c'>신고사업장</th><th class='c'>국세청</th></tr>"
+        + inv.map((v) => {
+            const n = v.nts || null;
+            const mark = v.src !== "vat"
+              ? (v.elec === "Y" ? '<span class="pill b">전자</span>' : dash(v.elec))
+              : (n ? '<span class="pill g">대사됨</span>' : '<span class="pill n">원본 미확인</span>');
+            const main = "<tr><td>" + dash(v.dt) + "</td><td>" + dash(v.type_nm || v.type) + "</td>"
+              + "<td class='r'><b>" + money(v.supply) + "</b></td><td class='r'>" + money(v.vat) + "</td>"
+              + "<td class='c'>" + dash(v.tax_area_nm || v.tax_area) + "</td>"
+              + "<td class='c'>" + mark + "</td></tr>";
+            if (!n) return main;
+            return main + "<tr class='nts'><td colspan='6'>"
+              + '<span class="lbl">승인번호</span><code>' + dash(n.aprv_no) + "</code>"
+              + (n.issue_date ? " · 발급 " + dash(n.issue_date) : "")
+              + (n.transfer_date ? " · 전송 " + dash(n.transfer_date) : "")
+              + (n.kind ? " · " + dash(n.kind) : "") + (n.issue_type ? " · " + dash(n.issue_type) : "")
+              + (n.item_nm ? '<br><span class="lbl">품목</span>' + dash(String(n.item_nm).slice(0, 70)) : "")
+              + "</td></tr>";
+          }).join("")
         + "</table>"
-      : '<div class="none">이 전표에는 세금계산서 관리항목이 없습니다(계산서 없는 거래이거나 미기재).'
-        + ' <span class="none">국세청 승인번호·전송일은 전자세금계산서 원장 연동(2단계) 후에 표시됩니다.</span></div>';
+        + '<div class="sub" style="margin:6px 0 0;">'
+        + (inv[0] && inv[0].src === "vat"
+            ? "출처: ERP 부가세 계산서 원장 — ERP자료대사(CM903M2) 화면의 「ERP」 열과 같은 축이다."
+              + " 회색 줄은 국세청(e세로) 원본이다."
+            : "출처: 전표 관리항목 — 계산서 원장에서 못 찾은 전표다(조회연도 밖일 수 있다).")
+        + "</div>"
+      : '<div class="none">이 전표에 붙은 세금계산서가 없습니다(계산서 없는 거래이거나 미기재).</div>';
 
     const ivTbl = iv.length
       ? '<div class="sub" style="margin-top:8px;">매입 품목 ' + iv.length + "건</div><table>"
