@@ -404,3 +404,34 @@ create or replace function public.perm_effective(p_upn text)
 returns jsonb language sql stable security definer set search_path to 'public' as $$
   select public.perm_effective_v2(p_upn);
 $$;
+
+-- ⑧ 69b(2026-09-23 핫픽스) — 권한 화면이 「조직 정보를 불러오지 못했습니다 — permission denied for view v_hr_by_email」.
+--   Edge Function 은 service_role 로 v_perm_org_node 를 읽는데, 안쪽 erp_ro.v_dept_tree·v_dept_member·v_hr_by_email 이
+--   security_invoker 라 호출자(service_role) 권한으로 검사되고 service_role 에는 erp_ro 권한이 없다.
+--   적용 전 시험을 postgres 로만 돌려 못 잡았다 → **권한 경계 시험은 실제 호출 역할(set local role service_role)로 한다.**
+--   erp_ro 권한을 넓히지 않고, 본문을 SECURITY DEFINER 함수로 옮겨 뷰는 그 함수를 읽기만 한다.
+create or replace function public.perm_org_nodes()
+returns table (dept_cd text, dept_nm text, par_dept_cd text, lvl int, path_cd text[], path_nm text, sort_key text,
+               has_child boolean, org_change_id text, member_cnt int, hr_cnt int, is_cost boolean)
+language sql stable security definer set search_path = '' as $$
+  with t as (
+    select v.dept_cd, v.dept_nm, v.par_dept_cd, v.lvl, v.path_cd, v.path_nm, v.sort_key, v.has_child, v.org_change_id
+      from erp_ro.v_dept_tree v where v.is_current
+  ), m as (
+    select u.dept_nm, count(*)::int cnt from public.v_erp_user_dept u group by u.dept_nm
+  ), h as (
+    select d.dept_cd, count(*) filter (where d.hr_active)::int cnt from erp_ro.v_dept_member d where d.dept_cd is not null group by d.dept_cd
+  )
+  select t.dept_cd, t.dept_nm, t.par_dept_cd, t.lvl, t.path_cd, t.path_nm, t.sort_key, t.has_child, t.org_change_id,
+         coalesce(m.cnt, 0), coalesce(h.cnt, 0),
+         (t.lvl = 2 and not t.has_child and coalesce(m.cnt,0) = 0 and coalesce(h.cnt,0) = 0)
+    from t left join m on m.dept_nm = t.dept_nm left join h on btrim(h.dept_cd) = t.dept_cd;
+$$;
+revoke all on function public.perm_org_nodes() from public, anon, authenticated;
+grant execute on function public.perm_org_nodes() to service_role;
+
+create or replace view public.v_perm_org_node as
+  select dept_cd, dept_nm, par_dept_cd, lvl, path_cd, path_nm, sort_key, has_child, org_change_id, member_cnt, hr_cnt, is_cost
+    from public.perm_org_nodes();
+revoke all on public.v_perm_org_node from anon, authenticated;
+grant select on public.v_perm_org_node to service_role;

@@ -116,5 +116,6 @@ end $function$;
 -- drop table if exists public.dept_module_scope;
 -- drop function if exists public.dept_module_scope_guard();
 -- drop view if exists public.v_perm_org_node;
+-- drop function if exists public.perm_org_nodes();
 -- drop function if exists public.perm_dept_cd_of(text);
 -- alter table public.portal_page drop column if exists owner_dept_cd;
