@@ -1,5 +1,5 @@
 -- 70_pur_proposal_recon.sql
--- 구매 기안서 대장 ↔ ERP 전표·세금계산서 대사 (2026-09-23 · REQ-0079 · 결정 C-15)
+-- 구매 기안서 대장 ↔ ERP 전표·세금계산서 대사 (2026-09-23 · REQ-0081 · 결정 C-15)
 --
 -- 배경: 대장(`public.pur_proposal`)에는 구매팀이 손으로 적은 전표번호가 있다(`TG…` 결의전표 · `IV…` 매입).
 --       그 전표가 ERP 에 실제로 있는지, 금액이 맞는지, 세금계산서가 났는지는 화면에서 알 수 없었다.
@@ -22,6 +22,10 @@
 -- 적용 결과(전 944칸): 일치 575 · 합산/분할 295 · 확인필요 50 · 전표미발견 10 · 계산서없음 8 · 세액차 1 · 미기재 5
 --   → **연결률 98.4%**(944 중 929). 응답 149ms.
 --
+-- ⚠ 채번 정정 — 커밋 `9a70e4c` 메시지의 REQ-0079 는 오기다. 그 번호는 관리체계 단일파일 전달본 세션이,
+--   뒤이어 정정했던 REQ-0080 은 입고일 실입고 세션(`dd11280`·`96e52e2`)이 이미 쓰고 있었다.
+--   **최종 번호는 REQ-0081**. 푸시된 커밋 메시지는 고칠 수 없어 여기와 백로그에 기록을 남긴다.
+--
 -- 되돌리기: 70_pur_proposal_recon_rollback.sql
 
 -- ── 1. 업체 매핑 — 사람이 고른 것만 저장한다 ─────────────────────────────────
@@ -36,7 +40,7 @@ create table if not exists public.pur_proposal_vendor_map (
 );
 
 comment on table public.pur_proposal_vendor_map is
-  '기안서 대장 업체명 ↔ ERP 거래처(bp_cd) 수동 매핑 — 사람이 고른 것만. 자동 매칭은 v_pur_proposal_vendor 가 계산한다. REQ-0079';
+  '기안서 대장 업체명 ↔ ERP 거래처(bp_cd) 수동 매핑 — 사람이 고른 것만. 자동 매칭은 v_pur_proposal_vendor 가 계산한다. REQ-0081';
 
 alter table public.pur_proposal_vendor_map enable row level security;
 drop policy if exists internal_select_vendor_map on public.pur_proposal_vendor_map;

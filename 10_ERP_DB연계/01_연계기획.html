@@ -47,7 +47,7 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
   <div class="content">
 <h1 id="01-erp-db">01. ERP DB 연계 — 이후 기획 (통합 정리)</h1>
 <blockquote>
-<p><strong>기준일: 2026-07-03</strong>(2026-07-08 §4.4 P4 노출 계층, §4.5 사용자-부서 매핑, §4.6 부서별 ERP 모듈 제안값, §4.7 급여 민감권한·<code>erp_secure</code> 착수 → 같은 날 실적재 완료로 갱신 / 2026-07-20 §4.8 챗봇 권한체계 연결·포털 도구 권한구멍 차단 추가 / 2026-07-21 §4.9 연동 현황 뷰 10종 전체 노출·관리자 콘솔 반영 추가, §4.10 매입 상세(<code>iv_dtl</code>) 신규 연동·구매요청 상세 백필 실적재 완료 추가 / 2026-07-22 §4.11 협력사 거래처마스터(<code>vendor_master</code>) 재적재·정합화 + ERP 거래처마스터 원천 연동(<code>bp_master</code>) 스키마·ETL 준비 추가 / 2026-07-24 §4.11 <code>bp_master</code> 실적재 완료(적재버그 RCA·수정 포함)로 갱신 / 2026-09-07 §4.12 계정 통합관리·대사(REQ-0018, ERP 계정 정본+인사 HAA010T 서브) 신설·실적재 완료 추가 / 2026-09-23 §4.13 비ERP 원천(구매 기안서 대장, REQ-0077) 연동 패턴 신설 추가) · 관리: 최동혁
+<p><strong>기준일: 2026-07-03</strong>(2026-07-08 §4.4 P4 노출 계층, §4.5 사용자-부서 매핑, §4.6 부서별 ERP 모듈 제안값, §4.7 급여 민감권한·<code>erp_secure</code> 착수 → 같은 날 실적재 완료로 갱신 / 2026-07-20 §4.8 챗봇 권한체계 연결·포털 도구 권한구멍 차단 추가 / 2026-07-21 §4.9 연동 현황 뷰 10종 전체 노출·관리자 콘솔 반영 추가, §4.10 매입 상세(<code>iv_dtl</code>) 신규 연동·구매요청 상세 백필 실적재 완료 추가 / 2026-07-22 §4.11 협력사 거래처마스터(<code>vendor_master</code>) 재적재·정합화 + ERP 거래처마스터 원천 연동(<code>bp_master</code>) 스키마·ETL 준비 추가 / 2026-07-24 §4.11 <code>bp_master</code> 실적재 완료(적재버그 RCA·수정 포함)로 갱신 / 2026-09-07 §4.12 계정 통합관리·대사(REQ-0018, ERP 계정 정본+인사 HAA010T 서브) 신설·실적재 완료 추가 / 2026-09-23 §4.13 비ERP 원천(구매 기안서 대장, REQ-0077) 연동 패턴 신설 추가 / 2026-09-23 §4.14 기안서 대장 ↔ ERP 전표·전자세금계산서 대사(REQ-0081, 결정 C-15) 1단계 배포 추가) · 관리: 최동혁
 ERP 데이터 활용은 <strong>두 축</strong>으로 진행된다: <strong>A) 사내 타부서 데이터 개방</strong>(마스터플랜 v2.0)과 <strong>B) AI 포털·챗봇 연계</strong>(중간DB 연계설계). 본 문서는 두 기획을 하나의 그림으로 통합 정리한 것이다. 상세는 각 원본 문서를 따른다.</p>
 </blockquote>
 <hr />
@@ -291,6 +291,20 @@ etl_meta     — 배치 실행 로그·동기화 상태
 <li><strong>다음 단계 후보</strong>: 대장의 전표번호(<code>TG…</code>·<code>IV…</code>)를 ERP 결의전표/매입전표 미러(§4.5 이후 구축된 <code>gl_slip_s</code>·<code>iv_dtl_s</code>)와 대사하면, "대장에는 있는데 ERP엔 없는 건"을 자동으로 잡아낼 수 있다 — 이 경우 처음으로 <strong>비ERP 원장과 ERP 미러를 교차 대사</strong>하는 사례가 된다. 착수 여부는 결정 대기(<code>00_현재상태_스냅샷.md §6</code>).</li>
 <li>상세 진행은 <code>02_진행상태.md</code> §2 P3·§3, 결과 반영은 <code>00_현재상태_스냅샷.md §1·§4·§6·§7</code> 참조. 정본 SQL <code>실제구축준비 자료/이관/sql/68_pur_proposal_ledger.sql</code>(+<code>_rollback</code>).</li>
 </ul>
+<h3 id="414-erp-1-req-0081-c-15-2026-09-23">4.14 기안서 대장 ↔ ERP 전표·전자세금계산서 대사 — 1단계 배포(REQ-0081, 결정 C-15, 2026-09-23 신설)</h3>
+<p>§4.13에서 연동한 기안서 대장(엑셀 원장)이 §4.5 이후 구축된 <strong>ERP 전표 미러</strong>(결의전표 <code>gl_slip_s</code>/<code>gl_slip_item_s</code>/<code>gl_slip_ctrl_s</code>, C-10 통제)와 처음으로 교차 대사됐다 — §4.13이 예고했던 "다음 단계 후보"를 같은 날 바로 실행한 것이다. 대장은 구매팀이 손으로 적은 전표번호(<code>TG…</code>결의전표·<code>IV…</code>매입)를 갖고 있었지만, 그 전표가 ERP에 실제로 있는지·금액이 맞는지·세금계산서가 났는지는 화면에서 확인할 수 없었다.</p>
+<ul>
+<li><strong>추가 ETL은 없다</strong> — 이미 실적재된 결의전표 미러·매입 상세(<code>iv_dtl_s</code>)·거래처마스터(<code>bp_master_s</code>)·계정마스터(<code>acct_master_s</code>)·관리항목참조(<code>ctrl_ref_s</code>)만 읽는다. 이 점에서 §4.13이 말한 "비ERP 원장과 ERP 미러를 교차 대사하는 첫 사례"가 실현됐다.</li>
+<li><strong>설계를 바꾼 실측 넷</strong>: ①전표칸 한 칸에 전표가 여러 개(개행·슬래시·쉼표·화살표·탭, 944칸→977토큰) — 구분자를 열거하지 않고 토큰 패턴으로 추출(미파싱 0) ②<code>IV…</code>는 매입번호이고 그 매입의 결의전표는 <code>gl_slip_s.ref_no</code>로 붙는다(AP 전표 337건 전부, 저장소에 없던 사실) — 매입을 전표로 승격시켜 대사 축을 하나로 통일 ③<strong>거래처는 전표가 확정한다</strong>(대장 참조 전표 491종 중 490=99.8% 단일 거래처) — 업체명을 조인 키로 쓰면 오분류돼 경고 플래그로 강등 ④대사 축은 전표 총액이 아니라 <strong>세금계산서 공급가액(V1)</strong>(전표 총액 비교는 정확일치 0건, 한 전표에 여러 기안 공유 최대 10건).</li>
+<li><strong>결과(944칸)</strong>: 일치 575·합산분할 295·확인필요 50·전표없음 10·계산서없음 8·세액차 1·미기재 5 → <strong>연결률 98.4%</strong>. 목록 RPC 149ms.</li>
+<li><strong>구현</strong>: 정본 SQL <code>실제구축준비 자료/이관/sql/70_pur_proposal_recon.sql</code>(+<code>_rollback</code>) — 수동 거래처 매핑표 <code>pur_proposal_vendor_map</code>·자동 매칭 뷰 <code>v_pur_proposal_vendor</code>(132/138=95.7%)·건 상세 조회 감사로그 <code>pur_proposal_recon_log</code>(목록 조회는 기록하지 않음)·인덱스 4종·definer RPC 2종(<code>proposal_recon_list</code>·<code>proposal_recon_detail</code>). 화면은 <code>app/lib/api.js</code>의 <code>proposalRecon()</code>·<code>proposalReconDetail()</code>로 호출.</li>
+<li><strong>보안 — 결정 C-15</strong>: 결의전표 미러(<code>gl_slip_*</code>)는 service_role 전용 + 「본인 전표만」(C-10 통제②)으로 잠겨 있다. 이번엔 <strong>대장이 적은 전표번호로 지목된 전표만</strong> 읽기 전용으로 열었다 — <strong>전표 전문 검색·목록 조회는 열지 않는다.</strong> 노출 면적은 대장이 적은 499종뿐이고, 권한은 RPC 안에서 <code>is_internal()</code> + <code>perm_effective</code> 페이지 권한으로 재판정한다.</li>
+<li><strong>전자세금계산서 1단(완료)</strong>: 전표 관리항목 <code>V1</code>(공급가액)·<code>V2</code>(계산서일)·<code>V4</code>(유형, <code>ctrl_ref_s</code>로 코드명)·<code>V5</code>(신고사업장)·<code>V8</code>(부가세)·<code>V11</code>(전자발행 Y/N)을 활용 — 대장 참조 전표 440종 중 425(96.6%) 보유.</li>
+<li><strong>2단계(별건, 미착수)</strong>: ERP <code>A_TS_ETAX_MASTER</code>(13,201행·42컬럼 — <code>APRV_NO</code> 국세청 승인번호·<code>ISSUE_DATE</code>·<code>WRITE_DATE</code>·<code>SUP_BUSI_NO</code>·<code>SUP_AMT</code>·<code>VAT_AMT</code> 등)가 발견됐으나 <strong>전표에 직결되는 키가 원천에 없다</strong>(PK는 <code>ETAX_ID</code> GUID) — 사업자번호+작성일자+공급가액 복합키 추정이 필요해 <strong>표본 조사가 선행돼야 하고, 결과가 나오기 전에는 일정을 약속하지 않는다</strong>. 적재 시 이메일·주소·대표자명은 제외할 계획이다(<code>bp_master</code> 최소수집 선례). <code>A_GL</code>/<code>A_GL_ITEM</code>(전기된 정식 전표) 확장은 이번 대사에 필요 없었고 여전히 범위 밖이다(오히려 범위 제한을 유지할 근거가 됐다).</li>
+<li><strong>한계</strong>: 2024·2025년 전표 5건은 ETL <code>TARGET_YEAR=2026</code> 범위 밖이라 미러에 없어 화면은 「조회연도 밖」으로 표시하고, ETL 연도 확대는 하지 않았다(관리자 3경로 서버 배포 부담 대비 실익 없음, <code>CLAUDE.md §17.5</code>).</li>
+<li><strong>채번 정정</strong>: 배포 커밋 <code>9a70e4c</code> 메시지는 REQ-0079로 적혀 있으나 그 번호는 이미 다른 세션(관리체계 단일파일 전달본, 커밋 <code>d2f9b85</code>)이 먼저 썼다 — <strong>정정된 번호는 REQ-0081</strong>이다(백로그에 정정 기록, REQ-0073 때와 같은 처리). 같은 날 배포된 별건 핫픽스 <code>96e52e2</code>(<code>pur_goods_mvmt</code> 전용 RPC 인자 규약 정정)도 REQ-0081으로 표기돼 있으나 본 대사와 무관한 별개 작업이다.</li>
+<li>상세 진행은 <code>02_진행상태.md</code> §1·§2 P4·§3·§4, 결과 반영은 <code>00_현재상태_스냅샷.md §1·§4·§6·§7</code> 참조.</li>
+</ul>
 <h2 id="5">5. 단계별 로드맵 (통합)</h2>
 <table>
 <thead>
@@ -323,7 +337,7 @@ etl_meta     — 배치 실행 로그·동기화 상태
 </tr>
 <tr>
 <td><strong>P4</strong> 포털·챗봇 연결</td>
-<td><code>pages/</code> 실데이터 API 전환 + 챗봇 Tool 3종 + <code>tool_audit</code> — <strong>2026-07-08 착수·부분완료</strong>(§4.4: 노출 뷰 6종·RLS 격리 테스트·파일럿 화면 1건·챗봇 Tool 4종 / §4.5: 사용자-부서 매핑 계층 구축·실적재 완료 / §4.6: 부서별 ERP 모듈 제안값(참고) 신설·실적재 완료·관리자 콘솔 반영) → <strong>2026-07-20 챗봇 권한체계 연결</strong>(<code>get_my_access</code> 신설, 포털 도구 3종 권한구멍 차단, §4.8) → <strong>2026-07-21 연동 현황 뷰 10종 전체 노출 + 관리자 콘솔 반영</strong>(<code>v_erp_sync_overview</code> 5→10종, <code>jeil-chat-admin</code> v10, §4.9) → <strong>2026-07-22 협력사 거래처마스터(<code>vendor_master</code>) 재적재·정합화 + ERP 거래처마스터 원천 연동(<code>bp_master</code>) 스키마·ETL 준비</strong> → <strong>2026-07-24 <code>bp_master</code> 실적재 완료(적재버그 RCA·수정 포함)</strong>(§4.11)</td>
+<td><code>pages/</code> 실데이터 API 전환 + 챗봇 Tool 3종 + <code>tool_audit</code> — <strong>2026-07-08 착수·부분완료</strong>(§4.4: 노출 뷰 6종·RLS 격리 테스트·파일럿 화면 1건·챗봇 Tool 4종 / §4.5: 사용자-부서 매핑 계층 구축·실적재 완료 / §4.6: 부서별 ERP 모듈 제안값(참고) 신설·실적재 완료·관리자 콘솔 반영) → <strong>2026-07-20 챗봇 권한체계 연결</strong>(<code>get_my_access</code> 신설, 포털 도구 3종 권한구멍 차단, §4.8) → <strong>2026-07-21 연동 현황 뷰 10종 전체 노출 + 관리자 콘솔 반영</strong>(<code>v_erp_sync_overview</code> 5→10종, <code>jeil-chat-admin</code> v10, §4.9) → <strong>2026-07-22 협력사 거래처마스터(<code>vendor_master</code>) 재적재·정합화 + ERP 거래처마스터 원천 연동(<code>bp_master</code>) 스키마·ETL 준비</strong> → <strong>2026-07-24 <code>bp_master</code> 실적재 완료(적재버그 RCA·수정 포함)</strong>(§4.11) → <strong>2026-09-07 계정 통합관리·대사 구축·실적재 완료</strong>(REQ-0018, §4.12) → <strong>2026-09-23 비ERP 원천(구매 기안서 대장) 연동 패턴 신설·실연동</strong>(REQ-0077, §4.13) → <strong>2026-09-23 기안서 대장 ↔ ERP 전표·전자세금계산서 대사 1단계 배포</strong>(REQ-0081, 결정 C-15, §4.14)</td>
 <td>P3</td>
 </tr>
 <tr>
