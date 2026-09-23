@@ -91,13 +91,14 @@ class TestConfig(unittest.TestCase):
         for raw in ({"paused": False, "jobs": [{"id": "x", "kind": "nope"}]}, [], {"paused": False}, {"jobs": "x"}):
             cfg, warns = core.normalize_config(raw)
             self.assertTrue(cfg["paused"], raw)
-            self.assertEqual([j["id"] for j in cfg["jobs"]], ["relay_queue", "etl_sync", "etl_nightly"])
+            self.assertEqual([j["id"] for j in cfg["jobs"]],
+                             ["relay_queue", "etl_sync", "proposal_ledger", "etl_nightly"])
             self.assertFalse(any(j["enabled"] for j in cfg["jobs"]), "기본 작업은 꺼진 상태로")
         self.assertFalse(core.DEFAULT_JOBS[1]["params"]["allow_sensitive"], "급여 요청 처리는 기본 해제")
 
     def test_missing_default_jobs(self):
         got = core.missing_default_jobs({"jobs": [{"id": "relay_queue"}]})
-        self.assertEqual([j["id"] for j in got], ["etl_sync", "etl_nightly"])
+        self.assertEqual([j["id"] for j in got], ["etl_sync", "proposal_ledger", "etl_nightly"])
         self.assertFalse(any(j["enabled"] for j in got))
 
     def test_load_creates_file_and_roundtrip(self):

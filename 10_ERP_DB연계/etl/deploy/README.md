@@ -275,7 +275,7 @@ E:\ai.jeil\relay\
 ```
 E:\ai.jeil\relay\
 ├─ jeil_runner.exe       ← **통합 러너 — 서버에 두는 파일은 이것 하나**(약 18MB)
-│                          트레이 스케줄러 + 딸린 CLI(relay·sync·etl·offboard·mailbox)
+│                          트레이 스케줄러 + 딸린 CLI(relay·sync·etl·offboard·mailbox·roleseed·proposal)
 ├─ .env                  ← 공용. 키는 §2 와 같다
 ├─ runner_config.json    ← 연동 기준(창에서 저장). 첫 실행 때 자동 생성
 ├─ runner_history.jsonl  ← 실행 내역(append)

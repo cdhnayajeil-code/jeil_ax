@@ -35,7 +35,7 @@ import sys
 import threading
 import time
 
-RUNNER_VERSION = "r1.5"
+RUNNER_VERSION = "r1.6"
 CONFIG_NAME = "runner_config.json"
 HISTORY_NAME = "runner_history.jsonl"
 RUNNING_NAME = "runner_running.json"
@@ -67,6 +67,8 @@ JOB_KINDS = {
                     "desc": "화면 [데이터 업데이트] 요청을 집어 ERP→중간DB 적재 — etl_watch --once 와 동일(이 호스트가 할 수 있는 범위만)"},
     "etl_batch":   {"label": "ERP→중간DB 배치", "group": "etl", "timeout_min": 240,
                     "desc": "정해진 시각에 ERP job 전체(또는 선택) 적재 — etl_run"},
+    "proposal_ledger": {"label": "구매 기안서 대장 적재", "group": "etl", "timeout_min": 30,
+                    "desc": "구매팀 Teams 엑셀 대장을 읽어 중간DB(public.pur_proposal)에 전량 교체 적재 — proposal_ledger"},
     "noop":        {"label": "점검용 더미", "group": "test", "timeout_min": 10,
                     "desc": "아무것도 하지 않고 몇 줄 출력 — 러너 자체 점검용"},
 }
@@ -76,6 +78,7 @@ PARAM_KEYS = {
     "relay_queue": ("max",),
     "etl_sync": ("collectors", "offboard", "full", "allow_sensitive"),
     "etl_batch": ("jobs", "include_sensitive", "full", "dry_run"),
+    "proposal_ledger": ("file", "scan", "dry_run", "append"),
     "noop": ("lines", "sleep", "rc"),
 }
 
@@ -86,6 +89,10 @@ DEFAULT_JOBS = [
      "schedule": {"type": "interval", "seconds": 60},
      "params": {"collectors": "auto", "offboard": "auto", "full": False, "allow_sensitive": False},
      "keep_log": True, "timeout_min": 120},
+    {"id": "proposal_ledger", "kind": "proposal_ledger", "name": "구매 기안서 대장 적재", "enabled": False,
+     "schedule": {"type": "daily", "time": "07:30"},
+     "params": {"file": "", "scan": "", "dry_run": False, "append": False},
+     "keep_log": True, "timeout_min": 30},
     {"id": "etl_nightly", "kind": "etl_batch", "name": "ERP→중간DB 야간 전체 배치", "enabled": False,
      "schedule": {"type": "daily", "time": "02:00"},
      "params": {"jobs": [], "include_sensitive": False, "full": False, "dry_run": False},
@@ -485,6 +492,7 @@ def detect_capabilities(root):
     · ms_account: ENTRA_TENANT_ID/CLIENT_ID/CLIENT_SECRET (MS Graph 계정 수집)
     · gw_account: .env.local 의 GW_DB_* (그룹웨어 DB 계정 수집)
     · offboard  : playwright 모듈 + .env.local 의 GW_URL/GW_ID/GW_PW (퇴사 처리 — 브라우저 자동화)
+    · proposal_ledger: .env 의 PROPOSAL_LEDGER_XLSX 가 가리키는 대장 파일이 이 호스트에 있는가
     """
     env_path = os.path.join(root, ".env")
     env = _read_env_file(env_path)
@@ -506,6 +514,10 @@ def detect_capabilities(root):
         "gw_account": all(local.get(k) for k in ("GW_DB_HOST", "GW_DB_NAME", "GW_TABLE_ID", "GW_TABLE_PW", "GW_TABLE_NAME")),
         "offboard": playwright and all(local.get(k) for k in ("GW_URL", "GW_ID", "GW_PW")),
         "teams_webhook": has("TEAMS_WEBHOOK_URL"),
+        # 구매 기안서 대장(엑셀)이 이 호스트에서 보이는가 — Teams/OneDrive 동기 폴더가 있어야 한다.
+        # 경로는 .env 의 PROPOSAL_LEDGER_XLSX 이며 **값은 로그에 남기지 않는다**(§1.1).
+        "proposal_ledger": bool(os.path.exists(
+            (env.get("PROPOSAL_LEDGER_XLSX") or os.environ.get("PROPOSAL_LEDGER_XLSX") or "").strip().strip('"'))),
         "env_state": env_file_state(env_path),
     }
 

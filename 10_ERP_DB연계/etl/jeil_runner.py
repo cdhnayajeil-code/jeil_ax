@@ -56,6 +56,7 @@ CLI_TOOLS = {
     "offboard": ("offboard_axes",  "퇴사 처리 3축 점검·실행(기본 dry-run)"),
     "mailbox":  ("exo_admin",      "Exchange 사서함 공유 전환(기본 dry-run)"),
     "roleseed": ("seed_role_standard", "부서 표준 ERP role 세트 시드(엑셀→매핑→DB)"),
+    "proposal": ("proposal_ledger",   "구매 기안서 대장(엑셀) → 중간DB 적재"),
 }
 
 
@@ -211,6 +212,17 @@ def _run_kind(kind, params, root):
             print("요청 처리 실패 — 위 로그와 화면의 요청 결과를 확인하세요")
             return 1
         print("요청 처리 1건 완료" if res else "대기 요청 없음")
+        return 0
+
+    if kind == "proposal_ledger":
+        # 대장 파일이 없는 호스트에서는 조용히 넘어가지 않는다 — 사유를 남기고 실패로 끝낸다(§17.6)
+        caps = core.detect_capabilities(root)
+        if not (params.get("file") or caps.get("proposal_ledger")):
+            print("[proposal_ledger] 이 호스트에는 대장 파일이 없습니다 — .env 의 PROPOSAL_LEDGER_XLSX 를 확인하세요")
+            return 1
+        import proposal_ledger as pl
+        pl.collect(file=(params.get("file") or None), scan=(params.get("scan") or None),
+                   dry=bool(params.get("dry_run")), replace=not bool(params.get("append")))
         return 0
 
     if kind == "etl_batch":

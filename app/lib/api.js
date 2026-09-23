@@ -392,6 +392,19 @@ export const erpApi = {
       .select("*").order("ym", { ascending: false }).order("sales_amt", { ascending: false });
     if (error) throw error; return data || [];
   },
+  /* 구매 기안서 대장(권-번호 단위) — 원천은 ERP 가 아니라 구매팀 Teams 엑셀이다.
+     러너(jeil_runner proposal)가 public.pur_proposal 에 적재하고 여기서는 건 단위 뷰만 읽는다.
+     830건 규모라 한 번에 받아 화면이 집계한다(월·권·기안자·고객사). 정본 SQL 68. */
+  async proposalCases() {
+    return this._pageAll(() => supabase.from("v_pur_proposal_case")
+      .select("*").order("no", { ascending: false }));
+  },
+  // 대장 품질·리드타임 한 줄(행수·건수·이상치·전표/스캔 리드타임·적재시각)
+  async proposalQuality() {
+    const { data, error } = await supabase.from("v_pur_proposal_quality").select("*").maybeSingle();
+    if (error) throw error; return data || null;
+  },
+
   // 매입 월집계(거래처×월): {ym, bp_code, bp_name, purchase_amt, iv_cnt}
   async purchaseMonthly() {
     const { data, error } = await supabase.from("v_erp_purchase_monthly")

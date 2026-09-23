@@ -42,7 +42,7 @@ TARGETS = {
         "hidden": ["pyodbc", "pystray._win32", "PIL.Image", "PIL.ImageDraw",
                    "gl_apply_demo2", "etl_watch", "etl_run", "_erp_conn", "_env",
                    "ms_collect", "gw_collect", "gw_offboard", "offboard_axes", "exo_admin",
-                   "seed_role_standard"],
+                   "seed_role_standard", "proposal_ledger"],
         # 브라우저 자동화(그룹웨어 퇴사 축)는 서버 대상이 아니다 — 번들 제외(용량·의존 차단).
         # 러너가 능력 감지로 알아서 끈다(runner_core.detect_capabilities).
         "exclude": ["playwright"],
