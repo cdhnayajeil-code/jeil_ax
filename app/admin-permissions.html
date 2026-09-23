@@ -97,9 +97,12 @@
   .ocard{border:1px solid var(--line);border-radius:10px;background:#fff;overflow:hidden;min-width:0;}
   .ocard > h4{font-size:13.5px;color:#fff;background:var(--navy);padding:8px 12px;display:flex;gap:8px;align-items:center;}
   .ocard > h4 .sp{flex:1;}
+  .otbtn{background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.3);color:#fff;border-radius:5px;width:24px;height:22px;cursor:pointer;font-size:13px;line-height:1;padding:0;}
+  .otbtn:hover{background:rgba(255,255,255,.28);}
   .obody{padding:10px 12px;}
   .otree__search{width:100%;padding:7px 10px;border:1px solid var(--line);border-radius:7px;font:inherit;font-size:13px;margin-bottom:8px;}
-  .otree__list{max-height:560px;overflow:auto;}
+  /* 넓은 화면은 자체 스크롤 없이 전부 보인다(35개 부서) — 안쪽 스크롤에 소유·공유 부서가 가려져 「안 보인다」가 됐다(2026-09-23) */
+  .otree__list{overflow:visible;}
   .otree__node{display:flex;align-items:center;gap:5px;padding:3px 4px;border-radius:6px;cursor:pointer;white-space:nowrap;}
   .otree__node:hover{background:#f3f6fb;}
   .otree__node.sel{background:#e3ecf8;outline:1px solid #b9cbe6;}
@@ -154,7 +157,7 @@
   table.ot td{padding:5px 8px;border-bottom:1px solid #edf0f5;}
   table.ot tr:nth-child(even) td{background:#fff;}
   @media (max-width:1250px){.ocols{grid-template-columns:1fr 1fr;} .ocol3{grid-column:1 / -1;}}
-  @media (max-width:760px){.ocols{grid-template-columns:1fr;} .otree__list{max-height:380px;}}
+  @media (max-width:760px){.ocols{grid-template-columns:1fr;} .otree__list{max-height:420px;overflow:auto;}}
   @media (max-width:1100px){.stats{grid-template-columns:repeat(2,1fr);} .rules{grid-template-columns:1fr;} .grid2{grid-template-columns:1fr;}}
   @media (max-width:700px){.page{padding:20px 14px 30px;}}
   /* 통합 플랫폼(/admin/identity)·관리자 콘솔 안에 iframe 으로 얹힐 때 — 제목·푸터를 숨기고 여백을 줄인다.
@@ -233,7 +236,9 @@
       </details>
       <div class="ocols">
         <section class="ocard">
-          <h4>① 조직도 <span class="sp"></span><span class="badge b" id="treeMode">—</span></h4>
+          <h4>① 조직도 <span class="sp"></span>
+            <button type="button" class="otbtn" id="oExpand" title="모두 펼치기">⊞</button><button type="button" class="otbtn" id="oCollapse" title="모두 접기(표시 대상 경로는 유지)">⊟</button>
+            <span class="badge b" id="treeMode">—</span></h4>
           <div class="obody">
             <input class="otree__search" id="oq" type="search" placeholder="부서 검색 — 이름 또는 코드(예: 설계, 6120)">
             <div class="otree__list" id="otree" role="tree"><div class="muted" style="padding:10px;">불러오는 중…</div></div>
@@ -451,7 +456,8 @@
     ORG.forEach(function (n) { BYCD[n.dept_cd] = n; BYNM[n.dept_nm] = n.dept_cd; (KIDS[n.par_dept_cd || ""] = KIDS[n.par_dept_cd || ""] || []).push(n.dept_cd); });
     PSCOPE = {}; (D.page_scopes || []).forEach(function (s) { (PSCOPE[s.page_key] = PSCOPE[s.page_key] || []).push({ dept_cd: s.dept_cd, include_sub: !!s.include_sub }); });
     DMODS = (D.dept_modules || []).map(function (r) { return { dept_cd: r.dept_cd, module_key: r.module_key, include_sub: !!r.include_sub }; });
-    if (!Object.keys(OV.open).length) ORG.forEach(function (n) { if (n.lvl <= 2) OV.open[n.dept_cd] = true; });
+    // 처음엔 전부 펼친다 — 35개 부서라 접을 이유가 없고, 접혀 있으면 소유·공유 표시가 가려져 「안 보인다」가 된다(2026-09-23 실측).
+    if (!Object.keys(OV.open).length) ORG.forEach(function (n) { if ((KIDS[n.dept_cd] || []).length) OV.open[n.dept_cd] = true; });
     var pages = D.portal_pages || [];
     if (!OV.page || !pages.some(function (p) { return p.page_key === OV.page; })) OV.page = pages.length ? pages[0].page_key : "";
     if (!OV.dept || !BYCD[OV.dept]) OV.dept = ORG.length ? ORG[0].dept_cd : "";
@@ -545,6 +551,13 @@
         var subs = DMODS.filter(function (x) { return x.dept_cd === n.dept_cd && x.include_sub; }).length;
         if (subs) tags += '<span class="otree__tag sub" title="하위 조직에 내려주는 모듈 ' + subs + '개">⤵ ' + subs + '</span>';
       }
+      if (kids.length && !OV.q && !OV.open[n.dept_cd]) {
+        var marks = {};
+        if (OV.view === "page") { if (dr && dr.owner_dept_cd) marks[dr.owner_dept_cd] = 1; Object.keys(direct).forEach(function (c) { marks[c] = 1; }); }
+        else if (OV.dept) marks[OV.dept] = 1;
+        var hm = hiddenMarks(n.dept_cd, marks);
+        if (hm) tags += '<span class="otree__tag own" title="접힌 가지 안에 소유·공유(또는 선택한) 부서가 있습니다 — ▸를 눌러 펼치세요">▸ 안에 ' + hm + '</span>';
+      }
       var sel = (OV.view === "dept" && OV.dept === n.dept_cd) || OV.info === n.dept_cd;
       return '<div class="otree__node' + (sel ? " sel" : "") + (r.hit ? " hit" : "") + '" role="treeitem" data-cd="' + esc(n.dept_cd) + '" style="padding-left:' + (4 + (n.lvl - 1) * 16) + 'px">' +
         '<span class="otree__tw" data-act="tw">' + tw + '</span>' + chk +
@@ -606,7 +619,23 @@
       b.onclick = function () { OV.draft.scopes = OV.draft.scopes.filter(function (s) { return s.dept_cd !== b.getAttribute("data-rm"); }); changed(); };
     });
   }
-  function selectPage(key) { OV.page = key; OV.draft = pageDraft(key); OV.prevOrig = null; OV.prev = null; OV.info = ""; renderOrgAll(); schedulePreview(0); }
+  function selectPage(key) { OV.page = key; OV.draft = pageDraft(key); OV.prevOrig = null; OV.prev = null; OV.info = ""; revealDraft(); renderOrgAll(); scrollToMark(); schedulePreview(0); }
+  function scrollToMark() {
+    var dr = OV.draft, cd = dr && (dr.owner_dept_cd || (dr.scopes[0] || {}).dept_cd); if (!cd) return;
+    var list = el("otree"), row = list.querySelector('.otree__node[data-cd="' + cd + '"]');
+    if (row && list.scrollHeight > list.clientHeight) list.scrollTop = Math.max(0, row.offsetTop - list.offsetTop - 40);
+  }
+  // 소유·공유 부서가 접힌 가지 안에 있으면 보이지 않는다 — 그 경로의 상위를 펼친다.
+  function revealPath(cd) { oanc(cd).forEach(function (a) { OV.open[a] = true; }); }
+  function revealDraft() {
+    var dr = OV.draft; if (!dr) return;
+    if (dr.owner_dept_cd) revealPath(dr.owner_dept_cd);
+    dr.scopes.forEach(function (s) { revealPath(s.dept_cd); });
+  }
+  // 접힌 가지 안에 표시된 부서가 몇 곳인지(접어도 「안에 있다」가 보이게)
+  function hiddenMarks(cd, marks) {
+    var n = 0; odesc(cd).forEach(function (c) { if (c !== cd && marks[c]) n++; }); return n;
+  }
   function changed() { renderOrgAll(); schedulePreview(350); }
 
   /* ③ 미리보기 — 서버 perm_preview_page(판정과 같은 규칙). 원래 설정 결과와 나란히 비교한다. */
@@ -800,7 +829,7 @@
     if (OV.view === "page") { renderPageMid(); renderPagePreview(); } else { renderDeptMid(); renderDeptRight(); }
     renderInfo(); renderFix(); notifySize();
   }
-  function renderDept() { orgInit(); renderOrgAll(); if (OV.view === "page") schedulePreview(0); }
+  function renderDept() { orgInit(); revealDraft(); if (OV.dept) revealPath(OV.dept); renderOrgAll(); if (OV.view === "page") schedulePreview(0); }
 
   var _tt = null;
   function toastMsg(m) {
@@ -828,6 +857,12 @@
   el("vPage").onclick = function () { OV.view = "page"; renderOrgAll(); schedulePreview(0); };
   el("vDept").onclick = function () { OV.view = "dept"; if (OV.info && BYCD[OV.info]) { OV.dept = OV.info; OV.ddraft = deptDraft(OV.dept); } (BYCD[OV.dept] ? BYCD[OV.dept].path_cd : []).forEach(function (a) { OV.open[a] = true; }); renderOrgAll(); };
   el("oq").addEventListener("input", function () { OV.q = this.value; renderTree(); notifySize(); });
+  el("oExpand").onclick = function () { ORG.forEach(function (n) { if ((KIDS[n.dept_cd] || []).length) OV.open[n.dept_cd] = true; }); renderTree(); notifySize(); };
+  el("oCollapse").onclick = function () {
+    OV.open = {}; ORG.forEach(function (n) { if (n.lvl <= 1) OV.open[n.dept_cd] = true; });
+    if (OV.view === "page") revealDraft(); else if (OV.dept) revealPath(OV.dept);
+    renderTree(); notifySize();
+  };
   el("showCost").onchange = renderOrgAll;
 
   /* ── 개인 권한: 사람 피커 · 카드 · 유효 권한 · 예외 ───────────── */
