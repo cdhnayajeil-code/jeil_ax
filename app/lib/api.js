@@ -405,6 +405,21 @@ export const erpApi = {
     if (error) throw error; return data || null;
   },
 
+  /* 기안서 ↔ ERP 전표·세금계산서 대사 (정본 SQL 70 · 결정 C-15)
+     전표 미러(erp_ro.gl_slip_*)는 service_role 전용이라 화면이 직접 못 읽는다 → definer RPC 경유.
+     RPC 는 **대장에 적힌 전표번호로 지목된 전표만** 연다(전표 전문 검색은 열지 않는다).
+     944칸을 한 덩이 jsonb 로 받는다 — 행으로 주면 PostgREST 1,000행 상한에 조용히 잘린다. */
+  async proposalRecon() {
+    const { data, error } = await supabase.rpc("proposal_recon_list");
+    if (error) throw error; return data || null;
+  },
+  // 한 건의 근거: 전표 분개 라인 전부 · 계산서 장별 내역 · 같은 전표에 걸린 다른 기안
+  async proposalReconDetail(vol, no) {
+    const { data, error } = await supabase.rpc("proposal_recon_detail",
+      { p_vol: Number(vol), p_no: Number(no) });
+    if (error) throw error; return data || null;
+  },
+
   // 매입 월집계(거래처×월): {ym, bp_code, bp_name, purchase_amt, iv_cnt}
   async purchaseMonthly() {
     const { data, error } = await supabase.from("v_erp_purchase_monthly")

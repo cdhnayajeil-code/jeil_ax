@@ -14,6 +14,7 @@
     --red:#b3402f; --green:#2e7d52; --amber:#9a6b1f;
     --ink:#222; --muted:#666; --line:#d8dee8; --bg:#f4f6f9;
     --soft:#eef2f8; --softred:#fbeeec; --softgreen:#ecf5f0; --softamber:#faf3e4;
+    --grey:#5f6b7a; --softgrey:#f1f3f6;
   }
   *{box-sizing:border-box; margin:0; padding:0;}
   body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif; color:var(--ink); background:var(--bg); line-height:1.6; font-size:14px;}
@@ -77,6 +78,33 @@
   #mgGrid .pill.r{background:var(--softred); color:var(--red);}
   #mgGrid .pill.g{background:var(--softgreen); color:var(--green);}
   #mgGrid .pill.a{background:var(--softamber); color:var(--amber);}
+  /* 대사 배지 — 붉은 것은 「확인 필요」·「전표 미발견」 둘뿐이다.
+     회색(n)은 **기계가 판단할 수 없다**는 뜻이지 틀렸다는 뜻이 아니다(합산·분할 전표). */
+  #mgGrid .pill.n{background:var(--softgrey); color:var(--grey);}
+  #mgGrid .pill.b{background:var(--soft); color:var(--navy2);}
+  /* 행 상세 드로어 — 그리드 바깥이라 표준 컴포넌트를 건드리지 않는다(§13.4) */
+  .dw[hidden]{display:none;}
+  .dw{position:fixed; inset:0; z-index:60;}
+  .dw__bd{position:absolute; inset:0; background:rgba(16,24,40,.38);}
+  .dw__panel{position:absolute; top:0; right:0; height:100%; width:min(760px,96vw); background:#fff;
+             box-shadow:-6px 0 26px rgba(0,0,0,.18); display:flex; flex-direction:column;}
+  .dw__head{display:flex; align-items:flex-start; gap:10px; justify-content:space-between;
+            padding:14px 18px; border-bottom:2px solid var(--navy);}
+  .dw__head h2{font-size:16px; color:var(--navy); margin:2px 0 0;}
+  .dw__no{font-size:11.5px; color:var(--muted);}
+  .dw__nav{display:flex; gap:6px;}
+  .dw__nav button{border:1px solid var(--line); background:#fff; border-radius:7px; width:30px; height:28px;
+                  cursor:pointer; color:var(--navy2); font-size:13px;}
+  .dw__body{padding:14px 18px 26px; overflow:auto; font-size:12.5px;}
+  .dw__sec{border:1px solid var(--line); border-radius:10px; padding:12px 14px; margin-bottom:12px;}
+  .dw__sec h3{font-size:12.5px; color:var(--navy); margin-bottom:8px;}
+  .dw__sec .sub{font-size:11px; color:var(--muted); margin:-4px 0 8px;}
+  .dw table{font-size:11.5px;} .dw th{padding:5px 7px;} .dw td{padding:4px 7px;}
+  .dw .hit td{background:var(--softgreen) !important; font-weight:600;}
+  .dw .stg{display:grid; grid-template-columns:76px 1fr; gap:6px 10px; align-items:start;}
+  .dw .stg .lb{font-size:11.5px; color:var(--muted); padding-top:3px;}
+  .dw .none{color:var(--muted); font-size:11.5px;}
+  .dw .keys a{color:var(--accent); cursor:pointer; text-decoration:underline; margin-right:6px;}
   .fitbtn{float:right; border:1px solid var(--line); background:#fff; border-radius:7px; font-size:11.5px;
           padding:3px 10px; cursor:pointer; color:var(--navy2); font-weight:600;}
   .fitbtn[aria-pressed="true"]{background:var(--navy); border-color:var(--navy); color:#fff;}
@@ -114,12 +142,32 @@
       <b>1행 = 1건</b>(권-번호)이고, 대장에서 업체·품목별로 쪼개진
       행은 <code>행수</code>·<code>미발행</code> 칸에 합쳐 두었다. <code>스캔</code>의 <b>검색어</b> 버튼을 누르면
       문서중앙화 검색어가 클립보드에 복사된다.
+      <b>행을 누르면</b> 그 건의 계약금·중도금·잔금 전표와 전자세금계산서 내역이 오른쪽에 열린다.
     </div>
     <div id="mgGrid"></div>
   </div>
 
   <!-- 연간 고정 집계 -->
   <div id="fixed"></div>
+
+  <!-- 행 상세 — 한 건의 전표·계산서 근거를 한 화면에서 -->
+  <div class="dw" id="dw" hidden>
+    <div class="dw__bd" data-dw-close></div>
+    <aside class="dw__panel" role="dialog" aria-modal="true" aria-labelledby="dwTitle">
+      <header class="dw__head">
+        <div style="min-width:0;">
+          <div class="dw__no" id="dwNo"></div>
+          <h2 id="dwTitle">—</h2>
+        </div>
+        <div class="dw__nav">
+          <button type="button" id="dwPrev" title="이전 행 (↑)">↑</button>
+          <button type="button" id="dwNext" title="다음 행 (↓)">↓</button>
+          <button type="button" id="dwClose" title="닫기 (Esc)" data-dw-close>✕</button>
+        </div>
+      </header>
+      <div class="dw__body" id="dwBody"></div>
+    </aside>
+  </div>
 
   <div class="src">
     <b>데이터가 화면에 오기까지</b>
@@ -171,6 +219,49 @@
     + (unit ? '<small> ' + unit + "</small>" : "") + "</div>"
     + (sub ? '<div class="delta' + (cls ? " " + cls : "") + '">' + sub + "</div>" : "") + "</div>";
 
+  /* ── ERP 대사 등급 ────────────────────────────────────────────────────────
+     두 축이다: 「연결됐는가」와 「금액이 맞는가」. 붉은 것은 확인필요·전표미발견 둘뿐이고,
+     회색은 **기계가 판단할 수 없다**는 뜻이지 틀렸다는 뜻이 아니다(한 전표에 여러 기안이 섞인다). */
+  const RECON = {
+    match:  { lb: "일치",      pill: "g", rank: 6, hint: "전표·계산서 금액이 대장과 같다" },
+    vat:    { lb: "세액차",    pill: "b", rank: 5, hint: "공급가/합계 차이로 설명된다(정상)" },
+    split:  { lb: "합산·분할", pill: "n", rank: 4, hint: "한 전표에 여러 기안, 또는 한 칸에 전표 여럿 — 기계가 판단 못 한다" },
+    noinv:  { lb: "계산서없음", pill: "n", rank: 3, hint: "전표는 있는데 세금계산서 관리항목이 없다" },
+    noslip: { lb: "전표없음",  pill: "a", rank: 2, hint: "대장에 번호는 있는데 ERP 미러에 없다" },
+    diff:   { lb: "확인필요",  pill: "r", rank: 1, hint: "전표는 찾았는데 금액이 어디에도 안 맞는다" },
+    none:   { lb: "미기재",    pill: "n", rank: 7, hint: "대장에 전표번호가 없다" },
+    "":     { lb: "—",         pill: "n", rank: 8, hint: "대장에 전표칸이 비어 있다" },
+  };
+  const reconBadge = (code, title) => {
+    const m = RECON[code] || RECON[""];
+    return '<span class="pill ' + m.pill + '" title="' + esc(title || m.hint) + '">' + m.lb + "</span>";
+  };
+
+  /* ── 대사 결과를 건 단위로 접는다 ────────────────────────────────────────
+     RPC 는 **칸 단위**(대장 행 × 계약금/중도금/잔금)로 준다. 한 건에 칸이 여럿이면
+     **가장 나쁜 등급이 그 건을 대표한다** — 평균이나 다수결은 문제를 숨긴다. */
+  function foldRecon(payload) {
+    const byCase = {};
+    for (const c of ((payload && payload.rows) || [])) {
+      const k = c.key;
+      const b = (byCase[k] = byCase[k] || {
+        cells: [], worst: "", inv_supply: 0, inv_vat: 0, ledger: 0,
+        flags: new Set(), cohabit: 0,
+      });
+      b.cells.push(c);
+      b.inv_supply += Number(c.inv_supply) || 0;
+      b.inv_vat += Number(c.inv_vat) || 0;
+      b.ledger += Number(c.ledger_amt) || 0;
+      b.cohabit = Math.max(b.cohabit, Number(c.cohabit) || 0);
+      (c.flags || []).forEach((f) => b.flags.add(f));
+      const cur = RECON[c.recon] || RECON[""];
+      const old = RECON[b.worst] || RECON[""];
+      if (cur.rank < old.rank) b.worst = c.recon;
+    }
+    for (const k in byCase) byCase[k].flags = [...byCase[k].flags];
+    return byCase;
+  }
+
   /* ── 뷰 행 → 화면 행 (경과일·위험도는 여는 날 기준으로 계산) ───────────── */
   function prep(raw) {
     return (raw || []).map((r) => {
@@ -188,8 +279,27 @@
         closed, scan: scanOk ? "OK" : "NONE",
         risk: (closed !== "Y" && (age || 0) > 60) ? "long" : (scanOk ? "normal" : "scan"),
         manage: (closed !== "Y" || !scanOk),       // 관리 대상 = 미종결·부분종결·스캔 누락
+        recon: "", reconInv: 0, reconFlags: [],    // 아래에서 대사 결과를 얹는다
       };
     });
+  }
+
+  /* 대사 결과를 행에 얹는다 — 화면 행(건)과 RPC(칸)의 단위가 달라 여기서 만난다 */
+  function attachRecon(rows, byCase) {
+    for (const r of rows) {
+      const b = byCase[r.key];
+      if (!b) { r.recon = ""; continue; }
+      r.recon = b.worst || "";
+      r.reconInv = b.inv_supply;
+      r.reconVat = b.inv_vat;
+      r.reconFlags = b.flags;
+      r.reconCohabit = b.cohabit;
+      r.reconTip = (RECON[r.recon] || RECON[""]).hint
+        + (b.inv_supply ? " · 계산서 공급가 " + num(b.inv_supply) : "")
+        + (b.ledger ? " / 대장 " + num(b.ledger) : "")
+        + (b.flags.length ? " · " + b.flags.join("·") : "");
+    }
+    return rows;
   }
 
   /* ── 집계는 받은 행에서 만든다(§16.6 — 없는 데이터를 지어내지 않는다) ──── */
@@ -221,10 +331,18 @@
   function pick(q) {
     const mm = q.month ? String(q.month).padStart(2, "0") : null;
     const risk = q.extras.risk == null ? "" : q.extras.risk;
+    const rec = q.extras.recon || "";
     const owner = q.extras.owner || "";
+    /* 「관리구분」은 대장 기준 진척, 「대사」는 ERP 대조 결과 — 축이 다르다.
+       대사 조건만 골랐는데 기본값(관리 대상 169건)이 남아 있으면 종결된 건이 안 보여
+       사람이 「0건」을 오해한다 → 대사 조건이 걸리면 모집단을 전건으로 넓힌다. */
+    const riskAll = (rec && risk === "");
     return DATA.rows.filter((r) => {
       if (mm && r.m !== mm) return false;
       if (owner && r.by !== owner) return false;
+      if (rec === "todo" && !(r.recon === "diff" || r.recon === "noslip")) return false;
+      if (rec && rec !== "todo" && r.recon !== rec) return false;
+      if (riskAll) return true;
       if (risk === "") return r.manage;                 // 기본 = 관리 대상만
       if (risk === "all") return true;
       if (risk === "long") return r.risk === "long";
@@ -248,6 +366,21 @@
     const longMax = long.reduce((a, r) => Math.max(a, r.age || 0), 0);
     const noslip = inMonth.filter((r) => r.nslip > 0).length;
     const scanMiss = inMonth.filter((r) => r.scan === "NONE").length;
+
+    /* ERP 대사 집계 — 칸(대장 행 × 단계) 단위다. 선택한 월의 기안분만 센다. */
+    const keys = new Set(inMonth.map((r) => r.key));
+    const cells = (DATA.recon || []).filter((c) => keys.has(c.key));
+    const cnt = (code) => cells.filter((c) => c.recon === code).length;
+    const rc = {
+      withSlip: cells.length,
+      linked: cells.filter((c) => c.n_found > 0).length,
+      match: cnt("match"), vat: cnt("vat"), split: cnt("split"),
+      noinv: cnt("noinv"), noslip: cnt("noslip"), diff: cnt("diff"),
+      invSupply: cells.reduce((a, c) => a + (Number(c.inv_supply) || 0), 0),
+      invVat: cells.reduce((a, c) => a + (Number(c.inv_vat) || 0), 0),
+    };
+    rc.todo = rc.diff + rc.noslip;
+    rc.linkedPct = rc.withSlip ? Math.round((rc.linked / rc.withSlip) * 1000) / 10 : 0;
 
     const months = Object.keys(DATA.mon).filter((k) => /^\d{4}-\d{2}$/.test(k)).sort();
     const maxC = Math.max(1, ...months.map((k) => DATA.mon[k].cases));
@@ -297,6 +430,22 @@
       + kpi("전표 미발행", num(noslip), "건", mm ? "선택 월 기안분" : "대장 " + num(DATA.noslipLines) + "행 · 전부 미종결", "", "warn")
       + kpi("스캔본 누락", num(scanMiss), "건", mm ? "선택 월 기안분" : "대사 " + num(DATA.rows.length) + "건 중 · 고아 파일 0건", "", (scanMiss ? "warn" : "ok"))
       + kpi("기안 금액", eok(amt), "억", "통화 혼재 — 외화 포함 단순 합산", "", "")
+      + "</div>"
+
+      /* ── ERP 대사(2줄째) — 위가 「대장 기준 진척」이면 여기는 「ERP 기준 사실」이다 ── */
+      + '<div class="sec" style="padding:12px 16px 4px; margin-bottom:0; border:none; background:transparent;">'
+      + '<h3 style="margin-bottom:2px;">🔗 ERP 대사<span style="font-weight:400; color:var(--muted); font-size:11.5px;">'
+      + " · 전표 미러 " + esc(String(DATA.recon_as_of || "").slice(0, 10) || "—") + " 기준</span></h3></div>"
+      + '<div class="kpis">'
+      + kpi("전표 연결", rc.linked + " / " + rc.withSlip, "칸",
+            "대장이 적은 전표 중 ERP에서 찾은 비율 " + rc.linkedPct + "%", "", (rc.linkedPct >= 95 ? "ok" : "warn"))
+      + kpi("금액 일치", num(rc.match), "칸",
+            "세액차 " + rc.vat + " · 합산·분할 " + rc.split + " · 계산서없음 " + rc.noinv, "", "")
+      + kpi("확인 필요", num(rc.todo), "칸",
+            rc.todo ? "금액 불일치 " + rc.diff + " · 전표 미발견 " + rc.noslip : "없음",
+            "r", (rc.todo ? "bad" : "ok"))
+      + kpi("계산서 기준 금액", eok(rc.invSupply), "억",
+            "공급가 기준 · 부가세 " + eok(rc.invVat) + "억 — <b>ERP 확정 원화</b>", "", "ok")
       + "</div>"
 
       + '<div class="callout amber"><b>이 수치를 읽을 때 주의</b> — 대장은 <b>' + num(DATA.q.lines) + "행이지만 "
@@ -386,7 +535,10 @@
   const GRID = createGrid("#mgGrid", {
     keyField: "key",
     search: true, columnFilter: true, sortable: true, exportCsv: true, copy: true,
-    pageSize: 25, exportName: "기안서대장_2026",
+    /* ⚠ pageSize 는 **렌더만 자른다**(grid.js) — 페이저가 없어서 25 로 두면 화면이
+       「169건」이라 적고 25행만 보여준다. 확인할 건을 찾는 표에서는 치명적이라 전량 그린다.
+       830건 렌더는 실측 문제없다(검색·정렬·CSV 는 원래 전량 기준이다). */
+    pageSize: 0, exportName: "기안서대장_2026",
     emptyText: "조건에 맞는 건이 없습니다.",
     loadingText: "대장을 불러오는 중…",
     resizable: true, fitWidth: true,                 // 표준 §5.2 — 열 경계 드래그 + 화면 폭 맞춤
@@ -422,6 +574,11 @@
           ? '<button class="ecm" data-row-act="ecm" title="문서중앙화 검색어 복사">검색어</button>'
           : '<span class="pill a">누락</span>'),
         exportValue: (v) => (v === "OK" ? "OK" : "누락"),
+      },
+      {
+        key: "recon", label: "대사", width: "78px", fitMin: 66, align: "center",
+        formatter: (v, r) => reconBadge(v, r.reconTip),
+        exportValue: (v) => (RECON[v] || RECON[""]).lb,
       },
     ],
     onRowAction: (act, row) => {
@@ -460,16 +617,169 @@
     alertLine._t = setTimeout(() => el.remove(), 6000);
   }
 
+  /* ── 행 상세 드로어 — 「왜 안 맞는가」의 근거를 보여준다 ─────────────────
+     표준 그리드에 확장행 기능이 없고, 넣으려면 컴포넌트를 고쳐야 한다(§13.4 위반).
+     드로어는 그리드 **밖**이라 컴포넌트를 건드리지 않는다. */
+  const STAGE_NM = { dp: "계약금", mp: "중도금", bp: "잔금" };
+  let ROWS = [];              // 지금 표에 그려진 행(↑↓ 이동용)
+  let DRAWER_KEY = null;      // 열어 둔 건 — 표가 다시 그려져도 키로 되찾는다
+  const dw = document.getElementById("dw");
+  const dwBody = document.getElementById("dwBody");
+
+  const money = (v) => (v == null || v === "" ? "—" : num(Number(v)));
+  const dash = (v) => (v == null || v === "" ? "—" : esc(String(v)));
+
+  function stageBlock(st) {
+    const kind = st.kind || (String(st.slip_no || "").startsWith("IV") ? "IV" : "TG");
+    const lines = st.lines || [];
+    const inv = st.invoices || [];
+    const iv = st.iv_lines || [];
+    const hit = lines.filter((l) => l.is_hit).length;
+
+    const head = '<div class="stg"><span class="lb">대장</span><span><b>' + money(st.ledger_amt) + "</b>"
+      + (st.slip_raw && st.slip_raw !== st.slip_no
+          ? ' <span class="none">(칸 원문: <code>' + esc(String(st.slip_raw).replace(/\s+/g, " ")) + "</code>)</span>" : "")
+      + "</span>"
+      + '<span class="lb">전표</span><span><code>' + dash(st.slip_no) + "</code>"
+      + (st.via_iv ? ' <span class="pill b">매입 ' + dash(st.tok) + " 경유</span>" : "")
+      + (st.temp_gl_dt ? " · " + dash(st.temp_gl_dt) : "")
+      + (st.conf_fg ? ' · <span class="pill ' + (st.conf_fg === "C" ? "g" : "a") + '">'
+          + (st.conf_fg === "C" ? "승인" : "미승인") + "</span>" : "")
+      + (st.gl_no ? ' · <span class="pill g">전기 ' + dash(st.gl_no) + "</span>"
+                  : (st.slip_no && st.temp_gl_dt ? ' · <span class="pill a">미전기</span>' : ""))
+      + "</span>"
+      + '<span class="lb">거래처</span><span>' + dash(st.slip_vendor) + ' <span class="none">(전표 기준)</span></span>'
+      + (st.temp_gl_desc ? '<span class="lb">적요</span><span class="none">' + dash(st.temp_gl_desc) + "</span>" : "")
+      + "</div>";
+
+    const lineTbl = lines.length
+      ? "<table><tr><th class='c'>#</th><th class='c'>차대</th><th>계정</th><th class='r'>금액</th>"
+        + "<th class='r'>부가세</th><th>적요</th></tr>"
+        + lines.map((l) => "<tr class='" + (l.is_hit ? "hit" : "") + "'>"
+            + "<td class='c'>" + dash(l.seq) + "</td><td class='c'>" + dash(l.dr_cr) + "</td>"
+            + "<td>" + dash(l.acct_nm || l.acct_cd) + "</td>"
+            + "<td class='r'>" + money(l.amt) + "</td><td class='r'>" + money(l.vat) + "</td>"
+            + "<td>" + dash(String(l.desc || "").slice(0, 60)) + "</td></tr>").join("")
+        + "</table>"
+        + '<div class="sub" style="margin:6px 0 0;">이 전표는 <b>' + lines.length + "줄</b>"
+        + (hit ? ", 그중 <b>" + hit + "줄</b>이 대장 금액과 같다(초록)" : ", 대장 금액과 같은 줄은 없다")
+        + (st.cohabit_keys && st.cohabit_keys.length
+            ? ' · 같은 전표에 걸린 다른 기안: <span class="keys">'
+              + st.cohabit_keys.map((k) => '<a data-go="' + esc(k) + '">' + esc(k) + "</a>").join("") + "</span>"
+            : "") + "</div>"
+      : '<div class="none">전표를 ERP 미러에서 찾지 못했습니다'
+        + (String(st.tok || "").slice(2, 6) !== "2026" ? " — <b>조회연도 밖</b>(미러는 2026년만 적재)" : "")
+        + ".</div>";
+
+    const invTbl = inv.length
+      ? "<table><tr><th class='c'>#</th><th>작성일</th><th>유형</th><th class='r'>공급가액</th>"
+        + "<th class='r'>부가세</th><th class='c'>전자</th><th class='c'>신고사업장</th></tr>"
+        + inv.map((v) => "<tr><td class='c'>" + dash(v.seq) + "</td><td>" + dash(v.dt) + "</td>"
+            + "<td>" + dash(v.type_nm || v.type) + "</td><td class='r'><b>" + money(v.supply) + "</b></td>"
+            + "<td class='r'>" + money(v.vat) + "</td>"
+            + "<td class='c'>" + (v.elec === "Y" ? '<span class="pill g">Y</span>' : dash(v.elec)) + "</td>"
+            + "<td class='c'>" + dash(v.tax_area) + "</td></tr>").join("")
+        + "</table>"
+      : '<div class="none">이 전표에는 세금계산서 관리항목이 없습니다(계산서 없는 거래이거나 미기재).'
+        + ' <span class="none">국세청 승인번호·전송일은 전자세금계산서 원장 연동(2단계) 후에 표시됩니다.</span></div>';
+
+    const ivTbl = iv.length
+      ? '<div class="sub" style="margin-top:8px;">매입 품목 ' + iv.length + "건</div><table>"
+        + "<tr><th class='c'>#</th><th>품목</th><th class='r'>수량</th><th class='r'>단가</th>"
+        + "<th class='r'>금액</th><th>발주</th></tr>"
+        + iv.slice(0, 20).map((d) => "<tr><td class='c'>" + dash(d.seq) + "</td>"
+            + "<td>" + dash(d.item_name || d.item_code) + "</td><td class='r'>" + money(d.qty) + "</td>"
+            + "<td class='r'>" + money(d.price) + "</td><td class='r'>" + money(d.amt) + "</td>"
+            + "<td>" + dash(d.po_no) + "</td></tr>").join("")
+        + "</table>" + (iv.length > 20 ? '<div class="none">앞 20건만 표시</div>' : "")
+      : "";
+
+    return '<div class="dw__sec"><h3>' + (STAGE_NM[st.stage] || st.stage)
+      + (kind === "IV" ? " · 매입" : "") + "</h3>" + head
+      + '<div class="sub" style="margin-top:10px;">전표 분개 라인</div>' + lineTbl
+      + '<div class="sub" style="margin-top:12px;">전자세금계산서</div>' + invTbl + ivTbl + "</div>";
+  }
+
+  async function openDetail(key) {
+    const row = (DATA && DATA.rows.find((r) => r.key === key)) || null;
+    if (!row) return;
+    DRAWER_KEY = key;
+    dw.hidden = false;
+    document.getElementById("dwNo").textContent =
+      "권-번호 " + key + " · " + row.date + " · " + (row.by || "기안자 미상");
+    document.getElementById("dwTitle").textContent = row.desc || row.vendor || "(내용 없음)";
+    dwBody.innerHTML = '<div class="none">전표·계산서를 불러오는 중…</div>';
+    let d = null;
+    try {
+      d = await erpApi.proposalReconDetail(row.vol, row.no);
+    } catch (e) {
+      dwBody.innerHTML = '<div class="callout amber">전표 대사를 불러오지 못했습니다. ' + esc(e.message || e) + "</div>";
+      return;
+    }
+    if (DRAWER_KEY !== key) return;               // 그 사이 다른 행을 열었다
+    const stages = (d && d.stages) || [];
+    const summary = '<div class="dw__sec"><h3>기안</h3><div class="stg">'
+      + '<span class="lb">업체</span><span>' + dash(row.vendor)
+      + (row.reconFlags && row.reconFlags.includes("업체명상이")
+          ? ' <span class="pill a" title="대장 업체명과 전표 거래처명이 다릅니다">업체명 상이</span>' : "") + "</span>"
+      + '<span class="lb">고객사</span><span>' + dash(row.cust) + " · " + dash(row.job) + "</span>"
+      + '<span class="lb">대장 금액</span><span>' + (row.amtTxt ? esc(row.amtTxt) : money(row.amt))
+      + " · 행 " + row.lines + "개 · " + (row.closed === "Y" ? "종결" : row.closed === "P" ? "부분종결" : "미종결") + "</span>"
+      + '<span class="lb">대사</span><span>' + reconBadge(row.recon, row.reconTip)
+      + (row.reconInv ? " · 계산서 공급가 <b>" + money(row.reconInv) + "</b>" : "")
+      + (row.reconVat ? " · 부가세 " + money(row.reconVat) : "") + "</span>"
+      + "</div></div>";
+    dwBody.innerHTML = summary
+      + (stages.length ? stages.map(stageBlock).join("")
+                       : '<div class="dw__sec"><div class="none">대장에 전표번호가 적혀 있지 않습니다.</div></div>');
+    dwBody.scrollTop = 0;
+  }
+
+  function closeDetail() { dw.hidden = true; DRAWER_KEY = null; }
+  function stepDetail(delta) {
+    const i = ROWS.findIndex((r) => r.key === DRAWER_KEY);
+    const next = ROWS[i + delta];
+    if (next) openDetail(next.key);
+  }
+
+  document.getElementById("mgGrid").addEventListener("click", (e) => {
+    if (e.target.closest("[data-row-act]")) return;            // 「검색어」 버튼은 상세를 열지 않는다
+    if (e.target.closest("th, .grid__toolbar, .grid__filter-row")) return;
+    const tr = e.target.closest("tr.grid__row");
+    if (tr && tr.dataset.key) openDetail(tr.dataset.key);
+  });
+  dw.addEventListener("click", (e) => {
+    if (e.target.closest("[data-dw-close]")) { closeDetail(); return; }
+    const go = e.target.closest("[data-go]");
+    if (go) openDetail(go.dataset.go);
+  });
+  document.getElementById("dwPrev").onclick = () => stepDetail(-1);
+  document.getElementById("dwNext").onclick = () => stepDetail(1);
+  addEventListener("keydown", (e) => {
+    if (dw.hidden) return;
+    if (e.key === "Escape") { closeDetail(); e.preventDefault(); }
+    else if (e.key === "ArrowUp") { stepDetail(-1); e.preventDefault(); }
+    else if (e.key === "ArrowDown") { stepDetail(1); e.preventDefault(); }
+  });
+
   /* ── 적재 ───────────────────────────────────────────────────────────── */
   let DATA = null;
 
   async function fetchAll() {
     GRID.setLoading(true);
     try {
-      const [raw, q] = await Promise.all([erpApi.proposalCases(), erpApi.proposalQuality()]);
+      const [raw, q, rec] = await Promise.all([
+        erpApi.proposalCases(), erpApi.proposalQuality(),
+        // 대사는 ERP 미러에 의존한다 — 실패해도 대장 화면은 살려 둔다(§16.6: 없는 건 없다고 말한다)
+        erpApi.proposalRecon().catch((e) => { console.warn("[대사] 조회 실패:", e); return null; }),
+      ]);
       const rows = prep(raw);
       if (!q) throw new Error("품질 집계를 받지 못했습니다");
+      attachRecon(rows, foldRecon(rec));
       DATA = Object.assign({ rows, q }, aggregate(rows));
+      DATA.recon = (rec && rec.rows) || [];
+      DATA.recon_as_of = rec && rec.mirror_as_of;
+      DATA.reconOk = !!rec;
       DATA.noslipLines = rows.reduce((a, r) => a + r.nslip, 0);
       return DATA;
     } finally {
@@ -573,6 +883,19 @@
         ],
       },
       {
+        // 「관리구분」과 합치지 않는다 — 관리구분은 대장 기준 진척, 대사는 ERP 대조 결과로 축이 다르다.
+        id: "recon", label: "대사", type: "select", width: "150px",
+        options: [
+          { value: "", label: "전체" },
+          { value: "todo", label: "확인 필요(불일치·전표없음)" },
+          { value: "match", label: "금액 일치" },
+          { value: "vat", label: "세액차" },
+          { value: "split", label: "합산·분할" },
+          { value: "noinv", label: "계산서없음" },
+          { value: "noslip", label: "전표없음" },
+        ],
+      },
+      {
         id: "owner", label: "기안자", type: "select", width: "120px",
         options: [{ value: "", label: "전체" }].concat(
           Object.keys(DATA.by).sort((a, b) => DATA.by[b].cases - DATA.by[a].cases)
@@ -588,9 +911,21 @@
       }
       renderApp(q, ctx.bar);
       const rows = pick(q);
+      ROWS = rows;
       GRID.setRows(rows);
       document.getElementById("mgCount").textContent =
         rows.length + "건" + (rows.length === DATA.rows.length ? "" : " / 전체 " + DATA.rows.length + "건");
+      /* 대사 조건을 고르면 모집단이 전건으로 넓어진다 — 그 사실을 상시 한 줄로 알린다(토스트 아님) */
+      const wide = !!(q.extras.recon && !(q.extras.risk || ""));
+      let note = document.getElementById("mgScope");
+      if (wide && !note) {
+        note = document.createElement("div");
+        note.id = "mgScope"; note.className = "callout blue"; note.style.margin = "0 0 10px";
+        note.innerHTML = "대사 조건이라 <b>대장 전건</b>에서 셉니다. 관리 대상만 보려면 "
+          + "「관리구분」을 <b>미종결</b> 등으로 함께 고르세요.";
+        document.getElementById("mgGrid").before(note);
+      } else if (!wide && note) { note.remove(); }
+      if (DRAWER_KEY) openDetail(DRAWER_KEY);     // 열어 둔 상세가 있으면 새 데이터로 다시 그린다
     },
   });
 
