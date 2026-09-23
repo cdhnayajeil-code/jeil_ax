@@ -415,9 +415,17 @@
                    + (many ? " · 분할 입고 " + r.rcpt_cnt + "회 · " + r.rcpt_first_dt + " ~ " + r.rcpt_last_dt : "")) + '">'
                + esc(r.rcpt_last_dt) + (many ? '<span class="tag">' + r.rcpt_cnt + "회</span>" : "") + "</span>";
         }
-        if (v) return '<span title="' + esc("실제 입고 기록이 없어 매입(송장) 날짜로 대신합니다"
+        if (v) {
+          /* 「매입」이 붙는 건 대부분 **외주**다 — 용역·가공은 창고로 들어오는 물건이 없어
+             ERP 에 입출고 기록이 남지 않고 발주의 입고수량도 0이다(실측 464건 중 456건이 외주,
+             전건 입고수량 0). 빠뜨린 게 아니라 그런 값이 없는 것이라, 왜 그런지까지 말해 준다. */
+          const sub = (r.gubun === "외주" || /^ROS/.test(r.item_code || ""));
+          return '<span title="' + esc((sub
+                   ? "외주·용역은 창고 입고가 없어 ERP 에 입출고 기록이 남지 않습니다. 이 날짜는 매입(송장) 기준입니다"
+                   : "이 건은 ERP 에 입출고 기록이 없어 매입(송장) 날짜로 대신합니다")
                  + (r.iv_cnt > 1 ? " · 분할 매입 " + r.iv_cnt + "회 · " + r.iv_first_dt + " ~ " + r.iv_last_dt : "")) + '">'
-               + esc(v) + '<span class="tag">매입</span></span>';
+               + esc(v) + '<span class="tag">' + (sub ? "외주·매입" : "매입") + "</span></span>";
+        }
         if (Number(r.rcpt_qty) > 0) return '<span class="muted" title="입고수량은 있으나 입출고·매입 기록이 없어 날짜를 알 수 없습니다">날짜 미보유</span>';
         return dash;
       } },
@@ -866,7 +874,9 @@
       : "엑셀과 다를 수 있는 칸") + " · <span style=\"color:var(--accent)\">자세히</span></summary>"
     + (filled.length ? '<p style="color:var(--green)">채워짐: ' + filled.map(esc).join(" · ") + "</p>" : "")
     + "<ul>"
-    + "<li><b>입고일</b>은 <b>실제 입고일</b>(ERP 입출고)입니다. 그 기록이 없는 건만 매입(송장) 날짜로 대신하고 <span class=\"tag\">매입</span> 을 붙입니다 — 매입일만 따로 보려면 「▦ 항목」에서 <b>매입일</b> 열을 넣으세요.</li>"
+    + "<li><b>입고일</b>은 <b>실제 입고일</b>(ERP 입출고 기준)입니다. 2026년 2,933건이 연결돼 있습니다.</li>"
+    + "<li><span class=\"tag\">외주·매입</span> 이 붙은 건은 <b>외주·용역</b>이라 창고 입고가 없습니다 — ERP 에 입출고 기록이 남지 않고 발주 입고수량도 0이라, 매입(송장) 날짜를 대신 보여 줍니다(464건 중 456건). 빠진 값이 아니라 <b>원래 없는 값</b>입니다.</li>"
+    + "<li>매입일을 따로 보려면 「▦ 항목」에서 <b>매입일</b> 열을 넣으세요 — 실입고일과 <b>38%가 서로 다릅니다</b>(평균 8.7일, 최대 63일).</li>"
     + "<li><b>입고요청일</b>은 요청 희망납기입니다. 협력사와 조정된 날짜는 「발주납기」에 따로 있습니다(조정된 행에 <span class=\"tag\">조정</span>).</li>"
     + "<li><b>공급처</b>는 <b>발주가 난 행만</b> 있습니다 — ERP 구매요청에 공급처 칸이 전건 비어 있습니다.</li>"
     + "<li><b>입고창고</b>는 ERP 저장위치라 엑셀 「입고처」(본사·이천 2공장·협력사명)와 <b>다른 개념</b>입니다.</li>"
