@@ -116,6 +116,11 @@
   .otree__nm{font-weight:600;color:var(--navy);}
   .otree__nm.zero{color:#9aa3af;font-weight:500;}
   .otree__cnt{font-size:11px;color:#7a8699;}
+  /* 인원 표시(체크 시) — 부서 바로 아래 소속 인원(이름·메일). 기본은 숨김(2026-09-28) */
+  .otree__mem{display:flex;align-items:baseline;gap:6px;padding:1px 4px;font-size:11.5px;color:var(--ink);white-space:nowrap;overflow:hidden;}
+  .otree__mem .ic{color:#9aa6b8;flex:0 0 auto;}
+  .otree__mem b{font-weight:600;flex:0 0 auto;}
+  .otree__mem .em{color:var(--muted);font-family:ui-monospace,Consolas,monospace;font-size:11px;overflow:hidden;text-overflow:ellipsis;min-width:0;}
   .otree__tag{font-size:10px;border-radius:8px;padding:0 6px;font-weight:600;}
   .otree__tag.own{background:var(--softgreen);color:var(--green);}
   .otree__tag.sub{background:var(--soft);color:var(--navy2);}
@@ -227,6 +232,7 @@
         </div>
         <span class="muted" id="viewHint" style="font-size:12px;">이 페이지를 누가 보나?</span>
         <span class="sp"></span>
+        <label class="muted" style="font-size:12px;cursor:pointer;" title="조직도 각 부서 아래에 권한 대상 인원(ERP 계정 부서 기준)의 이름·메일을 펼쳐 보입니다"><input type="checkbox" id="showPeople"> 👤 인원 표시(이름·메일)</label>
         <label class="muted" style="font-size:12px;cursor:pointer;"><input type="checkbox" id="showCost"> 원가부서 표시(인원 0)</label>
         <span class="badge b" id="orgBadge">조직 —</span>
       </div>
@@ -445,6 +451,7 @@
      부서는 글자가 아니라 부서코드(ERP 부서 마스터 현행 org)로 고른다. 판정은 서버 perm_effective 하나 —
      이 화면의 트리 표시·부서 보기 계산은 참고용이고, 페이지 미리보기는 서버 perm_preview_page(판정과 같은 규칙) 결과다. */
   var ORG = [], BYCD = {}, KIDS = {}, BYNM = {};   // 현행 조직 노드(v_perm_org_node)
+  var MEMBERS = {};                                 // 부서명 → 권한 대상 인원[{emp_nm,email}] — member_cnt 와 같은 원천(v_erp_user_dept)
   var PSCOPE = {};                                  // page_key → [{dept_cd, include_sub}]
   var DMODS = [];                                   // dept_module_scope 행
   var OV = { view: "page", page: "", dept: "", info: "", q: "", open: {}, draft: null, ddraft: null, prev: null, prevOrig: null };
@@ -454,6 +461,10 @@
     ORG = (D.org_nodes || []).slice().sort(function (a, b) { return a.sort_key < b.sort_key ? -1 : a.sort_key > b.sort_key ? 1 : 0; });
     BYCD = {}; KIDS = {}; BYNM = {};
     ORG.forEach(function (n) { BYCD[n.dept_cd] = n; BYNM[n.dept_nm] = n.dept_cd; (KIDS[n.par_dept_cd || ""] = KIDS[n.par_dept_cd || ""] || []).push(n.dept_cd); });
+    // 트리 숫자(member_cnt)는 서버가 v_erp_user_dept 를 부서명으로 센 값 — 같은 행을 같은 키로 묶어 이름·메일을 붙인다(수가 어긋나지 않게).
+    MEMBERS = {};
+    Object.keys(MAPPED).forEach(function (em) { var u = MAPPED[em]; (MEMBERS[u.dept_nm] = MEMBERS[u.dept_nm] || []).push({ emp_nm: u.emp_nm || "", email: em }); });
+    Object.keys(MEMBERS).forEach(function (k) { MEMBERS[k].sort(function (a, b) { return a.emp_nm.localeCompare(b.emp_nm, "ko") || a.email.localeCompare(b.email); }); });
     PSCOPE = {}; (D.page_scopes || []).forEach(function (s) { (PSCOPE[s.page_key] = PSCOPE[s.page_key] || []).push({ dept_cd: s.dept_cd, include_sub: !!s.include_sub }); });
     DMODS = (D.dept_modules || []).map(function (r) { return { dept_cd: r.dept_cd, module_key: r.module_key, include_sub: !!r.include_sub }; });
     // 처음엔 전부 펼친다 — 35개 부서라 접을 이유가 없고, 접혀 있으면 소유·공유 표시가 가려져 「안 보인다」가 된다(2026-09-23 실측).
@@ -527,6 +538,15 @@
     })(KIDS[""] || []);
     return rows;
   }
+  // 「인원 표시」 체크 시 부서 바로 아래에 소속 인원(하위 부서 인원은 그 부서 아래에). 접힌 부서는 인원도 접는다.
+  function memberRows(n, hasKids, hit) {
+    if (!el("showPeople").checked) return "";
+    if (OV.q ? !hit : (hasKids && !OV.open[n.dept_cd])) return "";   // 검색 중엔 걸린 부서만(경로상 상위는 제외)
+    var pad = 4 + (n.lvl - 1) * 16 + 37;   // 펼침표(16)+체크(16)+간격만큼 들여 부서명 아래에 맞춘다
+    return (MEMBERS[n.dept_nm] || []).map(function (m) {
+      return '<div class="otree__mem" style="padding-left:' + pad + 'px" title="' + esc(m.emp_nm + " · " + m.email) + '"><span class="ic">👤</span><b>' + esc(m.emp_nm || "(이름 없음)") + '</b><span class="em">' + esc(m.email) + '</span></div>';
+    }).join("");
+  }
   function renderTree() {
     var dr = OV.draft, cov = OV.view === "page" ? coverage(dr) : null;
     var direct = {}; if (OV.view === "page" && dr) dr.scopes.forEach(function (s) { direct[s.dept_cd] = s; });
@@ -562,10 +582,10 @@
       return '<div class="otree__node' + (sel ? " sel" : "") + (r.hit ? " hit" : "") + '" role="treeitem" data-cd="' + esc(n.dept_cd) + '" style="padding-left:' + (4 + (n.lvl - 1) * 16) + 'px">' +
         '<span class="otree__tw" data-act="tw">' + tw + '</span>' + chk +
         '<span class="otree__nm' + (n.member_cnt ? "" : " zero") + '" data-act="nm" title="' + esc(n.path_nm + " (" + n.dept_cd + ")") + '">' + esc(n.dept_nm) + '</span>' +
-        '<span class="otree__cnt" title="권한 대상 인원(ERP 계정 부서 기준)">' + n.member_cnt + '</span> ' + tags + '</div>';
+        '<span class="otree__cnt" title="권한 대상 인원(ERP 계정 부서 기준)">' + n.member_cnt + '</span> ' + tags + '</div>' + memberRows(n, kids.length, r.hit);
     }).join("") : '<div class="muted" style="padding:10px;">' + (ORG.length ? "일치하는 부서가 없습니다." : "조직 정보를 불러오지 못했습니다" + (D.org_error ? " — " + esc(D.org_error) : "") + ".") + '</div>';
     el("olegend").innerHTML = OV.view === "page"
-      ? '<span><span class="otree__chk own">■</span>소유</span><span><span class="otree__chk on">✓</span>직접 공유</span><span><span class="otree__chk inh">◩</span>상위에서 상속</span><span>숫자 = 권한 대상 인원</span>'
+      ? '<span><span class="otree__chk own">■</span>소유</span><span><span class="otree__chk on">✓</span>직접 공유</span><span><span class="otree__chk inh">◩</span>상위에서 상속</span><span>숫자 = 권한 대상 인원' + (el("showPeople").checked ? " · 👤 = 소속 인원" : "") + '</span>'
       : '<span>부서를 누르면 그 부서가 볼 수 있는 페이지·ERP 모듈이 가운데에 나옵니다 · ⤵ = 하위로 내려주는 모듈 수</span>';
     el("treeMode").textContent = OV.view === "page" ? (shareOn ? "공유 부서 지정" : "공유 없음(" + (dr ? dr.visibility : "—") + ")") : "부서 선택";
   }
@@ -864,6 +884,7 @@
     renderTree(); notifySize();
   };
   el("showCost").onchange = renderOrgAll;
+  el("showPeople").onchange = function () { renderTree(); notifySize(); };
 
   /* ── 개인 권한: 사람 피커 · 카드 · 유효 권한 · 예외 ───────────── */
   function peopleView() {
