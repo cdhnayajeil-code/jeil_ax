@@ -316,6 +316,18 @@
   .bar2 i{display:block; height:100%; background:var(--accent2); border-radius:4px;}
   .bar2 i.warn{background:var(--amber);} .bar2 i.full{background:var(--red);}
   .admin-note{font-size:11.5px; color:var(--muted); margin-top:8px;}
+  /* 그리드 탭 전용 — .sec 과 겉모습은 같지만 table/th/td 셀렉터가 없다(표준 그리드 오염 방지) */
+  .gsec{background:#fff; border:1px solid var(--line); border-radius:12px; padding:18px 20px; margin-bottom:16px;}
+  .gsec h3{font-size:14px; color:var(--navy); margin-bottom:12px; display:flex; justify-content:space-between; align-items:center; gap:8px;}
+  .gsec h3 .save{background:var(--accent); color:#fff; border:none; border-radius:7px; padding:5px 14px; font-size:12px; cursor:pointer; font-family:inherit;}
+  .gxopts{display:flex; flex-wrap:wrap; gap:6px 14px; padding:10px 12px; background:var(--soft); border:1px solid var(--line); border-radius:9px;}
+  .gxopts label{font-size:12px; color:var(--navy2); display:flex; align-items:center; gap:5px; cursor:pointer; white-space:nowrap;}
+  .gxopts label code{font-size:11px; color:var(--muted); font-family:Consolas,monospace;}
+  .gxbar{display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin:10px 0;}
+  .gxbar .lb{font-size:11.5px; color:var(--muted);}
+  .gxcode{background:#21252e; color:#e8eaf0; border-radius:9px; padding:13px 15px; font-size:11.8px;
+    font-family:Consolas,'Courier New',monospace; overflow-x:auto; margin-top:12px; line-height:1.6; white-space:pre;}
+  .gxwarn{background:#faf3e4; border:1px solid #e8d8ae; color:var(--amber); border-radius:9px; padding:12px 14px; font-size:12.5px;}
   textarea.sys{width:100%; border:1px solid var(--line); border-radius:8px; padding:10px 12px; font-family:inherit; font-size:13px; min-height:88px; resize:vertical;}
   .admin-open{display:block; width:calc(100% - 28px); margin:0 14px 10px; background:rgba(255,255,255,.1); border:1px solid rgba(255,255,255,.25); color:#e7edf6; font-size:12.5px; padding:9px; border-radius:8px; cursor:pointer; font-family:inherit;}
   .admin-open:hover{background:rgba(255,255,255,.2);}
@@ -729,6 +741,7 @@
         <button id="tab-model" onclick="showTab('model')">모델 설정</button>
         <button id="tab-permacct" onclick="showTab('permacct')">권한·계정</button>
         <button id="tab-requests" onclick="showTab('requests')">요청함 <span id="reqBadge" style="display:none; background:#c0392b; color:#fff; border-radius:9px; padding:1px 6px; font-size:10.5px; margin-left:3px;">0</span></button>
+        <button id="tab-grid" onclick="showTab('grid')">▦ 그리드</button>
       </div>
       <button class="back-chat" onclick="showChat()">← 챗봇으로</button>
     </div>
@@ -921,6 +934,63 @@
           <table><thead><tr><th>부서</th><th>대상</th><th class="r">요청 수</th></tr></thead>
           <tbody id="reqHeatRows"><tr><td colspan="3" class="c" style="color:#888;padding:14px;">데이터 없음</td></tr></tbody></table>
         </div>
+      </div>
+    </div>
+
+    <!-- 패널 8: 그리드 통합 관제 (표준 편집 그리드 — CLAUDE.md §13 · REQ-0083)
+         정본은 저장소다: 기능은 app/lib/grid.js, 규약·적용이력은 그리드/표준그리드_가이드.md.
+         이 탭은 그 정본을 "표준 그리드 자체로" 보여 주고 고친 것은 CSV 로 내보낸다(DB 에 쓰지 않는다). -->
+    <div class="panel" id="panel-grid" style="max-width:none;">
+      <div class="gsec" id="gxHead">
+        <h3>표준 그리드 라이브 점검 <span style="font-size:11px;color:var(--accent);font-weight:400;">● 실제 컴포넌트 <code style="font-family:Consolas,monospace;">app/lib/grid.js</code> 를 그대로 불러 그립니다</span>
+          <span style="display:flex; gap:6px;">
+            <a class="save" href="/docs/grid/guide" target="_blank" style="text-decoration:none; background:#fff; color:var(--accent); border:1px solid var(--accent);">📘 표준 가이드 ↗</a>
+            <a class="save" href="/docs/grid" target="_blank" style="text-decoration:none;">🧩 그리드 데모 ↗</a>
+          </span></h3>
+        <p class="admin-note">웹에서 보이는 <b>수정 가능한 표</b>는 화면마다 만들지 않고 이 한 컴포넌트를 씁니다(CLAUDE.md §13).
+          아래에서 <b>기능을 켜고 끄며 실제 동작을 확인</b>하고, 그 구성을 그대로 복사해 새 화면에 붙일 수 있습니다.
+          <b>페이지 넘김</b>은 <code>pageSize</code> 를 0보다 크게 두면 표 아래에 생깁니다 — 「표시」로 한 페이지 행수를 고르고 「‹ ›」로 다음 행으로 넘어갑니다.</p>
+        <div class="gxopts" id="gxOpts"></div>
+        <div class="gxbar">
+          <span class="lb">샘플 데이터</span>
+          <select id="gxRows" class="sel">
+            <option value="50">50행</option>
+            <option value="300">300행</option>
+            <option value="1234" selected>1,234행</option>
+            <option value="5609">5,609행 (발주통합 LIST 실측 규모)</option>
+          </select>
+          <span class="lb">표시(pageSize)</span>
+          <select id="gxPage" class="sel">
+            <option value="0">전체 — 페이저 없음</option>
+            <option value="25">25행</option>
+            <option value="50">50행</option>
+            <option value="100">100행</option>
+            <option value="300" selected>300행</option>
+          </select>
+          <button class="save" id="gxDraw">↻ 다시 그리기</button>
+          <span class="admin-note" id="gxStat" style="margin-top:0;"></span>
+        </div>
+        <div id="gxLive"><p class="admin-note">표준 그리드를 불러오는 중…</p></div>
+        <pre class="gxcode" id="gxCode">/* 지금 구성 */</pre>
+        <p class="admin-note">샘플은 이 화면이 만든 <b>가짜 데이터</b>입니다 — ERP·DB 를 조회하지 않습니다. 기능 확인·구성 실험 전용입니다.</p>
+      </div>
+
+      <div class="gsec">
+        <h3>기능 대장 <span style="font-size:11px;color:var(--muted);font-weight:400;">— 옵션 한 줄 = 기능 하나 (정본: app/lib/grid.js)</span></h3>
+        <p class="admin-note">표준 그리드가 <b>지금 가진 기능 전부</b>입니다. 기본값이 <code>false</code>/<code>0</code>인 것은 <b>켜지 않으면 동작이 종전과 같다</b>는 뜻이라, 옛 화면을 깨지 않고 기능을 늘릴 수 있습니다. 이 표 자체도 표준 그리드로 그려져 있습니다.</p>
+        <div id="gxFeat"></div>
+      </div>
+
+      <div class="gsec">
+        <h3>적용 화면 대장 <span style="font-size:11px;color:var(--muted);font-weight:400;">— 어느 화면이 무엇을 켜고 있는가</span></h3>
+        <p class="admin-note">새 편집 화면은 이 표준으로 통일합니다(§13.6). <b>비고</b>는 고칠 수 있고, 고친 내용은 <b>⬇ CSV</b> 로 내려받아 <code>그리드/표준그리드_가이드.md</code> 에 반영하세요 — <b>이 화면은 저장하지 않습니다</b>(정본은 저장소).</p>
+        <div id="gxScr"></div>
+      </div>
+
+      <div class="gsec">
+        <h3>개선 과제 <span style="font-size:11px;color:var(--muted);font-weight:400;">— 라이브 점검에서 찾은 것을 여기 적습니다</span></h3>
+        <p class="admin-note">위에서 기능을 켜 보다 발견한 문제·아쉬운 점을 적어 둡니다. <b>「📋 일괄 편집」</b> 으로 고치고 <b>⬇ CSV</b> 로 내보낸 뒤 요청 백로그(<code>.backlog/0-inbox/</code>)나 담당자에게 넘기세요 — 이 표도 <b>저장하지 않습니다</b>(의도적).</p>
+        <div id="gxTask"></div>
       </div>
     </div>
   </main>
@@ -1792,12 +1862,13 @@ function applyFavStars(){
   refreshFavMarks();
 }
 function showTab(key){
-  ['api','usage','model','permacct','requests'].forEach(k=>{
+  ['api','usage','model','permacct','requests','grid'].forEach(k=>{
     document.getElementById('panel-'+k).classList.toggle('on', k===key);
     document.getElementById('tab-'+k).classList.toggle('on', k===key);
   });
   if(key === 'requests'){ loadRequests(); loadScope(); }
   if(key === 'permacct') loadPermFrame();
+  if(key === 'grid') gxOpen();
 }
 /* 권한·계정 탭 — 독립 화면(/admin/permissions)을 처음 열 때만 iframe 에 싣는다(콜드스타트 분산).
    오프라인 통합본(IS_BUNDLE)·미로그인에서는 빈 프레임 대신 이유를 적는다. 자식이 알려오는 높이로 프레임을 늘린다(같은 origin 만). */
@@ -1822,6 +1893,263 @@ window.addEventListener('message', function(ev){
     window.open('/admin/identity#' + mod + q, '_blank');
   }
 });
+
+/* ===== 그리드 통합 관제 — 관리자 콘솔 「▦ 그리드」 탭 (REQ-0083) ==========================
+   표준 편집 그리드(app/lib/grid.js · CLAUDE.md §13)를 **화면에서** 확인·점검·관리한다.
+   원칙 셋:
+   ① 정본은 저장소다. 기능은 grid.js, 규약·적용이력은 그리드/표준그리드_가이드.md.
+      이 탭은 그 정본을 「표준 그리드 자체로」 보여 주는 파생 뷰다.
+   ② 저장하지 않는다. DB 테이블을 새로 만들지 않고, 고친 내용은 CSV 로 내보내 문서에 반영한다.
+      동작하지 않는 「저장」 버튼을 두는 것보다 정직하다.
+   ③ 컴포넌트를 복제하지 않는다. grid.js 를 동적 import 로 **그대로** 불러 그린다 —
+      여기서 잘 도는 구성은 실제 화면에서도 그대로 돈다(코드 스니펫을 그래서 같이 보여 준다).
+   오프라인 통합본(IS_BUNDLE)·file:// 에서는 모듈을 받아올 길이 없어 이유를 적고 멈춘다. */
+var GX = { createGrid: null, live: null, feat: null, scr: null, task: null, opened: false };
+
+/* 라이브 점검 토글 — 표준 그리드 옵션 그대로다(라벨/키/기본값). */
+var GX_TOGGLES = [
+  { k:'search',        nm:'검색칸',        on:true  },
+  { k:'columnFilter',  nm:'열별 필터',     on:true  },
+  { k:'sortable',      nm:'정렬',          on:true  },
+  { k:'selectable',    nm:'선택(체크박스)', on:true  },
+  { k:'editToggle',    nm:'일괄 편집',     on:false },
+  { k:'paste',         nm:'엑셀 붙여넣기',  on:false },
+  { k:'exportCsv',     nm:'CSV 내보내기',  on:true  },
+  { k:'copy',          nm:'복사(TSV)',     on:true  },
+  { k:'columnPicker',  nm:'항목 고르기',    on:true  },
+  { k:'resizable',     nm:'열폭 조절',     on:true  },
+  { k:'fitWidth',      nm:'화면맞춤',      on:false },
+  { k:'cellNav',       nm:'방향키 셀 이동', on:true  },
+  { k:'groupHeader',   nm:'2단 헤더',      on:false },
+  { k:'stickyHeader',  nm:'헤더 고정',     on:true  }
+];
+var GX_STATE = {};
+GX_TOGGLES.forEach(function(t){ GX_STATE[t.k] = t.on; });
+
+/* 기능 대장 — grid.js 의 옵션/API 를 한 줄씩. 「적용」은 지금 그 기능을 켜고 있는 화면. */
+var GX_FEAT = [
+  { grp:'표시',   nm:'열 정의',          key:'columns / keyField',        def:'[] / null', role:'열 라벨·폭·정렬·formatter·validator·pasteKey 를 한 곳에 적는다', use:'전 화면' },
+  { grp:'표시',   nm:'헤더 고정',        key:'stickyHeader',              def:'true',      role:'표를 내려도 헤더가 남는다(고정열은 cssClass 로 층을 맞춘다 §5.1)', use:'전 화면' },
+  { grp:'표시',   nm:'2단 헤더',         key:'groupHeader',               def:'false',     role:'열 그룹을 colspan 으로 묶는다 — 엑셀 대장 서식 재현', use:'기안서 대장' },
+  { grp:'표시',   nm:'행 클래스',        key:'rowClass',                  def:'null',      role:'행 단위 색·강조를 호출측이 정한다', use:'발주통합 LIST · 기안서 대장' },
+  { grp:'조회',   nm:'검색칸',           key:'search',                    def:'false',     role:'보이는 열만 훑는다 · 120ms 디바운스', use:'발주통합 LIST · 기안서 대장 · 협력사 계정발급' },
+  { grp:'조회',   nm:'열별 필터',        key:'columnFilter',              def:'false',     role:'헤더 아래 한 줄로 열마다 좁힌다', use:'발주통합 LIST · 기안서 대장 · 협력사 계정발급' },
+  { grp:'조회',   nm:'정렬',             key:'sortable',                  def:'true',      role:'숫자·한글(localeCompare ko) 자동 판별', use:'전 화면' },
+  { grp:'조회',   nm:'페이지 넘김',      key:'pageSize / pager',          def:'0 / auto',  role:'받아 둔 전량을 화면에서 나눈다 — 처음·이전·번호·다음·끝 + 「a–b / 총 N건」', use:'발주통합 LIST(300행)' },
+  { grp:'조회',   nm:'표시 행수 선택',   key:'pageSizeOptions',           def:'null',      role:'페이저에 「표시」 셀렉트가 생긴다(0 = 전체)', use:'발주통합 LIST' },
+  { grp:'편집',   nm:'셀 편집',          key:'editable / editToggle',     def:'false',     role:'열마다 켜고 끈다 · 토글로 읽기↔편집 전환', use:'협력사 계정발급 · 결의전표 템플릿' },
+  { grp:'편집',   nm:'엑셀 붙여넣기',    key:'paste / pasteKey',          def:'false',     role:'탭·개행을 파싱해 email/name/code 로 자동 배치', use:'협력사 계정발급' },
+  { grp:'편집',   nm:'검증',             key:'validator / validateAll()', def:'—',         role:'셀 단위 검증 결과를 셀에 그린다(저장 판단은 호출측)', use:'협력사 계정발급' },
+  { grp:'편집',   nm:'변경 추적',        key:'getDirty() / onSave',       def:'—',         role:'바뀐 셀만 old/new 로 넘긴다 — DB 호출은 호출측', use:'협력사 계정발급' },
+  { grp:'폭·이동', nm:'열폭 조절',       key:'resizable / onColResize',   def:'false',     role:'경계를 끌어 조절, 두 번 누르면 원래대로(저장은 호출측)', use:'발주통합 LIST · 기안서 대장' },
+  { grp:'폭·이동', nm:'화면맞춤',        key:'fitWidth / setFit()',       def:'false',     role:'전 열을 화면 폭에 넣고 못 넣은 px 을 알린다(조용히 실패하지 않는다)', use:'발주통합 LIST · 기안서 대장' },
+  { grp:'폭·이동', nm:'방향키 셀 이동',  key:'cellNav / onCellActivate',  def:'false',     role:'읽기 표에서 칸 커서를 옮기고 화면 밖 열이면 따라 스크롤', use:'발주통합 LIST · 기안서 대장' },
+  { grp:'열 구성', nm:'항목 고르기',     key:'columnPicker',              def:'false',     role:'표에 넣을 열을 고르고 끌어 순서를 바꾼다(required 열은 못 뺀다)', use:'발주통합 LIST · 기안서 대장' },
+  { grp:'열 구성', nm:'구성 저장',       key:'get/setColumnState()',      def:'—',         role:'순서·뺀 열을 화면이 localStorage 에 남긴다(grid 는 저장소를 모른다)', use:'발주통합 LIST · 기안서 대장' },
+  { grp:'내보내기', nm:'CSV',            key:'exportCsv / exportValue',   def:'false',     role:'UTF-8 BOM(엑셀 한글 안 깨짐) · 보이는 열만 · 선택이 있으면 선택만', use:'발주통합 LIST · 기안서 대장 · 협력사 계정발급' },
+  { grp:'내보내기', nm:'복사',           key:'copy',                      def:'false',     role:'TSV 로 클립보드 — 엑셀에 그대로 붙는다', use:'발주통합 LIST · 기안서 대장 · 협력사 계정발급' },
+  { grp:'동작',   nm:'일괄 액션',        key:'bulkActions / onBulkAction', def:'[]',       role:'툴바 버튼을 화면이 정의하고 선택 행으로 실행', use:'협력사 계정발급' },
+  { grp:'동작',   nm:'행 액션',          key:'onRowAction',               def:'null',      role:'formatter 안의 버튼(data-row-act)을 행과 함께 받는다', use:'협력사 계정발급' }
+];
+
+/* 적용 화면 대장 — 실측(2026-09-28). 비고는 이 화면에서 고칠 수 있다(저장은 CSV). */
+var GX_SCR = [
+  { nm:'협력사 계정발급', path:'/admin/vendors',        node:'#vmGrid',      scale:'거래처 목록',      kind:'편집',      pager:'전체(0)',    on:'선택·검색·필터·일괄편집·붙여넣기·CSV·복사·일괄액션·행액션·검증', memo:'표준 그리드 첫 적용 사례(§13.6)' },
+  { nm:'발주통합 LIST',   path:'/work/purchase-list',   node:'#listGrid',    scale:'30열 · 5,609행',   kind:'읽기',      pager:'300행 + 페이저', on:'검색·필터·정렬·CSV·복사·항목고르기·열폭·화면맞춤·셀이동·고정열', memo:'페이지 넘김 첫 적용(REQ-0083). 조회조건은 본문 패널이 갖는다(§16.8 예외)' },
+  { nm:'기안서 대장',     path:'/work/purchase-proposals', node:'#mgGrid',   scale:'22열 2단헤더',     kind:'읽기',      pager:'전체(0)',    on:'검색·필터·정렬·CSV·복사·항목고르기·열폭·화면맞춤·셀이동·2단헤더', memo:'pageSize 25 가 페이저 없이 렌더만 잘라 전량 렌더로 우회했던 화면 — 이제 페이저를 쓸 수 있다' },
+  { nm:'결의전표 입력',   path:'/work/voucher',         node:'#tplItemGrid', scale:'템플릿 라인',      kind:'편집',      pager:'전체(0)',    on:'셀 편집·검증', memo:'전표 작성 서식은 표준 그리드 예외(§13.7 — 1라인 = 3행 블록)' },
+  { nm:'표준 그리드 데모', path:'/docs/grid',           node:'—',            scale:'레퍼런스',         kind:'데모',      pager:'—',          on:'전 기능', memo:'grid.js·grid.css 를 빌더가 인라인 주입 — file:// 로도 돈다' },
+  { nm:'관리자 콘솔 「▦ 그리드」', path:'/main → 관리자 콘솔', node:'#gxLive 외 3', scale:'점검·대장',  kind:'관제',      pager:'25~300행',   on:'라이브 토글 전 기능', memo:'이 화면. 정본은 저장소, 여기는 파생 뷰' }
+];
+
+/* 개선 과제 — 화면에서 고치고 CSV 로 내보낸다(저장 없음). */
+var GX_TASK = [
+  { id:'G-1', tgt:'app/lib/grid.js', tit:'페이지 넘김 표준화',       pri:'완료',   memo:'pageSize>0 이면 페이저 자동 · pageSizeOptions 로 표시행수 선택 (REQ-0083)' },
+  { id:'G-2', tgt:'pages/구매_기안서대장_2026.html', tit:'전량 렌더 우회를 페이저로 되돌리기', pri:'중', memo:'169행이라 당장 급하지 않다 — 건수가 늘면 pageSize 를 다시 켠다' },
+  { id:'G-3', tgt:'app/lib/grid.js', tit:'행 상세 이동이 페이지 경계에서 멈춘다', pri:'하', memo:'발주통합 LIST 의 ↑↓ 상세 이동은 현재 페이지 안에서만 — 경계에서 다음 페이지로 넘길지 판단 필요' },
+  { id:'G-4', tgt:'app/lib/grid.js', tit:'가상 스크롤',              pri:'보류',   memo:'5,609행 전량 렌더가 2.2초. 페이저로 체감은 해결됐다 — 「전체」를 자주 쓰게 되면 다시 검토' },
+  { id:'G-5', tgt:'그리드/표준그리드_가이드.md', tit:'적용 화면 대장 동기화', pri:'상시', memo:'화면이 늘거나 옵션이 바뀌면 가이드 §적용사례와 이 대장을 같이 고친다' }
+];
+
+function gxSample(n){
+  var GU = ['원자재','부자재','소모품','외주'], ST = ['미발주','발주','부분입고','입고완료','매입완료'];
+  var BP = ['대한정밀','한성기계','유진테크','명진산업','세아금속'];
+  var out = [];
+  for (var i = 1; i <= n; i++) {
+    var q = (i * 7) % 140 + 1, up = ((i * 1319) % 90 + 10) * 1000;
+    out.push({ no:i, po:'PO-2026-' + String(100000 + i).slice(1), gubun:GU[i % 4], item:'IT' + String(200000 + i * 3).slice(1),
+      iname:'샘플품목 ' + i + '호', bp:BP[i % 5], qty:q, price:up, amt:q * up,
+      due:'2026-' + String(((i % 12) + 1)).padStart(2,'0') + '-' + String(((i % 27) + 1)).padStart(2,'0'),
+      sts:ST[i % 5], memo:i % 9 === 0 ? '검수 대기' : '' });
+  }
+  return out;
+}
+
+function gxCols(){
+  var n = function(v){ return v == null || v === '' ? '' : Number(v).toLocaleString('ko-KR'); };
+  return [
+    { key:'no',    label:'NO.',   width:'62px',  align:'right', required:true, group:'기본' },
+    { key:'po',    label:'발주번호', width:'118px', required:true, group:'기본' },
+    { key:'gubun', label:'구분',   width:'74px',  align:'center', group:'기본' },
+    { key:'item',  label:'품목코드', width:'104px', group:'품목' },
+    { key:'iname', label:'품명',   width:'150px', group:'품목' },
+    { key:'bp',    label:'거래처', width:'108px', group:'품목' },
+    { key:'qty',   label:'수량',   width:'80px',  type:'number', formatter:n, group:'금액' },
+    { key:'price', label:'단가',   width:'96px',  type:'number', formatter:n, group:'금액' },
+    { key:'amt',   label:'금액',   width:'112px', type:'number', formatter:n, group:'금액' },
+    { key:'due',   label:'납기',   width:'98px',  align:'center', group:'진행' },
+    { key:'sts',   label:'상태',   width:'88px',  align:'center', group:'진행' },
+    { key:'memo',  label:'비고',   width:'120px', editable:true, group:'진행' }
+  ];
+}
+
+/* grid.js·grid.css 를 한 번만 불러온다. 통합본(오프라인)·file:// 은 받아올 길이 없다. */
+function gxEnsure(){
+  if (GX.createGrid) return Promise.resolve(true);
+  if (window.IS_BUNDLE || location.protocol === 'file:') return Promise.resolve(false);
+  if (!document.getElementById('gxGridCss')) {
+    var l = document.createElement('link');
+    l.id = 'gxGridCss'; l.rel = 'stylesheet'; l.href = '/app/lib/grid.css';
+    document.head.appendChild(l);
+  }
+  return import('/app/lib/grid.js').then(function(m){ GX.createGrid = m.createGrid; return true; })
+    .catch(function(e){ GX.err = String(e && e.message || e); return false; });
+}
+
+function gxOpen(){
+  if (GX.opened) return;
+  GX.opened = true;
+  gxRenderToggles();
+  document.getElementById('gxDraw').onclick = gxDrawLive;
+  document.getElementById('gxRows').onchange = gxDrawLive;
+  document.getElementById('gxPage').onchange = gxDrawLive;
+  gxEnsure().then(function(okk){
+    if (!okk) {
+      var why = window.IS_BUNDLE
+        ? '오프라인 통합본에서는 표준 그리드 모듈(<code>/app/lib/grid.js</code>)을 받아올 수 없습니다 — 사내 로그인 후 <b>ai.jeilm.co.kr</b> 관리자 콘솔에서 사용하세요.'
+        : ('표준 그리드 모듈을 불러오지 못했습니다' + (GX.err ? ' — ' + GX.err : '') + '.');
+      ['gxLive','gxFeat','gxScr','gxTask'].forEach(function(id){
+        document.getElementById(id).innerHTML = '<div class="gxwarn">🔒 ' + why + '</div>';
+      });
+      document.getElementById('gxCode').textContent = '/* 모듈 미로드 */';
+      return;
+    }
+    gxDrawLive();
+    gxDrawLedgers();
+  });
+}
+
+function gxRenderToggles(){
+  var box = document.getElementById('gxOpts');
+  box.innerHTML = GX_TOGGLES.map(function(t){
+    return '<label><input type="checkbox" data-gx="' + t.k + '"' + (GX_STATE[t.k] ? ' checked' : '') + '> ' +
+           t.nm + ' <code>' + t.k + '</code></label>';
+  }).join('');
+  box.onchange = function(e){
+    var el = e.target.closest('[data-gx]'); if (!el) return;
+    GX_STATE[el.getAttribute('data-gx')] = el.checked;
+    gxDrawLive();
+  };
+}
+
+function gxDrawLive(){
+  if (!GX.createGrid) return;
+  var n = Number(document.getElementById('gxRows').value) || 300;
+  var ps = Number(document.getElementById('gxPage').value) || 0;
+  var t0 = performance.now();
+  if (GX.live) { GX.live.destroy(); GX.live = null; }
+  var opt = {
+    columns: gxCols(), rows: gxSample(n), keyField: 'no',
+    editable: GX_STATE.editToggle, exportName: '표준그리드_샘플',
+    pageSize: ps, pageSizeOptions: [25, 50, 100, 300, 1000, 0],
+    emptyText: '조건에 맞는 자료가 없습니다.'
+  };
+  GX_TOGGLES.forEach(function(t){ opt[t.k] = GX_STATE[t.k]; });
+  GX.live = GX.createGrid('#gxLive', opt);
+  if (GX_STATE.fitWidth) GX.live.setFit(true);
+  var ms = Math.round(performance.now() - t0);
+  document.getElementById('gxStat').innerHTML =
+    '샘플 <b>' + n.toLocaleString('ko-KR') + '행</b> · 페이지 <b>' + GX.live.getPageCount() + '</b>개 · 렌더 <b>' + ms + 'ms</b>';
+  gxRenderCode(n, ps);
+}
+
+/* 지금 켠 구성을 그대로 붙여 쓸 수 있는 호출문으로 적는다 — 「확인하고 개선한다」의 출구. */
+function gxRenderCode(n, ps){
+  var on = GX_TOGGLES.filter(function(t){ return GX_STATE[t.k]; }).map(function(t){ return t.k; });
+  var lines = [
+    'import { createGrid } from "/app/lib/grid.js";   // <head> 에 /app/lib/grid.css 도 함께',
+    '',
+    'const grid = createGrid("#myGrid", {',
+    '  columns: COLS, rows: ROWS, keyField: "no",',
+    '  ' + on.map(function(k){ return k + ': true'; }).join(', ') + ',',
+    GX_STATE.editToggle ? '  editable: true,   // editToggle 을 켜면 editable 도 필요하다' : null,
+    ps > 0 ? '  pageSize: ' + ps + ', pageSizeOptions: [25, 50, 100, 300, 1000, 0],   // 표 아래 페이저' : '  pageSize: 0,      // 전량 렌더 — 페이저 없음',
+    '  emptyText: "조건에 맞는 자료가 없습니다.",',
+    '});'
+  ].filter(Boolean);
+  document.getElementById('gxCode').textContent = lines.join('\n');
+}
+
+function gxDrawLedgers(){
+  if (GX.feat) GX.feat.destroy();
+  GX.feat = GX.createGrid('#gxFeat', {
+    keyField: 'key', rows: GX_FEAT,
+    columns: [
+      { key:'grp', label:'구분', width:'82px', required:true },
+      { key:'nm',  label:'기능', width:'126px', required:true },
+      { key:'key', label:'옵션 · API', width:'188px', cssClass:'', formatter:function(v){ return '<code style="font-family:Consolas,monospace;font-size:11.5px;">' + v + '</code>'; } },
+      { key:'def', label:'기본값', width:'82px', align:'center' },
+      { key:'role', label:'하는 일', width:'400px' },
+      { key:'use', label:'켜고 있는 화면', width:'270px' }
+    ],
+    search: true, columnFilter: true, sortable: true, exportCsv: true, copy: true,
+    resizable: true, columnPicker: true, exportName: '표준그리드_기능대장',
+    pageSize: 0
+  });
+
+  if (GX.scr) GX.scr.destroy();
+  GX.scr = GX.createGrid('#gxScr', {
+    keyField: 'nm', rows: GX_SCR,
+    columns: [
+      { key:'nm',   label:'화면', width:'170px', required:true },
+      { key:'path', label:'주소', width:'190px',
+        formatter:function(v){ return v.charAt(0) === '/' ? '<a href="' + v + '" target="_blank" style="color:var(--accent);">' + v + ' ↗</a>' : v; } },
+      { key:'node', label:'컨테이너', width:'104px' },
+      { key:'scale', label:'규모', width:'128px' },
+      { key:'kind', label:'성격', width:'70px', align:'center' },
+      { key:'pager', label:'페이지', width:'118px', align:'center' },
+      { key:'on',   label:'켠 기능', width:'330px' },
+      { key:'memo', label:'비고', width:'330px', editable:true }
+    ],
+    search: true, columnFilter: true, sortable: true, exportCsv: true, copy: true,
+    editable: true, editToggle: true, editToggleLabels:{ off:'📋 비고 편집', on:'✏️ 편집 중' },
+    resizable: true, columnPicker: true, exportName: '표준그리드_적용화면대장',
+    pageSize: 0
+  });
+
+  if (GX.task) GX.task.destroy();
+  GX.task = GX.createGrid('#gxTask', {
+    keyField: 'id', rows: GX_TASK,
+    columns: [
+      { key:'id',  label:'번호', width:'62px', required:true, align:'center' },
+      { key:'tit', label:'과제', width:'300px', editable:true, required:true },
+      { key:'tgt', label:'대상', width:'250px', editable:true },
+      { key:'pri', label:'우선', width:'80px', align:'center', editable:true, type:'select',
+        options:['상','중','하','보류','상시','완료'] },
+      { key:'memo', label:'메모', width:'520px', editable:true }
+    ],
+    search: true, sortable: true, exportCsv: true, copy: true,
+    editable: true, editToggle: true, paste: true, exportName: '표준그리드_개선과제',
+    resizable: true, pageSize: 0,
+    bulkActions: [{ id:'add', label:'＋ 줄 추가', btnClass:'ghost' }],
+    onBulkAction: function(id, g){
+      if (id !== 'add') return;
+      var rows = g.getData();
+      rows.push({ id:'G-' + (rows.length + 1), tit:'', tgt:'', pri:'중', memo:'' });
+      g.setRows(rows); g.setEditMode(true);
+    }
+  });
+}
 
 /* ===== 실제 AI 연결 — jeil-chat 게이트웨이(Supabase Edge Function → OpenAI) =====
    원칙: OpenAI API 키는 서버(Supabase Secret)에만 존재. 프론트는 Entra 토큰으로 인증만.

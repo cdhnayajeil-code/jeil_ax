@@ -24,7 +24,11 @@ export function createGrid(container, options = {}) {
     editable: false, editToggle: false,
     editToggleLabels: { off: "📋 일괄 편집", on: "✏️ 편집 중" },
     paste: false, exportCsv: false, copy: false, exportName: "grid",
-    stickyHeader: true, keyboardNav: true, pageSize: 0,
+    stickyHeader: true, keyboardNav: true,
+    /* 페이지 넘김 — pageSize>0 이면 그 행수로 나누고 표 아래에 페이저를 그린다.
+       pageSize 0(기본)이면 전량 렌더 + 페이저 없음이라 기존 화면은 한 픽셀도 바뀌지 않는다.
+       pager:false 는 옛 동작(첫 N행만 그리고 넘길 길이 없음) — 새 화면은 쓰지 않는다. */
+    pageSize: 0, pager: null, pageSizeOptions: null, pageWindow: 5,
     emptyText: "데이터가 없습니다.", loadingText: "불러오는 중…",
     rowClass: null, bulkActions: [],
     /* 넓은 목록용(전부 옵트인 — 켜지 않으면 동작이 종전과 같다) */
@@ -40,6 +44,8 @@ export function createGrid(container, options = {}) {
     onColResize: null,       // (key, px, allWidths) — 저장은 호출측이 한다(grid 는 저장소를 모른다)
     onCellActivate: null,    // (row, col) — 셀 커서에서 Enter
     onColumnsChange: null,   // ({order, hidden}) — 저장은 호출측이 한다(grid 는 저장소를 모른다)
+    onPageChange: null,      // (page, {pageSize, pageCount, total})
+    onPageSizeChange: null,  // (pageSize) — 화면이 취향을 저장할 수 있게(저장은 호출측)
   }, options);
 
   const cols = o.columns;
@@ -56,7 +62,10 @@ export function createGrid(container, options = {}) {
     order: [],         // 열 순서(키 배열) — 항목 고르기에서 바꾼다
     hidden: new Set(), // 표에서 빼 둔 열
     pickOpen: false,   // 항목 고르기 패널 열림
+    page: 1,           // 지금 보고 있는 페이지(1부터)
+    pageSize: 0,       // 한 페이지 행수 — 0 이면 전량. 「표시」 셀렉트가 바꾼다(o.pageSize 는 초기값)
   };
+  state.pageSize = Math.max(0, Math.floor(Number(o.pageSize) || 0));
 
   /* ---------- 지금 표에 그릴 열 ----------
      `cols` 는 화면이 준 정의 그대로 두고, **실제로 그리는 열**은 여기서 만든다.
@@ -99,6 +108,27 @@ export function createGrid(container, options = {}) {
       });
     }
     state.view = v;
+    clampPage();                 // 걸러진 결과가 줄어 지금 페이지가 사라졌으면 마지막 페이지로 당긴다
+  }
+
+  /* ---------- 페이지 ----------
+     페이저는 **이미 받아 둔 전량**을 화면에서 나눠 보여 주는 장치다(서버 limit/offset 이 아니다).
+     그래서 검색·정렬·컬럼필터·CSV·복사는 전부 종전대로 **전량 기준**이고, 나누는 건 그리기만이다.
+     한때 pageSize 가 렌더만 자르고 페이저가 없어서 「5,609건 중 300건 표시」라고 적어 두고도
+     301행 이후로 갈 길이 없었다(2026-09-23 기안서 대장은 전량 렌더로 우회). 그 구멍을 메운 자리다. */
+  /* `const` 화살표로 두면 안 된다 — 초기 `ingest(o.rows)` 가 이 줄보다 먼저 돌아
+     computeView → clampPage 에서 "Cannot access before initialization" 이 난다(실측).
+     함수 선언이라야 호이스팅돼 그 시점에도 부를 수 있다. */
+  function isPaged() { return state.pageSize > 0 && o.pager !== false; }
+  function pageCount() { return isPaged() ? Math.max(1, Math.ceil(state.view.length / state.pageSize)) : 1; }
+  function clampPage() { const n = pageCount(); state.page = Math.min(n, Math.max(1, state.page)); }
+  /** 지금 그릴 행. pageSize 0 이면 전량, pager:false 면 앞 N행(옛 동작), 그 외에는 현재 페이지. */
+  function pageRows() {
+    if (state.pageSize <= 0) return state.view;
+    if (o.pager === false) return state.view.slice(0, state.pageSize);
+    clampPage();
+    const from = (state.page - 1) * state.pageSize;
+    return state.view.slice(from, from + state.pageSize);
   }
 
   /* ---------- DOM 스켈레톤 ---------- */
@@ -112,12 +142,13 @@ export function createGrid(container, options = {}) {
       <div class="grid__toolbar-right" data-el="actions"></div>
     </div>
     <div class="grid__scroll" data-el="scroll" ${o.cellNav ? 'tabindex="0"' : ""}><table class="grid__table"><colgroup data-el="colgroup"></colgroup><thead data-el="thead"></thead><tbody data-el="tbody"></tbody></table></div>
-    <div class="grid__footer"><span data-el="foot"></span></div>
+    <div class="grid__footer"><span data-el="foot"></span><div class="grid__pager" data-el="pager" hidden></div></div>
     ${o.columnPicker ? `<div class="grid__picker" data-el="picker" hidden></div>` : ""}`;
   const $ = (sel) => root.querySelector(sel);
   const elScroll = $('[data-el="scroll"]'), elThead = $('[data-el="thead"]'), elTbody = $('[data-el="tbody"]');
   const elCount = $('[data-el="count"]'), elActions = $('[data-el="actions"]'), elFoot = $('[data-el="foot"]');
   const elColgroup = $('[data-el="colgroup"]'), elTable = $(".grid__table"), elPicker = $('[data-el="picker"]');
+  const elPager = $('[data-el="pager"]');
 
   /* ---------- 열 폭 ----------
      `resizable` 이나 화면맞춤을 쓰면 표를 고정 레이아웃으로 바꾼다. 그래야 지정한 폭이
@@ -371,7 +402,7 @@ export function createGrid(container, options = {}) {
   function renderBody() {
     const vc = vcols(), span = vc.length + (o.selectable ? 1 : 0);
     if (state.loading) { elTbody.innerHTML = `<tr><td colspan="${span}"><div class="grid__loading">${esc(o.loadingText)}</div></td></tr>`; return; }
-    const view = o.pageSize > 0 ? state.view.slice(0, o.pageSize) : state.view;
+    const view = pageRows();
     if (!view.length) { elTbody.innerHTML = `<tr><td colspan="${span}"><div class="grid__empty">${esc(o.emptyText)}</div></td></tr>`; return; }
     elTbody.innerHTML = view.map((row, i) => {
       const key = keyOf(row, state.rows.indexOf(row));
@@ -394,6 +425,71 @@ export function createGrid(container, options = {}) {
     elCount.innerHTML = `총 <b>${total}</b>건${shown !== total ? ` · 조회 <b>${shown}</b>` : ""}${seln ? ` · 선택 <b>${seln}</b>` : ""}${dirtyn ? ` · 수정 <b>${dirtyn}</b>` : ""}`;
     elFoot.textContent = state.editMode ? "편집 모드 — 셀을 클릭해 수정하거나 엑셀에서 붙여넣기(Ctrl+V)" : "";
     root.classList.toggle("grid--bulk-on", state.editMode);
+    renderPager();
+  }
+
+  /** 표 아래 페이저. 「표시」 셀렉트는 pageSizeOptions 를 준 화면에만 생기고, 「전체」를 골라도
+      남아 있어야 다시 나눌 수 있다. 같은 내용이면 innerHTML 을 건드리지 않는다 — 편집 중
+      글자마다 푸터가 다시 그려지는데, 그때 페이저까지 새로 만들면 포커스가 흔들린다. */
+  function renderPager() {
+    if (!elPager) return;
+    const hasSel = Array.isArray(o.pageSizeOptions) && o.pageSizeOptions.length > 0;
+    const on = isPaged();
+    if (!on && !hasSel) { if (!elPager.hidden) { elPager.hidden = true; elPager.innerHTML = ""; } return; }
+    const total = state.view.length, ps = state.pageSize;
+    let h = "";
+    if (hasSel) {
+      h += '<span class="grid__pager-lb">표시</span><select class="grid__pager-size" data-act="page-size" title="한 번에 그릴 행 수">'
+        + o.pageSizeOptions.map((n) => {
+            const v = Math.max(0, Math.floor(Number(n) || 0));
+            return `<option value="${v}"${v === ps ? " selected" : ""}>${v > 0 ? v.toLocaleString("ko-KR") + "행" : "전체"}</option>`;
+          }).join("") + "</select>";
+    }
+    if (on) {
+      clampPage();
+      const pc = pageCount();
+      const from = total === 0 ? 0 : (state.page - 1) * ps + 1, to = Math.min(total, state.page * ps);
+      h += `<span class="grid__pager-range"><b>${from.toLocaleString("ko-KR")}–${to.toLocaleString("ko-KR")}</b> / 총 ${total.toLocaleString("ko-KR")}건</span>`;
+      const nav = (label, page, dis, title) =>
+        `<button type="button" class="grid__pager-btn" data-act="page-go" data-page="${page}"${dis ? " disabled" : ""} title="${title}" aria-label="${title}">${label}</button>`;
+      const w = Math.max(3, Math.floor(Number(o.pageWindow) || 5));
+      let s0 = Math.max(1, state.page - Math.floor(w / 2));
+      const e0 = Math.min(pc, s0 + w - 1);
+      s0 = Math.max(1, e0 - w + 1);
+      h += '<span class="grid__pager-nav">';
+      h += nav("\u00ab", 1, state.page <= 1, "첫 페이지");
+      h += nav("\u2039", state.page - 1, state.page <= 1, "이전 페이지");
+      for (let p = s0; p <= e0; p++)
+        h += `<button type="button" class="grid__pager-btn${p === state.page ? " grid__pager-btn--on" : ""}" data-act="page-go" data-page="${p}"${p === state.page ? ' aria-current="page"' : ""}>${p}</button>`;
+      h += nav("\u203a", state.page + 1, state.page >= pc, "다음 페이지");
+      h += nav("\u00bb", pc, state.page >= pc, "마지막 페이지");
+      h += "</span>";
+      // 창 밖 페이지로 한 번에 가려면 번호를 직접 적는다(19페이지짜리에서 번호 버튼만으로는 멀다)
+      if (pc > w) h += `<span class="grid__pager-jump">페이지 <input type="number" class="grid__pager-input" data-act="page-input" min="1" max="${pc}" value="${state.page}" aria-label="페이지 번호"> / ${pc}</span>`;
+    }
+    if (elPager.innerHTML !== h) elPager.innerHTML = h;
+    elPager.hidden = false;
+  }
+
+  /** 페이지 이동. 표를 맨 위로 되돌린다 — 안 그러면 새 페이지의 중간이 먼저 보인다. */
+  function setPage(n, notify = true) {
+    if (!isPaged()) return;
+    const pc = pageCount();
+    const p = Math.min(pc, Math.max(1, Math.floor(Number(n) || 1)));
+    if (p === state.page) { renderPager(); return; }
+    state.page = p;
+    renderBody(); renderFooter(); syncHeadOffset(); paintCursor();
+    elScroll.scrollTop = 0;
+    if (notify && o.onPageChange) o.onPageChange(state.page, { pageSize: state.pageSize, pageCount: pc, total: state.view.length });
+  }
+
+  /** 한 페이지 행수 변경(0 = 전체). 첫 페이지로 돌아간다 — 몇 페이지째였는지는 의미가 달라진다. */
+  function setPageSize(n, notify = true) {
+    const v = Math.max(0, Math.floor(Number(n) || 0));
+    if (v === state.pageSize) return;
+    state.pageSize = v; state.page = 1;
+    render();
+    if (notify && o.onPageSizeChange) o.onPageSizeChange(v);
   }
 
   function render() { renderActions(); renderColgroup(); renderHead(); renderBody(); renderFooter(); syncHeadOffset(); paintCursor(); }
@@ -665,7 +761,8 @@ export function createGrid(container, options = {}) {
       return;
     }
     const act = t.getAttribute("data-act");
-    if (act === "sort") { const k = t.getAttribute("data-col"); state.sort = { key: k, dir: state.sort.key === k ? -state.sort.dir : 1 }; computeView(); render(); }
+    if (act === "sort") { const k = t.getAttribute("data-col"); state.sort = { key: k, dir: state.sort.key === k ? -state.sort.dir : 1 }; state.page = 1; computeView(); render(); }
+    else if (act === "page-go") { setPage(t.getAttribute("data-page")); }
     else if (act === "sel-all") { toggleAll(t.checked); }
     else if (act === "sel") { toggleOne(t.getAttribute("data-key"), t.checked); }
     else if (act === "toggle-edit") { state.editMode = !state.editMode; render(); }
@@ -686,7 +783,7 @@ export function createGrid(container, options = {}) {
   let inputTimer = null;
   const deferView = () => {
     clearTimeout(inputTimer);
-    inputTimer = setTimeout(() => { computeView(); renderBody(); renderFooter(); }, 120);
+    inputTimer = setTimeout(() => { state.page = 1; computeView(); renderBody(); renderFooter(); }, 120);
   };
   root.addEventListener("input", (e) => {
     const t = e.target.closest("[data-act]"); if (!t) return;
@@ -696,6 +793,8 @@ export function createGrid(container, options = {}) {
     else if (act === "edit") { setCell(t.getAttribute("data-key"), t.getAttribute("data-col"), t.value); markRowDirty(t); }
   });
   root.addEventListener("change", (e) => {
+    const ps = e.target.closest('[data-act="page-size"]'); if (ps) { setPageSize(ps.value); return; }
+    const pi = e.target.closest('[data-act="page-input"]'); if (pi) { setPage(pi.value); return; }
     const t = e.target.closest('select[data-act="edit"]'); if (!t) return;
     setCell(t.getAttribute("data-key"), t.getAttribute("data-col"), t.value); markRowDirty(t);
   });
@@ -716,7 +815,7 @@ export function createGrid(container, options = {}) {
     const inp = e.target.closest('[data-act="edit"]'); if (!inp) return;
     const key = inp.getAttribute("data-key"), col = inp.getAttribute("data-col");
     const move = (delta) => {
-      const order = (o.pageSize > 0 ? state.view.slice(0, o.pageSize) : state.view);
+      const order = pageRows();     // 페이지 안에서만 옮긴다 — 경계에서 멈추고, 페이지는 페이저로 넘긴다
       const idx = order.findIndex((r, i) => String(keyOf(r, state.rows.indexOf(r))) === String(key));
       const next = order[idx + delta]; if (!next) return;
       const nk = keyOf(next, state.rows.indexOf(next));
@@ -770,8 +869,10 @@ export function createGrid(container, options = {}) {
   }
 
   /* ---------- 선택 ---------- */
+  /* 「전체선택」은 **지금 보이는 페이지**를 뜻한다 — 안 보이는 5,000행이 같이 잡히면 일괄작업이 위험하다.
+     pageSize 0 화면에서는 페이지가 곧 전량이라 종전과 똑같이 동작한다. */
   function toggleAll(on) {
-    state.view.forEach((r) => { const k = String(keyOf(r, state.rows.indexOf(r))); if (on) state.selected.add(k); else state.selected.delete(k); });
+    pageRows().forEach((r) => { const k = String(keyOf(r, state.rows.indexOf(r))); if (on) state.selected.add(k); else state.selected.delete(k); });
     renderBody(); renderFooter(); if (o.onSelectionChange) o.onSelectionChange(getSelected());
   }
   function toggleOne(key, on) {
@@ -817,7 +918,7 @@ export function createGrid(container, options = {}) {
   const instance = {
     el: root,
     getData, getSelected, getSelectedKeys, getDirty,
-    setRows(rows) { state.selected.clear(); ingest(rows); render(); },
+    setRows(rows) { state.selected.clear(); state.page = 1; ingest(rows); render(); },
     updateRow(key, patch) { const r = state.rows.find((row, i) => String(keyOf(row, i)) === String(key)); if (r) Object.assign(r, patch); computeView(); renderBody(); renderFooter(); },
     refresh() { computeView(); render(); },
     setLoading(b) { state.loading = !!b; renderBody(); },
@@ -832,6 +933,11 @@ export function createGrid(container, options = {}) {
     },
     hasErrors() { return state.errors.size > 0; },
     exportCsv, copyToClipboard,
+    /* 페이지 넘김 — 화면이 「다음 페이지」를 자기 버튼으로 걸 수도 있게 열어 둔다 */
+    setPage, getPage() { return isPaged() ? state.page : 1; }, getPageCount: pageCount,
+    setPageSize, getPageSize() { return state.pageSize; },
+    /** 지금 페이지에 그려진 행(전량은 getData·getSelected 로 받는다) */
+    getPageRows() { return pageRows().map((r) => { const c = Object.assign({}, r); delete c.__k; return c; }); },
     /* 넓은 목록용 */
     setFit, isFit() { return state.fit; }, refitWidths() { if (state.fit) setFit(true); },
     /** 맞춤을 켰는데도 화면 밖으로 남은 폭(px). 0 이면 전부 들어왔다. */

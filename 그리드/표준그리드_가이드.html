@@ -183,7 +183,8 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <p><strong>options</strong>: <code>columns, rows, keyField, selectable, search, columnFilter, sortable, editable, editToggle, editToggleLabels, paste, exportCsv, copy, exportName, stickyHeader, keyboardNav, pageSize, emptyText, loadingText, rowClass, bulkActions</code>
 + 넓은 목록용(§5.2, 전부 옵트인) <code>resizable, fitWidth, cellNav, defaultColWidth, minColWidth</code>.
 + 항목 고르기(§5.3) <code>columnPicker, columnPickerLabel</code>.
-+ 2단 헤더(§5.4, 옵트인) <code>groupHeader</code>.</p>
++ 2단 헤더(§5.4, 옵트인) <code>groupHeader</code>.
++ 페이지 넘김(§5.5) <code>pageSize, pager, pageSizeOptions, pageWindow</code>.</p>
 <p><strong>bulkActions</strong>: <code>[{ id, label, btnClass }]</code> — 툴바 버튼. 클릭 시 <code>onBulkAction(id, gridInstance)</code>.</p>
 <table>
 <thead>
@@ -229,11 +230,20 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <td><code>onColumnsChange({order, hidden})</code></td>
 <td>항목을 넣고 빼거나 순서를 바꾼 뒤(§5.3) — <strong>저장은 화면이</strong></td>
 </tr>
+<tr>
+<td><code>onPageChange(page, {pageSize, pageCount, total})</code></td>
+<td>페이지를 넘긴 뒤(§5.5)</td>
+</tr>
+<tr>
+<td><code>onPageSizeChange(pageSize)</code></td>
+<td>「표시」로 한 페이지 행수를 바꾼 뒤(§5.5) — <strong>저장은 화면이</strong></td>
+</tr>
 </tbody>
 </table>
 <hr />
 <h2 id="4">4. 인스턴스 메서드</h2>
 <p><code>getData()</code> · <code>getSelected()</code> · <code>getSelectedKeys()</code> · <code>getDirty()</code>(→<code>[{key,row,dirtyFields}]</code>) · <code>setRows(rows)</code> · <code>updateRow(key,patch)</code> · <code>refresh()</code> · <code>setLoading(bool)</code> · <code>clearSelection()</code> · <code>clearDirty()</code> · <code>setEditMode(bool)</code> · <code>isEditMode()</code> · <code>validateAll()</code> · <code>hasErrors()</code> · <code>exportCsv(name)</code> · <code>copyToClipboard()</code> · <code>destroy()</code>.</p>
+<p>페이지 넘김(§5.5): <code>setPage(n)</code> · <code>getPage()</code> · <code>getPageCount()</code> · <code>setPageSize(n)</code> · <code>getPageSize()</code> · <code>getPageRows()</code>.</p>
 <hr />
 <h2 id="5">5. 엑셀 붙여넣기 규약</h2>
 <p>편집 모드에서 편집 셀에 Ctrl+V 하면 탭/개행을 파싱해 채운다. 자동 인식:
@@ -525,6 +535,61 @@ if (st) grid.setColumnState(st);
 셀렉터를 <code>groupHeader</code> 화면에서 쓸 때는 <code>.grid__gth.pl-fix1</code> 도 함께 <code>position:sticky;left:…</code>
 로 고정해야 가로 스크롤 때 그룹 칸이 밀리지 않는다.</p>
 <hr />
+<h2 id="55-300">5.5 페이지 넘김 — 300행씩 보고 다음 행으로 넘어간다</h2>
+<p><strong><code>pageSize</code> 를 0보다 크게 두면 표 아래에 페이저가 생긴다.</strong> 처음 <code>«</code> · 이전 <code>‹</code> · 페이지 번호 ·
+다음 <code>›</code> · 끝 <code>»</code> 와 「<code>1–300</code> / 총 <code>5,609</code>건」, 그리고 <code>pageSizeOptions</code> 를 주면 「표시」 셀렉트가
+한 줄에 놓인다. 페이지가 창(<code>pageWindow</code>, 기본 5)보다 많으면 번호를 직접 적는 칸도 나온다.</p>
+<pre><code class="language-js">createGrid(&quot;#listGrid&quot;, {
+  columns: COLS, rows: ROWS,              // 받아 둔 **전량**을 그대로 넘긴다
+  pageSize: 300,                          // 한 페이지 300행 → 페이저 자동
+  pageSizeOptions: [300, 1000, 3000, 0],  // 「표시」 셀렉트 (0 = 전체)
+  onPageSizeChange: (n) =&gt; { SHOW = n; savePref(); },   // 취향 저장은 화면이 한다
+});
+</code></pre>
+<h3 id="_1">무엇이 나뉘고 무엇이 나뉘지 않는가</h3>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>기준</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>그리기(tbody)</strong></td>
+<td>현재 페이지만</td>
+</tr>
+<tr>
+<td>검색 · 컬럼필터 · 정렬</td>
+<td><strong>전량</strong> — 걸러진 전량으로 페이지를 다시 센다</td>
+</tr>
+<tr>
+<td>CSV · 복사</td>
+<td><strong>전량</strong>(선택이 있으면 선택분) — 페이지에 갇히지 않는다</td>
+</tr>
+<tr>
+<td>전체선택 체크박스</td>
+<td><strong>현재 페이지</strong> — 안 보이는 수천 행이 일괄작업에 잡히면 위험하다</td>
+</tr>
+<tr>
+<td>방향키 셀 이동 · 편집 Enter 이동</td>
+<td>현재 페이지 안에서 멈춘다(페이지는 페이저로 넘긴다)</td>
+</tr>
+</tbody>
+</table>
+<p>검색·필터·정렬을 바꾸면 <strong>1페이지로 돌아간다</strong>(7페이지를 보다 조건을 좁혀 3페이지밖에 없으면
+빈 화면이 된다). 표시 행수를 바꿔도 1페이지로 간다 — 「몇 페이지째」의 뜻이 달라지기 때문이다.</p>
+<h3 id="_2">쓸 때 지킬 것</h3>
+<ul>
+<li><strong>건수를 두 곳에서 세지 않는다.</strong> 「N건 중 M건 표시」를 화면이 따로 적지 말고 페이저에 맡긴다.
+  화면은 「조건 결과 N건」처럼 <strong>조회 자체</strong>에 대해서만 말한다.</li>
+<li>이건 <strong>서버 페이지네이션이 아니다.</strong> 이미 받아 둔 전량을 화면에서 나누는 것뿐이라, 조회 자체가
+  무거우면(수만 행) RPC 에 <code>limit/offset</code> 을 넣는 별건 작업이 필요하다.</li>
+<li><code>pager:false</code> 는 <strong>옛 동작</strong>(앞 N행만 그리고 넘길 길이 없음)이다. 새 화면은 쓰지 않는다 —
+  「169건」이라 적어 두고 25행만 보이는 화면이 그래서 나왔다(2026-09-23 기안서 대장).</li>
+<li><code>pageSize:0</code>(기본)이면 페이저 DOM 이 <code>hidden</code> 으로 비어 있다 — 기존 화면은 한 픽셀도 바뀌지 않는다.</li>
+</ul>
+<hr />
 <h2 id="6">6. 새 편집 화면 추가 레시피</h2>
 <ol>
 <li>화면에 <code>&lt;div id="xGrid"&gt;</code> + <code>grid.css</code> 링크, <code>&lt;script type="module"&gt;</code>에서 <code>createGrid</code> import.</li>
@@ -538,6 +603,7 @@ if (st) grid.setColumnState(st);
 <li>❌ 전역 <code>table/th/td</code> CSS 재정의 (→ <code>.grid__</code> 스코프만)</li>
 <li>❌ grid.js에 DB/SSO/RLS/Edge Function 로직 삽입</li>
 <li>❌ 외부 그리드 라이브러리·CDN 추가</li>
+<li>❌ <code>pageSize</code> 만 두고 페이저를 끄는 것(<code>pager:false</code>) — 나머지 행으로 갈 길이 사라진다(§5.5)</li>
 <li>❌ 비밀값·운영 데이터 하드코딩, <code>.claude/</code>·<code>MS_connect/</code>·<code>doc/</code> 커밋</li>
 <li>❌ 사람이 결정/실행해야 하는 일(실거래·권한·Entra 설정) 임의 진행</li>
 </ul>
@@ -560,7 +626,7 @@ if (st) grid.setColumnState(st);
 <tr>
 <td>발주통합관리 LIST</td>
 <td><code>pages/구매_발주통합LIST_2026.html</code> <code>#listGrid</code></td>
-<td><strong>읽기 전용 대용량 목록</strong> 첫 사례 — 28열 5,609행. 검색·컬럼필터·정렬·CSV(BOM)·복사만 켜고 편집·붙여넣기는 끈다. <code>pageSize</code> 는 렌더만 자르므로 화면이 「N건 중 M건」을 따로 고지한다. 컬럼 프리셋(기본/전체)은 그리드 재생성으로 구현(표준에 컬럼 토글 없음). <strong>왼쪽 고정열(§5.1)·폭 제어(§5.2) 첫 사례</strong> — 화면맞춤·열폭 드래그·방향키 칸 이동. 가로 드래그·표 위 스크롤바·행 상세 패널·직전결과 캐시는 화면 쪽 코드다</td>
+<td><strong>읽기 전용 대용량 목록</strong> 첫 사례 — 28열 5,609행. 검색·컬럼필터·정렬·CSV(BOM)·복사만 켜고 편집·붙여넣기는 끈다. <strong>페이지 넘김(§5.5) 첫 사례</strong> — <code>pageSize:300</code> + <code>pageSizeOptions</code> 로 표 아래에서 300행씩 넘긴다(화면이 갖고 있던 「표시」 셀렉트는 2026-09-28 표준으로 흡수, REQ-0083). 컬럼 프리셋(기본/전체)은 그리드 재생성으로 구현(표준에 컬럼 토글 없음). <strong>왼쪽 고정열(§5.1)·폭 제어(§5.2) 첫 사례</strong> — 화면맞춤·열폭 드래그·방향키 칸 이동. 가로 드래그·표 위 스크롤바·행 상세 패널·직전결과 캐시는 화면 쪽 코드다</td>
 </tr>
 <tr>
 <td>기안서 목록대장</td>
@@ -568,9 +634,14 @@ if (st) grid.setColumnState(st);
 <td><strong>2단 헤더(§5.4) 첫 실적용</strong> — 구매팀 엑셀 대장(22열 1,102행)을 열 순서·머리글까지 그대로 옮겼다. <code>계약금</code>·<code>중도금</code>·<code>잔금</code> 그룹 × 비율·발행금액·전표번호·발행일. 엑셀이 숨겨 둔 두 열(스캔 파일명·비고)은 <code>hidden:true</code> 로 두고 「▦ 항목」에서 켠다 — <strong><code>columnPicker</code> 로 프리셋을 대신한 첫 사례</strong>(발주LIST 처럼 그리드를 다시 만들지 않는다). ⚠ <code>fitWidth</code> 를 <strong>기본으로 켜지 않는다</strong>: 22열은 화면 폭에 다 들어가지 않아 맞춤을 켜도 스크롤이 남는다 — 엑셀처럼 가로로 스크롤하는 것이 읽기 쉽다. ⚠ <code>formatter</code> 는 <code>(값, 행)</code> 두 인자뿐이라 단계별 셀 렌더는 <strong>클로저로 단계를 고정</strong>한다(열 정의를 세 번째 인자로 기대하면 조용히 빈 칸이 된다 — 2026-09-23 실측)</td>
 </tr>
 <tr>
+<td>관리자 콘솔 「▦ 그리드」</td>
+<td><code>04_챗봇_포털_데모UI.html</code> <code>#panel-grid</code></td>
+<td><strong>그리드 통합 관제</strong>(REQ-0083) — 관리자 콘솔 「요청함」 옆 탭. ①라이브 점검(기능 토글 14종 + 샘플 50~5,609행으로 페이저·렌더시간 실측, 켠 구성을 <code>createGrid(...)</code> 호출문으로 뽑아 준다) ②기능 대장 ③적용 화면 대장 ④개선 과제 — 네 표 모두 <strong>표준 그리드 자체로</strong> 그린다. <code>grid.js</code> 를 동적 <code>import</code> 로 그대로 불러 쓰므로 여기서 도는 구성은 실제 화면에서도 돈다. ⚠ <strong>정본은 저장소다</strong> — 이 탭은 파생 뷰이고 <strong>저장하지 않는다</strong>(고친 비고·과제는 CSV 로 내려받아 이 가이드·백로그에 반영). ⚠ 관리자 콘솔의 <code>.sec table/th/td</code> 가 <code>.grid__th</code> 보다 특이도가 높아 그리드를 오염시키므로, 그리드 블록은 표 셀렉터가 없는 <code>.gsec</code> 을 쓴다(§7 금지사항의 반대편 — 호스트 CSS 를 그리드에 맞춘다)</td>
+</tr>
+<tr>
 <td>(표준 데모)</td>
 <td><code>그리드/index.html</code></td>
-<td>전체 기능 레퍼런스</td>
+<td>전체 기능 레퍼런스 — §5.5 페이저 데모 포함</td>
 </tr>
 </tbody>
 </table>

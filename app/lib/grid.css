@@ -120,6 +120,29 @@
 .grid__footer{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;
   margin-top:8px;font-size:11.5px;color:var(--g-muted);}
 
+/* 페이지 넘김 (pageSize>0 에서만 그려진다)
+   전역 select/button 셀렉터를 건드리지 않는다(§13.4) — 같은 화면의 다른 표·조회바가 오염된다. */
+.grid__pager{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-left:auto;font-size:11.5px;}
+.grid__pager[hidden]{display:none;}
+.grid__pager-lb{color:var(--g-muted);}
+.grid__pager-range{color:var(--g-muted);white-space:nowrap;}
+.grid__pager-range b{color:var(--g-accent);}
+.grid__pager-size{padding:4px 7px;border:1px solid var(--g-line);border-radius:7px;background:#fff;
+  font-size:11.5px;color:var(--g-navy2);font-family:inherit;cursor:pointer;}
+.grid__pager-nav{display:inline-flex;gap:3px;}
+.grid__pager-btn{min-width:25px;height:25px;padding:0 6px;border:1px solid var(--g-line);border-radius:6px;
+  background:#fff;color:var(--g-navy2);font-size:11.5px;font-weight:600;font-family:inherit;cursor:pointer;line-height:23px;}
+.grid__pager-btn:hover:not(:disabled){background:var(--g-soft);border-color:var(--g-accent);}
+.grid__pager-btn:disabled{opacity:.4;cursor:default;}
+.grid__pager-btn--on{background:var(--g-navy);border-color:var(--g-navy);color:#fff;cursor:default;}
+.grid__pager-jump{color:var(--g-muted);white-space:nowrap;}
+.grid__pager-input{width:52px;padding:3px 5px;border:1px solid var(--g-line);border-radius:6px;
+  background:#fff;font-size:11.5px;color:var(--g-navy2);font-family:inherit;text-align:right;}
+@media(max-width:720px){
+  .grid__pager{margin-left:0;width:100%;justify-content:space-between;}
+  .grid__pager-jump{display:none;}
+}
+
 /* 데모/독립 사용 시 버튼 fallback (호스트에 .btn 있으면 그것이 우선) */
 .grid__btn{padding:6px 12px;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;
   background:var(--g-navy);color:#fff;}
