@@ -1,0 +1,321 @@
+<!DOCTYPE html><html lang="ko"><head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>구매 에이전트</title>
+<!-- REQ-0087 · 14 기획(부서 에이전트) · 서버 jeil-chat-lab(body.agent="purchase") · 권한 판정은 서버(구성원·관리자 — pilot) -->
+<link rel="stylesheet" href="/app/lib/chatview.css">
+<style id="__hide">body{visibility:hidden}</style>
+<style>
+:root{
+  --navy:#1a2f4e; --navy2:#27457a; --accent:#2f6fb3; --accent2:#4a8ed0;
+  --red:#b3402f; --green:#2e7d52; --amber:#9a6b1f;
+  --ink:#222; --muted:#666; --line:#d8dee8; --bg:#f4f6f9; --soft:#eef2f8; --softgrey:#f1f3f6;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Malgun Gothic","맑은 고딕",sans-serif;font-size:14px;line-height:1.5}
+.page{max-width:1440px;margin:0 auto;padding:16px}
+.head{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap;border-bottom:2px solid var(--navy);padding-bottom:10px;margin-bottom:12px}
+.head h1{margin:0;font-size:21px;color:var(--navy)}
+.head .sub{margin-top:4px;color:var(--muted);font-size:12.5px}
+.head .right{color:var(--muted);font-size:12.5px;text-align:right;line-height:1.6}
+.head a{color:var(--accent)}
+.badge{display:inline-block;padding:1px 8px;border-radius:10px;font-size:11.5px;margin-left:6px;border:1px solid var(--line);background:#fff;vertical-align:3px;color:var(--muted)}
+.badge.pilot{color:#fff;background:var(--amber);border-color:var(--amber)}
+.notice{background:#fff;border:1px solid var(--line);border-left:4px solid var(--accent2);border-radius:8px;padding:7px 12px;font-size:12.3px;color:var(--muted);margin-bottom:12px}
+.layout{display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:12px;align-items:start}
+@media (max-width:1000px){.layout{grid-template-columns:1fr}}
+.box{background:#fff;border:1px solid var(--line);border-radius:10px;padding:12px 14px}
+.box h3{margin:0 0 8px;font-size:13.5px;color:var(--navy)}
+.box + .box{margin-top:10px}
+.chat{display:flex;flex-direction:column;height:calc(100vh - 190px);min-height:520px;padding:0;overflow:hidden}
+.log{flex:1;overflow-y:auto;padding:14px 16px;background:#fafbfd}
+.msg{display:flex;margin:0 0 14px}
+.msg.user{justify-content:flex-end}
+.bubble{background:#fff;border:1px solid var(--line);border-radius:14px 14px 14px 5px;padding:12px 15px;line-height:1.7;font-size:13.6px;max-width:94%;overflow-x:auto}
+.msg.user .bubble{background:var(--accent);color:#fff;border-color:var(--accent);border-radius:14px 14px 5px 14px;white-space:pre-wrap}
+.bubble h4{margin:8px 0 4px;font-size:13.5px;color:var(--navy)}
+.bubble ul,.bubble ol{margin:6px 0 4px 20px;padding:0}
+.bubble code{background:var(--softgrey);padding:0 4px;border-radius:4px;font-size:12px}
+.tail{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:8px;padding-top:7px;border-top:1px dashed var(--line);font-size:12px;color:var(--muted)}
+.tail button{font-size:12px;border:1px solid var(--line);background:#fff;border-radius:12px;padding:2px 10px;cursor:pointer;font-family:inherit;color:var(--navy)}
+.tail button:hover{border-color:var(--accent)}
+.tail button.on{background:var(--navy);color:#fff;border-color:var(--navy)}
+.tail .sp{flex:1}
+.fb{display:flex;gap:6px;margin-top:6px}
+.fb input{flex:1;border:1px solid var(--line);border-radius:6px;padding:4px 8px;font-family:inherit;font-size:12.5px}
+details.trace{margin-top:6px;font-size:11.5px;color:var(--muted)}
+details.trace summary{cursor:pointer;color:var(--accent)}
+details.trace div{font-family:Consolas,Menlo,monospace;word-break:break-all;padding:2px 0}
+.chips{display:flex;flex-wrap:wrap;gap:6px;padding:8px 12px;border-top:1px solid var(--line);background:#fff}
+.chip{font-size:11.8px;border:1px solid var(--line);background:var(--soft);color:var(--navy);border-radius:12px;padding:3px 10px;cursor:pointer}
+.chip:hover{border-color:var(--accent)}
+.composer{display:flex;gap:8px;padding:10px 12px;border-top:1px solid var(--line);background:#fff}
+.composer textarea{flex:1;resize:none;height:54px;border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-family:inherit;font-size:13.5px}
+.btn{padding:7px 13px;border:1px solid var(--accent);background:var(--accent);color:#fff;border-radius:6px;cursor:pointer;font-size:12.5px;font-family:inherit}
+.btn.ghost{background:#fff;color:var(--accent)}
+.btn:disabled{opacity:.5;cursor:default}
+.empty{color:var(--muted);text-align:center;margin-top:60px;font-size:13px;line-height:1.9}
+.arts{list-style:none;margin:0;padding:0;max-height:calc(100vh - 470px);min-height:120px;overflow-y:auto}
+.arts li{display:flex;gap:8px;align-items:center;border-bottom:1px dashed var(--line);padding:6px 0;font-size:12.5px}
+.arts li .t{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.arts li small{color:var(--muted)}
+.arts button{font-size:11px;border:1px solid var(--line);background:#fff;border-radius:10px;padding:1px 8px;cursor:pointer;font-family:inherit}
+.hint{font-size:11.8px;color:var(--muted);line-height:1.65}
+.kind{display:inline-block;font-size:10px;font-weight:700;border-radius:4px;padding:0 5px;background:var(--soft);color:var(--navy)}
+.toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:var(--navy);color:#fff;padding:8px 16px;border-radius:8px;font-size:13px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:9}
+.toast.on{opacity:1}
+.gate{max-width:560px;margin:60px auto;text-align:center;background:#fff;border:1px solid var(--line);border-radius:10px;padding:34px 26px}
+.gate .ic{font-size:40px}.gate h2{margin:10px 0 6px;font-size:18px;color:var(--navy)}.gate p{color:var(--muted);margin:0 0 14px}
+.foot{margin-top:12px;color:var(--muted);font-size:11.8px;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}
+</style>
+</head>
+<body>
+<div class="page" id="app">
+  <div class="head">
+    <div>
+      <h1><span id="icon">🛒</span> <span id="title">구매 에이전트</span><span class="badge" id="status">-</span></h1>
+      <div class="sub" id="summary">발주·구매요청·입고·매입·기안서 대장을 대화로 조회하고 자료를 만듭니다.</div>
+    </div>
+    <div class="right" id="me">-</div>
+  </div>
+  <div class="notice" id="notice">ℹ️ 품질 개선을 위해 질문과 답변이 기록됩니다. 조회 결과(금액 목록 등)는 기록하지 않습니다.
+    발주 확정·결재·발송 같은 실거래는 하지 않으며 초안까지만 만듭니다.</div>
+
+  <div class="layout">
+    <div class="box chat">
+      <div class="log" id="log"><div class="empty" id="empty">무엇이든 물어보세요. 예) <b>이번 달 납기 지난 미입고 발주 거래처별로</b><br>
+        답변의 표는 <b>CSV로 내려받거나 자료함에 저장</b>할 수 있고, <b>📄 보고서로 만들기</b>를 누르면 인쇄용 보고서가 만들어집니다.</div></div>
+      <div class="chips" id="chips"></div>
+      <div class="composer">
+        <textarea id="inp" placeholder="질문 입력 — Enter 전송 · Shift+Enter 줄바꿈"></textarea>
+        <button class="btn" id="btnSend" type="button">보내기</button>
+        <button class="btn ghost" id="btnStop" type="button" disabled>중지</button>
+        <button class="btn ghost" id="btnNew" type="button" title="대화 비우기">새 대화</button>
+      </div>
+    </div>
+    <div>
+      <div class="box">
+        <h3>📁 내 자료함 <span class="hint" id="artInfo"></span></h3>
+        <ul class="arts" id="arts"><li class="hint">불러오는 중…</li></ul>
+        <div class="hint" style="margin-top:6px">본인만 볼 수 있고 30일 뒤 자동 삭제됩니다. 보관이 필요하면 내려받으세요.</div>
+      </div>
+      <div class="box">
+        <h3>연결된 구매 자료</h3>
+        <div class="hint">발주통합 LIST · 월별 발주 · 발주 상세(PO/PR) · 발주 금액 상위 · 미입고·납기경과 · 구매요청 · 품목별 구매 이력 ·
+          거래처별 매입 · 거래처 프로필 · 기안서 대장 · 기안서↔전표 대사 · 품목 검색 · 외주검사 현황 — 모두 <b>읽기 전용</b>이며 본인 권한 범위만 조회됩니다.</div>
+      </div>
+      <div class="box" id="opBox" style="display:none">
+        <h3>담당자 메뉴</h3>
+        <div class="hint">답변마다 <b>🔍 처리 과정</b>이 보입니다(담당자에게만). 설정·개선 대장·골든셋은
+          <a href="/admin/agents?agent=purchase" target="_blank" rel="noopener">에이전트 관리 ↗</a> 에서 합니다.</div>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span>REQ-0087 · 14 기획 부서 에이전트 · 수치는 ERP 중간DB(파일럿 데이터) 조회 결과입니다.</span><span id="ver"></span></div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script type="module">
+import { op, chat, auth, toLogin, ApiError } from "/app/lib/agentApi.js";
+import { renderMd, renderView, viewTable, toCsv, downloadText, reportHtml, escHtml } from "/app/lib/chatview.js";
+
+const AGENT = "purchase";
+const $ = (id) => document.getElementById(id);
+const unhide = () => { const s = $("__hide"); if (s) s.remove(); };
+const toast = (t) => { const e = $("toast"); e.textContent = t; e.classList.add("on"); clearTimeout(toast._t); toast._t = setTimeout(() => e.classList.remove("on"), 2200); };
+function block(ic, title, msg) {
+  $("app").innerHTML = `<div class="gate"><div class="ic">${ic}</div><h2>${escHtml(title)}</h2><p>${msg}</p><a class="btn" href="/main" style="text-decoration:none">← 포털로 돌아가기</a></div>`;
+  unhide();
+}
+
+let BOOT = null;
+let hist = [];          // 대화(화면 메모리 — 서버는 턴 단위로 기록)
+let ctrl = null;
+const bots = [];        // 답변별 {views[], text, turnId, question}
+const isOp = () => BOOT && (BOOT.role === "operator" || BOOT.role === "reviewer");
+const today = () => new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10);
+
+/* ===== 자료함 ===== */
+async function loadArts() {
+  try {
+    const j = await op(AGENT, "artifact_list");
+    $("artInfo").textContent = j.items.length ? `· ${j.items.length}건` : "";
+    $("arts").innerHTML = j.items.length ? j.items.map((a) => `<li data-id="${escHtml(a.id)}">
+      <span class="kind">${escHtml(a.kind.toUpperCase())}</span><span class="t" title="${escHtml(a.title)}">${escHtml(a.title)}</span>
+      <small>${escHtml(String(a.created_at).slice(5, 10))}</small>
+      <button type="button" data-act="open">열기</button><button type="button" data-act="del">삭제</button></li>`).join("")
+      : '<li class="hint">아직 저장한 자료가 없습니다.</li>';
+  } catch (e) { if (e.message !== "login") $("arts").innerHTML = `<li class="hint">자료함을 불러오지 못했습니다: ${escHtml(e.message)}</li>`; }
+}
+$("arts").onclick = async (e) => {
+  const b = e.target.closest("button[data-act]"); if (!b) return;
+  const id = b.closest("li").dataset.id;
+  try {
+    if (b.dataset.act === "open") { const j = await op(AGENT, "artifact_url", { id }); window.open(j.url, "_blank", "noopener"); }
+    else if (confirmDel(b)) { await op(AGENT, "artifact_delete", { id }); loadArts(); }
+  } catch (err) { toast("실패: " + err.message); }
+};
+// 삭제는 두 번 눌러 확정(브라우저 확인창을 쓰지 않는다)
+function confirmDel(b) { if (b.dataset.armed) return true; b.dataset.armed = "1"; b.textContent = "정말?"; setTimeout(() => { b.textContent = "삭제"; delete b.dataset.armed; }, 2500); return false; }
+
+async function saveArtifact(title, kind, content, turnId) {
+  const j = await op(AGENT, "artifact_save", { title, kind, content, turn_id: turnId || null });
+  loadArts(); toast("자료함에 저장했습니다");
+  return j.artifact;
+}
+
+/* ===== 대화 ===== */
+function addUser(text) {
+  $("empty") && $("empty").remove();
+  const m = document.createElement("div"); m.className = "msg user";
+  const b = document.createElement("div"); b.className = "bubble"; b.textContent = text; m.appendChild(b);
+  $("log").appendChild(m); $("log").scrollTop = $("log").scrollHeight;
+}
+function addBot(question) {
+  const m = document.createElement("div"); m.className = "msg bot";
+  const b = document.createElement("div"); b.className = "bubble";
+  const views = document.createElement("div"); views.className = "cv-stack";
+  const body = document.createElement("div");
+  const tail = document.createElement("div"); tail.className = "tail"; tail.style.display = "none";
+  b.append(views, body, tail); m.appendChild(b); $("log").appendChild(m);
+  const rec = { views: [], text: "", turnId: null, question, el: { views, body, tail, bubble: b }, trace: [] };
+  bots.push(rec);
+  return rec;
+}
+function cardActions(rec) {
+  return (v) => {
+    const t = viewTable(v); if (!t || !t.rows.length) return [];
+    const name = (t.title || "구매자료").slice(0, 60);
+    return [
+      { label: "⬇ CSV", onClick: () => downloadText(`${name}_${today()}.csv`, toCsv(t), "text/csv;charset=utf-8") },
+      { label: "📁 자료함에 저장", onClick: async (btn) => { btn.disabled = true; try { await saveArtifact(name, "csv", toCsv(t), rec.turnId); btn.textContent = "✓ 저장됨"; } catch (e) { btn.disabled = false; toast("저장 실패: " + e.message); } } },
+    ];
+  };
+}
+function finishTail(rec, reportOf) {
+  const t = rec.el.tail; t.style.display = "";
+  t.innerHTML = "";
+  const mk = (label, fn, title) => { const b = document.createElement("button"); b.type = "button"; b.textContent = label; if (title) b.title = title; b.onclick = () => fn(b); t.appendChild(b); return b; };
+  if (rec.turnId) {
+    const up = mk("👍", async (b) => { await rate(rec, 1); b.classList.add("on"); down.classList.remove("on"); }, "도움이 됐어요");
+    const down = mk("👎", (b) => { b.classList.add("on"); up.classList.remove("on"); askNote(rec); }, "아쉬워요 — 담당자가 개선에 반영합니다");
+  }
+  if (reportOf) {
+    mk("📄 이 해설로 보고서 저장", () => makeReport(reportOf, rec));
+  } else if (rec.views.some((v) => viewTable(v))) {
+    mk("📄 보고서로 만들기", () => askReport(rec), "위 표 + AI 해설로 인쇄용 보고서를 만듭니다");
+  }
+  const sp = document.createElement("span"); sp.className = "sp"; t.appendChild(sp);
+  if (rec.meta) { const s = document.createElement("span"); s.textContent = rec.meta; t.appendChild(s); }
+  if (isOp() && rec.trace.length) {
+    const d = document.createElement("details"); d.className = "trace";
+    d.innerHTML = `<summary>🔍 처리 과정(${rec.trace.length})</summary>` + rec.trace.map((x) => `<div>${escHtml(x)}</div>`).join("");
+    rec.el.bubble.appendChild(d);
+  }
+}
+async function rate(rec, r, note) {
+  try { await op(AGENT, "rate", { turn_id: rec.turnId, rating: r, note: note || null }); toast(r > 0 ? "고맙습니다" : "의견이 담당자에게 전달됐습니다"); }
+  catch (e) { toast("평가 실패: " + e.message); }
+}
+function askNote(rec) {
+  if (rec.el.bubble.querySelector(".fb")) return;
+  const f = document.createElement("div"); f.className = "fb";
+  f.innerHTML = `<input maxlength="300" placeholder="무엇이 아쉬웠나요? (선택 — 비워도 됩니다)"><button class="btn ghost" type="button">보내기</button>`;
+  f.querySelector("button").onclick = async () => { await rate(rec, -1, f.querySelector("input").value.trim()); f.remove(); };
+  f.querySelector("input").onkeydown = (e) => { if (e.key === "Enter" && !e.isComposing) f.querySelector("button").click(); };
+  rec.el.bubble.appendChild(f);
+}
+async function makeReport(src, narr) {
+  const tables = src.views.map(viewTable).filter((t) => t && t.rows.length);
+  const title = (src.question || "구매 보고서").slice(0, 60);
+  const html = reportHtml({ title, author: [BOOT.me.dept, BOOT.me.name].filter(Boolean).join(" "), asOf: today(), narrative: narr.text, tables });
+  const w = window.open("", "_blank");
+  if (w) { w.document.open(); w.document.write(html); w.document.close(); }
+  try { await saveArtifact(title, "html", html, narr.turnId); } catch (e) { toast("저장 실패: " + e.message); }
+}
+
+function ask(p) { $("inp").value = p; send(); }
+/** 보고서 해설 요청 — 대화 기록에는 카드 데이터가 없으므로(모델은 문장만 기억한다) 표를 요약해 같이 보낸다.
+ *  화면에는 짧은 문구만 보인다. 숫자는 서버 카드 값 그대로라 모델이 다시 조회하지 않아도 된다. */
+function askReport(rec) {
+  const NL = String.fromCharCode(10), TAB = String.fromCharCode(9);
+  let data = "";
+  rec.views.map(viewTable).filter((t) => t && t.rows.length).forEach((t) => {
+    data += NL + "[" + (t.title || "표") + "]" + NL + t.head.join(TAB) + NL
+      + t.rows.slice(0, 40).map((r) => r.join(TAB)).join(NL) + (t.rows.length > 40 ? NL + "…외 " + (t.rows.length - 40) + "행" : "") + NL;
+  });
+  const content = "아래 조회 결과로 보고용 해설을 써줘. 요약 3줄 → 특이사항 → 조치 제안 순서로, 수치는 아래 표 값만 인용하고 표는 다시 쓰지 마. 도구는 다시 부르지 않아도 돼." + NL
+    + "원래 질문: " + rec.question + NL + data.slice(0, 7000);
+  send(rec, { display: "📄 위 결과로 보고서 해설 작성", content });
+}
+
+async function send(reportSrc, override) {
+  const text = override ? override.content : $("inp").value.trim();
+  if (!text || ctrl) return;
+  if (!override) $("inp").value = "";
+  addUser(override ? override.display : text);
+  hist.push({ role: "user", content: text });
+  const rec = addBot(override ? reportSrc.question : text);
+  rec.el.body.innerHTML = '<span class="hint">조회 중…</span>';
+  ctrl = new AbortController();
+  $("btnSend").disabled = true; $("btnStop").disabled = false;
+  try {
+    await chat(AGENT, hist.slice(-20), {
+      onText: (c) => { rec.text += c; rec.el.body.innerHTML = renderMd(rec.text); $("log").scrollTop = $("log").scrollHeight; },
+      onView: (v) => { rec.views.push(v); renderView(rec.el.views, v, { onAsk: (p) => ask(p), extraActions: cardActions(rec) }); },
+      onEvent: (ev) => {
+        if (ev.type === "tool") rec.trace.push(`${ev.tool} ${JSON.stringify(ev.args)} → ${ev.outcome}${ev.rows != null ? " " + ev.rows + "건" : ""} · ${ev.ms}ms`);
+        else if (ev.type === "fallback") rec.trace.push(`예비 모델 전환 ${ev.from} → ${ev.to} (${ev.status})`);
+        else if (ev.type === "llm_error") rec.trace.push(`모델 오류 ${ev.status}: ${ev.detail}`);
+        else if (ev.type === "start" && ev.note) rec.trace.push(ev.note);
+        else if (ev.type === "end") {
+          rec.turnId = ev.turn_id;
+          if (isOp()) rec.meta = `${ev.model}${ev.fallback ? "(예비)" : ""} · ${(ev.ms / 1000).toFixed(1)}초` + (ev.est_cost_usd != null ? ` · $${ev.est_cost_usd}` : "");
+        }
+      },
+    }, { signal: ctrl.signal });
+    if (!rec.text && !rec.views.length) rec.el.body.innerHTML = '<span class="hint">(빈 응답)</span>';
+    else if (!rec.text) rec.el.body.innerHTML = "";
+    hist.push({ role: "assistant", content: rec.text || "(카드 응답)" });
+    finishTail(rec, reportSrc || null);
+  } catch (e) {
+    if (e.name === "AbortError") { rec.el.body.innerHTML = renderMd(rec.text) + '<div class="hint">⏹ 중지됨</div>'; hist.push({ role: "assistant", content: rec.text || "(중지)" }); }
+    else if (e.message !== "login") { rec.el.body.innerHTML = `<span style="color:var(--red)">⚠ ${escHtml(e.message)}</span>`; hist.pop(); }
+  } finally {
+    ctrl = null; $("btnSend").disabled = false; $("btnStop").disabled = true;
+    $("log").scrollTop = $("log").scrollHeight;
+  }
+}
+$("btnSend").onclick = () => send();
+$("btnStop").onclick = () => { if (ctrl) ctrl.abort(); };
+$("btnNew").onclick = () => { hist = []; bots.length = 0; $("log").innerHTML = '<div class="empty" id="empty">새 대화를 시작합니다.</div>'; };
+$("inp").addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); send(); } });
+$("chips").onclick = (e) => { const c = e.target.closest(".chip"); if (c) ask(c.dataset.q); };
+
+/* ===== 진입 — 서버가 구성원·관리자 판정(403 이면 차단 화면) ===== */
+(async () => {
+  if (!auth()) { toLogin(); return; }
+  try {
+    BOOT = await op(AGENT, "boot");
+  } catch (e) {
+    if (e.message === "login") return;
+    if (e.status === 403) block("🔒", "구매 에이전트 파일럿 구성원 전용입니다", "지금은 파일럿 기간이라 지정된 구성원만 사용할 수 있습니다.<br>필요하면 포털 관리자에게 요청하세요.");
+    else block("⚠️", "구매 에이전트를 열지 못했습니다", escHtml(e.message));
+    return;
+  }
+  const A = BOOT.agent;
+  $("icon").textContent = A.icon || "🛒"; $("title").textContent = A.name;
+  $("status").textContent = { pilot: "파일럿", live: "운영", dev: "개발" }[A.status] || A.status;
+  if (A.status === "pilot") $("status").classList.add("pilot");
+  if (A.summary) $("summary").textContent = A.summary;
+  $("notice").firstChild.textContent = A.collect
+    ? `ℹ️ 품질 개선을 위해 질문과 답변이 기록됩니다(${A.retention_days}일 보관 · 담당자만 열람). 조회 결과(금액 목록 등)는 기록하지 않습니다. `
+    : "ℹ️ 이 에이전트는 대화를 기록하지 않습니다. ";
+  $("me").innerHTML = `${escHtml(BOOT.me.dept || "")} · ${escHtml(BOOT.me.name || "")}<br><small>오늘 ${BOOT.today.used}/${BOOT.today.limit}회 · ${escHtml({ reviewer: "관리자", operator: "담당자", user: "사용자" }[BOOT.role] || "")}</small>`;
+  if (isOp()) { $("opBox").style.display = ""; $("ver").textContent = `설정 v${BOOT.version} · ${BOOT.model || "모델 없음"}${BOOT.model_note ? " — " + BOOT.model_note : ""}`; }
+  $("chips").innerHTML = (A.suggestions || []).map((s) => `<span class="chip" data-q="${escHtml(s.q)}">${escHtml(s.label)}</span>`).join("");
+  unhide();
+  loadArts();
+})();
+</script>
+</body></html>

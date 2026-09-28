@@ -1,0 +1,636 @@
+<!DOCTYPE html><html lang="ko"><head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>에이전트 관리</title>
+<!-- REQ-0086/0088 · 14 기획(부서 에이전트) · 서버 jeil-chat-lab(core/agent_api.ts)
+     역할: 담당자(operator)=설정 초안·개선 대장·용어집·골든셋·회귀 / 관리자(reviewer)=+현재 버전 지정·상태·한도·예산·구성원(확인·점검·승인)
+     버튼 숨김은 편의일 뿐 — 판정은 서버가 한다(§5.4). 편집 표는 표준 그리드(§13). -->
+<link rel="stylesheet" href="/app/lib/grid.css">
+<link rel="stylesheet" href="/app/lib/chatview.css">
+<style id="__hide">body{visibility:hidden}</style>
+<style>
+:root{
+  --navy:#1a2f4e; --navy2:#27457a; --accent:#2f6fb3; --accent2:#4a8ed0;
+  --red:#b3402f; --green:#2e7d52; --amber:#9a6b1f; --grey:#5f6b7a;
+  --ink:#222; --muted:#666; --line:#d8dee8; --bg:#f4f6f9; --soft:#eef2f8; --softgrey:#f1f3f6;
+  --softred:#fbeeec; --softgreen:#ecf5f0; --softamber:#faf3e4;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Malgun Gothic","맑은 고딕",sans-serif;font-size:14px;line-height:1.5}
+.page{max-width:1560px;margin:0 auto;padding:16px}
+.head{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap;border-bottom:2px solid var(--navy);padding-bottom:10px;margin-bottom:10px}
+.head h1{margin:0;font-size:21px;color:var(--navy)}
+.head .sub{margin-top:4px;color:var(--muted);font-size:12.5px}
+.head .right{color:var(--muted);font-size:12.5px;text-align:right;line-height:1.6}
+.head a,.hint a{color:var(--accent)}
+.badge{display:inline-block;padding:1px 8px;border-radius:10px;font-size:11.5px;margin-left:6px;border:1px solid var(--line);background:#fff;vertical-align:3px;color:var(--muted)}
+.badge.rv{background:var(--navy);color:#fff;border-color:var(--navy)}
+.badge.op{background:var(--green);color:#fff;border-color:var(--green)}
+.tabs{display:flex;gap:4px;flex-wrap:wrap;margin:0 0 12px}
+.tab{padding:6px 14px;border:1px solid var(--line);background:#fff;border-radius:6px;cursor:pointer;font-size:13px;color:var(--muted);font-family:inherit}
+.tab.on{background:var(--navy);color:#fff;border-color:var(--navy)}
+.tab .n{display:inline-block;min-width:18px;font-size:11px;background:var(--red);color:#fff;border-radius:9px;padding:0 5px;margin-left:4px}
+.pane{display:none}.pane.on{display:block}
+.box{background:#fff;border:1px solid var(--line);border-radius:10px;padding:12px 14px}
+.box h3{margin:0 0 8px;font-size:13.5px;color:var(--navy);display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.box h3 .sp{flex:1}
+.box + .box,.row2 + .box,.box + .row2{margin-top:10px}
+.row2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px;align-items:start}
+.row2.wide{grid-template-columns:minmax(0,1.25fr) minmax(0,1fr)}
+@media (max-width:1100px){.row2,.row2.wide{grid-template-columns:1fr}}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}
+.kpi{background:#fff;border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+.kpi .l{font-size:11.5px;color:var(--muted)}
+.kpi .v{font-size:20px;font-weight:700;color:var(--navy);margin-top:2px}
+.kpi .s{font-size:11px;color:var(--muted)}
+.kpi.warn .v{color:var(--amber)} .kpi.bad .v{color:var(--red)}
+.meter{height:6px;background:var(--softgrey);border-radius:3px;margin-top:6px;overflow:hidden}
+.meter i{display:block;height:100%;background:var(--accent2)}
+.f{display:grid;grid-template-columns:130px minmax(0,1fr);gap:6px 10px;align-items:center;font-size:13px}
+.f label{color:var(--muted);font-size:12.3px}
+.f input[type=text],.f input[type=number],.f select,.f textarea{width:100%;padding:6px 8px;border:1px solid var(--line);border-radius:6px;font-family:inherit;font-size:13px;background:#fff}
+.f textarea{min-height:90px;resize:vertical;line-height:1.55}
+.f .full{grid-column:1 / -1}
+.btns{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+.btn{padding:6px 13px;border:1px solid var(--accent);background:var(--accent);color:#fff;border-radius:6px;cursor:pointer;font-size:12.5px;font-family:inherit}
+.btn.ghost{background:#fff;color:var(--accent)}
+.btn.ok{background:var(--green);border-color:var(--green)}
+.btn.warn{background:#fff;color:var(--red);border-color:var(--red)}
+.btn:disabled{opacity:.5;cursor:default}
+.hint{font-size:11.8px;color:var(--muted);line-height:1.65}
+.mods{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:4px 12px;font-size:12.5px;max-height:320px;overflow:auto;border:1px solid var(--line);border-radius:6px;padding:8px}
+.mods .dom{grid-column:1 / -1;font-weight:700;color:var(--navy);border-bottom:1px solid var(--line);margin-top:4px;padding-bottom:2px;display:flex;gap:6px;align-items:center}
+.mods label{display:flex;gap:6px;align-items:flex-start;cursor:pointer}
+.mods small{color:var(--muted)}
+.mods .dis{opacity:.45}
+.pp{border-left:3px solid var(--accent2);background:#fff;padding:6px 9px;margin-bottom:6px;border-radius:0 6px 6px 0}
+.pp .lb{font-size:10.5px;font-weight:700;color:var(--accent);margin-bottom:2px}
+.pp .tx{font-size:12px;line-height:1.6;white-space:pre-wrap}
+.scroll{max-height:560px;overflow:auto}
+.pill{display:inline-block;font-size:11px;border-radius:9px;padding:0 7px;margin:1px 2px 1px 0;background:var(--soft);color:var(--navy);border:1px solid var(--line)}
+.pill.r{background:var(--softred);color:var(--red);border-color:#eac3bc}
+.pill.g{background:var(--softgreen);color:var(--green);border-color:#cde3d6}
+.pill.a{background:var(--softamber);color:var(--amber);border-color:#e7d3a8}
+.grid__td button.ra{font-size:11px;padding:2px 9px;border-radius:10px;border:1px solid var(--line);cursor:pointer;background:#fff;color:var(--navy);font-family:inherit;margin-right:3px}
+.grid__td button.ra:hover{border-color:var(--accent)}
+.qa{border:1px solid var(--line);border-radius:8px;padding:8px 10px;margin-bottom:8px;background:#fafbfd;font-size:12.8px}
+.qa .q{font-weight:700;color:var(--navy);margin-bottom:4px;white-space:pre-wrap}
+.qa .a{line-height:1.65}
+.qa .m{font-size:11px;color:var(--muted);margin-top:4px}
+.chatmini{border:1px solid var(--line);border-radius:8px;background:#fafbfd;max-height:460px;overflow:auto;padding:8px 10px;font-size:13px}
+.chatmini .u{color:#fff;background:var(--accent);border-radius:10px;padding:4px 10px;margin:6px 0 6px auto;width:fit-content;max-width:90%;white-space:pre-wrap}
+.chatmini .b{background:#fff;border:1px solid var(--line);border-radius:10px;padding:8px 10px;margin:6px 0}
+.chatmini .t{font-family:Consolas,Menlo,monospace;font-size:11px;color:var(--muted);word-break:break-all}
+.toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:var(--navy);color:#fff;padding:8px 16px;border-radius:8px;font-size:13px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:9}
+.toast.on{opacity:1}
+.gate{max-width:560px;margin:60px auto;text-align:center;background:#fff;border:1px solid var(--line);border-radius:10px;padding:34px 26px}
+.gate .ic{font-size:40px}.gate h2{margin:10px 0 6px;font-size:18px;color:var(--navy)}.gate p{color:var(--muted);margin:0 0 14px}
+.rvonly.hideme{display:none!important}
+.foot{margin-top:12px;color:var(--muted);font-size:11.8px}
+</style>
+</head>
+<body>
+<div class="page" id="app">
+  <div class="head">
+    <div>
+      <h1>🧭 에이전트 관리 — <span id="agName">-</span><span class="badge" id="roleBadge">-</span></h1>
+      <div class="sub">에이전트별 모델·설정(버전) · 질의응답 기록 · 개선 대장 · 용어집 · 골든셋 회귀. <b>담당자</b>가 고치고, <b>관리자</b>가 확인·승인합니다.
+        <a href="/work/purchase-agent" target="_blank" rel="noopener">사용 화면 ↗</a> · <a href="/docs/product/dept-agents" target="_blank" rel="noopener">기획서 ↗</a></div>
+    </div>
+    <div class="right" id="me">-</div>
+  </div>
+  <div class="tabs" id="tabs">
+    <button class="tab on" data-t="ov" type="button">개요</button>
+    <button class="tab" data-t="ver" type="button">설정·버전</button>
+    <button class="tab" data-t="imp" type="button">개선 대장<span class="n" id="impN" style="display:none"></span></button>
+    <button class="tab" data-t="turn" type="button">대화 기록</button>
+    <button class="tab" data-t="glo" type="button">용어집</button>
+    <button class="tab" data-t="gold" type="button">골든셋</button>
+    <button class="tab" data-t="mem" type="button">구성원</button>
+  </div>
+
+  <!-- 개요 -->
+  <div class="pane on" id="p-ov">
+    <div class="kpis" id="kpis"></div>
+    <div class="row2 wide" style="margin-top:10px">
+      <div class="box"><h3>일별 질문 수(최근 30일)</h3><div id="byDay"></div></div>
+      <div class="box"><h3>버전별 성과</h3><div id="byVer"></div><div class="hint" id="flagInfo" style="margin-top:6px"></div></div>
+    </div>
+    <div class="box">
+      <h3>운영 설정 <span class="hint">상태·한도·예산·보존·자주 쓰는 질문</span><span class="sp"></span><span class="hint rvonly" id="agHint"></span></h3>
+      <div class="f">
+        <label>상태</label><select id="agStatus"><option value="dev">개발</option><option value="pilot">파일럿(구성원만)</option><option value="live">운영(권한 있는 전 직원)</option><option value="off">중지</option></select>
+        <label>1인 1일 질문 한도</label><input type="number" id="agDaily" min="1" max="1000">
+        <label>월 예산(USD)</label><input type="number" id="agBudget" min="0" step="10">
+        <label>기록 보존(일)</label><input type="number" id="agRet" min="30" max="730">
+        <label>질의응답 기록</label><label style="color:var(--ink)"><input type="checkbox" id="agCollect"> 기록한다(화면에 고지됨)</label>
+        <label>자주 쓰는 질문</label><textarea id="agSug" placeholder="한 줄에 하나 — 라벨|질문"></textarea>
+      </div>
+      <div class="btns rvonly"><button class="btn" id="btnAgSave" type="button">운영 설정 저장(관리자)</button></div>
+    </div>
+  </div>
+
+  <!-- 설정·버전 -->
+  <div class="pane" id="p-ver">
+    <div class="box">
+      <h3>설정 버전 <span class="hint">저장하면 새 초안 버전이 생기고, 관리자가 「현재로 지정」해야 사용자에게 적용됩니다.</span></h3>
+      <div id="verGrid"></div>
+    </div>
+    <div class="row2 wide">
+      <div class="box">
+        <h3>설정 편집 <span class="hint" id="edBase"></span></h3>
+        <div class="f">
+          <label>기본 모델</label><select id="edModel"></select>
+          <label>예비 모델</label><select id="edFb"></select>
+          <label>추론강도(Claude)</label><select id="edEffort"><option value="">(보내지 않음)</option><option>low</option><option>medium</option><option>high</option><option>xhigh</option><option>max</option></select>
+          <label>최대 답변 토큰</label><input type="number" id="edMaxTok" min="256" max="16000" step="256">
+          <label id="edTempL">온도(OpenAI)</label><input type="number" id="edTemp" min="0" max="1" step="0.1" placeholder="비우면 보내지 않음">
+          <label>도구 호출 라운드</label><input type="number" id="edRounds" min="1" max="8">
+          <label>프롬프트 캐싱</label><label style="color:var(--ink)"><input type="checkbox" id="edCache"> 켬(도구+시스템 프롬프트 — Claude 비용 절감)</label>
+          <label class="full">역할 안내</label><textarea class="full" id="edRole"></textarea>
+          <label class="full">답변 원칙 <span class="hint">(한 줄에 하나 — 개선 대장에서 나온 규칙을 여기에 더합니다)</span></label><textarea class="full" id="edRules" style="min-height:140px"></textarea>
+          <label class="full">도구 묶음 <span class="hint">(도메인을 켜고, 뺄 도구의 체크를 끕니다 — 권한은 사용자별로 서버가 다시 판정)</span></label>
+          <div class="full mods" id="edMods"></div>
+          <label>변경 메모</label><input type="text" id="edNote" maxlength="300" placeholder="무엇을 왜 바꿨나(예: IMP-12 반영 — 미입고 정의 문구 추가)">
+          <label>반영한 개선 항목</label><input type="text" id="edImp" placeholder="개선 대장 번호(쉼표) — 저장 시 「반영됨」으로 표시">
+        </div>
+        <div class="btns">
+          <button class="btn" id="btnVerSave" type="button">💾 새 버전(초안)으로 저장</button>
+          <button class="btn ghost" id="btnPreview" type="button">프롬프트 미리보기</button>
+        </div>
+        <div class="hint" id="modelInfo" style="margin-top:6px"></div>
+      </div>
+      <div class="box">
+        <h3>시험 대화 <select id="tvVer" style="font-size:12px;padding:2px 6px"></select><span class="sp"></span><button class="btn ghost" id="btnTvClear" type="button">비우기</button></h3>
+        <div class="chatmini" id="tvLog"><div class="hint">선택한 버전으로 대화해 봅니다(초안 버전도 가능). 기록은 그 버전으로 남습니다.</div></div>
+        <div style="display:flex;gap:6px;margin-top:6px"><input id="tvInp" style="flex:1;padding:6px 8px;border:1px solid var(--line);border-radius:6px;font-family:inherit" placeholder="질문 — Enter"><button class="btn" id="btnTv" type="button">보내기</button></div>
+        <div class="scroll" id="prevBox" style="margin-top:10px"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 개선 대장 -->
+  <div class="pane" id="p-imp">
+    <div class="box">
+      <h3>개선 대장 <span class="hint">자동 판정(도구 오류·0건·권한 차단·기능 없음)과 👎 가 inbox 로 들어옵니다. 담당자가 분류·반영하고, 관리자가 「검증 완료」로 닫습니다.</span>
+        <span class="sp"></span><select id="impFilter" style="font-size:12px;padding:3px 6px"><option value="open">미결(inbox~반영됨)</option><option value="all">전체</option></select>
+        <button class="btn ghost" id="btnCluster" type="button">🤖 AI로 묶어 분류</button><button class="btn ghost" id="btnImpNew" type="button">+ 새 항목</button></h3>
+      <div id="impGrid"></div>
+    </div>
+    <div class="row2">
+      <div class="box">
+        <h3>항목 편집 <span class="hint" id="impId"></span></h3>
+        <div class="f">
+          <label>요약</label><input type="text" id="impSum" maxlength="300">
+          <label>분류</label><select id="impCat"><option value="">(미분류)</option><option value="prompt">프롬프트 문구</option><option value="glossary">용어집</option><option value="new_module">새 조회 기능 필요</option><option value="data_gap">ERP 데이터 미적재</option><option value="golden">좋은 예시(골든셋)</option><option value="model">모델 한계</option><option value="none">조치 불필요</option></select>
+          <label>상태</label><select id="impSts"><option value="inbox">inbox(접수)</option><option value="triage">분류됨</option><option value="planned">반영 예정</option><option value="applied">반영됨</option><option value="verified">검증 완료(관리자)</option><option value="wontfix">보류·해당없음</option></select>
+          <label>조치 제안</label><textarea id="impProp"></textarea>
+          <label>백로그 REQ</label><input type="text" id="impReq" maxlength="20" placeholder="코드·ETL 변경이면 REQ-00xx">
+        </div>
+        <div class="btns"><button class="btn" id="btnImpSave" type="button">저장</button></div>
+      </div>
+      <div class="box"><h3>근거 대화</h3><div class="scroll" id="impTurns"><div class="hint">항목을 열면 근거가 된 질문·답변이 보입니다.</div></div></div>
+    </div>
+  </div>
+
+  <!-- 대화 기록 -->
+  <div class="pane" id="p-turn">
+    <div class="box">
+      <h3>대화 기록 <span class="hint">사용자에게는 보이지 않는 품질 개선용 기록입니다(조회 결과 행은 저장하지 않음).</span><span class="sp"></span>
+        <select id="turnOnly" style="font-size:12px;padding:3px 6px"><option value="">전체</option><option value="flagged">자동 판정 걸린 것</option><option value="down">👎</option></select>
+        <select id="turnDays" style="font-size:12px;padding:3px 6px"><option>7</option><option selected>14</option><option>30</option><option>90</option></select>
+        <button class="btn ghost" id="btnTurnLoad" type="button">조회</button></h3>
+      <div id="turnGrid"></div>
+    </div>
+    <div class="box"><h3>선택한 대화 <span class="sp"></span><button class="btn ghost" id="btnT2Imp" type="button" disabled>개선 대장에 올리기</button><button class="btn ghost" id="btnT2Gold" type="button" disabled>골든셋으로</button></h3>
+      <div id="turnDetail"><div class="hint">표에서 「보기」를 누르세요.</div></div></div>
+  </div>
+
+  <!-- 용어집 -->
+  <div class="pane" id="p-glo">
+    <div class="row2 wide">
+      <div class="box"><h3>용어집 <span class="hint">활성 용어는 이 에이전트의 프롬프트에 자동으로 들어갑니다(버전과 무관하게 즉시).</span></h3><div id="gloGrid"></div></div>
+      <div class="box"><h3>용어 추가·수정 <span class="hint" id="gloId"></span></h3>
+        <div class="f"><label>용어</label><input type="text" id="gloTerm" maxlength="60"><label>뜻</label><textarea id="gloMean" maxlength="600"></textarea>
+          <label>사용</label><label style="color:var(--ink)"><input type="checkbox" id="gloAct" checked> 프롬프트에 넣는다</label></div>
+        <div class="btns"><button class="btn" id="btnGloSave" type="button">저장</button><button class="btn ghost" id="btnGloNew" type="button">새로</button></div></div>
+    </div>
+  </div>
+
+  <!-- 골든셋 -->
+  <div class="pane" id="p-gold">
+    <div class="row2 wide">
+      <div class="box"><h3>골든셋 문항 <span class="hint">새 버전을 「현재」로 지정하기 전에 돌려서 예전에 맞던 질문이 여전히 맞는지 봅니다.</span></h3><div id="goldGrid"></div></div>
+      <div class="box"><h3>문항 추가·수정 <span class="hint" id="goldId"></span></h3>
+        <div class="f"><label>질문</label><textarea id="goldQ" style="min-height:60px" maxlength="800"></textarea>
+          <label>불러야 할 도구</label><select id="goldTools" multiple size="6"></select>
+          <label>답 요건</label><textarea id="goldRules" maxlength="1000" placeholder="예) 발주번호별 총액 기준 · 상위 5건 · 원 단위 콤마"></textarea>
+          <label>사용</label><label style="color:var(--ink)"><input type="checkbox" id="goldAct" checked> 회귀에 포함</label></div>
+        <div class="btns"><button class="btn" id="btnGoldSave" type="button">저장</button><button class="btn ghost" id="btnGoldNew" type="button">새로</button></div></div>
+    </div>
+    <div class="box"><h3>회귀 실행 <select id="runVer" style="font-size:12px;padding:2px 6px"></select><button class="btn" id="btnRun" type="button">▶ 실행</button><span class="hint" id="runInfo"></span></h3>
+      <div id="runRes"><div class="hint">문항마다 ① 기대 도구를 불렀는가 ② 답 요건을 지켰는가(저렴한 모델이 채점)를 봅니다. 문항당 수 초~수십 초, 비용은 문항 수 × 질문 1건 수준입니다.</div></div></div>
+  </div>
+
+  <!-- 구성원 -->
+  <div class="pane" id="p-mem">
+    <div class="row2 wide">
+      <div class="box"><h3>구성원 <span class="hint">파일럿 기간에는 구성원과 포털 관리자만 이 에이전트를 씁니다.</span></h3><div id="memGrid"></div></div>
+      <div class="box rvonly"><h3>구성원 추가(관리자)</h3>
+        <div class="f"><label>사내 계정</label><input type="text" id="memUpn" placeholder="아이디@jeilm.co.kr">
+          <label>역할</label><select id="memRole"><option value="operator">담당자 — 실작업(설정 초안·개선 대장·용어집·골든셋)</option><option value="reviewer">관리자 — 확인·점검·승인</option></select></div>
+        <div class="btns"><button class="btn" id="btnMemAdd" type="button">추가</button></div>
+        <div class="hint" style="margin-top:8px">포털 전체관리자는 목록에 없어도 관리자 권한을 가집니다.</div></div>
+    </div>
+  </div>
+
+  <div class="foot">REQ-0086·0088 · 14 기획 부서 에이전트 · 서버 <code>supabase/functions/jeil-chat-lab</code>(core/agent_api.ts) · 정본 SQL 74</div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script type="module">
+import { createGrid } from "/app/lib/grid.js";
+import { op, chat, auth, toLogin } from "/app/lib/agentApi.js";
+import { renderMd, renderView, escHtml as esc } from "/app/lib/chatview.js";
+
+const AGENT = (new URLSearchParams(location.search).get("agent") || "purchase").replace(/[^a-z0-9_]/g, "");
+const $ = (id) => document.getElementById(id);
+const unhide = () => { const s = $("__hide"); if (s) s.remove(); };
+const toast = (t) => { const e = $("toast"); e.textContent = t; e.classList.add("on"); clearTimeout(toast._t); toast._t = setTimeout(() => e.classList.remove("on"), 2400); };
+const fmtT = (s) => s ? new Date(s).toLocaleString("ko-KR", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" }) : "";
+const DOM_KO = { purchase: "구매", item: "품목", portal: "외주검사(포털)", common: "공통", docs: "문서", sales: "영업", inventory: "재고", hr: "인사" };
+const FLAG_KO = { tool_error: "도구오류", zero_rows: "0건", perm_denied: "권한차단", no_tool: "기능없음", refusal: "거절", slow: "느림", llm_error: "모델오류", budget_fallback: "예산초과", golden_fail: "회귀실패" };
+const STS_KO = { inbox: "접수", triage: "분류됨", planned: "반영예정", applied: "반영됨", verified: "검증완료", wontfix: "보류" };
+const CAT_KO = { prompt: "프롬프트", glossary: "용어집", new_module: "새 기능", data_gap: "데이터", golden: "골든셋", model: "모델", none: "불필요" };
+function block(ic, title, msg) { $("app").innerHTML = `<div class="gate"><div class="ic">${ic}</div><h2>${esc(title)}</h2><p>${msg}</p><a class="btn" href="/main" style="text-decoration:none">← 포털로</a></div>`; unhide(); }
+async function guard(fn, btn) { if (btn) btn.disabled = true; try { return await fn(); } catch (e) { if (e.message !== "login") toast("실패: " + e.message); } finally { if (btn) btn.disabled = false; } }
+
+let B = null;             // admin_boot 응답
+let edBaseVer = null;     // 편집 기준 버전
+let curImp = null, curTurn = null, curGlo = null, curGold = null;
+let TURNS = [];
+const isRv = () => B && B.role === "reviewer";
+
+/* ===== 탭 ===== */
+$("tabs").onclick = (e) => {
+  const t = e.target.closest(".tab"); if (!t) return;
+  document.querySelectorAll(".tab").forEach((x) => x.classList.toggle("on", x === t));
+  document.querySelectorAll(".pane").forEach((p) => p.classList.toggle("on", p.id === "p-" + t.dataset.t));
+  if (t.dataset.t === "imp") loadImp();
+  if (t.dataset.t === "turn" && !TURNS.length) loadTurns();
+};
+
+/* ===== 개요 ===== */
+async function loadUsage() {
+  const u = await op(AGENT, "usage", { days: 30 });
+  const m = u.month; const ratio = m.ratio == null ? 0 : m.ratio;
+  const k = (l, v, s, cls, meter) => `<div class="kpi ${cls || ""}"><div class="l">${l}</div><div class="v">${v}</div><div class="s">${s || ""}</div>${meter != null ? `<div class="meter"><i style="width:${Math.min(100, Math.round(meter * 100))}%"></i></div>` : ""}</div>`;
+  const rated = u.up + u.down;
+  $("kpis").innerHTML =
+    k("이번 달 비용", "$" + m.spend_usd.toFixed(2), `예산 $${m.budget_usd} · ${Math.round(ratio * 100)}%${ratio >= 1 ? " — 예비 모델로 전환 중" : ratio >= 0.8 ? " — 80% 넘음" : ""}`, ratio >= 1 ? "bad" : ratio >= 0.8 ? "warn" : "", ratio) +
+    k("질문(30일)", u.turns.toLocaleString(), `사용자 ${u.users}명`) +
+    k("만족(👍 비율)", rated ? Math.round(u.up / rated * 100) + "%" : "—", `👍 ${u.up} · 👎 ${u.down}`, u.down > u.up ? "warn" : "") +
+    k("캐시 적중", u.cache_hit_ratio == null ? "—" : Math.round(u.cache_hit_ratio * 100) + "%", "입력 토큰 중 캐시 읽기") +
+    k("예비 모델 전환", u.fallback, "기본 모델 실패·예산 초과") +
+    k("개선 대기", (B.improve_counts.inbox || 0) + (B.improve_counts.triage || 0), `접수 ${B.improve_counts.inbox || 0} · 분류 ${B.improve_counts.triage || 0}`, (B.improve_counts.inbox || 0) > 10 ? "warn" : "");
+  $("byDay").innerHTML = "";
+  renderView($("byDay"), { view: "series", title: "", unit: "건", rows: u.by_day.map((d) => ({ k: d.day.slice(5), v: d.n })) });
+  $("byVer").innerHTML = u.by_version.length ? `<div class="cv-tblwrap"><table><tr><th>버전</th><th class="r">질문</th><th class="r">👍</th><th class="r">👎</th><th class="r">판정 걸림</th><th class="r">평균 초</th><th class="r">비용</th></tr>` +
+    u.by_version.map((v) => `<tr><td>${esc(v.version)}</td><td class="r">${v.n}</td><td class="r">${v.up}</td><td class="r">${v.down}</td><td class="r">${v.flagged}</td><td class="r">${(v.avg_ms / 1000).toFixed(1)}</td><td class="r">$${v.cost}</td></tr>`).join("") + "</table></div>"
+    : '<div class="hint">아직 기록이 없습니다.</div>';
+  $("flagInfo").textContent = Object.keys(u.flags).length ? "자동 판정: " + Object.entries(u.flags).map(([f, n]) => `${FLAG_KO[f] || f} ${n}`).join(" · ") : "";
+}
+function fillAgent() {
+  const a = B.agent;
+  $("agStatus").value = a.status; $("agDaily").value = a.daily_limit; $("agBudget").value = a.monthly_budget_usd; $("agRet").value = a.retention_days;
+  $("agCollect").checked = !!a.collect_turns;
+  $("agSug").value = (a.suggestions || []).map((s) => `${s.label}|${s.q}`).join("\n");
+  $("agHint").textContent = `최종 수정 ${a.updated_by || "-"} · ${fmtT(a.updated_at)}`;
+  ["agStatus", "agDaily", "agBudget", "agRet", "agCollect", "agSug"].forEach((id) => { $(id).disabled = !isRv(); });
+}
+$("btnAgSave").onclick = (e) => guard(async () => {
+  const sug = $("agSug").value.split("\n").map((l) => l.split("|")).filter((x) => x.length >= 2).map(([label, ...q]) => ({ label: label.trim(), q: q.join("|").trim() }));
+  const j = await op(AGENT, "agent_update", { fields: { status: $("agStatus").value, daily_limit: +$("agDaily").value, monthly_budget_usd: +$("agBudget").value,
+    retention_days: +$("agRet").value, collect_turns: $("agCollect").checked, suggestions: sug } });
+  B.agent = j.agent; fillAgent(); toast("운영 설정을 저장했습니다");
+}, e.target);
+
+/* ===== 설정·버전 ===== */
+let verGrid = null;
+function verRows() {
+  return B.versions.map((v) => ({ version: v.version, state: v.state, model: v.model_id, fb: v.fallback_model_id || "-", effort: v.effort || "-",
+    tok: v.max_tokens, golden: v.golden_total ? `${v.golden_pass}/${v.golden_total}` : "-", note: v.note || "",
+    by: `${(v.created_by || "").split("@")[0]} ${fmtT(v.created_at)}`, ap: v.approved_by ? `${v.approved_by.split("@")[0]} ${fmtT(v.approved_at)}` : "" }));
+}
+function buildVerGrid() {
+  verGrid = createGrid("#verGrid", { keyField: "version", rows: verRows(), search: false, exportCsv: true, exportName: `에이전트_${AGENT}_버전`,
+    columns: [
+      { key: "version", label: "버전", width: "60px", align: "center", formatter: (v) => "v" + v },
+      { key: "state", label: "상태", width: "80px", formatter: (v) => `<span class="pill ${v === "current" ? "g" : v === "draft" ? "a" : ""}">${{ current: "현재", draft: "초안", retired: "지난" }[v] || v}</span>` },
+      { key: "model", label: "모델", width: "150px" }, { key: "fb", label: "예비", width: "110px" }, { key: "effort", label: "추론", width: "70px" },
+      { key: "tok", label: "토큰", width: "65px", align: "right" }, { key: "golden", label: "회귀", width: "65px", align: "center" },
+      { key: "note", label: "변경 메모" }, { key: "by", label: "작성", width: "150px" }, { key: "ap", label: "승인", width: "150px" },
+      { key: "_a", label: "", width: "210px", filter: false, sortable: false, exportValue: () => "",
+        formatter: (_v, r) => `<button class="ra" data-row-act="edit">편집 기준</button><button class="ra" data-row-act="test">시험</button>` +
+          (isRv() && r.state !== "current" ? `<button class="ra" data-row-act="promote">현재로 지정</button>` : "") },
+    ],
+    onRowAction: (act, row) => {
+      if (act === "edit") loadEditor(row.version);
+      if (act === "test") { $("tvVer").value = row.version; $("tvInp").focus(); }
+      if (act === "promote") promote(row.version);
+    } });
+}
+function refreshVer() {
+  verGrid.setRows(verRows());
+  const opts = B.versions.map((v) => `<option value="${v.version}">v${v.version} ${v.state === "current" ? "(현재)" : v.state === "draft" ? "(초안)" : ""}</option>`).join("");
+  const keep1 = $("tvVer").value, keep2 = $("runVer").value;
+  $("tvVer").innerHTML = opts; $("runVer").innerHTML = opts;
+  if (keep1) $("tvVer").value = keep1; if (keep2) $("runVer").value = keep2;
+}
+async function promote(ver) {
+  const v = B.versions.find((x) => x.version === ver);
+  if (v && !v.golden_total && !promote._warned) { promote._warned = true; toast("회귀를 돌리지 않은 버전입니다 — 그래도 지정하려면 한 번 더 누르세요"); return; }
+  promote._warned = false;
+  await guard(async () => { await op(AGENT, "version_promote", { version: ver }); await reboot(); toast(`v${ver} 을 현재 버전으로 지정했습니다`); });
+}
+function modelOpts(sel, withNone) {
+  return (withNone ? '<option value="">(없음)</option>' : "") + B.models.filter((m) => m.active).map((m) =>
+    `<option value="${esc(m.model_id)}" ${m.model_id === sel ? "selected" : ""}>${esc(m.label || m.model_id)} · ${esc(m.vendor)}${m.usable ? "" : " — 호출 불가(키 미등록)"} · $${m.price_in}/$${m.price_out}</option>`).join("");
+}
+function loadEditor(ver) {
+  const v = B.versions.find((x) => x.version === ver) || B.versions[0];
+  if (!v) return;
+  edBaseVer = v.version;
+  $("edBase").textContent = `기준: v${v.version}${v.state === "current" ? "(현재)" : ""} → 저장하면 v${Math.max(...B.versions.map((x) => x.version)) + 1}`;
+  $("edModel").innerHTML = modelOpts(v.model_id); $("edFb").innerHTML = modelOpts(v.fallback_model_id, true);
+  $("edEffort").value = v.effort || ""; $("edMaxTok").value = v.max_tokens; $("edTemp").value = v.temperature == null ? "" : v.temperature;
+  $("edRounds").value = v.max_tool_rounds; $("edCache").checked = !!v.prompt_caching;
+  $("edRole").value = v.role_prompt; $("edRules").value = v.answer_rules; $("edNote").value = ""; $("edImp").value = "";
+  const doms = new Set((v.modules && v.modules.domains) || []); const off = new Set((v.modules && v.modules.off) || []);
+  const byDom = {}; B.modules.forEach((m) => (byDom[m.domain] = byDom[m.domain] || []).push(m));
+  $("edMods").innerHTML = Object.keys(byDom).sort().map((d) =>
+    `<div class="dom"><label><input type="checkbox" data-dom="${esc(d)}" ${doms.has(d) ? "checked" : ""}> ${esc(DOM_KO[d] || d)} <small>${esc(d)} · ${byDom[d].length}종</small></label></div>` +
+    byDom[d].map((m) => `<label class="${doms.has(d) ? "" : "dis"}" data-in="${esc(d)}"><input type="checkbox" data-mod="${esc(m.id)}" ${off.has(m.id) ? "" : "checked"}>
+      <span>${esc(m.title_ko)} <small>${esc(m.id)}${m.perm_ko ? " · 권한 " + esc(m.perm_ko) : ""}${m.sensitivity === "personal" ? " · 개인정보" : m.sensitivity === "amount" ? " · 금액" : ""}</small></span></label>`).join("")).join("");
+  tempVis();
+}
+$("edMods").onchange = (e) => { const d = e.target.dataset.dom; if (d) document.querySelectorAll(`#edMods [data-in="${d}"]`).forEach((l) => l.classList.toggle("dis", !e.target.checked)); };
+function tempVis() {
+  const m = B.models.find((x) => x.model_id === $("edModel").value); const oa = m && String(m.vendor).toLowerCase() === "openai";
+  $("edTemp").disabled = !oa; $("edTempL").style.opacity = oa ? 1 : .5;
+  const cl = m && String(m.vendor).toLowerCase() === "anthropic";
+  $("edEffort").disabled = !cl || /haiku/.test(m.model_id);
+  $("modelInfo").textContent = m ? (m.usable ? `${m.label || m.model_id}: 호출 가능 · 입력 $${m.price_in} / 출력 $${m.price_out} (100만 토큰당)` : `⚠ ${m.model_id} 는 지금 호출할 수 없습니다(${m.vendor} 키 미등록) — 저장은 되지만 예비 모델로 동작합니다.`) : "";
+}
+$("edModel").onchange = tempVis;
+$("btnVerSave").onclick = (e) => guard(async () => {
+  const domains = [...document.querySelectorAll("#edMods [data-dom]:checked")].map((x) => x.dataset.dom);
+  const offMods = [...document.querySelectorAll("#edMods [data-mod]")].filter((x) => !x.checked).map((x) => x.dataset.mod);
+  const t = $("edTemp").value;
+  const j = await op(AGENT, "version_save", { base_version: edBaseVer,
+    improve_ids: $("edImp").value.split(",").map((x) => +x.replace(/\D/g, "")).filter(Boolean),
+    fields: { model_id: $("edModel").value, fallback_model_id: $("edFb").value || null, effort: $("edEffort").value || null,
+      max_tokens: +$("edMaxTok").value, temperature: $("edTemp").disabled || t === "" ? null : +t, max_tool_rounds: +$("edRounds").value,
+      prompt_caching: $("edCache").checked, role_prompt: $("edRole").value, answer_rules: $("edRules").value,
+      modules: { domains, off: offMods }, note: $("edNote").value } });
+  await reboot(); loadEditor(j.version.version); $("tvVer").value = j.version.version; $("runVer").value = j.version.version;
+  toast(`v${j.version.version} 초안을 저장했습니다 — 시험·회귀 후 관리자가 현재로 지정합니다`);
+}, e.target);
+$("btnPreview").onclick = (e) => guard(async () => {
+  const j = await op(AGENT, "preview", { version: edBaseVer });
+  $("prevBox").innerHTML = `<div class="hint">v${j.version} · 프롬프트 ${j.chars.toLocaleString()}자 · 주입 도구 ${j.injected.length}종${j.denied.length ? " · 권한 밖 " + j.denied.length : ""} · 모델 ${esc(j.model.model || "-")}${j.model.reason ? " — " + esc(j.model.reason) : ""}</div>` +
+    j.parts.map((p) => `<div class="pp"><div class="lb">${esc(p.label)}</div><div class="tx">${esc(p.text)}</div></div>`).join("");
+}, e.target);
+
+/* 시험 대화 */
+let tvHist = [];
+$("btnTvClear").onclick = () => { tvHist = []; $("tvLog").innerHTML = '<div class="hint">비웠습니다.</div>'; };
+async function tvSend() {
+  const q = $("tvInp").value.trim(); if (!q) return; $("tvInp").value = "";
+  const log = $("tvLog"); if (!tvHist.length) log.innerHTML = "";
+  const u = document.createElement("div"); u.className = "u"; u.textContent = q; log.appendChild(u);
+  const b = document.createElement("div"); b.className = "b"; const vw = document.createElement("div"); vw.className = "cv-stack"; const tx = document.createElement("div"); const tr = document.createElement("div"); tr.className = "t";
+  b.append(vw, tx, tr); log.appendChild(b);
+  tvHist.push({ role: "user", content: q }); let acc = "";
+  $("btnTv").disabled = true;
+  try {
+    await chat(AGENT, tvHist.slice(-12), {
+      onText: (c) => { acc += c; tx.innerHTML = renderMd(acc); log.scrollTop = log.scrollHeight; },
+      onView: (v) => renderView(vw, v, { onAsk: (p) => { $("tvInp").value = p; tvSend(); } }),
+      onEvent: (ev) => {
+        const line = ev.type === "tool" ? `🔧 ${ev.tool} ${JSON.stringify(ev.args)} → ${ev.outcome}${ev.rows != null ? " " + ev.rows + "건" : ""} ${ev.ms}ms`
+          : ev.type === "end" ? `끝 · ${ev.model}${ev.fallback ? "(예비)" : ""} · ${(ev.ms / 1000).toFixed(1)}초 · 토큰 ${ev.pt}/${ev.ct}${ev.cr ? " (캐시 " + ev.cr + ")" : ""} · $${ev.est_cost_usd}${ev.flags && ev.flags.length ? " · 판정 " + ev.flags.map((f) => FLAG_KO[f] || f).join(",") : ""}`
+          : ev.type === "start" ? `v${ev.version} · ${ev.model}${ev.note ? " — " + ev.note : ""}` : `${ev.type} ${ev.status || ""} ${ev.detail || ""}`;
+        const d = document.createElement("div"); d.textContent = line; tr.appendChild(d);
+      },
+    }, { version: +$("tvVer").value });
+    tvHist.push({ role: "assistant", content: acc || "(카드 응답)" });
+  } catch (e) { tx.innerHTML = `<span style="color:var(--red)">⚠ ${esc(e.message)}</span>`; tvHist.pop(); }
+  finally { $("btnTv").disabled = false; log.scrollTop = log.scrollHeight; }
+}
+$("btnTv").onclick = tvSend;
+$("tvInp").onkeydown = (e) => { if (e.key === "Enter" && !e.isComposing) tvSend(); };
+
+/* ===== 개선 대장 ===== */
+let impGrid = null, IMP = [];
+async function loadImp() {
+  const j = await guard(() => op(AGENT, "improve_list")); if (!j) return;
+  IMP = j.items;
+  const open = $("impFilter").value === "open";
+  const rows = IMP.filter((r) => !open || !["verified", "wontfix"].includes(r.status)).map((r) => ({
+    id: r.id, status: r.status, source: r.source, category: r.category || "", summary: r.summary, turns: (r.turn_ids || []).length,
+    ver: r.applied_version ? "v" + r.applied_version : "", req: r.req_id || "", upd: fmtT(r.updated_at) }));
+  const cols = [
+    { key: "id", label: "번호", width: "70px", formatter: (v) => "IMP-" + v },
+    { key: "status", label: "상태", width: "90px", formatter: (v) => `<span class="pill ${v === "inbox" ? "r" : v === "verified" ? "g" : v === "applied" ? "a" : ""}">${STS_KO[v] || v}</span>`, exportValue: (v) => STS_KO[v] || v },
+    { key: "source", label: "출처", width: "80px", formatter: (v) => ({ auto: "자동", thumbs_down: "👎", owner: "담당자" }[v] || v) },
+    { key: "category", label: "분류", width: "90px", formatter: (v) => esc(CAT_KO[v] || v || "-") },
+    { key: "summary", label: "요약" }, { key: "turns", label: "근거", width: "60px", align: "right" },
+    { key: "ver", label: "반영", width: "60px" }, { key: "req", label: "REQ", width: "85px" }, { key: "upd", label: "갱신", width: "110px" },
+    { key: "_a", label: "", width: "70px", filter: false, sortable: false, exportValue: () => "", formatter: () => `<button class="ra" data-row-act="open">열기</button>` },
+  ];
+  if (!impGrid) impGrid = createGrid("#impGrid", { keyField: "id", rows, columns: cols, search: true, columnFilter: true, exportCsv: true, exportName: `개선대장_${AGENT}`, pageSize: 20,
+    onRowAction: (act, row) => { if (act === "open") openImp(row.id); } });
+  else impGrid.setRows(rows);
+  const n = IMP.filter((r) => r.status === "inbox").length;
+  $("impN").style.display = n ? "" : "none"; $("impN").textContent = n;
+}
+$("impFilter").onchange = loadImp;
+async function openImp(id) {
+  curImp = IMP.find((r) => r.id === id) || null;
+  $("impId").textContent = curImp ? "IMP-" + curImp.id : "(새 항목)";
+  $("impSum").value = curImp ? curImp.summary : ""; $("impCat").value = curImp ? (curImp.category || "") : "";
+  $("impSts").value = curImp ? curImp.status : "inbox"; $("impProp").value = curImp ? (curImp.proposal || "") : ""; $("impReq").value = curImp ? (curImp.req_id || "") : "";
+  $("impSts").querySelector('[value="verified"]').disabled = !isRv();
+  const ids = curImp ? (curImp.turn_ids || []) : [];
+  if (!ids.length) { $("impTurns").innerHTML = '<div class="hint">근거 대화가 없습니다.</div>'; return; }
+  if (!TURNS.length) await loadTurns(true);
+  const hit = ids.map((i) => TURNS.find((t) => t.id === i)).filter(Boolean);
+  $("impTurns").innerHTML = (hit.length ? hit.map(qaHtml).join("") : "") + (hit.length < ids.length ? `<div class="hint">최근 90일 밖이거나 보존기간이 지난 대화 ${ids.length - hit.length}건은 표시하지 않습니다.</div>` : "");
+}
+function qaHtml(t) {
+  return `<div class="qa"><div class="q">Q. ${esc(t.question)}</div><div class="a">${t.answer == null ? '<span class="hint">(답변 미저장 — 민감 도구)</span>' : renderMd(t.answer)}</div>
+    <div class="m">#${t.id} · ${esc(t.name || t.upn)} · v${t.agent_version} · ${esc(t.model || "")} · ${fmtT(t.created_at)} · ${(t.tools || []).map((x) => esc(x.tool) + "(" + esc(x.outcome) + (x.rows != null ? " " + x.rows : "") + ")").join(", ") || "도구 없음"}
+    ${(t.flags || []).map((f) => `<span class="pill r">${esc(FLAG_KO[f] || f)}</span>`).join("")}${t.rating === -1 ? '<span class="pill r">👎 ' + esc(t.rating_note || "") + "</span>" : t.rating === 1 ? '<span class="pill g">👍</span>' : ""}</div></div>`;
+}
+$("btnImpNew").onclick = () => { curImp = null; openImp(-1); };
+$("btnImpSave").onclick = (e) => guard(async () => {
+  const fields = { summary: $("impSum").value, category: $("impCat").value || null, status: $("impSts").value, proposal: $("impProp").value, req_id: $("impReq").value };
+  if (curImp) await op(AGENT, "improve_save", { id: curImp.id, fields });
+  else await op(AGENT, "improve_save", { fields: { ...fields, turn_ids: curTurn ? [curTurn.id] : [] } });
+  await loadImp(); toast("저장했습니다");
+}, e.target);
+$("btnCluster").onclick = (e) => guard(async () => {
+  const j = await op(AGENT, "improve_cluster"); await loadImp();
+  toast(`AI 분류: ${j.groups}묶음 · ${j.model} · $${j.cost_usd}`);
+}, e.target);
+
+/* ===== 대화 기록 ===== */
+let turnGrid = null;
+async function loadTurns(silent) {
+  const j = await guard(() => op(AGENT, "turns", { only: silent ? "" : $("turnOnly").value, days: silent ? 90 : +$("turnDays").value })); if (!j) return;
+  TURNS = j.items;
+  if (silent) return;
+  const rows = TURNS.map((t) => ({ id: t.id, at: fmtT(t.created_at), who: t.name || t.upn, ver: "v" + t.agent_version, q: t.question,
+    tools: (t.tools || []).map((x) => x.tool).join(", "), flags: (t.flags || []).map((f) => FLAG_KO[f] || f).join(", "),
+    rating: t.rating === 1 ? "👍" : t.rating === -1 ? "👎" : "", cost: Number(t.est_cost_usd || 0), sec: t.latency_ms ? +(t.latency_ms / 1000).toFixed(1) : null, model: t.model + (t.fallback_used ? "(예비)" : "") }));
+  const cols = [
+    { key: "at", label: "시각", width: "105px" }, { key: "who", label: "사용자", width: "130px" }, { key: "ver", label: "버전", width: "55px" },
+    { key: "q", label: "질문" }, { key: "tools", label: "도구", width: "200px" }, { key: "flags", label: "판정", width: "110px" },
+    { key: "rating", label: "평가", width: "50px", align: "center" }, { key: "model", label: "모델", width: "140px" },
+    { key: "sec", label: "초", width: "55px", align: "right" }, { key: "cost", label: "비용($)", width: "75px", align: "right", formatter: (v) => v.toFixed(4) },
+    { key: "_a", label: "", width: "60px", filter: false, sortable: false, exportValue: () => "", formatter: () => `<button class="ra" data-row-act="view">보기</button>` },
+  ];
+  if (!turnGrid) turnGrid = createGrid("#turnGrid", { keyField: "id", rows, columns: cols, search: true, columnFilter: true, exportCsv: true, exportName: `대화기록_${AGENT}`, pageSize: 25,
+    onRowAction: (act, row) => { if (act === "view") showTurn(row.id); } });
+  else turnGrid.setRows(rows);
+}
+$("btnTurnLoad").onclick = () => loadTurns();
+function showTurn(id) {
+  curTurn = TURNS.find((t) => t.id === id) || null; if (!curTurn) return;
+  $("turnDetail").innerHTML = qaHtml(curTurn) + `<div class="hint">토큰 ${curTurn.prompt_tokens || 0}/${curTurn.completion_tokens || 0}${curTurn.cache_read_tokens ? " · 캐시 " + curTurn.cache_read_tokens : ""} · ${curTurn.rounds || 0}라운드</div>` +
+    (curTurn.tools || []).map((x) => `<div class="hint" style="font-family:Consolas,monospace">🔧 ${esc(x.tool)} ${esc(JSON.stringify(x.args))} → ${esc(x.outcome)}${x.rows != null ? " " + x.rows + "건" : ""} · ${x.ms}ms</div>`).join("");
+  $("btnT2Imp").disabled = false; $("btnT2Gold").disabled = false;
+}
+$("btnT2Imp").onclick = (e) => guard(async () => {
+  await op(AGENT, "improve_save", { fields: { summary: curTurn.question.slice(0, 200), turn_ids: [curTurn.id], status: "inbox" } });
+  toast("개선 대장에 올렸습니다"); loadImp();
+}, e.target);
+$("btnT2Gold").onclick = () => {
+  curGold = null; $("goldId").textContent = `(대화 #${curTurn.id} 에서)`; $("goldQ").value = curTurn.question;
+  const used = new Set((curTurn.tools || []).map((x) => x.tool));
+  [...$("goldTools").options].forEach((o) => { o.selected = used.has(o.value); });
+  $("goldRules").value = ""; $("goldAct").checked = true; $("goldQ").dataset.src = curTurn.id;
+  document.querySelector('.tab[data-t="gold"]').click(); $("goldRules").focus();
+};
+
+/* ===== 용어집 ===== */
+let gloGrid = null;
+function buildGlo() {
+  const rows = B.glossary.map((g) => ({ id: g.id, term: g.term, meaning: g.meaning, act: g.active ? "사용" : "끔", by: (g.created_by || "").split("@")[0] }));
+  const cols = [{ key: "term", label: "용어", width: "140px" }, { key: "meaning", label: "뜻" }, { key: "act", label: "사용", width: "60px" }, { key: "by", label: "작성", width: "90px" },
+    { key: "_a", label: "", width: "110px", filter: false, sortable: false, exportValue: () => "", formatter: () => `<button class="ra" data-row-act="edit">편집</button><button class="ra" data-row-act="del">삭제</button>` }];
+  if (!gloGrid) gloGrid = createGrid("#gloGrid", { keyField: "id", rows, columns: cols, search: true, exportCsv: true, exportName: `용어집_${AGENT}`,
+    onRowAction: (act, row) => {
+      const g = B.glossary.find((x) => x.id === row.id);
+      if (act === "edit") { curGlo = g; $("gloId").textContent = "#" + g.id; $("gloTerm").value = g.term; $("gloMean").value = g.meaning; $("gloAct").checked = g.active; }
+      if (act === "del") guard(async () => { await op(AGENT, "glossary_delete", { id: row.id }); await reboot(); toast("삭제했습니다"); });
+    } });
+  else gloGrid.setRows(rows);
+}
+$("btnGloNew").onclick = () => { curGlo = null; $("gloId").textContent = ""; $("gloTerm").value = ""; $("gloMean").value = ""; $("gloAct").checked = true; };
+$("btnGloSave").onclick = (e) => guard(async () => {
+  await op(AGENT, "glossary_save", { id: curGlo ? curGlo.id : null, term: $("gloTerm").value, meaning: $("gloMean").value, active: $("gloAct").checked });
+  await reboot(); $("btnGloNew").click(); toast("저장했습니다");
+}, e.target);
+
+/* ===== 골든셋 ===== */
+let goldGrid = null;
+function buildGold() {
+  $("goldTools").innerHTML = B.modules.map((m) => `<option value="${esc(m.id)}">${esc(m.title_ko)} (${esc(m.id)})</option>`).join("");
+  const rows = B.golden.map((g) => ({ id: g.id, q: g.question, tools: (g.expect_tools || []).join(", "), rules: g.expect_rules || "", act: g.active ? "포함" : "제외" }));
+  const cols = [{ key: "id", label: "#", width: "50px" }, { key: "q", label: "질문" }, { key: "tools", label: "기대 도구", width: "200px" }, { key: "rules", label: "답 요건", width: "260px" },
+    { key: "act", label: "회귀", width: "60px" },
+    { key: "_a", label: "", width: "110px", filter: false, sortable: false, exportValue: () => "", formatter: () => `<button class="ra" data-row-act="edit">편집</button><button class="ra" data-row-act="del">삭제</button>` }];
+  if (!goldGrid) goldGrid = createGrid("#goldGrid", { keyField: "id", rows, columns: cols, search: true, exportCsv: true, exportName: `골든셋_${AGENT}`,
+    onRowAction: (act, row) => {
+      const g = B.golden.find((x) => x.id === row.id);
+      if (act === "edit") { curGold = g; $("goldId").textContent = "#" + g.id; $("goldQ").value = g.question; $("goldRules").value = g.expect_rules || ""; $("goldAct").checked = g.active;
+        const s = new Set(g.expect_tools || []); [...$("goldTools").options].forEach((o) => { o.selected = s.has(o.value); }); delete $("goldQ").dataset.src; }
+      if (act === "del") guard(async () => { await op(AGENT, "golden_delete", { id: row.id }); await reboot(); toast("삭제했습니다"); });
+    } });
+  else goldGrid.setRows(rows);
+}
+$("btnGoldNew").onclick = () => { curGold = null; $("goldId").textContent = ""; $("goldQ").value = ""; $("goldRules").value = ""; $("goldAct").checked = true; [...$("goldTools").options].forEach((o) => { o.selected = false; }); delete $("goldQ").dataset.src; };
+$("btnGoldSave").onclick = (e) => guard(async () => {
+  await op(AGENT, "golden_save", { id: curGold ? curGold.id : null, question: $("goldQ").value, expect_rules: $("goldRules").value, active: $("goldAct").checked,
+    expect_tools: [...$("goldTools").selectedOptions].map((o) => o.value), source_turn_id: $("goldQ").dataset.src ? +$("goldQ").dataset.src : null });
+  await reboot(); $("btnGoldNew").click(); toast("저장했습니다");
+}, e.target);
+$("btnRun").onclick = (e) => guard(async () => {
+  const ver = +$("runVer").value;
+  const s = await op(AGENT, "golden_start", { version: ver });
+  const res = []; const box = $("runRes");
+  box.innerHTML = `<div class="cv-tblwrap"><table id="runTbl"><tr><th>#</th><th>질문</th><th>도구</th><th>요건</th><th>판정</th><th class="r">초</th><th class="r">$</th></tr></table></div>`;
+  for (let i = 0; i < s.golden_ids.length; i++) {
+    $("runInfo").textContent = ` v${ver} · ${i + 1}/${s.golden_ids.length} 진행 중…`;
+    let r;
+    try { r = (await op(AGENT, "golden_one", { run_id: s.run_id, golden_id: s.golden_ids[i] })).result; }
+    catch (err) { r = { golden_id: s.golden_ids[i], question: "(실행 실패) " + err.message, pass: false, tools_ok: false, judge: false, why: "", ms: 0, cost: 0, called: [], expect: [] }; }
+    res.push(r);
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td>${r.golden_id}</td><td>${esc(r.question)}<div class="hint">${esc((r.answer || "").slice(0, 160))}</div></td>
+      <td>${r.tools_ok ? '<span class="pill g">OK</span>' : '<span class="pill r">누락</span>'}<div class="hint">호출: ${esc((r.called || []).join(", ") || "-")}</div></td>
+      <td>${r.judge ? '<span class="pill g">OK</span>' : '<span class="pill r">미흡</span>'}<div class="hint">${esc(r.why || "")}</div></td>
+      <td>${r.pass ? '<span class="pill g">통과</span>' : '<span class="pill r">실패</span>'}</td><td class="r">${(r.ms / 1000).toFixed(1)}</td><td class="r">${Number(r.cost || 0).toFixed(4)}</td>`;
+    $("runTbl").appendChild(tr);
+  }
+  const f = await op(AGENT, "golden_finish", { run_id: s.run_id });
+  $("runInfo").textContent = ` v${ver} 결과: ${f.pass}/${f.total} 통과 · $${f.cost_usd}`;
+  await reboot();
+}, e.target);
+
+/* ===== 구성원 ===== */
+let memGrid = null;
+function buildMem() {
+  const rows = B.members.map((m) => ({ upn: m.upn, name: m.name || "", role: m.role, by: (m.added_by || "").split("@")[0], at: fmtT(m.added_at) }));
+  const cols = [{ key: "name", label: "이름", width: "170px" }, { key: "upn", label: "계정" },
+    { key: "role", label: "역할", width: "150px", formatter: (v) => v === "reviewer" ? '<span class="pill">관리자 — 확인·점검</span>' : '<span class="pill g">담당자 — 실작업</span>' },
+    { key: "by", label: "추가", width: "90px" }, { key: "at", label: "일시", width: "110px" },
+    { key: "_a", label: "", width: "70px", filter: false, sortable: false, exportValue: () => "", formatter: () => isRv() ? `<button class="ra" data-row-act="del">빼기</button>` : "" }];
+  if (!memGrid) memGrid = createGrid("#memGrid", { keyField: "upn", rows, columns: cols,
+    onRowAction: (act, row) => { if (act === "del") guard(async () => { await op(AGENT, "member_set", { upn: row.upn, role: null }); await reboot(); toast("뺐습니다"); }); } });
+  else memGrid.setRows(rows);
+}
+$("btnMemAdd").onclick = (e) => guard(async () => {
+  await op(AGENT, "member_set", { upn: $("memUpn").value.trim().toLowerCase(), role: $("memRole").value }); $("memUpn").value = "";
+  await reboot(); toast("추가했습니다");
+}, e.target);
+
+/* ===== 진입 ===== */
+async function reboot() {
+  B = await op(AGENT, "admin_boot");
+  refreshVer(); buildGlo(); buildGold(); buildMem(); fillAgent();
+}
+(async () => {
+  if (!auth()) { toLogin(); return; }
+  try { B = await op(AGENT, "admin_boot"); }
+  catch (e) {
+    if (e.message === "login") return;
+    if (e.status === 403) block("🔒", "에이전트 담당자·관리자 전용입니다", "이 화면은 에이전트 구성원(담당자·관리자)과 포털 관리자만 열 수 있습니다.");
+    else block("⚠️", "에이전트 관리를 열지 못했습니다", esc(e.message));
+    return;
+  }
+  $("agName").textContent = `${B.agent.icon || ""} ${B.agent.name_ko}`;
+  $("roleBadge").textContent = isRv() ? "관리자 — 확인·점검·승인" : "담당자 — 실작업";
+  $("roleBadge").className = "badge " + (isRv() ? "rv" : "op");
+  $("me").innerHTML = `${esc(B.me.name || "")}<br><small>${esc(B.me.upn)}</small><br><small>연결된 AI: ${esc(B.vendors_ready.join(", ") || "없음")}</small>`;
+  if (!isRv()) document.querySelectorAll(".rvonly").forEach((x) => x.classList.add("hideme"));
+  buildVerGrid(); refreshVer(); loadEditor((B.versions.find((v) => v.state === "current") || B.versions[0] || {}).version);
+  buildGlo(); buildGold(); buildMem(); fillAgent();
+  unhide();
+  loadUsage().catch((e) => { $("kpis").innerHTML = `<div class="hint">사용량을 불러오지 못했습니다: ${esc(e.message)}</div>`; });
+  loadImp();
+})();
+</script>
+</body></html>

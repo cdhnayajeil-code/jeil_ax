@@ -109,6 +109,20 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <tbody>
 <tr>
 <td>2026-09-28</td>
+<td>챗봇 · 부서 에이전트(구현)</td>
+<td>SQL 74(신규) · <code>jeil-chat-lab</code> v3(<code>llm/anthropic.ts</code>·<code>llm/index.ts</code>·<code>llm/types.ts</code>·<code>core/engine.ts</code>·<code>core/agent.ts</code>·<code>core/agent_api.ts</code>·<code>modules/extra.ts</code>·구매 도구 5종) · <code>pages/구매_AI에이전트_2026.html</code>(<code>/work/purchase-agent</code>) · <code>app/admin-agents.html</code>(<code>/admin/agents</code>) · <code>app/lib/chatview.js</code>·<code>.css</code>·<code>agentApi.js</code> · <code>_routes.py</code> · 14 기획 §11 · 이관 00·03</td>
+<td><strong>구매 에이전트 파일럿을 가동했다</strong>(REQ-0085~0088 · 관리자 결정 D-87~D-92). 에이전트=프로필+버전(초안→관리자 「현재」 지정), 담당자(구매팀 2명)가 실작업·관리자(3명)는 확인·점검을 <strong>서버 권한으로</strong> 나눴다. 대화 턴은 <code>agent_turn</code> 에 누적(조회 결과 행·보고서 첨부 표는 미저장) → 자동 판정·👎 가 개선 대장 inbox 로 → AI 묶기·분류 → 새 버전 → 골든셋 회귀. 자료는 "숫자는 서버(카드), 문장은 모델" — CSV(BOM)·인쇄용 HTML 보고서를 본인 자료함(30일)에 저장. Claude 어댑터를 붙였고 키 등록 전에는 예비 모델(gpt-4.1-mini)로 동작한다. 실험실 루프를 공용 엔진으로 옮겼다(동작 동일). 운영 jeil-chat·포털 무변경. 검증: strict 타입검사 · 스크립트 문법검사 · 함수 v3 ACTIVE · 대사 래퍼 944칸</td>
+<td>최동혁(+Claude)</td>
+</tr>
+<tr>
+<td>2026-09-28</td>
+<td>챗봇 · 부서 에이전트</td>
+<td><code>11_제품기획/14_부서에이전트_운영기획.md</code>(신규) · <code>_build_html.py</code> · <code>_routes.py</code>(<code>/docs/product/dept-agents</code>)</td>
+<td><strong>부서 에이전트 운영기획을 세웠다</strong>(ADR-109 제안 · 관리자 지시). 에이전트는 공용 게이트웨이 위의 <strong>프로필</strong>(모델·설정·모듈 묶음·버전)로 만들고, 에이전트별 모델·설정은 관리자 페이지 <code>/admin/agents</code> 에서 버전으로 관리한다. 1호 구매 에이전트는 구매 데이터 12종(기존 도구 7 + 신규 5)을 묶고 자료는 "숫자는 서버, 문장은 모델"로 만든다. 대화 턴은 <code>agent_turn</code> 에 누적 → 개선 대장(<code>agent_improve</code>, 백로그형) → 새 버전 → 골든셋 회귀 순으로만 반영한다. Claude 는 회사 명의 API 키(관리자 신규 발급)로 Sonnet 5 적용. 구현은 REQ-0085~0088(P0~P3)로 분리 — 코드·DB 변경 없음(기획만)</td>
+<td>최동혁(+Claude)</td>
+</tr>
+<tr>
+<td>2026-09-28</td>
 <td>챗봇 · 실험실</td>
 <td>Edge Function <code>jeil-chat-lab</code>(신규) · <code>app/chat-lab.html</code>(신규 · <code>/chatdemo</code>) · <code>supabase/_deploy_function.py</code>(<code>--multi</code>) · <code>_routes.py</code> · 13 기획 §9 · 이관 00·03</td>
 <td><strong>챗봇 고도화 실험실을 세웠다</strong>(REQ-0084 · 관리자 지시). 13 기획(모듈형)을 <strong>운영 jeil-chat 과 분리된 함수</strong>에서 먼저 돌린다. 도구 19종을 <code>modules/&lt;domain&gt;/&lt;tool&gt;.ts</code>(manifest+run)로 옮겼고, 옮기는 일은 <code>_port_modules.py</code> 가 운영 소스에서 <strong>기계적으로</strong> 뽑아 로직을 한 글자도 바꾸지 않았다. 게이트웨이는 권한별 주입(실행차단/숨김 선택)·프롬프트 자동 조립(운영 SYSTEM_PROMPT 20문장 분해, 운영 DB·코드 프롬프트와 전환 비교)·LLM 어댑터(<code>llm/openai.ts</code>)·도구 호출 추적(SSE <code>jeilax_lab</code> — 인자·ms·건수·결과)을 갖는다. 화면은 대화 + 추적/프롬프트 패널 + <strong>모듈 등록부(표준 그리드 · 요청 단위 켜기/끄기)</strong> + 권한 시뮬레이션(좁히기만). <strong>서버가 <code>is_admin</code> 아니면 403</strong>, 대화 원문 미저장, 호출은 <code>chat_log</code> 기록, DB 스키마 변경 없음. 배포 스크립트에 다중 파일 업로드(<code>--multi</code>) 추가 — 기본 동작 불변. §15.2 네임스페이스 예외(<code>/chatdemo</code> 관리자 지정 주소). 검증: tsc(strict) 통과 · esbuild 번들 · 배포 v1 ACTIVE · 미인증 401</td>

@@ -1,28 +1,8 @@
 // llm/openai.ts — OpenAI 어댑터(13 기획 §2 · 벤더 중립). 게이트웨이는 LlmAdapter 인터페이스만 안다.
 // 원본: 운영 jeil-chat 의 callOpenAI·pumpStream(동작 동일). 다른 벤더는 같은 인터페이스로 llm/<vendor>.ts 를 추가한다.
 import type { ToolManifest } from "../core/types.ts";
-
-export type ToolCall = { id: string; name: string; args: string };
-export type StreamState = { pt: number; ct: number; toolCalls: Record<number, ToolCall> };
-/** 대화 메시지 — 벤더 중립 표현. 어댑터가 자기 형식으로 바꾼다. */
-export type ChatMsg =
-  | { role: "system" | "user" | "assistant"; content: string }
-  | { role: "assistant_tools"; calls: ToolCall[] }
-  | { role: "tool"; call_id: string; content: string };
-
-/** 1라운드 결과 — 실패면 ok=false 와 상태코드·요약. */
-export type LlmRoundResult = { ok: boolean; status: number; detail: string };
-
-export interface LlmAdapter {
-  vendor: string;
-  /** 스트리밍 1라운드. 본문 조각은 emit, 도구 호출·토큰은 state 에 쌓는다. 실패하면 {ok:false,status,detail}. */
-  round(opts: {
-    apiKey: string; model: string; messages: ChatMsg[]; tools: ToolManifest[] | null;
-    maxTokens: number; temperature: number; signal?: AbortSignal;
-    emit: (c: string) => Promise<void>; state: StreamState;
-  }): Promise<LlmRoundResult>;
-  keyEnv: string;
-}
+import type { ChatMsg, LlmAdapter, StreamState } from "./types.ts";
+export type { ChatMsg, LlmAdapter, LlmRoundResult, StreamState, ToolCall } from "./types.ts";
 
 function toOpenAiMessages(msgs: ChatMsg[]): unknown[] {
   return msgs.map((m) => {
@@ -75,11 +55,12 @@ export const openaiAdapter: LlmAdapter = {
   vendor: "openai",
   keyEnv: "OPENAI_API_KEY",
   async round({ apiKey, model, messages, tools, maxTokens, temperature, signal, emit, state }) {
+    state.raw = null; state.stop = null;
     const res = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST", signal,
       headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
       body: JSON.stringify({
-        model, stream: true, max_tokens: maxTokens, temperature, messages: toOpenAiMessages(messages),
+        model, stream: true, max_tokens: maxTokens, ...(temperature != null ? { temperature } : {}), messages: toOpenAiMessages(messages),
         stream_options: { include_usage: true },
         ...(tools && tools.length ? { tools: toOpenAiTools(tools) } : {}),
       }),
@@ -89,6 +70,3 @@ export const openaiAdapter: LlmAdapter = {
     return { ok: true, status: res.status, detail: "" };
   },
 };
-
-/** 벤더 → 어댑터. 새 벤더는 여기에 한 줄. */
-export const ADAPTERS: Record<string, LlmAdapter> = { openai: openaiAdapter };

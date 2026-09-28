@@ -25,6 +25,7 @@ ROUTES = {
     "/work/purchase-orders":    "pages/구매_발주관리_2026.html",
     "/work/purchase-list":      "pages/구매_발주통합LIST_2026.html",
     "/work/purchase-proposals": "pages/구매_기안서대장_2026.html",
+    "/work/purchase-agent":     "pages/구매_AI에이전트_2026.html",   # 구매 에이전트(REQ-0087 · 14 기획) — 파일럿 구성원·관리자(서버 판정)
     "/work/hr-payroll":         "pages/인사_인원급여추이_2026.html",
     "/work/inventory":          "pages/자재물류_재고입출고_2026.html",
     "/work/subcon-inspection":  "pages/외주발주_검사진행현황_2026.html",
@@ -45,6 +46,7 @@ ROUTES = {
     "/admin/accounts":          "app/admin-accounts.html",
     "/admin/permissions":       "app/admin-permissions.html",   # 권한 설정(2026-09-10 REQ-0026) — 콘솔 「권한·계정」 탭도 이 화면을 내장
     "/admin/offboarding":       "app/admin-offboarding.html",
+    "/admin/agents":            "app/admin-agents.html",        # 부서 에이전트 관리(REQ-0086/0088) — 에이전트 구성원·관리자(서버 판정)
     "/chatdemo":                "app/chat-lab.html",            # 챗봇 고도화 실험실(REQ-0084) — 전체관리자 전용. §15.2 네임스페이스 예외(관리자 지정 주소)
     "/vendor/login":            "app/vendor-login.html",
 
@@ -142,6 +144,7 @@ ROUTES = {
     "/docs/product/org-permission":     "11_제품기획/12_권한_조직도기반_공개설정_설계.html",
     "/docs/product/org-permission-mockup": "11_제품기획/12_권한_조직도기반_공개설정_목업.html",
     "/docs/product/chat-modules":       "11_제품기획/13_챗봇_모듈형_고도화_기획.html",
+    "/docs/product/dept-agents":        "11_제품기획/14_부서에이전트_운영기획.html",
 
     # ── 그리드 표준 ────────────────────────────────────────
     "/docs/grid":               "그리드/index.html",

@@ -6,7 +6,14 @@
 //   modules/<domain>/<tool>.ts  = manifest(설명서) + run(ctx)   ← 도구 1개 = 파일 1개
 //   modules/index.ts            = 등록 목록(정적 import)
 //   core/                       = 타입·헬퍼·권한·프롬프트 조립·설정
-//   llm/<vendor>.ts             = 벤더 어댑터(현재 openai)
+//   llm/<vendor>.ts             = 벤더 어댑터(openai · anthropic — REQ-0085)
+//   core/engine.ts              = 대화 루프 1개(실험실·에이전트·골든셋 공유)
+//   core/agent*.ts              = 부서 에이전트(14 기획 · ADR-109 · REQ-0086~0088) — body.agent 가 있으면 이쪽
+//
+// ★ 두 가지 입구
+//   ① 실험실(body.agent 없음) : 전체관리자 전용 — 아래 원칙 그대로.
+//   ② 부서 에이전트(body.agent): 에이전트 구성원(operator/reviewer) · 관리자 · (live 면) 일반 사용자. 판정은 core/agent.ts roleOf.
+//      대화 턴은 agent_turn 에 기록(품질 개선용 · 화면 고지). 실험실 원칙 "대화 원문 미저장"은 ①에만 해당한다.
 //
 // 호출: POST /functions/v1/jeil-chat-lab   Authorization: Bearer <Entra access_token>
 //   { op:"registry" }                                   → 모듈 등록부·모델·프롬프트 정보(JSON)
@@ -22,12 +29,18 @@
 //   - 비용은 실제로 발생하므로 chat_log 에는 남긴다(사용량 화면에 드러난다).
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import type { ErpScope, ToolManifest, ToolModule } from "./core/types.ts";
-import { resolveErpScope, simulateScope, gateDeny, visibleTo } from "./core/scope.ts";
+import { resolveErpScope, simulateScope, visibleTo } from "./core/scope.ts";
 import { assemblePrompt, joinPrompt, LEGACY_SYSTEM_PROMPT } from "./core/prompt.ts";
-import { loadAiConfig, usableModels, pickModel, priceFor } from "./core/config.ts";
-import { ADAPTERS, type ChatMsg, type StreamState } from "./llm/openai.ts";
-import { MODULES } from "./modules/index.ts";
+import { loadAiConfig, usableModels, pickModel, costOf } from "./core/config.ts";
+import { readyVendors, type ChatMsg } from "./llm/index.ts";
+import { MODULES as PORTED } from "./modules/index.ts";
+import { EXTRA_MODULES } from "./modules/extra.ts";
 import { MODULE_KO } from "./core/util.ts";
+import { converse } from "./core/engine.ts";
+import { handleAgent } from "./core/agent_api.ts";
+
+/** 등록 모듈 = 운영에서 옮긴 19종(자동 생성) + 손으로 쓴 모듈(부서 에이전트). */
+const MODULES: ToolModule[] = [...PORTED, ...EXTRA_MODULES];
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -39,7 +52,6 @@ const json = (o: unknown, status = 200) =>
 
 const MAX_MSG_CHARS = 8000;
 const MAX_ROUNDS = 4;
-const VENDORS = Object.keys(ADAPTERS);
 
 /* ===== Entra 토큰 검증(운영과 동일) ===== */
 async function verifyEntraUser(token: string): Promise<{ upn: string } | null> {
@@ -99,18 +111,6 @@ function buildPrompt(lab: LabOpts, injected: ToolModule[], excluded: { id: strin
   return { text: joinPrompt(parts), parts };
 }
 
-/** 결과에서 건수·결과 유형을 뽑는다(추적 표시용). */
-function outcomeOf(result: unknown, view: unknown): { outcome: string; rows: number | null } {
-  // deno-lint-ignore no-explicit-any
-  const r = (result || {}) as any; const v = (view || {}) as any;
-  if (r.접근제한) return { outcome: "denied", rows: null };
-  if (r.오류) return { outcome: "error", rows: null };
-  const n = Array.isArray(v.rows) ? v.rows.length
-    : Array.isArray(r.목록) ? r.목록.length
-    : typeof r.건수 === "number" ? r.건수 : null;
-  return { outcome: n === 0 ? "empty" : "ok", rows: n };
-}
-
 const publicManifest = (mf: ToolManifest) => ({ ...mf });
 
 Deno.serve(async (req) => {
@@ -124,12 +124,21 @@ Deno.serve(async (req) => {
 
   const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
   const realScope = await resolveErpScope(admin, user.upn);
-  // ★ 실험실은 전체관리자 전용 — 화면 게이트와 별개로 서버가 막는다(CLAUDE.md §5.4)
-  if (!realScope.isAdmin) return json({ error: "forbidden: 챗봇 실험실은 전체관리자만 사용할 수 있습니다." }, 403);
 
   // deno-lint-ignore no-explicit-any
   let body: any;
   try { body = await req.json(); } catch { return json({ error: "invalid json" }, 400); }
+
+  const VENDORS = readyVendors();
+  // ② 부서 에이전트 — 권한 판정은 handleAgent 안에서(구성원·관리자·live)
+  if (typeof body.agent === "string" && body.agent) {
+    const ai = await loadAiConfig(admin);
+    return handleAgent({ admin, token, scope: realScope, ai, usable: usableModels(ai, VENDORS), vendors: VENDORS,
+      modules: MODULES, req, json, cors }, body);
+  }
+
+  // ① 실험실은 전체관리자 전용 — 화면 게이트와 별개로 서버가 막는다(CLAUDE.md §5.4)
+  if (!realScope.isAdmin) return json({ error: "forbidden: 챗봇 실험실은 전체관리자만 사용할 수 있습니다." }, 403);
   const lab = readLab(body.lab);
   const scope = lab.simulate ? simulateScope(realScope, lab.simulate) : realScope;
   const ai = await loadAiConfig(admin);
@@ -175,10 +184,9 @@ Deno.serve(async (req) => {
   const lastUserText = [...messages].reverse().find((m) => m.role === "user");
   const model = lab.model && usable.has(lab.model) ? lab.model
     : pickModel(lastUserText && "content" in lastUserText ? String(lastUserText.content) : "", ai, VENDORS);
-  const vendor = String(usable.get(model)?.vendor || "openai").toLowerCase();
-  const adapter = ADAPTERS[vendor] || ADAPTERS.openai;
-  const apiKey = Deno.env.get(adapter.keyEnv);
-  if (!apiKey) return json({ error: `서버 미설정: ${adapter.keyEnv} 시크릿이 없습니다.` }, 503);
+  const vendorOf = (m: string) => String(ai.models.find((x) => x.model_id === m)?.vendor || "openai").toLowerCase();
+  const vendor = vendorOf(model);
+  if (!VENDORS.includes(vendor)) return json({ error: `서버 미설정: ${vendor} 키 시크릿이 없습니다.` }, 503);
 
   let logId: number | null = null;
   try {
@@ -199,95 +207,49 @@ Deno.serve(async (req) => {
   const lab_ = (o: Record<string, unknown>) => send({ jeilax_lab: o }).catch(() => {});
   const emit = (c: string) => send({ choices: [{ delta: { content: c } }] });
 
-  const byId = new Map(injected.map((m) => [m.manifest.id, m]));
   const t0 = Date.now();
 
   const run = (async () => {
-    const state: StreamState = { pt: 0, ct: 0, toolCalls: {} };
-    const toolsUsed: string[] = [];
-    let stopped = false; let rounds = 0;
+    let res: Awaited<ReturnType<typeof converse>> | null = null;
+    let stopped = false;
     try {
       await lab_({
         type: "start", model, vendor, prompt_mode: lab.prompt_mode, perm_filter: lab.perm_filter,
         simulated: !!lab.simulate, scope_modules: [...scope.modules], is_admin: scope.isAdmin,
         injected: injected.map((m) => m.manifest.id), excluded, prompt_chars: prompt.text.length,
       });
-      const convo: ChatMsg[] = [{ role: "system", content: prompt.text }, ...messages];
-      let lastSig = "";
-      for (let round = 0; round < MAX_ROUNDS; round++) {
-        if (clientGone) { stopped = true; break; }
-        rounds = round + 1;
-        const lastRound = round === MAX_ROUNDS - 1;
-        state.toolCalls = {};
-        const r = await adapter.round({ apiKey, model, messages: convo, tools: lastRound ? null : injected.map((m) => m.manifest),
-          maxTokens: ai.max_tokens, temperature: ai.temperature, signal: upstream.signal, emit, state });
-        if (!r.ok) {
-          console.error("llm error", r.status, r.detail);
-          await emit(r.status === 401 ? "⚠ AI 키가 유효하지 않습니다(만료/오입력)."
-            : r.status === 429 ? "⚠ AI 사용량 한도 초과 — 잠시 후 다시 시도하세요."
-            : "⚠ AI 응답 생성에 실패했습니다.");
-          await lab_({ type: "llm_error", status: r.status, detail: r.detail.slice(0, 300) });
-          break;
-        }
-        const calls = Object.values(state.toolCalls).filter((c) => c.name);
-        if (!calls.length) break;
-        const sig = calls.map((c) => c.name + ":" + c.args).sort().join("|");
-        if (sig === lastSig) { await lab_({ type: "loop_stop", round: rounds }); break; }
-        lastSig = sig;
-        convo.push({ role: "assistant_tools", calls });
-        for (const c of calls) {
-          toolsUsed.push(c.name);
-          const mod = byId.get(c.name);
-          let args: Record<string, unknown> = {};
-          try { args = JSON.parse(c.args || "{}"); } catch { /* 빈 인자 */ }
-          const ts = Date.now();
-          let result: unknown;
-          let gated = false;
-          if (!mod) {
-            result = { 오류: `알 수 없는 도구: ${c.name}` };
-          } else {
-            // 실행 직전 2차 방어선 — 주입 단계와 무관하게 권한을 다시 본다(§2-5 ④)
-            const deny = gateDeny(mod.manifest, scope);
-            if (deny) { result = deny; gated = true; }
-            else {
-              try { result = await mod.run({ admin, args, asOf: new Date().toISOString(), scope, userToken: token }); }
-              catch (e) { result = { 오류: "조회 실패: " + (e instanceof Error ? e.message : String(e)) }; }
-            }
-          }
-          const ms = Date.now() - ts;
-          const ro = result as Record<string, unknown> | null;
-          const view = ro && typeof ro === "object" ? ro.__view : null;
-          if (ro && view) {
-            delete ro.__view;
-            const payload = JSON.stringify({ jeilax: view });
-            if (payload.length <= 16000) await writer.write(enc.encode("data: " + payload + "\n\n")).catch(() => onGone());
-          }
-          const modelText = JSON.stringify(result).slice(0, 12000);
-          const oc = outcomeOf(result, view);
-          await lab_({
-            type: "tool", round: rounds, tool: c.name, version: mod?.manifest.version ?? null,
-            kind: mod?.manifest.kind ?? null, perm_module: mod?.manifest.perm_module ?? null,
-            args, ms, outcome: oc.outcome, rows: oc.rows, gated, has_view: !!view,
-            result_chars: modelText.length, result_preview: modelText.slice(0, 1500),
-          });
-          convo.push({ role: "tool", call_id: c.id, content: modelText });
-        }
-      }
+      res = await converse({
+        admin, userToken: token, scope, model, vendorOf, modules: injected, system: prompt.text, messages,
+        maxTokens: ai.max_tokens, temperature: ai.temperature, effort: vendor === "anthropic" ? "medium" : null, caching: true,
+        maxRounds: MAX_ROUNDS, signal: upstream.signal, isGone: () => clientGone, emit,
+        onView: async (view) => {
+          const payload = JSON.stringify({ jeilax: view });
+          if (payload.length <= 16000) await writer.write(enc.encode("data: " + payload + "\n\n")).catch(() => onGone());
+        },
+        onTool: (t) => lab_({ type: "tool", round: t.round, tool: t.tool, version: t.version, kind: t.kind, perm_module: t.perm_module,
+          args: t.args, ms: t.ms, outcome: t.outcome, rows: t.rows, gated: t.gated, has_view: t.has_view,
+          result_chars: t.result_chars, result_preview: t.result_preview }),
+        onNote: (n) => lab_(n),
+      });
+      stopped = res.stopped;
     } catch (e) {
       if (clientGone || (e instanceof Error && e.name === "AbortError")) stopped = true;
       else { try { await emit("⚠ 오류: " + (e instanceof Error ? e.message : String(e))); } catch { /* 종료됨 */ } }
     } finally {
-      const price = priceFor(model, ai);
-      const cost = (state.pt * price.inp + state.ct * price.out) / 1_000_000;
-      await lab_({ type: "end", rounds, pt: state.pt, ct: state.ct, est_cost_usd: Number(cost.toFixed(6)), ms: Date.now() - t0, stopped, tools_used: toolsUsed });
+      const st = res?.state || { pt: 0, ct: 0, cr: 0, cw: 0, toolCalls: {} };
+      const usedModel = res?.model || model;
+      const cost = costOf(usedModel, ai, st);
+      const toolsUsed = (res?.tools || []).map((t) => t.tool);
+      await lab_({ type: "end", rounds: res?.rounds || 0, pt: st.pt, ct: st.ct, cr: st.cr || 0, est_cost_usd: Number(cost.toFixed(6)),
+        ms: Date.now() - t0, stopped, tools_used: toolsUsed });
       try { req.signal?.removeEventListener("abort", onGone); } catch { /* 무시 */ }
       try { await writer.write(enc.encode("data: [DONE]\n\n")); } catch { /* 무시 */ }
       try { await writer.close(); } catch { /* 무시 */ }
       if (logId != null) {
         try {
           await admin.from("chat_log").update({
-            prompt_tokens: state.pt || null, completion_tokens: state.ct || null,
-            est_cost_usd: state.pt || state.ct ? Number(cost.toFixed(6)) : null,
+            model: usedModel, prompt_tokens: st.pt || null, completion_tokens: st.ct || null,
+            est_cost_usd: st.pt || st.ct ? Number(cost.toFixed(6)) : null,
             tools_used: toolsUsed.length ? toolsUsed : null, stopped,
           }).eq("id", logId);
         } catch { /* 무시 */ }

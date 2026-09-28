@@ -57,10 +57,11 @@ export async function loadAiConfig(admin: any): Promise<AiConfig> {
   }
 }
 
-/** 실제 호출 가능한 모델 — active+callable 이고 **어댑터가 있는 벤더**만. */
+/** 실제 호출 가능한 모델 — active 이고 **어댑터가 있고 키가 등록된 벤더**(llm/index.ts readyVendors)만.
+ *  ai_model.callable 은 운영 jeil-chat(OpenAI 전용)의 판정값이라 여기서는 보지 않는다(14 기획 §6 · REQ-0085). */
 export function usableModels(ai: AiConfig, vendors: string[]): Map<string, AiModelRow> {
   return new Map(
-    ai.models.filter((m) => m.active && m.callable && vendors.includes(String(m.vendor).toLowerCase()))
+    ai.models.filter((m) => m.active && vendors.includes(String(m.vendor).toLowerCase()))
       .map((m) => [m.model_id, m]),
   );
 }
@@ -86,4 +87,10 @@ export function priceFor(model: string, ai: AiConfig): { inp: number; out: numbe
   const m = ai.models.find((x) => x.model_id === model);
   if (m && (m.price_in || m.price_out)) return { inp: Number(m.price_in), out: Number(m.price_out) };
   return PRICES[model] || PRICES["gpt-4o-mini"];
+}
+
+/** 한 요청의 추정 비용(USD). Claude 캐시 읽기는 입력 단가의 0.1배, 캐시 쓰기는 1.25배로 계산한다. */
+export function costOf(model: string, ai: AiConfig, t: { pt: number; ct: number; cr?: number; cw?: number }): number {
+  const p = priceFor(model, ai);
+  return (t.pt * p.inp + (t.cr || 0) * p.inp * 0.1 + (t.cw || 0) * p.inp * 1.25 + t.ct * p.out) / 1_000_000;
 }
