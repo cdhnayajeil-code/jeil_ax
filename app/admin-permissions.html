@@ -129,6 +129,16 @@
   .olegend{display:flex;gap:10px;flex-wrap:wrap;font-size:11px;color:var(--muted);margin-top:8px;border-top:1px dashed var(--line);padding-top:7px;}
   .olegend span{display:inline-flex;gap:4px;align-items:center;}
   .ofield{margin-bottom:11px;}
+  /* 페이지 권한 복사(2026-09-28) — 저장된 설정을 다른 페이지로 그대로 옮긴다 */
+  .ocopy{border:1px solid #c8d5e8;background:#f7fafd;border-radius:9px;padding:9px 10px;margin:-4px 0 11px;}
+  .ocopy .src{font-size:12px;color:var(--navy2);margin-bottom:7px;}
+  .ocopy .opts{display:flex;gap:10px;flex-wrap:wrap;font-size:12px;margin-bottom:7px;}
+  .ocopy .opts label{display:inline-flex;gap:4px;align-items:center;cursor:pointer;}
+  .ocopy .tg{max-height:240px;overflow:auto;border:1px solid var(--line);border-radius:7px;background:#fff;}
+  .ocopy .tg label{display:flex;gap:6px;align-items:flex-start;padding:4px 8px;border-bottom:1px solid #edf0f5;font-size:12.3px;cursor:pointer;}
+  .ocopy .tg label:last-child{border-bottom:0;}
+  .ocopy .tg .cur{font-size:11px;color:var(--muted);}
+  .ocopy .same{opacity:.55;}
   .ofield > .lb{font-size:11.5px;color:var(--muted);margin-bottom:4px;display:flex;gap:6px;align-items:center;flex-wrap:wrap;}
   .ofield .sel{width:100%;}
   .oradios{display:flex;gap:6px;flex-wrap:wrap;}
@@ -454,7 +464,8 @@
   var MEMBERS = {};                                 // 부서명 → 권한 대상 인원[{emp_nm,email}] — member_cnt 와 같은 원천(v_erp_user_dept)
   var PSCOPE = {};                                  // page_key → [{dept_cd, include_sub}]
   var DMODS = [];                                   // dept_module_scope 행
-  var OV = { view: "page", page: "", dept: "", info: "", q: "", open: {}, draft: null, ddraft: null, prev: null, prevOrig: null };
+  var OV = { view: "page", page: "", dept: "", info: "", q: "", open: {}, draft: null, ddraft: null, prev: null, prevOrig: null,
+             copy: null };   // copy: 페이지 권한 복사 패널 상태 { targets:{page_key:1}, owner:bool, mod:bool }
   var _pvT = null, _pvSeq = 0;
 
   function orgInit() {
@@ -612,8 +623,10 @@
     var mods = '<option value="">(없음)</option>' + CATALOG.map(function (c) { return '<option value="' + esc(c.key) + '"' + (dr.erp_module === c.key ? " selected" : "") + '>' + esc(c.label) + (c.sensitive ? " ⚠ 민감" : "") + '</option>'; }).join("");
     var sens = dr.erp_module && SENS[dr.erp_module];
     el("omid").innerHTML =
-      '<div class="ofield"><div class="lb">페이지</div><select class="sel" id="oPage">' + popts + '</select>' +
-        '<div class="ohint">' + esc(p.path || "") + '</div></div>' +
+      '<div class="ofield"><div class="lb">페이지 <span style="flex:1"></span><button type="button" class="btn o" id="oCopyBtn" style="padding:3px 10px;font-size:12px;"' +
+        ' title="이 페이지의 저장된 공개 설정을 다른 페이지에 그대로 복사합니다">📋 권한 복사' + (OV.copy ? " 닫기" : "") + '</button></div>' +
+        '<select class="sel" id="oPage">' + popts + '</select>' +
+        '<div class="ohint">' + esc(p.path || "") + '</div></div>' + copyPanel() +
       '<div class="ofield"><div class="lb">소유 부서 <span class="badge n">조직도 순서 · 코드로 저장</span></div><select class="sel" id="oOwner">' + owner + '</select></div>' +
       '<div class="ofield"><div class="lb">공개범위</div><div class="oradios" id="oVis">' + radios + '</div>' +
         (share ? "" : '<div class="ohint">「' + esc(dr.visibility) + '」에서는 공유 부서를 쓰지 않으므로 조직도 체크가 잠깁니다.</div>') + '</div>' +
@@ -623,6 +636,8 @@
         (sens ? '<div class="odanger">⚠ 민감 모듈 페이지 — 공유·전사 공개로 저장할 때는 사유가 필요합니다.</div>' : "") + '</div>' +
       '<div class="ofield"><label style="font-size:12.5px;cursor:pointer;"><input type="checkbox" id="oActive"' + (dr.active ? " checked" : "") + '> 활성(끄면 포털 카드·URL 접근 모두 닫힘)</label></div>';
     el("oPage").onchange = function () { selectPage(this.value); };
+    el("oCopyBtn").onclick = function () { OV.copy = OV.copy ? null : { targets: {}, owner: true, mod: false }; renderPageMid(); notifySize(); };
+    bindCopy();
     el("oOwner").onchange = function () { OV.draft.owner_dept_cd = this.value; OV.draft.scopes = OV.draft.scopes.filter(function (s) { return s.dept_cd !== OV.draft.owner_dept_cd; }); changed(); };
     Array.prototype.forEach.call(el("oVis").querySelectorAll("input"), function (r) {
       r.onchange = function () {
@@ -640,7 +655,100 @@
       b.onclick = function () { OV.draft.scopes = OV.draft.scopes.filter(function (s) { return s.dept_cd !== b.getAttribute("data-rm"); }); changed(); };
     });
   }
-  function selectPage(key) { OV.page = key; OV.draft = pageDraft(key); OV.prevOrig = null; OV.prev = null; OV.info = ""; revealDraft(); renderOrgAll(); scrollToMark(); schedulePreview(0); }
+  /* 페이지 권한 복사 — 원본은 **저장된** 설정(pageOrig). 대상마다 기존 저장 RPC(perm_page_scope_save)를 한 번씩 부른다:
+     서버 검증(현행 조직·민감 모듈 사유)·소유 부서 중복 제거·감사 기록이 페이지별로 그대로 걸린다. 서버 변경 없음. */
+  function modLabel(k) { var c = CATALOG.filter(function (x) { return x.key === k; })[0]; return c ? c.label : k; }
+  function scopeSummary(x) {
+    var sc = PSCOPE[x.page_key] || [];
+    return (x.visibility || "부서 전용") + (x.visibility === "지정 부서 공유" ? " " + sc.length + "곳" : "") +
+      " · 소유 " + onm(x.owner_dept_cd) + (x.erp_module ? " · 모듈 " + modLabel(x.erp_module) : "");
+  }
+  function copyBody(src, tgt, cp) {
+    return { page_key: tgt.page_key,
+             owner_dept_cd: (cp.owner ? src.owner_dept_cd : tgt.owner_dept_cd) || null,
+             visibility: src.visibility,
+             erp_module: (cp.mod ? src.erp_module : tgt.erp_module) || null,
+             active: tgt.active !== false,                                     // 활성 여부는 복사하지 않는다(페이지마다 다름)
+             scopes: src.visibility === "지정 부서 공유" ? src.scopes.map(function (x) { return { dept_cd: x.dept_cd, include_sub: x.include_sub }; }) : [] };
+  }
+  function copyNeedsReason(b) { return !!(b.erp_module && SENS[b.erp_module]) && (b.visibility === "전사 공개" || b.scopes.length > 0); }
+  function copyPanel() {
+    var cp = OV.copy; if (!cp) return "";
+    var src = pageOrig(); if (!src) return "";
+    if (draftChanged()) return '<div class="ocopy"><div class="owarn" style="margin:0">저장하지 않은 변경이 있습니다 — 먼저 저장하거나 되돌린 뒤 복사하세요(복사는 저장된 설정 기준).</div></div>';
+    var cur = pageRow(src.page_key) || {};
+    var list = (D.portal_pages || []).filter(function (x) { return x.page_key !== src.page_key; }).map(function (x) {
+      var t = pageDraft(x.page_key), b = copyBody(src, t, cp);
+      var same = JSON.stringify(b) === JSON.stringify(copyBody(t, t, { owner: true, mod: true }));
+      return '<label class="' + (same ? "same" : "") + '"><input type="checkbox" data-tg="' + esc(x.page_key) + '"' + (cp.targets[x.page_key] ? " checked" : "") + '>' +
+        '<span><b>' + esc((x.icon || "") + " " + (x.title || x.page_key)) + '</b>' + (x.active === false ? ' <span class="muted">(비활성)</span>' : "") +
+        (x.erp_module && SENS[x.erp_module] ? ' <span class="otree__tag sens">⚠ ' + esc(modLabel(x.erp_module)) + '</span>' : "") +
+        '<br><span class="cur">현재: ' + esc(scopeSummary(x)) + (same ? " — 이미 같음" : "") + (copyNeedsReason(b) ? " · 민감 모듈 → 사유 필요" : "") + '</span></span></label>';
+    }).join("");
+    var sel = Object.keys(cp.targets);
+    var needReason = sel.some(function (k) { return copyNeedsReason(copyBody(src, pageDraft(k), cp)); });
+    return '<div class="ocopy">' +
+      '<div class="src">📋 <b>' + esc(cur.title || src.page_key) + '</b>의 저장된 설정 — ' + esc(scopeSummary(cur)) + '</div>' +
+      '<div class="opts"><label><input type="checkbox" checked disabled> 공개범위·공유 부서(하위 포함 여부까지)</label>' +
+        '<label><input type="checkbox" id="cpOwner"' + (cp.owner ? " checked" : "") + '> 소유 부서</label>' +
+        '<label title="ERP 모듈은 페이지 데이터의 성격(급여·자금 등)이라 기본은 대상 페이지 것을 유지합니다"><input type="checkbox" id="cpMod"' + (cp.mod ? " checked" : "") + '> ERP 모듈</label></div>' +
+      '<div class="obtns" style="margin:0 0 5px;"><button type="button" class="btn o" id="cpAll" style="padding:2px 9px;font-size:11.5px;">전체 선택</button>' +
+        '<button type="button" class="btn o" id="cpNone" style="padding:2px 9px;font-size:11.5px;">선택 해제</button><span class="muted" style="font-size:11.5px;">복사할 페이지 ' + sel.length + '개 선택</span></div>' +
+      '<div class="tg" id="cpList">' + (list || '<span class="muted" style="padding:6px;display:block;">다른 페이지가 없습니다.</span>') + '</div>' +
+      (needReason ? '<input type="text" id="cpReason" class="sel" style="margin-top:7px;width:100%;box-sizing:border-box;" placeholder="사유(민감 모듈 페이지를 공유·전사 공개로 바꿀 때 필수)">' : "") +
+      '<div class="obtns"><button type="button" class="btn" id="cpRun"' + (sel.length ? "" : " disabled") + '>선택한 ' + sel.length + '개 페이지에 복사</button>' +
+        '<span class="muted" style="font-size:11.5px;">활성 여부는 복사하지 않습니다 · 페이지마다 저장·감사 기록</span></div></div>';
+  }
+  function bindCopy() {
+    var cp = OV.copy; if (!cp || !el("cpList")) return;
+    var rerender = function () {
+      var r = el("cpReason"), v = r ? r.value : "", sc = el("cpList").scrollTop;
+      renderPageMid(); if (el("cpReason")) el("cpReason").value = v; if (el("cpList")) el("cpList").scrollTop = sc; notifySize();
+    };
+    Array.prototype.forEach.call(el("cpList").querySelectorAll("[data-tg]"), function (c) {
+      c.onchange = function () { var k = c.getAttribute("data-tg"); if (c.checked) cp.targets[k] = 1; else delete cp.targets[k]; rerender(); };
+    });
+    el("cpOwner").onchange = function () { cp.owner = this.checked; rerender(); };
+    el("cpMod").onchange = function () { cp.mod = this.checked; rerender(); };
+    el("cpAll").onclick = function () { (D.portal_pages || []).forEach(function (x) { if (x.page_key !== OV.page) cp.targets[x.page_key] = 1; }); rerender(); };
+    el("cpNone").onclick = function () { cp.targets = {}; rerender(); };
+    el("cpRun").onclick = runCopy;
+  }
+  function runCopy() {
+    var cp = OV.copy, src = pageOrig(); if (!cp || !src || draftChanged()) return;
+    var keys = Object.keys(cp.targets); if (!keys.length) return;
+    var reason = el("cpReason") ? el("cpReason").value.trim() : "";
+    var bodies = keys.map(function (k) { return copyBody(src, pageDraft(k), cp); });
+    if (!reason && bodies.some(copyNeedsReason)) { alert("민감 모듈 페이지가 포함돼 있어 사유가 필요합니다."); return; }
+    var title = function (k) { var x = pageRow(k) || {}; return x.title || k; };
+    busy("cpRun", true);
+    // 저장 전에 페이지마다 「누가 보게 되나」 전후를 서버 판정 규칙(perm_preview_page)으로 계산해 확인받는다.
+    Promise.all(bodies.map(function (b) {
+      return Promise.all([post({ action: "preview_page_scope", page: previewBody(pageDraft(b.page_key)) }),
+                          post({ action: "preview_page_scope", page: previewBody(b) })]);
+    })).then(function (pv) {
+      var lines = bodies.map(function (b, i) {
+        var o = pv[i][0].preview, n = pv[i][1].preview;
+        return "· " + title(b.page_key) + " — 인원 " + o.member_cnt + "→" + n.member_cnt + "명" + (n.member_cnt > o.member_cnt ? " ▲넓어짐" : n.member_cnt < o.member_cnt ? " ▼좁아짐" : "");
+      });
+      if (!confirm("「" + title(src.page_key) + "」의 권한을 " + keys.length + "개 페이지에 복사합니다.\n\n" + lines.join("\n") + "\n\n진행할까요?")) { busy("cpRun", false); return null; }
+      var ok = [], fail = [];
+      return bodies.reduce(function (chain, b) {   // 한 건씩 — 실패가 섞여도 나머지는 진행하고 결과를 모아 알린다
+        if (reason) b.reason = reason;
+        return chain.then(function () {
+          return post({ action: "save_page_scope", page: b }).then(function () { ok.push(b.page_key); }, function (e) { fail.push(title(b.page_key) + ": " + e.message); });
+        });
+      }, Promise.resolve()).then(function () {
+        ok.forEach(function (k) { delete cp.targets[k]; });
+        OV.copy = fail.length ? cp : null;                 // 실패한 페이지만 선택된 채로 남겨 다시 시도할 수 있게
+        return load().then(function () {
+          if (fail.length) alert("복사 " + ok.length + "건 완료 · " + fail.length + "건 실패\n\n" + fail.join("\n"));
+          else toastMsg(ok.length + "개 페이지에 권한을 복사했습니다 — 포털 카드·URL 접근에 바로 적용됩니다.");
+        });
+      });
+    }).catch(function (e) { alert("복사 실패: " + e.message); busy("cpRun", false); });
+  }
+  function selectPage(key) { if (OV.copy) delete OV.copy.targets[key]; OV.page = key; OV.draft = pageDraft(key); OV.prevOrig = null; OV.prev = null; OV.info = ""; revealDraft(); renderOrgAll(); scrollToMark(); schedulePreview(0); }
   function scrollToMark() {
     var dr = OV.draft, cd = dr && (dr.owner_dept_cd || (dr.scopes[0] || {}).dept_cd); if (!cd) return;
     var list = el("otree"), row = list.querySelector('.otree__node[data-cd="' + cd + '"]');
