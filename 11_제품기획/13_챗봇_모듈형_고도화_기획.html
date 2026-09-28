@@ -47,7 +47,7 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
   <div class="content">
 <h1 id="13">13 · 챗봇 모듈형 고도화 기획 — "도구를 모듈로 만들고, 등록부로 관리한다"</h1>
 <blockquote>
-<p>관리자: 최동혁(dh.choi@jeilm.co.kr) · 기준일: 2026-09-28 · 상태: <strong>Proposed — 사전정리·검토 단계(구현 전) · 제안 ADR-108</strong>
+<p>관리자: 최동혁(dh.choi@jeilm.co.kr) · 기준일: 2026-09-28 · 상태: <strong>Proposed — 제안 ADR-108 · 실험실 가동(§9, <code>/chatdemo</code> · REQ-0084)</strong>
 관련: <a href="/docs/product/erp-chatbot">06 ERP연계</a> · <a href="/docs/product/chat-rendering">10 응답렌더링</a> · <a href="/docs/product/chat-data-request">11 요청접수</a> · <a href="/docs/product/frontend-backend">05 FE·BE</a> · <a href="/docs/product/security">08 보안</a> · <a href="/docs/product/adr">09 ADR</a> · 모델 설정 SSOT <code>실제구축준비 자료/06_챗봇_사용모델설정_SSOT.md</code> · <code>CLAUDE.md §1.6·§3.3·§5.4·§13</code></p>
 </blockquote>
 <p>jeil-chat 에서 <strong>"챗봇으로 할 수 있는 일"을 하나하나 모듈(부품)로 만들고, 등록부에서 켜고 끄고 지켜보는 체계</strong>로 바꾸는 기획이다.
@@ -982,6 +982,77 @@ export async function run(args, ctx): Promise&lt;ToolResult&gt; { … }   // 실
 </tbody>
 </table>
 <hr />
+<h2 id="9-chatdemo-2026-09-28-req-0084">9. 실험 환경 — <code>/chatdemo</code> (2026-09-28 가동 · REQ-0084)</h2>
+<p>기획을 <strong>운영 챗봇을 건드리지 않고</strong> 먼저 돌려 보는 곳이다. 여기서 검증된 구조를 운영 <code>jeil-chat</code> 에 옮기는 일은 별건으로 한다.</p>
+<table>
+<thead>
+<tr>
+<th>구분</th>
+<th>내용</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>화면</td>
+<td><code>https://ai.jeilm.co.kr/chatdemo</code> = <code>app/chat-lab.html</code> — <strong>전체관리자만</strong>(서버 <code>perm_effective.is_admin</code> 아니면 403)</td>
+</tr>
+<tr>
+<td>서버</td>
+<td>Edge Function <strong><code>jeil-chat-lab</code></strong> — §2 규격 그대로: <code>core/</code>(타입·헬퍼·권한·프롬프트 조립·설정) · <code>llm/openai.ts</code>(어댑터) · <code>modules/&lt;domain&gt;/&lt;tool&gt;.ts</code> 19종 · <code>modules/index.ts</code></td>
+</tr>
+<tr>
+<td>모듈 이전</td>
+<td><code>supabase/functions/jeil-chat-lab/_port_modules.py</code> 가 운영 <code>jeil-chat/index.ts</code> 의 <code>TOOLS</code> 설명·스키마와 <code>runTool</code> 분기 본문을 <strong>기계적으로</strong> 옮긴다(한 글자도 바꾸지 않음). manifest 의 나머지 필드는 이 스크립트의 <code>META</code> 표가 정본</td>
+</tr>
+<tr>
+<td>배포</td>
+<td><code>python supabase/_deploy_function.py jeil-chat-lab --multi</code> (폴더 안 .ts 전부 업로드)</td>
+</tr>
+<tr>
+<td>저장</td>
+<td>대화 원문 <strong>미저장</strong>(실험 대화가 사용자 대화내역에 섞이지 않게) · 호출은 <code>chat_log</code> 에 기록(비용이 실제로 나므로) · DB 스키마 변경 없음</td>
+</tr>
+</tbody>
+</table>
+<p><strong>실험 조작(요청 단위 — DB 에 저장하지 않는다)</strong></p>
+<table>
+<thead>
+<tr>
+<th>조작</th>
+<th>선택지</th>
+<th>무엇을 비교하나</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>권한</td>
+<td>관리자 그대로 / <strong>권한 시뮬레이션</strong>(고른 모듈만)</td>
+<td>일반 사용자에게 어떻게 보이는가. <strong>좁히기만</strong> 된다 — 실제 권한 밖 모듈 추가·타인 대행 없음</td>
+</tr>
+<tr>
+<td>권한 밖 도구</td>
+<td>실행 때 차단(운영과 같음) / <strong>모델에게 숨김</strong>(§2-5)</td>
+<td>숨겼을 때 정확도·토큰·권한 안내가 유지되는가(§5-3)</td>
+</tr>
+<tr>
+<td>시스템 프롬프트</td>
+<td><strong>자동 조립</strong> / 운영 DB 값 / 운영 코드 상수</td>
+<td>조립 프롬프트가 운영과 같은 답을 내는가(§4-3·§4-9). 조각마다 "왜 들어갔는지" 표시</td>
+</tr>
+<tr>
+<td>모델</td>
+<td>기본 라우팅 / 호출 가능 모델</td>
+<td>벤더 어댑터가 붙으면 여기서 비교(§5-1 · P4)</td>
+</tr>
+<tr>
+<td>모듈 등록부</td>
+<td>모듈별 켜기/끄기(표준 그리드)</td>
+<td>도구 하나를 뺐을 때 모델이 어떻게 대신하는가</td>
+</tr>
+</tbody>
+</table>
+<p><strong>추적(SSE <code>jeilax_lab</code>)</strong> — 요청마다 모델·주입 모듈·제외 사유·프롬프트 글자수, 도구 호출마다 인자·소요 ms·건수·결과 유형(정상/0건/권한차단/오류)·모델에게 간 결과(앞 1,500자), 끝에 라운드·토큰·추정 비용. 이것이 §4-6 <code>chat_tool_call</code> 스키마를 확정하기 전의 <strong>실측 자리</strong>다.</p>
+<p><strong>프롬프트 분해 규칙</strong> — 운영 <code>SYSTEM_PROMPT</code> 20문장을 그대로 나눴다: 공통 머리말 8 · ERP 안내 1 · 도메인 안내(portal 1 · purchase 3 · hr 1 · docs 1) · 모듈 문구 6. 새로 쓴 문장은 <code>[신규]</code> 로 표시한다(<code>get_my_requests</code> 안내, 권한 밖 기능 이름 안내). 코드: <code>jeil-chat-lab/core/prompt.ts</code>.</p>
 <h2 id="a">부록 A. 관련 문서</h2>
 <ul>
 <li>도구·ERP 연계: <a href="/docs/product/erp-chatbot">06 ERP연계</a> · <code>10_ERP_DB연계/01_연계기획.md §4.3·§4.8</code></li>

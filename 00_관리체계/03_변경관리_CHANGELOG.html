@@ -109,6 +109,13 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <tbody>
 <tr>
 <td>2026-09-28</td>
+<td>챗봇 · 실험실</td>
+<td>Edge Function <code>jeil-chat-lab</code>(신규) · <code>app/chat-lab.html</code>(신규 · <code>/chatdemo</code>) · <code>supabase/_deploy_function.py</code>(<code>--multi</code>) · <code>_routes.py</code> · 13 기획 §9 · 이관 00·03</td>
+<td><strong>챗봇 고도화 실험실을 세웠다</strong>(REQ-0084 · 관리자 지시). 13 기획(모듈형)을 <strong>운영 jeil-chat 과 분리된 함수</strong>에서 먼저 돌린다. 도구 19종을 <code>modules/&lt;domain&gt;/&lt;tool&gt;.ts</code>(manifest+run)로 옮겼고, 옮기는 일은 <code>_port_modules.py</code> 가 운영 소스에서 <strong>기계적으로</strong> 뽑아 로직을 한 글자도 바꾸지 않았다. 게이트웨이는 권한별 주입(실행차단/숨김 선택)·프롬프트 자동 조립(운영 SYSTEM_PROMPT 20문장 분해, 운영 DB·코드 프롬프트와 전환 비교)·LLM 어댑터(<code>llm/openai.ts</code>)·도구 호출 추적(SSE <code>jeilax_lab</code> — 인자·ms·건수·결과)을 갖는다. 화면은 대화 + 추적/프롬프트 패널 + <strong>모듈 등록부(표준 그리드 · 요청 단위 켜기/끄기)</strong> + 권한 시뮬레이션(좁히기만). <strong>서버가 <code>is_admin</code> 아니면 403</strong>, 대화 원문 미저장, 호출은 <code>chat_log</code> 기록, DB 스키마 변경 없음. 배포 스크립트에 다중 파일 업로드(<code>--multi</code>) 추가 — 기본 동작 불변. §15.2 네임스페이스 예외(<code>/chatdemo</code> 관리자 지정 주소). 검증: tsc(strict) 통과 · esbuild 번들 · 배포 v1 ACTIVE · 미인증 401</td>
+<td>최동혁(+Claude)</td>
+</tr>
+<tr>
+<td>2026-09-28</td>
 <td>제품기획 · 챗봇</td>
 <td><code>11_제품기획/13_챗봇_모듈형_고도화_기획.md</code>(신규) · <code>09_ADR</code>(ADR-108 제안) · <code>_routes.py</code>(<code>/docs/product/chat-modules</code>) · 11 index·README·빌드 목록</td>
 <td><strong>챗봇 모듈형 고도화 기획을 세웠다</strong>(관리자 지시 · 구현 전 사전정리·검토 단계). 현황 실측: 도구 19종 모두 조회형이고, <code>jeil-chat/index.ts</code> 한 파일에 스키마·실행·권한이 흩어져 있다. DB 시스템 프롬프트에 도구 4종 안내가 빠져 있고, 관리자 도구 목록은 3개로 하드코딩돼 있으며, 도구 호출 기록은 이름뿐이다. 제안: 도구 1개 = 모듈 1개(manifest+run), <strong>정의는 코드·운영 스위치는 DB 등록부</strong>, 프롬프트 자동 조립·권한별 도구 주입, 유형 3종(조회·초안·접수 — 확정은 사람, 확인 카드 필수), 호출 감사로그 <code>chat_tool_call</code>, LLM 어댑터(벤더 중립 — ADR-106 과 분리). 사전정리 9항목·검토사항 7묶음·로드맵 P0~P4·열린 질문 Q1~Q6. <strong>코드·DB 변경 없음</strong></td>

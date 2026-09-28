@@ -45,6 +45,7 @@ ROUTES = {
     "/admin/accounts":          "app/admin-accounts.html",
     "/admin/permissions":       "app/admin-permissions.html",   # 권한 설정(2026-09-10 REQ-0026) — 콘솔 「권한·계정」 탭도 이 화면을 내장
     "/admin/offboarding":       "app/admin-offboarding.html",
+    "/chatdemo":                "app/chat-lab.html",            # 챗봇 고도화 실험실(REQ-0084) — 전체관리자 전용. §15.2 네임스페이스 예외(관리자 지정 주소)
     "/vendor/login":            "app/vendor-login.html",
 
     # ── 니즈조사 ───────────────────────────────────────────

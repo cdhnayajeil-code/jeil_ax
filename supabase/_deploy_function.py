@@ -7,6 +7,7 @@
 사용:
     python supabase/_deploy_function.py jeil-gl-draft
     python supabase/_deploy_function.py jeil-gl-draft --verify-jwt     # 기본은 false
+    python supabase/_deploy_function.py jeil-chat-lab --multi          # 폴더 안 .ts 전부(모듈형 함수, REQ-0084)
 
 비밀값 취급(CLAUDE.md §1.8):
   · .env 는 셸로 읽지 않는다 — etl/_env.py 의 load_env() 로 파싱해 프로세스 환경에만 둔다.
@@ -38,7 +39,7 @@ def project_ref() -> str:
     return m.group(1)
 
 
-def deploy(slug: str, entry: str, verify_jwt: bool) -> int:
+def deploy(slug: str, entry: str, verify_jwt: bool, multi: bool = False) -> int:
     token = os.environ.get("SUPABASE_ACCESS_TOKEN", "")
     if not token:
         raise SystemExit("[중단] SUPABASE_ACCESS_TOKEN 이 .env 에 없습니다(개인 액세스 토큰, sbp_…).")
@@ -46,8 +47,18 @@ def deploy(slug: str, entry: str, verify_jwt: bool) -> int:
     src_path = os.path.join(src_dir, entry)
     if not os.path.isfile(src_path):
         raise SystemExit(f"[중단] 소스를 찾을 수 없습니다: functions/{slug}/{entry}")
-    source = io.open(src_path, encoding="utf-8").read()
-    print(f"[배포] {slug}/{entry} · {len(source.encode('utf-8')):,} bytes · verify_jwt={str(verify_jwt).lower()}")
+    # 올릴 파일 — 기본은 진입 파일 하나(기존 동작). --multi 면 폴더 안 .ts 전부(상대경로 유지, 진입 파일 먼저).
+    files = [entry]
+    if multi:
+        files = []
+        for base, _dirs, names in os.walk(src_dir):
+            for nm in sorted(names):
+                if nm.endswith(".ts"):
+                    files.append(os.path.relpath(os.path.join(base, nm), src_dir).replace(os.sep, "/"))
+        files.sort(key=lambda f: (f != entry, f))
+    sources = {f: io.open(os.path.join(src_dir, f), encoding="utf-8").read() for f in files}
+    size = sum(len(v.encode("utf-8")) for v in sources.values())
+    print(f"[배포] {slug}/{entry} · 파일 {len(files)}개 · {size:,} bytes · verify_jwt={str(verify_jwt).lower()}")
 
     # multipart/form-data 수동 조립 — 외부 의존성 없이(requests 미설치 환경 대비)
     boundary = "----jeilax" + uuid.uuid4().hex
@@ -56,8 +67,9 @@ def deploy(slug: str, entry: str, verify_jwt: bool) -> int:
     parts = []
     parts.append(f'--{boundary}\r\nContent-Disposition: form-data; name="metadata"\r\n'
                  f'Content-Type: application/json\r\n\r\n{meta}\r\n')
-    parts.append(f'--{boundary}\r\nContent-Disposition: form-data; name="file"; filename="{entry}"\r\n'
-                 f'Content-Type: application/typescript\r\n\r\n{source}\r\n')
+    for fn, source in sources.items():
+        parts.append(f'--{boundary}\r\nContent-Disposition: form-data; name="file"; filename="{fn}"\r\n'
+                     f'Content-Type: application/typescript\r\n\r\n{source}\r\n')
     parts.append(f"--{boundary}--\r\n")
     body = "".join(parts).encode("utf-8")
 
@@ -87,9 +99,11 @@ def main() -> int:
     ap.add_argument("--entry", default="index.ts", help="진입 파일(기본 index.ts)")
     ap.add_argument("--verify-jwt", action="store_true",
                     help="JWT 검증 활성화. 이 저장소 함수들은 Entra 토큰을 자체 검증하므로 기본 false")
+    ap.add_argument("--multi", action="store_true",
+                    help="함수 폴더 안 .ts 파일을 전부 올린다(modules/·core/ 로 나뉜 함수용)")
     a = ap.parse_args()
     load_env()
-    return deploy(a.slug, a.entry, a.verify_jwt)
+    return deploy(a.slug, a.entry, a.verify_jwt, a.multi)
 
 
 if __name__ == "__main__":
