@@ -233,7 +233,6 @@
         <span class="muted" id="viewHint" style="font-size:12px;">이 페이지를 누가 보나?</span>
         <span class="sp"></span>
         <label class="muted" style="font-size:12px;cursor:pointer;" title="조직도 각 부서 아래에 권한 대상 인원(ERP 계정 부서 기준)의 이름·메일을 펼쳐 보입니다"><input type="checkbox" id="showPeople"> 👤 인원 표시(이름·메일)</label>
-        <label class="muted" style="font-size:12px;cursor:pointer;"><input type="checkbox" id="showCost"> 원가부서 표시(인원 0)</label>
         <span class="badge b" id="orgBadge">조직 —</span>
       </div>
       <details class="fixbox" id="fixBox" hidden>
@@ -429,7 +428,8 @@
   function renderTop() {
     var active = (D.perm_grants || []).filter(function (g) { return g.active; });
     el("kAdmin").textContent = num((D.admins || []).length);
-    var orgN = (D.org_nodes || []).length, withPpl = (D.org_nodes || []).filter(function (n) { return n.member_cnt > 0; }).length;
+    var orgs = (D.org_nodes || []).filter(function (n) { return !n.is_cost; });
+    var orgN = orgs.length, withPpl = orgs.filter(function (n) { return n.member_cnt > 0; }).length;
     el("kDept").textContent = num(orgN);
     el("kDeptU").textContent = orgN ? "조직도 기준 · 인원 있는 부서 " + withPpl : "조직 정보를 불러오지 못함";
     el("kPeople").textContent = num(PEOPLE.length);
@@ -458,7 +458,9 @@
   var _pvT = null, _pvSeq = 0;
 
   function orgInit() {
-    ORG = (D.org_nodes || []).slice().sort(function (a, b) { return a.sort_key < b.sort_key ? -1 : a.sort_key > b.sort_key ? 1 : 0; });
+    // 원가부서(공통예산·제조공통·연구공통·판관공통 — 비용 집계용, 사원 배치 없음)는 조직도에서 아예 뺀다(2026-09-28 관리자 결정).
+    // 설정이 이 코드를 가리키면 「정리 필요」에 사라진 부서로 뜬다 — 현재 참조 0건.
+    ORG = (D.org_nodes || []).filter(function (n) { return !n.is_cost; }).sort(function (a, b) { return a.sort_key < b.sort_key ? -1 : a.sort_key > b.sort_key ? 1 : 0; });
     BYCD = {}; KIDS = {}; BYNM = {};
     ORG.forEach(function (n) { BYCD[n.dept_cd] = n; BYNM[n.dept_nm] = n.dept_cd; (KIDS[n.par_dept_cd || ""] = KIDS[n.par_dept_cd || ""] || []).push(n.dept_cd); });
     // 트리 숫자(member_cnt)는 서버가 v_erp_user_dept 를 부서명으로 센 값 — 같은 행을 같은 키로 묶어 이름·메일을 붙인다(수가 어긋나지 않게).
@@ -478,7 +480,6 @@
   function oanc(cd) { var n = BYCD[cd]; return n && n.path_cd ? n.path_cd.slice(0, -1) : []; }   // 조상(자기 제외)
   function odesc(cd) { var out = [cd]; (KIDS[cd] || []).forEach(function (k) { out = out.concat(odesc(k)); }); return out; }
   function oleaf(cd) { return !(KIDS[cd] || []).length; }
-  function costShown(n) { return el("showCost").checked || !n.is_cost; }
   function pageRow(key) { return (D.portal_pages || []).filter(function (p) { return p.page_key === key; })[0]; }
   function pageDraft(key) {
     var p = pageRow(key); if (!p) return null;
@@ -523,14 +524,14 @@
   function treeRows() {
     var q = OV.q.trim().toLowerCase(), hits = {}, show = {};
     if (q) ORG.forEach(function (n) {
-      if (costShown(n) && (n.dept_nm.toLowerCase().indexOf(q) >= 0 || n.dept_cd.indexOf(q) >= 0)) {
+      if ((n.dept_nm.toLowerCase().indexOf(q) >= 0 || n.dept_cd.indexOf(q) >= 0)) {
         hits[n.dept_cd] = 1; (n.path_cd || [n.dept_cd]).forEach(function (a) { show[a] = 1; });
       }
     });
     var rows = [];
     (function walk(list) {
       list.forEach(function (cd) {
-        var n = BYCD[cd]; if (!n || !costShown(n)) return;
+        var n = BYCD[cd]; if (!n) return;
         if (q && !show[cd]) return;
         rows.push({ n: n, hit: !!hits[cd] });
         if (q || OV.open[cd]) walk(KIDS[cd] || []);
@@ -553,7 +554,7 @@
     var shareOn = OV.view === "page" && dr && dr.visibility === "지정 부서 공유";
     var rows = treeRows();
     el("otree").innerHTML = rows.length ? rows.map(function (r) {
-      var n = r.n, kids = (KIDS[n.dept_cd] || []).filter(function (k) { return costShown(BYCD[k]); });
+      var n = r.n, kids = KIDS[n.dept_cd] || [];
       var tw = kids.length ? (OV.q || OV.open[n.dept_cd] ? "▾" : "▸") : "";
       var chk = "", tags = "";
       if (OV.view === "page") {
@@ -596,7 +597,7 @@
     if (!dr) { el("omid").innerHTML = '<span class="muted">페이지가 없습니다.</span>'; return; }
     var p = pageRow(dr.page_key) || {};
     var popts = pages.map(function (x) { return '<option value="' + esc(x.page_key) + '"' + (x.page_key === dr.page_key ? " selected" : "") + '>' + esc((x.icon || "") + " " + (x.title || x.page_key)) + (x.erp_module && SENS[x.erp_module] ? " ⚠" : "") + (x.active === false ? " (비활성)" : "") + '</option>'; }).join("");
-    var owner = '<option value="">(없음 — 관리자·공유 대상만)</option>' + ORG.filter(function (n) { return costShown(n) || n.dept_cd === dr.owner_dept_cd; }).map(function (n) {
+    var owner = '<option value="">(없음 — 관리자·공유 대상만)</option>' + ORG.map(function (n) {
       return '<option value="' + esc(n.dept_cd) + '"' + (dr.owner_dept_cd === n.dept_cd ? " selected" : "") + '>' + "　".repeat(Math.max(0, n.lvl - 1)) + esc(n.dept_nm) + " (" + esc(n.dept_cd) + ")</option>";
     }).join("");
     var radios = ["부서 전용", "전사 공개", "지정 부서 공유"].map(function (v) { return '<label class="' + (dr.visibility === v ? "on" : "") + '"><input type="radio" name="ovis" value="' + v + '"' + (dr.visibility === v ? " checked" : "") + '> ' + v + '</label>'; }).join("");
@@ -808,8 +809,7 @@
     var own = (D.portal_pages || []).filter(function (p) { return p.owner_dept_cd === cd; }).map(function (p) { return p.title || p.page_key; });
     var shared = (D.portal_pages || []).filter(function (p) { var w = coverage(pageDraft(p.page_key))[cd]; return w && w.indexOf("공유") === 0; }).map(function (p) { return p.title || p.page_key; });
     var warn = [];
-    if (n.is_cost) warn.push("원가부서 — 사람이 없어 권한 대상이 아닙니다");
-    else if (!n.member_cnt) warn.push("권한 대상 인원 0 — ERP 계정 표기(부서명_이름)에 이 부서명이 없습니다");
+    if (!n.member_cnt) warn.push("권한 대상 인원 0 — ERP 계정 표기(부서명_이름)에 이 부서명이 없습니다");
     if (n.hr_cnt && n.hr_cnt !== n.member_cnt) warn.push("인사 재직 " + n.hr_cnt + "명 ↔ 권한 대상 " + n.member_cnt + "명 — 계정 표기가 다른 사람이 있습니다(계정 대사에서 확인)");
     el("oinfo").innerHTML = '<dl>' +
       '<dt>부서</dt><dd><b>' + esc(n.dept_nm) + '</b> <code>' + esc(n.dept_cd) + '</code></dd>' +
@@ -883,7 +883,6 @@
     if (OV.view === "page") revealDraft(); else if (OV.dept) revealPath(OV.dept);
     renderTree(); notifySize();
   };
-  el("showCost").onchange = renderOrgAll;
   el("showPeople").onchange = function () { renderTree(); notifySize(); };
 
   /* ── 개인 권한: 사람 피커 · 카드 · 유효 권한 · 예외 ───────────── */

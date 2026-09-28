@@ -110,6 +110,13 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <tr>
 <td>2026-09-28</td>
 <td>관리자 콘솔 · 권한</td>
+<td><code>app/admin-permissions.html</code> · <code>11_제품기획/12_권한_조직도기반_공개설정_설계.md</code>(Q2)</td>
+<td><strong>원가부서 4종(공통예산 1300 · 제조공통 1310 · 연구공통 1320 · 판관공통 1330)을 권한 조직도에서 아예 뺐다 — 「원가부서 표시」 체크 제거</strong>(관리자 결정). 비용 집계용 부서라 사원이 배치될 일이 없어 켜 볼 이유가 없다. 페이지 공유·부서 모듈·소유 부서 어디에서도 이 코드를 참조하지 않음을 라이브에서 확인(0건)한 뒤 적용했다. 상단 「부서(조직도)」 수도 이 4개를 빼고 센다. 판별은 서버 <code>v_perm_org_node.is_cost</code> 그대로라 DB 변경 없음. 검증: Playwright(모의 응답) — 원가부서 노드 0 · 소유 부서 목록 0 · 콘솔 오류 0</td>
+<td>최동혁(+Claude)</td>
+</tr>
+<tr>
+<td>2026-09-28</td>
+<td>관리자 콘솔 · 권한</td>
 <td><code>app/admin-permissions.html</code></td>
 <td><strong>권한 설정 조직도에 「👤 인원 표시(이름·메일)」 체크를 붙였다</strong>(REQ-0078 보완 · 관리자 요청). 기본은 지금처럼 부서·인원 수만 보이고, 체크하면 각 부서 바로 아래에 소속 인원의 이름·메일이 펼쳐진다(하위 부서 인원은 그 부서 아래에 · 접힌 부서는 인원도 접힘 · 검색 중엔 걸린 부서의 인원만). 명단은 트리 숫자(<code>member_cnt</code>)와 <strong>같은 원천</strong>(<code>v_erp_user_dept</code>, 부서명 기준)을 이미 받은 응답(<code>dept_mapping.users</code>)에서 묶어 쓰므로 <strong>서버·DB 변경 없음</strong>, 숫자와 명단이 어긋나지 않는다. 판정·저장 동작은 그대로. 검증: Playwright(모의 응답) — 기본 0줄 · 체크 시 3줄 · 접기 · 검색 · 해제 0줄 · 콘솔 오류 0</td>
 <td>최동혁(+Claude)</td>
