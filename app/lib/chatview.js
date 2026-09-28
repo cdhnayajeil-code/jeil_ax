@@ -25,9 +25,9 @@ export function renderMd(src) {
     const t = lines[i].trim();
     if (!t) { flush(); i++; continue; }
     if (/^```/.test(t)) {
-      flush(); const code = []; i++;
+      flush(); const code = []; const lang = (/^```\s*([A-Za-z0-9_+-]+)/.exec(t) || [])[1] || ""; i++;
       while (i < n && !/^```/.test(lines[i].trim())) { code.push(lines[i]); i++; }
-      i++; out.push('<pre class="cv-pre"><code>' + code.join("\n") + "</code></pre>"); continue;
+      i++; out.push('<pre class="cv-pre" data-lang="' + lang.toLowerCase() + '"><code>' + code.join("\n") + "</code></pre>"); continue;
     }
     if (t.includes("|") && i + 1 < n && isSep(lines[i + 1].trim())) {
       flush(); const head = cells(t); i += 2; const body = [];
@@ -66,6 +66,81 @@ export function renderMd(src) {
   }
   flush();
   return out.join("");
+}
+
+/* ===== AI 가 쓴 코드 블록 — 복사 · HTML 은 바로 열어 보기 =====
+   보안: AI 가 만든 HTML 은 **믿지 않는다.** 이 화면과 같은 출처(origin)에서 그리면 그 안의 스크립트가 로그인 토큰
+   (localStorage)을 읽을 수 있다. 그래서 미리보기·새 탭 모두 sandbox iframe(스크립트·같은 출처 권한 없음)의 srcdoc 로만 그린다. */
+const isHtmlCode = (lang, text) => lang === "html" || lang === "htm" || /^\s*(<!doctype html|<html[\s>])/i.test(text);
+/** 저장·내려받기용 — 스크립트·이벤트 속성·javascript: 링크·iframe 류를 걷어낸다(서버도 같은 기준으로 거부한다). */
+export function stripActive(html) {
+  return String(html)
+    .replace(/<script[\s\S]*?<\/script\s*>/gi, "").replace(/<script[^>]*>/gi, "")
+    .replace(/<(iframe|object|embed)[\s\S]*?(<\/\1\s*>|\/>|>)/gi, "")
+    .replace(/\son[a-z]+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, "")
+    .replace(/javascript:/gi, "");
+}
+const sandboxFrame = (html) => {
+  const f = document.createElement("iframe");
+  f.setAttribute("sandbox", "");                 // 스크립트·폼·팝업·같은 출처 전부 차단
+  f.setAttribute("referrerpolicy", "no-referrer");
+  f.srcdoc = html;                               // 속성 대입 — 문자열 이어붙이기 없음
+  return f;
+};
+/** 화면 안 미리보기 창 */
+export function previewHtml(html, title) {
+  const m = el("div", "cv-modal"); const box = el("div", "cv-modal-box"); const hd = el("div", "cv-modal-hd");
+  hd.appendChild(el("span", null, "👁 " + (title || "HTML 미리보기")));
+  hd.appendChild(el("small", null, "스크립트는 실행되지 않습니다"));
+  hd.appendChild(el("span", "sp"));
+  const mk = (label, fn) => { const b = el("button", "cv-act", label); b.type = "button"; b.onclick = fn; hd.appendChild(b); };
+  mk("↗ 새 탭", () => openHtmlTab(html, title));
+  mk("⬇ 내려받기", () => downloadText(safeName(title) + ".html", stripActive(html), "text/html;charset=utf-8"));
+  mk("✕ 닫기", () => close());
+  box.append(hd, sandboxFrame(html)); m.appendChild(box);
+  const close = () => { m.remove(); document.removeEventListener("keydown", onKey); };
+  const onKey = (e) => { if (e.key === "Escape") close(); };
+  m.onclick = (e) => { if (e.target === m) close(); };
+  document.addEventListener("keydown", onKey);
+  document.body.appendChild(m);
+}
+/** 새 탭 — 껍데기 페이지만 이 출처에서 만들고, AI HTML 은 그 안의 sandbox iframe 에 넣는다. */
+export function openHtmlTab(html, title) {
+  const w = window.open("", "_blank");
+  if (!w) return false;
+  w.document.open();
+  w.document.write('<!doctype html><html lang="ko"><head><meta charset="utf-8"><title></title><style>html,body{margin:0;height:100%}iframe{border:0;width:100%;height:100%;display:block}</style></head><body></body></html>');
+  w.document.close();
+  w.document.title = title || "미리보기";
+  w.document.body.appendChild(sandboxFrame(html));
+  return true;
+}
+const safeName = (s) => String(s || "자료").replace(/[\\/:*?"<>|]/g, " ").trim().slice(0, 60) || "자료";
+
+/** 렌더된 답변(root) 안의 코드 블록마다 도구줄을 단다. 스트리밍이 **끝난 뒤** 한 번 부른다(innerHTML 재렌더 때 사라지므로).
+ *  opts.title — 파일·창 제목 · opts.onSave(html) — 자료함 저장(있을 때만 버튼 표시) */
+export function attachCodeActions(root, opts = {}) {
+  root.querySelectorAll("pre.cv-pre").forEach((pre, ix) => {
+    if (pre.dataset.bar) return; pre.dataset.bar = "1";
+    const text = pre.textContent;                  // 이스케이프 풀린 원문
+    const lang = pre.dataset.lang || "";
+    const html = isHtmlCode(lang, text);
+    const bar = el("div", "cv-codebar");
+    bar.appendChild(el("span", "lang", html ? "HTML" : (lang || "코드").toUpperCase()));
+    const mk = (label, fn, sub) => { const b = el("button", sub ? "sub" : null, label); b.type = "button"; b.onclick = () => fn(b); bar.appendChild(b); };
+    const title = (opts.title || "자료") + (ix ? `_${ix + 1}` : "");
+    if (html) {
+      mk("👁 바로 보기", () => previewHtml(text, title));
+      mk("↗ 새 탭", () => { if (!openHtmlTab(text, title)) previewHtml(text, title); });
+      mk("⬇ 내려받기", () => downloadText(safeName(title) + ".html", stripActive(text), "text/html;charset=utf-8"), true);
+      if (opts.onSave) mk("📁 자료함 저장", async (b) => { b.disabled = true; try { await opts.onSave(stripActive(text), title); b.textContent = "✓ 저장됨"; } catch (e) { b.disabled = false; } }, true);
+      // HTML 코드는 길어서 대화를 밀어낸다 — 접어 두고 필요하면 펼친다
+      pre.classList.add("fold");
+      mk("코드 펼치기", (b) => { const f = pre.classList.toggle("fold"); b.textContent = f ? "코드 펼치기" : "코드 접기"; }, true);
+    }
+    mk("⧉ 복사", async (b) => { try { await navigator.clipboard.writeText(text); b.textContent = "✓ 복사됨"; } catch (e) { b.textContent = "복사 실패"; } setTimeout(() => { b.textContent = "⧉ 복사"; }, 1500); }, true);
+    pre.parentNode.insertBefore(bar, pre);
+  });
 }
 
 const numFmt = (v) => (typeof v === "number" && isFinite(v)) ? v.toLocaleString("ko-KR") : String(v == null ? "-" : v);

@@ -117,7 +117,7 @@ details.trace div{font-family:Consolas,Menlo,monospace;word-break:break-all;padd
 
 <script type="module">
 import { op, chat, auth, toLogin, ApiError } from "/app/lib/agentApi.js";
-import { renderMd, renderView, viewTable, toCsv, downloadText, reportHtml, escHtml } from "/app/lib/chatview.js";
+import { renderMd, renderView, viewTable, toCsv, downloadText, reportHtml, escHtml, attachCodeActions } from "/app/lib/chatview.js";
 
 const AGENT = "purchase";
 const $ = (id) => document.getElementById(id);
@@ -193,6 +193,9 @@ function cardActions(rec) {
   };
 }
 function finishTail(rec, reportOf) {
+  // AI 가 코드 블록으로 쓴 HTML 은 바로 열어 보기·새 탭·내려받기·자료함 저장(sandbox — 스크립트 실행 없음)
+  attachCodeActions(rec.el.body, { title: (rec.question || "자료").slice(0, 40),
+    onSave: async (html, title) => { try { await saveArtifact(title, "html", html, rec.turnId); } catch (e) { toast("저장 실패: " + e.message); throw e; } } });
   const t = rec.el.tail; t.style.display = "";
   t.innerHTML = "";
   const mk = (label, fn, title) => { const b = document.createElement("button"); b.type = "button"; b.textContent = label; if (title) b.title = title; b.onclick = () => fn(b); t.appendChild(b); return b; };

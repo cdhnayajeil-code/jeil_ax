@@ -33,7 +33,26 @@
 .cv-act.sub{border-color:var(--line,#d8dee8);color:var(--navy,#1a2f4e);font-weight:500}
 .cv-act.sub:hover{background:var(--soft,#eef2f8);color:var(--navy,#1a2f4e)}
 .cv-act:disabled{opacity:.55;cursor:default}
-.cv-pre{background:#0f1c30;color:#dce6f5;border-radius:8px;padding:10px 12px;overflow-x:auto;font-size:12px;margin:8px 0}
+.cv-pre{background:#0f1c30;color:#dce6f5;border-radius:8px;padding:10px 12px;overflow-x:auto;font-size:12px;margin:8px 0;white-space:pre}
+/* 화면의 인라인 코드 스타일(.bubble code — 밝은 배경)이 어두운 코드 블록 안까지 먹어 글자가 안 보이던 결함 수정(2026-09-28).
+   pre.cv-pre code 는 .bubble code 보다 구체적이라 화면 인라인 <style> 뒤에 와도 이긴다. */
+pre.cv-pre code{background:transparent;padding:0;border-radius:0;color:inherit;font-size:inherit;font-family:Consolas,Menlo,monospace}
+/* 코드 블록 도구줄(복사 · HTML 미리보기 · 새 탭 · 내려받기 · 자료함) */
+.cv-codebar{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:8px 0 -4px;font-size:11.5px;color:var(--muted,#666)}
+.cv-codebar .lang{font-weight:700;color:var(--navy,#1a2f4e);background:var(--soft,#eef2f8);border-radius:4px;padding:0 6px}
+.cv-codebar button{font-size:11.5px;background:#fff;border:1px solid var(--accent,#2f6fb3);color:var(--accent,#2f6fb3);border-radius:12px;padding:2px 10px;cursor:pointer;font-family:inherit;font-weight:600}
+.cv-codebar button:hover{background:var(--accent,#2f6fb3);color:#fff}
+.cv-codebar button.sub{border-color:var(--line,#d8dee8);color:var(--navy,#1a2f4e);font-weight:500}
+.cv-codebar button.sub:hover{background:var(--soft,#eef2f8);color:var(--navy,#1a2f4e)}
+.cv-pre.fold{max-height:180px;overflow:hidden;position:relative}
+.cv-pre.fold::after{content:"";position:absolute;left:0;right:0;bottom:0;height:40px;background:linear-gradient(transparent,#0f1c30)}
+/* HTML 미리보기 창 — 내용은 sandbox iframe 안에서만 그린다(스크립트 실행·로그인 토큰 접근 불가) */
+.cv-modal{position:fixed;inset:0;background:rgba(15,28,48,.55);z-index:50;display:flex;align-items:center;justify-content:center;padding:18px}
+.cv-modal-box{background:#fff;border-radius:10px;width:min(1100px,100%);height:min(88vh,100%);display:flex;flex-direction:column;overflow:hidden;box-shadow:0 10px 40px rgba(0,0,0,.3)}
+.cv-modal-hd{display:flex;gap:8px;align-items:center;padding:9px 12px;border-bottom:1px solid var(--line,#d8dee8);font-size:13px;color:var(--navy,#1a2f4e);font-weight:700}
+.cv-modal-hd .sp{flex:1}
+.cv-modal-hd small{color:var(--muted,#666);font-weight:400}
+.cv-modal iframe{flex:1;border:0;width:100%;background:#fff}
 .cv-hr{border:none;border-top:1px solid var(--line,#d8dee8);margin:10px 0}
 .cv-quote{border-left:3px solid var(--line,#d8dee8);padding:2px 0 2px 10px;color:var(--muted,#666);margin:6px 0}
 @media (max-width:820px){.cv-fields{grid-template-columns:1fr}}

@@ -251,7 +251,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,Bl
 <script type="module">
 import { createGrid } from "/app/lib/grid.js";
 import { op, chat, auth, toLogin } from "/app/lib/agentApi.js";
-import { renderMd, renderView, escHtml as esc } from "/app/lib/chatview.js";
+import { renderMd, renderView, escHtml as esc, attachCodeActions } from "/app/lib/chatview.js";
 
 const AGENT = (new URLSearchParams(location.search).get("agent") || "purchase").replace(/[^a-z0-9_]/g, "");
 const $ = (id) => document.getElementById(id);
@@ -424,6 +424,7 @@ async function tvSend() {
         const d = document.createElement("div"); d.textContent = line; tr.appendChild(d);
       },
     }, { version: +$("tvVer").value });
+    attachCodeActions(tx, { title: q.slice(0, 40) });
     tvHist.push({ role: "assistant", content: acc || "(카드 응답)" });
   } catch (e) { tx.innerHTML = `<span style="color:var(--red)">⚠ ${esc(e.message)}</span>`; tvHist.pop(); }
   finally { $("btnTv").disabled = false; log.scrollTop = log.scrollHeight; }

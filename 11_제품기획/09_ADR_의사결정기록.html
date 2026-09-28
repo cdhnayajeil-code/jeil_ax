@@ -270,10 +270,10 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <li><strong>상태</strong>: 제안. P0(배포본 대조·프롬프트 현행화·<code>_shared</code> 분리)이 끝나면 확정 여부를 결정한다. 열린 질문 Q1~Q6 은 13 기획 §8.</li>
 <li><strong>근거</strong>: <a href="/docs/product/chat-modules">13 챗봇 모듈형 고도화 기획</a>.</li>
 </ul>
-<h3 id="adr-109-2026-09-28">ADR-109 🕐 부서 에이전트 = 공용 게이트웨이 위의 프로필(모델·설정·모듈 묶음·버전) (2026-09-28 제안)</h3>
+<h3 id="adr-109-2026-09-28">ADR-109 ✅ 부서 에이전트 = 공용 게이트웨이 위의 프로필(모델·설정·모듈 묶음·버전) (2026-09-28 채택)</h3>
 <ul>
 <li><strong>배경</strong>: 사내 여러 부서가 하나의 AI 게이트웨이를 공용으로 쓰면서도, 부서마다 자기 업무에 맞춘 에이전트를 두고 모델·설정을 따로 관리하며, 대화에서 쌓인 질문·답변을 DB에 누적해 계속 고도화하는 체계가 필요하다. 1호는 구매 에이전트.</li>
-<li><strong>결정(제안)</strong>:</li>
+<li><strong>결정</strong>:</li>
 <li>부서 에이전트는 공용 게이트웨이(ADR-108 모듈 규격 위) 위의 <strong>프로필</strong>(<code>ai_agent</code>·<code>ai_agent_version</code> — 모델·추론강도·역할 안내·모듈 묶음·한도·공개 범위)로 만든다. 부서별 별도 게이트웨이·별도 코드베이스를 만들지 않는다.</li>
 <li>설정 변경은 <strong>버전</strong>으로 남긴다(<code>ai_agent_version</code>). 모든 대화 턴은 그 답을 만든 버전을 함께 저장해 버전별 품질·비용을 비교한다.</li>
 <li>대화 턴은 품질 개선용으로 별도 기록(<code>agent_turn</code>)하고, 개선은 <strong>개선 대장(<code>agent_improve</code>) → 새 버전 → 골든셋(<code>agent_golden</code>) 회귀</strong>의 순서로만 반영한다(임의 즉시 반영 금지).</li>
@@ -281,7 +281,7 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <li>관리자 페이지 <code>/admin/agents</code>에서 에이전트별 설정·도구·버전·개선 대장·골든셋·사용량을 관리한다. 모델 목록은 <code>ai_model</code> 카탈로그(활성+callable+어댑터 있는 벤더)만 노출한다.</li>
 <li>Claude(Sonnet 5)는 <strong>회사 명의 Anthropic API 키</strong>로 호출한다(개인 구독 사용 불가). 실패 시 에이전트별 폴백 모델로 1회 재시도.</li>
 <li><strong>대안(기각)</strong>: 부서마다 별도 챗봇 함수·별도 코드베이스 — 권한·렌더링·비용 집계가 부서 수만큼 복제되어 어긋난다(ADR-108이 해소하려는 문제의 재발).</li>
-<li><strong>상태</strong>: 제안. P1(<code>ai_agent</code>·<code>ai_agent_version</code> + <code>/admin/agents</code> + 게이트웨이 agent_key 적용) 착수 시 Accepted로 전이. 결정 대기 D-1~D-6(호출 경로·데이터 반출 승인·턴 기록 수집 방식·구매 에이전트 담당자·파일럿 범위·월 예산 상한)은 대시보드 의사결정 로그 D-87~D-93 참조.</li>
+<li><strong>상태</strong>: Accepted(2026-09-28). D-1~D-6(호출 경로·데이터 반출 승인·턴 기록 수집 방식·구매 에이전트 담당자·파일럿 범위·월 예산 상한 — 대시보드 의사결정 로그 D-87~D-92)을 관리자가 확정하고 D-93(채택 여부)도 결정됨으로 전이했다. P1~P3(<code>ai_agent</code>·<code>ai_agent_version</code> 스키마·<code>/admin/agents</code>·게이트웨이 agent_key·<code>agent_turn</code>)까지 커밋 <code>f598d2d</code>로 구현·배포 완료(REQ-0085~0088, 구매 에이전트 파일럿). 남은 사람 작업: 회사 명의 ANTHROPIC_API_KEY 등록, 파일럿 구성원 5명(담당자 2·관리자 3) 실등록, 라이브 실측.</li>
 <li><strong>근거</strong>: <a href="/docs/product/dept-agents">14 부서 에이전트 운영기획</a>.</li>
 </ul>
 <h2 id="c-issue">C. 발견 이슈 (Issue — 이번 조사에서 확인, 조치 필요)</h2>

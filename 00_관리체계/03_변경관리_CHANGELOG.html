@@ -109,6 +109,20 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <tbody>
 <tr>
 <td>2026-09-28</td>
+<td>챗봇 · 부서 에이전트(수정)</td>
+<td><code>app/lib/chatview.js</code>·<code>.css</code> · <code>pages/구매_AI에이전트_2026.html</code> · <code>app/admin-agents.html</code> · <code>app/chat-lab.html</code></td>
+<td><strong>AI 답변의 코드 블록 글자가 안 보이던 결함을 고치고, HTML 을 바로 열어 보게 했다</strong>(관리자 제보). 원인: 화면의 인라인 코드 스타일(<code>.bubble code</code> 밝은 배경)이 어두운 코드 블록 안 <code>&lt;code&gt;</code> 에도 먹어 흰 글자가 줄마다 밝은 띠 위에 찍혔다 → <code>pre.cv-pre code</code> 로 덮음(실험실 화면 동일 수정). 추가: 코드 블록마다 도구줄(복사) · HTML 이면 👁 바로 보기(화면 안 창) · ↗ 새 탭 · ⬇ 내려받기 · 📁 자료함 저장 · 코드 접기. <strong>AI 가 쓴 HTML 은 sandbox iframe(srcdoc) 안에서만 그린다</strong> — 같은 출처에서 그리면 그 안 스크립트가 로그인 토큰을 읽을 수 있어서. 저장·내려받기 본은 스크립트·on* 속성·javascript: 를 걷어낸다. 검증: jsdom(언어 인식·버튼·정화·sandbox 속성) · 문법검사</td>
+<td>최동혁(+Claude)</td>
+</tr>
+<tr>
+<td>2026-09-28</td>
+<td>거버넌스 · 의사결정</td>
+<td><code>11_제품기획/09_ADR_의사결정기록.md</code>(ADR-109) · 총괄 대시보드(D-87~D-93)</td>
+<td><strong>관리자가 부서 에이전트 결정 D-87~D-92 를 확정하고 D-93(ADR-109 채택 여부)을 결정됨으로 전이했다</strong> — D-87 호출경로 (A)Anthropic Console 회사 조직(키 신규 발급 예정) · D-88 구매데이터 Anthropic 전송 승인 · D-89 <code>agent_turn</code> 기본수집+고지·180일 · D-90·D-91 파일럿 5명(구매팀 담당자 2명 실작업 + 관리자 3명 확인·점검) · D-92 월 $150. ADR-109 상태를 Proposed → <strong>Accepted</strong> 로 반영(09_ADR). 구현·배포는 이미 완료된 상태(커밋 <code>f598d2d</code>, 아래 행)이며, 남은 사람 작업은 ANTHROPIC_API_KEY 등록·구성원 5명 실등록·라이브 실측뿐이다</td>
+<td>최동혁(+Claude)</td>
+</tr>
+<tr>
+<td>2026-09-28</td>
 <td>챗봇 · 부서 에이전트(구현)</td>
 <td>SQL 74(신규) · <code>jeil-chat-lab</code> v3(<code>llm/anthropic.ts</code>·<code>llm/index.ts</code>·<code>llm/types.ts</code>·<code>core/engine.ts</code>·<code>core/agent.ts</code>·<code>core/agent_api.ts</code>·<code>modules/extra.ts</code>·구매 도구 5종) · <code>pages/구매_AI에이전트_2026.html</code>(<code>/work/purchase-agent</code>) · <code>app/admin-agents.html</code>(<code>/admin/agents</code>) · <code>app/lib/chatview.js</code>·<code>.css</code>·<code>agentApi.js</code> · <code>_routes.py</code> · 14 기획 §11 · 이관 00·03</td>
 <td><strong>구매 에이전트 파일럿을 가동했다</strong>(REQ-0085~0088 · 관리자 결정 D-87~D-92). 에이전트=프로필+버전(초안→관리자 「현재」 지정), 담당자(구매팀 2명)가 실작업·관리자(3명)는 확인·점검을 <strong>서버 권한으로</strong> 나눴다. 대화 턴은 <code>agent_turn</code> 에 누적(조회 결과 행·보고서 첨부 표는 미저장) → 자동 판정·👎 가 개선 대장 inbox 로 → AI 묶기·분류 → 새 버전 → 골든셋 회귀. 자료는 "숫자는 서버(카드), 문장은 모델" — CSV(BOM)·인쇄용 HTML 보고서를 본인 자료함(30일)에 저장. Claude 어댑터를 붙였고 키 등록 전에는 예비 모델(gpt-4.1-mini)로 동작한다. 실험실 루프를 공용 엔진으로 옮겼다(동작 동일). 운영 jeil-chat·포털 무변경. 검증: strict 타입검사 · 스크립트 문법검사 · 함수 v3 ACTIVE · 대사 래퍼 944칸</td>
