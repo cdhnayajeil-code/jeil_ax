@@ -140,6 +140,7 @@ ROUTES = {
     "/docs/product/chat-data-request":  "11_제품기획/11_챗봇_데이터요청접수_설계.html",
     "/docs/product/org-permission":     "11_제품기획/12_권한_조직도기반_공개설정_설계.html",
     "/docs/product/org-permission-mockup": "11_제품기획/12_권한_조직도기반_공개설정_목업.html",
+    "/docs/product/chat-modules":       "11_제품기획/13_챗봇_모듈형_고도화_기획.html",
 
     # ── 그리드 표준 ────────────────────────────────────────
     "/docs/grid":               "그리드/index.html",
