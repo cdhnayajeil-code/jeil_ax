@@ -19,6 +19,8 @@
 //   v13(2026-09-29, REQ-0091 · ADR-111): AI 비용·예산 관제 — 액션 3종 추가(vendor_cost·save_vendor_budget·verify_vendor_key).
 //     두 벤더의 **실사용액은 벤더 Usage/Cost API 실측**(Admin 키 필요), 키가 없으면 chat_log·agent_turn 기반 「내부 추정」으로 표시하고 사유를 남긴다.
 //     **잔여 크레딧 API 는 두 벤더 모두 없다** → 관리자 입력(ai_vendor_budget)에서 실사용을 빼 역산한다. 키 값은 어떤 응답에도 담지 않는다(§1.1·§1.8).
+//   v14(2026-09-29, REQ-0056): 모델 카탈로그 현행화 반영 — tier(고성능/범용/경량/이전세대)·캐시 입력 단가·컨텍스트·토큰 계수 노출,
+//     「질문 1천건 환산」에 토큰 계수·캐시 적중 가정 적용, **callable 을 어댑터+키 등록으로 판정**(OpenAI 하드코딩 제거).
 // 원칙: chat_log·erp 매핑 뷰는 RLS로 클라이언트 차단 → 이 함수(service_role)가 유일한 조회/저장 경로.
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
@@ -38,6 +40,15 @@ const CATALOG_FALLBACK = [
   { key: "pur_order", label: "발주", sensitive: false }, { key: "user_dept", label: "사용자·부서", sensitive: false },
   { key: "payroll", label: "급여·인사", sensitive: true }, { key: "finance", label: "자금·회계", sensitive: true },
 ];
+
+/** 어댑터가 있는 벤더 목록 — llm/index.ts(ADAPTERS)와 같은 축. 새 벤더를 붙이면 여기에 한 줄. */
+const ADAPTER_VENDORS: Record<string, string> = { openai: "OPENAI_API_KEY", anthropic: "ANTHROPIC_API_KEY" };
+
+/** 이 서버에서 실제로 부를 수 있는 벤더인가 — 어댑터가 있고 **호출 키가 등록**돼 있어야 한다. */
+function vendorCallable(vendor: string): boolean {
+  const env = ADAPTER_VENDORS[String(vendor || "").toLowerCase()];
+  return !!env && !!Deno.env.get(env);
+}
 
 async function verifyEntraUser(token: string): Promise<{ upn: string } | null> {
   try {
@@ -199,13 +210,29 @@ Deno.serve(async (req) => {
       price_in: num(r.price_in, 0),
       price_out: num(r.price_out, 0),
       active: r.active === true,
-      // callable은 게이트웨이 실제 호출가능 여부 — 서버가 벤더로 강제(OpenAI만 true). 클라이언트 임의 지정 불가.
-      callable: String(r.vendor || "OpenAI").toLowerCase() === "openai",
+      // callable = 「어댑터가 있는 벤더 + 그 벤더 호출 키가 서버에 등록됨」. 클라이언트 임의 지정 불가.
+      //   v13까지는 OpenAI 만 true 로 못박혀 있었다 — 부서 에이전트 게이트웨이(jeil-chat-lab)에 Claude 어댑터가
+      //   생긴 뒤로는 사실과 달라, 키를 넣어도 Claude 모델이 「호출 불가」로 보였다(REQ-0085·0056).
+      callable: vendorCallable(String(r.vendor || "OpenAI")),
       sort: Math.trunc(num(r.sort, 100)),
       note: r.note != null ? String(r.note).slice(0, 400) : null,
       updated_by: user.upn, updated_at: nowIso,
     }));
     if (!rows.length) return json({ error: "저장할 모델이 없습니다." }, 400);
+    // v14: 카탈로그 메타(tier·캐시단가·컨텍스트·토큰계수·상태메모)는 화면에서 편집하지 않는다 →
+    //   upsert 가 null 로 덮어쓰지 않도록 현재 값을 읽어 함께 넣는다(정본은 SQL 77).
+    {
+      const ids = rows.map((r) => r.model_id);
+      const { data: cur } = await admin.from("ai_model")
+        .select("model_id,tier,price_cache_in,context_k,token_factor,status_note").in("model_id", ids);
+      const keep = new Map((cur || []).map((c: Record<string, unknown>) => [String(c.model_id), c]));
+      for (const r of rows as Record<string, unknown>[]) {
+        const k = keep.get(String(r.model_id));
+        if (!k) continue;
+        r.tier = k.tier; r.price_cache_in = k.price_cache_in; r.context_k = k.context_k;
+        r.token_factor = k.token_factor; r.status_note = k.status_note;
+      }
+    }
     const { error: me } = await admin.from("ai_model").upsert(rows, { onConflict: "model_id" });
     if (me) return json({ error: "모델 저장 실패: " + me.message }, 500);
     return json({ ok: true, saved: rows.length, updated_by: user.upn, updated_at: nowIso });
@@ -334,6 +361,8 @@ Deno.serve(async (req) => {
   const num2 = (n: number) => Number(n.toFixed(2));
   const num6 = (n: number) => Number(n.toFixed(6));
 
+  // 「질문 1천건 환산」 가정값 — 한 곳에서만 고친다(화면은 서버가 보내는 assume 을 그대로 적는다)
+  const Q_IN_TOKENS = 6000, Q_OUT_TOKENS = 700, Q_CACHE_HIT = 0.4;
   type DayCost = { day: string; cost_usd: number };
   type CostOut = { byDay: DayCost[]; modelCost: Map<string, number> };
   type ModelUse = { model: string; in_tokens: number; cached_tokens: number; out_tokens: number; requests: number; cost_usd: number | null };
@@ -566,7 +595,7 @@ Deno.serve(async (req) => {
 
     const [budRes, modelRes, cfgRes, agentRes, verRes, ruleRes] = await Promise.all([
       admin.from("ai_vendor_budget").select("*"),
-      admin.from("ai_model").select("model_id,vendor,label,purpose,price_in,price_out,active,callable,sort,note").order("sort"),
+      admin.from("ai_model").select("model_id,vendor,label,purpose,tier,price_in,price_cache_in,price_out,context_k,token_factor,active,callable,sort,status_note,note").order("sort"),
       admin.from("ai_gateway_config").select("default_model,max_tokens,prompt_caching").eq("id", 1).maybeSingle(),
       admin.from("ai_agent").select("agent_key,name_ko,dept_nm,status,current_version,monthly_budget_usd,daily_limit"),
       admin.from("ai_agent_version").select("agent_key,version,state,model_id,fallback_model_id,effort"),
@@ -727,11 +756,28 @@ Deno.serve(async (req) => {
       month: { start: dayKey(monthStart), today: dayKey(now) },
       keys: keyStatus(),
       vendors,
-      models: models.map((m) => ({
-        ...m, vendor_key: String(m.vendor || "").toLowerCase(),
-        // 질문 1건 환산 가정(입력 6k · 출력 700 토큰) — 가정치임을 화면에 적는다
-        per_1k_questions_usd: num2((Number(m.price_in) * 6000 + Number(m.price_out) * 700) / 1_000_000 * 1000),
-      })),
+      models: models.map((m) => {
+        // 질문 1건 환산 가정: 입력 6,000 · 출력 700 토큰, 입력의 40%는 캐시 적중(도구 정의·시스템 프롬프트가 매번 같다).
+        //   토큰 계수(token_factor)는 토크나이저 세대 차이 보정 — Claude 4.7 이후는 같은 글을 약 1.3배로 센다.
+        //   전부 **가정값**이므로 화면이 그대로 밝힐 수 있게 assume 을 함께 보낸다(CLAUDE.md §16.6).
+        const f = Number(m.token_factor) || 1;
+        const inTok = Q_IN_TOKENS * f, outTok = Q_OUT_TOKENS * f;
+        const cacheIn = m.price_cache_in != null ? Number(m.price_cache_in) : Number(m.price_in) * 0.1;
+        const per1 = (inTok * (1 - Q_CACHE_HIT) * Number(m.price_in)
+                    + inTok * Q_CACHE_HIT * cacheIn
+                    + outTok * Number(m.price_out)) / 1_000_000;
+        return {
+          ...m, vendor_key: String(m.vendor || "").toLowerCase(),
+          // v14: callable 은 DB 값이 아니라 **지금 이 서버의 판정**을 보낸다(키를 넣으면 즉시 반영)
+          callable: vendorCallable(String(m.vendor || "")),
+          callable_db: m.callable,
+          price_cache_in_eff: num2(cacheIn),
+          per_1k_questions_usd: num2(per1 * 1000),
+        };
+      }),
+      assume: { in_tokens: Q_IN_TOKENS, out_tokens: Q_OUT_TOKENS, cache_hit: Q_CACHE_HIT,
+                note: "질문 1건 = 입력 " + Q_IN_TOKENS.toLocaleString() + " · 출력 " + Q_OUT_TOKENS +
+                      " 토큰, 입력의 " + Math.round(Q_CACHE_HIT * 100) + "% 캐시 적중 가정 · 모델별 토큰 계수 반영" },
       orchestration: {
         gateway: {
           default_model: cfgRes.data?.default_model || null,
@@ -879,7 +925,7 @@ Deno.serve(async (req) => {
     qDeptMapping(),
     qPerm(),
     admin.from("dept_permission").select("dept_nm,dept_admin_email,erp_scope,page_visibility,note,updated_by,updated_at"),
-    admin.from("ai_model").select("*").order("sort"),
+    admin.from("ai_model").select("*").order("sort"),   // v14: tier·price_cache_in·context_k·token_factor·status_note 포함
     admin.from("ai_gateway_config").select("*").eq("id", 1).maybeSingle(),
     admin.from("ai_routing_rule").select("*").order("seq"),
   ]);
@@ -957,7 +1003,10 @@ Deno.serve(async (req) => {
     erp_sync: { sources: erpSyncRes.data || [], error: erpSyncRes.error?.message || null },
     // 사용모델 설정 탭(모델 카탈로그·게이트웨이 설정·라우팅 규칙) — 실데이터
     model_settings: {
-      models: aiModelsRes.data || [],
+      // v14: callable 은 DB 값 대신 **지금 이 서버의 판정**(어댑터+키)으로 바꿔 보낸다 — 화면이 사실을 보게
+      models: (aiModelsRes.data || []).map((m: Record<string, unknown>) => ({
+        ...m, callable: vendorCallable(String(m.vendor || "")), callable_db: m.callable,
+      })),
       config: aiCfg,
       routing: aiRulesRes.data || [],
       effective_model: effectiveModel,

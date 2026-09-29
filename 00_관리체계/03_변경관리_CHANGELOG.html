@@ -109,6 +109,13 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <tbody>
 <tr>
 <td>2026-09-29</td>
+<td>챗봇 · 관리자 콘솔(모델 카탈로그)</td>
+<td>정본 SQL 77 <code>77_ai_model_catalog_2026-09.sql</code>(+rollback) · <code>jeil-chat-admin</code> v14(배포 v20) · <code>jeil-chat-lab/core/config.ts</code>(배포 v8) · <code>04_챗봇_포털_데모UI.html</code> · <code>_test_cost_tab.mjs</code> · <code>.backlog</code> REQ-0056 done</td>
+<td><strong>사용량 모니터링에서 고성능·범용 모델을 골라 쓸 수 있게 카탈로그를 현행화했다</strong>(REQ-0056 · 관리자 지시). 두 벤더 공식 가격표를 2026-09-29 직접 확인한 결과 <strong>라인업이 09-15 비용기획 보고서보다 또 한 세대 위</strong>였다 — Anthropic 은 Opus 5.5($4/$20, 권고 기본)·Sonnet 5.5($2/$10)가 현행이고 Sonnet 5 는 legacy, OpenAI 는 gpt-5.6-<em> 가 </em><em>gpt-6-astra($10/$50)·gpt-6-sol($2/$10)·gpt-6-luna($0.10/$0.50)</em><em> 로 바뀌었다. 카탈로그 6→</em><em>14행</em><em>, 신규 컬럼 5종(<code>tier</code> 고성능/범용/경량/이전세대 · <code>price_cache_in</code> · <code>context_k</code> · <code>token_factor</code> · <code>status_note</code>). </em><em>신규 8행은 전부 비활성</em><em>으로 넣어 행 추가만으로 동작이 바뀌지 않게 했고, 기존 행은 단가를 고치지 않고 분류·캐시단가만 채웠다(과거 비용 추정의 근거 보존). <code>callable</code> 을 </em><em>「어댑터 있는 벤더 + 호출 키 등록」</em><em> 판정으로 바꿨다 — v13까지 OpenAI 로 못박혀 Claude 어댑터가 생긴 뒤에도 「호출 불가」로 보였다. 캐시 읽기 단가를 카탈로그에서 읽게 해(0.1배 고정 제거) Fable 5.1(0.025배)·Opus 5.5(0.05배)·gpt-4o-mini(0.5배)의 틀린 계산을 고쳤다. 「질문 1천건 환산」에 토큰 계수(Claude 4.7 이후 1.30)와 캐시 적중 40% 가정을 넣고, 가정값은 서버가 보내 화면이 그대로 밝힌다. 화면은 단가표를 등급별로 묶고 캐시입력·컨텍스트·상태메모·은퇴경고를 표시한다 — </em><em>Haiku 4.5 는 2026-10-15 이후 은퇴 예고</em>*(에이전트 분류·채점 모델이라 대체 결정 필요). 컨텍스트 길이는 OpenAI 공식표에 없어 NULL 로 두고 화면에 「—」로 표시했다(추측 금지). 검증: 카탈로그 14행 재조회 · 렌더 회귀 통과(등급 4종·현행 모델 4종·캐시단가·컨텍스트·토큰계수·은퇴경고·가정문구·최저배지 대상) · 함수 2종 401 · 통합본 재빌드. 남은 것: 쓸 모델 활성화·배정, <code>ANTHROPIC_API_KEY</code> 등록, Haiku 4.5 대체 결정</td>
+<td>최동혁(+Claude)</td>
+</tr>
+<tr>
+<td>2026-09-29</td>
 <td>거버넌스</td>
 <td><code>00_관리체계/index.html</code>(AX_DASH <code>timeline</code>)</td>
 <td><strong>총괄 대시보드 타임라인 압축 — 90일 경과분을 월 단위 1줄로</strong>(관리자 지시). <code>timeline</code> 이 150건으로 압축 기준(120건)을 넘어, 규칙대로 90일 경과선(기준일 2026-09-29 → 2026-07-01) 이전 항목을 접었다. 대상은 <strong>2026-06 의 11건뿐</strong>이었고(그 중 1건은 이전 압축 패스가 만든 「[2026-06 요약]」 줄이라 함께 다시 접었다), 결과 <strong>150 → 140건</strong>. 요약 줄은 원문 11줄에 있는 사실만 일자 순으로 엮었다(프로젝트 개시·Entra MFA 전환·규정 챗봇 조문 교체·설문 집계·협력사 포털 PWA·관리자 주도 발급·Supabase 실연동·Entra 브리지·Vercel 일원화·계정 엑셀 일괄발급·관리체계 허브 신설). area 는 이전 패스 선례를 따라 <code>거버넌스</code> 를 재사용했다(칩 신설 금지) — 대가로 <strong><code>이관·인프라</code> 칩이 사라졌다</strong>(6월 전용 태그였다). ⚠ <strong>압축 후에도 140건으로 120건 기준을 여전히 넘는다</strong> — 최근 90일이 유독 촘촘해서다(7월 60 · 8월 23 · 9월 56). 규칙은 90일 경과분까지만 접으라고 하므로 더 접지 않았다. 7월까지 접으면 81건이 되지만 최근 이력이 한 줄로 뭉개지므로 관리자 판단이 필요하다. 검증: JS 파싱 · 유지분 139건 원문 무손상 대조 · timeline 밖 무변경 · KPI 최근 13일 건수 42건 불변</td>

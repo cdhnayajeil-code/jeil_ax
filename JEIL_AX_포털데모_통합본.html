@@ -835,10 +835,14 @@
       <div class="sec">
         <h3>사용 모델 관리 <span style="font-size:11px;color:var(--green,#1a7f37);">● 실데이터</span> <button class="save" onclick="saveAiModels()">모델 저장</button></h3>
         <table>
-          <thead><tr><th>모델</th><th>용도</th><th class="r">단가 (입력/출력, /MTok)</th><th>호출</th><th class="r">활성화</th></tr></thead>
-          <tbody id="amModelRows"><tr><td colspan="5" class="c" style="color:#888;padding:14px;">MS 로그인(관리자) 후 실데이터가 표시됩니다.</td></tr></tbody>
+          <thead><tr><th>모델</th><th>등급</th><th>용도</th><th class="r">단가 (입력/출력, /MTok)</th><th class="r">캐시입력</th><th>호출</th><th class="r">활성화</th></tr></thead>
+          <tbody id="amModelRows"><tr><td colspan="7" class="c" style="color:#888;padding:14px;">MS 로그인(관리자) 후 실데이터가 표시됩니다.</td></tr></tbody>
         </table>
-        <p class="admin-note">활성화·단가·용도를 편집하고 <b>모델 저장</b>하면 게이트웨이(jeil-chat)에 즉시 반영됩니다. 현 게이트웨이는 OpenAI 프록시라 <b>OpenAI 모델만 실제 호출(callable)</b> 가능하며, Anthropic 모델은 벤더 연동 전이라 카탈로그·단가 표시용입니다. 단가는 추정비용 산정에 사용됩니다.</p>
+        <p class="admin-note">활성화·단가·용도를 편집하고 <b>모델 저장</b>하면 게이트웨이에 즉시 반영됩니다.
+          <b>호출</b> 칸은 서버가 매번 판정합니다 — <b>어댑터가 있는 벤더(OpenAI·Anthropic) + 그 벤더 호출 키가 서버에 등록됨</b>.
+          Claude 모델은 <code>ANTHROPIC_API_KEY</code> 를 등록하는 순간 「가능」으로 바뀝니다(<a href="/admin/api-setup" target="_blank" rel="noopener">API 설정방법</a>).
+          <b>등급·캐시입력·컨텍스트·토큰 계수</b>는 카탈로그 메타라 이 화면에서 고치지 않습니다(정본: 정본 SQL 77) — 저장해도 보존됩니다.
+          단가는 추정비용 산정에 쓰이므로 벤더 가격 개정 시 갱신하세요. 등급별 비교는 <b>「💳 AI 비용·예산」</b> 탭에 있습니다.</p>
       </div>
 
       <div class="sec">
@@ -918,14 +922,18 @@
         <table>
           <thead><tr>
             <th>모델</th><th>벤더</th><th>용도</th>
-            <th class="r">입력 $/MTok</th><th class="r">출력 $/MTok</th>
+            <th class="r">입력</th><th class="r">캐시입력</th><th class="r">출력</th><th class="r">컨텍스트</th>
             <th class="r">질문 1천건 환산</th><th class="c">호출</th><th class="c">활성</th><th>지금 쓰는 곳</th>
           </tr></thead>
-          <tbody id="vcPriceRows"><tr><td colspan="9" class="c" style="color:#888;padding:14px;">MS 로그인(관리자) 후 표시됩니다.</td></tr></tbody>
+          <tbody id="vcPriceRows"><tr><td colspan="11" class="c" style="color:#888;padding:14px;">MS 로그인(관리자) 후 표시됩니다.</td></tr></tbody>
         </table>
-        <p class="admin-note">「질문 1천건 환산」은 <b>질문 1건 = 입력 6,000 토큰 + 출력 700 토큰</b> 이라는 가정으로 계산한 참고값입니다(도구 정의·ERP 조회 결과가 입력에 들어가는 현 구조 기준).
-          실제 비용은 캐시 적중률·조회 건수에 따라 달라지므로, 비교는 <b>상대 배수</b>로만 쓰고 절대액은 위 「이번 달 실사용」을 봅니다.
-          단가는 「모델 설정」 탭에서 고칩니다(벤더 가격 개정 시 갱신 — 낡은 단가는 추정치를 그대로 틀리게 합니다).</p>
+        <p class="admin-note" id="vcPriceNote">「질문 1천건 환산」은 가정값 기반 참고치입니다.</p>
+        <p class="admin-note">등급은 <b>고성능</b>(어려운 기획·분석·장시간 에이전트) · <b>범용</b>(전사에서 많이 쓰는 균형) ·
+          <b>경량</b>(대량·단순·분류) · <b>이전 세대</b>(신규 배정 대상 아님)로 나눕니다.
+          쓰려면 해당 행의 <b>활성</b>을 켠 뒤 「모델 설정」 탭에서 <b>모델 저장</b> → 기본 모델·라우팅 또는
+          <a href="/admin/agents" target="_blank" rel="noopener">에이전트 관리</a>의 설정 버전에서 배정합니다.
+          <b>호출 불가</b>는 그 벤더 호출 키가 서버에 없다는 뜻입니다(<a href="/admin/api-setup" target="_blank" rel="noopener">API 설정방법</a>).
+          비교는 <b>상대 배수</b>로만 쓰고 절대액은 위 「이번 달 실사용」을 봅니다 — 단가가 낡으면 추정치가 그대로 틀립니다.</p>
       </div>
 
       <div class="sec">
@@ -3188,23 +3196,57 @@ function renderVendorCost(d){
   rules.forEach(function(r){ if(r.enforced) push(r.model_id, '라우팅 '+(r.seq||'')); });
   ag.forEach(function(a){ push(a.model_id, (a.name_ko||a.agent_key)); if(a.fallback_model_id) push(a.fallback_model_id, (a.name_ko||a.agent_key)+' 예비'); });
 
-  var models = (d.models||[]).slice().sort(function(x,y){ return (x.vendor_key<y.vendor_key?-1:x.vendor_key>y.vendor_key?1:0) || (Number(x.price_in)-Number(y.price_in)); });
-  var cheapest = models.filter(function(m){ return m.callable; }).reduce(function(a,m){ return (a==null||Number(m.per_1k_questions_usd)<Number(a.per_1k_questions_usd))?m:a; }, null);
-  var pr = document.getElementById('vcPriceRows');
-  if(pr) pr.innerHTML = models.map(function(m){
+  // 환산 가정은 서버가 보내는 값을 그대로 적는다(화면에 숫자를 따로 박아 두면 서버와 어긋난다)
+  var pn = document.getElementById('vcPriceNote');
+  if(pn) pn.innerHTML = '「질문 1천건 환산」은 <b>' + escHtml((d.assume&&d.assume.note) || '가정값') + '</b> 으로 계산한 <b>참고치</b>입니다 — 실제 청구액이 아닙니다.'
+    + ' 모델별 <b>토큰 계수</b>(같은 글을 세는 토큰 수 배율 · Claude 4.7 이후 세대는 약 1.3)를 반영했습니다.';
+
+  var models = (d.models||[]).slice();
+  // 호출 가능한 모델 중 최저가를 기준(×배수)으로 삼는다 — 못 부르는 모델을 기준으로 잡으면 비교가 헛돈다
+  var cheapest = models.filter(function(m){ return m.callable && Number(m.per_1k_questions_usd)>0; })
+    .reduce(function(a,m){ return (a==null||Number(m.per_1k_questions_usd)<Number(a.per_1k_questions_usd))?m:a; }, null);
+  var TIERS = [['flagship','고성능','어려운 기획·분석·장시간 에이전트'],
+               ['workhorse','범용','전사에서 많이 쓰는 균형'],
+               ['light','경량','대량·단순·분류·채점'],
+               ['legacy','이전 세대','신규 배정 대상 아님'],
+               ['','미분류','등급이 지정되지 않음']];
+  var row = function(m){
     var mult = (cheapest && Number(cheapest.per_1k_questions_usd)>0) ? (Number(m.per_1k_questions_usd)/Number(cheapest.per_1k_questions_usd)) : null;
     var uses = usedBy[m.model_id] || [];
-    return '<tr'+(m.active?'':' style="opacity:.55"')+'>'
-      + '<td><b>'+escHtml(m.model_id)+'</b></td>'
+    var st = m.status_note ? String(m.status_note) : '';
+    var warn = /⚠/.test(st);
+    var cin = (m.price_cache_in!=null) ? usd(m.price_cache_in,2)
+            : '<span style="color:var(--muted)" title="공식 단가 미확인 — 입력 단가의 0.1배로 가정">'+usd(m.price_cache_in_eff,2)+'*</span>';
+    return '<tr'+(m.active?'':' style="opacity:.6"')+'>'
+      + '<td><b>'+escHtml(m.model_id)+'</b>'
+        + (Number(m.token_factor)>1 ? ' <span class="badge a" title="같은 글을 세는 토큰 수 배율">×'+Number(m.token_factor).toFixed(2)+'</span>' : '')
+        + (st ? '<br><span style="font-size:10.5px;color:'+(warn?'var(--red)':'var(--muted)')+'">'+escHtml(st)+'</span>' : '')
+        + '</td>'
       + '<td><span class="badge '+(m.vendor_key==='openai'?'a':'b')+'">'+escHtml(m.vendor||'')+'</span></td>'
       + '<td style="font-size:12px;color:var(--muted)">'+escHtml(m.purpose||'')+'</td>'
-      + '<td class="r">'+usd(m.price_in,2)+'</td><td class="r">'+usd(m.price_out,2)+'</td>'
-      + '<td class="r"><b>'+usd(m.per_1k_questions_usd,2)+'</b>'+(mult!=null&&mult>1.05?' <span style="font-size:10.5px;color:var(--muted)">×'+mult.toFixed(1)+'</span>':(mult!=null&&mult<=1.05?' <span class="badge g">최저</span>':''))+'</td>'
+      + '<td class="r">'+usd(m.price_in,2)+'</td><td class="r">'+cin+'</td><td class="r">'+usd(m.price_out,2)+'</td>'
+      + '<td class="r">'+(m.context_k!=null ? (Number(m.context_k)>=1000 ? (Number(m.context_k)/1000)+'M' : m.context_k+'K') : '<span style="color:var(--muted)">—</span>')+'</td>'
+      + '<td class="r"><b>'+usd(m.per_1k_questions_usd,2)+'</b>'
+        + (mult!=null&&mult>1.05?' <span style="font-size:10.5px;color:var(--muted)">×'+mult.toFixed(1)+'</span>'
+          :(mult!=null&&mult<=1.05&&m.callable?' <span class="badge g">최저</span>':''))+'</td>'
       + '<td class="c">'+(m.callable?'<span class="badge g">가능</span>':'<span class="badge r">불가</span>')+'</td>'
       + '<td class="c">'+(m.active?'<span class="badge g">켬</span>':'<span class="badge b">끔</span>')+'</td>'
       + '<td style="font-size:11.5px">'+(uses.length?uses.map(function(u){ return '<span class="badge b" style="margin:1px 2px 1px 0">'+escHtml(u)+'</span>'; }).join(''):'<span style="color:var(--muted)">—</span>')+'</td>'
       + '</tr>';
-  }).join('') || '<tr><td colspan="9" class="c" style="color:#888;padding:14px;">모델 카탈로그가 비어 있습니다.</td></tr>';
+  };
+  var pr = document.getElementById('vcPriceRows');
+  if(pr){
+    var html = '';
+    TIERS.forEach(function(t){
+      var g = models.filter(function(m){ return String(m.tier||'') === t[0]; })
+                    .sort(function(x,y){ return Number(x.per_1k_questions_usd)-Number(y.per_1k_questions_usd); });
+      if(!g.length) return;
+      html += '<tr><th colspan="11" style="background:var(--soft);font-size:12px;">'+escHtml(t[1])
+           + ' <span style="font-weight:400;color:var(--muted)">· '+escHtml(t[2])+' · '+g.length+'종</span></th></tr>'
+           + g.map(row).join('');
+    });
+    pr.innerHTML = html || '<tr><td colspan="11" class="c" style="color:#888;padding:14px;">모델 카탈로그가 비어 있습니다.</td></tr>';
+  }
 
   /* (4) 모델별 이번 달 사용량·비용 */
   var mrows = [];
@@ -3347,14 +3389,19 @@ function renderModelSettings(ms){
   var mb = document.getElementById('amModelRows');
   if(mb) mb.innerHTML = AM_MODELS.length ? AM_MODELS.map(function(m){
     var isOpenAI = String(m.vendor||'').toLowerCase()==='openai';
+    var TKO = { flagship:['고성능','a'], workhorse:['범용','g'], light:['경량','b'], legacy:['이전세대','r'] };
+    var tk = TKO[String(m.tier||'')] || ['미분류','b'];
     return '<tr data-model="'+escHtml(m.model_id)+'" data-vendor="'+escHtml(m.vendor||'')+'" data-sort="'+(m.sort||100)+'">'
-      + '<td><b>'+escHtml(m.model_id)+'</b> <span class="badge '+(isOpenAI?'a':'b')+'">'+escHtml(m.vendor||'')+'</span></td>'
+      + '<td><b>'+escHtml(m.model_id)+'</b> <span class="badge '+(isOpenAI?'a':'b')+'">'+escHtml(m.vendor||'')+'</span>'
+        + (m.status_note?'<br><span style="font-size:10.5px;color:'+(/⚠/.test(String(m.status_note))?'var(--red)':'var(--muted)')+'">'+escHtml(m.status_note)+'</span>':'')+'</td>'
+      + '<td><span class="badge '+tk[1]+'">'+tk[0]+'</span></td>'
       + '<td><input class="txt-inp am-purpose" value="'+escHtml(m.purpose||'')+'" style="width:100%"></td>'
       + '<td class="r">$<input class="num-inp am-pin" value="'+(m.price_in||0)+'" style="width:56px"> / $<input class="num-inp am-pout" value="'+(m.price_out||0)+'" style="width:56px"></td>'
+      + '<td class="r">'+(m.price_cache_in!=null?('$'+Number(m.price_cache_in).toFixed(2)):'<span style="color:var(--muted)">—</span>')+'</td>'
       + '<td>'+(m.callable?'<span class="badge g">가능</span>':'<span class="badge r">불가</span>')+'</td>'
       + '<td class="r"><label class="sw"><input type="checkbox" class="am-active"'+(m.active?' checked':'')+(m.callable?'':' disabled')+'><i></i></label></td>'
       + '</tr>';
-  }).join('') : '<tr><td colspan="5" class="c" style="color:#888;padding:14px;">모델 없음</td></tr>';
+  }).join('') : '<tr><td colspan="7" class="c" style="color:#888;padding:14px;">모델 없음</td></tr>';
 
   // (2) 게이트웨이 설정
   if(AM_CFG){

@@ -13,7 +13,8 @@ const PRICES: Record<string, { inp: number; out: number }> = {
   "gpt-4.1-mini": { inp: 0.40, out: 1.60 },
 };
 
-export type AiModelRow = { model_id: string; vendor: string; label?: string; active: boolean; callable: boolean; price_in: number; price_out: number };
+export type AiModelRow = { model_id: string; vendor: string; label?: string; active: boolean; callable: boolean;
+  price_in: number; price_out: number; price_cache_in?: number | null };
 export type AiRuleRow = { seq: number; rule_type: string; match_keywords: string[] | null; min_chars: number | null; model_id: string; active: boolean };
 export type AiConfig = {
   default_model: string; max_tokens: number; temperature: number;
@@ -36,7 +37,7 @@ export async function loadAiConfig(admin: any): Promise<AiConfig> {
   try {
     const [cfgR, modR, rulR] = await Promise.all([
       admin.from("ai_gateway_config").select("default_model,max_tokens,temperature,max_messages,max_total_chars,system_prompt").eq("id", 1).maybeSingle(),
-      admin.from("ai_model").select("model_id,vendor,label,active,callable,price_in,price_out"),
+      admin.from("ai_model").select("model_id,vendor,label,active,callable,price_in,price_out,price_cache_in"),
       admin.from("ai_routing_rule").select("seq,rule_type,match_keywords,min_chars,model_id,active").eq("active", true).order("seq"),
     ]);
     const c = cfgR.data;
@@ -83,14 +84,21 @@ export function pickModel(userText: string, ai: AiConfig, vendors: string[]): st
   return safeDefault;
 }
 
-export function priceFor(model: string, ai: AiConfig): { inp: number; out: number } {
+export function priceFor(model: string, ai: AiConfig): { inp: number; out: number; cache?: number } {
   const m = ai.models.find((x) => x.model_id === model);
-  if (m && (m.price_in || m.price_out)) return { inp: Number(m.price_in), out: Number(m.price_out) };
+  if (m && (m.price_in || m.price_out)) {
+    return { inp: Number(m.price_in), out: Number(m.price_out),
+             cache: m.price_cache_in != null ? Number(m.price_cache_in) : undefined };
+  }
   return PRICES[model] || PRICES["gpt-4o-mini"];
 }
 
-/** 한 요청의 추정 비용(USD). Claude 캐시 읽기는 입력 단가의 0.1배, 캐시 쓰기는 1.25배로 계산한다. */
+/** 한 요청의 추정 비용(USD).
+ *  캐시 **읽기** 단가는 카탈로그 `ai_model.price_cache_in` 을 쓴다 — 없으면 입력 단가의 0.1배로 가정한다.
+ *  0.1배 고정은 모델마다 틀리다(공식표 2026-09-29: Fable 5.1 0.025배 · Opus 5.5 0.05배 · gpt-4o-mini 0.5배).
+ *  캐시 **쓰기**는 5분 보관 1.25배(공식표) — 보관시간별 배율은 응답이 구분해 주지 않아 1.25배로 둔다. */
 export function costOf(model: string, ai: AiConfig, t: { pt: number; ct: number; cr?: number; cw?: number }): number {
   const p = priceFor(model, ai);
-  return (t.pt * p.inp + (t.cr || 0) * p.inp * 0.1 + (t.cw || 0) * p.inp * 1.25 + t.ct * p.out) / 1_000_000;
+  const cacheIn = p.cache != null ? p.cache : p.inp * 0.1;
+  return (t.pt * p.inp + (t.cr || 0) * cacheIn + (t.cw || 0) * p.inp * 1.25 + t.ct * p.out) / 1_000_000;
 }

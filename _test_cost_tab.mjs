@@ -95,10 +95,34 @@ const D = {
                 reason: "충전 잔액 미입력 — 벤더 콘솔에서 확인한 금액과 날짜를 적으면 역산합니다." },
     },
   ],
+  assume: { in_tokens: 6000, out_tokens: 700, cache_hit: 0.4,
+            note: "질문 1건 = 입력 6,000 · 출력 700 토큰, 입력의 40% 캐시 적중 가정 · 모델별 토큰 계수 반영" },
   models: [
-    { model_id: "gpt-4o-mini", vendor: "OpenAI", vendor_key: "openai", purpose: "기본", price_in: 0.15, price_out: 0.6, active: true, callable: true, per_1k_questions_usd: 1.32 },
-    { model_id: "claude-sonnet-5", vendor: "Anthropic", vendor_key: "anthropic", purpose: "에이전트 기본", price_in: 2, price_out: 10, active: true, callable: false, per_1k_questions_usd: 19 },
-    { model_id: "gpt-4.1-mini", vendor: "OpenAI", vendor_key: "openai", purpose: "경량", price_in: 0.4, price_out: 1.6, active: true, callable: true, per_1k_questions_usd: 3.52 },
+    // 고성능 2종 · 범용 1종 · 경량 3종 · 이전 세대 1종 — 등급 묶음과 메타 표시를 함께 본다
+    { model_id: "claude-opus-5-5", vendor: "Anthropic", vendor_key: "anthropic", purpose: "고난도 기획·분석", tier: "flagship",
+      price_in: 4, price_cache_in: 0.2, price_out: 20, context_k: 1000, token_factor: 1.3, active: false, callable: false,
+      status_note: "Anthropic 권고 기본", per_1k_questions_usd: 26.6, price_cache_in_eff: 0.2 },
+    { model_id: "gpt-6-astra", vendor: "OpenAI", vendor_key: "openai", purpose: "최상위", tier: "flagship",
+      price_in: 10, price_cache_in: 1, price_out: 50, context_k: null, token_factor: 1, active: false, callable: true,
+      status_note: "OpenAI 플래그십", per_1k_questions_usd: 61.4, price_cache_in_eff: 1 },
+    { model_id: "claude-sonnet-5-5", vendor: "Anthropic", vendor_key: "anthropic", purpose: "전사 워크호스", tier: "workhorse",
+      price_in: 2, price_cache_in: 0.2, price_out: 10, context_k: 1000, token_factor: 1.3, active: false, callable: false,
+      status_note: null, per_1k_questions_usd: 13.3, price_cache_in_eff: 0.2 },
+    { model_id: "gpt-6-luna", vendor: "OpenAI", vendor_key: "openai", purpose: "대량·집중", tier: "light",
+      price_in: 0.1, price_cache_in: 0.01, price_out: 0.5, context_k: null, token_factor: 1, active: false, callable: true,
+      status_note: "기본 모델 교체 1순위 후보", per_1k_questions_usd: 0.73, price_cache_in_eff: 0.01 },
+    { model_id: "gpt-4o-mini", vendor: "OpenAI", vendor_key: "openai", purpose: "현 운영 기본", tier: "light",
+      price_in: 0.15, price_cache_in: 0.075, price_out: 0.6, context_k: null, token_factor: 1, active: true, callable: true,
+      status_note: "현 운영 기본 모델", per_1k_questions_usd: 0.96, price_cache_in_eff: 0.075 },
+    { model_id: "claude-haiku-4-5", vendor: "Anthropic", vendor_key: "anthropic", purpose: "분류·채점", tier: "light",
+      price_in: 1, price_cache_in: 0.1, price_out: 5, context_k: 200, token_factor: 1, active: true, callable: false,
+      status_note: "⚠ 은퇴 예고 — 2026-10-15 이후(Anthropic 공지)", per_1k_questions_usd: 7.3, price_cache_in_eff: 0.1 },
+    { model_id: "gpt-4.1-mini", vendor: "OpenAI", vendor_key: "openai", purpose: "에이전트 예비", tier: "light",
+      price_in: 0.4, price_cache_in: 0.1, price_out: 1.6, context_k: null, token_factor: 1, active: true, callable: true,
+      status_note: "부서 에이전트 예비 모델", per_1k_questions_usd: 3.52, price_cache_in_eff: 0.1 },
+    { model_id: "claude-sonnet-5", vendor: "Anthropic", vendor_key: "anthropic", purpose: "에이전트 기본", tier: "legacy",
+      price_in: 2, price_cache_in: 0.2, price_out: 10, context_k: null, token_factor: 1.3, active: true, callable: false,
+      status_note: "이전 세대 · 구매 에이전트 v1 기본", per_1k_questions_usd: 13.3, price_cache_in_eff: 0.2 },
   ],
   orchestration: {
     gateway: { default_model: "gpt-4o-mini", vendor: "openai", max_tokens: 1024, prompt_caching: true },
@@ -135,11 +159,35 @@ must("vcCards", "ANTHROPIC_ADMIN_KEY 미등록", "조회 키 없음 사유");
 must("vcBudgetRows", "미설정", "예산 미설정 칸");
 must("vcBudgetRows", "충전 잔액 미입력", "잔액 미확인 사유");
 
-// 단가 비교 — 최저 표시와 상대 배수, 그리고 「지금 쓰는 곳」
+// 단가 비교 — 등급 묶음이 먼저다(고성능/범용/경량/이전 세대를 구분해야 배정 판단이 된다)
+for (const t of ["고성능", "범용", "경량", "이전 세대"]) must("vcPriceRows", t, `등급 소제목(${t})`);
+if (html("vcPriceRows").indexOf("고성능") > html("vcPriceRows").indexOf("경량")) fail("등급 순서가 고성능 → 경량이 아닙니다.");
 must("vcPriceRows", "최저", "최저 단가 배지");
 must("vcPriceRows", "×", "상대 배수 표시");
 must("vcPriceRows", "챗봇 기본", "챗봇 기본 모델 표시");
 must("vcPriceRows", "구매 에이전트 예비", "예비 모델 표시");
+// 현행 라인업이 실제로 보이는가(카탈로그가 낡으면 여기서 걸린다)
+for (const m of ["claude-opus-5-5", "claude-sonnet-5-5", "gpt-6-astra", "gpt-6-luna"]) must("vcPriceRows", m, `현행 모델 행(${m})`);
+// 비용 판단에 필요한 세 값 — 캐시 입력 단가 · 컨텍스트 · 토큰 계수
+must("vcPriceRows", "$0.20", "캐시 입력 단가(Opus 5.5 $0.20)");
+must("vcPriceRows", "1M", "컨텍스트 1M 표시");
+must("vcPriceRows", "200K", "컨텍스트 200K 표시");
+must("vcPriceRows", "×1.30", "토큰 계수 배지");
+// 컨텍스트를 모르는 모델은 0 이 아니라 「—」 여야 한다(없는 값을 만들지 않는다)
+if (!html("vcPriceRows").includes('color:var(--muted)">—<')) fail("컨텍스트 미확인 모델이 「—」로 표시되지 않습니다.");
+// 은퇴 예고는 경고색으로 눈에 띄어야 한다
+must("vcPriceRows", "은퇴 예고", "은퇴 예고 표시");
+if (!/color:var\(--red\)">⚠/.test(html("vcPriceRows"))) fail("은퇴 예고가 경고색(--red)으로 표시되지 않습니다.");
+// 환산 가정은 서버가 보낸 문구를 그대로 적어야 한다 — 화면에 숫자를 따로 박으면 서버와 어긋난다
+must("vcPriceNote", "입력 6,000", "환산 가정 문구(서버 assume)");
+must("vcPriceNote", "40% 캐시 적중", "캐시 적중 가정");
+must("vcPriceNote", "토큰 계수", "토큰 계수 설명");
+// 「최저」 배지는 **호출 가능한** 최저가 모델 한 곳에만 — 못 부르는 모델이 기준이면 비교가 헛돈다
+{
+  const lowest = html("vcPriceRows").split("<tr").filter((r) => r.includes("최저"));
+  if (lowest.length !== 1) fail(`「최저」 배지가 ${lowest.length}개입니다(1개여야 합니다).`);
+  if (!lowest[0].includes("gpt-6-luna")) fail("「최저」 배지가 호출 가능한 최저가 모델(gpt-6-luna)에 붙지 않았습니다.");
+}
 
 // 모델별 — 청구에만 있는 토큰 외 비용을 버리지 않는가
 must("vcModelRows", "토큰 외", "토큰 외 비용 행");
