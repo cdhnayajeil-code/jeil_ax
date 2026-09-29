@@ -19,6 +19,7 @@
 //   v13(2026-09-29, REQ-0091 · ADR-111): AI 비용·예산 관제 — 액션 3종 추가(vendor_cost·save_vendor_budget·verify_vendor_key).
 //     두 벤더의 **실사용액은 벤더 Usage/Cost API 실측**(Admin 키 필요), 키가 없으면 chat_log·agent_turn 기반 「내부 추정」으로 표시하고 사유를 남긴다.
 //     **잔여 크레딧 API 는 두 벤더 모두 없다** → 관리자 입력(ai_vendor_budget)에서 실사용을 빼 역산한다. 키 값은 어떤 응답에도 담지 않는다(§1.1·§1.8).
+//   v15(2026-09-29, REQ-0093): 내부 추정 by_model 을 이번 달로 한정(byDay 는 잔액 역산용으로 넓은 창 유지).
 //   v14(2026-09-29, REQ-0056): 모델 카탈로그 현행화 반영 — tier(고성능/범용/경량/이전세대)·캐시 입력 단가·컨텍스트·토큰 계수 노출,
 //     「질문 1천건 환산」에 토큰 계수·캐시 적중 가정 적용, **callable 을 어댑터+키 등록으로 판정**(OpenAI 하드코딩 제거).
 // 원칙: chat_log·erp 매핑 뷰는 RLS로 클라이언트 차단 → 이 함수(service_role)가 유일한 조회/저장 경로.
@@ -630,6 +631,9 @@ Deno.serve(async (req) => {
       const day = String(r.created_at).slice(0, 10);
       const c = Number(r.est_cost_usd || 0);
       const bd = estByVendor[v].byDay; bd.set(day, (bd.get(day) || 0) + c);
+      // 모델별 표는 「이번 달」이다 — byDay 는 충전 잔액 역산 때문에 확인일까지 거슬러 모으지만, byModel 까지 그러면
+      // 화면의 「이번 달 사용」에 지난달 행이 섞인다(2026-09-29 검토 지적). 월 시작 전 행은 모델별 집계에서 뺀다.
+      if (day < dayKey(monthStart)) return;
       const bm = estByVendor[v].byModel;
       const a = bm.get(mid) || { model: mid, in_tokens: 0, cached_tokens: 0, out_tokens: 0, requests: 0, cost_usd: 0 };
       a.in_tokens += Number(r.prompt_tokens || 0);

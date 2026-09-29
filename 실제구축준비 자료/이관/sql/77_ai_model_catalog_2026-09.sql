@@ -123,6 +123,6 @@ commit;
 --   또 tier='legacy' 이지만 **구매 에이전트 v1 의 기본 모델로 지정돼 있어** 화면에서 오해될 수 있다 — 상태 메모로 밝힌다.
 update public.ai_model
    set token_factor = 1.30,
-       status_note = '이전 세대(Sonnet 5.5 가 후속) · **구매 에이전트 v1 의 기본 모델로 지정돼 있다** — 키 등록 시 실제 호출된다. 4.7 이후 토크나이저(계수 1.30)',
+       status_note = '이전 세대(Sonnet 5.5 가 후속) · 구매 에이전트 v1 의 기본 모델로 지정돼 있다 — 키 등록 시 실제 호출된다. 4.7 이후 토크나이저(계수 1.30)',
        updated_by = 'sql77', updated_at = now()
  where model_id = 'claude-sonnet-5';

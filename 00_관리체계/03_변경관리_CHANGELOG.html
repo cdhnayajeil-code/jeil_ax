@@ -109,6 +109,34 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <tbody>
 <tr>
 <td>2026-09-29</td>
+<td>챗봇 · 관리자 콘솔(모델 설정·비용예산 개편)</td>
+<td><code>04_챗봇_포털_데모UI.html</code>(두 패널 HTML·CSS·렌더 JS) · <code>_test_cost_tab.mjs</code> · 정본 SQL 79 <code>79_stage_assignment_apply.sql</code>(+rollback) · <code>jeil-chat-admin</code> v15(배포 v22) · <code>.backlog</code> REQ-0093</td>
+<td><strong>「모델 설정」·「💳 AI 비용·예산」 두 탭을 비개발자가 3초 안에 읽게 개편하고, 단계별 권장을 실제 배정에 반영했다</strong>(REQ-0093 · 관리자 지시). 설계는 관점 3종(비개발자 우선·비용 통제 우선·최소 변경 우선) 안을 판정자 3명이 채점해 1위(비개발자 우선) 위에 접목했고, 구현본은 검토자 4렌즈(정확성·정직성·가독성·보안) 30건 지적 → 회의론자 반박 검증으로 <strong>25건 확정·5건 기각</strong> → 전부 반영. 화면: 탭마다 한 줄 목적 + 「지금 해야 할 일」 띠(서버 값으로만 판정, 심각도 지금/곧/참고) · 모델 설정은 기본 모델 → 단계별 모델 목록 → 예외 규칙 순, 개발 파라미터 11개·지시문은 접힘(요약값 노출) · 비용은 이번 달 카드 → <strong>단계별 권장 표(권장·권장 상태·지금 배정·판정/조치·이번 달 사용·질문 1천건)</strong> → 예산 입력 → 모델별 사용, 일별 추이·배정 상세·단가 전체·「자세히」는 접힘. 안내문 모델 설정 1,100→354자 · 비용 1,900→466자(절당 ≤2문장). 어휘 통일(벤더 청구 기준/추정치 · 키 없음/꺼짐/사용 가능 · 작동 중/미연동/참고). 정직성 규칙: 응답에 없는 동작을 단정하지 않음(「예비로 답하고 있다」 금지 → 테스트로 고정) · 청구와 추정을 한 숫자로 합치지 않음(카드 합계·일별 추이·단계 사용 셀) · 규칙은 게이트웨이가 실제로 적용하는 조건(키워드 유형·켜짐·키 있음·OpenAI)일 때만 배정으로 셈 · 「기본」 유형 규칙은 게이트웨이가 읽지 않으므로 「참고」 · 운영 챗봇은 OpenAI 전용이라 챗봇 기본 모델 선택지는 OpenAI 만(Claude 는 「운영 챗봇 미지원」) · 판정은 권장 <strong>집합</strong> 기준(비권장이 하나라도 배정돼 있으면 「권장과 다름」) · 비용 미확인 행은 0 이 아니라 「미확인」 · 스냅샷 접미(-2024-07-18 등)만 같은 모델로 매칭. <strong>배정 반영(SQL 79)</strong>: 라우팅 규칙 5개를 권장에 맞춤(운영 챗봇 3단계 = gpt-6-sol — 이때 규칙 2 대상 gpt-6-sol 이 비활성이라 조용히 무시될 뻔한 것을 켬), 구매 에이전트 <strong>v2 초안</strong>(기본 Sonnet 5.5 · 예비 gpt-6-luna — 「현재 지정」은 관리자 승인), 3단계 권장을 벤더별 1개씩(Sonnet 5.5 / gpt-6-sol). 서버 v15: 내부 추정 by_model 을 이번 달로 한정(잔액 역산용 byDay 는 넓은 창 유지 — 다음 달 1일에 지난달 행이 섞이던 결함). 검증: 회귀 테스트 통과(영역 11 · 판정·값·할 일·심각도 순서·키 값 미노출) · 구문검사 · id 대조 · 표본 렌더 덤프 검토 · 함수 401 · 통합본 재빌드. 실데이터 브라우저 실측은 관리자 확인 대기</td>
+<td>최동혁(+Claude)</td>
+</tr>
+<tr>
+<td>2026-09-29</td>
+<td>문서 · NAS 고도화(터널 주소)</td>
+<td><code>13_NAS_고도화/02_의사결정_브리핑.html</code> D-107·준비·위험 · <code>01</code> §9</td>
+<td><strong>터널 주소를 jeilm.co.kr 하위 주소로 쓰는 안을 검토해 브리핑에 넣었다</strong>(관리자 문의). <code>ai_tunnel</code> 은 밑줄 때문에 HTTPS 인증서 발급 불가 → <code>ai-tunnel.jeilm.co.kr</code> · Cloudflare Tunnel 은 DNS 를 Cloudflare 가 관리해야 연결되므로 아이네임즈 CNAME 한 줄 방식은 불가 → ① jeilm.co.kr 네임서버를 Cloudflare 무료로 전환(레코드 전수 이관·DNS only·대조·업무 외 전환·되돌리기) 권고, 대안 별도 도메인·부분 설정(월 약 $200). D-107 은 관리자 검토 중. 코드·DB·DNS 변경 없음</td>
+<td>최동혁(+Claude)</td>
+</tr>
+<tr>
+<td>2026-09-29</td>
+<td>문서 · NAS 고도화(회신 반영)</td>
+<td><code>13_NAS_고도화/02_의사결정_브리핑.html</code> §1·2·6·7·9·10 · <code>01</code> §9 · ADR-110</td>
+<td><strong>NAS 기획에 관리자 확인 7건 회신을 반영했다</strong> — 도메인 아이네임즈 사내 관리(→ 새 도메인 등록 후 네임서버만 Cloudflare, D-107) · 외부 백업 없음·UPS 가능(→ 외부 백업 구축이 N1 선결, D-104 · 볼륨 용량상 이미 이중화일 가능성은 DSM 확인 권장) · itasset 작음(메모리 증설 보류) · 약 90명(ERP 부서 마스터 실측 88명·팀 18개 → 규모 추정 합계 150GB 안팎) · 대화기록 180일 유지(D-108) · 회사 계정 생성 가능(D-94) · 부서별 폴더 + 전사공유 폴더(D-96 · 폴더 구조안 도식 추가). 코드·DB·NAS 설정 변경 없음</td>
+<td>최동혁(+Claude)</td>
+</tr>
+<tr>
+<td>2026-09-29</td>
+<td>문서 · NAS 고도화(v2)</td>
+<td><code>13_NAS_고도화/02_의사결정_브리핑.html</code>(신규) · <code>01</code> v2 개정 · <code>00</code> 판정 갱신 박스 · README·index · <code>_routes.py</code>(<code>/docs/nas/decision</code>) · ADR-110 개정 · 문서대장 §3-3</td>
+<td><strong>NAS 연계 기획을 관리자 목적에 맞춰 v2 로 바꾸고 의사결정 브리핑을 만들었다</strong>(관리자 지시). 목적 = "Supabase 는 ERP 정합성, NAS 는 대용량·누적 데이터" · 답변(터널 승인 가능·사외 사용 필요·문서 NAS 신규 정리·IT담당 직접 운영)으로 v1 전제(밖→NAS 경로 없음)가 풀림 → 권고 <strong>안 B</strong>: 대화기록 장기분·생성 자료·부서 문서·색인·백업 = <strong>NAS 정본</strong>, Cloudflare Tunnel + Access(포트 개방 없음) + 서비스 토큰·JWT 2중, 게이트웨이 하나 유지, outbox 로 NAS 장애 시 유실 방지. 브리핑: 도식 4종·데이터 배치표·안 A/B/C 비교·적용 가능성 신호등·사전 준비 6묶음·로드맵·결정 카드 D-94~D-99 · D-104~D-108·관리자 확인 요청 7건(DNS 관리처 등). 코드·DB·NAS 설정 변경 없음</td>
+<td>최동혁(+Claude)</td>
+</tr>
+<tr>
+<td>2026-09-29</td>
 <td>챗봇 · 관리자 콘솔(단계별 권장·기본모델)</td>
 <td>정본 SQL 78 <code>78_ai_model_stage_default.sql</code>(+rollback) · SQL 77(정정 고지) · <code>jeil-chat</code>(배포 v30) · <code>jeil-chat-lab</code>(배포 v9 · <code>llm/openai.ts</code>·<code>core/agent_api.ts</code>) · <code>jeil-chat-admin</code>(v21) · <code>04_챗봇_포털_데모UI.html</code> · <code>_test_cost_tab.mjs</code></td>
 <td><strong>단계별 권장 모델을 화면에 세우고, 기본 모델과 채점 모델을 교체했다</strong>(관리자 지시). ⚠ <strong>먼저 정정</strong> — 하루 전 같은 세션이 <code>claude-haiku-4-5</code> 에 적은 「은퇴 예고 2026-10-15」는 <strong>오독</strong>이었다. 공식 폐기 목록은 그 모델을 <strong>Active · Deprecated N/A</strong> 로 두고, 그 날짜는 「그 전에는 은퇴하지 않는다」는 <strong>보장 기한</strong>이다(은퇴 시 최소 60일 전 통지 · Anthropic 은 지금도 최저 지연·최저 단가 모델로 권장). 카탈로그 문구를 사실대로 고쳤다. <strong>단계 1~5</strong>(<code>stage</code>·<code>recommended</code> 컬럼 신설 — 화면 안내용이며 판정에 쓰지 않는다): 1 일상 조회 → <strong>gpt-6-luna</strong> · 2 분류·채점 → gpt-6-luna(대안 Haiku 4.5) · 3 부서 업무 → <strong>claude-sonnet-5-5</strong> · 4 고난도 → <strong>claude-opus-5-5</strong> · 5 최상위 → <strong>권장 없음</strong>(Fable 5.1·gpt-6-astra 는 $10/$50 라 비활성 유지 — 토글 하나로 청구가 튀는 자리는 사람이 켠다). <strong>기본 모델 gpt-4o-mini → gpt-6-luna</strong>(입력 $0.15→$0.10 · 출력 $0.60→$0.50, 세대도 위). <strong>채점·분류 모델 우선순위</strong>를 <code>JUDGE_MODELS = [gpt-6-luna, gpt-4o-mini, claude-haiku-4-5, gpt-4.1-mini]</code> 로 — 싼 순서다(Haiku 를 내린 이유는 마감이 아니라 10배 비싸서다. 게다가 키가 없어 그 자리는 이미 gpt-4o-mini 로 떨어져 돌고 있었다). ⚠ <strong>적용 중 발견한 함정</strong> — 운영 챗봇은 DB <code>callable</code> 컬럼을 그대로 보는데(active &amp;&amp; callable &amp;&amp; openai) SQL 77 이 신규 행을 callable=false 로 넣어, 기본 모델만 바꾸면 <strong>오류 없이 조용히 다른 모델로 떨어진다</strong>. OpenAI 행의 callable 을 true 로 고쳐 해결(SQL 78 ⑤). 또 신세대는 요청 파라미터 모양이 다를 수 있어(<code>temperature</code> 거부 · <code>max_tokens</code> 대신 <code>max_completion_tokens</code>) <strong>모델 목록을 코드에 박지 않고 400 사유를 읽어 고쳐 재시도하는 자동 적응</strong>을 두 게이트웨이의 OpenAI 경로에 넣었다(통한 모양을 모델별로 기억). 검증: 카탈로그·게이트웨이 설정 재조회(default_model=gpt-6-luna · usable 4종) · 렌더 회귀 통과(단계 5행·권장·호출불가·미배정·단계 배지 + 「은퇴 예고」 단정 문구가 없는지까지 검사) · 함수 3종 401 · 통합본 재빌드. 되돌리기: <code>ai_gateway_config.default_model</code>='gpt-4o-mini' 한 줄(rollback 78 상단에 명시)</td>

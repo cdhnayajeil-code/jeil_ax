@@ -30,9 +30,14 @@ if (end < 0) fail("블록의 끝(사용모델 설정 렌더) 주석을 찾지 �
 const block = src.slice(start, end);
 
 /* 화면 쪽 요소가 실제로 있는지도 같이 본다 — id 오타 한 글자로 탭이 비는 것을 막는다 */
-for (const id of ["tab-cost", "panel-cost", "vcCards", "vcNote", "vcBudgetRows", "vcStageRows", "vcPriceRows",
-                  "vcModelRows", "vcModelNote", "vcTrend", "vcTrendRange", "vcOrchRows", "apiKeyRows"]) {
+for (const id of ["tab-cost", "panel-cost", "vcCards", "vcNote", "vcBudgetRows", "vcStageRows", "vcStageRecon", "vcPriceRows",
+                  "vcModelRows", "vcModelNote", "vcTrend", "vcTrendRange", "vcOrchRows", "apiKeyRows", "cxTodo", "cxMore"]) {
   if (!src.includes(`id="${id}"`)) fail(`화면에 id="${id}" 가 없습니다.`);
+}
+// 모델 설정 탭(REQ-0093 개편) — 새 영역이 있고 저장 코드가 읽는 입력 id 가 전부 남아 있어야 한다
+for (const id of ["mxCards", "mxTodo", "mxDefaultInfo", "amPromptFold", "amAdvanced", "mxMore", "amDefaultModel", "amModelRows", "amRouteRows", "amSysPrompt",
+                  "amMaxTokens", "amTemp", "amCache", "amMaxMsgs", "amMaxChars", "amWorkCtx", "amWorkCtxChars", "amHistTurns", "amChatSave", "amRetention", "amSessMax"]) {
+  if (!src.includes(`id="${id}"`)) fail(`모델 설정 탭에 id="${id}" 가 없습니다(저장 코드가 읽는 입력이 사라졌을 수 있습니다).`);
 }
 if (!src.includes("'cost','permacct'")) fail("showTab 목록에 'cost' 가 없습니다 — 탭을 눌러도 패널이 열리지 않습니다.");
 if (!src.includes("/admin/api-setup")) fail("「🔑 API 설정방법」 링크(/admin/api-setup)가 없습니다.");
@@ -143,13 +148,13 @@ function must(id, needle, why) { if (!html(id).includes(needle)) fail(`${why} ($
 /* ── 4. 렌더 ───────────────────────────────────────────────────────────── */
 g.renderVendorCost(D);
 
-const areas = ["vcCards", "vcNote", "vcBudgetRows", "vcStageRows", "vcPriceRows", "vcModelRows", "vcTrend", "vcOrchRows", "apiKeyRows"];
+const areas = ["vcCards", "vcNote", "vcBudgetRows", "vcStageRows", "vcStageRecon", "vcPriceRows", "vcModelRows", "vcTrend", "vcOrchRows", "apiKeyRows", "cxTodo"];
 const empty = areas.filter((id) => html(id).length < 20);
 if (empty.length) fail("비어 있는 영역 — " + empty.join(", "));
 
 // 출처가 구분돼 보이는가 — 이 둘을 섞으면 금액 해석이 틀린다
-must("vcCards", "벤더 실측", "OpenAI 출처 배지");
-must("vcCards", "내부 추정", "Anthropic 출처 배지");
+must("vcCards", "벤더 청구 기준", "OpenAI 출처 배지");
+must("vcCards", "추정치", "Anthropic 출처 배지");
 must("vcCards", "$12.40", "OpenAI 이번 달 사용액");
 must("vcCards", "$37.60", "예산 잔여(역산)");
 must("vcCards", "$107.60", "충전 잔액 역산");
@@ -166,8 +171,28 @@ must("vcStageRows", "claude-sonnet-5-5", "3단계 권장(claude-sonnet-5-5)");
 must("vcStageRows", "claude-opus-5-5", "4단계 권장(claude-opus-5-5)");
 must("vcStageRows", "권장 없음", "5단계는 권장을 두지 않는다($10/$50 대)");
 // 권장 모델의 활성·호출 상태가 보여야 한다 — 「권장인데 못 부른다」를 숨기면 안 된다
-must("vcStageRows", "호출불가", "권장 모델의 호출 불가 표시");
+must("vcStageRows", "키 없음", "권장 모델의 키 없음 표시(3·4단계)");
 must("vcStageRows", "미배정", "배정 안 된 단계 표시");
+// 판정과 값 — 권장≠배정은 눈에 띄고, 그 단계에 이번 달 얼마 나갔는지가 실제 by_model 값으로 붙는다
+must("vcStageRows", "권장과 다름", "1·3단계 판정");
+must("vcStageRows", "키 필요", "4단계 판정(권장 모델 키 없음·미배정)");
+must("vcStageRows", "$11.90", "1단계 이번 달 사용(by_model gpt-4.1-mini 11.9)");
+must("vcStageRows", "311", "1단계 질문 수");
+must("vcStageRecon", "대사", "출처별 대사 줄");
+if (html("vcStageRecon").includes("불일치")) fail("표본은 차 $0.0013 라 대사가 맞아야 합니다(허용오차 $0.01).");
+// 「지금 해야 할 일」 — 서버 값으로만 판정하고, 응답에 없는 동작(「답하고 있다」)은 단정하지 않는다
+must("cxTodo", "호출 키 미등록", "호출 키 미등록 항목");
+must("cxTodo", "권장(gpt-6-luna)과 다릅니다", "권장≠배정 항목");
+must("cxTodo", "예비 gpt-4.1-mini", "에이전트 키 없음 항목(예비가 지정돼 있다는 사실만)");
+if (html("cxTodo").includes("답하고 있")) fail("응답에 없는 동작(예비로 답하고 있다)을 단정하는 문구가 있습니다.");
+// 심각도 순서 — 「지금」(막힘)이 맨 위여야 한다(0 이 falsy 라 `||9` 로 뒤로 밀렸던 실제 결함)
+{
+  const items = html("cxTodo").split('class="cx-todo__item').slice(1);
+  if (!items.length) fail("할 일 항목이 없습니다.");
+  if (!items[0].includes(">지금<")) fail("「지금」 항목이 맨 위가 아닙니다 — 심각도 정렬이 깨졌습니다.");
+  const order = items.map((it) => it.includes(">지금<") ? 0 : it.includes(">곧<") ? 1 : 2);
+  for (let i = 1; i < order.length; i++) if (order[i] < order[i - 1]) fail("할 일 심각도 순서(지금→곧→참고)가 어긋납니다.");
+}
 // 단가표 행에도 단계·권장 배지
 must("vcPriceRows", "1단계", "단가표 단계 배지");
 must("vcPriceRows", "권장", "단가표 권장 배지");
@@ -208,9 +233,9 @@ must("vcModelRows", "토큰 외", "토큰 외 비용 행");
 if (!/9[56]\.\d%/.test(html("vcModelRows"))) fail("모델별 비중 계산 이상 — " + html("vcModelRows").slice(0, 200));
 
 // 배정 — 부를 수 없는 모델이 지정돼 있으면 경고해야 한다(지금 실제 상황이다)
-must("vcOrchRows", "호출 불가", "호출 불가 경고");
+must("vcOrchRows", "키 없음", "키 없음 경고");
 must("vcOrchRows", "구매 에이전트", "에이전트 행");
-must("vcOrchRows", "표시만", "미적용 라우팅 표시");
+must("vcOrchRows", "미연동", "미연동 규칙 표시");
 
 // 키 표 — 상태만 있고 값은 없어야 한다
 must("apiKeyRows", "미등록", "미등록 배지");

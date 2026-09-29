@@ -35,7 +35,7 @@ comment on column public.ai_model.recommended is
 
 -- ── ① Haiku 4.5 문구 정정 ─────────────────────────────────────────────────────
 update public.ai_model
-   set status_note = '최저 지연·최저 단가 모델(Anthropic 권장). 상태 **Active** — 은퇴 공지 없음. '
+   set status_note = '최저 지연·최저 단가 모델(Anthropic 권장). 상태 Active — 은퇴 공지 없음. '
                      || '보장 기한 2026-10-15(그 전에는 은퇴하지 않는다는 약속이며 은퇴일이 아니다 · 은퇴 시 60일 전 통지). '
                      || '채점·분류 자리에서는 gpt-6-luna 가 10배 싸 뒤로 밀렸다',
        updated_by = 'sql78', updated_at = now()
