@@ -109,6 +109,20 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <tbody>
 <tr>
 <td>2026-09-29</td>
+<td>챗봇 · 부서 에이전트(도메인 지식)</td>
+<td><code>modules/purchase/search_pur_list.ts</code> v1.1 · <code>core/prompt.ts</code> · <code>jeil-chat-lab</code> v5 · DB 데이터(용어집 10·골든셋 8·제안 칩 2) · <code>12_에이전트관리/04_구매도메인_발주통합LIST.md</code>(신규)·00·01·03·README·index</td>
+<td><strong>구매 에이전트가 PR·PU·PO 번호 체계를 알게 했다</strong>(REQ-0090 · 관리자 지시). 발주통합 LIST 실측: PR=요청 품목 1줄(5,663) · PU=그룹웨어 결재 1건(1,139 · PR 평균 4.7·최대 111줄) · PO=발주서 1건(989 · PR 최대 134줄) · <strong>PU↔PO 는 1:1 아님</strong>(PU→PO 최대 12, PO→PU 최대 8). <code>search_pur_list</code> 가 pr·pu·po 를 받아 연결된 번호 목록과 해석 문장을 돌려주고(번호를 키워드에 넣어도 인식), 카드에 세 번호 열. 공통 프롬프트에 PU 형식·"PU 는 get_erp_po_pr 에 넣지 말 것". 용어집(즉시 반영)·골든셋 8문항 등록. 검증: 실데이터로 도구 실행 5건(PU·키워드 PU·PO·PR·없는 번호) · strict 타입검사 · 함수 v5</td>
+<td>최동혁(+Claude)</td>
+</tr>
+<tr>
+<td>2026-09-29</td>
+<td>문서 · NAS 고도화</td>
+<td><code>13_NAS_고도화/</code>(신규: README·index·00·01·_build_html.py) · <code>_routes.py</code>(<code>/docs/nas/*</code> 3줄) · <code>.gitignore</code>(PoC 원본 제외) · <code>CLAUDE.md</code> 폴더 지도 · 문서대장 §3-3 · ADR-110(제안)</td>
+<td><strong>사내 NAS 연계 타당성을 검토하고 데이터 계층 기획을 세웠다</strong>(관리자 지시). NAS PoC(Agent SDK 워커) 문서를 분석해 목적(에이전트 데이터·에이전트가 쓰는 데이터를 NAS 에서 관리)에 맞춰 재정렬 — 판정 <strong>조건부 타당</strong>: NAS = <strong>아웃바운드 전용 데이터 계층</strong>(문서 원본·생성 자료 장기보관·야간 백업), 실시간 정본(에이전트 DB·중간DB)은 Supabase 유지, ERP ETL 이전·실행 엔진은 보류. 문제점 8건(원본의 내부 IP·계정 평문 → git 제외, <code>jeil-agent</code> 이름 충돌, 무인증 포트, SMB 평문 <code>.env</code>, NAS 운영 기반 미확인 등)과 결정 D-N1~N6 제시. 코드·DB·NAS 설정 변경 없음</td>
+<td>최동혁(+Claude)</td>
+</tr>
+<tr>
+<td>2026-09-29</td>
 <td>챗봇 · 부서 에이전트(첨부)</td>
 <td><code>app/lib/filein.js</code>(신규) · <code>pages/구매_AI에이전트_2026.html</code> · <code>jeil-chat-lab</code> v4(<code>llm/types.ts</code>·<code>anthropic.ts</code>·<code>openai.ts</code>·<code>core/agent_api.ts</code>) · SQL 75 · 12_에이전트관리 00~03</td>
 <td><strong>구매 에이전트에 파일 첨부·끌어다 놓기·붙여넣기를 붙였다</strong>(REQ-0089 · 관리자 지시). 엑셀(xlsx)·CSV·워드(docx)는 <strong>브라우저에서 글자로</strong> 풀고(외부 라이브러리 없이 내장 ZIP 해제 · 한글 CSV 인코딩 판별 · 엑셀 날짜 서식 복원), PDF·이미지는 원본을 모델에 넘긴다(PDF 는 Claude 연결 시 판독). 서버가 형식·크기·개수·<strong>주민번호 형식</strong>을 검사하고, 이어지는 질문에서는 최신부터 예산을 채워 옛 첨부를 뺀다. <strong>파일은 저장하지 않는다</strong> — <code>agent_turn.attachments</code> 에 이름·종류·크기만(SQL 75, 열 추가). 첨부 시 📊요약·🔎ERP와 대조·📄보고서 초안 버튼. 검증: 실제 xlsx·docx·EUC-KR CSV 판독 테스트 · strict 타입검사 · 문법검사 · 함수 v4 ACTIVE</td>

@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>04 구매도메인 — JEIL AX 에이전트관리 (PR·PU·PO 번호 체계·발주통합 LIST 구조·에이전트 지식 반영)</title>
+<style>
+:root{--navy:#1a2f4e;--navy2:#27457a;--accent:#2f6fb3;--red:#b3402f;--green:#2e7d52;--amber:#9a6b1f;
+--ink:#222;--muted:#666;--line:#d8dee8;--bg:#f4f6f9;--soft:#eef2f8;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;color:var(--ink);background:var(--bg);line-height:1.65;font-size:15px;}
+.page{max-width:960px;margin:0 auto;background:#fff;padding:52px 60px;box-shadow:0 2px 14px rgba(0,0,0,.08);}
+.doc-label{display:inline-block;background:var(--navy);color:#fff;font-size:12px;letter-spacing:.16em;padding:5px 14px;border-radius:3px;margin-bottom:16px;}
+.docnav{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 26px;}
+.docnav a{font-size:12px;color:var(--navy2);border:1px solid var(--line);border-radius:20px;padding:4px 12px;text-decoration:none;background:var(--soft);}
+.docnav a:hover{background:var(--navy);color:#fff;}
+.docnav a.cur{background:var(--navy);color:#fff;border-color:var(--navy);}
+.md-link{font-size:13px;margin-bottom:22px;color:var(--muted);}
+.content h1{font-size:27px;color:var(--navy);line-height:1.35;margin:6px 0 18px;}
+.content h2{font-size:20px;color:var(--navy);margin:42px 0 14px;padding-bottom:9px;border-bottom:3px solid var(--navy);}
+.content h3{font-size:16px;color:var(--navy2);margin:24px 0 9px;}
+.content p{margin:0 0 12px;}
+.content ul,.content ol{margin:0 0 14px 22px;}
+.content li{margin-bottom:6px;}
+.content blockquote{background:var(--soft);border-left:5px solid var(--navy);border-radius:0 8px 8px 0;padding:14px 20px;margin:14px 0;color:#33425a;}
+.content blockquote p{margin:0 0 6px;}
+.content table{width:100%;border-collapse:collapse;margin:14px 0 20px;font-size:13.3px;}
+.content th{background:var(--navy);color:#fff;padding:9px 11px;text-align:left;font-weight:600;}
+.content td{padding:8px 11px;border-bottom:1px solid var(--line);vertical-align:top;}
+.content tr:nth-child(even) td{background:#fafbfd;}
+.content a{color:var(--accent);}
+.content code{background:var(--soft);border:1px solid var(--line);border-radius:4px;padding:1px 6px;font-size:12.4px;font-family:Consolas,'Courier New',monospace;}
+.content pre{background:#21252e;color:#e8eaf0;border-radius:8px;padding:16px 18px;font-size:12.4px;font-family:Consolas,'Courier New',monospace;overflow-x:auto;margin:12px 0 18px;line-height:1.55;}
+.content pre code{background:none;border:none;color:inherit;padding:0;}
+.content hr{border:none;border-top:1px solid var(--line);margin:30px 0;}
+.content strong{color:var(--navy2);}
+.footer{margin-top:50px;padding-top:16px;border-top:1px solid var(--line);font-size:12px;color:var(--muted);display:flex;justify-content:space-between;}
+@media print{body{background:#fff;}.page{box-shadow:none;padding:18px 0;max-width:100%;}.docnav{display:none;}.content h2{break-after:avoid;}.content table,.content pre,.content blockquote{break-inside:avoid;}}
+@media (max-width:720px){.page{padding:30px 20px;}}
+</style>
+</head>
+<body>
+<div class="page">
+  <span class="doc-label">JEIL AX 에이전트관리 · 대외비</span>
+  <div class="docnav"><a href="/docs/agents">🏠 에이전트관리 허브</a><a href="/docs/agents/status">00 현재상태</a><a href="/docs/agents/ops-guide">01 운영가이드</a><a href="/docs/agents/dev-guide">02 개발가이드</a><a href="/docs/agents/progress">03 진행상태</a><a class="cur" href="/docs/agents/purchase-domain">04 구매도메인</a><a href="README.md">README</a></div>
+  <p class="md-link">📄 Markdown 원본: <a href="04_구매도메인_발주통합LIST.md">04_구매도메인_발주통합LIST.md</a> · 허브 <a href="/docs/agents">에이전트관리 허브</a></p>
+  <div class="content">
+<h1 id="04-list-prpupo">04 · 구매 도메인 지식 — 발주통합 LIST 와 PR·PU·PO</h1>
+<blockquote>
+<p>구매 에이전트가 <strong>반드시 알아야 하는</strong> 번호 체계와 발주통합 LIST 의 데이터 구조. 수치는 2026-09-29 중간DB 실측(<code>public.v_erp_pur_list</code>, 2026-01-06 ~ 09-25).
+정본: 뷰 정의 <code>실제구축준비 자료/이관/sql/72_erp_pur_list_v4.sql</code> · 화면 <code>/work/purchase-list</code>(<code>pages/구매_발주통합LIST_2026.html</code>).</p>
+</blockquote>
+<h2 id="1-3">1. 번호 3종</h2>
+<table>
+<thead>
+<tr>
+<th>번호</th>
+<th>이름(화면 표기)</th>
+<th>형식 · 예</th>
+<th>무엇 1개에 붙나</th>
+<th>개수(실측)</th>
+<th>ERP 원천</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>PR</strong></td>
+<td>구매요청번호</td>
+<td><code>PR</code>+YYYYMMDD+4자리 · <code>PR202609250001</code></td>
+<td><strong>요청 품목 1줄</strong></td>
+<td>5,663</td>
+<td><code>M_PUR_REQ.PR_NO</code></td>
+</tr>
+<tr>
+<td><strong>PU</strong></td>
+<td>구매요청결재번호 · 열 이름 「요청번호(결재)」</td>
+<td><code>PU</code>+YYYYMMDD+4자리 · <code>PU202609230006</code></td>
+<td><strong>그룹웨어 결재 1건</strong> — PR 여러 줄 묶음</td>
+<td>1,139</td>
+<td><code>M_PUR_REQ.EXT1_CD</code>(확장 슬롯 — 2026-09-22 값으로 전수 탐색해 찾음)</td>
+</tr>
+<tr>
+<td><strong>PO</strong></td>
+<td>발주번호 · 열 이름 「PONO.」</td>
+<td><code>PO</code>+YYYYMMDD+4자리 · <code>PO202609230004</code></td>
+<td><strong>발주서 1건</strong> — PR 여러 줄 묶음</td>
+<td>989</td>
+<td><code>M_PUR_ORD.PO_NO</code></td>
+</tr>
+</tbody>
+</table>
+<p>품목코드는 <code>문자-숫자</code>(예 <code>S3041-00065</code>)로 셋과 다르다. 번호끼리 절대 섞어 쓰지 않는다.</p>
+<h2 id="2">2. 흐름과 관계</h2>
+<pre><code> 요청자                    결재(그룹웨어)                구매팀                     창고            회계
+ PR 1줄 ─┐
+ PR 1줄 ─┼──▶ PU 1건(평균 4.7줄 · 최대 111줄) ──▶ PO 1건(최대 134줄) ──▶ 입고(GR) ──▶ 매입(IV·송장)
+ PR 1줄 ─┘                                   └▶ PO 여러 건(PR 1줄이 최대 3건으로 분할)
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>관계</th>
+<th>실측</th>
+<th>뜻</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>PU → PR</td>
+<td>평균 4.7 · 최대 111</td>
+<td>결재 1건에 요청 품목 여러 줄</td>
+</tr>
+<tr>
+<td>PO → PR</td>
+<td>최대 134</td>
+<td>발주서 1건에 요청 여러 줄</td>
+</tr>
+<tr>
+<td>PR → PO</td>
+<td>최대 3 (분할 7줄)</td>
+<td>요청 1줄이 여러 발주로 나뉘는 경우가 드물게 있다</td>
+</tr>
+<tr>
+<td>PU → PO</td>
+<td>평균 1.33 · 최대 12</td>
+<td>결재 1건이 발주 여러 건으로</td>
+</tr>
+<tr>
+<td>PO → PU</td>
+<td>최대 8 (176개 발주가 2건 이상)</td>
+<td>발주 1건이 여러 결재의 요청을 묶는다</td>
+</tr>
+<tr>
+<td>결재번호 없는 줄</td>
+<td>310줄(발주 라인 52 · 미발주 258)</td>
+<td>요청의 결재번호 칸이 비어 있다</td>
+</tr>
+</tbody>
+</table>
+<p><strong>핵심: PU 와 PO 는 묶는 기준이 달라 1:1 이 아니다.</strong> "결재 1건 = 발주 1건"이라고 답하면 틀린다.</p>
+<h2 id="3-list">3. 발주통합 LIST — 한 줄의 의미</h2>
+<ul>
+<li><strong>한 줄 = 발주 라인</strong>(PO+순번). 발주가 아직 안 난 요청은 <strong>요청 1줄</strong>(구분 PR, 상태 「미발주」).</li>
+<li>전체 5,673줄 = 발주 라인 4,660 + 미발주 요청 1,013.</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>상태(화면)</th>
+<th>뜻</th>
+<th>줄 수</th>
+<th>ERP 진행코드</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>미발주</td>
+<td>발주 전 요청</td>
+<td>1,013</td>
+<td>RQ(요청)·CF(확정)</td>
+</tr>
+<tr>
+<td>발주</td>
+<td>발주 완료 · 입고 전</td>
+<td>1,298</td>
+<td>PO</td>
+</tr>
+<tr>
+<td>부분입고</td>
+<td>일부만 입고</td>
+<td>0</td>
+<td>—</td>
+</tr>
+<tr>
+<td>입고완료</td>
+<td>입고수량 ≥ 발주수량</td>
+<td>167</td>
+<td>GR</td>
+</tr>
+<tr>
+<td>매입완료</td>
+<td>송장까지</td>
+<td>3,195</td>
+<td>IV</td>
+</tr>
+</tbody>
+</table>
+<h3 id="_1">열 사전(화면 라벨 ↔ 뷰 컬럼)</h3>
+<table>
+<thead>
+<tr>
+<th>화면</th>
+<th>컬럼</th>
+<th>설명</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>구매요청번호</td>
+<td><code>pr_no</code></td>
+<td>PR</td>
+</tr>
+<tr>
+<td>요청번호(결재)</td>
+<td><code>pu_no</code></td>
+<td>PU — 조회조건 이름은 「구매요청결재번호」</td>
+</tr>
+<tr>
+<td>PONO.</td>
+<td><code>po_no</code></td>
+<td>PO(미발주 줄은 비어 있음)</td>
+</tr>
+<tr>
+<td>발주일자 · 요청일</td>
+<td><code>po_dt</code> · <code>req_dt</code></td>
+<td>목록일자 <code>list_dt</code> = 발주일, 미발주는 요청일(기간 필터·정렬 기준)</td>
+</tr>
+<tr>
+<td>입고요청일</td>
+<td><code>dlvy_dt</code></td>
+<td>요청자가 원한 날짜(요청 희망납기 우선)</td>
+</tr>
+<tr>
+<td>발주납기</td>
+<td><code>po_dlvy_dt</code></td>
+<td>협력사와 약속한 날짜 — 「납기경과 미입고」 판정 기준</td>
+</tr>
+<tr>
+<td>입고일 · 매입일</td>
+<td><code>rcpt_last_dt</code> · <code>iv_last_dt</code></td>
+<td>실제 입고(ERP 입출고) · 송장 날짜 — 다를 수 있다</td>
+</tr>
+<tr>
+<td>공급처</td>
+<td><code>bp_name</code></td>
+<td>거래처</td>
+</tr>
+<tr>
+<td>구분</td>
+<td><code>gubun</code></td>
+<td>원자재 2,821 · 부자재 1,377 · 외주 804(품번 ROS…) · 소모품 668</td>
+</tr>
+<tr>
+<td>P-CODE · 계약내역</td>
+<td><code>p_code</code> · <code>prj_nm</code></td>
+<td>프로젝트 코드·이름</td>
+</tr>
+<tr>
+<td>건명 · 도번/품명</td>
+<td><code>req_title</code> · <code>dw_ref</code></td>
+<td>요청 제목(EXT2) · 도면번호 등(EXT3)</td>
+</tr>
+<tr>
+<td>담당자 · 요청자 · 요청부서</td>
+<td><code>agent_nm</code> · <code>req_user_nm</code> · <code>req_dept</code></td>
+<td>발주 등록자 · 요청자</td>
+</tr>
+<tr>
+<td>수량 · 단가 · 금액 · 입고수량</td>
+<td><code>qty</code> · <code>price</code> · <code>amt</code> · <code>rcpt_qty</code></td>
+<td>원 단위</td>
+</tr>
+</tbody>
+</table>
+<h2 id="4-3">4. 에이전트가 이것을 아는 방법(3곳)</h2>
+<table>
+<thead>
+<tr>
+<th>어디</th>
+<th>무엇</th>
+<th>반영</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>도구</strong> <code>search_pur_list</code> v1.1</td>
+<td><code>pr</code>·<code>pu</code>·<code>po</code> 번호로 조회하면 <strong>연결된 PR·PU·PO 목록과 해석 문장</strong>(예: "발주 PO… 에 구매요청 4줄, 결재번호 3건 — 여러 결재의 요청을 한 발주로 묶음")을 돌려준다. 번호를 키워드에 넣어도 알아본다. 목록 카드에 PR·PU·PO 세 열</td>
+<td>코드(배포 v5)</td>
+</tr>
+<tr>
+<td><strong>공통 프롬프트</strong> 구매 도메인 문장</td>
+<td>번호 형식에 PU 추가 · "PU 는 get_erp_po_pr 에 넣지 말 것"</td>
+<td>코드(<code>core/prompt.ts</code>)</td>
+</tr>
+<tr>
+<td><strong>용어집</strong> 10개</td>
+<td>PR · PU · PO · 관계 · 발주통합 LIST · 상태 · 입고요청일/발주납기 · 입고일/매입일 · 구분 · P-CODE/건명/도번</td>
+<td>DB — <strong>즉시</strong>(버전 불필요). 관리 화면 「용어집」 탭에서 고친다</td>
+</tr>
+</tbody>
+</table>
+<p>도구 고르는 기준(모델에게 준 규칙)
+- PU 번호 · 번호끼리의 연결 · 조건으로 여러 줄 → <code>search_pur_list</code>
+- PO 한 건 · PR 한 줄의 단계별 상세(요청→확정→발주→입고→매입 수량) → <code>get_erp_po_pr</code>
+- 금액 상위 → <code>get_erp_pur_top</code> · 품목 이력 → <code>get_erp_item_orders</code> · 거래처 요약 → <code>get_vendor_profile</code></p>
+<h2 id="5-8">5. 확인 질문(골든셋 8문항 등록 — 관리 화면 「골든셋」)</h2>
+<table>
+<thead>
+<tr>
+<th>질문</th>
+<th>기대 도구</th>
+<th>답 요건</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>PU202609230006 결재 건 발주 됐어?</td>
+<td>search_pur_list</td>
+<td>PU 로 조회 · 미발주 줄 수 · PU 를 발주번호로 착각하지 않음</td>
+</tr>
+<tr>
+<td>PO202609230004 에 묶인 구매요청이랑 결재번호</td>
+<td>search_pur_list</td>
+<td>요청 4줄 · 결재 3건 · 여러 결재를 한 발주로 묶었다고 설명</td>
+</tr>
+<tr>
+<td>PR202609250001 은 어느 결재에 들어갔고 발주는 났어?</td>
+<td>search_pur_list</td>
+<td>결재 PU202609150014 · 아직 발주 전</td>
+</tr>
+<tr>
+<td>PR, PU, PO 번호 차이 설명해줘</td>
+<td>(도구 없음)</td>
+<td>세 번호 정의 · PU 와 PO 는 1:1 아님</td>
+</tr>
+<tr>
+<td>납기 지난 미입고 발주 공급처별로</td>
+<td>search_pur_list</td>
+<td>납기경과 미입고 조건</td>
+</tr>
+<tr>
+<td>아직 발주 안 된 외주 구매요청 몇 줄?</td>
+<td>search_pur_list</td>
+<td>미발주 + 외주</td>
+</tr>
+<tr>
+<td>발주 금액 top 5</td>
+<td>get_erp_pur_top</td>
+<td>발주번호별 총액</td>
+</tr>
+<tr>
+<td>PO202609230004 단계별 상세</td>
+<td>get_erp_po_pr</td>
+<td>단계·수량 한글 설명</td>
+</tr>
+</tbody>
+</table>
+<p>담당자는 v1 로 회귀를 한 번 돌려 <strong>기준 통과율</strong>을 남긴다(01 운영가이드 §3-3). 데이터가 바뀌면(발주 진행) 번호별 기대값도 바뀌므로, 요건은 "관계를 올바르게 설명하는가" 중심으로 적는다.</p>
+<h2 id="6">6. 주의</h2>
+<ul>
+<li>중간DB 는 <strong>2026-01 이후</strong> 자료다. 그 전 번호는 "없음"이 정상일 수 있다.</li>
+<li>결재번호(PU)가 빈 줄이 310줄 있다 — "결재 안 됨"이 아니라 <strong>요청에 결재번호가 기입되지 않은 것</strong>일 수 있다. 단정하지 않는다.</li>
+<li>「부분입고」는 정의만 있고 현재 0줄이다(분할 입고가 곧 완료되거나 매입으로 넘어가서).</li>
+<li>금액은 발주 라인 금액 합이다. 매입(송장) 금액과 합산·혼동하지 않는다(매입 집계는 <code>get_vendor_purchase</code>·<code>get_erp_purchase_monthly</code>).</li>
+</ul>
+  </div>
+  <div class="footer"><span>JEIL M&S · 부서 에이전트 관리</span><span>04 구매도메인 · 관리: 최동혁</span></div>
+</div>
+</body>
+</html>
