@@ -284,17 +284,17 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <li><strong>상태</strong>: Accepted(2026-09-28). D-1~D-6(호출 경로·데이터 반출 승인·턴 기록 수집 방식·구매 에이전트 담당자·파일럿 범위·월 예산 상한 — 대시보드 의사결정 로그 D-87~D-92)을 관리자가 확정하고 D-93(채택 여부)도 결정됨으로 전이했다. P1~P3(<code>ai_agent</code>·<code>ai_agent_version</code> 스키마·<code>/admin/agents</code>·게이트웨이 agent_key·<code>agent_turn</code>)까지 커밋 <code>f598d2d</code>로 구현·배포 완료(REQ-0085~0088, 구매 에이전트 파일럿). 남은 사람 작업: 회사 명의 ANTHROPIC_API_KEY 등록, 파일럿 구성원 5명(담당자 2·관리자 3) 실등록, 라이브 실측.</li>
 <li><strong>근거</strong>: <a href="/docs/product/dept-agents">14 부서 에이전트 운영기획</a>.</li>
 </ul>
-<h3 id="adr-110-nas-2026-09-29">ADR-110 🕐 사내 NAS = 아웃바운드 전용 데이터 계층(문서 원본·장기보관·백업) (2026-09-29 제안)</h3>
+<h3 id="adr-110-supabase-erp-nas-2026-09-29-v2">ADR-110 🕐 Supabase = ERP·권한 정본(정합성 계층) · 사내 NAS = 누적 데이터 정본(누적 계층) · 보안 터널 연결 (2026-09-29 제안 · 같은 날 v2 개정)</h3>
 <ul>
-<li><strong>배경</strong>: 부서 에이전트의 데이터와 에이전트가 쓰는 데이터(사내 문서·생성 자료·대화기록·ERP 복제)를 사내 NAS 에서 관리하려는 관리자 목적. NAS 는 사내 방화벽 안에 있어 클라우드(Vercel·Supabase)에서 들어갈 수 없고, NAS 에서 나가는 연결만 확인됐다. Supabase 는 Free 플랜이라 자동 백업이 없다.</li>
+<li><strong>배경</strong>: 전사 AI 포털에서 부서 에이전트를 활용하면서 ERP 데이터는 Supabase 에서 정합성을 유지하고, 그 밖의 대용량·누적 데이터(대화기록·생성 자료·부서 문서 등)는 사내 NAS 에서 관리하려는 관리자 목적. Supabase 는 Free 플랜(500MB·자동 백업 없음). 관리자 답변(2026-09-29): 외부→NAS 터널 보안 승인 가능 · 사외 사용 필요 · 문서는 NAS 에 새로 정리 · NAS 는 IT담당 직접 운영. (v1 은 "밖→NAS 경로 없음"을 전제로 아웃바운드 전용 창고를 제안했다.)</li>
 <li><strong>결정(안)</strong>:</li>
-<li>NAS 는 <strong>아웃바운드 전용 데이터 계층</strong>으로 쓴다. 클라우드→NAS 인바운드 경로를 만들지 않고, 모든 연동은 NAS 워커가 먼저 시작한다(pull).</li>
-<li>실시간 정본(에이전트 설정·대화기록·중간DB)은 게이트웨이가 있는 쪽(Supabase → 이관 후 Azure)에 둔다. NAS 는 <strong>문서 원본 · 생성 자료 장기보관 · 야간 백업</strong>을 맡는다. 대화기록 180일 약속은 백업에도 적용한다.</li>
-<li>NAS 워커는 별도 코드베이스가 아니라 러너(<code>10_ERP_DB연계/etl</code>)의 능력 표식 <code>+nas</code> 로 붙인다(CLAUDE.md §17). service_role 을 NAS 에 두지 않는다.</li>
-<li><strong>대안(보류)</strong>: NAS 에 Claude Agent SDK 실행 엔진(PoC) — 인바운드·인증·엔진 이원화 문제. 게이트웨이 한계가 실측되면 게이트웨이의 "장시간 작업 모듈"로 편입 재검토(ADR-109 유지).</li>
-<li><strong>대안(기각)</strong>: 에이전트 DB 정본을 NAS 로 이전 — 게이트웨이가 NAS 에 실시간 접속해야 해 인바운드 개방이 필수.</li>
-<li><strong>상태</strong>: Proposed — D-N1(NAS 운영 주체)·D-N2(문서 조각 클라우드 적재) 확정 + N1 착수 시 Accepted 로 전이. ERP ETL 의 NAS 이전은 N3 조사 후 별도 ADR. 대시보드 대응: D-N1~N6 = 의사결정 로그 D-94~D-99.</li>
-<li><strong>근거</strong>: <a href="/docs/nas/review">13_NAS_고도화/00 타당성검토</a> · <a href="/docs/nas/plan">01 데이터계층 기획</a>.</li>
+<li>Supabase = <strong>ERP 중간DB·권한·에이전트 설정의 정본</strong> + 짧은 버퍼(최근 14일 대화·<code>nas_outbox</code>). 사내 NAS = <strong>대화기록 장기분·생성 자료·부서 문서와 색인·백업의 정본</strong>.</li>
+<li>연결은 <strong>Cloudflare Tunnel + Access</strong>(NAS 가 밖으로 먼저 연결 — 포트 개방 없음). 공개 경로는 NAS 데이터 API(<code>jeil-nas-worker</code>) 하나이며, 인증은 Access 서비스 토큰 + 포털 JWT 2중. DSM·SMB 는 노출하지 않는다.</li>
+<li>에이전트 두뇌(게이트웨이)는 하나(ADR-109). 대화 기록은 outbox 로 NAS 에 전달해 NAS 장애 시에도 유실하지 않으며, NAS 가 멈춰도 ERP 조회 대화는 계속된다.</li>
+<li>문서 색인은 NAS 내부에서 처리한다(조각 텍스트를 클라우드 DB 에 쌓지 않음).</li>
+<li><strong>대안(흡수)</strong>: v1 아웃바운드 전용 창고 — 야간 백업 기능만 흡수. <strong>대안(조건부)</strong>: NAS 에서 Agent SDK 실행(PoC) — 장시간 작업이 실측될 때 게이트웨이 모듈로 편입.</li>
+<li><strong>상태</strong>: Proposed — D-105(데이터 배치)·D-106(접속 경로) 채택 + D-104(NAS 보강) 조치 착수 시 Accepted. 관련 결정 D-94~D-99 · D-104~D-108(대시보드 의사결정 로그). 확인 7건 회신(2026-09-29): DNS 아이네임즈 사내 관리 · 외부 백업 없음(구축 필요)·UPS 가능 · itasset 사용량 작음 · 약 90명 · 대화기록 180일 유지 · 회사 계정 생성 가능 · 부서별 폴더 + 전사공유 폴더. 남은 선결 = NAS 외부 백업 구축(D-104).</li>
+<li><strong>근거</strong>: <a href="/docs/nas/review">13_NAS_고도화/00 타당성검토</a> · <a href="/docs/nas/plan">01 데이터계층 기획 v2</a> · <a href="/docs/nas/decision">02 의사결정 브리핑</a>.</li>
 </ul>
 <h3 id="adr-111-ai-api-2026-09-29">ADR-111 ✅ AI 비용 관제 = 벤더 API 실측 + 잔여예산은 관리자 입력값 역산 (2026-09-29 채택)</h3>
 <ul>
@@ -396,9 +396,9 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <td><strong>높음(12-09 데드라인)</strong></td>
 </tr>
 <tr>
-<td>사내 NAS 데이터 계층(운영 주체·문서 조각 클라우드 적재)</td>
+<td>사내 NAS 누적 계층(데이터 배치·접속 경로·도메인·보존·NAS 보강 — D-104~D-108)</td>
 <td>ADR-110</td>
-<td>중(N1 착수 전)</td>
+<td>중(N0 착수 전)</td>
 </tr>
 </tbody>
 </table>
