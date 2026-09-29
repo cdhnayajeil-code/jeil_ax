@@ -1,4 +1,4 @@
-// get_proposal_chain — 기안서 한 건의 연결 전체(REQ-0091 · 12_에이전트관리/04). 손으로 쓴 모듈.
+// get_proposal_chain — 기안서 한 건의 연결 전체(REQ-0092 · 12_에이전트관리/04). 손으로 쓴 모듈.
 //   기안서(권-번호) → 스캔본(문서중앙화 · 파일명·존재 여부만) → 전표(TG/GL)·대사 등급 → 세금계산서(국세청 승인번호)
 //   → 매입(IV) → 발주(PO) → 결재(PU)·구매요청(PR)
 // 원천: v_pur_proposal_case · pur_proposal · pur_proposal_scan(야간 자동 갱신 proposal_scan) ·

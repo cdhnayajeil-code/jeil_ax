@@ -1,4 +1,4 @@
--- 76_proposal_po_link.sql — 기안서 ↔ 발주(PO) 연결 뷰 + 기안서 대사 상세 래퍼(REQ-0091 · 12_에이전트관리/04)
+-- 76_proposal_po_link.sql — 기안서 ↔ 발주(PO) 연결 뷰 + 기안서 대사 상세 래퍼(REQ-0092 · 12_에이전트관리/04)
 --
 -- 기안서 대장(비ERP 엑셀)에는 발주번호 칸이 없다. 두 길로 잇는다(2026-09-29 실측 830건):
 --   ① 전표 경유(확정) — 대장 전표번호 → ERP 전표(TG).ref_no 또는 IV 번호 → 매입(iv_dtl).po_no     479건
@@ -62,7 +62,7 @@ select x.vol, x.no, x.vol || '-' || x.no, x.po_no,
  where (x.n_amt = 1 and x.amt_ok) or (x.n_amt <> 1 and x.n_all = 1);
 
 comment on view public.v_pur_proposal_po_link is
-  '기안서(권-번호) ↔ 발주(PO) 연결 — 전표 경유(확정: 대장 전표→ERP 전표 ref_no/IV→매입→PO) 우선, 없으면 추정(JOB번호=P-CODE+거래처+금액±2%). REQ-0091';
+  '기안서(권-번호) ↔ 발주(PO) 연결 — 전표 경유(확정: 대장 전표→ERP 전표 ref_no/IV→매입→PO) 우선, 없으면 추정(JOB번호=P-CODE+거래처+금액±2%). REQ-0092';
 
 grant select on public.v_pur_proposal_po_link to authenticated, service_role;
 revoke all on public.v_pur_proposal_po_link from anon;
