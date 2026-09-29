@@ -11,6 +11,15 @@ function toOpenAiMessages(msgs: ChatMsg[]): unknown[] {
         tool_calls: m.calls.map((c) => ({ id: c.id, type: "function", function: { name: c.name, arguments: c.args || "{}" } })) };
     }
     if (m.role === "tool") return { role: "tool", tool_call_id: m.call_id, content: m.content };
+    if (m.role === "user" && m.parts && m.parts.length) {
+      // 첨부(REQ-0089): 글자·이미지는 그대로, PDF 는 이 어댑터에서 읽지 않는다 → 안내 문구로 바꾼다(Claude 연결 시 원본 판독)
+      const content: unknown[] = m.parts.map((p) =>
+        p.kind === "image" ? { type: "image_url", image_url: { url: `data:${p.media};base64,${p.data}` } }
+        : p.kind === "pdf" ? { type: "text", text: `[첨부 파일: ${p.name}] (PDF — 지금 연결된 모델은 PDF 를 읽지 못합니다. 사용자에게 엑셀·CSV 로 다시 올리거나 Claude 연결 후 시도하라고 안내하세요.)` }
+        : { type: "text", text: `[첨부 파일: ${p.name}]\n${p.text}` });
+      content.push({ type: "text", text: m.content });
+      return { role: "user", content };
+    }
     return { role: m.role, content: m.content };
   });
 }

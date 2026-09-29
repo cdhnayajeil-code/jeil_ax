@@ -10,9 +10,18 @@ export type StreamState = {
   raw?: { vendor: string; content: unknown } | null;
   stop?: string | null;             // 벤더 stop_reason(refusal·max_tokens 판단용)
 };
+/** 사용자 첨부(REQ-0089). text = 화면이 글자로 푼 파일(CSV·엑셀·워드·텍스트), image·pdf = base64 원본.
+ *  note = 예산 초과·벤더 미지원으로 원본 대신 넣는 안내 문구. */
+export type Attachment =
+  | { kind: "text"; name: string; text: string }
+  | { kind: "image"; name: string; media: string; data: string }
+  | { kind: "pdf"; name: string; data: string }
+  | { kind: "note"; name: string; text: string };
+
 /** 대화 메시지 — 벤더 중립 표현. 어댑터가 자기 형식으로 바꾼다. */
 export type ChatMsg =
-  | { role: "system" | "user" | "assistant"; content: string }
+  | { role: "system" | "assistant"; content: string }
+  | { role: "user"; content: string; parts?: Attachment[] }
   | { role: "assistant_tools"; calls: ToolCall[]; raw?: { vendor: string; content: unknown } | null }
   | { role: "tool"; call_id: string; content: string };
 

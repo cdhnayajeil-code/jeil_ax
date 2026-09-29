@@ -47,7 +47,7 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
   <div class="content">
 <h1 id="00">00 · 현재상태 — 부서 에이전트</h1>
 <blockquote>
-<p>기준: 2026-09-29 · 사실만 적는다(추정·계획은 03 에). 바뀌면 이 문서부터 고친다.</p>
+<p>기준: 2026-09-29(첨부 기능 추가 반영) · 사실만 적는다(추정·계획은 03 에). 바뀌면 이 문서부터 고친다.</p>
 </blockquote>
 <h2 id="1">1. 한눈에</h2>
 <table>
@@ -97,7 +97,7 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <tr>
 <td><code>https://ai.jeilm.co.kr/work/purchase-agent</code></td>
 <td><code>pages/구매_AI에이전트_2026.html</code></td>
-<td>구성원·관리자(pilot) — 대화, 카드 CSV·자료함, 📄 보고서, 👍👎, HTML 코드 바로 보기</td>
+<td>구성원·관리자(pilot) — 대화, <strong>📎 파일 첨부(끌어다 놓기·붙여넣기)</strong>, 카드 CSV·자료함, 📄 보고서, 👍👎, HTML 코드 바로 보기</td>
 </tr>
 <tr>
 <td><code>https://ai.jeilm.co.kr/admin/agents?agent=purchase</code></td>
@@ -123,7 +123,7 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <tbody>
 <tr>
 <td>배포 버전</td>
-<td><strong>v3</strong>(ACTIVE · verify_jwt=false — Entra 토큰을 자체 검증)</td>
+<td><strong>v4</strong>(ACTIVE · verify_jwt=false — Entra 토큰을 자체 검증)</td>
 </tr>
 <tr>
 <td>입구</td>
@@ -181,7 +181,7 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 </tbody>
 </table>
 <p>굵게 = 이번에 새로 만든 5종.</p>
-<h2 id="5-db-sql-sql74_dept_agentsql-rollback">5. DB (정본 SQL <code>실제구축준비 자료/이관/sql/74_dept_agent.sql</code> · rollback 동봉)</h2>
+<h2 id="5-db-sql-sql74_dept_agentsql-75_agent_turn_attachmentssql-rollback">5. DB (정본 SQL <code>실제구축준비 자료/이관/sql/74_dept_agent.sql</code> + <code>75_agent_turn_attachments.sql</code> · rollback 동봉)</h2>
 <table>
 <thead>
 <tr>
@@ -204,7 +204,7 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 </tr>
 <tr>
 <td><code>agent_turn</code></td>
-<td>대화 턴 기록(질문·답변·도구 요약·모델·토큰·비용·판정·평가) — <strong>조회 결과 행·보고서 첨부 표는 저장 안 함</strong></td>
+<td>대화 턴 기록(질문·답변·도구 요약·모델·토큰·비용·판정·평가 · <code>attachments</code>=첨부 파일 이름·종류·크기만) — <strong>조회 결과 행·보고서 첨부 표·첨부 파일 원본/내용은 저장 안 함</strong></td>
 </tr>
 <tr>
 <td><code>agent_improve</code></td>
@@ -228,6 +228,53 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <li>전부 <strong>RLS 켜고 정책 없음</strong> → 브라우저(anon/authenticated)에서 직접 읽을 수 없다. 게이트웨이(service_role)만 접근.</li>
 <li>보조 RPC <code>agent_proposal_recon(upn)</code> — service_role 전용. 기안서 대사 원 함수를 로그인 사용자 권한으로 호출.</li>
 <li>모델 카탈로그 <code>ai_model</code>: <code>claude-sonnet-5</code>($2/$10) 추가 · <code>claude-haiku-4-5</code> 활성(분류·채점용). 운영 jeil-chat 은 OpenAI 만 부르므로 영향 없음.</li>
+</ul>
+<h2 id="5-1-req-0089-2026-09-29">5-1. 파일 첨부(REQ-0089 · 2026-09-29)</h2>
+<table>
+<thead>
+<tr>
+<th>형식</th>
+<th>처리</th>
+<th>한도</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>엑셀 <code>.xlsx/.xlsm</code></td>
+<td>브라우저에서 시트별 표 글자로 변환(날짜 서식은 날짜로)</td>
+<td>앞 5시트 · 시트당 3,000행</td>
+</tr>
+<tr>
+<td>CSV·TSV·TXT·MD·JSON·SQL·XML·HTML</td>
+<td>글자 그대로(한글 CSV 는 UTF-8/EUC-KR 자동 판별)</td>
+<td>파일당 6만 자 전달</td>
+</tr>
+<tr>
+<td>워드 <code>.docx</code></td>
+<td>문단·표를 글자로</td>
+<td>6만 자</td>
+</tr>
+<tr>
+<td>PDF</td>
+<td>원본을 모델에 전달 — <strong>Claude 연결 시에만 판독</strong>(지금 예비 모델은 "PDF 못 읽음" 안내)</td>
+<td>8MB</td>
+</tr>
+<tr>
+<td>이미지 PNG·JPG·GIF·WEBP</td>
+<td>원본 전달(두 벤더 모두 판독)</td>
+<td>5MB</td>
+</tr>
+<tr>
+<td><code>.xls</code>·<code>.hwp</code>·<code>.pptx</code>·<code>.doc</code></td>
+<td>거부 — xlsx·PDF 로 저장해 올리라고 안내</td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>한 번에 5개 · 요청당 글자 15만 자·바이너리 약 10MB. 대화가 이어지면 옛 첨부부터 빠진다(안내 문구로 대체).</li>
+<li><strong>주민등록번호 형식</strong>이 보이는 글자 첨부는 서버가 거부한다(§1.7).</li>
+<li>파일은 <strong>저장하지 않는다</strong> — 질문에만 쓰이고, 기록에는 이름·종류·크기만 남는다.</li>
 </ul>
 <h2 id="6-2026-09-28-d-87d-93-adr-109-accepted">6. 관리자 결정(2026-09-28, D-87~D-93 · ADR-109 Accepted)</h2>
 <table>

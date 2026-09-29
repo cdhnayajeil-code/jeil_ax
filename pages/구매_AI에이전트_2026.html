@@ -27,7 +27,26 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,Bl
 .box{background:#fff;border:1px solid var(--line);border-radius:10px;padding:12px 14px}
 .box h3{margin:0 0 8px;font-size:13.5px;color:var(--navy)}
 .box + .box{margin-top:10px}
-.chat{display:flex;flex-direction:column;height:calc(100vh - 190px);min-height:520px;padding:0;overflow:hidden}
+.chat{display:flex;flex-direction:column;height:calc(100vh - 190px);min-height:520px;padding:0;overflow:hidden;position:relative}
+/* 첨부(REQ-0089) — 대기열 · 끌어다 놓기 · 말풍선 속 파일 표시 */
+.tray{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:7px 12px;border-top:1px solid var(--line);background:#fbfcfe}
+.tray:empty{display:none}
+.fchip{display:inline-flex;gap:6px;align-items:center;font-size:12px;border:1px solid var(--line);background:#fff;border-radius:14px;padding:3px 6px 3px 10px;max-width:320px}
+.fchip .n{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600;color:var(--navy)}
+.fchip small{color:var(--muted);white-space:nowrap}
+.fchip button{border:0;background:none;cursor:pointer;color:var(--muted);font-size:13px;padding:0 3px}
+.fchip button:hover{color:var(--red)}
+.fchip.busy{opacity:.6}
+.tray .qa{font-size:11.5px;border:1px solid var(--accent);color:var(--accent);background:#fff;border-radius:12px;padding:2px 9px;cursor:pointer;font-family:inherit}
+.tray .qa:hover{background:var(--accent);color:#fff}
+.tray .sp{flex:1}
+.drop{position:absolute;inset:0;background:rgba(47,111,179,.1);border:3px dashed var(--accent);border-radius:10px;display:none;align-items:center;justify-content:center;z-index:5;pointer-events:none}
+.drop.on{display:flex}
+.drop div{background:#fff;border-radius:10px;padding:16px 22px;text-align:center;color:var(--navy);font-weight:700;box-shadow:0 4px 18px rgba(0,0,0,.12)}
+.drop small{display:block;font-weight:400;color:var(--muted);margin-top:4px}
+.ufiles{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px}
+.ufiles span{font-size:11.5px;background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.45);border-radius:10px;padding:1px 8px}
+.btn.clip{padding:7px 10px;font-size:15px;line-height:1}
 .log{flex:1;overflow-y:auto;padding:14px 16px;background:#fafbfd}
 .msg{display:flex;margin:0 0 14px}
 .msg.user{justify-content:flex-end}
@@ -79,19 +98,23 @@ details.trace div{font-family:Consolas,Menlo,monospace;word-break:break-all;padd
     <div class="right" id="me">-</div>
   </div>
   <div class="notice" id="notice">ℹ️ 품질 개선을 위해 질문과 답변이 기록됩니다. 조회 결과(금액 목록 등)는 기록하지 않습니다.
-    발주 확정·결재·발송 같은 실거래는 하지 않으며 초안까지만 만듭니다.</div>
+    발주 확정·결재·발송 같은 실거래는 하지 않으며 초안까지만 만듭니다. 첨부 파일은 저장하지 않고(이름·크기만 기록) 질문에만 쓰입니다 — <b>주민번호 등 개인정보가 든 파일은 올리지 마세요.</b></div>
 
   <div class="layout">
     <div class="box chat">
       <div class="log" id="log"><div class="empty" id="empty">무엇이든 물어보세요. 예) <b>이번 달 납기 지난 미입고 발주 거래처별로</b><br>
         답변의 표는 <b>CSV로 내려받거나 자료함에 저장</b>할 수 있고, <b>📄 보고서로 만들기</b>를 누르면 인쇄용 보고서가 만들어집니다.</div></div>
       <div class="chips" id="chips"></div>
+      <div class="tray" id="tray"></div>
       <div class="composer">
-        <textarea id="inp" placeholder="질문 입력 — Enter 전송 · Shift+Enter 줄바꿈"></textarea>
+        <button class="btn ghost clip" id="btnClip" type="button" title="파일 첨부 — 엑셀·CSV·워드·PDF·이미지 (끌어다 놓기·붙여넣기도 됩니다)">📎</button>
+        <input type="file" id="fileIn" multiple hidden>
+        <textarea id="inp" placeholder="질문 입력 — Enter 전송 · Shift+Enter 줄바꿈 · 파일은 📎 또는 끌어다 놓기"></textarea>
         <button class="btn" id="btnSend" type="button">보내기</button>
         <button class="btn ghost" id="btnStop" type="button" disabled>중지</button>
         <button class="btn ghost" id="btnNew" type="button" title="대화 비우기">새 대화</button>
       </div>
+      <div class="drop" id="drop"><div>📎 여기에 놓으면 첨부됩니다<small>엑셀(xlsx)·CSV·워드(docx)·PDF·이미지·텍스트 — 한 번에 5개까지</small></div></div>
     </div>
     <div>
       <div class="box">
@@ -117,6 +140,7 @@ details.trace div{font-family:Consolas,Menlo,monospace;word-break:break-all;padd
 
 <script type="module">
 import { op, chat, auth, toLogin, ApiError } from "/app/lib/agentApi.js";
+import { readAttachment, ACCEPT } from "/app/lib/filein.js";
 import { renderMd, renderView, viewTable, toCsv, downloadText, reportHtml, escHtml, attachCodeActions } from "/app/lib/chatview.js";
 
 const AGENT = "purchase";
@@ -165,10 +189,16 @@ async function saveArtifact(title, kind, content, turnId) {
 }
 
 /* ===== 대화 ===== */
-function addUser(text) {
+function addUser(text, files) {
   $("empty") && $("empty").remove();
   const m = document.createElement("div"); m.className = "msg user";
-  const b = document.createElement("div"); b.className = "bubble"; b.textContent = text; m.appendChild(b);
+  const b = document.createElement("div"); b.className = "bubble";
+  if (files && files.length) {
+    const fl = document.createElement("div"); fl.className = "ufiles";
+    files.forEach((f) => { const s = document.createElement("span"); s.textContent = "📎 " + f.name; s.title = f.label || ""; fl.appendChild(s); });
+    b.appendChild(fl);
+  }
+  b.appendChild(document.createTextNode(text)); m.appendChild(b);
   $("log").appendChild(m); $("log").scrollTop = $("log").scrollHeight;
 }
 function addBot(question) {
@@ -253,17 +283,22 @@ function askReport(rec) {
 }
 
 async function send(reportSrc, override) {
-  const text = override ? override.content : $("inp").value.trim();
-  if (!text || ctrl) return;
-  if (!override) $("inp").value = "";
-  addUser(override ? override.display : text);
-  hist.push({ role: "user", content: text });
+  if (ctrl) return;
+  if (!override && pending.some((p) => !p.part)) { toast("파일을 읽는 중입니다 — 잠시 후 보내세요"); return; }
+  const files = override ? [] : pending.filter((p) => p.part);
+  let text = override ? override.content : $("inp").value.trim();
+  if (!text && files.length) text = DEFAULT_Q;
+  if (!text) return;
+  if (!override) { $("inp").value = ""; pending = []; renderTray(); }
+  addUser(override ? override.display : text, files);
+  // 첨부는 그 질문에 붙어 다닌다 — 이어지는 질문에서도 서버가 다시 받아 맥락이 유지된다(넘치면 서버가 옛 첨부부터 뺀다)
+  hist.push(files.length ? { role: "user", content: text, attachments: files.map((f) => f.part), _files: files } : { role: "user", content: text });
   const rec = addBot(override ? reportSrc.question : text);
   rec.el.body.innerHTML = '<span class="hint">조회 중…</span>';
   ctrl = new AbortController();
   $("btnSend").disabled = true; $("btnStop").disabled = false;
   try {
-    await chat(AGENT, hist.slice(-20), {
+    await chat(AGENT, hist.slice(-20).map(({ _files, ...m }) => m), {
       onText: (c) => { rec.text += c; rec.el.body.innerHTML = renderMd(rec.text); $("log").scrollTop = $("log").scrollHeight; },
       onView: (v) => { rec.views.push(v); renderView(rec.el.views, v, { onAsk: (p) => ask(p), extraActions: cardActions(rec) }); },
       onEvent: (ev) => {
@@ -283,7 +318,12 @@ async function send(reportSrc, override) {
     finishTail(rec, reportSrc || null);
   } catch (e) {
     if (e.name === "AbortError") { rec.el.body.innerHTML = renderMd(rec.text) + '<div class="hint">⏹ 중지됨</div>'; hist.push({ role: "assistant", content: rec.text || "(중지)" }); }
-    else if (e.message !== "login") { rec.el.body.innerHTML = `<span style="color:var(--red)">⚠ ${escHtml(e.message)}</span>`; hist.pop(); }
+    else if (e.message !== "login") {
+      rec.el.body.innerHTML = `<span style="color:var(--red)">⚠ ${escHtml(e.message)}</span>`;
+      const last = hist.pop();
+      // 실패하면 첨부를 대기열로 되돌려 다시 보낼 수 있게 한다
+      if (last && last._files && !pending.length) { pending = last._files; renderTray(); }
+    }
   } finally {
     ctrl = null; $("btnSend").disabled = false; $("btnStop").disabled = true;
     $("log").scrollTop = $("log").scrollHeight;
@@ -291,9 +331,70 @@ async function send(reportSrc, override) {
 }
 $("btnSend").onclick = () => send();
 $("btnStop").onclick = () => { if (ctrl) ctrl.abort(); };
-$("btnNew").onclick = () => { hist = []; bots.length = 0; $("log").innerHTML = '<div class="empty" id="empty">새 대화를 시작합니다.</div>'; };
+$("btnNew").onclick = () => { hist = []; bots.length = 0; pending = []; renderTray(); $("log").innerHTML = '<div class="empty" id="empty">새 대화를 시작합니다.</div>'; };
 $("inp").addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); send(); } });
 $("chips").onclick = (e) => { const c = e.target.closest(".chip"); if (c) ask(c.dataset.q); };
+
+/* ===== 첨부(REQ-0089) — 📎 · 끌어다 놓기 · 붙여넣기 ===== */
+const DEFAULT_Q = "첨부한 자료를 검토해서 핵심을 요약해줘. 표라면 건수·합계·눈에 띄는 점을 알려줘.";
+let pending = [];   // [{ id, name, label, part|null(읽는 중) }]
+const MAX_FILES = 5;
+const QUICK = [
+  ["📊 요약", DEFAULT_Q],
+  ["🔎 ERP와 대조", "첨부한 목록의 발주번호·품목·거래처를 ERP 발주 데이터와 대조해서 상태(입고·매입 진행)와 다른 점을 알려줘. 많으면 대표 건부터."],
+  ["📄 보고서 초안", "첨부한 자료로 보고용 요약(요약 3줄 → 특이사항 → 조치 제안)을 써줘."],
+];
+function renderTray() {
+  const t = $("tray");
+  if (!pending.length) { t.innerHTML = ""; return; }
+  t.innerHTML = pending.map((p) => `<span class="fchip${p.part ? "" : " busy"}"><span class="n" title="${escHtml(p.name)}">📎 ${escHtml(p.name)}</span>`
+      + `<small>${escHtml(p.part ? p.label : "읽는 중…")}</small><button type="button" data-del="${p.id}" title="빼기">✕</button></span>`).join("")
+    + `<span class="sp"></span>`
+    + QUICK.map(([l, q], i) => `<button class="qa" type="button" data-qi="${i}">${l}</button>`).join("");
+}
+$("tray").onclick = (e) => {
+  const d = e.target.closest("[data-del]"); if (d) { pending = pending.filter((p) => String(p.id) !== d.dataset.del); renderTray(); return; }
+  const q = e.target.closest("[data-qi]"); if (q) { $("inp").value = QUICK[+q.dataset.qi][1]; $("inp").focus(); }
+};
+let fileSeq = 0;
+async function addFiles(list) {
+  const files = Array.from(list || []);
+  if (!files.length) return;
+  const room = MAX_FILES - pending.length;
+  if (room <= 0) { toast(`파일은 한 번에 ${MAX_FILES}개까지입니다`); return; }
+  if (files.length > room) toast(`${MAX_FILES}개까지만 첨부합니다 — ${files.length - room}개 제외`);
+  const jobs = files.slice(0, room).map((f) => { const it = { id: ++fileSeq, name: f.name, label: "", part: null }; pending.push(it); return [it, f]; });
+  renderTray();
+  for (const [it, f] of jobs) {
+    const r = await readAttachment(f);
+    if (r.ok) { it.part = r.part; it.label = r.label; }
+    else { pending = pending.filter((p) => p !== it); toast(r.error); }
+    renderTray();
+  }
+  $("inp").focus();
+}
+$("fileIn").accept = ACCEPT;
+$("btnClip").onclick = () => $("fileIn").click();
+$("fileIn").onchange = (e) => { addFiles(e.target.files); e.target.value = ""; };
+// 끌어다 놓기 — 대화 상자 전체가 받는다. 자식 요소를 지날 때 깜빡이지 않게 카운터로 센다.
+let dragN = 0;
+const chatBox = document.querySelector(".chat");
+const hasFiles = (e) => !!e.dataTransfer && Array.from(e.dataTransfer.types || []).includes("Files");
+chatBox.addEventListener("dragenter", (e) => { if (!hasFiles(e)) return; e.preventDefault(); dragN++; $("drop").classList.add("on"); });
+chatBox.addEventListener("dragover", (e) => { if (!hasFiles(e)) return; e.preventDefault(); e.dataTransfer.dropEffect = "copy"; });
+chatBox.addEventListener("dragleave", () => { dragN = Math.max(0, dragN - 1); if (!dragN) $("drop").classList.remove("on"); });
+chatBox.addEventListener("drop", (e) => { if (!hasFiles(e)) return; e.preventDefault(); dragN = 0; $("drop").classList.remove("on"); addFiles(e.dataTransfer.files); });
+// 대화 상자 밖에 떨어뜨려도 브라우저가 파일을 열어 화면을 떠나지 않게
+window.addEventListener("dragover", (e) => { if (hasFiles(e)) e.preventDefault(); });
+window.addEventListener("drop", (e) => { if (hasFiles(e)) e.preventDefault(); });
+// 붙여넣기 — 캡처한 이미지·복사한 파일
+$("inp").addEventListener("paste", (e) => {
+  const fs = Array.from((e.clipboardData && e.clipboardData.files) || []);
+  if (!fs.length) return;
+  e.preventDefault();
+  addFiles(fs.map((f, i) => (f.name && f.name !== "image.png") ? f
+    : new File([f], `붙여넣은_이미지_${i + 1}.${(f.type.split("/")[1] || "png")}`, { type: f.type })));
+});
 
 /* ===== 진입 — 서버가 구성원·관리자 판정(403 이면 차단 화면) ===== */
 (async () => {

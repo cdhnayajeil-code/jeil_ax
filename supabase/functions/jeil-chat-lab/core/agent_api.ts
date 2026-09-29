@@ -17,6 +17,50 @@ import {
 } from "./agent.ts";
 import { converse } from "./engine.ts";
 import type { ChatMsg } from "../llm/index.ts";
+import type { Attachment } from "../llm/types.ts";
+
+/* ───── 첨부 파일 검사(REQ-0089) ─────
+   화면이 글자로 푼 파일(text)·이미지·PDF 를 질문에 붙여 보낸다. 서버는 원본을 저장하지 않고, 여기서 형식·크기·민감정보만 본다.
+   대화가 이어지면 화면이 이전 첨부도 다시 보내므로, **최신 질문부터** 예산을 채우고 넘치는 옛 첨부는 안내 문구로 바꾼다. */
+const ATT = { maxFiles: 5, textChars: 60_000, totalText: 150_000, imageB64: 7_000_000, pdfB64: 11_000_000, totalB64: 14_000_000 };
+const IMG_TYPES = ["image/png", "image/jpeg", "image/gif", "image/webp"];
+const RRN = /\b\d{6}\s?-\s?[1-4]\d{6}\b/;   // 주민등록번호 형식(§1.7) — 발견하면 거부
+function checkAttachments(messages: ChatMsg[]): { error?: string; meta: { name: string; kind: string; chars?: number; bytes?: number }[] } {
+  let textLeft = ATT.totalText, b64Left = ATT.totalB64;
+  let meta: { name: string; kind: string; chars?: number; bytes?: number }[] = [];
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const m = messages[i];
+    if (m.role !== "user" || !m.parts) continue;
+    const latest = i === messages.length - 1;
+    if (m.parts.length > ATT.maxFiles) return { error: `파일은 한 번에 ${ATT.maxFiles}개까지 첨부할 수 있습니다.`, meta: [] };
+    const out: Attachment[] = [];
+    for (const raw of m.parts as unknown[]) {
+      const p = (raw || {}) as Record<string, unknown>;
+      const name = String(p.name || "첨부").replace(/[\r\n]/g, " ").slice(0, 120);
+      if (p.kind === "text" && typeof p.text === "string") {
+        const text = p.text.slice(0, ATT.textChars);
+        if (RRN.test(text)) return { error: `'${name}' 에 주민등록번호로 보이는 값이 있어 보낼 수 없습니다. 해당 열을 지우고 다시 첨부해 주세요.`, meta: [] };
+        if (text.length > textLeft) { out.push({ kind: "note", name, text: `(이전 첨부 '${name}' 은 대화가 길어 제외 — 필요하면 다시 첨부)` }); continue; }
+        textLeft -= text.length;
+        out.push({ kind: "text", name, text: text + (p.text.length > ATT.textChars ? `\n…(이하 ${p.text.length - ATT.textChars}자 생략)` : "") });
+        if (latest) meta.push({ name, kind: "text", chars: p.text.length });
+      } else if ((p.kind === "image" || p.kind === "pdf") && typeof p.data === "string" && /^[A-Za-z0-9+/=]+$/.test(p.data.slice(0, 200))) {
+        const media = p.kind === "pdf" ? "application/pdf" : String(p.media || "");
+        if (p.kind === "image" && !IMG_TYPES.includes(media)) return { error: `'${name}' — 이미지는 PNG·JPG·GIF·WEBP 만 됩니다.`, meta: [] };
+        const cap = p.kind === "pdf" ? ATT.pdfB64 : ATT.imageB64;
+        if (p.data.length > cap) return { error: `'${name}' 이 너무 큽니다(${p.kind === "pdf" ? "PDF 8MB" : "이미지 5MB"} 이하).`, meta: [] };
+        if (p.data.length > b64Left) { out.push({ kind: "note", name, text: `(이전 첨부 '${name}' 은 대화가 길어 제외 — 필요하면 다시 첨부)` }); continue; }
+        b64Left -= p.data.length;
+        out.push(p.kind === "pdf" ? { kind: "pdf", name, data: p.data } : { kind: "image", name, media, data: p.data });
+        if (latest) meta.push({ name, kind: p.kind, bytes: Math.round(p.data.length * 0.75) });
+      }
+    }
+    // note 는 글자 조각으로 바꿔 넣는다(어댑터는 text·image·pdf 만 안다)
+    m.parts = out.map((a) => a.kind === "note" ? { kind: "text", name: a.name, text: a.text } : a);
+  }
+  meta = meta.reverse();
+  return { meta };
+}
 
 export type AgentCtx = {
   // deno-lint-ignore no-explicit-any
@@ -376,8 +420,12 @@ async function chat(c: AgentCtx, agent: AgentRow, role: AgentRole, body: Record<
     .filter((m: any) => (m.role === "user" || m.role === "assistant") && typeof m.content === "string" && m.content.trim())
     .slice(-c.ai.max_messages)
     // deno-lint-ignore no-explicit-any
-    .map((m: any) => ({ role: m.role, content: m.content.slice(0, MAX_MSG_CHARS) }));
+    .map((m: any) => (m.role === "user" && Array.isArray(m.attachments) && m.attachments.length
+      ? { role: "user" as const, content: m.content.slice(0, MAX_MSG_CHARS), parts: m.attachments as unknown as Attachment[] }
+      : { role: m.role, content: m.content.slice(0, MAX_MSG_CHARS) }));
   if (!messages.length || messages[messages.length - 1].role !== "user") return json({ error: "마지막 메시지는 사용자 질문이어야 합니다." }, 400);
+  const att = checkAttachments(messages);
+  if (att.error) return json({ error: att.error }, 400);
   const total = messages.reduce((n, m) => n + ("content" in m ? String(m.content).length : 0), 0);
   if (total > c.ai.max_total_chars) return json({ error: "대화가 너무 깁니다. 새 대화로 시작하세요." }, 400);
 
@@ -452,6 +500,7 @@ async function chat(c: AgentCtx, agent: AgentRow, role: AgentRole, body: Record<
         try {
           const { data } = await admin.from("agent_turn").insert({
             agent_key: agent.agent_key, agent_version: v.version, upn: scope.upn, dept_nm: scope.dept, question: qStore.slice(0, 4000),
+            attachments: att.meta,   // 이번 질문에 붙은 파일의 이름·종류·크기만(원본·내용은 저장하지 않는다)
             answer: personal ? null : (res?.answer || "").slice(0, 20000), tools, model, fallback_used: !!res?.fallbackUsed,
             prompt_tokens: st.pt || null, completion_tokens: st.ct || null, cache_read_tokens: st.cr || null,
             est_cost_usd: Number(cost.toFixed(6)), latency_ms: latency, rounds: res?.rounds || 0, flags, chat_log_id: logId,

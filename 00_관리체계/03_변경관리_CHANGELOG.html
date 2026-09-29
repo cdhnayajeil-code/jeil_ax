@@ -109,6 +109,13 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <tbody>
 <tr>
 <td>2026-09-29</td>
+<td>챗봇 · 부서 에이전트(첨부)</td>
+<td><code>app/lib/filein.js</code>(신규) · <code>pages/구매_AI에이전트_2026.html</code> · <code>jeil-chat-lab</code> v4(<code>llm/types.ts</code>·<code>anthropic.ts</code>·<code>openai.ts</code>·<code>core/agent_api.ts</code>) · SQL 75 · 12_에이전트관리 00~03</td>
+<td><strong>구매 에이전트에 파일 첨부·끌어다 놓기·붙여넣기를 붙였다</strong>(REQ-0089 · 관리자 지시). 엑셀(xlsx)·CSV·워드(docx)는 <strong>브라우저에서 글자로</strong> 풀고(외부 라이브러리 없이 내장 ZIP 해제 · 한글 CSV 인코딩 판별 · 엑셀 날짜 서식 복원), PDF·이미지는 원본을 모델에 넘긴다(PDF 는 Claude 연결 시 판독). 서버가 형식·크기·개수·<strong>주민번호 형식</strong>을 검사하고, 이어지는 질문에서는 최신부터 예산을 채워 옛 첨부를 뺀다. <strong>파일은 저장하지 않는다</strong> — <code>agent_turn.attachments</code> 에 이름·종류·크기만(SQL 75, 열 추가). 첨부 시 📊요약·🔎ERP와 대조·📄보고서 초안 버튼. 검증: 실제 xlsx·docx·EUC-KR CSV 판독 테스트 · strict 타입검사 · 문법검사 · 함수 v4 ACTIVE</td>
+<td>최동혁(+Claude)</td>
+</tr>
+<tr>
+<td>2026-09-29</td>
 <td>문서 · 에이전트관리</td>
 <td><code>12_에이전트관리/</code>(신규: README·index·00~03·_build_html.py) · <code>_routes.py</code>(<code>/docs/agents/*</code> 5줄) · <code>CLAUDE.md</code>(폴더 지도·§10 갱신 규칙) · 문서대장 §3-2</td>
 <td><strong>부서 에이전트 관리를 별도 폴더로 모았다</strong>(관리자 지시). 기획(왜)은 <code>11_제품기획/14</code> 에 두고, 지금 상태·역할별 운영 절차·개발 규칙·진행 이력을 <code>12_에이전트관리/</code> 단일 출처로. 현재상태는 DB 실측으로 작성(구매 pilot · v1 · 누적 11턴 전부 gpt-4.1-mini = Anthropic 키 미등록 · 구성원 1명 · 골든셋 0).</td>

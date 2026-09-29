@@ -35,6 +35,16 @@ function toClaude(msgs: ChatMsg[]): { system: string; messages: Block[] } {
       out.push({ role: "assistant", content });
       continue;
     }
+    if (m.role === "user" && m.parts && m.parts.length) {
+      // 첨부는 질문보다 앞에 둔다(긴 자료 → 질문 순서가 답이 좋다). PDF 는 document 블록으로 Claude 가 직접 읽는다.
+      const blocks: Block[] = m.parts.map((p) =>
+        p.kind === "pdf" ? { type: "document", source: { type: "base64", media_type: "application/pdf", data: p.data }, title: p.name }
+        : p.kind === "image" ? { type: "image", source: { type: "base64", media_type: p.media, data: p.data } }
+        : { type: "text", text: `[첨부 파일: ${p.name}]\n${p.text}` });
+      blocks.push({ type: "text", text: m.content });
+      out.push({ role: "user", content: blocks });
+      continue;
+    }
     out.push({ role: m.role, content: m.content });
   }
   return { system, messages: out };
