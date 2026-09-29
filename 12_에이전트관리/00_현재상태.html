@@ -76,7 +76,7 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 </tr>
 <tr>
 <td>누적(09-28~)</td>
-<td>대화 11턴 · 개선 대장 3건 · 용어집 <strong>17개</strong>(활성, PR·PU·PO·기안서 연결 포함) · 골든셋 <strong>11문항</strong>(09-29 등록, 회귀 미실행) · 생성 자료 1건 · 비용 약 $0.05</td>
+<td>대화 11턴 · 개선 대장 3건 · 용어집 <strong>13개</strong>(활성, PR·PU·PO 체계 포함) · 골든셋 <strong>8문항</strong>(09-29 등록, 회귀 미실행) · 생성 자료 1건 · 비용 약 $0.05</td>
 </tr>
 <tr>
 <td>운영 한도</td>
@@ -141,7 +141,7 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <tbody>
 <tr>
 <td>배포 버전</td>
-<td><strong>v6</strong>(ACTIVE · verify_jwt=false — Entra 토큰을 자체 검증)</td>
+<td><strong>v5</strong>(ACTIVE · verify_jwt=false — Entra 토큰을 자체 검증)</td>
 </tr>
 <tr>
 <td>입구</td>
@@ -153,7 +153,7 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 </tr>
 <tr>
 <td>도구</td>
-<td>25종 = 운영 이전 19종(<code>modules/index.ts</code>, 자동 생성) + 에이전트용 6종(<code>modules/extra.ts</code>)</td>
+<td>24종 = 운영 이전 19종(<code>modules/index.ts</code>, 자동 생성) + 에이전트용 5종(<code>modules/extra.ts</code>)</td>
 </tr>
 <tr>
 <td>구매 에이전트 도구 묶음</td>
@@ -187,9 +187,9 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <td><code>pur_order</code></td>
 </tr>
 <tr>
-<td><strong>기안서 대장</strong>(스캔본 파일명 v1.1) · <strong>기안서↔전표 대사</strong> · <strong>기안서 연결 추적</strong>(스캔본·전표·세금계산서·발주·결재)</td>
-<td><code>get_pur_proposal</code> · <code>get_proposal_recon</code> · <code>get_proposal_chain</code></td>
-<td>기안서 대장 화면 권한(<code>purchase_proposal_2026</code>) — 발주 부분은 <code>pur_order</code></td>
+<td><strong>기안서 대장</strong> · <strong>기안서↔전표 대사</strong></td>
+<td><code>get_pur_proposal</code> · <code>get_proposal_recon</code></td>
+<td>기안서 대장 화면 권한(<code>purchase_proposal_2026</code>)</td>
 </tr>
 <tr>
 <td>품목 검색 · 외주검사 현황 · 내 권한 · 내 요청 · 문서 검색</td>
@@ -247,34 +247,6 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <li>보조 RPC <code>agent_proposal_recon(upn)</code> — service_role 전용. 기안서 대사 원 함수를 로그인 사용자 권한으로 호출.</li>
 <li>모델 카탈로그 <code>ai_model</code>: <code>claude-sonnet-5</code>($2/$10) 추가 · <code>claude-haiku-4-5</code> 활성(분류·채점용). 운영 jeil-chat 은 OpenAI 만 부르므로 영향 없음.</li>
 </ul>
-<h2 id="4-1-req-0091-2026-09-29">4-1. 기안서 연결·스캔 목록(REQ-0091 · 2026-09-29)</h2>
-<table>
-<thead>
-<tr>
-<th>항목</th>
-<th>상태</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>기안서 ↔ 발주 연결</td>
-<td>830건 중 <strong>668건</strong> — 확정(전표 경유) 479 · 추정 189 (뷰 <code>v_pur_proposal_po_link</code>, SQL 76)</td>
-</tr>
-<tr>
-<td>스캔본</td>
-<td>821/830 있음 · 파일명·존재 여부만 · <strong>예약작업 <code>JEIL_AX_ProposalScan</code>(이 PC · 30분 간격 · 밤 20시 이후 1회)</strong> · 마지막 갱신 09-29 15:18</td>
-</tr>
-<tr>
-<td>기안서 대장 적재</td>
-<td>⚠ 09-22 이후 멈춤(러너 작업 <code>proposal_ledger</code> 꺼짐 · 이 PC 에는 대장 경로 <code>PROPOSAL_LEDGER_XLSX</code> 미설정) — 9-831 이후 기안 미반영</td>
-</tr>
-<tr>
-<td>러너</td>
-<td>소스 <strong>r1.8</strong>(작업 <code>proposal_scan</code> · 서브커맨드 <code>scan</code>) · EXE 빌드 완료 · <strong>전달 폴더 동기화 미완</strong>(동기 경로가 다른 PC 사용자 폴더) · 서버 교체 대기</td>
-</tr>
-</tbody>
-</table>
-<p>상세: <a href="/docs/agents/purchase-domain">04 구매도메인 §6</a>.</p>
 <h2 id="5-1-req-0089-2026-09-29">5-1. 파일 첨부(REQ-0089 · 2026-09-29)</h2>
 <table>
 <thead>

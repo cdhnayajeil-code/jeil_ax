@@ -57,11 +57,6 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <p><strong>파일럿(2주)</strong>
 - [ ] 개선 대장 매일 처리(담당자) · 주 1회 관리자 점검
 - [ ] 파일럿 종료 판정: 👍 비율 · 판정 걸림 비율 · 비용 → 운영(live) 전환 여부</p>
-<p><strong>기안서 연결·스캔 자동화(REQ-0091) 후속 — 사람</strong>
-- [ ] 러너 r1.8 EXE 전달 폴더 동기화 — <code>_sync_relay.py</code> 의 동기 경로(<code>.claude/erp_relay.path</code>)가 다른 PC 사용자 폴더라 이 PC 에서 실패. 그 PC 에서 실행하거나 경로 갱신
-- [ ] ERP 서버 러너 r1.8 교체(관리자) — 서버에서는 <code>proposal_scan</code> 이 능력 판정으로 꺼진다(Destiny 없음)
-- [ ] <strong>기안서 대장 적재 재가동</strong> — 09-22 이후 멈춤(9-831~ 미반영). 대장 엑셀이 동기화된 PC 의 <code>.env</code> 에 <code>PROPOSAL_LEDGER_XLSX</code> 를 넣고 러너 작업 <code>proposal_ledger</code> 를 켜거나 예약작업 추가
-- [ ] 오늘 밤 20시 이후 첫 자동 갱신 확인(<code>logs/proposal_scan.log</code>)</p>
 <p><strong>후속 개발(백로그 등록 대상)</strong>
 - [ ] 실험실 화면 렌더를 <code>chatview.js</code> 로 이전
 - [ ] 포털 부서 카드(<code>portal_page</code>) 등재
@@ -127,8 +122,7 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 </tbody>
 </table>
 <p>| 2026-09-29 | <strong>AI 비용·예산 관제</strong>: 관리자 콘솔 「💳 AI 비용·예산」 탭 신설(두 벤더 실사용·예산/충전 잔여 역산·모델 단가 비교·모델별 사용량·일별 추이·오케스트레이션 배정) · <code>/admin/api-setup</code> 신설(키 4종 현황·발급·검증·등록 절차) · SQL 76 <code>ai_vendor_budget</code> · 함수 <code>jeil-chat-admin</code> v13(액션 3종) · ADR-111 Accepted | (이번 커밋) · admin v17 | 0091 |
-| 2026-09-29 | <strong>PR·PU·PO 번호 체계 반영</strong>: <code>search_pur_list</code> v1.1(pr·pu·po 로 연결 추적 + 해석 문장 · 카드에 세 번호) · 공통 프롬프트 PU 형식 · 용어집 10개 추가(13개) · 골든셋 8문항 · 제안 칩 2개 · 문서 04 신설 | <code>2d4b211</code> · 함수 v5 | 0090 |
-| 2026-09-29 | <strong>기안서 ↔ 스캔본 ↔ 전표 ↔ 발주 연결</strong>: SQL 76(연결 뷰 · 대사 상세 래퍼) · <code>get_proposal_chain</code> · <code>get_pur_proposal</code> v1.1(스캔 파일명) · 용어집 4·골든셋 3·칩 1 · <strong>스캔 목록 야간 자동</strong>(<code>proposal_scan.py</code> · 러너 r1.8 작업 <code>proposal_scan</code> · 이 PC 예약작업 <code>JEIL_AX_ProposalScan</code>) · 관리자 결정: 스캔본은 파일명·존재 여부만 | (이번 커밋) · 함수 v6 | 0091 |</p>
+| 2026-09-29 | <strong>PR·PU·PO 번호 체계 반영</strong>: <code>search_pur_list</code> v1.1(pr·pu·po 로 연결 추적 + 해석 문장 · 카드에 세 번호) · 공통 프롬프트 PU 형식 · 용어집 10개 추가(13개) · 골든셋 8문항 · 제안 칩 2개 · 문서 04 신설 | (이번 커밋) · 함수 v5 | 0090 |</p>
 <h2 id="3-09_adr">3. 결정 기록(요약 — 정본은 09_ADR · 총괄 대시보드)</h2>
 <table>
 <thead>
@@ -139,11 +133,6 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 </tr>
 </thead>
 <tbody>
-<tr>
-<td>관리자</td>
-<td>기안서 스캔본은 <strong>파일명·존재 여부만</strong>(내용 읽기 불필요) · 스캔 목록은 ETL 에 넣어 <strong>매일 밤 자동</strong> 갱신</td>
-<td>09-29</td>
-</tr>
 <tr>
 <td>D-87</td>
 <td>Claude 호출 경로: 회사 명의 Anthropic Console 조직, 키 신규 발급</td>

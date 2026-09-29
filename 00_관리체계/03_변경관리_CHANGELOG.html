@@ -109,9 +109,9 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <tbody>
 <tr>
 <td>2026-09-29</td>
-<td>챗봇 · 부서 에이전트(기안서 연결) · ERP 연계(러너)</td>
-<td>SQL 76(신규) · <code>modules/purchase/get_proposal_chain.ts</code>(신규) · <code>get_pur_proposal.ts</code> v1.1 · <code>jeil-chat-lab</code> v6 · <code>10_ERP_DB연계/etl/proposal_scan.py</code>·<code>test_proposal_scan.py</code>(신규) · <code>runner_core.py</code>·<code>jeil_runner.py</code>(r1.8) · <code>deploy/build_exe.py</code>·<code>register_scan_task.ps1</code>(신규)·<code>변경관리.md</code> · 12_에이전트관리 00·02·03·04</td>
-<td><strong>기안서 ↔ 스캔본 ↔ 전표 ↔ 발주를 한 줄로 잇고, 스캔 목록을 매일 밤 자동 갱신하게 했다</strong>(REQ-0091 · 관리자 결정: 스캔본은 파일명·존재 여부만). 기안서 대장에는 발주번호가 없어 ① 확정 = 대장 전표 → ERP 전표 → 매입(IV) → 발주 479건 ② 추정 = JOB번호(=P-CODE)·거래처·금액 189건으로 이었다 — 둘 다 되는 351건 중 98.3% 일치, 합계 668/830건(뷰 <code>v_pur_proposal_po_link</code>). 도구 <code>get_proposal_chain</code> 이 권-번호 또는 PO·PU·PR 로 기안→스캔본→전표·세금계산서→발주→결재·요청을 한 장으로(추정은 추정이라고 밝힘). 스캔 목록: 문서중앙화는 로그인된 PC 의 탐색기 창에만 열려 <code>proposal_scan.py</code> 가 탐색기 창 경유로 파일 이름·크기·수정일만 읽고(복사·열람 없음), 이 PC 예약작업 <code>JEIL_AX_ProposalScan</code>(일반 권한·30분 간격)이 밤 20시 이후 첫 가능 회차에 1회 갱신(잠겨 있었으면 아침에 따라잡음). 첫 실행 838파일·821/830 스캔 있음(종전 819). 안전장치: 0개·절반 미만이면 적재 안 함. 러너 r1.8(작업 <code>proposal_scan</code>·서브커맨드 <code>scan</code>) EXE 빌드 — <strong>전달 폴더 동기화는 동기 경로가 다른 PC 사용자 폴더라 미완</strong>. 발견: 기안서 대장 적재가 09-22 이후 멈춤(9-831~ 미반영). 검증: 러너 회귀 116건 · 실데이터 도구 실행(8-770 전 단계·역조회·권한 없음) · 실제 폴더 dry-run·적재 · 예약작업 실행 결과 0</td>
+<td>거버넌스</td>
+<td><code>00_관리체계/index.html</code>(AX_DASH <code>timeline</code>)</td>
+<td><strong>총괄 대시보드 타임라인 압축 — 90일 경과분을 월 단위 1줄로</strong>(관리자 지시). <code>timeline</code> 이 150건으로 압축 기준(120건)을 넘어, 규칙대로 90일 경과선(기준일 2026-09-29 → 2026-07-01) 이전 항목을 접었다. 대상은 <strong>2026-06 의 11건뿐</strong>이었고(그 중 1건은 이전 압축 패스가 만든 「[2026-06 요약]」 줄이라 함께 다시 접었다), 결과 <strong>150 → 140건</strong>. 요약 줄은 원문 11줄에 있는 사실만 일자 순으로 엮었다(프로젝트 개시·Entra MFA 전환·규정 챗봇 조문 교체·설문 집계·협력사 포털 PWA·관리자 주도 발급·Supabase 실연동·Entra 브리지·Vercel 일원화·계정 엑셀 일괄발급·관리체계 허브 신설). area 는 이전 패스 선례를 따라 <code>거버넌스</code> 를 재사용했다(칩 신설 금지) — 대가로 <strong><code>이관·인프라</code> 칩이 사라졌다</strong>(6월 전용 태그였다). ⚠ <strong>압축 후에도 140건으로 120건 기준을 여전히 넘는다</strong> — 최근 90일이 유독 촘촘해서다(7월 60 · 8월 23 · 9월 56). 규칙은 90일 경과분까지만 접으라고 하므로 더 접지 않았다. 7월까지 접으면 81건이 되지만 최근 이력이 한 줄로 뭉개지므로 관리자 판단이 필요하다. 검증: JS 파싱 · 유지분 139건 원문 무손상 대조 · timeline 밖 무변경 · KPI 최근 13일 건수 42건 불변</td>
 <td>최동혁(+Claude)</td>
 </tr>
 <tr>
