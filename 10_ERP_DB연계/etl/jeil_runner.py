@@ -57,6 +57,7 @@ CLI_TOOLS = {
     "mailbox":  ("exo_admin",      "Exchange 사서함 공유 전환(기본 dry-run)"),
     "roleseed": ("seed_role_standard", "부서 표준 ERP role 세트 시드(엑셀→매핑→DB)"),
     "proposal": ("proposal_ledger",   "구매 기안서 대장(엑셀) → 중간DB 적재"),
+    "scan":     ("proposal_scan",     "기안서 스캔본 목록(문서중앙화) → 중간DB — 파일명·존재 여부만"),
 }
 
 
@@ -223,6 +224,16 @@ def _run_kind(kind, params, root):
         import proposal_ledger as pl
         pl.collect(file=(params.get("file") or None), scan=(params.get("scan") or None),
                    dry=bool(params.get("dry_run")), replace=not bool(params.get("append")))
+        return 0
+
+    if kind == "proposal_scan":
+        # 이 호스트가 못 하면 사유를 남기고 끝낸다(§17.6) — 조용히 성공 처리하지 않는다
+        caps = core.detect_capabilities(root)
+        if not caps.get("proposal_scan"):
+            print("[proposal_scan] 이 호스트는 문서중앙화 스캔본 폴더를 볼 수 없습니다(Destiny 미설치 또는 PROPOSAL_SCAN_DIR 없음)")
+            return 1
+        import proposal_scan as ps
+        ps.collect(dry=bool(params.get("dry_run")), nightly=True, force=bool(params.get("force")))
         return 0
 
     if kind == "etl_batch":

@@ -6,5 +6,6 @@ import * as vendorPurchase from "./purchase/get_vendor_purchase.ts";
 import * as purProposal from "./purchase/get_pur_proposal.ts";
 import * as proposalRecon from "./purchase/get_proposal_recon.ts";
 import * as vendorProfile from "./purchase/get_vendor_profile.ts";
+import * as proposalChain from "./purchase/get_proposal_chain.ts";
 
-export const EXTRA_MODULES: ToolModule[] = [searchPurList, vendorPurchase, purProposal, proposalRecon, vendorProfile];
+export const EXTRA_MODULES: ToolModule[] = [searchPurList, vendorPurchase, purProposal, proposalRecon, vendorProfile, proposalChain];

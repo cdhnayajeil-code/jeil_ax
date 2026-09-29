@@ -102,6 +102,13 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <li>서버: <code>core/agent_api.ts checkAttachments()</code> — 형식·크기·개수·주민번호 형식 검사, <strong>최신 질문부터</strong> 예산(글자 15만·base64 14MB)을 채우고 넘치는 옛 첨부는 안내 문구로 바꾼다. 기록은 <code>agent_turn.attachments</code> 에 이름·종류·크기만.</li>
 <li>어댑터: <code>ChatMsg</code> 사용자 메시지의 <code>parts</code> → Anthropic 은 document(PDF)·image·text 블록, OpenAI 는 image_url·text(PDF 는 안내 문구).</li>
 </ul>
+<h2 id="4-2-req-0091">4-2. 기안서 스캔 목록 자동 갱신(REQ-0091)</h2>
+<ul>
+<li><code>10_ERP_DB연계/etl/proposal_scan.py</code> — 탐색기 창(Shell COM) 경유로 파일 이름·크기·수정일만 읽는다(<code>os.listdir</code>·<code>Get-ChildItem</code>·<code>Shell.Namespace</code> 직접 접근은 문서중앙화가 거부). 복사·열람 동사는 쓰지 않는다.</li>
+<li>러너: 작업 종류 <code>proposal_scan</code>(기본 꺼짐 · 30분 간격 · 능력 <code>proposal_scan</code> = Windows + <code>C:\Cyberdigm</code> + <code>.env</code> <code>PROPOSAL_SCAN_DIR</code>), 서브커맨드 <code>jeil_runner scan</code>, 빌드 hidden 등록. 회귀 <code>test_proposal_scan.py</code> 12건.</li>
+<li>이 PC 는 러너 전체를 띄우지 않고 예약작업 <code>JEIL_AX_ProposalScan</code> 하나만 둔다(<code>etl/deploy/register_scan_task.ps1</code>) — 러너 기본 작업(결의전표 전송·요청 처리)이 ERP 서버 러너와 중복되지 않게.</li>
+<li>⚠ 경로에 <code>\11</code>·<code>\04</code> 같은 부분이 있어 Bash heredoc 속 Python 문자열로 쓰면 8진 이스케이프로 깨진다(09-29 실제 발생). <code>.env</code> 편집은 <code>chr(92)</code> 로.</li>
+</ul>
 <h2 id="5">5. 보안 원칙(바꾸지 말 것)</h2>
 <ul>
 <li>권한은 서버에서: 역할(<code>roleOf</code>) · 도구 주입(<code>visibleTo</code>) · 실행 직전 재판정(<code>gateDeny</code>) 3중.</li>

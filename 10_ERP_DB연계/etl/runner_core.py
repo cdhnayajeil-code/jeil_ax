@@ -35,7 +35,7 @@ import sys
 import threading
 import time
 
-RUNNER_VERSION = "r1.7"
+RUNNER_VERSION = "r1.8"
 CONFIG_NAME = "runner_config.json"
 HISTORY_NAME = "runner_history.jsonl"
 RUNNING_NAME = "runner_running.json"
@@ -69,6 +69,9 @@ JOB_KINDS = {
                     "desc": "정해진 시각에 ERP job 전체(또는 선택) 적재 — etl_run"},
     "proposal_ledger": {"label": "구매 기안서 대장 적재", "group": "etl", "timeout_min": 30,
                     "desc": "구매팀 Teams 엑셀 대장을 읽어 중간DB(public.pur_proposal)에 전량 교체 적재 — proposal_ledger"},
+    "proposal_scan": {"label": "기안서 스캔본 목록 갱신", "group": "scan", "timeout_min": 10,
+                    "desc": "문서중앙화 기안서 스캔본 폴더의 파일명·존재 여부만 읽어 중간DB(public.pur_proposal_scan) 갱신 — "
+                            "밤 20시 이후 첫 가능 회차에 1회(잠금·로그오프면 건너뛰고 다음 회차) · proposal_scan --nightly"},
     "noop":        {"label": "점검용 더미", "group": "test", "timeout_min": 10,
                     "desc": "아무것도 하지 않고 몇 줄 출력 — 러너 자체 점검용"},
 }
@@ -79,6 +82,7 @@ PARAM_KEYS = {
     "etl_sync": ("collectors", "offboard", "full", "allow_sensitive"),
     "etl_batch": ("jobs", "include_sensitive", "full", "dry_run"),
     "proposal_ledger": ("file", "scan", "dry_run", "append"),
+    "proposal_scan": ("dry_run", "force"),
     "noop": ("lines", "sleep", "rc"),
 }
 
@@ -93,6 +97,12 @@ DEFAULT_JOBS = [
      "schedule": {"type": "daily", "time": "07:30"},
      "params": {"file": "", "scan": "", "dry_run": False, "append": False},
      "keep_log": True, "timeout_min": 30},
+    # 문서중앙화는 로그인된(잠기지 않은) 세션에서만 보인다 — 30분마다 불러 「이번 밤 아직이면」 한 번 한다.
+    # (러너는 놓친 daily 회차를 따라잡지 않으므로 daily 로 두면 잠긴 밤마다 통째로 빠진다)
+    {"id": "proposal_scan", "kind": "proposal_scan", "name": "기안서 스캔본 목록 갱신(매일 밤)", "enabled": False,
+     "schedule": {"type": "interval", "seconds": 1800},
+     "params": {"dry_run": False, "force": False},
+     "keep_log": True, "timeout_min": 10},
     {"id": "etl_nightly", "kind": "etl_batch", "name": "ERP→중간DB 야간 전체 배치", "enabled": False,
      "schedule": {"type": "daily", "time": "02:00"},
      "params": {"jobs": [], "include_sensitive": False, "full": False, "dry_run": False},
@@ -493,6 +503,7 @@ def detect_capabilities(root):
     · gw_account: .env.local 의 GW_DB_* (그룹웨어 DB 계정 수집)
     · offboard  : playwright 모듈 + .env.local 의 GW_URL/GW_ID/GW_PW (퇴사 처리 — 브라우저 자동화)
     · proposal_ledger: .env 의 PROPOSAL_LEDGER_XLSX 가 가리키는 대장 파일이 이 호스트에 있는가
+    · proposal_scan  : Windows + Destiny(문서중앙화) 설치 + .env 의 PROPOSAL_SCAN_DIR — 실제로 보이는지는 실행 때 판정
     """
     env_path = os.path.join(root, ".env")
     env = _read_env_file(env_path)
@@ -518,6 +529,10 @@ def detect_capabilities(root):
         # 경로는 .env 의 PROPOSAL_LEDGER_XLSX 이며 **값은 로그에 남기지 않는다**(§1.1).
         "proposal_ledger": bool(os.path.exists(
             (env.get("PROPOSAL_LEDGER_XLSX") or os.environ.get("PROPOSAL_LEDGER_XLSX") or "").strip().strip('"'))),
+        # 기안서 스캔본(문서중앙화) — 드라이브는 탐색기 창에만 열린다. 여기서는 설치·경로 설정만 보고
+        # (잠금 여부는 실행 때 모듈이 판정해 「건너뜀」으로 끝낸다). ERP 서버처럼 Destiny 가 없으면 False.
+        "proposal_scan": bool(os.name == "nt" and os.path.isdir(r"C:\Cyberdigm")
+                              and (env.get("PROPOSAL_SCAN_DIR") or os.environ.get("PROPOSAL_SCAN_DIR"))),
         "env_state": env_file_state(env_path),
     }
 
@@ -582,6 +597,9 @@ def resolve_params(job, caps):
         p["include_sensitive"] = _as_bool(raw.get("include_sensitive", False))
         p["full"] = _as_bool(raw.get("full", False))
         p["dry_run"] = _as_bool(raw.get("dry_run", False))
+    elif kind == "proposal_scan":
+        p["dry_run"] = _as_bool(raw.get("dry_run", False))
+        p["force"] = _as_bool(raw.get("force", False))
     elif kind == "noop":
         try:
             p["lines"] = max(0, min(1000, int(raw.get("lines", 3))))
@@ -603,11 +621,14 @@ def param_warnings(job, caps):
     raw = job.get("params") or {}
     out = []
     kind = job["kind"]
-    if kind in ("relay_queue", "etl_sync", "etl_batch", "proposal_ledger") and not caps.get("supabase"):
+    if kind in ("relay_queue", "etl_sync", "etl_batch", "proposal_ledger", "proposal_scan") and not caps.get("supabase"):
         out.append(".env 에 Supabase 접속정보가 없어(또는 읽을 수 없어) 실패합니다")
     if kind == "proposal_ledger" and not (raw.get("file") or caps.get("proposal_ledger")):
         out.append("이 호스트에서 대장 파일을 찾을 수 없습니다 — .env 의 PROPOSAL_LEDGER_XLSX 를 넣거나 "
                    "「대장 파일」 칸에 경로를 적으세요(대장이 동기화된 PC 에서만 켭니다)")
+    if kind == "proposal_scan" and not caps.get("proposal_scan"):
+        out.append("이 호스트에서는 기안서 스캔본 폴더를 볼 수 없습니다 — 문서중앙화(Destiny)가 설치된 사무용 PC 에서, "
+                   ".env 에 PROPOSAL_SCAN_DIR 를 넣고 켭니다(로그인된 세션에서만 동작)")
     if kind == "etl_sync":
         if raw.get("offboard") in (True, "on") and not caps.get("offboard"):
             out.append("퇴사 처리 「포함」이지만 이 호스트는 불가(브라우저·그룹웨어 접속정보 없음) — 큐를 보지 않습니다")

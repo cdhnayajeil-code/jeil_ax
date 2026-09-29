@@ -109,6 +109,13 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <tbody>
 <tr>
 <td>2026-09-29</td>
+<td>챗봇 · 부서 에이전트(기안서 연결) · ERP 연계(러너)</td>
+<td>SQL 76(신규) · <code>modules/purchase/get_proposal_chain.ts</code>(신규) · <code>get_pur_proposal.ts</code> v1.1 · <code>jeil-chat-lab</code> v6 · <code>10_ERP_DB연계/etl/proposal_scan.py</code>·<code>test_proposal_scan.py</code>(신규) · <code>runner_core.py</code>·<code>jeil_runner.py</code>(r1.8) · <code>deploy/build_exe.py</code>·<code>register_scan_task.ps1</code>(신규)·<code>변경관리.md</code> · 12_에이전트관리 00·02·03·04</td>
+<td><strong>기안서 ↔ 스캔본 ↔ 전표 ↔ 발주를 한 줄로 잇고, 스캔 목록을 매일 밤 자동 갱신하게 했다</strong>(REQ-0091 · 관리자 결정: 스캔본은 파일명·존재 여부만). 기안서 대장에는 발주번호가 없어 ① 확정 = 대장 전표 → ERP 전표 → 매입(IV) → 발주 479건 ② 추정 = JOB번호(=P-CODE)·거래처·금액 189건으로 이었다 — 둘 다 되는 351건 중 98.3% 일치, 합계 668/830건(뷰 <code>v_pur_proposal_po_link</code>). 도구 <code>get_proposal_chain</code> 이 권-번호 또는 PO·PU·PR 로 기안→스캔본→전표·세금계산서→발주→결재·요청을 한 장으로(추정은 추정이라고 밝힘). 스캔 목록: 문서중앙화는 로그인된 PC 의 탐색기 창에만 열려 <code>proposal_scan.py</code> 가 탐색기 창 경유로 파일 이름·크기·수정일만 읽고(복사·열람 없음), 이 PC 예약작업 <code>JEIL_AX_ProposalScan</code>(일반 권한·30분 간격)이 밤 20시 이후 첫 가능 회차에 1회 갱신(잠겨 있었으면 아침에 따라잡음). 첫 실행 838파일·821/830 스캔 있음(종전 819). 안전장치: 0개·절반 미만이면 적재 안 함. 러너 r1.8(작업 <code>proposal_scan</code>·서브커맨드 <code>scan</code>) EXE 빌드 — <strong>전달 폴더 동기화는 동기 경로가 다른 PC 사용자 폴더라 미완</strong>. 발견: 기안서 대장 적재가 09-22 이후 멈춤(9-831~ 미반영). 검증: 러너 회귀 116건 · 실데이터 도구 실행(8-770 전 단계·역조회·권한 없음) · 실제 폴더 dry-run·적재 · 예약작업 실행 결과 0</td>
+<td>최동혁(+Claude)</td>
+</tr>
+<tr>
+<td>2026-09-29</td>
 <td>챗봇 · 관리자 콘솔(비용·예산)</td>
 <td><code>04_챗봇_포털_데모UI.html</code>(「💳 AI 비용·예산」 탭·「🔑 API 설정방법」 버튼) · <code>app/api-setup-guide.html</code>(신규 <code>/admin/api-setup</code>) · <code>jeil-chat-admin</code> v13 · SQL 76 <code>ai_vendor_budget</code> · <code>_routes.py</code>·<code>vercel.json</code>·통합본 · <code>11_제품기획/09_ADR</code>(ADR-111) · <code>12_에이전트관리/00</code>·<code>03</code></td>
 <td><strong>두 AI(OpenAI·Claude)의 사용량·비용·잔여예산을 한 화면에서 비교하게 했다</strong>(REQ-0091 · 관리자 지시). 목적은 모델별 오케스트레이션 — 단가와 실사용을 나란히 보고 어느 모델에 어떤 일을 맡길지 정한다. 조사 결론: <strong>잔여 크레딧 API 는 두 벤더 모두 없다</strong>(OpenAI 구 credit_grants 폐기·Anthropic 없음) → 실사용액은 벤더 Usage/Cost API 실측(Admin 키 필요), 잔여는 관리자 입력(월 예산·확인한 충전액)에서 실사용을 빼 <strong>역산</strong>하고 기준일을 함께 표시(ADR-111). Admin 키가 없으면 0 이 아니라 「내부 추정」 배지 + 사유. 새 화면은 키 4종 등록 현황(값 미노출 — 길이·접두어만)·발급 절차·<strong>저장하지 않는 키 검증</strong>·Supabase 시크릿 등록 절차·자주 나는 오류. 검증: 함수 배포 v17(무인증 401 확인) · 인라인 스크립트 구문검사 2종 통과 · 라우트 137개 재생성 · 통합본 재빌드. 남은 것: 관리자 Admin 키 발급·등록 후 「벤더 실측」 전환 실측</td>
