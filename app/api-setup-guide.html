@@ -1,0 +1,361 @@
+<!DOCTYPE html><html lang="ko"><head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI API 설정방법 — JEIL AX</title>
+<!-- REQ-0091 · ADR-111 · 관리자 콘솔 「API 설정」·「💳 AI 비용·예산」 탭의 「🔑 API 설정방법」 버튼이 여는 화면.
+     역할: ① 키 4종 등록 현황(값 미노출) ② 벤더별 발급 절차 ③ Supabase 시크릿 등록 절차
+           ④ 키 검증(저장하지 않는다) ⑤ 자주 나는 오류 ⑥ 예산·잔여가 역산인 이유
+
+     ⚠ 이 화면은 키를 **저장하지 않는다.** 시크릿은 Supabase Edge Function 시크릿에만 둔다(CLAUDE.md §1.1).
+        검증칸에 넣은 값은 서버가 벤더에 한 번 물어보고 버리며, DB·로그·응답에 남지 않는다(§1.8). -->
+<style>
+:root{
+  --navy:#1a2f4e; --navy2:#27457a; --accent:#2f6fb3; --accent2:#4a8ed0;
+  --green:#2e7d52; --amber:#9a6b1f; --red:#b3402f;
+  --ink:#222; --muted:#666; --line:#d8dee8; --bg:#f4f6f9; --soft:#eef2f8;
+  --softred:#fbeeec; --softgreen:#ecf5f0; --softamber:#faf3e4;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Malgun Gothic","맑은 고딕",sans-serif;font-size:14px;line-height:1.65}
+.page{max-width:1080px;margin:0 auto;padding:18px 16px 60px}
+.head{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap;border-bottom:2px solid var(--navy);padding-bottom:10px;margin-bottom:14px}
+.head h1{margin:0;font-size:21px;color:var(--navy)}
+.head .sub{margin-top:5px;color:var(--muted);font-size:12.5px}
+.head .right{text-align:right;font-size:12.5px;color:var(--muted)}
+a{color:var(--accent)}
+.box{background:#fff;border:1px solid var(--line);border-radius:11px;padding:16px 18px;margin-bottom:14px}
+.box h2{margin:0 0 10px;font-size:15px;color:var(--navy);display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.box h2 .n{display:inline-flex;align-items:center;justify-content:center;width:23px;height:23px;border-radius:50%;background:var(--navy);color:#fff;font-size:12px;flex:none}
+.box h3{margin:14px 0 6px;font-size:13.5px;color:var(--navy2)}
+p{margin:0 0 9px}
+ol,ul{margin:0 0 9px;padding-left:22px}
+li{margin-bottom:5px}
+table{width:100%;border-collapse:collapse;font-size:12.8px;margin:8px 0}
+th{background:var(--soft);color:var(--navy);text-align:left;padding:7px 9px;font-size:12px;font-weight:700;border-bottom:1px solid var(--line)}
+td{padding:7px 9px;border-bottom:1px solid var(--line);vertical-align:top}
+td.r,th.r{text-align:right} td.c,th.c{text-align:center}
+code,.mono{font-family:Consolas,Menlo,monospace;font-size:12px;background:var(--soft);border:1px solid var(--line);border-radius:5px;padding:1px 6px}
+.badge{display:inline-block;font-size:11px;border-radius:10px;padding:2px 9px;font-weight:700;white-space:nowrap}
+.badge.g{background:var(--softgreen);color:var(--green)} .badge.a{background:var(--softamber);color:var(--amber)}
+.badge.r{background:var(--softred);color:var(--red)} .badge.b{background:var(--soft);color:var(--navy2)}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(215px,1fr));gap:10px}
+.kcard{background:#fff;border:1px solid var(--line);border-left:4px solid var(--line);border-radius:10px;padding:11px 13px}
+.kcard.on{border-left-color:var(--green)} .kcard.off{border-left-color:var(--red);background:#fdf8f7}
+.kcard .nm{font-family:Consolas,Menlo,monospace;font-size:12px;color:var(--navy);word-break:break-all}
+.kcard .st{margin-top:6px} .kcard .ds{margin-top:5px;font-size:11.5px;color:var(--muted);line-height:1.5}
+.warn{background:var(--softamber);border:1px solid #e7d3a8;border-radius:9px;padding:12px 14px;font-size:12.8px;color:#5a4520}
+.danger{background:var(--softred);border:1px solid #eac3bc;border-radius:9px;padding:12px 14px;font-size:12.8px;color:#6e2a1d}
+.ok{background:var(--softgreen);border:1px solid #cde3d6;border-radius:9px;padding:12px 14px;font-size:12.8px;color:#1f5138}
+.btn{padding:7px 15px;border:1px solid var(--accent);background:var(--accent);color:#fff;border-radius:7px;cursor:pointer;font-size:12.5px;font-family:inherit}
+.btn.ghost{background:#fff;color:var(--accent)}
+.btn:disabled{opacity:.5;cursor:default}
+.f{display:flex;gap:7px;align-items:center;flex-wrap:wrap;margin:8px 0}
+.f select,.f input{padding:7px 9px;border:1px solid var(--line);border-radius:7px;font-family:inherit;font-size:13px;background:#fff}
+.f input.key{flex:1;min-width:260px;font-family:Consolas,Menlo,monospace;font-size:12px}
+.steps{counter-reset:s;list-style:none;padding:0;margin:8px 0}
+.steps li{counter-increment:s;position:relative;padding:0 0 10px 30px;margin:0;border-left:2px solid var(--line);margin-left:9px}
+.steps li:last-child{border-left-color:transparent;padding-bottom:0}
+.steps li:before{content:counter(s);position:absolute;left:-11px;top:0;width:20px;height:20px;border-radius:50%;background:var(--accent);color:#fff;font-size:11px;display:flex;align-items:center;justify-content:center;font-weight:700}
+.gate{max-width:560px;margin:50px auto;text-align:center;background:#fff;border:1px solid var(--line);border-radius:11px;padding:34px 26px}
+.gate .ic{font-size:40px}
+.foot{color:var(--muted);font-size:11.5px;margin-top:16px;line-height:1.7}
+.nowrap{white-space:nowrap}
+@media (max-width:640px){ .page{padding:14px 12px 50px} table{font-size:12px} }
+</style>
+</head>
+<body>
+<div class="page" id="app">
+
+  <div class="head">
+    <div>
+      <h1>🔑 AI API 설정방법</h1>
+      <div class="sub">두 벤더(<b>OpenAI</b> · <b>Anthropic Claude</b>)의 키를 발급하고 서버에 등록하는 절차입니다.
+        등록하면 관리자 콘솔 <b>「💳 AI 비용·예산」</b> 탭에서 실제 사용액·잔여예산이 보입니다.</div>
+    </div>
+    <div class="right" id="me">—<br><a href="/main">← 포털·관리자 콘솔로</a></div>
+  </div>
+
+  <!-- ══ 0. 현재 등록 현황 ══ -->
+  <div class="box">
+    <h2><span class="n">0</span> 지금 서버에 등록된 키
+      <span class="badge b" id="stBadge">확인 중…</span>
+      <span style="flex:1"></span>
+      <button class="btn ghost" id="btnReload" type="button">다시 확인</button></h2>
+    <div class="cards" id="keyCards">
+      <div class="kcard"><div class="nm">확인 중…</div><div class="ds">사내 관리자 계정으로 로그인한 상태여야 합니다.</div></div>
+    </div>
+    <p class="ds" style="margin-top:10px;font-size:11.8px;color:var(--muted)">
+      이 화면은 <b>키 값을 표시하지 않습니다</b> — 서버가 알려 주는 것은 <b>등록 여부 · 글자 수 · 접두어 일치</b>뿐입니다(CLAUDE.md §1.1·§1.8).
+      값을 확인해야 한다면 Supabase 대시보드에서 직접 보세요.</p>
+  </div>
+
+  <!-- ══ 1. 무엇을 등록하나 ══ -->
+  <div class="box">
+    <h2><span class="n">1</span> 키는 4개 — 「부르는 키」와 「사용량 보는 키」가 다릅니다</h2>
+    <p>가장 자주 막히는 지점입니다. <b>모델을 호출하는 키로는 사용량·비용을 조회할 수 없습니다</b>(401·403이 납니다).
+      사용량 조회는 <b>조직 관리자(Admin) 권한 키</b>가 따로 필요합니다.</p>
+    <table>
+      <thead><tr><th style="width:27%">시크릿 이름</th><th style="width:13%">벤더</th><th style="width:15%">역할</th><th>없으면 무엇이 안 되나</th></tr></thead>
+      <tbody>
+        <tr><td><code>OPENAI_API_KEY</code></td><td><span class="badge a">OpenAI</span></td><td><span class="badge g">호출</span></td>
+            <td>챗봇(jeil-chat)·부서 에이전트가 GPT 모델을 부르지 못합니다. <b>현재 등록되어 운영 중</b>입니다.</td></tr>
+        <tr><td><code>OPENAI_ADMIN_KEY</code></td><td><span class="badge a">OpenAI</span></td><td><span class="badge b">사용량 조회</span></td>
+            <td>「💳」 탭의 OpenAI 금액이 <b>벤더 실측</b>이 아니라 <b>내부 추정</b>으로만 표시됩니다.</td></tr>
+        <tr><td><code>ANTHROPIC_API_KEY</code></td><td><span class="badge b">Anthropic</span></td><td><span class="badge g">호출</span></td>
+            <td>Claude 모델을 아예 부를 수 없습니다(모델 카탈로그에 <span class="badge r">호출 불가</span>로 표시).</td></tr>
+        <tr><td><code>ANTHROPIC_ADMIN_KEY</code></td><td><span class="badge b">Anthropic</span></td><td><span class="badge b">사용량 조회</span></td>
+            <td>「💳」 탭의 Claude 금액이 <b>내부 추정</b>으로만 표시됩니다.</td></tr>
+      </tbody>
+    </table>
+    <div class="ok">권장 — <b>호출 키와 조회 키를 분리</b>하세요. 조회 키(Admin)는 조직 전체 청구 정보를 읽을 수 있는 강한 권한이라,
+      챗봇이 매 질문마다 쓰는 키와 같은 값을 쓰지 않는 편이 안전합니다.
+      <br>다만 <code>OPENAI_API_KEY</code> 자체를 Admin 키(<code>sk-admin-…</code>)로 발급했다면 서버가 그 키로 조회도 시도합니다(별도 등록 없이 동작).</div>
+  </div>
+
+  <!-- ══ 2. OpenAI ══ -->
+  <div class="box">
+    <h2><span class="n">2</span> OpenAI 키 발급</h2>
+    <h3>호출 키 — <code>OPENAI_API_KEY</code></h3>
+    <ol class="steps">
+      <li><a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener">platform.openai.com › API keys</a> 로 들어갑니다(회사 조직으로 로그인).</li>
+      <li><b>Create new secret key</b> → 이름을 <code>jeil-ax-chat</code> 처럼 용도가 보이게 적습니다.</li>
+      <li>Project 는 운영 프로젝트를 고르고, Permissions 는 <b>Restricted</b> → <code>Model capabilities: Write</code> 만 켭니다.</li>
+      <li>만들면 <b>그 화면에서만 한 번</b> 값이 보입니다 — 복사해서 4단계(Supabase 등록)로 바로 넘어가세요.</li>
+    </ol>
+    <h3>사용량 조회 키 — <code>OPENAI_ADMIN_KEY</code></h3>
+    <ol class="steps">
+      <li><a href="https://platform.openai.com/settings/organization/admin-keys" target="_blank" rel="noopener">Settings › Organization › Admin keys</a> 로 들어갑니다.</li>
+      <li><b>Create admin key</b> → 이름 <code>jeil-ax-usage</code>. 값은 <code>sk-admin-…</code> 로 시작합니다.</li>
+      <li>이 메뉴는 <b>조직 소유자·관리자만</b> 보입니다. 안 보이면 계정 권한 문제입니다(개인 계정은 조직 설정이 먼저 필요).</li>
+      <li>아래 <b>5단계 키 검증</b>에서 <code>OpenAI · 사용량 조회</code> 로 먼저 확인한 뒤 등록하세요.</li>
+    </ol>
+    <p style="font-size:12.3px;color:var(--muted)">이 키로 읽는 것: <code>GET /v1/organization/costs</code>(일별 청구액) ·
+      <code>GET /v1/organization/usage/completions</code>(모델별 토큰). 결제·잔액을 바꾸는 권한은 이 화면에서 쓰지 않습니다.</p>
+  </div>
+
+  <!-- ══ 3. Anthropic ══ -->
+  <div class="box">
+    <h2><span class="n">3</span> Anthropic(Claude) 키 발급</h2>
+    <h3>호출 키 — <code>ANTHROPIC_API_KEY</code></h3>
+    <ol class="steps">
+      <li><a href="https://platform.claude.com/settings/keys" target="_blank" rel="noopener">platform.claude.com › Settings › API keys</a> 로 들어갑니다.</li>
+      <li><b>Create Key</b> → 이름 <code>jeil-ax-agent</code>, Workspace 는 운영 워크스페이스.</li>
+      <li>값은 <code>sk-ant-api…</code> 로 시작합니다. 한 번만 보입니다.</li>
+      <li>등록하면 모델 카탈로그의 <code>claude-sonnet-5</code>·<code>claude-haiku-4-5</code> 가 <span class="badge g">호출 가능</span>으로 바뀝니다.</li>
+    </ol>
+    <h3>사용량 조회 키 — <code>ANTHROPIC_ADMIN_KEY</code></h3>
+    <ol class="steps">
+      <li><a href="https://platform.claude.com/settings/admin-keys" target="_blank" rel="noopener">Settings › Admin keys</a> → <b>Create Admin Key</b>.</li>
+      <li>값은 <code>sk-ant-admin01-…</code> 로 시작합니다. <b>Workspace 에 묶인 키는 안 됩니다</b> — 조직 단위 키여야 합니다.</li>
+      <li><b>개인 계정에서는 Admin API 를 쓸 수 없습니다.</b> Console › Settings › Organization 에서 조직을 먼저 만들어야 메뉴가 나타납니다.</li>
+      <li>아래 <b>5단계</b>에서 <code>Anthropic · 사용량 조회</code> 로 확인 후 등록.</li>
+    </ol>
+    <p style="font-size:12.3px;color:var(--muted)">이 키로 읽는 것: <code>GET /v1/organizations/cost_report</code> ·
+      <code>GET /v1/organizations/usage_report/messages</code>. 데이터는 호출 후 <b>보통 5분 안</b>에 반영됩니다.</p>
+  </div>
+
+  <!-- ══ 4. Supabase 시크릿 등록 ══ -->
+  <div class="box">
+    <h2><span class="n">4</span> Supabase Edge Function 시크릿에 등록 <span class="badge a">여기가 실제 적용 단계</span></h2>
+    <p>키는 <b>코드·문서·이 화면에 적지 않습니다.</b> 서버 시크릿에만 둡니다 — 코드 변경·재배포 없이 바뀝니다.</p>
+    <ol class="steps">
+      <li>Supabase 대시보드 → 해당 프로젝트 → 왼쪽 <b>Edge Functions</b> → <b>Secrets</b> 탭.</li>
+      <li><b>Add new secret</b> → Name 에 시크릿 이름을 <b>철자 그대로</b> 적습니다(예 <code>OPENAI_ADMIN_KEY</code>).
+        대소문자·밑줄이 하나만 달라도 서버는 「미등록」으로 봅니다.</li>
+      <li>Value 에 복사한 키를 붙여 넣습니다. <b>앞뒤 공백·줄바꿈이 섞이지 않게</b> 하세요(가장 흔한 401 원인입니다).</li>
+      <li>저장 후 이 화면에서 <b>「다시 확인」</b> → 해당 카드가 <span class="badge g">등록됨</span> 으로 바뀌는지 봅니다.</li>
+      <li>관리자 콘솔 <b>「💳 AI 비용·예산」</b> 탭 → <b>새로고침</b> → 출처 배지가 <span class="badge a">내부 추정</span> 에서
+        <span class="badge g">벤더 실측</span> 으로 바뀌면 끝입니다.</li>
+    </ol>
+    <div class="warn">시크릿을 새로 넣거나 바꾸면 Edge Function 이 <b>다음 호출 때</b> 새 값을 읽습니다.
+      바로 반영되지 않는 것 같으면 1~2분 뒤 다시 확인하세요. 「다시 확인」은 실제 서버에 물어보는 것이라 캐시가 없습니다.</div>
+  </div>
+
+  <!-- ══ 5. 키 검증 ══ -->
+  <div class="box">
+    <h2><span class="n">5</span> 키 검증 — 등록 전에 살아 있는지 확인</h2>
+    <div class="danger"><b>이 칸에 넣은 키는 저장되지 않습니다.</b>
+      서버가 벤더에 조회 1건을 보내 응답 코드만 확인하고 값을 버립니다 — DB 에 쓰지 않고, 로그·응답에도 남기지 않습니다.
+      <b>실제 적용은 4단계(Supabase 시크릿 등록)로만</b> 됩니다. 이 화면에서 키를 입력하는 것은 「등록」이 아닙니다.</div>
+    <div class="f">
+      <select id="vVendor">
+        <option value="openai">OpenAI</option>
+        <option value="anthropic">Anthropic (Claude)</option>
+      </select>
+      <select id="vRole">
+        <option value="call">호출 키 (모델을 부를 수 있나)</option>
+        <option value="admin">사용량 조회 키 (청구액을 읽을 수 있나)</option>
+      </select>
+      <input class="key" id="vKey" type="password" autocomplete="off" spellcheck="false" placeholder="키를 붙여 넣으세요 (sk-… / sk-ant-…)">
+      <button class="btn ghost" id="btnPeek" type="button">보기</button>
+      <button class="btn" id="btnVerify" type="button">검증</button>
+    </div>
+    <div id="vResult"></div>
+    <p style="font-size:11.8px;color:var(--muted);margin-top:8px">검증이 끝나면 입력칸을 비우세요.
+      브라우저 주소창·개발자도구 기록에 남지 않도록 <b>URL 이 아니라 본문</b>으로 보냅니다.</p>
+  </div>
+
+  <!-- ══ 6. 자주 나는 오류 ══ -->
+  <div class="box">
+    <h2><span class="n">6</span> 자주 나는 오류</h2>
+    <table>
+      <thead><tr><th style="width:12%">코드</th><th style="width:34%">원인</th><th>해결</th></tr></thead>
+      <tbody>
+        <tr><td><span class="badge r">401</span></td><td>키가 틀렸거나 폐기됨 · 값에 공백·줄바꿈이 섞임</td><td>시크릿 값을 지우고 다시 붙여 넣습니다. 앞뒤 공백 확인.</td></tr>
+        <tr><td><span class="badge r">401</span></td><td><b>호출 키로 사용량 API 를 부름</b>(가장 흔함)</td><td>Admin 키를 따로 발급해 <code>*_ADMIN_KEY</code> 로 등록합니다(1단계 표 참고).</td></tr>
+        <tr><td><span class="badge a">403</span></td><td>Admin 키인데 권한 범위가 부족 · Workspace 에 묶인 키</td><td>조직(Organization) 단위 Admin 키로 재발급합니다.</td></tr>
+        <tr><td><span class="badge a">404</span></td><td>개인 계정이라 조직 API 가 없음</td><td>벤더 콘솔에서 조직을 먼저 만들고 관리자 권한을 확인합니다.</td></tr>
+        <tr><td><span class="badge a">429</span></td><td>조회가 몰림(사용량 API 는 분당 1회 권장)</td><td>잠시 뒤 다시 누릅니다. 「💳」 탭을 연속으로 새로고침하지 않습니다.</td></tr>
+        <tr><td><span class="badge b">금액 0</span></td><td>키는 정상인데 이번 달 사용이 없음, 또는 다른 조직의 키</td><td>벤더 콘솔의 Cost 화면과 같은 조직인지 확인합니다.</td></tr>
+        <tr><td><span class="badge b">숫자 불일치</span></td><td>「사용량 설정」 탭(내부 추정)과 「💳」 탭(벤더 실측)이 다름</td><td>정상입니다 — 아래 7단계 설명을 보세요.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ══ 7. 숫자 읽는 법 ══ -->
+  <div class="box">
+    <h2><span class="n">7</span> 화면의 숫자를 읽는 법 — 왜 두 가지 금액이 있나</h2>
+    <table>
+      <thead><tr><th style="width:22%">표시</th><th style="width:26%">어디서 온 값</th><th>주의</th></tr></thead>
+      <tbody>
+        <tr><td><span class="badge g">벤더 실측</span></td><td>벤더 Usage/Cost API — <b>실제 청구 기준</b></td>
+            <td>캐시 할인·배치 할인·웹검색 같은 서버도구 비용까지 포함된 금액입니다. 이 값을 기준으로 판단하세요.</td></tr>
+        <tr><td><span class="badge a">내부 추정</span></td><td>우리 DB(<code>chat_log</code>·<code>agent_turn</code>)의 토큰 × <code>ai_model</code> 단가</td>
+            <td>Admin 키가 없을 때 대신 보여 줍니다. <b>단가가 낡으면 그만큼 틀립니다</b> — 벤더가 가격을 바꾸면 「모델 설정」 탭에서 갱신해야 합니다.</td></tr>
+      </tbody>
+    </table>
+    <h3>「잔여」는 계산한 값입니다</h3>
+    <p><b>두 벤더 모두 잔여 크레딧을 알려주는 API 가 없습니다</b>(2026-09-29 확인). 그래서 관리페이지의 잔여는 두 가지 <b>역산값</b>입니다.</p>
+    <ul>
+      <li><b>예산 잔여</b> = 관리자가 적은 월 예산 − 이번 달 실사용. 예산을 <code>0</code> 으로 두면 「미설정」으로 표시하고 계산하지 않습니다.</li>
+      <li><b>잔액 역산</b> = 벤더 콘솔에서 <b>확인한 충전 잔액</b> − <b>확인일 이후</b> 실사용.
+        그래서 금액과 <b>확인일</b>을 함께 적어야 하고, 확인일이 90일을 넘으면 역산하지 않고 재확인을 요청합니다.</li>
+    </ul>
+    <p style="font-size:12.3px;color:var(--muted)">즉 잔액을 정확히 보려면 <b>가끔 벤더 콘솔에서 실제 잔액을 보고 날짜와 함께 갱신</b>해 주어야 합니다.
+      추측으로 채우지 않고 「—」로 두는 편이 낫습니다.</p>
+  </div>
+
+  <!-- ══ 8. 보안 규칙 ══ -->
+  <div class="box">
+    <h2><span class="n">8</span> 하지 말아야 할 것</h2>
+    <ul>
+      <li>키를 <b>소스·문서·엑셀·메신저</b>에 적지 않습니다. 저장소에 올라가면 즉시 폐기·재발급해야 합니다.</li>
+      <li>키를 <b>셸에서 <code>echo</code></b> 하거나 명령줄 인자로 넘기지 않습니다 — 명령 기록에 남습니다(CLAUDE.md §1.8).</li>
+      <li><code>.env</code> 를 <code>source</code> 로 읽지 않습니다 — 값이 오류 메시지로 화면에 찍힌 실제 사고가 있었습니다.</li>
+      <li>협력사·외부 인력에게 관리자 콘솔 접근을 주지 않습니다. 이 화면은 <b>포털 전체관리자</b>만 열립니다.</li>
+      <li>퇴직·담당 변경 시 <b>키를 폐기하고 재발급</b>합니다. 이름에 용도를 적어 두면 어느 키를 지울지 알 수 있습니다.</li>
+    </ul>
+  </div>
+
+  <div class="foot">
+    REQ-0091 · ADR-111 · 서버 <code>supabase/functions/jeil-chat-admin</code>(v13) · 정본 SQL 76 <code>ai_vendor_budget</code><br>
+    관련 화면 — <a href="/main">관리자 콘솔</a>(「API 설정」·「💳 AI 비용·예산」·「모델 설정」) ·
+    <a href="/admin/agents">에이전트 관리</a>(에이전트별 모델·예산)
+  </div>
+</div>
+
+<script>
+/* ═══════════════════════════════════════════════════════════════════════════════
+   키 현황 조회 · 키 검증 — 관리자 콘솔과 **같은 Entra 토큰**(localStorage jeilax_auth)을 쓴다.
+   같은 로그인이라 재로그인이 없다(admin-permissions.html 과 동일 패턴).
+   키 값은 이 스크립트 밖으로 나가지 않는다: 검증 요청 본문에만 실어 보내고, 화면·저장소에 남기지 않는다.
+   ═══════════════════════════════════════════════════════════════════════════════ */
+var ADMIN_API = 'https://dvzohdqtjzocgcclgwro.supabase.co/functions/v1/jeil-chat-admin';
+var $ = function(id){ return document.getElementById(id); };
+var esc = function(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); };
+
+function auth(){
+  try{ var a = JSON.parse(localStorage.getItem('jeilax_auth') || 'null');
+       return (a && a.at && a.exp > Date.now()) ? a : null; }catch(e){ return null; }
+}
+function call(body){
+  var a = auth();
+  if(!a) return Promise.reject(new Error('로그인이 필요합니다'));
+  return fetch(ADMIN_API, { method:'POST', headers:{ Authorization:'Bearer '+a.at, 'Content-Type':'application/json' },
+                            body: JSON.stringify(body||{}) })
+    .then(function(r){ return r.text().then(function(t){
+      var j = null; try{ j = JSON.parse(t); }catch(e){}   /* 콜드스타트 비-JSON 대비 */
+      if(!r.ok) throw new Error((j && j.error) || ('오류 '+r.status));
+      return j;
+    }); });
+}
+
+function gate(msg){
+  $('app').innerHTML = '<div class="gate"><div class="ic">🔒</div><h2 style="margin:10px 0 6px;font-size:18px;color:var(--navy)">관리자 전용</h2>'
+    + '<p style="color:var(--muted)">'+esc(msg)+'</p>'
+    + '<a class="btn" href="/main" style="text-decoration:none;display:inline-block">← 포털에서 로그인</a></div>';
+}
+
+/* 키 4종 카드 — set/len/prefix_ok 만 온다(값 없음) */
+function renderKeys(keys){
+  var wrap = $('keyCards');
+  if(!keys || !keys.length){ wrap.innerHTML = '<div class="kcard off"><div class="nm">키 현황을 받지 못했습니다</div></div>'; return; }
+  var missing = keys.filter(function(k){ return !k.set; }).length;
+  $('stBadge').className = 'badge ' + (missing===0 ? 'g' : (missing>=3 ? 'r' : 'a'));
+  $('stBadge').textContent = missing===0 ? '4개 모두 등록됨' : (keys.length-missing) + ' / ' + keys.length + ' 등록 · ' + missing + '개 미등록';
+  wrap.innerHTML = keys.map(function(k){
+    var st = !k.set ? '<span class="badge r">미등록</span>'
+      : (k.prefix_ok ? '<span class="badge g">등록됨</span>' : '<span class="badge a">등록됨 · 접두어 불일치</span>');
+    return '<div class="kcard '+(k.set?'on':'off')+'">'
+      + '<div class="nm">'+esc(k.env)+'</div>'
+      + '<div class="st">'+st+' <span class="badge '+(k.vendor==='openai'?'a':'b')+'">'+esc(k.vendor)+'</span>'
+        + ' <span class="badge '+(k.role==='admin'?'b':'g')+'">'+(k.role==='admin'?'사용량 조회':'호출')+'</span></div>'
+      + '<div class="ds">'+esc(k.need||'')
+        + (k.set ? ('<br>글자 수 '+k.len+' · 기대 접두어 <code>'+esc(k.expect_prefix)+'</code>'
+                    + (k.prefix_ok ? '' : ' — <b style="color:var(--amber)">다른 종류의 키일 수 있습니다</b>'))
+                 : ('<br>기대 접두어 <code>'+esc(k.expect_prefix)+'</code>'))
+      + '</div></div>';
+  }).join('');
+}
+
+/* 벤더 사용 상태 한 줄 — 「💳」 탭으로 유도. 외부 호출이 있어 실패해도 화면을 막지 않는다. */
+async function loadStatus(){
+  var a = auth();
+  if(!a){ gate('사내 관리자 계정으로 포털에 로그인한 뒤 다시 열어 주세요. (관리자 콘솔 → 「🔑 API 설정방법」)'); return; }
+  $('me').innerHTML = esc(a.upn || '') + '<br><a href="/main">← 포털·관리자 콘솔로</a>';
+  $('stBadge').className = 'badge b'; $('stBadge').textContent = '확인 중…';
+  try{
+    // 키 현황만 받는 경량 액션 — 전체 조회는 chat_log 2,000행·권한 전체를 끌고 와서 이 화면엔 과하다
+    var d = await call({ action:'keys_status' });
+    renderKeys(d.keys);
+  }catch(e){
+    if(/403|관리자/.test(e.message||'')) { gate('포털 전체관리자만 볼 수 있는 화면입니다. (' + (e.message||'') + ')'); return; }
+    $('stBadge').className = 'badge r'; $('stBadge').textContent = '조회 실패';
+    $('keyCards').innerHTML = '<div class="kcard off"><div class="nm">조회 실패</div><div class="ds">'+esc(e.message||'')+'</div></div>';
+  }
+}
+
+$('btnReload').onclick = loadStatus;
+
+$('btnPeek').onclick = function(){
+  var i = $('vKey');
+  i.type = (i.type === 'password') ? 'text' : 'password';
+  this.textContent = (i.type === 'password') ? '보기' : '가리기';
+};
+
+$('btnVerify').onclick = async function(){
+  var btn = this, key = $('vKey').value.trim(), out = $('vResult');
+  if(!key){ out.innerHTML = '<div class="warn">검증할 키를 붙여 넣으세요.</div>'; return; }
+  var vendor = $('vVendor').value, role = $('vRole').value;
+  btn.disabled = true; out.innerHTML = '<div class="warn">벤더에 확인하는 중…</div>';
+  try{
+    var d = await call({ action:'verify_vendor_key', vendor:vendor, role:role, key:key });
+    var cls = d.verified ? 'ok' : 'danger';
+    out.innerHTML = '<div class="'+cls+'"><b>'+(d.verified?'✔ 정상':'✖ 실패')+'</b> — '+esc(d.what||'')
+      + ' <span class="badge '+(d.verified?'g':'r')+'">HTTP '+d.status+'</span>'
+      + (d.hint ? '<br>'+esc(d.hint) : '')
+      + (d.verified ? '<br>이제 <b>4단계</b>대로 Supabase 시크릿 <code>'
+            + esc(vendor==='openai' ? (role==='admin'?'OPENAI_ADMIN_KEY':'OPENAI_API_KEY')
+                                    : (role==='admin'?'ANTHROPIC_ADMIN_KEY':'ANTHROPIC_API_KEY'))
+            + '</code> 에 등록하세요.'
+          : '<br><span style="font-size:11.8px">벤더 응답: '+esc(d.detail||'')+'</span>')
+      + '<br><span style="font-size:11.5px;color:var(--muted)">'+esc(d.note||'이 키는 저장되지 않았습니다.')+'</span></div>';
+    if(d.verified) $('vKey').value = '';   /* 성공하면 입력칸을 비운다 — 화면에 남겨 두지 않는다 */
+  }catch(e){
+    out.innerHTML = '<div class="danger">검증 요청 실패 — '+esc(e.message||'')+'</div>';
+  }finally{ btn.disabled = false; }
+};
+
+loadStatus();
+</script>
+</body></html>

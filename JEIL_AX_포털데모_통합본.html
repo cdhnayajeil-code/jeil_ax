@@ -739,6 +739,7 @@
         <button id="tab-api" class="on" onclick="showTab('api')">API 설정</button>
         <button id="tab-usage" onclick="showTab('usage')">사용량 설정</button>
         <button id="tab-model" onclick="showTab('model')">모델 설정</button>
+        <button id="tab-cost" onclick="showTab('cost')">💳 AI 비용·예산</button>
         <button id="tab-permacct" onclick="showTab('permacct')">권한·계정</button>
         <button id="tab-requests" onclick="showTab('requests')">요청함 <span id="reqBadge" style="display:none; background:#c0392b; color:#fff; border-radius:9px; padding:1px 6px; font-size:10.5px; margin-left:3px;">0</span></button>
         <button id="tab-grid" onclick="showTab('grid')">▦ 그리드</button>
@@ -770,13 +771,17 @@
         <p class="admin-note">원천 <b>UNIERP MS SQL(사외 IDC · DB JEILMNS)</b> → ODBC <b>읽기전용</b> 조회(<code>SELECT … WITH (NOLOCK)</code>, 화이트리스트 SQL) → ETL이 Supabase 중간DB(<code>erp_ro</code>)에 적재 → 사내 전용 뷰(<code>v_erp_*</code>)로 화면·챗봇에 제공. 실행은 <b>수동 배치</b>(자동 스케줄러 미도입)이며, 접속 서버·계정은 실행 환경 <code>.env</code>에만 보관하고 소스·문서에 남기지 않습니다. 급여는 민감 스키마(<code>erp_secure</code>)로 분리되어 이 표에는 <b>연동 시점·건수만</b> 표시됩니다.</p>
       </div>
       <div class="sec">
-        <h3>API 키 · 시크릿</h3>
+        <h3>API 키 · 시크릿
+          <a class="save" href="/admin/api-setup" target="_blank" rel="noopener"
+             style="text-decoration:none; background:#fff; color:var(--accent); border:1px solid var(--accent);">🔑 API 설정방법 ↗</a></h3>
         <table>
-          <tr><td>게이트웨이 API 키</td><td class="r"><span class="badge g" id="apiKeySet">Supabase 시크릿 보관</span></td></tr>
-          <tr><td>보관 위치</td><td class="r">Edge Function 환경변수 <code>OPENAI_API_KEY</code> — 서버 전용</td></tr>
-          <tr><td>교체 방법</td><td class="r">Supabase 대시보드 › Edge Functions › Secrets (코드 변경 불필요)</td></tr>
+          <thead><tr><th style="width:30%;">시크릿 이름</th><th style="width:22%;">벤더·용도</th><th>없으면 무엇이 안 되나</th></tr></thead>
+          <tbody id="apiKeyRows"><tr><td colspan="3" class="c" style="color:#888;padding:14px;">「💳 AI 비용·예산」 탭을 열면 등록 현황이 표시됩니다(값은 표시하지 않습니다).</td></tr></tbody>
         </table>
-        <p class="admin-note">API 키는 서버 시크릿으로만 보관되어 화면·소스·직원에게 노출되지 않습니다.</p>
+        <p class="admin-note">키는 <b>Supabase Edge Function 시크릿</b>(서버 전용)에만 보관되어 화면·소스·직원에게 노출되지 않습니다 —
+          이 표도 <b>등록 여부·길이·접두어 일치</b>만 보여 주고 값은 절대 표시하지 않습니다(CLAUDE.md §1.1·§1.8).
+          교체는 Supabase 대시보드 › Edge Functions › Secrets 에서 하며 코드 변경이 필요 없습니다. 발급·검증·등록 절차는
+          <a href="/admin/api-setup" target="_blank" rel="noopener">API 설정방법</a> 화면에 있습니다.</p>
       </div>
 
       <div class="sec">
@@ -869,6 +874,86 @@
         <h3>공통 시스템 프롬프트 <span style="font-size:11px;color:var(--green,#1a7f37);">● 실데이터</span> <button class="save" onclick="saveAiConfig()">설정 저장(프롬프트 포함)</button></h3>
         <textarea class="sys" id="amSysPrompt" style="min-height:200px;"></textarea>
         <p class="admin-note">게이트웨이 시스템 프롬프트로 직접 사용됩니다. 저장 시 <b>게이트웨이 설정</b>과 함께 저장되어 다음 대화부터 적용됩니다.</p>
+      </div>
+    </div>
+
+    <!-- 패널 3-b: AI 비용·예산 (REQ-0091 · ADR-111) — 두 벤더(OpenAI·Anthropic)를 나란히.
+         실사용액은 **벤더 Usage/Cost API 실측**(Admin 키 필요)이고, 키가 없으면 우리 DB 기반 「내부 추정」으로 표시한다.
+         잔여 크레딧을 알려주는 API 는 두 벤더 모두 없으므로, 관리자가 적은 예산·충전액에서 실사용을 빼 **역산**한다. -->
+    <div class="panel" id="panel-cost" style="max-width:1280px;">
+      <div class="sec">
+        <h3>벤더 연결 · 이번 달 실사용 <span style="font-size:11px;color:var(--green);">● 실데이터</span>
+          <span style="display:flex; gap:6px;">
+            <a class="save" href="/admin/api-setup" target="_blank" rel="noopener"
+               style="text-decoration:none; background:#fff; color:var(--accent); border:1px solid var(--accent);">🔑 API 설정방법 ↗</a>
+            <button class="save" onclick="loadVendorCost(true)">새로고침</button>
+          </span></h3>
+        <div class="cards" id="vcCards">
+          <div class="card"><div class="lb">AI 비용·예산</div><div class="v" style="font-size:14px;">—</div>
+            <div class="lb" style="margin-top:6px;">MS 로그인(관리자) 후 「새로고침」</div></div>
+        </div>
+        <p class="admin-note" id="vcNote">두 벤더의 이번 달 사용액·예산 소진율을 봅니다. <b>새로고침</b>을 누르면 벤더 API 를 직접 조회합니다(수 초 소요).</p>
+      </div>
+
+      <div class="sec">
+        <h3>벤더 예산 · 충전 잔액 <span style="font-size:11px;color:var(--amber);">관리자 입력</span>
+          <button class="save" onclick="saveVendorBudget()">예산 저장</button></h3>
+        <table>
+          <thead><tr>
+            <th style="width:17%;">벤더</th><th style="width:13%;">과금 방식</th>
+            <th class="r" style="width:11%;">월 예산 $</th><th class="r" style="width:10%;">이번 달 사용</th><th class="r" style="width:12%;">예산 잔여</th>
+            <th class="r" style="width:12%;">확인한 잔액 $</th><th style="width:12%;">확인일</th><th class="r" style="width:13%;">잔액 역산</th>
+          </tr></thead>
+          <tbody id="vcBudgetRows"><tr><td colspan="8" class="c" style="color:#888;padding:14px;">MS 로그인(관리자) 후 표시됩니다.</td></tr></tbody>
+        </table>
+        <p class="admin-note">⚠ <b>잔여 크레딧을 알려주는 API 는 두 벤더 모두 없습니다</b>(2026-09-29 확인). 그래서 이 화면의 「잔여」는 두 가지 <b>역산값</b>입니다 —
+          ① <b>예산 잔여</b> = 월 예산 − 이번 달 실사용, ② <b>잔액 역산</b> = 확인한 충전 잔액 − 확인일 이후 실사용.
+          벤더 콘솔에서 실제 잔액을 본 날 그 금액과 날짜를 적어 두면, 그 뒤 사용분을 빼서 지금 잔액을 계산합니다(확인일이 90일을 넘으면 역산하지 않고 재확인을 요청합니다).
+          월 예산을 <b>0</b> 으로 두면 「미설정」으로 표시하고 소진율을 계산하지 않습니다.</p>
+      </div>
+
+      <div class="sec">
+        <h3>모델 단가 비교 <span style="font-size:11px;color:var(--muted);">오케스트레이션 배정 기준</span>
+          <button class="save" onclick="showTab('model')" style="background:#fff;color:var(--accent);border:1px solid var(--accent);">모델 설정으로 ↗</button></h3>
+        <table>
+          <thead><tr>
+            <th>모델</th><th>벤더</th><th>용도</th>
+            <th class="r">입력 $/MTok</th><th class="r">출력 $/MTok</th>
+            <th class="r">질문 1천건 환산</th><th class="c">호출</th><th class="c">활성</th><th>지금 쓰는 곳</th>
+          </tr></thead>
+          <tbody id="vcPriceRows"><tr><td colspan="9" class="c" style="color:#888;padding:14px;">MS 로그인(관리자) 후 표시됩니다.</td></tr></tbody>
+        </table>
+        <p class="admin-note">「질문 1천건 환산」은 <b>질문 1건 = 입력 6,000 토큰 + 출력 700 토큰</b> 이라는 가정으로 계산한 참고값입니다(도구 정의·ERP 조회 결과가 입력에 들어가는 현 구조 기준).
+          실제 비용은 캐시 적중률·조회 건수에 따라 달라지므로, 비교는 <b>상대 배수</b>로만 쓰고 절대액은 위 「이번 달 실사용」을 봅니다.
+          단가는 「모델 설정」 탭에서 고칩니다(벤더 가격 개정 시 갱신 — 낡은 단가는 추정치를 그대로 틀리게 합니다).</p>
+      </div>
+
+      <div class="sec">
+        <h3>모델별 이번 달 사용량 · 비용 <span style="font-size:11px;color:var(--muted);">벤더 실측 우선</span></h3>
+        <table>
+          <thead><tr>
+            <th>모델</th><th>벤더</th><th class="r">입력 토큰</th><th class="r">캐시 읽기</th><th class="r">출력 토큰</th>
+            <th class="r">요청</th><th class="r">비용</th><th class="r">비중</th>
+          </tr></thead>
+          <tbody id="vcModelRows"><tr><td colspan="8" class="c" style="color:#888;padding:14px;">MS 로그인(관리자) 후 표시됩니다.</td></tr></tbody>
+        </table>
+        <p class="admin-note" id="vcModelNote">벤더 사용량 API 는 요청 수를 주지 않는 경우가 있습니다(Anthropic) — 그때는 <b>—</b> 로 둡니다. 추정하지 않습니다.</p>
+      </div>
+
+      <div class="sec">
+        <h3>일별 비용 추이 <span style="font-size:11px;color:var(--muted);" id="vcTrendRange"></span></h3>
+        <div id="vcTrend"><p class="admin-note">MS 로그인(관리자) 후 표시됩니다.</p></div>
+      </div>
+
+      <div class="sec">
+        <h3>오케스트레이션 배정 현황 <span style="font-size:11px;color:var(--muted);">어느 경로가 어느 모델을 쓰는가</span></h3>
+        <table>
+          <thead><tr><th>경로</th><th>기본 모델</th><th>벤더</th><th>예비 모델</th><th class="r">월 예산 $</th><th class="c">상태</th></tr></thead>
+          <tbody id="vcOrchRows"><tr><td colspan="6" class="c" style="color:#888;padding:14px;">MS 로그인(관리자) 후 표시됩니다.</td></tr></tbody>
+        </table>
+        <p class="admin-note">모델 배정은 두 곳에서 정합니다 — 운영 챗봇(jeil-chat)은 「모델 설정」 탭의 <b>기본 모델·라우팅 규칙</b>,
+          부서 에이전트는 <a href="/admin/agents" target="_blank" rel="noopener">에이전트 관리</a>의 <b>설정 버전</b>(기본·예비 모델).
+          <b>호출 불가</b>로 표시된 모델은 해당 벤더 키가 서버에 없다는 뜻입니다 — 「🔑 API 설정방법」을 보세요.</p>
       </div>
     </div>
 
@@ -1862,12 +1947,13 @@ function applyFavStars(){
   refreshFavMarks();
 }
 function showTab(key){
-  ['api','usage','model','permacct','requests','grid'].forEach(k=>{
+  ['api','usage','model','cost','permacct','requests','grid'].forEach(k=>{
     document.getElementById('panel-'+k).classList.toggle('on', k===key);
     document.getElementById('tab-'+k).classList.toggle('on', k===key);
   });
   if(key === 'requests'){ loadRequests(); loadScope(); }
   if(key === 'permacct') loadPermFrame();
+  if(key === 'cost') loadVendorCost();
   if(key === 'grid') gxOpen();
 }
 /* 권한·계정 탭 — 독립 화면(/admin/permissions)을 처음 열 때만 iframe 에 싣는다(콜드스타트 분산).
@@ -1965,7 +2051,7 @@ var GX_SCR = [
 /* 개선 과제 — 화면에서 고치고 CSV 로 내보낸다(저장 없음). */
 var GX_TASK = [
   { id:'G-1', tgt:'app/lib/grid.js', tit:'페이지 넘김 표준화',       pri:'완료',   memo:'pageSize>0 이면 페이저 자동 · pageSizeOptions 로 표시행수 선택 (REQ-0083)' },
-  { id:'G-2', tgt:'pages/구매_기안서대장_2026.html', tit:'전량 렌더 우회를 페이저로 되돌리기', pri:'중', memo:'169행이라 당장 급하지 않다 — 건수가 늘면 pageSize 를 다시 켠다' },
+  { id:'G-2', tgt:'/work/purchase-proposals', tit:'전량 렌더 우회를 페이저로 되돌리기', pri:'중', memo:'169행이라 당장 급하지 않다 — 건수가 늘면 pageSize 를 다시 켠다' },
   { id:'G-3', tgt:'app/lib/grid.js', tit:'행 상세 이동이 페이지 경계에서 멈춘다', pri:'하', memo:'발주통합 LIST 의 ↑↓ 상세 이동은 현재 페이지 안에서만 — 경계에서 다음 페이지로 넘길지 판단 필요' },
   { id:'G-4', tgt:'app/lib/grid.js', tit:'가상 스크롤',              pri:'보류',   memo:'5,609행 전량 렌더가 2.2초. 페이저로 체감은 해결됐다 — 「전체」를 자주 쓰게 되면 다시 검토' },
   { id:'G-5', tgt:'그리드/표준그리드_가이드.md', tit:'적용 화면 대장 동기화', pri:'상시', memo:'화면이 늘거나 옵션이 바뀌면 가이드 §적용사례와 이 대장을 같이 고친다' }
@@ -2761,6 +2847,13 @@ async function loadAdminLive(force){
     setTxt('lgStatus', d.gateway.key_set ? '<span class="dot"></span>정상 가동' : '⚠ 키 미설정');
     setTxt('lgModel', escHtml(d.gateway.provider + ' · ' + d.gateway.model));
     setTxt('lgAuth', escHtml(d.gateway.auth_policy));
+    if(d.gateway.keys){
+      renderApiKeys(d.gateway.keys);
+      // 두 벤더 호출 키 상태를 「운영 모델」 카드 아래 한 줄로 — Claude 미연결을 여기서 바로 알 수 있게
+      var ck = d.gateway.keys.filter(function(k){ return k.role==='call'; });
+      var line = ck.map(function(k){ return (k.set?'✔ ':'✖ ') + (k.vendor==='openai'?'OpenAI':'Claude'); }).join(' · ');
+      setTxt('lgModel', escHtml(d.gateway.provider + ' · ' + d.gateway.model) + ' <small>' + escHtml(line) + '</small>');
+    }
     setTxt('lgLimits', 'API 키는 서버 시크릿 전용(화면·소스 미노출) · 입력 상한: 대화 ' + d.gateway.limits.max_messages + '턴 / ' + d.gateway.limits.max_total_chars.toLocaleString() + '자, 응답 ' + d.gateway.limits.max_tokens.toLocaleString() + ' 토큰');
     // 사용량 탭 (U-1: 토큰·추정비용 포함)
     setTxt('luToday', d.usage.today_calls.toLocaleString() + '회');
@@ -2988,6 +3081,257 @@ function renderErpSync(es){
       + '<td>' + period + '</td>'
       + '<td class="r">' + escHtml(when) + '</td></tr>';
   }).join('');
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════════════
+   💳 AI 비용·예산 탭 (REQ-0091 · ADR-111) — jeil-chat-admin action:'vendor_cost'
+
+   두 벤더를 나란히 본다: 연결 상태 · 이번 달 실사용 · 예산/충전 잔여(역산) · 모델별 · 일별 · 단가 · 배정.
+   지켜야 할 것
+     · 실사용액의 **출처를 항상 함께 표시**한다 — `벤더 실측`(Usage/Cost API) vs `내부 추정`(chat_log·agent_turn).
+       두 숫자는 다를 수 있다(캐시 할인·서버도구 비용·낡은 단가). 같은 척 합치지 않는다.
+     · 잔여는 **역산값**이다(벤더에 잔액 API 가 없다). 기준일을 함께 적고, 기준이 없으면 「—」로 둔다.
+     · 키 값은 화면에 오지 않는다 — 서버가 등록 여부·길이·접두어 일치만 돌려준다(CLAUDE.md §1.1·§1.8).
+   ═══════════════════════════════════════════════════════════════════════════════════════ */
+var VC = null;                 // vendor_cost 응답 캐시
+var vcLoaded = false;
+var VC_COLOR = { openai:'#2e7d52', anthropic:'#b3652f' };   /* 그래프에서 두 벤더를 구분하는 색 */
+var VC_SRC_KO = { vendor_api:'벤더 실측', internal_estimate:'내부 추정', none:'자료 없음' };
+/* 04 의 escHtml 은 따옴표를 건드리지 않는다(2319행) — 속성 자리에는 반드시 att() 를 쓴다.
+   label·console_url 은 관리자가 저장하는 값이라 따옴표가 섞이면 속성을 깨고 나올 수 있다. */
+var att = function(x){ return escHtml(String(x==null?'':x)).replace(/"/g,'&quot;'); };
+/* 링크는 http(s) 만 — DB 에 javascript: 가 들어가도 클릭 가능한 링크로 만들지 않는다 */
+var safeUrl = function(u){ return /^https?:\/\//i.test(String(u||'')) ? String(u) : null; };
+var usd = function(n, d){ return '$' + Number(n||0).toFixed(d==null?2:d); };
+var tok = function(n){ return Number(n||0) >= 1000 ? (Number(n)/1000).toFixed(1)+'k' : String(Number(n||0)); };
+
+async function loadVendorCost(force){
+  var note = document.getElementById('vcNote');
+  if(vcLoaded && !force && VC) { renderVendorCost(VC); return; }
+  if(window.IS_BUNDLE){ if(note) note.innerHTML='🔒 오프라인 통합본에서는 벤더 사용량을 조회할 수 없습니다 — 사내 로그인 후 <b>ai.jeilm.co.kr</b> 관리자 콘솔에서 보세요.'; return; }
+  var auth = getLiveAuth();
+  if(!auth){ if(note) note.textContent = '👁 MS 로그인(관리자) 후 벤더 사용량이 표시됩니다.'; return; }
+  if(note) note.textContent = '벤더 사용량·비용을 조회하는 중… (OpenAI·Anthropic 에 직접 묻습니다 — 수 초 걸릴 수 있습니다)';
+  try{
+    var res = await fetch(ADMIN_GATEWAY, { method:'POST', headers:{ Authorization:'Bearer '+auth.at, 'Content-Type':'application/json' },
+                                          body: JSON.stringify({ action:'vendor_cost' }) });
+    var d = await res.json().catch(function(){ return {}; });
+    if(!res.ok || !d.ok) throw new Error(d.error || ('오류 '+res.status));
+    VC = d; vcLoaded = true; renderVendorCost(d);
+  }catch(e){
+    if(note) note.textContent = '⚠ 벤더 사용량 조회 실패: ' + (e.message||'') + ' (관리자 계정 여부·Admin 키 등록을 확인하세요)';
+  }
+}
+
+function renderVendorCost(d){
+  var vs = d.vendors || [];
+  if(d.keys) renderApiKeys(d.keys);
+
+  /* (1) 벤더 카드 — 연결·이번 달·예산 소진율 */
+  var cards = document.getElementById('vcCards');
+  if(cards) cards.innerHTML = vs.map(function(v){
+    var b = v.budget || {}, cr = v.credit || {};
+    var ratio = b.ratio;
+    var pct = (ratio==null) ? null : Math.round(ratio*100);
+    var cls = (ratio==null) ? '' : (ratio>=1 ? 'full' : (ratio>=(b.alert_ratio||0.8) ? 'warn' : ''));
+    var srcBadge = '<span class="badge '+(v.source==='vendor_api'?'g':'a')+'">'+escHtml(VC_SRC_KO[v.source]||v.source)+'</span>';
+    var keyBadge = v.call_key_set ? '<span class="badge g">호출 키 있음</span>' : '<span class="badge r">호출 키 없음</span>';
+    var admBadge = v.admin_key_set ? '<span class="badge g">조회 키 있음</span>' : '<span class="badge a">조회 키 없음</span>';
+    return '<div class="card" style="border-left:4px solid '+(VC_COLOR[v.vendor]||'var(--accent)')+';">'
+      + '<div class="lb">'+escHtml(v.label||v.vendor)+' · 이번 달</div>'
+      + '<div class="v">'+usd(v.month_spend_usd, 2)+' <small>'+srcBadge+'</small></div>'
+      + '<div class="lb" style="margin-top:6px;">'
+        + (b.set ? ('예산 '+usd(b.monthly_budget_usd)+' · 잔여 <b style="color:'+(ratio>=1?'var(--red)':(ratio>=(b.alert_ratio||0.8)?'var(--amber)':'var(--green)'))+'">'+usd(b.remaining_usd)+'</b> ('+pct+'%)')
+              : '<span style="color:var(--amber)">월 예산 미설정</span> — 아래 표에 적어 주세요')
+      + '</div>'
+      + (b.set ? '<div class="bar2" style="margin-top:7px;"><i class="'+cls+'" style="width:'+Math.min(100,pct)+'%"></i></div>' : '')
+      + '<div class="lb" style="margin-top:8px;">충전 잔액 역산: '
+        + (cr.remaining_usd!=null ? ('<b>'+usd(cr.remaining_usd)+'</b> <span style="color:var(--muted)">('+escHtml(cr.as_of||'')+' 확인분 기준)</span>')
+                                  : '<span style="color:var(--muted)">—</span>')
+      + '</div>'
+      + '<div style="margin-top:8px; display:flex; gap:4px; flex-wrap:wrap;">'+keyBadge+admBadge+'</div>'
+      + (v.error ? '<div class="lb" style="margin-top:7px; color:var(--amber); line-height:1.5;">'+escHtml(v.error)+'</div>' : '')
+      + (safeUrl(v.console_url) ? '<div style="margin-top:7px;"><a href="'+att(safeUrl(v.console_url))+'" target="_blank" rel="noopener" style="font-size:11.5px;color:var(--accent);">벤더 콘솔에서 확인 ↗</a></div>' : '')
+      + '</div>';
+  }).join('') || '<div class="card"><div class="v" style="font-size:14px;">벤더 정보 없음</div></div>';
+
+  var anyVendorApi = vs.some(function(v){ return v.source==='vendor_api'; });
+  var note = document.getElementById('vcNote');
+  if(note) note.innerHTML = '기준 ' + escHtml(fmtKST(d.as_of)) + ' · 이번 달 ' + escHtml((d.month&&d.month.start)||'') + ' ~ ' + escHtml((d.month&&d.month.today)||'')
+    + ' · <b>벤더 실측</b> = 벤더 Usage/Cost API 청구 기준(Admin 키 필요), <b>내부 추정</b> = 우리 DB(chat_log·agent_turn)의 토큰 × 단가 계산값'
+    + (anyVendorApi ? '' : ' — 지금은 두 벤더 모두 <b>내부 추정</b>입니다. 실제 청구액을 보려면 <a href="/admin/api-setup" target="_blank" rel="noopener">API 설정방법</a>에서 Admin 키를 등록하세요.');
+
+  /* (2) 예산·충전 잔액 입력 표 */
+  var br = document.getElementById('vcBudgetRows');
+  if(br) br.innerHTML = vs.map(function(v){
+    var b = v.budget||{}, cr = v.credit||{};
+    return '<tr data-vendor="'+att(v.vendor)+'" data-label="'+att(v.label||v.vendor)+'" data-console="'+att(safeUrl(v.console_url)||'')+'">'
+      + '<td><b>'+escHtml(v.label||v.vendor)+'</b><br><span class="lb" style="font-size:11px;color:var(--muted)">'+escHtml(v.vendor)+'</span></td>'
+      + '<td><select class="sel vc-mode">'
+        + '<option value="prepaid_credit"'+(v.billing_mode!=='postpaid_invoice'?' selected':'')+'>선불 충전</option>'
+        + '<option value="postpaid_invoice"'+(v.billing_mode==='postpaid_invoice'?' selected':'')+'>후불 청구</option></select></td>'
+      + '<td class="r"><input class="num-inp vc-budget" value="'+Number(b.monthly_budget_usd||0)+'" style="width:76px"></td>'
+      + '<td class="r">'+usd(v.month_spend_usd,2)+'</td>'
+      + '<td class="r">'+(b.set ? ('<b>'+usd(b.remaining_usd)+'</b>') : '<span style="color:var(--muted)">미설정</span>')+'</td>'
+      + '<td class="r"><input class="num-inp vc-credit" value="'+(cr.added_usd!=null?Number(cr.added_usd):'')+'" placeholder="비움=미확인" style="width:86px"></td>'
+      + '<td><input class="txt-inp vc-asof" type="date" value="'+att(cr.as_of||'')+'" style="width:132px"></td>'
+      + '<td class="r">'+(cr.remaining_usd!=null ? ('<b>'+usd(cr.remaining_usd)+'</b><br><span style="font-size:10.5px;color:var(--muted)">이후 사용 '+usd(cr.spent_since_usd,2)+'</span>')
+            : ('<span style="color:var(--muted)">—</span>'+(cr.reason?'<br><span style="font-size:10.5px;color:var(--amber)">'+escHtml(cr.reason)+'</span>':'')))+'</td>'
+      + '</tr>';
+  }).join('') || '<tr><td colspan="8" class="c" style="color:#888;padding:14px;">벤더 행이 없습니다.</td></tr>';
+
+  /* (3) 모델 단가 비교 — 지금 쓰는 곳을 함께 보여 준다 */
+  var orch = d.orchestration || {}, ag = orch.agents || [], rules = orch.routing || [];
+  var usedBy = {};
+  var push = function(mid, txt){ if(!mid) return; (usedBy[mid] = usedBy[mid] || []).push(txt); };
+  if(orch.gateway && orch.gateway.default_model) push(orch.gateway.default_model, '챗봇 기본');
+  rules.forEach(function(r){ if(r.enforced) push(r.model_id, '라우팅 '+(r.seq||'')); });
+  ag.forEach(function(a){ push(a.model_id, (a.name_ko||a.agent_key)); if(a.fallback_model_id) push(a.fallback_model_id, (a.name_ko||a.agent_key)+' 예비'); });
+
+  var models = (d.models||[]).slice().sort(function(x,y){ return (x.vendor_key<y.vendor_key?-1:x.vendor_key>y.vendor_key?1:0) || (Number(x.price_in)-Number(y.price_in)); });
+  var cheapest = models.filter(function(m){ return m.callable; }).reduce(function(a,m){ return (a==null||Number(m.per_1k_questions_usd)<Number(a.per_1k_questions_usd))?m:a; }, null);
+  var pr = document.getElementById('vcPriceRows');
+  if(pr) pr.innerHTML = models.map(function(m){
+    var mult = (cheapest && Number(cheapest.per_1k_questions_usd)>0) ? (Number(m.per_1k_questions_usd)/Number(cheapest.per_1k_questions_usd)) : null;
+    var uses = usedBy[m.model_id] || [];
+    return '<tr'+(m.active?'':' style="opacity:.55"')+'>'
+      + '<td><b>'+escHtml(m.model_id)+'</b></td>'
+      + '<td><span class="badge '+(m.vendor_key==='openai'?'a':'b')+'">'+escHtml(m.vendor||'')+'</span></td>'
+      + '<td style="font-size:12px;color:var(--muted)">'+escHtml(m.purpose||'')+'</td>'
+      + '<td class="r">'+usd(m.price_in,2)+'</td><td class="r">'+usd(m.price_out,2)+'</td>'
+      + '<td class="r"><b>'+usd(m.per_1k_questions_usd,2)+'</b>'+(mult!=null&&mult>1.05?' <span style="font-size:10.5px;color:var(--muted)">×'+mult.toFixed(1)+'</span>':(mult!=null&&mult<=1.05?' <span class="badge g">최저</span>':''))+'</td>'
+      + '<td class="c">'+(m.callable?'<span class="badge g">가능</span>':'<span class="badge r">불가</span>')+'</td>'
+      + '<td class="c">'+(m.active?'<span class="badge g">켬</span>':'<span class="badge b">끔</span>')+'</td>'
+      + '<td style="font-size:11.5px">'+(uses.length?uses.map(function(u){ return '<span class="badge b" style="margin:1px 2px 1px 0">'+escHtml(u)+'</span>'; }).join(''):'<span style="color:var(--muted)">—</span>')+'</td>'
+      + '</tr>';
+  }).join('') || '<tr><td colspan="9" class="c" style="color:#888;padding:14px;">모델 카탈로그가 비어 있습니다.</td></tr>';
+
+  /* (4) 모델별 이번 달 사용량·비용 */
+  var mrows = [];
+  vs.forEach(function(v){ (v.by_model||[]).forEach(function(m){ mrows.push({ v:v, m:m }); }); });
+  var sumCost = mrows.reduce(function(s,x){ return s + Number(x.m.cost_usd||0); }, 0);
+  mrows.sort(function(a,b){ return Number(b.m.cost_usd||0)-Number(a.m.cost_usd||0) || (b.m.out_tokens-a.m.out_tokens); });
+  var mr = document.getElementById('vcModelRows');
+  if(mr) mr.innerHTML = mrows.length ? mrows.map(function(x){
+    var share = (sumCost>0 && x.m.cost_usd!=null) ? (Number(x.m.cost_usd)/sumCost*100) : null;
+    return '<tr>'
+      + '<td><b>'+escHtml(x.m.model)+'</b></td>'
+      + '<td><span class="badge '+(x.v.vendor==='openai'?'a':'b')+'">'+escHtml(x.v.label||x.v.vendor)+'</span> <span class="badge '+(x.v.source==='vendor_api'?'g':'a')+'">'+escHtml(VC_SRC_KO[x.v.source]||'')+'</span></td>'
+      + '<td class="r">'+tok(x.m.in_tokens)+'</td><td class="r">'+tok(x.m.cached_tokens)+'</td><td class="r">'+tok(x.m.out_tokens)+'</td>'
+      + '<td class="r">'+(x.m.requests?Number(x.m.requests).toLocaleString():'—')+'</td>'
+      + '<td class="r">'+(x.m.cost_usd!=null?usd(x.m.cost_usd,4):'—')+'</td>'
+      + '<td class="r">'+(share!=null?share.toFixed(1)+'%':'—')+'</td>'
+      + '</tr>';
+  }).join('') : '<tr><td colspan="8" class="c" style="color:#888;padding:14px;">이번 달 사용 기록이 없습니다.</td></tr>';
+  var mn = document.getElementById('vcModelNote');
+  if(mn) mn.innerHTML = 'Anthropic 사용량 API 는 <b>요청 수를 제공하지 않습니다</b> — 그 칸은 <b>—</b> 로 둡니다(추정하지 않음). '
+    + '「벤더 실측」 행의 비용은 벤더 청구 기준이고, 「내부 추정」 행은 <code>ai_model</code> 단가 × 토큰 계산값입니다 — 두 값을 합산해 비교하지 마세요.';
+
+  /* (5) 일별 추이 — 외부 라이브러리 없이 막대. 두 벤더를 색으로 구분한다 */
+  var days = {};
+  vs.forEach(function(v){ (v.by_day||[]).forEach(function(x){ (days[x.day] = days[x.day] || {})[v.vendor] = Number(x.cost_usd||0); }); });
+  var dk = Object.keys(days).sort();
+  var maxD = dk.reduce(function(m,k){ var t=(days[k].openai||0)+(days[k].anthropic||0); return t>m?t:m; }, 0);
+  var tr = document.getElementById('vcTrend');
+  if(tr) tr.innerHTML = dk.length ? (
+      '<div style="display:flex; gap:12px; margin-bottom:8px; font-size:11.5px; color:var(--muted);">'
+        + vs.map(function(v){ return '<span><i style="display:inline-block;width:10px;height:10px;border-radius:2px;background:'+(VC_COLOR[v.vendor]||'#999')+';margin-right:4px;"></i>'+escHtml(v.label||v.vendor)+'</span>'; }).join('')
+        + '<span style="margin-left:auto">최고 '+usd(maxD,2)+'/일</span></div>'
+      + dk.map(function(k){
+          var o = days[k].openai||0, a = days[k].anthropic||0, t = o+a;
+          var w = function(x){ return maxD>0 ? (x/maxD*100) : 0; };
+          return '<div style="display:flex; align-items:center; gap:8px; margin-bottom:3px; font-size:11.5px;">'
+            + '<span style="width:74px; color:var(--muted); font-family:Consolas,monospace;">'+escHtml(k)+'</span>'
+            + '<span style="flex:1; height:12px; background:var(--bg); border-radius:3px; overflow:hidden; display:flex;">'
+              + '<i style="height:100%; width:'+w(o)+'%; background:'+VC_COLOR.openai+';" title="OpenAI '+usd(o,4)+'"></i>'
+              + '<i style="height:100%; width:'+w(a)+'%; background:'+VC_COLOR.anthropic+';" title="Anthropic '+usd(a,4)+'"></i>'
+            + '</span>'
+            + '<span style="width:76px; text-align:right;">'+(t>0?usd(t,3):'<span style="color:var(--muted)">—</span>')+'</span>'
+            + '</div>';
+        }).join('')
+    ) : '<p class="admin-note">표시할 일별 기록이 없습니다.</p>';
+  var trg = document.getElementById('vcTrendRange');
+  if(trg) trg.textContent = dk.length ? (dk[0] + ' ~ ' + dk[dk.length-1] + ' · ' + dk.length + '일') : '';
+
+  /* (6) 오케스트레이션 배정 현황 */
+  var orows = [];
+  if(orch.gateway && orch.gateway.default_model){
+    orows.push({ path:'운영 챗봇 jeil-chat <span class="badge b">기본</span>', model:orch.gateway.default_model, vendor:orch.gateway.vendor,
+                 fb:'—', budget:null, status:'live' });
+  }
+  rules.forEach(function(r){
+    orows.push({ path:'라우팅 '+(r.seq||'')+' · '+escHtml(r.label||''), model:r.model_id, vendor:r.vendor, fb:'—', budget:null,
+                 status:(r.enforced?'enforced':'display') });
+  });
+  ag.forEach(function(a){
+    orows.push({ path:'에이전트 · '+escHtml(a.name_ko||a.agent_key)+(a.dept_nm?(' <span style="color:var(--muted);font-size:11px">'+escHtml(a.dept_nm)+'</span>'):''),
+                 model:a.model_id, vendor:a.model_vendor, fb:a.fallback_model_id||'—', budget:a.monthly_budget_usd,
+                 status:a.status, callable:a.model_callable, effort:a.effort, ver:a.version });
+  });
+  var modelCallable = {}; (d.models||[]).forEach(function(m){ modelCallable[m.model_id]=!!m.callable; });
+  var STS = { live:['운영','g'], pilot:['파일럿','a'], dev:['개발','b'], off:['중지','r'], enforced:['적용','g'], display:['표시만','a'] };
+  var orw = document.getElementById('vcOrchRows');
+  if(orw) orw.innerHTML = orows.length ? orows.map(function(o){
+    var st = STS[o.status] || [o.status||'-','b'];
+    var warn = (o.model && modelCallable[o.model]===false) ? ' <span class="badge r">호출 불가</span>' : '';
+    return '<tr>'
+      + '<td>'+o.path+(o.ver?(' <span style="color:var(--muted);font-size:11px">v'+o.ver+'</span>'):'')+'</td>'
+      + '<td><span class="keychip">'+escHtml(o.model||'-')+'</span>'+warn+(o.effort?(' <span class="badge b">'+escHtml(o.effort)+'</span>'):'')+'</td>'
+      + '<td>'+(o.vendor?('<span class="badge '+(o.vendor==='openai'?'a':'b')+'">'+escHtml(o.vendor)+'</span>'):'—')+'</td>'
+      + '<td>'+(o.fb&&o.fb!=='—'?('<span class="keychip">'+escHtml(o.fb)+'</span>'):'—')+'</td>'
+      + '<td class="r">'+(o.budget!=null?usd(o.budget,0):'—')+'</td>'
+      + '<td class="c"><span class="badge '+st[1]+'">'+escHtml(st[0])+'</span></td>'
+      + '</tr>';
+  }).join('') : '<tr><td colspan="6" class="c" style="color:#888;padding:14px;">배정된 경로가 없습니다.</td></tr>';
+}
+
+/* 키 4종 등록 현황 — 「API 설정」 탭 표. 값은 오지 않는다(서버가 등록 여부·길이·접두어 일치만 보낸다). */
+function renderApiKeys(keys){
+  var tb = document.getElementById('apiKeyRows'); if(!tb) return;
+  if(!keys || !keys.length){ tb.innerHTML = '<tr><td colspan="3" class="c" style="color:#888;padding:14px;">키 현황을 받지 못했습니다.</td></tr>'; return; }
+  tb.innerHTML = keys.map(function(k){
+    var badge = !k.set ? '<span class="badge r">미등록</span>'
+      : (k.prefix_ok ? '<span class="badge g">등록됨</span>'
+                     : '<span class="badge a">등록됨 · 접두어 불일치</span>');
+    var meta = k.set ? ('<span style="font-size:10.5px;color:var(--muted)">길이 '+k.len+'자 · 기대 접두어 <code>'+escHtml(k.expect_prefix)+'</code></span>') : '';
+    return '<tr'+(k.set?'':' style="background:#fdf7f6"')+'>'
+      + '<td><span class="keychip">'+escHtml(k.env)+'</span> '+badge+'<br>'+meta+'</td>'
+      + '<td><span class="badge '+(k.vendor==='openai'?'a':'b')+'">'+escHtml(k.vendor)+'</span> '
+        + '<span class="badge '+(k.role==='admin'?'b':'g')+'">'+(k.role==='admin'?'사용량 조회':'호출')+'</span></td>'
+      + '<td style="font-size:12px;">'+escHtml(k.need||'')+'</td>'
+      + '</tr>';
+  }).join('');
+}
+
+/* 벤더 예산·충전액 저장 — 잔액과 확인일은 **함께** 채워야 한다(하나만 있으면 서버가 둘 다 비운다) */
+function saveVendorBudget(){
+  var rows = Array.prototype.map.call(document.querySelectorAll('#vcBudgetRows tr[data-vendor]'), function(tr){
+    var g = function(sel){ var e=tr.querySelector(sel); return e?e.value:''; };
+    return {
+      vendor: tr.getAttribute('data-vendor'),
+      label: tr.getAttribute('data-label'),
+      console_url: tr.getAttribute('data-console') || null,
+      billing_mode: g('.vc-mode'),
+      monthly_budget_usd: Number(g('.vc-budget'))||0,
+      credit_added_usd: g('.vc-credit')==='' ? null : Number(g('.vc-credit')),
+      credit_as_of: g('.vc-asof') || null
+    };
+  });
+  if(!rows.length){ alert('저장할 벤더가 없습니다. 먼저 「새로고침」으로 실데이터를 불러오세요.'); return; }
+  var bad = rows.filter(function(r){ return (r.credit_added_usd!=null) !== !!r.credit_as_of; });
+  if(bad.length){ alert('충전 잔액과 확인일은 함께 적어야 합니다(기준일 없는 잔액은 역산할 수 없습니다).\n비우려면 둘 다 비우세요 — ' + bad.map(function(r){return r.label;}).join(', ')); return; }
+  postVendorBudget(rows);
+}
+async function postVendorBudget(rows){
+  var auth = getLiveAuth(); if(!auth){ alert('MS 로그인(관리자) 후 저장할 수 있습니다.'); return; }
+  try{
+    var res = await fetch(ADMIN_GATEWAY, { method:'POST', headers:{ Authorization:'Bearer '+auth.at, 'Content-Type':'application/json' },
+                                          body: JSON.stringify({ action:'save_vendor_budget', rows:rows }) });
+    var d = await res.json().catch(function(){ return {}; });
+    if(!res.ok || !d.ok) throw new Error(d.error || ('오류 '+res.status));
+    alert('벤더 예산 저장 완료 — '+d.saved+'건 (저장자: '+(d.updated_by||'')+')');
+    loadVendorCost(true);
+  }catch(e){ alert('벤더 예산 저장 실패: '+(e.message||e)); }
 }
 
 /* ===== 사용모델 설정 렌더·저장 (jeil-chat-admin d.model_settings) ===== */

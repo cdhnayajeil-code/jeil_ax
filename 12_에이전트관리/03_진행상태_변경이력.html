@@ -48,7 +48,9 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <h1 id="03">03 · 진행상태 · 변경이력</h1>
 <h2 id="1">1. 체크리스트</h2>
 <p><strong>파일럿 착수 전(사람)</strong>
-- [ ] <code>ANTHROPIC_API_KEY</code> 발급·Supabase 시크릿 등록 — 관리자 · 등록 전까지 gpt-4.1-mini 로 응답 중
+- [ ] <code>ANTHROPIC_API_KEY</code> 발급·Supabase 시크릿 등록 — 관리자 · 등록 전까지 gpt-4.1-mini 로 응답 중 · 절차는 <code>/admin/api-setup</code>
+- [ ] <code>OPENAI_ADMIN_KEY</code>·<code>ANTHROPIC_ADMIN_KEY</code>(사용량 조회 전용) 발급·등록 — 관리자 · 없으면 「💳」 탭이 벤더 청구액 대신 내부 추정치만 보여 준다(REQ-0091)
+- [ ] 벤더별 월 예산·충전 잔액 입력 — 관리자 · 관리자 콘솔 「💳 AI 비용·예산」 탭(0 이면 「미설정」)
 - [ ] 구성원 등록: 구매팀 담당자 2명(operator) · 관리자 2명(reviewer) 추가 — 현재 1명
 - [~] 골든셋 10~20문항 작성 → v1 회귀 기준선 — 담당자 · <strong>8문항 등록(09-29, PR·PU·PO 중심)</strong> · 회귀 미실행
 - [ ] 라이브 실측(대화·CSV·보고서·HTML 미리보기·관리 화면 각 탭) — 관리자</p>
@@ -58,7 +60,8 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <p><strong>후속 개발(백로그 등록 대상)</strong>
 - [ ] 실험실 화면 렌더를 <code>chatview.js</code> 로 이전
 - [ ] 포털 부서 카드(<code>portal_page</code>) 등재
-- [ ] 월 예산 80% Teams 알림
+- [ ] 월 예산 80% Teams 알림(벤더 계정 축 경고선은 화면에 표시됨 — 알림만 남았다)
+- [ ] 벤더 예산 초과 시 자동 차단·강등(ADR-111 보류분 — 지금은 경고 표시만)
 - [ ] 엑셀·워드 원본 생성
 - [ ] 게이트웨이 운영 승격(<code>jeil-agent</code>) · 운영 jeil-chat 흡수
 - [ ] 두 번째 부서 에이전트 후보 선정
@@ -118,7 +121,8 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 </tr>
 </tbody>
 </table>
-<p>| 2026-09-29 | <strong>PR·PU·PO 번호 체계 반영</strong>: <code>search_pur_list</code> v1.1(pr·pu·po 로 연결 추적 + 해석 문장 · 카드에 세 번호) · 공통 프롬프트 PU 형식 · 용어집 10개 추가(13개) · 골든셋 8문항 · 제안 칩 2개 · 문서 04 신설 | (이번 커밋) · 함수 v5 | 0090 |</p>
+<p>| 2026-09-29 | <strong>AI 비용·예산 관제</strong>: 관리자 콘솔 「💳 AI 비용·예산」 탭 신설(두 벤더 실사용·예산/충전 잔여 역산·모델 단가 비교·모델별 사용량·일별 추이·오케스트레이션 배정) · <code>/admin/api-setup</code> 신설(키 4종 현황·발급·검증·등록 절차) · SQL 76 <code>ai_vendor_budget</code> · 함수 <code>jeil-chat-admin</code> v13(액션 3종) · ADR-111 Accepted | (이번 커밋) · admin v17 | 0091 |
+| 2026-09-29 | <strong>PR·PU·PO 번호 체계 반영</strong>: <code>search_pur_list</code> v1.1(pr·pu·po 로 연결 추적 + 해석 문장 · 카드에 세 번호) · 공통 프롬프트 PU 형식 · 용어집 10개 추가(13개) · 골든셋 8문항 · 제안 칩 2개 · 문서 04 신설 | (이번 커밋) · 함수 v5 | 0090 |</p>
 <h2 id="3-09_adr">3. 결정 기록(요약 — 정본은 09_ADR · 총괄 대시보드)</h2>
 <table>
 <thead>

@@ -16,6 +16,9 @@
 //     저장은 DB RPC 로 — save_page_scope(perm_page_scope_save) · save_dept_module(perm_dept_module_save),
 //     미리보기 preview_page_scope(perm_preview_page). 검증·감사·옛 컬럼 미러는 RPC 가 한다(트랜잭션 하나).
 //     옛 저장 save_page_perm·save_dept_erp 는 **거부(410)** — 판정이 새 표만 보므로 받아 주면 저장이 조용히 무시된다.
+//   v13(2026-09-29, REQ-0091 · ADR-111): AI 비용·예산 관제 — 액션 3종 추가(vendor_cost·save_vendor_budget·verify_vendor_key).
+//     두 벤더의 **실사용액은 벤더 Usage/Cost API 실측**(Admin 키 필요), 키가 없으면 chat_log·agent_turn 기반 「내부 추정」으로 표시하고 사유를 남긴다.
+//     **잔여 크레딧 API 는 두 벤더 모두 없다** → 관리자 입력(ai_vendor_budget)에서 실사용을 빼 역산한다. 키 값은 어떤 응답에도 담지 않는다(§1.1·§1.8).
 // 원칙: chat_log·erp 매핑 뷰는 RLS로 클라이언트 차단 → 이 함수(service_role)가 유일한 조회/저장 경로.
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
@@ -278,6 +281,488 @@ Deno.serve(async (req) => {
     return json({ ok: true, saved: rows.length, updated_by: user.upn, updated_at: nowIso });
   }
 
+  /* ════════════════════════════════════════════════════════════════════════════════════════
+     v13(2026-09-29, REQ-0091 · ADR-111) — AI 비용·예산 관제(Claude + OpenAI 두 벤더)
+       action:'vendor_cost'        → 벤더별 이번 달 실사용액·모델별·일별 + 예산/충전 잔여(역산) + 단가 + 오케스트레이션 배정
+       action:'save_vendor_budget' → ai_vendor_budget 저장(관리자 입력 예산·충전액)
+       action:'verify_vendor_key'  → 붙여 넣은 키를 벤더에 시험 호출해 **검증만** 한다(저장·기록하지 않는다)
+
+     왜 「잔여」를 역산하는가
+       OpenAI·Anthropic 모두 **잔여 크레딧 조회 API 가 없다**(2026-09-29 문서 실측). 사용량·비용 조회만 있다.
+       그래서 잔여 = (관리자가 적은 월 예산 − 이번 달 실사용) / (관리자가 확인한 잔액 − 확인일 이후 실사용).
+       화면은 이 값이 역산이라는 것과 기준일을 반드시 함께 보여 준다(CLAUDE.md §16.6).
+
+     키 취급 — 값은 어떤 응답·로그에도 담지 않는다(CLAUDE.md §1.1·§1.8). 등록 여부·길이·접두어 일치만 알린다.
+     ════════════════════════════════════════════════════════════════════════════════════════ */
+
+  // 시크릿 규약: 호출 키와 사용량 조회(Admin) 키는 **별개**다. Admin 키 없이 사용량 API 를 부르면 401.
+  const KEY_SPEC = [
+    { env: "OPENAI_API_KEY",      vendor: "openai",    role: "call",  prefix: "sk-",          label: "OpenAI 호출 키",              need: "챗봇·에이전트가 GPT 모델을 부를 때" },
+    { env: "OPENAI_ADMIN_KEY",    vendor: "openai",    role: "admin", prefix: "sk-admin-",    label: "OpenAI 사용량 조회 키(Admin)", need: "이 화면이 OpenAI 실사용액을 읽을 때" },
+    { env: "ANTHROPIC_API_KEY",   vendor: "anthropic", role: "call",  prefix: "sk-ant-",      label: "Anthropic 호출 키",           need: "에이전트가 Claude 모델을 부를 때" },
+    { env: "ANTHROPIC_ADMIN_KEY", vendor: "anthropic", role: "admin", prefix: "sk-ant-admin", label: "Anthropic 사용량 조회 키(Admin)", need: "이 화면이 Claude 실사용액을 읽을 때" },
+  ];
+
+  /** 키 등록 현황 — **값은 담지 않는다**. 길이·접두어 일치만(CLAUDE.md §1.8). */
+  const keyStatus = () =>
+    KEY_SPEC.map((k) => {
+      const v = Deno.env.get(k.env) || "";
+      return {
+        env: k.env, vendor: k.vendor, role: k.role, label: k.label, need: k.need,
+        set: !!v, len: v.length,
+        expect_prefix: k.prefix,
+        prefix_ok: v ? v.startsWith(k.prefix) : null,
+      };
+    });
+
+  /** 사용량 조회에 쓸 Admin 키. 전용 시크릿이 없으면, 호출 키가 Admin 키로 발급된 경우에만 재사용한다. */
+  const adminKeyFor = (vendor: string): string | null => {
+    if (vendor === "openai") {
+      const a = Deno.env.get("OPENAI_ADMIN_KEY");
+      if (a) return a;
+      const c = Deno.env.get("OPENAI_API_KEY") || "";
+      return c.startsWith("sk-admin-") ? c : null;
+    }
+    const a = Deno.env.get("ANTHROPIC_ADMIN_KEY");
+    if (a) return a;
+    const c = Deno.env.get("ANTHROPIC_API_KEY") || "";
+    return c.startsWith("sk-ant-admin") ? c : null;
+  };
+  const callKeySet = (vendor: string) => !!Deno.env.get(vendor === "openai" ? "OPENAI_API_KEY" : "ANTHROPIC_API_KEY");
+
+  const dayKey = (d: Date) => d.toISOString().slice(0, 10);
+  const num2 = (n: number) => Number(n.toFixed(2));
+  const num6 = (n: number) => Number(n.toFixed(6));
+
+  type DayCost = { day: string; cost_usd: number };
+  type CostOut = { byDay: DayCost[]; modelCost: Map<string, number> };
+  type ModelUse = { model: string; in_tokens: number; cached_tokens: number; out_tokens: number; requests: number; cost_usd: number | null };
+
+  /* ---- OpenAI: 비용(일 단위 USD 실수) + 토큰(모델별) -------------------------------------- */
+  async function openaiCost(key: string, startUnix: number, endUnix: number, monthStartDay: string): Promise<CostOut> {
+    const byDay: DayCost[] = [];
+    const modelCost = new Map<string, number>();   // 모델별 비용은 **이번 달분만** 모은다(표가 이번 달 기준)
+    let page: string | null = null, guard = 0;
+    do {
+      const u = new URL("https://api.openai.com/v1/organization/costs");
+      u.searchParams.set("start_time", String(startUnix));
+      u.searchParams.set("end_time", String(endUnix));
+      u.searchParams.set("bucket_width", "1d");
+      u.searchParams.append("group_by[]", "line_item");   // 같은 요청으로 모델별 비용까지 — 호출 수는 그대로
+      u.searchParams.set("limit", "31");
+      if (page) u.searchParams.set("page", page);
+      const r = await fetch(u, { headers: { Authorization: `Bearer ${key}` } });
+      if (!r.ok) throw new Error(`OpenAI 비용 조회 실패(${r.status}) — ${(await r.text()).slice(0, 180)}`);
+      const j = await r.json();
+      for (const b of (j.data || [])) {
+        const day = dayKey(new Date(Number(b.start_time) * 1000));
+        let sum = 0;
+        for (const x of (b.results || [])) {
+          const v = Number((x?.amount as Record<string, unknown> | undefined)?.value || 0);
+          sum += v;
+          if (day >= monthStartDay) {
+            // line_item 은 "gpt-4o-mini-2024-07-18, input" 꼴 — 마지막 쉼표 앞이 모델이다.
+            // 형식이 다르면 통째로 라벨로 쓴다(추측해서 잘라내지 않는다).
+            const li = String(x.line_item || "(미지정)");
+            const ci = li.lastIndexOf(",");
+            const mk = ci > 0 ? li.slice(0, ci).trim() : li;
+            modelCost.set(mk, (modelCost.get(mk) || 0) + v);
+          }
+        }
+        byDay.push({ day, cost_usd: num6(sum) });
+      }
+      page = j.has_more ? (j.next_page || null) : null;
+    } while (page && ++guard < 4);
+    return { byDay, modelCost };
+  }
+
+  async function openaiTokens(key: string, startUnix: number, endUnix: number): Promise<ModelUse[]> {
+    const agg = new Map<string, ModelUse>();
+    let page: string | null = null, guard = 0;
+    do {
+      const u = new URL("https://api.openai.com/v1/organization/usage/completions");
+      u.searchParams.set("start_time", String(startUnix));
+      u.searchParams.set("end_time", String(endUnix));
+      u.searchParams.set("bucket_width", "1d");
+      u.searchParams.append("group_by[]", "model");
+      u.searchParams.set("limit", "31");
+      if (page) u.searchParams.set("page", page);
+      const r = await fetch(u, { headers: { Authorization: `Bearer ${key}` } });
+      if (!r.ok) throw new Error(`OpenAI 토큰 조회 실패(${r.status}) — ${(await r.text()).slice(0, 180)}`);
+      const j = await r.json();
+      for (const b of (j.data || [])) {
+        for (const x of (b.results || [])) {
+          const m = String(x.model || "(미지정)");
+          const a = agg.get(m) || { model: m, in_tokens: 0, cached_tokens: 0, out_tokens: 0, requests: 0, cost_usd: null };
+          a.in_tokens += Number(x.input_tokens || 0);
+          a.cached_tokens += Number(x.input_cached_tokens || 0);
+          a.out_tokens += Number(x.output_tokens || 0);
+          a.requests += Number(x.num_model_requests || 0);
+          agg.set(m, a);
+        }
+      }
+      page = j.has_more ? (j.next_page || null) : null;
+    } while (page && ++guard < 4);
+    return [...agg.values()];
+  }
+
+  /* ---- Anthropic: 비용(금액은 **센트 단위 문자열** → /100) + 토큰(모델별) ------------------ */
+  async function anthropicCost(key: string, startIso: string, endIso: string, monthStartDay: string): Promise<CostOut> {
+    const byDay: DayCost[] = [];
+    const modelCost = new Map<string, number>();
+    let page: string | null = null, guard = 0;
+    do {
+      const u = new URL("https://api.anthropic.com/v1/organizations/cost_report");
+      u.searchParams.set("starting_at", startIso);
+      u.searchParams.set("ending_at", endIso);
+      u.searchParams.set("bucket_width", "1d");
+      u.searchParams.append("group_by[]", "description");  // description 으로 묶으면 결과에 model·cost_type 이 붙는다
+      u.searchParams.set("limit", "31");
+      if (page) u.searchParams.set("page", page);
+      const r = await fetch(u, { headers: { "x-api-key": key, "anthropic-version": "2023-06-01" } });
+      if (!r.ok) throw new Error(`Anthropic 비용 조회 실패(${r.status}) — ${(await r.text()).slice(0, 180)}`);
+      const j = await r.json();
+      for (const b of (j.data || [])) {
+        const day = String(b.starting_at || "").slice(0, 10);
+        let cents = 0;
+        for (const x of (b.results || [])) {
+          // amount 는 **최소 통화단위(센트) 문자열**이다 — "123.45" = $1.2345
+          const v = Number(x.amount || 0);
+          cents += v;
+          if (day >= monthStartDay) {
+            // 토큰 외 비용(웹검색·코드실행·세션)은 model 이 null 이다 — 따로 모아 청구액을 잃지 않는다
+            const mk = x.model ? String(x.model) : `(토큰 외: ${String(x.cost_type || "기타")})`;
+            modelCost.set(mk, (modelCost.get(mk) || 0) + v / 100);
+          }
+        }
+        byDay.push({ day, cost_usd: num6(cents / 100) });
+      }
+      page = j.has_more ? (j.next_page || null) : null;
+    } while (page && ++guard < 4);
+    return { byDay, modelCost };
+  }
+
+  async function anthropicTokens(key: string, startIso: string, endIso: string): Promise<ModelUse[]> {
+    const agg = new Map<string, ModelUse>();
+    let page: string | null = null, guard = 0;
+    do {
+      const u = new URL("https://api.anthropic.com/v1/organizations/usage_report/messages");
+      u.searchParams.set("starting_at", startIso);
+      u.searchParams.set("ending_at", endIso);
+      u.searchParams.set("bucket_width", "1d");
+      u.searchParams.append("group_by[]", "model");
+      u.searchParams.set("limit", "31");
+      if (page) u.searchParams.set("page", page);
+      const r = await fetch(u, { headers: { "x-api-key": key, "anthropic-version": "2023-06-01" } });
+      if (!r.ok) throw new Error(`Anthropic 토큰 조회 실패(${r.status}) — ${(await r.text()).slice(0, 180)}`);
+      const j = await r.json();
+      for (const b of (j.data || [])) {
+        for (const x of (b.results || [])) {
+          const m = String(x.model || "(미지정)");
+          const a = agg.get(m) || { model: m, in_tokens: 0, cached_tokens: 0, out_tokens: 0, requests: 0, cost_usd: null };
+          const cc = (x.cache_creation || {}) as Record<string, unknown>;
+          a.in_tokens += Number(x.uncached_input_tokens || 0)
+            + Number(cc.ephemeral_5m_input_tokens || 0) + Number(cc.ephemeral_1h_input_tokens || 0);
+          a.cached_tokens += Number(x.cache_read_input_tokens || 0);
+          a.out_tokens += Number(x.output_tokens || 0);
+          a.requests += 0; // 사용량 API 는 요청 수를 주지 않는다 — 추정하지 않고 0(화면은 「—」)
+          agg.set(m, a);
+        }
+      }
+      page = j.has_more ? (j.next_page || null) : null;
+    } while (page && ++guard < 4);
+    return [...agg.values()];
+  }
+
+  /* ---- 2-k0) 키 등록 현황만 — /admin/api-setup 전용 경량 응답(외부 호출·DB 조회 없음) ---------- */
+  if (body && (body as Record<string, unknown>).action === "keys_status") {
+    return json({ ok: true, as_of: nowIso, keys: keyStatus() });
+  }
+
+  /* ---- 2-k) 벤더 예산 저장 --------------------------------------------------------------- */
+  if (body && (body as Record<string, unknown>).action === "save_vendor_budget") {
+    const rowsIn = Array.isArray((body as Record<string, unknown>).rows) ? (body as Record<string, unknown>).rows as Record<string, unknown>[] : [];
+    const ok = new Set(["openai", "anthropic"]);
+    const rows = rowsIn.filter((r) => r && ok.has(String(r.vendor).toLowerCase())).map((r) => {
+      const bud = Math.max(0, Number(r.monthly_budget_usd) || 0);
+      const credRaw = r.credit_added_usd;
+      const hasCred = credRaw !== "" && credRaw != null && Number.isFinite(Number(credRaw));
+      const asOf = String(r.credit_as_of || "").slice(0, 10);
+      const ar = Number(r.alert_ratio);
+      return {
+        vendor: String(r.vendor).toLowerCase(),
+        label: String(r.label || r.vendor).slice(0, 80),
+        billing_mode: r.billing_mode === "postpaid_invoice" ? "postpaid_invoice" : "prepaid_credit",
+        monthly_budget_usd: num2(bud),
+        // 잔액과 확인일은 **함께** 있어야 한다(표 제약) — 하나만 오면 둘 다 비운다
+        credit_added_usd: hasCred && /^\d{4}-\d{2}-\d{2}$/.test(asOf) ? num2(Math.max(0, Number(credRaw))) : null,
+        credit_as_of: hasCred && /^\d{4}-\d{2}-\d{2}$/.test(asOf) ? asOf : null,
+        alert_ratio: Number.isFinite(ar) && ar > 0 && ar <= 1 ? Number(ar.toFixed(3)) : 0.8,
+        console_url: r.console_url != null ? String(r.console_url).slice(0, 300) : null,
+        note: r.note != null ? String(r.note).slice(0, 400) : null,
+        updated_by: user.upn, updated_at: nowIso,
+      };
+    });
+    if (!rows.length) return json({ error: "저장할 벤더 행이 없습니다." }, 400);
+    const { error: be } = await admin.from("ai_vendor_budget").upsert(rows, { onConflict: "vendor" });
+    if (be) return json({ error: "벤더 예산 저장 실패: " + be.message }, 500);
+    return json({ ok: true, saved: rows.length, updated_by: user.upn, updated_at: nowIso });
+  }
+
+  /* ---- 2-l) 키 검증 — 저장하지 않는다 ----------------------------------------------------
+     붙여 넣은 키로 벤더에 가장 싼 조회 1건을 보내 살아 있는지만 본다.
+     키는 변수 밖으로 나가지 않는다: DB 에 쓰지 않고, 로그·응답에 담지 않는다.
+     실제 사용은 Supabase Edge Function 시크릿 등록으로만 한다(CLAUDE.md §1.1). */
+  if (body && (body as Record<string, unknown>).action === "verify_vendor_key") {
+    const b = body as Record<string, unknown>;
+    const vendor = String(b.vendor || "").toLowerCase();
+    const role = String(b.role || "call");
+    const key = String(b.key || "").trim();
+    if (!["openai", "anthropic"].includes(vendor)) return json({ error: "벤더를 openai 또는 anthropic 으로 지정하세요." }, 400);
+    if (!key) return json({ error: "검증할 키를 입력하세요." }, 400);
+    if (key.length > 300) return json({ error: "키 형식이 아닙니다(너무 깁니다)." }, 400);
+
+    const yesterday = new Date(Date.now() - 24 * 3600 * 1000);
+    let url = "", headers: Record<string, string> = {}, what = "";
+    if (vendor === "openai" && role === "admin") {
+      const u = new URL("https://api.openai.com/v1/organization/costs");
+      u.searchParams.set("start_time", String(Math.floor(yesterday.getTime() / 1000)));
+      u.searchParams.set("limit", "1");
+      url = u.toString(); headers = { Authorization: `Bearer ${key}` }; what = "OpenAI 사용량 조회 권한";
+    } else if (vendor === "openai") {
+      url = "https://api.openai.com/v1/models"; headers = { Authorization: `Bearer ${key}` }; what = "OpenAI 호출 권한";
+    } else if (role === "admin") {
+      const u = new URL("https://api.anthropic.com/v1/organizations/cost_report");
+      u.searchParams.set("starting_at", yesterday.toISOString().slice(0, 10) + "T00:00:00Z");
+      u.searchParams.set("limit", "1");
+      url = u.toString(); headers = { "x-api-key": key, "anthropic-version": "2023-06-01" }; what = "Anthropic 사용량 조회 권한";
+    } else {
+      url = "https://api.anthropic.com/v1/models?limit=1"; headers = { "x-api-key": key, "anthropic-version": "2023-06-01" }; what = "Anthropic 호출 권한";
+    }
+    try {
+      const r = await fetch(url, { headers });
+      const txt = (await r.text()).slice(0, 300);
+      const hint = r.status === 401 ? "키가 틀렸거나 폐기됐습니다."
+        : r.status === 403 ? (role === "admin" ? "이 키에 조직 사용량 조회 권한이 없습니다 — Admin 키로 발급하세요." : "권한이 없는 키입니다.")
+        : r.status === 404 ? "조직 계정이 아니거나 이 벤더에서 해당 API 를 쓸 수 없습니다(개인 계정은 Admin API 불가)."
+        : r.status === 429 ? "요청이 몰렸습니다 — 잠시 후 다시." : "";
+      // 응답 본문은 벤더 오류 메시지일 뿐이지만, 혹시라도 키가 되비치지 않게 잘라낸다
+      const detail = txt.replace(key, "***").slice(0, 200);
+      return json({
+        ok: true, verified: r.ok, status: r.status, what, hint,
+        detail: r.ok ? "정상 응답" : detail,
+        note: "이 키는 저장하지 않았습니다. 실제 사용은 Supabase Edge Function 시크릿 등록으로만 됩니다.",
+      });
+    } catch (e) {
+      return json({ ok: true, verified: false, status: 0, what, hint: "벤더에 연결하지 못했습니다.", detail: String((e as Error).message || e).slice(0, 200) });
+    }
+  }
+
+  /* ---- 2-m) 벤더별 사용량·비용·예산 잔여 --------------------------------------------------- */
+  if (body && (body as Record<string, unknown>).action === "vendor_cost") {
+    const now = new Date();
+    const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+    const floor90 = new Date(now.getTime() - 90 * 24 * 3600 * 1000);
+
+    const [budRes, modelRes, cfgRes, agentRes, verRes, ruleRes] = await Promise.all([
+      admin.from("ai_vendor_budget").select("*"),
+      admin.from("ai_model").select("model_id,vendor,label,purpose,price_in,price_out,active,callable,sort,note").order("sort"),
+      admin.from("ai_gateway_config").select("default_model,max_tokens,prompt_caching").eq("id", 1).maybeSingle(),
+      admin.from("ai_agent").select("agent_key,name_ko,dept_nm,status,current_version,monthly_budget_usd,daily_limit"),
+      admin.from("ai_agent_version").select("agent_key,version,state,model_id,fallback_model_id,effort"),
+      admin.from("ai_routing_rule").select("seq,label,rule_type,model_id,active,enforced").order("seq"),
+    ]);
+
+    const models = modelRes.data || [];
+    const vendorOf = new Map<string, string>(models.map((m) => [m.model_id, String(m.vendor || "").toLowerCase()]));
+    const guessVendor = (mid: string) => {
+      const v = vendorOf.get(mid);
+      if (v) return v;
+      const s = String(mid || "").toLowerCase();
+      if (s.startsWith("claude")) return "anthropic";
+      if (s.startsWith("gpt") || s.startsWith("o1") || s.startsWith("o3") || s.startsWith("o4")) return "openai";
+      return "";
+    };
+
+    // 내부 추정 폴백용 원장 — Admin 키가 없는 벤더는 이 값으로 「내부 추정」을 보여 준다(0 으로 감추지 않는다)
+    const sinceAll = new Date(Math.min(monthStart.getTime(), ...(budRes.data || [])
+      .map((b) => (b.credit_as_of ? new Date(b.credit_as_of + "T00:00:00Z").getTime() : monthStart.getTime()))));
+    const estSince = new Date(Math.max(sinceAll.getTime(), floor90.getTime()));
+    const [clRes, atRes] = await Promise.all([
+      admin.from("chat_log").select("model,est_cost_usd,prompt_tokens,completion_tokens,created_at").gte("created_at", estSince.toISOString()).limit(20000),
+      admin.from("agent_turn").select("model,est_cost_usd,prompt_tokens,completion_tokens,cache_read_tokens,created_at").gte("created_at", estSince.toISOString()).limit(20000),
+    ]);
+    const estByVendor: Record<string, { byDay: Map<string, number>; byModel: Map<string, ModelUse> }> = {
+      openai: { byDay: new Map(), byModel: new Map() }, anthropic: { byDay: new Map(), byModel: new Map() },
+    };
+    const feedEst = (r: Record<string, unknown>) => {
+      const mid = String(r.model || "");
+      const v = guessVendor(mid); if (!estByVendor[v]) return;
+      const day = String(r.created_at).slice(0, 10);
+      const c = Number(r.est_cost_usd || 0);
+      const bd = estByVendor[v].byDay; bd.set(day, (bd.get(day) || 0) + c);
+      const bm = estByVendor[v].byModel;
+      const a = bm.get(mid) || { model: mid, in_tokens: 0, cached_tokens: 0, out_tokens: 0, requests: 0, cost_usd: 0 };
+      a.in_tokens += Number(r.prompt_tokens || 0);
+      a.cached_tokens += Number(r.cache_read_tokens || 0);
+      a.out_tokens += Number(r.completion_tokens || 0);
+      a.requests += 1;
+      a.cost_usd = Number(a.cost_usd || 0) + c;
+      bm.set(mid, a);
+    };
+    (clRes.data || []).forEach(feedEst);
+    (atRes.data || []).forEach(feedEst);
+
+    const budByVendor = new Map<string, Record<string, unknown>>((budRes.data || []).map((b) => [String(b.vendor), b]));
+    const vendors: Record<string, unknown>[] = [];
+
+    for (const vendor of ["openai", "anthropic"]) {
+      const bud = budByVendor.get(vendor) || {
+        vendor, label: vendor === "openai" ? "OpenAI" : "Anthropic (Claude)", billing_mode: "prepaid_credit",
+        monthly_budget_usd: 0, credit_added_usd: null, credit_as_of: null, alert_ratio: 0.8, console_url: null, note: null,
+      };
+      const creditAsOf = bud.credit_as_of ? new Date(String(bud.credit_as_of) + "T00:00:00Z") : null;
+      const creditTooOld = !!creditAsOf && creditAsOf.getTime() < floor90.getTime();
+      const winStart = new Date(Math.max(
+        Math.min(monthStart.getTime(), creditAsOf ? creditAsOf.getTime() : monthStart.getTime()),
+        floor90.getTime(),
+      ));
+
+      const key = adminKeyFor(vendor);
+      let source = "internal_estimate", err: string | null = null;
+      let byDay: DayCost[] = [], byModel: ModelUse[] = [];
+
+      if (key) {
+        try {
+          const mStart = dayKey(monthStart);
+          let c: CostOut;
+          if (vendor === "openai") {
+            const [cc, t] = await Promise.all([
+              openaiCost(key, Math.floor(winStart.getTime() / 1000), Math.floor(now.getTime() / 1000), mStart),
+              openaiTokens(key, Math.floor(monthStart.getTime() / 1000), Math.floor(now.getTime() / 1000)),
+            ]);
+            c = cc; byModel = t;
+          } else {
+            const [cc, t] = await Promise.all([
+              anthropicCost(key, winStart.toISOString(), now.toISOString(), mStart),
+              anthropicTokens(key, monthStart.toISOString(), now.toISOString()),
+            ]);
+            c = cc; byModel = t;
+          }
+          byDay = c.byDay;
+          // 모델별 비용을 토큰 행에 붙인다. 비용표에만 있는 항목(스냅샷 ID·토큰 외 비용)은 행을 새로 만든다 —
+          // 청구에 있는 돈을 화면에서 지우지 않는다.
+          const left = new Map(c.modelCost);
+          for (const m of byModel) {
+            // 벤더는 스냅샷 ID(gpt-4o-mini-2024-07-18)로 청구하고 사용량은 별칭으로 줄 수 있다 → 접두어로도 맞춘다
+            let hit: string | null = left.has(m.model) ? m.model : null;
+            if (!hit) for (const k of left.keys()) { if (k.startsWith(m.model) || m.model.startsWith(k)) { hit = k; break; } }
+            if (hit) { m.cost_usd = num6(left.get(hit) || 0); left.delete(hit); }
+          }
+          for (const [k, v] of left) {
+            byModel.push({ model: k, in_tokens: 0, cached_tokens: 0, out_tokens: 0, requests: 0, cost_usd: num6(v) });
+          }
+          source = "vendor_api";
+        } catch (e) {
+          err = String((e as Error).message || e).slice(0, 220);
+        }
+      } else {
+        err = `${vendor === "openai" ? "OPENAI_ADMIN_KEY" : "ANTHROPIC_ADMIN_KEY"} 미등록 — 벤더 청구액을 읽을 수 없어 내부 추정치를 보여 줍니다.`;
+      }
+
+      if (source !== "vendor_api") {
+        byDay = [...estByVendor[vendor].byDay.entries()].map(([day, cost_usd]) => ({ day, cost_usd: num6(cost_usd) })).sort((a, b) => a.day < b.day ? -1 : 1);
+        byModel = [...estByVendor[vendor].byModel.values()];
+      }
+
+      const mStr = dayKey(monthStart);
+      const monthSpend = byDay.filter((d) => d.day >= mStr).reduce((s, d) => s + d.cost_usd, 0);
+      const creditSpend = creditAsOf && !creditTooOld
+        ? byDay.filter((d) => d.day >= dayKey(creditAsOf)).reduce((s, d) => s + d.cost_usd, 0) : null;
+
+      const budgetUsd = Number(bud.monthly_budget_usd || 0);
+      const creditAdded = bud.credit_added_usd != null ? Number(bud.credit_added_usd) : null;
+
+      vendors.push({
+        vendor, label: bud.label, billing_mode: bud.billing_mode,
+        console_url: bud.console_url, note: bud.note,
+        updated_by: bud.updated_by || null, updated_at: bud.updated_at || null,
+        call_key_set: callKeySet(vendor),
+        admin_key_set: !!key,
+        source, error: err,
+        window_start: dayKey(winStart),
+        month_spend_usd: num6(monthSpend),
+        by_day: byDay,
+        by_model: byModel.map((m) => ({ ...m, cost_usd: m.cost_usd == null ? null : num6(m.cost_usd) }))
+          .sort((a, b) => (b.cost_usd || 0) - (a.cost_usd || 0) || (b.out_tokens - a.out_tokens)),
+        budget: {
+          monthly_budget_usd: num2(budgetUsd),
+          set: budgetUsd > 0,
+          remaining_usd: budgetUsd > 0 ? num2(budgetUsd - monthSpend) : null,
+          ratio: budgetUsd > 0 ? Number(Math.min(9.99, monthSpend / budgetUsd).toFixed(4)) : null,
+          alert_ratio: Number(bud.alert_ratio || 0.8),
+        },
+        credit: {
+          added_usd: creditAdded,
+          as_of: bud.credit_as_of || null,
+          spent_since_usd: creditSpend == null ? null : num6(creditSpend),
+          remaining_usd: creditAdded != null && creditSpend != null ? num2(creditAdded - creditSpend) : null,
+          stale: creditTooOld,
+          reason: creditAdded == null ? "충전 잔액 미입력 — 벤더 콘솔에서 확인한 금액과 날짜를 적으면 역산합니다."
+            : creditTooOld ? "확인일이 90일 이전입니다 — 잔액을 다시 확인해 주세요(역산 창을 넘습니다)." : null,
+        },
+      });
+    }
+
+    // 오케스트레이션 배정 — 지금 어느 경로가 어느 모델을 쓰는가(단가 비교의 상대편)
+    const verByAgent = new Map<string, Record<string, unknown>>();
+    for (const v of (verRes.data || [])) {
+      const a = (agentRes.data || []).find((x) => x.agent_key === v.agent_key);
+      if (a && a.current_version === v.version) verByAgent.set(v.agent_key, v);
+    }
+    const priceOf = (mid: string) => models.find((m) => m.model_id === mid) || null;
+
+    return json({
+      ok: true, as_of: nowIso,
+      month: { start: dayKey(monthStart), today: dayKey(now) },
+      keys: keyStatus(),
+      vendors,
+      models: models.map((m) => ({
+        ...m, vendor_key: String(m.vendor || "").toLowerCase(),
+        // 질문 1건 환산 가정(입력 6k · 출력 700 토큰) — 가정치임을 화면에 적는다
+        per_1k_questions_usd: num2((Number(m.price_in) * 6000 + Number(m.price_out) * 700) / 1_000_000 * 1000),
+      })),
+      orchestration: {
+        gateway: {
+          default_model: cfgRes.data?.default_model || null,
+          vendor: cfgRes.data?.default_model ? guessVendor(String(cfgRes.data.default_model)) : null,
+          max_tokens: cfgRes.data?.max_tokens ?? null,
+          prompt_caching: cfgRes.data?.prompt_caching ?? null,
+        },
+        agents: (agentRes.data || []).map((a) => {
+          const v = verByAgent.get(a.agent_key);
+          const mid = v ? String(v.model_id) : null;
+          const fb = v && v.fallback_model_id ? String(v.fallback_model_id) : null;
+          const pm = mid ? priceOf(mid) : null;
+          return {
+            agent_key: a.agent_key, name_ko: a.name_ko, dept_nm: a.dept_nm, status: a.status,
+            version: a.current_version, model_id: mid, model_vendor: mid ? guessVendor(mid) : null,
+            model_callable: pm ? !!pm.callable : null,
+            fallback_model_id: fb, fallback_vendor: fb ? guessVendor(fb) : null,
+            effort: v ? (v.effort || null) : null,
+            monthly_budget_usd: Number(a.monthly_budget_usd || 0), daily_limit: a.daily_limit,
+          };
+        }),
+        routing: (ruleRes.data || []).map((r) => ({ ...r, vendor: guessVendor(String(r.model_id)) })),
+      },
+      internal_estimate_window: dayKey(estSince),
+      errors: {
+        budget: budRes.error?.message || null, models: modelRes.error?.message || null,
+        chat_log: clRes.error?.message || null, agent_turn: atRes.error?.message || null,
+      },
+    });
+  }
+
   // 2-i) v11: 조회 묶음 — 전체 응답과 부분 조회(scope)가 같은 쿼리를 쓰도록 한 곳에 둔다.
   //   dept_mapping: 사용자↔부서↔사원 매핑(ERP Z_USR_MAST_REC 대사). service_role은 RLS 우회 → 사내 전용 뷰 전량 조회.
   //   perm: 권한 설정 화면이 쓰는 것 전부(전체 관리자·페이지·부서 ERP 모듈·제안·카탈로그·개인 예외·감사).
@@ -426,6 +911,9 @@ Deno.serve(async (req) => {
       config_source: aiCfg ? "db(ai_gateway_config)" : "env(fallback)",
       provider: "OpenAI",
       key_set: !!Deno.env.get("OPENAI_API_KEY"),
+      // v13(REQ-0091): 벤더 키 4종 등록 현황 — **값은 담지 않는다**(등록 여부·길이·접두어 일치만, §1.8).
+      //   외부 호출이 없어 전체 응답에 넣어도 느려지지 않는다. 실사용액은 action:'vendor_cost' 로 따로 조회.
+      keys: keyStatus(),
       auth_policy: "Entra 토큰 Graph 검증 · @jeilm.co.kr 사내 한정",
       limits: {
         max_messages: Number(aiCfg?.max_messages ?? 20),

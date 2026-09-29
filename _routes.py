@@ -46,7 +46,8 @@ ROUTES = {
     "/admin/accounts":          "app/admin-accounts.html",
     "/admin/permissions":       "app/admin-permissions.html",   # 권한 설정(2026-09-10 REQ-0026) — 콘솔 「권한·계정」 탭도 이 화면을 내장
     "/admin/offboarding":       "app/admin-offboarding.html",
-    "/admin/agents":            "app/admin-agents.html",        # 부서 에이전트 관리(REQ-0086/0088) — 에이전트 구성원·관리자(서버 판정)
+    "/admin/agents":            "app/admin-agents.html",
+    "/admin/api-setup":         "app/api-setup-guide.html",  # AI API 설정방법(REQ-0091) — 키 4종 현황·발급·검증·Supabase 시크릿 등록 절차        # 부서 에이전트 관리(REQ-0086/0088) — 에이전트 구성원·관리자(서버 판정)
     "/chatdemo":                "app/chat-lab.html",            # 챗봇 고도화 실험실(REQ-0084) — 전체관리자 전용. §15.2 네임스페이스 예외(관리자 지정 주소)
     "/vendor/login":            "app/vendor-login.html",
 

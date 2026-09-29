@@ -284,6 +284,33 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <li><strong>상태</strong>: Accepted(2026-09-28). D-1~D-6(호출 경로·데이터 반출 승인·턴 기록 수집 방식·구매 에이전트 담당자·파일럿 범위·월 예산 상한 — 대시보드 의사결정 로그 D-87~D-92)을 관리자가 확정하고 D-93(채택 여부)도 결정됨으로 전이했다. P1~P3(<code>ai_agent</code>·<code>ai_agent_version</code> 스키마·<code>/admin/agents</code>·게이트웨이 agent_key·<code>agent_turn</code>)까지 커밋 <code>f598d2d</code>로 구현·배포 완료(REQ-0085~0088, 구매 에이전트 파일럿). 남은 사람 작업: 회사 명의 ANTHROPIC_API_KEY 등록, 파일럿 구성원 5명(담당자 2·관리자 3) 실등록, 라이브 실측.</li>
 <li><strong>근거</strong>: <a href="/docs/product/dept-agents">14 부서 에이전트 운영기획</a>.</li>
 </ul>
+<h3 id="adr-110-nas-2026-09-29">ADR-110 🕐 사내 NAS = 아웃바운드 전용 데이터 계층(문서 원본·장기보관·백업) (2026-09-29 제안)</h3>
+<ul>
+<li><strong>배경</strong>: 부서 에이전트의 데이터와 에이전트가 쓰는 데이터(사내 문서·생성 자료·대화기록·ERP 복제)를 사내 NAS 에서 관리하려는 관리자 목적. NAS 는 사내 방화벽 안에 있어 클라우드(Vercel·Supabase)에서 들어갈 수 없고, NAS 에서 나가는 연결만 확인됐다. Supabase 는 Free 플랜이라 자동 백업이 없다.</li>
+<li><strong>결정(안)</strong>:</li>
+<li>NAS 는 <strong>아웃바운드 전용 데이터 계층</strong>으로 쓴다. 클라우드→NAS 인바운드 경로를 만들지 않고, 모든 연동은 NAS 워커가 먼저 시작한다(pull).</li>
+<li>실시간 정본(에이전트 설정·대화기록·중간DB)은 게이트웨이가 있는 쪽(Supabase → 이관 후 Azure)에 둔다. NAS 는 <strong>문서 원본 · 생성 자료 장기보관 · 야간 백업</strong>을 맡는다. 대화기록 180일 약속은 백업에도 적용한다.</li>
+<li>NAS 워커는 별도 코드베이스가 아니라 러너(<code>10_ERP_DB연계/etl</code>)의 능력 표식 <code>+nas</code> 로 붙인다(CLAUDE.md §17). service_role 을 NAS 에 두지 않는다.</li>
+<li><strong>대안(보류)</strong>: NAS 에 Claude Agent SDK 실행 엔진(PoC) — 인바운드·인증·엔진 이원화 문제. 게이트웨이 한계가 실측되면 게이트웨이의 "장시간 작업 모듈"로 편입 재검토(ADR-109 유지).</li>
+<li><strong>대안(기각)</strong>: 에이전트 DB 정본을 NAS 로 이전 — 게이트웨이가 NAS 에 실시간 접속해야 해 인바운드 개방이 필수.</li>
+<li><strong>상태</strong>: Proposed — D-N1(NAS 운영 주체)·D-N2(문서 조각 클라우드 적재) 확정 + N1 착수 시 Accepted 로 전이. ERP ETL 의 NAS 이전은 N3 조사 후 별도 ADR. 대시보드 대응: D-N1~N6 = 의사결정 로그 D-94~D-99.</li>
+<li><strong>근거</strong>: <a href="/docs/nas/review">13_NAS_고도화/00 타당성검토</a> · <a href="/docs/nas/plan">01 데이터계층 기획</a>.</li>
+</ul>
+<h3 id="adr-111-ai-api-2026-09-29">ADR-111 ✅ AI 비용 관제 = 벤더 API 실측 + 잔여예산은 관리자 입력값 역산 (2026-09-29 채택)</h3>
+<ul>
+<li><strong>배경</strong>: 두 벤더(OpenAI·Anthropic)를 모델별로 나눠 쓰려니 "어느 모델에 어떤 일을 맡길지"를 단가·실사용으로 비교해야 한다. 그런데 관리자 콘솔의 「추정 비용」은 우리 DB(<code>chat_log</code>·<code>agent_turn</code>)의 토큰 × <code>ai_model</code> 단가로 계산한 값이어서, 단가가 낡으면 그대로 틀리고 캐시·배치 할인과 서버도구(웹검색) 비용이 빠진다. 더 큰 문제는 <strong>잔여 크레딧을 알려주는 API 가 두 벤더 모두 없다</strong>는 것이다(2026-09-29 문서 실측 — OpenAI 의 구 <code>/dashboard/billing/credit_grants</code> 는 세션 인증 전용·폐기, Anthropic 은 애초에 없음). 벤더가 주는 것은 <em>사용량·비용 조회</em>뿐이고, 그것도 호출 키가 아닌 <strong>조직 Admin 키</strong>를 요구한다.</li>
+<li><strong>결정</strong>:</li>
+<li><strong>실사용액은 벤더 API 실측을 정본으로 한다.</strong> OpenAI <code>GET /v1/organization/costs</code>·<code>/usage/completions</code>, Anthropic <code>GET /v1/organizations/cost_report</code>·<code>/usage_report/messages</code>. Admin 키(<code>OPENAI_ADMIN_KEY</code>·<code>ANTHROPIC_ADMIN_KEY</code>)를 호출 키와 <strong>분리해</strong> 등록한다.</li>
+<li>Admin 키가 없으면 <strong>0 을 보이지 않는다.</strong> 내부 추정치를 보여 주되 화면에 <code>내부 추정</code> 배지와 사유를 함께 적고, 두 출처의 금액을 합산하지 않는다.</li>
+<li><strong>잔여는 역산값임을 화면에 명시한다.</strong> ① 예산 잔여 = 관리자가 적은 월 예산 − 이번 달 실사용, ② 잔액 역산 = 관리자가 벤더 콘솔에서 <strong>확인한 잔액</strong> − <strong>확인일 이후</strong> 실사용. 잔액과 확인일은 함께만 저장한다(기준일 없는 잔액은 역산 불가 — 표 제약으로 강제). 확인일이 90일을 넘으면 역산하지 않고 재확인을 요청한다.</li>
+<li>벤더 계정 단위 예산은 에이전트 단위 예산(<code>ai_agent.monthly_budget_usd</code>)과 <strong>다른 축</strong>이라 별도 표(<code>ai_vendor_budget</code>)로 둔다 — 전자는 서비스 강등, 후자는 전면 중단의 경계다.</li>
+<li><strong>API 키는 어떤 표·문서·화면에도 담지 않는다.</strong> 시크릿은 Supabase Edge Function 시크릿에만 두고(§1.1), 화면은 등록 여부·길이·접두어 일치만 본다(§1.8). <code>/admin/api-setup</code> 의 입력칸은 <strong>검증 전용</strong>이며 저장·로그 기록을 하지 않는다.</li>
+<li><strong>대안(기각)</strong>: 키를 포털 DB(또는 Vault)에 저장해 화면에서 바로 등록 — 편하지만 브라우저→DB 로 시크릿 유통 경로가 하나 늘고, §1.1 의 "시크릿은 환경변수·시크릿 매니저로 분리" 원칙과 어긋난다. 등록 단계만 사람 손에 남기는 비용이 더 싸다.</li>
+<li><strong>대안(기각)</strong>: 잔액을 벤더 콘솔 화면 스크래핑으로 읽기 — 인증이 세션 기반이라 자동화가 불안정하고, 약관 위반 소지가 있다.</li>
+<li><strong>대안(보류)</strong>: 예산 초과 시 자동 차단·자동 모델 강등 — 지금은 에이전트 단위 예비 모델 폴백만 있다. 벤더 단위 하드 차단은 운영 중단 위험이 커서 경고선(80%) 표시부터 시작한다.</li>
+<li><strong>상태</strong>: Accepted — 화면·서버·표는 적용 완료(2026-09-29). <strong>관리자 Admin 키 발급·등록 후</strong> <code>벤더 실측</code> 전환을 실측해야 완료(REQ-0091 8단계).</li>
+<li><strong>근거</strong>: <a href="../.backlog/2-active/REQ-0091_feat_active_ai-cost-budget-console.md">REQ-0091 작업 지시서</a>(로컬) · 정본 SQL <code>실제구축준비 자료/이관/sql/76_ai_vendor_budget.sql</code> · 화면 <code>/admin/api-setup</code> · 서버 <code>supabase/functions/jeil-chat-admin</code>(v13).</li>
+</ul>
 <h2 id="c-issue">C. 발견 이슈 (Issue — 이번 조사에서 확인, 조치 필요)</h2>
 <h3 id="iss-201">ISS-201 ⚠️ 챗봇 표기/구현 불일치</h3>
 <ul>
@@ -359,9 +386,19 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <td>중(비용·표기)</td>
 </tr>
 <tr>
+<td>AI 벤더 Admin 키 발급(사용량 조회) · 벤더별 월 예산 금액</td>
+<td>ADR-111</td>
+<td>중(비용 가시성 — 없으면 추정치만)</td>
+</tr>
+<tr>
 <td>Entra Secret 갱신</td>
 <td>ISS-207</td>
 <td><strong>높음(12-09 데드라인)</strong></td>
+</tr>
+<tr>
+<td>사내 NAS 데이터 계층(운영 주체·문서 조각 클라우드 적재)</td>
+<td>ADR-110</td>
+<td>중(N1 착수 전)</td>
 </tr>
 </tbody>
 </table>
