@@ -26,6 +26,33 @@ function toOpenAiMessages(msgs: ChatMsg[]): unknown[] {
 const toOpenAiTools = (ts: ToolManifest[]) =>
   ts.map((t) => ({ type: "function", function: { name: t.id, description: t.description_llm, parameters: t.params } }));
 
+/* ===== 요청 모양 자동 적응 (모델 세대 차이 흡수) =====
+   세대에 따라 `temperature` 를 거부하거나 `max_tokens` 대신 `max_completion_tokens` 를 요구한다.
+   모델 목록을 코드에 박지 않는다 — 400 사유를 읽어 고쳐 한 번 더 보내고, 통한 모양을 모델별로 기억한다.
+   공식 가격표는 파라미터를 알려 주지 않으므로 「어느 모델이 무엇을 받는지」를 우리가 단정하지 않는 편이 안전하다. */
+type OaShape = { temp: boolean; maxKey: "max_tokens" | "max_completion_tokens" };
+const OA_SHAPE = new Map<string, OaShape>();
+const oaShape = (model: string): OaShape => OA_SHAPE.get(model) || { temp: true, maxKey: "max_tokens" };
+
+/** 400 사유를 보고 요청 모양을 한 단계 고친다. 고칠 게 없으면 null(=포기). */
+function oaAdjust(model: string, detail: string): OaShape | null {
+  const d = detail.toLowerCase();
+  const cur = oaShape(model);
+  if (cur.temp && /temperature/.test(d)) {
+    const next: OaShape = { ...cur, temp: false };
+    OA_SHAPE.set(model, next);
+    console.log("openai shape: " + model + " → temperature 미전송");
+    return next;
+  }
+  if (cur.maxKey === "max_tokens" && /max_completion_tokens|max_tokens/.test(d)) {
+    const next: OaShape = { ...cur, maxKey: "max_completion_tokens" };
+    OA_SHAPE.set(model, next);
+    console.log("openai shape: " + model + " → max_completion_tokens 사용");
+    return next;
+  }
+  return null;
+}
+
 async function pump(body: ReadableStream<Uint8Array>, emit: (c: string) => Promise<void>, state: StreamState) {
   const reader = body.getReader();
   const dec = new TextDecoder();
@@ -65,17 +92,32 @@ export const openaiAdapter: LlmAdapter = {
   keyEnv: "OPENAI_API_KEY",
   async round({ apiKey, model, messages, tools, maxTokens, temperature, signal, emit, state }) {
     state.raw = null; state.stop = null;
-    const res = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST", signal,
-      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model, stream: true, max_tokens: maxTokens, ...(temperature != null ? { temperature } : {}), messages: toOpenAiMessages(messages),
-        stream_options: { include_usage: true },
-        ...(tools && tools.length ? { tools: toOpenAiTools(tools) } : {}),
-      }),
-    });
+    // 400 이면 요청 모양을 고쳐 최대 2회까지 다시 보낸다(oaShape). 그 외 오류는 그대로 돌려준다.
+    let shape = oaShape(model);
+    let res = await send(shape);
+    for (let i = 0; i < 2 && res.status === 400; i++) {
+      const detail = await res.clone().text().catch(() => "");
+      const next = oaAdjust(model, detail);
+      if (!next) break;
+      shape = next;
+      res = await send(shape);
+    }
     if (!res.ok || !res.body) return { ok: false, status: res.status, detail: (await res.text().catch(() => "")).slice(0, 500) };
     await pump(res.body, emit, state);
     return { ok: true, status: res.status, detail: "" };
+
+    function send(sh: OaShape) {
+      return fetch("https://api.openai.com/v1/chat/completions", {
+        method: "POST", signal,
+        headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model, stream: true, messages: toOpenAiMessages(messages),
+          [sh.maxKey]: maxTokens,
+          ...(sh.temp && temperature != null ? { temperature } : {}),
+          stream_options: { include_usage: true },
+          ...(tools && tools.length ? { tools: toOpenAiTools(tools) } : {}),
+        }),
+      });
+    }
   },
 };

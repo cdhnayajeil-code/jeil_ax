@@ -1270,17 +1270,58 @@ async function verifyEntraUser(token: string): Promise<{ upn: string } | null> {
 }
 
 /* ===== OpenAI 스트림 호출·파싱 ===== */
-function callOpenAI(apiKey: string, model: string, messages: unknown[], withTools: boolean, maxTokens: number, temperature: number, signal?: AbortSignal) {
+/* ===== OpenAI 요청 모양 자동 적응 (모델 세대 차이 흡수) =====
+   세대에 따라 `temperature` 를 거부하거나 `max_tokens` 대신 `max_completion_tokens` 를 요구한다.
+   모델 목록을 코드에 박지 않는다 — 400 응답의 사유를 읽어 고쳐 한 번 더 보내고, 통한 모양을 기억한다.
+   (400 이 아닌 오류는 손대지 않는다. 재시도로 해결될 문제가 아니다.) */
+type OaShape = { temp: boolean; maxKey: "max_tokens" | "max_completion_tokens" };
+const OA_SHAPE = new Map<string, OaShape>();
+const oaShape = (model: string): OaShape => OA_SHAPE.get(model) || { temp: true, maxKey: "max_tokens" };
+
+/** 400 사유를 보고 요청 모양을 한 단계 고친다. 고칠 게 없으면 null(=포기). */
+function oaAdjust(model: string, detail: string): OaShape | null {
+  const d = detail.toLowerCase();
+  const cur = oaShape(model);
+  if (cur.temp && /temperature/.test(d)) {
+    const next: OaShape = { ...cur, temp: false };
+    OA_SHAPE.set(model, next);
+    console.log("openai shape: " + model + " → temperature 미전송");
+    return next;
+  }
+  if (cur.maxKey === "max_tokens" && /max_completion_tokens|max_tokens/.test(d)) {
+    const next: OaShape = { ...cur, maxKey: "max_completion_tokens" };
+    OA_SHAPE.set(model, next);
+    console.log("openai shape: " + model + " → max_completion_tokens 사용");
+    return next;
+  }
+  return null;
+}
+
+function callOpenAIOnce(apiKey: string, model: string, messages: unknown[], withTools: boolean, maxTokens: number, temperature: number, shape: OaShape, signal?: AbortSignal) {
   return fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
     signal,                                               // 중지 전파 — 클라이언트 disconnect 시 업스트림 소비 중단
     headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
     body: JSON.stringify({
-      model, stream: true, max_tokens: maxTokens, temperature, messages,
+      model, stream: true, messages,
+      [shape.maxKey]: maxTokens,
+      ...(shape.temp ? { temperature } : {}),
       stream_options: { include_usage: true },            // U-1: 토큰 usage 수신
       ...(withTools ? { tools: TOOLS } : {}),
     }),
   });
+}
+
+/** 400 이면 요청 모양을 고쳐 최대 2회까지 다시 보낸다. 그 외 오류는 그대로 돌려준다. */
+async function callOpenAI(apiKey: string, model: string, messages: unknown[], withTools: boolean, maxTokens: number, temperature: number, signal?: AbortSignal): Promise<Response> {
+  let res = await callOpenAIOnce(apiKey, model, messages, withTools, maxTokens, temperature, oaShape(model), signal);
+  for (let i = 0; i < 2 && res.status === 400; i++) {
+    const detail = await res.clone().text().catch(() => "");
+    const next = oaAdjust(model, detail);
+    if (!next) break;
+    res = await callOpenAIOnce(apiKey, model, messages, withTools, maxTokens, temperature, next, signal);
+  }
+  return res;
 }
 
 type ToolCallAcc = { id: string; name: string; args: string };
@@ -1483,6 +1524,7 @@ Deno.serve(async (req) => {
           console.error("openai error", res.status, detail.slice(0, 500));
           await emit(res.status === 401 ? "⚠ OpenAI 키가 유효하지 않습니다(만료/오입력)."
             : res.status === 429 ? "⚠ OpenAI 사용량 한도 초과 — 잠시 후 다시 시도하세요."
+            : res.status === 400 ? "⚠ 이 모델이 요청을 거부했습니다 — 관리자 콘솔 「모델 설정」에서 기본 모델을 확인하세요(모델 호환 문제일 수 있습니다)."
             : "⚠ AI 응답 생성에 실패했습니다.");
           break;
         }

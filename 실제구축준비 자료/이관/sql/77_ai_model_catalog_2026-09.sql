@@ -17,6 +17,10 @@
 --   동작이 바뀌면 안 된다. 관리자가 콘솔에서 켜는 순간 선택지가 된다(REQ-0056 열린 질문에 대한 보수적 답).
 --   기존 active 행(gpt-4o-mini 기본 · gpt-4.1-mini 예비 등)은 건드리지 않는다.
 --
+-- ⚠ 정정(2026-09-29, 같은 날): 이 파일이 claude-haiku-4-5 에 붙인 「은퇴 예고」는 **오독**이었다.
+--   공식 폐기 목록은 그 모델을 Active·Deprecated N/A 로 두고, 2026-10-15 는 「그 전에는 은퇴하지 않는다」는
+--   보장 기한이다(은퇴 시 60일 전 통지). 문구는 **SQL 78 ①** 에서 사실대로 고쳤다.
+--
 -- 기존 행을 지우지 않는다 — `chat_log.model`·`agent_turn.model` 이 과거 모델명을 참조하고,
 --   그 행의 단가가 사라지면 지난 비용 추정이 폴백표로 떨어진다. 이전 세대는 tier='legacy' 로만 표시한다.
 
@@ -64,7 +68,7 @@ update public.ai_model set price_cache_in = 1.2500 where model_id = 'gpt-4o' and
 update public.ai_model set price_cache_in = 0.3000 where model_id = 'claude-sonnet-4-6' and price_cache_in is null;
 update public.ai_model set price_cache_in = 0.2000 where model_id = 'claude-sonnet-5' and price_cache_in is null;
 update public.ai_model set tier = 'light', price_cache_in = 0.1000, context_k = 200, token_factor = 1.00,
-       status_note = '에이전트 분류·골든셋 채점용. ⚠ 은퇴 예고 — 2026-10-15 이후(Anthropic 공지)',
+       status_note = '에이전트 분류·골든셋 채점용'  -- ⚠ 여기 적었던 「은퇴 예고」는 오독이었다 → SQL 78 ① 에서 정정,
        updated_by = 'sql77', updated_at = now()
  where model_id = 'claude-haiku-4-5';
 

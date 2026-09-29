@@ -917,6 +917,22 @@
       </div>
 
       <div class="sec">
+        <h3>단계별 권장 모델 <span style="font-size:11px;color:var(--muted);">무슨 일에 무슨 모델을 쓸지</span>
+          <span style="font-size:11px;color:var(--muted);" id="vcStageAsof"></span></h3>
+        <table>
+          <thead><tr>
+            <th style="width:4%;">단계</th><th style="width:16%;">하는 일</th><th style="width:20%;">권장</th>
+            <th class="r" style="width:11%;">단가 입/출</th><th class="r" style="width:11%;">질문 1천건</th>
+            <th style="width:12%;">지금 배정</th><th>대안 · 메모</th>
+          </tr></thead>
+          <tbody id="vcStageRows"><tr><td colspan="7" class="c" style="color:#888;padding:14px;">MS 로그인(관리자) 후 표시됩니다.</td></tr></tbody>
+        </table>
+        <p class="admin-note">단계·권장은 <b>안내</b>일 뿐 판정에 쓰이지 않습니다 — 실제 동작은 <b>활성(켜짐)</b> + <b>호출 가능</b> +
+          배정(기본 모델·라우팅 또는 <a href="/admin/agents" target="_blank" rel="noopener">에이전트 설정 버전</a>)이 정합니다.
+          <b>5단계는 권장을 두지 않았습니다</b> — $10/$50 대라 토글 하나로 청구가 튀는 자리는 사람이 직접 켜야 합니다(그래서 비활성으로 뒀습니다).</p>
+      </div>
+
+      <div class="sec">
         <h3>모델 단가 비교 <span style="font-size:11px;color:var(--muted);">오케스트레이션 배정 기준</span>
           <button class="save" onclick="showTab('model')" style="background:#fff;color:var(--accent);border:1px solid var(--accent);">모델 설정으로 ↗</button></h3>
         <table>
@@ -3196,6 +3212,46 @@ function renderVendorCost(d){
   rules.forEach(function(r){ if(r.enforced) push(r.model_id, '라우팅 '+(r.seq||'')); });
   ag.forEach(function(a){ push(a.model_id, (a.name_ko||a.agent_key)); if(a.fallback_model_id) push(a.fallback_model_id, (a.name_ko||a.agent_key)+' 예비'); });
 
+  /* 단계별 권장 — 카탈로그의 stage·recommended 를 그대로 읽는다(정본 SQL 78).
+     「지금 배정」은 위에서 만든 usedBy(기본모델·라우팅·에이전트 배정)를 재사용해, 권장과 실제가 어긋나면 눈에 띈다. */
+  var STAGES = [[1,'일상 조회·간단 질의','대량·고빈도 · 챗봇 기본'],
+                [2,'분류·채점(내부 자동화)','개선대장 묶기·골든셋 채점'],
+                [3,'부서 업무 질의·분석','부서 에이전트 기본 · 보고서 초안'],
+                [4,'고난도 기획·장시간 작업','복잡 분석·다단계 에이전트'],
+                [5,'최상위(예외)','몇 시간 자율 작업·심층 리서치']];
+  var srow = document.getElementById('vcStageRows');
+  if(srow){
+    srow.innerHTML = STAGES.map(function(st){
+      var inStage = (d.models||[]).filter(function(m){ return Number(m.stage) === st[0]; });
+      var rec = inStage.filter(function(m){ return m.recommended; })[0] || null;
+      var alts = inStage.filter(function(m){ return m !== rec; })
+                        .sort(function(x,y){ return Number(x.per_1k_questions_usd)-Number(y.per_1k_questions_usd); });
+      var assigned = inStage.filter(function(m){ return (usedBy[m.model_id]||[]).length; });
+      var recCell = rec
+        ? '<b>'+escHtml(rec.model_id)+'</b> <span class="badge '+(rec.vendor_key==='openai'?'a':'b')+'">'+escHtml(rec.vendor||'')+'</span>'
+          + '<br>' + (rec.active?'<span class="badge g">활성</span>':'<span class="badge b">비활성</span>')
+          + ' ' + (rec.callable?'<span class="badge g">호출가능</span>':'<span class="badge r">호출불가</span>')
+        : '<span style="color:var(--muted)">권장 없음</span>';
+      return '<tr>'
+        + '<td class="c"><b>'+st[0]+'</b></td>'
+        + '<td>'+escHtml(st[1])+'<br><span style="font-size:10.5px;color:var(--muted)">'+escHtml(st[2])+'</span></td>'
+        + '<td>'+recCell+'</td>'
+        + '<td class="r">'+(rec?(usd(rec.price_in,2)+' / '+usd(rec.price_out,2)):'—')+'</td>'
+        + '<td class="r">'+(rec?('<b>'+usd(rec.per_1k_questions_usd,2)+'</b>'):'—')+'</td>'
+        + '<td style="font-size:11.5px">'+(assigned.length
+              ? assigned.map(function(m){ var hit = rec && m.model_id===rec.model_id;
+                  return '<span class="badge '+(hit?'g':'a')+'" title="'+att((usedBy[m.model_id]||[]).join(', '))+'">'+escHtml(m.model_id)+'</span>'; }).join(' ')
+              : '<span style="color:var(--muted)">미배정</span>')+'</td>'
+        + '<td style="font-size:11.5px;color:var(--muted)">'
+          + (alts.length ? alts.slice(0,3).map(function(m){ return escHtml(m.model_id)+' '+usd(m.per_1k_questions_usd,2); }).join(' · ') : '—')
+          + (rec && rec.status_note ? '<br><span style="color:'+(/⚠/.test(String(rec.status_note))?'var(--red)':'var(--muted)')+'">'+escHtml(rec.status_note)+'</span>' : '')
+          + '</td>'
+        + '</tr>';
+    }).join('');
+  }
+  var sa = document.getElementById('vcStageAsof');
+  if(sa) sa.textContent = '· 기준 ' + ((d.month&&d.month.today) || '');
+
   // 환산 가정은 서버가 보내는 값을 그대로 적는다(화면에 숫자를 따로 박아 두면 서버와 어긋난다)
   var pn = document.getElementById('vcPriceNote');
   if(pn) pn.innerHTML = '「질문 1천건 환산」은 <b>' + escHtml((d.assume&&d.assume.note) || '가정값') + '</b> 으로 계산한 <b>참고치</b>입니다 — 실제 청구액이 아닙니다.'
@@ -3219,6 +3275,8 @@ function renderVendorCost(d){
             : '<span style="color:var(--muted)" title="공식 단가 미확인 — 입력 단가의 0.1배로 가정">'+usd(m.price_cache_in_eff,2)+'*</span>';
     return '<tr'+(m.active?'':' style="opacity:.6"')+'>'
       + '<td><b>'+escHtml(m.model_id)+'</b>'
+        + (m.stage!=null ? ' <span class="badge b" title="용도 단계">'+m.stage+'단계</span>' : '')
+        + (m.recommended ? ' <span class="badge g">권장</span>' : '')
         + (Number(m.token_factor)>1 ? ' <span class="badge a" title="같은 글을 세는 토큰 수 배율">×'+Number(m.token_factor).toFixed(2)+'</span>' : '')
         + (st ? '<br><span style="font-size:10.5px;color:'+(warn?'var(--red)':'var(--muted)')+'">'+escHtml(st)+'</span>' : '')
         + '</td>'

@@ -9,6 +9,14 @@
 import type { ErpScope, ToolModule } from "./types.ts";
 import type { AiConfig, AiModelRow } from "./config.ts";
 import { costOf } from "./config.ts";
+
+/** 채점·분류에 쓰는 「싼 모델」 우선순위 — 앞에서부터 실제 호출 가능한 첫 모델을 쓴다.
+ *  사람이 읽는 답이 아니라 내부 판정(골든셋 채점·개선대장 묶기)이므로 **단가가 첫 기준**이다.
+ *  2026-09-29 공식표 기준 단가: gpt-6-luna $0.10/$0.50 · gpt-4o-mini $0.15/$0.60 ·
+ *    claude-haiku-4-5 $1/$5 · gpt-4.1-mini $0.40/$1.60 → 이 순서가 곧 싼 순서다.
+ *  Haiku 4.5 는 은퇴 예고 상태가 아니다(Active · 보장 기한 2026-10-15 · 은퇴 시 60일 전 통지) —
+ *  뒤로 내린 이유는 마감이 아니라 10배 비싸기 때문이다. */
+const JUDGE_MODELS = ["gpt-6-luna", "gpt-4o-mini", "claude-haiku-4-5", "gpt-4.1-mini"];
 import { visibleTo } from "./scope.ts";
 import { MODULE_KO } from "./util.ts";
 import {
@@ -571,7 +579,7 @@ async function goldenOne(c: AgentCtx, agent: AgentRow, body: Record<string, unkn
 
 /** 저렴한 모델로 답변이 요건을 지켰는지 채점(JSON 한 줄). Haiku(키 있을 때) → gpt-4o-mini 순. */
 async function judgeAnswer(c: AgentCtx, question: string, rules: string, answer: string): Promise<{ pass: boolean; why: string; cost: number }> {
-  const judgeModel = ["claude-haiku-4-5", "gpt-4o-mini", "gpt-4.1-mini"].find((m) => c.usable.has(m));
+  const judgeModel = JUDGE_MODELS.find((m) => c.usable.has(m));
   if (!judgeModel) return { pass: true, why: "채점 모델 없음 — 도구 판정만", cost: 0 };
   const res = await converse({ admin: c.admin, userToken: c.token, scope: c.scope, model: judgeModel, vendorOf: vendorOf(c.ai), modules: [],
     system: "당신은 사내 AI 답변 채점자입니다. 답변이 요건을 모두 지켰는지 판정하고 JSON 한 줄만 출력하세요: {\"pass\":true|false,\"why\":\"한 문장\"}",
@@ -590,7 +598,7 @@ async function improveCluster(c: AgentCtx, agent: AgentRow): Promise<Response> {
   // deno-lint-ignore no-explicit-any
   const items = (data || []) as any[];
   if (items.length < 2) return json({ error: "묶을 inbox 항목이 2건 이상 필요합니다." }, 400);
-  const model = ["claude-haiku-4-5", "gpt-4o-mini", "gpt-4.1-mini"].find((m) => c.usable.has(m));
+  const model = JUDGE_MODELS.find((m) => c.usable.has(m));
   if (!model) return json({ error: "분류용 모델이 없습니다." }, 503);
   const res = await converse({ admin, userToken: c.token, scope: c.scope, model, vendorOf: vendorOf(c.ai), modules: [],
     system: "당신은 사내 AI 에이전트 개선 담당자를 돕습니다. 개선 후보 목록을 비슷한 원인끼리 묶고 각 묶음의 분류를 제안합니다. " +

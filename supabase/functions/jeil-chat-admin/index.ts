@@ -595,7 +595,7 @@ Deno.serve(async (req) => {
 
     const [budRes, modelRes, cfgRes, agentRes, verRes, ruleRes] = await Promise.all([
       admin.from("ai_vendor_budget").select("*"),
-      admin.from("ai_model").select("model_id,vendor,label,purpose,tier,price_in,price_cache_in,price_out,context_k,token_factor,active,callable,sort,status_note,note").order("sort"),
+      admin.from("ai_model").select("model_id,vendor,label,purpose,tier,stage,recommended,price_in,price_cache_in,price_out,context_k,token_factor,active,callable,sort,status_note,note").order("sort"),
       admin.from("ai_gateway_config").select("default_model,max_tokens,prompt_caching").eq("id", 1).maybeSingle(),
       admin.from("ai_agent").select("agent_key,name_ko,dept_nm,status,current_version,monthly_budget_usd,daily_limit"),
       admin.from("ai_agent_version").select("agent_key,version,state,model_id,fallback_model_id,effort"),
