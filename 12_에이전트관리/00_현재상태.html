@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>00 현재상태 — JEIL AX 에이전트관리 (가동 에이전트·모델·구성원·버전·DB·화면 — 사실만)</title>
+<style>
+:root{--navy:#1a2f4e;--navy2:#27457a;--accent:#2f6fb3;--red:#b3402f;--green:#2e7d52;--amber:#9a6b1f;
+--ink:#222;--muted:#666;--line:#d8dee8;--bg:#f4f6f9;--soft:#eef2f8;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;color:var(--ink);background:var(--bg);line-height:1.65;font-size:15px;}
+.page{max-width:960px;margin:0 auto;background:#fff;padding:52px 60px;box-shadow:0 2px 14px rgba(0,0,0,.08);}
+.doc-label{display:inline-block;background:var(--navy);color:#fff;font-size:12px;letter-spacing:.16em;padding:5px 14px;border-radius:3px;margin-bottom:16px;}
+.docnav{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 26px;}
+.docnav a{font-size:12px;color:var(--navy2);border:1px solid var(--line);border-radius:20px;padding:4px 12px;text-decoration:none;background:var(--soft);}
+.docnav a:hover{background:var(--navy);color:#fff;}
+.docnav a.cur{background:var(--navy);color:#fff;border-color:var(--navy);}
+.md-link{font-size:13px;margin-bottom:22px;color:var(--muted);}
+.content h1{font-size:27px;color:var(--navy);line-height:1.35;margin:6px 0 18px;}
+.content h2{font-size:20px;color:var(--navy);margin:42px 0 14px;padding-bottom:9px;border-bottom:3px solid var(--navy);}
+.content h3{font-size:16px;color:var(--navy2);margin:24px 0 9px;}
+.content p{margin:0 0 12px;}
+.content ul,.content ol{margin:0 0 14px 22px;}
+.content li{margin-bottom:6px;}
+.content blockquote{background:var(--soft);border-left:5px solid var(--navy);border-radius:0 8px 8px 0;padding:14px 20px;margin:14px 0;color:#33425a;}
+.content blockquote p{margin:0 0 6px;}
+.content table{width:100%;border-collapse:collapse;margin:14px 0 20px;font-size:13.3px;}
+.content th{background:var(--navy);color:#fff;padding:9px 11px;text-align:left;font-weight:600;}
+.content td{padding:8px 11px;border-bottom:1px solid var(--line);vertical-align:top;}
+.content tr:nth-child(even) td{background:#fafbfd;}
+.content a{color:var(--accent);}
+.content code{background:var(--soft);border:1px solid var(--line);border-radius:4px;padding:1px 6px;font-size:12.4px;font-family:Consolas,'Courier New',monospace;}
+.content pre{background:#21252e;color:#e8eaf0;border-radius:8px;padding:16px 18px;font-size:12.4px;font-family:Consolas,'Courier New',monospace;overflow-x:auto;margin:12px 0 18px;line-height:1.55;}
+.content pre code{background:none;border:none;color:inherit;padding:0;}
+.content hr{border:none;border-top:1px solid var(--line);margin:30px 0;}
+.content strong{color:var(--navy2);}
+.footer{margin-top:50px;padding-top:16px;border-top:1px solid var(--line);font-size:12px;color:var(--muted);display:flex;justify-content:space-between;}
+@media print{body{background:#fff;}.page{box-shadow:none;padding:18px 0;max-width:100%;}.docnav{display:none;}.content h2{break-after:avoid;}.content table,.content pre,.content blockquote{break-inside:avoid;}}
+@media (max-width:720px){.page{padding:30px 20px;}}
+</style>
+</head>
+<body>
+<div class="page">
+  <span class="doc-label">JEIL AX 에이전트관리 · 대외비</span>
+  <div class="docnav"><a href="/docs/agents">🏠 에이전트관리 허브</a><a class="cur" href="/docs/agents/status">00 현재상태</a><a href="/docs/agents/ops-guide">01 운영가이드</a><a href="/docs/agents/dev-guide">02 개발가이드</a><a href="/docs/agents/progress">03 진행상태</a><a href="README.md">README</a></div>
+  <p class="md-link">📄 Markdown 원본: <a href="00_현재상태.md">00_현재상태.md</a> · 허브 <a href="/docs/agents">에이전트관리 허브</a></p>
+  <div class="content">
+<h1 id="00">00 · 현재상태 — 부서 에이전트</h1>
+<blockquote>
+<p>기준: 2026-09-29 · 사실만 적는다(추정·계획은 03 에). 바뀌면 이 문서부터 고친다.</p>
+</blockquote>
+<h2 id="1">1. 한눈에</h2>
+<table>
+<thead>
+<tr>
+<th>항목</th>
+<th>상태</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>가동 에이전트</td>
+<td><strong>구매 에이전트</strong>(<code>purchase</code>) 1종 — 상태 <strong>pilot</strong>(구성원·포털 관리자만 사용)</td>
+</tr>
+<tr>
+<td>현재 설정 버전</td>
+<td><strong>v1</strong>(current) — 기본 <code>claude-sonnet-5</code> · 예비 <code>gpt-4.1-mini</code> · 추론강도 medium · 최대 2,048토큰 · 캐싱 켬 · 도구 라운드 4</td>
+</tr>
+<tr>
+<td>실제 응답 모델</td>
+<td><strong><code>gpt-4.1-mini</code></strong> — <code>ANTHROPIC_API_KEY</code> 가 아직 등록되지 않아 기본 모델을 부를 수 없어 예비 모델로 동작 중</td>
+</tr>
+<tr>
+<td>구성원</td>
+<td>1명 — dh.choi@jeilm.co.kr(관리자 reviewer). 포털 전체관리자 4명은 목록에 없어도 관리자 권한</td>
+</tr>
+<tr>
+<td>누적(09-28~)</td>
+<td>대화 11턴 · 개선 대장 3건 · 용어집 4개 · 골든셋 0문항 · 생성 자료 1건 · 비용 약 $0.05</td>
+</tr>
+<tr>
+<td>운영 한도</td>
+<td>1인 1일 50회 · 월 예산 $150 · 기록 보존 180일 · 생성 자료 30일</td>
+</tr>
+</tbody>
+</table>
+<h2 id="2">2. 화면</h2>
+<table>
+<thead>
+<tr>
+<th>주소</th>
+<th>파일</th>
+<th>누가</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>https://ai.jeilm.co.kr/work/purchase-agent</code></td>
+<td><code>pages/구매_AI에이전트_2026.html</code></td>
+<td>구성원·관리자(pilot) — 대화, 카드 CSV·자료함, 📄 보고서, 👍👎, HTML 코드 바로 보기</td>
+</tr>
+<tr>
+<td><code>https://ai.jeilm.co.kr/admin/agents?agent=purchase</code></td>
+<td><code>app/admin-agents.html</code></td>
+<td>담당자·관리자 — 개요, 설정·버전, 개선 대장, 대화 기록, 용어집, 골든셋, 구성원</td>
+</tr>
+<tr>
+<td><code>https://ai.jeilm.co.kr/chatdemo</code></td>
+<td><code>app/chat-lab.html</code></td>
+<td>전체관리자 — 모듈 실험실(에이전트와 같은 게이트웨이, 대화 미저장)</td>
+</tr>
+</tbody>
+</table>
+<p>포털 부서 카드(<code>portal_page</code>)에는 <strong>아직 등재하지 않았다</strong>(파일럿 중에는 주소로 들어간다).</p>
+<h2 id="3-edge-function-jeil-chat-lab">3. 서버 — Edge Function <code>jeil-chat-lab</code></h2>
+<table>
+<thead>
+<tr>
+<th>항목</th>
+<th>값</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>배포 버전</td>
+<td><strong>v3</strong>(ACTIVE · verify_jwt=false — Entra 토큰을 자체 검증)</td>
+</tr>
+<tr>
+<td>입구</td>
+<td><code>body.agent</code> 가 있으면 부서 에이전트(<code>core/agent_api.ts</code>), 없으면 실험실(전체관리자 전용)</td>
+</tr>
+<tr>
+<td>벤더 어댑터</td>
+<td><code>openai</code>(키 등록됨) · <code>anthropic</code>(<strong>키 미등록</strong>) — 키가 등록된 벤더만 호출 가능</td>
+</tr>
+<tr>
+<td>도구</td>
+<td>24종 = 운영 이전 19종(<code>modules/index.ts</code>, 자동 생성) + 에이전트용 5종(<code>modules/extra.ts</code>)</td>
+</tr>
+<tr>
+<td>구매 에이전트 도구 묶음</td>
+<td>도메인 <code>purchase · item · portal · common · docs</code> (인사 <code>hr</code> 제외)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="4">4. 구매 에이전트가 쓰는 자료(모두 읽기 전용)</h2>
+<table>
+<thead>
+<tr>
+<th>자료</th>
+<th>도구</th>
+<th>권한 판정</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>월별 발주 · 발주 상세(PO/PR) · 발주 금액 상위 · 미입고 · 구매요청 · 품목별 구매 이력</td>
+<td><code>get_erp_pur_order</code> · <code>get_erp_po_pr</code> · <code>get_erp_pur_top</code> · <code>get_erp_receipt_pending</code> · <code>get_erp_pur_req</code> · <code>get_erp_item_orders</code></td>
+<td>ERP 모듈 <code>pur_order</code></td>
+</tr>
+<tr>
+<td>월별 매입(송장) · <strong>거래처별 매입</strong></td>
+<td><code>get_erp_purchase_monthly</code> · <code>get_vendor_purchase</code></td>
+<td>ERP 모듈 <code>purchase</code></td>
+</tr>
+<tr>
+<td><strong>발주통합 LIST 검색</strong> · <strong>거래처 프로필</strong></td>
+<td><code>search_pur_list</code> · <code>get_vendor_profile</code></td>
+<td><code>pur_order</code></td>
+</tr>
+<tr>
+<td><strong>기안서 대장</strong> · <strong>기안서↔전표 대사</strong></td>
+<td><code>get_pur_proposal</code> · <code>get_proposal_recon</code></td>
+<td>기안서 대장 화면 권한(<code>purchase_proposal_2026</code>)</td>
+</tr>
+<tr>
+<td>품목 검색 · 외주검사 현황 · 내 권한 · 내 요청 · 문서 검색</td>
+<td><code>get_erp_item</code> · <code>get_order_*</code> · <code>get_inspection_pending</code> · <code>get_my_access</code> · <code>get_my_requests</code> · <code>search_my_documents</code> · <code>read_document</code></td>
+<td>각 도구 기준</td>
+</tr>
+</tbody>
+</table>
+<p>굵게 = 이번에 새로 만든 5종.</p>
+<h2 id="5-db-sql-sql74_dept_agentsql-rollback">5. DB (정본 SQL <code>실제구축준비 자료/이관/sql/74_dept_agent.sql</code> · rollback 동봉)</h2>
+<table>
+<thead>
+<tr>
+<th>테이블</th>
+<th>용도</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ai_agent</code></td>
+<td>에이전트 프로필(상태·현재 버전·한도·예산·보존·자주 쓰는 질문)</td>
+</tr>
+<tr>
+<td><code>ai_agent_version</code></td>
+<td>설정 버전(수정 대신 새 행 · draft→current→retired · 회귀 결과)</td>
+</tr>
+<tr>
+<td><code>ai_agent_member</code></td>
+<td>구성원(operator=실작업 · reviewer=확인·점검·승인)</td>
+</tr>
+<tr>
+<td><code>agent_turn</code></td>
+<td>대화 턴 기록(질문·답변·도구 요약·모델·토큰·비용·판정·평가) — <strong>조회 결과 행·보고서 첨부 표는 저장 안 함</strong></td>
+</tr>
+<tr>
+<td><code>agent_improve</code></td>
+<td>개선 대장(inbox→triage→planned→applied→verified/wontfix)</td>
+</tr>
+<tr>
+<td><code>agent_glossary</code></td>
+<td>용어집(활성 용어는 프롬프트에 자동 삽입)</td>
+</tr>
+<tr>
+<td><code>agent_golden</code> · <code>agent_golden_run</code></td>
+<td>골든셋 문항 · 회귀 실행 기록</td>
+</tr>
+<tr>
+<td><code>agent_artifact</code></td>
+<td>생성 자료 메타(파일은 Storage 비공개 버킷 <code>agent-artifacts/&lt;upn&gt;/…</code>, 30일)</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>전부 <strong>RLS 켜고 정책 없음</strong> → 브라우저(anon/authenticated)에서 직접 읽을 수 없다. 게이트웨이(service_role)만 접근.</li>
+<li>보조 RPC <code>agent_proposal_recon(upn)</code> — service_role 전용. 기안서 대사 원 함수를 로그인 사용자 권한으로 호출.</li>
+<li>모델 카탈로그 <code>ai_model</code>: <code>claude-sonnet-5</code>($2/$10) 추가 · <code>claude-haiku-4-5</code> 활성(분류·채점용). 운영 jeil-chat 은 OpenAI 만 부르므로 영향 없음.</li>
+</ul>
+<h2 id="6-2026-09-28-d-87d-93-adr-109-accepted">6. 관리자 결정(2026-09-28, D-87~D-93 · ADR-109 Accepted)</h2>
+<table>
+<thead>
+<tr>
+<th>결정</th>
+<th>내용</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Claude 호출 경로</td>
+<td>회사 명의 Anthropic Console 조직 · API 키 신규 발급(개인 구독은 서버 호출 불가)</td>
+</tr>
+<tr>
+<td>데이터 전송</td>
+<td>구매 데이터(금액·거래처)의 Anthropic 전송 승인</td>
+</tr>
+<tr>
+<td>턴 기록</td>
+<td>기본 수집 + 화면 고지 · 180일 · 관리자·담당자만 열람</td>
+</tr>
+<tr>
+<td>파일럿</td>
+<td>5명 = 구매팀 담당자 2명(실작업) + 관리자 3명(확인·점검만)</td>
+</tr>
+<tr>
+<td>예산</td>
+<td>월 $150 — 넘으면 예비 모델로 자동 전환</td>
+</tr>
+<tr>
+<td>구조</td>
+<td>에이전트 = 공용 게이트웨이 위 프로필+버전 (ADR-109)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="7">7. 관련 문서</h2>
+<ul>
+<li>기획: <code>11_제품기획/14_부서에이전트_운영기획.md</code> · 모듈 규격: <code>11_제품기획/13_챗봇_모듈형_고도화_기획.md</code></li>
+<li>결정: <code>11_제품기획/09_ADR_의사결정기록.md</code> ADR-109 · 총괄 대시보드 D-87~D-93</li>
+<li>백로그: REQ-0084(실험실) · REQ-0085~0088(에이전트) — <code>.backlog/2-active/</code></li>
+</ul>
+  </div>
+  <div class="footer"><span>JEIL M&S · 부서 에이전트 관리</span><span>00 현재상태 · 관리: 최동혁</span></div>
+</div>
+</body>
+</html>

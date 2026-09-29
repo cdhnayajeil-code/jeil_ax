@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>03 진행상태 — JEIL AX 에이전트관리 (체크리스트·작업 로그·결정 기록)</title>
+<style>
+:root{--navy:#1a2f4e;--navy2:#27457a;--accent:#2f6fb3;--red:#b3402f;--green:#2e7d52;--amber:#9a6b1f;
+--ink:#222;--muted:#666;--line:#d8dee8;--bg:#f4f6f9;--soft:#eef2f8;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;color:var(--ink);background:var(--bg);line-height:1.65;font-size:15px;}
+.page{max-width:960px;margin:0 auto;background:#fff;padding:52px 60px;box-shadow:0 2px 14px rgba(0,0,0,.08);}
+.doc-label{display:inline-block;background:var(--navy);color:#fff;font-size:12px;letter-spacing:.16em;padding:5px 14px;border-radius:3px;margin-bottom:16px;}
+.docnav{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 26px;}
+.docnav a{font-size:12px;color:var(--navy2);border:1px solid var(--line);border-radius:20px;padding:4px 12px;text-decoration:none;background:var(--soft);}
+.docnav a:hover{background:var(--navy);color:#fff;}
+.docnav a.cur{background:var(--navy);color:#fff;border-color:var(--navy);}
+.md-link{font-size:13px;margin-bottom:22px;color:var(--muted);}
+.content h1{font-size:27px;color:var(--navy);line-height:1.35;margin:6px 0 18px;}
+.content h2{font-size:20px;color:var(--navy);margin:42px 0 14px;padding-bottom:9px;border-bottom:3px solid var(--navy);}
+.content h3{font-size:16px;color:var(--navy2);margin:24px 0 9px;}
+.content p{margin:0 0 12px;}
+.content ul,.content ol{margin:0 0 14px 22px;}
+.content li{margin-bottom:6px;}
+.content blockquote{background:var(--soft);border-left:5px solid var(--navy);border-radius:0 8px 8px 0;padding:14px 20px;margin:14px 0;color:#33425a;}
+.content blockquote p{margin:0 0 6px;}
+.content table{width:100%;border-collapse:collapse;margin:14px 0 20px;font-size:13.3px;}
+.content th{background:var(--navy);color:#fff;padding:9px 11px;text-align:left;font-weight:600;}
+.content td{padding:8px 11px;border-bottom:1px solid var(--line);vertical-align:top;}
+.content tr:nth-child(even) td{background:#fafbfd;}
+.content a{color:var(--accent);}
+.content code{background:var(--soft);border:1px solid var(--line);border-radius:4px;padding:1px 6px;font-size:12.4px;font-family:Consolas,'Courier New',monospace;}
+.content pre{background:#21252e;color:#e8eaf0;border-radius:8px;padding:16px 18px;font-size:12.4px;font-family:Consolas,'Courier New',monospace;overflow-x:auto;margin:12px 0 18px;line-height:1.55;}
+.content pre code{background:none;border:none;color:inherit;padding:0;}
+.content hr{border:none;border-top:1px solid var(--line);margin:30px 0;}
+.content strong{color:var(--navy2);}
+.footer{margin-top:50px;padding-top:16px;border-top:1px solid var(--line);font-size:12px;color:var(--muted);display:flex;justify-content:space-between;}
+@media print{body{background:#fff;}.page{box-shadow:none;padding:18px 0;max-width:100%;}.docnav{display:none;}.content h2{break-after:avoid;}.content table,.content pre,.content blockquote{break-inside:avoid;}}
+@media (max-width:720px){.page{padding:30px 20px;}}
+</style>
+</head>
+<body>
+<div class="page">
+  <span class="doc-label">JEIL AX 에이전트관리 · 대외비</span>
+  <div class="docnav"><a href="/docs/agents">🏠 에이전트관리 허브</a><a href="/docs/agents/status">00 현재상태</a><a href="/docs/agents/ops-guide">01 운영가이드</a><a href="/docs/agents/dev-guide">02 개발가이드</a><a class="cur" href="/docs/agents/progress">03 진행상태</a><a href="README.md">README</a></div>
+  <p class="md-link">📄 Markdown 원본: <a href="03_진행상태_변경이력.md">03_진행상태_변경이력.md</a> · 허브 <a href="/docs/agents">에이전트관리 허브</a></p>
+  <div class="content">
+<h1 id="03">03 · 진행상태 · 변경이력</h1>
+<h2 id="1">1. 체크리스트</h2>
+<p><strong>파일럿 착수 전(사람)</strong>
+- [ ] <code>ANTHROPIC_API_KEY</code> 발급·Supabase 시크릿 등록 — 관리자 · 등록 전까지 gpt-4.1-mini 로 응답 중
+- [ ] 구성원 등록: 구매팀 담당자 2명(operator) · 관리자 2명(reviewer) 추가 — 현재 1명
+- [ ] 골든셋 10~20문항 작성 → v1 회귀 기준선 — 담당자
+- [ ] 라이브 실측(대화·CSV·보고서·HTML 미리보기·관리 화면 각 탭) — 관리자</p>
+<p><strong>파일럿(2주)</strong>
+- [ ] 개선 대장 매일 처리(담당자) · 주 1회 관리자 점검
+- [ ] 파일럿 종료 판정: 👍 비율 · 판정 걸림 비율 · 비용 → 운영(live) 전환 여부</p>
+<p><strong>후속 개발(백로그 등록 대상)</strong>
+- [ ] 실험실 화면 렌더를 <code>chatview.js</code> 로 이전
+- [ ] 포털 부서 카드(<code>portal_page</code>) 등재
+- [ ] 월 예산 80% Teams 알림
+- [ ] 엑셀·워드 원본 생성
+- [ ] 게이트웨이 운영 승격(<code>jeil-agent</code>) · 운영 jeil-chat 흡수
+- [ ] 두 번째 부서 에이전트 후보 선정</p>
+<h2 id="2">2. 작업 로그</h2>
+<table>
+<thead>
+<tr>
+<th>일자</th>
+<th>내용</th>
+<th>커밋·배포</th>
+<th>REQ</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>2026-09-28</td>
+<td>챗봇 고도화 실험실 <code>/chatdemo</code> · 모듈형 게이트웨이 <code>jeil-chat-lab</code> v1(도구 19종 모듈화)</td>
+<td><code>c387128</code> · 함수 v1</td>
+<td>0084</td>
+</tr>
+<tr>
+<td>2026-09-28</td>
+<td>부서 에이전트 운영기획(14) 작성 · ADR-109 제안</td>
+<td>—</td>
+<td>—</td>
+</tr>
+<tr>
+<td>2026-09-28</td>
+<td>구매 에이전트 파일럿: SQL 74 · 게이트웨이 v3(Claude 어댑터·공용 엔진·에이전트 경로·구매 도구 5종) · <code>/work/purchase-agent</code> · <code>/admin/agents</code></td>
+<td><code>f598d2d</code> · 함수 v3</td>
+<td>0085~0088</td>
+</tr>
+<tr>
+<td>2026-09-28</td>
+<td>코드 블록 글자 안 보이던 결함 수정(<code>.bubble code</code> 스타일 충돌) · HTML 바로 보기·새 탭·내려받기·자료함(sandbox)</td>
+<td><code>5178a98</code></td>
+<td>0087</td>
+</tr>
+<tr>
+<td>2026-09-28</td>
+<td>관리자 결정 D-87~D-93 확정 · ADR-109 Accepted</td>
+<td><code>5178a98</code>(대시보드)</td>
+<td>—</td>
+</tr>
+<tr>
+<td>2026-09-29</td>
+<td>에이전트 관리 전용 폴더 <code>12_에이전트관리/</code> 신설(현재상태·운영가이드·개발가이드·진행상태)</td>
+<td>(이번 커밋)</td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<h2 id="3-09_adr">3. 결정 기록(요약 — 정본은 09_ADR · 총괄 대시보드)</h2>
+<table>
+<thead>
+<tr>
+<th>ID</th>
+<th>결정</th>
+<th>일자</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>D-87</td>
+<td>Claude 호출 경로: 회사 명의 Anthropic Console 조직, 키 신규 발급</td>
+<td>09-28</td>
+</tr>
+<tr>
+<td>D-88</td>
+<td>구매 데이터(금액·거래처) Anthropic 전송 승인</td>
+<td>09-28</td>
+</tr>
+<tr>
+<td>D-89</td>
+<td>턴 기록: 기본 수집 + 고지, 180일, 관리자·담당자만 열람</td>
+<td>09-28</td>
+</tr>
+<tr>
+<td>D-90·91</td>
+<td>파일럿 5명 = 구매팀 담당자 2(실작업) + 관리자 3(확인·점검)</td>
+<td>09-28</td>
+</tr>
+<tr>
+<td>D-92</td>
+<td>월 예산 $150(초과 시 예비 모델)</td>
+<td>09-28</td>
+</tr>
+<tr>
+<td>D-93 · ADR-109</td>
+<td>에이전트 = 공용 게이트웨이 위 프로필+버전, 개선은 개선 대장→버전→골든셋 회귀로만</td>
+<td>09-28</td>
+</tr>
+</tbody>
+</table>
+  </div>
+  <div class="footer"><span>JEIL M&S · 부서 에이전트 관리</span><span>03 진행상태 · 관리: 최동혁</span></div>
+</div>
+</body>
+</html>

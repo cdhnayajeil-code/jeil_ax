@@ -145,6 +145,11 @@ ROUTES = {
     "/docs/product/org-permission-mockup": "11_제품기획/12_권한_조직도기반_공개설정_목업.html",
     "/docs/product/chat-modules":       "11_제품기획/13_챗봇_모듈형_고도화_기획.html",
     "/docs/product/dept-agents":        "11_제품기획/14_부서에이전트_운영기획.html",
+    "/docs/agents":                     "12_에이전트관리/index.html",          # 부서 에이전트 관리 허브(2026-09-29)
+    "/docs/agents/status":              "12_에이전트관리/00_현재상태.html",
+    "/docs/agents/ops-guide":           "12_에이전트관리/01_운영가이드.html",
+    "/docs/agents/dev-guide":           "12_에이전트관리/02_개발가이드.html",
+    "/docs/agents/progress":            "12_에이전트관리/03_진행상태_변경이력.html",
 
     # ── 그리드 표준 ────────────────────────────────────────
     "/docs/grid":               "그리드/index.html",
