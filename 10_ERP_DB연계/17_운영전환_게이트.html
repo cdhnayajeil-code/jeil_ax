@@ -56,7 +56,8 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <h2 id="0">0. 지금 상태 한 줄</h2>
 <p><strong>DEMO2 파이프라인은 전 구간 검증됐다. 운영 전환은 승인·협의·회계 마스터 정비가 남았고,
 이 문서의 G1~G9 가 전부 닫히기 전에는 넘어가지 않는다.</strong></p>
-<p>현재 <strong>3 / 9 통과</strong>.</p>
+<p>현재 <strong>3 / 9 통과</strong>(G7 은 2026-09-30 계정 전수 판정으로 <strong>닫힘 제안</strong> 상태 — 관리자 판단 대기,
+남은 전제는 AX001 운영 등록 하나로 좁혀졌다).</p>
 <hr />
 <h2 id="1">1. 왜 이 문서가 필요한가</h2>
 <p>운영(<code>JEILMNS</code>) 쓰기는 <strong>결정 C-1 로 금지</strong>되어 있다. 그 금지를 풀려면 무엇이 필요한지는
@@ -139,7 +140,7 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <td>AX001 계정매핑 등재</td>
 <td>회계 마스터</td>
 <td>회계팀·벤더</td>
-<td style="text-align: center;">🔴 <strong>대기</strong></td>
+<td style="text-align: center;">🔴 <strong>재평가 필요</strong>(폐지/범위 재정의 제안 — 임의 종결 아님)</td>
 </tr>
 <tr>
 <td><strong>G5</strong></td>
@@ -160,7 +161,7 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <td>운영 마스터 기준 재판정</td>
 <td>기술</td>
 <td>AX</td>
-<td style="text-align: center;">🟡 <strong>부분</strong>(전표 1건 첫 실행 완료, 포털 계정 전수 재판정은 아직)</td>
+<td style="text-align: center;">🟡 <strong>부분 — 닫힘 제안</strong>(계정 전수 판정 완료, 전제: AX001 운영 등록)</td>
 </tr>
 <tr>
 <td><strong>G8</strong></td>
@@ -237,6 +238,15 @@ G5 반제방향 사전차단. 음성테스트 N1~N7 전건 차단, 정상 케이
 </tbody>
 </table>
 <p><strong>주체</strong>: 회계팀·유니포인트. <strong>코드로 풀 수 없다</strong>(<code>CLAUDE.md §4.6</code>).</p>
+<p><strong>재평가 필요 — 2026-09-30 계정 전수 판정 결과 반영</strong> — G7 계정 전수 판정(<code>--accounts</code>)에서
+위 표의 차단 계정 중 <code>21100902</code>·<code>11101701</code>·<code>53013901</code>·<code>53010601</code>·<code>11101703</code> 5종은 운영·DEMO2
+<strong>모두 분개코드 결정(①단계)을 통과</strong>했다 — 결정 C-15(계정 성격 단일 규칙, <code>18_거래항목_결정규칙</code>)
+도입으로 AX001 매핑이 없어도 fail-closed로 막히지 않는다는 뜻이다. <code>11101701</code> 대변·<code>21100902</code>
+차변이 막히는 것은 <strong>매핑 미비가 아니라 G5 반제방향 규칙</strong> 때문이다(아래 G7 실사례 참조).
+<code>21100101</code>(외상매입금)은 이번 39쌍 판정 대상에 포함되지 않아(실사용 없음) 이번 조사로는
+확인되지 않았다. <strong>결론</strong>: G4의 fail-closed 차단 전제가 C-15로 대부분 해소됐을 가능성이 높다 —
+<strong>폐지 또는 범위 재정의를 제안</strong>한다(임의로 닫지 않는다, <code>21100101</code> 실사용 여부부터 확인 필요,
+최종 판단은 회계팀·유니포인트).</p>
 <hr />
 <h3 id="g5">🔴 G5 — 전표 취소·정정 절차</h3>
 <p><strong>닫힘 조건</strong>: 잘못 들어간 전표를 되돌리는 절차가 <strong>문서로 정의</strong>되고 담당이 정해질 것.</p>
@@ -325,10 +335,39 @@ submitted/failed).</p>
 설정으로 등록돼야</strong> 결의전표 귀결·배치 처리가 DEMO2 와 동일하게 동작한다 — 다르게 등록하면
 ①(거래유형) 통과는 해도 이후 단계에서 다시 어긋날 수 있다. 이 등록이 끝나야 이 초안으로
 ①이 통과하는지 재확인할 수 있다.</p>
-<p><strong>남은 것</strong> — 이번 실행은 초안 <strong>1건</strong>에 한정된다. G7 을 닫으려면 ①포털에 쌓인 나머지 제출·실패
-초안 전수를 같은 도구(<code>--all</code>)로 재판정하고 ②위 AX001 등록 후 재실행해 ①이 통과하는지 확인해야
-한다. EXE 재빌드·서버 배포는 여전히 관리자 몫(도구 자체는 관리자 PC 직접 실행으로 이미 1건
-확인됨).</p>
+<p><strong>남은 것(당시 기준)</strong> — 이번 실행은 초안 <strong>1건</strong>에 한정된다. G7 을 닫으려면 ①포털에 쌓인 나머지
+제출·실패 초안 전수를 같은 도구(<code>--all</code>)로 재판정하고 ②위 AX001 등록 후 재실행해 ①이 통과하는지
+확인해야 한다. EXE 재빌드·서버 배포는 여전히 관리자 몫(도구 자체는 관리자 PC 직접 실행으로 이미
+1건 확인됨). → <strong>아래 계정 전수 판정으로 ①이 사실상 대체 해소됐다.</strong></p>
+<p><strong>계정 전수 판정 결과(2026-09-30, 관리자 PC 직접 실행)</strong> — 전표 1건 판정은 포털에 지금 떠 있는
+초안만 본다는 한계가 있어 G7 을 닫을 근거가 되지 못했다. 관리자가
+<code>python gl_precheck_prod.py --accounts</code>(커밋 <code>c7622cc</code>, 이후 <code>21100907</code> 대변 규칙 보완
+<code>83f3e73</code>)로 <strong>포털이 실제로 쓰는 (계정, 차대) 쌍 전수</strong>를 운영·DEMO2 양쪽에 같은 판정 함수로
+돌렸다. 대상은 포털 전표(전송 완료분 포함)·템플릿에서 쓴 <strong>39쌍, 사용 184회</strong>.</p>
+<ul>
+<li><strong>운영 통과 31 / 차단 8</strong> — 차단 8쌍은 <strong>운영·DEMO2 결과가 완전히 같고</strong>, 전부 <strong>의도된 규칙
+  차단</strong>이다(마스터 결여가 아니다):</li>
+<li>G5 반제방향 6쌍 — <code>11100901</code> 외상매출금 대변·<code>11101701</code> 미수금 대변·<code>11102301</code>
+    선급금-원부재료 대변·<code>21100901</code> 미지급금(거래처) 차변·<code>21100902</code> 미지급금(개인) 차변·
+    <code>21101902</code> 선수금(기타) 차변</li>
+<li>G1 부가세 방향 2쌍 — <code>11103301</code> 부가세대급금 대변·<code>21102301</code> 부가세예수금 차변</li>
+<li>여기에 <code>21100907</code> 미지급금(법인카드) 대변 — 첫 실행에선 ✅였지만 AX 채널 자체 규칙
+    (<code>FORBIDDEN_CR_ACCT</code>, 릴레이가 막는 계정)이라 판정 도구가 놓치고 있었다. 같은 날 보완
+    (<code>83f3e73</code>)해 반영했다 — <strong>실질 규칙 차단은 9쌍</strong>.</li>
+<li><strong>분개코드 결정 불가(fail-closed) 0쌍</strong> — 운영·DEMO2 모두. 결정 C-15(계정 성격 단일 규칙,
+  <code>18_거래항목_결정규칙</code>)로 전부 해석된다. 계정 자체가 없는 경우도 0쌍.</li>
+<li><strong>운영·DEMO2 결과가 다른 쌍 1개</strong> — <code>11103301</code> 부가세대급금 <strong>차변</strong>: 운영은 필수 관리항목에
+  <strong>V8(부가세액)</strong>이 추가된다(운영 V1·V2·V4·V5·V6·V8, DEMO2 V1·V2·V4·V5·V6). 원인은 운영 미러
+  <code>A_ACCT_CTRL_ASSN</code>의 V8 <code>DR_FG='Y'</code>가 <strong>2026-04-20</strong> 변경분이라 DEMO2 스냅샷(2025-06-25)보다
+  뒤라는 것 — 포털 화면·서버는 운영 미러를 기준으로 이미 V8을 필수로 요구하고 있고, 전표 단위
+  운영 판정(<code>AX260930-U001-001</code>)도 이 계정에서 통과했다. 즉 <strong>운영이 DEMO2보다 엄격한 유일한
+  지점</strong>이며, DEMO2에서 V8 없이 통과했던 과거 전표는 운영이었다면 걸렸을 수 있다(소급 조치는
+  하지 않는다, 기록만).</li>
+</ul>
+<p><strong>닫힘 제안</strong> — G7 의 닫힘 조건("지금까지의 판정을 운영 마스터로 한 번 더 돌려 같은 결과가 나올
+것")은 <strong>계정·규칙 측면에서 충족</strong>됐다고 본다(차이 1건도 화면·서버가 이미 운영 기준으로 동작
+중이라 실질적 문제가 아니다). 다만 <strong>G7 을 ✅ 로 닫을지는 관리자 판단 사항</strong>으로 남긴다 — 남은
+전제는 전표 단위에서 이미 확인된 유일한 차단인 <strong>AX001 운영 등록</strong>(위 실사례 참조) 하나뿐이다.</p>
 <hr />
 <h3 id="g8">🟡 G8 — 무인 운영 체계</h3>
 <p><strong>닫힘 조건</strong>: 사람이 지켜보지 않아도 전송이 돌고, 문제가 생기면 알려질 것.</p>
