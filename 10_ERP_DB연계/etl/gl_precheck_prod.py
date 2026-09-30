@@ -205,6 +205,9 @@ def judge_account(cur, acct, fg, cost, trans_type):
     if not r:
         return {"exists": False, "nm": "", "sub": "", "jnl": "", "req": [], "blocks": ["계정 없음"]}
     out = {"exists": True, "nm": r[0], "sub": r[1], "jnl": "", "req": [], "blocks": []}
+    # 법인카드 대변 — ERP 마스터가 아니라 AX 채널 규칙으로 막는다(릴레이 apply_draft 와 같은 상수)
+    if fg == "CR" and acct in relay.FORBIDDEN_CR_ACCT:
+        out["blocks"].append("CARD 법인카드 대변 — AX 채널에서 쓰지 않는 계정입니다(카드 채널 전용)")
     jnl = relay.resolve_jnl(cur, trans_type, acct, fg, cost)
     if jnl:
         out["jnl"] = f"{jnl[0]}/{jnl[1] or '-'}"

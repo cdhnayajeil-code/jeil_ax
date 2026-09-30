@@ -162,6 +162,10 @@ class AccountModeTest(unittest.TestCase):
         j = self.judge("11103301", "CR")
         self.assertTrue(any(b.startswith("G1") for b in j["blocks"]))
 
+    def test_card_credit_blocked_like_relay(self):
+        j = self.judge("21100907", "CR")
+        self.assertTrue(any(b.startswith("CARD") for b in j["blocks"]))
+
     def test_missing_account(self):
         j = self.judge("99999999", "DR")
         self.assertFalse(j["exists"])
