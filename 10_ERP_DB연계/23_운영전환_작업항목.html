@@ -131,8 +131,23 @@ footer{color:var(--sub);font-size:13px;margin-top:24px}
       <tr><td>전표번호 발급 · 채무/부가세 원장 생성</td><td colspan="2">판정 범위 밖(쓰기 단계)</td><td>→ <a href="#s3">작업 3</a></td></tr>
     </tbody>
   </table></div>
-  <div class="note blue">이 결과는 <b>전표 한 건</b>만 본 것이다. 제출된 전표 전체를 운영 기준으로 보려면
-  <code>python gl_precheck_prod.py --all</code>을 실행한다(<code>10_ERP_DB연계/etl</code> 폴더, 관리자 PC).</div>
+  <p><code>--all</code>(제출·미전송 전표 전건)로 돌려도 대상은 이 한 건뿐이었다.</p>
+
+  <h3>계정 기준 전수 판정 <span class="chip c-b">2026-09-30 · --accounts</span></h3>
+  <p class="lead">포털 전표(전송 완료분 포함)·템플릿에 나온 계정×차대 <b>39쌍(사용 184회)</b>을 운영과 DEMO2에서 같은 판정으로 비교했다.</p>
+  <div class="tbl"><table>
+    <thead><tr><th>구분</th><th>쌍 수</th><th>내용</th></tr></thead>
+    <tbody>
+      <tr><td><span class="chip c-g">운영 통과</span></td><td>30</td><td>분개코드 결정·반제방향·필수 관리항목 모두 문제없음</td></tr>
+      <tr><td><span class="chip c-a">규칙상 차단</span></td><td>9</td>
+          <td>운영·DEMO2 결과 동일. 결의전표로 할 수 없는 방향이라 <b>일부러 막는 것</b>이다(반제 6 · 부가세 방향 2 · 법인카드 대변 1). 마스터 결여가 아니다</td></tr>
+      <tr><td><span class="chip c-g">분개코드 결정 불가</span></td><td>0</td><td>계정 성격 규칙(C-15)으로 전부 해석된다. 계정 없음도 0</td></tr>
+      <tr><td><span class="chip c-r">DEMO2와 다름</span></td><td>1</td>
+          <td>부가세대급금(11103301) 차변 — 운영은 필수 관리항목에 <b>V8 부가세액</b>이 추가돼 있다(2026-04-20 변경). 운영이 더 엄격하고, 포털 화면은 이미 운영 기준으로 요구한다</td></tr>
+    </tbody>
+  </table></div>
+  <div class="note blue">결론: 계정·규칙 면에서는 <b>운영과 DEMO2의 판정이 같다</b>(운영이 더 엄격한 1건 제외). 운영 전환을 막는 것은 계정이 아니라
+  <a href="#s1">거래유형 AX001 미등록</a>이다. 법인카드 대변은 첫 실행 때 통과로 잘못 표시돼 도구를 보완했다(재실행하면 규칙상 차단 9로 나온다).</div>
 </section>
 
 <section id="s1">
@@ -279,11 +294,11 @@ python gl_precheck_prod.py --draft AX260930-U001-001</pre>
     <thead><tr><th>게이트</th><th>내용</th><th>주체</th><th>상태</th><th>이 문서와의 관계</th></tr></thead>
     <tbody>
       <tr><td>G1~G3</td><td>파이프라인 실증 · 입력검증 · 서브원장</td><td>AX</td><td><span class="chip c-g">통과</span></td><td>DEMO2 기준 완료</td></tr>
-      <tr><td>G4</td><td>AX001 계정매핑 등재</td><td>회계팀 · 벤더</td><td><span class="chip c-r">대기</span></td>
-          <td>이번 판정에서 임차료(53013901)는 계정 성격 규칙(C-15)으로 통과했다. <b>G4 차단 목록이 아직 유효한지 재확인 필요</b></td></tr>
+      <tr><td>G4</td><td>AX001 계정매핑 등재</td><td>회계팀 · 벤더</td><td><span class="chip c-a">재평가 필요</span></td>
+          <td>계정 전수 판정에서 G4 표의 막힌다던 계정(임차료·수도광열비·미수금·미지급금(개인) 등)이 운영·DEMO2 모두 분개코드 결정을 통과했다(C-15). <b>폐지 또는 범위 재정의를 관리자가 결정</b></td></tr>
       <tr><td>G5</td><td>전표 취소·정정 절차</td><td>회계팀</td><td><span class="chip c-r">미정의</span></td><td>작업 2의 선행 조건</td></tr>
       <tr><td>G6</td><td>중복 전표 경고</td><td>AX</td><td><span class="chip c-r">미구현</span></td><td>운영에서는 이중 지급 위험</td></tr>
-      <tr><td>G7</td><td>운영 마스터 기준 재판정</td><td>AX</td><td><span class="chip c-a">부분</span></td><td>도구 완료 · 1건 실행 · 전수(<code>--all</code>) 남음</td></tr>
+      <tr><td>G7</td><td>운영 마스터 기준 재판정</td><td>AX</td><td><span class="chip c-a">부분</span></td><td>전표·계정 전수 판정 완료 — 계정·규칙 면 운영=DEMO2(운영이 더 엄격한 1건). <b>닫힘 제안</b>, 남은 전제는 AX001 등록</td></tr>
       <tr><td>G8</td><td>무인 운영(알림·스케줄러)</td><td>AX · 관리자</td><td><span class="chip c-a">부분</span></td><td>Teams 알림 웹훅 설정 · 스케줄러 등록 남음</td></tr>
       <tr><td>G9</td><td>C-1 개정 + 유니포인트 협의</td><td>경영 · IT</td><td><span class="chip c-r">미착수</span></td><td>= 작업 2</td></tr>
     </tbody>
@@ -298,7 +313,7 @@ python gl_precheck_prod.py --draft AX260930-U001-001</pre>
     <tbody>
       <tr><td>1</td><td>유니포인트 협의 요청 — AX001 운영 등록 · 번호 체계(AG·BT) · 미결 T-1/U-A</td><td>관리자</td><td>없음</td></tr>
       <tr><td>2</td><td>회계팀과 취소·정정 절차(G5) 논의 시작</td><td>관리자 · 회계팀</td><td>없음</td></tr>
-      <tr><td>3</td><td>운영 기준 전수 판정 <code>--all</code> 실행(G7) · G4 차단 목록 재확인</td><td>관리자</td><td>없음(읽기 전용)</td></tr>
+      <tr><td>3</td><td><s>운영 기준 전수 판정(G7)</s> ✅ 2026-09-30 완료 → G7 닫을지·G4 폐지할지 결정</td><td>관리자</td><td>없음</td></tr>
       <tr><td>4</td><td>AX001 운영 등록(가능하면 비활성) → 판정 재실행으로 확인</td><td>ERP 관리자</td><td>1</td></tr>
       <tr><td>5</td><td>C-1 개정 결정 · ADR 기록</td><td>경영 · IT</td><td>1 · 2 · 3</td></tr>
       <tr><td>6</td><td>코드 변경(대상 DB·cleanup 차단) → EXE 재빌드 → 서버 교체</td><td>관리자</td><td>5</td></tr>
