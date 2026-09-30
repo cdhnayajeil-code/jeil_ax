@@ -243,7 +243,7 @@
 - **상태**: Accepted — 화면·서버·표는 적용 완료(2026-09-29). **관리자 Admin 키 발급·등록 후** `벤더 실측` 전환을 실측해야 완료(REQ-0091 8단계).
 - **근거**: [REQ-0091 작업 지시서](../.backlog/2-active/REQ-0091_feat_active_ai-cost-budget-console.md)(로컬) · 정본 SQL `실제구축준비 자료/이관/sql/76_ai_vendor_budget.sql` · 화면 `/admin/api-setup` · 서버 `supabase/functions/jeil-chat-admin`(v13).
 
-### ADR-112 🕐 OpenAI 추론 모델의 도구 호출 = chat/completions + `reasoning_effort:"none"` 자동 적응(추론 끔) · Responses API 이관은 조건부 (2026-09-30 제안)
+### ADR-112 ✅ OpenAI 추론 모델의 도구 호출 = chat/completions + `reasoning_effort:"none"` 자동 적응(추론 끔) · Responses API 이관은 조건부 (2026-09-30 제안 · 같은 날 채택)
 - **배경**: 운영 챗봇 기본 모델을 gpt-6-luna 로 바꾼 뒤 도구(TOOLS)를 붙인 호출이 OpenAI 400 「Function tools with reasoning_effort are not supported for gpt-6-luna in /v1/chat/completions. To use function tools, use /v1/responses or set reasoning_effort to 'none'」로 거부됐다(2026-09-30 function_logs 실측). 기존 자동 적응(oaAdjust)은 temperature·max_tokens 두 사유만 알았다. gpt-4o-mini(비추론)는 정상.
 - **결정(제안)**:
   - 게이트웨이(jeil-chat)·부서 에이전트 어댑터(jeil-chat-lab/llm/openai.ts)는 **400 본문의 `error.param` 을 읽어 요청 모양을 3단계로 고쳐 재시도**한다(temperature 미전송 → `max_completion_tokens` → `reasoning_effort:"none"`). 모델 목록을 코드에 박지 않는 기존 원칙 유지.
@@ -253,7 +253,7 @@
   - 모델별 **「동작 점검」** 은 jeil-chat 본체의 `action:"test_model"` 로 둔다 — 실제 호출 코드를 재사용해 세 번째 사본을 만들지 않는다. 관리자(portal_admin) 전용, 서비스롤 우회 경로 없음, 키 마스킹, 연타 방지·비용 상한.
 - **대안(기각)**: 도구가 있을 때 OpenAI 전부에 선제적으로 `reasoning_effort:"none"` — 비추론 모델이 미지 파라미터로 거부할 위험, 모델 목록 하드코딩 회귀.
 - **대안(기각)**: 즉시 실측을 위해 서비스롤 베어러를 점검 액션 인증으로 인정 — 마스터 키 비교 코드가 공개 엔드포인트에 생긴다(§1.8). 실측은 관리자 로그인 브라우저의 「전체 점검」으로 한다.
-- **상태**: Proposed — 코드·SQL 80·회귀 테스트·검토 완료(2026-09-30). **함수 3종 배포와 「전체 점검」 실측 후** Accepted 로 전이.
+- **상태**: Accepted(2026-09-30) — 함수 3종 배포(jeil-chat v34 · lab v14 · admin v26) 후 실측(2026-09-30 07:01 UTC · 실제 지시문+도구 그대로 시험 질문 1건, 총 $0.024): OpenAI 8종 중 7종 정상 — gpt-4o-mini·gpt-4o·gpt-4.1-mini(적응 없음), gpt-6-luna·gpt-6-sol(max_completion_tokens + reasoning_effort none), gpt-5-mini(temperature 미전송 + max_completion_tokens, 추론 토큰 64 유지), gpt-5.4-mini(max_completion_tokens) · gpt-6-astra 거부(none 미지원 — 도구 호출 불가, SQL 81 메모) · Anthropic 6종 전부 400 「크레딧 부족」(키·워크스페이스 정상, 충전 필요). gpt-6-luna·gpt-6-sol 이 `none` 으로 도구 호출에 답하는 것을 확인했고, `none` 조차 거부하는 gpt-6-astra 는 카탈로그 메모(SQL 81)로 표시했다. Responses API 이관은 조건부 보류 그대로.
 - **근거**: [REQ-0095 작업 지시서](../.backlog/2-active/REQ-0095_fix_active_model-smoke-test-reasoning.md)(로컬) · 정본 SQL `실제구축준비 자료/이관/sql/80_ai_model_last_check.sql` · 설계 패널(3안 → 심사 3 → 종합) · 적대적 검토(4관점 → 결함별 반박 2) 워크플로.
 
 ## C. 발견 이슈 (Issue — 이번 조사에서 확인, 조치 필요)
