@@ -127,6 +127,7 @@ ROUTES = {
     "/docs/erp/ledger-verify":          "10_ERP_DB연계/20_원장검증_실장부대조.html",
     "/docs/erp/offboarding":            "10_ERP_DB연계/21_퇴사처리_일괄적용_기획.html",
     "/docs/erp/gw-org-recon":           "10_ERP_DB연계/22_그룹웨어_조직도_실측대사.html",
+    "/docs/erp/prod-worklist":          "10_ERP_DB연계/23_운영전환_작업항목.html",
 
     # ── 제품기획 ───────────────────────────────────────────
     "/docs/product":                    "11_제품기획/index.html",

@@ -160,7 +160,7 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <td>운영 마스터 기준 재판정</td>
 <td>기술</td>
 <td>AX</td>
-<td style="text-align: center;">🟡 <strong>부분</strong>(도구 마련, 실행 대기)</td>
+<td style="text-align: center;">🟡 <strong>부분</strong>(전표 1건 첫 실행 완료, 포털 계정 전수 재판정은 아직)</td>
 </tr>
 <tr>
 <td><strong>G8</strong></td>
@@ -304,9 +304,31 @@ G7 로 막혔다. 원인은 거래처 4624(주식회사 굿프린팅)·4659(서�
 멈춤). 안전장치 — 커서 단에서 SELECT 외 문장을 전부 거부(채번·서브원장 생성까지 방어), 트랜잭션은
 커밋 없이 끝에 롤백, 포털 <code>gl_apply_record</code> 는 호출하지 않아 초안 상태·화면 표시는 DEMO2 판정
 그대로 남는다. 헤드리스 테스트 6건(<code>test_gl_precheck_prod.py</code>) 통과.</p>
-<p><strong>남은 것</strong> — 이 도구는 아직 <strong>EXE 재빌드·서버 배포·실행이 없다</strong>(관리자 몫). 운영 서버에서 실행해
-<code>AX260930-U001-001</code> 등이 운영 기준으로도 막히는지 결과가 나와야 G7 이 닫힌다. 채번·서브원장
-(채무·부가세) 생성 단계는 쓰기라 이 도구로는 판정할 수 없다 — 실제 투입 때만 확인된다.</p>
+<p><strong>첫 실행 결과(2026-09-30, 관리자 PC에서 관리자가 직접 실행)</strong> — 관리자가 <code>.erp</code> 읽기전용 계정으로
+<code>python gl_precheck_prod.py --draft AX260930-U001-001</code>을 돌렸다. 대상은 초안 <code>AX260930-U001-001</code>
+(29,326,000원, 적요 "26년 10월 굿타워 임대료 및 주차비(굿타워·한양현대) 기안의 건", 포털 상태
+submitted/failed).</p>
+<ul>
+<li><strong>DEMO2 에서 막혔던 G7 6건(거래처 4624·4659 미존재)은 운영 마스터 기준으로 전부 통과.</strong>
+  판정 항목 ②~⑥(분개코드 결정·필수 관리항목·반제방향·부서 조직·중복 참조번호)도 전부 통과 —
+  즉 「운영이었으면 통과했나」라는 G7 의 원래 질문에는 <strong>그렇다</strong>는 답이 나왔다.</li>
+<li><strong>새로 걸린 것 1건</strong> — 판정 항목 ①(거래유형): <strong><code>AX001</code> 이 운영 ERP <code>A_ACCT_TRANS_TYPE</code> 에
+  아예 등록돼 있지 않다</strong>(DEMO2 에만 있다). DEMO2 6건 차단의 원인이었던 「거래처 미존재」와는
+  전혀 다른, 더 근본적인 결여다 — 계정매핑(G4, <code>A_JNL_ACCT_ASSN</code>)은 AX001 이 이미 마스터에
+  있다는 것을 전제로 하는데, 지금은 그 전제 자체가 운영에는 없다.</li>
+<li><strong>채번·서브원장(채무·부가세) 생성 단계는 여전히 쓰기라 이 도구의 판정 범위 밖</strong> — 실제 투입 때만
+  확인된다(변경 없음).</li>
+</ul>
+<p><strong>운영 전환 선행 조건(신규, 2026-09-30)</strong> — 운영 ERP 에 거래유형 <code>AX001</code> 을 등록해야 한다
+(ERP 관리자/유니포인트 협의 — <strong>코드로 풀 수 없다</strong>, 사람이 결정·실행). DEMO2 등록 당시 설정
+(<code>11_ERP직접등록_DEMO2_1차.md</code> C-12: <code>GL_POSTING_FG='T'</code>·<code>BATCH_FG='A'</code>·모듈 A)과 <strong>같은
+설정으로 등록돼야</strong> 결의전표 귀결·배치 처리가 DEMO2 와 동일하게 동작한다 — 다르게 등록하면
+①(거래유형) 통과는 해도 이후 단계에서 다시 어긋날 수 있다. 이 등록이 끝나야 이 초안으로
+①이 통과하는지 재확인할 수 있다.</p>
+<p><strong>남은 것</strong> — 이번 실행은 초안 <strong>1건</strong>에 한정된다. G7 을 닫으려면 ①포털에 쌓인 나머지 제출·실패
+초안 전수를 같은 도구(<code>--all</code>)로 재판정하고 ②위 AX001 등록 후 재실행해 ①이 통과하는지 확인해야
+한다. EXE 재빌드·서버 배포는 여전히 관리자 몫(도구 자체는 관리자 PC 직접 실행으로 이미 1건
+확인됨).</p>
 <hr />
 <h3 id="g8">🟡 G8 — 무인 운영 체계</h3>
 <p><strong>닫힘 조건</strong>: 사람이 지켜보지 않아도 전송이 돌고, 문제가 생기면 알려질 것.</p>
