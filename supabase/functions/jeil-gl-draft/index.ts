@@ -6,6 +6,9 @@
 //              |"tpl_recur_list"|"tpl_apply_prev"|"tpl_seed_bulk"
 //              |"slip_list"|"slip_get"|"apply_request"|"apply_cancel"|"apply_health"|"unsubmit"
 //              |"ctrl_ref"|"ctrl_check", ... }
+// v5.12(2026-09-30): ① 전송 대상 운영(JEILMNS) 전환(결정 D-113 A안 — 릴레이 v1.8 과 함께)
+//   ② ERP 상태 역동기화 표시(G5 — mine/list 에 erp_sync_state·erp_final_gl_no·erp_deleted_at·void_reason)
+//   ③ 제출 시 중복 의심 경고(G6) — 같은 금액 + (거래처 겹침 또는 같은 적요) + 결의일 ±15일, 확인하면 ack_dup 로 통과.
 // v5.11(2026-08-28): 관리항목 참조검증 복구 + 즉시 검증(REQ-0015 — 라이브 결함).
 //   ① **종전 검증은 동작하지 않았다.** refValid() 가 `erp_ro` 를 REST로 직접 조회했는데
 //      이 스키마는 REST 비노출이라 조회가 조용히 빈 결과를 돌려주고, 코드는 그것을
@@ -138,6 +141,12 @@ async function verifyEntraUser(token: string): Promise<{ upn: string; name: stri
     return { upn, name: String(me.displayName || "") };
   } catch { return null; }
 }
+
+// ERP 전송 대상 — 릴레이(gl_apply_demo2.py TARGET_DB)와 반드시 같은 값이어야 한다.
+// 전송 대기 등록·중계 생존 확인·손봐야 할 건 조회가 모두 이 값으로 묶인다.
+// 2026-09-30 결정 D-113(A안): DEMO2 → 운영(JEILMNS).
+const ERP_TARGET = "JEILMNS";
+const ERP_TARGET_LABEL = "운영 ERP";
 
 const num = (v: unknown): number => {
   const n = Number(String(v ?? "").replace(/,/g, ""));
@@ -301,6 +310,53 @@ Deno.serve(async (req) => {
       ? `${line}번 줄: ${nm}(${cd}) '${val}' 은(는) ERP에서 사용중지된 값입니다. 🔍 검색해서 쓰는 값을 고르세요.`
       : `${line}번 줄: ${nm}(${cd}) '${val}' 은(는) ERP 마스터에 없습니다. 🔍 검색해서 선택하세요.`;
   };
+  /* 중복 의심 전표(G6) — 같은 금액 + (거래처 하나 이상 겹침 또는 같은 적요) + 결의일 ±DUP_WINDOW_DAYS.
+     비교 대상: 제출됨·확정됨 전표(폐기·ERP 삭제는 제외), 작성자 무관(다른 사람이 같은 건을 올려도 이중 지급).
+     거래처는 라인 bp_cd 와 관리항목 BP·V6(거래처코드) 를 함께 본다 — 화면에 따라 어느 쪽에 들어가는지 다르다. */
+  const DUP_WINDOW_DAYS = 15;
+  const bpsOf = async (nos: string[]): Promise<Map<string, Set<string>>> => {
+    const m = new Map<string, Set<string>>();
+    if (!nos.length) return m;
+    const add = (no: string, v: unknown) => {
+      const s = String(v ?? "").trim(); if (!s) return;
+      if (!m.has(no)) m.set(no, new Set()); m.get(no)!.add(s);
+    };
+    const { data: its } = await admin.from("gl_draft_item").select("draft_no,bp_cd").in("draft_no", nos);
+    for (const r of (its || [])) add(r.draft_no, r.bp_cd);
+    const { data: cs } = await admin.from("gl_draft_item_ctrl").select("draft_no,ctrl_cd,ctrl_val")
+      .in("draft_no", nos).in("ctrl_cd", ["BP", "V6"]);
+    for (const r of (cs || [])) add(r.draft_no, r.ctrl_val);
+    return m;
+  };
+  const normDesc = (v: unknown) => String(v ?? "").replace(/\s+/g, "").toLowerCase();
+  const dupSuspects = async (no: string) => {
+    const { data: me } = await admin.from("gl_draft")
+      .select("draft_no,draft_dt,dr_total,gl_desc").eq("draft_no", no).maybeSingle();
+    if (!me || !me.draft_dt || !(Number(me.dr_total) > 0)) return [];
+    const d0 = new Date(String(me.draft_dt) + "T00:00:00Z");
+    const day = 86400000;
+    const lo = new Date(d0.getTime() - DUP_WINDOW_DAYS * day).toISOString().slice(0, 10);
+    const hi = new Date(d0.getTime() + DUP_WINDOW_DAYS * day).toISOString().slice(0, 10);
+    const { data: cands } = await admin.from("gl_draft")
+      .select("draft_no,draft_dt,status,owner_nm,gl_desc,dr_total,erp_apply_gl_no,erp_temp_gl_no")
+      .neq("draft_no", no).in("status", ["submitted", "posted"])
+      .eq("dr_total", me.dr_total).gte("draft_dt", lo).lte("draft_dt", hi).limit(30);
+    if (!cands || !cands.length) return [];
+    const bps = await bpsOf([no, ...cands.map((c) => c.draft_no)]);
+    const mine = bps.get(no) || new Set<string>();
+    const myDesc = normDesc(me.gl_desc);
+    return cands.filter((c) => {
+      const theirs = bps.get(c.draft_no) || new Set<string>();
+      const bpHit = [...mine].some((x) => theirs.has(x));
+      const descHit = !!myDesc && normDesc(c.gl_desc) === myDesc;
+      return bpHit || descHit;
+    }).slice(0, 10).map((c) => ({
+      draft_no: c.draft_no, draft_dt: c.draft_dt, status: c.status, owner_nm: c.owner_nm || "",
+      gl_desc: c.gl_desc || "", dr_total: Number(c.dr_total) || 0,
+      erp_gl_no: c.erp_apply_gl_no || c.erp_temp_gl_no || "",
+    }));
+  };
+
   /* 저장된 초안을 다시 판정한다 — 제출·ERP 전송 직전 방어선.
      저장은 경고만 하고 통과시키므로(관리자 결정 2026-08-28), 틀린 값을 실제로 막는 곳은 여기다. */
   const refProblemsOfDraft = async (no: string): Promise<string[]> => {
@@ -1031,7 +1087,7 @@ Deno.serve(async (req) => {
   /* ===== op: mine — 내 초안 목록 ===== */
   if (op === "mine") {
     const { data, error } = await admin.from("gl_draft")
-      .select("draft_no,draft_dt,gl_desc,dept_nm,dr_total,cr_total,status,erp_temp_gl_no,erp_apply_status,erp_apply_gl_no,erp_apply_target,erp_last_error,erp_last_error_at,erp_attempts,erp_ready_at,created_at,submitted_at,posted_at")
+      .select("draft_no,draft_dt,gl_desc,dept_nm,dr_total,cr_total,status,erp_temp_gl_no,erp_apply_status,erp_apply_gl_no,erp_apply_target,erp_last_error,erp_last_error_at,erp_attempts,erp_ready_at,created_at,submitted_at,posted_at,erp_sync_state,erp_final_gl_no,erp_deleted_at,void_reason")
       .eq("owner_upn", user.upn).order("created_at", { ascending: false }).limit(100);
     if (error) return json({ error: "조회 실패: " + error.message }, 500);
     return json({ ok: true, rows: data || [] });
@@ -1084,6 +1140,21 @@ Deno.serve(async (req) => {
         안내: "ERP 마스터에 없는 값이 있어 제출할 수 없습니다. 보내면 ERP가 거부합니다.\n"
               + refBad.join("\n") }, 400);
     }
+    /* 중복 의심 경고(게이트 G6, 2026-09-30) — 막지 않고 알린다.
+       멱등 방어는 「같은 초안번호」만 본다. 내용이 같은 별개 초안을 두 번 올리면 ERP 에 전표가 두 장
+       생기고, 운영에서는 이중 지급이 된다. 같은 금액을 정당하게 두 번 쓰는 경우(월 임차료 등)도 있으므로
+       차단이 아니라 확인 — 사용자가 목록을 보고 [그래도 제출] 하면 ack_dup:true 로 다시 부른다. */
+    if (b.ack_dup !== true) {
+      const dups = await dupSuspects(no);
+      if (dups.length) {
+        log("submit_dup_warn", no, { n: dups.length, with: dups.map((d) => d.draft_no) });
+        return json({ error: "dup_suspect", dups,
+          안내: `비슷한 전표가 ${dups.length}건 있습니다 — 같은 금액이고 거래처나 적요가 같으며 결의일이 ${DUP_WINDOW_DAYS}일 안입니다. `
+              + "같은 건을 두 번 올리는 것이 아닌지 확인하세요." }, 409);
+      }
+    } else {
+      log("submit_dup_ack", no);
+    }
     const { error } = await admin.from("gl_draft")
       .update({ status: "submitted", submitted_at: nowIso, updated_at: nowIso }).eq("draft_no", no);
     if (error) return json({ error: "제출 실패: " + error.message }, 500);
@@ -1114,7 +1185,7 @@ Deno.serve(async (req) => {
   if (op === "list") {
     if (!canPost) return json({ error: "forbidden: 회계 담당자 전용입니다." }, 403);
     let q = admin.from("gl_draft")
-      .select("draft_no,draft_dt,gl_type,dept_nm,cost_cd,gl_desc,ref_no,owner_upn,owner_nm,owner_erp_usr_id,dr_total,cr_total,status,erp_temp_gl_no,erp_apply_status,erp_apply_gl_no,erp_apply_target,erp_last_error,erp_last_error_at,erp_attempts,erp_ready_at,created_at,submitted_at,posted_at")
+      .select("draft_no,draft_dt,gl_type,dept_nm,cost_cd,gl_desc,ref_no,owner_upn,owner_nm,owner_erp_usr_id,dr_total,cr_total,status,erp_temp_gl_no,erp_apply_status,erp_apply_gl_no,erp_apply_target,erp_last_error,erp_last_error_at,erp_attempts,erp_ready_at,created_at,submitted_at,posted_at,erp_sync_state,erp_final_gl_no,erp_deleted_at,void_reason")
       .order("submitted_at", { ascending: true, nullsFirst: false }).limit(300);
     const st = String(b.status || "submitted");
     if (st === "draft") return json({ error: "forbidden: 작성중(미제출) 전표는 작성자 본인만 볼 수 있습니다." }, 403);
@@ -1208,7 +1279,7 @@ Deno.serve(async (req) => {
     // erp_last_error 는 일부러 건드리지 않는다 — 재전송해도 "직전에 왜 실패했는지"가 남아야
     // 대기 중 화면이 그 사유를 보여줄 수 있다. 성공하면 gl_apply_record 가 비운다.
     const { error } = await admin.from("gl_draft").update({
-      erp_apply_status: "ready", erp_apply_target: "JEILMNS_DEMO2",
+      erp_apply_status: "ready", erp_apply_target: ERP_TARGET,
       erp_apply_msg: null, erp_ready_at: nowIso, updated_at: nowIso,
     }).eq("draft_no", no);
     if (error) return json({ error: "전송 요청 실패: " + error.message }, 500);
@@ -1216,12 +1287,12 @@ Deno.serve(async (req) => {
     // 중계가 살아 있는지 함께 알려준다 — 죽어 있으면 "곧 처리합니다"는 지킬 수 없는 약속이다.
     let health: { relay_alive?: boolean | null; relay_idle_min?: number | null } | null = null;
     try {
-      const { data } = await admin.rpc("gl_apply_health", { p_target: "JEILMNS_DEMO2" });
+      const { data } = await admin.rpc("gl_apply_health", { p_target: ERP_TARGET });
       health = data ?? null;
     } catch { /* 진단 실패는 전송을 막지 않는다 */ }
     const alive = health?.relay_alive ?? null;
-    log("apply_request", no, { target: "JEILMNS_DEMO2", retry, relay_alive: alive });
-    const base = "ERP 전송 대기로 등록했습니다(대상: DEMO2).";
+    log("apply_request", no, { target: ERP_TARGET, retry, relay_alive: alive });
+    const base = `ERP 전송 대기로 등록했습니다(대상: ${ERP_TARGET_LABEL}).`;
     const idle = health?.relay_idle_min;
     return json({ ok: true, retry, last_error: cur.erp_last_error || null, health,
       안내: alive === false
@@ -1236,11 +1307,12 @@ Deno.serve(async (req) => {
     if (!canPost) return json({ error: "forbidden: 회계 담당자 전용입니다." }, 403);
     const staleMin = Math.min(1440, Math.max(1, Number(b.stale_min) || 30));
     const [h, p] = await Promise.all([
-      admin.rpc("gl_apply_health",   { p_target: "JEILMNS_DEMO2", p_stale_min: staleMin }),
-      admin.rpc("gl_apply_problems", { p_target: "JEILMNS_DEMO2", p_stale_min: staleMin }),
+      admin.rpc("gl_apply_health",   { p_target: ERP_TARGET, p_stale_min: staleMin }),
+      admin.rpc("gl_apply_problems", { p_target: ERP_TARGET, p_stale_min: staleMin }),
     ]);
     if (h.error) return json({ error: "진단 조회 실패: " + h.error.message }, 500);
-    return json({ ok: true, health: h.data ?? {}, problems: p.data ?? [] });
+    return json({ ok: true, target: ERP_TARGET, target_label: ERP_TARGET_LABEL,
+      health: h.data ?? {}, problems: p.data ?? [] });
   }
 
   /* ===== op: unsubmit — 제출 회수(고치려고 작성중으로 되돌린다) =====

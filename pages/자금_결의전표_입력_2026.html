@@ -975,14 +975,25 @@ async function api(op, body={}){
     headers:{ Authorization:"Bearer "+a.at, "Content-Type":"application/json" },
     body: JSON.stringify({ op, ...body }) });
   const j = await r.json().catch(()=>({}));
-  if(!r.ok) throw new Error(j.안내 || j.error || "요청 실패");
+  if(!r.ok){
+    const err = new Error(j.안내 || j.error || "요청 실패");
+    err.status = r.status; err.data = j;     // 중복 경고(dup_suspect)처럼 본문을 다시 쓰는 응답이 있다
+    throw err;
+  }
   return j;
 }
 const $ = (id)=>document.getElementById(id);
 const won = (n)=>Number(n||0).toLocaleString("ko-KR");
 const esc = (s)=>String(s??"").replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const STATUS_KO = { draft:"작성중", submitted:"제출됨", posted:"확정됨", void:"폐기" };
-/* ERP 직접등록 1차(DEMO2, C-11) 적용 상태 표시 — 적용은 관리자 PC 적용기(gl_apply_demo2.py)가 수행 */
+/* 상태 표시 — ERP 에서 삭제돼 종결된 전표는 '폐기'가 아니라 'ERP 삭제'로 보인다(G5, 2026-09-30).
+   삭제는 ERP 에서만 한다(수정 없음). 포털은 릴레이가 확인한 사실을 표시만 한다(ERP → 포털 단방향). */
+function stKo(x){
+  if(x.erp_sync_state === "deleted") return "ERP 삭제";
+  return STATUS_KO[x.status] || x.status;
+}
+/* ERP 직접등록 적용 상태 표시 — 적용은 서버 중계(gl_apply_demo2.py --queue)가 수행.
+   2026-09-30 결정 D-113(A안): 대상 운영(JEILMNS). 과거 DEMO2 적용분은 'DEMO' 접두로 구분된다. */
 /* 실패 사유 한 줄 요약 — 표 칸에 들어갈 만큼 짧게, 무슨 일인지 알 만큼만.
    원문(여러 줄)은 title 로 붙여 두므로 필요하면 그대로 볼 수 있다.
    옛 문구와 새 문구를 함께 받는다 — 서버 중계가 구버전이면 옛 문장이 그대로 온다. */
@@ -1019,9 +1030,21 @@ function applyPill(x){
   const full  = esc(x.erp_last_error || x.erp_apply_msg || "");
   const note  = brief ? '<div class="why-brief" title="'+full+'">'+esc(brief)+'</div>' : "";
   const st = x.erp_apply_status;
-  if(st === "applied")
+  // ERP 에서 삭제됨(G5) — 초안은 종결. 다시 넣으려면 [전표복사]로 새 전표를 만든다
+  if(x.erp_sync_state === "deleted")
+    return '<span class="pill fail" title="'+esc(x.void_reason||"ERP 에서 삭제됨")+'">ERP 삭제됨</span>'
+      + '<div class="why-brief">'+esc(x.erp_apply_gl_no||x.erp_temp_gl_no||"")+' · 다시 넣으려면 [전표복사]</div>';
+  if(st === "applied"){
+    const demo = String(x.erp_apply_target||"").indexOf("DEMO")>=0;
+    // 승인 여부는 릴레이가 ERP 를 조회해 채운다(G5). 승인되면 회계전표번호를 함께 보인다
+    const sync = x.erp_sync_state === "approved"
+        ? '<div class="why-brief" title="ERP 승인 완료 — 회계전표번호">승인 '+esc(x.erp_final_gl_no||"")+'</div>'
+      : x.erp_sync_state === "unapproved"
+        ? '<div class="why-brief" title="ERP 에 결의전표로 들어가 있고 아직 승인 전입니다">ERP 미승인</div>'
+      : "";
     return '<span class="pill posted" title="'+esc(x.erp_apply_target||"")+' 적용 완료">'
-      + (String(x.erp_apply_target||"").indexOf("DEMO")>=0 ? "DEMO " : "") + esc(x.erp_apply_gl_no||"적용됨") + '</span>';
+      + (demo ? "DEMO " : "") + esc(x.erp_apply_gl_no||"적용됨") + '</span>' + sync;
+  }
   if(st === "sending")
     return '<span class="pill submitted" title="중계가 처리 중입니다">처리 중</span>';
   if(st === "failed")
@@ -3168,7 +3191,21 @@ $("btnSubmit").onclick = async ()=>{
   const summary = submitSummary();            // 저장 전에 요약을 만들어 사용자가 먼저 확인한다
   if(!confirm(summary)) return;
   const no = await save(); if(!no) return;
-  try{ const r = await api("submit", { draft_no:no }); toast(r.안내); newDraft(); loadMine(); loadRecur(); }
+  try{
+    let r;
+    try{ r = await api("submit", { draft_no:no }); }
+    catch(e){
+      if(e.data?.error !== "dup_suspect") throw e;
+      // 중복 의심(G6) — 막지 않고 확인받는다. 같은 금액을 정당하게 두 번 쓰는 경우(월 임차료 등)가 있다
+      const list = (e.data.dups||[]).map((d)=> "· "+d.draft_no+" ("+d.draft_dt+", "+(STATUS_KO[d.status]||d.status)
+        +(d.owner_nm?", "+d.owner_nm:"")+") "+won(d.dr_total)+"원 — "+(d.gl_desc||"")
+        +(d.erp_gl_no?" [ERP "+d.erp_gl_no+"]":"")).join("\n");
+      if(!confirm("⚠ 중복 의심 전표가 있습니다\n\n"+(e.data.안내||"")+"\n\n"+list
+        +"\n\n같은 건을 두 번 올리는 것이 아니면 [확인]을 눌러 제출하세요.")) return;
+      r = await api("submit", { draft_no:no, ack_dup:true });
+    }
+    toast(r.안내); newDraft(); loadMine(); loadRecur();
+  }
   catch(e){ toast(e.message, true); }
 };
 
@@ -3352,7 +3389,7 @@ async function loadMine(){
         + '<td class="mono">'+esc(x.draft_no)+'</td><td class="nw">'+esc(x.draft_dt)+'</td>'
         + '<td class="tr" title="'+esc(x.gl_desc||"")+'">'+esc(x.gl_desc||"")+'</td>'
         + '<td class="num">'+won(x.dr_total)+'</td><td class="num">'+won(x.cr_total)+'</td>'
-        + '<td class="nw"><span class="pill '+esc(x.status)+'">'+(STATUS_KO[x.status]||x.status)+'</span></td>'
+        + '<td class="nw"><span class="pill '+esc(x.erp_sync_state==="deleted"?"fail":x.status)+'">'+stKo(x)+'</span></td>'
         + '<td class="mono">'+(x.erp_temp_gl_no?esc(x.erp_temp_gl_no):'<span style="color:#aab;">—</span>')+'</td>'
         + '<td class="nw">'+applyPill(x)+'</td></tr>').join("")
       + '</tbody>';
@@ -3398,7 +3435,7 @@ async function loadPost(){
         + '<td class="nw">'+esc(x.dept_nm||"")+'</td>'
         + '<td class="tr" title="'+esc(x.gl_desc||"")+'">'+esc(x.gl_desc||"")+'</td>'
         + '<td class="num">'+won(x.dr_total)+'</td>'
-        + '<td class="nw"><span class="pill '+esc(x.status)+'">'+(STATUS_KO[x.status]||x.status)+'</span></td>'
+        + '<td class="nw"><span class="pill '+esc(x.erp_sync_state==="deleted"?"fail":x.status)+'">'+stKo(x)+'</span></td>'
         // 전표번호는 ERP가 채번한다 — 아직 전송 전이면 비어 있는 게 정상(경고 표시하지 않는다)
         + '<td class="mono">'+(x.erp_temp_gl_no ? esc(x.erp_temp_gl_no)
                  : x.status==="posted" ? '<span style="color:var(--red);font-weight:700;">미기입</span>'
@@ -3723,7 +3760,7 @@ function renderSendBar(h){
     : st==="failed" ? "아래 사유를 고치세요 — <b>[✏ 수정]</b>을 누르면 작성 화면으로 넘어갑니다. "
       + "전표 내용과 상관없는 사유라면 그대로 다시 보내도 됩니다."
     : blocked ? "<b>지금 보내면 실패합니다.</b> 아래 사유를 고치세요 — [✏ 수정]을 누르면 작성 화면으로 넘어갑니다."
-    : "보내면 ERP(<b>DEMO2</b>)에 전표가 만들어집니다. "
+    : "보내면 <b>운영 ERP</b>에 결의전표(미승인)가 만들어집니다. 승인은 ERP에서 합니다. "
       + "입력과 다르게 만들어지면 자동으로 취소되고, 성공하면 전표번호가 여기에 표시됩니다.";
   // 사유 블록 — 실패했을 때는 물론, 재전송으로 '대기'가 된 뒤에도 직전 사유를 계속 보여준다.
   // (종전에는 apply_request 가 사유를 지워, 왜 막혔는지 모른 채 기다리게 됐다)
@@ -3804,7 +3841,7 @@ $("postTbl").onclick = async (e)=>{
     $("postDetail").scrollIntoView({ behavior:"smooth", block:"nearest" });
   }catch(e2){ toast(e2.message, true); }
 };
-/* ═══ ERP 전송(C-11 1차 · 대상 DEMO2) ═══
+/* ═══ ERP 전송(대상 운영 JEILMNS — 결정 D-113, 2026-09-30. 종전 C-11 1차는 DEMO2) ═══
    포털은 ERP에 직접 쓰지 않는다 — 이 버튼은 '전송 대기(ready)' 마킹만 하고,
    실제 투입은 사내 중계(gl_apply_demo2.py --queue/--watch)가 수행한다.
    결과(AG전표번호·실패)는 중계가 회기입하며, 아래 폴링이 자동으로 감지해 화면에 반영한다. */
@@ -3852,7 +3889,9 @@ function startSendPoll(draftNo){
 $("btnErpSend").onclick = async ()=>{
   if(!POST_SEL) return;
   const no = POST_SEL.header.draft_no;
-  if(!confirm(no+" 을(를) ERP(DEMO2)로 보냅니다.\n"
+  if(!confirm(no+" 을(를) 운영 ERP로 보냅니다.\n"
+    + "미승인 결의전표로 만들어지며 승인은 ERP에서 합니다.\n"
+    + "잘못 들어가면 ERP에서 삭제하세요 — 포털에는 「ERP 삭제됨」으로 표시됩니다.\n"
     + "입력과 다르게 만들어지면 자동으로 취소됩니다.")) return;
   $("btnErpSend").disabled = true;
   try{

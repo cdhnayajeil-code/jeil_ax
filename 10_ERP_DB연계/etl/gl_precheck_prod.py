@@ -36,6 +36,7 @@ from _env import load_env, need
 import gl_apply_demo2 as relay
 
 PROD_DB = "JEILMNS"                    # 판정 기준 DB — 읽기만 한다
+DEMO2_DB = "JEILMNS_DEMO2"             # 비교 대상(2025-06-25 스냅샷) — 읽기만 한다
 
 # SELECT 한 문장만 허용. 주석·세미콜론으로 뒤에 다른 문장을 붙이는 것도 막는다.
 _WRITE_WORDS = re.compile(
@@ -64,23 +65,33 @@ class ReadOnlyCursor:
 
 
 def prod_conn():
-    """운영 접속 — DB명을 JEILMNS 로 고정하고 접속 직후 재확인한다."""
+    """운영(JEILMNS) 읽기 접속."""
+    return _ro_conn(PROD_DB, "운영 기준")
+
+
+def demo2_conn():
+    """DEMO2 읽기 접속 — 비교용. 릴레이의 demo_conn 은 2026-09-30(D-113)부터 운영에 붙으므로 쓰지 않는다."""
+    return _ro_conn(DEMO2_DB, "DEMO2 비교")
+
+
+def _ro_conn(db, label):
+    """읽기 판정용 접속 — DB명을 고정하고 접속 직후 재확인한다. 커밋하지 않는다(끝에 롤백)."""
     import pyodbc
     from _erp_conn import erp_conn_str
     cs = erp_conn_str()
     if re.search(r"(?i)(DATABASE|Initial Catalog)\s*=", cs):
-        cs = re.sub(r"(?i)(DATABASE|Initial Catalog)\s*=\s*[^;]*", rf"\1={PROD_DB}", cs)
+        cs = re.sub(r"(?i)(DATABASE|Initial Catalog)\s*=\s*[^;]*", rf"\1={db}", cs)
     else:
-        cs = cs.rstrip(";") + f";DATABASE={PROD_DB}"
+        cs = cs.rstrip(";") + f";DATABASE={db}"
     conn = pyodbc.connect(cs, timeout=30)
     conn.autocommit = False               # 커밋하지 않는다 — 끝에 롤백
     cur = conn.cursor()
     cur.execute("SELECT DB_NAME()")
     name = cur.fetchone()[0]
-    if name != PROD_DB:
+    if name != db:
         conn.close()
-        raise SystemExit(f"[중단] 접속된 DB가 {PROD_DB} 가 아닙니다(실제: {name}). 아무것도 조회하지 않았습니다.")
-    print(f"[운영 기준 · 읽기 전용] DB={name}")
+        raise SystemExit(f"[중단] 접속된 DB가 {db} 가 아닙니다(실제: {name}). 아무것도 조회하지 않았습니다.")
+    print(f"[{label} · 읽기 전용] DB={name}")
     return conn
 
 
@@ -233,7 +244,7 @@ def run_accounts(args, url, key):
     print(f"계정 기준 판정 — 포털이 쓰는 (계정, 차대) {len(keys)}쌍. ERP·포털 어디에도 쓰지 않습니다.\n")
 
     results = {}
-    targets = [("prod", prod_conn)] + ([] if args.no_demo else [("demo", relay.demo_conn)])
+    targets = [("prod", prod_conn)] + ([] if args.no_demo else [("demo", demo2_conn)])
     for tag, opener in targets:
         _reset_caches()                    # DB 가 바뀌면 마스터 캐시를 반드시 비운다
         conn = opener()

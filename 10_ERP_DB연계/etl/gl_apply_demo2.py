@@ -1,5 +1,9 @@
 # -*- coding: utf-8 -*-
-r"""gl_apply_demo2.py — 포털 결의전표 초안 → ERP 데모DB(JEILMNS_DEMO2) 직접 투입 (1차 테스트)
+r"""gl_apply_demo2.py — 포털 결의전표 초안 → ERP 직접 투입 (파일명은 이력상 유지)
+
+★ 2026-09-30 결정 D-113(A안): 대상이 운영(JEILMNS)으로 바뀌었다. 아래 C-11·C-1 서술은 DEMO2 시기 이력이다.
+  운영 안전장치 — ① 미승인으로만 생성(승인 상태면 롤백) ② --cleanup 운영 금지(삭제는 ERP 에서만, G5)
+  ③ --sync-state / 큐 회차마다 ERP 삭제·승인 상태를 포털에 역반영(ERP 조회만)
 
 결정 C-11(2026-08-19 관리자 지시): AI(포털) 생성 전표의 ERP 직접 투입을 **데모 DB 한정**으로 1차 테스트.
 운영(JEILMNS) 쓰기는 여전히 금지(C-1 유지) — 이 스크립트는 운영에 절대 닿지 않도록 3중 가드를 건다.
@@ -18,6 +22,7 @@ r"""gl_apply_demo2.py — 포털 결의전표 초안 → ERP 데모DB(JEILMNS_DE
   5) 1회 1건 — --draft 필수(기회검토 Do-Not 13: PoC 다건 일괄 투입 금지)
 
 사용(이 폴더 기준):
+  python gl_apply_demo2.py --sync-state                  ERP 상태 역동기화 — 삭제·승인 여부를 포털에 반영(ERP 조회만, G5)
   python gl_apply_demo2.py --list                        적용 대상(제출됨·미적용) 목록
   python gl_apply_demo2.py --draft DRAFT-... --dry-run   리허설(전 과정 실행 후 ROLLBACK)
   python gl_apply_demo2.py --draft DRAFT-...             확정 투입(COMMIT + 포털 회기입·확정)
@@ -54,8 +59,15 @@ import urllib.request
 from _env import load_env, need
 
 # ═══════════ 고정 상수 — 변경 금지 ═══════════
-RELAY_VERSION = "v1.7"                # 심박에 함께 기록 — 서버에 옛 EXE가 남아 있는지 화면에서 확인 가능
-TARGET_DB = "JEILMNS_DEMO2"          # 대상 DB 하드코딩. 운영(JEILMNS) 금지 — CLI 파라미터 없음
+RELAY_VERSION = "v1.8"                # 심박에 함께 기록 — 서버에 옛 EXE가 남아 있는지 화면에서 확인 가능
+# 대상 DB 하드코딩 — CLI 파라미터 없음.
+# 2026-09-30 관리자 결정 D-113(A안): 전송 큐를 운영(JEILMNS)으로 전환한다(C-1 제한 개정 · CLAUDE.md §1.2 예외).
+#   전제: [ERP 전송] 권한은 관리자만(canPost) · 전표는 미승인 결의전표로만 생성(승인 상태면 롤백)
+#         · 잘못 들어간 전표는 ERP 에서 삭제만 한다(G5) — 이 스크립트의 --cleanup 은 운영에서 막는다.
+#   비상 정지: ERP 에서 거래유형 AX001 비활성화, 또는 러너의 relay_queue 사용 해제.
+TARGET_DB = "JEILMNS"
+DEMO_DB = "JEILMNS_DEMO2"             # 이전 대상(2025-06-25 스냅샷). 정리(--cleanup)는 이 DB 에서만 허용
+IS_PROD = TARGET_DB != DEMO_DB
 AG_TYPE = "AG"                        # AX 전용 전표번호 접두어(B_AUTO_NUMBERING 기존 유형 재사용)
 BT_TYPE = "BT"                        # 배치번호 접두어
 # AX 전용 거래유형 — 관리자가 ERP에 등록(2026-08-20, biz_admin): AX001 'AX자동전표',
@@ -875,6 +887,11 @@ def apply_draft(args):
                                       "out_lines": [list(x) for x in out_sorted]}
         print(f"[검증] 전표={gl[0]} CONF_FG={str(gl[1]).strip()} 차변={gl[2]:,.0f} 대변={gl[3]:,.0f}")
         print(f"[대조] 투입 {len(in_lines)}줄 ↔ 생성 {len(out_lines)}줄 → {'✅ 완전일치' if match else '❌ 불일치'}")
+        # 운영은 **미승인 결의전표로만** 만든다(D-113). 승인은 회계 담당이 ERP 화면에서 한다.
+        # 엔진이 승인 상태로 만들었다면 설정이 예상과 다른 것이므로 전부 되돌린다.
+        if IS_PROD and str(gl[1]).strip().upper() == "C":
+            raise stop("운영 ERP가 전표를 승인 상태로 만들어 취소했습니다",
+                       "관리자에게 알려 주세요 — ERP에는 아무것도 남지 않았습니다")
         if not match:
             for x in in_lines:
                 print(f"   투입: {x}")
@@ -996,6 +1013,12 @@ def cleanup_draft(args):
     url = need("SUPABASE_URL").rstrip("/")
     key = need("SUPABASE_SERVICE_ROLE_KEY")
     ref_no = args.draft
+    # 운영에서는 이 스크립트로 전표를 지우지 않는다(G5 — 2026-09-30 관리자 결정).
+    # 잘못 들어간 전표는 사람이 ERP 에서 삭제하고, 포털은 --sync-state 로 그 사실만 받아온다.
+    if IS_PROD:
+        print(f"[중단] 운영({TARGET_DB})에서는 --cleanup 을 쓸 수 없습니다. ERP 화면에서 삭제하세요 — "
+              "포털에는 다음 상태확인 때 「ERP 삭제됨」으로 표시됩니다.", file=sys.stderr)
+        return 1
     conn = demo_conn()
     cur = conn.cursor()
     try:
@@ -1051,6 +1074,70 @@ def list_ready():
     return 0
 
 
+def sync_erp_state(url, key, limit=200):
+    """ERP → 포털 상태 역동기화(게이트 G5, 2026-09-30 관리자 결정). ERP 는 **조회만** 한다.
+
+    정책: 잘못 들어간 전표는 수정하지 않고 ERP 에서 삭제한다. 포털에서 ERP 로 삭제를 보내는
+    길은 없다 — 사람이 ERP 에서 지우면, 여기서 그 사실을 알아차려 포털에 「ERP 삭제됨」으로
+    남긴다(초안은 종결되고 다시 보낼 수 없다). 같은 김에 승인 여부(CONF_FG)와 승인 후
+    회계전표번호(GL_NO)도 가져와 화면에 보여준다 — 승인 이후 흐름 점검용.
+
+    판정: A_TEMP_GL 에 결의전표번호가 없으면 deleted · CONF_FG='C' 면 approved · 그 외 unapproved.
+    반환: (확인 건수, 삭제 확인 건수). 실패는 삼키고 (0, 0) — 전송 본작업을 막지 않는다.
+    """
+    try:
+        rows = rpc(url, key, "gl_erp_sync_targets", {"p_target": TARGET_DB, "p_limit": limit}) or []
+    except Exception as e:
+        print(f"[상태확인] 대상 조회 실패(건너뜀): {e}", file=sys.stderr)
+        return 0, 0
+    if not rows:
+        return 0, 0
+    out = []
+    conn = demo_conn()
+    try:
+        cur = conn.cursor()
+        for r in rows:
+            no = str(r.get("erp_temp_gl_no") or "").strip()
+            if not no:
+                continue
+            cur.execute("SELECT RTRIM(ISNULL(CONF_FG,'')), RTRIM(ISNULL(GL_NO,'')) "
+                        "FROM dbo.A_TEMP_GL WITH (NOLOCK) WHERE TEMP_GL_NO = ?", no)
+            g = cur.fetchone()
+            if not g:
+                state, gl_no = "deleted", ""
+            else:
+                state = "approved" if str(g[0]).strip().upper() == "C" else "unapproved"
+                gl_no = str(g[1]).strip()
+            # 바뀐 것만 보낸다 — 매 회차 같은 값을 다시 쓰지 않는다
+            if state != (r.get("erp_sync_state") or "") or gl_no != (r.get("erp_final_gl_no") or ""):
+                out.append({"draft_no": r["draft_no"], "state": state, "gl_no": gl_no})
+    except Exception as e:
+        print(f"[상태확인] ERP 조회 실패(건너뜀): {e}", file=sys.stderr)
+        return 0, 0
+    finally:
+        try:
+            conn.rollback()                  # 조회뿐이지만 트랜잭션을 남기지 않는다
+        finally:
+            conn.close()
+    if not out:
+        return len(rows), 0
+    try:
+        res = rpc(url, key, "gl_erp_sync_record", {"p": out, "p_target": TARGET_DB}) or {}
+    except Exception as e:
+        print(f"[상태확인] 포털 기록 실패(건너뜀): {e}", file=sys.stderr)
+        return len(rows), 0
+    dels = [x["draft_no"] for x in out if x["state"] == "deleted"]
+    for x in out:
+        label = {"deleted": "ERP 삭제됨", "approved": f"승인됨({x['gl_no'] or '번호 없음'})",
+                 "unapproved": "미승인"}[x["state"]]
+        print(f"[상태확인] {x['draft_no']} → {label}")
+    if dels:
+        notify(f"ERP 에서 삭제된 결의전표 {len(dels)}건", [f"· `{no}`" for no in dels] +
+               ["", "포털에는 「ERP 삭제됨」으로 종결 표시했습니다. 다시 넣으려면 [전표복사]로 새 전표를 만드세요."],
+               bad=False)
+    return len(rows), int(res.get("deleted") or 0)
+
+
 def queue_run(args, url, key):
     """화면 [ERP 전송] 대기 건을 1건씩 순차 처리.
 
@@ -1072,6 +1159,10 @@ def queue_run(args, url, key):
             print(f"[회수] 중단된 선점 {n}건을 대기 상태로 되돌렸습니다.")
     except Exception as e:
         print(f"[경고] 선점 회수 실패(계속 진행): {e}", file=sys.stderr)
+
+    # ERP → 포털 상태 역동기화(G5) — 대기 건이 없어도 매 회차 돈다(삭제·승인은 언제든 일어난다)
+    if not getattr(args, "no_sync", False):
+        sync_erp_state(url, key)
 
     worker = f"{runner_id()}/{os.getpid()}"
     rows = rpc(url, key, "gl_apply_claim",
@@ -1219,7 +1310,7 @@ def main():
     ap.add_argument("--list", action="store_true", help="적용 대상 목록")
     ap.add_argument("--draft", help="초안번호(DRAFT-...) — 1회 1건")
     ap.add_argument("--dry-run", action="store_true", help="리허설(전 과정 실행 후 ROLLBACK)")
-    ap.add_argument("--cleanup", action="store_true", help="해당 초안의 DEMO2 전표·배치 삭제(정리)")
+    ap.add_argument("--cleanup", action="store_true", help="해당 초안의 DEMO2 전표·배치 삭제(정리) — 운영에서는 금지")
     ap.add_argument("--queue", action="store_true", help="화면 [ERP 전송] 대기 건 일괄 처리")
     ap.add_argument("--watch", action="store_true", help="감시 모드 — 대기 건을 주기적으로 자동 처리")
     ap.add_argument("--recheck", action="store_true",
@@ -1234,9 +1325,17 @@ def main():
                     help="전송대기 적체 알림 임계(시간, 기본 6) — --watch 에서만 사용")
     ap.add_argument("--max", type=int, default=5, help="1회 처리 상한(기본 5 — 대량 오전송 방지)")
     ap.add_argument("--trans-type", default=TRANS_TYPE_DEFAULT, help=f"거래유형(기본 {TRANS_TYPE_DEFAULT})")
+    ap.add_argument("--sync-state", action="store_true",
+                    help="ERP 상태 역동기화만 실행 — 삭제·승인 여부를 포털에 반영(ERP 조회만, G5)")
+    ap.add_argument("--no-sync", action="store_true", help="--queue/--watch 에서 상태 역동기화 생략")
     args = ap.parse_args()
     if args.list:
         return list_ready()
+    if args.sync_state:
+        load_env()
+        n, d = sync_erp_state(need("SUPABASE_URL").rstrip("/"), need("SUPABASE_SERVICE_ROLE_KEY"))
+        print(f"[상태확인 완료] 확인 {n}건 · ERP 삭제 반영 {d}건 — 대상 {TARGET_DB}")
+        return 0
     if args.queue or args.watch or args.recheck or args.precheck:
         load_env()
         url = need("SUPABASE_URL").rstrip("/")
