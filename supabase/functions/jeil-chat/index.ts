@@ -2,6 +2,8 @@
 // 배포: verify_jwt=false (Entra 토큰은 Supabase JWT가 아니므로 내부에서 직접 검증)
 // 호출: POST /functions/v1/jeil-chat  Authorization: Bearer <Entra access_token(User.Read)>
 //   body: { messages: [{role,content},...], session_id?, work_id?, save? } — 세션 필드는 대화 저장 opt-in(없으면 구버전과 동일 동작)
+//   관리자 점검(REQ-0095): body { action:"test_model", model_id, force?, relearn? } → JSON — 관리자(portal_admin) 전용,
+//     실제 호출 모양(지시문·도구·적응 루프) 그대로 시험 질문 1건 · 도구 미실행 · chat_log/세션 미기록 · 결과는 ai_model.last_check_* 에 기록.
 //   응답: SSE — {"choices":[{"delta"}]} · {"jeilax": 뷰} · {"jeilax_meta": 세션정보(최초 1회)} · [DONE]
 //   중지: 클라이언트 fetch abort → (A) req.signal / (B) writer.write 실패 이중 감지 → OpenAI 업스트림 abort(비용 차단), 부분 응답은 저장.
 // 원칙(CLAUDE.md §1·§4·§6):
@@ -311,6 +313,8 @@ const userLbl = (m: Map<string, string>, id: unknown): string | null => {
   return s ? (m.get(s.toLowerCase()) || s) : null;
 };
 
+const TOOLS_JSON_LEN = JSON.stringify(TOOLS).length;   // 점검 비용 상한 추정용(REQ-0095)
+
 /* ===== 사용모델 설정 로드·라우팅 (SSOT: ai_gateway_config / ai_model / ai_routing_rule) =====
    원칙: 조회 실패·미설정이면 기존 하드코딩 기본값으로 안전 폴백 → 설정이 비어도 챗봇은 정상 동작한다. */
 type AiModelRow = { model_id: string; vendor: string; active: boolean; callable: boolean; price_in: number; price_out: number };
@@ -339,11 +343,20 @@ function fallbackConfig(): AiConfig {
 // deno-lint-ignore no-explicit-any
 async function loadAiConfig(admin: any): Promise<AiConfig> {
   try {
-    const [cfgR, modR, rulR] = await Promise.all([
+    const [cfgR, modR, rulR, shpR] = await Promise.all([
       admin.from("ai_gateway_config").select("*").eq("id", 1).maybeSingle(),
       admin.from("ai_model").select("model_id,vendor,active,callable,price_in,price_out"),
       admin.from("ai_routing_rule").select("seq,rule_type,match_keywords,min_chars,model_id,active").eq("active", true).order("seq"),
+      // REQ-0095: 점검이 기록한 요청 모양으로 콜드스타트 재학습을 줄인다. 별도 select 라 SQL 80 전이면 error 만 나고 위 3개는 무관.
+      admin.from("ai_model").select("model_id,request_shape").not("request_shape", "is", null),
     ]);
+    if (modR.error) console.error("ai_model 조회 실패 — 기본 모델이 env OPENAI_MODEL 로 조용히 떨어진다:", modR.error.message);
+    if (!shpR.error) {
+      for (const r of ((shpR.data || []) as { model_id: string; request_shape: unknown }[])) {
+        const sh = sanitizeShape(r.request_shape);
+        if (sh && !OA_SHAPE.has(r.model_id)) OA_SHAPE.set(r.model_id, sh);   // 메모리 학습이 있으면 DB 로 덮지 않는다
+      }
+    }
     const c = cfgR.data;
     if (!c) return fallbackConfig();
     return {
@@ -1271,30 +1284,64 @@ async function verifyEntraUser(token: string): Promise<{ upn: string } | null> {
 
 /* ===== OpenAI 스트림 호출·파싱 ===== */
 /* ===== OpenAI 요청 모양 자동 적응 (모델 세대 차이 흡수) =====
-   세대에 따라 `temperature` 를 거부하거나 `max_tokens` 대신 `max_completion_tokens` 를 요구한다.
+   세대에 따라 `temperature` 를 거부하거나 `max_tokens` 대신 `max_completion_tokens` 를 요구하고,
+   추론 모델은 도구와 함께 부를 때 `reasoning_effort:"none"` 을 요구한다(2026-09-30 gpt-6-luna 실측 · REQ-0095).
    모델 목록을 코드에 박지 않는다 — 400 응답의 사유를 읽어 고쳐 한 번 더 보내고, 통한 모양을 기억한다.
-   (400 이 아닌 오류는 손대지 않는다. 재시도로 해결될 문제가 아니다.) */
-type OaShape = { temp: boolean; maxKey: "max_tokens" | "max_completion_tokens" };
+   (400 이 아닌 오류는 손대지 않는다. 재시도로 해결될 문제가 아니다.)
+   ※ 아래 `type OaShape` ~ `oaAdjust` 는 jeil-chat-lab/llm/openai.ts 와 **글자 단위로 같아야 한다** — `node _test_oa_shape.mjs` 가 검사한다. */
+type OaShape = { temp: boolean; maxKey: "max_tokens" | "max_completion_tokens"; reasoning: "none" | null };
 const OA_SHAPE = new Map<string, OaShape>();
-const oaShape = (model: string): OaShape => OA_SHAPE.get(model) || { temp: true, maxKey: "max_tokens" };
+const oaShape = (model: string): OaShape => OA_SHAPE.get(model) || { temp: true, maxKey: "max_tokens", reasoning: null };
 
-/** 400 사유를 보고 요청 모양을 한 단계 고친다. 고칠 게 없으면 null(=포기). */
-function oaAdjust(model: string, detail: string): OaShape | null {
+/** 400 사유의 파라미터 이름 — 본문 JSON 의 error.param 우선, JSON 이 아니면 문구 정규식 폴백(벤더 문구 변경 내성) */
+function oaParam(detail: string): string {
+  try {
+    const p = JSON.parse(detail)?.error?.param;
+    if (typeof p === "string" && p) return p.toLowerCase();
+  } catch { /* JSON 아님 — 문구로 판독 */ }
   const d = detail.toLowerCase();
+  if (/reasoning_effort/.test(d)) return "reasoning_effort";
+  if (/max_completion_tokens|max_tokens/.test(d)) return "max_tokens";
+  if (/temperature/.test(d)) return "temperature";
+  return "";
+}
+
+/** 400 사유를 보고 요청 모양을 한 단계 고친다. 고칠 게 없으면 null(=포기).
+    이미 적용한 손잡이를 또 요구하면 null — 같은 사유로 무한 재시도하지 않는다. */
+function oaAdjust(model: string, detail: string): OaShape | null {
+  const p = oaParam(detail);
   const cur = oaShape(model);
-  if (cur.temp && /temperature/.test(d)) {
+  if (p === "temperature" && cur.temp) {
     const next: OaShape = { ...cur, temp: false };
     OA_SHAPE.set(model, next);
     console.log("openai shape: " + model + " → temperature 미전송");
     return next;
   }
-  if (cur.maxKey === "max_tokens" && /max_completion_tokens|max_tokens/.test(d)) {
+  if ((p === "max_tokens" || p === "max_completion_tokens") && cur.maxKey === "max_tokens") {
     const next: OaShape = { ...cur, maxKey: "max_completion_tokens" };
     OA_SHAPE.set(model, next);
     console.log("openai shape: " + model + " → max_completion_tokens 사용");
     return next;
   }
+  // 추론 모델(gpt-6 계열)은 chat/completions 에서 도구와 reasoning_effort 를 함께 받지 않는다 — 벤더 오류문이 none 을 지시(2026-09-30 실측)
+  if (p === "reasoning_effort" && !cur.reasoning) {
+    const next: OaShape = { ...cur, reasoning: "none" };
+    OA_SHAPE.set(model, next);
+    console.log("openai shape: " + model + " → reasoning_effort none(도구 병용 · 추론 끔)");
+    return next;
+  }
   return null;
+}
+
+/** DB(ai_model.request_shape) 시드용 화이트리스트 — jsonb 를 그대로 믿지 않는다 */
+function sanitizeShape(v: unknown): OaShape | null {
+  if (!v || typeof v !== "object") return null;
+  const o = v as Record<string, unknown>;
+  return {
+    temp: typeof o.temp === "boolean" ? o.temp : true,
+    maxKey: o.maxKey === "max_completion_tokens" ? "max_completion_tokens" : "max_tokens",
+    reasoning: o.reasoning === "none" ? "none" : null,
+  };
 }
 
 function callOpenAIOnce(apiKey: string, model: string, messages: unknown[], withTools: boolean, maxTokens: number, temperature: number, shape: OaShape, signal?: AbortSignal) {
@@ -1306,16 +1353,18 @@ function callOpenAIOnce(apiKey: string, model: string, messages: unknown[], with
       model, stream: true, messages,
       [shape.maxKey]: maxTokens,
       ...(shape.temp ? { temperature } : {}),
+      ...(shape.reasoning ? { reasoning_effort: shape.reasoning } : {}),   // 학습된 뒤에는 도구 유무와 무관하게 유지(라운드 간 모양 일관)
       stream_options: { include_usage: true },            // U-1: 토큰 usage 수신
       ...(withTools ? { tools: TOOLS } : {}),
     }),
   });
 }
 
-/** 400 이면 요청 모양을 고쳐 최대 2회까지 다시 보낸다. 그 외 오류는 그대로 돌려준다. */
+/** 400 이면 요청 모양을 고쳐 최대 3회까지 다시 보낸다(temperature → max_completion_tokens → reasoning_effort). 그 외 오류는 그대로 돌려준다. */
+const OA_MAX_ADJUST = 3;
 async function callOpenAI(apiKey: string, model: string, messages: unknown[], withTools: boolean, maxTokens: number, temperature: number, signal?: AbortSignal): Promise<Response> {
   let res = await callOpenAIOnce(apiKey, model, messages, withTools, maxTokens, temperature, oaShape(model), signal);
-  for (let i = 0; i < 2 && res.status === 400; i++) {
+  for (let i = 0; i < OA_MAX_ADJUST && res.status === 400; i++) {
     const detail = await res.clone().text().catch(() => "");
     const next = oaAdjust(model, detail);
     if (!next) break;
@@ -1325,7 +1374,7 @@ async function callOpenAI(apiKey: string, model: string, messages: unknown[], wi
 }
 
 type ToolCallAcc = { id: string; name: string; args: string };
-type PumpState = { pt: number; ct: number; toolCalls: Record<number, ToolCallAcc> };
+type PumpState = { pt: number; ct: number; toolCalls: Record<number, ToolCallAcc>; rt?: number; finish?: string | null };   // rt·finish: 점검 증거(REQ-0095)
 
 // OpenAI SSE를 읽어 content는 emit, tool_calls·usage는 state에 축적
 async function pumpStream(body: ReadableStream<Uint8Array>, emit: (c: string) => Promise<void>, state: PumpState) {
@@ -1345,7 +1394,11 @@ async function pumpStream(body: ReadableStream<Uint8Array>, emit: (c: string) =>
       if (p === "[DONE]") continue;
       // deno-lint-ignore no-explicit-any
       let ev: any; try { ev = JSON.parse(p); } catch { continue; }
-      if (ev.usage) { state.pt += ev.usage.prompt_tokens || 0; state.ct += ev.usage.completion_tokens || 0; }
+      if (ev.usage) {
+        state.pt += ev.usage.prompt_tokens || 0; state.ct += ev.usage.completion_tokens || 0;
+        state.rt = (state.rt || 0) + (ev.usage.completion_tokens_details?.reasoning_tokens || 0);
+      }
+      const fr = ev.choices?.[0]?.finish_reason; if (fr) state.finish = String(fr);
       const d = ev.choices?.[0]?.delta;
       if (!d) continue;
       if (Array.isArray(d.tool_calls)) {
@@ -1359,6 +1412,135 @@ async function pumpStream(body: ReadableStream<Uint8Array>, emit: (c: string) =>
       }
       if (typeof d.content === "string" && d.content) await emit(d.content);
     }
+  }
+}
+
+/* ===== 관리자 「동작 점검」(REQ-0095) =====
+   관리자 콘솔 「모델 설정」의 「점검」이 부른다. 실제 챗봇과 같은 방식(실제 지시문·max_tokens·temperature·TOOLS·400 적응 루프)으로
+   시험 질문 1건을 보내 답이 오는지 본다. 도구는 실행하지 않고 개수만 센다. 키 값은 응답·DB·로그 어디에도 담지 않는다(§1.1·§1.8).
+   판정은 사실만: 200 이라도 본문 0자·도구 0건이면 「빈 답」(정상 아님 — §16.6). 결과는 화면 안내용이며 pickModel 판정에는 쓰지 않는다. */
+const PROBE_USER = "연결 점검입니다. 도구를 부르지 말고 '정상' 한 단어로만 답하세요.";
+const SECRET_ENVS = ["OPENAI_API_KEY", "OPENAI_ADMIN_KEY", "ANTHROPIC_API_KEY", "ANTHROPIC_ADMIN_KEY"];
+const CHECK_MIN_GAP_MS = 20_000;      // 같은 모델 연타 방지(DB last_check_at 기준 — 아이솔레이트 무관)
+const CHECK_COST_CAP_USD = 0.10;      // 넉넉한 사전 추정이 이 값을 넘으면 force 없이는 실행하지 않는다
+
+/** 벤더 오류 본문에서 키 값이 되비치지 않게 — env 값 치환 + sk- 형 문자열 마스킹 */
+function maskSecrets(s: string): string {
+  let t = String(s || "");
+  for (const e of SECRET_ENVS) { const v = Deno.env.get(e); if (v && v.length >= 8) t = t.split(v).join("***"); }
+  return t.replace(/sk-[A-Za-z0-9_-]{20,}/g, "sk-***");
+}
+
+/** 사람이 읽는 한 줄 — 서버가 만든다(화면은 문장을 만들지 않는다) */
+function checkNote(status: number, detail: string, shape: OaShape): string {
+  if (status === 0) return /timeout|abort/i.test(detail) ? "시간 초과(30초)" : "연결 실패";
+  if (status === 400) {
+    const p = oaParam(detail);
+    if (p === "reasoning_effort") return shape.reasoning === "none"
+      ? (/\/v1\/responses/i.test(detail) ? "거부됨: 도구 호출 불가 — Responses API 필요(켜도 답하지 못함)" : "거부됨: reasoning_effort 미지원(벤더 원문 참조)")
+      : "거부됨: 도구+추론 조합 미지원(자동 보정 실패)";
+    if (p === "temperature") return "거부됨: temperature 미지원(자동 보정 실패)";
+    if (p === "max_tokens" || p === "max_completion_tokens") return "거부됨: max_tokens 미지원(자동 보정 실패)";
+    if (/model_not_found|does not exist/i.test(detail)) return "거부됨: 모델 없음(이름 확인)";
+    if (/insufficient_quota|billing|credit/i.test(detail)) return "거부됨: 결제·크레딧 문제(벤더 콘솔 확인)";
+    return "거부됨(400)";
+  }
+  return status === 401 ? "키 오류(만료/오입력)"
+       : status === 403 ? "권한 없음(키·프로젝트 확인)"
+       : status === 404 ? "모델 없음(이름 확인)"
+       : status === 429 ? (/insufficient_quota|billing/i.test(detail) ? "한도·결제 문제(벤더 콘솔 확인)" : "한도 초과 — 잠시 후 다시")
+       : status >= 500 ? `벤더 장애(${status})` : `거부됨(${status})`;
+}
+
+// deno-lint-ignore no-explicit-any
+async function testModel(admin: any, ai: AiConfig, apiKey: string, upn: string, body: Record<string, unknown>): Promise<Response> {
+  try {
+    // ① 관리자만 — 채팅과 달리 돈을 쓰는 진단이다
+    const { data: pa } = await admin.from("portal_admin").select("email").eq("email", upn).maybeSingle();
+    if (!pa) return json({ error: "forbidden: 관리자 전용" }, 403);
+    // ② 카탈로그에 있는 모델만(임의 문자열로 벤더를 부르지 않는다)
+    const modelId = String(body.model_id || "").trim().slice(0, 80);
+    const m = ai.models.find((x) => x.model_id === modelId);
+    if (!m) return json({ error: "카탈로그에 없는 모델입니다." }, 400);
+    // ③ 운영 챗봇은 OpenAI 만 부른다 — 다른 벤더는 호출 0·기록 0, 사유만
+    if (String(m.vendor).toLowerCase() !== "openai") {
+      const env = String(m.vendor).toLowerCase() === "anthropic" ? "ANTHROPIC_API_KEY" : "";
+      const hasKey = !!(env && Deno.env.get(env));
+      return json({ ok: true, result: { model_id: modelId, checked: false, ok: null,
+        note: hasKey ? "운영 챗봇은 OpenAI 만 부릅니다 — 이 모델은 부서 에이전트 경로용(에이전트 점검은 후속)" : "키 없음 — 점검 불가" } });
+    }
+    // ④ 단가 — 비어 있으면 비용을 만들어내지 않는다(§16.6). 상한도 판정할 수 없으므로 force 없이는 실행하지 않는다.
+    const price = (Number(m.price_in) || Number(m.price_out)) ? { inp: Number(m.price_in) || 0, out: Number(m.price_out) || 0 } : null;
+    if (!price && body.force !== true) {
+      return json({ error: "단가가 비어 있어 점검 비용을 추정할 수 없습니다 — 「모델 목록」에 단가를 넣거나, 확인 후 실행하세요.", bound_usd: null, need_force: true }, 409);
+    }
+    // ⑤ 사전 비용 상한 — 넉넉한 추정(입력 ≈ (지시문+도구 JSON 글자수)/2 토큰, 출력 = max_tokens 전부). 화면에 「예상」으로 쓰지 않는다.
+    const bound = price ? ((String(ai.system_prompt).length + TOOLS_JSON_LEN) / 2 + 64) * price.inp / 1e6 + ai.max_tokens * price.out / 1e6 : null;
+    if (bound != null && bound > CHECK_COST_CAP_USD && body.force !== true) {
+      return json({ error: `이 모델은 점검 1회 비용 상한이 $${bound.toFixed(2)} 입니다 — 확인 후 실행하세요.`, bound_usd: Number(bound.toFixed(4)), need_force: true }, 409);
+    }
+    // ⑥ 연타 방지 — 호출 **전에** 자리를 선점한다(조건부 갱신). 같은 20초 안의 두 번째 요청은 갱신 0행 → 429.
+    //    SQL 80 전이면 갱신이 실패하고(컬럼 없음) 그냥 진행한다 — 기록도 실패해 recorded:false 로 알린다.
+    const now = new Date(), cutoff = new Date(now.getTime() - CHECK_MIN_GAP_MS).toISOString();
+    const claim = await admin.from("ai_model")
+      .update({ last_check_at: now.toISOString(), last_check_ok: null, last_check_status: null, last_check_ms: null, last_check_note: "점검 중(응답 대기)", last_check_by: upn })
+      .eq("model_id", modelId).or(`last_check_at.is.null,last_check_at.lt.${cutoff}`).select("model_id");
+    if (!claim.error && !(claim.data || []).length) {
+      return json({ error: "방금 점검했습니다 — 잠시 뒤 다시 누르세요.", retry_after_s: Math.ceil(CHECK_MIN_GAP_MS / 1000) }, 429);
+    }
+    // ⑦ 실제 호출 모양 그대로 1라운드. 지난 점검이 실패했던 모델은 화면이 relearn 을 보내 처음부터 다시 배운다.
+    if (body.relearn === true) OA_SHAPE.delete(modelId);
+    const before = oaShape(modelId);
+    const convo = [{ role: "system", content: ai.system_prompt }, { role: "user", content: PROBE_USER }];
+    const t0 = Date.now();
+    let res: Response | null = null, netErr = "";
+    try { res = await callOpenAI(apiKey, modelId, convo, true, ai.max_tokens, ai.temperature, AbortSignal.timeout(30_000)); }
+    catch (e) { netErr = e instanceof Error ? (e.name + " " + e.message) : String(e); }
+    // ⑧ 판정 — 사실만
+    let ok = false, status = 0, note = "", raw = "", full = "", usage: Record<string, unknown> = {};
+    if (!res) { status = 0; full = netErr; note = checkNote(0, full, oaShape(modelId)); raw = maskSecrets(full).slice(0, 200); }
+    else if (!res.ok || !res.body) {
+      status = res.status; full = await res.text().catch(() => "");
+      raw = maskSecrets(full).slice(0, 200); note = checkNote(status, full, oaShape(modelId));
+    } else {
+      status = res.status; let text = "", pumpErr = "";
+      const st: PumpState = { pt: 0, ct: 0, rt: 0, finish: null, toolCalls: {} };
+      // 30초 신호는 헤더가 온 뒤 본문을 읽는 중에도 발화한다 — 여기서 잡아야 「시간 초과」로 기록된다(500 으로 새지 않게)
+      try { await pumpStream(res.body, async (c) => { text += c; }, st); }
+      catch (e) { pumpErr = e instanceof Error ? (e.name + " " + e.message) : String(e); }
+      const toolN = Object.values(st.toolCalls).filter((c) => c.name).length;
+      if (pumpErr) { status = 0; full = pumpErr; note = checkNote(0, full, oaShape(modelId)); raw = maskSecrets(full).slice(0, 200); }
+      else {
+        ok = text.trim().length > 0 || toolN > 0;
+        note = ok ? "정상"
+          : (st.finish === "length" && (st.rt || 0) > 0)
+            ? `빈 답 — 답 최대 길이 ${ai.max_tokens}토큰을 추론에 모두 사용(추론 토큰 ${st.rt}) → 세부 설정 「답 최대 길이」를 올리세요`
+            : `빈 답 — 본문 0자·도구 호출 0건(finish: ${st.finish || "?"})`;
+      }
+      usage = { pt: st.pt, ct: st.ct, rt: st.rt || 0, finish: st.finish || null, content_len: text.length, tool_calls: toolN,
+                cost_usd: price ? Number(((st.pt * price.inp + st.ct * price.out) / 1e6).toFixed(6)) : null };
+    }
+    const ms = Date.now() - t0;                 // 본문까지 받은 실제 응답 지연(적응 재시도 포함)
+    const shape = oaShape(modelId);
+    const adjustments = [
+      ...(before.temp && !shape.temp ? ["temperature 미전송"] : []),
+      ...(before.maxKey !== shape.maxKey ? ["max_completion_tokens 사용"] : []),
+      ...(!before.reasoning && shape.reasoning ? ["reasoning_effort none"] : []),
+    ];
+    const checkedAt = new Date().toISOString();
+    const detail = { ...usage, adjustments, param: status === 400 ? oaParam(full) : null, raw: raw || null };
+    // ⑨ 기록 — 화면용. active/callable 은 절대 바꾸지 않는다.
+    //    400 으로 끝났으면 배운 모양을 메모리·DB 에서 지운다 — 틀린 모양이 콜드스타트 시드로 굳지 않고, 다음 호출이 처음부터 다시 배운다.
+    const failed400 = status === 400;
+    if (failed400) OA_SHAPE.delete(modelId);
+    const { error: ue } = await admin.from("ai_model").update({
+      last_check_at: checkedAt, last_check_ok: ok, last_check_status: status, last_check_ms: ms,
+      last_check_note: note, last_check_by: upn, last_check_detail: detail, request_shape: failed400 ? null : shape,
+    }).eq("model_id", modelId);
+    if (ue) console.error("ai_model 점검 기록 실패(SQL 80 미적용?):", ue.message);
+    return json({ ok: true, result: { model_id: modelId, checked: true, ok, status, ms, note, shape: failed400 ? null : shape, adjustments, detail, checked_at: checkedAt, recorded: !ue } });
+  } catch (e) {
+    return json({ error: "점검 실패: " + maskSecrets(e instanceof Error ? e.message : String(e)).slice(0, 200) }, 500);
   }
 }
 
@@ -1381,8 +1563,13 @@ Deno.serve(async (req) => {
   const ai = await loadAiConfig(admin);
 
   // 2) 입력 검증 (상한은 DB 설정값 사용)
-  let body: { messages?: Array<{ role: string; content: string }>; session_id?: unknown; work_id?: unknown; save?: unknown };
+  let body: { messages?: Array<{ role: string; content: string }>; session_id?: unknown; work_id?: unknown; save?: unknown; action?: unknown; model_id?: unknown; force?: unknown; relearn?: unknown };
   try { body = await req.json(); } catch { return json({ error: "invalid json" }, 400); }
+
+  // 1-c) 관리자 콘솔 「동작 점검」(REQ-0095) — 실제 호출 코드(callOpenAI·TOOLS·지시문·적응 루프)를 그대로 한 번 태운다.
+  //      채팅 경로(action 없음)는 아래 그대로. 모르는 action 은 조용히 채팅으로 흘리지 않는다.
+  if (body.action === "test_model") return await testModel(admin, ai, apiKey, user.upn, body as Record<string, unknown>);
+  if (body.action !== undefined) return json({ error: "알 수 없는 action" }, 400);
   const raw = Array.isArray(body.messages) ? body.messages : [];
   const messages = raw
     .filter((m) => (m.role === "user" || m.role === "assistant") && typeof m.content === "string" && m.content.trim())
@@ -1524,7 +1711,7 @@ Deno.serve(async (req) => {
           console.error("openai error", res.status, detail.slice(0, 500));
           await emit(res.status === 401 ? "⚠ OpenAI 키가 유효하지 않습니다(만료/오입력)."
             : res.status === 429 ? "⚠ OpenAI 사용량 한도 초과 — 잠시 후 다시 시도하세요."
-            : res.status === 400 ? "⚠ 이 모델이 요청을 거부했습니다 — 관리자 콘솔 「모델 설정」에서 기본 모델을 확인하세요(모델 호환 문제일 수 있습니다)."
+            : res.status === 400 ? "⚠ 모델 " + model + " 이(가) 이 요청 형식을 받지 않습니다" + (oaParam(detail) ? "(사유: " + oaParam(detail) + ")" : "") + " — 관리자에게 알려 주세요. 관리자 콘솔 「모델 설정」의 「점검」으로 원인을 확인할 수 있습니다."
             : "⚠ AI 응답 생성에 실패했습니다.");
           break;
         }

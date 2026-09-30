@@ -109,6 +109,13 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <tbody>
 <tr>
 <td>2026-09-30</td>
+<td>챗봇 · 게이트웨이·관리자 콘솔(모델 동작 점검)</td>
+<td><code>supabase/functions/jeil-chat/index.ts</code> · <code>jeil-chat-lab/llm/openai.ts</code> · <code>jeil-chat-admin/index.ts</code> · <code>04_챗봇_포털_데모UI.html</code>(모델 설정 패널) · 정본 SQL <code>80_ai_model_last_check.sql</code>(+rollback) · <code>_test_oa_shape.mjs</code>·<code>_test_model_tab.mjs</code></td>
+<td><strong>REQ-0095</strong> — 기본 모델 gpt-6-luna 가 도구 호출 시 OpenAI 400(reasoning_effort)으로 답하지 못하던 장애: 400 사유 자동 적응에 3단계(<code>reasoning_effort:"none"</code>) 추가·재시도 상한 3·학습 모양 DB 시드. 관리자 콘솔 「모델 설정」에 모델별 「점검」·「전체 점검」(실제 호출 모양 그대로 시험 질문 1건 · 관리자 전용 · 결과 배지·할 일 연동 · 키 비노출). 설계 패널·적대적 검토 워크플로로 결함 11건 선반영. SQL 80 적용 완료 · <strong>함수 3종 배포는 관리자 승인 대기</strong>.</td>
+<td>최동혁(+Claude)</td>
+</tr>
+<tr>
+<td>2026-09-30</td>
 <td>에이전트 · 서버 2단계 배포(REQ-0094 · jeil-chat-lab v13)</td>
 <td><code>supabase/functions/jeil-chat-lab/</code>(<code>modules/purchase/get_erp_receipt_pending.ts</code>·<code>get_erp_pur_req.ts</code>·<code>get_erp_po_pr.ts</code>·<code>modules/portal/get_order_summary.ts</code> 정본 전환 v1.1 · <code>get_proposal_recon.ts</code>·<code>get_proposal_chain.ts</code> · <code>core/engine.ts</code>·<code>core/agent_api.ts</code> · <code>llm/anthropic.ts</code> · <code>_port_modules.py</code> HAND_TUNED) · <code>app/agent-templates.json</code>(P7·회귀 문항) · <code>12_에이전트관리/00·02·03·05</code></td>
 <td>관리자 승인으로 실측 P1·P2 의 서버 쪽 원인을 고쳐 배포했다 — <strong>미입고 도구</strong>에 2차 정렬·거래처 인자·전체 건수·거래처별 집계(같은 조회가 다른 값을 내던 비결정성 해소, 「오성테크 건만」이 전체 455라인·23,519,212원으로 정확히 답함) · <strong>구매요청 목록</strong> 전체 건수·잘림 표시(「30건이 전부」 오서술 차단) · <strong>발주 상세</strong> 라인 정렬·합계·라인 수·「구매요청 N건 묶음」 배지 · <strong>외주검사</strong> 검사결과별 건수·불합격 목록·주문일 범위(「불합격 없음」 오답 차단) · 대사에 기안자 열·기안자별 집계 · 세금계산서 중복 제거 · <strong>벤더 오류 본문을 턴 기록(<code>tools</code> <code>_llm</code> 항목)·함수 로그에 보존</strong>(스키마 변경 없음) · 히스토리 창 user 시작 보정 · <code>ANTHROPIC_WORKSPACE_ID</code> 헤더 옵션. 관리자가 Anthropic 키를 워크스페이스 키로 교체해 헤더 400 은 해소됐고, 다음 장애는 <strong>크레딧 잔액 0</strong>(충전 후 30문항 재실측 예정).</td>

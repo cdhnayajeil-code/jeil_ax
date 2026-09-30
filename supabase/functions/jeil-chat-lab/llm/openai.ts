@@ -27,27 +27,50 @@ const toOpenAiTools = (ts: ToolManifest[]) =>
   ts.map((t) => ({ type: "function", function: { name: t.id, description: t.description_llm, parameters: t.params } }));
 
 /* ===== 요청 모양 자동 적응 (모델 세대 차이 흡수) =====
-   세대에 따라 `temperature` 를 거부하거나 `max_tokens` 대신 `max_completion_tokens` 를 요구한다.
+   세대에 따라 `temperature` 를 거부하거나 `max_tokens` 대신 `max_completion_tokens` 를 요구하고,
+   추론 모델은 도구와 함께 부를 때 `reasoning_effort:"none"` 을 요구한다(2026-09-30 gpt-6-luna 실측 · REQ-0095).
    모델 목록을 코드에 박지 않는다 — 400 사유를 읽어 고쳐 한 번 더 보내고, 통한 모양을 모델별로 기억한다.
-   공식 가격표는 파라미터를 알려 주지 않으므로 「어느 모델이 무엇을 받는지」를 우리가 단정하지 않는 편이 안전하다. */
-type OaShape = { temp: boolean; maxKey: "max_tokens" | "max_completion_tokens" };
+   공식 가격표는 파라미터를 알려 주지 않으므로 「어느 모델이 무엇을 받는지」를 우리가 단정하지 않는 편이 안전하다.
+   ※ 아래 `type OaShape` ~ `oaAdjust` 는 운영 jeil-chat/index.ts 의 사본 — **글자 단위로 같아야 한다**(`node _test_oa_shape.mjs` 가 검사). */
+type OaShape = { temp: boolean; maxKey: "max_tokens" | "max_completion_tokens"; reasoning: "none" | null };
 const OA_SHAPE = new Map<string, OaShape>();
-const oaShape = (model: string): OaShape => OA_SHAPE.get(model) || { temp: true, maxKey: "max_tokens" };
+const oaShape = (model: string): OaShape => OA_SHAPE.get(model) || { temp: true, maxKey: "max_tokens", reasoning: null };
 
-/** 400 사유를 보고 요청 모양을 한 단계 고친다. 고칠 게 없으면 null(=포기). */
-function oaAdjust(model: string, detail: string): OaShape | null {
+/** 400 사유의 파라미터 이름 — 본문 JSON 의 error.param 우선, JSON 이 아니면 문구 정규식 폴백(벤더 문구 변경 내성) */
+function oaParam(detail: string): string {
+  try {
+    const p = JSON.parse(detail)?.error?.param;
+    if (typeof p === "string" && p) return p.toLowerCase();
+  } catch { /* JSON 아님 — 문구로 판독 */ }
   const d = detail.toLowerCase();
+  if (/reasoning_effort/.test(d)) return "reasoning_effort";
+  if (/max_completion_tokens|max_tokens/.test(d)) return "max_tokens";
+  if (/temperature/.test(d)) return "temperature";
+  return "";
+}
+
+/** 400 사유를 보고 요청 모양을 한 단계 고친다. 고칠 게 없으면 null(=포기).
+    이미 적용한 손잡이를 또 요구하면 null — 같은 사유로 무한 재시도하지 않는다. */
+function oaAdjust(model: string, detail: string): OaShape | null {
+  const p = oaParam(detail);
   const cur = oaShape(model);
-  if (cur.temp && /temperature/.test(d)) {
+  if (p === "temperature" && cur.temp) {
     const next: OaShape = { ...cur, temp: false };
     OA_SHAPE.set(model, next);
     console.log("openai shape: " + model + " → temperature 미전송");
     return next;
   }
-  if (cur.maxKey === "max_tokens" && /max_completion_tokens|max_tokens/.test(d)) {
+  if ((p === "max_tokens" || p === "max_completion_tokens") && cur.maxKey === "max_tokens") {
     const next: OaShape = { ...cur, maxKey: "max_completion_tokens" };
     OA_SHAPE.set(model, next);
     console.log("openai shape: " + model + " → max_completion_tokens 사용");
+    return next;
+  }
+  // 추론 모델(gpt-6 계열)은 chat/completions 에서 도구와 reasoning_effort 를 함께 받지 않는다 — 벤더 오류문이 none 을 지시(2026-09-30 실측)
+  if (p === "reasoning_effort" && !cur.reasoning) {
+    const next: OaShape = { ...cur, reasoning: "none" };
+    OA_SHAPE.set(model, next);
+    console.log("openai shape: " + model + " → reasoning_effort none(도구 병용 · 추론 끔)");
     return next;
   }
   return null;
@@ -92,10 +115,10 @@ export const openaiAdapter: LlmAdapter = {
   keyEnv: "OPENAI_API_KEY",
   async round({ apiKey, model, messages, tools, maxTokens, temperature, signal, emit, state }) {
     state.raw = null; state.stop = null;
-    // 400 이면 요청 모양을 고쳐 최대 2회까지 다시 보낸다(oaShape). 그 외 오류는 그대로 돌려준다.
+    // 400 이면 요청 모양을 고쳐 최대 3회까지 다시 보낸다(temperature → max_completion_tokens → reasoning_effort). 그 외 오류는 그대로 돌려준다.
     let shape = oaShape(model);
     let res = await send(shape);
-    for (let i = 0; i < 2 && res.status === 400; i++) {
+    for (let i = 0; i < 3 && res.status === 400; i++) {
       const detail = await res.clone().text().catch(() => "");
       const next = oaAdjust(model, detail);
       if (!next) break;
@@ -114,6 +137,7 @@ export const openaiAdapter: LlmAdapter = {
           model, stream: true, messages: toOpenAiMessages(messages),
           [sh.maxKey]: maxTokens,
           ...(sh.temp && temperature != null ? { temperature } : {}),
+          ...(sh.reasoning ? { reasoning_effort: sh.reasoning } : {}),   // 학습된 뒤에는 도구 유무와 무관하게 유지
           stream_options: { include_usage: true },
           ...(tools && tools.length ? { tools: toOpenAiTools(tools) } : {}),
         }),

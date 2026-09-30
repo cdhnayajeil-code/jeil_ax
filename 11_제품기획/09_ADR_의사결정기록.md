@@ -243,6 +243,19 @@
 - **상태**: Accepted — 화면·서버·표는 적용 완료(2026-09-29). **관리자 Admin 키 발급·등록 후** `벤더 실측` 전환을 실측해야 완료(REQ-0091 8단계).
 - **근거**: [REQ-0091 작업 지시서](../.backlog/2-active/REQ-0091_feat_active_ai-cost-budget-console.md)(로컬) · 정본 SQL `실제구축준비 자료/이관/sql/76_ai_vendor_budget.sql` · 화면 `/admin/api-setup` · 서버 `supabase/functions/jeil-chat-admin`(v13).
 
+### ADR-112 🕐 OpenAI 추론 모델의 도구 호출 = chat/completions + `reasoning_effort:"none"` 자동 적응(추론 끔) · Responses API 이관은 조건부 (2026-09-30 제안)
+- **배경**: 운영 챗봇 기본 모델을 gpt-6-luna 로 바꾼 뒤 도구(TOOLS)를 붙인 호출이 OpenAI 400 「Function tools with reasoning_effort are not supported for gpt-6-luna in /v1/chat/completions. To use function tools, use /v1/responses or set reasoning_effort to 'none'」로 거부됐다(2026-09-30 function_logs 실측). 기존 자동 적응(oaAdjust)은 temperature·max_tokens 두 사유만 알았다. gpt-4o-mini(비추론)는 정상.
+- **결정(제안)**:
+  - 게이트웨이(jeil-chat)·부서 에이전트 어댑터(jeil-chat-lab/llm/openai.ts)는 **400 본문의 `error.param` 을 읽어 요청 모양을 3단계로 고쳐 재시도**한다(temperature 미전송 → `max_completion_tokens` → `reasoning_effort:"none"`). 모델 목록을 코드에 박지 않는 기존 원칙 유지.
+  - `none` 은 **추론을 끄는 것**이다 — 1단계(일상 조회) 기본 모델에는 적합하고, 3단계 규칙 모델(gpt-6-sol)도 같은 제약을 받는다. 관리자 콘솔은 「추론 끔」 배지로 이 사실을 드러낸다.
+  - 학습한 모양은 **점검 시에만** `ai_model.request_shape` 에 저장하고 콜드스타트에 화이트리스트 검증 후 시드한다. 점검이 400 으로 끝나면 지운다(틀린 모양이 굳지 않게).
+  - **`/v1/responses` 어댑터(도구+추론 동시 사용)는 채택하지 않는다 — 조건부 보류**: ADR-106 이 3단계 이상에 OpenAI 추론 모델을 남기고, gpt-6-sol 골든셋 통과율이 `none` 에서 유의미하게 떨어질 때만 채택한다. `none` 조차 거부하는 모델(gpt-6-astra 계열)은 이 게이트웨이에서 도구 호출 불가로 표시한다.
+  - 모델별 **「동작 점검」** 은 jeil-chat 본체의 `action:"test_model"` 로 둔다 — 실제 호출 코드를 재사용해 세 번째 사본을 만들지 않는다. 관리자(portal_admin) 전용, 서비스롤 우회 경로 없음, 키 마스킹, 연타 방지·비용 상한.
+- **대안(기각)**: 도구가 있을 때 OpenAI 전부에 선제적으로 `reasoning_effort:"none"` — 비추론 모델이 미지 파라미터로 거부할 위험, 모델 목록 하드코딩 회귀.
+- **대안(기각)**: 즉시 실측을 위해 서비스롤 베어러를 점검 액션 인증으로 인정 — 마스터 키 비교 코드가 공개 엔드포인트에 생긴다(§1.8). 실측은 관리자 로그인 브라우저의 「전체 점검」으로 한다.
+- **상태**: Proposed — 코드·SQL 80·회귀 테스트·검토 완료(2026-09-30). **함수 3종 배포와 「전체 점검」 실측 후** Accepted 로 전이.
+- **근거**: [REQ-0095 작업 지시서](../.backlog/2-active/REQ-0095_fix_active_model-smoke-test-reasoning.md)(로컬) · 정본 SQL `실제구축준비 자료/이관/sql/80_ai_model_last_check.sql` · 설계 패널(3안 → 심사 3 → 종합) · 적대적 검토(4관점 → 결함별 반박 2) 워크플로.
+
 ## C. 발견 이슈 (Issue — 이번 조사에서 확인, 조치 필요)
 
 ### ISS-201 ⚠️ 챗봇 표기/구현 불일치

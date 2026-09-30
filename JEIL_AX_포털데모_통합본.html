@@ -875,12 +875,15 @@
       </div>
 
       <div class="sec">
-        <h3><span>모델 목록 <span class="mini-sub">무슨 일에 무슨 모델</span> <span style="font-size:11px;color:var(--green,#1a7f37);">● 실데이터</span></span> <button class="save" onclick="saveAiModels()">모델 저장</button></h3>
+        <h3><span>모델 목록 <span class="mini-sub">무슨 일에 무슨 모델 · 답하는지 점검</span> <span style="font-size:11px;color:var(--green,#1a7f37);">● 실데이터</span></span>
+          <span><button class="save" id="mxCheckAllBtn" onclick="mxCheckAll()" title="OpenAI 모델 전부에 시험 질문 1건씩 보내 답하는지 봅니다">전체 점검</button> <button class="save" onclick="saveAiModels()">모델 저장</button></span></h3>
         <table>
-          <thead><tr><th style="width:34%;">모델</th><th>무슨 일에</th><th class="r" style="width:22%;" title="토큰 = AI 가 글을 세는 단위(한글 약 1~2자)">단가 $/백만 토큰 (입력 / 출력)</th><th style="width:9%;">상태</th><th class="r" style="width:7%;">켜기</th></tr></thead>
+          <thead><tr><th style="width:30%;">모델</th><th>무슨 일에</th><th class="r" style="width:20%;" title="토큰 = AI 가 글을 세는 단위(한글 약 1~2자)">단가 $/백만 토큰 (입력 / 출력)</th><th style="width:19%;">상태 · 점검</th><th class="r" style="width:7%;">켜기</th></tr></thead>
           <tbody id="amModelRows"><tr><td colspan="5" class="c" style="color:#888;padding:14px;">MS 로그인(관리자) 후 실데이터가 표시됩니다.</td></tr></tbody>
         </table>
-        <p class="admin-note">켜기 스위치와 단가를 고친 뒤 「모델 저장」을 누르면 다음 대화부터 반영됩니다. 「키 없음」은 그 회사(벤더) 호출 키가 서버에 없다는 뜻이라 켜도 답하지 못합니다 — <a href="/admin/api-setup" target="_blank" rel="noopener">API 설정방법</a>.</p>
+        <p class="mx-sub" id="mxCheckNote"></p>
+        <p class="admin-note">켜기 스위치와 단가를 고친 뒤 「모델 저장」을 누르면 다음 대화부터 반영됩니다. 「키 없음」은 그 회사(벤더) 호출 키가 서버에 없다는 뜻이라 켜도 답하지 못합니다 — <a href="/admin/api-setup" target="_blank" rel="noopener">API 설정방법</a>.
+          「점검」은 그 모델에 실제 챗봇과 같은 방식(지시문·도구 포함)으로 아주 짧은 시험 질문 1건을 보내 답하는지 봅니다(토큰 소량 — 정상이라도 답 품질까지 보장하지는 않습니다). 점검하면 통한 요청 모양이 저장돼 첫 응답이 빨라집니다. 운영 챗봇은 OpenAI 만 부르므로 Claude 모델은 여기서 점검하지 않습니다.</p>
       </div>
 
       <div class="sec">
@@ -3669,34 +3672,39 @@ async function postVendorBudget(rows){
 
 /* ===== 사용모델 설정 렌더·저장 (jeil-chat-admin d.model_settings) ===== */
 var AM_MODELS = [], AM_RULES = [], AM_CFG = null;
+/* 운영 챗봇(jeil-chat)은 OpenAI 전용이다 — callable(이 서버가 부를 수 있다) ≠ 챗봇이 쓴다. 기본·규칙·점검 대상은 OpenAI 만 */
+var mxGwOk = function(m){ return !!m && String(m.vendor||'').toLowerCase()==='openai'; };
+var mxGwWhy = function(m){ return !m ? '목록에 없음' : (!mxGwOk(m) ? '운영 챗봇 미지원(OpenAI 전용)' : (!m.callable ? '키 없음' : (!m.active ? '꺼짐' : ''))); };
+var mxFind = function(id){ for(var i=0;i<AM_MODELS.length;i++){ if(AM_MODELS[i].model_id===id) return AM_MODELS[i]; } return null; };
+var MX_BUSY = {};   /* 점검 진행 중인 model_id — 객체 플래그가 아니라 전역이라 화면이 다시 그려져도 「점검 중…」과 중복 방지가 유지된다 */
 
-function renderModelSettings(ms){
-  if(!ms) return;
-  AM_MODELS = ms.models || [];
-  AM_CFG = ms.config || null;
-  AM_RULES = ms.routing || [];
+/* ── 동작 점검(REQ-0095) — 서버(jeil-chat action:test_model)가 기록한 사실만 배지로. 화면은 문장을 만들지 않는다 ── */
+function mxCheckBadge(m){
+  if(!m || !m.callable || !mxGwOk(m)) return '';
+  if(MX_BUSY[m.model_id]) return '<span class="badge b">점검 중…</span>';
+  if(m._wait) return '<span class="badge b">방금 점검함 — '+String(Number(m._wait)||0)+'초 뒤</span>';
+  if(m._skip) return '<span class="badge b">'+escHtml(String(m._skip))+'</span>';
+  if(m._err) return '<span class="badge r" title="'+att(m._errRaw||m._err)+'">'+escHtml(String(m._err).slice(0,40))+'</span>';
+  var extra = (m.request_shape && m.request_shape.reasoning==='none') ? ' <span class="badge b" title="도구를 붙여 부를 때 추론(reasoning)을 끄고 답합니다 — chat/completions 제약">추론 끔</span>' : '';
+  if(!m.last_check_at) return '<span class="badge b" title="아직 시험 질문을 보낸 적이 없습니다">미점검</span>'+extra;
+  var when = ' <small class="mx-sub">'+escHtml(fmtKST(m.last_check_at))+'</small>';
+  var d = m.last_check_detail || {}; var raw = String((d && d.raw) || m.last_check_note || '');
+  if(m.last_check_ok===true){ var ms = Number(m.last_check_ms); return '<span class="badge g">정상'+(ms>0?' '+(ms/1000).toFixed(1)+'초':'')+'</span>'+extra+when; }
+  if(Number(m.last_check_status)===200) return '<span class="badge a" title="'+att(raw)+'">빈 답</span>'+extra+when;
+  return '<span class="badge r" title="'+att(raw)+'">'+escHtml(String(m.last_check_note||'실패').slice(0,60))+'</span>'+extra+when;
+}
+function mxCheckCell(m){
+  var can = !!(m && m.callable && mxGwOk(m));
+  return stateBadge(m.active, m.callable)+' '+mxCheckBadge(m)+(can ? ' <a class="mini act" href="#" onclick="return mxCheckOne(this)" title="이 모델에 시험 질문 1건">점검</a>' : '');
+}
+function mxCheckCellRefresh(id){
+  var rows = document.querySelectorAll('#amModelRows tr[data-model]'), m = mxFind(id);
+  for(var i=0;i<rows.length;i++){ if(rows[i].getAttribute('data-model')===id){ var td = rows[i].querySelector('.am-check'); if(td && m) td.innerHTML = mxCheckCell(m); } }
+}
+/* 할 일 띠 — 전역(AM_CFG/AM_MODELS/AM_RULES)만 읽어 점검 뒤에도 다시 계산한다 */
+function mxRenderTodo(){
   var byId = {}; AM_MODELS.forEach(function(m){ byId[m.model_id] = m; });
-  /* 운영 챗봇(jeil-chat)은 OpenAI 전용이다 — callable(이 서버가 부를 수 있다) ≠ 챗봇이 쓴다. 기본·규칙 대상은 OpenAI 만 */
-  var mxGwOk = function(m){ return !!m && String(m.vendor||'').toLowerCase()==='openai'; };
-  var mxGwWhy = function(m){ return !m ? '목록에 없음' : (!mxGwOk(m) ? '운영 챗봇 미지원(OpenAI 전용)' : (!m.callable ? '키 없음' : (!m.active ? '꺼짐' : ''))); };
-  var TKO = { flagship:'고성능', workhorse:'범용', light:'경량', legacy:'이전 세대' };
-  var vk = function(m){ return String(m.vendor||'').toLowerCase(); };
-
-  /* (1) 지금 상태 카드 3장 + 할 일 띠 — model_settings 필드만으로 판정 */
   var dm = AM_CFG ? byId[AM_CFG.default_model] : null;
-  var activeN = AM_MODELS.filter(function(m){ return m.active; }).length;
-  var noKeyN = AM_MODELS.filter(function(m){ return m.active && !m.callable; }).length;
-  var enfN = AM_RULES.filter(function(r){ return r.enforced && r.rule_type==='keyword_length'; }).length;   /* 게이트웨이는 키워드 유형만 읽는다 */
-  var ruleN = AM_RULES.filter(function(r){ return r.rule_type!=='default'; }).length;
-  var cardsEl = document.getElementById('mxCards');
-  if(cardsEl) cardsEl.innerHTML =
-      '<div class="card"><div class="lb">챗봇 기본 모델</div><div class="v" style="font-size:16px;">'+escHtml(AM_CFG?AM_CFG.default_model:'—')+' <small>'
-        + (AM_CFG ? (dm ? (mxGwOk(dm) ? stateBadge(dm.active, dm.callable) : '<span class="badge r">운영 챗봇 미지원</span>') : '<span class="badge r">목록에 없음</span>') : '')+'</small></div>'
-        + '<div class="lb">예외 규칙에 안 걸리는 모든 질문이 가는 모델</div></div>'
-    + '<div class="card"><div class="lb">켜진 모델</div><div class="v">'+activeN+' <small>/ '+AM_MODELS.length+'</small></div>'
-        + '<div class="lb"'+(noKeyN>0?' style="color:var(--red)"':'')+'>키 없음 '+noKeyN+'개</div></div>'
-    + '<div class="card"><div class="lb">작동 중인 예외 규칙</div><div class="v">'+enfN+' <small>/ '+ruleN+'</small></div>'
-        + '<div class="lb">미연동 '+(ruleN-enfN)+'건</div></div>';
   var todo = [];
   if(AM_CFG){
     if(mxGwWhy(dm))
@@ -3714,7 +3722,125 @@ function renderModelSettings(ms){
   if(noKey.length) todo.push({ sev:'a', html:'켜져 있지만 키가 없는 모델 '+noKey.length+'개: '+escHtml(noKey.map(function(m){ return m.model_id; }).join(', '))+' — 키 등록 전에는 답하지 못합니다.', act:actLink('ext','/admin/api-setup','키 등록 →') });
   var unlinked = AM_RULES.filter(function(r){ return !r.enforced && r.rule_type!=='default'; }).length;
   if(unlinked) todo.push({ sev:'b', html:'미연동 예외 규칙 '+unlinked+'건(파일·ERP·교차검증) — 해당 기능 연결 후 작동합니다.', act:'' });
+  /* 점검 결과(REQ-0095) — 실제로 답해야 하는 모델(기본 + 작동 중 예외 규칙)만 본다 */
+  var targets = [];
+  if(dm && !mxGwWhy(dm)) targets.push(['기본 모델', dm]);
+  AM_RULES.forEach(function(r){ var m = byId[r.model_id];
+    if(r.enforced && r.rule_type==='keyword_length' && m && !mxGwWhy(m) && !targets.some(function(t){ return t[1]===m; })) targets.push(['예외 규칙 '+String(r.seq==null?'':r.seq), m]); });
+  targets.forEach(function(t){ var lb = t[0], m = t[1], go = actLink('go','amModelRows|','모델 목록 →');
+    if(m.last_check_ok===false)
+      todo.push({ sev:'r', html:escHtml(lb)+' '+escHtml(m.model_id)+' 이(가) 마지막 점검('+escHtml(fmtKST(m.last_check_at))+')에서 답하지 못했습니다: '+escHtml(String(m.last_check_note||'').slice(0,80))+' — 다시 점검하거나 다른 모델을 고르세요.', act:go });
+    else if(!m.last_check_at)
+      todo.push({ sev:'b', html:escHtml(lb)+' '+escHtml(m.model_id)+' 은 아직 점검한 적이 없습니다 — 「전체 점검」으로 답하는지 확인하세요.', act:go });
+    else if(Date.now() - Date.parse(m.last_check_at) > 7*86400000)
+      todo.push({ sev:'b', html:escHtml(lb)+' '+escHtml(m.model_id)+' 점검이 7일 넘게 지났습니다 — 다시 점검하세요.', act:go });
+  });
   renderTodo(todo, 'mxTodo');
+}
+async function mxCheckRun(id, force, relearn){
+  var auth = getLiveAuth(); if(!auth) return { status:-1, data:{ error:'MS 로그인(관리자) 후 점검할 수 있습니다.' } };
+  try{
+    /* 채팅 게이트웨이(jeil-chat)에 보낸다 — 콘솔 API(ADMIN_GATEWAY)가 아니다. 실제 호출 코드가 거기 있다 */
+    var res = await fetch(CHAT_GATEWAY, { method:'POST', headers:{ Authorization:'Bearer '+auth.at, 'Content-Type':'application/json' },
+                                         body: JSON.stringify({ action:'test_model', model_id:id, force:!!force, relearn:!!relearn }) });
+    var d = await res.json().catch(function(){ return {}; });
+    return { status:res.status, data:d };
+  }catch(e){ return { status:0, data:{ error:String((e && e.message) || e) } }; }
+}
+async function mxCheckModel(id){
+  var m = mxFind(id); if(!m || MX_BUSY[id]) return null;
+  MX_BUSY[id] = true; m._wait = 0; m._err = ''; m._errRaw = ''; m._skip = ''; mxCheckCellRefresh(id);
+  var relearn = (m.last_check_ok === false);          /* 지난 점검이 실패한 모델은 처음부터 다시 배운다 */
+  var r = await mxCheckRun(id, false, relearn), cancelled = false;
+  if(r.status===409 && r.data && r.data.need_force){
+    var q = (r.data.bound_usd!=null) ? '이 모델은 점검 1회 비용 상한이 $'+Number(r.data.bound_usd).toFixed(2)+' 입니다(넉넉한 추정). 진행할까요?'
+                                      : String(r.data.error||'')+'\n그래도 진행할까요?';
+    if(confirm(q)) r = await mxCheckRun(id, true, relearn); else cancelled = true;
+  }
+  delete MX_BUSY[id];
+  m = mxFind(id) || m;                                 /* 기다리는 사이 화면이 다시 그려졌으면 새 객체에 기록한다 */
+  var note = document.getElementById('mxCheckNote');
+  if(cancelled){
+    m._skip = '건너뜀 — 비용 확인 취소'; if(note) note.textContent = id+': 비용 확인을 취소해 점검하지 않았습니다.';
+  } else if(r.status===429){
+    m._wait = Number(r.data && r.data.retry_after_s) || 20; mxCheckCellRefresh(id);
+    setTimeout(function(){ var mm = mxFind(id); if(mm){ mm._wait = 0; mxCheckCellRefresh(id); } }, m._wait*1000);
+  } else if(r.status===200 && r.data && r.data.ok && r.data.result){
+    var x = r.data.result;
+    if(x.checked){
+      m.last_check_at = x.checked_at; m.last_check_ok = x.ok; m.last_check_status = x.status; m.last_check_ms = x.ms;
+      m.last_check_note = x.note; m.last_check_detail = x.detail; m.request_shape = x.shape;
+      if(note) note.textContent = x.recorded ? '' : '점검은 됐지만 결과를 저장하지 못했습니다(DB 컬럼 미적용) — 새로고침하면 사라집니다.';
+    } else if(note) note.textContent = String(x.model_id||id)+': '+String(x.note||'');
+  } else if(r.status===0){
+    m._err = '연결 실패(네트워크) — 다시 시도'; m._errRaw = String((r.data && r.data.error) || '');
+    if(note) note.textContent = id+': '+m._err;
+  } else {
+    m._err = String((r.data && r.data.error) || ('오류 '+r.status)); m._errRaw = m._err;
+    if(note) note.textContent = id+': '+m._err;
+  }
+  mxCheckCellRefresh(id); mxRenderTodo();
+  var sel = document.getElementById('amDefaultModel'); if(sel && sel.value===id) mxDefaultChanged();
+  return cancelled ? { status:409, cancelled:true, data:r.data } : r;
+}
+function mxCheckOne(el){
+  var tr = (el && el.closest) ? el.closest('tr[data-model]') : null;
+  var id = tr ? tr.getAttribute('data-model') : '';
+  if(id) mxCheckModel(id);
+  return false;
+}
+async function mxCheckAll(){
+  var targets = AM_MODELS.filter(function(m){ return m.callable && mxGwOk(m); });
+  if(!targets.length){ alert('점검할 OpenAI 모델이 없습니다(키 등록 여부를 확인하세요).'); return; }
+  var pricey = targets.filter(function(m){ return Number(m.price_in)>=5; }).map(function(m){ return m.model_id; });
+  if(!confirm('OpenAI 모델 '+targets.length+'개에 시험 질문 1건씩 보냅니다(꺼진 모델 포함 — 켜기 전 판단용).'
+      +(pricey.length ? '\n고단가 모델 포함: '+pricey.join(', ')+' (모델당 $0.10 상한 — 넘으면 따로 묻습니다).' : '')
+      +'\n실측 비용은 점검 후 표시됩니다. 진행할까요?')) return;
+  var btn = document.getElementById('mxCheckAllBtn'), note = document.getElementById('mxCheckNote');
+  /* 점검 중에는 이 패널의 저장 3종·전체 점검을 잠근다 — 저장이 새로고침(재렌더)을 불러 진행 중 결과가 유실되지 않게 */
+  var lock = function(on){ var bs = document.querySelectorAll('#panel-model button.save'); for(var k=0;k<bs.length;k++) bs[k].disabled = on; if(btn) btn.disabled = on; };
+  lock(true);
+  var okN=0, emptyN=0, badN=0, skipN=0, cost=0, costN=0, noPriceN=0;
+  for(var i=0;i<targets.length;i++){
+    var m = targets[i];
+    if(note) note.textContent = '점검 중 '+(i+1)+'/'+targets.length+' · '+m.model_id;
+    var r = await mxCheckModel(m.model_id);
+    var x = (r && r.status===200 && r.data && r.data.result) ? r.data.result : null;
+    if(x && x.checked){ if(x.ok) okN++; else if(Number(x.status)===200) emptyN++; else badN++;
+      if(x.detail && x.detail.cost_usd!=null){ cost += Number(x.detail.cost_usd)||0; costN++; }
+      else if(Number(x.status)===200) noPriceN++; }
+    else skipN++;
+  }
+  lock(false);
+  if(note) note.textContent = '점검 완료 '+targets.length+'개 · 정상 '+okN+' · 빈 답 '+emptyN+' · 거부 '+badN+(skipN?' · 미실행 '+skipN:'')
+    +(costN ? ' · 실측 비용 합 '+usdA(cost)+'(토큰이 온 '+costN+'건)' : '')+(noPriceN ? ' · 단가 미입력 '+noPriceN+'건(비용 미산정)' : '');
+}
+
+function renderModelSettings(ms){
+  if(!ms) return;
+  AM_MODELS = ms.models || [];
+  AM_CFG = ms.config || null;
+  AM_RULES = ms.routing || [];
+  var byId = {}; AM_MODELS.forEach(function(m){ byId[m.model_id] = m; });
+  var TKO = { flagship:'고성능', workhorse:'범용', light:'경량', legacy:'이전 세대' };
+  var vk = function(m){ return String(m.vendor||'').toLowerCase(); };
+
+  /* (1) 지금 상태 카드 3장 + 할 일 띠 — model_settings 필드만으로 판정 */
+  var dm = AM_CFG ? byId[AM_CFG.default_model] : null;
+  var activeN = AM_MODELS.filter(function(m){ return m.active; }).length;
+  var noKeyN = AM_MODELS.filter(function(m){ return m.active && !m.callable; }).length;
+  var enfN = AM_RULES.filter(function(r){ return r.enforced && r.rule_type==='keyword_length'; }).length;   /* 게이트웨이는 키워드 유형만 읽는다 */
+  var ruleN = AM_RULES.filter(function(r){ return r.rule_type!=='default'; }).length;
+  var cardsEl = document.getElementById('mxCards');
+  if(cardsEl) cardsEl.innerHTML =
+      '<div class="card"><div class="lb">챗봇 기본 모델</div><div class="v" style="font-size:16px;">'+escHtml(AM_CFG?AM_CFG.default_model:'—')+' <small>'
+        + (AM_CFG ? (dm ? (mxGwOk(dm) ? stateBadge(dm.active, dm.callable)+' '+mxCheckBadge(dm) : '<span class="badge r">운영 챗봇 미지원</span>') : '<span class="badge r">목록에 없음</span>') : '')+'</small></div>'
+        + '<div class="lb">예외 규칙에 안 걸리는 모든 질문이 가는 모델</div></div>'
+    + '<div class="card"><div class="lb">켜진 모델</div><div class="v">'+activeN+' <small>/ '+AM_MODELS.length+'</small></div>'
+        + '<div class="lb"'+(noKeyN>0?' style="color:var(--red)"':'')+'>키 없음 '+noKeyN+'개</div></div>'
+    + '<div class="card"><div class="lb">작동 중인 예외 규칙</div><div class="v">'+enfN+' <small>/ '+ruleN+'</small></div>'
+        + '<div class="lb">미연동 '+(ruleN-enfN)+'건</div></div>';
+  mxRenderTodo();
 
   /* (2) 모델 목록 — 단계별 묶음. 저장 셀렉터(tr[data-model] · .am-purpose/.am-pin/.am-pout/.am-active)는 그대로 */
   var mb = document.getElementById('amModelRows');
@@ -3727,7 +3853,7 @@ function renderModelSettings(ms){
         + (st ? '<br><span class="mx-sub" style="color:'+(/⚠/.test(st)?'var(--red)':'var(--muted)')+'">'+escHtml(st)+'</span>' : '')+'</td>'
       + '<td><input class="txt-inp am-purpose" value="'+att(m.purpose||'')+'" style="width:100%"></td>'
       + '<td class="r">$<input class="num-inp am-pin" value="'+(m.price_in||0)+'" style="width:56px"> / $<input class="num-inp am-pout" value="'+(m.price_out||0)+'" style="width:56px"></td>'
-      + '<td>'+stateBadge(m.active, m.callable)+'</td>'
+      + '<td class="am-check">'+mxCheckCell(m)+'</td>'
       + '<td class="r"><label class="sw"><input type="checkbox" class="am-active"'+(m.active?' checked':'')+(m.callable?'':' disabled')+'><i></i></label></td>'
       + '</tr>';
   };
@@ -3809,7 +3935,7 @@ function mxDefaultChanged(){
     var why = !cur ? '목록에 없음' : (String(cur.vendor||'').toLowerCase()!=='openai' ? '운영 챗봇 미지원(OpenAI 전용)' : (!cur.callable ? '키 없음' : (!cur.active ? '꺼짐' : '')));
     info.innerHTML = '<span style="color:var(--red)">현재 설정 '+escHtml(AM_CFG.default_model||'')+' 은 '+escHtml(why||'선택 불가')+' — 키를 등록하거나 다른 모델을 고른 뒤 「설정 저장」을 누르세요.</span>'; return; }
   info.innerHTML = m ? (escHtml(m.model_id)+' · '+escHtml(m.vendor||'')+(m.stage!=null?' · '+m.stage+'단계':'')+(m.recommended?' · 권장':'')
-    + ' · 단가 입력 '+usd(m.price_in,2)+' / 출력 '+usd(m.price_out,2)+' (백만 토큰당) · '+stateBadge(m.active, m.callable)) : '';
+    + ' · 단가 입력 '+usd(m.price_in,2)+' / 출력 '+usd(m.price_out,2)+' (백만 토큰당) · '+stateBadge(m.active, m.callable)+(mxCheckBadge(m)?' · '+mxCheckBadge(m):'')) : '';
 }
 
 function saveAiModels(){

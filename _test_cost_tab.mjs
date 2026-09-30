@@ -35,7 +35,7 @@ for (const id of ["tab-cost", "panel-cost", "vcCards", "vcNote", "vcBudgetRows",
   if (!src.includes(`id="${id}"`)) fail(`화면에 id="${id}" 가 없습니다.`);
 }
 // 모델 설정 탭(REQ-0093 개편) — 새 영역이 있고 저장 코드가 읽는 입력 id 가 전부 남아 있어야 한다
-for (const id of ["mxCards", "mxTodo", "mxDefaultInfo", "amPromptFold", "amAdvanced", "mxMore", "amDefaultModel", "amModelRows", "amRouteRows", "amSysPrompt",
+for (const id of ["mxCards", "mxTodo", "mxDefaultInfo", "amPromptFold", "amAdvanced", "mxMore", "amDefaultModel", "amModelRows", "amRouteRows", "amSysPrompt", "mxCheckAllBtn", "mxCheckNote",
                   "amMaxTokens", "amTemp", "amCache", "amMaxMsgs", "amMaxChars", "amWorkCtx", "amWorkCtxChars", "amHistTurns", "amChatSave", "amRetention", "amSessMax"]) {
   if (!src.includes(`id="${id}"`)) fail(`모델 설정 탭에 id="${id}" 가 없습니다(저장 코드가 읽는 입력이 사라졌을 수 있습니다).`);
 }
