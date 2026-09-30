@@ -139,7 +139,9 @@ code,.mono{font-family:Consolas,Menlo,monospace;font-size:12px;background:var(--
     <h3>호출 키 — <code>ANTHROPIC_API_KEY</code></h3>
     <ol class="steps">
       <li><a href="https://platform.claude.com/settings/keys" target="_blank" rel="noopener">platform.claude.com › Settings › API keys</a> 로 들어갑니다.</li>
-      <li><b>Create Key</b> → 이름 <code>jeil-ax-agent</code>, Workspace 는 운영 워크스페이스.</li>
+      <li><b>Create Key</b> → 이름 <code>jeil-ax-agent</code>, Workspace 는 <b>운영 워크스페이스 하나</b>를 고릅니다.
+        여러 워크스페이스에 걸친 키(all workspaces)는 요청마다 <code>anthropic-workspace-id</code> 헤더로 워크스페이스를 지정해야 하는데,
+        지금 호출 코드에는 그 헤더가 없어 <span class="badge r">400</span> 이 납니다(2026-09-30 실측 · 아래 6단계).</li>
       <li>값은 <code>sk-ant-api…</code> 로 시작합니다. 한 번만 보입니다.</li>
       <li>등록하면 모델 카탈로그의 <code>claude-sonnet-5</code>·<code>claude-haiku-4-5</code> 가 <span class="badge g">호출 가능</span>으로 바뀝니다.</li>
     </ol>
@@ -204,6 +206,8 @@ code,.mono{font-family:Consolas,Menlo,monospace;font-size:12px;background:var(--
         <tr><td><span class="badge r">401</span></td><td>키가 틀렸거나 폐기됨 · 값에 공백·줄바꿈이 섞임</td><td>시크릿 값을 지우고 다시 붙여 넣습니다. 앞뒤 공백 확인.</td></tr>
         <tr><td><span class="badge r">401</span></td><td><b>호출 키로 사용량 API 를 부름</b>(가장 흔함)</td><td>Admin 키를 따로 발급해 <code>*_ADMIN_KEY</code> 로 등록합니다(1단계 표 참고).</td></tr>
         <tr><td><span class="badge a">403</span></td><td>Admin 키인데 권한 범위가 부족 · Workspace 에 묶인 키</td><td>조직(Organization) 단위 Admin 키로 재발급합니다.</td></tr>
+        <tr><td><span class="badge r">400</span></td><td><b>호출 키가 워크스페이스에 묶여 있지 않음</b>(개인·서비스계정 키를 all workspaces 로 발급) — 요청마다 <code>anthropic-workspace-id</code> 헤더가 필요한데 호출 코드가 보내지 않음. 「키 검증」도 같은 이유로 실패합니다.</td>
+            <td>가장 쉬운 해결은 <b>워크스페이스 하나를 지정해 키를 재발급</b>하는 것입니다. 그대로 쓰려면 Console › Settings › Workspaces 의 <code>wrkspc_…</code> ID 를 시크릿으로 등록하고 호출 코드가 헤더를 붙여야 합니다(REQ-0094 2단계 · 관리자 확인 대기).</td></tr>
         <tr><td><span class="badge a">404</span></td><td>개인 계정이라 조직 API 가 없음</td><td>벤더 콘솔에서 조직을 먼저 만들고 관리자 권한을 확인합니다.</td></tr>
         <tr><td><span class="badge a">429</span></td><td>조회가 몰림(사용량 API 는 분당 1회 권장)</td><td>잠시 뒤 다시 누릅니다. 「💳」 탭을 연속으로 새로고침하지 않습니다.</td></tr>
         <tr><td><span class="badge b">금액 0</span></td><td>키는 정상인데 이번 달 사용이 없음, 또는 다른 조직의 키</td><td>벤더 콘솔의 Cost 화면과 같은 조직인지 확인합니다.</td></tr>
