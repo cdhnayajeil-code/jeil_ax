@@ -61,7 +61,10 @@ export const anthropicAdapter: LlmAdapter = {
   keyEnv: "ANTHROPIC_API_KEY",
   async round({ apiKey, model, messages, tools, maxTokens, effort, caching, signal, emit, state }: RoundOpts) {
     state.raw = null; state.stop = null;
-    const client = new Anthropic({ apiKey, maxRetries: 1 });
+    // 워크스페이스에 묶이지 않은 키(조직 단위)는 anthropic-workspace-id 헤더가 있어야 400 이 안 난다(09-30 실측).
+    // 기본 처방은 워크스페이스 키로 교체(헤더 불필요) — 시크릿 ANTHROPIC_WORKSPACE_ID 가 있을 때만 붙인다.
+    const ws = Deno.env.get("ANTHROPIC_WORKSPACE_ID");
+    const client = new Anthropic({ apiKey, maxRetries: 1, ...(ws ? { defaultHeaders: { "anthropic-workspace-id": ws } } : {}) });
     const { system, messages: msgs } = toClaude(messages);
     const params: Block = {
       model, max_tokens: maxTokens, messages: msgs,

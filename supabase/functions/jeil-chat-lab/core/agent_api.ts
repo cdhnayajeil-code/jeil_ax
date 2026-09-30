@@ -423,7 +423,7 @@ async function chat(c: AgentCtx, agent: AgentRow, role: AgentRole, body: Record<
   if (!v) return json({ error: "에이전트 설정 버전이 없습니다." }, 503);
 
   const raw = Array.isArray(body.messages) ? body.messages : [];
-  const messages: ChatMsg[] = raw
+  const windowed: ChatMsg[] = raw
     // deno-lint-ignore no-explicit-any
     .filter((m: any) => (m.role === "user" || m.role === "assistant") && typeof m.content === "string" && m.content.trim())
     .slice(-c.ai.max_messages)
@@ -431,6 +431,9 @@ async function chat(c: AgentCtx, agent: AgentRow, role: AgentRole, body: Record<
     .map((m: any) => (m.role === "user" && Array.isArray(m.attachments) && m.attachments.length
       ? { role: "user" as const, content: m.content.slice(0, MAX_MSG_CHARS), parts: m.attachments as unknown as Attachment[] }
       : { role: m.role, content: m.content.slice(0, MAX_MSG_CHARS) }));
+  // 창(max_messages)이 짝수라 10왕복을 넘으면 첫 메시지가 assistant 가 된다 — Anthropic 은 user 로 시작해야 400 이 안 난다(09-30 실측 잠재 결함)
+  const firstUser = windowed.findIndex((m) => m.role === "user");
+  const messages: ChatMsg[] = firstUser > 0 ? windowed.slice(firstUser) : windowed;
   if (!messages.length || messages[messages.length - 1].role !== "user") return json({ error: "마지막 메시지는 사용자 질문이어야 합니다." }, 400);
   const att = checkAttachments(messages);
   if (att.error) return json({ error: att.error }, 400);
@@ -503,13 +506,17 @@ async function chat(c: AgentCtx, agent: AgentRow, role: AgentRole, body: Record<
       const flags = turnFlags({ tools, answer: res?.answer || "", latency_ms: latency, stop: st.stop, toolCount: tools.length });
       if (overBudget) flags.push("budget_fallback");
       if (res?.llmError) flags.push("llm_error");
+      // 벤더 오류 본문을 턴 기록에 남긴다(도구 목록에 `_llm` 항목으로 — 스키마 변경 없이). 판정(flags)을 낸 뒤에 넣어 tool_error 로 오판되지 않게.
+      const toolsStored: Record<string, unknown>[] = [...tools];
+      if (res?.fallbackNote) toolsStored.push({ tool: "_llm", args: { from: res.fallbackNote.from, to: res.fallbackNote.to }, ms: 0, outcome: "fallback", rows: null, sensitivity: null, status: res.fallbackNote.status, detail: res.fallbackNote.detail });
+      if (res?.llmError) toolsStored.push({ tool: "_llm", args: { model }, ms: 0, outcome: "error", rows: null, sensitivity: null, status: res.llmError.status, detail: res.llmError.detail.slice(0, 300) });
       let turnId: number | null = null;
       if (agent.collect_turns) {
         try {
           const { data } = await admin.from("agent_turn").insert({
             agent_key: agent.agent_key, agent_version: v.version, upn: scope.upn, dept_nm: scope.dept, question: qStore.slice(0, 4000),
             attachments: att.meta,   // 이번 질문에 붙은 파일의 이름·종류·크기만(원본·내용은 저장하지 않는다)
-            answer: personal ? null : (res?.answer || "").slice(0, 20000), tools, model, fallback_used: !!res?.fallbackUsed,
+            answer: personal ? null : (res?.answer || "").slice(0, 20000), tools: toolsStored, model, fallback_used: !!res?.fallbackUsed,
             prompt_tokens: st.pt || null, completion_tokens: st.ct || null, cache_read_tokens: st.cr || null,
             est_cost_usd: Number(cost.toFixed(6)), latency_ms: latency, rounds: res?.rounds || 0, flags, chat_log_id: logId,
           }).select("id").single();

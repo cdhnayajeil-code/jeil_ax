@@ -1,4 +1,6 @@
-// 자동 생성(_port_modules.py) — 원본: jeil-chat/index.ts (TOOLS · runTool 분기). 로직을 바꾸려면 원본 대신 이 모듈을 정본으로 전환한 뒤 고친다.
+// 정본(손수정 2026-09-30 · 원래 _port_modules.py 자동 생성, HAND_TUNED 로 재생성 제외) — 12_에이전트관리/05 F-8·F-9.
+//   · po_seq 정렬(정렬 없이 rows[0] 을 「첫 라인」으로 쓰면 어느 라인이 먼저일지 보장이 없다)
+//   · 카드에 발주 합계·라인 수·묶인 구매요청 수: 첫 라인 금액을 발주 금액처럼 읽던 것, 한 PO 에 PR 여러 줄이 묶인 것을 먼저 알린다
 import type { ToolCtx, ToolManifest, ViewPayload } from "../../core/types.ts";
 import { STATUS_KO, stsKo, MODULE_KO, hasModule, comma, won, STEP_IX, STEP_LABELS, userLabelMap, userLbl, graphGet, graphSearchDocs, loadDocScope, inScope, loadLoadScope, gapOf, gapAttr } from "../../core/util.ts";
 import type { ScopeRow } from "../../core/util.ts";
@@ -25,10 +27,13 @@ export async function run(ctx: ToolCtx): Promise<unknown> {
         재시도도구: "get_erp_item_orders",
         안내: "품목코드(예: S3041-00065)나 품목명이라면 get_erp_item_orders 로 그 품목의 발주·구매요청 이력을 조회하세요. 발주/구매요청 번호는 PO…/PR… 로 시작합니다." };
     }
-    let q = admin.from("v_erp_po_pr_link").select("*").limit(50);
+    let q = admin.from("v_erp_po_pr_link").select("*").order("po_no", { ascending: true }).order("po_seq", { ascending: true }).limit(50);
     if (po) q = q.eq("po_no", po);
     if (pr) q = q.eq("pr_no", pr);
     const { data } = await q; const rows = data || [];
+    // 발주 전체 합계·라인 수·묶인 구매요청 — 첫 라인만 보고 발주 금액을 말하지 않게
+    let poAmt = 0; for (const r of rows) poAmt += Number(r.po_amt || 0);
+    const prNos = [...new Set(rows.map((r: { pr_no?: string | null }) => r.pr_no).filter(Boolean))] as string[];
     // 요청자 표기: '부서_이름_아이디' (미매핑은 원본 아이디 유지)
     const uMap = await userLabelMap(admin, rows.map((r: Record<string, unknown>) => r.req_prsn));
     // deno-lint-ignore no-explicit-any
@@ -80,15 +85,16 @@ export async function run(ctx: ToolCtx): Promise<unknown> {
           { k: "품목", v: String(f0.item_name || "-") + (rows.length > 1 ? ` 외 ${rows.length - 1}건` : "") },
           { k: "발주일", v: String(f0.po_dt || "-") },
           { k: "납기", v: String(f0.po_dlvy_dt || "-") + (f0.overdue_unreceived === true ? " ⚠경과·미입고" : "") },
-          { k: "발주금액", v: won(Number(f0.po_amt || 0)) + (rows.length > 1 ? " (첫 라인)" : "") },
-          { k: "수량 진행", v: `요청 ${comma(Number(f0.req_qty || 0))} → 발주 ${comma(Number(f0.ord_qty || 0))} → 입고 ${comma(Number(f0.po_rcpt_qty || 0))} → 매입 ${comma(Number(f0.iv_qty || 0))}` },
-          { k: "구매요청", v: String(f0.pr_no || "-") + (f0.req_prsn ? ` · ${userLbl(uMap, f0.req_prsn)}` : (f0.req_dept_resolved ? ` · ${f0.req_dept_resolved}` : "")) },
+          { k: "발주금액", v: rows.length > 1 ? `합계 ${won(poAmt)} · ${rows.length}라인 (첫 라인 ${won(Number(f0.po_amt || 0))})` : won(Number(f0.po_amt || 0)) },
+          { k: "수량 진행", v: `요청 ${comma(Number(f0.req_qty || 0))} → 발주 ${comma(Number(f0.ord_qty || 0))} → 입고 ${comma(Number(f0.po_rcpt_qty || 0))} → 매입 ${comma(Number(f0.iv_qty || 0))}` + (rows.length > 1 ? " (첫 라인 기준)" : "") },
+          { k: "구매요청", v: String(f0.pr_no || "-") + (prNos.length > 1 ? ` 외 ${prNos.length - 1}건 — 이 발주서는 구매요청 ${prNos.length}건(${rows.length}줄)을 묶었습니다` : "") + (f0.req_prsn ? ` · ${userLbl(uMap, f0.req_prsn)}` : (f0.req_dept_resolved ? ` · ${f0.req_dept_resolved}` : "")) },
           { k: "외주구분", v: f0.subcontra_flg === "Y" ? "외주" : "일반" },
         ],
         steps: { labels: STEP_LABELS, current: STEP_IX[String(f0.po_sts || "").trim()] ?? -1 } };
     }
     return { 기준시각: asOf, 조회조건: { po_no: po || null, pr_no: pr || null }, 연결건수: rows.length,
+      발주금액합계_원: poAmt, 라인수: rows.length, 묶인구매요청: prNos,
       발주_구매요청, 구매요청상세,
-      안내: "ERP 중간DB 발주↔구매요청 연결(파일럿). 진행단계: 요청(RQ)→확정(CF)→발주(PO)→입고(GR)→매입(IV). 요청부서는 요청자 이메일→부서 매핑으로 보완됨.",
+      안내: "ERP 중간DB 발주↔구매요청 연결(파일럿). 진행단계: 요청(RQ)→확정(CF)→발주(PO)→입고(GR)→매입(IV). 발주 금액은 발주금액합계_원(라인 합)을 쓰고, 라인이 여러 개면 '합계·라인 수'를 함께 말할 것. 한 발주에 구매요청 여러 건이 묶일 수 있다(묶인구매요청). 요청부서는 요청자 이메일→부서 매핑으로 보완됨.",
       ...(poPrView ? { __view: poPrView } : {}) };
   }

@@ -41,18 +41,30 @@ export async function run(ctx: ToolCtx): Promise<unknown> {
   const show = Math.min(Math.max(Number(args.limit) || 20, 1), 100);
   const top = pick.slice(0, show);
   const order = ["확인필요", "전표없음", "계산서없음", "합산·분할", "세액차", "일치", "미기재"];
+  // 기안자·기안일 — 대사 RPC 행에는 없어 기안서 대장(v_pur_proposal_case)에서 권-번호로 붙인다(「기안자별로 묶어줘」 · 09-30 실측 F-5)
+  const drafter: Record<string, { drafter: string | null; draft_dt: string | null }> = {};
+  if (pick.length) {
+    const keys = [...new Set(pick.map((r) => String(r.key)))].slice(0, 500);
+    const { data: cases } = await admin.from("v_pur_proposal_case").select("key,drafter,draft_dt").in("key", keys);
+    (cases || []).forEach((c: { key: string; drafter: string | null; draft_dt: string | null }) => (drafter[c.key] = c));
+  }
+  const byDrafter: Record<string, { 칸수: number; 대장금액합_원: number }> = {};
+  pick.forEach((r) => { const k = drafter[String(r.key)]?.drafter || "(기안자 미상)"; (byDrafter[k] = byDrafter[k] || { 칸수: 0, 대장금액합_원: 0 }).칸수++; byDrafter[k].대장금액합_원 += Number(r.ledger_amt) || 0; });
+  const 기안자별 = Object.entries(byDrafter).map(([기안자, v]) => ({ 기안자, ...v })).sort((a, b) => b.대장금액합_원 - a.대장금액합_원);
+  let pickAmt = 0; pick.forEach((r) => { pickAmt += Number(r.ledger_amt) || 0; });
   return {
     기준시각: asOf, 대장적재: data?.as_of || null, 미러기준: data?.mirror_as_of || null, 대사칸수: all.length, 등급별: counts,
-    조건: [want, q && `업체 '${q}'`].filter(Boolean).join(" · ") || "전체", 해당: pick.length,
-    목록: top.map((r) => ({ 권번호: r.key, 단계: STAGE_KO[r.stage] || r.stage, 대장금액_원: Number(r.ledger_amt) || 0, 전표: r.slip_raw,
+    조건: [want, q && `업체 '${q}'`].filter(Boolean).join(" · ") || "전체", 해당: pick.length, 해당_대장금액합_원: pickAmt, 기안자별,
+    목록: top.map((r) => ({ 권번호: r.key, 기안자: drafter[String(r.key)]?.drafter || null, 기안일: drafter[String(r.key)]?.draft_dt || null,
+      단계: STAGE_KO[r.stage] || r.stage, 대장금액_원: Number(r.ledger_amt) || 0, 전표: r.slip_raw,
       등급: RECON_KO[r.recon ?? ""] || r.recon, 대장업체: r.ledger_vendor, 전표업체: r.slip_vendor, 표시: r.flags || [] })),
     __view: pick.length && (want || q)
       ? { view: "list", title: `기안서 대사 — ${want || "전체"}${q ? ` · '${q}'` : ""}`, asOf,
-          columns: [{ key: "key", label: "권-번호" }, { key: "st", label: "단계" }, { key: "amt", label: "대장금액(원)", num: true },
+          columns: [{ key: "key", label: "권-번호" }, { key: "dr", label: "기안자" }, { key: "st", label: "단계" }, { key: "amt", label: "대장금액(원)", num: true },
             { key: "slip", label: "전표" }, { key: "g", label: "등급" }, { key: "v", label: "업체" }],
-          rows: top.map((r) => ({ key: r.key, st: STAGE_KO[r.stage] || r.stage, amt: Number(r.ledger_amt) || 0, slip: r.slip_raw || "-",
+          rows: top.map((r) => ({ key: r.key, dr: drafter[String(r.key)]?.drafter || "-", st: STAGE_KO[r.stage] || r.stage, amt: Number(r.ledger_amt) || 0, slip: r.slip_raw || "-",
             g: RECON_KO[r.recon ?? ""] || r.recon, v: r.ledger_vendor || "-" })),
-          note: `${comma(pick.length)}칸` + (pick.length > show ? ` · ${show}칸 표시` : "") + (data?.mirror_as_of ? ` · ERP 미러 ${String(data.mirror_as_of).slice(0, 10)}` : ""),
+          note: `${comma(pick.length)}칸 · 대장금액 합 ${comma(pickAmt)}원` + (pick.length > show ? ` · ${show}칸 표시` : "") + (data?.mirror_as_of ? ` · ERP 미러 ${String(data.mirror_as_of).slice(0, 10)}` : "") + (data?.as_of ? ` · 대장 적재 ${String(data.as_of).slice(0, 10)}` : ""),
           actions: [{ kind: "link", label: "기안서 대장 화면에서 근거 보기", url: "/work/purchase-proposals" }] } satisfies ViewPayload
       : { view: "series", title: "기안서 대사 등급별 칸 수", unit: "칸", asOf,
           rows: order.filter((k) => counts[k]).map((k) => ({ k, v: counts[k] })),

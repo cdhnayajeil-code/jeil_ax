@@ -92,11 +92,13 @@ export async function run(ctx: ToolCtx): Promise<unknown> {
   // deno-lint-ignore no-explicit-any
   const cells = (((recon?.rows) || []) as any[]).filter((r) => r.key === k);
   const slipRows = cells.map((r) => ({ 단계: STAGE_KO[r.stage] || r.stage, 전표: r.slip_raw || "-", 대장금액_원: Number(r.ledger_amt) || 0, 등급: RECON_KO[r.recon ?? ""] || r.recon, 표시: r.flags || [] }));
+  // 기안 줄이 여러 개면 같은 전표·세금계산서가 줄 수만큼 반복된다(1-85: 실제 2장이 4장으로) — 승인번호(없으면 전표+발행일)로 중복 제거. 09-30 실측 F-7
+  const seenInv = new Set<string>();
   const invoices = stages.flatMap((s) => (s.invoices || []).map((iv: Record<string, unknown>) => {
     const n = (iv.nts || {}) as Record<string, unknown>;
     return { 단계: STAGE_KO[s.stage] || s.stage, 전표: s.slip_no || s.tok, 승인번호: n.aprv_no || null, 발행일: n.issue_date || iv.dt || null,
       공급가_원: Number(n.supply ?? iv.supply) || 0, 세액_원: Number(n.vat ?? iv.vat) || 0, 공급자: n.sup_nm || null, 품목: n.item_nm || null };
-  }));
+  })).filter((i) => { const k = String(i.승인번호 || `${i.전표}|${i.발행일}`); if (seenInv.has(k)) return false; seenInv.add(k); return true; });
   const glNos = [...new Set(stages.map((s) => s.gl_no).filter(Boolean))];
 
   // 발주 → 결재·요청·상태

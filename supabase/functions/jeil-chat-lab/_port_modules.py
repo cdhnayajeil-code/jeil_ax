@@ -52,6 +52,10 @@ META = {
 HELPERS = ("STATUS_KO, stsKo, MODULE_KO, hasModule, comma, won, STEP_IX, STEP_LABELS, userLabelMap, userLbl, "
            "graphGet, graphSearchDocs, loadDocScope, inScope, loadLoadScope, gapOf, gapAttr")
 
+# 정본 전환(손수정) 모듈 — 다시 돌려도 덮어쓰지 않는다. 2026-09-30 실측(12_에이전트관리/05 F-2·F-3·F-4·F-8)으로
+# 운영 jeil-chat 원본과 갈라졌다: 전체 건수·2차 정렬·거래처 조건·합계/라인 수·검사결과.
+HAND_TUNED = {"get_erp_receipt_pending", "get_erp_pur_req", "get_erp_po_pr", "get_order_summary"}
+
 
 def match_brace(s: str, i: int) -> int:
     """s[i] == '{' 에서 짝이 맞는 '}' 의 위치. 문자열·템플릿·정규식 리터럴 안의 괄호는 건너뛴다."""
@@ -129,6 +133,11 @@ def main() -> int:
          + hr_body + "}\n")
     for tid, meta in META.items():
         domain, title, summary, pm, mode, sens, view, erp, owner, hint = meta
+        if tid in HAND_TUNED:
+            # 파일은 그대로 두고 등록 목록(index.ts)에는 넣는다
+            print("skip(정본 전환 — 손수정 모듈 유지):", tid)
+            written.append((domain, tid))
+            continue
         desc, params = tool_schema(src, tid)
         head = (f"// 자동 생성(_port_modules.py) — 원본: jeil-chat/index.ts (TOOLS · runTool 분기). 로직을 바꾸려면 원본 대신 이 모듈을 정본으로 전환한 뒤 고친다.\n"
                 "import type { ToolCtx, ToolManifest, ViewPayload } from \"../../core/types.ts\";\n")

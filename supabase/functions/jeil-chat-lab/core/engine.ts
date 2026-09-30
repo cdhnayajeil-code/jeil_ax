@@ -12,6 +12,8 @@ export type ToolTrace = {
 export type ConverseResult = {
   model: string; vendor: string; fallbackUsed: boolean; answer: string; tools: ToolTrace[]; rounds: number;
   stopped: boolean; state: StreamState; llmError: { status: number; detail: string } | null;
+  // 예비 전환이 있었으면 왜(벤더 오류 본문 앞부분) — 09-30 실측에서 SSE 로만 흘러 원인 추적이 안 됐다. 턴 기록에 남긴다.
+  fallbackNote: { from: string; to: string; status: number; detail: string } | null;
 };
 export type ConverseOpts = {
   // deno-lint-ignore no-explicit-any
@@ -49,6 +51,7 @@ export async function converse(o: ConverseOpts): Promise<ConverseResult> {
   let fallbackUsed = false;
   let rounds = 0; let stopped = false;
   let llmError: { status: number; detail: string } | null = null;
+  let fallbackNote: ConverseResult["fallbackNote"] = null;
   let emitted = false;
   const emit = async (c: string) => { emitted = true; answer += c; if (o.emit) await o.emit(c); };
   const convo: ChatMsg[] = [{ role: "system", content: o.system }, ...o.messages];
@@ -70,6 +73,8 @@ export async function converse(o: ConverseOpts): Promise<ConverseResult> {
       const fbVendor = o.vendorOf(o.fallbackModel);
       const fb = ADAPTERS[fbVendor]; const fbKey = fb ? Deno.env.get(fb.keyEnv) : undefined;
       if (fb && fbKey) {
+        fallbackNote = { from: model, to: o.fallbackModel, status: r.status, detail: r.detail.slice(0, 300) };
+        console.error(`llm fallback ${model} → ${o.fallbackModel} (${r.status}) ${r.detail.slice(0, 300)}`);
         if (o.onNote) await o.onNote({ type: "fallback", from: model, to: o.fallbackModel, status: r.status, detail: r.detail.slice(0, 200) });
         model = o.fallbackModel; vendor = fbVendor; adapter = fb; apiKey = fbKey; fallbackUsed = true;
         state.toolCalls = {};
@@ -80,6 +85,7 @@ export async function converse(o: ConverseOpts): Promise<ConverseResult> {
     }
     if (!r.ok) {
       llmError = { status: r.status, detail: r.detail };
+      console.error(`llm error ${model} (${r.status}) ${r.detail.slice(0, 300)}`);
       await emit(r.status === 401 ? "⚠ AI 키가 유효하지 않습니다(만료/오입력)."
         : r.status === 429 ? "⚠ AI 사용량 한도 초과 — 잠시 후 다시 시도하세요."
         : r.status === 503 ? "⚠ AI 연결이 아직 설정되지 않았습니다(관리자 확인 필요)."
@@ -123,5 +129,5 @@ export async function converse(o: ConverseOpts): Promise<ConverseResult> {
       convo.push({ role: "tool", call_id: c.id, content: modelText });
     }
   }
-  return { model, vendor, fallbackUsed, answer, tools, rounds, stopped, state, llmError };
+  return { model, vendor, fallbackUsed, answer, tools, rounds, stopped, state, llmError, fallbackNote };
 }
