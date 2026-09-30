@@ -817,7 +817,10 @@ Deno.serve(async (req) => {
       if (!acct) return json({ error: `${line}번 줄: 계정과목이 올바르지 않습니다.` }, 400);
 
       const amt = num(r.item_amt);
-      if (!(amt > 0)) return json({ error: `${line}번 줄: 금액은 0보다 커야 합니다.` }, 400);
+      // 0원 라인 허용(2026-09-30 관리자 지시) — 음수·빈 값만 막는다. DB CHECK(item_amt >= 0)와 같은 기준.
+      if (String(r.item_amt ?? "").trim() === "" || !(amt >= 0)) {
+        return json({ error: `${line}번 줄: 금액을 입력하세요(0원 이상 정수).` }, 400);
+      }
       if (!Number.isInteger(amt)) return json({ error: `${line}번 줄: 금액은 원 단위 정수로 입력하세요.` }, 400);
 
       const projectNo = clip(r.project_no, 20) || clip(h.project_no, 20);

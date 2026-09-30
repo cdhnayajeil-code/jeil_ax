@@ -2094,9 +2094,12 @@ $("draftForm").addEventListener("input", (e)=>{
       el.classList.remove("approx");
       el.closest("td")?.querySelector(".apxbadge")?.remove();
     }
+    // 0원도 금액이다(2026-09-30 관리자 지시 — 0원 라인 전표 입력 허용).
+    // 칸을 비우면 방향을 풀고, 0을 적으면 그 방향의 0원 라인으로 둔다.
+    const blank = String(el.value||"").replace(/,/g,"").trim() === "";
     const n = numAmt(el.value);
-    r.dr_cr_fg = n > 0 ? side : (r.dr_cr_fg === side ? "" : r.dr_cr_fg);
-    r.item_amt = n > 0 ? String(n) : "";
+    r.dr_cr_fg = !blank && n >= 0 ? side : (r.dr_cr_fg === side ? "" : r.dr_cr_fg);
+    r.item_amt = !blank && n >= 0 ? String(n) : "";
     // 반대편 칸은 비운다 — 한 줄은 차변이거나 대변이거나 하나다
     const tr = el.closest("tr");
     tr.querySelectorAll('input[data-f="amt"]').forEach((o)=>{ if(o !== el) o.value = ""; });
@@ -2286,11 +2289,13 @@ function validateRows(){
       if(el) el.classList.add("bad");
       bad = bad || { el, msg: r.item_seq+"번 줄 — 계정과목을 선택하세요." };
     }
+    // 0원 허용(2026-09-30) — 빈 칸만 막는다. 0원 라인은 차변/대변 칸에 0을 적는다.
     const n = numAmt(r.item_amt);
-    if(!(n > 0 && Number.isInteger(n)) || !r.dr_cr_fg){
+    const blank = String(r.item_amt ?? "").trim() === "";
+    if(blank || !(n >= 0 && Number.isInteger(n)) || !r.dr_cr_fg){
       const el = document.querySelector('#draftForm input[data-f="amt"][data-seq="'+r.item_seq+'"]');
       if(el) el.classList.add("miss");
-      bad = bad || { el, msg: r.item_seq+"번 줄 — 차변 또는 대변 칸에 0보다 큰 정수 금액을 입력하세요." };
+      bad = bad || { el, msg: r.item_seq+"번 줄 — 차변 또는 대변 칸에 금액을 입력하세요(0원이면 0 입력, 정수)." };
     }
   });
   if(bad){ toast(bad.msg, true); if(bad.el){ bad.el.scrollIntoView({behavior:"smooth",block:"center"}); bad.el.focus?.(); } }
@@ -2577,7 +2582,7 @@ async function startRecur(t){
         } else ctrl[cd] = src[cd];
       });
       return { dr_cr_fg:it.dr_cr_fg, acct_cd:it.acct_cd, acct_nm:it.acct_nm,
-               item_amt:String(it.item_amt||""), item_desc:it.item_desc||"",
+               item_amt:String(it.item_amt ?? ""), item_desc:it.item_desc||"",   // 0원 라인 보존
                bp_cd:it.bp_cd||null, bp_nm:it.bp_nm||null,
                cost_cd:it.cost_cd||"", project_no:it.project_no||"",
                __ctrl:ctrl, __ctrlSug:sug };

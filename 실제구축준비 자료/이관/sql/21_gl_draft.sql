@@ -166,7 +166,7 @@ create table if not exists public.gl_draft_item (
   dr_cr_fg     text not null check (dr_cr_fg in ('D','C')),   -- 차변/대변 → DR_CR_FG
   acct_cd      text not null,                     -- 계정코드 → ACCT_CD
   acct_nm      text,                              -- 표시용 사본
-  item_amt     numeric not null check (item_amt > 0),         -- 금액 → ITEM_AMT / ITEM_LOC_AMT
+  item_amt     numeric not null check (item_amt >= 0),        -- 금액(0원 라인 허용 2026-09-30, 증분: 21a_gl_draft_item_zero_amt.sql) → ITEM_AMT / ITEM_LOC_AMT
   item_desc    text,                              -- 적요 → ITEM_DESC
   bp_cd        text,                              -- 거래처 → BP_CD
   bp_nm        text,
