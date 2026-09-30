@@ -47,7 +47,7 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
   <div class="content">
 <h1 id="00">00. 현재 시스템 상태 스냅샷 (현황 대장)</h1>
 <blockquote>
-<p><strong>기준일: 2026-09-23</strong> · 관리: 최동혁(dh.choi@jeilm.co.kr)
+<p><strong>기준일: 2026-09-30</strong> · 관리: 최동혁(dh.choi@jeilm.co.kr)
 이 문서는 <strong>시스템이 바뀔 때마다 갱신하는 단일 출처(Single Source of Truth)</strong> 다. 배포·데이터·인증·계정 상태가 변하면 여기를 먼저 고치고, §9 변경 이력에 한 줄 남긴다.
 비밀값(Entra Secret, DB 접속, 키)은 <strong>이 문서에 적지 않는다</strong>(<code>CLAUDE.md §1</code>). 이름·존재 여부만 기록한다.</p>
 </blockquote>
@@ -517,6 +517,16 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 </tr>
 </thead>
 <tbody>
+<tr>
+<td>2026-09-30</td>
+<td><strong>결의전표 운영(JEILMNS) 기준 판정 도구 신설</strong>(게이트 G7) — 신규 모듈 <code>10_ERP_DB연계/etl/gl_precheck_prod.py</code>(러너 서브커맨드 <code>prodcheck</code>) — 릴레이와 같은 판정 함수를 운영 마스터로 재실행하는 읽기 전용 도구(SELECT 외 거부·커밋 없이 롤백·포털 <code>gl_apply_record</code> 미호출). 배경: 초안 <code>AX260930-U001-001</code> 등 6곳이 DEMO2에 없는 거래처(4624·4659)로 G7 차단, 운영 직접 전송은 결정 C-1로 보류. <strong>EXE 재빌드·서버 배포·실행은 미실행</strong>(관리자 몫). 상세·단일 출처는 <code>10_ERP_DB연계/</code>(00·02·17)</td>
+<td>최동혁(+Claude)</td>
+</tr>
+<tr>
+<td>2026-09-30</td>
+<td><strong>결의전표 0원 라인 입력 허용</strong>(커밋 <code>2171f51</code>) — 화면(<code>pages/자금_결의전표_입력_2026.html</code>)·Edge Function <code>jeil-gl-draft</code> <strong>v24</strong>·DB(<code>gl_draft_item_item_amt_check</code>를 <code>item_amt &gt;= 0</code>로 변경, 정본 SQL <code>이관/sql/21a_gl_draft_item_zero_amt.sql</code>) 세 층 기준 통일. 음수 라인은 계속 차단. 미확인: UNIERP가 0원 라인을 실제로 받는지 투입 실측 없음. 상세·단일 출처는 <code>10_ERP_DB연계/</code>(00·02·19·20)</td>
+<td>최동혁(+Claude)</td>
+</tr>
 <tr>
 <td>2026-09-29</td>
 <td><strong>기안서 연결·스캔 목록 자동</strong>(REQ-0092) — 정본 SQL <strong>76</strong>(뷰 <code>v_pur_proposal_po_link</code> · 함수 <code>agent_proposal_recon_detail</code> service_role 전용) · Edge Function <code>jeil-chat-lab</code> <strong>v6</strong>(<code>get_proposal_chain</code>). 러너 소스 <strong>r1.8</strong>(작업 <code>proposal_scan</code>) · 사무용 PC 예약작업 <strong><code>JEIL_AX_ProposalScan</code></strong>(일반 권한·로그인 시·30분 간격 — 문서중앙화 스캔본 파일명·존재 여부만 → <code>pur_proposal_scan</code>). <code>.env</code> 키 <code>PROPOSAL_SCAN_DIR</code> 추가(값 미기재). ⚠ 기안서 대장 적재(<code>proposal_ledger</code>) 09-22 이후 멈춤 · r1.8 전달 폴더 동기화 미완.</td>

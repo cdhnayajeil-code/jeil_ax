@@ -236,15 +236,20 @@ DEMO2 수동입력분에 위반 8라인이 실재하며 그 건들은 <code>A_VA
 <hr />
 <h2 id="4">4. 이 세트가 덮지 <strong>못하는</strong> 것 — 포털의 구조적 한계</h2>
 <p>설계서 케이스 중 둘은 <strong>전표를 만들 수 없어서</strong> 넣지 못했다. 빠뜨린 것이 아니라 <strong>막힌 것</strong>이다.</p>
-<h3 id="41-t8-item_amt-0">4.1 T8 마이너스·수정계산서 — <code>item_amt &gt; 0</code> 제약</h3>
-<p><code>gl_draft_item</code> 에 <code>CHECK (item_amt &gt; 0)</code> 이 걸려 있어 <strong>음수 라인을 저장할 수 없다.</strong></p>
+<h3 id="41-t8-item_amt-0">4.1 T8 마이너스·수정계산서 — <code>item_amt &gt;= 0</code>(음수만 차단)</h3>
+<p><code>gl_draft_item</code> 은 <strong>2026-09-30 부터 <code>CHECK (item_amt &gt;= 0)</code></strong> 로 바뀌어 <strong>0원 라인은 허용</strong>한다
+(커밋 <code>2171f51</code>, 화면·Edge Function <code>jeil-gl-draft</code> v24·DB 세 층 기준 통일, 정본 SQL
+<code>이관/sql/21a_gl_draft_item_zero_amt.sql</code>). 종전 <code>CHECK (item_amt &gt; 0)</code> 표기는 이 문서 기준으로
+정정한다. <strong>음수 라인은 여전히 저장할 수 없다</strong> — 아래 내용은 그대로 유효하다.</p>
 <p>방향을 뒤집는 우회(차변 −50,000 ≡ 대변 +50,000)는 <strong>G1/G5 가 막는다</strong> — 부가세대급금 대변이
 정확히 E5 다. 즉 <strong>두 겹으로 막혀 있다.</strong></p>
 <blockquote>
 <p><strong>영향</strong>: DEMO2 수동입력 전표 중 마이너스 라인 보유가 <strong>939전표</strong>다.
 오발행 취소·수정계산서는 이 형태이므로, 현재 포털로는 <strong>이 유형을 아예 만들 수 없다.</strong>
 운영 전환 전에 결정이 필요하다 — ①포털이 음수를 허용할 것인가(그러면 G1/G5 예외 규칙도 함께 설계)
-②아니면 수정계산서는 ERP 화면 소관으로 남길 것인가. <strong>후자라면 그 사실을 사용자에게 명시해야 한다.</strong></p>
+②아니면 수정계산서는 ERP 화면 소관으로 남길 것인가. <strong>후자라면 그 사실을 사용자에게 명시해야 한다.</strong>
+(0원 라인은 위 결정과 무관하게 이미 허용됐다 — 0은 방향이 없어 G1/G5 우회에 해당하지 않는다.
+<strong>미확인</strong>: UNIERP 가 0원 라인을 실제로 받아들이는지는 아직 투입 실측이 없다.)</p>
 </blockquote>
 <h3 id="42-t10">4.2 T10 외화 — 통화·환율 필드 자체가 없다</h3>
 <p><code>gl_draft</code> 에 통화·환율 컬럼이 없고, 릴레이는 <code>DOC_CUR='KRW'</code>·<code>XCH_RATE=1.000000</code> 을

@@ -109,6 +109,20 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <tbody>
 <tr>
 <td>2026-09-30</td>
+<td>ERP 연계 · 결의전표 운영전환(게이트 G7)</td>
+<td><code>10_ERP_DB연계/etl/gl_precheck_prod.py</code>(신규) · <code>jeil_runner.py</code>(<code>prodcheck</code>) · <code>deploy/build_exe.py</code> · <code>test_gl_precheck_prod.py</code> · <code>17_운영전환_게이트</code>·<code>00</code>·<code>02</code>(단일 출처)</td>
+<td><strong>결의전표를 운영(JEILMNS) 마스터 기준으로 판정만 하는 읽기 전용 도구를 신설했다</strong> — 초안 <code>AX260930-U001-001</code> 등 6곳이 DEMO2(2025-06-25 스냅샷)에 없는 거래처(4624·4659)로 게이트 G7에 막혀, 운영 직접 전송(C-1 위반)은 보류하고 릴레이와 같은 판정 함수를 운영 마스터로 재실행하는 도구를 대신 마련했다. 커서 단 SELECT 외 거부·커밋 없이 롤백·포털 <code>gl_apply_record</code> 미호출로 ERP·포털 어디에도 쓰지 않는다. <strong>EXE 재빌드·서버 배포·실행은 미실행</strong>(관리자 몫). G7을 ⚪ 미착수 → 🟡 부분으로 갱신. <code>10_ERP_DB연계</code>(00·02·17) 갱신</td>
+<td>최동혁(+Claude)</td>
+</tr>
+<tr>
+<td>2026-09-30</td>
+<td>ERP 연계 · 결의전표 입력</td>
+<td><code>pages/자금_결의전표_입력_2026.html</code> · <code>supabase/functions/jeil-gl-draft</code>(v24) · 이관 SQL <code>21a_gl_draft_item_zero_amt.sql</code></td>
+<td><strong>결의전표 0원 라인 입력을 허용했다</strong> — 화면·Edge Function·DB CHECK(<code>gl_draft_item_item_amt_check</code>: <code>item_amt &gt;= 0</code>) 세 층 기준을 통일, 음수는 계속 차단. 19번·20번 문서의 <code>CHECK item_amt &gt; 0</code> 표기를 정정. 미확인: UNIERP 실제 수용 여부. <code>10_ERP_DB연계</code>(00·02·19·20) 갱신</td>
+<td>최동혁(+Claude)</td>
+</tr>
+<tr>
+<td>2026-09-30</td>
 <td>챗봇 · 게이트웨이·관리자 콘솔(모델 동작 점검)</td>
 <td><code>supabase/functions/jeil-chat/index.ts</code> · <code>jeil-chat-lab/llm/openai.ts</code> · <code>jeil-chat-admin/index.ts</code> · <code>04_챗봇_포털_데모UI.html</code>(모델 설정 패널) · 정본 SQL <code>80_ai_model_last_check.sql</code>(+rollback) · <code>_test_oa_shape.mjs</code>·<code>_test_model_tab.mjs</code></td>
 <td><strong>REQ-0095</strong> — 기본 모델 gpt-6-luna 가 도구 호출 시 OpenAI 400(reasoning_effort)으로 답하지 못하던 장애: 400 사유 자동 적응에 3단계(<code>reasoning_effort:"none"</code>) 추가·재시도 상한 3·학습 모양 DB 시드. 관리자 콘솔 「모델 설정」에 모델별 「점검」·「전체 점검」(실제 호출 모양 그대로 시험 질문 1건 · 관리자 전용 · 결과 배지·할 일 연동 · 키 비노출). 설계 패널·적대적 검토 워크플로로 결함 11건 선반영. SQL 80 적용 완료 · <strong>함수 3종 배포는 관리자 승인 대기</strong>.</td>
