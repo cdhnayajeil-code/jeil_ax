@@ -24,6 +24,7 @@ r"""gl_precheck_prod.py — 포털 결의전표를 **운영(JEILMNS) 마스터 �
   python gl_precheck_prod.py --draft AX260930-U001-001
   python gl_precheck_prod.py --all                     제출됨·미적용 초안 전건
   python gl_precheck_prod.py --draft ... --json out.json
+  python gl_precheck_prod.py --accounts                포털이 쓰는 (계정, 차대) 전수 — 운영·DEMO2 비교(G7 닫힘 조건)
   jeil_runner.exe prodcheck --draft ...                (러너 서브커맨드)
 """
 import argparse
@@ -158,20 +159,148 @@ def judge(cur, d, trans_type):
     return issues
 
 
+# ═══════════ 계정 기준 판정(--accounts) — 게이트 G7 닫힘 조건 ═══════════
+# 전표 단위 판정은 「지금 대기 중인 전표」만 본다. G7 이 요구하는 것은 **포털이 쓰는 계정 전수**를
+# 운영 마스터로 다시 판정하는 것이다(17_운영전환_게이트 G7). 포털 전표(전송 완료분 포함)·템플릿에
+# 나온 (계정, 차대) 쌍을 모아, 같은 판정 함수를 운영과 DEMO2 에 각각 돌려 나란히 비교한다.
+
+def rest_get(url, key, path):
+    """포털 테이블 읽기(GET 전용) — service role 로 RLS 를 우회해 전체 행을 본다. 쓰기 경로 없음."""
+    import urllib.request
+    req = urllib.request.Request(f"{url}/rest/v1/{path}", method="GET",
+                                 headers={"apikey": key, "Authorization": f"Bearer {key}"})
+    with urllib.request.urlopen(req, timeout=60) as r:
+        return json.loads(r.read().decode() or "[]")
+
+
+def collect_pairs(url, key):
+    """포털이 쓰는 (계정, DR|CR) 쌍 → {쓰인 횟수, 출처, 대표 코스트센터}."""
+    pairs = {}
+
+    def put(acct, fg, cost, src):
+        acct = str(acct or "").strip()
+        fg = "DR" if str(fg or "").strip().upper().startswith("D") else "CR"
+        if not acct:
+            return
+        p = pairs.setdefault((acct, fg), {"n": 0, "src": set(), "costs": {}})
+        p["n"] += 1
+        p["src"].add(src)
+        if cost:
+            p["costs"][cost] = p["costs"].get(cost, 0) + 1
+
+    for r in rest_get(url, key, "gl_draft_item?select=acct_cd,dr_cr_fg,cost_cd&limit=100000"):
+        put(r.get("acct_cd"), r.get("dr_cr_fg"), (r.get("cost_cd") or "").strip(), "전표")
+    for r in rest_get(url, key, "gl_template_item?select=acct_cd,dr_cr_fg&limit=100000"):
+        put(r.get("acct_cd"), r.get("dr_cr_fg"), "", "템플릿")
+    for p in pairs.values():
+        p["cost"] = max(p["costs"], key=p["costs"].get) if p["costs"] else ""
+    return pairs
+
+
+def judge_account(cur, acct, fg, cost, trans_type):
+    """(계정, 차대) 한 쌍 판정 — 릴레이 함수 그대로. 반환: 판정 dict."""
+    cur.execute("SELECT RTRIM(ISNULL(ACCT_NM,'')), RTRIM(ISNULL(SUBSYS_TYPE,'')) "
+                "FROM dbo.A_ACCT WITH (NOLOCK) WHERE RTRIM(ACCT_CD) = ?", acct)
+    r = cur.fetchone()
+    if not r:
+        return {"exists": False, "nm": "", "sub": "", "jnl": "", "req": [], "blocks": ["계정 없음"]}
+    out = {"exists": True, "nm": r[0], "sub": r[1], "jnl": "", "req": [], "blocks": []}
+    jnl = relay.resolve_jnl(cur, trans_type, acct, fg, cost)
+    if jnl:
+        out["jnl"] = f"{jnl[0]}/{jnl[1] or '-'}"
+    else:
+        out["blocks"].append("분개코드 결정 불가")
+    # 반제방향(G1·G5)과 필수 관리항목(G6)은 guard_lines 에 한 줄짜리로 물어본다.
+    # 관리항목을 비워 보내므로 G6 이 곧 「이 방향의 필수 항목 목록」이 되고, G7(참조값)은 돌지 않는다.
+    # G2(차대 불균형)는 한 줄이라 당연히 뜨므로 버린다.
+    for b in relay.guard_lines(cur, [{"seq": 1, "acct": acct, "fg": fg, "amt": 0,
+                                      "cost": cost, "ctrls": []}]):
+        if b["code"] in ("G1", "G5"):
+            out["blocks"].append(f"{b['code']} {b['what']}")
+    out["req"] = [cd for cd, _nm in relay._REQ_CTRL.get((acct, fg), [])]
+    return out
+
+
+def run_accounts(args, url, key):
+    pairs = collect_pairs(url, key)
+    if not pairs:
+        print("포털 전표·템플릿에 계정이 없습니다.")
+        return 0
+    keys = sorted(pairs, key=lambda k: (k[0], k[1]))
+    print(f"계정 기준 판정 — 포털이 쓰는 (계정, 차대) {len(keys)}쌍. ERP·포털 어디에도 쓰지 않습니다.\n")
+
+    results = {}
+    targets = [("prod", prod_conn)] + ([] if args.no_demo else [("demo", relay.demo_conn)])
+    for tag, opener in targets:
+        _reset_caches()                    # DB 가 바뀌면 마스터 캐시를 반드시 비운다
+        conn = opener()
+        cur = ReadOnlyCursor(conn.cursor())
+        try:
+            results[tag] = {k: judge_account(cur, k[0], k[1], pairs[k]["cost"], args.trans_type) for k in keys}
+        finally:
+            try:
+                conn.rollback()
+            finally:
+                conn.close()
+    _reset_caches()
+
+    prod, demo = results["prod"], results.get("demo")
+
+    def cell(j):
+        if not j["exists"]:
+            return "✖ 계정 없음"
+        return ("✖ " + " · ".join(j["blocks"])) if j["blocks"] else f"✅ {j['jnl']}"
+
+    rows, n_ok, n_diff = [], 0, 0
+    for k in keys:
+        p, d = prod[k], (demo or {}).get(k)
+        ok = p["exists"] and not p["blocks"]
+        n_ok += ok
+        diff = bool(d) and (cell(p) != cell(d) or p["req"] != d["req"])
+        n_diff += diff
+        rows.append({"acct": k[0], "fg": k[1], "nm": p["nm"] or (d or {}).get("nm", ""),
+                     "sub": p["sub"], "used": pairs[k]["n"], "src": "·".join(sorted(pairs[k]["src"])),
+                     "prod": cell(p), "prod_req": p["req"],
+                     "demo": cell(d) if d else None, "demo_req": d["req"] if d else None,
+                     "diff": diff, "pass": ok})
+
+    for r in rows:
+        mark = "  " if not r["diff"] else "≠ "
+        print(f"{mark}{r['acct']} {('차변' if r['fg'] == 'DR' else '대변')} {r['nm'][:14]:<14} "
+              f"({r['sub'] or '일반'}, {r['used']}회·{r['src']})")
+        print(f"     운영 : {r['prod']}  필수[{','.join(r['prod_req']) or '-'}]")
+        if r["demo"] is not None:
+            print(f"     DEMO2: {r['demo']}  필수[{','.join(r['demo_req']) or '-'}]")
+    print(f"\n[계정 기준 판정 완료] {len(rows)}쌍 — 운영 통과 {n_ok} / 차단 {len(rows) - n_ok}"
+          + (f" · DEMO2 와 결과가 다른 쌍 {n_diff}" if demo else ""))
+    print("  ※ 거래유형 등록 여부·거래처 등 값 실존은 전표 단위 판정(--draft/--all)에서 본다.")
+    if args.json:
+        with open(args.json, "w", encoding="utf-8") as f:
+            json.dump({"mode": "accounts", "target": PROD_DB, "trans_type": args.trans_type, "rows": rows},
+                      f, ensure_ascii=False, indent=2)
+        print(f"  결과 파일: {args.json}")
+    return 0
+
+
 def main():
     ap = argparse.ArgumentParser(description="결의전표 운영(JEILMNS) 기준 판정 — 읽기 전용, ERP·포털 무변경")
     ap.add_argument("--draft", help="초안/참조번호 한 건")
     ap.add_argument("--all", action="store_true", help="제출됨·미적용 초안 전건")
+    ap.add_argument("--accounts", action="store_true",
+                    help="계정 기준 판정 — 포털 전표·템플릿의 (계정, 차대) 전수를 운영·DEMO2 로 비교(게이트 G7)")
+    ap.add_argument("--no-demo", action="store_true", help="--accounts 에서 DEMO2 비교 생략")
     ap.add_argument("--json", help="결과를 JSON 파일로도 저장")
     ap.add_argument("--trans-type", default=relay.TRANS_TYPE_DEFAULT,
                     help=f"거래유형(기본 {relay.TRANS_TYPE_DEFAULT})")
     args = ap.parse_args()
-    if not args.draft and not args.all:
-        ap.error("--draft 또는 --all 을 주세요")
+    if not (args.draft or args.all or args.accounts):
+        ap.error("--draft, --all, --accounts 중 하나를 주세요")
 
     load_env()
     url = need("SUPABASE_URL").rstrip("/")
     key = need("SUPABASE_SERVICE_ROLE_KEY")
+    if args.accounts:
+        return run_accounts(args, url, key)
     if args.draft:
         nos = [args.draft]
     else:

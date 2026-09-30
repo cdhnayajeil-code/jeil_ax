@@ -45,7 +45,9 @@ class FakeCur:
         elif "A_ACCT" in s:
             acct = params[0] if params else ""
             sub = {"21100901": "AP", "11103301": "TP"}.get(acct, "")
-            if "SUBSYS_TYPE" in s and "BAL_FG" in s:
+            if "ACCT_NM" in s and "SUBSYS_TYPE" in s and "BAL_FG" not in s:
+                self._rows = [("계정" + acct, sub)] if acct != "99999999" else []
+            elif "SUBSYS_TYPE" in s and "BAL_FG" in s:
                 self._rows = [(sub, "CR", "계정" + acct)]
             elif "SUBSYS_TYPE" in s:
                 self._rows = [(sub,)]
@@ -120,6 +122,49 @@ class JudgeTest(unittest.TestCase):
         relay._REF_HIT[("B_BIZ_PARTNER", "4624")] = False
         p._reset_caches()
         self.assertEqual(relay._REF_HIT, {})
+
+
+class AccountModeTest(unittest.TestCase):
+    def setUp(self):
+        p._reset_caches()
+
+    def test_collect_pairs_merges_sources(self):
+        data = {
+            "gl_draft_item": [{"acct_cd": "53013901 ", "dr_cr_fg": "D", "cost_cd": "C1"},
+                              {"acct_cd": "53013901", "dr_cr_fg": "D", "cost_cd": "C1"},
+                              {"acct_cd": "21100901", "dr_cr_fg": "C", "cost_cd": ""}],
+            "gl_template_item": [{"acct_cd": "53013901", "dr_cr_fg": "D"}],
+        }
+        orig = p.rest_get
+        p.rest_get = lambda url, key, path: data[path.split("?")[0]]
+        try:
+            pairs = p.collect_pairs("u", "k")
+        finally:
+            p.rest_get = orig
+        self.assertEqual(pairs[("53013901", "DR")]["n"], 3)
+        self.assertEqual(pairs[("53013901", "DR")]["src"], {"전표", "템플릿"})
+        self.assertEqual(pairs[("53013901", "DR")]["cost"], "C1")
+        self.assertIn(("21100901", "CR"), pairs)
+
+    def judge(self, acct, fg):
+        fake = FakeCur()
+        j = p.judge_account(p.ReadOnlyCursor(fake), acct, fg, "C1", "AX001")
+        self.assertTrue(all(s.strip().upper().startswith("SELECT") for s in fake.sqls))
+        return j
+
+    def test_ap_credit_passes_with_required_bp(self):
+        j = self.judge("21100901", "CR")
+        self.assertEqual(j["blocks"], [])
+        self.assertEqual(j["req"], ["BP"])
+        self.assertTrue(j["jnl"].startswith("AP/"))
+
+    def test_vat_credit_blocked_g1(self):
+        j = self.judge("11103301", "CR")
+        self.assertTrue(any(b.startswith("G1") for b in j["blocks"]))
+
+    def test_missing_account(self):
+        j = self.judge("99999999", "DR")
+        self.assertFalse(j["exists"])
 
 
 if __name__ == "__main__":
