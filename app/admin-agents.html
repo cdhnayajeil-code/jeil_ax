@@ -331,7 +331,8 @@ async function loadUsage() {
     k("캐시 적중", u.cache_hit_ratio == null ? "—" : Math.round(u.cache_hit_ratio * 100) + "%", "입력 토큰 중 캐시 읽기") +
     k("예비 모델 전환", u.turns ? Math.round(fbRate * 100) + "%" : "—", `${u.fallback}건 / ${u.turns}건 · 기본 모델 실패·예산 초과`, fbRate >= 0.5 ? "bad" : fbRate >= 0.2 ? "warn" : "") +
     k("골든셋 통과(현재 버전)", gRatio == null ? "—" : Math.round(gRatio * 100) + "%", cv && cv.golden_total ? `${cv.golden_pass}/${cv.golden_total} · ${fmtT(cv.golden_run_at)}` : "회귀 미실행", gRatio != null && gRatio < 0.6 ? "bad" : gRatio != null && gRatio < 0.8 ? "warn" : "") +
-    k("기본 모델", pm ? esc(pm.model_id) : "—", pm ? (pm.usable ? "호출 가능(키 등록됨)" : "호출 불가 — 예비 모델로 동작") : "", pm && !pm.usable ? "bad" : "") +
+    // 키가 등록돼도 벤더가 거부(400 등)하면 예비로 넘어간다 — 09-30 실측. 그래서 "호출 가능" 옆에 예비 전환율을 같이 본다
+    k("기본 모델", pm ? esc(pm.model_id) : "—", pm ? (!pm.usable ? "호출 불가(키 미등록) — 예비 모델로 동작" : fbRate >= 0.5 ? "키는 등록됐으나 예비 전환이 잦음 — 시험 대화의 fallback 사유 확인" : "호출 가능(키 등록됨)") : "", pm && (!pm.usable || fbRate >= 0.5) ? "bad" : "") +
     k("개선 대기", (B.improve_counts.inbox || 0) + (B.improve_counts.triage || 0), `접수 ${B.improve_counts.inbox || 0} · 분류 ${B.improve_counts.triage || 0}`, (B.improve_counts.inbox || 0) > 10 ? "warn" : "");
   if (TPL) renderMp();
   $("byDay").innerHTML = "";
@@ -717,7 +718,7 @@ function renderMp() {
   $("mpTbl").innerHTML = `<div class="cv-tblwrap"><table><tr><th>#</th><th>관리 포인트</th><th class="r">지금</th><th>판정</th><th>기준(주의 / 경고)</th><th>어디서 보나</th><th>조치</th><th>주기</th></tr>` +
     (TPL.common.management_points || []).map((mp) => {
       const [txt, cls] = judge(mp, m[mp.metric]);
-      return `<tr><td>${esc(mp.id)}</td><td>${esc(mp.name)}</td><td class="r"><b>${esc(txt)}</b></td><td>${cls ? `<span class="pill ${cls}">${JUDGE_KO[cls]}</span>` : '<span class="hint">자료 없음</span>'}</td>
+      return `<tr><td>${esc(mp.id)}</td><td>${esc(mp.name)}</td><td class="r"><b>${esc(txt)}</b></td><td>${cls ? `<span class="pill ${cls}">${JUDGE_KO[cls]}</span>` : mp.metric === "manual" ? '<span class="hint">대화 기록 표본으로 점검</span>' : '<span class="hint">자료 없음</span>'}</td>
         <td>${mp.warn != null ? esc(fmtMp(mp, mp.warn) + " / " + fmtMp(mp, mp.bad)) : "-"}</td><td>${esc(mp.where)}</td><td>${esc(mp.action)}</td><td>${esc(mp.cadence)}</td></tr>`;
     }).join("") + "</table></div>";
   const li = (ok, main, sub) => `<li><span class="${ok ? "ok" : "no"}">${ok ? "✔" : "✖"}</span><span><b>${esc(main)}</b>${sub ? `<div class="hint">${esc(sub)}</div>` : ""}</span></li>`;
