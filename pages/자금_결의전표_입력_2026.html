@@ -585,11 +585,8 @@
     </div>
 
     <div class="banner">
-      <b>이 화면에서 작성한 전표는 <u>아직 ERP에 들어가지 않은</u> 상태입니다.</b> 제출하면 <b>[ERP 전송]</b> 단계로 넘어가고,
-      담당자가 확인해 전송하면 ERP가 전표를 만들어 번호를 이 화면에 돌려줍니다 —
-      사람이 ERP에 다시 입력하지 않습니다. 등록자는 회원님의 MS 계정과 연결된 ERP 사용자 ID입니다.
-      저장하는 순간 <b>참조번호</b>(예: <code>AX260827-U012-001</code>)가 붙고, 그 뒤의 진행은
-      <b>[내 이력]</b> 탭에서 그 번호로 추적합니다.
+      <b>여기서 쓴 전표는 아직 ERP에 없습니다.</b> 작성 → 제출 → <b>[ERP 전송]</b> → ERP가 전표번호를 돌려줍니다(사람이 다시 입력하지 않습니다).
+      저장하면 <b>참조번호</b> <code>AX260827-U012-001</code> 가 붙고, 이후 진행은 <b>[내 이력]</b> 탭에서 이 번호로 봅니다.
     </div>
     <div class="banner err hide" id="warnBox"></div>
 
@@ -616,7 +613,7 @@
         <button type="button" class="sb" id="sbTpl">
           <b>템플릿 사용</b><small id="sbTplCnt">자주 쓰는 분개</small></button>
         <span class="sp"></span>
-        <span class="hint" id="startHint">지금은 빈 전표입니다 — 아래 서식에 바로 입력하셔도 됩니다</span>
+        <span class="hint" id="startHint">빈 전표입니다 — 아래 서식에 바로 입력하세요</span>
       </div>
 
       <div class="sec hide" id="recurSec">
@@ -628,7 +625,7 @@
 
       <div class="sec hide" id="tplStartSec">
         <h2>템플릿으로 시작
-          <small>자주 쓰는 분개 형태를 고르면 계정·적요·금액 배분이 자동으로 채워집니다</small>
+          <small>고르면 계정·제목·금액이 자동으로 채워집니다</small>
           <span style="margin-left:auto;display:flex;gap:7px;align-items:center;">
             <input type="text" id="tplSearch" placeholder="템플릿 검색"
                    style="border:1.5px solid var(--line);border-radius:8px;padding:6px 11px;font-family:inherit;font-size:12.5px;width:150px;">
@@ -663,7 +660,7 @@
           <div class="fld">
             <label>전표형태<span class="req">*</span></label>
             <select id="fType"></select>
-            <span class="hint">ERP 실측 확정(2026-08-03) — 2026년 결의전표 2,947건 전량 <code>03</code></span>
+            <span class="hint">결의전표는 <code>03</code> 하나만 씁니다</span>
           </div>
           <div class="fld">
             <label>등록자 (자동)</label>
@@ -685,7 +682,7 @@
             <span class="hint" id="fProjHint"></span>
           </div>
           <div class="fld wide">
-            <label>적요<span class="req">*</span></label>
+            <label>제목<span class="req">*</span> <small style="font-weight:400;">— ERP 결의전표의 「제목」</small></label>
             <input type="text" id="fDesc" maxlength="200" placeholder="예: 7월 출장 여비교통비 정산">
           </div>
         </div>
@@ -693,8 +690,7 @@
 
       <div class="sec">
         <h2><span class="step">2</span> 전표 서식
-          <small>ERP 결의전표 서식 그대로 — 금액을 <b>차변·대변 칸에 직접</b> 쓰면 차대가 정해집니다 ·
-                 계정·거래처는 클릭해 검색 · 관리항목은 같은 줄 안에서 바로 입력</small>
+          <small>금액을 <b>차변·대변 칸에 직접</b> 쓰면 차대가 정해집니다 · 계정·거래처는 클릭해 검색</small>
           <span style="margin-left:auto;display:flex;gap:7px;">
             <button class="b gh sm" id="btnAddRow">+ 행 추가</button>
             <button class="b gh sm" id="btnFillDiff">선택 행에 차액 채우기</button>
@@ -729,17 +725,15 @@
     <!-- ═══ 전표복사 (ERP 전표복사 메뉴와 동일 흐름) ═══ -->
     <div id="paneCopy" class="hide">
       <div class="banner" style="background:#eef4fb;border-color:#c9dcf1;border-left-color:var(--accent);color:#2a4a6b;">
-        <b>본인이 ERP에서 입력한 결의전표</b>만 표시됩니다(ERP 계정 ↔ MS 계정 1:1 연결).
-        전표를 골라 복사하면 <b>전표 작성</b> 탭에 계정·금액·적요·거래처·관리항목이 채워지고,
-        결의일자는 오늘로 새로 잡힙니다. 내용을 수정한 뒤 새 전표로 저장하세요(참조번호는 새로 붙습니다).
-        데이터는 야간 동기화 사본이라 방금 ERP에 저장한 전표는 다음 동기화 후에 보입니다.
+        <b>내가 ERP에 입력한 전표</b>만 나옵니다. 고르면 계정·금액·제목·비고·거래처·관리항목이 그대로 채워지고
+        <b>결의일자만 오늘로</b> 바뀝니다. 야간 동기화 사본이라 방금 저장한 전표는 다음 날 보입니다.
       </div>
       <div class="sec">
         <h2>내 ERP 전표 조회 <small id="slipAsOf"></small></h2>
         <div class="applybox" style="margin-top:0;">
           <div class="fld"><label>결의일자 시작</label><input type="date" id="slipFrom" style="width:150px;"></div>
           <div class="fld"><label>결의일자 종료</label><input type="date" id="slipTo" style="width:150px;"></div>
-          <div class="fld" style="flex:1;min-width:180px;"><label>적요·전표번호 검색</label>
+          <div class="fld" style="flex:1;min-width:180px;"><label>제목·전표번호 검색</label>
             <input type="text" id="slipQ" placeholder="예: 출장 / TG202608"></div>
           <div class="fld"><label>입력경로</label>
             <select id="slipType" style="width:140px;">
@@ -843,35 +837,36 @@
               <select id="tCategory" data-search="on"></select>
               <input type="text" id="tCategoryNew" class="hide" maxlength="30" placeholder="새 분류 이름 (예: 경비)">
             </div>
-            <span class="hint">이미 쓰는 분류에서 고릅니다 — 없으면 <b>+ 새 분류 직접 입력</b>을 골라 새로 만드세요. 같은 분류끼리 묶여서 표시됩니다.</span>
+            <span class="hint">없으면 <b>+ 새 분류 직접 입력</b>으로 만듭니다</span>
           </div>
           <div class="fld">
-            <label>공개 범위<span class="req">*</span></label>
+            <label>누가 쓰나<span class="req">*</span></label>
             <select id="tScope">
-              <option value="user">개인 — 나만 사용</option>
-              <option value="dept">부서 — 해당 부서 구성원</option>
-              <option value="org">전사 — 모든 사용자</option>
+              <option value="user">나만</option>
+              <option value="dept">우리 부서 전체</option>
+              <option value="org">전 직원</option>
             </select>
-            <span class="hint" id="tScopeHint">전사·부서 템플릿은 관리자·회계 담당자만 만들 수 있습니다</span>
+            <span class="hint" id="tScopeHint"></span>
           </div>
           <div class="fld hide" id="tDeptFld">
             <label>대상 부서<span class="req">*</span></label>
             <select id="tDept" data-search="on"></select>
           </div>
           <div class="fld">
-            <label>금액 입력 방식</label>
+            <label>금액 넣는 법</label>
             <select id="tAmountMode">
-              <option value="total">총액 1칸 입력 → 규칙대로 배분</option>
-              <option value="manual">라인별로 직접 입력</option>
+              <option value="total">총액 1칸 → 줄마다 자동 배분</option>
+              <option value="manual">줄마다 직접 입력</option>
             </select>
           </div>
           <div class="fld">
-            <label>상태</label>
+            <label>사용 상태</label>
             <select id="tStatus">
-              <option value="draft">비공개(작성중) — 작성 탭 목록에 안 보임</option>
-              <option value="active">공개 — 작성 탭에서 선택 가능</option>
-              <option value="archived">보관</option>
+              <option value="active">사용중 — 전표 작성에서 고를 수 있음</option>
+              <option value="draft">준비중 — 만드는 중, 목록에 안 나옴</option>
+              <option value="archived">보관 — 이제 안 씀</option>
             </select>
+            <span class="hint">다 만들었으면 <b>사용중</b>으로 바꿔야 전표 작성 목록에 나옵니다</span>
           </div>
           <div class="fld">
             <label>기본 코스트센터</label>
@@ -882,40 +877,38 @@
             <input type="number" id="tSort" value="100">
           </div>
           <div class="fld">
-            <label>월반복</label>
+            <label>매달 쓰는 전표</label>
             <select id="tRecur">
-              <option value="">아니오 — 일반 템플릿</option>
-              <option value="monthly">예 — 매달 반복(작성 탭 상단 카드·미작성 배지)</option>
+              <option value="">아니오</option>
+              <option value="monthly">예 — 작성 탭 맨 위에 이번 달 카드로 표시</option>
             </select>
           </div>
           <div class="fld">
-            <label>적요 월 표기</label>
+            <label>제목의 월 기준</label>
             <select id="tMonthOffset">
-              <option value="0">당월 — 8월에 쓰면 "8월"</option>
-              <option value="-1">전월분 — 8월에 쓰면 "7월분"</option>
+              <option value="0">이번 달 — 8월에 쓰면 「8월」</option>
+              <option value="-1">지난 달 — 8월에 쓰면 「7월」</option>
             </select>
-            <span class="hint">적요 제목의 월 숫자를 자동으로 갱신할 때의 기준</span>
           </div>
           <div class="fld wide">
-            <label>적요 제목 틀 <small style="font-weight:400;">— 아래 버튼을 눌러 월 토큰을 넣으세요</small></label>
+            <label>제목 <small style="font-weight:400;">— ERP 결의전표의 「제목」 칸에 그대로 들어갑니다</small></label>
             <input type="text" id="tTitlePattern" maxlength="200" placeholder="예: (주)쿠콘 {YY}년{M}월분 국세청 스크래핑외">
             <div class="tokbar" id="tokTitle"></div>
-            <span class="hint">토큰은 <b>반드시 중괄호</b>로 감싸야 합니다 — <code>YY년</code>은 그냥 글자, <code>{YY}년</code>이라야 월이 채워집니다.
-              라인 적요·기본 적요·관리항목 고정값에서도 똑같이 치환됩니다.</span>
+            <span class="hint">월을 자동으로 바꾸려면 <code>{YY}</code>·<code>{M}</code>처럼 <b>중괄호</b>로 감싸세요 — <code>YY년</code>은 글자 그대로 찍힙니다</span>
           </div>
           <div class="fld wide">
-            <label>설명 <small style="font-weight:400;">— 언제 쓰는 템플릿인지</small></label>
-            <input type="text" id="tDescr" maxlength="200" placeholder="예: 국내 출장 후 개인이 선지출한 교통비·숙박비를 정산할 때">
-          </div>
-          <div class="fld wide">
-            <label>기본 적요 <small style="font-weight:400;">— 제목 틀이 없을 때 쓰는 적요. 여기에도 월 토큰이 먹습니다</small></label>
+            <label>비고 기본값 <small style="font-weight:400;">— ERP 줄의 「비고」. 줄에 따로 안 적으면 이 문구가 들어갑니다</small></label>
             <input type="text" id="tDescTmpl" maxlength="200" placeholder="예: 국내 출장 여비 정산">
             <div class="tokbar" id="tokDesc"></div>
+          </div>
+          <div class="fld wide">
+            <label>템플릿 설명 <small style="font-weight:400;">— 목록에서 고를 때 보이는 안내. <b>ERP로 가지 않습니다</b></small></label>
+            <input type="text" id="tDescr" maxlength="200" placeholder="예: 국내 출장 후 개인이 선지출한 교통비·숙박비를 정산할 때">
           </div>
         </div>
 
         <h2 style="margin-top:18px;">템플릿 라인
-          <small>금액 규칙 — 입력: 사용자가 직접 · 비율: 총액×%(정수 반올림) · 고정: 정액 · 차액: 나머지 자동</small>
+          <small>금액 규칙 — <b>직접 입력</b> 작성할 때 손으로 · <b>비율</b> 총액의 % · <b>고정액</b> 정해진 금액 · <b>차액</b> 나머지 자동</small>
           <span style="margin-left:auto;display:flex;gap:7px;">
             <button class="b gh sm" id="btnTAddRow">+ 행 추가</button>
             <button class="b gh sm" id="btnTDelRow">선택 행 삭제</button>
@@ -924,21 +917,19 @@
         <div id="tplItemGrid"></div>
 
         <h2 style="margin-top:18px;">전표 서식 · 관리항목 지정
-          <small>ERP 결의전표 출력 서식 그대로 — <b>관리항목 칸을 클릭</b>하면 규칙(고정값·매번 입력·다음 달)을 정할 수 있습니다</small>
+          <small>ERP 출력 서식 그대로 — <b>관리항목 칸을 클릭</b>해 자동으로 채울 값을 정합니다</small>
         </h2>
         <div style="overflow-x:auto;"><div id="tplForm" style="min-width:820px;"></div></div>
         <div style="font-size:11.5px;color:var(--muted);margin-top:7px;line-height:1.7;">
-          <b style="color:var(--navy);">고정값</b> 매번 같은 값을 자동으로 채움 ·
-          <b style="color:var(--amber);">다음 달</b> 지난 값 기준 +1개월(만기일·계산서일 등) ·
-          <b style="color:var(--accent);">매번 입력</b>·<span style="color:#b6c0cc;font-weight:700;">지정 안 함</span>
-          은 작성 시 사람이 채웁니다(동작은 같고, 표기로 의도만 구분) ·
-          <span style="color:var(--red);font-weight:700;">*</span> 는 ERP 필수 항목 —
-          자동으로 채우고 싶은 칸만 <b>고정값</b>으로 지정하면 됩니다.
+          <b style="color:var(--navy);">고정값</b> 매번 같은 값 ·
+          <b style="color:var(--amber);">다음 달</b> 지난 값 +1개월(만기일 등) ·
+          <b style="color:var(--accent);">매번 입력</b>·<span style="color:#b6c0cc;font-weight:700;">지정 안 함</span> 작성할 때 사람이 채움 ·
+          <span style="color:var(--red);font-weight:700;">*</span> ERP 필수
         </div>
 
         <div class="btns">
           <button class="b pri" id="btnTSave">템플릿 저장</button>
-          <button class="b ok" id="btnTPublish">공개</button>
+          <button class="b ok" id="btnTPublish">사용 시작</button>
           <button class="b gh" id="btnTDelete">삭제</button>
           <button class="b gh" id="btnTClose">닫기</button>
         </div>
@@ -952,11 +943,8 @@
           <small>참조번호로 추적합니다 · 작성중인 건을 눌러 이어서 수정할 수 있습니다</small></h2>
         <div style="overflow-x:auto;"><table class="tbl" id="mineTbl"></table></div>
         <div style="font-size:11.5px;color:var(--muted);margin-top:8px;line-height:1.7;">
-          <b style="color:var(--navy);">참조번호</b>는 저장할 때 자동으로 붙습니다 —
-          <code>AX</code>(AX 포털) · <code>260827</code>(작성일) ·
-          <code>U012</code>(작성자 고정코드) · <code>001</code>(그날 순번).
-          사람마다 코드가 달라 같은 날 여러 사람이 작성해도 번호가 겹치지 않고,
-          이 번호는 ERP 전표의 참조번호(<code>REF_NO</code>)로 그대로 들어가 나중에 되짚을 수 있습니다.
+          <b style="color:var(--navy);">참조번호</b> <code>AX260827-U012-001</code> =
+          포털 · 작성일 · 작성자 · 그날 순번. 저장할 때 자동으로 붙고, ERP 전표의 <code>REF_NO</code> 로 그대로 들어갑니다.
         </div>
       </div>
     </div>
@@ -1066,12 +1054,12 @@ let ME = null, MASTER = { accounts:[], cost_centers:[], depts:[] };
    참조번호 채번규칙 정본: 이관/sql/32_gl_draft_no_rule.sql (AX{YYMMDD}-U{작성자}-{순번}) */
 let CURRENT_NO = null;            // 수정 중인 참조번호(신규면 null — 저장 시 서버가 채번)
 let POST_SEL = null;              // 회계 담당자 화면에서 선택한 전표
-let TPLS = [];                    // 선택 가능한 템플릿(공개 상태)
+let TPLS = [];                    // 전표 작성에서 고를 수 있는 템플릿(사용중)
 let TPL_SEL = null;               // 작성 화면에서 고른 템플릿
 let TPL_CAT = "";                 // 분류 칩 필터("" = 전체)
 let CAN_MANAGE_TPL = false;       // 전사·부서 템플릿 편집 권한(관리자·회계 담당자)
 let TGRID = null, TPL_EDIT = null;// 템플릿 관리 탭의 라인 그리드 / 편집 중인 템플릿
-let TPL_MGR = [];                 // 템플릿 관리 탭 목록(비공개 포함) — 분류 선택지의 출처
+let TPL_MGR = [];                 // 템플릿 관리 탭 목록(준비중·보관 포함) — 분류 선택지의 출처
 /* v4 — 월반복·관리항목 */
 let CTRLM = { ctrl_items:[], acct_ctrl:[] };  // 관리항목 마스터(bootstrap)
 const CTRL_BY_ACCT = new Map();               // acct_cd → [{cd,seq,dr,cr}]
@@ -1093,7 +1081,7 @@ function shiftMonth(iso){
 }
 /* ═══ 월 토큰 치환 — {YYYY}·{YY}·{MM}·{M} ═══
    지금까지는 월반복(회차) 경로에서 제목 틀에만 걸렸다. 일반 템플릿을 [적용]해도 토큰이
-   그대로 남아 "{YY}년{M}월분"이 적요에 찍히던 것이 결함이었다 — 이제 적요·라인 적요·
+   그대로 남아 "{YY}년{M}월분"이 제목에 찍히던 것이 결함이었다 — 이제 제목·줄 비고·
    관리항목 고정값까지 같은 규칙으로 치환한다(fmtTok).
    {YY}·{MM} 은 두 자리로 채운다(2026→26, 8월→08). 대소문자·{ M } 같은 공백 표기도 받는다. */
 const TOK_RE = /\{\s*(YYYY|YY|MM|M)\s*\}/gi;
@@ -1142,7 +1130,7 @@ function braceBareToks(str){
 }
 
 /* 템플릿 한 건에서 중괄호를 빠뜨린 토큰을 모은다 — 목록에서 문제 건을 바로 알리는 데 쓴다.
-   토큰이 먹는 자리 전부를 본다: 제목 틀·기본 적요·라인 적요·관리항목 고정값. */
+   토큰이 먹는 자리 전부를 본다: 제목·비고 기본값·줄 비고·관리항목 고정값. */
 function tplBareToks(t){
   const found = [];
   const scan = (v)=> found.push(...bareTokList(v));
@@ -1172,7 +1160,7 @@ function tplIssues(t){
 
 /* ═══ 월 토큰 입력 도구 ═══
    토큰을 외워 손으로 적게 하지 않는다 — 버튼으로 넣고, 이번 달 기준으로 무엇이 찍히는지
-   바로 보여주고, 중괄호를 빠뜨렸으면 한 번에 고쳐 준다. 제목 틀·기본 적요·관리항목 고정값에
+   바로 보여주고, 중괄호를 빠뜨렸으면 한 번에 고쳐 준다. 제목·비고 기본값·관리항목 고정값에
    같은 도구를 붙인다(토큰이 먹는 자리는 모두 같은 조작). */
 const TOK_CHIPS = [["{YYYY}","연도 4자리"], ["{YY}","연도 2자리"], ["{MM}","월 2자리"], ["{M}","월"]];
 function tokMonthBase(){
@@ -1460,7 +1448,7 @@ function fillHeader(locked){
   $("fDt").addEventListener("change", ()=>{
     const ym = $("fDt").value.slice(0,7);
     if(locked.includes(ym)) toast(ym+" 은(는) 마감된 회계기간입니다. 다른 날짜를 선택하세요.", true);
-    // 월 토큰의 기준이 결의일자다 — 날짜를 바꾸면 템플릿 미리보기의 적요도 따라 바뀐다
+    // 월 토큰의 기준이 결의일자다 — 날짜를 바꾸면 템플릿 미리보기의 제목도 따라 바뀐다
     if(TPL_SEL) $("tplPreview").innerHTML = tplFormHtml(TPL_SEL);
   });
   // 전표형태 — A2 승인 후 ERP 실측으로 확정(2026-08-03).
@@ -1920,9 +1908,9 @@ function renderDraftForm(){
       + '<td class="anm">'+(r.acct_cd ? esc(r.acct_nm||"(계정명 없음)") : '<span style="color:#b6c0cc;">계정 미선택</span>')+'</td>'
       + cell(3) + cell(4) + cell(5) + cell(6) + '</tr>'
       + '<tr class="dscrow'+eCls+'">'
-      + '<td class="dsccell" colspan="3"><span class="minilbl">적요</span>'
+      + '<td class="dsccell" colspan="3"><span class="minilbl">비고</span>'
         + '<input type="text" data-f="desc" data-seq="'+seq+'" maxlength="200" value="'+esc(r.item_desc||"")+'"'
-        + ' placeholder="이 줄의 적요(비우면 전표 적요를 씁니다)"></td>'
+        + ' placeholder="이 줄의 비고(비우면 위의 제목을 씁니다)"></td>'
       + '<td class="dsccell"><span class="minilbl">거래처</span>'
         + '<button type="button" class="pick'+((r.bp_cd||r.bp_nm)?" has":"")+'" data-act="bp" data-seq="'+seq+'">'
         + esc(r.bp_nm || r.bp_cd || "🔍 선택")+'</button></td>'
@@ -1943,7 +1931,7 @@ function renderDraftForm(){
   });
   const drT = ROWS.reduce((s,r)=> s + (r.dr_cr_fg==="D" ? numAmt(r.item_amt) : 0), 0);
   const crT = ROWS.reduce((s,r)=> s + (r.dr_cr_fg==="C" ? numAmt(r.item_amt) : 0), 0);
-  const title = $("fDesc").value.trim() || "(적요 — 상단 ① 기본정보에 입력)";
+  const title = $("fDesc").value.trim() || "(제목 — 위 ① 전표 헤더에 입력)";
   box.innerHTML = '<div id="vfTitle" style="text-align:center;font-size:15px;font-weight:800;color:var(--navy);'
       + 'padding:10px 8px 12px;border:1.5px solid #b9c7da;border-bottom:none;background:#fff;">'+esc(title)+'</div>'
     + '<table class="vform"><thead>'
@@ -2075,10 +2063,10 @@ function vatOnCtrl(row, cd){
   }
   return false;
 }
-// 전표 적요를 고치면 서식 상단 제목도 따라간다(제목 칸만 갱신 — 입력 중 포커스 유지)
+// 제목을 고치면 서식 상단도 따라간다(제목 칸만 갱신 — 입력 중 포커스 유지)
 $("fDesc").addEventListener("input", ()=>{
   const t = $("vfTitle");
-  if(t) t.textContent = $("fDesc").value.trim() || "(적요 — 상단 ① 기본정보에 입력)";
+  if(t) t.textContent = $("fDesc").value.trim() || "(제목 — 위 ① 전표 헤더에 입력)";
 });
 
 /* 입력 — 모델만 고치고 화면은 최소 범위만 갱신한다(재렌더하면 포커스가 날아간다) */
@@ -2557,8 +2545,8 @@ async function startRecur(t){
   CURRENT_TPL = { tpl_id: t.tpl_id, use_ym: t.ym };
   const tpl = d.tpl || {}, prev = d.prev;
 
-  // 적요 — 제목 틀(토큰)이 있으면 회차+오프셋으로 치환, 없으면 전월 적요를 그대로(사용자 수정)
-  // 제목 틀이 없으면 전월 적요(실적) → 기본 적요 순. 기본 적요에도 토큰이 있을 수 있어 함께 치환한다.
+  // 제목 — 템플릿 제목(토큰)이 있으면 회차+오프셋으로 치환, 없으면 전월 제목을 그대로(사용자 수정)
+  // 제목이 비어 있으면 전월 제목(실적) → 비고 기본값 순. 비고 기본값에도 토큰이 있을 수 있어 함께 치환한다.
   const title = tpl.title_pattern ? fmtTitle(tpl.title_pattern, t.ym, tpl.month_offset)
               : fmtTok(prev?.header?.gl_desc || tpl.desc_tmpl || "", t.ym, tpl.month_offset);
   $("fDesc").value = title;
@@ -2601,7 +2589,7 @@ async function startRecur(t){
     PREV_SNAP = null;
     const newRows = (tpl.items||[]).map((it)=>{
       const ctrl = {};
-      // 라인 적요·관리항목 고정값도 회차 월로 치환한다(헤더 적요와 같은 규칙)
+      // 줄 비고·관리항목 고정값도 회차 월로 치환한다(제목과 같은 규칙)
       (it.ctrls||[]).forEach((c)=>{ if(c.val_rule==="fixed" && c.fixed_val!=null) ctrl[c.ctrl_cd]=fmtTok(c.fixed_val, t.ym, tpl.month_offset); });
       return { dr_cr_fg:it.dr_cr_fg, acct_cd:it.acct_cd, acct_nm:it.acct_nm,
                item_amt: it.amt_rule==="fixed" ? String(it.amt_value||"") : "",
@@ -2639,7 +2627,15 @@ function loadDraftIntoForm(r){
 /* ═══ 템플릿 — 선택·적용 ═══
    템플릿은 "분개 형태"만 담는다. 적용해도 검증은 그대로다(서버 재검증 통과 필요). */
 const SCOPE_KO = { org:"전사", dept:"부서", user:"개인" };
-const RULE_KO  = { input:"입력", pct:"비율", fixed:"고정", balance:"차액" };
+const RULE_KO  = { input:"직접 입력", pct:"비율", fixed:"고정액", balance:"차액 자동" };
+/* 「공개/비공개」라는 말을 쓰지 않는다 — 바로 옆에 있는 '공개 범위(누가 쓰나)'와 뜻이 겹쳐
+   무엇을 가리키는지 알 수 없었다(2026-09-30 관리자 지적 · REQ-0096).
+   보이는 말만 바꾼다 — DB 값은 그대로 active / draft / archived. */
+const ST_KO = { active:"사용중", draft:"준비중", archived:"보관" };
+function tplStatusHtml(st){
+  const cls = st==="active" ? 'pill posted' : st==="archived" ? 'tag' : 'tag draft';
+  return '<span class="'+cls+'">'+(ST_KO[st] || ST_KO.draft)+'</span>';
+}
 
 function tplCats(){
   const s = new Set(TPLS.map((t)=> t.category||"").filter(Boolean));
@@ -2658,13 +2654,12 @@ function renderTplCards(){
 
   const box = $("tplList");
   if(!list.length){
-    // 이 목록에는 '공개' 상태 템플릿만 나온다 — 비공개(작성중)로 저장해 두고
-    // "만들었는데 안 보인다"고 오해하기 쉬우므로 어디서 공개하는지까지 알려준다.
+    // 여기에는 '사용중' 템플릿만 나온다 — 준비중으로 저장해 두고 "만들었는데 안 보인다"가 되기 쉬워
+    // 어디서 사용중으로 바꾸는지까지 적는다.
     box.innerHTML = '<div style="grid-column:1/-1;color:var(--muted);font-size:12.5px;padding:14px 0;">'
       + (TPLS.length ? '조건에 맞는 템플릿이 없습니다.'
-                     : '사용할 수 있는 템플릿이 없습니다. <b>[템플릿 관리]</b> 탭에서 만들거나, '
-                       + '<b>비공개(작성중)</b>로 저장해 둔 템플릿이 있다면 열어서 <b>[공개]</b>를 눌러 주세요 — '
-                       + '이 목록에는 공개된 템플릿만 표시됩니다.')
+                     : '쓸 수 있는 템플릿이 없습니다 — <b>[템플릿 관리]</b> 탭에서 만들거나, '
+                       + '「준비중」으로 둔 템플릿을 열어 <b>[사용 시작]</b>을 누르세요.')
       + '</div>';
     return;
   }
@@ -2673,7 +2668,7 @@ function renderTplCards(){
     + '<div class="nm">'+esc(t.tpl_nm)+' <span class="tag '+esc(t.scope)+'">'+SCOPE_KO[t.scope]+'</span></div>'
     + (t.descr?'<div class="ds">'+esc(t.descr)+'</div>':'')
     + '<div class="ln">'+(t.items||[]).length+'줄 · '
-    + (t.amount_mode==="total"?"총액 입력":"라인별 입력")
+    + (t.amount_mode==="total"?"총액 배분":"줄마다 입력")
     + (t.use_cnt?' · '+t.use_cnt+'회 사용':'')+'</div></div>').join("");
 }
 $("tplChips").onclick = (e)=>{
@@ -2732,7 +2727,7 @@ function tplFormHtml(t){
       + cell(3)+cell(4)+cell(5)+cell(6)+'</tr>';
   }).join("");
   return (pvDesc
-      ? '<div style="font-size:12px;color:var(--muted);margin-bottom:6px;">적요 <b style="color:var(--navy);font-size:13px;">'
+      ? '<div style="font-size:12px;color:var(--muted);margin-bottom:6px;">제목 <b style="color:var(--navy);font-size:13px;">'
         + esc(pvDesc) + '</b>'
         + (hasTok(t.title_pattern || t.desc_tmpl || "")
             ? '<span style="margin-left:8px;font-size:11px;">— ' + esc(pvYm) + ' 기준으로 치환됨</span>' : '')
@@ -2752,7 +2747,7 @@ $("btnTplClear").onclick = ()=>{ TPL_SEL=null; $("tplApply").classList.add("hide
 
 /* 총액 → 라인 금액 배분.
    fixed·pct 를 먼저 확정하고, 차액(balance) 라인은 남은 금액으로 채운다.
-   총액이 없으면 금액은 비워 둔 채 계정·적요만 채운다(형태만 가져오기). */
+   총액이 없으면 금액은 비워 둔 채 계정·비고만 채운다(형태만 가져오기). */
 function spreadAmounts(items, total, prevRatio){
   const out = items.map((it)=> ({ ...it }));
   const fixedSum = { D:0, C:0 };
@@ -2868,7 +2863,7 @@ async function applyTpl(){
   const ym = draftYm(), moff = t.month_offset;
   // 헤더 기본값 — 비어 있는 칸만 채운다(사용자가 이미 적은 값을 덮지 않는다)
   if(t.gl_type) $("fType").value = t.gl_type;
-  // 적요는 제목 틀이 있으면 그것을, 없으면 기본 적요를 쓴다 — 어느 쪽이든 {YYYY}·{YY}·{MM}·{M} 치환
+  // 제목은 템플릿 제목이 있으면 그것을, 없으면 비고 기본값을 쓴다 — 어느 쪽이든 {YYYY}·{YY}·{MM}·{M} 치환
   const headDesc = fmtTitle(t.title_pattern || t.desc_tmpl || "", ym, moff);
   if(headDesc && !$("fDesc").value.trim()) $("fDesc").value = headDesc;
   if(t.cost_cd){ renderCostOptions(); $("fCost").value = t.cost_cd; }
@@ -3077,6 +3072,13 @@ async function save(){
   const nonEmpty = rows().filter((r)=> r.acct_cd || String(r.item_amt||"").trim() || r.dr_cr_fg);
   if(nonEmpty.length !== rows().length) setRows(nonEmpty);
   const p = collect();
+  // 제목은 ERP 필수(TEMP_GL_DESC) — 서버도 막지만 그 안내문이 옛 이름('적요')이라
+  // 화면이 먼저 잡아 지금 이름으로 알린다.
+  if(!p.header.gl_desc){
+    toast("제목을 입력하세요 — ① 전표 헤더의 「제목」 칸입니다.", true);
+    $("fDesc").focus(); $("fDesc").scrollIntoView({ behavior:"smooth", block:"center" });
+    return null;
+  }
   if(!validateRows()) return null;
   try{
     const r = await api("save", { ...p, draft_no: CURRENT_NO });
@@ -3092,7 +3094,7 @@ function submitSummary(){
   const lines = ["── 제출 전 확인 ──",
     "총액(차변): "+won(total)+"원",
     "결의일자: "+p.header.draft_dt + (CURRENT_TPL ? " · 처리 회차: "+CURRENT_TPL.use_ym : ""),
-    "적요: "+p.header.gl_desc];
+    "제목: "+p.header.gl_desc];
   p.items.forEach((it,i)=>{
     (it.ctrls||[]).forEach((c)=>{
       if(DATE_CTRLS.has(c.ctrl_cd)){
@@ -3214,7 +3216,7 @@ function renderSlips(){
   t.innerHTML = '<colgroup><col style="width:150px"><col style="width:96px"><col>'
     + '<col style="width:120px"><col style="width:60px"><col style="width:82px">'
     + '<col style="width:74px"><col style="width:100px"></colgroup>'
-    + '<thead><tr><th>전표번호</th><th>결의일자</th><th>적요</th><th class="r">금액</th><th>라인</th><th>입력경로</th><th>승인</th><th>복사</th></tr></thead><tbody>'
+    + '<thead><tr><th>전표번호</th><th>결의일자</th><th>제목</th><th class="r">금액</th><th>라인</th><th>입력경로</th><th>승인</th><th>복사</th></tr></thead><tbody>'
     + list.map((x)=>
       '<tr class="clk" data-no="'+esc(x.temp_gl_no)+'">'
       + '<td class="mono">'+esc(x.temp_gl_no)+'</td><td class="nw">'+esc(x.temp_gl_dt||"")+'</td>'
@@ -3251,12 +3253,12 @@ $("slipTbl").onclick = async (e)=>{
     $("slipSummary").innerHTML = [
       ["결의일자", h.temp_gl_dt||"—"], ["전표형태", h.gl_type||"—"],
       ["입력경로", h.gl_input_type||"—"], ["승인여부", CONF_KO[String(h.conf_fg||"").trim()]||h.conf_fg||"—"],
-      ["적요", h.temp_gl_desc||"—"], ["부서코드", h.dept_cd||"—"],
+      ["제목", h.temp_gl_desc||"—"], ["부서코드", h.dept_cd||"—"],
       ["코스트센터", h.cost_cd||"—"],
       ["차변 합계", won(Math.round(Number(h.dr_loc_amt)||0))],
       ["정식 전표번호", h.gl_no||"(전기 전)"],
     ].map(([k,v])=>'<div class="row"><span class="k">'+esc(k)+'</span><span class="v">'+esc(v)+'</span></div>').join("");
-    $("slipItems").innerHTML = '<thead><tr><th>순번</th><th>차대</th><th>계정과목</th><th class="r">금액</th><th class="r">부가세</th><th>적요</th><th>거래처</th><th>코스트센터</th><th>프로젝트</th></tr></thead><tbody>'
+    $("slipItems").innerHTML = '<thead><tr><th>순번</th><th>차대</th><th>계정과목</th><th class="r">금액</th><th class="r">부가세</th><th>비고</th><th>거래처</th><th>코스트센터</th><th>프로젝트</th></tr></thead><tbody>'
       + (r.items||[]).map((it)=>{
           const fg = slipFg(it.dr_cr_fg);
           const acctBad = !it.acct_in_master;
@@ -3344,7 +3346,7 @@ async function loadMine(){
     t.innerHTML = '<colgroup><col style="width:158px"><col style="width:96px"><col>'
       + '<col style="width:110px"><col style="width:110px"><col style="width:74px">'
       + '<col style="width:140px"><col style="width:120px"></colgroup>'
-      + '<thead><tr><th>참조번호</th><th>결의일자</th><th>적요</th><th class="r">차변</th><th class="r">대변</th><th>상태</th><th>ERP 전표번호</th><th>ERP 적용</th></tr></thead><tbody>'
+      + '<thead><tr><th>참조번호</th><th>결의일자</th><th>제목</th><th class="r">차변</th><th class="r">대변</th><th>상태</th><th>ERP 전표번호</th><th>ERP 적용</th></tr></thead><tbody>'
       + r.rows.map((x)=>
         '<tr class="'+(x.status==="draft"?"clk":"")+'" data-no="'+esc(x.draft_no)+'" data-st="'+esc(x.status)+'">'
         + '<td class="mono">'+esc(x.draft_no)+'</td><td class="nw">'+esc(x.draft_dt)+'</td>'
@@ -3377,13 +3379,13 @@ async function loadPost(){
       return;
     }
     POST_ROWS = r.rows;
-    // 열 폭을 고정해 둔다 — 폭이 자동이면 긴 적요가 다른 칸을 밀어 두 줄로 접힌다
+    // 열 폭을 고정해 둔다 — 폭이 자동이면 긴 제목이 다른 칸을 밀어 두 줄로 접힌다
     t.innerHTML = '<colgroup><col style="width:34px"><col style="width:158px"><col style="width:92px">'
       + '<col style="width:76px"><col style="width:88px"><col><col style="width:104px">'
       + '<col style="width:70px"><col style="width:130px"><col style="width:168px">'
       + '<col style="width:134px"></colgroup>'
       + '<thead><tr><th class="sel"><input type="checkbox" id="postChkAll" title="전송 가능 건 전체 선택"></th>'
-      + '<th>참조번호</th><th>결의일자</th><th>등록자</th><th>부서</th><th>적요</th><th class="r">금액</th>'
+      + '<th>참조번호</th><th>결의일자</th><th>등록자</th><th>부서</th><th>제목</th><th class="r">금액</th>'
       + '<th>상태</th><th>ERP 전표번호</th><th>ERP 적용</th><th>작업</th></tr></thead><tbody>'
       + r.rows.map((x)=>{
         const can = canSendRow(x);
@@ -3547,7 +3549,7 @@ function renderErpSummary(h){
     ["결의일자", h.draft_dt], ["전표형태", h.gl_type||"(기본)"],
     ["등록자(ERP ID)", h.owner_erp_usr_id], ["부서", h.dept_nm||h.dept_cd||"—"],
     ["코스트센터", h.cost_cd ? costNm(h.cost_cd) : "—"], ["프로젝트", h.project_no||"—"],
-    ["적요", h.gl_desc],
+    ["제목", h.gl_desc],
     ["차변 합계", won(h.dr_total)], ["대변 합계", won(h.cr_total)],
   ].map(([k,v])=>'<div class="row"><span class="k">'+esc(k)+'</span><span class="v">'+esc(v)+'</span></div>').join("");
 }
@@ -3872,8 +3874,8 @@ $("btnCopyErp").onclick = ()=>{
   if(!POST_SEL) return;
   const h = POST_SEL.header;
   const lines = ["결의일자\t"+h.draft_dt, "등록자\t"+h.owner_erp_usr_id, "부서\t"+(h.dept_nm||""),
-                 "적요\t"+h.gl_desc, "",
-                 "순번\t차대\t계정코드\t계정명\t금액\t적요\t거래처\t코스트센터\t프로젝트"]
+                 "제목\t"+h.gl_desc, "",
+                 "순번\t차대\t계정코드\t계정명\t금액\t비고\t거래처\t코스트센터\t프로젝트"]
     .concat(POST_SEL.items.map((it)=>[it.item_seq, it.dr_cr_fg==="D"?"차변":"대변", it.acct_cd, it.acct_nm||"",
       it.item_amt, it.item_desc||"", it.bp_cd||"", it.cost_cd||"", it.project_no||""].join("\t")));
   // v4 — 관리항목도 함께(줄·코드·항목명·값, ERP 입력 순서)
@@ -3906,8 +3908,8 @@ function buildTplGrid(){
           : '<button type="button" class="cellpick" data-row-act="pick-acct">🔍 계정 선택</button>',
         validator:(v)=> !!v || "계정과목을 선택하세요" },
       { key:"amt_rule", label:"금액 규칙", width:"110px", type:"select", editable:true,
-        options:[{value:"input",label:"입력"},{value:"pct",label:"비율(%)"},{value:"fixed",label:"고정액"},{value:"balance",label:"차액 자동"}],
-        formatter:(v)=> RULE_KO[v] || "입력" },
+        options:[{value:"input",label:"직접 입력"},{value:"pct",label:"비율(%)"},{value:"fixed",label:"고정액"},{value:"balance",label:"차액 자동"}],
+        formatter:(v)=> RULE_KO[v] || "직접 입력" },
       { key:"amt_value", label:"규칙 값", width:"100px", editable:true, align:"right",
         formatter:(v,row)=> (row.amt_rule==="pct") ? (v?Number(v)+"%":"")
                           : (row.amt_rule==="fixed") ? (v?won(v):"")
@@ -3918,7 +3920,7 @@ function buildTplGrid(){
           if(!(n>0)) return "0보다 큰 값을 입력하세요";
           if(row.amt_rule==="pct" && n>100) return "비율은 100 이하";
           return true; } },
-      { key:"item_desc", label:"라인 적요", width:"180px", editable:true },
+      { key:"item_desc", label:"비고", width:"180px", editable:true },
       { key:"cost_cd", label:"코스트센터", width:"140px", type:"select", editable:true, options:costOptions },
       // 프로젝트는 ERP 마스터에서 고른다 — 코드를 외워 손으로 적던 칸이었다(계정과목과 같은 방식)
       { key:"project_no", label:"프로젝트", width:"150px", editable:false,
@@ -4031,7 +4033,7 @@ function slotHtml(slot, rule, lineSeq){
 function ruleLabel(r){
   return r.amt_rule==="fixed"   ? "고정 "+won(r.amt_value)
        : r.amt_rule==="pct"     ? "비율 "+(Number(r.amt_value)||0)+"%"
-       : r.amt_rule==="balance" ? "차액 자동" : "입력";
+       : r.amt_rule==="balance" ? "차액 자동" : "직접 입력";
 }
 function renderTplForm(){
   const box = $("tplForm"); if(!box) return;
@@ -4074,7 +4076,7 @@ function renderTplForm(){
       + cell(3) + cell(4) + cell(5) + cell(6)
       + '</tr>'
       + '<tr class="dscrow"><td class="dsc" colspan="5">'
-      + esc(r.item_desc || $("tDescTmpl").value.trim() || "(적요 — 작성 시 입력)")
+      + esc(r.item_desc || $("tDescTmpl").value.trim() || "(비고 — 작성 시 입력)")
       + '</td><td class="cur"></td><td class="amt">'+(dr?esc(amt):'')+'</td>'
       + '<td class="amt">'+(dr?'':esc(amt))+'</td></tr>';
     // ERP 서식은 7칸까지 — 그보다 많은 계정은 남은 항목을 이어서 보여준다(누락 방지)
@@ -4097,7 +4099,7 @@ function renderTplForm(){
     + '<tr><th rowspan="2">No</th><th>계정코드</th><th>COST CENTER</th><th>관리항목1</th><th>관리항목2</th><th>관리항목3</th>'
     + '<th>통화</th><th>차변</th><th>대변</th></tr>'
     + '<tr><th>계정과목</th><th>관리항목4</th><th>관리항목5</th><th>관리항목6</th><th>관리항목7</th>'
-    + '<th colspan="3">적요 · 금액 규칙</th></tr>'
+    + '<th colspan="3">비고 · 금액 규칙</th></tr>'
     + '</thead><tbody>' + body
     + '<tr class="sumrow"><td colspan="6" class="lbl">합계 — 차변 '+drN+'줄 / 대변 '+crN+'줄</td>'
     + '<td class="lbl">KRW</td><td class="amt">'+drN+'줄</td><td class="amt">'+crN+'줄</td></tr>'
@@ -4172,32 +4174,32 @@ async function loadTplMgr(){
     const r = await api("tpl_list", { all: true });
     CAN_MANAGE_TPL = !!r.can_manage_tpl;
     const list = r.rows || [];
-    TPL_MGR = list;   // 분류 선택지는 비공개 템플릿의 분류까지 포함해야 한다
-    // 비공개 건이 있으면 그것부터 알린다 — 작성 탭 목록에 안 나오는 이유가 바로 이것이다
-    const hidden = list.filter((x)=> x.status !== "active").length;
+    TPL_MGR = list;   // 분류 선택지는 준비중 템플릿의 분류까지 포함해야 한다
+    // 준비중 건이 있으면 그것부터 알린다 — 작성 탭 목록에 안 나오는 이유가 바로 이것이다.
+    // 보관은 일부러 내린 것이라 경고하지 않는다(전에는 둘을 함께 세어 '보관했는데 왜 경고냐'가 됐다).
+    const hidden = list.filter((x)=> x.status === "draft").length;
     // 종류별로 세어 **모두** 알린다 — 하나만 보여주면 뒤에 있는 건을 영영 못 찾는다
     const cnt = { tok:0, case:0 };
     list.forEach((x)=>{ if(x.can_edit) tplIssues(x).forEach((s2)=> cnt[s2.kind]++); });
     const msgs = [];
-    if(cnt.tok) msgs.push('<span style="color:var(--red);font-weight:700;">⚠ 월 토큰이 잘못된 '+cnt.tok+'건 — '
-      + '중괄호가 빠져 월이 채워지지 않습니다. 해당 행을 열어 [{ } 씌워서 고치기]를 누르세요.</span>');
-    if(cnt.case) msgs.push('<span style="color:var(--red);font-weight:700;">⚠ 출처 불명 ERP 케이스 코드 '+cnt.case+'건 — '
-      + '반복전표 분석이 붙인 값이 아닙니다. 화면에는 지우는 수단이 없으니 <b>관리자가 DB에서 정리</b>해 주세요'
-      + '(배지에 대상 템플릿·컬럼이 적혀 있습니다).</span>');
-    if(hidden) msgs.push('<span style="color:var(--amber);font-weight:700;">⚠ 비공개 '+hidden+'건 — '
-      + '작성 탭 목록에 나오지 않습니다. 행을 열어 [공개]를 누르세요.</span>');
+    if(cnt.tok) msgs.push('<span style="color:var(--red);font-weight:700;">⚠ 월 토큰 오류 '+cnt.tok+'건 — '
+      + '중괄호가 빠져 월이 안 채워집니다. 행을 열어 [{ } 씌워서 고치기]를 누르세요.</span>');
+    if(cnt.case) msgs.push('<span style="color:var(--red);font-weight:700;">⚠ 출처 불명 ERP 케이스 '+cnt.case+'건 — '
+      + '<b>관리자가 DB에서 정리</b>해야 합니다(배지에 대상이 적혀 있습니다).</span>');
+    if(hidden) msgs.push('<span style="color:var(--amber);font-weight:700;">⚠ 준비중 '+hidden+'건 — '
+      + '전표 작성 목록에 안 나옵니다. 행을 열어 [사용 시작]을 누르세요.</span>');
     $("tplScopeHint").innerHTML = msgs.length ? msgs.join("<br>")
       : esc(CAN_MANAGE_TPL
-          ? "전사·부서·개인 템플릿을 모두 관리할 수 있습니다"
-          : "개인 템플릿만 만들 수 있습니다 — 전사·부서 템플릿은 회계 담당자에게 요청하세요");
+          ? "전사·부서·나만 쓰는 템플릿을 모두 만들 수 있습니다"
+          : "나만 쓰는 템플릿만 만들 수 있습니다 — 부서·전사는 회계 담당자에게 요청하세요");
     const t = $("tplMgrTbl");
     if(!list.length){ t.innerHTML = '<tr><td style="color:var(--muted);padding:20px;text-align:center;">등록된 템플릿이 없습니다. [+ 새 템플릿]으로 만들어 보세요.</td></tr>'; return; }
     // 삭제는 그동안 편집기 안에만 있어(행 클릭 → 편집기 → 삭제) 목록에서 바로 지울 수 없었다.
     // 편집 권한이 있는 행에만 삭제 버튼을 붙인다(권한 판정은 서버 editableTpl 이 다시 한다).
     t.innerHTML = '<colgroup><col style="width:96px"><col><col style="width:110px">'
-      + '<col style="width:118px"><col style="width:62px"><col style="width:92px">'
-      + '<col style="width:74px"><col style="width:62px"><col style="width:72px"></colgroup>'
-      + '<thead><tr><th>코드</th><th>이름</th><th>분류</th><th>범위</th><th>라인</th><th>금액방식</th><th>상태</th><th class="r">사용</th><th>관리</th></tr></thead><tbody>'
+      + '<col style="width:118px"><col style="width:62px"><col style="width:80px">'
+      + '<col style="width:84px"><col style="width:70px"><col style="width:72px"></colgroup>'
+      + '<thead><tr><th>코드</th><th>이름</th><th>분류</th><th>누가 쓰나</th><th>라인</th><th>금액</th><th>사용 상태</th><th class="r">쓴 횟수</th><th>관리</th></tr></thead><tbody>'
       + list.map((x)=>
         '<tr class="'+(x.can_edit?"clk":"")+'" data-id="'+x.tpl_id+'">'
         + '<td class="mono">'+esc(x.tpl_code)+'</td><td class="tr" title="'+esc(x.tpl_nm)+'"><b>'+esc(x.tpl_nm)+'</b>'
@@ -4210,8 +4212,8 @@ async function loadTplMgr(){
         + '<td class="nw">'+esc(x.category||"—")+'</td>'
         + '<td><span class="tag '+esc(x.scope)+'">'+SCOPE_KO[x.scope]+(x.scope==="dept"?" · "+esc(x.scope_dept_nm||""):"")+'</span></td>'
         + '<td class="nw">'+(x.items||[]).length+'줄</td>'
-        + '<td class="nw">'+(x.amount_mode==="total"?"총액 입력":"라인별")+'</td>'
-        + '<td>'+(x.status==="active"?'<span class="pill posted">공개</span>':'<span class="tag draft">비공개</span>')+'</td>'
+        + '<td class="nw">'+(x.amount_mode==="total"?"총액 배분":"줄마다")+'</td>'
+        + '<td class="nw">'+tplStatusHtml(x.status)+'</td>'
         + '<td class="r">'+(x.use_cnt||0)+'</td>'
         + '<td class="nw">'+(x.can_edit
             ? '<button type="button" class="b gh sm" data-del="'+x.tpl_id+'"'
@@ -4291,12 +4293,32 @@ function syncScopeUi(){
   $("tDeptFld").classList.toggle("hide", sc!=="dept");
   const blocked = (sc!=="user") && !CAN_MANAGE_TPL;
   $("tScopeHint").textContent = blocked
-    ? "⚠ 전사·부서 템플릿을 만들 권한이 없습니다 — 개인으로 저장하세요."
-    : "개인 템플릿은 본인만, 부서 템플릿은 해당 부서 구성원이 볼 수 있습니다.";
+    ? "⚠ 부서·전사 템플릿을 만들 권한이 없습니다 — 「나만」으로 저장하세요"
+    : "";
   $("tScopeHint").style.color = blocked ? "var(--red)" : "";
 }
 $("tScope").onchange = syncScopeUi;
-// 제목·적요·코스트센터를 고치면 서식 미리보기도 같이 움직인다
+/* 금액 넣는 법 — 「총액 1칸」은 줄 금액이 비어 있어야 돈다(고정액 줄은 배분 대상이 아니다).
+   복사해 온 템플릿은 줄마다 실제 금액이 들어 있어, 바꾸는 순간 그 금액이 사라진다.
+   말없이 지우지 않고 한 번 묻는다 — 저장 전이라 [닫기]로도 되돌릴 수 있다. */
+$("tAmountMode").addEventListener("change", ()=>{
+  if($("tAmountMode").value !== "total") return;
+  const rs = tRows();
+  const fixed = rs.filter((r)=> r.amt_rule === "fixed");
+  if(!fixed.length) return;
+  if(!confirm("총액 1칸 방식으로 바꾸면 줄에 담긴 금액 "+fixed.length+"줄이 지워집니다.\n"
+            + "대신 전표를 쓸 때 넣는 총액으로 줄마다 나눠 담습니다.\n\n계속할까요?")){
+    $("tAmountMode").value = "manual";   // 되돌린다 — 금액은 그대로 남는다
+    return;
+  }
+  fixed.forEach((r)=>{ r.amt_rule = "input"; r.amt_value = ""; });
+  const crs = rs.filter((r)=> r.dr_cr_fg === "C");
+  // 대변 1줄이면 차액 자동이 기본형 — 단 비율(%)처럼 사람이 정한 규칙은 덮지 않는다
+  if(crs.length === 1 && crs[0].amt_rule === "input") crs[0].amt_rule = "balance";
+  setTRows(rs);
+  toast("총액 1칸 방식으로 바꿨습니다 — 줄 금액은 「직접 입력」으로 돌렸습니다.");
+});
+// 제목·비고 기본값·템플릿 이름을 고치면 서식 미리보기도 같이 움직인다
 ["tTitlePattern","tDescTmpl","tName"].forEach((id)=> $(id).addEventListener("input", renderTplForm));
 $("tCost").addEventListener("change", renderTplForm);
 // 월 표기 기준이 바뀌면 서식 제목과 토큰 도구의 「찍히는 값」이 함께 움직여야 한다
@@ -4321,8 +4343,8 @@ function openTplEdit(tpl, items){
   // 매번 목록에서 찾게 하지 않고 미리 골라 둔다(다른 부서면 바꾸면 된다).
   $("tDept").value      = tpl?.scope_dept_cd || myDeptCd() || "";
   $("tAmountMode").value= tpl?.amount_mode || "total";
-  // 새 템플릿 기본 상태 — 개인 템플릿은 바로 공개(나만 보이므로 검토가 필요 없다).
-  // 전사·부서는 여러 사람에게 노출되므로 비공개로 시작해 검토 후 공개한다.
+  // 새 템플릿 기본 상태 — 「나만」은 바로 사용중(나만 보이므로 검토가 필요 없다).
+  // 부서·전사는 여러 사람에게 보이므로 준비중으로 시작해 검토 뒤 사용중으로 바꾼다.
   $("tStatus").value    = tpl?.status || (scope0==="user" ? "active" : "draft");
   $("tCost").value      = tpl?.cost_cd || "";
   $("tSort").value      = tpl?.sort_no ?? 100;
@@ -4348,7 +4370,7 @@ function openTplEdit(tpl, items){
   setTRows((items||[]).map((it)=>({ ...it, amt_locked: it.amt_locked ? "Y":"", __ctrls: it.ctrls||[] })));
   fillProjNames((items||[]).map((it)=> it.project_no));   // 코드 → 이름(비동기, 실패해도 무해)
   $("btnTDelete").classList.toggle("hide", !TPL_EDIT);
-  $("btnTPublish").textContent = (tpl?.status==="active") ? "비공개로" : "공개";
+  $("btnTPublish").textContent = (tpl?.status==="active") ? "사용 중지" : "사용 시작";
   renderTplForm();
   $("tplEdit").scrollIntoView({ behavior:"smooth", block:"nearest" });
 }
@@ -4417,8 +4439,13 @@ $("btnTPublish").onclick = async ()=>{
   if(!id){ id = await saveTpl(); if(!id) return; }
   const next = (TPL_EDIT?.status==="active") ? "draft" : "active";
   try{
-    const r = await api("tpl_status", { tpl_id:id, status:next });
-    toast(r.안내); await refreshTpls(); await loadTplMgr();
+    await api("tpl_status", { tpl_id:id, status:next });
+    // 서버 안내문은 옛 표현('공개했습니다')이라 화면과 어긋난다 — 여기서 말을 맞춘다.
+    // (Edge Function 문구 교체는 재배포가 필요한 별건 — 화면이 서버 문구를 쓰지 않으므로 어긋날 일이 없다)
+    toast(next==="active"
+      ? "사용중으로 바꿨습니다 — [전표 작성] 탭 템플릿 목록에 나옵니다."
+      : "준비중으로 되돌렸습니다 — 전표 작성 목록에서 숨겨집니다.");
+    await refreshTpls(); await loadTplMgr();
     const got = await api("tpl_get", { tpl_id:id }); openTplEdit(got.tpl, got.items);
   }catch(e){ toast(e.message, true); }
 };
@@ -4445,8 +4472,10 @@ function ctrlRule(cd, v){
 }
 
 /* ═══ 기존 ERP 전표 → 템플릿 자동 생성 ═══
-   [📄 기존 전표에서] → 내 전표 팝업 선택 → 라인·관리항목을 규칙으로 바꿔 담고 개인 비공개 템플릿으로 즉시 저장.
-   실적 금액은 저장하지 않는다(금액 규칙만 남긴다). */
+   [📄 기존 전표에서] → 내 전표 팝업 선택 → 라인·관리항목에 **금액·제목·비고까지 그대로** 담아 저장한다.
+   이전에는 금액을 규칙(직접 입력)으로만 남겨 복사해 온 전표의 금액이 사라졌다 —
+   「복사」라고 적혀 있는데 금액을 다시 다 넣어야 했다(2026-09-30 관리자 지시 · REQ-0096).
+   이제 줄 금액은 고정액으로, 적요는 ERP 이름 그대로 「제목」 칸에 담는다. 둘 다 저장 뒤 고칠 수 있다. */
 $("btnTplFromSlip").onclick = async ()=>{
   if(!SLIP_ROWS.length){ await loadSlips(); SLIP_LOADED = true; }
   if(!SLIP_ROWS.length){
@@ -4454,7 +4483,7 @@ $("btnTplFromSlip").onclick = async ()=>{
   }
   openPicker({
     title:"기존 전표에서 템플릿 만들기",
-    placeholder:"적요 또는 전표번호로 좁히기",
+    placeholder:"제목 또는 전표번호로 좁히기",
     hint:"내가 ERP에 입력한 전표 "+SLIP_ROWS.length+"건 · ↑↓ 이동 · Enter 선택 · Esc 닫기",
     local:(q)=>{
       const s = q.toLowerCase();
@@ -4462,7 +4491,7 @@ $("btnTplFromSlip").onclick = async ()=>{
         (String(x.temp_gl_no||"")+" "+String(x.temp_gl_desc||"")).toLowerCase().includes(s));
     },
     render:(x)=> '<span class="cd">'+esc(x.temp_gl_no)+'</span>'
-      + '<span class="nm">'+esc(x.temp_gl_desc||"(적요 없음)")+'</span>'
+      + '<span class="nm">'+esc(x.temp_gl_desc||"(제목 없음)")+'</span>'
       + '<span class="sub">'+esc(x.temp_gl_dt||"")+' · '+won(Math.round(Number(x.dr_loc_amt)||0))
       + ' · '+(x.line_cnt||0)+'줄</span>',
     onPick:(x)=> tplFromSlip(x.temp_gl_no),
@@ -4489,35 +4518,44 @@ async function tplFromSlip(no){
       return null;   // 마스터에 없는 계정은 템플릿에 담지 않는다(저장 시 어차피 거부된다)
     }
     const fg = slipFg(it.dr_cr_fg);
+    // 실적 금액을 그대로 담는다 — 0원·빈 금액만 규칙(직접 입력)으로 둔다(고정액 검증이 0을 거부한다)
+    const amt = Math.round(Number(it.item_loc_amt) || 0);
     return {
       dr_cr_fg:(fg==="D"||fg==="C")?fg:"", acct_cd:it.acct_cd||"", acct_nm:it.acct_nm||"",
-      amt_rule:"input", amt_value:"", item_desc:it.item_desc||"",
+      amt_rule: amt>0 ? "fixed" : "input", amt_value: amt>0 ? String(amt) : "",
+      item_desc:it.item_desc||"",
       cost_cd:it.cost_cd||"", project_no:it.project_no||"",
       bp_cd:it.bp_cd||null, bp_nm:it.bp_nm||null,
       ctrls: Object.entries(ctrlBySeq[it.item_seq]||{}).map(([cd,v])=> ctrlRule(cd, v)),
     };
   }).filter(Boolean);
   if(!items.length){ toast("템플릿으로 만들 라인이 없습니다 — 계정과목이 모두 마스터에 없습니다.", true); return; }
-  // 대변이 한 줄이면 '차액 자동'으로 — 총액 1칸만 입력하면 되는 기본형이 된다
+  // 대변이 한 줄인데 금액이 안 잡혔으면 '차액 자동'으로 — 총액 1칸만 넣으면 맞아떨어진다.
+  // 금액이 복사됐으면 건드리지 않는다(덮으면 방금 담은 금액이 다시 사라진다).
   const crs = items.filter((r)=> r.dr_cr_fg==="C");
-  if(crs.length === 1) crs[0].amt_rule = "balance";
+  if(crs.length === 1 && crs[0].amt_rule === "input") crs[0].amt_rule = "balance";
 
   showTab("tpl");
   fillTplDeptOptions();
   openTplEdit(null, items);
-  $("tName").value     = (h.temp_gl_desc || ("전표 "+no)).slice(0,60);
-  $("tDescTmpl").value = h.temp_gl_desc || "";
-  $("tDescr").value    = "ERP 전표 "+no+(h.temp_gl_dt?" ("+h.temp_gl_dt+")":"")+" 에서 자동 생성";
-  $("tScope").value    = "user";       // 자동 생성분은 개인 범위 — 나만 보인다
-  $("tStatus").value   = "active";     // 공개까지 끝낸다. 개인 템플릿이라 남에게 노출되지 않는다
-                                       // (비공개로 두면 작성 탭 목록에 나타나지 않아 '만들었는데 없다'가 된다)
+  const srcDesc = String(h.temp_gl_desc || "").trim();
+  $("tName").value         = (srcDesc || ("전표 "+no)).slice(0,60);
+  $("tTitlePattern").value = srcDesc;   // 제목 — 원본 그대로. 저장 뒤 이 칸에서 고친다
+  $("tDescTmpl").value     = "";        // 비고는 줄마다 이미 복사됐다 — 기본값까지 둘 필요가 없다
+  $("tDescr").value    = "ERP 전표 "+no+(h.temp_gl_dt?" ("+h.temp_gl_dt+")":"")+" 에서 복사";
+  $("tScope").value    = "user";       // 복사분은 「나만」 — 남의 목록에 끼어들지 않는다
+  $("tStatus").value   = "active";     // 바로 쓸 수 있게 둔다(준비중이면 작성 목록에 안 나와 '만들었는데 없다'가 된다)
+  // 복사는 「있는 그대로」가 기본이다 — 총액 배분은 사람이 직접 고를 때만 바뀐다(2026-09-30 관리자 지시).
+  // 총액으로 바꾸는 순간 담아 온 금액이 지워지므로, 그 전환은 tAmountMode 의 change 에서 한 번 묻는다.
+  $("tAmountMode").value = "manual";
   if(h.cost_cd && (MASTER.cost_centers||[]).some((c)=> String(c.cost_cd)===String(h.cost_cd))) $("tCost").value = h.cost_cd;
   syncScopeUi();
+  syncTokBars();   // 제목을 넣은 뒤라야 「찍히는 값」·중괄호 누락 경고가 맞는다
 
-  const id = await saveTpl();   // 자동 템플릿화 — 저장·공개까지 끝내고 편집기를 열어 둔다
+  const id = await saveTpl();   // 저장까지 끝내고 편집기를 열어 둔다
   toast(id
-    ? "전표 "+no+" 을(를) 개인 템플릿으로 저장했습니다 — [전표 작성] 탭 템플릿 목록에서 바로 쓸 수 있습니다."
-    : "전표 "+no+" 을(를) 템플릿 편집기로 가져왔습니다 — 내용을 확인한 뒤 저장하세요.");
+    ? "전표 "+no+" 복사 완료 — 금액·제목·비고까지 그대로 담았습니다. 이 화면에서 고칠 수 있습니다."
+    : "전표 "+no+" 을(를) 편집기로 가져왔습니다 — 확인한 뒤 [템플릿 저장]을 누르세요.");
   if(missing.length) toast("⚠ 계정과목 마스터에 없어 제외한 줄: "+missing.join(", "), true);
 }
 
@@ -4535,7 +4573,8 @@ $("btnTplFromDraft").onclick = ()=>{
       .map(([cd,v])=> ctrlRule(cd, String(v).trim())),
   })));
   $("tName").value = ($("fDesc").value.trim() || "새 템플릿").slice(0,60);
-  $("tDescTmpl").value = $("fDesc").value.trim();
+  $("tTitlePattern").value = $("fDesc").value.trim();   // 제목 칸 — 작성 중인 제목을 그대로
+  syncTokBars();
   toast("현재 전표 라인을 템플릿 편집기로 가져왔습니다. 금액 규칙을 정한 뒤 저장하세요.");
 };
 
