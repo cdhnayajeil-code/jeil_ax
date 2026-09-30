@@ -51,6 +51,7 @@ import runner_core as core  # noqa: E402
 # 여기서는 이름만 이어 준다. 러너에 새 도구가 생기면 이 표에 한 줄만 추가한다.
 CLI_TOOLS = {
     "relay":    ("gl_apply_demo2", "결의전표 ERP 전송(구 gl_relay.exe)"),
+    "prodcheck": ("gl_precheck_prod", "결의전표 운영(JEILMNS) 기준 판정 — 읽기 전용, ERP·포털 무변경"),
     "sync":     ("etl_watch",      "화면 요청 처리 — 데이터 업데이트·퇴사"),
     "etl":      ("etl_run",        "ERP→중간DB 적재 배치"),
     "offboard": ("offboard_axes",  "퇴사 처리 3축 점검·실행(기본 dry-run)"),
