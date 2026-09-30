@@ -152,9 +152,12 @@ ROUTES = {
     "/docs/agents/dev-guide":           "12_에이전트관리/02_개발가이드.html",
     "/docs/agents/progress":            "12_에이전트관리/03_진행상태_변경이력.html",
     "/docs/agents/purchase-domain":     "12_에이전트관리/04_구매도메인_발주통합LIST.html",
+    "/docs/agents/quality-test":        "12_에이전트관리/05_품질테스트_대화검증.html",   # 실업무 대화 실측(REQ-0094 · 2026-09-30)
+    "/docs/agents/templates":           "12_에이전트관리/06_에이전트_템플릿_관리포인트.html",  # 템플릿·관리 포인트 생성본(정본 app/agent-templates.json)
     "/docs/nas":                        "13_NAS_고도화/index.html",            # 사내 NAS 연계 검토·기획 허브(2026-09-29)
     "/docs/nas/review":                 "13_NAS_고도화/00_NAS연계_타당성검토.html",
     "/docs/nas/plan":                   "13_NAS_고도화/01_NAS_데이터계층_기획.html",
+    "/docs/nas/decision":               "13_NAS_고도화/02_의사결정_브리핑.html",
 
     # ── 그리드 표준 ────────────────────────────────────────
     "/docs/grid":               "그리드/index.html",

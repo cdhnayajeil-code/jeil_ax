@@ -312,7 +312,8 @@ async function send(reportSrc, override) {
       onView: (v) => { rec.views.push(v); renderView(rec.el.views, v, { onAsk: (p) => ask(p), extraActions: cardActions(rec) }); },
       onEvent: (ev) => {
         if (ev.type === "tool") rec.trace.push(`${ev.tool} ${JSON.stringify(ev.args)} → ${ev.outcome}${ev.rows != null ? " " + ev.rows + "건" : ""} · ${ev.ms}ms`);
-        else if (ev.type === "fallback") rec.trace.push(`예비 모델 전환 ${ev.from} → ${ev.to} (${ev.status})`);
+        // 담당자에게는 왜 넘어갔는지(벤더 오류 본문 앞부분)까지 보여 준다 — 09-30 실측에서 (400) 만으로는 원인을 못 찾았다
+        else if (ev.type === "fallback") rec.trace.push(`예비 모델 전환 ${ev.from} → ${ev.to} (${ev.status}${ev.detail ? ": " + String(ev.detail).slice(0, 160) : ""})`);
         else if (ev.type === "llm_error") rec.trace.push(`모델 오류 ${ev.status}: ${ev.detail}`);
         else if (ev.type === "start" && ev.note) rec.trace.push(ev.note);
         else if (ev.type === "end") {

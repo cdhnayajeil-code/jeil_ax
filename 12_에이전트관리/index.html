@@ -40,15 +40,15 @@ a{color:var(--accent);}
   <div class="sub">공용 AI 게이트웨이 위의 부서별 에이전트 — 현재 상태 · 운영 방법 · 개발 규칙 · 진행 이력의 단일 출처. 기획은 <a href="/docs/product/dept-agents">14 부서 에이전트 운영기획</a>(ADR-109).</div>
 
   <div class="status">
-    <b>현재(2026-09-29)</b> — 구매 에이전트 <b>파일럿</b> 가동 · 설정 v1 · 게이트웨이 <code>jeil-chat-lab</code> v3<br>
-    <span class="warn">⚠ Anthropic 키 미등록</span> — 기본 모델(Claude Sonnet 5) 대신 예비 모델 gpt-4.1-mini 로 응답 중 ·
-    구성원 1명(구매팀 담당자 2명 등록 필요) · 골든셋 8문항 · 용어집 13개(PR·PU·PO 포함)
+    <b>현재(2026-09-30)</b> — 구매 에이전트 <b>파일럿</b> 가동 · 설정 v1(v2 초안 대기) · 게이트웨이 <code>jeil-chat-lab</code> v6<br>
+    <span class="warn">⚠ Claude 호출 400 거부 중</span> — 키는 등록됐으나 워크스페이스에 묶이지 않은 키라 Anthropic 이 거부(<code>anthropic-workspace-id</code> 필요) → 매 턴 예비 모델 gpt-4.1-mini 로 응답 ·
+    구성원 1명(구매팀 담당자 2명 등록 필요) · 골든셋 11문항(v1 회귀 6/11 · 09-29) · 용어집 17개 · <b>09-30 실업무 실측 7시나리오 → <a href="/docs/agents/quality-test">05</a></b>
   </div>
 
   <h3>바로 가기 — 화면</h3>
   <div class="cards">
-    <a class="card live" href="/work/purchase-agent"><div class="no">사용 화면</div><h2>🛒 구매 에이전트</h2><p>대화 · 카드 CSV/자료함 · 📄 보고서 · 👍👎 · HTML 바로 보기</p></a>
-    <a class="card live" href="/admin/agents?agent=purchase"><div class="no">관리 화면</div><h2>⚙️ 에이전트 관리</h2><p>개요 · 설정·버전 · 개선 대장 · 대화 기록 · 용어집 · 골든셋 · 구성원</p></a>
+    <a class="card live" href="/work/purchase-agent"><div class="no">사용 화면</div><h2>🛒 구매 에이전트</h2><p>대화 · 카드 CSV/자료함 · 📄 보고서 · 👍👎 · HTML 바로 보기 · 📎 첨부 · 기안서 대장/발주 LIST 바로가기</p></a>
+    <a class="card live" href="/admin/agents?agent=purchase"><div class="no">관리 화면</div><h2>⚙️ 에이전트 관리</h2><p>개요 · <b>📐 관리 포인트·템플릿</b> · 설정·버전 · 개선 대장 · 대화 기록 · 용어집 · 골든셋 · 구성원</p></a>
     <a class="card" href="/chatdemo"><div class="no">실험실</div><h2>🧪 챗봇 고도화 실험실</h2><p>전체관리자 전용 — 모듈·권한·프롬프트 실험(대화 미저장)</p></a>
   </div>
 
@@ -59,6 +59,8 @@ a{color:var(--accent);}
     <a class="card" href="/docs/agents/dev-guide"><div class="no">02</div><h2>개발가이드</h2><p>코드 지도 · 새 도구·새 에이전트 추가 · 배포 · 보안 원칙</p></a>
     <a class="card" href="/docs/agents/progress"><div class="no">03</div><h2>진행상태 · 변경이력</h2><p>체크리스트(남은 일) · 작업 로그 · 결정 기록</p></a>
     <a class="card" href="/docs/agents/purchase-domain"><div class="no">04</div><h2>구매 도메인 — 발주통합 LIST</h2><p>PR(구매요청)·PU(구매요청결재)·PO(발주) 번호 체계와 관계, LIST 구조·상태·열 사전, 에이전트 지식</p></a>
+    <a class="card" href="/docs/agents/quality-test"><div class="no">05</div><h2>품질테스트 — 대화 검증</h2><p>실업무 대화 실측(시나리오별 질문·도구·판정) · 발견·조치 · 골든셋 승격 — 파일럿·버전 변경 때마다 누적</p></a>
+    <a class="card" href="/docs/agents/templates"><div class="no">06</div><h2>템플릿 · 관리 포인트</h2><p>공통 기준 세트(답변 원칙 10·안전 규칙 5·칩·용어·시나리오 3) · 관리 포인트 14개(기준·조치·주기) · 부서 세트 — 정본 <code>app/agent-templates.json</code></p></a>
   </div>
 
   <h3>개선 루프 한 줄 요약</h3>
@@ -72,7 +74,8 @@ a{color:var(--accent);}
   <ul>
     <li>정본 SQL <code>실제구축준비 자료/이관/sql/74_dept_agent.sql</code>(+rollback)</li>
     <li>서버 <code>supabase/functions/jeil-chat-lab/</code> · 화면 <code>pages/구매_AI에이전트_2026.html</code> · <code>app/admin-agents.html</code></li>
-    <li>백로그 REQ-0084(실험실) · REQ-0085~0088(에이전트)</li>
+    <li>백로그 REQ-0084(실험실) · REQ-0085~0088(에이전트) · REQ-0094(템플릿·관리 포인트 — 2단계 관리자 확인 대기)</li>
+    <li>템플릿 정본 <code>app/agent-templates.json</code> → 06 문서는 <code>_gen_templates_md.py</code> 생성본, 콘솔 「📐」 탭도 같은 파일</li>
   </ul>
   <div class="foot">12_에이전트관리 · 관리자 최동혁 · 문서 수정 후 <code>python 12_에이전트관리/_build_html.py</code></div>
 </div>

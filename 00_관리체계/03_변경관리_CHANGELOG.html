@@ -109,6 +109,13 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <tbody>
 <tr>
 <td>2026-09-30</td>
+<td>에이전트 · 실업무 실측 + 템플릿·관리 포인트 통합(REQ-0094 1단계)</td>
+<td><code>app/agent-templates.json</code>(신설·정본) · <code>app/admin-agents.html</code>(「📐 관리 포인트·템플릿」 탭 · KPI 8장) · <code>pages/구매_AI에이전트_2026.html</code>(예비 전환 사유 표시) · <code>12_에이전트관리/05_품질테스트_대화검증.md</code>·<code>06_에이전트_템플릿_관리포인트.md</code>(생성본, <code>_gen_templates_md.py</code>) + 00~03·README·index · <code>_routes.py</code>(<code>/docs/agents/quality-test</code>·<code>templates</code>) · <code>.backlog</code> REQ-0094</td>
+<td><strong>구매 에이전트를 Sonnet 테스터 7명이 실업무 시나리오 7종(30문항)으로 라이브 실측하고 숫자 21건을 중간DB SQL 로 대조</strong>(일치 16·불일치 4). P1 4건 — ① 오늘 모든 답변이 예비 모델(gpt-4.1-mini)인 원인은 코드가 아니라 <strong>Anthropic 키 종류</strong>(워크스페이스에 안 묶여 400 · <code>anthropic-workspace-id</code> 필요) ② 미입고 도구가 정렬 2차키·거래처 조건이 없어 같은 조회가 다른 값을 내고 모델이 숫자를 지어냄 ③ 외주검사 「불합격 없음」 오답(실제 1건 · 상태/판정 필드 혼동 · 기간 조건 없음) ④ 목록 30건을 총량처럼 서술(실제 675). 안전 규칙·보고서 흐름·첨부 대조는 통과. <strong>관리 콘솔에 템플릿 계층을 파일 정본(<code>agent-templates.json</code>)으로 두고</strong> 「📐」 탭이 기준값 대비 정상·주의·경고 판정 + DB 대조 + 빠진 용어·골든셋 즉시 등록 + 표준 시나리오 → 시험 대화를 제공(서버·DB 무변경, 다른 부서 에이전트도 같은 탭·같은 파일). 실측에서 나온 답변 원칙 R9·R10·P4~P7, 공통 시나리오 T-CONSIST, 수동 관리 포인트 M12~M14, 회귀 문항 3개를 템플릿에 추가(골든셋 표준 21). 목록형 도구 계약을 02 개발가이드에 명문화. 2단계(키 교체/헤더 · LLM 오류 본문 저장 · 히스토리 창 보정 · 도구 3종 수정 · 템플릿 DB 계층)는 관리자 확인 대기.</td>
+<td>최동혁(+Claude)</td>
+</tr>
+<tr>
+<td>2026-09-30</td>
 <td>챗봇 · API 설정 가이드</td>
 <td><code>app/api-setup-guide.html</code>(<code>/admin/api-setup</code>)</td>
 <td>Anthropic 호출 키 400 원인 추가 — 워크스페이스에 묶이지 않은(all workspaces) 개인·서비스계정 키는 요청마다 <code>anthropic-workspace-id</code> 헤더가 필요한데 호출 코드가 보내지 않음(공식 문서 Workspaces §API keys and resource scoping 확인, jeil-ax-c5 세션 실측). 해결 = 워크스페이스 하나를 지정해 재발급(권장) 또는 <code>wrkspc_…</code> ID 시크릿 + 헤더 반영(REQ-0094 2단계). 발급 단계 ②에도 같은 주의 한 줄.</td>

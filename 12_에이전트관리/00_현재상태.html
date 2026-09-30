@@ -42,12 +42,12 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <body>
 <div class="page">
   <span class="doc-label">JEIL AX 에이전트관리 · 대외비</span>
-  <div class="docnav"><a href="/docs/agents">🏠 에이전트관리 허브</a><a class="cur" href="/docs/agents/status">00 현재상태</a><a href="/docs/agents/ops-guide">01 운영가이드</a><a href="/docs/agents/dev-guide">02 개발가이드</a><a href="/docs/agents/progress">03 진행상태</a><a href="/docs/agents/purchase-domain">04 구매도메인</a><a href="README.md">README</a></div>
+  <div class="docnav"><a href="/docs/agents">🏠 에이전트관리 허브</a><a class="cur" href="/docs/agents/status">00 현재상태</a><a href="/docs/agents/ops-guide">01 운영가이드</a><a href="/docs/agents/dev-guide">02 개발가이드</a><a href="/docs/agents/progress">03 진행상태</a><a href="/docs/agents/purchase-domain">04 구매도메인</a><a href="/docs/agents/quality-test">05 품질테스트</a><a href="/docs/agents/templates">06 템플릿·관리포인트</a><a href="README.md">README</a></div>
   <p class="md-link">📄 Markdown 원본: <a href="00_현재상태.md">00_현재상태.md</a> · 허브 <a href="/docs/agents">에이전트관리 허브</a></p>
   <div class="content">
 <h1 id="00">00 · 현재상태 — 부서 에이전트</h1>
 <blockquote>
-<p>기준: 2026-09-29(관리자 콘솔 개편·배정 반영) · 사실만 적는다(추정·계획은 03 에). 바뀌면 이 문서부터 고친다.</p>
+<p>기준: 2026-09-30(실업무 실측 · 템플릿·관리 포인트 탭) · 사실만 적는다(추정·계획은 03 에). 바뀌면 이 문서부터 고친다.</p>
 </blockquote>
 <h2 id="1">1. 한눈에</h2>
 <table>
@@ -64,11 +64,11 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 </tr>
 <tr>
 <td>현재 설정 버전</td>
-<td><strong>v1</strong>(current) — 기본 <code>claude-sonnet-5</code> · 예비 <code>gpt-4.1-mini</code> · 추론강도 medium · 최대 2,048토큰 · 캐싱 켬 · 도구 라운드 4</td>
+<td><strong>v1</strong>(current) — 기본 <code>claude-sonnet-5</code> · 예비 <code>gpt-4.1-mini</code> · 추론강도 medium · 최대 2,048토큰 · 캐싱 켬 · 도구 라운드 4 · <strong>v2 초안</strong>(Sonnet 5.5/gpt-6-luna, SQL 79) 회귀·지정 대기</td>
 </tr>
 <tr>
 <td>실제 응답 모델</td>
-<td><strong><code>gpt-4.1-mini</code></strong> — <code>ANTHROPIC_API_KEY</code> 가 아직 등록되지 않아 기본 모델을 부를 수 없어 예비 모델로 동작 중</td>
+<td><strong><code>gpt-4.1-mini</code>(예비)</strong> — <code>ANTHROPIC_API_KEY</code> 는 <strong>등록돼 있으나</strong> Anthropic 이 매 호출을 400 으로 거부(「이 키는 워크스페이스에 묶여 있지 않아 <code>anthropic-workspace-id</code> 헤더가 필요」) → 게이트웨이가 첫 라운드에서 예비 모델로 전환. 09-30 실측(SSE <code>fallback.detail</code>)으로 확인 — 조직 단위 키나 Admin 키를 넣은 것으로 보인다. 처방은 03 체크리스트 첫 항목</td>
 </tr>
 <tr>
 <td>구성원</td>
@@ -76,7 +76,15 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 </tr>
 <tr>
 <td>누적(09-28~)</td>
-<td>대화 11턴 · 개선 대장 3건 · 용어집 <strong>17개</strong>(활성, PR·PU·PO·기안서 연결 포함) · 골든셋 <strong>11문항</strong>(09-29 등록, 회귀 미실행) · 생성 자료 1건 · 비용 약 $0.05</td>
+<td>대화 약 60턴(09-30 실측 41턴 · 전부 예비 모델 · 평균 4.6초 · $0.28) · 개선 대장 3건+ · 용어집 <strong>17개</strong>(활성) · 골든셋 <strong>11문항</strong>(템플릿 표준 21 중) — <strong>v1 회귀 1회(09-29 · 6/11 통과 · $0.07)</strong> · 생성 자료 2건 · 비용 약 $0.4</td>
+</tr>
+<tr>
+<td>템플릿·관리 포인트(09-30)</td>
+<td>정본 <strong><code>app/agent-templates.json</code></strong> — 공통 답변 원칙 10·안전 규칙 5·공통 칩·용어·시나리오 3(T-SAFE·T-CONSIST·T-REPORT) · <strong>관리 포인트 14개</strong>(자동 판정 11 · 수동 표본 3) · 구매 세트(칩 9·용어 17·골든셋 표준 21·시나리오 6·추가 원칙 7) · 다음 부서 골격. 콘솔 <strong>「📐 관리 포인트·템플릿」</strong> 탭이 DB 와 대조해 정상·주의·경고를 판정하고 빠진 것을 채운다(서버 무변경). 문서 <a href="/docs/agents/templates">06</a> 은 생성본</td>
+</tr>
+<tr>
+<td>실업무 실측(09-30)</td>
+<td>Sonnet 테스터 7명이 시나리오 7종(납기·미입고 / 거래처·보고서 / 기안서 대사 / 발주 추적 / 품목 단가 / 예외·안전 / 첨부 대조)을 각자 탭에서 실측, 숫자는 중간DB SQL 로 대조 — 결과·발견·조치는 <a href="/docs/agents/quality-test">05</a></td>
 </tr>
 <tr>
 <td>운영 한도</td>
@@ -133,12 +141,12 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <tr>
 <td><code>https://ai.jeilm.co.kr/work/purchase-agent</code></td>
 <td><code>pages/구매_AI에이전트_2026.html</code></td>
-<td>구성원·관리자(pilot) — 대화, <strong>📎 파일 첨부(끌어다 놓기·붙여넣기)</strong>, 카드 CSV·자료함, 📄 보고서, 👍👎, HTML 코드 바로 보기</td>
+<td>구성원·관리자(pilot) — 대화, <strong>📎 파일 첨부(끌어다 놓기·붙여넣기)</strong>, 카드 CSV·자료함, 📄 보고서, 👍👎, HTML 코드 바로 보기, <strong>📝 기안서 대장·📋 발주통합 LIST 바로가기</strong>(09-30). 담당자에게는 예비 전환 사유(detail)까지 표시</td>
 </tr>
 <tr>
 <td><code>https://ai.jeilm.co.kr/admin/agents?agent=purchase</code></td>
 <td><code>app/admin-agents.html</code></td>
-<td>담당자·관리자 — 개요, 설정·버전, 개선 대장, 대화 기록, 용어집, 골든셋, 구성원</td>
+<td>담당자·관리자 — 개요(KPI 8장: 예비 전환 <strong>비율</strong>·골든셋 통과·기본 모델 호출 가능 추가), <strong>📐 관리 포인트·템플릿</strong>(09-30), 설정·버전, 개선 대장, 대화 기록, 용어집, 골든셋, 구성원</td>
 </tr>
 <tr>
 <td><code>https://ai.jeilm.co.kr/chatdemo</code></td>
@@ -177,7 +185,11 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 </tr>
 <tr>
 <td>벤더 어댑터</td>
-<td><code>openai</code>(키 등록됨) · <code>anthropic</code>(<strong>키 미등록</strong>) — 키가 등록된 벤더만 호출 가능</td>
+<td><code>openai</code>(키 등록됨) · <code>anthropic</code>(키 등록됨 — <strong>API 가 400 으로 거부 중</strong>, §1 「실제 응답 모델」) — 키가 등록된 벤더만 호출 가능</td>
+</tr>
+<tr>
+<td>예비 전환 관측</td>
+<td>벤더 오류 본문은 SSE <code>fallback.detail</code>(담당자 화면·관리 화면 시험 대화)에만 실리고 <strong>서버 로그·<code>agent_turn</code> 어디에도 남지 않는다</strong> — REQ-0094 2단계</td>
 </tr>
 <tr>
 <td>도구</td>

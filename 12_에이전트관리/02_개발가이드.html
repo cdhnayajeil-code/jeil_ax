@@ -42,7 +42,7 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <body>
 <div class="page">
   <span class="doc-label">JEIL AX 에이전트관리 · 대외비</span>
-  <div class="docnav"><a href="/docs/agents">🏠 에이전트관리 허브</a><a href="/docs/agents/status">00 현재상태</a><a href="/docs/agents/ops-guide">01 운영가이드</a><a class="cur" href="/docs/agents/dev-guide">02 개발가이드</a><a href="/docs/agents/progress">03 진행상태</a><a href="/docs/agents/purchase-domain">04 구매도메인</a><a href="README.md">README</a></div>
+  <div class="docnav"><a href="/docs/agents">🏠 에이전트관리 허브</a><a href="/docs/agents/status">00 현재상태</a><a href="/docs/agents/ops-guide">01 운영가이드</a><a class="cur" href="/docs/agents/dev-guide">02 개발가이드</a><a href="/docs/agents/progress">03 진행상태</a><a href="/docs/agents/purchase-domain">04 구매도메인</a><a href="/docs/agents/quality-test">05 품질테스트</a><a href="/docs/agents/templates">06 템플릿·관리포인트</a><a href="README.md">README</a></div>
   <p class="md-link">📄 Markdown 원본: <a href="02_개발가이드.md">02_개발가이드.md</a> · 허브 <a href="/docs/agents">에이전트관리 허브</a></p>
   <div class="content">
 <h1 id="02">02 · 개발가이드 — 코드 지도와 확장 절차</h1>
@@ -74,14 +74,16 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
    - <code>sensitivity: "personal"</code> 이면 그 턴의 답변은 저장되지 않는다.
    - 결과에 <code>__view</code>(뷰 5종: series·ranking·record·list·notice — ADR-008)를 붙이면 카드로 나간다. 새 뷰 타입은 만들지 않는다.
    - 사용자·모델 입력을 PostgREST 필터에 넣을 때는 <code>modules/purchase/_agent_util.ts</code> 의 <code>clean()</code> 을 거친다(or() 필터 주입 방지).
-   - 읽기 전용. ERP 운영 DB 직접 접근 금지 — 중간DB 뷰만(CLAUDE.md §4).</li>
+   - 읽기 전용. ERP 운영 DB 직접 접근 금지 — 중간DB 뷰만(CLAUDE.md §4).
+   - <strong>목록형 도구 계약</strong>(09-30 실측 P1 3건이 전부 이 계약 부재에서 나왔다): ① <code>limit</code> 으로 잘랐으면 <strong>전체 건수 또는 잘림 표시</strong>를 결과에 넣는다(<code>search_pur_list</code> 방식) ② <code>.order()</code> 에 <strong>2차 정렬키</strong>(번호·seq)를 둔다 — 단일 날짜 정렬은 같은 조회가 다른 행을 돌려준다 ③ 사용자가 좁힐 만한 조건(거래처·기간·상태)은 인자로 받고, 못 받는 조건은 <code>안내</code> 로 돌려준다 ④ 여러 라인이 있는 문서(발주)는 합계·라인 수를 함께 준다 ⑤ 화면 제목에 내부 상태값(<code>unordered</code>)을 그대로 쓰지 않는다.</li>
 <li><code>modules/extra.ts</code> 에 import 한 줄 + 배열에 추가.</li>
 <li>에이전트 도구 묶음에 그 도메인이 켜져 있으면 자동으로 쓰인다(끄려면 관리 화면에서 체크 해제 → 새 버전).</li>
 <li>검증 → 배포(§4).</li>
 </ol>
 <h2 id="3">3. 새 에이전트(부서) 추가</h2>
 <ol>
-<li>정본 SQL 새 번호로 행 추가: <code>ai_agent</code>(agent_key·이름·부서·status='pilot'·suggestions) + <code>ai_agent_version</code> v1(state='current', 모델·역할 안내·답변 원칙·<code>modules.domains</code>) + <code>ai_agent_member</code>.</li>
+<li>정본 SQL 새 번호로 행 추가: <code>ai_agent</code>(agent_key·이름·부서·status='pilot'·suggestions) + <code>ai_agent_version</code> v1(state='current', 모델·역할 안내·답변 원칙·<code>modules.domains</code>) + <code>ai_agent_member</code>. 역할 안내·답변 원칙은 <strong>템플릿 06 §2-2 공통 원칙 + 부서 추가 원칙</strong>을 그대로 붙인다.
+1-1. <code>app/agent-templates.json</code> 의 <code>domains</code> 에 부서 키를 추가한다(<code>_candidates</code> 골격 복사 → 칩·용어·골든셋·시나리오). 콘솔 「📐 관리 포인트·템플릿」 탭이 이 키로 부서 세트를 찾는다(없으면 공통만 대조).</li>
 <li>필요한 도구가 없으면 §2 로 만든다.</li>
 <li>사용 화면: <code>pages/구매_AI에이전트_2026.html</code> 을 복사해 <code>const AGENT = "&lt;key&gt;"</code> 와 제목만 바꾼다(로직은 공용 모듈). <code>_routes.py</code> 에 <code>/work/&lt;dept&gt;-agent</code> 한 줄 → <code>python _build_routes.py --write</code>.</li>
 <li>관리 화면은 공용 — <code>/admin/agents?agent=&lt;key&gt;</code>.</li>
@@ -121,6 +123,10 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 </ul>
 <h2 id="6">6. 알려진 한계·후속</h2>
 <ul>
+<li><strong>LLM 4xx 본문이 어디에도 안 남는다</strong> — <code>engine.ts</code> 가 <code>fallback</code>/<code>llm_error</code> 의 detail 을 SSE 로만 보내고(담당자 이상), <code>agent_turn</code>·함수 로그에는 상태 코드조차 없다. 09-30 Anthropic 400(워크스페이스 헤더)은 화면 fetch 를 가로채서야 읽었다. → <code>agent_turn</code> 에 <code>llm_error_detail</code> 저장 + <code>console.error</code>(REQ-0094 2단계).</li>
+<li><strong>Anthropic 400 처방 2안</strong> — (a) 워크스페이스에서 발급한 일반 키로 시크릿 교체(코드 무변경) / (b) <code>llm/anthropic.ts</code> <code>new Anthropic({ apiKey, maxRetries: 1, defaultHeaders: { "anthropic-workspace-id": Deno.env.get("ANTHROPIC_WORKSPACE_ID") } })</code> + 시크릿 + 재배포. 관리자 결정 후.</li>
+<li><strong>Anthropic 경로 잠재 400(코드)</strong> — 히스토리 창 <code>slice(-20)</code>(화면·서버 모두)이 짝수라 10왕복을 넘으면 첫 메시지가 assistant 가 된다(Anthropic 은 user 로 시작해야 함 · OpenAI 는 통과). 마지막 라운드에 <code>tools:null</code> 로 보내는데 convo 에 tool_use 가 남아 있으면 400 가능. 실험실 경로는 마지막 메시지 user 검사 없음(프리필 400).</li>
+<li>템플릿은 파일(<code>app/agent-templates.json</code>)이 정본이고 DB 계층이 없다 — 여러 부서로 늘어 파일 한 곳으로 부족해지면 <code>ai_agent_template</code> 표 + <code>agent_create/clone</code> op(REQ-0094 2단계 4항).</li>
 <li>실험실 화면(<code>app/chat-lab.html</code>)은 렌더 코드 사본을 아직 갖고 있다 → <code>chatview.js</code> 로 이전 예정.</li>
 <li>월 예산 80% 알림(Teams)·엑셀/워드 원본 생성·포털 카드 등재는 미구현.</li>
 <li>게이트웨이 이름이 아직 <code>jeil-chat-lab</code> — 파일럿 검증 후 운영 이름(<code>jeil-agent</code>)으로 승격하고 운영 <code>jeil-chat</code> 을 흡수(별건).</li>

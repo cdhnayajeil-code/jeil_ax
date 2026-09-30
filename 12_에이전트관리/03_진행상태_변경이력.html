@@ -42,20 +42,21 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <body>
 <div class="page">
   <span class="doc-label">JEIL AX 에이전트관리 · 대외비</span>
-  <div class="docnav"><a href="/docs/agents">🏠 에이전트관리 허브</a><a href="/docs/agents/status">00 현재상태</a><a href="/docs/agents/ops-guide">01 운영가이드</a><a href="/docs/agents/dev-guide">02 개발가이드</a><a class="cur" href="/docs/agents/progress">03 진행상태</a><a href="/docs/agents/purchase-domain">04 구매도메인</a><a href="README.md">README</a></div>
+  <div class="docnav"><a href="/docs/agents">🏠 에이전트관리 허브</a><a href="/docs/agents/status">00 현재상태</a><a href="/docs/agents/ops-guide">01 운영가이드</a><a href="/docs/agents/dev-guide">02 개발가이드</a><a class="cur" href="/docs/agents/progress">03 진행상태</a><a href="/docs/agents/purchase-domain">04 구매도메인</a><a href="/docs/agents/quality-test">05 품질테스트</a><a href="/docs/agents/templates">06 템플릿·관리포인트</a><a href="README.md">README</a></div>
   <p class="md-link">📄 Markdown 원본: <a href="03_진행상태_변경이력.md">03_진행상태_변경이력.md</a> · 허브 <a href="/docs/agents">에이전트관리 허브</a></p>
   <div class="content">
 <h1 id="03">03 · 진행상태 · 변경이력</h1>
 <h2 id="1">1. 체크리스트</h2>
 <p><strong>파일럿 착수 전(사람)</strong>
-- [ ] <code>ANTHROPIC_API_KEY</code> 발급·Supabase 시크릿 등록 — 관리자 · 등록 전까지 gpt-4.1-mini 로 응답 중 · 절차는 <code>/admin/api-setup</code>
+- [~] <code>ANTHROPIC_API_KEY</code> — <strong>등록은 됐으나 워크스페이스에 묶이지 않은 키라 Anthropic 이 매 호출 400 거부</strong>(09-30 실측: 「anthropic-workspace-id 헤더 필요」) → 운영 워크스페이스에서 발급한 일반 키(<code>sk-ant-api…</code>)로 교체(코드 무변경) 또는 헤더 추가(REQ-0094 2단계 1항) — 관리자 · 교체 전까지 gpt-4.1-mini 로 응답 중 · 절차는 <code>/admin/api-setup</code>
 - [ ] <code>OPENAI_ADMIN_KEY</code>·<code>ANTHROPIC_ADMIN_KEY</code>(사용량 조회 전용) 발급·등록 — 관리자 · 없으면 「💳」 탭이 벤더 청구액 대신 내부 추정치만 보여 준다(REQ-0091)
 - [ ] 벤더별 월 예산·충전 잔액 입력 — 관리자 · 관리자 콘솔 「💳 AI 비용·예산」 탭(0 이면 「미설정」)
 - [ ] <strong>구매 에이전트 v2 초안</strong>(기본 Sonnet 5.5 · 예비 gpt-6-luna) 골든셋 회귀 → 「현재로 지정」 — 관리자(reviewer) · 키 등록 전에는 예비 모델이 응답
 - [ ] 개편된 두 탭 라이브 브라우저 실측(할 일 띠·단계 표·접힘 절·저장 4종) — 관리자
 - [ ] 구성원 등록: 구매팀 담당자 2명(operator) · 관리자 2명(reviewer) 추가 — 현재 1명
-- [~] 골든셋 10~20문항 작성 → v1 회귀 기준선 — 담당자 · <strong>8문항 등록(09-29, PR·PU·PO 중심)</strong> · 회귀 미실행
-- [ ] 라이브 실측(대화·CSV·보고서·HTML 미리보기·관리 화면 각 탭) — 관리자</p>
+- [~] 골든셋 10~20문항 작성 → v1 회귀 기준선 — 담당자 · <strong>11문항 등록 · v1 회귀 1회 6/11 통과(09-29 · $0.07)</strong> · 템플릿 표준 18문항 중 7문항 미등록 → 「📐 관리 포인트·템플릿」 탭 「빠진 문항 등록」 후 재회귀
+- [~] 라이브 실측 — <strong>09-30 회차 1 완료</strong>(실업무 대화 7시나리오 · Sonnet 테스터 · SQL 대조 → <a href="/docs/agents/quality-test">05</a>) · 관리 화면 각 탭·📐 탭·CSV·HTML 미리보기 실측은 관리자 확인 남음
+- [ ] <strong>REQ-0094 2단계(관리자 확인 후)</strong>: ① Anthropic 키 교체 또는 <code>anthropic-workspace-id</code> 헤더 ② LLM 오류 본문 <code>agent_turn</code> 저장 + 함수 로그 ③ 히스토리 창이 user 로 시작하도록 보정 ④ (선택) 템플릿 DB 계층·<code>agent_create/clone</code></p>
 <p><strong>파일럿(2주)</strong>
 - [ ] 개선 대장 매일 처리(담당자) · 주 1회 관리자 점검
 - [ ] 파일럿 종료 판정: 👍 비율 · 판정 걸림 비율 · 비용 → 운영(live) 전환 여부</p>
@@ -132,7 +133,9 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 | 2026-09-29 | <strong>AI 비용·예산 관제</strong>: 관리자 콘솔 「💳 AI 비용·예산」 탭 신설(두 벤더 실사용·예산/충전 잔여 역산·모델 단가 비교·모델별 사용량·일별 추이·오케스트레이션 배정) · <code>/admin/api-setup</code> 신설(키 4종 현황·발급·검증·등록 절차) · SQL 76 <code>ai_vendor_budget</code> · 함수 <code>jeil-chat-admin</code> v13(액션 3종) · ADR-111 Accepted | (이번 커밋) · admin v17 | 0091 |
 | 2026-09-29 | <strong>PR·PU·PO 번호 체계 반영</strong>: <code>search_pur_list</code> v1.1(pr·pu·po 로 연결 추적 + 해석 문장 · 카드에 세 번호) · 공통 프롬프트 PU 형식 · 용어집 10개 추가(13개) · 골든셋 8문항 · 제안 칩 2개 · 문서 04 신설 | <code>2d4b211</code> · 함수 v5 | 0090 |
 | 2026-09-29 | <strong>기안서 ↔ 스캔본 ↔ 전표 ↔ 발주 연결</strong>: SQL 76(연결 뷰 · 대사 상세 래퍼) · <code>get_proposal_chain</code> · <code>get_pur_proposal</code> v1.1(스캔 파일명) · 용어집 4·골든셋 3·칩 1 · <strong>스캔 목록 야간 자동</strong>(<code>proposal_scan.py</code> · 러너 r1.8 작업 <code>proposal_scan</code> · 이 PC 예약작업 <code>JEIL_AX_ProposalScan</code>) · 관리자 결정: 스캔본은 파일명·존재 여부만 | (이번 커밋) · 함수 v6 | 0091 |
-| 2026-09-30 | 구매 에이전트 화면 「연결된 구매 자료」에 <strong>📝 기안서 대장 · 📋 발주통합 LIST 바로가기 버튼</strong>(새 탭) 추가 — 화면만, 서버 무변경 | (이번 커밋) | 0087 |</p>
+| 2026-09-30 | 구매 에이전트 화면 「연결된 구매 자료」에 <strong>📝 기안서 대장 · 📋 발주통합 LIST 바로가기 버튼</strong>(새 탭) 추가 — 화면만, 서버 무변경 | <code>1ee07a4</code> | 0087 |
+| 2026-09-30 | <strong>실업무 대화 실측 회차 1</strong>: Sonnet 테스터 7명이 시나리오 7종(30문항)을 각자 탭에서 실측 · 검증 에이전트가 숫자 21건을 중간DB SQL 로 대조(일치 16·불일치 4) → <a href="/docs/agents/quality-test">05</a>. <strong>P1 4건</strong>: ① Claude 400 = 키가 워크스페이스에 안 묶임(<code>anthropic-workspace-id</code>) → 30문항 전부 예비 모델 ② 미입고 도구 비결정 정렬·거래처 조건 없음 → 숫자 지어냄 ③ 외주검사 「불합격 없음」 오답(실제 1건) ④ 목록 30건을 총량처럼 서술(실제 675). 안전 6문항·보고서 흐름·첨부 대조는 통과 | (이번 커밋) | 0094 |
+| 2026-09-30 | <strong>템플릿·관리 포인트 통합(REQ-0094 1단계, 서버 무변경)</strong>: 정본 <code>app/agent-templates.json</code>(공통 원칙 10·안전 규칙 5·관리 포인트 14·구매 칩 9·용어 17·골든셋 표준 21·시나리오 9) · 콘솔 「📐 관리 포인트·템플릿」 탭(기준값 판정·DB 대조·빠진 용어/골든셋 즉시 등록·규칙/칩 편집기 이관·시나리오→시험 대화) · 개요 KPI 8장(예비 전환 비율·골든셋 통과·기본 모델) · 사용 화면 예비 전환 사유 표시 · 문서 05·06(생성본 <code>_gen_templates_md.py</code>)·00~03·README·index·라우트 2·문서대장 | (이번 커밋) · 콘솔 v2 | 0094 |</p>
 <h2 id="3-09_adr">3. 결정 기록(요약 — 정본은 09_ADR · 총괄 대시보드)</h2>
 <table>
 <thead>

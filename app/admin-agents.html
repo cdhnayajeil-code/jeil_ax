@@ -86,6 +86,12 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,Bl
 .gate{max-width:560px;margin:60px auto;text-align:center;background:#fff;border:1px solid var(--line);border-radius:10px;padding:34px 26px}
 .gate .ic{font-size:40px}.gate h2{margin:10px 0 6px;font-size:18px;color:var(--navy)}.gate p{color:var(--muted);margin:0 0 14px}
 .rvonly.hideme{display:none!important}
+/* 📐 템플릿·관리 포인트(REQ-0094) — 기준 세트(app/agent-templates.json) 대조 목록 */
+.tl{list-style:none;margin:0;padding:0;font-size:12.5px;max-height:300px;overflow:auto}
+.tl li{display:flex;gap:7px;padding:4px 0;border-bottom:1px dashed var(--line);align-items:flex-start}
+.tl .ok{color:var(--green);font-weight:700}.tl .no{color:var(--red);font-weight:700}
+.tl b{font-weight:600;color:var(--navy)}
+.box h4{margin:4px 0 6px;font-size:12.8px;color:var(--navy2)}
 .foot{margin-top:12px;color:var(--muted);font-size:11.8px}
 </style>
 </head>
@@ -95,12 +101,13 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,Bl
     <div>
       <h1>🧭 에이전트 관리 — <span id="agName">-</span><span class="badge" id="roleBadge">-</span></h1>
       <div class="sub">에이전트별 모델·설정(버전) · 질의응답 기록 · 개선 대장 · 용어집 · 골든셋 회귀. <b>담당자</b>가 고치고, <b>관리자</b>가 확인·승인합니다.
-        <a href="/work/purchase-agent" target="_blank" rel="noopener">사용 화면 ↗</a> · <a href="/docs/product/dept-agents" target="_blank" rel="noopener">기획서 ↗</a></div>
+        <a href="/work/purchase-agent" target="_blank" rel="noopener">사용 화면 ↗</a> · <a href="/docs/product/dept-agents" target="_blank" rel="noopener">기획서 ↗</a> · <a href="/docs/agents/templates" target="_blank" rel="noopener">템플릿·관리 포인트 ↗</a></div>
     </div>
     <div class="right" id="me">-</div>
   </div>
   <div class="tabs" id="tabs">
     <button class="tab on" data-t="ov" type="button">개요</button>
+    <button class="tab" data-t="tpl" type="button">📐 관리 포인트·템플릿</button>
     <button class="tab" data-t="ver" type="button">설정·버전</button>
     <button class="tab" data-t="imp" type="button">개선 대장<span class="n" id="impN" style="display:none"></span></button>
     <button class="tab" data-t="turn" type="button">대화 기록</button>
@@ -127,6 +134,29 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,Bl
         <label>자주 쓰는 질문</label><textarea id="agSug" placeholder="한 줄에 하나 — 라벨|질문"></textarea>
       </div>
       <div class="btns rvonly"><button class="btn" id="btnAgSave" type="button">운영 설정 저장(관리자)</button></div>
+    </div>
+  </div>
+
+  <!-- 📐 관리 포인트·템플릿 (REQ-0094) — 기준 세트는 app/agent-templates.json 한 곳. 여기서는 DB 와 대조해 빠진 것만 채운다. -->
+  <div class="pane" id="p-tpl">
+    <div class="box">
+      <h3>관리 포인트 <span class="hint">이 에이전트의 지금 상태를 기준값과 비교합니다. 기준·조치·주기는 템플릿 파일 한 곳에서 관리합니다(모든 에이전트 공통).</span><span class="sp"></span><span class="hint" id="tplMeta"></span></h3>
+      <div id="mpTbl"><div class="hint">불러오는 중…</div></div>
+    </div>
+    <div class="box">
+      <h3>템플릿 반영 현황 <span class="hint">공통 기준 세트 + 이 부서 세트를 실제 설정(DB)과 대조합니다. ✔ 반영됨 · ✖ 빠짐. 용어·골든셋은 바로 등록되고, 규칙·칩은 편집기로 옮겨 저장합니다.</span></h3>
+      <div class="row2">
+        <div><h4>답변 원칙(현재 버전 기준)</h4><div id="tplRules"></div><div class="btns"><button class="btn ghost" id="btnTplRules" type="button">빠진 규칙을 편집기에 추가 → 새 버전 초안</button></div></div>
+        <div><h4>자주 쓰는 질문(칩)</h4><div id="tplSug"></div><div class="btns rvonly"><button class="btn ghost" id="btnTplSug" type="button">빠진 칩을 운영 설정에 추가(관리자 저장)</button></div></div>
+      </div>
+      <div class="row2" style="margin-top:10px">
+        <div><h4>용어집</h4><div id="tplGlo"></div><div class="btns"><button class="btn ghost" id="btnTplGlo" type="button">빠진 용어 등록(즉시 반영)</button></div></div>
+        <div><h4>골든셋 표준 문항</h4><div id="tplGold"></div><div class="btns"><button class="btn ghost" id="btnTplGold" type="button">빠진 문항 등록(회귀 포함)</button></div></div>
+      </div>
+    </div>
+    <div class="box">
+      <h3>표준 테스트 시나리오 <span class="hint">실업무 대화로 검증할 때 쓰는 문항입니다. 「시험 대화로」를 누르면 설정·버전 탭의 시험 대화에 질문이 들어갑니다(한도 제외·기록은 남음).</span></h3>
+      <div id="tplScen"></div>
     </div>
   </div>
 
@@ -244,7 +274,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,Bl
     </div>
   </div>
 
-  <div class="foot">REQ-0086·0088 · 14 기획 부서 에이전트 · 서버 <code>supabase/functions/jeil-chat-lab</code>(core/agent_api.ts) · 정본 SQL 74</div>
+  <div class="foot">REQ-0086·0088·0094 · 14 기획 부서 에이전트 · 서버 <code>supabase/functions/jeil-chat-lab</code>(core/agent_api.ts) · 정본 SQL 74 · 템플릿 <code>app/agent-templates.json</code></div>
 </div>
 <div class="toast" id="toast"></div>
 
@@ -269,7 +299,9 @@ let B = null;             // admin_boot 응답
 let edBaseVer = null;     // 편집 기준 버전
 let curImp = null, curTurn = null, curGlo = null, curGold = null;
 let TURNS = [];
+let TPL = null, USAGE = null;   // 템플릿 기준 세트(app/agent-templates.json) · 최근 usage 응답 — 관리 포인트 판정에 같이 쓴다
 const isRv = () => B && B.role === "reviewer";
+const curVer = () => (B && (B.versions.find((v) => v.state === "current") || B.versions[0])) || null;
 
 /* ===== 탭 ===== */
 $("tabs").onclick = (e) => {
@@ -278,21 +310,30 @@ $("tabs").onclick = (e) => {
   document.querySelectorAll(".pane").forEach((p) => p.classList.toggle("on", p.id === "p-" + t.dataset.t));
   if (t.dataset.t === "imp") loadImp();
   if (t.dataset.t === "turn" && !TURNS.length) loadTurns();
+  if (t.dataset.t === "tpl") loadTplPane();
 };
 
 /* ===== 개요 ===== */
 async function loadUsage() {
   const u = await op(AGENT, "usage", { days: 30 });
+  USAGE = u;
   const m = u.month; const ratio = m.ratio == null ? 0 : m.ratio;
   const k = (l, v, s, cls, meter) => `<div class="kpi ${cls || ""}"><div class="l">${l}</div><div class="v">${v}</div><div class="s">${s || ""}</div>${meter != null ? `<div class="meter"><i style="width:${Math.min(100, Math.round(meter * 100))}%"></i></div>` : ""}</div>`;
   const rated = u.up + u.down;
+  // 예비 전환은 건수보다 비율이 중요하다 — 09-30 실측에서 100% 예비 전환(키 문제)을 건수만으로는 못 알아봤다
+  const fbRate = u.turns ? u.fallback / u.turns : 0;
+  const cv = curVer(); const pm = cv && B.models.find((x) => x.model_id === cv.model_id);
+  const gRatio = cv && cv.golden_total ? cv.golden_pass / cv.golden_total : null;
   $("kpis").innerHTML =
     k("이번 달 비용", "$" + m.spend_usd.toFixed(2), `예산 $${m.budget_usd} · ${Math.round(ratio * 100)}%${ratio >= 1 ? " — 예비 모델로 전환 중" : ratio >= 0.8 ? " — 80% 넘음" : ""}`, ratio >= 1 ? "bad" : ratio >= 0.8 ? "warn" : "", ratio) +
     k("질문(30일)", u.turns.toLocaleString(), `사용자 ${u.users}명`) +
     k("만족(👍 비율)", rated ? Math.round(u.up / rated * 100) + "%" : "—", `👍 ${u.up} · 👎 ${u.down}`, u.down > u.up ? "warn" : "") +
     k("캐시 적중", u.cache_hit_ratio == null ? "—" : Math.round(u.cache_hit_ratio * 100) + "%", "입력 토큰 중 캐시 읽기") +
-    k("예비 모델 전환", u.fallback, "기본 모델 실패·예산 초과") +
+    k("예비 모델 전환", u.turns ? Math.round(fbRate * 100) + "%" : "—", `${u.fallback}건 / ${u.turns}건 · 기본 모델 실패·예산 초과`, fbRate >= 0.5 ? "bad" : fbRate >= 0.2 ? "warn" : "") +
+    k("골든셋 통과(현재 버전)", gRatio == null ? "—" : Math.round(gRatio * 100) + "%", cv && cv.golden_total ? `${cv.golden_pass}/${cv.golden_total} · ${fmtT(cv.golden_run_at)}` : "회귀 미실행", gRatio != null && gRatio < 0.6 ? "bad" : gRatio != null && gRatio < 0.8 ? "warn" : "") +
+    k("기본 모델", pm ? esc(pm.model_id) : "—", pm ? (pm.usable ? "호출 가능(키 등록됨)" : "호출 불가 — 예비 모델로 동작") : "", pm && !pm.usable ? "bad" : "") +
     k("개선 대기", (B.improve_counts.inbox || 0) + (B.improve_counts.triage || 0), `접수 ${B.improve_counts.inbox || 0} · 분류 ${B.improve_counts.triage || 0}`, (B.improve_counts.inbox || 0) > 10 ? "warn" : "");
+  if (TPL) renderMp();
   $("byDay").innerHTML = "";
   renderView($("byDay"), { view: "series", title: "", unit: "건", rows: u.by_day.map((d) => ({ k: d.day.slice(5), v: d.n })) });
   $("byVer").innerHTML = u.by_version.length ? `<div class="cv-tblwrap"><table><tr><th>버전</th><th class="r">질문</th><th class="r">👍</th><th class="r">👎</th><th class="r">판정 걸림</th><th class="r">평균 초</th><th class="r">비용</th></tr>` +
@@ -608,10 +649,137 @@ $("btnMemAdd").onclick = (e) => guard(async () => {
   await reboot(); toast("추가했습니다");
 }, e.target);
 
+/* ===== 📐 관리 포인트·템플릿 (REQ-0094) =====
+   기준 세트는 app/agent-templates.json 한 곳(모든 에이전트 공통 + 부서별). 여기서는 DB(admin_boot) 와 대조만 하고,
+   채우기는 기존 op(glossary_save·golden_save) 또는 기존 편집기(answer_rules·suggestions)로 흘려 보낸다 — 서버 변경 없음. */
+const norm = (s) => String(s || "").replace(/\s+/g, "").toLowerCase();
+async function loadTpl() {
+  if (TPL) return TPL;
+  const r = await fetch("/app/agent-templates.json", { cache: "no-store" });
+  if (!r.ok) throw new Error(`템플릿 파일을 읽지 못했습니다(${r.status}) — app/agent-templates.json`);
+  TPL = await r.json();
+  return TPL;
+}
+const tplDomain = () => (TPL && TPL.domains && TPL.domains[AGENT]) || null;
+// 규칙은 문장 전체가 아니라 핵심 문구(key)가 현재 버전 답변 원칙에 들어 있으면 반영된 것으로 본다 — 담당자가 문장을 다듬어도 깨지지 않게
+function coverage() {
+  const d = tplDomain(); const v = curVer(); const rulesTxt = norm(v ? v.answer_rules : "");
+  const rules = [...(TPL.common.answer_rules || []), ...((d && d.answer_rules_extra) || [])];
+  const sug = [...(TPL.common.suggestions || []), ...((d && d.suggestions) || [])];
+  const glo = [...(TPL.common.glossary || []), ...((d && d.glossary) || [])];
+  const gold = (d && d.golden) || [];
+  const has = { sug: new Set((B.agent.suggestions || []).map((s) => norm(s.label))), glo: new Set(B.glossary.map((g) => norm(g.term))), gold: new Set(B.golden.map((g) => norm(g.question))) };
+  const c = {
+    rules: { all: rules, ok: rules.filter((r) => rulesTxt.includes(norm(r.key))) },
+    sug: { all: sug, ok: sug.filter((s) => has.sug.has(norm(s.label))) },
+    glo: { all: glo, ok: glo.filter((g) => has.glo.has(norm(g.term))) },
+    gold: { all: gold, ok: gold.filter((g) => has.gold.has(norm(g.q))) },
+  };
+  const tot = rules.length + sug.length + glo.length + gold.length;
+  c.ratio = tot ? (c.rules.ok.length + c.sug.ok.length + c.glo.ok.length + c.gold.ok.length) / tot : null;
+  return c;
+}
+function metrics(cov) {
+  const u = USAGE || {}; const v = curVer(); const rated = (u.up || 0) + (u.down || 0);
+  const flagged = ["zero_rows", "tool_error", "no_tool"].reduce((a, f) => a + ((u.flags || {})[f] || 0), 0);
+  const bv = u.by_version || []; const n = bv.reduce((a, x) => a + x.n, 0);
+  const pm = v && B.models.find((m) => m.model_id === v.model_id);
+  return {
+    fallback_rate: u.turns ? u.fallback / u.turns : null,
+    down_rate: rated ? u.down / rated : null,
+    golden_pass_rate: v && v.golden_total ? v.golden_pass / v.golden_total : null,
+    golden_age_days: v && v.golden_run_at ? Math.floor((Date.now() - new Date(v.golden_run_at).getTime()) / 86400e3) : null,
+    budget_ratio: u.month ? u.month.ratio : null,
+    improve_pending: (B.improve_counts.inbox || 0) + (B.improve_counts.triage || 0),
+    avg_sec: n ? bv.reduce((a, x) => a + x.avg_ms * x.n, 0) / n / 1000 : null,
+    flag_rate: u.turns ? flagged / u.turns : null,
+    primary_usable: pm ? !!pm.usable : null,
+    members: B.members.length,
+    template_coverage: cov.ratio,
+  };
+}
+const fmtMp = (mp, v) => mp.unit === "%" ? Math.round(v * 100) + "%" : mp.unit === "초" ? Number(v).toFixed(1) + "초" : v + (mp.unit || "");
+function judge(mp, v) {
+  if (mp.metric === "manual") return ["수동 표본", ""];
+  if (v == null) return ["—", ""];
+  if (mp.metric === "primary_usable") return v ? ["호출 가능", "g"] : ["호출 불가", "r"];
+  if (mp.metric === "members") return [v + "명", v >= 3 ? "g" : "a"];
+  if (mp.warn == null) return [fmtMp(mp, v), ""];
+  const bad = mp.lower_is_better ? v >= mp.bad : v <= mp.bad;
+  const warn = mp.lower_is_better ? v >= mp.warn : v <= mp.warn;
+  return [fmtMp(mp, v), bad ? "r" : warn ? "a" : "g"];
+}
+function renderMp() {
+  if (!TPL || !B) return;
+  const d = tplDomain(); const cov = coverage(); const m = metrics(cov);
+  $("tplMeta").textContent = `템플릿 ${TPL.updated} · ${d ? d.name + " 세트 있음" : "부서 세트 없음(공통만)"} · 반영률 ${cov.ratio == null ? "—" : Math.round(cov.ratio * 100) + "%"}`;
+  const JUDGE_KO = { g: "정상", a: "주의", r: "경고" };
+  $("mpTbl").innerHTML = `<div class="cv-tblwrap"><table><tr><th>#</th><th>관리 포인트</th><th class="r">지금</th><th>판정</th><th>기준(주의 / 경고)</th><th>어디서 보나</th><th>조치</th><th>주기</th></tr>` +
+    (TPL.common.management_points || []).map((mp) => {
+      const [txt, cls] = judge(mp, m[mp.metric]);
+      return `<tr><td>${esc(mp.id)}</td><td>${esc(mp.name)}</td><td class="r"><b>${esc(txt)}</b></td><td>${cls ? `<span class="pill ${cls}">${JUDGE_KO[cls]}</span>` : '<span class="hint">자료 없음</span>'}</td>
+        <td>${mp.warn != null ? esc(fmtMp(mp, mp.warn) + " / " + fmtMp(mp, mp.bad)) : "-"}</td><td>${esc(mp.where)}</td><td>${esc(mp.action)}</td><td>${esc(mp.cadence)}</td></tr>`;
+    }).join("") + "</table></div>";
+  const li = (ok, main, sub) => `<li><span class="${ok ? "ok" : "no"}">${ok ? "✔" : "✖"}</span><span><b>${esc(main)}</b>${sub ? `<div class="hint">${esc(sub)}</div>` : ""}</span></li>`;
+  const cnt = (c) => `<div class="hint" style="margin-bottom:4px">${c.ok.length}/${c.all.length} 반영</div>`;
+  $("tplRules").innerHTML = cnt(cov.rules) + `<ul class="tl">` + cov.rules.all.map((r) => li(cov.rules.ok.includes(r), `${r.id} · ${r.key}`, r.text)).join("") + `</ul>` +
+    `<div class="hint" style="margin-top:6px">안전 규칙(프롬프트가 아니라 검증 기준 — T-SAFE 시나리오로 확인): ${(TPL.common.safety_rules || []).map((s) => esc(s.id + " " + s.key)).join(" · ")}</div>`;
+  $("tplSug").innerHTML = cnt(cov.sug) + `<ul class="tl">` + cov.sug.all.map((s) => li(cov.sug.ok.includes(s), s.label, s.q)).join("") + `</ul>`;
+  $("tplGlo").innerHTML = cnt(cov.glo) + `<ul class="tl">` + cov.glo.all.map((g) => li(cov.glo.ok.includes(g), g.term, g.meaning.slice(0, 90))).join("") + `</ul>`;
+  $("tplGold").innerHTML = cnt(cov.gold) + `<ul class="tl">` + cov.gold.all.map((g) => li(cov.gold.ok.includes(g), g.q, (g.expect_tools || []).join(", ") + (g.rules ? " · " + g.rules : ""))).join("") + `</ul>`;
+  const scen = [...(TPL.common.test_scenarios || []), ...((d && d.test_scenarios) || [])];
+  $("tplScen").innerHTML = scen.map((s) => `<div class="qa"><div class="q">${esc(s.id)} · ${esc(s.title)} <span class="hint">— ${esc(s.persona)}</span></div><div class="hint">통과 기준: ${esc(s.pass)}</div>
+    <ol style="margin:6px 0 0 18px;font-size:12.5px">` + s.questions.map((q, i) => `<li>${esc(q.q)} <span class="hint">→ ${esc(q.expect)}${q.expect_tools && q.expect_tools.length ? " · " + esc(q.expect_tools.join(", ")) : ""}</span>
+      ${/^[\[<]/.test(q.q) ? "" : `<button class="ra" type="button" data-scen="${esc(s.id)}" data-qi="${i}">시험 대화로</button>`}</li>`).join("") + `</ol></div>`).join("");
+  $("tplScen").onclick = (e) => {
+    const b = e.target.closest("[data-scen]"); if (!b) return;
+    const s = scen.find((x) => x.id === b.dataset.scen); if (!s) return;
+    $("tvInp").value = s.questions[+b.dataset.qi].q; document.querySelector('.tab[data-t="ver"]').click(); $("tvInp").focus();
+  };
+}
+async function loadTplPane() {
+  await guard(async () => {
+    await loadTpl();
+    if (!USAGE) USAGE = await op(AGENT, "usage", { days: 30 });
+    renderMp();
+  });
+}
+$("btnTplRules").onclick = () => {
+  const cov = coverage(); const miss = cov.rules.all.filter((r) => !cov.rules.ok.includes(r));
+  if (!miss.length) { toast("빠진 규칙이 없습니다"); return; }
+  const cur = $("edRules").value.replace(/\s+$/, "");
+  $("edRules").value = (cur ? cur + "\n" : "") + miss.map((r) => r.text).join("\n");
+  $("edNote").value = $("edNote").value || `템플릿 규칙 ${miss.map((r) => r.id).join(",")} 추가`;
+  document.querySelector('.tab[data-t="ver"]').click(); $("edRules").focus();
+  toast(`편집기에 ${miss.length}줄 추가했습니다 — 「새 버전(초안)으로 저장」 후 회귀·지정`);
+};
+$("btnTplSug").onclick = () => {
+  const cov = coverage(); const miss = cov.sug.all.filter((s) => !cov.sug.ok.includes(s));
+  if (!miss.length) { toast("빠진 칩이 없습니다"); return; }
+  const cur = $("agSug").value.replace(/\s+$/, "");
+  $("agSug").value = (cur ? cur + "\n" : "") + miss.map((s) => `${s.label}|${s.q}`).join("\n");
+  document.querySelector('.tab[data-t="ov"]').click(); $("agSug").focus();
+  toast(`운영 설정에 ${miss.length}개 채웠습니다 — 「운영 설정 저장(관리자)」을 누르세요(최대 12개)`);
+};
+$("btnTplGlo").onclick = (e) => guard(async () => {
+  const cov = coverage(); const miss = cov.glo.all.filter((g) => !cov.glo.ok.includes(g));
+  if (!miss.length) { toast("빠진 용어가 없습니다"); return; }
+  for (const g of miss) await op(AGENT, "glossary_save", { id: null, term: g.term, meaning: g.meaning, active: true });
+  await reboot(); toast(`용어 ${miss.length}개를 등록했습니다(즉시 프롬프트 반영)`);
+}, e.target);
+$("btnTplGold").onclick = (e) => guard(async () => {
+  const cov = coverage(); const miss = cov.gold.all.filter((g) => !cov.gold.ok.includes(g));
+  if (!miss.length) { toast("빠진 문항이 없습니다"); return; }
+  const known = new Set(B.modules.map((m) => m.id));
+  for (const g of miss) await op(AGENT, "golden_save", { id: null, question: g.q, expect_rules: g.rules || "", active: true, expect_tools: (g.expect_tools || []).filter((t) => known.has(t)), source_turn_id: null });
+  await reboot(); toast(`골든셋 ${miss.length}문항을 등록했습니다 — 회귀를 돌려 기준선을 남기세요`);
+}, e.target);
+
 /* ===== 진입 ===== */
 async function reboot() {
   B = await op(AGENT, "admin_boot");
   refreshVer(); buildGlo(); buildGold(); buildMem(); fillAgent();
+  if (TPL) renderMp();
 }
 (async () => {
   if (!auth()) { toLogin(); return; }
