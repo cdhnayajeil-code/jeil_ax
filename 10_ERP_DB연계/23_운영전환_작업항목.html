@@ -107,7 +107,7 @@ footer{color:var(--sub);font-size:13px;margin-top:24px}
     <thead><tr><th>#</th><th>작업</th><th>누가</th><th>왜 필요한가</th><th>상태</th></tr></thead>
     <tbody>
       <tr><td>1</td><td><a href="#s1">거래유형 AX001 운영 등록</a></td><td>ERP 관리자 · 유니포인트</td>
-          <td>없으면 전송이 첫 단계에서 멈춘다(운영 판정에서 유일하게 걸린 항목 — 2026-09-30 등록, 관리자 보고)</td><td><span class="chip c-g">등록 완료</span></td></tr>
+          <td>없으면 전송이 첫 단계에서 멈춘다(운영 판정에서 유일하게 걸린 항목 — 2026-09-30 등록 · 판정 재확인 통과)</td><td><span class="chip c-g">등록 완료</span></td></tr>
       <tr><td>2</td><td><a href="#s2">운영 쓰기 허용 결정(C-1 개정 + ADR)</a></td><td>경영 · IT 관리자</td>
           <td>운영 ERP 쓰기는 결정 C-1과 프로젝트 규칙으로 금지돼 있다</td><td><span class="chip c-r">미착수</span></td></tr>
       <tr><td>3</td><td><a href="#s3">첫 투입 때 확인할 단계</a></td><td>관리자 · 회계 담당</td>
@@ -188,7 +188,7 @@ footer{color:var(--sub);font-size:13px;margin-top:24px}
 <pre>cd "10_ERP_DB연계/etl"
 python gl_precheck_prod.py --draft AX260930-U001-001</pre>
 
-  <div class="note blue"><b>2026-09-30 운영 등록 완료(관리자 보고).</b> 아래 판정 재실행으로 <code>[TT]</code>가 사라졌는지 확인하면 이 작업이 끝난다.</div>
+  <div class="note blue"><b>2026-09-30 운영 등록 완료 · 판정 재확인 통과</b>(통과 1 / 걸림 0). 도구는 AX001 존재와 <code>GL_POSTING_FG='T'</code>를 확인한다 — <code>BATCH_FG</code>는 판정 항목 밖이라 ERP 화면에서 한 번 눈으로 확인한다.</div>
   <h3>완료 기준</h3>
   <ul class="check">
     <li>판정 결과에서 <code>[TT] 거래유형 AX001 … 미등록</code>이 사라진다</li>
@@ -299,7 +299,7 @@ python gl_precheck_prod.py --draft AX260930-U001-001</pre>
           <td><b>2026-09-30 폐지(관리자 결정)</b> — 결정 C-15로 분개코드가 매핑 없이 정해지고, 계정 전수 판정에서 막힌다던 계정이 모두 통과했다. 외상매입금(21100101)은 미사용이라 처음 쓸 때 판정 1회</td></tr>
       <tr><td>G5</td><td>전표 취소·정정 절차</td><td>회계팀</td><td><span class="chip c-r">미정의</span></td><td>작업 2의 선행 조건</td></tr>
       <tr><td>G6</td><td>중복 전표 경고</td><td>AX</td><td><span class="chip c-r">미구현</span></td><td>운영에서는 이중 지급 위험</td></tr>
-      <tr><td>G7</td><td>운영 마스터 기준 재판정</td><td>AX</td><td><span class="chip c-g">닫힘</span></td><td><b>2026-09-30 닫힘(관리자 결정)</b> — 계정 39쌍 운영=DEMO2(운영이 더 엄격한 V8 1건), 전표 판정의 유일한 차단이던 AX001 등록 완료. 판정 재실행으로 최종 확인 권장</td></tr>
+      <tr><td>G7</td><td>운영 마스터 기준 재판정</td><td>AX</td><td><span class="chip c-g">닫힘</span></td><td><b>2026-09-30 닫힘(관리자 결정)</b> — 계정 39쌍 운영=DEMO2(운영이 더 엄격한 V8 1건), 전표 판정의 유일한 차단이던 AX001 등록 후 재판정 통과(1/0)</td></tr>
       <tr><td>G8</td><td>무인 운영(알림·스케줄러)</td><td>AX · 관리자</td><td><span class="chip c-a">부분</span></td><td>Teams 알림 웹훅 설정 · 스케줄러 등록 남음</td></tr>
       <tr><td>G9</td><td>C-1 개정 + 유니포인트 협의</td><td>경영 · IT</td><td><span class="chip c-r">미착수</span></td><td>= 작업 2</td></tr>
     </tbody>
@@ -315,7 +315,7 @@ python gl_precheck_prod.py --draft AX260930-U001-001</pre>
       <tr><td>1</td><td>유니포인트 협의 요청 — AX001 운영 등록 · 번호 체계(AG·BT) · 미결 T-1/U-A</td><td>관리자</td><td>없음</td></tr>
       <tr><td>2</td><td>회계팀과 취소·정정 절차(G5) 논의 시작</td><td>관리자 · 회계팀</td><td>없음</td></tr>
       <tr><td>3</td><td><s>운영 기준 전수 판정(G7)</s> ✅ 2026-09-30 완료 → G7 닫힘 · G4 폐지 결정</td><td>관리자</td><td>없음</td></tr>
-      <tr><td>4</td><td><s>AX001 운영 등록</s> ✅ 2026-09-30 → 판정 재실행으로 확인</td><td>ERP 관리자</td><td>1</td></tr>
+      <tr><td>4</td><td><s>AX001 운영 등록</s> ✅ 2026-09-30 · 재판정 통과</td><td>ERP 관리자</td><td>1</td></tr>
       <tr><td>5</td><td>C-1 개정 결정 · ADR 기록</td><td>경영 · IT</td><td>1 · 2 · 3</td></tr>
       <tr><td>6</td><td>코드 변경(대상 DB·cleanup 차단) → EXE 재빌드 → 서버 교체</td><td>관리자</td><td>5</td></tr>
       <tr><td>7</td><td>첫 투입: 리허설 → 1건 투입 → 회계 대조·승인</td><td>관리자 · 회계 담당</td><td>4 · 6</td></tr>
