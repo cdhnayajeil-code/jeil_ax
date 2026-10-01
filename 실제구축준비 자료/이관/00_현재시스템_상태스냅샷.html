@@ -519,6 +519,11 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <tbody>
 <tr>
 <td>2026-09-30</td>
+<td><strong>사내 NAS 역방향 큐 1단계 — 대화기록·ERP 스냅샷 NAS 적재</strong>(REQ-0097 · ADR-110 v3 Accepted 1단계) — NAS 가 <strong>사내 내부망·내부 방화벽 안</strong>이라는 사실이 확인돼 터널안(안 B)을 철회하고 <strong>인바운드를 만들지 않는 역방향 큐</strong>(안 D)로 교체했다. 정본 SQL <strong>82</strong>(<code>nas_export_queue_v1</code> 라이브 적용) — <code>etl_meta</code> 표 4종(<code>nas_request</code>·<code>nas_heartbeat</code>·<code>nas_export_source</code>·<code>nas_export_state</code>, 전부 RLS on·정책 0·anon/authenticated revoke) + <code>public.nas_*</code> RPC 10종(사내 세션 2 + service_role 8). 허용 목록은 <code>rel_schema='public'</code> CHECK 로 급여(<code>erp_secure</code>) 등재 불가. 러너 소스 <strong>r1.9</strong> — 신규 모듈 <code>10_ERP_DB연계/etl/nas_worker.py</code>(서브커맨드 <code>jeil_runner nas</code> · 작업 종류 <code>nas_sync</code> · 능력 <code>nas</code> · 회귀 <code>test_nas_worker.py</code> 27건) · <strong>ERP 큐·심박은 공유하지 않는다</strong>(SQL 49 미적용 상태에서 러너 경쟁·가동 오판정이 생기므로 별 표). <strong>게이트웨이 무변경</strong>(Edge Function 배포 0건 — outbox 대신 커서 증분 pull). 실측: 회귀 113건 통과 · 라이브 <strong>79,472행</strong> 내보내기(기록 4종 100행 + ERP 스냅샷 9종 79,372행) · 복원 대조(13소스 전부 행수·SHA256 일치 · <code>agent_turn</code> 표본 5건 필드 일치) · 큐 왕복 0.44초 · 중단 재개 누락 0 · 2회차 0행. <strong>미완</strong>: 실제 NAS 경로 적재(<code>.claude/nas.path</code> + 폴더 쓰기 권한) · <strong>D-98 PoC 무인증 포트 8765 아직 열림</strong> · 상시화·EXE 재빌드·전달 폴더 동기화(§17.5). D-106 = 역방향 큐 확정 · <strong>D-107 터널 주소는 보류</strong>(회사 도메인 네임서버 이관 불필요해짐). 단일 출처는 <code>13_NAS_고도화/</code>(00·01 v3·02)</td>
+<td>Claude(REQ-0097)</td>
+</tr>
+<tr>
+<td>2026-09-30</td>
 <td><strong>운영 챗봇 gpt-6-luna 도구 호출 400 수정 + 모델 「동작 점검」</strong>(REQ-0095 · 커밋 <code>3e1af1e</code>) — Edge Function <code>jeil-chat</code> <strong>v34</strong>(OpenAI 400 사유 3단계 자동 적응 · 관리자 전용 <code>action:test_model</code>) · <code>jeil-chat-lab</code> <strong>v14</strong>(llm/openai.ts 사본 동기) · <code>jeil-chat-admin</code> <strong>v26</strong>(점검 컬럼 보존) · 정본 SQL <strong>80</strong>(<code>ai_model.last_check_*</code>·<code>request_shape</code>)·<strong>81</strong>(gpt-6-astra 메모) 라이브 적용 · 임시 실측 함수 <code>jeil-probe-95</code>(1회용 토큰 해시 인증)로 카탈로그 14종 실측 후 <strong>삭제</strong> — OpenAI 7/8 정상(gpt-6-luna·sol 은 reasoning_effort none 으로 응답) · gpt-6-astra 도구 호출 불가 · Claude 6종 크레딧 부족</td>
 <td>Claude(REQ-0095)</td>
 </tr>

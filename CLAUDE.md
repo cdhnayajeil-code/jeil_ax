@@ -57,6 +57,7 @@ JEIL_AX/
 ├─ 10_ERP_DB연계/                     ← ★ERP DB 연계 관제(현재상태·기획·진행상태 단일 출처, 정책관리 미러 동기)
 ├─ 11_제품기획/                       ← 제품기획 문서(PRD·설계·ADR · 14 부서 에이전트 운영기획)
 ├─ 12_에이전트관리/                   ← ★부서 에이전트 관리(현재상태·운영가이드·개발가이드·진행상태 단일 출처, 2026-09-29)
+├─ 13_NAS_고도화/                     ← 사내 NAS 연계 검토·기획(데이터 계층 — 타당성검토·기획, ADR-110 제안, 2026-09-29) · PoC 원본 claude_*.md 는 git 제외
 ├─ pages/                            ← 부서별 운영 관리페이지(영업/구매/인사/자금/자재/외주 등)
 ├─ app/                              ← 실구축 프론트(협력사 로그인·관리, Supabase 연동 api.js)
 ├─ supabase/functions/              ← Edge Function(vendor-provision·approve·reset)
@@ -353,8 +354,9 @@ JEIL_AX/
    **최초 1회 `--full` 백필**이 따로 필요하다.
 3. **새 모듈을 붙이면 `deploy/build_exe.py` 의 `hidden` 목록에 이름을 넣는다.** PyInstaller 정적 분석에
    안 잡히면 EXE 에서만 `ModuleNotFoundError` 가 난다 — 빌드 후 `jeil_runner.exe <서브커맨드> --help` 로 확인한다.
-4. **회귀는 빌드 전에 돌린다**: `python -m unittest test_runner_core test_runner_cli test_offboard_axes`
-   (실제 릴레이·ETL·퇴사를 절대 실행하지 않는 헤드리스 테스트다).
+4. **회귀는 빌드 전에 돌린다**: `python -m unittest test_runner_core test_runner_cli test_offboard_axes test_nas_worker`
+   (실제 릴레이·ETL·퇴사·NAS 를 절대 건드리지 않는 헤드리스 테스트다 — 2026-09-30 기준 113건).
+   같은 세트가 `10_ERP_DB연계/etl/deploy/README.md §C-6` 에도 적혀 있다 — 한쪽만 고치지 않는다.
 5. **서버 적용은 관리자가 직접** 한다(§1.5 · 벤더 운영 서버). Claude 는 EXE 를 만들고 경로·절차만 제시한다.
    배포 절차 정본은 `10_ERP_DB연계/etl/deploy/README.md`(C안), 변경 이력은 같은 폴더 `변경관리.md`.
    **ERP 동기화 산출물은 「저장소 → 전달 폴더 → 서버」 세 경로를 거친다.** 가운데를 건너뛰면 서버가 옛 EXE 를 계속 돈다
@@ -371,3 +373,11 @@ JEIL_AX/
    `logs/`·`runner_config.json`·`runner_history.jsonl` 은 서버가 쓰는 것이라 **반대 방향**이다.
 6. 능력이 안 되는 호스트에서는 **조용히 건너뛰지 않는다** — `runner_core.detect_capabilities()` 가 판정하고
    요청 결과에 사유를 남긴다(예: playwright 없는 서버는 퇴사 큐를 선점하지 않는다).
+7. **사내 NAS 적재**(REQ-0097 · 2026-09-30)도 이 러너에 얹혀 있다 — 서브커맨드 `jeil_runner nas`,
+   작업 종류 `nas_sync`(group `nas`), 능력 `nas`, 모듈 `nas_worker.py`, 회귀 `test_nas_worker.py`.
+   **NAS 는 사내 내부망·내부 방화벽 안**이라 터널을 쓰지 않고 **워커가 밖으로만 연결해 큐를 집어가는
+   역방향 큐**다(ADR-110 v3 · 정본 SQL `이관/sql/82_nas_export_queue.sql`).
+   지켜야 할 것: ① **ERP 큐·심박을 공유하지 않는다**(`erp_sync_request_claim`·`erp_sync_runner_ping` 을 부르면
+   ERP 요청을 집어 실패시키고 화면이 러너 가동을 오판정한다 — 전용 `nas_request`·`nas_heartbeat` 를 쓴다)
+   ② 내보낼 대상은 코드가 아니라 **DB 허용 목록**(`etl_meta.nas_export_source`)이 정한다 — 워커에 테이블 이름·SQL 을 심지 않는다
+   ③ **NAS 경로를 저장소에 적지 않는다** — `.claude/nas.path`(절대경로 1줄) 또는 `NAS_DATA_ROOT` 로만 넘기고, 못 찾으면 요청을 선점하지 않는다.

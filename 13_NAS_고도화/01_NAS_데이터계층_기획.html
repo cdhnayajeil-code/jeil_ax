@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>01 데이터계층 기획 — JEIL AX NAS 고도화 (아웃바운드 전용 구조·워커·데이터별 설계·단계·결정)</title>
+<style>
+:root{--navy:#1a2f4e;--navy2:#27457a;--accent:#2f6fb3;--red:#b3402f;--green:#2e7d52;--amber:#9a6b1f;
+--ink:#222;--muted:#666;--line:#d8dee8;--bg:#f4f6f9;--soft:#eef2f8;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;color:var(--ink);background:var(--bg);line-height:1.65;font-size:15px;}
+.page{max-width:960px;margin:0 auto;background:#fff;padding:52px 60px;box-shadow:0 2px 14px rgba(0,0,0,.08);}
+.doc-label{display:inline-block;background:var(--navy);color:#fff;font-size:12px;letter-spacing:.16em;padding:5px 14px;border-radius:3px;margin-bottom:16px;}
+.docnav{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 26px;}
+.docnav a{font-size:12px;color:var(--navy2);border:1px solid var(--line);border-radius:20px;padding:4px 12px;text-decoration:none;background:var(--soft);}
+.docnav a:hover{background:var(--navy);color:#fff;}
+.docnav a.cur{background:var(--navy);color:#fff;border-color:var(--navy);}
+.md-link{font-size:13px;margin-bottom:22px;color:var(--muted);}
+.content h1{font-size:27px;color:var(--navy);line-height:1.35;margin:6px 0 18px;}
+.content h2{font-size:20px;color:var(--navy);margin:42px 0 14px;padding-bottom:9px;border-bottom:3px solid var(--navy);}
+.content h3{font-size:16px;color:var(--navy2);margin:24px 0 9px;}
+.content p{margin:0 0 12px;}
+.content ul,.content ol{margin:0 0 14px 22px;}
+.content li{margin-bottom:6px;}
+.content blockquote{background:var(--soft);border-left:5px solid var(--navy);border-radius:0 8px 8px 0;padding:14px 20px;margin:14px 0;color:#33425a;}
+.content blockquote p{margin:0 0 6px;}
+.content table{width:100%;border-collapse:collapse;margin:14px 0 20px;font-size:13.3px;}
+.content th{background:var(--navy);color:#fff;padding:9px 11px;text-align:left;font-weight:600;}
+.content td{padding:8px 11px;border-bottom:1px solid var(--line);vertical-align:top;}
+.content tr:nth-child(even) td{background:#fafbfd;}
+.content a{color:var(--accent);}
+.content code{background:var(--soft);border:1px solid var(--line);border-radius:4px;padding:1px 6px;font-size:12.4px;font-family:Consolas,'Courier New',monospace;}
+.content pre{background:#21252e;color:#e8eaf0;border-radius:8px;padding:16px 18px;font-size:12.4px;font-family:Consolas,'Courier New',monospace;overflow-x:auto;margin:12px 0 18px;line-height:1.55;}
+.content pre code{background:none;border:none;color:inherit;padding:0;}
+.content hr{border:none;border-top:1px solid var(--line);margin:30px 0;}
+.content strong{color:var(--navy2);}
+.footer{margin-top:50px;padding-top:16px;border-top:1px solid var(--line);font-size:12px;color:var(--muted);display:flex;justify-content:space-between;}
+@media print{body{background:#fff;}.page{box-shadow:none;padding:18px 0;max-width:100%;}.docnav{display:none;}.content h2{break-after:avoid;}.content table,.content pre,.content blockquote{break-inside:avoid;}}
+@media (max-width:720px){.page{padding:30px 20px;}}
+</style>
+</head>
+<body>
+<div class="page">
+  <span class="doc-label">JEIL AX NAS 고도화 · 대외비</span>
+  <div class="docnav"><a href="/docs/nas">🏠 NAS 고도화</a><a href="/docs/nas/review">00 타당성검토</a><a class="cur" href="/docs/nas/plan">01 데이터계층 기획</a><a href="README.md">README</a></div>
+  <p class="md-link">📄 Markdown 원본: <a href="01_NAS_데이터계층_기획.md">01_NAS_데이터계층_기획.md</a> · 허브 <a href="/docs/nas">NAS 고도화</a></p>
+  <div class="content">
+<h1 id="01-nas-v3-erp-supabase-nas">01 · NAS 데이터 계층 기획 (v3) — ERP 는 Supabase, 누적은 NAS, 둘은 <strong>역방향 큐</strong>로</h1>
+<blockquote>
+<p>관리자: 최동혁(dh.choi@jeilm.co.kr) · 기준일: 2026-09-30(NAS 가 사내 내부망·내부 방화벽 안이라는 사실 반영 · 1단계 구현·검증 완료) · 상태: <strong>Draft v3 — 안 D 채택 · N1 구현·라이브 검증 완료(REQ-0097) · 실제 NAS 경로 적재만 남음</strong>
+선행: <a href="/docs/nas/review">00_NAS연계_타당성검토</a> · 의사결정용 도식 자료: <a href="/docs/nas/decision">02_의사결정_브리핑</a>(<code>/docs/nas/decision</code>)
+관련: <code>11_제품기획/14_부서에이전트_운영기획.md</code>(ADR-109) · <code>11_제품기획/13_챗봇_모듈형_고도화_기획.md</code>(ADR-108) · <code>12_에이전트관리/02_개발가이드.md</code> · <code>10_ERP_DB연계/etl/</code>(러너) · CLAUDE.md §1·§4·§5·§17</p>
+</blockquote>
+<h2 id="_1">개정 이력</h2>
+<table>
+<thead>
+<tr>
+<th>판</th>
+<th>일자</th>
+<th>전제</th>
+<th>권고</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>v1</td>
+<td>2026-09-29</td>
+<td>밖 → NAS 경로를 열 수 없다고 가정</td>
+<td>안 A — NAS = 아웃바운드 전용 창고(보관·백업)</td>
+</tr>
+<tr>
+<td><strong>v2</strong></td>
+<td>2026-09-29</td>
+<td>관리자 답변: <strong>터널 보안 승인 가능 · 사외 사용 필요 · 문서는 NAS 에 새로 정리 · IT담당 직접 운영</strong> · 목적: "Supabase = ERP 정합성, NAS = 대용량·누적 데이터"</td>
+<td>안 B — NAS = 누적 데이터 정본 + 보안 터널 + NAS 데이터 API</td>
+</tr>
+<tr>
+<td><strong>v3</strong></td>
+<td>2026-09-30</td>
+<td>관리자 확인: <strong>NAS 는 사내 내부망·내부 방화벽 안</strong>(DMZ 아님). 터널은 포트를 열지 않아도 <strong>외부 세션이 내부존에서 종단</strong>되어 보안 승인 + 세그먼트·VLAN 검토가 따라오고, 공인 대역이라 룰 실수 한 줄이 곧 노출이다. 게다가 터널 주소(D-107)는 회사 도메인 네임서버 이관을 물고 있다</td>
+<td><strong>안 D — 역방향 큐(인바운드 0 · 방화벽 룰 추가 0건). 터널은 N3(문서 검색) 실측 뒤 조건부</strong></td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>비개발자용 한 줄 요약</strong> — ERP 숫자·권한처럼 <strong>정확해야 하고 매번 읽는 것</strong>은 지금처럼 Supabase 에, 대화기록·생성 자료·부서 문서처럼 <strong>크고 계속 쌓이는 것</strong>은 사내 NAS 에 둔다. 둘은 <strong>사내 NAS 쪽에서 밖으로만 연결해 「할 일」을 받아 오는 방식</strong>(역방향 큐)으로 잇는다. 밖에서 NAS 로 들어오는 길을 만들지 않으니 방화벽을 건드릴 일이 없고, 재택·출장 중에도 쓸 수 있다(직원 브라우저는 포털만 보기 때문이다).</p>
+</blockquote>
+<hr />
+<h2 id="0">0. 결론 먼저</h2>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>제안</th>
+<th>한 줄 이유</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td><strong>데이터 배치 원칙</strong>: ERP 중간DB·권한·에이전트 설정 = Supabase / 대화기록 장기분·생성 자료·부서 문서·색인·첨부 원본·백업 = <strong>NAS 정본</strong></td>
+<td>정합성 데이터와 누적 데이터의 성격이 다르다. Free 500MB·자동 백업 없음의 한계도 함께 푼다</td>
+</tr>
+<tr>
+<td>2</td>
+<td><strong>연결 = 역방향 큐</strong>(안 D) — 사내 워커가 밖으로만 연결해 큐를 집어가고 데이터도 RPC 로 받아 간다</td>
+<td>인바운드 0 · 방화벽 룰 추가 0건 · 터널·도메인·신규 벤더 계정 불필요. 사외 사용은 그대로(브라우저는 포털만 본다)</td>
+</tr>
+<tr>
+<td>3</td>
+<td>에이전트 두뇌(게이트웨이)는 <strong>Supabase 하나 유지</strong>(ADR-109) — NAS 는 <strong>데이터 보관</strong>만</td>
+<td>권한 판정·턴 기록·비용 집계가 갈라지지 않는다</td>
+</tr>
+<tr>
+<td>4</td>
+<td><strong>outbox 를 쓰지 않는다</strong> — 워커가 커서로 증분 pull 하고, 원본은 그대로 둔다</td>
+<td>행은 ack 전까지 Supabase 에 남아 <strong>유실이 구조적으로 불가능</strong>하다. 게이트웨이 무변경(Edge Function 배포 0건)</td>
+</tr>
+<tr>
+<td>5</td>
+<td><strong>문서 색인은 NAS 안에서</strong> — 조각 텍스트를 클라우드 DB 에 쌓지 않는다</td>
+<td>데이터 주권 · D-95 쟁점을 "LLM 전송"으로 좁힘</td>
+</tr>
+<tr>
+<td>6</td>
+<td>NAS 가 유일한 원본이 되므로 <strong>디스크 이중화·외부 사본·UPS·메모리 16GB</strong> 가 선결</td>
+<td>장비 한 대 고장 = 데이터 손실을 막는 최소 조건</td>
+</tr>
+</tbody>
+</table>
+<h2 id="1">1. 목표 구조</h2>
+<pre><code> [직원 · 사내/사외] ──Entra──► [AI 포털 ai.jeilm.co.kr]
+                                        │
+                                        ▼
+ ┌──────── Supabase · 정합성 계층 ─────────────────────────────┐
+ │ 게이트웨이(jeil-chat-lab → jeil-agent) · 권한 판정 · 도구 실행 │◄── ERP(사외 IDC) 러너 야간 적재 (변경 없음)
+ │ ERP 중간DB(erp_ro·v_erp_*) · 권한(perm_*) · 에이전트 설정    │
+ │ 적재 큐 etl_meta.nas_request · 심박 nas_heartbeat            │
+ │ 허용 목록 nas_export_source · 증분 커서 nas_export_state     │
+ └───────────────▲─────────────────────────────────────────────┘
+                 │ HTTPS 443 **아웃바운드만** (인바운드 0 · 방화벽 룰 추가 0건)
+                 │  ① nas_request_claim  → 할 일 1건 선점
+                 │  ② nas_export_page    → 데이터를 페이지로 받아 온다
+                 │  ③ nas_export_commit  → 파일이 놓인 뒤에만 커서 전진
+                 │  ④ nas_request_finish → 건수·SHA256·사유를 되쓴다
+ ┌───────────────┴──── 사내NAS(내부망) · 누적 계층(정본) ───────┐
+ │ nas_worker.py (큐 소비자 — 공개 주소·열린 포트·터널 토큰 없음) │
+ │  대화기록/&lt;소스&gt;/&lt;연도&gt;/…jsonl      대화 턴 · 개선 · 회귀 이력  │
+ │  ERP스냅샷/&lt;날짜&gt;/&lt;소스&gt;.jsonl.gz   중간DB 복구용 스냅샷        │
+ │  _manifest/&lt;날짜&gt;/&lt;run_id&gt;.json     건수·SHA256·커서 범위       │
+ │  (N3) 부서 문서 원본 + NAS 내부 색인 · (N1-c) 백업              │
+ └───────────────────────────────────────────────────────────────┘
+        ▲ SMB(사내망) — 직원이 부서 폴더에 문서 정리 · 본인 자료 열람
+</code></pre>
+<ul>
+<li><strong>공개 경로가 하나도 없다.</strong> 터널 URL·Access 토큰·포털 JWT 가 전부 불필요해졌다.
+  DSM·SMB·SSH 는 물론 워커 자체도 밖에서 닿을 수 없다.</li>
+<li>사용자가 기다리는 동기 경로(N3 문서 검색)는 같은 큐에 <strong>롱폴링 또는 Realtime 구독</strong>을 얹어
+  0.3~1초 안에 왕복시킨다. 그 지연이 검색 체감을 해친다고 <strong>실측되면</strong> 그때 터널을 검토한다(D-106 보류 근거).</li>
+<li>Azure 이관(ADR-102) 뒤에는 워커가 사내에 남든 옮기든 <strong>경로 변경이 없다</strong> — 아웃바운드 HTTPS 하나뿐이다.</li>
+</ul>
+<h2 id="2">2. 데이터 배치</h2>
+<table>
+<thead>
+<tr>
+<th>데이터</th>
+<th>정본</th>
+<th>비고</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>ERP 중간DB</td>
+<td>Supabase</td>
+<td>정합성·야간 증분(변경 없음)</td>
+</tr>
+<tr>
+<td>권한 · 에이전트 설정·버전·구성원 · 활성 용어집·골든셋</td>
+<td>Supabase</td>
+<td>매 질문마다 읽음 · 관리 화면 실시간</td>
+</tr>
+<tr>
+<td>최근 대화</td>
+<td>Supabase(원본) + NAS(사본)</td>
+<td>워커가 커서로 복사한다 — <strong>지금은 삭제 없음</strong>. Supabase 14일만 남기는 전환은 N2(outbox 는 쓰지 않는다 — §4)</td>
+</tr>
+<tr>
+<td>대화기록 장기분 · 종결된 개선 이력 · 회귀 결과 이력</td>
+<td><strong>NAS</strong></td>
+<td>대화기록 180일(D-108)</td>
+</tr>
+<tr>
+<td>생성 자료 · 첨부 원본(보관 선택 시)</td>
+<td><strong>NAS</strong></td>
+<td>Storage 는 NAS 장애 시 임시 저장소로만</td>
+</tr>
+<tr>
+<td>부서 문서·양식·규정 원본 · 검색 색인</td>
+<td><strong>NAS</strong></td>
+<td>문서는 NAS 에 새로 정리(관리자 계획)</td>
+</tr>
+<tr>
+<td>백업(Supabase 전체)</td>
+<td><strong>NAS</strong> + 외부 사본</td>
+<td>월 1회 복원 시험</td>
+</tr>
+</tbody>
+</table>
+<h2 id="3-nas-nas_workerpy-req-0097-2026-09-30">3. NAS 워커(<code>nas_worker.py</code>) — <strong>구현 완료</strong>(REQ-0097 · 2026-09-30)</h2>
+<p>서버가 아니라 <strong>큐 소비자</strong>다. 포트를 열지 않고, 주소도 없고, 받을 인증도 없다.</p>
+<table>
+<thead>
+<tr>
+<th>항목</th>
+<th>설계(실구현)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>형태</td>
+<td><code>10_ERP_DB연계/etl/nas_worker.py</code>(워커 <code>n1.0</code>) — <strong>기존 러너에 편입</strong>(§17.2): 서브커맨드 <code>jeil_runner nas</code> · 작업 종류 <code>nas_sync</code>(group <code>nas</code> · 상한 60분) · 능력 표식 <code>nas</code>. EXE 는 계속 하나이고(§17.1), NAS 에서는 EXE 가 아니라 Python 소스로 돈다</td>
+</tr>
+<tr>
+<td>하는 일</td>
+<td>① 심박(<code>nas_runner_ping</code>) ② 큐 1건 선점(<code>nas_request_claim</code>) ③ 소스별로 <code>nas_export_page</code> 를 반복 호출해 JSONL 로 기록 ④ 파일이 제자리에 놓인 뒤 <code>nas_export_commit</code> ⑤ 건수·SHA256·사유를 <code>nas_request_finish</code> 로 되쓴다</td>
+</tr>
+<tr>
+<td>무엇을 내보내는가</td>
+<td><strong>코드가 아니라 DB 허용 목록</strong>(<code>etl_meta.nas_export_source</code>)이 정한다 — 워커에 테이블 이름·SQL 을 심지 않는다. 백업 등 새 용도는 행 추가로 늘린다(§13.3·§16.3 과 같은 원칙)</td>
+</tr>
+<tr>
+<td>출력</td>
+<td>증분 <code>대화기록/&lt;소스&gt;/&lt;연도&gt;/&lt;소스&gt;_&lt;날짜&gt;_&lt;시각&gt;.jsonl</code>(새 행 0건이면 파일을 만들지 않는다) · 전량 <code>ERP스냅샷/&lt;날짜&gt;/&lt;소스&gt;.jsonl.gz</code>(하루 한 장) · 회차마다 <code>_manifest/&lt;날짜&gt;/&lt;run_id&gt;.json</code>(소스별 건수·SHA256·커서 범위·암호화 여부)</td>
+</tr>
+<tr>
+<td>정합 보장</td>
+<td>임시 파일 → <code>os.replace</code> 원자 교체 · <strong>파일이 놓인 뒤에만 커서 전진</strong>(중단되면 같은 지점부터) · 전량 스냅샷은 시작 전 건수와 <strong>대조</strong>해 어긋나면 실패로 닫는다 · 전순서는 행 전체(jsonb) 기준(단일 컬럼 정렬 + OFFSET 은 같은 값이 여럿일 때 페이지 경계에서 행을 조용히 빠뜨린다)</td>
+</tr>
+<tr>
+<td>NAS 루트</td>
+<td><code>--root</code> &gt; <code>NAS_DATA_ROOT</code> &gt; <code>.claude/nas.path</code>(절대경로 1줄 · 저장소에 적지 않는다 §1.1). 못 찾으면 <strong>요청을 선점하지 않는다</strong>(§17.6 — 집어놓고 실패시키면 사람이 다시 눌러야 한다)</td>
+</tr>
+<tr>
+<td>문서 색인</td>
+<td>N3 — NAS 내부 SQLite FTS5 또는 pg_trgm(파일럿 실측 후 선택) · 변경분만 재색인 · 민감 패턴 파일 제외. 검색 왕복은 같은 큐에 롱폴링/Realtime 을 얹는다</td>
+</tr>
+<tr>
+<td>백업</td>
+<td>N1-c — 같은 exporter 에 소스만 추가한다. <code>pg_dump</code> 대신 <strong>JSONL(HTTPS 443)</strong> 인 이유는 5432/6543 직결이 내부 방화벽 확인에 묶이고, DB 가 NAS 를 부를 수단(<code>pg_net</code>)이 아예 없기 때문이다</td>
+</tr>
+<tr>
+<td>비밀값</td>
+<td>검증 단계에서는 작업PC 의 기존 <code>.env</code>(<code>SUPABASE_URL</code>·<code>SUPABASE_SERVICE_ROLE_KEY</code>)를 쓴다. <strong>NAS 컨테이너로 옮길 때는 <code>service_role</code> 을 두지 않고 전용 좁은 키로 바꾼다</strong>(브리지 Edge Function 또는 custom role 토큰) — 다음 단계 선행 조건</td>
+</tr>
+<tr>
+<td>암호화</td>
+<td>현재 <strong>미적용</strong> — 이 호스트에 <code>cryptography</code> 모듈이 없다. 조용히 건너뛰지 않고 manifest·요청 결과에 사유를 남긴다(§17.6). 보완은 NAS 폴더 권한(시스템·관리자 전용) + Hyper Backup 암호화</td>
+</tr>
+<tr>
+<td>오류 처리</td>
+<td>어떤 예외가 나도 요청을 <code>running</code> 에 방치하지 않는다(<code>except (Exception, SystemExit)</code> — <code>need()</code> 가 <code>SystemExit</code> 을 던진다) · DB 에 되쓰는 문자열은 <code>_redact()</code> 로 계정·IP·UNC 경로를 가린다</td>
+</tr>
+</tbody>
+</table>
+<h2 id="4-n1">4. 게이트웨이 쪽 변경 — <strong>N1 에서는 하나도 없다</strong></h2>
+<table>
+<thead>
+<tr>
+<th>항목</th>
+<th>설계</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Edge Function</td>
+<td><strong>무변경 · 배포 0건.</strong> <code>agent_turn</code> insert 경로(<code>core/agent_api.ts</code>)와 <code>cleanupTurns()</code> 를 건드리지 않는다</td>
+</tr>
+<tr>
+<td>outbox</td>
+<td><strong>쓰지 않는다.</strong> 원본을 지우지 않으니 필요가 없다 — 워커가 커서로 증분 pull 하면 행은 ack 전까지 Supabase 에 남아 <strong>유실이 구조적으로 불가능</strong>하다. (v2 의 「pg_cron 1분 주기로 NAS 전송」은 실현 불가였다: 이 프로젝트에 <code>pg_net</code>·<code>extensions.http</code> 가 없어 <strong>DB 가 스스로 NAS 를 부를 수단이 아예 없다</strong>)</td>
+</tr>
+<tr>
+<td><code>agent_turn</code> 보존</td>
+<td><strong>이번에는 바꾸지 않는다</strong>(관리자 결정: 복사만·삭제 없음). Supabase 14일 + NAS 나머지로 가는 전환은 커서·행수·해시가 여러 회차 일치하는 것을 본 뒤 별건으로 한다</td>
+</tr>
+<tr>
+<td>DB 변경</td>
+<td>정본 SQL <strong><code>이관/sql/82_nas_export_queue.sql</code></strong>(+<code>_rollback.sql</code>) — 표 4종 + RPC 10종 신설. 라이브 적용 완료(마이그레이션 <code>nas_export_queue_v1</code>, 2026-09-30). 기존 객체는 하나도 고치지 않았다</td>
+</tr>
+<tr>
+<td>N3 에서 추가될 것</td>
+<td>도구 모듈 <code>modules/nas/</code>: <code>search_company_docs</code> · <code>read_company_doc</code>(ADR-108 규격 · <code>extra.ts</code> 등록 · 기존 <code>search_my_documents</code> 와 결과 형식 통일 — <code>{기준시각, 검색어, 반환수, 목록[{이름,수정일,링크,발췌}], 안내, __view}</code>) · 관리 화면 과거기록 조회 · 장애 시 「사내 보관소 점검 중」 뷰(§16.6 — 지어내지 않는다)</td>
+</tr>
+<tr>
+<td>주의(N3)</td>
+<td>도구 실행에 <strong>엔진 타임아웃이 없다</strong>(<code>core/engine.ts</code> 에 타임아웃 코드 0건) → NAS 왕복 도구는 <strong>모듈 안에서 직접</strong> 상한을 걸어야 한다. 그러지 않으면 워커가 죽었을 때 대화가 매달린다</td>
+</tr>
+</tbody>
+</table>
+<h2 id="5-itgc">5. 보안 · ITGC</h2>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>항목</th>
+<th>설계</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>노출면</td>
+<td><strong>0개</strong> — 공개 호스트·터널 URL·열린 포트가 없다. DSM/SMB/SSH 비노출. ⚠ <strong>PoC 워커 포트 8765 는 아직 열려 있다</strong>(2026-09-30 작업PC 에서 접속 성공) — HTTP·무인증이라 API 키 적용 전 폐쇄가 필요하다(D-98 미조치)</td>
+</tr>
+<tr>
+<td>2</td>
+<td>인증</td>
+<td>Access 토큰·포털 JWT 2중이 <strong>불필요해졌다.</strong> 대신 워커가 가진 Supabase 키 + service_role 전용 RPC 화이트리스트로 판정한다. 검증은 작업PC 의 기존 키를 쓰되, <strong>NAS 컨테이너에는 <code>service_role</code> 을 두지 않는다</strong>(전용 좁은 키로 전환 — 다음 단계 선행)</td>
+</tr>
+<tr>
+<td>3</td>
+<td>권한</td>
+<td>내보낼 수 있는 것은 허용 목록의 <code>public</code> 관계뿐이다 — <code>rel_schema = 'public'</code> CHECK 로 급여(<code>erp_secure</code>)는 <strong>등재 자체가 불가능</strong>하다. 허용 목록 밖 소스는 빈 결과가 아니라 <strong>예외</strong>(0건 성공으로 읽히면 조용히 틀린다 — 2026-08-31 <code>refValid</code> silent-pass 교훈). N3 문서 권한은 폴더의 부서코드(ADR-107) ∩ 사용자 권한</td>
+</tr>
+<tr>
+<td>4</td>
+<td>개인정보</td>
+<td>민감 폴더(급여·인사평가) 등록 금지 · 민감 패턴 자동 제외 · 대화기록 보존·열람 범위 고지(D-108) · 직원 이름은 마스킹 예외(§1.7)</td>
+</tr>
+<tr>
+<td>5</td>
+<td>데이터 보호</td>
+<td>NAS 디스크 이중화 · 백업 암호화 · 외부 사본 · UPS · 월 1회 복원 시험</td>
+</tr>
+<tr>
+<td>6</td>
+<td>감사</td>
+<td>적재 요청 이력(<code>nas_request</code> — 누가 요청·언제·소스별 건수·SHA256·사유) · 회차별 manifest · 워커 심박(<code>nas_heartbeat</code>) · 게이트웨이 도구 호출 로그(<code>chat_tool_call</code>)</td>
+</tr>
+<tr>
+<td>7</td>
+<td>보안 승인</td>
+<td><strong>불필요해졌다</strong> — 안 D 는 인바운드를 만들지 않아 "IP 허용 목록" 정책의 예외 경로가 생기지 않는다. 터널이 되살아나면(N3 실측) 그때 승인 문서화</td>
+</tr>
+</tbody>
+</table>
+<h2 id="6-req">6. 단계와 백로그(REQ 안)</h2>
+<table>
+<thead>
+<tr>
+<th>단계</th>
+<th>내용</th>
+<th>선행 · 승인</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>N0</strong> 준비</td>
+<td>NAS 기반 보강(D-104 · 외부 백업·UPS) · 관리 계정 회사 명의 · PoC 포트 폐쇄(D-98) — <strong>도메인·보안 승인은 빠졌다</strong>(안 D 는 인바운드를 만들지 않는다)</td>
+<td>관리자·IT</td>
+</tr>
+<tr>
+<td><strong>N1</strong> 적재 ✅</td>
+<td><strong>완료(REQ-0097 · 2026-09-30)</strong> — 큐·허용목록·커서(SQL 82) · 워커 <code>nas_worker.py</code> · 회귀 113건 · 라이브 79,472행 내보내기·복원 대조 일치 · 큐 왕복·중단 재개·멱등 확인. <strong>남은 것: 실제 NAS 경로 적재</strong>(<code>.claude/nas.path</code> + 폴더 쓰기 권한)</td>
+<td>—</td>
+</tr>
+<tr>
+<td><strong>N1-b</strong> 상시화</td>
+<td>러너 작업 <code>nas_sync</code> 켜기(야간 1회 권고) · EXE 재빌드 + 전달 폴더 동기화(§17.5) · NAS 컨테이너 이관 시 전용 좁은 키로 전환</td>
+<td>N1 · 관리자</td>
+</tr>
+<tr>
+<td><strong>N1-c</strong> 백업</td>
+<td>같은 exporter 에 포털 테이블 소스 추가 → 야간 전량 JSONL · 월 1회 복원 시험 · 외부 사본</td>
+<td>N1 · D-97</td>
+</tr>
+<tr>
+<td><strong>N2</strong> 보존 전환</td>
+<td><code>agent_turn</code> Supabase 14일 + NAS 나머지 · 관리 화면 과거 기록 조회 · 생성 자료 원본 NAS 저장</td>
+<td>N1 여러 회차 일치 확인 · D-108</td>
+</tr>
+<tr>
+<td><strong>N3</strong> 문서 연결</td>
+<td>부서 폴더 표준 · NAS 내부 색인 · 검색 모듈 2종(모듈 자체 타임아웃 필수) · 큐 롱폴링/Realtime · 구매 파일럿 · <strong>여기서 지연이 문제면 터널 재검토</strong>(D-106)</td>
+<td>N2 · D-95·D-96</td>
+</tr>
+<tr>
+<td><strong>N4</strong> 전사 확대</td>
+<td>부서별 에이전트 · (조건부) 장시간 작업을 NAS 실행 모듈로(안 C)</td>
+<td>관리자 결정</td>
+</tr>
+</tbody>
+</table>
+<h2 id="7">7. 검증 기준(단계별 완료 조건)</h2>
+<table>
+<thead>
+<tr>
+<th>단계</th>
+<th>완료 조건</th>
+<th>실측(2026-09-30)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>N1</td>
+<td>회귀 통과 · 허용목록 밖 거부 · 건수·SHA256 일치 · 큐 왕복 · 중단 재개 시 중복·누락 0 · 2회차 0행</td>
+<td>✅ 회귀 <strong>113건</strong> · 방어 3건 동작 · 13개 소스 전부 행수·SHA256 일치 · <code>agent_turn</code> 표본 5건 필드 대조 일치 · 큐 왕복 0.44초 · 커서 45→89 재개 시 누락 0 · 2회차 0행</td>
+</tr>
+<tr>
+<td>N1(NAS)</td>
+<td>실제 NAS 경로에 3회 연속 성공 · 폴더 권한이 시스템·관리자 전용</td>
+<td>⬜ <strong>미완</strong> — <code>.claude/nas.path</code> + 쓰기 권한 필요. NAS 는 SMB(445)·DSM(5001) 접근 가능하나 공유 목록 조회가 액세스 거부(자격증명 없음)</td>
+</tr>
+<tr>
+<td>N1-c</td>
+<td>3일 연속 백업 성공 · 복원 시험 행 수 일치 · 외부 사본 확인</td>
+<td>⬜</td>
+</tr>
+<tr>
+<td>N2</td>
+<td>보존 전환 뒤 관리 화면에서 과거 기록이 NAS 에서 조회됨 · 최근분은 Supabase</td>
+<td>⬜</td>
+</tr>
+<tr>
+<td>N3</td>
+<td>파일럿 폴더 색인 · 민감 패턴 파일 제외 · 담당자 질문 10개 중 근거 제시 정답 8개 이상 · 권한 없는 부서 사용자 0건 노출 · <strong>검색 왕복 체감 측정</strong>(여기서 터널 필요성을 판단)</td>
+<td>⬜</td>
+</tr>
+</tbody>
+</table>
+<h2 id="8">8. 비교안(요약)</h2>
+<table>
+<thead>
+<tr>
+<th>안</th>
+<th>내용</th>
+<th>판단</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>A (v1)</td>
+<td>NAS = 아웃바운드 전용 창고 — 밤마다 가져가 보관·백업만</td>
+<td>「밤 배치」라서 누적 정본에 ✕ 를 받았다. <strong>안 D 가 이 안의 확장형</strong>이다(배치 → 실시간 pull)</td>
+</tr>
+<tr>
+<td>B (v2)</td>
+<td>터널 + NAS 데이터 API + outbox</td>
+<td><strong>철회.</strong> NAS 가 내부망이라 세션이 내부존에서 종단되고, 도메인·보안 승인이 따라온다. outbox 의 pg_cron push 는 <code>pg_net</code> 이 없어 실현 불가였다</td>
+</tr>
+<tr>
+<td>C (PoC)</td>
+<td>NAS 에서 Agent SDK 실행 — 브라우저가 터널로 직접 연결</td>
+<td>두뇌 이원화(ADR-109 충돌) → 장시간 작업만 조건부 편입(N4)</td>
+</tr>
+<tr>
+<td><strong>D</strong></td>
+<td><strong>역방향 큐</strong> — 사내 워커가 밖으로만 연결해 큐를 집어가고 데이터도 RPC 로 받아 간다</td>
+<td><strong>채택 · N1 구현·검증 완료.</strong> 인바운드 0 · 방화벽 룰 추가 0건 · 도메인·보안승인·신규 벤더 0 · 사외 사용 그대로 · 회사가 이미 운영 중인 패턴(ERP 서버 러너)</td>
+</tr>
+<tr>
+<td>E (보완)</td>
+<td>Tailscale/WireGuard</td>
+<td>게이트웨이 경로에는 쓸 수 없다(Edge 런타임에 클라이언트 설치 불가). 단 <strong>관리자 원격 운영(DSM·SSH)</strong> 에는 가장 심플 — D-98 포트 폐쇄와 묶어 검토</td>
+</tr>
+<tr>
+<td>F</td>
+<td>포트포워딩 + DDNS</td>
+<td><strong>비권고.</strong> Supabase Edge 의 출구 IP 가 고정이 아니라 IP 허용목록을 쓸 수 없다 → 전세계 공개 + 앱 인증만. 내부망·공인 대역이라 룰 실수의 대가가 특히 크다</td>
+</tr>
+<tr>
+<td>G</td>
+<td>Synology QuickConnect</td>
+<td><strong>비권고.</strong> DSM 노출 전제가 §5.1 과 충돌 · 커스텀 포트 정식 지원 아님 · 서드파티 경유는 그대로인데 신원 게이트가 없다</td>
+</tr>
+<tr>
+<td>H</td>
+<td>터널 유지 + 별도 도메인</td>
+<td>터널이 정말 필요해지면(N3 실측) 이 형태로. 회사 도메인 네임서버 이관 리스크가 0 이 된다</td>
+</tr>
+</tbody>
+</table>
+<h2 id="9">9. 결정이 필요한 것(관리자)</h2>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>결정</th>
+<th>권고</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>D-105</strong></td>
+<td>데이터 배치 원칙</td>
+<td><strong>채택</strong>(안 B → 안 D 로 연결 방식만 교체. 배치 원칙 자체는 그대로)</td>
+</tr>
+<tr>
+<td><strong>D-106</strong></td>
+<td>접속 경로</td>
+<td><strong>역방향 큐(안 D) 채택 — 터널은 보류.</strong> N3 문서 검색 실측에서 큐 왕복 지연이 체감을 해칠 때만 재검토하고, 그때도 안 H(별도 도메인)로 간다</td>
+</tr>
+<tr>
+<td><strong>D-107</strong></td>
+<td>터널 주소</td>
+<td><strong>보류(N3 재판단).</strong> 안 D 는 공개 주소가 필요 없다 → 회사 도메인 네임서버 이관(MX·SPF·DKIM·M365 TXT 전수)을 하지 않아도 된다. 되살아나면 별도 도메인부터 검토한다</td>
+</tr>
+<tr>
+<td><strong>D-108</strong></td>
+<td>대화기록 보존(현재 180일, D-89)</td>
+<td><strong>180일 유지</strong>(관리자 회신) · Supabase 14일 + NAS 나머지 · 경과분은 NAS·백업에서도 삭제</td>
+</tr>
+<tr>
+<td><strong>D-104</strong></td>
+<td>NAS 보강</td>
+<td><strong>외부 백업 구축(현재 없음) + UPS 연결</strong> — 메모리 증설은 N4 전 재판단(itasset 사용량 작음)</td>
+</tr>
+<tr>
+<td>D-94</td>
+<td>운영 주체</td>
+<td>IT담당 직접 운영 · NAS 회사 계정 생성 가능(회신 — Cloudflare 계정은 안 D 에서 불필요) → 역할 분담(IT = 장비·DSM·백업·공유 폴더 권한 / 정보전략팀 = 적재 워커·데이터 정책) 합의 문서화 후 결정됨</td>
+</tr>
+<tr>
+<td>D-95</td>
+<td>문서 조각 처리</td>
+<td>NAS 내부 색인(클라우드 DB 적재 없음) · 답변용 조각의 LLM 전송 승인</td>
+</tr>
+<tr>
+<td>D-96</td>
+<td>문서 폴더·파일럿</td>
+<td><strong>부서별 폴더(부서코드_부서명) + 전사공유 폴더 별도</strong>(회신) · 파일럿 구매팀 + 전사공유 사규</td>
+</tr>
+<tr>
+<td>D-97</td>
+<td>보존(백업·생성 자료)</td>
+<td>백업 일간 14 + 월간 6 · 생성 자료 3년</td>
+</tr>
+<tr>
+<td>D-98</td>
+<td>PoC 포트</td>
+<td><strong>미조치 — 2026-09-30 아직 열려 있다</strong>(8765 · HTTP·무인증). 키 적용 전 폐쇄 · 안 D 는 NAS 에 열린 포트가 하나도 필요 없다(워커는 밖으로만 연결). 관리자 원격 운영은 안 E(사설 VPN)로 따로 검토</td>
+</tr>
+<tr>
+<td>D-99</td>
+<td>컨테이너 이름</td>
+<td><code>jeil-nas-worker</code></td>
+</tr>
+</tbody>
+</table>
+<p><strong>확인 요청 회신(2026-09-29)</strong> — ① DNS: 아이네임즈에서 사내 관리 ② 이중화·백업 없음, UPS 연결 가능(※ 볼륨 10.5TB = 4TB×4 의 SHR-1/RAID5 용량과 같아 <strong>이미 이중화일 가능성</strong> — DSM 저장소 풀 확인 권장, RAID ≠ 백업) ③ itasset 사용량 작음 ④ 약 90명(ERP 부서 마스터 실측 약 88명·인원 있는 팀 18개) ⑤ 대화기록 180일 적당 ⑥ Cloudflare·NAS 관리 계정 회사 명의 생성 가능 ⑦ 부서별 폴더 + 전사공유 폴더 별도.</p>
+<p><strong>규모 추정(90명, 추정)</strong> — 대화기록 월 약 80MB(180일 ≈ 0.5GB — Supabase Free 한도와 맞먹음) · 생성 자료 월 약 110MB(3년 ≈ 4GB) · 부서 문서 40~100GB · 색인 수 GB · 백업 2~5GB → <strong>합계 150GB 안팎(NAS 의 약 1.5%)</strong>. 외부 백업 장치 1~2TB 면 충분.</p>
+<p><strong>폴더 구조안</strong> — <code>AI포털/00_전사공유</code>(전원 읽기) · <code>AI포털/부서/&lt;부서코드&gt;_&lt;부서명&gt;</code>(해당 부서 읽기·쓰기, 인원 있는 팀 18개) · <code>AI포털/_에이전트</code>(대화기록·생성 자료·색인·백업 — 시스템 전용). 에이전트 문서 검색 권한 = SMB 폴더 권한과 같은 규칙(본인 부서 + 전사공유, 상위 조직은 하위 포함 선택). 상세 도식은 <a href="/docs/nas/decision#s10">02 브리핑 §10</a>.</p>
+<h2 id="10-adr-110">10. ADR-110 개정안 (요지)</h2>
+<ul>
+<li><strong>결정</strong>: Supabase = <strong>ERP 중간DB·권한·에이전트 설정의 정본(정합성 계층)</strong>, 사내 NAS = <strong>대화기록 장기분·생성 자료·부서 문서와 색인·백업의 정본(누적 계층)</strong>.</li>
+<li><strong>결정</strong>: 둘은 <strong>인바운드 없는 역방향 큐</strong>로 잇는다 — 사내 워커가 밖으로만 연결해 큐를 집어가고 데이터도 RPC 로 받아 간다. <strong>공개 경로가 하나도 없다.</strong> 터널은 N3(문서 검색) 실측에서 지연이 문제일 때만 조건부로, 그때도 별도 도메인으로.
+  근거: NAS 가 사내 내부망·내부 방화벽 안이라 터널은 외부 세션을 내부존에 종단시키고, 공인 대역이라 룰 실수의 대가가 크며, 회사가 이미 같은 pull 구조를 운영 중이다(ERP 서버 러너).</li>
+<li><strong>결정</strong>: 에이전트 두뇌(게이트웨이)는 하나(ADR-109). <strong>outbox 를 쓰지 않는다</strong> — 커서 증분 pull 이면 행은 ack 전까지 Supabase 에 남아 유실이 구조적으로 불가능하고, 게이트웨이를 고칠 필요가 없다.</li>
+<li><strong>대안(흡수)</strong>: 아웃바운드 전용 창고(v1) — 안 D 가 그 확장형(배치 → 실시간 pull).</li>
+<li><strong>대안(철회)</strong>: 터널 + 데이터 API(v2 안 B) — 내부존 종단·도메인 이관 부담, outbox 의 pg_cron push 는 <code>pg_net</code> 부재로 실현 불가.</li>
+<li><strong>대안(조건부)</strong>: NAS 실행 엔진(PoC) — 장시간 작업이 실측될 때 게이트웨이 모듈로 편입.</li>
+<li><strong>상태</strong>: <strong>Accepted(1단계)</strong> — 2026-09-30 D-105·D-106 확정 + N1 구현·라이브 검증 완료(REQ-0097). 전면 Accepted 는 D-104 조치 + 실제 NAS 경로 적재 확인 후.</li>
+</ul>
+  </div>
+  <div class="footer"><span>JEIL M&S · 사내 NAS 연계</span><span>01 데이터계층 기획 · 관리: 최동혁</span></div>
+</div>
+</body>
+</html>

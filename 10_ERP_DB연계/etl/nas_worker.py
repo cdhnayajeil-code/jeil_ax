@@ -1,0 +1,513 @@
+# nas_worker.py — 사내 NAS 적재 요청 감시·실행 워커 (REQ-0097)
+#
+# 왜 필요한가: 사내 NAS 는 **사내 내부망·내부 방화벽 안**이라 Supabase Edge·브라우저가 NAS 로 들어갈 수 없다.
+#   터널을 뚫으면 「외부 세션이 내부존에서 종단」되어 보안 승인·세그먼트 검토·네임서버 이관이 따라온다.
+#   그래서 방향을 뒤집는다 — 이 워커가 **밖으로만** 연결해 큐(etl_meta.nas_request)를 집어가고,
+#   내보낼 데이터도 RPC 로 페이지 단위로 받아 NAS 파일(JSONL)로 쓴다. 인바운드 0 · 방화벽 룰 추가 0건.
+#   ERP 서버의 etl_watch.py 와 같은 구조이고, 이 파일은 그 모양을 의도적으로 베꼈다(테스트 틀도 같다).
+#   기획 13_NAS_고도화/01(안 D) · ADR-110 · 정본 SQL 이관/sql/82_nas_export_queue.sql
+#
+# 무엇을 내보내는가는 **코드가 아니라 DB 허용 목록**(etl_meta.nas_export_source)이 정한다.
+#   이 파일에 테이블 이름·SQL 을 심지 않는다 — 백업 등 새 용도는 허용 목록에 행을 더해 늘린다.
+#
+# 실행:
+#   python nas_worker.py                      # 상주(기본 20초 주기 폴링)
+#   python nas_worker.py --once               # 1회 확인 후 종료 — 요청 실패 시 exit 1
+#   python nas_worker.py --self-check         # .env·RPC·허용목록·NAS 루트 점검(큐를 건드리지 않는다)
+#   python nas_worker.py --source agent_turn  # 큐 없이 지정 소스만 즉시 내보내기(점검용)
+#   python nas_worker.py --once --dry-run     # 파일을 쓰지 않고 첫 페이지만 받아 흐름 검증
+#   python nas_worker.py --root <경로>         # NAS 루트를 직접 지정(검증용)
+#
+# NAS 루트(무엇 하나도 저장소에 적지 않는다 — CLAUDE.md §1.1):
+#   ① --root  ② 환경변수 NAS_DATA_ROOT  ③ 저장소 .claude/nas.path (절대경로 1줄)
+#   셋 다 없으면 **요청을 선점하지 않는다**. 못 하는 일을 조용히 성공으로 닫지 않는다(§17.6).
+#
+# 보안(CLAUDE.md §1·§4·§5):
+#   · SUPABASE_SERVICE_ROLE_KEY 는 루트 .env 에서만 읽는다(출력 금지 — 키 이름·존재 여부만 찍는다).
+#   · 급여(erp_secure)는 허용 목록에 등재 자체가 불가능하다(82번 CHECK: rel_schema = 'public').
+#   · 대화기록에는 질문·답변 원문이 들어간다 → NAS 폴더 권한은 시스템·관리자 전용이어야 한다(§1.7).
+#   · 원천은 읽기만 한다. 이 워커는 어떤 업무 데이터도 고치거나 지우지 않는다.
+import argparse
+import datetime
+import gzip
+import hashlib
+import io
+import json
+import os
+import re
+import socket
+import sys
+import time
+import urllib.error
+import urllib.request
+
+from _env import env_root, load_env, need
+
+WORKER_VERSION = "n1.0"
+
+POLL_SEC = 20          # 기본 폴링 주기
+HTTP_TIMEOUT = 120     # 페이지 응답이 수 MB 가 될 수 있어 etl_watch(60초)보다 넉넉히 잡는다
+
+# 한 번에 받는 행 수. 전량 스냅샷은 열이 많은 뷰(발주통합 LIST 57열)가 있어 더 작게 잡는다.
+PAGE_ROWS = {"incremental": 1000, "full": 2000}
+MAX_PAGES = 2000       # 커서가 전진하지 않는 상황에서 영원히 도는 것을 막는 상한
+
+KIND_DIR = {"turns": "대화기록", "erp_snapshot": "ERP스냅샷"}
+
+# 접속 오류 원문에서 계정·서버 정보를 가린다 — 요청 결과(nas_request.result/error_msg)는 사내 로그인
+# 사용자가 조회할 수 있어 원문(계정·연결 문자열 조각·IP)이 그대로 가면 안 된다. etl_watch.py 와 같은 규칙.
+_REDACT_RULES = [
+    (re.compile(r"(?i)(user\s+')[^']*(')"), r"\1***\2"),
+    (re.compile(r"(?i)\b(UID|PWD|PASSWORD|USER ID|SERVER|DATA SOURCE|ADDRESS|DATABASE)\s*=\s*[^;'\"\]\)]*"), r"\1=***"),
+    (re.compile(r"\b\d{1,3}(?:\.\d{1,3}){3}(?:[,:]\d+)?\b"), "***"),
+    # NAS 공유 경로(\\host\share\...)도 가린다 — 경로 자체를 저장소·DB 에 남기지 않는다(§1.1)
+    (re.compile(r"\\\\[^\s'\"]+"), r"\\\\***"),
+]
+
+_NAME_RE = re.compile(r"^[a-z_][a-z0-9_]*$")
+
+
+def _redact(msg):
+    s = str(msg)
+    for rx, rep in _REDACT_RULES:
+        s = rx.sub(rep, s)
+    return s
+
+
+def log(msg):
+    print(f"[{datetime.datetime.now():%H:%M:%S}] {msg}", flush=True)
+
+
+def rpc(url, key, fn, payload):
+    """Supabase RPC 호출 → 파싱된 JSON(없으면 None). 오류 본문은 예외에 실어 진단 가능하게."""
+    body = json.dumps(payload, ensure_ascii=False, default=str).encode("utf-8")
+    req = urllib.request.Request(
+        f"{url}/rest/v1/rpc/{fn}", data=body, method="POST",
+        headers={"apikey": key, "Authorization": f"Bearer {key}", "Content-Type": "application/json"},
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=HTTP_TIMEOUT) as r:
+            raw = r.read().decode("utf-8").strip()
+    except urllib.error.HTTPError as e:
+        detail = ""
+        try:
+            detail = e.read().decode("utf-8", "replace").strip()
+        except Exception:
+            pass
+        raise RuntimeError(f"HTTP {e.code} rpc/{fn}: {detail[:500]}") from e
+    if not raw or raw == "null":
+        return None
+    try:
+        return json.loads(raw)
+    except ValueError:
+        return raw
+
+
+# ── NAS 루트 ──────────────────────────────────────────────────────────────────
+def nas_path_file():
+    """`.claude/nas.path` 의 자리. 저장소 루트 기준 — EXE 로 돌 때는 없을 수 있다(그때는 NAS_DATA_ROOT)."""
+    return os.path.join(env_root(), ".claude", "nas.path")
+
+
+def nas_root(override=None):
+    """NAS 루트 절대경로. 못 찾으면 RuntimeError(경로 값은 메시지에 넣지 않는다)."""
+    cand = (override or "").strip()
+    src = "--root"
+    if not cand:
+        cand = (os.environ.get("NAS_DATA_ROOT") or "").strip()
+        src = "NAS_DATA_ROOT"
+    if not cand:
+        pf = nas_path_file()
+        if os.path.exists(pf):
+            try:
+                cand = open(pf, encoding="utf-8").read().strip()
+            except Exception as e:
+                raise RuntimeError(f".claude/nas.path 를 읽을 수 없습니다: {type(e).__name__}")
+            src = ".claude/nas.path"
+    if not cand:
+        raise RuntimeError(
+            "NAS 루트를 모릅니다 — 다음 중 하나를 채우세요.\n"
+            "  ① --root <경로>  ② 환경변수 NAS_DATA_ROOT\n"
+            "  ③ .claude/nas.path 에 NAS 공유 폴더 절대경로를 한 줄로 적기\n"
+            "  (저장소에는 경로를 적지 않습니다 — CLAUDE.md §1.1)")
+    cand = cand.strip().strip('"')
+    if not os.path.isdir(cand):
+        raise RuntimeError(f"NAS 루트 폴더가 없거나 접근할 수 없습니다(출처 {src}) — 공유·권한을 확인하세요")
+    return os.path.abspath(cand)
+
+
+def _inside(root, path):
+    """경로가 루트 밖으로 나가지 않는지 — 허용 목록이 이름을 제한하지만 2차 방어."""
+    r = os.path.abspath(root)
+    p = os.path.abspath(path)
+    return p == r or p.startswith(r + os.sep)
+
+
+def crypto_state():
+    """암호화 가능 여부. 못 하면 **사유를 결과에 남긴다** — 조용히 건너뛰지 않는다(§17.6)."""
+    try:
+        import importlib.util
+        if importlib.util.find_spec("cryptography") is not None:
+            return True, None
+    except Exception:
+        pass
+    return False, ("cryptography 모듈 없음 — 평문 JSONL 로 저장한다. "
+                   "보완: NAS 폴더 권한(시스템·관리자 전용) + Hyper Backup 암호화")
+
+
+# ── 내보내기 ──────────────────────────────────────────────────────────────────
+def out_path(root, src, run_stamp):
+    """소스별 출력 파일. 전량 스냅샷은 날짜 폴더에 하루 한 장(덮어씀), 증분은 회차마다 새 장."""
+    key = src["source_key"]
+    if not _NAME_RE.match(key or ""):
+        raise RuntimeError(f"소스 이름 형식이 아닙니다: {str(key)[:40]}")
+    kind_dir = KIND_DIR.get(src.get("kind"), "기타")
+    if src["mode"] == "full":
+        rel = os.path.join(kind_dir, run_stamp[:10], f"{key}.jsonl.gz")
+    else:
+        rel = os.path.join(kind_dir, key, run_stamp[:4], f"{key}_{run_stamp[:10]}_{run_stamp[11:]}.jsonl")
+    p = os.path.join(root, rel)
+    if not _inside(root, p):
+        raise RuntimeError("출력 경로가 NAS 루트를 벗어납니다")
+    return p, rel.replace("\\", "/")
+
+
+def _open_out(path, gz):
+    if gz:
+        return gzip.open(path, "wt", encoding="utf-8", newline="\n")
+    return io.open(path, "w", encoding="utf-8", newline="\n")
+
+
+def export_source(url, key, root, src, run_stamp, dry=False):
+    """소스 하나를 JSONL 로 내보낸다. 반환 dict(status·rows·sha256·file·커서 범위·error).
+
+    성공(파일 기록 완료) 뒤에만 커서를 전진시킨다 — 중단되면 같은 지점부터 다시 한다.
+    """
+    sk = src["source_key"]
+    mode = src["mode"]
+    page = PAGE_ROWS.get(mode, 1000)
+    from_cursor, from_pk = (src.get("last_cursor"), src.get("last_pk")) if mode == "incremental" else (None, None)
+    res = {"source": sk, "label": src.get("label_ko"), "mode": mode, "rows": 0, "bytes": 0,
+           "sha256": None, "file": None, "from_cursor": from_cursor, "to_cursor": None,
+           "status": "success", "error": None}
+
+    # 전량 스냅샷은 시작 전 건수를 받아 **다 받았는지 대조**한다(페이지 경계에서 행이 빠지면 여기서 걸린다).
+    expect = None
+    if mode == "full":
+        c = rpc(url, key, "nas_export_count", {"p_source": sk})
+        expect = int((c or {}).get("count") or 0)
+        res["expected"] = expect
+
+    if dry:
+        got = rpc(url, key, "nas_export_page",
+                  {"p_source": sk, "p_after_cursor": from_cursor, "p_after_pk": from_pk, "p_limit": min(page, 200)})
+        got = got or {}
+        res["rows"] = int(got.get("count") or 0)
+        res["to_cursor"] = got.get("next_cursor")
+        res["status"] = "dry"
+        res["note"] = "dry-run — 첫 페이지만 받고 파일·커서는 건드리지 않았다"
+        return res
+
+    path, rel = out_path(root, src, run_stamp)
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    tmp = path + ".tmp"
+    sha = hashlib.sha256()
+    total = 0
+    pages = 0
+    cur, pk = from_cursor, from_pk
+    gz = path.endswith(".gz")
+    try:
+        with _open_out(tmp, gz) as f:
+            while True:
+                got = rpc(url, key, "nas_export_page",
+                          {"p_source": sk, "p_after_cursor": cur, "p_after_pk": pk, "p_limit": page})
+                got = got or {}
+                rows = got.get("rows") or []
+                for row in rows:
+                    line = json.dumps(row, ensure_ascii=False, default=str, sort_keys=True) + "\n"
+                    f.write(line)
+                    sha.update(line.encode("utf-8"))
+                total += len(rows)
+                cur, pk = got.get("next_cursor"), got.get("next_pk")
+                if not got.get("has_more"):
+                    break
+                # 커서가 전진하지 않으면 같은 페이지를 영원히 받는다 — 드러내고 멈춘다
+                if mode == "incremental" and (cur is None or pk is None):
+                    raise RuntimeError("커서를 이어받지 못했다(cursor_col·pk_col 값이 null) — 소스 정의를 확인하라")
+                pages += 1
+                if pages > MAX_PAGES:
+                    raise RuntimeError(f"페이지 상한 {MAX_PAGES}회 초과 — 커서가 전진하지 않는지 확인하라")
+        if expect is not None and total != expect:
+            raise RuntimeError(f"건수 불일치 — 기대 {expect}행, 받은 {total}행(페이지 경계에서 행이 빠졌을 수 있다)")
+        if total == 0 and mode == "incremental":
+            # 새 행이 없으면 빈 파일을 남기지 않는다 — 야간에 매일 돌면 빈 장이 쌓여 폴더가 읽기 어려워진다.
+            # 전량 스냅샷은 반대다: 0행이어도 「그날 비어 있었다」가 정보이므로 그대로 쓴다.
+            os.remove(tmp)
+            res.update(rows=0, file=None, to_cursor=cur, note="새 행 없음 — 파일을 만들지 않았다")
+            rpc(url, key, "nas_export_commit",
+                {"p_source": sk, "p_last_cursor": cur, "p_last_pk": pk, "p_rows": 0})
+            return res
+        os.replace(tmp, path)                       # 여기까지 와야 파일이 제자리에 놓인다
+    except BaseException:
+        try:
+            if os.path.exists(tmp):
+                os.remove(tmp)
+        except Exception:
+            pass
+        raise
+
+    res.update(rows=total, bytes=os.path.getsize(path), sha256=sha.hexdigest(), file=rel, to_cursor=cur)
+    # 커서 전진 — 파일이 제자리에 놓인 뒤에만
+    rpc(url, key, "nas_export_commit",
+        {"p_source": sk, "p_last_cursor": cur, "p_last_pk": pk, "p_rows": total})
+    return res
+
+
+def pick_sources(url, key, kind, wanted):
+    """이 요청이 내보낼 소스 목록. 비었으면 그 kind 의 활성 소스 전체."""
+    all_src = rpc(url, key, "nas_export_sources", {"p_kind": kind}) or []
+    by_key = {s["source_key"]: s for s in all_src}
+    if not wanted:
+        return all_src, []
+    picked, missing = [], []
+    for w in wanted:
+        if w in by_key:
+            picked.append(by_key[w])
+        else:
+            missing.append(w)
+    return picked, missing
+
+
+def write_manifest(root, run_stamp, body):
+    """이 회차에 무엇을 얼마나 어떤 해시로 썼는지. 복원·대조의 근거다."""
+    p = os.path.join(root, "_manifest", run_stamp[:10], f"{body['run_id']}.json")
+    if not _inside(root, p):
+        raise RuntimeError("manifest 경로가 NAS 루트를 벗어납니다")
+    os.makedirs(os.path.dirname(p), exist_ok=True)
+    tmp = p + ".tmp"
+    with io.open(tmp, "w", encoding="utf-8", newline="\n") as f:
+        json.dump(body, f, ensure_ascii=False, indent=2, default=str)
+    os.replace(tmp, p)
+    return p
+
+
+def run_export(url, key, root, kind, wanted, dry=False, run_id=None, on_progress=None):
+    """소스 여러 개를 내보낸다. 한 소스가 실패해도 나머지는 계속 — 다만 하나라도 어긋나면 전체는 실패다."""
+    started = datetime.datetime.now()
+    run_stamp = started.strftime("%Y-%m-%d %H%M%S")
+    enc_ok, enc_why = crypto_state()
+    srcs, missing = pick_sources(url, key, kind, wanted)
+    detail = [{"source": m, "status": "failed", "error": "허용 목록에 없다"} for m in missing]
+    rows_sum, files = 0, 0
+
+    total = len(srcs)
+    for i, s in enumerate(srcs):
+        if on_progress:
+            on_progress(i + 1, total, s["source_key"], rows_sum, files)
+        try:
+            r = export_source(url, key, root, s, run_stamp, dry=dry)
+            rows_sum += int(r.get("rows") or 0)
+            if r.get("file"):
+                files += 1
+            detail.append(r)
+            log(f"  · {s['source_key']} — {r.get('rows')}행"
+                + (f" · {r.get('file')}" if r.get("file") else f" · ({r.get('note') or 'dry'})"))
+        except (Exception, SystemExit) as e:
+            # need() 는 SystemExit(BaseException)을 던진다 — except Exception 만으로는 새어나간다
+            msg = _redact(str(e.code) if isinstance(e, SystemExit) else str(e))
+            detail.append({"source": s["source_key"], "status": "failed", "error": msg[:300]})
+            log(f"  ! {s['source_key']} 실패: {msg[:200]}")
+
+    fails = [d["source"] for d in detail if d.get("status") == "failed"]
+    body = {
+        "run_id": run_id or ("direct-" + started.strftime("%Y%m%d-%H%M%S")),
+        "worker": socket.gethostname(), "worker_version": WORKER_VERSION,
+        "kind": kind, "dry_run": bool(dry),
+        "started_at": started.isoformat(timespec="seconds"),
+        "finished_at": datetime.datetime.now().isoformat(timespec="seconds"),
+        "encrypted": enc_ok, "encrypt_note": enc_why,
+        "sha256_note": "압축 전 JSONL 본문 기준(.gz 파일 바이트가 아니다)",
+        "rows": rows_sum, "files": files, "failed": fails, "sources": detail,
+    }
+    if not dry:
+        try:
+            write_manifest(root, run_stamp, body)
+        except Exception as e:
+            log(f"  ! manifest 기록 실패: {_redact(e)[:200]}")
+            body["manifest_error"] = _redact(str(e))[:300]
+    return body
+
+
+# ── 큐 처리 ───────────────────────────────────────────────────────────────────
+def handle(url, key, worker, req, root, dry=False):
+    rid = req["request_id"]
+    kind = req.get("kind") or "turns"
+    wanted = list(req.get("sources") or [])
+    log(f"요청 수락 {rid[:8]}… (요청자 {req.get('requested_by') or '-'}) — {kind}"
+        + (f" · 소스 {len(wanted)}종" if wanted else " · 활성 소스 전체")
+        + (" · dry-run" if dry else ""))
+
+    def prog(done, total, source, rows, files):
+        try:
+            rpc(url, key, "nas_request_progress",
+                {"p_request_id": rid, "p_done": done, "p_total": total, "p_source": source,
+                 "p_rows_read": rows, "p_files": files})
+        except Exception:
+            pass
+
+    body = run_export(url, key, root, kind, wanted, dry=dry, run_id=rid[:8], on_progress=prog)
+    status = "failed" if body["failed"] else "done"
+    err = None
+    if body["failed"]:
+        err = "실패 " + ", ".join(body["failed"][:6]) + (" 등" if len(body["failed"]) > 6 else "")
+    rpc(url, key, "nas_request_finish",
+        {"p_request_id": rid, "p_status": status, "p_result": body,
+         "p_rows_read": body["rows"], "p_files": body["files"], "p_error": err})
+    log(f"요청 종료 {rid[:8]}… — {status} · {body['rows']}행 / 파일 {body['files']}개")
+    return status
+
+
+def _ping_note(root_ok):
+    return f"+nas {WORKER_VERSION} root={'ok' if root_ok else 'none'}"
+
+
+def tick(url, key, worker, root=None, dry=False):
+    """심박 1회 + 대기 요청 있으면 1건 처리. 반환 False(할 일 없음) · "done" · "failed"."""
+    root_err = None
+    if not root:
+        try:
+            root = nas_root()
+        except Exception as e:
+            root, root_err = None, str(e)
+
+    try:
+        rpc(url, key, "nas_runner_ping", {"p_worker": worker, "p_note": _ping_note(bool(root))})
+    except Exception as e:
+        log(f"심박 실패(계속): {_redact(e)[:200]}")
+
+    if not root:
+        # 못 하는 일이면 **선점조차 하지 않는다** — 요청을 집어놓고 실패시키면 사람이 다시 눌러야 한다
+        log("NAS 루트를 몰라 요청을 보지 않습니다 — " + (root_err or "").splitlines()[0])
+        return False
+
+    req = rpc(url, key, "nas_request_claim", {"p_worker": worker})
+    if not req:
+        log("대기 요청 없음")          # runner_core.IDLE_MARKERS 와 문자열이 같아야 idle 로그 정리가 된다
+        return False
+    try:
+        return handle(url, key, worker, req, root, dry)
+    except (Exception, SystemExit) as e:
+        msg = _redact(str(e.code) if isinstance(e, SystemExit) else str(e))
+        log(f"요청 처리 중 오류: {msg[:300]}")
+        try:
+            rpc(url, key, "nas_request_finish",
+                {"p_request_id": req["request_id"], "p_status": "failed", "p_error": msg[:500]})
+        except Exception:
+            pass
+        return "failed"
+
+
+# ── 자체 점검 ─────────────────────────────────────────────────────────────────
+def self_check(url, key, root_arg=None):
+    """큐를 건드리지 않고 준비 상태만 본다. 비밀값은 **이름·길이**만 찍는다(§1.8)."""
+    ok = True
+    log(f"자체 점검 — 워커 {WORKER_VERSION} · host={socket.gethostname()}")
+    log(f"  · .env 위치: {os.path.join(env_root(), '.env')} ({'있음' if os.path.exists(os.path.join(env_root(), '.env')) else '없음'})")
+    log(f"  · SUPABASE_URL: {'있음' if url else '없음'} · SUPABASE_SERVICE_ROLE_KEY: "
+        f"{'있음(길이 %d)' % len(key) if key else '없음'}")
+
+    try:
+        root = nas_root(root_arg)
+        log(f"  · NAS 루트: 접근 가능(쓰기 시험 중)")
+        probe = os.path.join(root, "_manifest", ".write_probe")
+        os.makedirs(os.path.dirname(probe), exist_ok=True)
+        with io.open(probe, "w", encoding="utf-8") as f:
+            f.write("ok\n")
+        os.remove(probe)
+        log("  · NAS 쓰기: 가능")
+    except Exception as e:
+        ok = False
+        log(f"  ! NAS 루트: {str(e).splitlines()[0]}")
+
+    try:
+        srcs = rpc(url, key, "nas_export_sources", {"p_kind": None}) or []
+        by_kind = {}
+        for s in srcs:
+            by_kind.setdefault(s["kind"], []).append(s)
+        if not srcs:
+            ok = False
+            log("  ! 허용 목록이 비어 있습니다 — 정본 SQL 82 를 적용했는지 확인하세요")
+        for k, v in sorted(by_kind.items()):
+            log(f"  · 허용 목록 {k}: {len(v)}종 — " + ", ".join(x["source_key"] for x in v))
+        for s in srcs:
+            if s["mode"] == "incremental":
+                log(f"    - {s['source_key']}: 커서 {s.get('last_cursor') or '(처음)'}"
+                    f" · 누적 {s.get('rows_total')}행 · 마지막 {s.get('last_run_at') or '-'}")
+    except Exception as e:
+        ok = False
+        log(f"  ! RPC 도달 실패: {_redact(e)[:300]}")
+
+    enc_ok, enc_why = crypto_state()
+    log(f"  · 암호화: {'가능' if enc_ok else '불가 — ' + (enc_why or '')}")
+    log("점검 결과: " + ("이상 없음" if ok else "준비 안 된 항목 있음(위 ! 줄)"))
+    return 0 if ok else 1
+
+
+def main():
+    ap = argparse.ArgumentParser(description="사내 NAS 적재 요청 감시·실행 워커")
+    ap.add_argument("--once", action="store_true", help="1회만 확인하고 종료 — 요청 실패 시 exit 1")
+    ap.add_argument("--interval", type=int, default=POLL_SEC, help=f"폴링 주기(초, 기본 {POLL_SEC})")
+    ap.add_argument("--dry-run", action="store_true", help="파일을 쓰지 않고 첫 페이지만 받아 흐름 검증")
+    ap.add_argument("--root", default=None, help="NAS 루트를 직접 지정(없으면 NAS_DATA_ROOT → .claude/nas.path)")
+    ap.add_argument("--source", action="append", default=None,
+                    help="큐 없이 이 소스만 즉시 내보낸다(여러 번 지정 가능) — 점검용")
+    ap.add_argument("--kind", default=None, choices=["turns", "erp_snapshot"],
+                    help="--source 없이 즉시 내보낼 때의 종류(기본 둘 다)")
+    ap.add_argument("--self-check", action="store_true", help=".env·RPC·허용목록·NAS 루트 점검(큐 미접촉)")
+    args = ap.parse_args()
+
+    load_env()
+    url = need("SUPABASE_URL").rstrip("/")
+    key = need("SUPABASE_SERVICE_ROLE_KEY")
+    worker = socket.gethostname()
+
+    if args.self_check:
+        return self_check(url, key, args.root)
+
+    # 큐 없이 직접 내보내기(점검용) — 요청 이력이 남지 않고 커서만 전진한다
+    if args.source or args.kind:
+        root = nas_root(args.root)
+        kinds = [args.kind] if args.kind else ["turns", "erp_snapshot"]
+        bad = 0
+        for k in kinds:
+            log(f"직접 내보내기 — {k}" + (f" · 소스 {', '.join(args.source)}" if args.source else " · 활성 소스 전체")
+                + (" · dry-run" if args.dry_run else ""))
+            body = run_export(url, key, root, k, args.source or [], dry=args.dry_run)
+            log(f"  = {k}: {body['rows']}행 / 파일 {body['files']}개"
+                + (f" · 실패 {len(body['failed'])}종" if body["failed"] else ""))
+            bad += len(body["failed"])
+        return 1 if bad else 0
+
+    log(f"NAS 워커 시작 — {WORKER_VERSION} · host={worker}" + (" · dry-run" if args.dry_run else ""))
+    if args.once:
+        return 1 if tick(url, key, worker, args.root, args.dry_run) == "failed" else 0
+
+    try:
+        while True:
+            try:
+                if not tick(url, key, worker, args.root, args.dry_run):
+                    time.sleep(max(5, args.interval))
+            except Exception as e:
+                log(f"폴링 오류(계속 재시도): {str(e)[:200]}")
+                time.sleep(max(5, args.interval))
+    except KeyboardInterrupt:
+        log("워커 종료(Ctrl+C)")
+    return 0
+
+
+if __name__ == "__main__":
+    try:
+        sys.stdout.reconfigure(encoding="utf-8")
+    except Exception:
+        pass
+    sys.exit(main())

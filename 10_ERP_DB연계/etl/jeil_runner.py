@@ -59,6 +59,7 @@ CLI_TOOLS = {
     "roleseed": ("seed_role_standard", "부서 표준 ERP role 세트 시드(엑셀→매핑→DB)"),
     "proposal": ("proposal_ledger",   "구매 기안서 대장(엑셀) → 중간DB 적재"),
     "scan":     ("proposal_scan",     "기안서 스캔본 목록(문서중앙화) → 중간DB — 파일명·존재 여부만"),
+    "nas":      ("nas_worker",        "NAS 적재 요청 처리 — 대화기록·ERP 스냅샷을 사내 NAS 로 내보낸다"),
 }
 
 
@@ -225,6 +226,28 @@ def _run_kind(kind, params, root):
         import proposal_ledger as pl
         pl.collect(file=(params.get("file") or None), scan=(params.get("scan") or None),
                    dry=bool(params.get("dry_run")), replace=not bool(params.get("append")))
+        return 0
+
+    if kind == "nas_sync":
+        import nas_worker as nw
+        nw.load_env()
+        url = nw.need("SUPABASE_URL").rstrip("/")
+        key = nw.need("SUPABASE_SERVICE_ROLE_KEY")
+        worker = socket.gethostname()
+        # 이 호스트가 NAS 를 못 보면 사유를 남기고 끝낸다(§17.6) — 조용히 성공 처리하지 않는다.
+        # 경로 자체는 찍지 않는다(§1.1). 실제 접근 판정은 nas_worker.tick 이 한 번 더 한다.
+        caps = core.detect_capabilities(root)
+        if not caps.get("nas"):
+            print("[nas_sync] NAS 루트가 정해져 있지 않습니다 — .env 의 NAS_DATA_ROOT 또는 "
+                  ".claude/nas.path 를 채우세요. 요청을 선점하지 않습니다")
+            return 1
+        print("[nas_sync] host=%s · 워커 %s%s" % (worker, nw.WORKER_VERSION,
+                                                  " · dry-run" if params.get("dry_run") else ""))
+        res = nw.tick(url, key, worker, None, bool(params.get("dry_run")))
+        if res == "failed":
+            print("요청 처리 실패 — 위 로그와 화면의 요청 결과를 확인하세요")
+            return 1
+        print("요청 처리 1건 완료" if res else "대기 요청 없음")
         return 0
 
     if kind == "proposal_scan":
@@ -472,9 +495,9 @@ def main(argv=None):
         caps = engine.caps
         for w in engine.warnings:
             log("설정: " + w)
-    log("%s 루트=%s · 능력: supabase=%s erp=%s ms=%s gw=%s offboard=%s · .env=%s" % (
+    log("%s 루트=%s · 능력: supabase=%s erp=%s ms=%s gw=%s offboard=%s nas=%s · .env=%s" % (
         core.RUNNER_VERSION, real_root, caps["supabase"], caps["erp"], caps["ms_account"], caps["gw_account"],
-        caps["offboard"], caps.get("env_state")))
+        caps["offboard"], caps.get("nas"), caps.get("env_state")))
 
     if args.smoke:
         rc = run_smoke(engine, log, args.no_tray, real_root)

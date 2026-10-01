@@ -47,7 +47,7 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
   <div class="content">
 <h1 id="03">03. 이관 진행 상태 (추적표)</h1>
 <blockquote>
-<p><strong>최종 갱신: 2026-09-11</strong> · 관리: 최동혁
+<p><strong>최종 갱신: 2026-09-30</strong>(NAS 역방향 큐 1단계 — REQ-0097) · 관리: 최동혁
 이 문서는 <strong>작업할 때마다 갱신하는 진행 로그</strong>다. 단계 완료 시 체크하고, §3 작업로그에 날짜·내용을 남긴다. 시스템 상태가 바뀌면 <code>00_현황스냅샷</code>도 함께 갱신한다.</p>
 </blockquote>
 <hr />
@@ -335,6 +335,12 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <td>REQ-0095 — <code>jeil-chat</code> v34 · <code>jeil-chat-lab</code> v14 · <code>jeil-chat-admin</code> v26 배포, SQL 80·81 적용, 임시 실측 함수로 14종 실측 후 삭제</td>
 <td>gpt-6-luna·gpt-6-sol 도구 호출 400 해소(reasoning_effort none 자동 적응) · 관리자 콘솔 「모델 설정」 모델별 「점검」·「전체 점검」 가동 · gpt-6-astra 는 도구 호출 불가로 표시</td>
 <td>관리자: 기본 모델 gpt-6-luna 로 복귀 저장 · Anthropic 크레딧 충전 · 필요 시 Responses API 어댑터(ADR-112 조건부)</td>
+</tr>
+<tr>
+<td>2026-09-30</td>
+<td><strong>NAS 역방향 큐 1단계</strong>(REQ-0097) — 정본 SQL 82 적용(<code>nas_export_queue_v1</code>) · 러너 r1.9 신규 모듈 <code>nas_worker.py</code> · 회귀 <code>test_nas_worker.py</code> 27건</td>
+<td>회귀 113건 통과 · 라이브 79,472행 내보내기 · 복원 대조 일치(행수·SHA256·표본 필드) · 큐 왕복·중단 재개·멱등 확인 · <strong>게이트웨이 무변경</strong></td>
+<td>실제 NAS 경로 적재(<code>.claude/nas.path</code>·쓰기권한) → D-98 포트 8765 폐쇄 → 상시화(<code>nas_sync</code>) → EXE 재빌드·전달 폴더</td>
 </tr>
 </tbody>
 </table>

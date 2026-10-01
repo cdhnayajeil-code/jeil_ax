@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NAS 고도화 허브 — JEIL AX</title>
+<!-- 자체완결 허브(직접 관리). 문서 본문은 00~01 .md → _build_html.py 로 생성된 HTML. -->
+<style>
+:root{--navy:#1a2f4e;--navy2:#27457a;--accent:#2f6fb3;--red:#b3402f;--green:#2e7d52;--amber:#9a6b1f;
+--ink:#222;--muted:#666;--line:#d8dee8;--bg:#f4f6f9;--soft:#eef2f8;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;color:var(--ink);background:var(--bg);line-height:1.65;font-size:15px;}
+.page{max-width:980px;margin:0 auto;background:#fff;padding:52px 60px;box-shadow:0 2px 14px rgba(0,0,0,.08);min-height:100vh;}
+@media (max-width:700px){.page{padding:28px 18px;}}
+.doc-label{display:inline-block;background:var(--navy);color:#fff;font-size:12px;letter-spacing:.16em;padding:5px 14px;border-radius:3px;margin-bottom:16px;}
+h1{font-size:26px;color:var(--navy);margin:6px 0 8px;}
+.sub{color:var(--muted);font-size:13.5px;margin-bottom:24px;}
+.status{background:var(--soft);border-left:5px solid var(--navy);border-radius:0 8px 8px 0;padding:14px 20px;margin:0 0 28px;font-size:14px;color:#33425a;}
+.status b{color:var(--navy2);}
+.status .warn{color:var(--amber);font-weight:700;}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:13px;margin-bottom:22px;}
+.card{border:1px solid var(--line);border-radius:10px;padding:16px 18px;text-decoration:none;color:var(--ink);display:block;background:#fff;transition:box-shadow .15s,border-color .15s;}
+.card:hover{border-color:var(--accent);box-shadow:0 3px 12px rgba(47,111,179,.15);}
+.card .no{font-size:11px;color:var(--accent);letter-spacing:.12em;font-weight:700;}
+.card h2{font-size:15.5px;color:var(--navy);margin:4px 0 6px;}
+.card p{font-size:12.5px;color:var(--muted);}
+.card.live{border-left:4px solid var(--green);}
+h3{font-size:15px;color:var(--navy2);margin:26px 0 8px;}
+ul{margin:0 0 14px 22px;font-size:13.5px;}
+li{margin-bottom:5px;}
+code{background:var(--soft);border:1px solid var(--line);border-radius:4px;padding:1px 6px;font-size:12px;font-family:Consolas,monospace;}
+.foot{margin-top:30px;padding-top:12px;border-top:1px solid var(--line);color:var(--muted);font-size:12px;}
+a{color:var(--accent);}
+</style>
+</head>
+<body>
+<div class="page">
+  <span class="doc-label">JEIL AX NAS 고도화 · 대외비</span>
+  <h1>🗄️ 사내 NAS 연계 허브</h1>
+  <div class="sub">사내 NAS 를 부서 에이전트의 <b>데이터 계층</b>(문서 원본 · 생성 자료 장기보관 · 백업)으로 쓰는 검토와 기획. 에이전트 운영은 <a href="/docs/agents">에이전트관리 허브</a>, 에이전트 기획은 <a href="/docs/product/dept-agents">14 부서 에이전트 운영기획</a>(ADR-109).</div>
+
+  <div class="status">
+    <b>현재(2026-09-30 · v3)</b> — <b>안 D 역방향 큐 채택 · 1단계(N1) 구현·라이브 검증 완료</b>: ERP=Supabase / 누적 데이터=NAS 정본 / 사내 워커가 밖으로만 연결(인바운드 0 · 방화벽 룰 추가 0건) · ADR-110 <b>Accepted(1단계)</b><br>
+    검증 실측 — 회귀 113건 통과 · 79,472행 내보내기 · 복원 대조(행수·SHA256·표본 필드) 일치 · 중단 재개 시 누락 0 · 게이트웨이 무변경<br>
+    <span class="warn">⚠ 남은 것</span> — ① 실제 NAS 경로 적재(적재 폴더 경로 + 쓰기 권한) ② D-104 외부 백업·UPS ③ D-98 PoC 무인증 포트 폐쇄(아직 열려 있음) · 확정 D-105·D-106 · 보류 D-107(터널 주소 — N3 재판단)</div>
+
+  <h3>문서</h3>
+  <div class="cards">
+    <a class="card live" href="/docs/nas/decision"><div class="no">02 · 의사결정용</div><h2>📊 의사결정 브리핑</h2><p>v3 — 도식 4종 · 현재 상태 · 연결 방식 비교(A~D) · 적용 가능성 · 사전 준비 · 로드맵 · 결정 현황 D-94~D-99 · D-104~D-108 · 위험·대응</p></a>
+    <a class="card" href="/docs/nas/review"><div class="no">00</div><h2>타당성 검토</h2><p>PoC 분석 · 현 구조 대조 · 데이터 4종 적합도 · 문제점 8건 · 종합 판정(2026-09-30 전제 추가)</p></a>
+    <a class="card" href="/docs/nas/plan"><div class="no">01</div><h2>데이터 계층 기획</h2><p>v3 — 누적 데이터 NAS 정본 · 역방향 큐 · 적재 워커 · 단계 N0~N4(N1 완료) · 검증 실측 · 결정 · ADR-110 개정</p></a>
+  </div>
+
+  <h3>한 줄 요약</h3>
+  <ul>
+    <li><b>ERP 는 Supabase, 누적은 NAS</b> — 정확해야 하고 매번 읽는 것은 Supabase, 크고 계속 쌓이는 것은 NAS 정본.</li>
+    <li>연결은 <b>역방향 큐</b> — 사내 워커가 밖으로만 연결해 「할 일」과 데이터를 받아 온다. 밖에서 NAS 로 들어오는 길·열린 포트·공개 주소가 없고, 사외 사용은 그대로다(직원 브라우저는 포털만 본다). 터널은 하지 않는다 — NAS 가 사내 내부망·내부 방화벽 안이기 때문이다.</li>
+    <li>순서: N0 준비(외부 백업·UPS·PoC 포트 폐쇄) → <b>N1 적재 ✅</b>(실제 NAS 경로 적재 → 상시화 → 야간 백업) → N2 보존 전환·생성 자료 NAS 저장 → N3 문서 색인(지연 실측 뒤 터널 재판단) → N4 전사 확대.</li>
+  </ul>
+
+  <h3>데이터 4종 판정</h3>
+  <ul>
+    <li>사내 문서·양식·규정 — <b>NAS 원본 + NAS 내부 색인</b>(N3)</li>
+    <li>에이전트 생성 자료 — <b>NAS 정본</b>(N2 · Storage 는 장애 시 임시)</li>
+    <li>대화기록·개선대장 — <b>지금은 NAS 로 복사만</b>(Supabase 원본 유지) → N2 에서 최근 14일 Supabase + NAS 장기 정본(보존 180일, D-108)</li>
+    <li>ERP 복제 — 중간DB 정본 + <b>NAS 스냅샷</b>(1단계에서 9종 적재 검증 · 급여 스키마는 제외), ETL 이전은 보류</li>
+  </ul>
+
+  <h3>구현 정본</h3>
+  <ul>
+    <li>워커 <code>10_ERP_DB연계/etl/nas_worker.py</code> — 통합 러너 r1.9 에 편입(서브커맨드 <code>jeil_runner nas</code> · 작업 <code>nas_sync</code>, 기본 꺼짐)</li>
+    <li>DB <code>실제구축준비 자료/이관/sql/82_nas_export_queue.sql</code> — 큐·심박·허용 목록·커서(라이브 적용 완료)</li>
+    <li>NAS 경로는 어디에도 적지 않는다 — 작업PC 의 <code>.claude/nas.path</code> 또는 환경변수로만 넘긴다</li>
+  </ul>
+  <div class="foot">13_NAS_고도화 · 관리자 최동혁 · 문서 수정 후 <code>python 13_NAS_고도화/_build_html.py</code> · PoC 원본(claude_*.md)은 내부 IP 포함 — git 제외</div>
+</div>
+</body>
+</html>

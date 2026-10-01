@@ -35,7 +35,7 @@ import sys
 import threading
 import time
 
-RUNNER_VERSION = "r1.8"
+RUNNER_VERSION = "r1.9"
 CONFIG_NAME = "runner_config.json"
 HISTORY_NAME = "runner_history.jsonl"
 RUNNING_NAME = "runner_running.json"
@@ -69,6 +69,9 @@ JOB_KINDS = {
                     "desc": "정해진 시각에 ERP job 전체(또는 선택) 적재 — etl_run"},
     "proposal_ledger": {"label": "구매 기안서 대장 적재", "group": "etl", "timeout_min": 30,
                     "desc": "구매팀 Teams 엑셀 대장을 읽어 중간DB(public.pur_proposal)에 전량 교체 적재 — proposal_ledger"},
+    "nas_sync":    {"label": "NAS 적재 요청 처리", "group": "nas", "timeout_min": 60,
+                    "desc": "화면·CLI 의 NAS 적재 요청을 집어 대화기록·ERP 스냅샷을 사내 NAS 로 내보낸다 — "
+                            "nas_worker --once 와 동일(ERP 큐는 보지 않는다 · NAS 루트를 모르면 선점하지 않는다)"},
     "proposal_scan": {"label": "기안서 스캔본 목록 갱신", "group": "scan", "timeout_min": 10,
                     "desc": "문서중앙화 기안서 스캔본 폴더의 파일명·존재 여부만 읽어 중간DB(public.pur_proposal_scan) 갱신 — "
                             "밤 20시 이후 첫 가능 회차에 1회(잠금·로그오프면 건너뛰고 다음 회차) · proposal_scan --nightly"},
@@ -82,6 +85,7 @@ PARAM_KEYS = {
     "etl_sync": ("collectors", "offboard", "full", "allow_sensitive"),
     "etl_batch": ("jobs", "include_sensitive", "full", "dry_run"),
     "proposal_ledger": ("file", "scan", "dry_run", "append"),
+    "nas_sync": ("dry_run",),
     "proposal_scan": ("dry_run", "force"),
     "noop": ("lines", "sleep", "rc"),
 }
@@ -504,6 +508,7 @@ def detect_capabilities(root):
     · offboard  : playwright 모듈 + .env.local 의 GW_URL/GW_ID/GW_PW (퇴사 처리 — 브라우저 자동화)
     · proposal_ledger: .env 의 PROPOSAL_LEDGER_XLSX 가 가리키는 대장 파일이 이 호스트에 있는가
     · proposal_scan  : Windows + Destiny(문서중앙화) 설치 + .env 의 PROPOSAL_SCAN_DIR — 실제로 보이는지는 실행 때 판정
+    · nas       : 사내 NAS 루트가 이 호스트에서 보이는가 — NAS_DATA_ROOT 또는 .claude/nas.path (경로는 로그에 남기지 않는다 §1.1)
     """
     env_path = os.path.join(root, ".env")
     env = _read_env_file(env_path)
@@ -518,6 +523,18 @@ def detect_capabilities(root):
         playwright = importlib.util.find_spec("playwright") is not None
     except Exception:
         playwright = False
+
+    # NAS 루트가 **정해져 있는가**만 본다. 여기서 os.path.isdir 로 실제 접근을 시험하지 않는 이유 —
+    # 공유가 꺼져 있으면 SMB 가 수십 초 막히고, 이 함수는 작업을 띄울 때마다·창이 그릴 때마다 불린다.
+    # 실제 접근·쓰기 가능 여부는 nas_worker 가 실행 시점에 판정하고, 안 되면 요청을 선점하지 않는다.
+    nas_root_set = (env.get("NAS_DATA_ROOT") or os.environ.get("NAS_DATA_ROOT") or "").strip().strip('"')
+    if not nas_root_set:
+        nas_pf = os.path.join(root, ".claude", "nas.path")
+        if os.path.exists(nas_pf):
+            try:
+                nas_root_set = open(nas_pf, encoding="utf-8").read().strip().strip('"')
+            except Exception:
+                nas_root_set = ""
     return {
         "supabase": has("SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY"),
         "erp": has("ERP_DB_CONN") or erp_store,
@@ -525,6 +542,7 @@ def detect_capabilities(root):
         "gw_account": all(local.get(k) for k in ("GW_DB_HOST", "GW_DB_NAME", "GW_TABLE_ID", "GW_TABLE_PW", "GW_TABLE_NAME")),
         "offboard": playwright and all(local.get(k) for k in ("GW_URL", "GW_ID", "GW_PW")),
         "teams_webhook": has("TEAMS_WEBHOOK_URL"),
+        "nas": bool(nas_root_set),
         # 구매 기안서 대장(엑셀)이 이 호스트에서 보이는가 — Teams/OneDrive 동기 폴더가 있어야 한다.
         # 경로는 .env 의 PROPOSAL_LEDGER_XLSX 이며 **값은 로그에 남기지 않는다**(§1.1).
         "proposal_ledger": bool(os.path.exists(
@@ -597,6 +615,8 @@ def resolve_params(job, caps):
         p["include_sensitive"] = _as_bool(raw.get("include_sensitive", False))
         p["full"] = _as_bool(raw.get("full", False))
         p["dry_run"] = _as_bool(raw.get("dry_run", False))
+    elif kind == "nas_sync":
+        p["dry_run"] = _as_bool(raw.get("dry_run", False))
     elif kind == "proposal_scan":
         p["dry_run"] = _as_bool(raw.get("dry_run", False))
         p["force"] = _as_bool(raw.get("force", False))
@@ -621,8 +641,11 @@ def param_warnings(job, caps):
     raw = job.get("params") or {}
     out = []
     kind = job["kind"]
-    if kind in ("relay_queue", "etl_sync", "etl_batch", "proposal_ledger", "proposal_scan") and not caps.get("supabase"):
+    if kind in ("relay_queue", "etl_sync", "etl_batch", "proposal_ledger", "proposal_scan", "nas_sync") and not caps.get("supabase"):
         out.append(".env 에 Supabase 접속정보가 없어(또는 읽을 수 없어) 실패합니다")
+    if kind == "nas_sync" and not caps.get("nas"):
+        out.append("NAS 루트가 정해져 있지 않습니다 — .env 의 NAS_DATA_ROOT 또는 .claude/nas.path 에 "
+                   "사내 NAS 공유 폴더 경로를 넣으세요(없으면 요청을 선점하지 않고 그냥 넘깁니다)")
     if kind == "proposal_ledger" and not (raw.get("file") or caps.get("proposal_ledger")):
         out.append("이 호스트에서 대장 파일을 찾을 수 없습니다 — .env 의 PROPOSAL_LEDGER_XLSX 를 넣거나 "
                    "「대장 파일」 칸에 경로를 적으세요(대장이 동기화된 PC 에서만 켭니다)")
