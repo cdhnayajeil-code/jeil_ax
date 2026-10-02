@@ -794,6 +794,7 @@
             <button class="b pri hide" id="btnErpSend">🚀 ERP로 보내기</button>
             <button class="b gh hide" id="btnErpEdit" title="작성 화면으로 불러와 고칩니다">✏ 수정</button>
             <button class="b gh hide" id="btnErpCancel">전송 취소</button>
+            <button class="b gh" id="btnErpCopyNew" title="이 전표를 [전표 작성]으로 그대로 복사해 새 전표로 만듭니다">📄 전표 복사</button>
             <button class="b gh" id="btnCopyErp">📋 값 복사</button>
           </div>
         </div>
@@ -1061,13 +1062,18 @@ function applyPill(x){
 /* 목록 행 액션 — 표에서 바로 취소·수정한다(패널을 열지 않아도 되게) */
 function rowActs(x){
   const st = x.erp_apply_status;
-  if(st === "applied") return '<span style="color:#aab;">—</span>';
+  // 복사는 상태와 무관하게 항상 둔다 — 이미 ERP에 등록된(또는 ERP에서 삭제된) 전표를
+  // 다시 넣으려면 새 전표로 복사하는 길밖에 없다(REQ-0101).
+  const cp = '<button type="button" class="ib" data-act="copy" data-no="'+esc(x.draft_no)+'"'
+           + ' title="이 전표를 [전표 작성]으로 그대로 복사해 새 전표로 만듭니다">복사</button>';
+  if(st === "applied") return cp;
   const b = [];
   if(st === "ready")
     b.push('<button type="button" class="ib" data-act="cancel" data-no="'+esc(x.draft_no)+'">전송취소</button>');
   if(st !== "sending")
     b.push('<button type="button" class="ib pri" data-act="edit" data-no="'+esc(x.draft_no)+'">수정</button>');
   if(st === "sending") b.push('<span style="color:#aab;">처리 중</span>');
+  b.push(cp);
   return b.join("");
 }
 
@@ -3420,7 +3426,7 @@ async function loadPost(){
     t.innerHTML = '<colgroup><col style="width:34px"><col style="width:158px"><col style="width:92px">'
       + '<col style="width:76px"><col style="width:88px"><col><col style="width:104px">'
       + '<col style="width:70px"><col style="width:130px"><col style="width:168px">'
-      + '<col style="width:134px"></colgroup>'
+      + '<col style="width:182px"></colgroup>'
       + '<thead><tr><th class="sel"><input type="checkbox" id="postChkAll" title="전송 가능 건 전체 선택"></th>'
       + '<th>참조번호</th><th>결의일자</th><th>등록자</th><th>부서</th><th>제목</th><th class="r">금액</th>'
       + '<th>상태</th><th>ERP 전표번호</th><th>ERP 적용</th><th>작업</th></tr></thead><tbody>'
@@ -3827,6 +3833,7 @@ $("postTbl").onclick = async (e)=>{
     const no = act.getAttribute("data-no");
     const row = POST_ROWS.find((r)=> r.draft_no === no);
     if(act.getAttribute("data-act") === "cancel") return void cancelSend(no);
+    if(act.getAttribute("data-act") === "copy") return void copyDraftToWrite(no);
     return void startEdit(no, !!row && row.erp_apply_status === "ready");
   }
   const tr = e.target.closest("tr[data-no]"); if(!tr) return;
@@ -3908,6 +3915,49 @@ $("btnErpEdit").onclick = ()=>{
   if(!POST_SEL) return;
   startEdit(POST_SEL.header.draft_no, POST_SEL.header.erp_apply_status === "ready");
 };
+
+/* ═══ ERP 전송 탭 → 전표 작성으로 복사 (REQ-0101) ═══
+   포털 전표(초안)를 **그대로** 새 전표로 옮긴다 — 결의일자·전표유형·부서·코스트센터·프로젝트·제목,
+   줄(차대·계정·금액·비고·거래처·코스트센터·프로젝트), 관리항목까지.
+   「지난 전표 복사」(ERP 미러에서 가져오기)와 다른 점: 저쪽은 결의일자를 오늘로 새로 잡고 민감
+   관리항목이 비어 오지만, 이쪽은 포털에 저장된 원본이라 빠지는 값 없이 같은 전표가 된다.
+   원본은 건드리지 않는다 — 새 전표번호는 저장할 때 새로 받는다(복사가 서버 검증을 면제하지 않는다). */
+async function copyDraftToWrite(no){
+  if(!no) return;
+  let r;
+  try{ r = await api("get", { draft_no: no }); }
+  catch(e){ toast(e.message, true); return; }
+  if(rows().some((x)=> x.acct_cd || x.item_amt)){
+    if(!confirm("작성 중인 라인을 지우고 전표 "+no+" 을(를) 복사합니다. 계속할까요?")) return;
+  }
+  const h = r.header;
+  stopSendPoll();
+  newDraft();                                   // 새 전표 — 원본 번호·실패 표시·월반복 상태를 이어받지 않는다
+  if(h.draft_dt) $("fDt").value = h.draft_dt;   // 「그대로」 — 결의일자도 원본 그대로(필요하면 작성 화면에서 고친다)
+  if(h.gl_type) $("fType").value = h.gl_type;
+  if(h.dept_cd && (MASTER.depts||[]).some((d)=> String(d.dept_cd)===String(h.dept_cd))) $("fDept").value = h.dept_cd;
+  renderCostOptions();
+  if(h.cost_cd) $("fCost").value = h.cost_cd;
+  HDR_COST_PREV = $("fCost").value; syncCostReq();
+  $("fDesc").value = h.gl_desc || "";
+  $("fProj").value = h.project_no || "";
+  HDR_PROJ_PREV = $("fProj").value; syncProjLabel();
+  const newRows = (r.items||[]).map((it)=>{
+    const ctrl = {};
+    (it.ctrls||[]).forEach((c)=>{ ctrl[c.ctrl_cd] = c.ctrl_val; });
+    return { dr_cr_fg:it.dr_cr_fg, acct_cd:it.acct_cd, acct_nm:it.acct_nm,
+             item_amt:String(it.item_amt ?? ""), item_desc:it.item_desc||"",   // 0원 라인 보존
+             bp_cd:it.bp_cd||null, bp_nm:it.bp_nm||null,
+             cost_cd:it.cost_cd||"", project_no:it.project_no||"",
+             __ctrl:ctrl };
+  });
+  if(newRows.length) setRows(newRows);
+  markStart("sbCopy");
+  setStartHint("전표 "+no+" 을(를) 그대로 복사했습니다 — 결의일자("+(h.draft_dt||"")+")도 원본 그대로입니다");
+  showTab("write");
+  toast("전표 "+no+" 을(를) 새 전표로 복사했습니다 — 결의일자·금액·관리항목까지 그대로입니다. 확인한 뒤 저장·제출하세요.");
+}
+$("btnErpCopyNew").onclick = ()=>{ if(POST_SEL) copyDraftToWrite(POST_SEL.header.draft_no); };
 
 $("btnCopyErp").onclick = ()=>{
   if(!POST_SEL) return;
