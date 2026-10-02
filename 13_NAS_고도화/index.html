@@ -40,12 +40,16 @@ a{color:var(--accent);}
   <div class="sub">사내 NAS 를 부서 에이전트의 <b>데이터 계층</b>(문서 원본 · 생성 자료 장기보관 · 백업)으로 쓰는 검토와 기획. 에이전트 운영은 <a href="/docs/agents">에이전트관리 허브</a>, 에이전트 기획은 <a href="/docs/product/dept-agents">14 부서 에이전트 운영기획</a>(ADR-109).</div>
 
   <div class="status">
-    <b>현재(2026-09-30 · v3)</b> — <b>안 D 역방향 큐 채택 · 1단계(N1) 구현·라이브 검증 완료</b>: ERP=Supabase / 누적 데이터=NAS 정본 / 사내 워커가 밖으로만 연결(인바운드 0 · 방화벽 룰 추가 0건) · ADR-110 <b>Accepted(1단계)</b><br>
+    <b>현재(2026-10-02)</b> — <b>가동 중</b>: 실제 NAS 폴더 3회 연속 적재 성공 · 매일 자동 적재(사내 PC 예약작업) · 평가 전달 경로 추가<br>
+    <b>다음 단계 준비</b> — NAS 컨테이너 이관용 전용 토큰 중계 함수(<code>jeil-nas-bridge</code>) 라이브 · 컨테이너 설정 묶음 준비 완료 → NAS 설치 대기<br>
+    <b>2026-09-30 · v3</b> — <b>안 D 역방향 큐 채택 · 1단계(N1) 구현·라이브 검증 완료</b>: ERP=Supabase / 누적 데이터=NAS 정본 / 사내 워커가 밖으로만 연결(인바운드 0 · 방화벽 룰 추가 0건) · ADR-110 <b>Accepted(1단계)</b><br>
     검증 실측 — 회귀 113건 통과 · 79,472행 내보내기 · 복원 대조(행수·SHA256·표본 필드) 일치 · 중단 재개 시 누락 0 · 게이트웨이 무변경<br>
-    <span class="warn">⚠ 남은 것</span> — ① 실제 NAS 경로 적재(적재 폴더 경로 + 쓰기 권한) ② D-104 외부 백업·UPS ③ D-98 PoC 무인증 포트 폐쇄(아직 열려 있음) · 확정 D-105·D-106 · 보류 D-107(터널 주소 — N3 재판단)</div>
+    <span class="warn">⚠ 남은 것</span> — ① D-98 PoC 무인증 포트 폐쇄(아직 열려 있음) ② D-104 외부 백업·UPS ③ 적재 폴더 권한 확인(시스템·관리자 전용) · 확정 D-105·D-106 · 보류 D-107(터널 주소 — N3 재판단)</div>
 
   <h3>문서</h3>
   <div class="cards">
+    <a class="card live" href="/docs/nas/flow"><div class="no">03 · 처음 보는 분은 여기부터</div><h2>🧭 연동 방식 한눈에</h2><p>지금 실제로 돌아가는 방식 — 전체 구조 · 적재 여섯 단계 · 하루 1회 흐름 · 쌓이는 데이터 · 안전장치 · 검증 결과 · 되는 것/안 되는 것</p></a>
+    <a class="card live" href="/docs/nas/realtime"><div class="no">04 · 다음 단계 검토</div><h2>🔁 실시간 연계 · 컨테이너 이관</h2><p>에이전트가 NAS 를 실시간으로 읽고 쓰는 방식 · NAS Docker 컨테이너 구성 · 전용 토큰(좁은 키) · 조회 대상 4종 설계 · 단계 P1~P4 — P1 은 구현·라이브 검증 완료</p></a>
     <a class="card live" href="/docs/nas/decision"><div class="no">02 · 의사결정용</div><h2>📊 의사결정 브리핑</h2><p>v3 — 도식 4종 · 현재 상태 · 연결 방식 비교(A~D) · 적용 가능성 · 사전 준비 · 로드맵 · 결정 현황 D-94~D-99 · D-104~D-108 · 위험·대응</p></a>
     <a class="card" href="/docs/nas/review"><div class="no">00</div><h2>타당성 검토</h2><p>PoC 분석 · 현 구조 대조 · 데이터 4종 적합도 · 문제점 8건 · 종합 판정(2026-09-30 전제 추가)</p></a>
     <a class="card" href="/docs/nas/plan"><div class="no">01</div><h2>데이터 계층 기획</h2><p>v3 — 누적 데이터 NAS 정본 · 역방향 큐 · 적재 워커 · 단계 N0~N4(N1 완료) · 검증 실측 · 결정 · ADR-110 개정</p></a>

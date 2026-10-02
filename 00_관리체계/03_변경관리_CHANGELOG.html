@@ -130,6 +130,13 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 </tr>
 <tr>
 <td>2026-10-02</td>
+<td>사내NAS · 컨테이너 이관 준비 + 실시간 연계 검토(REQ-0102)</td>
+<td><code>supabase/functions/jeil-nas-bridge/</code>(신규 · v1) · 정본 SQL <code>이관/sql/85_nas_worker_token.sql</code>(+rollback) · <code>10_ERP_DB연계/etl/nas_worker.py</code>(n1.2)·<code>test_nas_worker.py</code> · <code>deploy/nas/</code>(Dockerfile·compose.yaml·.env.example·README) · <code>13_NAS_고도화/04_실시간연계_컨테이너_검토.html</code>(신규 · <code>/docs/nas/realtime</code>)</td>
+<td><strong>적재 워커를 NAS 컨테이너로 옮길 준비를 마쳤다(P1) + 에이전트의 NAS 실시간 조회 방식을 검토했다(관리자 지시).</strong> ① <strong>좁은 키</strong> — NAS 컨테이너에 <code>service_role</code> 을 두지 않으려고 전용 토큰 중계 함수 <code>jeil-nas-bridge</code>(verify_jwt=false · 토큰 SHA-256 대조 · NAS 적재 RPC 8종만 중계 · 워커 이름은 서버가 강제)를 배포하고 토큰 해시 표 <code>etl_meta.nas_worker_token</code>(RLS on·정책 0)을 신설했다(마이그레이션 <code>nas_worker_token_v1</code>). 평문 토큰은 발급 PC 의 git 제외 파일에만. ② <strong>워커 n1.2</strong> — 브리지 전송(토큰이 있으면 직결 대신) · <code>--serve</code>(컨테이너 상주) · 「오늘」 KST 고정 · 마운트 경로 가림. ③ <strong>실측</strong> — 토큰 없음·틀림 401 / 목록 밖 기능 403 / 이름 사칭 불가 / <strong>전용 토큰만으로 실제 NAS 적재 성공</strong>(증분 5종·스냅샷 5,884행) / 비활성화 즉시 401. 회귀 123건. ④ <strong>검토 결론</strong> — 실시간 조회는 터널 없이 「중계 함수에서 길게 대기」로(DB 안 대기는 8초 제한으로 불가), 대상 4종은 파일 목록·과거 대화(P2) → 문서 검색(P3 · D-95) → 생성 자료 저장(P4) 순. <strong>잔여</strong>: NAS 에 컨테이너 설치(DSM · 관리자/IT) → 3일 성공 후 PC 예약작업 제거 · PoC 삭제(D-98) · P2~P4 구현은 별도 요청</td>
+<td>최동혁(+Claude)</td>
+</tr>
+<tr>
+<td>2026-10-02</td>
 <td>문서 · NAS 고도화(연동 방식 설명 자료)</td>
 <td><code>13_NAS_고도화/03_연동방식_도식.html</code>(신규 · <code>/docs/nas/flow</code>) · <code>index.html</code>(허브) · <code>README.md</code> · <code>_routes.py</code>·<code>vercel.json</code> · <code>00_문서대장.md</code></td>
 <td><strong>NAS 연동 방식을 「지금 실제로 돌아가는 것」 기준으로 도식화한 설명 자료를 신설했다</strong>(관리자 지시). 전체 구조·적재 여섯 단계·하루 1회 판단 흐름 도식 3종, 쌓이는 데이터(증분 5종·스냅샷 9종)와 폴더 모양, 안전장치 8건, 2026-10-02 실 NAS 검증 결과, 되는 것/안 되는 것(NAS→에이전트 방향·삭제 따라가기·파일 원본·암호화 미구현), 남은 일. 허브 첫 카드로 연결. NAS 주소·경로 미기재. 코드·DB 변경 없음</td>

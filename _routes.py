@@ -159,6 +159,8 @@ ROUTES = {
     "/docs/nas/review":                 "13_NAS_고도화/00_NAS연계_타당성검토.html",
     "/docs/nas/plan":                   "13_NAS_고도화/01_NAS_데이터계층_기획.html",
     "/docs/nas/decision":               "13_NAS_고도화/02_의사결정_브리핑.html",
+    "/docs/nas/flow":                   "13_NAS_고도화/03_연동방식_도식.html",   # 지금 돌아가는 연동 방식 도식(2026-10-02)
+    "/docs/nas/realtime":               "13_NAS_고도화/04_실시간연계_컨테이너_검토.html",   # 실시간 연계·컨테이너 이관 검토(REQ-0102 · 2026-10-02)
 
     # ── 그리드 표준 ────────────────────────────────────────
     "/docs/grid":               "그리드/index.html",

@@ -1,0 +1,20 @@
+# jeil-nas-worker — Synology Container Manager 프로젝트(REQ-0102)
+# 이 파일에는 경로·주소·비밀값을 적지 않는다. 전부 같은 폴더의 .env 에서 온다(.env.example 참조).
+services:
+  jeil-nas-worker:
+    build: .
+    image: jeil-nas-worker:n1
+    container_name: jeil-nas-worker
+    hostname: jeil-nas-worker        # 심박(etl_meta.nas_heartbeat)에 찍히는 이름 — 고정하지 않으면 재생성마다 새 행이 생긴다
+    restart: unless-stopped
+    env_file: .env
+    user: "${NAS_RUN_UID:-1000}:${NAS_RUN_GID:-1000}"   # 적재 폴더에 쓸 수 있는 계정(README §2 에서 확인)
+    mem_limit: 512m
+    cpu_shares: 256                  # Synology 커널은 cpus: 를 못 쓴다 — 우선순위만 낮춘다
+    volumes:
+      - "${NAS_HOST_DATA_DIR:?적재 폴더의 NAS 내부 경로를 .env 에 적으세요}:/data"   # 적재 폴더(바인드)
+      - state:/state                 # 하루 1회 완료 표시·로그(컨테이너를 다시 만들어도 남는다)
+    # ports: 없음 — 이 컨테이너는 아무 포트도 열지 않는다
+
+volumes:
+  state:

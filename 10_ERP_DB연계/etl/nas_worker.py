@@ -43,7 +43,7 @@ import urllib.request
 
 from _env import env_root, load_env, need
 
-WORKER_VERSION = "n1.1"   # n1.1(2026-10-02): --nightly(하루 1회)·--log · 직접 받은 루트 검증
+WORKER_VERSION = "n1.2"   # n1.2(2026-10-02): 브리지 전송(좁은 키)·--serve(컨테이너 상주)·KST 고정 / n1.1: --nightly·--log·루트 검증
 
 POLL_SEC = 20          # 기본 폴링 주기
 HTTP_TIMEOUT = 120     # 페이지 응답이 수 MB 가 될 수 있어 etl_watch(60초)보다 넉넉히 잡는다
@@ -62,9 +62,30 @@ _REDACT_RULES = [
     (re.compile(r"\b\d{1,3}(?:\.\d{1,3}){3}(?:[,:]\d+)?\b"), "***"),
     # NAS 공유 경로(\\host\share\...)도 가린다 — 경로 자체를 저장소·DB 에 남기지 않는다(§1.1)
     (re.compile(r"\\\\[^\s'\"]+"), r"\\\\***"),
+    # 컨테이너·NAS 의 마운트 경로(/volume1/…, /data/…)도 같은 이유로 가린다
+    (re.compile(r"(?<![\w.])/(?:volume\d+|data|mnt|state)(?:/[^\s'\"]*)?"), "/***"),
 ]
 
 _NAME_RE = re.compile(r"^[a-z_][a-z0-9_]*$")
+
+# 「오늘」은 한국 시각으로 고정한다 — NAS 컨테이너(slim 이미지)는 시간대 자료가 없어 UTC 로 돌 수 있고,
+# 그러면 날짜 폴더·하루 1회 판정이 9시간 어긋난다.
+_KST = datetime.timezone(datetime.timedelta(hours=9))
+
+
+def _now():
+    return datetime.datetime.now(_KST).replace(tzinfo=None)
+
+
+# 전송 방식. "direct" = service_role 키로 PostgREST 직결(사내 PC·테스트),
+# "bridge" = 전용 토큰으로 Edge Function(jeil-nas-bridge) 경유 — NAS 컨테이너에는 service_role 을 두지 않는다.
+_TRANSPORT = "direct"
+
+# 브리지가 중계해 주는 RPC. 서버(브리지)도 같은 목록으로 막지만, 워커가 먼저 걸러 실수를 일찍 드러낸다.
+BRIDGE_FNS = (
+    "nas_runner_ping", "nas_request_claim", "nas_request_progress", "nas_request_finish",
+    "nas_export_sources", "nas_export_count", "nas_export_page", "nas_export_commit",
+)
 
 
 def _redact(msg):
@@ -78,7 +99,7 @@ _LOG_FILE = None       # --log 로 받은 파일. 예약작업(pythonw)은 화�
 
 
 def log(msg):
-    line = f"[{datetime.datetime.now():%H:%M:%S}] {msg}"
+    line = f"[{_now():%H:%M:%S}] {msg}"
     try:
         print(line, flush=True)
     except Exception:
@@ -86,18 +107,27 @@ def log(msg):
     if _LOG_FILE:
         try:
             with open(_LOG_FILE, "a", encoding="utf-8") as fh:
-                fh.write(f"{datetime.date.today():%Y-%m-%d} {line}\n")
+                fh.write(f"{_now().date():%Y-%m-%d} {line}\n")
         except Exception:
             pass
 
 
 def rpc(url, key, fn, payload):
     """Supabase RPC 호출 → 파싱된 JSON(없으면 None). 오류 본문은 예외에 실어 진단 가능하게."""
-    body = json.dumps(payload, ensure_ascii=False, default=str).encode("utf-8")
-    req = urllib.request.Request(
-        f"{url}/rest/v1/rpc/{fn}", data=body, method="POST",
-        headers={"apikey": key, "Authorization": f"Bearer {key}", "Content-Type": "application/json"},
-    )
+    if _TRANSPORT == "bridge":
+        if fn not in BRIDGE_FNS:
+            raise RuntimeError(f"브리지로 보낼 수 없는 RPC 입니다: {fn}")
+        body = json.dumps({"fn": fn, "payload": payload}, ensure_ascii=False, default=str).encode("utf-8")
+        req = urllib.request.Request(
+            url, data=body, method="POST",
+            headers={"x-nas-worker-token": key, "Content-Type": "application/json"},
+        )
+    else:
+        body = json.dumps(payload, ensure_ascii=False, default=str).encode("utf-8")
+        req = urllib.request.Request(
+            f"{url}/rest/v1/rpc/{fn}", data=body, method="POST",
+            headers={"apikey": key, "Authorization": f"Bearer {key}", "Content-Type": "application/json"},
+        )
     try:
         with urllib.request.urlopen(req, timeout=HTTP_TIMEOUT) as r:
             raw = r.read().decode("utf-8").strip()
@@ -306,7 +336,7 @@ def write_manifest(root, run_stamp, body):
 
 def run_export(url, key, root, kind, wanted, dry=False, run_id=None, on_progress=None):
     """소스 여러 개를 내보낸다. 한 소스가 실패해도 나머지는 계속 — 다만 하나라도 어긋나면 전체는 실패다."""
-    started = datetime.datetime.now()
+    started = _now()
     run_stamp = started.strftime("%Y-%m-%d %H%M%S")
     enc_ok, enc_why = crypto_state()
     srcs, missing = pick_sources(url, key, kind, wanted)
@@ -337,7 +367,7 @@ def run_export(url, key, root, kind, wanted, dry=False, run_id=None, on_progress
         "worker": socket.gethostname(), "worker_version": WORKER_VERSION,
         "kind": kind, "dry_run": bool(dry),
         "started_at": started.isoformat(timespec="seconds"),
-        "finished_at": datetime.datetime.now().isoformat(timespec="seconds"),
+        "finished_at": _now().isoformat(timespec="seconds"),
         "encrypted": enc_ok, "encrypt_note": enc_why,
         "sha256_note": "압축 전 JSONL 본문 기준(.gz 파일 바이트가 아니다)",
         "rows": rows_sum, "files": files, "failed": fails, "sources": detail,
@@ -431,7 +461,7 @@ def nightly(url, key, worker, root_arg=None, dry=False, today=None):
 
     실패하거나 NAS 가 안 보이면 표시를 남기지 않는다 → 다음 회차에 다시 한다(PC 가 꺼져 있던 날은 켜진 뒤 첫 회차).
     """
-    today = today or f"{datetime.date.today():%Y-%m-%d}"
+    today = today or f"{_now().date():%Y-%m-%d}"
     stamp = _stamp_file()
     done = None
     try:
@@ -478,10 +508,29 @@ def nightly(url, key, worker, root_arg=None, dry=False, today=None):
         try:
             os.makedirs(os.path.dirname(stamp), exist_ok=True)
             with open(stamp, "w", encoding="utf-8") as fh:
-                json.dump({"date": today, "at": f"{datetime.datetime.now():%Y-%m-%d %H:%M:%S}",
+                json.dump({"date": today, "at": f"{_now():%Y-%m-%d %H:%M:%S}",
                            "worker": WORKER_VERSION, "result": summary}, fh, ensure_ascii=False)
         except Exception as e:
             log(f"완료 표시를 못 남겼습니다(다음 회차에 한 번 더 내보냅니다): {type(e).__name__}")
+    return 0
+
+
+# ── 상주(컨테이너 진입점) ─────────────────────────────────────────────────────
+def serve(url, key, worker, root_arg=None, dry=False, interval=POLL_SEC, rounds=None):
+    """계속 돌면서 하루 1회 적재 + 화면 요청 처리. nightly() 가 「그날 했으면 큐만 본다」를 이미 안다.
+
+    rounds 는 테스트용(몇 바퀴만 돌고 끝). 어떤 오류가 나도 루프는 죽지 않는다 — 다음 바퀴에 다시 한다.
+    """
+    log(f"NAS 워커 상주 시작 — {WORKER_VERSION} · host={worker} · 전송 {_TRANSPORT}" + (" · dry-run" if dry else ""))
+    n = 0
+    while rounds is None or n < rounds:
+        n += 1
+        try:
+            nightly(url, key, worker, root_arg, dry)
+        except (Exception, SystemExit) as e:
+            log(f"회차 오류(계속): {_redact(e)[:200]}")
+        if rounds is None or n < rounds:
+            time.sleep(max(5, interval))
     return 0
 
 
@@ -491,8 +540,12 @@ def self_check(url, key, root_arg=None):
     ok = True
     log(f"자체 점검 — 워커 {WORKER_VERSION} · host={socket.gethostname()}")
     log(f"  · .env 위치: {os.path.join(env_root(), '.env')} ({'있음' if os.path.exists(os.path.join(env_root(), '.env')) else '없음'})")
-    log(f"  · SUPABASE_URL: {'있음' if url else '없음'} · SUPABASE_SERVICE_ROLE_KEY: "
-        f"{'있음(길이 %d)' % len(key) if key else '없음'}")
+    if _TRANSPORT == "bridge":
+        log(f"  · 전송: 브리지(전용 토큰) · NAS_BRIDGE_URL: {'있음' if url else '없음'} · NAS_WORKER_TOKEN: "
+            f"{'있음(길이 %d)' % len(key) if key else '없음'}")
+    else:
+        log(f"  · 전송: 직결 · SUPABASE_URL: {'있음' if url else '없음'} · SUPABASE_SERVICE_ROLE_KEY: "
+            f"{'있음(길이 %d)' % len(key) if key else '없음'}")
 
     try:
         root = nas_root(root_arg)
@@ -544,6 +597,8 @@ def main():
     ap.add_argument("--self-check", action="store_true", help=".env·RPC·허용목록·NAS 루트 점검(큐 미접촉)")
     ap.add_argument("--nightly", action="store_true",
                     help="하루 한 번 전체 적재(기록 증분 + ERP 스냅샷) — 그날 이미 했으면 화면 요청만 처리. 예약작업용")
+    ap.add_argument("--serve", action="store_true",
+                    help="상주 — 하루 1회 적재 + 화면 요청 처리를 계속 반복(NAS 컨테이너 진입점)")
     ap.add_argument("--log", default=None, help="로그를 이 파일에도 덧붙인다(예약작업은 화면이 없다)")
     args = ap.parse_args()
 
@@ -556,12 +611,23 @@ def main():
             pass
 
     load_env()
-    url = need("SUPABASE_URL").rstrip("/")
-    key = need("SUPABASE_SERVICE_ROLE_KEY")
+    # 전용 토큰이 있으면 브리지로만 간다 — 이때는 service_role 키가 없어도 된다(있어도 쓰지 않는다)
+    global _TRANSPORT
+    b_url = (os.environ.get("NAS_BRIDGE_URL") or "").strip()
+    b_tok = (os.environ.get("NAS_WORKER_TOKEN") or "").strip()
+    if b_url and b_tok:
+        _TRANSPORT = "bridge"
+        url, key = b_url.rstrip("/"), b_tok
+    else:
+        url = need("SUPABASE_URL").rstrip("/")
+        key = need("SUPABASE_SERVICE_ROLE_KEY")
     worker = socket.gethostname()
 
     if args.self_check:
         return self_check(url, key, args.root)
+
+    if args.serve:
+        return serve(url, key, worker, args.root, args.dry_run, args.interval)
 
     if args.nightly:
         return nightly(url, key, worker, args.root, args.dry_run)

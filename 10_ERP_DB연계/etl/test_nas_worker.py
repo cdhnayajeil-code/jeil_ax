@@ -192,6 +192,71 @@ class TestNightly(Base):
         self.assertIn("root=none", f.last("nas_runner_ping")["p_note"])
 
 
+# ─────────────────────────── 브리지 전송·상주(컨테이너) ───────────────────────────
+class TestBridgeAndServe(Base):
+    def test_bridge_refuses_rpc_outside_whitelist(self):
+        """브리지 모드에서는 목록 밖 RPC 를 네트워크로 보내기 전에 막는다."""
+        self.patch(w, "_TRANSPORT", "bridge")
+        sent = []
+        self.patch(w.urllib.request, "urlopen", lambda *a, **k: sent.append(a) or (_ for _ in ()).throw(AssertionError("보내면 안 된다")))
+        with self.assertRaises(RuntimeError):
+            w.rpc("https://bridge.example/fn", "tok", "gl_draft_list", {})
+        self.assertEqual(sent, [])
+
+    def test_bridge_request_shape_carries_token_not_service_key(self):
+        self.patch(w, "_TRANSPORT", "bridge")
+        seen = {}
+
+        class Resp:
+            def __enter__(s): return s
+            def __exit__(s, *a): return False
+            def read(s): return b'{"ok": true}'
+
+        def fake(req, timeout=None):
+            seen["url"] = req.full_url
+            seen["headers"] = {k.lower(): v for k, v in req.header_items()}
+            seen["body"] = json.loads(req.data.decode("utf-8"))
+            return Resp()
+        self.patch(w.urllib.request, "urlopen", fake)
+        self.assertEqual(w.rpc("https://bridge.example/fn", "tok-123", "nas_runner_ping", {"p_worker": "x"}), {"ok": True})
+        self.assertEqual(seen["url"], "https://bridge.example/fn")
+        self.assertEqual(seen["headers"].get("x-nas-worker-token"), "tok-123")
+        self.assertNotIn("authorization", seen["headers"])
+        self.assertNotIn("apikey", seen["headers"])
+        self.assertEqual(seen["body"], {"fn": "nas_runner_ping", "payload": {"p_worker": "x"}})
+
+    def test_worker_only_uses_bridgeable_rpcs(self):
+        """워커가 부르는 RPC 는 전부 브리지 목록 안에 있어야 한다 — 하나라도 빠지면 컨테이너에서만 죽는다."""
+        import re as _re
+        with io.open(os.path.join(HERE, "nas_worker.py"), encoding="utf-8") as fh:
+            used = set(_re.findall(r'rpc\(url, key, "([a-z_]+)"', fh.read()))
+        self.assertTrue(used, "RPC 호출을 하나도 못 찾았다 — 정규식을 고칠 것")
+        self.assertEqual(sorted(used - set(w.BRIDGE_FNS)), [])
+
+    def test_serve_keeps_going_after_error(self):
+        calls = []
+
+        def flaky(*a, **k):
+            calls.append(1)
+            if len(calls) == 1:
+                raise RuntimeError("HTTP 500 흉내")
+            return 0
+        self.patch(w, "nightly", flaky)
+        self.patch(w.time, "sleep", lambda s: None)
+        self.assertEqual(w.serve("u", "k", "host", self.root, rounds=3), 0)
+        self.assertEqual(len(calls), 3)
+
+    def test_today_is_kst_even_on_utc_host(self):
+        utc = w.datetime.datetime.now(w.datetime.timezone.utc).replace(tzinfo=None)
+        diff = (w._now() - utc).total_seconds()
+        self.assertAlmostEqual(diff, 9 * 3600, delta=5)
+
+    def test_redacts_container_mount_paths(self):
+        s = w._redact("PermissionError: [Errno 13] Permission denied: '/volume1/공유/agent/x.tmp' 그리고 /data/대화기록/a")
+        self.assertNotIn("volume1", s)
+        self.assertNotIn("대화기록", s)
+
+
 # ─────────────────────────── 내보내기 정합 ───────────────────────────
 class TestExport(Base):
     def test_pages_appended_and_sha256_matches_file(self):

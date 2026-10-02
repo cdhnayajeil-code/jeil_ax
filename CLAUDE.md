@@ -383,3 +383,5 @@ JEIL_AX/
    ③ **NAS 경로를 저장소에 적지 않는다** — `.claude/nas.path`(절대경로 1줄) 또는 `NAS_DATA_ROOT` 로만 넘기고, 못 찾으면 요청을 선점하지 않는다.
    ④ **매일 자동 적재는 러너가 아니라 사내 PC 의 예약작업**(`deploy/register_nas_task.ps1` → `nas_worker --nightly`)이 맡는다 — NAS 는 사내 PC 에서만 보이고,
    사무용 PC 에 러너를 통째로 띄우면 결의전표 운영 전송(§1.2 예외)까지 켜지기 때문이다. Python 소스로 돌므로 **워커만 고쳤을 때는 EXE 재빌드가 필요 없다.**
+   ⑤ **NAS 컨테이너에는 `service_role` 키를 두지 않는다** — 전용 토큰으로 Edge Function `jeil-nas-bridge` 만 부른다(정본 SQL 85 · 컨테이너 묶음 `deploy/nas/`).
+   중계 허용 목록(`jeil-nas-bridge/index.ts` 의 `ALLOWED`)과 워커의 `BRIDGE_FNS` 는 **같은 목록**이다 — 한쪽만 고치지 않는다(회귀가 워커 쪽을 잠근다).
