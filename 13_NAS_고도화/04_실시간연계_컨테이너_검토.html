@@ -111,7 +111,8 @@ svg .num{fill:var(--navy);} svg .num-t{fill:var(--paper);font-size:12px;font-wei
   </div>
   <div class="callout ok"><b>이번에 만든 것(1단계)</b> — 전용 토큰 중계 함수 <code>jeil-nas-bridge</code>(라이브) · 워커 n1.2(브리지 전송·상주 모드) · 컨테이너 설정 묶음. <b>전용 토큰만으로 실제 NAS 적재 성공</b>을 확인했다(<a href="#s9">9절</a>).<br>
   <b>2단계도 가동(같은 날)</b> — 조회 큐 + 길게 대기 + 도구 2종(파일 목록 · 본인 과거 대화). 실제 NAS 왕복 <b>중앙 0.8초</b>(10회 모두 성공).<br>
-  <b>남은 것</b> — NAS 에 컨테이너를 올리는 일(DSM 에서 직접) · 부서 폴더 생성·허용 폴더 등록(D-96) · 문서 검색·생성 자료 저장(3~4단계).</div>
+  <b>3단계도 가동(같은 날 · D-95 승인)</b> — 문서 내용 검색·읽기. 워드·엑셀·파워포인트·한글(hwpx)·PDF·텍스트를 사내 색인에 넣고 낱말로 찾는다. 검색 왕복 <b>중앙 0.81초</b>.<br>
+  <b>남은 것</b> — NAS 에 컨테이너를 올리는 일(DSM 에서 직접) · 폴더에 실제 문서 넣기 · 생성 자료 저장(4단계).</div>
 
   <h2 id="s2">2. 개선 후 구조</h2>
   <div class="fig"><svg viewBox="0 0 960 480" role="img" aria-label="개선 후 NAS 연계 구조">
@@ -208,12 +209,12 @@ svg .num{fill:var(--navy);} svg .num-t{fill:var(--paper);font-size:12px;font-wei
   </div>
   <div class="callout warn"><b>한계</b> — 토큰이 유출되면 "허용 목록에 있는 데이터"(대화기록·ERP 스냅샷)는 읽힐 수 있다. 워커가 원래 읽는 범위와 같다. 전표·권한·급여 등 그 밖은 닿지 않는다. 그래서 <code>.env</code> 가 놓이는 폴더 권한과 토큰 회전이 중요하다.</div>
 
-  <h2 id="s7">7. 조회 대상 4종 — 설계와 순서 <span class="tag ok">2단계 구현</span> <span class="tag wait">3~4단계 설계</span></h2>
+  <h2 id="s7">7. 조회 대상 4종 — 설계와 순서 <span class="tag ok">2·3단계 구현</span> <span class="tag wait">4단계 설계</span></h2>
   <div class="tw"><table>
     <tr><th>순서</th><th>대상</th><th>에이전트가 하게 되는 일</th><th>NAS 쪽 준비</th><th>선행·결정</th></tr>
     <tr><td>2단계</td><td><b>폴더·파일 목록</b></td><td>"우리 부서 폴더에 이번 주 올라온 파일" — 이름·수정일·크기</td><td>없음(폴더를 읽기만 한다)</td><td>부서 폴더 생성(D-96) · 허용 폴더 등록</td></tr>
     <tr><td>2단계</td><td><b>과거 대화기록</b></td><td>관리 화면·에이전트가 예전 대화를 다시 찾는다</td><td>없음(적재된 파일을 읽는다)</td><td>보관 기간을 줄인 뒤에야 의미가 있다(지금은 원본이 포털 DB 에 다 있다)</td></tr>
-    <tr><td>3단계</td><td><b>부서·전사 문서 검색</b></td><td>규정·양식·매뉴얼을 찾아 근거와 함께 답한다</td><td>NAS 안에 검색 색인(한글 부분 일치) · 변경분만 다시 색인 · 민감 패턴 파일 제외</td><td><b>D-95</b> 문서 조각을 AI 에 보내는 것 승인 · 구매팀 파일럿</td></tr>
+    <tr><td>3단계 ✅</td><td><b>부서·전사 문서 검색</b></td><td>규정·양식·매뉴얼을 찾아 근거와 함께 답한다</td><td>NAS 안에 검색 색인(한글 부분 일치) · 변경분만 다시 색인 · 민감 패턴 파일 제외</td><td><b>D-95</b> 문서 조각을 AI 에 보내는 것 승인 · 구매팀 파일럿</td></tr>
     <tr><td>4단계</td><td><b>생성 자료 NAS 저장</b></td><td>에이전트가 만든 엑셀·보고서 원본을 본인 폴더에 남긴다(지금은 30일 뒤 삭제)</td><td>본인 폴더 구조 · 쓰기 경로</td><td>NAS 외부 백업(D-104) · 보존 기간(D-97)</td></tr>
   </table></div>
   <h3>권한 — "폴더에서 못 여는 문서는 AI 도 보여 주지 않는다"</h3>
@@ -244,7 +245,7 @@ svg .num{fill:var(--navy);} svg .num-t{fill:var(--paper);font-size:12px;font-wei
     <tr><th>단계</th><th>내용</th><th>완료 조건</th><th>상태</th></tr>
     <tr><td><b>P1</b></td><td>컨테이너 이관 + 전용 토큰</td><td>컨테이너가 3일 연속 적재 성공 → PC 예약작업 제거 · PoC 삭제</td><td>코드·함수·DB <span class="tag ok">완료</span> · NAS 설치 <span class="tag wait">대기</span></td></tr>
     <tr><td><b>P2</b></td><td>조회 큐 + 길게 대기 + 파일 목록·과거 대화 도구</td><td>왕복 지연 실측(목표 1.5초 이내) · 워커 정지 시 "점검 중" 응답 · 권한 밖 폴더 0건</td><td><span class="tag ok">구현·실측</span> 왕복 중앙 0.8초 · 다른 부서 거부 · 워커 없으면 즉시 미가동 판정. <span class="tag wait">대기</span> 에이전트 화면에서의 확인 · 허용 폴더 등록(현재 0건)</td></tr>
-    <tr><td><b>P3</b></td><td>문서 색인·검색(구매팀 파일럿)</td><td>담당자 질문 10개 중 근거 제시 정답 8개 이상 · 민감 패턴 파일 제외 확인</td><td><span class="tag wait">설계 · D-95 필요</span></td></tr>
+    <tr><td><b>P3</b></td><td>문서 색인·검색(구매팀 파일럿)</td><td>담당자 질문 10개 중 근거 제시 정답 8개 이상 · 민감 패턴 파일 제외 확인</td><td><span class="tag ok">구현·실측</span> 형식 5종 색인 · 검색 왕복 중앙 0.81초 · 민감 파일 제외 · 다른 부서 0건(D-95 승인 10-02). <span class="tag wait">대기</span> 실제 문서로 질문 10개 평가</td></tr>
     <tr><td><b>P4</b></td><td>생성 자료 NAS 저장 · 보관 기간 전환 · 180일 삭제 따라가기</td><td>자료가 NAS 본인 폴더에 남고 포털에서 열림 · 삭제가 양쪽에 반영</td><td><span class="tag wait">설계 · D-104 필요</span></td></tr>
   </table></div>
 

@@ -350,6 +350,35 @@ class TestQuery(Base):
         self.assertNotIn(self.root, f.last("nas_query_finish")["p_error"])
         self.assertNoErpRpc(f)
 
+    def test_doc_search_and_read_through_worker(self):
+        """색인 → 검색 → 읽기가 워커 경로로 이어지고, 범위(scope) 밖 폴더는 끝까지 안 보인다."""
+        db = os.path.join(_tmp(self), "ix.sqlite")
+        self.patch(w, "index_db_path", lambda: db)
+        with io.open(os.path.join(self.root, "부서", "5200_구매팀", "구매규정.txt"), "w", encoding="utf-8") as fh:
+            fh.write("제3조 수의계약은 추정가격 2천만원 이하인 경우에 할 수 있다.")
+        with io.open(os.path.join(self.root, "부서", "6100_인사팀", "인사.txt"), "w", encoding="utf-8") as fh:
+            fh.write("수의계약 낱말이 들어 있는 인사팀 문서")
+        f = self.use({"nas_index_folders": [[{"key": "pur", "rel_path": "부서/5200_구매팀", "label": "구매팀"},
+                                             {"key": "hr", "rel_path": "부서/6100_인사팀", "label": "인사팀"}]]})
+        self.patch(w, "nas_docs_root", lambda: self.root)
+        w.index_loop("u", "k", rounds=1)
+        res, n = w.query_doc_search({"q": "수의계약"}, self.scope)
+        self.assertEqual([(h["이름"], h["폴더"]) for h in res["목록"]], [("구매규정.txt", "구매팀")])
+        self.assertNotIn("폴더키", res["목록"][0])
+        doc, m = w.query_doc_read({"doc": res["목록"][0]["문서"]}, self.scope)
+        self.assertIn("2천만원 이하", doc["내용"])
+        hr_doc = w.query_doc_search({"q": "수의계약"}, {"folders": [{"key": "hr", "rel_path": "x", "label": "인사팀"}]})[0]["목록"][0]["문서"]
+        self.assertEqual(w.query_doc_read({"doc": hr_doc}, self.scope)[0]["내용"], "", "남의 폴더 문서 번호를 알아도 못 읽는다")
+        self.assertEqual(w.query_doc_search({"q": ""}, self.scope)[1], 0)
+        self.assertEqual(w.handle_query("u", "k", {"query_id": "q9", "kind": "doc_search", "params": {"q": "수의계약"}, "scope": self.scope}, self.root, self.root), "done")
+        self.assertEqual(f.last("nas_query_finish")["p_rows"], 1)
+        self.assertNoErpRpc(f)
+
+    def test_doc_search_without_index_fails_loudly(self):
+        self.patch(w, "index_db_path", lambda: os.path.join(self.root, "없는색인.sqlite"))
+        with self.assertRaises(RuntimeError):
+            w.query_doc_search({"q": "x"}, self.scope)
+
     def test_query_loop_claims_and_answers(self):
         f = self.use({"nas_query_claim": [{"query_id": "q1", "kind": "file_list", "params": {}, "scope": self.scope}, None]})
         self.patch(w, "nas_docs_root", lambda: self.root)

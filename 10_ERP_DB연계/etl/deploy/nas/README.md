@@ -19,12 +19,12 @@ Container Manager 의 프로젝트 `jeil-agent`(PoC)는 **인증 없는 포트 8
 
 ## 1. 파일 놓기
 
-NAS 의 Container Manager 프로젝트 폴더(예: `docker/jeil-nas-worker`)에 아래 5개를 둔다.
+NAS 의 Container Manager 프로젝트 폴더(예: `docker/jeil-nas-worker`)에 아래 6개를 둔다.
 
 | 파일 | 어디서 |
 |---|---|
 | `Dockerfile` · `compose.yaml` | 이 폴더 |
-| `nas_worker.py` · `_env.py` | 저장소 `10_ERP_DB연계/etl/` |
+| `nas_worker.py` · `nas_index.py` · `_env.py` | 저장소 `10_ERP_DB연계/etl/` |
 | `.env` | `.env.example` 을 복사해 값을 채운 것 |
 
 - **줄 끝은 LF, 인코딩은 BOM 없는 UTF-8.** Windows 에서 만든 파일이 CRLF 면 Dockerfile·`.env` 가 오동작한다.
@@ -61,6 +61,10 @@ Container Manager → 프로젝트 → 생성 → 경로에 위 폴더 지정(`c
 6. **조회 응답** — 로그 첫 줄에 `조회 응답 켬` 이 붙는다. 에이전트가 파일 목록·과거 대화를 물으면 `조회 …… file_list — N건 · NNNms` 가 찍힌다.
    에이전트가 볼 수 있는 폴더는 DB 의 허용 폴더 목록(`etl_meta.nas_folder_scope`)에 **등록한 것만**이다 — 등록이 없으면 전부 거부된다.
 
+7. **문서 색인** — 기동 직후와 10분마다 허용 폴더를 훑어 바뀐 파일만 다시 색인한다. 로그에 `문서 색인 갱신 — 파일 N개(색인 n · 제외 m)`.
+   색인 파일은 컨테이너 전용 볼륨(`/state/index/`)에 있다 — NAS 밖으로 나가지 않는다. 이미지 빌드 때 `pypdf` 를 내려받으므로
+   **NAS 에서 PyPI(pypi.org)로 나가는 HTTPS** 가 필요하다(막혀 있으면 빌드가 실패한다 — PDF 를 빼려면 Dockerfile 의 `RUN pip …` 줄을 지운다).
+
 ## 5. 전환 — PC 예약작업 끄기
 
 컨테이너가 **3일 연속** 적재에 성공한 것을 확인한 뒤, 관리자 PC 에서:
@@ -80,5 +84,5 @@ ERP 스냅샷은 같은 날짜 파일을 덮어쓴다.
 
 ## 7. 워커를 고쳤을 때
 
-`nas_worker.py`·`_env.py` 를 NAS 프로젝트 폴더에 다시 놓고 **재빌드**한다. EXE 재빌드·ERP 서버 교체는 필요 없다(이 워커는 서버에서 돌지 않는다).
+`nas_worker.py`·`nas_index.py`·`_env.py` 를 NAS 프로젝트 폴더에 다시 놓고 **재빌드**한다. EXE 재빌드·ERP 서버 교체는 필요 없다(이 워커는 서버에서 돌지 않는다).
 중계 함수의 허용 목록(`jeil-nas-bridge/index.ts` 의 `ALLOWED`)과 워커의 `BRIDGE_FNS` 는 **같은 목록**이어야 한다 — 한쪽만 고치지 않는다.

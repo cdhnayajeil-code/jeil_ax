@@ -12,7 +12,7 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 /** 요청을 넣고 결과를 기다린다. deadlineMs 를 넘기면 timeout. 볼 수 있는 범위는 DB 함수가 계산한다. */
 // deno-lint-ignore no-explicit-any
-export async function nasQuery(admin: any, scope: ErpScope, kind: "file_list" | "turn_history",
+export async function nasQuery(admin: any, scope: ErpScope, kind: "file_list" | "turn_history" | "doc_search" | "doc_read",
   params: Record<string, unknown>, deadlineMs = 8000): Promise<NasAnswer> {
   const t0 = Date.now();
   const sub = await admin.rpc("nas_query_submit", {

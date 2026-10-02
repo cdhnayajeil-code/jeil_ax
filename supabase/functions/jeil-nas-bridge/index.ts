@@ -21,6 +21,7 @@ const ALLOWED = new Set([
   "nas_runner_ping", "nas_request_claim", "nas_request_progress", "nas_request_finish",
   "nas_export_sources", "nas_export_count", "nas_export_page", "nas_export_commit",
   "nas_query_claim", "nas_query_finish",   // 실시간 조회(정본 SQL 86 · REQ-0103)
+  "nas_index_folders",                     // 문서 색인 대상 폴더(정본 SQL 87 · REQ-0104)
 ]);
 // 워커 이름을 인자로 받는 RPC — 여기서 토큰 행의 이름으로 바꿔 넣는다.
 const WORKER_ARG = new Set(["nas_runner_ping", "nas_request_claim", "nas_query_claim"]);
@@ -65,8 +66,10 @@ Deno.serve(async (req) => {
   if (fn === WAIT_FN && !error && data == null) {
     const waitMs = Math.min(Math.max(Number(body.wait_ms) || 0, 0), WAIT_MAX_MS);
     const until = Date.now() + waitMs;
-    while (!error && data == null && Date.now() + WAIT_STEP_MS <= until) {
+    // 워커가 끊겼으면 더 기다리지 않는다 — 죽은 연결이 요청을 집어 가면 그 요청은 아무도 처리하지 못한다
+    while (!error && data == null && Date.now() + WAIT_STEP_MS <= until && !req.signal.aborted) {
       await sleep(WAIT_STEP_MS);
+      if (req.signal.aborted) break;
       ({ data, error } = await admin.rpc(fn, payload));
     }
   }

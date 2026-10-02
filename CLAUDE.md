@@ -354,8 +354,8 @@ JEIL_AX/
    **최초 1회 `--full` 백필**이 따로 필요하다.
 3. **새 모듈을 붙이면 `deploy/build_exe.py` 의 `hidden` 목록에 이름을 넣는다.** PyInstaller 정적 분석에
    안 잡히면 EXE 에서만 `ModuleNotFoundError` 가 난다 — 빌드 후 `jeil_runner.exe <서브커맨드> --help` 로 확인한다.
-4. **회귀는 빌드 전에 돌린다**: `python -m unittest test_runner_core test_runner_cli test_offboard_axes test_nas_worker`
-   (실제 릴레이·ETL·퇴사·NAS 를 절대 건드리지 않는 헤드리스 테스트다 — 2026-10-02 기준 117건).
+4. **회귀는 빌드 전에 돌린다**: `python -m unittest test_runner_core test_runner_cli test_offboard_axes test_nas_worker test_nas_index`
+   (실제 릴레이·ETL·퇴사·NAS 를 절대 건드리지 않는 헤드리스 테스트다 — 2026-10-02 기준 144건).
    같은 세트가 `10_ERP_DB연계/etl/deploy/README.md §C-6` 에도 적혀 있다 — 한쪽만 고치지 않는다.
 5. **서버 적용은 관리자가 직접** 한다(§1.5 · 벤더 운영 서버). Claude 는 EXE 를 만들고 경로·절차만 제시한다.
    배포 절차 정본은 `10_ERP_DB연계/etl/deploy/README.md`(C안), 변경 이력은 같은 폴더 `변경관리.md`.
@@ -388,3 +388,5 @@ JEIL_AX/
    ⑥ **에이전트 → NAS 실시간 조회**는 조회 큐(정본 SQL 86)로 간다 — 게이트웨이 도구(`jeil-chat-lab/modules/nas/`)가 요청을 넣고 워커가 답한다.
    무엇을 볼 수 있는지는 **DB 함수(`nas_query_submit`)가 계산**한다(허용 폴더 `etl_meta.nas_folder_scope` ∩ 부서 · 과거 대화는 본인 것만) — 도구·워커에서 범위를 넓히지 않는다.
    NAS 왕복 도구는 **스스로 시간 상한**을 건다(엔진에 도구 타임아웃이 없다). 새 조회 종류는 SQL 의 kind CHECK·워커 `handle_query`·도구 세 곳을 함께 고친다.
+   ⑦ **문서 내용 색인은 사내에만 둔다**(`nas_index.py` — SQLite FTS5 · 결정 D-95). 클라우드 DB 에 문서 내용을 쌓지 않는다 — 조회 큐에는 발췌만 잠깐 머문다.
+   색인 대상은 허용 폴더(`etl_meta.nas_folder_scope`)뿐이고, 급여·인사평가 폴더는 등록하지 않는다. 민감 이름·주민등록번호 꼴 파일은 색인에서 빠지고 사유가 남는다.

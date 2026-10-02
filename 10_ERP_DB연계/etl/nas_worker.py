@@ -42,8 +42,9 @@ import urllib.error
 import urllib.request
 
 from _env import env_root, load_env, need
+import nas_index
 
-WORKER_VERSION = "n1.3"   # n1.3(2026-10-02): 실시간 조회 응답(파일 목록·본인 과거 대화 — SQL 86) / n1.2:브리지 전송(좁은 키)·--serve(컨테이너 상주)·KST 고정 / n1.1: --nightly·--log·루트 검증
+WORKER_VERSION = "n1.4"   # n1.4(2026-10-02): 문서 내용 색인·검색(nas_index.py — SQL 87) / n1.3:실시간 조회 응답(파일 목록·본인 과거 대화 — SQL 86) / n1.2:브리지 전송(좁은 키)·--serve(컨테이너 상주)·KST 고정 / n1.1: --nightly·--log·루트 검증
 
 POLL_SEC = 20          # 기본 폴링 주기
 HTTP_TIMEOUT = 120     # 페이지 응답이 수 MB 가 될 수 있어 etl_watch(60초)보다 넉넉히 잡는다
@@ -86,6 +87,7 @@ BRIDGE_FNS = (
     "nas_runner_ping", "nas_request_claim", "nas_request_progress", "nas_request_finish",
     "nas_export_sources", "nas_export_count", "nas_export_page", "nas_export_commit",
     "nas_query_claim", "nas_query_finish",   # 실시간 조회(정본 SQL 86 · REQ-0103)
+    "nas_index_folders",                     # 문서 색인 대상 폴더(정본 SQL 87 · REQ-0104)
 )
 
 # 실시간 조회 — 브리지에 한 번 물으면 이만큼 기다렸다 답이 온다(브리지 상한 20초와 같다)
@@ -687,6 +689,68 @@ def query_turn_history(params, scope, data_root):
             "목록": hits[:limit]}, min(len(hits), limit)
 
 
+# ── 문서 내용 검색(P3 · nas_index.py) ─────────────────────────────────────────
+def index_db_path():
+    """색인 파일 자리. 사내에만 둔다 — 컨테이너는 /state, PC 는 저장소 logs/(git 제외)."""
+    return (os.environ.get("NAS_INDEX_DB") or "").strip() or os.path.join(env_root(), "logs", "nas_index.sqlite")
+
+
+def _scope_keys(scope):
+    fs = [f for f in (scope.get("folders") or []) if isinstance(f, dict) and f.get("key")]
+    return [str(f["key"]) for f in fs], {str(f["key"]): str(f.get("label") or f["key"]) for f in fs}
+
+
+def query_doc_search(params, scope):
+    keys, labels = _scope_keys(scope)
+    if not os.path.exists(index_db_path()):
+        raise RuntimeError("문서 색인이 아직 만들어지지 않았습니다")
+    con = nas_index.connect(index_db_path())
+    try:
+        try:
+            res, n = nas_index.search(con, params.get("q"), keys, _int(params.get("limit"), 8, 1, 15))
+        except ValueError as e:
+            return {"해당문서수": 0, "반환수": 0, "목록": [], "사유": str(e)}, 0
+        for h in res["목록"]:
+            h["폴더"] = labels.get(h.pop("폴더키"), "")
+        return res, n
+    finally:
+        con.close()
+
+
+def query_doc_read(params, scope):
+    keys, _ = _scope_keys(scope)
+    if not os.path.exists(index_db_path()):
+        raise RuntimeError("문서 색인이 아직 만들어지지 않았습니다")
+    con = nas_index.connect(index_db_path())
+    try:
+        try:
+            return nas_index.read(con, params.get("doc"), keys, _int(params.get("seq"), 0, 0, 100000))
+        except ValueError as e:
+            return {"내용": "", "사유": str(e)}, 0
+    finally:
+        con.close()
+
+
+def index_loop(url, key, interval=600, rounds=None):
+    """허용 폴더 목록을 받아 색인을 갱신한다(바뀐 파일만). 조회·적재와 따로 돈다."""
+    n = 0
+    while rounds is None or n < rounds:
+        n += 1
+        try:
+            docs = nas_docs_root()
+            if docs:
+                folders = rpc(url, key, "nas_index_folders", {}) or []
+                con = nas_index.connect(index_db_path())
+                try:
+                    nas_index.refresh(con, docs, folders, log=log, budget_sec=300)
+                finally:
+                    con.close()
+        except (Exception, SystemExit) as e:
+            log(f"문서 색인 오류(계속): {_redact(e)[:200]}")
+        if rounds is None or n < rounds:
+            time.sleep(max(30, interval))
+
+
 def handle_query(url, key, q, data_root, docs_root):
     """조회 1건 처리 → 결과 되쓰기. 어떤 오류가 나도 요청을 running 에 방치하지 않는다."""
     qid, kind = q.get("query_id"), q.get("kind")
@@ -698,6 +762,10 @@ def handle_query(url, key, q, data_root, docs_root):
             result, n = query_file_list(params, scope, docs_root)
         elif kind == "turn_history":
             result, n = query_turn_history(params, scope, data_root)
+        elif kind == "doc_search":
+            result, n = query_doc_search(params, scope)
+        elif kind == "doc_read":
+            result, n = query_doc_read(params, scope)
         else:
             raise RuntimeError(f"이 워커가 모르는 조회 종류입니다: {kind}")
         rpc(url, key, "nas_query_finish", {"p_query_id": qid, "p_status": "done", "p_result": result, "p_rows": n})
@@ -750,6 +818,7 @@ def serve(url, key, worker, root_arg=None, dry=False, interval=POLL_SEC, rounds=
     if query and not dry and rounds is None:
         import threading
         threading.Thread(target=query_loop, args=(url, key, worker, root_arg), daemon=True, name="nas-query").start()
+        threading.Thread(target=index_loop, args=(url, key), daemon=True, name="nas-index").start()
     n = 0
     while rounds is None or n < rounds:
         n += 1
