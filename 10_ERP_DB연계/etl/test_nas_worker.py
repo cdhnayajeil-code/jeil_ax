@@ -134,6 +134,13 @@ class TestBoundary(Base):
         self.assertIn("root=none", f.last("nas_runner_ping")["p_note"])
         self.assertTrue(any("NAS 루트" in m for m in self.logs), "사유를 남겨야 한다(§17.6)")
 
+    def test_explicit_root_missing_does_not_claim(self):
+        """--root 로 받은 경로도 없으면 선점하지 않는다 — 2026-10-02 실 NAS 시험에서 없는 폴더로 done 이 찍혔다."""
+        f = self.use({"nas_request_claim": {"request_id": "r1-aaaaaaaa", "kind": "turns", "sources": []}})
+        self.assertIs(w.tick("u", "k", "host", os.path.join(self.root, "없는폴더")), False)
+        self.assertNotIn("nas_request_claim", f.fns())
+        self.assertIn("root=none", f.last("nas_runner_ping")["p_note"])
+
     def test_idle_marker_matches_runner_core(self):
         """이 문자열이 runner_core.IDLE_MARKERS 와 어긋나면 idle 로그 정리가 조용히 멈춘다."""
         self.assertIn("대기 요청 없음", core.IDLE_MARKERS)
@@ -141,6 +148,48 @@ class TestBoundary(Base):
         self.assertIs(w.tick("u", "k", "host", self.root), False)
         self.assertIn("대기 요청 없음", self.logs)
         self.assertNoErpRpc(f)
+
+
+# ─────────────────────────── 하루 한 번(예약작업) ───────────────────────────
+class TestNightly(Base):
+    def setUp(self):
+        super().setUp()
+        self.stamp = os.path.join(_tmp(self), "logs", "nas_nightly.json")
+        self.patch(w, "_stamp_file", lambda: self.stamp)
+        self.ran = []
+
+        def fake_export(url, key, root, kind, wanted, dry=False, **kw):
+            self.ran.append(kind)
+            return {"rows": 3, "files": 1, "failed": list(self.fail.get(kind, []))}
+        self.fail = {}
+        self.patch(w, "run_export", fake_export)
+
+    def test_runs_both_kinds_once_per_day(self):
+        f = self.use({"nas_request_claim": None})
+        self.assertEqual(w.nightly("u", "k", "host", self.root, today="2026-10-02"), 0)
+        self.assertEqual(self.ran, ["turns", "erp_snapshot"])
+        self.assertEqual(w.nightly("u", "k", "host", self.root, today="2026-10-02"), 0)
+        self.assertEqual(self.ran, ["turns", "erp_snapshot"], "같은 날 두 번 내보내지 않는다")
+        self.assertIn("nas_request_claim", f.fns(), "그날 끝났어도 화면 요청은 본다")
+        self.assertEqual(w.nightly("u", "k", "host", self.root, today="2026-10-03"), 0)
+        self.assertEqual(len(self.ran), 4, "날이 바뀌면 다시 한다")
+        self.assertNoErpRpc(f)
+
+    def test_failure_leaves_no_stamp_so_it_retries(self):
+        self.use({})
+        self.fail = {"erp_snapshot": ["v_erp_item"]}
+        self.assertEqual(w.nightly("u", "k", "host", self.root, today="2026-10-02"), 1)
+        self.assertFalse(os.path.exists(self.stamp))
+        self.fail = {}
+        self.assertEqual(w.nightly("u", "k", "host", self.root, today="2026-10-02"), 0)
+        self.assertTrue(os.path.exists(self.stamp))
+
+    def test_missing_root_postpones_without_export(self):
+        f = self.use({})
+        self.assertEqual(w.nightly("u", "k", "host", os.path.join(self.root, "없는폴더"), today="2026-10-02"), 0)
+        self.assertEqual(self.ran, [])
+        self.assertFalse(os.path.exists(self.stamp))
+        self.assertIn("root=none", f.last("nas_runner_ping")["p_note"])
 
 
 # ─────────────────────────── 내보내기 정합 ───────────────────────────

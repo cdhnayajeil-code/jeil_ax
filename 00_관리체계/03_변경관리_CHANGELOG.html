@@ -108,6 +108,13 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 </thead>
 <tbody>
 <tr>
+<td>2026-10-02</td>
+<td>사내NAS 데이터 동기화(실적재·상시화)</td>
+<td><code>10_ERP_DB연계/etl/nas_worker.py</code>(n1.1)·<code>test_nas_worker.py</code> · <code>deploy/register_nas_task.ps1</code>(신규) · 정본 SQL <code>이관/sql/84_nas_export_turn_rating.sql</code>(+rollback) · <code>13_NAS_고도화/01</code>(§3·§6·§7)</td>
+<td><strong>사내NAS 실제 폴더 적재 완료 + 매일 자동 적재 가동(REQ-0097).</strong> 관리자가 적재 폴더를 만들어 경로를 등록(<code>.claude/nas.path</code> — 저장소 미기재). 3회 연속 성공(전량 79,890행 → 증분 0행 → 큐 경유), NAS 파일 13개 행수·SHA256 일치, 대화기록 89행 내용 해시가 라이브와 일치. 실 NAS 검토에서 <strong>결함 1건 수정</strong>(<code>--root</code> 경로 미검증 → 없는 폴더로 요청을 집고 done 처리). <strong>상시화</strong>: 작업PC 예약작업 <code>JEIL_AX_NasExport</code>(<code>--nightly</code> · 하루 1회 · 실패·NAS 미접속 시 다음 회차 재시도) — 러너가 아니라 별도 예약작업(사무용 PC 에 러너를 띄우면 결의전표 운영 전송까지 켜진다). <strong>평가 누락 보완</strong>: 턴을 내보낸 뒤 달린 평가가 NAS 에 안 가던 설계 한계 → 뷰 <code>v_agent_turn_rating</code> + 허용 목록 1줄(라이브 적용 <code>nas_export_turn_rating_v1</code> · anon/authenticated 권한 없음 · 본문 미포함). 회귀 117건 통과. ERP 서버 EXE r1.9 교체 확인(릴레이 v1.8 심박). <strong>잔여</strong>: D-98 포트 8765(10-02 아직 열림) · D-104 · 적재 폴더 권한 관리자 확인 · 180일 경과분 NAS 삭제(D-108)·NAS→에이전트 방향(N2·N3) 미구현</td>
+<td>최동혁(+Claude)</td>
+</tr>
+<tr>
 <td>2026-09-30</td>
 <td>문서 · NAS 고도화(v3 전 구간 반영)</td>
 <td><code>13_NAS_고도화/02_의사결정_브리핑.html</code> · <code>index.html</code>(허브) · <code>01_NAS_데이터계층_기획.md</code>(§2·§5·§9) · <code>README.md</code> · <code>00_관리체계/index.html</code>(총괄 대시보드) · <code>10_ERP_DB연계/etl/deploy/dist/jeil_runner.exe</code>(r1.9)</td>

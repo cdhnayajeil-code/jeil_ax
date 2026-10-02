@@ -355,7 +355,7 @@ JEIL_AX/
 3. **새 모듈을 붙이면 `deploy/build_exe.py` 의 `hidden` 목록에 이름을 넣는다.** PyInstaller 정적 분석에
    안 잡히면 EXE 에서만 `ModuleNotFoundError` 가 난다 — 빌드 후 `jeil_runner.exe <서브커맨드> --help` 로 확인한다.
 4. **회귀는 빌드 전에 돌린다**: `python -m unittest test_runner_core test_runner_cli test_offboard_axes test_nas_worker`
-   (실제 릴레이·ETL·퇴사·NAS 를 절대 건드리지 않는 헤드리스 테스트다 — 2026-09-30 기준 113건).
+   (실제 릴레이·ETL·퇴사·NAS 를 절대 건드리지 않는 헤드리스 테스트다 — 2026-10-02 기준 117건).
    같은 세트가 `10_ERP_DB연계/etl/deploy/README.md §C-6` 에도 적혀 있다 — 한쪽만 고치지 않는다.
 5. **서버 적용은 관리자가 직접** 한다(§1.5 · 벤더 운영 서버). Claude 는 EXE 를 만들고 경로·절차만 제시한다.
    배포 절차 정본은 `10_ERP_DB연계/etl/deploy/README.md`(C안), 변경 이력은 같은 폴더 `변경관리.md`.
@@ -381,3 +381,5 @@ JEIL_AX/
    ERP 요청을 집어 실패시키고 화면이 러너 가동을 오판정한다 — 전용 `nas_request`·`nas_heartbeat` 를 쓴다)
    ② 내보낼 대상은 코드가 아니라 **DB 허용 목록**(`etl_meta.nas_export_source`)이 정한다 — 워커에 테이블 이름·SQL 을 심지 않는다
    ③ **NAS 경로를 저장소에 적지 않는다** — `.claude/nas.path`(절대경로 1줄) 또는 `NAS_DATA_ROOT` 로만 넘기고, 못 찾으면 요청을 선점하지 않는다.
+   ④ **매일 자동 적재는 러너가 아니라 사내 PC 의 예약작업**(`deploy/register_nas_task.ps1` → `nas_worker --nightly`)이 맡는다 — NAS 는 사내 PC 에서만 보이고,
+   사무용 PC 에 러너를 통째로 띄우면 결의전표 운영 전송(§1.2 예외)까지 켜지기 때문이다. Python 소스로 돌므로 **워커만 고쳤을 때는 EXE 재빌드가 필요 없다.**

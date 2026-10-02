@@ -43,7 +43,7 @@ import urllib.request
 
 from _env import env_root, load_env, need
 
-WORKER_VERSION = "n1.0"
+WORKER_VERSION = "n1.1"   # n1.1(2026-10-02): --nightly(하루 1회)·--log · 직접 받은 루트 검증
 
 POLL_SEC = 20          # 기본 폴링 주기
 HTTP_TIMEOUT = 120     # 페이지 응답이 수 MB 가 될 수 있어 etl_watch(60초)보다 넉넉히 잡는다
@@ -74,8 +74,21 @@ def _redact(msg):
     return s
 
 
+_LOG_FILE = None       # --log 로 받은 파일. 예약작업(pythonw)은 화면이 없어 여기에만 남는다
+
+
 def log(msg):
-    print(f"[{datetime.datetime.now():%H:%M:%S}] {msg}", flush=True)
+    line = f"[{datetime.datetime.now():%H:%M:%S}] {msg}"
+    try:
+        print(line, flush=True)
+    except Exception:
+        pass               # pythonw 는 stdout 이 없다
+    if _LOG_FILE:
+        try:
+            with open(_LOG_FILE, "a", encoding="utf-8") as fh:
+                fh.write(f"{datetime.date.today():%Y-%m-%d} {line}\n")
+        except Exception:
+            pass
 
 
 def rpc(url, key, fn, payload):
@@ -374,11 +387,11 @@ def _ping_note(root_ok):
 def tick(url, key, worker, root=None, dry=False):
     """심박 1회 + 대기 요청 있으면 1건 처리. 반환 False(할 일 없음) · "done" · "failed"."""
     root_err = None
-    if not root:
-        try:
-            root = nas_root()
-        except Exception as e:
-            root, root_err = None, str(e)
+    # 직접 받은 루트도 검증한다 — 검증 없이 쓰면 없는 폴더로도 요청을 집어 「새 행 없음 · done」으로 닫는다
+    try:
+        root = nas_root(root)
+    except Exception as e:
+        root, root_err = None, str(e)
 
     try:
         rpc(url, key, "nas_runner_ping", {"p_worker": worker, "p_note": _ping_note(bool(root))})
@@ -405,6 +418,71 @@ def tick(url, key, worker, root=None, dry=False):
         except Exception:
             pass
         return "failed"
+
+
+# ── 하루 한 번(예약작업용) ────────────────────────────────────────────────────
+def _stamp_file():
+    """그날 내보내기를 마쳤다는 표시. 이 PC 에 둔다 — NAS 가 안 보이는 날에도 읽을 수 있어야 한다."""
+    return os.path.join(env_root(), "logs", "nas_nightly.json")
+
+
+def nightly(url, key, worker, root_arg=None, dry=False, today=None):
+    """기록 증분 + ERP 스냅샷을 **하루 한 번** 내보낸다. 예약작업이 자주 불러도 그날 성공했으면 큐만 본다.
+
+    실패하거나 NAS 가 안 보이면 표시를 남기지 않는다 → 다음 회차에 다시 한다(PC 가 꺼져 있던 날은 켜진 뒤 첫 회차).
+    """
+    today = today or f"{datetime.date.today():%Y-%m-%d}"
+    stamp = _stamp_file()
+    done = None
+    try:
+        with open(stamp, encoding="utf-8") as fh:
+            done = json.load(fh).get("date")
+    except Exception:
+        pass
+
+    if done == today:
+        res = tick(url, key, worker, root_arg, dry)      # 심박 + 화면 요청만 처리
+        return 1 if res == "failed" else 0
+
+    try:
+        root = nas_root(root_arg)
+    except Exception as e:
+        try:
+            rpc(url, key, "nas_runner_ping", {"p_worker": worker, "p_note": _ping_note(False)})
+        except Exception:
+            pass
+        log("오늘 적재를 미룹니다 — " + str(e).splitlines()[0])
+        return 0
+    try:
+        rpc(url, key, "nas_runner_ping", {"p_worker": worker, "p_note": _ping_note(True)})
+    except Exception as e:
+        log(f"심박 실패(계속): {_redact(e)[:200]}")
+
+    log(f"하루 1회 적재 시작 — {today} · 워커 {WORKER_VERSION}" + (" · dry-run" if dry else ""))
+    bad, summary = 0, {}
+    for k in ("turns", "erp_snapshot"):
+        try:
+            body = run_export(url, key, root, k, [], dry=dry)
+        except (Exception, SystemExit) as e:
+            log(f"  = {k}: 오류 — {_redact(e)[:300]}")
+            bad += 1
+            continue
+        log(f"  = {k}: {body['rows']}행 / 파일 {body['files']}개"
+            + (f" · 실패 {len(body['failed'])}종" if body["failed"] else ""))
+        bad += len(body["failed"])
+        summary[k] = {"rows": body["rows"], "files": body["files"]}
+    if bad:
+        log("실패가 있어 완료 표시를 남기지 않습니다 — 다음 회차에 다시 합니다")
+        return 1
+    if not dry:
+        try:
+            os.makedirs(os.path.dirname(stamp), exist_ok=True)
+            with open(stamp, "w", encoding="utf-8") as fh:
+                json.dump({"date": today, "at": f"{datetime.datetime.now():%Y-%m-%d %H:%M:%S}",
+                           "worker": WORKER_VERSION, "result": summary}, fh, ensure_ascii=False)
+        except Exception as e:
+            log(f"완료 표시를 못 남겼습니다(다음 회차에 한 번 더 내보냅니다): {type(e).__name__}")
+    return 0
 
 
 # ── 자체 점검 ─────────────────────────────────────────────────────────────────
@@ -464,7 +542,18 @@ def main():
     ap.add_argument("--kind", default=None, choices=["turns", "erp_snapshot"],
                     help="--source 없이 즉시 내보낼 때의 종류(기본 둘 다)")
     ap.add_argument("--self-check", action="store_true", help=".env·RPC·허용목록·NAS 루트 점검(큐 미접촉)")
+    ap.add_argument("--nightly", action="store_true",
+                    help="하루 한 번 전체 적재(기록 증분 + ERP 스냅샷) — 그날 이미 했으면 화면 요청만 처리. 예약작업용")
+    ap.add_argument("--log", default=None, help="로그를 이 파일에도 덧붙인다(예약작업은 화면이 없다)")
     args = ap.parse_args()
+
+    if args.log:
+        global _LOG_FILE
+        _LOG_FILE = args.log
+        try:
+            os.makedirs(os.path.dirname(os.path.abspath(args.log)), exist_ok=True)
+        except Exception:
+            pass
 
     load_env()
     url = need("SUPABASE_URL").rstrip("/")
@@ -473,6 +562,9 @@ def main():
 
     if args.self_check:
         return self_check(url, key, args.root)
+
+    if args.nightly:
+        return nightly(url, key, worker, args.root, args.dry_run)
 
     # 큐 없이 직접 내보내기(점검용) — 요청 이력이 남지 않고 커서만 전진한다
     if args.source or args.kind:
