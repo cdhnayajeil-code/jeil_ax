@@ -59,7 +59,7 @@ import urllib.request
 from _env import load_env, need
 
 # ═══════════ 고정 상수 — 변경 금지 ═══════════
-RELAY_VERSION = "v1.8"                # 심박에 함께 기록 — 서버에 옛 EXE가 남아 있는지 화면에서 확인 가능
+RELAY_VERSION = "v1.10"               # 심박에 함께 기록 — 서버에 옛 EXE가 남아 있는지 화면에서 확인 가능
 # 대상 DB 하드코딩 — CLI 파라미터 없음.
 # 2026-09-30 관리자 결정 D-113(A안): 전송 큐를 운영(JEILMNS)으로 전환한다(C-1 제한 개정 · CLAUDE.md §1.2 예외).
 #   전제: [ERP 전송] 권한은 관리자만(canPost) · 전표는 미승인 결의전표로만 생성(승인 상태면 롤백)
@@ -596,50 +596,109 @@ def guard_lines(cur, lines):
     return out
 
 
-def check_dept_org(cur, dept_cd):
-    """부서가 **현행 조직**에 있는지 확인하고 현행 ORG_CHANGE_ID 를 돌려준다.
+def check_dept_org(cur, dept_cd, gl_dt=None):
+    """전표일자 기준 조직에 부서가 있는지 확인하고 그 ORG_CHANGE_ID 를 돌려준다. — ERP 와 같은 규칙.
 
-    왜 따로 두나(2026-08-26 실측): 종전에는 「그 부서가 속한 **가장 최신** 조직」을 골랐다.
-    현행 조직에 남아 있는 부서는 그 값이 현행과 같아 문제가 없었지만, **조직개편으로
-    없어진 부서**는 과거 조직 번호가 나온다. ERP 서브원장 SP 는 전표의 조직번호가
-    현행과 맞는지 보고 다르면 `A05191`(조직개편과 부서정보가 맞지 않습니다) 로 거부한다.
+    ERP 기준(2026-10-02 본문 확인 · REQ-0100): 서브원장 SP 가 부르는 `usp_a_check_acct` 는
+      ① **전표일자 이전에 시작한 조직 중 가장 최근 것**을 고르고(max(ORG_CHANGE_DT) <= 전표일자)
+      ② 헤더·라인 부서가 그 조직에 없으면 `A05191`(조직개편과 부서정보가 맞지 않습니다) 로 거부하며
+      ③ 통과하면 전표 헤더·라인의 조직번호를 **그 값으로 덮어쓴다**.
+    수기 전표도 그대로다 — 2026년 1~3월 909건은 20251, 4/1 이후 1,930건은 20261(예외 0).
 
-    그런데 그 거부는 **전표를 다 만든 뒤**에 온다 — 만들었다가 롤백하는 셈이다.
-    여기서 먼저 막으면 사전점검(--precheck)에서도 잡히고, ERP 에 아무 흔적도 남지 않는다.
+    종전에는 일자와 무관하게 가장 큰 번호(MAX)를 썼다. 지금은 결과가 같지만 두 경우에 어긋난다:
+    다음 조직개편을 미리 등록해 둔 기간(미래 조직이 MAX 가 된다)과, 개편 이전 일자의 전표.
+    조직번호는 ERP 가 덮어써 주지만 **내부부서코드는 덮어쓰지 않으므로**, 여기서 조직을 잘못 고르면
+    다른 조직의 내부부서코드가 그대로 남는다.
 
-    실측: 부서 5100 은 조직 20251 까지만, 6630 은 20244 에만 있고 현행(20264)에는 없다 —
-    두 부서로 만든 전표가 서브원장 단계에서 전건 거부됐다.
+    거부(②)는 전표를 다 만든 뒤에 오므로 여기서 먼저 막는다 — 사전점검(--precheck)에서도 잡힌다.
+    gl_dt 가 없으면 오늘 날짜로 본다(부서만 점검하는 도구용).
     """
-    cur.execute("SELECT MAX(ORG_CHANGE_ID) FROM dbo.B_ACCT_DEPT WITH (NOLOCK)")
+    when = gl_dt or datetime.datetime.now()
+    cur.execute("SELECT TOP 1 ORG_CHANGE_ID FROM dbo.B_ACCT_DEPT WITH (NOLOCK) "
+                "WHERE ORG_CHANGE_DT <= ? ORDER BY ORG_CHANGE_DT DESC", when)
     row = cur.fetchone()
-    now_org = row[0] if row else None
-    if not now_org:
+    org = row[0] if row else None
+    if not org:
         raise stop("ERP 조직 정보를 읽지 못했습니다", "관리자에게 알려 주세요")
     cur.execute("SELECT COUNT(*) FROM dbo.B_ACCT_DEPT WITH (NOLOCK) "
-                "WHERE DEPT_CD = ? AND ORG_CHANGE_ID = ?", dept_cd, now_org)
+                "WHERE DEPT_CD = ? AND ORG_CHANGE_ID = ?", dept_cd, org)
     if cur.fetchone()[0]:
-        return now_org
-    cur.execute("SELECT MAX(ORG_CHANGE_ID) FROM dbo.B_ACCT_DEPT WITH (NOLOCK) WHERE DEPT_CD = ?", dept_cd)
-    row = cur.fetchone()
-    last = row[0] if row else None
-    raise stop(
-        f"부서 {dept_cd} 는 현재 조직에 없습니다"
-        + (f" (조직개편 {last} 까지만 쓰던 부서입니다)" if last else " (ERP 부서 목록에 없습니다)"),
-        "전표 상단에서 지금 쓰는 부서로 바꾸세요")
+        return org
+    day = when.strftime("%Y-%m-%d")
+    raise stop(f"부서 {dept_cd} 는 전표일자({day}) 기준 조직에 없습니다",
+               "전표 상단에서 그 날짜에 쓰던 부서로 바꾸거나 전표일자를 확인하세요")
 
 
 def org_info(cur, dept_cd, org):
-    """조직 정보 — BIZ_AREA/INTERNAL/GAAP 를 최근 '정상' 배치에서 승계한다.
-       ORG_CHANGE_ID 는 check_dept_org() 가 이미 확인한 현행 값을 그대로 쓴다.
-       실사(2026-08-19): 최근 배치가 AX 테스트 잔재일 수 있어 REF_NO 'AX%' 는 승계 소스에서 제외한다."""
-    cur.execute("SELECT TOP 1 BIZ_AREA_CD, INTERNAL_CD, GAAP_GROUP_CD FROM dbo.A_BATCH WITH (NOLOCK) "
+    """조직 정보 — BIZ_AREA/GAAP 는 최근 '정상' 배치에서 승계하고, **내부부서코드는 부서 마스터에서** 읽는다.
+       ORG_CHANGE_ID 는 check_dept_org() 가 전표일자 기준으로 고른 값을 그대로 쓴다.
+       실사(2026-08-19): 최근 배치가 AX 테스트 잔재일 수 있어 REF_NO 'AX%' 는 승계 소스에서 제외한다.
+
+       내부부서코드(INTERNAL_CD)를 배치에서 승계하면 안 된다(2026-10-02 실측 · REQ-0100):
+       종전에는 세 값을 모두 「가장 최근 배치」에서 가져왔다. 사업장·GAAP 는 회사에 하나뿐이라
+       (BA1·02 — 2025년 이후 14,851건 전부) 문제가 없지만, 내부부서코드는 **부서마다 다르다**.
+       직전 배치가 구매팀 매입전표였던 탓에 총무팀(181) 전표 AG202609300001 이 구매팀(1121)으로
+       들어갔다 — 헤더와 4개 라인 전부. 이 값은 부서별 조회·권한의 기준이므로, 수기 입력과 같이
+       전표 부서의 B_ACCT_DEPT.INTERNAL_CD 를 쓴다(수기 전표 20,218라인 중 20,206라인이 이 값과 같다)."""
+    cur.execute("SELECT TOP 1 BIZ_AREA_CD, GAAP_GROUP_CD FROM dbo.A_BATCH WITH (NOLOCK) "
                 "WHERE TEMP_GL_NO IS NOT NULL AND ISNULL(REF_NO,'') NOT LIKE 'AX%' "
                 "AND ISNULL(REF_NO,'') NOT LIKE 'DRAFT-%' ORDER BY INSRT_DT DESC")
     row = cur.fetchone()
-    biz, internal, gaap = (row[0], row[1], row[2]) if row else (None, None, None)
+    biz, gaap = (row[0], row[1]) if row else (None, None)
     if not biz:
         raise stop("부서 정보를 ERP에서 찾지 못했습니다", "전표 상단의 부서를 확인하세요")
+    internal = dept_internal_cd(cur, dept_cd, org)
     return org, biz, internal, gaap
+
+
+def dept_internal_cd(cur, dept_cd, org):
+    """전표 부서의 내부부서코드 — 부서 마스터(전표일자 기준 조직)가 유일한 출처다. 없으면 보내지 않는다(fail-closed).
+       코스트센터 마스터(B_COST_CENTER)에도 내부부서코드가 있지만 낡았다(133개 중 13개 불일치) — 쓰지 않는다.
+       다른 부서 값을 대신 넣으면 전표가 남의 부서 것으로 조회된다."""
+    cur.execute("SELECT RTRIM(ISNULL(INTERNAL_CD,'')) FROM dbo.B_ACCT_DEPT WITH (NOLOCK) "
+                "WHERE DEPT_CD = ? AND ORG_CHANGE_ID = ?", dept_cd, org)
+    row = cur.fetchone()
+    internal = str(row[0]).strip() if row and row[0] else ""
+    if not internal:
+        raise stop(f"부서 {dept_cd} 의 내부부서코드가 ERP에 없습니다",
+                   "관리자에게 알려 주세요 — 전표를 고쳐도 해결되지 않습니다")
+    return internal
+
+
+def org_axis_mismatch(header, items, dept_cd, org, internal, hdr_cost, line_costs):
+    """생성된 전표의 조직 축을 기대값과 비교해 어긋난 곳을 문장 목록으로 돌려준다(빈 목록 = 일치).
+       header·items 는 (부서, 조직개편번호, 내부부서코드, 코스트센터). 줄 코스트센터는 엔진이 줄 순서를
+       바꾸므로 순서 없이(개수 포함) 비교한다."""
+    out = []
+    want = (dept_cd, org, internal)
+    if tuple(header[:3]) != want:
+        out.append(f"헤더 부서·조직·내부부서 {tuple(header[:3])} ≠ {want}")
+    if header[3] != hdr_cost:
+        out.append(f"헤더 코스트센터 {header[3]} ≠ {hdr_cost}")
+    off = sorted({tuple(i[:3]) for i in items if tuple(i[:3]) != want})
+    if off:
+        out.append(f"라인 부서·조직·내부부서 {off} ≠ {want}")
+    if sorted(i[3] for i in items) != sorted(line_costs):
+        out.append(f"라인 코스트센터 {sorted(i[3] for i in items)} ≠ {sorted(line_costs)}")
+    return out
+
+
+def dept_cost_cd(cur, dept_cd, org):
+    """전표 헤더의 코스트센터 — 부서 마스터에 정해진 그 부서의 코스트센터다. — ERP 와 같은 규칙.
+
+    ERP 결의전표등록 화면은 부서를 고르면 코스트센터를 부서 기준으로 채우고, 사용자는 **줄(라인)에서만**
+    필요할 때 바꾼다. 실측(수기 2026년): 헤더 2,839건 전부가 부서 마스터 값과 같고(예외 0),
+    라인은 13,543줄 중 2,304줄이 부서 것과 다르다 — 즉 헤더는 고정, 줄은 선택이다.
+    종전에는 포털이 보낸 헤더 값을 그대로(비면 첫 줄 값) 넣어, 부서와 다른 코스트센터가
+    헤더에 들어갈 수 있었다(포털 초안 51건 중 1건 — 총무팀 전표에 생산팀 코스트센터)."""
+    cur.execute("SELECT RTRIM(ISNULL(COST_CD,'')) FROM dbo.B_ACCT_DEPT WITH (NOLOCK) "
+                "WHERE DEPT_CD = ? AND ORG_CHANGE_ID = ?", dept_cd, org)
+    row = cur.fetchone()
+    cost = str(row[0]).strip() if row and row[0] else ""
+    if not cost:
+        raise stop(f"부서 {dept_cd} 의 코스트센터가 ERP에 없습니다",
+                   "관리자에게 알려 주세요 — 전표를 고쳐도 해결되지 않습니다")
+    return cost
 
 
 def apply_draft(args):
@@ -668,11 +727,8 @@ def apply_draft(args):
     cost_cd = (h.get("cost_cd") or "").strip()
     if not dept_cd:
         raise stop("부서가 비어 있습니다", "전표 상단에서 부서를 고르세요")
-    if not cost_cd:
-        # 라인 코스트센터가 전부 있으면 허용, 아니면 중단(엔진 요건)
-        if not all((it.get("cost_cd") or "").strip() for it in items):
-            raise stop("코스트센터가 비어 있습니다",
-                       "전표 상단에서 고르거나, 줄마다 코스트센터를 넣으세요")
+    # 코스트센터가 비어 있어도 막지 않는다 — 헤더는 부서 마스터 값으로, 줄은 비면 부서 기본값으로
+    # 채운다(ERP 화면이 부서를 고르면 코스트센터를 채워 주는 것과 같다. 아래 dept_cost_cd).
 
     # 다른 러너가 이미 선점(sending)한 건은 건드리지 않는다 — 중복 투입 차단.
     # 큐 경로는 자기가 방금 선점하고 들어오므로, 단건 수동 실행만 여기서 걸린다.
@@ -724,8 +780,18 @@ def apply_draft(args):
         # ── 부서 ↔ 현행 조직 확인 ──────────────────────────────────
         # 쓰기 전에 한다. 없어진 부서면 ERP 가 서브원장 단계에서 A05191 로 거부하는데,
         # 그건 전표를 다 만든 뒤라 만들었다 롤백하게 된다(2026-08-26 실측 2건).
-        org = check_dept_org(cur, dept_cd)
+        org = check_dept_org(cur, dept_cd, gl_dt_dt)
         result["detail"]["org_change_id"] = str(org)
+        # 내부부서코드도 쓰기 전에 확인한다 — 사전점검(--precheck)에서도 잡히게(REQ-0100)
+        result["detail"]["internal_cd"] = dept_internal_cd(cur, dept_cd, org)
+        # 헤더 코스트센터는 부서 마스터 값이다(ERP 기준). 포털이 다른 값을 보냈으면 그 값은
+        # 「코스트센터를 따로 고르지 않은 줄」의 기본값으로만 쓰고, 헤더에는 넣지 않는다.
+        hdr_cost = dept_cost_cd(cur, dept_cd, org)
+        result["detail"]["header_cost_cd"] = hdr_cost
+        if cost_cd and cost_cd != hdr_cost:
+            result["detail"]["header_cost_from_portal"] = cost_cd
+            print(f"[코스트센터] 헤더는 부서 {dept_cd} 의 {hdr_cost} 로 넣습니다"
+                  f"(포털 값 {cost_cd} 는 줄 기본값으로만 사용)")
 
         # ── ERP측 멱등 확인 ────────────────────────────────────────
         cur.execute("SELECT COUNT(*) FROM dbo.A_BATCH WITH (NOLOCK) WHERE REF_NO = ?", ref_no)
@@ -740,7 +806,7 @@ def apply_draft(args):
         for it in items:
             acct = str(it["acct_cd"]).strip()
             fg = "DR" if str(it["dr_cr_fg"]).strip().upper().startswith("D") else "CR"
-            line_cost = (it.get("cost_cd") or cost_cd or "").strip()
+            line_cost = (it.get("cost_cd") or cost_cd or hdr_cost or "").strip()
             # 법인카드 채널과의 이중계상 차단 — 대변 미지급금(법인카드)은 AX 채널에서 쓰지 않는다
             if fg == "CR" and acct in FORBIDDEN_CR_ACCT:
                 raise stop(f"{it['item_seq']}번 줄 {acct_label(cur, acct)} 대변 — "
@@ -813,22 +879,24 @@ def apply_draft(args):
                     ?,'Y','N','O','N',?,
                     ?,GETDATE(),?,GETDATE())""",
             batch_no, ag_no, ag_no, gl_dt_dt, gl_dt_dt, gl_dt_dt, ref_no,
-            biz, biz, org, dept_cd, cost_cd or lines[0]["cost"], internal,
+            biz, biz, org, dept_cd, hdr_cost, internal,
             tot, tot, tot, tot, vat, vat,
             gl_desc, gaap, user_id, user_id)
 
         # ── 2) A_BATCH_GL ─────────────────────────────────────────
+        # 본지점번호는 공백으로 넣는다 — 수기·타 모듈 전표가 전부 공백이고, 비워 두면 결과 전표
+        # 헤더에 NULL 로 남아 포털 전표만 형태가 달라진다(2026-10-02 대사).
         cur.execute("""
             INSERT INTO dbo.A_BATCH_GL
                 (BATCH_NO, SEQ, GL_NO, BIZ_AREA_CD, COST_CD, ORG_CHANGE_ID, DEPT_CD, INTERNAL_CD,
                  NET_AMT, NET_LOC_AMT, DR_AMT, DR_LOC_AMT, CR_AMT, CR_LOC_AMT,
-                 VAT_AMT, VAT_LOC_AMT,
+                 VAT_AMT, VAT_LOC_AMT, HQ_BRCH_NO,
                  INSRT_USER_ID, INSRT_DT, UPDT_USER_ID, UPDT_DT)
             VALUES (?,1,?,?,?,?,?,?,
                     ?,?,?,?,?,?,
-                    ?,?,
+                    ?,?,'',
                     ?,GETDATE(),?,GETDATE())""",
-            batch_no, ag_no, biz, cost_cd or lines[0]["cost"], org, dept_cd, internal,
+            batch_no, ag_no, biz, hdr_cost, org, dept_cd, internal,
             tot, tot, tot, tot, tot, tot, vat, vat, user_id, user_id)
 
         # ── 3) A_BATCH_GL_ITEM (라인별, CTRL 슬롯 평탄화 최대 8) ──
@@ -892,6 +960,27 @@ def apply_draft(args):
         if IS_PROD and str(gl[1]).strip().upper() == "C":
             raise stop("운영 ERP가 전표를 승인 상태로 만들어 취소했습니다",
                        "관리자에게 알려 주세요 — ERP에는 아무것도 남지 않았습니다")
+        # 조직 축이 ERP 기준대로 들어갔는지 — 헤더와 라인 전부(REQ-0100).
+        # 엔진이 배치 값을 그대로 옮기는지에 기대지 않고 결과를 직접 본다. 어긋나면 되돌린다.
+        #   부서·조직개편번호·내부부서코드 = 전표 부서(전표일자 기준 조직)의 마스터 값
+        #   헤더 코스트센터 = 부서 마스터 값 / 줄 코스트센터 = 보낸 값 그대로
+        axis_sql = ("SELECT RTRIM(ISNULL(DEPT_CD,'')), RTRIM(ISNULL(CAST(ORG_CHANGE_ID AS nvarchar(20)),'')), "
+                    "RTRIM(ISNULL(INTERNAL_CD,'')), RTRIM(ISNULL(COST_CD,'')) FROM dbo.{} WITH (NOLOCK) "
+                    "WHERE TEMP_GL_NO = ?")
+        cur.execute(axis_sql.format("A_TEMP_GL"), gl[0])
+        hd = tuple(str(x).strip() for x in cur.fetchone())
+        cur.execute(axis_sql.format("A_TEMP_GL_ITEM"), gl[0])
+        its = [tuple(str(x).strip() for x in r) for r in cur.fetchall()]
+        bad = org_axis_mismatch(hd, its, dept_cd, str(org).strip(), internal, hdr_cost,
+                                [l["cost"] for l in lines])
+        result["detail"]["verify"]["org_axis"] = {
+            "want": {"dept": dept_cd, "org": str(org).strip(), "internal": internal, "header_cost": hdr_cost},
+            "header": list(hd), "mismatch": bad}
+        print(f"[조직] 부서 {dept_cd} · 조직 {org} · 내부부서 {internal} · 헤더CC {hdr_cost} → "
+              + ("일치" if not bad else "불일치: " + " / ".join(bad)))
+        if bad:
+            raise stop("ERP가 만든 전표의 부서 정보가 입력과 달라 취소했습니다",
+                       "관리자에게 알려 주세요 — ERP에는 아무것도 남지 않았습니다")
         if not match:
             for x in in_lines:
                 print(f"   투입: {x}")
@@ -950,6 +1039,20 @@ def apply_draft(args):
             print("[연결번호] 서브원장 대상 라인 없음(경비만 있는 전표) — 정상")
         if empty:
             raise stop(f"채무·부가세 원장이 {len(empty)}줄 비어 있어 취소했습니다",
+                       "관리자에게 알려 주세요 — ERP에는 아무것도 남지 않았습니다")
+
+        # 서브원장 SP 는 조직번호를 전표일자 기준으로 **덮어쓴다**(usp_a_check_acct). 우리가 고른 값과
+        # 같아야 한다 — 다르면 내부부서코드가 다른 조직 기준으로 들어간 것이므로 되돌린다.
+        # 채무원장은 대변 줄 값을 그대로 가져가므로 같은 기준으로 함께 본다.
+        after = set()
+        for tbl in ("A_TEMP_GL", "A_TEMP_GL_ITEM", "A_OPEN_AP"):
+            cur.execute("SELECT RTRIM(ISNULL(CAST(ORG_CHANGE_ID AS nvarchar(20)),'')), RTRIM(ISNULL(INTERNAL_CD,'')) "
+                        f"FROM dbo.{tbl} WITH (NOLOCK) WHERE TEMP_GL_NO = ?", slip_no)
+            after |= {(str(r[0]).strip(), str(r[1]).strip()) for r in cur.fetchall()}
+        result["detail"]["verify"]["org_axis"]["after_subsys"] = [list(x) for x in sorted(after)]
+        if after != {(str(org).strip(), internal)}:
+            print(f"[조직] 서브원장 뒤 값이 다릅니다: {sorted(after)}", file=sys.stderr)
+            raise stop("ERP가 정한 조직 정보가 입력과 달라 취소했습니다",
                        "관리자에게 알려 주세요 — ERP에는 아무것도 남지 않았습니다")
 
         for tbl, label in (("A_OPEN_AP", "채무"), ("A_VAT", "부가세")):

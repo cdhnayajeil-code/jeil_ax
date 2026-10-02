@@ -102,6 +102,15 @@ def _reset_caches():
     relay._TG_ALLOW = None
 
 
+def _draft_dt(h):
+    """초안의 전표일자 — 없거나 못 읽으면 None(오늘 기준으로 본다)."""
+    import datetime
+    try:
+        return datetime.datetime.strptime(str(h.get("draft_dt"))[:10], "%Y-%m-%d")
+    except Exception:
+        return None
+
+
 def judge(cur, d, trans_type):
     """초안 1건 판정 — 문제 목록을 전부 모아 돌려준다(빈 목록 = 운영이면 통과)."""
     h, items, ctrls = d["header"], d["items"], d["ctrls"]
@@ -120,13 +129,16 @@ def judge(cur, d, trans_type):
     elif str(row[0]).strip() != "T":
         add("TT", f"거래유형 {trans_type} 가 결의전표로 연결돼 있지 않습니다(GL_POSTING_FG={row[0]})")
 
-    # ② 부서 ↔ 현행 조직
+    # ② 부서 ↔ 전표일자 기준 조직(ERP 와 같은 규칙) · 내부부서코드 · 헤더 코스트센터
+    hdr_cost = ""
     dept_cd = (h.get("dept_cd") or "").strip()
     if not dept_cd:
         add("DEPT", "부서가 비어 있습니다")
     else:
         try:
-            relay.check_dept_org(cur, dept_cd)
+            org = relay.check_dept_org(cur, dept_cd, _draft_dt(h))
+            relay.dept_internal_cd(cur, dept_cd, org)          # 내부부서코드·헤더 코스트센터가
+            hdr_cost = relay.dept_cost_cd(cur, dept_cd, org)   # 부서 마스터에 있어야 보낼 수 있다
         except SystemExit as e:
             add("DEPT", str(e).split("\n→ ")[0], (str(e).split("\n→ ") + [""])[1])
 
@@ -138,7 +150,7 @@ def judge(cur, d, trans_type):
             add("DUP", f"운영 ERP 에 같은 참조번호({ref_no})가 이미 있습니다({tbl})")
 
     # ④⑤ 라인 — 법인카드 대변 금지 · 분개코드 결정
-    cost_cd = (h.get("cost_cd") or "").strip()
+    cost_cd = (h.get("cost_cd") or "").strip() or hdr_cost   # 줄이 비면 부서 기본값(릴레이와 같다)
     by_seq = {}
     for c in ctrls:
         by_seq.setdefault(int(c["item_seq"]), []).append(

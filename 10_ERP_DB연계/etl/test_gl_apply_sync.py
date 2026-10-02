@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""릴레이 v1.8 헤드리스 테스트 — ERP·포털에 접속하지 않는다.
+"""릴레이 v1.10 헤드리스 테스트 — ERP·포털에 접속하지 않는다.
 
 확인하는 것(2026-09-30 결정 D-113 · G5):
   · 대상이 운영(JEILMNS)이고 --cleanup 은 운영에서 실행 전에 거부된다
@@ -98,6 +98,86 @@ class SyncStateTest(unittest.TestCase):
                 mock.patch.object(g, "demo_conn") as conn:
             self.assertEqual(g.sync_erp_state("u", "k"), (0, 0))
         conn.assert_not_called()
+
+
+class SeqCur:
+    """실행 순서대로 정해 둔 행을 돌려주는 커서 — SQL 과 바인딩 값을 기록한다."""
+
+    def __init__(self, rows):
+        self.rows, self.calls, self._row = list(rows), [], None
+
+    def execute(self, sql, *params):
+        self.calls.append((sql, params))
+        self._row = self.rows.pop(0) if self.rows else None
+        return self
+
+    def fetchone(self):
+        return self._row
+
+
+class InternalCdTest(unittest.TestCase):
+    """내부부서코드는 최근 배치가 아니라 전표 부서의 마스터에서 온다(REQ-0100).
+       실제 사고: 직전 배치가 구매팀(1121)이라 총무팀(181) 전표가 구매팀으로 들어갔다."""
+
+    def test_internal_from_dept_master_not_batch(self):
+        cur = SeqCur([("BA1", "02"), ("181",)])
+        org, biz, internal, gaap = g.org_info(cur, "3200", "20261")
+        self.assertEqual((org, biz, internal, gaap), ("20261", "BA1", "181", "02"))
+        self.assertNotIn("INTERNAL_CD", cur.calls[0][0])          # 배치에서는 더 이상 읽지 않는다
+        self.assertIn("B_ACCT_DEPT", cur.calls[1][0])
+        self.assertEqual(cur.calls[1][1], ("3200", "20261"))      # 전표 부서·현행 조직으로 조회
+
+    def test_missing_internal_stops(self):
+        for row in (None, ("",), (None,)):
+            with self.assertRaises(SystemExit):
+                g.dept_internal_cd(SeqCur([row]), "3200", "20261")
+
+    def test_trims_fixed_width(self):
+        self.assertEqual(g.dept_internal_cd(SeqCur([("181   ",)]), "3200", "20261"), "181")
+
+
+class ErpOrgRuleTest(unittest.TestCase):
+    """조직 축은 ERP(usp_a_check_acct)와 같은 규칙으로 정한다(REQ-0100).
+       조직개편번호 = 전표일자 이전에 시작한 조직 중 최근 것 · 헤더 코스트센터 = 부서 마스터 값."""
+
+    def test_org_picked_by_voucher_date(self):
+        import datetime
+        day = datetime.datetime(2026, 3, 31)
+        cur = SeqCur([("20251",), (1,)])
+        self.assertEqual(g.check_dept_org(cur, "3200", day), "20251")
+        sql, params = cur.calls[0]
+        self.assertIn("ORG_CHANGE_DT <= ?", sql)                  # 가장 큰 번호(MAX)가 아니라 일자 기준
+        self.assertNotIn("MAX(ORG_CHANGE_ID)", sql)
+        self.assertEqual(params, (day,))
+        self.assertEqual(cur.calls[1][1], ("3200", "20251"))      # 그 조직에 부서가 있는지
+
+    def test_dept_missing_in_that_org_stops(self):
+        import datetime
+        with self.assertRaises(SystemExit) as e:
+            g.check_dept_org(SeqCur([("20261",), (0,)]), "5100", datetime.datetime(2026, 9, 30))
+        self.assertIn("2026-09-30", str(e.exception))
+
+    def test_header_cost_from_dept_master(self):
+        cur = SeqCur([("C013200 ",)])
+        self.assertEqual(g.dept_cost_cd(cur, "3200", "20261"), "C013200")
+        self.assertIn("B_ACCT_DEPT", cur.calls[0][0])
+        with self.assertRaises(SystemExit):
+            g.dept_cost_cd(SeqCur([("",)]), "3200", "20261")
+
+    def test_org_axis_mismatch(self):
+        hd = ("3200", "20261", "181", "C013200")
+        its = [("3200", "20261", "181", "C011310"), ("3200", "20261", "181", "C013200")]
+        ok = g.org_axis_mismatch(hd, its, "3200", "20261", "181", "C013200", ["C013200", "C011310"])
+        self.assertEqual(ok, [])                                   # 줄 순서가 바뀌어도 일치
+        # 실제 사고 형태 — 내부부서코드만 남의 부서 것
+        bad = g.org_axis_mismatch(("3200", "20261", "1121", "C013200"),
+                                  [("3200", "20261", "1121", "C013200")],
+                                  "3200", "20261", "181", "C013200", ["C013200"])
+        self.assertEqual(len(bad), 2)
+        # 헤더 코스트센터가 부서 것이 아님
+        bad = g.org_axis_mismatch(("3200", "20261", "181", "C017100"), its,
+                                  "3200", "20261", "181", "C013200", ["C011310", "C013200"])
+        self.assertEqual(len(bad), 1)
 
 
 if __name__ == "__main__":

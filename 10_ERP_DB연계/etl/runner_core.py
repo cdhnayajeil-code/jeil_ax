@@ -35,7 +35,7 @@ import sys
 import threading
 import time
 
-RUNNER_VERSION = "r1.9"
+RUNNER_VERSION = "r1.11"
 CONFIG_NAME = "runner_config.json"
 HISTORY_NAME = "runner_history.jsonl"
 RUNNING_NAME = "runner_running.json"

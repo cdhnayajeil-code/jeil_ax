@@ -251,6 +251,8 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 </table>
 <h3 id="32-sp_-supabase-erp">3.2 포털 전용 쓰기 스키마(<code>sp_*</code> / 데모는 Supabase) — ERP에 직접 안 씀</h3>
 <p><code>sp_order_state</code>(진행상태·10단계) · <code>sp_photo</code>(증빙사진, 원본은 Storage) · <code>sp_message</code>(양방향) · <code>sp_insp_request</code>(검수요청) · <code>sp_inspection</code>(판정) · <code>sp_inspection_log</code>(판정이력). 격리 키 = <code>bp_cd</code>. 정의: <code>이관/sql/01_schema_rls.sql</code>.</p>
+<h3 id="33-erp-2026-10-02-req-0100-d-114">3.3 결의전표 조직 축 ERP 기준 (2026-10-02, REQ-0100 · 결정 D-114)</h3>
+<p>결의전표 ERP 전송 릴레이는 조직 축을 ERP 검사 프로시저 기준으로 맞춘다: <strong>조직개편번호 = 전표일자 이전에 시작한 조직 중 가장 최근 것</strong>(종전 「가장 큰 번호」 아님) · <strong>헤더 코스트센터 = 부서 마스터 값</strong>(줄은 사용자가 바꿀 수 있어 포털 값은 줄 기본값) · <strong>라인 내부부서코드 = 그 라인 부서의 것</strong> · 본지점번호는 공백 · 사업장 BA1·사업부 BU1 단일. 코스트센터 마스터(<code>B_COST_CENTER</code>)는 낡아 출처로 쓰지 않는다. 상세 표는 <code>10_ERP_DB연계/01_연계기획 §4.17</code>.</p>
 <blockquote>
 <p>신규 화면은 이 매핑을 <strong>재사용·확장</strong>하고, 변경 시 §3 + <code>08/03/02</code> 양쪽을 갱신한다.</p>
 </blockquote>
