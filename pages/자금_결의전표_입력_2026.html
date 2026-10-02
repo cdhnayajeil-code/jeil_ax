@@ -3917,10 +3917,10 @@ $("btnErpEdit").onclick = ()=>{
 };
 
 /* ═══ ERP 전송 탭 → 전표 작성으로 복사 (REQ-0101) ═══
-   포털 전표(초안)를 **그대로** 새 전표로 옮긴다 — 결의일자·전표유형·부서·코스트센터·프로젝트·제목,
+   포털 전표(초안)를 **그대로** 새 전표로 옮긴다(결의일자만 오늘) — 전표유형·부서·코스트센터·프로젝트·제목,
    줄(차대·계정·금액·비고·거래처·코스트센터·프로젝트), 관리항목까지.
-   「지난 전표 복사」(ERP 미러에서 가져오기)와 다른 점: 저쪽은 결의일자를 오늘로 새로 잡고 민감
-   관리항목이 비어 오지만, 이쪽은 포털에 저장된 원본이라 빠지는 값 없이 같은 전표가 된다.
+   「지난 전표 복사」(ERP 미러에서 가져오기)와 다른 점: 저쪽은 민감 관리항목이 비어 오지만,
+   이쪽은 포털에 저장된 원본이라 빠지는 값 없이 같은 전표가 된다.
    원본은 건드리지 않는다 — 새 전표번호는 저장할 때 새로 받는다(복사가 서버 검증을 면제하지 않는다). */
 async function copyDraftToWrite(no){
   if(!no) return;
@@ -3933,7 +3933,11 @@ async function copyDraftToWrite(no){
   const h = r.header;
   stopSendPoll();
   newDraft();                                   // 새 전표 — 원본 번호·실패 표시·월반복 상태를 이어받지 않는다
-  if(h.draft_dt) $("fDt").value = h.draft_dt;   // 「그대로」 — 결의일자도 원본 그대로(필요하면 작성 화면에서 고친다)
+  // 결의일자는 오늘로 새로 잡는다(2026-10-02 관리자 지시 — 「지난 전표 복사」와 같은 규칙).
+  // 폼에 다른 전표의 날짜가 남아 있을 수 있어 명시적으로 넣는다. 관리항목의 날짜(만기일 등)는 원본 그대로다.
+  const now = new Date();
+  const today = new Date(now.getTime() - now.getTimezoneOffset()*60000).toISOString().slice(0,10);
+  $("fDt").value = today;
   if(h.gl_type) $("fType").value = h.gl_type;
   if(h.dept_cd && (MASTER.depts||[]).some((d)=> String(d.dept_cd)===String(h.dept_cd))) $("fDept").value = h.dept_cd;
   renderCostOptions();
@@ -3953,9 +3957,10 @@ async function copyDraftToWrite(no){
   });
   if(newRows.length) setRows(newRows);
   markStart("sbCopy");
-  setStartHint("전표 "+no+" 을(를) 그대로 복사했습니다 — 결의일자("+(h.draft_dt||"")+")도 원본 그대로입니다");
+  setStartHint("전표 "+no+" 을(를) 복사했습니다 — 결의일자는 오늘("+today+")로 새로 잡혔습니다");
   showTab("write");
-  toast("전표 "+no+" 을(를) 새 전표로 복사했습니다 — 결의일자·금액·관리항목까지 그대로입니다. 확인한 뒤 저장·제출하세요.");
+  toast("전표 "+no+" 을(를) 새 전표로 복사했습니다 — 금액·관리항목은 그대로, 결의일자는 오늘("+today+")입니다"
+        + (h.draft_dt && h.draft_dt !== today ? " (원본 "+h.draft_dt+")" : "")+". 확인한 뒤 저장·제출하세요.");
 }
 $("btnErpCopyNew").onclick = ()=>{ if(POST_SEL) copyDraftToWrite(POST_SEL.header.draft_no); };
 
