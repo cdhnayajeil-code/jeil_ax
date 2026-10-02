@@ -20,9 +20,18 @@ import { createClient } from "jsr:@supabase/supabase-js@2";
 const ALLOWED = new Set([
   "nas_runner_ping", "nas_request_claim", "nas_request_progress", "nas_request_finish",
   "nas_export_sources", "nas_export_count", "nas_export_page", "nas_export_commit",
+  "nas_query_claim", "nas_query_finish",   // 실시간 조회(정본 SQL 86 · REQ-0103)
 ]);
 // 워커 이름을 인자로 받는 RPC — 여기서 토큰 행의 이름으로 바꿔 넣는다.
-const WORKER_ARG = new Set(["nas_runner_ping", "nas_request_claim"]);
+const WORKER_ARG = new Set(["nas_runner_ping", "nas_request_claim", "nas_query_claim"]);
+
+// 길게 대기 — 조회 요청이 없으면 0.3초마다 다시 확인하며 최대 20초를 기다렸다가 답한다.
+// DB 함수 안에서 기다리면 PostgREST 8초 제한에 걸리므로 기다림은 여기서 한다. 20초는 사내 장비의
+// 유휴 연결 제한에 걸리지 않게 잡은 값이다(워커는 답을 받으면 곧바로 다시 문다).
+const WAIT_FN = "nas_query_claim";
+const WAIT_STEP_MS = 300;
+const WAIT_MAX_MS = 20_000;
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 const json = (b: unknown, status = 200) =>
   new Response(JSON.stringify(b), { status, headers: { "Content-Type": "application/json" } });
@@ -52,7 +61,15 @@ Deno.serve(async (req) => {
     body.payload && typeof body.payload === "object" && !Array.isArray(body.payload) ? { ...body.payload } : {};
   if (WORKER_ARG.has(fn)) payload.p_worker = worker;
 
-  const { data, error } = await admin.rpc(fn, payload);
+  let { data, error } = await admin.rpc(fn, payload);
+  if (fn === WAIT_FN && !error && data == null) {
+    const waitMs = Math.min(Math.max(Number(body.wait_ms) || 0, 0), WAIT_MAX_MS);
+    const until = Date.now() + waitMs;
+    while (!error && data == null && Date.now() + WAIT_STEP_MS <= until) {
+      await sleep(WAIT_STEP_MS);
+      ({ data, error } = await admin.rpc(fn, payload));
+    }
+  }
   if (error) {
     // PostgREST 오류 모양을 그대로 돌려준다 — 워커가 사유(허용 목록 밖 소스 등)를 요청 결과에 남긴다
     return json({ code: error.code, message: error.message, details: error.details, hint: error.hint }, 400);

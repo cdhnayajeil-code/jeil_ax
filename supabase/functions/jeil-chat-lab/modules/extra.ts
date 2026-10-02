@@ -7,5 +7,9 @@ import * as purProposal from "./purchase/get_pur_proposal.ts";
 import * as proposalRecon from "./purchase/get_proposal_recon.ts";
 import * as vendorProfile from "./purchase/get_vendor_profile.ts";
 import * as proposalChain from "./purchase/get_proposal_chain.ts";
+// 사내 NAS 실시간 조회(REQ-0103 · 도메인 "nas" — 에이전트 버전에서 켜야 쓰인다)
+import * as nasFiles from "./nas/list_company_files.ts";
+import * as nasPastChats from "./nas/search_my_past_chats.ts";
 
-export const EXTRA_MODULES: ToolModule[] = [searchPurList, vendorPurchase, purProposal, proposalRecon, vendorProfile, proposalChain];
+export const EXTRA_MODULES: ToolModule[] = [searchPurList, vendorPurchase, purProposal, proposalRecon, vendorProfile, proposalChain,
+  nasFiles, nasPastChats];

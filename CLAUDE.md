@@ -385,3 +385,6 @@ JEIL_AX/
    사무용 PC 에 러너를 통째로 띄우면 결의전표 운영 전송(§1.2 예외)까지 켜지기 때문이다. Python 소스로 돌므로 **워커만 고쳤을 때는 EXE 재빌드가 필요 없다.**
    ⑤ **NAS 컨테이너에는 `service_role` 키를 두지 않는다** — 전용 토큰으로 Edge Function `jeil-nas-bridge` 만 부른다(정본 SQL 85 · 컨테이너 묶음 `deploy/nas/`).
    중계 허용 목록(`jeil-nas-bridge/index.ts` 의 `ALLOWED`)과 워커의 `BRIDGE_FNS` 는 **같은 목록**이다 — 한쪽만 고치지 않는다(회귀가 워커 쪽을 잠근다).
+   ⑥ **에이전트 → NAS 실시간 조회**는 조회 큐(정본 SQL 86)로 간다 — 게이트웨이 도구(`jeil-chat-lab/modules/nas/`)가 요청을 넣고 워커가 답한다.
+   무엇을 볼 수 있는지는 **DB 함수(`nas_query_submit`)가 계산**한다(허용 폴더 `etl_meta.nas_folder_scope` ∩ 부서 · 과거 대화는 본인 것만) — 도구·워커에서 범위를 넓히지 않는다.
+   NAS 왕복 도구는 **스스로 시간 상한**을 건다(엔진에 도구 타임아웃이 없다). 새 조회 종류는 SQL 의 kind CHECK·워커 `handle_query`·도구 세 곳을 함께 고친다.

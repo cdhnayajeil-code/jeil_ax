@@ -6,7 +6,8 @@ FROM python:3.12-slim
 ENV PYTHONUNBUFFERED=1 \
     PYTHONIOENCODING=utf-8 \
     JEIL_AX_ENV_ROOT=/state \
-    NAS_DATA_ROOT=/data
+    NAS_DATA_ROOT=/data \
+    NAS_DOCS_ROOT=/docs
 
 WORKDIR /app
 COPY nas_worker.py _env.py /app/

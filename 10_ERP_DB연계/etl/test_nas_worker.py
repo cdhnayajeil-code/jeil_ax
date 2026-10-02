@@ -257,6 +257,108 @@ class TestBridgeAndServe(Base):
         self.assertNotIn("대화기록", s)
 
 
+# ─────────────────────────── 실시간 조회(에이전트 → NAS) ───────────────────────────
+class TestQuery(Base):
+    def _mk(self, rel, text="x", age_days=0):
+        p = os.path.join(self.root, *rel.split("/"))
+        os.makedirs(os.path.dirname(p), exist_ok=True)
+        with io.open(p, "w", encoding="utf-8") as fh:
+            fh.write(text)
+        if age_days:
+            t = w.time.time() - age_days * 86400
+            os.utime(p, (t, t))
+        return p
+
+    def setUp(self):
+        super().setUp()
+        self._mk("부서/5200_구매팀/구매규정_2026.docx")
+        self._mk("부서/5200_구매팀/양식/발주서_양식.xlsx", age_days=40)
+        self._mk("부서/5200_구매팀/#recycle/지운파일.docx")
+        self._mk("부서/5200_구매팀/.숨김.txt")
+        self._mk("부서/6100_인사팀/급여대장.xlsx")
+        self._mk("00_전사공유/사규.pdf")
+        self.scope = {"folders": [{"key": "pur", "rel_path": "부서/5200_구매팀", "label": "구매팀"}]}
+
+    def names(self, res):
+        return sorted(r["이름"] for r in res["목록"])
+
+    def test_lists_only_scoped_folder_and_skips_recycle_hidden(self):
+        res, n = w.query_file_list({}, self.scope, self.root)
+        self.assertEqual(self.names(res), ["구매규정_2026.docx", "발주서_양식.xlsx"])
+        self.assertEqual(n, 2)
+        self.assertNotIn("급여대장.xlsx", json.dumps(res, ensure_ascii=False), "다른 부서 폴더가 새면 안 된다")
+        self.assertNotIn(self.root, json.dumps(res, ensure_ascii=False), "절대경로를 내보내지 않는다")
+        sub = {r["이름"]: r["경로"] for r in res["목록"]}
+        self.assertEqual(sub, {"구매규정_2026.docx": "", "발주서_양식.xlsx": "양식"})
+
+    def test_filters_by_name_days_and_limit(self):
+        self.assertEqual(self.names(w.query_file_list({"q": "양식"}, self.scope, self.root)[0]), ["발주서_양식.xlsx"])
+        self.assertEqual(self.names(w.query_file_list({"days": 7}, self.scope, self.root)[0]), ["구매규정_2026.docx"])
+        res, n = w.query_file_list({"limit": 1}, self.scope, self.root)
+        self.assertEqual((n, res["해당"], res["잘림"]), (1, 2, True))
+        self.assertEqual(self.names(res), ["구매규정_2026.docx"], "최신 수정이 먼저")
+
+    def test_scope_cannot_escape_docs_root(self):
+        """요청 행의 경로가 상위로 나가려 해도(DB CHECK 가 뚫렸다고 가정) 워커가 막는다."""
+        for bad in ("..", "부서/../..", "부서/5200_구매팀/../6100_인사팀", "/etc", ""):
+            sc = {"folders": [{"key": "x", "rel_path": bad, "label": "x"}]}
+            res, n = w.query_file_list({}, sc, os.path.join(self.root, "부서"))
+            self.assertEqual((n, res["목록"]), (0, []), bad)
+
+    def test_inside_tolerates_trailing_separator_on_root(self):
+        """공유 최상위를 루트로 쓰면 끝에 구분자가 붙는다 — 2026-10-02 실 NAS 에서 허용 폴더가 전부 「밖」으로 판정됐다."""
+        root = self.root + os.sep
+        self.assertTrue(w._inside(root, os.path.join(self.root, "부서")))
+        self.assertTrue(w._inside(root, self.root))
+        self.assertFalse(w._inside(root, os.path.dirname(self.root)))
+        self.assertFalse(w._inside(self.root, self.root + "x"))
+
+    def test_file_list_needs_docs_root_and_scope(self):
+        with self.assertRaises(RuntimeError):
+            w.query_file_list({}, self.scope, None)
+        with self.assertRaises(RuntimeError):
+            w.query_file_list({}, {"folders": []}, self.root)
+
+    def test_turn_history_is_self_only(self):
+        d = os.path.join(self.root, "대화기록", "agent_turn", "2026")
+        os.makedirs(d)
+        rows = [
+            {"id": 1, "upn": "Me@jeilm.co.kr", "created_at": "2026-09-28T05:00:00+00:00", "agent_key": "purchase", "question": "미입고 발주 알려줘", "answer": "미입고는 3건입니다"},
+            {"id": 2, "upn": "other@jeilm.co.kr", "created_at": "2026-09-29T05:00:00+00:00", "agent_key": "purchase", "question": "미입고 급여 비밀", "answer": "남의 대화"},
+            {"id": 3, "upn": "me@jeilm.co.kr", "created_at": "2026-09-30T05:00:00+00:00", "agent_key": "purchase", "question": "거래처 매입", "answer": "매입 합계"},
+        ]
+        with io.open(os.path.join(d, "agent_turn_a.jsonl"), "w", encoding="utf-8") as fh:
+            fh.write("\n".join(json.dumps(r, ensure_ascii=False) for r in rows) + "\n")
+        with io.open(os.path.join(d, "agent_turn_b.jsonl"), "w", encoding="utf-8") as fh:
+            fh.write(json.dumps(rows[0], ensure_ascii=False) + "\n")          # 같은 턴이 두 파일에(재적재 흉내)
+        res, n = w.query_turn_history({}, {"upn": "me@jeilm.co.kr"}, self.root)
+        self.assertEqual([r["턴번호"] for r in res["목록"]], [3, 1], "본인 것만 · 최신 먼저 · 중복 없음")
+        self.assertNotIn("남의 대화", json.dumps(res, ensure_ascii=False))
+        res, n = w.query_turn_history({"q": "미입고"}, {"upn": "me@jeilm.co.kr"}, self.root)
+        self.assertEqual([r["턴번호"] for r in res["목록"]], [1])
+        with self.assertRaises(RuntimeError):
+            w.query_turn_history({}, {}, self.root)
+
+    def test_handle_query_always_finishes(self):
+        f = self.use({})
+        self.assertEqual(w.handle_query("u", "k", {"query_id": "q1", "kind": "file_list", "params": {}, "scope": self.scope}, self.root, self.root), "done")
+        self.assertEqual(f.last("nas_query_finish")["p_status"], "done")
+        self.assertEqual(f.last("nas_query_finish")["p_rows"], 2)
+        self.assertEqual(w.handle_query("u", "k", {"query_id": "q2", "kind": "delete_all", "params": {}, "scope": {}}, self.root, self.root), "failed")
+        self.assertEqual(f.last("nas_query_finish")["p_status"], "failed")
+        self.assertEqual(w.handle_query("u", "k", {"query_id": "q3", "kind": "file_list", "params": {}, "scope": self.scope}, self.root, None), "failed")
+        self.assertNotIn(self.root, f.last("nas_query_finish")["p_error"])
+        self.assertNoErpRpc(f)
+
+    def test_query_loop_claims_and_answers(self):
+        f = self.use({"nas_query_claim": [{"query_id": "q1", "kind": "file_list", "params": {}, "scope": self.scope}, None]})
+        self.patch(w, "nas_docs_root", lambda: self.root)
+        self.patch(w.time, "sleep", lambda s: None)
+        w.query_loop("u", "k", "host", self.root, rounds=2)
+        self.assertEqual(f.fns().count("nas_query_claim"), 2)
+        self.assertEqual(f.fns().count("nas_query_finish"), 1)
+
+
 # ─────────────────────────── 내보내기 정합 ───────────────────────────
 class TestExport(Base):
     def test_pages_appended_and_sha256_matches_file(self):

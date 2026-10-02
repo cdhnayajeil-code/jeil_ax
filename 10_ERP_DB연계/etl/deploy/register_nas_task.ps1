@@ -22,8 +22,15 @@
 
   NAS 경로는 여기에 적지 않는다 — `<저장소>\.claude\nas.path`(1줄) 에서 읽는다(CLAUDE.md §1.1).
 
+  상주 모드(-Serve · 2026-10-02 · REQ-0103) — NAS 컨테이너를 설치하기 전의 **임시**
+    · 에이전트의 실시간 조회(파일 목록·과거 대화)에 답하려면 워커가 계속 떠 있어야 한다. `--nightly` 는 답하지 않는다.
+    · `pythonw nas_worker.py --serve --bridge-token-file <저장소>\.claude\nas_worker_pc.token` 을 로그온 때 띄우고,
+      죽었으면 30분 안에 다시 띄운다(이미 떠 있으면 건너뛴다). 전용 토큰으로 중계 함수만 부른다(service_role 미사용).
+    · 문서 폴더는 `<저장소>\.claude\nas_docs.path`(1줄)에서 읽는다. 컨테이너를 설치하면 이 작업은 지운다.
+
   사용(일반 PowerShell)
     .\register_nas_task.ps1                  # 등록(이미 있으면 갱신)
+    .\register_nas_task.ps1 -Serve           # 상주 모드로 등록(조회 응답 포함 · 임시)
     .\register_nas_task.ps1 -Remove          # 삭제
     .\register_nas_task.ps1 -RunNow          # 등록 후 한 번 바로 실행
 #>
@@ -32,7 +39,8 @@ param(
   [string]$TaskName = "JEIL_AX_NasExport",
   [int]$EveryMinutes = 30,
   [switch]$Remove,
-  [switch]$RunNow
+  [switch]$RunNow,
+  [switch]$Serve
 )
 $ErrorActionPreference = "Stop"
 
@@ -56,15 +64,23 @@ $pyw = Join-Path (Split-Path -Parent $py) "pythonw.exe"
 if (-not (Test-Path -LiteralPath $pyw)) { throw "pythonw.exe 가 없습니다: $pyw" }
 $log = Join-Path $repo "logs\nas_worker.log"
 
-$action = New-ScheduledTaskAction -Execute $pyw -WorkingDirectory $etl `
-  -Argument ('"{0}" --nightly --log "{1}"' -f $script, $log)
+if ($Serve) {
+  $tok = Join-Path $repo ".claude\nas_worker_pc.token"
+  if (-not (Test-Path -LiteralPath $tok)) { throw ".claude\nas_worker_pc.token 이 없습니다 — 전용 토큰을 먼저 발급하세요(해시는 etl_meta.nas_worker_token)" }
+  $arg = ('"{0}" --serve --bridge-token-file "{1}" --log "{2}"' -f $script, $tok, $log)
+  $limit = [TimeSpan]::Zero                    # 상주 — 시간 제한 없음
+} else {
+  $arg = ('"{0}" --nightly --log "{1}"' -f $script, $log)
+  $limit = New-TimeSpan -Minutes 60
+}
+$action = New-ScheduledTaskAction -Execute $pyw -WorkingDirectory $etl -Argument $arg
 # 로그온 시 + 매일 00:00 부터 N분 간격(하루 동안 반복 → 매일 다시 시작)
 $t1 = New-ScheduledTaskTrigger -AtLogOn -User "$env:USERDOMAIN\$env:USERNAME"
 $t2 = New-ScheduledTaskTrigger -Daily -At 00:00
 $t2.Repetition = (New-ScheduledTaskTrigger -Once -At 00:00 -RepetitionInterval (New-TimeSpan -Minutes $EveryMinutes) -RepetitionDuration (New-TimeSpan -Days 1)).Repetition
 $principal = New-ScheduledTaskPrincipal -UserId "$env:USERDOMAIN\$env:USERNAME" -LogonType Interactive -RunLevel Limited
 $settings = New-ScheduledTaskSettingsSet -StartWhenAvailable -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries `
-  -ExecutionTimeLimit (New-TimeSpan -Minutes 60) -MultipleInstances IgnoreNew
+  -ExecutionTimeLimit $limit -MultipleInstances IgnoreNew
 
 Register-ScheduledTask -TaskName $TaskName -Action $action -Trigger @($t1, $t2) -Principal $principal -Settings $settings `
   -Description "JEIL AX — 대화기록·ERP 스냅샷을 사내 NAS 로 하루 1회 내보낸다(nas_worker --nightly). 등록 스크립트: 10_ERP_DB연계\etl\deploy\register_nas_task.ps1" `

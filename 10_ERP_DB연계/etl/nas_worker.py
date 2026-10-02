@@ -43,7 +43,7 @@ import urllib.request
 
 from _env import env_root, load_env, need
 
-WORKER_VERSION = "n1.2"   # n1.2(2026-10-02): 브리지 전송(좁은 키)·--serve(컨테이너 상주)·KST 고정 / n1.1: --nightly·--log·루트 검증
+WORKER_VERSION = "n1.3"   # n1.3(2026-10-02): 실시간 조회 응답(파일 목록·본인 과거 대화 — SQL 86) / n1.2:브리지 전송(좁은 키)·--serve(컨테이너 상주)·KST 고정 / n1.1: --nightly·--log·루트 검증
 
 POLL_SEC = 20          # 기본 폴링 주기
 HTTP_TIMEOUT = 120     # 페이지 응답이 수 MB 가 될 수 있어 etl_watch(60초)보다 넉넉히 잡는다
@@ -85,7 +85,15 @@ _TRANSPORT = "direct"
 BRIDGE_FNS = (
     "nas_runner_ping", "nas_request_claim", "nas_request_progress", "nas_request_finish",
     "nas_export_sources", "nas_export_count", "nas_export_page", "nas_export_commit",
+    "nas_query_claim", "nas_query_finish",   # 실시간 조회(정본 SQL 86 · REQ-0103)
 )
+
+# 실시간 조회 — 브리지에 한 번 물으면 이만큼 기다렸다 답이 온다(브리지 상한 20초와 같다)
+QUERY_WAIT_SEC = 20
+QUERY_SCAN_MAX = 20000     # 한 요청이 훑는 파일 수 상한 — 큰 폴더에서 응답이 늘어지는 것을 막는다
+QUERY_DEPTH_MAX = 6
+# 목록에서 빼는 이름: NAS 가 만드는 휴지통·색인 폴더, 숨김, 임시 파일
+_SKIP_NAME = re.compile(r"^(?:[.#@~]|Thumbs\.db$|desktop\.ini$)|\.tmp$", re.I)
 
 
 def _redact(msg):
@@ -112,12 +120,20 @@ def log(msg):
             pass
 
 
-def rpc(url, key, fn, payload):
-    """Supabase RPC 호출 → 파싱된 JSON(없으면 None). 오류 본문은 예외에 실어 진단 가능하게."""
+def rpc(url, key, fn, payload, wait_sec=0):
+    """Supabase RPC 호출 → 파싱된 JSON(없으면 None). 오류 본문은 예외에 실어 진단 가능하게.
+
+    wait_sec 은 브리지 전송에서만 뜻이 있다 — 결과가 없으면 브리지가 그만큼 기다렸다가 답한다(길게 대기).
+    """
+    timeout = HTTP_TIMEOUT
     if _TRANSPORT == "bridge":
         if fn not in BRIDGE_FNS:
             raise RuntimeError(f"브리지로 보낼 수 없는 RPC 입니다: {fn}")
-        body = json.dumps({"fn": fn, "payload": payload}, ensure_ascii=False, default=str).encode("utf-8")
+        env = {"fn": fn, "payload": payload}
+        if wait_sec:
+            env["wait_ms"] = int(wait_sec * 1000)
+            timeout = wait_sec + 30
+        body = json.dumps(env, ensure_ascii=False, default=str).encode("utf-8")
         req = urllib.request.Request(
             url, data=body, method="POST",
             headers={"x-nas-worker-token": key, "Content-Type": "application/json"},
@@ -129,7 +145,7 @@ def rpc(url, key, fn, payload):
             headers={"apikey": key, "Authorization": f"Bearer {key}", "Content-Type": "application/json"},
         )
     try:
-        with urllib.request.urlopen(req, timeout=HTTP_TIMEOUT) as r:
+        with urllib.request.urlopen(req, timeout=timeout) as r:
             raw = r.read().decode("utf-8").strip()
     except urllib.error.HTTPError as e:
         detail = ""
@@ -181,8 +197,9 @@ def nas_root(override=None):
 
 def _inside(root, path):
     """경로가 루트 밖으로 나가지 않는지 — 허용 목록이 이름을 제한하지만 2차 방어."""
-    r = os.path.abspath(root)
-    p = os.path.abspath(path)
+    # 공유의 최상위(\\호스트\공유)는 abspath 가 끝에 구분자를 붙여 돌려준다 — 떼지 않으면 그 아래가 전부 「밖」으로 판정된다
+    r = os.path.abspath(root).rstrip("\\/")
+    p = os.path.abspath(path).rstrip("\\/")
     return p == r or p.startswith(r + os.sep)
 
 
@@ -515,13 +532,224 @@ def nightly(url, key, worker, root_arg=None, dry=False, today=None):
     return 0
 
 
+# ── 실시간 조회(에이전트 → NAS) ───────────────────────────────────────────────
+# 무엇을 볼 수 있는지는 **요청 행의 scope 가 정한다**(서버가 계산해 적는다 — 정본 SQL 86).
+# 워커는 그 범위를 넓히지 않는다: scope 밖 폴더·상위 이동·링크 따라가기를 모두 거부한다.
+def nas_docs_root():
+    """문서 루트(부서·전사공유 폴더가 있는 곳). 없으면 None — 파일 목록 조회만 못 한다.
+
+    ① 환경변수 NAS_DOCS_ROOT ② 저장소 .claude/nas_docs.path (절대경로 1줄). 저장소에 경로를 적지 않는다(§1.1).
+    """
+    cand = (os.environ.get("NAS_DOCS_ROOT") or "").strip()
+    if not cand:
+        pf = os.path.join(env_root(), ".claude", "nas_docs.path")
+        if os.path.exists(pf):
+            try:
+                with open(pf, encoding="utf-8") as fh:
+                    cand = fh.read().strip()
+            except Exception:
+                cand = ""
+    cand = cand.strip().strip('"')
+    return os.path.abspath(cand) if cand and os.path.isdir(cand) else None
+
+
+def _int(v, default, lo, hi):
+    try:
+        return max(lo, min(hi, int(v)))
+    except (TypeError, ValueError):
+        return default
+
+
+def query_file_list(params, scope, docs_root):
+    """허용 폴더 안의 파일 이름·수정일·크기. 내용은 읽지 않는다."""
+    if not docs_root:
+        raise RuntimeError("문서 폴더가 이 워커에 연결돼 있지 않습니다")
+    folders = [f for f in (scope.get("folders") or []) if isinstance(f, dict)]
+    if not folders:
+        raise RuntimeError("볼 수 있는 폴더가 없습니다")
+    needle = str(params.get("q") or "").strip().casefold()
+    days = _int(params.get("days"), 0, 0, 3650)
+    limit = _int(params.get("limit"), 20, 1, 50)
+    since = time.time() - days * 86400 if days else None
+
+    found, scanned, capped, used = [], 0, False, []
+    for f in folders:
+        rel = str(f.get("rel_path") or "").replace("\\", "/").strip("/")
+        if not rel or any(p in ("", ".", "..") for p in rel.split("/")):
+            continue                                    # DB CHECK 가 막지만 2차 방어
+        base = os.path.join(docs_root, *rel.split("/"))
+        if not _inside(docs_root, base) or not os.path.isdir(base) or os.path.islink(base):
+            continue
+        label = str(f.get("label") or f.get("key") or "")
+        used.append(label)
+        stack = [(base, 0)]
+        while stack and not capped:
+            cur, depth = stack.pop()
+            try:
+                entries = list(os.scandir(cur))
+            except OSError:
+                continue
+            for e in entries:
+                if _SKIP_NAME.search(e.name):
+                    continue
+                try:
+                    if e.is_symlink():
+                        continue
+                    if e.is_dir(follow_symlinks=False):
+                        if depth < QUERY_DEPTH_MAX:
+                            stack.append((e.path, depth + 1))
+                        continue
+                    if not e.is_file(follow_symlinks=False):
+                        continue
+                    scanned += 1
+                    if scanned > QUERY_SCAN_MAX:
+                        capped = True
+                        break
+                    if needle and needle not in e.name.casefold():
+                        continue
+                    st = e.stat(follow_symlinks=False)
+                    if since and st.st_mtime < since:
+                        continue
+                    sub = os.path.relpath(cur, base).replace("\\", "/")
+                    found.append((st.st_mtime, {
+                        "폴더": label,
+                        "경로": "" if sub == "." else sub,       # 허용 폴더 안에서의 하위 경로만(절대경로를 내보내지 않는다)
+                        "이름": e.name,
+                        "수정일": datetime.datetime.fromtimestamp(st.st_mtime, _KST).strftime("%Y-%m-%d %H:%M"),
+                        "크기_KB": max(1, round(st.st_size / 1024)),
+                    }))
+                except OSError:
+                    continue
+    found.sort(key=lambda x: x[0], reverse=True)
+    return {
+        "폴더": used, "해당": len(found), "반환수": min(len(found), limit),
+        "잘림": len(found) > limit, "훑기상한도달": capped,
+        "목록": [row for _, row in found[:limit]],
+    }, min(len(found), limit)
+
+
+def _excerpt(text, needle, width=260):
+    s = " ".join(str(text or "").split())
+    if not s:
+        return ""
+    i = s.casefold().find(needle) if needle else -1
+    if i < 0:
+        return s[:width] + ("…" if len(s) > width else "")
+    a = max(0, i - width // 3)
+    return ("…" if a else "") + s[a:a + width] + ("…" if a + width < len(s) else "")
+
+
+def query_turn_history(params, scope, data_root):
+    """NAS 에 쌓인 대화기록에서 **본인 것만** 찾는다. upn 은 요청 행(scope)이 정한다."""
+    me = str(scope.get("upn") or "").strip().casefold()
+    if not me:
+        raise RuntimeError("조회 범위(본인 계정)가 비었습니다")
+    needle = str(params.get("q") or "").strip().casefold()
+    agent = str(params.get("agent_key") or "").strip()
+    d_from = str(params.get("date_from") or "")[:10]
+    d_to = str(params.get("date_to") or "")[:10]
+    limit = _int(params.get("limit"), 10, 1, 20)
+
+    base = os.path.join(data_root, KIND_DIR["turns"], "agent_turn")
+    seen, hits = set(), []
+    if os.path.isdir(base):
+        for year in sorted(os.listdir(base), reverse=True):
+            ydir = os.path.join(base, year)
+            if not os.path.isdir(ydir) or not _inside(base, ydir):
+                continue
+            for name in sorted(os.listdir(ydir), reverse=True):
+                if not name.endswith(".jsonl"):
+                    continue
+                try:
+                    with io.open(os.path.join(ydir, name), encoding="utf-8") as fh:
+                        lines = fh.read().splitlines()
+                except OSError:
+                    continue
+                for ln in lines:
+                    try:
+                        r = json.loads(ln)
+                    except ValueError:
+                        continue
+                    if str(r.get("upn") or "").casefold() != me or r.get("id") in seen:
+                        continue
+                    seen.add(r.get("id"))
+                    day = str(r.get("created_at") or "")[:10]
+                    if (agent and r.get("agent_key") != agent) or (d_from and day < d_from) or (d_to and day > d_to):
+                        continue
+                    q, a = str(r.get("question") or ""), str(r.get("answer") or "")
+                    if needle and needle not in q.casefold() and needle not in a.casefold():
+                        continue
+                    hits.append({"일시": str(r.get("created_at") or "")[:16].replace("T", " "),
+                                 "에이전트": r.get("agent_key"), "질문": _excerpt(q, needle, 200),
+                                 "답변발췌": _excerpt(a, needle, 300), "턴번호": r.get("id")})
+    hits.sort(key=lambda x: x["일시"], reverse=True)
+    return {"해당": len(hits), "반환수": min(len(hits), limit), "잘림": len(hits) > limit,
+            "목록": hits[:limit]}, min(len(hits), limit)
+
+
+def handle_query(url, key, q, data_root, docs_root):
+    """조회 1건 처리 → 결과 되쓰기. 어떤 오류가 나도 요청을 running 에 방치하지 않는다."""
+    qid, kind = q.get("query_id"), q.get("kind")
+    t0 = time.time()
+    try:
+        params = q.get("params") if isinstance(q.get("params"), dict) else {}
+        scope = q.get("scope") if isinstance(q.get("scope"), dict) else {}
+        if kind == "file_list":
+            result, n = query_file_list(params, scope, docs_root)
+        elif kind == "turn_history":
+            result, n = query_turn_history(params, scope, data_root)
+        else:
+            raise RuntimeError(f"이 워커가 모르는 조회 종류입니다: {kind}")
+        rpc(url, key, "nas_query_finish", {"p_query_id": qid, "p_status": "done", "p_result": result, "p_rows": n})
+        log(f"조회 {str(qid)[:8]}… {kind} — {n}건 · {int((time.time() - t0) * 1000)}ms")
+        return "done"
+    except (Exception, SystemExit) as e:
+        msg = _redact(e)[:300]
+        log(f"조회 {str(qid)[:8]}… {kind} 실패 — {msg}")
+        try:
+            rpc(url, key, "nas_query_finish", {"p_query_id": qid, "p_status": "failed", "p_error": msg})
+        except Exception:
+            pass
+        return "failed"
+
+
+def query_loop(url, key, worker, root_arg=None, rounds=None):
+    """조회 요청을 물고 기다리다 처리한다. 적재와 따로 돈다 — 밤 적재 1분 동안에도 조회가 막히지 않게."""
+    n = 0
+    while rounds is None or n < rounds:
+        n += 1
+        try:
+            if _TRANSPORT == "bridge":
+                q = rpc(url, key, "nas_query_claim", {"p_worker": worker}, wait_sec=QUERY_WAIT_SEC)
+            else:
+                q = rpc(url, key, "nas_query_claim", {"p_worker": worker})
+            if q:
+                try:
+                    data_root = nas_root(root_arg)
+                except Exception as e:
+                    rpc(url, key, "nas_query_finish", {"p_query_id": q.get("query_id"), "p_status": "failed",
+                                                       "p_error": str(e).splitlines()[0][:200]})
+                    continue
+                handle_query(url, key, q, data_root, nas_docs_root())
+            elif _TRANSPORT != "bridge" and (rounds is None or n < rounds):
+                time.sleep(1)                      # 직결에는 길게 대기가 없다 — 1초 폴링
+        except (Exception, SystemExit) as e:
+            log(f"조회 대기 오류(계속): {_redact(e)[:200]}")
+            if rounds is None or n < rounds:
+                time.sleep(5)
+
+
 # ── 상주(컨테이너 진입점) ─────────────────────────────────────────────────────
-def serve(url, key, worker, root_arg=None, dry=False, interval=POLL_SEC, rounds=None):
-    """계속 돌면서 하루 1회 적재 + 화면 요청 처리. nightly() 가 「그날 했으면 큐만 본다」를 이미 안다.
+def serve(url, key, worker, root_arg=None, dry=False, interval=POLL_SEC, rounds=None, query=True):
+    """계속 돌면서 하루 1회 적재 + 화면 요청 처리 + 실시간 조회 응답. nightly() 가 「그날 했으면 큐만 본다」를 이미 안다.
 
     rounds 는 테스트용(몇 바퀴만 돌고 끝). 어떤 오류가 나도 루프는 죽지 않는다 — 다음 바퀴에 다시 한다.
     """
-    log(f"NAS 워커 상주 시작 — {WORKER_VERSION} · host={worker} · 전송 {_TRANSPORT}" + (" · dry-run" if dry else ""))
+    log(f"NAS 워커 상주 시작 — {WORKER_VERSION} · host={worker} · 전송 {_TRANSPORT}" + (" · dry-run" if dry else "")
+        + (" · 조회 응답 켬" if query and not dry else ""))
+    if query and not dry and rounds is None:
+        import threading
+        threading.Thread(target=query_loop, args=(url, key, worker, root_arg), daemon=True, name="nas-query").start()
     n = 0
     while rounds is None or n < rounds:
         n += 1
@@ -599,6 +827,8 @@ def main():
                     help="하루 한 번 전체 적재(기록 증분 + ERP 스냅샷) — 그날 이미 했으면 화면 요청만 처리. 예약작업용")
     ap.add_argument("--serve", action="store_true",
                     help="상주 — 하루 1회 적재 + 화면 요청 처리를 계속 반복(NAS 컨테이너 진입점)")
+    ap.add_argument("--bridge-token-file", default=None,
+                    help="전용 토큰이 한 줄 들어 있는 파일 — 주면 브리지 전송으로 돈다(예약작업은 환경변수를 넘기기 어렵다)")
     ap.add_argument("--log", default=None, help="로그를 이 파일에도 덧붙인다(예약작업은 화면이 없다)")
     args = ap.parse_args()
 
@@ -615,6 +845,16 @@ def main():
     global _TRANSPORT
     b_url = (os.environ.get("NAS_BRIDGE_URL") or "").strip()
     b_tok = (os.environ.get("NAS_WORKER_TOKEN") or "").strip()
+    if args.bridge_token_file:
+        try:
+            with open(args.bridge_token_file, encoding="utf-8") as fh:
+                b_tok = fh.read().strip()
+        except Exception as e:
+            raise SystemExit(f"전용 토큰 파일을 읽을 수 없습니다: {type(e).__name__}")
+        if not b_tok:
+            raise SystemExit("전용 토큰 파일이 비어 있습니다")
+        if not b_url:
+            b_url = need("SUPABASE_URL").rstrip("/") + "/functions/v1/jeil-nas-bridge"
     if b_url and b_tok:
         _TRANSPORT = "bridge"
         url, key = b_url.rstrip("/"), b_tok

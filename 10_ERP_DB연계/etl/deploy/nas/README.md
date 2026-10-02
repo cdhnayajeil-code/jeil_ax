@@ -38,6 +38,7 @@ NAS 의 Container Manager 프로젝트 폴더(예: `docker/jeil-nas-worker`)에 
 | `NAS_BRIDGE_URL` | 중계 함수 주소(포털 Supabase 프로젝트의 `…/functions/v1/jeil-nas-bridge`) |
 | `NAS_WORKER_TOKEN` | 발급한 PC 의 `.claude/nas_worker.token` 한 줄 |
 | `NAS_HOST_DATA_DIR` | 적재 폴더의 NAS 내부 경로(File Station → 폴더 속성 → 위치) |
+| `NAS_HOST_DOCS_DIR` | 문서 폴더(부서 폴더·전사공유 폴더의 **상위**)의 NAS 내부 경로 — 읽기 전용으로 연결된다. 에이전트의 파일 목록 조회가 여기를 본다 |
 | `NAS_RUN_UID` · `NAS_RUN_GID` | 그 폴더에 쓸 수 있는 계정 번호(SSH 에서 `id <계정>`) |
 
 적재 폴더는 지금 PC 가 쓰고 있는 **같은 폴더**를 가리켜야 한다(안에 `대화기록/`·`ERP스냅샷/`·`_manifest/` 가 보이는 곳).
@@ -56,6 +57,9 @@ Container Manager → 프로젝트 → 생성 → 경로에 위 폴더 지정(`c
 4. **한글 폴더 이름** — 적재 뒤 File Station 에서 `대화기록`·`ERP스냅샷` 이 **기존 폴더에 이어서** 쌓였는지 본다
    (깨진 이름의 새 폴더가 생겼으면 중지하고 알린다).
 5. **심박** — 포털 DB `etl_meta.nas_heartbeat` 에 `jeil-nas-worker` 행이 3분 안쪽으로 갱신된다.
+
+6. **조회 응답** — 로그 첫 줄에 `조회 응답 켬` 이 붙는다. 에이전트가 파일 목록·과거 대화를 물으면 `조회 …… file_list — N건 · NNNms` 가 찍힌다.
+   에이전트가 볼 수 있는 폴더는 DB 의 허용 폴더 목록(`etl_meta.nas_folder_scope`)에 **등록한 것만**이다 — 등록이 없으면 전부 거부된다.
 
 ## 5. 전환 — PC 예약작업 끄기
 

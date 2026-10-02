@@ -110,7 +110,8 @@ svg .num{fill:var(--navy);} svg .num-t{fill:var(--paper);font-size:12px;font-wei
     <div class="hcard sb"><div class="k">좁은 키</div><div class="v">컨테이너에는<br>전용 토큰만</div><p>DB 전체 권한 키 대신, NAS 적재용 기능 8개만 부를 수 있는 토큰. 유출돼도 한 줄로 즉시 차단한다.</p></div>
   </div>
   <div class="callout ok"><b>이번에 만든 것(1단계)</b> — 전용 토큰 중계 함수 <code>jeil-nas-bridge</code>(라이브) · 워커 n1.2(브리지 전송·상주 모드) · 컨테이너 설정 묶음. <b>전용 토큰만으로 실제 NAS 적재 성공</b>을 확인했다(<a href="#s9">9절</a>).<br>
-  <b>남은 것</b> — NAS 에 컨테이너를 올리는 일(DSM 에서 직접) · 실시간 조회 구현(2~4단계, 이 문서는 설계까지).</div>
+  <b>2단계도 가동(같은 날)</b> — 조회 큐 + 길게 대기 + 도구 2종(파일 목록 · 본인 과거 대화). 실제 NAS 왕복 <b>중앙 0.8초</b>(10회 모두 성공).<br>
+  <b>남은 것</b> — NAS 에 컨테이너를 올리는 일(DSM 에서 직접) · 부서 폴더 생성·허용 폴더 등록(D-96) · 문서 검색·생성 자료 저장(3~4단계).</div>
 
   <h2 id="s2">2. 개선 후 구조</h2>
   <div class="fig"><svg viewBox="0 0 960 480" role="img" aria-label="개선 후 NAS 연계 구조">
@@ -144,7 +145,7 @@ svg .num{fill:var(--navy);} svg .num-t{fill:var(--paper);font-size:12px;font-wei
   </svg></div>
   <div class="cap">연결은 여전히 보라색 점선 하나뿐이다(사내 → 밖). 달라지는 것은 ① 워커가 PC 가 아니라 NAS 안에 있고 ② 그 연결이 중계 함수를 거치며 ③ 같은 연결로 "조회 요청"도 받아 온다는 점이다. 클라우드가 NAS 를 부르는 일은 여전히 없다.</div>
 
-  <h2 id="s3">3. 실시간 조회 1건이 처리되는 흐름 <span class="tag wait">2단계 설계</span></h2>
+  <h2 id="s3">3. 실시간 조회 1건이 처리되는 흐름 <span class="tag ok">2단계 · 구현·실측</span></h2>
   <div class="fig"><svg viewBox="0 0 960 236" role="img" aria-label="실시간 조회 여섯 단계">
     <g><rect x="16" y="50" width="142" height="136" rx="10" class="box-sb"/><circle cx="87" cy="50" r="14" class="num"/><text x="87" y="55" text-anchor="middle" class="num-t">1</text>
       <text x="87" y="88" text-anchor="middle" class="t-h">질문</text><text x="87" y="112" text-anchor="middle" class="t-s">"구매 규정에서</text><text x="87" y="130" text-anchor="middle" class="t-s">수의계약 기준은?"</text><text x="87" y="154" text-anchor="middle" class="t-s">→ NAS 도구 호출</text></g>
@@ -207,7 +208,7 @@ svg .num{fill:var(--navy);} svg .num-t{fill:var(--paper);font-size:12px;font-wei
   </div>
   <div class="callout warn"><b>한계</b> — 토큰이 유출되면 "허용 목록에 있는 데이터"(대화기록·ERP 스냅샷)는 읽힐 수 있다. 워커가 원래 읽는 범위와 같다. 전표·권한·급여 등 그 밖은 닿지 않는다. 그래서 <code>.env</code> 가 놓이는 폴더 권한과 토큰 회전이 중요하다.</div>
 
-  <h2 id="s7">7. 조회 대상 4종 — 설계와 순서 <span class="tag wait">2~4단계 설계</span></h2>
+  <h2 id="s7">7. 조회 대상 4종 — 설계와 순서 <span class="tag ok">2단계 구현</span> <span class="tag wait">3~4단계 설계</span></h2>
   <div class="tw"><table>
     <tr><th>순서</th><th>대상</th><th>에이전트가 하게 되는 일</th><th>NAS 쪽 준비</th><th>선행·결정</th></tr>
     <tr><td>2단계</td><td><b>폴더·파일 목록</b></td><td>"우리 부서 폴더에 이번 주 올라온 파일" — 이름·수정일·크기</td><td>없음(폴더를 읽기만 한다)</td><td>부서 폴더 생성(D-96) · 허용 폴더 등록</td></tr>
@@ -235,14 +236,14 @@ svg .num{fill:var(--navy);} svg .num-t{fill:var(--paper);font-size:12px;font-wei
     <tr><td>도는 주기</td><td>30분마다 깨어나 하루 1회</td><td>상주 — 요청은 20초 안에 처리, 적재는 하루 1회</td><td><span class="tag ok">구현</span></td></tr>
     <tr><td>날짜 기준</td><td>PC 시각</td><td>한국 시각 고정</td><td><span class="tag ok">구현</span></td></tr>
     <tr><td>PoC 잔재</td><td>무인증 포트 8765 · 메모리 4GB 점유</td><td>삭제</td><td><span class="tag wait">IT</span></td></tr>
-    <tr><td>방향</td><td>포털 → NAS 만</td><td>+ 에이전트의 조회·저장 요청 응답</td><td><span class="tag wait">2~4단계</span></td></tr>
+    <tr><td>방향</td><td>포털 → NAS 만</td><td>+ 에이전트의 조회·저장 요청 응답</td><td><span class="tag ok">조회 2종 구현</span> · 저장은 4단계</td></tr>
   </table></div>
 
   <h2 id="s9">9. 단계와 완료 조건</h2>
   <div class="tw"><table>
     <tr><th>단계</th><th>내용</th><th>완료 조건</th><th>상태</th></tr>
     <tr><td><b>P1</b></td><td>컨테이너 이관 + 전용 토큰</td><td>컨테이너가 3일 연속 적재 성공 → PC 예약작업 제거 · PoC 삭제</td><td>코드·함수·DB <span class="tag ok">완료</span> · NAS 설치 <span class="tag wait">대기</span></td></tr>
-    <tr><td><b>P2</b></td><td>조회 큐 + 길게 대기 + 파일 목록·과거 대화 도구</td><td>왕복 지연 실측(목표 1.5초 이내) · 워커 정지 시 "점검 중" 응답 · 권한 밖 폴더 0건</td><td><span class="tag wait">설계</span></td></tr>
+    <tr><td><b>P2</b></td><td>조회 큐 + 길게 대기 + 파일 목록·과거 대화 도구</td><td>왕복 지연 실측(목표 1.5초 이내) · 워커 정지 시 "점검 중" 응답 · 권한 밖 폴더 0건</td><td><span class="tag ok">구현·실측</span> 왕복 중앙 0.8초 · 다른 부서 거부 · 워커 없으면 즉시 미가동 판정. <span class="tag wait">대기</span> 에이전트 화면에서의 확인 · 허용 폴더 등록(현재 0건)</td></tr>
     <tr><td><b>P3</b></td><td>문서 색인·검색(구매팀 파일럿)</td><td>담당자 질문 10개 중 근거 제시 정답 8개 이상 · 민감 패턴 파일 제외 확인</td><td><span class="tag wait">설계 · D-95 필요</span></td></tr>
     <tr><td><b>P4</b></td><td>생성 자료 NAS 저장 · 보관 기간 전환 · 180일 삭제 따라가기</td><td>자료가 NAS 본인 폴더에 남고 포털에서 열림 · 삭제가 양쪽에 반영</td><td><span class="tag wait">설계 · D-104 필요</span></td></tr>
   </table></div>
@@ -267,7 +268,8 @@ svg .num{fill:var(--navy);} svg .num-t{fill:var(--paper);font-size:12px;font-wei
     <tr><td>길게 대기 중 연결이 끊김(사내 장비의 유휴 제한)</td><td>조회 지연</td><td>대기 20초 이하로 유지 · 끊기면 즉시 다시 문다</td></tr>
     <tr><td>검색 결과에 민감 정보</td><td>권한 밖 노출 · AI 전송</td><td>허용 폴더 등록제 · 민감 패턴 제외 · 서버가 범위 계산 · 결과는 읽히면 삭제</td></tr>
     <tr><td>NAS 메모리 부족</td><td>다른 서비스 영향</td><td>컨테이너 상한 512MB · PoC 삭제로 회수 · 색인은 실측 뒤</td></tr>
-    <tr><td>실패가 개선 대장에 쌓임</td><td>"점검 중" 응답이 오류로 집계</td><td>2단계에서 "보관소 미가동"을 별도 결과로 구분</td></tr>
+    <tr><td>실패가 개선 대장에 쌓임</td><td>"점검 중" 응답이 오류로 집계</td><td>해소 — 미가동·지연 응답은 오류 표시 없이 "확인하지 못함"으로 돌려준다(개선 대장에 쌓이지 않는다)</td></tr>
+    <tr><td>컨테이너 설치 전에는 답할 워커가 없음</td><td>도구가 항상 "점검 중"</td><td>NAS 컨테이너 설치가 선행. 그 전에 써 보려면 사내 PC 에서 워커를 상주로 띄운다(임시)</td></tr>
   </table></div>
 
   <div class="foot">13_NAS_고도화 / 04_실시간연계_컨테이너_검토.html · 직접 관리(빌드 대상 아님) · 관리자 최동혁 · <a href="/docs/nas">NAS 허브</a> · <a href="/docs/nas/flow">03 연동 방식</a> · NAS 주소·계정·비밀값은 기재하지 않음(CLAUDE.md §1)</div>
