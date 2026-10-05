@@ -27,7 +27,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,Bl
 .box{background:#fff;border:1px solid var(--line);border-radius:10px;padding:12px 14px}
 .box h3{margin:0 0 8px;font-size:13.5px;color:var(--navy)}
 .box + .box{margin-top:10px}
-.chat{display:flex;flex-direction:column;height:calc(100vh - 190px);min-height:520px;padding:0;overflow:hidden;position:relative}
+.chat{display:flex;flex-direction:column;height:calc(100vh - 236px);min-height:520px;padding:0;overflow:hidden;position:relative}
 /* 첨부(REQ-0089) — 대기열 · 끌어다 놓기 · 말풍선 속 파일 표시 */
 .tray{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:7px 12px;border-top:1px solid var(--line);background:#fbfcfe}
 .tray:empty{display:none}
@@ -90,6 +90,32 @@ details.trace div{font-family:Consolas,Menlo,monospace;word-break:break-all;padd
 .toast.on{opacity:1}
 .gate{max-width:560px;margin:60px auto;text-align:center;background:#fff;border:1px solid var(--line);border-radius:10px;padding:34px 26px}
 .gate .ic{font-size:40px}.gate h2{margin:10px 0 6px;font-size:18px;color:var(--navy)}.gate p{color:var(--muted);margin:0 0 14px}
+/* 🧪 검증·테스트 탭(REQ-0106) — 읽기 전용 표시표(§13 예외) */
+[hidden]{display:none!important}
+.tabs{display:flex;gap:4px;margin-bottom:10px;border-bottom:1px solid var(--line)}
+.tabs button{border:1px solid transparent;border-bottom:0;background:none;padding:7px 16px;font-family:inherit;font-size:13.5px;color:var(--muted);cursor:pointer;border-radius:8px 8px 0 0;margin-bottom:-1px}
+.tabs button:hover{color:var(--navy)}
+.tabs button.on{background:#fff;border-color:var(--line);color:var(--navy);font-weight:700}
+.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:10px}
+@media (max-width:900px){.kpis{grid-template-columns:1fr 1fr}}
+.kpi{background:#fff;border:1px solid var(--line);border-left:4px solid var(--accent2);border-radius:10px;padding:10px 13px}
+.kpi.warn{border-left-color:var(--amber)}.kpi.bad{border-left-color:var(--red)}.kpi.good{border-left-color:var(--green)}
+.kpi .l{font-size:11.8px;color:var(--muted)}
+.kpi .v{font-size:21px;font-weight:700;color:var(--navy);line-height:1.35;overflow-wrap:anywhere}
+.kpi .s{font-size:11.8px;color:var(--muted);line-height:1.5}
+.pill{display:inline-block;font-size:11px;font-weight:700;border-radius:9px;padding:0 8px;white-space:nowrap;background:var(--softgrey);color:var(--muted)}
+.pill.g{background:#e3f3ea;color:var(--green)}.pill.r{background:#f9e6e2;color:var(--red)}.pill.a{background:#f7edd9;color:var(--amber)}
+.tbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:6px}
+.tbar select{font-family:inherit;font-size:12.5px;padding:3px 6px;border:1px solid var(--line);border-radius:6px;background:#fff}
+.tbar .sp{flex:1}
+.tst td details summary{cursor:pointer;color:var(--accent);font-size:11.5px}
+.tst td .hint{display:block}
+.scen{border:1px solid var(--line);border-radius:8px;padding:9px 12px;margin-top:8px;background:#fcfdff}
+.scen h4{margin:0 0 2px;font-size:13px;color:var(--navy)}
+.scen ol{margin:6px 0 0 20px;padding:0;font-size:12.8px}
+.scen li{margin-bottom:5px}
+.scen li button{font-size:11px;border:1px solid var(--accent);color:var(--accent);background:#fff;border-radius:10px;padding:0 8px;cursor:pointer;font-family:inherit;margin-left:6px}
+.scen li button:hover{background:var(--accent);color:#fff}
 .foot{margin-top:12px;color:var(--muted);font-size:11.8px;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}
 </style>
 </head>
@@ -105,6 +131,12 @@ details.trace div{font-family:Consolas,Menlo,monospace;word-break:break-all;padd
   <div class="notice" id="notice">ℹ️ 품질 개선을 위해 질문과 답변이 기록됩니다. 조회 결과(금액 목록 등)는 기록하지 않습니다.
     발주 확정·결재·발송 같은 실거래는 하지 않으며 초안까지만 만듭니다. 첨부 파일은 저장하지 않고(이름·크기만 기록) 질문에만 쓰입니다 — <b>주민번호 등 개인정보가 든 파일은 올리지 마세요.</b></div>
 
+  <div class="tabs" id="tabs">
+    <button type="button" class="on" data-tab="chat">💬 대화</button>
+    <button type="button" data-tab="test">🧪 검증·테스트</button>
+  </div>
+
+  <div id="tabChat">
   <div class="layout">
     <div class="box chat">
       <div class="log" id="log"><div class="empty" id="empty">무엇이든 물어보세요. 예) <b>이번 달 납기 지난 미입고 발주 거래처별로</b><br>
@@ -138,12 +170,35 @@ details.trace div{font-family:Consolas,Menlo,monospace;word-break:break-all;padd
       </div>
       <div class="box" id="opBox" style="display:none">
         <h3>담당자 메뉴</h3>
-        <div class="hint">답변마다 <b>🔍 처리 과정</b>이 보입니다(담당자에게만). 설정·개선 대장·골든셋은
-          <a href="/admin/agents?agent=purchase" target="_blank" rel="noopener">에이전트 관리 ↗</a> 에서 합니다.</div>
+        <div class="hint">답변마다 <b>🔍 처리 과정</b>이 보입니다(담당자에게만). 시험 결과는 위 <b>🧪 검증·테스트</b> 탭에서 보고,
+          설정·개선 대장·골든셋 문항 편집은 <a href="/admin/agents?agent=purchase" target="_blank" rel="noopener">에이전트 관리 ↗</a> 에서 합니다.</div>
       </div>
     </div>
   </div>
-  <div class="foot"><span>REQ-0087 · 14 기획 부서 에이전트 · 수치는 ERP 중간DB(파일럿 데이터) 조회 결과입니다.</span><span id="ver"></span></div>
+  </div>
+
+  <!-- 🧪 검증·테스트(REQ-0106) — 이 에이전트를 실제로 어떻게 시험했고 지금 몇 점인지.
+       자동 회귀는 서버(agent_golden_run), 실측 회차는 app/agent-quality.json, 시나리오는 app/agent-templates.json -->
+  <div id="tabTest" hidden>
+    <div class="kpis" id="tKpi"></div>
+    <div class="box">
+      <h3>① 자동 회귀 테스트 <span class="hint">정해 둔 질문(골든셋)을 에이전트에게 실제로 물어 보고, 맞는 조회 기능을 썼는지·답변 요건을 지켰는지 채점합니다.</span></h3>
+      <div class="tbar">
+        <select id="tRunSel" title="회차 선택"></select><span class="hint" id="tRunInfo"></span><span class="sp"></span>
+        <button class="btn" id="tBtnRun" type="button" style="display:none">▶ 지금 회귀 실행</button>
+      </div>
+      <div id="tRun"><div class="hint">불러오는 중…</div></div>
+    </div>
+    <div class="box">
+      <h3>② 실업무 실측 <span class="hint">실무자가 할 법한 대화를 라이브 화면에서 그대로 물어 보고, 답한 숫자를 DB 조회로 다시 맞춰 본 기록입니다.</span></h3>
+      <div id="tRounds"><div class="hint">불러오는 중…</div></div>
+    </div>
+    <div class="box">
+      <h3>③ 직접 시험해 보기 — 표준 시나리오 <span class="hint">「대화로 시험」을 누르면 대화 탭 입력창에 질문이 들어갑니다. 한 시나리오는 같은 대화에서 순서대로 물어야 합니다.</span></h3>
+      <div id="tScen"><div class="hint">불러오는 중…</div></div>
+    </div>
+  </div>
+  <div class="foot"><span>REQ-0087·0106 · 14 기획 부서 에이전트 · 수치는 ERP 중간DB(파일럿 데이터) 조회 결과입니다.</span><span id="ver"></span></div>
 </div>
 <div class="toast" id="toast"></div>
 
@@ -406,6 +461,140 @@ $("inp").addEventListener("paste", (e) => {
     : new File([f], `붙여넣은_이미지_${i + 1}.${(f.type.split("/")[1] || "png")}`, { type: f.type })));
 });
 
+/* ===== 🧪 검증·테스트(REQ-0106) — 표시만 한다. 채점·실행 로직은 서버(golden_*), 기준 문항은 app/agent-templates.json ===== */
+const T = { loaded: false, runs: null, qual: null, tpl: null, busy: false };
+const fmtT = (x) => x ? new Date(x).toLocaleString("ko-KR", { timeZone: "Asia/Seoul", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false }) : "-";
+const pill = (ok, y, n) => `<span class="pill ${ok ? "g" : "r"}">${ok ? y : n}</span>`;
+async function getJson(url) { try { const r = await fetch(url, { cache: "no-cache" }); return r.ok ? await r.json() : null; } catch (e) { return null; } }
+function showTab(name) {
+  document.querySelectorAll("#tabs button").forEach((b) => b.classList.toggle("on", b.dataset.tab === name));
+  $("tabChat").hidden = name !== "chat"; $("tabTest").hidden = name !== "test";
+  if (name === "test" && !T.loaded) { T.loaded = true; loadTest(); }
+  if (name === "chat") $("log").scrollTop = $("log").scrollHeight;
+}
+$("tabs").onclick = (e) => { const b = e.target.closest("button[data-tab]"); if (b) showTab(b.dataset.tab); };
+
+async function loadTest() {
+  const [tpl, qual] = await Promise.all([getJson("/app/agent-templates.json"), getJson("/app/agent-quality.json")]);
+  T.tpl = tpl; T.qual = (qual && qual.agents && qual.agents[AGENT]) || null;
+  renderRounds(); renderScen();
+  if (isOp()) { $("tBtnRun").style.display = ""; await loadRuns(null); }
+  else { $("tRunSel").style.display = "none"; $("tRun").innerHTML = '<div class="hint">자동 회귀 결과는 에이전트 담당자·관리자에게만 보입니다.</div>'; }
+  renderKpi();
+}
+const lastRound = () => (T.qual && T.qual.rounds && T.qual.rounds.length) ? T.qual.rounds[T.qual.rounds.length - 1] : null;
+function renderKpi() {
+  const k = (l, v, s, cls) => `<div class="kpi ${cls || ""}"><div class="l">${l}</div><div class="v">${v}</div><div class="s">${s}</div></div>`;
+  const R = T.runs, done = R ? R.runs.filter((r) => r.finished_at) : [];
+  const cur = done.find((r) => r.version === BOOT.version) || null;
+  const ratio = cur && cur.total ? cur.pass / cur.total : null;
+  const rd = lastRound();
+  let h = "";
+  h += !isOp() ? k("자동 회귀(현재 설정)", "—", "담당자·관리자에게만 보입니다")
+    : k(`자동 회귀 통과 · 현재 설정 v${BOOT.version}`, cur ? `${cur.pass} / ${cur.total}` : "미실행",
+        cur ? `${Math.round(ratio * 100)}% · ${fmtT(cur.finished_at)} 실행` + (R.golden_active !== cur.total ? ` · 지금 문항은 ${R.golden_active}개(그 뒤 바뀜)` : "")
+          : `골든셋 ${R ? R.golden_active : 0}문항 — 아직 돌리지 않았습니다`,
+        ratio == null ? "warn" : ratio < 0.6 ? "bad" : ratio < 0.8 ? "warn" : "good");
+  h += k("지금 답하는 모델", escHtml(BOOT.model || "없음"), BOOT.model_note ? escHtml(BOOT.model_note) : "설정한 기본 모델이 호출 가능 상태입니다", BOOT.model_note ? "warn" : "");
+  if (rd) {
+    const t = rd.total, v = { pass: 0, cond: 0, hold: 0 }; rd.scenarios.forEach((s) => { v[s.verdict] = (v[s.verdict] || 0) + 1; });
+    h += k(`실업무 실측 ${rd.no}회차 · ${escHtml(rd.date)}`, `${t.ok} / ${t.questions}`,
+      `정확 ${t.ok} · 확인 필요 ${t.doubt} · 오답 ${t.wrong} — DB 대조 일치 ${t.sql_match}/${t.sql_match + t.sql_mismatch + t.sql_na}`, t.wrong ? "warn" : "good");
+    h += k("시나리오 판정", `${v.pass} / ${rd.scenarios.length}`, `활용 가능 ${v.pass} · 조건부 ${v.cond} · 투입 보류 ${v.hold} (실측 당시 기준)`, v.hold ? "warn" : "good");
+  } else h += k("실업무 실측", "—", "기록된 회차가 없습니다") + k("시나리오 판정", "—", "");
+  $("tKpi").innerHTML = h;
+}
+
+/* ① 자동 회귀 */
+async function loadRuns(runId) {
+  try {
+    T.runs = await op(AGENT, "golden_runs", runId ? { run_id: runId } : {});
+    const R = T.runs;
+    $("tRunSel").innerHTML = R.runs.length ? R.runs.map((r) => `<option value="${r.id}"${r.id === R.run_id ? " selected" : ""}>#${r.id} · 설정 v${r.version} · ${fmtT(r.started_at)} · ${r.finished_at ? `${r.pass}/${r.total} 통과` : "미완료"}</option>`).join("") : "<option>실행 기록 없음</option>";
+    const one = R.runs.find((r) => r.id === R.run_id);
+    $("tRunInfo").textContent = one ? `실행 ${(one.started_by || "").split("@")[0]} · 비용 $${Number(one.cost_usd || 0).toFixed(4)}` : "";
+    drawResults(R.results);
+  } catch (e) {
+    if (e.message === "login") return;
+    $("tRun").innerHTML = `<div class="hint">회귀 기록을 불러오지 못했습니다: ${escHtml(e.message)}</div>`;
+  }
+}
+function drawResults(res) {
+  if (!res || !res.length) { $("tRun").innerHTML = '<div class="hint">아직 회귀를 돌린 적이 없습니다. 「▶ 지금 회귀 실행」으로 현재 설정을 시험하세요.</div>'; return; }
+  $("tRun").innerHTML = `<div class="cv-tblwrap tst"><table><tr><th>#</th><th>질문 · 에이전트 답변</th><th>조회 기능</th><th>답변 요건</th><th>판정</th><th>모델</th><th class="r">초</th></tr>`
+    + res.map((r) => `<tr><td>${escHtml(String(r.golden_id))}</td>
+      <td>${escHtml(r.question || "")}${r.answer ? `<details><summary>답변 보기</summary><span class="hint">${escHtml(r.answer)}</span></details>` : ""}</td>
+      <td>${pill(r.tools_ok, "맞음", "누락")}<span class="hint">호출: ${escHtml((r.called || []).join(", ") || "없음")}${(r.expect || []).length ? " / 기대: " + escHtml(r.expect.join(", ")) : ""}</span></td>
+      <td>${pill(r.judge, "충족", "미흡")}<span class="hint">${escHtml(r.why || "")}</span></td>
+      <td>${pill(r.pass, "통과", "실패")}</td><td>${escHtml(r.model || "-")}</td><td class="r">${(Number(r.ms || 0) / 1000).toFixed(1)}</td></tr>`).join("")
+    + `</table></div>`;
+}
+$("tRunSel").onchange = (e) => { if (!T.busy && +e.target.value) loadRuns(+e.target.value); };
+// 실제 모델을 부르는 실행이라(약 1분 · 소액 과금 · 대화 기록에 남음) 두 번 눌러 확정한다 — 하루 사용 한도에는 들어가지 않는다
+$("tBtnRun").onclick = async (e) => {
+  const b = e.currentTarget;
+  if (T.busy) return;
+  if (!b.dataset.armed) {
+    b.dataset.armed = "1"; b.textContent = "한 번 더 누르면 실행(약 1분 · 소액 과금)";
+    setTimeout(() => { if (!T.busy) { delete b.dataset.armed; b.textContent = "▶ 지금 회귀 실행"; } }, 4000);
+    return;
+  }
+  T.busy = true; b.disabled = true; $("tRunSel").disabled = true;
+  try {
+    const s = await op(AGENT, "golden_start", { version: BOOT.version });
+    const res = [];
+    for (let i = 0; i < s.golden_ids.length; i++) {
+      b.textContent = `실행 중 ${i + 1}/${s.golden_ids.length}…`;
+      let r;
+      try { r = (await op(AGENT, "golden_one", { run_id: s.run_id, golden_id: s.golden_ids[i] })).result; }
+      catch (err) { r = { golden_id: s.golden_ids[i], question: "(실행 실패) " + err.message, pass: false, tools_ok: false, judge: false, why: "", ms: 0, called: [], expect: [] }; }
+      res.push(r); drawResults(res);
+    }
+    const f = await op(AGENT, "golden_finish", { run_id: s.run_id });
+    toast(`회귀 완료 — ${f.pass}/${f.total} 통과`);
+    await loadRuns(s.run_id); renderKpi();
+  } catch (err) { if (err.message !== "login") toast("회귀 실행 실패: " + err.message); }
+  finally { T.busy = false; b.disabled = false; $("tRunSel").disabled = false; delete b.dataset.armed; b.textContent = "▶ 지금 회귀 실행"; }
+};
+
+/* ② 실업무 실측 회차 — 정본 서술은 12_에이전트관리/05, 화면 요약은 app/agent-quality.json */
+const VERDICT_CLS = { pass: "g", cond: "a", hold: "r" };
+function renderRounds() {
+  const Q = T.qual;
+  if (!Q || !Q.rounds || !Q.rounds.length) { $("tRounds").innerHTML = '<div class="hint">기록된 실측 회차가 없습니다.</div>'; return; }
+  $("tRounds").innerHTML = Q.rounds.slice().reverse().map((rd) => `<div class="hint" style="margin-bottom:4px"><b>${rd.no}회차 · ${escHtml(rd.date)}</b> — ${escHtml(rd.setup)}<br>${escHtml(rd.method)}</div>
+    <div class="cv-tblwrap tst"><table><tr><th>시나리오</th><th>누가 묻나</th><th class="r">문항</th><th class="r">정확</th><th class="r">확인 필요</th><th class="r">오답</th><th class="r">완결성</th><th class="r">유용성</th><th>판정(실측 당시)</th><th>그 뒤 조치</th></tr>`
+    + rd.scenarios.map((s) => `<tr><td>${escHtml(s.title)}</td><td>${escHtml(s.persona)}</td><td class="r">${s.n}</td><td class="r">${s.ok}</td><td class="r">${s.doubt}</td><td class="r">${s.wrong}</td>
+      <td class="r">${s.complete}</td><td class="r">${s.useful}</td><td><span class="pill ${VERDICT_CLS[s.verdict] || ""}">${escHtml(s.verdict_ko)}</span><span class="hint">${escHtml(s.why)}</span></td><td>${escHtml(s.fixed || "-")}</td></tr>`).join("")
+    + `<tr><th>합계</th><th></th><th class="r">${rd.total.questions}</th><th class="r">${rd.total.ok}</th><th class="r">${rd.total.doubt}</th><th class="r">${rd.total.wrong}</th><th></th><th></th><th colspan="2">발견 ${rd.findings.p1 + rd.findings.p2 + rd.findings.p3}건(중대 ${rd.findings.p1})</th></tr></table></div>
+    <div class="hint">${escHtml(rd.findings.fixed_note)}</div>
+    <div class="hint"><b>다음 회차 조건</b> — ${rd.next.map(escHtml).join(" / ")}</div>`).join('<hr style="border:0;border-top:1px dashed var(--line);margin:10px 0">')
+    + `<div class="hint" style="margin-top:6px">발견·조치 전문: <a href="${escHtml(Q.doc)}" target="_blank" rel="noopener">품질테스트 문서 ↗</a></div>`;
+}
+
+/* ③ 표준 시나리오 — 정본 app/agent-templates.json(이 부서 + 공통) */
+function scenList() {
+  const d = T.tpl; if (!d) return [];
+  const dom = Object.values(d.domains || {}).find((x) => x && x.agent_key === AGENT);
+  return [...((dom && dom.test_scenarios) || []), ...((d.common && d.common.test_scenarios) || [])];
+}
+function renderScen() {
+  const list = scenList(), rd = lastRound();
+  if (!list.length) { $("tScen").innerHTML = '<div class="hint">표준 시나리오를 불러오지 못했습니다.</div>'; return; }
+  const last = (id) => rd && rd.scenarios.find((s) => s.id === id);
+  $("tScen").innerHTML = list.map((s, si) => {
+    const lv = last(s.id);
+    return `<div class="scen"><h4>${escHtml(s.id)} · ${escHtml(s.title)}${lv ? ` <span class="pill ${VERDICT_CLS[lv.verdict] || ""}">${rd.no}회차 ${escHtml(lv.verdict_ko)}</span>` : ""}</h4>
+    <div class="hint">${escHtml(s.persona)} — 통과 기준: ${escHtml(s.pass)}</div>
+    <ol>${s.questions.map((q, qi) => `<li>${escHtml(q.q)}${q.q.includes("<") || q.q.startsWith("[") ? "" : `<button type="button" data-si="${si}" data-qi="${qi}">대화로 시험</button>`}<span class="hint">기대: ${escHtml(q.expect || "")}</span></li>`).join("")}</ol></div>`;
+  }).join("");
+}
+$("tScen").onclick = (e) => {
+  const b = e.target.closest("button[data-si]"); if (!b) return;
+  const q = scenList()[+b.dataset.si].questions[+b.dataset.qi];
+  $("inp").value = q.q; showTab("chat"); $("inp").focus();
+};
+
 /* ===== 진입 — 서버가 구성원·관리자 판정(403 이면 차단 화면) ===== */
 (async () => {
   if (!auth()) { toLogin(); return; }
@@ -430,6 +619,8 @@ $("inp").addEventListener("paste", (e) => {
   $("chips").innerHTML = (A.suggestions || []).map((s) => `<span class="chip" data-q="${escHtml(s.q)}">${escHtml(s.label)}</span>`).join("");
   unhide();
   loadArts();
+  // 주소에 ?tab=test 가 있으면 검증·테스트 탭으로 바로 연다(포털·문서에서 건너올 때)
+  if (new URLSearchParams(location.search).get("tab") === "test") showTab("test");
 })();
 </script>
 </body></html>

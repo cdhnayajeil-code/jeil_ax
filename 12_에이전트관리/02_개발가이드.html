@@ -86,7 +86,9 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 1-1. <code>app/agent-templates.json</code> 의 <code>domains</code> 에 부서 키를 추가한다(<code>_candidates</code> 골격 복사 → 칩·용어·골든셋·시나리오). 콘솔 「📐 관리 포인트·템플릿」 탭이 이 키로 부서 세트를 찾는다(없으면 공통만 대조).</li>
 <li>필요한 도구가 없으면 §2 로 만든다.</li>
 <li>사용 화면: <code>pages/구매_AI에이전트_2026.html</code> 을 복사해 <code>const AGENT = "&lt;key&gt;"</code> 와 제목만 바꾼다(로직은 공용 모듈). <code>_routes.py</code> 에 <code>/work/&lt;dept&gt;-agent</code> 한 줄 → <code>python _build_routes.py --write</code>.</li>
-<li>관리 화면은 공용 — <code>/admin/agents?agent=&lt;key&gt;</code>.</li>
+<li>관리 화면은 공용 — <code>/admin/agents?agent=&lt;key&gt;</code>.
+4-1. 사용 화면의 「🧪 검증·테스트」 탭(REQ-0106)은 세 곳을 읽는다 — 자동 회귀는 서버 op <code>golden_runs</code>, 실측 회차는 <code>app/agent-quality.json</code> 의 <code>agents.&lt;key&gt;</code>, 표준 시나리오는 <code>app/agent-templates.json</code>(부서 + 공통). 새 부서는 두 JSON 에 키만 더하면 탭이 채워진다(없으면 「기록 없음」).
+4-2. 포털 카드 등재는 정본 SQL 로(선례 88 — <code>erp_module</code> 은 null, 부서 전용). 에이전트 화면은 접근 게이트를 쓰지 않고 서버가 구성원을 판정하므로, 카드 공개 범위와 사용 권한은 <strong>별개</strong>다.</li>
 <li>이 폴더 <code>00_현재상태</code> · <code>03_진행상태_변경이력</code> 갱신.</li>
 </ol>
 <h2 id="4">4. 검증과 배포</h2>

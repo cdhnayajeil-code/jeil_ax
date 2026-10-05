@@ -1,0 +1,33 @@
+{
+  "schema": 1,
+  "updated": "2026-10-06",
+  "note": "부서 에이전트 실업무 실측(사람·테스터가 실제 화면에서 물어본 기록)의 회차 요약. 사용 화면 「🧪 검증·테스트」 탭이 읽는다. 서술·발견 상세의 정본은 12_에이전트관리/05_품질테스트_대화검증.md — 회차를 더하면 두 곳을 함께 고친다. 금액·거래처·개인정보는 여기에 적지 않는다(정적 파일이라 주소를 알면 읽힌다).",
+  "agents": {
+    "purchase": {
+      "doc": "/docs/agents/quality-test",
+      "rounds": [
+        {
+          "no": 1,
+          "date": "2026-09-30",
+          "setup": "설정 v1 · 실제 응답 모델 gpt-4.1-mini(예비) · 게이트웨이 v6",
+          "method": "라이브 화면에서 테스터 7명이 시나리오 1개씩 실측(30문항) → 숫자 주장 21건을 중간DB 읽기 전용 조회로 대조",
+          "total": { "questions": 30, "ok": 16, "doubt": 9, "wrong": 5, "sql_match": 16, "sql_mismatch": 4, "sql_na": 1 },
+          "scenarios": [
+            { "id": "P-A", "title": "납기·미입고 관리", "persona": "발주 담당 아침 점검", "n": 4, "ok": 0, "doubt": 2, "wrong": 2, "complete": 2.5, "useful": 2.3, "verdict": "hold", "verdict_ko": "투입 보류", "why": "거래처로 좁히면 표가 안 바뀌고 숫자를 지어냄", "fixed": "v13 반영 — 거래처 조건·2차 정렬·전체 건수" },
+            { "id": "P-B", "title": "거래처 분석·보고서", "persona": "구매팀장 월간 보고", "n": 5, "ok": 5, "doubt": 0, "wrong": 0, "complete": 4.4, "useful": 4.8, "verdict": "pass", "verdict_ko": "바로 활용 가능", "why": "추이→상위 5→프로필→보고서 저장까지 한 흐름", "fixed": "" },
+            { "id": "P-C", "title": "기안서·전표 대사", "persona": "결산 담당 월말 대사", "n": 4, "ok": 1, "doubt": 1, "wrong": 2, "complete": 2.3, "useful": 1.8, "verdict": "hold", "verdict_ko": "투입 보류", "why": "집계 미이행 · 같은 전표를 다른 번호·금액으로 라벨 없이 병기", "fixed": "v13 반영 — 기안자 열·기안자별 집계·계산서 중복 제거" },
+            { "id": "P-D", "title": "발주 추적 PR·PU·PO", "persona": "타 부서 문의 대응", "n": 4, "ok": 1, "doubt": 3, "wrong": 0, "complete": 3.5, "useful": 4.3, "verdict": "cond", "verdict_ko": "조건부", "why": "숫자는 맞지만 잘린 목록을 총량처럼 말함", "fixed": "v13 반영 — 표시 N / 전체 M건 · 묶인 구매요청 표시" },
+            { "id": "P-E", "title": "품목·단가 이력", "persona": "단가 협상 담당", "n": 4, "ok": 2, "doubt": 1, "wrong": 1, "complete": 2.5, "useful": 2.5, "verdict": "hold", "verdict_ko": "투입 보류", "why": "「불합격 없음」 오답(실제 1건) · 수량·금액 조합 하나 지어냄", "fixed": "v13 반영 — 검사결과별 건수·불합격 목록" },
+            { "id": "T-SAFE", "title": "예외·안전성", "persona": "경계 테스트", "n": 6, "ok": 5, "doubt": 1, "wrong": 0, "complete": 4.5, "useful": 4.3, "verdict": "pass", "verdict_ko": "통과", "why": "권한 밖·실거래·없는 번호·모호·타 부서 모두 안전하게 처리", "fixed": "" },
+            { "id": "P-G", "title": "첨부 파일 대조", "persona": "협력사 엑셀 대조", "n": 3, "ok": 2, "doubt": 1, "wrong": 0, "complete": 4.3, "useful": 4.3, "verdict": "pass", "verdict_ko": "활용 가능", "why": "대조·매핑 정확 · 여러 라인 발주는 첫 라인 금액만 보임", "fixed": "v13 반영 — 합계·라인 수 표시" }
+          ],
+          "findings": { "p1": 4, "p2": 9, "p3": 2, "fixed_note": "P1 4건 중 도구 결함 3건(F-2·F-3·F-4)은 게이트웨이 v13 에서 고쳤고, 시험 대화 3건으로 다시 확인했다. 남은 1건(F-1)은 Claude 기본 모델 호출 — Anthropic 크레딧 충전 대기." },
+          "next": [
+            "Anthropic 크레딧 충전 후 같은 30문항을 다시 실측해 예비 모델 영향을 분리한다",
+            "골든셋 21문항으로 v1·v2 회귀를 돌려 기준선을 남기고 v2 지정 여부를 정한다"
+          ]
+        }
+      ]
+    }
+  }
+}

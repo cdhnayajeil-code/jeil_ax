@@ -363,6 +363,23 @@ export async function handleAgent(c: AgentCtx, body: Record<string, unknown>): P
         .eq("agent_key", agent.agent_key).eq("version", run.version);
       return json({ ok: true, pass, total: res.length, cost_usd: Number(cost.toFixed(4)) });
     }
+    case "golden_runs": {
+      // 회귀 실행 기록(REQ-0106) — 사용 화면 「🧪 검증·테스트」 탭이 읽는다. 최근 10회 요약 + 그중 한 회차의 문항별 결과.
+      const { data: runs } = await admin.from("agent_golden_run").select("id,version,started_by,started_at,finished_at,pass,total,cost_usd")
+        .eq("agent_key", agent.agent_key).order("id", { ascending: false }).limit(10);
+      // deno-lint-ignore no-explicit-any
+      const list = (runs || []) as any[];
+      const pick = Number(body.run_id) || (list.find((r) => r.finished_at) || list[0] || {}).id || null;
+      let results: unknown[] = [];
+      if (pick) {
+        const { data: one } = await admin.from("agent_golden_run").select("results").eq("id", pick).eq("agent_key", agent.agent_key).maybeSingle();
+        // deno-lint-ignore no-explicit-any
+        results = (((one && one.results) || []) as any[]).map((r) => ({ ...r, answer: String(r.answer || "").slice(0, 400) }))
+          .sort((a, b) => Number(a.golden_id) - Number(b.golden_id));
+      }
+      const { count } = await admin.from("agent_golden").select("id", { count: "exact", head: true }).eq("agent_key", agent.agent_key).eq("active", true);
+      return json({ runs: list, run_id: pick, results, golden_active: count || 0, current_version: agent.current_version ?? null });
+    }
     case "usage": return usage(c, agent, Number(body.days) || 30);
   }
 
