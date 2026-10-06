@@ -399,7 +399,8 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <blockquote>
 <p><strong>실시간 방향(N2·N3)의 방식 검토는 <a href="/docs/nas/realtime">04 실시간 연계·컨테이너 이관 검토</a></strong> — 권고: 조회 큐 + 중계 함수에서 길게 대기(터널 없음). 구현 단계는 그 문서의 P2~P4.</p>
 <p><strong>2026-10-02 실시간 조회 1차 가동(REQ-0103 · P2)</strong> — 조회 큐(정본 SQL 86) + 중계 함수 길게 대기 + 워커 n1.3 조회 응답 + 게이트웨이 도구 2종(<code>list_company_files</code> 파일 목록 · <code>search_my_past_chats</code> 본인 과거 대화, 도메인 <code>nas</code>). 실 NAS 왕복 <strong>중앙 0.8초</strong>(10/10). 허용 폴더는 <code>etl_meta.nas_folder_scope</code> 등록제(현재 0건 — D-96 부서 폴더 생성 뒤 등록). 조회에 답하는 워커가 없으면 즉시 「점검 중」.</p>
-<p><strong>2026-10-06 생성 자료·첨부 원본 NAS 저장(REQ-0108 · P4) 배포</strong> — 사용자가 [🗄 NAS 저장]을 누른 것만 부서 폴더 <code>AI저장/&lt;연도&gt;/</code> 에 보관(자동 저장 없음 · 보존 3년 · 정본 SQL 89 · 중계 v6 · 게이트웨이 v19 · 워커 n1.5 · 회귀 154건 · 실 NAS 저장·삭제 왕복 확인). NAS 외부 백업 없이 적용(D-104 비선행). <strong>컨테이너 n1.5 재빌드 전까지 저장은 대기 상태.</strong></p>
+<p><strong>2026-10-06 생성 자료·첨부 원본 NAS 저장(REQ-0108 · P4) 배포</strong> — 사용자가 [🗄 NAS 저장]을 누른 것만 부서 폴더 <code>AI저장/&lt;연도&gt;/</code> 에 보관(자동 저장 없음 · 보존 3년 · 정본 SQL 89 · 중계 v6 · 게이트웨이 v19 · 워커 n1.5 · 회귀 154건 · 실 NAS 저장·삭제 왕복 확인). NAS 외부 백업 없이 적용(D-104 비선행). <strong>컨테이너는 10-06 오후 n1.6 으로 재빌드 완료 — 저장 실동작 확인</strong>(엑셀 3건 · 건당 약 2초).</p>
+<p><strong>2026-10-06 오후 — N2·N3(P2·P3) 도구가 구매 에이전트에 연결됨</strong>(설정 v3 도메인 <code>nas</code> · <code>jeil-chat-lab</code> v21 · 워커 n1.6 · 회귀 157건). 한국시간 표시(N-2)·목록 카드(N-3) 수정, 파일 목록 <code>folder</code> 인자, 저장 직후 색인. 한계: 문서 검색은 본문만 · 엑셀 날짜 일련번호 · <code>docs</code>/<code>nas</code> 선택 갈림(N-4).</p>
 <p><strong>2026-10-02 문서 내용 검색 가동(REQ-0104 · P3)</strong> — 색인 <code>nas_index.py</code>(SQLite FTS5 trigram — 한글 부분 일치 · docx·xlsx·pptx·hwpx·txt·md·csv + pdf(pypdf)) · 조회 종류 <code>doc_search</code>·<code>doc_read</code>(정본 SQL 87) · 게이트웨이 도구 <code>search_company_docs</code>·<code>read_company_doc</code> · 허용 폴더 2건 등록(<code>00_전사공유</code> 전원 · <code>부서/4300_구매팀</code> 구매팀 — D-96 파일럿). 실 NAS 검색 왕복 <strong>중앙 0.81초</strong>(12/12). 색인은 10분마다 바뀐 파일만 갱신.</p>
 </blockquote>
 <h2 id="7">7. 검증 기준(단계별 완료 조건)</h2>
@@ -430,12 +431,12 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <tr>
 <td>N2</td>
 <td>보존 전환 뒤 관리 화면에서 과거 기록이 NAS 에서 조회됨 · 최근분은 Supabase</td>
-<td>⬜ (보존 전환은 미착수 · 단 <strong>생성 자료·첨부 원본 NAS 저장(P4)은 2026-10-06 배포 완료</strong> — 컨테이너 n1.5 재빌드 대기)</td>
+<td>⬜ (보존 전환은 미착수 · 단 <strong>생성 자료·첨부 원본 NAS 저장(P4)은 2026-10-06 배포 완료</strong> — 컨테이너 n1.6 재빌드 완료 — 저장 실동작)</td>
 </tr>
 <tr>
 <td>N3</td>
 <td>파일럿 폴더 색인 · 민감 패턴 파일 제외 · 담당자 질문 10개 중 근거 제시 정답 8개 이상 · 권한 없는 부서 사용자 0건 노출 · <strong>검색 왕복 체감 측정</strong>(여기서 터널 필요성을 판단)</td>
-<td>🟡 <strong>기능 가동(2026-10-02)</strong> — 샘플 7개로 형식 5종(docx·xlsx·hwpx·pptx·pdf) 색인·검색·읽기 확인 · 주민등록번호 꼴 파일·급여 이름 파일 제외 확인(검색 0건) · 다른 부서 0건·문서 번호를 알아도 읽기 거부 · 검색 왕복 중앙 0.81초 → <strong>터널 불필요</strong>. ⬜ 실제 문서로 담당자 질문 10개 평가 · 에이전트 화면 확인</td>
+<td>🟡 <strong>기능 가동(2026-10-02)</strong> — 샘플 7개로 형식 5종(docx·xlsx·hwpx·pptx·pdf) 색인·검색·읽기 확인 · 주민등록번호 꼴 파일·급여 이름 파일 제외 확인(검색 0건) · 다른 부서 0건·문서 번호를 알아도 읽기 거부 · 검색 왕복 중앙 0.81초 → <strong>터널 불필요</strong>. <strong>2026-10-06 오후: 구매 에이전트(설정 v3)에 <code>nas</code> 도구 연결 · 화면에서 폴더 파일 목록·과거 대화·문서 내용 검색(저장한 엑셀 2건) 확인.</strong> ⬜ 담당자 질문 10개 평가 · 파일 이름 검색 불가·엑셀 날짜 일련번호 한계</td>
 </tr>
 </tbody>
 </table>

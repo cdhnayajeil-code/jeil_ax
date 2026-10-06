@@ -48,7 +48,7 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
   <div class="content">
 <h1 id="00">00 · 현재상태 — 부서 에이전트</h1>
 <blockquote>
-<p>기준: 2026-10-06(NAS 저장 버튼 · jeil-chat-lab v19 · 포털 카드 등재 · 화면 「🧪 검증·테스트」 탭) · 이전 2026-09-30(실업무 실측 · 템플릿·관리 포인트 탭) · 사실만 적는다(추정·계획은 03 에). 바뀌면 이 문서부터 고친다.</p>
+<p>기준: 2026-10-06 오후(NAS 도구 켬 · 설정 v3 · jeil-chat-lab v21 · NAS 워커 n1.6) · 2026-10-06(NAS 저장 버튼 · jeil-chat-lab v19 · 포털 카드 등재 · 화면 「🧪 검증·테스트」 탭) · 이전 2026-09-30(실업무 실측 · 템플릿·관리 포인트 탭) · 사실만 적는다(추정·계획은 03 에). 바뀌면 이 문서부터 고친다.</p>
 </blockquote>
 <h2 id="1">1. 한눈에</h2>
 <table>
@@ -65,7 +65,7 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 </tr>
 <tr>
 <td>현재 설정 버전</td>
-<td><strong>v1</strong>(current) — 기본 <code>claude-sonnet-5</code> · 예비 <code>gpt-4.1-mini</code> · 추론강도 medium · 최대 2,048토큰 · 캐싱 켬 · 도구 라운드 4 · <strong>v2 초안</strong>(Sonnet 5.5/gpt-6-luna, SQL 79) 회귀·지정 대기</td>
+<td><strong>v3</strong>(current · 10-06 오후 — v1 과 같고 도메인에 <code>nas</code> 추가) — 기본 <code>claude-sonnet-5</code> · 예비 <code>gpt-4.1-mini</code> · 추론강도 medium · 최대 2,048토큰 · 캐싱 켬 · 도구 라운드 4 · v1 은 retired · <strong>v2 초안</strong>(Sonnet 5.5/gpt-6-luna, SQL 79 — <code>nas</code> 추가함) 회귀·지정 대기</td>
 </tr>
 <tr>
 <td>실제 응답 모델</td>
@@ -189,8 +189,12 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <td>op <code>golden_runs</code>(담당자 이상 · 읽기 전용 · REQ-0106) — 회귀 실행 최근 10회 요약 + 고른 회차의 문항별 결과(답변은 400자까지). 사용 화면 「🧪 검증·테스트」 탭이 읽는다. 다른 동작 변경 없음</td>
 </tr>
 <tr>
+<td>NAS 보완(10-06 오후 · <strong>v21</strong> · NAS 워커 <strong>n1.6</strong>)</td>
+<td>현재 배포 <strong>v21</strong>. ① N-3: NAS 도구 3종 목록 카드를 화면 규격으로(<code>undefined</code> 해소 — 구매 에이전트 화면 표 정상 확인) ② 도구 <code>list_company_files</code> 에 <code>folder</code> 인자(폴더 이름을 파일 이름 검색어로 넣어 0건이 되던 문제) ③ v20 에서 생긴 문서 검색 도구의 가져오기 누락(도구 오류)을 v21 에서 수정 ④ 워커 n1.6: N-2 과거 대화의 일시·기간 조건을 한국시간으로(적재 파일은 UTC · 실측 12:04 등 한국시간 표시) · 과거 대화에서 자동 회귀 턴 제외 · 저장 직후 색인을 깨움(방금 저장한 문서가 10분 안 기다리고 검색됨). 컨테이너 재빌드 완료 — 심박 <code>+nas n1.6 root=ok</code>, [🗄 NAS 저장]이 컨테이너에서 실제 동작(엑셀 3건 구매팀 폴더 <code>AI저장/2026/</code> 보관 · 건당 약 2초). 회귀 157건 · <code>jeil-nas-bridge</code> v6</td>
+</tr>
+<tr>
 <td>NAS 저장(10-06 · <strong>v19</strong>)</td>
-<td>op <code>nas_save</code>·<code>nas_saved_list</code>·<code>nas_saved_delete</code> + 에이전트 프롬프트 「파일 보관 안내」(v18), 안내 문구에 버튼 위치 명시(v19) — REQ-0108. 현재 배포 버전 <strong>v19</strong>. 에이전트는 「저장해줘」에 직접 저장하지 못한다고 답하고 [🗄 NAS 저장] 버튼을 안내(실측). 중계 <code>jeil-nas-bridge</code> <strong>v6</strong>(저장 큐 중계 · 1회용 내려받기 주소 · 끝나면 임시 파일 삭제) · 정본 SQL 89(<code>etl_meta.nas_save</code>·<code>nas_save_policy</code> · 비공개 버킷 <code>nas-outbox</code> 10MB)</td>
+<td>op <code>nas_save</code>·<code>nas_saved_list</code>·<code>nas_saved_delete</code> + 에이전트 프롬프트 「파일 보관 안내」(v18), 안내 문구에 버튼 위치 명시(v19) — REQ-0108. 당시 배포 버전 v19(현재는 위 v21). 에이전트는 「저장해줘」에 직접 저장하지 못한다고 답하고 [🗄 NAS 저장] 버튼을 안내(실측). 중계 <code>jeil-nas-bridge</code> <strong>v6</strong>(저장 큐 중계 · 1회용 내려받기 주소 · 끝나면 임시 파일 삭제) · 정본 SQL 89(<code>etl_meta.nas_save</code>·<code>nas_save_policy</code> · 비공개 버킷 <code>nas-outbox</code> 10MB)</td>
 </tr>
 <tr>
 <td>사내 NAS 문서 검색(10-02 · <strong>v16</strong>)</td>
@@ -198,7 +202,7 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 </tr>
 <tr>
 <td>사내 NAS 도구(10-02 · <strong>v15</strong>)</td>
-<td>도메인 <code>nas</code> 2종(REQ-0103 · 상태 pilot): <code>list_company_files</code>(허용 폴더의 파일 이름·수정일·크기 — 내용 미열람) · <code>search_my_past_chats</code>(본인 과거 대화 · personal). <strong>에이전트 버전의 도메인에 <code>nas</code> 를 넣어야 쓰인다</strong>(현재 어느 에이전트에도 켜져 있지 않다). 조회에 답하는 NAS 워커가 없으면 「사내 보관소 점검 중」으로 답한다 — 오류로 집계되지 않는다. 허용 폴더 등록 0건(D-96 뒤 등록)</td>
+<td>도메인 <code>nas</code> 2종(REQ-0103 · 상태 pilot): <code>list_company_files</code>(허용 폴더의 파일 이름·수정일·크기 — 내용 미열람) · <code>search_my_past_chats</code>(본인 과거 대화 · personal). <strong>에이전트 버전의 도메인에 <code>nas</code> 를 넣어야 쓰인다</strong>(10-06 오후부터 구매 에이전트 설정 v3 에 켜져 있다). 조회에 답하는 NAS 워커가 없으면 「사내 보관소 점검 중」으로 답한다 — 오류로 집계되지 않는다. 허용 폴더 등록 0건(D-96 뒤 등록)</td>
 </tr>
 <tr>
 <td>입구</td>
@@ -222,7 +226,7 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 </tr>
 <tr>
 <td>구매 에이전트 도구 묶음</td>
-<td>도메인 <code>purchase · item · portal · common · docs</code> (인사 <code>hr</code> 제외)</td>
+<td>도메인 <code>purchase · item · portal · common · docs · nas</code> (인사 <code>hr</code> 제외) — <strong><code>nas</code> 는 10-06 오후 관리자 지시로 켬</strong>(설정 v3: 파일 목록·본인 과거 대화·문서 검색·문서 읽기)</td>
 </tr>
 </tbody>
 </table>
@@ -385,7 +389,7 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <ul>
 <li>한 번에 5개 · 요청당 글자 15만 자·바이너리 약 10MB. 대화가 이어지면 옛 첨부부터 빠진다(안내 문구로 대체).</li>
 <li><strong>주민등록번호 형식</strong>이 보이는 글자 첨부는 서버가 거부한다(§1.7).</li>
-<li>파일은 <strong>자동으로 저장하지 않는다</strong> — 질문에만 쓰이고, 기록에는 이름·종류·크기만 남는다. 사용자가 보낸 메시지의 첨부 또는 자료함 항목에서 <strong>[🗄 NAS 저장]을 누른 것만</strong> 부서 NAS 폴더(<code>AI저장/&lt;연도&gt;/</code>)에 보관된다(REQ-0108 · 한도 8MB · 형식은 첨부와 같음 · 급여·인사평가·주민등록이 이름에 든 파일과 주민등록번호 꼴 글자 파일은 거부 · 같은 내용은 중복 저장 안 함 · 보존 3년, 만료 뒤 처리는 <code>etl_meta.nas_save_policy.after_expiry</code>(초기값 keep) · 삭제는 본인 것만(담당자·관리자는 전부), 10분 안에 NAS 에서 지워짐). <strong>컨테이너가 n1.5 로 재빌드되기 전에는 「저장 중」으로 대기</strong>한다.</li>
+<li>파일은 <strong>자동으로 저장하지 않는다</strong> — 질문에만 쓰이고, 기록에는 이름·종류·크기만 남는다. 사용자가 보낸 메시지의 첨부 또는 자료함 항목에서 <strong>[🗄 NAS 저장]을 누른 것만</strong> 부서 NAS 폴더(<code>AI저장/&lt;연도&gt;/</code>)에 보관된다(REQ-0108 · 한도 8MB · 형식은 첨부와 같음 · 급여·인사평가·주민등록이 이름에 든 파일과 주민등록번호 꼴 글자 파일은 거부 · 같은 내용은 중복 저장 안 함 · 보존 3년, 만료 뒤 처리는 <code>etl_meta.nas_save_policy.after_expiry</code>(초기값 keep) · 삭제는 본인 것만(담당자·관리자는 전부), 10분 안에 NAS 에서 지워짐). (컨테이너는 10-06 오후 n1.6 으로 재빌드되어 저장이 실제 동작한다.)</li>
 </ul>
 <h2 id="6-2026-09-28-d-87d-93-adr-109-accepted">6. 관리자 결정(2026-09-28, D-87~D-93 · ADR-109 Accepted)</h2>
 <table>
