@@ -39,12 +39,13 @@ import socket
 import sys
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 
 from _env import env_root, load_env, need
 import nas_index
 
-WORKER_VERSION = "n1.4"   # n1.4(2026-10-02): 문서 내용 색인·검색(nas_index.py — SQL 87) / n1.3:실시간 조회 응답(파일 목록·본인 과거 대화 — SQL 86) / n1.2:브리지 전송(좁은 키)·--serve(컨테이너 상주)·KST 고정 / n1.1: --nightly·--log·루트 검증
+WORKER_VERSION = "n1.5"   # n1.5(2026-10-06): 첨부 원본·생성 자료를 부서 폴더 「AI저장」에 저장·보존 만료 정리(SQL 89 · REQ-0108) / n1.4(2026-10-02): 문서 내용 색인·검색(nas_index.py — SQL 87) / n1.3:실시간 조회 응답(파일 목록·본인 과거 대화 — SQL 86) / n1.2:브리지 전송(좁은 키)·--serve(컨테이너 상주)·KST 고정 / n1.1: --nightly·--log·루트 검증
 
 POLL_SEC = 20          # 기본 폴링 주기
 HTTP_TIMEOUT = 120     # 페이지 응답이 수 MB 가 될 수 있어 etl_watch(60초)보다 넉넉히 잡는다
@@ -88,6 +89,8 @@ BRIDGE_FNS = (
     "nas_export_sources", "nas_export_count", "nas_export_page", "nas_export_commit",
     "nas_query_claim", "nas_query_finish",   # 실시간 조회(정본 SQL 86 · REQ-0103)
     "nas_index_folders",                     # 문서 색인 대상 폴더(정본 SQL 87 · REQ-0104)
+    "nas_save_claim", "nas_save_finish", "nas_save_purge_list", "nas_save_purged",   # 부서 폴더 저장(정본 SQL 89 · REQ-0108)
+    "nas_save_fetch",                        # RPC 가 아니다 — 브리지가 저장할 파일의 1회용 내려받기 주소를 준다
 )
 
 # 실시간 조회 — 브리지에 한 번 물으면 이만큼 기다렸다 답이 온다(브리지 상한 20초와 같다)
@@ -745,6 +748,7 @@ def index_loop(url, key, interval=600, rounds=None):
                     nas_index.refresh(con, docs, folders, log=log, budget_sec=300)
                 finally:
                     con.close()
+                purge_saved(url, key, docs)        # 삭제 요청·보존 만료분 정리(색인 주기에 얹는다 — 10분마다)
         except (Exception, SystemExit) as e:
             log(f"문서 색인 오류(계속): {_redact(e)[:200]}")
         if rounds is None or n < rounds:
@@ -807,6 +811,183 @@ def query_loop(url, key, worker, root_arg=None, rounds=None):
                 time.sleep(5)
 
 
+# ── 부서 폴더 저장(REQ-0108 · 정본 SQL 89) ───────────────────────────────────
+# 사용자가 화면에서 [NAS 저장]을 누른 첨부 원본·생성 자료를 부서 폴더의 「AI저장/연도/」에 쓴다.
+# 어느 폴더인지는 DB 가 정해서 준다(folder_rel) — 워커는 그 폴더 밖으로 쓰지 않는다.
+SAVE_DIR = "AI저장"
+SAVE_MAX_BYTES = 10 * 1024 * 1024          # 정책(max_mb ≤ 10)과 버킷 한도의 상한 — 넘으면 받다가 끊는다
+SAVE_WAIT_SEC = 20
+_BAD_NAME_CH = re.compile(r'[\\/:*?"<>|\x00-\x1f]')
+
+
+def _safe_file_name(name):
+    """파일 이름만 남긴다(경로·금지 글자 제거). 비면 None."""
+    n = _BAD_NAME_CH.sub(" ", str(name or ""))
+    n = re.sub(r"\s+", " ", n).strip().lstrip(". ").strip()
+    return n[:150] or None
+
+
+def save_target(docs_root, folder_rel, file_name, saved_on):
+    """저장할 절대 경로와 폴더 기준 상대 경로. 같은 이름이 있으면 _2, _3 … 을 붙인다. 폴더 밖이면 예외."""
+    rel = str(folder_rel or "").replace("\\", "/").strip("/")
+    if not rel or any(p in ("", ".", "..") for p in rel.split("/")):
+        raise RuntimeError("대상 폴더 경로가 올바르지 않습니다")
+    base = os.path.join(docs_root, *rel.split("/"))
+    if not _inside(docs_root, base) or not os.path.isdir(base) or os.path.islink(base):
+        raise RuntimeError("대상 부서 폴더가 없습니다")
+    name = _safe_file_name(file_name)
+    if not name:
+        raise RuntimeError("파일 이름이 올바르지 않습니다")
+    if nas_index._SENSITIVE_NAME.search(name):
+        raise RuntimeError("민감 자료로 보이는 이름이라 저장하지 않습니다")
+    year = str(saved_on or "")[:4]
+    if not re.fullmatch(r"\d{4}", year):
+        year = _now().strftime("%Y")
+    folder = os.path.join(base, SAVE_DIR, year)
+    stem, ext = os.path.splitext(name)
+    cand, n = name, 1
+    while os.path.exists(os.path.join(folder, cand)):
+        n += 1
+        if n > 500:
+            raise RuntimeError("같은 이름의 파일이 너무 많습니다")
+        cand = f"{stem}_{n}{ext}"
+    path = os.path.join(folder, cand)
+    if not _inside(base, path):
+        raise RuntimeError("저장 경로가 폴더 밖입니다")
+    return path, f"{SAVE_DIR}/{year}/{cand}"
+
+
+def _download(file_url, limit=SAVE_MAX_BYTES):
+    """1회용 주소에서 파일을 받는다. 한도를 넘으면 중단. (주소는 로그에 남기지 않는다)"""
+    req = urllib.request.Request(file_url, method="GET")
+    with urllib.request.urlopen(req, timeout=HTTP_TIMEOUT) as r:
+        data = r.read(limit + 1)
+    if len(data) > limit:
+        raise RuntimeError("파일이 한도보다 큽니다")
+    return data
+
+
+def fetch_save_bytes(url, key, save_id, worker):
+    """저장할 파일 내용. 브리지: 1회용 주소를 받아 내려받는다 / 직결(사내 PC·테스트): Storage 에 서명 주소를 직접 청한다."""
+    if _TRANSPORT == "bridge":
+        got = rpc(url, key, "nas_save_fetch", {"p_save_id": save_id})
+        file_url = (got or {}).get("url") if isinstance(got, dict) else None
+    else:
+        direct_only = "nas_save_source"          # 직결 전용 — 브리지는 이 RPC 를 중계하지 않고 주소만 준다(BRIDGE_FNS 밖)
+        src = rpc(url, key, direct_only, {"p_save_id": save_id, "p_worker": worker}) or {}
+        if not src.get("bucket") or not src.get("path"):
+            raise RuntimeError("원본 위치를 받지 못했습니다")
+        body = json.dumps({"expiresIn": 120}).encode("utf-8")
+        req = urllib.request.Request(
+            f"{url}/storage/v1/object/sign/{src['bucket']}/{urllib.parse.quote(src['path'])}", data=body, method="POST",
+            headers={"apikey": key, "Authorization": f"Bearer {key}", "Content-Type": "application/json"})
+        with urllib.request.urlopen(req, timeout=HTTP_TIMEOUT) as r:
+            signed = json.loads(r.read().decode("utf-8"))
+        part = signed.get("signedURL") or signed.get("signedUrl") or ""
+        file_url = f"{url}/storage/v1{part}" if part.startswith("/") else part
+    if not file_url:
+        raise RuntimeError("내려받기 주소를 받지 못했습니다")
+    return _download(file_url)
+
+
+def handle_save(url, key, job, docs_root, worker, fetch=None):
+    """저장 1건 처리 → 결과 되쓰기. 어떤 오류가 나도 요청을 running 에 방치하지 않는다. fetch 는 테스트용 주입."""
+    sid = job.get("save_id")
+    t0 = time.time()
+    tmp = None
+    try:
+        if not docs_root:
+            raise RuntimeError("문서 폴더가 연결돼 있지 않습니다")
+        path, rel = save_target(docs_root, job.get("folder_rel"), job.get("file_name"), job.get("saved_on"))
+        data = (fetch or fetch_save_bytes)(url, key, sid, worker)
+        if not data:
+            raise RuntimeError("빈 파일입니다")
+        want = job.get("size_bytes")
+        if want and int(want) != len(data):
+            raise RuntimeError("받은 크기가 요청과 다릅니다")
+        sha = job.get("sha256")
+        if sha and hashlib.sha256(data).hexdigest() != str(sha).lower():
+            raise RuntimeError("받은 내용이 요청과 다릅니다(해시 불일치)")
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        tmp = path + ".tmp"                      # .tmp 는 목록·색인에서 빠진다 — 다 쓴 뒤 이름을 바꾼다
+        with open(tmp, "wb") as fh:
+            fh.write(data)
+        os.replace(tmp, path)
+        tmp = None
+        rpc(url, key, "nas_save_finish", {"p_save_id": sid, "p_status": "done", "p_rel_path": rel})
+        log(f"저장 {str(sid)[:8]}… {job.get('folder_key')} — {len(data):,}바이트 · {int((time.time() - t0) * 1000)}ms")
+        return True
+    except (Exception, SystemExit) as e:
+        if tmp:
+            try:
+                os.remove(tmp)
+            except OSError:
+                pass
+        msg = _redact(e).splitlines()[0][:200] if str(e) else type(e).__name__
+        try:
+            rpc(url, key, "nas_save_finish", {"p_save_id": sid, "p_status": "failed", "p_error": msg})
+        except (Exception, SystemExit) as e2:
+            log(f"저장 {str(sid)[:8]}… 실패 기록도 실패: {_redact(e2)[:160]}")
+        log(f"저장 {str(sid)[:8]}… 실패: {msg}")
+        return False
+
+
+def save_loop(url, key, worker, rounds=None):
+    """저장 요청을 물고 기다리다 처리한다. 조회·적재와 따로 돈다."""
+    n = 0
+    while rounds is None or n < rounds:
+        n += 1
+        try:
+            if _TRANSPORT == "bridge":
+                job = rpc(url, key, "nas_save_claim", {"p_worker": worker}, wait_sec=SAVE_WAIT_SEC)
+            else:
+                job = rpc(url, key, "nas_save_claim", {"p_worker": worker})
+            if job:
+                handle_save(url, key, job, nas_docs_root(), worker)
+            elif _TRANSPORT != "bridge" and (rounds is None or n < rounds):
+                time.sleep(3)
+        except (Exception, SystemExit) as e:
+            log(f"저장 대기 오류(계속): {_redact(e)[:200]}")
+            if rounds is None or n < rounds:
+                time.sleep(5)
+
+
+def purge_saved(url, key, docs_root):
+    """삭제 요청된 것·(정책이 삭제일 때) 보존 기간이 지난 것을 지운다. 「AI저장」 아래의 파일만 지운다."""
+    if not docs_root:
+        return 0
+    try:
+        rows = rpc(url, key, "nas_save_purge_list", {"p_limit": 20}) or []
+    except (Exception, SystemExit) as e:
+        log(f"저장 정리 목록 오류(계속): {_redact(e)[:160]}")
+        return 0
+    done = 0
+    for r in rows if isinstance(rows, list) else []:
+        sid = r.get("save_id")
+        try:
+            frel = str(r.get("folder_rel") or "").replace("\\", "/").strip("/")
+            rel = str(r.get("rel_path") or "").replace("\\", "/").strip("/")
+            parts = rel.split("/")
+            if not frel or not rel or parts[0] != SAVE_DIR or any(p in ("", ".", "..") for p in parts + frel.split("/")):
+                raise RuntimeError("지울 경로가 올바르지 않습니다")
+            base = os.path.join(docs_root, *frel.split("/"))
+            path = os.path.join(base, *parts)
+            if not _inside(os.path.join(base, SAVE_DIR), path):
+                raise RuntimeError("지울 경로가 저장 폴더 밖입니다")
+            if os.path.isfile(path) and not os.path.islink(path):
+                os.remove(path)
+            rpc(url, key, "nas_save_purged", {"p_save_id": sid, "p_ok": True})   # 이미 없어도 지운 것으로 맺는다
+            done += 1
+        except (Exception, SystemExit) as e:
+            try:
+                rpc(url, key, "nas_save_purged", {"p_save_id": sid, "p_ok": False, "p_error": _redact(e).splitlines()[0][:200]})
+            except (Exception, SystemExit):
+                pass
+    if done:
+        log(f"저장 정리 — {done}건 삭제")
+    return done
+
+
 # ── 상주(컨테이너 진입점) ─────────────────────────────────────────────────────
 def serve(url, key, worker, root_arg=None, dry=False, interval=POLL_SEC, rounds=None, query=True):
     """계속 돌면서 하루 1회 적재 + 화면 요청 처리 + 실시간 조회 응답. nightly() 가 「그날 했으면 큐만 본다」를 이미 안다.
@@ -819,6 +1000,7 @@ def serve(url, key, worker, root_arg=None, dry=False, interval=POLL_SEC, rounds=
         import threading
         threading.Thread(target=query_loop, args=(url, key, worker, root_arg), daemon=True, name="nas-query").start()
         threading.Thread(target=index_loop, args=(url, key), daemon=True, name="nas-index").start()
+        threading.Thread(target=save_loop, args=(url, key, worker), daemon=True, name="nas-save").start()
     n = 0
     while rounds is None or n < rounds:
         n += 1

@@ -625,6 +625,117 @@ class TestRunnerWiring(Base):
         self.assertNotIn("nas_sync", [j["kind"] for j in core.DEFAULT_JOBS])
 
 
+class SaveToDeptFolder(Base):
+    """부서 폴더 저장(REQ-0108 · SQL 89) — 폴더 밖으로 쓰지 않는다 · 받은 내용이 다르면 쓰지 않는다 · 실패를 방치하지 않는다."""
+
+    def setUp(self):
+        super().setUp()
+        self.folder = os.path.join(self.root, "부서", "4300_구매팀")
+        os.makedirs(self.folder)
+        self.data = "발주번호,금액\nPO1,1000\n".encode("utf-8")
+
+    def job(self, **over):
+        j = {"save_id": "11111111-2222-3333-4444-555555555555", "kind": "attachment", "file_name": "검토 자료.csv",
+             "size_bytes": len(self.data), "sha256": hashlib.sha256(self.data).hexdigest(),
+             "folder_key": "pur_team", "folder_rel": "부서/4300_구매팀", "saved_on": "2026-10-06"}
+        j.update(over)
+        return j
+
+    def run_save(self, job, data=None):
+        f = self.use({"nas_save_finish": {"ok": True}})
+        ok = w.handle_save("u", "k", job, self.root, "wk", fetch=lambda *a: self.data if data is None else data)
+        return ok, f
+
+    def test_writes_under_ai_folder_and_reports_relative_path(self):
+        ok, f = self.run_save(self.job())
+        self.assertTrue(ok)
+        fin = f.last("nas_save_finish")
+        self.assertEqual(fin["p_status"], "done")
+        self.assertEqual(fin["p_rel_path"], "AI저장/2026/검토 자료.csv")
+        with open(os.path.join(self.folder, "AI저장", "2026", "검토 자료.csv"), "rb") as fh:
+            self.assertEqual(fh.read(), self.data)
+        self.assertNotIn(self.root, json.dumps(f.calls, ensure_ascii=False))     # 절대 경로가 밖으로 나가지 않는다
+        self.assertNoErpRpc(f)
+
+    def test_same_name_gets_suffix_not_overwrite(self):
+        self.run_save(self.job())
+        ok, f = self.run_save(self.job())
+        self.assertTrue(ok)
+        self.assertEqual(f.last("nas_save_finish")["p_rel_path"], "AI저장/2026/검토 자료_2.csv")
+        self.assertEqual(sorted(os.listdir(os.path.join(self.folder, "AI저장", "2026"))), ["검토 자료.csv", "검토 자료_2.csv"])
+
+    def test_hash_or_size_mismatch_writes_nothing(self):
+        for bad in (self.job(sha256="0" * 64), self.job(size_bytes=len(self.data) + 1)):
+            ok, f = self.run_save(bad)
+            self.assertFalse(ok)
+            self.assertEqual(f.last("nas_save_finish")["p_status"], "failed")
+        self.assertFalse(os.path.exists(os.path.join(self.folder, "AI저장")) and os.listdir(os.path.join(self.folder, "AI저장", "2026")))
+
+    def test_folder_escape_and_unknown_folder_are_refused(self):
+        outside = os.path.join(self.root, "밖")
+        os.makedirs(outside)
+        for rel in ("../밖", "부서/../밖", "", "부서/없는팀", "/"):
+            ok, f = self.run_save(self.job(folder_rel=rel))
+            self.assertFalse(ok, rel)
+            self.assertEqual(f.last("nas_save_finish")["p_status"], "failed")
+        self.assertEqual(os.listdir(outside), [])
+
+    def test_file_name_cannot_carry_a_path(self):
+        ok, f = self.run_save(self.job(file_name="..\\..\\밖\\x.csv"))
+        self.assertTrue(ok)
+        rel = f.last("nas_save_finish")["p_rel_path"]
+        self.assertTrue(rel.startswith("AI저장/2026/"))
+        self.assertNotIn("..", rel.split("/")[-1].replace(" ", "")[:2])
+        self.assertEqual(len(os.listdir(os.path.join(self.folder, "AI저장", "2026"))), 1)
+
+    def test_sensitive_name_is_refused(self):
+        ok, f = self.run_save(self.job(file_name="2026 급여대장.xlsx"))
+        self.assertFalse(ok)
+        self.assertIn("민감", f.last("nas_save_finish")["p_error"])
+
+    def test_no_docs_root_fails_cleanly(self):
+        f = self.use({"nas_save_finish": {"ok": True}})
+        self.assertFalse(w.handle_save("u", "k", self.job(), None, "wk", fetch=lambda *a: self.data))
+        self.assertEqual(f.last("nas_save_finish")["p_status"], "failed")
+
+    def test_fetch_error_leaves_no_temp_file(self):
+        def boom(*a):
+            raise RuntimeError("HTTP 404 내려받기 실패")
+        f = self.use({"nas_save_finish": {"ok": True}})
+        self.assertFalse(w.handle_save("u", "k", self.job(), self.root, "wk", fetch=boom))
+        self.assertEqual(f.last("nas_save_finish")["p_status"], "failed")
+        left = [n for _, _, fs in os.walk(self.folder) for n in fs]
+        self.assertEqual(left, [])
+
+    def test_save_loop_claims_and_handles(self):
+        self.patch(w, "nas_docs_root", lambda: self.root)
+        self.patch(w, "fetch_save_bytes", lambda *a: self.data)
+        self.patch(w.time, "sleep", lambda s: None)
+        f = self.use({"nas_save_claim": [self.job(), None], "nas_save_finish": {"ok": True}})
+        w.save_loop("u", "k", "wk", rounds=2)
+        self.assertEqual(f.fns().count("nas_save_claim"), 2)
+        self.assertEqual(f.last("nas_save_finish")["p_status"], "done")
+        self.assertNoErpRpc(f)
+
+    def test_purge_deletes_only_inside_ai_folder(self):
+        self.run_save(self.job())
+        keep = os.path.join(self.folder, "부서원이 올린 문서.txt")
+        with open(keep, "w", encoding="utf-8") as fh:
+            fh.write("지우면 안 된다")
+        rows = [
+            {"save_id": "a", "folder_key": "pur_team", "folder_rel": "부서/4300_구매팀", "rel_path": "AI저장/2026/검토 자료.csv"},
+            {"save_id": "b", "folder_key": "pur_team", "folder_rel": "부서/4300_구매팀", "rel_path": "부서원이 올린 문서.txt"},
+            {"save_id": "c", "folder_key": "pur_team", "folder_rel": "부서/4300_구매팀", "rel_path": "AI저장/../부서원이 올린 문서.txt"},
+            {"save_id": "d", "folder_key": "pur_team", "folder_rel": "부서/4300_구매팀", "rel_path": "AI저장/2026/이미 없는 파일.csv"},
+        ]
+        f = self.use({"nas_save_purge_list": [rows], "nas_save_purged": {"ok": True}})
+        self.assertEqual(w.purge_saved("u", "k", self.root), 2)
+        res = {p["p_save_id"]: p["p_ok"] for p in f.payloads("nas_save_purged")}
+        self.assertEqual(res, {"a": True, "b": False, "c": False, "d": True})
+        self.assertFalse(os.path.exists(os.path.join(self.folder, "AI저장", "2026", "검토 자료.csv")))
+        self.assertTrue(os.path.exists(keep))
+
+
 if __name__ == "__main__":
     try:
         sys.stdout.reconfigure(encoding="utf-8")

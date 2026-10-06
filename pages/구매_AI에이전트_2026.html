@@ -78,6 +78,10 @@ details.trace div{font-family:Consolas,Menlo,monospace;word-break:break-all;padd
 .arts li{display:flex;gap:8px;align-items:center;border-bottom:1px dashed var(--line);padding:6px 0;font-size:12.5px}
 .arts li .t{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .arts li small{color:var(--muted)}
+.ufiles .nas{margin-left:6px;font-size:11px;border:1px solid rgba(255,255,255,.7);background:transparent;color:inherit;border-radius:10px;padding:0 7px;cursor:pointer;font-family:inherit}
+.ufiles .nas:disabled{opacity:.75;cursor:default}
+.nasst{font-size:11px;border-radius:9px;padding:0 7px;white-space:nowrap}
+.nasst.ok{background:#e6f5ec;color:#1a7f4b}.nasst.wait{background:#fdf3dc;color:#9a6200}.nasst.bad{background:#fde8e6;color:#b42318}
 .arts button{font-size:11px;border:1px solid var(--line);background:#fff;border-radius:10px;padding:1px 8px;cursor:pointer;font-family:inherit}
 .hint{font-size:11.8px;color:var(--muted);line-height:1.65}
 .jump{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px}
@@ -157,7 +161,12 @@ details.trace div{font-family:Consolas,Menlo,monospace;word-break:break-all;padd
       <div class="box">
         <h3>📁 내 자료함 <span class="hint" id="artInfo"></span></h3>
         <ul class="arts" id="arts"><li class="hint">불러오는 중…</li></ul>
-        <div class="hint" style="margin-top:6px">본인만 볼 수 있고 30일 뒤 자동 삭제됩니다. 보관이 필요하면 내려받으세요.</div>
+        <div class="hint" style="margin-top:6px">본인만 볼 수 있고 30일 뒤 자동 삭제됩니다. 오래 보관하려면 <b>NAS</b> 를 눌러 부서 폴더에 저장하세요.</div>
+      </div>
+      <div class="box" id="nasBox">
+        <h3>🗄 부서 NAS 보관함 <span class="hint" id="nasInfo"></span></h3>
+        <ul class="arts" id="nasList" style="min-height:60px"><li class="hint">불러오는 중…</li></ul>
+        <div class="hint" style="margin-top:6px" id="nasHint">첨부 파일·자료함의 <b>🗄 NAS 저장</b>을 누른 것만 사내 NAS 부서 폴더(AI저장)에 보관됩니다. 누르지 않은 첨부는 저장되지 않습니다.</div>
       </div>
       <div class="box">
         <h3>연결된 구매 자료</h3>
@@ -231,7 +240,7 @@ async function loadArts() {
     $("arts").innerHTML = j.items.length ? j.items.map((a) => `<li data-id="${escHtml(a.id)}">
       <span class="kind">${escHtml(a.kind.toUpperCase())}</span><span class="t" title="${escHtml(a.title)}">${escHtml(a.title)}</span>
       <small>${escHtml(String(a.created_at).slice(5, 10))}</small>
-      <button type="button" data-act="open">열기</button><button type="button" data-act="del">삭제</button></li>`).join("")
+      <button type="button" data-act="nas" title="사내 NAS 부서 폴더(AI저장)에 보관합니다">NAS</button><button type="button" data-act="open">열기</button><button type="button" data-act="del">삭제</button></li>`).join("")
       : '<li class="hint">아직 저장한 자료가 없습니다.</li>';
   } catch (e) { if (e.message !== "login") $("arts").innerHTML = `<li class="hint">자료함을 불러오지 못했습니다: ${escHtml(e.message)}</li>`; }
 }
@@ -239,12 +248,64 @@ $("arts").onclick = async (e) => {
   const b = e.target.closest("button[data-act]"); if (!b) return;
   const id = b.closest("li").dataset.id;
   try {
+    if (b.dataset.act === "nas") { await nasSave({ source: "artifact", id }, b); return; }
     if (b.dataset.act === "open") { const j = await op(AGENT, "artifact_url", { id }); window.open(j.url, "_blank", "noopener"); }
     else if (confirmDel(b)) { await op(AGENT, "artifact_delete", { id }); loadArts(); }
   } catch (err) { toast("실패: " + err.message); }
 };
 // 삭제는 두 번 눌러 확정(브라우저 확인창을 쓰지 않는다)
 function confirmDel(b) { if (b.dataset.armed) return true; b.dataset.armed = "1"; b.textContent = "정말?"; setTimeout(() => { b.textContent = "삭제"; delete b.dataset.armed; }, 2500); return false; }
+
+/* ===== 부서 NAS 보관함(REQ-0108) — 화면은 요청·표시만 한다. 저장 위치·권한·보존은 서버(SQL 89)와 NAS 워커가 정한다 ===== */
+const NAS_MAX = 8 * 1024 * 1024;
+let nasTimer = null;
+const fmtSize = (n) => n >= 1048576 ? (n / 1048576).toFixed(1) + "MB" : Math.max(1, Math.round((n || 0) / 1024)) + "KB";
+const fileB64 = (f) => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result).split(",")[1] || ""); r.onerror = () => rej(new Error("파일을 읽지 못했습니다")); r.readAsDataURL(f); });
+async function nasSave(payload, btn) {
+  const old = btn.textContent; btn.disabled = true; btn.textContent = "보내는 중…";
+  try {
+    const j = await op(AGENT, "nas_save", payload);
+    if (j.status === "duplicate") { btn.textContent = "✓ 이미 보관됨"; toast(`같은 파일이 ${j.folder} 폴더에 이미 있습니다`); }
+    else { btn.textContent = "✓ 저장 요청됨"; toast(j.worker_online === false ? "저장을 접수했습니다 — 사내 보관소가 응답하면 저장됩니다" : `${j.folder} 폴더에 저장하는 중입니다`); }
+    loadNas();
+  } catch (e) { btn.disabled = false; btn.textContent = old; toast("저장 실패: " + e.message); }
+}
+async function nasSaveFile(f, btn) {
+  if (!f.file) { toast("원본이 화면에 남아 있지 않습니다 — 다시 첨부해 주세요"); return; }
+  if (f.file.size > NAS_MAX) { toast("8MB 를 넘는 파일은 저장하지 않습니다"); return; }
+  btn.disabled = true; btn.textContent = "읽는 중…";
+  let data;
+  try { data = await fileB64(f.file); } catch (e) { btn.disabled = false; btn.textContent = "🗄 NAS 저장"; toast(e.message); return; }
+  btn.textContent = "🗄 NAS 저장";
+  await nasSave({ source: "attachment", name: f.name, data }, btn);
+}
+async function loadNas() {
+  clearTimeout(nasTimer);
+  try {
+    const j = await op(AGENT, "nas_saved_list");
+    if (!j.folder) { $("nasList").innerHTML = '<li class="hint">이 부서의 NAS 폴더가 아직 등록되지 않았습니다(관리자 확인 필요).</li>'; $("nasInfo").textContent = ""; return; }
+    const pol = j.policy || {};
+    $("nasInfo").textContent = `· ${j.folder} 폴더 · ${j.items.length}건${j.worker_online ? "" : " · 보관소 응답 없음"}`;
+    $("nasHint").innerHTML = `첨부 파일·자료함의 <b>🗄 NAS 저장</b>을 누른 것만 사내 NAS <b>${escHtml(j.folder)}</b> 폴더(AI저장)에 보관됩니다. 부서 구성원이 함께 보며 <b>${pol.retain_years || 3}년</b> 보존합니다`
+      + `(그 뒤에는 ${pol.after_expiry === "delete" ? "자동 삭제" : "그대로 유지"}). 누르지 않은 첨부는 저장되지 않습니다.`;
+    const st = (x) => x.status === "done" ? '<span class="nasst ok">보관됨</span>'
+      : x.status === "failed" ? `<span class="nasst bad" title="${escHtml(x.error_msg || "")}">실패</span>`
+      : x.status === "purge" ? '<span class="nasst wait">삭제 대기</span>' : '<span class="nasst wait">저장 중</span>';
+    $("nasList").innerHTML = j.items.length ? j.items.map((x) => `<li data-id="${escHtml(x.save_id)}">
+      ${st(x)}<span class="t" title="${escHtml(x.file_name)}${x.rel_path ? " — " + escHtml(x.rel_path) : ""}">${escHtml(x.file_name)}</span>
+      <small title="저장한 사람 · 보존 기한 ${escHtml(String(x.retain_until || ""))}">${escHtml(x.saver_name || "")} · ${fmtSize(x.size_bytes)} · ${escHtml(String(x.created_at).slice(5, 10))}</small>
+      ${(x.mine || j.can_manage) && x.status !== "purge" ? '<button type="button" data-act="del">삭제</button>' : ""}</li>`).join("")
+      : '<li class="hint">아직 보관한 파일이 없습니다.</li>';
+    // 진행 중인 것이 있으면 잠깐씩 다시 본다(저장은 보통 수 초, 삭제는 10분 안)
+    if (j.items.some((x) => x.status === "queued" || x.status === "running")) nasTimer = setTimeout(loadNas, 4000);
+  } catch (e) { if (e.message !== "login") $("nasList").innerHTML = `<li class="hint">보관함을 불러오지 못했습니다: ${escHtml(e.message)}</li>`; }
+}
+$("nasList").onclick = async (e) => {
+  const b = e.target.closest("button[data-act=del]"); if (!b) return;
+  if (!confirmDel(b)) return;
+  try { await op(AGENT, "nas_saved_delete", { id: b.closest("li").dataset.id }); toast("삭제를 접수했습니다 — NAS 에서는 10분 안에 지워집니다"); loadNas(); }
+  catch (err) { toast("실패: " + err.message); }
+};
 
 async function saveArtifact(title, kind, content, turnId) {
   const j = await op(AGENT, "artifact_save", { title, kind, content, turn_id: turnId || null });
@@ -259,7 +320,14 @@ function addUser(text, files) {
   const b = document.createElement("div"); b.className = "bubble";
   if (files && files.length) {
     const fl = document.createElement("div"); fl.className = "ufiles";
-    files.forEach((f) => { const s = document.createElement("span"); s.textContent = "📎 " + f.name; s.title = f.label || ""; fl.appendChild(s); });
+    files.forEach((f) => {
+      const s = document.createElement("span"); s.textContent = "📎 " + f.name; s.title = f.label || "";
+      if (f.file) {   // 원본이 화면에 있을 때만 — 사용자가 누른 것만 NAS 로 간다(REQ-0108)
+        const nb = document.createElement("button"); nb.type = "button"; nb.className = "nas"; nb.textContent = "🗄 NAS 저장";
+        nb.title = "이 파일 원본을 사내 NAS 부서 폴더(AI저장)에 보관합니다"; nb.onclick = () => nasSaveFile(f, nb); s.appendChild(nb);
+      }
+      fl.appendChild(s);
+    });
     b.appendChild(fl);
   }
   b.appendChild(document.createTextNode(text)); m.appendChild(b);
@@ -428,7 +496,7 @@ async function addFiles(list) {
   const room = MAX_FILES - pending.length;
   if (room <= 0) { toast(`파일은 한 번에 ${MAX_FILES}개까지입니다`); return; }
   if (files.length > room) toast(`${MAX_FILES}개까지만 첨부합니다 — ${files.length - room}개 제외`);
-  const jobs = files.slice(0, room).map((f) => { const it = { id: ++fileSeq, name: f.name, label: "", part: null }; pending.push(it); return [it, f]; });
+  const jobs = files.slice(0, room).map((f) => { const it = { id: ++fileSeq, name: f.name, label: "", part: null, file: f }; pending.push(it); return [it, f]; });
   renderTray();
   for (const [it, f] of jobs) {
     const r = await readAttachment(f);
@@ -618,7 +686,7 @@ $("tScen").onclick = (e) => {
   if (isOp()) { $("opBox").style.display = ""; $("ver").textContent = `설정 v${BOOT.version} · ${BOOT.model || "모델 없음"}${BOOT.model_note ? " — " + BOOT.model_note : ""}`; }
   $("chips").innerHTML = (A.suggestions || []).map((s) => `<span class="chip" data-q="${escHtml(s.q)}">${escHtml(s.label)}</span>`).join("");
   unhide();
-  loadArts();
+  loadArts(); loadNas();
   // 주소에 ?tab=test 가 있으면 검증·테스트 탭으로 바로 연다(포털·문서에서 건너올 때)
   if (new URLSearchParams(location.search).get("tab") === "test") showTab("test");
 })();

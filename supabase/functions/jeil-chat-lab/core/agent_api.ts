@@ -85,6 +85,18 @@ const monthStart = () => todayKst().slice(0, 7) + "-01T00:00:00+09:00";
 const dayStart = () => todayKst() + "T00:00:00+09:00";
 const txt = (v: unknown, max: number) => String(v ?? "").slice(0, max);
 
+/* 부서 NAS 저장(REQ-0108) — 형식·이름 기준. 민감 이름은 NAS 색인(nas_index.py _SENSITIVE_NAME)과 같은 낱말이다(한쪽만 고치지 않는다). */
+const NAS_SAVE_EXT = new Set([".csv", ".tsv", ".txt", ".md", ".json", ".sql", ".log", ".xml", ".html", ".htm", ".xlsx", ".xlsm", ".docx", ".pdf", ".png", ".jpg", ".jpeg", ".gif", ".webp"]);
+const NAS_TEXT_EXT = new Set([".csv", ".tsv", ".txt", ".md", ".json", ".sql", ".log", ".xml", ".html", ".htm"]);
+const NAS_SENSITIVE_NAME = /급여|연봉|임금대장|인사평가|고과|주민등록|통장사본|신분증/i;
+const NAS_SAVE_MAX_B64 = Math.ceil(8 * 1024 * 1024 / 3) * 4;   // 8MB 원본
+/** 파일 이름에서 경로·금지 글자를 뺀다. 확장자는 유지. */
+const safeFileName = (n: string) => n.replace(/[\\/:*?"<>|\u0000-\u001f]/g, " ").replace(/\s+/g, " ").replace(/^[.\s]+/, "").trim().slice(0, 150);
+async function sha256Hex(buf: Uint8Array): Promise<string> {
+  const d = await crypto.subtle.digest("SHA-256", buf);
+  return Array.from(new Uint8Array(d)).map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
 // deno-lint-ignore no-explicit-any
 async function glossaryOf(admin: any, key: string) {
   const { data } = await admin.from("agent_glossary").select("term,meaning").eq("agent_key", key).eq("active", true).order("term");
@@ -183,6 +195,65 @@ export async function handleAgent(c: AgentCtx, body: Record<string, unknown>): P
       const { data, error } = await admin.storage.from(BUCKET).createSignedUrl(a.storage_path, 120, { download: `${a.title}.${a.kind}` });
       if (error) return json({ error: error.message }, 500);
       return json({ url: data.signedUrl });
+    }
+    /* ───── 부서 NAS 저장(REQ-0108 · 정본 SQL 89) — 사용자가 버튼을 누른 것만 ───── */
+    case "nas_save": {
+      if (!agent.dept_nm) return json({ error: "이 에이전트에는 담당 부서가 없어 저장할 폴더를 정할 수 없습니다." }, 400);
+      let bucket = "", path = "", name = "", size = 0, sha = "", kind: "attachment" | "artifact" = "attachment";
+      let artifactId: string | null = null;
+      if (body.source === "artifact") {
+        const { data: a } = await admin.from("agent_artifact").select("id,upn,storage_path,title,kind").eq("id", String(body.id || "")).maybeSingle();
+        if (!a || a.upn !== scope.upn) return json({ error: "본인 자료만 저장할 수 있습니다." }, 403);
+        const dl = await admin.storage.from(BUCKET).download(a.storage_path);
+        if (dl.error || !dl.data) return json({ error: "자료 원본을 읽지 못했습니다." }, 500);
+        const buf = new Uint8Array(await dl.data.arrayBuffer());
+        kind = "artifact"; bucket = BUCKET; path = a.storage_path; artifactId = a.id;
+        name = safeFileName(`${a.title}.${a.kind}`); size = buf.length; sha = await sha256Hex(buf);
+      } else {
+        name = safeFileName(String(body.name || ""));
+        const ext = (name.match(/\.[A-Za-z0-9]{1,5}$/)?.[0] || "").toLowerCase();
+        if (!name || !NAS_SAVE_EXT.has(ext)) return json({ error: "저장할 수 없는 형식입니다. 엑셀·CSV·워드·PDF·이미지·텍스트만 저장합니다." }, 400);
+        if (NAS_SENSITIVE_NAME.test(name)) return json({ error: "급여·인사평가·주민등록 등 민감 자료로 보이는 파일은 저장하지 않습니다(§1.7)." }, 400);
+        const b64 = typeof body.data === "string" ? body.data : "";
+        if (!b64 || b64.length > NAS_SAVE_MAX_B64) return json({ error: "파일이 너무 큽니다(8MB까지 저장합니다)." }, 413);
+        let buf: Uint8Array;
+        try { buf = Uint8Array.from(atob(b64), (ch) => ch.charCodeAt(0)); } catch { return json({ error: "파일 내용을 읽지 못했습니다." }, 400); }
+        if (!buf.length) return json({ error: "빈 파일입니다." }, 400);
+        if (NAS_TEXT_EXT.has(ext)) {
+          // 글자 파일은 주민등록번호 꼴이 있으면 받지 않는다(채팅 첨부와 같은 기준). 엑셀·워드·PDF 는 NAS 색인 단계에서 걸러진다
+          const head = new TextDecoder("utf-8", { fatal: false }).decode(buf.subarray(0, 2_000_000));
+          if (RRN.test(head)) return json({ error: "주민등록번호로 보이는 값이 있어 저장할 수 없습니다. 해당 열을 지우고 다시 시도해 주세요." }, 400);
+        }
+        bucket = "nas-outbox"; path = `${scope.upn}/${crypto.randomUUID()}${ext}`; size = buf.length; sha = await sha256Hex(buf);
+        const up = await admin.storage.from(bucket).upload(path, new Blob([buf]), { contentType: "application/octet-stream", upsert: false });
+        if (up.error) return json({ error: "임시 보관 실패: " + up.error.message }, 500);
+      }
+      const { data: r, error } = await admin.rpc("nas_save_submit", { p_upn: scope.upn, p_saver: `${scope.dept || ""} ${scope.empNm || ""}`.trim(),
+        p_agent: agent.agent_key, p_dept: agent.dept_nm, p_kind: kind, p_file_name: name, p_size: size, p_sha256: sha,
+        p_bucket: bucket, p_path: path, p_turn_id: Number(body.turn_id) || null, p_artifact_id: artifactId });
+      // 큐에 들어가지 않았으면 방금 올린 임시 파일을 남기지 않는다
+      if ((error || r?.status !== "queued") && bucket === "nas-outbox") await admin.storage.from(bucket).remove([path]).catch(() => {});
+      if (error) return json({ error: "저장 요청 실패: " + error.message }, 500);
+      if (r.status === "no_folder") return json({ error: `${agent.dept_nm} 폴더가 사내 NAS 에 등록돼 있지 않습니다(관리자 확인 필요).` }, 409);
+      if (r.status === "too_big") return json({ error: `파일이 너무 큽니다(${r.max_mb}MB까지 저장합니다).` }, 413);
+      return json({ ok: true, ...r, file_name: r.file_name || name });
+    }
+    case "nas_saved_list": {
+      if (!agent.dept_nm) return json({ folder: null, items: [] });
+      const { data, error } = await admin.rpc("nas_save_list", { p_dept: agent.dept_nm, p_limit: 100 });
+      if (error) return json({ error: error.message }, 500);
+      // deno-lint-ignore no-explicit-any
+      const items = ((data?.items || []) as any[]).map((x) => ({ ...x, mine: x.upn === scope.upn, upn: undefined }));
+      return json({ ...data, items, can_manage: need(role, "reviewer") });
+    }
+    case "nas_saved_delete": {
+      const { data, error } = await admin.rpc("nas_save_request_purge", { p_save_id: String(body.id || ""), p_upn: scope.upn, p_can_manage: need(role, "reviewer") });
+      if (error) return json({ error: error.message }, 500);
+      if (data?.status === "denied") return json({ error: "본인이 저장한 파일만 지울 수 있습니다." }, 403);
+      if (data?.status === "missing") return json({ error: "없는 항목입니다." }, 404);
+      if (data?.status === "busy") return json({ error: "저장이 진행 중입니다. 잠시 뒤 다시 시도해 주세요." }, 409);
+      if (data?.cleanup?.path) await admin.storage.from("nas-outbox").remove([data.cleanup.path]).catch(() => {});
+      return json({ ok: true, status: data?.status });
     }
     case "artifact_delete": {
       const { data: a } = await admin.from("agent_artifact").select("id,upn,storage_path").eq("id", String(body.id || "")).maybeSingle();
