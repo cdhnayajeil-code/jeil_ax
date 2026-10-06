@@ -399,6 +399,7 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <blockquote>
 <p><strong>실시간 방향(N2·N3)의 방식 검토는 <a href="/docs/nas/realtime">04 실시간 연계·컨테이너 이관 검토</a></strong> — 권고: 조회 큐 + 중계 함수에서 길게 대기(터널 없음). 구현 단계는 그 문서의 P2~P4.</p>
 <p><strong>2026-10-02 실시간 조회 1차 가동(REQ-0103 · P2)</strong> — 조회 큐(정본 SQL 86) + 중계 함수 길게 대기 + 워커 n1.3 조회 응답 + 게이트웨이 도구 2종(<code>list_company_files</code> 파일 목록 · <code>search_my_past_chats</code> 본인 과거 대화, 도메인 <code>nas</code>). 실 NAS 왕복 <strong>중앙 0.8초</strong>(10/10). 허용 폴더는 <code>etl_meta.nas_folder_scope</code> 등록제(현재 0건 — D-96 부서 폴더 생성 뒤 등록). 조회에 답하는 워커가 없으면 즉시 「점검 중」.</p>
+<p><strong>2026-10-06 생성 자료·첨부 원본 NAS 저장(REQ-0108 · P4) 배포</strong> — 사용자가 [🗄 NAS 저장]을 누른 것만 부서 폴더 <code>AI저장/&lt;연도&gt;/</code> 에 보관(자동 저장 없음 · 보존 3년 · 정본 SQL 89 · 중계 v6 · 게이트웨이 v19 · 워커 n1.5 · 회귀 154건 · 실 NAS 저장·삭제 왕복 확인). NAS 외부 백업 없이 적용(D-104 비선행). <strong>컨테이너 n1.5 재빌드 전까지 저장은 대기 상태.</strong></p>
 <p><strong>2026-10-02 문서 내용 검색 가동(REQ-0104 · P3)</strong> — 색인 <code>nas_index.py</code>(SQLite FTS5 trigram — 한글 부분 일치 · docx·xlsx·pptx·hwpx·txt·md·csv + pdf(pypdf)) · 조회 종류 <code>doc_search</code>·<code>doc_read</code>(정본 SQL 87) · 게이트웨이 도구 <code>search_company_docs</code>·<code>read_company_doc</code> · 허용 폴더 2건 등록(<code>00_전사공유</code> 전원 · <code>부서/4300_구매팀</code> 구매팀 — D-96 파일럿). 실 NAS 검색 왕복 <strong>중앙 0.81초</strong>(12/12). 색인은 10분마다 바뀐 파일만 갱신.</p>
 </blockquote>
 <h2 id="7">7. 검증 기준(단계별 완료 조건)</h2>
@@ -429,7 +430,7 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <tr>
 <td>N2</td>
 <td>보존 전환 뒤 관리 화면에서 과거 기록이 NAS 에서 조회됨 · 최근분은 Supabase</td>
-<td>⬜</td>
+<td>⬜ (보존 전환은 미착수 · 단 <strong>생성 자료·첨부 원본 NAS 저장(P4)은 2026-10-06 배포 완료</strong> — 컨테이너 n1.5 재빌드 대기)</td>
 </tr>
 <tr>
 <td>N3</td>

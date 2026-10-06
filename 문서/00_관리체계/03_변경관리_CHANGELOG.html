@@ -110,6 +110,13 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <tbody>
 <tr>
 <td>2026-10-06</td>
+<td>사내NAS 에이전트 파일 저장·Edge Function·DB</td>
+<td>정본 SQL 89 · <code>jeil-nas-bridge</code> v6 · <code>jeil-chat-lab</code> v19 · <code>nas_worker.py</code> n1.5 · <code>deploy/nas/compose.yaml</code> · <code>pages/구매_AI에이전트_2026.html</code> · <code>13_NAS_고도화</code> · <code>12_에이전트관리</code> · ADR-110</td>
+<td><strong>첨부 원본·생성 자료 NAS 부서 폴더 저장(REQ-0108 · NAS 4단계 P4 · 커밋 15f3ac3).</strong> 관리자 결정 D-115: 대상=둘 다 · 사용자가 [🗄 NAS 저장]을 누른 것만 · 부서 폴더 <code>AI저장/&lt;연도&gt;/</code> 공유 · 보존 3년(만료 뒤 초기값 keep) · NAS 외부 백업 없이 적용. 실 NAS 저장·삭제 왕복 검증, 회귀 154건. 남은 것: 관리자의 NAS 컨테이너 n1.5 재빌드(그 전엔 「저장 중」 대기)</td>
+<td>최동혁</td>
+</tr>
+<tr>
+<td>2026-10-06</td>
 <td>저장소 구조·문서 링크(전 문서)</td>
 <td><code>문서/</code>(신설) · <code>_routes.py</code> · <code>_build_routes.py</code> · <code>vercel.json</code> · <code>_local_links.js</code>(신규 생성물) · <code>문서/index.html</code>(신규 생성물) · <code>CLAUDE.md §18</code> · <code>00_문서대장</code> · <code>02_명명규칙 §5</code></td>
 <td><strong>문서 폴더 통합 + 파일로 열어도 링크 연결(REQ-0107).</strong> ① 문서 폴더 9개(00·05·06·08·09·10·11·12·13)와 루트 기획서 4종(01·02·03·07)을 <code>문서/</code> 하나로 옮겼다(199파일 · git mv — 이력 보존). 실행 코드 <code>10_ERP_DB연계/etl/</code> 은 <strong>옮기지 않았다</strong> — 사내 PC 예약작업(NAS 야간 적재·스캔 목록)이 절대경로로 가리킨다. ② 주소(클린 URL)는 그대로다. 통합 전 파일 주소(<code>/10_ERP_DB연계/…</code>)는 리다이렉트로 계속 열린다. ③ <strong>문서 센터 <code>/docs</code></strong> 신설 — 라우트 표에서 자동 생성되는 전체 문서 목차·검색(116종). ④ <strong>PC에서 파일로 열면 링크가 전부 죽던 문제 해소</strong> — 문서 링크 1,576개가 <code>/docs/…</code> 꼴이라 파일로 열면 <code>C:\docs\…</code> 로 풀렸다. 문서 영역 HTML 118개에 로더 한 줄을 넣어, 파일로 열었을 때만 <code>_local_links.js</code> 가 실제 파일로 바꿔 준다(사이트 동작 불변). 브라우저 실측: 허브 13종 파일 링크 237개 중 죽은 것 0. ⑤ 주소가 없던 문서 5건 등록(12/07 통합실측 · 유니포인트 전달본 4종). ⑥ <strong>총괄 대시보드가 문법 오류로 멈춰 있던 것 수정</strong> — <code>AX_DASH</code> 의사결정 로그 D-113 뒤 쉼표 누락으로 대시보드 스크립트 전체가 실행되지 않았다(사이트·파일 모두). 쉼표 1개 보정 후 정상 렌더. 빌더 8종의 저장소 루트·공통 빌더 경로와 <code>.gitignore</code>(NAS PoC 원본 제외 경로)도 새 위치에 맞췄다.</td>

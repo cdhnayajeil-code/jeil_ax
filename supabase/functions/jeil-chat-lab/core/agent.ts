@@ -72,7 +72,7 @@ export function agentPrompt(agent: AgentRow, v: AgentVersion, mods: ToolManifest
   parts.push({ key: "agent.today", label: "오늘 날짜", text: `오늘은 ${todayKst}(한국시간)입니다. '이번 달'·'올해'는 이 날짜 기준입니다.` });
   return parts;
 }
-const FILE_NOTE = "파일 보관: 사용자가 붙인 첨부 파일과 자료함의 자료는 화면의 「🗄 NAS 저장」 버튼으로 부서 NAS 폴더(AI저장)에 보관할 수 있습니다(기본 3년 보존, 부서 구성원 공유). "
+const FILE_NOTE = "파일 보관: 사용자가 붙인 첨부 파일과 자료함의 자료는 사용자가 직접 버튼으로 부서 NAS 폴더(AI저장)에 보관할 수 있습니다 — 첨부는 보낸 메시지의 파일 이름 옆 「🗄 NAS 저장」, 자료함은 항목의 「NAS」 버튼입니다(기본 3년 보존, 부서 구성원 공유). "
   + "당신은 파일을 직접 저장·삭제할 수 없습니다. 저장을 요청받으면 그 버튼을 누르라고 안내하고, 버튼을 누르지 않은 첨부는 어디에도 저장되지 않으며 대화 기록에는 파일 이름만 남는다고 사실대로 답하세요. "
   + "저장됐는지는 화면 오른쪽 「부서 NAS 보관함」에서 확인한다고 안내하세요.";
 export const joinAgentPrompt = (p: PromptParts) => p.map((x) => x.text).join("\n\n");
