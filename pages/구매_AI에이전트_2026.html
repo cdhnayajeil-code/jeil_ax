@@ -78,6 +78,39 @@ details.trace div{font-family:Consolas,Menlo,monospace;word-break:break-all;padd
 .arts li{display:flex;gap:8px;align-items:center;border-bottom:1px dashed var(--line);padding:6px 0;font-size:12.5px}
 .arts li .t{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .arts li small{color:var(--muted)}
+/* 부서 NAS 보관함 관리 창(REQ-0108) — .nx 스코프만 쓴다 */
+.nx{position:fixed;inset:0;background:rgba(20,30,50,.45);z-index:60;display:flex;align-items:center;justify-content:center;padding:18px}
+.nx[hidden]{display:none}
+.nx-win{background:#fff;border-radius:12px;width:min(1080px,100%);height:min(720px,100%);display:flex;flex-direction:column;box-shadow:0 18px 50px rgba(0,0,0,.3);overflow:hidden;position:relative}
+.nx-head{display:flex;align-items:center;gap:10px;padding:12px 16px;background:var(--navy);color:#fff}
+.nx-head b{font-size:15px}.nx-head span{font-size:12px;opacity:.85}.nx-head .sp{flex:1}
+.nx-head button{background:transparent;border:1px solid rgba(255,255,255,.5);color:#fff;border-radius:8px;padding:3px 10px;cursor:pointer;font-family:inherit}
+.nx-bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:9px 14px;border-bottom:1px solid var(--line);background:#fbfcfe}
+.nx-bar input[type=search]{border:1px solid var(--line);border-radius:8px;padding:5px 9px;font-family:inherit;font-size:13px;width:200px}
+.nx-bar .sp{flex:1}.nx-bar .cnt{font-size:12px;color:var(--muted)}
+.nx-btn{border:1px solid var(--line);background:#fff;border-radius:8px;padding:5px 11px;font-size:12.5px;cursor:pointer;font-family:inherit}
+.nx-btn.pri{background:var(--accent);border-color:var(--accent);color:#fff}
+.nx-btn.dan{border-color:#d9534f;color:#b42318}.nx-btn.dan.armed{background:#b42318;color:#fff}
+.nx-btn:disabled{opacity:.5;cursor:default}
+.nx-body{flex:1;display:flex;min-height:0}
+.nx-side{width:170px;border-right:1px solid var(--line);padding:10px 8px;overflow-y:auto;background:#fafbfd;font-size:13px}
+.nx-side .lab{font-size:11.5px;color:var(--muted);margin:2px 6px 6px}
+.nx-side button{display:flex;justify-content:space-between;width:100%;text-align:left;border:0;background:transparent;border-radius:7px;padding:6px 8px;cursor:pointer;font-family:inherit;font-size:13px}
+.nx-side button.on{background:var(--soft);color:var(--navy);font-weight:600}
+.nx-side button small{color:var(--muted)}
+.nx-main{flex:1;overflow:auto;min-width:0}
+.nx-tbl{border-collapse:collapse;width:100%;font-size:12.5px}
+.nx-tbl th{position:sticky;top:0;background:#eef2f7;color:var(--navy);text-align:left;padding:7px 9px;white-space:nowrap;border-bottom:1px solid var(--line);cursor:pointer;user-select:none}
+.nx-tbl th.nos{cursor:default}
+.nx-tbl td{padding:6px 9px;border-bottom:1px solid #edf0f5;vertical-align:middle}
+.nx-tbl tr.sel td{background:#eef5fd}
+.nx-tbl td.nm{max-width:380px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.nx-tbl td.r{text-align:right;white-space:nowrap}.nx-tbl td.c{white-space:nowrap;color:var(--muted)}
+.nx-empty{padding:46px 20px;text-align:center;color:var(--muted);font-size:13px}
+.nx-foot{display:flex;gap:10px;align-items:center;padding:8px 14px;border-top:1px solid var(--line);font-size:12px;color:var(--muted);background:#fbfcfe}
+.nx-foot .sp{flex:1}
+.nx-drop{position:absolute;inset:0;background:rgba(47,111,179,.14);border:3px dashed var(--accent);border-radius:12px;display:none;align-items:center;justify-content:center;font-size:17px;color:var(--navy);font-weight:600;pointer-events:none}
+.nx-drop.on{display:flex}
 .ufiles .nas{margin-left:6px;font-size:11px;border:1px solid rgba(255,255,255,.7);background:transparent;color:inherit;border-radius:10px;padding:0 7px;cursor:pointer;font-family:inherit}
 .ufiles .nas:disabled{opacity:.75;cursor:default}
 .nasst{font-size:11px;border-radius:9px;padding:0 7px;white-space:nowrap}
@@ -164,7 +197,8 @@ details.trace div{font-family:Consolas,Menlo,monospace;word-break:break-all;padd
         <div class="hint" style="margin-top:6px">본인만 볼 수 있고 30일 뒤 자동 삭제됩니다. 오래 보관하려면 <b>NAS</b> 를 눌러 부서 폴더에 저장하세요.</div>
       </div>
       <div class="box" id="nasBox">
-        <h3>🗄 부서 NAS 보관함 <span class="hint" id="nasInfo"></span></h3>
+        <h3>🗄 부서 NAS 보관함 <span class="hint" id="nasInfo"></span>
+          <button type="button" class="nx-btn" id="nxOpen" style="float:right;margin-top:-3px" title="탐색기처럼 파일을 추가·삭제·정렬합니다">📂 관리</button></h3>
         <ul class="arts" id="nasList" style="min-height:60px"><li class="hint">불러오는 중…</li></ul>
         <div class="hint" style="margin-top:6px" id="nasHint">첨부 파일·자료함의 <b>🗄 NAS 저장</b>을 누른 것만 사내 NAS 부서 폴더(AI저장)에 보관됩니다. 누르지 않은 첨부는 저장되지 않습니다.</div>
       </div>
@@ -208,6 +242,27 @@ details.trace div{font-family:Consolas,Menlo,monospace;word-break:break-all;padd
     </div>
   </div>
   <div class="foot"><span>REQ-0087·0106 · 14 기획 부서 에이전트 · 수치는 ERP 중간DB(파일럿 데이터) 조회 결과입니다.</span><span id="ver"></span></div>
+</div>
+<!-- 부서 NAS 보관함 관리 창(REQ-0108) — 탐색기처럼 추가·삭제. 저장 위치·권한·보존은 서버가 정한다 -->
+<div class="nx" id="nx" hidden>
+  <div class="nx-win" id="nxWin">
+    <div class="nx-head"><b>🗄 부서 NAS 보관함</b><span id="nxPath"></span><span class="sp"></span><button type="button" id="nxClose" title="닫기(Esc)">✕ 닫기</button></div>
+    <div class="nx-bar">
+      <button type="button" class="nx-btn pri" id="nxAdd" title="PC 의 파일을 골라 부서 NAS 폴더에 추가합니다(끌어다 놓아도 됩니다)">＋ 파일 추가</button>
+      <input type="file" id="nxFile" multiple hidden>
+      <button type="button" class="nx-btn dan" id="nxDel" disabled>선택 삭제</button>
+      <button type="button" class="nx-btn" id="nxReload" title="목록 새로고침">↻ 새로고침</button>
+      <span class="sp"></span>
+      <input type="search" id="nxQ" placeholder="파일 이름 찾기">
+      <span class="cnt" id="nxCnt"></span>
+    </div>
+    <div class="nx-body">
+      <div class="nx-side" id="nxSide"></div>
+      <div class="nx-main" id="nxMain"><div class="nx-empty">불러오는 중…</div></div>
+    </div>
+    <div class="nx-foot"><span id="nxMsg"></span><span class="sp"></span><span id="nxPol"></span></div>
+    <div class="nx-drop" id="nxDrop">📂 여기에 놓으면 부서 NAS 폴더에 추가됩니다</div>
+  </div>
 </div>
 <div class="toast" id="toast"></div>
 
@@ -528,6 +583,125 @@ $("inp").addEventListener("paste", (e) => {
   addFiles(fs.map((f, i) => (f.name && f.name !== "image.png") ? f
     : new File([f], `붙여넣은_이미지_${i + 1}.${(f.type.split("/")[1] || "png")}`, { type: f.type })));
 });
+
+/* ===== 부서 NAS 보관함 관리 창(REQ-0108) — 탐색기처럼 추가·삭제 =====
+   화면은 요청·표시만 한다. 어디에 쓰는지(부서 폴더의 AI저장/연도)·누가 지울 수 있는지·보존 기간은 서버(SQL 89)가 정한다. */
+const NX = { items: [], year: "all", q: "", sort: "date", desc: true, sel: new Set(), busy: false, can: false, timer: null };
+const nxYear = (x) => { const m = /^AI저장\/(\d{4})\//.exec(x.rel_path || ""); return m ? m[1] : String(x.created_at || "").slice(0, 4); };
+const nxKind = (x) => x.kind === "artifact" ? "생성 자료" : "파일";
+const nxCanDel = (x) => (x.mine || NX.can) && x.status !== "purge" && x.status !== "running";
+const nxMsg = (t) => { $("nxMsg").textContent = t || ""; };
+function nxView() {
+  const q = NX.q.trim().toLowerCase();
+  const rows = NX.items.filter((x) => (NX.year === "all" || nxYear(x) === NX.year) && (!q || String(x.file_name).toLowerCase().includes(q)));
+  const key = { name: (x) => String(x.file_name).toLowerCase(), size: (x) => Number(x.size_bytes) || 0, who: (x) => x.saver_name || "", date: (x) => String(x.created_at), keep: (x) => String(x.retain_until || "") }[NX.sort];
+  rows.sort((a, b) => { const A = key(a), B = key(b); return (A < B ? -1 : A > B ? 1 : 0) * (NX.desc ? -1 : 1); });
+  return rows;
+}
+function nxRender() {
+  const years = {}; NX.items.forEach((x) => { const y = nxYear(x); years[y] = (years[y] || 0) + 1; });
+  $("nxSide").innerHTML = '<div class="lab">AI저장</div>'
+    + `<button type="button" data-y="all" class="${NX.year === "all" ? "on" : ""}"><span>📁 전체</span><small>${NX.items.length}</small></button>`
+    + Object.keys(years).sort().reverse().map((y) => `<button type="button" data-y="${escHtml(y)}" class="${NX.year === y ? "on" : ""}"><span>📂 ${escHtml(y)}</span><small>${years[y]}</small></button>`).join("");
+  const rows = nxView();
+  const ids = new Set(rows.map((x) => x.save_id));
+  NX.sel.forEach((id) => { if (!ids.has(id)) NX.sel.delete(id); });
+  const arrow = (k) => NX.sort === k ? (NX.desc ? " ▼" : " ▲") : "";
+  const st = (x) => x.status === "done" ? '<span class="nasst ok">보관됨</span>'
+    : x.status === "failed" ? `<span class="nasst bad" title="${escHtml(x.error_msg || "")}">실패</span>`
+    : x.status === "purge" ? '<span class="nasst wait">삭제 대기</span>' : '<span class="nasst wait">저장 중</span>';
+  const selectable = rows.filter(nxCanDel);
+  $("nxMain").innerHTML = rows.length ? `<table class="nx-tbl"><thead><tr>
+      <th class="nos" style="width:28px"><input type="checkbox" id="nxAll" ${selectable.length && selectable.every((x) => NX.sel.has(x.save_id)) ? "checked" : ""} ${selectable.length ? "" : "disabled"} title="모두 선택"></th>
+      <th data-s="name">이름${arrow("name")}</th><th class="nos">종류</th><th data-s="size" style="text-align:right">크기${arrow("size")}</th>
+      <th data-s="who">저장한 사람${arrow("who")}</th><th data-s="date">저장일${arrow("date")}</th><th data-s="keep">보존 기한${arrow("keep")}</th><th class="nos">상태</th></tr></thead><tbody>`
+    + rows.map((x) => `<tr data-id="${escHtml(x.save_id)}" class="${NX.sel.has(x.save_id) ? "sel" : ""}">
+      <td>${nxCanDel(x) ? `<input type="checkbox" data-c="1" ${NX.sel.has(x.save_id) ? "checked" : ""}>` : ""}</td>
+      <td class="nm" title="${escHtml(x.file_name)}${x.rel_path ? " — " + escHtml(x.rel_path) : ""}">${escHtml(x.file_name)}</td>
+      <td class="c">${nxKind(x)}</td><td class="r">${fmtSize(x.size_bytes)}</td>
+      <td class="c">${escHtml(x.saver_name || "")}</td><td class="c">${escHtml(String(x.created_at).slice(0, 10))}</td>
+      <td class="c">${escHtml(String(x.retain_until || ""))}</td><td>${st(x)}</td></tr>`).join("") + "</tbody></table>"
+    : `<div class="nx-empty">${NX.items.length ? "조건에 맞는 파일이 없습니다." : "아직 보관한 파일이 없습니다.<br><b>＋ 파일 추가</b>를 누르거나 파일을 이 창에 끌어다 놓으세요."}</div>`;
+  $("nxCnt").textContent = `${rows.length}건${NX.sel.size ? ` · ${NX.sel.size}건 선택` : ""}`;
+  const d = $("nxDel"); d.disabled = !NX.sel.size || NX.busy; d.classList.remove("armed"); d.textContent = NX.sel.size ? `선택 삭제(${NX.sel.size})` : "선택 삭제";
+  $("nxAdd").disabled = NX.busy;
+}
+async function nxLoad(quiet) {
+  clearTimeout(NX.timer);
+  try {
+    const j = await op(AGENT, "nas_saved_list");
+    NX.items = j.items || []; NX.can = !!j.can_manage;
+    const pol = j.policy || {};
+    $("nxPath").textContent = j.folder ? `${j.folder} 폴더 › AI저장` : "폴더 미등록";
+    $("nxPol").textContent = j.folder ? `보존 ${pol.retain_years || 3}년 · 이후 ${pol.after_expiry === "delete" ? "자동 삭제" : "유지"} · 파일당 ${pol.max_mb || 8}MB까지${j.worker_online ? "" : " · ⚠ 사내 보관소 응답 없음"}` : "";
+    if (!j.folder) { $("nxMain").innerHTML = '<div class="nx-empty">이 부서의 NAS 폴더가 아직 등록되지 않았습니다(관리자 확인 필요).</div>'; return; }
+    nxRender();
+    if (!quiet) nxMsg("");
+    if (NX.items.some((x) => x.status === "queued" || x.status === "running") && !$("nx").hidden) NX.timer = setTimeout(() => nxLoad(true), 3000);
+  } catch (e) { if (e.message !== "login") $("nxMain").innerHTML = `<div class="nx-empty">보관함을 불러오지 못했습니다: ${escHtml(e.message)}</div>`; }
+}
+function nxOpen() { $("nx").hidden = false; NX.sel.clear(); NX.q = ""; $("nxQ").value = ""; nxLoad(); }
+function nxClose() { $("nx").hidden = true; clearTimeout(NX.timer); loadNas(); }
+async function nxAddFiles(list) {
+  const files = Array.from(list || []); if (!files.length || NX.busy) return;
+  NX.busy = true; nxRender();
+  let ok = 0, dup = 0; const bad = [];
+  for (let i = 0; i < files.length; i++) {
+    const f = files[i];
+    nxMsg(`추가하는 중… ${i + 1}/${files.length} — ${f.name}`);
+    if (f.size > NAS_MAX) { bad.push(`${f.name}(8MB 초과)`); continue; }
+    if (!f.size) { bad.push(`${f.name}(빈 파일)`); continue; }
+    try {
+      const j = await op(AGENT, "nas_save", { source: "attachment", name: f.name, data: await fileB64(f) });
+      if (j.status === "duplicate") dup++; else ok++;
+    } catch (e) { bad.push(`${f.name}(${e.message})`); }
+  }
+  NX.busy = false;
+  await nxLoad(true);
+  nxMsg([ok ? `${ok}개 추가 요청` : "", dup ? `${dup}개는 같은 파일이 이미 있음` : "", bad.length ? `실패 ${bad.length}개 — ${bad.join(" · ")}` : ""].filter(Boolean).join(" · ") || "추가한 파일이 없습니다");
+}
+async function nxDelete() {
+  const d = $("nxDel");
+  if (!d.classList.contains("armed")) {          // 두 번 눌러 확정(브라우저 확인창을 쓰지 않는다)
+    d.classList.add("armed"); d.textContent = `정말 ${NX.sel.size}개 삭제?`;
+    setTimeout(() => { if (d.classList.contains("armed")) nxRender(); }, 3000); return;
+  }
+  NX.busy = true; d.disabled = true;
+  const ids = [...NX.sel]; let ok = 0; const bad = [];
+  for (let i = 0; i < ids.length; i++) {
+    nxMsg(`삭제 요청 중… ${i + 1}/${ids.length}`);
+    try { await op(AGENT, "nas_saved_delete", { id: ids[i] }); ok++; } catch (e) { bad.push(e.message); }
+  }
+  NX.busy = false; NX.sel.clear();
+  await nxLoad(true);
+  nxMsg(`${ok}개 삭제 접수 — NAS 에서는 10분 안에 지워집니다` + (bad.length ? ` · 실패 ${bad.length}개(${bad[0]})` : ""));
+}
+$("nxOpen").onclick = nxOpen;
+$("nxClose").onclick = nxClose;
+$("nx").addEventListener("mousedown", (e) => { if (e.target === $("nx")) nxClose(); });
+document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !$("nx").hidden) nxClose(); });
+$("nxReload").onclick = () => nxLoad();
+$("nxAdd").onclick = () => $("nxFile").click();
+$("nxFile").accept = ACCEPT;
+$("nxFile").onchange = (e) => { nxAddFiles(e.target.files); e.target.value = ""; };
+$("nxDel").onclick = nxDelete;
+$("nxQ").oninput = (e) => { NX.q = e.target.value; nxRender(); };
+$("nxSide").onclick = (e) => { const b = e.target.closest("button[data-y]"); if (b) { NX.year = b.dataset.y; nxRender(); } };
+$("nxMain").addEventListener("click", (e) => {
+  const th = e.target.closest("th[data-s]");
+  if (th) { if (NX.sort === th.dataset.s) NX.desc = !NX.desc; else { NX.sort = th.dataset.s; NX.desc = th.dataset.s === "date"; } nxRender(); return; }
+  if (e.target.id === "nxAll") { const on = e.target.checked; nxView().filter(nxCanDel).forEach((x) => on ? NX.sel.add(x.save_id) : NX.sel.delete(x.save_id)); nxRender(); return; }
+  const tr = e.target.closest("tr[data-id]"); if (!tr) return;
+  const x = NX.items.find((i) => i.save_id === tr.dataset.id); if (!x || !nxCanDel(x)) return;
+  NX.sel.has(x.save_id) ? NX.sel.delete(x.save_id) : NX.sel.add(x.save_id); nxRender();
+});
+// 끌어다 놓기 — 관리 창 전체가 받는다
+let nxDragN = 0;
+const nxWin = $("nxWin");
+nxWin.addEventListener("dragenter", (e) => { if (!hasFiles(e)) return; e.preventDefault(); nxDragN++; $("nxDrop").classList.add("on"); });
+nxWin.addEventListener("dragover", (e) => { if (!hasFiles(e)) return; e.preventDefault(); e.dataTransfer.dropEffect = "copy"; });
+nxWin.addEventListener("dragleave", () => { nxDragN = Math.max(0, nxDragN - 1); if (!nxDragN) $("nxDrop").classList.remove("on"); });
+nxWin.addEventListener("drop", (e) => { if (!hasFiles(e)) return; e.preventDefault(); e.stopPropagation(); nxDragN = 0; $("nxDrop").classList.remove("on"); nxAddFiles(e.dataTransfer.files); });
 
 /* ===== 🧪 검증·테스트(REQ-0106) — 표시만 한다. 채점·실행 로직은 서버(golden_*), 기준 문항은 app/agent-templates.json ===== */
 const T = { loaded: false, runs: null, qual: null, tpl: null, busy: false };

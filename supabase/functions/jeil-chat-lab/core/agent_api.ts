@@ -240,7 +240,7 @@ export async function handleAgent(c: AgentCtx, body: Record<string, unknown>): P
     }
     case "nas_saved_list": {
       if (!agent.dept_nm) return json({ folder: null, items: [] });
-      const { data, error } = await admin.rpc("nas_save_list", { p_dept: agent.dept_nm, p_limit: 100 });
+      const { data, error } = await admin.rpc("nas_save_list", { p_dept: agent.dept_nm, p_limit: 300 });
       if (error) return json({ error: error.message }, 500);
       // deno-lint-ignore no-explicit-any
       const items = ((data?.items || []) as any[]).map((x) => ({ ...x, mine: x.upn === scope.upn, upn: undefined }));
