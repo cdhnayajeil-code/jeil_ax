@@ -46,7 +46,7 @@ from _env import env_root, load_env, need
 import nas_index
 import threading
 
-WORKER_VERSION = "n1.6"   # n1.6(2026-10-06): 과거 대화의 일시·기간 조건을 한국시간으로(적재 파일은 UTC 로 쌓인다 — N-2) · 저장 직후 색인 갱신 / n1.5(2026-10-06): 첨부 원본·생성 자료를 부서 폴더 「AI저장」에 저장·보존 만료 정리(SQL 89 · REQ-0108) / n1.4(2026-10-02): 문서 내용 색인·검색(nas_index.py — SQL 87) / n1.3:실시간 조회 응답(파일 목록·본인 과거 대화 — SQL 86) / n1.2:브리지 전송(좁은 키)·--serve(컨테이너 상주)·KST 고정 / n1.1: --nightly·--log·루트 검증
+WORKER_VERSION = "n1.7"   # n1.7(2026-10-06): 보관함 관리 — 사용자 폴더·내려받기(NAS→임시 버킷)·삭제 즉시 처리(SQL 90 · 일감은 nas_work_claim 하나로) / n1.6(2026-10-06): 과거 대화의 일시·기간 조건을 한국시간으로(적재 파일은 UTC 로 쌓인다 — N-2) · 저장 직후 색인 갱신 / n1.5(2026-10-06): 첨부 원본·생성 자료를 부서 폴더 「AI저장」에 저장·보존 만료 정리(SQL 89 · REQ-0108) / n1.4(2026-10-02): 문서 내용 색인·검색(nas_index.py — SQL 87) / n1.3:실시간 조회 응답(파일 목록·본인 과거 대화 — SQL 86) / n1.2:브리지 전송(좁은 키)·--serve(컨테이너 상주)·KST 고정 / n1.1: --nightly·--log·루트 검증
 
 POLL_SEC = 20          # 기본 폴링 주기
 HTTP_TIMEOUT = 120     # 페이지 응답이 수 MB 가 될 수 있어 etl_watch(60초)보다 넉넉히 잡는다
@@ -92,6 +92,8 @@ BRIDGE_FNS = (
     "nas_index_folders",                     # 문서 색인 대상 폴더(정본 SQL 87 · REQ-0104)
     "nas_save_claim", "nas_save_finish", "nas_save_purge_list", "nas_save_purged",   # 부서 폴더 저장(정본 SQL 89 · REQ-0108)
     "nas_save_fetch",                        # RPC 가 아니다 — 브리지가 저장할 파일의 1회용 내려받기 주소를 준다
+    "nas_work_claim", "nas_fetch_finish",    # 일감 하나(저장·내려받기·삭제 신호) · 내려받기 결과(정본 SQL 90 · REQ-0108)
+    "nas_fetch_put",                         # RPC 가 아니다 — 브리지가 내려받을 파일을 올릴 1회용 주소를 준다
 )
 
 # 실시간 조회 — 브리지에 한 번 물으면 이만큼 기다렸다 답이 온다(브리지 상한 20초와 같다)
@@ -850,8 +852,19 @@ def _safe_file_name(name):
     return n[:150] or None
 
 
-def save_target(docs_root, folder_rel, file_name, saved_on):
-    """저장할 절대 경로와 폴더 기준 상대 경로. 같은 이름이 있으면 _2, _3 … 을 붙인다. 폴더 밖이면 예외."""
+def _safe_subdir(name):
+    """사용자 폴더 이름 — 「AI저장」 바로 아래 한 단계만. DB(nas_subdir_ok)가 이미 걸렀지만 여기서 한 번 더 본다."""
+    n = str(name or "")
+    if (not n or n != n.strip() or len(n) > 40 or _BAD_NAME_CH.search(n) or n.startswith(".") or n.endswith(".")
+            or re.fullmatch(r"\d{4}", n) or nas_index._SENSITIVE_NAME.search(n)):
+        raise RuntimeError("폴더 이름이 올바르지 않습니다")
+    return n
+
+
+def save_target(docs_root, folder_rel, file_name, saved_on, subdir=None):
+    """저장할 절대 경로와 폴더 기준 상대 경로. 같은 이름이 있으면 _2, _3 … 을 붙인다. 폴더 밖이면 예외.
+
+    subdir(사용자 폴더)가 있으면 「AI저장/<폴더>/」, 없으면 「AI저장/<연도>/」."""
     rel = str(folder_rel or "").replace("\\", "/").strip("/")
     if not rel or any(p in ("", ".", "..") for p in rel.split("/")):
         raise RuntimeError("대상 폴더 경로가 올바르지 않습니다")
@@ -866,6 +879,8 @@ def save_target(docs_root, folder_rel, file_name, saved_on):
     year = str(saved_on or "")[:4]
     if not re.fullmatch(r"\d{4}", year):
         year = _now().strftime("%Y")
+    if subdir:
+        year = _safe_subdir(subdir)              # 아래에서 폴더 이름 자리로 쓴다
     folder = os.path.join(base, SAVE_DIR, year)
     stem, ext = os.path.splitext(name)
     cand, n = name, 1
@@ -921,7 +936,7 @@ def handle_save(url, key, job, docs_root, worker, fetch=None):
     try:
         if not docs_root:
             raise RuntimeError("문서 폴더가 연결돼 있지 않습니다")
-        path, rel = save_target(docs_root, job.get("folder_rel"), job.get("file_name"), job.get("saved_on"))
+        path, rel = save_target(docs_root, job.get("folder_rel"), job.get("file_name"), job.get("saved_on"), job.get("subdir"))
         data = (fetch or fetch_save_bytes)(url, key, sid, worker)
         if not data:
             raise RuntimeError("빈 파일입니다")
@@ -956,17 +971,86 @@ def handle_save(url, key, job, docs_root, worker, fetch=None):
         return False
 
 
+def saved_file_path(docs_root, folder_rel, rel_path):
+    """저장 대장의 (부서 폴더, 상대 경로) → 절대 경로. 「AI저장」 아래가 아니면 예외 — 내려받기·삭제가 함께 쓴다."""
+    frel = str(folder_rel or "").replace("\\", "/").strip("/")
+    rel = str(rel_path or "").replace("\\", "/").strip("/")
+    parts = rel.split("/")
+    if not frel or not rel or parts[0] != SAVE_DIR or any(p in ("", ".", "..") for p in parts + frel.split("/")):
+        raise RuntimeError("경로가 올바르지 않습니다")
+    base = os.path.join(docs_root, *frel.split("/"))
+    path = os.path.join(base, *parts)
+    if not _inside(os.path.join(base, SAVE_DIR), path):
+        raise RuntimeError("경로가 저장 폴더 밖입니다")
+    return path
+
+
+def put_fetch_bytes(url, key, fetch_id, worker, data):
+    """내려받을 파일을 임시 버킷에 올린다. 브리지: 1회용 올리기 주소 / 직결(사내 PC·테스트): Storage 에 직접."""
+    if _TRANSPORT == "bridge":
+        got = rpc(url, key, "nas_fetch_put", {"p_fetch_id": fetch_id})
+        put_url = (got or {}).get("url") if isinstance(got, dict) else None
+        if not put_url:
+            raise RuntimeError("올리기 주소를 받지 못했습니다")
+        req = urllib.request.Request(put_url, data=data, method="PUT", headers={"Content-Type": "application/octet-stream"})
+    else:
+        direct_only = "nas_fetch_source"         # 직결 전용 — 브리지는 주소만 준다(BRIDGE_FNS 밖)
+        src = rpc(url, key, direct_only, {"p_fetch_id": fetch_id, "p_worker": worker}) or {}
+        if not src.get("bucket") or not src.get("path"):
+            raise RuntimeError("올릴 위치를 받지 못했습니다")
+        req = urllib.request.Request(
+            f"{url}/storage/v1/object/{src['bucket']}/{urllib.parse.quote(src['path'])}", data=data, method="POST",
+            headers={"apikey": key, "Authorization": f"Bearer {key}", "Content-Type": "application/octet-stream", "x-upsert": "true"})
+    with urllib.request.urlopen(req, timeout=HTTP_TIMEOUT) as r:
+        r.read()
+
+
+def handle_fetch(url, key, job, docs_root, worker, put=None):
+    """내려받기 1건 — NAS 의 보관 파일을 임시 버킷에 올리고 결과를 되쓴다. put 은 테스트용 주입."""
+    fid = job.get("fetch_id")
+    t0 = time.time()
+    try:
+        if not docs_root:
+            raise RuntimeError("문서 폴더가 연결돼 있지 않습니다")
+        path = saved_file_path(docs_root, job.get("folder_rel"), job.get("rel_path"))
+        if not os.path.isfile(path) or os.path.islink(path):
+            raise RuntimeError("NAS 에 파일이 없습니다(지워졌거나 옮겨졌습니다)")
+        if os.path.getsize(path) > SAVE_MAX_BYTES:
+            raise RuntimeError("파일이 한도보다 큽니다")
+        with open(path, "rb") as fh:
+            data = fh.read()
+        (put or put_fetch_bytes)(url, key, fid, worker, data)
+        rpc(url, key, "nas_fetch_finish", {"p_fetch_id": fid, "p_status": "done"})
+        log(f"내려받기 {str(fid)[:8]}… {job.get('folder_key')} — {len(data):,}바이트 · {int((time.time() - t0) * 1000)}ms")
+        return True
+    except (Exception, SystemExit) as e:
+        msg = _redact(e).splitlines()[0][:200] if str(e) else type(e).__name__
+        try:
+            rpc(url, key, "nas_fetch_finish", {"p_fetch_id": fid, "p_status": "failed", "p_error": msg})
+        except (Exception, SystemExit) as e2:
+            log(f"내려받기 {str(fid)[:8]}… 실패 기록도 실패: {_redact(e2)[:160]}")
+        log(f"내려받기 {str(fid)[:8]}… 실패: {msg}")
+        return False
+
+
 def save_loop(url, key, worker, rounds=None):
-    """저장 요청을 물고 기다리다 처리한다. 조회·적재와 따로 돈다."""
+    """일감(저장·내려받기·삭제 신호)을 물고 기다리다 처리한다. 조회·적재와 따로 돈다."""
     n = 0
     while rounds is None or n < rounds:
         n += 1
         try:
             if _TRANSPORT == "bridge":
-                job = rpc(url, key, "nas_save_claim", {"p_worker": worker}, wait_sec=SAVE_WAIT_SEC)
+                job = rpc(url, key, "nas_work_claim", {"p_worker": worker}, wait_sec=SAVE_WAIT_SEC)
             else:
-                job = rpc(url, key, "nas_save_claim", {"p_worker": worker})
-            if job:
+                job = rpc(url, key, "nas_work_claim", {"p_worker": worker})
+            kind = (job or {}).get("job") if isinstance(job, dict) else None
+            if kind == "fetch":
+                handle_fetch(url, key, job, nas_docs_root(), worker)
+            elif kind == "purge":
+                # 삭제 요청이 있다는 신호 — 바로 지운다. 하나도 못 지웠으면 신호가 그대로라 헛돌 수 있어 잠깐 쉰다
+                if not purge_saved(url, key, nas_docs_root()) and (rounds is None or n < rounds):
+                    time.sleep(15)
+            elif job:
                 handle_save(url, key, job, nas_docs_root(), worker)
             elif _TRANSPORT != "bridge" and (rounds is None or n < rounds):
                 time.sleep(3)
@@ -989,17 +1073,13 @@ def purge_saved(url, key, docs_root):
     for r in rows if isinstance(rows, list) else []:
         sid = r.get("save_id")
         try:
-            frel = str(r.get("folder_rel") or "").replace("\\", "/").strip("/")
-            rel = str(r.get("rel_path") or "").replace("\\", "/").strip("/")
-            parts = rel.split("/")
-            if not frel or not rel or parts[0] != SAVE_DIR or any(p in ("", ".", "..") for p in parts + frel.split("/")):
-                raise RuntimeError("지울 경로가 올바르지 않습니다")
-            base = os.path.join(docs_root, *frel.split("/"))
-            path = os.path.join(base, *parts)
-            if not _inside(os.path.join(base, SAVE_DIR), path):
-                raise RuntimeError("지울 경로가 저장 폴더 밖입니다")
+            path = saved_file_path(docs_root, r.get("folder_rel"), r.get("rel_path"))
             if os.path.isfile(path) and not os.path.islink(path):
                 os.remove(path)
+                try:
+                    os.rmdir(os.path.dirname(path))      # 비었을 때만 지워진다(연도·사용자 폴더). 다시 저장하면 새로 생긴다
+                except OSError:
+                    pass
             rpc(url, key, "nas_save_purged", {"p_save_id": sid, "p_ok": True})   # 이미 없어도 지운 것으로 맺는다
             done += 1
         except (Exception, SystemExit) as e:
@@ -1009,6 +1089,7 @@ def purge_saved(url, key, docs_root):
                 pass
     if done:
         log(f"저장 정리 — {done}건 삭제")
+        _INDEX_WAKE.set()                        # 지운 문서가 검색에 남지 않게 색인도 곧 갱신한다
     return done
 
 

@@ -397,6 +397,7 @@ JEIL_AX/
    쓰는 곳은 DB 가 정해 준 **에이전트 담당 부서 폴더의 `AI저장/<연도>/`** 하나뿐이고, 지우는 것도 저장 대장(`etl_meta.nas_save`)에 있는 파일뿐이다 — 워커에서 경로 범위를 넓히지 않는다.
    파일은 비공개 버킷 `nas-outbox` 에 잠깐 머물다 1회용 주소로 내려가고 끝나면 지워진다(워커에 Storage 키를 주지 않는다). 민감 이름 낱말은 게이트웨이(`agent_api.ts` `NAS_SENSITIVE_NAME`)와 색인(`nas_index.py` `_SENSITIVE_NAME`)이 **같은 목록**이다.
    보존은 `etl_meta.nas_save_policy`(3년 · 만료 뒤 keep/delete)가 정한다 — 코드에 기간을 심지 않는다.
+   보관함 관리(정본 SQL 90): 사용자 폴더는 `AI저장/<이름>/` **한 단계**이고 이름 검사는 DB(`etl_meta.nas_subdir_ok`)가 정본이다 · 내려받기는 NAS → 임시 버킷 `_fetch/` → 2분 주소(워커는 그 요청의 자리 하나에만 올린다) · 워커 일감은 `nas_work_claim` 하나로 받는다(저장·내려받기·삭제 신호). 워커를 고치면 `compose.yaml` 의 이미지 꼬리표도 올린다.
 
 ---
 

@@ -753,11 +753,66 @@ class SaveToDeptFolder(Base):
         self.patch(w, "nas_docs_root", lambda: self.root)
         self.patch(w, "fetch_save_bytes", lambda *a: self.data)
         self.patch(w.time, "sleep", lambda s: None)
-        f = self.use({"nas_save_claim": [self.job(), None], "nas_save_finish": {"ok": True}})
+        f = self.use({"nas_work_claim": [self.job(), None], "nas_save_finish": {"ok": True}})
         w.save_loop("u", "k", "wk", rounds=2)
-        self.assertEqual(f.fns().count("nas_save_claim"), 2)
+        self.assertEqual(f.fns().count("nas_work_claim"), 2)
         self.assertEqual(f.last("nas_save_finish")["p_status"], "done")
         self.assertNoErpRpc(f)
+
+    def test_user_folder_goes_under_ai_folder(self):
+        ok, f = self.run_save(self.job(subdir="견적서"))
+        self.assertTrue(ok)
+        self.assertEqual(f.last("nas_save_finish")["p_rel_path"], "AI저장/견적서/검토 자료.csv")
+        self.assertTrue(os.path.isfile(os.path.join(self.folder, "AI저장", "견적서", "검토 자료.csv")))
+
+    def test_bad_user_folder_is_refused(self):
+        for bad in ("../밖", "a/b", "2026", " 앞공백", "급여자료", ".숨김", "끝점."):
+            ok, f = self.run_save(self.job(subdir=bad))
+            self.assertFalse(ok, bad)
+            self.assertEqual(f.last("nas_save_finish")["p_status"], "failed")
+        self.assertFalse(os.path.exists(os.path.join(self.root, "밖")))
+
+    def test_fetch_uploads_saved_file_only(self):
+        self.run_save(self.job())
+        sent = []
+        f = self.use({"nas_fetch_finish": {"ok": True}})
+        job = {"job": "fetch", "fetch_id": "f1", "folder_key": "pur_team", "folder_rel": "부서/4300_구매팀",
+               "rel_path": "AI저장/2026/검토 자료.csv"}
+        self.assertTrue(w.handle_fetch("u", "k", job, self.root, "wk", put=lambda *a: sent.append(a[-1])))
+        self.assertEqual(sent, [self.data])
+        self.assertEqual(f.last("nas_fetch_finish")["p_status"], "done")
+        # 「AI저장」 밖·없는 파일·폴더 탈출은 올리지 않는다
+        keep = os.path.join(self.folder, "부서원 문서.txt")
+        with open(keep, "w", encoding="utf-8") as fh:
+            fh.write("내보내면 안 된다")
+        for rel in ("부서원 문서.txt", "AI저장/../부서원 문서.txt", "AI저장/2026/없는파일.csv", ""):
+            sent.clear()
+            f = self.use({"nas_fetch_finish": {"ok": True}})
+            self.assertFalse(w.handle_fetch("u", "k", dict(job, rel_path=rel), self.root, "wk", put=lambda *a: sent.append(a[-1])), rel)
+            self.assertEqual(sent, [])
+            self.assertEqual(f.last("nas_fetch_finish")["p_status"], "failed")
+
+    def test_work_loop_dispatches_fetch_and_purge(self):
+        self.patch(w, "nas_docs_root", lambda: self.root)
+        self.patch(w.time, "sleep", lambda s: None)
+        calls = []
+        self.patch(w, "handle_fetch", lambda *a, **k: calls.append("fetch"))
+        self.patch(w, "purge_saved", lambda *a, **k: calls.append("purge") or 1)
+        self.patch(w, "handle_save", lambda *a, **k: calls.append("save"))
+        self.use({"nas_work_claim": [{"job": "fetch", "fetch_id": "f"}, {"job": "purge"}, self.job(), None]})
+        w.save_loop("u", "k", "wk", rounds=4)
+        self.assertEqual(calls, ["fetch", "purge", "save"])
+
+    def test_purge_removes_empty_folder_and_wakes_index(self):
+        self.run_save(self.job(subdir="견적서"))
+        w._INDEX_WAKE.clear()
+        self.addCleanup(w._INDEX_WAKE.clear)
+        rows = [{"save_id": "a", "folder_key": "pur_team", "folder_rel": "부서/4300_구매팀", "rel_path": "AI저장/견적서/검토 자료.csv"}]
+        self.use({"nas_save_purge_list": [rows], "nas_save_purged": {"ok": True}})
+        self.assertEqual(w.purge_saved("u", "k", self.root), 1)
+        self.assertFalse(os.path.exists(os.path.join(self.folder, "AI저장", "견적서")))     # 빈 폴더는 함께 정리
+        self.assertTrue(os.path.isdir(os.path.join(self.folder, "AI저장")))
+        self.assertTrue(w._INDEX_WAKE.is_set())
 
     def test_purge_deletes_only_inside_ai_folder(self):
         self.run_save(self.job())

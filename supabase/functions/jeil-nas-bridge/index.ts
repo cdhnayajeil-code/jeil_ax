@@ -24,14 +24,16 @@ const ALLOWED = new Set([
   "nas_index_folders",                     // 문서 색인 대상 폴더(정본 SQL 87 · REQ-0104)
   "nas_save_claim", "nas_save_finish", "nas_save_purge_list", "nas_save_purged",   // 부서 폴더 저장(정본 SQL 89 · REQ-0108)
   "nas_save_fetch",                        // RPC 가 아니다 — 저장할 파일의 1회용 내려받기 주소(아래에서 따로 처리)
+  "nas_work_claim", "nas_fetch_finish",    // 일감 하나(저장·내려받기·삭제 신호) · 내려받기 결과(정본 SQL 90 · REQ-0108)
+  "nas_fetch_put",                         // RPC 가 아니다 — 내려받을 파일을 올릴 1회용 주소
 ]);
 // 워커 이름을 인자로 받는 RPC — 여기서 토큰 행의 이름으로 바꿔 넣는다.
-const WORKER_ARG = new Set(["nas_runner_ping", "nas_request_claim", "nas_query_claim", "nas_save_claim"]);
+const WORKER_ARG = new Set(["nas_runner_ping", "nas_request_claim", "nas_query_claim", "nas_save_claim", "nas_work_claim"]);
 
 // 길게 대기 — 조회 요청이 없으면 0.3초마다 다시 확인하며 최대 20초를 기다렸다가 답한다.
 // DB 함수 안에서 기다리면 PostgREST 8초 제한에 걸리므로 기다림은 여기서 한다. 20초는 사내 장비의
 // 유휴 연결 제한에 걸리지 않게 잡은 값이다(워커는 답을 받으면 곧바로 다시 문다).
-const WAIT_FNS = new Set(["nas_query_claim", "nas_save_claim"]);
+const WAIT_FNS = new Set(["nas_query_claim", "nas_save_claim", "nas_work_claim"]);
 const WAIT_STEP_MS = 300;
 const WAIT_MAX_MS = 20_000;
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -72,6 +74,15 @@ Deno.serve(async (req) => {
     const { data: signed, error: e2 } = await admin.storage.from(src.bucket).createSignedUrl(src.path, 120);
     if (e2 || !signed?.signedUrl) return json({ error: "sign failed" }, 500);
     return json({ url: signed.signedUrl });
+  }
+
+  // 내려받기 — NAS 의 파일을 임시 버킷에 올릴 1회용 주소. 그 워커가 지금 처리 중인 건의 정해진 자리(_fetch/…)에만 쓸 수 있다.
+  if (fn === "nas_fetch_put") {
+    const { data: src, error: e1 } = await admin.rpc("nas_fetch_source", { p_fetch_id: payload.p_fetch_id, p_worker: worker });
+    if (e1 || !src?.bucket || !src?.path) return json({ error: "not found" }, 404);
+    const { data: up, error: e2 } = await admin.storage.from(src.bucket).createSignedUploadUrl(src.path);
+    if (e2 || !up?.signedUrl) return json({ error: "sign failed" }, 500);
+    return json({ url: up.signedUrl });
   }
 
   let { data, error } = await admin.rpc(fn, payload);

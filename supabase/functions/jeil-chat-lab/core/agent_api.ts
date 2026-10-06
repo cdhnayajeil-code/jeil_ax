@@ -230,12 +230,14 @@ export async function handleAgent(c: AgentCtx, body: Record<string, unknown>): P
       }
       const { data: r, error } = await admin.rpc("nas_save_submit", { p_upn: scope.upn, p_saver: `${scope.dept || ""} ${scope.empNm || ""}`.trim(),
         p_agent: agent.agent_key, p_dept: agent.dept_nm, p_kind: kind, p_file_name: name, p_size: size, p_sha256: sha,
-        p_bucket: bucket, p_path: path, p_turn_id: Number(body.turn_id) || null, p_artifact_id: artifactId });
+        p_bucket: bucket, p_path: path, p_turn_id: Number(body.turn_id) || null, p_artifact_id: artifactId,
+        p_subdir: txt(body.folder, 60).trim() || null });
       // 큐에 들어가지 않았으면 방금 올린 임시 파일을 남기지 않는다
       if ((error || r?.status !== "queued") && bucket === "nas-outbox") await admin.storage.from(bucket).remove([path]).catch(() => {});
       if (error) return json({ error: "저장 요청 실패: " + error.message }, 500);
       if (r.status === "no_folder") return json({ error: `${agent.dept_nm} 폴더가 사내 NAS 에 등록돼 있지 않습니다(관리자 확인 필요).` }, 409);
       if (r.status === "too_big") return json({ error: `파일이 너무 큽니다(${r.max_mb}MB까지 저장합니다).` }, 413);
+      if (r.status === "no_subdir") return json({ error: "그 폴더가 없습니다. 보관함에서 폴더를 다시 골라 주세요." }, 409);
       return json({ ok: true, ...r, file_name: r.file_name || name });
     }
     case "nas_saved_list": {
@@ -245,6 +247,50 @@ export async function handleAgent(c: AgentCtx, body: Record<string, unknown>): P
       // deno-lint-ignore no-explicit-any
       const items = ((data?.items || []) as any[]).map((x) => ({ ...x, mine: x.upn === scope.upn, upn: undefined }));
       return json({ ...data, items, can_manage: need(role, "reviewer") });
+    }
+    case "nas_folder_create": {
+      if (!agent.dept_nm) return json({ error: "이 에이전트에는 담당 부서가 없습니다." }, 400);
+      const { data, error } = await admin.rpc("nas_save_folder_create", { p_dept: agent.dept_nm, p_name: txt(body.name, 60), p_upn: scope.upn });
+      if (error) return json({ error: error.message }, 500);
+      const why: Record<string, [string, number]> = {
+        bad_name: ["폴더 이름을 쓸 수 없습니다 — 40자 이내, \\ / : * ? \" < > | 없이, 숫자 4자리(연도)·급여·인사평가 등은 안 됩니다.", 400],
+        exists: ["같은 이름의 폴더가 이미 있습니다.", 409], too_many: ["폴더는 100개까지 만들 수 있습니다.", 409],
+        no_folder: [`${agent.dept_nm} 폴더가 사내 NAS 에 등록돼 있지 않습니다.`, 409] };
+      if (data?.status !== "ok") { const [m, c] = why[data?.status] || ["폴더를 만들지 못했습니다.", 500]; return json({ error: m }, c); }
+      return json({ ok: true, name: data.name });
+    }
+    case "nas_folder_delete": {
+      const { data, error } = await admin.rpc("nas_save_folder_delete", { p_dept: agent.dept_nm, p_name: txt(body.name, 60), p_upn: scope.upn, p_can_manage: need(role, "reviewer") });
+      if (error) return json({ error: error.message }, 500);
+      const why: Record<string, [string, number]> = {
+        not_empty: ["폴더에 파일이 남아 있습니다. 파일을 먼저 지워 주세요.", 409], denied: ["본인이 만든 폴더만 지울 수 있습니다.", 403],
+        missing: ["없는 폴더입니다.", 404], no_folder: ["부서 폴더가 등록돼 있지 않습니다.", 409] };
+      if (data?.status !== "ok") { const [m, c] = why[data?.status] || ["폴더를 지우지 못했습니다.", 500]; return json({ error: m }, c); }
+      return json({ ok: true });
+    }
+    case "nas_saved_download": {
+      // NAS → 임시 버킷(워커가 올림) → 2분짜리 주소. 다 쓴 임시 사본(10분 지난 것)은 여기서 치운다.
+      try {
+        const { data: old } = await admin.rpc("nas_fetch_sweep");
+        if (Array.isArray(old) && old.length) await admin.storage.from("nas-outbox").remove(old as string[]);
+      } catch { /* 청소 실패는 내려받기를 막지 않는다 */ }
+      const { data: f, error } = await admin.rpc("nas_fetch_submit", { p_save_id: String(body.id || ""), p_upn: scope.upn, p_dept: agent.dept_nm });
+      if (error) return json({ error: error.message }, 500);
+      if (f?.status === "missing") return json({ error: "보관된 파일이 아닙니다(지워졌거나 아직 저장 중입니다)." }, 404);
+      if (f?.status === "offline") return json({ error: "사내 보관소(NAS)와 연결이 닿지 않습니다. 잠시 뒤 다시 시도해 주세요." }, 503);
+      if (f?.status === "busy") return json({ error: "내려받기 요청이 너무 잦습니다. 1분 뒤 다시 시도해 주세요." }, 429);
+      const until = Date.now() + 20_000;
+      while (Date.now() < until) {
+        await new Promise((r) => setTimeout(r, 400));
+        const { data: st } = await admin.rpc("nas_fetch_status", { p_fetch_id: f.fetch_id, p_upn: scope.upn });
+        if (st?.status === "failed") return json({ error: "NAS 에서 파일을 읽지 못했습니다: " + (st.error || "알 수 없는 사유") }, 502);
+        if (st?.status === "done") {
+          const { data: sg, error: e2 } = await admin.storage.from("nas-outbox").createSignedUrl(st.path, 120, { download: st.file_name });
+          if (e2 || !sg?.signedUrl) return json({ error: "내려받기 주소를 만들지 못했습니다." }, 500);
+          return json({ ok: true, url: sg.signedUrl, file_name: st.file_name });
+        }
+      }
+      return json({ error: "사내 보관소 응답이 늦습니다. 잠시 뒤 다시 시도해 주세요." }, 504);
     }
     case "nas_saved_delete": {
       const { data, error } = await admin.rpc("nas_save_request_purge", { p_save_id: String(body.id || ""), p_upn: scope.upn, p_can_manage: need(role, "reviewer") });
