@@ -7,6 +7,10 @@ services:
     container_name: jeil-nas-worker
     hostname: jeil-nas-worker        # 심박(etl_meta.nas_heartbeat)에 찍히는 이름 — 고정하지 않으면 재생성마다 새 행이 생긴다
     restart: unless-stopped
+    # 전용 네트워크를 만들지 않는다 — Docker 가 새 네트워크에 172.17~172.31 대역을 차례로 배정하는데,
+    # 그 대역이 사내 PC 대역과 겹치면 NAS 가 그 PC 들로 가는 응답을 컨테이너 쪽으로 보내 **NAS 접속이 통째로 끊긴다**
+    # (2026-10-02 실제 발생 — 172.20.0.0/16 이 사내 무선 대역과 겹침). 이미 있는 기본 브리지(docker0)를 쓴다.
+    network_mode: bridge
     env_file: .env
     user: "${NAS_RUN_UID:-1000}:${NAS_RUN_GID:-1000}"   # 적재 폴더에 쓸 수 있는 계정(README §2 에서 확인)
     mem_limit: 512m
