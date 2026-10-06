@@ -2,7 +2,7 @@
 // 색인은 사내 NAS 워커 쪽에만 있다. 여기로 오는 것은 질문에 걸린 발췌 몇 토막뿐이고, 조회 큐에서 읽히면 지워진다.
 // 볼 수 있는 폴더는 DB(nas_query_submit)가 「허용 폴더 등록 ∩ 본인 부서·전사공유」로 계산한다.
 import type { ToolCtx, ToolManifest } from "../../core/types.ts";
-import { nasNotice, nasQuery, tidy } from "./_nas_query.ts";
+import { nasList, nasNotice, nasQuery, tidy } from "./_nas_query.ts";
 
 export const manifest: ToolManifest = {
   id: "search_company_docs", version: "1.0.0", domain: "nas", kind: "read",

@@ -636,6 +636,7 @@ class TurnHistoryKoreanTime(Base):
             {"id": 1, "upn": "me@jeilm.co.kr", "agent_key": "purchase", "created_at": "2026-09-30T06:03:23.007752+00:00", "question": "미입고", "answer": "가"},
             {"id": 2, "upn": "me@jeilm.co.kr", "agent_key": "purchase", "created_at": "2026-09-30T16:30:00+00:00", "question": "자정 넘김", "answer": "나"},
             {"id": 3, "upn": "me@jeilm.co.kr", "agent_key": "purchase", "created_at": "깨진값", "question": "깨진 시각", "answer": "다"},
+            {"id": 4, "upn": "me@jeilm.co.kr", "agent_key": "purchase", "created_at": "2026-09-30T07:00:00+00:00", "question": "회귀 문항", "answer": "라", "golden_run_id": 2},
         ]
         with io.open(os.path.join(d, "agent_turn_2026-10-01_000000.jsonl"), "w", encoding="utf-8") as fh:
             fh.write("\n".join(json.dumps(r, ensure_ascii=False) for r in rows))
@@ -646,6 +647,7 @@ class TurnHistoryKoreanTime(Base):
         self.assertEqual(by[1], "2026-09-30 15:03")
         self.assertEqual(by[2], "2026-10-01 01:30")      # UTC 로는 9월 30일이지만 한국에서는 10월 1일
         self.assertEqual(by[3], "깨진값")                  # 못 읽는 값은 그대로 — 지어내지 않는다
+        self.assertNotIn(4, by)                           # 자동 회귀 턴은 「내 대화」가 아니다
 
     def test_date_filter_uses_korean_day(self):
         res, _ = w.query_turn_history({"date_from": "2026-10-01", "date_to": "2026-10-01"}, {"upn": "me@jeilm.co.kr"}, self.root)
@@ -735,6 +737,17 @@ class SaveToDeptFolder(Base):
         self.assertEqual(f.last("nas_save_finish")["p_status"], "failed")
         left = [n for _, _, fs in os.walk(self.folder) for n in fs]
         self.assertEqual(left, [])
+
+    def test_save_wakes_index_loop(self):
+        w._INDEX_WAKE.clear()
+        self.addCleanup(w._INDEX_WAKE.clear)
+        ok, _ = self.run_save(self.job())
+        self.assertTrue(ok)
+        self.assertTrue(w._INDEX_WAKE.is_set())          # 저장한 문서가 10분을 기다리지 않고 색인된다
+        w._INDEX_WAKE.clear()
+        ok, _ = self.run_save(self.job(sha256="0" * 64))
+        self.assertFalse(ok)
+        self.assertFalse(w._INDEX_WAKE.is_set())         # 실패한 저장은 깨우지 않는다
 
     def test_save_loop_claims_and_handles(self):
         self.patch(w, "nas_docs_root", lambda: self.root)

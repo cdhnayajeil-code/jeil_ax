@@ -44,8 +44,9 @@ import urllib.request
 
 from _env import env_root, load_env, need
 import nas_index
+import threading
 
-WORKER_VERSION = "n1.6"   # n1.6(2026-10-06): 과거 대화의 일시·기간 조건을 한국시간으로(적재 파일은 UTC 로 쌓인다 — N-2) / n1.5(2026-10-06): 첨부 원본·생성 자료를 부서 폴더 「AI저장」에 저장·보존 만료 정리(SQL 89 · REQ-0108) / n1.4(2026-10-02): 문서 내용 색인·검색(nas_index.py — SQL 87) / n1.3:실시간 조회 응답(파일 목록·본인 과거 대화 — SQL 86) / n1.2:브리지 전송(좁은 키)·--serve(컨테이너 상주)·KST 고정 / n1.1: --nightly·--log·루트 검증
+WORKER_VERSION = "n1.6"   # n1.6(2026-10-06): 과거 대화의 일시·기간 조건을 한국시간으로(적재 파일은 UTC 로 쌓인다 — N-2) · 저장 직후 색인 갱신 / n1.5(2026-10-06): 첨부 원본·생성 자료를 부서 폴더 「AI저장」에 저장·보존 만료 정리(SQL 89 · REQ-0108) / n1.4(2026-10-02): 문서 내용 색인·검색(nas_index.py — SQL 87) / n1.3:실시간 조회 응답(파일 목록·본인 과거 대화 — SQL 86) / n1.2:브리지 전송(좁은 키)·--serve(컨테이너 상주)·KST 고정 / n1.1: --nightly·--log·루트 검증
 
 POLL_SEC = 20          # 기본 폴링 주기
 HTTP_TIMEOUT = 120     # 페이지 응답이 수 MB 가 될 수 있어 etl_watch(60초)보다 넉넉히 잡는다
@@ -690,6 +691,8 @@ def query_turn_history(params, scope, data_root):
                     if str(r.get("upn") or "").casefold() != me or r.get("id") in seen:
                         continue
                     seen.add(r.get("id"))
+                    if r.get("golden_run_id") is not None:
+                        continue                                # 자동 회귀가 물어본 것은 본인의 대화가 아니다
                     when = _kst_minute(r.get("created_at"))     # 사용자가 말하는 날짜·시각은 한국시간이다
                     day = when[:10]
                     if (agent and r.get("agent_key") != agent) or (d_from and day < d_from) or (d_to and day > d_to):
@@ -747,6 +750,11 @@ def query_doc_read(params, scope):
         con.close()
 
 
+# 저장이 끝나면 켠다 — 색인 루프가 10분을 다 기다리지 않고 곧 한 번 돈다(방금 저장한 문서가 바로 검색되게)
+_INDEX_WAKE = threading.Event()
+INDEX_WAKE_DELAY = 5          # 연달아 저장할 때 한 번에 묶으려고 잠깐 기다린다
+
+
 def index_loop(url, key, interval=600, rounds=None):
     """허용 폴더 목록을 받아 색인을 갱신한다(바뀐 파일만). 조회·적재와 따로 돈다."""
     n = 0
@@ -765,7 +773,9 @@ def index_loop(url, key, interval=600, rounds=None):
         except (Exception, SystemExit) as e:
             log(f"문서 색인 오류(계속): {_redact(e)[:200]}")
         if rounds is None or n < rounds:
-            time.sleep(max(30, interval))
+            if _INDEX_WAKE.wait(max(30, interval)):
+                time.sleep(INDEX_WAKE_DELAY)
+            _INDEX_WAKE.clear()
 
 
 def handle_query(url, key, q, data_root, docs_root):
@@ -928,6 +938,7 @@ def handle_save(url, key, job, docs_root, worker, fetch=None):
         os.replace(tmp, path)
         tmp = None
         rpc(url, key, "nas_save_finish", {"p_save_id": sid, "p_status": "done", "p_rel_path": rel})
+        _INDEX_WAKE.set()
         log(f"저장 {str(sid)[:8]}… {job.get('folder_key')} — {len(data):,}바이트 · {int((time.time() - t0) * 1000)}ms")
         return True
     except (Exception, SystemExit) as e:
@@ -1010,7 +1021,6 @@ def serve(url, key, worker, root_arg=None, dry=False, interval=POLL_SEC, rounds=
     log(f"NAS 워커 상주 시작 — {WORKER_VERSION} · host={worker} · 전송 {_TRANSPORT}" + (" · dry-run" if dry else "")
         + (" · 조회 응답 켬" if query and not dry else ""))
     if query and not dry and rounds is None:
-        import threading
         threading.Thread(target=query_loop, args=(url, key, worker, root_arg), daemon=True, name="nas-query").start()
         threading.Thread(target=index_loop, args=(url, key), daemon=True, name="nas-index").start()
         threading.Thread(target=save_loop, args=(url, key, worker), daemon=True, name="nas-save").start()

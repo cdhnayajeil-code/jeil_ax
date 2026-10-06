@@ -9,9 +9,11 @@ export const manifest: ToolManifest = {
   title_ko: "사내 보관소 파일 목록", summary_ko: "NAS 허용 폴더(본인 부서·전사공유)의 파일 이름·수정일·크기",
   description_llm: "사내 보관소(NAS)의 부서 폴더·전사공유 폴더에 있는 파일 목록을 본다. 파일 이름·하위 경로·수정일·크기만 알 수 있고 " +
     "파일 내용은 읽지 못한다. '우리 부서 폴더에 최근 올라온 파일', '○○ 양식 파일 있어?', '이번 주 바뀐 문서' 류. " +
-    "q 로 파일 이름 일부를, days 로 최근 며칠 안에 수정된 것만 좁힌다. 본인 부서 폴더와 전사공유 폴더만 조회된다.",
+    "q 로 파일 이름 일부를, days 로 최근 며칠 안에 수정된 것만 좁힌다. 본인 부서 폴더와 전사공유 폴더만 조회된다. " +
+    "'구매팀 폴더'·'전사공유 폴더'처럼 폴더를 가리키면 folder 에 넣는다 — 폴더 이름을 q 에 넣으면 파일 이름에서 찾게 되어 0건이 된다.",
   params: { type: "object", properties: {
-    q: { type: "string", description: "파일 이름에 포함된 글자(부분일치)" },
+    q: { type: "string", description: "파일 이름에 포함된 글자(부분일치) — 폴더 이름은 넣지 않는다" },
+    folder: { type: "string", description: "폴더 이름(예: 구매팀, 전사공유). 그 폴더의 파일만 본다" },
     days: { type: "integer", description: "최근 며칠 안에 수정된 파일만(예: 7). 생략하면 전체" },
     limit: { type: "integer", description: "표시 건수(기본 20, 최대 50)" },
   }, required: [] },
@@ -26,7 +28,9 @@ export async function run(ctx: ToolCtx): Promise<unknown> {
   const q = tidy(args.q, 60);
   const days = Math.min(Math.max(Math.trunc(Number(args.days) || 0), 0), 3650);
   const limit = Math.min(Math.max(Math.trunc(Number(args.limit) || 20), 1), 50);
-  const params: Record<string, unknown> = { limit };
+  const folder = tidy(args.folder, 30).replace(/\s*폴더$/, "");
+  // 폴더를 가리켰으면 넉넉히 받아 여기서 폴더 이름으로 거른다(볼 수 있는 폴더 범위는 DB 가 이미 정했다 — 좁히기만 한다)
+  const params: Record<string, unknown> = { limit: folder ? 50 : limit };
   if (q) params.q = q;
   if (days) params.days = days;
 
@@ -35,10 +39,12 @@ export async function run(ctx: ToolCtx): Promise<unknown> {
 
   const r = a.result || {};
   // deno-lint-ignore no-explicit-any
-  const rows = (Array.isArray(r["목록"]) ? r["목록"] : []) as any[];
-  const total = Number(r["해당"]) || rows.length;
-  const 조건 = [q && `이름에 '${q}'`, days && `최근 ${days}일`].filter(Boolean).join(" · ") || "전체";
-  const cut = r["잘림"] === true;
+  const all = (Array.isArray(r["목록"]) ? r["목록"] : []) as any[];
+  const hit = folder ? all.filter((x) => String(x["폴더"] || "").includes(folder)) : all;
+  const rows = hit.slice(0, limit);
+  const total = folder ? hit.length : (Number(r["해당"]) || rows.length);
+  const 조건 = [folder && `${folder} 폴더`, q && `이름에 '${q}'`, days && `최근 ${days}일`].filter(Boolean).join(" · ") || "전체";
+  const cut = r["잘림"] === true || hit.length > rows.length;
   const capped = r["훑기상한도달"] === true;
   const 안내 = [
     "파일 이름·수정일만 확인했습니다. 파일 내용은 읽지 않았습니다.",
