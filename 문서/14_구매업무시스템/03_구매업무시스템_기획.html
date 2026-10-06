@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>03 시스템 기획 — JEIL AX 구매업무시스템 (업무 기준 · 목표 화면 · AI 적용 · 로드맵 · 결정 목록)</title>
+<style>
+:root{--navy:#1a2f4e;--navy2:#27457a;--accent:#2f6fb3;--red:#b3402f;--green:#2e7d52;--amber:#9a6b1f;
+--ink:#222;--muted:#666;--line:#d8dee8;--bg:#f4f6f9;--soft:#eef2f8;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;color:var(--ink);background:var(--bg);line-height:1.65;font-size:15px;}
+.page{max-width:960px;margin:0 auto;background:#fff;padding:52px 60px;box-shadow:0 2px 14px rgba(0,0,0,.08);}
+.doc-label{display:inline-block;background:var(--navy);color:#fff;font-size:12px;letter-spacing:.16em;padding:5px 14px;border-radius:3px;margin-bottom:16px;}
+.docnav{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 26px;}
+.docnav a{font-size:12px;color:var(--navy2);border:1px solid var(--line);border-radius:20px;padding:4px 12px;text-decoration:none;background:var(--soft);}
+.docnav a:hover{background:var(--navy);color:#fff;}
+.docnav a.cur{background:var(--navy);color:#fff;border-color:var(--navy);}
+.md-link{font-size:13px;margin-bottom:22px;color:var(--muted);}
+.content h1{font-size:27px;color:var(--navy);line-height:1.35;margin:6px 0 18px;}
+.content h2{font-size:20px;color:var(--navy);margin:42px 0 14px;padding-bottom:9px;border-bottom:3px solid var(--navy);}
+.content h3{font-size:16px;color:var(--navy2);margin:24px 0 9px;}
+.content p{margin:0 0 12px;}
+.content ul,.content ol{margin:0 0 14px 22px;}
+.content li{margin-bottom:6px;}
+.content blockquote{background:var(--soft);border-left:5px solid var(--navy);border-radius:0 8px 8px 0;padding:14px 20px;margin:14px 0;color:#33425a;}
+.content blockquote p{margin:0 0 6px;}
+.content table{width:100%;border-collapse:collapse;margin:14px 0 20px;font-size:13.3px;}
+.content th{background:var(--navy);color:#fff;padding:9px 11px;text-align:left;font-weight:600;}
+.content td{padding:8px 11px;border-bottom:1px solid var(--line);vertical-align:top;}
+.content tr:nth-child(even) td{background:#fafbfd;}
+.content a{color:var(--accent);}
+.content code{background:var(--soft);border:1px solid var(--line);border-radius:4px;padding:1px 6px;font-size:12.4px;font-family:Consolas,'Courier New',monospace;}
+.content pre{background:#21252e;color:#e8eaf0;border-radius:8px;padding:16px 18px;font-size:12.4px;font-family:Consolas,'Courier New',monospace;overflow-x:auto;margin:12px 0 18px;line-height:1.55;}
+.content pre code{background:none;border:none;color:inherit;padding:0;}
+.content hr{border:none;border-top:1px solid var(--line);margin:30px 0;}
+.content strong{color:var(--navy2);}
+.footer{margin-top:50px;padding-top:16px;border-top:1px solid var(--line);font-size:12px;color:var(--muted);display:flex;justify-content:space-between;}
+@media print{body{background:#fff;}.page{box-shadow:none;padding:18px 0;max-width:100%;}.docnav{display:none;}.content h2{break-after:avoid;}.content table,.content pre,.content blockquote{break-inside:avoid;}}
+@media (max-width:720px){.page{padding:30px 20px;}}
+</style>
+<!-- jeilax:local-links --><script>(function(){if(location.protocol!=="file:")return;var r="../../",s=document.createElement("script");s.src=r+"_local_links.js";s.setAttribute("data-root",r);(document.head||document.documentElement).appendChild(s);})();</script><!-- /jeilax:local-links -->
+</head>
+<body>
+<div class="page">
+  <span class="doc-label">JEIL AX 구매업무시스템</span>
+  <div class="docnav"><a href="/docs/purchase">🏠 구매업무시스템</a><a href="/docs/purchase/review">02 현행 점검</a><a class="cur" href="/docs/purchase/plan">03 시스템 기획</a><a href="README.md">README</a></div>
+  <p class="md-link">📄 Markdown 원본: <a href="03_구매업무시스템_기획.md">03_구매업무시스템_기획.md</a> · 허브 <a href="/docs/purchase">구매업무시스템 허브</a></p>
+  <div class="content">
+<h1 id="03">03 구매업무시스템 기획 (초안)</h1>
+<blockquote>
+<p>기준 2026-10-06 · 관리 최동혁 · <strong>초안</strong> — <a href="/docs/purchase/process">01 프로세스 도식</a>의 「확인 필요」 답과 관리자 결정에 따라 고친다<br>
+근거: <a href="/docs/purchase/review">02 현행 점검</a> · 실제 한 건 추적(비공개 보관) · 확정 사항: 형태는 <strong>포털 안 구매 전용 화면</strong>(2026-10-06)<br>
+확인되지 않은 전제는 「가정」으로 표시했다. 이 문서에는 실제 거래처·금액·문서번호를 적지 않는다.</p>
+</blockquote>
+<h2 id="0">0. 한 줄</h2>
+<p><strong>구매 한 건을 처음부터 끝까지 한 화면에서 따라가고, 지금 할 일을 알려 주는 구매 전용 화면 묶음</strong>을 포털 안에 만든다.
+ERP 가 정본이고, 포털은 ERP 에 없는 것만 받아 적고, AI 는 찾아 주기·견주어 보기·초안 쓰기까지 한다.</p>
+<h2 id="1">1. 왜 지금 이대로는 안 되나</h2>
+<table>
+<thead>
+<tr>
+<th>지금</th>
+<th>결과</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>같은 값을 ERP · 엑셀 LIST · 구매기안 · 엑셀 대장에 네 번 적는다</td>
+<td>옮겨 적다 달라진 값이 그대로 남는다(발주일자, 프로젝트 번호)</td>
+</tr>
+<tr>
+<td>상태를 엑셀 날짜 칸에 글자로 적는다(「선진행」, 「견적중」)</td>
+<td>적은 사람이 고치지 않으면 끝난 일도 진행 중으로 남는다</td>
+</tr>
+<tr>
+<td>견적·NEGO·계산서 요청은 어디에도 기록되지 않는다</td>
+<td>왜 이 업체·이 가격인지, 무엇을 놓쳤는지 돌아볼 수 없다</td>
+</tr>
+<tr>
+<td>화면이 조각이다(LIST · 대장 · 진행현황 · 매입)</td>
+<td>한 건이 어디까지 왔는지 보려면 화면 넷과 그룹웨어, 폴더를 오간다</td>
+</tr>
+<tr>
+<td>결재가 끝났는지는 그룹웨어를 열어야 안다</td>
+<td>다음 사람이 자기 차례를 모른다</td>
+</tr>
+</tbody>
+</table>
+<h2 id="2">2. 업무 기준 — 단순하게 일하기 위한 일곱 가지</h2>
+<h3 id="1_1">기준 1. 번호를 새로 만들지 않는다 — 묶음은 단계마다 다르다</h3>
+<p>「구매 한 건」의 기준을 하나로 정할 수 없다. 요청 결재의 18%는 발주 여러 건으로 갈라지고, 매입의 30%는 발주 여러 건을 묶는다.
+그래서 단계마다 그 단계의 묶음을 그대로 쓰고, 묶음끼리는 <strong>줄</strong>로 잇는다.</p>
+<table>
+<thead>
+<tr>
+<th>단계</th>
+<th>묶음(화면의 한 줄)</th>
+<th>번호</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1 요청 접수 ~ 4 구매확정</td>
+<td>요청 결재 한 건 — 그 안의 요청 줄</td>
+<td>PU · PR</td>
+</tr>
+<tr>
+<td>5 품의·발주 ~ 6 입고·계산서</td>
+<td><strong>발주 한 건</strong></td>
+<td>PO</td>
+</tr>
+<tr>
+<td>7 매입·전표</td>
+<td>매입 한 건</td>
+<td>IV · TG</td>
+</tr>
+<tr>
+<td>8 보관·대장</td>
+<td>기안 한 건 / 프로젝트 × 업체 폴더</td>
+<td>권-번호</td>
+</tr>
+<tr>
+<td>이들을 잇는 실</td>
+<td>요청 줄 ↔ 발주 줄(요청번호) · 발주 줄 ↔ 입고·매입(발주번호+순번)</td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<p>어느 번호로 들어와도 이어진 전체가 보여야 한다. 「1차·2차」 같은 차수는 따로 관리하지 않고, 같은 프로젝트·같은 업체의 발주를 날짜순으로 늘어놓으면 나온다.</p>
+<h3 id="2_1">기준 2. 상태는 손으로 적지 않는다 — 실적 문서가 생기면 넘어간다</h3>
+<p>상태의 정의는 한 곳에 두고, 발주통합 LIST 와 새 화면이 같이 쓴다. 실제 한 건(두 차수)에 이 규칙을 적용해 맞는 것을 확인했다.</p>
+<table>
+<thead>
+<tr>
+<th>단계</th>
+<th>「됐다」고 보는 조건</th>
+<th>지금 알 수 있나</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1 요청·확정</td>
+<td>요청 줄이 있고 진행코드가 확정 이상</td>
+<td>● (결재가 끝났는지는 ✕)</td>
+</tr>
+<tr>
+<td>2 LIST 등재</td>
+<td>요청 줄이 중간DB 에 있다</td>
+<td>● 자동</td>
+</tr>
+<tr>
+<td>3 견적검토</td>
+<td>견적 기록이 있고 비교자료가 확정됐다</td>
+<td>✕ 기록할 곳이 없다</td>
+</tr>
+<tr>
+<td>4 구매확정</td>
+<td>결정 기록(업체·가격·근거)이 있다</td>
+<td>✕ 지금은 발주가 생기면 거꾸로 짐작</td>
+</tr>
+<tr>
+<td>5 품의·발주</td>
+<td>요청 줄을 가리키는 발주 줄이 있다</td>
+<td>● (기안 결재 상태는 ✕)</td>
+</tr>
+<tr>
+<td>6 입고·계산서</td>
+<td>입고 수량 합 ≥ 발주 수량, 그리고 맞는 세금계산서가 국세청 자료에 있다</td>
+<td>● (발행요청을 했는지는 ✕)</td>
+</tr>
+<tr>
+<td>7 매입·전표</td>
+<td>매입 줄이 있고, 그 매입번호를 참조하는 전표가 승인됐다</td>
+<td>●</td>
+</tr>
+<tr>
+<td>8 보관·대장</td>
+<td>대장 줄 + 전표번호 일치 + 묶음 파일 있음 + 종결</td>
+<td>● (대장 적재가 돌 때)</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>입고·매입 상태는 <strong>실적 사본(입고 · 매입)</strong> 으로 판정한다. 발주 사본의 입고수량은 최근 입고를 못 따라온다(현행 점검 결함 ①).</li>
+<li>「지금 할 일」은 이 표에서 처음으로 「안 됨」인 단계다.</li>
+</ul>
+<h3 id="3">기준 3. 같은 값을 두 번 적지 않는다</h3>
+<p>ERP 에 있는 번호·품목·수량·단가·날짜는 화면이 가져온다. 엑셀 LIST 와 대장에 다시 치지 않는다. 프로젝트 번호는 ERP 값 그대로 쓴다.</p>
+<h3 id="4-erp">기준 4. 사람이 적는 것은 ERP 에 없는 것뿐이다</h3>
+<table>
+<thead>
+<tr>
+<th>적는 것</th>
+<th>언제</th>
+<th>무엇을</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>견적</td>
+<td>3단계</td>
+<td>어느 업체에서 얼마에 받았나(견적서 파일 첨부), 예상 납기</td>
+</tr>
+<tr>
+<td>결정</td>
+<td>4단계</td>
+<td>고른 업체, 최종 가격, 근거(직전 실적가 대비 · 다른 업체 대비), 깎은 금액</td>
+</tr>
+<tr>
+<td>먼저 진행</td>
+<td>4~5단계</td>
+<td>결재 전에 업체에 진행을 알린 날짜와 사유(「선진행」 — 가정: 뜻 확인 필요)</td>
+</tr>
+<tr>
+<td>계산서 요청</td>
+<td>6단계</td>
+<td>발행을 요청한 날짜, 다시 요청한 날짜</td>
+</tr>
+<tr>
+<td>메모</td>
+<td>언제든</td>
+<td>왜 늦는지, 누구와 얘기 중인지</td>
+</tr>
+</tbody>
+</table>
+<p>엑셀 LIST 의 비고·발주일자 칸에 글자로 적던 것이 이 다섯 가지로 나뉜다.</p>
+<h3 id="5">기준 5. 등록 · 결재 · 발송은 사람이 한다</h3>
+<p>ERP 등록, 그룹웨어 결재 상신, 발주 확정, 메일 발송은 사람이 한다. 포털과 AI 는 그 직전까지 준비한다(조회 · 비교 · 초안).</p>
+<h3 id="6">기준 6. 증빙은 번호로 찾는다 (가정)</h3>
+<p>결재문서와 첨부를 내려받아 보관할 때 파일 이름에 그 문서의 번호(요청 결재번호, 발주번호, 전표번호, 권-번호)를 넣는다. 그러면 화면이 폴더에서 자동으로 찾아 「있음/없음」을 보여 준다.
+실제 한 건에서 이 방식으로 폴더 문서를 자동으로 맞췄다. 묶는 순서와 폴더 구조는 구매팀 확인이 필요하다.</p>
+<h3 id="7">기준 7. 종결은 조건으로 판정한다 (가정)</h3>
+<p>전표가 승인되고, 세금계산서가 국세청 자료와 맞고, 나눠 치르는 건은 계약금·중도금·잔금 전표가 다 있으면 화면이 「종결해도 됩니다」를 알린다. 종결 표시는 사람이 확인하고 누른다.</p>
+<h2 id="3_1">3. 목표 화면 — 포털 안 구매 전용 묶음</h2>
+<table>
+<thead>
+<tr>
+<th>화면</th>
+<th>한 줄 =</th>
+<th>보는 것</th>
+<th>여기서 하는 일</th>
+<th>바탕</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>오늘 할 일</strong></td>
+<td>내가 지금 해야 하는 건</td>
+<td>견적 받을 요청 · 품의 올릴 건 · 입고 끝·계산서 미수취 · 결재 안 올린 매입 · 대장에 없는 기안</td>
+<td>해당 건으로 이동</td>
+<td>신규</td>
+</tr>
+<tr>
+<td><strong>접수함</strong></td>
+<td>요청 결재 한 건(안에 요청 줄)</td>
+<td>새로 들어온 요청, 아직 발주 안 된 줄, 품목마다 직전 단가·업체</td>
+<td>견적 받을 줄 고르기, 견적·결정 적기</td>
+<td>진행현황의 미발주 요청을 키운다</td>
+</tr>
+<tr>
+<td><strong>진행판</strong></td>
+<td>발주 한 건</td>
+<td>8단계 가운데 어디 서 있는지, 납기, 금액</td>
+<td>메모, 계산서 요청 기록</td>
+<td>발주통합 LIST 를 발주 단위로 접은 모습</td>
+</tr>
+<tr>
+<td><strong>구매 건 추적</strong></td>
+<td>선택한 한 건의 전부</td>
+<td>요청·발주·입고·매입·전표·세금계산서·대장·문서</td>
+<td>문서 보유 확인, 다음 할 일</td>
+<td>비공개 예시 화면의 실시간판</td>
+</tr>
+<tr>
+<td><strong>대장</strong></td>
+<td>기안 한 건</td>
+<td>전표·세금계산서 대사, 종결 제안</td>
+<td>종결 확인</td>
+<td>지금의 기안서 대장</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>기존 화면은 없애지 않는다. 발주통합 LIST(줄 단위 전체 조회), 기안서 대장, 거래처별 매입, 구매 에이전트는 이 묶음 안에서 서로 넘어가게 잇는다.</li>
+<li>편집하는 표는 표준 그리드, 상단 조회조건은 표준 조회바를 쓴다(CLAUDE.md §13 · §16).</li>
+<li>구매 건 추적의 응답 모양은 예시 건을 만들 때 쓴 자료 틀(<code>pur-case/1</code>)을 초안으로 삼는다 — 차수별 요청 줄 · 발주 · 입고 · 매입 · 전표 · 부가세 · 세금계산서 · 대장 · 문서 · 관찰.</li>
+</ul>
+<h2 id="4">4. 데이터(초안)</h2>
+<h3 id="41">4.1 상태 판정 — 한 곳에</h3>
+<p>발주 줄마다 기준 2의 조건을 계산하는 뷰를 하나 두고, 발주통합 LIST · 진행현황 · 에이전트 도구 · 새 화면이 모두 그것을 쓴다. 지금은 뷰 세 개가 발주 사본의 입고수량을 따로 쓰고 있다.</p>
+<h3 id="42">4.2 건별 추적 조회</h3>
+<ul>
+<li>입력: 아무 번호 하나(PU · PR · PO · IV · TG · 권-번호). 출력: 이어진 전체.</li>
+<li>전표·부가세·국세청 자료를 포함하므로 서버 쪽 함수로 만들고, 그 안에서 화면 권한을 다시 확인한다.</li>
+<li><strong>선행 결정</strong>: 지금은 「대장에 적힌 전표」만 열린다(결정 C-15). 발주에서 출발해 전표·계산서를 보여 주려면 열람 범위를 구매팀에 한해 넓힐지 정해야 한다.</li>
+</ul>
+<h3 id="43">4.3 포털 기록 — 표 하나로 시작</h3>
+<p>기준 4의 다섯 가지를 종류만 다른 「기록」으로 한 표에 받는다. 열쇠는 요청 결재번호와 요청 줄(발주가 생기기 전에 적는 것이 많다). 발주가 생기면 줄을 따라 자동으로 발주에 붙는다.
+누가 언제 적었는지 남기고, 고치면 이전 값도 남긴다. 견적서 파일은 비공개 저장소에 둔다. ERP 에는 쓰지 않는다.</p>
+<h3 id="44">4.4 품목 단가 이력</h3>
+<p>품목마다 과거 발주 단가·업체·수량·날짜를 주는 조회. 재료(발주 단가 · 매입 단가)는 이미 중간DB 에 있다. 품번이 달라도 같은 물건일 만한 품목은 품목중복 조회의 검색을 빌려 찾는다.</p>
+<h3 id="45-erp">4.5 ERP 에서 더 가져올 것</h3>
+<table>
+<thead>
+<tr>
+<th>무엇</th>
+<th>왜</th>
+<th>선행</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>2025년 이전 발주·매입</td>
+<td>단가를 견줄 과거. 지금은 같은 품목의 이전 발주가 있는 줄이 17%</td>
+<td>적재 범위 결정 · 적재 프로그램 수정</td>
+</tr>
+<tr>
+<td>발주 적재의 갱신 기준 보완</td>
+<td>입고·매입이 있었던 발주를 다시 가져오게(결함 ① 근본 수정)</td>
+<td>적재 프로그램 수정 · 재빌드</td>
+</tr>
+<tr>
+<td>매입 머리의 지급예정일 · 결제방법</td>
+<td>매입마감 화면, 지급 일정</td>
+<td>원천 칸 확인</td>
+</tr>
+<tr>
+<td>발주 머리의 결제방법</td>
+<td>품의서 초안의 거래조건</td>
+<td>원천 칸 확인</td>
+</tr>
+<tr>
+<td>거래처 담당자 · 메일</td>
+<td>메일 초안의 받는 사람(지금 메일 주소 보유 9%)</td>
+<td>ERP 거래처 정보 정비가 먼저</td>
+</tr>
+<tr>
+<td>그룹웨어 결재 연동표</td>
+<td>결재 상태·날짜(가능한지부터 조사)</td>
+<td>조사 · 협의</td>
+</tr>
+</tbody>
+</table>
+<p>운영 ERP 에 직접 조회하지 않고 적재 경로로만 가져온다. 원천 조사와 적재 프로그램 변경은 관리자 승인 뒤에 한다.</p>
+<h2 id="5-ai">5. AI 적용</h2>
+<p>원칙: 숫자는 서버가 세고 문장은 모델이 쓴다. 실거래는 하지 않는다. 밖으로 검색할 때는 거래처·프로젝트 이름을 내보내지 않는다.</p>
+<table>
+<thead>
+<tr>
+<th>단계</th>
+<th>종류</th>
+<th>AI 가 하는 일</th>
+<th>사람이 확인</th>
+<th>로드맵</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>조회</td>
+<td>새 요청 요약, 품목마다 직전 단가·업체, 중복 요청 알림</td>
+<td>접수</td>
+<td>P1b</td>
+</tr>
+<tr>
+<td>2</td>
+<td>감시</td>
+<td>미발주 적체 · 납기 임박 알림, 말로 묻는 조회</td>
+<td>—</td>
+<td>있음(결함 ① 뒤 정확해진다)</td>
+</tr>
+<tr>
+<td>3</td>
+<td>조회 → 초안</td>
+<td>과거 단가 비교표, 비슷한 품목, 견적서 읽어 줄 맞추기, 업체별 총액 비교, (선택) 웹 시세, 견적 문의 메일 초안</td>
+<td>비교자료 확정</td>
+<td>P1b → P3</td>
+</tr>
+<tr>
+<td>4</td>
+<td>조회</td>
+<td>NEGO 근거 정리(직전 실적가 대비 차이, 수량 변화), 결정 받아 적기</td>
+<td>업체·가격 결정</td>
+<td>P2 · P3</td>
+</tr>
+<tr>
+<td>5</td>
+<td>초안 · 감시</td>
+<td>구매기안 본문 초안, 첨부·금액 점검, 발주서 발송 메일 초안, 품의 누락 알림</td>
+<td>발주 등록 · 상신 · 발송</td>
+<td>P3</td>
+</tr>
+<tr>
+<td>6</td>
+<td>감시 → 초안</td>
+<td>「입고 끝·계산서 미수취」 목록, 발행요청 메일 초안, 수취 자동 확인, 재촉 알림</td>
+<td>메일 발송</td>
+<td>P1(목록) · P3(초안)</td>
+</tr>
+<tr>
+<td>7</td>
+<td>감시</td>
+<td>발주·매입·계산서 금액 대조, 결재 안 올린 매입 · 미승인 전표 알림</td>
+<td>매입 등록 · 결재</td>
+<td>P1</td>
+</tr>
+<tr>
+<td>8</td>
+<td>초안 · 감시</td>
+<td>대장 줄 자동 채움, 종결 제안, 파일 누락 찾기</td>
+<td>파일 정리 · 종결</td>
+<td>P5</td>
+</tr>
+</tbody>
+</table>
+<p>실제 한 건에서, 같은 업체에 한 달 만에 같은 품목을 다시 사는데 단가가 올랐고 품의서에는 「실적가와 동일」로 적혀 있었다. 3단계의 「과거 단가 비교표」 하나만 있어도 품의 전에 보이는 차이다.</p>
+<h2 id="6_1">6. 로드맵</h2>
+<table>
+<thead>
+<tr>
+<th>단계</th>
+<th>내용</th>
+<th>끝났다는 기준</th>
+<th>선행 결정 · 승인</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>P0 바로잡기</strong></td>
+<td>LIST 상태를 실입고·매입 실적으로 판정 · 대장 적재 재가동 · 대장에 발주번호 칸</td>
+<td>끝난 발주가 「미입고」로 나오지 않는다. 대장이 엑셀과 같다</td>
+<td>DB 변경 승인</td>
+</tr>
+<tr>
+<td><strong>P0.5 예시 더 보기</strong></td>
+<td>선진행 · 나눠 입고 · 계약금/중도금 · 여러 업체로 갈라진 요청 건을 3~5건 더 같은 틀로 따라가 본다</td>
+<td>상태 규칙이 예외 건에서도 맞는다</td>
+<td>없음(문서 작업)</td>
+</tr>
+<tr>
+<td><strong>P1 구매 건 추적 · 진행판</strong></td>
+<td>조회 전용. 어느 번호로든 한 건의 전부, 발주 단위 8단계 진행</td>
+<td>한 건을 보려고 화면 넷을 오가지 않는다</td>
+<td>전표·계산서 열람 범위</td>
+</tr>
+<tr>
+<td><strong>P1b 단가 이력</strong></td>
+<td>에이전트 조회 도구 + 접수함의 「직전 단가」</td>
+<td>품목을 넣으면 과거 단가·업체가 나온다</td>
+<td>과거 연도 적재 범위</td>
+</tr>
+<tr>
+<td><strong>P2 포털 기록</strong></td>
+<td>견적 · 결정 · 먼저 진행 · 계산서 요청 · 메모를 적는다</td>
+<td>엑셀 LIST 의 글자 칸을 대신한다</td>
+<td>쓰기 권한 · 표 신설 승인 · 엑셀 LIST 를 언제 그만 쓸지</td>
+</tr>
+<tr>
+<td><strong>P3 초안</strong></td>
+<td>견적 비교표 · 견적 문의/계산서 요청 메일 · 구매기안 본문 초안</td>
+<td>초안을 복사해 그대로 쓴다</td>
+<td>견적서 PDF 를 읽는 모델 · 웹 검색 허용 범위</td>
+</tr>
+<tr>
+<td><strong>P4 결재 상태</strong></td>
+<td>그룹웨어 결재가 끝났는지와 날짜</td>
+<td>화면에 결재 차례가 보인다</td>
+<td>접근 수단 조사 · 협의</td>
+</tr>
+<tr>
+<td><strong>P5 대장 자동화</strong></td>
+<td>대장을 ERP 와 포털 기록에서 만든다</td>
+<td>엑셀 대장에 손으로 적지 않는다</td>
+<td>P0~P2 정착 뒤</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>P0 를 먼저 하는 까닭: 새 화면이 지금의 LIST 와 다른 상태를 보여 주면 둘 다 믿지 못하게 된다.</li>
+<li>P1 과 P1b 는 쓰기 표가 필요 없어 함께 갈 수 있다.</li>
+<li>단계마다 별도 요청(REQ)으로 올려 승인받고 착수한다.</li>
+</ul>
+<h2 id="7_1">7. 관리자 결정 목록</h2>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>결정할 것</th>
+<th>왜</th>
+<th>걸린 단계</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>전표·부가세·세금계산서 열람 범위를 구매팀에 한해 「발주에서 출발」까지 넓힐지</td>
+<td>지금은 대장에 적힌 전표만 열린다</td>
+<td>P1</td>
+</tr>
+<tr>
+<td>2</td>
+<td>2025년 이전 발주·매입을 몇 년치 적재할지</td>
+<td>단가 비교의 재료</td>
+<td>P1b</td>
+</tr>
+<tr>
+<td>3</td>
+<td>구매 기록 표를 만들고 누가 적게 할지(구매팀만 / 요청부서도 메모)</td>
+<td>포털의 첫 구매 쓰기 화면</td>
+<td>P2</td>
+</tr>
+<tr>
+<td>4</td>
+<td>엑셀 LIST 를 언제 그만 쓸지, 그동안 둘을 어떻게 맞출지</td>
+<td>이중 관리 기간</td>
+<td>P2</td>
+</tr>
+<tr>
+<td>5</td>
+<td>대장에 발주번호 칸을 두고 프로젝트 번호를 ERP 값에서 가져올지</td>
+<td>기안 ↔ 발주 연결 80% → 100%</td>
+<td>P0</td>
+</tr>
+<tr>
+<td>6</td>
+<td>「선진행」을 정식 경로로 정의할지, 그 기준</td>
+<td>엑셀 LIST 의 47%</td>
+<td>P2</td>
+</tr>
+<tr>
+<td>7</td>
+<td>견적검토에서 웹 검색을 허용할지, 밖으로 내보내지 않을 항목</td>
+<td>품목·규격이 밖으로 나간다</td>
+<td>P3</td>
+</tr>
+<tr>
+<td>8</td>
+<td>에이전트 본 모델 사용(견적서 PDF 판독)</td>
+<td>지금은 예비 모델이라 PDF 를 못 읽는다</td>
+<td>P3</td>
+</tr>
+<tr>
+<td>9</td>
+<td>그룹웨어 결재 상태를 가져올 방법 조사를 시작할지</td>
+<td>결재 차례 · 걸린 시간</td>
+<td>P4</td>
+</tr>
+<tr>
+<td>10</td>
+<td>요청부서가 자기 요청의 진행을 보게 할지</td>
+<td>지금 구매 화면은 구매팀 전용</td>
+<td>P1</td>
+</tr>
+</tbody>
+</table>
+<h2 id="8">8. 기존 요청과의 관계</h2>
+<table>
+<thead>
+<tr>
+<th>요청</th>
+<th>관계</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>REQ-0069 발주통합 LIST — 4단계(포털 메모 입력, 미착수)</td>
+<td>P2 가 이어받는다</td>
+</tr>
+<tr>
+<td>REQ-0077 · 0081 · 0082 기안서 대장 · 전표/세금계산서 대사</td>
+<td>「대장」 화면의 바탕. 대사 규칙을 P1 이 발주 쪽에서도 쓴다</td>
+</tr>
+<tr>
+<td>REQ-0092 기안 ↔ 발주 연결 · 스캔 목록</td>
+<td>연결 뷰와 파일 목록을 P1 이 쓴다</td>
+</tr>
+<tr>
+<td>REQ-0098 대장 적재 파라미터</td>
+<td>P0 에 포함</td>
+</tr>
+<tr>
+<td>REQ-0087 ~ 0090 · 0094 · 0106 구매 에이전트</td>
+<td>P1b · P3 의 도구가 여기에 붙는다</td>
+</tr>
+<tr>
+<td>이번 점검의 수정 요청(LIST 상태 판정)</td>
+<td>P0</td>
+</tr>
+</tbody>
+</table>
+<h2 id="9">9. 가정과 위험</h2>
+<ul>
+<li><strong>가정</strong>: 5단계 문서는 구매기안서다 · 「선진행」은 결재 전에 업체에 먼저 진행을 알리는 것이다 · 파일 이름에 번호를 넣어 보관한다 · 전표 승인 표시가 매입전표 결재 완료와 같은 시점에 바뀐다. 모두 프로세스 도식의 「확인 필요」에 올라 있다.</li>
+<li><strong>시차</strong>: 중간DB 는 전날 밤 자료다. 오늘 등록한 발주·입고는 내일 보인다. 화면에 기준 시각을 항상 적는다.</li>
+<li><strong>한 건의 모양이 복잡하다</strong>: 요청·발주·매입·기안이 여러 대 여러로 묶인다. 예시 한 건(두 차수)만 확인했으므로 P0.5 에서 예외 건을 더 본다.</li>
+<li><strong>입고일의 신뢰도</strong>: 입고가 매입 처리 때 한꺼번에 등록된다면 납기 준수와 「입고 끝·계산서 미수취」 판정이 흔들린다.</li>
+<li><strong>권한</strong>: 구매 화면은 구매팀 전용이지만 그 아래 조회 자료의 열람 범위는 화면보다 넓게 열려 있을 수 있다 — P1 설계 때 화면 권한과 자료 권한을 함께 점검한다.</li>
+</ul>
+  </div>
+  <div class="footer"><span>JEIL M&S · 구매업무시스템</span><span>03 시스템 기획 · 관리: 최동혁</span></div>
+</div>
+</body>
+</html>

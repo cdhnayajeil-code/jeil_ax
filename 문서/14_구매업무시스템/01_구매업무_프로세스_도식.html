@@ -1,0 +1,689 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>구매업무 프로세스 도식 — 요청부터 대장까지 8단계</title>
+<!-- 자체완결 설명 자료(직접 관리 · 빌드 대상 아님 · 외부 CDN 없음). 구매업무 프로세스의 정본.
+     원천: 관리자 정의 「구매업무 프로세스 정의」(2026-10-06) · 구매팀 「AI를 이용한 구매 절차 개선」 · 실제 결재문서 양식 · 중간DB 집계(2026년분).
+     ⚠ 이 문서는 문서 센터에 공개된다 — 실제 거래처명·금액·문서번호를 적지 않는다(번호는 가상 표기, 수치는 합계만).
+     ⚠ pur:style / pur:flow / pur:chain 표식 사이 블록은 예시 건 추적 빌더(_build_case.py)가 그대로 떠 간다 — 표식을 지우지 않는다. -->
+<style>
+/* pur:style */
+:root{--navy:#1a2f4e;--navy2:#27457a;--accent:#2f6fb3;--red:#b3402f;--green:#2e7d52;--amber:#9a6b1f;
+--ink:#222;--muted:#5f6670;--line:#d8dee8;--bg:#f4f6f9;--soft:#eef2f8;--paper:#fff;
+--erp:#e7f0fb;--erpline:#2f6fb3;--gw:#f3eefb;--gwline:#6a4fb3;--etc:#eaf6ef;--etcline:#2e7d52;
+--warnbg:#fdf4e4;--badbg:#fbeceb;--okbg:#e9f5ee;}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+--navy:#9fbbe6;--navy2:#b7cdf0;--accent:#78a9e6;--red:#e58a7b;--green:#6cc493;--amber:#e0b060;
+--ink:#e4e7ec;--muted:#a3abb7;--line:#34404f;--bg:#12161c;--soft:#1c232d;--paper:#171c23;
+--erp:#16263a;--erpline:#78a9e6;--gw:#231c33;--gwline:#a893e6;--etc:#15291f;--etcline:#6cc493;
+--warnbg:#2e2615;--badbg:#321c1a;--okbg:#16291f;}}
+:root[data-theme="dark"]{--navy:#9fbbe6;--navy2:#b7cdf0;--accent:#78a9e6;--red:#e58a7b;--green:#6cc493;--amber:#e0b060;
+--ink:#e4e7ec;--muted:#a3abb7;--line:#34404f;--bg:#12161c;--soft:#1c232d;--paper:#171c23;
+--erp:#16263a;--erpline:#78a9e6;--gw:#231c33;--gwline:#a893e6;--etc:#15291f;--etcline:#6cc493;
+--warnbg:#2e2615;--badbg:#321c1a;--okbg:#16291f;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;color:var(--ink);background:var(--bg);line-height:1.65;font-size:15px;word-break:keep-all;overflow-wrap:anywhere;}
+.page{max-width:1240px;margin:0 auto;background:var(--paper);padding:48px 56px 64px;box-shadow:0 2px 14px rgba(0,0,0,.08);min-height:100vh;}
+@media (max-width:860px){.page{padding:26px 16px 48px;}}
+.doc-label{display:inline-block;background:var(--navy);color:var(--paper);font-size:12px;letter-spacing:.14em;padding:5px 14px;border-radius:3px;margin-bottom:14px;}
+h1{font-size:27px;color:var(--navy);margin:4px 0 6px;line-height:1.35;}
+.sub{color:var(--muted);font-size:13.5px;margin-bottom:22px;}
+h2{font-size:20px;color:var(--navy);margin:46px 0 12px;padding-bottom:8px;border-bottom:2px solid var(--navy);scroll-margin-top:16px;}
+h2 .h2sub{font-size:12.5px;color:var(--muted);font-weight:400;margin-left:8px;}
+h3{font-size:15.5px;color:var(--navy2);margin:24px 0 8px;}
+h4{font-size:13px;color:var(--navy2);margin:0 0 5px;}
+p{margin:0 0 10px;}
+.lead{font-size:14px;color:var(--muted);margin-bottom:14px;}
+a{color:var(--accent);}
+code{background:var(--soft);border:1px solid var(--line);border-radius:4px;padding:1px 6px;font-size:12.5px;font-family:Consolas,monospace;}
+ul.plain{margin:4px 0 6px 18px;font-size:13.5px;}
+ul.plain li{margin-bottom:4px;}
+.toc{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 26px;padding:12px 14px;background:var(--soft);border-radius:10px;}
+.toc a{font-size:12.5px;text-decoration:none;padding:4px 10px;border:1px solid var(--line);border-radius:999px;background:var(--paper);color:var(--navy2);}
+.toc a:hover{border-color:var(--accent);}
+.hero{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:14px;}
+@media (max-width:860px){.hero{grid-template-columns:1fr;}}
+.hcard{border:1px solid var(--line);border-radius:12px;padding:16px 18px;background:var(--paper);}
+.hcard .k{font-size:11.5px;letter-spacing:.1em;color:var(--accent);font-weight:700;}
+.hcard .v{font-size:16px;font-weight:700;color:var(--navy);margin:4px 0 6px;line-height:1.4;}
+.hcard p{font-size:13px;color:var(--muted);margin:0;}
+.hcard.erp{background:var(--erp);border-color:var(--erpline);}
+.hcard.gw{background:var(--gw);border-color:var(--gwline);}
+.hcard.etc{background:var(--etc);border-color:var(--etcline);}
+.callout{border-left:5px solid var(--navy);background:var(--soft);border-radius:0 10px 10px 0;padding:14px 18px;margin:12px 0 16px;font-size:14px;}
+.callout.warn{border-color:var(--amber);background:var(--warnbg);}
+.callout.ok{border-color:var(--green);background:var(--okbg);}
+.callout.stop{border-color:var(--red);background:var(--badbg);}
+.callout b{color:var(--navy2);}
+.callout .big{display:block;font-size:16px;font-weight:700;color:var(--navy);margin-bottom:4px;}
+.tw{overflow-x:auto;margin:8px 0 16px;border:1px solid var(--line);border-radius:10px;}
+table{border-collapse:collapse;width:100%;font-size:13.2px;min-width:560px;}
+th{background:var(--navy);color:var(--paper);text-align:left;padding:9px 10px;font-weight:600;white-space:nowrap;}
+td{padding:9px 10px;border-top:1px solid var(--line);vertical-align:top;}
+tr:nth-child(even) td{background:var(--soft);}
+td.num{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums;}
+td.nw,th.nw{white-space:nowrap;}
+td.ans{min-width:150px;background:var(--paper) !important;border-left:1px dashed var(--line);}
+.tag{display:inline-block;font-size:11.5px;font-weight:700;padding:1px 8px;border-radius:999px;border:1px solid;white-space:nowrap;}
+.tag.ok{color:var(--green);border-color:var(--green);background:var(--okbg);}
+.tag.wait{color:var(--amber);border-color:var(--amber);background:var(--warnbg);}
+.tag.no{color:var(--red);border-color:var(--red);background:var(--badbg);}
+.tag.grey{color:var(--muted);border-color:var(--line);background:var(--soft);}
+/* 시스템 3색 — 흐름도·번호 사슬·카드에서 똑같이 쓴다 */
+.sy{display:inline-block;font-style:normal;font-size:10.5px;font-weight:700;padding:0 6px;border-radius:4px;border:1px solid;line-height:1.55;white-space:nowrap;margin:1px 2px 1px 0;}
+.sy.e{color:var(--erpline);border-color:var(--erpline);background:var(--erp);}
+.sy.g{color:var(--gwline);border-color:var(--gwline);background:var(--gw);}
+.sy.x{color:var(--etcline);border-color:var(--etcline);background:var(--etc);}
+.sy.a{color:var(--amber);border-color:var(--amber);background:var(--warnbg);}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:12.5px;color:var(--muted);margin:8px 2px 4px;align-items:center;}
+.legend .dash{display:inline-block;width:26px;height:14px;border:1.5px dashed var(--muted);border-radius:4px;vertical-align:-2px;margin-right:4px;}
+.cap{font-size:12.5px;color:var(--muted);margin:4px 2px 18px;}
+
+/* ── 전체 흐름도(CSS grid) ── */
+.flowwrap{border:1px solid var(--line);border-radius:12px;padding:12px;margin:10px 0 6px;background:var(--paper);overflow-x:auto;}
+.flow{display:grid;grid-template-columns:76px repeat(8,minmax(112px,1fr));gap:6px 6px;min-width:1010px;position:relative;}
+.flow .lanebg{grid-column:1/-1;border-radius:8px;background:var(--soft);opacity:.55;z-index:0;}
+.flow .lane{grid-column:1;font-size:12px;font-weight:700;color:var(--navy2);display:flex;flex-direction:column;justify-content:center;padding:4px 6px;z-index:1;line-height:1.3;}
+.flow .lane small{font-weight:400;color:var(--muted);font-size:10.5px;}
+.flow .st{display:contents;}
+.flow .st > *{grid-column:var(--c);z-index:1;min-width:0;}
+.flow .hd{grid-row:1;display:flex;align-items:center;gap:6px;background:var(--navy);color:var(--paper);border-radius:8px;padding:7px 8px;text-decoration:none;font-size:12.3px;font-weight:700;line-height:1.3;position:relative;}
+.flow .hd .n{flex:0 0 22px;width:22px;height:22px;border-radius:50%;background:var(--paper);color:var(--navy);display:flex;align-items:center;justify-content:center;font-size:12.5px;}
+.flow .st:not(:last-of-type) .hd::after{content:"▶";position:absolute;right:-9px;top:50%;transform:translateY(-50%);font-size:11px;color:var(--amber);z-index:2;text-shadow:0 0 2px var(--paper),0 0 2px var(--paper);}
+.flow .r1{grid-row:2;} .flow .r2{grid-row:3;} .flow .r3{grid-row:4;} .flow .r4{grid-row:5;} .flow .r5{grid-row:6;}
+.flow .rs{grid-row:7;} .flow .rn{grid-row:8;}
+.flow .cell{border:1.5px solid var(--line);border-radius:8px;padding:6px 7px;font-size:11.8px;line-height:1.5;background:var(--paper);margin:3px 0;}
+.flow .cell + .cell{margin-top:5px;}
+.flow .cell b{color:var(--navy);}
+.flow .cell.erp{background:var(--erp);border-color:var(--erpline);}
+.flow .cell.gw{background:var(--gw);border-color:var(--gwline);}
+.flow .cell.etc{background:var(--etc);border-color:var(--etcline);}
+.flow .cell.norec{border-style:dashed;border-color:var(--muted);background:var(--paper);}
+.flow .cell .s{display:block;}
+.flow .cell .s i.o{font-style:normal;font-weight:700;color:var(--navy2);margin-right:2px;}
+.flow .band{font-size:11.5px;padding:5px 6px;border-top:1px dashed var(--line);line-height:1.6;align-self:start;}
+.flow .band.num b{font-family:Consolas,monospace;font-size:12px;color:var(--navy);}
+.flow .lane.b{border-top:1px dashed var(--line);font-weight:600;color:var(--muted);}
+@media (max-width:860px){
+  .flowwrap{padding:8px;overflow:visible;}
+  .flow{display:block;min-width:0;}
+  .flow .lanebg,.flow .lane{display:none;}
+  .flow .st{display:block;border:1px solid var(--line);border-radius:10px;margin:0 0 10px;padding:0 8px 8px;}
+  .flow .hd{margin:0 -8px 8px;border-radius:9px 9px 0 0;}
+  .flow .st .hd::after{display:none !important;}
+  .flow .lanecell::before,.flow .band::before{content:attr(data-lane);display:block;font-size:11px;font-weight:700;color:var(--muted);margin:6px 0 2px;}
+  .flow .band{border-top:none;padding:2px 0;}
+}
+
+/* ── 번호 사슬 ── */
+.chain{display:flex;flex-wrap:wrap;align-items:stretch;gap:4px 0;margin:10px 0 8px;}
+.chain .no{border:1.5px solid var(--line);border-radius:10px;padding:6px 10px;min-width:92px;text-align:center;background:var(--paper);}
+.chain .no b{display:block;font-family:Consolas,monospace;font-size:15px;color:var(--navy);}
+.chain .no span{display:block;font-size:11.5px;color:var(--muted);line-height:1.35;}
+.chain .no.erp{background:var(--erp);border-color:var(--erpline);}
+.chain .no.gw{background:var(--gw);border-color:var(--gwline);}
+.chain .no.etc{background:var(--etc);border-color:var(--etcline);}
+.chain .no.ext{background:var(--warnbg);border-color:var(--amber);}
+.chain .lk{display:flex;flex-direction:column;justify-content:center;align-items:center;padding:0 6px;font-size:10.8px;color:var(--muted);min-width:64px;text-align:center;line-height:1.3;}
+.chain .lk::before{content:"━▶";color:var(--navy2);font-size:12px;letter-spacing:-2px;}
+.chain .lk.cut{color:var(--red);font-weight:700;}
+.chain .lk.cut::before{content:"┅ ✕ ┅";color:var(--red);letter-spacing:0;}
+.chain .lk.weak::before{content:"┅┅▶";color:var(--amber);}
+.fig{border:1px solid var(--line);border-radius:12px;padding:14px;margin:10px 0 6px;background:var(--paper);overflow-x:auto;}
+.fig svg{display:block;width:100%;min-width:680px;height:auto;}
+svg text{font-family:'Pretendard','Malgun Gothic',sans-serif;fill:var(--ink);}
+svg .t-h{font-size:13.5px;font-weight:700;fill:var(--navy);}
+svg .t-s{font-size:11.5px;fill:var(--muted);}
+svg .box-e{fill:var(--erp);stroke:var(--erpline);stroke-width:1.6;}
+svg .box-g{fill:var(--gw);stroke:var(--gwline);stroke-width:1.6;}
+svg .box-p{fill:var(--paper);stroke:var(--line);stroke-width:1.4;}
+svg .ln{stroke:var(--muted);stroke-width:1.6;fill:none;}
+svg .ln-x{stroke:var(--red);stroke-width:2;fill:none;}
+
+/* ── 단계 카드 ── */
+.step{border:1px solid var(--line);border-radius:12px;margin:16px 0;overflow:hidden;background:var(--paper);scroll-margin-top:12px;}
+.step > .hd{display:flex;align-items:center;gap:12px;padding:12px 18px;background:var(--soft);border-bottom:1px solid var(--line);flex-wrap:wrap;}
+.step > .hd .n{width:28px;height:28px;flex:0 0 28px;border-radius:50%;background:var(--navy);color:var(--paper);font-size:14px;font-weight:700;display:flex;align-items:center;justify-content:center;}
+.step > .hd .t{font-size:16px;font-weight:700;color:var(--navy);}
+.step > .hd .who{margin-left:auto;font-size:12.5px;color:var(--muted);}
+.step > .bd{padding:14px 18px 16px;}
+.step .def{font-size:13px;color:var(--muted);border-left:3px solid var(--line);padding:2px 0 2px 10px;margin-bottom:10px;}
+.step .donec{background:var(--okbg);border:1px solid var(--green);border-radius:8px;padding:8px 12px;font-size:13.5px;margin-bottom:12px;}
+.step .donec b{color:var(--green);}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:10px;}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:10px;}
+@media (max-width:860px){.g2,.g3{grid-template-columns:1fr;}}
+.bx{border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-size:13.2px;background:var(--paper);}
+.bx ul{margin:0 0 0 17px;} .bx li{margin-bottom:3px;}
+.bx.human{border-color:var(--navy2);}
+.bx.ai{border-color:var(--amber);background:var(--warnbg);}
+.bx.pain{border-color:var(--red);background:var(--badbg);}
+.io{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;font-size:13px;margin:0 0 10px;}
+.io .arrow{color:var(--navy2);font-weight:700;}
+.io .pill{border:1px solid var(--line);border-radius:999px;padding:2px 10px;background:var(--soft);}
+.io .pill b{font-family:Consolas,monospace;color:var(--navy);}
+details{border:1px dashed var(--line);border-radius:10px;padding:8px 12px;margin-top:8px;font-size:13px;}
+details summary{cursor:pointer;font-weight:700;color:var(--navy2);}
+details .tw{margin:8px 0 4px;}
+details table{font-size:12.6px;min-width:480px;}
+.foot{margin-top:40px;padding-top:12px;border-top:1px solid var(--line);color:var(--muted);font-size:12px;}
+.theme{position:fixed;right:14px;bottom:14px;border:1px solid var(--line);background:var(--paper);color:var(--ink);border-radius:999px;padding:6px 12px;font-size:12px;cursor:pointer;}
+@page{size:A4 landscape;margin:10mm;}
+@media print{
+  *{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+  .toc,.theme{display:none;} .page{box-shadow:none;padding:0;max-width:none;} body{background:#fff;font-size:12.5px;}
+  h2{break-after:avoid;margin-top:22px;} .step,.fig,.flowwrap,.bx{break-inside:avoid;}
+  .flowwrap{overflow:visible;padding:6px;} .flow{min-width:0;grid-template-columns:60px repeat(8,minmax(0,1fr));gap:4px;}
+  .flow .cell{font-size:9.6px;padding:4px 5px;} .flow .hd{font-size:10px;padding:5px;} .flow .band{font-size:9.4px;}
+  details{border:none;padding:0;} details > *{display:block;} details summary{list-style:none;}
+}
+/* /pur:style */
+</style>
+<!-- jeilax:local-links --><script>(function(){if(location.protocol!=="file:")return;var r="../../",s=document.createElement("script");s.src=r+"_local_links.js";s.setAttribute("data-root",r);(document.head||document.documentElement).appendChild(s);})();</script><!-- /jeilax:local-links -->
+</head>
+<body>
+<div class="page">
+  <span class="doc-label">JEIL AX 구매업무시스템 · 프로세스 정본</span>
+  <h1>구매업무 프로세스 도식 — 요청부터 대장까지 8단계</h1>
+  <div class="sub">기준 2026-10-06 · 관리자가 새로 정의한 「구매업무 프로세스 정의」를 기준으로 그렸다 · 작성 최동혁(정보전략팀) / Claude<br>
+  보탠 자료: 구매팀 「AI를 이용한 구매 절차 개선」(현재 vs AI 절차), 실제 결재문서 양식 3종, 중간DB 집계(2026년분)<br>
+  <b>실데이터 없음</b> — 거래처·금액·실제 문서번호는 적지 않았다. 번호는 가상 표기(<code>PR2026MMDD0001</code>)이고 수치는 전체 합계다.</div>
+
+  <nav class="toc" aria-label="목차">
+    <a href="#s1">1 한눈에</a><a href="#s2">2 전체 흐름도</a><a href="#s3">3 번호 사슬</a><a href="#s4">4 단계별 상세</a>
+    <a href="#s5">5 AI 적용 지도</a><a href="#s6">6 한 장 요약표</a><a href="#s7">7 끊어진 곳</a><a href="#s8">8 확인 필요</a><a href="#s9">9 용어·관련 문서</a>
+  </nav>
+
+  <!-- 1 -->
+  <h2 id="s1">1. 한눈에</h2>
+  <div class="hero">
+    <div class="hcard erp"><div class="k">흐름</div><div class="v">8단계 · 다섯 주체 · 다섯 곳</div><p>현업부서·구매팀·물류팀·재무팀·업체가 <b>ERP · 그룹웨어 · 엑셀 · 메일 · 폴더</b>를 오가며 한 건을 끝낸다. 요청부터 매입까지 보통 3~4주가 걸린다.</p></div>
+    <div class="hcard gw"><div class="k">연결</div><div class="v">번호 아홉 개가 한 건을 잇는다</div><p>ERP 안의 번호(요청→발주→입고→매입→전표→계산서)는 끝까지 이어진다. <b>그룹웨어·엑셀과 만나는 자리</b>에서 끊긴다.</p></div>
+    <div class="hcard etc"><div class="k">빈 곳</div><div class="v">기록이 남지 않는 곳이 세 군데</div><p>견적·NEGO 결과 / 결재가 끝났는지와 그 날짜 / 계산서 발행요청 이력. 지금 사람이 손으로 메우는 곳이고, <b>시스템과 AI 가 들어갈 자리</b>다.</p></div>
+  </div>
+  <div class="callout">
+    <span class="big">가장 중요한 한 가지 — ERP 가 정본이고, 포털과 AI 는 ERP 에 없는 것만 보탠다.</span>
+    AI 가 하는 일은 <b>찾아 주기 · 견주어 보기 · 초안 쓰기</b>까지다. ERP 등록, 결재 상신, 발주 확정, 메일 발송은 <b>사람이</b> 한다.
+    그리고 같은 값을 두 번 적지 않는다 — ERP 에 이미 있는 번호·품목·금액은 엑셀이나 대장에 다시 치지 않고 가져다 쓴다.
+  </div>
+
+  <!-- 2 -->
+  <h2 id="s2">2. 전체 흐름도 <span class="h2sub">누가 · 어디서 · 무엇을 — 칸을 누르면 해당 단계 상세로 간다</span></h2>
+  <div class="flowwrap">
+<!-- pur:flow -->
+  <div class="flow" role="group" aria-label="구매업무 전체 흐름도">
+    <div class="lanebg" style="grid-row:2"></div><div class="lanebg" style="grid-row:3"></div><div class="lanebg" style="grid-row:4"></div><div class="lanebg" style="grid-row:5"></div><div class="lanebg" style="grid-row:6"></div>
+    <div class="lane" style="grid-row:2">현업부서<small>요청하는 쪽</small></div>
+    <div class="lane" style="grid-row:3">구매팀</div>
+    <div class="lane" style="grid-row:4">물류팀<small>자재 입고</small></div>
+    <div class="lane" style="grid-row:5">재무팀</div>
+    <div class="lane" style="grid-row:6">업체<small>협력사</small></div>
+    <div class="lane b" style="grid-row:7">쓰는 곳</div>
+    <div class="lane b" style="grid-row:8">생기는 번호</div>
+
+    <section class="st" style="--c:2" data-step="1" data-name="구매요청·확정">
+      <a class="hd" href="#st1"><span class="n">1</span><span>구매요청·<wbr>확정</span></a>
+      <div class="r1 lanecell" data-lane="현업부서"><div class="cell erp"><span class="s"><i class="o">①</i>ERP 에 구매요청 등록 → 확정</span><i class="sy e">ERP</i></div><div class="cell gw"><span class="s"><i class="o">②</i>「자재구매요청서」 결재 올림(팀장·부문장)</span><i class="sy g">그룹웨어</i></div></div>
+      <div class="r2 lanecell" data-lane="구매팀"><div class="cell gw"><span class="s"><i class="o">③</i>요청서 수신·확인</span><i class="sy g">그룹웨어</i></div></div>
+      <div class="rs band" data-lane="쓰는 곳"><i class="sy e">ERP</i><i class="sy g">그룹웨어</i></div>
+      <div class="rn band num" data-lane="생기는 번호"><b>PR</b> 요청 한 줄마다<br><b>PU</b> 결재 한 건마다</div>
+    </section>
+
+    <section class="st" style="--c:3" data-step="2" data-name="발주통합관리 LIST">
+      <a class="hd" href="#st2"><span class="n">2</span><span>발주통합관리 LIST</span></a>
+      <div class="r2 lanecell" data-lane="구매팀"><div class="cell etc"><span class="s">요청을 LIST 에 올려 프로젝트·수량·진행현황을 관리</span><i class="sy x">엑셀</i><i class="sy x">포털 LIST</i></div></div>
+      <div class="rs band" data-lane="쓰는 곳"><i class="sy x">엑셀(공유 폴더)</i><i class="sy x">포털</i></div>
+      <div class="rn band num" data-lane="생기는 번호">없음 — <b>PR·PU</b> 를 옮겨 적는다</div>
+    </section>
+
+    <section class="st" style="--c:4" data-step="3" data-name="견적검토">
+      <a class="hd" href="#st3"><span class="n">3</span><span>견적검토</span></a>
+      <div class="r2 lanecell" data-lane="구매팀"><div class="cell norec"><span class="s"><i class="o">①</i>업체에 견적 문의</span><span class="s"><i class="o">③</i>견적 검토 — 과거 발주 단가와 비교</span><span class="s"><i class="o">④</i>비교자료 확정</span><i class="sy x">메일</i><i class="sy a">AI</i></div></div>
+      <div class="r5 lanecell" data-lane="업체"><div class="cell norec"><span class="s"><i class="o">②</i>견적서 회신</span><i class="sy x">메일</i></div></div>
+      <div class="rs band" data-lane="쓰는 곳"><i class="sy x">메일</i><i class="sy e">ERP 조회</i><i class="sy a">AI</i></div>
+      <div class="rn band num" data-lane="생기는 번호">없음 — 견적서 파일만</div>
+    </section>
+
+    <section class="st" style="--c:5" data-step="4" data-name="구매확정">
+      <a class="hd" href="#st4"><span class="n">4</span><span>구매확정</span></a>
+      <div class="r2 lanecell" data-lane="구매팀"><div class="cell norec"><span class="s"><i class="o">①</i>NEGO</span><span class="s"><i class="o">②</i>가격 결정 · 업체 선정</span><i class="sy x">메일·전화</i></div></div>
+      <div class="r5 lanecell" data-lane="업체"><div class="cell norec"><span class="s">NEGO 응대</span></div></div>
+      <div class="rs band" data-lane="쓰는 곳"><i class="sy x">메일·전화</i></div>
+      <div class="rn band num" data-lane="생기는 번호">없음</div>
+    </section>
+
+    <section class="st" style="--c:6" data-step="5" data-name="구매품의서">
+      <a class="hd" href="#st5"><span class="n">5</span><span>구매품의서</span></a>
+      <div class="r2 lanecell" data-lane="구매팀"><div class="cell erp"><span class="s"><i class="o">①</i>ERP 발주 등록 · 발주서 출력</span><i class="sy e">ERP</i></div><div class="cell gw"><span class="s"><i class="o">②</i>「구매기안서」 결재(견적서·발주서·요청서 첨부)</span><i class="sy g">그룹웨어</i></div><div class="cell norec"><span class="s"><i class="o">③</i>발주서 발송</span><i class="sy x">메일</i></div></div>
+      <div class="r5 lanecell" data-lane="업체"><div class="cell"><span class="s"><i class="o">④</i>발주서 접수 · 납품 준비</span></div></div>
+      <div class="rs band" data-lane="쓰는 곳"><i class="sy e">ERP</i><i class="sy g">그룹웨어</i><i class="sy x">메일</i></div>
+      <div class="rn band num" data-lane="생기는 번호"><b>PO</b> 발주서 한 건마다<br>구매기안 문서번호</div>
+    </section>
+
+    <section class="st" style="--c:7" data-step="6" data-name="계산서 발행요청">
+      <a class="hd" href="#st6"><span class="n">6</span><span>계산서 발행요청</span></a>
+      <div class="r2 lanecell" data-lane="구매팀"><div class="cell erp"><span class="s"><i class="o">③</i>입고 확인(구매입고 상세조회)</span><i class="sy e">ERP</i></div><div class="cell norec"><span class="s"><i class="o">④</i>계산서 발행요청 메일</span><span class="s"><i class="o">⑥</i>수취 확인</span><i class="sy x">메일</i></div></div>
+      <div class="r3 lanecell" data-lane="물류팀"><div class="cell erp"><span class="s"><i class="o">②</i>ERP 구매입고 등록</span><i class="sy e">ERP</i></div></div>
+      <div class="r5 lanecell" data-lane="업체"><div class="cell"><span class="s"><i class="o">①</i>납품</span><span class="s"><i class="o">⑤</i>세금계산서 발행</span></div></div>
+      <div class="rs band" data-lane="쓰는 곳"><i class="sy e">ERP</i><i class="sy x">메일</i><i class="sy a">국세청</i></div>
+      <div class="rn band num" data-lane="생기는 번호"><b>PG</b> 입고<br>국세청 승인번호</div>
+    </section>
+
+    <section class="st" style="--c:8" data-step="7" data-name="매입마감·매입전표">
+      <a class="hd" href="#st7"><span class="n">7</span><span>매입마감·<wbr>매입전표</span></a>
+      <div class="r2 lanecell" data-lane="구매팀"><div class="cell erp"><span class="s"><i class="o">①</i>ERP 매입내역 등록 — 결의전표가 함께 생긴다</span><i class="sy e">ERP</i></div><div class="cell gw"><span class="s"><i class="o">②</i>「자재구매매입전표」 결재 올림</span><i class="sy g">그룹웨어</i></div></div>
+      <div class="r4 lanecell" data-lane="재무팀"><div class="cell gw"><span class="s"><i class="o">③</i>매입전표 결재 · 전표 승인</span><i class="sy g">그룹웨어</i><i class="sy e">ERP</i></div></div>
+      <div class="rs band" data-lane="쓰는 곳"><i class="sy e">ERP</i><i class="sy g">그룹웨어</i></div>
+      <div class="rn band num" data-lane="생기는 번호"><b>IV</b> 매입 · <b>TG</b> 결의전표<br><b>VT</b> 부가세</div>
+    </section>
+
+    <section class="st" style="--c:9" data-step="8" data-name="품의서관리·기안서 대장">
+      <a class="hd" href="#st8"><span class="n">8</span><span>품의서관리·<wbr>대장</span></a>
+      <div class="r2 lanecell" data-lane="구매팀"><div class="cell etc"><span class="s"><i class="o">①</i>결재문서와 첨부를 한 파일로 정리 → 품의서 폴더</span><i class="sy x">폴더</i></div><div class="cell etc"><span class="s"><i class="o">②</i>기안서 목록대장 기록 — 전표번호·계산서 발행정보 확인</span><i class="sy x">엑셀</i><i class="sy e">ERP 조회</i></div></div>
+      <div class="rs band" data-lane="쓰는 곳"><i class="sy x">폴더</i><i class="sy x">엑셀 대장</i><i class="sy e">ERP 조회</i></div>
+      <div class="rn band num" data-lane="생기는 번호"><b>권-번호</b> 보관 번호</div>
+    </section>
+  </div>
+<!-- /pur:flow -->
+  </div>
+  <div class="legend">
+    <span><i class="sy e">ERP</i> ERP 화면에서 하는 일</span>
+    <span><i class="sy g">그룹웨어</i> 전자결재</span>
+    <span><i class="sy x">엑셀·메일·폴더</i> ERP 밖에서 손으로 하는 일</span>
+    <span><i class="sy a">AI·외부</i> AI 가 돕는 자리 · 국세청</span>
+    <span><span class="dash"></span>점선 = 했다는 기록이 어디에도 남지 않는 일</span>
+  </div>
+  <div class="cap">원 안 번호(①②…)는 한 단계 안에서의 순서다. 같은 단계라도 줄(담당)이 다르면 사람이 바뀐다 — 6단계는 업체 → 물류팀 → 구매팀 → 업체 순으로 네 번 넘어간다.</div>
+  <div class="callout warn"><b>정의서에 없는 지름길 「선진행」</b> — 품의(5단계) 결재가 끝나기 전에 업체에 먼저 진행을 알리는 경우다. 구매팀 엑셀 LIST 의 발주일자 칸 <b>47%(2,705행)</b>에 「선진행」·「선발주」가 적혀 있어, 예외가 아니라 자주 쓰는 경로로 보인다. 뜻과 허용 기준은 <a href="#s8">8절 확인 필요</a>에 올렸다.</div>
+
+  <!-- 3 -->
+  <h2 id="s3">3. 번호 사슬 <span class="h2sub">한 건을 처음부터 끝까지 잇는 번호들</span></h2>
+  <p class="lead">단계마다 새 번호가 생기고, 앞 번호를 품고 다음으로 넘어간다. 화살표 위 글자는 「무엇으로 이어지는가」다. 빨간 ✕ 는 이어 주는 칸이 없어 사람이 눈으로 맞추는 자리다.</p>
+<!-- pur:chain -->
+  <div class="chain" aria-label="번호 사슬">
+    <div class="no erp"><b>PR</b><span>구매요청번호<br>요청 한 줄</span></div>
+    <div class="lk">결재번호 칸</div>
+    <div class="no gw"><b>PU</b><span>요청 결재번호<br>결재 한 건</span></div>
+    <div class="lk cut">견적·결정<br>기록 없음</div>
+    <div class="no gw"><b>기안</b><span>구매기안서<br>결재 한 건</span></div>
+    <div class="lk cut">발주번호<br>칸 없음</div>
+    <div class="no erp"><b>PO</b><span>발주번호<br>발주서 한 건</span></div>
+    <div class="lk">발주번호+순번</div>
+    <div class="no erp"><b>PG</b><span>입고번호<br>입고 한 줄</span></div>
+    <div class="lk">발주번호+순번</div>
+    <div class="no erp"><b>IV</b><span>매입번호<br>매입 한 건</span></div>
+    <div class="lk">참조번호</div>
+    <div class="no erp"><b>TG</b><span>결의전표번호<br>전표 한 장</span></div>
+    <div class="lk">전표번호</div>
+    <div class="no erp"><b>VT</b><span>부가세번호<br>계산서 한 장</span></div>
+    <div class="lk weak">값 네 개<br>대조</div>
+    <div class="no ext"><b>승인번호</b><span>국세청<br>전자세금계산서</span></div>
+    <div class="lk weak">전표번호를<br>손으로 기재</div>
+    <div class="no etc"><b>권-번호</b><span>기안서 대장<br>보관 파일</span></div>
+  </div>
+<!-- /pur:chain -->
+  <div class="cap">파랑 = ERP 가 매기는 번호 · 보라 = 그룹웨어 결재 · 초록 = 엑셀·폴더 · 노랑 = 국세청. <b>PR 과 PO 는 요청 줄(PR)이 직접 잇는다</b> — 발주의 각 줄에 요청번호가 들어 있다. 다만 결재 문서끼리(PU ↔ 구매기안 ↔ PO)를 잇는 칸은 없다.</div>
+
+  <div class="tw"><table>
+    <tr><th>번호</th><th>이름</th><th>모양(가상 표기)</th><th>어디서 생기나</th><th>무엇 하나에 붙나</th><th>다음 번호와 이어지는 방법</th></tr>
+    <tr><td class="nw"><b>PR</b></td><td>구매요청번호</td><td class="nw"><code>PR2026MMDD0001</code></td><td>ERP 자재구매요청등록</td><td>요청 품목 한 줄</td><td>요청 줄의 결재번호 칸에 PU 가 적힌다. 발주 줄에는 이 PR 이 적힌다</td></tr>
+    <tr><td class="nw"><b>PU</b></td><td>구매요청 결재번호</td><td class="nw"><code>PU2026MMDD0001</code></td><td>그룹웨어 「자재구매요청서」를 올릴 때(ERP 연동 양식)</td><td>요청 결재 한 건 — 요청 여러 줄 묶음</td><td>결재가 끝났는지·언제 끝났는지는 ERP 로 넘어오지 않는다</td></tr>
+    <tr><td class="nw"><b>기안</b></td><td>구매기안서 문서번호</td><td class="nw">부서-연도-양식-일련번호</td><td>그룹웨어 「구매기안서」</td><td>업체 한 곳에 대한 구매 품의 한 건</td><td><span class="tag no">끊김</span> 발주번호를 적는 칸이 없다 — 본문·첨부를 사람이 보고 맞춘다</td></tr>
+    <tr><td class="nw"><b>PO</b></td><td>발주번호</td><td class="nw"><code>PO2026MMDD0001</code></td><td>ERP 발주등록통합(S)</td><td>발주서 한 건 — 업체 한 곳, 요청 여러 줄</td><td>입고·매입의 각 줄에 발주번호와 줄 순번이 적힌다</td></tr>
+    <tr><td class="nw"><b>PG</b></td><td>입고번호</td><td class="nw"><code>PG2026MMDD0001</code></td><td>ERP 구매입고등록(물류팀)</td><td>입고 한 줄</td><td>발주번호+순번으로 발주 줄과 만난다</td></tr>
+    <tr><td class="nw"><b>IV</b></td><td>매입번호</td><td class="nw"><code>IV2026MMDD0001</code></td><td>ERP 매입내역등록</td><td>매입 한 건 — 발주 여러 건을 묶기도 한다</td><td>결의전표의 참조번호 칸에 이 IV 가 적힌다</td></tr>
+    <tr><td class="nw"><b>TG</b></td><td>결의전표번호</td><td class="nw"><code>TG2026MMDD0001</code></td><td>ERP 매입 등록 때 자동 생성 · 그룹웨어 「자재구매매입전표」에 실림</td><td>전표 한 장</td><td>부가세 원장에 이 전표번호가 적힌다</td></tr>
+    <tr><td class="nw"><b>VT</b></td><td>부가세번호</td><td class="nw"><code>VT2026MMDD0001</code></td><td>ERP 부가세 원장</td><td>계산서 한 장</td><td><span class="tag wait">약함</span> 국세청 자료와 공통 번호가 없다 — 매입/매출 구분·작성일·사업자번호·공급가액 네 값으로 맞춘다</td></tr>
+    <tr><td class="nw"><b>승인번호</b></td><td>전자세금계산서 승인번호</td><td class="nw">숫자 24자리</td><td>국세청(업체가 발행)</td><td>세금계산서 한 장</td><td>—</td></tr>
+    <tr><td class="nw"><b>권-번호</b></td><td>기안서 대장 번호</td><td class="nw"><code>9-000</code> → 파일 <code>9-000.pdf</code></td><td>구매팀 엑셀 「기안서 목록대장」</td><td>보관하는 기안 묶음 한 건</td><td><span class="tag wait">약함</span> 대장의 전표번호 칸에 TG·IV 를 손으로 적어 잇는다</td></tr>
+  </table></div>
+
+  <h3>묶음은 단계마다 다르다 — 일대일이 아니다</h3>
+  <div class="fig"><svg viewBox="0 0 900 236" role="img" aria-label="요청 결재, 요청 줄, 발주, 매입이 다대다로 묶이는 모습">
+    <text x="105" y="16" text-anchor="middle" class="t-s">요청 결재(PU)</text><text x="300" y="16" text-anchor="middle" class="t-s">요청 줄(PR)</text><text x="525" y="16" text-anchor="middle" class="t-s">발주(PO)</text><text x="785" y="16" text-anchor="middle" class="t-s">매입(IV)</text>
+    <rect x="30" y="50" width="150" height="46" rx="8" class="box-g"/><text x="105" y="78" text-anchor="middle" class="t-h">요청 결재 A</text>
+    <rect x="30" y="160" width="150" height="46" rx="8" class="box-g"/><text x="105" y="188" text-anchor="middle" class="t-h">요청 결재 B</text>
+    <rect x="240" y="28" width="120" height="28" rx="6" class="box-e"/><text x="300" y="47" text-anchor="middle" class="t-s">A-1 줄</text>
+    <rect x="240" y="64" width="120" height="28" rx="6" class="box-e"/><text x="300" y="83" text-anchor="middle" class="t-s">A-2 줄</text>
+    <rect x="240" y="100" width="120" height="28" rx="6" class="box-e"/><text x="300" y="119" text-anchor="middle" class="t-s">A-3 줄</text>
+    <rect x="240" y="150" width="120" height="28" rx="6" class="box-e"/><text x="300" y="169" text-anchor="middle" class="t-s">B-1 줄</text>
+    <rect x="240" y="186" width="120" height="28" rx="6" class="box-e"/><text x="300" y="205" text-anchor="middle" class="t-s">B-2 줄</text>
+    <path d="M180 73 L240 42 M180 73 L240 78 M180 73 L240 114 M180 183 L240 164 M180 183 L240 200" class="ln"/>
+    <rect x="440" y="30" width="170" height="42" rx="8" class="box-e"/><text x="525" y="56" text-anchor="middle" class="t-h">발주 1 · 업체 가</text>
+    <rect x="440" y="100" width="170" height="42" rx="8" class="box-e"/><text x="525" y="126" text-anchor="middle" class="t-h">발주 2 · 업체 나</text>
+    <rect x="440" y="170" width="170" height="42" rx="8" class="box-e"/><text x="525" y="196" text-anchor="middle" class="t-h">발주 3 · 업체 가</text>
+    <path d="M360 42 L440 46 M360 78 L440 54 M360 114 L440 116 M360 164 L440 126 M360 200 L440 191" class="ln"/>
+    <rect x="700" y="50" width="170" height="46" rx="8" class="box-e"/><text x="785" y="78" text-anchor="middle" class="t-h">매입 1 · 업체 가</text>
+    <rect x="700" y="150" width="170" height="46" rx="8" class="box-e"/><text x="785" y="178" text-anchor="middle" class="t-h">매입 2 · 업체 나</text>
+    <path d="M610 51 L700 66 M610 191 L700 80 M610 121 L700 173" class="ln"/>
+    <text x="450" y="232" text-anchor="middle" class="t-s">한 요청 결재가 업체별로 갈라지고(A → 발주 1·2), 한 발주가 여러 결재의 줄을 묶고(발주 2 ← A·B), 한 매입이 여러 발주를 묶는다(매입 1 ← 발주 1·3)</text>
+  </svg></div>
+  <div class="tw"><table>
+    <tr><th>관계</th><th>2026년 집계</th><th>뜻</th></tr>
+    <tr><td>요청 결재 → 발주</td><td>결재 998건 중 <b>18%</b>가 발주 2건 이상으로 갈라짐</td><td>업체가 다르면 발주가 따로 난다. 「결재 한 건 = 발주 한 건」이 아니다</td></tr>
+    <tr><td>발주 → 요청 결재</td><td>발주 한 건이 결재 최대 8건의 줄을 묶음</td><td>같은 업체 것을 모아 한 번에 발주한다</td></tr>
+    <tr><td>매입 → 발주</td><td>매입 373건 중 <b>30%</b>가 발주 2건 이상을 묶음</td><td>같은 업체의 여러 발주를 한 번에 매입 마감한다</td></tr>
+    <tr><td>기안(대장) ↔ 발주</td><td>연결된 기안의 <b>49%</b>가 발주 2건 이상과 이어짐</td><td>대장 한 줄이 발주 여러 건에 걸친다</td></tr>
+    <tr><td>발주 → 입고</td><td>나눠 입고된 발주는 <b>3%</b></td><td>대부분 한 번에 들어온다</td></tr>
+  </table></div>
+  <div class="callout">그래서 「한 건」의 기준을 하나로 정할 수 없다. <b>요청은 PU, 발주·입고는 PO, 매입·전표는 IV, 보관은 권-번호</b>로 묶이고, 이 묶음들을 실제로 잇는 실은 <b>줄(요청 줄 · 발주 줄)</b>이다. 시스템은 어느 번호로 들어와도 이어진 전체를 보여 줘야 한다.</div>
+
+  <!-- 4 -->
+  <h2 id="s4">4. 단계별 상세 <span class="h2sub">완료 기준 · 누가 · 무엇을 주고받나 · 사람과 AI 의 경계</span></h2>
+
+  <div class="step" id="st1">
+    <div class="hd"><span class="n">1</span><span class="t">구매요청 및 확정</span><span class="who">현업부서(요청자 · 팀장 · 부문장) → 구매팀</span></div>
+    <div class="bd">
+      <div class="def">정의서: 현업부서 구매요청 등록 및 확정, 그룹웨어 전자결재 — ERP 자재구매요청등록 · 자재구매요청등록 확정 · 그룹웨어 「구매팀)[ERP]자재구매요청서」 전자결재</div>
+      <div class="donec"><b>완료 기준</b> ERP 에 요청이 「확정」으로 들어가 있고, 요청서 결재가 끝나 구매팀이 받았다.</div>
+      <div class="io"><span class="pill">필요한 품목·수량·필요일</span><span class="arrow">→</span><span class="pill"><b>PR</b> 요청 줄</span><span class="pill"><b>PU</b> 요청 결재</span><span class="arrow">→</span><span class="pill">구매팀 접수</span></div>
+      <div class="g2">
+        <div class="bx"><h4>하는 일</h4><ul><li>요청자가 ERP 에 품목·수량·필요일·프로젝트 번호를 넣어 요청을 등록하고 확정한다</li><li>ERP 요청 내용이 그대로 실린 「자재구매요청서」를 그룹웨어로 올린다. 결재선은 요청자 → 팀장 → 부문장, 수신은 구매팀</li><li>제목에 결재번호(PU)와 프로젝트가 붙고, 본문 표에 요청 줄(PR)이 나열된다</li></ul></div>
+        <div class="bx pain"><h4>지금 손으로 하는 일 · 자주 틀리는 곳</h4><ul><li>결재가 끝났는지는 그룹웨어를 열어야 안다 — ERP 에는 결재번호만 남는다</li><li>결재번호 칸이 빈 요청이 300여 줄 있다 — 결재 없이 들어온 것인지 번호만 빠진 것인지 구분이 안 된다</li><li>같은 건을 여러 번 나눠 요청하면(1차·2차) 이어 볼 방법이 제목뿐이다</li></ul></div>
+      </div>
+      <div class="g2">
+        <div class="bx human"><h4>사람이 하는 일</h4><ul><li>요청 등록·확정, 결재 상신·승인</li><li>구매팀의 접수 확인</li></ul></div>
+        <div class="bx ai"><h4>AI 가 돕는 일</h4><ul><li>새로 들어온 요청을 프로젝트별로 묶어 요약</li><li>요청 품목마다 「직전에 누구한테 얼마에 샀는지」를 미리 붙여 준다</li><li>이미 등록된 품목인지, 같은 요청이 최근에 있었는지 알려 준다</li></ul></div>
+      </div>
+      <details><summary>데이터로 보면</summary>
+        <div class="tw"><table>
+          <tr><th>항목</th><th>내용</th></tr>
+          <tr><td class="nw">중간DB</td><td>요청 줄 표(<code>pur_req_s</code>) — 요청번호·진행코드·수량·요청일·필요일·요청자·프로젝트 번호·결재번호(<code>pu_no</code>)·건명</td></tr>
+          <tr><td class="nw">상태를 아는 법</td><td>요청 줄이 있으면 「요청됨」 · 진행코드가 확정 이상이면 「확정」 · 결재번호가 있으면 「결재 올림」. <b>결재 완료 여부와 날짜는 알 수 없다</b></td></tr>
+          <tr><td class="nw">포털 화면</td><td><a href="/work/purchase-orders">발주·구매요청 진행현황</a>의 미발주 요청 · <a href="/work/purchase-list">발주통합 LIST</a>의 미발주 줄</td></tr>
+          <tr><td class="nw">빈 곳</td><td>결재 상태·결재일·결재선. 요청 단계의 예상 금액(ERP 요청에는 단가 칸이 없다)</td></tr>
+        </table></div>
+      </details>
+    </div>
+  </div>
+
+  <div class="step" id="st2">
+    <div class="hd"><span class="n">2</span><span class="t">발주통합관리 LIST</span><span class="who">구매팀</span></div>
+    <div class="bd">
+      <div class="def">정의서: 구매요청을 기준으로 프로젝트, 수량, 진행현황 관리용 EXCEL 파일</div>
+      <div class="donec"><b>완료 기준</b> 받은 요청이 빠짐없이 LIST 에 올라 있고, 줄마다 지금 어디까지 왔는지 보인다.</div>
+      <div class="io"><span class="pill"><b>PR · PU</b> 요청</span><span class="arrow">→</span><span class="pill">LIST 한 줄(요청·발주·입고 현황)</span><span class="arrow">→</span><span class="pill">검토할 항목 고르기</span></div>
+      <div class="g2">
+        <div class="bx"><h4>하는 일</h4><ul><li>요청 정보를 공유 폴더의 엑셀에 옮겨 적는다 — 요청번호, 품번, 규격, 수량, 프로젝트, 요청자</li><li>진행하면서 발주일자·공급처·발주번호·입고일·비고를 채워 나간다</li><li>23칸 · 올해 5,700여 줄. 담당자별로 줄을 맡아 관리한다</li></ul></div>
+        <div class="bx pain"><h4>지금 손으로 하는 일 · 자주 틀리는 곳</h4><ul><li>ERP 에 이미 있는 값을 다시 친다(요청번호·품번·수량·발주번호·단가)</li><li>상태를 날짜 칸에 글자로 적는다 — 발주일자 칸이 실제 날짜인 줄은 1,839줄, 글자인 줄이 3,363줄(「선진행」·「견적」·「발주」…)</li><li>입고일은 41%만 채워져 있고, 끝난 건의 비고에 「견적중」이 그대로 남는다</li></ul></div>
+      </div>
+      <div class="g2">
+        <div class="bx human"><h4>사람이 하는 일</h4><ul><li>ERP 에 없는 것만 적는다 — 견적 중인지, 왜 늦는지, 누구와 얘기 중인지</li><li>어떤 항목을 견적검토로 넘길지 고른다</li></ul></div>
+        <div class="bx ai"><h4>AI 가 돕는 일</h4><ul><li>LIST 는 ERP 에서 자동으로 만든다(포털 화면이 이미 있다)</li><li>오래 묵은 미발주 요청, 납기가 다가오는 발주를 추려 알려 준다</li><li>「이 프로젝트 지금 뭐가 안 들어왔어?」 같은 질문에 답한다</li></ul></div>
+      </div>
+      <details><summary>데이터로 보면</summary>
+        <div class="tw"><table>
+          <tr><th>항목</th><th>내용</th></tr>
+          <tr><td class="nw">중간DB</td><td>발주통합 LIST 뷰(<code>v_erp_pur_list</code>) — 발주 줄 + 아직 발주 안 된 요청 줄. 엑셀 23칸에 대응</td></tr>
+          <tr><td class="nw">상태를 아는 법</td><td>요청 줄이 중간DB 에 들어오면 자동으로 올라간다. 줄의 상태는 발주·입고·매입 실적으로 정한다</td></tr>
+          <tr><td class="nw">포털 화면</td><td><a href="/work/purchase-list">발주통합 LIST</a> — 조회 전용. 엑셀의 메모 칸(견적중·선진행 등)은 담지 못한다</td></tr>
+          <tr><td class="nw">빈 곳</td><td>사람이 적는 진행 메모를 받을 칸. 상태 판정이 최근 입고를 못 따라오는 문제(<a href="/docs/purchase/review">현행 점검</a> 참조)</td></tr>
+        </table></div>
+      </details>
+    </div>
+  </div>
+
+  <div class="step" id="st3">
+    <div class="hd"><span class="n">3</span><span class="t">견적검토</span><span class="who">구매팀 ↔ 업체 · AI 에이전트</span></div>
+    <div class="bd">
+      <div class="def">정의서: 구매견적검토 agent 가 발주통합 관리에서 검토하기로 한 항목을 ERP 의 과거 발주내역과 옵셔널하게 웹을 통한 검색으로 견적검토 진행. 검토단계 기준 비교자료 생성 및 확정</div>
+      <div class="donec"><b>완료 기준</b> 검토 대상 항목마다 업체별 견적과 과거 단가를 견준 비교자료가 만들어지고 확정됐다.</div>
+      <div class="io"><span class="pill">검토할 요청 줄</span><span class="arrow">→</span><span class="pill">견적서(업체별)</span><span class="pill">과거 단가</span><span class="arrow">→</span><span class="pill">비교자료(확정)</span></div>
+      <div class="g2">
+        <div class="bx"><h4>하는 일</h4><ul><li>요청 품목에 맞는 업체에 견적을 묻는다(메일, 필요하면 도면·사양 첨부)</li><li>받은 견적을 요청 줄에 맞춰 놓고 업체별 총액으로 견준다</li><li>같은 품목을 전에 얼마에 샀는지 ERP 에서 찾아 본다. 필요하면 웹에서 시세를 찾는다</li><li>비교자료를 만들어 확정한다</li></ul></div>
+        <div class="bx pain"><h4>지금 손으로 하는 일 · 자주 틀리는 곳</h4><ul><li><b>이 단계는 기록이 남지 않는다</b> — 견적서는 메일 첨부로만 있고, 무엇과 견줬는지는 품의서 문장에만 남는다</li><li>과거 단가는 ERP 화면에서 품목마다 하나씩 찾아야 한다</li><li>같은 업체에 한 달 사이 다시 사는데 단가가 올라도 알아채기 어렵다 — 올해 다시 산 품목 줄의 40%가 직전보다 비쌌다</li></ul></div>
+      </div>
+      <div class="g2">
+        <div class="bx human"><h4>사람이 하는 일</h4><ul><li>어느 업체에 물을지 정하고 견적 문의 메일을 보낸다</li><li>비교자료를 보고 판단·확정한다</li></ul></div>
+        <div class="bx ai"><h4>AI 가 돕는 일</h4><ul><li>품목마다 과거 발주 단가·업체·수량을 표로 붙인다</li><li>견적서를 읽어 요청 줄과 맞추고 업체별 총액 비교표를 만든다</li><li>품번이 달라도 같은 물건일 만한 품목을 찾아 준다</li><li>(선택) 웹 시세를 찾아 곁들인다 · 견적 문의 메일 초안을 쓴다</li></ul></div>
+      </div>
+      <details><summary>데이터로 보면</summary>
+        <div class="tw"><table>
+          <tr><th>항목</th><th>내용</th></tr>
+          <tr><td class="nw">중간DB</td><td>발주 단가(<code>pur_order_s.po_prc</code>) · 매입 단가(<code>iv_dtl_s.iv_prc</code>). 견적 자체는 어디에도 없다</td></tr>
+          <tr><td class="nw">상태를 아는 법</td><td><b>알 수 없다(기록 없음).</b> 견적·비교 결과를 적는 곳이 생겨야 한다</td></tr>
+          <tr><td class="nw">포털 화면</td><td>없음. 구매 에이전트에 품목 이력 도구가 있으나 단가를 내놓지 않는다</td></tr>
+          <tr><td class="nw">빈 곳</td><td>견적 기록 · 단가 이력 조회 · 2025년 이전 발주(지금은 2026년분만 — 같은 품목의 이전 발주가 있는 줄은 17%) · 웹 검색 도구 · 견적서 PDF 를 읽는 모델</td></tr>
+        </table></div>
+      </details>
+    </div>
+  </div>
+
+  <div class="step" id="st4">
+    <div class="hd"><span class="n">4</span><span class="t">구매확정</span><span class="who">구매팀 ↔ 업체</span></div>
+    <div class="bd">
+      <div class="def">정의서: 견적검토 확정 업체 NEGO 를 통한 가격결정 및 업체 선정</div>
+      <div class="donec"><b>완료 기준</b> 어느 업체에 얼마에 살지 정해졌고, 그 근거를 말할 수 있다.</div>
+      <div class="io"><span class="pill">비교자료</span><span class="arrow">→</span><span class="pill">NEGO</span><span class="arrow">→</span><span class="pill">업체 · 최종 단가 · 납기 · 결제 조건</span></div>
+      <div class="g2">
+        <div class="bx"><h4>하는 일</h4><ul><li>비교자료를 들고 업체와 가격을 협의한다</li><li>업체와 최종 가격, 납기, 결제 조건을 정한다</li></ul></div>
+        <div class="bx pain"><h4>지금 손으로 하는 일 · 자주 틀리는 곳</h4><ul><li><b>결정 과정이 기록으로 남지 않는다</b> — 결과만 다음 단계의 발주(업체·단가)로 나타난다</li><li>왜 이 업체, 이 가격인지는 품의서의 한두 줄(「실적가와 동일」, 「네고 불가」)이 전부다</li><li>얼마를 깎았는지 모아 볼 수 없다</li></ul></div>
+      </div>
+      <div class="g2">
+        <div class="bx human"><h4>사람이 하는 일</h4><ul><li>NEGO, 업체 선정, 가격 결정 — 전부 사람의 판단이다</li></ul></div>
+        <div class="bx ai"><h4>AI 가 돕는 일</h4><ul><li>협의 근거를 정리해 준다 — 직전 실적 단가와의 차이, 수량이 늘었는지, 다른 업체 가격</li><li>결정 내용을 짧은 양식(업체·최종가·근거·절감액)으로 받아 두었다가 품의서 초안에 넣는다</li></ul></div>
+      </div>
+      <details><summary>데이터로 보면</summary>
+        <div class="tw"><table>
+          <tr><th>항목</th><th>내용</th></tr>
+          <tr><td class="nw">중간DB</td><td>없음. 결과만 발주 줄의 업체·단가로 남는다</td></tr>
+          <tr><td class="nw">상태를 아는 법</td><td><b>알 수 없다(기록 없음).</b> 지금은 발주가 생기면 「확정됐다」고 거꾸로 짐작할 뿐이다</td></tr>
+          <tr><td class="nw">포털 화면</td><td>없음</td></tr>
+          <tr><td class="nw">빈 곳</td><td>결정 기록(업체·가격·근거)</td></tr>
+        </table></div>
+      </details>
+    </div>
+  </div>
+
+  <div class="step" id="st5">
+    <div class="hd"><span class="n">5</span><span class="t">구매품의서 작성</span><span class="who">구매팀(담당 · 팀장 · 이사) → 업체</span></div>
+    <div class="bd">
+      <div class="def">정의서: 확정된 구매를 기준으로 구매요청번호를 기준으로 하여 ERP 발주등록 및 발주확정과 견적, 구매요청을 기반으로 그룹웨어 전자결재 진행 — ERP 발주등록통합(S) · ERP 발주서 출력 · 그룹웨어 전자결재</div>
+      <div class="donec"><b>완료 기준</b> ERP 에 발주가 등록·확정됐고, 구매기안 결재가 끝났고, 발주서가 업체에 갔다.</div>
+      <div class="io"><span class="pill"><b>PR</b> 요청 줄</span><span class="pill">확정된 업체·단가</span><span class="arrow">→</span><span class="pill"><b>PO</b> 발주</span><span class="pill">구매기안 결재</span><span class="arrow">→</span><span class="pill">발주서(업체)</span></div>
+      <div class="g2">
+        <div class="bx"><h4>하는 일</h4><ul><li>요청번호를 불러와 ERP 에 발주를 등록하고 발주서를 출력한다. 업체 한 곳에 발주 한 건</li><li>그룹웨어 「구매기안서」를 올린다. 본문은 구매대상 프로젝트 · 구매사유(요청 결재번호) · 품목표 · 납입일/장소 · 발주업체 · 기안금액 · 거래조건, 첨부는 발주서·견적서·구매요청서. 결재선은 담당 → 팀장 → 이사</li><li>결재 뒤 발주서를 업체에 메일로 보낸다(자재물류 참조)</li></ul></div>
+        <div class="bx pain"><h4>지금 손으로 하는 일 · 자주 틀리는 곳</h4><ul><li>발주에 이미 넣은 품목표를 기안 본문에 다시 만든다</li><li>기안서와 발주를 잇는 번호 칸이 없다 — 나중에 대장에서 맞출 때 80%만 자동으로 이어진다</li><li>결재 전에 업체에 먼저 알리는 「선진행」이 잦은데, 그 사실은 엑셀 메모에만 남는다</li></ul></div>
+      </div>
+      <div class="g2">
+        <div class="bx human"><h4>사람이 하는 일</h4><ul><li>ERP 발주 등록·확정 · 결재 상신·승인 · 발주서 발송</li></ul></div>
+        <div class="bx ai"><h4>AI 가 돕는 일</h4><ul><li>구매기안 본문 초안을 만든다 — 품목표·합계·거래조건·첨부 목록을 채워서</li><li>첨부가 빠졌는지, 기안 금액과 발주 합계가 같은지 올리기 전에 확인한다</li><li>발주서 발송 메일 초안을 쓴다</li><li>먼저 진행한 건 가운데 품의가 아직 안 올라간 것을 알려 준다</li></ul></div>
+      </div>
+      <details><summary>데이터로 보면</summary>
+        <div class="tw"><table>
+          <tr><th>항목</th><th>내용</th></tr>
+          <tr><td class="nw">중간DB</td><td>발주 줄 표(<code>pur_order_s</code>) — 발주번호·순번·발주일·업체·품목·수량·단가·금액·납기·요청번호(<code>pr_no</code>). 기안은 엑셀 대장을 적재한 표(<code>pur_proposal</code>)에만 있다</td></tr>
+          <tr><td class="nw">상태를 아는 법</td><td>요청 줄을 가리키는 발주 줄이 있으면 「발주됨」 · 대장에 이어진 기안이 있으면 「품의 있음」. 기안 결재가 끝났는지는 알 수 없다</td></tr>
+          <tr><td class="nw">포털 화면</td><td><a href="/work/purchase-list">발주통합 LIST</a>의 발주 칸 · <a href="/work/purchase-proposals">기안서 대장</a></td></tr>
+          <tr><td class="nw">빈 곳</td><td>기안 ↔ 발주를 잇는 번호 · 구매기안 결재 상태 · 발주서를 언제 보냈는지 · 선진행 여부</td></tr>
+        </table></div>
+      </details>
+    </div>
+  </div>
+
+  <div class="step" id="st6">
+    <div class="hd"><span class="n">6</span><span class="t">업체 계산서 발행요청 메일</span><span class="who">업체 → 물류팀 → 구매팀 → 업체</span></div>
+    <div class="bd">
+      <div class="def">정의서: ERP 물류팀 입고처리완료 확인 후 업체 계산서 발행요청 메일 발송 및 수취 확인 — ERP 구매입고등록 · ERP 구매입고상세조회</div>
+      <div class="donec"><b>완료 기준</b> 발주한 물건이 다 들어왔고(ERP 입고), 업체가 세금계산서를 발행해 우리가 받았다.</div>
+      <div class="io"><span class="pill">납품</span><span class="arrow">→</span><span class="pill"><b>PG</b> 입고</span><span class="arrow">→</span><span class="pill">계산서 발행요청 메일</span><span class="arrow">→</span><span class="pill">세금계산서(국세청 승인번호)</span></div>
+      <div class="callout warn" style="margin-top:0">이 단계는 <b>두 조각</b>이다. 앞 조각(입고)은 ERP 에 기록이 남고, 뒤 조각(발행요청 메일과 수취 확인)은 기록이 없다. 한 칸으로 보면 빈 곳이 가려진다.</div>
+      <div class="g2">
+        <div class="bx"><h4>하는 일</h4><ul><li>업체가 납품하면 물류팀이 ERP 에 구매입고를 등록한다</li><li>구매팀이 구매입고 상세조회로 입고가 끝났는지 확인한다</li><li>입고가 끝난 건에 대해 업체에 세금계산서 발행을 요청하는 메일을 보낸다</li><li>계산서가 발행됐는지 확인한다</li></ul></div>
+        <div class="bx pain"><h4>지금 손으로 하는 일 · 자주 틀리는 곳</h4><ul><li>어떤 발주가 「입고는 끝났는데 계산서를 아직 안 받은」 상태인지 모아 보는 목록이 없다 — 입고는 됐는데 매입 전인 줄이 지금 80여 줄 있다</li><li>메일을 보냈는지, 답이 왔는지는 각자의 메일함에만 있다</li><li>ERP 의 입고일과 매입일이 같은 날인 경우가 56% — 입고를 매입 처리 때 한꺼번에 등록하면 실제 입고일을 알 수 없고 납기 준수도 잴 수 없다</li></ul></div>
+      </div>
+      <div class="g2">
+        <div class="bx human"><h4>사람이 하는 일</h4><ul><li>ERP 입고 등록(물류팀) · 발행요청 메일 발송(구매팀)</li></ul></div>
+        <div class="bx ai"><h4>AI 가 돕는 일</h4><ul><li>「입고 끝 · 계산서 미수취」 목록을 매일 만들어 준다</li><li>업체별로 묶어 발행요청 메일 초안을 쓴다 — 발주번호·품목·금액을 채워서</li><li>국세청 자료와 맞춰 계산서가 발행됐는지 자동으로 확인하고, 며칠 지나도 없으면 다시 알린다</li></ul></div>
+      </div>
+      <details><summary>데이터로 보면</summary>
+        <div class="tw"><table>
+          <tr><th>항목</th><th>내용</th></tr>
+          <tr><td class="nw">중간DB</td><td>입고 표(<code>pur_goods_mvmt_s</code>) — 입고번호·발주번호+순번·입고일·수량 / 국세청 전자세금계산서 표(<code>etax_master_s</code>) — 승인번호·작성일·공급자 사업자번호·금액</td></tr>
+          <tr><td class="nw">상태를 아는 법</td><td>발주 줄의 입고 수량 합이 발주 수량 이상이면 「입고 완료」, 일부면 「부분 입고」 · 같은 업체·날짜·금액의 세금계산서가 국세청 자료에 있으면 「계산서 수취」. <b>발행요청 메일은 알 수 없다</b></td></tr>
+          <tr><td class="nw">포털 화면</td><td><a href="/work/purchase-list">발주통합 LIST</a>의 입고일·미입고 필터</td></tr>
+          <tr><td class="nw">빈 곳</td><td>발행요청 이력 · 업체 담당자 연락처(거래처 4,678곳 중 메일 주소가 있는 곳은 416곳) · 「입고 끝·계산서 미수취」 목록</td></tr>
+        </table></div>
+      </details>
+    </div>
+  </div>
+
+  <div class="step" id="st7">
+    <div class="hd"><span class="n">7</span><span class="t">매입마감 및 매입전표 · 매입결재</span><span class="who">구매팀(담당 · 팀장 · 이사) → 재무팀</span></div>
+    <div class="bd">
+      <div class="def">정의서: 확정된 매입처리 및 매입결재 — ERP 매입내역등록 · 그룹웨어 매입</div>
+      <div class="donec"><b>완료 기준</b> ERP 에 매입이 등록돼 전표가 생겼고, 매입전표 결재가 재무까지 끝나 전표가 승인됐다.</div>
+      <div class="io"><span class="pill"><b>PO · PG</b> 입고분</span><span class="pill">세금계산서</span><span class="arrow">→</span><span class="pill"><b>IV</b> 매입</span><span class="pill"><b>TG</b> 결의전표</span><span class="pill"><b>VT</b> 부가세</span><span class="arrow">→</span><span class="pill">재무 승인</span></div>
+      <div class="g2">
+        <div class="bx"><h4>하는 일</h4><ul><li>받은 세금계산서에 맞춰 ERP 에 매입내역을 등록한다. 이때 결의전표(외상매입금·부가세대급금)가 함께 생긴다</li><li>그룹웨어 「자재구매매입전표」를 올린다. 본문에 매입 정보(매입번호·거래처·공급가·부가세·품목)와 결의전표가 실리고, 구매기안 묶음을 첨부한다</li><li>결재선은 담당 → 팀장 → 이사 → 재무(고정 결재)</li></ul></div>
+        <div class="bx pain"><h4>지금 손으로 하는 일 · 자주 틀리는 곳</h4><ul><li>발주 금액, 매입 금액, 세금계산서 금액이 서로 같은지 눈으로 맞춘다</li><li>같은 업체의 여러 발주를 한 매입으로 묶으면(30%) 어느 발주분인지 따라가기 어렵다</li><li>매입은 등록했는데 결재가 안 끝난 전표가 쌓여도 한눈에 안 보인다 — 지금 미승인 40여 건</li></ul></div>
+      </div>
+      <div class="g2">
+        <div class="bx human"><h4>사람이 하는 일</h4><ul><li>ERP 매입 등록 · 결재 상신 · 재무 결재와 전표 승인</li></ul></div>
+        <div class="bx ai"><h4>AI 가 돕는 일</h4><ul><li>발주·매입·세금계산서 세 금액을 맞춰 보고 다른 것만 짚어 준다</li><li>매입은 됐는데 결재를 안 올린 건, 오래 승인이 안 난 전표를 알려 준다</li><li>한 매입이 어느 발주들을 묶었는지 풀어서 보여 준다</li></ul></div>
+      </div>
+      <details><summary>데이터로 보면</summary>
+        <div class="tw"><table>
+          <tr><th>항목</th><th>내용</th></tr>
+          <tr><td class="nw">중간DB</td><td>매입 줄 표(<code>iv_dtl_s</code>) · 결의전표 표(<code>gl_slip_s</code> — 참조번호 칸 <code>ref_no</code> 에 매입번호, 승인 표시 <code>conf_fg</code>) · 부가세 원장(<code>vat_s</code> — 전표번호 <code>temp_gl_no</code>)</td></tr>
+          <tr><td class="nw">상태를 아는 법</td><td>발주 줄을 가리키는 매입 줄이 있으면 「매입 등록」 · 참조번호가 그 매입번호인 전표가 있으면 「전표 생성」 · 전표의 승인 표시가 승인이면 「전표 승인」</td></tr>
+          <tr><td class="nw">포털 화면</td><td><a href="/work/purchase-vendor">거래처별 매입</a> · <a href="/work/purchase-proposals">기안서 대장</a>의 전표·세금계산서 대사(대장에 적힌 전표만 열린다)</td></tr>
+          <tr><td class="nw">빈 곳</td><td>그룹웨어 매입전표 결재의 진행 상태(전표 승인 표시로 대신 본다) · 발주에서 출발해 전표·계산서까지 보여 주는 화면 · 대금 지급 예정일·결제 방법</td></tr>
+        </table></div>
+      </details>
+    </div>
+  </div>
+
+  <div class="step" id="st8">
+    <div class="hd"><span class="n">8</span><span class="t">품의서관리 폴더 및 기안서 목록대장</span><span class="who">구매팀</span></div>
+    <div class="bd">
+      <div class="def">정의서: 구매품의서에서 작성된 결재문서, 첨부파일들을 하나의 파일로 정리하고 해당 정리된 번호를 기반으로 기안서 목록대장 정리. 해당 목록대장에서 업체별 기안 디테일 내역과 함께 계약금과 중도금 전표 및 세금계산서 발행정보 데이터 확인(ERP 데이터 기반 연계) — ERP 결의전표등록 및 조회 · ERP 전자세금계산서 조회(S)</div>
+      <div class="donec"><b>완료 기준</b> 기안 묶음 파일이 폴더에 있고, 대장 줄에 전표번호와 계산서 발행정보가 채워져 「종결」로 표시됐다.</div>
+      <div class="io"><span class="pill">구매기안 + 첨부</span><span class="arrow">→</span><span class="pill"><b>권-번호</b>.pdf</span><span class="arrow">→</span><span class="pill">대장 한 줄(계약금·중도금·잔금 전표·발행일)</span><span class="arrow">→</span><span class="pill">종결</span></div>
+      <div class="g2">
+        <div class="bx"><h4>하는 일</h4><ul><li>결재가 끝난 구매기안과 첨부를 하나의 PDF 로 묶어 「권-번호」 이름으로 품의서 폴더에 넣는다</li><li>엑셀 「기안서 목록대장」에 한 줄을 적는다 — 권·번호·일자·기안자·생산번호·프로젝트·내용·업체·금액</li><li>대금을 나눠 치르는 건은 계약금·중도금·잔금마다 비율·발행금액·전표번호·발행일을 채운다. ERP 의 결의전표와 전자세금계산서 조회 화면을 보고 옮겨 적는다</li><li>다 끝나면 종결 여부를 표시한다</li></ul></div>
+        <div class="bx pain"><h4>지금 손으로 하는 일 · 자주 틀리는 곳</h4><ul><li>ERP 에 있는 전표번호·발행일·금액을 눈으로 보고 대장에 다시 친다</li><li>생산번호(프로젝트 번호)를 손으로 적다 한 글자가 빠지면 자동으로 이어지지 않는다</li><li>대장에 발주번호 칸이 없어, 이 기안이 어느 발주인지 대장만으로는 모른다</li><li>파일 묶기와 폴더 정리는 전부 사람 손이다</li></ul></div>
+      </div>
+      <div class="g2">
+        <div class="bx human"><h4>사람이 하는 일</h4><ul><li>결재문서를 내려받아 묶고 폴더에 넣는다</li><li>종결을 최종 확인한다</li></ul></div>
+        <div class="bx ai"><h4>AI 가 돕는 일</h4><ul><li>대장 줄을 대신 채운다 — 전표번호·발행일·금액을 ERP 에서 가져와서</li><li>전표와 세금계산서가 다 맞으면 「종결해도 됩니다」라고 알려 준다</li><li>폴더에 파일이 없는 기안, 대장에 없는 파일을 찾아 준다</li><li>계약금·중도금·잔금 가운데 아직 안 치른 것을 알려 준다</li></ul></div>
+      </div>
+      <details><summary>데이터로 보면</summary>
+        <div class="tw"><table>
+          <tr><th>항목</th><th>내용</th></tr>
+          <tr><td class="nw">중간DB</td><td>대장 적재 표(<code>pur_proposal</code>) · 스캔 파일 목록(<code>pur_proposal_scan</code> — 파일명과 있는지만) · 기안 ↔ 발주 연결 뷰(<code>v_pur_proposal_po_link</code>)</td></tr>
+          <tr><td class="nw">상태를 아는 법</td><td>대장 줄이 있고 · 전표번호가 적혀 ERP 전표와 맞고 · 폴더에 권-번호 파일이 있고 · 종결 표시가 있으면 「끝」</td></tr>
+          <tr><td class="nw">포털 화면</td><td><a href="/work/purchase-proposals">기안서 대장</a> — 대장 + ERP 전표·세금계산서 대사</td></tr>
+          <tr><td class="nw">빈 곳</td><td>대장의 발주번호·결재번호 칸 · 대장 적재가 멈춘 기간의 기안 · 파일 묶기 자동화</td></tr>
+        </table></div>
+      </details>
+    </div>
+  </div>
+
+  <!-- 5 -->
+  <h2 id="s5">5. AI 적용 지도 <span class="h2sub">단계마다 AI 가 무엇을 하고, 사람은 어디서 확인하나</span></h2>
+  <div class="tw"><table>
+    <tr><th>단계</th><th>AI 가 하는 일</th><th>쓰는 데이터</th><th>사람이 확인·결정</th><th>지금</th><th>먼저 필요한 것</th></tr>
+    <tr><td class="nw">1 요청</td><td>새 요청 요약 · 품목별 직전 단가·업체 붙이기 · 중복 요청 알림</td><td>요청·발주 이력, 품목</td><td>접수 확인</td><td><span class="tag wait">일부</span></td><td>단가 이력 조회</td></tr>
+    <tr><td class="nw">2 LIST</td><td>자동 등재 · 미발주 적체/납기 임박 알림 · 말로 묻는 조회</td><td>요청·발주·입고·매입</td><td>검토 대상 고르기</td><td><span class="tag ok">있음</span></td><td>상태 판정 보완 · 메모 칸</td></tr>
+    <tr><td class="nw">3 견적검토</td><td>과거 단가 비교표 · 견적서 읽어 줄 맞추기 · 업체별 총액 비교 · 비슷한 품목 찾기 · (선택) 웹 시세 · 견적 문의 메일 초안</td><td>발주·매입 단가, 견적서 파일</td><td>비교자료 확정</td><td><span class="tag no">없음</span></td><td>단가 이력 조회 · 과거 연도 데이터 · 견적 기록 칸 · PDF 를 읽는 모델 · 웹 검색 허용 여부</td></tr>
+    <tr><td class="nw">4 구매확정</td><td>NEGO 근거 정리 · 결정 내용 받아 적기</td><td>단가 이력, 견적</td><td>업체·가격 결정</td><td><span class="tag no">없음</span></td><td>결정 기록 칸</td></tr>
+    <tr><td class="nw">5 품의서</td><td>구매기안 본문 초안 · 첨부/금액 점검 · 발주서 발송 메일 초안 · 품의 누락 알림</td><td>요청, 견적·결정 기록, 발주</td><td>ERP 발주 등록 · 결재 상신 · 발송</td><td><span class="tag no">없음</span></td><td>초안 도구 · 3·4단계 기록</td></tr>
+    <tr><td class="nw">6 계산서 요청</td><td>「입고 끝·계산서 미수취」 목록 · 발행요청 메일 초안 · 수취 자동 확인 · 재촉 알림</td><td>입고, 매입, 국세청 자료, 업체 연락처</td><td>메일 발송</td><td><span class="tag wait">일부</span></td><td>목록 화면 · 업체 연락처 · 초안 도구</td></tr>
+    <tr><td class="nw">7 매입마감</td><td>발주·매입·계산서 금액 대조 · 결재 안 올린 건/미승인 전표 알림</td><td>매입, 전표, 부가세, 국세청</td><td>ERP 매입 등록 · 결재</td><td><span class="tag wait">일부</span></td><td>발주에서 출발하는 대조(지금은 대장에서만 출발)</td></tr>
+    <tr><td class="nw">8 대장</td><td>대장 줄 자동 채움 · 종결 제안 · 파일 누락 찾기 · 미지급 알림</td><td>대장, 전표, 계산서, 파일 목록</td><td>파일 정리 · 종결 확인</td><td><span class="tag wait">일부</span></td><td>대장 적재 재가동 · 대장에 발주번호 칸</td></tr>
+  </table></div>
+  <div class="cap">「지금」 — 있음: 포털 화면이나 에이전트 도구가 이미 있다 · 일부: 재료(데이터·화면)는 있으나 그 일을 해 주는 기능이 없다 · 없음: 재료부터 없다. 단계별 구축 순서는 <a href="/docs/purchase/plan">구매업무시스템 기획</a>에 있다.</div>
+
+  <!-- 6 -->
+  <h2 id="s6">6. 한 장 요약표 <span class="h2sub">단계 × 담당 · 화면 · 문서 · 번호</span></h2>
+  <div class="tw"><table>
+    <tr><th>단계</th><th>담당</th><th>ERP 화면</th><th>그룹웨어 문서</th><th>엑셀·메일·폴더</th><th>생기는 번호</th><th>기록이 남나</th></tr>
+    <tr><td class="nw">1 구매요청·확정</td><td>현업부서</td><td>자재구매요청등록 · 확정</td><td>「구매팀)[ERP]자재구매요청서」</td><td>—</td><td>PR · PU</td><td><span class="tag ok">남음</span> 결재 상태는 제외</td></tr>
+    <tr><td class="nw">2 발주통합 LIST</td><td>구매팀</td><td>—</td><td>—</td><td>엑셀 LIST(공유 폴더)</td><td>—</td><td><span class="tag wait">엑셀에만</span></td></tr>
+    <tr><td class="nw">3 견적검토</td><td>구매팀 · 업체</td><td>(과거 발주 조회)</td><td>—</td><td>견적 문의 메일 · 견적서</td><td>—</td><td><span class="tag no">안 남음</span></td></tr>
+    <tr><td class="nw">4 구매확정</td><td>구매팀 · 업체</td><td>—</td><td>—</td><td>메일·전화</td><td>—</td><td><span class="tag no">안 남음</span></td></tr>
+    <tr><td class="nw">5 구매품의서</td><td>구매팀</td><td>발주등록통합(S) · 발주서 출력</td><td>「구매팀)구매기안서」</td><td>발주서 발송 메일</td><td>PO · 기안 문서번호</td><td><span class="tag ok">남음</span> 발송·선진행은 제외</td></tr>
+    <tr><td class="nw">6 계산서 발행요청</td><td>업체 · 물류팀 · 구매팀</td><td>구매입고등록 · 구매입고상세조회</td><td>—</td><td>발행요청 메일</td><td>PG · 국세청 승인번호</td><td><span class="tag wait">입고만 남음</span></td></tr>
+    <tr><td class="nw">7 매입마감·전표</td><td>구매팀 · 재무팀</td><td>매입내역등록 · (결의전표)</td><td>「재무,구매팀)[ERP]자재구매매입전표」</td><td>—</td><td>IV · TG · VT</td><td><span class="tag ok">남음</span></td></tr>
+    <tr><td class="nw">8 품의서관리·대장</td><td>구매팀</td><td>결의전표 조회 · 전자세금계산서 조회(S)</td><td>—</td><td>품의서 폴더 · 엑셀 대장</td><td>권-번호</td><td><span class="tag wait">엑셀·폴더에만</span></td></tr>
+  </table></div>
+
+  <!-- 7 -->
+  <h2 id="s7">7. 끊어진 곳 <span class="h2sub">2026년 자료를 집계해 본 현재 모습</span></h2>
+  <div class="g2">
+    <div class="bx"><h4>같은 값을 여러 번 적는다</h4><ul>
+      <li>요청번호·품번·규격·수량: ERP 요청 → 엑셀 LIST → 구매기안 본문</li>
+      <li>업체·금액: ERP 발주 → 구매기안 → 엑셀 대장</li>
+      <li>전표번호·발행일: ERP 전표 → 엑셀 대장</li>
+      <li>옮겨 적다 생긴 차이가 그대로 남는다 — 발주일자가 엑셀과 ERP 에서 다르거나, 프로젝트 번호 한 글자가 빠지는 식</li></ul></div>
+    <div class="bx"><h4>상태를 사람이 글자로 적는다</h4><ul>
+      <li>엑셀 LIST 5,717줄 중 발주일자가 날짜인 줄 1,839 · 글자인 줄 3,363 · 빈 줄 515</li>
+      <li>입고일은 41%만 채워져 있다</li>
+      <li>적은 사람이 고치지 않으면 끝난 일도 「견적중」으로 남는다</li></ul></div>
+    <div class="bx"><h4>번호가 끊기는 자리</h4><ul>
+      <li>그룹웨어 결재: 번호만 ERP 로 오고, 끝났는지와 날짜는 오지 않는다</li>
+      <li>구매기안 ↔ 발주: 잇는 칸이 없다. 프로젝트·업체·금액으로 짐작해 80%만 이어진다</li>
+      <li>견적·NEGO·계산서 요청: 기록 자체가 없다</li></ul></div>
+    <div class="bx"><h4>걸리는 시간(가운데 값)</h4><ul>
+      <li>요청 → 발주: <b>8일</b>(느린 10%는 26일 이상)</li>
+      <li>발주 → 첫 입고: <b>14일</b>(느린 10%는 31일 이상)</li>
+      <li>입고 → 매입: 같은 날 56% — 입고 등록이 매입 때 몰리는 것으로 보인다</li>
+      <li>결재에 걸린 시간은 잴 수 없다(날짜가 안 넘어온다)</li></ul></div>
+    <div class="bx"><h4>정의서와 다른 순서 — 선진행</h4><ul>
+      <li>엑셀 LIST 의 47%(2,705줄)에 「선진행」·「선발주」 표기</li>
+      <li>대장과 발주를 이어 보면 45%에서 발주일이 기안일보다 앞선다</li>
+      <li>예외로 둘지, 정식 경로로 정의할지 정해야 한다</li></ul></div>
+    <div class="bx"><h4>과거 단가를 견줄 재료</h4><ul>
+      <li>올해 발주 4,763줄 · 품목 3,912종 — 대부분 한 번만 산다</li>
+      <li>같은 품목의 이전 발주가 올해 안에 있는 줄은 17%, 다른 업체 이력이 있는 줄은 5%</li>
+      <li>다시 산 줄의 40%는 직전보다 단가가 올랐다</li>
+      <li>2025년 이전 자료와 「비슷한 품목」 찾기가 있어야 견줄 수 있는 범위가 넓어진다</li></ul></div>
+  </div>
+
+  <!-- 8 -->
+  <h2 id="s8">8. 정의서와 실물이 다른 곳 · 확인 필요 <span class="h2sub">답 칸을 채워 주시면 도식과 기획에 반영한다</span></h2>
+  <div class="tw"><table>
+    <tr><th>#</th><th>단계</th><th>정의서</th><th>실물 · 자료에서 본 것</th><th>물어볼 것</th><th>답</th></tr>
+    <tr><td class="nw">1</td><td class="nw">5</td><td>그룹웨어 「구매팀)[ERP]자재구매요청서」 전자결재</td><td>실제 품의 문서는 「구매팀)구매기안서(5,000만원 미만)」 — 요청서는 첨부로 들어간다</td><td>5단계 문서는 구매기안서가 맞는지. 5,000만원 이상은 어떤 양식·결재선인지</td><td class="ans"></td></tr>
+    <tr><td class="nw">2</td><td class="nw">7·8</td><td>「7.」이 두 번 나온다</td><td>—</td><td>뒤의 「품의서관리 폴더 및 자료」를 8단계로 읽었다 — 맞는지</td><td class="ans"></td></tr>
+    <tr><td class="nw">3</td><td class="nw">2→3</td><td>「발주통합 관리에서 검토하기로 한 항목」</td><td>LIST 에 그 표시를 하는 칸이 없다</td><td>누가, 어디에 표시하나. 모든 요청이 대상인지, 금액·품목 기준이 있는지</td><td class="ans"></td></tr>
+    <tr><td class="nw">4</td><td class="nw">3</td><td>「비교자료 생성 및 확정」</td><td>비교자료 양식이 따로 보이지 않는다</td><td>확정은 누가 하나(담당/팀장). 비교자료를 품의서에 첨부하는지</td><td class="ans"></td></tr>
+    <tr><td class="nw">5</td><td class="nw">3</td><td>견적 문의·접수가 적혀 있지 않다</td><td>절차개선 자료에는 「업체로 견적 문의 by mail(도면·사양)」이 있다</td><td>견적 문의·접수를 3단계 안에 두는 것이 맞는지</td><td class="ans"></td></tr>
+    <tr><td class="nw">6</td><td class="nw">4→5</td><td>언급 없음</td><td>엑셀 LIST 의 47%에 「선진행」·「선발주」</td><td>정확히 무슨 뜻인지(결재 전 업체 통보? 결재 전 발주?). 허용 기준과, 그때 품의는 언제 올리는지</td><td class="ans"></td></tr>
+    <tr><td class="nw">7</td><td class="nw">5</td><td>발주서 발송이 적혀 있지 않다</td><td>절차개선 자료에는 「품의서 승인 확인 후 발주서 작성 및 업체 발송 by mail」</td><td>발주서 발송을 5단계 끝에 두는 것이 맞는지. 발송은 결재 승인 뒤인지</td><td class="ans"></td></tr>
+    <tr><td class="nw">8</td><td class="nw">6</td><td>「수취 확인」</td><td>—</td><td>무엇으로 확인하나 — 메일 회신, ERP 전자세금계산서 조회, 국세청 중 어느 것</td><td class="ans"></td></tr>
+    <tr><td class="nw">9</td><td class="nw">6</td><td>「물류팀 입고처리완료 확인 후」</td><td>ERP 입고일과 매입일이 같은 날인 경우가 56%</td><td>입고는 물건이 온 날 등록하나, 매입 처리 때 함께 등록하나</td><td class="ans"></td></tr>
+    <tr><td class="nw">10</td><td class="nw">7</td><td>「그룹웨어 매입」</td><td>실물은 「재무,구매팀)[ERP]자재구매매입전표」</td><td>이 문서가 맞는지. 재무 고정 결재까지가 7단계의 끝인지</td><td class="ans"></td></tr>
+    <tr><td class="nw">11</td><td class="nw">8</td><td>「계약금과 중도금 전표」</td><td>확인한 예시는 잔금 100% 한 번이라 흐름을 못 봤다</td><td>계약금·중도금은 어느 시점에 어떤 전표로 생기나(발주 직후 선급금? 계산서 수취 후?)</td><td class="ans"></td></tr>
+    <tr><td class="nw">12</td><td class="nw">8</td><td>「하나의 파일로 정리」</td><td>파일 이름은 「권-번호.pdf」로 보인다</td><td>묶는 순서(기안·견적·발주서·요청서…)와 폴더 구조. 매입전표 결재문서도 같이 묶는지</td><td class="ans"></td></tr>
+  </table></div>
+
+  <!-- 9 -->
+  <h2 id="s9">9. 용어 · 관련 문서</h2>
+  <div class="tw"><table>
+    <tr><th>말</th><th>뜻</th></tr>
+    <tr><td class="nw">요청 줄</td><td>ERP 구매요청의 품목 한 줄. 번호 PR 이 줄마다 붙는다</td></tr>
+    <tr><td class="nw">요청 결재</td><td>그룹웨어 자재구매요청서 한 건. 번호 PU. 요청 줄 여러 개를 묶는다</td></tr>
+    <tr><td class="nw">발주 건</td><td>ERP 발주서 한 건. 번호 PO. 업체 한 곳에 대한 것이고 요청 줄 여러 개를 묶는다</td></tr>
+    <tr><td class="nw">구매기안(품의)</td><td>그룹웨어 구매기안서 한 건. 업체 한 곳에 사겠다는 결재</td></tr>
+    <tr><td class="nw">선진행 · 선발주</td><td>품의 결재 전에 먼저 진행하는 것(뜻은 확인 필요 6번)</td></tr>
+    <tr><td class="nw">결의전표</td><td>매입 등록 때 ERP 가 만드는 회계 전표. 재무 승인 전 상태의 전표</td></tr>
+    <tr><td class="nw">중간DB</td><td>ERP 자료를 밤마다 읽기 전용으로 복사해 둔 포털의 데이터베이스. 포털과 AI 는 여기만 읽는다(2026년분)</td></tr>
+    <tr><td class="nw">대사</td><td>두 군데 숫자를 맞춰 보는 일. 예: 대장의 전표번호와 ERP 전표</td></tr>
+  </table></div>
+  <ul class="plain">
+    <li>이 문서가 <b>구매업무 프로세스의 정본</b>이다. 번호(PR·PU·PO)의 정의와 실측은 <a href="/docs/agents/purchase-domain">구매 도메인 지식 — 발주통합 LIST 와 PR·PU·PO</a>를 따른다(에이전트용 지식 문서).</li>
+    <li>기존 화면·데이터가 이 8단계의 무엇을 덮고 있는지 → <a href="/docs/purchase/review">현행 점검 — 기존 화면·데이터</a></li>
+    <li>무엇을 어떤 순서로 만들지 → <a href="/docs/purchase/plan">구매업무시스템 기획</a></li>
+    <li>실제 한 건을 이 도식 위에서 따라가 본 예시는 실거래 자료가 들어 있어 <b>비공개로 보관</b>한다(구매팀 내부 자료).</li>
+    <li>포털 화면: <a href="/work/purchase-list">발주통합 LIST</a> · <a href="/work/purchase-proposals">기안서 대장</a> · <a href="/work/purchase-orders">발주·구매요청 진행현황</a> · <a href="/work/purchase-agent">구매 AI 에이전트</a></li>
+  </ul>
+
+  <div class="foot">14_구매업무시스템 / 01_구매업무_프로세스_도식.html · 직접 관리(빌드 대상 아님) · 관리자 최동혁 · <a href="/docs/purchase">구매업무시스템 허브</a> · 실제 거래처·금액·문서번호는 적지 않음</div>
+</div>
+<button class="theme" type="button" onclick="(function(){var r=document.documentElement,c=r.getAttribute('data-theme'),d=c?c==='dark':matchMedia('(prefers-color-scheme: dark)').matches;r.setAttribute('data-theme',d?'light':'dark');})()">🌓 테마</button>
+</body>
+</html>

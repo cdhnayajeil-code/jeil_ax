@@ -372,6 +372,102 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 </tbody>
 </table>
 <p>상세: <code>08/03_실구축기획/02 §3</code>.</p>
+<h3 id="51-8-2026-10-06-req-0109">5.1 구매업무 프로세스 8단계 (2026-10-06 · REQ-0109)</h3>
+<blockquote>
+<p>관리자 정의 「구매업무 프로세스 정의」 기준. <strong>정본은 <code>문서/14_구매업무시스템/01_구매업무_프로세스_도식.html</code></strong>(<code>/docs/purchase/process</code>) — 여기는 요약이다. 위 10단계(외주 발주·검사)와는 별개의 일반 구매 흐름이다.</p>
+</blockquote>
+<table>
+<thead>
+<tr>
+<th>단계</th>
+<th>이름</th>
+<th>주체</th>
+<th>ERP 화면</th>
+<th>그룹웨어 문서</th>
+<th>생기는 번호</th>
+<th>「됐다」의 판정(중간DB)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>구매요청·확정</td>
+<td>현업부서</td>
+<td>자재구매요청등록·확정</td>
+<td>구매팀)[ERP]자재구매요청서</td>
+<td>PR(줄) · PU(결재)</td>
+<td>요청 줄 있음 + 진행코드 확정 이상</td>
+</tr>
+<tr>
+<td>2</td>
+<td>발주통합관리 LIST</td>
+<td>구매팀</td>
+<td>—</td>
+<td>—</td>
+<td>—</td>
+<td>요청 줄이 중간DB 에 있음(자동)</td>
+</tr>
+<tr>
+<td>3</td>
+<td>견적검토</td>
+<td>구매팀 · 업체</td>
+<td>(과거 발주 조회)</td>
+<td>—</td>
+<td>—</td>
+<td>기록 없음</td>
+</tr>
+<tr>
+<td>4</td>
+<td>구매확정(NEGO)</td>
+<td>구매팀 · 업체</td>
+<td>—</td>
+<td>—</td>
+<td>—</td>
+<td>기록 없음</td>
+</tr>
+<tr>
+<td>5</td>
+<td>구매품의서</td>
+<td>구매팀</td>
+<td>발주등록통합(S) · 발주서 출력</td>
+<td>구매팀)구매기안서</td>
+<td>PO · 기안 문서번호</td>
+<td>요청 줄을 가리키는 발주 줄 있음</td>
+</tr>
+<tr>
+<td>6</td>
+<td>계산서 발행요청</td>
+<td>업체 · 물류팀 · 구매팀</td>
+<td>구매입고등록 · 구매입고상세조회</td>
+<td>—</td>
+<td>PG · 국세청 승인번호</td>
+<td>입고 수량 합 ≥ 발주 수량 + 국세청 자료에 세금계산서</td>
+</tr>
+<tr>
+<td>7</td>
+<td>매입마감·매입전표</td>
+<td>구매팀 · 재무팀</td>
+<td>매입내역등록</td>
+<td>재무,구매팀)[ERP]자재구매매입전표</td>
+<td>IV · TG · VT</td>
+<td>매입 줄 있음 + 그 매입번호를 참조하는 전표 승인</td>
+</tr>
+<tr>
+<td>8</td>
+<td>품의서관리·기안서 대장</td>
+<td>구매팀</td>
+<td>결의전표 조회 · 전자세금계산서 조회(S)</td>
+<td>—</td>
+<td>권-번호</td>
+<td>대장 줄 + 전표번호 일치 + 묶음 파일 + 종결</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>묶음은 단계마다 다르다: 요청은 PU, 발주·입고는 PO, 매입·전표는 IV, 보관은 권-번호. 잇는 실은 줄(요청 줄 <code>pr_no</code> · 발주 줄 <code>po_no</code>+순번).</li>
+<li>입고·매입 상태는 실적 사본(<code>pur_goods_mvmt_s</code>·<code>iv_dtl_s</code>)으로 판정한다 — 발주 사본의 입고수량(<code>pur_order_s.rcpt_qty</code>)은 최근 입고를 따라오지 못한다.</li>
+<li>5단계 양식명·「선진행」의 뜻 등 12건은 정본의 「확인 필요」에 올라 있다.</li>
+</ul>
 <hr />
 <h2 id="6">6. 환경/도메인/배포 토폴로지</h2>
 <blockquote>
