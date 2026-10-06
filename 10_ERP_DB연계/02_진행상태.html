@@ -336,6 +336,12 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 </thead>
 <tbody>
 <tr>
+<td>2026-10-06</td>
+<td><strong>사내NAS 접속 장애 복구 + NAS 컨테이너 워커 가동 확인(REQ-0102)</strong> — 서울사무소 PC 에서 NAS DSM(5000·5001)·공유폴더(445)·ping 이 전부 무응답(경로 추적은 두 번째 홉 뒤 끊김). 원인(관리자 확인): NAS 컨테이너 프로젝트 전용 네트워크 <code>jeil-nas-worker_default</code> 에 Docker 가 172.20.0.0/16 을 자동 배정 → 서울사무소 내부망 172.20.0.0/16 과 겹쳐 NAS 응답이 Docker 브리지로 샘. 수정안(<code>compose.yaml</code> <code>network_mode: bridge</code>)은 10-02 작업트리에 있었으나 미커밋·NAS 미반영이었다. 관리자가 NAS 에서 프로젝트 중지 → compose.yaml 교체 → 정리 → 남은 네트워크 삭제 → 재빌드(README §8 신설·§3.1 이유). 복구 실측(같은 서울 대역 PC): ping 3/3(10~14ms)·5000·5001·445 열림·DSM HTTP 200·공유폴더 접근·<code>etl_meta.nas_heartbeat</code> 의 <code>jeil-nas-worker</code> 심박 정상(워커 n1.4, root=ok) — <code>pc-interim</code> 도 공존. 남은 것: PC 예약작업 끄기(README §5, 3일 연속 성공 뒤). 교훈: Docker 는 새 네트워크에 172.17~172.31 을 차례로 배정 → 사내 대역과 겹칠 수 있음, NAS 의 다른 프로젝트(itasset 등) 네트워크도 관리자 점검 필요.</td>
+<td><code>etl/deploy/nas/compose.yaml</code>·<code>README.md</code>(커밋 <code>8e3116d</code>)</td>
+<td>총괄관리자</td>
+</tr>
+<tr>
 <td>2026-10-02</td>
 <td><strong>결의전표 조직 축 ERP 기준 2차 반영(REQ-0100, 결정 D-114 범위 확대)</strong> — 관리자 지시 「전표일자 기준 조직개편번호, 부서 기준 코스트센터 기본 적용 등 ERP 기준을 확인해서 릴레이에 반영」. 운영 ERP 읽기 전용 실측 + 검사 프로시저 <code>usp_a_check_acct</code> 본문 확인: 조직개편번호는 <code>max(ORG_CHANGE_DT) &lt;= 전표일자</code>(수기 2026년 1~3월 909건 20251·4/1 이후 1,930건 20261, 예외 0), 헤더 코스트센터는 부서 마스터 값(2,839건 예외 0), 줄 코스트센터는 사용자가 바꿀 수 있음(13,543줄 중 2,304줄 상이), 라인 내부부서코드는 라인 부서의 것, 채무원장은 대변 라인 값을 따름(불일치 0). 코스트센터 마스터는 낡아 출처로 쓰지 않음. <strong>릴레이 v1.10·러너 r1.11</strong>: <code>check_dept_org</code>가 전표일자 기준, 내부부서코드·헤더 코스트센터는 그 조직의 부서 마스터에서(<code>dept_cost_cd()</code> 신설), 「코스트센터가 비어 있습니다」 중단 제거, 투입 배치 <code>HQ_BRCH_NO</code> 공백, 생성 후 검증을 부서·조직개편번호·내부부서코드·코스트센터 + 채무원장까지 확대(불일치 시 롤백), <code>gl_precheck_prod</code>도 같은 함수. 검증: 수기 헤더 2,839건 재계산 2,837건 일치(2건은 ERP 쪽 기존 데이터), 회귀 140건 통과, EXE r1.11 빌드·전달 폴더 동기화. 쓰기 경로는 운영 시험 불가 — 첫 전송이 실측. 한계: 포털에 줄별 부서 입력 없음, 부가세 V1 13원 차이·투입 배치 공급가 합계는 범위 밖(「금액보다 조직 정합성」). <strong>오전 기록의 r1.10 은 r1.11 로 대체.</strong> <strong>남은 것(관리자)</strong>: 서버 EXE r1.11 교체 → <code>AG202609300001</code> ERP 삭제 → 「ERP 삭제됨」 확인 → 새 초안 재전송 → 릴레이 로그 <code>[조직]</code> 「일치」 확인.</td>
 <td><code>10_ERP_DB연계/etl/</code> 코드는 별도 진행분(본 문서 작업은 문서만) · <code>00_현재상태_스냅샷.md</code> v0.79→v0.80(§7) · <code>01_연계기획.md §4.17</code> 규칙 3(조직 축 기준표) · 본 문서 §2·§3, 미러 버전 사본 추가(0.80·20261002). 비밀값·서버 주소 기록 없음</td>

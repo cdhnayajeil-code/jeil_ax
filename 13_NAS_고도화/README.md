@@ -17,6 +17,10 @@
 | `_build_html.py` | MD→HTML 빌드(공통 빌더 `00_관리체계/lib/_html_builder.py`) | — |
 | `claude_…NAS-PoC_2026_09_28.md` | PoC 구축 결과 **원본(참고)** — 내부 IP·관리 계정이 적혀 있어 **git 제외**(`.gitignore`). 인용할 때는 별칭만 | 참고 · 커밋 금지 |
 
+## 운영 메모
+
+- **2026-10-06 접속 장애·복구(REQ-0102)** — 서울사무소 PC 에서 NAS 가 전부 무응답이던 원인은 컨테이너 전용 네트워크가 Docker 자동 배정으로 172.20.0.0/16 을 차지해 사내 대역과 겹친 것. `compose.yaml` 의 `network_mode: bridge` 로 해결(절차 `10_ERP_DB연계/etl/deploy/nas/README.md` §8, 이유 §3.1). 복구 뒤 `jeil-nas-worker` 심박 정상 = NAS 컨테이너 워커 가동. 교훈: Docker 새 네트워크는 172.17~172.31 을 차례로 배정하므로 NAS 의 다른 프로젝트(itasset 등)도 사내 대역과 겹치는지 점검한다.
+
 ## 단일 출처
 
 - NAS 연계 판단·설계는 이 폴더가 정본. 결정은 `11_제품기획/09_ADR`(ADR-110)과 총괄 대시보드 의사결정 로그에 등재.
