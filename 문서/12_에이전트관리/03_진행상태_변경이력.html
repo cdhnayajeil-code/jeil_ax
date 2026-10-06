@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>03 진행상태 — JEIL AX 에이전트관리 (체크리스트·작업 로그·결정 기록)</title>
+<style>
+:root{--navy:#1a2f4e;--navy2:#27457a;--accent:#2f6fb3;--red:#b3402f;--green:#2e7d52;--amber:#9a6b1f;
+--ink:#222;--muted:#666;--line:#d8dee8;--bg:#f4f6f9;--soft:#eef2f8;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;color:var(--ink);background:var(--bg);line-height:1.65;font-size:15px;}
+.page{max-width:960px;margin:0 auto;background:#fff;padding:52px 60px;box-shadow:0 2px 14px rgba(0,0,0,.08);}
+.doc-label{display:inline-block;background:var(--navy);color:#fff;font-size:12px;letter-spacing:.16em;padding:5px 14px;border-radius:3px;margin-bottom:16px;}
+.docnav{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 26px;}
+.docnav a{font-size:12px;color:var(--navy2);border:1px solid var(--line);border-radius:20px;padding:4px 12px;text-decoration:none;background:var(--soft);}
+.docnav a:hover{background:var(--navy);color:#fff;}
+.docnav a.cur{background:var(--navy);color:#fff;border-color:var(--navy);}
+.md-link{font-size:13px;margin-bottom:22px;color:var(--muted);}
+.content h1{font-size:27px;color:var(--navy);line-height:1.35;margin:6px 0 18px;}
+.content h2{font-size:20px;color:var(--navy);margin:42px 0 14px;padding-bottom:9px;border-bottom:3px solid var(--navy);}
+.content h3{font-size:16px;color:var(--navy2);margin:24px 0 9px;}
+.content p{margin:0 0 12px;}
+.content ul,.content ol{margin:0 0 14px 22px;}
+.content li{margin-bottom:6px;}
+.content blockquote{background:var(--soft);border-left:5px solid var(--navy);border-radius:0 8px 8px 0;padding:14px 20px;margin:14px 0;color:#33425a;}
+.content blockquote p{margin:0 0 6px;}
+.content table{width:100%;border-collapse:collapse;margin:14px 0 20px;font-size:13.3px;}
+.content th{background:var(--navy);color:#fff;padding:9px 11px;text-align:left;font-weight:600;}
+.content td{padding:8px 11px;border-bottom:1px solid var(--line);vertical-align:top;}
+.content tr:nth-child(even) td{background:#fafbfd;}
+.content a{color:var(--accent);}
+.content code{background:var(--soft);border:1px solid var(--line);border-radius:4px;padding:1px 6px;font-size:12.4px;font-family:Consolas,'Courier New',monospace;}
+.content pre{background:#21252e;color:#e8eaf0;border-radius:8px;padding:16px 18px;font-size:12.4px;font-family:Consolas,'Courier New',monospace;overflow-x:auto;margin:12px 0 18px;line-height:1.55;}
+.content pre code{background:none;border:none;color:inherit;padding:0;}
+.content hr{border:none;border-top:1px solid var(--line);margin:30px 0;}
+.content strong{color:var(--navy2);}
+.footer{margin-top:50px;padding-top:16px;border-top:1px solid var(--line);font-size:12px;color:var(--muted);display:flex;justify-content:space-between;}
+@media print{body{background:#fff;}.page{box-shadow:none;padding:18px 0;max-width:100%;}.docnav{display:none;}.content h2{break-after:avoid;}.content table,.content pre,.content blockquote{break-inside:avoid;}}
+@media (max-width:720px){.page{padding:30px 20px;}}
+</style>
+<!-- jeilax:local-links --><script>(function(){if(location.protocol!=="file:")return;var r="../../",s=document.createElement("script");s.src=r+"_local_links.js";s.setAttribute("data-root",r);(document.head||document.documentElement).appendChild(s);})();</script><!-- /jeilax:local-links -->
+</head>
+<body>
+<div class="page">
+  <span class="doc-label">JEIL AX 에이전트관리 · 대외비</span>
+  <div class="docnav"><a href="/docs/agents">🏠 에이전트관리 허브</a><a href="/docs/agents/status">00 현재상태</a><a href="/docs/agents/ops-guide">01 운영가이드</a><a href="/docs/agents/dev-guide">02 개발가이드</a><a class="cur" href="/docs/agents/progress">03 진행상태</a><a href="/docs/agents/purchase-domain">04 구매도메인</a><a href="/docs/agents/quality-test">05 품질테스트</a><a href="/docs/agents/templates">06 템플릿·관리포인트</a><a href="README.md">README</a></div>
+  <p class="md-link">📄 Markdown 원본: <a href="03_진행상태_변경이력.md">03_진행상태_변경이력.md</a> · 허브 <a href="/docs/agents">에이전트관리 허브</a></p>
+  <div class="content">
+<h1 id="03">03 · 진행상태 · 변경이력</h1>
+<h2 id="1">1. 체크리스트</h2>
+<p><strong>파일럿 착수 전(사람)</strong>
+- [~] <code>ANTHROPIC_API_KEY</code> — 09-30 오후 <strong>워크스페이스 키로 교체 완료</strong>(「anthropic-workspace-id 필요」 400 해소). 다음 장애: <strong>「Your credit balance is too low」 400</strong> → Anthropic 콘솔 Plans &amp; Billing 에서 <strong>선불 크레딧 충전</strong> — 관리자 · 충전 전까지 gpt-4.1-mini 로 응답 중 · 충전 후 관리 화면 시험 대화 추적 줄에 <code>fallback</code> 이 안 보이면 성공
+- [ ] <strong>REQ-0094 2단계 도구 수정 배포 후 재실측</strong>: 크레딧 충전 → 05 회차 1 의 30문항(특히 A·C·D·E·G) 재실측 → 골든셋 21문항 회귀(v1·v2) → v2 지정 여부
+- [ ] <code>OPENAI_ADMIN_KEY</code>·<code>ANTHROPIC_ADMIN_KEY</code>(사용량 조회 전용) 발급·등록 — 관리자 · 없으면 「💳」 탭이 벤더 청구액 대신 내부 추정치만 보여 준다(REQ-0091)
+- [ ] 벤더별 월 예산·충전 잔액 입력 — 관리자 · 관리자 콘솔 「💳 AI 비용·예산」 탭(0 이면 「미설정」)
+- [ ] <strong>구매 에이전트 v2 초안</strong>(기본 Sonnet 5.5 · 예비 gpt-6-luna) 골든셋 회귀 → 「현재로 지정」 — 관리자(reviewer) · 키 등록 전에는 예비 모델이 응답
+- [ ] 개편된 두 탭 라이브 브라우저 실측(할 일 띠·단계 표·접힘 절·저장 4종) — 관리자
+- [ ] 구성원 등록: 구매팀 담당자 2명(operator) · 관리자 2명(reviewer) 추가 — 현재 1명
+- [~] 골든셋 10~20문항 작성 → v1 회귀 기준선 — 담당자 · <strong>11문항 등록 · v1 회귀 1회 6/11 통과(09-29 · $0.07)</strong> · 템플릿 표준 18문항 중 7문항 미등록 → 「📐 관리 포인트·템플릿」 탭 「빠진 문항 등록」 후 재회귀
+- [~] 라이브 실측 — <strong>09-30 회차 1 완료</strong>(실업무 대화 7시나리오 · Sonnet 테스터 · SQL 대조 → <a href="/docs/agents/quality-test">05</a>) · 관리 화면 각 탭·📐 탭·CSV·HTML 미리보기 실측은 관리자 확인 남음
+- [x] <strong>REQ-0094 2단계(09-30 관리자 승인 → 배포 v13)</strong>: ① Anthropic 키 교체(관리자) + <code>ANTHROPIC_WORKSPACE_ID</code> 헤더 옵션 ② LLM 오류 본문 <code>agent_turn.tools</code> <code>_llm</code> 항목 + 함수 로그 ③ 히스토리 창이 user 로 시작 ④ 도구 4종 정본 전환(미입고·구매요청·발주 상세·외주검사) + 대사 기안자 + 계산서 중복 제거 — 남은 것: 크레딧 충전 후 재실측 · (선택) 템플릿 DB 계층·<code>agent_create/clone</code> 은 보류</p>
+<ul>
+<li>[x] <strong>REQ-0095 배포(09-30 관리자 승인)</strong>: <code>jeil-chat</code> v34(oaAdjust 3단계 + <code>action:test_model</code>) · <code>jeil-chat-lab</code> v14(llm/openai.ts 사본) · <code>jeil-chat-admin</code> v26 · 콘솔 3e1af1e → 임시 실측 함수로 카탈로그 14종 실측 후 삭제(결과는 <code>ai_model.last_check_*</code>, by=<code>claude-probe(REQ-0095)</code>). <strong>남은 확인(관리자)</strong>: 콘솔 「모델 설정」에서 기본 모델을 gpt-6-luna 로 되돌려 저장(지금 gpt-4o-mini) → 챗봇 「안녕」 1건(400 없음)
+<strong>사내 NAS 적재(REQ-0097) 후속 — 사람</strong></li>
+<li>[x] (10-02 완료 · 3회 연속 성공·복원 대조 일치 — 폴더 권한이 시스템·관리자 전용인지는 관리자 DSM 확인 필요) <code>.claude/nas.path</code> 에 사내NAS 공유 폴더 경로 1줄 + 그 폴더 <strong>쓰기 권한</strong> — 관리자·IT · 대화기록에는 질문·답변 원문이 들어가므로 폴더 권한은 <strong>시스템·관리자 전용</strong>이어야 한다(§1.7)</li>
+<li>[x] (10-02 완료 — 러너 대신 작업PC 예약작업 <code>JEIL_AX_NasExport</code> · 하루 1회) 러너 작업 <code>nas_sync</code> 켜기(야간 1회 권고) — 관리자 · 지금은 기본 꺼짐</li>
+<li>[ ] <strong>NAS 컨테이너 설치</strong>(REQ-0102) — DSM Container Manager 에서 <code>deploy/nas/</code> 묶음으로 프로젝트 생성(관리자/IT) → 3일 연속 성공 뒤 PC 예약작업 제거 · PoC 컨테이너 삭제(D-98). 절차 <code>10_ERP_DB연계/etl/deploy/nas/README.md</code></li>
+<li>[ ] 에이전트의 NAS 실시간 조회(파일 목록·과거 대화 → 문서 검색 → 생성 자료 저장) — 설계 <code>/docs/nas/realtime</code>, 구현은 별도 요청(P2~P4) · 문서 검색은 D-95 승인 선행</li>
+<li>[ ] 내보내기 암호화 여부 결정 — <code>cryptography</code> 설치 vs 폴더권한·Hyper Backup 암호화로 대체(현재 미적용·사유 기록됨)</li>
+<li>[ ] 보존 전환(D-108 · Supabase 14일 + NAS 나머지)은 <strong>별건</strong> — 여러 회차 행수·해시 일치 확인 후</li>
+</ul>
+<p><strong>파일럿(2주)</strong>
+- [ ] (10-06 · REQ-0106) 포털 구매팀 카드 「구매 AI 에이전트(파일럿)」 → 화면 → 「🧪 검증·테스트」 탭 라이브 실측(회차 #1 6/11 표시 · 「▶ 지금 회귀 실행」 · 「대화로 시험」) — 관리자
+- [ ] (10-06) 카드는 구매팀 전원에게 보인다 — 구성원이 아니면 안내 화면. 구성원을 늘릴지(현재 등록 인원 기준) 카드를 내릴지 판단 — 관리자
+- [ ] 개선 대장 매일 처리(담당자) · 주 1회 관리자 점검
+- [ ] 파일럿 종료 판정: 👍 비율 · 판정 걸림 비율 · 비용 → 운영(live) 전환 여부</p>
+<p><strong>기안서 연결·스캔 자동화(REQ-0092) 후속 — 사람</strong>
+- [x] 러너 r1.8 EXE 전달 폴더 동기화 — 완료(09-29 · <code>.claude/erp_relay.path</code>·<code>erp_db_mirror.path</code> 가 다른 PC 사용자 폴더를 가리켜(저장소가 OneDrive 로 PC 간 공유) 이 PC 에서는 <code>_sync_relay.py --out &lt;이 PC 전달 폴더&gt;</code> 로 동기화했고, 미러 사본은 실제 미러 폴더로 옮겼다(09-29))
+- [ ] ERP 서버 러너 r1.8 교체(관리자) — 서버에서는 <code>proposal_scan</code> 이 능력 판정으로 꺼진다(Destiny 없음)
+- [ ] <strong>기안서 대장 적재 재가동</strong> — 09-22 이후 멈춤(9-831~ 미반영). 대장 엑셀이 동기화된 PC 의 <code>.env</code> 에 <code>PROPOSAL_LEDGER_XLSX</code> 를 넣고 러너 작업 <code>proposal_ledger</code> 를 켜거나 예약작업 추가
+- [ ] 오늘 밤 20시 이후 첫 자동 갱신 확인(<code>logs/proposal_scan.log</code>)</p>
+<p><strong>후속 개발(백로그 등록 대상)</strong>
+- [ ] 실험실 화면 렌더를 <code>chatview.js</code> 로 이전
+- [ ] 포털 부서 카드(<code>portal_page</code>) 등재
+- [ ] 월 예산 80% Teams 알림(벤더 계정 축 경고선은 화면에 표시됨 — 알림만 남았다)
+- [ ] 벤더 예산 초과 시 자동 차단·강등(ADR-111 보류분 — 지금은 경고 표시만)
+- [ ] 엑셀·워드 원본 생성
+- [ ] 게이트웨이 운영 승격(<code>jeil-agent</code>) · 운영 jeil-chat 흡수
+- [ ] 두 번째 부서 에이전트 후보 선정
+- [ ] 관리 화면 시험 대화에도 첨부 붙이기(REQ-0089 후속)</p>
+<h2 id="2">2. 작업 로그</h2>
+<table>
+<thead>
+<tr>
+<th>일자</th>
+<th>내용</th>
+<th>커밋·배포</th>
+<th>REQ</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>2026-09-28</td>
+<td>챗봇 고도화 실험실 <code>/chatdemo</code> · 모듈형 게이트웨이 <code>jeil-chat-lab</code> v1(도구 19종 모듈화)</td>
+<td><code>c387128</code> · 함수 v1</td>
+<td>0084</td>
+</tr>
+<tr>
+<td>2026-09-28</td>
+<td>부서 에이전트 운영기획(14) 작성 · ADR-109 제안</td>
+<td>—</td>
+<td>—</td>
+</tr>
+<tr>
+<td>2026-09-28</td>
+<td>구매 에이전트 파일럿: SQL 74 · 게이트웨이 v3(Claude 어댑터·공용 엔진·에이전트 경로·구매 도구 5종) · <code>/work/purchase-agent</code> · <code>/admin/agents</code></td>
+<td><code>f598d2d</code> · 함수 v3</td>
+<td>0085~0088</td>
+</tr>
+<tr>
+<td>2026-09-28</td>
+<td>코드 블록 글자 안 보이던 결함 수정(<code>.bubble code</code> 스타일 충돌) · HTML 바로 보기·새 탭·내려받기·자료함(sandbox)</td>
+<td><code>5178a98</code></td>
+<td>0087</td>
+</tr>
+<tr>
+<td>2026-09-28</td>
+<td>관리자 결정 D-87~D-93 확정 · ADR-109 Accepted</td>
+<td><code>5178a98</code>(대시보드)</td>
+<td>—</td>
+</tr>
+<tr>
+<td>2026-09-29</td>
+<td>에이전트 관리 전용 폴더 <code>12_에이전트관리/</code> 신설(현재상태·운영가이드·개발가이드·진행상태)</td>
+<td><code>5f318ba</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td>2026-09-29</td>
+<td><strong>파일 첨부·끌어다 놓기·붙여넣기</strong>: 엑셀·CSV·워드는 브라우저에서 글자로, PDF·이미지는 원본 전달 · 서버 검사(형식·크기·주민번호) · 원본 미저장(SQL 75 <code>agent_turn.attachments</code> 메타만) · 📊요약·🔎ERP 대조·📄보고서 초안 버튼</td>
+<td><code>f8319b6</code> · 함수 v4</td>
+<td>0089</td>
+</tr>
+</tbody>
+</table>
+<p>| 2026-09-29 | <strong>관리자 콘솔 개편 + 배정 반영</strong>: 「모델 설정」·「💳 AI 비용·예산」을 비개발자 기준으로 재구성(설계 3안 판정 → 구현 → 4렌즈 검토 25건 반영) · 단계별 권장을 실제 배정에 반영(SQL 79: 라우팅 5개 · 에이전트 v2 초안) · 서버 v15 | (이번 커밋) · admin v22 | 0093 |
+| 2026-09-29 | <strong>AI 비용·예산 관제</strong>: 관리자 콘솔 「💳 AI 비용·예산」 탭 신설(두 벤더 실사용·예산/충전 잔여 역산·모델 단가 비교·모델별 사용량·일별 추이·오케스트레이션 배정) · <code>/admin/api-setup</code> 신설(키 4종 현황·발급·검증·등록 절차) · SQL 76 <code>ai_vendor_budget</code> · 함수 <code>jeil-chat-admin</code> v13(액션 3종) · ADR-111 Accepted | (이번 커밋) · admin v17 | 0091 |
+| 2026-09-29 | <strong>PR·PU·PO 번호 체계 반영</strong>: <code>search_pur_list</code> v1.1(pr·pu·po 로 연결 추적 + 해석 문장 · 카드에 세 번호) · 공통 프롬프트 PU 형식 · 용어집 10개 추가(13개) · 골든셋 8문항 · 제안 칩 2개 · 문서 04 신설 | <code>2d4b211</code> · 함수 v5 | 0090 |
+| 2026-09-29 | <strong>기안서 ↔ 스캔본 ↔ 전표 ↔ 발주 연결</strong>: SQL 76(연결 뷰 · 대사 상세 래퍼) · <code>get_proposal_chain</code> · <code>get_pur_proposal</code> v1.1(스캔 파일명) · 용어집 4·골든셋 3·칩 1 · <strong>스캔 목록 야간 자동</strong>(<code>proposal_scan.py</code> · 러너 r1.8 작업 <code>proposal_scan</code> · 이 PC 예약작업 <code>JEIL_AX_ProposalScan</code>) · 관리자 결정: 스캔본은 파일명·존재 여부만 | (이번 커밋) · 함수 v6 | 0091 |
+| 2026-09-30 | 구매 에이전트 화면 「연결된 구매 자료」에 <strong>📝 기안서 대장 · 📋 발주통합 LIST 바로가기 버튼</strong>(새 탭) 추가 — 화면만, 서버 무변경 | <code>1ee07a4</code> | 0087 |
+| 2026-09-30 | <strong>실업무 대화 실측 회차 1</strong>: Sonnet 테스터 7명이 시나리오 7종(30문항)을 각자 탭에서 실측 · 검증 에이전트가 숫자 21건을 중간DB SQL 로 대조(일치 16·불일치 4) → <a href="/docs/agents/quality-test">05</a>. <strong>P1 4건</strong>: ① Claude 400 = 키가 워크스페이스에 안 묶임(<code>anthropic-workspace-id</code>) → 30문항 전부 예비 모델 ② 미입고 도구 비결정 정렬·거래처 조건 없음 → 숫자 지어냄 ③ 외주검사 「불합격 없음」 오답(실제 1건) ④ 목록 30건을 총량처럼 서술(실제 675). 안전 6문항·보고서 흐름·첨부 대조는 통과 | (이번 커밋) | 0094 |
+| 2026-09-30 | <strong>REQ-0094 2단계 배포(jeil-chat-lab v13)</strong> — 실측 P1·P2 의 서버 쪽 원인 수정: 미입고 도구 2차 정렬·vendor 인자·전체 건수·거래처별 집계(F-2) · 구매요청 전체 건수·잘림·상태 한글(F-4·F-14) · 발주 상세 po_seq 정렬·합계·라인 수·묶인 PR 배지(F-8·F-9) · 외주검사 검사결과별·불합격 목록·주문일 범위·기간 조건 없음 명시(F-3) · 대사 기안자·기안자별 집계(F-5) · 계산서 승인번호 중복 제거(F-7) · 벤더 오류 본문 <code>agent_turn.tools</code> <code>_llm</code> + 함수 로그(F-12) · 히스토리 창 user 시작 · 워크스페이스 헤더 옵션. 4종은 <code>_port_modules.py</code> <code>HAND_TUNED</code> 로 정본 전환. 시험 대화 실측: 발주 카드 「합계 1,150,000원 · 3라인 · 구매요청 3건 묶음」 확인 · <code>_llm</code> 항목 기록 확인. <strong>관리자 키 교체 반영 확인 → 다음 장애 = 크레딧 잔액 0</strong> | (이번 커밋) · 함수 v13 | 0094 |
+| 2026-09-30 | <strong>템플릿·관리 포인트 통합(REQ-0094 1단계, 서버 무변경)</strong>: 정본 <code>app/agent-templates.json</code>(공통 원칙 10·안전 규칙 5·관리 포인트 14·구매 칩 9·용어 17·골든셋 표준 21·시나리오 9) · 콘솔 「📐 관리 포인트·템플릿」 탭(기준값 판정·DB 대조·빠진 용어/골든셋 즉시 등록·규칙/칩 편집기 이관·시나리오→시험 대화) · 개요 KPI 8장(예비 전환 비율·골든셋 통과·기본 모델) · 사용 화면 예비 전환 사유 표시 · 문서 05·06(생성본 <code>_gen_templates_md.py</code>)·00~03·README·index·라우트 2·문서대장 | (이번 커밋) · 콘솔 v2 | 0094 |
+| 2026-09-30 | <strong>운영 챗봇 기본 gpt-6-luna 400 장애</strong>(OpenAI: Function tools with reasoning_effort are not supported … set reasoning_effort to 'none') 원인 확정·수정 — 게이트웨이·lab 어댑터 oaAdjust 3단계(<code>reasoning_effort:"none"</code>, 400 본문 <code>error.param</code> 판독), 학습 모양 <code>ai_model.request_shape</code> 시드(SQL 80) · 관리자 콘솔 「모델 설정」 모델별 <strong>「점검」·「전체 점검」</strong>(jeil-chat <code>action:test_model</code> — 실제 지시문·도구·적응 루프 그대로 시험 질문 1건, 관리자 전용, 연타 방지·비용 상한·키 마스킹, 결과 <code>last_check_*</code>) · 회귀 테스트 <code>_test_oa_shape.mjs</code>(사본 동일성)·<code>_test_model_tab.mjs</code>(클릭 경로 6종) · 설계·적대적 검토 워크플로(확정 결함 11건 반영) | <code>3e1af1e</code> · jeil-chat v34 · lab v14 · admin v26 · SQL 80·81 적용 · 실측(2026-09-30 07:01 UTC · 실제 지시문+도구 그대로 시험 질문 1건, 총 $0.024): OpenAI 8종 중 7종 정상 — gpt-4o-mini·gpt-4o·gpt-4.1-mini(적응 없음), gpt-6-luna·gpt-6-sol(max_completion_tokens + reasoning_effort none), gpt-5-mini(temperature 미전송 + max_completion_tokens, 추론 토큰 64 유지), gpt-5.4-mini(max_completion_tokens) · gpt-6-astra 거부(none 미지원 — 도구 호출 불가, SQL 81 메모) · Anthropic 6종 전부 400 「크레딧 부족」(키·워크스페이스 정상, 충전 필요) | 0095 |
+| 2026-09-30 | <strong>대화기록·생성자료 메타를 사내 NAS 로 내보내기 개시(1단계)</strong> — 역방향 큐(ADR-110 v3). <code>agent_turn</code>·<code>agent_artifact</code>·<code>agent_improve</code>·<code>agent_golden_run</code> 4종을 커서 증분으로 JSONL 적재. <strong>게이트웨이 무변경</strong>(outbox 대신 pull → 원본은 그대로 두고 복사만) | 정본 SQL 82(<code>nas_export_queue_v1</code>) · 러너 r1.9 <code>nas_worker.py</code> · <strong>함수 배포 없음</strong> | 0097 |
+| 2026-10-02 | <strong>에이전트의 사내 NAS 실시간 조회 1차 가동</strong>(REQ-0103) — 도구 2종 <code>list_company_files</code>·<code>search_my_past_chats</code>(도메인 <code>nas</code>), 조회 큐·길게 대기, 실 NAS 왕복 중앙 0.8초 | 정본 SQL 86(<code>nas_query_queue_v1</code>) · <code>jeil-chat-lab</code> <strong>v15</strong> · <code>jeil-nas-bridge</code> v3 · 워커 n1.3 | 로그인 사용자 흐름은 미검증(관리자 <code>/chatdemo</code> 확인) · 답할 워커는 NAS 컨테이너 설치 뒤 · 허용 폴더 0건 |
+| 2026-10-02 | <strong>사내 NAS 문서 내용 검색 가동</strong>(REQ-0104 · D-95 승인) — 도구 <code>search_company_docs</code>·<code>read_company_doc</code>, 사내 색인(SQLite FTS5), 형식 5종+텍스트, 민감 파일 제외, 검색 왕복 중앙 0.81초 | 정본 SQL 87(<code>nas_doc_search_v1</code>·<code>nas_query_claim_reclaim_v1</code>) · <code>jeil-chat-lab</code> <strong>v16</strong> · <code>jeil-nas-bridge</code> v5 · 워커 n1.4 | 에이전트 화면 호출·실제 문서 정답률은 미검증 · 폴더에 문서를 넣어야 검색된다 · 에이전트 버전에 <code>nas</code> 켜기 |
+| 2026-10-06 | 구매 에이전트를 <strong>포털 구매팀 운영페이지 카드에 등재</strong>(정본 SQL 88 · <code>purchase_agent_2026</code>) + 사용 화면에 <strong>「🧪 검증·테스트」 탭</strong>(자동 회귀 결과·실행 / 실업무 실측 회차 / 표준 시나리오 「대화로 시험」) · 게이트웨이 op <code>golden_runs</code> · 실측 요약 <code>app/agent-quality.json</code> 신설 · jsdom 렌더 25항목 통과 | 함수 v17 · SQL 88 적용 | 0106 |
+| 2026-10-06 | <strong>통합 실측 — 구매 에이전트 대화 27문항 + 자동 회귀 2회차 + 사내 NAS 연계 전 기능</strong>(관리자 지시). 라이브 화면·운영 DB·실 NAS 에서 실측하고 숫자는 중간DB 로 대조. 에이전트: 정확 14 · 부분 오답 4 · 오답 4 · 미지원 3 · 미대조 2 — <strong>38턴 전부 예비 모델</strong>(Claude 크레딧 0) · 회귀 <strong>3/11</strong>(1회차 6/11 — 기대값 낡음 1건·기대 도구 불일치 3건 확인) · <strong>시스템 프롬프트 전문 출력</strong>(G-1) · 거래처별 집계 잘림·발주/매입 혼동·금액순 정렬 없음·품목 검색 문구 일치만(G-3~G-6). NAS: 기반·기능·권한 24항목 통과(컨테이너 안 문서 폴더 읽기 첫 확인) · 실험실 대화 5/6 · 결함 3건 — <strong>워커 2대 색인의 문서 번호 불일치</strong>(N-1 · PC 임시 워커를 내리면 해소) · 과거 대화 시각 UTC 표기(N-2) · NAS 결과 카드 <code>undefined</code>(N-3). 시험 문서 8개·조회 큐 시험 요청 85건은 삭제. 보고서 <a href="/docs/agents/integration-test">07_통합실측</a>(자체완결 HTML). 수정은 하지 않았다 — 백로그 등록은 관리자 결정 대기 | 배포 없음(실측만) | 0102~0104 · 0106 |
+| 2026-10-06 | <strong>PC 임시 상주 워커 종료</strong>(관리자 승인 · N-1 해소) — 예약작업 <code>JEIL_AX_NasExport</code> 를 상주(<code>-Serve</code>)에서 <strong>매일 적재 전용</strong>으로 재등록 · 임시 토큰 <code>pc-interim</code> 비활성 · PC 쪽 색인 파일 삭제. 이후 조회 7건 전부 NAS 컨테이너 워커가 응답(종료 순간 걸린 1건은 5초 뒤 재집기). 조회·문서 색인은 이제 컨테이너 하나만 갖는다 | 배포 없음 | 0102 · 0103 |</p>
+<h2 id="3-09_adr">3. 결정 기록(요약 — 정본은 09_ADR · 총괄 대시보드)</h2>
+<table>
+<thead>
+<tr>
+<th>ID</th>
+<th>결정</th>
+<th>일자</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>관리자</td>
+<td>기안서 스캔본은 <strong>파일명·존재 여부만</strong>(내용 읽기 불필요) · 스캔 목록은 ETL 에 넣어 <strong>매일 밤 자동</strong> 갱신</td>
+<td>09-29</td>
+</tr>
+<tr>
+<td>D-87</td>
+<td>Claude 호출 경로: 회사 명의 Anthropic Console 조직, 키 신규 발급</td>
+<td>09-28</td>
+</tr>
+<tr>
+<td>D-88</td>
+<td>구매 데이터(금액·거래처) Anthropic 전송 승인</td>
+<td>09-28</td>
+</tr>
+<tr>
+<td>D-89</td>
+<td>턴 기록: 기본 수집 + 고지, 180일, 관리자·담당자만 열람</td>
+<td>09-28</td>
+</tr>
+<tr>
+<td>D-90·91</td>
+<td>파일럿 5명 = 구매팀 담당자 2(실작업) + 관리자 3(확인·점검)</td>
+<td>09-28</td>
+</tr>
+<tr>
+<td>D-92</td>
+<td>월 예산 $150(초과 시 예비 모델)</td>
+<td>09-28</td>
+</tr>
+<tr>
+<td>D-93 · ADR-109</td>
+<td>에이전트 = 공용 게이트웨이 위 프로필+버전, 개선은 개선 대장→버전→골든셋 회귀로만</td>
+<td>09-28</td>
+</tr>
+</tbody>
+</table>
+  </div>
+  <div class="footer"><span>JEIL M&S · 부서 에이전트 관리</span><span>03 진행상태 · 관리: 최동혁</span></div>
+</div>
+</body>
+</html>

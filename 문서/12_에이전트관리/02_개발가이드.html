@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>02 개발가이드 — JEIL AX 에이전트관리 (코드 지도·새 도구/에이전트 추가·배포·보안 원칙)</title>
+<style>
+:root{--navy:#1a2f4e;--navy2:#27457a;--accent:#2f6fb3;--red:#b3402f;--green:#2e7d52;--amber:#9a6b1f;
+--ink:#222;--muted:#666;--line:#d8dee8;--bg:#f4f6f9;--soft:#eef2f8;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;color:var(--ink);background:var(--bg);line-height:1.65;font-size:15px;}
+.page{max-width:960px;margin:0 auto;background:#fff;padding:52px 60px;box-shadow:0 2px 14px rgba(0,0,0,.08);}
+.doc-label{display:inline-block;background:var(--navy);color:#fff;font-size:12px;letter-spacing:.16em;padding:5px 14px;border-radius:3px;margin-bottom:16px;}
+.docnav{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 26px;}
+.docnav a{font-size:12px;color:var(--navy2);border:1px solid var(--line);border-radius:20px;padding:4px 12px;text-decoration:none;background:var(--soft);}
+.docnav a:hover{background:var(--navy);color:#fff;}
+.docnav a.cur{background:var(--navy);color:#fff;border-color:var(--navy);}
+.md-link{font-size:13px;margin-bottom:22px;color:var(--muted);}
+.content h1{font-size:27px;color:var(--navy);line-height:1.35;margin:6px 0 18px;}
+.content h2{font-size:20px;color:var(--navy);margin:42px 0 14px;padding-bottom:9px;border-bottom:3px solid var(--navy);}
+.content h3{font-size:16px;color:var(--navy2);margin:24px 0 9px;}
+.content p{margin:0 0 12px;}
+.content ul,.content ol{margin:0 0 14px 22px;}
+.content li{margin-bottom:6px;}
+.content blockquote{background:var(--soft);border-left:5px solid var(--navy);border-radius:0 8px 8px 0;padding:14px 20px;margin:14px 0;color:#33425a;}
+.content blockquote p{margin:0 0 6px;}
+.content table{width:100%;border-collapse:collapse;margin:14px 0 20px;font-size:13.3px;}
+.content th{background:var(--navy);color:#fff;padding:9px 11px;text-align:left;font-weight:600;}
+.content td{padding:8px 11px;border-bottom:1px solid var(--line);vertical-align:top;}
+.content tr:nth-child(even) td{background:#fafbfd;}
+.content a{color:var(--accent);}
+.content code{background:var(--soft);border:1px solid var(--line);border-radius:4px;padding:1px 6px;font-size:12.4px;font-family:Consolas,'Courier New',monospace;}
+.content pre{background:#21252e;color:#e8eaf0;border-radius:8px;padding:16px 18px;font-size:12.4px;font-family:Consolas,'Courier New',monospace;overflow-x:auto;margin:12px 0 18px;line-height:1.55;}
+.content pre code{background:none;border:none;color:inherit;padding:0;}
+.content hr{border:none;border-top:1px solid var(--line);margin:30px 0;}
+.content strong{color:var(--navy2);}
+.footer{margin-top:50px;padding-top:16px;border-top:1px solid var(--line);font-size:12px;color:var(--muted);display:flex;justify-content:space-between;}
+@media print{body{background:#fff;}.page{box-shadow:none;padding:18px 0;max-width:100%;}.docnav{display:none;}.content h2{break-after:avoid;}.content table,.content pre,.content blockquote{break-inside:avoid;}}
+@media (max-width:720px){.page{padding:30px 20px;}}
+</style>
+<!-- jeilax:local-links --><script>(function(){if(location.protocol!=="file:")return;var r="../../",s=document.createElement("script");s.src=r+"_local_links.js";s.setAttribute("data-root",r);(document.head||document.documentElement).appendChild(s);})();</script><!-- /jeilax:local-links -->
+</head>
+<body>
+<div class="page">
+  <span class="doc-label">JEIL AX 에이전트관리 · 대외비</span>
+  <div class="docnav"><a href="/docs/agents">🏠 에이전트관리 허브</a><a href="/docs/agents/status">00 현재상태</a><a href="/docs/agents/ops-guide">01 운영가이드</a><a class="cur" href="/docs/agents/dev-guide">02 개발가이드</a><a href="/docs/agents/progress">03 진행상태</a><a href="/docs/agents/purchase-domain">04 구매도메인</a><a href="/docs/agents/quality-test">05 품질테스트</a><a href="/docs/agents/templates">06 템플릿·관리포인트</a><a href="README.md">README</a></div>
+  <p class="md-link">📄 Markdown 원본: <a href="02_개발가이드.md">02_개발가이드.md</a> · 허브 <a href="/docs/agents">에이전트관리 허브</a></p>
+  <div class="content">
+<h1 id="02">02 · 개발가이드 — 코드 지도와 확장 절차</h1>
+<h2 id="1">1. 구조</h2>
+<pre><code>[브라우저]  pages/구매_AI에이전트_2026.html · app/admin-agents.html
+    │        └ app/lib/agentApi.js (API 단일 진입점, Entra 토큰) · app/lib/chatview.js/.css (카드·마크다운·CSV·보고서·HTML 미리보기)
+    │          app/lib/filein.js (첨부 판독 — xlsx·docx 는 내장 ZIP 해제(DecompressionStream), CSV 인코딩 판별, PDF·이미지 base64)
+    ▼  POST { agent:&quot;purchase&quot;, op?, messages? }
+[Edge Function jeil-chat-lab]  supabase/functions/jeil-chat-lab/
+    index.ts ─┬─ body.agent 있음 → core/agent_api.ts  (역할 판정 · op 처리 · 대화 SSE · 턴 기록)
+              └─ 없음 → 실험실(전체관리자 전용)
+    core/engine.ts   대화 루프 1개(실험실·에이전트·골든셋 공유) · 예비 모델 전환 · 2차 권한 게이트
+    core/agent.ts    프로필·버전·역할(roleOf)·도구 묶음·프롬프트 조립·자동 판정(turnFlags)
+    core/scope.ts    perm_effective 권한(ADR-010) · gateDeny · visibleTo
+    core/config.ts   ai_model·ai_gateway_config 로드 · usableModels · costOf
+    llm/index.ts     ADAPTERS{openai, anthropic} · readyVendors(키 등록된 벤더만)
+    llm/anthropic.ts Anthropic SDK · thinking 블록 되돌리기 · 캐싱 · effort · temperature 미전송
+    llm/openai.ts    OpenAI 스트리밍
+    modules/index.ts 운영 jeil-chat 에서 자동 생성(_port_modules.py) — 손대지 않는다
+    modules/extra.ts 손으로 쓴 모듈 등록 ← 새 도구는 여기
+    ▼ service_role
+[DB] ai_agent* · agent_* (SQL 74) · public.v_erp_* · pur_proposal* · agent_proposal_recon()
+</code></pre>
+<h2 id="2">2. 새 도구(모듈) 추가</h2>
+<ol>
+<li><code>supabase/functions/jeil-chat-lab/modules/&lt;domain&gt;/&lt;tool_id&gt;.ts</code> 작성 — <code>manifest</code> + <code>run(ctx)</code>.
+   - <code>manifest.id</code> 는 영구 불변(모델이 부르는 이름). <code>domain</code> 이 에이전트 도구 묶음 단위.
+   - 권한: <code>perm_module</code> + <code>perm_mode:"gate"</code>(ERP 모듈 권한) 또는 <code>partial</code>(모듈 안에서 판정 — 예: 기안서는 페이지 권한).
+   - <code>sensitivity: "personal"</code> 이면 그 턴의 답변은 저장되지 않는다.
+   - 결과에 <code>__view</code>(뷰 5종: series·ranking·record·list·notice — ADR-008)를 붙이면 카드로 나간다. 새 뷰 타입은 만들지 않는다.
+   - 사용자·모델 입력을 PostgREST 필터에 넣을 때는 <code>modules/purchase/_agent_util.ts</code> 의 <code>clean()</code> 을 거친다(or() 필터 주입 방지).
+   - 읽기 전용. ERP 운영 DB 직접 접근 금지 — 중간DB 뷰만(CLAUDE.md §4).
+   - <strong>목록형 도구 계약</strong>(09-30 실측 P1 3건이 전부 이 계약 부재에서 나왔다): ① <code>limit</code> 으로 잘랐으면 <strong>전체 건수 또는 잘림 표시</strong>를 결과에 넣는다(<code>search_pur_list</code> 방식) ② <code>.order()</code> 에 <strong>2차 정렬키</strong>(번호·seq)를 둔다 — 단일 날짜 정렬은 같은 조회가 다른 행을 돌려준다 ③ 사용자가 좁힐 만한 조건(거래처·기간·상태)은 인자로 받고, 못 받는 조건은 <code>안내</code> 로 돌려준다 ④ 여러 라인이 있는 문서(발주)는 합계·라인 수를 함께 준다 ⑤ 화면 제목에 내부 상태값(<code>unordered</code>)을 그대로 쓰지 않는다.</li>
+<li><code>modules/extra.ts</code> 에 import 한 줄 + 배열에 추가.</li>
+<li>에이전트 도구 묶음에 그 도메인이 켜져 있으면 자동으로 쓰인다(끄려면 관리 화면에서 체크 해제 → 새 버전).</li>
+<li>검증 → 배포(§4).</li>
+</ol>
+<h2 id="3">3. 새 에이전트(부서) 추가</h2>
+<ol>
+<li>정본 SQL 새 번호로 행 추가: <code>ai_agent</code>(agent_key·이름·부서·status='pilot'·suggestions) + <code>ai_agent_version</code> v1(state='current', 모델·역할 안내·답변 원칙·<code>modules.domains</code>) + <code>ai_agent_member</code>. 역할 안내·답변 원칙은 <strong>템플릿 06 §2-2 공통 원칙 + 부서 추가 원칙</strong>을 그대로 붙인다.
+1-1. <code>app/agent-templates.json</code> 의 <code>domains</code> 에 부서 키를 추가한다(<code>_candidates</code> 골격 복사 → 칩·용어·골든셋·시나리오). 콘솔 「📐 관리 포인트·템플릿」 탭이 이 키로 부서 세트를 찾는다(없으면 공통만 대조).</li>
+<li>필요한 도구가 없으면 §2 로 만든다.</li>
+<li>사용 화면: <code>pages/구매_AI에이전트_2026.html</code> 을 복사해 <code>const AGENT = "&lt;key&gt;"</code> 와 제목만 바꾼다(로직은 공용 모듈). <code>_routes.py</code> 에 <code>/work/&lt;dept&gt;-agent</code> 한 줄 → <code>python _build_routes.py --write</code>.</li>
+<li>관리 화면은 공용 — <code>/admin/agents?agent=&lt;key&gt;</code>.
+4-1. 사용 화면의 「🧪 검증·테스트」 탭(REQ-0106)은 세 곳을 읽는다 — 자동 회귀는 서버 op <code>golden_runs</code>, 실측 회차는 <code>app/agent-quality.json</code> 의 <code>agents.&lt;key&gt;</code>, 표준 시나리오는 <code>app/agent-templates.json</code>(부서 + 공통). 새 부서는 두 JSON 에 키만 더하면 탭이 채워진다(없으면 「기록 없음」).
+4-2. 포털 카드 등재는 정본 SQL 로(선례 88 — <code>erp_module</code> 은 null, 부서 전용). 에이전트 화면은 접근 게이트를 쓰지 않고 서버가 구성원을 판정하므로, 카드 공개 범위와 사용 권한은 <strong>별개</strong>다.</li>
+<li>이 폴더 <code>00_현재상태</code> · <code>03_진행상태_변경이력</code> 갱신.</li>
+</ol>
+<h2 id="4">4. 검증과 배포</h2>
+<ul>
+<li>타입 검사: 이 PC 에 Deno 가 없어 TypeScript strict 로 대신한다(스크래치에 <code>typescript</code>·<code>@anthropic-ai/sdk</code>·<code>@supabase/supabase-js</code> 설치, Deno 전역과 <code>npm:</code>/<code>jsr:</code> 모듈은 shim 선언). 자동생성 모듈 2건(<code>get_erp_pur_req</code>·<code>get_erp_receipt_pending</code> 암시적 any)은 알려진 경고.</li>
+<li>화면 스크립트: <code>&lt;script type="module"&gt;</code> 을 뽑아 <code>node --check</code>.</li>
+<li>렌더 모듈: jsdom 으로 <code>renderMd</code>·<code>attachCodeActions</code>·<code>stripActive</code> 동작 확인.</li>
+<li>배포: <code>python supabase/_deploy_function.py jeil-chat-lab --multi</code>(폴더 안 .ts 전부 업로드 · <code>.env</code> 는 Python 으로만 읽는다 — CLAUDE.md §1.8).</li>
+<li>화면: <code>main</code> 푸시 → Vercel 자동 배포(약 1분).</li>
+</ul>
+<p>⚠ 편집 주의: Bash heredoc 안의 Python 문자열에 백슬래시-n 을 쓰면 실제 줄바꿈으로 들어가 TS/JS 문자열이 깨진 사례가 있다(2026-09-28, 2회). 코드 편집은 Edit 도구를 쓰거나 <code>chr(92)</code> 로 백슬래시를 만든다.</p>
+<h2 id="4-1-req-0089">4-1. 첨부 파일 흐름(REQ-0089)</h2>
+<ul>
+<li>화면: <code>filein.readAttachment(file)</code> → <code>part</code>(text·image·pdf) → 사용자 메시지에 <code>attachments:[part]</code> 로 붙여 보낸다. 대화가 이어지면 이전 첨부도 그 메시지와 함께 다시 보낸다.</li>
+<li>서버: <code>core/agent_api.ts checkAttachments()</code> — 형식·크기·개수·주민번호 형식 검사, <strong>최신 질문부터</strong> 예산(글자 15만·base64 14MB)을 채우고 넘치는 옛 첨부는 안내 문구로 바꾼다. 기록은 <code>agent_turn.attachments</code> 에 이름·종류·크기만.</li>
+<li>어댑터: <code>ChatMsg</code> 사용자 메시지의 <code>parts</code> → Anthropic 은 document(PDF)·image·text 블록, OpenAI 는 image_url·text(PDF 는 안내 문구).</li>
+</ul>
+<h2 id="4-2-req-0092">4-2. 기안서 스캔 목록 자동 갱신(REQ-0092)</h2>
+<ul>
+<li><code>10_ERP_DB연계/etl/proposal_scan.py</code> — 탐색기 창(Shell COM) 경유로 파일 이름·크기·수정일만 읽는다(<code>os.listdir</code>·<code>Get-ChildItem</code>·<code>Shell.Namespace</code> 직접 접근은 문서중앙화가 거부). 복사·열람 동사는 쓰지 않는다.</li>
+<li>러너: 작업 종류 <code>proposal_scan</code>(기본 꺼짐 · 30분 간격 · 능력 <code>proposal_scan</code> = Windows + <code>C:\Cyberdigm</code> + <code>.env</code> <code>PROPOSAL_SCAN_DIR</code>), 서브커맨드 <code>jeil_runner scan</code>, 빌드 hidden 등록. 회귀 <code>test_proposal_scan.py</code> 12건.</li>
+<li>이 PC 는 러너 전체를 띄우지 않고 예약작업 <code>JEIL_AX_ProposalScan</code> 하나만 둔다(<code>etl/deploy/register_scan_task.ps1</code>) — 러너 기본 작업(결의전표 전송·요청 처리)이 ERP 서버 러너와 중복되지 않게.</li>
+<li>⚠ 경로에 <code>\11</code>·<code>\04</code> 같은 부분이 있어 Bash heredoc 속 Python 문자열로 쓰면 8진 이스케이프로 깨진다(09-29 실제 발생). <code>.env</code> 편집은 <code>chr(92)</code> 로.</li>
+</ul>
+<h2 id="5">5. 보안 원칙(바꾸지 말 것)</h2>
+<ul>
+<li>권한은 서버에서: 역할(<code>roleOf</code>) · 도구 주입(<code>visibleTo</code>) · 실행 직전 재판정(<code>gateDeny</code>) 3중.</li>
+<li>에이전트 테이블은 RLS 켜고 정책 없음 — 브라우저에서 직접 읽지 않는다. 새 테이블도 같게.</li>
+<li>AI 가 쓴 HTML 은 sandbox iframe(srcdoc)에서만 그린다 — 같은 출처에서 그리면 그 스크립트가 localStorage 의 로그인 토큰을 읽는다. 저장·내려받기 본은 <code>stripActive</code> 로 스크립트·on*·javascript: 를 걷어내고, 서버(<code>artifact_save</code>)도 같은 기준으로 거부한다.</li>
+<li>턴 기록에 조회 결과 행을 넣지 않는다(도구 요약은 건수·결과 유형만). 보고서 해설 요청에 붙는 표는 기록 전에 잘라낸다.</li>
+<li>시험 대화(버전 지정)는 담당자 이상만. 1인 1일 한도·월 예산은 서버가 강제한다.</li>
+<li>첨부 파일은 저장하지 않는다(Storage·DB 모두). 주민번호 형식이 보이면 거부. 새 형식을 추가할 때도 이 원칙을 지킨다.</li>
+<li>Anthropic 키는 Supabase 시크릿 <code>ANTHROPIC_API_KEY</code> 로만 둔다. 코드·문서·대화에 값을 적지 않는다.</li>
+</ul>
+<h2 id="6">6. 알려진 한계·후속</h2>
+<ul>
+<li><strong>LLM 오류 본문 보존(v13)</strong> — <code>engine.ts</code> 가 예비 전환·오류를 <code>console.error</code> 로 남기고 <code>ConverseResult.fallbackNote</code> 로 돌려주며, <code>agent_api.ts</code> 가 <code>agent_turn.tools</code> 에 <code>{tool:"_llm", outcome:"fallback"|"error", status, detail}</code> 항목을 덧붙인다(스키마 변경 없음 · 판정 flags 계산 뒤에 넣어 <code>tool_error</code> 로 오판되지 않는다). 대화 기록 화면의 도구 열에 <code>_llm</code> 로 보인다.</li>
+<li><strong>Anthropic 키</strong> — 워크스페이스 키(09-30 교체)가 기본. 조직 단위 키를 써야 하면 시크릿 <code>ANTHROPIC_WORKSPACE_ID</code> 를 넣으면 <code>llm/anthropic.ts</code> 가 <code>anthropic-workspace-id</code> 헤더를 붙인다(없으면 안 붙임).</li>
+<li><strong>히스토리 창(v13)</strong> — 서버가 <code>max_messages</code> 로 자른 뒤 첫 user 메시지부터 시작하도록 보정(Anthropic 은 user 로 시작해야 함). 남은 잠재 400: 마지막 라운드에 <code>tools:null</code> 로 보낼 때 convo 에 tool_use 가 남아 있는 경우 · 실험실 경로의 마지막 메시지 user 검사 없음(프리필).</li>
+<li><strong>정본 전환 모듈(v13)</strong> — <code>_port_modules.py</code> <code>HAND_TUNED</code> 4종은 재이식 때 파일을 덮어쓰지 않고 등록 목록에만 넣는다. 운영 jeil-chat 원본의 같은 도구가 바뀌면 손으로 맞춘다.</li>
+<li>템플릿은 파일(<code>app/agent-templates.json</code>)이 정본이고 DB 계층이 없다 — 여러 부서로 늘어 파일 한 곳으로 부족해지면 <code>ai_agent_template</code> 표 + <code>agent_create/clone</code> op(REQ-0094 2단계 4항).</li>
+<li>실험실 화면(<code>app/chat-lab.html</code>)은 렌더 코드 사본을 아직 갖고 있다 → <code>chatview.js</code> 로 이전 예정.</li>
+<li>월 예산 80% 알림(Teams)·엑셀/워드 원본 생성·포털 카드 등재는 미구현.</li>
+<li>게이트웨이 이름이 아직 <code>jeil-chat-lab</code> — 파일럿 검증 후 운영 이름(<code>jeil-agent</code>)으로 승격하고 운영 <code>jeil-chat</code> 을 흡수(별건).</li>
+</ul>
+  </div>
+  <div class="footer"><span>JEIL M&S · 부서 에이전트 관리</span><span>02 개발가이드 · 관리: 최동혁</span></div>
+</div>
+</body>
+</html>

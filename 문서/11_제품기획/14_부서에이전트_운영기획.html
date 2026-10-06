@@ -1,0 +1,867 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>14 부서에이전트 — JEIL AX 제품기획 (에이전트 프로필·관리자 페이지·구매 에이전트·질의응답 누적 고도화)</title>
+<style>
+:root{--navy:#1a2f4e;--navy2:#27457a;--accent:#2f6fb3;--red:#b3402f;--green:#2e7d52;--amber:#9a6b1f;
+--ink:#222;--muted:#666;--line:#d8dee8;--bg:#f4f6f9;--soft:#eef2f8;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;color:var(--ink);background:var(--bg);line-height:1.65;font-size:15px;}
+.page{max-width:960px;margin:0 auto;background:#fff;padding:52px 60px;box-shadow:0 2px 14px rgba(0,0,0,.08);}
+.doc-label{display:inline-block;background:var(--navy);color:#fff;font-size:12px;letter-spacing:.16em;padding:5px 14px;border-radius:3px;margin-bottom:16px;}
+.docnav{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 26px;}
+.docnav a{font-size:12px;color:var(--navy2);border:1px solid var(--line);border-radius:20px;padding:4px 12px;text-decoration:none;background:var(--soft);}
+.docnav a:hover{background:var(--navy);color:#fff;}
+.docnav a.cur{background:var(--navy);color:#fff;border-color:var(--navy);}
+.md-link{font-size:13px;margin-bottom:22px;color:var(--muted);}
+.content h1{font-size:27px;color:var(--navy);line-height:1.35;margin:6px 0 18px;}
+.content h2{font-size:20px;color:var(--navy);margin:42px 0 14px;padding-bottom:9px;border-bottom:3px solid var(--navy);}
+.content h3{font-size:16px;color:var(--navy2);margin:24px 0 9px;}
+.content p{margin:0 0 12px;}
+.content ul,.content ol{margin:0 0 14px 22px;}
+.content li{margin-bottom:6px;}
+.content blockquote{background:var(--soft);border-left:5px solid var(--navy);border-radius:0 8px 8px 0;padding:14px 20px;margin:14px 0;color:#33425a;}
+.content blockquote p{margin:0 0 6px;}
+.content table{width:100%;border-collapse:collapse;margin:14px 0 20px;font-size:13.3px;}
+.content th{background:var(--navy);color:#fff;padding:9px 11px;text-align:left;font-weight:600;}
+.content td{padding:8px 11px;border-bottom:1px solid var(--line);vertical-align:top;}
+.content tr:nth-child(even) td{background:#fafbfd;}
+.content a{color:var(--accent);}
+.content code{background:var(--soft);border:1px solid var(--line);border-radius:4px;padding:1px 6px;font-size:12.4px;font-family:Consolas,'Courier New',monospace;}
+.content pre{background:#21252e;color:#e8eaf0;border-radius:8px;padding:16px 18px;font-size:12.4px;font-family:Consolas,'Courier New',monospace;overflow-x:auto;margin:12px 0 18px;line-height:1.55;}
+.content pre code{background:none;border:none;color:inherit;padding:0;}
+.content hr{border:none;border-top:1px solid var(--line);margin:30px 0;}
+.content strong{color:var(--navy2);}
+.footer{margin-top:50px;padding-top:16px;border-top:1px solid var(--line);font-size:12px;color:var(--muted);display:flex;justify-content:space-between;}
+@media print{body{background:#fff;}.page{box-shadow:none;padding:18px 0;max-width:100%;}.docnav{display:none;}.content h2{break-after:avoid;}.content table,.content pre,.content blockquote{break-inside:avoid;}}
+@media (max-width:720px){.page{padding:30px 20px;}}
+</style>
+<!-- jeilax:local-links --><script>(function(){if(location.protocol!=="file:")return;var r="../../",s=document.createElement("script");s.src=r+"_local_links.js";s.setAttribute("data-root",r);(document.head||document.documentElement).appendChild(s);})();</script><!-- /jeilax:local-links -->
+</head>
+<body>
+<div class="page">
+  <span class="doc-label">JEIL AX 제품기획 · 대외비</span>
+  <div class="docnav"><a href="/docs/product">🏠 제품기획 허브</a><a href="/docs/product/overview">00 개요</a><a href="/docs/product/prd">01 PRD</a><a href="/docs/product/srs">02 SRS</a><a href="/docs/product/architecture">03 아키텍처</a><a href="/docs/product/database">04 DB설계</a><a href="/docs/product/frontend-backend">05 FE·BE</a><a href="/docs/product/erp-chatbot">06 ERP연계</a><a href="/docs/product/migration-design">07 이관</a><a href="/docs/product/security">08 보안</a><a href="/docs/product/adr">09 ADR</a><a href="/docs/product/chat-rendering">10 응답렌더링</a><a href="/docs/product/chat-data-request">11 요청접수</a><a href="/docs/product/org-permission">12 조직도권한</a><a href="/docs/product/chat-modules">13 챗봇모듈</a><a class="cur" href="/docs/product/dept-agents">14 부서에이전트</a><a href="README.md">README</a></div>
+  <p class="md-link">📄 Markdown 원본: <a href="14_부서에이전트_운영기획.md">14_부서에이전트_운영기획.md</a> · 허브 <a href="/docs/product">제품기획 개요</a></p>
+  <div class="content">
+<h1 id="14">14 · 부서 에이전트 운영기획 — "에이전트는 프로필, 대화는 자산"</h1>
+<blockquote>
+<p>관리자: 최동혁(dh.choi@jeilm.co.kr) · 기준일: 2026-09-28 · 상태: <strong>구현 1차 완료(파일럿 가동) — ADR-109 · 1호 에이전트 = 구매 · §11 구현 현황</strong>
+관련: <a href="/docs/product/chat-modules">13 챗봇 모듈형</a>(도구 모듈 규격 · 실험실 <code>/chatdemo</code>) · <a href="/docs/product/chat-rendering">10 응답렌더링</a>(뷰 5종) · <a href="/docs/product/chat-data-request">11 요청접수</a> · <a href="/docs/product/security">08 보안</a> · <a href="/docs/product/adr">09 ADR</a> · 모델 설정 SSOT <code>실제구축준비 자료/06_챗봇_사용모델설정_SSOT.md</code> · <code>CLAUDE.md §1.6·§1.7·§5.4·§13·§16.6</code></p>
+</blockquote>
+<p>사내 여러 부서가 <strong>하나의 AI 게이트웨이를 공용으로 쓰면서</strong>, 부서마다 자기 업무에 맞춘 <strong>에이전트</strong>를 두고,
+에이전트별로 <strong>모델·설정을 따로 관리</strong>하며, 대화에서 쌓인 <strong>질문·답변·관련 내용을 DB에 누적해 에이전트를 계속 고도화</strong>하는 체계를 정한다.
+1호는 <strong>구매 에이전트</strong>다. 이 문서는 설계와 결정 사항을 모은 것이고, 구현은 §8의 백로그 요청(REQ)으로 나눠 진행한다.</p>
+<blockquote>
+<p><strong>비개발자용 한 줄 요약</strong> — 에이전트는 부서마다 새 프로그램을 만드는 게 아니라 <strong>"설정 카드 한 장"</strong> 이다(어떤 모델로, 어떤 자료를, 어떤 말투·규칙으로). 직원은 평소처럼 질문만 하고, 뒤에서는 질문과 답변이 <strong>개선 대장</strong>에 쌓인다. 담당자가 그 대장을 보고 "이런 질문엔 이렇게 답해야 한다"를 고치면 에이전트가 점점 똑똑해진다.</p>
+</blockquote>
+<hr />
+<h2 id="0">0. 결론 먼저</h2>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>제안</th>
+<th>한 줄 이유</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td><strong>에이전트 = 프로필</strong>(<code>ai_agent</code>): 역할 안내 + 모듈 묶음 + 모델·설정 + 공개 범위 + 담당자</td>
+<td>게이트웨이·권한 판정·화면 뷰는 공유하고, 부서 차이는 설정으로만 만든다</td>
+</tr>
+<tr>
+<td>2</td>
+<td><strong>에이전트별 모델·설정은 관리자 페이지 <code>/admin/agents</code>에서</strong> — 변경은 <strong>버전</strong>으로 남긴다</td>
+<td>"언제 무엇을 바꿨더니 답이 좋아졌나"를 추적하려면 답변마다 버전이 붙어야 한다</td>
+</tr>
+<tr>
+<td>3</td>
+<td><strong>구매 에이전트 페이지 <code>/work/purchase-agent</code></strong> — 대화 + 생성 자료함, 구매 데이터 <strong>12종 전부 연결</strong></td>
+<td>기존 도구 7종에 발주통합 LIST·기안서 대장·대사·거래처 프로필을 더한다</td>
+</tr>
+<tr>
+<td>4</td>
+<td><strong>자료 생성은 "숫자는 서버, 문장은 모델"</strong></td>
+<td>표·합계는 조회 결과로 서버가 만들고, 모델은 해설만 쓴다 — 없는 숫자를 지어내지 않는다(§16.6)</td>
+</tr>
+<tr>
+<td>5</td>
+<td><strong>질의·응답 누적 DB</strong>(<code>agent_turn</code>) + <strong>개선 대장</strong>(<code>agent_improve</code>) + <strong>골든셋</strong>(<code>agent_golden</code>)</td>
+<td>사용자는 대화만 보고, 담당자는 개선 대장을 백로그처럼 운영한다</td>
+</tr>
+<tr>
+<td>6</td>
+<td><strong>바꾸기 전에 골든셋으로 회귀 시험</strong></td>
+<td>모델·프롬프트를 바꿀 때마다 "예전에 맞던 질문이 여전히 맞는가"를 자동으로 확인한다</td>
+</tr>
+<tr>
+<td>7</td>
+<td><strong>Claude(Sonnet 5)는 회사 명의 API 키로</strong> — 개인 구독 사용 불가</td>
+<td>구독과 API는 별개 상품. 관리자가 키를 새로 발급해 Supabase 시크릿에 등록한다</td>
+</tr>
+<tr>
+<td>8</td>
+<td>챗봇이 하는 일은 여전히 <strong>조회·초안·접수</strong>까지(13 기획 범위)</td>
+<td>발주 확정·결재·발송은 사람이 누른다(CLAUDE.md §1.6)</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="1">1. 전체 구조</h2>
+<pre><code> [직원]                      [관리자·에이전트 담당자]
+   │ 대화                        │ 설정·개선
+   ▼                             ▼
+ 구매 에이전트 페이지          /admin/agents  (에이전트 목록 · 모델·설정 · 버전 · 개선 대장 · 골든셋)
+ /work/purchase-agent              │
+   │                               │ ai_agent / ai_agent_version
+   ▼                               ▼
+ ┌──────────────── 공용 게이트웨이 (jeil-chat-lab → 검증 후 jeil-agent) ─────────────────┐
+ │ 1) agent_key 로 프로필 로드 (모델·추론강도·프롬프트 버전·모듈 묶음)                      │
+ │ 2) 권한 판정 perm_effective (ADR-010) → 모듈 묶음 ∩ 사용자 권한 = 이번에 쓸 도구         │
+ │ 3) 프롬프트 조립 = 공통 머리말 + 에이전트 역할 안내 + 용어집 + 모듈 prompt_hint          │
+ │ 4) LLM 어댑터 (openai.ts · anthropic.ts) 로 호출 → 도구 실행 → 뷰 5종으로 응답           │
+ │ 5) 턴 기록 agent_turn (질문·답변·도구·건수·모델·버전·비용·지연) → 개선 대장 자동 후보    │
+ └──────────────────────────────────────────────────────────────────────────────────────┘
+   │ 읽기 전용                                  │ 생성 자료
+   ▼                                            ▼
+ 중간DB public.v_erp_* · pur_proposal*       agent_artifact + Storage(agent-artifacts)
+</code></pre>
+<ul>
+<li><strong>게이트웨이는 하나다.</strong> 부서가 늘어도 코드가 늘지 않는다. 부서 차이는 <code>ai_agent</code> 행과 모듈 묶음뿐이다.</li>
+<li>지금 가동 중인 실험실 <code>jeil-chat-lab</code>(REQ-0084)이 이 게이트웨이의 시험판이다. 검증 후 운영 이름(<code>jeil-agent</code>)으로 올리고, 운영 <code>jeil-chat</code>은 "공통 에이전트"로 흡수한다(별건).</li>
+</ul>
+<hr />
+<h2 id="2-ai_agent-ai_agent_version">2. 에이전트 프로필 — <code>ai_agent</code> · <code>ai_agent_version</code></h2>
+<h3 id="2-1">2-1. 프로필에 담는 것</h3>
+<table>
+<thead>
+<tr>
+<th>구분</th>
+<th>항목</th>
+<th>예(구매)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>정체</td>
+<td><code>agent_key</code> · 이름 · 설명 · 아이콘 · 담당 부서 · <strong>담당자</strong>(내용 검수 책임)</td>
+<td><code>purchase</code> · 구매 에이전트 · 구매팀 · 구매팀 담당자A</td>
+</tr>
+<tr>
+<td>공개 범위</td>
+<td>상태 <code>dev / pilot / live / off</code> · 파일럿 사용자·부서 · 노출 페이지</td>
+<td>pilot · 구매팀 3명</td>
+</tr>
+<tr>
+<td>모델</td>
+<td>기본 모델 · 폴백 모델 · 추론강도(effort) · 최대 출력 토큰 · 캐싱 on/off</td>
+<td><code>claude-sonnet-5</code> · 폴백 <code>gpt-4.1-mini</code> · effort <code>medium</code></td>
+</tr>
+<tr>
+<td>프롬프트</td>
+<td>역할 안내 · 답변 원칙 · 금지선 · 용어집 참조</td>
+<td>"구매팀 실무자처럼, 금액은 원 단위 콤마…"</td>
+</tr>
+<tr>
+<td>도구</td>
+<td>모듈 묶음(도메인 + 개별 on/off)</td>
+<td>purchase 12종 + common 2종 + docs 2종</td>
+</tr>
+<tr>
+<td>한도</td>
+<td>1인 일일 질문 수 · 월 예산(USD) · 1회 도구 호출 상한</td>
+<td>50회/일 · $150/월 · 6회</td>
+</tr>
+<tr>
+<td>수집</td>
+<td>턴 기록 on/off · 보존 기간</td>
+<td>on · 180일</td>
+</tr>
+</tbody>
+</table>
+<p><strong>설정은 벤더에 따라 달라지는 항목이 있다.</strong> 예) Claude Sonnet 5 는 <code>temperature</code> 를 받지 않고(보내면 400 오류) 추론강도(effort)로 조절한다. 관리자 화면은 선택한 모델의 벤더에 맞는 항목만 보여 준다.</p>
+<h3 id="2-2">2-2. 버전 관리 — 왜 필요한가</h3>
+<p>프롬프트·모델을 바꾸면 <strong>답이 바뀐다.</strong> 버전 없이 덮어쓰면 "지난주엔 맞게 답하던 질문이 왜 틀리지?"를 추적할 수 없다.</p>
+<ul>
+<li>설정을 저장하면 <code>ai_agent_version</code> 에 <strong>새 버전 행</strong>이 생긴다(v1, v2, …). 되돌리기 = 예전 버전을 "현재"로 지정.</li>
+<li>모든 대화 턴(<code>agent_turn</code>)은 <strong>그 답을 만든 버전 번호</strong>를 함께 저장한다 → 버전별 만족도·오류율 비교가 가능해진다.</li>
+<li>새 버전은 먼저 <strong>골든셋 회귀(§5-4)</strong> 를 통과해야 "현재"로 지정할 수 있다(관리자가 결과를 보고 승인).</li>
+</ul>
+<h3 id="2-3">2-3. 테이블(안)</h3>
+<p><code>ai_agent</code> — 에이전트 1개당 1행(정체·공개 범위·현재 버전 포인터)</p>
+<table>
+<thead>
+<tr>
+<th>컬럼</th>
+<th>설명</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>agent_key</code> PK</td>
+<td><code>purchase</code>, <code>sales</code>, <code>finance</code> … (영구 불변)</td>
+</tr>
+<tr>
+<td><code>name_ko</code> · <code>summary_ko</code> · <code>icon</code></td>
+<td>표시용</td>
+</tr>
+<tr>
+<td><code>dept_nm</code> · <code>owner_upn</code></td>
+<td>담당 부서 · 내용 검수 담당자</td>
+</tr>
+<tr>
+<td><code>status</code></td>
+<td><code>dev</code> / <code>pilot</code> / <code>live</code> / <code>off</code></td>
+</tr>
+<tr>
+<td><code>pilot_upns[]</code> · <code>pilot_depts[]</code></td>
+<td>pilot 일 때 쓸 수 있는 사람·부서</td>
+</tr>
+<tr>
+<td><code>current_version</code></td>
+<td>지금 쓰는 버전 번호</td>
+</tr>
+<tr>
+<td><code>daily_limit</code> · <code>monthly_budget_usd</code> · <code>collect_turns</code> · <code>retention_days</code></td>
+<td>한도·수집</td>
+</tr>
+</tbody>
+</table>
+<p><code>ai_agent_version</code> — 설정 이력(저장할 때마다 1행, 수정 불가)</p>
+<table>
+<thead>
+<tr>
+<th>컬럼</th>
+<th>설명</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>agent_key</code> · <code>version</code> PK</td>
+<td></td>
+</tr>
+<tr>
+<td><code>model_id</code> · <code>fallback_model_id</code> · <code>effort</code> · <code>max_tokens</code> · <code>temperature</code>(벤더 허용 시) · <code>prompt_caching</code></td>
+<td>모델 설정 — <code>ai_model</code>(카탈로그) 참조</td>
+</tr>
+<tr>
+<td><code>role_prompt</code> · <code>answer_rules</code></td>
+<td>역할 안내·답변 원칙</td>
+</tr>
+<tr>
+<td><code>modules</code> jsonb</td>
+<td><code>{"include_domains":["purchase","common"],"on":[…],"off":[…]}</code></td>
+</tr>
+<tr>
+<td><code>golden_pass</code> · <code>golden_total</code> · <code>golden_run_at</code></td>
+<td>회귀 결과</td>
+</tr>
+<tr>
+<td><code>created_by</code> · <code>created_at</code> · <code>note</code></td>
+<td>누가 왜 바꿨나</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>기존 <code>ai_gateway_config</code>(전역 기본값)·<code>ai_model</code>(모델 카탈로그)·<code>ai_routing_rule</code> 은 <strong>그대로 둔다.</strong> 에이전트에 값이 없으면 전역 기본값을 따른다.</li>
+<li>RLS: 읽기·쓰기 모두 <strong>포털 관리자 + 해당 에이전트 담당자</strong>. 게이트웨이는 service_role 로 읽는다.</li>
+</ul>
+<hr />
+<h2 id="3-adminagents">3. 관리자 페이지 — <code>/admin/agents</code></h2>
+<p>관리자 콘솔 「에이전트」 탭에도 같은 화면을 내장한다(권한 설정 화면과 같은 방식).</p>
+<pre><code>┌ 에이전트 ─────────────────────────────────────────────────────────────────┐
+│ [표준 그리드] 에이전트 │ 상태 │ 모델      │ 버전 │ 7일 질문 │ 👍율 │ 비용 │ 개선대기 │
+│  구매             pilot  sonnet-5   v3    412     86%   $21   7      │
+│  공통(포털)        live   gpt-4o-mini v1    2,310   —     $6    —      │
+└────────────────────────────────────────────────────────────────────────┘
+ 구매 에이전트 ▸ [설정] [도구] [개선 대장] [골든셋] [버전] [사용량]
+   설정 : 모델 ▾ · 폴백 ▾ · 추론강도 ▾ · 최대 토큰 · 캐싱 ☑ · 역할 안내(편집기) · 답변 원칙
+   도구 : 모듈 묶음 체크(도메인별) — 권한·민감도·상태는 13 기획 등록부 값 표시
+   버전 : v1 · v2 · v3(현재) — 차이 보기 · 회귀 결과 · 되돌리기
+   시험 : 「실험실에서 이 설정으로 대화」 → /chatdemo?agent=purchase&amp;version=4(초안)
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>탭</th>
+<th>하는 일</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>설정</td>
+<td>모델·폴백·추론강도·토큰·캐싱·역할 안내·답변 원칙·한도. 저장 = 새 버전(초안)</td>
+</tr>
+<tr>
+<td>도구</td>
+<td>모듈 묶음 켜기/끄기. 13 기획 <code>chat_tool_registry</code> 의 전역 스위치가 먼저 적용된다(전역 off 면 여기서 못 켠다)</td>
+</tr>
+<tr>
+<td>개선 대장</td>
+<td>§5 — 자동 후보 + 사용자 피드백을 백로그처럼 분류·처리</td>
+</tr>
+<tr>
+<td>골든셋</td>
+<td>§5-4 — 대표 질문과 기대 답 요건. 새 버전 회귀 실행</td>
+</tr>
+<tr>
+<td>버전</td>
+<td>이력·차이·회귀 결과·현재 지정·되돌리기</td>
+</tr>
+<tr>
+<td>사용량</td>
+<td>질문 수·사용자 수·토큰·비용·지연·도구 오류율·👍율 (버전별)</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>모델 목록은 <code>ai_model</code> 에서 <strong>active + callable + 어댑터가 있는 벤더</strong>만 보여 준다(실험실 <code>usableModels</code> 와 같은 규칙).</li>
+<li>관리자 화면의 편집 표는 <strong>표준 그리드</strong>(§13)를 쓴다.</li>
+</ul>
+<hr />
+<h2 id="4-workpurchase-agent">4. 구매 에이전트 페이지 — <code>/work/purchase-agent</code></h2>
+<h3 id="4-1">4-1. 화면</h3>
+<pre><code>┌ 구매 에이전트 (pilot) ────────────────────────────────────────── 기준 2026-09-28 06:00 ┐
+│ 대화                                              │ 생성 자료함                          │
+│ ─────────────────────────────────────────────── │ ▸ 9월 주간 구매 보고서(초안)  HTML·CSV │
+│ 나) 이번 달 납기 지난 미입고 발주 거래처별로       │ ▸ ○○사 거래처 비교표          CSV     │
+│ AI) [ranking 카드] 거래처별 미입고 12건 …         │ ▸ 기안서 미연결 전표 목록      CSV     │
+│     [버튼] 이 목록을 CSV로 · 거래처별 보고서 만들기 │                                      │
+│ 👍 👎  (답변마다 — 누르면 개선 대장으로)           │ 자주 쓰는 질문 ▸ 발주 top 10 · 미입고 … │
+└──────────────────────────────────────────────────┴──────────────────────────────────────┘
+</code></pre>
+<ul>
+<li>자세한 추적(도구·인자·토큰)은 <strong>사용자에게 보이지 않는다.</strong> 사용자에게는 답변·카드·자료·👍👎만 보인다.</li>
+<li>구매 운영페이지들(발주통합 LIST 등)에는 나중에 <strong>"에이전트에게 묻기" 버튼</strong>을 달아, 지금 보고 있는 조회조건을 대화 맥락으로 넘긴다(2단계).</li>
+</ul>
+<h3 id="4-2-12">4-2. 연결할 구매 데이터 — 12종 (지금 연결돼 있는 자료 전부)</h3>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>자료</th>
+<th>원천(중간DB·포털DB)</th>
+<th>도구 모듈</th>
+<th>상태</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>발주 월별 추이</td>
+<td><code>v_erp_pur_order_monthly</code></td>
+<td><code>get_erp_purchase_monthly</code></td>
+<td>있음</td>
+</tr>
+<tr>
+<td>2</td>
+<td>발주 상세(발주번호)</td>
+<td><code>v_erp_pur_order</code> · <code>_hdr</code></td>
+<td><code>get_erp_pur_order</code></td>
+<td>있음</td>
+</tr>
+<tr>
+<td>3</td>
+<td>발주 ↔ 구매요청 연결</td>
+<td><code>v_erp_po_pr_link</code></td>
+<td><code>get_erp_po_pr</code></td>
+<td>있음</td>
+</tr>
+<tr>
+<td>4</td>
+<td>발주 금액 상위</td>
+<td><code>v_erp_pur_top_po</code></td>
+<td><code>get_erp_pur_top</code></td>
+<td>있음</td>
+</tr>
+<tr>
+<td>5</td>
+<td>입고 대기·납기 지연</td>
+<td><code>v_erp_po_pr_link</code>(overdue)</td>
+<td><code>get_erp_receipt_pending</code></td>
+<td>있음</td>
+</tr>
+<tr>
+<td>6</td>
+<td>구매요청</td>
+<td><code>v_erp_pur_req</code></td>
+<td><code>get_erp_pur_req</code></td>
+<td>있음</td>
+</tr>
+<tr>
+<td>7</td>
+<td>품목별 발주 이력</td>
+<td><code>v_erp_pur_order</code> + 품목</td>
+<td><code>get_erp_item_orders</code></td>
+<td>있음</td>
+</tr>
+<tr>
+<td>8</td>
+<td><strong>발주통합 LIST 검색</strong>(PR·PO·입고·매입 한 줄)</td>
+<td><code>v_erp_pur_list</code></td>
+<td><code>search_pur_list</code></td>
+<td><strong>신규</strong></td>
+</tr>
+<tr>
+<td>9</td>
+<td><strong>거래처별 매입 집계</strong></td>
+<td><code>v_erp_purchase_monthly</code></td>
+<td><code>get_vendor_purchase</code></td>
+<td><strong>신규</strong></td>
+</tr>
+<tr>
+<td>10</td>
+<td><strong>기안서 대장 조회</strong></td>
+<td><code>v_pur_proposal_case</code> · <code>pur_proposal</code></td>
+<td><code>get_pur_proposal</code></td>
+<td><strong>신규</strong></td>
+</tr>
+<tr>
+<td>11</td>
+<td><strong>기안서 ↔ 전표·세금계산서 대사</strong></td>
+<td>REQ-0081·0082 RPC</td>
+<td><code>get_proposal_recon</code></td>
+<td><strong>신규</strong></td>
+</tr>
+<tr>
+<td>12</td>
+<td><strong>거래처 프로필</strong>(발주·매입·납기 준수·미입고 한 장)</td>
+<td>1·5·9 조합</td>
+<td><code>get_vendor_profile</code></td>
+<td><strong>신규</strong></td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>공통으로 품목 마스터(<code>get_erp_item</code>)·재고(<code>get_erp_inventory_status</code>)·내 권한(<code>get_my_access</code>)·문서 검색(<code>search_my_documents</code>)을 함께 묶는다.</li>
+<li>권한은 지금처럼 <strong>ERP 모듈 권한(<code>pur_order</code> 등)으로 서버가 판정</strong>한다. 구매 에이전트를 열었다고 권한이 넓어지지 않는다(§5.4).</li>
+<li>신규 5종은 13 기획 규격(<code>manifest</code> + <code>run</code>, 뷰 5종)을 따른다. 발주통합 LIST 는 행이 많으므로 <strong>조건 필수 + 상한 200행</strong>, 모델에는 요약·상위만 넘긴다.</li>
+</ul>
+<h3 id="4-3">4-3. 자료 만들기 — "숫자는 서버, 문장은 모델"</h3>
+<table>
+<thead>
+<tr>
+<th>자료</th>
+<th>만드는 법</th>
+<th>형식</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>조회 결과 내보내기</td>
+<td>직전 도구 결과를 서버가 그대로 표로</td>
+<td>CSV(UTF-8 BOM, §13.5)</td>
+</tr>
+<tr>
+<td>주간·월간 구매 보고서</td>
+<td>도구 결과로 서버가 표·합계를 채우고, 모델은 <strong>해설·특이사항 문단만</strong> 작성</td>
+<td>HTML(인쇄·PDF 저장) + CSV 첨부</td>
+</tr>
+<tr>
+<td>거래처 비교표</td>
+<td>거래처 N곳 프로필을 서버가 나란히</td>
+<td>HTML + CSV</td>
+</tr>
+<tr>
+<td>기안서 미연결·대사 이상 목록</td>
+<td>대사 RPC 결과</td>
+<td>CSV</td>
+</tr>
+<tr>
+<td>품의·검토 메모 <strong>초안</strong></td>
+<td>모델이 초안 작성 → 사용자가 수정·복사</td>
+<td>텍스트(초안 표시)</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>생성 자료는 <code>agent_artifact</code> 에 기록하고 파일은 Storage <code>agent-artifacts/&lt;upn&gt;/…</code> 에 둔다. <strong>본인만</strong> 보고, 30일 후 자동 삭제(보관이 필요하면 내려받기).</li>
+<li>자료 안의 모든 숫자에는 <strong>기준시각과 원천 도구</strong>를 각주로 단다. 모델이 쓴 문단 안의 숫자는 서버가 도구 결과와 대조해, 없는 값이면 경고 표시한다.</li>
+<li>엑셀(.xlsx)·워드(.docx) 원본 생성은 2단계. 1단계는 CSV + HTML(인쇄)로 충분하다(외부 라이브러리 없이 가능).</li>
+<li><strong>발주 요청·기안 상신 같은 실거래는 하지 않는다.</strong> 초안까지만 만들고 확정은 ERP·그룹웨어에서 사람이 한다(§1.6).</li>
+</ul>
+<hr />
+<h2 id="5">5. 질의·응답 누적과 고도화 — "대화는 자산"</h2>
+<p>사용자는 평소처럼 묻고 답을 받는다. 뒤에서는 턴마다 기록이 쌓이고, 그중 <strong>고칠 거리</strong>가 개선 대장으로 올라가며,
+담당자가 이를 <strong>백로그처럼</strong> 처리한다. 고친 결과는 버전으로 남고 골든셋으로 검증된다.</p>
+<pre><code> 대화 1턴 ─▶ agent_turn (기록) ─▶ 자동 판정 ─▶ agent_improve (개선 대장)
+                                   │  👎 · 도구 오류 · 0건 · 권한 차단 · &quot;모르겠다&quot; · 도구 없음
+                                   ▼
+              담당자 분류: 프롬프트 / 용어집 / 신규 모듈 / 데이터 누락(ETL) / 정답 예시 / 해당 없음
+                                   ▼
+              반영: 새 버전(v+1) · 용어집 추가 · REQ 등록(모듈·ETL)  ──▶ 골든셋 회귀 ──▶ 현재 버전 지정
+                                   ▼
+              좋은 답변은 agent_golden(골든셋)으로 승격 → 다음 변경의 시험 문항이 된다
+</code></pre>
+<h3 id="5-1-agent_turn">5-1. <code>agent_turn</code> — 턴 기록(사용자는 보지 않음)</h3>
+<table>
+<thead>
+<tr>
+<th>컬럼</th>
+<th>설명</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>id</code> · <code>agent_key</code> · <code>agent_version</code> · <code>upn</code> · <code>dept_nm</code> · <code>created_at</code></td>
+<td>누가·어느 에이전트·어느 버전</td>
+</tr>
+<tr>
+<td><code>question</code></td>
+<td>질문 원문</td>
+</tr>
+<tr>
+<td><code>answer</code></td>
+<td>최종 답변 텍스트(뷰 JSON 은 요약만)</td>
+</tr>
+<tr>
+<td><code>tools</code> jsonb</td>
+<td>호출한 도구·인자·건수·결과 유형(정상/0건/권한차단/오류)·ms — 결과 <strong>행 데이터는 저장하지 않는다</strong></td>
+</tr>
+<tr>
+<td><code>model</code> · <code>prompt_tokens</code> · <code>completion_tokens</code> · <code>cache_read_tokens</code> · <code>est_cost_usd</code> · <code>latency_ms</code></td>
+<td>비용·성능</td>
+</tr>
+<tr>
+<td><code>rating</code> · <code>rating_note</code></td>
+<td>👍/👎 + 사용자가 남긴 한 줄(선택)</td>
+</tr>
+<tr>
+<td><code>flags[]</code></td>
+<td>자동 판정 결과: <code>tool_error</code>, <code>zero_rows</code>, <code>perm_denied</code>, <code>no_tool</code>, <code>refusal</code>, <code>slow</code>, <code>thumbs_down</code></td>
+</tr>
+<tr>
+<td><code>chat_log_id</code></td>
+<td>기존 비용 집계(<code>chat_log</code>)와 연결</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li><strong>민감값 최소화</strong>: 도구 결과 행(금액 목록 등)은 저장하지 않고 <strong>건수·결과 유형만</strong> 남긴다. 답변 텍스트에는 금액이 들어갈 수 있으므로 열람은 관리자·담당자로 제한한다(RLS).</li>
+<li><strong>인사·급여 도구 결과가 들어간 턴은 질문만 남기고 답변은 저장하지 않는다</strong>(§1.7). 구매 에이전트는 인사 도구를 묶지 않는다.</li>
+<li>보존: 기본 180일, 골든셋·개선 대장으로 승격된 건은 그 항목이 보존한다.</li>
+<li>기존 대화내역 저장(<code>chat_session</code>/<code>chat_message</code>, 사용자 opt-in · ADR-009)과는 <strong>목적이 다르다</strong> — 저것은 사용자 본인의 이어보기용, 이것은 품질 개선용. 둘을 섞지 않는다.</li>
+</ul>
+<h3 id="5-2-agent_improve">5-2. <code>agent_improve</code> — 개선 대장(백로그 형태)</h3>
+<table>
+<thead>
+<tr>
+<th>컬럼</th>
+<th>설명</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>id</code>(IMP-0001…) · <code>agent_key</code> · <code>status</code></td>
+<td><code>inbox</code> → <code>triage</code> → <code>planned</code> → <code>applied</code> → <code>verified</code> / <code>wontfix</code></td>
+</tr>
+<tr>
+<td><code>source</code></td>
+<td><code>auto</code>(자동 판정) · <code>thumbs_down</code> · <code>owner</code>(담당자가 직접)</td>
+</tr>
+<tr>
+<td><code>turn_ids[]</code></td>
+<td>근거 턴(비슷한 질문 묶음)</td>
+</tr>
+<tr>
+<td><code>category</code></td>
+<td><code>prompt</code> · <code>glossary</code> · <code>new_module</code> · <code>data_gap</code>(ETL) · <code>golden</code> · <code>model</code> · <code>none</code></td>
+</tr>
+<tr>
+<td><code>summary</code> · <code>proposal</code></td>
+<td>무엇이 문제고 어떻게 고칠지</td>
+</tr>
+<tr>
+<td><code>applied_version</code> · <code>req_id</code></td>
+<td>반영한 버전, 또는 코드·ETL 변경이면 백로그 REQ 번호</td>
+</tr>
+<tr>
+<td><code>owner_upn</code> · <code>created_at</code> · <code>resolved_at</code></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li><strong>비슷한 질문 묶기</strong>: 야간에 저렴한 모델(예: <code>claude-haiku-4-5</code>)로 inbox 후보를 주제별로 묶고 분류 초안을 단다 → 담당자는 <strong>묶음 단위로</strong> 판단한다. 수백 건을 하나씩 볼 필요가 없다.</li>
+<li><strong>자주 나왔는데 도구가 없던 질문</strong>(<code>no_tool</code>)은 신규 모듈 후보가 된다 → 코드 변경이므로 백로그 REQ 로 연결한다.</li>
+<li>관리자 화면에서 개선 대장은 <strong>표준 그리드</strong>로, 상태 전이는 버튼으로 한다.</li>
+</ul>
+<h3 id="5-3-agent_glossary">5-3. <code>agent_glossary</code> — 용어집</h3>
+<p>구매팀이 쓰는 말과 ERP 용어를 잇는다. 예) "가발주", "PU번호 = 결재번호(<code>M_PUR_REQ.EXT1_CD</code>)", "입고대기 = 발주 후 미입고".
+활성 용어는 프롬프트에 자동으로 들어간다(에이전트별). 개선 대장의 <code>glossary</code> 항목을 반영하는 자리다.</p>
+<h3 id="5-4-agent_golden">5-4. <code>agent_golden</code> — 골든셋(회귀 시험 문항)</h3>
+<table>
+<thead>
+<tr>
+<th>컬럼</th>
+<th>설명</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>id</code> · <code>agent_key</code> · <code>question</code></td>
+<td>대표 질문</td>
+</tr>
+<tr>
+<td><code>expect_tools[]</code></td>
+<td>불러야 할 도구(예: <code>get_erp_pur_top</code>)</td>
+</tr>
+<tr>
+<td><code>expect_rules</code></td>
+<td>답이 지켜야 할 요건(예: "발주번호별 총액 기준", "상위 5건", "원 단위")</td>
+</tr>
+<tr>
+<td><code>source_turn_id</code> · <code>active</code></td>
+<td>어느 대화에서 승격됐나</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>새 버전 저장 → <strong>「회귀 실행」</strong>: 골든셋 전 문항을 새 설정으로 돌려 ① 기대 도구를 불렀는가 ② 요건을 지켰는가(저렴한 모델이 채점) ③ 비용·지연을 비교한다.</li>
+<li>결과는 <code>ai_agent_version.golden_*</code> 에 남고, <strong>통과율이 이전보다 떨어지면 "현재" 지정 전에 경고</strong>한다.</li>
+<li>회귀도 API 비용이 든다 — 문항 30개 기준 1회 약 $1~2(§7). 실행은 버튼으로만(자동 반복 없음).</li>
+</ul>
+<hr />
+<h2 id="6-claude-sonnet-5">6. 모델 — Claude Sonnet 5 적용</h2>
+<table>
+<thead>
+<tr>
+<th>항목</th>
+<th>내용</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>호출 경로</td>
+<td><strong>회사 명의 Anthropic API 키</strong>(관리자 신규 발급) → Supabase 시크릿 <code>ANTHROPIC_API_KEY</code>. 개인 Claude 구독은 서버 호출에 쓸 수 없다</td>
+</tr>
+<tr>
+<td>코드</td>
+<td>실험실에 <code>llm/anthropic.ts</code> 어댑터 1개 + <code>ADAPTERS</code> 한 줄. 도구 19종은 그대로</td>
+</tr>
+<tr>
+<td>주의</td>
+<td>Sonnet 5 는 <code>temperature</code> 미지원(400) → 어댑터에서 제외, 추론강도(effort)로 조절 · 도구 결과는 한 메시지에 모아 반환 · 토큰 필드명이 달라 비용 계산 보정</td>
+</tr>
+<tr>
+<td>비용 절감</td>
+<td>시스템 프롬프트 + 도구 정의에 <strong>프롬프트 캐싱</strong>(매 질문 반복되는 부분)</td>
+</tr>
+<tr>
+<td>카탈로그</td>
+<td><code>ai_model</code> 에 <code>claude-sonnet-5</code>($2/$10, 100만 토큰당 입력/출력) 추가 · <code>claude-haiku-4-5</code> 는 야간 분류·채점용으로 callable 전환(↔REQ-0056)</td>
+</tr>
+<tr>
+<td>데이터 반출</td>
+<td>구매 금액·거래처가 Anthropic 으로 전송된다 — 현재 OpenAI 와 같은 성격, <strong>관리자 승인 필요</strong></td>
+</tr>
+<tr>
+<td>폴백</td>
+<td>Claude 호출 실패 시 에이전트의 폴백 모델(OpenAI)로 1회 재시도, 턴에 기록</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="7-p1">7. 비용 감각(추정 — P1 실측으로 대체)</h2>
+<table>
+<thead>
+<tr>
+<th>항목</th>
+<th>가정</th>
+<th>월 추정</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>구매 에이전트 대화</td>
+<td>10명 × 20질문 × 22일 = 4,400질문, 질문당 입력 15K·출력 1K 토큰</td>
+<td>캐싱 없이 약 $180 · 캐싱 시 약 $80~100</td>
+</tr>
+<tr>
+<td>야간 분류(Haiku)</td>
+<td>하루 200턴 요약·분류</td>
+<td>약 $5</td>
+</tr>
+<tr>
+<td>골든셋 회귀</td>
+<td>30문항 × 월 4회</td>
+<td>약 $5</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>에이전트별 <strong>월 예산 상한</strong>(§2-1)을 두고, 80% 도달 시 관리자 알림, 100%면 폴백 모델로 전환한다.</li>
+</ul>
+<hr />
+<h2 id="8">8. 단계와 백로그</h2>
+<table>
+<thead>
+<tr>
+<th>단계</th>
+<th>내용</th>
+<th>REQ(안)</th>
+<th>선행</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>P0</strong></td>
+<td>실험실 Anthropic 어댑터 + Sonnet 5 · 카탈로그 추가</td>
+<td>REQ-0085 feat</td>
+<td><strong>API 키 발급·등록</strong>(관리자)</td>
+</tr>
+<tr>
+<td><strong>P1</strong></td>
+<td><code>ai_agent</code>·<code>ai_agent_version</code> + <code>/admin/agents</code>(설정·도구·버전) · 게이트웨이 agent_key 적용</td>
+<td>REQ-0086 feat · DB 변경 승인</td>
+<td>P0</td>
+</tr>
+<tr>
+<td><strong>P2</strong></td>
+<td><code>/work/purchase-agent</code> + 구매 신규 모듈 5종 + 자료 생성(CSV·HTML)</td>
+<td>REQ-0087 feat</td>
+<td>P1</td>
+</tr>
+<tr>
+<td><strong>P3</strong></td>
+<td><code>agent_turn</code>·<code>agent_improve</code>·<code>agent_glossary</code>·<code>agent_golden</code> + 개선 대장·골든셋 탭 + 야간 분류</td>
+<td>REQ-0088 feat · DB 변경 승인 · 개인정보 검토</td>
+<td>P1 (P2와 병행 가능)</td>
+</tr>
+<tr>
+<td><strong>P4</strong></td>
+<td>구매팀 파일럿 2주 → 운영 게이트웨이 승격 · 다른 부서(영업·자금) 에이전트 추가</td>
+<td>별건</td>
+<td>P2·P3</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>P1·P3 은 DB 스키마 변경이라 정본 SQL(<code>실제구축준비 자료/이관/sql/NN_*.sql</code>)과 롤백 SQL을 먼저 만들고 <strong>관리자 승인 후</strong> 적용한다.</li>
+<li>파일럿 사용자 게이트(구매팀 일부에게 실험실급 화면 개방)는 관리자 게이트 정리(REQ-0031)와 맞물린다.</li>
+</ul>
+<hr />
+<h2 id="9">9. 결정이 필요한 것 (관리자)</h2>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>결정</th>
+<th>권고</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>D-1</td>
+<td>Claude 호출 경로</td>
+<td><strong>(A) Anthropic Console 회사 조직</strong>으로 시작, Azure 이관 시 (B) Microsoft Foundry 재검토</td>
+</tr>
+<tr>
+<td>D-2</td>
+<td>구매 데이터(금액·거래처)의 Anthropic 전송 승인</td>
+<td>승인(현재 OpenAI 와 동일 수준) · 인사·급여 도구는 구매 에이전트에 묶지 않음</td>
+</tr>
+<tr>
+<td>D-3</td>
+<td>턴 기록 수집 방식</td>
+<td>업무 에이전트는 <strong>기본 수집 + 화면 고지</strong>("품질 개선을 위해 질문과 답변이 기록됩니다"), 보존 180일, 열람은 관리자·담당자</td>
+</tr>
+<tr>
+<td>D-4</td>
+<td>구매 에이전트 담당자(개선 대장 검수)</td>
+<td>구매팀에서 1명 지정</td>
+</tr>
+<tr>
+<td>D-5</td>
+<td>파일럿 범위</td>
+<td>구매팀 3명 · 2주</td>
+</tr>
+<tr>
+<td>D-6</td>
+<td>월 예산 상한</td>
+<td>구매 에이전트 $150/월로 시작</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="10-adr-109">10. 제안 ADR-109 (요지)</h2>
+<ul>
+<li><strong>결정</strong>: 부서 에이전트는 공용 게이트웨이 위의 <strong>프로필(설정 + 모듈 묶음 + 버전)</strong> 로 만든다. 부서별 별도 게이트웨이·별도 코드베이스를 만들지 않는다.</li>
+<li><strong>결정</strong>: 대화 턴은 품질 개선용으로 별도 기록(<code>agent_turn</code>)하고, 개선은 <strong>개선 대장 → 버전 → 골든셋 회귀</strong>의 순서로만 반영한다.</li>
+<li><strong>결정</strong>: 생성 자료의 숫자는 서버가 도구 결과로 채우고, 모델은 서술만 한다.</li>
+<li><strong>대안(기각)</strong>: 부서마다 별도 챗봇 함수 — 권한·렌더링·비용 집계가 부서 수만큼 복제되어 어긋난다(13 기획이 해소하려는 문제의 재발).</li>
+<li><strong>상태</strong>: Proposed — P1 착수 시 Accepted 로 전이.</li>
+</ul>
+<hr />
+<h2 id="11-2026-09-28-req-00850088">11. 구현 현황 (2026-09-28 · REQ-0085~0088)</h2>
+<p>관리자 결정(2026-09-28): D-1 <strong>(A) Anthropic 회사 조직 — 키 신규 발급 예정</strong> · D-2 <strong>전송 승인</strong> · D-3 <strong>권고대로(기본 수집 + 고지, 180일)</strong> ·
+D-4·D-5 <strong>파일럿 5명 = 구매팀 담당자 2명(실작업) + 관리자 3명(확인·점검만)</strong> · D-6 <strong>월 $150</strong>.</p>
+<table>
+<thead>
+<tr>
+<th>구성</th>
+<th>위치</th>
+<th>비고</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>DB</td>
+<td>정본 SQL <code>실제구축준비 자료/이관/sql/74_dept_agent.sql</code>(+rollback)</td>
+<td>테이블 9종 · RLS 켜고 정책 없음(service_role 전용) · 버킷 <code>agent-artifacts</code> · 래퍼 <code>agent_proposal_recon(upn)</code></td>
+</tr>
+<tr>
+<td>게이트웨이</td>
+<td><code>supabase/functions/jeil-chat-lab</code> v3</td>
+<td><code>body.agent</code> 경로 = 부서 에이전트(<code>core/agent.ts</code> 역할 판정 · <code>core/agent_api.ts</code> op) · 실험실 경로는 종전대로</td>
+</tr>
+<tr>
+<td>LLM</td>
+<td><code>llm/anthropic.ts</code>(Anthropic SDK) · <code>llm/openai.ts</code> · <code>llm/index.ts</code></td>
+<td>키가 등록된 벤더만 호출 가능(<code>readyVendors</code>) — <code>ai_model.callable</code> 은 운영 jeil-chat 판정이라 보지 않는다</td>
+</tr>
+<tr>
+<td>대화 엔진</td>
+<td><code>core/engine.ts</code></td>
+<td>실험실·에이전트·골든셋이 <strong>같은 루프</strong>를 쓴다. 첫 라운드 실패 시 예비 모델 1회 전환</td>
+</tr>
+<tr>
+<td>구매 도구(신규 5)</td>
+<td><code>modules/purchase/{search_pur_list,get_vendor_purchase,get_pur_proposal,get_proposal_recon,get_vendor_profile}.ts</code> · 등록 <code>modules/extra.ts</code></td>
+<td>기존 19종(<code>modules/index.ts</code>)은 자동 생성이라 손대지 않는다</td>
+</tr>
+<tr>
+<td>사용자 화면</td>
+<td><code>/work/purchase-agent</code> = <code>pages/구매_AI에이전트_2026.html</code></td>
+<td>대화 · 카드별 CSV/자료함 · 📄 보고서(표=카드 데이터, 해설=모델) · 👍👎 · 담당자에게만 🔍 처리 과정</td>
+</tr>
+<tr>
+<td>관리 화면</td>
+<td><code>/admin/agents</code> = <code>app/admin-agents.html</code></td>
+<td>개요(비용·예산·만족·캐시) · 설정·버전(초안 저장·미리보기·시험 대화·현재 지정) · 개선 대장(AI 묶기) · 대화 기록 · 용어집 · 골든셋 회귀 · 구성원</td>
+</tr>
+<tr>
+<td>공용 모듈</td>
+<td><code>app/lib/chatview.js</code>·<code>.css</code>(카드·마크다운·CSV·보고서) · <code>app/lib/agentApi.js</code>(API 단일 진입점)</td>
+<td>실험실(<code>app/chat-lab.html</code>)의 렌더 사본은 후속으로 이 모듈로 옮긴다</td>
+</tr>
+</tbody>
+</table>
+<p><strong>역할 구분(서버 판정)</strong>
+- <strong>담당자(operator — 구매팀 2명)</strong>: 대화 + 설정 <strong>초안</strong> 저장 · 시험 대화 · 개선 대장 분류·반영 · 용어집 · 골든셋 · 회귀 실행 · 대화 기록 열람.
+- <strong>관리자(reviewer — 3명 · 포털 전체관리자 포함)</strong>: 위 전부 + <strong>초안을 「현재」로 지정</strong> · 개선 항목 <strong>「검증 완료」</strong> · 상태·한도·예산·보존 · 구성원 관리.
+  → "실작업은 담당자, 관리자는 확인·점검"을 권한으로 강제한다.</p>
+<p><strong>남은 일</strong>
+1. 관리자: <code>ANTHROPIC_API_KEY</code> 발급 → Supabase 시크릿 등록(등록 즉시 Sonnet 5 로 전환 — 재배포 불필요).
+2. 관리자: <code>/admin/agents</code> 구성원 탭에서 구매팀 담당자 2명(operator)·관리자(reviewer) 등록.
+3. 담당자: 골든셋 10~20문항 작성 → v1 회귀 기준선 확보.
+4. 후속(별건): 실험실 화면을 <code>chatview.js</code> 로 이전 · 포털 부서 카드(<code>portal_page</code>) 등재 · 월 예산 80% 알림(Teams) · 엑셀/워드 원본 생성.</p>
+  </div>
+  <div class="footer"><span>JEIL M&S · AI 포털 제품기획</span><span>14 부서에이전트 · 관리: 최동혁</span></div>
+</div>
+</body>
+</html>

@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>01 연계기획 — ERP DB 연계 관제 (타부서 개방 + 포털·챗봇 중간DB 통합 기획)</title>
+<style>
+:root{--navy:#1a2f4e;--navy2:#27457a;--accent:#2f6fb3;--red:#b3402f;--green:#2e7d52;--amber:#9a6b1f;
+--ink:#222;--muted:#666;--line:#d8dee8;--bg:#f4f6f9;--soft:#eef2f8;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;color:var(--ink);background:var(--bg);line-height:1.65;font-size:15px;}
+.page{max-width:960px;margin:0 auto;background:#fff;padding:52px 60px;box-shadow:0 2px 14px rgba(0,0,0,.08);}
+.doc-label{display:inline-block;background:var(--navy);color:#fff;font-size:12px;letter-spacing:.16em;padding:5px 14px;border-radius:3px;margin-bottom:16px;}
+.docnav{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 26px;}
+.docnav a{font-size:12px;color:var(--navy2);border:1px solid var(--line);border-radius:20px;padding:4px 12px;text-decoration:none;background:var(--soft);}
+.docnav a:hover{background:var(--navy);color:#fff;}
+.docnav a.cur{background:var(--navy);color:#fff;border-color:var(--navy);}
+.md-link{font-size:13px;margin-bottom:22px;color:var(--muted);}
+.content h1{font-size:27px;color:var(--navy);line-height:1.35;margin:6px 0 18px;}
+.content h2{font-size:20px;color:var(--navy);margin:42px 0 14px;padding-bottom:9px;border-bottom:3px solid var(--navy);}
+.content h3{font-size:16px;color:var(--navy2);margin:24px 0 9px;}
+.content p{margin:0 0 12px;}
+.content ul,.content ol{margin:0 0 14px 22px;}
+.content li{margin-bottom:6px;}
+.content blockquote{background:var(--soft);border-left:5px solid var(--navy);border-radius:0 8px 8px 0;padding:14px 20px;margin:14px 0;color:#33425a;}
+.content blockquote p{margin:0 0 6px;}
+.content table{width:100%;border-collapse:collapse;margin:14px 0 20px;font-size:13.3px;}
+.content th{background:var(--navy);color:#fff;padding:9px 11px;text-align:left;font-weight:600;}
+.content td{padding:8px 11px;border-bottom:1px solid var(--line);vertical-align:top;}
+.content tr:nth-child(even) td{background:#fafbfd;}
+.content a{color:var(--accent);}
+.content code{background:var(--soft);border:1px solid var(--line);border-radius:4px;padding:1px 6px;font-size:12.4px;font-family:Consolas,'Courier New',monospace;}
+.content pre{background:#21252e;color:#e8eaf0;border-radius:8px;padding:16px 18px;font-size:12.4px;font-family:Consolas,'Courier New',monospace;overflow-x:auto;margin:12px 0 18px;line-height:1.55;}
+.content pre code{background:none;border:none;color:inherit;padding:0;}
+.content hr{border:none;border-top:1px solid var(--line);margin:30px 0;}
+.content strong{color:var(--navy2);}
+.footer{margin-top:50px;padding-top:16px;border-top:1px solid var(--line);font-size:12px;color:var(--muted);display:flex;justify-content:space-between;}
+@media print{body{background:#fff;}.page{box-shadow:none;padding:18px 0;max-width:100%;}.docnav{display:none;}.content h2{break-after:avoid;}.content table,.content pre,.content blockquote{break-inside:avoid;}}
+@media (max-width:720px){.page{padding:30px 20px;}}
+</style>
+<!-- jeilax:local-links --><script>(function(){if(location.protocol!=="file:")return;var r="../../",s=document.createElement("script");s.src=r+"_local_links.js";s.setAttribute("data-root",r);(document.head||document.documentElement).appendChild(s);})();</script><!-- /jeilax:local-links -->
+</head>
+<body>
+<div class="page">
+  <span class="doc-label">JEIL AX ERP DB 연계 · 대외비</span>
+  <div class="docnav"><a href="/docs/erp">🏠 연계 허브</a><a href="/docs/erp/status">00 현재상태</a><a class="cur" href="/docs/erp/plan">01 연계기획</a><a href="/docs/erp/progress">02 진행상태</a><a href="/docs/erp/midway-db">03 중간DB 실행기획</a><a href="/docs/erp/incremental-sync">04 증분·확장·거버넌스</a><a href="/docs/erp/dept-mapping">05 사용자-부서 매핑</a><a href="/docs/erp/voucher-roadmap">06 결의전표 추진계획</a><a href="/docs/erp/voucher-handover">09 결의전표 인수인계</a><a href="/docs/erp/recurring-voucher">10 반복전표 자동화</a><a href="/docs/erp/direct-post-demo">11 ERP 직접등록(DEMO2)</a><a href="/docs/erp/ax001-acct-mapping">12 AX001 계정매핑 요청</a><a href="/docs/erp/subledger-fix">13 서브원장 호출누락</a><a href="/docs/erp/test-cases">14 테스트범위·케이스</a><a href="/docs/erp/input-guards">15 입력검증·차단규칙</a><a href="/docs/erp/trans-type-review">16 거래유형체계 검토</a><a href="/docs/erp/prod-gates">17 운영전환 게이트</a><a href="/docs/erp/jnl-rule">18 거래항목 결정규칙</a><a href="/docs/erp/test-set">19 연동테스트 전표세트</a><a href="/docs/erp/ledger-verify">20 원장검증 실장부대조</a><a href="/docs/erp/offboarding">21 퇴사처리 일괄적용</a><a href="/docs/erp/gw-org-recon">22 그룹웨어 조직도 대사</a><a href="README.md">README</a></div>
+  <p class="md-link">📄 Markdown 원본: <a href="01_연계기획.md">01_연계기획.md</a> · 허브 <a href="/docs/erp">연계 허브</a></p>
+  <div class="content">
+<h1 id="01-erp-db">01. ERP DB 연계 — 이후 기획 (통합 정리)</h1>
+<blockquote>
+<p><strong>기준일: 2026-07-03</strong>(2026-07-08 §4.4 P4 노출 계층, §4.5 사용자-부서 매핑, §4.6 부서별 ERP 모듈 제안값, §4.7 급여 민감권한·<code>erp_secure</code> 착수 → 같은 날 실적재 완료로 갱신 / 2026-07-20 §4.8 챗봇 권한체계 연결·포털 도구 권한구멍 차단 추가 / 2026-07-21 §4.9 연동 현황 뷰 10종 전체 노출·관리자 콘솔 반영 추가, §4.10 매입 상세(<code>iv_dtl</code>) 신규 연동·구매요청 상세 백필 실적재 완료 추가 / 2026-07-22 §4.11 협력사 거래처마스터(<code>vendor_master</code>) 재적재·정합화 + ERP 거래처마스터 원천 연동(<code>bp_master</code>) 스키마·ETL 준비 추가 / 2026-07-24 §4.11 <code>bp_master</code> 실적재 완료(적재버그 RCA·수정 포함)로 갱신 / 2026-09-07 §4.12 계정 통합관리·대사(REQ-0018, ERP 계정 정본+인사 HAA010T 서브) 신설·실적재 완료 추가 / 2026-09-23 §4.13 비ERP 원천(구매 기안서 대장, REQ-0077) 연동 패턴 신설 추가 / 2026-09-23 §4.14 기안서 대장 ↔ ERP 전표·전자세금계산서 대사(REQ-0081, 결정 C-15) 1단계 배포 추가 / 2026-09-23 §4.15 국세청(e세로) 전자세금계산서·부가세 원장 미러(REQ-0082, §4.14 2단계 해소) 실배포 추가 / 2026-09-30 §4.16 사내NAS 역방향 큐 — 내부망 호스트 연동 패턴 1단계(REQ-0097, ERP DB 연계 자체는 아니나 러너·큐 인프라 공유) 신설 추가) · 관리: 최동혁
+ERP 데이터 활용은 <strong>두 축</strong>으로 진행된다: <strong>A) 사내 타부서 데이터 개방</strong>(마스터플랜 v2.0)과 <strong>B) AI 포털·챗봇 연계</strong>(중간DB 연계설계). 본 문서는 두 기획을 하나의 그림으로 통합 정리한 것이다. 상세는 각 원본 문서를 따른다.</p>
+</blockquote>
+<hr />
+<h2 id="1">1. 공통 대원칙 (두 축 모두 적용)</h2>
+<table>
+<thead>
+<tr>
+<th>원칙</th>
+<th>내용</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>READ-ONLY 절대성</strong></td>
+<td>연동 경로 어디에서도 운영계 쓰기 불가. 사본조차 읽기전용.</td>
+</tr>
+<tr>
+<td><strong>부하 격리</strong></td>
+<td>소비자(부서·포털·챗봇) 트래픽은 운영계에 닿지 않는다 — 야간 사본에서만 조회.</td>
+</tr>
+<tr>
+<td><strong>최소 권한</strong></td>
+<td>필요한 뷰·컬럼·행만. 기본 거부, 명시 허용. 개인별 급여·주민번호·계좌는 <strong>원천 View 단계에서 제외</strong>.</td>
+</tr>
+<tr>
+<td><strong>스키마 추상화</strong></td>
+<td>소비자는 물리 테이블을 모른다 — 뷰(<code>rpt.v_*</code>)·집계 테이블이 계약(Contract).</td>
+</tr>
+<tr>
+<td><strong>추적성</strong></td>
+<td>누가·언제·무엇을 조회했는지 전량 감사 로깅.</td>
+</tr>
+<tr>
+<td><strong>점진성</strong></td>
+<td>최소 인프라로 즉시 시작(Crawl) → 수요 증가 시 승격(Walk/Run).</td>
+</tr>
+</tbody>
+</table>
+<h2 id="2">2. 통합 목표 아키텍처</h2>
+<pre><code>┌────────────────────────────────────────────────────────────┐
+│ ERP운영DB (UNIERP · MSSQL 2022 · 사외 IDC · 단일노드)       │
+│              ✕ 모든 소비자 직접 접근 금지                   │
+└──────────────┬─────────────────────────────────────────────┘
+               │ 야간 1회 갱신 (백업·복원 / 스냅샷 / ETL)
+               ▼
+┌────────────────────────────────────────────────────────────┐
+│ ① 리포팅 계층 — 격리된 읽기전용 사본 (Tier A→B)             │
+│ ② 추상화 계층 — rpt.v_* 뷰 (마스킹·RLS·스키마 계약)         │
+└──────┬──────────────────────┬──────────────────────────────┘
+       │ [축 A] 사내 타부서    │ [축 B] AI 포털·챗봇
+       ▼                      ▼
+ ③-A 직접조회(BI/Excel)   야간 ETL → PostgreSQL 중간 DB
+ ③-B API(n8n/REST)          (erp_ro / erp_secure / etl_meta)
+ ③-C 파일(CSV/Parquet)          │
+       │                        ├─▶ 부서 대시보드(pages/) — REST API
+       │                        └─▶ 챗봇(jeil-chat) — Tool Use 화이트리스트
+       ▼                        ▼
+┌────────────────────────────────────────────────────────────┐
+│ ④ 거버넌스 — 인증(Entra)·권한(RBAC)·감사·SLA·승인·정기검토  │
+└────────────────────────────────────────────────────────────┘
+</code></pre>
+<p><strong>정합 포인트</strong>: 포털 중간 DB의 ETL도 운영계가 아닌 <strong>리포팅 계층(①)/읽기전용 뷰(②)에서 추출</strong>하도록 일원화한다. 원천 접근 창구를 하나로 유지해 운영 무영향 원칙을 지킨다.</p>
+<h2 id="3-a-v20">3. 축 A — 사내 타부서 개방 (마스터플랜 v2.0 요약)</h2>
+<ul>
+<li><strong>리포팅 계층 티어</strong>: <strong>Tier A</strong>(동일 인스턴스 내 리포팅 전용 DB, 즉시·저비용)로 시작 → 소비자·조회량 증가 시 <strong>Tier B</strong>(별도 리포팅 서버, 물리적 완전 격리)로 승격 → 전사 BI 수요 확인 시 Tier C(BI/DW) 별도 과제. Always On은 일 배치 요건에 과잉투자로 배제.</li>
+<li><strong>전달 채널</strong>: 소비자 유형별 선택 — BI/Excel은 읽기전용 계정 직접조회(③-A), 자체 앱은 API(③-B), 대량·이관은 야간 파일 Export(③-C). 모두 ② 뷰만 바라본다.</li>
+<li><strong>경영 의사결정 1건</strong>: Tier A 시작 vs 곧바로 Tier B (마스터플랜 §11). 나머지는 실무 진행.</li>
+</ul>
+<h2 id="4-b-ai-07">4. 축 B — AI 포털·챗봇 연계 (07 연계설계 요약)</h2>
+<h3 id="41-db-postgresql-jeil_portal">4.1 중간 DB (PostgreSQL <code>jeil_portal</code>)</h3>
+<pre><code>portal       — 사용자·크레딧·대화·감사로그(tool_audit)
+erp_ro       — 영업·구매·재고·원가 (일반, 전 직원)
+erp_secure   — 자금·인사 집계 (민감, Entra 그룹 인가)
+knowledge    — 문서 벡터 (pgvector)
+etl_meta     — 배치 실행 로그·동기화 상태
+</code></pre>
+<h3 id="42">4.2 주요 매핑 (원천 → 중간 테이블)</h3>
+<table>
+<thead>
+<tr>
+<th>화면</th>
+<th>UNIERP 원천(읽기만)</th>
+<th>중간 테이블</th>
+<th>개방 단계</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>영업 수주현황</td>
+<td><code>S_BILL_HDR/DTL</code>, <code>S_BILL_COLLECTING</code></td>
+<td><code>erp_ro.sales_orders_m</code></td>
+<td>1차</td>
+</tr>
+<tr>
+<td>구매 매입집계</td>
+<td><code>M_IV_HDR/DTL</code>, <code>B_BP</code></td>
+<td><code>erp_ro.purchase_m</code></td>
+<td>1차</td>
+</tr>
+<tr>
+<td><strong>매입 상세(라인)</strong></td>
+<td><code>M_IV_DTL</code>(품목·수량·단가·금액·부가세 + 발주/입고 연결키)</td>
+<td><code>erp_ro.iv_dtl_s</code></td>
+<td><strong>신규(2026-07-21), 실적재 완료</strong> — 1,981행(2026-01-05~07-20)</td>
+</tr>
+<tr>
+<td>재고 입출고</td>
+<td><code>ITEM_DOCUMENT</code>, <code>M_PUR_GOODS_MVMT</code></td>
+<td><code>erp_ro.inventory_d</code></td>
+<td>1차</td>
+</tr>
+<tr>
+<td>품목 마스터</td>
+<td><code>B_ITEM</code></td>
+<td><code>erp_ro.item_master</code></td>
+<td>1차</td>
+</tr>
+<tr>
+<td><strong>발주현황(협력사 포털용)</strong></td>
+<td><code>M_PUR_REQ</code>(발주요청)·<code>M_PUR_ORD</code>(발주)</td>
+<td><code>erp_ro.purchase_order_*</code>(신설 예정)</td>
+<td><strong>1차-우선, 범위축소: 2026년도분만</strong>(2026-07-07 요청)</td>
+</tr>
+<tr>
+<td><strong>협력사 거래처마스터</strong></td>
+<td><code>B_BIZ_PARTNER</code>(거래처마스터 4,621건, 대표자주민번호·은행계좌번호는 최소수집 원칙으로 제외)</td>
+<td><code>erp_ro.bp_master_s</code></td>
+<td><strong>실적재 완료(2026-07-22 최초 4,649행 + 2026-07-24 증분 3행)</strong> — 최초 적재버그(RCA·수정) 포함(§4.11)</td>
+</tr>
+<tr>
+<td>프로젝트 원가</td>
+<td><code>PM_PROJECT_MASTER</code> + 원가</td>
+<td><code>erp_ro.project_cost_m</code></td>
+<td>2차</td>
+</tr>
+<tr>
+<td>자금일보</td>
+<td><code>A_GL</code>, <code>F_LN_INFO</code>, <code>F_NOTE</code></td>
+<td><code>erp_secure.cash_daily</code></td>
+<td>2차+승인</td>
+</tr>
+<tr>
+<td>인사 집계</td>
+<td><code>HAA010T</code>·<code>HDF070T</code>·<code>HGA070T</code>·<code>TH101BA1</code>(집계만)</td>
+<td><code>erp_secure.hr_payroll_m</code></td>
+<td>2차+승인 — <strong>스키마 착수(승인-준비) 2026-07-08, 실적재 전</strong>(§4.7)</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>우선순위 결정(2026-07-07)</strong>: 발주 데이터는 정식 1차 4종(품목·영업·구매=매입·재고) 가동 전이라도, <strong>연도를 2026년도로 좁혀 파일럿 우선연동</strong>하기로 했다(협력사 발주포털 실데이터 전환 대비, <code>CLAUDE.md §4.4</code>·§9 매핑 재사용). 실행에는 유니포인트 협의(발주요청/발주 테이블 컬럼·연도 필터 기준 확인) 및 <code>ERP_DB_CONN</code> 입력이 선행되어야 하며, 실제 ETL 개발·실행은 <code>10_ERP_DB연계/etl/</code>(별도 개발 세션) 또는 <code>erp-db-analyst</code>(ERP_DB 작업환경) 소관이다. 상세 진행은 <code>02_진행상태.md</code> P3 참조.</p>
+</blockquote>
+<h3 id="43-etl">4.3 ETL·챗봇 정책</h3>
+<ul>
+<li><strong>배치</strong>: 매일 03:00(유니포인트 합의), 증분 기준 + 소량 집계는 전체 재적재. 실패 시 Teams/메일 알림 + 1시간 후 재시도 1회. 모든 화면·답변에 「데이터 기준: YYYY-MM-DD 03:00」 표기.</li>
+<li><strong>챗봇</strong>: AI가 SQL을 생성·실행하지 않는다 — <strong>화이트리스트 조회 템플릿</strong>(<code>get_sales_monthly</code> 등 6종 초안)만 실행. 권한은 서버 단 Entra 그룹 검사, 1회 최대 200행, <code>portal.tool_audit</code> 전량 로깅.</li>
+<li><strong>대시보드와 챗봇은 동일 중간 DB·동일 쿼리 로직 공유</strong> — ETL·테이블 1벌 유지.</li>
+</ul>
+<h3 id="44-p4-2026-07-08">4.4 P4 노출 계층 (2026-07-08 착수)</h3>
+<p>포털·챗봇이 <code>erp_ro</code>/<code>etl_meta</code>를 직접 REST로 조회하지 않도록, public 스키마에 <strong>사내 전용 <code>security_invoker</code> 뷰 6종</strong>을 신설했다: <code>v_erp_sales_monthly</code>·<code>v_erp_purchase_monthly</code>·<code>v_erp_inventory_daily</code>·<code>v_erp_item</code>·<code>v_erp_pur_order</code>·<code>v_erp_data_asof</code>(job별 최신 성공시각). <code>erp_ro</code>·<code>etl_meta</code>는 여전히 REST 비노출이며, 기존 <code>erp_ro</code> RLS(<code>internal_select_*</code>)가 <code>security_invoker</code> 뷰에도 그대로 적용돼 사내 인증 사용자만 통과한다. 챗봇(jeil-chat) Edge Function은 service_role 전용 GRANT로 서버 측에서만 조회한다. 정본 SQL: <code>실제구축준비 자료/이관/sql/08_erp_pub_reporting_views.sql</code>.</p>
+<p><strong>RLS 격리 실측 테스트(2026-07-08)</strong>: JWT 시뮬레이션 결과 — 사내(internal): 정상 조회(매출10·매입63·재고656·품목58,246·발주2,699·기준시각5행), 협력사(vendor): 전부 0행, anon: 미부여로 차단.</p>
+<p>이 위에서 실제 연결도 시작됐다: <code>app/lib/api.js</code>의 <code>erpApi</code>로 <code>pages/구매_거래처별매입집계_2026.html</code> 1개 화면을 파일럿 실연동했고, 챗봇에 ERP Tool 4종(<code>get_erp_sales_monthly</code>·<code>get_erp_purchase_monthly</code>·<code>get_erp_inventory_status</code>·<code>get_erp_item</code>)을 배포했다(version 7 ACTIVE). 유니포인트 협의(P1)·읽기전용 계정 전환·야간배치 자동화·Entra→Supabase 세션 브리지는 여전히 미해결이다. 상세 진행은 <code>02_진행상태.md</code> P4 참조.</p>
+<h3 id="45-2026-07-08">4.5 사용자-부서-사원 매핑·대사 (2026-07-08 신설)</h3>
+<p>ERP <code>Z_USR_MAST_REC</code>(사용자 마스터)의 <code>usr_id</code>(=MS 이메일, SSOT)와 <code>usr_nm</code>(="부서명_이름")을 대사해, <strong>이메일 기준으로 사용자↔부서↔사원 관계</strong>를 중간DB(<code>erp_ro</code>)에서 관리하는 계층을 추가했다. 이는 축 B(포털·챗봇 연계)의 부속 계층으로, 향후 부서 기준 화면 분류·챗봇 응답의 소속 확인 등에 활용할 수 있는 <strong>참고 데이터</strong>다(실제 권한 인가는 여전히 Entra 보안그룹 + RLS가 담당, <code>CLAUDE.md §5</code>).</p>
+<ul>
+<li>대상: <code>USE_YN='Y' AND USR_ID LIKE '%@%'</code> 99건. <code>usr_nm</code> 파싱(부서명_이름) → <code>B_ACCT_DEPT</code>와 대사.</li>
+<li>노출 뷰(사내 전용, security_invoker): <code>public.v_erp_user_dept</code>(정상 매핑)·<code>v_erp_user_dept_recon</code>(대사 불일치 리포트)·<code>v_erp_dept_roster</code>(부서별 명부).</li>
+<li>스키마·뷰·ETL job(<code>usr_master</code>·<code>dept_master</code>)은 구축·적용 완료됐고, <strong>같은 날(2026-07-08) 관리자 직접 실행으로 실적재까지 완료</strong>됐다(<code>usr_master_s</code> 99건·<code>dept_master_s</code> 351건) — 대사 결과 정상 매핑 89건·불일치 10건(부서불일치 6·상태이상 3·테스트 1), 불일치 자동제외 정책 확정. <strong>부서명 4개 처리방침 결정대기는 이 실적재로 해소</strong>됐다(최신 상태는 아래 참조).</li>
+<li>상세는 전용 관리 문서 <a href="/docs/erp/dept-mapping"><code>05_사용자부서_매핑대사.md</code></a> 참조. 정본 SQL: <code>실제구축준비 자료/이관/sql/09_erp_user_dept_mapping.sql</code>. <strong>(2026-09-07 추가)</strong> 이 절의 "EMP_NO·DEPT_CD 컬럼 부재로 부서 정보는 usr_nm 파싱이 유일한 소스"라는 한계는 §4.12(계정 통합관리·대사, REQ-0018)의 인사 미러(<code>hr_emp_s</code>)로 실제 사번·부서 조인이 가능해지며 완화됐다 — 다만 이 절(§4.5)의 부서 대사 로직 자체는 여전히 <code>usr_nm</code> 파싱 방식 그대로다(변경 없음).</li>
+</ul>
+<h3 id="46-erp-2026-07-08">4.6 부서별 ERP 모듈 제안값(참고) (2026-07-08 신설)</h3>
+<p>관리자 콘솔(04)의 '권한 상세' 탭에서 부서별 ERP 모듈 권한(sales/purchase/pur_order/inventory/item)을 편집할 때 참고할 수 있도록, <strong>ERP 역할·메뉴 권한 기반 '제안값'</strong>을 추가했다. <code>Z_USR_MAST_REC_USR_ROLE_ASSO</code>→<code>Z_USR_ROLE_MNU_AUTHZTN_ASSO</code>(MNU_USE_YN='Y')→<code>Z_CO_MAST_MNU</code>(ModuleInitial)를 조인해 사용자별 접근 모듈(ModuleInitial∈SD/MM/IM/MDM)을 <code>erp_ro.usr_erp_module_s</code>로 추출(ETL job <code>usr_erp_module</code>)하고, §4.5의 이메일→부서 매핑(<code>v_user_dept</code>)과 결합해 <strong>부서 과반(≥50%)이 접근하는 모듈</strong>을 <code>erp_ro.v_dept_erp_suggest</code>/<code>public.v_erp_dept_erp_suggest</code>로 산출한다.</p>
+<p><strong>관리자 결정(2026-07-08)</strong>: 이 제안값은 콘솔에 ◆ 참고표시로만 노출하고 <strong>자동 덮어쓰기하지 않는다</strong> — 실질 통제선은 여전히 편집형 <code>dept_erp_scope</code>(업무기준)다. 이유는 실측 소견: 이 조직은 ERP 읽기권한이 광범위(사용자당 평균 17개 역할)해, 부서 과반 임계로 한정해도 거의 모든 부서에 전 모듈이 제안되어 <strong>ERP-역할 신호의 부서 변별력이 약하기 때문</strong>이다(이 실측 결과가 '참고표시만' 결정의 타당성을 뒷받침). 정본 SQL: <code>실제구축준비 자료/이관/sql/12_erp_dept_module_suggest.sql</code>. 실적재 완료(2026-07-08, 397건). 상세 진행은 <code>02_진행상태.md</code> P3·P4, 이슈는 §4 참조.</p>
+<h3 id="47-erp_secure-2026-07-08">4.7 급여 민감권한 강화 + <code>erp_secure</code> — 실적재 완료(집계·인사팀 전용) (2026-07-08 신설, 같은 날 실적재)</h3>
+<p>인사(급여) 집계는 축 B의 가장 민감한 영역(P5)이라, 실 적재보다 <strong>권한 프레임워크와 격리 스키마를 먼저</strong> 갖춘 뒤(승인-준비) 같은 날 관리자 직접 실행으로 <strong>실 데이터 적재까지 완료</strong>했다.</p>
+<ul>
+<li><strong>급여 민감 모듈(라이브)</strong>: 급여를 별도 민감 모듈 <code>payroll</code>로 신설해 <code>dept_erp_scope</code>에 <strong>인사팀만</strong> 부여했다. 인사 페이지(<code>portal_page.hr_2026</code>)는 <code>erp_module='payroll'</code>로 이중 게이트돼, <strong>비인사팀은 URL을 알아도 서버 단(jeil-me)에서 직접 접근이 차단</strong>된다. 관리자 콘솔(04) '권한 상세'는 급여를 ⚠ 민감으로 표시하고 일괄부여·◆ 제안값에서 제외한다(개별 지정만 가능). 정본 SQL: <code>이관/sql/13_payroll_module.sql</code>.</li>
+<li><strong>인사 데모 페이지 안전화(라이브)</strong>: <code>pages/인사_인원급여추이_2026.html</code>의 퇴직정산 표에 있던 개인별 실급여(원단위·"실데이터·A22" 배지)를 <strong>샘플값으로 교체</strong>해 저장소·통합본에 실데이터가 남지 않도록 했고, 급여 요소는 <code>data-sensitive="pay"</code>로 기본 마스킹(blur)한다. 마스킹 해제는 인사팀 권한자에게만 허용하며, 통합본 iframe·미로그인 상태는 게이트와 독립적으로 fail-safe하게 마스킹을 유지한다.</li>
+<li><strong><code>erp_secure</code> 스키마</strong>: 민감 분리 스키마 <code>erp_secure</code>를 신설하고 <code>hr_payroll_m</code>(월별 인원·급여총액·퇴직급여 <strong>집계만</strong> — 개인별 행·주민번호·계좌는 설계상 영구 미포함)과 <code>hr_access_log</code>(조회 감사)를 만들었다. <code>erp_secure</code>는 REST 비노출·service_role 전용(RLS 활성화, <code>authenticated</code> 정책 없음 = 전면 차단)이다. 정본 SQL: <code>이관/sql/14_erp_secure_hr.sql</code>.</li>
+<li><strong>실적재 완료 + 게이트 API <code>jeil-hr</code> 배포(2026-07-08, 관리자 직접 실행)</strong>: ETL job <code>hr_payroll</code>(<code>HDF070T</code> 월×부서 집계·<code>HGA070T</code> 월×전사 집계)을 확정·가동해 <code>erp_secure.hr_payroll_m</code>에 <strong>143행</strong>(급여 월×부서 137 + 퇴직 월×전사 6, 2026.01~06 6개월분)을 적재했다. 컬럼은 <code>ym·dept_nm·headcount·pay_tot_amt·retire_amt</code>뿐 — <strong>개인별·이름·주민번호(RES_NO)·계좌는 포함하지 않는다</strong>(집계만, 퇴직은 부서 breakdown 재식별 위험으로 전사 월별만). 게이트 API <strong><code>jeil-hr</code>(Edge Function) v1</strong>을 배포해 Entra 검증→<code>dept='인사팀'</code>/<code>portal_admin</code>만 통과(그 외 403)→감사 로그(<code>hr_access_log</code>)→<code>hr_payroll_get()</code> 집계 반환 흐름을 갖췄고, service_role 전용 RPC 3종(<code>erp_secure_upsert</code>·<code>hr_payroll_get</code>·<code>hr_access_log_add</code>)을 신설했다. 인사 페이지는 인사팀 권한자에게 이 실 집계 표(월별 인원·급여총액·퇴직)를 보여주고, 비권한자·데모는 여전히 마스킹·샘플 유지. <strong>개인별 급여·주민번호·계좌는 설계상 앞으로도 영구 미연계.</strong></li>
+<li><strong>잔여 게이트</strong>: 자금(F 모듈) 실적재는 인사와 별개로 경영 승인 전 미착수, <code>AI-Portal-HR</code> Entra 보안그룹은 아직 미신설(현재는 <code>dept='인사팀'</code>/<code>portal_admin</code> 판정으로 대체 게이트), 유니포인트와의 재직상태(퇴직 구분 등) 정의 확인은 잔여 항목이다.</li>
+<li><strong>커넥터 검증 결과(2026-07-08)</strong>: 인사 테이블 <code>HAA010T</code>(인사기본)·<code>HDF070T</code>(급여)·<code>HGA070T</code>(퇴직급여)·<code>TH101BA1</code>은 실존이 확인됐고, 실컬럼도 확정됐다(<code>PAY_YYMM</code>·<code>DEPT_NM</code>·<code>PAY_TOT_AMT</code> / <code>RETIRE_DT</code>·<code>RETIRE_AMT</code>) — ETL job <code>hr_payroll</code>에 반영해 실적재까지 완료했다. 다만 <strong>재직상태(퇴직 구분 등) 정의</strong>는 여전히 유니포인트 협의로 확인이 필요하다.</li>
+<li>상세 진행·잔여 게이트는 <code>02_진행상태.md</code> P5 참조.</li>
+</ul>
+<h3 id="48-2026-07-20">4.8 챗봇 권한체계 연결 + 포털 도구 권한 구멍 차단 (2026-07-20 신설)</h3>
+<p>§4.4~4.7에서 권한 체계(<code>dept_erp_scope</code>·<code>payroll</code> 모듈·<code>jeil-hr</code> 게이트)와 인사 집계 실적재는 이미 갖춰져 있었지만, <strong>챗봇(jeil-chat)이 그 체계에 연결돼 있지 않아</strong> 관리자가 챗봇에 인원현황·권한을 물으면 오답이 나오는 문제가 있었다. 이를 메우기 위해 <code>jeil-chat</code>을 <strong>version 18 → 19</strong>로 배포했다.</p>
+<ul>
+<li><strong><code>get_my_access</code>(신규)</strong>: 호출자 본인의 역할(관리자/부서관리자/일반)·소속부서·열람가능 ERP 모듈·접근가능/불가 페이지·권한요청 방법을 반환한다. 호출자 UPN을 고정해 타인 권한을 조회할 수 없고, 전 직원이 사용할 수 있다. 권한 질의는 SYSTEM_PROMPT에서 반드시 이 도구로 실조회하도록 강제했다(추정·역산 금지).</li>
+<li><strong><code>get_hr_headcount</code>(신규)</strong>: 인원현황. 전 직원에게는 월별 전사 총원만, 부서별 인원 분포는 <code>payroll</code> 권한자(인사팀·관리자)에게만 반환한다(급여 금액은 포함하지 않음).</li>
+<li><strong><code>get_hr_payroll</code>(신규)</strong>: 급여 집계(인사팀·관리자 전용). <code>erp_secure</code>는 REST 미노출이므로 기존 <code>jeil-hr</code>와 동일하게 service_role RPC <code>hr_payroll_get</code>을 경유한다. 인사 도구(<code>get_hr_headcount</code>·<code>get_hr_payroll</code>) 접근은 허용·거부 모두 <code>hr_access_log</code>에 감사 기록된다(<code>jeil-hr</code>와 원장 재사용).</li>
+<li><strong>소급 발견 권한 구멍 차단(중요)</strong>: 기존 포털 도구 3종 <code>get_order_summary</code>·<code>get_order_detail</code>·<code>get_inspection_pending</code>이 그동안 <code>ERP_TOOL_MODULE</code> 매핑이 없어 권한 강제 없이 <strong>전 직원에게 협력사 발주번호·금액·납기를 노출</strong>하고 있었다. 이번에 <code>pur_order</code> 모듈 권한으로 강제 적용해 차단했다 — 2026-07-08 v14에서 "ERP 도구 8종을 <code>pur_order</code>로 매핑"한 작업(§4.4)은 ERP 도구 쪽만 대상이었고, 이 포털 도구 3종은 그 매핑에서 빠져 있었다(즉 이 취약점은 그날 이후 계속 실재했다).</li>
+<li><strong>관리자 결정(2026-07-20)</strong>: ①전사 총원은 전 직원 조회 가능, 부서별 인원 분포·급여액은 인사팀·관리자 전용. ②협력사 발주·검사 챗봇 조회 권한은 신규 모듈 신설 대신 기존 <code>pur_order</code> 모듈 권한으로 통합.</li>
+<li><strong>경영 판단 보류(변경 안 함)</strong>: <code>dept_erp_scope</code>가 23개 부서 전부 sales·purchase·inventory·item·pur_order를 동일 보유해 부서별 데이터 차등이 사실상 없다(payroll만 인사팀 단독 차등). 구조는 부서별 차등을 지원하므로 정책 결정만 필요한 상태이며, 이번 작업에선 손대지 않았다(<code>02_진행상태.md</code> §4, <code>00_현재상태_스냅샷.md</code> §6).</li>
+<li>배포는 <code>verify_jwt=false</code> 유지, 배포본이 로컬 소스와 문자 단위 일치 검증됐다. 소스(<code>supabase/functions/jeil-chat/index.ts</code>)는 수정·배포 완료 상태이나 git 커밋은 관리자가 별도로 진행한다.</li>
+<li>상세 진행은 <code>02_진행상태.md</code> P4·P5 참조.</li>
+</ul>
+<h3 id="49-10-2026-07-21">4.9 연동 현황 뷰 10종 전체 노출 + 관리자 콘솔 반영 (2026-07-21 신설)</h3>
+<p>연동 현황을 사내 사용자·관리자가 확인하는 화면 <code>app/erp-status.html</code>과 그 원천 뷰 <code>public.v_erp_sync_overview</code>는 이미 가동 중이었으나, 지금까지 본 관제 문서에는 등재되지 않은 채 운영되고 있었다(문서화 공백 — 이번에 소급 등재).</p>
+<ul>
+<li><strong>가시성 격차 발견</strong>: 이 뷰가 1차 5종(발주·품목·매출·매입·재고)만 노출하고 있었는데, 실제 <code>erp_ro</code>/<code>erp_secure</code>에는 §4.5~4.8에서 이미 실적재를 마친 <strong>10종</strong>(추가 5종: 구매요청 <code>pur_req</code>·부서마스터 <code>dept_master</code>·사용자마스터 <code>usr_master</code>·부서별 ERP모듈 <code>usr_erp_module</code>·급여집계 <code>hr_payroll</code>)이 있어, 연동 자산의 절반이 이 현황 화면에서 보이지 않았다.</li>
+<li><strong>뷰 확장</strong>: 마이그레이션 <code>erp_sync_overview_all_sources</code>로 <code>v_erp_sync_overview</code>를 10종 전체로 확장하고, <code>sensitive</code>(민감 표시)·<code>sort</code>(정렬) 컬럼을 추가했다. 급여(<code>hr_payroll</code>)는 <code>erp_secure</code> 민감 스키마이므로 <strong>실테이블을 count하지 않고 <code>etl_meta.batch_run.rows_upserted</code>만 사용</strong>해 금액·명세를 노출하지 않는다. 발주 원천 표기를 실제 조인 기준(<code>M_PUR_ORD_HDR + M_PUR_ORD_DTL</code>)으로 정정했다. <code>security_invoker=true</code>는 유지되며 사내(internal) 세션만 조회 가능하다(RLS 상속, 변화 없음).</li>
+<li><strong>관리자 콘솔 반영</strong>: <code>jeil-chat-admin</code>을 <strong>version 9 → 10</strong>으로 배포해 이 뷰를 service_role로 조회한 결과를 응답 <code>erp_sync</code>로 반환하고, <code>04_챗봇_포털_데모UI.html</code> 관리자 콘솔 'API' 탭에 실데이터 표를 신설했다(기존엔 '사내 운영 페이지' 카드 링크로만 접근 가능했음).</li>
+<li><strong>연결 정보 명세</strong>: <code>app/erp-status.html</code>에 연결 정보 표를 추가해 원천(UNIERP MS SQL, 사외 IDC, DB <code>JEILMNS</code>)·접속 방식(ODBC 읽기전용, <code>SELECT … WITH (NOLOCK)</code>, 화이트리스트 SQL, DDL/DML 없음)·적재 경로(<code>10_ERP_DB연계/etl/etl_run.py</code> → RPC <code>erp_etl_upsert</code>/민감분 <code>erp_secure_upsert</code> → <code>erp_ro</code>/<code>erp_secure</code>)·실행 방식(<strong>수동 실행</strong>, 자동 스케줄러 미도입, 이력은 <code>etl_meta.batch_run</code>)·접속정보 보관(실행환경 <code>.env</code>에만, 소스·문서 미기재)·데이터 격리(RLS, 협력사·anon 0행)를 명시했다. 비밀값(서버 IP·계정·비밀번호)은 어디에도 기재하지 않았다.</li>
+<li><strong>현재 적재 실측(2026-07-21)</strong>은 <code>00_현재상태_스냅샷.md</code> §4, 재적재 이력 추적 공백은 <code>02_진행상태.md</code> §4 참조.</li>
+</ul>
+<h3 id="410-iv_dtl-2026-07-21">4.10 매입 상세(<code>iv_dtl</code>) 신규 연동 + 구매요청 상세 백필 — 실적재 완료 (2026-07-21 신설)</h3>
+<p>같은 날 오전(§4.9와 별개 작업)에 <code>erp_ro.table_dict</code>(테이블 사전) 실측으로 두 가지가 확인됐다: ①<code>M_PUR_REQ</code>는 HDR/DTL 분리가 없는 <strong>라인 단위 단일 테이블</strong>(49컬럼·63,423행)이라 "DTL 반영"은 미적재 상세 컬럼을 채우는 <strong>백필</strong>로 해석해야 한다는 점(원천에 단가·금액 컬럼이 없어 구매요청 금액은 여전히 연결 발주 기준이라는 기존 원칙 유지), ②<code>M_IV_DTL</code>(52,478행·66컬럼)이 실재하는데 그동안 <code>M_IV_HDR</code> 월집계(<code>purchase_m</code>)만 적재해 "무엇을·얼마에" 매입했는지 라인 단위로 확인할 수 없었다는 점. 이를 메우기 위해 스키마·ETL·뷰를 신설했다 — <code>erp_ro.iv_dtl_s</code>(PK <code>iv_no+iv_seq_no</code>, 품목·수량·단가·금액·부가세 + <strong>발주 연결키 <code>po_no</code>/<code>po_seq_no</code></strong>·<strong>입고 연결키 <code>mvmt_no</code></strong>, RLS ON+<code>internal_select_iv_dtl</code>), <code>pur_req_s</code>에 조달구분(<code>procure_type</code>)·확정/릴리즈수량·구매그룹/조직·저장위치·수주라인·도면번호·추적번호·변경차수·MRP오더·생성/수정자 <strong>14컬럼 추가</strong>, 노출 뷰 <code>v_erp_iv_dtl</code>·<code>v_erp_iv_dtl_monthly</code>(월×품목 집계) 신설(<code>v_erp_pur_req</code>는 기존 컬럼·순서 보존한 채 상세 컬럼만 append), <code>erp_etl_upsert</code> 화이트리스트에 두 대상 추가, ETL job <code>iv_dtl</code>(증분 <code>UPDT_DT</code> 지원) 신설·<code>pur_req</code> SQL 확충. 이 단계에서는 <strong>적재는 관리자 실행 대기</strong>였다(<code>00_관리체계/03_변경관리_CHANGELOG</code> 2026-07-21 첫 줄 참조).</p>
+<p><strong>같은 날 오후, 관리자가 위 준비분을 직접 실행해 실적재까지 완료</strong>했다(<code>batch_run</code> 7건 성공·0건 실패). <code>iv_dtl</code>: 2026-01-05~07-20 구간 <strong>1,981행</strong>(0.9초) — 송장 213건·발주 432건, 매입금액 합계 <strong>35.6억원</strong>, 발주 연결(<code>po_no</code>) <strong>100%</strong>(발주 미연결 36건은 과거 발주로 추정되는 데이터 품질 참고 항목, 임의 조치 없음). <code>pur_req</code> 상세 백필: <code>--full</code> <strong>4,063행</strong>(2.1초) — 조달구분 채움 99.98%(미채움 1건은 ERP 원천 <code>PROCURE_TYPE</code> NULL), 도면번호 보유 856건.</p>
+<p><strong>부수적으로 발견·해소된 정합성 이슈</strong>: 신규 적재한 매입 상세를 기존 월집계(<code>purchase_m</code>)와 대사하니 6월 +19.2억원·7월 +1.5억원 차이가 나타났다(1~5월은 완전 일치). 원인은 데이터 오류가 아니라 <strong>적재 시점 차이</strong>(2026-07-08 문서화 이후 ERP에 새로 등록된 매입 건이 월집계에 미반영)였다 — 관리자가 <code>purchase --full</code>(151행)·<code>pur_order</code>(증분, 512행)·<code>sales</code>(37행)·<code>item_master</code>(증분, 415행)·<code>inventory</code>(1,847행)를 재적재해 <strong>매입 대사 차이를 전월 0으로 해소</strong>했다(매핑·로직 정상 검증). <code>hr_payroll</code>(민감)은 별도 승인 사항이라 이번 재적재에서 제외했다(2026-07-08 143행 유지).</p>
+<p>상세 진행은 <code>02_진행상태.md</code> §1·§2 P3, 현재 적재 실측·이슈는 <code>00_현재상태_스냅샷.md</code> §1·§4·§6 참조.</p>
+<h3 id="411-vendor_master-erp-bp_master-2026-07-22-2026-07-24">4.11 협력사 거래처마스터(<code>vendor_master</code>) 재적재·정합화 + ERP 거래처마스터 원천 연동(<code>bp_master</code>) — 준비(2026-07-22) → 실적재 완료(2026-07-24)</h3>
+<p>사용자 제보(협력사 정보 화면 <code>app/admin-vendors.html</code>에서 발주거래처가 보이지 않음)를 조사한 결과 두 가지 결함이 발견됐다. ①포털 <code>public.vendor_master</code>가 초기 데모 시드 <strong>17개사</strong>에 머물러 있어 ERP 실제 발주거래처 <strong>103개사 중 87개사가 미등록</strong>이었다. ②기존 17건의 사업자번호는 <strong>거래처코드 뒤3자리-81-임의5자리 패턴으로 생성된 가짜 값</strong>(실제 사업자등록번호 아님)이었다.</p>
+<ul>
+<li><strong><code>vendor_master</code> 재적재</strong>: 발주 103·매입·매입상세 합집합 기준 <strong>109개사</strong>로 재적재, 거래처명 5건을 ERP 최신 실적 기준으로 교정(예 "(주)대신스텐레스_" → "주식회사 대신스텐레스"). 발급 계정 4건 무영향·고아 0건 확인. 가짜 사업자번호 17건은 제거(NULL) — ERP 거래처마스터 연계 전까지 공란 유지가 정책이다.</li>
+<li><strong>ERP 거래처마스터 원천 연동(<code>bp_master</code>) 신설</strong>: ERP <code>B_BIZ_PARTNER</code>(4,621건) 복제용 <code>erp_ro.bp_master_s</code>를 신설했다(RLS internal+authenticated SELECT, 기존 <code>erp_ro</code> 테이블과 동일 규약). <strong>대표자주민등록번호(REPRE_RGST_NO/_PRVC)·은행계좌번호(BANK_ACCT_NO*)는 개인정보·금융정보 최소수집 원칙에 따라 적재 대상에서 의도적으로 제외</strong>했다. 적재 컬럼: <code>bp_cd·bp_nm·bp_full_nm·biz_no·repre_nm·bp_type·bp_group·in_out_flag·tel_no·fax_no·email·zip_cd·addr1·addr2·bp_prsn_nm·bp_contact_pt·use_yn</code>. <code>erp_etl_upsert</code> RPC 화이트리스트에 <code>bp_master_s</code> 분기를 추가(기존 분기 전부 보존 확인)하고, <code>10_ERP_DB연계/etl/etl_run.py</code>에 신규 ETL job <code>bp_master</code>(전량 적재, 증분은 <code>UPDT_DT</code> 기준)를 추가했다.</li>
+<li><strong>관리자 전용 동기화 RPC</strong>: <code>public.vendor_master_sync()</code>를 신설했다 — 관리자 전용(비관리자 42501 차단 검증 완료), 멱등(재실행 시 변경 0건 검증). 원천 우선순위는 <strong>ERP 거래처마스터 → 발주·매입 실적</strong>이며, 관리자 화면(<code>app/admin-vendors.html</code>)에 <strong>"🔄 거래처 동기화" 버튼</strong>을 추가해 <code>bp_master</code> 적재 이후 이 버튼으로 <code>vendor_master</code>에 반영할 수 있게 했다.</li>
+<li><strong>부수 효과</strong>: <code>vendor_master</code>를 공유하는 협력사 모바일 포털(<code>pages/협력사_모바일_포털.html</code>)에서 거래처명이 코드로 표시되던 87개사도 정상 표기되며, 계정발급 Edge Function(<code>vendor-provision</code>·<code>approve-vendor</code>)도 동일 원천을 사용한다.</li>
+<li><strong>라이브 검증</strong>(ai.jeilm.co.kr): 109개사·계정 4건 표시, 거래처명 교정 반영 확인(커밋 <code>c11d632</code>).</li>
+<li><strong><code>bp_master</code> job 실적재 완료(2026-07-24 추가)</strong>: 준비 당시(2026-07-22)엔 ODBC 접속이 필요해 미실행이었으나, 2026-07-24 야간배치 수동 실행에서 관리자가 직접 실행했다. <strong>최초 시도는 HTTP 400(PostgreSQL 42601 "INSERT has more target columns than expressions")으로 실패</strong> — 원인은 <code>erp_etl_upsert</code>의 <code>bp_master_s</code> 분기에서 주민번호 마스킹 case식 뒤 인라인 <code>--</code> 주석이 같은 줄의 <code>x.repre_nm, x.bp_type, x.bp_group</code> 3개 값을 통째로 주석 처리해 INSERT 대상 컬럼 20 vs 값 17이 어긋난 것(2026-07-22 최초 4,649행 적재는 이 마스킹 코드 이전 버전이라 성공, 이후 회귀). 주석을 세 컬럼 뒤로 옮겨 함수를 재생성(마스킹 기능 동일, 로컬 기록 <code>실제구축준비 자료/이관/sql/20_erp_etl_upsert_bp_master_fix.sql</code>)한 뒤 재실행해 <strong>3/3 성공</strong>(2026-07-22 최초 4,649행 위 증분). "거래처 동기화" 버튼으로 <code>vendor_master</code>에 실제 사업자등록번호·대표자명·연락처를 반영할지는 여전히 관리자 선택 사항이다.</li>
+<li>상세 진행은 <code>02_진행상태.md</code> §1·§2 P3·P4, 결과 반영은 <code>00_현재상태_스냅샷.md</code> §1·§4·§5·§6·§7 참조.</li>
+</ul>
+<h3 id="412-req-0018-erp-haa010t-2026-09-07">4.12 계정 통합관리·대사(REQ-0018) — ERP 계정 정본 + 인사(HAA010T) 서브 (2026-09-07 신설, 구축·실적재 완료)</h3>
+<p>§4.5(사용자-부서 매핑)가 <code>usr_nm</code> 텍스트 파싱만으로 부서를 추정하던 것과 별개로, ERP 계정·인사·그룹웨어·MS(Entra) <strong>네 원천을 이메일 공통키로 대사</strong>하는 계층을 신설했다. <strong>관리자 지시로 정본/서브 방향을 명시적으로 결정</strong>했다 — 목적이 "계정 관리"이므로 <strong>ERP 계정(<code>Z_USR_MAST_REC</code>, <code>usr_id</code>=이메일)이 정본</strong>이고 <strong>인사마스터(<code>HAA010T</code>)는 그 계정에 딸린 서브</strong>다(반대 방향, 즉 인사를 정본으로 삼는 설계는 채택하지 않았다).</p>
+<ul>
+<li><strong>인사 원천 실측</strong>: <code>HAA010T</code> 745행(PK <code>EMP_NO</code> 단일), 재직(<code>RETIRE_DT IS NULL</code>) 96명. <strong><code>RE_ENTR_DT</code>(재입사일) 컬럼이 745행 전부 공백</strong> — 이 조직에서 재입사는 그 컬럼이 아니라 <strong>새 사번 발급</strong>으로 표현됨을 확정(같은 이메일에 사번 2건=재입사 10명).</li>
+<li><strong>연결키 결정</strong>: 이메일 직결 88/94(93.6%) vs 부서+이름 매칭 85/94(90.4%) 비교 — 부서+이름이 추가로 건지는 인원 0명, 후보 2건 이상 특정불가 8명, 두 방식이 다른 사번을 가리키는 사례 0건. <strong>이메일을 키로, 부서+이름은 검증 표시로만</strong> 사용하기로 확정.</li>
+<li><strong>미러 정합 결함 발견·해소</strong>: 기존 <code>usr_master</code> ETL job이 증분(<code>USE_YN='Y' AND UPDT_DT&gt;=워터마크</code>)이라 ERP에서 비활성화된 계정이 재조회·삭제 모두 안 돼 미러 101건 vs 원천 94건으로 어긋나 있던 것을 발견 — 정합(reconcile) 로직 신설로 <strong>비활성 7건 표시</strong>(삭제 아님) 처리.</li>
+<li><strong>구현</strong>: 마이그레이션 4건(<code>identity_accounts_tables</code>·<code>identity_accounts_views</code>·<code>identity_accounts_rpc</code>·<code>account_recon_retired_history</code>, 정본 SQL <code>실제구축준비 자료/이관/sql/34_identity_accounts.sql</code>). 신규 테이블 <code>erp_ro.hr_emp_s</code>(인사 미러, <strong>745행</strong>)·<code>erp_ro.usr_role_s</code>(역할 배정, <strong>1,723행</strong>)·<code>public.acct_groupware</code>·<code>public.acct_ms</code>(둘 다 0행, 수집 대기), <code>erp_ro.usr_master_s.deactivated_at</code> 컬럼 추가. 신규 뷰 <code>erp_ro.v_hr_by_email</code>·<code>public.v_account_identity</code>(계정 정본+인사 서브)·<code>public.v_account_recon</code>(4축 대사). 신규 RPC 3종(<code>erp_identity_upsert</code>·<code>erp_usr_master_reconcile</code>·<code>account_recon_get</code>, service_role 전용). 신규 ETL job 2종(<code>hr_emp</code>·<code>usr_role</code>) + <code>usr_master</code> job 정합 후처리.</li>
+<li><strong>게이트 API·화면</strong>: Edge Function <strong><code>jeil-accounts</code> v1 ACTIVE</strong>(<code>verify_jwt=false</code>, Graph <code>/me</code> 재검증 + <code>portal_admin</code> 관리자 검증, 무토큰·위조토큰 401 실측). 화면 <code>app/admin-accounts.html</code>(<code>/admin/accounts</code>) — 대사·ERP계정·인사·그룹웨어·MS 5탭, 관리자 콘솔 카드 연결.</li>
+<li><strong>대사 결과(102명 기준)</strong>: 정상 83 · 계정없음 8(인사 재직인데 ERP 계정 없음) · 인사없음 6(계정만 있음) · 부서표기불일치 3 · 권한미등록 1 · 재입사 1. 이력: 퇴사이력 514 · 계정비활성 7.</li>
+<li><strong>보안</strong>: <code>erp_ro</code> REST 비노출 유지(화면은 RPC 경유만), 신규 테이블 4종 전부 RLS ON·정책 0개·anon/authenticated 회수. 인사에서 주민번호·주소·연락처·급여(호봉)·<code>CARD_ID</code>는 추출하지 않음(<code>CLAUDE.md §1.7</code>).</li>
+<li><strong>미결(사람 작업)</strong>: ①그룹웨어(ONUL Ware) 수집 경로 — 관리자가 조회용 뷰테이블 접속 정보 제공 예정(미기재). ②MS(Entra) 응용 권한 <code>User.Read.All</code>+테넌트 관리자 동의 필요(현재 위임 <code>User.Read</code>뿐). ③<code>HAA010T.ENTR_CD</code>(입사구분) 코드 의미 — 유니포인트 확인 대상.</li>
+<li>05 문서(부서 대사)와의 관계: <a href="/docs/erp/dept-mapping"><code>05_사용자부서_매핑대사.md</code></a> 참조(주제·키는 겹치나 대사 대상이 다름 — 05는 부서, 본 절은 계정+인사). 상세 진행은 <code>02_진행상태.md</code> §2 P3·§3, 결과 반영은 <code>00_현재상태_스냅샷.md</code> §1·§4·§5·§6·§7 참조.</li>
+</ul>
+<h3 id="413-erp-req-0077-2026-09-23">4.13 비ERP 원천(사람이 관리하는 엑셀 원장) 연동 패턴 — 구매 기안서 대장(REQ-0077, 2026-09-23 신설)</h3>
+<p>지금까지 §4.1~§4.12는 전부 ERP(UNIERP MSSQL)를 원천으로 하는 연동이었다. 구매 기안서 대장은 <strong>원천 자체가 ERP가 아닌 첫 사례</strong>다 — 구매팀이 손으로 관리하는 Teams(SharePoint) 엑셀 <code>기안서 목록대장(2026).xlsx</code>가 원천이고, ERP에는 결의전표(<code>TG…</code>)·매입전표(<code>IV…</code>) 번호만 참조로 남는다. 이 차이 때문에 적재 방식도 ERP 연동과 갈라진다.</p>
+<ul>
+<li><strong>적재 대상 분리</strong>: ERP 미러는 <code>erp_ro</code>(사내 전용, REST 비노출)에 두지만, 엑셀 원장은 <strong>포털 전용 <code>public</code></strong> 스키마에 바로 둔다(<code>public.pur_proposal</code>·<code>public.pur_proposal_scan</code>) — ERP 규약을 그대로 적용하면 오히려 "ERP에서 온 데이터"로 오인될 수 있어서다.</li>
+<li><strong>적재 방식 분리</strong>: ERP job은 <code>UPDT_DT</code> 워터마크 증분이 표준이지만, 사람이 관리하는 엑셀은 <strong>행이 통째로 사라질 수 있어 전량 교체가 기본</strong>이다(RPC <code>pur_proposal_upsert</code>/<code>pur_proposal_scan_upsert</code>가 매회 전량 갈아끼움). 함정 2건을 겪었다 — Supabase가 <code>WHERE</code> 없는 <code>DELETE</code>를 21000으로 막아 <code>delete … where true</code>로 우회했고, 뷰 컬럼을 늘릴 때 <code>create or replace view</code>가 42P16으로 막혀 <code>drop → create</code>가 필요했다.</li>
+<li><strong>읽기 형식은 ERP 도구를 재사용</strong>: 파서(<code>10_ERP_DB연계/etl/proposal_ledger.py</code>)는 외부 라이브러리 없이 zipfile+xml로 xlsx를 직접 읽는다(ETL 실행 호스트에 openpyxl이 없는 것을 고려). 러너 편입도 ERP job과 동일한 틀(<code>jeil_runner proposal</code> 서브커맨드, <code>JOB_KINDS</code>의 <code>proposal_ledger</code>)을 그대로 썼다 — 사람이 보는 창구(관리 콘솔·데이터 업데이트 흐름)를 원천별로 나누지 않기 위해서다. 원천 파일 경로가 없는 호스트는 조용히 건너뛰지 않고 사유를 남기고 실패한다(<code>CLAUDE.md §17.6</code>).</li>
+<li><strong>다음 단계 후보</strong>: 대장의 전표번호(<code>TG…</code>·<code>IV…</code>)를 ERP 결의전표/매입전표 미러(§4.5 이후 구축된 <code>gl_slip_s</code>·<code>iv_dtl_s</code>)와 대사하면, "대장에는 있는데 ERP엔 없는 건"을 자동으로 잡아낼 수 있다 — 이 경우 처음으로 <strong>비ERP 원장과 ERP 미러를 교차 대사</strong>하는 사례가 된다. 착수 여부는 결정 대기(<code>00_현재상태_스냅샷.md §6</code>).</li>
+<li>상세 진행은 <code>02_진행상태.md</code> §2 P3·§3, 결과 반영은 <code>00_현재상태_스냅샷.md §1·§4·§6·§7</code> 참조. 정본 SQL <code>실제구축준비 자료/이관/sql/68_pur_proposal_ledger.sql</code>(+<code>_rollback</code>).</li>
+</ul>
+<h3 id="414-erp-1-req-0081-c-15-2026-09-23">4.14 기안서 대장 ↔ ERP 전표·전자세금계산서 대사 — 1단계 배포(REQ-0081, 결정 C-15, 2026-09-23 신설)</h3>
+<p>§4.13에서 연동한 기안서 대장(엑셀 원장)이 §4.5 이후 구축된 <strong>ERP 전표 미러</strong>(결의전표 <code>gl_slip_s</code>/<code>gl_slip_item_s</code>/<code>gl_slip_ctrl_s</code>, C-10 통제)와 처음으로 교차 대사됐다 — §4.13이 예고했던 "다음 단계 후보"를 같은 날 바로 실행한 것이다. 대장은 구매팀이 손으로 적은 전표번호(<code>TG…</code>결의전표·<code>IV…</code>매입)를 갖고 있었지만, 그 전표가 ERP에 실제로 있는지·금액이 맞는지·세금계산서가 났는지는 화면에서 확인할 수 없었다.</p>
+<ul>
+<li><strong>추가 ETL은 없다</strong> — 이미 실적재된 결의전표 미러·매입 상세(<code>iv_dtl_s</code>)·거래처마스터(<code>bp_master_s</code>)·계정마스터(<code>acct_master_s</code>)·관리항목참조(<code>ctrl_ref_s</code>)만 읽는다. 이 점에서 §4.13이 말한 "비ERP 원장과 ERP 미러를 교차 대사하는 첫 사례"가 실현됐다.</li>
+<li><strong>설계를 바꾼 실측 넷</strong>: ①전표칸 한 칸에 전표가 여러 개(개행·슬래시·쉼표·화살표·탭, 944칸→977토큰) — 구분자를 열거하지 않고 토큰 패턴으로 추출(미파싱 0) ②<code>IV…</code>는 매입번호이고 그 매입의 결의전표는 <code>gl_slip_s.ref_no</code>로 붙는다(AP 전표 337건 전부, 저장소에 없던 사실) — 매입을 전표로 승격시켜 대사 축을 하나로 통일 ③<strong>거래처는 전표가 확정한다</strong>(대장 참조 전표 491종 중 490=99.8% 단일 거래처) — 업체명을 조인 키로 쓰면 오분류돼 경고 플래그로 강등 ④대사 축은 전표 총액이 아니라 <strong>세금계산서 공급가액(V1)</strong>(전표 총액 비교는 정확일치 0건, 한 전표에 여러 기안 공유 최대 10건).</li>
+<li><strong>결과(944칸)</strong>: 일치 575·합산분할 295·확인필요 50·전표없음 10·계산서없음 8·세액차 1·미기재 5 → <strong>연결률 98.4%</strong>. 목록 RPC 149ms.</li>
+<li><strong>구현</strong>: 정본 SQL <code>실제구축준비 자료/이관/sql/70_pur_proposal_recon.sql</code>(+<code>_rollback</code>) — 수동 거래처 매핑표 <code>pur_proposal_vendor_map</code>·자동 매칭 뷰 <code>v_pur_proposal_vendor</code>(132/138=95.7%)·건 상세 조회 감사로그 <code>pur_proposal_recon_log</code>(목록 조회는 기록하지 않음)·인덱스 4종·definer RPC 2종(<code>proposal_recon_list</code>·<code>proposal_recon_detail</code>). 화면은 <code>app/lib/api.js</code>의 <code>proposalRecon()</code>·<code>proposalReconDetail()</code>로 호출.</li>
+<li><strong>보안 — 결정 C-15</strong>: 결의전표 미러(<code>gl_slip_*</code>)는 service_role 전용 + 「본인 전표만」(C-10 통제②)으로 잠겨 있다. 이번엔 <strong>대장이 적은 전표번호로 지목된 전표만</strong> 읽기 전용으로 열었다 — <strong>전표 전문 검색·목록 조회는 열지 않는다.</strong> 노출 면적은 대장이 적은 499종뿐이고, 권한은 RPC 안에서 <code>is_internal()</code> + <code>perm_effective</code> 페이지 권한으로 재판정한다.</li>
+<li><strong>전자세금계산서 1단(완료)</strong>: 전표 관리항목 <code>V1</code>(공급가액)·<code>V2</code>(계산서일)·<code>V4</code>(유형, <code>ctrl_ref_s</code>로 코드명)·<code>V5</code>(신고사업장)·<code>V8</code>(부가세)·<code>V11</code>(전자발행 Y/N)을 활용 — 대장 참조 전표 440종 중 425(96.6%) 보유.</li>
+<li><strong>2단계(별건, 미착수)</strong>: ERP <code>A_TS_ETAX_MASTER</code>(13,201행·42컬럼 — <code>APRV_NO</code> 국세청 승인번호·<code>ISSUE_DATE</code>·<code>WRITE_DATE</code>·<code>SUP_BUSI_NO</code>·<code>SUP_AMT</code>·<code>VAT_AMT</code> 등)가 발견됐으나 <strong>전표에 직결되는 키가 원천에 없다</strong>(PK는 <code>ETAX_ID</code> GUID) — 사업자번호+작성일자+공급가액 복합키 추정이 필요해 <strong>표본 조사가 선행돼야 하고, 결과가 나오기 전에는 일정을 약속하지 않는다</strong>. 적재 시 이메일·주소·대표자명은 제외할 계획이다(<code>bp_master</code> 최소수집 선례). <code>A_GL</code>/<code>A_GL_ITEM</code>(전기된 정식 전표) 확장은 이번 대사에 필요 없었고 여전히 범위 밖이다(오히려 범위 제한을 유지할 근거가 됐다).</li>
+<li><strong>한계</strong>: 2024·2025년 전표 5건은 ETL <code>TARGET_YEAR=2026</code> 범위 밖이라 미러에 없어 화면은 「조회연도 밖」으로 표시하고, ETL 연도 확대는 하지 않았다(관리자 3경로 서버 배포 부담 대비 실익 없음, <code>CLAUDE.md §17.5</code>).</li>
+<li><strong>채번 정정</strong>: 배포 커밋 <code>9a70e4c</code> 메시지는 REQ-0079로 적혀 있으나 그 번호는 이미 다른 세션(관리체계 단일파일 전달본, 커밋 <code>d2f9b85</code>)이 먼저 썼다 — <strong>정정된 번호는 REQ-0081</strong>이다(백로그에 정정 기록, REQ-0073 때와 같은 처리). 같은 날 배포된 별건 핫픽스 <code>96e52e2</code>(<code>pur_goods_mvmt</code> 전용 RPC 인자 규약 정정)도 REQ-0081으로 표기돼 있으나 본 대사와 무관한 별개 작업이다.</li>
+<li>상세 진행은 <code>02_진행상태.md</code> §1·§2 P4·§3·§4, 결과 반영은 <code>00_현재상태_스냅샷.md §1·§4·§6·§7</code> 참조.</li>
+</ul>
+<h3 id="415-e-req-0082-2026-09-23">4.15 국세청(e세로) 전자세금계산서·부가세 원장 미러 — REQ-0082, 실배포 (2026-09-23 신설)</h3>
+<p>§4.14가 미착수로 남겨 뒀던 2단계(<code>A_TS_ETAX_MASTER</code> 표본조사)를 같은 날 저녁 관리자 지시로 착수해 배포까지 완료했다. 관리자가 ERP 메뉴 <code>전자금융CMS(CM) &gt; 홈택스(Vat)(CM9)</code> 아래 세 화면(전자세금계산서내역조회(홈택스) CM902M1·전자세금계산서조회(S) CM903M1_KO174·<strong>ERP자료대사(S) CM903M2_KO174</strong>)을 지목해 검토·적용을 지시했고, ERP 저장프로시저 <code>USP_CREATE_ETAX_REP</code> 로직을 그대로 재현해 국세청(e세로)과 ERP 두 축을 확정했다.</p>
+<ul>
+<li><strong>확정된 두 축</strong>(화면 수치 오차 0, 조건: 작성일 2026-09-01~23·매입·신고사업장 124-81-14298): e세로 <code>A_TS_ETAX_MASTER</code>(<code>SAPU_TYPE='I'</code>) 75매·792,279,874원·79,129,442원 vs ERP <code>A_VAT</code>(뷰 <code>AV_A_VAT_ETAX</code>) 73매·709,085,382원·70,837,992원.</li>
+<li><strong>조사에서 뒤집힌 전제 셋</strong>: ①전표 관리항목(V1·V8·V5)으로 센 금액은 매수는 맞아도(73건) <strong>금액이 0.09% 틀린다</strong> — <code>A_VAT</code>가 정본. ②<code>A_VAT</code>이 세금계산서↔결의전표를 <code>TEMP_GL_NO</code>·<code>GL_NO</code> 컬럼으로 직결한다(<code>A_TS_ETAX_MASTER</code> 42컬럼엔 전표번호가 없다, 확장슬롯에도 없음을 값으로 확인) — 국세청 승인번호↔전표는 <strong>구분+작성일+상대사업자번호+공급가액 4축 매칭</strong>. ③<code>A_VAT</code> 전량이 아니라 <code>B_TAX_BIZ_AREA</code>(신고사업장)·<code>B_CONFIGURATION</code>(<code>MAJOR_CD='B9001'</code>·<code>SEQ_NO in (3,4)</code>·<code>REFERENCE='Y'</code>) INNER JOIN + <code>ISSUE_DT_FG='Y'</code> 조건을 복제해야 뷰와 일치(2026년 원본 1,783→뷰 1,760). <code>A_VAT.OWN_RGST_NO</code>는 <strong>거래처(상대방) 사업자번호</strong>이며 우리 사업자번호는 <code>B_TAX_BIZ_AREA.OWN_RGST_NO</code>에서 온다(뷰 정의로 확인. 뷰 1열 <code>ERP_TAX_ID</code>는 <code>NEWID()</code>라 호출할 때마다 바뀌어 키로 쓰면 안 됨 — 유일키는 <code>VAT_NO</code>).</li>
+<li><strong>미러</strong>: <code>erp_ro.etax_master_s</code>(PK <code>etax_id</code>, 2026년 1,748행)·<code>erp_ro.vat_s</code>(PK <code>vat_no</code>, 2026년 1,760행) — 경계는 <code>erp_ro.gl_slip_*</code>과 동일(RLS ON·정책 0개·anon/authenticated 회수·service_role 전용, 화면은 definer RPC로만 진입, 사내 여부 + 페이지 권한 재판정). 적재는 전용 RPC <code>erp_vat_upsert</code>(공용 <code>erp_master_upsert</code>는 무수정, <code>erp_secure_upsert</code>와 같은 분리 패턴). <strong>미적재(민감)</strong>: 대표자명(<code>SUP_CEO_NAME</code>·<code>BUY_CEO_NAME</code>)·이메일(<code>SUP_EMAIL</code>·<code>BUY_EMAIL1/2</code>)·주소(<code>ADDR</code>·<code>ADDR1</code>)·신용카드번호(<code>CREDIT_CD</code>)·현금영수증번호(<code>CASH_NO</code>) — 추출 SQL에서 아예 뽑지 않는다.</li>
+<li><strong>ETL·러너</strong>: job 2종(<code>etax_master</code>·<code>vat_ledger</code>, <code>etax_master</code>는 <code>WRITE_DATE</code>가 <code>nvarchar(8)</code>이라 신규 <code>ymd_start</code>/<code>ymd_end</code>(<code>'YYYYMMDD'</code> 문자열) 파라미터 사용). 증분키는 각각 <code>UPDT_DT</code>(둘 다 현재 NULL 0건). 러너 <strong>r1.6→r1.7</strong> 재빌드(<code>--help</code>로 신규 job 2종 실물 확인) + <code>deploy/_sync_relay.py</code>로 전달 폴더 동기화 완료. 신규 테이블이라 <strong><code>--full</code> 백필 불필요</strong>, <strong>서버 실행본 교체는 관리자 대기</strong>(§17).</li>
+<li><strong>화면</strong>: §4.14의 대사 화면(<code>pages/구매_기안서대장_2026.html</code>) 행 상세 계산서 섹션이 부가세 원장 기준으로 전환되며 국세청 승인번호·발급일·전송일·발급수단·품목이 함께 뜬다. 원장에 없는 전표는 §4.14의 기존 관리항목 표시로 폴백한다(RPC <code>proposal_recon_detail</code> 갱신, 정본 SQL 70에 반영).</li>
+<li><strong>대사 실측</strong>: 계산서 1,760건 전부(100%) 결의전표번호 보유(추정이 아니다), 계산서→e세로 4축 매칭 1,728/1,760(98.2%). §4.14의 기안서 대장이 참조한 전표 498종 중 477종에 계산서가 있고 그 478칸 전부 국세청 승인번호 확보(100%). 성능: 행 상세 30건 302ms·목록 1회 158ms.</li>
+<li><strong>불부합 2매(75 vs 73)의 정체</strong>: ①(주)인텍어드밴스 487-87-00678·2026-09-21·8,250,000원(7,500,000+750,000) — e세로에만 있고 ERP 전표가 없다(같은 거래처 2026년 26건 중 25건은 정상 대응 → 최근 발급건 회계처리 전 시차로 판단). ②(주)에스원 이천 208-81-13302 — e세로 11매 vs ERP 10매(e세로 쪽 수정(취소 −187,000/재발행 +187,000) 쌍이 순액 0으로 상쇄돼 있는데 ERP 쪽은 한쪽만 반영, 건별 대사는 미확인). 거래처 단위로 보면 위 2건 외에도 양방향 불일치가 10곳 이상 더 있다 — 헤더 합계(75 vs 73)는 그 상쇄된 순액이다.</li>
+<li><strong>미확인(유니포인트 협의 후보)</strong>: CM903M2 화면 하단의 건별 「e세로 발급번호↔ERP 전표번호」 매칭 로직이 어디서 채워지는지 찾지 못했다 — 프로시저 <code>usp_acc_create_etax_rep_for_gl</code>과 작업테이블 <code>ACC_TS_REP_TEMP_FOR_GL</code>(<code>ESERO_APRV_NO</code>·<code>GL_NO</code>·<code>EXEC_FLAG</code>)이 뼈대만 만들고 <code>GL_NO</code>를 빈 문자열·<code>EXEC_FLAG='N'</code>으로 끝낸다. 자동 매칭 규칙을 임의로 만들지 않았다 — 우리는 4축 매칭을 쓰고, 그 사실을 화면에 밝힌다.</li>
+<li><strong>적재 금지 대상 확인</strong>: <code>A_SCR_WTESEROLISTTOTAL_GET</code>(18,780행)은 <strong>품목(라인) 단위</strong>라 헤더가 중복되어 대사에 부적합하고(집계하면 어긋난다), 인증서·웹ID 계열 컬럼이 딸린 <code>A_SCR_wteSeroList</code>가 함께 있어 <strong>적재 금지 대상</strong>이다 — 대사에 쓸 것은 <code>A_TS_ETAX_MASTER</code>다(<code>APRV_NO</code>↔<code>APPROVAL_CODE</code> 매칭률 100%, 2026 매입 1,525/1,525).</li>
+<li>정본 SQL <code>실제구축준비 자료/이관/sql/73_etax_vat_mirror.sql</code>(+<code>_rollback</code>) — ⚠ 번호 71이 같은 날 앞서 배포된 REQ-0080(<code>71_erp_pur_goods_mvmt.sql</code>)과 채번이 겹친다(다른 세션 병행 작업, 파일명으로 구분해야 한다).</li>
+<li>상세 진행은 <code>02_진행상태.md</code> §1·§2 P4·§3, 결과 반영은 <code>00_현재상태_스냅샷.md §1·§4·§6·§7</code> 참조.</li>
+</ul>
+<h3 id="416-nas-1-req-0097-2026-09-30-erp-db">4.16 사내NAS 역방향 큐 — 내부망 호스트 연동 패턴 1단계 (REQ-0097, 2026-09-30 신설, ERP DB 연계 자체는 아님)</h3>
+<p>지금까지 §4.1~§4.15는 전부 ERP(UNIERP)를 원천으로 하거나(§4.1~4.12·4.15) 원천이 사람이 관리하는 원장(§4.13·4.14)이었다. §4.16은 방향이 반대다 — <strong>중간DB(Supabase)가 원천이고, 사내 내부망에 있는 NAS가 그 데이터를 받아 가는 목적지</strong>다. 같은 러너·큐 인프라(§17)를 공유하므로 여기 함께 기록한다.</p>
+<ul>
+<li><strong>문제</strong>: 사내NAS는 사내 내부망·내부 방화벽 안(DMZ 아님)이다. 통상적인 "외부에서 NAS로 터널을 뚫는" 접근(Cloudflare 등)을 쓰면 외부 세션이 내부존에서 종단되므로 보안 승인·네트워크 세그먼트 검토·네임서버 이관이 뒤따른다.</li>
+<li><strong>해법 — 역방향 큐(안 D)</strong>: 방향을 뒤집어 <strong>NAS의 워커가 밖으로만 연결해 큐를 집어가는</strong> 구조로 설계했다 — 인바운드 0, 방화벽 룰 추가 0건. ERP 서버의 <code>jeil_runner</code> → <code>etl_meta.sync_request</code>(요청을 만들고, 서버 러너가 폴링해 집어가는 구조, §17)와 <strong>동일한 패턴</strong>을 그대로 재사용한다.</li>
+<li><strong>큐를 ERP용과 분리한 이유</strong>: 기존 <code>sync_request</code>·<code>runner_heartbeat</code>를 그대로 썼다면 ①능력 구분 없이 먼저 온 러너가 요청을 집는 구조(<code>erp_sync_request_claim</code>, 능력별 분기 SQL 49는 미적용·REQ-0052 승인 대기)라 NAS 워커가 ERP 적재 요청을 잘못 집어 실패시킬 수 있고 ②<code>runner_online</code> 판정이 아무 러너 심박이나 3분 내면 참이라 화면이 오안내할 수 있다 — 그래서 별도 표(<code>etl_meta.nas_request</code>·<code>nas_heartbeat</code>·<code>nas_export_source</code>·<code>nas_export_state</code>)를 세워 <strong>SQL 49 승인에 의존하지 않는</strong> 구조로 만들었다.</li>
+<li><strong>허용 목록이 단일 출처</strong>: 무엇을 사내NAS로 내보낼 수 있는지는 <code>nas_export_source</code> 한 표가 정한다. <code>rel_schema='public'</code> CHECK로 민감 스키마(<code>erp_secure</code>, 급여 등)는 <strong>구조적으로 등재가 불가능</strong>하다(등재 시도 → 차단을 실측 확인) — 화면·코드에서 막는 것이 아니라 DB 제약으로 막는다. 시드 13종은 기록(<code>turns</code>, 증분) 4종 + ERP 스냅샷(<code>erp_snapshot</code>, 전량) 9종(<code>erp_ro</code>가 REST 비노출이라 전부 <code>public.v_erp_*</code> 뷰 경유)이다.</li>
+<li><strong>워커</strong>: <code>10_ERP_DB연계/etl/nas_worker.py</code>(n1.0), 러너 서브커맨드 <code>nas</code>·작업 종류 <code>nas_sync</code>(상한 60분). NAS 루트는 <code>--root</code> &gt; <code>NAS_DATA_ROOT</code> &gt; <code>.claude/nas.path</code> 순으로 찾고, 못 찾으면 <strong>요청을 선점하지 않는다</strong>(§17.6 — 조용히 건너뛰지 않고 사유를 남기는 원칙과 같되, 여기서는 "능력 없음"으로 아예 선점하지 않는 형태). 러너 <strong>r1.8→r1.9</strong>.</li>
+<li><strong>출력 형식</strong>: 증분 소스는 <code>대화기록/&lt;소스&gt;/&lt;연도&gt;/…jsonl</code>(새 행 0건이면 파일을 만들지 않는다), 전량 소스는 <code>ERP스냅샷/&lt;날짜&gt;/&lt;소스&gt;.jsonl.gz</code>(하루 한 장). 회차마다 manifest(건수·SHA256·커서범위)를 남겨 추후 복원·대사가 가능하게 한다. 전량 스냅샷은 시작 전 <code>nas_export_count</code>로 받은 건수와 대조해 어긋나면 실패로 닫는다(OFFSET 페이지 경계에서 행이 빠지는 것을 검출). 파일이 제자리에 놓인 뒤에만 커서를 전진시켜(<code>nas_export_commit</code>) 중단 시 같은 지점부터 재개된다.</li>
+<li><strong>검증</strong>: 헤드리스 회귀 27건(<code>test_nas_worker.py</code>) + 기존 3종 = 113건 전부 통과. 라이브 실측으로 13개 소스 79,472행 내보내기(사전 측정과 일치)·복원 시험(행수·SHA256 일치)·큐 왕복(claim→내보내기→done)·커서를 되돌린 중단 재개(멱등)까지 확인했다.</li>
+<li><strong>아직 안 된 것</strong>: 실제 사내NAS 경로 적재(<code>.claude/nas.path</code> 지정·쓰기 권한 결정 필요, 대화기록은 개인정보라 시스템·관리자 전용 권한이어야 함, <code>CLAUDE.md §1.7</code>), 암호화(호스트에 <code>cryptography</code> 모듈 없음), 서버 상시화(EXE 재빌드→전달 폴더→서버 3경로, §17.5)·<code>nas_sync</code> 정기 스케줄 가동 — 전부 관리자 결정·실행 대기.</li>
+<li>상세 진행은 <code>02_진행상태.md</code> §1(부속 트랙)·§2(부속 트랙)·§3, 결과 반영은 <code>00_현재상태_스냅샷.md §1·§4·§6·§7</code> 참조. 정본 SQL <code>실제구축준비 자료/이관/sql/82_nas_export_queue.sql</code>(+<code>_rollback</code>).</li>
+</ul>
+<h3 id="417-erp-erp-req-0100-2026-10-02">4.17 결의전표 ERP 전송 — 포털 전송 전표의 ERP 수정 방침과 내부부서코드 규칙 (REQ-0100, 2026-10-02 신설)</h3>
+<p>결정 D-113으로 결의전표(거래유형 AX001)를 운영 <code>JEILMNS</code>에 미승인으로 생성하게 된 뒤, 첫 전송 전표에서 두 가지가 드러나 규칙을 확정했다.</p>
+<p><strong>규칙 1 — 포털이 보낸 전표는 ERP에서 수정하지 않는다(A안, 관리자 결정 2026-10-02)</strong>
+- 현상: 포털 전송 전표(<code>AG202609300001</code>)는 ERP 결의전표등록 화면에서 줄이 잠겨 수정할 수 없다. 수기 전표(시험 전표 <code>TG202610020001</code>)는 수정 가능.
+- 실측(운영 읽기 전용): 포털 전송 전표는 거래유형 AX001·참조번호=포털 초안번호·라인 <code>VIEW_SEQ=-1</code>·<code>A_BATCH</code> 흔적. 2026년 수기 2,840건은 전부 거래유형 없음·참조번호=자기번호·<code>VIEW_SEQ</code>=줄번호. 배치 엔진 생성 전표(멀티반제 573·국내매입 268·법인카드연계 등)는 포털 전송과 같은 형태 — ERP가 타 모듈 생성 전표를 이 화면에서 못 고치게 하는 것으로 판단(잠금 스위치가 어느 값인지는 DB로 미확정).
+- 방침: <strong>현행 유지 = 수정 불가·삭제 후 재전송.</strong> 잘못되면 ERP에서 삭제 → 포털 「ERP 삭제됨」 역반영 → 포털에서 고쳐 재전송(D-113 ③과 동일). 전표를 수기 형태(거래유형 없음·<code>VIEW_SEQ</code>=줄번호)로 바꿔 쓰는 안은 운영 전표 직접 UPDATE가 되어 §6 금지·CLAUDE.md §1.2 예외 범위 밖이므로 채택하지 않는다.</p>
+<p><strong>규칙 2 — 내부부서코드(<code>INTERNAL_CD</code>) = 전표 부서의 부서 마스터 값</strong>
+- 오류: 같은 전표의 헤더·4개 라인 모두 구매팀 값 1121(정상 총무팀 181). 릴레이 <code>org_info()</code>가 사업장·내부부서코드·GAAP를 전표 부서와 무관하게 「가장 최근 배치」에서 승계했기 때문.
+- 수정: 내부부서코드만 <code>B_ACCT_DEPT</code>(전표 부서·현행 조직)에서 읽는다 — <code>dept_internal_cd()</code> 신설, 값이 없으면 fail-closed(전송 중단), 쓰기 전 확인 + 생성 후 헤더·라인 재검증, 불일치 시 롤백. 사업장(BA1)·GAAP(02)는 회사 단일값(2025년 이후 14,851건 전부)이라 승계 유지.
+- 검증: 회귀 136건 통과(<code>test_gl_apply_sync.py</code> 3건 추가), 운영 마스터 읽기 전용 실측 3200→181·5200→1121. 릴레이 v1.9·통합 러너 r1.10 → 같은 날 2차 반영으로 규칙 3에서 v1.10·r1.11 로 대체됨.
+- 남은 것(관리자): 규칙 3 말미 참조(서버 EXE 는 r1.11 로 교체).</p>
+<p><strong>규칙 3 — 조직 축 전체를 ERP 기준(전표일자 기준 조직개편번호·부서 마스터 코스트센터)으로 맞춘다 (2차 반영, 2026-10-02, 결정 D-114 적용 범위 확대 — 새 결정 번호 없음)</strong>
+- 관리자 지시: 「전표일자 기준 조직개편번호, 부서 기준 코스트센터 기본 적용 등 ERP 기준을 확인해서 릴레이에 반영」. 운영 ERP 읽기 전용 실측 + 서브원장 SP가 부르는 검사 프로시저 <code>usp_a_check_acct</code> 본문 확인으로 기준을 확정했다.</p>
+<table>
+<thead>
+<tr>
+<th>항목</th>
+<th>ERP 기준</th>
+<th>릴레이 동작(v1.10)</th>
+<th>출처 테이블·근거</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>조직개편번호</td>
+<td>전표일자 이전에 시작한 조직 중 가장 최근 것(<code>max(ORG_CHANGE_DT) &lt;= 전표일자</code>). ERP가 이 값으로 헤더·라인 조직번호를 덮어쓰고 부서가 그 조직에 없으면 A05191 거부. 수기 2026년: 1~3월 909건 20251, 4/1 이후 1,930건 20261(예외 0)</td>
+<td><code>check_dept_org(cur, 부서, 전표일자)</code>가 종전 「가장 큰 번호」에서 전표일자 기준으로 변경</td>
+<td>조직 마스터(<code>B_ACCT_DEPT</code> 조직개편 이력)·<code>usp_a_check_acct</code></td>
+</tr>
+<tr>
+<td>내부부서코드</td>
+<td>라인 값은 그 라인 부서의 것(542줄은 헤더와 다른 부서). ERP가 덮어쓰지 않음. 채무원장은 대변 라인 값을 그대로 따름(2,006건 불일치 0), 승인 후 회계전표는 결의전표 값을 그대로 가져감</td>
+<td>전표일자 기준 조직의 부서 마스터에서 읽음(<code>dept_internal_cd()</code>, 없으면 fail-closed)</td>
+<td><code>B_ACCT_DEPT</code>(부서 마스터)</td>
+</tr>
+<tr>
+<td>헤더 코스트센터</td>
+<td>부서 마스터의 코스트센터(수기 2,839건 예외 0)</td>
+<td>부서 마스터 값(신규 <code>dept_cost_cd()</code>). 포털 헤더 값은 코스트센터를 따로 고르지 않은 줄의 기본값으로만 사용</td>
+<td><code>B_ACCT_DEPT</code></td>
+</tr>
+<tr>
+<td>줄 코스트센터</td>
+<td>사용자가 줄에서 바꿀 수 있음(13,543줄 중 2,304줄이 부서 값과 다름)</td>
+<td>줄에서 따로 고른 값은 존중, 비어 있으면 부서 기본값으로 채움. 종전 「코스트센터가 비어 있습니다」 중단은 제거</td>
+<td><code>A_GL_DTL</code> 계열·<code>B_ACCT_DEPT</code></td>
+</tr>
+<tr>
+<td>본지점번호(<code>HQ_BRCH_NO</code>)</td>
+<td>투입 배치 본지점번호는 공백</td>
+<td>공백으로 기록(종전엔 포털 전표만 NULL)</td>
+<td>투입 배치 헤더</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>사업장 BA1·사업부 BU1은 단일값이라 승계 유지. 코스트센터 마스터(<code>B_COST_CENTER</code>)의 부서·내부부서코드는 낡아(133개 중 83개가 현행 조직에 없는 부서, 13개 내부코드 불일치) <strong>출처로 쓰지 않는다</strong>.</li>
+<li>생성 후 검증 확대: 헤더·라인의 부서·조직개편번호·내부부서코드·코스트센터 대조 + 서브원장 뒤 채무원장까지 재확인, 어긋나면 롤백. 운영 판정 도구 <code>gl_precheck_prod</code>도 전표일자 기준 같은 함수를 쓴다.</li>
+<li>검증: 수기 헤더 2,839건 재계산 → 2,837건 일치(2건 <code>TG202603240011</code>·<code>12</code>는 ERP 쪽 기존 데이터). 회귀 140건 통과. 릴레이 v1.10·통합 러너 r1.11, EXE 재빌드·전달 폴더 동기화 완료(앞서 적은 r1.10 은 r1.11 로 대체). 쓰기 경로는 운영에서 시험할 수 없어 <strong>첫 전송이 실측</strong>이다.</li>
+<li>한계·미반영: 포털에 줄별 부서 입력이 없어 모든 줄이 헤더 부서다. 부가세 공급가액(V1) 13원 차이·투입 배치 공급가 합계는 이번 범위 밖(관리자 지정: 「금액보다 조직 정합성」).</li>
+<li>남은 것(관리자): 서버 <code>jeil_runner.exe</code> 를 r1.11 로 교체 → <code>AG202609300001</code> ERP 삭제 → 포털 「ERP 삭제됨」 확인 → 새 초안 재전송 → 릴레이 로그 <code>[조직]</code> 줄이 「일치」인지 확인.</li>
+<li>상세 진행은 <code>02_진행상태.md</code> §1·§3, 결과 반영은 <code>00_현재상태_스냅샷.md §1·§7</code> 참조.</li>
+</ul>
+<h2 id="5">5. 단계별 로드맵 (통합)</h2>
+<table>
+<thead>
+<tr>
+<th>단계</th>
+<th>내용</th>
+<th>선행 조건</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>P0</strong> 정책 수립</td>
+<td>접근정책안·마스터플랜·본 관제 체계</td>
+<td>(완료·승인 대기)</td>
+</tr>
+<tr>
+<td><strong>P1</strong> 유니포인트 협의</td>
+<td>읽기전용 계정(<code>jeilax_ro</code>)·뷰·방화벽/VPN 합의</td>
+<td>경영 티어 결정</td>
+</tr>
+<tr>
+<td><strong>P2</strong> 리포팅 계층</td>
+<td>Tier A 리포팅 DB + <code>rpt.v_*</code> 뷰 + 감사 로깅</td>
+<td>P1</td>
+</tr>
+<tr>
+<td><strong>P3</strong> 중간 DB + ETL</td>
+<td>PostgreSQL 스키마 생성, 1차 배치(영업·구매·재고) 가동</td>
+<td>P2</td>
+</tr>
+<tr>
+<td><strong>P4</strong> 포털·챗봇 연결</td>
+<td><code>pages/</code> 실데이터 API 전환 + 챗봇 Tool 3종 + <code>tool_audit</code> — <strong>2026-07-08 착수·부분완료</strong>(§4.4: 노출 뷰 6종·RLS 격리 테스트·파일럿 화면 1건·챗봇 Tool 4종 / §4.5: 사용자-부서 매핑 계층 구축·실적재 완료 / §4.6: 부서별 ERP 모듈 제안값(참고) 신설·실적재 완료·관리자 콘솔 반영) → <strong>2026-07-20 챗봇 권한체계 연결</strong>(<code>get_my_access</code> 신설, 포털 도구 3종 권한구멍 차단, §4.8) → <strong>2026-07-21 연동 현황 뷰 10종 전체 노출 + 관리자 콘솔 반영</strong>(<code>v_erp_sync_overview</code> 5→10종, <code>jeil-chat-admin</code> v10, §4.9) → <strong>2026-07-22 협력사 거래처마스터(<code>vendor_master</code>) 재적재·정합화 + ERP 거래처마스터 원천 연동(<code>bp_master</code>) 스키마·ETL 준비</strong> → <strong>2026-07-24 <code>bp_master</code> 실적재 완료(적재버그 RCA·수정 포함)</strong>(§4.11) → <strong>2026-09-07 계정 통합관리·대사 구축·실적재 완료</strong>(REQ-0018, §4.12) → <strong>2026-09-23 비ERP 원천(구매 기안서 대장) 연동 패턴 신설·실연동</strong>(REQ-0077, §4.13) → <strong>2026-09-23 기안서 대장 ↔ ERP 전표·전자세금계산서 대사 1단계 배포</strong>(REQ-0081, 결정 C-15, §4.14) → <strong>2026-09-23 국세청(e세로) 전자세금계산서·부가세 원장 미러 실배포</strong>(REQ-0082, §4.14 2단계 해소, §4.15)</td>
+<td>P3</td>
+</tr>
+<tr>
+<td><strong>P5</strong> 민감 영역</td>
+<td><code>erp_secure</code>(자금·인사) — 경영 승인 + Entra 그룹 — <strong>2026-07-08 급여(인사) 실적재 완료</strong>: 급여 민감권한 프레임워크(라이브)·<code>erp_secure</code> 스키마 신설 후 같은 날 관리자 직접 실행으로 <code>hr_payroll_m</code> 143행 적재 + 게이트 API <code>jeil-hr</code> 배포(§4.7) → <strong>2026-07-20 챗봇 인사 조회 게이팅</strong>(<code>get_hr_headcount</code>·<code>get_hr_payroll</code> 신설, <code>hr_access_log</code> 감사 재사용, §4.8). 자금(F 모듈)은 여전히 경영 승인 대기·미착수, <code>AI-Portal-HR</code> Entra 그룹·유니포인트 재직상태 정의는 잔여</td>
+<td>P4 + 승인(자금)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="6">6. 하지 말아야 할 구조 (금지 목록)</h2>
+<table>
+<thead>
+<tr>
+<th>방식</th>
+<th>문제</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>포털/챗봇/BI → ERP운영DB 직접 연결</td>
+<td>성능·장애 전파, AI 임의 SQL 위험</td>
+</tr>
+<tr>
+<td>MSSQL 전체 복제</td>
+<td>용량·민감컬럼 과다</td>
+</tr>
+<tr>
+<td>실시간 ERP 조회(초기)</td>
+<td>복잡도↑ — 일 배치로 대부분 충족</td>
+</tr>
+<tr>
+<td>AI <code>SELECT *</code> 생성 허용</td>
+<td>인젝션·대량 유출</td>
+</tr>
+<tr>
+<td>OneDrive CSV만으로 ERP 대체</td>
+<td>권한·갱신·감사 불가</td>
+</tr>
+<tr>
+<td>Always On 실시간 복제(현 단계)</td>
+<td>Enterprise 라이선스·2차 서버 비용 대비 불필요</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="7">7. 원본 문서</h2>
+<ul>
+<li><strong>축 A 원본</strong>: 사내 OneDrive <code>ERP_DB/데이터연동방안/ERP_데이터연동_마스터플랜_v2.0.md</code>(2026-07-01, 승인요청)</li>
+<li><strong>축 B 원본</strong>: <code>실제구축준비 자료/07_ERP_챗봇_중간DB_연계설계.md</code>(2026-06-25)</li>
+<li><strong>정책</strong>: 사내 OneDrive <code>ERP_DB/정책관리/ERP_DB접근정책/ERP_DB_접근정책안_v0.1_20260702</code></li>
+<li><strong>규칙</strong>: <code>CLAUDE.md §4</code>(ERP 연계), §5(인증·권한), §6(보안)</li>
+</ul>
+  </div>
+  <div class="footer"><span>JEIL M&amp;S · ERP DB 연계 관제</span><span>01 연계기획 · 관리: 최동혁</span></div>
+</div>
+</body>
+</html>

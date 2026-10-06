@@ -81,15 +81,15 @@ for rel, label in LIVE_ONLY.items():
     html = pat.sub(sub_lock, html)
 
 # 2) 니즈조사 설문폼 — assets 인라인 후 내장
-sv_dir = ROOT / "05_니즈조사"
+sv_dir = ROOT / "문서" / "05_니즈조사"
 sv = (sv_dir / "01_니즈조사_설문폼.html").read_text(encoding="utf-8")
 css = (sv_dir / "assets/survey-style.css").read_text(encoding="utf-8")
 js = (sv_dir / "assets/datastore.js").read_text(encoding="utf-8")
 # 원본은 클린 URL(/survey/form)에서도 풀리도록 루트 절대경로로 참조한다(§15.4).
 # 치환이 빠지면 통합본 설문이 오류 없이 깨지므로, 대상 문자열이 없으면 빌드를 중단한다.
 for pat, rep in [
-    ('<link rel="stylesheet" href="/05_니즈조사/assets/survey-style.css">', "<style>\n" + css + "\n</style>"),
-    ('<script src="/05_니즈조사/assets/datastore.js"></script>', "<script>\n" + js + "\n</script>"),
+    ('<link rel="stylesheet" href="/문서/05_니즈조사/assets/survey-style.css">', "<style>\n" + css + "\n</style>"),
+    ('<script src="/문서/05_니즈조사/assets/datastore.js"></script>', "<script>\n" + js + "\n</script>"),
 ]:
     if pat not in sv:
         sys.exit("[중단] 설문폼에서 인라인 대상을 찾지 못했습니다: %r\n"

@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>01 운영가이드 — JEIL AX 에이전트관리 (사용자·담당자·관리자 역할별 사용법과 개선 루프)</title>
+<style>
+:root{--navy:#1a2f4e;--navy2:#27457a;--accent:#2f6fb3;--red:#b3402f;--green:#2e7d52;--amber:#9a6b1f;
+--ink:#222;--muted:#666;--line:#d8dee8;--bg:#f4f6f9;--soft:#eef2f8;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;color:var(--ink);background:var(--bg);line-height:1.65;font-size:15px;}
+.page{max-width:960px;margin:0 auto;background:#fff;padding:52px 60px;box-shadow:0 2px 14px rgba(0,0,0,.08);}
+.doc-label{display:inline-block;background:var(--navy);color:#fff;font-size:12px;letter-spacing:.16em;padding:5px 14px;border-radius:3px;margin-bottom:16px;}
+.docnav{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 26px;}
+.docnav a{font-size:12px;color:var(--navy2);border:1px solid var(--line);border-radius:20px;padding:4px 12px;text-decoration:none;background:var(--soft);}
+.docnav a:hover{background:var(--navy);color:#fff;}
+.docnav a.cur{background:var(--navy);color:#fff;border-color:var(--navy);}
+.md-link{font-size:13px;margin-bottom:22px;color:var(--muted);}
+.content h1{font-size:27px;color:var(--navy);line-height:1.35;margin:6px 0 18px;}
+.content h2{font-size:20px;color:var(--navy);margin:42px 0 14px;padding-bottom:9px;border-bottom:3px solid var(--navy);}
+.content h3{font-size:16px;color:var(--navy2);margin:24px 0 9px;}
+.content p{margin:0 0 12px;}
+.content ul,.content ol{margin:0 0 14px 22px;}
+.content li{margin-bottom:6px;}
+.content blockquote{background:var(--soft);border-left:5px solid var(--navy);border-radius:0 8px 8px 0;padding:14px 20px;margin:14px 0;color:#33425a;}
+.content blockquote p{margin:0 0 6px;}
+.content table{width:100%;border-collapse:collapse;margin:14px 0 20px;font-size:13.3px;}
+.content th{background:var(--navy);color:#fff;padding:9px 11px;text-align:left;font-weight:600;}
+.content td{padding:8px 11px;border-bottom:1px solid var(--line);vertical-align:top;}
+.content tr:nth-child(even) td{background:#fafbfd;}
+.content a{color:var(--accent);}
+.content code{background:var(--soft);border:1px solid var(--line);border-radius:4px;padding:1px 6px;font-size:12.4px;font-family:Consolas,'Courier New',monospace;}
+.content pre{background:#21252e;color:#e8eaf0;border-radius:8px;padding:16px 18px;font-size:12.4px;font-family:Consolas,'Courier New',monospace;overflow-x:auto;margin:12px 0 18px;line-height:1.55;}
+.content pre code{background:none;border:none;color:inherit;padding:0;}
+.content hr{border:none;border-top:1px solid var(--line);margin:30px 0;}
+.content strong{color:var(--navy2);}
+.footer{margin-top:50px;padding-top:16px;border-top:1px solid var(--line);font-size:12px;color:var(--muted);display:flex;justify-content:space-between;}
+@media print{body{background:#fff;}.page{box-shadow:none;padding:18px 0;max-width:100%;}.docnav{display:none;}.content h2{break-after:avoid;}.content table,.content pre,.content blockquote{break-inside:avoid;}}
+@media (max-width:720px){.page{padding:30px 20px;}}
+</style>
+<!-- jeilax:local-links --><script>(function(){if(location.protocol!=="file:")return;var r="../../",s=document.createElement("script");s.src=r+"_local_links.js";s.setAttribute("data-root",r);(document.head||document.documentElement).appendChild(s);})();</script><!-- /jeilax:local-links -->
+</head>
+<body>
+<div class="page">
+  <span class="doc-label">JEIL AX 에이전트관리 · 대외비</span>
+  <div class="docnav"><a href="/docs/agents">🏠 에이전트관리 허브</a><a href="/docs/agents/status">00 현재상태</a><a class="cur" href="/docs/agents/ops-guide">01 운영가이드</a><a href="/docs/agents/dev-guide">02 개발가이드</a><a href="/docs/agents/progress">03 진행상태</a><a href="/docs/agents/purchase-domain">04 구매도메인</a><a href="/docs/agents/quality-test">05 품질테스트</a><a href="/docs/agents/templates">06 템플릿·관리포인트</a><a href="README.md">README</a></div>
+  <p class="md-link">📄 Markdown 원본: <a href="01_운영가이드.md">01_운영가이드.md</a> · 허브 <a href="/docs/agents">에이전트관리 허브</a></p>
+  <div class="content">
+<h1 id="01">01 · 운영가이드 — 역할별 사용법</h1>
+<blockquote>
+<p>대상: 구매팀(사용자·담당자) · 관리자. 화면 두 개만 쓴다 — <strong>사용 화면</strong> <code>/work/purchase-agent</code>, <strong>관리 화면</strong> <code>/admin/agents?agent=purchase</code>.</p>
+</blockquote>
+<h2 id="1">1. 역할 — 누가 무엇을 하나</h2>
+<table>
+<thead>
+<tr>
+<th>역할</th>
+<th>누구</th>
+<th>할 수 있는 일</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>사용자(user)</td>
+<td>(운영 전환 후) 권한 있는 직원</td>
+<td>대화 · 카드 CSV/자료함 · 📄 보고서 · 👍👎</td>
+</tr>
+<tr>
+<td><strong>담당자(operator)</strong></td>
+<td>구매팀 2명 — <strong>실작업</strong></td>
+<td>+ 설정 <strong>초안</strong> 저장 · 시험 대화 · 개선 대장 분류·반영 · 용어집 · 골든셋 · 회귀 실행 · 대화 기록 열람</td>
+</tr>
+<tr>
+<td><strong>관리자(reviewer)</strong></td>
+<td>관리자 3명(+포털 전체관리자) — <strong>확인·점검</strong></td>
+<td>+ 초안을 <strong>「현재」로 지정</strong> · 개선 항목 <strong>「검증 완료」</strong> · 상태·한도·예산·보존 · 구성원 추가/제외</td>
+</tr>
+</tbody>
+</table>
+<p>역할은 <strong>서버가 판정</strong>한다. 화면에 버튼이 보여도 권한이 없으면 서버가 거부한다.</p>
+<h2 id="2">2. 사용자 — 대화하기</h2>
+<ol>
+<li><code>/work/purchase-agent</code> 접속(포털 로그인 상태여야 한다. 아니면 로그인 후 자동으로 돌아온다).</li>
+<li>질문하거나 아래 「자주 쓰는 질문」 칩을 누른다. 예) <em>이번 달 납기 지난 미입고 발주 거래처별로</em></li>
+<li>답변 카드마다 <strong>⬇ CSV</strong>(엑셀로 열림) · <strong>📁 자료함에 저장</strong>.</li>
+<li><strong>📄 보고서로 만들기</strong> → AI 가 위 표로 해설(요약·특이사항·조치)을 쓰고 → <strong>📄 이 해설로 보고서 저장</strong> 을 누르면 인쇄용 보고서가 새 창에 열리고 자료함에 저장된다. <strong>표 숫자는 조회 결과 그대로, 문장만 AI</strong> 가 쓴다.</li>
+<li>AI 가 HTML 을 코드로 쓰면 코드 위 <strong>👁 바로 보기 · ↗ 새 탭 · ⬇ 내려받기 · 📁 자료함 저장</strong>. (스크립트는 실행되지 않는 격리 창에서 보여 준다.)</li>
+<li>답이 아쉬우면 <strong>👎</strong> + 한 줄 의견 → 담당자의 개선 대장으로 바로 들어간다.</li>
+<li><strong>파일 첨부</strong> — 입력창 왼쪽 <strong>📎</strong>, 또는 파일을 대화 상자에 <strong>끌어다 놓기</strong>, 캡처 이미지는 <strong>Ctrl+V</strong>.
+   - 엑셀·CSV·워드·PDF·이미지·텍스트, 한 번에 5개. 첨부하면 <strong>📊 요약 · 🔎 ERP와 대조 · 📄 보고서 초안</strong> 버튼이 나온다.
+   - 예) 협력사가 보낸 발주 확인 엑셀을 올리고 「🔎 ERP와 대조」 → 발주번호별 입고·매입 진행과 다른 점을 알려 준다.
+   - 질문을 비우고 보내면 자동으로 "자료 요약"을 요청한다. 이어지는 질문에서도 같은 첨부를 기억한다.
+   - PDF 는 Claude 연결(키 등록) 후에 읽힌다. 옛 엑셀(.xls)·한글(.hwp)은 xlsx·PDF 로 저장해 올린다.
+   - <strong>개인정보(주민번호 등)가 든 파일은 올리지 않는다</strong> — 주민번호 형식이 보이면 서버가 거부한다. 첨부 파일은 저장되지 않는다.</li>
+</ol>
+<p>알아 둘 것
+- 번호는 세 가지 — <strong>PR</strong>(구매요청, 품목 1줄) · <strong>PU</strong>(구매요청결재, 그룹웨어 결재 1건) · <strong>PO</strong>(발주서 1건). 어떤 번호로 물어도 연결된 나머지 번호와 진행상태를 알려 준다(자세히: 04 구매도메인).
+- 발주 확정·결재·메일 발송 같은 <strong>실거래는 하지 않는다</strong>. 초안까지만.
+- 질문과 답변은 품질 개선을 위해 기록된다(180일). 조회된 금액 목록 자체는 기록하지 않는다.
+- 자료함은 본인만 보고 30일 뒤 자동 삭제 — 보관하려면 내려받는다.
+- 1인 하루 50회까지.</p>
+<h2 id="3">3. 담당자 — 에이전트를 고치는 루프</h2>
+<pre><code> 대화 기록 ──▶ 개선 대장 inbox ──▶ 분류(🤖 AI로 묶기) ──▶ 반영
+   ▲                                                   │
+   │                                ┌──────────────────┼──────────────────┐
+   │                            용어집 추가      답변 원칙·역할 안내 수정     새 도구·데이터 필요
+   │                           (즉시 반영)        = 새 버전(초안) 저장      = 백로그 REQ 로
+   │                                                   │
+   └──── 관리자 「현재로 지정」 ◀── 골든셋 회귀 ◀── 시험 대화 ◀┘
+</code></pre>
+<h3 id="3-1-10">3-1. 매일(10분)</h3>
+<ol>
+<li>관리 화면 <strong>개선 대장</strong> 탭 — 붉은 숫자(inbox)를 확인.</li>
+<li>inbox 가 여러 건이면 <strong>🤖 AI로 묶어 분류</strong> — 비슷한 원인끼리 묶어 분류·조치 제안을 달아 준다.</li>
+<li>항목을 <strong>열기</strong> → 오른쪽 「근거 대화」에서 실제 질문·답을 보고 분류·상태를 정한다.</li>
+</ol>
+<table>
+<thead>
+<tr>
+<th>분류</th>
+<th>뜻</th>
+<th>담당자가 할 일</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>용어집</td>
+<td>부서 용어를 AI 가 몰랐다</td>
+<td><strong>용어집</strong> 탭에 추가 → 즉시 반영(버전 불필요) → 항목 「반영됨」</td>
+</tr>
+<tr>
+<td>프롬프트 문구</td>
+<td>답 방식이 틀렸다(형식·단위·순서)</td>
+<td><strong>설정·버전</strong>에서 답변 원칙 한 줄 추가 → 새 버전 초안</td>
+</tr>
+<tr>
+<td>새 조회 기능 필요</td>
+<td>도구가 없어 답을 못 했다</td>
+<td>조치 제안에 필요한 자료를 적고 「반영 예정」 + 관리자에게 백로그 REQ 요청</td>
+</tr>
+<tr>
+<td>ERP 데이터 미적재</td>
+<td>중간DB 에 없는 자료</td>
+<td>동일(ETL 작업 — 백로그 REQ)</td>
+</tr>
+<tr>
+<td>좋은 예시</td>
+<td>잘한 답</td>
+<td><strong>골든셋</strong>으로 승격</td>
+</tr>
+<tr>
+<td>모델 한계 · 조치 불필요</td>
+<td>—</td>
+<td>「보류」 또는 관리자 판단 요청</td>
+</tr>
+</tbody>
+</table>
+<h3 id="3-2">3-2. 설정을 바꿀 때(새 버전)</h3>
+<ol>
+<li><strong>설정·버전</strong> 탭 → 현재 버전 행 <strong>편집 기준</strong> → 아래 편집기에서 수정.
+   - 답변 원칙: 한 줄에 하나. 예) <code>- 금액 합계는 반드시 도구의 합계 값을 그대로 쓴다</code>
+   - 도구 묶음: 도메인 체크, 뺄 도구 체크 해제.
+   - 모델·예비 모델·추론강도·최대 토큰(모델을 바꾸면 비용이 바뀐다 — 관리자와 상의).</li>
+<li>「변경 메모」에 무엇을 왜(예: <code>IMP-12 반영 — 미입고 정의</code>), 「반영한 개선 항목」에 번호.</li>
+<li><strong>💾 새 버전(초안)으로 저장</strong> → v(n+1) 초안. 사용자에게는 아직 적용되지 않는다.</li>
+<li><strong>프롬프트 미리보기</strong>로 실제로 들어가는 문장을 확인.</li>
+<li>오른쪽 <strong>시험 대화</strong>에서 버전을 고르고, 문제가 됐던 질문을 다시 해 본다(🔧 도구·토큰·비용 표시).</li>
+<li><strong>골든셋</strong> 탭 → 회귀 실행(그 버전) → 통과율 확인.</li>
+<li>관리자에게 「v(n+1) 지정 요청」.</li>
+</ol>
+<h3 id="3-3">3-3. 골든셋 만들기</h3>
+<ul>
+<li>대표 질문 10~20개부터. <strong>대화 기록</strong>에서 좋은 답을 골라 「골든셋으로」 누르면 질문·사용 도구가 채워진다.</li>
+<li>「답 요건」은 채점 기준 — 짧고 확인 가능하게. 예) <code>발주번호별 총액 기준 · 상위 5건 · 원 단위 콤마</code></li>
+<li>회귀 1회 비용 ≈ 문항 수 × 질문 1건(문항 20개면 약 $1 이하).</li>
+<li><strong>표준 문항은 「📐 관리 포인트·템플릿」 탭에서 한 번에 등록</strong>한다(빠진 문항 등록) — 부서 세트의 골든셋 표준(구매 18문항)이 기준이고, 대화 기록에서 승격한 문항은 그 위에 더한다.</li>
+</ul>
+<h3 id="3-4">3-4. 템플릿과 대조하기(「📐 관리 포인트·템플릿」 탭)</h3>
+<ul>
+<li>위쪽 <strong>관리 포인트</strong> 표는 이 에이전트의 지금 값을 기준값과 비교해 <strong>정상·주의·경고</strong>로 보여 준다. 경고가 있으면 「조치」 열대로 한다(기준·조치·주기의 정본은 <a href="/docs/agents/templates">06</a> §3).</li>
+<li>아래 <strong>템플릿 반영 현황</strong>은 공통 기준 세트 + 부서 세트를 실제 설정과 대조한다.</li>
+<li>용어집·골든셋: 「빠진 … 등록」 버튼으로 <strong>바로 등록</strong>(용어는 즉시 프롬프트 반영, 골든셋은 다음 회귀에 포함).</li>
+<li>답변 원칙·칩: 바로 저장되지 않는다 — 버튼이 <strong>편집기/운영 설정 칸에 채워 주면</strong> 담당자가 「새 버전(초안)」, 관리자가 「운영 설정 저장」으로 확정한다.</li>
+<li><strong>표준 테스트 시나리오</strong>의 「시험 대화로」를 누르면 그 질문이 시험 대화 칸에 들어간다. 실측 결과는 <a href="/docs/agents/quality-test">05</a> 형식으로 남긴다.</li>
+</ul>
+<h2 id="4">4. 관리자 — 확인·점검·승인</h2>
+<table>
+<thead>
+<tr>
+<th>할 일</th>
+<th>어디서</th>
+<th>기준</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>새 버전 <strong>현재로 지정</strong></td>
+<td>설정·버전 → 행의 「현재로 지정」</td>
+<td>회귀를 돌렸고 통과율이 이전 버전 이상인가(안 돌린 버전은 한 번 더 누르라고 경고) · 변경 메모가 있는가</td>
+</tr>
+<tr>
+<td>개선 항목 <strong>검증 완료</strong></td>
+<td>개선 대장 → 상태 「검증 완료」</td>
+<td>반영 후 실제로 좋아졌는가(대화 기록·👍 비율)</td>
+</tr>
+<tr>
+<td><strong>관리 포인트 점검</strong></td>
+<td>📐 관리 포인트·템플릿 → 위쪽 표</td>
+<td>경고(빨강)가 하나라도 있으면 「조치」 열대로. 특히 <strong>예비 모델 전환 비율</strong>이 높으면 키·벤더 상태(<code>/admin/api-setup</code>)부터 — 09-30 실측처럼 100% 예비 전환은 키 종류 문제였다</td>
+</tr>
+<tr>
+<td>비용 점검</td>
+<td>개요 → 이번 달 비용/예산</td>
+<td>80% 넘으면 원인(사용량·모델) 확인. 100% 넘으면 자동으로 예비 모델</td>
+</tr>
+<tr>
+<td>상태·한도</td>
+<td>개요 → 운영 설정</td>
+<td>파일럿 → 운영(live) 전환은 파일럿 2주 결과를 보고</td>
+</tr>
+<tr>
+<td>구성원</td>
+<td>구성원 탭</td>
+<td>담당자=operator, 관리자=reviewer</td>
+</tr>
+</tbody>
+</table>
+<p>되돌리기: 문제가 생기면 <strong>이전 버전 행의 「현재로 지정」</strong> 을 누르면 즉시 돌아간다(버전은 지워지지 않는다).</p>
+<h2 id="5">5. 처음 설정(한 번)</h2>
+<ol>
+<li><strong>Anthropic API 키 등록</strong>(관리자): Anthropic Console(회사 조직)에서 키 발급 → Supabase 대시보드 › Edge Functions › Secrets 에 이름 <code>ANTHROPIC_API_KEY</code> 로 등록. 재배포 불필요 — 다음 질문부터 Sonnet 5 로 답한다(관리 화면 오른쪽 위 「연결된 AI」에 anthropic 이 보이면 성공).
+   - ⚠ 키는 <strong>운영 워크스페이스 안에서 발급한 일반 API 키</strong>(<code>sk-ant-api…</code>)여야 한다. 워크스페이스에 묶이지 않은 조직 단위 키나 Admin 키(<code>sk-ant-admin…</code>)를 넣으면 「연결된 AI」에는 보여도 <strong>매 호출이 400 으로 거부</strong>돼 예비 모델로만 답한다(09-30 실측). 확인은 관리 화면 시험 대화의 추적 줄 <code>fallback 400 …</code> 본문, 또는 개요 KPI 「예비 모델 전환」 비율.</li>
+<li><strong>구성원 등록</strong>(관리자): 구성원 탭에서 구매팀 2명 operator · 관리자 reviewer 추가.</li>
+<li><strong>골든셋 기준선</strong>(담당자): 10~20문항 → v1 회귀 → 기준 통과율 기록.</li>
+</ol>
+<h2 id="6">6. 비용 감각</h2>
+<ul>
+<li>Sonnet 5: 입력 $2 / 출력 $10 (100만 토큰당). 질문 1건 ≈ $0.02~0.04(캐싱 시 절반 가까이).</li>
+<li>예비 gpt-4.1-mini: 질문 1건 ≈ $0.004 (현재 11턴 누적 약 $0.05).</li>
+<li>월 $150 기준 Sonnet 5 로 대략 4,000~7,000 질문.</li>
+</ul>
+  </div>
+  <div class="footer"><span>JEIL M&S · 부서 에이전트 관리</span><span>01 운영가이드 · 관리: 최동혁</span></div>
+</div>
+</body>
+</html>

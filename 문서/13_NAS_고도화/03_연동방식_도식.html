@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NAS 연동 방식 한눈에 — JEIL AX</title>
+<!-- 자체완결 설명 자료(직접 관리 · 외부 CDN 없음). 「지금 실제로 돌아가는 것」 기준 — 원천: 01 데이터계층 기획(v3) · ADR-110 · 정본 SQL 82·84 · nas_worker.py(n1.1).
+     NAS 주소·호스트명·공유 경로·계정·비밀값은 적지 않는다(CLAUDE.md §1.1) — 별칭 「사내NAS」 사용. -->
+<style>
+:root{--navy:#1a2f4e;--navy2:#27457a;--accent:#2f6fb3;--red:#b3402f;--green:#2e7d52;--amber:#9a6b1f;
+--ink:#222;--muted:#5f6670;--line:#d8dee8;--bg:#f4f6f9;--soft:#eef2f8;--paper:#fff;
+--sb:#e7f0fb;--sbline:#2f6fb3;--nas:#eaf6ef;--nasline:#2e7d52;--cloud:#f3eefb;--cloudline:#6a4fb3;--warnbg:#fdf4e4;--badbg:#fbeceb;--okbg:#e9f5ee;}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+--navy:#9fbbe6;--navy2:#b7cdf0;--accent:#78a9e6;--red:#e58a7b;--green:#6cc493;--amber:#e0b060;
+--ink:#e4e7ec;--muted:#a3abb7;--line:#34404f;--bg:#12161c;--soft:#1c232d;--paper:#171c23;
+--sb:#16263a;--sbline:#78a9e6;--nas:#15291f;--nasline:#6cc493;--cloud:#231c33;--cloudline:#a893e6;--warnbg:#2e2615;--badbg:#321c1a;--okbg:#16291f;}}
+:root[data-theme="dark"]{--navy:#9fbbe6;--navy2:#b7cdf0;--accent:#78a9e6;--red:#e58a7b;--green:#6cc493;--amber:#e0b060;
+--ink:#e4e7ec;--muted:#a3abb7;--line:#34404f;--bg:#12161c;--soft:#1c232d;--paper:#171c23;
+--sb:#16263a;--sbline:#78a9e6;--nas:#15291f;--nasline:#6cc493;--cloud:#231c33;--cloudline:#a893e6;--warnbg:#2e2615;--badbg:#321c1a;--okbg:#16291f;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;color:var(--ink);background:var(--bg);line-height:1.65;font-size:15px;}
+.page{max-width:1080px;margin:0 auto;background:var(--paper);padding:48px 56px 64px;box-shadow:0 2px 14px rgba(0,0,0,.08);min-height:100vh;}
+@media (max-width:760px){.page{padding:26px 16px 48px;}}
+.doc-label{display:inline-block;background:var(--navy);color:var(--paper);font-size:12px;letter-spacing:.16em;padding:5px 14px;border-radius:3px;margin-bottom:14px;}
+h1{font-size:27px;color:var(--navy);margin:4px 0 6px;line-height:1.35;}
+.sub{color:var(--muted);font-size:13.5px;margin-bottom:22px;}
+h2{font-size:20px;color:var(--navy);margin:44px 0 12px;padding-bottom:8px;border-bottom:2px solid var(--navy);scroll-margin-top:16px;}
+h3{font-size:15.5px;color:var(--navy2);margin:22px 0 8px;}
+p{margin:0 0 10px;}
+.lead{font-size:14px;color:var(--muted);margin-bottom:14px;}
+a{color:var(--accent);}
+code{background:var(--soft);border:1px solid var(--line);border-radius:4px;padding:1px 6px;font-size:12.5px;font-family:Consolas,monospace;}
+.toc{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 26px;padding:12px 14px;background:var(--soft);border-radius:10px;}
+.toc a{font-size:12.5px;text-decoration:none;padding:4px 10px;border:1px solid var(--line);border-radius:999px;background:var(--paper);color:var(--navy2);}
+.toc a:hover{border-color:var(--accent);}
+.hero{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:14px;}
+@media (max-width:760px){.hero{grid-template-columns:1fr;}}
+.hcard{border:1px solid var(--line);border-radius:12px;padding:16px 18px;background:var(--paper);}
+.hcard .k{font-size:11.5px;letter-spacing:.1em;color:var(--accent);font-weight:700;}
+.hcard .v{font-size:16px;font-weight:700;color:var(--navy);margin:4px 0 6px;line-height:1.4;}
+.hcard p{font-size:13px;color:var(--muted);margin:0;}
+.hcard.sb{background:var(--sb);border-color:var(--sbline);}
+.hcard.nas{background:var(--nas);border-color:var(--nasline);}
+.hcard.tun{background:var(--cloud);border-color:var(--cloudline);}
+.callout{border-left:5px solid var(--navy);background:var(--soft);border-radius:0 10px 10px 0;padding:14px 18px;margin:12px 0 16px;font-size:14px;}
+.callout.warn{border-color:var(--amber);background:var(--warnbg);}
+.callout.ok{border-color:var(--green);background:var(--okbg);}
+.callout b{color:var(--navy2);}
+.tw{overflow-x:auto;margin:8px 0 16px;border:1px solid var(--line);border-radius:10px;}
+table{border-collapse:collapse;width:100%;font-size:13.2px;min-width:560px;}
+th{background:var(--navy);color:var(--paper);text-align:left;padding:9px 10px;font-weight:600;white-space:nowrap;}
+td{padding:9px 10px;border-top:1px solid var(--line);vertical-align:top;}
+tr:nth-child(even) td{background:var(--soft);}
+td.num{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums;}
+.tag{display:inline-block;font-size:11.5px;font-weight:700;padding:1px 8px;border-radius:999px;border:1px solid;white-space:nowrap;}
+.tag.ok{color:var(--green);border-color:var(--green);background:var(--okbg);}
+.tag.wait{color:var(--amber);border-color:var(--amber);background:var(--warnbg);}
+.tag.no{color:var(--red);border-color:var(--red);background:var(--badbg);}
+.fig{border:1px solid var(--line);border-radius:12px;padding:14px;margin:10px 0 6px;background:var(--paper);overflow-x:auto;}
+.fig svg{display:block;width:100%;min-width:700px;height:auto;}
+.cap{font-size:12.5px;color:var(--muted);margin:4px 2px 18px;}
+svg text{font-family:'Pretendard','Malgun Gothic',sans-serif;fill:var(--ink);}
+svg .t-h{font-size:15px;font-weight:700;fill:var(--navy);}
+svg .t-s{font-size:12.5px;fill:var(--muted);}
+svg .t-b{font-size:13px;}
+svg .t-w{font-size:12px;font-weight:700;}
+svg .box{fill:var(--paper);stroke:var(--line);stroke-width:1.5;}
+svg .box-sb{fill:var(--sb);stroke:var(--sbline);stroke-width:2;}
+svg .box-nas{fill:var(--nas);stroke:var(--nasline);stroke-width:2;}
+svg .box-cl{fill:var(--cloud);stroke:var(--cloudline);stroke-width:2;}
+svg .box-soft{fill:var(--soft);stroke:var(--line);stroke-width:1.5;}
+svg .box-bad{fill:var(--badbg);stroke:var(--red);stroke-width:1.5;stroke-dasharray:5 4;}
+svg .box-ok{fill:var(--okbg);stroke:var(--green);stroke-width:1.5;}
+svg .box-warn{fill:var(--warnbg);stroke:var(--amber);stroke-width:1.5;}
+svg .ln{stroke:var(--muted);stroke-width:2;fill:none;}
+svg .ln-sb{stroke:var(--sbline);stroke-width:2.5;fill:none;}
+svg .ln-nas{stroke:var(--nasline);stroke-width:2.5;fill:none;}
+svg .ln-cl{stroke:var(--cloudline);stroke-width:3;fill:none;stroke-dasharray:8 5;}
+svg .zone{fill:none;stroke:var(--line);stroke-width:1.5;stroke-dasharray:6 5;}
+svg .dot-sb{fill:var(--sbline);} svg .dot-nas{fill:var(--nasline);} svg .dot-cl{fill:var(--cloudline);} svg .dot-m{fill:var(--muted);}
+svg .num{fill:var(--navy);} svg .num-t{fill:var(--paper);font-size:12px;font-weight:700;}
+.tree{background:var(--soft);border:1px solid var(--line);border-radius:10px;padding:14px 18px;font-family:Consolas,'Malgun Gothic',monospace;font-size:13px;line-height:1.75;overflow-x:auto;white-space:pre;margin:8px 0 6px;}
+.tree .c{color:var(--muted);}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+@media (max-width:760px){.grid2{grid-template-columns:1fr;}}
+.box2{border:1px solid var(--line);border-radius:12px;padding:14px 16px;background:var(--paper);}
+.box2 h4{font-size:14.5px;color:var(--navy);margin-bottom:8px;}
+.box2 ul{margin:0 0 0 18px;font-size:13.3px;}
+.box2 li{margin-bottom:5px;}
+.foot{margin-top:40px;padding-top:12px;border-top:1px solid var(--line);color:var(--muted);font-size:12px;}
+.theme{position:fixed;right:14px;bottom:14px;border:1px solid var(--line);background:var(--paper);color:var(--ink);border-radius:999px;padding:6px 12px;font-size:12px;cursor:pointer;}
+@media print{.toc,.theme{display:none;}.page{box-shadow:none;padding:0;}h2{break-after:avoid;}.fig,.box2{break-inside:avoid;}body{background:#fff;}}
+</style>
+<!-- jeilax:local-links --><script>(function(){if(location.protocol!=="file:")return;var r="../../",s=document.createElement("script");s.src=r+"_local_links.js";s.setAttribute("data-root",r);(document.head||document.documentElement).appendChild(s);})();</script><!-- /jeilax:local-links -->
+</head>
+<body>
+<div class="page">
+  <span class="doc-label">JEIL AX NAS 고도화 · 대외비 · 설명 자료</span>
+  <h1>🗄️ 사내 NAS 연동 방식 한눈에</h1>
+  <div class="sub">기준 2026-10-02 · <b>지금 실제로 돌아가는 것</b>만 그렸다 · 작성 최동혁(정보전략팀) / Claude · 배경과 결정 과정은 <a href="/docs/nas/decision">02 의사결정 브리핑</a>, 설계 상세는 <a href="/docs/nas/plan">01 데이터계층 기획(v3)</a></div>
+
+  <nav class="toc" aria-label="목차">
+    <a href="#s1">1 한눈에</a><a href="#s2">2 전체 구조</a><a href="#s3">3 한 번 적재되는 과정</a><a href="#s4">4 언제 도는가</a>
+    <a href="#s5">5 무엇이 쌓이는가</a><a href="#s6">6 안전장치</a><a href="#s7">7 검증 결과</a><a href="#s8">8 되는 것 · 안 되는 것</a><a href="#s9">9 남은 일</a><a href="#s10">10 관련 파일</a>
+  </nav>
+
+  <!-- 1 -->
+  <h2 id="s1">1. 한눈에</h2>
+  <div class="hero">
+    <div class="hcard sb"><div class="k">원본 · SUPABASE</div><div class="v">포털의 데이터는<br>지금처럼 클라우드에</div><p>에이전트 대화·평가·개선 대장, ERP 중간DB. 포털과 에이전트는 여기만 읽고 쓴다. <b>NAS 로 복사해도 원본은 지우지 않는다.</b></p></div>
+    <div class="hcard tun"><div class="k">연결 · 역방향 큐</div><div class="v">NAS 쪽이 먼저<br>"가져갈 것 있나요?"</div><p>사내 PC 의 적재 워커가 <b>밖으로만</b> 연결해 데이터를 받아 온다. 밖에서 NAS 로 들어오는 길이 없어 방화벽을 건드리지 않았다.</p></div>
+    <div class="hcard nas"><div class="k">사본 · 사내NAS</div><div class="v">쌓이는 기록을<br>회사 안에 보관</div><p>대화기록은 새로 생긴 것만 이어 붙이고, ERP 데이터는 하루 한 장씩 통째로 찍어 둔다. 매 회차 건수와 지문(해시)을 함께 남긴다.</p></div>
+  </div>
+  <div class="callout ok"><b>현재 상태 — 가동 중</b> · 2026-10-02 실제 NAS 폴더로 3회 연속 적재 성공, 매일 자동 적재 예약작업 등록.<br>
+  방향은 <b>포털 → NAS 한쪽</b>이다. NAS 에 있는 자료를 에이전트가 읽어 답하는 반대 방향은 아직 없다(<a href="#s8">8절</a>).<br>
+  그 반대 방향과 적재 워커의 NAS 컨테이너 이관은 <a href="/docs/nas/realtime">04 실시간 연계·컨테이너 이관 검토</a>에 정리했다.</div>
+
+  <!-- 2 -->
+  <h2 id="s2">2. 전체 구조</h2>
+  <div class="fig"><svg viewBox="0 0 960 440" role="img" aria-label="NAS 연동 전체 구조">
+    <rect x="20" y="34" width="150" height="70" rx="10" class="box"/><text x="95" y="64" text-anchor="middle" class="t-h">👤 직원</text><text x="95" y="86" text-anchor="middle" class="t-s">사내·사외 브라우저</text>
+    <rect x="210" y="34" width="170" height="70" rx="10" class="box-soft"/><text x="295" y="64" text-anchor="middle" class="t-h">AI 포털</text><text x="295" y="86" text-anchor="middle" class="t-s">로그인 · 에이전트 화면</text>
+    <line x1="170" y1="69" x2="204" y2="69" class="ln"/><polygon points="204,63 215,69 204,75" class="dot-m"/>
+    <rect x="210" y="130" width="170" height="64" rx="10" class="box-soft"/><text x="295" y="158" text-anchor="middle" class="t-b">ERP 서버(사외 IDC)</text><text x="295" y="178" text-anchor="middle" class="t-s">러너가 ERP → 중간DB</text>
+    <line x1="380" y1="162" x2="424" y2="162" class="ln"/><polygon points="424,156 435,162 424,168" class="dot-m"/>
+
+    <rect x="430" y="16" width="512" height="194" rx="14" class="box-sb"/><text x="450" y="42" class="t-h">Supabase (클라우드) — 원본</text>
+    <rect x="450" y="54" width="148" height="62" rx="8" class="box"/><text x="524" y="80" text-anchor="middle" class="t-b">게이트웨이</text><text x="524" y="100" text-anchor="middle" class="t-s">에이전트 두뇌</text>
+    <rect x="612" y="54" width="150" height="62" rx="8" class="box"/><text x="687" y="80" text-anchor="middle" class="t-b">에이전트 기록</text><text x="687" y="100" text-anchor="middle" class="t-s">대화·평가·개선 대장</text>
+    <rect x="776" y="54" width="150" height="62" rx="8" class="box"/><text x="851" y="80" text-anchor="middle" class="t-b">ERP 중간DB</text><text x="851" y="100" text-anchor="middle" class="t-s">발주·품목·재고…</text>
+    <rect x="450" y="130" width="148" height="62" rx="8" class="box"/><text x="524" y="156" text-anchor="middle" class="t-b">적재 큐 · 심박</text><text x="524" y="176" text-anchor="middle" class="t-s">할 일 · 워커 생존</text>
+    <rect x="612" y="130" width="150" height="62" rx="8" class="box"/><text x="687" y="156" text-anchor="middle" class="t-b">허용 목록</text><text x="687" y="176" text-anchor="middle" class="t-s">내보내도 되는 것</text>
+    <rect x="776" y="130" width="150" height="62" rx="8" class="box"/><text x="851" y="156" text-anchor="middle" class="t-b">가져간 지점 표시</text><text x="851" y="176" text-anchor="middle" class="t-s">소스별 커서</text>
+    <line x1="380" y1="69" x2="444" y2="80" class="ln"/><polygon points="441,74 452,82 439,86" class="dot-m"/>
+
+    <rect x="12" y="262" width="936" height="166" rx="14" class="zone"/><text x="34" y="288" class="t-h">🏢 사내망 (내부 방화벽 안)</text>
+    <rect x="430" y="300" width="230" height="112" rx="10" class="box-cl"/><text x="545" y="326" text-anchor="middle" class="t-h">적재 워커</text><text x="545" y="348" text-anchor="middle" class="t-s">사내 PC · 예약작업 하루 1회</text><text x="545" y="368" text-anchor="middle" class="t-s">공개 주소·열린 포트 없음</text><text x="545" y="392" text-anchor="middle" class="t-s">(이후 NAS 컨테이너로 이전)</text>
+    <rect x="708" y="300" width="222" height="112" rx="10" class="box-nas"/><text x="819" y="326" text-anchor="middle" class="t-h">사내NAS 적재 폴더</text><text x="819" y="350" text-anchor="middle" class="t-s">대화기록 /</text><text x="819" y="370" text-anchor="middle" class="t-s">ERP스냅샷 /</text><text x="819" y="390" text-anchor="middle" class="t-s">_manifest / (건수·지문)</text>
+    <line x1="660" y1="356" x2="700" y2="356" class="ln-nas"/><polygon points="700,349 712,356 700,363" class="dot-nas"/>
+    <text x="684" y="344" text-anchor="middle" class="t-s">SMB</text>
+
+    <path d="M545 300 L 545 224" class="ln-cl"/><polygon points="538,226 545,212 552,226" class="dot-cl"/>
+    <rect x="566" y="226" width="250" height="30" rx="15" class="box-cl"/><text x="691" y="246" text-anchor="middle" class="t-w" style="fill:var(--cloudline)">🔒 HTTPS 443 · 사내 → 밖으로만</text>
+
+    <rect x="40" y="306" width="340" height="100" rx="10" class="box-bad"/><text x="210" y="334" text-anchor="middle" class="t-b" style="fill:var(--red);font-weight:700">아직 없는 길</text><text x="210" y="356" text-anchor="middle" class="t-s">에이전트가 NAS 의 문서·과거 기록을</text><text x="210" y="376" text-anchor="middle" class="t-s">읽어 답하는 방향 (다음 단계 N2·N3)</text>
+  </svg></div>
+  <div class="cap">보라색 점선이 유일한 연결이다. 워커가 사내에서 밖으로 연결을 열고, 그 연결 위에서 "할 일 받기 → 데이터 받기 → 완료 보고"를 모두 한다. Supabase 가 NAS 를 부르는 일은 없다. 회사가 이미 같은 방식을 쓰고 있다 — ERP 서버의 러너가 중간DB 를 채우는 구조.</div>
+
+  <!-- 3 -->
+  <h2 id="s3">3. 한 번 적재되는 과정</h2>
+  <div class="fig"><svg viewBox="0 0 960 230" role="img" aria-label="적재 한 회차의 여섯 단계">
+    <g><rect x="16" y="50" width="142" height="130" rx="10" class="box-sb"/><circle cx="87" cy="50" r="14" class="num"/><text x="87" y="55" text-anchor="middle" class="num-t">1</text>
+      <text x="87" y="88" text-anchor="middle" class="t-h">생존 신호</text><text x="87" y="112" text-anchor="middle" class="t-s">"워커 살아 있음"</text><text x="87" y="132" text-anchor="middle" class="t-s">NAS 폴더가</text><text x="87" y="150" text-anchor="middle" class="t-s">보이는지도 함께</text></g>
+    <g><rect x="174" y="50" width="142" height="130" rx="10" class="box-sb"/><circle cx="245" cy="50" r="14" class="num"/><text x="245" y="55" text-anchor="middle" class="num-t">2</text>
+      <text x="245" y="88" text-anchor="middle" class="t-h">할 일 정하기</text><text x="245" y="112" text-anchor="middle" class="t-s">하루 1회 자체 시작</text><text x="245" y="132" text-anchor="middle" class="t-s">또는 화면이 남긴</text><text x="245" y="150" text-anchor="middle" class="t-s">요청 1건을 집는다</text></g>
+    <g><rect x="332" y="50" width="142" height="130" rx="10" class="box-sb"/><circle cx="403" cy="50" r="14" class="num"/><text x="403" y="55" text-anchor="middle" class="num-t">3</text>
+      <text x="403" y="88" text-anchor="middle" class="t-h">데이터 받기</text><text x="403" y="112" text-anchor="middle" class="t-s">허용 목록에 있는</text><text x="403" y="132" text-anchor="middle" class="t-s">것만 · 표시 이후분을</text><text x="403" y="150" text-anchor="middle" class="t-s">나눠서 받아 온다</text></g>
+    <g><rect x="490" y="50" width="142" height="130" rx="10" class="box-nas"/><circle cx="561" cy="50" r="14" class="num"/><text x="561" y="55" text-anchor="middle" class="num-t">4</text>
+      <text x="561" y="88" text-anchor="middle" class="t-h">NAS 에 쓰기</text><text x="561" y="112" text-anchor="middle" class="t-s">임시 파일로 쓴 뒤</text><text x="561" y="132" text-anchor="middle" class="t-s">한 번에 제자리로</text><text x="561" y="150" text-anchor="middle" class="t-s">건수·지문 계산</text></g>
+    <g><rect x="648" y="50" width="142" height="130" rx="10" class="box-sb"/><circle cx="719" cy="50" r="14" class="num"/><text x="719" y="55" text-anchor="middle" class="num-t">5</text>
+      <text x="719" y="88" text-anchor="middle" class="t-h">표시 옮기기</text><text x="719" y="112" text-anchor="middle" class="t-s">파일이 놓인</text><text x="719" y="132" text-anchor="middle" class="t-s">뒤에만 "여기까지</text><text x="719" y="150" text-anchor="middle" class="t-s">가져갔다" 전진</text></g>
+    <g><rect x="806" y="50" width="142" height="130" rx="10" class="box-sb"/><circle cx="877" cy="50" r="14" class="num"/><text x="877" y="55" text-anchor="middle" class="num-t">6</text>
+      <text x="877" y="88" text-anchor="middle" class="t-h">결과 남기기</text><text x="877" y="112" text-anchor="middle" class="t-s">건수·지문·사유를</text><text x="877" y="132" text-anchor="middle" class="t-s">NAS 기록 파일과</text><text x="877" y="150" text-anchor="middle" class="t-s">요청 이력에</text></g>
+    <g class="dot-m"><polygon points="160,109 172,115 160,121"/><polygon points="318,109 330,115 318,121"/><polygon points="476,109 488,115 476,121"/><polygon points="634,109 646,115 634,121"/><polygon points="792,109 804,115 792,121"/></g>
+    <text x="480" y="212" text-anchor="middle" class="t-s">파란 칸 = 워커가 클라우드와 주고받는 단계 · 초록 칸 = 사내NAS 에 쓰는 단계</text>
+  </svg></div>
+  <div class="cap">핵심은 <b>4 → 5 순서</b>다. 파일이 NAS 에 제대로 놓인 뒤에만 표시를 옮기므로, 중간에 끊겨도 같은 지점부터 다시 가져온다(중복·누락 없음). 원본을 지우지 않기 때문에 NAS 가 며칠 꺼져 있어도 잃는 것이 없다.</div>
+
+  <!-- 4 -->
+  <h2 id="s4">4. 언제 도는가 — 하루 한 번, 놓치면 다음 기회에</h2>
+  <div class="fig"><svg viewBox="0 0 960 250" role="img" aria-label="하루 1회 적재 판단 흐름">
+    <rect x="16" y="36" width="150" height="62" rx="10" class="box-soft"/><text x="91" y="62" text-anchor="middle" class="t-b">30분마다 깨어남</text><text x="91" y="82" text-anchor="middle" class="t-s">사내 PC 예약작업</text>
+    <rect x="204" y="36" width="160" height="62" rx="10" class="box"/><text x="284" y="62" text-anchor="middle" class="t-b">오늘 이미</text><text x="284" y="82" text-anchor="middle" class="t-b">성공했나?</text>
+    <rect x="402" y="36" width="160" height="62" rx="10" class="box"/><text x="482" y="62" text-anchor="middle" class="t-b">NAS 폴더가</text><text x="482" y="82" text-anchor="middle" class="t-b">보이나?</text>
+    <rect x="600" y="36" width="150" height="62" rx="10" class="box-cl"/><text x="675" y="62" text-anchor="middle" class="t-b">적재 실행</text><text x="675" y="82" text-anchor="middle" class="t-s">3절의 여섯 단계</text>
+    <rect x="788" y="36" width="156" height="62" rx="10" class="box"/><text x="866" y="62" text-anchor="middle" class="t-b">전부</text><text x="866" y="82" text-anchor="middle" class="t-b">성공했나?</text>
+    <g class="ln"><line x1="166" y1="67" x2="196" y2="67"/><line x1="364" y1="67" x2="394" y2="67"/><line x1="562" y1="67" x2="592" y2="67"/><line x1="750" y1="67" x2="780" y2="67"/>
+      <line x1="284" y1="98" x2="284" y2="150"/><line x1="482" y1="98" x2="482" y2="150"/><line x1="826" y1="98" x2="790" y2="150"/><line x1="906" y1="98" x2="906" y2="150"/></g>
+    <g class="dot-m"><polygon points="196,61 207,67 196,73"/><polygon points="394,61 405,67 394,73"/><polygon points="592,61 603,67 592,73"/><polygon points="780,61 791,67 780,73"/>
+      <polygon points="278,150 284,162 290,150"/><polygon points="476,150 482,162 488,150"/><polygon points="784,148 788,161 796,151"/><polygon points="900,150 906,162 912,150"/></g>
+    <text x="379" y="58" text-anchor="middle" class="t-s">아니오</text><text x="577" y="58" text-anchor="middle" class="t-s">예</text>
+    <text x="296" y="128" class="t-s">예</text><text x="494" y="128" class="t-s">아니오</text><text x="776" y="128" class="t-s">예</text><text x="916" y="128" class="t-s">아니오</text>
+    <rect x="196" y="164" width="176" height="62" rx="10" class="box-ok"/><text x="284" y="190" text-anchor="middle" class="t-b">화면 요청만 확인</text><text x="284" y="210" text-anchor="middle" class="t-s">하고 종료</text>
+    <rect x="394" y="164" width="176" height="62" rx="10" class="box-warn"/><text x="482" y="190" text-anchor="middle" class="t-b">오늘 적재를 미룸</text><text x="482" y="210" text-anchor="middle" class="t-s">30분 뒤 다시 확인</text>
+    <rect x="700" y="164" width="130" height="62" rx="10" class="box-ok"/><text x="765" y="190" text-anchor="middle" class="t-b">완료 표시</text><text x="765" y="210" text-anchor="middle" class="t-s">오늘은 끝</text>
+    <rect x="842" y="164" width="106" height="62" rx="10" class="box-warn"/><text x="895" y="190" text-anchor="middle" class="t-b">표시 안 남김</text><text x="895" y="210" text-anchor="middle" class="t-s">다음 회차 재시도</text>
+  </svg></div>
+  <div class="cap">정해진 시각에 한 번 도는 방식이 아니라, <b>그날 PC 가 켜져 있고 NAS 가 보이는 첫 기회</b>에 한 번 돈다. PC 가 꺼져 있던 날은 다음에 켜졌을 때 적재한다(대화기록은 표시 이후분을 모두 가져오므로 빠지지 않는다. ERP 스냅샷만 그날 치가 없다).</div>
+  <div class="callout"><b>왜 서버의 러너가 아니라 사내 PC 예약작업인가</b> — NAS 는 사내망에서만 보여 사외 IDC 의 ERP 서버가 쓸 수 없다. 그렇다고 사무용 PC 에 러너를 통째로 띄우면 결의전표 운영 ERP 전송 같은 다른 작업까지 켜져 서버와 중복된다. 그래서 NAS 적재 하나만 따로 돈다. 워커를 NAS 컨테이너로 옮기면 이 예약작업은 없앤다.</div>
+
+  <!-- 5 -->
+  <h2 id="s5">5. 무엇이 쌓이는가</h2>
+  <p class="lead">내보낼 수 있는 것은 프로그램이 아니라 <b>DB 의 허용 목록</b>이 정한다. 목록에 없는 것은 요청해도 거부된다. 건수는 2026-10-02 기준.</p>
+  <h3>① 에이전트 기록 — 새로 생긴 것만 이어 붙인다 (증분)</h3>
+  <div class="tw"><table>
+    <tr><th>소스</th><th>내용</th><th>건수</th><th>다시 실리는 경우</th></tr>
+    <tr><td>에이전트 대화 턴</td><td>질문·답변·사용 도구·모델·토큰·비용</td><td class="num">89</td><td>없음(한 번 내보내면 끝)</td></tr>
+    <tr><td>대화 턴 평가</td><td>답변에 나중에 달린 평가 값만(본문 없음, 번호로 턴과 잇는다)</td><td class="num">0</td><td>평가를 고치면 다시 실린다</td></tr>
+    <tr><td>개선 대장</td><td>개선 요청과 처리 상태</td><td class="num">8</td><td>상태가 바뀌면 다시 실린다(이력 누적)</td></tr>
+    <tr><td>생성 자료 메타</td><td>에이전트가 만든 파일의 경로·크기·만료일(<b>파일 원본은 아님</b>)</td><td class="num">2</td><td>없음</td></tr>
+    <tr><td>골든셋 회귀 이력</td><td>에이전트 품질 시험 실행 기록</td><td class="num">1</td><td>없음</td></tr>
+  </table></div>
+  <h3>② ERP 스냅샷 — 하루 한 장씩 통째로 찍는다 (전량)</h3>
+  <div class="tw"><table>
+    <tr><th>소스</th><th>건수</th><th>소스</th><th>건수</th><th>소스</th><th>건수</th></tr>
+    <tr><td>품목 마스터</td><td class="num">59,634</td><td>발주통합 LIST</td><td class="num">5,945</td><td>구매요청(PR)</td><td class="num">5,884</td></tr>
+    <tr><td>발주(PO) 라인</td><td class="num">4,747</td><td>일별 입출고·재고</td><td class="num">3,144</td><td>월별 매입(거래처)</td><td class="num">270</td></tr>
+    <tr><td>사용자-부서 매핑</td><td class="num">88</td><td>월별 수주·매출</td><td class="num">56</td><td>부서 인원 명부</td><td class="num">22</td></tr>
+  </table></div>
+  <p class="lead">합계 79,790행. 급여 등 민감 스키마는 허용 목록에 올릴 수 없게 DB 에서 막혀 있다.</p>
+  <h3>③ NAS 폴더 모양</h3>
+  <div class="tree">적재 폴더/
+├─ 대화기록/
+│   ├─ agent_turn/2026/agent_turn_2026-10-02_103006.jsonl   <span class="c">← 회차마다 파일 하나(새 행이 없으면 만들지 않는다)</span>
+│   ├─ agent_improve/2026/…
+│   ├─ agent_artifact/2026/…
+│   └─ agent_golden_run/2026/…
+├─ ERP스냅샷/
+│   └─ 2026-10-02/v_erp_item.jsonl.gz  외 8개                <span class="c">← 날짜 폴더 하나에 9개(같은 날 다시 돌면 덮어쓴다)</span>
+└─ _manifest/
+    └─ 2026-10-02/&lt;회차번호&gt;.json                            <span class="c">← 그 회차의 소스별 건수·지문(SHA256)·가져간 범위</span></div>
+  <div class="cap">파일은 한 줄에 한 건씩 적힌 텍스트(JSONL)다. 스냅샷은 용량 때문에 압축(gz)한다. 메모장으로 열 수 있지만, 대화기록에는 <b>직원의 질문·답변 원문</b>이 그대로 들어 있고 암호화되어 있지 않다 — 폴더 권한이 유일한 보호 장치다.</div>
+
+  <!-- 6 -->
+  <h2 id="s6">6. 안전장치</h2>
+  <div class="tw"><table>
+    <tr><th>걱정</th><th>어떻게 막는가</th></tr>
+    <tr><td>밖에서 NAS 로 들어올 수 있나</td><td>들어오는 길 자체가 없다. 공개 주소·열린 포트·터널을 만들지 않았고 방화벽 룰도 추가하지 않았다</td></tr>
+    <tr><td>내보내면 안 되는 것이 나가나</td><td>허용 목록에 있는 것만 나간다. 목록 밖을 요청하면 "0건 성공"이 아니라 <b>오류</b>로 끝난다. 급여 스키마는 목록에 등재조차 안 된다</td></tr>
+    <tr><td>중간에 끊기면 빠지거나 겹치나</td><td>파일이 놓인 뒤에만 표시를 옮긴다 → 같은 지점부터 다시. 전량 스냅샷은 시작 전 건수와 대조해 어긋나면 실패로 닫는다</td></tr>
+    <tr><td>파일이 깨진 걸 모르고 지나가나</td><td>회차마다 건수와 지문(SHA256)을 남긴다. NAS 파일을 다시 읽어 대조할 수 있다</td></tr>
+    <tr><td>NAS 가 안 보이는데 "완료"로 찍히나</td><td>폴더가 안 보이면 요청을 집지 않고 사유를 남긴다(2026-10-02 실 NAS 시험에서 결함 1건 발견 → 수정)</td></tr>
+    <tr><td>워커가 멈춘 걸 모르나</td><td>전용 생존 신호를 남긴다. ERP 러너의 신호와 섞지 않아 서로 오판하지 않는다</td></tr>
+    <tr><td>ERP 쪽 작업을 방해하나</td><td>큐와 생존 신호를 ERP 것과 따로 쓴다. 워커는 ERP 큐를 아예 부르지 않는다(회귀 테스트로 잠금)</td></tr>
+    <tr><td>오류 메시지로 접속 정보가 새나</td><td>DB 에 되쓰는 문장에서 계정·주소·공유 경로를 가린다. NAS 경로는 저장소·문서 어디에도 적지 않는다</td></tr>
+  </table></div>
+
+  <!-- 7 -->
+  <h2 id="s7">7. 검증 결과 (2026-10-02 · 실제 NAS)</h2>
+  <div class="tw"><table>
+    <tr><th>시험</th><th>결과</th><th></th></tr>
+    <tr><td>1회차 전량 적재</td><td>기록 4종 100행 + ERP 스냅샷 9종 79,790행 · 파일 13개</td><td><span class="tag ok">통과</span></td></tr>
+    <tr><td>2회차 증분</td><td>새 행 0 → 빈 파일을 만들지 않음</td><td><span class="tag ok">통과</span></td></tr>
+    <tr><td>3회차 큐 경유</td><td>요청 투입 → 워커가 집어감 → 완료 기록</td><td><span class="tag ok">통과</span></td></tr>
+    <tr><td>복원 대조</td><td>NAS 파일 13개 · 79,890행 — 건수·지문 전부 일치, 임시 파일 잔여 0</td><td><span class="tag ok">통과</span></td></tr>
+    <tr><td>내용 대조</td><td>대화기록 89건의 질문·답변·모델이 라이브 DB 와 일치(종합 해시 동일)</td><td><span class="tag ok">통과</span></td></tr>
+    <tr><td>방어</td><td>허용 목록 밖 테이블 · 급여 스키마 요청 → 거부, 파일 0개</td><td><span class="tag ok">통과</span></td></tr>
+    <tr><td>NAS 가 안 보일 때</td><td>결함 발견(없는 폴더로도 완료 처리) → 수정 후 요청을 집지 않음</td><td><span class="tag ok">수정·통과</span></td></tr>
+    <tr><td>예약작업</td><td>등록 후 1회 실행 성공 · 완료 표시 기록</td><td><span class="tag ok">통과</span></td></tr>
+    <tr><td>자동 회귀 테스트</td><td>117건(이 중 NAS 워커 31건)</td><td><span class="tag ok">통과</span></td></tr>
+    <tr><td>평가가 NAS 로 넘어가는지</td><td>경로는 열었으나 평가된 대화가 0건이라 실데이터로는 미확인</td><td><span class="tag wait">대기</span></td></tr>
+    <tr><td>새 질문이 NAS 에 도착하는지</td><td>마지막 대화가 09-30 이라 실사용 흐름은 미확인</td><td><span class="tag wait">대기</span></td></tr>
+  </table></div>
+
+  <!-- 8 -->
+  <h2 id="s8">8. 되는 것 · 안 되는 것</h2>
+  <div class="grid2">
+    <div class="box2"><h4>✅ 지금 되는 것</h4><ul>
+      <li>에이전트 대화·평가·개선 대장·회귀 이력이 매일 NAS 에 쌓인다</li>
+      <li>ERP 중간DB 9종이 매일 한 장씩 NAS 에 남는다(복구용 사본)</li>
+      <li>적재가 끊겨도 멈춘 지점부터 이어 간다</li>
+      <li>회차마다 건수·지문이 남아 사후 대조가 된다</li>
+      <li>재택·출장 중에도 포털 사용은 그대로다(브라우저는 포털만 본다)</li>
+    </ul></div>
+    <div class="box2"><h4>⛔ 아직 안 되는 것</h4><ul>
+      <li><b>NAS → 에이전트 방향</b> — 에이전트가 NAS 의 문서나 과거 기록을 읽어 답하지 못한다</li>
+      <li><b>삭제 따라가기</b> — 포털에서 180일 지나 지워진 대화를 NAS 에서 지우는 기능이 없다</li>
+      <li><b>파일 원본</b> — 에이전트가 만든 엑셀·보고서 자체는 NAS 에 오지 않는다(메타만)</li>
+      <li><b>에이전트 설정 백업</b> — 프로필·용어집·골든셋은 대상이 아니다</li>
+      <li><b>암호화</b> — 파일은 평문이다(폴더 권한으로 보호)</li>
+      <li><b>PC 의존</b> — 사내 PC 가 꺼져 있는 날은 적재가 밀린다</li>
+    </ul></div>
+  </div>
+
+  <!-- 9 -->
+  <h2 id="s9">9. 남은 일</h2>
+  <div class="tw"><table>
+    <tr><th>누가</th><th>할 일</th><th>왜</th></tr>
+    <tr><td>IT</td><td>PoC 때 연 포트(8765) 폐쇄</td><td>인증 없는 HTTP 가 사내에서 닿는다. 지금 방식은 NAS 에 열린 포트가 필요 없다</td></tr>
+    <tr><td>IT·관리자</td><td>적재 폴더 권한을 시스템·관리자 전용으로 확인</td><td>대화 원문이 평문으로 들어 있다</td></tr>
+    <tr><td>IT</td><td>NAS 외부 백업 + UPS</td><td>나중에 포털 쪽 보관 기간을 줄이면 NAS 가 유일한 원본이 된다. 그 전에 필요</td></tr>
+    <tr><td>관리자</td><td>에이전트에 질문 1건 + 평가 1건</td><td>실사용 흐름과 평가 전달을 실데이터로 확인</td></tr>
+    <tr><td>개발</td><td>워커를 NAS 컨테이너로 옮기고 전용 좁은 키로 전환</td><td>사내 PC 의존을 없애고, 컨테이너에 전체 권한 키를 두지 않기 위해</td></tr>
+    <tr><td>개발(새 요청)</td><td>180일 경과분 NAS 삭제 · 보존 전환 · NAS 문서 검색</td><td>8절의 "안 되는 것"을 단계적으로 메운다</td></tr>
+  </table></div>
+
+  <!-- 10 -->
+  <h2 id="s10">10. 관련 파일</h2>
+  <div class="tw"><table>
+    <tr><th>무엇</th><th>어디</th></tr>
+    <tr><td>적재 워커</td><td><code>10_ERP_DB연계/etl/nas_worker.py</code>(n1.1) · 회귀 <code>test_nas_worker.py</code></td></tr>
+    <tr><td>예약작업 등록</td><td><code>10_ERP_DB연계/etl/deploy/register_nas_task.ps1</code> · 작업 이름 <code>JEIL_AX_NasExport</code></td></tr>
+    <tr><td>DB(큐·심박·허용 목록·커서)</td><td><code>실제구축준비 자료/이관/sql/82_nas_export_queue.sql</code></td></tr>
+    <tr><td>DB(평가 내보내기)</td><td><code>실제구축준비 자료/이관/sql/84_nas_export_turn_rating.sql</code></td></tr>
+    <tr><td>실행 로그 · 완료 표시</td><td><code>logs/nas_worker.log</code> · <code>logs/nas_nightly.json</code>(사내 PC)</td></tr>
+    <tr><td>NAS 경로</td><td>사내 PC 의 <code>.claude/nas.path</code> 한 줄 — 저장소·문서에는 적지 않는다</td></tr>
+    <tr><td>결정 기록</td><td>ADR-110(v3) · <a href="/docs/nas/plan">01 기획</a> · <a href="/docs/nas/decision">02 브리핑</a> · <a href="/docs/nas/review">00 타당성 검토</a></td></tr>
+  </table></div>
+
+  <div class="foot">13_NAS_고도화 / 03_연동방식_도식.html · 직접 관리(빌드 대상 아님) · 관리자 최동혁 · <a href="/docs/nas">NAS 허브</a> · NAS 주소·계정·비밀값은 기재하지 않음(CLAUDE.md §1)</div>
+</div>
+<button class="theme" type="button" onclick="(function(){var r=document.documentElement,c=r.getAttribute('data-theme'),d=c?c==='dark':matchMedia('(prefers-color-scheme: dark)').matches;r.setAttribute('data-theme',d?'light':'dark');})()">🌓 테마</button>
+</body>
+</html>

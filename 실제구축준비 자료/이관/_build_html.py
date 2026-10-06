@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 실제구축준비 자료/이관/ 폴더의 각 .md 를 공유 스타일 HTML 로 변환한다.
-공통 로직은 00_관리체계/lib/_html_builder.py(단일 출처). 여기서는 문서 목록·라벨만 정의한다.
+공통 로직은 문서/00_관리체계/lib/_html_builder.py(단일 출처). 여기서는 문서 목록·라벨만 정의한다.
 사용: python _build_html.py
 주의: index.html 은 자체완결 대시보드라 빌드 대상에서 제외(직접 관리).
 """
@@ -9,7 +9,7 @@ import os
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, os.path.join(HERE, '..', '..', '00_관리체계', 'lib'))
+sys.path.insert(0, os.path.join(HERE, '..', '..', '문서', '00_관리체계', 'lib'))
 from _html_builder import build_docs  # noqa: E402
 
 DOCS = [

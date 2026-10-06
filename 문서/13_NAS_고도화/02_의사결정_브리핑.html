@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NAS 연계 의사결정 브리핑 — JEIL AX</title>
+<!-- 자체완결 브리핑(직접 관리 · 외부 CDN 없음). 원천: 00 타당성검토 · 01 데이터계층 기획(v3) · ADR-110 · 총괄 대시보드 D-94~D-99 · D-104~D-108.
+     NAS 주소·호스트명·관리 계정·비밀값은 적지 않는다(CLAUDE.md §1.1) — 별칭 「사내NAS」 사용. -->
+<style>
+:root{--navy:#1a2f4e;--navy2:#27457a;--accent:#2f6fb3;--red:#b3402f;--green:#2e7d52;--amber:#9a6b1f;
+--ink:#222;--muted:#5f6670;--line:#d8dee8;--bg:#f4f6f9;--soft:#eef2f8;--paper:#fff;
+--sb:#e7f0fb;--sbline:#2f6fb3;--nas:#eaf6ef;--nasline:#2e7d52;--cloud:#f3eefb;--cloudline:#6a4fb3;--warnbg:#fdf4e4;--badbg:#fbeceb;--okbg:#e9f5ee;}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+--navy:#9fbbe6;--navy2:#b7cdf0;--accent:#78a9e6;--red:#e58a7b;--green:#6cc493;--amber:#e0b060;
+--ink:#e4e7ec;--muted:#a3abb7;--line:#34404f;--bg:#12161c;--soft:#1c232d;--paper:#171c23;
+--sb:#16263a;--sbline:#78a9e6;--nas:#15291f;--nasline:#6cc493;--cloud:#231c33;--cloudline:#a893e6;--warnbg:#2e2615;--badbg:#321c1a;--okbg:#16291f;}}
+:root[data-theme="dark"]{--navy:#9fbbe6;--navy2:#b7cdf0;--accent:#78a9e6;--red:#e58a7b;--green:#6cc493;--amber:#e0b060;
+--ink:#e4e7ec;--muted:#a3abb7;--line:#34404f;--bg:#12161c;--soft:#1c232d;--paper:#171c23;
+--sb:#16263a;--sbline:#78a9e6;--nas:#15291f;--nasline:#6cc493;--cloud:#231c33;--cloudline:#a893e6;--warnbg:#2e2615;--badbg:#321c1a;--okbg:#16291f;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;color:var(--ink);background:var(--bg);line-height:1.65;font-size:15px;}
+.page{max-width:1080px;margin:0 auto;background:var(--paper);padding:48px 56px 64px;box-shadow:0 2px 14px rgba(0,0,0,.08);min-height:100vh;}
+@media (max-width:760px){.page{padding:26px 16px 48px;}}
+.doc-label{display:inline-block;background:var(--navy);color:var(--paper);font-size:12px;letter-spacing:.16em;padding:5px 14px;border-radius:3px;margin-bottom:14px;}
+h1{font-size:27px;color:var(--navy);margin:4px 0 6px;line-height:1.35;}
+.sub{color:var(--muted);font-size:13.5px;margin-bottom:22px;}
+h2{font-size:20px;color:var(--navy);margin:44px 0 12px;padding-bottom:8px;border-bottom:2px solid var(--navy);scroll-margin-top:16px;}
+h3{font-size:15.5px;color:var(--navy2);margin:22px 0 8px;}
+p{margin:0 0 10px;}
+.lead{font-size:14px;color:var(--muted);margin-bottom:14px;}
+a{color:var(--accent);}
+code{background:var(--soft);border:1px solid var(--line);border-radius:4px;padding:1px 6px;font-size:12.5px;font-family:Consolas,monospace;}
+/* 목차 */
+.toc{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 26px;padding:12px 14px;background:var(--soft);border-radius:10px;}
+.toc a{font-size:12.5px;text-decoration:none;padding:4px 10px;border:1px solid var(--line);border-radius:999px;background:var(--paper);color:var(--navy2);}
+.toc a:hover{border-color:var(--accent);}
+/* 요약 */
+.hero{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:14px;}
+@media (max-width:760px){.hero{grid-template-columns:1fr;}}
+.hcard{border:1px solid var(--line);border-radius:12px;padding:16px 18px;background:var(--paper);}
+.hcard .k{font-size:11.5px;letter-spacing:.1em;color:var(--accent);font-weight:700;}
+.hcard .v{font-size:16px;font-weight:700;color:var(--navy);margin:4px 0 6px;line-height:1.4;}
+.hcard p{font-size:13px;color:var(--muted);margin:0;}
+.hcard.sb{background:var(--sb);border-color:var(--sbline);}
+.hcard.nas{background:var(--nas);border-color:var(--nasline);}
+.hcard.tun{background:var(--cloud);border-color:var(--cloudline);}
+.callout{border-left:5px solid var(--navy);background:var(--soft);border-radius:0 10px 10px 0;padding:14px 18px;margin:12px 0 16px;font-size:14px;}
+.callout.warn{border-color:var(--amber);background:var(--warnbg);}
+.callout.ok{border-color:var(--green);background:var(--okbg);}
+.callout b{color:var(--navy2);}
+/* 표 */
+.tw{overflow-x:auto;margin:8px 0 16px;border:1px solid var(--line);border-radius:10px;}
+table{border-collapse:collapse;width:100%;font-size:13.2px;min-width:560px;}
+th{background:var(--navy);color:var(--paper);text-align:left;padding:9px 10px;font-weight:600;white-space:nowrap;}
+td{padding:9px 10px;border-top:1px solid var(--line);vertical-align:top;}
+tr:nth-child(even) td{background:var(--soft);}
+.tag{display:inline-block;font-size:11.5px;font-weight:700;padding:1px 8px;border-radius:999px;border:1px solid;white-space:nowrap;}
+.tag.sb{color:var(--sbline);border-color:var(--sbline);background:var(--sb);}
+.tag.nas{color:var(--nasline);border-color:var(--nasline);background:var(--nas);}
+.tag.both{color:var(--cloudline);border-color:var(--cloudline);background:var(--cloud);}
+.light{display:inline-block;width:11px;height:11px;border-radius:50%;margin-right:6px;vertical-align:-1px;}
+.g{background:var(--green);} .y{background:var(--amber);} .r{background:var(--red);}
+.score{font-weight:700;text-align:center;white-space:nowrap;}
+.best td{background:var(--okbg)!important;}
+/* 도식 */
+.fig{border:1px solid var(--line);border-radius:12px;padding:14px;margin:10px 0 6px;background:var(--paper);overflow-x:auto;}
+.fig svg{display:block;width:100%;min-width:700px;height:auto;}
+.cap{font-size:12.5px;color:var(--muted);margin:4px 2px 18px;}
+svg text{font-family:'Pretendard','Malgun Gothic',sans-serif;fill:var(--ink);}
+svg .t-h{font-size:15px;font-weight:700;fill:var(--navy);}
+svg .t-s{font-size:12.5px;fill:var(--muted);}
+svg .t-b{font-size:13px;}
+svg .t-w{font-size:12px;font-weight:700;}
+svg .box{fill:var(--paper);stroke:var(--line);stroke-width:1.5;}
+svg .box-sb{fill:var(--sb);stroke:var(--sbline);stroke-width:2;}
+svg .box-nas{fill:var(--nas);stroke:var(--nasline);stroke-width:2;}
+svg .box-cl{fill:var(--cloud);stroke:var(--cloudline);stroke-width:2;}
+svg .box-soft{fill:var(--soft);stroke:var(--line);stroke-width:1.5;}
+svg .box-bad{fill:var(--badbg);stroke:var(--red);stroke-width:1.5;stroke-dasharray:5 4;}
+svg .ln{stroke:var(--muted);stroke-width:2;fill:none;}
+svg .ln-sb{stroke:var(--sbline);stroke-width:2.5;fill:none;}
+svg .ln-nas{stroke:var(--nasline);stroke-width:2.5;fill:none;}
+svg .ln-cl{stroke:var(--cloudline);stroke-width:3;fill:none;stroke-dasharray:8 5;}
+svg .ln-bad{stroke:var(--red);stroke-width:2;fill:none;stroke-dasharray:4 4;}
+svg .zone{fill:none;stroke:var(--line);stroke-width:1.5;stroke-dasharray:6 5;}
+svg .dot-sb{fill:var(--sbline);} svg .dot-nas{fill:var(--nasline);} svg .dot-cl{fill:var(--cloudline);} svg .dot-m{fill:var(--muted);} svg .dot-r{fill:var(--red);}
+svg .num{fill:var(--navy);} svg .num-t{fill:var(--paper);font-size:12px;font-weight:700;}
+/* 체크리스트·결정 */
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+@media (max-width:760px){.grid2{grid-template-columns:1fr;}}
+.prep{border:1px solid var(--line);border-radius:12px;padding:14px 16px;background:var(--paper);}
+.prep h4{font-size:14.5px;color:var(--navy);margin-bottom:8px;}
+.prep ul{list-style:none;margin:0;}
+.prep li{font-size:13.2px;padding:6px 0 6px 62px;border-top:1px dashed var(--line);position:relative;}
+.prep li:first-child{border-top:0;}
+.prep li .who{position:absolute;left:0;top:6px;margin-top:0;}
+.who{flex:0 0 auto;font-size:11px;font-weight:700;padding:1px 7px;border-radius:5px;background:var(--soft);color:var(--navy2);border:1px solid var(--line);height:fit-content;margin-top:2px;}
+.dec{border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-bottom:12px;background:var(--paper);}
+.dec.key{border:2px solid var(--accent);}
+.dec .top{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:6px;}
+.did{font-weight:800;color:var(--accent);font-size:13px;}
+.dec .ttl{font-weight:700;color:var(--navy);font-size:15px;}
+.st{font-size:11px;font-weight:700;padding:1px 8px;border-radius:999px;}
+.st.wait{background:var(--warnbg);color:var(--amber);border:1px solid var(--amber);}
+.st.new{background:var(--cloud);color:var(--cloudline);border:1px solid var(--cloudline);}
+.st.chg{background:var(--sb);color:var(--sbline);border:1px solid var(--sbline);}
+.st.ans{background:var(--okbg);color:var(--green);border:1px solid var(--green);}
+.dec dl{display:grid;grid-template-columns:78px 1fr;gap:4px 10px;font-size:13.2px;}
+.dec dt{color:var(--muted);font-weight:600;}
+.rec{color:var(--green);font-weight:700;}
+.ask{counter-reset:q;list-style:none;margin:0;}
+.ask li{counter-increment:q;position:relative;padding:12px 14px 12px 50px;border:1px solid var(--line);border-radius:10px;margin-bottom:8px;font-size:13.5px;background:var(--paper);}
+.ask li::before{content:counter(q);position:absolute;left:14px;top:11px;width:24px;height:24px;border-radius:50%;background:var(--amber);color:var(--paper);font-weight:800;font-size:13px;display:flex;align-items:center;justify-content:center;}
+.ask b{color:var(--navy);}
+.ask .why{display:block;color:var(--muted);font-size:12.5px;margin-top:3px;}
+.foot{margin-top:40px;padding-top:12px;border-top:1px solid var(--line);color:var(--muted);font-size:12px;}
+.theme{position:fixed;right:14px;bottom:14px;border:1px solid var(--line);background:var(--paper);color:var(--ink);border-radius:999px;padding:6px 12px;font-size:12px;cursor:pointer;}
+@media print{.toc,.theme{display:none;}.page{box-shadow:none;padding:0;}h2{break-after:avoid;}.fig,.dec,.prep{break-inside:avoid;}body{background:#fff;}}
+</style>
+<!-- jeilax:local-links --><script>(function(){if(location.protocol!=="file:")return;var r="../../",s=document.createElement("script");s.src=r+"_local_links.js";s.setAttribute("data-root",r);(document.head||document.documentElement).appendChild(s);})();</script><!-- /jeilax:local-links -->
+</head>
+<body>
+<div class="page">
+  <span class="doc-label">JEIL AX NAS 고도화 · 대외비 · 의사결정용</span>
+  <h1>🗄️ 사내 NAS 연계 — 의사결정 브리핑</h1>
+  <div class="sub">기준 2026-09-30(v3 — 역방향 큐 채택·1단계 검증 완료) · 작성 최동혁(정보전략팀) / Claude · 원천 <a href="/docs/nas/review">00 타당성검토</a> · <a href="/docs/nas/plan">01 데이터계층 기획(v3)</a> · ADR-110(Accepted 1단계) · 총괄 대시보드 D-94~D-99 · D-104~D-108</div>
+
+  <nav class="toc" aria-label="목차">
+    <a href="#s1">1 한눈에</a><a href="#s2">2 현재 상태</a><a href="#s3">3 도식도</a><a href="#s4">4 데이터 배치</a>
+    <a href="#s5">5 연결 방식 비교</a><a href="#s6">6 적용 가능성</a><a href="#s7">7 사전 준비</a><a href="#s8">8 단계 로드맵</a>
+    <a href="#s9">9 결정 현황</a><a href="#s10">10 회신 반영·규모·폴더</a><a href="#s11">11 위험·대응</a>
+  </nav>
+
+  <!-- ───────────────── 1 ───────────────── -->
+  <h2 id="s1">1. 한눈에</h2>
+  <div class="hero">
+    <div class="hcard sb"><div class="k">SUPABASE · 정합성 계층</div><div class="v">ERP 데이터와 권한은<br>지금처럼 Supabase</div><p>ERP 중간DB · 권한 · 에이전트 설정 · 짧은 버퍼. 작고, 정확해야 하고, 매 질문마다 읽는 데이터.</p></div>
+    <div class="hcard nas"><div class="k">사내NAS · 누적 계층</div><div class="v">쌓이는 데이터는<br>NAS 가 정본</div><p>대화기록 장기분 · 생성 자료 · 부서 문서·규정과 검색 색인 · 첨부 원본 · 백업. 크고, 계속 늘어나는 데이터.</p></div>
+    <div class="hcard tun"><div class="k">연결 · 역방향 큐</div><div class="v">둘 사이는<br>NAS 가 물어본다</div><p>사내 워커가 <b>밖으로만</b> 연결해 「할 일」을 받아 온다. 공개 주소·열린 포트가 없어 <b>방화벽을 건드릴 일이 없다</b>. 사외(재택·출장)에서도 동작 — 직원 브라우저는 포털만 본다.</p></div>
+  </div>
+  <div class="callout ok"><b>판정: 적용 완료(1단계) — 채택안 D</b> · 2026-09-30<br>
+  NAS 가 <b>사내 내부망·내부 방화벽 안</b>(DMZ 아님)이라는 사실이 확인돼 터널안(B)을 철회하고 <b>인바운드를 아예 만들지 않는 역방향 큐</b>로 바꿨다.
+  1단계(대화기록·ERP 스냅샷 적재)는 <b>구현·라이브 검증 완료</b> — 회귀 113건 통과 · <b>79,472행</b> 내보내기 · 복원 대조(행수·SHA256·표본 필드) 일치 · 큐 왕복·중단 재개·멱등 확인.
+  <br><b>남은 선결</b>: ① 실제 NAS 경로 적재(공유 폴더 경로 + 쓰기 권한) ② NAS 외부 백업·UPS(D-104) ③ <b>PoC 무인증 포트 8765 폐쇄</b>(D-98 — 아직 열려 있음).</div>
+  <div class="callout"><b>이번에 확정된 것 / 미뤄진 것</b><br>
+  확정 ① <b>D-105</b> 데이터 배치 원칙(ERP=Supabase / 누적=NAS) · ② <b>D-106</b> 접속 경로 = <b>역방향 큐</b>(터널 아님)<br>
+  보류 ③ <b>D-107</b> 터널 주소 — 공개 주소가 필요 없어졌다. <b>회사 도메인 네임서버 이관을 하지 않아도 된다.</b> N3(문서 검색) 실측에서 지연이 문제일 때만 되살리고, 그때도 별도 도메인으로<br>
+  <span style="color:var(--muted);font-size:13px">회신으로 확정된 것: D-108 대화기록 180일 유지(이번엔 삭제 없음 — 복사만) · D-96 부서별 폴더 + 전사공유 폴더 · D-94 IT담당 직접 운영·회사 계정</span></div>
+
+  <!-- ───────────────── 2 ───────────────── -->
+  <h2 id="s2">2. 현재 상태 (사실 기준)</h2>
+  <div class="tw"><table>
+    <tr><th>구분</th><th>지금</th><th>의미</th></tr>
+    <tr><td><b>Supabase</b></td><td>조직 Free 플랜 · DB 약 91MB / 500MB · <b>자동 백업 없음</b> · Edge Function 14종 + 실험실</td><td>ERP 중간DB가 계속 늘어난다. 파일·대화 누적까지 얹으면 한도에 먼저 닿는다</td></tr>
+    <tr><td><b>부서 에이전트</b></td><td>구매 에이전트 1종 <b>파일럿</b> · 게이트웨이 <code>jeil-chat-lab</code> · 대화기록 9테이블 · 생성 자료 Storage 30일 보관 · 파일 첨부는 저장 안 함</td><td>누적 데이터가 전부 Supabase 에 있다. 전사 확대 시 용량·보존이 문제</td></tr>
+    <tr><td><b>AI 모델</b></td><td>회사 명의 Anthropic API 키 <b>미등록</b> → 예비 모델(gpt-4.1-mini)로 응답 중</td><td>NAS 와 무관하게 먼저 풀어야 할 선행 조건</td></tr>
+    <tr><td><b>문서 검색</b></td><td>OneDrive·SharePoint 허용 폴더만 검색(Graph API) · NAS 를 읽는 경로 <b>없음</b></td><td>NAS 문서 연결은 신설 대상</td></tr>
+    <tr><td><b>사내NAS</b></td><td>Synology DS923+ · 2코어 · <b>RAM 8GB</b>(최대 32GB) · HDD 4TB×4 · 10.5TB 중 약 17GB 사용 · SSD 캐시 없음 · 다른 서비스(itasset)와 자원 공유</td><td>용량은 넉넉 · <b>외부 백업 없음</b>(회신) · UPS 연결 가능 · itasset 사용량 작음(회신) → 메모리는 당장 병목 아님</td></tr>
+    <tr><td><b>NAS PoC</b></td><td>에이전트 워커 컨테이너 기동 완료 · API 키 미적용 · <b>HTTP·무인증 포트 8765 가 아직 열려 있다</b>(2026-09-30 작업PC 에서 접속 성공) — 내부망이라 <b>사내 단말에서 도달 가능</b></td><td><b style="color:var(--red)">키를 넣기 전에 폐쇄 필요(D-98 미조치)</b> — 위험이 사라진 게 아니라 내부자 위험으로 바뀐 것</td></tr>
+    <tr><td><b>네트워크</b></td><td>NAS → 인터넷 나가는 연결 가능 · 밖 → NAS 들어오는 경로 없음 · <b>NAS 는 DMZ 가 아니라 사내 내부망·내부 방화벽 안</b>(2026-09-30 확인) · 대역은 공인 대역</td><td><b>들어오는 길을 만들지 않는 것이 정답</b> — 터널이라도 세션이 내부존에서 종단되고, 공인 대역이라 룰 실수가 곧 노출이다 → 역방향 큐(안 D)</td></tr>
+    <tr><td><b>ERP</b></td><td>사외 IDC · 중간DB 적재는 ERP 서버의 러너가 담당(야간 증분)</td><td>ERP 쪽은 이번 기획에서 바꾸지 않는다</td></tr>
+  </table></div>
+
+  <!-- ───────────────── 3 ───────────────── -->
+  <h2 id="s3">3. 도식도</h2>
+
+  <h3>① 현재 구조 — 모든 데이터가 Supabase 에 모여 있다</h3>
+  <div class="fig"><svg viewBox="0 0 960 330" role="img" aria-label="현재 구조">
+    <rect x="20" y="30" width="170" height="80" rx="10" class="box"/><text x="105" y="64" text-anchor="middle" class="t-h">👤 직원</text><text x="105" y="86" text-anchor="middle" class="t-s">사내·사외 브라우저</text>
+    <rect x="250" y="30" width="200" height="80" rx="10" class="box-soft"/><text x="350" y="64" text-anchor="middle" class="t-h">AI 포털</text><text x="350" y="86" text-anchor="middle" class="t-s">ai.jeilm.co.kr · 로그인(Entra)</text>
+    <rect x="510" y="20" width="430" height="290" rx="14" class="box-sb"/><text x="530" y="46" class="t-h">Supabase (클라우드)</text>
+    <rect x="530" y="60" width="190" height="56" rx="8" class="box"/><text x="625" y="84" text-anchor="middle" class="t-b">게이트웨이</text><text x="625" y="103" text-anchor="middle" class="t-s">에이전트 · 도구 24종</text>
+    <rect x="735" y="60" width="190" height="56" rx="8" class="box-bad"/><text x="830" y="84" text-anchor="middle" class="t-b">생성 자료(파일)</text><text x="830" y="103" text-anchor="middle" class="t-s">30일 후 삭제</text>
+    <rect x="530" y="130" width="190" height="56" rx="8" class="box"/><text x="625" y="154" text-anchor="middle" class="t-b">권한·에이전트 설정</text><text x="625" y="173" text-anchor="middle" class="t-s">작음</text>
+    <rect x="735" y="130" width="190" height="56" rx="8" class="box-bad"/><text x="830" y="154" text-anchor="middle" class="t-b">대화기록·개선대장</text><text x="830" y="173" text-anchor="middle" class="t-s">계속 늘어남 · 180일 삭제</text>
+    <rect x="530" y="200" width="190" height="56" rx="8" class="box"/><text x="625" y="224" text-anchor="middle" class="t-b">ERP 중간DB</text><text x="625" y="243" text-anchor="middle" class="t-s">정합성 필요</text>
+    <rect x="735" y="200" width="190" height="56" rx="8" class="box-bad"/><text x="830" y="224" text-anchor="middle" class="t-b">백업</text><text x="830" y="243" text-anchor="middle" class="t-s">없음(Free 플랜)</text>
+    <text x="530" y="290" class="t-s" style="fill:var(--red)">점선 빨강 = 용량·보존·백업 문제가 있는 곳</text>
+    <line x1="190" y1="70" x2="245" y2="70" class="ln"/><polygon points="245,64 256,70 245,76" class="dot-m"/>
+    <line x1="450" y1="70" x2="525" y2="85" class="ln"/><polygon points="522,79 533,86 520,91" class="dot-m"/>
+    <rect x="20" y="170" width="200" height="120" rx="10" class="box-soft"/><text x="120" y="196" text-anchor="middle" class="t-h">🏢 사내망</text>
+    <rect x="40" y="210" width="160" height="62" rx="8" class="box"/><text x="120" y="236" text-anchor="middle" class="t-b">사내NAS</text><text x="120" y="256" text-anchor="middle" class="t-s">연결 없음 · PoC만</text>
+    <rect x="260" y="200" width="200" height="80" rx="10" class="box-soft"/><text x="360" y="232" text-anchor="middle" class="t-b">ERP (사외 IDC)</text><text x="360" y="254" text-anchor="middle" class="t-s">러너가 야간 적재 →</text>
+    <line x1="460" y1="236" x2="520" y2="230" class="ln"/><polygon points="518,224 530,229 519,236" class="dot-m"/>
+  </svg></div>
+  <div class="cap">지금은 ERP 데이터와 "쌓이는 데이터"가 한 바구니(Supabase Free)에 담겨 있다. 파일은 30일, 대화는 180일이 지나면 사라지고, 백업이 없다.</div>
+
+  <h3>② 목표 구조(채택안 D) — 정합성은 Supabase, 누적은 NAS, 연결은 NAS 가 밖으로만</h3>
+  <div class="fig"><svg viewBox="0 0 960 424" role="img" aria-label="목표 구조">
+    <rect x="20" y="40" width="160" height="76" rx="10" class="box"/><text x="100" y="72" text-anchor="middle" class="t-h">👤 직원</text><text x="100" y="94" text-anchor="middle" class="t-s">사내·사외 어디서나</text>
+    <rect x="220" y="40" width="180" height="76" rx="10" class="box-soft"/><text x="310" y="72" text-anchor="middle" class="t-h">AI 포털</text><text x="310" y="94" text-anchor="middle" class="t-s">Entra 로그인 · MFA</text>
+    <line x1="180" y1="78" x2="214" y2="78" class="ln"/><polygon points="214,72 225,78 214,84" class="dot-m"/>
+    <rect x="440" y="16" width="500" height="160" rx="14" class="box-sb"/><text x="460" y="42" class="t-h">Supabase · 정합성 계층</text>
+    <rect x="460" y="56" width="145" height="100" rx="8" class="box"/><text x="532" y="84" text-anchor="middle" class="t-b">게이트웨이</text><text x="532" y="104" text-anchor="middle" class="t-s">에이전트 두뇌</text><text x="532" y="122" text-anchor="middle" class="t-s">권한 판정</text><text x="532" y="140" text-anchor="middle" class="t-s">도구 실행</text>
+    <rect x="620" y="56" width="145" height="46" rx="8" class="box"/><text x="692" y="84" text-anchor="middle" class="t-b">권한·설정</text>
+    <rect x="620" y="110" width="145" height="46" rx="8" class="box"/><text x="692" y="138" text-anchor="middle" class="t-b">ERP 중간DB</text>
+    <rect x="780" y="56" width="145" height="100" rx="8" class="box"/><text x="852" y="84" text-anchor="middle" class="t-b">적재 큐</text><text x="852" y="104" text-anchor="middle" class="t-s">할 일 · 워커 심박</text><text x="852" y="122" text-anchor="middle" class="t-s">허용 목록</text><text x="852" y="140" text-anchor="middle" class="t-s">증분 커서</text>
+    <line x1="400" y1="78" x2="454" y2="96" class="ln"/><polygon points="450,90 461,98 448,101" class="dot-m"/>
+    <rect x="600" y="196" width="190" height="44" rx="22" class="box-cl"/><text x="695" y="224" text-anchor="middle" class="t-w" style="fill:var(--cloudline)">🔒 HTTPS 443 · 나가는 연결만</text>
+    <path d="M695 272 L 695 240" class="ln-cl"/>
+    <path d="M695 196 L 695 186" class="ln-cl"/><polygon points="689,188 695,177 701,188" class="dot-cl"/>
+    <text x="802" y="214" class="t-s">NAS 가 <tspan font-weight="700">밖으로만</tspan> 연결</text><text x="802" y="232" class="t-s">→ 들어오는 길 없음</text>
+    <rect x="12" y="236" width="940" height="180" rx="14" class="zone"/><text x="36" y="260" class="t-h">🏢 사내망</text>
+    <rect x="220" y="140" width="180" height="60" rx="8" class="box-soft"/><text x="310" y="166" text-anchor="middle" class="t-b">ERP (사외 IDC)</text><text x="310" y="186" text-anchor="middle" class="t-s">러너 → 중간DB (변경 없음)</text>
+    <path d="M400 178 C 470 186, 590 190, 614 146" class="ln-sb"/><polygon points="608,146 616,136 620,149" class="dot-sb"/>
+    <rect x="40" y="272" width="360" height="118" rx="8" class="box"/><text x="220" y="298" text-anchor="middle" class="t-b">📁 직원 PC · 사내 SMB</text><text x="220" y="320" text-anchor="middle" class="t-s">부서 문서를 NAS 공유 폴더에 정리·등록</text><text x="220" y="340" text-anchor="middle" class="t-s">본인 생성 자료를 사내에서 바로 열람</text><text x="220" y="360" text-anchor="middle" class="t-s">(권한 = 부서 폴더 · 본인 폴더)</text>
+    <rect x="440" y="272" width="500" height="138" rx="14" class="box-nas"/><text x="460" y="298" class="t-h">사내NAS · 누적 계층 (정본)</text>
+    <rect x="460" y="310" width="112" height="86" rx="8" class="box"/><text x="516" y="336" text-anchor="middle" class="t-b">적재 워커</text><text x="516" y="356" text-anchor="middle" class="t-s">nas_worker</text><text x="516" y="374" text-anchor="middle" class="t-s">주소·포트 없음</text>
+    <rect x="582" y="310" width="112" height="86" rx="8" class="box"/><text x="638" y="336" text-anchor="middle" class="t-b">대화기록</text><text x="638" y="356" text-anchor="middle" class="t-s">장기 누적</text><text x="638" y="374" text-anchor="middle" class="t-s">개선 이력</text>
+    <rect x="704" y="310" width="112" height="86" rx="8" class="box"/><text x="760" y="336" text-anchor="middle" class="t-b">문서·색인</text><text x="760" y="356" text-anchor="middle" class="t-s">부서 규정·양식</text><text x="760" y="374" text-anchor="middle" class="t-s">검색은 NAS 안</text>
+    <rect x="826" y="310" width="100" height="86" rx="8" class="box"/><text x="876" y="336" text-anchor="middle" class="t-b">생성 자료</text><text x="876" y="356" text-anchor="middle" class="t-s">첨부 원본</text><text x="876" y="374" text-anchor="middle" class="t-s">백업</text>
+    <line x1="400" y1="325" x2="454" y2="340" class="ln-nas"/><polygon points="450,334 461,342 448,346" class="dot-nas"/>
+  </svg></div>
+  <div class="cap">게이트웨이(에이전트 두뇌)는 Supabase 에 그대로 두고, <b>사내 워커가 밖으로만 연결해 큐에 쌓인 「할 일」과 데이터를 집어 간다</b>(화살표가 NAS 에서 위로 향한다). 밖에서 NAS 로 들어오는 길이 없어 방화벽 룰 추가가 0건이다. 직원은 사내에서 NAS 공유 폴더로 문서를 정리하고 본인 자료를 연다. 회사가 이미 같은 방식을 쓰고 있다 — 사외 IDC 의 ERP 서버 러너가 중간DB 를 채우는 구조.</div>
+
+  <h3>③ 질문 1건이 처리되는 흐름</h3>
+  <div class="fig"><svg viewBox="0 0 960 300" role="img" aria-label="질문 처리 흐름">
+    <rect x="20" y="110" width="130" height="70" rx="10" class="box"/><text x="85" y="140" text-anchor="middle" class="t-b">👤 질문</text><text x="85" y="160" text-anchor="middle" class="t-s">"구매 규정상…"</text>
+    <rect x="200" y="100" width="170" height="90" rx="10" class="box-sb"/><text x="285" y="132" text-anchor="middle" class="t-h">게이트웨이</text><text x="285" y="154" text-anchor="middle" class="t-s">권한 확인 → 도구 선택</text><text x="285" y="172" text-anchor="middle" class="t-s">→ 답변 작성(LLM)</text>
+    <line x1="150" y1="145" x2="194" y2="145" class="ln"/><polygon points="194,139 205,145 194,151" class="dot-m"/>
+    <circle cx="440" cy="40" r="13" class="num"/><text x="440" y="45" text-anchor="middle" class="num-t">1</text>
+    <rect x="462" y="16" width="220" height="50" rx="8" class="box-sb"/><text x="572" y="38" text-anchor="middle" class="t-b">ERP 숫자 조회</text><text x="572" y="56" text-anchor="middle" class="t-s">Supabase 중간DB (지금처럼)</text>
+    <circle cx="440" cy="110" r="13" class="num"/><text x="440" y="115" text-anchor="middle" class="num-t">2</text>
+    <rect x="462" y="86" width="220" height="50" rx="8" class="box-nas"/><text x="572" y="108" text-anchor="middle" class="t-b">문서 검색</text><text x="572" y="126" text-anchor="middle" class="t-s">큐 왕복 → NAS 색인 → 조각(N3)</text>
+    <circle cx="440" cy="180" r="13" class="num"/><text x="440" y="185" text-anchor="middle" class="num-t">3</text>
+    <rect x="462" y="156" width="220" height="50" rx="8" class="box-nas"/><text x="572" y="178" text-anchor="middle" class="t-b">자료 저장(엑셀·보고서)</text><text x="572" y="196" text-anchor="middle" class="t-s">NAS 본인 폴더에 정본 저장</text>
+    <circle cx="440" cy="250" r="13" class="num"/><text x="440" y="255" text-anchor="middle" class="num-t">4</text>
+    <rect x="462" y="226" width="220" height="50" rx="8" class="box-sb"/><text x="572" y="248" text-anchor="middle" class="t-b">대화 기록</text><text x="572" y="266" text-anchor="middle" class="t-s">Supabase 에 기록 → 워커가 복사</text>
+    <path d="M370 130 L 427 45" class="ln"/><path d="M370 140 L 427 110" class="ln"/><path d="M370 152 L 427 178" class="ln"/><path d="M370 165 L 427 245" class="ln"/>
+    <path d="M682 251 C 730 251, 740 220, 760 205" class="ln-nas"/><polygon points="754,203 766,199 762,211" class="dot-nas"/>
+    <rect x="770" y="100" width="170" height="130" rx="10" class="box-nas"/><text x="855" y="130" text-anchor="middle" class="t-h">사내NAS</text><text x="855" y="154" text-anchor="middle" class="t-s">대화기록 장기 누적</text><text x="855" y="174" text-anchor="middle" class="t-s">생성 자료 · 문서</text><text x="855" y="194" text-anchor="middle" class="t-s">야간 백업(외부 사본)</text>
+    <path d="M682 111 L 764 130" class="ln-nas"/><path d="M682 181 L 764 170" class="ln-nas"/>
+  </svg></div>
+  <div class="cap">숫자는 Supabase(ERP), 근거 문서·자료·기록은 NAS. NAS 쪽 화살표는 전부 <b>사내 워커가 가져가는 방향</b>이다(밖에서 NAS 를 부르지 않는다). 지금 동작하는 것은 ④ 대화 기록 복사(1단계)이고, ③ 자료 저장은 N2, ② 문서 검색은 N3 에서 붙는다. LLM(Anthropic)에는 답변에 필요한 조각만 전송된다(구매 데이터 전송 승인 D-88 과 같은 성격).</div>
+
+  <h3>④ NAS 가 멈추면? — 대화는 계속된다</h3>
+  <div class="fig"><svg viewBox="0 0 960 200" role="img" aria-label="장애 시 동작">
+    <rect x="20" y="30" width="280" height="140" rx="12" class="box-sb"/><text x="40" y="58" class="t-h">✅ 계속 되는 것</text>
+    <text x="40" y="86" class="t-b">• ERP 조회 질문 (구매·매입·발주…)</text><text x="40" y="110" class="t-b">• 권한 판정 · 에이전트 설정</text><text x="40" y="134" class="t-b">• 대화 기록 → Supabase 에 그대로</text><text x="40" y="158" class="t-s">NAS 복구 후 멈춘 지점부터 이어 복사</text>
+    <rect x="340" y="30" width="280" height="140" rx="12" class="box-bad"/><text x="360" y="58" class="t-h" style="fill:var(--red)">⏸ 잠시 안 되는 것</text>
+    <text x="360" y="86" class="t-b">• 사내 문서·규정 검색</text><text x="360" y="110" class="t-b">• 옛 자료 열기 · 새 자료 저장</text><text x="360" y="134" class="t-s">화면에 "사내 보관소 점검 중" 안내</text><text x="360" y="158" class="t-s">(조용히 틀린 답을 내지 않는다)</text>
+    <rect x="660" y="30" width="280" height="140" rx="12" class="box-nas"/><text x="680" y="58" class="t-h">🛡 대비</text>
+    <text x="680" y="86" class="t-b">• 디스크 이중화(RAID/SHR)</text><text x="680" y="110" class="t-b">• 외부 사본(Hyper Backup)</text><text x="680" y="134" class="t-b">• UPS · 상태 감시·알림</text><text x="680" y="158" class="t-s">NAS 자체가 단일 장비라 필수</text>
+  </svg></div>
+  <div class="cap">핵심은 <b>「어디까지 가져갔는지」 표시(커서)</b>다. 원본은 Supabase 에 그대로 두고 워커가 가져간 지점만 기록하므로, NAS 가 잠시 꺼져도 기록이 사라지지 않고 복구되면 그 지점부터 이어 간다. 파일이 NAS 에 제자리에 놓인 뒤에만 표시를 앞으로 옮긴다(실측 — 표시를 되돌린 뒤 재개했을 때 빠진 행 0). 별도 전송 대기 테이블(outbox)은 쓰지 않는다.</div>
+
+  <!-- ───────────────── 4 ───────────────── -->
+  <h2 id="s4">4. 데이터 배치표 — 무엇을 어디에</h2>
+  <p class="lead">원칙: <b>"정확해야 하고 매번 읽는 것" → Supabase</b> · <b>"크고 계속 쌓이는 것" → NAS</b></p>
+  <div class="tw"><table>
+    <tr><th>데이터</th><th>정본 위치</th><th>이유</th><th>용량 성격</th></tr>
+    <tr><td>ERP 중간DB(발주·매입·재고…)</td><td><span class="tag sb">Supabase</span></td><td>ERP 정합성·야간 증분 적재가 이미 여기서 돈다</td><td>중 · 꾸준히 증가</td></tr>
+    <tr><td>권한(부서·그룹·화면)</td><td><span class="tag sb">Supabase</span></td><td>모든 요청이 매번 판정 — 느리면 안 됨</td><td>작음</td></tr>
+    <tr><td>에이전트 설정·버전·구성원</td><td><span class="tag sb">Supabase</span></td><td>게이트웨이가 질문마다 읽음 · 관리 화면 실시간</td><td>작음</td></tr>
+    <tr><td>용어집·골든셋(활성)</td><td><span class="tag sb">Supabase</span></td><td>프롬프트에 자동 삽입 · 회귀 시험</td><td>작음</td></tr>
+    <tr><td>최근 대화</td><td><span class="tag both">둘 다</span></td><td>원본은 Supabase 에 두고 워커가 NAS 로 복사 — <b>지금은 삭제 없음</b>(Supabase 14일만 남기는 전환은 N2)</td><td>작음(전환 후 14일)</td></tr>
+    <tr><td>대화기록 장기분</td><td><span class="tag nas">NAS</span></td><td>전사 확대 시 가장 빨리 커짐 · 보존 연장 가능(D-108)</td><td>대 · 누적</td></tr>
+    <tr><td>개선대장 이력·회귀 결과 이력</td><td><span class="tag nas">NAS</span></td><td>진행 중 항목은 Supabase, 종결 이력은 NAS 로</td><td>중 · 누적</td></tr>
+    <tr><td>에이전트 생성 자료(엑셀·보고서·HTML)</td><td><span class="tag nas">NAS</span></td><td>30일 삭제 없이 보관 · 사내에서 바로 열람</td><td>대 · 누적</td></tr>
+    <tr><td>첨부 원본(질문 시 올린 파일)</td><td><span class="tag nas">NAS</span></td><td>지금은 저장 안 함 → 보관이 필요하면 NAS 에만(선택)</td><td>대</td></tr>
+    <tr><td>부서 문서·양식·규정 원본</td><td><span class="tag nas">NAS</span></td><td>관리자 계획: NAS 에 새로 정리</td><td>대</td></tr>
+    <tr><td>문서 검색 색인</td><td><span class="tag nas">NAS</span></td><td>NAS 안에서 검색 → 조각 텍스트를 클라우드 DB 에 쌓지 않음</td><td>중</td></tr>
+    <tr><td>백업(Supabase 전체 · NAS 데이터)</td><td><span class="tag nas">NAS</span> + 외부 사본</td><td>Free 플랜 백업 공백 해소 · NAS 는 외부 사본으로 이중화</td><td>중</td></tr>
+  </table></div>
+
+  <!-- ───────────────── 5 ───────────────── -->
+  <h2 id="s5">5. 연결 방식 비교</h2>
+  <div class="tw"><table>
+    <tr><th>안</th><th>내용</th><th>사외 사용</th><th>보안</th><th>운영 부담</th><th>비용</th><th>누적 정본</th><th>판단</th></tr>
+    <tr><td><b>A</b> 아웃바운드 창고</td><td>NAS 는 밤마다 가져가 보관·백업만(1차 기획)</td><td class="score">◎</td><td class="score">◎</td><td class="score">◎</td><td class="score">◎</td><td class="score">✕</td><td>관리자 목적(누적 정본 NAS) 미충족</td></tr>
+    <tr><td><b>B</b> 터널 + NAS 데이터 API</td><td>Supabase 게이트웨이가 터널로 NAS 데이터 API 호출 · outbox 로 장애 대비</td><td class="score">◎</td><td class="score">△</td><td class="score">△</td><td class="score">○</td><td class="score">◎</td><td><b style="color:var(--red)">철회</b> — NAS 가 내부망이라 세션이 내부존에서 종단 · 도메인 이관 필요 · outbox 의 pg_cron push 는 실현 불가</td></tr>
+    <tr><td><b>C</b> NAS 에서 에이전트 실행</td><td>PoC 방식 — 브라우저가 터널로 NAS 워커에 직접 연결</td><td class="score">○</td><td class="score">△</td><td class="score">△</td><td class="score">○</td><td class="score">◎</td><td>D 위에서 <b>조건부 확장</b>(장시간 작업만)</td></tr>
+    <tr class="best"><td><b>D</b> 역방향 큐</td><td>사내 워커가 <b>밖으로만</b> 연결해 큐를 집어가고 데이터도 RPC 로 받아 간다 — 공개 주소·열린 포트 없음</td><td class="score">◎</td><td class="score">◎</td><td class="score">◎</td><td class="score">◎</td><td class="score">◎</td><td><b class="rec">채택 · 1단계 검증 완료</b> — 인바운드 0 · 방화벽 룰 추가 0건 · 도메인·보안승인·신규 벤더 0</td></tr>
+  </table></div>
+  <p class="lead">◎ 매우 좋음 · ○ 좋음 · △ 부담 있음 · ✕ 불가. <b>A 가 ✕ 를 받은 건 「밤 배치」라서였고, D 는 그 확장형이다</b>(실시간 pull 이면 누적 정본을 충족한다).
+  C 는 에이전트 두뇌가 둘(Supabase·NAS)이 되어 권한·기록·비용 집계가 갈라진다(ADR-109 와 충돌) — 대용량 엑셀 생성처럼 게이트웨이 시간 제한에 걸리는 작업이 실측될 때만 "장시간 작업 모듈"로 붙인다.</p>
+  <div class="callout ok"><b>D 가 지우는 준비 항목</b> — 터널 보안 승인 · Cloudflare 회사 계정·Access 정책·서비스 토큰 · 터널 주소와 회사 도메인 네임서버 이관(MX·SPF·DKIM·M365 TXT 전수). 세 갈래가 모두 불필요해져 착수가 몇 주 빨라졌다.
+  <br><b>대신 확인할 것</b> — NAS 아웃바운드 HTTPS 의 목적지 제한 · SSL 인스펙션 · 프록시 강제 · 세션 idle timeout(지금의 20~60초 폴링은 영향 없음, N3 롱폴링 때 필요).</div>
+
+  <!-- ───────────────── 6 ───────────────── -->
+  <h2 id="s6">6. 적용 가능성 평가</h2>
+  <div class="tw"><table>
+    <tr><th>관점</th><th>평가</th><th>근거</th></tr>
+    <tr><td>기술</td><td><span class="light g"></span>검증 완료(1단계)</td><td><b>구현·라이브 검증 완료</b>(2026-09-30) — 회귀 113건 통과 · 79,472행 내보내기 · 복원 대조(행수·SHA256·표본 필드) 일치 · 큐 왕복 0.44초 · 중단 재개 시 누락 0 · 2회차 0행. 게이트웨이(Edge Function)는 <b>한 줄도 고치지 않았다</b></td></tr>
+    <tr><td>보안</td><td><span class="light y"></span>가능(잔여 3건)</td><td>들어오는 길을 만들지 않아 <b>보안 승인·접속 정책·토큰 2중 인증이 불필요</b>해졌다. 남은 것: ① <b>PoC 무인증 포트 8765 폐쇄</b>(D-98 — 아직 열려 있음) ② NAS 관리 계정 개인 명의 해소 ③ NAS 컨테이너로 옮길 때 <b>전용 좁은 키</b>로 전환(컨테이너에 전체 권한 키를 두지 않는다)</td></tr>
+    <tr><td>운영</td><td><span class="light y"></span>조건부(백업)</td><td>IT담당 직접 운영·회사 계정 생성 가능(회신) · 폴더 원칙 확정(부서별 + 전사공유) · <b>외부 백업 없음 → NAS 가 유일한 원본이 되는 N2(보존 전환) 전에 구축 필수</b>(지금은 복사만이라 원본이 Supabase 에 남는다) · UPS 연결 가능</td></tr>
+    <tr><td>성능</td><td><span class="light g"></span>가능</td><td>itasset 사용량 작음(회신) → 90명 규모의 적재 워커·색인은 <b>8GB 로 시작 가능</b> · 전사 확대(N4)·C안 확장 때 16GB 검토 · HDD 전용이라 색인 속도는 파일럿 실측 · 문서 검색(N3)의 큐 왕복 지연은 그때 실측</td></tr>
+    <tr><td>비용</td><td><span class="light g"></span>0 에 가까움</td><td>기존 NAS 활용 · <b>터널·도메인·신규 벤더 계정 비용이 없다</b> · 외장 HDD·UPS 소액(D-104) · 메모리 증설 시 부품비 · Supabase 유료 전환 압력 완화</td></tr>
+    <tr><td>일정</td><td><span class="light g"></span>1단계 완료</td><td>N1(적재)은 <b>끝났다</b> · 다음: 실제 NAS 경로 적재(공유 폴더 경로 + 쓰기 권한) → 상시화(야간 1회) → 백업 소스 추가(N1-c). 별도 선행: 회사 명의 AI API 키 등록</td></tr>
+  </table></div>
+
+  <!-- ───────────────── 7 ───────────────── -->
+  <h2 id="s7">7. 사전 준비사항</h2>
+  <p class="lead">누가 무엇을 먼저 해야 하는지. <span class="who">IT</span> IT담당(NAS 운영) · <span class="who">관리자</span> 최동혁 · <span class="who">보안</span> 보안·네트워크 승인 · <span class="who">Claude</span> 개발·문서</p>
+  <div class="grid2">
+    <div class="prep"><h4>① NAS 기반 (가장 먼저)</h4><ul>
+      <li><span class="who">IT</span><b>외부 백업 구축</b>(현재 없음) — Hyper Backup → 외장 HDD(USB) 또는 다른 장소 NAS·클라우드, 매일 · 여러 버전 보관</li>
+      <li><span class="who">IT</span><b>UPS 연결</b> · 정전 시 안전 종료(DSM 설정)</li>
+      <li><span class="who">IT</span>디스크 구성 재확인 — DSM 「저장소 관리자」에서 볼륨 종류(SHR/RAID) 확인 <span style="color:var(--muted)">(§10 참고: 용량으로 보면 이미 이중화일 가능성)</span></li>
+      <li><span class="who">IT</span>NAS 관리 계정을 <b>회사 계정</b>으로 신설(회신: 가능) · 개인 명의 계정 권한 회수 · 2단계 인증</li>
+      <li><span class="who">IT</span>DSM 업데이트 · 불필요 패키지·포트 정리(Download Station·P2P·Python2·SNMP)</li>
+    </ul></div>
+    <div class="prep"><h4>② 네트워크 · 적재 폴더 <span style="color:var(--muted);font-weight:400">(터널 준비는 빠졌다)</span></h4><ul>
+      <li><span class="who">IT</span><b>PoC 워커의 열린 포트 8765 폐쇄</b>(D-98) — 2026-09-30 현재 열려 있다(HTTP·무인증). 안 D 는 NAS 에 열린 포트가 하나도 필요 없다</li>
+      <li><span class="who">IT</span><b>적재용 공유 폴더</b>(<code>_에이전트</code>) 생성 — 권한은 <b>시스템·관리자 전용</b>(대화기록에 질문·답변 원문이 들어간다)</li>
+      <li><span class="who">관리자</span>그 폴더 경로를 작업PC 에만 등록(<code>.claude/nas.path</code> 1줄 — 저장소·문서에는 적지 않는다) → 실제 NAS 적재 <b>3회 연속 성공</b> 확인</li>
+      <li><span class="who">IT</span>NAS 나가는 HTTPS 확인 — 목적지 제한 · SSL 검사 장비 · 프록시 강제 · 세션 유휴 제한(지금의 20~60초 폴링은 영향 없음)</li>
+      <li style="color:var(--muted)"><span class="who">불필요</span>터널 보안 승인 · Cloudflare 계정·접속 정책 · 회사 도메인 네임서버 이관 — 안 D 에서는 하지 않는다(N3 실측 뒤 재판단, D-106·D-107)</li>
+    </ul></div>
+    <div class="prep"><h4>③ 보안 · 계정 · 정책</h4><ul>
+      <li><span class="who">관리자</span>회사 명의 Anthropic API 키 발급·등록(NAS 와 별개로 선행)</li>
+      <li><span class="who">관리자</span>대화기록 보존 180일 유지 확정(D-108 · 회신) — 화면 고지 문구는 현행 유지</li>
+      <li><span class="who">관리자</span>문서 조각의 LLM 전송 범위 승인(D-95 재정의)</li>
+      <li><span class="who">Claude</span>NAS 컨테이너용 <b>전용 좁은 키</b> 설계 — 컨테이너에는 전체 권한 키(<code>service_role</code>)를 두지 않는다(값은 NAS 로컬에만)</li>
+      <li><span class="who">관리자</span>내보내기 파일 암호화 여부 결정 — 지금은 미적용(사유 기록됨) · 대안은 폴더 권한 + Hyper Backup 암호화</li>
+      <li><span class="who">보안</span>민감 폴더(급여·인사평가) 색인 금지 원칙 확인</li>
+    </ul></div>
+    <div class="prep"><h4>④ 데이터 · 문서 정리</h4><ul>
+      <li><span class="who">IT</span><b>부서별 폴더</b> 생성 — 부서코드(ERP 부서 마스터) 기준, §10 폴더 구조안</li>
+      <li><span class="who">IT</span><b>전사공유 폴더</b> 별도 생성 — 공유용 자료만 정리(전 직원 읽기)</li>
+      <li><span class="who">IT</span>폴더 권한 = 부서 그룹(읽기·쓰기) · 전사공유(전원 읽기, 담당자 쓰기)</li>
+      <li><span class="who">관리자</span>파일럿 부서·폴더 선정(권고: 구매팀, D-96)</li>
+      <li><span class="who">부서</span>부서별 문서 이관·정리(규정·양식·매뉴얼 우선)</li>
+    </ul></div>
+    <div class="prep"><h4>⑤ 개발</h4><ul>
+      <li><span class="who">Claude</span>✅ <b>완료</b> — 적재 큐·허용 목록·커서(정본 SQL 82, 라이브 적용) + 적재 워커 <code>nas_worker.py</code>(통합 러너 r1.9 편입) + 회귀 27건</li>
+      <li><span class="who">Claude</span>상시화 — 러너 작업 <code>nas_sync</code>(야간 1회 권고, 지금은 기본 꺼짐) · 실행 파일 재빌드·전달</li>
+      <li><span class="who">Claude</span>야간 백업(N1-c) — 같은 워커에 소스만 추가 · 월 1회 복원 시험</li>
+      <li><span class="who">Claude</span>(N2) 보존 전환·과거 기록 조회 · (N3) 문서 검색 모듈·NAS 장애 시 화면 안내</li>
+    </ul></div>
+    <div class="prep"><h4>⑥ 문서·거버넌스</h4><ul>
+      <li><span class="who">Claude</span>✅ ADR-110 v3 개정 — <b>Accepted(1단계)</b>. 전면 Accepted 는 실제 NAS 적재 + D-104 + D-98 뒤</li>
+      <li><span class="who">Claude</span>운영 절차서(백업·복원·키 회전·장애 대응)</li>
+      <li><span class="who">관리자</span>IT담당과 운영 범위 합의(D-94) 문서화</li>
+    </ul></div>
+  </div>
+
+  <!-- ───────────────── 8 ───────────────── -->
+  <h2 id="s8">8. 단계 로드맵</h2>
+  <div class="fig"><svg viewBox="0 0 960 200" role="img" aria-label="단계 로드맵">
+    <line x1="40" y1="60" x2="920" y2="60" class="ln"/>
+    <g><circle cx="100" cy="60" r="16" class="num"/><text x="100" y="65" text-anchor="middle" class="num-t">N0</text>
+      <text x="100" y="102" text-anchor="middle" class="t-h">준비</text><text x="100" y="124" text-anchor="middle" class="t-s">외부 백업 · UPS</text><text x="100" y="142" text-anchor="middle" class="t-s">PoC 포트 8765 폐쇄</text><text x="100" y="160" text-anchor="middle" class="t-s">적재 폴더·권한</text></g>
+    <g><circle cx="290" cy="60" r="16" class="num"/><text x="290" y="65" text-anchor="middle" class="num-t">N1</text>
+      <text x="290" y="102" text-anchor="middle" class="t-h">적재 ✅ 검증 완료</text><text x="290" y="124" text-anchor="middle" class="t-s">역방향 큐 + 적재 워커</text><text x="290" y="142" text-anchor="middle" class="t-s">대화기록 · ERP 스냅샷</text><text x="290" y="160" text-anchor="middle" class="t-s">남음: 실제 NAS 경로 적재</text><text x="290" y="178" text-anchor="middle" class="t-s">→ 상시화 · 야간 백업</text></g>
+    <g><circle cx="480" cy="60" r="16" class="num"/><text x="480" y="65" text-anchor="middle" class="num-t">N2</text>
+      <text x="480" y="102" text-anchor="middle" class="t-h">보존 전환</text><text x="480" y="124" text-anchor="middle" class="t-s">대화 14일 + NAS 나머지</text><text x="480" y="142" text-anchor="middle" class="t-s">과거 기록 조회 화면</text><text x="480" y="160" text-anchor="middle" class="t-s">생성 자료 NAS 저장</text></g>
+    <g><circle cx="670" cy="60" r="16" class="num"/><text x="670" y="65" text-anchor="middle" class="num-t">N3</text>
+      <text x="670" y="102" text-anchor="middle" class="t-h">문서 연결</text><text x="670" y="124" text-anchor="middle" class="t-s">부서 폴더 표준</text><text x="670" y="142" text-anchor="middle" class="t-s">NAS 내부 색인·검색</text><text x="670" y="160" text-anchor="middle" class="t-s">구매 파일럿</text><text x="670" y="178" text-anchor="middle" class="t-s">지연 실측 → 터널 재판단</text></g>
+    <g><circle cx="860" cy="60" r="16" class="num"/><text x="860" y="65" text-anchor="middle" class="num-t">N4</text>
+      <text x="860" y="102" text-anchor="middle" class="t-h">전사 확대</text><text x="860" y="124" text-anchor="middle" class="t-s">영업·자금 등 부서</text><text x="860" y="142" text-anchor="middle" class="t-s">(조건부) 장시간 작업</text><text x="860" y="160" text-anchor="middle" class="t-s">NAS 실행 모듈</text></g>
+    <text x="100" y="30" text-anchor="middle" class="t-s">관리자·IT</text><text x="290" y="30" text-anchor="middle" class="t-s">Claude · 09-30</text><text x="480" y="30" text-anchor="middle" class="t-s">관리자·Claude</text><text x="670" y="30" text-anchor="middle" class="t-s">관리자·부서·Claude</text><text x="860" y="30" text-anchor="middle" class="t-s">관리자 결정</text>
+  </svg></div>
+  <div class="cap">각 단계는 앞 단계의 완료 조건을 확인한 뒤 착수한다 — 예: N1 마감 = 실제 NAS 경로에 3회 연속 성공 + 폴더 권한이 시스템·관리자 전용 / N2 착수 = 여러 회차 행수·해시 일치 + 외부 백업(D-104). N1 은 안 D 가 인바운드를 만들지 않아 N0 의 승인 절차를 기다리지 않고 먼저 끝났다. 상세 완료 조건은 <a href="/docs/nas/plan">01 기획 §7</a>.</div>
+
+  <!-- ───────────────── 9 ───────────────── -->
+  <h2 id="s9">9. 결정 현황</h2>
+  <p class="lead"><span class="st ans">확정 · 회신 반영</span> 2026-09-30 확정됐거나 관리자 회신으로 방향이 정해진 결정 · <span class="st chg">재정의</span> 쟁점이 바뀐 결정 · <span class="st wait">대기 · 보류</span> 아직 조치·판단이 남은 결정. <b>지금 관리자·IT 가 움직여야 하는 것은 D-104(외부 백업·UPS) · D-98(포트 폐쇄) · 적재 폴더 경로·권한</b> 세 가지다.</p>
+
+  <div class="dec key"><div class="top"><span class="did">D-105</span><span class="ttl">데이터 배치 원칙 — ERP·권한 = Supabase / 누적 데이터 = NAS 정본</span><span class="st ans">확정 · 2026-09-30</span></div>
+    <dl><dt>선택지</dt><dd>A 창고(보관·백업만) · B 터널 + NAS 누적 정본 · C NAS 실행 엔진 · <b>D 역방향 큐 + NAS 누적 정본</b></dd><dt>결정</dt><dd class="rec">배치 원칙 채택 — 연결 방식만 B → D 로 교체했다(C 는 D 위 조건부 확장)</dd><dt>영향</dt><dd>ADR-110 v3 의 본체 · Accepted(1단계)</dd><dt>선행</dt><dd>없음 — 이 결정이 나머지의 출발점</dd></dl></div>
+
+  <div class="dec key"><div class="top"><span class="did">D-106</span><span class="ttl">NAS 접속 경로 — 역방향 큐</span><span class="st ans">확정 · 2026-09-30</span></div>
+    <dl><dt>선택지</dt><dd><b>역방향 큐(사내 워커가 밖으로만 연결)</b> · Cloudflare Tunnel + Access · 방화벽 포트 개방 + 리버스 프록시</dd><dt>결정</dt><dd class="rec">역방향 큐 채택 — <b>터널은 보류.</b> N3 문서 검색 실측에서 큐 왕복 지연이 체감을 해칠 때만 재검토하고, 그때도 회사 도메인이 아니라 별도 도메인으로</dd><dt>근거</dt><dd>NAS 가 DMZ 가 아니라 <b>사내 내부망·내부 방화벽 안</b> → 터널이라도 외부 세션이 내부존에서 종단된다 · 대역이 공인 대역이라 방화벽 룰 실수 한 줄이 곧 노출 · 회사가 이미 같은 방식을 운영 중(ERP 서버 러너)</dd><dt>영향</dt><dd>인바운드 0 · 방화벽 룰 추가 0건 · 사외 사용 그대로 · Azure 이관 뒤에도 경로 변경 없음(나가는 HTTPS 하나뿐)</dd></dl></div>
+
+  <div class="dec key"><div class="top"><span class="did">D-107</span><span class="ttl">터널 주소(도메인) 방안</span><span class="st wait">보류 · N3 재판단</span></div>
+    <dl><dt>결정</dt><dd class="rec">보류 — 안 D 는 공개 주소가 필요 없다. <b>회사 도메인 네임서버 이관(메일·M365 인증 레코드 전수)을 하지 않아도 된다</b></dd>
+    <dt>되살아나면</dt><dd>N3 실측에서 터널이 필요해질 때만. 그때는 <b>② 별도 도메인</b>부터 검토한다(회사 메일·DNS 무영향). 아래는 그때를 위한 2026-09-29 검토 기록이며 <b>지금은 실행하지 않는다</b></dd>
+    <dt>관리자 의견</dt><dd>별도 도메인 없이 <b>jeilm.co.kr 하위 주소</b>(예: ai_tunnel.jeilm.co.kr)를 쓰고 싶다</dd>
+    <dt>이름</dt><dd>밑줄(<code>_</code>)은 HTTPS 인증서 발급 불가(2019년 인증기관 규칙) → <b><code>ai-tunnel.jeilm.co.kr</code></b>(하이픈)으로. 서버끼리만 쓰는 주소라 <code>nas-api.jeilm.co.kr</code> 도 가능</dd>
+    <dt>제약</dt><dd>Cloudflare Tunnel 은 <b>주소의 DNS 를 Cloudflare 가 관리할 때만</b> 연결된다. 현재 jeilm.co.kr DNS 는 아이네임즈 호스팅 네임서버(메일 M365 · ai.jeilm.co.kr Vercel 등록) → 아이네임즈에 CNAME 한 줄만 추가하는 방식은 <b>동작하지 않는다</b></dd>
+    <dt>선택지</dt><dd>
+      <b>① jeilm.co.kr 네임서버를 Cloudflare(무료)로 전환</b> — 도메인 등록은 아이네임즈 유지 · 비용 0 · 기존 레코드 전수 이관 필요<br>
+      ② 별도 도메인 등록 후 네임서버만 Cloudflare — 연 1~3만 원 · 회사 메일·DNS 무영향(가장 안전)<br>
+      ③ Cloudflare 부분 설정(CNAME) — 네임서버 유지 · Business 요금제 월 약 $200<br>
+      ✕ 하위 주소만 위임 — 최상위(Enterprise) 요금제 기능, 비현실적</dd>
+    <dt>당시 권고</dt><dd>jeilm.co.kr 을 쓰려면 ① — 아래 전환 절차대로 하면 위험을 관리할 수 있다. 전환 부담이 크면 ②</dd>
+    <dt>① 절차</dt><dd>1) 아이네임즈 DNS 레코드 전체 내보내기 → 2) Cloudflare 무료 플랜에 jeilm.co.kr 추가·레코드 이관(전부 <b>DNS only</b> — 지금과 동일 동작) → 3) 두 DNS 조회 결과 대조(메일 송수신·ai.jeilm.co.kr 접속) → 4) 업무 시간 외 네임서버 변경 → 5) <code>ai-tunnel.jeilm.co.kr</code> 터널 연결</dd>
+    <dt>되돌리기</dt><dd>문제 시 아이네임즈에서 네임서버를 원래대로 되돌리면 복구(전파 수 시간) · 전환 전 TTL 을 짧게 낮춰 두면 빨라진다</dd>
+    <dt>선행</dt><dd>Cloudflare 회사 계정 · IT담당 작업 일정</dd></dl></div>
+
+  <div class="dec key"><div class="top"><span class="did">D-108</span><span class="ttl">대화기록 보존 기간 (현재 180일, D-89)</span><span class="st ans">회신 반영</span></div>
+    <dl><dt>회신</dt><dd><b>180일 정도면 적당</b></dd><dt>권고</dt><dd class="rec">180일 유지 — <b>지금(1단계)은 복사만 하고 Supabase 원본을 지우지 않는다.</b> 최근 14일만 Supabase 에 남기고 나머지를 NAS 로 넘기는 전환은 여러 회차 행수·해시 일치를 본 뒤 N2 에서 · 180일이 지난 기록은 NAS·백업에서도 삭제 · 고지 문구 현행 유지</dd><dt>영향</dt><dd>기존 약속 변경 없음 → 개인정보 고지 재작업 불필요 · 개선 대장·골든셋(대화 원문 아님)은 별도 보존</dd><dt>선행</dt><dd>D-105(확정) · D-104(외부 백업)</dd></dl></div>
+
+  <div class="dec"><div class="top"><span class="did">D-104</span><span class="ttl">NAS 보강 — 외부 백업·UPS (메모리는 나중)</span><span class="st ans">회신 반영 · 핵심</span></div>
+    <dl><dt>회신</dt><dd>이중화·백업 설정 <b>없음</b> · UPS 연결 가능 · itasset 사용량 작음</dd><dt>권고</dt><dd class="rec">① <b>외부 백업 구축</b>(Hyper Backup → 외장 HDD 등, 매일) ② <b>UPS 연결</b> ③ 디스크 구성 재확인 — 메모리 증설은 전사 확대(N4) 전에 다시 판단</dd><dt>영향</dt><dd>NAS 가 "유일한 원본"이 되는 <b>N2(보존 전환) 전에 필수</b> — 지금(N1)은 복사만이라 원본이 Supabase 에 남는다 · ADR-110 전면 Accepted 조건 · 외장 HDD 1~2개·UPS 1대 수준의 소액</dd><dt>선행</dt><dd>없음 — 바로 착수 가능</dd></dl></div>
+
+  <div class="dec"><div class="top"><span class="did">D-94</span><span class="ttl">NAS 운영 주체·장애 대응 범위</span><span class="st ans">답변 반영</span></div>
+    <dl><dt>회신</dt><dd><b>IT담당자 직접 운영</b> · NAS 관리 계정 <b>회사 계정 생성 가능</b>(Cloudflare 계정은 안 D 에서 필요 없다)</dd><dt>권고</dt><dd class="rec">IT담당 = 장비·DSM·백업·공유 폴더 권한 / 정보전략팀 = 적재 워커·데이터 정책 — 합의 문서화 후 결정됨으로</dd><dt>선행</dt><dd>회사 관리 계정 신설</dd></dl></div>
+
+  <div class="dec"><div class="top"><span class="did">D-95</span><span class="ttl">문서 조각 처리 방식</span><span class="st chg">재정의</span></div>
+    <dl><dt>변경</dt><dd>종전 "조각 텍스트를 클라우드 DB 에 적재" → <b>NAS 안에서 색인·검색</b>(클라우드 DB 에 쌓지 않음)</dd><dt>남은 쟁점</dt><dd>답변 생성 시 필요한 조각의 <b>LLM 전송</b> 승인(D-88 과 같은 성격)</dd><dt>권고</dt><dd class="rec">승인 — 범위 등록 폴더만 · 급여/인사 폴더 금지</dd></dl></div>
+
+  <div class="dec"><div class="top"><span class="did">D-96</span><span class="ttl">문서 폴더 원칙·파일럿</span><span class="st ans">회신 반영</span></div>
+    <dl><dt>회신</dt><dd><b>부서별 폴더</b> + 공유용 <b>전사공유 폴더</b>를 따로 만든다</dd><dt>권고</dt><dd class="rec">폴더 구조는 §10 안대로 · 파일럿 = 구매팀 폴더(양식·규정) + 전사공유(사규)</dd><dt>영향</dt><dd>에이전트 검색 범위 = 본인 부서 폴더 + 전사공유(상위 부문 폴더는 하위 팀 포함 여부 선택)</dd></dl></div>
+
+  <div class="dec"><div class="top"><span class="did">D-97</span><span class="ttl">보존 기간(백업·생성 자료)</span><span class="st wait">대기</span></div>
+    <dl><dt>권고</dt><dd class="rec">DB 백업 일간 14 + 월간 6 · 생성 자료 NAS 3년(정본이므로 종전 1년에서 상향) · 대화기록은 D-108 을 따름</dd></dl></div>
+
+  <div class="dec"><div class="top"><span class="did">D-98</span><span class="ttl">PoC 워커의 열린 포트 처리</span><span class="st wait">대기 · 미조치</span></div>
+    <dl><dt>현황</dt><dd>2026-09-30 재확인 — 포트 8765 가 <b>아직 열려 있다</b>(HTTP·무인증, 사내 단말에서 도달 가능)</dd><dt>권고</dt><dd class="rec">API 키 적용 전 폐쇄 — 안 D 는 NAS 에 열린 포트가 하나도 필요 없다(워커는 밖으로만 연결한다). 관리자 원격 운영이 필요하면 사설 VPN(Tailscale 등)을 따로 검토</dd></dl></div>
+
+  <div class="dec"><div class="top"><span class="did">D-99</span><span class="ttl">NAS 컨테이너 이름</span><span class="st wait">대기</span></div>
+    <dl><dt>권고</dt><dd class="rec"><code>jeil-nas-worker</code> — 게이트웨이 운영명 <code>jeil-agent</code> 와 구분</dd></dl></div>
+
+  <!-- ───────────────── 10 ───────────────── -->
+  <h2 id="s10">10. 확인 요청 회신 반영 (2026-09-29)</h2>
+  <div class="tw"><table>
+    <tr><th>#</th><th>확인 항목</th><th>회신</th><th>반영 · 의미</th></tr>
+    <tr><td>1</td><td>도메인 DNS 관리처</td><td>외부 서비스(<b>아이네임즈</b>) — 사내에서 관리 가능</td><td>D-107: <b>보류</b>(2026-09-30) — 안 D 는 공개 주소가 필요 없어 DNS 를 건드리지 않는다. 당시 검토(하위 주소 + 네임서버 전환 ①, 별도 도메인 ②)는 §9 에 기록으로 남김</td></tr>
+    <tr><td>2</td><td>디스크 이중화·백업·UPS</td><td>이중화·백업 설정 <b>없음</b> · UPS 연결 가능</td><td>D-104: <b>외부 백업 구축이 N2(보존 전환) 선결</b> · UPS 연결. ※ 아래 「확인 권장」 참고</td></tr>
+    <tr><td>3</td><td>메모리·itasset</td><td>itasset 사용량 크지 않음</td><td>메모리 증설은 보류 — 8GB 로 N1~N3 진행, 전사 확대(N4) 전에 실측으로 재판단</td></tr>
+    <tr><td>4</td><td>데이터 규모</td><td>현재 약 <b>90명</b> · 부서는 조직도 참조</td><td>ERP 부서 마스터 실측: 현행 조직 약 88명 · 인원 있는 팀 18개 → 아래 규모 추정</td></tr>
+    <tr><td>5</td><td>대화기록 보존</td><td><b>180일 정도면 적당</b></td><td>D-108: 180일 유지(기존 약속 그대로) · 지금은 복사만 — Supabase 14일 + NAS 나머지 전환은 N2</td></tr>
+    <tr><td>6</td><td>계정 명의</td><td>Cloudflare·NAS 관리 계정 모두 <b>회사 계정 생성 가능</b></td><td>D-94: 개인 명의 의존 해소 · 관리자 2인·2단계 인증 (Cloudflare 계정은 안 D 에서 필요 없다)</td></tr>
+    <tr><td>7</td><td>문서 폴더·권한</td><td><b>부서별 폴더</b> + 공유용 <b>전사공유 폴더</b> 별도</td><td>D-96: 아래 폴더 구조안 · 에이전트 검색 = 본인 부서 + 전사공유</td></tr>
+  </table></div>
+
+  <div class="callout warn"><b>확인 권장 — 디스크 이중화가 정말 없는지</b><br>
+  PoC 조사 기록에 볼륨이 <b>4TB 디스크 4개로 약 10.5TB</b>로 나와 있다. 이중화가 없는 구성(Basic·JBOD·RAID 0)이면 약 14.5TB 가 보여야 하고,
+  <b>디스크 1개 고장을 견디는 구성(SHR-1·RAID 5)이면 약 10.9TB</b>가 보인다. 용량으로 보면 <b>이미 이중화일 가능성이 높다</b> — DSM 「저장소 관리자 → 저장소 풀」에서 종류를 확인하면 된다.
+  단 <b>이중화(RAID)는 백업이 아니다</b>. 실수 삭제·랜섬웨어·NAS 통째 고장에는 외부 백업만 효과가 있으므로, 외부 백업 구축 권고는 그대로다.</div>
+
+  <h3>규모 추정 — 90명 기준 (추정, N2 실측으로 대체)</h3>
+  <div class="tw"><table>
+    <tr><th>데이터</th><th>가정</th><th>월 증가</th><th>보존 후 총량</th><th>비고</th></tr>
+    <tr><td>대화기록</td><td>활성 45명 × 하루 10질문 × 22일 ≈ 월 1만 턴 · 턴당 약 8KB</td><td>약 80MB</td><td>180일 ≈ <b>0.5GB</b></td><td>Supabase Free 한도(500MB) 전체와 맞먹는다 → NAS 이전 근거</td></tr>
+    <tr><td>생성 자료</td><td>활성 45명 × 월 8건 × 300KB</td><td>약 110MB</td><td>3년 ≈ 4GB</td><td>엑셀·보고서·HTML</td></tr>
+    <tr><td>부서 문서</td><td>18개 팀 × 2~5GB + 전사공유</td><td>—</td><td>40~100GB</td><td>새로 정리 — 실제 이관 후 확정</td></tr>
+    <tr><td>검색 색인</td><td>문서 텍스트의 약 10~20%</td><td>—</td><td>수 GB</td><td>NAS 내부</td></tr>
+    <tr><td>백업</td><td>Supabase 내보내기 일간 14 + 월간 6</td><td>—</td><td>약 2~5GB</td><td>NAS + 외부 사본</td></tr>
+    <tr><td colspan="3"><b>합계</b></td><td><b>150GB 안팎</b></td><td>NAS 10.5TB 의 약 1.5% — 용량은 충분. 외부 백업 장치는 1~2TB 면 수년 여유</td></tr>
+  </table></div>
+
+  <h3>폴더 구조안 — 부서별 + 전사공유</h3>
+  <div class="fig"><svg viewBox="0 0 960 330" role="img" aria-label="NAS 폴더 구조안">
+    <rect x="20" y="20" width="200" height="50" rx="8" class="box-nas"/><text x="120" y="50" text-anchor="middle" class="t-h">📁 AI포털 (공유 폴더)</text>
+    <path d="M120 70 V 300" class="ln"/>
+    <path d="M120 105 H 160" class="ln"/><rect x="160" y="82" width="250" height="46" rx="8" class="box"/><text x="175" y="104" class="t-b">📁 00_전사공유</text><text x="175" y="121" class="t-s">사규·공지·공통 양식 — 전원 읽기</text>
+    <path d="M120 165 H 160" class="ln"/><rect x="160" y="142" width="250" height="46" rx="8" class="box"/><text x="175" y="164" class="t-b">📁 부서 / 5200_구매팀</text><text x="175" y="181" class="t-s">구매팀 읽기·쓰기 · 파일럿</text>
+    <path d="M120 225 H 160" class="ln"/><rect x="160" y="202" width="250" height="46" rx="8" class="box"/><text x="175" y="224" class="t-b">📁 부서 / 6110_사업운영팀 …</text><text x="175" y="241" class="t-s">인원 있는 팀 18개 — 부서코드_부서명</text>
+    <path d="M120 285 H 160" class="ln"/><rect x="160" y="262" width="250" height="46" rx="8" class="box-soft"/><text x="175" y="284" class="t-b">📁 _에이전트 (시스템 전용)</text><text x="175" y="301" class="t-s">대화기록·생성 자료·색인·백업 — 직원 비공개</text>
+    <rect x="460" y="20" width="480" height="290" rx="12" class="box-sb"/><text x="480" y="48" class="t-h">권한 규칙 (에이전트 문서 검색 = 폴더 권한과 동일)</text>
+    <text x="480" y="80" class="t-b">• 폴더 이름 앞의 <tspan font-weight="700">부서코드</tspan> = ERP 부서 마스터 코드(ADR-107)</text>
+    <text x="480" y="106" class="t-b">• 직원은 <tspan font-weight="700">본인 부서 폴더 + 전사공유</tspan>만 검색된다</text>
+    <text x="480" y="132" class="t-b">• 부문장 등 상위 조직은 「하위 팀 포함」을 선택해 확장</text>
+    <text x="480" y="158" class="t-b">• 조직 개편 시 폴더 이름은 두고 코드 매핑만 갱신</text>
+    <text x="480" y="184" class="t-b">• 급여·인사평가 폴더는 색인 대상에서 제외</text>
+    <text x="480" y="210" class="t-b">• 주민번호 형식 등 민감 패턴이 있는 파일은 자동 제외</text>
+    <text x="480" y="236" class="t-b">• 생성 자료: _에이전트/자료/&lt;본인&gt; — 본인·관리자만</text>
+    <text x="480" y="270" class="t-s">SMB 권한(DSM 그룹)과 에이전트 검색 권한을 같은 규칙으로 맞춰</text>
+    <text x="480" y="290" class="t-s">"폴더에서 못 여는 문서는 AI 도 보여 주지 않는다"</text>
+  </svg></div>
+  <div class="cap">부서 폴더는 인원이 있는 현행 팀(18개) 기준으로 만든다. 부서코드를 폴더 이름에 붙이면 ERP 조직 정보와 권한 판정(부서코드 키)을 그대로 이어 쓸 수 있다.</div>
+
+  <!-- ───────────────── 11 ───────────────── -->
+  <h2 id="s11">11. 위험과 대응</h2>
+  <div class="tw"><table>
+    <tr><th>위험</th><th>영향</th><th>대응</th></tr>
+    <tr><td>NAS 장비 고장·정전</td><td>누적 정본 손실 · 문서 검색 중단</td><td>디스크 이중화 · 외부 사본 백업 · UPS · <b>지금은 복사만이라 원본이 Supabase 에 남는다</b>(보존 전환 N2 는 외부 백업 뒤에) · 월 1회 복원 시험</td></tr>
+    <tr><td>PoC 무인증 포트(8765) 방치</td><td>사내 단말에서 PoC 워커 호출(내부자 위험)</td><td><b>API 키 적용 전 폐쇄</b>(D-98 — 아직 열려 있음) · 안 D 는 NAS 에 열린 포트가 필요 없다</td></tr>
+    <tr><td>워커가 쓰는 Supabase 키 유출</td><td>중간DB 전체 접근</td><td>검증 단계만 작업PC 의 기존 키 · <b>NAS 컨테이너에는 전체 권한 키를 두지 않고 전용 좁은 키</b> · 내보낼 수 있는 것은 DB 허용 목록뿐(급여 스키마는 등재 자체가 불가) · 키 회전</td></tr>
+    <tr><td>적재 폴더 권한 과다</td><td>대화 원문(질문·답변) 노출</td><td><code>_에이전트</code> 폴더는 <b>시스템·관리자 전용</b> · 내보내기 암호화 여부 결정 · Hyper Backup 암호화</td></tr>
+    <tr><td>워커가 멈춘 걸 모르고 지나감</td><td>적재가 조용히 끊김</td><td>전용 심박으로 가동 판정 · 요청 결과에 건수·해시·사유 기록 · 능력이 없으면 요청을 집지 않음 · 복구되면 멈춘 지점부터 재개(누락 0 실측)</td></tr>
+    <tr><td>NAS 나가는 연결이 막힘(프록시·SSL 검사)</td><td>적재 실패</td><td>목적지 허용 확인 · 20~60초 폴링이라 세션 유휴 제한에 걸리지 않음 · 실패는 요청 결과에 사유로 남는다</td></tr>
+    <tr><td>문서에 민감정보 포함</td><td>권한 밖 노출 · LLM 전송</td><td>범위 등록 폴더만 색인 · 주민번호 형식 등 민감 패턴 자동 제외 · 급여/인사 폴더 등록 금지 · 권한 = 부서코드 ∩ 사용자 권한</td></tr>
+    <tr><td>NAS 메모리 부족</td><td>느려짐 · 다른 서비스 영향</td><td>컨테이너 메모리 상한 · 우선순위 낮춤 · 16GB 증설(D-104)</td></tr>
+    <tr><td>담당자 부재 시 운영 불가</td><td>장애 대응 지연</td><td>NAS 관리 계정을 회사 계정으로 + 관리자 2인 · 운영 절차서(백업·복원·키 회전·장애 대응)</td></tr>
+    <tr><td>Azure 이관과 어긋남</td><td>재작업</td><td>나가는 HTTPS 하나뿐이라 <b>경로 변경이 없다</b> — 워커가 바라보는 접속 주소만 바뀐다</td></tr>
+    <tr><td>(조건부) 문서 검색이 느려 터널이 되살아남</td><td>내부존 세션 종단 · 도메인 이관 · 보안 승인 부담</td><td>N3 실측 뒤에만 판단 · 별도 도메인으로(회사 메일·DNS 무영향) · 접속 경로는 한 곳만 공개 · DSM·SMB 는 절대 노출하지 않음</td></tr>
+  </table></div>
+
+  <div class="foot">13_NAS_고도화 / 02_의사결정_브리핑.html · 직접 관리(빌드 대상 아님) · 관리자 최동혁 · 원천: <a href="/docs/nas/review">00</a> · <a href="/docs/nas/plan">01</a> · ADR-110 · 총괄 대시보드 · NAS 주소·계정·비밀값은 기재하지 않음(CLAUDE.md §1)</div>
+</div>
+<button class="theme" type="button" onclick="(function(){var r=document.documentElement,c=r.getAttribute('data-theme'),d=c?c==='dark':matchMedia('(prefers-color-scheme: dark)').matches;r.setAttribute('data-theme',d?'light':'dark');})()">🌓 테마</button>
+</body>
+</html>

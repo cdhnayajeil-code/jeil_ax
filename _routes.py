@@ -52,115 +52,124 @@ ROUTES = {
     "/vendor/login":            "app/vendor-login.html",
 
     # ── 니즈조사 ───────────────────────────────────────────
-    "/survey":                  "05_니즈조사/00_니즈조사_홈.html",
-    "/survey/form":             "05_니즈조사/01_니즈조사_설문폼.html",
-    "/survey/dashboard":        "05_니즈조사/02_니즈조사_집계_대시보드.html",
-    "/survey/evaluation":       "05_니즈조사/03_과제평가_시트.html",
-    "/survey/analysis":         "05_니즈조사/04_니즈조사_분석_타당성검토.html",
-    "/survey/guide":            "05_니즈조사/05_니즈조사_배포_안내문.html",
+    "/survey":                  "문서/05_니즈조사/00_니즈조사_홈.html",
+    "/survey/form":             "문서/05_니즈조사/01_니즈조사_설문폼.html",
+    "/survey/dashboard":        "문서/05_니즈조사/02_니즈조사_집계_대시보드.html",
+    "/survey/evaluation":       "문서/05_니즈조사/03_과제평가_시트.html",
+    "/survey/analysis":         "문서/05_니즈조사/04_니즈조사_분석_타당성검토.html",
+    "/survey/guide":            "문서/05_니즈조사/05_니즈조사_배포_안내문.html",
 
     # ── 도구 ───────────────────────────────────────────────
-    "/tools/cost-calculator":   "09_비용_호스팅/JEIL_AX_비용계산기.html",
+    "/tools/cost-calculator":   "문서/09_비용_호스팅/JEIL_AX_비용계산기.html",
+
+    # ── 문서 센터 (문서/ 폴더 전체 목차 — _build_routes.py 가 이 표에서 자동 생성) ──
+    "/docs":                        "문서/index.html",
 
     # ── 관리체계 (거버넌스 허브) ────────────────────────────
-    "/docs/governance":             "00_관리체계/index.html",
-    "/docs/governance/documents":   "00_관리체계/00_문서대장.html",
-    "/docs/governance/registry":    "00_관리체계/01_기준정보_레지스트리.html",
-    "/docs/governance/naming":      "00_관리체계/02_명명규칙_폴더규약.html",
-    "/docs/governance/changelog":   "00_관리체계/03_변경관리_CHANGELOG.html",
-    "/docs/governance/summary":     "00_관리체계/04_현재상태_한장요약.html",
+    "/docs/governance":             "문서/00_관리체계/index.html",
+    "/docs/governance/documents":   "문서/00_관리체계/00_문서대장.html",
+    "/docs/governance/registry":    "문서/00_관리체계/01_기준정보_레지스트리.html",
+    "/docs/governance/naming":      "문서/00_관리체계/02_명명규칙_폴더규약.html",
+    "/docs/governance/changelog":   "문서/00_관리체계/03_변경관리_CHANGELOG.html",
+    "/docs/governance/summary":     "문서/00_관리체계/04_현재상태_한장요약.html",
 
     # ── 기획 문서 (루트) ───────────────────────────────────
-    "/docs/intro":              "01_AI_관리시스템_도입_기획서.html",
-    "/docs/survey-plan":        "02_부서별_AI_니즈조사_실행기획.html",
-    "/docs/portal-plan":        "03_사내_AI챗봇_포털_구축_기획서.html",
-    "/docs/dept-pages-plan":    "07_부서운영페이지_확장기획.html",
+    "/docs/intro":              "문서/01_AI_관리시스템_도입_기획서.html",
+    "/docs/survey-plan":        "문서/02_부서별_AI_니즈조사_실행기획.html",
+    "/docs/portal-plan":        "문서/03_사내_AI챗봇_포털_구축_기획서.html",
+    "/docs/dept-pages-plan":    "문서/07_부서운영페이지_확장기획.html",
 
     # ── 실행기획 고도화 ────────────────────────────────────
-    "/docs/execution":              "06_실행기획_고도화/00_실행계획_요약보고.html",
-    "/docs/execution/master":       "06_실행기획_고도화/01_AX_통합_실행기획서.html",
-    "/docs/execution/survey-ops":   "06_실행기획_고도화/02_니즈조사_실전_운영계획.html",
+    "/docs/execution":              "문서/06_실행기획_고도화/00_실행계획_요약보고.html",
+    "/docs/execution/master":       "문서/06_실행기획_고도화/01_AX_통합_실행기획서.html",
+    "/docs/execution/survey-ops":   "문서/06_실행기획_고도화/02_니즈조사_실전_운영계획.html",
 
     # ── 협력사 발주 포털 ───────────────────────────────────
-    "/docs/vendor-portal":              "08_협력사발주포털/00_종합정리_요구사항이력.html",
-    "/docs/vendor-portal/plan-1":       "08_협력사발주포털/01_기획문서/1차_협력사_발주사진_포털.html",
-    "/docs/vendor-portal/plan-2":       "08_협력사발주포털/01_기획문서/2차_외주발주_검사진행_고도화기획.html",
-    "/docs/vendor-portal/mail-env":     "08_협력사발주포털/협력사메일발송_인증_환경변수_정리.html",
-    "/demo/subcon-dashboard":           "08_협력사발주포털/02_데모/사내_외주발주_검사_대시보드.html",
-    "/demo/vendor-mobile":              "08_협력사발주포털/02_데모/협력사_모바일_포털.html",
-    "/docs/vendor-portal/build":              "08_협력사발주포털/03_실구축기획/00_CTO종합기획_실행개요.html",
-    "/docs/vendor-portal/build/architecture": "08_협력사발주포털/03_실구축기획/01_아키텍처_데이터흐름_연계설계.html",
-    "/docs/vendor-portal/build/data-model":   "08_협력사발주포털/03_실구축기획/02_데이터모델_ERP매핑_포털스키마.html",
-    "/docs/vendor-portal/build/security":     "08_협력사발주포털/03_실구축기획/03_협력사인증_권한_행수준보안_보안.html",
-    "/docs/vendor-portal/build/sync-api":     "08_협력사발주포털/03_실구축기획/04_실시간동기화_API_파일업로드_알림.html",
-    "/docs/vendor-portal/build/decisions":    "08_협력사발주포털/03_실구축기획/05_사전정의_의사결정_유니포인트협의_체크리스트.html",
-    "/docs/vendor-portal/build/roadmap":      "08_협력사발주포털/03_실구축기획/06_로드맵_단계별실행_운영전환.html",
-    "/docs/vendor-portal/build/deploy":       "08_협력사발주포털/03_실구축기획/07_데모배포전략_Vercel_Supabase_Azure전환.html",
-    "/docs/vendor-portal/build/process":      "08_협력사발주포털/03_실구축기획/08_전체프로세스_상태머신_로직재설계.html",
+    "/docs/vendor-portal":              "문서/08_협력사발주포털/00_종합정리_요구사항이력.html",
+    "/docs/vendor-portal/plan-1":       "문서/08_협력사발주포털/01_기획문서/1차_협력사_발주사진_포털.html",
+    "/docs/vendor-portal/plan-2":       "문서/08_협력사발주포털/01_기획문서/2차_외주발주_검사진행_고도화기획.html",
+    "/docs/vendor-portal/mail-env":     "문서/08_협력사발주포털/협력사메일발송_인증_환경변수_정리.html",
+    "/demo/subcon-dashboard":           "문서/08_협력사발주포털/02_데모/사내_외주발주_검사_대시보드.html",
+    "/demo/vendor-mobile":              "문서/08_협력사발주포털/02_데모/협력사_모바일_포털.html",
+    "/docs/vendor-portal/build":              "문서/08_협력사발주포털/03_실구축기획/00_CTO종합기획_실행개요.html",
+    "/docs/vendor-portal/build/architecture": "문서/08_협력사발주포털/03_실구축기획/01_아키텍처_데이터흐름_연계설계.html",
+    "/docs/vendor-portal/build/data-model":   "문서/08_협력사발주포털/03_실구축기획/02_데이터모델_ERP매핑_포털스키마.html",
+    "/docs/vendor-portal/build/security":     "문서/08_협력사발주포털/03_실구축기획/03_협력사인증_권한_행수준보안_보안.html",
+    "/docs/vendor-portal/build/sync-api":     "문서/08_협력사발주포털/03_실구축기획/04_실시간동기화_API_파일업로드_알림.html",
+    "/docs/vendor-portal/build/decisions":    "문서/08_협력사발주포털/03_실구축기획/05_사전정의_의사결정_유니포인트협의_체크리스트.html",
+    "/docs/vendor-portal/build/roadmap":      "문서/08_협력사발주포털/03_실구축기획/06_로드맵_단계별실행_운영전환.html",
+    "/docs/vendor-portal/build/deploy":       "문서/08_협력사발주포털/03_실구축기획/07_데모배포전략_Vercel_Supabase_Azure전환.html",
+    "/docs/vendor-portal/build/process":      "문서/08_협력사발주포털/03_실구축기획/08_전체프로세스_상태머신_로직재설계.html",
 
     # ── 비용·호스팅 ────────────────────────────────────────
-    "/docs/cost":               "09_비용_호스팅/JEIL_AX_비용기획_보고서.html",
-    "/docs/hosting":            "09_비용_호스팅/JEIL_AX_호스팅_기획서.html",
+    "/docs/cost":               "문서/09_비용_호스팅/JEIL_AX_비용기획_보고서.html",
+    "/docs/hosting":            "문서/09_비용_호스팅/JEIL_AX_호스팅_기획서.html",
 
     # ── ERP DB 연계 (관제) ─────────────────────────────────
-    "/docs/erp":                        "10_ERP_DB연계/index.html",
-    "/docs/erp/status":                 "10_ERP_DB연계/00_현재상태_스냅샷.html",
-    "/docs/erp/plan":                   "10_ERP_DB연계/01_연계기획.html",
-    "/docs/erp/progress":               "10_ERP_DB연계/02_진행상태.html",
-    "/docs/erp/midway-db":              "10_ERP_DB연계/03_중간DB_구축실행기획.html",
-    "/docs/erp/incremental-sync":       "10_ERP_DB연계/04_증분동기화_확장_거버넌스_기획.html",
-    "/docs/erp/dept-mapping":           "10_ERP_DB연계/05_사용자부서_매핑대사.html",
-    "/docs/erp/voucher-roadmap":        "10_ERP_DB연계/06_결의전표_추진계획.html",
-    "/docs/erp/voucher-integration":    "10_ERP_DB연계/07_결의전표_연동_종합.html",
-    "/docs/erp/voucher-process":        "10_ERP_DB연계/08_결의전표_처리프로세스.html",
-    "/docs/erp/voucher-handover":       "10_ERP_DB연계/09_결의전표_인수인계.html",
-    "/docs/erp/recurring-voucher":      "10_ERP_DB연계/10_반복전표_자동화_기획.html",
-    "/docs/erp/direct-post-demo":       "10_ERP_DB연계/11_ERP직접등록_DEMO2_1차.html",
-    "/docs/erp/ax001-acct-mapping":     "10_ERP_DB연계/12_AX001_계정매핑_등재요청.html",
-    "/docs/erp/subledger-fix":          "10_ERP_DB연계/13_AX전표_서브원장_호출누락_개발요청.html",
-    "/docs/erp/test-cases":             "10_ERP_DB연계/14_AX전표_테스트범위_및_케이스설계.html",
-    "/docs/erp/input-guards":           "10_ERP_DB연계/15_AX전표_입력검증_및_차단규칙.html",
-    "/docs/erp/trans-type-review":      "10_ERP_DB연계/16_AX전표_거래유형체계_적정성검토.html",
-    "/docs/erp/prod-gates":             "10_ERP_DB연계/17_운영전환_게이트.html",
-    "/docs/erp/jnl-rule":               "10_ERP_DB연계/18_거래항목_결정규칙.html",
-    "/docs/erp/test-set":               "10_ERP_DB연계/19_연동테스트_전표세트.html",
-    "/docs/erp/ledger-verify":          "10_ERP_DB연계/20_원장검증_실장부대조.html",
-    "/docs/erp/offboarding":            "10_ERP_DB연계/21_퇴사처리_일괄적용_기획.html",
-    "/docs/erp/gw-org-recon":           "10_ERP_DB연계/22_그룹웨어_조직도_실측대사.html",
-    "/docs/erp/prod-worklist":          "10_ERP_DB연계/23_운영전환_작업항목.html",
+    "/docs/erp":                        "문서/10_ERP_DB연계/index.html",
+    "/docs/erp/status":                 "문서/10_ERP_DB연계/00_현재상태_스냅샷.html",
+    "/docs/erp/plan":                   "문서/10_ERP_DB연계/01_연계기획.html",
+    "/docs/erp/progress":               "문서/10_ERP_DB연계/02_진행상태.html",
+    "/docs/erp/midway-db":              "문서/10_ERP_DB연계/03_중간DB_구축실행기획.html",
+    "/docs/erp/incremental-sync":       "문서/10_ERP_DB연계/04_증분동기화_확장_거버넌스_기획.html",
+    "/docs/erp/dept-mapping":           "문서/10_ERP_DB연계/05_사용자부서_매핑대사.html",
+    "/docs/erp/voucher-roadmap":        "문서/10_ERP_DB연계/06_결의전표_추진계획.html",
+    "/docs/erp/voucher-integration":    "문서/10_ERP_DB연계/07_결의전표_연동_종합.html",
+    "/docs/erp/voucher-process":        "문서/10_ERP_DB연계/08_결의전표_처리프로세스.html",
+    "/docs/erp/voucher-handover":       "문서/10_ERP_DB연계/09_결의전표_인수인계.html",
+    "/docs/erp/recurring-voucher":      "문서/10_ERP_DB연계/10_반복전표_자동화_기획.html",
+    "/docs/erp/direct-post-demo":       "문서/10_ERP_DB연계/11_ERP직접등록_DEMO2_1차.html",
+    "/docs/erp/ax001-acct-mapping":     "문서/10_ERP_DB연계/12_AX001_계정매핑_등재요청.html",
+    "/docs/erp/subledger-fix":          "문서/10_ERP_DB연계/13_AX전표_서브원장_호출누락_개발요청.html",
+    "/docs/erp/test-cases":             "문서/10_ERP_DB연계/14_AX전표_테스트범위_및_케이스설계.html",
+    "/docs/erp/input-guards":           "문서/10_ERP_DB연계/15_AX전표_입력검증_및_차단규칙.html",
+    "/docs/erp/trans-type-review":      "문서/10_ERP_DB연계/16_AX전표_거래유형체계_적정성검토.html",
+    "/docs/erp/prod-gates":             "문서/10_ERP_DB연계/17_운영전환_게이트.html",
+    "/docs/erp/jnl-rule":               "문서/10_ERP_DB연계/18_거래항목_결정규칙.html",
+    "/docs/erp/test-set":               "문서/10_ERP_DB연계/19_연동테스트_전표세트.html",
+    "/docs/erp/ledger-verify":          "문서/10_ERP_DB연계/20_원장검증_실장부대조.html",
+    "/docs/erp/offboarding":            "문서/10_ERP_DB연계/21_퇴사처리_일괄적용_기획.html",
+    "/docs/erp/gw-org-recon":           "문서/10_ERP_DB연계/22_그룹웨어_조직도_실측대사.html",
+    "/docs/erp/prod-worklist":          "문서/10_ERP_DB연계/23_운영전환_작업항목.html",
+    # 유니포인트 전달본(2026-08-25 시점 사본) — 최신본은 위 13~16
+    "/docs/erp/sent/subledger-fix":     "문서/10_ERP_DB연계/AX전표 관련/AX전표_서브원장_호출누락_개발요청_20260825.html",
+    "/docs/erp/sent/test-cases":        "문서/10_ERP_DB연계/AX전표 관련/AX전표_테스트케이스_설계_20260825.html",
+    "/docs/erp/sent/input-guards":      "문서/10_ERP_DB연계/AX전표 관련/AX전표_입력검증_및_차단규칙_20260825.html",
+    "/docs/erp/sent/trans-type-review": "문서/10_ERP_DB연계/AX전표 관련/AX전표_거래유형체계_적정성검토_20260825.html",
 
     # ── 제품기획 ───────────────────────────────────────────
-    "/docs/product":                    "11_제품기획/index.html",
-    "/docs/product/overview":           "11_제품기획/00_제품기획_개요.html",
-    "/docs/product/prd":                "11_제품기획/01_PRD_제품요구사항정의.html",
-    "/docs/product/srs":                "11_제품기획/02_SRS_요구사항명세.html",
-    "/docs/product/architecture":       "11_제품기획/03_시스템아키텍처_설계.html",
-    "/docs/product/database":           "11_제품기획/04_데이터베이스_설계.html",
-    "/docs/product/frontend-backend":   "11_제품기획/05_프론트엔드_백엔드_설계.html",
-    "/docs/product/erp-chatbot":        "11_제품기획/06_ERP연계_챗봇활용_설계.html",
-    "/docs/product/migration-design":   "11_제품기획/07_마이그레이션_Azure이관_설계.html",
-    "/docs/product/security":           "11_제품기획/08_보안_데이터안정성.html",
-    "/docs/product/adr":                "11_제품기획/09_ADR_의사결정기록.html",
-    "/docs/product/chat-rendering":     "11_제품기획/10_챗봇_응답렌더링_설계.html",
-    "/docs/product/chat-data-request":  "11_제품기획/11_챗봇_데이터요청접수_설계.html",
-    "/docs/product/org-permission":     "11_제품기획/12_권한_조직도기반_공개설정_설계.html",
-    "/docs/product/org-permission-mockup": "11_제품기획/12_권한_조직도기반_공개설정_목업.html",
-    "/docs/product/chat-modules":       "11_제품기획/13_챗봇_모듈형_고도화_기획.html",
-    "/docs/product/dept-agents":        "11_제품기획/14_부서에이전트_운영기획.html",
-    "/docs/agents":                     "12_에이전트관리/index.html",          # 부서 에이전트 관리 허브(2026-09-29)
-    "/docs/agents/status":              "12_에이전트관리/00_현재상태.html",
-    "/docs/agents/ops-guide":           "12_에이전트관리/01_운영가이드.html",
-    "/docs/agents/dev-guide":           "12_에이전트관리/02_개발가이드.html",
-    "/docs/agents/progress":            "12_에이전트관리/03_진행상태_변경이력.html",
-    "/docs/agents/purchase-domain":     "12_에이전트관리/04_구매도메인_발주통합LIST.html",
-    "/docs/agents/quality-test":        "12_에이전트관리/05_품질테스트_대화검증.html",   # 실업무 대화 실측(REQ-0094 · 2026-09-30)
-    "/docs/agents/templates":           "12_에이전트관리/06_에이전트_템플릿_관리포인트.html",  # 템플릿·관리 포인트 생성본(정본 app/agent-templates.json)
-    "/docs/nas":                        "13_NAS_고도화/index.html",            # 사내 NAS 연계 검토·기획 허브(2026-09-29)
-    "/docs/nas/review":                 "13_NAS_고도화/00_NAS연계_타당성검토.html",
-    "/docs/nas/plan":                   "13_NAS_고도화/01_NAS_데이터계층_기획.html",
-    "/docs/nas/decision":               "13_NAS_고도화/02_의사결정_브리핑.html",
-    "/docs/nas/flow":                   "13_NAS_고도화/03_연동방식_도식.html",   # 지금 돌아가는 연동 방식 도식(2026-10-02)
-    "/docs/nas/realtime":               "13_NAS_고도화/04_실시간연계_컨테이너_검토.html",   # 실시간 연계·컨테이너 이관 검토(REQ-0102 · 2026-10-02)
+    "/docs/product":                    "문서/11_제품기획/index.html",
+    "/docs/product/overview":           "문서/11_제품기획/00_제품기획_개요.html",
+    "/docs/product/prd":                "문서/11_제품기획/01_PRD_제품요구사항정의.html",
+    "/docs/product/srs":                "문서/11_제품기획/02_SRS_요구사항명세.html",
+    "/docs/product/architecture":       "문서/11_제품기획/03_시스템아키텍처_설계.html",
+    "/docs/product/database":           "문서/11_제품기획/04_데이터베이스_설계.html",
+    "/docs/product/frontend-backend":   "문서/11_제품기획/05_프론트엔드_백엔드_설계.html",
+    "/docs/product/erp-chatbot":        "문서/11_제품기획/06_ERP연계_챗봇활용_설계.html",
+    "/docs/product/migration-design":   "문서/11_제품기획/07_마이그레이션_Azure이관_설계.html",
+    "/docs/product/security":           "문서/11_제품기획/08_보안_데이터안정성.html",
+    "/docs/product/adr":                "문서/11_제품기획/09_ADR_의사결정기록.html",
+    "/docs/product/chat-rendering":     "문서/11_제품기획/10_챗봇_응답렌더링_설계.html",
+    "/docs/product/chat-data-request":  "문서/11_제품기획/11_챗봇_데이터요청접수_설계.html",
+    "/docs/product/org-permission":     "문서/11_제품기획/12_권한_조직도기반_공개설정_설계.html",
+    "/docs/product/org-permission-mockup": "문서/11_제품기획/12_권한_조직도기반_공개설정_목업.html",
+    "/docs/product/chat-modules":       "문서/11_제품기획/13_챗봇_모듈형_고도화_기획.html",
+    "/docs/product/dept-agents":        "문서/11_제품기획/14_부서에이전트_운영기획.html",
+    "/docs/agents":                     "문서/12_에이전트관리/index.html",          # 부서 에이전트 관리 허브(2026-09-29)
+    "/docs/agents/status":              "문서/12_에이전트관리/00_현재상태.html",
+    "/docs/agents/ops-guide":           "문서/12_에이전트관리/01_운영가이드.html",
+    "/docs/agents/dev-guide":           "문서/12_에이전트관리/02_개발가이드.html",
+    "/docs/agents/progress":            "문서/12_에이전트관리/03_진행상태_변경이력.html",
+    "/docs/agents/purchase-domain":     "문서/12_에이전트관리/04_구매도메인_발주통합LIST.html",
+    "/docs/agents/quality-test":        "문서/12_에이전트관리/05_품질테스트_대화검증.html",   # 실업무 대화 실측(REQ-0094 · 2026-09-30)
+    "/docs/agents/templates":           "문서/12_에이전트관리/06_에이전트_템플릿_관리포인트.html",  # 템플릿·관리 포인트 생성본(정본 app/agent-templates.json)
+    "/docs/agents/integration-test":    "문서/12_에이전트관리/07_통합실측_구매에이전트_NAS연계_2026-10-06.html",  # 구매 에이전트·NAS 연계 통합 실측 보고서
+    "/docs/nas":                        "문서/13_NAS_고도화/index.html",            # 사내 NAS 연계 검토·기획 허브(2026-09-29)
+    "/docs/nas/review":                 "문서/13_NAS_고도화/00_NAS연계_타당성검토.html",
+    "/docs/nas/plan":                   "문서/13_NAS_고도화/01_NAS_데이터계층_기획.html",
+    "/docs/nas/decision":               "문서/13_NAS_고도화/02_의사결정_브리핑.html",
+    "/docs/nas/flow":                   "문서/13_NAS_고도화/03_연동방식_도식.html",   # 지금 돌아가는 연동 방식 도식(2026-10-02)
+    "/docs/nas/realtime":               "문서/13_NAS_고도화/04_실시간연계_컨테이너_검토.html",   # 실시간 연계·컨테이너 이관 검토(REQ-0102 · 2026-10-02)
 
     # ── 그리드 표준 ────────────────────────────────────────
     "/docs/grid":               "그리드/index.html",
@@ -192,3 +201,62 @@ ROUTES = {
 # 실제 파일 → 클린 경로 (링크 치환용 역인덱스)
 FILE_TO_ROUTE = {v: k for k, v in ROUTES.items()}
 FILE_TO_ROUTE["index.html"] = "/"
+
+
+# ══ 문서 폴더 통합(2026-10-06 · REQ-0107) ═══════════════════════════════════
+# 문서 폴더 9개 + 루트 기획서가 `문서/` 아래로 모였다. 실행 코드 `10_ERP_DB연계/etl` 만 제자리.
+DOCS_DIR = "문서"
+DOC_CENTER = DOCS_DIR + "/index.html"       # 문서 센터 — _build_routes.py 생성물(손으로 고치지 않는다)
+
+
+def legacy_path(dest):
+    """통합 전 파일 경로(옛 .html 주소 리다이렉트용). 통합 뒤 새로 생긴 문서는 None."""
+    if dest == DOC_CENTER or not dest.startswith(DOCS_DIR + "/"):
+        return None
+    return dest[len(DOCS_DIR) + 1:]
+
+
+# 문서 센터 묶음 — (파일 경로 접두, 제목, 한 줄 설명). 위에서부터 먼저 맞는 묶음에 들어간다.
+DOC_GROUPS = [
+    ("문서/00_관리체계/",       "00 관리체계",          "총괄 대시보드 · 문서대장 · 기준정보 · 명명규칙 · 변경관리"),
+    ("문서/05_니즈조사/",       "05 니즈조사",          "설문폼 · 집계 대시보드 · 과제평가 · 분석"),
+    ("문서/06_실행기획_고도화/", "06 실행기획 고도화",    "실행계획 요약 · 통합 실행기획서 · 니즈조사 운영계획"),
+    ("문서/08_협력사발주포털/",  "08 협력사 발주 포털",   "요구사항 이력 · 기획 · 데모 · 실구축기획 9부"),
+    ("문서/09_비용_호스팅/",     "09 비용 · 호스팅",      "비용기획 보고서 · 호스팅 기획서 · 비용계산기"),
+    ("문서/10_ERP_DB연계/",     "10 ERP DB 연계",       "현재상태 · 기획 · 진행상태 · 결의전표 · 운영전환 (실행 코드는 저장소 루트 10_ERP_DB연계/etl)"),
+    ("문서/11_제품기획/",       "11 제품기획",          "PRD · SRS · 아키텍처 · DB · 보안 · ADR · 챗봇·에이전트 기획"),
+    ("문서/12_에이전트관리/",    "12 에이전트 관리",      "현재상태 · 운영/개발 가이드 · 품질테스트 · 템플릿"),
+    ("문서/13_NAS_고도화/",     "13 NAS 고도화",        "타당성검토 · 데이터계층 기획 · 의사결정 · 연동 도식"),
+    ("문서/",                  "01~07 기획서",         "도입 기획서 · 니즈조사 실행기획 · 챗봇 포털 구축 · 부서 운영페이지 확장"),
+    ("실제구축준비 자료/이관/",  "이관 관제",            "현 시스템 상태 스냅샷 · 이관 가이드 · Azure 계획 · 진행상태 (문서 폴더 밖)"),
+    ("실제구축준비 자료/",       "실구축 준비",          "종합기획 · 인프라 · MS연동 · ERP · 챗봇 · 체크리스트 (문서 폴더 밖)"),
+    ("그리드/",                "표준 그리드",          "편집 그리드 가이드 · 데모 (문서 폴더 밖)"),
+    ("조회플랫폼/",             "표준 조회 플랫폼",      "조회바 가이드 · 데모 (문서 폴더 밖)"),
+]
+
+# ── 파일로 열었을 때(file://)도 클린 URL 링크가 이어지게 하는 인라인 로더 ──────────
+# 사이트(http/https)에서는 첫 줄에서 바로 끝난다. 실제 보정은 루트 `_local_links.js`(생성물)가 한다.
+# 단일 파일로 떼어 보낸 전달본처럼 `_local_links.js` 가 곁에 없으면 조용히 아무 일도 하지 않는다.
+LOCAL_MARK_S = "<!-- jeilax:local-links -->"
+LOCAL_MARK_E = "<!-- /jeilax:local-links -->"
+
+
+def local_links_snippet(rel_file):
+    """rel_file(저장소 기준 경로, 슬래시)에 맞는 깊이의 로더 조각."""
+    up = "../" * rel_file.count("/") or "./"
+    return (LOCAL_MARK_S + '<script>(function(){if(location.protocol!=="file:")return;'
+            'var r="%s",s=document.createElement("script");s.src=r+"_local_links.js";'
+            's.setAttribute("data-root",r);(document.head||document.documentElement).appendChild(s);'
+            '})();</script>' % up + LOCAL_MARK_E)
+
+
+def inject_local_links(html, rel_file):
+    """HTML 에 로더를 넣는다(이미 있으면 깊이에 맞게 교체). </head> 가 없으면 그대로 둔다."""
+    import re
+    block = re.compile(re.escape(LOCAL_MARK_S) + r".*?" + re.escape(LOCAL_MARK_E) + r"\r?\n?", re.S)
+    html = block.sub("", html)
+    m = re.search(r"</head\s*>", html, re.I)
+    if not m:
+        return html
+    nl = "\r\n" if "\r\n" in html else "\n"      # 파일의 줄바꿈을 따른다 — 다시 돌려도 결과가 같아야 한다
+    return html[:m.start()] + local_links_snippet(rel_file) + nl + html[m.start():]
