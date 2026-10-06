@@ -1,8 +1,8 @@
 // list_company_files — 사내 보관소(NAS) 허용 폴더의 파일 목록(REQ-0103 · ADR-110 v3 P2). 손으로 쓴 모듈.
 // 파일 **이름·수정일·크기**만 본다. 내용은 읽지 않는다(문서 내용 검색은 P3 — D-95 승인 뒤).
 // 볼 수 있는 폴더는 DB(nas_query_submit)가 「허용 폴더 등록 ∩ 본인 부서·전사공유」로 계산한다 — 여기서 정하지 않는다.
-import type { ToolCtx, ToolManifest, ViewPayload } from "../../core/types.ts";
-import { nasNotice, nasQuery, tidy } from "./_nas_query.ts";
+import type { ToolCtx, ToolManifest } from "../../core/types.ts";
+import { nasList, nasNotice, nasQuery, tidy } from "./_nas_query.ts";
 
 export const manifest: ToolManifest = {
   id: "list_company_files", version: "1.0.0", domain: "nas", kind: "read",
@@ -50,9 +50,8 @@ export async function run(ctx: ToolCtx): Promise<unknown> {
     기준시각: asOf, 조회폴더: r["폴더"] || [], 조건, 해당: total, 반환수: rows.length, 잘림: cut, 응답_ms: a.ms,
     목록: rows.map((x) => ({ 폴더: x["폴더"], 경로: x["경로"] || "", 이름: x["이름"], 수정일: x["수정일"], 크기_KB: x["크기_KB"] })),
     안내,
-    __view: { view: "list", title: `사내 보관소 파일 — ${조건}`, asOf,
-      columns: ["폴더", "하위 경로", "파일", "수정일", "크기(KB)"],
-      rows: rows.map((x) => [x["폴더"], x["경로"] || "", x["이름"], x["수정일"], x["크기_KB"]]),
-      note: cut ? `전체 ${total}건 중 최근 ${rows.length}건 · 이름·수정일만(내용 미확인)` : "이름·수정일만(내용 미확인) · 본인 부서·전사공유 폴더" } satisfies ViewPayload,
+    __view: nasList(`사내 보관소 파일 — ${조건}`, asOf, ["폴더", "하위 경로", "파일", "수정일", "크기(KB)"],
+      rows.map((x) => [x["폴더"], x["경로"] || "", x["이름"], x["수정일"], x["크기_KB"]]),
+      cut ? `전체 ${total}건 중 최근 ${rows.length}건 · 이름·수정일만(내용 미확인)` : "이름·수정일만(내용 미확인) · 본인 부서·전사공유 폴더", [4]),
   };
 }

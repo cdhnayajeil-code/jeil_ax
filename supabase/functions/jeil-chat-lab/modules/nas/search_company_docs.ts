@@ -1,7 +1,7 @@
 // search_company_docs — 사내 보관소(NAS) 문서 **내용** 검색(REQ-0104 · ADR-110 v3 P3 · D-95 승인 2026-10-02). 손으로 쓴 모듈.
 // 색인은 사내 NAS 워커 쪽에만 있다. 여기로 오는 것은 질문에 걸린 발췌 몇 토막뿐이고, 조회 큐에서 읽히면 지워진다.
 // 볼 수 있는 폴더는 DB(nas_query_submit)가 「허용 폴더 등록 ∩ 본인 부서·전사공유」로 계산한다.
-import type { ToolCtx, ToolManifest, ViewPayload } from "../../core/types.ts";
+import type { ToolCtx, ToolManifest } from "../../core/types.ts";
 import { nasNotice, nasQuery, tidy } from "./_nas_query.ts";
 
 export const manifest: ToolManifest = {
@@ -46,9 +46,8 @@ export async function run(ctx: ToolCtx): Promise<unknown> {
     기준시각: asOf, 색인기준: r["색인기준"] || null, 검색어: q, 해당문서수: nDocs, 반환수: rows.length, 응답_ms: a.ms,
     목록: rows.map((x) => ({ 문서: x["문서"], 토막: x["토막"], 폴더: x["폴더"], 경로: x["경로"] || "", 이름: x["이름"], 수정일: x["수정일"], 발췌: x["발췌"] })),
     안내,
-    __view: { view: "list", title: `사내 문서 검색 — '${q}'`, asOf,
-      columns: ["폴더", "문서", "수정일", "발췌"],
-      rows: rows.map((x) => [x["폴더"], (x["경로"] ? x["경로"] + "/" : "") + x["이름"], x["수정일"], x["발췌"]]),
-      note: rows.length ? `색인 기준 ${r["색인기준"] || "-"} · 본인 부서·전사공유 폴더만` : "찾지 못함 — 낱말을 바꿔 보세요(스캔본·hwp 는 내용 검색 불가)" } satisfies ViewPayload,
+    __view: nasList(`사내 문서 검색 — '${q}'`, asOf, ["폴더", "문서", "수정일", "발췌"],
+      rows.map((x) => [x["폴더"], (x["경로"] ? x["경로"] + "/" : "") + x["이름"], x["수정일"], x["발췌"]]),
+      rows.length ? `색인 기준 ${r["색인기준"] || "-"} · 본인 부서·전사공유 폴더만` : "찾지 못함 — 낱말을 바꿔 보세요(스캔본·hwp 는 내용 검색 불가)"),
   };
 }

@@ -625,6 +625,35 @@ class TestRunnerWiring(Base):
         self.assertNotIn("nas_sync", [j["kind"] for j in core.DEFAULT_JOBS])
 
 
+class TurnHistoryKoreanTime(Base):
+    """과거 대화의 일시는 한국시간으로 보여 주고, 기간 조건도 한국 날짜로 건다(N-2 · 적재 파일은 UTC)."""
+
+    def setUp(self):
+        super().setUp()
+        d = os.path.join(self.root, "대화기록", "agent_turn", "2026")
+        os.makedirs(d)
+        rows = [
+            {"id": 1, "upn": "me@jeilm.co.kr", "agent_key": "purchase", "created_at": "2026-09-30T06:03:23.007752+00:00", "question": "미입고", "answer": "가"},
+            {"id": 2, "upn": "me@jeilm.co.kr", "agent_key": "purchase", "created_at": "2026-09-30T16:30:00+00:00", "question": "자정 넘김", "answer": "나"},
+            {"id": 3, "upn": "me@jeilm.co.kr", "agent_key": "purchase", "created_at": "깨진값", "question": "깨진 시각", "answer": "다"},
+        ]
+        with io.open(os.path.join(d, "agent_turn_2026-10-01_000000.jsonl"), "w", encoding="utf-8") as fh:
+            fh.write("\n".join(json.dumps(r, ensure_ascii=False) for r in rows))
+
+    def test_shows_korean_time(self):
+        res, _ = w.query_turn_history({}, {"upn": "me@jeilm.co.kr"}, self.root)
+        by = {x["턴번호"]: x["일시"] for x in res["목록"]}
+        self.assertEqual(by[1], "2026-09-30 15:03")
+        self.assertEqual(by[2], "2026-10-01 01:30")      # UTC 로는 9월 30일이지만 한국에서는 10월 1일
+        self.assertEqual(by[3], "깨진값")                  # 못 읽는 값은 그대로 — 지어내지 않는다
+
+    def test_date_filter_uses_korean_day(self):
+        res, _ = w.query_turn_history({"date_from": "2026-10-01", "date_to": "2026-10-01"}, {"upn": "me@jeilm.co.kr"}, self.root)
+        self.assertEqual([x["턴번호"] for x in res["목록"]], [2])
+        res, _ = w.query_turn_history({"date_to": "2026-09-30"}, {"upn": "me@jeilm.co.kr"}, self.root)
+        self.assertEqual([x["턴번호"] for x in res["목록"]], [1])
+
+
 class SaveToDeptFolder(Base):
     """부서 폴더 저장(REQ-0108 · SQL 89) — 폴더 밖으로 쓰지 않는다 · 받은 내용이 다르면 쓰지 않는다 · 실패를 방치하지 않는다."""
 

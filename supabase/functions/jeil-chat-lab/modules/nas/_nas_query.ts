@@ -54,6 +54,16 @@ export function nasNotice(a: NasAnswer, what: string): Record<string, unknown> {
   };
 }
 
+/** 목록 카드 — 화면 규격(app/lib/chatview.js)은 열을 {key,label}, 줄을 객체로 받는다.
+ *  글자 배열로 보내면 머리글·칸이 전부 undefined 로 그려진다(2026-10-06 실측 N-3). 숫자 열은 numCols 에 번호로 준다. */
+export function nasList(title: string, asOf: string, labels: string[], rows: unknown[][], note: string, numCols: number[] = []): ViewPayload {
+  return {
+    view: "list", title, asOf, note,
+    columns: labels.map((label, i) => ({ key: "c" + i, label, ...(numCols.includes(i) ? { num: true } : {}) })),
+    rows: rows.map((r) => Object.fromEntries(labels.map((_, i) => ["c" + i, r[i] ?? ""]))),
+  };
+}
+
 /** 모델이 준 문자열 인자 정리 — 제어문자 제거·길이 제한. */
 export function tidy(v: unknown, max = 80): string {
   // deno-lint-ignore no-control-regex

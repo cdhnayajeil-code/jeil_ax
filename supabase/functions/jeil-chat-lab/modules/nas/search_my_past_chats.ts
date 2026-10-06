@@ -1,8 +1,8 @@
 // search_my_past_chats — 사내 보관소(NAS)에 쌓인 **본인** 과거 대화 찾기(REQ-0103 · ADR-110 v3 P2). 손으로 쓴 모듈.
 // 누구의 대화를 볼지는 DB(nas_query_submit)가 로그인 계정으로 박는다 — 인자로 남의 계정을 줄 수 없다.
 // sensitivity=personal: 이 도구가 쓰인 턴은 답변을 기록에 남기지 않는다(과거 대화 내용이 다시 쌓이는 것을 막는다).
-import type { ToolCtx, ToolManifest, ViewPayload } from "../../core/types.ts";
-import { nasNotice, nasQuery, tidy } from "./_nas_query.ts";
+import type { ToolCtx, ToolManifest } from "../../core/types.ts";
+import { nasList, nasNotice, nasQuery, tidy } from "./_nas_query.ts";
 
 const isDate = (s: string) => /^\d{4}-\d{2}-\d{2}$/.test(s);
 
@@ -53,9 +53,8 @@ export async function run(ctx: ToolCtx): Promise<unknown> {
       cut ? `조건에 맞는 대화는 ${total}건이고 그중 최근 ${rows.length}건만 보였습니다.` : "",
       rows.length === 0 ? "조건에 맞는 과거 대화가 없습니다." : "",
     ].filter(Boolean).join(" "),
-    __view: { view: "list", title: `내 과거 대화 — ${조건}`, asOf,
-      columns: ["일시", "질문", "답변(발췌)"],
-      rows: rows.map((x) => [x["일시"], x["질문"], x["답변발췌"]]),
-      note: cut ? `전체 ${total}건 중 최근 ${rows.length}건 · 본인 대화만` : "본인 대화만 · 당시 답변 기준" } satisfies ViewPayload,
+    __view: nasList(`내 과거 대화 — ${조건}`, asOf, ["일시", "질문", "답변(발췌)"],
+      rows.map((x) => [x["일시"], x["질문"], x["답변발췌"]]),
+      cut ? `전체 ${total}건 중 최근 ${rows.length}건 · 본인 대화만` : "본인 대화만 · 당시 답변 기준"),
   };
 }

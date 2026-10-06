@@ -45,7 +45,7 @@ import urllib.request
 from _env import env_root, load_env, need
 import nas_index
 
-WORKER_VERSION = "n1.5"   # n1.5(2026-10-06): 첨부 원본·생성 자료를 부서 폴더 「AI저장」에 저장·보존 만료 정리(SQL 89 · REQ-0108) / n1.4(2026-10-02): 문서 내용 색인·검색(nas_index.py — SQL 87) / n1.3:실시간 조회 응답(파일 목록·본인 과거 대화 — SQL 86) / n1.2:브리지 전송(좁은 키)·--serve(컨테이너 상주)·KST 고정 / n1.1: --nightly·--log·루트 검증
+WORKER_VERSION = "n1.6"   # n1.6(2026-10-06): 과거 대화의 일시·기간 조건을 한국시간으로(적재 파일은 UTC 로 쌓인다 — N-2) / n1.5(2026-10-06): 첨부 원본·생성 자료를 부서 폴더 「AI저장」에 저장·보존 만료 정리(SQL 89 · REQ-0108) / n1.4(2026-10-02): 문서 내용 색인·검색(nas_index.py — SQL 87) / n1.3:실시간 조회 응답(파일 목록·본인 과거 대화 — SQL 86) / n1.2:브리지 전송(좁은 키)·--serve(컨테이너 상주)·KST 고정 / n1.1: --nightly·--log·루트 검증
 
 POLL_SEC = 20          # 기본 폴링 주기
 HTTP_TIMEOUT = 120     # 페이지 응답이 수 MB 가 될 수 있어 etl_watch(60초)보다 넉넉히 잡는다
@@ -644,6 +644,18 @@ def _excerpt(text, needle, width=260):
     return ("…" if a else "") + s[a:a + width] + ("…" if a + width < len(s) else "")
 
 
+def _kst_minute(ts):
+    """적재 파일의 시각(UTC ISO 문자열) → 한국시간 'YYYY-MM-DD HH:MM'. 못 읽으면 앞 16자를 그대로 둔다."""
+    raw = str(ts or "")
+    try:
+        d = datetime.datetime.fromisoformat(raw.replace("Z", "+00:00"))
+        if d.tzinfo is None:
+            d = d.replace(tzinfo=datetime.timezone.utc)
+        return d.astimezone(_KST).strftime("%Y-%m-%d %H:%M")
+    except ValueError:
+        return raw[:16].replace("T", " ")
+
+
 def query_turn_history(params, scope, data_root):
     """NAS 에 쌓인 대화기록에서 **본인 것만** 찾는다. upn 은 요청 행(scope)이 정한다."""
     me = str(scope.get("upn") or "").strip().casefold()
@@ -678,13 +690,14 @@ def query_turn_history(params, scope, data_root):
                     if str(r.get("upn") or "").casefold() != me or r.get("id") in seen:
                         continue
                     seen.add(r.get("id"))
-                    day = str(r.get("created_at") or "")[:10]
+                    when = _kst_minute(r.get("created_at"))     # 사용자가 말하는 날짜·시각은 한국시간이다
+                    day = when[:10]
                     if (agent and r.get("agent_key") != agent) or (d_from and day < d_from) or (d_to and day > d_to):
                         continue
                     q, a = str(r.get("question") or ""), str(r.get("answer") or "")
                     if needle and needle not in q.casefold() and needle not in a.casefold():
                         continue
-                    hits.append({"일시": str(r.get("created_at") or "")[:16].replace("T", " "),
+                    hits.append({"일시": when,
                                  "에이전트": r.get("agent_key"), "질문": _excerpt(q, needle, 200),
                                  "답변발췌": _excerpt(a, needle, 300), "턴번호": r.get("id")})
     hits.sort(key=lambda x: x["일시"], reverse=True)
