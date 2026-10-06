@@ -33,9 +33,31 @@ export async function run(ctx: ToolCtx): Promise<unknown> {
 
   const r = a.result || {};
   // deno-lint-ignore no-explicit-any
-  const rows = (Array.isArray(r["목록"]) ? r["목록"] : []) as any[];
-  const nDocs = Number(r["해당문서수"]) || 0;
+  let rows = (Array.isArray(r["목록"]) ? r["목록"] : []) as any[];
+  let nDocs = Number(r["해당문서수"]) || 0;
+  // 색인은 낱말을 「모두 포함」으로 찾는다. 「품의서 관리 방법」처럼 문장으로 물으면 한 낱말만 없어도 0건이 된다
+  // → 0건이면 긴 낱말부터 두 개까지 하나씩 다시 찾아 합친다(볼 수 있는 범위는 그대로 — DB 가 정한다).
+  let widened = "";
+  const words = [...new Set(q.split(/\s+/).filter((w) => w.length >= 2))].sort((x, y) => y.length - x.length);
+  if (!rows.length && words.length > 1) {
+    const seen = new Set<string>();
+    const used: string[] = [];
+    for (const w of words.slice(0, 2)) {
+      const b = await nasQuery(admin, scope, "doc_search", { q: w, limit }, 5000);
+      if (b.state !== "done") break;
+      // deno-lint-ignore no-explicit-any
+      const more = (Array.isArray(b.result?.["목록"]) ? b.result!["목록"] : []) as any[];
+      if (more.length) used.push(w);
+      for (const x of more) {
+        const k = `${x["문서"]}#${x["토막"]}`;
+        if (!seen.has(k) && rows.length < limit) { seen.add(k); rows = [...rows, x]; }
+      }
+    }
+    nDocs = new Set(rows.map((x) => x["문서"])).size;
+    if (used.length) widened = `'${q}' 전체로는 없어 낱말(${used.join("·")})로 넓혀 찾았습니다 — 질문과 맞는 내용인지 발췌를 확인하고 답하세요.`;
+  }
   const 안내 = [
+    widened,
     rows.length
       ? "발췌는 문서의 일부입니다. 근거로 문서 이름·수정일을 밝히고, 더 필요하면 read_company_doc 으로 이어 읽으세요."
       : "볼 수 있는 폴더의 색인된 문서에서는 찾지 못했습니다. 낱말을 바꿔 다시 찾아보세요 — 스캔본·구형 한글(hwp)은 내용 검색이 되지 않습니다.",
