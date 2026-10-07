@@ -377,7 +377,19 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <td>2026-10-07</td>
 <td>통합 러너 <strong>r1.12</strong> 빌드·전달(REQ-0113 B안 — 발주 적재 증분을 헤더·라인·입고·매입 변경으로 넓힘 · REQ-0098 — 러너 창 기안서 대장 작업 파라미터(리허설·대장 파일) 전달) — 관리자 지시 「현재 작업 먼저 선진행」</td>
 <td>회귀 169건 통과(+6 · pyodbc 가짜) · EXE 내부 <code>etl_run</code>·<code>runner_core</code> 새 코드 정적 확인 · 전달 폴더 동기화 5항목(EXE + 버전 사본 r112-20261007 + 배포 문서)</td>
-<td><strong>관리자</strong>: 서버 EXE 교체(러너 정지 → 교체 → 시작) → <code>jeil_runner.exe etl --job pur_order --full</code> 1회 → 감시 지표(원값≠실효값) 0 근처 확인 → 대장 적재 작업 켜기(대장이 보이는 PC)</td>
+<td><strong>관리자</strong>: 서버 EXE 교체(러너 정지 → 교체 → 시작) → <code>jeil_runner.exe etl --job pur_order --full</code> 1회 → 감시 지표(원값≠실효값) 0 근처 확인 → 대장 적재 작업 켜기(대장이 보이는 PC) → <strong>같은 날 완료(아래 행)</strong></td>
+</tr>
+<tr>
+<td>2026-10-07</td>
+<td>서버 러너 <strong>r1.12 교체 확인</strong>(15:22 · 릴레이 심박 v1.10 · 배치 30 job 성공) + 관리자 PC 에서 발주 <strong>전량 재적재</strong>(15:52 · <code>etl_run.py --job pur_order --full</code> · 4,880줄) — REQ-0113 완료</td>
+<td>넓힌 증분 실동작 확인(10/5 이후 입고·매입 변경 61줄 전부 재추출 · 누락 0) · 감시 지표 439 → 5줄 · LIST 분포 매입완료 3,703 / 발주 1,126 / 입고완료 52</td>
+<td>남은 5줄 = 입고 취소 사본(삭제 정합 부재 · 수집함) · 대장 적재 켜기 → <strong>같은 날 완료(아래 행)</strong></td>
+</tr>
+<tr>
+<td>2026-10-07</td>
+<td><strong>기안서 대장 적재 재가동</strong>(REQ-0092·0098 완료) — 이 PC(관리자 PC)에 Teams 대장이 동기화돼 있어 <code>.env</code> 키 추가 → dry-run → 실적재(16:00) → 예약작업 <code>JEIL_AX_ProposalLedger</code> 등록·시험 실행(16:03)</td>
+<td>1,171행 / 881건(종전 1,102/830 · 09-22) · 기안↔발주 연결 728/881(82.6%) · 회귀 86건 통과 · <code>proposal_ledger.py --log</code> 추가</td>
+<td>대장 7-696 행 일자 서식(구매팀) · 다음 EXE 빌드 때 <code>--log</code> 포함 · P0 잔여 = 대장 발주번호 칸(D-122)</td>
 </tr>
 <tr>
 <td>2026-10-07</td>

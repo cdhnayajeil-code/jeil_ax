@@ -348,7 +348,13 @@ def main():
     ap.add_argument("--dry-run", action="store_true", help="읽기·집계만(적재 안 함)")
     ap.add_argument("--append", action="store_true",
                     help="전량 교체하지 않고 덮어쓰기만(기본은 전량 교체 — 삭제된 행을 지우기 위해)")
+    ap.add_argument("--log", help="출력을 이 파일에 덧붙인다(예약작업·pythonw 용 — 콘솔이 없을 때 · proposal_scan 과 같은 방식)")
     a = ap.parse_args()
+    if a.log:
+        os.makedirs(os.path.dirname(os.path.abspath(a.log)), exist_ok=True)
+        f = open(a.log, "a", encoding="utf-8", buffering=1)
+        sys.stdout = sys.stderr = f
+        print("── %s" % datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
     try:
         collect(file=a.file, scan=a.scan, dry=a.dry_run, replace=not a.append)
     except Exception as e:                      # SystemExit 를 던지지 않는다(상주 러너 보호)

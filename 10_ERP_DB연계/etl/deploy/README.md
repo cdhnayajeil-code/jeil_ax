@@ -264,6 +264,20 @@ E:\ai.jeil\relay\
 >  · 계정 새로고침은 계정 수집 러너가 없으면 요청을 넣지 않고 안내 · 처리할 러너가 30분 넘게 없으면 사유와 함께 만료
 > 로 가른다. 관리자 PC 의 옛 `etl_watch.py` 는 재시작 없이 호환된다(부정형 표식). 되돌리기는 같은 폴더 `49_..._rollback.sql`.
 
+### 사무용 PC 에서만 되는 일 — 러너가 아니라 예약작업으로 돈다
+
+서버에는 없는 자원(문서중앙화 드라이브 · 사내 NAS · 구매팀 Teams 엑셀)을 읽는 일은 사무용 PC 의 **예약작업**이 맡는다.
+사무용 PC 에 러너를 통째로 띄우면 결의전표 운영 전송까지 켜져 서버 러너와 중복되기 때문이다(§17.7 ④). Python 소스로 돌므로 EXE 재빌드와 무관하다.
+
+| 예약작업 | 무엇 | 주기 | 등록 스크립트 | `.env` 키 |
+|---|---|---|---|---|
+| `JEIL_AX_ProposalScan` | 기안서 스캔본 목록(문서중앙화) → `pur_proposal_scan` | 30분 간격 · 밤 20시 이후 1회 | `register_scan_task.ps1` | `PROPOSAL_SCAN_DIR` |
+| `JEIL_AX_NasExport` | 대화기록·ERP 스냅샷 → 사내 NAS | 매일 밤(`nas_worker --nightly`) | `register_nas_task.ps1` | `NAS_DATA_ROOT` 또는 `.claude/nas.path` |
+| `JEIL_AX_ProposalLedger` | 구매 기안서 대장(Teams 엑셀) → `public.pur_proposal` 전량 교체 | 매일 07:30 + 로그온 시 | `register_ledger_task.ps1`(2026-10-07 신설) | `PROPOSAL_LEDGER_XLSX` |
+
+> 대장 적재가 2026-09-22 부터 10-07 까지 멈춘 이유: 러너 작업 `proposal_ledger` 는 기본 꺼짐이고 사무용 PC 에는 러너가 아니라 `etl_watch.py` 만 돌았다.
+> 로그는 `<저장소>\logs\proposal_ledger.log`(`proposal_ledger.py --log` · 2026-10-07 추가 — 다음 EXE 빌드부터 `jeil_runner.exe proposal --log` 도 된다).
+
 ## C-1. 서버 요건 (A안과 같음 + ETL 읽기)
 
 - A안 §0 표 그대로(ODBC 17·Supabase 443·x64). 파이썬 불필요.
