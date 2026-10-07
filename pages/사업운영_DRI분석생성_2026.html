@@ -1,0 +1,934 @@
+<!DOCTYPE html><html lang="ko"><head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DRI 분석 및 생성</title>
+<!-- REQ-0110 · 사업운영팀 DRI 분석·생성 에이전트(준비 단계) · 서버 jeil-chat-lab(body.agent="dri") · 권한 판정은 서버(구성원·관리자)
+     이 화면은 구매 에이전트 화면(pages/구매_AI에이전트_2026.html)을 바탕으로 만들었다 — 공통 부분을 고치면 두 화면을 함께 고친다. -->
+<link rel="stylesheet" href="/app/lib/chatview.css">
+<style id="__hide">body{visibility:hidden}</style>
+<style>
+:root{
+  --navy:#1a2f4e; --navy2:#27457a; --accent:#2f6fb3; --accent2:#4a8ed0;
+  --red:#b3402f; --green:#2e7d52; --amber:#9a6b1f;
+  --ink:#222; --muted:#666; --line:#d8dee8; --bg:#f4f6f9; --soft:#eef2f8; --softgrey:#f1f3f6;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Malgun Gothic","맑은 고딕",sans-serif;font-size:14px;line-height:1.5}
+.page{max-width:1440px;margin:0 auto;padding:16px}
+.head{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap;border-bottom:2px solid var(--navy);padding-bottom:10px;margin-bottom:12px}
+.head h1{margin:0;font-size:21px;color:var(--navy)}
+.head .sub{margin-top:4px;color:var(--muted);font-size:12.5px}
+.head .right{color:var(--muted);font-size:12.5px;text-align:right;line-height:1.6}
+.head a{color:var(--accent)}
+.badge{display:inline-block;padding:1px 8px;border-radius:10px;font-size:11.5px;margin-left:6px;border:1px solid var(--line);background:#fff;vertical-align:3px;color:var(--muted)}
+.badge.pilot{color:#fff;background:var(--amber);border-color:var(--amber)}
+.notice{background:#fff;border:1px solid var(--line);border-left:4px solid var(--accent2);border-radius:8px;padding:7px 12px;font-size:12.3px;color:var(--muted);margin-bottom:12px}
+.layout{display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:12px;align-items:start}
+@media (max-width:1000px){.layout{grid-template-columns:1fr}}
+.box{background:#fff;border:1px solid var(--line);border-radius:10px;padding:12px 14px}
+.box h3{margin:0 0 8px;font-size:13.5px;color:var(--navy)}
+.box + .box{margin-top:10px}
+.chat{display:flex;flex-direction:column;height:calc(100vh - 236px);min-height:520px;padding:0;overflow:hidden;position:relative}
+/* 첨부(REQ-0089) — 대기열 · 끌어다 놓기 · 말풍선 속 파일 표시 */
+.tray{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:7px 12px;border-top:1px solid var(--line);background:#fbfcfe}
+.tray:empty{display:none}
+.fchip{display:inline-flex;gap:6px;align-items:center;font-size:12px;border:1px solid var(--line);background:#fff;border-radius:14px;padding:3px 6px 3px 10px;max-width:320px}
+.fchip .n{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600;color:var(--navy)}
+.fchip small{color:var(--muted);white-space:nowrap}
+.fchip button{border:0;background:none;cursor:pointer;color:var(--muted);font-size:13px;padding:0 3px}
+.fchip button:hover{color:var(--red)}
+.fchip.busy{opacity:.6}
+.tray .qa{font-size:11.5px;border:1px solid var(--accent);color:var(--accent);background:#fff;border-radius:12px;padding:2px 9px;cursor:pointer;font-family:inherit}
+.tray .qa:hover{background:var(--accent);color:#fff}
+.tray .sp{flex:1}
+.drop{position:absolute;inset:0;background:rgba(47,111,179,.1);border:3px dashed var(--accent);border-radius:10px;display:none;align-items:center;justify-content:center;z-index:5;pointer-events:none}
+.drop.on{display:flex}
+.drop div{background:#fff;border-radius:10px;padding:16px 22px;text-align:center;color:var(--navy);font-weight:700;box-shadow:0 4px 18px rgba(0,0,0,.12)}
+.drop small{display:block;font-weight:400;color:var(--muted);margin-top:4px}
+.ufiles{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px}
+.ufiles span{font-size:11.5px;background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.45);border-radius:10px;padding:1px 8px}
+.btn.clip{padding:7px 10px;font-size:15px;line-height:1}
+.log{flex:1;overflow-y:auto;padding:14px 16px;background:#fafbfd}
+.msg{display:flex;margin:0 0 14px}
+.msg.user{justify-content:flex-end}
+.bubble{background:#fff;border:1px solid var(--line);border-radius:14px 14px 14px 5px;padding:12px 15px;line-height:1.7;font-size:13.6px;max-width:94%;overflow-x:auto}
+.msg.user .bubble{background:var(--accent);color:#fff;border-color:var(--accent);border-radius:14px 14px 5px 14px;white-space:pre-wrap}
+.bubble h4{margin:8px 0 4px;font-size:13.5px;color:var(--navy)}
+.bubble ul,.bubble ol{margin:6px 0 4px 20px;padding:0}
+.bubble code{background:var(--softgrey);padding:0 4px;border-radius:4px;font-size:12px}
+.tail{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:8px;padding-top:7px;border-top:1px dashed var(--line);font-size:12px;color:var(--muted)}
+.tail button{font-size:12px;border:1px solid var(--line);background:#fff;border-radius:12px;padding:2px 10px;cursor:pointer;font-family:inherit;color:var(--navy)}
+.tail button:hover{border-color:var(--accent)}
+.tail button.on{background:var(--navy);color:#fff;border-color:var(--navy)}
+.tail .sp{flex:1}
+.fb{display:flex;gap:6px;margin-top:6px}
+.fb input{flex:1;border:1px solid var(--line);border-radius:6px;padding:4px 8px;font-family:inherit;font-size:12.5px}
+details.trace{margin-top:6px;font-size:11.5px;color:var(--muted)}
+details.trace summary{cursor:pointer;color:var(--accent)}
+details.trace div{font-family:Consolas,Menlo,monospace;word-break:break-all;padding:2px 0}
+.chips{display:flex;flex-wrap:wrap;gap:6px;padding:8px 12px;border-top:1px solid var(--line);background:#fff}
+.chip{font-size:11.8px;border:1px solid var(--line);background:var(--soft);color:var(--navy);border-radius:12px;padding:3px 10px;cursor:pointer}
+.chip:hover{border-color:var(--accent)}
+.composer{display:flex;gap:8px;padding:10px 12px;border-top:1px solid var(--line);background:#fff}
+.composer textarea{flex:1;resize:none;height:54px;border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-family:inherit;font-size:13.5px}
+.btn{padding:7px 13px;border:1px solid var(--accent);background:var(--accent);color:#fff;border-radius:6px;cursor:pointer;font-size:12.5px;font-family:inherit}
+.btn.ghost{background:#fff;color:var(--accent)}
+.btn:disabled{opacity:.5;cursor:default}
+.empty{color:var(--muted);text-align:center;margin-top:60px;font-size:13px;line-height:1.9}
+.arts{list-style:none;margin:0;padding:0;max-height:calc(100vh - 470px);min-height:120px;overflow-y:auto}
+.arts li{display:flex;gap:8px;align-items:center;border-bottom:1px dashed var(--line);padding:6px 0;font-size:12.5px}
+.arts li .t{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.arts li small{color:var(--muted)}
+/* 부서 NAS 보관함 관리 창(REQ-0108) — .nx 스코프만 쓴다 */
+.nx{position:fixed;inset:0;background:rgba(20,30,50,.45);z-index:60;display:flex;align-items:center;justify-content:center;padding:18px}
+.nx[hidden]{display:none}
+.nx-win{background:#fff;border-radius:12px;width:min(1080px,100%);height:min(720px,100%);display:flex;flex-direction:column;box-shadow:0 18px 50px rgba(0,0,0,.3);overflow:hidden;position:relative}
+.nx-head{display:flex;align-items:center;gap:10px;padding:12px 16px;background:var(--navy);color:#fff}
+.nx-head b{font-size:15px}.nx-head span{font-size:12px;opacity:.85}.nx-head .sp{flex:1}
+.nx-head button{background:transparent;border:1px solid rgba(255,255,255,.5);color:#fff;border-radius:8px;padding:3px 10px;cursor:pointer;font-family:inherit}
+.nx-bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:9px 14px;border-bottom:1px solid var(--line);background:#fbfcfe}
+.nx-bar input[type=search]{border:1px solid var(--line);border-radius:8px;padding:5px 9px;font-family:inherit;font-size:13px;width:200px}
+.nx-bar .sp{flex:1}.nx-bar .cnt{font-size:12px;color:var(--muted)}
+.nx-btn{border:1px solid var(--line);background:#fff;border-radius:8px;padding:5px 11px;font-size:12.5px;cursor:pointer;font-family:inherit}
+.nx-btn.pri{background:var(--accent);border-color:var(--accent);color:#fff}
+.nx-btn.dan{border-color:#d9534f;color:#b42318}.nx-btn.dan.armed{background:#b42318;color:#fff}
+.nx-btn:disabled{opacity:.5;cursor:default}
+.nx-body{flex:1;display:flex;min-height:0}
+.nx-side{width:170px;border-right:1px solid var(--line);padding:10px 8px;overflow-y:auto;background:#fafbfd;font-size:13px}
+.nx-side .lab{font-size:11.5px;color:var(--muted);margin:2px 6px 6px}
+.nx-side button{display:flex;justify-content:space-between;width:100%;text-align:left;border:0;background:transparent;border-radius:7px;padding:6px 8px;cursor:pointer;font-family:inherit;font-size:13px}
+.nx-side button.on{background:var(--soft);color:var(--navy);font-weight:600}
+.nx-side button small{color:var(--muted)}
+.nx-side .row{display:flex;align-items:center}.nx-side .row button{flex:1;min-width:0}.nx-side .row button span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.nx-side .row .x{flex:none;width:22px;padding:4px 0;justify-content:center;color:var(--muted)}
+.nx-side .new{margin-top:8px;border-top:1px dashed var(--line);padding-top:8px}
+.nx-side .new input{width:100%;border:1px solid var(--line);border-radius:7px;padding:5px 7px;font-family:inherit;font-size:12.5px;box-sizing:border-box}
+.nx-side .new .ok{margin-top:5px;justify-content:center;border:1px solid var(--accent);color:var(--accent)}
+.nx-tbl .dl{border:1px solid var(--line);background:#fff;border-radius:7px;padding:1px 8px;cursor:pointer;font-family:inherit;font-size:12px}
+.nx-tbl .dl:disabled{opacity:.5;cursor:default}
+.nx-main{flex:1;overflow:auto;min-width:0}
+.nx-tbl{border-collapse:collapse;width:100%;font-size:12.5px}
+.nx-tbl th{position:sticky;top:0;background:#eef2f7;color:var(--navy);text-align:left;padding:7px 9px;white-space:nowrap;border-bottom:1px solid var(--line);cursor:pointer;user-select:none}
+.nx-tbl th.nos{cursor:default}
+.nx-tbl td{padding:6px 9px;border-bottom:1px solid #edf0f5;vertical-align:middle}
+.nx-tbl tr.sel td{background:#eef5fd}
+.nx-tbl td.nm{max-width:380px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.nx-tbl td.r{text-align:right;white-space:nowrap}.nx-tbl td.c{white-space:nowrap;color:var(--muted)}
+.nx-empty{padding:46px 20px;text-align:center;color:var(--muted);font-size:13px}
+.nx-foot{display:flex;gap:10px;align-items:center;padding:8px 14px;border-top:1px solid var(--line);font-size:12px;color:var(--muted);background:#fbfcfe}
+.nx-foot .sp{flex:1}
+.nx-drop{position:absolute;inset:0;background:rgba(47,111,179,.14);border:3px dashed var(--accent);border-radius:12px;display:none;align-items:center;justify-content:center;font-size:17px;color:var(--navy);font-weight:600;pointer-events:none}
+.nx-drop.on{display:flex}
+.ufiles .nas{margin-left:6px;font-size:11px;border:1px solid rgba(255,255,255,.7);background:transparent;color:inherit;border-radius:10px;padding:0 7px;cursor:pointer;font-family:inherit}
+.ufiles .nas:disabled{opacity:.75;cursor:default}
+.nasst{font-size:11px;border-radius:9px;padding:0 7px;white-space:nowrap}
+.nasst.ok{background:#e6f5ec;color:#1a7f4b}.nasst.wait{background:#fdf3dc;color:#9a6200}.nasst.bad{background:#fde8e6;color:#b42318}
+.arts button{font-size:11px;border:1px solid var(--line);background:#fff;border-radius:10px;padding:1px 8px;cursor:pointer;font-family:inherit}
+.hint{font-size:11.8px;color:var(--muted);line-height:1.65}
+.jump{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px}
+.jump a{display:block;text-align:center;text-decoration:none;padding:8px 6px;border:1px solid var(--accent);border-radius:8px;background:#fff;color:var(--accent);font-size:12.5px;font-weight:600}
+.jump a:hover{background:var(--accent);color:#fff}
+.jump a small{display:block;font-weight:400;font-size:11px;color:var(--muted)}
+.jump a:hover small{color:#e8f0fa}
+.kind{display:inline-block;font-size:10px;font-weight:700;border-radius:4px;padding:0 5px;background:var(--soft);color:var(--navy)}
+.toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:var(--navy);color:#fff;padding:8px 16px;border-radius:8px;font-size:13px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:9}
+.toast.on{opacity:1}
+.gate{max-width:560px;margin:60px auto;text-align:center;background:#fff;border:1px solid var(--line);border-radius:10px;padding:34px 26px}
+.gate .ic{font-size:40px}.gate h2{margin:10px 0 6px;font-size:18px;color:var(--navy)}.gate p{color:var(--muted);margin:0 0 14px}
+/* 🧪 검증·테스트 탭(REQ-0106) — 읽기 전용 표시표(§13 예외) */
+[hidden]{display:none!important}
+.tabs{display:flex;gap:4px;margin-bottom:10px;border-bottom:1px solid var(--line)}
+.tabs button{border:1px solid transparent;border-bottom:0;background:none;padding:7px 16px;font-family:inherit;font-size:13.5px;color:var(--muted);cursor:pointer;border-radius:8px 8px 0 0;margin-bottom:-1px}
+.tabs button:hover{color:var(--navy)}
+.tabs button.on{background:#fff;border-color:var(--line);color:var(--navy);font-weight:700}
+.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:10px}
+@media (max-width:900px){.kpis{grid-template-columns:1fr 1fr}}
+.kpi{background:#fff;border:1px solid var(--line);border-left:4px solid var(--accent2);border-radius:10px;padding:10px 13px}
+.kpi.warn{border-left-color:var(--amber)}.kpi.bad{border-left-color:var(--red)}.kpi.good{border-left-color:var(--green)}
+.kpi .l{font-size:11.8px;color:var(--muted)}
+.kpi .v{font-size:21px;font-weight:700;color:var(--navy);line-height:1.35;overflow-wrap:anywhere}
+.kpi .s{font-size:11.8px;color:var(--muted);line-height:1.5}
+.pill{display:inline-block;font-size:11px;font-weight:700;border-radius:9px;padding:0 8px;white-space:nowrap;background:var(--softgrey);color:var(--muted)}
+.pill.g{background:#e3f3ea;color:var(--green)}.pill.r{background:#f9e6e2;color:var(--red)}.pill.a{background:#f7edd9;color:var(--amber)}
+.tbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:6px}
+.tbar select{font-family:inherit;font-size:12.5px;padding:3px 6px;border:1px solid var(--line);border-radius:6px;background:#fff}
+.tbar .sp{flex:1}
+.tst td details summary{cursor:pointer;color:var(--accent);font-size:11.5px}
+.tst td .hint{display:block}
+.scen{border:1px solid var(--line);border-radius:8px;padding:9px 12px;margin-top:8px;background:#fcfdff}
+.scen h4{margin:0 0 2px;font-size:13px;color:var(--navy)}
+.scen ol{margin:6px 0 0 20px;padding:0;font-size:12.8px}
+.scen li{margin-bottom:5px}
+.scen li button{font-size:11px;border:1px solid var(--accent);color:var(--accent);background:#fff;border-radius:10px;padding:0 8px;cursor:pointer;font-family:inherit;margin-left:6px}
+.scen li button:hover{background:var(--accent);color:#fff}
+.foot{margin-top:12px;color:var(--muted);font-size:11.8px;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}
+</style>
+</head>
+<body>
+<div class="page" id="app">
+  <div class="head">
+    <div>
+      <h1><span id="icon">🖼</span> <span id="title">DRI 분석 및 생성</span><span class="badge" id="status">-</span></h1>
+      <div class="sub" id="summary">DRI 폴더의 이미지·도면 자료를 분석하고 설명 자료·이미지 초안을 만듭니다(준비 단계).</div>
+    </div>
+    <div class="right" id="me">-</div>
+  </div>
+  <div class="notice" id="notice">ℹ️ 품질 개선을 위해 질문과 답변이 기록됩니다. 조회 결과(금액 목록 등)는 기록하지 않습니다.
+    발주 확정·결재·발송 같은 실거래는 하지 않으며 초안까지만 만듭니다. 첨부 파일은 저장하지 않고(이름·크기만 기록) 질문에만 쓰입니다 — <b>주민번호 등 개인정보가 든 파일은 올리지 마세요.</b></div>
+
+  <div class="tabs" id="tabs">
+    <button type="button" class="on" data-tab="chat">💬 대화</button>
+    <button type="button" data-tab="test" hidden>🧪 검증·테스트</button>
+  </div>
+
+  <div id="tabChat">
+  <div class="layout">
+    <div class="box chat">
+      <div class="log" id="log"><div class="empty" id="empty">이미지·도면을 📎 로 붙이거나 끌어다 놓고 물어보세요. 예) <b>이 도면에서 무엇이 보이는지, 특이사항, 제안을 정리해줘</b><br>
+        분석 결과와 붙인 원본은 <b>🗄 NAS 저장</b>으로 사업운영팀 폴더에 보관할 수 있습니다. <b>이미지 생성은 준비 중</b>입니다(오른쪽 안내).</div></div>
+      <div class="chips" id="chips"></div>
+      <div class="tray" id="tray"></div>
+      <div class="composer">
+        <button class="btn ghost clip" id="btnClip" type="button" title="파일 첨부 — 엑셀·CSV·워드·PDF·이미지 (끌어다 놓기·붙여넣기도 됩니다)">📎</button>
+        <input type="file" id="fileIn" multiple hidden>
+        <textarea id="inp" placeholder="질문 입력 — Enter 전송 · Shift+Enter 줄바꿈 · 파일은 📎 또는 끌어다 놓기"></textarea>
+        <button class="btn" id="btnSend" type="button">보내기</button>
+        <button class="btn ghost" id="btnStop" type="button" disabled>중지</button>
+        <button class="btn ghost" id="btnNew" type="button" title="대화 비우기">새 대화</button>
+      </div>
+      <div class="drop" id="drop"><div>📎 여기에 놓으면 첨부됩니다<small>엑셀(xlsx)·CSV·워드(docx)·PDF·이미지·텍스트 — 한 번에 5개까지</small></div></div>
+    </div>
+    <div>
+      <div class="box">
+        <h3>📁 내 자료함 <span class="hint" id="artInfo"></span></h3>
+        <ul class="arts" id="arts"><li class="hint">불러오는 중…</li></ul>
+        <div class="hint" style="margin-top:6px">본인만 볼 수 있고 30일 뒤 자동 삭제됩니다. 오래 보관하려면 <b>NAS</b> 를 눌러 부서 폴더에 저장하세요.</div>
+      </div>
+      <div class="box" id="nasBox">
+        <h3>🗄 부서 NAS 보관함 <span class="hint" id="nasInfo"></span>
+          <button type="button" class="nx-btn" id="nxOpen" style="float:right;margin-top:-3px" title="탐색기처럼 파일을 추가·삭제·정렬합니다">📂 관리</button></h3>
+        <ul class="arts" id="nasList" style="min-height:60px"><li class="hint">불러오는 중…</li></ul>
+        <div class="hint" style="margin-top:6px" id="nasHint">첨부 파일·자료함의 <b>🗄 NAS 저장</b>을 누른 것만 사내 NAS 부서 폴더(AI저장)에 보관됩니다. 누르지 않은 첨부는 저장되지 않습니다.</div>
+      </div>
+      <div class="box">
+        <h3>📂 DRI 자료 폴더</h3>
+        <div class="hint">사내 NAS <b>사업운영팀 폴더 › DRI</b> 에 자료를 넣으면 에이전트가 파일 목록을 봅니다.
+          지금은 <b>파일 이름·수정일</b>만 보이고, 내용 분석은 파일을 대화에 <b>📎 로 붙였을 때</b> 됩니다.</div>
+        <div class="jump" style="margin-top:8px"><a href="#" id="driList" title="DRI 폴더의 파일 목록을 에이전트에게 묻습니다">📄 DRI 폴더 파일 목록 보기</a></div>
+      </div>
+      <div class="box">
+        <h3>🧭 준비 단계</h3>
+        <div class="hint" style="line-height:1.75">
+          <b style="color:#1a7f4b">● 지금 됨</b> — 붙인 이미지·도면 분석 · 여러 장 비교 · 생성 지시문 초안 · NAS 보관·관리<br>
+          <b style="color:#9a6200">● 다음(D1)</b> — NAS 의 DRI 폴더 이미지를 에이전트가 직접 읽기<br>
+          <b style="color:#b42318">● 결정 대기(D2)</b> — AI 이미지 생성: 생성 모델·외부 전송 승인·예산이 정해져야 연결합니다<br>
+          <a href="/docs/agents/dri-plan" target="_blank" rel="noopener">기획서 보기 ↗</a></div>
+      </div>
+      <div class="box" id="opBox" style="display:none">
+        <h3>담당자 메뉴</h3>
+        <div class="hint">답변마다 <b>🔍 처리 과정</b>이 보입니다(담당자에게만). 시험 결과는 위 <b>🧪 검증·테스트</b> 탭에서 보고,
+          설정·개선 대장·골든셋 문항 편집은 <a href="/admin/agents?agent=dri" target="_blank" rel="noopener">에이전트 관리 ↗</a> 에서 합니다.</div>
+      </div>
+    </div>
+  </div>
+  </div>
+
+  <!-- 🧪 검증·테스트(REQ-0106) — 이 에이전트를 실제로 어떻게 시험했고 지금 몇 점인지.
+       자동 회귀는 서버(agent_golden_run), 실측 회차는 app/agent-quality.json, 시나리오는 app/agent-templates.json -->
+  <div id="tabTest" hidden>
+    <div class="kpis" id="tKpi"></div>
+    <div class="box">
+      <h3>① 자동 회귀 테스트 <span class="hint">정해 둔 질문(골든셋)을 에이전트에게 실제로 물어 보고, 맞는 조회 기능을 썼는지·답변 요건을 지켰는지 채점합니다.</span></h3>
+      <div class="tbar">
+        <select id="tRunSel" title="회차 선택"></select><span class="hint" id="tRunInfo"></span><span class="sp"></span>
+        <button class="btn" id="tBtnRun" type="button" style="display:none">▶ 지금 회귀 실행</button>
+      </div>
+      <div id="tRun"><div class="hint">불러오는 중…</div></div>
+    </div>
+    <div class="box">
+      <h3>② 실업무 실측 <span class="hint">실무자가 할 법한 대화를 라이브 화면에서 그대로 물어 보고, 답한 숫자를 DB 조회로 다시 맞춰 본 기록입니다.</span></h3>
+      <div id="tRounds"><div class="hint">불러오는 중…</div></div>
+    </div>
+    <div class="box">
+      <h3>③ 직접 시험해 보기 — 표준 시나리오 <span class="hint">「대화로 시험」을 누르면 대화 탭 입력창에 질문이 들어갑니다. 한 시나리오는 같은 대화에서 순서대로 물어야 합니다.</span></h3>
+      <div id="tScen"><div class="hint">불러오는 중…</div></div>
+    </div>
+  </div>
+  <div class="foot"><span>REQ-0110 · 사업운영팀 DRI 분석·생성 에이전트(준비 단계) · 이미지 생성은 미연결입니다.</span><span id="ver"></span></div>
+</div>
+<!-- 부서 NAS 보관함 관리 창(REQ-0108) — 탐색기처럼 추가·삭제. 저장 위치·권한·보존은 서버가 정한다 -->
+<div class="nx" id="nx" hidden>
+  <div class="nx-win" id="nxWin">
+    <div class="nx-head"><b>🗄 부서 NAS 보관함</b><span id="nxPath"></span><span class="sp"></span><button type="button" id="nxClose" title="닫기(Esc)">✕ 닫기</button></div>
+    <div class="nx-bar">
+      <button type="button" class="nx-btn pri" id="nxAdd" title="PC 의 파일을 골라 부서 NAS 폴더에 추가합니다(끌어다 놓아도 됩니다)">＋ 파일 추가</button>
+      <input type="file" id="nxFile" multiple hidden>
+      <button type="button" class="nx-btn dan" id="nxDel" disabled>선택 삭제</button>
+      <button type="button" class="nx-btn" id="nxReload" title="목록 새로고침">↻ 새로고침</button>
+      <span class="sp"></span>
+      <input type="search" id="nxQ" placeholder="파일 이름 찾기">
+      <span class="cnt" id="nxCnt"></span>
+    </div>
+    <div class="nx-body">
+      <div class="nx-side" id="nxSide"></div>
+      <div class="nx-main" id="nxMain"><div class="nx-empty">불러오는 중…</div></div>
+    </div>
+    <div class="nx-foot"><span id="nxMsg"></span><span class="sp"></span><span id="nxPol"></span></div>
+    <div class="nx-drop" id="nxDrop">📂 여기에 놓으면 부서 NAS 폴더에 추가됩니다</div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script type="module">
+import { op, chat, auth, toLogin, ApiError } from "/app/lib/agentApi.js";
+import { readAttachment, ACCEPT } from "/app/lib/filein.js";
+import { renderMd, renderView, viewTable, toCsv, downloadText, reportHtml, escHtml, attachCodeActions } from "/app/lib/chatview.js";
+
+const AGENT = "dri";
+const $ = (id) => document.getElementById(id);
+const unhide = () => { const s = $("__hide"); if (s) s.remove(); };
+const toast = (t) => { const e = $("toast"); e.textContent = t; e.classList.add("on"); clearTimeout(toast._t); toast._t = setTimeout(() => e.classList.remove("on"), 2200); };
+function block(ic, title, msg) {
+  $("app").innerHTML = `<div class="gate"><div class="ic">${ic}</div><h2>${escHtml(title)}</h2><p>${msg}</p><a class="btn" href="/main" style="text-decoration:none">← 포털로 돌아가기</a></div>`;
+  unhide();
+}
+
+let BOOT = null;
+let hist = [];          // 대화(화면 메모리 — 서버는 턴 단위로 기록)
+let ctrl = null;
+const bots = [];        // 답변별 {views[], text, turnId, question}
+const isOp = () => BOOT && (BOOT.role === "operator" || BOOT.role === "reviewer");
+const today = () => new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10);
+
+/* ===== 자료함 ===== */
+async function loadArts() {
+  try {
+    const j = await op(AGENT, "artifact_list");
+    $("artInfo").textContent = j.items.length ? `· ${j.items.length}건` : "";
+    $("arts").innerHTML = j.items.length ? j.items.map((a) => `<li data-id="${escHtml(a.id)}">
+      <span class="kind">${escHtml(a.kind.toUpperCase())}</span><span class="t" title="${escHtml(a.title)}">${escHtml(a.title)}</span>
+      <small>${escHtml(String(a.created_at).slice(5, 10))}</small>
+      <button type="button" data-act="nas" title="사내 NAS 부서 폴더(AI저장)에 보관합니다">NAS</button><button type="button" data-act="open">열기</button><button type="button" data-act="del">삭제</button></li>`).join("")
+      : '<li class="hint">아직 저장한 자료가 없습니다.</li>';
+  } catch (e) { if (e.message !== "login") $("arts").innerHTML = `<li class="hint">자료함을 불러오지 못했습니다: ${escHtml(e.message)}</li>`; }
+}
+$("arts").onclick = async (e) => {
+  const b = e.target.closest("button[data-act]"); if (!b) return;
+  const id = b.closest("li").dataset.id;
+  try {
+    if (b.dataset.act === "nas") { await nasSave({ source: "artifact", id }, b); return; }
+    if (b.dataset.act === "open") { const j = await op(AGENT, "artifact_url", { id }); window.open(j.url, "_blank", "noopener"); }
+    else if (confirmDel(b)) { await op(AGENT, "artifact_delete", { id }); loadArts(); }
+  } catch (err) { toast("실패: " + err.message); }
+};
+// 삭제는 두 번 눌러 확정(브라우저 확인창을 쓰지 않는다)
+function confirmDel(b) { if (b.dataset.armed) return true; b.dataset.armed = "1"; b.textContent = "정말?"; setTimeout(() => { b.textContent = "삭제"; delete b.dataset.armed; }, 2500); return false; }
+
+/* ===== 부서 NAS 보관함(REQ-0108) — 화면은 요청·표시만 한다. 저장 위치·권한·보존은 서버(SQL 89)와 NAS 워커가 정한다 ===== */
+const NAS_MAX = 8 * 1024 * 1024;
+let nasTimer = null;
+const fmtSize = (n) => n >= 1048576 ? (n / 1048576).toFixed(1) + "MB" : Math.max(1, Math.round((n || 0) / 1024)) + "KB";
+const fileB64 = (f) => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result).split(",")[1] || ""); r.onerror = () => rej(new Error("파일을 읽지 못했습니다")); r.readAsDataURL(f); });
+async function nasSave(payload, btn) {
+  const old = btn.textContent; btn.disabled = true; btn.textContent = "보내는 중…";
+  try {
+    const j = await op(AGENT, "nas_save", payload);
+    if (j.status === "duplicate") { btn.textContent = "✓ 이미 보관됨"; toast(`같은 파일이 ${j.folder} 폴더에 이미 있습니다`); }
+    else { btn.textContent = "✓ 저장 요청됨"; toast(j.worker_online === false ? "저장을 접수했습니다 — 사내 보관소가 응답하면 저장됩니다" : `${j.folder} 폴더에 저장하는 중입니다`); }
+    loadNas();
+  } catch (e) { btn.disabled = false; btn.textContent = old; toast("저장 실패: " + e.message); }
+}
+async function nasSaveFile(f, btn) {
+  if (!f.file) { toast("원본이 화면에 남아 있지 않습니다 — 다시 첨부해 주세요"); return; }
+  if (f.file.size > NAS_MAX) { toast("8MB 를 넘는 파일은 저장하지 않습니다"); return; }
+  btn.disabled = true; btn.textContent = "읽는 중…";
+  let data;
+  try { data = await fileB64(f.file); } catch (e) { btn.disabled = false; btn.textContent = "🗄 NAS 저장"; toast(e.message); return; }
+  btn.textContent = "🗄 NAS 저장";
+  await nasSave({ source: "attachment", name: f.name, data }, btn);
+}
+async function loadNas() {
+  clearTimeout(nasTimer);
+  try {
+    const j = await op(AGENT, "nas_saved_list");
+    if (!j.folder) { $("nasList").innerHTML = '<li class="hint">이 부서의 NAS 폴더가 아직 등록되지 않았습니다(관리자 확인 필요).</li>'; $("nasInfo").textContent = ""; return; }
+    const pol = j.policy || {};
+    $("nasInfo").textContent = `· ${j.folder} 폴더 · ${j.items.length}건${j.worker_online ? "" : " · 보관소 응답 없음"}`;
+    $("nasHint").innerHTML = `첨부 파일·자료함의 <b>🗄 NAS 저장</b>을 누른 것만 사내 NAS <b>${escHtml(j.folder)}</b> 폴더(AI저장)에 보관됩니다. 부서 구성원이 함께 보며 <b>${pol.retain_years || 3}년</b> 보존합니다`
+      + `(그 뒤에는 ${pol.after_expiry === "delete" ? "자동 삭제" : "그대로 유지"}). 누르지 않은 첨부는 저장되지 않습니다.`;
+    const st = (x) => x.status === "done" ? '<span class="nasst ok">보관됨</span>'
+      : x.status === "failed" ? `<span class="nasst bad" title="${escHtml(x.error_msg || "")}">실패</span>`
+      : x.status === "purge" ? '<span class="nasst wait">삭제 대기</span>' : '<span class="nasst wait">저장 중</span>';
+    $("nasList").innerHTML = j.items.length ? j.items.map((x) => `<li data-id="${escHtml(x.save_id)}">
+      ${st(x)}<span class="t" title="${escHtml(x.file_name)}${x.rel_path ? " — " + escHtml(x.rel_path) : ""}">${escHtml(x.file_name)}</span>
+      <small title="저장한 사람 · 보존 기한 ${escHtml(String(x.retain_until || ""))}">${escHtml(x.saver_name || "")} · ${fmtSize(x.size_bytes)} · ${escHtml(String(x.created_at).slice(5, 10))}</small>
+      ${(x.mine || j.can_manage) && x.status !== "purge" ? '<button type="button" data-act="del">삭제</button>' : ""}</li>`).join("")
+      : '<li class="hint">아직 보관한 파일이 없습니다.</li>';
+    // 진행 중인 것이 있으면 잠깐씩 다시 본다(저장은 보통 수 초, 삭제는 10분 안)
+    if (j.items.some((x) => x.status === "queued" || x.status === "running")) nasTimer = setTimeout(loadNas, 4000);
+  } catch (e) { if (e.message !== "login") $("nasList").innerHTML = `<li class="hint">보관함을 불러오지 못했습니다: ${escHtml(e.message)}</li>`; }
+}
+$("nasList").onclick = async (e) => {
+  const b = e.target.closest("button[data-act=del]"); if (!b) return;
+  if (!confirmDel(b)) return;
+  try { await op(AGENT, "nas_saved_delete", { id: b.closest("li").dataset.id }); toast("삭제를 접수했습니다 — 곧 NAS 에서 지워집니다"); loadNas(); }
+  catch (err) { toast("실패: " + err.message); }
+};
+
+async function saveArtifact(title, kind, content, turnId) {
+  const j = await op(AGENT, "artifact_save", { title, kind, content, turn_id: turnId || null });
+  loadArts(); toast("자료함에 저장했습니다");
+  return j.artifact;
+}
+
+/* ===== 대화 ===== */
+function addUser(text, files) {
+  $("empty") && $("empty").remove();
+  const m = document.createElement("div"); m.className = "msg user";
+  const b = document.createElement("div"); b.className = "bubble";
+  if (files && files.length) {
+    const fl = document.createElement("div"); fl.className = "ufiles";
+    files.forEach((f) => {
+      const s = document.createElement("span"); s.textContent = "📎 " + f.name; s.title = f.label || "";
+      if (f.file) {   // 원본이 화면에 있을 때만 — 사용자가 누른 것만 NAS 로 간다(REQ-0108)
+        const nb = document.createElement("button"); nb.type = "button"; nb.className = "nas"; nb.textContent = "🗄 NAS 저장";
+        nb.title = "이 파일 원본을 사내 NAS 부서 폴더(AI저장)에 보관합니다"; nb.onclick = () => nasSaveFile(f, nb); s.appendChild(nb);
+      }
+      fl.appendChild(s);
+    });
+    b.appendChild(fl);
+  }
+  b.appendChild(document.createTextNode(text)); m.appendChild(b);
+  $("log").appendChild(m); $("log").scrollTop = $("log").scrollHeight;
+}
+function addBot(question) {
+  const m = document.createElement("div"); m.className = "msg bot";
+  const b = document.createElement("div"); b.className = "bubble";
+  const views = document.createElement("div"); views.className = "cv-stack";
+  const body = document.createElement("div");
+  const tail = document.createElement("div"); tail.className = "tail"; tail.style.display = "none";
+  b.append(views, body, tail); m.appendChild(b); $("log").appendChild(m);
+  const rec = { views: [], text: "", turnId: null, question, el: { views, body, tail, bubble: b }, trace: [] };
+  bots.push(rec);
+  return rec;
+}
+function cardActions(rec) {
+  return (v) => {
+    const t = viewTable(v); if (!t || !t.rows.length) return [];
+    const name = (t.title || "DRI자료").slice(0, 60);
+    return [
+      { label: "⬇ CSV", onClick: () => downloadText(`${name}_${today()}.csv`, toCsv(t), "text/csv;charset=utf-8") },
+      { label: "📁 자료함에 저장", onClick: async (btn) => { btn.disabled = true; try { await saveArtifact(name, "csv", toCsv(t), rec.turnId); btn.textContent = "✓ 저장됨"; } catch (e) { btn.disabled = false; toast("저장 실패: " + e.message); } } },
+    ];
+  };
+}
+function finishTail(rec, reportOf) {
+  // AI 가 코드 블록으로 쓴 HTML 은 바로 열어 보기·새 탭·내려받기·자료함 저장(sandbox — 스크립트 실행 없음)
+  attachCodeActions(rec.el.body, { title: (rec.question || "자료").slice(0, 40),
+    onSave: async (html, title) => { try { await saveArtifact(title, "html", html, rec.turnId); } catch (e) { toast("저장 실패: " + e.message); throw e; } } });
+  const t = rec.el.tail; t.style.display = "";
+  t.innerHTML = "";
+  const mk = (label, fn, title) => { const b = document.createElement("button"); b.type = "button"; b.textContent = label; if (title) b.title = title; b.onclick = () => fn(b); t.appendChild(b); return b; };
+  if (rec.turnId) {
+    const up = mk("👍", async (b) => { await rate(rec, 1); b.classList.add("on"); down.classList.remove("on"); }, "도움이 됐어요");
+    const down = mk("👎", (b) => { b.classList.add("on"); up.classList.remove("on"); askNote(rec); }, "아쉬워요 — 담당자가 개선에 반영합니다");
+  }
+  if (reportOf) {
+    mk("📄 이 해설로 보고서 저장", () => makeReport(reportOf, rec));
+  } else if (rec.views.some((v) => viewTable(v))) {
+    mk("📄 보고서로 만들기", () => askReport(rec), "위 표 + AI 해설로 인쇄용 보고서를 만듭니다");
+  }
+  const sp = document.createElement("span"); sp.className = "sp"; t.appendChild(sp);
+  if (rec.meta) { const s = document.createElement("span"); s.textContent = rec.meta; t.appendChild(s); }
+  if (isOp() && rec.trace.length) {
+    const d = document.createElement("details"); d.className = "trace";
+    d.innerHTML = `<summary>🔍 처리 과정(${rec.trace.length})</summary>` + rec.trace.map((x) => `<div>${escHtml(x)}</div>`).join("");
+    rec.el.bubble.appendChild(d);
+  }
+}
+async function rate(rec, r, note) {
+  try { await op(AGENT, "rate", { turn_id: rec.turnId, rating: r, note: note || null }); toast(r > 0 ? "고맙습니다" : "의견이 담당자에게 전달됐습니다"); }
+  catch (e) { toast("평가 실패: " + e.message); }
+}
+function askNote(rec) {
+  if (rec.el.bubble.querySelector(".fb")) return;
+  const f = document.createElement("div"); f.className = "fb";
+  f.innerHTML = `<input maxlength="300" placeholder="무엇이 아쉬웠나요? (선택 — 비워도 됩니다)"><button class="btn ghost" type="button">보내기</button>`;
+  f.querySelector("button").onclick = async () => { await rate(rec, -1, f.querySelector("input").value.trim()); f.remove(); };
+  f.querySelector("input").onkeydown = (e) => { if (e.key === "Enter" && !e.isComposing) f.querySelector("button").click(); };
+  rec.el.bubble.appendChild(f);
+}
+async function makeReport(src, narr) {
+  const tables = src.views.map(viewTable).filter((t) => t && t.rows.length);
+  const title = (src.question || "DRI 보고서").slice(0, 60);
+  const html = reportHtml({ title, author: [BOOT.me.dept, BOOT.me.name].filter(Boolean).join(" "), asOf: today(), narrative: narr.text, tables });
+  const w = window.open("", "_blank");
+  if (w) { w.document.open(); w.document.write(html); w.document.close(); }
+  try { await saveArtifact(title, "html", html, narr.turnId); } catch (e) { toast("저장 실패: " + e.message); }
+}
+
+function ask(p) { $("inp").value = p; send(); }
+/** 보고서 해설 요청 — 대화 기록에는 카드 데이터가 없으므로(모델은 문장만 기억한다) 표를 요약해 같이 보낸다.
+ *  화면에는 짧은 문구만 보인다. 숫자는 서버 카드 값 그대로라 모델이 다시 조회하지 않아도 된다. */
+function askReport(rec) {
+  const NL = String.fromCharCode(10), TAB = String.fromCharCode(9);
+  let data = "";
+  rec.views.map(viewTable).filter((t) => t && t.rows.length).forEach((t) => {
+    data += NL + "[" + (t.title || "표") + "]" + NL + t.head.join(TAB) + NL
+      + t.rows.slice(0, 40).map((r) => r.join(TAB)).join(NL) + (t.rows.length > 40 ? NL + "…외 " + (t.rows.length - 40) + "행" : "") + NL;
+  });
+  const content = "아래 조회 결과로 보고용 해설을 써줘. 요약 3줄 → 특이사항 → 조치 제안 순서로, 수치는 아래 표 값만 인용하고 표는 다시 쓰지 마. 도구는 다시 부르지 않아도 돼." + NL
+    + "원래 질문: " + rec.question + NL + data.slice(0, 7000);
+  send(rec, { display: "📄 위 결과로 보고서 해설 작성", content });
+}
+
+async function send(reportSrc, override) {
+  if (ctrl) return;
+  if (!override && pending.some((p) => !p.part)) { toast("파일을 읽는 중입니다 — 잠시 후 보내세요"); return; }
+  const files = override ? [] : pending.filter((p) => p.part);
+  let text = override ? override.content : $("inp").value.trim();
+  if (!text && files.length) text = DEFAULT_Q;
+  if (!text) return;
+  if (!override) { $("inp").value = ""; pending = []; renderTray(); }
+  addUser(override ? override.display : text, files);
+  // 첨부는 그 질문에 붙어 다닌다 — 이어지는 질문에서도 서버가 다시 받아 맥락이 유지된다(넘치면 서버가 옛 첨부부터 뺀다)
+  hist.push(files.length ? { role: "user", content: text, attachments: files.map((f) => f.part), _files: files } : { role: "user", content: text });
+  const rec = addBot(override ? reportSrc.question : text);
+  rec.el.body.innerHTML = '<span class="hint">조회 중…</span>';
+  ctrl = new AbortController();
+  $("btnSend").disabled = true; $("btnStop").disabled = false;
+  try {
+    await chat(AGENT, hist.slice(-20).map(({ _files, ...m }) => m), {
+      onText: (c) => { rec.text += c; rec.el.body.innerHTML = renderMd(rec.text); $("log").scrollTop = $("log").scrollHeight; },
+      onView: (v) => { rec.views.push(v); renderView(rec.el.views, v, { onAsk: (p) => ask(p), extraActions: cardActions(rec) }); },
+      onEvent: (ev) => {
+        if (ev.type === "tool") rec.trace.push(`${ev.tool} ${JSON.stringify(ev.args)} → ${ev.outcome}${ev.rows != null ? " " + ev.rows + "건" : ""} · ${ev.ms}ms`);
+        // 담당자에게는 왜 넘어갔는지(벤더 오류 본문 앞부분)까지 보여 준다 — 09-30 실측에서 (400) 만으로는 원인을 못 찾았다
+        else if (ev.type === "fallback") rec.trace.push(`예비 모델 전환 ${ev.from} → ${ev.to} (${ev.status}${ev.detail ? ": " + String(ev.detail).slice(0, 160) : ""})`);
+        else if (ev.type === "llm_error") rec.trace.push(`모델 오류 ${ev.status}: ${ev.detail}`);
+        else if (ev.type === "start" && ev.note) rec.trace.push(ev.note);
+        else if (ev.type === "end") {
+          rec.turnId = ev.turn_id;
+          if (isOp()) rec.meta = `${ev.model}${ev.fallback ? "(예비)" : ""} · ${(ev.ms / 1000).toFixed(1)}초` + (ev.est_cost_usd != null ? ` · $${ev.est_cost_usd}` : "");
+        }
+      },
+    }, { signal: ctrl.signal });
+    if (!rec.text && !rec.views.length) rec.el.body.innerHTML = '<span class="hint">(빈 응답)</span>';
+    else if (!rec.text) rec.el.body.innerHTML = "";
+    hist.push({ role: "assistant", content: rec.text || "(카드 응답)" });
+    finishTail(rec, reportSrc || null);
+  } catch (e) {
+    if (e.name === "AbortError") { rec.el.body.innerHTML = renderMd(rec.text) + '<div class="hint">⏹ 중지됨</div>'; hist.push({ role: "assistant", content: rec.text || "(중지)" }); }
+    else if (e.message !== "login") {
+      rec.el.body.innerHTML = `<span style="color:var(--red)">⚠ ${escHtml(e.message)}</span>`;
+      const last = hist.pop();
+      // 실패하면 첨부를 대기열로 되돌려 다시 보낼 수 있게 한다
+      if (last && last._files && !pending.length) { pending = last._files; renderTray(); }
+    }
+  } finally {
+    ctrl = null; $("btnSend").disabled = false; $("btnStop").disabled = true;
+    $("log").scrollTop = $("log").scrollHeight;
+  }
+}
+$("btnSend").onclick = () => send();
+$("btnStop").onclick = () => { if (ctrl) ctrl.abort(); };
+$("btnNew").onclick = () => { hist = []; bots.length = 0; pending = []; renderTray(); $("log").innerHTML = '<div class="empty" id="empty">새 대화를 시작합니다.</div>'; };
+$("inp").addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); send(); } });
+$("chips").onclick = (e) => { const c = e.target.closest(".chip"); if (c) ask(c.dataset.q); };
+$("driList").onclick = (e) => { e.preventDefault(); ask("사업운영팀 폴더의 DRI 폴더에 있는 파일 목록 보여줘"); };
+
+/* ===== 첨부(REQ-0089) — 📎 · 끌어다 놓기 · 붙여넣기 ===== */
+const DEFAULT_Q = "첨부한 이미지·도면을 분석해서 무엇이 보이는지 → 특이사항 → 제안 순서로 정리해줘. 읽히지 않는 글자·치수는 판독 불가로 적어줘.";
+let pending = [];   // [{ id, name, label, part|null(읽는 중) }]
+const MAX_FILES = 5;
+const QUICK = [
+  ["🔎 분석", DEFAULT_Q],
+  ["↔ 비교", "첨부한 이미지들을 비교해서 같은 점과 다른 점을 표로 정리해줘. 읽히지 않는 글자·치수는 판독 불가로 적어줘."],
+  ["🖼 생성 지시문", "첨부한 자료를 바탕으로 새 이미지를 만들기 위한 생성 지시문 초안(구도·구성 요소·문구·주의점)을 써줘."],
+];
+function renderTray() {
+  const t = $("tray");
+  if (!pending.length) { t.innerHTML = ""; return; }
+  t.innerHTML = pending.map((p) => `<span class="fchip${p.part ? "" : " busy"}"><span class="n" title="${escHtml(p.name)}">📎 ${escHtml(p.name)}</span>`
+      + `<small>${escHtml(p.part ? p.label : "읽는 중…")}</small><button type="button" data-del="${p.id}" title="빼기">✕</button></span>`).join("")
+    + `<span class="sp"></span>`
+    + QUICK.map(([l, q], i) => `<button class="qa" type="button" data-qi="${i}">${l}</button>`).join("");
+}
+$("tray").onclick = (e) => {
+  const d = e.target.closest("[data-del]"); if (d) { pending = pending.filter((p) => String(p.id) !== d.dataset.del); renderTray(); return; }
+  const q = e.target.closest("[data-qi]"); if (q) { $("inp").value = QUICK[+q.dataset.qi][1]; $("inp").focus(); }
+};
+let fileSeq = 0;
+async function addFiles(list) {
+  const files = Array.from(list || []);
+  if (!files.length) return;
+  const room = MAX_FILES - pending.length;
+  if (room <= 0) { toast(`파일은 한 번에 ${MAX_FILES}개까지입니다`); return; }
+  if (files.length > room) toast(`${MAX_FILES}개까지만 첨부합니다 — ${files.length - room}개 제외`);
+  const jobs = files.slice(0, room).map((f) => { const it = { id: ++fileSeq, name: f.name, label: "", part: null, file: f }; pending.push(it); return [it, f]; });
+  renderTray();
+  for (const [it, f] of jobs) {
+    const r = await readAttachment(f);
+    if (r.ok) { it.part = r.part; it.label = r.label; }
+    else { pending = pending.filter((p) => p !== it); toast(r.error); }
+    renderTray();
+  }
+  $("inp").focus();
+}
+$("fileIn").accept = ACCEPT;
+$("btnClip").onclick = () => $("fileIn").click();
+$("fileIn").onchange = (e) => { addFiles(e.target.files); e.target.value = ""; };
+// 끌어다 놓기 — 대화 상자 전체가 받는다. 자식 요소를 지날 때 깜빡이지 않게 카운터로 센다.
+let dragN = 0;
+const chatBox = document.querySelector(".chat");
+const hasFiles = (e) => !!e.dataTransfer && Array.from(e.dataTransfer.types || []).includes("Files");
+chatBox.addEventListener("dragenter", (e) => { if (!hasFiles(e)) return; e.preventDefault(); dragN++; $("drop").classList.add("on"); });
+chatBox.addEventListener("dragover", (e) => { if (!hasFiles(e)) return; e.preventDefault(); e.dataTransfer.dropEffect = "copy"; });
+chatBox.addEventListener("dragleave", () => { dragN = Math.max(0, dragN - 1); if (!dragN) $("drop").classList.remove("on"); });
+chatBox.addEventListener("drop", (e) => { if (!hasFiles(e)) return; e.preventDefault(); dragN = 0; $("drop").classList.remove("on"); addFiles(e.dataTransfer.files); });
+// 대화 상자 밖에 떨어뜨려도 브라우저가 파일을 열어 화면을 떠나지 않게
+window.addEventListener("dragover", (e) => { if (hasFiles(e)) e.preventDefault(); });
+window.addEventListener("drop", (e) => { if (hasFiles(e)) e.preventDefault(); });
+// 붙여넣기 — 캡처한 이미지·복사한 파일
+$("inp").addEventListener("paste", (e) => {
+  const fs = Array.from((e.clipboardData && e.clipboardData.files) || []);
+  if (!fs.length) return;
+  e.preventDefault();
+  addFiles(fs.map((f, i) => (f.name && f.name !== "image.png") ? f
+    : new File([f], `붙여넣은_이미지_${i + 1}.${(f.type.split("/")[1] || "png")}`, { type: f.type })));
+});
+
+/* ===== 부서 NAS 보관함 관리 창(REQ-0108) — 탐색기처럼 추가·삭제 =====
+   화면은 요청·표시만 한다. 어디에 쓰는지(부서 폴더의 AI저장/연도)·누가 지울 수 있는지·보존 기간은 서버(SQL 89)가 정한다. */
+const NX = { items: [], folders: [], dir: "all", q: "", sort: "date", desc: true, sel: new Set(), busy: false, can: false, timer: null, tries: 0, naming: false };
+// 파일이 든 곳 — 사용자 폴더면 "d:이름", 아니면 연도 폴더 "y:2026"
+const nxDir = (x) => x.subdir ? "d:" + x.subdir : "y:" + String(x.created_at || "").slice(0, 4);
+const nxDirLabel = (d) => d === "all" ? "" : d.slice(2);
+const nxKind = (x) => x.kind === "artifact" ? "생성 자료" : "파일";
+const nxCanDel = (x) => (x.mine || NX.can) && x.status !== "purge" && x.status !== "running";
+const nxMsg = (t) => { $("nxMsg").textContent = t || ""; };
+function nxView() {
+  const q = NX.q.trim().toLowerCase();
+  const rows = NX.items.filter((x) => (NX.dir === "all" || nxDir(x) === NX.dir) && (!q || String(x.file_name).toLowerCase().includes(q)));
+  const key = { name: (x) => String(x.file_name).toLowerCase(), size: (x) => Number(x.size_bytes) || 0, who: (x) => x.saver_name || "", date: (x) => String(x.created_at), keep: (x) => String(x.retain_until || "") }[NX.sort];
+  rows.sort((a, b) => { const A = key(a), B = key(b); return (A < B ? -1 : A > B ? 1 : 0) * (NX.desc ? -1 : 1); });
+  return rows;
+}
+function nxRender() {
+  const cnt = {}; NX.items.forEach((x) => { const d = nxDir(x); cnt[d] = (cnt[d] || 0) + 1; });
+  const years = Object.keys(cnt).filter((d) => d.startsWith("y:")).sort().reverse();
+  const me = (BOOT && BOOT.me && BOOT.me.upn || "").toLowerCase();
+  if (NX.dir !== "all" && !cnt[NX.dir] && !(NX.dir.startsWith("d:") && NX.folders.some((f) => "d:" + f.name === NX.dir))) NX.dir = "all";
+  $("nxSide").innerHTML = '<div class="lab">AI저장</div>'
+    + `<button type="button" data-d="all" class="${NX.dir === "all" ? "on" : ""}"><span>📁 전체</span><small>${NX.items.length}</small></button>`
+    + years.map((d) => `<button type="button" data-d="${escHtml(d)}" class="${NX.dir === d ? "on" : ""}" title="폴더를 고르지 않고 저장한 파일(연도별)"><span>📂 ${escHtml(d.slice(2))}</span><small>${cnt[d]}</small></button>`).join("")
+    + (NX.folders.length ? '<div class="lab" style="margin-top:10px">만든 폴더</div>' : "")
+    + NX.folders.map((f) => { const d = "d:" + f.name, n = cnt[d] || 0;
+        return `<div class="row"><button type="button" data-d="${escHtml(d)}" class="${NX.dir === d ? "on" : ""}" title="${escHtml(f.name)}"><span>📂 ${escHtml(f.name)}</span><small>${n}</small></button>`
+          + (!n && (NX.can || f.created_by === me) ? `<button type="button" class="x" data-rm="${escHtml(f.name)}" title="빈 폴더 지우기">✕</button>` : "") + "</div>"; }).join("")
+    + (NX.naming
+      ? '<div class="new"><input id="nxNewName" maxlength="40" placeholder="폴더 이름"><button type="button" class="ok" data-mk="1">만들기</button></div>'
+      : '<div class="new"><button type="button" data-new="1"><span>＋ 새 폴더</span></button></div>');
+  $("nxPath").textContent = NX.base ? NX.base + (NX.dir.startsWith("d:") ? " › " + nxDirLabel(NX.dir) : "") : "폴더 미등록";
+  $("nxAdd").title = NX.dir.startsWith("d:") ? `「${nxDirLabel(NX.dir)}」 폴더에 PC 의 파일을 추가합니다` : "PC 의 파일을 추가합니다(폴더를 고르지 않으면 올해 폴더에 들어갑니다)";
+  const rows = nxView();
+  const ids = new Set(rows.map((x) => x.save_id));
+  NX.sel.forEach((id) => { if (!ids.has(id)) NX.sel.delete(id); });
+  const arrow = (k) => NX.sort === k ? (NX.desc ? " ▼" : " ▲") : "";
+  const st = (x) => x.status === "done" ? '<span class="nasst ok">보관됨</span>'
+    : x.status === "failed" ? `<span class="nasst bad" title="${escHtml(x.error_msg || "")}">실패</span>`
+    : x.status === "purge" ? '<span class="nasst wait">삭제 대기</span>' : '<span class="nasst wait">저장 중</span>';
+  const selectable = rows.filter(nxCanDel);
+  $("nxMain").innerHTML = rows.length ? `<table class="nx-tbl"><thead><tr>
+      <th class="nos" style="width:28px"><input type="checkbox" id="nxAll" ${selectable.length && selectable.every((x) => NX.sel.has(x.save_id)) ? "checked" : ""} ${selectable.length ? "" : "disabled"} title="모두 선택"></th>
+      <th data-s="name">이름${arrow("name")}</th><th class="nos">폴더 · 종류</th><th data-s="size" style="text-align:right">크기${arrow("size")}</th>
+      <th data-s="who">저장한 사람${arrow("who")}</th><th data-s="date">저장일${arrow("date")}</th><th data-s="keep">보존 기한${arrow("keep")}</th><th class="nos">상태</th><th class="nos"></th></tr></thead><tbody>`
+    + rows.map((x) => `<tr data-id="${escHtml(x.save_id)}" class="${NX.sel.has(x.save_id) ? "sel" : ""}">
+      <td>${nxCanDel(x) ? `<input type="checkbox" data-c="1" ${NX.sel.has(x.save_id) ? "checked" : ""}>` : ""}</td>
+      <td class="nm" title="${escHtml(x.file_name)}${x.rel_path ? " — " + escHtml(x.rel_path) : ""}">${escHtml(x.file_name)}</td>
+      <td class="c">${escHtml(nxDirLabel(nxDir(x)))} · ${nxKind(x)}</td><td class="r">${fmtSize(x.size_bytes)}</td>
+      <td class="c">${escHtml(x.saver_name || "")}</td><td class="c">${escHtml(String(x.created_at).slice(0, 10))}</td>
+      <td class="c">${escHtml(String(x.retain_until || ""))}</td><td>${st(x)}</td>
+      <td>${x.status === "done" ? '<button type="button" class="dl" data-dl="1" title="이 파일을 PC 로 내려받습니다">⬇</button>' : ""}</td></tr>`).join("") + "</tbody></table>"
+    : `<div class="nx-empty">${NX.items.length ? "조건에 맞는 파일이 없습니다." : "아직 보관한 파일이 없습니다.<br><b>＋ 파일 추가</b>를 누르거나 파일을 이 창에 끌어다 놓으세요."}</div>`;
+  $("nxCnt").textContent = `${rows.length}건${NX.sel.size ? ` · ${NX.sel.size}건 선택` : ""}`;
+  const d = $("nxDel"); d.disabled = !NX.sel.size || NX.busy; d.classList.remove("armed"); d.textContent = NX.sel.size ? `선택 삭제(${NX.sel.size})` : "선택 삭제";
+  $("nxAdd").disabled = NX.busy;
+}
+async function nxLoad(quiet) {
+  clearTimeout(NX.timer);
+  try {
+    const j = await op(AGENT, "nas_saved_list");
+    NX.items = j.items || []; NX.folders = j.folders || []; NX.can = !!j.can_manage;
+    NX.base = j.folder ? `${j.folder} 폴더 › AI저장` : "";
+    const pol = j.policy || {};
+    $("nxPol").textContent = j.folder ? `보존 ${pol.retain_years || 3}년 · 이후 ${pol.after_expiry === "delete" ? "자동 삭제" : "유지"} · 파일당 ${pol.max_mb || 8}MB까지${j.worker_online ? "" : " · ⚠ 사내 보관소 응답 없음"}` : "";
+    if (!j.folder) { $("nxMain").innerHTML = '<div class="nx-empty">이 부서의 NAS 폴더가 아직 등록되지 않았습니다(관리자 확인 필요).</div>'; return; }
+    nxRender();
+    if (!quiet) nxMsg("");
+    // 저장 중·삭제 대기가 있으면 잠깐씩 다시 본다(보통 수 초 안에 끝난다). 삭제 대기는 30초까지만 따라간다
+    const moving = NX.items.some((x) => x.status === "queued" || x.status === "running");
+    const purging = NX.items.some((x) => x.status === "purge");
+    if (!purging) NX.tries = 0;
+    if ((moving || (purging && NX.tries++ < 15)) && !$("nx").hidden) NX.timer = setTimeout(() => nxLoad(true), 2000);
+  } catch (e) { if (e.message !== "login") $("nxMain").innerHTML = `<div class="nx-empty">보관함을 불러오지 못했습니다: ${escHtml(e.message)}</div>`; }
+}
+function nxOpen() { $("nx").hidden = false; NX.sel.clear(); NX.q = ""; NX.naming = false; $("nxQ").value = ""; nxLoad(); }
+function nxClose() { $("nx").hidden = true; clearTimeout(NX.timer); loadNas(); }
+async function nxAddFiles(list) {
+  const files = Array.from(list || []); if (!files.length || NX.busy) return;
+  NX.busy = true; nxRender();
+  let ok = 0, dup = 0; const bad = [];
+  for (let i = 0; i < files.length; i++) {
+    const f = files[i];
+    nxMsg(`추가하는 중… ${i + 1}/${files.length} — ${f.name}`);
+    if (f.size > NAS_MAX) { bad.push(`${f.name}(8MB 초과)`); continue; }
+    if (!f.size) { bad.push(`${f.name}(빈 파일)`); continue; }
+    try {
+      const j = await op(AGENT, "nas_save", { source: "attachment", name: f.name, data: await fileB64(f), folder: NX.dir.startsWith("d:") ? nxDirLabel(NX.dir) : undefined });
+      if (j.status === "duplicate") dup++; else ok++;
+    } catch (e) { bad.push(`${f.name}(${e.message})`); }
+  }
+  NX.busy = false;
+  await nxLoad(true);
+  nxMsg([ok ? `${ok}개 추가 요청` : "", dup ? `${dup}개는 같은 파일이 이미 있음` : "", bad.length ? `실패 ${bad.length}개 — ${bad.join(" · ")}` : ""].filter(Boolean).join(" · ") || "추가한 파일이 없습니다");
+}
+async function nxDelete() {
+  const d = $("nxDel");
+  if (!d.classList.contains("armed")) {          // 두 번 눌러 확정(브라우저 확인창을 쓰지 않는다)
+    d.classList.add("armed"); d.textContent = `정말 ${NX.sel.size}개 삭제?`;
+    setTimeout(() => { if (d.classList.contains("armed")) nxRender(); }, 3000); return;
+  }
+  NX.busy = true; d.disabled = true;
+  const ids = [...NX.sel]; let ok = 0; const bad = [];
+  for (let i = 0; i < ids.length; i++) {
+    nxMsg(`삭제 요청 중… ${i + 1}/${ids.length}`);
+    try { await op(AGENT, "nas_saved_delete", { id: ids[i] }); ok++; } catch (e) { bad.push(e.message); }
+  }
+  NX.busy = false; NX.sel.clear();
+  await nxLoad(true);
+  NX.tries = 0;
+  nxMsg(`${ok}개 삭제 접수 — 곧 NAS 에서 지워집니다` + (bad.length ? ` · 실패 ${bad.length}개(${bad[0]})` : ""));
+}
+async function nxDownload(id, btn) {
+  btn.disabled = true; const old = btn.textContent; btn.textContent = "…";
+  nxMsg("NAS 에서 파일을 가져오는 중…");
+  try {
+    const j = await op(AGENT, "nas_saved_download", { id });
+    const a = document.createElement("a"); a.href = j.url; a.download = j.file_name || ""; a.rel = "noopener";
+    document.body.appendChild(a); a.click(); a.remove();
+    nxMsg(`내려받기 시작 — ${j.file_name || ""}`);
+  } catch (e) { nxMsg("내려받기 실패: " + e.message); }
+  btn.disabled = false; btn.textContent = old;
+}
+async function nxMakeFolder() {
+  const inp = $("nxNewName"); const name = (inp ? inp.value : "").trim();
+  if (!name) { NX.naming = false; nxRender(); return; }
+  try { const j = await op(AGENT, "nas_folder_create", { name }); NX.naming = false; NX.dir = "d:" + j.name; await nxLoad(true); nxMsg(`「${j.name}」 폴더를 만들었습니다 — ＋ 파일 추가로 넣으세요`); }
+  catch (e) { nxMsg("폴더를 만들지 못했습니다: " + e.message); if (inp) inp.focus(); }
+}
+async function nxRemoveFolder(name) {
+  try { await op(AGENT, "nas_folder_delete", { name }); if (NX.dir === "d:" + name) NX.dir = "all"; await nxLoad(true); nxMsg(`「${name}」 폴더를 지웠습니다`); }
+  catch (e) { nxMsg("폴더를 지우지 못했습니다: " + e.message); }
+}
+$("nxOpen").onclick = nxOpen;
+$("nxClose").onclick = nxClose;
+$("nx").addEventListener("mousedown", (e) => { if (e.target === $("nx")) nxClose(); });
+document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !$("nx").hidden) nxClose(); });
+$("nxReload").onclick = () => nxLoad();
+$("nxAdd").onclick = () => $("nxFile").click();
+$("nxFile").accept = ACCEPT;
+$("nxFile").onchange = (e) => { nxAddFiles(e.target.files); e.target.value = ""; };
+$("nxDel").onclick = nxDelete;
+$("nxQ").oninput = (e) => { NX.q = e.target.value; nxRender(); };
+$("nxSide").onclick = (e) => {
+  const rm = e.target.closest("button[data-rm]"); if (rm) { nxRemoveFolder(rm.dataset.rm); return; }
+  if (e.target.closest("button[data-new]")) { NX.naming = true; nxRender(); const i = $("nxNewName"); if (i) i.focus(); return; }
+  if (e.target.closest("button[data-mk]")) { nxMakeFolder(); return; }
+  const b = e.target.closest("button[data-d]"); if (b) { NX.dir = b.dataset.d; NX.sel.clear(); nxRender(); }
+};
+$("nxSide").addEventListener("keydown", (e) => {
+  if (e.target.id !== "nxNewName") return;
+  if (e.key === "Enter" && !e.isComposing) { e.preventDefault(); nxMakeFolder(); }
+  else if (e.key === "Escape") { e.stopPropagation(); NX.naming = false; nxRender(); }
+});
+$("nxMain").addEventListener("click", (e) => {
+  const th = e.target.closest("th[data-s]");
+  if (th) { if (NX.sort === th.dataset.s) NX.desc = !NX.desc; else { NX.sort = th.dataset.s; NX.desc = th.dataset.s === "date"; } nxRender(); return; }
+  if (e.target.id === "nxAll") { const on = e.target.checked; nxView().filter(nxCanDel).forEach((x) => on ? NX.sel.add(x.save_id) : NX.sel.delete(x.save_id)); nxRender(); return; }
+  const tr = e.target.closest("tr[data-id]"); if (!tr) return;
+  const dl = e.target.closest("button[data-dl]"); if (dl) { nxDownload(tr.dataset.id, dl); return; }
+  const x = NX.items.find((i) => i.save_id === tr.dataset.id); if (!x || !nxCanDel(x)) return;
+  NX.sel.has(x.save_id) ? NX.sel.delete(x.save_id) : NX.sel.add(x.save_id); nxRender();
+});
+// 끌어다 놓기 — 관리 창 전체가 받는다
+let nxDragN = 0;
+const nxWin = $("nxWin");
+nxWin.addEventListener("dragenter", (e) => { if (!hasFiles(e)) return; e.preventDefault(); nxDragN++; $("nxDrop").classList.add("on"); });
+nxWin.addEventListener("dragover", (e) => { if (!hasFiles(e)) return; e.preventDefault(); e.dataTransfer.dropEffect = "copy"; });
+nxWin.addEventListener("dragleave", () => { nxDragN = Math.max(0, nxDragN - 1); if (!nxDragN) $("nxDrop").classList.remove("on"); });
+nxWin.addEventListener("drop", (e) => { if (!hasFiles(e)) return; e.preventDefault(); e.stopPropagation(); nxDragN = 0; $("nxDrop").classList.remove("on"); nxAddFiles(e.dataTransfer.files); });
+
+/* ===== 🧪 검증·테스트(REQ-0106) — 표시만 한다. 채점·실행 로직은 서버(golden_*), 기준 문항은 app/agent-templates.json ===== */
+const T = { loaded: false, runs: null, qual: null, tpl: null, busy: false };
+const fmtT = (x) => x ? new Date(x).toLocaleString("ko-KR", { timeZone: "Asia/Seoul", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false }) : "-";
+const pill = (ok, y, n) => `<span class="pill ${ok ? "g" : "r"}">${ok ? y : n}</span>`;
+async function getJson(url) { try { const r = await fetch(url, { cache: "no-cache" }); return r.ok ? await r.json() : null; } catch (e) { return null; } }
+function showTab(name) {
+  document.querySelectorAll("#tabs button").forEach((b) => b.classList.toggle("on", b.dataset.tab === name));
+  $("tabChat").hidden = name !== "chat"; $("tabTest").hidden = name !== "test";
+  if (name === "test" && !T.loaded) { T.loaded = true; loadTest(); }
+  if (name === "chat") $("log").scrollTop = $("log").scrollHeight;
+}
+$("tabs").onclick = (e) => { const b = e.target.closest("button[data-tab]"); if (b) showTab(b.dataset.tab); };
+
+async function loadTest() {
+  const [tpl, qual] = await Promise.all([getJson("/app/agent-templates.json"), getJson("/app/agent-quality.json")]);
+  T.tpl = tpl; T.qual = (qual && qual.agents && qual.agents[AGENT]) || null;
+  renderRounds(); renderScen();
+  if (isOp()) { $("tBtnRun").style.display = ""; await loadRuns(null); }
+  else { $("tRunSel").style.display = "none"; $("tRun").innerHTML = '<div class="hint">자동 회귀 결과는 에이전트 담당자·관리자에게만 보입니다.</div>'; }
+  renderKpi();
+}
+const lastRound = () => (T.qual && T.qual.rounds && T.qual.rounds.length) ? T.qual.rounds[T.qual.rounds.length - 1] : null;
+function renderKpi() {
+  const k = (l, v, s, cls) => `<div class="kpi ${cls || ""}"><div class="l">${l}</div><div class="v">${v}</div><div class="s">${s}</div></div>`;
+  const R = T.runs, done = R ? R.runs.filter((r) => r.finished_at) : [];
+  const cur = done.find((r) => r.version === BOOT.version) || null;
+  const ratio = cur && cur.total ? cur.pass / cur.total : null;
+  const rd = lastRound();
+  let h = "";
+  h += !isOp() ? k("자동 회귀(현재 설정)", "—", "담당자·관리자에게만 보입니다")
+    : k(`자동 회귀 통과 · 현재 설정 v${BOOT.version}`, cur ? `${cur.pass} / ${cur.total}` : "미실행",
+        cur ? `${Math.round(ratio * 100)}% · ${fmtT(cur.finished_at)} 실행` + (R.golden_active !== cur.total ? ` · 지금 문항은 ${R.golden_active}개(그 뒤 바뀜)` : "")
+          : `골든셋 ${R ? R.golden_active : 0}문항 — 아직 돌리지 않았습니다`,
+        ratio == null ? "warn" : ratio < 0.6 ? "bad" : ratio < 0.8 ? "warn" : "good");
+  h += k("지금 답하는 모델", escHtml(BOOT.model || "없음"), BOOT.model_note ? escHtml(BOOT.model_note) : "설정한 기본 모델이 호출 가능 상태입니다", BOOT.model_note ? "warn" : "");
+  if (rd) {
+    const t = rd.total, v = { pass: 0, cond: 0, hold: 0 }; rd.scenarios.forEach((s) => { v[s.verdict] = (v[s.verdict] || 0) + 1; });
+    h += k(`실업무 실측 ${rd.no}회차 · ${escHtml(rd.date)}`, `${t.ok} / ${t.questions}`,
+      `정확 ${t.ok} · 확인 필요 ${t.doubt} · 오답 ${t.wrong} — DB 대조 일치 ${t.sql_match}/${t.sql_match + t.sql_mismatch + t.sql_na}`, t.wrong ? "warn" : "good");
+    h += k("시나리오 판정", `${v.pass} / ${rd.scenarios.length}`, `활용 가능 ${v.pass} · 조건부 ${v.cond} · 투입 보류 ${v.hold} (실측 당시 기준)`, v.hold ? "warn" : "good");
+  } else h += k("실업무 실측", "—", "기록된 회차가 없습니다") + k("시나리오 판정", "—", "");
+  $("tKpi").innerHTML = h;
+}
+
+/* ① 자동 회귀 */
+async function loadRuns(runId) {
+  try {
+    T.runs = await op(AGENT, "golden_runs", runId ? { run_id: runId } : {});
+    const R = T.runs;
+    $("tRunSel").innerHTML = R.runs.length ? R.runs.map((r) => `<option value="${r.id}"${r.id === R.run_id ? " selected" : ""}>#${r.id} · 설정 v${r.version} · ${fmtT(r.started_at)} · ${r.finished_at ? `${r.pass}/${r.total} 통과` : "미완료"}</option>`).join("") : "<option>실행 기록 없음</option>";
+    const one = R.runs.find((r) => r.id === R.run_id);
+    $("tRunInfo").textContent = one ? `실행 ${(one.started_by || "").split("@")[0]} · 비용 $${Number(one.cost_usd || 0).toFixed(4)}` : "";
+    drawResults(R.results);
+  } catch (e) {
+    if (e.message === "login") return;
+    $("tRun").innerHTML = `<div class="hint">회귀 기록을 불러오지 못했습니다: ${escHtml(e.message)}</div>`;
+  }
+}
+function drawResults(res) {
+  if (!res || !res.length) { $("tRun").innerHTML = '<div class="hint">아직 회귀를 돌린 적이 없습니다. 「▶ 지금 회귀 실행」으로 현재 설정을 시험하세요.</div>'; return; }
+  $("tRun").innerHTML = `<div class="cv-tblwrap tst"><table><tr><th>#</th><th>질문 · 에이전트 답변</th><th>조회 기능</th><th>답변 요건</th><th>판정</th><th>모델</th><th class="r">초</th></tr>`
+    + res.map((r) => `<tr><td>${escHtml(String(r.golden_id))}</td>
+      <td>${escHtml(r.question || "")}${r.answer ? `<details><summary>답변 보기</summary><span class="hint">${escHtml(r.answer)}</span></details>` : ""}</td>
+      <td>${pill(r.tools_ok, "맞음", "누락")}<span class="hint">호출: ${escHtml((r.called || []).join(", ") || "없음")}${(r.expect || []).length ? " / 기대: " + escHtml(r.expect.join(", ")) : ""}</span></td>
+      <td>${pill(r.judge, "충족", "미흡")}<span class="hint">${escHtml(r.why || "")}</span></td>
+      <td>${pill(r.pass, "통과", "실패")}</td><td>${escHtml(r.model || "-")}</td><td class="r">${(Number(r.ms || 0) / 1000).toFixed(1)}</td></tr>`).join("")
+    + `</table></div>`;
+}
+$("tRunSel").onchange = (e) => { if (!T.busy && +e.target.value) loadRuns(+e.target.value); };
+// 실제 모델을 부르는 실행이라(약 1분 · 소액 과금 · 대화 기록에 남음) 두 번 눌러 확정한다 — 하루 사용 한도에는 들어가지 않는다
+$("tBtnRun").onclick = async (e) => {
+  const b = e.currentTarget;
+  if (T.busy) return;
+  if (!b.dataset.armed) {
+    b.dataset.armed = "1"; b.textContent = "한 번 더 누르면 실행(약 1분 · 소액 과금)";
+    setTimeout(() => { if (!T.busy) { delete b.dataset.armed; b.textContent = "▶ 지금 회귀 실행"; } }, 4000);
+    return;
+  }
+  T.busy = true; b.disabled = true; $("tRunSel").disabled = true;
+  try {
+    const s = await op(AGENT, "golden_start", { version: BOOT.version });
+    const res = [];
+    for (let i = 0; i < s.golden_ids.length; i++) {
+      b.textContent = `실행 중 ${i + 1}/${s.golden_ids.length}…`;
+      let r;
+      try { r = (await op(AGENT, "golden_one", { run_id: s.run_id, golden_id: s.golden_ids[i] })).result; }
+      catch (err) { r = { golden_id: s.golden_ids[i], question: "(실행 실패) " + err.message, pass: false, tools_ok: false, judge: false, why: "", ms: 0, called: [], expect: [] }; }
+      res.push(r); drawResults(res);
+    }
+    const f = await op(AGENT, "golden_finish", { run_id: s.run_id });
+    toast(`회귀 완료 — ${f.pass}/${f.total} 통과`);
+    await loadRuns(s.run_id); renderKpi();
+  } catch (err) { if (err.message !== "login") toast("회귀 실행 실패: " + err.message); }
+  finally { T.busy = false; b.disabled = false; $("tRunSel").disabled = false; delete b.dataset.armed; b.textContent = "▶ 지금 회귀 실행"; }
+};
+
+/* ② 실업무 실측 회차 — 정본 서술은 12_에이전트관리/05, 화면 요약은 app/agent-quality.json */
+const VERDICT_CLS = { pass: "g", cond: "a", hold: "r" };
+function renderRounds() {
+  const Q = T.qual;
+  if (!Q || !Q.rounds || !Q.rounds.length) { $("tRounds").innerHTML = '<div class="hint">기록된 실측 회차가 없습니다.</div>'; return; }
+  $("tRounds").innerHTML = Q.rounds.slice().reverse().map((rd) => `<div class="hint" style="margin-bottom:4px"><b>${rd.no}회차 · ${escHtml(rd.date)}</b> — ${escHtml(rd.setup)}<br>${escHtml(rd.method)}</div>
+    <div class="cv-tblwrap tst"><table><tr><th>시나리오</th><th>누가 묻나</th><th class="r">문항</th><th class="r">정확</th><th class="r">확인 필요</th><th class="r">오답</th><th class="r">완결성</th><th class="r">유용성</th><th>판정(실측 당시)</th><th>그 뒤 조치</th></tr>`
+    + rd.scenarios.map((s) => `<tr><td>${escHtml(s.title)}</td><td>${escHtml(s.persona)}</td><td class="r">${s.n}</td><td class="r">${s.ok}</td><td class="r">${s.doubt}</td><td class="r">${s.wrong}</td>
+      <td class="r">${s.complete}</td><td class="r">${s.useful}</td><td><span class="pill ${VERDICT_CLS[s.verdict] || ""}">${escHtml(s.verdict_ko)}</span><span class="hint">${escHtml(s.why)}</span></td><td>${escHtml(s.fixed || "-")}</td></tr>`).join("")
+    + `<tr><th>합계</th><th></th><th class="r">${rd.total.questions}</th><th class="r">${rd.total.ok}</th><th class="r">${rd.total.doubt}</th><th class="r">${rd.total.wrong}</th><th></th><th></th><th colspan="2">발견 ${rd.findings.p1 + rd.findings.p2 + rd.findings.p3}건(중대 ${rd.findings.p1})</th></tr></table></div>
+    <div class="hint">${escHtml(rd.findings.fixed_note)}</div>
+    <div class="hint"><b>다음 회차 조건</b> — ${rd.next.map(escHtml).join(" / ")}</div>`).join('<hr style="border:0;border-top:1px dashed var(--line);margin:10px 0">')
+    + `<div class="hint" style="margin-top:6px">발견·조치 전문: <a href="${escHtml(Q.doc)}" target="_blank" rel="noopener">품질테스트 문서 ↗</a></div>`;
+}
+
+/* ③ 표준 시나리오 — 정본 app/agent-templates.json(이 부서 + 공통) */
+function scenList() {
+  const d = T.tpl; if (!d) return [];
+  const dom = Object.values(d.domains || {}).find((x) => x && x.agent_key === AGENT);
+  return [...((dom && dom.test_scenarios) || []), ...((d.common && d.common.test_scenarios) || [])];
+}
+function renderScen() {
+  const list = scenList(), rd = lastRound();
+  if (!list.length) { $("tScen").innerHTML = '<div class="hint">표준 시나리오를 불러오지 못했습니다.</div>'; return; }
+  const last = (id) => rd && rd.scenarios.find((s) => s.id === id);
+  $("tScen").innerHTML = list.map((s, si) => {
+    const lv = last(s.id);
+    return `<div class="scen"><h4>${escHtml(s.id)} · ${escHtml(s.title)}${lv ? ` <span class="pill ${VERDICT_CLS[lv.verdict] || ""}">${rd.no}회차 ${escHtml(lv.verdict_ko)}</span>` : ""}</h4>
+    <div class="hint">${escHtml(s.persona)} — 통과 기준: ${escHtml(s.pass)}</div>
+    <ol>${s.questions.map((q, qi) => `<li>${escHtml(q.q)}${q.q.includes("<") || q.q.startsWith("[") ? "" : `<button type="button" data-si="${si}" data-qi="${qi}">대화로 시험</button>`}<span class="hint">기대: ${escHtml(q.expect || "")}</span></li>`).join("")}</ol></div>`;
+  }).join("");
+}
+$("tScen").onclick = (e) => {
+  const b = e.target.closest("button[data-si]"); if (!b) return;
+  const q = scenList()[+b.dataset.si].questions[+b.dataset.qi];
+  $("inp").value = q.q; showTab("chat"); $("inp").focus();
+};
+
+/* ===== 진입 — 서버가 구성원·관리자 판정(403 이면 차단 화면) ===== */
+(async () => {
+  if (!auth()) { toLogin(); return; }
+  try {
+    BOOT = await op(AGENT, "boot");
+  } catch (e) {
+    if (e.message === "login") return;
+    if (e.status === 403) block("🔒", "DRI 분석·생성 에이전트 파일럿 구성원 전용입니다", "지금은 파일럿 기간이라 지정된 구성원만 사용할 수 있습니다.<br>필요하면 포털 관리자에게 요청하세요.");
+    else block("⚠️", "DRI 분석·생성 에이전트를 열지 못했습니다", escHtml(e.message));
+    return;
+  }
+  const A = BOOT.agent;
+  $("icon").textContent = A.icon || "🖼"; $("title").textContent = A.name;
+  $("status").textContent = { pilot: "파일럿", live: "운영", dev: "개발" }[A.status] || A.status;
+  if (A.status === "pilot") $("status").classList.add("pilot");
+  if (A.summary) $("summary").textContent = A.summary;
+  $("notice").firstChild.textContent = A.collect
+    ? `ℹ️ 품질 개선을 위해 질문과 답변이 기록됩니다(${A.retention_days}일 보관 · 담당자만 열람). 조회 결과(금액 목록 등)는 기록하지 않습니다. `
+    : "ℹ️ 이 에이전트는 대화를 기록하지 않습니다. ";
+  $("me").innerHTML = `${escHtml(BOOT.me.dept || "")} · ${escHtml(BOOT.me.name || "")}<br><small>오늘 ${BOOT.today.used}/${BOOT.today.limit}회 · ${escHtml({ reviewer: "관리자", operator: "담당자", user: "사용자" }[BOOT.role] || "")}</small>`;
+  if (isOp()) { $("opBox").style.display = ""; $("ver").textContent = `설정 v${BOOT.version} · ${BOOT.model || "모델 없음"}${BOOT.model_note ? " — " + BOOT.model_note : ""}`; }
+  $("chips").innerHTML = (A.suggestions || []).map((s) => `<span class="chip" data-q="${escHtml(s.q)}">${escHtml(s.label)}</span>`).join("");
+  unhide();
+  loadArts(); loadNas();
+  // 주소에 ?tab=test 가 있으면 검증·테스트 탭으로 바로 연다(포털·문서에서 건너올 때)
+  if (new URLSearchParams(location.search).get("tab") === "test") showTab("test");
+})();
+</script>
+</body></html>

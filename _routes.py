@@ -26,6 +26,7 @@ ROUTES = {
     "/work/purchase-list":      "pages/구매_발주통합LIST_2026.html",
     "/work/purchase-proposals": "pages/구매_기안서대장_2026.html",
     "/work/purchase-agent":     "pages/구매_AI에이전트_2026.html",   # 구매 에이전트(REQ-0087 · 14 기획) — 파일럿 구성원·관리자(서버 판정)
+    "/work/bizops-dri":         "pages/사업운영_DRI분석생성_2026.html",   # 사업운영팀 DRI 분석·생성 에이전트(REQ-0110 · 준비 단계) — 파일럿 구성원·관리자(서버 판정)
     "/work/hr-payroll":         "pages/인사_인원급여추이_2026.html",
     "/work/inventory":          "pages/자재물류_재고입출고_2026.html",
     "/work/subcon-inspection":  "pages/외주발주_검사진행현황_2026.html",
@@ -164,6 +165,7 @@ ROUTES = {
     "/docs/agents/quality-test":        "문서/12_에이전트관리/05_품질테스트_대화검증.html",   # 실업무 대화 실측(REQ-0094 · 2026-09-30)
     "/docs/agents/templates":           "문서/12_에이전트관리/06_에이전트_템플릿_관리포인트.html",  # 템플릿·관리 포인트 생성본(정본 app/agent-templates.json)
     "/docs/agents/integration-test":    "문서/12_에이전트관리/07_통합실측_구매에이전트_NAS연계_2026-10-06.html",  # 구매 에이전트·NAS 연계 통합 실측 보고서
+    "/docs/agents/dri-plan":            "문서/12_에이전트관리/08_DRI분석생성_에이전트_기획.html",  # 사업운영팀 DRI 분석·생성 에이전트 기획(REQ-0110)
     "/docs/nas":                        "문서/13_NAS_고도화/index.html",            # 사내 NAS 연계 검토·기획 허브(2026-09-29)
     "/docs/nas/review":                 "문서/13_NAS_고도화/00_NAS연계_타당성검토.html",
     "/docs/nas/plan":                   "문서/13_NAS_고도화/01_NAS_데이터계층_기획.html",
