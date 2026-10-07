@@ -1,5 +1,11 @@
 // core/engine.ts — 대화 루프 1개(실험실 · 부서 에이전트 · 골든셋 회귀가 공유). REQ-0084 의 index.ts 루프를 옮겼다(동작 동일)
 // + 벤더 선택·예비 모델 전환·Claude 캐시 토큰·thinking 원문 되돌리기(REQ-0085)를 더했다.
+// + 라운드 마무리 규칙(REQ-0114 · 2026-10-07):
+//   ① 마지막 라운드·반복 감지 뒤에는 도구 정의를 **그대로 두고** 호출만 막는다(tool_choice none) + 「지금까지 결과로 답하라」 안내문.
+//      예전에는 tools 를 아예 빼고 보냈다 — Claude 는 대화에 tool_use 가 남아 있으면 tools 가 없는 요청을 400 으로 거부한다(09-30 메모 · 2단계 3항).
+//      OpenAI 로만 돌던 날에는 안 터졌지만 크레딧 충전 뒤 첫 4라운드 대화에서 터질 결함이었다.
+//   ② 같은 조회 반복은 조용히 끊지 않는다 — 안내문을 넣고 도구 없이 한 라운드 더 돌려 답을 받는다(끊으면 사용자는 빈 답을 본다).
+//   ③ 도구 결과가 12,000자를 넘어 잘리면 잘렸다는 표시를 붙인다(모델이 「이게 전부」라고 믿고 합산하지 않게 — 05 F-4).
 import type { ErpScope, ToolModule } from "./types.ts";
 import { gateDeny } from "./scope.ts";
 import { ADAPTERS, type ChatMsg, type StreamState } from "../llm/index.ts";
@@ -28,6 +34,12 @@ export type ConverseOpts = {
   onNote?: (o: Record<string, unknown>) => Promise<void>;   // 모델 오류·반복 중단·예비 전환
 };
 
+/** 도구 결과를 모델에 넘기는 글자 상한 — 넘으면 앞부분만 + 잘림 표시. */
+export const TOOL_RESULT_MAX = 12000;
+/** 마무리 라운드 안내문(사용자 메시지로 들어간다 — 두 벤더 모두 받는 형식). */
+export const NUDGE_LIMIT = "[안내] 도구 호출 한도에 도달했습니다. 더 조회하지 말고 지금까지의 결과로 답하세요. 확인하지 못한 항목은 그렇다고 밝히세요.";
+export const NUDGE_LOOP = "[안내] 직전과 같은 조회를 반복했습니다. 같은 조회는 다시 하지 말고 지금까지의 결과로 답하세요.";
+
 /** 결과에서 건수·결과 유형을 뽑는다(추적·턴 기록용). */
 export function outcomeOf(result: unknown, view: unknown): { outcome: string; rows: number | null } {
   // deno-lint-ignore no-explicit-any
@@ -39,6 +51,14 @@ export function outcomeOf(result: unknown, view: unknown): { outcome: string; ro
     : Array.isArray(r.목록) ? r.목록.length
     : typeof r.건수 === "number" ? r.건수 : null;
   return { outcome: n === 0 ? "empty" : "ok", rows: n };
+}
+
+/** 모델에 넘길 도구 결과 글자 — 상한을 넘으면 잘라 내고 잘렸다는 표시를 붙인다. */
+export function clipToolResult(result: unknown, max = TOOL_RESULT_MAX): string {
+  const full = JSON.stringify(result);
+  if (full.length <= max) return full;
+  return full.slice(0, max) +
+    ` …[결과 잘림: 전체 ${full.length.toLocaleString()}자 중 앞 ${max.toLocaleString()}자만 전달됨 — 건수·합계는 결과 안의 요약 값만 쓰고, 목록은 일부만 보인다고 밝힐 것]`;
 }
 
 export async function converse(o: ConverseOpts): Promise<ConverseResult> {
@@ -55,17 +75,26 @@ export async function converse(o: ConverseOpts): Promise<ConverseResult> {
   let emitted = false;
   const emit = async (c: string) => { emitted = true; answer += c; if (o.emit) await o.emit(c); };
   const convo: ChatMsg[] = [{ role: "system", content: o.system }, ...o.messages];
+  const toolDefs = o.modules.map((m) => m.manifest);
   let lastSig = "";
+  let forceAnswer: string | null = null;   // 반복 감지 → 다음 라운드는 이 안내문을 넣고 도구 없이 답만 받는다
+  let extraRound = 0;                       // 마지막 라운드에서 반복이 감지되면 마무리 라운드 1회를 더 준다
 
-  for (let round = 0; round < o.maxRounds; round++) {
+  for (let round = 0; round < o.maxRounds + extraRound; round++) {
     if (o.isGone && o.isGone()) { stopped = true; break; }
     rounds = round + 1;
-    const lastRound = round === o.maxRounds - 1;
+    const lastRound = round >= o.maxRounds - 1;
+    // 마무리 라운드 = 마지막 라운드 또는 반복 감지 뒤. 도구 정의는 그대로, 호출만 막는다(예전 「tools 없이 호출」과 같은 뜻 · maxRounds 1 이면 처음부터 답만).
+    // 안내문은 앞서 도구를 썼을 때(round > 0)나 반복 감지 때만 넣는다 — 도구 결과가 없는데 「지금까지 결과로 답하라」고 하지 않게.
+    const answerOnly = !!forceAnswer || lastRound;
+    if (forceAnswer || (lastRound && round > 0)) convo.push({ role: "user", content: forceAnswer || NUDGE_LIMIT });
+    forceAnswer = null;
+    const toolChoice: "auto" | "none" = answerOnly ? "none" : "auto";
     state.toolCalls = {};
     let adapter = ADAPTERS[vendor];
     let apiKey = adapter ? Deno.env.get(adapter.keyEnv) : undefined;
     let r = adapter && apiKey
-      ? await adapter.round({ apiKey, model, messages: convo, tools: lastRound ? null : o.modules.map((m) => m.manifest),
+      ? await adapter.round({ apiKey, model, messages: convo, tools: toolDefs, toolChoice,
           maxTokens: o.maxTokens, temperature: o.temperature, effort: o.effort, caching: o.caching, signal: o.signal, emit, state })
       : { ok: false, status: 503, detail: `${vendor} 키 미등록` };
     // 예비 모델 — 아직 아무것도 내보내지 않았고 첫 라운드에서 실패했을 때만 1회 전환(대화 중간에 벤더를 바꾸면 도구 턴 형식이 어긋난다)
@@ -78,7 +107,7 @@ export async function converse(o: ConverseOpts): Promise<ConverseResult> {
         if (o.onNote) await o.onNote({ type: "fallback", from: model, to: o.fallbackModel, status: r.status, detail: r.detail.slice(0, 200) });
         model = o.fallbackModel; vendor = fbVendor; adapter = fb; apiKey = fbKey; fallbackUsed = true;
         state.toolCalls = {};
-        r = await adapter.round({ apiKey, model, messages: convo, tools: lastRound ? null : o.modules.map((m) => m.manifest),
+        r = await adapter.round({ apiKey, model, messages: convo, tools: toolDefs, toolChoice,
           maxTokens: o.maxTokens, temperature: fbVendor === "openai" ? (o.temperature ?? 0.3) : null, effort: null,
           caching: o.caching, signal: o.signal, emit, state });
       }
@@ -96,7 +125,13 @@ export async function converse(o: ConverseOpts): Promise<ConverseResult> {
     const calls = Object.values(state.toolCalls).filter((c) => c.name);
     if (!calls.length) break;
     const sig = calls.map((c) => c.name + ":" + c.args).sort().join("|");
-    if (sig === lastSig) { if (o.onNote) await o.onNote({ type: "loop_stop", round: rounds }); break; }
+    if (sig === lastSig) {
+      // 직전과 같은 호출 — 실행하지 않고, 다음 라운드를 「도구 없이 답만」으로 돌린다(마지막 라운드였다면 1회 더).
+      if (o.onNote) await o.onNote({ type: "loop_stop", round: rounds });
+      forceAnswer = NUDGE_LOOP;
+      if (lastRound) extraRound = 1;
+      continue;
+    }
     lastSig = sig;
     convo.push({ role: "assistant_tools", calls, raw: state.raw || null });
     for (const c of calls) {
@@ -119,7 +154,7 @@ export async function converse(o: ConverseOpts): Promise<ConverseResult> {
       const ro = result as Record<string, unknown> | null;
       const view = ro && typeof ro === "object" ? ro.__view : null;
       if (ro && view) { delete ro.__view; if (o.onView) await o.onView(view); }
-      const modelText = JSON.stringify(result).slice(0, 12000);
+      const modelText = clipToolResult(result);
       const oc = outcomeOf(result, view);
       const t: ToolTrace = { round: rounds, tool: c.name, version: mod?.manifest.version ?? null, kind: mod?.manifest.kind ?? null,
         perm_module: mod?.manifest.perm_module ?? null, args, ms, outcome: oc.outcome, rows: oc.rows, gated, has_view: !!view,

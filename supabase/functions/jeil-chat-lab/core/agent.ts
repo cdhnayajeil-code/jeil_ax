@@ -2,7 +2,7 @@
 //   에이전트 = 프로필(ai_agent) + 설정 버전(ai_agent_version) + 구성원(ai_agent_member) + 용어집(agent_glossary).
 //   게이트웨이는 이 파일로 "누가 · 어느 에이전트를 · 어느 버전으로" 쓰는지 정하고, 나머지(권한·도구·어댑터)는 그대로 공유한다.
 import type { ErpScope, ToolManifest, ToolModule } from "./types.ts";
-import { assemblePrompt, type PromptParts } from "./prompt.ts";
+import { assemblePrompt, todayPart, type PromptParts } from "./prompt.ts";
 
 export type AgentRow = {
   agent_key: string; name_ko: string; summary_ko: string | null; icon: string | null; dept_nm: string | null;
@@ -55,24 +55,26 @@ export function agentModules(all: ToolModule[], v: AgentVersion): ToolModule[] {
   return all.filter((m) => m.manifest.status !== "off" && doms.has(m.manifest.domain) && !off.has(m.manifest.id));
 }
 
-/** 에이전트 프롬프트 = 역할 안내 + 답변 원칙 + 공통 머리말(정체 문장 제외) + 모듈 문구 + 용어집 + 오늘 날짜(가장 끝 — 캐시 앞부분을 흔들지 않게). */
+/** 에이전트 프롬프트 = 역할 안내 + 이 부서의 답변 원칙 + 공통 머리말(정체 문장 제외 · 답변/도구/안전 절) + ERP·도메인·모듈 문구
+ *  + 용어집 + 파일 보관 안내 + 오늘 날짜(가장 끝 — 캐시 앞부분을 흔들지 않게).
+ *  순서가 곧 우선순위다: 부서 원칙이 공통 원칙보다 앞에 온다(같은 주제면 부서 원칙이 더 구체적). REQ-0114 에서 절(■) 구조로 통일. */
 export function agentPrompt(agent: AgentRow, v: AgentVersion, mods: ToolManifest[], glossary: { term: string; meaning: string }[],
   denied: { id: string; title_ko: string }[], todayKst: string): PromptParts {
   const parts: PromptParts = [];
-  if (v.role_prompt.trim()) parts.push({ key: "agent.role", label: `역할 안내 · ${agent.name_ko} v${v.version}`, text: v.role_prompt.trim() });
-  if (v.answer_rules.trim()) parts.push({ key: "agent.rules", label: "답변 원칙", text: "답변 원칙:\n" + v.answer_rules.trim() });
-  // 공통 머리말 첫 문장(jeil-chat 정체)은 에이전트 역할 안내와 겹치므로 뺀다
-  assemblePrompt(mods, denied).filter((p) => p.key !== "common.0").forEach((p) => parts.push(p));
+  if (v.role_prompt.trim()) parts.push({ key: "agent.role", label: `역할 안내 · ${agent.name_ko} v${v.version}`, text: "■ 역할\n" + v.role_prompt.trim() });
+  if (v.answer_rules.trim()) parts.push({ key: "agent.rules", label: "이 부서의 답변 원칙", text: "■ 이 부서의 답변 원칙\n" + v.answer_rules.trim() });
+  // 공통 머리말의 정체 문장(jeil-chat)은 에이전트 역할 안내와 겹치므로 뺀다. 오늘 날짜는 맨 끝에 따로 붙인다(todayKst 를 넘기지 않는다)
+  assemblePrompt(mods, denied).filter((p) => p.key !== "common.identity").forEach((p) => parts.push(p));
   if (glossary.length) {
     parts.push({ key: "agent.glossary", label: `용어집 ${glossary.length}개`,
-      text: "이 부서에서 쓰는 용어:\n" + glossary.map((g) => `- ${g.term}: ${g.meaning}`).join("\n") });
+      text: "■ 이 부서에서 쓰는 용어\n" + glossary.map((g) => `- ${g.term}: ${g.meaning}`).join("\n") });
   }
   // 파일 보관 안내(REQ-0108) — 모델은 저장하지 못한다. 저장은 사용자가 화면 버튼으로 한다는 사실만 알려 준다
   parts.push({ key: "agent.files", label: "파일 보관 안내", text: FILE_NOTE });
-  parts.push({ key: "agent.today", label: "오늘 날짜", text: `오늘은 ${todayKst}(한국시간)입니다. '이번 달'·'올해'는 이 날짜 기준입니다.` });
+  parts.push({ ...todayPart(todayKst), key: "agent.today" });
   return parts;
 }
-const FILE_NOTE = "파일 보관: 사용자가 붙인 첨부 파일과 자료함의 자료는 사용자가 직접 버튼으로 부서 NAS 폴더(AI저장)에 보관할 수 있습니다 — 첨부는 보낸 메시지의 파일 이름 옆 「🗄 NAS 저장」, 자료함은 항목의 「NAS」 버튼입니다(기본 3년 보존, 부서 구성원 공유). "
+const FILE_NOTE = "■ 파일 보관\n사용자가 붙인 첨부 파일과 자료함의 자료는 사용자가 직접 버튼으로 부서 NAS 폴더(AI저장)에 보관할 수 있습니다 — 첨부는 보낸 메시지의 파일 이름 옆 「🗄 NAS 저장」, 자료함은 항목의 「NAS」 버튼입니다(기본 3년 보존, 부서 구성원 공유). "
   + "당신은 파일을 직접 저장·삭제할 수 없습니다. 저장을 요청받으면 그 버튼을 누르라고 안내하고, 버튼을 누르지 않은 첨부는 어디에도 저장되지 않으며 대화 기록에는 파일 이름만 남는다고 사실대로 답하세요. "
   + "저장됐는지는 화면 오른쪽 「부서 NAS 보관함」에서 확인한다고 안내하세요.";
 export const joinAgentPrompt = (p: PromptParts) => p.map((x) => x.text).join("\n\n");

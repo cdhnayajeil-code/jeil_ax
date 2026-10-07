@@ -59,7 +59,7 @@ const isHaiku = (model: string) => model.startsWith("claude-haiku");
 export const anthropicAdapter: LlmAdapter = {
   vendor: "anthropic",
   keyEnv: "ANTHROPIC_API_KEY",
-  async round({ apiKey, model, messages, tools, maxTokens, effort, caching, signal, emit, state }: RoundOpts) {
+  async round({ apiKey, model, messages, tools, toolChoice, maxTokens, effort, caching, signal, emit, state }: RoundOpts) {
     state.raw = null; state.stop = null;
     // 워크스페이스에 묶이지 않은 키(조직 단위)는 anthropic-workspace-id 헤더가 있어야 400 이 안 난다(09-30 실측).
     // 기본 처방은 워크스페이스 키로 교체(헤더 불필요) — 시크릿 ANTHROPIC_WORKSPACE_ID 가 있을 때만 붙인다.
@@ -69,7 +69,8 @@ export const anthropicAdapter: LlmAdapter = {
     const params: Block = {
       model, max_tokens: maxTokens, messages: msgs,
       system: [{ type: "text", text: system, ...(caching !== false ? { cache_control: { type: "ephemeral" } } : {}) }],
-      ...(tools && tools.length ? { tools: toClaudeTools(tools) } : {}),
+      // 마무리 라운드(REQ-0114): 도구 정의는 남기고 호출만 막는다 — tools 를 빼면 앞 턴의 tool_use 때문에 400
+      ...(tools && tools.length ? { tools: toClaudeTools(tools), ...(toolChoice === "none" ? { tool_choice: { type: "none" } } : {}) } : {}),
       ...(!isHaiku(model) && effort ? { output_config: { effort } } : {}),
     };
     try {

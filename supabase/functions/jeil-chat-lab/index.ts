@@ -38,6 +38,7 @@ import { EXTRA_MODULES } from "./modules/extra.ts";
 import { MODULE_KO } from "./core/util.ts";
 import { converse } from "./core/engine.ts";
 import { handleAgent } from "./core/agent_api.ts";
+import { todayKst } from "./core/agent.ts";
 
 /** 등록 모듈 = 운영에서 옮긴 19종(자동 생성) + 손으로 쓴 모듈(부서 에이전트). */
 const MODULES: ToolModule[] = [...PORTED, ...EXTRA_MODULES];
@@ -107,7 +108,8 @@ function buildPrompt(lab: LabOpts, injected: ToolModule[], excluded: { id: strin
   if (lab.prompt_mode === "db") return { text: dbPrompt, parts: [{ key: "db", label: "운영 DB 프롬프트(ai_gateway_config)", text: dbPrompt }] };
   if (lab.prompt_mode === "code") return { text: LEGACY_SYSTEM_PROMPT, parts: [{ key: "code", label: "운영 코드 상수(SYSTEM_PROMPT)", text: LEGACY_SYSTEM_PROMPT }] };
   const denied = excluded.filter((e) => e.reason.startsWith("권한 없음"));
-  const parts = assemblePrompt(injected.map((m) => m.manifest), denied);
+  // 오늘 날짜를 맨 끝에 붙인다(REQ-0114) — 「이번 달」 해석이 모델 지식이 아니라 서버 날짜를 따르게
+  const parts = assemblePrompt(injected.map((m) => m.manifest), denied, todayKst());
   return { text: joinPrompt(parts), parts };
 }
 

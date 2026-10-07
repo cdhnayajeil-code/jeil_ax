@@ -113,7 +113,7 @@ async function pump(body: ReadableStream<Uint8Array>, emit: (c: string) => Promi
 export const openaiAdapter: LlmAdapter = {
   vendor: "openai",
   keyEnv: "OPENAI_API_KEY",
-  async round({ apiKey, model, messages, tools, maxTokens, temperature, signal, emit, state }) {
+  async round({ apiKey, model, messages, tools, toolChoice, maxTokens, temperature, signal, emit, state }) {
     state.raw = null; state.stop = null;
     // 400 이면 요청 모양을 고쳐 최대 3회까지 다시 보낸다(temperature → max_completion_tokens → reasoning_effort). 그 외 오류는 그대로 돌려준다.
     let shape = oaShape(model);
@@ -139,7 +139,8 @@ export const openaiAdapter: LlmAdapter = {
           ...(sh.temp && temperature != null ? { temperature } : {}),
           ...(sh.reasoning ? { reasoning_effort: sh.reasoning } : {}),   // 학습된 뒤에는 도구 유무와 무관하게 유지
           stream_options: { include_usage: true },
-          ...(tools && tools.length ? { tools: toOpenAiTools(tools) } : {}),
+          // 마무리 라운드(REQ-0114): 도구 정의는 남기고 호출만 막는다(Claude 어댑터와 같은 규칙)
+          ...(tools && tools.length ? { tools: toOpenAiTools(tools), ...(toolChoice === "none" ? { tool_choice: "none" } : {}) } : {}),
         }),
       });
     }

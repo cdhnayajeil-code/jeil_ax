@@ -43,7 +43,7 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <body>
 <div class="page">
   <span class="doc-label">JEIL AX 에이전트관리 · 대외비</span>
-  <div class="docnav"><a href="/docs/agents">🏠 에이전트관리 허브</a><a href="/docs/agents/status">00 현재상태</a><a href="/docs/agents/ops-guide">01 운영가이드</a><a class="cur" href="/docs/agents/dev-guide">02 개발가이드</a><a href="/docs/agents/progress">03 진행상태</a><a href="/docs/agents/purchase-domain">04 구매도메인</a><a href="/docs/agents/quality-test">05 품질테스트</a><a href="/docs/agents/templates">06 템플릿·관리포인트</a><a href="/docs/agents/dri-plan">08 DRI 에이전트 기획</a><a href="README.md">README</a></div>
+  <div class="docnav"><a href="/docs/agents">🏠 에이전트관리 허브</a><a href="/docs/agents/status">00 현재상태</a><a href="/docs/agents/ops-guide">01 운영가이드</a><a class="cur" href="/docs/agents/dev-guide">02 개발가이드</a><a href="/docs/agents/progress">03 진행상태</a><a href="/docs/agents/purchase-domain">04 구매도메인</a><a href="/docs/agents/quality-test">05 품질테스트</a><a href="/docs/agents/templates">06 템플릿·관리포인트</a><a href="/docs/agents/dri-plan">08 DRI 에이전트 기획</a><a href="/docs/agents/prompt-tuning">09 지시문·오케스트레이션</a><a href="README.md">README</a></div>
   <p class="md-link">📄 Markdown 원본: <a href="02_개발가이드.md">02_개발가이드.md</a> · 허브 <a href="/docs/agents">에이전트관리 허브</a></p>
   <div class="content">
 <h1 id="02">02 · 개발가이드 — 코드 지도와 확장 절차</h1>
@@ -56,7 +56,10 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
     index.ts ─┬─ body.agent 있음 → core/agent_api.ts  (역할 판정 · op 처리 · 대화 SSE · 턴 기록)
               └─ 없음 → 실험실(전체관리자 전용)
     core/engine.ts   대화 루프 1개(실험실·에이전트·골든셋 공유) · 예비 모델 전환 · 2차 권한 게이트
-    core/agent.ts    프로필·버전·역할(roleOf)·도구 묶음·프롬프트 조립·자동 판정(turnFlags)
+                     · 마무리 라운드 규칙(REQ-0114): 마지막 라운드·반복 감지 → tools 유지 + tool_choice none + [안내] 메시지 · 결과 12,000자 잘림 표시
+    core/prompt.ts   ★지시문 정본 — 공통 절(정체·답변·도구·안전) · ERP · 도메인 안내(needs: 그 도구가 켜져 있을 때만) · 모듈 prompt_hint · 오늘 날짜(끝)
+                     운영 챗봇 DB 지시문도 여기서 생성(`node _gen_gateway_prompt.mjs` → 정본 SQL 94). 고치면 `node _test_prompt_assembly.mjs`
+    core/agent.ts    프로필·버전·역할(roleOf)·도구 묶음·에이전트 프롬프트 순서(역할 → 부서 원칙 → 공통 → 용어집 → 파일 → 날짜)·자동 판정(turnFlags)
     core/scope.ts    perm_effective 권한(ADR-010) · gateDeny · visibleTo
     core/config.ts   ai_model·ai_gateway_config 로드 · usableModels · costOf
     llm/index.ts     ADAPTERS{openai, anthropic} · readyVendors(키 등록된 벤더만)
@@ -94,7 +97,9 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 </ol>
 <h2 id="4">4. 검증과 배포</h2>
 <ul>
-<li>타입 검사: 이 PC 에 Deno 가 없어 TypeScript strict 로 대신한다(스크래치에 <code>typescript</code>·<code>@anthropic-ai/sdk</code>·<code>@supabase/supabase-js</code> 설치, Deno 전역과 <code>npm:</code>/<code>jsr:</code> 모듈은 shim 선언). 자동생성 모듈 2건(<code>get_erp_pur_req</code>·<code>get_erp_receipt_pending</code> 암시적 any)은 알려진 경고.</li>
+<li>타입 검사: 이 PC 에 Deno 가 없어 TypeScript strict 로 대신한다(스크래치에 <code>typescript</code>·<code>@anthropic-ai/sdk</code>·<code>@supabase/supabase-js</code> 설치, Deno 전역과 <code>npm:</code>/<code>jsr:</code> 모듈은 shim 선언). 자동생성 모듈 2건(<code>get_erp_pur_req</code>·<code>get_erp_receipt_pending</code> 암시적 any)은 알려진 경고.
+  빠른 길: <code>npx -y -p typescript@5.6 tsc --noEmit --target es2022 --module esnext --moduleResolution bundler --allowImportingTsExtensions --skipLibCheck --lib es2022,dom &lt;파일들&gt;</code> — <code>TS2307</code>(npm:/jsr:)·Deno 전역 외 오류가 없으면 된다(가져오기 누락이 운영 도구 오류로 터진 v20 사례).</li>
+<li>지시문 회귀: <code>node _test_prompt_assembly.mjs</code> — 안내 문장의 도구 이름 전수 존재 · 조립 순서 · needs 필터 · 템플릿 key⊂text · 엔진/어댑터 마무리 규칙 · 정본 SQL 94 동기화(REQ-0114). <code>core/prompt.ts</code>·<code>agent.ts</code>·<code>engine.ts</code>·<code>llm/*</code>·<code>app/agent-templates.json</code> 을 고치면 반드시 돌린다. OpenAI 400 적응 사본은 <code>node _test_oa_shape.mjs</code>.</li>
 <li>화면 스크립트: <code>&lt;script type="module"&gt;</code> 을 뽑아 <code>node --check</code>.</li>
 <li>렌더 모듈: jsdom 으로 <code>renderMd</code>·<code>attachCodeActions</code>·<code>stripActive</code> 동작 확인.</li>
 <li>배포: <code>python supabase/_deploy_function.py jeil-chat-lab --multi</code>(폴더 안 .ts 전부 업로드 · <code>.env</code> 는 Python 으로만 읽는다 — CLAUDE.md §1.8).</li>

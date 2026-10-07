@@ -30,6 +30,9 @@ export type LlmRoundResult = { ok: boolean; status: number; detail: string };
 
 export type RoundOpts = {
   apiKey: string; model: string; messages: ChatMsg[]; tools: ToolManifest[] | null;
+  /** "none" = 도구 정의는 보내되 호출은 막는다(마무리 라운드 · REQ-0114). Claude 는 대화에 tool_use 가 남아 있으면 tools 없는 요청을 400 으로 거부하므로
+   *  마지막 라운드에 tools 를 빼는 대신 이 값을 쓴다. 생략·"auto" = 모델이 고른다. */
+  toolChoice?: "auto" | "none";
   maxTokens: number;
   temperature: number | null;       // 벤더·모델이 받지 않으면 어댑터가 버린다(Claude Sonnet 5)
   effort?: string | null;           // Claude 추론강도(low~max). OpenAI 는 무시
