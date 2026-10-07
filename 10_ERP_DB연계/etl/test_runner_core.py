@@ -185,6 +185,23 @@ class TestParams(unittest.TestCase):
         self.assertEqual(core.resolve_params({"kind": "relay_queue", "params": {"max": 999}}, {})["max"], 50)
         self.assertEqual(core.resolve_params({"kind": "relay_queue", "params": {"max": "x"}}, {})["max"], 5)
 
+    def test_proposal_ledger_params_reach_the_child(self):
+        """REQ-0098 — r1.6~r1.11 은 분기가 없어 네 값이 전부 버려졌다(창의 「리허설」을 켜도 실제 적재)."""
+        p = core.resolve_params({"kind": "proposal_ledger",
+                                 "params": {"dry_run": True, "file": ' "C:\\x\\대장.xlsx" ', "append": "on", "x": 1}}, {})
+        self.assertEqual(p, {"file": "C:\\x\\대장.xlsx", "scan": "", "dry_run": True, "append": True})
+        self.assertEqual(set(p), set(core.PARAM_KEYS["proposal_ledger"]), "선언한 키와 같은 집합이어야 한다")
+        # 비워 두면 종전 동작 — 경로는 .env, 실제 적재, 전량 교체
+        self.assertEqual(core.resolve_params({"kind": "proposal_ledger", "params": {}}, {}),
+                         {"file": "", "scan": "", "dry_run": False, "append": False})
+        self.assertEqual(core.resolve_params({"kind": "proposal_ledger", "params": {"dry_run": "off", "file": None}}, {})["dry_run"], False)
+
+    def test_every_kind_resolves_its_declared_keys(self):
+        """새 작업 종류를 PARAM_KEYS 에만 적고 resolve_params 분기를 빠뜨리면 여기서 걸린다(REQ-0098 의 원인)."""
+        for kind, keys in core.PARAM_KEYS.items():
+            p = core.resolve_params({"kind": kind, "params": {}}, {"supabase": True})
+            self.assertEqual(set(p), set(keys), "%s: 선언한 키 %r ≠ 확정된 키 %r" % (kind, keys, tuple(p)))
+
     def test_env_file_parse(self):
         d = _tmp(self)
         with io.open(os.path.join(d, ".env"), "w", encoding="utf-8") as f:
@@ -838,6 +855,96 @@ class TestEtlWatch(unittest.TestCase):
         w._DUE_NOTIFIED_AT = 0.0                 # 새 자식 프로세스 흉내
         w.notify_due_schedules("u", "k")
         self.assertEqual(len(sent), 1, "6시간 안에는 다시 보내지 않는다(파일 기준)")
+
+
+# ─────────────────────────────── etl_run 증분 조합(가짜 pyodbc) ───────────────────────────────
+import etl_run as er  # noqa: E402
+
+
+class _FakeCursor:
+    """execute 에 들어온 SQL·바인딩만 기록하고 행은 돌려주지 않는다."""
+    def __init__(self, log):
+        self.log = log
+        self.description = [("po_no",)]
+
+    def execute(self, sql, *params):
+        self.log.append((sql, params))
+
+    def __iter__(self):
+        return iter(())
+
+
+class _FakeConn:
+    def __init__(self, log):
+        self.log = log
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *a):
+        return False
+
+    def cursor(self):
+        return _FakeCursor(self.log)
+
+
+class TestEtlRunIncrement(unittest.TestCase):
+    """증분 조건의 `?` 개수만큼 watermark 를 채운다(REQ-0113 · B안) — ERP 에는 붙지 않는다(pyodbc 가짜 · dry-run)."""
+
+    def _patch(self, obj, name, value):
+        old = getattr(obj, name)
+        setattr(obj, name, value)
+        self.addCleanup(setattr, obj, name, old)
+
+    def setUp(self):
+        self.log = []
+        fake = types.ModuleType("pyodbc")
+        fake.connect = lambda *a, **k: _FakeConn(self.log)
+        old = sys.modules.get("pyodbc")
+        sys.modules["pyodbc"] = fake
+        self.addCleanup(lambda: sys.modules.__setitem__("pyodbc", old) if old else sys.modules.pop("pyodbc", None))
+        import _erp_conn
+        self._patch(_erp_conn, "erp_conn_str", lambda: "DRIVER=fake")
+        self._patch(er, "rpc", lambda *a, **k: self.fail("dry-run 은 RPC 를 부르면 안 된다"))
+        self.wm = dt.datetime(2026, 10, 5, 2, 0)
+        self._patch(er, "watermark", lambda url, key, name: self.wm)
+        self._patch(sys, "stdout", io.StringIO())
+
+    def _run(self, name, full=False):
+        er.run_job(name, er.JOBS[name], "u", "k", dry=True, full=full)
+        return self.log[-1]
+
+    def test_pur_order_increment_watches_lines_receipts_and_invoices(self):
+        """헤더 UPDT_DT 만 보던 증분이 입고(라인만 갱신)를 놓쳐 끝난 발주가 「미입고」로 남았다(2026-10-07 실측 439줄)."""
+        sql, params = self._run("pur_order")
+        self.assertEqual(er.JOBS["pur_order"]["incr_sql"].count("?"), 4)
+        self.assertEqual(len(params), 2 + 4, "연 범위 2 + 증분 4")
+        self.assertEqual(params[2:], (self.wm,) * 4, "네 자리 전부 같은 watermark")
+        for t in ("h.UPDT_DT >= ?", "d.UPDT_DT >= ?", "M_PUR_GOODS_MVMT g", "M_IV_DTL v"):
+            self.assertIn(t, sql)
+        self.assertNotIn("h.UPDT_DT AS src_updated", sql, "기준 시각은 헤더·라인 중 늦은 쪽")
+
+    def test_single_mark_jobs_are_unchanged(self):
+        sql, params = self._run("pur_req")
+        self.assertEqual(len(params), 3)
+        self.assertEqual(params[2], self.wm)
+        self.assertTrue(sql.rstrip().endswith("r.UPDT_DT >= ?"))
+
+    def test_full_ignores_increment(self):
+        sql, params = self._run("pur_order", full=True)
+        self.assertEqual(len(params), 2)
+        self.assertNotIn("M_PUR_GOODS_MVMT g", sql)
+
+    def test_every_incremental_job_binds_as_many_marks_as_it_declares(self):
+        """바인딩 수 ≠ `?` 수면 ODBC 가 07002 로 실패한다 — 새 job 이 생겨도 여기서 먼저 걸린다."""
+        import re as _re
+        for name, spec in er.JOBS.items():
+            incr = spec.get("incr_sql")
+            if not incr:
+                continue
+            sql, params = self._run(name)
+            self.assertEqual(len(params), len(spec["params"]) + incr.count("?"), name)
+            self.assertEqual(_re.sub(r"--[^\n]*", "", sql).count("?"), len(params), "%s: SQL 의 ? 와 바인딩 수" % name)
 
 
 if __name__ == "__main__":

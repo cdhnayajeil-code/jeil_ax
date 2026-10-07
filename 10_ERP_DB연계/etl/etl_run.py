@@ -234,7 +234,9 @@ JOBS = {
                    h.PO_TYPE_CD AS po_type_cd,         -- B 구분의 「외주」 판정 후보(SUBCONTRA_FLG 는 전건 'N')
                    h.REF_NO AS ref_no,                 -- C 결재번호 후보(참조번호) — 형식이 PU… 인지 적재 후 확인
                    ISNULL(d.TRACKING_NO, h.TRACKING_NO) AS tracking_no,  -- G P-CODE(발주 기준)
-                   h.UPDT_DT AS src_updated
+                   -- 행의 마지막 변경 = 헤더·라인 UPDT_DT 중 늦은 쪽(MAX 는 NULL 을 무시한다).
+                   -- 종전 h.UPDT_DT 만 쓰면 입고로 라인(RCPT_QTY·PO_STS)만 바뀐 행의 기준 시각이 멈춘다.
+                   (SELECT MAX(v) FROM (VALUES (h.UPDT_DT), (d.UPDT_DT)) AS t(v)) AS src_updated
             FROM JEILMNS.dbo.M_PUR_ORD_HDR h WITH (NOLOCK)
             JOIN JEILMNS.dbo.M_PUR_ORD_DTL d WITH (NOLOCK) ON d.PO_NO = h.PO_NO
             LEFT JOIN JEILMNS.dbo.B_BIZ_PARTNER b WITH (NOLOCK) ON b.BP_CD = h.BP_CD
@@ -242,9 +244,20 @@ JOBS = {
             WHERE h.PO_DT >= ? AND h.PO_DT < ?
         """,
         "params": ["year_start", "year_end"],
-        "incr_sql": " AND h.UPDT_DT >= ?",   # 증분: 연 범위 내 변경분만(watermark 이후)
+        # 증분(watermark 이후) — 연 범위 안에서 **헤더·라인·입고·매입 어느 쪽이든** 바뀐 발주 라인을 다시 뽑는다(REQ-0113 · B안).
+        #   종전 `h.UPDT_DT >= ?` 하나였다. 입고·매입은 라인(RCPT_QTY·PO_STS)만 고치고 헤더 UPDT_DT 를 건드리지 않아,
+        #   입고가 끝난 발주가 미러에서는 계속 「발주·미입고」였다(2026-10-07 실측 439줄 / 86건 — 뷰 쪽 A안은 정본 SQL 91).
+        #   라인 UPDT_DT 를 ERP 가 입고 때 갱신하는지는 확인되지 않아, 입고·매입 표의 변경(EXISTS)으로도 잡는다.
+        #   `?` 네 개에 같은 watermark 가 들어간다(run_job 이 개수만큼 채운다).
+        "incr_sql": (" AND (h.UPDT_DT >= ? OR d.UPDT_DT >= ?"
+                     " OR EXISTS (SELECT 1 FROM JEILMNS.dbo.M_PUR_GOODS_MVMT g WITH (NOLOCK)"
+                     "            WHERE g.PO_NO = d.PO_NO AND g.PO_SEQ_NO = d.PO_SEQ_NO AND g.UPDT_DT >= ?)"
+                     " OR EXISTS (SELECT 1 FROM JEILMNS.dbo.M_IV_DTL v WITH (NOLOCK)"
+                     "            WHERE v.PO_NO = d.PO_NO AND v.PO_SEQ_NO = d.PO_SEQ_NO AND v.UPDT_DT >= ?))"),
         # 컬럼이 27개로 늘어 공유 erp_etl_upsert(19개 job 공용) 대신 이 job 전용 RPC 를 쓴다(REQ-0070).
         # ⚠ 신규 컬럼은 증분(UPDT_DT 이후)만으로는 기존 행이 안 채워진다 — 최초 1회 `--full` 백필 필요.
+        # ⚠ 증분 기준을 넓힌 r1.12 도 **서버 교체 뒤 `--job pur_order --full` 1회**가 필요하다 — watermark 이전에
+        #   입고된 라인(위 439줄)은 넓힌 조건으로도 다시 안 뽑힌다.
         "rpc": "erp_etl_upsert_pur_order",
     },
     # ⓪-2 구매요청 원장 ← M_PUR_REQ (2026년 요청분, PR_NO 기준) — 발주(pur_order_s.pr_no)와 연결
@@ -916,7 +929,8 @@ def run_job(name, spec, url, key, dry, full=False):
         wm = watermark(url, key, name)
         if wm:
             sql = sql + incr
-            params.append(wm)
+            # incr_sql 의 `?` 마다 같은 watermark — 발주(pur_order)처럼 여러 표의 변경을 보는 조건은 `?` 가 넷이다
+            params.extend([wm] * incr.count("?"))
             print(f"[{name}] 증분 — {wm:%Y-%m-%d %H:%M} 이후 변경분만")
         else:
             print(f"[{name}] 최초 전량 적재(watermark 없음)")

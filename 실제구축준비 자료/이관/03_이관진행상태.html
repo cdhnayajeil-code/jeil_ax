@@ -371,7 +371,13 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <td>2026-10-07</td>
 <td>발주통합 LIST 상태 판정 수정(REQ-0110 · P0) — 정본 SQL 91 라이브 적용(판정 뷰 <code>v_erp_pur_line_status</code> + 뷰 3종 재정의 · 롤백 SQL 동봉)</td>
 <td>전량 입고인데 「발주」인 줄 0 · 「발주」→「매입완료」 186줄·「발주」→「입고완료」 4줄·「입고완료」→「매입완료」 246줄 · 의존 뷰 정상 · authenticated 소요 250~279ms(구 261~333ms)</td>
-<td>야간 적재 뒤 원값≠실효값 줄(439) 재확인 → B안(적재 증분 · EXE 재빌드) 착수 여부 결정 · 문서 커밋</td>
+<td>야간 적재 뒤 원값≠실효값 줄(439) 재확인 → B안(적재 증분 · EXE 재빌드) 착수 여부 결정 · 문서 커밋 → <strong>같은 날 B안 착수(아래 행)</strong></td>
+</tr>
+<tr>
+<td>2026-10-07</td>
+<td>통합 러너 <strong>r1.12</strong> 빌드·전달(REQ-0113 B안 — 발주 적재 증분을 헤더·라인·입고·매입 변경으로 넓힘 · REQ-0098 — 러너 창 기안서 대장 작업 파라미터(리허설·대장 파일) 전달) — 관리자 지시 「현재 작업 먼저 선진행」</td>
+<td>회귀 169건 통과(+6 · pyodbc 가짜) · EXE 내부 <code>etl_run</code>·<code>runner_core</code> 새 코드 정적 확인 · 전달 폴더 동기화 5항목(EXE + 버전 사본 r112-20261007 + 배포 문서)</td>
+<td><strong>관리자</strong>: 서버 EXE 교체(러너 정지 → 교체 → 시작) → <code>jeil_runner.exe etl --job pur_order --full</code> 1회 → 감시 지표(원값≠실효값) 0 근처 확인 → 대장 적재 작업 켜기(대장이 보이는 PC)</td>
 </tr>
 </tbody>
 </table>

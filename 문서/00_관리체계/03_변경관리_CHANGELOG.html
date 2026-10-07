@@ -110,6 +110,13 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <tbody>
 <tr>
 <td>2026-10-07</td>
+<td>ERP DB 연계 · 러너</td>
+<td><code>10_ERP_DB연계/etl/etl_run.py</code>(<code>pur_order</code> 증분) · <code>runner_core.py</code>(r1.12 · <code>resolve_params</code> proposal_ledger) · <code>test_runner_core.py</code>(+6) · <code>deploy/변경관리.md</code>·<code>README.md</code> · <code>CLAUDE.md §17.4</code> · 14/02·03 · <code>문서/10_ERP_DB연계</code> 00(v0.83)·01·02 · 이관 03</td>
+<td><strong>러너 r1.12 — 발주 적재 증분 보완(REQ-0113 · B안) + 기안서 대장 작업 파라미터 전달(REQ-0098) · 로드맵 P0 나머지(관리자 지시 「현재 작업 먼저 선진행」).</strong> 발주 증분이 헤더 수정일만 보던 것을 헤더·라인·입고·매입 변경으로 넓혀, 입고가 끝난 발주 줄이 미러에서도 갱신되게 했다(화면은 SQL 91 A안으로 이미 맞음 · 사본 감시 지표 439줄). 러너 창의 「리허설」·「대장 파일」 값이 r1.6 부터 버려지던 것을 고쳤다(리허설을 켜도 실제 적재되던 데이터 위험). 회귀 169건 통과 · EXE 빌드·내부 코드 정적 확인·전달 폴더 동기화 완료. <strong>남은 것(관리자)</strong>: 서버 EXE 교체 → <code>etl --job pur_order --full</code> 1회 → 대장 적재 작업 켜기(대장이 보이는 PC)</td>
+<td>최동혁</td>
+</tr>
+<tr>
+<td>2026-10-07</td>
 <td>ERP DB 연계 · 구매 화면</td>
 <td>정본 SQL 91(<code>91_erp_pur_status_actual.sql</code> + rollback) · 라이브 뷰 4종(<code>v_erp_pur_line_status</code> 신설 · <code>v_erp_pur_list</code> v5 · <code>v_erp_pur_order_hdr</code> · <code>v_erp_po_pr_link</code>) · 14/02 · 10_ERP 관제 · 총괄 대시보드</td>
 <td><strong>발주통합 LIST 상태 오판 수정(REQ-0110 · 로드맵 P0 · 결정 D-117 A안 · 관리자 승인 뒤 적용).</strong> 발주 줄 상태를 발주 사본 원값이 아니라 실적(입고·매입 사본)으로 판정하는 뷰를 하나 두고 세 뷰가 그것을 쓴다 — 기존 컬럼 그대로, 끝에 원값 2칸 추가. 적용 뒤 전량 입고인데 「발주」인 줄 0(「발주」→「매입완료」 186줄 · 「발주」→「입고완료」 4줄 · 「입고완료」→「매입완료」 246줄), 조회 시간 종전과 같음. 화면·코드 무변경. 발주 사본 자체의 갱신 지연(B안 · 적재 증분 기준)은 별건</td>

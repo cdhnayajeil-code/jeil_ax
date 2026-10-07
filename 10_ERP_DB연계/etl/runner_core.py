@@ -35,7 +35,7 @@ import sys
 import threading
 import time
 
-RUNNER_VERSION = "r1.11"
+RUNNER_VERSION = "r1.12"
 CONFIG_NAME = "runner_config.json"
 HISTORY_NAME = "runner_history.jsonl"
 RUNNING_NAME = "runner_running.json"
@@ -615,6 +615,14 @@ def resolve_params(job, caps):
         p["include_sensitive"] = _as_bool(raw.get("include_sensitive", False))
         p["full"] = _as_bool(raw.get("full", False))
         p["dry_run"] = _as_bool(raw.get("dry_run", False))
+    elif kind == "proposal_ledger":
+        # r1.6~r1.11 은 이 분기가 없어 네 값이 전부 버려졌다 — 창에서 「리허설」을 켜도 자식은 실제 적재를 했고,
+        # 「대장 파일」 칸의 경로도 무시됐다(REQ-0098). 경로는 인자 > .env(`proposal_ledger.ledger_path`) 순이라
+        # 비워 두면 종전처럼 .env 의 PROPOSAL_LEDGER_XLSX 를 쓴다.
+        p["file"] = str(raw.get("file") or "").strip().strip('"')
+        p["scan"] = str(raw.get("scan") or "").strip().strip('"')
+        p["dry_run"] = _as_bool(raw.get("dry_run", False))
+        p["append"] = _as_bool(raw.get("append", False))
     elif kind == "nas_sync":
         p["dry_run"] = _as_bool(raw.get("dry_run", False))
     elif kind == "proposal_scan":
