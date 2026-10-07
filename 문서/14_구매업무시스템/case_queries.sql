@@ -61,3 +61,37 @@ select p.vol, p.no, p.draft_dt, p.drafter, p.job_no, p.content, p.vendor, p.amt,
        (select string_agg(l.po_no, ',') from public.v_pur_proposal_po_link l where l.vol = p.vol and l.no = p.no) as po_link
 from public.pur_proposal p
 where p.vol = :vol and p.no = :no;
+
+-- 10) 발주 한 건의 사슬 전체를 JSON 하나로(P0.5 예시 검증에서 추가 · 2026-10-07) — 위 1)~9) 를 한 번에.
+--     매입은 장마다 「이 발주 몫」과 「매입 전체(다른 발주 몫 포함)」를 같이 낸다 — 전표·계산서는 전체와, 발주 몫은 줄과 대조하기 위해.
+with po as (select * from erp_ro.pur_order_s where po_no = :po_no),
+pr as (select r.* from erp_ro.pur_req_s r where r.pr_no in (select pr_no from po)),
+allpr as (select r.* from erp_ro.pur_req_s r where r.pu_no = (select max(pu_no) from pr where pu_no <> '')),
+ivs as (select i.* from erp_ro.iv_dtl_s i where i.po_no = :po_no),
+slips as (select h.* from erp_ro.gl_slip_s h where h.gl_input_type = 'AP' and h.ref_no in (select distinct iv_no from ivs)),
+vats as (select v.* from erp_ro.vat_s v where v.temp_gl_no in (select temp_gl_no from slips))
+select json_build_object(
+  'pu', (select json_build_object('pu_no', pu_no, 'title', max(req_title), 'req_dt', min(req_dt), 'need_dt', max(dlvy_dt), 'pr_sts', max(pr_sts), 'lines_total', count(*),
+           'unordered', (select json_agg(json_build_object('pr_no', a.pr_no, 'item_cd', a.item_code, 'qty', a.req_qty, 'sts', a.pr_sts)) from allpr a where not exists (select 1 from erp_ro.pur_order_s o where o.pr_no = a.pr_no)),
+           'other', (select json_agg(json_build_object('bp_nm', bp_name, 'po_no', po_no, 'po_dt', po_dt, 'lines', n, 'amt', amt)) from (select o.po_no, min(o.po_dt) po_dt, max(o.bp_name) bp_name, count(*) n, sum(o.po_amt) amt from erp_ro.pur_order_s o where o.pr_no in (select pr_no from allpr) and o.po_no <> :po_no group by o.po_no) x)) from allpr group by pu_no),
+  'pr_lines', (select json_agg(json_build_object('pr_no', r.pr_no, 'item_cd', r.item_code, 'qty', r.req_qty, 'po_seq', po.po_seq) order by po.po_seq) from pr r join po on po.pr_no = r.pr_no),
+  'po', (select json_build_object('po_no', :po_no, 'po_dt', min(po_dt), 'dlvy_dt', max(dlvy_dt), 'bp_nm', max(bp_name), 'amt', sum(po_amt),
+           'mirror', json_build_object('po_sts', min(po_sts), 'rcpt_qty', sum(rcpt_qty), 'src_updated', max(src_updated)::date, 'synced', max(synced_at)::date),
+           'lines', (select json_agg(json_build_object('po_seq', po_seq, 'item_cd', item_code, 'qty', po_qty, 'price', po_prc, 'amt', po_amt, 'pr_no', pr_no) order by po_seq) from po)) from po),
+  'gr', (select json_agg(json_build_object('pg_no', mvmt_no, 'dt', rcpt_dt, 'po_seq', po_seq_no, 'qty', rcpt_qty) order by rcpt_dt, mvmt_no) from erp_ro.pur_goods_mvmt_s g where g.po_no = :po_no and g.rcpt_dt is not null and coalesce(g.rcpt_qty, 0) > 0),
+  'iv_parts', (select json_agg(json_build_object('iv_no', iv_no, 'iv_dt', iv_dt, 'supply_amt', s, 'vat_amt', v, 'lines', lines,
+                 'iv_total', (select json_build_object('supply_amt', sum(t.iv_loc_amt), 'vat_amt', sum(t.vat_loc_amt), 'lines', count(*),
+                                'other_pos', (select string_agg(distinct t2.po_no, ',') from erp_ro.iv_dtl_s t2 where t2.iv_no = q.iv_no and t2.po_no <> :po_no)) from erp_ro.iv_dtl_s t where t.iv_no = q.iv_no)) order by iv_dt, iv_no)
+               from (select iv_no, min(iv_dt) iv_dt, sum(iv_loc_amt) s, sum(vat_loc_amt) v,
+                            json_agg(json_build_object('iv_seq', iv_seq_no, 'po_seq', po_seq_no, 'qty', iv_qty, 'price', iv_prc, 'amt', iv_loc_amt, 'vat', vat_loc_amt, 'pg_no', mvmt_no) order by iv_seq_no) lines from ivs group by iv_no) q),
+  'slips', (select json_agg(json_build_object('slip_no', h.temp_gl_no, 'slip_dt', h.temp_gl_dt, 'ref_no', h.ref_no, 'amt', h.dr_loc_amt, 'conf', h.conf_fg,
+              'lines', (select json_agg(json_build_object('seq', i.item_seq, 'acct_cd', i.acct_cd, 'drcr', i.dr_cr_fg, 'amt', i.item_loc_amt) order by i.item_seq) from erp_ro.gl_slip_item_s i where i.temp_gl_no = h.temp_gl_no)) order by h.temp_gl_dt) from slips h),
+  'vats', (select json_agg(json_build_object('vat_no', vat_no, 'issue_dt', issued_dt, 'supply_amt', net_loc_amt, 'vat_amt', vat_loc_amt, 'ref_no', ref_no, 'slip_no', temp_gl_no)) from vats),
+  'etax', (select json_agg(json_build_object('approval_no', e.aprv_no, 'write_dt', e.write_date, 'issue_dt', e.issue_date, 'supply_amt', e.sup_amt, 'vat_amt', e.vat_amt, 'vat_no', v.vat_no))
+           from vats v join erp_ro.etax_master_s e on e.sapu_type = 'I' and e.write_date = v.issued_dt and e.sup_busi_no = v.bp_rgst_no and e.sup_amt = v.net_loc_amt),
+  'ledger', (select json_agg(json_build_object('vol_no', p.vol||'-'||p.no, 'draft_dt', p.draft_dt, 'job_no_raw', p.job_no, 'amt', p.amt, 'closed', p.closed_yn, 'dp', json_build_object('rate', p.dp_rate, 'slip', p.dp_slip, 'dt', p.dp_dt),
+              'mp', json_build_object('rate', p.mp_rate, 'slip', p.mp_slip, 'dt', p.mp_dt), 'bp', json_build_object('rate', p.bp_rate, 'slip', p.bp_slip, 'dt', p.bp_dt), 'link', l.confidence||'/'||l.method))
+             from public.v_pur_proposal_po_link l join public.pur_proposal p on p.vol = l.vol and p.no = l.no where l.po_no = :po_no),
+  'screen', (select json_build_object('status_kr', string_agg(distinct status_kr, ','), 'unreceived', bool_or(is_unreceived), 'overdue', bool_or(overdue_unreceived), 'po_qty', sum(qty), 'rcpt_qty_sum', sum(rcpt_qty_sum), 'iv_qty_sum', sum(iv_qty_sum))
+             from public.v_erp_pur_list s where s.po_no = :po_no and s.row_kind = 'PO')
+) as j;

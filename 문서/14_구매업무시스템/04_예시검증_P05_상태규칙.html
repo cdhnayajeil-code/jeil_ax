@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>04 예시 검증(P0.5) — JEIL AX 구매업무시스템 (예외 건 4종(선진행·계약금/중도금·분할입고·다업체)으로 상태 규칙 시험 · 규칙 보완 · 결정 5건)</title>
+<style>
+:root{--navy:#1a2f4e;--navy2:#27457a;--accent:#2f6fb3;--red:#b3402f;--green:#2e7d52;--amber:#9a6b1f;
+--ink:#222;--muted:#666;--line:#d8dee8;--bg:#f4f6f9;--soft:#eef2f8;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;color:var(--ink);background:var(--bg);line-height:1.65;font-size:15px;}
+.page{max-width:960px;margin:0 auto;background:#fff;padding:52px 60px;box-shadow:0 2px 14px rgba(0,0,0,.08);}
+.doc-label{display:inline-block;background:var(--navy);color:#fff;font-size:12px;letter-spacing:.16em;padding:5px 14px;border-radius:3px;margin-bottom:16px;}
+.docnav{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 26px;}
+.docnav a{font-size:12px;color:var(--navy2);border:1px solid var(--line);border-radius:20px;padding:4px 12px;text-decoration:none;background:var(--soft);}
+.docnav a:hover{background:var(--navy);color:#fff;}
+.docnav a.cur{background:var(--navy);color:#fff;border-color:var(--navy);}
+.md-link{font-size:13px;margin-bottom:22px;color:var(--muted);}
+.content h1{font-size:27px;color:var(--navy);line-height:1.35;margin:6px 0 18px;}
+.content h2{font-size:20px;color:var(--navy);margin:42px 0 14px;padding-bottom:9px;border-bottom:3px solid var(--navy);}
+.content h3{font-size:16px;color:var(--navy2);margin:24px 0 9px;}
+.content p{margin:0 0 12px;}
+.content ul,.content ol{margin:0 0 14px 22px;}
+.content li{margin-bottom:6px;}
+.content blockquote{background:var(--soft);border-left:5px solid var(--navy);border-radius:0 8px 8px 0;padding:14px 20px;margin:14px 0;color:#33425a;}
+.content blockquote p{margin:0 0 6px;}
+.content table{width:100%;border-collapse:collapse;margin:14px 0 20px;font-size:13.3px;}
+.content th{background:var(--navy);color:#fff;padding:9px 11px;text-align:left;font-weight:600;}
+.content td{padding:8px 11px;border-bottom:1px solid var(--line);vertical-align:top;}
+.content tr:nth-child(even) td{background:#fafbfd;}
+.content a{color:var(--accent);}
+.content code{background:var(--soft);border:1px solid var(--line);border-radius:4px;padding:1px 6px;font-size:12.4px;font-family:Consolas,'Courier New',monospace;}
+.content pre{background:#21252e;color:#e8eaf0;border-radius:8px;padding:16px 18px;font-size:12.4px;font-family:Consolas,'Courier New',monospace;overflow-x:auto;margin:12px 0 18px;line-height:1.55;}
+.content pre code{background:none;border:none;color:inherit;padding:0;}
+.content hr{border:none;border-top:1px solid var(--line);margin:30px 0;}
+.content strong{color:var(--navy2);}
+.footer{margin-top:50px;padding-top:16px;border-top:1px solid var(--line);font-size:12px;color:var(--muted);display:flex;justify-content:space-between;}
+@media print{body{background:#fff;}.page{box-shadow:none;padding:18px 0;max-width:100%;}.docnav{display:none;}.content h2{break-after:avoid;}.content table,.content pre,.content blockquote{break-inside:avoid;}}
+@media (max-width:720px){.page{padding:30px 20px;}}
+</style>
+<!-- jeilax:local-links --><script>(function(){if(location.protocol!=="file:")return;var r="../../",s=document.createElement("script");s.src=r+"_local_links.js";s.setAttribute("data-root",r);(document.head||document.documentElement).appendChild(s);})();</script><!-- /jeilax:local-links -->
+</head>
+<body>
+<div class="page">
+  <span class="doc-label">JEIL AX 구매업무시스템</span>
+  <div class="docnav"><a href="/docs/purchase">🏠 구매업무시스템</a><a href="/docs/purchase/review">02 현행 점검</a><a href="/docs/purchase/plan">03 시스템 기획</a><a class="cur" href="/docs/purchase/cases">04 예시 검증(P0.5)</a><a href="README.md">README</a></div>
+  <p class="md-link">📄 Markdown 원본: <a href="04_예시검증_P05_상태규칙.md">04_예시검증_P05_상태규칙.md</a> · 허브 <a href="/docs/purchase">구매업무시스템 허브</a></p>
+  <div class="content">
+<h1 id="04-p05-4">04 · 예시 검증(P0.5) — 예외 건 4종으로 상태 규칙을 시험한 결과</h1>
+<blockquote>
+<p>작성 2026-10-07 · 로드맵 <strong>P0.5</strong>(기획서 §6) · 입력은 중간DB 스냅샷(발주 전량 재적재 직후)과 구매팀 엑셀 LIST · 기안서 대장(중간DB 10-07 적재분).
+<strong>이 문서는 공개물이다</strong> — 실거래 번호·거래처·금액을 적지 않는다. 건별 추적 화면(실데이터)은 비공개 사례 폴더(<code>doc/…/P05_예시검증/01~04/구매건_추적.html</code>)에 <code>_build_case.py --keep-mismatch</code> 로 만들었다.
+목적: 8월 예시 1건(<code>01 도식</code>·<code>02 현행 점검</code>)으로 세운 「상태는 실적 문서의 존재로 판정한다」는 규칙이 <strong>예외 건에서도 맞는지</strong> 보고, 틀리는 곳은 규칙을 고친다.</p>
+</blockquote>
+<h2 id="1">1. 한눈에</h2>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>예외 유형</th>
+<th>고른 건</th>
+<th>규칙이 맞았나</th>
+<th>고친 것 · 남긴 것</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>①</td>
+<td><strong>선진행</strong> + 외주 가공(입고 기록 없음)</td>
+<td>9월 · 외주 가공 3줄 · 매입 1장</td>
+<td>✗ 6단계가 「아직」으로 멈춤 · 포털 LIST 미입고·납기경과 켜짐</td>
+<td>규칙 추가: 입고 없이 매입이 발주 수량을 채우면 6단계 = <strong>기록 없음(끝)</strong>. LIST 는 별도 요청</td>
+</tr>
+<tr>
+<td>②</td>
+<td><strong>계약금·중도금·잔금</strong>(월별 진행률 매입)</td>
+<td>5월 · 외주 제작 2줄 · 매입 3장 · 전표 3장</td>
+<td>✗ 매입 한 장씩 비교하면 전부 「불일치」 · 한 장은 다른 발주와 묶임</td>
+<td>규칙 변경: 매입이 여러 장이면 <strong>발주 순번별 수량 합</strong>으로 검산 · 전표·계산서는 <strong>매입 한 장 전체</strong>와 대조</td>
+</tr>
+<tr>
+<td>③</td>
+<td><strong>분할 입고 → 분할 매입</strong></td>
+<td>4월 · 자재 10줄 · 4일 입고 · 매입·전표·계산서 각 4장</td>
+<td>○ 합으로 보면 전부 맞음</td>
+<td>화면: 「첫 입고 ~ 마지막 입고」·「매입 n장」 표시 · 대장 금액이 발주보다 큰 것은 다른 매입이 섞인 것</td>
+</tr>
+<tr>
+<td>④</td>
+<td><strong>요청 1건 → 거래처 6곳</strong>(발주 6건) + 미발주 줄</td>
+<td>5월 · 요청 14줄 → 발주 8줄 · 미발주 6줄</td>
+<td>△ 발주 단위는 맞음 · 요청 줄 단위가 안 보임</td>
+<td>화면: 「발주 없이 남은 요청 줄」 표시 · 자동 연결 규칙의 한계 발견(아래 §3-3)</td>
+</tr>
+</tbody>
+</table>
+<p>네 건 모두 ERP 안에서 번호 사슬(요청 → 발주 → 입고/매입 → 전표 → 부가세 → 국세청)은 끊기지 않았다. 틀린 것은 <strong>ERP 가 아니라 판정 규칙과 손으로 적는 자료</strong>였다.</p>
+<h2 id="2">2. 건별 관찰</h2>
+<h3 id="1-9">① 선진행 · 외주 가공 (9월)</h3>
+<ul>
+<li>일의 순서가 <strong>엑셀 「선진행」 표기(8월 말) → 매입·전표·세금계산서(9월 중순) → ERP 발주·구매기안(9월 말)</strong> 이다. 요청(7월 말)부터 ERP 발주까지 59일, 그 사이에 일이 다 끝났다.</li>
+<li>ERP 발주일을 기준으로 납기를 따지면 아무 의미가 없다 — 발주일 = 납기일 = 기안일이 같은 날이다. <strong>「ERP 발주일」과 「실제 발주(지시)일」은 다른 값</strong>이고, 후자는 지금 엑셀 글자 칸에만 있다.</li>
+<li>입고(PG)가 없다. 외주 가공은 입고 등록 없이 매입으로 끝난다. 추적 규칙은 6단계를 「아직」으로 두었다 → <strong>「기록 없음」으로 고쳤다</strong>(끝나지 않은 것이 아니라 기록이 없는 것).</li>
+<li>포털 LIST 는 상태 「매입완료」를 맞게 내지만 <strong>미입고·납기경과 표시가 켜져</strong> 미입고 목록에 섞인다. 이 유형이 LIST 전체에 505줄이다(02 현행 점검 결함 ① 열린 질문).</li>
+<li>엑셀 LIST 의 「구매요청번호」 칸에 요청 <strong>줄</strong> 번호(PR)가 적혀 있다. 8월 예시는 요청 <strong>결재</strong> 번호(PU)였다 — 같은 칸이 건마다 다르다.</li>
+</ul>
+<h3 id="2-5">② 계약금 · 중도금 · 잔금 (5월 · 외주 제작)</h3>
+<ul>
+<li>발주 수량을 <strong>50% · 30% · 20% 로 쪼갠 매입 3장</strong>(수량이 소수점)으로 들어간다. 입고 등록은 없다. 전표 3장(전부 승인), 세금계산서 3장.</li>
+<li>매입을 한 장씩 발주 줄과 비교하면 전부 「불일치」로 보인다. <strong>발주 순번마다 수량 합</strong>으로 보면 맞다 — 검산 규칙을 바꿨다.</li>
+<li>한 줄은 마지막 매입의 <strong>단가가 발주 단가와 다르고</strong>, 두 줄의 차이가 서로 상쇄돼 합계만 맞는다. 줄 단위 검산은 이 차이를 남겨야 한다(금액 합만 보면 못 본다).</li>
+<li>잔금 매입 한 장이 <strong>다른 발주의 매입과 한 장으로 묶여</strong> 전표·부가세·세금계산서는 묶인 전체 금액으로 나온다. 「발주 → 전표 금액」을 바로 비교하면 틀린다 — <strong>전표·계산서는 매입 한 장 전체와, 발주 몫은 매입 줄과</strong> 대조한다.</li>
+<li>기안서 대장의 지급 비율 합이 <strong>130%</strong>(계약금 50 + 중도금 30 + 잔금 50) 이고, ERP 에는 잔금 매입·전표가 있는데 대장 잔금 칸은 빈칸·종결 「N」 이다. 지급 단계는 ERP 매입(수량 비율)에서 가져오고, 종결은 「마지막 매입 = 발주 전량」으로 자동 판정할 수 있다.</li>
+<li>ERP 발주 헤더 비고에 요청 결재번호 두 개가 적혀 있다 — 참고용이지 연결 키가 아니다.</li>
+</ul>
+<h3 id="3-4">③ 분할 입고 → 분할 매입 (4월 · 자재)</h3>
+<ul>
+<li>4일에 걸쳐 입고 10건 → <strong>그날그날 매입 4장 → 전표 4장 → 세금계산서 4장</strong>. 발주 1건이 매입 4장으로 끝났다. 발주 순번별 합으로 보면 입고·매입·전표·부가세·국세청이 전부 맞는다.</li>
+<li>세금계산서의 <strong>작성일</strong>(입고일)과 <strong>발급일</strong>(열흘 뒤 한꺼번에)이 다르다. 「계산서 수취」 완료 판정에 어느 날짜를 쓸지 정해야 한다.</li>
+<li>기안서 대장 한 기안에 <strong>생산번호가 다른 줄 두 개</strong>가 있고, 「전표번호」 칸에 TG 가 아니라 <strong>매입번호(IV) 여러 개</strong>가 줄바꿈으로 적혀 있다(그중 하나는 이 발주의 매입이 아니다). 대장 금액이 발주보다 큰 이유다. 칸의 뜻(전표인지 매입인지)을 정하고, 포털 대사는 매입번호로도 잇는다.</li>
+<li>엑셀 LIST 는 이 건은 ERP 와 맞다(발주일·입고일·금액).</li>
+</ul>
+<h3 id="4-1-6-5">④ 요청 1건 → 거래처 6곳 (5월 · 부자재)</h3>
+<ul>
+<li>요청 결재 한 건 14줄 중 <strong>8줄이 6곳으로 발주</strong>되고(각각 기안), <strong>6줄은 발주 없이 「확정」 상태로 남았다</strong>(그중 3줄은 수량 0). 수량이 있는 3줄은 넉 달째 어디에도 드러나지 않는다 — 접수함이 없어서다.</li>
+<li>발주 6건의 매입은 거래처마다 <strong>월말 묶음 매입</strong>(다른 발주 5~9건과 한 장)으로 들어갔다. 한 거래처의 매입 1장이 75줄 · 발주 9건이다.</li>
+<li><strong>자동 연결의 한계</strong>: 포털의 기안 ↔ 발주 연결은 「전표 경유」가 「확정」인데, 월말 묶음 매입은 전표 1장이 기안 여러 건을 덮는다. 그 결과 <strong>기안 11건(프로젝트 5종)이 소액 발주 1건에 「확정」으로 붙는다.</strong> 연결은 「전표 → 매입 <strong>줄</strong> → 발주 줄」로 내려야 하고, 전표만 같은 기안은 「같은 전표」로만 표시해야 한다.</li>
+<li>선결제 건(라이트)은 대장에 <strong>「선결제 100%」 전표</strong>가 있지만 ERP 매입은 없고 입고만 있다. 추적 규칙은 6단계에 멈춘다 — 상태 규칙에 「선결제 완료」 경로가 필요하다.</li>
+<li>한 발주에 이 요청 줄 2개와 <strong>다른 요청 줄 2개</strong>가 묶였다(발주 금액 대부분이 다른 요청 몫). 발주 단위 화면은 「이 요청 몫 / 발주 전체」를 나눠 보여 줘야 한다.</li>
+<li>엑셀 LIST 는 발주일이 ERP 보다 하루 뒤, 입고일은 6건 중 1건만, 한 발주는 금액 칸이 비어 있다.</li>
+</ul>
+<h2 id="3">3. 규칙에 반영한 것 · 반영해야 할 것</h2>
+<h3 id="3-1-_build_casepy">3-1. 추적 규칙(<code>_build_case.py</code> · 이번에 고침)</h3>
+<table>
+<thead>
+<tr>
+<th>규칙</th>
+<th>전</th>
+<th>후</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>6단계(입고·계산서)</td>
+<td>입고 수량 ≥ 발주 수량이어야 완료, 아니면 「아직」</td>
+<td>입고 기록 없이 <strong>매입이 발주 수량을 채우면 「기록 없음」</strong>(외주 가공·용역·진척 매입)</td>
+</tr>
+<tr>
+<td>7단계(매입·전표)</td>
+<td>전표 1장의 승인 여부</td>
+<td>전표가 여러 장이면 <strong>전부 승인</strong>이어야 완료</td>
+</tr>
+<tr>
+<td>검산 「매입 줄 = 발주 줄」</td>
+<td>매입 줄 하나 = 발주 줄 하나</td>
+<td><strong>발주 순번별 수량 합</strong> = 발주 수량 · 단가는 줄마다</td>
+</tr>
+<tr>
+<td>검산 「전표 = 매입」</td>
+<td>전표 금액 = 이 발주의 매입 금액</td>
+<td>전표 한 장 = <strong>매입 한 장 전체</strong>(다른 발주 몫 포함) · 장마다</td>
+</tr>
+<tr>
+<td>검산 불일치</td>
+<td>빌드 중단</td>
+<td><code>--keep-mismatch</code> 로 <strong>관찰로 남기고</strong> 화면에 「불일치」 표시</td>
+</tr>
+<tr>
+<td>화면</td>
+<td>—</td>
+<td>발주 없이 남은 요청 줄 · 매입 조각 표(이 발주 몫 / 전체 / 묶인 다른 발주) · 지급 단계(대장) · 같은 전표로 묶인 다른 기안 · 첫~마지막 입고</td>
+</tr>
+</tbody>
+</table>
+<h3 id="3-2-v_erp_pur_line_status-sql-91">3-2. 상태 판정 뷰(<code>v_erp_pur_line_status</code> · 정본 SQL 91)에 반영할 것 — <strong>별도 요청</strong></h3>
+<ul>
+<li>매입이 끝난 줄(<code>po_sts = IV</code>)은 <strong>미입고·납기경과에서 뺀다</strong>. 입고 기록이 없는 외주·용역 줄이 미입고 목록에 섞이는 것이 ①②④ 에서 반복됐다(전체 505줄).</li>
+<li>「선결제 완료」 경로: 매입 없이 선급 전표만 있는 줄의 상태 — 대장·전표로만 알 수 있어 ERP 뷰만으로는 안 된다(포털 기록 또는 대장 연계).</li>
+</ul>
+<h3 id="3-3-v_pur_proposal_po_link-sql-76">3-3. 기안 ↔ 발주 자동 연결(<code>v_pur_proposal_po_link</code> · 정본 SQL 76)에 반영할 것 — <strong>별도 요청</strong></h3>
+<ul>
+<li>「전표 경유」를 <strong>매입 줄 단위</strong>로 내린다: 전표 → 매입(참조번호) → 매입 줄의 발주번호+순번 → 기안의 거래처·프로젝트·금액과 대조. 지금은 전표가 같으면 전부 「확정」이라 월말 묶음 매입에서 <strong>다른 프로젝트 기안까지 붙는다</strong>(④).</li>
+<li>대장 「전표번호」 칸의 매입번호(IV…)도 연결 키로 받는다(③).</li>
+</ul>
+<h3 id="3-4-47">3-4. 데이터·업무 기준(기획서 §4·§7 에 더할 것)</h3>
+<ul>
+<li><strong>「ERP 발주일」 ≠ 「실제 발주일」</strong> — 선진행 날짜를 남길 칸(포털 기록)과, 납기경과 판정의 기준일 결정(①).</li>
+<li>지급 단계(계약금·중도금·잔금)는 <strong>ERP 매입의 수량 비율</strong>에서 자동으로 만든다. 대장의 비율·전표 칸은 손으로 적어 틀린다(②).</li>
+<li>접수함은 요청 <strong>줄</strong> 단위다. 「발주 없음 · 확정 상태 · 경과일」을 보여 주고, 수량 0 줄의 뜻(취소?)을 ERP 에서 확인한다(④).</li>
+<li>계산서 수취 완료의 기준 날짜(작성일 vs 발급일)를 정한다(③).</li>
+<li>엑셀 LIST 의 「구매요청번호」 칸은 PU/PR 이 섞여 있다 — 포털이 ERP 값으로 채우면 없어지는 문제(①).</li>
+</ul>
+<h2 id="4-7">4. 관리자 결정 목록에 추가(기획서 §7 번호 이어서)</h2>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>결정할 것</th>
+<th>근거 건</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>11</td>
+<td>매입완료 줄을 미입고·납기경과 목록에서 뺄지(뷰 변경)</td>
+<td>① ② ④</td>
+</tr>
+<tr>
+<td>12</td>
+<td>납기경과의 기준일 — ERP 발주일 / 실제 발주일(선진행 날짜) / 요청 필요일</td>
+<td>①</td>
+</tr>
+<tr>
+<td>13</td>
+<td>계산서 수취 완료의 기준 — 국세청 작성일 / 발급일</td>
+<td>③</td>
+</tr>
+<tr>
+<td>14</td>
+<td>기안 ↔ 발주 연결을 매입 줄 단위로 내릴지(뷰 변경 · 「확정」 수가 줄어든다)</td>
+<td>④</td>
+</tr>
+<tr>
+<td>15</td>
+<td>대장 「전표번호」 칸의 뜻(전표 TG / 매입 IV 혼용)</td>
+<td>③</td>
+</tr>
+</tbody>
+</table>
+<h2 id="5">5. 다시 만들려면</h2>
+<ul>
+<li>사례 폴더(비공개)에 <code>case.json</code> 을 두고 <code>python 문서/14_구매업무시스템/_build_case.py "&lt;사례 폴더&gt;" --keep-mismatch</code>. 조회문 틀은 <code>case_queries.sql</code>(이번에 쓴 「발주 한 건 사슬 전체를 JSON 하나로」 조회는 §10 로 추가했다).</li>
+<li>매입이 여러 장이거나 다른 발주와 묶인 건은 <code>iv.parts[]</code>(장마다 이 발주 몫·전체·묶인 발주)와 <code>slip.parts[]</code>·<code>etax.parts[]</code> 로 적는다. 요청 줄이 발주 없이 남았으면 <code>pu.unordered[]</code>. 계약금·중도금은 <code>ledger.pay_plan[]</code>.</li>
+</ul>
+  </div>
+  <div class="footer"><span>JEIL M&S · 구매업무시스템</span><span>04 예시 검증(P0.5) · 관리: 최동혁</span></div>
+</div>
+</body>
+</html>

@@ -145,9 +145,21 @@ def stage_states(r):
     st[5] = "done" if lines else "todo"
     po_qty = sum(x["qty"] for x in lines)
     gr_qty = sum(g["qty"] for g in r.get("gr") or [])
-    st[6] = "done" if (lines and gr_qty >= po_qty and r.get("etax")) else ("part" if gr_qty > 0 else "todo")
     iv, slip = r.get("iv"), r.get("slip")
-    st[7] = "done" if (iv and slip and (slip.get("conf") == "C" or (gw.get(7) or {}).get("done_at"))) else ("part" if iv else "todo")
+    iv_qty = sum(x["qty"] for x in (iv or {}).get("lines") or [])
+    if lines and gr_qty >= po_qty and r.get("etax"):
+        st[6] = "done"
+    elif gr_qty > 0:
+        st[6] = "part"
+    elif lines and iv and iv_qty >= po_qty:
+        # 입고 기록 없이 매입만 있는 줄(외주 가공·용역·진척 매입) — P0.5 검증에서 확인(2026-10-07).
+        # 「아직」으로 두면 매입이 끝난 건이 6단계에 멈춰 보인다. 기록이 없는 것이지 안 끝난 것이 아니다.
+        st[6] = "norec"
+    else:
+        st[6] = "todo"
+    # 전표가 여러 장(분할 매입·진척 매입)이면 전부 승인돼야 끝 — parts 가 있으면 그것으로, 없으면 conf 하나로
+    slip_ok = bool(slip) and (all(p.get("conf") == "C" for p in slip["parts"]) if (slip or {}).get("parts") else slip.get("conf") == "C")
+    st[7] = "done" if (iv and slip and (slip_ok or (gw.get(7) or {}).get("done_at"))) else ("part" if iv else "todo")
     led = r.get("ledger")
     x = (led or {}).get("xlsx") or {}
     st[8] = "done" if (led and x.get("closed") == "Y" and x.get("slip") and led.get("scan_file")) else ("part" if led else "todo")
@@ -173,20 +185,41 @@ def checks(r):
     if iv:
         s, v = sum(x["amt"] for x in iv["lines"]), sum(x["vat"] for x in iv["lines"])
         out.append(("매입 줄 합계 = 공급가 · 부가세", s == iv["supply_amt"] and v == iv["vat_amt"], "%s + %s" % (won(s), won(v))))
+        # 매입이 여러 장으로 나뉘어도(분할·진척 매입) 발주 순번마다 **수량 합**이 발주 수량과 같으면 맞다 — 단가는 줄마다 본다
         pol = {x["po_seq"]: x for x in po.get("lines", [])}
-        diff = [x["po_seq"] for x in iv["lines"] if (pol.get(x["po_seq"]) or {}).get("price") != x["price"] or (pol.get(x["po_seq"]) or {}).get("qty") != x["qty"]]
-        out.append(("매입 줄 = 발주 줄(수량·단가)", not diff, "어긋난 순번 %s" % diff if diff else "%d줄 일치" % len(iv["lines"])))
+        qsum, pbad = {}, set()
+        for x in iv["lines"]:
+            qsum[x["po_seq"]] = qsum.get(x["po_seq"], 0) + x["qty"]
+            if (pol.get(x["po_seq"]) or {}).get("price") != x["price"]:
+                pbad.add(x["po_seq"])
+        qbad = [k for k, q in qsum.items() if (pol.get(k) or {}).get("qty") != q]
+        diff = sorted(set(qbad) | pbad)
+        out.append(("매입 줄 합 = 발주 줄(수량 합 · 단가)", not diff, "어긋난 순번 %s" % diff if diff else "%d줄 · 발주 순번 %d개 일치" % (len(iv["lines"]), len(qsum))))
     slip = r.get("slip")
     if slip:
         dr = sum(x["amt"] for x in slip["lines"] if x["drcr"] == "DR")
         cr = sum(x["amt"] for x in slip["lines"] if x["drcr"] == "CR")
         out.append(("전표 차변 = 대변 = 전표 금액", dr == cr == slip["amt"], "%s / %s" % (won(dr), won(cr))))
         if iv:
-            out.append(("전표 금액 = 매입 공급가 + 부가세", slip["amt"] == iv["supply_amt"] + iv["vat_amt"], won(slip["amt"])))
-            out.append(("전표 참조번호 = 매입번호", slip.get("ref_no") == iv["iv_no"], slip.get("ref_no") or "-"))
+            parts = iv.get("parts") or []
+            if parts and slip.get("parts"):
+                # 전표 한 장은 매입 한 장 **전체**(다른 발주 몫 포함)와 맞는다 — 이 발주 몫만 더하면 어긋난다
+                sp = {p["ref_no"]: p for p in slip["parts"]}
+                bad = [p["iv_no"] for p in parts if not sp.get(p["iv_no"]) or sp[p["iv_no"]]["amt"] != (p.get("total_supply", p["supply_amt"]) + p.get("total_vat", p["vat_amt"]))]
+                out.append(("전표 금액 = 매입 전체(공급가 + 부가세) · 장마다", not bad, "어긋남 %s" % bad if bad else "%d장 일치" % len(parts)))
+                out.append(("전표 참조번호 = 매입번호 · 장마다", {p["iv_no"] for p in parts} == set(sp), ", ".join(sorted(sp))))
+            else:
+                out.append(("전표 금액 = 매입 공급가 + 부가세", slip["amt"] == iv["supply_amt"] + iv["vat_amt"], won(slip["amt"])))
+                out.append(("전표 참조번호 = 매입번호", slip.get("ref_no") == iv["iv_no"], slip.get("ref_no") or "-"))
     et = r.get("etax")
     if et and iv:
-        out.append(("세금계산서 = 매입(공급가 · 부가세)", et["supply_amt"] == iv["supply_amt"] and et["vat_amt"] == iv["vat_amt"], "%s + %s" % (won(et["supply_amt"]), won(et["vat_amt"]))))
+        parts = iv.get("parts") or []
+        if parts and et.get("parts"):
+            ep = {p["vat_no"]: p for p in et["parts"] if p.get("vat_no")}
+            bad = [p["iv_no"] for p in parts if p.get("vat_no") and (not ep.get(p["vat_no"]) or ep[p["vat_no"]]["supply_amt"] != p.get("total_supply", p["supply_amt"]))]
+            out.append(("세금계산서 = 매입 전체(공급가) · 장마다", not bad, "어긋남 %s" % bad if bad else "%d장 일치" % len(et["parts"])))
+        else:
+            out.append(("세금계산서 = 매입(공급가 · 부가세)", et["supply_amt"] == iv["supply_amt"] and et["vat_amt"] == iv["vat_amt"], "%s + %s" % (won(et["supply_amt"]), won(et["vat_amt"]))))
     if r.get("gr") and po.get("lines"):
         g = {}
         for x in r["gr"]:
@@ -225,9 +258,17 @@ def events(r):
     if po.get("dlvy_dt"):
         ev.append(("발주 납기", po["dlvy_dt"], "ERP", True))
     if r.get("gr"):
-        ev.append(("입고(ERP 등록)", max(g["dt"] for g in r["gr"]), "ERP", False))
+        days = sorted({g["dt"] for g in r["gr"]})
+        if len(days) > 1:
+            ev.append(("첫 입고(ERP 등록)", days[0], "ERP", False))
+        ev.append(("입고(ERP 등록)" if len(days) == 1 else "마지막 입고(ERP 등록)", days[-1], "ERP", False))
     if r.get("iv"):
-        ev.append(("매입 등록", r["iv"]["iv_dt"], "ERP", False))
+        parts = r["iv"].get("parts") or []
+        if len(parts) > 1:
+            for i, p in enumerate(parts, 1):
+                ev.append(("매입 %d/%d 등록" % (i, len(parts)), p["iv_dt"], "ERP", False))
+        else:
+            ev.append(("매입 등록", r["iv"]["iv_dt"], "ERP", False))
     if r.get("etax"):
         ev.append(("세금계산서 작성", r["etax"]["write_dt"], "국세청", False))
     g7 = gw.get(7) or {}
@@ -254,6 +295,8 @@ def price_compare(case):
         s_old += p["price"] * x["qty"]
         s_new += x["price"] * x["qty"]
     only_old = [v for k, v in a.items() if k not in {x["item_cd"] for x in rs[1]["po"]["lines"]}]
+    if s_old == 0:          # 두 차수에 같은 품목이 없으면(거래처가 다른 발주 묶음 등) 비교할 것이 없다
+        return None
     return {"rows": rows, "old": s_old, "new": s_new, "only_old": only_old}
 
 
@@ -363,8 +406,13 @@ def step_body(n, r, items, st, calc, case):
         why = "요청 %d줄이 ERP 에 있고 진행코드가 「%s」다. 결재가 끝났는지는 ERP 에 없다 — 결재문서로만 안다." % (len(r.get("pr_lines") or []), pu.get("pr_sts", "-"))
         body += '<div class="kv"><b>요청 결재번호</b> %s · <b>요청일</b> %s · <b>필요일</b> %s · <b>요청자</b> %s</div>' % (e(pu.get("pu_no", "-")), e(pu.get("req_dt", "-")), e(pu.get("need_dt", "-")), e(pu.get("req_user", "-")))
         body += '<div class="kv"><b>건명</b> %s</div>' % e(pu.get("title", ""))
-        oth = "".join(" · %s %d줄(%s, %s원)" % (e(o["bp_nm"]), o["lines"], e(o["po_no"]), won(o["amt"])) for o in pu.get("other", []))
+        oth = "".join(" · %s %d줄(%s, %s원)" % (e(o["bp_nm"]), o["lines"], e(o["po_no"]), won(o["amt"])) for o in pu.get("other") or [])
         body += '<div class="kv"><b>이 요청 결재 전체</b> %d줄 — 이 거래처 %d줄%s</div>' % (pu.get("lines_total", 0), pu.get("lines_this_bp", 0), oth)
+        un = pu.get("unordered") or []
+        if un:
+            rows = [(e(x["pr_no"]), e(x["item_cd"]), e(it(x["item_cd"]).get("nm", "")), won(x["qty"]), e(x.get("sts", ""))) for x in un]
+            body += '<div class="kv"><span class="tbad">발주 없이 남은 요청 줄 %d개</span> — 진행코드가 「확정」인 채 발주가 없다(수량 0 은 취소로 보이나 ERP 에 취소 표시는 없다)</div>' % len(un)
+            body += '<details><summary>발주 없는 요청 줄</summary>%s</details>' % table(["구매요청번호", "품번", "품목", "수량", "진행코드"], rows, num=(3,))
         rows = [(e(x["pr_no"]), e(x["item_cd"]), e(it(x["item_cd"]).get("nm", "")), e(it(x["item_cd"]).get("spec", "")), won(x["qty"]), "→ %s" % x["po_seq"]) for x in r.get("pr_lines") or []]
         body += '<details><summary>요청 줄 %d개</summary>%s</details>' % (len(rows), table(["구매요청번호", "품번", "품목", "규격", "수량", "발주 순번"], rows, num=(4,)))
     elif n == 2:
@@ -397,7 +445,7 @@ def step_body(n, r, items, st, calc, case):
     elif n == 4:
         why = (r.get("manual") or {}).get("4", "")
         if po.get("lines"):
-            body += '<div class="kv">결정의 결과만 발주로 남아 있다 — 거래처 %s · 금액 %s원</div>' % (e(case["case"]["bp_nm"]), won(po.get("amt")))
+            body += '<div class="kv">결정의 결과만 발주로 남아 있다 — 거래처 %s · 금액 %s원</div>' % (e(po.get("bp_nm") or case["case"]["bp_nm"]), won(po.get("amt")))
     elif n == 5:
         led = r.get("ledger") or {}
         why = "ERP 에 발주 %d줄이 있다(요청 줄과 줄 단위로 이어짐). 기안은 대장 %s 로 확인된다." % (len(po.get("lines") or []), led.get("vol_no", "-")) if po.get("lines") else "아직 발주가 없다."
@@ -420,6 +468,8 @@ def step_body(n, r, items, st, calc, case):
                 body += '<div class="kv"><b>납기 대비</b> %s</div>' % ("%d일 늦음(납기 %s)" % (late, e(po["dlvy_dt"])) if late > 0 else "납기 안")
             rows = [(e(g["pg_no"]), g["po_seq"], won(g["qty"]), e(g["dt"])) for g in gr]
             body += '<details><summary>입고 %d건</summary>%s</details>' % (len(rows), table(["입고번호", "발주 순번", "수량", "입고일"], rows, num=(2,)))
+        elif st[6] == "norec":
+            why = "ERP 에 입고 기록이 없는데 매입은 발주 수량만큼(%s) 끝났다 — 외주 가공·용역처럼 입고 등록을 거치지 않는 흐름이다. 끝나지 않은 것이 아니라 기록이 없는 것이다." % won(calc["po_qty"])
         else:
             why = "ERP 에 입고가 아직 없다(발주 수량 %s)." % won(calc["po_qty"]) if po.get("lines") else "아직 해당 없음."
         if et:
@@ -433,10 +483,22 @@ def step_body(n, r, items, st, calc, case):
     elif n == 7:
         iv, slip, vat = r.get("iv"), r.get("slip"), r.get("vat")
         if iv:
-            why = "ERP 에 매입과 결의전표가 있다. 전표 승인 표시는 스냅샷에서 「%s」." % ("승인" if (slip or {}).get("conf") == "C" else "미승인")
+            parts = iv.get("parts") or []
+            n_ok = sum(1 for p in (slip or {}).get("parts") or [] if p.get("conf") == "C")
+            why = "ERP 에 매입과 결의전표가 있다. 전표 승인 표시는 스냅샷에서 「%s」." % (("승인 %d/%d장" % (n_ok, len(slip["parts"]))) if (slip or {}).get("parts") else ("승인" if (slip or {}).get("conf") == "C" else "미승인"))
             body += '<div class="kv"><b>매입번호</b> %s · <b>매입일</b> %s · <b>공급가</b> %s · <b>부가세</b> %s · <b>합계</b> %s</div>' % (e(iv["iv_no"]), e(iv["iv_dt"]), won(iv["supply_amt"]), won(iv["vat_amt"]), won(iv["supply_amt"] + iv["vat_amt"]))
             if iv.get("pay_method"):
                 body += '<div class="kv"><b>결제방법</b> %s · <b>지급예정일</b> %s <small>(결재문서)</small></div>' % (e(iv["pay_method"]), e(iv.get("pay_due", "-")))
+            if len(parts) > 1 or any(p.get("other_pos") for p in parts):
+                # 매입이 여러 장이거나(분할·진척) 한 장이 다른 발주까지 묶었으면 장마다 보여 준다 — 이 발주 몫과 전체가 다르다
+                sp = {p["ref_no"]: p for p in (slip or {}).get("parts") or []}
+                rows = []
+                for p in parts:
+                    s1 = sp.get(p["iv_no"]) or {}
+                    rows.append((e(p["iv_no"]), e(p["iv_dt"]), won(p["supply_amt"]), won(p.get("total_supply", p["supply_amt"])),
+                                 e(p.get("other_pos") or "—"), e(s1.get("slip_no", "-")), "승인" if s1.get("conf") == "C" else ("미승인" if s1 else "-")))
+                body += '<div class="sub2">매입 %d장 — 이 발주 몫 / 매입 전체</div>' % len(parts)
+                body += table(["매입번호", "매입일", "이 발주 몫(공급가)", "매입 전체(공급가)", "같은 매입에 묶인 다른 발주", "전표", "승인"], rows, num=(2, 3))
             if slip:
                 body += '<div class="sub2">결의전표 %s <small style="font-weight:400">· 전표일 %s · 참조번호 %s</small></div>' % (e(slip["slip_no"]), e(slip["slip_dt"]), e(slip.get("ref_no", "-")))
                 rows = [(x["seq"], e(x["acct_cd"]), e(x["acct_nm"]), won(x["amt"]) if x["drcr"] == "DR" else "", won(x["amt"]) if x["drcr"] == "CR" else "") for x in slip["lines"]]
@@ -453,9 +515,15 @@ def step_body(n, r, items, st, calc, case):
             x, d = led.get("xlsx") or {}, led.get("db") or {}
             why = "대장 %s 에 줄이 있고 묶음 파일 %s 이 있다. 엑셀 기준 종결 「%s」." % (led["vol_no"], led.get("scan_file") or "없음", x.get("closed", "-"))
             jn = led.get("job_no_raw", "")
-            jn_bad = jn != case["case"]["project_no"]
+            jn_bad = jn != (r.get("project_no") or case["case"]["project_no"])
             body += '<div class="kv"><b>권-번호</b> %s · <b>일자</b> %s · <b>기안자</b> %s · <b>금액</b> %s</div>' % (e(led["vol_no"]), e(led.get("draft_dt", "-")), e(led.get("drafter", "-")), won(led.get("amt")))
-            body += '<div class="kv"><b>생산번호(대장)</b> %s %s</div>' % (e(jn), '<span class="tbad">← ERP · 기안서는 %s</span>' % e(case["case"]["project_no"]) if jn_bad else "")
+            body += '<div class="kv"><b>생산번호(대장)</b> %s %s</div>' % (e(jn), '<span class="tbad">← ERP · 기안서는 %s</span>' % e(r.get("project_no") or case["case"]["project_no"]) if jn_bad else "")
+            if led.get("pay_plan"):
+                # 계약금·중도금·잔금(대장의 지급 단계) — 전표와 비율을 그대로 보여 준다
+                rows = [(e(p["name"]), e(p.get("rate") or "-"), e(p.get("slip") or "(빈칸)"), e(p.get("dt") or "(빈칸)")) for p in led["pay_plan"]]
+                body += '<div class="sub2">지급 단계(대장)</div>' + table(["단계", "비율", "전표번호 칸", "일자"], rows)
+            if led.get("others"):
+                body += '<div class="kv"><span class="tbad">같은 전표로 묶여 「확정」 연결된 다른 기안 %d건</span> — %s</div>' % (len(led["others"]), e(" · ".join(led["others"])))
             body += table(["", "엑셀 대장", "포털(중간DB · %s 적재)" % e(d.get("loaded", "-"))], [
                 ("종결", e(x.get("closed") or "-"), e(d.get("closed") or "-")),
                 ("지급", e(x.get("pay") or "-"), "—"),
@@ -498,8 +566,10 @@ def build(case, style, flow, files, zips):
                  % ("etc" if cur is None else "erp", e(r["label"]), e(po.get("po_no", "-")), won(po.get("amt")), e((r.get("pu") or {}).get("pu_no", "-")), e(po.get("po_dt", "-")), e(pos)))
     nbad = sum(1 for f in case.get("findings", []) if f["sev"] == "bad")
     nwarn = sum(1 for f in case.get("findings", []) if f["sev"] == "warn")
-    H.append('<div class="hcard gw"><div class="k">이 건에서 본 것</div><div class="v">결함 %d · 주의 %d · 관찰 %d</div><p>폴더 문서의 차수 혼재, 화면 상태 오판, 엑셀·대장과 ERP 의 차이, 1차 대비 2차 단가. <a href="#c8">8절</a></p></div></div>'
-             % (nbad, nwarn, len(case.get("findings", [])) - nbad - nwarn))
+    # 요약 문장은 발견 사항 제목에서 뽑는다(결함·주의 먼저, 최대 3개) — 예시마다 다르다
+    heads = [f["title"] for f in sorted(case.get("findings", []), key=lambda x: {"bad": 0, "warn": 1}.get(x["sev"], 2))][:3]
+    H.append('<div class="hcard gw"><div class="k">이 건에서 본 것</div><div class="v">결함 %d · 주의 %d · 관찰 %d</div><p>%s <a href="#c8">8절</a></p></div></div>'
+             % (nbad, nwarn, len(case.get("findings", [])) - nbad - nwarn, e(" · ".join(heads)) + ("." if heads else "")))
 
     # 2 폴더 문서
     H.append('<h2 id="c2">2. 이 폴더의 문서 <span class="h2sub">어느 차수 · 어느 단계의 문서인가</span></h2>')
@@ -663,7 +733,10 @@ def track_key(n, r):
     if n == 5:
         return "%s · PO…%s" % (md(po.get("po_dt")), po["po_no"][-4:]) if po.get("po_no") else "-"
     if n == 6:
-        return "%s 입고 %d건" % (md(max(g["dt"] for g in r["gr"])), len(r["gr"])) if r.get("gr") else "입고 대기"
+        if r.get("gr"):
+            days = sorted({g["dt"] for g in r["gr"]})
+            return "%s 입고 %d건" % (md(days[-1]), len(r["gr"])) if len(days) == 1 else "%s~%s 입고 %d건" % (md(days[0]), md(days[-1]), len(r["gr"]))
+        return "입고 기록 없음(매입으로 끝)" if r.get("iv") else "입고 대기"
     if n == 7:
         return "%s · TG…%s" % (md(r["iv"]["iv_dt"]), (r.get("slip") or {}).get("slip_no", "----")[-4:]) if r.get("iv") else "-"
     if n == 8:
@@ -757,8 +830,9 @@ def main():
     for d in docs:
         cnt[d["status"]] = cnt.get(d["status"], 0) + 1
     print("  문서: " + " · ".join("%s %d" % (DOC_LABEL[k], v) for k, v in cnt.items()))
-    if bad:
-        print("[중단] 검산 불일치 %d건 — case.json 을 확인한다" % bad)
+    if bad and "--keep-mismatch" not in sys.argv:
+        # 예시 검증(P0.5)에서는 불일치 자체가 관찰 결과다 — --keep-mismatch 로 화면에 「불일치」로 남기고 계속 만든다
+        print("[중단] 검산 불일치 %d건 — case.json 을 확인한다(관찰로 남기려면 --keep-mismatch)" % bad)
         return 1
     if check_only:
         print("점검만 했다(파일을 쓰지 않았다).")
