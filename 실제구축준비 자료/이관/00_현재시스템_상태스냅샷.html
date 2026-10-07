@@ -778,6 +778,11 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <td><strong>발주 상태머신 v2(스키마 변경)</strong> — <code>sp_order_state.status</code>에 <code>rework</code>(재작업·불합격) 상태 추가 + 5상태 check 제약(new/prod/insp/rework/done). 판정 시 자동 전이(합격→done·불합격→rework), 재검수요청 시 현재 판정(<code>sp_inspection</code>) 리셋+IR 차수 발번+이전 미결 신청 자동 마감, step을 10단계 인덱스(0~9)로 재정렬. 기존 데이터 정합화(불합격→rework·합격→done). 단일 출처: <code>08_협력사발주포털/03_실구축기획/08_전체프로세스_상태머신_로직재설계</code>.</td>
 <td>최동혁(+Claude)</td>
 </tr>
+<tr>
+<td>2026-10-07</td>
+<td><strong>발주통합 LIST 상태 판정을 실적 기준으로</strong>(REQ-0110 · 로드맵 P0 · 결정 D-117 A안 · 관리자 승인 뒤 적용) — 정본 SQL <strong>91</strong>(<code>91_erp_pur_status_actual.sql</code> · 마이그레이션 <code>erp_pur_status_actual_req0110</code> · 롤백 SQL 동봉): 판정 뷰 <code>public.v_erp_pur_line_status</code> 신설(security_invoker · authenticated/service_role select) + <code>v_erp_pur_list</code>(v5)·<code>v_erp_pur_order_hdr</code>·<code>v_erp_po_pr_link</code> 재정의(기존 컬럼 그대로 · 끝에 <code>po_sts_raw</code>·<code>rcpt_qty_raw</code> 추가). 발주 사본 <code>pur_order_s.rcpt_qty/po_sts</code> 가 증분 적재에서 갱신되지 않아 끝난 발주가 「미입고·납기경과」로 나오던 결함 수정 — 적용 뒤 전량 입고인데 「발주」인 줄 0 · 상태 바뀐 줄 436줄 · 조회 시간 종전 수준. 화면·Edge Function·적재 프로그램 무변경. B안(적재 증분 기준) 별건. 같은 날 다른 세션이 정본 SQL <strong>92</strong>(DRI 에이전트 · REQ-0112)를 적용 — 그 세션 기록 참조</td>
+<td>Claude(REQ-0110)</td>
+</tr>
 </tbody>
 </table>
   </div>
