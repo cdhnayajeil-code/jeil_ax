@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script>window.PAGE_KEY='purchase_trace_2026';</script>
+<script src="/pages/_access-gate.js"></script>
+<title>구매팀 — 구매 건 추적 2026</title>
+<style>
+  :root{
+    --navy:#1a2f4e; --navy2:#27457a; --accent:#2f6fb3; --accent2:#4a8ed0;
+    --red:#b3402f; --green:#2e7d52; --amber:#9a6b1f;
+    --ink:#222; --muted:#666; --line:#d8dee8; --bg:#f4f6f9;
+    --soft:#eef2f8; --softred:#fbeeec; --softgreen:#ecf5f0; --softamber:#faf3e4;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif; color:var(--ink); background:var(--bg); line-height:1.6; font-size:14px;}
+  .page{margin:0 auto; background:#fff; padding:26px 24px 30px; min-height:100vh; max-width:1380px;}
+  .head{display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:10px; border-bottom:3px solid var(--navy); padding-bottom:14px; margin-bottom:16px;}
+  .head h1{font-size:22px; color:var(--navy);}
+  .head .sub{font-size:12.5px; color:var(--muted); margin-top:3px;}
+  .head .right{text-align:right; font-size:12px; color:var(--muted);}
+  .head .right a{color:var(--accent); text-decoration:none; margin-left:10px;}
+  .badge{display:inline-block; font-size:11px; border-radius:10px; padding:2px 9px; font-weight:600;}
+  .badge.g{background:var(--softgreen); color:var(--green);} .badge.b{background:var(--soft); color:var(--navy2);}
+  /* 검색 한 줄 — 번호 하나가 전부다 */
+  .search{display:flex; gap:8px; align-items:center; flex-wrap:wrap; background:var(--soft); border:1px solid var(--line); border-radius:11px; padding:12px 14px; margin-bottom:14px;}
+  .search input{flex:1; min-width:260px; font-size:15px; padding:8px 12px; border:1px solid var(--line); border-radius:8px; font-family:Consolas,monospace;}
+  .search button{font-size:13.5px; padding:8px 18px; border:0; border-radius:8px; background:var(--accent); color:#fff; cursor:pointer; font-weight:700;}
+  .search .hint{font-size:11.5px; color:var(--muted); flex-basis:100%;}
+  .search .hint code{background:#fff; border:1px solid var(--line); border-radius:4px; padding:0 5px; font-size:11px;}
+  .sec{background:#fff; border:1px solid var(--line); border-radius:11px; padding:14px 16px; margin-bottom:14px;}
+  .sec h3{font-size:13.5px; color:var(--navy); margin-bottom:6px;}
+  .sec .note{font-size:11px; color:var(--muted); margin-bottom:8px;}
+  .round{border:1.5px solid var(--line); border-radius:12px; padding:14px 16px; margin-bottom:16px;}
+  .round > h2{font-size:17px; color:var(--navy); display:flex; gap:10px; align-items:center; flex-wrap:wrap;}
+  .round > h2 small{font-size:12px; color:var(--muted); font-weight:500;}
+  .kv{font-size:12.6px; margin:2px 0;} .kv b{color:var(--navy2); font-weight:600;}
+  /* 8단계 트랙 — 색은 _build_case.py 와 같은 뜻 */
+  .trackgrid{display:grid; grid-template-columns:repeat(8,minmax(100px,1fr)); gap:6px; margin:10px 0 12px;}
+  .trk{border:1.5px solid var(--line); border-radius:8px; padding:6px 8px; font-size:11.5px; line-height:1.4; background:#fff; min-width:0;}
+  .trk b{display:block; font-size:12px;} .trk .d{display:block; color:var(--muted); font-size:10.8px;}
+  .trk.done{background:var(--softgreen); border-color:var(--green);} .trk.done b{color:var(--green);}
+  .trk.cur{background:var(--soft); border-color:var(--accent); box-shadow:0 0 0 3px rgba(47,111,179,.2);} .trk.cur b{color:var(--accent);}
+  .trk.part{background:var(--softamber); border-color:var(--amber);} .trk.part b{color:var(--amber);}
+  .trk.norec{border-style:dashed; border-color:#9aa3af;} .trk.norec b{color:var(--muted);}
+  .trk.todo{opacity:.55;}
+  /* 번호 사슬 */
+  .chain{display:flex; flex-wrap:wrap; gap:4px; align-items:stretch; margin:8px 0;}
+  .no{border:1.5px solid var(--line); border-radius:8px; padding:4px 8px; min-width:92px; font-size:11px; background:#fff;}
+  .no b{display:block; font-size:11.5px; color:var(--navy);} .no span{display:block; color:var(--muted); font-size:10.5px;}
+  .no small{display:block; font-family:Consolas,monospace; font-size:10.5px; word-break:break-all;}
+  .no.off{opacity:.45; border-style:dashed;} .no.locked{border-style:dashed; border-color:var(--amber); background:var(--softamber);}
+  .two{display:grid; grid-template-columns:1fr 1fr; gap:12px;} @media (max-width:900px){.two{grid-template-columns:1fr;} .trackgrid{grid-template-columns:repeat(4,1fr);}}
+  .box{border:1px solid var(--line); border-radius:10px; padding:10px 12px; min-width:0;}
+  .box h4{font-size:13px; color:var(--navy); margin-bottom:4px; display:flex; gap:8px; align-items:center; flex-wrap:wrap;}
+  .stt{display:inline-block; font-size:11px; font-weight:700; padding:1px 8px; border-radius:999px; border:1px solid var(--line); white-space:nowrap;}
+  .stt.done{color:var(--green); border-color:var(--green); background:var(--softgreen);} .stt.cur{color:var(--accent); border-color:var(--accent); background:var(--soft);}
+  .stt.part{color:var(--amber); border-color:var(--amber); background:var(--softamber);} .stt.norec{color:var(--muted); border-style:dashed;} .stt.todo{color:var(--muted);}
+  .tw{overflow-x:auto;} table{width:100%; border-collapse:collapse; font-size:12.2px;}
+  th{background:var(--navy); color:#fff; padding:5px 8px; text-align:left; font-weight:600; white-space:nowrap;}
+  td{padding:4px 8px; border-bottom:1px solid var(--line);} tr:nth-child(even) td{background:#fafbfd;}
+  td.r,th.r{text-align:right;} .tbad{color:var(--red); font-weight:700;} .tgood{color:var(--green); font-weight:700;}
+  details{margin:4px 0;} summary{cursor:pointer; font-size:12.2px; color:var(--navy2); font-weight:600;}
+  .callout{border-radius:8px; padding:10px 14px; margin:8px 0; font-size:12.5px;}
+  .callout.blue{background:var(--soft); border-left:4px solid var(--accent);} .callout.amber{background:var(--softamber); border-left:4px solid var(--amber);} .callout.red{background:var(--softred); border-left:4px solid var(--red);}
+  .callout b{color:var(--navy2);}
+  .loading{text-align:center; color:var(--muted); padding:40px 10px; font-size:13.5px;}
+  .foot{margin-top:24px; padding-top:12px; border-top:1px solid var(--line); font-size:11px; color:var(--muted); display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap;}
+  .po a{color:var(--accent); text-decoration:none;}
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="head">
+    <div>
+      <h1>🔗 구매 건 추적 2026</h1>
+      <div class="sub">번호 하나로 <b>요청 → 발주 → 입고 → 매입 → 대장</b>까지 한 건 전체 · 상태는 실적 문서의 존재로 판정(함수 <code>pur_case_chain</code>) · 조회 전용</div>
+    </div>
+    <div class="right">
+      <span class="badge g">중간DB 실데이터</span>
+      <a href="/work/purchase-board">🧭 구매 진행판</a>
+      <a href="/work/purchase-list">📑 발주통합 LIST</a>
+      <a href="/work/purchase-proposals">📝 기안서 대장</a>
+      <a href="/docs/purchase/process" target="_blank">프로세스 도식</a>
+    </div>
+  </div>
+
+  <form class="search" id="sf">
+    <input id="k" type="text" autocomplete="off" placeholder="발주 PO… · 요청 PR… · 요청 결재 PU… · 입고 PG… · 매입 IV… · 기안 권-번호(예: 7-664) · 거래처·P-CODE·건명 일부">
+    <button type="submit">찾기</button>
+    <div class="hint">번호 꼴이면 그 번호로 잇고, 아니면 최근 발주부터 30건 검색한다. 결의전표(TG)·세금계산서는 열람 범위 밖(결정 C-15)이라 이 화면에서는 「매입」까지 보인다.</div>
+  </form>
+
+  <div id="app"><div class="callout blue">번호를 넣고 <b>찾기</b>를 누르세요. 진행판에서 발주번호를 누르면 여기로 옵니다.</div></div>
+
+  <div class="foot">
+    <span>JEIL AX · 구매업무시스템 P1(REQ-0116) — 단계 규칙은 <a href="/docs/purchase/cases" target="_blank" style="color:var(--accent)">04 예시 검증</a>과 같다</span>
+    <span id="footAsof"></span>
+  </div>
+</div>
+
+<script type="module">
+  import { supabase } from "/app/lib/supabaseClient.js";
+
+  /* 데이터는 함수 `public.pur_case_chain(번호)` 하나에서 온다(정본 SQL 95) — 발주 건마다 요청·발주 줄·입고·매입(장마다 이 발주 몫/전체)·
+     대장·화면 상태·8단계 판정(뷰 v_erp_pur_board)을 JSON 하나로 돌려준다. 화면은 그리기만 한다. 전표·부가세·국세청 칸은 사내 권한에서
+     빈 배열로 오므로(C-15) 「열람 범위 밖」으로 표시한다. */
+  const app = document.getElementById("app");
+  const esc = (t) => String(t == null ? "" : t).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const num = (n) => (n == null || n === "" ? "—" : Number(n).toLocaleString("ko-KR", { maximumFractionDigits: 3 }));
+  const won = (n) => (n == null ? "—" : Math.round(Number(n)).toLocaleString("ko-KR"));
+  const md = (d) => (d ? String(d).slice(5, 10).replace("-", "/") : "—");
+  const days = (a, b) => (a && b ? Math.round((new Date(b) - new Date(a)) / 86400000) : null);
+  const STAGES = ["구매요청·확정", "발주통합관리 LIST", "견적검토", "구매확정", "구매품의서", "계산서 발행요청", "매입마감·매입전표", "품의서관리·기안서 대장"];
+  const ST_LABEL = { done: "완료", part: "일부", norec: "기록 없음", todo: "아직", cur: "지금 여기" };
+
+  const table = (head, rows, num = []) => '<div class="tw"><table><tr>' + head.map((h, i) => "<th" + (num.includes(i) ? ' class="r"' : "") + ">" + esc(h) + "</th>").join("")
+    + "</tr>" + rows.map((r) => "<tr>" + r.map((c, i) => "<td" + (num.includes(i) ? ' class="r"' : "") + ">" + c + "</td>").join("") + "</tr>").join("") + "</table></div>";
+
+  function states(b) {
+    const st = b ? [null, b.s1, b.s2, b.s3, b.s4, b.s5, b.s6, b.s7, b.s8] : [null, "todo", "todo", "norec", "norec", "todo", "todo", "todo", "todo"];
+    if (b && b.cur_stage && st[b.cur_stage] === "todo") st[b.cur_stage] = "cur";
+    return st;
+  }
+  function trackKey(n, r) {
+    const po = r.po || {}, pu = r.pu || {}, b = r.board || {};
+    const gr = r.gr || [], ivp = r.iv_parts || [], led = r.ledger || [];
+    if (n === 1) return pu.pu_no ? md(pu.req_dt) + " · PU…" + pu.pu_no.slice(-4) : (r.pr_lines && r.pr_lines.length ? "요청번호 " + r.pr_lines.length + "줄" : "요청 없음");
+    if (n === 2) return "LIST " + ((po.lines || []).length) + "줄";
+    if (n === 3) return "견적 기록 없음";
+    if (n === 4) return "결과만 발주로";
+    if (n === 5) return md(po.po_dt) + " · PO…" + String(po.po_no || "").slice(-4);
+    if (n === 6) {
+      if (gr.length) { const ds = [...new Set(gr.map((g) => g.dt))].sort(); return (ds.length === 1 ? md(ds[0]) : md(ds[0]) + "~" + md(ds[ds.length - 1])) + " 입고 " + gr.length + "건"; }
+      return ivp.length ? "입고 기록 없음(매입으로 끝)" : "입고 대기";
+    }
+    if (n === 7) return ivp.length ? md(ivp[ivp.length - 1].iv_dt) + " · 매입 " + ivp.length + "장" : "—";
+    if (n === 8) return led.length ? "대장 " + led.map((l) => l.vol_no).slice(0, 2).join(", ") + (led.length > 2 ? " 외" : "") + (led.every((l) => l.closed === "Y") ? " · 종결" : " · 종결 전") : "—";
+    return "";
+  }
+
+  function chainHtml(r) {
+    const po = r.po || {}, pu = r.pu || {}, prs = r.pr_lines || [], gr = r.gr || [], ivp = r.iv_parts || [], led = r.ledger || [];
+    const box = (code, label, val, cls) => '<div class="no' + (val ? "" : " off") + (cls ? " " + cls : "") + '"><b>' + esc(code) + "</b><span>" + esc(label) + "</span><small>" + esc(val || (cls === "locked" ? "열람 범위 밖" : "아직")) + "</small></div>";
+    const first_last = (xs, k) => (xs.length ? xs[0][k] + (xs.length > 1 ? " ~ …" + String(xs[xs.length - 1][k]).slice(-4) : "") : "");
+    return '<div class="chain">'
+      + box("PR", "요청 " + prs.length + "줄", first_last(prs, "pr_no"))
+      + box("PU", "요청 결재", pu.pu_no)
+      + box("기안", "구매기안 · 대장", led.map((l) => l.vol_no).slice(0, 2).join(","))
+      + box("PO", "발주 " + (po.lines || []).length + "줄", po.po_no)
+      + box("PG", "입고 " + gr.length + "건", first_last(gr, "pg_no"))
+      + box("IV", "매입 " + ivp.length + "장", first_last(ivp, "iv_no"))
+      + box("TG", "결의전표", (r.slips || []).length ? first_last(r.slips, "slip_no") : "", (r.slips || []).length ? "" : "locked")
+      + box("VT", "부가세", (r.vats || []).length ? first_last(r.vats, "vat_no") : "", (r.vats || []).length ? "" : "locked")
+      + box("승인번호", "국세청", (r.etax || []).length ? r.etax[0].approval_no : "", (r.etax || []).length ? "" : "locked")
+      + box("권-번호", "보관 파일", led.map((l) => l.scan_file).filter(Boolean).slice(0, 2).join(","))
+      + "</div>";
+  }
+
+  function roundHtml(r) {
+    const po = r.po || {}, pu = r.pu || {}, b = r.board || {}, sc = r.screen || {};
+    const prs = r.pr_lines || [], gr = r.gr || [], ivp = r.iv_parts || [], led = r.ledger || [];
+    const st = states(r.board);
+    const poQty = (po.lines || []).reduce((s, x) => s + Number(x.qty || 0), 0);
+    const grQty = gr.reduce((s, g) => s + Number(g.qty || 0), 0);
+    const ivQty = ivp.reduce((s, p) => s + (p.lines || []).reduce((t, x) => t + Number(x.qty || 0), 0), 0);
+    let h = '<div class="round"><h2>' + esc(po.po_no || r.po_no) + " <small>" + esc(po.bp_nm || "") + " · " + esc(po.po_dt || "") + " · " + won(po.amt) + "원 · " + (po.lines || []).length + "줄</small>"
+      + (b.cur_stage ? '<span class="stt cur">' + b.cur_stage + "단계 " + esc(STAGES[b.cur_stage - 1]) + "에 서 있다</span>" : '<span class="stt done">끝까지 완료</span>')
+      + (b.overdue ? '<span class="stt part">납기경과 미입고 표시</span>' : "") + "</h2>";
+    if (!r.found) return h + '<div class="callout amber">중간DB 에 이 발주번호가 없다(2026년 발주만 있다).</div></div>';
+    h += '<div class="trackgrid">' + STAGES.map((nm, i) => { const n = i + 1; return '<div class="trk ' + st[n] + '" title="' + esc(ST_LABEL[st[n]]) + '"><b>' + n + " " + esc(nm) + '</b><span class="d">' + esc(trackKey(n, r)) + "</span></div>"; }).join("") + "</div>";
+    h += chainHtml(r);
+
+    // 1·2 요청과 LIST
+    const other = (pu.other || []).map((o) => " · " + esc(o.bp_nm) + " " + o.lines + "줄(" + esc(o.po_no) + ", " + won(o.amt) + "원)").join("");
+    const unordered = pu.unordered || [];
+    h += '<div class="two"><div class="box"><h4>1 구매요청 <span class="stt ' + st[1] + '">' + ST_LABEL[st[1]] + "</span></h4>"
+      + (pu.pu_no ? '<div class="kv"><b>요청 결재번호</b> ' + esc(pu.pu_no) + " · <b>요청일</b> " + esc(pu.req_dt || "-") + " · <b>필요일</b> " + esc(pu.need_dt || "-") + " · <b>요청</b> " + esc((pu.req_dept || "") + " " + (pu.req_user || "")) + "</div>"
+         + '<div class="kv"><b>건명</b> ' + esc(pu.title || "") + "</div>"
+         + '<div class="kv"><b>이 요청 결재 전체</b> ' + num(pu.lines_total) + "줄 — 이 발주 " + num(pu.lines_this_po) + "줄" + other + "</div>"
+         + (unordered.length ? '<div class="kv"><span class="tbad">발주 없이 남은 요청 줄 ' + unordered.length + "개</span></div>" + '<details><summary>발주 없는 요청 줄</summary>' + table(["구매요청번호", "품번", "품목", "수량", "진행코드"], unordered.map((x) => [esc(x.pr_no), esc(x.item_cd), esc(x.item_nm || ""), num(x.qty), esc(x.sts)]), [3]) + "</details>" : "")
+        : '<div class="kv" style="color:var(--muted)">발주 줄에 요청번호가 없다 — 요청 결재와 이어지지 않는다.</div>')
+      + (prs.length ? '<details><summary>요청 줄 ' + prs.length + "개</summary>" + table(["구매요청번호", "품번", "품목", "수량", "발주 순번", "진행코드"], prs.map((x) => [esc(x.pr_no), esc(x.item_cd), esc(x.item_nm || ""), num(x.qty), "→ " + x.po_seq, esc(x.pr_sts || "")]), [3]) + "</details>" : "")
+      + "</div>";
+    const wrong = sc.unreceived && poQty && grQty >= poQty;
+    const noRec = sc.unreceived && !gr.length && ivQty >= poQty && poQty > 0;
+    h += '<div class="box"><h4>2 발주통합 LIST(포털) <span class="stt ' + st[2] + '">' + ST_LABEL[st[2]] + "</span></h4>"
+      + '<div class="kv">상태 「' + esc(sc.status_kr || "-") + "」 · 미입고 표시 " + (sc.unreceived ? "켜짐" : "꺼짐") + " · 납기경과 표시 " + (sc.overdue ? "켜짐" : "꺼짐") + " — 실입고 " + num(sc.rcpt_qty_sum || 0) + " / 발주 " + num(sc.po_qty) + " · 매입 " + num(sc.iv_qty_sum || 0)
+      + (wrong ? ' <span class="tbad">← 실제와 다르다</span>' : "") + (noRec ? ' <span class="tbad">← 입고 기록 없이 매입으로 끝난 줄(결정 11)</span>' : "") + "</div>"
+      + '<div class="kv"><b>P-CODE</b> ' + esc(b.p_code || "-") + " · <b>프로젝트</b> " + esc(b.prj_nm || "-") + " · <b>담당</b> " + esc(b.agent_nm || "-") + " · <b>입고처</b> " + esc(b.whs_nm || "-") + "</div>"
+      + '<div class="kv"><a class="po" href="/work/purchase-list?q=' + encodeURIComponent(po.po_no || "") + '" target="_blank" style="color:var(--accent)">발주통합 LIST 에서 보기 →</a></div>'
+      + "</div></div>";
+
+    // 3·4 기록 없음 · 5 발주
+    h += '<div class="two"><div class="box"><h4>3 견적검토 · 4 구매확정 <span class="stt norec">기록 없음</span></h4><div class="kv" style="color:var(--muted)">ERP 에 견적·결정 기록이 없다. 결과만 발주로 남는다(P2 포털 기록 전까지).</div></div>';
+    h += '<div class="box"><h4>5 구매품의서 · 발주 <span class="stt ' + st[5] + '">' + ST_LABEL[st[5]] + "</span></h4>"
+      + '<div class="kv"><b>발주일</b> ' + esc(po.po_dt || "-") + " · <b>납기</b> " + esc(po.dlvy_dt || "-") + " · <b>유형</b> " + esc(po.po_type || "-") + " · <b>금액</b> " + won(po.amt) + "원"
+      + (b.days_req_to_po != null ? " · 요청→발주 " + b.days_req_to_po + "일" : "") + "</div>"
+      + (po.hdr_remark ? '<div class="kv"><b>발주 비고</b> ' + esc(po.hdr_remark) + "</div>" : "")
+      + '<details><summary>발주 줄 ' + (po.lines || []).length + "개</summary>" + table(["순번", "품번", "품목", "규격", "수량", "단가", "금액", "구매요청번호", "진행"], (po.lines || []).map((x) => [x.po_seq, esc(x.item_cd), esc(x.item_nm || ""), esc(x.spec || ""), num(x.qty), won(x.price), won(x.amt), esc(x.pr_no || ""), esc(x.sts || "")]), [4, 5, 6]) + "</details>"
+      + "</div></div>";
+
+    // 6 입고 · 7 매입
+    const gDays = [...new Set(gr.map((g) => g.dt))].sort();
+    h += '<div class="two"><div class="box"><h4>6 입고 · 계산서 발행요청 <span class="stt ' + st[6] + '">' + ST_LABEL[st[6]] + "</span></h4>";
+    if (gr.length) {
+      const late = po.dlvy_dt ? days(po.dlvy_dt, gDays[gDays.length - 1]) : null;
+      h += '<div class="kv">ERP 입고 ' + gr.length + "건 · 수량 " + num(grQty) + " / 발주 " + num(poQty) + " · <b>입고일</b> " + esc(gDays.join(", ")) + (late != null ? " · <b>납기 대비</b> " + (late > 0 ? late + "일 늦음" : "납기 안") : "") + "</div>"
+        + '<details><summary>입고 ' + gr.length + "건</summary>" + table(["입고번호", "발주 순번", "수량", "입고일"], gr.map((g) => [esc(g.pg_no), g.po_seq, num(g.qty), esc(g.dt)]), [2]) + "</details>";
+    } else if (st[6] === "norec") {
+      h += '<div class="kv">ERP 입고 기록이 없는데 매입은 발주 수량만큼 끝났다 — 외주 가공·용역처럼 입고 등록을 거치지 않는 흐름(기록이 없는 것이지 안 끝난 것이 아니다).</div>';
+    } else {
+      h += '<div class="kv">ERP 에 입고가 아직 없다(발주 수량 ' + num(poQty) + ").</div>";
+    }
+    h += '<div class="kv" style="color:var(--muted)">계산서 발행요청 메일·수취 여부는 ERP 에 없다. 세금계산서(국세청)는 열람 범위 밖(결정 C-15).</div></div>';
+    h += '<div class="box"><h4>7 매입마감 · 매입전표 <span class="stt ' + st[7] + '">' + ST_LABEL[st[7]] + "</span></h4>";
+    if (ivp.length) {
+      const sup = ivp.reduce((s, p) => s + Number(p.supply_amt || 0), 0), vat = ivp.reduce((s, p) => s + Number(p.vat_amt || 0), 0);
+      h += '<div class="kv">매입 ' + ivp.length + "장 · 이 발주 몫 공급가 " + won(sup) + " + 부가세 " + won(vat) + " · 매입 수량 " + num(ivQty) + " / 발주 " + num(poQty) + "</div>";
+      const multi = ivp.length > 1 || ivp.some((p) => p.iv_total && p.iv_total.other_pos);
+      if (multi) {
+        h += '<div class="note">매입이 여러 장이거나 한 장이 다른 발주까지 묶었다 — 이 발주 몫과 매입 전체가 다르다(전표·계산서는 전체 금액으로 난다).</div>'
+          + table(["매입번호", "매입일", "이 발주 몫(공급가)", "매입 전체(공급가)", "같은 매입에 묶인 다른 발주"], ivp.map((p) => [esc(p.iv_no), esc(p.iv_dt), won(p.supply_amt), won((p.iv_total || {}).supply_amt), esc((p.iv_total || {}).other_pos || "—")]), [2, 3]);
+      }
+      const lines = ivp.flatMap((p) => (p.lines || []).map((x) => [esc(p.iv_no), x.iv_seq, x.po_seq, num(x.qty), won(x.price), won(x.amt), won(x.vat), esc(x.pg_no || "")]));
+      h += '<details><summary>매입 줄 ' + lines.length + "개</summary>" + table(["매입번호", "순번", "발주 순번", "수량", "단가", "공급가", "부가세", "입고번호"], lines, [3, 4, 5, 6]) + "</details>";
+      // 줄 검산 — 발주 순번별 매입 수량 합 = 발주 수량 · 단가 같음
+      const pol = {}; for (const x of (po.lines || [])) pol[x.po_seq] = x;
+      const qsum = {}, pbad = new Set();
+      for (const p of ivp) for (const x of (p.lines || [])) { qsum[x.po_seq] = (qsum[x.po_seq] || 0) + Number(x.qty || 0); if (pol[x.po_seq] && Number(pol[x.po_seq].price) !== Number(x.price)) pbad.add(x.po_seq); }
+      const qbad = Object.keys(qsum).filter((k) => pol[k] && Number(pol[k].qty) !== qsum[k]);
+      const bad = [...new Set([...qbad, ...pbad])];
+      h += '<div class="kv">검산 — 발주 순번별 매입 수량 합·단가: ' + (bad.length ? '<span class="tbad">어긋난 순번 ' + esc(bad.join(", ")) + "</span>" : '<span class="tgood">일치</span>') + "</div>";
+    } else {
+      h += '<div class="kv">ERP 에 매입이 아직 없다.</div>';
+    }
+    h += '<div class="kv" style="color:var(--muted)">결의전표(승인 여부)·부가세 원장은 열람 범위 밖(결정 C-15) — 대장의 전표 대사는 기안서 대장 화면에서 본다.</div></div></div>';
+
+    // 8 대장
+    h += '<div class="box"><h4>8 품의서관리 · 기안서 대장 <span class="stt ' + st[8] + '">' + ST_LABEL[st[8]] + "</span></h4>";
+    if (led.length) {
+      const rows = led.map((l) => {
+        const plan = [["계약금", l.dp], ["중도금", l.mp], ["잔금", l.bp]].filter(([, x]) => x && (x.rate != null || (x.slip || "").trim())).map(([nm, x]) => nm + (x.rate != null ? " " + Math.round(Number(x.rate) * 1000) / 10 + "%" : "") + ((x.slip || "").trim() ? " " + String(x.slip).trim().split(/\s+/)[0] + (String(x.slip).trim().split(/\s+/).length > 1 ? " 외" : "") : " (전표 빈칸)")).join(" · ");
+        return ['<a class="po" href="/work/purchase-proposals?q=' + encodeURIComponent(l.vol_no) + '" target="_blank" style="color:var(--accent)">' + esc(l.vol_no) + "</a>", esc(l.draft_dt || ""), esc(l.drafter || ""), esc(l.job_no || "") + (b.p_code && l.job_no && !String(l.job_no).startsWith(String(b.p_code).slice(0, 12)) ? ' <span class="tbad" title="ERP P-CODE 와 다르다">≠</span>' : ""), esc(String(l.content || "").slice(0, 30)), won(l.amt), esc(l.closed || "-"), esc(plan || "잔금 100%"), esc(l.link || "") + (l.method ? "·" + esc(l.method) : ""), esc(l.scan_file || "—")];
+      });
+      h += '<div class="note">「확정」은 전표 경유 연결 — 월말 묶음 매입이면 다른 기안까지 붙을 수 있다(결정 14). 금액이 발주와 다르면 한 기안이 여러 발주를 묶었거나 그 반대다.</div>'
+        + table(["권-번호", "기안일", "기안자", "생산번호", "내용", "금액", "종결", "지급 단계(대장)", "연결", "묶음 파일"], rows, [5]);
+    } else {
+      h += '<div class="kv">연결된 기안이 없다 — 대장에 발주번호 칸이 없어 전표·프로젝트·거래처·금액으로만 잇는다(결정 5·14).</div>';
+    }
+    h += "</div>";
+
+    // 소요일
+    const ev = [];
+    if (pu.req_dt) ev.push(["구매요청 등록", pu.req_dt]);
+    if (pu.need_dt) ev.push(["요청 필요일(계획)", pu.need_dt]);
+    for (const l of led) if (l.draft_dt) ev.push(["구매기안(대장 " + l.vol_no + ")", l.draft_dt]);
+    if (po.po_dt) ev.push(["ERP 발주", po.po_dt]);
+    if (po.dlvy_dt) ev.push(["발주 납기(계획)", po.dlvy_dt]);
+    if (gDays.length) { ev.push([gDays.length > 1 ? "첫 입고" : "입고", gDays[0]]); if (gDays.length > 1) ev.push(["마지막 입고", gDays[gDays.length - 1]]); }
+    ivp.forEach((p, i) => ev.push([ivp.length > 1 ? "매입 " + (i + 1) + "/" + ivp.length : "매입 등록", p.iv_dt]));
+    ev.sort((a, c) => (a[1] < c[1] ? -1 : a[1] > c[1] ? 1 : 0));
+    if (ev.length) {
+      const first = ev[0][1];
+      h += '<details><summary>소요일(날짜순 ' + ev.length + "개)</summary>" + table(["일", "날짜", "앞에서부터", "처음부터"], ev.map((e, i) => [esc(e[0]), esc(e[1]), i ? days(ev[i - 1][1], e[1]) + "일" : "—", days(first, e[1]) + "일"]), [2, 3]) + "</details>";
+    }
+    return h + "</div>";
+  }
+
+  function render(data) {
+    const rounds = data.rounds || [];
+    let h = '<div class="sec"><h3>「' + esc(data.key) + "」 → " + esc(data.kind) + " · 발주 " + num(data.po_count) + "건" + (data.truncated ? ' <span class="badge b">최근 30건만</span>' : "") + "</h3>";
+    if (data.note) h += '<div class="callout amber">' + esc(data.note) + "</div>";
+    if (!rounds.length) h += '<div class="callout amber">찾은 발주가 없다. 번호를 다시 확인하거나 거래처·P-CODE 일부로 검색해 보세요(2026년 발주만 있다).</div>';
+    if (data.pu_unordered && data.pu_unordered.length) {
+      h += '<div class="callout red"><b>이 요청 결재에서 발주 없이 남은 요청 줄 ' + data.pu_unordered.length + "개</b>(진행코드 「확정」인데 발주가 없다 — 수량 0 은 취소로 보이나 ERP 에 취소 표시는 없다)"
+        + table(["구매요청번호", "품번", "품목", "수량", "진행코드", "요청일"], data.pu_unordered.map((x) => [esc(x.pr_no), esc(x.item_cd), esc(x.item_nm || ""), num(x.qty), esc(x.sts), esc(x.req_dt || "")]), [3]) + "</div>";
+    }
+    h += "</div>";
+    for (const r of rounds) h += roundHtml(r);
+    app.innerHTML = h;
+    const synced = rounds.map((r) => ((r.po || {}).mirror || {}).synced).filter(Boolean).sort().pop();
+    document.getElementById("footAsof").textContent = synced ? "중간DB 적재 " + synced : "";
+  }
+
+  async function search(k) {
+    k = String(k || "").trim();
+    if (!k) return;
+    app.innerHTML = '<div class="loading">「' + esc(k) + "」 로 찾는 중…</div>";
+    try {
+      const { data, error } = await supabase.rpc("pur_case_chain", { p_key: k });
+      if (error) throw error;
+      render(data || {});
+      const u = new URL(location.href); u.searchParams.set("k", k); history.replaceState(null, "", u.pathname + u.search);
+    } catch (e) {
+      const msg = String((e && e.message) || e);
+      app.innerHTML = '<div class="callout amber"><b>불러오지 못했습니다.</b> ' + esc(msg)
+        + (/permission|JWT|401|403/i.test(msg) ? "<br>사내 계정 세션이 끊겼을 수 있습니다. 새로고침해도 같으면 다시 로그인해 주세요."
+          : "<br>함수 <code>pur_case_chain</code> 이 아직 적용되지 않았을 수 있습니다(정본 SQL 95).") + "</div>";
+      console.error("[구매건추적]", e);
+    }
+  }
+
+  /* ── 사내(internal) 세션 게이트 — 기안서 대장과 같은 패턴 ── */
+  function claimsOf(session) {
+    if (!session || !session.access_token) return {};
+    try {
+      let p = session.access_token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/");
+      while (p.length % 4) p += "=";
+      return JSON.parse(decodeURIComponent(atob(p).split("").map((c) => "%" + c.charCodeAt(0).toString(16).padStart(2, "0")).join(""))).app_metadata || {};
+    } catch (e) { return {}; }
+  }
+  function autoSSO() {
+    const u = new URL(location.href); u.searchParams.set("sso", "1");
+    supabase.auth.signInWithOAuth({ provider: "azure", options: { scopes: "openid email profile", redirectTo: u.toString() } });
+  }
+  function sessionGate(icon, title, msg, btn) {
+    document.getElementById("sf").hidden = true;
+    app.innerHTML = '<div class="sec" style="text-align:center; padding:34px 20px;"><div style="font-size:40px; line-height:1;">' + icon + "</div>"
+      + '<h2 style="font-size:17px; color:var(--navy); margin:12px 0 6px;">' + esc(title) + "</h2><p style=\"margin:0 0 18px; color:var(--muted);\">" + msg + "</p>"
+      + (btn ? '<button id="gsso" style="border:1px solid var(--line);background:#fff;border-radius:8px;padding:7px 16px;cursor:pointer;">' + esc(btn) + "</button>" : "") + "</div>";
+    const b = document.getElementById("gsso");
+    if (b) b.onclick = async () => { try { await supabase.auth.signOut(); } catch (e) {} autoSSO(); };
+  }
+  async function bootGate() {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      if (!new URLSearchParams(location.search).get("sso")) { autoSSO(); return false; }
+      sessionGate("🔐", "사내 로그인이 필요합니다", "구매 건 추적은 사내(@jeilm.co.kr) 계정으로 로그인해야 볼 수 있습니다.", "사내 계정으로 로그인");
+      return false;
+    }
+    if (claimsOf(session).role !== "internal") {
+      sessionGate("🔒", "사내 전용 화면", "현재 협력사(또는 권한 없는) 계정으로 로그인되어 있어 표시할 수 없습니다.", "사내 계정으로 다시 로그인");
+      return false;
+    }
+    return true;
+  }
+
+  if (!(await bootGate())) throw new Error("세션 게이트 — 조회를 내보내지 않는다");
+  const input = document.getElementById("k");
+  document.getElementById("sf").onsubmit = (e) => { e.preventDefault(); search(input.value); };
+  const k0 = new URLSearchParams(location.search).get("k");
+  if (k0) { input.value = k0; search(k0); } else { input.focus(); }
+</script>
+</body>
+</html>

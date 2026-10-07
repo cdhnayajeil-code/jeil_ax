@@ -26,6 +26,8 @@ ROUTES = {
     "/work/purchase-list":      "pages/구매_발주통합LIST_2026.html",
     "/work/purchase-proposals": "pages/구매_기안서대장_2026.html",
     "/work/purchase-agent":     "pages/구매_AI에이전트_2026.html",   # 구매 에이전트(REQ-0087 · 14 기획) — 파일럿 구성원·관리자(서버 판정)
+    "/work/purchase-board":     "pages/구매_진행판_2026.html",      # 구매 진행판(REQ-0116 · 구매업무시스템 P1) — 발주 1건=1행 · 8단계 실적 판정(뷰 v_erp_pur_board)
+    "/work/purchase-trace":     "pages/구매_구매건추적_2026.html",  # 구매 건 추적(REQ-0116 · P1) — 번호 하나로 요청→발주→입고→매입→대장(함수 pur_case_chain)
     "/work/bizops-dri":         "pages/사업운영_DRI분석생성_2026.html",   # 사업운영팀 DRI 분석·생성 에이전트(REQ-0112 · 준비 단계) — 파일럿 구성원·관리자(서버 판정)
     "/work/hr-payroll":         "pages/인사_인원급여추이_2026.html",
     "/work/inventory":          "pages/자재물류_재고입출고_2026.html",

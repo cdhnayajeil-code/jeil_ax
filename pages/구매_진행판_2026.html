@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script>window.PAGE_KEY='purchase_board_2026';</script>
+<script src="/pages/_access-gate.js"></script>
+<title>구매팀 — 구매 진행판 2026</title>
+<link rel="stylesheet" href="/app/lib/querybar.css">
+<style>
+  :root{
+    --navy:#1a2f4e; --navy2:#27457a; --accent:#2f6fb3; --accent2:#4a8ed0;
+    --red:#b3402f; --green:#2e7d52; --amber:#9a6b1f;
+    --ink:#222; --muted:#666; --line:#d8dee8; --bg:#f4f6f9;
+    --soft:#eef2f8; --softred:#fbeeec; --softgreen:#ecf5f0; --softamber:#faf3e4;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif; color:var(--ink); background:var(--bg); line-height:1.6; font-size:14px;}
+  .page{margin:0 auto; background:#fff; padding:26px 24px 30px; min-height:100vh; max-width:1480px;}
+  .head{display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:10px; border-bottom:3px solid var(--navy); padding-bottom:14px; margin-bottom:16px;}
+  .head h1{font-size:22px; color:var(--navy);}
+  .head .sub{font-size:12.5px; color:var(--muted); margin-top:3px;}
+  .head .right{text-align:right; font-size:12px; color:var(--muted);}
+  .head .right a{color:var(--accent); text-decoration:none; margin-left:10px;}
+  .badge{display:inline-block; font-size:11px; border-radius:10px; padding:2px 9px; font-weight:600;}
+  .badge.g{background:var(--softgreen); color:var(--green);} .badge.b{background:var(--soft); color:var(--navy2);}
+  /* 단계 분포 — 8칸(1~8) · 숫자를 누르면 그 단계로 거른다 */
+  .stages{display:grid; grid-template-columns:repeat(8,1fr); gap:8px; margin:14px 0;}
+  .stg{background:#fff; border:1px solid var(--line); border-radius:11px; padding:10px 12px; cursor:pointer; border-top:4px solid var(--line); min-width:0;}
+  .stg .no{font-size:11px; color:var(--muted);} .stg .nm{font-size:12.5px; font-weight:700; color:var(--navy); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .stg .v{font-size:22px; font-weight:800; color:var(--navy); margin-top:2px;} .stg .v small{font-size:11px; color:var(--muted); font-weight:500;}
+  .stg.on{border-top-color:var(--accent); background:var(--soft);}
+  .stg.auto{opacity:.55; cursor:default;}
+  .kpis{display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:10px; margin:6px 0 14px;}
+  .kpi{background:#fff; border:1px solid var(--line); border-radius:11px; padding:12px 14px; border-top:4px solid var(--accent);}
+  .kpi.warn{border-top-color:var(--amber);} .kpi.bad{border-top-color:var(--red);} .kpi.ok{border-top-color:var(--green);}
+  .kpi .lb{font-size:11.5px; color:var(--muted);} .kpi .v{font-size:21px; font-weight:800; color:var(--navy); margin-top:2px;} .kpi .v small{font-size:11.5px; color:var(--muted); font-weight:500;}
+  .sec{background:#fff; border:1px solid var(--line); border-radius:11px; padding:14px 16px; margin-bottom:14px;}
+  .sec h3{font-size:13.5px; color:var(--navy); margin-bottom:4px; display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;}
+  .sec .note{font-size:11px; color:var(--muted); margin-bottom:8px;}
+  .tw{overflow-x:auto;}
+  table{width:100%; border-collapse:collapse; font-size:12.5px;}
+  th{background:var(--navy); color:#fff; padding:6px 9px; text-align:left; font-weight:600; white-space:nowrap; position:sticky; top:0;}
+  td{padding:5px 9px; border-bottom:1px solid var(--line); vertical-align:middle;}
+  tr:nth-child(even) td{background:#fafbfd;}
+  td.r,th.r{text-align:right;} td.c,th.c{text-align:center;}
+  td.nw{white-space:nowrap;}
+  .po a{color:var(--accent); text-decoration:none; font-family:Consolas,monospace; font-size:12px;}
+  .po a:hover{text-decoration:underline;}
+  /* 8단계 트랙 — 칸 하나가 한 단계. 색은 _build_case.py 와 같은 뜻(완료·일부·기록 없음·아직·지금) */
+  .trk{display:inline-grid; grid-template-columns:repeat(8,22px); gap:2px;}
+  .trk i{display:block; height:18px; border-radius:4px; font-style:normal; font-size:10px; line-height:18px; text-align:center; color:#fff; font-weight:700; border:1px solid transparent;}
+  .trk i.done{background:var(--green);} .trk i.part{background:var(--amber);}
+  .trk i.norec{background:#fff; color:var(--muted); border:1px dashed #9aa3af;}
+  .trk i.todo{background:#e6e9ee; color:#8a929c;} .trk i.cur{background:var(--accent); box-shadow:0 0 0 2px rgba(47,111,179,.25);}
+  .st{display:inline-block; font-size:11px; border-radius:9px; padding:1px 8px; font-weight:700; white-space:nowrap;}
+  .st.iv{background:var(--softgreen); color:var(--green);} .st.gr{background:var(--soft); color:var(--navy2);}
+  .st.pt{background:var(--softamber); color:var(--amber);} .st.po{background:#f1f3f6; color:#5f6b7a;}
+  .flag{display:inline-block; font-size:10.5px; border-radius:8px; padding:0 6px; font-weight:700; margin-left:3px;}
+  .flag.r{background:var(--softred); color:var(--red);} .flag.a{background:var(--softamber); color:var(--amber);} .flag.n{background:#f1f3f6; color:#5f6b7a;}
+  .callout{border-radius:8px; padding:10px 14px; margin:8px 0; font-size:12.5px;}
+  .callout.blue{background:var(--soft); border-left:4px solid var(--accent);} .callout.amber{background:var(--softamber); border-left:4px solid var(--amber);}
+  .callout b{color:var(--navy2);}
+  .loading{text-align:center; color:var(--muted); padding:46px 10px; font-size:13.5px;}
+  .legend{font-size:11.5px; color:var(--muted); display:flex; gap:12px; flex-wrap:wrap; align-items:center;}
+  .legend i{display:inline-block; width:14px; height:12px; border-radius:3px; vertical-align:-1px; margin-right:3px; border:1px solid transparent;}
+  .more{text-align:center; padding:10px;} .more button{border:1px solid var(--line); background:#fff; border-radius:8px; padding:6px 16px; cursor:pointer; font-size:12.5px;}
+  .foot{margin-top:24px; padding-top:12px; border-top:1px solid var(--line); font-size:11px; color:var(--muted); display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap;}
+  @media (max-width:900px){ .stages{grid-template-columns:repeat(4,1fr);} }
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="head">
+    <div>
+      <h1>🧭 구매 진행판 2026</h1>
+      <div class="sub">발주 1건 = 1행 · 8단계 상태를 <b>실적 문서의 존재</b>로 판정(뷰 <code>v_erp_pur_board</code>) · 손으로 적는 상태 없음 · 조회 전용</div>
+    </div>
+    <div class="right">
+      <span class="badge g">중간DB 실데이터</span>
+      <a href="/work/purchase-trace">🔗 구매 건 추적</a>
+      <a href="/work/purchase-list">📑 발주통합 LIST</a>
+      <a href="/work/purchase-proposals">📝 기안서 대장</a>
+      <a href="/docs/purchase/process" target="_blank">프로세스 도식</a>
+    </div>
+  </div>
+
+  <div id="qbar"></div>
+
+  <div id="app"><div class="loading">중간DB 에서 발주 현황을 불러오는 중…</div></div>
+
+  <div class="foot">
+    <span>JEIL AX · 구매업무시스템 P1(REQ-0116) — 단계 규칙은 <a href="/docs/purchase/cases" target="_blank" style="color:var(--accent)">04 예시 검증</a>과 같다 · 전표·계산서는 열람 범위 밖(결정 C-15)</span>
+    <span id="footAsof"></span>
+  </div>
+</div>
+
+<script type="module">
+  import { createQueryBar } from "/app/lib/querybar.js";
+  import { supabase } from "/app/lib/supabaseClient.js";
+
+  /* 데이터는 중간DB 뷰 `public.v_erp_pur_board` 하나에서 온다 — 발주 1건 = 1행, 8단계 상태(s1~s8)와
+     지금 단계(cur_stage)는 DB 가 판정한다(정본 SQL 95). 화면은 거르고·세고·그릴 뿐 상태를 다시 계산하지 않는다
+     (규칙이 두 곳에 있으면 둘 다 믿지 못하게 된다 — 기획서 §4.1). */
+  const app = document.getElementById("app");
+  const esc = (t) => String(t == null ? "" : t).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const num = (n) => Number(n || 0).toLocaleString("ko-KR");
+  const won = (n) => (n == null ? "—" : num(Math.round(Number(n))));
+  const md = (d) => (d ? String(d).slice(5, 10).replace("-", "/") : "—");
+  const STAGES = ["구매요청·확정", "발주통합관리 LIST", "견적검토", "구매확정", "구매품의서", "계산서 발행요청", "매입마감·매입전표", "품의서관리·기안서 대장"];
+  const SHORT = ["요청", "LIST", "견적", "확정", "품의·발주", "입고·계산서", "매입·전표", "대장"];
+  const ST_LABEL = { done: "완료", part: "일부", norec: "기록 없음", todo: "아직", cur: "지금 여기" };
+  const PAGE = 300;
+
+  let ROWS = [], SHOWN = [], LIMIT = PAGE, STAGE_PICK = "";
+
+  async function fetchAll() {
+    const out = [];
+    for (let from = 0; ; from += 1000) {
+      const { data, error } = await supabase.from("v_erp_pur_board").select("*").order("po_dt", { ascending: false }).order("po_no", { ascending: false }).range(from, from + 999);
+      if (error) throw error;
+      out.push(...(data || []));
+      if (!data || data.length < 1000) break;
+    }
+    ROWS = out.map((r) => {
+      const st = [null, r.s1, r.s2, r.s3, r.s4, r.s5, r.s6, r.s7, r.s8];
+      if (r.cur_stage && st[r.cur_stage] === "todo") st[r.cur_stage] = "cur";
+      return { ...r, st, ym: String(r.po_dt || "").slice(0, 7), m: Number(String(r.po_dt || "").slice(5, 7)) };
+    });
+  }
+
+  /* 조회바 조건 → 행 고르기(기간은 조회바가 주는 months) */
+  function pick(q) {
+    const month = q.month == null ? null : Number(q.month);   // 조회바: month null = 연간(전체)
+    const year = String(q.year);
+    const ex = q.extras || {};
+    const kw = String(ex.kw || "").trim().toLowerCase();
+    return ROWS.filter((r) => {
+      if (year && r.ym.slice(0, 4) !== year) return false;
+      if (month != null && r.m !== month) return false;
+      if (STAGE_PICK && String(r.cur_stage || "끝") !== STAGE_PICK) return false;
+      if (ex.scope === "open" && !r.cur_stage) return false;
+      if (ex.scope === "done" && r.cur_stage) return false;
+      if (ex.scope === "overdue" && !r.overdue) return false;
+      if (ex.scope === "norec" && r.s6 !== "norec") return false;
+      if (ex.scope === "noledger" && r.s8 !== "todo") return false;
+      if (ex.scope === "long" && !(r.cur_stage && Number(r.days_since_po) > 60)) return false;
+      if (kw && !([r.po_no, r.bp_name, r.p_code, r.prj_nm, r.req_title, r.pu_nos, r.agent_nm, r.ledger_vols].join(" ").toLowerCase().includes(kw))) return false;
+      return true;
+    });
+  }
+
+  const kpi = (lb, v, unit, box) => '<div class="kpi' + (box ? " " + box : "") + '"><div class="lb">' + esc(lb) + '</div><div class="v">' + v + (unit ? "<small> " + unit + "</small>" : "") + "</div></div>";
+
+  function stagesHtml(rows) {
+    const cnt = [0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let done = 0;
+    for (const r of rows) { if (r.cur_stage) cnt[r.cur_stage]++; else done++; }
+    let h = '<div class="stages">';
+    for (let n = 1; n <= 8; n++) {
+      const auto = [2, 3, 4, 5].includes(n);   // 2·5 는 항상 완료, 3·4 는 ERP 에 기록이 없는 단계 — 서 있는 건이 없다
+      h += '<div class="stg' + (auto ? " auto" : "") + (STAGE_PICK === String(n) ? " on" : "") + '" data-n="' + n + '" title="' + esc(STAGES[n - 1]) + '">'
+         + '<div class="no">' + n + '단계</div><div class="nm">' + esc(SHORT[n - 1]) + '</div>'
+         + '<div class="v">' + (auto ? "—" : num(cnt[n])) + (auto ? '<small> 기록 없음</small>' : '<small> 건 서 있음</small>') + "</div></div>";
+    }
+    h += '<div class="stg' + (STAGE_PICK === "끝" ? " on" : "") + '" data-n="끝" title="8단계까지 끝난 발주"><div class="no">끝</div><div class="nm">끝까지 완료</div><div class="v">' + num(done) + "<small> 건</small></div></div>";
+    return h + "</div>";
+  }
+
+  function trackHtml(r) {
+    return '<span class="trk" title="' + esc(r.st.slice(1).map((s, i) => (i + 1) + " " + SHORT[i] + ": " + ST_LABEL[s]).join(" · ")) + '">'
+      + r.st.slice(1).map((s, i) => '<i class="' + s + '">' + (i + 1) + "</i>").join("") + "</span>";
+  }
+  const stBadge = (r) => {
+    const m = { "매입완료": "iv", "입고완료": "gr", "부분입고": "pt", "발주": "po" }[r.status_kr] || "po";
+    return '<span class="st ' + m + '">' + esc(r.status_kr) + "</span>";
+  };
+
+  function tableHtml(rows) {
+    const head = ["발주번호", "발주일", "거래처", "프로젝트(P-CODE)", "요청 건명", "줄", "금액", "8단계", "지금", "상태", "입고", "매입", "대장", "경과"];
+    let h = '<div class="tw"><table><tr>' + head.map((x, i) => "<th" + ([5, 6].includes(i) ? ' class="r"' : "") + ">" + esc(x) + "</th>").join("") + "</tr>";
+    for (const r of rows.slice(0, LIMIT)) {
+      const cur = r.cur_stage ? (r.cur_stage + " " + SHORT[r.cur_stage - 1]) : "끝";
+      const flags = (r.overdue ? '<span class="flag r" title="납기경과 미입고">납기경과</span>' : "")
+        + (r.s6 === "norec" ? '<span class="flag n" title="입고 기록 없이 매입으로 끝남(외주·용역)">입고 기록 없음</span>' : "")
+        + (r.s1 !== "done" ? '<span class="flag a" title="발주 줄에 요청번호가 없다">요청 미연결</span>' : "");
+      h += "<tr>"
+        + '<td class="po nw"><a href="/work/purchase-trace?k=' + encodeURIComponent(r.po_no) + '" title="구매 건 추적으로">' + esc(r.po_no) + "</a></td>"
+        + '<td class="nw">' + esc(r.po_dt || "") + "</td>"
+        + "<td>" + esc(r.bp_name || "") + "</td>"
+        + '<td class="nw">' + esc(r.p_code || "") + (r.prj_nm ? ' <span style="color:var(--muted)" title="' + esc(r.prj_nm) + '">' + esc(String(r.prj_nm).slice(0, 18)) + (String(r.prj_nm).length > 18 ? "…" : "") + "</span>" : "") + "</td>"
+        + "<td>" + esc(String(r.req_title || "").slice(0, 40)) + "</td>"
+        + '<td class="r">' + num(r.lines) + "</td>"
+        + '<td class="r nw">' + won(r.amt) + "</td>"
+        + "<td>" + trackHtml(r) + "</td>"
+        + '<td class="nw">' + esc(cur) + flags + "</td>"
+        + "<td>" + stBadge(r) + "</td>"
+        + '<td class="nw">' + (r.rcpt_qty_sum > 0 ? md(r.rcpt_first_dt) + (r.rcpt_first_dt !== r.rcpt_last_dt ? "~" + md(r.rcpt_last_dt) : "") + " · " + num(r.rcpt_cnt) + "건" : "—") + "</td>"
+        + '<td class="nw">' + (r.iv_qty_sum > 0 ? md(r.iv_last_dt) + " · " + num(r.iv_cnt) + "장" : "—") + "</td>"
+        + '<td class="nw">' + (r.ledger_vols ? esc(r.ledger_vols).split(",").slice(0, 2).join(", ") + (r.ledger_vols.split(",").length > 2 ? " 외" : "") + (r.ledger_closed ? " ✓" : "") : "—") + "</td>"
+        + '<td class="r nw">' + num(r.days_since_po) + "일</td>"
+        + "</tr>";
+    }
+    h += "</table></div>";
+    if (rows.length > LIMIT) h += '<div class="more"><button id="moreBtn">더 보기 (' + num(rows.length - LIMIT) + "건 남음)</button></div>";
+    return h;
+  }
+
+  function render(q, bar) {
+    const rows = pick(q);
+    SHOWN = rows;
+    const open = rows.filter((r) => r.cur_stage);
+    const amtOpen = open.reduce((s, r) => s + Number(r.amt || 0), 0);
+    const overdue = rows.filter((r) => r.overdue).length;
+    const noLedger = rows.filter((r) => r.s8 === "todo").length;
+    const long = open.filter((r) => Number(r.days_since_po) > 60).length;
+    let h = '<div class="kpis">'
+      + kpi("발주(조건 안)", num(rows.length), "건")
+      + kpi("진행 중", num(open.length), "건 · " + (amtOpen / 1e8).toFixed(1) + "억", "warn")
+      + kpi("납기경과 미입고", num(overdue), "건", overdue ? "bad" : "ok")
+      + kpi("60일 넘게 진행 중", num(long), "건", long ? "bad" : "ok")
+      + kpi("대장 연결 없음", num(noLedger), "건", noLedger ? "warn" : "ok")
+      + "</div>";
+    h += stagesHtml(rows);
+    h += '<div class="sec"><h3><span>발주 ' + num(rows.length) + "건" + (STAGE_PICK ? ' <span class="badge b">' + (STAGE_PICK === "끝" ? "끝까지 완료" : STAGE_PICK + "단계에 서 있음") + "</span>" : "") + "</span>"
+       + '<span class="legend"><span><i style="background:var(--green)"></i>완료</span><span><i style="background:var(--amber)"></i>일부</span><span><i style="border:1px dashed #9aa3af;background:#fff"></i>기록 없음</span><span><i style="background:#e6e9ee"></i>아직</span><span><i style="background:var(--accent)"></i>지금 여기</span></span></h3>'
+       + '<div class="note">단계 칸을 누르면 그 단계에 서 있는 발주만 남는다(다시 누르면 해제). 발주번호를 누르면 구매 건 추적으로 간다. 전표 승인·계산서 수취는 열람 범위 밖이라 7단계는 매입 수량으로, 6단계는 입고 수량으로만 판정한다.</div>'
+       + tableHtml(rows) + "</div>";
+    app.innerHTML = h;
+    app.querySelectorAll(".stg[data-n]").forEach((el) => {
+      if (el.classList.contains("auto")) return;
+      el.onclick = () => { STAGE_PICK = (STAGE_PICK === el.dataset.n) ? "" : el.dataset.n; LIMIT = PAGE; render(q, bar); };
+    });
+    const mb = document.getElementById("moreBtn");
+    if (mb) mb.onclick = () => { LIMIT += PAGE; render(q, bar); };
+    if (bar) bar.applyPeriod();
+  }
+
+  function fail(e) {
+    const msg = String((e && e.message) || e);
+    app.innerHTML = '<div class="callout amber"><b>불러오지 못했습니다.</b> ' + esc(msg)
+      + (/permission|JWT|401|403/i.test(msg) ? "<br>사내 계정 세션이 끊겼을 수 있습니다. 새로고침해도 같으면 다시 로그인해 주세요."
+        : "<br>뷰 <code>v_erp_pur_board</code> 가 아직 적용되지 않았을 수 있습니다(정본 SQL 95).") + "</div>";
+    console.error("[진행판]", e);
+  }
+
+  /* ── 사내(internal) 세션 게이트 — 기안서 대장과 같은 패턴 ── */
+  function claimsOf(session) {
+    if (!session || !session.access_token) return {};
+    try {
+      let p = session.access_token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/");
+      while (p.length % 4) p += "=";
+      return JSON.parse(decodeURIComponent(atob(p).split("").map((c) => "%" + c.charCodeAt(0).toString(16).padStart(2, "0")).join(""))).app_metadata || {};
+    } catch (e) { return {}; }
+  }
+  function autoSSO() {
+    const u = new URL(location.href); u.searchParams.set("sso", "1");
+    supabase.auth.signInWithOAuth({ provider: "azure", options: { scopes: "openid email profile", redirectTo: u.toString() } });
+  }
+  function sessionGate(icon, title, msg, btn) {
+    document.getElementById("qbar").hidden = true;
+    app.innerHTML = '<div class="sec" style="text-align:center; padding:34px 20px;"><div style="font-size:40px; line-height:1;">' + icon + "</div>"
+      + '<h2 style="font-size:17px; color:var(--navy); margin:12px 0 6px;">' + esc(title) + "</h2><p style=\"margin:0 0 18px; color:var(--muted);\">" + msg + "</p>"
+      + (btn ? '<button id="gsso" style="border:1px solid var(--line);background:#fff;border-radius:8px;padding:7px 16px;cursor:pointer;">' + esc(btn) + "</button>" : "") + "</div>";
+    const b = document.getElementById("gsso");
+    if (b) b.onclick = async () => { try { await supabase.auth.signOut(); } catch (e) {} autoSSO(); };
+  }
+  async function bootGate() {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      if (!new URLSearchParams(location.search).get("sso")) { autoSSO(); return false; }
+      sessionGate("🔐", "사내 로그인이 필요합니다", "구매 진행판은 사내(@jeilm.co.kr) 계정으로 로그인해야 볼 수 있습니다.", "사내 계정으로 로그인");
+      return false;
+    }
+    if (claimsOf(session).role !== "internal") {
+      sessionGate("🔒", "사내 전용 화면", "현재 협력사(또는 권한 없는) 계정으로 로그인되어 있어 표시할 수 없습니다.", "사내 계정으로 다시 로그인");
+      return false;
+    }
+    return true;
+  }
+
+  if (!(await bootGate())) throw new Error("세션 게이트 — 조회를 내보내지 않는다");
+  try { await fetchAll(); } catch (e) { fail(e); throw e; }
+
+  const YEARS = [...new Set(ROWS.map((r) => r.ym.slice(0, 4)).filter((y) => /^\d{4}$/.test(y)))].map(Number).sort((a, b) => b - a);
+  const MONTHS = [...new Set(ROWS.map((r) => r.m).filter(Boolean))].sort((a, b) => a - b);
+  const synced = ROWS.reduce((m, r) => (r.synced_at > m ? r.synced_at : m), "");
+  const asOf = String(synced || "").slice(0, 10);
+  document.getElementById("footAsof").textContent = "중간DB 적재 " + String(synced || "").replace("T", " ").slice(0, 16);
+
+  createQueryBar("#qbar", {
+    years: YEARS.length ? YEARS : [new Date().getFullYear()],
+    months: MONTHS,
+    allowAll: true,
+    asOf,
+    basis: "발주일 기준 · 1건 = 발주번호 · 상태는 입고·매입·대장 실적으로 판정",
+    mode: "live", modeLabel: "중간DB 실데이터",
+    extras: [
+      { id: "scope", label: "보기", type: "select", width: "170px",
+        options: [
+          { value: "", label: "전체" },
+          { value: "open", label: "진행 중(끝나지 않음)" },
+          { value: "done", label: "끝까지 완료" },
+          { value: "overdue", label: "납기경과 미입고" },
+          { value: "long", label: "60일 넘게 진행 중" },
+          { value: "norec", label: "입고 기록 없이 매입" },
+          { value: "noledger", label: "대장 연결 없음" },
+        ] },
+      { id: "kw", label: "찾기", type: "text", width: "200px", placeholder: "발주번호·거래처·P-CODE·건명·기안" },
+    ],
+    reset: true,
+    onQuery: async (q, ctx) => {
+      if (ctx.reason === "refresh" || ctx.reason === "auto") {
+        await fetchAll();
+        const s2 = ROWS.reduce((m, r) => (r.synced_at > m ? r.synced_at : m), "");
+        ctx.bar.setMeta({ asOf: String(s2 || "").slice(0, 10) });
+      }
+      LIMIT = PAGE;
+      render(q, ctx.bar);
+    },
+  });
+</script>
+</body>
+</html>
