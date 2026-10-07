@@ -50,7 +50,7 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <blockquote>
 <p><strong>요약</strong> — 사내 챗봇의 지시문(시스템 프롬프트)이 세 곳(운영 DB 평문 · 실험실/에이전트 코드 상수 · 에이전트 버전의 답변 원칙)에 따로 살면서 서로 어긋나 있었다.
 이번에 <strong>한 조립 규칙</strong>(<code>core/prompt.ts</code>)으로 통일하고, 평문 한 덩어리를 <strong>절(■)+번호 규칙</strong> 구조로 바꿨다. 엔진의 라운드 마무리 규칙 3가지도 함께 고쳤다.
-적용은 세 경로(게이트웨이 배포 · 구매 에이전트 v5 초안 → 회귀 → 지정 · 운영 DB 지시문 SQL 94)로 나뉘며, <strong>배포·운영 적용은 관리자 승인 뒤</strong>다(§4).
+적용은 세 경로(게이트웨이 배포 · 구매 에이전트 v5 초안 → 회귀 → 지정 · 운영 DB 지시문 SQL 94)로 나뉜다. <strong>2026-10-07 저녁 관리자 승인으로 A(게이트웨이 v26)·C(SQL 94 · D-137)를 적용했고, B(v5 회귀 → 지정 · D-138)만 남았다</strong>(§4·§5).
 작성: Claude(AX 설계 관점) · 검토: 최동혁 · 정본 코드 <code>supabase/functions/jeil-chat-lab/core/prompt.ts</code></p>
 </blockquote>
 <h2 id="1">1. 왜 — 진단(사실)</h2>
@@ -262,8 +262,8 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <tr>
 <td><strong>A 게이트웨이</strong> <code>jeil-chat-lab</code> <strong>v26</strong></td>
 <td><code>core/prompt.ts</code>·<code>agent.ts</code>·<code>engine.ts</code>·<code>index.ts</code>·<code>llm/types.ts</code>·<code>anthropic.ts</code>·<code>openai.ts</code></td>
-<td>코드·회귀 완료 · <strong>배포 대기(관리자 승인)</strong> · 영향: 구매·DRI 에이전트·실험실 전부(DRI 는 공통 절만 바뀜 — 역할·원칙은 그대로)</td>
-<td>관리자 승인 → <code>python supabase/_deploy_function.py jeil-chat-lab --multi</code></td>
+<td><strong>배포 완료</strong>(10-07 저녁 · 관리자 승인 · 파일 47개 · 커밋 <code>412d2fb</code>) · 영향: 구매·DRI 에이전트·실험실 전부(DRI 는 공통 절만 바뀜 — 역할·원칙은 그대로)</td>
+<td>완료</td>
 </tr>
 <tr>
 <td><strong>B 구매 에이전트 v5 초안</strong></td>
@@ -274,8 +274,8 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <tr>
 <td><strong>C 운영 챗봇 지시문</strong></td>
 <td>정본 SQL <code>94_gateway_system_prompt_v2.sql</code>(생성물 · 5,353자) — 콘솔 「모델 설정」 지시문 칸에 붙여 넣어도 같다</td>
-<td><strong>적용 대기(관리자 결정 — 전 사용자 영향)</strong> · 되돌리기 <code>94_…_rollback.sql</code>(적용 직전 값 보존)</td>
-<td>관리자</td>
+<td><strong>적용 완료</strong>(10-07 저녁 · D-137 · 적용 전 값의 md5 가 일치할 때만 갱신되는 조건부 UPDATE 로 실행 · 1,945자 → 5,353자) · 되돌리기 <code>94_…_rollback.sql</code>(적용 직전 값 보존) · 남은 것: 콘솔 「모델 설정」 「점검」 1회</td>
+<td>관리자(점검)</td>
 </tr>
 <tr>
 <td>템플릿 JSON</td>
