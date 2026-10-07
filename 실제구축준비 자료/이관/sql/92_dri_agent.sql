@@ -1,4 +1,4 @@
--- 92_dri_agent.sql — 사업운영팀 「DRI 분석·생성 에이전트」 준비 단계 등록 (REQ-0110 · 관리자 지시 2026-10-07)
+-- 92_dri_agent.sql — 사업운영팀 「DRI 분석·생성 에이전트」 준비 단계 등록 (REQ-0112 · 관리자 지시 2026-10-07)
 --
 -- 무엇을 하나
 --   ① 사내 NAS 허용 폴더에 사업운영팀 부서 폴더 등록(부서코드 6110) — 그 아래 DRI 폴더가 이 에이전트의 자료 폴더다.
@@ -13,7 +13,7 @@
 -- ── 1. 허용 폴더 ─────────────────────────────────────────────────────────────
 insert into etl_meta.nas_folder_scope (folder_key, rel_path, label_ko, audience, dept_nm, active, approved_by, approved_at, note)
 values ('biz_ops', '부서/6110_사업운영팀', '사업운영팀', 'dept', '사업운영팀', true, 'dh.choi@jeilm.co.kr', now(),
-        '사업운영팀 부서 폴더(2026-10-07 관리자 지시 등록 · REQ-0110) — 부서코드 6110 · 하위 DRI 폴더 = DRI 분석·생성 에이전트의 자료 폴더')
+        '사업운영팀 부서 폴더(2026-10-07 관리자 지시 등록 · REQ-0112) — 부서코드 6110 · 하위 DRI 폴더 = DRI 분석·생성 에이전트의 자료 폴더')
 on conflict (folder_key) do nothing;
 
 -- ── 2. 에이전트 ──────────────────────────────────────────────────────────────
@@ -39,7 +39,7 @@ select 'dri', 1, 'current', 'claude-sonnet-5', 'gpt-4.1-mini', 'medium', 2048, n
   || E'- 도면·고객 자료는 대외비일 수 있습니다. 외부 공유·메일 발송은 하지 않으며, 한 자료의 고객사·수치를 다른 자료와 섞지 마세요.\n'
   || E'- 답변 첫 줄에 결론을 한 문장으로 쓰고, 분석은 「무엇이 보이는가 → 특이사항 → 제안」 순서로 쓰세요.',
   '{"domains":["nas","common"],"off":[]}'::jsonb, 4,
-  'v1 준비 단계(D0) — 붙인 이미지 분석 + NAS 파일 목록·과거 대화. NAS 이미지 직접 판독(D1)·AI 이미지 생성(D2)은 미연결(REQ-0110)',
+  'v1 준비 단계(D0) — 붙인 이미지 분석 + NAS 파일 목록·과거 대화. NAS 이미지 직접 판독(D1)·AI 이미지 생성(D2)은 미연결(REQ-0112)',
   'dh.choi@jeilm.co.kr', 'dh.choi@jeilm.co.kr', now()
 where not exists (select 1 from public.ai_agent_version where agent_key = 'dri' and version = 1);
 
