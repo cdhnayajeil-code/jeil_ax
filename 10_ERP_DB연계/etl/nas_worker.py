@@ -46,7 +46,7 @@ from _env import env_root, load_env, need
 import nas_index
 import threading
 
-WORKER_VERSION = "n1.7"   # n1.7(2026-10-06): 보관함 관리 — 사용자 폴더·내려받기(NAS→임시 버킷)·삭제 즉시 처리(SQL 90 · 일감은 nas_work_claim 하나로) / n1.6(2026-10-06): 과거 대화의 일시·기간 조건을 한국시간으로(적재 파일은 UTC 로 쌓인다 — N-2) · 저장 직후 색인 갱신 / n1.5(2026-10-06): 첨부 원본·생성 자료를 부서 폴더 「AI저장」에 저장·보존 만료 정리(SQL 89 · REQ-0108) / n1.4(2026-10-02): 문서 내용 색인·검색(nas_index.py — SQL 87) / n1.3:실시간 조회 응답(파일 목록·본인 과거 대화 — SQL 86) / n1.2:브리지 전송(좁은 키)·--serve(컨테이너 상주)·KST 고정 / n1.1: --nightly·--log·루트 검증
+WORKER_VERSION = "n1.8"   # n1.8(2026-10-07): 부서 폴더의 이미지·PDF 를 화면으로 가져오기(SQL 93 · DRI D1) / n1.7(2026-10-06): 보관함 관리 — 사용자 폴더·내려받기(NAS→임시 버킷)·삭제 즉시 처리(SQL 90 · 일감은 nas_work_claim 하나로) / n1.6(2026-10-06): 과거 대화의 일시·기간 조건을 한국시간으로(적재 파일은 UTC 로 쌓인다 — N-2) · 저장 직후 색인 갱신 / n1.5(2026-10-06): 첨부 원본·생성 자료를 부서 폴더 「AI저장」에 저장·보존 만료 정리(SQL 89 · REQ-0108) / n1.4(2026-10-02): 문서 내용 색인·검색(nas_index.py — SQL 87) / n1.3:실시간 조회 응답(파일 목록·본인 과거 대화 — SQL 86) / n1.2:브리지 전송(좁은 키)·--serve(컨테이너 상주)·KST 고정 / n1.1: --nightly·--log·루트 검증
 
 POLL_SEC = 20          # 기본 폴링 주기
 HTTP_TIMEOUT = 120     # 페이지 응답이 수 MB 가 될 수 있어 etl_watch(60초)보다 넉넉히 잡는다
@@ -985,6 +985,32 @@ def saved_file_path(docs_root, folder_rel, rel_path):
     return path
 
 
+VIEW_EXT = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".pdf"}     # 화면으로 가져올 수 있는 형식(SQL 93 과 같은 목록)
+
+
+def folder_file_path(docs_root, folder_rel, src_rel):
+    """부서 폴더 안의 파일(대장 밖 — 부서원이 직접 넣은 자료) → 절대 경로. 폴더 밖·숨김·민감 이름·형식 밖이면 예외."""
+    frel = str(folder_rel or "").replace("\\", "/").strip("/")
+    rel = str(src_rel or "").replace("\\", "/").strip("/")
+    parts = rel.split("/")
+    if not frel or not rel or any(p in ("", ".", "..") for p in parts + frel.split("/")):
+        raise RuntimeError("경로가 올바르지 않습니다")
+    if any(_SKIP_NAME.search(p) or _BAD_NAME_CH.search(p) for p in parts):
+        raise RuntimeError("가져올 수 없는 이름입니다")
+    if os.path.splitext(parts[-1])[1].lower() not in VIEW_EXT:
+        raise RuntimeError("이미지·PDF 만 가져올 수 있습니다")
+    if nas_index._SENSITIVE_NAME.search(rel):
+        raise RuntimeError("민감 자료로 보이는 이름이라 가져오지 않습니다")
+    base = os.path.join(docs_root, *frel.split("/"))
+    path = os.path.join(base, *parts)
+    if not _inside(base, path) or not _inside(docs_root, base):
+        raise RuntimeError("경로가 폴더 밖입니다")
+    # 중간 폴더가 바로가기(링크)면 폴더 밖을 가리킬 수 있다 — 실제 위치로 한 번 더 본다
+    if not _inside(os.path.realpath(base), os.path.realpath(path)):
+        raise RuntimeError("경로가 폴더 밖입니다")
+    return path
+
+
 def put_fetch_bytes(url, key, fetch_id, worker, data):
     """내려받을 파일을 임시 버킷에 올린다. 브리지: 1회용 올리기 주소 / 직결(사내 PC·테스트): Storage 에 직접."""
     if _TRANSPORT == "bridge":
@@ -1012,7 +1038,10 @@ def handle_fetch(url, key, job, docs_root, worker, put=None):
     try:
         if not docs_root:
             raise RuntimeError("문서 폴더가 연결돼 있지 않습니다")
-        path = saved_file_path(docs_root, job.get("folder_rel"), job.get("rel_path"))
+        if job.get("src_rel"):                   # 부서 폴더의 파일(대장 밖) — 이미지·PDF 만
+            path = folder_file_path(docs_root, job.get("folder_rel"), job.get("src_rel"))
+        else:
+            path = saved_file_path(docs_root, job.get("folder_rel"), job.get("rel_path"))
         if not os.path.isfile(path) or os.path.islink(path):
             raise RuntimeError("NAS 에 파일이 없습니다(지워졌거나 옮겨졌습니다)")
         if os.path.getsize(path) > SAVE_MAX_BYTES:

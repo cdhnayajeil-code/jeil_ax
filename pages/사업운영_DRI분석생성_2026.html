@@ -119,6 +119,15 @@ details.trace div{font-family:Consolas,Menlo,monospace;word-break:break-all;padd
 .nx-foot .sp{flex:1}
 .nx-drop{position:absolute;inset:0;background:rgba(47,111,179,.14);border:3px dashed var(--accent);border-radius:12px;display:none;align-items:center;justify-content:center;font-size:17px;color:var(--navy);font-weight:600;pointer-events:none}
 .nx-drop.on{display:flex}
+/* DRI 폴더 파일 목록·미리보기(D1) */
+.df li .t small{display:block;color:var(--muted);font-size:11px;overflow:hidden;text-overflow:ellipsis}
+.df li.off{opacity:.55}
+.dv{position:fixed;inset:0;background:rgba(15,22,36,.78);z-index:70;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:18px}
+.dv[hidden]{display:none}
+.dv img{max-width:100%;max-height:calc(100% - 60px);background:#fff;border-radius:6px;box-shadow:0 10px 40px rgba(0,0,0,.5)}
+.dv .bar{display:flex;gap:10px;align-items:center;color:#fff;font-size:13px;margin-bottom:10px;max-width:100%}
+.dv .bar b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dv .bar button{background:#fff;border:0;border-radius:8px;padding:5px 12px;cursor:pointer;font-family:inherit;font-size:12.5px}
 .ufiles .nas{margin-left:6px;font-size:11px;border:1px solid rgba(255,255,255,.7);background:transparent;color:inherit;border-radius:10px;padding:0 7px;cursor:pointer;font-family:inherit}
 .ufiles .nas:disabled{opacity:.75;cursor:default}
 .nasst{font-size:11px;border-radius:9px;padding:0 7px;white-space:nowrap}
@@ -185,7 +194,7 @@ details.trace div{font-family:Consolas,Menlo,monospace;word-break:break-all;padd
   <div class="layout">
     <div class="box chat">
       <div class="log" id="log"><div class="empty" id="empty">이미지·도면을 📎 로 붙이거나 끌어다 놓고 물어보세요. 예) <b>이 도면에서 무엇이 보이는지, 특이사항, 제안을 정리해줘</b><br>
-        분석 결과와 붙인 원본은 <b>🗄 NAS 저장</b>으로 사업운영팀 폴더에 보관할 수 있습니다. <b>이미지 생성은 준비 중</b>입니다(오른쪽 안내).</div></div>
+        오른쪽 <b>📂 DRI 자료 폴더</b>에서 NAS 의 파일을 골라 <b>분석에 추가</b>해도 됩니다. <b>이미지 생성은 준비 중</b>입니다(오른쪽 안내).</div></div>
       <div class="chips" id="chips"></div>
       <div class="tray" id="tray"></div>
       <div class="composer">
@@ -211,16 +220,16 @@ details.trace div{font-family:Consolas,Menlo,monospace;word-break:break-all;padd
         <div class="hint" style="margin-top:6px" id="nasHint">첨부 파일·자료함의 <b>🗄 NAS 저장</b>을 누른 것만 사내 NAS 부서 폴더(AI저장)에 보관됩니다. 누르지 않은 첨부는 저장되지 않습니다.</div>
       </div>
       <div class="box">
-        <h3>📂 DRI 자료 폴더</h3>
-        <div class="hint">사내 NAS <b>사업운영팀 폴더 › DRI</b> 에 자료를 넣으면 에이전트가 파일 목록을 봅니다.
-          지금은 <b>파일 이름·수정일</b>만 보이고, 내용 분석은 파일을 대화에 <b>📎 로 붙였을 때</b> 됩니다.</div>
-        <div class="jump" style="margin-top:8px"><a href="#" id="driList" title="DRI 폴더의 파일 목록을 에이전트에게 묻습니다">📄 DRI 폴더 파일 목록 보기</a></div>
+        <h3>📂 DRI 자료 폴더 <span class="hint" id="dfInfo"></span>
+          <button type="button" class="nx-btn" id="dfReload" style="float:right;margin-top:-3px" title="목록 새로고침">↻</button></h3>
+        <ul class="arts df" id="dfList" style="min-height:60px"><li class="hint">불러오는 중…</li></ul>
+        <div class="hint" style="margin-top:6px">사내 NAS <b>사업운영팀 폴더</b>에 넣은 자료입니다(최근 50개 · AI저장 제외).
+          <b>보기</b>로 확인하고 <b>분석에 추가</b>를 누르면 대화에 첨부됩니다. 이미지·PDF 만 가져옵니다.</div>
       </div>
       <div class="box">
         <h3>🧭 준비 단계</h3>
         <div class="hint" style="line-height:1.75">
-          <b style="color:#1a7f4b">● 지금 됨</b> — 붙인 이미지·도면 분석 · 여러 장 비교 · 생성 지시문 초안 · NAS 보관·관리<br>
-          <b style="color:#9a6200">● 다음(D1)</b> — NAS 의 DRI 폴더 이미지를 에이전트가 직접 읽기<br>
+          <b style="color:#1a7f4b">● 지금 됨</b> — NAS 폴더의 이미지·도면을 골라 분석 · 붙인 파일 분석 · 여러 장 비교 · 생성 지시문 초안 · NAS 보관·관리<br>
           <b style="color:#b42318">● 결정 대기(D2)</b> — AI 이미지 생성: 생성 모델·외부 전송 승인·예산이 정해져야 연결합니다<br>
           <a href="/docs/agents/dri-plan" target="_blank" rel="noopener">기획서 보기 ↗</a></div>
       </div>
@@ -276,6 +285,11 @@ details.trace div{font-family:Consolas,Menlo,monospace;word-break:break-all;padd
     <div class="nx-foot"><span id="nxMsg"></span><span class="sp"></span><span id="nxPol"></span></div>
     <div class="nx-drop" id="nxDrop">📂 여기에 놓으면 부서 NAS 폴더에 추가됩니다</div>
   </div>
+</div>
+<!-- DRI 폴더 이미지 미리보기(D1) -->
+<div class="dv" id="dv" hidden>
+  <div class="bar"><b id="dvName"></b><button type="button" id="dvAdd">분석에 추가</button><button type="button" id="dvClose">닫기</button></div>
+  <img id="dvImg" alt="">
 </div>
 <div class="toast" id="toast"></div>
 
@@ -535,7 +549,6 @@ $("btnStop").onclick = () => { if (ctrl) ctrl.abort(); };
 $("btnNew").onclick = () => { hist = []; bots.length = 0; pending = []; renderTray(); $("log").innerHTML = '<div class="empty" id="empty">새 대화를 시작합니다.</div>'; };
 $("inp").addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); send(); } });
 $("chips").onclick = (e) => { const c = e.target.closest(".chip"); if (c) ask(c.dataset.q); };
-$("driList").onclick = (e) => { e.preventDefault(); ask("사업운영팀 폴더의 DRI 폴더에 있는 파일 목록 보여줘"); };
 
 /* ===== 첨부(REQ-0089) — 📎 · 끌어다 놓기 · 붙여넣기 ===== */
 const DEFAULT_Q = "첨부한 이미지·도면을 분석해서 무엇이 보이는지 → 특이사항 → 제안 순서로 정리해줘. 읽히지 않는 글자·치수는 판독 불가로 적어줘.";
@@ -597,6 +610,77 @@ $("inp").addEventListener("paste", (e) => {
   addFiles(fs.map((f, i) => (f.name && f.name !== "image.png") ? f
     : new File([f], `붙여넣은_이미지_${i + 1}.${(f.type.split("/")[1] || "png")}`, { type: f.type })));
 });
+
+/* ===== DRI 폴더 파일 고르기(D1 · 정본 SQL 93) =====
+   화면은 요청·표시만 한다. 어느 폴더를 볼 수 있는지·어떤 형식을 가져올 수 있는지는 서버와 NAS 워커가 정한다.
+   가져온 이미지는 붙인 파일과 똑같이 대화에 첨부된다 — 저장은 여전히 [NAS 저장]을 누른 것만. */
+const DF = { items: [], cur: null };
+const DF_SHRINK_BYTES = 4 * 1024 * 1024, DF_SHRINK_SIDE = 2400;
+const dfIcon = (n) => /\.pdf$/i.test(n) ? "📕" : /\.(png|jpe?g|gif|webp)$/i.test(n) ? "🖼" : "📄";
+async function loadDf() {
+  $("dfList").innerHTML = '<li class="hint">불러오는 중…</li>';
+  try {
+    const j = await op(AGENT, "nas_folder_files");
+    if (!j.folder) { $("dfList").innerHTML = '<li class="hint">이 부서의 NAS 폴더가 아직 등록되지 않았습니다.</li>'; $("dfInfo").textContent = ""; return; }
+    DF.items = (j.items || []).filter((x) => !/^AI저장(\/|$)/.test(x.dir || ""));
+    $("dfInfo").textContent = `· ${DF.items.length}건${j.cut ? "(최근 것만)" : ""}`;
+    $("dfList").innerHTML = DF.items.length ? DF.items.map((x, i) => `<li data-i="${i}" class="${x.viewable ? "" : "off"}">
+      <span>${dfIcon(x.name)}</span><span class="t" title="${escHtml(x.path)}">${escHtml(x.name)}<small>${escHtml(x.dir || "(폴더 바로 아래)")} · ${fmtSize((x.kb || 0) * 1024)} · ${escHtml(String(x.mtime || "").slice(5, 16))}</small></span>
+      ${x.viewable ? '<button type="button" data-act="view">보기</button><button type="button" data-act="add" title="이 파일을 대화에 첨부합니다">분석에 추가</button>' : '<small title="이미지·PDF 만 가져옵니다">미지원</small>'}</li>`).join("")
+      : '<li class="hint">폴더가 비어 있습니다. NAS 의 <b>사업운영팀 › DRI</b> 폴더에 이미지·도면을 넣어 주세요.</li>';
+  } catch (e) { if (e.message !== "login") $("dfList").innerHTML = `<li class="hint">목록을 불러오지 못했습니다: ${escHtml(e.message)}</li>`; }
+}
+// NAS → 임시 주소 → 브라우저. 큰 이미지는 여기서 줄여 붙인다(대화 한도와 비용 때문 — 원본은 NAS 에 그대로 있다)
+async function dfBlob(x) {
+  const j = await op(AGENT, "nas_file_get", { path: x.path });
+  const r = await fetch(j.url); if (!r.ok) throw new Error("파일을 받지 못했습니다");
+  return { blob: await r.blob(), name: j.file_name || x.name };
+}
+async function dfShrink(blob, name) {
+  if (!/^image\//.test(blob.type) && !/\.(png|jpe?g|gif|webp)$/i.test(name)) return new File([blob], name, { type: blob.type || "application/pdf" });
+  const bmp = await createImageBitmap(blob);
+  const side = Math.max(bmp.width, bmp.height);
+  if (blob.size <= DF_SHRINK_BYTES && side <= DF_SHRINK_SIDE) { bmp.close(); return new File([blob], name, { type: blob.type || "image/png" }); }
+  const k = Math.min(1, DF_SHRINK_SIDE / side);
+  const c = document.createElement("canvas"); c.width = Math.round(bmp.width * k); c.height = Math.round(bmp.height * k);
+  const g = c.getContext("2d"); g.fillStyle = "#fff"; g.fillRect(0, 0, c.width, c.height); g.drawImage(bmp, 0, 0, c.width, c.height); bmp.close();
+  const out = await new Promise((res) => c.toBlob(res, "image/jpeg", 0.9));
+  return new File([out], name.replace(/\.[^.]+$/, "") + "_축소.jpg", { type: "image/jpeg" });
+}
+async function dfAdd(x, btn) {
+  const old = btn.textContent; btn.disabled = true; btn.textContent = "가져오는 중…";
+  try {
+    const { blob, name } = DF.cur && DF.cur.x === x ? DF.cur : await dfBlob(x);
+    const f = await dfShrink(blob, name);
+    await addFiles([f]);
+    toast(/_축소\.jpg$/.test(f.name) ? "큰 이미지라 줄여서 첨부했습니다 — 질문을 입력하세요" : "첨부했습니다 — 질문을 입력하세요");
+  } catch (e) { toast("가져오지 못했습니다: " + e.message); }
+  btn.disabled = false; btn.textContent = old;
+}
+async function dfView(x, btn) {
+  const old = btn.textContent; btn.disabled = true; btn.textContent = "…";
+  try {
+    const got = await dfBlob(x);
+    if (/\.pdf$/i.test(got.name)) { window.open(URL.createObjectURL(new Blob([got.blob], { type: "application/pdf" })), "_blank", "noopener"); }
+    else {
+      if (DF.cur && DF.cur.url) URL.revokeObjectURL(DF.cur.url);
+      DF.cur = { x, blob: got.blob, name: got.name, url: URL.createObjectURL(got.blob) };
+      $("dvImg").src = DF.cur.url; $("dvName").textContent = x.path; $("dv").hidden = false;
+    }
+  } catch (e) { toast("열지 못했습니다: " + e.message); }
+  btn.disabled = false; btn.textContent = old;
+}
+function dvClose() { $("dv").hidden = true; $("dvImg").removeAttribute("src"); if (DF.cur && DF.cur.url) URL.revokeObjectURL(DF.cur.url); DF.cur = null; }
+$("dfReload").onclick = loadDf;
+$("dfList").onclick = (e) => {
+  const b = e.target.closest("button[data-act]"); if (!b) return;
+  const x = DF.items[+b.closest("li").dataset.i]; if (!x) return;
+  if (b.dataset.act === "view") dfView(x, b); else dfAdd(x, b);
+};
+$("dvClose").onclick = dvClose;
+$("dv").addEventListener("mousedown", (e) => { if (e.target === $("dv")) dvClose(); });
+$("dvAdd").onclick = async (e) => { if (DF.cur) { await dfAdd(DF.cur.x, e.target); dvClose(); } };
+document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !$("dv").hidden) dvClose(); });
 
 /* ===== 부서 NAS 보관함 관리 창(REQ-0108) — 탐색기처럼 추가·삭제 =====
    화면은 요청·표시만 한다. 어디에 쓰는지(부서 폴더의 AI저장/연도)·누가 지울 수 있는지·보존 기간은 서버(SQL 89)가 정한다. */
@@ -926,7 +1010,7 @@ $("tScen").onclick = (e) => {
   if (isOp()) { $("opBox").style.display = ""; $("ver").textContent = `설정 v${BOOT.version} · ${BOOT.model || "모델 없음"}${BOOT.model_note ? " — " + BOOT.model_note : ""}`; }
   $("chips").innerHTML = (A.suggestions || []).map((s) => `<span class="chip" data-q="${escHtml(s.q)}">${escHtml(s.label)}</span>`).join("");
   unhide();
-  loadArts(); loadNas();
+  loadArts(); loadNas(); loadDf();
   // 주소에 ?tab=test 가 있으면 검증·테스트 탭으로 바로 연다(포털·문서에서 건너올 때)
   if (new URLSearchParams(location.search).get("tab") === "test") showTab("test");
 })();

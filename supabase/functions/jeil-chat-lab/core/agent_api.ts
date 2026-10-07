@@ -292,6 +292,61 @@ export async function handleAgent(c: AgentCtx, body: Record<string, unknown>): P
       }
       return json({ error: "사내 보관소 응답이 늦습니다. 잠시 뒤 다시 시도해 주세요." }, 504);
     }
+    /* ───── 부서 폴더의 파일 보기(정본 SQL 93 · DRI D1) — 에이전트 담당 부서 폴더만. 형식·경로 검사는 DB 와 워커가 한다 ───── */
+    case "nas_folder_files": {
+      if (!agent.dept_nm) return json({ folder: null, items: [] });
+      const { data: fs } = await admin.rpc("nas_save_list", { p_dept: agent.dept_nm, p_limit: 1 });
+      if (!fs?.folder) return json({ folder: null, items: [] });
+      // 조회 큐로 파일 목록을 받는다 — 볼 폴더는 에이전트 담당 부서 하나로 좁힌다(구성원 판정은 위에서 끝났다)
+      const params: Record<string, unknown> = { limit: 50 };
+      const q = txt(body.q, 60).trim(); if (q) params.q = q;
+      const { data: sub, error } = await admin.rpc("nas_query_submit", { p_upn: scope.upn, p_kind: "file_list", p_params: params, p_depts: [agent.dept_nm], p_is_admin: false });
+      if (error) return json({ error: error.message }, 500);
+      if (sub?.status === "offline") return json({ error: "사내 보관소(NAS)와 연결이 닿지 않습니다. 잠시 뒤 다시 시도해 주세요." }, 503);
+      if (sub?.status !== "queued") return json({ error: "파일 목록을 요청하지 못했습니다(" + (sub?.status || "?") + ")." }, sub?.status === "busy" ? 429 : 409);
+      const until = Date.now() + 9000;
+      while (Date.now() < until) {
+        await new Promise((r) => setTimeout(r, 300));
+        const { data: st } = await admin.rpc("nas_query_poll", { p_query_id: sub.query_id });
+        const s = st?.status;
+        if (s === "failed" || s === "expired" || s === "missing") break;
+        if (s === "done") {
+          // deno-lint-ignore no-explicit-any
+          const rows = (Array.isArray(st.result?.["목록"]) ? st.result["목록"] : []) as any[];
+          const items = rows.filter((x) => x["폴더"] === fs.folder).map((x) => ({
+            path: (x["경로"] ? x["경로"] + "/" : "") + x["이름"], dir: x["경로"] || "", name: x["이름"], mtime: x["수정일"], kb: x["크기_KB"],
+            viewable: /\.(png|jpe?g|gif|webp|pdf)$/i.test(String(x["이름"] || "")) }));
+          return json({ folder: fs.folder, items, cut: st.result?.["잘림"] === true });
+        }
+      }
+      return json({ error: "사내 보관소 응답이 늦습니다. 잠시 뒤 다시 시도해 주세요." }, 504);
+    }
+    case "nas_file_get": {
+      try {
+        const { data: old } = await admin.rpc("nas_fetch_sweep");
+        if (Array.isArray(old) && old.length) await admin.storage.from("nas-outbox").remove(old as string[]);
+      } catch { /* 청소 실패는 가져오기를 막지 않는다 */ }
+      const { data: f, error } = await admin.rpc("nas_file_fetch_submit", { p_upn: scope.upn, p_dept: agent.dept_nm, p_rel_path: txt(body.path, 400) });
+      if (error) return json({ error: error.message }, 500);
+      const why: Record<string, [string, number]> = {
+        no_folder: ["부서 폴더가 사내 NAS 에 등록돼 있지 않습니다.", 409], bad_path: ["가져올 수 없는 경로입니다.", 400],
+        bad_type: ["이미지(PNG·JPG·GIF·WEBP)와 PDF 만 가져올 수 있습니다.", 400],
+        sensitive: ["급여·인사평가·주민등록 등 민감 자료로 보이는 파일은 가져오지 않습니다(§1.7).", 400],
+        offline: ["사내 보관소(NAS)와 연결이 닿지 않습니다. 잠시 뒤 다시 시도해 주세요.", 503], busy: ["요청이 너무 잦습니다. 1분 뒤 다시 시도해 주세요.", 429] };
+      if (f?.status !== "queued") { const [m, c] = why[f?.status] || ["파일을 요청하지 못했습니다.", 500]; return json({ error: m }, c); }
+      const until = Date.now() + 20_000;
+      while (Date.now() < until) {
+        await new Promise((r) => setTimeout(r, 400));
+        const { data: st } = await admin.rpc("nas_fetch_status", { p_fetch_id: f.fetch_id, p_upn: scope.upn });
+        if (st?.status === "failed") return json({ error: "NAS 에서 파일을 읽지 못했습니다: " + (st.error || "알 수 없는 사유") }, 502);
+        if (st?.status === "done") {
+          const { data: sg, error: e2 } = await admin.storage.from("nas-outbox").createSignedUrl(st.path, 120);
+          if (e2 || !sg?.signedUrl) return json({ error: "주소를 만들지 못했습니다." }, 500);
+          return json({ ok: true, url: sg.signedUrl, file_name: st.file_name });
+        }
+      }
+      return json({ error: "사내 보관소 응답이 늦습니다. 잠시 뒤 다시 시도해 주세요." }, 504);
+    }
     case "nas_saved_delete": {
       const { data, error } = await admin.rpc("nas_save_request_purge", { p_save_id: String(body.id || ""), p_upn: scope.upn, p_can_manage: need(role, "reviewer") });
       if (error) return json({ error: error.message }, 500);

@@ -792,6 +792,32 @@ class SaveToDeptFolder(Base):
             self.assertEqual(sent, [])
             self.assertEqual(f.last("nas_fetch_finish")["p_status"], "failed")
 
+    def test_fetch_folder_file_images_only_inside_folder(self):
+        dri = os.path.join(self.folder, "DRI", "1차")
+        os.makedirs(dri)
+        png = b"\x89PNG\r\n\x1a\n" + b"x" * 40
+        for name, body in (("배치도.png", png), ("메모.txt", b"t"), ("급여표.png", png), (".숨김.png", png)):
+            with open(os.path.join(dri, name), "wb") as fh:
+                fh.write(body)
+        other = os.path.join(self.root, "부서", "9999_다른팀")
+        os.makedirs(other)
+        with open(os.path.join(other, "남의도면.png"), "wb") as fh:
+            fh.write(png)
+        job = {"job": "fetch", "fetch_id": "f2", "folder_key": "pur_team", "folder_rel": "부서/4300_구매팀"}
+        sent = []
+        f = self.use({"nas_fetch_finish": {"ok": True}})
+        self.assertTrue(w.handle_fetch("u", "k", dict(job, src_rel="DRI/1차/배치도.png"), self.root, "wk", put=lambda *a: sent.append(a[-1])))
+        self.assertEqual(sent, [png])
+        self.assertEqual(f.last("nas_fetch_finish")["p_status"], "done")
+        for rel in ("DRI/1차/메모.txt", "DRI/1차/급여표.png", "DRI/1차/.숨김.png", "DRI/1차/없는파일.png",
+                    "../9999_다른팀/남의도면.png", "DRI/../../9999_다른팀/남의도면.png", "DRI/1차", ""):
+            sent.clear()
+            f = self.use({"nas_fetch_finish": {"ok": True}})
+            self.assertFalse(w.handle_fetch("u", "k", dict(job, src_rel=rel, rel_path="AI저장/x") if rel == "" else dict(job, src_rel=rel),
+                                            self.root, "wk", put=lambda *a: sent.append(a[-1])), rel)
+            self.assertEqual(sent, [], rel)
+            self.assertEqual(f.last("nas_fetch_finish")["p_status"], "failed")
+
     def test_work_loop_dispatches_fetch_and_purge(self):
         self.patch(w, "nas_docs_root", lambda: self.root)
         self.patch(w.time, "sleep", lambda s: None)
