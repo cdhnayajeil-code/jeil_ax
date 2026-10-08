@@ -357,6 +357,12 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <tbody>
 <tr>
 <td>2026-10-08</td>
+<td><strong>[10-08 인사마스터 조회 화면]</strong> REQ-0122 — 신규 인사팀 조회 화면 <code>/work/hr-master</code>(커밋 c2245c1). 정본 SQL 101(+rollback)·마이그레이션 hr_master_page_req0122 라이브 적용. 조회 RPC <code>hr_emp_list()</code>는 인사팀(payroll 모듈 권한자)·전체관리자·service_role 만 허용 — 역할별 실측: anon 거부, 협력사·사내 타부서 거부, 인사팀 746행(hr_emp_s 미러 조회 전용). <code>hr_career_get</code> 코드 그룹 대소문자 보정. 포털 카드 hr_master_2026(인사팀 전용, sort 51). 추가 ETL·미러 변경 없음(REQ-0120 r1.13 교체·재적재는 위 항목대로 반영 완료). 관리자 라이브 렌더 실측은 대기</td>
+<td>문서 반영만(이 작업에서 DB·코드 변경·ERP운영DB 조회 없음)</td>
+<td>최동혁(+Claude)</td>
+</tr>
+<tr>
+<td>2026-10-08</td>
 <td><strong>[10-08 14:13 실적재 확인]</strong> 관리자 서버 r1.13 교체·재적재 — 경력 478행/100명(회수 0) · 인사마스터 746행 새 2열 채움 · 코드 3그룹 적재 · 인정경력 대사 일치(경력 Y행 합계 = 마스터 합계). <strong>인사 경력정보(HAA050T) 미러 연계 신설(REQ-0120 · 정본 SQL 100 · 마이그레이션 <code>hr_career_mirror_req0120</code> 라이브 적용)</strong> — 인사마스터(<code>hr_emp</code>)는 기연계, 경력정보는 미연계 확인 → 신규 표 <code>hr_career_s</code>·<code>hr_emp_s</code> 2열(직책코드·인정경력)·정합 RPC·조회 RPC(인사 권한자만) + ETL job <code>hr_career</code> + 종합코드 3그룹(H0002·H0016·H0026) 추가. 러너 r1.13 빌드·전달 폴더 반영, 회귀 200건 통과, 권한 실측(롤백) 통과. 입사구분 코드 의미 미결 해소(H0016). <strong>대기(사람)</strong>: 관리자가 서버 EXE 를 r1.13 으로 교체 → 다음 회차 적재(<code>--full</code> 불필요) · 교체 뒤 <code>batch_run</code> 의 <code>hr_career</code> success·행수 확인(이 세션은 운영 ERP 조회 차단으로 dry-run 미실시) · 소비 화면·에이전트 도구는 별도 요청</td>
 <td>최동혁(+Claude)</td>
 <td></td>
