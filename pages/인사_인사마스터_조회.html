@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script>window.PAGE_KEY='hr_master_2026';</script>
+<script src="/pages/_access-gate.js"></script>
+<title>인사팀 — 인사마스터 조회</title>
+<link rel="stylesheet" href="/app/lib/querybar.css">
+<link rel="stylesheet" href="/app/lib/grid.css">
+<style>
+  :root{
+    --navy:#1a2f4e; --navy2:#27457a; --accent:#2f6fb3; --accent2:#4a8ed0;
+    --red:#b3402f; --green:#2e7d52; --amber:#9a6b1f;
+    --ink:#222; --muted:#666; --line:#d8dee8; --bg:#f4f6f9;
+    --soft:#eef2f8; --softred:#fbeeec; --softgreen:#ecf5f0; --softamber:#faf3e4;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif; color:var(--ink); background:var(--bg); line-height:1.6; font-size:14px;}
+  .page{margin:0 auto; background:#fff; padding:26px 24px 30px; min-height:100vh; max-width:1480px;}
+  .head{display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:10px; border-bottom:3px solid var(--navy); padding-bottom:14px; margin-bottom:16px;}
+  .head h1{font-size:22px; color:var(--navy);}
+  .head .sub{font-size:12.5px; color:var(--muted); margin-top:3px;}
+  .head .right{text-align:right; font-size:12px; color:var(--muted);}
+  .head .right a{color:var(--accent); text-decoration:none; margin-left:10px;}
+  .badge{display:inline-block; font-size:11px; border-radius:10px; padding:2px 9px; font-weight:600;}
+  .badge.g{background:var(--softgreen); color:var(--green);} .badge.b{background:var(--soft); color:var(--navy2);}
+  .kpis{display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px; margin:14px 0 12px;}
+  .kpi{background:#fff; border:1px solid var(--line); border-radius:11px; padding:12px 14px; border-top:4px solid var(--accent);}
+  .kpi.warn{border-top-color:var(--amber);} .kpi.ok{border-top-color:var(--green);} .kpi.mut{border-top-color:#b8c0cc;}
+  .kpi .lb{font-size:11.5px; color:var(--muted);} .kpi .v{font-size:21px; font-weight:800; color:var(--navy); margin-top:2px;} .kpi .v small{font-size:11.5px; color:var(--muted); font-weight:500;}
+  /* 분포 칩 — 누르면 그 값으로 거른다(다시 누르면 해제) */
+  .dist{display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:10px; margin-bottom:14px;}
+  .dbox{border:1px solid var(--line); border-radius:11px; padding:10px 12px;}
+  .dbox h4{font-size:12px; color:var(--navy); margin-bottom:6px;}
+  .chips{display:flex; flex-wrap:wrap; gap:5px; max-height:92px; overflow:auto;}
+  .chip{border:1px solid var(--line); background:#fff; border-radius:14px; padding:2px 10px; font-size:12px; cursor:pointer; color:var(--ink); font-family:inherit;}
+  .chip b{color:var(--navy2); margin-left:4px;}
+  .chip:hover{border-color:var(--accent2);} .chip.on{background:var(--navy); color:#fff; border-color:var(--navy);} .chip.on b{color:#fff;}
+  .sec{background:#fff; border:1px solid var(--line); border-radius:11px; padding:14px 16px; margin-bottom:14px;}
+  .sec h3{font-size:13.5px; color:var(--navy); margin-bottom:4px; display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;}
+  .sec .note{font-size:11px; color:var(--muted); margin-bottom:8px;}
+  /* 표는 표준 그리드(/app/lib/grid.js)가 그린다 — 이 화면은 전역 table/th/td 를 정의하지 않는다(§13.4) */
+  .nm{color:var(--accent); cursor:pointer; font-weight:600; text-decoration:none;}
+  .nm:hover{text-decoration:underline;}
+  .st{display:inline-block; font-size:11px; border-radius:9px; padding:1px 8px; font-weight:700; white-space:nowrap;}
+  .st.on{background:var(--softgreen); color:var(--green);} .st.off{background:#f1f3f6; color:#5f6b7a;}
+  .st.warn{background:var(--softamber); color:var(--amber);} .st.bad{background:var(--softred); color:var(--red);}
+  .callout{border-radius:8px; padding:10px 14px; margin:8px 0; font-size:12.5px;}
+  .callout.blue{background:var(--soft); border-left:4px solid var(--accent);} .callout.amber{background:var(--softamber); border-left:4px solid var(--amber);}
+  .loading{text-align:center; color:var(--muted); padding:46px 10px; font-size:13.5px;}
+  /* 상세 — 오른쪽 서랍 */
+  .drawer{position:fixed; top:0; right:0; width:min(560px,100vw); height:100vh; background:#fff; border-left:1px solid var(--line); box-shadow:-8px 0 24px rgba(0,0,0,.12); padding:20px 22px; overflow:auto; z-index:50;}
+  .drawer[hidden]{display:none;}
+  .drawer .x{float:right; border:1px solid var(--line); background:#fff; border-radius:8px; padding:3px 11px; cursor:pointer; font-family:inherit;}
+  .drawer h2{font-size:18px; color:var(--navy); margin-bottom:2px;}
+  .drawer .who{font-size:12.5px; color:var(--muted); margin-bottom:12px;}
+  .kv{display:grid; grid-template-columns:104px 1fr; gap:4px 10px; font-size:13px; margin-bottom:14px;}
+  .kv dt{color:var(--muted);} .kv dd{word-break:break-all;}
+  .drawer h4{font-size:13px; color:var(--navy); margin:14px 0 6px; border-bottom:1px solid var(--line); padding-bottom:4px;}
+  .car{border:1px solid var(--line); border-radius:9px; padding:8px 11px; margin-bottom:6px; font-size:12.5px;}
+  .car .c1{font-weight:700; color:var(--ink);} .car .c2{color:var(--muted);}
+  .foot{margin-top:24px; padding-top:12px; border-top:1px solid var(--line); font-size:11px; color:var(--muted); display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap;}
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="head">
+    <div>
+      <h1>🪪 인사마스터 조회</h1>
+      <div class="sub">ERP 인사마스터(사원 1명 = 사번 1행)와 입사 전 경력을 한 화면에서 찾는다 · 중간DB 미러 · 조회 전용 · 인사팀·전체관리자</div>
+    </div>
+    <div class="right">
+      <span class="badge g">중간DB 실데이터</span>
+      <a href="/work/hr-payroll">👥 인원·급여 추이</a>
+      <a href="/work/erp-roles">🔑 ERP 권한 현황</a>
+    </div>
+  </div>
+
+  <div id="qbar"></div>
+
+  <div id="app"><div class="loading">중간DB 에서 인사마스터를 불러오는 중…</div></div>
+
+  <div class="foot">
+    <span>JEIL AX · 인사마스터 조회(REQ-0122) — 원천 ERP 인사마스터·경력등록 · 주민등록번호·주소·연락처·급여는 연계하지 않는다 · 수정은 ERP 에서만</span>
+    <span id="footAsof"></span>
+  </div>
+</div>
+
+<div class="drawer" id="drawer" hidden></div>
+
+<script type="module">
+  import { createQueryBar } from "/app/lib/querybar.js";
+  import { createGrid } from "/app/lib/grid.js";
+  import { supabase } from "/app/lib/supabaseClient.js";
+
+  /* 데이터는 RPC `hr_emp_list()` 한 번(정본 SQL 101) — 권한(인사팀·전체관리자)은 DB 가 판정한다(§5.4).
+     화면은 받은 행을 거르고·세고·그릴 뿐이다. 경력 상세는 이름을 눌렀을 때 `hr_career_get(사번)` 으로 따로 받는다.
+     표는 표준 그리드(§13) — 컬럼 필터·정렬·CSV(BOM)·복사·항목 고르기·페이지 넘김은 그리드 몫, 조건·찾기는 조회바 몫(§16). */
+  const app = document.getElementById("app");
+  const drawer = document.getElementById("drawer");
+  const esc = (t) => String(t == null ? "" : t).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const num = (n) => Number(n || 0).toLocaleString("ko-KR");
+  const ymTxt = (mm) => { mm = Number(mm || 0); if (!mm) return ""; const y = Math.floor(mm / 12), m = mm % 12; return (y ? y + "년" : "") + (y && m ? " " : "") + (m ? m + "개월" : ""); };
+  const TODAY = new Date();
+  const THIS_YEAR = String(TODAY.getFullYear());
+
+  let ROWS = [], GRID = null, LASTQ = null, BAR = null;
+  const PICK = { dept: "", pstn: "", entr: "" };   // 분포 칩으로 고른 값
+
+  function monthsBetween(a, b) {
+    if (!a) return 0;
+    const s = new Date(a), e = b ? new Date(b) : TODAY;
+    let m = (e.getFullYear() - s.getFullYear()) * 12 + (e.getMonth() - s.getMonth());
+    if (e.getDate() < s.getDate()) m--;
+    return Math.max(0, m);
+  }
+
+  /* RPC 한 행 → 그리드 한 행. 그리드의 검색·필터·정렬·CSV 는 원값을 보므로 계산 칸도 값으로 둔다. */
+  function shape(r) {
+    const tenure = monthsBetween(r.entr_dt, r.status === "퇴직" ? r.retire_dt : null);
+    return Object.assign({}, r, {
+      tenure_mm: tenure, tenure_txt: ymTxt(tenure),
+      career_txt: ymTxt(r.career_mm), prior_txt: ymTxt(r.prior_mm),
+      entr_year: String(r.entr_dt || "").slice(0, 4), retire_year: String(r.retire_dt || "").slice(0, 4),
+      rehire: Number(r.emp_rec_cnt) > 1 ? "재입사 이력(" + r.emp_rec_cnt + "개 사번)" : "",
+    });
+  }
+
+  async function fetchAll() {
+    const { data, error } = await supabase.rpc("hr_emp_list");
+    if (error) throw error;
+    if (!data || data.allowed !== true) { const e = new Error("NOT_ALLOWED"); e.notAllowed = true; throw e; }
+    ROWS = (data.rows || []).map(shape);
+    return data;
+  }
+
+  function pick(q) {
+    const ex = (q && q.extras) || {};
+    const kw = String(ex.kw || "").trim().toLowerCase();
+    const st = ex.status == null ? "재직" : ex.status;
+    return ROWS.filter((r) => {
+      if (st && r.status !== st) return false;
+      if (ex.dept && r.dept_nm !== ex.dept) return false;
+      if (PICK.dept && r.dept_nm !== PICK.dept) return false;
+      if (PICK.pstn && (r.pstn_nm || "(없음)") !== PICK.pstn) return false;
+      if (PICK.entr && (r.entr_nm || "(없음)") !== PICK.entr) return false;
+      if (ex.scope === "career" && !(Number(r.career_cnt) > 0)) return false;
+      if (ex.scope === "nocareer" && Number(r.career_cnt) > 0) return false;
+      if (ex.scope === "rehire" && !(Number(r.emp_rec_cnt) > 1)) return false;
+      if (ex.scope === "join" && r.entr_year !== THIS_YEAR) return false;
+      if (ex.scope === "leave" && r.retire_year !== THIS_YEAR) return false;
+      if (ex.scope === "noacct" && !(r.status === "재직" && r.erp_acct !== "사용")) return false;
+      if (ex.scope === "acctleft" && !(r.status === "퇴직" && r.erp_acct === "사용")) return false;
+      if (kw && !([r.emp_nm, r.emp_no, r.dept_nm, r.pstn_nm, r.role_nm, r.email, r.grw_id].join(" ").toLowerCase().includes(kw))) return false;
+      return true;
+    });
+  }
+
+  const kpi = (lb, v, unit, box) => '<div class="kpi' + (box ? " " + box : "") + '"><div class="lb">' + esc(lb) + '</div><div class="v">' + v + (unit ? "<small> " + unit + "</small>" : "") + "</div></div>";
+
+  function distBox(title, key, field, rows, order) {
+    const cnt = new Map();
+    for (const r of rows) { const k = r[field] || "(없음)"; cnt.set(k, (cnt.get(k) || 0) + 1); }
+    let items = [...cnt.entries()];
+    if (order) items.sort((a, b) => (order.indexOf(a[0]) + 1 || 99) - (order.indexOf(b[0]) + 1 || 99));
+    else items.sort((a, b) => b[1] - a[1] || String(a[0]).localeCompare(String(b[0]), "ko"));
+    return '<div class="dbox"><h4>' + esc(title) + "</h4><div class=\"chips\">"
+      + items.map(([k, c]) => '<button type="button" class="chip' + (PICK[key] === k ? " on" : "") + '" data-pick="' + key + '" data-v="' + esc(k) + '">' + esc(k) + "<b>" + num(c) + "</b></button>").join("")
+      + "</div></div>";
+  }
+
+  const stBadge = (v) => '<span class="st ' + (v === "재직" ? "on" : "off") + '">' + esc(v) + "</span>";
+  const acctBadge = (v, r) => {
+    const bad = (r.status === "퇴직" && v === "사용"), warn = (r.status === "재직" && v !== "사용");
+    return '<span class="st ' + (bad ? "bad" : warn ? "warn" : v === "사용" ? "on" : "off") + '"' + (bad ? ' title="퇴직자인데 ERP 계정이 사용 중"' : warn ? ' title="재직자인데 사용 중인 ERP 계정이 없다"' : "") + ">" + esc(v) + "</span>";
+  };
+
+  /* 표준 그리드 열 — 폭 지정 모드(resizable)라 전부 폭을 적는다. 숨김 열은 「▦ 항목」에서 켠다. */
+  const COLS = [
+    { key: "emp_nm", label: "이름", width: "96px", fitMin: 80, required: true, formatter: (v) => '<a class="nm" data-row-act="detail" title="상세·경력 보기">' + esc(v || "(이름 없음)") + "</a>" },
+    { key: "emp_no", label: "사번", width: "92px", fitMin: 80 },
+    { key: "status", label: "재직", width: "68px", fitMin: 60, formatter: (v) => stBadge(v) },
+    { key: "dept_nm", label: "부서", width: "150px", fitMin: 100 },
+    { key: "pstn_nm", label: "직위", width: "84px", fitMin: 64 },
+    { key: "role_nm", label: "직책", width: "84px", fitMin: 64 },
+    { key: "entr_nm", label: "입사구분", width: "88px", fitMin: 72 },
+    { key: "entr_dt", label: "입사일", width: "98px", fitMin: 90 },
+    { key: "retire_dt", label: "퇴사일", width: "98px", fitMin: 90, formatter: (v) => esc(v || "—") },
+    { key: "tenure_mm", label: "근속", type: "number", width: "96px", fitMin: 80, formatter: (v, r) => esc(r.tenure_txt || "—"), exportValue: (v) => v },
+    { key: "career_cnt", label: "입사 전 경력", type: "number", width: "100px", fitMin: 84, formatter: (v) => (Number(v) > 0 ? num(v) + "건" : "—") },
+    { key: "career_mm", label: "인정경력", type: "number", width: "96px", fitMin: 80, formatter: (v, r) => esc(r.career_txt || "—"), exportValue: (v) => (v == null ? "" : v) },
+    { key: "email", label: "이메일", width: "200px", fitMin: 130 },
+    { key: "erp_acct", label: "ERP 계정", width: "88px", fitMin: 76, formatter: (v, r) => acctBadge(v, r) },
+    // 숨김 열
+    { key: "dept_cd", label: "부서코드", width: "84px", hidden: true },
+    { key: "prior_mm", label: "입사 전 경력 합(개월)", type: "number", width: "130px", hidden: true },
+    { key: "rehire", label: "재입사", width: "150px", hidden: true },
+    { key: "grw_id", label: "그룹웨어 ID", width: "120px", hidden: true },
+    { key: "entr_year", label: "입사연도", width: "80px", hidden: true },
+    { key: "retire_year", label: "퇴사연도", width: "80px", hidden: true },
+    { key: "pstn_cd", label: "직위코드", width: "76px", hidden: true },
+    { key: "role_cd", label: "직책코드", width: "76px", hidden: true },
+    { key: "src_updated", label: "ERP 수정일시", width: "150px", hidden: true, formatter: (v) => esc(String(v || "").replace("T", " ").slice(0, 16)) },
+  ];
+
+  /* 뼈대는 한 번만 — 그리드는 다시 그리는 영역(요약·분포) 밖에 둔다. */
+  function skeleton() {
+    app.innerHTML = '<div id="summary"></div>'
+      + '<div class="sec"><h3><span id="secTitle"></span></h3>'
+      + '<div class="note">이름을 누르면 상세와 입사 전 경력이 열린다. 분포 칩을 누르면 그 값으로 거른다(다시 누르면 해제). 열 머리로 정렬, 머리 아래 칸으로 필터, 「▦ 항목」으로 열을 고른다. 근속은 입사일부터 오늘(퇴직자는 퇴사일)까지다.</div>'
+      + '<div id="hrGrid"></div></div>';
+    GRID = createGrid("#hrGrid", {
+      columns: COLS, rows: [], keyField: "emp_no",
+      search: false,                      // 찾기는 조회바가 맡는다(§16)
+      columnFilter: true, sortable: true,
+      editable: false, paste: false, selectable: false,
+      exportCsv: true, copy: true, exportName: "인사마스터_" + new Date().toISOString().slice(0, 10).replace(/-/g, ""),
+      stickyHeader: true, keyboardNav: false,
+      resizable: true, columnPicker: true, columnPickerLabel: "▦ 항목",
+      pageSize: 100, pageSizeOptions: [100, 300, 0],
+      emptyText: "조건에 맞는 사원이 없습니다.",
+      onRowAction: (act, row) => { if (act === "detail" && row) openDetail(row); },
+    });
+  }
+
+  function render(q) {
+    LASTQ = q;
+    const rows = pick(q);
+    const act = rows.filter((r) => r.status === "재직");
+    const joinY = rows.filter((r) => r.entr_year === THIS_YEAR).length;
+    const leaveY = rows.filter((r) => r.retire_year === THIS_YEAR).length;
+    const withCar = rows.filter((r) => Number(r.career_cnt) > 0).length;
+    const avgTen = act.length ? Math.round(act.reduce((s, r) => s + r.tenure_mm, 0) / act.length) : 0;
+    const noAcct = act.filter((r) => r.erp_acct !== "사용").length;
+    document.getElementById("summary").innerHTML = '<div class="kpis">'
+      + kpi("조건 안 인원", num(rows.length), "명")
+      + kpi("재직", num(act.length), "명", "ok")
+      + kpi(THIS_YEAR + "년 입사", num(joinY), "명")
+      + kpi(THIS_YEAR + "년 퇴사", num(leaveY), "명", "mut")
+      + kpi("재직자 평균 근속", esc(ymTxt(avgTen) || "—"), "")
+      + kpi("입사 전 경력 등록", num(withCar), "명")
+      + kpi("재직인데 ERP 계정 없음·중지", num(noAcct), "명", noAcct ? "warn" : "ok")
+      + "</div><div class=\"dist\">"
+      + distBox("부서별", "dept", "dept_nm", rows)
+      + distBox("직위별", "pstn", "pstn_nm", rows)
+      + distBox("입사구분별", "entr", "entr_nm", rows, ["신규입사", "경력입사", "재입사", "기타"])
+      + "</div>";
+    const picked = [PICK.dept, PICK.pstn, PICK.entr].filter(Boolean);
+    document.getElementById("secTitle").innerHTML = "사원 " + num(rows.length) + "명"
+      + picked.map((p) => ' <span class="badge b">' + esc(p) + "</span>").join("");
+    GRID.setRows(rows);
+    app.querySelectorAll(".chip[data-pick]").forEach((el) => {
+      el.onclick = () => { const k = el.dataset.pick, v = el.dataset.v; PICK[k] = (PICK[k] === v) ? "" : v; render(LASTQ); };
+    });
+  }
+
+  /* ── 상세 서랍 — 기본 정보 + 같은 이메일의 다른 사번(재입사) + 입사 전 경력 ── */
+  function closeDetail() { drawer.hidden = true; drawer.innerHTML = ""; }
+  async function openDetail(r) {
+    const sib = r.email ? ROWS.filter((x) => x.emp_no !== r.emp_no && x.email && x.email.toLowerCase() === r.email.toLowerCase()) : [];
+    const dd = (k, v) => "<dt>" + esc(k) + "</dt><dd>" + (v == null || v === "" ? "—" : v) + "</dd>";
+    drawer.innerHTML = '<button class="x" id="dx">닫기 ✕</button>'
+      + "<h2>" + esc(r.emp_nm || "(이름 없음)") + " " + stBadge(r.status) + "</h2>"
+      + '<div class="who">' + esc([r.dept_nm, r.pstn_nm, r.role_nm].filter(Boolean).join(" · ")) + "</div>"
+      + '<dl class="kv">'
+      + dd("사번", esc(r.emp_no)) + dd("부서", esc(r.dept_nm) + (r.dept_cd ? " <small style=\"color:var(--muted)\">(" + esc(r.dept_cd) + ")</small>" : ""))
+      + dd("직위 / 직책", esc([r.pstn_nm, r.role_nm].filter(Boolean).join(" / ")))
+      + dd("입사구분", esc(r.entr_nm)) + dd("입사일", esc(r.entr_dt)) + dd("퇴사일", esc(r.retire_dt))
+      + dd("근속", esc(r.tenure_txt)) + dd("인정경력", esc(r.career_txt))
+      + dd("이메일", esc(r.email)) + dd("그룹웨어 ID", esc(r.grw_id)) + dd("ERP 계정", acctBadge(r.erp_acct, r))
+      + "</dl>"
+      + (sib.length ? "<h4>같은 이메일의 다른 사번(재입사 이력)</h4>" + sib.map((s) => '<div class="car"><div class="c1">' + esc(s.emp_no) + " · " + esc(s.dept_nm || "") + " " + stBadge(s.status) + '</div><div class="c2">' + esc(s.entr_dt || "?") + " ~ " + esc(s.retire_dt || "재직") + "</div></div>").join("") : "")
+      + "<h4>입사 전 경력</h4><div id=\"dcar\"><div class=\"loading\" style=\"padding:16px\">불러오는 중…</div></div>";
+    drawer.hidden = false;
+    document.getElementById("dx").onclick = closeDetail;
+    const box = document.getElementById("dcar");
+    if (!(Number(r.career_cnt) > 0)) { box.innerHTML = '<div class="callout blue">ERP 경력등록에 올라온 입사 전 경력이 없습니다.</div>'; return; }
+    try {
+      const { data, error } = await supabase.rpc("hr_career_get", { p_emp_no: r.emp_no });
+      if (error) throw error;
+      const cs = (data && data.rows && data.rows[0] && data.rows[0].careers) || [];
+      if (drawer.hidden) return;
+      box.innerHTML = cs.length ? cs.map((c) => {
+        const rec = ymTxt(Number(c.career_yy || 0) * 12 + Number(c.career_mm || 0));
+        return '<div class="car"><div class="c1">' + esc(c.comp_nm || "(회사명 없음)")
+          + (c.apply_yn === "Y" ? ' <span class="st on" title="인정경력에 반영">인정</span>' : "") + "</div>"
+          + '<div class="c2">' + esc(c.career_start) + " ~ " + esc(c.career_end)
+          + (c.roll_pstn ? " · " + esc(c.roll_pstn) : "") + (c.func_nm ? " · " + esc(c.func_nm) : "")
+          + (rec ? " · 인정 " + esc(rec) : "") + "</div></div>";
+      }).join("") : '<div class="callout blue">표시할 경력이 없습니다.</div>';
+    } catch (e) {
+      box.innerHTML = '<div class="callout amber">경력을 불러오지 못했습니다. ' + esc(String((e && e.message) || e)) + "</div>";
+    }
+  }
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !drawer.hidden) closeDetail(); });
+
+  function fail(e) {
+    const msg = String((e && e.message) || e);
+    if (e && e.notAllowed) {
+      document.getElementById("qbar").hidden = true;
+      app.innerHTML = '<div class="sec" style="text-align:center; padding:34px 20px;"><div style="font-size:40px; line-height:1;">🔒</div>'
+        + '<h2 style="font-size:17px; color:var(--navy); margin:12px 0 6px;">인사팀 전용 화면</h2>'
+        + '<p style="color:var(--muted);">인사마스터는 인사팀과 전체관리자만 조회할 수 있습니다. 권한이 필요하면 관리자에게 요청해 주세요.</p></div>';
+      return;
+    }
+    app.innerHTML = '<div class="callout amber"><b>불러오지 못했습니다.</b> ' + esc(msg)
+      + (/permission|JWT|401|403/i.test(msg) ? "<br>사내 계정 세션이 끊겼을 수 있습니다. 새로고침해도 같으면 다시 로그인해 주세요." : "") + "</div>";
+    console.error("[인사마스터]", e);
+  }
+
+  /* ── 사내(internal) 세션 게이트 — 구매 진행판과 같은 패턴 ── */
+  function claimsOf(session) {
+    if (!session || !session.access_token) return {};
+    try {
+      let p = session.access_token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/");
+      while (p.length % 4) p += "=";
+      return JSON.parse(decodeURIComponent(atob(p).split("").map((c) => "%" + c.charCodeAt(0).toString(16).padStart(2, "0")).join(""))).app_metadata || {};
+    } catch (e) { return {}; }
+  }
+  function autoSSO() {
+    const u = new URL(location.href); u.searchParams.set("sso", "1");
+    supabase.auth.signInWithOAuth({ provider: "azure", options: { scopes: "openid email profile", redirectTo: u.toString() } });
+  }
+  function sessionGate(icon, title, msg, btn) {
+    document.getElementById("qbar").hidden = true;
+    app.innerHTML = '<div class="sec" style="text-align:center; padding:34px 20px;"><div style="font-size:40px; line-height:1;">' + icon + "</div>"
+      + '<h2 style="font-size:17px; color:var(--navy); margin:12px 0 6px;">' + esc(title) + "</h2><p style=\"margin:0 0 18px; color:var(--muted);\">" + msg + "</p>"
+      + (btn ? '<button id="gsso" style="border:1px solid var(--line);background:#fff;border-radius:8px;padding:7px 16px;cursor:pointer;">' + esc(btn) + "</button>" : "") + "</div>";
+    const b = document.getElementById("gsso");
+    if (b) b.onclick = async () => { try { await supabase.auth.signOut(); } catch (e) {} autoSSO(); };
+  }
+  async function bootGate() {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      if (!new URLSearchParams(location.search).get("sso")) { autoSSO(); return false; }
+      sessionGate("🔐", "사내 로그인이 필요합니다", "인사마스터 조회는 사내(@jeilm.co.kr) 계정으로 로그인해야 볼 수 있습니다.", "사내 계정으로 로그인");
+      return false;
+    }
+    if (claimsOf(session).role !== "internal") {
+      sessionGate("🔒", "사내 전용 화면", "현재 협력사(또는 권한 없는) 계정으로 로그인되어 있어 표시할 수 없습니다.", "사내 계정으로 다시 로그인");
+      return false;
+    }
+    return true;
+  }
+
+  if (!(await bootGate())) throw new Error("세션 게이트 — 조회를 내보내지 않는다");
+  let META;
+  try { META = await fetchAll(); } catch (e) { fail(e); throw e; }
+  skeleton();
+
+  const stamp = (m) => String((m && m.as_of) || "").replace("T", " ").slice(0, 16);
+  document.getElementById("footAsof").textContent = "중간DB 적재 " + stamp(META);
+  const DEPTS = [...new Set(ROWS.map((r) => r.dept_nm).filter(Boolean))].sort((a, b) => a.localeCompare(b, "ko"));
+
+  BAR = createQueryBar("#qbar", {
+    months: false,                       // 기간 축 없음 — 명부는 「지금」의 상태다(§16.6)
+    asOf: String((META && META.as_of) || "").slice(0, 10),
+    basis: "ERP 인사마스터 기준 · 1행 = 사번",
+    mode: "live", modeLabel: "중간DB 실데이터",
+    reset: true, refreshLabel: "다시 조회",
+    extras: [
+      { id: "status", label: "재직", type: "select", width: "100px", value: "재직",
+        options: [{ value: "재직", label: "재직" }, { value: "퇴직", label: "퇴직" }, { value: "", label: "전체" }] },
+      { id: "dept", label: "부서", type: "select", width: "170px",
+        options: [{ value: "", label: "전체 부서" }].concat(DEPTS.map((d) => ({ value: d, label: d }))) },
+      { id: "scope", label: "보기", type: "select", width: "200px",
+        options: [
+          { value: "", label: "전체" },
+          { value: "join", label: THIS_YEAR + "년 입사" },
+          { value: "leave", label: THIS_YEAR + "년 퇴사" },
+          { value: "career", label: "입사 전 경력 등록됨" },
+          { value: "nocareer", label: "입사 전 경력 없음" },
+          { value: "rehire", label: "재입사 이력(사번 2개 이상)" },
+          { value: "noacct", label: "재직인데 ERP 계정 없음·중지" },
+          { value: "acctleft", label: "퇴직인데 ERP 계정 사용 중" },
+        ] },
+      { id: "kw", label: "찾기", type: "text", width: "210px", placeholder: "이름·사번·부서·직위·이메일", debounce: 200 },
+    ],
+    onQuery: async (q, ctx) => {
+      if (ctx.reason === "refresh") {
+        try { const m = await fetchAll(); ctx.bar.setMeta({ asOf: String(m.as_of || "").slice(0, 10) }); document.getElementById("footAsof").textContent = "중간DB 적재 " + stamp(m); }
+        catch (e) { fail(e); return; }
+      }
+      if (ctx.reason === "reset") { PICK.dept = PICK.pstn = PICK.entr = ""; }
+      render(q);
+    },
+  });
+</script>
+</body>
+</html>

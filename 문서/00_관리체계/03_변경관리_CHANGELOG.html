@@ -110,6 +110,13 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <tbody>
 <tr>
 <td>2026-10-08</td>
+<td>운영페이지</td>
+<td>신규 화면 <code>/work/hr-master</code>(<code>pages/인사_인사마스터_조회.html</code>) · 정본 SQL 101(마이그레이션 <code>hr_master_page_req0122</code> 라이브 적용) · 포털 카드 <code>hr_master_2026</code> · 라우트 1건</td>
+<td><strong>인사마스터 조회 화면 신설(REQ-0122)</strong> — 표준 그리드·조회바(기간 축 없음). 재직·부서·보기(올해 입퇴사·경력 유무·재입사·ERP 계정 불일치)·찾기 + 부서·직위·입사구분 분포 칩으로 거르고, 이름을 누르면 상세와 입사 전 경력이 열린다. 조회 RPC <code>hr_emp_list</code> 는 인사팀·전체관리자만(역할별 실측). 경력 조회 함수의 코드 그룹 대소문자도 보정</td>
+<td>최동혁</td>
+</tr>
+<tr>
+<td>2026-10-08</td>
 <td>ERP연계</td>
 <td>정본 SQL 100(<code>100_hr_career_mirror.sql</code> + rollback · 마이그레이션 <code>hr_career_mirror_req0120</code> 라이브 적용) · ETL job <code>hr_career</code> · 러너 r1.13 · 문서/10 v0.87</td>
 <td><strong>인사 경력정보(HAA050T) 미러 연계 신</strong>[10-08 14:13 실적재 확인]<strong> 관리자 서버 r1.13 교체·재적재 — 경력 478행/100명(회수 0) · 인사마스터 746행 새 2열 채움 · 코드 3그룹 적재 · 인정경력 대사 일치(경력 Y행 합계 = 마스터 합계). 설</strong>(REQ-0120) — 사원마스터는 기연계(hr_emp_s 746행), 경력정보는 미연계였다. 신규 표 <code>hr_career_s</code>(RLS ON·정책 0) · hr_emp_s 직책코드·인정경력 개월 2열 · 정합 RPC · 조회 RPC <code>hr_career_get</code>(인사팀·전체관리자만), 코드 H0002·H0016·H0026 추가, 입사구분 H0016 = 1 신규·2 경력·3 재입사·4 기타 확정. 격리 위치·조회 범위는 사후 확인 대상(D-151·D-152). 서버 EXE r1.13 교체 전이라 적재 0행 · 커밋 전 · 정본 SQL 번호 99 가 NAS 조회 정비 SQL 과 겹침</td>

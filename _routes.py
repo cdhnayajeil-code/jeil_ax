@@ -30,6 +30,7 @@ ROUTES = {
     "/work/purchase-trace":     "pages/구매_구매건추적_2026.html",  # 구매 건 추적(REQ-0116 · P1) — 번호 하나로 요청→발주→입고→매입→대장(함수 pur_case_chain)
     "/work/bizops-dri":         "pages/사업운영_DRI분석생성_2026.html",   # 사업운영팀 DRI 분석·생성 에이전트(REQ-0112 · 준비 단계) — 파일럿 구성원·관리자(서버 판정)
     "/work/hr-payroll":         "pages/인사_인원급여추이_2026.html",
+    "/work/hr-master":          "pages/인사_인사마스터_조회.html",   # 인사마스터 조회(REQ-0122) — ERP 인사마스터·경력 미러 · 표준 그리드 · 인사팀·전체관리자(서버 판정)
     "/work/inventory":          "pages/자재물류_재고입출고_2026.html",
     "/work/subcon-inspection":  "pages/외주발주_검사진행현황_2026.html",
     "/work/item-duplicates":    "pages/품목중복_조회_2026.html",
