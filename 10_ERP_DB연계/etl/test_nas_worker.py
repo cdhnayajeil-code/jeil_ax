@@ -387,6 +387,79 @@ class TestQuery(Base):
         self.assertEqual(f.fns().count("nas_query_claim"), 2)
         self.assertEqual(f.fns().count("nas_query_finish"), 1)
 
+    def test_queries_run_in_parallel_not_in_a_line(self):
+        """여럿이 같이 물으면 한 줄로 서지 않는다 — 느린 조회 하나가 뒤 조회를 붙잡지 않는다(REQ-0117 동시 조회 지연)."""
+        import threading, time as _t
+        qs = [{"query_id": f"p{i}", "kind": "file_list", "params": {}, "scope": self.scope} for i in range(4)]
+        f = self.use({"nas_query_claim": qs + [None]})
+        self.patch(w, "nas_docs_root", lambda: self.root)
+        gate, seen, peak, lock = threading.Event(), [], [0, 0], threading.Lock()
+
+        def slow(url, key, q, data_root, docs_root):
+            with lock:
+                peak[0] += 1; peak[1] = max(peak[1], peak[0]); seen.append(q["query_id"])
+            if len(seen) >= 4:
+                gate.set()
+            gate.wait(5)                           # 네 건이 모두 시작돼야 풀린다 — 한 줄 처리라면 첫 건에서 5초 멈춘다
+            with lock:
+                peak[0] -= 1
+            return "done"
+        self.patch(w, "handle_query", slow)
+        t0 = _t.time()
+        w.query_loop("u", "k", "host", self.root, rounds=5)
+        self.assertEqual(sorted(seen), ["p0", "p1", "p2", "p3"])
+        self.assertEqual(peak[1], 4, "네 건이 동시에 돌아야 한다")
+        self.assertLess(_t.time() - t0, 4, "한 줄로 처리하지 않는다")
+
+    def test_no_more_than_parallel_limit_at_once(self):
+        import threading
+        qs = [{"query_id": f"p{i}", "kind": "file_list", "params": {}, "scope": self.scope} for i in range(9)]
+        self.use({"nas_query_claim": qs + [None]})
+        self.patch(w, "nas_docs_root", lambda: self.root)
+        peak, lock = [0, 0], threading.Lock()
+
+        def work(url, key, q, data_root, docs_root):
+            with lock:
+                peak[0] += 1; peak[1] = max(peak[1], peak[0])
+            threading.Event().wait(0.05)
+            with lock:
+                peak[0] -= 1
+            return "done"
+        self.patch(w, "handle_query", work)
+        w.query_loop("u", "k", "host", self.root, rounds=10)
+        self.assertLessEqual(peak[1], w.QUERY_PARALLEL)
+        self.assertGreaterEqual(peak[1], 2)
+
+    def test_claim_error_retries_quickly_and_one_bad_query_does_not_stop_others(self):
+        naps = []
+        self.patch(w.time, "sleep", lambda s: naps.append(s))
+        calls = {"n": 0}
+
+        def flaky(url, key, fn, payload, wait_sec=0):
+            if fn == "nas_query_claim":
+                calls["n"] += 1
+                if calls["n"] in (1, 2):
+                    raise RuntimeError("연결이 끊겼습니다")
+                if calls["n"] == 3:
+                    return {"query_id": "bad", "kind": "file_list", "params": {}, "scope": self.scope}
+                if calls["n"] == 4:
+                    return {"query_id": "good", "kind": "file_list", "params": {}, "scope": self.scope}
+                return None
+            return None
+        self.patch(w, "rpc", flaky)
+        self.patch(w, "nas_docs_root", lambda: self.root)
+        done = []
+
+        def work(url, key, q, data_root, docs_root):
+            if q["query_id"] == "bad":
+                raise RuntimeError("처리 중 예외")
+            done.append(q["query_id"])
+            return "done"
+        self.patch(w, "handle_query", work)
+        w.query_loop("u", "k", "host", self.root, rounds=6)
+        self.assertEqual(naps[:2], [0.5, 1.0], "첫 오류는 0.5초만 쉬고 다시 문다(예전에는 5초)")
+        self.assertEqual(done, ["good"], "한 조회가 예외로 죽어도 다음 조회는 처리된다")
+
 
 # ─────────────────────────── 내보내기 정합 ───────────────────────────
 

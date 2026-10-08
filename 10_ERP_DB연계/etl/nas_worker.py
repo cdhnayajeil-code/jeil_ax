@@ -46,7 +46,7 @@ from _env import env_root, load_env, need
 import nas_index
 import threading
 
-WORKER_VERSION = "n1.10"   # n1.10(2026-10-08): 파일 목록에 문서 번호·읽기 여부를 붙임(목록 → 읽기 연결) · 문서 검색이 파일 이름도 봄 · zip 꼴 문서 압축 해제 크기 상한 / n1.9(2026-10-08): 표 구조 판독(doc_table)·판독 상태(index_status) 조회 + 색인 i1.1(읽는 형식 추가) — SQL 97 · REQ-0117 S1 / n1.8(2026-10-07): 부서 폴더의 이미지·PDF 를 화면으로 가져오기(SQL 93 · DRI D1) / n1.7(2026-10-06): 보관함 관리 — 사용자 폴더·내려받기(NAS→임시 버킷)·삭제 즉시 처리(SQL 90 · 일감은 nas_work_claim 하나로) / n1.6(2026-10-06): 과거 대화의 일시·기간 조건을 한국시간으로(적재 파일은 UTC 로 쌓인다 — N-2) · 저장 직후 색인 갱신 / n1.5(2026-10-06): 첨부 원본·생성 자료를 부서 폴더 「AI저장」에 저장·보존 만료 정리(SQL 89 · REQ-0108) / n1.4(2026-10-02): 문서 내용 색인·검색(nas_index.py — SQL 87) / n1.3:실시간 조회 응답(파일 목록·본인 과거 대화 — SQL 86) / n1.2:브리지 전송(좁은 키)·--serve(컨테이너 상주)·KST 고정 / n1.1: --nightly·--log·루트 검증
+WORKER_VERSION = "n1.11"   # n1.11(2026-10-08): 조회 병렬 처리(최대 4건 동시)·대기 오류 뒤 곧바로 다시 물기 — 동시 조회 지연(SQL 99) / n1.10(2026-10-08): 파일 목록에 문서 번호·읽기 여부를 붙임(목록 → 읽기 연결) · 문서 검색이 파일 이름도 봄 · zip 꼴 문서 압축 해제 크기 상한 / n1.9(2026-10-08): 표 구조 판독(doc_table)·판독 상태(index_status) 조회 + 색인 i1.1(읽는 형식 추가) — SQL 97 · REQ-0117 S1 / n1.8(2026-10-07): 부서 폴더의 이미지·PDF 를 화면으로 가져오기(SQL 93 · DRI D1) / n1.7(2026-10-06): 보관함 관리 — 사용자 폴더·내려받기(NAS→임시 버킷)·삭제 즉시 처리(SQL 90 · 일감은 nas_work_claim 하나로) / n1.6(2026-10-06): 과거 대화의 일시·기간 조건을 한국시간으로(적재 파일은 UTC 로 쌓인다 — N-2) · 저장 직후 색인 갱신 / n1.5(2026-10-06): 첨부 원본·생성 자료를 부서 폴더 「AI저장」에 저장·보존 만료 정리(SQL 89 · REQ-0108) / n1.4(2026-10-02): 문서 내용 색인·검색(nas_index.py — SQL 87) / n1.3:실시간 조회 응답(파일 목록·본인 과거 대화 — SQL 86) / n1.2:브리지 전송(좁은 키)·--serve(컨테이너 상주)·KST 고정 / n1.1: --nightly·--log·루트 검증
 
 POLL_SEC = 20          # 기본 폴링 주기
 HTTP_TIMEOUT = 120     # 페이지 응답이 수 MB 가 될 수 있어 etl_watch(60초)보다 넉넉히 잡는다
@@ -909,30 +909,69 @@ def handle_query(url, key, q, data_root, docs_root):
         return "failed"
 
 
+QUERY_PARALLEL = 4         # 동시에 처리하는 조회 수 — 한 줄로 처리하면 여럿이 같이 물을 때 뒤 사람이 앞 사람을 기다린다(실측: 5건 동시에 3.5초)
+QUERY_RETRY_MAX_SEC = 5    # 대기 오류가 이어질 때 쉬는 시간 상한(첫 오류는 0.5초만 쉰다)
+
+
+def _answer_query(url, key, q, root_arg):
+    """조회 한 건을 끝까지 처리한다(병렬 일꾼). 어떤 오류도 밖으로 내보내지 않는다 — 다른 조회에 번지지 않게."""
+    try:
+        try:
+            data_root = nas_root(root_arg)
+        except Exception as e:
+            rpc(url, key, "nas_query_finish", {"p_query_id": q.get("query_id"), "p_status": "failed",
+                                               "p_error": str(e).splitlines()[0][:200]})
+            return
+        handle_query(url, key, q, data_root, nas_docs_root())
+    except (Exception, SystemExit) as e:
+        log(f"조회 처리 오류(계속): {_redact(e)[:200]}")
+
+
 def query_loop(url, key, worker, root_arg=None, rounds=None):
-    """조회 요청을 물고 기다리다 처리한다. 적재와 따로 돈다 — 밤 적재 1분 동안에도 조회가 막히지 않게."""
-    n = 0
+    """조회 요청을 물고 기다리다 처리한다. 적재와 따로 돈다 — 밤 적재 1분 동안에도 조회가 막히지 않게.
+
+    일감을 받는 것은 이 루프 하나지만, 받은 일감은 일꾼 스레드에 넘기고 곧바로 다음 일감을 문다(최대 QUERY_PARALLEL 건 동시).
+    그래야 여러 사람이 같이 물어도 뒤 사람이 앞 사람의 조회가 끝나기를 기다리지 않는다.
+    """
+    n, errs = 0, 0
+    slots = threading.BoundedSemaphore(QUERY_PARALLEL)
+    busy = []
+
+    def run(q):
+        try:
+            _answer_query(url, key, q, root_arg)
+        finally:
+            slots.release()
+
     while rounds is None or n < rounds:
         n += 1
+        slots.acquire()                            # 일꾼이 다 찼으면 자리가 날 때까지 새 일감을 받지 않는다
+        handed = False
         try:
             if _TRANSPORT == "bridge":
                 q = rpc(url, key, "nas_query_claim", {"p_worker": worker}, wait_sec=QUERY_WAIT_SEC)
             else:
                 q = rpc(url, key, "nas_query_claim", {"p_worker": worker})
+            errs = 0
             if q:
-                try:
-                    data_root = nas_root(root_arg)
-                except Exception as e:
-                    rpc(url, key, "nas_query_finish", {"p_query_id": q.get("query_id"), "p_status": "failed",
-                                                       "p_error": str(e).splitlines()[0][:200]})
-                    continue
-                handle_query(url, key, q, data_root, nas_docs_root())
+                t = threading.Thread(target=run, args=(q,), name="nas-query", daemon=True)
+                t.start()
+                handed = True
+                busy = [x for x in busy if x.is_alive()] + [t]
             elif _TRANSPORT != "bridge" and (rounds is None or n < rounds):
                 time.sleep(1)                      # 직결에는 길게 대기가 없다 — 1초 폴링
         except (Exception, SystemExit) as e:
+            errs += 1
             log(f"조회 대기 오류(계속): {_redact(e)[:200]}")
             if rounds is None or n < rounds:
-                time.sleep(5)
+                # 길게 대기 중 연결이 끊기는 일은 흔하다(중계 함수 교체·네트워크). 그때 5초를 쉬면 그 사이 들어온 조회가 통째로 늦는다 —
+                # 첫 오류는 곧바로 다시 물고, 오류가 이어질 때만 간격을 늘린다.
+                time.sleep(min(QUERY_RETRY_MAX_SEC, 0.5 * errs))
+        finally:
+            if not handed:
+                slots.release()
+    for t in busy:                                 # 횟수를 정해 돌린 경우(시험·점검)에는 넘긴 일감이 끝나기를 기다린다
+        t.join(timeout=60)
 
 
 # ── 부서 폴더 저장(REQ-0108 · 정본 SQL 89) ───────────────────────────────────

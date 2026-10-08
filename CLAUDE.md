@@ -360,7 +360,7 @@ JEIL_AX/
 3. **새 모듈을 붙이면 `deploy/build_exe.py` 의 `hidden` 목록에 이름을 넣는다.** PyInstaller 정적 분석에
    안 잡히면 EXE 에서만 `ModuleNotFoundError` 가 난다 — 빌드 후 `jeil_runner.exe <서브커맨드> --help` 로 확인한다.
 4. **회귀는 빌드 전에 돌린다**: `python -m unittest test_runner_core test_runner_cli test_offboard_axes test_nas_worker test_nas_index`
-   (실제 릴레이·ETL·퇴사·NAS 를 절대 건드리지 않는 헤드리스 테스트다 — 2026-10-08 기준 193건 · ETL 증분 조합은 pyodbc 를 가짜로 끼워 검사한다).
+   (실제 릴레이·ETL·퇴사·NAS 를 절대 건드리지 않는 헤드리스 테스트다 — 2026-10-08 기준 196건 · ETL 증분 조합은 pyodbc 를 가짜로 끼워 검사한다).
    같은 세트가 `10_ERP_DB연계/etl/deploy/README.md §C-6` 에도 적혀 있다 — 한쪽만 고치지 않는다.
 5. **서버 적용은 관리자가 직접** 한다(§1.5 · 벤더 운영 서버). Claude 는 EXE 를 만들고 경로·절차만 제시한다.
    배포 절차 정본은 `10_ERP_DB연계/etl/deploy/README.md`(C안), 변경 이력은 같은 폴더 `변경관리.md`.

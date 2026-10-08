@@ -110,6 +110,13 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <tbody>
 <tr>
 <td>2026-10-08</td>
+<td>에이전트·NAS</td>
+<td><code>nas_worker.py</code>(n1.11)·<code>test_nas_worker.py</code> · 정본 SQL 99(<code>99_nas_query_reclaim_tune.sql</code> + rollback · 라이브 적용) · <code>deploy/nas</code> README·compose · 12/03 · 이관 00·03 · CLAUDE.md §17.4</td>
+<td><strong>NAS 동시 조회 지연 수정</strong>(REQ-0117) — 원인 ① 워커가 조회를 한 줄로 처리해 건당 약 0.6초씩 밀림(실측: 12건 동시 → 중앙 3.7초 · 가장 늦은 건 7.0초 — 게이트웨이 상한 8초 바로 밑) ② 길게 대기 중 연결이 끊기면 워커가 5초를 쉬고, 그때 집힌 요청은 5초 뒤에야 다시 집혀 9.9초 대기(추정 — 워커 로그 미확인). 조치: 받은 조회를 일꾼 스레드로 넘겨 <strong>최대 4건 동시 처리</strong>, 대기 오류 뒤 0.5초만 쉬고 다시 물기, 한 조회의 예외가 다른 조회에 번지지 않게 · 정본 SQL 99 — 잃어버린 요청 되살리기 5 → 3초(표 읽기는 7초) · 결과 청소용 부분 색인. 회귀 193 → 196건. NAS 컨테이너 n1.11 재빌드 필요</td>
+<td>최동혁</td>
+</tr>
+<tr>
+<td>2026-10-08</td>
 <td>에이전트</td>
 <td>구매 에이전트 설정 <strong>v9 지정</strong>(DB <code>ai_agent_version</code>·<code>ai_agent</code>) · <code>문서/12_에이전트관리/05</code>(회차 2)·00·03</td>
 <td><strong>모델 비교 실측 → 설정 변경</strong>(REQ-0117 · 관리자 지시) — 6개 모델 × 9문항 비교 뒤 권고 1~3 적용: 기본 Claude Sonnet 5.5 · 예비 GPT-6 luna(종전 GPT-4.1 mini) · 최대 출력 4,096토큰(Sonnet 빈 답 방지) · v5 초안의 지시문·도구 라운드 5 포함. 골든셋 회귀 v4 5/11 → v9 5/11(나빠진 문항 없음 · 응답 더 빠름). v4 는 retired — 되돌리려면 v4 재지정. 골든셋 정비가 후속</td>
