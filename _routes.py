@@ -170,6 +170,7 @@ ROUTES = {
     "/docs/agents/integration-test":    "문서/12_에이전트관리/07_통합실측_구매에이전트_NAS연계_2026-10-06.html",  # 구매 에이전트·NAS 연계 통합 실측 보고서
     "/docs/agents/dri-plan":            "문서/12_에이전트관리/08_DRI분석생성_에이전트_기획.html",  # 사업운영팀 DRI 분석·생성 에이전트 기획(REQ-0112)
     "/docs/agents/prompt-tuning":       "문서/12_에이전트관리/09_지시문_오케스트레이션_튜닝.html",  # 지시문 개편·오케스트레이션 튜닝 설계·적용·검증(REQ-0114)
+    "/docs/agents/doc-data":            "문서/12_에이전트관리/10_NAS자료_데이터화_기준.html",  # NAS 업로드 자료 데이터화 기준 — 부서 공통(REQ-0117 · 2026-10-08)
     "/docs/nas":                        "문서/13_NAS_고도화/index.html",            # 사내 NAS 연계 검토·기획 허브(2026-09-29)
     "/docs/nas/review":                 "문서/13_NAS_고도화/00_NAS연계_타당성검토.html",
     "/docs/nas/plan":                   "문서/13_NAS_고도화/01_NAS_데이터계층_기획.html",

@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>10 NAS 자료 데이터화 기준 — JEIL AX 에이전트관리 (보관함 업로드 자료 데이터화 — ERP 보호 원칙 9개 · 검수 4겹 · 종류 등록제 · 단계(S0~S5) · 결정 대기(부서 공통))</title>
+<style>
+:root{--navy:#1a2f4e;--navy2:#27457a;--accent:#2f6fb3;--red:#b3402f;--green:#2e7d52;--amber:#9a6b1f;
+--ink:#222;--muted:#666;--line:#d8dee8;--bg:#f4f6f9;--soft:#eef2f8;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;color:var(--ink);background:var(--bg);line-height:1.65;font-size:15px;}
+.page{max-width:960px;margin:0 auto;background:#fff;padding:52px 60px;box-shadow:0 2px 14px rgba(0,0,0,.08);}
+.doc-label{display:inline-block;background:var(--navy);color:#fff;font-size:12px;letter-spacing:.16em;padding:5px 14px;border-radius:3px;margin-bottom:16px;}
+.docnav{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 26px;}
+.docnav a{font-size:12px;color:var(--navy2);border:1px solid var(--line);border-radius:20px;padding:4px 12px;text-decoration:none;background:var(--soft);}
+.docnav a:hover{background:var(--navy);color:#fff;}
+.docnav a.cur{background:var(--navy);color:#fff;border-color:var(--navy);}
+.md-link{font-size:13px;margin-bottom:22px;color:var(--muted);}
+.content h1{font-size:27px;color:var(--navy);line-height:1.35;margin:6px 0 18px;}
+.content h2{font-size:20px;color:var(--navy);margin:42px 0 14px;padding-bottom:9px;border-bottom:3px solid var(--navy);}
+.content h3{font-size:16px;color:var(--navy2);margin:24px 0 9px;}
+.content p{margin:0 0 12px;}
+.content ul,.content ol{margin:0 0 14px 22px;}
+.content li{margin-bottom:6px;}
+.content blockquote{background:var(--soft);border-left:5px solid var(--navy);border-radius:0 8px 8px 0;padding:14px 20px;margin:14px 0;color:#33425a;}
+.content blockquote p{margin:0 0 6px;}
+.content table{width:100%;border-collapse:collapse;margin:14px 0 20px;font-size:13.3px;}
+.content th{background:var(--navy);color:#fff;padding:9px 11px;text-align:left;font-weight:600;}
+.content td{padding:8px 11px;border-bottom:1px solid var(--line);vertical-align:top;}
+.content tr:nth-child(even) td{background:#fafbfd;}
+.content a{color:var(--accent);}
+.content code{background:var(--soft);border:1px solid var(--line);border-radius:4px;padding:1px 6px;font-size:12.4px;font-family:Consolas,'Courier New',monospace;}
+.content pre{background:#21252e;color:#e8eaf0;border-radius:8px;padding:16px 18px;font-size:12.4px;font-family:Consolas,'Courier New',monospace;overflow-x:auto;margin:12px 0 18px;line-height:1.55;}
+.content pre code{background:none;border:none;color:inherit;padding:0;}
+.content hr{border:none;border-top:1px solid var(--line);margin:30px 0;}
+.content strong{color:var(--navy2);}
+.footer{margin-top:50px;padding-top:16px;border-top:1px solid var(--line);font-size:12px;color:var(--muted);display:flex;justify-content:space-between;}
+@media print{body{background:#fff;}.page{box-shadow:none;padding:18px 0;max-width:100%;}.docnav{display:none;}.content h2{break-after:avoid;}.content table,.content pre,.content blockquote{break-inside:avoid;}}
+@media (max-width:720px){.page{padding:30px 20px;}}
+</style>
+<!-- jeilax:local-links --><script>(function(){if(location.protocol!=="file:")return;var r="../../",s=document.createElement("script");s.src=r+"_local_links.js";s.setAttribute("data-root",r);(document.head||document.documentElement).appendChild(s);})();</script><!-- /jeilax:local-links -->
+</head>
+<body>
+<div class="page">
+  <span class="doc-label">JEIL AX 에이전트관리 · 대외비</span>
+  <div class="docnav"><a href="/docs/agents">🏠 에이전트관리 허브</a><a href="/docs/agents/status">00 현재상태</a><a href="/docs/agents/ops-guide">01 운영가이드</a><a href="/docs/agents/dev-guide">02 개발가이드</a><a href="/docs/agents/progress">03 진행상태</a><a href="/docs/agents/purchase-domain">04 구매도메인</a><a href="/docs/agents/quality-test">05 품질테스트</a><a href="/docs/agents/templates">06 템플릿·관리포인트</a><a href="/docs/agents/dri-plan">08 DRI 에이전트 기획</a><a href="/docs/agents/prompt-tuning">09 지시문·오케스트레이션</a><a class="cur" href="/docs/agents/doc-data">10 NAS 자료 데이터화 기준</a><a href="README.md">README</a></div>
+  <p class="md-link">📄 Markdown 원본: <a href="10_NAS자료_데이터화_기준.md">10_NAS자료_데이터화_기준.md</a> · 허브 <a href="/docs/agents">에이전트관리 허브</a></p>
+  <div class="content">
+<h1 id="10-nas">10 · NAS 업로드 자료 데이터화 기준 — 부서 에이전트 공통</h1>
+<blockquote>
+<p>기준: 2026-10-08 · 상태 <strong>검토 기획(기준 확정 단계 S0)</strong> · 관리자 최동혁 · 코드·DB 무변경 · <strong>2026-10-08 관리자 결정 2건 반영</strong>(D-144 저장 위치 · D-147 대상 범위 — §9)
+이 문서는 공개 문서 센터에 올라가므로 실제 거래처·금액·문서번호와 NAS 주소·경로는 적지 않는다.
+적용 대상은 구매 에이전트만이 아니라 <strong>앞으로 만들 모든 부서 에이전트</strong>다. 부서가 달라져도 이 기준은 같고, 부서마다 달라지는 것은 「문서 종류 등록」뿐이다.</p>
+</blockquote>
+<h2 id="1">1. 한 줄 요약</h2>
+<p>에이전트 보관함(부서 NAS 의 <code>AI저장/</code>)에 올린 PDF·엑셀·문서에서 <strong>필요한 값만 뽑아 표로 쌓고</strong>, 사람이 확인한 값만 「확정」으로 쓰게 한다.
+<strong>정답은 언제나 ERP 데이터</strong>다 — 문서에서 뽑은 값은 ERP 값을 고치지도 채우지도 않고, 다르면 「차이」로만 보여 준다.</p>
+<h2 id="2">2. 결론 먼저</h2>
+<table>
+<thead>
+<tr>
+<th>질문</th>
+<th>답</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>에이전트가 NAS 자료를 읽을 수 있나</td>
+<td><strong>글자는 이미 읽는다</strong>(낱말 검색·이어 읽기). 표·숫자를 항목별로 뽑아 쌓는 기능은 없다 — 이번 기획의 대상</td>
+</tr>
+<tr>
+<td>ERP 데이터가 훼손될 수 있나</td>
+<td><strong>없다.</strong> 기존 규칙으로 ERP 운영 DB 쓰기는 막혀 있다. 다만 「섞여 보이는」 위험을 막는 규정이 비어 있어 §4 로 메운다</td>
+</tr>
+<tr>
+<td>뽑은 값은 어디에 두나</td>
+<td><strong>본문은 지금처럼 사내 NAS 에만, 등록된 필드 값만 포털 DB 전용 구역</strong>에 둔다(<strong>결정 D-144 · 2026-10-08</strong>)</td>
+</tr>
+<tr>
+<td>어떤 파일을 읽나</td>
+<td>부서마다 정해 둔 <strong>기본 적용 폴더</strong>는 넣기만 하면 자동으로 읽고, 그 밖은 <strong>사용자가 지시하거나 고른 폴더·파일</strong>만 읽는다(<strong>결정 D-147 · 2026-10-08</strong>)</td>
+</tr>
+<tr>
+<td>틀린 값은 어떻게 막나</td>
+<td><strong>검수 4겹</strong> — 규칙 검수 → 검수 에이전트(독립 재추출) → ERP 대조 → 사람 확정(§6)</td>
+</tr>
+<tr>
+<td>다른 부서는 어떻게 쓰나</td>
+<td>엔진·검수 화면은 공용. 부서는 <strong>문서 종류를 등록</strong>하는 것으로 합류한다(§7)</td>
+</tr>
+<tr>
+<td>지금 하는 일</td>
+<td>기준·규칙 확정과 결정 요청까지. 구현은 단계마다 별도 요청으로 승인받는다(§8)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="3-2026-10-08">3. 지금 상태 (2026-10-08 · 사실)</h2>
+<p><strong>되는 것</strong></p>
+<ul>
+<li>보관함: 대화에 붙인 파일·만든 자료를 [NAS 저장]으로 부서 폴더 <code>AI저장/</code> 에 보관 · 폴더 만들기 · 내려받기 · 삭제(저장 대장 <code>etl_meta.nas_save</code>).</li>
+<li>읽기: 허용 폴더 문서의 본문을 낱말로 검색(발췌 320자) · 문서 번호로 이어 읽기(1회 약 6천 자) · 파일 목록 조회.</li>
+<li>색인: 저장 직후 수 초~수십 초 안에 사내 색인(SQLite)에 들어간다. 색인은 사내에만 있다(D-95).</li>
+</ul>
+<p><strong>안 되는 것</strong></p>
+<table>
+<thead>
+<tr>
+<th>항목</th>
+<th>내용</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>값 추출</td>
+<td>추출 결과가 평문 한 덩어리다. 엑셀은 열 머리글·셀 위치가 사라지고 빈 칸 때문에 열이 밀린다. 날짜가 일련번호로 읽힌다</td>
+</tr>
+<tr>
+<td>쌓는 곳</td>
+<td>추출 값을 담는 표·쓰기 도구·검수 절차가 없다. 에이전트 도구는 전부 읽기용이다</td>
+</tr>
+<tr>
+<td>못 읽는 형식</td>
+<td>스캔본 PDF·이미지(글자 인식 없음) · 구형 <code>.hwp</code>·<code>.xls</code>·<code>.doc</code> · <code>.xlsm</code>. <strong>저장은 되는데 읽히지 않는</strong> 형식이 있고, 그 사유가 화면에 보이지 않는다</td>
+</tr>
+<tr>
+<td>화면</td>
+<td>구매 화면에서는 보관함 파일을 대화로 다시 불러올 수 없다(DRI 화면에만 있다)</td>
+</tr>
+<tr>
+<td>모델</td>
+<td>현재 예비 모델이 응답 중이라 PDF 를 판독하지 못한다 — <strong>크레딧 충전으로 해결 예정</strong>(관리자 · 2026-10-08)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="4-erp">4. 기본 규칙 확인 — ERP 데이터 보호</h2>
+<p><strong>이미 있는 규칙으로 막혀 있는 것</strong></p>
+<table>
+<thead>
+<tr>
+<th>규칙</th>
+<th>내용</th>
+<th>판정</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>작업 규칙 §1.2 · §4.1</td>
+<td>ERP 운영 DB 는 읽기 전용, 포털은 중간 DB 만 본다(전표 전송 예외 1건뿐)</td>
+<td>추출 데이터가 ERP 운영에 닿을 경로가 없다</td>
+</tr>
+<tr>
+<td>§4.3</td>
+<td>포털 전용 쓰기 데이터는 별도 표에 두고 ERP 키로 <strong>매핑만</strong> 한다</td>
+<td>추출 표의 근거 규칙</td>
+</tr>
+<tr>
+<td>§1.6</td>
+<td>실거래 액션을 사람 대신 실행하지 않는다</td>
+<td>추출 값으로 발주·등록 자동화 금지</td>
+</tr>
+<tr>
+<td>게이트웨이 도구 유형</td>
+<td>읽기·초안·요청 3종뿐 — 모델이 직접 쓰는 도구가 없다</td>
+<td>모델이 임의로 데이터를 바꾸지 못한다</td>
+</tr>
+</tbody>
+</table>
+<p><strong>비어 있던 것(이번에 정한다)</strong></p>
+<ul>
+<li>ⓐ 중간 DB 의 ERP 미러(<code>erp_ro</code>)와 추출 데이터를 <strong>물리적으로 나눈다</strong>는 규정</li>
+<li>ⓑ 같은 항목(단가·금액·수량)이 ERP 와 문서에 둘 다 있을 때 <strong>어느 쪽이 정답인지</strong></li>
+<li>ⓒ 에이전트 답변·화면에서 두 출처를 <strong>구분해 표기</strong>하는 규정</li>
+</ul>
+<h2 id="5-9">5. 기준 — 원칙 9개</h2>
+<ol>
+<li><strong>정본 서열</strong> — ERP(미러) &gt; 사람이 확정한 포털 기록 &gt; 문서 추출 값. 추출 값은 ERP 값을 덮지 않고, ERP 의 빈 칸을 채우지도 않는다. 어긋나면 고치는 것이 아니라 <strong>「차이」로 보여 준다</strong>.</li>
+<li><strong>물리적 분리</strong> — 추출 데이터는 전용 구역(가칭 스키마 <code>doc_data</code>)에만 둔다. <code>erp_ro</code> 에는 표·열·뷰를 만들지 않고, 추출 쪽 함수는 <code>erp_ro</code> 를 <strong>읽기만</strong> 한다. ERP 키는 외래키가 아니라 <strong>연결 표</strong>(후보·근거·확정자)로 잇는다. 「추출 함수에 <code>erp_ro</code> 쓰기 권한이 없다」를 회귀 테스트로 잠근다.</li>
+<li><strong>표기 분리</strong> — ERP 조회 도구와 문서 데이터 도구는 <strong>별개 도구</strong>이고, 결과에 출처가 반드시 붙는다: <code>ERP 기준</code> / <code>문서 추출·미확인</code> / <code>문서 추출·확인됨</code>. 한 표에 섞지 않고, 추출 값을 ERP 집계에 <strong>더하지 않는다</strong>.</li>
+<li><strong>원본 추적</strong> — 모든 추출 값은 원본 파일(저장 대장 번호·지문)·위치(쪽·시트·셀)·원문 인용·추출기 판·모델·시각을 갖는다. 원본은 고치지 않는다 — 파일이 바뀌면 새 판이고, 옛 추출은 「대체됨」으로 남는다.</li>
+<li><strong>수명주기</strong> — 접수 → 판독 → 분류 → 추출(초안) → 자동 검수 → 확정 / 반려 → 폐기. 원본을 지우거나 보존 기한이 끝나면 추출 데이터도 함께 폐기한다.</li>
+<li><strong>대상 범위</strong>(결정 D-147) — 두 갈래다. ① <strong>기본 적용 폴더</strong>: 부서 NAS 폴더 안에 정해 둔 폴더로, 여기에 넣은 파일은 <strong>지시가 없어도 항상</strong> 판독·데이터화 대상이 된다. ② <strong>그 밖</strong>: 사용자가 <strong>지시하거나 고른 폴더·파일</strong>만 한다. 어느 쪽이든 허용 폴더 등록 범위 안이어야 하고, 기안서 스캔본 폴더(D-102 — 내용을 읽지 않는다)와 민감 종류는 기본 적용 폴더로 지정할 수 없다. 기본 적용 폴더가 어디인지는 코드가 아니라 <strong>DB 등록표</strong>가 정한다(부서별). 자동으로 읽더라도 결과는 <strong>초안</strong>까지다 — 확정은 검수(§6)를 거친다.</li>
+<li><strong>허용 필드만</strong> — 문서 종류에 등록된 필드만 저장한다. 본문·전체 글자는 계속 NAS 에만 둔다(D-95). 급여·인사평가 종류는 등록할 수 없고, 기존 민감 이름·주민등록번호 꼴 차단은 그대로 둔다.</li>
+<li><strong>종류는 설정, 코드가 아니다</strong> — 문서 종류·필드·검사 규칙·검수 수준·ERP 대조 방식은 등록표가 정한다. 새 부서는 종류를 등록해 합류하고, 추출·검수 엔진은 하나를 같이 쓴다.</li>
+<li><strong>실거래 금지</strong> — 추출·확정 값으로 ERP 등록·발주·결재를 대신 실행하지 않는다. 조회·대조·초안까지만.</li>
+</ol>
+<h2 id="6-4">6. 검수 체계 — 4겹</h2>
+<table>
+<thead>
+<tr>
+<th>겹</th>
+<th>누가</th>
+<th>무엇을 확인하나</th>
+<th>권한</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>L1 규칙 검수</strong></td>
+<td>프로그램(항상 같은 결과)</td>
+<td>필수 필드 · 형식 · 합계 = 수량×단가의 합 · 부가세 · 날짜 범위 · 사업자번호 검증 · <strong>원문 대조</strong>(뽑은 값이 판독한 글자에 실제로 있는가)</td>
+<td>불합격 필드 표시</td>
+</tr>
+<tr>
+<td><strong>L2 검수 에이전트</strong></td>
+<td>공용 검수 프로필(부서 없음)</td>
+<td>추출 결과를 보지 않고 <strong>처음부터 다시 뽑아</strong> 필드별로 비교. 추출과 다른 지시문·모델 등급을 쓴다</td>
+<td><strong>판정만</strong>(일치/불일치). 고치거나 확정하지 못한다</td>
+</tr>
+<tr>
+<td><strong>L3 ERP 대조</strong></td>
+<td>DB 함수(읽기)</td>
+<td>업체·품목·발주번호로 ERP 후보를 찾아 차이를 표시</td>
+<td>참고 정보. ERP 는 바뀌지 않는다</td>
+</tr>
+<tr>
+<td><strong>L4 사람 확정</strong></td>
+<td>부서 담당자</td>
+<td>불일치·차이 필드를 중심으로 확인·정정 후 [확정]</td>
+<td><strong>유일한 확정 권한.</strong> 확정자·시각이 남는다</td>
+</tr>
+</tbody>
+</table>
+<p><strong>종류별 검수 수준</strong>(등록표에서 정한다)</p>
+<table>
+<thead>
+<tr>
+<th>수준</th>
+<th>대상</th>
+<th>방식</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>human</code></td>
+<td>금액·단가·수량이 든 종류(견적서·명세서 등)</td>
+<td>사람 확정 필수. 확정 전에는 「미확인」</td>
+</tr>
+<tr>
+<td><code>sample</code></td>
+<td>목록·대장처럼 규칙으로 읽히는 종류</td>
+<td>L1·L2 통과 시 자동 확정 + 주기 표본 검사</td>
+</tr>
+<tr>
+<td><code>auto</code></td>
+<td>분류·요약·꼬리표만 다는 일반 문서</td>
+<td>자동 확정. 표본 검사</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>표본 검사 오류율이 기준을 넘으면 그 종류는 자동으로 <code>human</code> 으로 내려간다.</li>
+<li><strong>품질 관리</strong> — 종류마다 정답 추출본(골든셋)을 두고, 추출기 판(지시문·필드·모델)을 바꾸면 회귀를 통과해야 지정한다. 검수 에이전트도 같은 버전 체계(초안 → 회귀 → 지정)로 관리한다.</li>
+<li>에이전트는 미확인 값을 말할 때 항상 「미확인」을 붙이고, 보고서·CSV 에는 확정 값만 쓴다.</li>
+</ul>
+<h2 id="7">7. 구조 (권고안)</h2>
+<p><strong>어디에 두나 — 혼합</strong></p>
+<table>
+<thead>
+<tr>
+<th>무엇</th>
+<th>어디</th>
+<th>이유</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>원본 파일 · 본문 글자 · 색인</td>
+<td>사내 NAS(지금과 같음)</td>
+<td>D-95 유지</td>
+</tr>
+<tr>
+<td>등록된 필드 값 · 검수 결과 · 확정 이력</td>
+<td>포털 DB 전용 구역</td>
+<td>검수 화면·ERP 대조·에이전트 조회가 빠르고 안정적이어야 한다(NAS 왕복은 시간 상한이 있고 NAS 외부 백업이 아직 없다)</td>
+</tr>
+</tbody>
+</table>
+<p><strong>처리 흐름</strong></p>
+<pre><code>기본 적용 폴더에 파일이 들어옴(자동) / 사용자가 폴더·파일을 고르거나 지시함
+  ├ PDF·이미지 → NAS 에서 임시로 꺼내 대화 모델이 직접 판독(NAS 에 글자 인식기를 두지 않는다)
+  └ 엑셀·문서  → NAS 워커가 표 구조를 살려 판독(시트 이름·머리글·셀 위치·날짜)
+→ 종류 분류 → 종류에 등록된 필드대로 추출 → 초안 저장 → 검수 4겹 → 확정
+</code></pre>
+<ul>
+<li>모델 호출은 게이트웨이 한 곳에서만 한다. NAS 컨테이너는 판독만 하고, 모델 키·관리 키를 두지 않는다.</li>
+<li>한 번에 한 건씩 처리하고, 시간 상한·하루 건수·비용 한도를 건다(기본 적용 폴더의 자동 처리도 같은 한도 안에서 — 한도를 넘으면 대기로 두고 사유를 보여 준다). 멈추더라도 ERP 조회·기존 보관함 기능에는 영향이 없다.</li>
+</ul>
+<p><strong>표 구성(가칭)</strong> — 문서 종류 등록 <code>doc_type</code> · 파일별 상태 <code>doc_item</code> · 필드 값 <code>doc_field</code> · 검수 결과 <code>doc_check</code> · ERP 후보 연결 <code>doc_erp_link</code>. 전부 직접 접근을 막고 서버 함수로만 다루며, 부서 범위는 DB 가 계산한다.</p>
+<p><strong>부서가 합류할 때 준비할 것</strong></p>
+<ul>
+<li>[ ] 담당자 2명 이상 등록(확정할 사람이 없으면 시작하지 않는다)</li>
+<li>[ ] 문서 종류와 필드 정의(무엇을 뽑을지 — 최소한으로)</li>
+<li>[ ] 종류별 검수 수준과 ERP 대조 기준</li>
+<li>[ ] 정답 추출본 10건 이상</li>
+<li>[ ] 그 부서 자료를 AI 모델에 보내도 된다는 승인(구매는 D-88 로 승인됨)</li>
+<li>[ ] 허용 폴더 등록 · <strong>기본 적용 폴더 지정</strong>(무엇을 넣는 폴더인지 부서에 안내) · 민감 종류 제외 확인</li>
+</ul>
+<h2 id="8">8. 단계</h2>
+<table>
+<thead>
+<tr>
+<th>단계</th>
+<th>내용</th>
+<th>선행</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>S0 기준 확정</strong></td>
+<td>이 문서 · 결정 요청 · 작업 규칙 고정</td>
+<td>— (2026-10-08)</td>
+</tr>
+<tr>
+<td><strong>S1 읽기 기반</strong></td>
+<td>보관함에 판독 상태·못 읽은 사유 표시 · 엑셀 표 구조 판독 · 보관함 파일을 대화로 불러오기 · 저장 형식과 판독 형식 맞추기</td>
+<td>새 결정 불필요 · 크레딧 충전(PDF)</td>
+</tr>
+<tr>
+<td><strong>S2 데이터화 틀</strong></td>
+<td>전용 구역·종류 등록·<strong>기본 적용 폴더 등록과 자동 접수</strong>·추출·L1 검수·검수 화면. 첫 종류는 구매 견적서</td>
+<td>결정 ⓑ · 담당자 등록(D-136) · (ⓐⓓ 는 결정됨)</td>
+</tr>
+<tr>
+<td><strong>S3 검수 강화</strong></td>
+<td>검수 에이전트(L2) · ERP 대조(L3) · 골든셋</td>
+<td>S2 · 결정 ⓒ</td>
+</tr>
+<tr>
+<td><strong>S4 에이전트 활용</strong></td>
+<td>문서 데이터 조회·대조 도구 · 출처 표기 지시문</td>
+<td>S3</td>
+</tr>
+<tr>
+<td><strong>S5 부서 확대</strong></td>
+<td>합류 준비 목록으로 타 부서 종류 등록</td>
+<td>결정 ⓔ</td>
+</tr>
+</tbody>
+</table>
+<p>단계마다 별도 요청으로 승인받고 착수한다. 구매 로드맵의 포털 기록(P2)·견적 비교 초안(P3)은 S2~S4 위에 올린다(<code>문서/14_구매업무시스템/03</code>).</p>
+<h2 id="9">9. 관리자 결정이 필요한 것</h2>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>결정</th>
+<th>왜 필요한가</th>
+<th>권고</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>ⓐ (D-144)</td>
+<td><strong>추출 필드 값을 포털 DB 에 둘지</strong></td>
+<td>D-95 는 「문서 내용 색인은 사내에만」이다. 필드 값이 여기에 해당하는지 범위를 정해야 한다</td>
+<td>✅ <strong>결정(2026-10-08 · 권고안 채택)</strong> — 본문·색인은 사내 NAS, <strong>등록 필드 값만 포털 DB 전용 구역</strong>. D-95 는 본문·색인에 대한 결정으로 유지된다</td>
+</tr>
+<tr>
+<td>ⓑ (D-145)</td>
+<td><strong>정본 서열·표기 분리 규칙</strong></td>
+<td>ERP 와 문서 값이 다를 때의 기준</td>
+<td>원칙 1~3 채택(ERP 우선 · 구역 분리 · 출처 표기)</td>
+</tr>
+<tr>
+<td>ⓒ (D-146)</td>
+<td><strong>검수 방식</strong></td>
+<td>누가 확정하나, 검수 에이전트의 권한</td>
+<td>4겹 · 종류별 수준 · 검수 에이전트는 판정만</td>
+</tr>
+<tr>
+<td>ⓓ (D-147)</td>
+<td><strong>대상 범위</strong></td>
+<td>어디까지 읽을지</td>
+<td>✅ <strong>결정(2026-10-08 · 권고안 수정)</strong> — 부서 NAS 폴더 안에 <strong>기본 적용 폴더</strong>를 두고 그 폴더는 <strong>항상</strong> 읽는다. 그 밖은 사용자가 <strong>지시하거나 폴더를 골라</strong> 진행한다. 기안서 스캔본(D-102)은 그대로 제외</td>
+</tr>
+<tr>
+<td>ⓔ (D-148)</td>
+<td><strong>부서별 모델 전송 승인 절차</strong></td>
+<td>부서마다 자료 민감도가 다르다</td>
+<td>합류 준비 목록의 승인 항목으로 부서별 1회 결정</td>
+</tr>
+</tbody>
+</table>
+<p>관련 기존 결정: D-95(색인 사내) · D-102(스캔본 미열람) · D-115(버튼 누른 것만 저장) · D-88(구매 자료 모델 전송) · D-125(본 모델 — 크레딧 충전으로 해결 예정) · D-136(담당자 등록) · D-104(NAS 외부 백업).</p>
+<h2 id="10">10. 가정과 위험</h2>
+<table>
+<thead>
+<tr>
+<th>관점</th>
+<th>위험</th>
+<th>대응</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>데이터 정합</td>
+<td>추출 값이 ERP 값처럼 쓰인다</td>
+<td>원칙 1~3 · 도구·구역 분리 · 권한 회귀</td>
+</tr>
+<tr>
+<td>정확도</td>
+<td>모델이 잘못 읽거나 지어낸다</td>
+<td>원문 대조 · 독립 재추출 · 사람 확정 · 골든셋</td>
+</tr>
+<tr>
+<td>보안·개인정보</td>
+<td>민감 정보가 클라우드로 올라간다</td>
+<td>허용 필드만 저장 · 민감 차단 유지 · 본문 사내 유지 · 부서별 전송 승인</td>
+</tr>
+<tr>
+<td>운영 안정</td>
+<td>NAS 지연·워커 중단·비용 급증</td>
+<td>건별 처리 · 시간·건수·비용 한도 · 실패 사유 기록</td>
+</tr>
+<tr>
+<td>사용성</td>
+<td>절차가 번거로워 쓰지 않는다</td>
+<td>보관함 한 화면에서 종류·상태·검수·확정 · 못 읽은 사유 표시</td>
+</tr>
+<tr>
+<td>확장성</td>
+<td>부서마다 따로 만든다</td>
+<td>종류 등록제 · 공용 엔진·화면 · 합류 준비 목록</td>
+</tr>
+<tr>
+<td>감사</td>
+<td>누가 무엇을 확정했는지 모른다</td>
+<td>판·확정자·정정 이력 보존 · 폐기 연동</td>
+</tr>
+<tr>
+<td>자동 접수</td>
+<td>기본 적용 폴더에 엉뚱한 파일·대량 파일이 들어온다</td>
+<td>등록된 종류로 분류되지 않으면 추출하지 않고 「종류 미정」으로 둔다 · 건수·비용 한도 · 민감 이름·주민등록번호 꼴은 판독 전에 제외 · 결과는 초안까지</td>
+</tr>
+</tbody>
+</table>
+<p><strong>가정</strong> — 기본 적용 폴더의 이름·위치는 부서 합류 때 정한다(구매는 보관함 <code>AI저장/</code> 아래 한 폴더를 권고 — 화면에서 올리기 쉽고 워커가 쓰는 범위 안이다 · 확인 필요) · 구매팀이 견적서 등 자료를 그 폴더에 실제로 넣는다 · 크레딧 충전 뒤 본 모델이 PDF 를 판독한다 · 한글 PDF·hwpx 실문서 판독 품질은 S1 에서 실측한다.</p>
+<h2 id="11">11. 구현 때 다시 쓰는 것 (개발 참고)</h2>
+<ul>
+<li>조회 큐 왕복 <code>jeil-chat-lab/modules/nas/_nas_query.ts</code> · 사내 판독·색인 <code>10_ERP_DB연계/etl/nas_index.py</code></li>
+<li>NAS 파일을 임시로 꺼내는 경로(정본 SQL 93) · 모델의 문서 판독 <code>jeil-chat-lab/llm/anthropic.ts</code></li>
+<li>모델로 정해진 형식 뽑기(<code>agent_api.ts</code> 의 판정 함수 패턴) · 골든셋 회귀·버전 지정 체계</li>
+<li>권한을 재사용하는 서버 함수 감싸기(<code>agent_proposal_recon</code>) · 급감 시 적재 중단 안전장치(<code>proposal_scan.py</code>)</li>
+<li>DRI 화면의 「폴더 파일 → 대화에 추가」 · 표준 그리드(검수 화면)</li>
+<li>새 조회 종류를 만들면 SQL 종류 제한 · 워커 분기 · 도구 세 곳을 함께 고친다(작업 규칙 §17.7 ⑥)</li>
+</ul>
+  </div>
+  <div class="footer"><span>JEIL M&S · 부서 에이전트 관리</span><span>10 NAS 자료 데이터화 기준 · 관리: 최동혁</span></div>
+</div>
+</body>
+</html>
