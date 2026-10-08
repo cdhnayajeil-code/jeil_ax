@@ -81,7 +81,7 @@ details.trace div{font-family:Consolas,Menlo,monospace;word-break:break-all;padd
 /* 부서 NAS 보관함 관리 창(REQ-0108) — .nx 스코프만 쓴다 */
 .nx{position:fixed;inset:0;background:rgba(20,30,50,.45);z-index:60;display:flex;align-items:center;justify-content:center;padding:18px}
 .nx[hidden]{display:none}
-.nx-win{background:#fff;border-radius:12px;width:min(1280px,100%);height:min(720px,100%);display:flex;flex-direction:column;box-shadow:0 18px 50px rgba(0,0,0,.3);overflow:hidden;position:relative}
+.nx-win{background:#fff;border-radius:12px;width:min(1080px,100%);height:min(720px,100%);display:flex;flex-direction:column;box-shadow:0 18px 50px rgba(0,0,0,.3);overflow:hidden;position:relative}
 .nx-head{display:flex;align-items:center;gap:10px;padding:12px 16px;background:var(--navy);color:#fff}
 .nx-head b{font-size:15px}.nx-head span{font-size:12px;opacity:.85}.nx-head .sp{flex:1}
 .nx-head button{background:transparent;border:1px solid rgba(255,255,255,.5);color:#fff;border-radius:8px;padding:3px 10px;cursor:pointer;font-family:inherit}
@@ -106,12 +106,13 @@ details.trace div{font-family:Consolas,Menlo,monospace;word-break:break-all;padd
 .nx-tbl .dl{border:1px solid var(--line);background:#fff;border-radius:7px;padding:1px 8px;cursor:pointer;font-family:inherit;font-size:12px}
 .nx-tbl .dl:disabled{opacity:.5;cursor:default}
 .nx-main{flex:1;overflow:auto;min-width:0}
-.nx-tbl{border-collapse:collapse;width:100%;font-size:12.5px}
+.nx-tbl{border-collapse:collapse;width:100%;font-size:12.5px;table-layout:fixed}
 .nx-tbl th{position:sticky;top:0;background:#eef2f7;color:var(--navy);text-align:left;padding:7px 7px;white-space:nowrap;border-bottom:1px solid var(--line);cursor:pointer;user-select:none}
 .nx-tbl th.nos{cursor:default}
 .nx-tbl td{padding:6px 7px;border-bottom:1px solid #edf0f5;vertical-align:middle}
 .nx-tbl tr.sel td{background:#eef5fd}
-.nx-tbl td.nm{max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.nx-tbl td.nm,.nx-tbl td.c{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.nx-tbl td.act{white-space:nowrap;text-align:right}
 .nx-tbl td.r{text-align:right;white-space:nowrap}.nx-tbl td.c{white-space:nowrap;color:var(--muted)}
 .nx-empty{padding:46px 20px;text-align:center;color:var(--muted);font-size:13px}
 .nx-foot{display:flex;gap:10px;align-items:center;padding:8px 14px;border-top:1px solid var(--line);font-size:12px;color:var(--muted);background:#fbfcfe}
@@ -172,8 +173,7 @@ details.trace div{font-family:Consolas,Menlo,monospace;word-break:break-all;padd
     </div>
     <div class="right" id="me">-</div>
   </div>
-  <div class="notice" id="notice">ℹ️ 품질 개선을 위해 질문과 답변이 기록됩니다. 조회 결과(금액 목록 등)는 기록하지 않습니다.
-    발주 확정·결재·발송 같은 실거래는 하지 않으며 초안까지만 만듭니다. 첨부 파일은 저장하지 않고(이름·크기만 기록) 질문에만 쓰입니다 — <b>주민번호 등 개인정보가 든 파일은 올리지 마세요.</b></div>
+  <div class="notice" id="notice">ℹ️ 질문과 답변은 품질 개선을 위해 기록됩니다. <b>개인정보(주민번호 등)가 든 파일은 올리지 마세요.</b> 발주·결재 같은 실제 처리는 하지 않고 조회와 초안만 합니다.</div>
 
   <div class="tabs" id="tabs">
     <button type="button" class="on" data-tab="chat">💬 대화</button>
@@ -184,30 +184,30 @@ details.trace div{font-family:Consolas,Menlo,monospace;word-break:break-all;padd
   <div class="layout">
     <div class="box chat">
       <div class="log" id="log"><div class="empty" id="empty">무엇이든 물어보세요. 예) <b>이번 달 납기 지난 미입고 발주 거래처별로</b><br>
-        답변의 표는 <b>CSV로 내려받거나 자료함에 저장</b>할 수 있고, <b>📄 보고서로 만들기</b>를 누르면 인쇄용 보고서가 만들어집니다.</div></div>
+        답변의 표는 <b>CSV·보고서</b>로 내려받을 수 있습니다.</div></div>
       <div class="chips" id="chips"></div>
       <div class="tray" id="tray"></div>
       <div class="composer">
-        <button class="btn ghost clip" id="btnClip" type="button" title="파일 첨부 — 엑셀·CSV·워드·PDF·이미지 (끌어다 놓기·붙여넣기도 됩니다)">📎</button>
+        <button class="btn ghost clip" id="btnClip" type="button" title="파일 첨부(끌어다 놓기·붙여넣기도 됩니다)">📎</button>
         <input type="file" id="fileIn" multiple hidden>
-        <textarea id="inp" placeholder="질문 입력 — Enter 전송 · Shift+Enter 줄바꿈 · 파일은 📎 또는 끌어다 놓기"></textarea>
+        <textarea id="inp" placeholder="질문을 입력하세요 (Enter 전송 · Shift+Enter 줄바꿈)"></textarea>
         <button class="btn" id="btnSend" type="button">보내기</button>
         <button class="btn ghost" id="btnStop" type="button" disabled>중지</button>
         <button class="btn ghost" id="btnNew" type="button" title="대화 비우기">새 대화</button>
       </div>
-      <div class="drop" id="drop"><div>📎 여기에 놓으면 첨부됩니다<small>엑셀(xlsx)·CSV·워드(docx)·PDF·이미지·텍스트 — 한 번에 5개까지</small></div></div>
+      <div class="drop" id="drop"><div>📎 여기에 놓으면 첨부됩니다<small>엑셀·CSV·워드·PDF·이미지 · 한 번에 5개까지</small></div></div>
     </div>
     <div>
       <div class="box">
         <h3>📁 내 자료함 <span class="hint" id="artInfo"></span></h3>
         <ul class="arts" id="arts"><li class="hint">불러오는 중…</li></ul>
-        <div class="hint" style="margin-top:6px">본인만 볼 수 있고 30일 뒤 자동 삭제됩니다. 오래 보관하려면 <b>NAS</b> 를 눌러 부서 폴더에 저장하세요.</div>
+        <div class="hint" style="margin-top:6px">나만 볼 수 있고 30일 뒤 지워집니다. 오래 두려면 <b>NAS</b> 를 누르세요.</div>
       </div>
       <div class="box" id="nasBox">
-        <h3>🗄 부서 NAS 보관함 <span class="hint" id="nasInfo"></span>
-          <button type="button" class="nx-btn" id="nxOpen" style="float:right;margin-top:-3px" title="탐색기처럼 파일을 추가·삭제·정렬합니다">📂 관리</button></h3>
+        <h3>🗄 부서 보관함 <span class="hint" id="nasInfo"></span>
+          <button type="button" class="nx-btn" id="nxOpen" style="float:right;margin-top:-3px" title="파일 추가·삭제·내려받기·질문에 첨부">📂 열기</button></h3>
         <ul class="arts" id="nasList" style="min-height:60px"><li class="hint">불러오는 중…</li></ul>
-        <div class="hint" style="margin-top:6px" id="nasHint">첨부 파일·자료함의 <b>🗄 NAS 저장</b>을 누른 것만 사내 NAS 부서 폴더(AI저장)에 보관됩니다. 누르지 않은 첨부는 저장되지 않습니다.</div>
+        <div class="hint" style="margin-top:6px" id="nasHint"><b>🗄 NAS 저장</b>을 누른 파일만 부서 폴더에 보관됩니다.</div>
       </div>
       <div class="box">
         <h3>연결된 구매 자료</h3>
@@ -215,13 +215,11 @@ details.trace div{font-family:Consolas,Menlo,monospace;word-break:break-all;padd
           <a href="/work/purchase-proposals" target="_blank" rel="noopener" title="기안서 대장 화면을 새 탭으로 엽니다">📝 기안서 대장<small>새 탭 ↗</small></a>
           <a href="/work/purchase-list" target="_blank" rel="noopener" title="발주통합 LIST 화면을 새 탭으로 엽니다">📋 발주통합 LIST<small>새 탭 ↗</small></a>
         </div>
-        <div class="hint">발주통합 LIST · 월별 발주 · 발주 상세(PO/PR) · 발주 금액 상위 · 미입고·납기경과 · 구매요청 · 품목별 구매 이력 ·
-          거래처별 매입 · 거래처 프로필 · 기안서 대장 · 기안서↔전표 대사 · 품목 검색 · 외주검사 현황 — 모두 <b>읽기 전용</b>이며 본인 권한 범위만 조회됩니다.</div>
+        <div class="hint">발주·구매요청·입고·매입·기안서·품목·거래처를 조회합니다. 모두 <b>읽기 전용</b>이고 내 권한 범위만 보입니다.</div>
       </div>
       <div class="box" id="opBox" style="display:none">
         <h3>담당자 메뉴</h3>
-        <div class="hint">답변마다 <b>🔍 처리 과정</b>이 보입니다(담당자에게만). 시험 결과는 위 <b>🧪 검증·테스트</b> 탭에서 보고,
-          설정·개선 대장·골든셋 문항 편집은 <a href="/admin/agents?agent=purchase" target="_blank" rel="noopener">에이전트 관리 ↗</a> 에서 합니다.</div>
+        <div class="hint">답변마다 <b>🔍 처리 과정</b>이 보입니다. 시험 결과는 <b>🧪 검증·테스트</b> 탭, 설정·개선은 <a href="/admin/agents?agent=purchase" target="_blank" rel="noopener">에이전트 관리 ↗</a>.</div>
       </div>
     </div>
   </div>
@@ -232,7 +230,7 @@ details.trace div{font-family:Consolas,Menlo,monospace;word-break:break-all;padd
   <div id="tabTest" hidden>
     <div class="kpis" id="tKpi"></div>
     <div class="box">
-      <h3>① 자동 회귀 테스트 <span class="hint">정해 둔 질문(골든셋)을 에이전트에게 실제로 물어 보고, 맞는 조회 기능을 썼는지·답변 요건을 지켰는지 채점합니다.</span></h3>
+      <h3>① 자동 회귀 테스트 <span class="hint">정해 둔 질문을 실제로 물어 채점한 결과입니다.</span></h3>
       <div class="tbar">
         <select id="tRunSel" title="회차 선택"></select><span class="hint" id="tRunInfo"></span><span class="sp"></span>
         <button class="btn" id="tBtnRun" type="button" style="display:none">▶ 지금 회귀 실행</button>
@@ -240,22 +238,22 @@ details.trace div{font-family:Consolas,Menlo,monospace;word-break:break-all;padd
       <div id="tRun"><div class="hint">불러오는 중…</div></div>
     </div>
     <div class="box">
-      <h3>② 실업무 실측 <span class="hint">실무자가 할 법한 대화를 라이브 화면에서 그대로 물어 보고, 답한 숫자를 DB 조회로 다시 맞춰 본 기록입니다.</span></h3>
+      <h3>② 실업무 실측 <span class="hint">실무 질문을 직접 물어 보고, 답한 숫자를 DB 와 맞춰 본 기록입니다.</span></h3>
       <div id="tRounds"><div class="hint">불러오는 중…</div></div>
     </div>
     <div class="box">
-      <h3>③ 직접 시험해 보기 — 표준 시나리오 <span class="hint">「대화로 시험」을 누르면 대화 탭 입력창에 질문이 들어갑니다. 한 시나리오는 같은 대화에서 순서대로 물어야 합니다.</span></h3>
+      <h3>③ 직접 시험해 보기 — 표준 시나리오 <span class="hint">「대화로 시험」을 누르면 질문이 입력창에 들어갑니다. 한 시나리오는 순서대로 물으세요.</span></h3>
       <div id="tScen"><div class="hint">불러오는 중…</div></div>
     </div>
   </div>
-  <div class="foot"><span>REQ-0087·0106 · 14 기획 부서 에이전트 · 수치는 ERP 중간DB(파일럿 데이터) 조회 결과입니다.</span><span id="ver"></span></div>
+  <div class="foot"><span>수치는 ERP 데이터 조회 결과입니다(파일럿).</span><span id="ver"></span></div>
 </div>
 <!-- 부서 NAS 보관함 관리 창(REQ-0108) — 탐색기처럼 추가·삭제. 저장 위치·권한·보존은 서버가 정한다 -->
 <div class="nx" id="nx" hidden>
   <div class="nx-win" id="nxWin">
-    <div class="nx-head"><b>🗄 부서 NAS 보관함</b><span id="nxPath"></span><span class="sp"></span><button type="button" id="nxClose" title="닫기(Esc)">✕ 닫기</button></div>
+    <div class="nx-head"><b>🗄 부서 보관함</b><span id="nxPath"></span><span class="sp"></span><button type="button" id="nxClose" title="닫기(Esc)">✕ 닫기</button></div>
     <div class="nx-bar">
-      <button type="button" class="nx-btn pri" id="nxAdd" title="PC 의 파일을 골라 부서 NAS 폴더에 추가합니다(끌어다 놓아도 됩니다)">＋ 파일 추가</button>
+      <button type="button" class="nx-btn pri" id="nxAdd" title="PC 의 파일을 보관함에 추가합니다(끌어다 놓아도 됩니다)">＋ 파일 추가</button>
       <input type="file" id="nxFile" multiple hidden>
       <button type="button" class="nx-btn dan" id="nxDel" disabled>선택 삭제</button>
       <button type="button" class="nx-btn" id="nxReload" title="목록 새로고침">↻ 새로고침</button>
@@ -268,7 +266,7 @@ details.trace div{font-family:Consolas,Menlo,monospace;word-break:break-all;padd
       <div class="nx-main" id="nxMain"><div class="nx-empty">불러오는 중…</div></div>
     </div>
     <div class="nx-foot"><span id="nxMsg"></span><span class="sp"></span><span id="nxPol"></span></div>
-    <div class="nx-drop" id="nxDrop">📂 여기에 놓으면 부서 NAS 폴더에 추가됩니다</div>
+    <div class="nx-drop" id="nxDrop">📂 여기에 놓으면 보관함에 추가됩니다</div>
   </div>
 </div>
 <div class="toast" id="toast"></div>
@@ -345,11 +343,10 @@ async function loadNas() {
   clearTimeout(nasTimer);
   try {
     const j = await op(AGENT, "nas_saved_list");
-    if (!j.folder) { $("nasList").innerHTML = '<li class="hint">이 부서의 NAS 폴더가 아직 등록되지 않았습니다(관리자 확인 필요).</li>'; $("nasInfo").textContent = ""; return; }
+    if (!j.folder) { $("nasList").innerHTML = '<li class="hint">부서 폴더가 아직 등록되지 않았습니다. 관리자에게 문의하세요.</li>'; $("nasInfo").textContent = ""; return; }
     const pol = j.policy || {};
-    $("nasInfo").textContent = `· ${j.folder} 폴더 · ${j.items.length}건${j.worker_online ? "" : " · 보관소 응답 없음"}`;
-    $("nasHint").innerHTML = `첨부 파일·자료함의 <b>🗄 NAS 저장</b>을 누른 것만 사내 NAS <b>${escHtml(j.folder)}</b> 폴더(AI저장)에 보관됩니다. 부서 구성원이 함께 보며 <b>${pol.retain_years || 3}년</b> 보존합니다`
-      + `(그 뒤에는 ${pol.after_expiry === "delete" ? "자동 삭제" : "그대로 유지"}). 누르지 않은 첨부는 저장되지 않습니다.`;
+    $("nasInfo").textContent = `· ${j.folder} 폴더 · ${j.items.length}건${j.worker_online ? "" : " · 보관소 연결 안 됨"}`;
+    $("nasHint").innerHTML = `<b>🗄 NAS 저장</b>을 누른 파일만 <b>${escHtml(j.folder)}</b> 폴더에 보관됩니다. 부서원이 함께 보고 ${pol.retain_years || 3}년 보관합니다${pol.after_expiry === "delete" ? "(이후 자동 삭제)" : ""}.`;
     const st = (x) => x.status === "done" ? '<span class="nasst ok">보관됨</span>'
       : x.status === "failed" ? `<span class="nasst bad" title="${escHtml(x.error_msg || "")}">실패</span>`
       : x.status === "purge" ? '<span class="nasst wait">삭제 대기</span>' : '<span class="nasst wait">저장 중</span>';
@@ -357,7 +354,7 @@ async function loadNas() {
       ${st(x)}<span class="t" title="${escHtml(x.file_name)}${x.rel_path ? " — " + escHtml(x.rel_path) : ""}">${escHtml(x.file_name)}</span>
       <small title="저장한 사람 · 보존 기한 ${escHtml(String(x.retain_until || ""))}">${escHtml(x.saver_name || "")} · ${fmtSize(x.size_bytes)} · ${escHtml(String(x.created_at).slice(5, 10))}</small>
       ${(x.mine || j.can_manage) && x.status !== "purge" ? '<button type="button" data-act="del">삭제</button>' : ""}</li>`).join("")
-      : '<li class="hint">아직 보관한 파일이 없습니다.</li>';
+      : '<li class="hint">보관한 파일이 없습니다.</li>';
     // 진행 중인 것이 있으면 잠깐씩 다시 본다(저장은 보통 수 초, 삭제는 10분 안)
     if (j.items.some((x) => x.status === "queued" || x.status === "running")) nasTimer = setTimeout(loadNas, 4000);
   } catch (e) { if (e.message !== "login") $("nasList").innerHTML = `<li class="hint">보관함을 불러오지 못했습니다: ${escHtml(e.message)}</li>`; }
@@ -624,36 +621,37 @@ function nxRender() {
       ? '<div class="new"><input id="nxNewName" maxlength="40" placeholder="폴더 이름"><button type="button" class="ok" data-mk="1">만들기</button></div>'
       : '<div class="new"><button type="button" data-new="1"><span>＋ 새 폴더</span></button></div>');
   $("nxPath").textContent = NX.base ? NX.base + (NX.dir.startsWith("d:") ? " › " + nxDirLabel(NX.dir) : "") : "폴더 미등록";
-  $("nxAdd").title = NX.dir.startsWith("d:") ? `「${nxDirLabel(NX.dir)}」 폴더에 PC 의 파일을 추가합니다` : "PC 의 파일을 추가합니다(폴더를 고르지 않으면 올해 폴더에 들어갑니다)";
+  $("nxAdd").title = NX.dir.startsWith("d:") ? `「${nxDirLabel(NX.dir)}」 폴더에 파일을 추가합니다` : "파일을 추가합니다(폴더를 고르지 않으면 올해 폴더에 들어갑니다)";
   const rows = nxView();
   const ids = new Set(rows.map((x) => x.save_id));
   NX.sel.forEach((id) => { if (!ids.has(id)) NX.sel.delete(id); });
   const arrow = (k) => NX.sort === k ? (NX.desc ? " ▼" : " ▲") : "";
-  const st = (x) => x.status === "done" ? '<span class="nasst ok">보관됨</span>'
-    : x.status === "failed" ? `<span class="nasst bad" title="${escHtml(x.error_msg || "")}">실패</span>`
-    : x.status === "purge" ? '<span class="nasst wait">삭제 대기</span>' : '<span class="nasst wait">저장 중</span>';
-  // 판독 상태 — 에이전트가 이 파일의 내용을 읽을 수 있는가(사내 색인 기준). 값은 서버가 준 것만 쓴다
-  const rd = (x) => {
-    if (x.status !== "done") return "";
-    if (!NX.read) return `<span class="nasst wait" title="${escHtml(NX.readWhy || "사내 보관소에서 판독 상태를 받는 중입니다")}">${NX.readWhy ? "확인 불가" : "확인 중"}</span>`;
+  // 상태 한 칸 — 저장이 끝난 파일은 「AI 가 내용을 읽을 수 있는가」(사내 색인 기준 · 서버가 준 값만)를 보여 준다
+  const st = (x) => {
+    if (x.status === "failed") return `<span class="nasst bad" title="${escHtml(x.error_msg || "")}">저장 실패</span>`;
+    if (x.status === "purge") return '<span class="nasst wait">삭제 중</span>';
+    if (x.status !== "done") return '<span class="nasst wait">저장 중</span>';
+    if (!NX.read) return `<span class="nasst ${NX.readWhy ? "wait" : "ok"}" title="${escHtml(NX.readWhy || "AI 읽기 여부를 확인하는 중입니다")}">보관됨</span>`;
     const r = NX.read.get(x.rel_path);
-    if (!r) return '<span class="nasst wait" title="아직 색인에 들어가지 않았습니다(저장 직후에는 잠시 걸립니다)">색인 대기</span>';
-    return r.read ? `<span class="nasst ok" title="에이전트가 내용을 검색·읽기 할 수 있습니다${r.table ? " · 표로도 읽습니다" : ""}">읽힘${r.table ? " · 표" : ""}</span>`
-      : `<span class="nasst bad" title="${escHtml(r.why || "")}">못 읽음</span>`;
+    if (!r) return '<span class="nasst wait" title="방금 저장한 파일은 잠시 뒤 읽을 수 있습니다">준비 중</span>';
+    return r.read ? `<span class="nasst ok" title="AI 가 이 파일의 내용을 찾고 읽을 수 있습니다${r.table ? " (엑셀·CSV 는 표 그대로)" : ""}">읽기 가능</span>`
+      : `<span class="nasst bad" title="${escHtml(r.why || "")}">읽기 불가</span>`;
   };
   const selectable = rows.filter(nxCanDel);
-  $("nxMain").innerHTML = rows.length ? `<table class="nx-tbl"><thead><tr>
-      <th class="nos" style="width:28px"><input type="checkbox" id="nxAll" ${selectable.length && selectable.every((x) => NX.sel.has(x.save_id)) ? "checked" : ""} ${selectable.length ? "" : "disabled"} title="모두 선택"></th>
-      <th data-s="name">이름${arrow("name")}</th><th class="nos">폴더 · 종류</th><th data-s="size" style="text-align:right">크기${arrow("size")}</th>
-      <th data-s="who">저장한 사람${arrow("who")}</th><th data-s="date">저장일${arrow("date")}</th><th data-s="keep">보존 기한${arrow("keep")}</th><th class="nos">상태</th><th class="nos" title="에이전트가 이 파일의 내용을 읽을 수 있는지(사내 색인 기준${NX.readAsOf ? " · " + escHtml(NX.readAsOf) : ""})">판독</th><th class="nos"></th></tr></thead><tbody>`
+  $("nxMain").innerHTML = rows.length ? `<table class="nx-tbl">
+      <colgroup><col style="width:30px"><col><col style="width:84px"><col style="width:64px"><col style="width:150px"><col style="width:82px"><col style="width:118px"></colgroup>
+      <thead><tr>
+      <th class="nos"><input type="checkbox" id="nxAll" ${selectable.length && selectable.every((x) => NX.sel.has(x.save_id)) ? "checked" : ""} ${selectable.length ? "" : "disabled"} title="모두 선택"></th>
+      <th data-s="name">이름${arrow("name")}</th><th class="nos">폴더</th><th data-s="size" style="text-align:right">크기${arrow("size")}</th>
+      <th data-s="date">저장${arrow("date")}</th><th class="nos" title="AI 가 이 파일의 내용을 읽을 수 있는지${NX.readAsOf ? " · " + escHtml(NX.readAsOf) : ""}">AI 읽기</th><th class="nos"></th></tr></thead><tbody>`
     + rows.map((x) => `<tr data-id="${escHtml(x.save_id)}" class="${NX.sel.has(x.save_id) ? "sel" : ""}">
       <td>${nxCanDel(x) ? `<input type="checkbox" data-c="1" ${NX.sel.has(x.save_id) ? "checked" : ""}>` : ""}</td>
-      <td class="nm" title="${escHtml(x.file_name)}${x.rel_path ? " — " + escHtml(x.rel_path) : ""}">${escHtml(x.file_name)}</td>
-      <td class="c">${escHtml(nxDirLabel(nxDir(x)))} · ${nxKind(x)}</td><td class="r">${fmtSize(x.size_bytes)}</td>
-      <td class="c">${escHtml(x.saver_name || "")}</td><td class="c">${escHtml(String(x.created_at).slice(0, 10))}</td>
-      <td class="c">${escHtml(String(x.retain_until || ""))}</td><td>${st(x)}</td><td>${rd(x)}</td>
-      <td style="white-space:nowrap">${x.status === "done" ? '<button type="button" class="dl" data-add="1" title="이 파일을 지금 대화에 붙입니다 — 에이전트가 바로 읽습니다">💬 대화에</button> <button type="button" class="dl" data-dl="1" title="이 파일을 PC 로 내려받습니다">⬇</button>' : ""}</td></tr>`).join("") + "</tbody></table>"
-    : `<div class="nx-empty">${NX.items.length ? "조건에 맞는 파일이 없습니다." : "아직 보관한 파일이 없습니다.<br><b>＋ 파일 추가</b>를 누르거나 파일을 이 창에 끌어다 놓으세요."}</div>`;
+      <td class="nm" title="${escHtml(x.file_name)}">${x.kind === "artifact" ? "📊 " : ""}${escHtml(x.file_name)}</td>
+      <td class="c" title="${escHtml(nxDirLabel(nxDir(x)))}">${escHtml(nxDirLabel(nxDir(x)))}</td><td class="r">${fmtSize(x.size_bytes)}</td>
+      <td class="c" title="보존 기한 ${escHtml(String(x.retain_until || "-"))}">${escHtml(String(x.created_at).slice(5, 10))} ${escHtml(x.saver_name || "")}</td>
+      <td>${st(x)}</td>
+      <td class="act">${x.status === "done" ? '<button type="button" class="dl" data-add="1" title="이 파일을 지금 질문에 첨부합니다">💬 첨부</button> <button type="button" class="dl" data-dl="1" title="PC 로 내려받기">⬇</button>' : ""}</td></tr>`).join("") + "</tbody></table>"
+    : `<div class="nx-empty">${NX.items.length ? "조건에 맞는 파일이 없습니다." : "보관한 파일이 없습니다.<br><b>＋ 파일 추가</b>를 누르거나 파일을 끌어다 놓으세요."}</div>`;
   $("nxCnt").textContent = `${rows.length}건${NX.sel.size ? ` · ${NX.sel.size}건 선택` : ""}`;
   const d = $("nxDel"); d.disabled = !NX.sel.size || NX.busy; d.classList.remove("armed"); d.textContent = NX.sel.size ? `선택 삭제(${NX.sel.size})` : "선택 삭제";
   $("nxAdd").disabled = NX.busy;
@@ -665,8 +663,8 @@ async function nxLoad(quiet) {
     NX.items = j.items || []; NX.folders = j.folders || []; NX.can = !!j.can_manage;
     NX.base = j.folder ? `${j.folder} 폴더 › AI저장` : "";
     const pol = j.policy || {};
-    $("nxPol").textContent = j.folder ? `보존 ${pol.retain_years || 3}년 · 이후 ${pol.after_expiry === "delete" ? "자동 삭제" : "유지"} · 파일당 ${pol.max_mb || 8}MB까지${j.worker_online ? "" : " · ⚠ 사내 보관소 응답 없음"}` : "";
-    if (!j.folder) { $("nxMain").innerHTML = '<div class="nx-empty">이 부서의 NAS 폴더가 아직 등록되지 않았습니다(관리자 확인 필요).</div>'; return; }
+    $("nxPol").textContent = j.folder ? `${pol.retain_years || 3}년 보관${pol.after_expiry === "delete" ? " 후 자동 삭제" : ""} · 파일당 ${pol.max_mb || 8}MB${j.worker_online ? "" : " · ⚠ 보관소 연결 안 됨"}` : "";
+    if (!j.folder) { $("nxMain").innerHTML = '<div class="nx-empty">부서 폴더가 아직 등록되지 않았습니다. 관리자에게 문의하세요.</div>'; return; }
     nxRender();
     if (!quiet) nxMsg("");
     if (!quiet || !NX.read) nxStatus();
@@ -712,33 +710,33 @@ async function nxDelete() {
   NX.busy = false; NX.sel.clear();
   await nxLoad(true);
   NX.tries = 0;
-  nxMsg(`${ok}개 삭제 접수 — 곧 NAS 에서 지워집니다` + (bad.length ? ` · 실패 ${bad.length}개(${bad[0]})` : ""));
+  nxMsg(`${ok}개 삭제 — 곧 지워집니다` + (bad.length ? ` · 실패 ${bad.length}개(${bad[0]})` : ""));
 }
 // 판독 상태 받기 — 목록과 따로 부른다(사내 보관소가 늦어도 목록은 먼저 뜬다). 실패하면 「확인 불가」로만 표시한다
 async function nxStatus() {
-  const WHY = { offline: "사내 보관소(NAS)와 연결이 닿지 않습니다", timeout: "사내 보관소 응답이 늦습니다", busy: "요청이 잦아 잠시 막혔습니다", denied: "이 계정으로 볼 수 있는 폴더가 아닙니다" };
+  const WHY = { offline: "보관소와 연결되지 않아 AI 읽기 여부를 확인하지 못했습니다", timeout: "보관소 응답이 늦어 AI 읽기 여부를 확인하지 못했습니다", busy: "잠시 뒤 새로고침해 주세요", denied: "이 계정으로는 확인할 수 없습니다" };
   try {
     const j = await op(AGENT, "nas_saved_status");
     if (j.ok) { NX.read = new Map((j.items || []).map((x) => [x.rel_path, x])); NX.readWhy = ""; NX.readAsOf = j.as_of ? "색인 기준 " + j.as_of : ""; }
-    else { NX.read = null; NX.readWhy = WHY[j.why] || "판독 상태를 받지 못했습니다"; }
-  } catch (e) { NX.read = null; NX.readWhy = "판독 상태를 받지 못했습니다"; }
+    else { NX.read = null; NX.readWhy = WHY[j.why] || "AI 읽기 여부를 확인하지 못했습니다"; }
+  } catch (e) { NX.read = null; NX.readWhy = "AI 읽기 여부를 확인하지 못했습니다"; }
   if (!$("nx").hidden) nxRender();
 }
 // 보관함 파일을 지금 대화에 붙인다 — NAS → 임시 주소 → 이 화면이 받아 첨부로(읽는 방식·한도는 PC 에서 붙일 때와 같다)
 async function nxAttach(id, btn) {
   btn.disabled = true; const old = btn.textContent; btn.textContent = "…";
-  nxMsg("NAS 에서 파일을 가져오는 중…");
+  nxMsg("파일을 가져오는 중…");
   try {
     const j = await op(AGENT, "nas_saved_download", { id });
     const r = await fetch(j.url); if (!r.ok) throw new Error("파일을 받지 못했습니다");
     const blob = await r.blob();
     nxClose();
     await addFiles([new File([blob], j.file_name || "파일", { type: blob.type || "" })]);
-  } catch (e) { nxMsg("대화에 붙이지 못했습니다: " + e.message); btn.disabled = false; btn.textContent = old; }
+  } catch (e) { nxMsg("첨부하지 못했습니다: " + e.message); btn.disabled = false; btn.textContent = old; }
 }
 async function nxDownload(id, btn) {
   btn.disabled = true; const old = btn.textContent; btn.textContent = "…";
-  nxMsg("NAS 에서 파일을 가져오는 중…");
+  nxMsg("파일을 가져오는 중…");
   try {
     const j = await op(AGENT, "nas_saved_download", { id });
     const a = document.createElement("a"); a.href = j.url; a.download = j.file_name || ""; a.rel = "noopener";
@@ -750,7 +748,7 @@ async function nxDownload(id, btn) {
 async function nxMakeFolder() {
   const inp = $("nxNewName"); const name = (inp ? inp.value : "").trim();
   if (!name) { NX.naming = false; nxRender(); return; }
-  try { const j = await op(AGENT, "nas_folder_create", { name }); NX.naming = false; NX.dir = "d:" + j.name; await nxLoad(true); nxMsg(`「${j.name}」 폴더를 만들었습니다 — ＋ 파일 추가로 넣으세요`); }
+  try { const j = await op(AGENT, "nas_folder_create", { name }); NX.naming = false; NX.dir = "d:" + j.name; await nxLoad(true); nxMsg(`「${j.name}」 폴더를 만들었습니다`); }
   catch (e) { nxMsg("폴더를 만들지 못했습니다: " + e.message); if (inp) inp.focus(); }
 }
 async function nxRemoveFolder(name) {
@@ -947,8 +945,8 @@ $("tScen").onclick = (e) => {
   if (A.status === "pilot") $("status").classList.add("pilot");
   if (A.summary) $("summary").textContent = A.summary;
   $("notice").firstChild.textContent = A.collect
-    ? `ℹ️ 품질 개선을 위해 질문과 답변이 기록됩니다(${A.retention_days}일 보관 · 담당자만 열람). 조회 결과(금액 목록 등)는 기록하지 않습니다. `
-    : "ℹ️ 이 에이전트는 대화를 기록하지 않습니다. ";
+    ? `ℹ️ 질문과 답변은 품질 개선을 위해 기록됩니다(${A.retention_days}일 · 담당자만 열람). `
+    : "ℹ️ 대화를 기록하지 않습니다. ";
   $("me").innerHTML = `${escHtml(BOOT.me.dept || "")} · ${escHtml(BOOT.me.name || "")}<br><small>오늘 ${BOOT.today.used}/${BOOT.today.limit}회 · ${escHtml({ reviewer: "관리자", operator: "담당자", user: "사용자" }[BOOT.role] || "")}</small>`;
   if (isOp()) { $("opBox").style.display = ""; $("ver").textContent = `설정 v${BOOT.version} · ${BOOT.model || "모델 없음"}${BOOT.model_note ? " — " + BOOT.model_note : ""}`; }
   $("chips").innerHTML = (A.suggestions || []).map((s) => `<span class="chip" data-q="${escHtml(s.q)}">${escHtml(s.label)}</span>`).join("");
