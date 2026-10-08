@@ -40,6 +40,8 @@
   .sec{background:#fff; border:1px solid var(--line); border-radius:11px; padding:14px 16px; margin-bottom:14px;}
   .sec h3{font-size:13.5px; color:var(--navy); margin-bottom:4px; display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;}
   .sec .note{font-size:11px; color:var(--muted); margin-bottom:8px;}
+  .grp{display:flex; flex-wrap:wrap; gap:5px; align-items:center; margin-bottom:8px;}
+  .grp .gl{font-size:11.5px; color:var(--muted); margin-right:4px; font-weight:700;}
   /* 표는 표준 그리드(/app/lib/grid.js)가 그린다 — 이 화면은 전역 table/th/td 를 정의하지 않는다(§13.4) */
   .nm{color:var(--accent); cursor:pointer; font-weight:600; text-decoration:none;}
   .nm:hover{text-decoration:underline;}
@@ -82,7 +84,7 @@
   <div id="app"><div class="loading">중간DB 에서 인사마스터를 불러오는 중…</div></div>
 
   <div class="foot">
-    <span>JEIL AX · 인사마스터 조회(REQ-0122·0123) — 원천 ERP 인사마스터·학력·자격/면허·가족사항·경력등록 · 주민등록번호·주소·연락처·급여는 연계하지 않는다 · 수정은 ERP 에서만</span>
+    <span>JEIL AX · 인사마스터 조회(REQ-0122·0123·0125) — 원천 ERP 인사마스터·학력·자격/면허·가족사항·경력등록 · 주민등록번호·주소·연락처·급여는 연계하지 않는다 · 수정은 ERP 에서만</span>
     <span id="footAsof"></span>
   </div>
 </div>
@@ -125,7 +127,10 @@
       career_txt: ymTxt(r.career_mm), prior_txt: ymTxt(r.prior_mm),
       entr_year: String(r.entr_dt || "").slice(0, 4), retire_year: String(r.retire_dt || "").slice(0, 4),
       edu_sch: x.edu_sch || "", edu_school: x.edu_school || "", edu_major: x.edu_major || "",
-      license_cnt: Number(x.license_cnt || 0), family_cnt: Number(x.family_cnt || 0),
+      edu_grdut: x.edu_grdut || "", edu_cnt: Number(x.edu_cnt || 0),
+      license_cnt: Number(x.license_cnt || 0), license_names: x.license_names || "", license_last: x.license_last || "",
+      career_last_comp: x.career_last_comp || "", career_comps: x.career_comps || "",
+      family_cnt: Number(x.family_cnt || 0), family_rels: x.family_rels || "",
       rehire: Number(r.emp_rec_cnt) > 1 ? "재입사 이력(" + r.emp_rec_cnt + "개 사번)" : "",
     });
   }
@@ -154,16 +159,7 @@
       if (PICK.dept && r.dept_nm !== PICK.dept) return false;
       if (PICK.pstn && (r.pstn_nm || "(없음)") !== PICK.pstn) return false;
       if (PICK.entr && (r.entr_nm || "(없음)") !== PICK.entr) return false;
-      if (ex.scope === "career" && !(Number(r.career_cnt) > 0)) return false;
-      if (ex.scope === "nocareer" && Number(r.career_cnt) > 0) return false;
-      if (ex.scope === "license" && !(r.license_cnt > 0)) return false;
-      if (ex.scope === "noedu" && r.edu_sch) return false;
-      if (ex.scope === "rehire" && !(Number(r.emp_rec_cnt) > 1)) return false;
-      if (ex.scope === "join" && r.entr_year !== THIS_YEAR) return false;
-      if (ex.scope === "leave" && r.retire_year !== THIS_YEAR) return false;
-      if (ex.scope === "noacct" && !(r.status === "재직" && r.erp_acct !== "사용")) return false;
-      if (ex.scope === "acctleft" && !(r.status === "퇴직" && r.erp_acct === "사용")) return false;
-      if (kw && !([r.emp_nm, r.emp_no, r.dept_nm, r.pstn_nm, r.role_nm, r.email, r.grw_id, r.edu_sch, r.edu_school, r.edu_major].join(" ").toLowerCase().includes(kw))) return false;
+      if (kw && !([r.emp_nm, r.emp_no, r.dept_nm, r.pstn_nm, r.role_nm, r.email, r.grw_id, r.edu_sch, r.edu_school, r.edu_major, r.license_names, r.career_comps].join(" ").toLowerCase().includes(kw))) return false;
       return true;
     });
   }
@@ -182,49 +178,91 @@
   }
 
   const stBadge = (v) => '<span class="st ' + (v === "재직" ? "on" : "off") + '">' + esc(v) + "</span>";
-  const acctBadge = (v, r) => {
-    const bad = (r.status === "퇴직" && v === "사용"), warn = (r.status === "재직" && v !== "사용");
-    return '<span class="st ' + (bad ? "bad" : warn ? "warn" : v === "사용" ? "on" : "off") + '"' + (bad ? ' title="퇴직자인데 ERP 계정이 사용 중"' : warn ? ' title="재직자인데 사용 중인 ERP 계정이 없다"' : "") + ">" + esc(v) + "</span>";
+  const acctBadge = (v) => '<span class="st ' + (v === "사용" ? "on" : "off") + '">' + esc(v) + "</span>";
+
+  /* 표준 그리드 열 — 묶음(group)마다 2단 헤더로 묶이고, 표 위 「묶음」 칩으로 묶음째 켜고 끈다.
+     폭 지정 모드(resizable)라 전부 폭을 적는다. hidden 은 처음 상태일 뿐 — 사람이 고른 구성은 브라우저에 남는다. */
+  const dash = (v) => esc(v || "—");
+  const cnt = (unit) => (v) => (Number(v) > 0 ? num(v) + unit : "—");
+  const G = { base: "기본", org: "소속", join: "입·퇴사", edu: "학력", lic: "자격·면허", car: "입사 전 경력", fam: "가족", acct: "계정" };
+  const COLS = [
+    { key: "emp_nm", label: "이름", group: G.base, width: "96px", fitMin: 80, required: true, formatter: (v) => '<a class="nm" data-row-act="detail" title="상세 보기">' + esc(v || "(이름 없음)") + "</a>" },
+    { key: "emp_no", label: "사번", group: G.base, width: "92px", fitMin: 80 },
+    { key: "status", label: "재직", group: G.base, width: "68px", fitMin: 60, formatter: (v) => stBadge(v) },
+    { key: "dept_nm", label: "부서", group: G.org, width: "150px", fitMin: 100 },
+    { key: "pstn_nm", label: "직위", group: G.org, width: "84px", fitMin: 64 },
+    { key: "role_nm", label: "직책", group: G.org, width: "84px", fitMin: 64 },
+    { key: "dept_cd", label: "부서코드", group: G.org, width: "84px", hidden: true },
+    { key: "entr_nm", label: "입사구분", group: G.join, width: "88px", fitMin: 72 },
+    { key: "entr_dt", label: "입사일", group: G.join, width: "98px", fitMin: 90 },
+    { key: "retire_dt", label: "퇴사일", group: G.join, width: "98px", fitMin: 90, formatter: dash },
+    { key: "tenure_mm", label: "근속", group: G.join, type: "number", width: "96px", fitMin: 80, formatter: (v, r) => esc(r.tenure_txt || "—"), exportValue: (v) => v },
+    { key: "entr_year", label: "입사연도", group: G.join, width: "80px", hidden: true },
+    { key: "retire_year", label: "퇴사연도", group: G.join, width: "80px", hidden: true },
+    { key: "edu_sch", label: "최종학력", group: G.edu, width: "92px", fitMin: 76, hidden: true, formatter: dash },
+    { key: "edu_school", label: "학교", group: G.edu, width: "150px", fitMin: 90, hidden: true, formatter: dash },
+    { key: "edu_major", label: "전공", group: G.edu, width: "140px", fitMin: 90, hidden: true, formatter: dash },
+    { key: "edu_grdut", label: "졸업", group: G.edu, width: "84px", fitMin: 72, hidden: true, formatter: dash },
+    { key: "edu_cnt", label: "학력 건수", group: G.edu, type: "number", width: "84px", fitMin: 64, hidden: true, formatter: cnt("건") },
+    { key: "license_cnt", label: "건수", group: G.lic, type: "number", width: "64px", fitMin: 56, hidden: true, formatter: cnt("건") },
+    { key: "license_names", label: "자격·면허", group: G.lic, width: "240px", fitMin: 120, hidden: true, formatter: dash },
+    { key: "license_last", label: "최근 취득", group: G.lic, width: "98px", fitMin: 90, hidden: true, formatter: dash },
+    { key: "career_cnt", label: "건수", group: G.car, type: "number", width: "64px", fitMin: 56, hidden: true, formatter: cnt("건") },
+    { key: "career_last_comp", label: "직전 직장", group: G.car, width: "160px", fitMin: 100, hidden: true, formatter: dash },
+    { key: "career_comps", label: "거친 직장", group: G.car, width: "260px", fitMin: 120, hidden: true, formatter: dash },
+    { key: "prior_mm", label: "경력 합", group: G.car, type: "number", width: "96px", fitMin: 80, hidden: true, formatter: (v, r) => esc(r.prior_txt || "—"), exportValue: (v) => v },
+    { key: "career_mm", label: "인정경력", group: G.car, type: "number", width: "96px", fitMin: 80, hidden: true, formatter: (v, r) => esc(r.career_txt || "—"), exportValue: (v) => (v == null ? "" : v) },
+    { key: "family_cnt", label: "가족 수", group: G.fam, type: "number", width: "76px", fitMin: 60, hidden: true, formatter: cnt("명") },
+    { key: "family_rels", label: "관계", group: G.fam, width: "180px", fitMin: 100, hidden: true, formatter: dash },
+    { key: "email", label: "이메일", group: G.acct, width: "200px", fitMin: 130, hidden: true },
+    { key: "grw_id", label: "그룹웨어 ID", group: G.acct, width: "120px", hidden: true },
+    { key: "erp_acct", label: "ERP 계정", group: G.acct, width: "88px", fitMin: 76, hidden: true, formatter: (v) => acctBadge(v) },
+    { key: "rehire", label: "재입사", group: G.acct, width: "150px", hidden: true },
+    { key: "src_updated", label: "ERP 수정일시", group: G.acct, width: "150px", hidden: true, formatter: (v) => esc(String(v || "").replace("T", " ").slice(0, 16)) },
+  ];
+  const GROUPS = [G.org, G.join, G.edu, G.lic, G.car, G.fam, G.acct];   // 「기본」은 늘 보인다
+  /* 묶음을 켰을 때 처음 보일 열 — 나머지는 「▦ 항목」에서 더 켠다 */
+  const GROUP_MAIN = {
+    [G.org]: ["dept_nm", "pstn_nm", "role_nm"], [G.join]: ["entr_nm", "entr_dt", "retire_dt", "tenure_mm"],
+    [G.edu]: ["edu_sch", "edu_school", "edu_major", "edu_grdut"], [G.lic]: ["license_cnt", "license_names", "license_last"],
+    [G.car]: ["career_cnt", "career_last_comp", "career_comps", "career_mm"], [G.fam]: ["family_cnt", "family_rels"],
+    [G.acct]: ["email", "erp_acct"],
   };
 
-  /* 표준 그리드 열 — 폭 지정 모드(resizable)라 전부 폭을 적는다. 숨김 열은 「▦ 항목」에서 켠다. */
-  const COLS = [
-    { key: "emp_nm", label: "이름", width: "96px", fitMin: 80, required: true, formatter: (v) => '<a class="nm" data-row-act="detail" title="상세·경력 보기">' + esc(v || "(이름 없음)") + "</a>" },
-    { key: "emp_no", label: "사번", width: "92px", fitMin: 80 },
-    { key: "status", label: "재직", width: "68px", fitMin: 60, formatter: (v) => stBadge(v) },
-    { key: "dept_nm", label: "부서", width: "150px", fitMin: 100 },
-    { key: "pstn_nm", label: "직위", width: "84px", fitMin: 64 },
-    { key: "role_nm", label: "직책", width: "84px", fitMin: 64 },
-    { key: "entr_nm", label: "입사구분", width: "88px", fitMin: 72 },
-    { key: "entr_dt", label: "입사일", width: "98px", fitMin: 90 },
-    { key: "retire_dt", label: "퇴사일", width: "98px", fitMin: 90, formatter: (v) => esc(v || "—") },
-    { key: "tenure_mm", label: "근속", type: "number", width: "96px", fitMin: 80, formatter: (v, r) => esc(r.tenure_txt || "—"), exportValue: (v) => v },
-    { key: "career_cnt", label: "입사 전 경력", type: "number", width: "100px", fitMin: 84, formatter: (v) => (Number(v) > 0 ? num(v) + "건" : "—") },
-    { key: "career_mm", label: "인정경력", type: "number", width: "96px", fitMin: 80, formatter: (v, r) => esc(r.career_txt || "—"), exportValue: (v) => (v == null ? "" : v) },
-    { key: "edu_sch", label: "최종학력", width: "92px", fitMin: 76, formatter: (v) => esc(v || "—") },
-    { key: "edu_school", label: "학교", width: "140px", fitMin: 90, formatter: (v) => esc(v || "—") },
-    { key: "license_cnt", label: "자격", type: "number", width: "64px", fitMin: 56, formatter: (v) => (Number(v) > 0 ? num(v) + "건" : "—") },
-    { key: "email", label: "이메일", width: "200px", fitMin: 130 },
-    { key: "erp_acct", label: "ERP 계정", width: "88px", fitMin: 76, formatter: (v, r) => acctBadge(v, r) },
-    // 숨김 열
-    { key: "edu_major", label: "전공", width: "130px", hidden: true },
-    { key: "family_cnt", label: "가족", type: "number", width: "64px", hidden: true, formatter: (v) => (Number(v) > 0 ? num(v) + "명" : "—") },
-    { key: "dept_cd", label: "부서코드", width: "84px", hidden: true },
-    { key: "prior_mm", label: "입사 전 경력 합(개월)", type: "number", width: "130px", hidden: true },
-    { key: "rehire", label: "재입사", width: "150px", hidden: true },
-    { key: "grw_id", label: "그룹웨어 ID", width: "120px", hidden: true },
-    { key: "entr_year", label: "입사연도", width: "80px", hidden: true },
-    { key: "retire_year", label: "퇴사연도", width: "80px", hidden: true },
-    { key: "pstn_cd", label: "직위코드", width: "76px", hidden: true },
-    { key: "role_cd", label: "직책코드", width: "76px", hidden: true },
-    { key: "src_updated", label: "ERP 수정일시", width: "150px", hidden: true, formatter: (v) => esc(String(v || "").replace("T", " ").slice(0, 16)) },
-  ];
+  /* 화면 취향(열 폭·폭맞춤·보이는 열)은 이 브라우저에만 남긴다 — 그리드는 저장소를 모른다(§13.3). */
+  const PREF_KEY = "jeilax_hrm_grid_v2";
+  function loadPref() { try { return JSON.parse(localStorage.getItem(PREF_KEY) || "null") || {}; } catch (e) { return {}; } }
+  function savePref(patch) { try { localStorage.setItem(PREF_KEY, JSON.stringify(Object.assign(loadPref(), patch))); } catch (e) { /* 저장 불가 — 화면은 그대로 동작 */ } }
+
+  function groupOn(g) { const vis = new Set(GRID.getVisibleColumns()); return COLS.some((c) => c.group === g && vis.has(c.key)); }
+  function drawGroupChips() {
+    const el = document.getElementById("grpBar"); if (!el) return;
+    el.innerHTML = '<span class="gl">묶음</span>' + GROUPS.map((g) =>
+      '<button type="button" class="chip' + (groupOn(g) ? " on" : "") + '" data-grp="' + esc(g) + '">' + esc(g) + "</button>").join("")
+      + '<button type="button" class="chip" data-grp="__all">전체 켜기</button><button type="button" class="chip" data-grp="__base">기본만</button>';
+    el.querySelectorAll("[data-grp]").forEach((b) => { b.onclick = () => toggleGroup(b.dataset.grp); });
+  }
+  function toggleGroup(g) {
+    const st = GRID.getColumnState(); const hidden = new Set(st.hidden);
+    const setGroup = (name, on) => COLS.forEach((c) => {
+      if (c.group !== name) return;
+      if (on) { if (GROUP_MAIN[name].indexOf(c.key) >= 0) hidden.delete(c.key); } else hidden.add(c.key);
+    });
+    if (g === "__all") GROUPS.forEach((x) => setGroup(x, true));
+    else if (g === "__base") GROUPS.forEach((x) => setGroup(x, false));
+    else setGroup(g, !groupOn(g));
+    GRID.setColumnState({ order: st.order, hidden: [...hidden] });
+    savePref({ cols: GRID.getColumnState() });
+    if (GRID.isFit()) GRID.refitWidths();
+    drawGroupChips();
+  }
 
   /* 뼈대는 한 번만 — 그리드는 다시 그리는 영역(요약·분포) 밖에 둔다. */
   function skeleton() {
     app.innerHTML = '<div id="summary"></div>'
       + '<div class="sec"><h3><span id="secTitle"></span></h3>'
-      + '<div class="note">이름을 누르면 상세(학력·자격·가족·입사 전 경력)가 열린다. 분포 칩을 누르면 그 값으로 거른다(다시 누르면 해제). 열 머리로 정렬, 머리 아래 칸으로 필터, 「▦ 항목」으로 열을 고른다. 근속은 입사일부터 오늘(퇴직자는 퇴사일)까지다.</div>'
+      + '<div class="note">이름을 누르면 상세(학력·자격·가족·입사 전 경력)가 열린다. 「묶음」을 눌러 학력·자격·경력·가족 열을 묶음째 켜고 끄고, 켠 열은 머리 아래 칸에서 값으로 거른다. 열 경계를 끌어 폭을 바꾸고 「↔ 폭맞춤」으로 화면 폭에 맞춘다(「↺ 폭 초기화」로 처음 폭). 세부 열은 「▦ 항목」에서 고른다. 근속은 입사일부터 오늘(퇴직자는 퇴사일)까지다.</div>'
+      + '<div class="grp" id="grpBar"></div>'
       + '<div id="hrGrid"></div></div>';
     GRID = createGrid("#hrGrid", {
       columns: COLS, rows: [], keyField: "emp_no",
@@ -233,11 +271,21 @@
       editable: false, paste: false, selectable: false,
       exportCsv: true, copy: true, exportName: "인사마스터_" + new Date().toISOString().slice(0, 10).replace(/-/g, ""),
       stickyHeader: true, keyboardNav: false,
-      resizable: true, columnPicker: true, columnPickerLabel: "▦ 항목",
+      groupHeader: true,                  // 2단 헤더 — 기본·소속·입퇴사·학력·자격·경력·가족·계정
+      resizable: true, fitWidth: true, fitButton: true, widthReset: true,   // 열 경계를 끌어 폭 조절 · 「↔ 폭맞춤」 · 「↺ 폭 초기화」
+      columnPicker: true, columnPickerLabel: "▦ 항목",
+      onColResize: (key, px, all) => savePref({ w: all }),
+      onFitChange: (on) => savePref({ fit: on }),
+      onColumnsChange: (st) => { savePref({ cols: st }); drawGroupChips(); },
       pageSize: 100, pageSizeOptions: [100, 300, 0],
       emptyText: "조건에 맞는 사원이 없습니다.",
       onRowAction: (act, row) => { if (act === "detail" && row) openDetail(row); },
     });
+    const pref = loadPref();
+    if (pref.cols) GRID.setColumnState(pref.cols);
+    if (pref.w) GRID.setColWidths(pref.w);
+    if (pref.fit) GRID.setFit(true);
+    drawGroupChips();
   }
 
   function render(q) {
@@ -248,7 +296,6 @@
     const leaveY = rows.filter((r) => r.retire_year === THIS_YEAR).length;
     const withCar = rows.filter((r) => Number(r.career_cnt) > 0).length;
     const avgTen = act.length ? Math.round(act.reduce((s, r) => s + r.tenure_mm, 0) / act.length) : 0;
-    const noAcct = act.filter((r) => r.erp_acct !== "사용").length;
     document.getElementById("summary").innerHTML = '<div class="kpis">'
       + kpi("조건 안 인원", num(rows.length), "명")
       + kpi("재직", num(act.length), "명", "ok")
@@ -257,7 +304,6 @@
       + kpi("재직자 평균 근속", esc(ymTxt(avgTen) || "—"), "")
       + kpi("입사 전 경력 등록", num(withCar), "명")
       + kpi("자격·면허 등록", num(rows.filter((r) => r.license_cnt > 0).length), "명")
-      + kpi("재직인데 ERP 계정 없음·중지", num(noAcct), "명", noAcct ? "warn" : "ok")
       + "</div><div class=\"dist\">"
       + distBox("부서별", "dept", "dept_nm", rows)
       + distBox("직위별", "pstn", "pstn_nm", rows)
@@ -285,7 +331,7 @@
       + dd("직위 / 직책", esc([r.pstn_nm, r.role_nm].filter(Boolean).join(" / ")))
       + dd("입사구분", esc(r.entr_nm)) + dd("입사일", esc(r.entr_dt)) + dd("퇴사일", esc(r.retire_dt))
       + dd("근속", esc(r.tenure_txt)) + dd("인정경력", esc(r.career_txt))
-      + dd("이메일", esc(r.email)) + dd("그룹웨어 ID", esc(r.grw_id)) + dd("ERP 계정", acctBadge(r.erp_acct, r))
+      + dd("이메일", esc(r.email)) + dd("그룹웨어 ID", esc(r.grw_id)) + dd("ERP 계정", acctBadge(r.erp_acct))
       + "</dl>"
       + (sib.length ? "<h4>같은 이메일의 다른 사번(재입사 이력)</h4>" + sib.map((s) => '<div class="car"><div class="c1">' + esc(s.emp_no) + " · " + esc(s.dept_nm || "") + " " + stBadge(s.status) + '</div><div class="c2">' + esc(s.entr_dt || "?") + " ~ " + esc(s.retire_dt || "재직") + "</div></div>").join("") : "")
       + "<h4>학력</h4><div id=\"dedu\"><div class=\"loading\" style=\"padding:10px\">불러오는 중…</div></div>"
@@ -410,20 +456,7 @@
         options: [{ value: "재직", label: "재직" }, { value: "퇴직", label: "퇴직" }, { value: "", label: "전체" }] },
       { id: "dept", label: "부서", type: "select", width: "170px",
         options: [{ value: "", label: "전체 부서" }].concat(DEPTS.map((d) => ({ value: d, label: d }))) },
-      { id: "scope", label: "보기", type: "select", width: "200px",
-        options: [
-          { value: "", label: "전체" },
-          { value: "join", label: THIS_YEAR + "년 입사" },
-          { value: "leave", label: THIS_YEAR + "년 퇴사" },
-          { value: "career", label: "입사 전 경력 등록됨" },
-          { value: "nocareer", label: "입사 전 경력 없음" },
-          { value: "license", label: "자격·면허 등록됨" },
-          { value: "noedu", label: "학력 미등록" },
-          { value: "rehire", label: "재입사 이력(사번 2개 이상)" },
-          { value: "noacct", label: "재직인데 ERP 계정 없음·중지" },
-          { value: "acctleft", label: "퇴직인데 ERP 계정 사용 중" },
-        ] },
-      { id: "kw", label: "찾기", type: "text", width: "210px", placeholder: "이름·사번·부서·직위·학교·전공", debounce: 200 },
+      { id: "kw", label: "찾기", type: "text", width: "260px", placeholder: "이름·사번·부서·학교·전공·자격·직장", debounce: 200 },
     ],
     onQuery: async (q, ctx) => {
       if (ctx.reason === "refresh") {

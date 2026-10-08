@@ -360,6 +360,10 @@ function createGrid(container, options = {}) {
     /* 넓은 목록용(전부 옵트인 — 켜지 않으면 동작이 종전과 같다) */
     resizable: false,        // 열 경계를 끌어 폭 조절 + 더블클릭 초기화
     fitWidth: false,         // setFit() 로 화면 폭에 맞추기(폭 지정 모드가 같이 켜진다)
+    fitButton: false,        // 도구줄에 「↔ 폭맞춤」 버튼 — 누르면 화면 폭에 맞추고 다시 누르면 사람이 정한 폭으로 돌아간다
+    fitButtonLabel: "↔ 폭맞춤",
+    widthReset: false,       // 도구줄에 「↺ 폭 초기화」 — 끌어서 바꾼 폭을 전부 처음 값으로
+    onFitChange: null,       // (on) — 저장은 호출측이 한다(grid 는 저장소를 모른다)
     cellNav: false,          // 방향키 셀 커서 이동
     defaultColWidth: 120, minColWidth: 46,
     columnPicker: false,     // 「항목 고르기」 — 표에 넣을 열을 고르고 순서를 바꾼다(피벗식 두 칸)
@@ -481,7 +485,7 @@ function createGrid(container, options = {}) {
      그대로 먹는다(자동 레이아웃에서는 내용이 길면 열이 제멋대로 늘어난다).
      `fixedWidth` 컬럼은 맞춤·드래그 양쪽에서 제외한다 — 화면이 sticky left 오프셋을
      그 폭으로 계산하고 있으면 폭이 변하는 순간 고정열이 어긋난다. */
-  const WIDTH_MODE = !!(o.resizable || o.fitWidth);
+  const WIDTH_MODE = !!(o.resizable || o.fitWidth || o.fitButton);
   const defW = (c) => parseInt(c.width, 10) || o.defaultColWidth;
   const minW = (c) => c.fitMin || o.minColWidth;
   if (WIDTH_MODE) elTable.classList.add("grid__table--fixed");
@@ -508,6 +512,8 @@ function createGrid(container, options = {}) {
       // 「보이는 개수/전체」를 버튼에 그대로 적는다 — 열이 빠져 있다는 걸 패널을 열지 않고도 알게
       h += `<button class="grid__btn grid__btn--ghost btn sm ghost${state.pickOpen ? " grid__btn--on" : ""}" data-act="pick-toggle" title="표에 넣을 항목 고르기 · 순서 바꾸기">${esc(o.columnPickerLabel)} <b>${vcols().length}</b>/${cols.length}</button>`;
     }
+    if (o.fitButton) h += `<button class="grid__btn grid__btn--ghost btn sm ghost${state.fit ? " grid__btn--on" : ""}" data-act="fit-toggle" title="열 폭을 화면 폭에 맞춘다 · 다시 누르면 내가 정한 폭으로">${esc(o.fitButtonLabel)}</button>`;
+    if (o.widthReset && WIDTH_MODE) h += btn("width-reset", "↺ 폭 초기화", "ghost", 'title="끌어서 바꾼 열 폭을 처음 값으로"');
     if (o.copy) h += btn("copy", "📋 복사", "ghost");
     if (o.exportCsv) h += btn("export", "⬇ CSV", "ghost");
     elActions.innerHTML = h;
@@ -910,6 +916,12 @@ function createGrid(container, options = {}) {
      **무엇이 빠져 있는지**가 한눈에 보여야 하기 때문이다 — 체크가 풀린 줄은 눈에 띄지 않는다.
      저장은 하지 않는다(§13.3) — `onColumnsChange` 로 넘기고 보관은 화면이 한다. */
   const docOff = [];
+  if (o.fitButton) {
+    let fitTimer = 0;
+    const onWinResize = () => { clearTimeout(fitTimer); fitTimer = setTimeout(() => { if (state.fit) setFit(true); }, 120); };
+    window.addEventListener("resize", onWinResize);
+    docOff.push(() => { clearTimeout(fitTimer); window.removeEventListener("resize", onWinResize); });
+  }
 
   function getColumnState() { return { order: state.order.slice(), hidden: [...state.hidden] }; }
 
@@ -1097,6 +1109,11 @@ function createGrid(container, options = {}) {
     else if (act === "pick-all") { cols.forEach((c) => state.hidden.delete(c.key)); applyColumns(); }
     else if (act === "pick-reset") { resetColumns(); }
     else if (act === "pick-item") { toggleColumn(t.getAttribute("data-col")); }
+    else if (act === "fit-toggle") { setFit(!state.fit); renderActions(); if (o.onFitChange) o.onFitChange(state.fit); }
+    else if (act === "width-reset") {
+      state.userW = {}; if (state.fit) setFit(true); else { state.colW = {}; applyWidths(); }
+      if (o.onColResize) o.onColResize(null, null, {});
+    }
     else if (act === "copy") { copyToClipboard(); }
     else if (act === "export") { exportCsv(); }
     else if (act.startsWith("bulk:")) { if (o.onBulkAction) o.onBulkAction(act.slice(5), instance); }
