@@ -110,6 +110,13 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <tbody>
 <tr>
 <td>2026-10-08</td>
+<td>에이전트</td>
+<td>구매 에이전트 설정 <strong>v9 지정</strong>(DB <code>ai_agent_version</code>·<code>ai_agent</code>) · <code>문서/12_에이전트관리/05</code>(회차 2)·00·03</td>
+<td><strong>모델 비교 실측 → 설정 변경</strong>(REQ-0117 · 관리자 지시) — 6개 모델 × 9문항 비교 뒤 권고 1~3 적용: 기본 Claude Sonnet 5.5 · 예비 GPT-6 luna(종전 GPT-4.1 mini) · 최대 출력 4,096토큰(Sonnet 빈 답 방지) · v5 초안의 지시문·도구 라운드 5 포함. 골든셋 회귀 v4 5/11 → v9 5/11(나빠진 문항 없음 · 응답 더 빠름). v4 는 retired — 되돌리려면 v4 재지정. 골든셋 정비가 후속</td>
+<td>최동혁</td>
+</tr>
+<tr>
+<td>2026-10-08</td>
 <td>에이전트·NAS</td>
 <td><code>nas_index.py</code>·<code>nas_worker.py</code>(n1.10)·회귀 2종 · 정본 SQL 98(<code>98_nas_query_result_sweep.sql</code> + rollback · 라이브 적용) · <code>jeil-chat-lab</code> v28(<code>list_company_files</code>·<code>search_company_docs</code>·<code>read_company_table</code>·<code>core/prompt.ts</code>) · <code>pages/구매_AI에이전트_2026.html</code> · <code>deploy/nas</code> README·compose · 12/00·03 · 이관 00·03 · CLAUDE.md §17.4</td>
 <td><strong>파일을 못 읽는다고 답하던 문제 수정 + 독립 검토 반영</strong>(REQ-0117) — ① 파일 목록에 문서 번호·읽기 여부를 붙이고, 문서 검색이 파일 이름도 찾고, 지시문에 「보관함·부서 폴더 파일은 찾아서 읽고 답한다」 절을 넣었다(목록만 보여 주고 "내용은 못 읽는다"고 답하던 원인 = 목록→읽기 연결 부재). ② 독립 검토: 범위 우회 없음 확인. 고친 것 — 큰 엑셀 메모리(시트를 통째로 올리던 것을 흘려 읽기로 · 압축 해제 상한 80MB · 실측 최대 28MB), 표 읽기는 필요한 창만 읽고 6초 예산, 색인이 읽은(ok) 파일만·색인 뒤 바뀐 파일은 거부, 색인과 표 읽기가 같은 시트 목록 사용, 결과를 실제 길이로 맞춤(행이 조용히 빠지지 않게), 큰 CSV 잘림 표시·utf-16 오판 방지, 기형 파일 사유 표기, 시간 초과된 조회 결과가 DB 에 남던 것 비우기(정본 SQL 98). 회귀 180 → 193건. NAS 컨테이너 n1.10 재빌드 필요</td>
