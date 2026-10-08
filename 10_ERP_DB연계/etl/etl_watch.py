@@ -54,6 +54,14 @@ COLLECTORS = {
 POLL_SEC = 20          # 기본 폴링 주기
 HTTP_TIMEOUT = 60
 
+# 퇴사 처리(ERP 축 등재) 뒤 그 자리에서 맞추는 ERP 미러 — 계정 사용여부·역할 배정(REQ-0126).
+# 둘 다 가벼운 조회라 운영 DB 부하가 거의 없다. 흐름(Power Automate)이 ERP 를 고치는 데 보통 30~40초
+# (2026-10-08 실측 33·35초)라 목록 항목의 진행구분이 '-' 에서 바뀌는 것을 보고 읽는다 — 안 보고 바로 읽으면 옛 값이 적재된다.
+OFFBOARD_ERP_MIRROR_JOBS = ("usr_master", "usr_role")
+OFFBOARD_FLOW_WAIT_SEC = 180      # 흐름 완료를 기다리는 상한
+OFFBOARD_FLOW_POLL_SEC = 10
+OFFBOARD_FLOW_GRACE_SEC = 60      # 흐름 상태를 못 읽을 때 무조건 기다리는 시간
+
 # 접속 오류 원문에서 계정·서버 정보를 가린다 — 요청 결과(sync_request.result/error_msg)는 사내 로그인 사용자가
 # 조회할 수 있어 ODBC 원문(「Login failed for user '...'」·연결 문자열 조각·IP)이 그대로 가면 안 된다(재검증 반영).
 _REDACT_RULES = [
@@ -336,6 +344,89 @@ def handle(url, key, runner, req, dry, full, collectors=True, allow_sensitive=Tr
     return status
 
 
+def wait_erp_flow(offboard_axes, tok, item_ids, wait_sec=OFFBOARD_FLOW_WAIT_SEC, poll_sec=OFFBOARD_FLOW_POLL_SEC,
+                  sleep=None, on_wait=None):
+    """SharePoint 「ERP 퇴사처리 RPA」 항목들의 진행구분이 '-' 에서 바뀔 때까지 기다린다 → (끝난 수, 전체, 기다린 초).
+
+    흐름 상태를 못 읽으면(토큰 없음·조회 실패) 더 기다리지 않고 돌아간다 — 호출측이 유예(GRACE)를 둔다."""
+    sleep = sleep or time.sleep          # 호출 시점에 고른다 — 테스트가 time.sleep 을 바꿔 끼울 수 있게
+    pending = [str(i) for i in item_ids]
+    waited = 0
+    while pending and waited < wait_sec:
+        if not tok:
+            break
+        try:
+            st = offboard_axes.erp_flow_status(tok, list(pending))
+        except Exception as e:
+            log(f"  ! 흐름 상태 조회 실패(더 기다리지 않음): {_redact(str(e))[:120]}")
+            break
+        if any(st.get(i) is None for i in pending):
+            break
+        pending = [i for i in pending if (st.get(i) or "").strip() == offboard_axes.SP_STATUS_PENDING]
+        if not pending:
+            break
+        if on_wait:
+            on_wait(list(pending), waited)
+        sleep(poll_sec)
+        waited += poll_sec
+    return len(item_ids) - len(pending), len(item_ids), waited
+
+
+def refresh_erp_mirror(url, key, offboard_axes, tok, item_ids, rid=None, total=0, sleep=None):
+    """ERP 축을 실제로 등재한 뒤: 흐름 완료를 기다리고 usr_master·usr_role 을 다시 적재한다 → 결과 dict.
+
+    MS 축과 같은 이유다 — 안 하면 화면이 옛 미러를 보고 「ERP 남음」으로 계속 표시한다(2026-10-08 실제 오해:
+    흐름은 15:22 에 끝났는데 미러는 14:40 것이라 퇴사자가 「계정활성」으로 남았다). 사람이 [데이터 업데이트]를
+    따로 누르지 않아도 되게 한다. 예외를 올리지 않는다 — 퇴사 처리 결과는 그대로다(이미 끝난 일을 뒤집지 않는다)."""
+    def progress(target):
+        # 대상 처리는 끝났으니 done=total 로 두고 글자만 바꾼다(RPC 는 세 값을 그대로 덮어쓴다)
+        if rid:
+            try:
+                rpc(url, key, "offboard_request_progress",
+                    {"p_request_id": rid, "p_done": total, "p_total": total, "p_target": target})
+            except Exception:
+                pass
+
+    sleep = sleep or time.sleep
+    if not tok:
+        try:
+            tok = offboard_axes._token()
+        except (Exception, SystemExit):
+            tok = None
+    fdone, ftotal, waited = wait_erp_flow(          # 흐름 항목 수 — 대상 수(total)와 다른 값이다
+        offboard_axes, tok, item_ids, sleep=sleep,
+        on_wait=lambda pending, w: progress(f"ERP 흐름 처리 대기 {w}초 (목록 항목 {', '.join(pending)})"))
+    if fdone < ftotal and waited < OFFBOARD_FLOW_GRACE_SEC:
+        # 흐름이 끝난 것을 확인하지 못했다 — 보통 1분 안에 끝나니 그만큼은 기다린 뒤 읽는다
+        progress("ERP 흐름 처리 대기(상태 확인 불가 · 유예)")
+        sleep(OFFBOARD_FLOW_GRACE_SEC - waited)
+        waited = OFFBOARD_FLOW_GRACE_SEC
+
+    jobs, fails = [], []
+    for name in OFFBOARD_ERP_MIRROR_JOBS:
+        if name not in JOBS:
+            continue
+        progress(f"ERP 미러 갱신 — {name}")
+        try:
+            got = run_job(name, JOBS[name], url, key, False, False)
+            rd, up = got if got else (0, 0)
+            jobs.append({"job": name, "status": "success", "read": rd, "upserted": up})
+        except (Exception, SystemExit) as e:       # 접속정보 없는 호스트면 need() 가 SystemExit 이다
+            msg = _redact(str(e.code) if isinstance(e, SystemExit) else str(e))
+            jobs.append({"job": name, "status": "failed", "error": msg[:300]})
+            fails.append(name)
+            if isinstance(e, SystemExit):
+                break                               # 접속정보 자체가 없다 — 다음 job 도 같다
+    ok = not fails
+    flow = (f"흐름 완료 확인 {fdone}/{ftotal}" if fdone == ftotal else f"흐름 완료 미확인 {fdone}/{ftotal}") + f"({waited}초 대기)"
+    if ok:
+        msg = "ERP 미러 갱신 완료 — " + flow + " · " + ", ".join(f"{j['job']} {j.get('upserted', 0)}건" for j in jobs)
+    else:
+        msg = ("ERP 미러 갱신 건너뜀/실패 — " + flow + " · " + ", ".join(fails)
+               + ": " + next((j.get("error") for j in jobs if j.get("status") == "failed"), "")[:200])
+    return {"ok": ok, "msg": msg, "flow_done": fdone, "flow_total": ftotal, "waited_sec": waited, "jobs": jobs}
+
+
 def handle_offboard(url, key, runner, req):
     """퇴사 처리 요청 1건 — 대상별로 요청된 축(ERP·그룹웨어·MS)을 실행한다. 반환 "done"/"failed".
 
@@ -426,9 +517,22 @@ def handle_offboard(url, key, runner, req):
             ms_refresh = "MS 계정 미러 갱신 건너뜀 — " + _redact(m)[:200]
             log("  ! " + ms_refresh)
 
+    # ERP 축이 **실제로 등재됐으면** 흐름이 ERP 를 고친 뒤 계정·역할 미러(usr_master·usr_role)를 그 자리에서 맞춘다(REQ-0126).
+    # MS 와 같은 이유 — 안 하면 화면이 옛 미러를 보고 「ERP 남음」으로 계속 표시한다(2026-10-08 실제 오해).
+    # 같은 화면의 [계정·권한 전량 업데이트]는 ERP 를 읽지 않아서(수집기 2종만) 눌러도 ERP 칸이 그대로였다.
+    erp_refresh = None
+    erp_items = [str(x.get("item_id")) for d in detail for x in (d.get("axes") or [])
+                 if x.get("axis") == "erp" and x.get("changed") and x.get("item_id")]
+    if apply and erp_items:
+        erp_refresh = refresh_erp_mirror(url, key, offboard_axes, tok, erp_items, rid=rid, total=total)
+        log(("  · " if erp_refresh.get("ok") else "  ! ") + str(erp_refresh.get("msg"))[:220])
+        rpc(url, key, "offboard_request_progress",      # 대기·갱신 문구를 지운다
+            {"p_request_id": rid, "p_done": total, "p_total": total, "p_target": None})
+
     rpc(url, key, "offboard_request_finish",
         {"p_request_id": rid, "p_status": status,
-         "p_result": {"mode": mode, "targets": detail, "ms_refresh": ms_refresh}, "p_error": err})
+         "p_result": {"mode": mode, "targets": detail, "ms_refresh": ms_refresh, "erp_refresh": erp_refresh},
+         "p_error": err})
     log(f"퇴사 처리 종료 {rid[:8]}… — {status} · 전축성공 {total - len(fails)} / {total}")
     # 알림 — 예약 승격 건은 결과와 무관하게, 수동 건은 실패했을 때만(관리자 결정 2026-09-11: 웹훅은 있으면 쓰고 없으면 건너뜀).
     if apply and (scheduled or fails):

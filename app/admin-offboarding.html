@@ -508,9 +508,14 @@
         showRes(d.result);
         bar(d.progress_total || 1, d.progress_total || 1);
         if (d.status === "done") {
+          // ERP 축을 실제로 등재했으면 러너가 흐름 완료를 보고 ERP 미러까지 맞춘다(REQ-0126) — 그 결과에 따라 안내가 다르다.
+          // 옛 러너(erp_refresh 없음)·실패면 종전처럼 데이터 업데이트를 안내한다.
+          var er = d.result && d.result.erp_refresh;
+          var erpOk = !!(er && er.ok);
           msg((d.mode === "apply" ? "처리 완료" : "점검 완료") +
-              " — <b>MS</b> 는 미러까지 자동으로 갱신되니 <b>새로고침</b>만 하면 됩니다. "
-              + "ERP·그룹웨어 반영 확인은 <a href='/admin/erp-status'>데이터 업데이트</a>를 한 번 돌린 뒤 새로고침하세요.", "ok");
+              " — <b>MS</b>" + (erpOk ? "·<b>ERP</b>" : "") + " 는 미러까지 자동으로 갱신되니 <b>새로고침</b>만 하면 됩니다. "
+              + (erpOk ? "그룹웨어" : "ERP·그룹웨어") + " 반영 확인은 <a href='/admin/erp-status'>데이터 업데이트</a>를 한 번 돌린 뒤 새로고침하세요."
+              + (er && !er.ok ? "<br><span class='muted'>ERP 미러 자동 갱신은 되지 않았습니다 — " + esc(er.msg || "") + "</span>" : ""), "ok");
         } else {
           msg("일부/전체 실패 — " + esc(d.error_msg || "원인 미상"), "err");
         }

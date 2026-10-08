@@ -1006,5 +1006,105 @@ class TestEtlRunIncrement(unittest.TestCase):
             self.assertEqual(_re.sub(r"--[^\n]*", "", sql).count("?"), len(params), "%s: SQL 의 ? 와 바인딩 수" % name)
 
 
+class TestOffboardErpMirror(unittest.TestCase):
+    """REQ-0126 — 퇴사 처리에서 ERP 축을 실제로 등재했으면 흐름 완료를 보고 usr_master·usr_role 미러를 그 자리에서 맞춘다.
+    (2026-10-08: 흐름은 15:22 에 끝났는데 미러가 14:40 것이라 화면이 「ERP 남음」을 계속 보였다)"""
+
+    def patch(self, obj, name, value):
+        old = getattr(obj, name)
+        setattr(obj, name, value)
+        self.addCleanup(setattr, obj, name, old)
+
+    def setUp(self):
+        import offboard_axes as oa
+        self.oa = oa
+        self.patch(w, "notify", lambda *a, **k: False)
+        self.patch(w, "log", lambda *a, **k: None)
+        self.patch(w, "importlib", types.SimpleNamespace(reload=lambda m: m, import_module=importlib.import_module))
+        self.patch(w, "notify_due_schedules", lambda *a, **k: None)
+        self.patch(oa, "_token", lambda: "tok")
+        self.slept = []
+        self.patch(w, "time", types.SimpleNamespace(sleep=lambda s: self.slept.append(s), time=time.time, monotonic=time.monotonic))
+        self.ran = []
+        self.patch(w, "run_job", lambda name, spec, url, key, dry, full=False: self.ran.append((name, dry, full)) or (5, 5))
+
+    def _run(self, axr, flow_status, mode="apply"):
+        """퇴사 요청 1건(ERP 축만) → (반환상태, finish 페이로드, FakeRpc). flow_status 는 호출마다 돌려줄 값의 목록."""
+        self.patch(self.oa, "run_axes", lambda t, axes, apply=False, tok=None: list(axr))
+        seq = list(flow_status)
+        self.patch(self.oa, "erp_flow_status", lambda tok, ids: {i: (seq.pop(0) if seq else "완료") for i in ids})
+        fake = FakeRpc({"offboard_request_claim": {
+            "request_id": "o3-cccccccc", "mode": mode, "origin": "manual",
+            "targets": [{"email": "a@x", "emp_nm": "가", "axes": ["erp"]}]}})
+        self.patch(w, "rpc", fake)
+        res = w.tick("u", "k", "ws", False, False, offboard=True, collectors=True)
+        return res, fake.last("offboard_request_finish"), fake
+
+    def test_refreshed_after_flow_done(self):
+        res, fin, fake = self._run([{"ok": True, "axis": "erp", "changed": True, "item_id": "268", "msg": "등재"}], ["완료"])
+        self.assertEqual(res, "done")
+        er = fin["p_result"]["erp_refresh"]
+        self.assertTrue(er["ok"], er)
+        self.assertEqual([r[0] for r in self.ran], list(w.OFFBOARD_ERP_MIRROR_JOBS), "계정·역할 두 job 만, 이 순서로")
+        self.assertEqual([r[1:] for r in self.ran], [(False, False)] * 2, "실적재·증분(--full 아님)")
+        self.assertEqual((er["flow_done"], er["flow_total"], er["waited_sec"]), (1, 1, 0))
+        self.assertEqual(self.slept, [], "흐름이 이미 끝났으면 기다리지 않는다")
+        self.assertIn("ERP 미러 갱신 완료", er["msg"])
+        self.assertIsNone(fake.last("offboard_request_progress")["p_target"], "대기 문구를 지우고 끝낸다")
+
+    def test_waits_for_flow_then_refreshes(self):
+        res, fin, fake = self._run([{"ok": True, "axis": "erp", "changed": True, "item_id": "269"}], ["-", "-", "완료"])
+        er = fin["p_result"]["erp_refresh"]
+        self.assertTrue(er["ok"])
+        self.assertEqual(self.slept, [w.OFFBOARD_FLOW_POLL_SEC] * 2, "진행구분이 '-' 인 동안 폴링 간격으로 기다린다")
+        self.assertEqual(er["waited_sec"], 2 * w.OFFBOARD_FLOW_POLL_SEC)
+        waits = [p["p_target"] for f, p in fake.calls if f == "offboard_request_progress" and p.get("p_target") and "대기" in p["p_target"]]
+        self.assertTrue(waits and "269" in waits[0], "기다리는 동안 화면에 항목 번호와 함께 보여준다")
+        self.assertEqual(len(self.ran), 2, "흐름이 끝난 뒤에 적재한다")
+
+    def test_grace_when_flow_status_unknown(self):
+        res, fin, _ = self._run([{"ok": True, "axis": "erp", "changed": True, "item_id": "270"}], [None])
+        er = fin["p_result"]["erp_refresh"]
+        self.assertEqual(self.slept, [w.OFFBOARD_FLOW_GRACE_SEC], "상태를 못 읽으면 유예만큼은 무조건 기다린다")
+        self.assertEqual(len(self.ran), 2, "그래도 미러는 맞춘다")
+        self.assertIn("미확인", er["msg"])
+        self.assertTrue(er["ok"])
+
+    def test_not_refreshed_when_erp_not_changed_or_check_mode(self):
+        res, fin, _ = self._run([{"ok": True, "axis": "erp", "changed": False, "dry_run": True, "msg": "점검"}], [], mode="check")
+        self.assertIsNone(fin["p_result"]["erp_refresh"])
+        self.assertEqual(self.ran, [], "점검·변경 없음이면 ERP 를 읽지 않는다")
+        res, fin, _ = self._run([{"ok": False, "axis": "erp", "msg": "권한 없음(HTTP 403)"}], [])
+        self.assertIsNone(fin["p_result"]["erp_refresh"])
+        self.assertEqual(self.ran, [])
+
+    def test_refresh_failure_does_not_break_offboard(self):
+        def die(name, *a, **k):
+            raise SystemExit("환경변수 ERP_DB_CONN 가 없습니다")
+        self.patch(w, "run_job", die)
+        res, fin, _ = self._run([{"ok": True, "axis": "erp", "changed": True, "item_id": "268"}], ["완료"])
+        self.assertEqual(res, "done", "미러 갱신 실패가 퇴사 처리 상태를 바꾸면 안 된다")
+        self.assertEqual(fin["p_status"], "done")
+        er = fin["p_result"]["erp_refresh"]
+        self.assertFalse(er["ok"])
+        self.assertIn("건너뜀/실패", er["msg"])
+        self.assertIn("ERP_DB_CONN", er["msg"])
+        self.assertEqual([j["job"] for j in er["jobs"]], ["usr_master"], "접속정보가 없으면 두 번째 job 은 시도하지 않는다")
+
+    def test_erp_flow_status_reads_progress_column(self):
+        """목록 컬럼 내부명은 표시명으로 찾고, 조회 실패는 None 으로 돌려준다(러너가 유예로 넘어가게)."""
+        calls = []
+
+        def fake_graph(tok, method, path, body=None):
+            calls.append(path)
+            if "/columns" in path:
+                return 200, {"value": [{"name": "Title", "displayName": "사용자 ID"}, {"name": "field_3", "displayName": "진행구분"}]}
+            if path.endswith("/items/268?$expand=fields"):
+                return 200, {"id": "268", "fields": {"field_3": "완료"}}
+            return 404, "not found"
+        self.patch(self.oa, "_graph", fake_graph)
+        self.assertEqual(self.oa.erp_flow_status("tok", ["268", "999"]), {"268": "완료", "999": None})
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

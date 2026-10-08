@@ -139,6 +139,27 @@ def erp_offboard(email, emp_nm, retire_dt, acct_nm=None, apply=False, tok=None):
             "msg": "SharePoint 등재 완료 — 흐름이 1분 내 ERP 를 갱신합니다"}
 
 
+def erp_flow_status(tok, item_ids):
+    """등재한 목록 항목들의 「진행구분」을 읽는다 → {item_id: 값 | None(조회 실패)}.
+
+    흐름이 처리하면 '-' 가 '완료' 로 바뀐다(2026-10-08 실측: 등재 33·35초 뒤). 러너는 퇴사 처리 뒤
+    ERP 미러를 맞추기 전에 이것으로 흐름이 끝났는지 본다(REQ-0126) — 안 보고 바로 읽으면 옛 값을 적재한다."""
+    st, cols = _graph(tok, "GET", "/sites/%s/lists/%s/columns?$select=name,displayName" % (SP_SITE, SP_LIST))
+    col = None
+    if st == 200:
+        col = next((c.get("name") for c in (cols.get("value") or [])
+                    if (c.get("displayName") or "").strip() == "진행구분"), None)
+    out = {}
+    for i in item_ids:
+        if not col:
+            out[i] = None
+            continue
+        st, it = _graph(tok, "GET", "/sites/%s/lists/%s/items/%s?$expand=fields" % (SP_SITE, SP_LIST, i))
+        f = (it or {}).get("fields") if (st == 200 and isinstance(it, dict)) else None
+        out[i] = None if f is None else (f.get(col) or "")
+    return out
+
+
 # ─────────────────────────────────────────────────────────────────────────
 # MS(Entra) — 로그인 차단 + [퇴사] 표기 + 라이선스 회수 + 사서함 공유 전환
 # ─────────────────────────────────────────────────────────────────────────
