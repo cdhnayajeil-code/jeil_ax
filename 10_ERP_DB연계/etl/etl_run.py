@@ -181,7 +181,7 @@ JOBS = {
         "params": [],
         "reconcile": {"mode": "batch", "rpc": "erp_hr_career_reconcile", "min_rows": 100},
     },
-    # ⑦-2c 인사 학력 · 자격/면허 · 가족 ← HAA030T · HAA060T · HAA020T — REQ-0123(2026-10-08 · 정본 SQL 102)
+    # ⑦-2c 인사 학력 · 자격/면허 · 가족 ← HAA030T · HAA060T · HAA020T — REQ-0123(2026-10-08 · 정본 SQL 105)
     #    구조는 2026-10-08 관리자 실행 조사(열 이름·형·행수만)로 확정: 학력 223행 · 자격 50행 · 가족 39행.
     #    세 job 모두 전량 스냅샷 + 배치 정합(revoked_at). 적재는 전용 RPC `erp_hr_sub_upsert`(service_role).
     #    ⚠ 받지 않는 것(§1.7): 가족 주민등록번호(RES_NO·RES_NO_PRVC)와 가족의 직업·직장·학력, 자격증 번호(LICN_NO).

@@ -1,4 +1,4 @@
--- 102_hr_edu_license_family_rollback.sql — REQ-0123 되돌리기 (ETL 도 r1.13 으로 함께 되돌린다)
+-- 105_hr_edu_license_family_rollback.sql — REQ-0123 되돌리기 (ETL 도 r1.13 으로 함께 되돌린다)
 drop function if exists public.hr_emp_detail(text);
 drop function if exists public.hr_emp_extra();
 drop function if exists public.erp_hr_sub_reconcile(text, uuid, integer);

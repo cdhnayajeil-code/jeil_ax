@@ -1,4 +1,4 @@
--- 102_hr_edu_license_family.sql — ERP 인사 학력·자격/면허·가족 미러 + 조회 RPC (REQ-0123 · 2026-10-08)
+-- 105_hr_edu_license_family.sql — ERP 인사 학력·자격/면허·가족 미러 + 조회 RPC (REQ-0123 · 2026-10-08)
 -- 마이그레이션: hr_edu_license_family_req0123
 --
 -- 원천(2026-10-08 구조 조사 — 열 이름·형·행수만):
@@ -9,7 +9,7 @@
 --   일용직(HAA011T — 주민번호·계좌)·신원보증(HAA040T)·여권(HAA080T)·사진(HAA070T).
 --   가족 테이블에는 출생연도 열이 따로 없다(주민번호뿐) — 나이·출생연도는 만들지 않는다.
 -- 구조: 전량 스냅샷 + 배치 정합(revoked_at) · RLS 전면차단 · 읽기는 RPC 두 개뿐(payroll 모듈 권한자·전체관리자·service_role).
--- 되돌리기: 102_hr_edu_license_family_rollback.sql
+-- 되돌리기: 105_hr_edu_license_family_rollback.sql
 
 create table if not exists erp_ro.hr_edu_s (
   emp_no text not null, sch_ship text not null, admi_dt date not null,
