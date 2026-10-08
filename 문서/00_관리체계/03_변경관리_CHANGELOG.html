@@ -112,7 +112,7 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <td>2026-10-08</td>
 <td>ERP연계·운영페이지</td>
 <td>정본 SQL 102(마이그레이션 <code>hr_edu_license_family_req0123</code> 라이브 적용) · ETL job <code>hr_edu</code>·<code>hr_license</code>·<code>hr_family</code> · 러너 r1.14 · 화면 <code>/work/hr-master</code></td>
-<td><strong>인사 학력·자격/면허·가족 미러 연계 + 인사마스터 조회 화면 반영(REQ-0123)</strong> — 학력(HAA030T)·자격(HAA060T)·가족(HAA020T)을 전량 스냅샷 + 배치 정합으로 미러. 가족은 관계·이름·부양·동거만(주민번호·직업·직장 미추출), 자격증 번호 미추출. 화면 목록에 최종학력·학교·자격 건수, 상세에 학력·자격·가족. 조회 RPC 2종은 인사팀·전체관리자만(역할별 실측). 서버 r1.14 교체 전이라 실적재 0행</td>
+<td><strong>인사 학력·자격/면허·가족 미러 연계 + 인사마스터 조회 화면 반영(REQ-0123)</strong> — 학력(HAA030T)·자격(HAA060T)·가족(HAA020T)을 전량 스냅샷 + 배치 정합으로 미러. 가족은 관계·이름·부양·동거만(주민번호·직업·직장 미추출), 자격증 번호 미추출. 화면 목록에 최종학력·학교·자격 건수, 상세에 학력·자격·가족. 조회 RPC 2종은 인사팀·전체관리자만(역할별 실측). <strong>[14:40 실적재 확인]</strong> 서버 r1.14 교체·재적재 — 학력 223행(119명)·자격 50행(37명)·가족 39행(30명)·회수 0 · 코드 이름 미해결 0건</td>
 <td>최동혁</td>
 </tr>
 <tr>
@@ -204,6 +204,13 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <td>포털 메인</td>
 <td><code>04_챗봇_포털_데모UI.html</code>(<code>loadPagePerms</code>→<code>renderPageGroups</code>·<code>renderPageIndex</code> · CSS <code>.pg-index/.pg-group/.pg-grid.dense</code>) · 통합본 재생성</td>
 <td><strong>사내 운영 페이지를 부서별 묶음으로(REQ-0121 · 관리자 지시 · 커밋 <code>676d67a</code>).</strong> 카드가 18장으로 늘어 한 줄 나열로는 어느 부서 것인지 안 보였다 — <code>perm_effective.pages</code> 를 부서(dept_nm · 없으면 전사 공통)로 묶어 머리글(아이콘·부서·장수·「내 부서」·권한 밖 장수)을 두고, 맨 위 고정 바로가기 띠(협력사·ERP 관리·전사 공유 + 부서 칩)로 묶음으로 바로 간다. 순서는 내 부서(겸직 포함) → 전사 공통 → 서버 순서, 카드는 설명을 접은 촘촘한 꼴. 권한 판정·데이터·DB 는 그대로. 로그인 브라우저 실측: 6묶음 18장 · 바로가기 9칩 · ★ 주입 유지</td>
+<td>최동혁</td>
+</tr>
+<tr>
+<td>2026-10-08</td>
+<td>포털 메인 · DB</td>
+<td>정본 SQL 102(<code>102_portal_page_grp.sql</code> + rollback · 라이브 적용) · <code>04_챗봇_포털_데모UI.html</code> · 통합본</td>
+<td><strong>운영 페이지 묶음 2차(REQ-0121 · 관리자 지시 · 커밋 <code>8f31f25</code>) — 4섹션으로 단순화.</strong> 🤝 협력사 · 🌐 전사 공통(전사 공유와 합침) · 🏢 부서별 · ⚙️ 시스템 관리(ERP 관리 2종 + ERP 권한 조직별 현황·권한정리 내역). 묶음 라벨은 DB 한 칸 <code>portal_page.grp</code>(null → dept_nm → 전사 공통)로 두고 <code>perm_effective_v2</code> 출력에 <code>grp</code> 만 더했다(판정 로직은 라이브 정의와 해시 일치 확인 · 권한 기존대로). 정적 카드와 DB 카드를 같은 그리드에 두고(data-dyn · 재렌더 안전) 카드는 한 꼴(설명은 툴팁), 머리글에 장수·권한 밖 수, 바로가기 띠. 로그인 실측: 협력사 4 · 전사 공통 1 · 부서 5묶음 16 · 시스템 관리 4</td>
 <td>최동혁</td>
 </tr>
 <tr>
