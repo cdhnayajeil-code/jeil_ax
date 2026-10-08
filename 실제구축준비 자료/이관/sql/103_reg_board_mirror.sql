@@ -610,9 +610,17 @@ grant execute on function public.reg_status() to authenticated, service_role;
 -- ─────────────────────────────────────────────────────────────────────────
 -- 7. 게시판 시드 — Step 0 실측(문서 12/11 부록) 뒤 값을 채워 넣는다. 그 전에는 활성 행이 없어 수집기가 돌지 않는다(fail-closed).
 -- ─────────────────────────────────────────────────────────────────────────
--- insert into public.reg_source (board_key, label_ko, list_path, selectors, category, active, approved_by, note)
--- values ('rules', '사내규정', '/board/list.do?boardId=<실측값>', null, '규정', true, 'dh.choi@jeilm.co.kr', 'Step 0 실측 2026-10-xx')
--- on conflict (board_key) do nothing;
+-- 2026-10-08 Step 0 실측값으로 라이브에 적용한 시드(활성 1 + 후보 6 — 후보는 관리자가 active=true 로 켠다). 수집기는 list_mode api 라
+-- list_path 는 목록 끝점이고 게시판은 selectors.api.boardID 가 정한다(문서 12/11 부록 A).
+insert into public.reg_source (board_key, label_ko, list_path, selectors, category, active, approved_by, note) values
+  ('rules',         '회사규정',   '/Board2/BoardPostList_Get', '{"api": {"boardID": 18}}'::jsonb, '사내규정', true,  'dh.choi@jeilm.co.kr', '묶음 「규정 및 조직도」 · 2026-10-08 Step 0 실측 26건(2023-12~2025-11 · 첨부 PDF 주류) · list_mode api'),
+  ('iso_manual',    'ISO 메뉴얼', '/Board2/BoardPostList_Get', '{"api": {"boardID": 20}}'::jsonb, 'ISO',     false, 'dh.choi@jeilm.co.kr', '후보 — 묶음 「ISO 규정 및 기타규정」 · 관리자가 켠다'),
+  ('iso_procedure', 'ISO 절차서', '/Board2/BoardPostList_Get', '{"api": {"boardID": 21}}'::jsonb, 'ISO',     false, 'dh.choi@jeilm.co.kr', '후보 — 묶음 「ISO 규정 및 기타규정」'),
+  ('iso_guide',     'ISO 지침서', '/Board2/BoardPostList_Get', '{"api": {"boardID": 22}}'::jsonb, 'ISO',     false, 'dh.choi@jeilm.co.kr', '후보 — 묶음 「ISO 규정 및 기타규정」'),
+  ('etc_rules',     '기타 규정',  '/Board2/BoardPostList_Get', '{"api": {"boardID": 24}}'::jsonb, '기타규정', false, 'dh.choi@jeilm.co.kr', '후보 — 묶음 「ISO 규정 및 기타규정」'),
+  ('asme',          'ASME',       '/Board2/BoardPostList_Get', '{"api": {"boardID": 25}}'::jsonb, 'ASME',    false, 'dh.choi@jeilm.co.kr', '후보 — 묶음 「ISO 규정 및 기타규정」'),
+  ('esg_conduct',   '행동강령',   '/Board2/BoardPostList_Get', '{"api": {"boardID": 73}}'::jsonb, 'ESG',     false, 'dh.choi@jeilm.co.kr', '후보 — 묶음 「ESG행동강령」')
+on conflict (board_key) do nothing;
 
 -- ── 확인 ─────────────────────────────────────────────────────────────────────
 -- select extname, extversion from pg_extension where extname = 'pg_trgm';

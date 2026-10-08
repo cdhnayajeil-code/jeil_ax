@@ -405,7 +405,13 @@ class TestGuards(Base):
 
     def test_no_sources_is_failure(self):
         self.rpc.responses["reg_source_list"] = []
-        res, _ = self.run_collect(self.data3())
+        p = os.path.join(self.tmp, "prof_noboards.json")
+        with io.open(gb.DEFAULT_PROFILE, encoding="utf-8") as fh:
+            base = json.load(fh)
+        base["boards"] = []                                      # DB 0건 + 프로필 0건 → 수집하지 않는다(fail-closed)
+        with io.open(p, "w", encoding="utf-8") as fh:
+            json.dump(base, fh, ensure_ascii=False)
+        res, _ = self.run_collect(self.data3(), selectors=p)
         self.assertEqual(res["rc"], 1)
         self.assertIn("게시판이 없습니다", res["msg"])
 
@@ -429,6 +435,171 @@ class TestGuards(Base):
         self.assertTrue(res["ok"], res)
         self.assertEqual(self.rpc.calls, [])
         self.assertTrue(os.path.isdir(self.post_dir("rules", 101, "취업규칙 개정 안내")))
+
+
+class FakeResp:
+    def __init__(self, status=200, ctype="application/json", body=b"", js=None, headers=None):
+        self.status = status
+        self.headers = dict({"content-type": ctype}, **(headers or {}))
+        self._body, self._js = body, js
+
+    def json(self):
+        return self._js
+
+    def body(self):
+        return self._body
+
+
+class FakeRequest:
+    """Playwright page.request 흉내 — 끝점별 응답을 돌려주고 호출을 기록한다."""
+
+    def __init__(self):
+        self.calls = []
+        self.list_pages = {}
+        self.detail = {}
+        self.files = {}
+        self.html_download = False
+
+    def post(self, url, form=None, headers=None, timeout=None):
+        self.calls.append(("POST", url, dict(form or {})))
+        path = url.split("//", 1)[-1].split("/", 1)[1]
+        if path == "Board2/BoardPostList_Get":
+            page = int(form.get("bModel[page]", "1"))
+            lst, top = self.list_pages.get(page, ([], []))
+            return FakeResp(js={"status": 1, "data": {"topPosts": top, "pendingPosts": [], "list": lst, "totalCount": sum(len(v[0]) for v in self.list_pages.values()), "pageCount": len(self.list_pages) or 1}})
+        if path == "Board2/BoardPostDetail_Get":
+            p = self.detail.get(form.get("boardPostID"))
+            return FakeResp(js={"status": 1, "data": {"board": {"boardID": 18}, "post": p}}) if p else FakeResp(ctype="text/html", body=b"<html>login</html>")
+        return FakeResp(status=404, ctype="text/html")
+
+    def get(self, url, params=None, timeout=None):
+        self.calls.append(("GET", url, dict(params or {})))
+        if self.html_download:
+            return FakeResp(ctype="text/html; charset=utf-8", body=b"<html>login</html>")
+        data = self.files.get(params.get("fileIDStr"))
+        if data is None:
+            return FakeResp(status=404, ctype="text/html")
+        return FakeResp(ctype="application/octet-stream", body=data, headers={"content-disposition": "attachment; filename*=UTF-8''%ED%8C%8C%EC%9D%BC.pdf"})
+
+
+class FakePage:
+    def __init__(self):
+        self.request = FakeRequest()
+        self.url = "https://gw.example.invalid/Main"
+
+
+def api_item(pid, title, ms, hist=0, files=1, part="인사팀"):
+    return {"boardPostID": pid, "idx": 0, "title": title, "writeDate": "/Date(%d)/" % ms, "isHistory": hist, "fileCnt": files, "partName": part, "memberName": "홍길동", "categoryName": "일반"}
+
+
+class TestApiDriver(unittest.TestCase):
+    def setUp(self):
+        with io.open(gb.DEFAULT_PROFILE, encoding="utf-8") as fh:
+            self.prof = json.load(fh)
+        self.page = FakePage()
+        self.page.request.list_pages = {1: ([api_item(7589, "[사내규정] 해외주재원 관리규정 개정(2025.11.04)", 1762299644533, hist=2), api_item(16, "[사내규정] 취업규칙", 1703637961150)],
+                                            [api_item(7589, "[사내규정] 해외주재원 관리규정 개정(2025.11.04)", 1762299644533, hist=2)]),
+                                        2: ([api_item(15, "[사내규정] 지출전결처리규정", 1703637656097)], [])}
+        self.page.request.detail["7589"] = {"boardPostID": 7589, "title": "[사내규정] 해외주재원 관리규정 개정(2025.11.04)", "contents": "<p>해외주재원 관리규정 (2025.11.04 개정)</p>",
+                                            "writeDateTime": "2025-11-05 08:40", "editDateTime": "2026-09-04 15:10", "writeMemberName": "김은수",
+                                            "attachments": [{"boardFileID": 3613, "fileName": "해외주재원관리규정 20251104.pdf", "filePath": "/UploadResource/BoardResource/Board_18/7589", "size": "392KB", "notFound": False},
+                                                            {"boardFileID": 9999, "fileName": "없는파일.hwp", "filePath": "/UploadResource/BoardResource/Board_18/7589", "size": "1KB", "notFound": True}]}
+        self.page.request.files["3613"] = b"%PDF-1.4 fake"
+        self.src = {"board_key": "rules", "list_path": "/Board2/BoardPostList_Get", "selectors": {"api": {"boardID": 18}}, "collect_attachments": True}
+        self.drv = gb.make_driver(self.page, "https://gw.example.invalid", self.prof)
+
+    def test_make_driver_picks_api(self):
+        self.assertIsInstance(self.drv, gb.ApiDriver)
+        dom = dict(self.prof, list_mode="dom")
+        self.assertIsInstance(gb.make_driver(self.page, "https://gw.example.invalid", dom), gb.BoardDriver)
+
+    def test_list_form_and_rows(self):
+        self.drv.open_list(self.src, 1)
+        m, url, form = self.page.request.calls[-1]
+        self.assertEqual((m, url), ("POST", "https://gw.example.invalid/Board2/BoardPostList_Get"))
+        self.assertEqual((form["bModel[boardID]"], form["bModel[page]"], form["bModel[pageCount]"], form["stateTargetObject[]"]), ("18", "1", "100", "1"))
+        self.assertRegex(form["bModel[endDate]"], r"^\d{4}-\d{2}-\d{2}$")
+        rows = self.drv.read_rows()
+        self.assertEqual([r["post_no"] for r in rows], ["7589", "16"], "상단 고정과 본문 목록의 같은 게시물은 한 번만")
+        self.assertTrue(rows[0]["is_notice"] and not rows[1]["is_notice"])
+        self.assertEqual(rows[0]["posted_at"], "2025-11-05T08:40:44")
+        self.assertEqual((rows[0]["mod_count"], rows[1]["mod_count"], rows[0]["has_attach"]), (2, 0, True))
+        self.assertIsNone(rows[0]["modified_at"])
+        self.assertTrue(self.drv.has_next())
+        self.drv.open_list(self.src, 2)
+        self.assertEqual([r["post_no"] for r in self.drv.read_rows()], ["15"])
+        self.assertFalse(self.drv.has_next())
+
+    def test_detail_and_download(self):
+        self.drv.open_list(self.src, 1)
+        row = self.drv.read_rows()[0]
+        self.drv.open_post(row)
+        post = self.drv.read_post()
+        self.assertEqual(post["title"], "[사내규정] 해외주재원 관리규정 개정(2025.11.04)")
+        self.assertEqual((post["posted_at"], post["modified_at"], post["author"]), ("2025-11-05T08:40:00", "2026-09-04T15:10:00", "김은수"))
+        self.assertIn("해외주재원 관리규정", post["body_html"])
+        self.assertEqual(post["url"], "https://gw.example.invalid/Main#board=18&post=7589")
+        self.assertEqual([a["name"] for a in post["attachments"]], ["해외주재원관리규정 20251104.pdf", "없는파일.hwp"])
+        dest = os.path.join(tempfile.mkdtemp(prefix="gwapi_"), "a.pdf")
+        r = self.drv.download(post["attachments"][0], dest)
+        self.assertTrue(r["ok"], r)
+        self.assertEqual(r["name_from_header"], "파일.pdf")
+        with open(dest, "rb") as fh:
+            self.assertEqual(fh.read(), b"%PDF-1.4 fake")
+        m, url, params = self.page.request.calls[-1]
+        self.assertEqual((m, url), ("GET", "https://gw.example.invalid/Common/Download"))
+        self.assertEqual((params["fileType"], params["fileIDStr"], params["filePath"]), ("FILETYPEBOARD", "3613", "/UploadResource/BoardResource/Board_18/7589"))
+        self.assertFalse(self.drv.download(post["attachments"][1], dest + ".2")["ok"], "notFound 첨부는 받지 않는다")
+        self.page.request.html_download = True
+        self.assertIn("HTML 응답", self.drv.download(post["attachments"][0], dest + ".3")["reason"])
+
+    def test_non_json_detail_is_error(self):
+        self.drv.open_list(self.src, 1)
+        with self.assertRaises(RuntimeError):
+            self.drv.open_post({"post_no": "404", "link": {"id": "404"}})
+
+    def test_collect_end_to_end_with_api_driver(self):
+        """FakePage + 기본 프로필(api) → 수집 파이프라인이 드라이버를 스스로 고른다."""
+        tmp = tempfile.mkdtemp(prefix="gwapi_e2e_")
+        root = os.path.join(tmp, "docs"); os.makedirs(root)
+        stamp = os.path.join(tmp, "stamp.json")
+        orig = gb._stamp_file; gb._stamp_file = lambda: stamp
+        logs = []; orig_log = gb._LOG[0]; gb._LOG[0] = logs.append
+        try:
+            self.page.request.detail["16"] = {"boardPostID": 16, "title": "[사내규정] 취업규칙", "contents": "<p>제1조(목적) a</p><p>제2조(범위) b</p><p>제3조(근무) c</p>", "writeDateTime": "2023-12-27 09:00", "editDateTime": None, "attachments": []}
+            self.page.request.detail["15"] = {"boardPostID": 15, "title": "[사내규정] 지출전결처리규정", "contents": "<p>전결 기준 안내</p>", "writeDateTime": "2023-12-27 08:00", "attachments": []}
+            rpc = FakeRpc({"reg_source_list": [dict(self.src, label_ko="회사규정", category="사내규정")], "erp_etl_batch": "b", "reg_ingest_upsert": {"posts": 3}})
+
+            @contextlib.contextmanager
+            def page_session():
+                yield self.page, {"ok": True, "forced": False, "reason": None, "msg": "로그인"}
+            fake_session = page_session                        # 아래 호출 3곳이 같은 FakePage 를 쓴다
+            res = gb.collect(mode="full", docs_root_arg=root, rate_sleep=0, session_factory=lambda: fake_session(), rpc_fn=rpc, cfg=dict(FAKE_CFG, url="https://gw.example.invalid"))
+            self.assertTrue(res["ok"], res)
+            self.assertEqual((res["new"], res["boards"]["rules"]["pages"], res["complete"]), (3, 2, True))
+            d = os.path.join(gb.regs_root(root), "rules", gb.post_dir_name("7589", "[사내규정] 해외주재원 관리규정 개정(2025.11.04)"))
+            self.assertTrue(os.path.exists(os.path.join(d, "첨부", "해외주재원관리규정 20251104.pdf")))
+            with io.open(os.path.join(d, "meta.json"), encoding="utf-8") as fh:
+                meta = json.load(fh)
+            self.assertEqual(meta["post"]["modified_at"], "2026-09-04T15:10:00")
+            self.assertEqual(meta["post"]["gw_url"], "https://gw.example.invalid/Main#board=18&post=7589")
+            by = {a["file_name"]: a for a in meta["attachments"]}
+            self.assertEqual(by["없는파일.hwp"]["text_status"], "skipped")
+            # 2회차(nightly): 수정 횟수가 같으면 열지 않는다
+            n_calls = len(self.page.request.calls)
+            res2 = gb.collect(mode="nightly", docs_root_arg=root, rate_sleep=0, session_factory=lambda: fake_session(), rpc_fn=rpc, cfg=dict(FAKE_CFG, url="https://gw.example.invalid"))
+            self.assertEqual((res2["new"], res2["changed"], res2["unchanged"]), (0, 0, 3))
+            self.assertFalse(any(c[1].endswith("BoardPostDetail_Get") for c in self.page.request.calls[n_calls:]), "수정 횟수가 같은 게시물은 상세를 부르지 않는다")
+            # 수정 횟수 증가 → 그 게시물만 다시 연다
+            os.remove(stamp)
+            self.page.request.list_pages[1][0][1]["isHistory"] = 1
+            res3 = gb.collect(mode="nightly", docs_root_arg=root, rate_sleep=0, session_factory=lambda: fake_session(), rpc_fn=rpc, cfg=dict(FAKE_CFG, url="https://gw.example.invalid"))
+            details = [c for c in self.page.request.calls if c[1].endswith("BoardPostDetail_Get")]
+            self.assertEqual(details[-1][2]["boardPostID"], "16")
+            self.assertEqual((res3["changed"], res3["unchanged"]), (0, 3), "내용이 같으면 판은 그대로")
+        finally:
+            gb._stamp_file = orig; gb._LOG[0] = orig_log
+            shutil.rmtree(tmp, ignore_errors=True)
 
 
 class TestPure(unittest.TestCase):

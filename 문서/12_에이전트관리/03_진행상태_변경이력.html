@@ -72,10 +72,10 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <li>[ ] 보존 전환(D-108 · Supabase 14일 + NAS 나머지)은 <strong>별건</strong> — 여러 회차 행수·해시 일치 확인 후</li>
 </ul>
 <p><strong>사내규정 데이터(REQ-0124 · 10-08) — 사람</strong>
-- [ ] ⛔ 정본 SQL <strong>103</strong>(<code>reg_*</code> + RPC 8 + pg_trgm 설치) 적용 → 역할 3종 실측(anon 42501 · internal ok · service_role ok) → SQL <strong>104</strong>(전사 공개 카드) 적용 → <code>perm_effective</code> 로 일반 사용자 allowed 확인 — 관리자 승인
-- [ ] ⛔ 함수 배포 <code>python supabase/_deploy_function.py jeil-chat</code> → <code>jeil-chat-lab --multi</code> → SQL 94 md5 조건부 적용(5,982자 · 21종) → 콘솔 「모델 설정」 「점검」 1회 — 관리자 승인
-- [ ] <strong>Step 0 실측</strong> — 관리자가 그룹웨어에 로그인한 Chrome(작업PC_OFFICE)에서 규정 게시판 지정·목록/상세/첨부 링크 꼴·수정일 유무·로그아웃 경로 기록(문서 11 부록) → <code>gw_board_profile.default.json</code> 확정 → <code>reg_source</code> 시드 → <code>python gw_board_collect.py --probe --headed</code> 선택자 0건 없음
-- [ ] 초기 전량: <code>--full --dry-run --max 5 --headed</code> → <code>--full --max 20 --docs-root &lt;임시 폴더&gt;</code> → 실 NAS <code>--full --max 50</code> → <code>reg_list()</code> 확인 → 전량 <code>--full</code> → parse_status 분포·blocked·unreadable 점검 → 예약작업 <code>register_gw_board_task.ps1</code> 등록 → 3일 로그 확인
+- [x] (10-08 관리자 승인 · 적용 완료) 정본 SQL <strong>103</strong>(<code>reg_*</code> + RPC 8 + pg_trgm 1.6) — 트랜잭션 드라이런으로 역할 3종·RPC 8종 실측 뒤 적용 · SQL <strong>104</strong>(전사 공개 카드 <code>regulation_lookup</code>) 적용
+- [x] (10-08) 함수 배포 <code>jeil-chat</code> <strong>v35</strong> · <code>jeil-chat-lab</code> <strong>v29</strong> → SQL 94 md5 조건부 적용(5,353→5,982자 · 21종). <strong>남은 것: 콘솔 「모델 설정」 「점검」 1회(관리자)</strong>
+- [x] (10-08) <strong>Step 0 실측</strong> — 관리자 SSO 로그인 Chrome 에서 게시판 트리·목록/상세/다운로드 끝점 확인(문서 11 부록 A) → 화면 긁기 대신 <strong>API 모드</strong>로 수집기 전환 · 프로필 실측값 · <code>reg_source</code> 시드(회사규정 boardID 18 활성 · ISO·기타규정·ASME·행동강령 후보 6 비활성) → <code>--probe</code> 통과
+- [x] (10-08) 초기 전량: <code>--full --dry-run --max 6</code> → <code>--full --max 5</code>(NAS 5·DB 5) → <strong>전량 <code>--full</code> 26건(신규 21 · 불변 5 · DB 실패 0)</strong> → 예약작업 <code>JEIL_AX_GwBoard</code>(매일 06:30) 등록. <strong>남은 것: 내일 06:30 첫 자동 회차 로그 확인(<code>logs/gw_board.log</code>) · 3일 관찰 · 판독 partial/fallback 규정 품질 점검(파서 p1.1 후속)</strong>
 - [ ] NAS 컨테이너 <strong>n1.12</strong> 재빌드(색인 i1.2 · <code>.hwp</code>) — n1.11 재빌드·REQ-0117 재측정 뒤(README §7) → <code>search_company_docs</code> 로 <code>.hwp</code> 본문 검색 확인
 - [ ] purchase <strong>v10 초안</strong>(domains +<code>regulation</code>) 저장 → 골든셋 회귀(규정 2문항 추가) → reviewer 「현재로 지정」 · dri v3 는 수요 있을 때
 - [ ] 화면 <code>/work/regulations</code> 라이브 실측(목록·검색 강조·조문·딥링크·모바일 1열·관리자 섹션) · <code>/main</code> 챗봇 「연차 규정 알려줘」 → <code>search_regulation</code> 카드 · 없는 규정은 지어내지 않음

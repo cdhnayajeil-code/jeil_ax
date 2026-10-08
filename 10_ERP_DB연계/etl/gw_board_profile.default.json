@@ -1,41 +1,78 @@
 {
-  "_comment": "그룹웨어 게시판 선택자 프로필 — 기본값. Step 0 실측(REQ-0124 · 문서 12/11 부록) 뒤 값을 전부 교체한다. 호스트·계정·절대 URL 은 적지 않는다(상대경로·선택자만). DB reg_source.selectors 가 있으면 그것이 우선한다.",
-  "profile": "onulware-draft-2026-10-08",
-  "list_mode": "dom",
+  "_comment": "그룹웨어(ONUL Ware) 게시판 수집 프로필 — 2026-10-08 Step 0 실측(REQ-0124 · 문서 12/11 부록). 호스트·계정은 적지 않는다(상대경로만). DB reg_source.selectors 가 있으면 그것이 이 값을 덮는다. list_mode 'api' = 화면을 긁지 않고 앱이 쓰는 JSON 끝점을 그대로 부른다(세션 쿠키 공유 · Playwright page.request).",
+  "profile": "onulware-api-2026-10-08",
+  "list_mode": "api",
+  "api": {
+    "list_path": "/Board2/BoardPostList_Get",
+    "detail_path": "/Board2/BoardPostDetail_Get",
+    "download_path": "/Common/Download",
+    "download_file_type": "FILETYPEBOARD",
+    "page_size": 100,
+    "start_date": "2018-01-01",
+    "list_form": {
+      "boardTypeSearch": "0",
+      "searchTargetObject[]": "title",
+      "stateTargetObject[]": "1",
+      "bModel[boardID]": "{boardID}",
+      "bModel[searchString]": "",
+      "bModel[page]": "{page}",
+      "bModel[pageCount]": "{pageCount}",
+      "bModel[startDate]": "{startDate}",
+      "bModel[endDate]": "{endDate}",
+      "bModel[boardTypeSearch]": "0",
+      "bModel[sortOrderBoardPost]": "",
+      "bModel[searchTargetObject][]": "title",
+      "bModel[searchTargetSubCategoryID]": "0"
+    },
+    "list_keys": { "items": "data.list", "top": "data.topPosts", "total": "data.totalCount", "pages": "data.pageCount" },
+    "item_keys": { "id": "boardPostID", "title": "title", "author": "memberName", "dept": "partName", "posted_at": "writeDate", "modified_count": "isHistory", "file_count": "fileCnt", "category": "categoryName" },
+    "detail_form": { "boardPostID": "{postID}" },
+    "detail_keys": { "post": "data.post", "title": "title", "body_html": "contents", "posted_at": "writeDateTime", "modified_at": "editDateTime", "author": "writeMemberName", "attachments": "attachments", "file_name": "fileName", "file_path": "filePath", "file_id": "boardFileID", "file_size": "size", "file_missing": "notFound" },
+    "download_query": { "fileName": "{fileName}", "filePath": "{filePath}", "fileType": "{fileType}", "fileIDStr": "{fileID}" },
+    "view_url": "/Main#board={boardID}&post={postID}"
+  },
   "list": {
-    "wait": "table tbody tr",
-    "row": "table tbody tr",
-    "notice_class": "notice",
-    "post_no": "td:nth-child(1)",
-    "title": "td a",
-    "author": "td.writer",
-    "dept": "td.dept",
-    "posted_at": "td.date",
+    "wait": ".Board2MainContainer .divTableRow",
+    "row": ".Board2MainContainer .divTableBody .divTableRow",
+    "notice_class": "TopPost",
+    "post_no": ".divTableCell.Number",
+    "title": ".divTableCell.Title span.text",
+    "author": ".divTableCell.Writer",
+    "dept": null,
+    "posted_at": ".divTableCell.WriteDate",
     "modified_at": null,
-    "attach_flag": "td.file img",
-    "link_attr": "href",
-    "link_onclick_re": "\\(\\s*['\"]?(\\d+)",
-    "next_page": "a.next",
-    "page_param": "page"
+    "attach_flag": ".divTableCell.Attachment img",
+    "link_attr": null,
+    "link_onclick_re": null,
+    "next_page": null,
+    "page_param": null
   },
   "post": {
-    "wait": ".view_content",
-    "title": ".view_title",
-    "body": ".view_content",
-    "posted_at": ".view_date",
+    "wait": ".Board2ContentMain",
+    "title": ".Board2ContentMain .title",
+    "body": ".Board2ContentMain .contents",
+    "posted_at": null,
     "modified_at": null,
-    "author": ".view_writer",
-    "dept": ".view_dept",
-    "attach": {
-      "item": ".file_list a",
-      "href_attr": "href",
-      "onclick_re": "\\(\\s*['\"]?(\\d+)",
-      "url_template": null,
-      "mode": "auto"
-    }
+    "author": null,
+    "dept": null,
+    "attach": { "item": "a[href*='findDownload']", "href_attr": "href", "onclick_re": null, "url_template": null, "mode": "api" }
   },
   "login": {
-    "logout_path": null
+    "logout_path": "/Home/logOut",
+    "note": "사람 계정은 Microsoft SSO(계정 선택 화면)로 들어간다. 수집기 자동화 계정은 .env.local 의 gw url(ID/PW 폼)로 로그인한다(gw_offboard 와 같은 경로). 전체 페이지 이동을 하면 SSO 로 되돌아가므로 로그인 뒤에는 page.request(JSON 끝점)만 쓴다."
   },
-  "boards": []
+  "boards": [
+    { "board_key": "rules", "label_ko": "회사규정", "list_path": "/Board2/BoardPostList_Get", "category": "사내규정", "selectors": { "api": { "boardID": 18 } }, "note": "묶음 「규정 및 조직도」 · 2026-10-08 실측 26건(2023-12~2025-11 · 첨부 PDF 주류 · 수정 이력 isHistory)" }
+  ],
+  "_board_candidates": {
+    "_note": "관리자가 reg_source 에 추가 등록할 때 쓰는 후보(2026-10-08 실측 · boardID). 기본은 회사규정만 활성.",
+    "iso_manual": { "boardID": 20, "label_ko": "ISO 메뉴얼", "group": "ISO 규정 및 기타규정" },
+    "iso_procedure": { "boardID": 21, "label_ko": "ISO 절차서", "group": "ISO 규정 및 기타규정" },
+    "iso_guide": { "boardID": 22, "label_ko": "ISO 지침서", "group": "ISO 규정 및 기타규정" },
+    "iso_cert": { "boardID": 23, "label_ko": "ISO 인증서", "group": "ISO 규정 및 기타규정" },
+    "etc_rules": { "boardID": 24, "label_ko": "기타 규정", "group": "ISO 규정 및 기타규정" },
+    "asme": { "boardID": 25, "label_ko": "ASME", "group": "ISO 규정 및 기타규정" },
+    "esg_conduct": { "boardID": 73, "label_ko": "행동강령", "group": "ESG행동강령" },
+    "org_chart": { "boardID": 62, "label_ko": "조직도", "group": "규정 및 조직도" }
+  }
 }

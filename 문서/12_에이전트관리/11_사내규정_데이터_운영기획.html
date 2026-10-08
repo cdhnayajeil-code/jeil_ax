@@ -96,7 +96,7 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 </tbody>
 </table>
 <p><strong>정본 서열</strong>(§19 에 추가): 사내규정 정본 = 그룹웨어 게시판(NAS 미러) &gt; 포털 DB <code>reg_*</code>. <code>doc_data</code>(§19 LLM 추출 · REQ-0117 S2)와 섞지 않는다 — 규정은 추출이 아니라 <strong>게시판 정본의 미러</strong>다. 출처 표기는 <strong>「사내규정 사본(그룹웨어 게시판 · 시행일 기준)」</strong>.</p>
-<h2 id="3-2026-10-08">3. 지금 상태(사실 · 2026-10-08 저녁)</h2>
+<h2 id="3-2026-10-08">3. 지금 상태(사실 · 2026-10-08 저녁 · 전부 가동)</h2>
 <table>
 <thead>
 <tr>
@@ -106,43 +106,56 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 </thead>
 <tbody>
 <tr>
-<td>수집기 <code>10_ERP_DB연계/etl/gw_board_collect.py</code>(b1.0) · <code>gw_session.py</code> · 선택자 프로필 <code>gw_board_profile.default.json</code></td>
-<td><strong>작성·회귀 통과</strong>(FakeDriver 25건). <strong>Step 0 실측 전</strong> — 프로필 값은 전부 교체 대상, <code>reg_source</code> 등록 0건이라 수집기는 돌지 않는다(fail-closed)</td>
+<td>수집기 <code>10_ERP_DB연계/etl/gw_board_collect.py</code>(b1.0 · <strong>API 모드 <code>ApiDriver</code></strong>) · <code>gw_session.py</code> · 프로필 <code>gw_board_profile.default.json</code>(실측값)</td>
+<td><strong>가동</strong> — Step 0 실측(부록 A) 뒤 <code>--probe</code> 통과 → 10-08 16:08 <strong>전량 <code>--full</code> 26건 NAS·DB 적재</strong>(신규 21 · 불변 5 · DB 실패 0). 예약작업 <strong><code>JEIL_AX_GwBoard</code>(매일 06:30) 등록 · Ready</strong>. 회귀: FakeDriver 25 + ApiDriver 5(FakePage)</td>
+</tr>
+<tr>
+<td>게시판 등록표 <code>reg_source</code></td>
+<td>활성 1: 회사규정(boardID 18) · 비활성 후보 6: ISO 메뉴얼·절차서·지침서·기타 규정·ASME·행동강령(관리자가 켠다)</td>
+</tr>
+<tr>
+<td>NAS <code>00_전사공유/사내규정/rules/</code></td>
+<td>게시물 26 폴더(본문.md·원본.html·meta.json·첨부/) · 첨부 22(PDF 21 · docx 1) · 대장 <code>_ledger.jsonl</code>·<code>_state.json</code>. 허용 폴더 <code>common</code> 아래라 색인 i1.1 이 이미 PDF 를 읽는다(.hwp 없음)</td>
+</tr>
+<tr>
+<td>포털 DB <code>reg_*</code>(정본 SQL 103 · <strong>라이브 적용</strong>)</td>
+<td>게시물 26 · 현행 규정 <strong>20</strong>(같은 규정 2판 6건 — 취업규칙·출장여비·복리후생·보안·기숙사·해외주재원 — 은 시행일 최신 1판만 현행) · 조문 <strong>561</strong> · 판독 정상 11 / 부분 3(안전보건관리규정 85조·업무차량 34조·해외주재원 7조) / 전문 6(안전보건 경영매뉴얼 docx·지출위임전결기준·지출전결처리규정·해외법인 전결 3종 — 표 위주 문서라 조 구조 없음, 전문 검색은 됨) · 판독 불가 0</td>
 </tr>
 <tr>
 <td>hwp 추출기 <code>hwp_text.py</code>(h1.0) · 조문 파서 <code>reg_parse.py</code>(p1.0)</td>
-<td>작성·회귀 통과(합성 hwp 19건 · 파서 26건). 실제 규정 hwp 수동 검증은 Step 0 뒤</td>
+<td>가동(파서는 PDF 글자층 기준). 회사규정 게시판에 <code>.hwp</code> 첨부는 없었다 — 후보 게시판을 켤 때 효과</td>
 </tr>
 <tr>
 <td>NAS 색인 <code>nas_index.py</code> <strong>i1.2</strong>(<code>.hwp</code>) · 워커 <code>n1.12</code> · Dockerfile olefile</td>
-<td>저장소 반영. <strong>컨테이너 재빌드 대기</strong>(n1.11 재빌드·REQ-0117 재측정 뒤)</td>
+<td>저장소 반영. <strong>컨테이너 재빌드 대기</strong>(n1.11 재빌드·REQ-0117 재측정 뒤 — 지금 NAS 는 n1.10)</td>
 </tr>
 <tr>
-<td>러너 등록(능력 <code>gw_board</code> · 작업 종류 · CLI <code>gwboard</code>) · 예약작업 <code>deploy/register_gw_board_task.ps1</code></td>
+<td>러너 등록(능력 <code>gw_board</code> · 작업 종류 · CLI <code>gwboard</code>)</td>
 <td>저장소 반영(기본 꺼짐). EXE 동봉은 다음 서버 빌드(r1.15)</td>
 </tr>
 <tr>
-<td>정본 SQL 103(reg_* 6표 · RPC 8 · pg_trgm) · 104(전사 공개 카드)</td>
-<td><strong>작성 · 적용 대기(관리자 승인)</strong></td>
+<td>정본 SQL 104(전사 공개 카드 <code>regulation_lookup</code>)</td>
+<td><strong>적용</strong> — 포털 「🌐 전사 공통」 묶음 · 라이브 <code>/work/regulations</code> 200</td>
 </tr>
 <tr>
-<td>화면 <code>pages/전사_사내규정_조회_2026.html</code>(<code>/work/regulations</code>) · <code>app/lib/api.js</code> 4개 · <code>_test_regulation_page.mjs</code></td>
-<td>작성·회귀 ⑫항목 통과. 라우트 등록(<code>_routes.py</code>). <strong>라이브 실측은 SQL 적용 뒤</strong></td>
+<td>화면 <code>pages/전사_사내규정_조회_2026.html</code> · <code>app/lib/api.js</code> 4개 · <code>_test_regulation_page.mjs</code></td>
+<td><strong>라이브</strong>(커밋 68d7f0e · Vercel). 회귀 ⑫ 통과. 관리자 라이브 실측(목록·검색·조문·딥링크·모바일)은 남음</td>
 </tr>
 <tr>
-<td>도구 <code>search_regulation</code>·<code>get_regulation</code>(운영 <code>jeil-chat</code> TOOLS 21종 · 실험실 <code>modules/regulation/</code> 이식) · <code>core/prompt.ts</code> ■ 사내규정</td>
-<td>작성 · tsc·조립 회귀 통과. <strong>배포 대기</strong>(jeil-chat · jeil-chat-lab)</td>
+<td>도구 <code>search_regulation</code>·<code>get_regulation</code> · <code>core/prompt.ts</code> ■ 사내규정</td>
+<td><strong>배포</strong> <code>jeil-chat</code> v35 · <code>jeil-chat-lab</code> v29. RPC 실측: <code>reg_search('연차')</code> → 취업규칙 제26·26의2·27조</td>
 </tr>
 <tr>
 <td>정본 SQL 94(지시문)</td>
-<td><strong>재생성 5,982자·21종 · 적용 대기</strong> — rollback 은 10-08 라이브 조회본(5,353자 · md5 7e800fbc…)</td>
+<td><strong>적용</strong>(5,982자 · 21종 · md5 5ebd83bb…) · rollback 은 10-08 조회본(5,353자). <strong>콘솔 「점검」 1회 남음</strong></td>
 </tr>
 <tr>
 <td>골든셋</td>
-<td><code>app/agent-templates.json</code> 구매 세트에 규정 2문항 추가(연차·전결 한도) · 템플릿 domains 에 <code>regulation</code> — purchase <strong>v10</strong> 초안·회귀·지정 대기</td>
+<td>구매 세트에 규정 2문항(연차·전결 한도) · 템플릿 domains +<code>regulation</code> — purchase <strong>v10</strong> 초안·회귀·지정 대기(관리자)</td>
 </tr>
 </tbody>
 </table>
+<p><strong>후속(파서 p1.1 후보)</strong>: ① 시행일이 여러 개면 <strong>가장 늦은 날짜</strong>를 고른다(취업규칙 2025-07-30 개정본의 effective 가 2024-04-15 로 잡힘) ② 표 위주 전결규정은 조문 대신 「표 항목」 단위 분해 검토 ③ 같은 reg_key 의 옛 판에만 있는 조문은 현행 조회에서 빠진다(의도) — 화면에 「이전 판 n개」 표시 검토.</p>
 <h2 id="4">4. 흐름</h2>
 <pre><code>[그룹웨어 규정 게시판]  ← 정본(사람이 게시)
       │  매일 06:30 · 사내 PC 예약작업 JEIL_AX_GwBoard (Playwright · gw 계정 · 시크릿키 강제 로그인 안 함)
@@ -338,48 +351,45 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 </tr>
 </tbody>
 </table>
-<h2 id="a-step-0">부록 A. 그룹웨어 게시판 실측 기록(Step 0 · 기록 전)</h2>
+<h2 id="a-step-0-2026-10-08">부록 A. 그룹웨어 게시판 실측 기록(Step 0 · 2026-10-08 실측 완료)</h2>
 <blockquote>
-<p>관리자가 그룹웨어에 로그인한 Chrome(작업PC_OFFICE)에서 읽기 전용으로 기록한다. <strong>호스트·계정·IP 는 적지 않는다</strong> — 경로·파라미터 이름·선택자만. 기록이 끝나면 <code>gw_board_profile.default.json</code> 과 SQL 103 §7 시드를 채운다.</p>
+<p>관리자 Chrome(SSO 로그인)에서 읽기 전용으로 기록했다. <strong>호스트·계정·IP 는 적지 않는다</strong> — 경로·파라미터 이름·응답 키만. 결과는 <code>gw_board_profile.default.json</code>(list_mode <code>api</code>)과 <code>reg_source</code> 시드에 반영됐다.</p>
 </blockquote>
 <table>
 <thead>
 <tr>
 <th>구분</th>
-<th>기록 항목</th>
-<th>값(실측 뒤)</th>
+<th>실측 결과</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td>A 진입</td>
-<td>게시판 메뉴 위치(사용자 포털 / 관리자 「게시판」) · 조회 계정으로 목록·본문·첨부가 열리는가</td>
-<td>—</td>
+<td>사용자 포털 메인(<code>/Main</code>)의 좌측 「게시판」 메뉴는 전체 페이지 이동이 아니라 앱 함수(<code>OnulWare.mainBody.Get('/Board')</code> · <code>$.gotoBoardArea()</code>)로 영역을 갈아끼운다. <code>/Board</code> 로 <strong>직접 이동하면 404</strong>, 전체 페이지 이동을 하면 사람 계정은 <strong>Microsoft SSO 계정 선택 화면으로 되돌아간다</strong>. 자동화 계정(<code>.env.local</code> gw url · ID/PW 폼)은 <code>gw_offboard</code> 와 같은 경로로 로그인되고(증적 <code>_gw_shots/</code>) 게시판 열람·첨부 내려받기가 된다</td>
 </tr>
 <tr>
 <td>B 목록</td>
-<td>상대 경로·파라미터(게시판 ID·page) · iframe 유무 · 서버 렌더/XHR · 행 선택자·열(번호·제목·작성자·부서·작성일·<strong>수정일 유무</strong>·첨부 아이콘) · 공지 행 클래스 · 페이징 · 링크 꼴(href / onclick)</td>
-<td>—</td>
+<td>화면은 iframe 없음 · <code>.Board2MainContainer .divTableBody .divTableRow</code>(<code>.TopPost</code> = 상단 고정) · 셀 <code>.Number/.Writer/.WriteDate(YYYY.MM.DD)/.ViewCount/.Attachment/.Title</code>(<code>.modify</code> 「수정」 표시 · <code>span.text.Clickable</code>) · 제목 클릭은 jQuery 바인딩(인라인 onclick 없음). <strong>실제 데이터는 XHR</strong> — <code>POST /Board2/BoardPostList_Get</code>(폼: <code>bModel[boardID]·page·pageCount(100)·startDate·endDate·boardTypeSearch=0·searchString·searchTargetObject[]=title·searchTargetSubCategoryID=0·sortOrderBoardPost</code> + <code>boardTypeSearch·searchTargetObject[]·stateTargetObject[]=1</code>) → <code>data.list[]</code>(+<code>topPosts</code>·<code>pendingPosts</code>·<code>totalCount</code>·<code>pageCount</code>) · 항목 키 <code>boardPostID·title·writeDate(/Date(ms)/)·isHistory(수정 횟수)·fileCnt·partName·memberName·readCnt·categoryName</code>. <strong>수정일은 목록에 없고 수정 횟수(isHistory)가 있다</strong> → 증분 판정에 쓴다</td>
 </tr>
 <tr>
 <td>C 상세</td>
-<td>상대 경로·ID 파라미터 · 본문 컨테이너 · 인라인 이미지(base64/URL) · 작성일·수정일 자리 · 첨부 선택자·링크 꼴(href / onclick / form POST+토큰) · <code>Content-Disposition</code> 파일명 인코딩 · 비밀글·댓글</td>
-<td>—</td>
+<td><code>POST /Board2/BoardPostDetail_Get</code>(<code>boardPostID</code>) → <code>data.post{title·contents(HTML)·writeDateTime·editDateTime·writeMemberName·attachments[{boardFileID·fileName·filePath(/UploadResource/BoardResource/Board_&lt;id&gt;/&lt;post&gt;)·size·notFound}]·attachmentsRoot·filePreViewStr}</code>. 본문은 짧고(「해외주재원 관리규정 (2025.11.04 개정)」) <strong>조문은 첨부(PDF)에 있다</strong>. 인라인 이미지 없음 · 댓글 키 있음(수집 안 함)</td>
 </tr>
 <tr>
 <td>D 범위</td>
-<td>게시판 이름 목록 · 「사내규정」 게시판(관리자 지정) · 게시물 수 · 가장 오래된 게시물 · 첨부 형식 분포 · 배포용 hwp 존재</td>
-<td>—</td>
+<td>게시판 트리(jstree): 「규정 및 조직도」 → <strong>회사규정(boardID 18 · 26건 · 2023-12~2025-11 · 첨부 PDF 주류, docx 1)</strong> · 조직도(62) / 「ISO/ASME/실무 및 기타규정」 → ISO 메뉴얼(20)·절차서(21)·지침서(22)·인증서(23)·기타 규정(24)·ASME(25) + 김해 ISO,ASME,실무규정 묶음 / 「ESG행동강령」 → 행동강령(73) / 「안전보건환경」 → 안전보건·환경·소방·안전용품 신청. <strong>활성 등록은 회사규정 1건</strong>, 나머지 규정류 7건은 <code>reg_source</code> 에 비활성 후보로 넣어 관리자가 켠다. 배포용 hwp 는 5건 표본에 없음(전량 수집 뒤 판독 상태로 확인)</td>
 </tr>
 <tr>
 <td>E 세션</td>
-<td>세션 타임아웃 · 중복 로그인(시크릿키) 동작 · 로그아웃 경로</td>
-<td>—</td>
+<td>세션 쿠키는 HttpOnly(스크립트로 안 보임 · Playwright 는 공유) · 로그아웃 <code>/Home/logOut</code> · 자동화 계정은 시크릿키 칸 없이 로그인됨(10-08 16:04)</td>
 </tr>
 <tr>
-<td>F 권한</td>
-<td>조회 계정으로 첨부가 실제 내려받아지는가(200 + 파일 바이트 · 로그인 리다이렉트 아님) · <code>gw_url</code> 이 https 인가</td>
-<td>—</td>
+<td>F 권한·다운로드</td>
+<td>첨부는 정적 경로(<code>/UploadResource/…/&lt;파일&gt;</code>)로는 404. 앱 함수 <code>$.findDownload</code> 가 <strong><code>GET /Common/Download?fileName=&amp;filePath=&amp;fileType=FILETYPEBOARD&amp;fileIDStr=</code></strong> 를 부른다 — HEAD 200 · <code>application/octet-stream</code> · <code>Content-Disposition: attachment; filename*=UTF-8''…</code>(401KB 실측). 게시물 고정 주소는 없다(SPA) → <code>gw_url</code> 은 <code>https://…/Main#board=&lt;id&gt;&amp;post=&lt;id&gt;</code> 로 적는다(https 라 화면·카드에 링크로 그려지고, 열면 메인에서 게시판을 고른다)</td>
+</tr>
+<tr>
+<td>결론</td>
+<td><strong>수집기는 화면을 긁지 않고 API 모드(<code>ApiDriver</code>)로 돈다</strong> — 목록·상세·다운로드 끝점을 세션 쿠키로 부르고, 끝점·폼 키·응답 키는 프로필 <code>api</code> 절에서 읽는다(벤더가 바꾸면 프로필만 수정). 10-08 <code>--probe</code> 통과 → <code>--full --max 5</code> → NAS 5건·DB 5건(취업규칙 84조 ok · 기숙사 9조 ok · 업무차량 34조 partial · 해외주재원 7조 partial · 안전보건 경영매뉴얼 docx fallback) · <code>reg_search('연차')</code> → 취업규칙 제26·26의2·27조</td>
 </tr>
 </tbody>
 </table>

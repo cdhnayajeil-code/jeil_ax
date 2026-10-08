@@ -606,6 +606,206 @@ class BoardDriver:
         return {"ok": False, "reason": "첨부 링크를 URL 로 만들 수 없음", "mode": mode}
 
 
+def _dig(obj, path, default=None):
+    """'data.post.title' 꼴 경로로 dict 를 판다."""
+    cur = obj
+    for k in str(path or "").split("."):
+        if not k:
+            continue
+        if isinstance(cur, dict) and k in cur:
+            cur = cur[k]
+        else:
+            return default
+    return cur
+
+
+def _parse_api_date(v):
+    """ONUL Ware JSON 날짜 — '/Date(1762299644533)/'(ms epoch) 또는 '2025-11-05 08:40' → ISO(한국시각 · tz 없이)."""
+    s = str(v or "").strip()
+    m = re.match(r"^/Date\((-?\d+)\)/$", s)
+    if m:
+        try:
+            return datetime.datetime.fromtimestamp(int(m.group(1)) / 1000, _KST).replace(tzinfo=None).isoformat(timespec="seconds")
+        except (OverflowError, OSError, ValueError):
+            return None
+    return _parse_dt(s)
+
+
+class ApiDriver:
+    """JSON 끝점 드라이버(Step 0 실측 2026-10-08) — 화면을 긁지 않고 앱이 쓰는 목록·상세·다운로드 끝점을 세션 쿠키로 부른다.
+
+    ONUL Ware 는 로그인 뒤 전체 페이지를 이동하면 SSO 로 되돌아가므로, 로그인한 page 의 request(쿠키 공유)만 쓴다.
+    끝점·폼 키·응답 키는 전부 프로필 `api` 절에서 온다(코드에 심지 않는다).
+      목록  POST list_path  (bModel[boardID]·page·pageCount·startDate·endDate …) → data.list(+topPosts)·totalCount·pageCount
+      상세  POST detail_path (boardPostID) → data.post{contents·writeDateTime·editDateTime·attachments[{fileName·filePath·boardFileID·notFound}]}
+      첨부  GET  download_path?fileName&filePath&fileType&fileIDStr (Content-Disposition attachment)
+    """
+
+    def __init__(self, page, base_url, sel, log_fn=log):
+        self.page = page
+        # gw url 에 경로·쿼리(예 /?loginType=…)가 붙어 있어도 끝점은 origin 기준이다
+        u = urllib.parse.urlsplit(base_url or "")
+        self.base = ("%s://%s" % (u.scheme, u.netloc)) if u.scheme and u.netloc else (base_url or "").rstrip("/")
+        self.sel = sel
+        self.api = sel.get("api") or {}
+        self.log = log_fn
+        self._src = None
+        self._page_no = 1
+        self._rows = []
+        self._pages = 1
+        self._cur = None
+        self._cur_id = None
+
+    def _post(self, path, form):
+        r = self.page.request.post(self.base + path, form=form,
+                                   headers={"X-Requested-With": "XMLHttpRequest", "Referer": self.base + "/Main"}, timeout=60000)
+        if r.status != 200:
+            raise RuntimeError("API HTTP %d: %s" % (r.status, path))
+        ctype = (r.headers.get("content-type") or "").lower()
+        if "json" not in ctype:
+            head = re.sub(r"\s+", " ", r.text()[:160]) if hasattr(r, "text") else ""
+            raise RuntimeError("API 응답이 JSON 이 아님(로그인 만료·권한?): %s · %s · %s" % (path, ctype[:40], nas_worker._redact(head)))
+        return r.json()
+
+    def _board_id(self, src):
+        bid = _dig(src.get("selectors") or {}, "api.boardID") or self.api.get("boardID")
+        if not bid:
+            raise RuntimeError("선택자 없음: api.boardID (게시판 %s)" % src.get("board_key"))
+        return str(bid)
+
+    def count(self, css):
+        return 1                                            # probe 용 — API 모드는 선택자가 없다
+
+    # 목록
+    def open_list(self, src, page_no):
+        self._src, self._page_no = src, int(page_no or 1)
+        today = _now().strftime("%Y-%m-%d")
+        vals = {"boardID": self._board_id(src), "page": str(self._page_no), "pageCount": str(self.api.get("page_size") or 100),
+                "startDate": self.api.get("start_date") or "2018-01-01", "endDate": today}
+        form = {}
+        for k, v in (self.api.get("list_form") or {}).items():
+            s = str(v)
+            for name, val in vals.items():
+                s = s.replace("{" + name + "}", val)
+            form[k] = s
+        j = self._post(self.api.get("list_path") or str(src.get("list_path") or ""), form)
+        lk = self.api.get("list_keys") or {}
+        items = _dig(j, lk.get("items", "data.list")) or []
+        top = _dig(j, lk.get("top", "data.topPosts")) or []
+        self._pages = int(_dig(j, lk.get("pages", "data.pageCount")) or 1)
+        ik = self.api.get("item_keys") or {}
+        rows, seen = [], set()
+        for is_top, lst in ((True, top), (False, items)):
+            for it in lst or []:
+                pid = str(it.get(ik.get("id", "boardPostID")) or "").strip()
+                if not pid or pid in seen:
+                    continue
+                seen.add(pid)
+                fc = it.get(ik.get("file_count", "fileCnt"))
+                mc = it.get(ik.get("modified_count", "isHistory"))
+                rows.append({
+                    "post_no": pid,
+                    "title": str(it.get(ik.get("title", "title")) or "").strip(),
+                    "author": str(it.get(ik.get("author", "memberName")) or "").strip() or None,
+                    "dept": str(it.get(ik.get("dept", "partName")) or "").strip() or None,
+                    "posted_at": _parse_api_date(it.get(ik.get("posted_at", "writeDate"))),
+                    "modified_at": None,                                   # 목록에는 수정일이 없다 — 수정 횟수(mod_count)로 판정
+                    "mod_count": int(mc) if isinstance(mc, (int, float)) or (isinstance(mc, str) and mc.isdigit()) else None,
+                    "has_attach": (int(fc) > 0) if isinstance(fc, (int, float)) else None,
+                    "is_notice": bool(is_top),
+                    "category": it.get(ik.get("category", "categoryName")),
+                    "link": {"href": None, "onclick": None, "id": pid},
+                })
+        self._rows = rows
+
+    def read_rows(self):
+        return list(self._rows)
+
+    def has_next(self):
+        return self._page_no < self._pages
+
+    # 상세
+    def open_post(self, row):
+        pid = str((row.get("link") or {}).get("id") or row.get("post_no") or "").strip()
+        if not pid:
+            raise RuntimeError("게시물 링크를 찾지 못했습니다: post_no=%s" % row.get("post_no"))
+        form = {k: str(v).replace("{postID}", pid) for k, v in (self.api.get("detail_form") or {"boardPostID": "{postID}"}).items()}
+        j = self._post(self.api.get("detail_path") or "", form)
+        dk = self.api.get("detail_keys") or {}
+        post = _dig(j, dk.get("post", "data.post"))
+        if not isinstance(post, dict):
+            raise RuntimeError("선택자 없음: api.detail_keys.post (게시물 %s)" % pid)
+        self._cur, self._cur_id = post, pid
+
+    def read_post(self):
+        p, dk = self._cur or {}, self.api.get("detail_keys") or {}
+        atts = []
+        for a in (p.get(dk.get("attachments", "attachments")) or []):
+            if not isinstance(a, dict):
+                continue
+            name = str(a.get(dk.get("file_name", "fileName")) or "").strip()
+            if not name:
+                continue
+            atts.append({"name": name, "href": None, "onclick": None, "size_text": str(a.get(dk.get("file_size", "size")) or ""),
+                         "_api": {"filePath": str(a.get(dk.get("file_path", "filePath")) or ""), "fileID": str(a.get(dk.get("file_id", "boardFileID")) or ""),
+                                  "missing": str(a.get(dk.get("file_missing", "notFound"))).lower() in ("true", "1")}})
+        view = str(self.api.get("view_url") or "").replace("{boardID}", self._board_id(self._src or {})).replace("{postID}", self._cur_id or "")
+        return {
+            "title": str(p.get(dk.get("title", "title")) or "").strip(),
+            "body_html": str(p.get(dk.get("body_html", "contents")) or ""),
+            "posted_at": _parse_api_date(p.get(dk.get("posted_at", "writeDateTime"))),
+            "modified_at": _parse_api_date(p.get(dk.get("modified_at", "editDateTime"))),
+            "author": str(p.get(dk.get("author", "writeMemberName")) or "").strip() or None,
+            "dept": None,
+            "attachments": atts,
+            "url": (self.base + view) if view else None,
+        }
+
+    def download(self, att, dest):
+        a = att.get("_api") or {}
+        if a.get("missing"):
+            return {"ok": False, "reason": "그룹웨어에 파일 없음(notFound)", "mode": "api"}
+        vals = {"fileName": att.get("name") or "", "filePath": a.get("filePath") or "", "fileType": self.api.get("download_file_type") or "FILETYPEBOARD", "fileID": a.get("fileID") or ""}
+        params = {}
+        for k, v in (self.api.get("download_query") or {}).items():
+            s = str(v)
+            for name, val in vals.items():
+                s = s.replace("{" + name + "}", val)
+            params[k] = s
+        try:
+            r = self.page.request.get(self.base + (self.api.get("download_path") or "/Common/Download"), params=params, timeout=120000)
+            ctype = (r.headers.get("content-type") or "").lower()
+            if r.status != 200:
+                return {"ok": False, "reason": "HTTP %d" % r.status, "mode": "api"}
+            if ctype.startswith("text/html"):
+                return {"ok": False, "reason": "HTML 응답(로그인 만료·권한 없음)", "mode": "api"}
+            data = r.body()
+            if not data:
+                return {"ok": False, "reason": "빈 응답", "mode": "api"}
+            if len(data) > MAX_ATTACH_BYTES:
+                return {"ok": False, "reason": "파일이 너무 큼", "mode": "api"}
+            with open(dest, "wb") as fh:
+                fh.write(data)
+            cd = r.headers.get("content-disposition") or ""
+            name_hdr = None
+            m = re.search(r"filename\*=(?:UTF-8|utf-8)''([^;]+)", cd) or re.search(r'filename="?([^";]+)"?', cd)
+            if m:
+                try:
+                    name_hdr = urllib.parse.unquote(m.group(1)).strip()
+                except Exception:
+                    name_hdr = m.group(1).strip()
+            return {"ok": True, "size": len(data), "name_from_header": name_hdr, "reason": None, "mode": "api"}
+        except Exception as e:
+            return {"ok": False, "reason": "다운로드 실패(%s)" % type(e).__name__, "mode": "api"}
+
+
+def make_driver(page, base_url, sel, log_fn=log):
+    """프로필 list_mode 에 따라 드라이버를 고른다 — 'api'(JSON 끝점) 또는 'dom'(화면 긁기)."""
+    if str(sel.get("list_mode") or "dom").lower() == "api":
+        return ApiDriver(page, base_url, sel, log_fn)
+    return BoardDriver(page, base_url, sel, log_fn)
+
+
 # ────────────────────────────────────────────────────────────── 게시물 1건
 def process_post(driver, src, row, ledger, regs, opts, run_id):
     """한 게시물: 열기 → 읽기 → 비교 → 첨부 → 추출 → 파싱 → NAS 쓰기 → 대장. 반환 event 문자열."""
@@ -684,7 +884,8 @@ def process_post(driver, src, row, ledger, regs, opts, run_id):
     if unchanged:
         if tmp:
             shutil.rmtree(tmp, ignore_errors=True)
-        ledger.update(board_key, post_no, last_seen=_now().isoformat(timespec="seconds"), modified_at=post.get("modified_at") or row.get("modified_at"))
+        ledger.update(board_key, post_no, last_seen=_now().isoformat(timespec="seconds"), modified_at=post.get("modified_at") or row.get("modified_at"),
+                      mod_count=row.get("mod_count"))
         return "unchanged"
     rev = int(st.get("rev") or 0) + 1 if st else 1
     text_source, parsed, src_idx = reg_parse.choose_source(norm, att_texts, hint_title=title)
@@ -732,6 +933,7 @@ def process_post(driver, src, row, ledger, regs, opts, run_id):
                    "parse": {"status": parsed["status"], "articles": parsed["stats"]["articles"], "text_source": text_source},
                    "db_synced": False, "collector": COLLECTOR_VERSION})
     ledger.update(board_key, post_no, rev=rev, body_hash=body_hash, attach_sig=sig, modified_at=payload["post"]["modified_at"],
+                  mod_count=row.get("mod_count"),
                   nas_rel=nas_rel, status="active", db_synced=False, last_seen=_now().isoformat(timespec="seconds"), title=title)
     return event
 
@@ -850,7 +1052,7 @@ def collect(mode="nightly", boards=None, since=None, dry=False, headed=False, fo
         if session_factory is None:
             session_factory = lambda: playwright_session(cfg, headed=headed, force_login=force_login,  # noqa: E731
                                                          accept_downloads=not dry, profile=profile)
-        driver_factory = driver_factory or (lambda page, base, sel: BoardDriver(page, base, sel, log))
+        driver_factory = driver_factory or (lambda page, base, sel: make_driver(page, base, sel, log))
         ledger = Ledger(regs).load()
         max_posts = int(max_posts or MAX_POSTS_PER_RUN)
         opts = {"dry": dry, "sleep": RATE_SLEEP_SEC if rate_sleep is None else float(rate_sleep)}
@@ -890,6 +1092,9 @@ def collect(mode="nightly", boards=None, since=None, dry=False, headed=False, fo
                         st = ledger.state.get(Ledger.key(board_key, pn))
                         if st is None or st.get("status") == "removed":
                             need_open = True
+                        elif row.get("mod_count") is not None:
+                            # API 목록은 수정일 대신 수정 횟수(isHistory)를 준다 — 횟수가 같으면 열지 않는다(full 은 첫 회차에만 전부 연다)
+                            need_open = row["mod_count"] != st.get("mod_count") or (mode == "full" and st.get("mod_count") is None)
                         elif has_mod:
                             need_open = (row.get("modified_at") or "") != (st.get("modified_at") or "")
                         else:
@@ -1014,7 +1219,7 @@ def probe(selectors=None, boards=None, headed=True, no_db=True, session_factory=
         return report
     if session_factory is None:
         session_factory = lambda: playwright_session(cfg, headed=headed, force_login=False, accept_downloads=False, profile=profile)  # noqa: E731
-    driver_factory = driver_factory or (lambda page, base, sel: BoardDriver(page, base, sel, log))
+    driver_factory = driver_factory or (lambda page, base, sel: make_driver(page, base, sel, log))
     try:
         with session_factory() as (page, login_res):
             if not login_res.get("ok"):
@@ -1024,10 +1229,11 @@ def probe(selectors=None, boards=None, headed=True, no_db=True, session_factory=
             for src in sources:
                 sel = merge_selectors(profile, src.get("selectors") or {})
                 driver = driver_factory(page, cfg.get("url"), sel)
-                b = {"selectors": {}, "rows": 0, "sample": [], "post": None}
+                api_mode = str(sel.get("list_mode") or "dom").lower() == "api"
+                b = {"mode": "api" if api_mode else "dom", "selectors": {}, "rows": 0, "sample": [], "post": None}
                 report["boards"][src["board_key"]] = b
                 driver.open_list(src, 1)
-                for name, css in sel["list"].items():
+                for name, css in ([] if api_mode else sel["list"].items()):
                     if name in ("page_param", "notice_class", "link_attr", "link_onclick_re") or not css:
                         continue
                     b["selectors"]["list." + name] = driver.count(css)
@@ -1039,18 +1245,18 @@ def probe(selectors=None, boards=None, headed=True, no_db=True, session_factory=
                     gw_session.shot(driver.page, "probe_%s_list" % src["board_key"], log=log)
                 if rows:
                     driver.open_post(rows[0])
-                    for name, css in sel["post"].items():
+                    for name, css in ([] if api_mode else sel["post"].items()):
                         if name == "attach" or not css:
                             continue
                         b["selectors"]["post." + name] = driver.count(css)
                     a_sel = sel["post"].get("attach") or {}
-                    if a_sel.get("item"):
+                    if a_sel.get("item") and not api_mode:
                         b["selectors"]["post.attach.item"] = driver.count(a_sel["item"])
                     post = driver.read_post()
                     b["post"] = {"title": post["title"][:40], "body_chars": len(html_to_md(post["body_html"])),
                                  "attachments": [{"name": a["name"], "link": "href" if a.get("href") else ("onclick" if a.get("onclick") else "없음")}
                                                  for a in post["attachments"]],
-                                 "recommended_mode": "request" if any(a.get("href") and not str(a["href"]).lower().startswith("javascript") for a in post["attachments"]) else "download"}
+                                 "recommended_mode": "api" if api_mode else ("request" if any(a.get("href") and not str(a["href"]).lower().startswith("javascript") for a in post["attachments"]) else "download")}
                     if hasattr(driver, "page") and getattr(driver, "page", None) is not None:
                         gw_session.shot(driver.page, "probe_%s_post" % src["board_key"], log=log)
                 zero = [k for k, v in b["selectors"].items() if not v]
