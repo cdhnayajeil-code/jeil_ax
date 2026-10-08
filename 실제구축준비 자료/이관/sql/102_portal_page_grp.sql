@@ -146,6 +146,18 @@ begin
   );
 end $function$;
 
+-- ③ 묶음 표시명(2026-10-08 · 관리자 지시 · 마이그레이션 portal_page_grp_labels_req0121)
+--    부서 페이지는 grp 에 짧은 묶음명을 적는다 — 권한·dept_nm 은 그대로. 화면 「내 부서」 판정은 페이지의 dept_nm 으로 한다(표시명이 짧아져도 맞는다).
+update public.portal_page set grp = case dept_nm
+    when '자금팀' then '자금/재무' when '사업관리팀' then '사업관리' when '구매팀' then '구매'
+    when '인사팀' then '인사/급여' when '자재물류팀' then '자재물류' end,
+  updated_by = 'dh.choi@jeilm.co.kr', updated_at = now()
+ where grp is null and dept_nm in ('자금팀','사업관리팀','구매팀','인사팀','자재물류팀');
+update public.portal_page set grp = '시스템', updated_by = 'dh.choi@jeilm.co.kr', updated_at = now() where grp = '시스템 관리';
+comment on column public.portal_page.grp is
+  '운영 페이지 묶음 표시명(화면 묶음 전용 · 권한 판정 무관 · REQ-0121). 부서 페이지는 짧은 묶음명(구매·자금/재무·사업관리·인사/급여·자재물류), 관리 화면은 「시스템」. null 이면 dept_nm, 그것도 없으면 「전사 공통」';
+-- ⚠ 새 운영 페이지를 넣을 때 grp 를 같이 적는다(예: 구매팀 페이지 → '구매'). 비우면 dept_nm('구매팀') 묶음이 따로 생긴다.
+
 -- ── 확인 ─────────────────────────────────────────────────────────────────────
 -- select page_key, grp, dept_nm from public.portal_page where grp is not null;                         -- 시스템 관리 2행
 -- select jsonb_path_query_array(public.perm_effective('<upn>'), '$.pages[*] ? (@.grp != null).page_key');  -- grp 가 실린다

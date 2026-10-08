@@ -757,7 +757,7 @@
         </div>
       </div>
 
-      <div class="pg-sect" id="pgs-sys">⚙️ 시스템 관리 <small>사내 전용 · 관리자</small></div>
+      <div class="pg-sect" id="pgs-sys">⚙️ 시스템 <small>사내 전용 · 관리자</small></div>
       <div class="pg-grid" id="sysPageGrid">
         <!-- 계정 대사·부서 매핑·퇴사 처리는 같은 원천을 다른 각도로 보는 화면이라
              카드를 따로 두면 같은 사람을 두 번 찾게 된다. 진입점 하나로 묶고 안에서 갈라진다. -->
@@ -2942,11 +2942,12 @@ async function loadPagePerms(){
 }
 
 /* ===== 운영 페이지 묶음 렌더(REQ-0121 · 2차) =====
-   섹션은 넷뿐이다 — 🤝 협력사 · 🌐 전사 공통 · 🏢 부서별 · ⚙️ 시스템 관리. 정적 카드(협력사 4 · IT 자산 · ERP 관리 2)는 HTML 에 그대로 두고,
+   섹션은 넷뿐이다 — 🤝 협력사 · 🌐 전사 공통 · 🏢 부서별 · ⚙️ 시스템. 정적 카드(협력사 4 · IT 자산 · ERP 관리 2)는 HTML 에 그대로 두고,
    DB 페이지(perm_effective.pages)는 묶음 라벨 = grp → dept_nm → 「전사 공통」 으로 나눠 전사 공통·시스템 관리는 그 정적 그리드 뒤에 붙이고(data-dyn),
    나머지는 부서별 묶음으로 그린다. 순서: 내 부서(겸직 포함) → 서버(portal_page.sort) 순서. 권한 판정·데이터는 서버 그대로 — 여기서는 묶고 그리기만 한다. */
-var DEPT_ICON = { '구매팀':'🛒', '자금팀':'💰', '사업관리팀':'📈', '인사팀':'👥', '자재물류팀':'🚚', '영업팀':'📈', '생산팀':'🏭', '품질팀':'✅', '총무팀':'🗂️', '재무회계팀':'🧾' };
-var GRP_ALL = '전사 공통', GRP_SYS = '시스템 관리';
+var DEPT_ICON = { '구매':'🛒', '자금/재무':'💰', '사업관리':'📈', '인사/급여':'👥', '자재물류':'🚚', '영업':'📈', '생산':'🏭', '품질':'✅', '총무':'🗂️',
+                  '구매팀':'🛒', '자금팀':'💰', '사업관리팀':'📈', '인사팀':'👥', '자재물류팀':'🚚', '영업팀':'📈', '생산팀':'🏭', '품질팀':'✅', '총무팀':'🗂️', '재무회계팀':'🧾' };
+var GRP_ALL = '전사 공통', GRP_SYS = '시스템';   // DB portal_page.grp 의 묶음 표시명과 같아야 한다(정본 SQL 102 ③)
 function pgSlug(s){ return String(s||'').replace(/[^0-9A-Za-z가-힣]+/g,'-'); }
 function pgScrollTo(id){ var el = document.getElementById(id); if(el) el.scrollIntoView({behavior:'smooth', block:'start'}); return false; }
 /* 설명 <p> 는 접히므로 카드 title(툴팁)로 옮긴다 — 정적·동적 카드 공통 */
@@ -2990,7 +2991,7 @@ function renderPageIndex(groups){
   (groups||[]).forEach(function(g){
     h += '<a class="'+(g.mine?'mine':'')+'" onclick="return pgScrollTo(\'pgg-'+pgSlug(g.key)+'\')">'+escHtml((DEPT_ICON[g.key]||'🏢')+' '+g.key)+'<i>'+g.pages.length+'</i></a>';
   });
-  h += '<a onclick="return pgScrollTo(\'pgs-sys\')">⚙️ 시스템 관리<i>'+cnt('pgs-sys')+'</i></a>';
+  h += '<a onclick="return pgScrollTo(\'pgs-sys\')">⚙️ 시스템<i>'+cnt('pgs-sys')+'</i></a>';
   ix.innerHTML = h;
 }
 function renderPageGroups(grid, pages, me){
@@ -3002,7 +3003,8 @@ function renderPageGroups(grid, pages, me){
     var k = p.grp || p.dept_nm || GRP_ALL;
     if(k === GRP_ALL){ all.push(p); return; }
     if(k === GRP_SYS){ sys.push(p); return; }
-    if(!byKey[k]){ byKey[k] = { key:k, mine:!!mine[k], pages:[] }; groups.push(byKey[k]); }
+    if(!byKey[k]){ byKey[k] = { key:k, mine:false, pages:[] }; groups.push(byKey[k]); }
+    if(mine[p.dept_nm] || mine[k]) byKey[k].mine = true;
     byKey[k].pages.push(p);
   });
   groups.sort(function(a,b){ return (a.mine?0:1) - (b.mine?0:1); });   // 안정 정렬 — 같은 등급은 서버 순서
