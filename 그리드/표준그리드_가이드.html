@@ -38,7 +38,6 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 @media print{body{background:#fff;}.page{box-shadow:none;padding:18px 0;max-width:100%;}.docnav{display:none;}.content h2{break-after:avoid;}.content table,.content pre,.content blockquote{break-inside:avoid;}}
 @media (max-width:720px){.page{padding:30px 20px;}}
 </style>
-<!-- jeilax:local-links --><script>(function(){if(location.protocol!=="file:")return;var r="../",s=document.createElement("script");s.src=r+"_local_links.js";s.setAttribute("data-root",r);(document.head||document.documentElement).appendChild(s);})();</script><!-- /jeilax:local-links -->
 </head>
 <body>
 <div class="page">
@@ -638,6 +637,16 @@ if (st) grid.setColumnState(st);
 <td>관리자 콘솔 「▦ 그리드」</td>
 <td><code>04_챗봇_포털_데모UI.html</code> <code>#panel-grid</code></td>
 <td><strong>그리드 통합 관제</strong>(REQ-0083) — 관리자 콘솔 「요청함」 옆 탭. ①라이브 점검(기능 토글 14종 + 샘플 50~5,609행으로 페이저·렌더시간 실측, 켠 구성을 <code>createGrid(...)</code> 호출문으로 뽑아 준다) ②기능 대장 ③적용 화면 대장 ④개선 과제 — 네 표 모두 <strong>표준 그리드 자체로</strong> 그린다. <code>grid.js</code> 를 동적 <code>import</code> 로 그대로 불러 쓰므로 여기서 도는 구성은 실제 화면에서도 돈다. ⚠ <strong>정본은 저장소다</strong> — 이 탭은 파생 뷰이고 <strong>저장하지 않는다</strong>(고친 비고·과제는 CSV 로 내려받아 이 가이드·백로그에 반영). ⚠ 관리자 콘솔의 <code>.sec table/th/td</code> 가 <code>.grid__th</code> 보다 특이도가 높아 그리드를 오염시키므로, 그리드 블록은 표 셀렉터가 없는 <code>.gsec</code> 을 쓴다(§7 금지사항의 반대편 — 호스트 CSS 를 그리드에 맞춘다)</td>
+</tr>
+<tr>
+<td>구매 진행판</td>
+<td><code>pages/구매_진행판_2026.html</code> <code>#boardGrid</code></td>
+<td><strong>조회바 + 그리드 분담</strong> 첫 사례(REQ-0116) — 기간·보기·찾기는 조회바(§16), 컬럼 필터·정렬·CSV·복사·「▦ 항목」·300행 페이저는 그리드. 그래서 <code>search:false</code>(같은 찾기 칸을 둘 두지 않는다). 그리드는 다시 그리는 요약 영역 <strong>밖</strong>의 뼈대에 한 번만 만들고 <code>setRows()</code> 로 갈아 끼운다. 트랙 칩·지금 단계·입고·매입·대장처럼 조합해 보여 주는 칸은 <strong>글자 원값</strong>(<code>track_txt</code>·<code>cur_label</code>…)을 행에 같이 둔다 — 검색·필터·정렬·CSV 는 원값을 보고 formatter 는 표시만 한다</td>
+</tr>
+<tr>
+<td>구매 건 추적</td>
+<td><code>pages/구매_구매건추적_2026.html</code> <code>.gh</code></td>
+<td><strong>작은 표 여러 개</strong>(건마다 요청 줄·발주 줄·입고·매입 장/줄·대장·소요일 9종) 첫 사례 — HTML 문자열을 조립하는 화면이라 자리(<code>gridSlot</code>)를 먼저 그리고 <code>innerHTML</code> 뒤에 한꺼번에 세운다(<code>mountGrids</code> · 다시 그릴 때 <code>destroy()</code>). 행수에 따라 검색(8행 초과)·컬럼 필터(12행 초과)를 켠다. <code>&lt;details&gt;</code> 안에서 접힌 채 만들어도 된다(<code>fitWidth</code> 를 쓰지 않으므로 폭을 재지 않는다)</td>
 </tr>
 <tr>
 <td>(표준 데모)</td>

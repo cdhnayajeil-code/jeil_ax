@@ -407,6 +407,12 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <li>안전장치: 파일 0개이거나 「스캔 있음」이 종전의 절반 미만이면 적재하지 않는다(부분 열람으로 전부 「없음」이 되는 사고 방지).</li>
 <li>ERP 서버 러너는 Destiny 가 없어 이 작업을 하지 않는다(능력 판정 <code>proposal_scan=False</code>).</li>
 </ul>
+<h2 id="61-req-0116-2026-10-08">6.1 구매 진행판 · 구매 건 추적(REQ-0116 · 2026-10-08)</h2>
+<ul>
+<li><strong>진행판</strong> <code>/work/purchase-board</code> — 뷰 <code>v_erp_pur_board</code>(발주 1건 = 1행 · <strong>7단계</strong> s1~s7 · 발주통합 LIST 는 단계가 아니라 목록). 단계는 실적 문서로 판정: 1 요청(발주 줄의 요청번호) · 2 견적·3 확정(ERP 기록 없음) · 4 품의·발주(발주 있음) · 5 입고(입고 수량 · 입고 없이 매입으로 끝나면 「기록 없음」) · 6 매입(매입 수량) · 7 대장(기안 연결·종결). <code>cur_stage</code> 는 1·5·6·7·null(끝).</li>
+<li><strong>구매 건 추적</strong> <code>/work/purchase-trace?k=번호</code> — 함수 <code>pur_case_chain(번호)</code> 가 PO·PR·PU·PG·IV·TG·기안 권-번호(그 밖은 검색)로 요청→발주→입고→매입→대장을 JSON 하나로 준다. <strong>TG(결의전표)는 구매팀 입력 전표와 구매모듈 매입전표만</strong>(함수 <code>pur_slip_trace</code> · 매입 ref 또는 대장 전표 칸 경유 · 번호만). 전표 금액·승인·세금계산서는 사내 권한에서 「열람 범위 밖」(C-15).</li>
+<li>에이전트가 「이 발주 어디까지 갔나」를 물으면 뷰의 <code>cur_stage</code>·<code>status_kr</code> 로 답하고, 번호 사슬은 추적 화면 주소를 함께 준다. 화면 표는 전부 표준 그리드다.</li>
+</ul>
 <h2 id="7">7. 주의</h2>
 <ul>
 <li>중간DB 는 <strong>2026-01 이후</strong> 자료다. 그 전 번호는 "없음"이 정상일 수 있다.</li>

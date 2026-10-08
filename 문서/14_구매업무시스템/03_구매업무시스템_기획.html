@@ -260,7 +260,7 @@ ERP 가 정본이고, 포털은 ERP 에 없는 것만 받아 적고, AI 는 찾�
 <tr>
 <td><strong>진행판</strong></td>
 <td>발주 한 건</td>
-<td>8단계 가운데 어디 서 있는지, 납기, 금액</td>
+<td>7단계(정의서 8단계에서 2 「발주통합관리 LIST」 제외 — 결정 16) 가운데 어디 서 있는지, 납기, 금액</td>
 <td>메모, 계산서 요청 기록</td>
 <td>발주통합 LIST 를 발주 단위로 접은 모습</td>
 </tr>
@@ -290,7 +290,7 @@ ERP 가 정본이고, 포털은 ERP 에 없는 것만 받아 적고, AI 는 찾�
 <p>발주 줄마다 기준 2의 조건을 계산하는 뷰를 하나 두고, 발주통합 LIST · 진행현황 · 에이전트 도구 · 새 화면이 모두 그것을 쓴다. 지금은 뷰 세 개가 발주 사본의 입고수량을 따로 쓰고 있다.</p>
 <h3 id="42">4.2 건별 추적 조회</h3>
 <ul>
-<li>입력: 아무 번호 하나(PU · PR · PO · IV · TG · 권-번호). 출력: 이어진 전체.</li>
+<li>입력: 아무 번호 하나(PU · PR · PO · PG · IV · TG · 권-번호). 출력: 이어진 전체. <strong>TG(결의전표)는 구매팀이 입력한 전표와 구매모듈이 만든 매입전표만</strong> 번호로 잇는다(결정 17 · 2026-10-08 구현 — 함수 <code>pur_slip_trace</code>).</li>
 <li>전표·부가세·국세청 자료를 포함하므로 서버 쪽 함수로 만들고, 그 안에서 화면 권한을 다시 확인한다.</li>
 <li><strong>선행 결정</strong>: 지금은 「대장에 적힌 전표」만 열린다(결정 C-15). 발주에서 출발해 전표·계산서를 보여 주려면 열람 범위를 구매팀에 한해 넓힐지 정해야 한다.</li>
 </ul>
@@ -441,7 +441,7 @@ ERP 가 정본이고, 포털은 ERP 에 없는 것만 받아 적고, AI 는 찾�
 <td><strong>P1 구매 건 추적 · 진행판</strong></td>
 <td>조회 전용. 어느 번호로든 한 건의 전부, 발주 단위 8단계 진행</td>
 <td>한 건을 보려고 화면 넷을 오가지 않는다</td>
-<td>전표·계산서 열람 범위 — <strong>2026-10-08 착수·1차 배포(REQ-0116)</strong>: <code>/work/purchase-board</code>(진행판) · <code>/work/purchase-trace</code>(추적) · 정본 SQL 95(뷰 <code>v_erp_pur_board</code> · 함수 <code>pur_case_chain</code>). 열람 범위는 넓히지 않고 「열람 범위 밖」으로 표시 — 결정 C-15 확대는 그대로 열린 질문</td>
+<td>전표·계산서 열람 범위 — <strong>2026-10-08 착수·1차 배포(REQ-0116)</strong>: <code>/work/purchase-board</code>(진행판) · <code>/work/purchase-trace</code>(추적) · 정본 SQL 95(뷰 <code>v_erp_pur_board</code> · 함수 <code>pur_case_chain</code>). 열람 범위는 넓히지 않고 「열람 범위 밖」으로 표시 — 결정 C-15 확대는 그대로 열린 질문. <strong>2026-10-08 2차</strong>(정본 SQL 96): 두 화면의 표를 <strong>표준 그리드</strong>(§13)로 통일 · 진행판 <strong>7단계</strong>(LIST 는 단계가 아니라 목록 — 결정 16) · <strong>전표번호(TG)로 추적</strong> — 구매팀 입력 전표·구매 매입전표만, 매입 ref 와 대장 전표 칸으로만 잇고 번호만 내보낸다(결정 17 · definer 함수 <code>pur_slip_trace</code>) · 관리자 라이브 실측 완료</td>
 </tr>
 <tr>
 <td><strong>P1b 단가 이력</strong></td>
@@ -581,6 +581,18 @@ ERP 가 정본이고, 포털은 ERP 에 없는 것만 받아 적고, AI 는 찾�
 <td>대장 「전표번호」 칸의 뜻 — 전표(TG) / 매입(IV) 혼용 정리</td>
 <td>매입번호 여러 개가 줄바꿈으로 적힌 줄이 있다(04 예시 ③)</td>
 <td>P0 후속(D-122 와 함께)</td>
+</tr>
+<tr>
+<td>16</td>
+<td><strong>결정(2026-10-08 관리자)</strong> 「발주통합관리 LIST」는 단계가 아니라 <strong>발주의 목록(도구)</strong> — 진행판·구매 건 추적은 LIST 를 뺀 <strong>7단계</strong>(1 요청 · 2 견적 · 3 확정 · 4 품의·발주 · 5 입고·계산서 발행요청 · 6 매입마감·매입전표 · 7 기안서 대장)</td>
+<td>정의서·01 도식·04 예시검증·<code>_build_case.py</code> 는 아직 8단계 번호 — 재번호는 별도 요청(백로그)</td>
+<td>적용(SQL 96)</td>
+</tr>
+<tr>
+<td>17</td>
+<td><strong>결정(2026-10-08 관리자)</strong> 결의전표 번호로 추적할 수 있는 전표는 <strong>구매팀이 입력한 전표</strong>(dept 구매팀)와 <strong>구매모듈이 만든 매입전표</strong>(AP · ref=매입번호)뿐이고, 잇는 길은 <strong>매입 ref → 발주</strong> 와 <strong>기안서 대장 전표 칸 → 기안 → 발주</strong> 둘뿐 · 내보내는 것은 번호뿐(금액·적요·승인 없음 — C-15 유지)</td>
+<td>다른 부서 전표·적요 글자·금액 유사로는 잇지 않는다</td>
+<td>적용(SQL 96 <code>pur_slip_trace</code>)</td>
 </tr>
 </tbody>
 </table>

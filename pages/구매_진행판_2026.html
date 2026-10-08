@@ -7,6 +7,7 @@
 <script src="/pages/_access-gate.js"></script>
 <title>구매팀 — 구매 진행판 2026</title>
 <link rel="stylesheet" href="/app/lib/querybar.css">
+<link rel="stylesheet" href="/app/lib/grid.css">
 <style>
   :root{
     --navy:#1a2f4e; --navy2:#27457a; --accent:#2f6fb3; --accent2:#4a8ed0;
@@ -24,7 +25,7 @@
   .head .right a{color:var(--accent); text-decoration:none; margin-left:10px;}
   .badge{display:inline-block; font-size:11px; border-radius:10px; padding:2px 9px; font-weight:600;}
   .badge.g{background:var(--softgreen); color:var(--green);} .badge.b{background:var(--soft); color:var(--navy2);}
-  /* 단계 분포 — 8칸(1~8) · 숫자를 누르면 그 단계로 거른다 */
+  /* 단계 분포 — 7단계 + 끝 = 8칸 · 숫자를 누르면 그 단계로 거른다 */
   .stages{display:grid; grid-template-columns:repeat(8,1fr); gap:8px; margin:14px 0;}
   .stg{background:#fff; border:1px solid var(--line); border-radius:11px; padding:10px 12px; cursor:pointer; border-top:4px solid var(--line); min-width:0;}
   .stg .no{font-size:11px; color:var(--muted);} .stg .nm{font-size:12.5px; font-weight:700; color:var(--navy); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
@@ -38,17 +39,11 @@
   .sec{background:#fff; border:1px solid var(--line); border-radius:11px; padding:14px 16px; margin-bottom:14px;}
   .sec h3{font-size:13.5px; color:var(--navy); margin-bottom:4px; display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;}
   .sec .note{font-size:11px; color:var(--muted); margin-bottom:8px;}
-  .tw{overflow-x:auto;}
-  table{width:100%; border-collapse:collapse; font-size:12.5px;}
-  th{background:var(--navy); color:#fff; padding:6px 9px; text-align:left; font-weight:600; white-space:nowrap; position:sticky; top:0;}
-  td{padding:5px 9px; border-bottom:1px solid var(--line); vertical-align:middle;}
-  tr:nth-child(even) td{background:#fafbfd;}
-  td.r,th.r{text-align:right;} td.c,th.c{text-align:center;}
-  td.nw{white-space:nowrap;}
+  /* 표는 표준 그리드(/app/lib/grid.js)가 그린다 — 이 화면은 전역 table/th/td 를 정의하지 않는다(§13.4) */
   .po a{color:var(--accent); text-decoration:none; font-family:Consolas,monospace; font-size:12px;}
   .po a:hover{text-decoration:underline;}
-  /* 8단계 트랙 — 칸 하나가 한 단계. 색은 _build_case.py 와 같은 뜻(완료·일부·기록 없음·아직·지금) */
-  .trk{display:inline-grid; grid-template-columns:repeat(8,22px); gap:2px;}
+  /* 7단계 트랙 — 칸 하나가 한 단계. 색은 _build_case.py 와 같은 뜻(완료·일부·기록 없음·아직·지금) */
+  .trk{display:inline-grid; grid-template-columns:repeat(7,22px); gap:2px; vertical-align:middle;}
   .trk i{display:block; height:18px; border-radius:4px; font-style:normal; font-size:10px; line-height:18px; text-align:center; color:#fff; font-weight:700; border:1px solid transparent;}
   .trk i.done{background:var(--green);} .trk i.part{background:var(--amber);}
   .trk i.norec{background:#fff; color:var(--muted); border:1px dashed #9aa3af;}
@@ -64,7 +59,6 @@
   .loading{text-align:center; color:var(--muted); padding:46px 10px; font-size:13.5px;}
   .legend{font-size:11.5px; color:var(--muted); display:flex; gap:12px; flex-wrap:wrap; align-items:center;}
   .legend i{display:inline-block; width:14px; height:12px; border-radius:3px; vertical-align:-1px; margin-right:3px; border:1px solid transparent;}
-  .more{text-align:center; padding:10px;} .more button{border:1px solid var(--line); background:#fff; border-radius:8px; padding:6px 16px; cursor:pointer; font-size:12.5px;}
   .foot{margin-top:24px; padding-top:12px; border-top:1px solid var(--line); font-size:11px; color:var(--muted); display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap;}
   @media (max-width:900px){ .stages{grid-template-columns:repeat(4,1fr);} }
 </style>
@@ -74,7 +68,7 @@
   <div class="head">
     <div>
       <h1>🧭 구매 진행판 2026</h1>
-      <div class="sub">발주 1건 = 1행 · 8단계 상태를 <b>실적 문서의 존재</b>로 판정(뷰 <code>v_erp_pur_board</code>) · 손으로 적는 상태 없음 · 조회 전용</div>
+      <div class="sub">발주 1건 = 1행 · 7단계 상태를 <b>실적 문서의 존재</b>로 판정(뷰 <code>v_erp_pur_board</code>) · 발주통합 LIST 는 단계가 아니라 목록 · 손으로 적는 상태 없음 · 조회 전용</div>
     </div>
     <div class="right">
       <span class="badge g">중간DB 실데이터</span>
@@ -90,29 +84,54 @@
   <div id="app"><div class="loading">중간DB 에서 발주 현황을 불러오는 중…</div></div>
 
   <div class="foot">
-    <span>JEIL AX · 구매업무시스템 P1(REQ-0116) — 단계 규칙은 <a href="/docs/purchase/cases" target="_blank" style="color:var(--accent)">04 예시 검증</a>과 같다 · 전표·계산서는 열람 범위 밖(결정 C-15)</span>
+    <span>JEIL AX · 구매업무시스템 P1(REQ-0116) — 단계 규칙은 <a href="/docs/purchase/cases" target="_blank" style="color:var(--accent)">04 예시 검증</a>과 같다(정의서 2 LIST 를 뺀 7단계) · 전표·계산서 금액은 열람 범위 밖(결정 C-15)</span>
     <span id="footAsof"></span>
   </div>
 </div>
 
 <script type="module">
   import { createQueryBar } from "/app/lib/querybar.js";
+  import { createGrid } from "/app/lib/grid.js";
   import { supabase } from "/app/lib/supabaseClient.js";
 
-  /* 데이터는 중간DB 뷰 `public.v_erp_pur_board` 하나에서 온다 — 발주 1건 = 1행, 8단계 상태(s1~s8)와
-     지금 단계(cur_stage)는 DB 가 판정한다(정본 SQL 95). 화면은 거르고·세고·그릴 뿐 상태를 다시 계산하지 않는다
-     (규칙이 두 곳에 있으면 둘 다 믿지 못하게 된다 — 기획서 §4.1). */
+  /* 데이터는 중간DB 뷰 `public.v_erp_pur_board` 하나에서 온다 — 발주 1건 = 1행, 7단계 상태(s1~s7)와
+     지금 단계(cur_stage)는 DB 가 판정한다(정본 SQL 96 · LIST 는 단계가 아니다 — 결정 16). 화면은 거르고·세고·그릴 뿐 상태를 다시 계산하지 않는다
+     (규칙이 두 곳에 있으면 둘 다 믿지 못하게 된다 — 기획서 §4.1).
+     표는 표준 그리드(§13)가 그린다 — 검색·컬럼 필터·정렬·CSV(BOM)·복사·항목 고르기·페이지 넘김은 그리드 몫, 기간·보기·찾기는 조회바 몫. */
   const app = document.getElementById("app");
   const esc = (t) => String(t == null ? "" : t).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
   const num = (n) => Number(n || 0).toLocaleString("ko-KR");
   const won = (n) => (n == null ? "—" : num(Math.round(Number(n))));
   const md = (d) => (d ? String(d).slice(5, 10).replace("-", "/") : "—");
-  const STAGES = ["구매요청·확정", "발주통합관리 LIST", "견적검토", "구매확정", "구매품의서", "계산서 발행요청", "매입마감·매입전표", "품의서관리·기안서 대장"];
-  const SHORT = ["요청", "LIST", "견적", "확정", "품의·발주", "입고·계산서", "매입·전표", "대장"];
+  const STAGES = ["구매요청·확정", "견적검토", "구매확정", "구매품의서·발주", "입고·계산서 발행요청", "매입마감·매입전표", "품의서관리·기안서 대장"];
+  const SHORT = ["요청", "견적", "확정", "품의·발주", "입고·계산서", "매입·전표", "대장"];
+  const N = STAGES.length;
+  const AUTO = [2, 3, 4];   // 2·3 은 ERP 에 기록이 없는 단계, 4 는 발주가 있으면 늘 완료 — 서 있는 건이 없다
   const ST_LABEL = { done: "완료", part: "일부", norec: "기록 없음", todo: "아직", cur: "지금 여기" };
-  const PAGE = 300;
 
-  let ROWS = [], SHOWN = [], LIMIT = PAGE, STAGE_PICK = "";
+  let ROWS = [], STAGE_PICK = "", LASTQ = null, GRID = null;
+
+  /* 뷰 한 행 → 그리드 한 행. 그리드의 검색·필터·정렬·CSV 는 **원값**을 보므로(formatter 는 표시만)
+     트랙·지금·입고·매입·대장처럼 조합해 보여 주는 칸은 글자로 된 원값을 같이 둔다. */
+  function shape(r) {
+    const st = [null, r.s1, r.s2, r.s3, r.s4, r.s5, r.s6, r.s7];
+    if (r.cur_stage && st[r.cur_stage] === "todo") st[r.cur_stage] = "cur";
+    const flags = [];
+    if (r.overdue) flags.push("납기경과");
+    if (r.s5 === "norec") flags.push("입고 기록 없음");
+    if (r.s1 !== "done") flags.push("요청 미연결");
+    const lv = r.ledger_vols ? String(r.ledger_vols).split(",") : [];
+    return Object.assign({}, r, {
+      st,
+      ym: String(r.po_dt || "").slice(0, 7), m: Number(String(r.po_dt || "").slice(5, 7)),
+      track_txt: st.slice(1).map((s, i) => (i + 1) + " " + SHORT[i] + ":" + ST_LABEL[s]).join(" · "),
+      cur_label: r.cur_stage ? (r.cur_stage + " " + SHORT[r.cur_stage - 1]) : "끝",
+      flags_txt: flags.join(", "),
+      rcpt_txt: r.rcpt_qty_sum > 0 ? md(r.rcpt_first_dt) + (r.rcpt_first_dt !== r.rcpt_last_dt ? "~" + md(r.rcpt_last_dt) : "") + " · " + num(r.rcpt_cnt) + "건" : "",
+      iv_txt: r.iv_qty_sum > 0 ? md(r.iv_last_dt) + " · " + num(r.iv_cnt) + "장" : "",
+      ledger_txt: lv.length ? lv.slice(0, 2).join(", ") + (lv.length > 2 ? " 외" + (lv.length - 2) : "") + (r.ledger_closed ? " ✓" : "") : "",
+    });
+  }
 
   async function fetchAll() {
     const out = [];
@@ -122,11 +141,7 @@
       out.push(...(data || []));
       if (!data || data.length < 1000) break;
     }
-    ROWS = out.map((r) => {
-      const st = [null, r.s1, r.s2, r.s3, r.s4, r.s5, r.s6, r.s7, r.s8];
-      if (r.cur_stage && st[r.cur_stage] === "todo") st[r.cur_stage] = "cur";
-      return { ...r, st, ym: String(r.po_dt || "").slice(0, 7), m: Number(String(r.po_dt || "").slice(5, 7)) };
-    });
+    ROWS = out.map(shape);
   }
 
   /* 조회바 조건 → 행 고르기(기간은 조회바가 주는 months) */
@@ -142,8 +157,8 @@
       if (ex.scope === "open" && !r.cur_stage) return false;
       if (ex.scope === "done" && r.cur_stage) return false;
       if (ex.scope === "overdue" && !r.overdue) return false;
-      if (ex.scope === "norec" && r.s6 !== "norec") return false;
-      if (ex.scope === "noledger" && r.s8 !== "todo") return false;
+      if (ex.scope === "norec" && r.s5 !== "norec") return false;
+      if (ex.scope === "noledger" && r.s7 !== "todo") return false;
       if (ex.scope === "long" && !(r.cur_stage && Number(r.days_since_po) > 60)) return false;
       if (kw && !([r.po_no, r.bp_name, r.p_code, r.prj_nm, r.req_title, r.pu_nos, r.agent_nm, r.ledger_vols].join(" ").toLowerCase().includes(kw))) return false;
       return true;
@@ -153,86 +168,109 @@
   const kpi = (lb, v, unit, box) => '<div class="kpi' + (box ? " " + box : "") + '"><div class="lb">' + esc(lb) + '</div><div class="v">' + v + (unit ? "<small> " + unit + "</small>" : "") + "</div></div>";
 
   function stagesHtml(rows) {
-    const cnt = [0, 0, 0, 0, 0, 0, 0, 0, 0];
+    const cnt = new Array(N + 1).fill(0);
     let done = 0;
     for (const r of rows) { if (r.cur_stage) cnt[r.cur_stage]++; else done++; }
     let h = '<div class="stages">';
-    for (let n = 1; n <= 8; n++) {
-      const auto = [2, 3, 4, 5].includes(n);   // 2·5 는 항상 완료, 3·4 는 ERP 에 기록이 없는 단계 — 서 있는 건이 없다
+    for (let n = 1; n <= N; n++) {
+      const auto = AUTO.includes(n);
       h += '<div class="stg' + (auto ? " auto" : "") + (STAGE_PICK === String(n) ? " on" : "") + '" data-n="' + n + '" title="' + esc(STAGES[n - 1]) + '">'
          + '<div class="no">' + n + '단계</div><div class="nm">' + esc(SHORT[n - 1]) + '</div>'
-         + '<div class="v">' + (auto ? "—" : num(cnt[n])) + (auto ? '<small> 기록 없음</small>' : '<small> 건 서 있음</small>') + "</div></div>";
+         + '<div class="v">' + (auto ? "—" : num(cnt[n])) + (auto ? '<small> ' + (n === 4 ? "늘 완료" : "기록 없음") + '</small>' : '<small> 건 서 있음</small>') + "</div></div>";
     }
-    h += '<div class="stg' + (STAGE_PICK === "끝" ? " on" : "") + '" data-n="끝" title="8단계까지 끝난 발주"><div class="no">끝</div><div class="nm">끝까지 완료</div><div class="v">' + num(done) + "<small> 건</small></div></div>";
+    h += '<div class="stg' + (STAGE_PICK === "끝" ? " on" : "") + '" data-n="끝" title="7단계까지 끝난 발주"><div class="no">끝</div><div class="nm">끝까지 완료</div><div class="v">' + num(done) + "<small> 건</small></div></div>";
     return h + "</div>";
   }
 
   function trackHtml(r) {
-    return '<span class="trk" title="' + esc(r.st.slice(1).map((s, i) => (i + 1) + " " + SHORT[i] + ": " + ST_LABEL[s]).join(" · ")) + '">'
+    return '<span class="trk" title="' + esc(r.track_txt) + '">'
       + r.st.slice(1).map((s, i) => '<i class="' + s + '">' + (i + 1) + "</i>").join("") + "</span>";
   }
-  const stBadge = (r) => {
-    const m = { "매입완료": "iv", "입고완료": "gr", "부분입고": "pt", "발주": "po" }[r.status_kr] || "po";
-    return '<span class="st ' + m + '">' + esc(r.status_kr) + "</span>";
+  const stBadge = (v) => {
+    const m = { "매입완료": "iv", "입고완료": "gr", "부분입고": "pt", "발주": "po" }[v] || "po";
+    return '<span class="st ' + m + '">' + esc(v) + "</span>";
   };
+  const flagsHtml = (r) => (r.overdue ? '<span class="flag r" title="납기경과 미입고">납기경과</span>' : "")
+    + (r.s5 === "norec" ? '<span class="flag n" title="입고 기록 없이 매입으로 끝남(외주·용역)">입고 기록 없음</span>' : "")
+    + (r.s1 !== "done" ? '<span class="flag a" title="발주 줄에 요청번호가 없다">요청 미연결</span>' : "");
 
-  function tableHtml(rows) {
-    const head = ["발주번호", "발주일", "거래처", "프로젝트(P-CODE)", "요청 건명", "줄", "금액", "8단계", "지금", "상태", "입고", "매입", "대장", "경과"];
-    let h = '<div class="tw"><table><tr>' + head.map((x, i) => "<th" + ([5, 6].includes(i) ? ' class="r"' : "") + ">" + esc(x) + "</th>").join("") + "</tr>";
-    for (const r of rows.slice(0, LIMIT)) {
-      const cur = r.cur_stage ? (r.cur_stage + " " + SHORT[r.cur_stage - 1]) : "끝";
-      const flags = (r.overdue ? '<span class="flag r" title="납기경과 미입고">납기경과</span>' : "")
-        + (r.s6 === "norec" ? '<span class="flag n" title="입고 기록 없이 매입으로 끝남(외주·용역)">입고 기록 없음</span>' : "")
-        + (r.s1 !== "done" ? '<span class="flag a" title="발주 줄에 요청번호가 없다">요청 미연결</span>' : "");
-      h += "<tr>"
-        + '<td class="po nw"><a href="/work/purchase-trace?k=' + encodeURIComponent(r.po_no) + '" title="구매 건 추적으로">' + esc(r.po_no) + "</a></td>"
-        + '<td class="nw">' + esc(r.po_dt || "") + "</td>"
-        + "<td>" + esc(r.bp_name || "") + "</td>"
-        + '<td class="nw">' + esc(r.p_code || "") + (r.prj_nm ? ' <span style="color:var(--muted)" title="' + esc(r.prj_nm) + '">' + esc(String(r.prj_nm).slice(0, 18)) + (String(r.prj_nm).length > 18 ? "…" : "") + "</span>" : "") + "</td>"
-        + "<td>" + esc(String(r.req_title || "").slice(0, 40)) + "</td>"
-        + '<td class="r">' + num(r.lines) + "</td>"
-        + '<td class="r nw">' + won(r.amt) + "</td>"
-        + "<td>" + trackHtml(r) + "</td>"
-        + '<td class="nw">' + esc(cur) + flags + "</td>"
-        + "<td>" + stBadge(r) + "</td>"
-        + '<td class="nw">' + (r.rcpt_qty_sum > 0 ? md(r.rcpt_first_dt) + (r.rcpt_first_dt !== r.rcpt_last_dt ? "~" + md(r.rcpt_last_dt) : "") + " · " + num(r.rcpt_cnt) + "건" : "—") + "</td>"
-        + '<td class="nw">' + (r.iv_qty_sum > 0 ? md(r.iv_last_dt) + " · " + num(r.iv_cnt) + "장" : "—") + "</td>"
-        + '<td class="nw">' + (r.ledger_vols ? esc(r.ledger_vols).split(",").slice(0, 2).join(", ") + (r.ledger_vols.split(",").length > 2 ? " 외" : "") + (r.ledger_closed ? " ✓" : "") : "—") + "</td>"
-        + '<td class="r nw">' + num(r.days_since_po) + "일</td>"
-        + "</tr>";
-    }
-    h += "</table></div>";
-    if (rows.length > LIMIT) h += '<div class="more"><button id="moreBtn">더 보기 (' + num(rows.length - LIMIT) + "건 남음)</button></div>";
-    return h;
+  /* 표준 그리드 열 — 보이는 15열 + 「▦ 항목」에서 켜는 숨김 열. 폭은 폭 지정 모드(resizable)라 전부 적는다. */
+  const COLS = [
+    { key: "po_no", label: "발주번호", width: "134px", fitMin: 120, required: true, formatter: (v) => '<span class="po"><a href="/work/purchase-trace?k=' + encodeURIComponent(v) + '" title="구매 건 추적으로">' + esc(v) + "</a></span>" },
+    { key: "po_dt", label: "발주일", width: "96px", fitMin: 90 },
+    { key: "bp_name", label: "거래처", width: "150px", fitMin: 110 },
+    { key: "p_code", label: "P-CODE", width: "150px", fitMin: 120 },
+    { key: "prj_nm", label: "프로젝트", width: "170px", fitMin: 100 },
+    { key: "req_title", label: "요청 건명", width: "210px", fitMin: 120 },
+    { key: "lines", label: "줄", type: "number", width: "52px", fitMin: 44 },
+    { key: "amt", label: "금액", type: "number", width: "104px", fitMin: 90, formatter: (v) => won(v), exportValue: (v) => (v == null ? "" : Math.round(Number(v))) },
+    { key: "track_txt", label: "7단계", width: "188px", fitMin: 188, sortable: false, filter: false, formatter: (v, r) => trackHtml(r) },
+    { key: "cur_label", label: "지금", width: "160px", fitMin: 120, formatter: (v, r) => esc(v) + flagsHtml(r) },
+    { key: "status_kr", label: "상태", width: "84px", fitMin: 76, formatter: (v) => stBadge(v) },
+    { key: "rcpt_txt", label: "입고", width: "132px", fitMin: 100, formatter: (v) => esc(v || "—") },
+    { key: "iv_txt", label: "매입", width: "110px", fitMin: 90, formatter: (v) => esc(v || "—") },
+    { key: "ledger_txt", label: "대장", width: "124px", fitMin: 90, formatter: (v) => esc(v || "—") },
+    { key: "days_since_po", label: "경과일", type: "number", width: "72px", fitMin: 60 },
+    // 숨김 열 — 「▦ 항목」에서 켠다
+    { key: "flags_txt", label: "표시", width: "150px", hidden: true },
+    { key: "pu_nos", label: "요청 결재(PU)", width: "150px", hidden: true },
+    { key: "req_dept", label: "요청부서", width: "100px", hidden: true },
+    { key: "req_dt", label: "요청일", width: "96px", hidden: true },
+    { key: "agent_nm", label: "담당", width: "80px", hidden: true },
+    { key: "dlvy_dt", label: "납기", width: "96px", hidden: true },
+    { key: "po_type_cd", label: "발주유형", width: "80px", hidden: true },
+    { key: "whs_nm", label: "입고처", width: "110px", hidden: true },
+    { key: "po_qty", label: "발주수량", type: "number", width: "90px", hidden: true },
+    { key: "rcpt_qty_sum", label: "입고수량", type: "number", width: "90px", hidden: true },
+    { key: "iv_qty_sum", label: "매입수량", type: "number", width: "90px", hidden: true },
+    { key: "days_req_to_po", label: "요청→발주(일)", type: "number", width: "104px", hidden: true },
+    { key: "days_po_to_rcpt", label: "발주→입고(일)", type: "number", width: "104px", hidden: true },
+    { key: "ledger_cnt", label: "대장 건수", type: "number", width: "80px", hidden: true },
+    { key: "ledger_last_dt", label: "대장 기안일", width: "100px", hidden: true },
+  ];
+
+  /* 뼈대는 한 번만 그린다 — 그리드는 다시 그리는 영역(요약·단계) **밖**에 둔다(조회바와 같은 원칙). */
+  function skeleton() {
+    app.innerHTML = '<div id="summary"></div>'
+      + '<div class="sec"><h3><span id="secTitle"></span>'
+      + '<span class="legend"><span><i style="background:var(--green)"></i>완료</span><span><i style="background:var(--amber)"></i>일부</span><span><i style="border:1px dashed #9aa3af;background:#fff"></i>기록 없음</span><span><i style="background:#e6e9ee"></i>아직</span><span><i style="background:var(--accent)"></i>지금 여기</span></span></h3>'
+      + '<div class="note">단계 칸을 누르면 그 단계에 서 있는 발주만 남는다(다시 누르면 해제). 발주번호를 누르면 구매 건 추적으로 간다. 열 머리로 정렬, 머리 아래 칸으로 필터, 「▦ 항목」으로 열을 고른다. 전표 승인·계산서 수취는 열람 범위 밖이라 6단계는 매입 수량으로, 5단계는 입고 수량으로만 판정한다.</div>'
+      + '<div id="boardGrid"></div></div>';
+    GRID = createGrid("#boardGrid", {
+      columns: COLS, rows: [], keyField: "po_no",
+      search: false,                      // 찾기는 조회바가 맡는다(§16) — 같은 칸을 둘 두지 않는다
+      columnFilter: true, sortable: true,
+      editable: false, paste: false, selectable: false,
+      exportCsv: true, copy: true, exportName: "구매진행판_" + new Date().toISOString().slice(0, 10).replace(/-/g, ""),
+      stickyHeader: true, keyboardNav: false,
+      resizable: true, columnPicker: true, columnPickerLabel: "▦ 항목",
+      pageSize: 300, pageSizeOptions: [300, 1000, 0],
+      emptyText: "조건에 맞는 발주가 없습니다.",
+    });
   }
 
   function render(q, bar) {
+    LASTQ = q;
     const rows = pick(q);
-    SHOWN = rows;
     const open = rows.filter((r) => r.cur_stage);
     const amtOpen = open.reduce((s, r) => s + Number(r.amt || 0), 0);
     const overdue = rows.filter((r) => r.overdue).length;
-    const noLedger = rows.filter((r) => r.s8 === "todo").length;
+    const noLedger = rows.filter((r) => r.s7 === "todo").length;
     const long = open.filter((r) => Number(r.days_since_po) > 60).length;
-    let h = '<div class="kpis">'
+    document.getElementById("summary").innerHTML = '<div class="kpis">'
       + kpi("발주(조건 안)", num(rows.length), "건")
       + kpi("진행 중", num(open.length), "건 · " + (amtOpen / 1e8).toFixed(1) + "억", "warn")
       + kpi("납기경과 미입고", num(overdue), "건", overdue ? "bad" : "ok")
       + kpi("60일 넘게 진행 중", num(long), "건", long ? "bad" : "ok")
       + kpi("대장 연결 없음", num(noLedger), "건", noLedger ? "warn" : "ok")
-      + "</div>";
-    h += stagesHtml(rows);
-    h += '<div class="sec"><h3><span>발주 ' + num(rows.length) + "건" + (STAGE_PICK ? ' <span class="badge b">' + (STAGE_PICK === "끝" ? "끝까지 완료" : STAGE_PICK + "단계에 서 있음") + "</span>" : "") + "</span>"
-       + '<span class="legend"><span><i style="background:var(--green)"></i>완료</span><span><i style="background:var(--amber)"></i>일부</span><span><i style="border:1px dashed #9aa3af;background:#fff"></i>기록 없음</span><span><i style="background:#e6e9ee"></i>아직</span><span><i style="background:var(--accent)"></i>지금 여기</span></span></h3>'
-       + '<div class="note">단계 칸을 누르면 그 단계에 서 있는 발주만 남는다(다시 누르면 해제). 발주번호를 누르면 구매 건 추적으로 간다. 전표 승인·계산서 수취는 열람 범위 밖이라 7단계는 매입 수량으로, 6단계는 입고 수량으로만 판정한다.</div>'
-       + tableHtml(rows) + "</div>";
-    app.innerHTML = h;
+      + "</div>" + stagesHtml(rows);
+    document.getElementById("secTitle").innerHTML = "발주 " + num(rows.length) + "건"
+      + (STAGE_PICK ? ' <span class="badge b">' + (STAGE_PICK === "끝" ? "끝까지 완료" : STAGE_PICK + "단계에 서 있음") + "</span>" : "");
+    GRID.setRows(rows);
     app.querySelectorAll(".stg[data-n]").forEach((el) => {
       if (el.classList.contains("auto")) return;
-      el.onclick = () => { STAGE_PICK = (STAGE_PICK === el.dataset.n) ? "" : el.dataset.n; LIMIT = PAGE; render(q, bar); };
+      el.onclick = () => { STAGE_PICK = (STAGE_PICK === el.dataset.n) ? "" : el.dataset.n; render(LASTQ, bar); };
     });
-    const mb = document.getElementById("moreBtn");
-    if (mb) mb.onclick = () => { LIMIT += PAGE; render(q, bar); };
     if (bar) bar.applyPeriod();
   }
 
@@ -240,7 +278,7 @@
     const msg = String((e && e.message) || e);
     app.innerHTML = '<div class="callout amber"><b>불러오지 못했습니다.</b> ' + esc(msg)
       + (/permission|JWT|401|403/i.test(msg) ? "<br>사내 계정 세션이 끊겼을 수 있습니다. 새로고침해도 같으면 다시 로그인해 주세요."
-        : "<br>뷰 <code>v_erp_pur_board</code> 가 아직 적용되지 않았을 수 있습니다(정본 SQL 95).") + "</div>";
+        : "<br>뷰 <code>v_erp_pur_board</code> 가 아직 적용되지 않았을 수 있습니다(정본 SQL 96).") + "</div>";
     console.error("[진행판]", e);
   }
 
@@ -281,6 +319,7 @@
 
   if (!(await bootGate())) throw new Error("세션 게이트 — 조회를 내보내지 않는다");
   try { await fetchAll(); } catch (e) { fail(e); throw e; }
+  skeleton();
 
   const YEARS = [...new Set(ROWS.map((r) => r.ym.slice(0, 4)).filter((y) => /^\d{4}$/.test(y)))].map(Number).sort((a, b) => b - a);
   const MONTHS = [...new Set(ROWS.map((r) => r.m).filter(Boolean))].sort((a, b) => a - b);
@@ -315,7 +354,6 @@
         const s2 = ROWS.reduce((m, r) => (r.synced_at > m ? r.synced_at : m), "");
         ctx.bar.setMeta({ asOf: String(s2 || "").slice(0, 10) });
       }
-      LIMIT = PAGE;
       render(q, ctx.bar);
     },
   });

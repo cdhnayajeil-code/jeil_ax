@@ -6,6 +6,7 @@
 <script>window.PAGE_KEY='purchase_trace_2026';</script>
 <script src="/pages/_access-gate.js"></script>
 <title>구매팀 — 구매 건 추적 2026</title>
+<link rel="stylesheet" href="/app/lib/grid.css">
 <style>
   :root{
     --navy:#1a2f4e; --navy2:#27457a; --accent:#2f6fb3; --accent2:#4a8ed0;
@@ -36,8 +37,8 @@
   .round > h2{font-size:17px; color:var(--navy); display:flex; gap:10px; align-items:center; flex-wrap:wrap;}
   .round > h2 small{font-size:12px; color:var(--muted); font-weight:500;}
   .kv{font-size:12.6px; margin:2px 0;} .kv b{color:var(--navy2); font-weight:600;}
-  /* 8단계 트랙 — 색은 _build_case.py 와 같은 뜻 */
-  .trackgrid{display:grid; grid-template-columns:repeat(8,minmax(100px,1fr)); gap:6px; margin:10px 0 12px;}
+  /* 7단계 트랙 — 색은 _build_case.py 와 같은 뜻 */
+  .trackgrid{display:grid; grid-template-columns:repeat(7,minmax(100px,1fr)); gap:6px; margin:10px 0 12px;}
   .trk{border:1.5px solid var(--line); border-radius:8px; padding:6px 8px; font-size:11.5px; line-height:1.4; background:#fff; min-width:0;}
   .trk b{display:block; font-size:12px;} .trk .d{display:block; color:var(--muted); font-size:10.8px;}
   .trk.done{background:var(--softgreen); border-color:var(--green);} .trk.done b{color:var(--green);}
@@ -51,16 +52,17 @@
   .no b{display:block; font-size:11.5px; color:var(--navy);} .no span{display:block; color:var(--muted); font-size:10.5px;}
   .no small{display:block; font-family:Consolas,monospace; font-size:10.5px; word-break:break-all;}
   .no.off{opacity:.45; border-style:dashed;} .no.locked{border-style:dashed; border-color:var(--amber); background:var(--softamber);}
+  .no.hit{border-color:var(--accent); background:var(--soft); box-shadow:0 0 0 2px rgba(47,111,179,.2);}
   .two{display:grid; grid-template-columns:1fr 1fr; gap:12px;} @media (max-width:900px){.two{grid-template-columns:1fr;} .trackgrid{grid-template-columns:repeat(4,1fr);}}
-  .box{border:1px solid var(--line); border-radius:10px; padding:10px 12px; min-width:0;}
+  .box{border:1px solid var(--line); border-radius:10px; padding:10px 12px; min-width:0; margin-bottom:12px;}
+  .two .box{margin-bottom:0;}
   .box h4{font-size:13px; color:var(--navy); margin-bottom:4px; display:flex; gap:8px; align-items:center; flex-wrap:wrap;}
   .stt{display:inline-block; font-size:11px; font-weight:700; padding:1px 8px; border-radius:999px; border:1px solid var(--line); white-space:nowrap;}
   .stt.done{color:var(--green); border-color:var(--green); background:var(--softgreen);} .stt.cur{color:var(--accent); border-color:var(--accent); background:var(--soft);}
   .stt.part{color:var(--amber); border-color:var(--amber); background:var(--softamber);} .stt.norec{color:var(--muted); border-style:dashed;} .stt.todo{color:var(--muted);}
-  .tw{overflow-x:auto;} table{width:100%; border-collapse:collapse; font-size:12.2px;}
-  th{background:var(--navy); color:#fff; padding:5px 8px; text-align:left; font-weight:600; white-space:nowrap;}
-  td{padding:4px 8px; border-bottom:1px solid var(--line);} tr:nth-child(even) td{background:#fafbfd;}
-  td.r,th.r{text-align:right;} .tbad{color:var(--red); font-weight:700;} .tgood{color:var(--green); font-weight:700;}
+  /* 표는 전부 표준 그리드(/app/lib/grid.js) — 전역 table/th/td 를 정의하지 않는다(§13.4). 작은 표는 툴바를 줄인다. */
+  .gh{margin:6px 0 4px;} .gh .grid__toolbar{margin-bottom:6px;} .gh .grid__scroll{max-height:52vh;}
+  .tbad{color:var(--red); font-weight:700;} .tgood{color:var(--green); font-weight:700;}
   details{margin:4px 0;} summary{cursor:pointer; font-size:12.2px; color:var(--navy2); font-weight:600;}
   .callout{border-radius:8px; padding:10px 14px; margin:8px 0; font-size:12.5px;}
   .callout.blue{background:var(--soft); border-left:4px solid var(--accent);} .callout.amber{background:var(--softamber); border-left:4px solid var(--amber);} .callout.red{background:var(--softred); border-left:4px solid var(--red);}
@@ -87,63 +89,110 @@
   </div>
 
   <form class="search" id="sf">
-    <input id="k" type="text" autocomplete="off" placeholder="발주 PO… · 요청 PR… · 요청 결재 PU… · 입고 PG… · 매입 IV… · 기안 권-번호(예: 7-664) · 거래처·P-CODE·건명 일부">
+    <input id="k" type="text" autocomplete="off" placeholder="발주 PO… · 요청 PR… · 요청 결재 PU… · 입고 PG… · 매입 IV… · 결의전표 TG… · 기안 권-번호(예: 7-664) · 거래처·P-CODE·건명 일부">
     <button type="submit">찾기</button>
-    <div class="hint">번호 꼴이면 그 번호로 잇고, 아니면 최근 발주부터 30건 검색한다. 결의전표(TG)·세금계산서는 열람 범위 밖(결정 C-15)이라 이 화면에서는 「매입」까지 보인다.</div>
+    <div class="hint">번호 꼴이면 그 번호로 잇고, 아니면 최근 발주부터 30건 검색한다. <b>결의전표(TG)</b>는 <b>구매팀이 입력한 전표</b>와 <b>구매모듈이 만든 매입전표</b>만 번호로 잇는다(매입번호 또는 기안서 대장의 전표 칸 경유 · 결정 17) — 전표 금액·승인 상태·세금계산서는 열람 범위 밖(결정 C-15).</div>
   </form>
 
   <div id="app"><div class="callout blue">번호를 넣고 <b>찾기</b>를 누르세요. 진행판에서 발주번호를 누르면 여기로 옵니다.</div></div>
 
   <div class="foot">
-    <span>JEIL AX · 구매업무시스템 P1(REQ-0116) — 단계 규칙은 <a href="/docs/purchase/cases" target="_blank" style="color:var(--accent)">04 예시 검증</a>과 같다</span>
+    <span>JEIL AX · 구매업무시스템 P1(REQ-0116) — 단계 규칙은 <a href="/docs/purchase/cases" target="_blank" style="color:var(--accent)">04 예시 검증</a>과 같다(정의서 2 LIST 를 뺀 7단계)</span>
     <span id="footAsof"></span>
   </div>
 </div>
 
 <script type="module">
+  import { createGrid } from "/app/lib/grid.js";
   import { supabase } from "/app/lib/supabaseClient.js";
 
-  /* 데이터는 함수 `public.pur_case_chain(번호)` 하나에서 온다(정본 SQL 95) — 발주 건마다 요청·발주 줄·입고·매입(장마다 이 발주 몫/전체)·
-     대장·화면 상태·8단계 판정(뷰 v_erp_pur_board)을 JSON 하나로 돌려준다. 화면은 그리기만 한다. 전표·부가세·국세청 칸은 사내 권한에서
-     빈 배열로 오므로(C-15) 「열람 범위 밖」으로 표시한다. */
+  /* 데이터는 함수 `public.pur_case_chain(번호)` 하나에서 온다(정본 SQL 96) — 발주 건마다 요청·발주 줄·입고·매입(장마다 이 발주 몫/전체)·
+     대장·화면 상태·7단계 판정(뷰 v_erp_pur_board)을 JSON 하나로 돌려준다. 화면은 그리기만 한다. 전표·부가세·국세청 칸은 사내 권한에서
+     null 로 오므로(C-15) 「열람 범위 밖」으로 표시하되, 전표 번호로 들어왔을 때는 어느 매입·기안에 걸렸는지(번호만 · pur_slip_trace)를 표시한다.
+     표는 전부 표준 그리드(§13) — 검색·정렬·CSV(BOM)·복사는 그리드 몫. */
   const app = document.getElementById("app");
   const esc = (t) => String(t == null ? "" : t).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
   const num = (n) => (n == null || n === "" ? "—" : Number(n).toLocaleString("ko-KR", { maximumFractionDigits: 3 }));
   const won = (n) => (n == null ? "—" : Math.round(Number(n)).toLocaleString("ko-KR"));
   const md = (d) => (d ? String(d).slice(5, 10).replace("-", "/") : "—");
   const days = (a, b) => (a && b ? Math.round((new Date(b) - new Date(a)) / 86400000) : null);
-  const STAGES = ["구매요청·확정", "발주통합관리 LIST", "견적검토", "구매확정", "구매품의서", "계산서 발행요청", "매입마감·매입전표", "품의서관리·기안서 대장"];
+  const STAGES = ["구매요청·확정", "견적검토", "구매확정", "구매품의서·발주", "입고·계산서 발행요청", "매입마감·매입전표", "품의서관리·기안서 대장"];
   const ST_LABEL = { done: "완료", part: "일부", norec: "기록 없음", todo: "아직", cur: "지금 여기" };
 
-  const table = (head, rows, num = []) => '<div class="tw"><table><tr>' + head.map((h, i) => "<th" + (num.includes(i) ? ' class="r"' : "") + ">" + esc(h) + "</th>").join("")
-    + "</tr>" + rows.map((r) => "<tr>" + r.map((c, i) => "<td" + (num.includes(i) ? ' class="r"' : "") + ">" + c + "</td>").join("") + "</tr>").join("") + "</table></div>";
+  /* ── 표준 그리드 — HTML 문자열을 조립하는 화면이라, 자리를 먼저 그리고(gridSlot) innerHTML 뒤에 한꺼번에 세운다(mountGrids) ── */
+  const GQ = [];
+  let GSEQ = 0, GRIDS = [];
+  const fnum = (v) => (v == null || v === "" ? "" : num(v));
+  const fwon = (v) => (v == null || v === "" ? "" : won(v));
+  function gridSlot(cols, rows, opts) {
+    const id = "g" + (++GSEQ);
+    GQ.push({ id, cols, rows: rows || [], opts: opts || {} });
+    return '<div class="gh" id="' + id + '"></div>';
+  }
+  function mountGrids() {
+    GRIDS.forEach((g) => { try { g.destroy(); } catch (e) {} });
+    GRIDS = [];
+    while (GQ.length) {
+      const j = GQ.shift();
+      const el = document.getElementById(j.id);
+      if (!el) continue;
+      GRIDS.push(createGrid(el, Object.assign({
+        columns: j.cols, rows: j.rows, keyField: null,
+        search: j.rows.length > 8, columnFilter: j.rows.length > 12, sortable: true,
+        editable: false, paste: false, selectable: false,
+        exportCsv: true, copy: true, exportName: "구매건추적",
+        stickyHeader: true, keyboardNav: false,
+        emptyText: "자료가 없습니다.",
+      }, j.opts)));
+    }
+  }
+  // 열 정의 — 값은 원값(검색·정렬·CSV 가 보는 것), 보이는 꼴만 formatter
+  const C = {
+    pr_no: { key: "pr_no", label: "구매요청번호" }, item_cd: { key: "item_cd", label: "품번" }, item_nm: { key: "item_nm", label: "품목" },
+    qty: { key: "qty", label: "수량", type: "number", formatter: fnum }, sts: { key: "sts", label: "진행코드" }, req_dt: { key: "req_dt", label: "요청일" },
+  };
 
   function states(b) {
-    const st = b ? [null, b.s1, b.s2, b.s3, b.s4, b.s5, b.s6, b.s7, b.s8] : [null, "todo", "todo", "norec", "norec", "todo", "todo", "todo", "todo"];
+    const st = b ? [null, b.s1, b.s2, b.s3, b.s4, b.s5, b.s6, b.s7] : [null, "todo", "norec", "norec", "todo", "todo", "todo", "todo"];
     if (b && b.cur_stage && st[b.cur_stage] === "todo") st[b.cur_stage] = "cur";
     return st;
   }
   function trackKey(n, r) {
-    const po = r.po || {}, pu = r.pu || {}, b = r.board || {};
+    const po = r.po || {}, pu = r.pu || {};
     const gr = r.gr || [], ivp = r.iv_parts || [], led = r.ledger || [];
     if (n === 1) return pu.pu_no ? md(pu.req_dt) + " · PU…" + pu.pu_no.slice(-4) : (r.pr_lines && r.pr_lines.length ? "요청번호 " + r.pr_lines.length + "줄" : "요청 없음");
-    if (n === 2) return "LIST " + ((po.lines || []).length) + "줄";
-    if (n === 3) return "견적 기록 없음";
-    if (n === 4) return "결과만 발주로";
-    if (n === 5) return md(po.po_dt) + " · PO…" + String(po.po_no || "").slice(-4);
-    if (n === 6) {
+    if (n === 2) return "견적 기록 없음";
+    if (n === 3) return "결과만 발주로";
+    if (n === 4) return md(po.po_dt) + " · PO…" + String(po.po_no || "").slice(-4) + " · " + (po.lines || []).length + "줄";
+    if (n === 5) {
       if (gr.length) { const ds = [...new Set(gr.map((g) => g.dt))].sort(); return (ds.length === 1 ? md(ds[0]) : md(ds[0]) + "~" + md(ds[ds.length - 1])) + " 입고 " + gr.length + "건"; }
       return ivp.length ? "입고 기록 없음(매입으로 끝)" : "입고 대기";
     }
-    if (n === 7) return ivp.length ? md(ivp[ivp.length - 1].iv_dt) + " · 매입 " + ivp.length + "장" : "—";
-    if (n === 8) return led.length ? "대장 " + led.map((l) => l.vol_no).slice(0, 2).join(", ") + (led.length > 2 ? " 외" : "") + (led.every((l) => l.closed === "Y") ? " · 종결" : " · 종결 전") : "—";
+    if (n === 6) return ivp.length ? md(ivp[ivp.length - 1].iv_dt) + " · 매입 " + ivp.length + "장" : "—";
+    if (n === 7) return led.length ? "대장 " + led.map((l) => l.vol_no).slice(0, 2).join(", ") + (led.length > 2 ? " 외" : "") + (led.every((l) => l.closed === "Y") ? " · 종결" : " · 종결 전") : "—";
     return "";
   }
 
-  function chainHtml(r) {
+  /* 전표 번호로 들어왔을 때 — 이 발주 건에 그 전표가 걸렸는가(매입번호 또는 대장 권-번호로) */
+  function slipHit(r, slip) {
+    if (!slip || !slip.found) return null;
+    const ivs = new Set((r.iv_parts || []).map((p) => p.iv_no));
+    const vols = new Set((r.ledger || []).map((l) => l.vol_no));
+    const viaIv = (slip.iv_nos || []).filter((x) => ivs.has(x));
+    const viaVol = (slip.vols || []).filter((x) => vols.has(x));
+    if (!viaIv.length && !viaVol.length) return null;
+    return { via: viaIv.length ? "매입 " + viaIv.join(", ") : "대장 " + viaVol.join(", "), kind: slip.kind };
+  }
+
+  function chainHtml(r, slip) {
     const po = r.po || {}, pu = r.pu || {}, prs = r.pr_lines || [], gr = r.gr || [], ivp = r.iv_parts || [], led = r.ledger || [];
-    const box = (code, label, val, cls) => '<div class="no' + (val ? "" : " off") + (cls ? " " + cls : "") + '"><b>' + esc(code) + "</b><span>" + esc(label) + "</span><small>" + esc(val || (cls === "locked" ? "열람 범위 밖" : "아직")) + "</small></div>";
+    const box = (code, label, val, cls, title) => '<div class="no' + (val ? "" : " off") + (cls ? " " + cls : "") + '"' + (title ? ' title="' + esc(title) + '"' : "") + '><b>' + esc(code) + "</b><span>" + esc(label) + "</span><small>" + esc(val || (cls === "locked" ? "열람 범위 밖" : "아직")) + "</small></div>";
     const first_last = (xs, k) => (xs.length ? xs[0][k] + (xs.length > 1 ? " ~ …" + String(xs[xs.length - 1][k]).slice(-4) : "") : "");
+    const hit = slipHit(r, slip);
+    let tg;
+    if ((r.slips || []).length) tg = box("TG", "결의전표 " + r.slips.length + "장", first_last(r.slips, "slip_no"));
+    else if (hit) tg = box("TG", "입력한 전표 · " + (hit.kind === "AP매입" ? "구매 매입전표" : "구매팀 입력"), slip.tg, "hit", hit.via + " 경유 — 번호만(금액·승인은 열람 범위 밖)");
+    else tg = box("TG", "결의전표", "", "locked", "구매팀 입력 전표·구매 매입전표는 번호로 찾을 수 있다(검색칸에 TG 번호)");
     return '<div class="chain">'
       + box("PR", "요청 " + prs.length + "줄", first_last(prs, "pr_no"))
       + box("PU", "요청 결재", pu.pu_no)
@@ -151,80 +200,91 @@
       + box("PO", "발주 " + (po.lines || []).length + "줄", po.po_no)
       + box("PG", "입고 " + gr.length + "건", first_last(gr, "pg_no"))
       + box("IV", "매입 " + ivp.length + "장", first_last(ivp, "iv_no"))
-      + box("TG", "결의전표", (r.slips || []).length ? first_last(r.slips, "slip_no") : "", (r.slips || []).length ? "" : "locked")
+      + tg
       + box("VT", "부가세", (r.vats || []).length ? first_last(r.vats, "vat_no") : "", (r.vats || []).length ? "" : "locked")
       + box("승인번호", "국세청", (r.etax || []).length ? r.etax[0].approval_no : "", (r.etax || []).length ? "" : "locked")
       + box("권-번호", "보관 파일", led.map((l) => l.scan_file).filter(Boolean).slice(0, 2).join(","))
       + "</div>";
   }
 
-  function roundHtml(r) {
+  function roundHtml(r, slip) {
     const po = r.po || {}, pu = r.pu || {}, b = r.board || {}, sc = r.screen || {};
     const prs = r.pr_lines || [], gr = r.gr || [], ivp = r.iv_parts || [], led = r.ledger || [];
     const st = states(r.board);
+    const pn = String(po.po_no || r.po_no || "");
     const poQty = (po.lines || []).reduce((s, x) => s + Number(x.qty || 0), 0);
     const grQty = gr.reduce((s, g) => s + Number(g.qty || 0), 0);
     const ivQty = ivp.reduce((s, p) => s + (p.lines || []).reduce((t, x) => t + Number(x.qty || 0), 0), 0);
-    let h = '<div class="round"><h2>' + esc(po.po_no || r.po_no) + " <small>" + esc(po.bp_nm || "") + " · " + esc(po.po_dt || "") + " · " + won(po.amt) + "원 · " + (po.lines || []).length + "줄</small>"
+    let h = '<div class="round"><h2>' + esc(pn) + " <small>" + esc(po.bp_nm || "") + " · " + esc(po.po_dt || "") + " · " + won(po.amt) + "원 · " + (po.lines || []).length + "줄</small>"
       + (b.cur_stage ? '<span class="stt cur">' + b.cur_stage + "단계 " + esc(STAGES[b.cur_stage - 1]) + "에 서 있다</span>" : '<span class="stt done">끝까지 완료</span>')
       + (b.overdue ? '<span class="stt part">납기경과 미입고 표시</span>' : "") + "</h2>";
     if (!r.found) return h + '<div class="callout amber">중간DB 에 이 발주번호가 없다(2026년 발주만 있다).</div></div>';
     h += '<div class="trackgrid">' + STAGES.map((nm, i) => { const n = i + 1; return '<div class="trk ' + st[n] + '" title="' + esc(ST_LABEL[st[n]]) + '"><b>' + n + " " + esc(nm) + '</b><span class="d">' + esc(trackKey(n, r)) + "</span></div>"; }).join("") + "</div>";
-    h += chainHtml(r);
+    h += chainHtml(r, slip);
 
-    // 1·2 요청과 LIST
+    // 1 요청 · 2·3 견적/확정(기록 없음)
     const other = (pu.other || []).map((o) => " · " + esc(o.bp_nm) + " " + o.lines + "줄(" + esc(o.po_no) + ", " + won(o.amt) + "원)").join("");
     const unordered = pu.unordered || [];
-    h += '<div class="two"><div class="box"><h4>1 구매요청 <span class="stt ' + st[1] + '">' + ST_LABEL[st[1]] + "</span></h4>"
+    h += '<div class="two"><div class="box"><h4>1 구매요청·확정 <span class="stt ' + st[1] + '">' + ST_LABEL[st[1]] + "</span></h4>"
       + (pu.pu_no ? '<div class="kv"><b>요청 결재번호</b> ' + esc(pu.pu_no) + " · <b>요청일</b> " + esc(pu.req_dt || "-") + " · <b>필요일</b> " + esc(pu.need_dt || "-") + " · <b>요청</b> " + esc((pu.req_dept || "") + " " + (pu.req_user || "")) + "</div>"
          + '<div class="kv"><b>건명</b> ' + esc(pu.title || "") + "</div>"
          + '<div class="kv"><b>이 요청 결재 전체</b> ' + num(pu.lines_total) + "줄 — 이 발주 " + num(pu.lines_this_po) + "줄" + other + "</div>"
-         + (unordered.length ? '<div class="kv"><span class="tbad">발주 없이 남은 요청 줄 ' + unordered.length + "개</span></div>" + '<details><summary>발주 없는 요청 줄</summary>' + table(["구매요청번호", "품번", "품목", "수량", "진행코드"], unordered.map((x) => [esc(x.pr_no), esc(x.item_cd), esc(x.item_nm || ""), num(x.qty), esc(x.sts)]), [3]) + "</details>" : "")
+         + (unordered.length ? '<div class="kv"><span class="tbad">발주 없이 남은 요청 줄 ' + unordered.length + "개</span></div>" + '<details><summary>발주 없는 요청 줄</summary>'
+            + gridSlot([C.pr_no, C.item_cd, C.item_nm, C.qty, C.sts], unordered, { exportName: "추적_" + pn + "_미발주요청줄" }) + "</details>" : "")
         : '<div class="kv" style="color:var(--muted)">발주 줄에 요청번호가 없다 — 요청 결재와 이어지지 않는다.</div>')
-      + (prs.length ? '<details><summary>요청 줄 ' + prs.length + "개</summary>" + table(["구매요청번호", "품번", "품목", "수량", "발주 순번", "진행코드"], prs.map((x) => [esc(x.pr_no), esc(x.item_cd), esc(x.item_nm || ""), num(x.qty), "→ " + x.po_seq, esc(x.pr_sts || "")]), [3]) + "</details>" : "")
+      + (prs.length ? '<details><summary>요청 줄 ' + prs.length + "개</summary>"
+          + gridSlot([C.pr_no, C.item_cd, C.item_nm, C.qty, { key: "po_seq", label: "발주 순번", type: "number" }, { key: "pr_sts", label: "진행코드" }, C.req_dt, { key: "need_dt", label: "필요일" }], prs, { exportName: "추적_" + pn + "_요청줄" }) + "</details>" : "")
       + "</div>";
+    h += '<div class="box"><h4>2 견적검토 · 3 구매확정 <span class="stt norec">기록 없음</span></h4><div class="kv" style="color:var(--muted)">ERP 에 견적·결정 기록이 없다. 결과만 발주로 남는다(P2 포털 기록 전까지).</div>'
+      + (b.days_req_to_po != null ? '<div class="kv"><b>요청→발주</b> ' + b.days_req_to_po + "일</div>" : "") + "</div></div>";
+
+    // 4 품의·발주 (+ 포털 LIST 표시 — LIST 는 단계가 아니라 이 발주의 목록)
     const wrong = sc.unreceived && poQty && grQty >= poQty;
     const noRec = sc.unreceived && !gr.length && ivQty >= poQty && poQty > 0;
-    h += '<div class="box"><h4>2 발주통합 LIST(포털) <span class="stt ' + st[2] + '">' + ST_LABEL[st[2]] + "</span></h4>"
-      + '<div class="kv">상태 「' + esc(sc.status_kr || "-") + "」 · 미입고 표시 " + (sc.unreceived ? "켜짐" : "꺼짐") + " · 납기경과 표시 " + (sc.overdue ? "켜짐" : "꺼짐") + " — 실입고 " + num(sc.rcpt_qty_sum || 0) + " / 발주 " + num(sc.po_qty) + " · 매입 " + num(sc.iv_qty_sum || 0)
-      + (wrong ? ' <span class="tbad">← 실제와 다르다</span>' : "") + (noRec ? ' <span class="tbad">← 입고 기록 없이 매입으로 끝난 줄(결정 11)</span>' : "") + "</div>"
-      + '<div class="kv"><b>P-CODE</b> ' + esc(b.p_code || "-") + " · <b>프로젝트</b> " + esc(b.prj_nm || "-") + " · <b>담당</b> " + esc(b.agent_nm || "-") + " · <b>입고처</b> " + esc(b.whs_nm || "-") + "</div>"
-      + '<div class="kv"><a class="po" href="/work/purchase-list?q=' + encodeURIComponent(po.po_no || "") + '" target="_blank" style="color:var(--accent)">발주통합 LIST 에서 보기 →</a></div>'
-      + "</div></div>";
-
-    // 3·4 기록 없음 · 5 발주
-    h += '<div class="two"><div class="box"><h4>3 견적검토 · 4 구매확정 <span class="stt norec">기록 없음</span></h4><div class="kv" style="color:var(--muted)">ERP 에 견적·결정 기록이 없다. 결과만 발주로 남는다(P2 포털 기록 전까지).</div></div>';
-    h += '<div class="box"><h4>5 구매품의서 · 발주 <span class="stt ' + st[5] + '">' + ST_LABEL[st[5]] + "</span></h4>"
+    h += '<div class="box"><h4>4 구매품의서 · 발주 <span class="stt ' + st[4] + '">' + ST_LABEL[st[4]] + "</span></h4>"
       + '<div class="kv"><b>발주일</b> ' + esc(po.po_dt || "-") + " · <b>납기</b> " + esc(po.dlvy_dt || "-") + " · <b>유형</b> " + esc(po.po_type || "-") + " · <b>금액</b> " + won(po.amt) + "원"
-      + (b.days_req_to_po != null ? " · 요청→발주 " + b.days_req_to_po + "일" : "") + "</div>"
+      + " · <b>P-CODE</b> " + esc(b.p_code || "-") + " · <b>프로젝트</b> " + esc(b.prj_nm || "-") + " · <b>담당</b> " + esc(b.agent_nm || "-") + " · <b>입고처</b> " + esc(b.whs_nm || "-") + "</div>"
       + (po.hdr_remark ? '<div class="kv"><b>발주 비고</b> ' + esc(po.hdr_remark) + "</div>" : "")
-      + '<details><summary>발주 줄 ' + (po.lines || []).length + "개</summary>" + table(["순번", "품번", "품목", "규격", "수량", "단가", "금액", "구매요청번호", "진행"], (po.lines || []).map((x) => [x.po_seq, esc(x.item_cd), esc(x.item_nm || ""), esc(x.spec || ""), num(x.qty), won(x.price), won(x.amt), esc(x.pr_no || ""), esc(x.sts || "")]), [4, 5, 6]) + "</details>"
-      + "</div></div>";
+      + '<div class="kv"><b>발주통합 LIST(포털) 표시</b> 상태 「' + esc(sc.status_kr || "-") + "」 · 미입고 " + (sc.unreceived ? "켜짐" : "꺼짐") + " · 납기경과 " + (sc.overdue ? "켜짐" : "꺼짐") + " — 실입고 " + num(sc.rcpt_qty_sum || 0) + " / 발주 " + num(sc.po_qty) + " · 매입 " + num(sc.iv_qty_sum || 0)
+      + (wrong ? ' <span class="tbad">← 실제와 다르다</span>' : "") + (noRec ? ' <span class="tbad">← 입고 기록 없이 매입으로 끝난 줄(결정 11)</span>' : "")
+      + ' · <a class="po" href="/work/purchase-list?q=' + encodeURIComponent(pn) + '" target="_blank" style="color:var(--accent)">LIST 에서 보기 →</a></div>'
+      + '<details open><summary>발주 줄 ' + (po.lines || []).length + "개</summary>"
+      + gridSlot([{ key: "po_seq", label: "순번", type: "number" }, C.item_cd, C.item_nm, { key: "spec", label: "규격" }, C.qty, { key: "unit", label: "단위" },
+                  { key: "price", label: "단가", type: "number", formatter: fwon }, { key: "amt", label: "금액", type: "number", formatter: fwon }, C.pr_no,
+                  { key: "dlvy_dt", label: "납기" }, { key: "sts", label: "진행" }, { key: "remark", label: "비고" }], po.lines || [], { exportName: "추적_" + pn + "_발주줄" })
+      + "</details></div>";
 
-    // 6 입고 · 7 매입
+    // 5 입고 · 6 매입
     const gDays = [...new Set(gr.map((g) => g.dt))].sort();
-    h += '<div class="two"><div class="box"><h4>6 입고 · 계산서 발행요청 <span class="stt ' + st[6] + '">' + ST_LABEL[st[6]] + "</span></h4>";
+    h += '<div class="two"><div class="box"><h4>5 입고 · 계산서 발행요청 <span class="stt ' + st[5] + '">' + ST_LABEL[st[5]] + "</span></h4>";
     if (gr.length) {
       const late = po.dlvy_dt ? days(po.dlvy_dt, gDays[gDays.length - 1]) : null;
       h += '<div class="kv">ERP 입고 ' + gr.length + "건 · 수량 " + num(grQty) + " / 발주 " + num(poQty) + " · <b>입고일</b> " + esc(gDays.join(", ")) + (late != null ? " · <b>납기 대비</b> " + (late > 0 ? late + "일 늦음" : "납기 안") : "") + "</div>"
-        + '<details><summary>입고 ' + gr.length + "건</summary>" + table(["입고번호", "발주 순번", "수량", "입고일"], gr.map((g) => [esc(g.pg_no), g.po_seq, num(g.qty), esc(g.dt)]), [2]) + "</details>";
-    } else if (st[6] === "norec") {
+        + '<details><summary>입고 ' + gr.length + "건</summary>"
+        + gridSlot([{ key: "pg_no", label: "입고번호" }, { key: "po_seq", label: "발주 순번", type: "number" }, C.qty, { key: "dt", label: "입고일" }, { key: "io", label: "구분" }], gr, { exportName: "추적_" + pn + "_입고" }) + "</details>";
+    } else if (st[5] === "norec") {
       h += '<div class="kv">ERP 입고 기록이 없는데 매입은 발주 수량만큼 끝났다 — 외주 가공·용역처럼 입고 등록을 거치지 않는 흐름(기록이 없는 것이지 안 끝난 것이 아니다).</div>';
     } else {
       h += '<div class="kv">ERP 에 입고가 아직 없다(발주 수량 ' + num(poQty) + ").</div>";
     }
     h += '<div class="kv" style="color:var(--muted)">계산서 발행요청 메일·수취 여부는 ERP 에 없다. 세금계산서(국세청)는 열람 범위 밖(결정 C-15).</div></div>';
-    h += '<div class="box"><h4>7 매입마감 · 매입전표 <span class="stt ' + st[7] + '">' + ST_LABEL[st[7]] + "</span></h4>";
+    h += '<div class="box"><h4>6 매입마감 · 매입전표 <span class="stt ' + st[6] + '">' + ST_LABEL[st[6]] + "</span></h4>";
     if (ivp.length) {
       const sup = ivp.reduce((s, p) => s + Number(p.supply_amt || 0), 0), vat = ivp.reduce((s, p) => s + Number(p.vat_amt || 0), 0);
       h += '<div class="kv">매입 ' + ivp.length + "장 · 이 발주 몫 공급가 " + won(sup) + " + 부가세 " + won(vat) + " · 매입 수량 " + num(ivQty) + " / 발주 " + num(poQty) + "</div>";
       const multi = ivp.length > 1 || ivp.some((p) => p.iv_total && p.iv_total.other_pos);
       if (multi) {
         h += '<div class="note">매입이 여러 장이거나 한 장이 다른 발주까지 묶었다 — 이 발주 몫과 매입 전체가 다르다(전표·계산서는 전체 금액으로 난다).</div>'
-          + table(["매입번호", "매입일", "이 발주 몫(공급가)", "매입 전체(공급가)", "같은 매입에 묶인 다른 발주"], ivp.map((p) => [esc(p.iv_no), esc(p.iv_dt), won(p.supply_amt), won((p.iv_total || {}).supply_amt), esc((p.iv_total || {}).other_pos || "—")]), [2, 3]);
+          + gridSlot([{ key: "iv_no", label: "매입번호" }, { key: "iv_dt", label: "매입일" }, { key: "supply_amt", label: "이 발주 몫(공급가)", type: "number", formatter: fwon },
+                      { key: "total_supply", label: "매입 전체(공급가)", type: "number", formatter: fwon }, { key: "total_lines", label: "전체 줄", type: "number" }, { key: "other_pos", label: "같은 매입에 묶인 다른 발주" }],
+              ivp.map((p) => ({ iv_no: p.iv_no, iv_dt: p.iv_dt, supply_amt: p.supply_amt, total_supply: (p.iv_total || {}).supply_amt, total_lines: (p.iv_total || {}).lines, other_pos: (p.iv_total || {}).other_pos || "" })),
+              { exportName: "추적_" + pn + "_매입장" });
       }
-      const lines = ivp.flatMap((p) => (p.lines || []).map((x) => [esc(p.iv_no), x.iv_seq, x.po_seq, num(x.qty), won(x.price), won(x.amt), won(x.vat), esc(x.pg_no || "")]));
-      h += '<details><summary>매입 줄 ' + lines.length + "개</summary>" + table(["매입번호", "순번", "발주 순번", "수량", "단가", "공급가", "부가세", "입고번호"], lines, [3, 4, 5, 6]) + "</details>";
+      const lines = ivp.flatMap((p) => (p.lines || []).map((x) => ({ iv_no: p.iv_no, iv_seq: x.iv_seq, po_seq: x.po_seq, qty: x.qty, price: x.price, amt: x.amt, vat: x.vat, pg_no: x.pg_no || "" })));
+      h += '<details><summary>매입 줄 ' + lines.length + "개</summary>"
+        + gridSlot([{ key: "iv_no", label: "매입번호" }, { key: "iv_seq", label: "순번", type: "number" }, { key: "po_seq", label: "발주 순번", type: "number" }, C.qty,
+                    { key: "price", label: "단가", type: "number", formatter: fwon }, { key: "amt", label: "공급가", type: "number", formatter: fwon }, { key: "vat", label: "부가세", type: "number", formatter: fwon }, { key: "pg_no", label: "입고번호" }],
+            lines, { exportName: "추적_" + pn + "_매입줄" }) + "</details>";
       // 줄 검산 — 발주 순번별 매입 수량 합 = 발주 수량 · 단가 같음
       const pol = {}; for (const x of (po.lines || [])) pol[x.po_seq] = x;
       const qsum = {}, pbad = new Set();
@@ -235,17 +295,23 @@
     } else {
       h += '<div class="kv">ERP 에 매입이 아직 없다.</div>';
     }
-    h += '<div class="kv" style="color:var(--muted)">결의전표(승인 여부)·부가세 원장은 열람 범위 밖(결정 C-15) — 대장의 전표 대사는 기안서 대장 화면에서 본다.</div></div></div>';
+    h += '<div class="kv" style="color:var(--muted)">결의전표(금액·승인 여부)·부가세 원장은 열람 범위 밖(결정 C-15) — 전표 번호로 이 건을 찾는 것만 된다(구매팀 입력·구매 매입전표). 대장의 전표 대사는 기안서 대장 화면에서 본다.</div></div></div>';
 
-    // 8 대장
-    h += '<div class="box"><h4>8 품의서관리 · 기안서 대장 <span class="stt ' + st[8] + '">' + ST_LABEL[st[8]] + "</span></h4>";
+    // 7 대장
+    h += '<div class="box"><h4>7 품의서관리 · 기안서 대장 <span class="stt ' + st[7] + '">' + ST_LABEL[st[7]] + "</span></h4>";
     if (led.length) {
       const rows = led.map((l) => {
         const plan = [["계약금", l.dp], ["중도금", l.mp], ["잔금", l.bp]].filter(([, x]) => x && (x.rate != null || (x.slip || "").trim())).map(([nm, x]) => nm + (x.rate != null ? " " + Math.round(Number(x.rate) * 1000) / 10 + "%" : "") + ((x.slip || "").trim() ? " " + String(x.slip).trim().split(/\s+/)[0] + (String(x.slip).trim().split(/\s+/).length > 1 ? " 외" : "") : " (전표 빈칸)")).join(" · ");
-        return ['<a class="po" href="/work/purchase-proposals?q=' + encodeURIComponent(l.vol_no) + '" target="_blank" style="color:var(--accent)">' + esc(l.vol_no) + "</a>", esc(l.draft_dt || ""), esc(l.drafter || ""), esc(l.job_no || "") + (b.p_code && l.job_no && !String(l.job_no).startsWith(String(b.p_code).slice(0, 12)) ? ' <span class="tbad" title="ERP P-CODE 와 다르다">≠</span>' : ""), esc(String(l.content || "").slice(0, 30)), won(l.amt), esc(l.closed || "-"), esc(plan || "잔금 100%"), esc(l.link || "") + (l.method ? "·" + esc(l.method) : ""), esc(l.scan_file || "—")];
+        return { vol_no: l.vol_no, draft_dt: l.draft_dt || "", drafter: l.drafter || "", job_no: l.job_no || "", content: l.content || "", amt: l.amt, closed: l.closed || "-", plan: plan || "잔금 100%",
+                 link: (l.link || "") + (l.method ? "·" + l.method : ""), scan_file: l.scan_file || "",
+                 job_ne: !!(b.p_code && l.job_no && !String(l.job_no).startsWith(String(b.p_code).slice(0, 12))) };
       });
       h += '<div class="note">「확정」은 전표 경유 연결 — 월말 묶음 매입이면 다른 기안까지 붙을 수 있다(결정 14). 금액이 발주와 다르면 한 기안이 여러 발주를 묶었거나 그 반대다.</div>'
-        + table(["권-번호", "기안일", "기안자", "생산번호", "내용", "금액", "종결", "지급 단계(대장)", "연결", "묶음 파일"], rows, [5]);
+        + gridSlot([{ key: "vol_no", label: "권-번호", formatter: (v) => '<span class="po"><a href="/work/purchase-proposals?q=' + encodeURIComponent(v) + '" target="_blank">' + esc(v) + "</a></span>" },
+                    { key: "draft_dt", label: "기안일" }, { key: "drafter", label: "기안자" },
+                    { key: "job_no", label: "생산번호", formatter: (v, row) => esc(v) + (row.job_ne ? ' <span class="tbad" title="ERP P-CODE 와 다르다">≠</span>' : "") },
+                    { key: "content", label: "내용" }, { key: "amt", label: "금액", type: "number", formatter: fwon }, { key: "closed", label: "종결" },
+                    { key: "plan", label: "지급 단계(대장)" }, { key: "link", label: "연결" }, { key: "scan_file", label: "묶음 파일" }], rows, { exportName: "추적_" + pn + "_대장" });
     } else {
       h += '<div class="kv">연결된 기안이 없다 — 대장에 발주번호 칸이 없어 전표·프로젝트·거래처·금액으로만 잇는다(결정 5·14).</div>';
     }
@@ -263,23 +329,33 @@
     ev.sort((a, c) => (a[1] < c[1] ? -1 : a[1] > c[1] ? 1 : 0));
     if (ev.length) {
       const first = ev[0][1];
-      h += '<details><summary>소요일(날짜순 ' + ev.length + "개)</summary>" + table(["일", "날짜", "앞에서부터", "처음부터"], ev.map((e, i) => [esc(e[0]), esc(e[1]), i ? days(ev[i - 1][1], e[1]) + "일" : "—", days(first, e[1]) + "일"]), [2, 3]) + "</details>";
+      h += '<details><summary>소요일(날짜순 ' + ev.length + "개)</summary>"
+        + gridSlot([{ key: "ev", label: "일" }, { key: "dt", label: "날짜" }, { key: "prev", label: "앞에서부터(일)", type: "number" }, { key: "first", label: "처음부터(일)", type: "number" }],
+            ev.map((e, i) => ({ ev: e[0], dt: e[1], prev: i ? days(ev[i - 1][1], e[1]) : null, first: days(first, e[1]) })), { exportName: "추적_" + pn + "_소요일", sortable: false }) + "</details>";
     }
     return h + "</div>";
   }
 
   function render(data) {
     const rounds = data.rounds || [];
+    const slip = data.slip || null;
     let h = '<div class="sec"><h3>「' + esc(data.key) + "」 → " + esc(data.kind) + " · 발주 " + num(data.po_count) + "건" + (data.truncated ? ' <span class="badge b">최근 30건만</span>' : "") + "</h3>";
+    if (slip && slip.found) {
+      h += '<div class="kv"><b>전표</b> ' + esc(slip.tg) + " · " + (slip.kind === "AP매입" ? "구매모듈 매입전표" : "구매팀 입력 전표")
+        + ((slip.iv_nos || []).length ? " · <b>매입</b> " + esc(slip.iv_nos.join(", ")) : "")
+        + ((slip.vols || []).length ? " · <b>대장</b> " + esc(slip.vols.join(", ")) : "")
+        + ' <span style="color:var(--muted)">— 번호로만 잇는다(금액·승인 상태는 열람 범위 밖)</span></div>';
+    }
     if (data.note) h += '<div class="callout amber">' + esc(data.note) + "</div>";
-    if (!rounds.length) h += '<div class="callout amber">찾은 발주가 없다. 번호를 다시 확인하거나 거래처·P-CODE 일부로 검색해 보세요(2026년 발주만 있다).</div>';
+    if (!rounds.length && !data.note) h += '<div class="callout amber">찾은 발주가 없다. 번호를 다시 확인하거나 거래처·P-CODE 일부로 검색해 보세요(2026년 발주만 있다).</div>';
     if (data.pu_unordered && data.pu_unordered.length) {
       h += '<div class="callout red"><b>이 요청 결재에서 발주 없이 남은 요청 줄 ' + data.pu_unordered.length + "개</b>(진행코드 「확정」인데 발주가 없다 — 수량 0 은 취소로 보이나 ERP 에 취소 표시는 없다)"
-        + table(["구매요청번호", "품번", "품목", "수량", "진행코드", "요청일"], data.pu_unordered.map((x) => [esc(x.pr_no), esc(x.item_cd), esc(x.item_nm || ""), num(x.qty), esc(x.sts), esc(x.req_dt || "")]), [3]) + "</div>";
+        + gridSlot([C.pr_no, C.item_cd, C.item_nm, C.qty, C.sts, C.req_dt], data.pu_unordered, { exportName: "추적_" + data.key + "_미발주요청줄" }) + "</div>";
     }
     h += "</div>";
-    for (const r of rounds) h += roundHtml(r);
+    for (const r of rounds) h += roundHtml(r, slip);
     app.innerHTML = h;
+    mountGrids();
     const synced = rounds.map((r) => ((r.po || {}).mirror || {}).synced).filter(Boolean).sort().pop();
     document.getElementById("footAsof").textContent = synced ? "중간DB 적재 " + synced : "";
   }
@@ -297,7 +373,7 @@
       const msg = String((e && e.message) || e);
       app.innerHTML = '<div class="callout amber"><b>불러오지 못했습니다.</b> ' + esc(msg)
         + (/permission|JWT|401|403/i.test(msg) ? "<br>사내 계정 세션이 끊겼을 수 있습니다. 새로고침해도 같으면 다시 로그인해 주세요."
-          : "<br>함수 <code>pur_case_chain</code> 이 아직 적용되지 않았을 수 있습니다(정본 SQL 95).") + "</div>";
+          : "<br>함수 <code>pur_case_chain</code> 이 아직 적용되지 않았을 수 있습니다(정본 SQL 96).") + "</div>";
       console.error("[구매건추적]", e);
     }
   }
