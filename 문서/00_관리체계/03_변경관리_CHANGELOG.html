@@ -110,6 +110,20 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <tbody>
 <tr>
 <td>2026-10-08</td>
+<td>그리드·운영페이지</td>
+<td><code>app/lib/grid.js</code>(도구줄 「↔ 폭맞춤」·「↺ 폭 초기화」 옵션) · <code>그리드/표준그리드_가이드</code> · 화면 <code>/work/hr-master</code> · 정본 SQL 106(마이그레이션 <code>hr_emp_extra_groups_req0125</code> 라이브 적용)</td>
+<td><strong>표준 그리드 폭맞춤 버튼 내장 + 인사마스터 조회 묶음 조회(REQ-0125)</strong> — 그리드에 폭맞춤·폭 초기화 버튼을 옵션으로 넣었다(기존 화면 무변경). 인사마스터는 열을 기본·소속·입퇴사·학력·자격·경력·가족·계정 묶음(2단 헤더)으로 나누고 「묶음」 칩으로 켜고 끈다. 「보기」 필터와 「재직인데 ERP 계정 없음」 요약은 뺐다. 폭·맞춤·고른 열은 브라우저에 남는다. 렌더 테스트 21항목 통과</td>
+<td>최동혁</td>
+</tr>
+<tr>
+<td>2026-10-08</td>
+<td>챗봇·운영페이지·ERP연계</td>
+<td>신규 <code>10_ERP_DB연계/etl/gw_board_collect.py</code>·<code>gw_session.py</code>·<code>hwp_text.py</code>·<code>reg_parse.py</code>·<code>gw_board_profile.default.json</code>·<code>deploy/register_gw_board_task.ps1</code>(+회귀 3종) · <code>nas_index.py</code> i1.2·<code>nas_worker.py</code> n1.12·Dockerfile(olefile) · 러너(<code>runner_core</code>·<code>jeil_runner</code>·<code>build_exe</code> hidden) · 정본 SQL <strong>103</strong>(reg_<em> 6표·RPC 8·pg_trgm)·</em><em>104</em><em>(전사 공개 카드)·</em><em>94 재생성</em>*(5,982자·21종 · rollback 10-08 조회본) · 화면 <code>pages/전사_사내규정_조회_2026.html</code>(<code>/work/regulations</code>)·<code>app/lib/api.js</code>·<code>_test_regulation_page.mjs</code>·<code>_routes.py</code> · 운영 <code>jeil-chat/index.ts</code> TOOLS 21종·<code>_port_modules.py</code>·<code>modules/regulation/*</code>·<code>core/prompt.ts</code> · <code>app/agent-templates.json</code>(규정 골든셋 2) · 문서 <code>12_에이전트관리/11</code>(신설)·00·02·03·10·<code>13_NAS_고도화/README</code>·<code>11_제품기획/09_ADR</code>(ADR-114)·15·<code>CLAUDE.md §17.4</code></td>
+<td><strong>사내규정 데이터 파이프라인(REQ-0124 · 관리자 결정 D-153~D-156)</strong> — 그룹웨어 규정 게시판 → NAS <code>00_전사공유/사내규정</code> 정본 미러(개정 이력) → 조문 파싱 → 포털 DB <code>reg_*</code> 사본 → 전 직원 조회 화면 + 운영 챗봇·에이전트 도구 <code>search_regulation</code>·<code>get_regulation</code>(도메인 <code>regulation</code>). 구형 <code>.hwp</code> 순수 파이썬 추출기(NAS 색인 공용). 회귀 272건(+51)·화면 ⑫·조립·tsc 통과. <strong>적용·배포·Step 0 실측(게시판 지정·선택자)·컨테이너 n1.12 재빌드·purchase v10 은 관리자 승인 대기</strong></td>
+<td>최동혁(+Claude)</td>
+</tr>
+<tr>
+<td>2026-10-08</td>
 <td>ERP연계·운영페이지</td>
 <td>정본 SQL 105(마이그레이션 <code>hr_edu_license_family_req0123</code> 라이브 적용) · ETL job <code>hr_edu</code>·<code>hr_license</code>·<code>hr_family</code> · 러너 r1.14 · 화면 <code>/work/hr-master</code></td>
 <td><strong>인사 학력·자격/면허·가족 미러 연계 + 인사마스터 조회 화면 반영(REQ-0123)</strong> — 학력(HAA030T)·자격(HAA060T)·가족(HAA020T)을 전량 스냅샷 + 배치 정합으로 미러. 가족은 관계·이름·부양·동거만(주민번호·직업·직장 미추출), 자격증 번호 미추출. 화면 목록에 최종학력·학교·자격 건수, 상세에 학력·자격·가족. 조회 RPC 2종은 인사팀·전체관리자만(역할별 실측). <strong>[14:40 실적재 확인]</strong> 서버 r1.14 교체·재적재 — 학력 223행(119명)·자격 50행(37명)·가족 39행(30명)·회수 0 · 코드 이름 미해결 0건</td>

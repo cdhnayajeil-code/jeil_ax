@@ -92,8 +92,8 @@ class TestExtract(Base):
         self.assertEqual(ix.extract(p)[0], "발주서 작성 요령")
 
     def test_refuses_with_reason(self):
-        self.write(os.path.join(self.pur, "x.hwp"), "구형 한글")
-        self.assertEqual(ix.extract(os.path.join(self.pur, "x.hwp")), (None, "읽지 못하는 형식"))
+        self.write(os.path.join(self.pur, "x.doc"), "구형 한글")
+        self.assertEqual(ix.extract(os.path.join(self.pur, "x.doc")), (None, "읽지 못하는 형식"))
         self.write(os.path.join(self.pur, "empty.txt"), "   ")
         self.assertEqual(ix.extract(os.path.join(self.pur, "empty.txt"))[1], "글자가 없음(스캔본·빈 문서)")
         self.write(os.path.join(self.pur, "broken.docx"), "zip 이 아니다")
@@ -262,7 +262,7 @@ class TestMoreFormats(Base):
         """색인 판이 오르면 「읽지 못하는 형식」으로 빠졌던 파일만 다시 본다 — 크기·수정시각이 그대로여도."""
         self.write(os.path.join(self.pur, "단가.tsv"), "품목\t단가\n볼트\t1200")
         self.write(os.path.join(self.pur, "규정.txt"), "수의계약 기준")
-        self.write(os.path.join(self.pur, "옛한글.hwp"), "x")
+        self.write(os.path.join(self.pur, "옛한글.doc"), "x")
         ix.refresh(self.con, self.docs, self.folders)
         with self.con:      # 옛 판(i1.0)이 tsv 를 형식 때문에 뺐던 상태를 흉내 낸다
             self.con.execute("delete from chunk where file_id in (select id from file where name = '단가.tsv')")
@@ -278,7 +278,7 @@ class TestFileStatus(Base):
     def test_status_lists_reasons_without_content(self):
         os.makedirs(os.path.join(self.pur, "AI저장", "2026"))
         self.write(os.path.join(self.pur, "AI저장", "2026", "견적.txt"), "볼트 단가 1200")
-        self.write(os.path.join(self.pur, "AI저장", "2026", "스캔.hwp"), "x")
+        self.write(os.path.join(self.pur, "AI저장", "2026", "스캔.doc"), "x")
         self.write(os.path.join(self.pur, "양식", "발주서.txt"), "발주서 양식")
         self.write(os.path.join(self.hr, "인사.txt"), "인사 문서")
         ix.refresh(self.con, self.docs, self.folders + [{"key": "hr", "rel_path": "부서/6100_인사팀", "label": "인사팀"}])
@@ -286,7 +286,7 @@ class TestFileStatus(Base):
         self.assertEqual(n, 2)
         self.assertEqual(res["요약"], {"전체": 2, "읽힘": 1, "못읽음": {ix.REASON_UNREADABLE: 1}})
         by = {r["이름"]: r for r in res["목록"]}
-        self.assertEqual((by["견적.txt"]["상태"], by["스캔.hwp"]["상태"], by["스캔.hwp"]["사유"]), ("읽힘", "못 읽음", ix.REASON_UNREADABLE))
+        self.assertEqual((by["견적.txt"]["상태"], by["스캔.doc"]["상태"], by["스캔.doc"]["사유"]), ("읽힘", "못 읽음", ix.REASON_UNREADABLE))
         self.assertEqual(by["견적.txt"]["경로"], "AI저장/2026/견적.txt")
         import json
         self.assertNotIn("1200", json.dumps(res, ensure_ascii=False), "판독 상태에는 내용이 실리지 않는다")
@@ -395,7 +395,7 @@ class TestFindByNameThenRead(Base):
         self.write(os.path.join(self.pur, "AI저장", "2026", "test upload.txt"), "납품 일정 메모 — 10월 20일 1차 입고 예정")
         self.write(os.path.join(self.pur, "양식", "발주서_작성요령.txt"), "발주서에는 납기와 단가를 반드시 적는다.")
         self.write(os.path.join(self.pur, "AI저장", "2026", "단가.csv"), "품목,단가\n볼트,1200")
-        self.write(os.path.join(self.pur, "AI저장", "2026", "옛한글.hwp"), "x")
+        self.write(os.path.join(self.pur, "AI저장", "2026", "옛한글.doc"), "x")
         self.write(os.path.join(self.hr, "test upload.txt"), "인사팀의 같은 이름 파일")
         ix.refresh(self.con, self.docs, self.folders + [{"key": "hr", "rel_path": "부서/6100_인사팀", "label": "인사팀"}])
 
@@ -418,11 +418,11 @@ class TestFindByNameThenRead(Base):
 
     def test_lookup_gives_doc_ids_for_listing(self):
         self.seed()
-        got = ix.lookup(self.con, "pur", ["AI저장/2026/test upload.txt", "AI저장/2026/옛한글.hwp", "AI저장/2026/단가.csv", "없는파일.txt"])
+        got = ix.lookup(self.con, "pur", ["AI저장/2026/test upload.txt", "AI저장/2026/옛한글.doc", "AI저장/2026/단가.csv", "없는파일.txt"])
         doc, ok, why, table = got["AI저장/2026/test upload.txt"]
         self.assertTrue(ok and why is None and not table)
         self.assertIn("1차 입고 예정", ix.read(self.con, doc, ["pur"])[0]["내용"])
-        self.assertEqual(got["AI저장/2026/옛한글.hwp"][1:3], (False, ix.REASON_UNREADABLE))
+        self.assertEqual(got["AI저장/2026/옛한글.doc"][1:3], (False, ix.REASON_UNREADABLE))
         self.assertTrue(got["AI저장/2026/단가.csv"][3])
         self.assertNotIn("없는파일.txt", got)
         self.assertEqual(ix.lookup(self.con, "pur", []), {})

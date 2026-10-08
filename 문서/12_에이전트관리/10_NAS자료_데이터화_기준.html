@@ -43,7 +43,7 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <body>
 <div class="page">
   <span class="doc-label">JEIL AX 에이전트관리 · 대외비</span>
-  <div class="docnav"><a href="/docs/agents">🏠 에이전트관리 허브</a><a href="/docs/agents/status">00 현재상태</a><a href="/docs/agents/ops-guide">01 운영가이드</a><a href="/docs/agents/dev-guide">02 개발가이드</a><a href="/docs/agents/progress">03 진행상태</a><a href="/docs/agents/purchase-domain">04 구매도메인</a><a href="/docs/agents/quality-test">05 품질테스트</a><a href="/docs/agents/templates">06 템플릿·관리포인트</a><a href="/docs/agents/dri-plan">08 DRI 에이전트 기획</a><a href="/docs/agents/prompt-tuning">09 지시문·오케스트레이션</a><a class="cur" href="/docs/agents/doc-data">10 NAS 자료 데이터화 기준</a><a href="README.md">README</a></div>
+  <div class="docnav"><a href="/docs/agents">🏠 에이전트관리 허브</a><a href="/docs/agents/status">00 현재상태</a><a href="/docs/agents/ops-guide">01 운영가이드</a><a href="/docs/agents/dev-guide">02 개발가이드</a><a href="/docs/agents/progress">03 진행상태</a><a href="/docs/agents/purchase-domain">04 구매도메인</a><a href="/docs/agents/quality-test">05 품질테스트</a><a href="/docs/agents/templates">06 템플릿·관리포인트</a><a href="/docs/agents/dri-plan">08 DRI 에이전트 기획</a><a href="/docs/agents/prompt-tuning">09 지시문·오케스트레이션</a><a class="cur" href="/docs/agents/doc-data">10 NAS 자료 데이터화 기준</a><a href="/docs/agents/regulations">11 사내규정 데이터</a><a href="README.md">README</a></div>
   <p class="md-link">📄 Markdown 원본: <a href="10_NAS자료_데이터화_기준.md">10_NAS자료_데이터화_기준.md</a> · 허브 <a href="/docs/agents">에이전트관리 허브</a></p>
   <div class="content">
 <h1 id="10-nas">10 · NAS 업로드 자료 데이터화 기준 — 부서 에이전트 공통</h1>
@@ -173,7 +173,8 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 </ul>
 <h2 id="5-9">5. 기준 — 원칙 9개</h2>
 <ol>
-<li><strong>정본 서열</strong> — ERP(미러) &gt; 사람이 확정한 포털 기록 &gt; 문서 추출 값. 추출 값은 ERP 값을 덮지 않고, ERP 의 빈 칸을 채우지도 않는다. 어긋나면 고치는 것이 아니라 <strong>「차이」로 보여 준다</strong>.</li>
+<li><strong>정본 서열</strong> — ERP(미러) &gt; 사람이 확정한 포털 기록 &gt; 문서 추출 값. 추출 값은 ERP 값을 덮지 않고, ERP 의 빈 칸을 채우지도 않는다. 어긋나면 고치는 것이 아니라 <strong>「차이」로 보여 준다</strong>.
+   <strong>사내규정은 이 서열 밖의 별도 축이다</strong>(2026-10-08 · REQ-0124 · D-153): 정본 = 그룹웨어 규정 게시판(원본·첨부는 NAS <code>00_전사공유/사내규정</code> 미러) &gt; 포털 DB <code>public.reg_*</code>(규칙 파싱 조문 · 재생성 가능한 파생 사본). ERP 와 잇지 않고 <code>doc_data</code> 와 섞지 않는다. 출처 표기는 「사내규정 사본(그룹웨어 게시판 · 시행일 기준)」 — 네 번째 출처 값. 기준은 <a href="/docs/agents/regulations">11</a>.</li>
 <li><strong>물리적 분리</strong> — 추출 데이터는 전용 구역(가칭 스키마 <code>doc_data</code>)에만 둔다. <code>erp_ro</code> 에는 표·열·뷰를 만들지 않고, 추출 쪽 함수는 <code>erp_ro</code> 를 <strong>읽기만</strong> 한다. ERP 키는 외래키가 아니라 <strong>연결 표</strong>(후보·근거·확정자)로 잇는다. 「추출 함수에 <code>erp_ro</code> 쓰기 권한이 없다」를 회귀 테스트로 잠근다.</li>
 <li><strong>표기 분리</strong> — ERP 조회 도구와 문서 데이터 도구는 <strong>별개 도구</strong>이고, 결과에 출처가 반드시 붙는다: <code>ERP 기준</code> / <code>문서 추출·미확인</code> / <code>문서 추출·확인됨</code>. 한 표에 섞지 않고, 추출 값을 ERP 집계에 <strong>더하지 않는다</strong>.</li>
 <li><strong>원본 추적</strong> — 모든 추출 값은 원본 파일(저장 대장 번호·지문)·위치(쪽·시트·셀)·원문 인용·추출기 판·모델·시각을 갖는다. 원본은 고치지 않는다 — 파일이 바뀌면 새 판이고, 옛 추출은 「대체됨」으로 남는다.</li>
@@ -378,6 +379,12 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <td><strong>부서별 모델 전송 승인 절차</strong></td>
 <td>부서마다 자료 민감도가 다르다</td>
 <td>합류 준비 목록의 승인 항목으로 부서별 1회 결정</td>
+</tr>
+<tr>
+<td>(D-153)</td>
+<td><strong>사내규정 본문·조문의 포털 DB 저장</strong> — D-95 의 「전사공개 규정류 예외」</td>
+<td>전 직원 공개 문서라 NAS 조회 큐 왕복 없이 화면·챗봇이 바로 쓰게</td>
+<td>✅ <strong>결정(2026-10-08 · REQ-0124)</strong> — 원본·첨부는 NAS 정본, 포털 DB <code>reg_*</code> 는 파생 사본. 급여·개인정보 섞인 문서 제외. 상세 <a href="/docs/agents/regulations">11</a></td>
 </tr>
 </tbody>
 </table>

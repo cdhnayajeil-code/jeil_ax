@@ -34,6 +34,7 @@ ROUTES = {
     "/work/inventory":          "pages/자재물류_재고입출고_2026.html",
     "/work/subcon-inspection":  "pages/외주발주_검사진행현황_2026.html",
     "/work/item-duplicates":    "pages/품목중복_조회_2026.html",
+    "/work/regulations":        "pages/전사_사내규정_조회_2026.html",  # 사내규정 조회(REQ-0124) — 그룹웨어 규정 게시판 사본(public.reg_* · 정본 SQL 103) · 전사 공개 · 조회바 months:false · 표준 그리드
     "/work/erp-roles":          "pages/ERP권한_조직별현황.html",
     "/docs/erp/role-cleanup":   "pages/ERP권한정리_사용안내.html",
     "/work/project-cost":       "pages/프로젝트원가_요약_2025-095-SUL-EC.html",
@@ -172,6 +173,7 @@ ROUTES = {
     "/docs/agents/dri-plan":            "문서/12_에이전트관리/08_DRI분석생성_에이전트_기획.html",  # 사업운영팀 DRI 분석·생성 에이전트 기획(REQ-0112)
     "/docs/agents/prompt-tuning":       "문서/12_에이전트관리/09_지시문_오케스트레이션_튜닝.html",  # 지시문 개편·오케스트레이션 튜닝 설계·적용·검증(REQ-0114)
     "/docs/agents/doc-data":            "문서/12_에이전트관리/10_NAS자료_데이터화_기준.html",  # NAS 업로드 자료 데이터화 기준 — 부서 공통(REQ-0117 · 2026-10-08)
+    "/docs/agents/regulations":         "문서/12_에이전트관리/11_사내규정_데이터_운영기획.html",  # 사내규정 데이터 운영기획 — 그룹웨어 게시판 → NAS 정본 → 포털 DB → 조회 화면·챗봇 도구(REQ-0124 · 2026-10-08)
     "/docs/nas":                        "문서/13_NAS_고도화/index.html",            # 사내 NAS 연계 검토·기획 허브(2026-09-29)
     "/docs/nas/review":                 "문서/13_NAS_고도화/00_NAS연계_타당성검토.html",
     "/docs/nas/plan":                   "문서/13_NAS_고도화/01_NAS_데이터계층_기획.html",

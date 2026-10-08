@@ -47,6 +47,10 @@ META = {
         "[신규] '내 요청 어떻게 됐어?', '권한 요청 진행상황' 류 질의는 get_my_requests 로 본인이 접수·동조한 요청만 조회해 답하세요."),
     "search_my_documents": ("docs", "내 문서 검색", "승인 폴더 ∩ 본인 권한 문서 검색(Graph)", None, "docs", "normal", ["list", "notice"], False, "포털 관리", None),
     "read_document": ("docs", "문서 본문 판독", "Excel 셀값·텍스트 본문(승인 폴더만)", None, "docs", "normal", ["notice"], False, "포털 관리", None),
+    # 사내규정 2종(REQ-0124 · 포털DB public.reg_* 사본 · 정본 SQL 103 · 전 직원) — 도메인 안내는 core/prompt.ts DOMAIN_HINTS.regulation
+    "search_regulation": ("regulation", "사내규정 검색", "그룹웨어 규정 게시판 사본에서 조문·제목·규정명 검색(규정명·조문·발췌·시행일)", None, "partial", "normal", ["list", "notice"], False, "총무팀",
+        "사내규정(연차·휴가·근태·출장비·경비·결재권한 등 전사 규정류) 질문은 일반론으로 답하지 말고 먼저 search_regulation 으로 조문을 찾은 뒤, 규정명·조문 번호(제n조)·시행일을 밝혀 답하세요. 전문이 필요하면 get_regulation. 해석·개별 적용은 담당 부서(인사팀·총무팀) 확인을 안내하고, 찾지 못하면 '포털의 규정 사본에서 찾지 못함'이라고 답하세요."),
+    "get_regulation": ("regulation", "사내규정 조문 읽기", "규정 1건의 목차·조문 전문 또는 조문 1개(이어 읽기)", None, "partial", "normal", ["record", "list", "notice"], False, "총무팀", None),
 }
 
 HELPERS = ("STATUS_KO, stsKo, MODULE_KO, hasModule, comma, won, STEP_IX, STEP_LABELS, userLabelMap, userLbl, "

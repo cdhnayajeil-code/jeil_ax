@@ -43,12 +43,12 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <body>
 <div class="page">
   <span class="doc-label">JEIL AX 에이전트관리 · 대외비</span>
-  <div class="docnav"><a href="/docs/agents">🏠 에이전트관리 허브</a><a href="/docs/agents/status">00 현재상태</a><a href="/docs/agents/ops-guide">01 운영가이드</a><a href="/docs/agents/dev-guide">02 개발가이드</a><a href="/docs/agents/progress">03 진행상태</a><a href="/docs/agents/purchase-domain">04 구매도메인</a><a href="/docs/agents/quality-test">05 품질테스트</a><a class="cur" href="/docs/agents/templates">06 템플릿·관리포인트</a><a href="/docs/agents/dri-plan">08 DRI 에이전트 기획</a><a href="/docs/agents/prompt-tuning">09 지시문·오케스트레이션</a><a href="/docs/agents/doc-data">10 NAS 자료 데이터화 기준</a><a href="README.md">README</a></div>
+  <div class="docnav"><a href="/docs/agents">🏠 에이전트관리 허브</a><a href="/docs/agents/status">00 현재상태</a><a href="/docs/agents/ops-guide">01 운영가이드</a><a href="/docs/agents/dev-guide">02 개발가이드</a><a href="/docs/agents/progress">03 진행상태</a><a href="/docs/agents/purchase-domain">04 구매도메인</a><a href="/docs/agents/quality-test">05 품질테스트</a><a class="cur" href="/docs/agents/templates">06 템플릿·관리포인트</a><a href="/docs/agents/dri-plan">08 DRI 에이전트 기획</a><a href="/docs/agents/prompt-tuning">09 지시문·오케스트레이션</a><a href="/docs/agents/doc-data">10 NAS 자료 데이터화 기준</a><a href="/docs/agents/regulations">11 사내규정 데이터</a><a href="README.md">README</a></div>
   <p class="md-link">📄 Markdown 원본: <a href="06_에이전트_템플릿_관리포인트.md">06_에이전트_템플릿_관리포인트.md</a> · 허브 <a href="/docs/agents">에이전트관리 허브</a></p>
   <div class="content">
 <h1 id="06">06 · 에이전트 템플릿 · 관리 포인트 (생성본)</h1>
 <blockquote>
-<p>정본은 <code>app/agent-templates.json</code>(갱신 2026-10-07) — 이 문서는 <code>_gen_templates_md.py</code> 가 만든다. 손으로 고치지 말 것. 관리 콘솔 <code>/admin/agents</code> 「📐 관리 포인트·템플릿」 탭이 같은 파일을 읽어 DB 와 대조한다. 실제 적용값은 DB(<code>ai_agent</code>·<code>ai_agent_version</code>·<code>agent_glossary</code>·<code>agent_golden</code>)가 정본이고, 여기는 <strong>기준 세트</strong>다.</p>
+<p>정본은 <code>app/agent-templates.json</code>(갱신 2026-10-08) — 이 문서는 <code>_gen_templates_md.py</code> 가 만든다. 손으로 고치지 말 것. 관리 콘솔 <code>/admin/agents</code> 「📐 관리 포인트·템플릿」 탭이 같은 파일을 읽어 DB 와 대조한다. 실제 적용값은 DB(<code>ai_agent</code>·<code>ai_agent_version</code>·<code>agent_glossary</code>·<code>agent_golden</code>)가 정본이고, 여기는 <strong>기준 세트</strong>다.</p>
 </blockquote>
 <h2 id="1">1. 이 문서가 답하는 것</h2>
 <ul>
@@ -492,7 +492,7 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <h2 id="4">4. 부서 세트</h2>
 <h3 id="4-purchase-purchase">4-purchase · 구매 (<code>purchase</code>)</h3>
 <ul>
-<li>도메인 묶음: <code>purchase, item, portal, common, docs</code> · 요약: 발주·구매요청·입고·매입·기안서 대장을 대화로 조회하고 자료를 만듭니다.</li>
+<li>도메인 묶음: <code>purchase, item, portal, common, docs, regulation</code> · 요약: 발주·구매요청·입고·매입·기안서 대장을 대화로 조회하고 자료를 만듭니다.</li>
 <li>역할 안내: 당신은 제일엠앤에스 구매팀의 업무 에이전트입니다. 구매팀 실무자가 발주·구매요청·입고·매입·기안서 대장·거래처 상황을 빠르게 파악하고 보고 자료를 만들도록 돕습니다.</li>
 </ul>
 <p><strong>부서 추가 답변 원칙</strong></p>
@@ -683,7 +683,7 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 </tr>
 </tbody>
 </table>
-<p><strong>골든셋 표준 문항 21개</strong>(기대 도구 · 답 요건)</p>
+<p><strong>골든셋 표준 문항 23개</strong>(기대 도구 · 답 요건)</p>
 <table>
 <thead>
 <tr>
@@ -819,6 +819,18 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <td>생산팀이 요청했는데 아직 발주 안 된 구매요청이 몇 건이야?</td>
 <td>get_erp_pur_req, search_pur_list</td>
 <td>표시 건수(30)가 전체가 아님을 밝힘('표시 30건 · 전체 N건' 또는 '외 N건') · 30건을 총량처럼 말하지 않음 — 09-30 실측 F-4 회귀</td>
+</tr>
+<tr>
+<td>22</td>
+<td>연차휴가는 1년에 며칠이야?</td>
+<td>search_regulation</td>
+<td>규정명·조문 번호(제n조)·시행일 명시 · 조문 발췌 범위 안의 일수만 · 개별 산정은 인사팀 안내 · 조문을 지어내지 않음 — REQ-0124 사내규정 도구</td>
+</tr>
+<tr>
+<td>23</td>
+<td>팀장이 전결할 수 있는 구매 금액 한도는?</td>
+<td>search_regulation</td>
+<td>결재권한(위임전결) 규정 조문 인용 · 금액·직위 조건 그대로 · ERP 발주 데이터와 섞지 않음 · 사본에 없으면 '포털의 규정 사본에서 찾지 못함' + 담당 부서 안내 — REQ-0124</td>
 </tr>
 </tbody>
 </table>

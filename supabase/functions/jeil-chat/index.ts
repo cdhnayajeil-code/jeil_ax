@@ -223,6 +223,25 @@ const TOOLS = [
       parameters: { type: "object", properties: { driveId: { type: "string", description: "드라이브 ID(search 결과)" }, itemId: { type: "string", description: "항목 ID(search 결과)" } }, required: ["driveId", "itemId"] },
     },
   },
+  /* ===== 사내규정 도구 2종 (REQ-0124 · 포털DB public.reg_* 사본 · 정본 SQL 103 · 전 직원) =====
+     정본 서열: 그룹웨어 규정 게시판(원본·첨부는 NAS) > 포털DB 사본(규칙 파싱 조문). 결과마다 출처를 밝힌다.
+     실험실(jeil-chat-lab)에는 _port_modules.py 가 이 정의와 runTool 분기를 그대로 옮긴다(도메인 regulation). */
+  {
+    type: "function",
+    function: {
+      name: "search_regulation",
+      description: "사내규정(취업규칙·인사·복무·휴가·경비·출장·결재권한 등 전사 규정류) 조문 검색 — 그룹웨어 규정 게시판의 포털DB 사본에서 규정명·조문 제목·본문을 찾아 규정명·조문 번호·제목·발췌·시행일·원본 링크를 돌려준다. '연차 며칠', '출장비 기준', '결재 한도', '규정에 어떻게 돼 있어' 류 질의에 반드시 먼저 사용(일반론 답변 금지). 결과의 reg_key·article_no 로 get_regulation 을 부르면 조문 전문을 읽는다. 규정 질의에 OneDrive 문서 검색(search_my_documents)은 쓰지 않는다.",
+      parameters: { type: "object", properties: { q: { type: "string", description: "검색어 — 핵심 낱말 1~3개(예: '연차', '출장 숙박비', '전결')" }, limit: { type: "integer", description: "최대 건수(기본 10, 최대 30)" } }, required: ["q"] },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_regulation",
+      description: "사내규정 1건의 조문 전문 또는 특정 조문 1개 읽기(포털DB 사본). reg(search_regulation 결과의 reg_key 또는 규정명 일부)로 찾고, article_no 를 주면 그 조문만, 없으면 목차 전체와 앞부분 조문을 돌려준다(길면 '다음조문' 값을 start 에 넣어 이어 읽는다). 답할 때 규정명·조문 번호(제n조)·시행일을 밝히고, 해석·개별 적용은 담당 부서(인사팀·총무팀) 확인을 안내한다.",
+      parameters: { type: "object", properties: { reg: { type: "string", description: "reg_key(예: 'rules:취업규칙') 또는 규정명 일부(예: '취업규칙', '출장여비')" }, article_no: { type: "string", description: "조문 번호(예: '15', '15의2', '부칙-1'). 생략하면 목차+앞부분" }, start: { type: "integer", description: "이어 읽기 시작 조문 순번(이전 결과의 '다음조문')" } }, required: ["reg"] },
+    },
+  },
 ];
 
 const STATUS_KO: Record<string, string> = { new: "신규", prod: "생산중", insp: "검사", done: "완료" };
@@ -1162,6 +1181,140 @@ async function runTool(admin: any, name: string, argsJson: string, scope: ErpSco
   }
 
   /* ===== 3단계 문서 도구 (사용자 위임 토큰 · OneDrive/SharePoint 보안 트리밍) ===== */
+  if (name === "search_regulation") {
+    // 사내규정 조문 검색(REQ-0124) — 포털DB 사본(public.reg_* · definer RPC reg_search · 사내 전원). 본문은 HELPERS 만 쓴다(_port_modules 이식).
+    const SRC_LABEL = "사내규정 사본(그룹웨어 게시판 · 시행일 기준)";
+    const q = String(args.q || "").replace(/[\u0000-\u001f\u007f%_\\]/g, " ").replace(/\s+/g, " ").trim().slice(0, 100);
+    if (q.length < 2) return { 오류: "검색어(q)는 두 글자 이상이어야 합니다." };
+    const limit = Math.min(Math.max(Number(args.limit) || 10, 1), 30);
+    const link = `https://ai.jeilm.co.kr/work/regulations?q=${encodeURIComponent(q)}`;
+    // 엔진에 도구 타임아웃이 없다 — 도구가 스스로 8초 상한을 건다(NAS 도구와 같은 값). 초과는 「오류」가 아니라 「확인하지 못함」(개선 대장 자동 적재 방지).
+    const timeout = new Promise<{ data: null; error: { message: string } }>((r) => setTimeout(() => r({ data: null, error: { message: "timeout" } }), 8000));
+    // deno-lint-ignore no-explicit-any
+    const { data, error } = (await Promise.race([admin.rpc("reg_search", { p_q: q, p_limit: limit }), timeout])) as { data: any; error: any };
+    if (error) {
+      const msg = String(error.message || "");
+      if (msg === "timeout") return { 확인여부: "확인하지 못함", 검색어: q, 안내: "사내규정 검색이 8초 안에 끝나지 않았습니다. 낱말을 줄여 한 번만 다시 시도하고, 그래도 안 되면 규정 조회 화면에서 확인하도록 안내하세요.",
+        __view: { view: "notice", title: "사내규정 검색 지연", kind: "info", text: "검색이 제한 시간 안에 끝나지 않았습니다. 낱말을 줄여 다시 시도해 보세요.",
+          actions: [{ kind: "link", label: "규정 조회 화면에서 보기", url: link }] } satisfies ViewPayload };
+      if (error.code === "42501" || /forbidden|permission denied/i.test(msg)) return { 접근제한: true, 안내: "사내 계정으로 로그인한 사용자만 사내규정을 조회할 수 있습니다.",
+        __view: { view: "notice", title: "사내규정 접근 안내", kind: "deny", text: "사내 계정으로 로그인한 사용자만 사내규정을 조회할 수 있습니다." } satisfies ViewPayload };
+      return { 오류: "사내규정 검색 실패: " + msg };
+    }
+    // deno-lint-ignore no-explicit-any
+    const res = (data || {}) as any;
+    if (res.allowed === false) return { 접근제한: true, 안내: "사내 계정으로 로그인한 사용자만 사내규정을 조회할 수 있습니다.",
+      __view: { view: "notice", title: "사내규정 접근 안내", kind: "deny", text: "사내 계정으로 로그인한 사용자만 사내규정을 조회할 수 있습니다." } satisfies ViewPayload };
+    const asOfReg = res.as_of ? String(res.as_of).slice(0, 16).replace("T", " ") : null;
+    // deno-lint-ignore no-explicit-any
+    const 목록 = ((res.rows || []) as any[]).map((r) => ({
+      규정: r.name, reg_key: r.reg_key, 조문: r.article_no ? `제${r.article_no}조` : "전문", article_no: r.article_no || null,
+      제목: r.title || "", 발췌: r.excerpt || "", 시행일: r.effective_date || null, 원본: r.gw_url || null,
+    }));
+    const columns = [{ key: "규정", label: "규정" }, { key: "조문", label: "조문" }, { key: "제목", label: "제목" }, { key: "시행일", label: "시행일" }, { key: "원본", label: "원본", link: true }];
+    if (!목록.length) return { 출처: SRC_LABEL, 기준시각: asOfReg || asOf, 검색어: q, 건수: 0, 목록: [],
+      안내: `포털에 수집된 규정 조문에서 '${q}' 를 찾지 못했습니다. 낱말을 줄여 한 번만 다시 찾고, 그래도 없으면 '포털의 규정 사본에서 찾지 못함'이라고 답하고 담당 부서(인사팀·총무팀) 확인을 안내하세요. 조문을 추측해 만들지 마세요.`,
+      __view: { view: "list", title: `사내규정 검색 — "${q}" (0건)`, asOf, columns, rows: [],
+        note: "수집된 규정 사본 기준" + (asOfReg ? ` · 기준 ${asOfReg}` : "") + " — 낱말을 줄여 다시 찾아 보세요",
+        actions: [{ kind: "link", label: "규정 조회 화면에서 보기", url: link }] } satisfies ViewPayload };
+    return { 출처: SRC_LABEL, 기준시각: asOfReg || asOf, 검색어: q, 건수: 목록.length, 목록,
+      안내: "답변에는 규정명·조문 번호(제n조)·시행일을 밝히고 발췌 범위 안에서만 말하세요. 조문 전문이 필요하면 get_regulation(reg=reg_key, article_no). 규정의 해석·개별 적용(예외 인정·금액 산정)은 담당 부서(인사팀·총무팀) 확인을 안내하세요. 이 값은 그룹웨어 게시판의 포털 사본이라 수집 뒤 개정됐을 수 있습니다.",
+      __view: { view: "list", title: `사내규정 검색 — "${q}" (${목록.length}건)`, asOf, columns,
+        rows: 목록.map((x) => ({ 규정: x.규정, 조문: x.조문, 제목: x.제목, 시행일: String(x.시행일 || "").slice(0, 10), 원본: x.원본 })),
+        note: "그룹웨어 규정 게시판의 포털 사본" + (asOfReg ? ` · 기준 ${asOfReg}` : "") + " — 원본·첨부 정본은 그룹웨어",
+        actions: [{ kind: "link", label: "규정 조회 화면에서 보기", url: link }] } satisfies ViewPayload };
+  }
+
+  if (name === "get_regulation") {
+    // 사내규정 조문 읽기(REQ-0124) — reg_key 또는 규정명 부분일치 → definer RPC reg_get. 본문은 8,000자 창으로 잘라 이어 읽는다.
+    const SRC_LABEL = "사내규정 사본(그룹웨어 게시판 · 시행일 기준)";
+    const regIn = String(args.reg || "").replace(/[\u0000-\u001f\u007f%\\]/g, " ").replace(/\s+/g, " ").trim().slice(0, 60);
+    if (!regIn) return { 오류: "규정(reg)이 필요합니다 — search_regulation 결과의 reg_key 또는 규정명 일부." };
+    const artNo = String(args.article_no || "").trim().slice(0, 20) || null;
+    const start = Math.max(1, Number(args.start) || 1);
+    const WINDOW = 8000;
+    const timeout = () => new Promise<{ data: null; error: { message: string } }>((r) => setTimeout(() => r({ data: null, error: { message: "timeout" } }), 8000));
+    const deny = () => ({ 접근제한: true, 안내: "사내 계정으로 로그인한 사용자만 사내규정을 조회할 수 있습니다.",
+      __view: { view: "notice", title: "사내규정 접근 안내", kind: "deny", text: "사내 계정으로 로그인한 사용자만 사내규정을 조회할 수 있습니다." } satisfies ViewPayload });
+    let regKey = regIn;
+    if (!/^[a-z0-9_]{1,40}:.+$/i.test(regIn)) {
+      // 규정명으로 들어왔다 — 현행 목록에서 부분일치로 찾는다(후보가 여럿이면 되묻기)
+      // deno-lint-ignore no-explicit-any
+      const { data: ld, error: le } = (await Promise.race([admin.rpc("reg_list", { p_category: null, p_q: regIn }), timeout()])) as { data: any; error: any };
+      if (le) return le.message === "timeout" ? { 확인여부: "확인하지 못함", 안내: "사내규정 목록 조회가 8초 안에 끝나지 않았습니다. 잠시 뒤 다시 시도하세요." } : { 오류: "사내규정 목록 조회 실패: " + String(le.message || "") };
+      if (ld && ld.allowed === false) return deny();
+      // deno-lint-ignore no-explicit-any
+      const cands = ((ld && ld.rows) || []) as any[];
+      if (!cands.length) return { 출처: SRC_LABEL, 기준시각: asOf, 규정: regIn, 건수: 0,
+        안내: `'${regIn}' 에 맞는 규정이 포털 사본에 없습니다. search_regulation 으로 낱말을 바꿔 찾거나, '포털의 규정 사본에서 찾지 못함'이라고 답하고 담당 부서 확인을 안내하세요.`,
+        __view: { view: "notice", title: "사내규정 없음", kind: "info", text: `'${regIn}' 에 맞는 규정이 포털 사본에 없습니다.` } satisfies ViewPayload };
+      if (cands.length > 1) return { 출처: SRC_LABEL, 기준시각: asOf, 규정: regIn, 건수: cands.length,
+        후보: cands.slice(0, 10).map((c) => ({ 규정: c.name, reg_key: c.reg_key, 분류: c.category || null, 시행일: c.effective_date || null, 조문수: c.article_count })),
+        안내: "규정이 여럿입니다 — 사용자에게 어느 규정인지 묻거나, 가장 맞는 reg_key 로 get_regulation 을 다시 부르세요.",
+        __view: { view: "list", title: `사내규정 후보 — "${regIn}" (${cands.length}건)`, asOf,
+          columns: [{ key: "규정", label: "규정" }, { key: "분류", label: "분류" }, { key: "시행일", label: "시행일" }, { key: "조문수", label: "조문" }],
+          rows: cands.slice(0, 10).map((c) => ({ 규정: c.name, 분류: c.category || "", 시행일: String(c.effective_date || "").slice(0, 10), 조문수: c.article_count })) } satisfies ViewPayload };
+      regKey = String(cands[0].reg_key);
+    }
+    // deno-lint-ignore no-explicit-any
+    const { data, error } = (await Promise.race([admin.rpc("reg_get", { p_reg_key: regKey, p_article_no: artNo, p_from_seq: start, p_limit: 300 }), timeout()])) as { data: any; error: any };
+    if (error) {
+      const msg = String(error.message || "");
+      if (msg === "timeout") return { 확인여부: "확인하지 못함", 안내: "사내규정 읽기가 8초 안에 끝나지 않았습니다. 조문 번호(article_no)를 지정해 다시 시도하세요." };
+      if (error.code === "42501" || /forbidden|permission denied/i.test(msg)) return deny();
+      return { 오류: "사내규정 읽기 실패: " + msg };
+    }
+    // deno-lint-ignore no-explicit-any
+    const res = (data || {}) as any;
+    if (res.allowed === false) return deny();
+    if (!res.found) return { 출처: SRC_LABEL, 기준시각: asOf, 규정: regKey, 건수: 0,
+      안내: "이 규정의 현행 판이 포털 사본에 없습니다(삭제됐거나 아직 수집 전). 담당 부서 확인을 안내하세요.",
+      __view: { view: "notice", title: "사내규정 없음", kind: "info", text: "이 규정의 현행 판이 포털 사본에 없습니다." } satisfies ViewPayload };
+    const r = res.reg || {};
+    const asOfReg = res.as_of ? String(res.as_of).slice(0, 16).replace("T", " ") : null;
+    const 규정 = { 규정명: r.name, reg_key: r.reg_key, 분류: r.category || null, 제정일: r.enact_date || null, 개정일: r.revise_date || null, 시행일: r.effective_date || null,
+      개정차수: r.revision_no || null, 주관부서: r.owner_dept || null, 판독: r.parse_status, 조문원천: r.text_source, 원본: r.gw_url || null };
+    // deno-lint-ignore no-explicit-any
+    const 첨부 = ((res.attachments || []) as any[]).map((a) => ({ 파일: a.file_name, 판독: a.text_status, 사유: a.text_reason || null }));
+    const linkOf = (no: string | null) => `https://ai.jeilm.co.kr/work/regulations?reg=${encodeURIComponent(regKey)}${no ? "&art=" + encodeURIComponent(no) : ""}`;
+    // deno-lint-ignore no-explicit-any
+    const arts = (res.articles || []) as any[];
+    const 안내공통 = "규정명·조문 번호(제n조)·시행일을 밝혀 답하세요. 해석·예외 인정·개별 산정은 담당 부서(인사팀·총무팀) 확인을 안내하세요. 이 값은 그룹웨어 게시판의 포털 사본이라 수집 뒤 개정됐을 수 있습니다(판독 불가 첨부의 내용은 들어 있지 않습니다).";
+    if (artNo) {
+      const a = arts[0];
+      if (!a) return { 출처: SRC_LABEL, 기준시각: asOfReg || asOf, 규정, 조문번호: artNo, 건수: 0,
+        안내: `제${artNo}조가 이 규정의 사본에 없습니다. get_regulation(reg) 으로 목차를 보고 번호를 확인하세요.`,
+        __view: { view: "notice", title: `${r.name} 제${artNo}조 없음`, kind: "info", text: "그 조문 번호가 사본에 없습니다 — 목차에서 확인하세요." } satisfies ViewPayload };
+      const body = String(a.body || "");
+      return { 출처: SRC_LABEL, 기준시각: asOfReg || asOf, 규정,
+        조문: { 조문번호: a.article_no, 장: a.chapter || null, 절: a.section || null, 제목: a.title || null, 본문: body.slice(0, WINDOW), 개정꼬리표: a.amended_tag || null, 삭제됨: !!a.is_deleted },
+        첨부, 안내: 안내공통,
+        __view: { view: "record", title: `${r.name} 제${a.article_no}조${a.title ? "(" + a.title + ")" : ""}`, asOf,
+          fields: [{ k: "시행일", v: String(r.effective_date || "").slice(0, 10) || "—" }, { k: "개정", v: a.amended_tag || (r.revise_date ? String(r.revise_date).slice(0, 10) : "—") },
+                   { k: "주관부서", v: r.owner_dept || "—" }, { k: "본문", v: body.slice(0, 600) + (body.length > 600 ? "…" : "") }],
+          note: "그룹웨어 규정 게시판의 포털 사본" + (asOfReg ? ` · 기준 ${asOfReg}` : ""),
+          actions: [{ kind: "link", label: "화면에서 보기", url: linkOf(String(a.article_no)) }] } satisfies ViewPayload };
+    }
+    // 전체 — 목차는 전부, 본문은 start 부터 8,000자 창까지(결과 절단 12,000자 안쪽). 남으면 다음조문.
+    // deno-lint-ignore no-explicit-any
+    const 목차 = ((res.toc || []) as any[]).map((t) => ({ seq: t.seq, 조문번호: t.article_no, 제목: t.title || null, 장: t.chapter || null, 삭제됨: !!t.is_deleted }));
+    const 조문: { seq: number; 조문번호: string | null; 제목: string | null; 본문: string; 개정꼬리표: string | null }[] = [];
+    let used = 0, nextSeq: number | null = res.next_seq || null;
+    for (const a of arts) {
+      const body = String(a.body || "");
+      if (조문.length && used + body.length > WINDOW) { nextSeq = a.seq; break; }
+      조문.push({ seq: a.seq, 조문번호: a.article_no || null, 제목: a.title || null, 본문: body.slice(0, WINDOW), 개정꼬리표: a.amended_tag || null });
+      used += body.length;
+    }
+    return { 출처: SRC_LABEL, 기준시각: asOfReg || asOf, 규정, 조문수: res.total_articles || 목차.length, 목차, 조문, 다음조문: nextSeq, 첨부,
+      안내: 안내공통 + (nextSeq ? ` 조문이 더 있습니다 — 이어 읽으려면 start=${nextSeq} 로 다시 부르세요. 목차의 조문 번호를 article_no 로 바로 읽어도 됩니다.` : ""),
+      __view: { view: "list", title: `${r.name} — 목차 (${목차.length}개 조문)`, asOf,
+        columns: [{ key: "조문", label: "조문" }, { key: "제목", label: "제목" }, { key: "장", label: "장" }],
+        rows: 목차.slice(0, 60).map((t) => ({ 조문: t.조문번호 ? `제${t.조문번호}조` : "전문", 제목: (t.제목 || "") + (t.삭제됨 ? " (삭제)" : ""), 장: t.장 || "" })),
+        note: `시행 ${String(r.effective_date || "").slice(0, 10) || "—"} · 판독 ${r.parse_status}` + (asOfReg ? ` · 기준 ${asOfReg}` : "") + (목차.length > 60 ? ` · 표시 60건 / 전체 ${목차.length}건` : ""),
+        actions: [{ kind: "link", label: "화면에서 보기", url: linkOf(null) }] } satisfies ViewPayload };
+  }
+
   if (name === "search_my_documents") {
     const q = String(args.query || "").trim();
     if (!q) return { 오류: "검색어(query)가 필요합니다." };

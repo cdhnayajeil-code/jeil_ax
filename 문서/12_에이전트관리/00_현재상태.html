@@ -43,7 +43,7 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <body>
 <div class="page">
   <span class="doc-label">JEIL AX 에이전트관리 · 대외비</span>
-  <div class="docnav"><a href="/docs/agents">🏠 에이전트관리 허브</a><a class="cur" href="/docs/agents/status">00 현재상태</a><a href="/docs/agents/ops-guide">01 운영가이드</a><a href="/docs/agents/dev-guide">02 개발가이드</a><a href="/docs/agents/progress">03 진행상태</a><a href="/docs/agents/purchase-domain">04 구매도메인</a><a href="/docs/agents/quality-test">05 품질테스트</a><a href="/docs/agents/templates">06 템플릿·관리포인트</a><a href="/docs/agents/dri-plan">08 DRI 에이전트 기획</a><a href="/docs/agents/prompt-tuning">09 지시문·오케스트레이션</a><a href="/docs/agents/doc-data">10 NAS 자료 데이터화 기준</a><a href="README.md">README</a></div>
+  <div class="docnav"><a href="/docs/agents">🏠 에이전트관리 허브</a><a class="cur" href="/docs/agents/status">00 현재상태</a><a href="/docs/agents/ops-guide">01 운영가이드</a><a href="/docs/agents/dev-guide">02 개발가이드</a><a href="/docs/agents/progress">03 진행상태</a><a href="/docs/agents/purchase-domain">04 구매도메인</a><a href="/docs/agents/quality-test">05 품질테스트</a><a href="/docs/agents/templates">06 템플릿·관리포인트</a><a href="/docs/agents/dri-plan">08 DRI 에이전트 기획</a><a href="/docs/agents/prompt-tuning">09 지시문·오케스트레이션</a><a href="/docs/agents/doc-data">10 NAS 자료 데이터화 기준</a><a href="/docs/agents/regulations">11 사내규정 데이터</a><a href="README.md">README</a></div>
   <p class="md-link">📄 Markdown 원본: <a href="00_현재상태.md">00_현재상태.md</a> · 허브 <a href="/docs/agents">에이전트관리 허브</a></p>
   <div class="content">
 <h1 id="00">00 · 현재상태 — 부서 에이전트</h1>
@@ -70,6 +70,10 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <tr>
 <td>현재 설정 버전</td>
 <td><strong>v9</strong>(current · 2026-10-08 오후 · 관리자 지시 — 모델 비교 권고 적용) — 기본 <code>claude-sonnet-5-5</code> · 예비 <code>gpt-6-luna</code> · 추론 medium · 최대 <strong>4,096</strong>토큰 · 도구 라운드 <strong>5</strong> · 지시문은 v5 초안(REQ-0114)과 같다 · 골든셋 5/11(v4 도 5/11 — 골든셋 정비 필요 · 05 문서 회차 2). 실제 응답 모델: 10-08 10:20 부터 기본 모델(Claude)이 응답 중(크레딧 있음). 초안 v5~v8 은 지정하지 않음</td>
+</tr>
+<tr>
+<td>사내규정 도구(10-08 · REQ-0124 · <strong>배포·적용 대기</strong>)</td>
+<td>운영 챗봇(/main)·부서 에이전트 공통 도구 2종 <code>search_regulation</code>·<code>get_regulation</code>(도메인 <strong><code>regulation</code></strong> · 포털 DB <code>public.reg_*</code> 사본 · 정본 SQL <strong>103</strong> · 사내 전원). 정본은 운영 <code>jeil-chat/index.ts</code>(TOOLS·runTool) → <code>_port_modules.py</code> 이식(21종). 지시문 <code>core/prompt.ts</code> ■ 사내규정 절 + NAS 절 분리 → <strong>SQL 94 재생성(5,982자 · 21종)</strong>. 화면 <code>/work/regulations</code>(SQL 104 전사 공개 카드). 수집은 사내 PC 예약작업 <code>JEIL_AX_GwBoard</code>(그룹웨어 → NAS <code>00_전사공유/사내규정</code> → DB). <strong>남은 것: SQL 103·104 적용 · jeil-chat/jeil-chat-lab 배포 · SQL 94 적용 · Step 0 실측(게시판 지정·선택자) · purchase v10(domains +regulation) 회귀·지정.</strong> 기획 <a href="/docs/agents/regulations">11</a></td>
 </tr>
 <tr>
 <td>종전 설정 버전</td>
@@ -197,6 +201,10 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <td>REQ-0114. 시스템 지시문 정본을 <code>core/prompt.ts</code> 로 통일(공통 절 ■ 정체·답변 원칙 7·도구 사용 원칙 7·안전 4 + ERP + 도메인 안내(<code>needs</code> 필터) + 모듈 안내 + 오늘 날짜 끝 · 에이전트는 역할 → 부서 원칙 → 공통 → 용어집 → 파일 → 날짜) · 엔진: 마지막 라운드·반복 감지 뒤 <strong>tools 유지 + <code>tool_choice: none</code> + 안내문</strong>(예전 <code>tools:null</code> 은 Claude 400 잠재) · 결과 12,000자 잘림 표시 · 실험실도 오늘 날짜 주입 · 운영 챗봇 DB 지시문은 같은 규칙으로 생성(<code>node _gen_gateway_prompt.mjs</code> → 정본 SQL 94 · 10-07 저녁 적용 — 1,945자 평문 → 5,353자 절 구조 · 되돌리기 94_rollback). 회귀 <code>node _test_prompt_assembly.mjs</code> ①~⑥ 통과 · <strong>남은 것: 콘솔 시험 대화 5문항 · 골든셋 회귀 v4/v5 · v5 「현재로 지정」(D-138)</strong> · 설계 <a href="/docs/agents/prompt-tuning">09</a></td>
 </tr>
 <tr>
+<td>사내규정 도구 2종(10-08 · REQ-0124 · <strong>v29 배포 대기</strong>)</td>
+<td>운영 <code>jeil-chat</code> TOOLS 19→21종(<code>search_regulation</code>·<code>get_regulation</code> — RPC <code>reg_search</code>·<code>reg_get</code>·<code>reg_list</code> · 도구 안 8초 상한 · 초과는 「확인하지 못함」) · 실험실 <code>modules/regulation/</code>(자동 이식) · <code>core/prompt.ts</code> <code>DOMAIN_HINTS.regulation</code> + <code>nas</code> 절에서 「규정」 분리(둘 다 켜진 에이전트에만 역할 분담 문장) · 정본 SQL 94 재생성(5,353→5,982자 · rollback 은 10-08 라이브 조회본 md5 7e800fbc…) · 회귀 <code>_test_prompt_assembly</code> ①~⑥ · <code>_test_oa_shape</code> · tsc 통과. <strong>적용 순서: SQL 103 → 함수 배포(jeil-chat · jeil-chat-lab --multi) → SQL 94(md5 조건부) → 콘솔 「점검」 1회 → purchase v10 초안·회귀·지정.</strong> 기준은 문서 11</td>
+</tr>
+<tr>
 <td>NAS 자료 읽기 기반(10-08 · <strong>v28 배포</strong> · 정본 SQL 97·98 적용 · 워커 <strong>n1.10 가동</strong>)</td>
 <td>REQ-0117 S1. 도메인 <code>nas</code> 에 <code>read_company_table</code> 추가(엑셀·CSV 표 구조 판독 — 도구 5종) · op <code>nas_saved_status</code>(보관함 판독 상태) · 화면 보관함 「판독」 열·「💬 대화에」. 실 NAS 실측(10-08 10:56): 워커 심박 n1.9 · 색인 i1.1 · 구매팀 보관 폴더 11건 중 읽힘 9 / 못 읽음 2(형식 1 · 주민등록번호 꼴 1) · 엑셀 2건 표 판독 성공(5,720행 시트 포함 · 날짜 서식 셀 복원) · 다른 부서 범위로는 「볼 수 없는 문서」 · 민감 사유 파일은 표로도 거부. 화면·대화 경로 실측은 남음. 기준은 문서 10 · 작업 규칙 §19</td>
 </tr>
@@ -242,7 +250,7 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 </tr>
 <tr>
 <td>도구</td>
-<td>25종 = 운영 이전 19종(<code>modules/index.ts</code>, 자동 생성) + 에이전트용 6종(<code>modules/extra.ts</code>)</td>
+<td><strong>27종</strong>(10-08 배포 대기) = 운영 이전 <strong>21종</strong>(<code>modules/index.ts</code>, 자동 생성 — 사내규정 2종 추가 · REQ-0124) + 에이전트용 6종(<code>modules/extra.ts</code>). 배포된 v28 은 25종</td>
 </tr>
 <tr>
 <td>구매 에이전트 도구 묶음</td>

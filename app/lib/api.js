@@ -483,6 +483,43 @@ export const erpApi = {
     if (error) throw error;
     return data || [];
   },
+
+  /* ── 사내규정(그룹웨어 규정 게시판 사본 · public.reg_* · 정본 SQL 103 · REQ-0124) ─────────────
+     reg_* 표는 RLS 전면차단이고 definer RPC 4종만이 읽기 경로다(사내 로그인 전원 · is_internal).
+     규정은 전사 공개 문서라 권한 모듈이 없다. 응답은 jsonb 한 덩이 → _pageAll 을 쓰지 않는다.
+     정본 서열: 그룹웨어 게시판(원본·첨부는 NAS) > 이 사본 — 화면·챗봇은 「사내규정 사본(그룹웨어 게시판 · 시행일 기준)」을 밝힌다. */
+  // 현행 규정 목록(+조문 수·첨부 수·판독 불가 수). 반환 {allowed, as_of, count, categories[], rows[]}
+  async regList({ category = "", q = "" } = {}) {
+    const { data, error } = await supabase.rpc("reg_list", { p_category: category || null, p_q: q || null });
+    if (error) throw error;
+    return data || { allowed: false, rows: [] };
+  },
+  // 규정 1건(현행 판) — 메타·목차·첨부 + 조문(articleNo 1개 또는 fromSeq 부터 limit 개 · 최대 300).
+  // 반환 {allowed, found, reg, toc[], attachments[], articles[], total_articles, next_seq}
+  async regGet(regKey, { articleNo = null, fromSeq = 1, limit = 300 } = {}) {
+    const { data, error } = await supabase.rpc("reg_get", {
+      p_reg_key: String(regKey || "").trim(), p_article_no: articleNo || null, p_from_seq: fromSeq, p_limit: limit,
+    });
+    if (error) throw error;
+    return data || { allowed: false, found: false, articles: [] };
+  },
+  // 조문·제목·규정명 검색(낱말 ≤6 AND · pg_trgm). 2글자 미만은 호출측이 막는다. 반환 {allowed, terms[], count, rows[{reg_key,name,document_id,seq,article_no,title,excerpt,effective_date,gw_url}]}
+  async regSearch(q, limit = 30) {
+    const { data, error } = await supabase.rpc("reg_search", { p_q: String(q || "").trim().slice(0, 100), p_limit: limit });
+    if (error) throw error;
+    return data || { allowed: false, rows: [] };
+  },
+  // 수집 현황 — 전원: as_of·건수·unreadable_cnt·last_fail_at / 관리자: sources[]·unreadable[]. 권한 오류는 플래그로(erpRoleOrgTree 패턴).
+  async regStatus() {
+    const { data, error } = await supabase.rpc("reg_status");
+    if (error) {
+      const msg = String(error.message || "");
+      if (/forbidden/i.test(msg) || error.code === "42501") return { ok: false, forbidden: true };
+      if (/unauthorized/i.test(msg) || error.code === "28000") return { ok: false, unauthorized: true };
+      throw error;
+    }
+    return data || { ok: false };
+  },
   // 발주 스냅샷(2026): 필터 {bp_code, subcontra_flg, po_sts} 선택
   async purOrders({ bp_code, subcontra_flg, po_sts, limit = 500 } = {}) {
     let q = supabase.from("v_erp_pur_order").select("*").order("po_dt", { ascending: false }).limit(limit);

@@ -8,8 +8,9 @@
 #   세 글자 조각(trigram)으로 색인하면 부분 일치가 되고, 형태소 분석기 같은 외부 설치가 필요 없다(표준 라이브러리).
 #   두 글자 이하 낱말은 trigram 으로 못 찾으므로 그때만 LIKE 로 훑는다.
 #
-# 무엇을 읽는가: txt·md·csv · docx·xlsx·pptx·hwpx(전부 zip+xml — 표준 라이브러리) · pdf(pypdf 가 있을 때만).
-#   구형 한글(hwp)·스캔본 PDF·이미지는 글자를 못 뽑는다 → 색인에서 빠지고 사유가 남는다(조용히 건너뛰지 않는다 §17.6).
+# 무엇을 읽는가: txt·md·csv · docx·xlsx·pptx·hwpx(전부 zip+xml — 표준 라이브러리) · pdf(pypdf 가 있을 때만)
+#   · 구형 한글 hwp(hwp_text — olefile 이 있을 때만 · 배포용·암호 문서는 사유만 · i1.2).
+#   스캔본 PDF·이미지·doc·xls 는 글자를 못 뽑는다 → 색인에서 빠지고 사유가 남는다(조용히 건너뛰지 않는다 §17.6).
 #
 # 빼는 것(§1.7): 파일 이름에 급여·연봉·인사평가 등이 들어간 파일, 본문에 주민등록번호 꼴이 있는 파일.
 #   빠진 파일은 내용이 색인에 **한 글자도** 들어가지 않는다 — 사유만 남는다.
@@ -22,11 +23,15 @@ import math
 import os
 import re
 import sqlite3
+import sys
 import time
 import zipfile
 from xml.etree import ElementTree as ET
 
-INDEX_VERSION = "i1.1"   # (i1.1 보강 10-08: 파일 이름으로도 검색 · 목록용 문서 번호 조회 lookup · 압축 해제 크기 상한) / i1.1(2026-10-08 · REQ-0117 S1): 읽는 형식 추가(tsv·json·sql·xml·html·xlsm) · 표 구조 판독(read_table) · 판독 상태(file_status)
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import hwp_text  # noqa: E402  (구형 한글 — olefile 은 그 안에서 늦게 import)
+
+INDEX_VERSION = "i1.2"   # i1.2(2026-10-08 · REQ-0124): 구형 한글 .hwp 읽기(hwp_text · olefile) · 판 재시도 사유 확장(RETRY_REASONS) / (i1.1 보강 10-08: 파일 이름으로도 검색 · 목록용 문서 번호 조회 lookup · 압축 해제 크기 상한) / i1.1(2026-10-08 · REQ-0117 S1): 읽는 형식 추가(tsv·json·sql·xml·html·xlsm) · 표 구조 판독(read_table) · 판독 상태(file_status)
 
 MAX_FILE_BYTES = 40 * 1024 * 1024      # 이보다 크면 읽지 않는다
 MAX_TEXT_CHARS = 1_500_000             # 한 파일에서 색인하는 글자 상한
@@ -42,10 +47,14 @@ TEXT_EXT = {".txt", ".md", ".csv", ".log", ".tsv", ".json", ".sql"}
 MARKUP_EXT = {".xml", ".html", ".htm"}          # 태그를 걷고 글자만 색인한다
 ZIP_EXT = {".docx", ".xlsx", ".xlsm", ".pptx", ".hwpx"}
 PDF_EXT = {".pdf"}
-READABLE = TEXT_EXT | MARKUP_EXT | ZIP_EXT | PDF_EXT
+HWP_EXT = {".hwp"}                               # 구형 한글 — hwp_text(olefile) · i1.2
+READABLE = TEXT_EXT | MARKUP_EXT | ZIP_EXT | PDF_EXT | HWP_EXT
 IMAGE_EXT = {".png", ".jpg", ".jpeg", ".gif", ".webp"}
 TABLE_EXT = {".xlsx", ".xlsm", ".csv", ".tsv"}  # 표 구조를 살려 읽을 수 있는 형식(read_table)
 REASON_UNREADABLE = "읽지 못하는 형식"
+REASON_NO_PDF = "PDF 읽기 모듈 없음(pypdf)"
+# 색인 판이 올라갔을 때 다시 읽어 볼 사유 — 형식 미지원·모듈 없음은 판이 바뀌면 읽힐 수 있다(암호·깨짐은 아니다)
+RETRY_REASONS = {REASON_UNREADABLE, REASON_NO_PDF, "hwp 읽기 모듈 없음(olefile)"}
 REASON_IMAGE = "이미지 — 글자 색인 없음(대화에 붙이면 모델이 직접 본다)"
 
 _SKIP_NAME = re.compile(r"^(?:[.#@~]|Thumbs\.db$|desktop\.ini$)|\.tmp$", re.I)
@@ -208,7 +217,9 @@ def extract(path):
     if ext not in READABLE:
         return None, REASON_UNREADABLE
     if ext in PDF_EXT and not pdf_ready():
-        return None, "PDF 읽기 모듈 없음(pypdf)"
+        return None, REASON_NO_PDF
+    if ext in HWP_EXT and not hwp_text.hwp_ready():
+        return None, hwp_text.REASON_NO_MODULE
     try:
         if os.path.getsize(path) > MAX_FILE_BYTES:
             return None, "파일이 너무 큼"
@@ -226,6 +237,10 @@ def extract(path):
             text = _read_pptx(path)
         elif ext == ".hwpx":
             text = _read_hwpx(path)
+        elif ext in HWP_EXT:
+            text, why = hwp_text.extract_hwp(path, MAX_TEXT_CHARS)
+            if text is None:
+                return None, why
         else:
             text = _read_pdf(path)
     except (zipfile.BadZipFile, KeyError):
@@ -341,7 +356,7 @@ def refresh(con, docs_root, folders, log=None, budget_sec=None):
                 continue
             old = have.get(sub)
             if old and old[1] == st.st_size and abs((old[2] or 0) - st.st_mtime) < 1 \
-                    and not (retry and old[3] != "ok" and old[4] == REASON_UNREADABLE):
+                    and not (retry and old[3] != "ok" and old[4] in RETRY_REASONS):
                 continue
             if budget_sec and time.time() - t0 > budget_sec:
                 over_budget = True

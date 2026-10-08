@@ -11,8 +11,8 @@ ENV PYTHONUNBUFFERED=1 \
     NAS_INDEX_DB=/state/index/nas_docs.sqlite
 
 WORKDIR /app
-RUN pip install --no-cache-dir pypdf==6.19.0
-COPY nas_worker.py nas_index.py _env.py /app/
+RUN pip install --no-cache-dir pypdf==6.19.0 olefile==0.47
+COPY nas_worker.py nas_index.py hwp_text.py _env.py /app/
 
 # 상태 볼륨(/state)은 처음 만들어질 때 이 폴더의 권한을 물려받는다 — 비루트 계정(compose 의 user:)이 쓸 수 있게 열어 둔다.
 RUN mkdir -p /state/logs /state/index && chmod -R 0777 /state

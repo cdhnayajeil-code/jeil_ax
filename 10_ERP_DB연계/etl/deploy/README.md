@@ -360,7 +360,7 @@ python 10_ERP_DB연계\etl\deploy\build_exe.py
 
 # 빌드 전 회귀(실제 릴레이·ETL·퇴사 무실행)
 cd 10_ERP_DB연계\etl
-python -m unittest test_runner_core test_runner_cli test_offboard_axes test_nas_worker test_nas_index
+python -m unittest test_runner_core test_runner_cli test_offboard_axes test_nas_worker test_nas_index test_gw_board_collect test_hwp_text test_reg_parse
 ```
 
 러너에 딸린 것 중 **무엇이 바뀌든 이 EXE 하나만 다시 만든다** —

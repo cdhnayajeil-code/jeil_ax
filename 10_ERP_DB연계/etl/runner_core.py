@@ -75,6 +75,10 @@ JOB_KINDS = {
     "proposal_scan": {"label": "기안서 스캔본 목록 갱신", "group": "scan", "timeout_min": 10,
                     "desc": "문서중앙화 기안서 스캔본 폴더의 파일명·존재 여부만 읽어 중간DB(public.pur_proposal_scan) 갱신 — "
                             "밤 20시 이후 첫 가능 회차에 1회(잠금·로그오프면 건너뛰고 다음 회차) · proposal_scan --nightly"},
+    "gw_board":    {"label": "사내규정 게시판 수집", "group": "gw", "timeout_min": 90,
+                    "desc": "그룹웨어 규정 게시판의 게시물·첨부를 사내 NAS(00_전사공유/사내규정)에 누적하고 포털 DB(public.reg_*)에 적재 — "
+                            "gw_board_collect --nightly 와 동일(Playwright + .env.local gw 계정 + NAS 문서 루트가 있는 사내 PC 에서만 · "
+                            "시크릿키 강제 로그인은 하지 않는다 · REQ-0124)"},
     "noop":        {"label": "점검용 더미", "group": "test", "timeout_min": 10,
                     "desc": "아무것도 하지 않고 몇 줄 출력 — 러너 자체 점검용"},
 }
@@ -87,6 +91,7 @@ PARAM_KEYS = {
     "proposal_ledger": ("file", "scan", "dry_run", "append"),
     "nas_sync": ("dry_run",),
     "proposal_scan": ("dry_run", "force"),
+    "gw_board": ("full", "dry_run", "boards", "since"),
     "noop": ("lines", "sleep", "rc"),
 }
 
@@ -107,6 +112,11 @@ DEFAULT_JOBS = [
      "schedule": {"type": "interval", "seconds": 1800},
      "params": {"dry_run": False, "force": False},
      "keep_log": True, "timeout_min": 10},
+    # 사내규정 게시판 수집 — 사내 PC 전용(Playwright·gw 계정·NAS 문서 루트). 서버 EXE 에는 Playwright 가 없어 능력 False 로 안 돈다.
+    {"id": "gw_board", "kind": "gw_board", "name": "사내규정 게시판 수집(매일 06:30)", "enabled": False,
+     "schedule": {"type": "daily", "time": "06:30"},
+     "params": {"full": False, "dry_run": False, "boards": "", "since": ""},
+     "keep_log": True, "timeout_min": 90},
     {"id": "etl_nightly", "kind": "etl_batch", "name": "ERP→중간DB 야간 전체 배치", "enabled": False,
      "schedule": {"type": "daily", "time": "02:00"},
      "params": {"jobs": [], "include_sensitive": False, "full": False, "dry_run": False},
@@ -509,6 +519,7 @@ def detect_capabilities(root):
     · proposal_ledger: .env 의 PROPOSAL_LEDGER_XLSX 가 가리키는 대장 파일이 이 호스트에 있는가
     · proposal_scan  : Windows + Destiny(문서중앙화) 설치 + .env 의 PROPOSAL_SCAN_DIR — 실제로 보이는지는 실행 때 판정
     · nas       : 사내 NAS 루트가 이 호스트에서 보이는가 — NAS_DATA_ROOT 또는 .claude/nas.path (경로는 로그에 남기지 않는다 §1.1)
+    · gw_board  : playwright + .env.local 의 GW_URL/GW_ID/GW_PW + NAS 문서 루트(NAS_DOCS_ROOT 또는 .claude/nas_docs.path) — 사내규정 게시판 수집(REQ-0124)
     """
     env_path = os.path.join(root, ".env")
     env = _read_env_file(env_path)
@@ -535,14 +546,25 @@ def detect_capabilities(root):
                 nas_root_set = open(nas_pf, encoding="utf-8").read().strip().strip('"')
             except Exception:
                 nas_root_set = ""
+    docs_root_set = (env.get("NAS_DOCS_ROOT") or os.environ.get("NAS_DOCS_ROOT") or "").strip().strip('"')
+    if not docs_root_set:
+        docs_pf = os.path.join(root, ".claude", "nas_docs.path")
+        if os.path.exists(docs_pf):
+            try:
+                docs_root_set = open(docs_pf, encoding="utf-8").read().strip().strip('"')
+            except Exception:
+                docs_root_set = ""
+    gw_login = all(local.get(k) for k in ("GW_URL", "GW_ID", "GW_PW"))
     return {
         "supabase": has("SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY"),
         "erp": has("ERP_DB_CONN") or erp_store,
         "ms_account": has("ENTRA_TENANT_ID", "ENTRA_CLIENT_ID", "ENTRA_CLIENT_SECRET"),
         "gw_account": all(local.get(k) for k in ("GW_DB_HOST", "GW_DB_NAME", "GW_TABLE_ID", "GW_TABLE_PW", "GW_TABLE_NAME")),
-        "offboard": playwright and all(local.get(k) for k in ("GW_URL", "GW_ID", "GW_PW")),
+        "offboard": playwright and gw_login,
         "teams_webhook": has("TEAMS_WEBHOOK_URL"),
         "nas": bool(nas_root_set),
+        # 사내규정 게시판 수집(REQ-0124) — 브라우저 + gw 계정 + NAS 문서 루트. 실제 접근은 실행 때 모듈이 판정한다.
+        "gw_board": playwright and gw_login and bool(docs_root_set),
         # 구매 기안서 대장(엑셀)이 이 호스트에서 보이는가 — Teams/OneDrive 동기 폴더가 있어야 한다.
         # 경로는 .env 의 PROPOSAL_LEDGER_XLSX 이며 **값은 로그에 남기지 않는다**(§1.1).
         "proposal_ledger": bool(os.path.exists(
@@ -628,6 +650,13 @@ def resolve_params(job, caps):
     elif kind == "proposal_scan":
         p["dry_run"] = _as_bool(raw.get("dry_run", False))
         p["force"] = _as_bool(raw.get("force", False))
+    elif kind == "gw_board":
+        p["full"] = _as_bool(raw.get("full", False))
+        p["dry_run"] = _as_bool(raw.get("dry_run", False))
+        # 게시판 키 목록(쉼표) · 날짜(YYYY-MM-DD) — 형식 밖 값은 버린다(명령줄·로그에 흘리지 않게)
+        p["boards"] = ",".join(b for b in (x.strip() for x in str(raw.get("boards") or "").split(",")) if re.fullmatch(r"[a-z0-9_]{1,40}", b))
+        s = str(raw.get("since") or "").strip()
+        p["since"] = s if re.fullmatch(r"\d{4}-\d{2}-\d{2}", s) else ""
     elif kind == "noop":
         try:
             p["lines"] = max(0, min(1000, int(raw.get("lines", 3))))
@@ -660,6 +689,9 @@ def param_warnings(job, caps):
     if kind == "proposal_scan" and not caps.get("proposal_scan"):
         out.append("이 호스트에서는 기안서 스캔본 폴더를 볼 수 없습니다 — 문서중앙화(Destiny)가 설치된 사무용 PC 에서, "
                    ".env 에 PROPOSAL_SCAN_DIR 를 넣고 켭니다(로그인된 세션에서만 동작)")
+    if kind == "gw_board" and not caps.get("gw_board"):
+        out.append("이 호스트에서는 사내규정 게시판을 수집할 수 없습니다 — Playwright(chromium) + .env.local 의 gw url/id/pw + "
+                   "NAS 문서 루트(.claude/nas_docs.path)가 있는 사내 PC 에서만 켭니다(서버 EXE 에는 브라우저가 없습니다)")
     if kind == "etl_sync":
         if raw.get("offboard") in (True, "on") and not caps.get("offboard"):
             out.append("퇴사 처리 「포함」이지만 이 호스트는 불가(브라우저·그룹웨어 접속정보 없음) — 큐를 보지 않습니다")

@@ -60,6 +60,7 @@ CLI_TOOLS = {
     "proposal": ("proposal_ledger",   "구매 기안서 대장(엑셀) → 중간DB 적재"),
     "scan":     ("proposal_scan",     "기안서 스캔본 목록(문서중앙화) → 중간DB — 파일명·존재 여부만"),
     "nas":      ("nas_worker",        "NAS 적재 요청 처리 — 대화기록·ERP 스냅샷을 사내 NAS 로 내보낸다"),
+    "gwboard":  ("gw_board_collect",  "사내규정 게시판 수집 — 그룹웨어 → NAS 정본 미러·중간DB(reg_*) · --probe 로 선택자 점검(REQ-0124)"),
 }
 
 
@@ -259,6 +260,22 @@ def _run_kind(kind, params, root):
         import proposal_scan as ps
         ps.collect(dry=bool(params.get("dry_run")), nightly=True, force=bool(params.get("force")))
         return 0
+
+    if kind == "gw_board":
+        # 사내규정 게시판 수집(REQ-0124) — 브라우저(Playwright)·gw 계정·NAS 문서 루트가 있는 사내 PC 에서만.
+        # 서버 EXE 는 Playwright 를 번들하지 않으므로 능력이 False 다 — 사유를 남기고 끝낸다(§17.6).
+        caps = core.detect_capabilities(root)
+        if not caps.get("gw_board"):
+            print("[gw_board] 이 호스트는 사내규정 게시판을 수집할 수 없습니다"
+                  "(Playwright 없음 · .env.local 의 gw url/id/pw 없음 · NAS 문서 루트 없음 중 하나)")
+            return 1
+        import gw_board_collect as gbc
+        boards = [b.strip() for b in str(params.get("boards") or "").split(",") if b.strip()] or None
+        res = gbc.collect(mode="full" if params.get("full") else "nightly", boards=boards,
+                          since=(str(params.get("since") or "").strip() or None), dry=bool(params.get("dry_run")))
+        if res.get("skipped"):
+            print("대기 요청 없음")          # IDLE_MARKERS — 그날 끝났거나 세션이 바빠 건너뛴 회차는 조용히 접는다
+        return int(res.get("rc", 1))
 
     if kind == "etl_batch":
         import etl_run as r

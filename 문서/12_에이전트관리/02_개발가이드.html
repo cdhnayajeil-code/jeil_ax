@@ -43,7 +43,7 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <body>
 <div class="page">
   <span class="doc-label">JEIL AX 에이전트관리 · 대외비</span>
-  <div class="docnav"><a href="/docs/agents">🏠 에이전트관리 허브</a><a href="/docs/agents/status">00 현재상태</a><a href="/docs/agents/ops-guide">01 운영가이드</a><a class="cur" href="/docs/agents/dev-guide">02 개발가이드</a><a href="/docs/agents/progress">03 진행상태</a><a href="/docs/agents/purchase-domain">04 구매도메인</a><a href="/docs/agents/quality-test">05 품질테스트</a><a href="/docs/agents/templates">06 템플릿·관리포인트</a><a href="/docs/agents/dri-plan">08 DRI 에이전트 기획</a><a href="/docs/agents/prompt-tuning">09 지시문·오케스트레이션</a><a href="/docs/agents/doc-data">10 NAS 자료 데이터화 기준</a><a href="README.md">README</a></div>
+  <div class="docnav"><a href="/docs/agents">🏠 에이전트관리 허브</a><a href="/docs/agents/status">00 현재상태</a><a href="/docs/agents/ops-guide">01 운영가이드</a><a class="cur" href="/docs/agents/dev-guide">02 개발가이드</a><a href="/docs/agents/progress">03 진행상태</a><a href="/docs/agents/purchase-domain">04 구매도메인</a><a href="/docs/agents/quality-test">05 품질테스트</a><a href="/docs/agents/templates">06 템플릿·관리포인트</a><a href="/docs/agents/dri-plan">08 DRI 에이전트 기획</a><a href="/docs/agents/prompt-tuning">09 지시문·오케스트레이션</a><a href="/docs/agents/doc-data">10 NAS 자료 데이터화 기준</a><a href="/docs/agents/regulations">11 사내규정 데이터</a><a href="README.md">README</a></div>
   <p class="md-link">📄 Markdown 원본: <a href="02_개발가이드.md">02_개발가이드.md</a> · 허브 <a href="/docs/agents">에이전트관리 허브</a></p>
   <div class="content">
 <h1 id="02">02 · 개발가이드 — 코드 지도와 확장 절차</h1>
@@ -80,7 +80,8 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
    - 사용자·모델 입력을 PostgREST 필터에 넣을 때는 <code>modules/purchase/_agent_util.ts</code> 의 <code>clean()</code> 을 거친다(or() 필터 주입 방지).
    - 읽기 전용. ERP 운영 DB 직접 접근 금지 — 중간DB 뷰만(CLAUDE.md §4).
    - <strong>목록형 도구 계약</strong>(09-30 실측 P1 3건이 전부 이 계약 부재에서 나왔다): ① <code>limit</code> 으로 잘랐으면 <strong>전체 건수 또는 잘림 표시</strong>를 결과에 넣는다(<code>search_pur_list</code> 방식) ② <code>.order()</code> 에 <strong>2차 정렬키</strong>(번호·seq)를 둔다 — 단일 날짜 정렬은 같은 조회가 다른 행을 돌려준다 ③ 사용자가 좁힐 만한 조건(거래처·기간·상태)은 인자로 받고, 못 받는 조건은 <code>안내</code> 로 돌려준다 ④ 여러 라인이 있는 문서(발주)는 합계·라인 수를 함께 준다 ⑤ 화면 제목에 내부 상태값(<code>unordered</code>)을 그대로 쓰지 않는다.</li>
-<li><code>modules/extra.ts</code> 에 import 한 줄 + 배열에 추가.</li>
+<li><code>modules/extra.ts</code> 에 import 한 줄 + 배열에 추가.
+   - <strong>전 직원 운영 챗봇(/main)에도 쓰일 도구는 이 경로가 아니다</strong>(10-08 · REQ-0124 사내규정 도구 선례). 운영 지시문 생성기(<code>_gen_gateway_prompt.mjs</code>)는 <code>modules/index.ts</code>(이식본)만 읽고, 운영 <code>jeil-chat</code> 은 자기 TOOLS 만 쓴다. 그런 도구는 <strong>운영 <code>supabase/functions/jeil-chat/index.ts</code> 의 TOOLS + <code>runTool</code> 분기에 먼저 넣고</strong> <code>_port_modules.py</code> META 에 한 줄 → 실행(자동 이식) → <code>node _gen_gateway_prompt.mjs</code>(정본 SQL 94 재생성 · 적용 전 rollback 을 라이브 조회본으로 갱신) 순서다. runTool 본문은 <code>admin·args·asOf·scope·userToken</code> + <code>core/util.ts</code> HELPERS 만 쓴다(새 헬퍼를 index.ts 에 만들면 이식본에서 <code>ReferenceError</code>). 분기 형식은 정확히 <code>if (name === "&lt;id&gt;") {</code>.</li>
 <li>에이전트 도구 묶음에 그 도메인이 켜져 있으면 자동으로 쓰인다(끄려면 관리 화면에서 체크 해제 → 새 버전).</li>
 <li>검증 → 배포(§4).</li>
 </ol>

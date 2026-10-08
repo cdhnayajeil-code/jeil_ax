@@ -346,6 +346,14 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <li><strong>상태</strong>: 제안. 관리자 결정 D-1~D-7(구조안 · 판정 규칙 채택 · 선택 UI 위치 · 핸드오프 방식 · 공통 프로필 턴 기록 · 흡수 시점 · 신설 게이트 채택 + 구매 담당자 등록) 시 Accepted 로 전이.</li>
 <li><strong>근거</strong>: <a href="/docs/product/chat-vs-agents">15 챗봇 ↔ 에이전트 역할 구분·적용 가이드</a>.</li>
 </ul>
+<h3 id="adr-114-db-d-95-2026-10-08">ADR-114 ✅ 사내규정 정본 = 그룹웨어 규정 게시판 · 포털 DB 는 조문 단위 파생 사본 · D-95(문서 내용은 사내에만)의 전사공개 규정류 예외 (2026-10-08 관리자 결정 · 채택)</h3>
+<ul>
+<li><strong>배경</strong>: 전 직원이 규정을 물을 곳이 없어 챗봇이 일반론으로 답했고(15 가이드 §Q2 「도구 없이 모델」), NAS 문서 검색(D-95)은 허용 폴더·부서 범위·발췌만이라 전사 규정 조문 인용에 부적합했다. 규정 정본은 그룹웨어 게시판에 게시물+첨부(hwp·pdf·docx)로만 있고 수집 코드가 없었다.</li>
+<li><strong>결정</strong>: ① 정본은 그룹웨어 규정 게시판이고 원본·첨부는 사내 PC 수집기가 NAS <code>00_전사공유/사내규정/</code> 에 개정 이력째 미러한다. 포털 DB <code>public.reg_*</code>(정본 SQL 103)는 수집기가 규칙 파서로 만든 <strong>조문 단위 파생 사본</strong>이다(수집 시각이 기준시각 · 개정 반영 지연 가능). ② 규정 본문·조문을 Supabase 에 저장한다 — 전사 공개·비민감 자료이므로 <strong>D-95 의 예외</strong>(D-153). 급여·인사평가·개인정보가 섞인 문서는 대상이 아니고 주민등록번호 꼴은 수집기가 차단한다. ③ 조회는 사내 로그인 전원(전사 공개 카드 + definer RPC <code>is_internal</code>), 챗봇·에이전트 도구(<code>search_regulation</code>·<code>get_regulation</code>)는 규정명·조문 번호·시행일을 밝히고 <strong>해석·개별 적용은 담당 부서 확인을 안내</strong>한다(§1.6 「판단은 사람」). ④ 도구는 운영 <code>jeil-chat</code> 정본 한 벌 + 이식, 에이전트 노출은 도메인 <code>regulation</code> 을 버전에서 켜는 방식(ADR-113 「도구는 공유, 책임은 부서」 · D-154). ⑤ <code>.hwp</code> 는 순수 파이썬 추출기(NAS 색인 i1.2 와 공용) — 배포용·암호 문서는 사유만. ⑥ 수집은 사내 PC Playwright 예약작업(서버 EXE 에는 브라우저 없음) · 시크릿키 강제 로그인 금지.</li>
+<li><strong>대안(기각)</strong>: NAS 색인만으로 답하기(허용 폴더·부서 범위·발췌만이라 조문 인용 부적합 · 컨테이너 의존) · 운영 챗봇에만 넣기(관리자 결정 「둘 다」) · 그룹웨어 DB 뷰 읽기(게시판·첨부 표 권한을 벤더/IT 에 요청해야 하고 첨부 본체는 별도 경로).</li>
+<li><strong>상태</strong>: 채택(2026-10-08). 담당 부서(D-155)·수집 계정(D-156)은 대기.</li>
+<li><strong>근거</strong>: <code>문서/12_에이전트관리/11_사내규정_데이터_운영기획.md</code> · 정본 SQL 103(reg_*)·104(카드)·94(지시문 재생성) · REQ-0124.</li>
+</ul>
 <hr />
 <h2 id="c-issue">C. 발견 이슈 (Issue — 이번 조사에서 확인, 조치 필요)</h2>
 <h3 id="iss-201">ISS-201 ⚠️ 챗봇 표기/구현 불일치</h3>
