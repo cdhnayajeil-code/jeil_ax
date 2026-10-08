@@ -11,8 +11,9 @@
 --
 -- 권한 — 넓히지 않는다(결정 C-15 그대로)
 --   · 뷰는 security_invoker, 함수는 security invoker(기본) · stable. 부르는 사람의 RLS 가 그대로 적용된다.
---   · erp_ro 의 결의전표·부가세·국세청 표는 정책이 없어(= 서비스 권한 전용) 사내 사용자에게는 **빈 배열**로 온다.
---     화면은 그 자리를 「열람 범위 밖(결정 C-15)」로 표시한다. 열람을 넓히려면 그 결정 뒤 별도 SQL 로 한다.
+--   · erp_ro 의 결의전표·부가세·국세청 표는 authenticated 에 SELECT grant 자체가 없어(정책도 없음 = 서비스 권한 전용) **참조만 해도 permission denied** 가 난다(실측 2026-10-08).
+--     그래서 그 몫은 `pur_case_round_fin` 으로 떼어 `has_table_privilege` 가 참일 때만 부른다 — 사내 사용자에게는 `slips/vats/etax = null` + `fin_locked:true` 로 온다.
+--     화면은 그 자리를 「열람 범위 밖(결정 C-15 · REQ-0081)」로 표시한다. 열람을 넓히려면 그 결정 뒤 별도 SQL 로 한다.
 --   · 요청·발주·입고·매입·대장은 is_internal() 정책(기존)으로 사내 사용자가 본다.
 --
 -- 왜 함수인가 — 화면이 번호 하나로 들어오는 "건" 전체를 한 번에 받아야 한다(화면 넷을 오가지 않게 · 기획서 §2).
@@ -292,6 +293,7 @@ $$;
 comment on function public.pur_case_chain(text) is
   '번호 하나(PO·PR·PU·PG·IV·TG·기안 권-번호, 그 밖은 검색)로 구매 건 전체를 돌려준다(REQ-0116 · SQL 95) — security invoker';
 
+revoke all on function public.pur_case_round_fin(text) from public;   -- 기본 EXECUTE(PUBLIC) 제거 — 직접 불러도 invoker 라 거부되지만 표면을 줄인다
 grant execute on function public.pur_case_round_fin(text) to service_role;
 grant execute on function public.pur_case_round(text) to authenticated, service_role;
 grant execute on function public.pur_case_chain(text) to authenticated, service_role;
