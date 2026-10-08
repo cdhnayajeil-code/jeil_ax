@@ -96,7 +96,7 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 </tbody>
 </table>
 <p><strong>정본 서열</strong>(§19 에 추가): 사내규정 정본 = 그룹웨어 게시판(NAS 미러) &gt; 포털 DB <code>reg_*</code>. <code>doc_data</code>(§19 LLM 추출 · REQ-0117 S2)와 섞지 않는다 — 규정은 추출이 아니라 <strong>게시판 정본의 미러</strong>다. 출처 표기는 <strong>「사내규정 사본(그룹웨어 게시판 · 시행일 기준)」</strong>.</p>
-<h2 id="3-2026-10-08">3. 지금 상태(사실 · 2026-10-08 저녁 · 전부 가동)</h2>
+<h2 id="3-2026-10-08-2-pdf">3. 지금 상태(사실 · 2026-10-08 밤 · 전부 가동 · <strong>2차 — 원본 PDF 사본·화면 재설계·카드 가독성 반영</strong>)</h2>
 <table>
 <thead>
 <tr>
@@ -106,7 +106,7 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 </thead>
 <tbody>
 <tr>
-<td>수집기 <code>10_ERP_DB연계/etl/gw_board_collect.py</code>(b1.0 · <strong>API 모드 <code>ApiDriver</code></strong>) · <code>gw_session.py</code> · 프로필 <code>gw_board_profile.default.json</code>(실측값)</td>
+<td>수집기 <code>10_ERP_DB연계/etl/gw_board_collect.py</code>(<strong>b1.1</strong> · <strong>API 모드 <code>ApiDriver</code></strong> · 첨부 원본을 비공개 버킷 <code>reg-files</code> 에 사본으로 올린다 · <code>--files-sync</code> 보정) · <code>gw_session.py</code> · 프로필 <code>gw_board_profile.default.json</code>(실측값)</td>
 <td><strong>가동</strong> — Step 0 실측(부록 A) 뒤 <code>--probe</code> 통과 → 10-08 16:08 <strong>전량 <code>--full</code> 26건 NAS·DB 적재</strong>(신규 21 · 불변 5 · DB 실패 0). 예약작업 <strong><code>JEIL_AX_GwBoard</code>(매일 06:30) 등록 · Ready</strong>. 회귀: FakeDriver 25 + ApiDriver 5(FakePage)</td>
 </tr>
 <tr>
@@ -118,7 +118,11 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <td>게시물 26 폴더(본문.md·원본.html·meta.json·첨부/) · 첨부 22(PDF 21 · docx 1) · 대장 <code>_ledger.jsonl</code>·<code>_state.json</code>. 허용 폴더 <code>common</code> 아래라 색인 i1.1 이 이미 PDF 를 읽는다(.hwp 없음)</td>
 </tr>
 <tr>
-<td>포털 DB <code>reg_*</code>(정본 SQL 103 · <strong>라이브 적용</strong>)</td>
+<td>원본 PDF 사본 — 비공개 Storage 버킷 <strong><code>reg-files</code></strong>(정본 SQL <strong>108</strong> · 10-08 밤 적용)</td>
+<td><strong>28건 · 10.4MB 업로드</strong>(<code>--files-sync</code> · 활성 게시물 26 · 첨부 28 전부 · 누락 0). 경로 <code>reg_attachment.storage_path</code>(ASCII <code>&lt;board&gt;/&lt;post 6자리&gt;/&lt;sha16&gt;.pdf</code>) · 읽기 정책 = 사내 로그인(<code>is_internal</code>)만 · 쓰기는 수집기(service_role)만. 화면·챗봇은 <code>reg_list/reg_get/reg_search</code> 의 <code>file_path</code>(PDF 우선) → <code>erpApi.regFileUrls</code>(1시간 서명 URL)로 연다</td>
+</tr>
+<tr>
+<td>포털 DB <code>reg_*</code>(정본 SQL 103 · <strong>라이브 적용</strong> · 108 로 <code>storage_path</code>·<code>file_path</code> 추가)</td>
 <td>게시물 26 · 현행 규정 <strong>20</strong>(같은 규정 2판 6건 — 취업규칙·출장여비·복리후생·보안·기숙사·해외주재원 — 은 시행일 최신 1판만 현행) · 조문 <strong>561</strong> · 판독 정상 11 / 부분 3(안전보건관리규정 85조·업무차량 34조·해외주재원 7조) / 전문 6(안전보건 경영매뉴얼 docx·지출위임전결기준·지출전결처리규정·해외법인 전결 3종 — 표 위주 문서라 조 구조 없음, 전문 검색은 됨) · 판독 불가 0</td>
 </tr>
 <tr>
@@ -138,16 +142,16 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <td><strong>적용</strong> — 포털 「🌐 전사 공통」 묶음 · 라이브 <code>/work/regulations</code> 200</td>
 </tr>
 <tr>
-<td>화면 <code>pages/전사_사내규정_조회_2026.html</code> · <code>app/lib/api.js</code> 4개 · <code>_test_regulation_page.mjs</code></td>
-<td><strong>라이브</strong>(커밋 68d7f0e · Vercel). 회귀 ⑫ 통과. 관리자 라이브 실측(목록·검색·조문·딥링크·모바일)은 남음</td>
+<td>화면 <code>pages/전사_사내규정_조회_2026.html</code> · <code>app/lib/api.js</code> 5개(+<code>regFileUrls</code>) · <code>_test_regulation_page.mjs</code></td>
+<td><strong>2차 재설계</strong>(10-08 밤 · 관리자 지시 「글이 너무 많아 가시성이 떨어진다」) — 좌측은 분류별 <strong>한 줄 목록</strong>(규정명 + 시행·조문 수·📄PDF), 검색 결과는 <strong>발췌 카드</strong>, 뷰어는 <strong>「📑 조문 / 📄 원본 PDF」 보기 전환</strong>(iframe 서명 URL · 새 창 · 내려받기) · 목차 접힘 · 900자 넘는 조문 접힘(「더 보기」) · 판정 기준은 접힌 각주 · 그룹웨어 링크는 보조. 회귀 ⑮ 통과. 관리자 라이브 실측은 남음</td>
 </tr>
 <tr>
 <td>도구 <code>search_regulation</code>·<code>get_regulation</code> · <code>core/prompt.ts</code> ■ 사내규정</td>
-<td><strong>배포</strong> <code>jeil-chat</code> v35 · <code>jeil-chat-lab</code> v29. RPC 실측: <code>reg_search('연차')</code> → 취업규칙 제26·26의2·27조</td>
+<td><strong>배포</strong> <code>jeil-chat</code> <strong>v36</strong> · <code>jeil-chat-lab</code> <strong>v30</strong>(2차 카드: 검색 카드에 발췌(검색어 둘레 150자) 동봉 · 「조문 ↗」= 화면의 그 조문 · 「PDF ↗」= 원본 PDF 보기 · 조문 카드는 메타 6칸 + 긴 본문 칸(<code>long</code>) · 그룹웨어 링크 제거 · 답변 형식 안내(결론→근거→유의)). 렌더러 3곳(04 포털·<code>chatview.js</code>·chat-lab)에 <code>linkLabel</code>·<code>wrap</code>·<code>long</code> 추가. RPC 실측: <code>reg_search('연차')</code> → 취업규칙 제26·26의2·27조</td>
 </tr>
 <tr>
 <td>정본 SQL 94(지시문)</td>
-<td><strong>적용</strong>(5,982자 · 21종 · md5 5ebd83bb…) · rollback 은 10-08 조회본(5,353자). <strong>콘솔 「점검」 1회 남음</strong></td>
+<td><strong>재적용</strong>(10-08 밤 · 5,982→<strong>6,192자</strong> · 21종 · md5 1f007803… · ■ 사내규정 절에 답변 형식·PDF 안내) · rollback 은 10-08 1차 적용본(5,982자 · md5 5ebd83bb…). 콘솔 「점검」은 관리자가 1차 때 완료</td>
 </tr>
 <tr>
 <td>골든셋</td>
@@ -222,10 +226,13 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <h2 id="7-workregulations">7. 조회 화면 <code>/work/regulations</code></h2>
 <ul>
 <li>전사 공개 카드(SQL 104 · 「🌐 전사 공통」 묶음). 머리에 「전사 공개」 배지와 정본·사본 안내 한 줄.</li>
-<li>조회바(<code>months:false</code> · 기준일 = 마지막 수집 시각) · 검색 패널(검색어 ≥2자 · 분류는 데이터에서) · 좌: 「규정 목록」/「검색 결과」 탭(표준 그리드 조회전용 · CSV 는 그리드가) · 우: 뷰어(메타 4칸·주관부서·판독 배지·조문 원천·「그룹웨어 원본 보기 ↗」(https 일 때만 링크) · 첨부 목록+판독 상태/사유 · 목차 · 조문 <code>#art-&lt;n&gt;</code> · 검색어 강조 · 개정 꼬리표).</li>
+<li>조회바(<code>months:false</code> · 기준일 = 마지막 수집 시각) · 검색 패널(검색어 ≥2자 · 분류는 데이터에서 · 예시 칩).</li>
+<li><strong>좌(2차 · 10-08)</strong>: 「규정 목록」= 분류별 묶음의 <strong>한 줄 목록</strong>(규정명 · 시행일 · n차 개정 · 조문 수 · 📄PDF · 판독이 정상이 아닐 때만 배지) / 「검색 결과」= <strong>발췌 카드</strong>(제n조 배지 · 규정명 · 제목 · 발췌 3줄 · 시행) — 읽기 전용 목록이라 표준 그리드를 쓰지 않는다(§13 예외 · 관리자 판독불가 표만 그리드).</li>
+<li><strong>우(2차)</strong>: 머리(규정명 + 칩: 분류·시행·개정·제정·주관·판독) → 도구줄 <strong>「📑 조문 n / 📄 원본 PDF」 보기 전환</strong> + 「새 창에서 PDF ↗」·「⬇ 내려받기」·보조 「그룹웨어 ↗」(https 일 때만) → 본문. 조문 보기 = 접힌 목차 + 조문 카드(장 머리글 · 제n조 배지 · 검색어 강조 · 개정 꼬리표 · <strong>900자 넘으면 접고 「더 보기」</strong> — 지정 조문·검색어가 든 조문은 펼침) + 첨부 줄(사본 있으면 열기·⬇). PDF 보기 = 서명 URL iframe(1시간 · <code>erpApi.regFileUrls</code>) · 사본이 없으면 버튼 비활성 · 조문을 못 나눈 규정(전문)은 PDF 가 먼저 열린다.</li>
+<li>판정 기준·출처는 접힌 각주(<code>&lt;details&gt;</code>) · 상단 배너는 지연·실패·게시판 미등록일 때만(판독 불가 안내는 관리자 섹션·첨부 줄로).</li>
 <li>상태 배너는 <strong>수집기 상태만</strong> 말한다(NAS 컨테이너와 무관 — 사본은 Supabase). 관리자 섹션(<code>reg_status.is_admin</code>)에 게시판별 마지막 수집·실패·판독 불가 첨부(CSV).</li>
-<li>주소 <code>?q=&amp;cat=&amp;reg=&amp;art=</code> 동기화 — 챗봇 카드의 「화면에서 보기」가 이 형식을 쓴다. 980px 이하 1열.</li>
-<li>회귀 <code>node _test_regulation_page.mjs</code>(⑫항목 — esc·강조 이스케이프·딥링크·1글자·게이트·배너·관리자·사유·URL·reqSeq·자체 CSV 없음·조회바).</li>
+<li>주소 <code>?q=&amp;cat=&amp;reg=&amp;art=&amp;view=pdf</code> 동기화 — 챗봇 카드의 「조문 ↗」(reg·art)·「PDF ↗」(reg·view=pdf)가 이 형식을 쓴다. 980px 이하 1열.</li>
+<li>회귀 <code>node _test_regulation_page.mjs</code>(⑮항목 — esc·강조 이스케이프·딥링크/view=pdf·1글자·게이트·배너·관리자·첨부 링크·URL·reqSeq·자체 CSV/Storage 없음·조회바·PDF 모드·접기·그룹웨어 보조).</li>
 </ul>
 <h2 id="8-2">8. 도구 2종·지시문</h2>
 <table>
@@ -241,19 +248,20 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <tr>
 <td><code>search_regulation</code></td>
 <td><code>q</code>(≥2자) · <code>limit≤30</code></td>
-<td><code>reg_search</code> → 규정명·조문·제목·발췌·시행일·원본</td>
-<td><code>출처</code>·<code>기준시각</code>·<code>목록</code>·<code>안내</code> + <code>__view:list</code>(「규정 조회 화면에서 보기」 링크)</td>
+<td><code>reg_search</code> → 규정명·조문·제목·발췌·시행일·원본 파일(file_path)</td>
+<td><code>출처</code>·<code>기준시각</code>·<code>목록</code>(조문보기·원본PDF 링크 포함)·<code>안내</code>(답변 형식) + <code>__view:list</code>(열: 규정·조문·제목·<strong>발췌(wrap · 검색어 둘레 150자)</strong>·시행일·<strong>보기「조문 ↗」</strong>·<strong>원본「PDF ↗」</strong> · actions: 「규정 조회 화면에서 보기」 + 1위 규정의 「원본 PDF」)</td>
 </tr>
 <tr>
 <td><code>get_regulation</code></td>
 <td><code>reg</code>(reg_key 또는 규정명 일부) · <code>article_no</code> · <code>start</code></td>
-<td>이름이면 <code>reg_list</code> 부분일치(후보 2+ 는 되묻기 목록) → <code>reg_get</code> · 조문 1개는 <code>record</code>, 전체는 목차 전부 + 본문 8,000자 창 + <code>다음조문</code></td>
-<td>첨부 판독 상태 포함</td>
+<td>이름이면 <code>reg_list</code> 부분일치(후보 2+ 는 되묻기 목록 · 「열기 ↗」) → <code>reg_get</code> · 조문 1개는 <code>record</code>(규정·조문·시행일·개정·주관부서·원본 + <strong>본문 1,200자 <code>long</code> 칸</strong>), 전체는 목차(「조문 ↗」 열) + 본문 8,000자 창 + <code>다음조문</code></td>
+<td>첨부 판독 상태·포털 사본 유무 · actions 「화면에서 이 조문 보기」·「원본 PDF 열기」(사본 있을 때) · 그룹웨어 링크는 싣지 않는다</td>
 </tr>
 </tbody>
 </table>
 <ul>
 <li><strong>정본은 운영 <code>jeil-chat/index.ts</code></strong>(TOOLS·runTool). <code>_port_modules.py</code> META 2행 → <code>modules/regulation/*.ts</code>·<code>modules/index.ts</code> 자동 이식. 본문은 HELPERS 만(새 헬퍼 금지).</li>
+<li><strong>카드 렌더러 확장(10-08 2차)</strong>: <code>list</code> 열 <code>linkLabel</code>(기본 「열기 ↗」)·<code>wrap</code>(긴 글 줄바꿈), <code>record</code> 칸 <code>long</code>(한 줄 전체 폭 · 줄바꿈 보존 · 보통 굵기 · 280px 스크롤). 렌더러는 <strong>3곳</strong>(라이브 <code>/main</code> = <code>04_챗봇_포털_데모UI.html</code> 인라인 · 공용 <code>app/lib/chatview.js</code>+<code>.css</code> · <code>app/chat-lab.html</code> 인라인)이라 한쪽만 고치지 않는다. 04 를 고치면 <code>python _build_bundle.py</code>.</li>
 <li>도구 안 <strong>8초 상한</strong>(엔진에 타임아웃 없음) — 초과는 「확인하지 못함」(<code>오류</code> 키 없음 → 개선 대장 자동 적재 방지). 권한 거부는 <code>접근제한</code> notice.</li>
 <li>지시문 <code>core/prompt.ts</code>: <code>DOMAIN_HINTS.regulation</code>(■ 사내규정 — 조문 먼저 · 규정명·조문·시행일 · 해석은 담당 부서 · 지어내지 않음) · <code>nas</code> 절에서 「규정」 낱말을 빼고 둘 다 켜진 에이전트에만 역할 분담 문장. 운영 지시문은 <code>node _gen_gateway_prompt.mjs</code> 로 <strong>SQL 94 재생성</strong>(적용 전 rollback 을 라이브 조회본으로 갱신 · md5 조건부 UPDATE · 콘솔 「점검」 1회).</li>
 <li>에이전트 노출: 새 도메인 <strong><code>regulation</code></strong>(<code>common</code> 아님) — purchase v10 초안(domains +regulation · 나머지 v9 동일) → 골든셋 회귀(규정 2문항) → reviewer 「현재로 지정」. dri v3 는 수요 있을 때. 운영 챗봇은 TOOLS 전부를 쓰므로 배포 즉시 전 직원 적용.</li>
@@ -275,7 +283,8 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 </ol>
 <h2 id="11">11. 되돌리기</h2>
 <ul>
-<li>DB: <code>103_reg_board_mirror_rollback.sql</code>(표·함수 삭제 · pg_trgm 유지 · NAS 에서 <code>--full</code> 재적재 가능) · <code>104_…_rollback.sql</code>(active=false) · <code>94_…_rollback.sql</code>(10-08 조회본).</li>
+<li>DB: <code>108_reg_attachment_storage_rollback.sql</code>(정책·RPC·열 제거 · 함수 4종 103 원문 — 버킷·객체는 남긴다) → <code>103_reg_board_mirror_rollback.sql</code>(표·함수 삭제 · pg_trgm 유지 · NAS 에서 <code>--full</code> 재적재 가능) · <code>104_…_rollback.sql</code>(active=false) · <code>94_…_rollback.sql</code>(10-08 1차 적용본 5,982자).</li>
+<li>사본 버킷: 108 을 되돌리면 화면·챗봇은 저절로 「PDF 사본 없음」(버튼 비활성)으로 돌아간다. 다시 적용하면 <code>gw_board_collect.py --files-sync</code> 1회로 복구.</li>
 <li>수집기: <code>register_gw_board_task.ps1 -Remove</code> · 러너 등록 줄 되돌림 · NAS <code>00_전사공유/사내규정/</code> 은 지우지 않는다(정본 — 관리자 결정).</li>
 <li>색인: <code>nas_index.py</code> i1.1 · 컨테이너 n1.11 재빌드. 도구: 함수 직전 커밋 재배포 · META 2행 제거 후 재이식 · purchase v9 재지정. 화면: 라우트 제거 → 빌드 → 푸시.</li>
 </ul>
@@ -348,6 +357,10 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <tr>
 <td>2026-10-08</td>
 <td>신설 — 관리자 결정 4건(본문 DB 저장·Playwright 수집기·순수 파이썬 hwp·챗봇 둘 다) · 수집기·추출기·파서·색인 i1.2·러너 등록·예약작업·SQL 103/104/94·화면·도구 2종·골든셋 작성(REQ-0124). 적용·배포·Step 0 실측은 관리자 승인 대기</td>
+</tr>
+<tr>
+<td>2026-10-08(밤)</td>
+<td><strong>2차(관리자 지시 3건 · REQ-0124)</strong> — ① 챗봇 카드 가독성(발췌 동봉 · 조문/PDF 링크 · 긴 본문 칸 · 답변 형식 안내 · 렌더러 3곳 <code>linkLabel</code>/<code>wrap</code>/<code>long</code>) ② 조회 화면 재설계(한 줄 목록 · 발췌 카드 · 조문/PDF 보기 전환 · 접힌 목차·긴 조문·각주) ③ <strong>그룹웨어 링크 대신 실제 PDF</strong> — 정본 SQL <strong>108</strong>(<code>reg_attachment.storage_path</code> · 비공개 버킷 <code>reg-files</code> · 읽기 정책 사내 로그인 · RPC <code>reg_attachment_storage_set</code> · 함수 4종 재정의 <code>file_path</code>) · 수집기 <strong>b1.1</strong>(업로드·<code>--files-sync</code>) · <code>api.js regFileUrls</code>. 라이브: SQL 108 적용 · 사본 28건 업로드 · <code>jeil-chat</code> v36 · <code>jeil-chat-lab</code> v30 · SQL 94 재적용(6,192자). 회귀 289(+5)·화면 ⑮·조립·tsc</td>
 </tr>
 </tbody>
 </table>

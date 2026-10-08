@@ -488,7 +488,19 @@ export const erpApi = {
      reg_* 표는 RLS 전면차단이고 definer RPC 4종만이 읽기 경로다(사내 로그인 전원 · is_internal).
      규정은 전사 공개 문서라 권한 모듈이 없다. 응답은 jsonb 한 덩이 → _pageAll 을 쓰지 않는다.
      정본 서열: 그룹웨어 게시판(원본·첨부는 NAS) > 이 사본 — 화면·챗봇은 「사내규정 사본(그룹웨어 게시판 · 시행일 기준)」을 밝힌다. */
-  // 현행 규정 목록(+조문 수·첨부 수·판독 불가 수). 반환 {allowed, as_of, count, categories[], rows[]}
+  // 규정 원본 파일(PDF 등) 서명 URL — 비공개 버킷 reg-files(정본 SQL 108). select 정책이 사내 로그인(is_internal)뿐이라
+  // 협력사·anon 은 서명 자체가 거부된다. 반환 {path: url}(실패한 경로는 빠진다). 1시간짜리라 화면이 열 때마다 새로 받는다.
+  // 내려받기 이름은 호출측이 URL 에 `&download=<이름>` 을 붙인다(Supabase 서명 URL 규약).
+  async regFileUrls(paths, expires = 3600) {
+    const need = [...new Set((paths || []).map((p) => String(p || "").trim()).filter(Boolean))];
+    const out = {};
+    if (!need.length) return out;
+    const { data, error } = await supabase.storage.from("reg-files").createSignedUrls(need, expires);
+    if (error) { console.warn("regFileUrls 실패:", error.message); return out; }
+    for (const r of data || []) if (r && r.path && r.signedUrl && !r.error) out[r.path] = r.signedUrl;
+    return out;
+  },
+  // 현행 규정 목록(+조문 수·첨부 수·판독 불가 수·원본 파일 file_path/file_name — PDF 우선). 반환 {allowed, as_of, count, categories[], rows[]}
   async regList({ category = "", q = "" } = {}) {
     const { data, error } = await supabase.rpc("reg_list", { p_category: category || null, p_q: q || null });
     if (error) throw error;

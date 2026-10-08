@@ -71,6 +71,7 @@ pre.cv-pre code{background:transparent;padding:0;border-radius:0;color:inherit;f
 .cv-card{border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:#f9fafc}
 .cv-title{font-size:12.5px;font-weight:700;color:var(--navy);margin-bottom:7px}
 .cv-table td{background:#fff;white-space:nowrap}
+.cv-table td.wrap{white-space:normal;min-width:220px;max-width:460px;line-height:1.5}
 .cv-table th{white-space:nowrap}
 .cv-barcell{width:34%;min-width:90px}
 .cv-bar{height:10px;background:var(--accent2);border-radius:3px}
@@ -80,6 +81,8 @@ pre.cv-pre code{background:transparent;padding:0;border-radius:0;color:inherit;f
 .cv-field{display:flex;gap:8px;font-size:12.8px;border-bottom:1px dashed var(--line);padding:3px 0}
 .cv-k{color:var(--muted);flex:none;min-width:78px}
 .cv-v{font-weight:600;color:var(--ink);word-break:break-all}
+.cv-field.long{grid-column:1 / -1;flex-direction:column;gap:2px}
+.cv-field.long .cv-v{font-weight:400;white-space:pre-wrap;word-break:break-word;line-height:1.65;max-height:280px;overflow:auto}
 .cv-gap{display:inline-block;font-size:10.5px;font-weight:700;color:#9a5b00;background:#fff5e6;border:1px solid #f0c98a;border-radius:9px;padding:1px 7px;margin-left:6px;cursor:help}
 .cv-steps{display:flex;flex-wrap:wrap;align-items:center;gap:4px;margin:9px 0 2px;font-size:11.5px}
 .cv-step{border:1px solid var(--line);border-radius:12px;padding:2px 9px;color:var(--muted);background:#fff}
@@ -357,7 +360,7 @@ function renderView(host, v){
   } else if(v.view === 'record' && Array.isArray(v.fields)){
     var g = _cvEl('div', 'cv-fields');
     v.fields.forEach(function(f){
-      var row = _cvEl('div', 'cv-field');
+      var row = _cvEl('div', 'cv-field' + (f.long ? ' long' : ''));
       row.appendChild(_cvEl('span', 'cv-k', String(f.k)));
       var vw = _cvEl('span', 'cv-v', String(f.v));
       if(f.gap){ var gb = _cvEl('span', 'cv-gap', '⚠ ' + String(f.gap)); if(f.gap_why) gb.title = String(f.gap_why); vw.appendChild(gb); }
@@ -380,9 +383,9 @@ function renderView(host, v){
       var tr = document.createElement('tr');
       v.columns.forEach(function(c){
         var val = r ? r[c.key] : null;
-        var td = _cvEl('td', c.num ? 'r' : null);
+        var td = _cvEl('td', [c.num ? 'r' : '', c.wrap ? 'wrap' : ''].filter(Boolean).join(' ') || null);
         if(c.link && typeof val === 'string' && /^https:\/\//.test(val)){
-          var a = document.createElement('a'); a.href = val; a.target = '_blank'; a.rel = 'noopener noreferrer'; a.textContent = '열기 ↗'; td.appendChild(a);
+          var a = document.createElement('a'); a.href = val; a.target = '_blank'; a.rel = 'noopener noreferrer'; a.textContent = c.linkLabel ? String(c.linkLabel) : '열기 ↗'; td.appendChild(a);
         } else if(typeof val === 'number'){ td.textContent = _cvNum(val); }
         else { td.textContent = val == null ? '-' : String(val); }
         tr.appendChild(td);

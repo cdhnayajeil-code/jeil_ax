@@ -1,6 +1,7 @@
 // app/lib/chatview.js — 챗봇 응답 렌더 공용 모듈(바닐라 ESM, 의존성 0) · REQ-0087
 //   renderMd(텍스트)      : 마크다운(표·목록·굵게·링크·코드) → HTML. 보안 원칙: escHtml 먼저 → 문법 치환(raw HTML 미지원)
 //   renderView(host, v)   : 서버가 보낸 구조화 뷰 5종(series·ranking·record·list·notice, ADR-008) → 카드. 값은 전부 textContent
+//                           list 열: link(https 만)·linkLabel(기본 「열기 ↗」)·wrap(긴 글 줄바꿈) · record 칸: long(한 줄 전체 폭 · 줄바꿈 보존) — 2026-10-08 REQ-0124 2차
 //   viewTable(v)          : 카드 → {title, head[], rows[][], num[]} — CSV·보고서가 **서버 데이터 그대로** 쓰게(모델 문장 아님)
 //   toCsv(t) · reportHtml({...}) · downloadText(name, text, type)
 // 원본: 04 포털 챗봇 renderMd/renderView → app/chat-lab.html 사본(REQ-0084). 새 화면은 이 모듈을 쓴다(13 기획 P1 후속 — 실험실도 옮길 예정).
@@ -215,7 +216,7 @@ export function renderView(host, v, opts = {}) {
   } else if (v.view === "record" && Array.isArray(v.fields)) {
     const g = el("div", "cv-fields");
     v.fields.forEach((f) => {
-      const row = el("div", "cv-field"); row.appendChild(el("span", "cv-k", String(f.k)));
+      const row = el("div", "cv-field" + (f.long ? " long" : "")); row.appendChild(el("span", "cv-k", String(f.k)));
       const vw = el("span", "cv-v", String(f.v));
       if (f.gap) { const gb = el("span", "cv-gap", "⚠ " + String(f.gap)); if (f.gap_why) gb.title = String(f.gap_why); vw.appendChild(gb); }
       row.appendChild(vw); g.appendChild(row);
@@ -235,8 +236,8 @@ export function renderView(host, v, opts = {}) {
     v.rows.forEach((r) => {
       const tr = document.createElement("tr");
       v.columns.forEach((c) => {
-        const val = r ? r[c.key] : null; const td = el("td", c.num ? "r" : null);
-        if (c.link && typeof val === "string" && /^https:\/\//.test(val)) { const a = document.createElement("a"); a.href = val; a.target = "_blank"; a.rel = "noopener noreferrer"; a.textContent = "열기 ↗"; td.appendChild(a); }
+        const val = r ? r[c.key] : null; const td = el("td", [c.num ? "r" : "", c.wrap ? "wrap" : ""].filter(Boolean).join(" ") || null);
+        if (c.link && typeof val === "string" && /^https:\/\//.test(val)) { const a = document.createElement("a"); a.href = val; a.target = "_blank"; a.rel = "noopener noreferrer"; a.textContent = c.linkLabel ? String(c.linkLabel) : "열기 ↗"; td.appendChild(a); }
         else if (typeof val === "number") td.textContent = numFmt(val);
         else td.textContent = val == null ? "-" : String(val);
         tr.appendChild(td);

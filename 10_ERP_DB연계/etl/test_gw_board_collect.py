@@ -107,6 +107,37 @@ class FakeRpc:
         return [p for f, p in self.calls if f == fn]
 
 
+class FakeStorage:
+    """비공개 버킷 흉내(StorageClient 와 같은 메서드). 올린 객체는 메모리에만."""
+
+    def __init__(self, fail=False):
+        self.objects = {}
+        self.uploads = []
+        self.pruned = []
+        self.fail = fail
+
+    def upload(self, path, data, content_type=None):
+        if self.fail:
+            raise RuntimeError("HTTP 500 storage POST: 흉내")
+        self.objects[path] = (data, content_type)
+        self.uploads.append(path)
+        return path
+
+    def list(self, prefix):
+        return [p for p in self.objects if p.startswith(prefix.rstrip("/") + "/")]
+
+    def remove(self, paths):
+        for p in paths:
+            self.objects.pop(p, None)
+        return len(paths)
+
+    def prune(self, prefix, keep):
+        keep = set(keep or [])
+        gone = [p for p in self.list(prefix) if p not in keep]
+        self.pruned.append((prefix, sorted(gone)))
+        return self.remove(gone)
+
+
 @contextlib.contextmanager
 def fake_session(login=None):
     yield None, (login or {"ok": True, "forced": False, "reason": None, "msg": "로그인"})
@@ -135,6 +166,7 @@ class Base(unittest.TestCase):
         drv = driver or FakeDriver(data)
         kw.setdefault("docs_root_arg", self.root)
         kw.setdefault("rate_sleep", 0)
+        kw.setdefault("storage", False)                 # 테스트는 실 버킷에 절대 올리지 않는다 — FakeStorage 를 넣는 테스트만 예외
         res = gb.collect(mode=mode, session_factory=lambda: fake_session(login), driver_factory=lambda p, b, s: drv,
                          rpc_fn=self.rpc, cfg=FAKE_CFG, **kw)
         return res, drv
@@ -492,6 +524,107 @@ def api_item(pid, title, ms, hist=0, files=1, part="인사팀"):
     return {"boardPostID": pid, "idx": 0, "title": title, "writeDate": "/Date(%d)/" % ms, "isHistory": hist, "fileCnt": files, "partName": part, "memberName": "홍길동", "categoryName": "일반"}
 
 
+class TestStorageCopy(Base):
+    """첨부 원본을 비공개 버킷(reg-files)에 사본으로 올리는 경로(b1.1 · 정본 SQL 108)."""
+    KEY_RE = r"^[a-z0-9_-]+/[0-9]{6}/[0-9a-f]{16}(\.[a-z0-9]{1,8})?$"
+
+    def test_storage_key_is_ascii_and_versioned(self):
+        import re
+        k = gb.storage_key("rules", "7589", "ab" * 32, ".pdf")
+        self.assertEqual(k, "rules/007589/abababababababab.pdf")
+        self.assertRegex(k, self.KEY_RE)
+        self.assertRegex(gb.storage_key("회사규정", 5, "ff" * 32, ".한글"), self.KEY_RE)      # 한글 키·확장자는 ASCII 로 떨어진다
+        self.assertNotEqual(gb.storage_key("rules", 1, "aa" * 32, ".pdf"), gb.storage_key("rules", 1, "bb" * 32, ".pdf"), "판이 바뀌면 경로도 바뀐다")
+
+    def test_full_uploads_stored_attachments_only(self):
+        store = FakeStorage()
+        data = {"rules": [post(401, "취업규칙", atts=[{"name": "취업규칙.txt", "bytes": ART5.encode("utf-8")},
+                                                   {"name": "명단.txt", "bytes": "김철수 850505-2345678".encode("utf-8")},
+                                                   {"name": "양식.exe", "bytes": b"MZ"}])]}
+        res, _ = self.run_collect(data, storage=store)
+        self.assertTrue(res["ok"], res)
+        self.assertEqual(len(store.uploads), 1, store.uploads)
+        key = store.uploads[0]
+        self.assertRegex(key, self.KEY_RE)
+        self.assertTrue(key.startswith("rules/000401/") and key.endswith(".txt"))
+        self.assertEqual(store.objects[key][0], ART5.encode("utf-8"))
+        self.assertEqual(store.objects[key][1], "text/plain; charset=utf-8")
+        with io.open(os.path.join(self.post_dir("rules", 401, "취업규칙"), "meta.json"), encoding="utf-8") as fh:
+            meta = json.load(fh)
+        by = {a["file_name"]: a for a in meta["attachments"]}
+        self.assertEqual(by["취업규칙.txt"]["storage_path"], key)
+        self.assertIsNone(by["명단.txt"]["storage_path"], "주민등록번호 꼴 첨부는 버킷에도 올리지 않는다")
+        self.assertIsNone(by["양식.exe"]["storage_path"])
+        ing = self.rpc.payloads("reg_ingest_upsert")[0]["p_payload"]["posts"][0]
+        self.assertEqual({a["file_name"]: a.get("storage_path") for a in ing["attachments"]}["취업규칙.txt"], key, "DB 적재 payload 에도 경로가 실린다")
+        self.assertEqual(store.pruned, [("rules/000401", [])])
+
+    def test_upload_failure_is_not_fatal(self):
+        store = FakeStorage(fail=True)
+        data = {"rules": [post(402, "규정", atts=[{"name": "규정.txt", "bytes": ART5.encode("utf-8")}])]}
+        res, _ = self.run_collect(data, storage=store)
+        self.assertTrue(res["ok"], res)
+        with io.open(os.path.join(self.post_dir("rules", 402, "규정"), "meta.json"), encoding="utf-8") as fh:
+            meta = json.load(fh)
+        self.assertEqual(meta["attachments"][0]["text_status"], "readable", "업로드 실패는 판독·NAS 와 무관")
+        self.assertIsNone(meta["attachments"][0]["storage_path"])
+        self.assertTrue(any("업로드 실패" in l for l in self.logs))
+
+    def test_changed_attachment_prunes_old_copy(self):
+        store = FakeStorage()
+        data = {"rules": [post(403, "규정", atts=[{"name": "규정.txt", "bytes": ART5.encode("utf-8")}])]}
+        self.run_collect(data, storage=store)
+        k1 = store.uploads[0]
+        if os.path.exists(self.stamp):
+            os.remove(self.stamp)
+        data["rules"][0]["attachments"][0]["bytes"] = (ART5 + "\n제6조(추가) 신설.").encode("utf-8")
+        data["rules"][0]["modified_at"] = "2026-09-02 09:00"
+        res, _ = self.run_collect(data, mode="full", storage=store)
+        self.assertEqual(res["changed"], 1)
+        k2 = store.uploads[-1]
+        self.assertNotEqual(k1, k2)
+        self.assertEqual(sorted(store.objects), [k2], "옛 판 사본은 게시물 폴더 안에서 정리된다")
+        self.assertEqual(store.pruned[-1], ("rules/000403", [k1]))
+
+    def test_files_sync_backfills_from_nas_and_updates_db(self):
+        data = {"rules": [post(404, "취업규칙", atts=[{"name": "취업규칙.txt", "bytes": ART5.encode("utf-8")},
+                                                   {"name": "양식.exe", "bytes": b"MZ"}]),
+                          post(405, "출장여비규정", "<p>" + ART5.replace("\n", "</p><p>") + "</p>")]}
+        self.run_collect(data)                                      # storage=False → 사본 없음(초기 수집 꼴)
+        store = FakeStorage()
+        self.rpc.responses["reg_attachment_storage_set"] = {"found": True, "updated": 1}
+        out = gb.files_sync(docs_root_arg=self.root, rpc_fn=self.rpc, storage=store)
+        self.assertTrue(out["ok"], out)
+        self.assertEqual((out["posts"], out["uploaded"], out["skipped"], out["failed"], out["db_updated"]), (1, 1, 0, 0, 1))
+        key = store.uploads[0]
+        self.assertTrue(key.startswith("rules/000404/"))
+        with io.open(os.path.join(self.post_dir("rules", 404, "취업규칙"), "meta.json"), encoding="utf-8") as fh:
+            meta = json.load(fh)
+        self.assertEqual({a["file_name"]: a.get("storage_path") for a in meta["attachments"]}, {"취업규칙.txt": key, "양식.exe": None})
+        p = self.rpc.payloads("reg_attachment_storage_set")
+        self.assertEqual(len(p), 1)
+        self.assertEqual((p[0]["p_board_key"], p[0]["p_post_no"]), ("rules", "404"))
+        self.assertEqual(p[0]["p_items"][0]["storage_path"], key)
+        self.assertEqual(p[0]["p_items"][0]["sha256"], meta["attachments"][0]["sha256"])
+        # 2회차: 이미 있는 것은 건너뛴다 · 업로드 0
+        out2 = gb.files_sync(docs_root_arg=self.root, rpc_fn=self.rpc, storage=store)
+        self.assertEqual((out2["uploaded"], out2["skipped"], len(store.uploads)), (0, 1, 1))
+        # NAS 파일이 바뀌어 해시가 다르면 올리지 않는다(실패로 보고)
+        with open(os.path.join(self.post_dir("rules", 404, "취업규칙"), "첨부", "취업규칙.txt"), "ab") as fh:
+            fh.write(b"x")
+        out3 = gb.files_sync(docs_root_arg=self.root, rpc_fn=self.rpc, storage=store, force=True)
+        self.assertFalse(out3["ok"])
+        self.assertEqual(out3["failed"], 1)
+        self.assertTrue(any("해시 불일치" in e for e in out3["errors"]))
+        for secret in (FAKE_CFG["pw"], FAKE_CFG["secret"]):
+            self.assertNotIn(secret, "\n".join(self.logs))
+
+    def test_files_sync_refuses_without_storage(self):
+        out = gb.files_sync(docs_root_arg=self.root, rpc_fn=self.rpc, storage=None, no_db=True)
+        self.assertFalse(out["ok"])
+        self.assertIn("버킷 클라이언트", out["msg"])
+
+
 class TestApiDriver(unittest.TestCase):
     def setUp(self):
         with io.open(gb.DEFAULT_PROFILE, encoding="utf-8") as fh:
@@ -574,7 +707,7 @@ class TestApiDriver(unittest.TestCase):
             def page_session():
                 yield self.page, {"ok": True, "forced": False, "reason": None, "msg": "로그인"}
             fake_session = page_session                        # 아래 호출 3곳이 같은 FakePage 를 쓴다
-            res = gb.collect(mode="full", docs_root_arg=root, rate_sleep=0, session_factory=lambda: fake_session(), rpc_fn=rpc, cfg=dict(FAKE_CFG, url="https://gw.example.invalid"))
+            res = gb.collect(mode="full", docs_root_arg=root, rate_sleep=0, session_factory=lambda: fake_session(), rpc_fn=rpc, cfg=dict(FAKE_CFG, url="https://gw.example.invalid"), storage=False)
             self.assertTrue(res["ok"], res)
             self.assertEqual((res["new"], res["boards"]["rules"]["pages"], res["complete"]), (3, 2, True))
             d = os.path.join(gb.regs_root(root), "rules", gb.post_dir_name("7589", "[사내규정] 해외주재원 관리규정 개정(2025.11.04)"))
@@ -587,13 +720,13 @@ class TestApiDriver(unittest.TestCase):
             self.assertEqual(by["없는파일.hwp"]["text_status"], "skipped")
             # 2회차(nightly): 수정 횟수가 같으면 열지 않는다
             n_calls = len(self.page.request.calls)
-            res2 = gb.collect(mode="nightly", docs_root_arg=root, rate_sleep=0, session_factory=lambda: fake_session(), rpc_fn=rpc, cfg=dict(FAKE_CFG, url="https://gw.example.invalid"))
+            res2 = gb.collect(mode="nightly", docs_root_arg=root, rate_sleep=0, session_factory=lambda: fake_session(), rpc_fn=rpc, cfg=dict(FAKE_CFG, url="https://gw.example.invalid"), storage=False)
             self.assertEqual((res2["new"], res2["changed"], res2["unchanged"]), (0, 0, 3))
             self.assertFalse(any(c[1].endswith("BoardPostDetail_Get") for c in self.page.request.calls[n_calls:]), "수정 횟수가 같은 게시물은 상세를 부르지 않는다")
             # 수정 횟수 증가 → 그 게시물만 다시 연다
             os.remove(stamp)
             self.page.request.list_pages[1][0][1]["isHistory"] = 1
-            res3 = gb.collect(mode="nightly", docs_root_arg=root, rate_sleep=0, session_factory=lambda: fake_session(), rpc_fn=rpc, cfg=dict(FAKE_CFG, url="https://gw.example.invalid"))
+            res3 = gb.collect(mode="nightly", docs_root_arg=root, rate_sleep=0, session_factory=lambda: fake_session(), rpc_fn=rpc, cfg=dict(FAKE_CFG, url="https://gw.example.invalid"), storage=False)
             details = [c for c in self.page.request.calls if c[1].endswith("BoardPostDetail_Get")]
             self.assertEqual(details[-1][2]["boardPostID"], "16")
             self.assertEqual((res3["changed"], res3["unchanged"]), (0, 3), "내용이 같으면 판은 그대로")

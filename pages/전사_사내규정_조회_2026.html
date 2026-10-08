@@ -17,21 +17,22 @@
   }
   *{box-sizing:border-box; margin:0; padding:0;}
   body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif; color:var(--ink); background:var(--bg); line-height:1.6; font-size:14px;}
-  .page{max-width:1240px; margin:0 auto; background:#fff; padding:30px 36px; box-shadow:0 2px 14px rgba(0,0,0,.08); min-height:100vh;}
-  .head{border-bottom:3px solid var(--navy); padding-bottom:12px; margin-bottom:16px;}
+  .page{max-width:1280px; margin:0 auto; background:#fff; padding:26px 32px 30px; box-shadow:0 2px 14px rgba(0,0,0,.08); min-height:100vh;}
+  .head{border-bottom:3px solid var(--navy); padding-bottom:10px; margin-bottom:12px; display:flex; align-items:baseline; justify-content:space-between; flex-wrap:wrap; gap:6px 14px;}
   .head h1{font-size:22px; color:var(--navy);}
-  .head .sub{font-size:12.5px; color:var(--muted); margin-top:3px;}
-  .badge{display:inline-block; font-size:11px; border-radius:10px; padding:2px 9px; font-weight:600; white-space:nowrap;}
+  .head .sub{font-size:12.5px; color:var(--muted);}
+  .badge{display:inline-block; font-size:11px; border-radius:10px; padding:2px 9px; font-weight:600; white-space:nowrap; vertical-align:middle;}
   .badge.g{background:var(--softgreen); color:var(--green);} .badge.a{background:var(--softamber); color:var(--amber);}
   .badge.b{background:var(--soft); color:var(--navy2);} .badge.r{background:var(--softred); color:var(--red);}
   .badge.x{background:var(--softgrey); color:var(--grey);}
 
-  .notice{border-radius:10px; padding:10px 14px; margin:10px 0; font-size:13px; background:var(--soft); color:#3a4757; border:1px solid var(--line);}
+  .notice{border-radius:10px; padding:9px 14px; margin:8px 0; font-size:13px; background:var(--soft); color:#3a4757; border:1px solid var(--line);}
   .notice.warn{background:var(--softamber); color:#6d5217; border-color:#e3d3ad;}
   .notice b{color:var(--navy);}
 
-  .panel{border:1.5px solid var(--line); border-radius:12px; padding:12px 16px 10px; margin:12px 0 8px; background:#fbfcfe;}
-  .fields{display:grid; grid-template-columns:1.6fr .8fr auto; gap:10px; align-items:end;}
+  /* 검색 패널 — §16.8 부분예외(서버 검색은 본문 패널) */
+  .panel{border:1.5px solid var(--line); border-radius:12px; padding:12px 16px 10px; margin:10px 0 6px; background:#fbfcfe;}
+  .fields{display:grid; grid-template-columns:1.6fr .7fr auto; gap:10px; align-items:end;}
   .fld{display:flex; flex-direction:column; gap:4px; min-width:0;}
   .fld label{font-size:12px; font-weight:700; color:var(--navy2);}
   .fld label small{font-weight:400; color:var(--muted); margin-left:4px;}
@@ -43,75 +44,121 @@
   .btn.ghost{background:#fff; color:var(--navy2); border-color:#b9c7da; font-weight:600;}
   .btn.ghost:hover{background:var(--soft);}
   .btn.sm{padding:4px 11px; font-size:12.5px; border-radius:8px;}
-  .panel .hint{font-size:12px; color:var(--muted); margin-top:7px;}
-  .chips{display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin-top:7px;}
-  .chips .lb{font-size:12px; color:var(--muted);}
+  .chips{display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin-top:8px; font-size:12px; color:var(--muted);}
   .chips button{background:#fff; border:1px solid var(--accent); color:var(--accent); font-size:12px; padding:3px 11px; border-radius:14px; cursor:pointer; font-family:inherit;}
   .chips button:hover{background:var(--accent); color:#fff;}
 
-  .layout{display:grid; grid-template-columns:440px minmax(0,1fr); gap:14px; align-items:start; margin-top:10px;}
-  .card{background:#fff; border:1px solid var(--line); border-radius:10px; min-width:0;}
-  .card > h3{margin:0; padding:9px 12px; font-size:13px; color:var(--navy); border-bottom:1px solid var(--line); display:flex; justify-content:space-between; align-items:center; gap:8px;}
-  .card > h3 .sm{font-weight:400; color:var(--muted); font-size:11.5px;}
-  .card .body{padding:10px 12px;}
-  .tabs{display:flex; gap:4px; align-items:center; border-bottom:2px solid var(--line); margin:0 12px;}
-  .tab{background:none; border:none; border-bottom:3px solid transparent; margin-bottom:-2px; padding:8px 12px; font-size:13.5px; font-weight:600; color:var(--muted); cursor:pointer; font-family:inherit;}
+  /* 2단 */
+  .layout{display:grid; grid-template-columns:380px minmax(0,1fr); gap:14px; align-items:start; margin-top:10px;}
+  .card{background:#fff; border:1px solid var(--line); border-radius:12px; min-width:0;}
+  .tabs{display:flex; gap:2px; align-items:center; border-bottom:2px solid var(--line); margin:0 12px;}
+  .tab{background:none; border:none; border-bottom:3px solid transparent; margin-bottom:-2px; padding:9px 12px; font-size:13.5px; font-weight:600; color:var(--muted); cursor:pointer; font-family:inherit;}
   .tab.on{color:var(--navy); border-bottom-color:var(--navy);}
   .tab .cnt{display:inline-block; min-width:22px; font-size:11.5px; background:var(--soft); color:var(--navy2); border-radius:9px; padding:0 6px; margin-left:3px;}
   .tab.on .cnt{background:var(--navy); color:#fff;}
-  .lnk{background:none; border:none; color:var(--accent); font-weight:700; cursor:pointer; font-family:inherit; font-size:13px; text-align:left; padding:0;}
-  .lnk:hover{text-decoration:underline;}
+  .lbody{padding:8px 8px 10px; max-height:calc(100vh - 120px); overflow:auto;}
   mark{background:#fff3a3; color:inherit; padding:0 1px; border-radius:2px;}
 
-  /* 뷰어 */
-  .viewer{min-height:320px;}
-  .vhead{padding:12px 14px; border-bottom:1px solid var(--line); background:#fafbfd;}
-  .vhead h2{font-size:18px; color:var(--navy); margin-bottom:4px;}
-  .vmeta{display:flex; flex-wrap:wrap; gap:6px 14px; font-size:12.5px; color:var(--muted);}
-  .vmeta b{color:var(--ink);}
-  .vmeta a{color:var(--accent); font-weight:600;}
-  .vbody{padding:12px 16px;}
-  .atts{font-size:12.5px; color:var(--muted); margin-bottom:10px;}
-  .atts li{margin-left:18px;}
-  details.toc{border:1px solid var(--line); border-radius:9px; padding:6px 10px; margin-bottom:12px; background:#fbfcfe;}
-  details.toc summary{cursor:pointer; font-weight:700; color:var(--navy2); font-size:13px;}
-  .toc ol{margin:6px 0 2px 18px; font-size:12.5px; columns:2; column-gap:18px;}
-  .toc ol li{break-inside:avoid;}
-  .toc .ch{list-style:none; margin-left:-18px; font-weight:700; color:var(--navy); margin-top:4px; column-span:all;}
-  article.art{padding:8px 0 10px; border-bottom:1px dashed var(--line); scroll-margin-top:12px;}
-  article.art:target,article.art.focus{background:var(--softblue); border-radius:8px; padding-left:8px; padding-right:8px;}
-  article.art h4{font-size:14px; color:var(--navy); margin-bottom:3px;}
-  article.art h4 .no{color:var(--accent); margin-right:6px;}
-  article.art .ch{font-size:12px; color:var(--muted); margin-bottom:2px;}
-  article.art .txt{white-space:pre-wrap; word-break:break-word; font-size:13.5px; line-height:1.7;}
-  article.art.del .txt{color:#99a2ad;}
-  .empty{text-align:center; color:var(--muted); padding:30px 16px; font-size:13.5px; border:1.5px dashed var(--line); border-radius:11px;}
+  /* 규정 목록 — 읽기 전용 목록(§13 예외) · 한 줄 제목 + 한 줄 요약 */
+  .grp{font-size:11.5px; font-weight:700; color:var(--navy2); letter-spacing:.02em; margin:10px 6px 4px; text-transform:uppercase;}
+  .grp:first-child{margin-top:2px;}
+  .row{display:block; width:100%; text-align:left; background:#fff; border:1px solid transparent; border-radius:9px; padding:7px 10px; cursor:pointer; font-family:inherit; color:var(--ink);}
+  .row:hover{background:var(--softblue); border-color:#cfe0f4;}
+  .row.on{background:var(--softblue); border-color:var(--accent2);}
+  .row .t{font-size:14px; font-weight:700; color:var(--navy); line-height:1.35;}
+  .row .s{font-size:11.5px; color:var(--muted); margin-top:2px; display:flex; flex-wrap:wrap; gap:3px 8px; align-items:center;}
+  .row .s .pdf{color:var(--green); font-weight:700;}
+  /* 검색 결과 — 규정 · 조문 · 발췌 */
+  .hit{display:block; width:100%; text-align:left; background:#fff; border:1px solid var(--line); border-radius:10px; padding:9px 11px; margin:0 0 7px; cursor:pointer; font-family:inherit; color:var(--ink);}
+  .hit:hover{border-color:var(--accent2); background:#fcfdff;}
+  .hit .t{font-size:13.5px; font-weight:700; color:var(--navy); line-height:1.35;}
+  .hit .t .no{display:inline-block; background:var(--navy); color:#fff; font-size:11px; border-radius:6px; padding:0 6px; margin-right:6px; vertical-align:1px;}
+  .hit .ex{font-size:12.8px; color:#3a4757; margin-top:4px; line-height:1.55; display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden;}
+  .hit .s{font-size:11.5px; color:var(--muted); margin-top:4px;}
+  .empty{text-align:center; color:var(--muted); padding:28px 16px; font-size:13.5px; border:1.5px dashed var(--line); border-radius:11px; margin:6px;}
   .empty small{display:block; font-size:12px; color:#99a2ad; margin-top:4px;}
   .gate{text-align:center; padding:40px 16px;}
   .gate h2{font-size:18px; color:var(--navy); margin:6px 0;}
   .gate p{color:var(--muted); margin:0 0 14px;}
 
+  /* 뷰어 */
+  .viewer{min-height:360px;}
+  .vhead{padding:14px 18px 10px; border-bottom:1px solid var(--line); background:#fafbfd; border-radius:12px 12px 0 0;}
+  .vhead h2{font-size:20px; color:var(--navy); line-height:1.3;}
+  .vmeta{display:flex; flex-wrap:wrap; gap:5px 6px; margin-top:7px;}
+  .vmeta .chip{font-size:12px; background:#fff; border:1px solid var(--line); border-radius:12px; padding:2px 10px; color:#3a4757;}
+  .vmeta .chip b{color:var(--navy);}
+  .vtools{display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:8px; padding:8px 18px; border-bottom:1px solid var(--line); background:#fff;}
+  .modes{display:flex; gap:4px; background:var(--softgrey); border-radius:10px; padding:3px;}
+  .mode{border:none; background:none; border-radius:8px; padding:5px 13px; font-size:13px; font-weight:600; color:var(--muted); cursor:pointer; font-family:inherit;}
+  .mode.on{background:#fff; color:var(--navy); box-shadow:0 1px 3px rgba(0,0,0,.12);}
+  .mode:disabled{opacity:.45; cursor:not-allowed;}
+  .vlinks{display:flex; flex-wrap:wrap; gap:6px; align-items:center; font-size:12.5px;}
+  .vlinks a,.vlinks button{color:var(--accent); font-weight:600; text-decoration:none; background:#fff; border:1px solid #b9c7da; border-radius:8px; padding:4px 10px; font-family:inherit; font-size:12.5px; cursor:pointer;}
+  .vlinks a:hover,.vlinks button:hover{background:var(--softblue); border-color:var(--accent2);}
+  .vlinks .gw{color:var(--muted); font-weight:500; border-style:dashed;}
+  .vbody{padding:14px 18px 18px;}
+  .vbody.pdf{padding:0; background:#525659; border-radius:0 0 12px 12px;}
+  iframe.pdf{width:100%; height:calc(100vh - 150px); min-height:560px; border:0; display:block; background:#525659;}
+  .pdfnote{padding:10px 18px; font-size:12px; color:#dfe6ef; background:#3c4043; display:flex; justify-content:space-between; flex-wrap:wrap; gap:6px;}
+  .pdfnote a{color:#9ec5f3;}
+  details.toc{border:1px solid var(--line); border-radius:10px; padding:7px 12px; margin:0 0 12px; background:#fbfcfe;}
+  details.toc summary{cursor:pointer; font-weight:700; color:var(--navy2); font-size:13px; list-style:none;}
+  details.toc summary::before{content:"▸ "; color:var(--accent);}
+  details.toc[open] summary::before{content:"▾ ";}
+  .toc ol{margin:8px 0 2px 18px; font-size:12.5px; columns:2; column-gap:18px;}
+  .toc ol li{break-inside:avoid; padding:1px 0;}
+  .toc ol a{color:var(--ink); text-decoration:none;}
+  .toc ol a:hover{color:var(--accent); text-decoration:underline;}
+  .toc .ch{list-style:none; margin-left:-18px; font-weight:700; color:var(--navy); margin-top:5px; column-span:all;}
+  .arts{max-width:860px;}
+  .chh{font-size:12.5px; font-weight:700; color:var(--navy2); margin:16px 0 4px; padding-left:2px; border-left:3px solid var(--accent2); padding-left:8px;}
+  article.art{padding:10px 12px; margin:0 0 8px; border:1px solid #e6eaf0; border-radius:10px; background:#fff; scroll-margin-top:12px;}
+  article.art:target,article.art.focus{background:var(--softblue); border-color:var(--accent2);}
+  article.art h4{font-size:14.5px; color:var(--navy); margin-bottom:5px; line-height:1.4;}
+  article.art h4 .no{display:inline-block; background:var(--navy); color:#fff; font-size:11.5px; border-radius:6px; padding:1px 7px; margin-right:7px; vertical-align:1px;}
+  article.art .txt{white-space:pre-wrap; word-break:break-word; font-size:14px; line-height:1.78; color:#2b3340; position:relative;}
+  article.art .txt.fold{max-height:11.5em; overflow:hidden;}
+  article.art .txt.fold::after{content:""; position:absolute; left:0; right:0; bottom:0; height:3em; background:linear-gradient(rgba(255,255,255,0), #fff);}
+  article.art.focus .txt.fold::after{background:linear-gradient(rgba(234,242,251,0), var(--softblue));}
+  article.art .more{margin-top:4px; background:none; border:none; color:var(--accent); font-weight:700; cursor:pointer; font-family:inherit; font-size:12.5px; padding:2px 0;}
+  article.art .more:hover{text-decoration:underline;}
+  article.art.del .txt{color:#99a2ad;}
+  .atts{margin-top:16px; padding-top:10px; border-top:1px dashed var(--line); font-size:12.5px; color:var(--muted); display:flex; flex-wrap:wrap; gap:6px 10px; align-items:center;}
+  .atts .f{background:var(--softgrey); border-radius:8px; padding:3px 9px; color:#3a4757;}
+  .atts .f a{color:var(--accent); font-weight:600; text-decoration:none; margin-left:4px;}
+  .atts .f a:hover{text-decoration:underline;}
+
   .admin{margin-top:16px;}
   .admin table{width:100%; border-collapse:collapse; font-size:12.5px;}
   .admin th{background:var(--navy); color:#fff; padding:6px 9px; text-align:left; white-space:nowrap;}
   .admin td{padding:6px 9px; border-bottom:1px solid var(--line); vertical-align:top;}
-  .src{margin-top:22px; background:var(--soft); border:1px solid var(--line); border-radius:9px; padding:11px 16px; font-size:12px; color:var(--muted);}
-  .src b{color:var(--navy2);}
-  .src li{margin-left:18px;}
-  .foot{margin-top:24px; padding-top:12px; border-top:1px solid var(--line); font-size:11px; color:var(--muted); display:flex; justify-content:space-between; flex-wrap:wrap; gap:6px;}
+  .admin .card > h3{margin:0; padding:9px 12px; font-size:13px; color:var(--navy); border-bottom:1px solid var(--line);}
+  .admin .card > h3 .sm{font-weight:400; color:var(--muted); font-size:11.5px;}
+  .admin .body{padding:10px 12px;}
+  details.src{margin-top:18px; background:var(--soft); border:1px solid var(--line); border-radius:9px; padding:8px 16px; font-size:12px; color:var(--muted);}
+  details.src summary{cursor:pointer; font-weight:700; color:var(--navy2); font-size:12.5px;}
+  details.src ul{margin:6px 0 2px;}
+  details.src li{margin-left:18px; margin-top:2px;}
+  details.src b{color:var(--navy2);}
+  .foot{margin-top:18px; padding-top:10px; border-top:1px solid var(--line); font-size:11px; color:var(--muted); display:flex; justify-content:space-between; flex-wrap:wrap; gap:6px;}
   .totop{display:none; position:fixed; right:14px; bottom:14px; z-index:5;}
   @media (max-width:980px){
-    .page{padding:20px 14px;}
+    .page{padding:18px 14px;}
     .layout{grid-template-columns:1fr;}
+    .lbody{max-height:50vh;}
     .fields{grid-template-columns:1fr;}
     .acts .btn{flex:1;}
     .toc ol{columns:1;}
     .totop{display:inline-block;}
+    iframe.pdf{height:75vh;}
   }
   @media print{
     .page{box-shadow:none; max-width:100%;}
-    .panel,.tabs,#qbar,#listCard,#adminBox,.totop,.foot,.src,.notice{display:none !important;}
+    .panel,.tabs,#qbar,#listCard,#adminBox,.totop,.foot,.src,.notice,.vtools,.more{display:none !important;}
     .layout{display:block;}
+    article.art .txt.fold{max-height:none;}
+    article.art .txt.fold::after{display:none;}
   }
 </style>
 </head>
@@ -120,20 +167,17 @@
 
   <div class="head">
     <h1>📚 사내규정 조회</h1>
-    <div class="sub"><span class="badge g">전사 공개</span> 사내 로그인 전원 —
-      규정의 <b>조문 사본</b>은 포털 DB 에, <b>원본·첨부 정본</b>은 그룹웨어 규정 게시판·사내 NAS 에 있습니다.
-      해석·개별 적용은 담당 부서(인사팀·총무팀)에 확인하세요.</div>
+    <div class="sub"><span class="badge g">전사 공개</span> 사내 로그인 전원 · 조문과 원본 PDF 를 함께 봅니다 · 해석·개별 적용은 인사팀·총무팀</div>
   </div>
 
-  <!-- 표준 조회 플랫폼 — 기준일(마지막 수집 시각)·기준·다시 조회. 검색어는 아래 패널(§16.8 부분예외 — 서버 검색은
-       조회바 extras 의 「입력 중 자동 조회·조회 중 입력 잠금」과 맞지 않는다 · 품목중복 조회와 같은 이유). -->
+  <!-- 표준 조회 플랫폼 — 기준일(마지막 수집 시각)·기준·다시 조회. 검색어는 아래 패널(§16.8 부분예외). -->
   <div id="qbar"></div>
   <div id="status" aria-live="polite"></div>
 
   <div class="panel" role="search" aria-label="사내규정 검색">
     <div class="fields">
       <div class="fld">
-        <label for="fQ">검색어<small>규정명·조문 제목·본문 어디든 · 두 글자 이상 · 여러 낱말은 모두 포함</small></label>
+        <label for="fQ">검색어<small>규정명·조문 제목·본문 · 두 글자 이상</small></label>
         <input type="text" id="fQ" placeholder="예: 연차 · 출장 숙박비 · 전결 한도" autocomplete="off">
       </div>
       <div class="fld">
@@ -145,9 +189,8 @@
         <button type="button" class="btn ghost" id="btnReset">초기화</button>
       </div>
     </div>
-    <div class="hint">조문 본문까지 찾습니다. 결과의 발췌에서 검색어가 <mark>강조</mark>되고, 규정을 열면 조문 전체에서도 강조됩니다.</div>
     <div class="chips" id="examples">
-      <span class="lb">예시</span>
+      <span>예시</span>
       <button type="button" data-q="연차">연차</button>
       <button type="button" data-q="출장 숙박">출장 숙박</button>
       <button type="button" data-q="전결">전결</button>
@@ -161,14 +204,14 @@
         <button type="button" class="tab on" data-tab="list">규정 목록 <span class="cnt" id="cntList">0</span></button>
         <button type="button" class="tab" data-tab="hits">검색 결과 <span class="cnt" id="cntHits">–</span></button>
       </div>
-      <div class="body">
-        <div id="regGrid"></div>
-        <div id="hitGrid" hidden></div>
+      <div class="lbody">
+        <div id="regList"></div>
+        <div id="hitList" hidden></div>
         <div id="hitNote" class="empty" hidden></div>
       </div>
     </div>
     <div class="card viewer" id="viewer" role="region" aria-labelledby="vTitle">
-      <div class="empty" id="vEmpty">규정명을 목록에서 고르거나, 검색어를 두 글자 이상 넣고 조회를 누르세요.<small>조문 본문까지 검색됩니다.</small></div>
+      <div class="empty" id="vEmpty">왼쪽 목록에서 규정을 고르거나, 검색어를 두 글자 이상 넣고 조회를 누르세요.<small>조문 본문까지 검색되고, 규정은 조문과 원본 PDF 두 가지로 볼 수 있습니다.</small></div>
     </div>
   </div>
 
@@ -183,15 +226,15 @@
     </div>
   </div>
 
-  <div class="src">
-    <b>판정 기준</b>
+  <details class="src">
+    <summary>ℹ 판정 기준 · 출처</summary>
     <ul>
-      <li><b>현행 판</b> = 같은 규정(게시판·규정명 기준)의 활성 게시물 중 시행일·게시일이 가장 늦은 1건. 개정 공지가 여러 번이면 최신만 보입니다(옛 판은 NAS history 폴더).</li>
-      <li><b>조문</b>은 규칙 파서(제N장·제N조(제목)·부칙·〈개정 YYYY.M.D〉)로 나눕니다. 구조를 못 찾은 규정은 <b>전문 1조문</b>(판독 「전문」)으로, 조문이 적거나 번호가 어긋나면 「부분」으로 표시됩니다.</li>
-      <li><b>첨부 판독</b> = 글자를 뽑아 조문 원천으로 쓸 수 있었는지. 「판독 불가」(스캔본·배포용 hwp·암호 문서)는 본문에 포함되지 않습니다 — 그룹웨어 원본에서 보세요.</li>
-      <li>원천: 그룹웨어 규정 게시판 → 사내 PC 수집기(매일 06:30) → 포털 DB 사본(본문·조문) · 원본·첨부 정본은 NAS <code>00_전사공유/사내규정</code> — 기준일은 위 조회바.</li>
+      <li><b>현행 판</b> = 같은 규정(게시판·규정명)의 활성 게시물 중 시행일·게시일이 가장 늦은 1건. 옛 판은 NAS history 폴더.</li>
+      <li><b>조문</b>은 규칙 파서로 나눕니다. 구조를 못 찾은 규정은 <b>전문</b>(판독 「전문」), 조문이 적거나 번호가 어긋나면 「부분」 — 이런 규정은 원본 PDF 가 먼저 열립니다.</li>
+      <li><b>원본 PDF</b> = 그룹웨어 첨부 그대로의 사본(사내 로그인 전용 저장소 · 1시간 주소). 「판독 불가」 첨부(스캔본 등)도 PDF 로는 볼 수 있습니다.</li>
+      <li>원천: 그룹웨어 규정 게시판 → 사내 PC 수집기(매일 06:30) → 포털 DB 사본 · 첨부 정본은 NAS <code>00_전사공유/사내규정</code> — 기준일은 위 조회바.</li>
     </ul>
-  </div>
+  </details>
 
   <div class="foot">
     <span>사내규정 조회 · 그룹웨어 규정 게시판 사본(REQ-0124)</span>
@@ -210,11 +253,24 @@
   const escRe = (s) => String(s).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   const fmt = (n) => Number(n || 0).toLocaleString("ko-KR");
   const d10 = (s) => (s ? String(s).slice(0, 10) : "");
+  const kb = (b) => (b ? fmt(Math.round(b / 1024)) + " KB" : "");
   const STALE_HOURS = 48;
+  const FOLD_CHARS = 900;                          // 이보다 긴 조문은 접어 두고 「더 보기」
   const PARSE_LABEL = { ok: ["정상", "g"], partial: ["부분", "a"], fallback: ["전문", "x"] };
   const TEXT_LABEL = { readable: ["읽힘", "g"], unreadable: ["판독 불가", "r"], blocked: ["민감 제외", "r"], skipped: ["미수집", "x"] };
 
-  let STATUS = null, LIST = [], HITS = [], TERMS = [], CUR = null, reqSeq = 0, TAB = "list";
+  let STATUS = null, LIST = [], HITS = [], TERMS = [], CUR = null, reqSeq = 0, TAB = "list", MODE = "text";
+  const UNREAD = createGrid("#unreadGrid", {
+    keyField: "__k", search: true, sortable: true, exportCsv: true, pageSize: 0, exportName: "사내규정_판독불가첨부",
+    emptyText: "판독 불가 첨부가 없습니다.",
+    columns: [
+      { key: "reg_name", label: "규정", width: 150 }, { key: "board_key", label: "게시판", width: 70 }, { key: "post_no", label: "게시물", width: 70 },
+      { key: "file_name", label: "파일", width: 220 }, { key: "ext", label: "형식", width: 56 },
+      { key: "size_bytes", label: "크기", width: 80, align: "right", formatter: (v) => (v ? kb(v) : "—") },
+      { key: "text_status", label: "상태", width: 80, formatter: (v) => { const p = TEXT_LABEL[v] || [v, "x"]; return '<span class="badge ' + p[1] + '">' + esc(p[0]) + "</span>"; } },
+      { key: "text_reason", label: "사유", width: 220 },
+    ],
+  });
 
   /* ---------- 강조 — esc 된 문자열에 <mark> 를 입힌다(정규식 특수문자는 이스케이프) ---------- */
   function mark(text, terms) {
@@ -223,66 +279,26 @@
     if (!ts.length) return safe;
     try { return safe.replace(new RegExp("(" + ts.join("|") + ")", "gi"), "<mark>$1</mark>"); } catch (e) { return safe; }
   }
+  const hasTerm = (text, terms) => {
+    const ts = (terms || []).filter((t) => t && t.length >= 1).map(escRe);
+    if (!ts.length) return false;
+    try { return new RegExp(ts.join("|"), "i").test(String(text || "")); } catch (e) { return false; }
+  };
 
   /* ---------- 주소 동기화 ---------- */
   function syncUrl(c) {
     try {
       const u = new URL(location.href);
-      for (const [k, v] of [["q", c.q], ["cat", c.cat], ["reg", c.reg], ["art", c.art]]) {
+      for (const [k, v] of [["q", c.q], ["cat", c.cat], ["reg", c.reg], ["art", c.art], ["view", c.view]]) {
         if (v) u.searchParams.set(k, v); else u.searchParams.delete(k);
       }
       history.replaceState(null, "", u.pathname + u.search + u.hash);
     } catch (e) { /* 주소 갱신 실패는 조회에 영향 없음 */ }
   }
-  const cond = () => ({ q: $("fQ").value.trim(), cat: $("fCat").value, reg: CUR && CUR.reg ? CUR.reg.reg_key : "", art: CUR ? CUR.art || "" : "" });
+  const cond = () => ({ q: $("fQ").value.trim(), cat: $("fCat").value, reg: CUR && CUR.reg ? CUR.reg.reg_key : "",
+                        art: CUR ? CUR.art || "" : "", view: CUR && MODE === "pdf" ? "pdf" : "" });
 
-  /* ---------- 그리드(조회 전용 · 표준) ---------- */
-  const openBtn = (label) => '<button type="button" class="lnk" data-row-act="open">' + esc(label) + "</button>";
-  const REG = createGrid("#regGrid", {
-    keyField: "reg_key", search: true, columnFilter: false, sortable: true, exportCsv: true, copy: true, columnPicker: true, pageSize: 0,
-    exportName: "사내규정목록", emptyText: "수집된 규정이 아직 없습니다. 관리자에게 수집 상태를 확인해 주세요.", loadingText: "규정 목록을 불러오는 중…",
-    columns: [
-      { key: "name", label: "규정명", width: 190, required: true, formatter: (v) => openBtn(v), exportValue: (v) => v },
-      { key: "category", label: "분류", width: 70 },
-      { key: "effective_date", label: "시행일", width: 92, formatter: (v) => esc(d10(v)) || "—", exportValue: (v) => d10(v) },
-      { key: "revision_no", label: "개정", width: 52, align: "center", formatter: (v) => (v ? esc(v) + "차" : "—") },
-      { key: "article_count", label: "조문", width: 52, align: "right" },
-      { key: "attach_cnt", label: "첨부", width: 64, align: "center",
-        formatter: (v, r) => esc(v || 0) + (r.unreadable_cnt ? ' <span class="badge r" title="판독 불가 ' + esc(r.unreadable_cnt) + '건">!</span>' : ""),
-        exportValue: (v, r) => (v || 0) + (r.unreadable_cnt ? " (판독불가 " + r.unreadable_cnt + ")" : "") },
-      { key: "parse_status", label: "판독", width: 60, align: "center",
-        formatter: (v) => { const p = PARSE_LABEL[v] || [v, "x"]; return '<span class="badge ' + p[1] + '">' + esc(p[0]) + "</span>"; },
-        exportValue: (v) => (PARSE_LABEL[v] || [v])[0] },
-      { key: "owner_dept", label: "주관부서", width: 80, hidden: true },
-      { key: "posted_at", label: "게시일", width: 92, hidden: true, formatter: (v) => esc(d10(v)), exportValue: (v) => d10(v) },
-    ],
-    onRowAction: (act, row) => { if (act === "open" && row) openReg(row.reg_key, null); },
-  });
-  const HIT = createGrid("#hitGrid", {
-    keyField: "__k", search: false, columnFilter: false, sortable: true, exportCsv: true, copy: true, pageSize: 0,
-    exportName: "사내규정검색", emptyText: "검색 결과가 없습니다.", loadingText: "검색 중…",
-    columns: [
-      { key: "name", label: "규정", width: 130, required: true, formatter: (v) => openBtn(v), exportValue: (v) => v },
-      { key: "article_no", label: "조문", width: 64, formatter: (v) => (v ? "제" + esc(v) + "조" : "전문"), exportValue: (v) => (v ? "제" + v + "조" : "전문") },
-      { key: "title", label: "제목", width: 110, formatter: (v) => mark(v || "", TERMS), exportValue: (v) => v || "" },
-      { key: "excerpt", label: "발췌", width: 320, formatter: (v) => '<span style="font-size:12.5px;">' + mark(v || "", TERMS) + "</span>", exportValue: (v) => v || "" },
-      { key: "effective_date", label: "시행일", width: 92, formatter: (v) => esc(d10(v)) || "—", exportValue: (v) => d10(v) },
-    ],
-    onRowAction: (act, row) => { if (act === "open" && row) openReg(row.reg_key, row.article_no); },
-  });
-  const UNREAD = createGrid("#unreadGrid", {
-    keyField: "__k", search: true, sortable: true, exportCsv: true, pageSize: 0, exportName: "사내규정_판독불가첨부",
-    emptyText: "판독 불가 첨부가 없습니다.",
-    columns: [
-      { key: "reg_name", label: "규정", width: 150 }, { key: "board_key", label: "게시판", width: 70 }, { key: "post_no", label: "게시물", width: 70 },
-      { key: "file_name", label: "파일", width: 220 }, { key: "ext", label: "형식", width: 56 },
-      { key: "size_bytes", label: "크기", width: 80, align: "right", formatter: (v) => (v ? fmt(Math.round(v / 1024)) + " KB" : "—") },
-      { key: "text_status", label: "상태", width: 80, formatter: (v) => { const p = TEXT_LABEL[v] || [v, "x"]; return '<span class="badge ' + p[1] + '">' + esc(p[0]) + "</span>"; } },
-      { key: "text_reason", label: "사유", width: 220 },
-    ],
-  });
-
-  /* ---------- 상태 배너(수집기 상태만 — NAS 컨테이너와 무관) ---------- */
+  /* ---------- 상태 배너(수집기 상태만 — 지연·실패·게시판 미등록일 때만 보인다) ---------- */
   function renderStatus(st) {
     const host = $("status");
     if (!st || !st.ok) { host.innerHTML = ""; return; }
@@ -295,10 +311,7 @@
     } else if (stale || failedAfter) {
       parts.push('<div class="notice warn">마지막 수집 <b>' + (asOf ? esc(asOf.toLocaleString("ko-KR")) : "없음") + "</b>"
         + (failedAfter ? " · 그 뒤 수집 실패가 있었습니다" : " · " + STALE_HOURS + "시간 넘게 갱신되지 않았습니다")
-        + " — 그 뒤 개정된 규정은 아직 반영되지 않았을 수 있습니다. 최신 여부는 그룹웨어 원본에서 확인하세요.</div>");
-    }
-    if (st.unreadable_cnt) {
-      parts.push('<div class="notice">첨부 <b>' + fmt(st.unreadable_cnt) + "건</b>은 글자를 읽지 못해 본문에 포함되지 않았습니다(목록의 <b>!</b> 표시). 원본은 그룹웨어에서 보세요.</div>");
+        + " — 그 뒤 개정된 규정은 아직 반영되지 않았을 수 있습니다.</div>");
     }
     host.innerHTML = parts.join("");
   }
@@ -329,22 +342,21 @@
   /* ---------- 게이트(권한·세션) ---------- */
   function gate(icon, title, msg) {
     $("viewer").innerHTML = '<div class="gate"><div style="font-size:30px">' + icon + "</div><h2>" + esc(title) + "</h2><p>" + msg + "</p></div>";
-    REG.setRows([]);
+    $("regList").innerHTML = "";
+    $("cntList").textContent = "0";
   }
 
   /* ---------- 불러오기 ---------- */
   let bar = null;
   async function load(ctx) {
-    REG.setLoading(true);
+    $("regList").innerHTML = '<div class="empty">규정 목록을 불러오는 중…</div>';
     let list, st;
     try {
       [list, st] = await Promise.all([erpApi.regList(), erpApi.regStatus()]);
     } catch (e) {
-      REG.setLoading(false);
       gate("⚠", "규정을 조회하지 못했습니다", "사내 계정으로 로그인했는지 확인해 주세요.<br><span style='font-size:12px;color:#99a2ad;'>" + esc(e?.message || "") + "</span>");
       return;
     }
-    REG.setLoading(false);
     if (st && st.forbidden) return gate("🔒", "열람 권한이 필요합니다", "이 화면은 사내 로그인 사용자에게 열립니다.");
     if (st && st.unauthorized) return gate("🔐", "인증 필요", "세션이 만료되었습니다. 다시 로그인하세요.");
     if (!list || !list.allowed) return gate("🔒", "사내 전용 화면", "협력사(또는 권한 없는) 계정으로 로그인되어 있어 표시할 수 없습니다.");
@@ -355,7 +367,7 @@
     const keep = $("fCat").value;
     $("fCat").innerHTML = '<option value="">전체</option>' + cats.map((c) => '<option value="' + esc(c) + '">' + esc(c) + "</option>").join("");
     if (cats.includes(keep)) $("fCat").value = keep;
-    applyList();
+    renderList();
     if (bar && st && st.as_of) bar.setMeta({ asOf: d10(st.as_of) });
     renderStatus(st);
     renderAdmin(st);
@@ -363,16 +375,37 @@
     const reason = ctx && ctx.reason;
     if (reason === "init") {
       if (p.get("q")) { $("fQ").value = p.get("q"); await search(); }
-      if (p.get("reg")) await openReg(p.get("reg"), p.get("art") || null);
+      if (p.get("reg")) await openReg(p.get("reg"), p.get("art") || null, p.get("view") === "pdf" ? "pdf" : null);
     } else if ($("fQ").value.trim().length >= 2) {
       await search();
     }
   }
-  function applyList() {
+
+  /* ---------- 규정 목록(분류별 묶음 · 한 줄 요약) ---------- */
+  function renderList() {
     const cat = $("fCat").value;
     const rows = cat ? LIST.filter((r) => r.category === cat) : LIST;
-    REG.setRows(rows);
     $("cntList").textContent = fmt(rows.length);
+    if (!rows.length) { $("regList").innerHTML = '<div class="empty">수집된 규정이 아직 없습니다.<small>관리자에게 수집 상태를 확인해 주세요.</small></div>'; return; }
+    const groups = new Map();
+    for (const r of rows) { const g = r.category || "기타"; if (!groups.has(g)) groups.set(g, []); groups.get(g).push(r); }
+    let html = "";
+    for (const [g, rs] of groups) {
+      html += '<div class="grp">' + esc(g) + " · " + rs.length + "</div>";
+      for (const r of rs) {
+        const ps = PARSE_LABEL[r.parse_status] || [r.parse_status, "x"];
+        html += '<button type="button" class="row' + (CUR && CUR.reg && CUR.reg.reg_key === r.reg_key ? " on" : "") + '" data-key="' + esc(r.reg_key) + '">'
+          + '<div class="t">' + esc(r.name) + "</div>"
+          + '<div class="s"><span>시행 ' + (esc(d10(r.effective_date)) || "—") + "</span>"
+          + (r.revision_no ? "<span>" + esc(r.revision_no) + "차 개정</span>" : "")
+          + "<span>조문 " + fmt(r.article_count) + "</span>"
+          + (r.file_path ? '<span class="pdf">📄 PDF</span>' : "")
+          + (r.parse_status !== "ok" ? '<span class="badge ' + ps[1] + '">' + esc(ps[0]) + "</span>" : "")
+          + (r.unreadable_cnt ? '<span class="badge r" title="판독 불가 첨부 ' + esc(r.unreadable_cnt) + '건">!</span>' : "")
+          + "</div></button>";
+      }
+    }
+    $("regList").innerHTML = html;
   }
 
   /* ---------- 검색 ---------- */
@@ -382,7 +415,7 @@
     const note = $("hitNote");
     if (q.length < 2) {
       HITS = []; TERMS = [];
-      HIT.setRows([]);
+      $("hitList").innerHTML = "";
       $("cntHits").textContent = "–";
       note.hidden = false; note.textContent = q.length === 1 ? "두 글자 이상 입력해 주세요. 한 글자는 거의 모든 조문에 걸립니다." : "검색어를 넣고 조회를 누르세요.";
       setTab(q.length ? "hits" : "list");
@@ -391,41 +424,47 @@
     const my = ++reqSeq;
     setTab("hits");
     note.hidden = true;
-    HIT.setLoading(true);
+    $("hitList").innerHTML = '<div class="empty">검색 중…</div>';
     let res;
     try {
       res = await erpApi.regSearch(q, 30);
     } catch (e) {
       if (my !== reqSeq) return;
-      HIT.setLoading(false);
+      $("hitList").innerHTML = "";
       note.hidden = false;
       note.innerHTML = "규정을 검색하지 못했습니다. 사내 계정으로 로그인했는지 확인해 주세요.<small>" + esc(e?.message || "") + "</small>";
       return;
     }
     if (my !== reqSeq) return;                       // 더 늦게 시작한 조회가 있으면 이 결과는 버린다
-    HIT.setLoading(false);
     TERMS = res.terms || [];
     HITS = (res.rows || []).map((r, i) => Object.assign({ __k: i }, r));
-    HIT.setRows(HITS);
     $("cntHits").textContent = fmt(HITS.length);
     if (!HITS.length) {
+      $("hitList").innerHTML = "";
       note.hidden = false;
       note.innerHTML = "‘" + esc(q) + "’ 에 맞는 조문이 없습니다. 낱말을 줄이거나(예: ‘연차휴가’ → ‘연차’) 규정 목록에서 직접 찾아보세요.<small>아직 수집되지 않은 규정일 수도 있습니다 — 기준일은 위 조회바.</small>";
+    } else {
+      $("hitList").innerHTML = HITS.map((h) =>
+        '<button type="button" class="hit" data-key="' + esc(h.reg_key) + '" data-art="' + esc(h.article_no || "") + '">'
+        + '<div class="t"><span class="no">' + (h.article_no ? "제" + esc(h.article_no) + "조" : "전문") + "</span>" + esc(h.name)
+        + (h.title ? ' <span style="font-weight:500;color:#3a4757;">· ' + mark(h.title, TERMS) + "</span>" : "") + "</div>"
+        + '<div class="ex">' + mark(h.excerpt || "", TERMS) + "</div>"
+        + '<div class="s">시행 ' + (esc(d10(h.effective_date)) || "—") + (h.file_path ? " · 📄 PDF" : "") + "</div></button>").join("");
     }
-    if (CUR) renderViewer(CUR.data, CUR.art);        // 열린 규정의 강조도 새 검색어로
+    if (CUR) renderViewer();                         // 열린 규정의 강조도 새 검색어로
   }
 
   function setTab(t) {
     TAB = t;
     document.querySelectorAll("#tabs .tab").forEach((b) => b.classList.toggle("on", b.dataset.tab === t));
-    $("regGrid").hidden = t !== "list";
-    $("hitGrid").hidden = t !== "hits";
+    $("regList").hidden = t !== "list";
+    $("hitList").hidden = t !== "hits";
     if (t === "list") $("hitNote").hidden = true;
     else if (!HITS.length && $("fQ").value.trim().length >= 2 && $("hitNote").textContent) $("hitNote").hidden = false;
   }
 
   /* ---------- 규정 열기 ---------- */
-  async function openReg(regKey, articleNo) {
+  async function openReg(regKey, articleNo, view) {
     const v = $("viewer");
     v.innerHTML = '<div class="empty">규정을 불러오는 중…</div>';
     let data;
@@ -445,97 +484,149 @@
     }
     if (!data || !data.allowed) { gate("🔒", "열람 권한이 필요합니다", "이 화면은 사내 로그인 사용자에게 열립니다."); return; }
     if (!data.found) {
-      v.innerHTML = '<div class="empty">이 규정을 불러오지 못했습니다(삭제됐거나 아직 판독 전).<small>그룹웨어 원본을 확인하세요.</small></div>';
+      v.innerHTML = '<div class="empty">이 규정을 불러오지 못했습니다(삭제됐거나 아직 판독 전).<small>담당 부서에 확인하세요.</small></div>';
       return;
     }
-    CUR = { reg: data.reg, data, art: articleNo || null };
-    renderViewer(data, articleNo);
+    // 원본 파일(비공개 버킷 사본) 서명 URL — 사내 로그인만 받을 수 있다. 실패해도 조문은 보인다.
+    const paths = (data.attachments || []).map((a) => a.storage_path).filter(Boolean);
+    let urls = {};
+    if (paths.length && typeof erpApi.regFileUrls === "function") {
+      try { urls = await erpApi.regFileUrls(paths); } catch (e) { urls = {}; }
+    }
+    const r = data.reg || {};
+    const pdfOk = !!(r.file_path && urls[r.file_path]);
+    // 기본 보기: 주소에 view=pdf 거나, 조문을 못 나눈 규정(전문)이면 PDF 가 먼저(글 벽을 피한다)
+    MODE = view === "pdf" && pdfOk ? "pdf" : (view !== "text" && !articleNo && r.parse_status === "fallback" && pdfOk ? "pdf" : "text");
+    CUR = { reg: r, data, art: articleNo || null, urls, pdfOk, pdfMissing: view === "pdf" && !pdfOk };
+    renderViewer();
+    renderList();                                    // 선택 표시
     syncUrl(cond());
   }
 
-  function renderViewer(data, articleNo) {
-    const r = data.reg || {};
+  function renderViewer() {
+    if (!CUR) return;
+    const { reg: r, data, urls, pdfOk } = CUR;
+    const articleNo = CUR.art;
     const v = $("viewer");
-    const gw = String(r.gw_url || "");
-    const link = /^https:\/\//i.test(gw)
-      ? '<a href="' + esc(gw) + '" target="_blank" rel="noopener">그룹웨어 원본 보기 ↗</a>'
-      : '<span>그룹웨어 게시판 ‘' + esc(r.board_label || r.board_key || "") + "’ 게시물 #" + esc(r.post_no || "") + "</span>";
     const ps = PARSE_LABEL[r.parse_status] || [r.parse_status, "x"];
-    const atts = (data.attachments || []);
+    const atts = data.attachments || [];
     const toc = data.toc || [];
     const arts = data.articles || [];
-    const chapters = [];
-    const tocHtml = (() => {
-      let out = "", lastCh = null;
-      for (const t of toc) {
-        if (t.chapter && t.chapter !== lastCh) { out += '<li class="ch">' + esc(t.chapter) + "</li>"; lastCh = t.chapter; }
-        out += '<li><a href="#art-' + esc(t.article_no || "s" + t.seq) + '" data-art="' + esc(t.article_no || "") + '">'
-          + (t.article_no ? "제" + esc(t.article_no) + "조" : "전문") + (t.title ? " " + esc(t.title) : "") + (t.is_deleted ? " (삭제)" : "") + "</a></li>";
-      }
-      return out;
-    })();
+    const pdfUrl = pdfOk ? urls[r.file_path] : null;
+    const gw = String(r.gw_url || "");
     let html = '<div class="vhead"><h2 id="vTitle">' + esc(r.name) + '</h2><div class="vmeta">'
-      + (r.category ? "<span>분류 <b>" + esc(r.category) + "</b></span>" : "")
-      + "<span>제정 <b>" + (esc(d10(r.enact_date)) || "—") + "</b></span>"
-      + "<span>개정 <b>" + (esc(d10(r.revise_date)) || "—") + "</b>" + (r.revision_no ? " (" + esc(r.revision_no) + "차)" : "") + "</span>"
-      + "<span>시행 <b>" + (esc(d10(r.effective_date)) || "—") + "</b></span>"
-      + (r.owner_dept ? "<span>주관 <b>" + esc(r.owner_dept) + "</b></span>" : "")
-      + '<span>판독 <span class="badge ' + ps[1] + '">' + esc(ps[0]) + "</span>" + (r.text_source ? ' <span class="badge x" title="조문 원천">' + esc(r.text_source === "body" ? "게시물 본문" : String(r.text_source).replace(/^attachment:/, "첨부 ")) + "</span>" : "") + "</span>"
-      + "<span>" + link + "</span>"
-      + "</div></div><div class=\"vbody\">";
-    if (atts.length) {
-      html += '<div class="atts"><b>첨부 ' + atts.length + "건</b><ul>" + atts.map((a) => {
-        const tl = TEXT_LABEL[a.text_status] || [a.text_status, "x"];
-        return "<li>" + esc(a.file_name) + (a.size_bytes ? " <span style='color:#99a2ad'>(" + fmt(Math.round(a.size_bytes / 1024)) + " KB)</span>" : "")
-          + ' <span class="badge ' + tl[1] + '"' + (a.text_reason ? ' title="' + esc(a.text_reason) + '"' : "") + ">" + esc(tl[0]) + "</span>"
-          + (a.is_article_source ? ' <span class="badge b">조문 원천</span>' : "") + "</li>";
-      }).join("") + "</ul></div>";
-    }
-    if (toc.length > 1) html += '<details class="toc" open><summary>목차 (' + toc.length + "개 조문)</summary><ol>" + tocHtml + "</ol></details>";
-    if (!arts.length) {
-      html += '<div class="empty">본문을 조문 단위로 읽지 못했습니다' + (r.warnings && r.warnings.length ? "(사유: " + esc(r.warnings[0]) + ")" : "") + ".<small>첨부·그룹웨어 원본에서 확인하세요.</small></div>";
+      + (r.category ? '<span class="chip">' + esc(r.category) + "</span>" : "")
+      + '<span class="chip">시행 <b>' + (esc(d10(r.effective_date)) || "—") + "</b></span>"
+      + (r.revise_date || r.revision_no ? '<span class="chip">개정 <b>' + (esc(d10(r.revise_date)) || "—") + "</b>" + (r.revision_no ? " (" + esc(r.revision_no) + "차)" : "") + "</span>" : "")
+      + (r.enact_date ? '<span class="chip">제정 <b>' + esc(d10(r.enact_date)) + "</b></span>" : "")
+      + (r.owner_dept ? '<span class="chip">주관 <b>' + esc(r.owner_dept) + "</b></span>" : "")
+      + (r.parse_status !== "ok" ? '<span class="chip">판독 <span class="badge ' + ps[1] + '">' + esc(ps[0]) + "</span></span>" : "")
+      + "</div></div>";
+    // 도구줄 — 보기 전환(조문 / 원본 PDF) + 새 창·내려받기
+    html += '<div class="vtools"><div class="modes">'
+      + '<button type="button" class="mode' + (MODE === "text" ? " on" : "") + '" data-mode="text">📑 조문' + (toc.length ? " " + toc.length : "") + "</button>"
+      + '<button type="button" class="mode' + (MODE === "pdf" ? " on" : "") + '" data-mode="pdf"' + (pdfOk ? "" : ' disabled title="이 규정은 포털에 PDF 사본이 없습니다"') + ">📄 원본 PDF</button>"
+      + '</div><div class="vlinks">'
+      + (pdfOk ? '<a href="' + esc(pdfUrl) + '" target="_blank" rel="noopener">새 창에서 PDF ↗</a>'
+               + '<a href="' + esc(pdfUrl + "&download=" + encodeURIComponent(r.file_name || "regulation.pdf")) + '" rel="noopener">⬇ 내려받기</a>' : "")
+      + (/^https:\/\//i.test(gw) ? '<a class="gw" href="' + esc(gw) + '" target="_blank" rel="noopener" title="그룹웨어 게시물(로그인 필요)">그룹웨어 ↗</a>' : "")
+      + "</div></div>";
+    if (MODE === "pdf" && pdfOk) {
+      html += '<div class="vbody pdf"><div class="pdfnote"><span>원본 PDF 사본 — 그룹웨어 첨부 그대로 · ' + esc(r.file_name || "") + "</span>"
+        + '<span>화면에 안 보이면 <a href="' + esc(pdfUrl) + '" target="_blank" rel="noopener">새 창에서 열기 ↗</a></span></div>'
+        + '<iframe class="pdf" src="' + esc(pdfUrl) + '" title="' + esc(r.name) + ' 원본 PDF"></iframe></div>';
     } else {
-      let lastCh = null;
-      for (const a of arts) {
-        const id = "art-" + (a.article_no || "s" + a.seq);
-        const chLine = (a.chapter && a.chapter !== lastCh) ? '<div class="ch">' + esc(a.chapter) + (a.section ? " › " + esc(a.section) : "") + "</div>" : "";
-        lastCh = a.chapter || lastCh;
-        html += '<article class="art' + (a.is_deleted ? " del" : "") + '" id="' + esc(id) + '" tabindex="-1">' + chLine
-          + "<h4>" + (a.article_no ? '<span class="no">제' + esc(a.article_no) + "조</span>" : "") + mark(a.title || "", TERMS)
-          + (a.amended_tag ? ' <span class="badge a">' + esc(a.amended_tag) + "</span>" : "") + "</h4>"
-          + '<div class="txt">' + mark(a.body || "", TERMS) + "</div></article>";
+      html += '<div class="vbody">';
+      if (CUR.pdfMissing) html += '<div class="notice">이 규정은 포털에 PDF 사본이 아직 없습니다 — 조문으로 보여 드립니다.</div>';
+      if (toc.length > 1) {
+        let tocHtml = "", lastCh = null;
+        for (const t of toc) {
+          if (t.chapter && t.chapter !== lastCh) { tocHtml += '<li class="ch">' + esc(t.chapter) + "</li>"; lastCh = t.chapter; }
+          tocHtml += '<li><a href="#art-' + esc(t.article_no || "s" + t.seq) + '" data-art="' + esc(t.article_no || "") + '">'
+            + (t.article_no ? "제" + esc(t.article_no) + "조" : "전문") + (t.title ? " " + esc(t.title) : "") + (t.is_deleted ? " (삭제)" : "") + "</a></li>";
+        }
+        html += '<details class="toc"><summary>목차 (' + toc.length + "개 조문)</summary><ol>" + tocHtml + "</ol></details>";
       }
+      if (!arts.length) {
+        html += '<div class="empty">본문을 조문 단위로 읽지 못했습니다' + (r.warnings && r.warnings.length ? "(사유: " + esc(r.warnings[0]) + ")" : "") + ".<small>" + (pdfOk ? "위의 「원본 PDF」로 보세요." : "담당 부서에 원본을 확인하세요.") + "</small></div>";
+      } else {
+        html += '<div class="arts">';
+        let lastCh = null;
+        for (const a of arts) {
+          const id = "art-" + (a.article_no || "s" + a.seq);
+          if (a.chapter && a.chapter !== lastCh) { html += '<div class="chh">' + esc(a.chapter) + (a.section ? " › " + esc(a.section) : "") + "</div>"; lastCh = a.chapter; }
+          const body = a.body || "";
+          const fold = body.length > FOLD_CHARS && String(a.article_no || "") !== String(articleNo || "") && !hasTerm(body, TERMS);
+          html += '<article class="art' + (a.is_deleted ? " del" : "") + '" id="' + esc(id) + '" tabindex="-1">'
+            + "<h4>" + (a.article_no ? '<span class="no">제' + esc(a.article_no) + "조</span>" : '<span class="no">전문</span>') + mark(a.title || "", TERMS)
+            + (a.amended_tag ? ' <span class="badge a">' + esc(a.amended_tag) + "</span>" : "") + (a.is_deleted ? ' <span class="badge x">삭제</span>' : "") + "</h4>"
+            + '<div class="txt' + (fold ? " fold" : "") + '">' + mark(body, TERMS) + "</div>"
+            + (fold ? '<button type="button" class="more" data-unfold>더 보기 ▾</button>' : "") + "</article>";
+        }
+        html += "</div>";
+      }
+      if (atts.length) {
+        html += '<div class="atts"><span>첨부 ' + atts.length + "건</span>" + atts.map((a) => {
+          const tl = TEXT_LABEL[a.text_status] || [a.text_status, "x"];
+          const u = a.storage_path ? urls[a.storage_path] : null;
+          return '<span class="f">' + esc(a.file_name) + (a.size_bytes ? " <span style='color:#99a2ad'>" + kb(a.size_bytes) + "</span>" : "")
+            + (a.text_status !== "readable" ? ' <span class="badge ' + tl[1] + '"' + (a.text_reason ? ' title="' + esc(a.text_reason) + '"' : "") + ">" + esc(tl[0]) + "</span>" : "")
+            + (u ? '<a href="' + esc(u) + '" target="_blank" rel="noopener">열기 ↗</a><a href="' + esc(u + "&download=" + encodeURIComponent(a.file_name || "file")) + '" rel="noopener">⬇</a>' : "")
+            + "</span>";
+        }).join("") + "</div>";
+      }
+      html += "</div>";
     }
-    html += "</div>";
     v.innerHTML = html;
-    if (articleNo) {
+    if (MODE === "text" && articleNo) {
       const el = v.querySelector("#art-" + CSS.escape(String(articleNo)));
       if (el) { el.classList.add("focus"); el.scrollIntoView({ block: "start", behavior: "smooth" }); el.focus({ preventScroll: true }); }
     } else if (window.innerWidth <= 980) {
       v.scrollIntoView({ block: "start", behavior: "smooth" });
     }
   }
+  function setMode(m) {
+    if (!CUR) return;
+    if (m === "pdf" && !CUR.pdfOk) return;
+    MODE = m;
+    renderViewer();
+    syncUrl(cond());
+  }
 
   /* ---------- 이벤트 ---------- */
   bar = createQueryBar("#qbar", {
     months: false,                                   // 기간 축 없음 — 검색형 화면
-    basis: "그룹웨어 규정 게시판 사본 · 시행일 기준 조문",
+    basis: "그룹웨어 규정 게시판 사본 · 시행일 기준 조문 · 원본 PDF 사본",
     mode: "live", refreshLabel: "다시 조회",
     onQuery: (q, ctx) => load(ctx),
   });
   $("btnSearch").onclick = () => search();
-  $("btnReset").onclick = () => { $("fQ").value = ""; $("fCat").value = ""; HITS = []; TERMS = []; applyList(); setTab("list"); syncUrl(cond()); if (CUR) renderViewer(CUR.data, CUR.art); $("fQ").focus(); };
-  $("fCat").addEventListener("change", () => { applyList(); syncUrl(cond()); setTab("list"); });
+  $("btnReset").onclick = () => { $("fQ").value = ""; $("fCat").value = ""; HITS = []; TERMS = []; $("hitList").innerHTML = ""; $("cntHits").textContent = "–"; renderList(); setTab("list"); syncUrl(cond()); if (CUR) renderViewer(); $("fQ").focus(); };
+  $("fCat").addEventListener("change", () => { renderList(); syncUrl(cond()); setTab("list"); });
   // keyup 으로 받는다 — 한글 조합 중 Enter(keydown, isComposing)를 받으면 두 번 눌러야 조회되는 문제를 피한다.
   $("fQ").addEventListener("keyup", (e) => { if (e.key === "Enter") search(); });
   $("examples").addEventListener("click", (e) => { const b = e.target.closest("button[data-q]"); if (!b) return; $("fQ").value = b.dataset.q; search(); });
   $("tabs").addEventListener("click", (e) => { const b = e.target.closest(".tab"); if (b) setTab(b.dataset.tab); });
+  $("listCard").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-key]");
+    if (!b) return;
+    openReg(b.dataset.key, b.dataset.art || null, null);
+  });
   $("viewer").addEventListener("click", (e) => {
+    const m = e.target.closest("[data-mode]");
+    if (m) { setMode(m.dataset.mode); return; }
+    const more = e.target.closest("[data-unfold]");
+    if (more) { const art = more.closest("article"); const txt = art && art.querySelector(".txt"); if (txt) { txt.classList.remove("fold"); more.remove(); } return; }
     const a = e.target.closest("a[data-art]");
     if (!a) return;
     e.preventDefault();
     const el = $("viewer").querySelector(a.getAttribute("href"));
-    if (el) { $("viewer").querySelectorAll("article.focus").forEach((x) => x.classList.remove("focus")); el.classList.add("focus"); el.scrollIntoView({ block: "start", behavior: "smooth" }); el.focus({ preventScroll: true }); if (CUR) { CUR.art = a.dataset.art || null; syncUrl(cond()); } }
+    if (el) {
+      $("viewer").querySelectorAll("article.focus").forEach((x) => x.classList.remove("focus"));
+      el.classList.add("focus"); const txt = el.querySelector(".txt"); if (txt) txt.classList.remove("fold"); const mb = el.querySelector("[data-unfold]"); if (mb) mb.remove();
+      el.scrollIntoView({ block: "start", behavior: "smooth" }); el.focus({ preventScroll: true });
+      if (CUR) { CUR.art = a.dataset.art || null; syncUrl(cond()); }
+    }
   });
   $("toTop").onclick = () => $("listCard").scrollIntoView({ block: "start", behavior: "smooth" });
 </script>

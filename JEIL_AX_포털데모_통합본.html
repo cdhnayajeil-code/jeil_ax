@@ -225,6 +225,7 @@
   .cv-tblwrap{overflow-x:auto; margin:6px 0 2px;}
   .cv-table th{white-space:nowrap;}
   .cv-table td{background:#fff; white-space:nowrap;}
+  .cv-table td.wrap{white-space:normal; min-width:220px; max-width:460px; line-height:1.5;}
   .cv-barcell{width:34%; min-width:90px;}
   .cv-bar{height:10px; background:var(--accent2); border-radius:3px;}
   .cv-rank{font-weight:700; color:var(--navy);}
@@ -233,6 +234,8 @@
   .cv-field{display:flex; gap:8px; font-size:12.8px; border-bottom:1px dashed var(--line); padding:3px 0;}
   .cv-k{color:var(--muted); flex:none; min-width:78px;}
   .cv-v{font-weight:600; color:var(--ink); word-break:break-all;}
+  .cv-field.long{grid-column:1 / -1; flex-direction:column; gap:2px;}   /* 긴 글 칸(규정 조문 본문) — 전체 폭·줄바꿈 보존(REQ-0124 2차) */
+  .cv-field.long .cv-v{font-weight:400; white-space:pre-wrap; word-break:break-word; line-height:1.65; max-height:280px; overflow:auto;}
   .cv-steps{display:flex; flex-wrap:wrap; align-items:center; gap:4px; margin:9px 0 2px; font-size:11.5px;}
   .cv-step{border:1px solid var(--line); border-radius:12px; padding:2px 9px; color:var(--muted); background:#fff;}
   .cv-step.done{background:#ecf5f0; border-color:#cde3d6; color:var(--green);}
@@ -2600,7 +2603,7 @@ function renderView(host, v){
   } else if(v.view === 'record' && Array.isArray(v.fields)){
     var g = _cvEl('div', 'cv-fields');
     v.fields.forEach(function(f){
-      var row = _cvEl('div', 'cv-field');
+      var row = _cvEl('div', 'cv-field' + (f.long ? ' long' : ''));
       row.appendChild(_cvEl('span', 'cv-k', String(f.k)));
       var vw = _cvEl('span', 'cv-v', String(f.v));
       /* 결측 배지 — 서버가 gap을 표기한 칸만. 사유(gap_why)는 툴팁으로. */
@@ -2630,9 +2633,9 @@ function renderView(host, v){
       var tr = document.createElement('tr');
       v.columns.forEach(function(c){
         var val = r ? r[c.key] : null;
-        var td = _cvEl('td', c.num ? 'r' : null);
+        var td = _cvEl('td', [c.num ? 'r' : '', c.wrap ? 'wrap' : ''].filter(Boolean).join(' ') || null);
         if(c.link && typeof val === 'string' && /^https:\/\//.test(val)){
-          var a = document.createElement('a'); a.href = val; a.target = '_blank'; a.rel = 'noopener noreferrer'; a.textContent = '열기 ↗';
+          var a = document.createElement('a'); a.href = val; a.target = '_blank'; a.rel = 'noopener noreferrer'; a.textContent = c.linkLabel ? String(c.linkLabel) : '열기 ↗';
           td.appendChild(a);
         } else if(typeof val === 'number'){ td.textContent = _cvNum(val); }
         else { td.textContent = val == null ? '-' : String(val); }

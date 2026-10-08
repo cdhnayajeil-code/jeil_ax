@@ -17,6 +17,7 @@ export async function run(ctx: ToolCtx): Promise<unknown> {
   const { admin, args, asOf, scope, userToken } = ctx;
 
     // 사내규정 조문 읽기(REQ-0124) — reg_key 또는 규정명 부분일치 → definer RPC reg_get. 본문은 8,000자 창으로 잘라 이어 읽는다.
+    // 2차(10-08): 조문 1개 카드는 짧은 메타 + 긴 본문 칸(long) · 「원본 PDF 열기」(비공개 버킷 사본 · SQL 108) · 그룹웨어 링크는 싣지 않는다.
     const SRC_LABEL = "사내규정 사본(그룹웨어 게시판 · 시행일 기준)";
     const regIn = String(args.reg || "").replace(/[\u0000-\u001f\u007f%\\]/g, " ").replace(/\s+/g, " ").trim().slice(0, 60);
     if (!regIn) return { 오류: "규정(reg)이 필요합니다 — search_regulation 결과의 reg_key 또는 규정명 일부." };
@@ -42,8 +43,9 @@ export async function run(ctx: ToolCtx): Promise<unknown> {
         후보: cands.slice(0, 10).map((c) => ({ 규정: c.name, reg_key: c.reg_key, 분류: c.category || null, 시행일: c.effective_date || null, 조문수: c.article_count })),
         안내: "규정이 여럿입니다 — 사용자에게 어느 규정인지 묻거나, 가장 맞는 reg_key 로 get_regulation 을 다시 부르세요.",
         __view: { view: "list", title: `사내규정 후보 — "${regIn}" (${cands.length}건)`, asOf,
-          columns: [{ key: "규정", label: "규정" }, { key: "분류", label: "분류" }, { key: "시행일", label: "시행일" }, { key: "조문수", label: "조문" }],
-          rows: cands.slice(0, 10).map((c) => ({ 규정: c.name, 분류: c.category || "", 시행일: String(c.effective_date || "").slice(0, 10), 조문수: c.article_count })) } satisfies ViewPayload };
+          columns: [{ key: "규정", label: "규정" }, { key: "분류", label: "분류" }, { key: "시행일", label: "시행일" }, { key: "조문수", label: "조문" }, { key: "보기", label: "보기", link: true, linkLabel: "열기 ↗" }],
+          rows: cands.slice(0, 10).map((c) => ({ 규정: c.name, 분류: c.category || "", 시행일: String(c.effective_date || "").slice(0, 10), 조문수: c.article_count,
+                                                보기: `https://ai.jeilm.co.kr/work/regulations?reg=${encodeURIComponent(String(c.reg_key))}` })) } satisfies ViewPayload };
       regKey = String(cands[0].reg_key);
     }
     // deno-lint-ignore no-explicit-any
@@ -62,28 +64,33 @@ export async function run(ctx: ToolCtx): Promise<unknown> {
       __view: { view: "notice", title: "사내규정 없음", kind: "info", text: "이 규정의 현행 판이 포털 사본에 없습니다." } satisfies ViewPayload };
     const r = res.reg || {};
     const asOfReg = res.as_of ? String(res.as_of).slice(0, 16).replace("T", " ") : null;
+    const linkOf = (no: string | null, pdf = false) => `https://ai.jeilm.co.kr/work/regulations?reg=${encodeURIComponent(regKey)}${no ? "&art=" + encodeURIComponent(no) : ""}${pdf ? "&view=pdf" : ""}`;
     const 규정 = { 규정명: r.name, reg_key: r.reg_key, 분류: r.category || null, 제정일: r.enact_date || null, 개정일: r.revise_date || null, 시행일: r.effective_date || null,
-      개정차수: r.revision_no || null, 주관부서: r.owner_dept || null, 판독: r.parse_status, 조문원천: r.text_source, 원본: r.gw_url || null };
+      개정차수: r.revision_no || null, 주관부서: r.owner_dept || null, 판독: r.parse_status, 조문원천: r.text_source,
+      원본파일: r.file_name || null, 원본PDF: r.file_path ? linkOf(null, true) : null };
     // deno-lint-ignore no-explicit-any
-    const 첨부 = ((res.attachments || []) as any[]).map((a) => ({ 파일: a.file_name, 판독: a.text_status, 사유: a.text_reason || null }));
-    const linkOf = (no: string | null) => `https://ai.jeilm.co.kr/work/regulations?reg=${encodeURIComponent(regKey)}${no ? "&art=" + encodeURIComponent(no) : ""}`;
+    const 첨부 = ((res.attachments || []) as any[]).map((a) => ({ 파일: a.file_name, 판독: a.text_status, 사유: a.text_reason || null, 포털사본: a.storage_path ? "있음" : "없음" }));
     // deno-lint-ignore no-explicit-any
     const arts = (res.articles || []) as any[];
-    const 안내공통 = "규정명·조문 번호(제n조)·시행일을 밝혀 답하세요. 해석·예외 인정·개별 산정은 담당 부서(인사팀·총무팀) 확인을 안내하세요. 이 값은 그룹웨어 게시판의 포털 사본이라 수집 뒤 개정됐을 수 있습니다(판독 불가 첨부의 내용은 들어 있지 않습니다).";
+    const 안내공통 = "답변 형식: 결론 한 문장 → 근거 「규정명 제n조(제목) · 시행 YYYY-MM-DD」 + 조문 문장 짧은 인용 → 유의사항 한두 줄. 조문은 카드에 보이니 본문을 통째로 다시 적지 마세요. 해석·예외 인정·개별 산정은 담당 부서(인사팀·총무팀) 확인을 안내하세요. 이 값은 그룹웨어 게시판의 포털 사본이라 수집 뒤 개정됐을 수 있습니다(판독 불가 첨부의 내용은 들어 있지 않습니다). 원본 PDF 는 카드의 「원본 PDF 열기」로 볼 수 있습니다.";
+    const pdfAct = (no: string | null) => (r.file_path ? [{ kind: "link", label: "원본 PDF 열기", url: linkOf(no, true) }] : []);
     if (artNo) {
       const a = arts[0];
       if (!a) return { 출처: SRC_LABEL, 기준시각: asOfReg || asOf, 규정, 조문번호: artNo, 건수: 0,
         안내: `제${artNo}조가 이 규정의 사본에 없습니다. get_regulation(reg) 으로 목차를 보고 번호를 확인하세요.`,
-        __view: { view: "notice", title: `${r.name} 제${artNo}조 없음`, kind: "info", text: "그 조문 번호가 사본에 없습니다 — 목차에서 확인하세요." } satisfies ViewPayload };
+        __view: { view: "notice", title: `${r.name} 제${artNo}조 없음`, kind: "info", text: "그 조문 번호가 사본에 없습니다 — 목차에서 확인하세요.",
+          actions: [{ kind: "link", label: "목차 보기", url: linkOf(null) }] } satisfies ViewPayload };
       const body = String(a.body || "");
       return { 출처: SRC_LABEL, 기준시각: asOfReg || asOf, 규정,
         조문: { 조문번호: a.article_no, 장: a.chapter || null, 절: a.section || null, 제목: a.title || null, 본문: body.slice(0, WINDOW), 개정꼬리표: a.amended_tag || null, 삭제됨: !!a.is_deleted },
         첨부, 안내: 안내공통,
         __view: { view: "record", title: `${r.name} 제${a.article_no}조${a.title ? "(" + a.title + ")" : ""}`, asOf,
-          fields: [{ k: "시행일", v: String(r.effective_date || "").slice(0, 10) || "—" }, { k: "개정", v: a.amended_tag || (r.revise_date ? String(r.revise_date).slice(0, 10) : "—") },
-                   { k: "주관부서", v: r.owner_dept || "—" }, { k: "본문", v: body.slice(0, 600) + (body.length > 600 ? "…" : "") }],
+          fields: [{ k: "규정", v: String(r.name || "") + (r.category ? ` · ${r.category}` : "") }, { k: "조문", v: `제${a.article_no}조` + (a.title ? ` ${a.title}` : "") + (a.chapter ? ` · ${a.chapter}` : "") },
+                   { k: "시행일", v: String(r.effective_date || "").slice(0, 10) || "—" }, { k: "개정", v: a.amended_tag || (r.revise_date ? String(r.revise_date).slice(0, 10) + (r.revision_no ? ` (${r.revision_no}차)` : "") : "—") },
+                   { k: "주관부서", v: r.owner_dept || "—" }, { k: "원본", v: r.file_name ? `${r.file_name} (PDF 사본)` : "포털 사본 없음 — 그룹웨어 게시판" },
+                   { k: "본문", v: body.slice(0, 1200) + (body.length > 1200 ? " …(이하 생략 — 화면에서 전체 보기)" : ""), long: true }],
           note: "그룹웨어 규정 게시판의 포털 사본" + (asOfReg ? ` · 기준 ${asOfReg}` : ""),
-          actions: [{ kind: "link", label: "화면에서 보기", url: linkOf(String(a.article_no)) }] } satisfies ViewPayload };
+          actions: [{ kind: "link", label: "화면에서 이 조문 보기", url: linkOf(String(a.article_no)) }, ...pdfAct(String(a.article_no))] } satisfies ViewPayload };
     }
     // 전체 — 목차는 전부, 본문은 start 부터 8,000자 창까지(결과 절단 12,000자 안쪽). 남으면 다음조문.
     // deno-lint-ignore no-explicit-any
@@ -99,8 +106,9 @@ export async function run(ctx: ToolCtx): Promise<unknown> {
     return { 출처: SRC_LABEL, 기준시각: asOfReg || asOf, 규정, 조문수: res.total_articles || 목차.length, 목차, 조문, 다음조문: nextSeq, 첨부,
       안내: 안내공통 + (nextSeq ? ` 조문이 더 있습니다 — 이어 읽으려면 start=${nextSeq} 로 다시 부르세요. 목차의 조문 번호를 article_no 로 바로 읽어도 됩니다.` : ""),
       __view: { view: "list", title: `${r.name} — 목차 (${목차.length}개 조문)`, asOf,
-        columns: [{ key: "조문", label: "조문" }, { key: "제목", label: "제목" }, { key: "장", label: "장" }],
-        rows: 목차.slice(0, 60).map((t) => ({ 조문: t.조문번호 ? `제${t.조문번호}조` : "전문", 제목: (t.제목 || "") + (t.삭제됨 ? " (삭제)" : ""), 장: t.장 || "" })),
+        columns: [{ key: "조문", label: "조문" }, { key: "제목", label: "제목" }, { key: "장", label: "장" }, { key: "보기", label: "보기", link: true, linkLabel: "조문 ↗" }],
+        rows: 목차.slice(0, 60).map((t) => ({ 조문: t.조문번호 ? `제${t.조문번호}조` : "전문", 제목: (t.제목 || "") + (t.삭제됨 ? " (삭제)" : ""), 장: t.장 || "",
+                                             보기: t.조문번호 ? linkOf(String(t.조문번호)) : linkOf(null) })),
         note: `시행 ${String(r.effective_date || "").slice(0, 10) || "—"} · 판독 ${r.parse_status}` + (asOfReg ? ` · 기준 ${asOfReg}` : "") + (목차.length > 60 ? ` · 표시 60건 / 전체 ${목차.length}건` : ""),
-        actions: [{ kind: "link", label: "화면에서 보기", url: linkOf(null) }] } satisfies ViewPayload };
+        actions: [{ kind: "link", label: "화면에서 보기", url: linkOf(null) }, ...pdfAct(null)] } satisfies ViewPayload };
   }

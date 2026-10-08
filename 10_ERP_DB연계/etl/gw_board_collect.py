@@ -54,13 +54,19 @@ for _s in (sys.stdout, sys.stderr):
     if hasattr(_s, "reconfigure"):
         _s.reconfigure(encoding="utf-8", errors="replace")
 
-COLLECTOR_VERSION = "b1.0"
+COLLECTOR_VERSION = "b1.1"
 JOB_NAME = "gw_board"
 REGS_REL = "00_전사공유/사내규정"          # D-96 「전사공유 사규」 — 허용 폴더 common(00_전사공유) 아래라 색인·조회 범위에 자동 포함
 RATE_SLEEP_SEC = 1.5
 MAX_POSTS_PER_RUN = 1500
 BUDGET_MIN = 75                          # 예약작업 상한 90분보다 짧게
 MAX_ATTACH_BYTES = 50 * 1024 * 1024
+STORAGE_BUCKET = "reg-files"           # 비공개 버킷(정본 SQL 108) — 첨부 원본 사본 · 화면·챗봇은 사내 로그인 서명 URL 로 연다
+CONTENT_TYPES = {".pdf": "application/pdf", ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                 ".doc": "application/msword", ".hwp": "application/x-hwp", ".hwpx": "application/hwp+zip",
+                 ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", ".xls": "application/vnd.ms-excel",
+                 ".pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation", ".txt": "text/plain; charset=utf-8",
+                 ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".zip": "application/zip"}
 ATTACH_EXT_DENY = {".exe", ".bat", ".cmd", ".js", ".vbs", ".msi", ".scr", ".ps1", ".com", ".jar"}
 INGEST_CHUNK = 20
 UNCHANGED_STREAK_STOP = 20               # nightly: 변화 없는 게시물이 연속 이만큼이면 중단
@@ -131,6 +137,71 @@ def supabase_creds():
     if not url or not key:
         raise RuntimeError("SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY 가 없습니다(.env 확인)")
     return url, key
+
+
+# ────────────────────────────────────────────────────────────── 첨부 원본 사본(비공개 버킷)
+def storage_board(board_key):
+    return re.sub(r"[^a-z0-9_-]", "", str(board_key or "").lower()) or "board"
+
+
+def storage_key(board_key, post_no, sha256, ext):
+    """버킷 안 경로 — **ASCII 만**(Supabase Storage 키는 한글·공백을 거부한다). 표시 이름은 DB file_name 이 갖는다.
+    sha256 앞 16자를 넣어 판이 바뀌면 경로도 바뀐다(옛 사본은 prune 으로 정리). 정본 SQL 108 의 CHECK 와 같은 꼴."""
+    e = (ext or "").lower()
+    if not re.match(r"^\.[a-z0-9]{1,8}$", e):
+        e = ""
+    return "%s/%s/%s%s" % (storage_board(board_key), str(post_no).zfill(6)[-6:], (sha256 or "")[:16] or "nohash", e)
+
+
+class StorageClient:
+    """Supabase Storage REST 직결(service_role · 사내 PC 에만). 업로드는 upsert, 정리는 게시물 폴더 안에서만."""
+
+    def __init__(self, url, key, bucket=STORAGE_BUCKET):
+        self.url, self.key, self.bucket = url.rstrip("/"), key, bucket
+
+    def _req(self, method, path, data=None, headers=None, timeout=120):
+        hd = {"apikey": self.key, "Authorization": "Bearer " + self.key}
+        hd.update(headers or {})
+        req = urllib.request.Request(self.url + path, data=data, method=method, headers=hd)
+        try:
+            with urllib.request.urlopen(req, timeout=timeout) as r:
+                return r.read().decode("utf-8", "replace")
+        except urllib.error.HTTPError as e:
+            detail = ""
+            try:
+                detail = e.read().decode("utf-8", "replace").strip()
+            except Exception:
+                pass
+            raise RuntimeError("HTTP %s storage %s: %s" % (e.code, method, nas_worker._redact(detail[:300]))) from e
+
+    def upload(self, path, data, content_type=None):
+        q = urllib.parse.quote(path, safe="/")
+        self._req("POST", "/storage/v1/object/%s/%s" % (self.bucket, q), data=data,
+                  headers={"Content-Type": content_type or "application/octet-stream", "x-upsert": "true",
+                           "Cache-Control": "3600"})
+        return path
+
+    def list(self, prefix):
+        body = json.dumps({"prefix": prefix, "limit": 1000, "offset": 0}).encode("utf-8")
+        raw = self._req("POST", "/storage/v1/object/list/%s" % self.bucket, data=body, headers={"Content-Type": "application/json"})
+        try:
+            items = json.loads(raw) or []
+        except ValueError:
+            return []
+        return [prefix.rstrip("/") + "/" + it["name"] for it in items if isinstance(it, dict) and it.get("name") and it.get("id")]
+
+    def remove(self, paths):
+        if not paths:
+            return 0
+        body = json.dumps({"prefixes": list(paths)}).encode("utf-8")
+        self._req("DELETE", "/storage/v1/object/%s" % self.bucket, data=body, headers={"Content-Type": "application/json"})
+        return len(paths)
+
+    def prune(self, prefix, keep):
+        """게시물 폴더(prefix) 안에서 현재 판(keep)에 없는 객체만 지운다 — 다른 게시물 폴더는 건드리지 않는다."""
+        keep = set(keep or [])
+        gone = [p for p in self.list(prefix) if p not in keep]
+        return self.remove(gone)
 
 
 def docs_root(arg=None):
@@ -807,6 +878,37 @@ def make_driver(page, base_url, sel, log_fn=log):
 
 
 # ────────────────────────────────────────────────────────────── 게시물 1건
+def upload_attachments(store, board_key, post_no, atts, dests):
+    """NAS 에 둔 첨부(blocked 제외)를 비공개 버킷에 사본으로 올린다. 실패해도 수집은 계속(storage_path 만 비움 · --files-sync 로 보정).
+    store 가 None 이면(--no-db·dry-run·테스트) 아무것도 하지 않는다."""
+    if store is None:
+        return 0
+    n = 0
+    keep = []
+    for a in atts:
+        dest = dests.get(a["seq"])
+        if not a.get("nas_rel_path") or not a.get("sha256") or not dest or not os.path.isfile(dest):
+            continue
+        skey = storage_key(board_key, post_no, a["sha256"], a.get("ext"))
+        try:
+            with open(dest, "rb") as fh:
+                data = fh.read()
+            if len(data) > MAX_ATTACH_BYTES:
+                raise RuntimeError("크기 초과 %d" % len(data))
+            store.upload(skey, data, CONTENT_TYPES.get((a.get("ext") or "").lower()))
+            a["storage_path"] = skey
+            keep.append(skey)
+            n += 1
+        except Exception as e:
+            a["storage_path"] = None
+            log("  원본 사본 업로드 실패(%s · %s): %s" % (post_no, a["file_name"], nas_worker._redact(str(e))[:200]))
+    try:
+        store.prune("%s/%s" % (storage_board(board_key), str(post_no).zfill(6)[-6:]), keep)
+    except Exception as e:
+        log("  옛 사본 정리 실패(%s): %s" % (post_no, nas_worker._redact(str(e))[:200]))
+    return n
+
+
 def process_post(driver, src, row, ledger, regs, opts, run_id):
     """한 게시물: 열기 → 읽기 → 비교 → 첨부 → 추출 → 파싱 → NAS 쓰기 → 대장. 반환 event 문자열."""
     board_key = src["board_key"]
@@ -831,11 +933,13 @@ def process_post(driver, src, row, ledger, regs, opts, run_id):
             shutil.rmtree(tmp, ignore_errors=True)
         os.makedirs(os.path.join(tmp, "첨부"), exist_ok=True)
     used = set()
+    dests = {}
     for i, att in enumerate(post.get("attachments") or [], 1):
         fname = safe_name(att.get("name"))
         ext, allowed, why = classify_ext(fname)
         rec = {"seq": i, "file_name": fname, "ext": ext or None, "size_bytes": None, "sha256": None, "nas_rel_path": None,
-               "text_status": "skipped", "text_reason": None, "text_chars": None, "extractor": None, "is_article_source": False}
+               "text_status": "skipped", "text_reason": None, "text_chars": None, "extractor": None, "is_article_source": False,
+               "storage_path": None}
         if not allowed:
             rec["text_reason"] = why
         elif not src.get("collect_attachments", True):
@@ -860,6 +964,7 @@ def process_post(driver, src, row, ledger, regs, opts, run_id):
                 continue
             rec["size_bytes"] = r.get("size") or os.path.getsize(dest)
             rec["sha256"] = sha256_file(dest)
+            dests[i] = dest
             if r.get("name_from_header") and r["name_from_header"] != fname:
                 rec["name_from_header"] = r["name_from_header"]
             text, why, extractor = extract_text(dest)
@@ -888,6 +993,7 @@ def process_post(driver, src, row, ledger, regs, opts, run_id):
                       mod_count=row.get("mod_count"))
         return "unchanged"
     rev = int(st.get("rev") or 0) + 1 if st else 1
+    upload_attachments(opts.get("storage"), board_key, post_no, atts, dests)
     text_source, parsed, src_idx = reg_parse.choose_source(norm, att_texts, hint_title=title)
     if src_idx is not None and src_idx < len(atts):
         atts[src_idx]["is_article_source"] = True
@@ -929,7 +1035,8 @@ def process_post(driver, src, row, ledger, regs, opts, run_id):
     commit_post_dir(regs, board_key, dir_name, tmp, prev_rel=(st or {}).get("nas_rel"), prev_rev=int((st or {}).get("rev") or 0))
     ledger.append({"run_id": run_id, "board_key": board_key, "post_no": post_no, "rev": rev, "event": event,
                    "body_hash": body_hash, "attach_sig": sig, "modified_at": payload["post"]["modified_at"], "nas_rel": nas_rel,
-                   "atts": [{"name": a["file_name"], "size": a["size_bytes"], "sha256": a["sha256"], "text_status": a["text_status"]} for a in atts],
+                   "atts": [{"name": a["file_name"], "size": a["size_bytes"], "sha256": a["sha256"], "text_status": a["text_status"],
+                             "storage_path": a.get("storage_path")} for a in atts],
                    "parse": {"status": parsed["status"], "articles": parsed["stats"]["articles"], "text_source": text_source},
                    "db_synced": False, "collector": COLLECTOR_VERSION})
     ledger.update(board_key, post_no, rev=rev, body_hash=body_hash, attach_sig=sig, modified_at=payload["post"]["modified_at"],
@@ -976,6 +1083,93 @@ def db_sync(rpc_fn, url, key, ledger, root, run_id, src_results):
     return sent, failed
 
 
+# ────────────────────────────────────────────────────────────── 사본 보정(그룹웨어 접속 없음)
+def files_sync(docs_root_arg=None, rpc_fn=None, storage=None, no_db=False, boards=None, force=False):
+    """NAS 에 이미 있는 첨부를 비공개 버킷에 올리고 DB reg_attachment.storage_path 를 채운다(초기 1회 · 누락 보정).
+    그룹웨어에 접속하지 않는다. 해시가 NAS 파일과 다르면 올리지 않는다(수집기가 다음 회차에 다시 판단)."""
+    out = {"ok": False, "rc": 1, "posts": 0, "uploaded": 0, "skipped": 0, "failed": 0, "db_updated": 0, "errors": []}
+    try:
+        rpc_fn = rpc_fn or rpc
+        url = key = None
+        if not no_db:
+            url, key = supabase_creds()
+        store = storage if storage is not None else (StorageClient(url, key) if url else None)
+        if store is None:
+            raise RuntimeError("버킷 클라이언트가 없습니다 — --no-db 와 함께 쓸 수 없다")
+        root = docs_root(docs_root_arg)
+        regs = regs_root(root)
+        ledger = Ledger(regs).load()
+        for k, st in sorted(ledger.state.items()):
+            if st.get("status", "active") != "active" or not st.get("nas_rel"):
+                continue
+            if boards and st.get("board_key") not in boards:
+                continue
+            mp = os.path.join(root, *st["nas_rel"].split("/"), "meta.json")
+            try:
+                with io.open(mp, encoding="utf-8") as fh:
+                    meta = json.load(fh)
+            except Exception as e:
+                out["errors"].append("%s: meta.json 읽기 실패(%s)" % (k, type(e).__name__))
+                continue
+            items, changed = [], False
+            for a in meta.get("attachments") or []:
+                if not a.get("nas_rel_path") or not a.get("sha256"):
+                    continue
+                if a.get("storage_path") and not force:
+                    out["skipped"] += 1
+                    continue
+                fp = os.path.join(root, *a["nas_rel_path"].split("/"))
+                if not os.path.isfile(fp):
+                    out["failed"] += 1
+                    out["errors"].append("%s: 파일 없음 %s" % (k, a.get("file_name")))
+                    continue
+                with open(fp, "rb") as fh:
+                    data = fh.read()
+                if hashlib.sha256(data).hexdigest() != a["sha256"]:
+                    out["failed"] += 1
+                    out["errors"].append("%s: 해시 불일치 %s" % (k, a.get("file_name")))
+                    continue
+                skey = storage_key(st["board_key"], st["post_no"], a["sha256"], a.get("ext"))
+                try:
+                    store.upload(skey, data, CONTENT_TYPES.get((a.get("ext") or "").lower()))
+                except Exception as e:
+                    out["failed"] += 1
+                    out["errors"].append("%s: 업로드 실패 %s(%s)" % (k, a.get("file_name"), nas_worker._redact(str(e))[:120]))
+                    continue
+                a["storage_path"] = skey
+                items.append({"seq": a["seq"], "sha256": a["sha256"], "storage_path": skey})
+                out["uploaded"] += 1
+                changed = True
+            if not changed:
+                continue
+            tmp = mp + ".tmp"
+            with io.open(tmp, "w", encoding="utf-8") as fh:
+                json.dump(meta, fh, ensure_ascii=False, indent=1, default=str)
+            os.replace(tmp, mp)
+            out["posts"] += 1
+            if not no_db and url:
+                try:
+                    r = rpc_fn(url, key, "reg_attachment_storage_set",
+                               {"p_board_key": st["board_key"], "p_post_no": st["post_no"], "p_items": items})
+                    out["db_updated"] += int((r or {}).get("updated") or 0) if isinstance(r, dict) else 0
+                except Exception as e:
+                    out["errors"].append("%s: DB 반영 실패(%s)" % (k, nas_worker._redact(str(e))[:120]))
+            ledger.append({"board_key": st["board_key"], "post_no": st["post_no"], "rev": st.get("rev"), "event": "files_sync",
+                           "uploaded": len(items), "collector": COLLECTOR_VERSION})
+        out["ok"] = out["failed"] == 0 and not out["errors"]
+        out["rc"] = 0 if out["ok"] else 1
+        out["msg"] = "사본 보정 — 게시물 %d · 업로드 %d · 이미 있음 %d · 실패 %d · DB 반영 %d" % (
+            out["posts"], out["uploaded"], out["skipped"], out["failed"], out["db_updated"])
+        log(out["msg"])
+        for e in out["errors"][:20]:
+            log("  " + e)
+    except Exception as e:
+        out["msg"] = "사본 보정 실패: %s" % nas_worker._redact(str(e))[:300]
+        out["errors"].append(out["msg"])
+        log(out["msg"])
+    return out
+
+
 # ────────────────────────────────────────────────────────────── 세션
 @contextlib.contextmanager
 def playwright_session(cfg, headed=False, force_login=False, accept_downloads=True, profile=None):
@@ -1016,8 +1210,9 @@ def _sources_from(rpc_fn, url, key, profile, boards_filter, no_db):
 # ────────────────────────────────────────────────────────────── 본문
 def collect(mode="nightly", boards=None, since=None, dry=False, headed=False, force_login=False, docs_root_arg=None,
             selectors=None, max_posts=None, budget_min=BUDGET_MIN, no_db=False,
-            session_factory=None, driver_factory=None, rpc_fn=None, today=None, cfg=None, rate_sleep=None):
-    """CLI·러너 공용 진입점. 예외를 밖으로 던지지 않는다 — {"ok","rc","msg",...}."""
+            session_factory=None, driver_factory=None, rpc_fn=None, today=None, cfg=None, rate_sleep=None, storage=None):
+    """CLI·러너 공용 진입점. 예외를 밖으로 던지지 않는다 — {"ok","rc","msg",...}.
+    storage: 버킷 클라이언트(StorageClient 꼴). None 이면 DB 접속정보가 있을 때 만들고, False 면 사본을 올리지 않는다(테스트·--no-db)."""
     t0 = time.time()
     run_id = str(uuid.uuid4())
     today = today or _now().strftime("%Y-%m-%d")
@@ -1055,7 +1250,11 @@ def collect(mode="nightly", boards=None, since=None, dry=False, headed=False, fo
         driver_factory = driver_factory or (lambda page, base, sel: make_driver(page, base, sel, log))
         ledger = Ledger(regs).load()
         max_posts = int(max_posts or MAX_POSTS_PER_RUN)
-        opts = {"dry": dry, "sleep": RATE_SLEEP_SEC if rate_sleep is None else float(rate_sleep)}
+        if storage is False or dry or not url:
+            store = None
+        else:
+            store = storage if storage is not None else StorageClient(url, key)
+        opts = {"dry": dry, "sleep": RATE_SLEEP_SEC if rate_sleep is None else float(rate_sleep), "storage": store}
         src_results = {}
         stopped = False
         with session_factory() as (page, login_res):
@@ -1278,6 +1477,7 @@ def main(argv=None):
     g.add_argument("--full", action="store_true", help="전량(끝 페이지까지 · 삭제 판정)")
     g.add_argument("--nightly", action="store_true", help="증분 · 하루 1회(예약작업)")
     g.add_argument("--probe", action="store_true", help="선택자 점검만(다운로드·쓰기 없음)")
+    g.add_argument("--files-sync", action="store_true", help="NAS 첨부 → 비공개 버킷 사본 + DB 경로 채우기(초기 1회·누락 보정 · 그룹웨어 접속 없음)")
     ap.add_argument("--dry-run", action="store_true", help="읽기만 — NAS·DB 무변경")
     ap.add_argument("--headed", action="store_true", help="브라우저를 띄워서(디버깅)")
     ap.add_argument("--log", help="출력을 이 파일에 덧붙인다(예약작업·pythonw)")
@@ -1289,6 +1489,7 @@ def main(argv=None):
     ap.add_argument("--no-db", action="store_true", help="NAS 만(DB 적재·reg_source 조회 안 함)")
     ap.add_argument("--selectors", help="선택자 프로필 JSON(기본 gw_board_profile.default.json · DB reg_source.selectors 가 우선)")
     ap.add_argument("--docs-root", help="문서 루트(검증용 임시 폴더 · 값은 로그에 남기지 않는다)")
+    ap.add_argument("--force-files", action="store_true", help="--files-sync 에서 이미 경로가 있는 첨부도 다시 올린다")
     a = ap.parse_args(argv)
     if a.log:
         os.makedirs(os.path.dirname(os.path.abspath(a.log)), exist_ok=True)
@@ -1298,6 +1499,8 @@ def main(argv=None):
     try:
         if a.probe:
             return int(probe(selectors=a.selectors, boards=a.board, headed=a.headed or True, no_db=a.no_db)["rc"])
+        if a.files_sync:
+            return int(files_sync(docs_root_arg=a.docs_root, no_db=a.no_db, boards=a.board, force=a.force_files)["rc"])
         mode = "full" if a.full else "nightly"
         res = collect(mode=mode, boards=a.board, since=a.since, dry=a.dry_run, headed=a.headed, force_login=a.force_login,
                       docs_root_arg=a.docs_root, selectors=a.selectors, max_posts=a.max, budget_min=a.budget_min, no_db=a.no_db)

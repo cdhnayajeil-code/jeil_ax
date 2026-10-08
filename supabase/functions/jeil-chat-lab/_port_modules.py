@@ -49,7 +49,7 @@ META = {
     "read_document": ("docs", "문서 본문 판독", "Excel 셀값·텍스트 본문(승인 폴더만)", None, "docs", "normal", ["notice"], False, "포털 관리", None),
     # 사내규정 2종(REQ-0124 · 포털DB public.reg_* 사본 · 정본 SQL 103 · 전 직원) — 도메인 안내는 core/prompt.ts DOMAIN_HINTS.regulation
     "search_regulation": ("regulation", "사내규정 검색", "그룹웨어 규정 게시판 사본에서 조문·제목·규정명 검색(규정명·조문·발췌·시행일)", None, "partial", "normal", ["list", "notice"], False, "총무팀",
-        "사내규정(연차·휴가·근태·출장비·경비·결재권한 등 전사 규정류) 질문은 일반론으로 답하지 말고 먼저 search_regulation 으로 조문을 찾은 뒤, 규정명·조문 번호(제n조)·시행일을 밝혀 답하세요. 전문이 필요하면 get_regulation. 해석·개별 적용은 담당 부서(인사팀·총무팀) 확인을 안내하고, 찾지 못하면 '포털의 규정 사본에서 찾지 못함'이라고 답하세요."),
+        "사내규정(연차·휴가·근태·출장비·경비·결재권한 등 전사 규정류) 질문은 일반론으로 답하지 말고 먼저 search_regulation 으로 조문을 찾은 뒤 결론 한 문장 → 근거(규정명 제n조 · 시행일 + 조문 짧은 인용) → 유의사항 순으로 짧게 답하세요(목록·조문은 카드로 보이니 표를 다시 만들지 않는다). 전문이 필요하면 get_regulation. 해석·개별 적용은 담당 부서(인사팀·총무팀) 확인을 안내하고, 찾지 못하면 '포털의 규정 사본에서 찾지 못함'이라고 답하세요."),
     "get_regulation": ("regulation", "사내규정 조문 읽기", "규정 1건의 목차·조문 전문 또는 조문 1개(이어 읽기)", None, "partial", "normal", ["record", "list", "notice"], False, "총무팀", None),
 }
 

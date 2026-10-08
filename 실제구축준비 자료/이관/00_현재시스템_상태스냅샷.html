@@ -519,6 +519,11 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 </thead>
 <tbody>
 <tr>
+<td>2026-10-08(밤)</td>
+<td><strong>사내규정 2차 — 원본 PDF 사본·화면 재설계·카드 가독성</strong>(REQ-0124 · 관리자 지시 3건) — 정본 SQL <strong>108 적용</strong>(마이그레이션 <code>reg_attachment_storage_req0124</code> · <code>reg_attachment.storage_path</code> · 비공개 Storage 버킷 <strong><code>reg-files</code></strong>(50MB 상한) · <code>storage.objects</code> select 정책 1개 = 사내 로그인(<code>is_internal</code>) · RPC <code>reg_attachment_storage_set</code> service_role 전용 · <code>reg_ingest_upsert/reg_list/reg_get/reg_search</code> 재정의 — <code>file_path</code> PDF 우선 · 드라이런 뒤 적용) · 수집기 <strong>b1.1</strong> <code>--files-sync</code> 로 <strong>사본 28건 10.4MB 업로드</strong>(활성 게시물 26 · 누락 0) · Edge Function <strong><code>jeil-chat</code> v36 · <code>jeil-chat-lab</code> v30</strong> · <strong>SQL 94 재적용</strong>(6,192자 · md5 1f007803… · rollback 은 1차 적용본) · 화면 <code>/work/regulations</code> 재설계(Vercel)</td>
+<td>최동혁(+Claude)</td>
+</tr>
+<tr>
 <td>2026-10-08</td>
 <td><strong>사내규정 데이터 파이프라인 — 라이브 가동</strong>(REQ-0124 · ADR-114 · D-153~D-156 · 커밋 68d7f0e+) — 정본 SQL <strong>103 적용</strong>(마이그레이션 <code>reg_board_mirror_req0124</code> · <code>public.reg_source/post/post_history/attachment/document/article</code> · RPC 8종 · <code>pg_trgm</code> 1.6 설치 · RLS 전면차단 · 역할 3종 실측) · <strong>104 적용</strong>(<code>portal_page.regulation_lookup</code> 전사 공개 · <code>/work/regulations</code> 200) · <strong>94 적용</strong>(운영 지시문 5,982자 · 21종 · md5 5ebd83bb… · rollback 10-08 조회본). Edge Function <strong><code>jeil-chat</code> v35 · <code>jeil-chat-lab</code> v29</strong> 배포. <code>reg_source</code> 시드(회사규정 활성 + 후보 6 비활성). 사내 PC(관리자 PC) 예약작업 <strong><code>JEIL_AX_GwBoard</code> 등록</strong>(06:30 · Playwright API 모드 · 그룹웨어 회사규정 → NAS <code>00_전사공유/사내규정</code> → DB) · <strong>초기 전량 26건 적재</strong>(현행 규정 20 · 조문 561). NAS 컨테이너 <strong>n1.12</strong>(색인 i1.2 <code>.hwp</code>) 재빌드는 대기</td>
 <td>최동혁(+Claude)</td>
