@@ -366,9 +366,10 @@
   .pg-sect{margin:22px 0 10px; font-size:14px; color:var(--navy); border-left:4px solid var(--accent); padding-left:10px; font-weight:700;}
   .pg-sect.first{margin-top:0;}
   .pg-sect small{font-weight:400; color:var(--muted); margin-left:6px; font-size:11.5px;}
-  /* ── 부서별 묶음(REQ-0121) — 카드가 많아져 부서·업무 단위로 묶고, 맨 위 고정 띠에서 묶음으로 바로 간다 ── */
+  /* ── 운영 페이지 묶음(REQ-0121) — 섹션 4개(협력사 · 전사 공통 · 부서별 · 시스템 관리)를 같은 꼴로. 카드는 설명을 접은 촘촘한 한 꼴,
+        머리글은 아이콘·이름·장수, 맨 위 고정 띠에서 묶음으로 바로 간다. 묶음 라벨은 DB portal_page.grp → dept_nm → 「전사 공통」(정본 SQL 102). ── */
   .pg-index{position:sticky; top:0; z-index:5; background:#fff; display:flex; gap:6px; flex-wrap:wrap; align-items:center;
-            padding:8px 0 10px; margin:0 0 6px; border-bottom:1px solid var(--line);}
+            padding:8px 0 10px; margin:0 0 4px; border-bottom:1px solid var(--line);}
   .pg-index .lb{font-size:11.5px; color:var(--muted); margin-right:2px;}
   .pg-index a{display:inline-flex; align-items:center; gap:5px; font-size:12px; color:var(--navy2); background:#fff; border:1px solid var(--line);
               border-radius:14px; padding:3px 10px; text-decoration:none; white-space:nowrap; cursor:pointer;}
@@ -376,16 +377,20 @@
   .pg-index a.mine{background:var(--soft); border-color:var(--accent2); font-weight:700;}
   .pg-index a i{font-style:normal; font-size:10.5px; color:var(--muted); background:var(--bg); border-radius:9px; padding:0 6px;}
   .pg-groups{display:block;}
-  .pg-group{scroll-margin-top:76px;}             /* 고정 띠 아래로 머리글이 들어오게 */
-  .pg-sect{scroll-margin-top:76px;}
-  .pg-sect .cnt{font-weight:600; color:var(--muted); font-size:11.5px; margin-left:6px;}
-  .pg-sect .mine{font-size:10.5px; background:var(--soft); color:var(--accent); border:1px solid var(--accent2); border-radius:9px; padding:0 7px; margin-left:6px; font-weight:700; vertical-align:1px;}
-  .pg-grid.dense{grid-template-columns:repeat(auto-fill,minmax(232px,1fr)); gap:10px;}
-  .pg-grid.dense .pgcard{padding:13px 14px 12px; gap:6px;}
-  .pg-grid.dense .pgcard .ic{font-size:19px;}
-  .pg-grid.dense .pgcard h4{font-size:13.4px;}
-  .pg-grid.dense .pgcard p{display:none;}       /* 설명은 접는다 — 잠금 사유는 카드 title 로 */
-  .pg-grid.dense .pgcard .open-btn{padding:6px 0; font-size:12px;}
+  .pg-group{scroll-margin-top:76px;}
+  .pg-sect{scroll-margin-top:76px; display:flex; align-items:center; gap:6px; flex-wrap:wrap;}
+  .pg-sect .cnt{font-weight:600; color:var(--muted); font-size:11.5px; background:var(--bg); border-radius:9px; padding:0 7px;}
+  .pg-sect .mine{font-size:10.5px; background:var(--soft); color:var(--accent); border:1px solid var(--accent2); border-radius:9px; padding:0 7px; font-weight:700;}
+  .pg-sect .lk{font-size:10.5px; color:var(--muted); border:1px dashed var(--line); border-radius:9px; padding:0 7px; font-weight:500;}
+  .pg-sect small{margin-left:0;}
+  #pagesView .pg-grid{grid-template-columns:repeat(auto-fill,minmax(232px,1fr)); gap:10px;}
+  #pagesView .pgcard{padding:13px 14px 12px; gap:6px;}
+  #pagesView .pgcard .ic{font-size:19px;}
+  #pagesView .pgcard h4{font-size:13.4px;}
+  #pagesView .pgcard h4 br{display:none;}      /* 정적 카드의 두 줄 제목을 한 줄로 */
+  #pagesView .pgcard p{display:none;}          /* 설명은 접는다 — 카드에 마우스를 올리면 툴팁(applyCardTips) */
+  #pagesView .pgcard .open-btn{padding:6px 0; font-size:12px;}
+  #pagesView .pgcard.locked{opacity:.72;}
   /* 권한 매트릭스 */
   .mat-y{color:var(--green); font-weight:700;} .mat-p{color:var(--amber); font-weight:700;} .mat-n{color:var(--red); font-weight:700;}
   .sec td.c, .sec th.c{text-align:center;}
@@ -641,7 +646,7 @@
       <!-- 바로가기 띠(REQ-0121) — 정적 섹션 3개 + 부서별 묶음을 loadPagePerms 가 채운다 · 미로그인·통합본은 정적 3개만 -->
       <div class="pg-index" id="pgIndex"></div>
 
-      <div class="pg-sect first" id="pgs-vendor">🤝 외주 협력사 발주·검사 포털</div>
+      <div class="pg-sect first" id="pgs-vendor">🤝 협력사 포털 <small>발주·검사 · 협력사 계정</small></div>
       <div class="pg-grid">
         <div class="pgcard">
           <span class="ic">🏭</span>
@@ -673,28 +678,8 @@
         </div>
       </div>
 
-      <div class="pg-sect" id="pgs-erp">🔗 ERP 중간DB 연동·관리 <small>사내 전용 · 읽기전용</small></div>
-      <div class="pg-grid">
-        <!-- 계정 대사·부서 매핑·퇴사 처리는 같은 원천을 다른 각도로 보는 화면이라
-             카드를 따로 두면 같은 사람을 두 번 찾게 된다. 진입점 하나로 묶고 안에서 갈라진다. -->
-        <div class="pgcard">
-          <span class="ic">🪪</span>
-          <h4>계정·조직 통합관리</h4>
-          <div class="metarow"><span class="badge b">관리자 전용</span><span class="badge g">읽기전용</span></div>
-          <p>계정 대사 · 사용자/부서 매핑 · 권한 설정 · 퇴사 처리를 한 곳에서 — 들어가서 모듈로 갈라집니다</p>
-          <a class="open-btn" href="/admin/identity" target="_blank">열기 ↗</a>
-        </div>
-        <div class="pgcard">
-          <span class="ic">🔗</span>
-          <h4>ERP 데이터 연동 현황</h4>
-          <div class="metarow"><span class="badge b">사내 전용</span><span class="badge g">읽기전용</span></div>
-          <p>ERP 데이터가 언제·얼마나 반영됐는지(소스 11종)</p>
-          <a class="open-btn" href="/admin/erp-status" target="_blank">열기 ↗</a>
-        </div>
-      </div>
-
-      <div class="pg-sect" id="pgs-all">🌐 전사 공유 페이지 <small>전 직원 열람 가능</small></div>
-      <div class="pg-grid">
+      <div class="pg-sect" id="pgs-all">🌐 전사 공통 <small>전 직원 열람</small></div>
+      <div class="pg-grid" id="allPageGrid">
         <div class="pgcard">
           <span class="ic">🖥️</span>
           <h4>IT 자산관리 시스템</h4>
@@ -704,7 +689,7 @@
         </div>
       </div>
 
-      <div class="pg-sect" id="pgs-dept">🏢 부서 운영 페이지 <small>내 부서·권한에 따라 표시 · 부서별 묶음</small></div>
+      <div class="pg-sect" id="pgs-dept">🏢 부서별 운영 페이지 <small>내 부서·권한에 따라 표시</small></div>
       <div class="pg-grid" id="deptPageGrid">
         <div class="pgcard">
           <span class="ic">📊</span>
@@ -770,6 +755,27 @@
           <a class="open-btn" href="/work/item-duplicates" target="_blank">페이지 열기 ↗</a>
         </div>
       </div>
+
+      <div class="pg-sect" id="pgs-sys">⚙️ 시스템 관리 <small>사내 전용 · 관리자</small></div>
+      <div class="pg-grid" id="sysPageGrid">
+        <!-- 계정 대사·부서 매핑·퇴사 처리는 같은 원천을 다른 각도로 보는 화면이라
+             카드를 따로 두면 같은 사람을 두 번 찾게 된다. 진입점 하나로 묶고 안에서 갈라진다. -->
+        <div class="pgcard">
+          <span class="ic">🪪</span>
+          <h4>계정·조직 통합관리</h4>
+          <div class="metarow"><span class="badge b">관리자 전용</span><span class="badge g">읽기전용</span></div>
+          <p>계정 대사 · 사용자/부서 매핑 · 권한 설정 · 퇴사 처리를 한 곳에서 — 들어가서 모듈로 갈라집니다</p>
+          <a class="open-btn" href="/admin/identity" target="_blank">열기 ↗</a>
+        </div>
+        <div class="pgcard">
+          <span class="ic">🔗</span>
+          <h4>ERP 데이터 연동 현황</h4>
+          <div class="metarow"><span class="badge b">사내 전용</span><span class="badge g">읽기전용</span></div>
+          <p>ERP 데이터가 언제·얼마나 반영됐는지(소스 11종)</p>
+          <a class="open-btn" href="/admin/erp-status" target="_blank">열기 ↗</a>
+        </div>
+      </div>
+
     </div>
   </main>
 
@@ -2904,7 +2910,7 @@ async function fetchMe(){
 
 /* ===== 부서 운영 페이지 카드 게이팅 (jeil-me 서버 판정) ===== */
 async function loadPagePerms(){
-  renderPageIndex([]);   // 바로가기 띠 — 정적 섹션 3개는 로그인 전·통합본에서도 보인다(REQ-0121)
+  renderPageIndex([]); applyCardTips();   // 바로가기 띠·툴팁 — 정적 섹션은 로그인 전·통합본에서도 보인다(REQ-0121)
   if(window.IS_BUNDLE){
     // 오프라인 통합본: 정적 오버레이 버튼 유지(서버 판정 미적용). 콘솔 버튼은 기본 숨김이라 데모용으로 여기서 켠다
     // (라이브에서는 applyMyDept 가 is_admin 일 때만 켠다). 실데이터 탭은 「MS 로그인 후 표시」 안내만 뜬다.
@@ -2934,61 +2940,85 @@ async function loadPagePerms(){
   }
 }
 
-/* ===== 부서 운영 페이지 — 부서별 묶음 렌더(REQ-0121) =====
-   카드가 17장을 넘어 한 줄로 늘어놓으면 어느 부서 것인지 안 보인다. 부서(dept_nm · 없으면 「전사 공통」)로 묶고,
-   묶음 머리글(아이콘·부서·장수·내 부서·권한 밖 장수) + 맨 위 고정 바로가기 띠(정적 섹션 3개 + 묶음) + 촘촘한 카드로 전부 한 화면에 둔다.
-   순서: 내 부서(겸직 포함 · perm_effective.depts) → 전사 공통 → 나머지는 서버(portal_page.sort) 순서. 묶음 안도 서버 순서.
-   데이터·권한 판정은 그대로(perm_effective) — 여기서는 묶고 그리기만 한다. */
-var DEPT_ICON = { '구매팀':'🛒', '자금팀':'💰', '사업관리팀':'📈', '인사팀':'👥', '자재물류팀':'🚚', '영업팀':'📈', '생산팀':'🏭', '품질팀':'✅', '총무팀':'🗂️', '전사 공통':'🌐' };
+/* ===== 운영 페이지 묶음 렌더(REQ-0121 · 2차) =====
+   섹션은 넷뿐이다 — 🤝 협력사 · 🌐 전사 공통 · 🏢 부서별 · ⚙️ 시스템 관리. 정적 카드(협력사 4 · IT 자산 · ERP 관리 2)는 HTML 에 그대로 두고,
+   DB 페이지(perm_effective.pages)는 묶음 라벨 = grp → dept_nm → 「전사 공통」 으로 나눠 전사 공통·시스템 관리는 그 정적 그리드 뒤에 붙이고(data-dyn),
+   나머지는 부서별 묶음으로 그린다. 순서: 내 부서(겸직 포함) → 서버(portal_page.sort) 순서. 권한 판정·데이터는 서버 그대로 — 여기서는 묶고 그리기만 한다. */
+var DEPT_ICON = { '구매팀':'🛒', '자금팀':'💰', '사업관리팀':'📈', '인사팀':'👥', '자재물류팀':'🚚', '영업팀':'📈', '생산팀':'🏭', '품질팀':'✅', '총무팀':'🗂️', '재무회계팀':'🧾' };
+var GRP_ALL = '전사 공통', GRP_SYS = '시스템 관리';
 function pgSlug(s){ return String(s||'').replace(/[^0-9A-Za-z가-힣]+/g,'-'); }
 function pgScrollTo(id){ var el = document.getElementById(id); if(el) el.scrollIntoView({behavior:'smooth', block:'start'}); return false; }
+/* 설명 <p> 는 접히므로 카드 title(툴팁)로 옮긴다 — 정적·동적 카드 공통 */
+function applyCardTips(){
+  document.querySelectorAll('#pagesView .pgcard').forEach(function(card){
+    if(card.getAttribute('title')) return;
+    var p = card.querySelector('p'); if(p && p.textContent.trim()) card.setAttribute('title', p.textContent.trim());
+  });
+}
+function pgCard(p){
+  var vis = '<span class="badge '+(p.visibility==='전사 공개'?'g':'a')+'">'+escHtml(p.visibility||'')+'</span>'+(p.erp_module?'<span class="badge a">ERP '+escHtml(p.erp_module)+'</span>':'');
+  if(p.allowed){
+    return '<div class="pgcard" data-dyn="1"><span class="ic">'+escHtml(p.icon||'📄')+'</span><h4>'+escHtml(p.title||p.page_key)+'</h4><div class="metarow">'+vis+'</div>'
+      + '<a class="open-btn" href="'+escHtml(p.path)+'" target="_blank">페이지 열기 ↗</a></div>';
+  }
+  return '<div class="pgcard locked" data-dyn="1" title="소속 부서·권한 범위 밖 페이지입니다. 열람이 필요하면 해당 부서 관리자에게 요청하세요.'+(p.reason?' ('+escHtml(p.reason)+')':'')+'"><span class="ic">🔒</span><h4>'+escHtml(p.title||p.page_key)+'</h4>'
+    + '<div class="metarow">'+vis+'<span class="badge r">권한 없음</span></div>'
+    + '<a class="open-btn lock" href="#" onclick="return false">🔒 접근 권한 없음</a></div>';
+}
+/* 정적 그리드에 동적 카드 덧붙이기 — 다시 그릴 때 지난 동적 카드부터 지운다 */
+function pgAppend(gridId, pages){
+  var g = document.getElementById(gridId); if(!g) return 0;
+  g.querySelectorAll('[data-dyn]').forEach(function(el){ el.remove(); });
+  g.insertAdjacentHTML('beforeend', pages.map(pgCard).join(''));
+  return g.querySelectorAll('.pgcard').length;
+}
+function pgSectCount(sectId, n, locked){
+  var h = document.getElementById(sectId); if(!h) return;
+  h.querySelectorAll('.cnt,.lk').forEach(function(el){ el.remove(); });
+  var sm = h.querySelector('small');
+  var c = document.createElement('span'); c.className = 'cnt'; c.textContent = n + '개';
+  if(sm) h.insertBefore(c, sm); else h.appendChild(c);
+  if(locked){ var l = document.createElement('span'); l.className = 'lk'; l.textContent = '권한 밖 ' + locked; if(sm) h.insertBefore(l, sm); else h.appendChild(l); }
+}
 function renderPageIndex(groups){
   var ix = document.getElementById('pgIndex'); if(!ix) return;
-  var statics = [ ['pgs-vendor','🤝 협력사'], ['pgs-erp','🔗 ERP 관리'], ['pgs-all','🌐 전사 공유'] ];
+  var cnt = function(id){ var sec = document.getElementById(id); var g = sec && sec.nextElementSibling; return g ? g.querySelectorAll('.pgcard').length : 0; };
   var h = '<span class="lb">바로가기</span>';
-  statics.forEach(function(s){
-    var sec = document.getElementById(s[0]); if(!sec) return;
-    var grid = sec.nextElementSibling; var n = grid ? grid.querySelectorAll('.pgcard').length : 0;
-    h += '<a onclick="return pgScrollTo(\''+s[0]+'\')">'+s[1]+'<i>'+n+'</i></a>';
-  });
+  h += '<a onclick="return pgScrollTo(\'pgs-vendor\')">🤝 협력사<i>'+cnt('pgs-vendor')+'</i></a>';
+  h += '<a onclick="return pgScrollTo(\'pgs-all\')">🌐 전사 공통<i>'+cnt('pgs-all')+'</i></a>';
   (groups||[]).forEach(function(g){
     h += '<a class="'+(g.mine?'mine':'')+'" onclick="return pgScrollTo(\'pgg-'+pgSlug(g.key)+'\')">'+escHtml((DEPT_ICON[g.key]||'🏢')+' '+g.key)+'<i>'+g.pages.length+'</i></a>';
   });
+  h += '<a onclick="return pgScrollTo(\'pgs-sys\')">⚙️ 시스템 관리<i>'+cnt('pgs-sys')+'</i></a>';
   ix.innerHTML = h;
 }
 function renderPageGroups(grid, pages, me){
   var mine = {};
   ((me && me.depts) || []).forEach(function(d){ if(d) mine[d] = 1; });
   if(me && me.dept_nm) mine[me.dept_nm] = 1;
-  var groups = [], byKey = {};
+  var all = [], sys = [], groups = [], byKey = {};
   (pages||[]).forEach(function(p){
-    var k = p.dept_nm || '전사 공통';
-    if(!byKey[k]){ byKey[k] = { key:k, dept:p.dept_nm||null, mine:!!mine[k], pages:[] }; groups.push(byKey[k]); }
+    var k = p.grp || p.dept_nm || GRP_ALL;
+    if(k === GRP_ALL){ all.push(p); return; }
+    if(k === GRP_SYS){ sys.push(p); return; }
+    if(!byKey[k]){ byKey[k] = { key:k, mine:!!mine[k], pages:[] }; groups.push(byKey[k]); }
     byKey[k].pages.push(p);
   });
-  // 안정 정렬 — 같은 등급 안에서는 서버 순서가 그대로 남는다
-  groups.sort(function(a,b){ var ra = a.mine?0:(a.dept?2:1), rb = b.mine?0:(b.dept?2:1); return ra-rb; });
-  renderPageIndex(groups);
+  groups.sort(function(a,b){ return (a.mine?0:1) - (b.mine?0:1); });   // 안정 정렬 — 같은 등급은 서버 순서
+  var nAll = pgAppend('allPageGrid', all), nSys = pgAppend('sysPageGrid', sys);
+  pgSectCount('pgs-all', nAll, all.filter(function(p){ return !p.allowed; }).length);
+  pgSectCount('pgs-sys', nSys, sys.filter(function(p){ return !p.allowed; }).length);
+  var deptHead = document.getElementById('pgs-dept'); if(deptHead) deptHead.style.display = groups.length ? 'none' : '';   // 묶음마다 머리글이 있으니 큰 제목은 접는다
   grid.className = 'pg-groups';
-  if(!groups.length){ grid.innerHTML = '<div class="pg-grid"><div class="pgcard"><h4>표시할 부서 운영 페이지가 없습니다.</h4></div></div>'; return; }
+  if(!groups.length){ grid.innerHTML = '<div class="pg-grid"><div class="pgcard"><h4>표시할 부서 운영 페이지가 없습니다.</h4></div></div>'; renderPageIndex([]); applyCardTips(); return; }
   grid.innerHTML = groups.map(function(g){
     var locked = g.pages.filter(function(p){ return !p.allowed; }).length;
     var head = '<div class="pg-sect">'+escHtml((DEPT_ICON[g.key]||'🏢')+' '+g.key)+'<span class="cnt">'+g.pages.length+'개</span>'
-      + (g.mine ? '<span class="mine">내 부서</span>' : '')
-      + (locked ? '<small>권한 밖 '+locked+'</small>' : '') + '</div>';
-    var cards = g.pages.map(function(p){
-      var vis = '<span class="badge '+(p.visibility==='전사 공개'?'g':'a')+'">'+escHtml(p.visibility||'')+'</span>'+(p.erp_module?'<span class="badge a">ERP '+escHtml(p.erp_module)+'</span>':'');
-      if(p.allowed){
-        return '<div class="pgcard"><span class="ic">'+escHtml(p.icon||'📄')+'</span><h4>'+escHtml(p.title||p.page_key)+'</h4><div class="metarow">'+vis+'</div>'
-          + '<a class="open-btn" href="'+escHtml(p.path)+'" target="_blank">페이지 열기 ↗</a></div>';
-      }
-      return '<div class="pgcard locked" title="소속 부서·권한 범위 밖 페이지입니다. 열람이 필요하면 해당 부서 관리자에게 요청하세요."><span class="ic">🔒</span><h4>'+escHtml(p.title||p.page_key)+'</h4>'
-        + '<div class="metarow">'+vis+'<span class="badge r">권한 없음</span></div>'
-        + '<p style="color:#888">소속 부서·권한 범위 밖 페이지입니다.</p>'
-        + '<a class="open-btn lock" href="#" onclick="return false">🔒 접근 권한 없음</a></div>';
-    }).join('');
-    return '<div class="pg-group" id="pgg-'+pgSlug(g.key)+'">'+head+'<div class="pg-grid dense">'+cards+'</div></div>';
+      + (g.mine ? '<span class="mine">내 부서</span>' : '') + (locked ? '<span class="lk">권한 밖 '+locked+'</span>' : '') + '</div>';
+    return '<div class="pg-group" id="pgg-'+pgSlug(g.key)+'">'+head+'<div class="pg-grid">'+g.pages.map(pgCard).join('')+'</div></div>';
   }).join('');
+  renderPageIndex(groups);
+  applyCardTips();
 }
 
 function fmtKST(iso){ try{ return new Date(iso).toLocaleString('ko-KR',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}); }catch(e){ return iso||''; } }
