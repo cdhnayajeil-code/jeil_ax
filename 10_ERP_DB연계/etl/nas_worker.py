@@ -46,7 +46,7 @@ from _env import env_root, load_env, need
 import nas_index
 import threading
 
-WORKER_VERSION = "n1.9"   # n1.9(2026-10-08): 표 구조 판독(doc_table)·판독 상태(index_status) 조회 + 색인 i1.1(읽는 형식 추가) — SQL 97 · REQ-0117 S1 / n1.8(2026-10-07): 부서 폴더의 이미지·PDF 를 화면으로 가져오기(SQL 93 · DRI D1) / n1.7(2026-10-06): 보관함 관리 — 사용자 폴더·내려받기(NAS→임시 버킷)·삭제 즉시 처리(SQL 90 · 일감은 nas_work_claim 하나로) / n1.6(2026-10-06): 과거 대화의 일시·기간 조건을 한국시간으로(적재 파일은 UTC 로 쌓인다 — N-2) · 저장 직후 색인 갱신 / n1.5(2026-10-06): 첨부 원본·생성 자료를 부서 폴더 「AI저장」에 저장·보존 만료 정리(SQL 89 · REQ-0108) / n1.4(2026-10-02): 문서 내용 색인·검색(nas_index.py — SQL 87) / n1.3:실시간 조회 응답(파일 목록·본인 과거 대화 — SQL 86) / n1.2:브리지 전송(좁은 키)·--serve(컨테이너 상주)·KST 고정 / n1.1: --nightly·--log·루트 검증
+WORKER_VERSION = "n1.10"   # n1.10(2026-10-08): 파일 목록에 문서 번호·읽기 여부를 붙임(목록 → 읽기 연결) · 문서 검색이 파일 이름도 봄 · zip 꼴 문서 압축 해제 크기 상한 / n1.9(2026-10-08): 표 구조 판독(doc_table)·판독 상태(index_status) 조회 + 색인 i1.1(읽는 형식 추가) — SQL 97 · REQ-0117 S1 / n1.8(2026-10-07): 부서 폴더의 이미지·PDF 를 화면으로 가져오기(SQL 93 · DRI D1) / n1.7(2026-10-06): 보관함 관리 — 사용자 폴더·내려받기(NAS→임시 버킷)·삭제 즉시 처리(SQL 90 · 일감은 nas_work_claim 하나로) / n1.6(2026-10-06): 과거 대화의 일시·기간 조건을 한국시간으로(적재 파일은 UTC 로 쌓인다 — N-2) · 저장 직후 색인 갱신 / n1.5(2026-10-06): 첨부 원본·생성 자료를 부서 폴더 「AI저장」에 저장·보존 만료 정리(SQL 89 · REQ-0108) / n1.4(2026-10-02): 문서 내용 색인·검색(nas_index.py — SQL 87) / n1.3:실시간 조회 응답(파일 목록·본인 과거 대화 — SQL 86) / n1.2:브리지 전송(좁은 키)·--serve(컨테이너 상주)·KST 고정 / n1.1: --nightly·--log·루트 검증
 
 POLL_SEC = 20          # 기본 폴링 주기
 HTTP_TIMEOUT = 120     # 페이지 응답이 수 MB 가 될 수 있어 etl_watch(60초)보다 넉넉히 잡는다
@@ -589,6 +589,7 @@ def query_file_list(params, scope, docs_root):
         if not _inside(docs_root, base) or not os.path.isdir(base) or os.path.islink(base):
             continue
         label = str(f.get("label") or f.get("key") or "")
+        fkey = str(f.get("key") or "")
         used.append(label)
         stack = [(base, 0)]
         while stack and not capped:
@@ -620,6 +621,7 @@ def query_file_list(params, scope, docs_root):
                         continue
                     sub = os.path.relpath(cur, base).replace("\\", "/")
                     found.append((st.st_mtime, {
+                        "_key": fkey,
                         "폴더": label,
                         "경로": "" if sub == "." else sub,       # 허용 폴더 안에서의 하위 경로만(절대경로를 내보내지 않는다)
                         "이름": e.name,
@@ -629,11 +631,46 @@ def query_file_list(params, scope, docs_root):
                 except OSError:
                     continue
     found.sort(key=lambda x: x[0], reverse=True)
+    top = [row for _, row in found[:limit]]
+    _attach_doc_ids(top)
     return {
-        "폴더": used, "해당": len(found), "반환수": min(len(found), limit),
+        "폴더": used, "해당": len(found), "반환수": len(top),
         "잘림": len(found) > limit, "훑기상한도달": capped,
-        "목록": [row for _, row in found[:limit]],
-    }, min(len(found), limit)
+        "목록": top,
+    }, len(top)
+
+
+def _attach_doc_ids(rows):
+    """목록의 각 파일에 색인의 문서 번호·읽기 여부를 붙인다 — 이 번호로 문서 읽기·표 읽기를 부른다.
+    색인이 없거나 아직 안 들어간 파일은 「준비 중」. 내용은 싣지 않는다. 색인 조회가 실패해도 목록은 그대로 나간다."""
+    by_key = {}
+    for r in rows:
+        key = r.pop("_key", "")
+        rel = (r["경로"] + "/" if r["경로"] else "") + r["이름"]
+        by_key.setdefault(key, []).append((rel, r))
+    con = None
+    try:
+        if os.path.exists(index_db_path()):
+            con = nas_index.connect(index_db_path())
+        for key, items in by_key.items():
+            info = nas_index.lookup(con, key, [rel for rel, _ in items]) if con is not None and key else {}
+            for rel, r in items:
+                doc, ok, why, table = info.get(rel, (None, False, "아직 색인되지 않음(저장 직후에는 잠시 걸립니다)", False))
+                r["문서"] = doc if ok else None
+                r["읽기"] = "가능" if ok else ("준비 중" if doc is None else "불가")
+                if not ok:
+                    r["사유"] = why
+                if ok and table:
+                    r["표"] = True
+    except Exception as e:                                  # 색인 문제로 목록까지 막지 않는다
+        log(f"목록에 문서 번호 붙이기 실패(목록은 그대로 보냄): {_redact(e)[:160]}")
+        for _, items in by_key.items():
+            for _, r in items:
+                r.setdefault("문서", None)
+                r.setdefault("읽기", "확인 불가")
+    finally:
+        if con is not None:
+            con.close()
 
 
 def _excerpt(text, needle, width=260):
@@ -780,7 +817,7 @@ def query_doc_table(params, scope, docs_root):
     con = nas_index.connect(index_db_path())
     try:
         try:
-            key, rel, name, mtime = nas_index.locate(con, params.get("doc"), keys)
+            key, rel, name, mtime, size = nas_index.locate(con, params.get("doc"), keys)
         except ValueError as e:
             return {"행": [], "사유": str(e)}, 0
     finally:
@@ -793,6 +830,11 @@ def query_doc_table(params, scope, docs_root):
     path = os.path.join(docs_root, *parts)
     if not _inside(docs_root, path) or os.path.islink(path) or not os.path.isfile(path):
         return {"행": [], "사유": "문서를 찾을 수 없습니다(옮겨졌거나 지워졌습니다)"}, 0
+    # 색인이 본 그 파일이어야 한다 — 색인 뒤에 바뀐 파일은 민감 정보 검사를 다시 거칠 때까지 내주지 않는다
+    st = os.stat(path)
+    if st.st_size != size or abs(st.st_mtime - (mtime or 0)) >= 1:
+        _INDEX_WAKE.set()
+        return {"행": [], "사유": "파일이 바뀌어 다시 확인하는 중입니다 — 잠시 뒤 다시 시도하세요"}, 0
     try:
         res, n = nas_index.read_table(path, params.get("sheet"), params.get("start") or None,
                                       _int(params.get("rows"), 60, 1, nas_index.TABLE_MAX_ROWS))

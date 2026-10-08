@@ -103,6 +103,8 @@ export const DOMAIN_HINTS: Record<string, DomainHint[]> = {
   nas: [
     { needs: ["search_company_docs"],
       text: "■ 사내 문서(NAS)\n사내 규정·절차·기준·양식·지침 질문(「…기준이 뭐야」「규정에 어떻게 돼 있어」)은 일반론으로 답하지 말고 먼저 search_company_docs 로 사내 문서를 찾은 뒤 답하세요. 문서 이름·수정일을 근거로 밝히고, 찾지 못하면 '볼 수 있는 폴더의 색인된 문서에서는 찾지 못했다'고 답하세요." },
+    { needs: ["list_company_files", "read_company_doc"],
+      text: "■ 보관함·부서 폴더의 파일 읽기\n부서 보관함(AI저장)과 부서·전사공유 폴더에 있는 파일은 **내용을 읽을 수 있습니다**(글·PDF·워드·엑셀·CSV). 사용자가 파일 이름을 대며 내용을 물으면 「읽을 수 없다」고 답하지 말고, list_company_files(q=파일 이름 일부) 또는 search_company_docs 로 그 파일의 '문서' 번호를 얻어 read_company_doc 으로 읽은 뒤 답하세요(엑셀·CSV 는 read_company_table 이 있으면 그것으로). 읽지 못한 경우에만 그 사유('읽기 불가'의 사유 · 준비 중 · 보관소 점검)를 그대로 전하세요. 문서에서 읽은 값은 ERP 조회 값이 아닙니다 — 출처(파일 이름)를 밝히고, ERP 값과 한 표에 섞거나 합산하지 마세요." },
   ],
 };
 

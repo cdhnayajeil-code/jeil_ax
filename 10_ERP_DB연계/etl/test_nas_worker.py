@@ -434,7 +434,7 @@ class TestQuery(Base):
         denied, m = w.query_doc_table({"doc": hr_doc}, self.scope, self.root)
         self.assertEqual((denied["행"], m), ([], 0), "남의 폴더 문서 번호를 알아도 표를 못 읽는다")
         hwp = next(r["문서"] for r in st if r["이름"] == "옛한글.hwp")
-        self.assertIn("표로 읽을 수 있는 형식", w.query_doc_table({"doc": hwp}, self.scope, self.root)[0]["사유"])
+        self.assertIn("읽을 수 없는 문서", w.query_doc_table({"doc": hwp}, self.scope, self.root)[0]["사유"])
         # scope 의 폴더 경로가 조작돼도 문서 폴더 밖으로 나가지 못한다
         bad = {"folders": [{"key": "pur", "rel_path": "../밖", "label": "구매팀"}]}
         self.assertEqual(w.query_doc_table({"doc": doc}, bad, self.root)[1], 0)
@@ -442,6 +442,58 @@ class TestQuery(Base):
         self.assertEqual(f.last("nas_query_finish")["p_rows"], 1)
         self.assertEqual(w.handle_query("u", "k", {"query_id": "t2", "kind": "doc_table", "params": {"doc": doc}, "scope": self.scope}, self.root, None), "failed")
         self.assertNoErpRpc(f)
+
+    def test_file_list_carries_doc_ids_so_the_agent_can_read(self):
+        """목록 → 읽기 연결(REQ-0117): 목록의 '문서' 번호로 곧바로 내용을 읽는다. 못 읽는 파일은 사유가 붙는다."""
+        f = self.prep()
+        res, n = w.query_file_list({"q": "단가"}, self.scope, self.root)
+        row = res["목록"][0]
+        self.assertEqual((row["이름"], row["읽기"], row.get("표")), ("단가.csv", "가능", True))
+        self.assertNotIn("_key", row)
+        doc, m = w.query_doc_read({"doc": row["문서"]}, self.scope)
+        self.assertIn("볼트", doc["내용"])
+        self.assertEqual(w.query_doc_table({"doc": row["문서"]}, self.scope, self.root)[0]["행"][0][1], "볼트")
+        hwp = w.query_file_list({"q": "옛한글"}, self.scope, self.root)[0]["목록"][0]
+        self.assertEqual((hwp["문서"], hwp["읽기"], hwp["사유"]), (None, "불가", "읽지 못하는 형식"))
+        with io.open(os.path.join(self.root, "부서", "5200_구매팀", "방금.txt"), "w", encoding="utf-8") as fh:
+            fh.write("아직 색인 전")
+        fresh = w.query_file_list({"q": "방금"}, self.scope, self.root)[0]["목록"][0]
+        self.assertEqual((fresh["문서"], fresh["읽기"]), (None, "준비 중"))
+        self.assertNotIn("볼트", json.dumps(res, ensure_ascii=False), "목록에는 내용이 실리지 않는다")
+        # 색인이 깨져도 목록은 나간다
+        self.patch(w.nas_index, "lookup", lambda *a, **k: (_ for _ in ()).throw(RuntimeError("색인 깨짐")))
+        broken = w.query_file_list({"q": "단가"}, self.scope, self.root)[0]["목록"][0]
+        self.assertEqual((broken["이름"], broken["문서"], broken["읽기"]), ("단가.csv", None, "확인 불가"))
+        self.assertNoErpRpc(f)
+
+    def test_file_list_without_index_still_lists(self):
+        self.patch(w, "index_db_path", lambda: os.path.join(self.root, "없는색인.sqlite"))
+        res, n = w.query_file_list({}, self.scope, self.root)
+        self.assertEqual(n, 2)
+        self.assertTrue(all(r["문서"] is None and r["읽기"] == "준비 중" for r in res["목록"]))
+
+    def test_doc_table_refuses_a_file_changed_after_indexing(self):
+        """색인 뒤에 바뀐 파일은 다시 검사받기 전까지 표로 내주지 않는다(주민번호가 새로 들어갔을 수 있다)."""
+        f = self.prep()
+        doc = next(r["문서"] for r in w.query_index_status({}, self.scope)[0]["목록"] if r["이름"] == "단가.csv")
+        p = os.path.join(self.root, "부서", "5200_구매팀", "AI저장", "2026", "단가.csv")
+        with io.open(p, "a", encoding="utf-8") as fh:
+            fh.write("\n담당,900101-1234567")
+        res, n = w.query_doc_table({"doc": doc}, self.scope, self.root)
+        self.assertEqual((res["행"], n), ([], 0))
+        self.assertIn("다시 확인하는 중", res["사유"])
+        self.assertTrue(w._INDEX_WAKE.is_set(), "바로 다시 색인하도록 깨운다")
+        w._INDEX_WAKE.clear()
+        con = w.nas_index.connect(w.index_db_path())
+        try:
+            w.nas_index.refresh(con, self.root, [{"key": "pur", "rel_path": "부서/5200_구매팀", "label": "구매팀"}])
+        finally:
+            con.close()
+        again, _ = w.query_doc_table({"doc": doc}, self.scope, self.root)
+        self.assertEqual(again["행"], [])
+        self.assertTrue(again["사유"], "다시 색인된 뒤에도 내주지 않는다(옛 번호는 없어지고, 새 번호는 민감 사유로 막힌다)")
+        st = {r["이름"]: r for r in w.query_index_status({}, self.scope)[0]["목록"]}["단가.csv"]
+        self.assertEqual((st["상태"], st["사유"]), ("못 읽음", "민감 정보 꼴(주민등록번호) 포함"))
 
 
 class TestExport(Base):

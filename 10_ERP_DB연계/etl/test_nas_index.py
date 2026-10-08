@@ -319,7 +319,7 @@ class TestReadTable(Base):
         self.assertEqual(res["열"], ["A", "B", "C", "D"])
         self.assertEqual(res["행"][0], [4, "볼트", "M8", "1200", "2025-10-01"])
         self.assertEqual(res["행"][1], [5, "너트", "", "300.5", "2025-10-01 12:00"], "빈 칸이 있어도 열이 밀리지 않는다")
-        self.assertEqual((n, res["행범위"], res["다음행"], res["마지막행"]), (3, [4, 6], None, 6))
+        self.assertEqual((n, res["행범위"], res["다음행"], res["끝까지읽음"]), (3, [4, 6], None, True))
         self.assertEqual(res["병합"], ["A9:B9"])
         self.assertEqual(res["머리글위"], [{"행": 1, "값": {"A": "견적 비교표"}}], "머리글 위 제목 줄은 칸 주소째로 따로 준다")
         self.assertEqual(ix.read_table(self.book(), sheet="견적", start=4)[0]["머리글위"], [], "시작 행을 직접 주면 싣지 않는다")
@@ -385,6 +385,156 @@ class TestReadTable(Base):
             ix.locate(self.con, f"pur:{rrn_id}", ["pur"])
         ok_id = self.con.execute("select id from file where name = '맥.xlsx'").fetchone()[0]
         self.assertEqual(ix.locate(self.con, f"pur:{ok_id}", ["pur"])[:3], ("pur", "맥.xlsx", "맥.xlsx"))
+
+
+class TestFindByNameThenRead(Base):
+    """REQ-0117 — 「○○ 파일 내용 알려줘」: 이름으로 찾아 문서 번호를 얻고 그 번호로 읽는다."""
+
+    def seed(self):
+        os.makedirs(os.path.join(self.pur, "AI저장", "2026"))
+        self.write(os.path.join(self.pur, "AI저장", "2026", "test upload.txt"), "납품 일정 메모 — 10월 20일 1차 입고 예정")
+        self.write(os.path.join(self.pur, "양식", "발주서_작성요령.txt"), "발주서에는 납기와 단가를 반드시 적는다.")
+        self.write(os.path.join(self.pur, "AI저장", "2026", "단가.csv"), "품목,단가\n볼트,1200")
+        self.write(os.path.join(self.pur, "AI저장", "2026", "옛한글.hwp"), "x")
+        self.write(os.path.join(self.hr, "test upload.txt"), "인사팀의 같은 이름 파일")
+        ix.refresh(self.con, self.docs, self.folders + [{"key": "hr", "rel_path": "부서/6100_인사팀", "label": "인사팀"}])
+
+    def test_search_matches_file_name_first(self):
+        self.seed()
+        res, n = ix.search(self.con, "test upload", ["pur", "common"])
+        self.assertEqual(n, 1, "본문에 그 낱말이 없어도 이름으로 찾는다 · 남의 폴더의 같은 이름은 안 나온다")
+        h = res["목록"][0]
+        self.assertEqual((h["이름"], h["일치"], h["경로"]), ("test upload.txt", "파일 이름", "AI저장/2026"))
+        self.assertIn("납품 일정 메모", h["발췌"])
+        doc, m = ix.read(self.con, h["문서"], ["pur"])
+        self.assertIn("1차 입고 예정", doc["내용"], "검색이 준 문서 번호로 내용을 읽는다")
+        res, n = ix.search(self.con, "납기", ["pur"])
+        self.assertEqual([(x["이름"], x["일치"]) for x in res["목록"]], [("발주서_작성요령.txt", "본문")])
+        res, n = ix.search(self.con, "발주서", ["pur"])
+        self.assertEqual([x["일치"] for x in res["목록"]], ["파일 이름"], "이름과 본문에 다 걸려도 한 번만 싣는다")
+        self.assertEqual(ix.search(self.con, "옛한글", ["pur"])[1], 0, "읽지 못한 파일은 이름으로도 문서 번호를 주지 않는다")
+        self.assertEqual(ix.search(self.con, "100%_", ["pur"])[1], 0, "LIKE 특수문자가 들어와도 깨지지 않는다")
+        self.assertTrue(ix.search(self.con, "단가", ["pur"])[0]["목록"][0]["표"])
+
+    def test_lookup_gives_doc_ids_for_listing(self):
+        self.seed()
+        got = ix.lookup(self.con, "pur", ["AI저장/2026/test upload.txt", "AI저장/2026/옛한글.hwp", "AI저장/2026/단가.csv", "없는파일.txt"])
+        doc, ok, why, table = got["AI저장/2026/test upload.txt"]
+        self.assertTrue(ok and why is None and not table)
+        self.assertIn("1차 입고 예정", ix.read(self.con, doc, ["pur"])[0]["내용"])
+        self.assertEqual(got["AI저장/2026/옛한글.hwp"][1:3], (False, ix.REASON_UNREADABLE))
+        self.assertTrue(got["AI저장/2026/단가.csv"][3])
+        self.assertNotIn("없는파일.txt", got)
+        self.assertEqual(ix.lookup(self.con, "pur", []), {})
+        self.assertEqual(ix.lookup(self.con, "common", ["AI저장/2026/test upload.txt"]), {}, "폴더 키가 다르면 같은 경로라도 주지 않는다")
+
+    def test_zip_that_expands_too_big_is_refused(self):
+        p = os.path.join(self.pur, "부풀린.xlsx")
+        make_xlsx(p, [["품목", "단가"], ["볼트", 1200]])
+        old = ix.MAX_UNZIP_BYTES
+        ix.MAX_UNZIP_BYTES = 50
+        try:
+            self.assertEqual(ix.extract(p), (None, "파일이 너무 큼(압축을 풀면 상한 초과)"))
+            with self.assertRaisesRegex(ValueError, "너무 큽니다"):
+                ix.read_table(p)
+        finally:
+            ix.MAX_UNZIP_BYTES = old
+        self.assertIsNotNone(ix.extract(p)[0])
+
+
+class TestHardening(Base):
+    """독립 검토(2026-10-08) 반영 — 큰 표·기형 파일·민감 파일의 틈."""
+
+    def test_stops_after_window_and_reports_more(self):
+        p = os.path.join(self.pur, "긴표.csv")
+        self.write(p, "번호,품목\n" + "\n".join(f"{i},품목{i}" for i in range(1, 5001)))
+        res, n = ix.read_table(p, max_rows=10)
+        self.assertEqual((n, res["행범위"], res["다음행"], res["끝까지읽음"]), (10, [2, 11], 12, False))
+        last, m = ix.read_table(p, start=4995, max_rows=50)
+        self.assertEqual((last["행"][-1][0], last["다음행"], last["끝까지읽음"]), (5001, None, True))
+        with self.assertRaisesRegex(ValueError, "제때 읽지 못했습니다"):
+            ix.read_table(p, start=4990, budget_sec=-1)
+
+    def test_output_never_exceeds_budget_even_when_sparse_or_wide(self):
+        import json
+        p = os.path.join(self.pur, "듬성.xlsx")
+        rows = [["머리" + "가" * 300] + [f"열{c}" for c in range(2, 41)]]
+        rows += [[i] + [None] * 38 + [f"끝{i}"] for i in range(1, 300)]
+        make_book(p, [("넓은표", rows)])
+        res, n = ix.read_table(p, max_rows=200)
+        self.assertLessEqual(len(json.dumps(res, ensure_ascii=False)), ix.TABLE_MAX_CHARS)
+        self.assertGreater(n, 5)
+        self.assertEqual(res["다음행"], res["행범위"][1] + 1, "줄인 만큼 다음행이 당겨진다 — 건너뛰는 행이 없다")
+        nxt, _ = ix.read_table(p, start=res["다음행"], max_rows=3)
+        self.assertEqual(nxt["행"][0][0], res["다음행"])
+        self.assertLessEqual(len(res["머리글"]["A"]), 61)
+
+    def test_big_text_is_cut_at_line_and_never_garbled(self):
+        p = os.path.join(self.pur, "큰.csv")
+        old = ix.TEXT_READ_BYTES
+        ix.TEXT_READ_BYTES = 200
+        try:
+            self.write(p, "품목,비고\n" + "\n".join(f"볼트{i},가나다라마바사" for i in range(200)))
+            text, cut = ix._read_text_ex(p)
+            self.assertTrue(cut)
+            self.assertTrue(text.endswith("가나다라마바사"), "글자·줄 중간에서 끊지 않는다")
+            self.assertNotIn("�", text)
+            res, n = ix.read_table(p)
+            self.assertEqual((res["앞부분만읽음"], res["끝까지읽음"]), (True, False))
+        finally:
+            ix.TEXT_READ_BYTES = old
+        self.write(os.path.join(self.pur, "홀수.txt"), "가나다")
+        self.assertEqual(ix.extract(os.path.join(self.pur, "홀수.txt"))[0], "가나다")
+        with open(os.path.join(self.pur, "u16.txt"), "wb") as fh:
+            fh.write("발주서".encode("utf-16"))
+        self.assertEqual(ix.extract(os.path.join(self.pur, "u16.txt"))[0], "발주서", "BOM 이 있는 utf-16 은 읽는다")
+
+    def test_malformed_files_fail_with_a_reason(self):
+        ns = 'xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"'
+        p = os.path.join(self.pur, "깨진시트.xlsx")
+        with zipfile.ZipFile(p, "w") as z:
+            z.writestr("xl/worksheets/sheet1.xml", f'<worksheet {ns}><sheetData><row r="1"><c r="A1"><v>1</v></c></row><row r="2"><c')
+        with self.assertRaisesRegex(ValueError, "깨졌거나"):
+            ix.read_table(p)
+        p2 = os.path.join(self.pur, "이상값.xlsx")
+        with zipfile.ZipFile(p2, "w") as z:
+            z.writestr("xl/worksheets/sheet1.xml", f'<worksheet {ns}><sheetData><row r="1"><c r="A1"><v>inf</v></c><c r="B1"><v>nan</v></c><c r="C1"><v>1e400</v></c></row></sheetData></worksheet>')
+        self.assertEqual(ix.read_table(p2)[0]["행"][0][0], 1, "inf·nan 이 있어도 죽지 않는다")
+        self.assertEqual(ix._serial_to_text("2958465", True), "2958465")
+        self.write(os.path.join(self.pur, "따옴표.csv"), 'a,b\n"닫히지 않은,1\n' + "x," * 10)
+        ix.read_table(os.path.join(self.pur, "따옴표.csv"))          # 예외 없이 끝나거나 사유 있는 ValueError 여야 한다
+
+    def test_index_and_table_see_the_same_sheets(self):
+        """색인이 못 본 시트를 표 읽기가 내주면 안 된다 — 시트 파일 이름이 sheetN.xml 꼴이 아니어도 색인이 읽는다."""
+        ns = 'xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"'
+        rns = 'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"'
+        p = os.path.join(self.pur, "별난이름.xlsx")
+        with zipfile.ZipFile(p, "w") as z:
+            z.writestr("xl/workbook.xml", f'<workbook {ns} {rns}><sheets><sheet name="가" sheetId="1" r:id="r1"/><sheet name="나" sheetId="2" r:id="r2"/></sheets></workbook>')
+            z.writestr("xl/_rels/workbook.xml.rels", '<Relationships><Relationship Id="r1" Target="worksheets/data.xml"/><Relationship Id="r2" Target="worksheets/people.xml"/></Relationships>')
+            z.writestr("xl/worksheets/data.xml", f'<worksheet {ns}><sheetData><row r="1"><c r="A1" t="inlineStr"><is><t>볼트</t></is></c></row></sheetData></worksheet>')
+            z.writestr("xl/worksheets/people.xml", f'<worksheet {ns}><sheetData><row r="1"><c r="A1" t="inlineStr"><is><t>900101-1234567</t></is></c></row></sheetData></worksheet>')
+        self.assertEqual(ix.extract(p), (None, "민감 정보 꼴(주민등록번호) 포함"))
+
+    def test_rrn_past_the_text_cap_still_blocks_the_file(self):
+        p = os.path.join(self.pur, "뒤쪽.xlsx")
+        make_xlsx(p, [["품목", "비고"]] + [["볼트", "가" * 50]] * 40 + [["담당", "900101-1234567"]])
+        old = ix.MAX_TEXT_CHARS
+        ix.MAX_TEXT_CHARS = 500
+        try:
+            self.assertEqual(ix.extract(p), (None, "민감 정보 꼴(주민등록번호) 포함"))
+        finally:
+            ix.MAX_TEXT_CHARS = old
+
+    def test_locate_only_hands_out_files_the_index_read(self):
+        self.write(os.path.join(self.pur, "깨짐.xlsx"), "zip 아님")
+        self.write(os.path.join(self.pur, "ok.csv"), "a,b\n1,2")
+        ix.refresh(self.con, self.docs, self.folders)
+        bad = self.con.execute("select id from file where name = '깨짐.xlsx'").fetchone()[0]
+        with self.assertRaisesRegex(ValueError, "읽을 수 없는 문서"):
+            ix.locate(self.con, f"pur:{bad}", ["pur"])
+        ok = self.con.execute("select id, size from file where name = 'ok.csv'").fetchone()
+        self.assertEqual(ix.locate(self.con, f"pur:{ok[0]}", ["pur"])[4], ok[1])
 
 
 if __name__ == "__main__":

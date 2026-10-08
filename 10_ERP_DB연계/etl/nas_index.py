@@ -17,6 +17,8 @@ import csv
 import datetime
 import html
 import io
+import json
+import math
 import os
 import re
 import sqlite3
@@ -24,10 +26,13 @@ import time
 import zipfile
 from xml.etree import ElementTree as ET
 
-INDEX_VERSION = "i1.1"   # i1.1(2026-10-08 · REQ-0117 S1): 읽는 형식 추가(tsv·json·sql·xml·html·xlsm) · 표 구조 판독(read_table) · 판독 상태(file_status)
+INDEX_VERSION = "i1.1"   # (i1.1 보강 10-08: 파일 이름으로도 검색 · 목록용 문서 번호 조회 lookup · 압축 해제 크기 상한) / i1.1(2026-10-08 · REQ-0117 S1): 읽는 형식 추가(tsv·json·sql·xml·html·xlsm) · 표 구조 판독(read_table) · 판독 상태(file_status)
 
 MAX_FILE_BYTES = 40 * 1024 * 1024      # 이보다 크면 읽지 않는다
 MAX_TEXT_CHARS = 1_500_000             # 한 파일에서 색인하는 글자 상한
+MAX_UNZIP_BYTES = 80 * 1024 * 1024     # zip 꼴 문서(xlsx·docx…)를 풀었을 때 합계 상한 — 워커 메모리가 512MB 다(실측: 290MB 짜리가 1.5GB 를 썼다)
+MAX_SHARED_CHARS = 20_000_000          # 엑셀 공유 문자열 합계 상한
+TEXT_READ_BYTES = MAX_TEXT_CHARS * 3   # 글자 파일은 앞에서 이만큼만 읽는다
 CHUNK_CHARS = 700
 CHUNK_OVERLAP = 80
 SCAN_MAX = 50000
@@ -115,43 +120,23 @@ def _read_hwpx(path):
 
 
 def _read_xlsx(path):
-    """셀 글자를 행 단위로. 숫자만 있는 셀도 넣는다(「단가 1,200」 같은 표를 찾을 수 있게)."""
-    parts = []
+    """셀 글자를 행 단위로. 숫자만 있는 셀도 넣는다(「단가 1,200」 같은 표를 찾을 수 있게).
+    시트 목록은 표 읽기(_xlsx_book)와 같은 것을 쓴다 — 색인이 못 본 시트를 표 읽기가 내주는 일이 없게."""
+    parts, total = [], 0
     with zipfile.ZipFile(path) as z:
-        shared = []
-        if "xl/sharedStrings.xml" in z.namelist():
-            cur = []
-            for ev, el in ET.iterparse(io.BytesIO(z.read("xl/sharedStrings.xml")), events=("end",)):
-                tag = el.tag.rsplit("}", 1)[-1]
-                if tag == "t" and el.text:
-                    cur.append(el.text)
-                elif tag == "si":
-                    shared.append("".join(cur))
-                    cur = []
-        for i, n in enumerate(_zip_members(z, r"xl/worksheets/sheet\d+\.xml$"), 1):
-            rows, row = [], []
-            for ev, el in ET.iterparse(io.BytesIO(z.read(n)), events=("end",)):
-                tag = el.tag.rsplit("}", 1)[-1]
-                if tag == "c":
-                    v = None
-                    for ch in el:
-                        ct = ch.tag.rsplit("}", 1)[-1]
-                        if ct == "v" and ch.text is not None:
-                            v = ch.text
-                            if el.get("t") == "s":
-                                try:
-                                    v = shared[int(v)]
-                                except (ValueError, IndexError):
-                                    v = ""
-                        elif ct == "is":
-                            v = "".join(t.text or "" for t in ch.iter() if t.tag.rsplit("}", 1)[-1] == "t")
-                    if v not in (None, ""):
-                        row.append(str(v).strip())
-                elif tag == "row":
-                    if row:
-                        rows.append(" | ".join(row))
-                    row = []
-                    el.clear()
+        sheets, _, _ = _xlsx_book(z)
+        shared = _shared_strings(z)
+        for i, (_, member) in enumerate(sheets, 1):
+            rows = []
+            for _, row in _xlsx_rows(z, member, shared, set(), False, [], raw=True):
+                line = " | ".join(v for _, v in sorted(row.items()))
+                if total > MAX_TEXT_CHARS:
+                    # 색인할 글자는 다 찼다 — 더 쌓지 않되, 주민번호 검사는 파일 끝까지 한다(걸린 줄만 실어 extract 가 잡게)
+                    if _RRN.search(line):
+                        rows.append(line)
+                    continue
+                rows.append(line)
+                total += len(line) + 1
             if rows:
                 parts.append(f"[시트 {i}]\n" + "\n".join(rows))
     return "\n\n".join(parts)
@@ -173,15 +158,29 @@ def _read_pdf(path):
     return "\n\n".join(parts)
 
 
-def _read_text(path):
+def _read_text_ex(path):
+    """(글자, 잘렸는가). 앞 TEXT_READ_BYTES 만 읽는다 — 잘렸으면 마지막 줄바꿈까지만 써서 글자 중간에서 끊기지 않게 한다."""
     with open(path, "rb") as fh:
-        raw = fh.read(MAX_TEXT_CHARS * 3)
-    for enc in ("utf-8-sig", "cp949", "utf-16"):
+        raw = fh.read(TEXT_READ_BYTES + 1)
+    cut = len(raw) > TEXT_READ_BYTES
+    if cut:
+        raw = raw[:TEXT_READ_BYTES]
+        nl = raw.rfind(b"\n")
+        if nl > 0:
+            raw = raw[:nl].rstrip(bytes([13]))
+    encs = ["utf-8-sig", "cp949"]
+    if raw[:2] in (b"\xff\xfe", b"\xfe\xff"):           # utf-16 은 BOM 이 있을 때만 — 아무 바이트나 받아들여 깨진 글자를 만들기 때문
+        encs.insert(0, "utf-16")
+    for enc in encs:
         try:
-            return raw.decode(enc)
+            return raw.decode(enc), cut
         except UnicodeDecodeError:
             continue
-    return raw.decode("utf-8", "replace")
+    return raw.decode("utf-8", "replace"), cut
+
+
+def _read_text(path):
+    return _read_text_ex(path)[0]
 
 
 def _strip_markup(text):
@@ -190,6 +189,15 @@ def _strip_markup(text):
     text = re.sub(r"(?s)<!--.*?-->", " ", text)
     text = re.sub(r"(?i)<\s*(br|/p|/div|/tr|/li|/h[1-6])\b[^>]*>", "\n", text)
     return html.unescape(re.sub(r"<[^>]+>", " ", text))
+
+
+def _unzip_too_big(path):
+    """zip 꼴 문서를 풀면 상한을 넘는가. zip 이 아니면 False(읽는 쪽이 깨진 파일로 처리한다)."""
+    try:
+        with zipfile.ZipFile(path) as z:
+            return sum(i.file_size for i in z.infolist()) > MAX_UNZIP_BYTES
+    except (zipfile.BadZipFile, OSError):
+        return False
 
 
 def extract(path):
@@ -204,6 +212,8 @@ def extract(path):
     try:
         if os.path.getsize(path) > MAX_FILE_BYTES:
             return None, "파일이 너무 큼"
+        if ext in ZIP_EXT and _unzip_too_big(path):
+            return None, "파일이 너무 큼(압축을 풀면 상한 초과)"
         if ext in TEXT_EXT:
             text = _read_text(path)
         elif ext in MARKUP_EXT:
@@ -419,6 +429,20 @@ def search(con, q, folder_keys, limit=8, per_file=2):
            f"join file f on f.id = chunk.file_id where {' and '.join(where)} order by {order} limit 200")
     rows = con.execute(sql, args).fetchall()
     per, hits, files = {}, [], set()
+    # 파일 이름이 걸린 문서를 먼저 싣는다 — 「○○ 파일 내용 알려줘」는 본문이 아니라 이름을 말한다(본문에 그 낱말이 없을 수 있다)
+    name_w = [f"f.folder_key in ({ph})", "f.status = 'ok'"] + ["f.name like ? escape '\\'"] * len(terms)
+    name_a = list(keys) + ["%" + t.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%" for t in terms]
+    for fid, key, rel, name, mtime in con.execute(
+            f"select f.id, f.folder_key, f.rel, f.name, f.mtime from file f where {' and '.join(name_w)} order by f.mtime desc limit ?",
+            name_a + [min(limit, 5)]).fetchall():
+        first = con.execute("select body from chunk where file_id = ? order by cast(seq as integer) limit 1", (fid,)).fetchone()
+        files.add(fid)
+        per[fid] = per_file                                 # 이름으로 실은 문서는 본문 토막을 또 싣지 않는다
+        sub = rel.rsplit("/", 1)[0] if "/" in rel else ""
+        hits.append({"문서": f"{key}:{fid}", "토막": 0, "폴더키": key, "경로": sub, "이름": name,
+                     "수정일": datetime.datetime.fromtimestamp(mtime or 0, _KST).strftime("%Y-%m-%d"),
+                     "일치": "파일 이름", "표": os.path.splitext(name)[1].lower() in TABLE_EXT,
+                     "발췌": _excerpt(first[0] if first else "", [])})
     for fid, key, rel, name, mtime, seq, body in rows:
         files.add(fid)
         if per.get(fid, 0) >= per_file or len(hits) >= limit:
@@ -427,6 +451,7 @@ def search(con, q, folder_keys, limit=8, per_file=2):
         sub = rel.rsplit("/", 1)[0] if "/" in rel else ""
         hits.append({"문서": f"{key}:{fid}", "토막": seq, "폴더키": key, "경로": sub, "이름": name,
                      "수정일": datetime.datetime.fromtimestamp(mtime or 0, _KST).strftime("%Y-%m-%d"),
+                     "일치": "본문", "표": os.path.splitext(name)[1].lower() in TABLE_EXT,
                      "발췌": _excerpt(body, terms)})
     as_of = (con.execute("select v from meta where k = 'refreshed_at'").fetchone() or [None])[0]
     return {"해당문서수": len(files), "반환수": len(hits), "잘림": len(rows) >= 200 or len(files) > len(per),
@@ -458,6 +483,19 @@ def read(con, doc, folder_keys, seq=0, max_chars=6000):
             "수정일": datetime.datetime.fromtimestamp(mtime or 0, _KST).strftime("%Y-%m-%d"),
             "토막범위": [seq, last], "전체토막": n, "다음토막": last + 1 if last + 1 < n else None,
             "내용": "\n".join(parts)}, len(parts)
+
+
+def lookup(con, folder_key, rels):
+    """폴더 안 상대경로들 → {rel: (문서 번호, 읽힘 여부, 사유, 표 여부)}. 파일 목록에 「읽을 수 있는 번호」를 붙일 때 쓴다."""
+    out, rels = {}, [r for r in rels if r]
+    for i in range(0, len(rels), 200):
+        part = rels[i:i + 200]
+        ph = ",".join("?" * len(part))
+        for fid, rel, name, status, reason in con.execute(
+                f"select id, rel, name, status, reason from file where folder_key = ? and rel in ({ph})", [folder_key] + part):
+            out[rel] = (f"{folder_key}:{fid}", status == "ok", None if status == "ok" else (reason or "사유 없음"),
+                        os.path.splitext(name)[1].lower() in TABLE_EXT)
+    return out
 
 
 def stats(con):
@@ -505,24 +543,28 @@ TABLE_MAX_COLS = 40
 TABLE_MAX_CHARS = 8000        # 게이트웨이가 도구 결과를 12,000자에서 자른다 — 그 안에 들어가게
 TABLE_CELL_CHARS = 200
 TABLE_HEAD_ROWS = 30          # 머리글 행을 추정할 때 보는 앞쪽 행 수
+TABLE_BUDGET_SEC = 6          # 표 한 건을 읽는 시간 상한 — 넘으면 거부한다(조회 루프가 한 줄이라 한 건이 전체를 막는다)
 _DATE_FMT_IDS = set(range(14, 23)) | set(range(27, 37)) | set(range(45, 48)) | set(range(50, 59))
 
 
 def locate(con, doc, folder_keys):
-    """문서 번호 → (폴더키, 폴더 안 상대경로, 이름, 수정시각). 허용 폴더 밖·민감 사유로 빠진 파일은 내주지 않는다."""
+    """문서 번호 → (폴더키, 폴더 안 상대경로, 이름, 수정시각, 크기).
+    색인이 **읽은(ok)** 문서만 내준다 — 주민번호·민감 이름·읽기 실패로 빠진 파일은 어떤 시트도 내주지 않는다."""
     m = re.fullmatch(r"([a-z0-9_]{1,40}):(\d{1,12})", str(doc or ""))
     if not m:
         raise ValueError("문서 번호 형식이 올바르지 않습니다")
     key, fid = m.group(1), int(m.group(2))
     if key not in set(folder_keys):
         raise ValueError("볼 수 없는 문서입니다")
-    row = con.execute("select rel, name, mtime, status, reason from file where id = ? and folder_key = ?", (fid, key)).fetchone()
+    row = con.execute("select rel, name, mtime, status, reason, size from file where id = ? and folder_key = ?", (fid, key)).fetchone()
     if not row:
         raise ValueError("문서를 찾을 수 없습니다(지워졌거나 색인에서 빠졌습니다)")
-    rel, name, mtime, status, reason = row
-    if status != "ok" and str(reason or "").startswith("민감"):
-        raise ValueError("민감 정보가 들어 있어 읽지 않는 문서입니다")
-    return key, rel, name, mtime
+    rel, name, mtime, status, reason, size = row
+    if status != "ok":
+        if str(reason or "").startswith("민감"):
+            raise ValueError("민감 정보가 들어 있어 읽지 않는 문서입니다")
+        raise ValueError(f"읽을 수 없는 문서입니다({reason or '사유 없음'})")
+    return key, rel, name, mtime, size
 
 
 def _col_index(ref):
@@ -551,12 +593,12 @@ def _serial_to_text(v, date1904=False):
     """엑셀 날짜 일련번호 → 'YYYY-MM-DD'(시각이 있으면 ' HH:MM'). 범위를 벗어나면 원값."""
     try:
         f = float(v)
-    except (TypeError, ValueError):
+        if not math.isfinite(f) or not (0 <= f < 2958466):
+            return str(v)
+        base = datetime.datetime(1904, 1, 1) if date1904 else datetime.datetime(1899, 12, 30)
+        dt = base + datetime.timedelta(seconds=round(f * 86400))
+    except (TypeError, ValueError, OverflowError):
         return str(v)
-    if not (0 <= f < 2958466):
-        return str(v)
-    base = datetime.datetime(1904, 1, 1) if date1904 else datetime.datetime(1899, 12, 30)
-    dt = base + datetime.timedelta(seconds=round(f * 86400))
     if f < 1:
         return dt.strftime("%H:%M")
     return dt.strftime("%Y-%m-%d") if abs(f - round(f)) < 1e-9 else dt.strftime("%Y-%m-%d %H:%M")
@@ -566,6 +608,8 @@ def _num_text(v):
     try:
         f = float(v)
     except (TypeError, ValueError):
+        return str(v)
+    if not math.isfinite(f):
         return str(v)
     if f == int(f) and abs(f) < 1e15:
         return str(int(f))
@@ -617,71 +661,93 @@ def _xlsx_book(z):
 
 
 def _shared_strings(z):
-    shared = []
-    if "xl/sharedStrings.xml" in z.namelist():
-        cur = []
-        for ev, el in ET.iterparse(io.BytesIO(z.read("xl/sharedStrings.xml")), events=("end",)):
+    """공유 문자열 표. 통째로 올리지 않고 흘려 읽으며, 합계가 상한을 넘으면 멈춘다(그 파일은 너무 큰 것으로 본다)."""
+    shared, total = [], 0
+    if "xl/sharedStrings.xml" not in z.namelist():
+        return shared
+    cur, root = [], None
+    with z.open("xl/sharedStrings.xml") as fh:
+        for ev, el in ET.iterparse(fh, events=("start", "end")):
+            if ev == "start":
+                if root is None:
+                    root = el
+                continue
             tag = el.tag.rsplit("}", 1)[-1]
             if tag == "t" and el.text:
                 cur.append(el.text)
             elif tag == "si":
-                shared.append("".join(cur))
+                text = "".join(cur)
+                shared.append(text)
+                total += len(text)
                 cur = []
+                root.clear()
+                if total > MAX_SHARED_CHARS:
+                    raise ValueError("파일이 너무 큽니다(문자열이 너무 많음)")
     return shared
 
 
-def _xlsx_rows(z, member, shared, date_styles, date1904, merges):
-    """(행 번호, {열 번호: 글자}) 를 차례로 낸다. 병합 범위는 merges 목록에 채운다."""
-    auto_r, row = 0, {}
-    for ev, el in ET.iterparse(io.BytesIO(z.read(member)), events=("end",)):
-        tag = el.tag.rsplit("}", 1)[-1]
-        if tag == "c":
-            v, t, formula = None, el.get("t"), False
-            for ch in el:
-                ct = ch.tag.rsplit("}", 1)[-1]
-                if ct == "v" and ch.text is not None:
-                    v = ch.text
-                elif ct == "is":
-                    v = "".join(x.text or "" for x in ch.iter() if x.tag.rsplit("}", 1)[-1] == "t")
-                    t = "inlineStr"
-                elif ct == "f":
-                    formula = True
-            if v in (None, ""):
-                if not formula:
-                    continue
-                v, t = "(수식 — 저장된 값 없음)", "str"     # 계산값이 파일에 없으면 지어내지 않고 그렇게 적는다
-            if t == "s":
+def _xlsx_rows(z, member, shared, date_styles, date1904, merges, raw=False):
+    """(행 번호, {열 번호: 글자}) 를 차례로 낸다. 병합 범위는 merges 목록에 채운다.
+    시트를 통째로 메모리에 올리지 않는다 — 흘려 읽고, 지나간 행은 바로 버린다. raw=True 면 숫자·날짜를 바꾸지 않는다(색인용)."""
+    auto_r, row, holder = 0, {}, None
+    with z.open(member) as fh:
+        for ev, el in ET.iterparse(fh, events=("start", "end")):
+            tag = el.tag.rsplit("}", 1)[-1]
+            if ev == "start":
+                if tag == "sheetData":
+                    holder = el
+                continue
+            if tag == "c":
+                v, t, formula = None, el.get("t"), False
+                for ch in el:
+                    ct = ch.tag.rsplit("}", 1)[-1]
+                    if ct == "v" and ch.text is not None:
+                        v = ch.text
+                    elif ct == "is":
+                        v = "".join(x.text or "" for x in ch.iter() if x.tag.rsplit("}", 1)[-1] == "t")
+                        t = "inlineStr"
+                    elif ct == "f":
+                        formula = True
+                if v in (None, ""):
+                    if not formula or raw:
+                        continue
+                    v, t = "(수식 — 저장된 값 없음)", "str"     # 계산값이 파일에 없으면 지어내지 않고 그렇게 적는다
+                if t == "s":
+                    try:
+                        v = shared[int(v)]
+                    except (ValueError, IndexError):
+                        v = ""
+                elif t == "b":
+                    v = "TRUE" if v == "1" else "FALSE"
+                elif t in ("str", "inlineStr", "e") or raw:
+                    pass
+                elif el.get("s") in date_styles:
+                    v = _serial_to_text(v, date1904)
+                else:
+                    v = _num_text(v)
+                v = str(v).strip()
+                if v:
+                    ci = _col_index(el.get("r") or "") or (max(row) + 1 if row else 1)
+                    row[ci] = v
+            elif tag == "row":
                 try:
-                    v = shared[int(v)]
-                except (ValueError, IndexError):
-                    v = ""
-            elif t == "b":
-                v = "TRUE" if v == "1" else "FALSE"
-            elif t in ("str", "inlineStr", "e"):
-                pass
-            elif el.get("s") in date_styles:
-                v = _serial_to_text(v, date1904)
-            else:
-                v = _num_text(v)
-            v = str(v).strip()
-            if v:
-                ci = _col_index(el.get("r") or "") or (max(row) + 1 if row else 1)
-                row[ci] = v
-        elif tag == "row":
-            try:
-                auto_r = int(el.get("r") or auto_r + 1)
-            except ValueError:
-                auto_r += 1
-            if row:
-                yield auto_r, row
-            row = {}
-            el.clear()
-        elif tag == "mergeCell" and el.get("ref"):
-            merges.append(el.get("ref"))
+                    auto_r = int(el.get("r") or auto_r + 1)
+                except ValueError:
+                    auto_r += 1
+                if row:
+                    yield auto_r, row
+                row = {}
+                if holder is not None:
+                    holder.clear()                          # 지나간 행을 부모에서 떼어 낸다(빈 껍데기가 쌓이지 않게)
+                else:
+                    el.clear()
+            elif tag == "mergeCell" and el.get("ref"):
+                merges.append(el.get("ref"))
 
 
-def _csv_rows(path, ext):
-    text = _read_text(path)
+def _csv_rows(path, ext, info):
+    text, cut = _read_text_ex(path)
+    info["cut"] = cut
     first = text.split("\n", 1)[0]
     delim = "\t" if ext == ".tsv" else max(",;\t", key=first.count)
     for i, cells in enumerate(csv.reader(io.StringIO(text), delimiter=delim), 1):
@@ -704,56 +770,65 @@ def _header_row(head):
     return None
 
 
-def read_table(path, sheet=None, start=None, max_rows=None, max_chars=TABLE_MAX_CHARS):
+def read_table(path, sheet=None, start=None, max_rows=None, max_chars=TABLE_MAX_CHARS, budget_sec=TABLE_BUDGET_SEC):
     """엑셀·CSV 를 표로 읽는다 — 시트 이름 · 머리글(추정) · 열 문자 · 행 번호 · 날짜 복원.
 
-    sheet: 시트 번호(1부터) 또는 이름. start: 시작 행 번호(없으면 머리글 다음 행). 반환 (결과 dict, 행 수).
+    sheet: 시트 번호(1부터) 또는 이름(이름이 먼저다). start: 시작 행 번호(없으면 머리글 다음 행). 반환 (결과 dict, 행 수).
+    필요한 창만 읽고 멈춘다 — 시트 끝까지 훑지 않는다(큰 표 한 건이 조회 전체를 막지 않게). 시간 예산을 넘으면 사유와 함께 거부한다.
     """
     ext = os.path.splitext(path)[1].lower()
     if ext not in TABLE_EXT:
         raise ValueError("표로 읽을 수 있는 형식이 아닙니다(엑셀 xlsx·xlsm, CSV·TSV 만) — 글자는 문서 읽기로 보세요")
     if _SENSITIVE_NAME.search(os.path.basename(path)):
         raise ValueError("민감 파일 이름이라 읽지 않습니다")
-    if os.path.getsize(path) > MAX_FILE_BYTES:
+    if os.path.getsize(path) > MAX_FILE_BYTES or (ext in ZIP_EXT and _unzip_too_big(path)):
         raise ValueError("파일이 너무 큽니다")
     max_rows = max(1, min(TABLE_MAX_ROWS, int(max_rows or 60)))
     begin = max(1, int(start)) if start not in (None, "") else None
-    z, merges = None, []
+    t0 = time.time()
+    z, merges, info = None, [], {"cut": False}
+    head, tail, more, ended = [], [], False, False
     try:
-        if ext in (".csv", ".tsv"):
-            sheets, idx, it = [("(단일 표)", None)], 0, _csv_rows(path, ext)
-        else:
-            try:
+        try:
+            if ext in (".csv", ".tsv"):
+                sheets, idx, it = [("(단일 표)", None)], 0, _csv_rows(path, ext, info)
+            else:
                 z = zipfile.ZipFile(path)
                 sheets, date_styles, date1904 = _xlsx_book(z)
                 shared = _shared_strings(z)
-            except (zipfile.BadZipFile, KeyError, ET.ParseError):
-                raise ValueError("파일이 깨졌거나 암호가 걸려 있습니다")
-            if not sheets:
-                raise ValueError("시트가 없습니다")
-            idx = 0
-            if sheet not in (None, ""):
-                want = str(sheet).strip()
-                by_name = [i for i, (n, _) in enumerate(sheets) if n == want]
-                if by_name:
-                    idx = by_name[0]
-                elif want.isdigit() and 1 <= int(want) <= len(sheets):
-                    idx = int(want) - 1
-                else:
-                    raise ValueError("그런 시트가 없습니다 — 시트목록을 확인하세요")
-            it = _xlsx_rows(z, sheets[idx][1], shared, date_styles, date1904, merges)
+                if not sheets:
+                    raise ValueError("시트가 없습니다")
+                idx = 0
+                if sheet not in (None, ""):
+                    want = str(sheet).strip()
+                    by_name = [i for i, (n, _) in enumerate(sheets) if n == want]
+                    if by_name:
+                        idx = by_name[0]
+                    elif want.isdigit() and 1 <= int(want) <= len(sheets):
+                        idx = int(want) - 1
+                    else:
+                        raise ValueError("그런 시트가 없습니다 — 시트목록을 확인하세요")
+                it = _xlsx_rows(z, sheets[idx][1], shared, date_styles, date1904, merges)
 
-        # 한 번 훑는다 — 앞 30행은 머리글 추정용으로 쥐고, 창(시작 행부터 max_rows·max_chars)만 담는다
-        head, tail, total, last_no = [], [], 0, 0
-        for no, row in it:
-            if any(_RRN.search(v) for v in row.values()):
-                raise ValueError("민감 정보 꼴(주민등록번호)이 있어 읽지 않습니다")
-            total += 1
-            last_no = max(last_no, no)
-            if len(head) < TABLE_HEAD_ROWS:
-                head.append((no, row))
-            elif len(tail) < TABLE_MAX_ROWS and (begin is None or no >= begin):
-                tail.append((no, row))
+            # 앞 30행은 머리글 추정용으로 쥐고, 그 뒤로는 창(시작 행부터 max_rows)이 차면 한 행만 더 보고 멈춘다
+            n_seen = 0
+            for no, row in it:
+                n_seen += 1
+                if n_seen % 500 == 0 and time.time() - t0 > budget_sec:
+                    raise ValueError("표가 너무 커서 제때 읽지 못했습니다 — 시작 행(start)을 앞쪽으로 잡거나 파일을 나눠 주세요")
+                if any(_RRN.search(v) for v in row.values()):
+                    raise ValueError("민감 정보 꼴(주민등록번호)이 있어 읽지 않습니다")
+                if len(head) < TABLE_HEAD_ROWS:
+                    head.append((no, row))
+                elif begin is None or no >= begin:
+                    if len(tail) >= max_rows:
+                        more = True
+                        break
+                    tail.append((no, row))
+            else:
+                ended = True
+        except (zipfile.BadZipFile, KeyError, ET.ParseError, csv.Error, OverflowError, UnicodeError):
+            raise ValueError("파일이 깨졌거나 암호가 걸려 있습니다")
     finally:
         if z is not None:
             z.close()
@@ -762,16 +837,7 @@ def read_table(path, sheet=None, start=None, max_rows=None, max_chars=TABLE_MAX_
     auto = begin is None
 
     def take(first):
-        out, used = [], 0
-        for no, row in head + tail:
-            if no < first:
-                continue
-            size = sum(min(len(x), TABLE_CELL_CHARS) + 4 for x in row.values()) + 8
-            if len(out) >= max_rows or (used + size > max_chars and out):
-                break
-            out.append((no, row))
-            used += size
-        return out
+        return [(no, row) for no, row in head + tail if no >= first][:max_rows]
 
     if auto:
         begin = (hdr + 1) if hdr else (head[0][0] if head else 1)
@@ -779,27 +845,41 @@ def read_table(path, sheet=None, start=None, max_rows=None, max_chars=TABLE_MAX_
     if auto and hdr and not window:                        # 머리글로 본 행 아래가 비었다 — 머리글이 아니라 내용이다
         hdr, begin = None, (head[0][0] if head else 1)
         window = take(begin)
+    left = [no for no, _ in head + tail if no >= begin][len(window):]     # 읽었지만 창에 못 담은 행
+
+    def clip(v, n=TABLE_CELL_CHARS):
+        return v if len(v) <= n else v[:n] + "…"
 
     hdr_cells = dict(next((r for n, r in head if n == hdr), {})) if hdr else {}
     # 머리글 위쪽(제목·업체명·작성일 같은 줄) — 표의 열과 맞지 않으므로 칸 주소째로 따로 준다. 시작 행을 직접 준 경우엔 뺀다
-    above = [{"행": n, "값": {_col_name(c): (v if len(v) <= TABLE_CELL_CHARS else v[:TABLE_CELL_CHARS] + "…") for c, v in sorted(r.items())}}
-             for n, r in head if hdr and auto and n < hdr][:12]
+    above = [{"행": n, "값": {_col_name(c): clip(v, 120) for c, v in sorted(r.items())[:12]}}
+             for n, r in head if hdr and auto and n < hdr][:8]
     cols = sorted(set(hdr_cells) | {c for _, r in window for c in r})
     cut_cols = len(cols) > TABLE_MAX_COLS
     cols = cols[:TABLE_MAX_COLS]
 
-    def clip(v):
-        return v if len(v) <= TABLE_CELL_CHARS else v[:TABLE_CELL_CHARS] + "…"
+    def build(win):
+        last = win[-1][0] if win else None
+        has_more = bool(win) and (more or bool(left) or len(win) < len(window))
+        return {"시트목록": [{"번호": i + 1, "이름": clip(n, 60)} for i, (n, _) in enumerate(sheets[:50])],
+                "시트": {"번호": idx + 1, "이름": clip(sheets[idx][0], 60)},
+                "머리글행": hdr, "머리글": {_col_name(c): clip(v, 60) for c, v in sorted(hdr_cells.items()) if c in cols},
+                "머리글위": above,
+                "열": [_col_name(c) for c in cols], "열잘림": cut_cols,
+                "행범위": [win[0][0], last] if win else None,
+                "다음행": (last + 1) if has_more else None,
+                "끝까지읽음": bool(ended and not has_more and not info["cut"]),
+                "앞부분만읽음": bool(info["cut"]),
+                "병합": merges[:20], "병합수": len(merges),
+                "안내": "행의 첫 값은 엑셀 행 번호, 나머지는 「열」 순서의 셀 값이다. 머리글행은 추정이다. 날짜 서식 셀은 날짜로 바꿨다.",
+                "행": [[no] + [clip(r.get(c, "")) for c in cols] for no, r in win]}
 
-    rows = [[no] + [clip(r.get(c, "")) for c in cols] for no, r in window]
-    last = window[-1][0] if window else None
-    return {"시트목록": [{"번호": i + 1, "이름": n} for i, (n, _) in enumerate(sheets)],
-            "시트": {"번호": idx + 1, "이름": sheets[idx][0]},
-            "값있는행수": total, "마지막행": last_no,
-            "머리글행": hdr, "머리글": {_col_name(c): clip(v) for c, v in sorted(hdr_cells.items()) if c in cols},
-            "머리글위": above,
-            "열": [_col_name(c) for c in cols], "열잘림": cut_cols,
-            "행": rows, "행범위": [window[0][0], last] if window else None,
-            "다음행": (last + 1) if (window and last < last_no) else None,
-            "병합": merges[:20], "병합수": len(merges),
-            "안내": "행의 첫 값은 엑셀 행 번호, 나머지는 「열」 순서의 셀 값이다. 머리글행은 추정이다. 날짜 서식 셀은 날짜로 바꿨다."}, len(rows)
+    # 실제로 나갈 글자 수로 창을 줄인다 — 게이트웨이가 12,000자에서 자르므로 그 전에 여기서 맞춘다(행이 조용히 빠지지 않게)
+    win = window
+    res = build(win)
+    while len(win) > 1 and len(json.dumps(res, ensure_ascii=False)) > max_chars:
+        win = win[:max(1, len(win) * 3 // 4)]
+        res = build(win)
+    return res, len(res["행"])
+
+

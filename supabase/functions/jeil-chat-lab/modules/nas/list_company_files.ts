@@ -1,14 +1,17 @@
 // list_company_files — 사내 보관소(NAS) 허용 폴더의 파일 목록(REQ-0103 · ADR-110 v3 P2). 손으로 쓴 모듈.
-// 파일 **이름·수정일·크기**만 본다. 내용은 읽지 않는다(문서 내용 검색은 P3 — D-95 승인 뒤).
+// 파일 **이름·수정일·크기**와, 내용을 읽을 때 쓰는 **문서 번호**를 돌려준다(REQ-0117 — 목록에서 읽기로 이어지게). 이 도구 자체는 내용을 읽지 않는다.
 // 볼 수 있는 폴더는 DB(nas_query_submit)가 「허용 폴더 등록 ∩ 본인 부서·전사공유」로 계산한다 — 여기서 정하지 않는다.
 import type { ToolCtx, ToolManifest } from "../../core/types.ts";
 import { nasList, nasNotice, nasQuery, tidy } from "./_nas_query.ts";
 
 export const manifest: ToolManifest = {
   id: "list_company_files", version: "1.0.0", domain: "nas", kind: "read",
-  title_ko: "사내 보관소 파일 목록", summary_ko: "NAS 허용 폴더(본인 부서·전사공유)의 파일 이름·수정일·크기",
-  description_llm: "사내 보관소(NAS)의 부서 폴더·전사공유 폴더에 있는 파일 목록을 본다. 파일 이름·하위 경로·수정일·크기만 알 수 있고 " +
-    "파일 내용은 읽지 못한다. '우리 부서 폴더에 최근 올라온 파일', '○○ 양식 파일 있어?', '이번 주 바뀐 문서' 류. " +
+  title_ko: "사내 보관소 파일 목록", summary_ko: "NAS 허용 폴더(본인 부서·전사공유)의 파일 이름·수정일·크기·문서 번호",
+  description_llm: "사내 보관소(NAS)의 부서 폴더·전사공유 폴더·부서 보관함(AI저장)에 있는 파일을 이름으로 찾는다. " +
+    "파일 이름·하위 경로·수정일·크기와 함께, 내용을 읽을 수 있는 파일에는 '문서'(문서 번호)를 돌려준다. " +
+    "**사용자가 특정 파일의 내용을 물으면(「○○ 파일 내용 알려줘」「보관함의 ○○ 확인해줘」) 이 도구로 파일을 찾은 뒤, 그 '문서' 번호로 " +
+    "read_company_doc(글·PDF·워드) 또는 read_company_table('표'가 true 인 엑셀·CSV)을 이어 불러 내용을 읽고 답한다 — 목록만 보여 주고 멈추지 않는다.** " +
+    "'우리 부서 폴더에 최근 올라온 파일', '○○ 양식 파일 있어?', '이번 주 바뀐 문서' 류에도 쓴다. " +
     "q 로 파일 이름 일부를, days 로 최근 며칠 안에 수정된 것만 좁힌다. 본인 부서 폴더와 전사공유 폴더만 조회된다. " +
     "'구매팀 폴더'·'전사공유 폴더'처럼 폴더를 가리키면 folder 에 넣는다 — 폴더 이름을 q 에 넣으면 파일 이름에서 찾게 되어 0건이 된다.",
   params: { type: "object", properties: {
@@ -19,7 +22,8 @@ export const manifest: ToolManifest = {
   }, required: [] },
   perm_module: null, perm_mode: "partial", sensitivity: "normal",
   view: ["list", "notice"], erp: false, owner: "포털 관리", status: "pilot",
-  prompt_hint: "사내 보관소 파일 목록은 이름·수정일만 알려 줍니다. 파일 안의 내용은 읽지 못했으니 내용을 아는 것처럼 말하지 마세요. " +
+  prompt_hint: "사내 보관소 파일 목록 자체에는 내용이 없습니다. 내용이 필요하면 목록의 '문서' 번호로 read_company_doc(엑셀·CSV 는 read_company_table)을 불러 읽은 뒤 답하고, " +
+    "읽지 않은 내용을 아는 것처럼 말하지 마세요. '읽기'가 '불가'인 파일은 그 '사유'를 그대로 전하고, '준비 중'이면 잠시 뒤 다시 시도하라고 안내하세요. " +
     "보관소가 '점검 중'이거나 '응답 지연'이면 확인하지 못했다고만 답하세요.",
 };
 
@@ -47,17 +51,20 @@ export async function run(ctx: ToolCtx): Promise<unknown> {
   const cut = r["잘림"] === true || hit.length > rows.length;
   const capped = r["훑기상한도달"] === true;
   const 안내 = [
-    "파일 이름·수정일만 확인했습니다. 파일 내용은 읽지 않았습니다.",
+    rows.some((x) => x["문서"])
+      ? "여기까지는 이름·수정일만 확인했습니다. 내용이 필요하면 '문서' 번호로 read_company_doc 을(‘표’가 true 면 read_company_table 을) 불러 읽으세요."
+      : "이름·수정일만 확인했습니다. 내용을 읽을 수 있는 파일이 없습니다('읽기'·'사유' 참고).",
     cut ? `조건에 맞는 파일은 ${total}건이고 그중 최근 ${rows.length}건만 보였습니다 — 전부가 아닙니다.` : "",
     capped ? "폴더가 커서 일부만 훑었습니다 — 없다고 단정하지 말고 이름·기간으로 좁혀 다시 조회하세요." : "",
     rows.length === 0 ? "조건에 맞는 파일이 없습니다(볼 수 있는 폴더 안에서)." : "",
   ].filter(Boolean).join(" ");
   return {
     기준시각: asOf, 조회폴더: r["폴더"] || [], 조건, 해당: total, 반환수: rows.length, 잘림: cut, 응답_ms: a.ms,
-    목록: rows.map((x) => ({ 폴더: x["폴더"], 경로: x["경로"] || "", 이름: x["이름"], 수정일: x["수정일"], 크기_KB: x["크기_KB"] })),
+    목록: rows.map((x) => ({ 폴더: x["폴더"], 경로: x["경로"] || "", 이름: x["이름"], 수정일: x["수정일"], 크기_KB: x["크기_KB"],
+      문서: x["문서"] ?? null, 읽기: x["읽기"] ?? "확인 불가", ...(x["표"] === true ? { 표: true } : {}), ...(x["사유"] ? { 사유: x["사유"] } : {}) })),
     안내,
-    __view: nasList(`사내 보관소 파일 — ${조건}`, asOf, ["폴더", "하위 경로", "파일", "수정일", "크기(KB)"],
-      rows.map((x) => [x["폴더"], x["경로"] || "", x["이름"], x["수정일"], x["크기_KB"]]),
-      cut ? `전체 ${total}건 중 최근 ${rows.length}건 · 이름·수정일만(내용 미확인)` : "이름·수정일만(내용 미확인) · 본인 부서·전사공유 폴더", [4]),
+    __view: nasList(`사내 보관소 파일 — ${조건}`, asOf, ["폴더", "하위 경로", "파일", "수정일", "크기(KB)", "AI 읽기"],
+      rows.map((x) => [x["폴더"], x["경로"] || "", x["이름"], x["수정일"], x["크기_KB"], x["읽기"] ?? "-"]),
+      cut ? `전체 ${total}건 중 최근 ${rows.length}건 · 파일 목록` : "파일 목록 · 본인 부서·전사공유 폴더", [4]),
   };
 }

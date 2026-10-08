@@ -591,7 +591,7 @@ $("inp").addEventListener("paste", (e) => {
 /* ===== 부서 NAS 보관함 관리 창(REQ-0108) — 탐색기처럼 추가·삭제 =====
    화면은 요청·표시만 한다. 어디에 쓰는지(부서 폴더의 AI저장/연도)·누가 지울 수 있는지·보존 기간은 서버(SQL 89)가 정한다. */
 const NX = { items: [], folders: [], dir: "all", q: "", sort: "date", desc: true, sel: new Set(), busy: false, can: false, timer: null, tries: 0, naming: false,
-  read: null, readWhy: "", readAsOf: "" };   // read: 판독 상태(REQ-0117 S1) — rel_path → {read, why, table}. null 이면 아직 못 받음
+  read: null, readWhy: "", readAsOf: "", readCut: false, wasMoving: false };   // read: 판독 상태(REQ-0117 S1) — rel_path → {read, why, table}. null 이면 아직 못 받음
 // 파일이 든 곳 — 사용자 폴더면 "d:이름", 아니면 연도 폴더 "y:2026"
 const nxDir = (x) => x.subdir ? "d:" + x.subdir : "y:" + String(x.created_at || "").slice(0, 4);
 const nxDirLabel = (d) => d === "all" ? "" : d.slice(2);
@@ -633,7 +633,8 @@ function nxRender() {
     if (x.status !== "done") return '<span class="nasst wait">저장 중</span>';
     if (!NX.read) return `<span class="nasst ${NX.readWhy ? "wait" : "ok"}" title="${escHtml(NX.readWhy || "AI 읽기 여부를 확인하는 중입니다")}">보관됨</span>`;
     const r = NX.read.get(x.rel_path);
-    if (!r) return '<span class="nasst wait" title="방금 저장한 파일은 잠시 뒤 읽을 수 있습니다">준비 중</span>';
+    if (!r) return NX.readCut ? '<span class="nasst ok" title="파일이 많아 AI 읽기 여부를 다 확인하지 못했습니다">보관됨</span>'
+      : '<span class="nasst wait" title="방금 저장한 파일은 잠시 뒤 읽을 수 있습니다">준비 중</span>';
     return r.read ? `<span class="nasst ok" title="AI 가 이 파일의 내용을 찾고 읽을 수 있습니다${r.table ? " (엑셀·CSV 는 표 그대로)" : ""}">읽기 가능</span>`
       : `<span class="nasst bad" title="${escHtml(r.why || "")}">읽기 불가</span>`;
   };
@@ -667,7 +668,10 @@ async function nxLoad(quiet) {
     if (!j.folder) { $("nxMain").innerHTML = '<div class="nx-empty">부서 폴더가 아직 등록되지 않았습니다. 관리자에게 문의하세요.</div>'; return; }
     nxRender();
     if (!quiet) nxMsg("");
-    if (!quiet || !NX.read) nxStatus();
+    // AI 읽기 여부는 창을 열거나 새로고침할 때, 그리고 저장이 막 끝났을 때만 다시 묻는다(저장 중 2초 폴링마다 묻지 않는다 — 조회 한도를 아낀다)
+    const movingNow = NX.items.some((x) => x.status === "queued" || x.status === "running");
+    if (!quiet || (NX.wasMoving && !movingNow)) nxStatus();
+    NX.wasMoving = movingNow;
     // 저장 중·삭제 대기가 있으면 잠깐씩 다시 본다(보통 수 초 안에 끝난다). 삭제 대기는 30초까지만 따라간다
     const moving = NX.items.some((x) => x.status === "queued" || x.status === "running");
     const purging = NX.items.some((x) => x.status === "purge");
@@ -717,7 +721,7 @@ async function nxStatus() {
   const WHY = { offline: "보관소와 연결되지 않아 AI 읽기 여부를 확인하지 못했습니다", timeout: "보관소 응답이 늦어 AI 읽기 여부를 확인하지 못했습니다", busy: "잠시 뒤 새로고침해 주세요", denied: "이 계정으로는 확인할 수 없습니다" };
   try {
     const j = await op(AGENT, "nas_saved_status");
-    if (j.ok) { NX.read = new Map((j.items || []).map((x) => [x.rel_path, x])); NX.readWhy = ""; NX.readAsOf = j.as_of ? "색인 기준 " + j.as_of : ""; }
+    if (j.ok) { NX.read = new Map((j.items || []).map((x) => [x.rel_path, x])); NX.readWhy = ""; NX.readAsOf = j.as_of ? "색인 기준 " + j.as_of : ""; NX.readCut = !!j.cut; }
     else { NX.read = null; NX.readWhy = WHY[j.why] || "AI 읽기 여부를 확인하지 못했습니다"; }
   } catch (e) { NX.read = null; NX.readWhy = "AI 읽기 여부를 확인하지 못했습니다"; }
   if (!$("nx").hidden) nxRender();
