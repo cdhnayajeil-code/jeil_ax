@@ -9,7 +9,7 @@
 --   ② public.pur_slip_trace(p_tg)  — 결의전표 번호 → 발주번호. **유일한 security definer 조각**(사내 사용자는 전표 표를 못 읽는다 · C-15).
 --      추적할 수 있는 전표는 두 가지뿐(관리자 지시 · 결정 17):
 --        (a) 구매모듈이 만든 매입전표 — gl_input_type = 'AP' 이고 ref_no 가 매입번호(IV)   → 매입(iv_dtl_s).po_no
---        (b) 구매팀이 입력한 결의전표 — dept_cd 가 구매팀                                   → 기안서 대장 전표 칸(계약금·중도금·잔금) 에 적힌 기안 → 기안↔발주 연결(pur_proposal_links)
+--        (b) 구매 부서가 입력한 결의전표 — dept_cd 가 구매팀(5200)·프로젝트구매TF(5250 · ⑥)   → 기안서 대장 전표 칸(계약금·중도금·잔금) 에 적힌 기안 → 기안↔발주 연결(pur_proposal_links)
 --      이 두 길 밖(다른 부서 전표·적요 글자·금액 유사)은 쓰지 않는다. 내보내는 것은 **번호뿐**(전표 종류·매입번호·권-번호·발주번호) — 금액·적요·승인 상태 없음.
 --      없는 전표와 범위 밖 전표는 똑같이 found:false 로 답한다(다른 부서 전표의 존재 여부도 알려 주지 않는다).
 --   ③ public.pur_case_chain(p_key)  — TG 가지를 ② 로 바꾼다(서비스 권한도 같은 규칙). 답에 'slip'(② 결과)을 실어 화면이 어느 매입·기안에 걸렸는지 표시한다.
@@ -17,6 +17,7 @@
 --   ⑤ (같은 날 보강 · 마이그레이션 pur_definer_guard_req0116) definer 조각 2종(⓪ pur_proposal_links · ② pur_slip_trace)에 **사내(is_internal)·서비스 권한 판정** + `revoke … from public, anon`.
 --      Supabase 기본 권한이 새 함수에 anon·authenticated 실행권을 주므로 `revoke from public` 만으로는 anon 이 남고, 협력사 세션(authenticated·vendor)도 부를 수 있었다(실측: anon 실행권 참).
 --      SQL 70 선례대로 막는다 — 사내·서비스 권한 결과는 그대로(연결 2,814 · 추적 동일), 협력사·anon 은 빈 결과/allowed:false. 아래 ⑤ 절이 현행 정의다(② 절은 ⑤ 로 대체).
+--   ⑥ (같은 날 관리자 지시 · 마이그레이션 pur_slip_trace_dept_5250_req0116) 추적 대상 부서에 **프로젝트구매TF(5250)** 추가 — 상수 '{5200,5250}'. 2026년 중간DB 에 5250 전표는 0건(앞으로를 위해).
 --
 -- 되돌리기: 96_pur_board7_slip_trace_rollback.sql (95 의 뷰·chain 으로 되돌리고 ② 를 지운다)
 
@@ -128,13 +129,13 @@ as $$
 with k as (
   select upper(regexp_replace(coalesce(p_tg, ''), '\s', '', 'g')) as tg
 ),
-s as (   -- 추적 대상 전표: (a) 구매모듈 매입전표(AP · ref_no = 매입번호) 또는 (b) 구매팀이 입력한 전표(dept_cd = 구매팀 5200 · erp_ro.dept_master_s · portal_page.owner_dept_cd 와 같다)
+s as (   -- 추적 대상 전표: (a) 구매모듈 매입전표(AP · ref_no = 매입번호) 또는 (b) 구매 부서가 입력한 전표(dept_cd = 구매팀 5200 · 프로젝트구매TF 5250 — erp_ro.dept_master_s · 5200 은 portal_page.owner_dept_cd 와 같다)
   select h.temp_gl_no,
          case when h.gl_input_type = 'AP' and h.ref_no like 'IV%' then 'AP매입' else '구매팀입력' end as kind,
          case when h.gl_input_type = 'AP' and h.ref_no like 'IV%' then h.ref_no end as iv_no
     from erp_ro.gl_slip_s h, k
    where k.tg ~ '^TG\d{12}$' and h.temp_gl_no = k.tg
-     and ((h.gl_input_type = 'AP' and h.ref_no like 'IV%') or btrim(coalesce(h.dept_cd, '')) = any ('{5200}'::text[]))
+     and ((h.gl_input_type = 'AP' and h.ref_no like 'IV%') or btrim(coalesce(h.dept_cd, '')) = any ('{5200,5250}'::text[]))
 ),
 ivs as (  -- (a) 매입 → 발주
   select distinct i.iv_no, i.po_no
@@ -281,13 +282,13 @@ with ok as (   -- 사내 또는 서비스 권한만 · 그 밖은 allowed:false 
 k as (
   select case when ok.allowed then upper(regexp_replace(coalesce(p_tg, ''), '\s', '', 'g')) else '' end as tg, ok.allowed from ok
 ),
-s as (   -- 추적 대상 전표: (a) 구매모듈 매입전표(AP · ref_no = 매입번호) 또는 (b) 구매팀이 입력한 전표(dept_cd = 구매팀 5200)
+s as (   -- 추적 대상 전표: (a) 구매모듈 매입전표(AP · ref_no = 매입번호) 또는 (b) 구매 부서가 입력한 전표(dept_cd = 구매팀 5200 · 프로젝트구매TF 5250)
   select h.temp_gl_no,
          case when h.gl_input_type = 'AP' and h.ref_no like 'IV%' then 'AP매입' else '구매팀입력' end as kind,
          case when h.gl_input_type = 'AP' and h.ref_no like 'IV%' then h.ref_no end as iv_no
     from erp_ro.gl_slip_s h, k
    where k.tg ~ '^TG\d{12}$' and h.temp_gl_no = k.tg
-     and ((h.gl_input_type = 'AP' and h.ref_no like 'IV%') or btrim(coalesce(h.dept_cd, '')) = any ('{5200}'::text[]))
+     and ((h.gl_input_type = 'AP' and h.ref_no like 'IV%') or btrim(coalesce(h.dept_cd, '')) = any ('{5200,5250}'::text[]))
 ),
 ivs as (  -- (a) 매입 → 발주
   select distinct i.iv_no, i.po_no from s join erp_ro.iv_dtl_s i on i.iv_no = s.iv_no
@@ -312,7 +313,7 @@ $$;
 revoke all on function public.pur_slip_trace(text) from public, anon;
 grant execute on function public.pur_slip_trace(text) to authenticated, service_role;
 comment on function public.pur_slip_trace(text) is
-  '결의전표 번호(TG) → 발주번호 — 구매모듈 매입전표(AP·ref_no=IV) 와 구매팀 입력 전표(dept_cd 5200)만, 길은 매입 ref 와 기안서 대장 전표 칸 둘뿐(결정 17) · security definer · 사내(is_internal)·서비스 권한만(allowed) · anon 회수 · 번호만(C-15 유지) · REQ-0116 · SQL 96';
+  '결의전표 번호(TG) → 발주번호 — 구매모듈 매입전표(AP·ref_no=IV) 와 구매 부서 입력 전표(dept_cd 5200 구매팀 · 5250 프로젝트구매TF)만, 길은 매입 ref 와 기안서 대장 전표 칸 둘뿐(결정 17) · security definer · 사내(is_internal)·서비스 권한만(allowed) · anon 회수 · 번호만(C-15 유지) · REQ-0116 · SQL 96';
 
 -- ── 확인(⑤) ──────────────────────────────────────────────────────────────────
 -- select has_function_privilege('anon', 'public.pur_slip_trace(text)', 'execute'), has_function_privilege('anon', 'public.pur_proposal_links()', 'execute');  -- 둘 다 false

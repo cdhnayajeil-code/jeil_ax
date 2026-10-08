@@ -1038,7 +1038,7 @@ ERP(UNIERP) DB와 AI 포털·사내 타부서 간 연계의 <strong>현황 대�
 </tr>
 <tr>
 <td><strong>구매 건 추적 definer 함수 2종(<code>pur_proposal_links()</code>·<code>pur_slip_trace()</code>) — 호출 범위 확인 → 해소(2026-10-08, REQ-0116, 마이그레이션 <code>pur_definer_guard_req0116</code>)</strong></td>
-<td>실측 결과 <strong>열려 있었다</strong> — <code>has_function_privilege('anon', …)</code> 두 함수 모두 참(Supabase 기본 권한이 새 함수에 anon·authenticated 실행권을 주므로 <code>revoke from public</code> 만으로는 anon 이 남는다), 협력사 claim 세션도 호출 가능. 같은 날 <strong>정본 SQL 96 ⑤ 보강으로 막았다</strong>: 본문에 사내(<code>is_internal()</code>)·서비스 권한 판정(그 밖은 빈 결과 / <code>allowed:false</code>) + <code>revoke … from public, anon</code>. 역할 3종 트랜잭션 실측 — 협력사·anon 차단, 사내·서비스 권한 결과 변동 없음(연결 2,814 · 진행판 대장 연결 873 · 추적 동일). SQL 70 선례와 같은 수준이 됐다(페이지 권한 재판정은 없음 — 번호만 내보내는 함수라 사내 판정으로 충분하다고 봄, 관리자 이견 시 추가). 교훈: <strong>definer 함수를 만들면 <code>revoke … from public, anon</code> + 본문 판정을 함께 둔다</strong></td>
+<td>실측 결과 <strong>열려 있었다</strong> — <code>has_function_privilege('anon', …)</code> 두 함수 모두 참(Supabase 기본 권한이 새 함수에 anon·authenticated 실행권을 주므로 <code>revoke from public</code> 만으로는 anon 이 남는다), 협력사 claim 세션도 호출 가능. 같은 날 <strong>정본 SQL 96 ⑤ 보강으로 막았다</strong>: 본문에 사내(<code>is_internal()</code>)·서비스 권한 판정(그 밖은 빈 결과 / <code>allowed:false</code>) + <code>revoke … from public, anon</code>. 역할 3종 트랜잭션 실측 — 협력사·anon 차단, 사내·서비스 권한 결과 변동 없음(연결 2,814 · 진행판 대장 연결 873 · 추적 동일). SQL 70 선례와 같은 수준이 됐다(페이지 권한 재판정은 없음 — 번호만 내보내는 함수라 사내 판정으로 충분하다고 봄, 관리자 이견 시 추가). 교훈: <strong>definer 함수를 만들면 <code>revoke … from public, anon</code> + 본문 판정을 함께 둔다</strong>. 같은 날 관리자 지시로 추적 대상 부서에 <strong>프로젝트구매TF(5250)</strong> 추가(마이그레이션 <code>pur_slip_trace_dept_5250_req0116</code> · SQL 96 ⑥ · 2026년 5250 전표 0건)</td>
 <td>최동혁(+Claude)</td>
 </tr>
 </tbody>
