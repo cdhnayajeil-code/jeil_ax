@@ -1,6 +1,7 @@
 -- 96_pur_board7_slip_trace_rollback.sql — 96 되돌리기(REQ-0116)
 -- 뷰·chain 을 SQL 95(8단계 · TG 는 서비스 권한만) 그대로 되돌리고, 전표 추적 함수를 지운다. 포털 카드 note 도 95 문구로.
 drop function if exists public.pur_slip_trace(text);
+-- ⑤ 가드만 되돌리려면(함수는 두고): 95 의 ⓪ pur_proposal_links 정의를 다시 실행한다(anon 회수는 유지 권장). pur_slip_trace 는 위 drop 으로 함께 사라진다.
 
 -- ① 뷰 — 95 의 8단계 정의 그대로(열이 늘어나므로 drop 뒤 create)
 drop view if exists public.v_erp_pur_board;
