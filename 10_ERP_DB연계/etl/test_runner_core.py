@@ -933,6 +933,7 @@ class TestEtlRunIncrement(unittest.TestCase):
     def test_full_ignores_increment(self):
         sql, params = self._run("pur_order", full=True)
         self.assertEqual(len(params), 2)
+        self.assertNotIn("M_PUR_GOODS_MVMT g", sql)
 
     # ── REQ-0120(2026-10-08) · 인사 경력정보(HAA050T) 미러 + 인사마스터 보강 ───────────────────
     def test_hr_career_is_full_snapshot_with_batch_reconcile(self):
@@ -960,16 +961,38 @@ class TestEtlRunIncrement(unittest.TestCase):
 
     def test_hr_jobs_never_select_sensitive_columns(self):
         """CLAUDE.md §1.7 — 주민번호·주소·연락처·급여·카드는 인사 job 어디에도 없다."""
-        for name in ("hr_emp", "hr_career"):
+        for name in ("hr_emp", "hr_career", "hr_edu", "hr_license", "hr_family"):
             sql = er.JOBS[name]["sql"].upper().replace("EMAIL_ADDR", "")   # 이메일은 허용(계정 연결키)
-            for bad in ("RES_NO", "ADDR", "TEL_", "PHONE", "MOBILE", "SALARY", "PAY_", "CARD_ID", "BANK", "ACCT_NO"):
+            for bad in ("RES_NO", "ADDR", "TEL_", "PHONE", "MOBILE", "SALARY", "PAY_", "CARD_ID", "BANK", "ACCT_NO",
+                        "LICN_NO", "PASSPORT", "OCCUP_NM", "COMP_NM" if name == "hr_family" else "RES_NO"):
                 self.assertNotIn(bad, sql, "%s 에 %s" % (name, bad))
 
     def test_sys_code_whitelist_includes_hr_code_groups(self):
         """직위 H0002 · 입사구분 H0016 · 직책 H0026 이름은 종합코드 미러에서 온다(전체 1.3만 행을 받지 않는다)."""
         sql = er.JOBS["sys_code"]["sql"]
-        self.assertIn("IN ('P1001', 'H0002', 'H0016', 'H0026')", sql)
-        self.assertNotIn("M_PUR_GOODS_MVMT g", sql)
+        for mj in ("P1001", "H0002", "H0016", "H0026", "H0007", "H0023", "H0024", "H0030", "H0031"):
+            self.assertIn("'%s'" % mj, sql, mj)
+
+    # ── REQ-0123(2026-10-08) · 학력·자격·가족 미러 ─────────────────────────────────────────────
+    def test_hr_sub_jobs_are_full_snapshots_with_batch_reconcile(self):
+        """학력·자격·가족은 증분 없는 전량 스냅샷 — 전용 적재 RPC 와 배치 정합을 쓴다."""
+        want = {"hr_edu": ("hr_edu_s", "HAA030T", 50), "hr_license": ("hr_license_s", "HAA060T", 10),
+                "hr_family": ("hr_family_s", "HAA020T", 10)}
+        for name, (table, src, min_rows) in want.items():
+            spec = er.JOBS[name]
+            self.assertNotIn("incr_sql", spec, name)
+            self.assertEqual(spec["table"], table)
+            self.assertEqual(spec["rpc"], "erp_hr_sub_upsert")
+            self.assertEqual(spec["reconcile"], {"mode": "batch", "rpc": "erp_hr_sub_reconcile", "min_rows": min_rows})
+            sql, params = self._run(name)
+            self.assertEqual(params, ())
+            self.assertIn("JEILMNS.dbo." + src, sql)
+
+    def test_hr_family_selects_only_relation_name_support_reside(self):
+        """가족은 관계·이름·부양·동거만 — 열 목록을 잠근다(누가 열을 더하면 여기서 걸린다)."""
+        import re
+        cols = re.findall(r" AS (\w+)", er.JOBS["hr_family"]["sql"])
+        self.assertEqual(cols, ["emp_no", "family_nm", "rel_cd", "supp_cd", "reside_type", "src_updated"])
 
     def test_every_incremental_job_binds_as_many_marks_as_it_declares(self):
         """바인딩 수 ≠ `?` 수면 ODBC 가 07002 로 실패한다 — 새 job 이 생겨도 여기서 먼저 걸린다."""

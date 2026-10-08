@@ -68,7 +68,7 @@
   <div class="head">
     <div>
       <h1>🪪 인사마스터 조회</h1>
-      <div class="sub">ERP 인사마스터(사원 1명 = 사번 1행)와 입사 전 경력을 한 화면에서 찾는다 · 중간DB 미러 · 조회 전용 · 인사팀·전체관리자</div>
+      <div class="sub">ERP 인사마스터(사원 1명 = 사번 1행)와 학력·자격·가족·입사 전 경력을 한 화면에서 찾는다 · 중간DB 미러 · 조회 전용 · 인사팀·전체관리자</div>
     </div>
     <div class="right">
       <span class="badge g">중간DB 실데이터</span>
@@ -82,7 +82,7 @@
   <div id="app"><div class="loading">중간DB 에서 인사마스터를 불러오는 중…</div></div>
 
   <div class="foot">
-    <span>JEIL AX · 인사마스터 조회(REQ-0122) — 원천 ERP 인사마스터·경력등록 · 주민등록번호·주소·연락처·급여는 연계하지 않는다 · 수정은 ERP 에서만</span>
+    <span>JEIL AX · 인사마스터 조회(REQ-0122·0123) — 원천 ERP 인사마스터·학력·자격/면허·가족사항·경력등록 · 주민등록번호·주소·연락처·급여는 연계하지 않는다 · 수정은 ERP 에서만</span>
     <span id="footAsof"></span>
   </div>
 </div>
@@ -117,12 +117,15 @@
   }
 
   /* RPC 한 행 → 그리드 한 행. 그리드의 검색·필터·정렬·CSV 는 원값을 보므로 계산 칸도 값으로 둔다. */
-  function shape(r) {
+  function shape(r, x) {
+    x = x || {};
     const tenure = monthsBetween(r.entr_dt, r.status === "퇴직" ? r.retire_dt : null);
     return Object.assign({}, r, {
       tenure_mm: tenure, tenure_txt: ymTxt(tenure),
       career_txt: ymTxt(r.career_mm), prior_txt: ymTxt(r.prior_mm),
       entr_year: String(r.entr_dt || "").slice(0, 4), retire_year: String(r.retire_dt || "").slice(0, 4),
+      edu_sch: x.edu_sch || "", edu_school: x.edu_school || "", edu_major: x.edu_major || "",
+      license_cnt: Number(x.license_cnt || 0), family_cnt: Number(x.family_cnt || 0),
       rehire: Number(r.emp_rec_cnt) > 1 ? "재입사 이력(" + r.emp_rec_cnt + "개 사번)" : "",
     });
   }
@@ -131,7 +134,13 @@
     const { data, error } = await supabase.rpc("hr_emp_list");
     if (error) throw error;
     if (!data || data.allowed !== true) { const e = new Error("NOT_ALLOWED"); e.notAllowed = true; throw e; }
-    ROWS = (data.rows || []).map(shape);
+    /* 학력·자격·가족 요약(사번별)은 따로 받아 붙인다(REQ-0123). 실패해도 명부는 보인다. */
+    let extra = {};
+    try {
+      const x = await supabase.rpc("hr_emp_extra");
+      if (!x.error && x.data && x.data.allowed) extra = x.data.map || {};
+    } catch (e) { console.warn("[인사마스터] 학력·자격·가족 요약을 받지 못했습니다", e); }
+    ROWS = (data.rows || []).map((r) => shape(r, extra[r.emp_no]));
     return data;
   }
 
@@ -147,12 +156,14 @@
       if (PICK.entr && (r.entr_nm || "(없음)") !== PICK.entr) return false;
       if (ex.scope === "career" && !(Number(r.career_cnt) > 0)) return false;
       if (ex.scope === "nocareer" && Number(r.career_cnt) > 0) return false;
+      if (ex.scope === "license" && !(r.license_cnt > 0)) return false;
+      if (ex.scope === "noedu" && r.edu_sch) return false;
       if (ex.scope === "rehire" && !(Number(r.emp_rec_cnt) > 1)) return false;
       if (ex.scope === "join" && r.entr_year !== THIS_YEAR) return false;
       if (ex.scope === "leave" && r.retire_year !== THIS_YEAR) return false;
       if (ex.scope === "noacct" && !(r.status === "재직" && r.erp_acct !== "사용")) return false;
       if (ex.scope === "acctleft" && !(r.status === "퇴직" && r.erp_acct === "사용")) return false;
-      if (kw && !([r.emp_nm, r.emp_no, r.dept_nm, r.pstn_nm, r.role_nm, r.email, r.grw_id].join(" ").toLowerCase().includes(kw))) return false;
+      if (kw && !([r.emp_nm, r.emp_no, r.dept_nm, r.pstn_nm, r.role_nm, r.email, r.grw_id, r.edu_sch, r.edu_school, r.edu_major].join(" ").toLowerCase().includes(kw))) return false;
       return true;
     });
   }
@@ -190,9 +201,14 @@
     { key: "tenure_mm", label: "근속", type: "number", width: "96px", fitMin: 80, formatter: (v, r) => esc(r.tenure_txt || "—"), exportValue: (v) => v },
     { key: "career_cnt", label: "입사 전 경력", type: "number", width: "100px", fitMin: 84, formatter: (v) => (Number(v) > 0 ? num(v) + "건" : "—") },
     { key: "career_mm", label: "인정경력", type: "number", width: "96px", fitMin: 80, formatter: (v, r) => esc(r.career_txt || "—"), exportValue: (v) => (v == null ? "" : v) },
+    { key: "edu_sch", label: "최종학력", width: "92px", fitMin: 76, formatter: (v) => esc(v || "—") },
+    { key: "edu_school", label: "학교", width: "140px", fitMin: 90, formatter: (v) => esc(v || "—") },
+    { key: "license_cnt", label: "자격", type: "number", width: "64px", fitMin: 56, formatter: (v) => (Number(v) > 0 ? num(v) + "건" : "—") },
     { key: "email", label: "이메일", width: "200px", fitMin: 130 },
     { key: "erp_acct", label: "ERP 계정", width: "88px", fitMin: 76, formatter: (v, r) => acctBadge(v, r) },
     // 숨김 열
+    { key: "edu_major", label: "전공", width: "130px", hidden: true },
+    { key: "family_cnt", label: "가족", type: "number", width: "64px", hidden: true, formatter: (v) => (Number(v) > 0 ? num(v) + "명" : "—") },
     { key: "dept_cd", label: "부서코드", width: "84px", hidden: true },
     { key: "prior_mm", label: "입사 전 경력 합(개월)", type: "number", width: "130px", hidden: true },
     { key: "rehire", label: "재입사", width: "150px", hidden: true },
@@ -208,7 +224,7 @@
   function skeleton() {
     app.innerHTML = '<div id="summary"></div>'
       + '<div class="sec"><h3><span id="secTitle"></span></h3>'
-      + '<div class="note">이름을 누르면 상세와 입사 전 경력이 열린다. 분포 칩을 누르면 그 값으로 거른다(다시 누르면 해제). 열 머리로 정렬, 머리 아래 칸으로 필터, 「▦ 항목」으로 열을 고른다. 근속은 입사일부터 오늘(퇴직자는 퇴사일)까지다.</div>'
+      + '<div class="note">이름을 누르면 상세(학력·자격·가족·입사 전 경력)가 열린다. 분포 칩을 누르면 그 값으로 거른다(다시 누르면 해제). 열 머리로 정렬, 머리 아래 칸으로 필터, 「▦ 항목」으로 열을 고른다. 근속은 입사일부터 오늘(퇴직자는 퇴사일)까지다.</div>'
       + '<div id="hrGrid"></div></div>';
     GRID = createGrid("#hrGrid", {
       columns: COLS, rows: [], keyField: "emp_no",
@@ -240,6 +256,7 @@
       + kpi(THIS_YEAR + "년 퇴사", num(leaveY), "명", "mut")
       + kpi("재직자 평균 근속", esc(ymTxt(avgTen) || "—"), "")
       + kpi("입사 전 경력 등록", num(withCar), "명")
+      + kpi("자격·면허 등록", num(rows.filter((r) => r.license_cnt > 0).length), "명")
       + kpi("재직인데 ERP 계정 없음·중지", num(noAcct), "명", noAcct ? "warn" : "ok")
       + "</div><div class=\"dist\">"
       + distBox("부서별", "dept", "dept_nm", rows)
@@ -271,9 +288,13 @@
       + dd("이메일", esc(r.email)) + dd("그룹웨어 ID", esc(r.grw_id)) + dd("ERP 계정", acctBadge(r.erp_acct, r))
       + "</dl>"
       + (sib.length ? "<h4>같은 이메일의 다른 사번(재입사 이력)</h4>" + sib.map((s) => '<div class="car"><div class="c1">' + esc(s.emp_no) + " · " + esc(s.dept_nm || "") + " " + stBadge(s.status) + '</div><div class="c2">' + esc(s.entr_dt || "?") + " ~ " + esc(s.retire_dt || "재직") + "</div></div>").join("") : "")
+      + "<h4>학력</h4><div id=\"dedu\"><div class=\"loading\" style=\"padding:10px\">불러오는 중…</div></div>"
+      + "<h4>자격·면허</h4><div id=\"dlic\"></div>"
+      + "<h4>가족</h4><div id=\"dfam\"></div>"
       + "<h4>입사 전 경력</h4><div id=\"dcar\"><div class=\"loading\" style=\"padding:16px\">불러오는 중…</div></div>";
     drawer.hidden = false;
     document.getElementById("dx").onclick = closeDetail;
+    loadSub(r);
     const box = document.getElementById("dcar");
     if (!(Number(r.career_cnt) > 0)) { box.innerHTML = '<div class="callout blue">ERP 경력등록에 올라온 입사 전 경력이 없습니다.</div>'; return; }
     try {
@@ -291,6 +312,31 @@
       }).join("") : '<div class="callout blue">표시할 경력이 없습니다.</div>';
     } catch (e) {
       box.innerHTML = '<div class="callout amber">경력을 불러오지 못했습니다. ' + esc(String((e && e.message) || e)) + "</div>";
+    }
+  }
+  /* 학력·자격·가족 — RPC hr_emp_detail(사번). 주민등록번호·자격증 번호는 미러에 없다. */
+  async function loadSub(r) {
+    const none = (t) => '<div class="callout blue">' + t + "</div>";
+    const set = (id, h) => { const el = document.getElementById(id); if (el) el.innerHTML = h; };
+    try {
+      const { data, error } = await supabase.rpc("hr_emp_detail", { p_emp_no: r.emp_no });
+      if (error) throw error;
+      if (drawer.hidden) return;
+      const d = data || {};
+      set("dedu", (d.edu || []).length ? d.edu.map((e) => '<div class="car"><div class="c1">' + esc(e.school_nm || "(학교명 없음)")
+        + ' <span class="st off">' + esc(e.sch_nm || "") + "</span></div>"
+        + '<div class="c2">' + esc(String(e.admi_dt || "").slice(0, 7)) + " ~ " + esc(String(e.grdut_dt || "").slice(0, 7) || "?")
+        + (e.major_nm ? " · " + esc(e.major_nm) : "") + "</div></div>").join("") : none("ERP 학력등록에 올라온 학력이 없습니다."));
+      set("dlic", (d.license || []).length ? d.license.map((l) => '<div class="car"><div class="c1">' + esc(l.kind_nm || "")
+        + (l.grade ? ' <span class="st off">' + esc(l.grade) + "</span>" : "") + "</div>"
+        + '<div class="c2">취득 ' + esc(l.acq_dt || "?") + (l.fnsh_dt ? " · 만료 " + esc(l.fnsh_dt) : "")
+        + (l.office_nm ? " · " + esc(l.office_nm) : "") + "</div></div>").join("") : none("ERP 자격/면허등록에 올라온 자격이 없습니다."));
+      set("dfam", (d.family || []).length ? d.family.map((f) => '<div class="car"><div class="c1">' + esc(f.rel_nm || "") + " · " + esc(f.family_nm || "") + "</div>"
+        + '<div class="c2">' + [f.supp_nm ? "부양 " + esc(f.supp_nm) : "", f.reside === "Y" ? "동거" : (f.reside === "N" ? "비동거" : "")].filter(Boolean).join(" · ") + "</div></div>").join("")
+        : none("ERP 가족사항등록에 올라온 가족이 없습니다."));
+    } catch (e) {
+      const m = '<div class="callout amber">불러오지 못했습니다. ' + esc(String((e && e.message) || e)) + "</div>";
+      set("dedu", m); set("dlic", ""); set("dfam", "");
     }
   }
   document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !drawer.hidden) closeDetail(); });
@@ -371,11 +417,13 @@
           { value: "leave", label: THIS_YEAR + "년 퇴사" },
           { value: "career", label: "입사 전 경력 등록됨" },
           { value: "nocareer", label: "입사 전 경력 없음" },
+          { value: "license", label: "자격·면허 등록됨" },
+          { value: "noedu", label: "학력 미등록" },
           { value: "rehire", label: "재입사 이력(사번 2개 이상)" },
           { value: "noacct", label: "재직인데 ERP 계정 없음·중지" },
           { value: "acctleft", label: "퇴직인데 ERP 계정 사용 중" },
         ] },
-      { id: "kw", label: "찾기", type: "text", width: "210px", placeholder: "이름·사번·부서·직위·이메일", debounce: 200 },
+      { id: "kw", label: "찾기", type: "text", width: "210px", placeholder: "이름·사번·부서·직위·학교·전공", debounce: 200 },
     ],
     onQuery: async (q, ctx) => {
       if (ctx.reason === "refresh") {

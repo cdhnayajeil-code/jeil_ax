@@ -181,6 +181,66 @@ JOBS = {
         "params": [],
         "reconcile": {"mode": "batch", "rpc": "erp_hr_career_reconcile", "min_rows": 100},
     },
+    # ⑦-2c 인사 학력 · 자격/면허 · 가족 ← HAA030T · HAA060T · HAA020T — REQ-0123(2026-10-08 · 정본 SQL 102)
+    #    구조는 2026-10-08 관리자 실행 조사(열 이름·형·행수만)로 확정: 학력 223행 · 자격 50행 · 가족 39행.
+    #    세 job 모두 전량 스냅샷 + 배치 정합(revoked_at). 적재는 전용 RPC `erp_hr_sub_upsert`(service_role).
+    #    ⚠ 받지 않는 것(§1.7): 가족 주민등록번호(RES_NO·RES_NO_PRVC)와 가족의 직업·직장·학력, 자격증 번호(LICN_NO).
+    #      가족 표에는 출생연도 열이 따로 없다(주민번호뿐) — 나이·출생연도를 만들어 내지 않는다.
+    #      일용직(HAA011T)·신원보증(HAA040T)·여권(HAA080T)·사진(HAA070T)은 연계하지 않는다.
+    #    코드 이름: 학력구분 H0007 · 가족관계 H0023 · 부양구분 H0024 · 자격종류 H0030 · 발행기관 H0031(`sys_code`).
+    "hr_edu": {
+        "table": "hr_edu_s",
+        "rpc": "erp_hr_sub_upsert",
+        "sql": """
+            SELECT RTRIM(e.EMP_NO) AS emp_no,
+                   RTRIM(e.SCH_SHIP) AS sch_ship,
+                   CONVERT(date, e.ADMI_DT) AS admi_dt,
+                   CONVERT(date, e.GRDUT_DT) AS grdut_dt,
+                   NULLIF(RTRIM(ISNULL(e.SCHOOL_NM, '')), '') AS school_nm,
+                   NULLIF(RTRIM(ISNULL(e.MAJOR_NM, '')), '') AS major_nm,
+                   e.UPDT_DT AS src_updated
+            FROM JEILMNS.dbo.HAA030T e WITH (NOLOCK)
+            WHERE RTRIM(ISNULL(e.EMP_NO, '')) <> '' AND RTRIM(ISNULL(e.SCH_SHIP, '')) <> ''
+              AND e.ADMI_DT IS NOT NULL
+        """,
+        "params": [],
+        "reconcile": {"mode": "batch", "rpc": "erp_hr_sub_reconcile", "min_rows": 50},
+    },
+    "hr_license": {
+        "table": "hr_license_s",
+        "rpc": "erp_hr_sub_upsert",
+        "sql": """
+            SELECT RTRIM(l.EMP_NO) AS emp_no,
+                   RTRIM(l.LICN_KIND) AS licn_kind,
+                   CONVERT(date, l.ACQ_DT) AS acq_dt,
+                   NULLIF(RTRIM(ISNULL(l.LICN_GRADE, '')), '') AS licn_grade,
+                   NULLIF(RTRIM(ISNULL(l.PUBL_OFFICE, '')), '') AS publ_office,
+                   CONVERT(date, l.FNSH_DT) AS fnsh_dt,
+                   l.UPDT_DT AS src_updated
+            FROM JEILMNS.dbo.HAA060T l WITH (NOLOCK)
+            WHERE RTRIM(ISNULL(l.EMP_NO, '')) <> '' AND RTRIM(ISNULL(l.LICN_KIND, '')) <> ''
+              AND l.ACQ_DT IS NOT NULL
+        """,
+        "params": [],
+        "reconcile": {"mode": "batch", "rpc": "erp_hr_sub_reconcile", "min_rows": 10},
+    },
+    "hr_family": {
+        "table": "hr_family_s",
+        "rpc": "erp_hr_sub_upsert",
+        "sql": """
+            SELECT RTRIM(f.EMP_NO) AS emp_no,
+                   RTRIM(f.FAMILY_NM) AS family_nm,
+                   RTRIM(f.REL_CD) AS rel_cd,
+                   NULLIF(RTRIM(ISNULL(f.SUPP_CD, '')), '') AS supp_cd,
+                   NULLIF(RTRIM(ISNULL(f.RESIDE_TYPE, '')), '') AS reside_type,
+                   f.UPDT_DT AS src_updated
+            FROM JEILMNS.dbo.HAA020T f WITH (NOLOCK)
+            WHERE RTRIM(ISNULL(f.EMP_NO, '')) <> '' AND RTRIM(ISNULL(f.FAMILY_NM, '')) <> ''
+              AND RTRIM(ISNULL(f.REL_CD, '')) <> ''
+        """,
+        "params": [],
+        "reconcile": {"mode": "batch", "rpc": "erp_hr_sub_reconcile", "min_rows": 10},
+    },
     # ⑦-3 ERP 권한 등록정보(역할) ← Z_USR_MAST_REC_USR_ROLE_ASSO ⋈ Z_USR_ROLE
     #    기존 usr_erp_module(모듈 4종)은 실측상 전원이 전모듈이라(SD 101·MDM 101·MM 100·IM 99)
     #    변별력이 없다. 역할은 마스터 69개(실사용 61)·배정 1,920행·사용자당 평균 18.5개로
@@ -516,7 +576,8 @@ JOBS = {
                    RTRIM(n.MINOR_TYPE) AS minor_type, n.UPDT_DT AS src_updated
             FROM JEILMNS.dbo.B_MINOR n WITH (NOLOCK)
             LEFT JOIN JEILMNS.dbo.B_MAJOR m WITH (NOLOCK) ON m.MAJOR_CD = n.MAJOR_CD
-            WHERE n.MAJOR_CD IN ('P1001', 'H0002', 'H0016', 'H0026')
+            WHERE n.MAJOR_CD IN ('P1001', 'H0002', 'H0016', 'H0026',
+                                 'H0007', 'H0023', 'H0024', 'H0030', 'H0031')
         """,
         "params": [],
     },
