@@ -580,6 +580,11 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 </tr>
 <tr>
 <td>2026-10-08</td>
+<td><strong>퇴사 처리 ERP 반영 점검 → 계정 대사 역할 수 회수 제외</strong>(REQ-0127 · 정본 SQL <strong>107</strong> 라이브 적용 · rollback 있음) — <code>v_account_identity</code>(erp_role_cnt·erp_perm_registered 가 <code>revoked_at is null</code> 만 집계 · 열 불변)·<code>account_recon_get</code>(ERP 탭 roles·요약 role_users/role_rows 회수 제외). 확인: 퇴사자 role_cnt 0 · role_rows 1,836(전체 1,922). 함께 <strong>REQ-0126</strong> 러너 <code>etl_watch.handle_offboard</code> 가 ERP 축 등재 뒤 SharePoint 흐름 완료를 보고 usr_master·usr_role 을 그 자리에서 적재(커밋 <code>2edc13f</code> · DB 변경 없음) — 관리자 PC 상주 러너 재시작 뒤 유효</td>
+<td>Claude</td>
+</tr>
+<tr>
+<td>2026-10-08</td>
 <td><strong>NAS 자료 읽기 기반(S1)</strong>(REQ-0117) — 정본 SQL <strong>97</strong> 라이브 적용: 조회 큐 종류에 <code>doc_table</code>(엑셀·CSV 표 구조 판독)·<code>index_status</code>(판독 상태) 추가, <code>nas_query_submit</code> 재정의(범위 계산식 동일 · service_role 전용). Edge Function <code>jeil-chat-lab</code> <strong>v27</strong>(도구 <code>read_company_table</code> · op <code>nas_saved_status</code>). NAS 워커 <strong>n1.9</strong>·색인 i1.1 은 컨테이너 재빌드 대기. 표·데이터 변경 없음</td>
 <td></td>
 </tr>

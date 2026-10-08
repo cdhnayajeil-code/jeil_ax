@@ -6,7 +6,7 @@
 --   usr_role ETL 은 ERP 에서 회수된 역할 배정을 지우지 않고 `revoked_at` 으로 표시한다(etl_run.py usr_role reconcile ·
 --   2026-09-18). 그런데 계정 대사 뷰 `v_account_identity` 의 `erp_role_cnt`·`erp_perm_registered` 와
 --   계정관리 화면 함수 `account_recon_get` 의 ERP 탭(roles 문자열)·요약(role_users·role_rows)은 `usr_role_s` 를
---   그대로 세어, 퇴사 처리로 ERP 역할이 전부 회수된 사람이 화면에 「역할 17」로 남는다(2026-10-08 함진영 실측).
+--   그대로 세어, 퇴사 처리로 ERP 역할이 전부 회수된 사람이 화면에 「역할 17」로 남는다(2026-10-08 퇴사자 1명 실측).
 --   권한 과다 화면(/work/erp-roles · SQL 50)은 이미 `revoked_at is null` 로 거르므로 그쪽과도 어긋났다.
 --
 -- 무엇을 바꾸나(동작 차이는 이것뿐)
@@ -146,7 +146,7 @@ commit;
 -- ============================================================================
 -- 확인 쿼리(적용 후)
 -- ============================================================================
--- select email, erp_role_cnt, erp_perm_registered from public.v_account_identity where email = 'jy.ham@jeilm.co.kr';
---   → 0 / false (2026-10-08 퇴사 처리로 역할 17건 전부 revoked_at 표시)
+-- select email, erp_role_cnt, erp_perm_registered from public.v_account_identity where email = '<퇴사자 이메일>';
+--   → 0 / false (2026-10-08 퇴사 처리로 역할 17건 전부 revoked_at 표시된 계정으로 확인)
 -- select (select count(*) from erp_ro.usr_role_s) all_rows, (select count(*) from erp_ro.usr_role_s where revoked_at is null) live_rows;
 -- select public.account_recon_get('summary') -> 'role_rows';   → live_rows 와 같다
