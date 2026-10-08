@@ -127,7 +127,8 @@ JOBS = {
     #    인사는 PK=EMP_NO 라 재입사하면 새 사번이 생겨 같은 이메일에 2행이 된다(실측 10명).
     #    연결키는 **이메일**(EMAIL_ADDR = usr_id) — 실측 88/94(93.6%) 로 부서+이름 매칭(85/94)보다
     #    많이 붙고, 부서+이름이 추가로 건지는 건 0명이며 후보 2건 이상이 8명이라 특정도 안 된다.
-    #    ⚠ 사번·이름·부서·직위·이메일·입퇴사일·그룹웨어ID 만 추출한다. 주민번호(RES_NO·RES_NO_PRVC)·
+    #    ⚠ 사번·이름·부서·직위·이메일·입퇴사일·입사구분·그룹웨어ID·직책코드·인정경력개월 만 추출한다(직책·인정경력은
+    #      REQ-0120 2026-10-08 추가 — 코드 이름은 종합코드 H0002/H0016/H0026 · `sys_code` job). 주민번호(RES_NO·RES_NO_PRVC)·
     #      주소·연락처·급여(호봉)·CARD_ID 는 선택하지 않는다(CLAUDE.md §1.7).
     #    퇴사자도 적재한다 — 재입사 이력과 '퇴사자 계정 활성' 대사가 퇴사 행을 필요로 한다.
     "hr_emp": {
@@ -144,11 +145,41 @@ JOBS = {
                    RETIRE_DT AS retire_dt,
                    NULLIF(RTRIM(ISNULL(ENTR_CD, '')), '') AS entr_cd,
                    NULLIF(RTRIM(ISNULL(grw_id, '')), '') AS grw_id,
+                   NULLIF(RTRIM(ISNULL(ROLE_CD, '')), '') AS role_cd,
+                   TRY_CONVERT(int, CAREER_MM) AS career_mm,
                    UPDT_DT AS src_updated
             FROM JEILMNS.dbo.HAA010T WITH (NOLOCK)
             WHERE RTRIM(ISNULL(EMP_NO, '')) <> ''
         """,
         "params": [],
+    },
+    # ⑦-2b 인사 경력정보 ← HAA050T — 「당사 입사 이전 경력」(ERP 화면 H2006M1 경력등록) · REQ-0120(2026-10-08)
+    #    PK=(EMP_NO, CAREER_START, CAREER_END) — ERP PK 그대로(날짜로 내림). 478행/100명(2026-10-08 ERP_DB 실측).
+    #    마스터 인정경력(HAA010T.CAREER_MM)은 이 표의 APPLY_YN='Y' 행 인정개월 합계와 전원 일치한다 — 마스터가 정답,
+    #    경력 행은 그 근거다. 직종(OCPT_TYPE)은 전건 공백이라 빼고, EXT* 는 미사용이라 받지 않는다.
+    #    ⚠ 주민번호·연락처·급여는 여기에도 없다(§1.7). 읽기는 `hr_career_get`(payroll 모듈 권한자·전체관리자)만.
+    #    전량 스냅샷 + 배치 정합 — ERP 에서 지워진 경력 행은 revoked_at 으로 표시한다(usr_role_s·메뉴 권한 선례).
+    #    마이그레이션 `hr_career_mirror_req0120`(정본 SQL 100).
+    "hr_career": {
+        "table": "hr_career_s",
+        "rpc": "erp_identity_upsert",
+        "sql": """
+            SELECT RTRIM(c.EMP_NO) AS emp_no,
+                   NULLIF(RTRIM(ISNULL(c.COMP_NM, '')), '') AS comp_nm,
+                   CONVERT(date, c.CAREER_START) AS career_start,
+                   CONVERT(date, c.CAREER_END) AS career_end,
+                   NULLIF(RTRIM(ISNULL(c.ROLL_PSTN, '')), '') AS roll_pstn,
+                   NULLIF(RTRIM(ISNULL(c.FUNC_NM, '')), '') AS func_nm,
+                   TRY_CONVERT(int, c.CAREER_YY) AS career_yy,
+                   TRY_CONVERT(int, c.CAREER_MM) AS career_mm,
+                   NULLIF(RTRIM(ISNULL(c.APPLY_YN, '')), '') AS apply_yn,
+                   c.UPDT_DT AS src_updated
+            FROM JEILMNS.dbo.HAA050T c WITH (NOLOCK)
+            WHERE RTRIM(ISNULL(c.EMP_NO, '')) <> ''
+              AND c.CAREER_START IS NOT NULL AND c.CAREER_END IS NOT NULL
+        """,
+        "params": [],
+        "reconcile": {"mode": "batch", "rpc": "erp_hr_career_reconcile", "min_rows": 100},
     },
     # ⑦-3 ERP 권한 등록정보(역할) ← Z_USR_MAST_REC_USR_ROLE_ASSO ⋈ Z_USR_ROLE
     #    기존 usr_erp_module(모듈 4종)은 실측상 전원이 전모듈이라(SD 101·MDM 101·MM 100·IM 99)
@@ -474,6 +505,7 @@ JOBS = {
     #    품목계정(ITEM_ACCT) 이름은 사용자정의 코드표가 아니라 종합코드 P1001 에 있다
     #    (ERP 화면 도움말: 「품목계정 : 종합코드(P1001)에 등록된 항목들이 표시 됩니다」).
     #    이름이 필요한 코드 그룹이 더 생기면 IN 목록에 major 를 더한다(전체 13,293행을 받지 않는다).
+    #    H0002(직위)·H0016(입사구분: 1 신규·2 경력·3 재입사·4 기타)·H0026(직책)은 인사마스터 코드 이름용(REQ-0120 · 2026-10-08).
     #    마이그레이션 `item_acct_p1001`(48번) 의 erp_master_upsert 분기 'sys_code_s'.
     "sys_code": {
         "table": "sys_code_s",
@@ -484,7 +516,7 @@ JOBS = {
                    RTRIM(n.MINOR_TYPE) AS minor_type, n.UPDT_DT AS src_updated
             FROM JEILMNS.dbo.B_MINOR n WITH (NOLOCK)
             LEFT JOIN JEILMNS.dbo.B_MAJOR m WITH (NOLOCK) ON m.MAJOR_CD = n.MAJOR_CD
-            WHERE n.MAJOR_CD IN ('P1001')
+            WHERE n.MAJOR_CD IN ('P1001', 'H0002', 'H0016', 'H0026')
         """,
         "params": [],
     },

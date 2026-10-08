@@ -76,6 +76,8 @@ schtasks /Create /TN "JEIL_AX ETL 요청러너" /SC MINUTE /MO 1 /RL LIMITED ^
 | `usr_master` | `Z_USR_MAST_REC` | `erp_ro.usr_master_s` | 사용(`USE_YN='Y'`)·이메일(`@`) 계정만. 부서/사원은 `usr_nm` 파싱(뷰) |
 | `dept_master` | `B_ACCT_DEPT` | `erp_ro.dept_master_s` | 부서명 대사 기준·부서-사원 관계 |
 | `usr_erp_module` | `Z_USR_MAST_REC_USR_ROLE_ASSO`→`Z_USR_ROLE_MNU_AUTHZTN_ASSO`→`Z_CO_MAST_MNU` | `erp_ro.usr_erp_module_s` | 사용자별 ERP 접근 모듈(ModuleInitial). 부서별 ERP 모듈 **제안값**(`v_dept_erp_suggest`)용 — 콘솔 ◆ 참고표시, 자동 덮어쓰기 아님 |
+| `hr_emp` | `HAA010T` | `erp_ro.hr_emp_s` (rpc=`erp_identity_upsert`) | 인사 사원마스터 — 사번·이름·부서·직위·이메일·입퇴사일·입사구분·그룹웨어ID + **직책코드·인정경력 개월**(REQ-0120). 주민번호·주소·연락처·급여 미추출. 코드 이름은 `sys_code` 의 H0002/H0016/H0026 |
+| `hr_career` | `HAA050T` | `erp_ro.hr_career_s` (rpc=`erp_identity_upsert`) | 인사 **경력정보**(당사 입사 이전 경력 · REQ-0120). 전량 스냅샷 + 배치 정합(`erp_hr_career_reconcile` — ERP 에서 지워진 행은 `revoked_at`). 읽기는 `hr_career_get`(인사팀·전체관리자)만 |
 | `hr_payroll` ⚠민감 | `HDF070T`(월급여대장)·`HGA070T`(퇴직) | **`erp_secure.hr_payroll_m`** (rpc=`erp_secure_upsert`) | 인사 급여 **집계만**(월×부서 인원·급여총액, 월×전사 퇴직). 개인별·이름·주민번호·계좌 미포함. 인사팀 전용(jeil-hr). 실 적재는 관리자 `!` 직접 실행(거버넌스 게이트) |
 | `pur_order`·`item_master`·`sales`·`purchase`·`inventory` | (기존) | `erp_ro.*` | 1차 5종 |
 | `acct_master`·`cost_center`·`ctrl_item`·`acct_ctrl_assn` | `A_ACCT`·`B_COST_CENTER`·`A_CTRL_ITEM`·`A_ACCT_CTRL_ASSN` | `erp_ro.*` | 결의전표 회계 마스터 4종(코드·설정만) |

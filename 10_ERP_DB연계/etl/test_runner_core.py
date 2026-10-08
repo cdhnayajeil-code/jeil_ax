@@ -933,6 +933,42 @@ class TestEtlRunIncrement(unittest.TestCase):
     def test_full_ignores_increment(self):
         sql, params = self._run("pur_order", full=True)
         self.assertEqual(len(params), 2)
+
+    # ── REQ-0120(2026-10-08) · 인사 경력정보(HAA050T) 미러 + 인사마스터 보강 ───────────────────
+    def test_hr_career_is_full_snapshot_with_batch_reconcile(self):
+        """경력은 증분 없는 전량 스냅샷이고, 이번 배치가 안 덮은 행을 revoked_at 으로 표시한다(물리 삭제 없음)."""
+        spec = er.JOBS["hr_career"]
+        self.assertNotIn("incr_sql", spec, "전량 스냅샷 — incr_sql 을 붙이면 배치 정합이 전건 회수로 오작동한다")
+        self.assertEqual(spec["table"], "hr_career_s")
+        self.assertEqual(spec["rpc"], "erp_identity_upsert")
+        self.assertEqual(spec["reconcile"], {"mode": "batch", "rpc": "erp_hr_career_reconcile", "min_rows": 100})
+        sql, params = self._run("hr_career")
+        self.assertEqual(params, (), "파라미터 없음")
+        self.assertIn("JEILMNS.dbo.HAA050T", sql)
+        for col in ("emp_no", "comp_nm", "career_start", "career_end", "roll_pstn", "func_nm",
+                    "career_yy", "career_mm", "apply_yn", "src_updated"):
+            self.assertIn(" AS %s" % col, sql, col)
+
+    def test_hr_emp_adds_role_cd_and_career_mm_only(self):
+        """인사마스터 보강은 직책코드·인정경력 개월 두 열뿐 — 전량 upsert 라 --full 없이 다음 회차에 채워진다."""
+        spec = er.JOBS["hr_emp"]
+        self.assertNotIn("incr_sql", spec)
+        sql, params = self._run("hr_emp")
+        self.assertEqual(params, ())
+        self.assertIn("ROLE_CD", sql)
+        self.assertIn("TRY_CONVERT(int, CAREER_MM) AS career_mm", sql)
+
+    def test_hr_jobs_never_select_sensitive_columns(self):
+        """CLAUDE.md §1.7 — 주민번호·주소·연락처·급여·카드는 인사 job 어디에도 없다."""
+        for name in ("hr_emp", "hr_career"):
+            sql = er.JOBS[name]["sql"].upper().replace("EMAIL_ADDR", "")   # 이메일은 허용(계정 연결키)
+            for bad in ("RES_NO", "ADDR", "TEL_", "PHONE", "MOBILE", "SALARY", "PAY_", "CARD_ID", "BANK", "ACCT_NO"):
+                self.assertNotIn(bad, sql, "%s 에 %s" % (name, bad))
+
+    def test_sys_code_whitelist_includes_hr_code_groups(self):
+        """직위 H0002 · 입사구분 H0016 · 직책 H0026 이름은 종합코드 미러에서 온다(전체 1.3만 행을 받지 않는다)."""
+        sql = er.JOBS["sys_code"]["sql"]
+        self.assertIn("IN ('P1001', 'H0002', 'H0016', 'H0026')", sql)
         self.assertNotIn("M_PUR_GOODS_MVMT g", sql)
 
     def test_every_incremental_job_binds_as_many_marks_as_it_declares(self):

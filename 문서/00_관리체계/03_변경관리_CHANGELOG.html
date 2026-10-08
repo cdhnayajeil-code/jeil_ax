@@ -110,6 +110,13 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <tbody>
 <tr>
 <td>2026-10-08</td>
+<td>ERP연계</td>
+<td>정본 SQL 100(<code>100_hr_career_mirror.sql</code> + rollback · 마이그레이션 <code>hr_career_mirror_req0120</code> 라이브 적용) · ETL job <code>hr_career</code> · 러너 r1.13 · 문서/10 v0.87</td>
+<td><strong>인사 경력정보(HAA050T) 미러 연계 신</strong>[10-08 14:13 실적재 확인]<strong> 관리자 서버 r1.13 교체·재적재 — 경력 478행/100명(회수 0) · 인사마스터 746행 새 2열 채움 · 코드 3그룹 적재 · 인정경력 대사 일치(경력 Y행 합계 = 마스터 합계). 설</strong>(REQ-0120) — 사원마스터는 기연계(hr_emp_s 746행), 경력정보는 미연계였다. 신규 표 <code>hr_career_s</code>(RLS ON·정책 0) · hr_emp_s 직책코드·인정경력 개월 2열 · 정합 RPC · 조회 RPC <code>hr_career_get</code>(인사팀·전체관리자만), 코드 H0002·H0016·H0026 추가, 입사구분 H0016 = 1 신규·2 경력·3 재입사·4 기타 확정. 격리 위치·조회 범위는 사후 확인 대상(D-151·D-152). 서버 EXE r1.13 교체 전이라 적재 0행 · 커밋 전 · 정본 SQL 번호 99 가 NAS 조회 정비 SQL 과 겹침</td>
+<td>최동혁</td>
+</tr>
+<tr>
+<td>2026-10-08</td>
 <td>에이전트·NAS</td>
 <td><code>nas_worker.py</code>(n1.11)·<code>test_nas_worker.py</code> · 정본 SQL 99(<code>99_nas_query_reclaim_tune.sql</code> + rollback · 라이브 적용) · <code>deploy/nas</code> README·compose · 12/03 · 이관 00·03 · CLAUDE.md §17.4</td>
 <td><strong>NAS 동시 조회 지연 수정</strong>(REQ-0117) — 원인 ① 워커가 조회를 한 줄로 처리해 건당 약 0.6초씩 밀림(실측: 12건 동시 → 중앙 3.7초 · 가장 늦은 건 7.0초 — 게이트웨이 상한 8초 바로 밑) ② 길게 대기 중 연결이 끊기면 워커가 5초를 쉬고, 그때 집힌 요청은 5초 뒤에야 다시 집혀 9.9초 대기(추정 — 워커 로그 미확인). 조치: 받은 조회를 일꾼 스레드로 넘겨 <strong>최대 4건 동시 처리</strong>, 대기 오류 뒤 0.5초만 쉬고 다시 물기, 한 조회의 예외가 다른 조회에 번지지 않게 · 정본 SQL 99 — 잃어버린 요청 되살리기 5 → 3초(표 읽기는 7초) · 결과 청소용 부분 색인. 회귀 193 → 196건. NAS 컨테이너 n1.11 재빌드 필요</td>
