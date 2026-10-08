@@ -383,6 +383,7 @@
   .pg-sect .mine{font-size:10.5px; background:var(--soft); color:var(--accent); border:1px solid var(--accent2); border-radius:9px; padding:0 7px; font-weight:700;}
   .pg-sect .lk{font-size:10.5px; color:var(--muted); border:1px dashed var(--line); border-radius:9px; padding:0 7px; font-weight:500;}
   .pg-sect small{margin-left:0;}
+  #pagesView .panel{max-width:1240px;}        /* 운영 페이지는 챗봇보다 넓게 — 큰 화면에서 4열 */
   #pagesView .pg-grid{grid-template-columns:repeat(auto-fill,minmax(232px,1fr)); gap:10px;}
   #pagesView .pgcard{padding:13px 14px 12px; gap:6px;}
   #pagesView .pgcard .ic{font-size:19px;}
@@ -696,14 +697,14 @@
           <h4>프로젝트 원가관리 시스템<br>2025-095-SUL-EC</h4>
           <div class="metarow"><span class="badge b">사업관리팀</span><span class="badge g">부서 전용</span><span class="badge a">별도 운영</span></div>
           <p>완성형 원가 대시보드 — 실행원가·공수 반영, 수금/지출/매입 통합 현황 (2026-05-14 기준)</p>
-          <button class="open-btn" onclick="openEmbed('cost1')">페이지 열기 ↗</button>
+          <button class="open-btn" onclick="openEmbed('cost1')">열기 ↗</button>
         </div>
         <div class="pgcard">
           <span class="ic">📑</span>
           <h4>프로젝트 원가 요약 (ERP DB 추출)<br>2025-095-SUL-EC</h4>
           <div class="metarow"><span class="badge b">사업관리팀</span><span class="badge g">부서 전용</span></div>
           <p>UNIERP DB 추출 원가요약 보고서 — 지출 47건 · 매입 101라인 · 수금 2건, 총 152행 (2026-05-22 생성)</p>
-          <button class="open-btn" onclick="openEmbed('cost2')">페이지 열기 ↗</button>
+          <button class="open-btn" onclick="openEmbed('cost2')">열기 ↗</button>
         </div>
         <div class="pgcard">
           <span class="ic">📈</span>
@@ -2959,7 +2960,7 @@ function pgCard(p){
   var vis = '<span class="badge '+(p.visibility==='전사 공개'?'g':'a')+'">'+escHtml(p.visibility||'')+'</span>'+(p.erp_module?'<span class="badge a">ERP '+escHtml(p.erp_module)+'</span>':'');
   if(p.allowed){
     return '<div class="pgcard" data-dyn="1"><span class="ic">'+escHtml(p.icon||'📄')+'</span><h4>'+escHtml(p.title||p.page_key)+'</h4><div class="metarow">'+vis+'</div>'
-      + '<a class="open-btn" href="'+escHtml(p.path)+'" target="_blank">페이지 열기 ↗</a></div>';
+      + '<a class="open-btn" href="'+escHtml(p.path)+'" target="_blank">열기 ↗</a></div>';
   }
   return '<div class="pgcard locked" data-dyn="1" title="소속 부서·권한 범위 밖 페이지입니다. 열람이 필요하면 해당 부서 관리자에게 요청하세요.'+(p.reason?' ('+escHtml(p.reason)+')':'')+'"><span class="ic">🔒</span><h4>'+escHtml(p.title||p.page_key)+'</h4>'
     + '<div class="metarow">'+vis+'<span class="badge r">권한 없음</span></div>'
