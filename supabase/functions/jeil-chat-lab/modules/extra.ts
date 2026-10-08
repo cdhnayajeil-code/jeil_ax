@@ -12,6 +12,7 @@ import * as nasFiles from "./nas/list_company_files.ts";
 import * as nasPastChats from "./nas/search_my_past_chats.ts";
 import * as nasDocSearch from "./nas/search_company_docs.ts";   // 문서 내용 검색(REQ-0104 · D-95)
 import * as nasDocRead from "./nas/read_company_doc.ts";
+import * as nasDocTable from "./nas/read_company_table.ts";   // 엑셀·CSV 표 구조 판독(REQ-0117 S1 · 정본 SQL 97)
 
 export const EXTRA_MODULES: ToolModule[] = [searchPurList, vendorPurchase, purProposal, proposalRecon, vendorProfile, proposalChain,
-  nasFiles, nasPastChats, nasDocSearch, nasDocRead];
+  nasFiles, nasPastChats, nasDocSearch, nasDocRead, nasDocTable];

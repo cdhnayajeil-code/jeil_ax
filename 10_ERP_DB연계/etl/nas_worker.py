@@ -46,7 +46,7 @@ from _env import env_root, load_env, need
 import nas_index
 import threading
 
-WORKER_VERSION = "n1.8"   # n1.8(2026-10-07): 부서 폴더의 이미지·PDF 를 화면으로 가져오기(SQL 93 · DRI D1) / n1.7(2026-10-06): 보관함 관리 — 사용자 폴더·내려받기(NAS→임시 버킷)·삭제 즉시 처리(SQL 90 · 일감은 nas_work_claim 하나로) / n1.6(2026-10-06): 과거 대화의 일시·기간 조건을 한국시간으로(적재 파일은 UTC 로 쌓인다 — N-2) · 저장 직후 색인 갱신 / n1.5(2026-10-06): 첨부 원본·생성 자료를 부서 폴더 「AI저장」에 저장·보존 만료 정리(SQL 89 · REQ-0108) / n1.4(2026-10-02): 문서 내용 색인·검색(nas_index.py — SQL 87) / n1.3:실시간 조회 응답(파일 목록·본인 과거 대화 — SQL 86) / n1.2:브리지 전송(좁은 키)·--serve(컨테이너 상주)·KST 고정 / n1.1: --nightly·--log·루트 검증
+WORKER_VERSION = "n1.9"   # n1.9(2026-10-08): 표 구조 판독(doc_table)·판독 상태(index_status) 조회 + 색인 i1.1(읽는 형식 추가) — SQL 97 · REQ-0117 S1 / n1.8(2026-10-07): 부서 폴더의 이미지·PDF 를 화면으로 가져오기(SQL 93 · DRI D1) / n1.7(2026-10-06): 보관함 관리 — 사용자 폴더·내려받기(NAS→임시 버킷)·삭제 즉시 처리(SQL 90 · 일감은 nas_work_claim 하나로) / n1.6(2026-10-06): 과거 대화의 일시·기간 조건을 한국시간으로(적재 파일은 UTC 로 쌓인다 — N-2) · 저장 직후 색인 갱신 / n1.5(2026-10-06): 첨부 원본·생성 자료를 부서 폴더 「AI저장」에 저장·보존 만료 정리(SQL 89 · REQ-0108) / n1.4(2026-10-02): 문서 내용 색인·검색(nas_index.py — SQL 87) / n1.3:실시간 조회 응답(파일 목록·본인 과거 대화 — SQL 86) / n1.2:브리지 전송(좁은 키)·--serve(컨테이너 상주)·KST 고정 / n1.1: --nightly·--log·루트 검증
 
 POLL_SEC = 20          # 기본 폴링 주기
 HTTP_TIMEOUT = 120     # 페이지 응답이 수 MB 가 될 수 있어 etl_watch(60초)보다 넉넉히 잡는다
@@ -752,6 +752,59 @@ def query_doc_read(params, scope):
         con.close()
 
 
+def query_index_status(params, scope):
+    """허용 폴더 안 파일의 판독 상태(읽힘 / 못 읽음·사유). 내용은 싣지 않는다 — 보관함 화면이 쓴다."""
+    keys, labels = _scope_keys(scope)
+    if not os.path.exists(index_db_path()):
+        raise RuntimeError("문서 색인이 아직 만들어지지 않았습니다")
+    con = nas_index.connect(index_db_path())
+    try:
+        try:
+            res, n = nas_index.file_status(con, keys, params.get("under"), _int(params.get("limit"), 300, 1, 500))
+        except ValueError as e:
+            return {"목록": [], "반환수": 0, "사유": str(e)}, 0
+        for h in res["목록"]:
+            h["폴더"] = labels.get(h["폴더키"], "")
+        return res, n
+    finally:
+        con.close()
+
+
+def query_doc_table(params, scope, docs_root):
+    """엑셀·CSV 한 건을 표 구조(시트·머리글·열·행 번호·날짜)로. 범위(scope) 밖 문서는 번호를 알아도 못 읽는다."""
+    if not docs_root:
+        raise RuntimeError("문서 폴더가 이 워커에 연결돼 있지 않습니다")
+    keys, _ = _scope_keys(scope)
+    if not os.path.exists(index_db_path()):
+        raise RuntimeError("문서 색인이 아직 만들어지지 않았습니다")
+    con = nas_index.connect(index_db_path())
+    try:
+        try:
+            key, rel, name, mtime = nas_index.locate(con, params.get("doc"), keys)
+        except ValueError as e:
+            return {"행": [], "사유": str(e)}, 0
+    finally:
+        con.close()
+    folder = next((f for f in (scope.get("folders") or []) if isinstance(f, dict) and str(f.get("key")) == key), None)
+    base_rel = str((folder or {}).get("rel_path") or "").replace("\\", "/").strip("/")
+    parts = base_rel.split("/") + str(rel).replace("\\", "/").strip("/").split("/")
+    if not base_rel or any(p in ("", ".", "..") for p in parts):
+        return {"행": [], "사유": "문서 경로가 올바르지 않습니다"}, 0
+    path = os.path.join(docs_root, *parts)
+    if not _inside(docs_root, path) or os.path.islink(path) or not os.path.isfile(path):
+        return {"행": [], "사유": "문서를 찾을 수 없습니다(옮겨졌거나 지워졌습니다)"}, 0
+    try:
+        res, n = nas_index.read_table(path, params.get("sheet"), params.get("start") or None,
+                                      _int(params.get("rows"), 60, 1, nas_index.TABLE_MAX_ROWS))
+    except ValueError as e:
+        return {"행": [], "사유": str(e)}, 0
+    head = {"문서": f"{key}:{str(params.get('doc')).split(':', 1)[1]}", "이름": name,
+            "경로": rel.rsplit("/", 1)[0] if "/" in rel else "",
+            "수정일": datetime.datetime.fromtimestamp(mtime or 0, _KST).strftime("%Y-%m-%d")}
+    head.update(res)
+    return head, n
+
+
 # 저장이 끝나면 켠다 — 색인 루프가 10분을 다 기다리지 않고 곧 한 번 돈다(방금 저장한 문서가 바로 검색되게)
 _INDEX_WAKE = threading.Event()
 INDEX_WAKE_DELAY = 5          # 연달아 저장할 때 한 번에 묶으려고 잠깐 기다린다
@@ -795,6 +848,10 @@ def handle_query(url, key, q, data_root, docs_root):
             result, n = query_doc_search(params, scope)
         elif kind == "doc_read":
             result, n = query_doc_read(params, scope)
+        elif kind == "doc_table":
+            result, n = query_doc_table(params, scope, docs_root)
+        elif kind == "index_status":
+            result, n = query_index_status(params, scope)
         else:
             raise RuntimeError(f"이 워커가 모르는 조회 종류입니다: {kind}")
         rpc(url, key, "nas_query_finish", {"p_query_id": qid, "p_status": "done", "p_result": result, "p_rows": n})

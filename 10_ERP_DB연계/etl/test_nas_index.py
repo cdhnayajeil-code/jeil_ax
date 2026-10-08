@@ -201,5 +201,191 @@ class TestIndexAndSearch(Base):
             os.remove(os.path.join(self.root, "state", "b.sqlite"))
 
 
+# ── REQ-0117 S1 — 읽는 형식 추가 · 판독 상태 · 표 구조 판독 ─────────────────────
+def make_book(path, sheets, date_cols=(), date1904=False):
+    """시트 이름·셀 주소·날짜 서식이 있는 진짜 꼴의 xlsx. sheets = [(이름, [[값…], …])], date_cols = 날짜 서식을 줄 열 번호."""
+    ns = 'xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"'
+    rns = 'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"'
+    strings = []
+    with zipfile.ZipFile(path, "w") as z:
+        wb, rels = [], []
+        for si, (name, rows) in enumerate(sheets, 1):
+            out = []
+            for r, row in enumerate(rows, 1):
+                cs = []
+                for c, v in enumerate(row, 1):
+                    if v is None:
+                        continue
+                    ref = ix._col_name(c) + str(r)
+                    if isinstance(v, (int, float)):
+                        style = ' s="1"' if c in date_cols and r > 1 else ""
+                        cs.append(f'<c r="{ref}"{style}><v>{v}</v></c>')
+                    else:
+                        strings.append(v)
+                        cs.append(f'<c r="{ref}" t="s"><v>{len(strings) - 1}</v></c>')
+                out.append(f'<row r="{r}">{"".join(cs)}</row>')
+            # 일부러 파일 번호를 시트 순서와 반대로 준다 — 이름은 workbook.xml 로 찾아야 한다
+            fn = f"sheet{len(sheets) - si + 1}.xml"
+            z.writestr(f"xl/worksheets/{fn}", f"<worksheet {ns}><sheetData>{''.join(out)}</sheetData>"
+                       '<mergeCells count="1"><mergeCell ref="A9:B9"/></mergeCells></worksheet>')
+            wb.append(f'<sheet name="{name}" sheetId="{si}" r:id="rId{si}"/>')
+            rels.append(f'<Relationship Id="rId{si}" Target="worksheets/{fn}"/>')
+        pr = ' date1904="1"' if date1904 else ""
+        z.writestr("xl/workbook.xml", f'<workbook {ns} {rns}><workbookPr{pr}/>'
+                   f'<sheets>{"".join(wb)}</sheets></workbook>')
+        z.writestr("xl/_rels/workbook.xml.rels", f'<Relationships>{"".join(rels)}</Relationships>')
+        z.writestr("xl/styles.xml", f'<styleSheet {ns}><numFmts><numFmt numFmtId="176" formatCode="yyyy&quot;년&quot; m&quot;월&quot; d&quot;일&quot;"/></numFmts>'
+                   '<cellXfs><xf numFmtId="0"/><xf numFmtId="176"/></cellXfs></styleSheet>')
+        z.writestr("xl/sharedStrings.xml", f"<sst {ns}>" + "".join(f"<si><t>{s}</t></si>" for s in strings) + "</sst>")
+
+
+class TestMoreFormats(Base):
+    def test_new_text_and_markup_formats(self):
+        self.write(os.path.join(self.pur, "a.tsv"), "품목\t단가\n볼트\t1200")
+        self.write(os.path.join(self.pur, "b.json"), '{"품목": "너트", "단가": 300}')
+        self.write(os.path.join(self.pur, "c.html"), "<html><style>p{color:red}</style><script>var 비밀=1</script><body><p>견적 유효기간</p><p>30일 &amp; 연장</p></body></html>")
+        self.assertIn("볼트", ix.extract(os.path.join(self.pur, "a.tsv"))[0])
+        self.assertIn("너트", ix.extract(os.path.join(self.pur, "b.json"))[0])
+        t = ix.extract(os.path.join(self.pur, "c.html"))[0]
+        self.assertIn("견적 유효기간", t)
+        self.assertIn("30일 & 연장", t)
+        self.assertNotIn("color", t)
+        self.assertNotIn("비밀", t, "스크립트·스타일은 색인하지 않는다")
+        make_xlsx(os.path.join(self.pur, "m.xlsm"), [["품목", "단가"], ["와셔", 50]])
+        self.assertIn("와셔 | 50", ix.extract(os.path.join(self.pur, "m.xlsm"))[0])
+
+    def test_image_reason_is_distinct(self):
+        self.write(os.path.join(self.pur, "도면.png"), "x")
+        self.assertEqual(ix.extract(os.path.join(self.pur, "도면.png")), (None, ix.REASON_IMAGE))
+
+    def test_version_bump_rereads_only_format_skips(self):
+        """색인 판이 오르면 「읽지 못하는 형식」으로 빠졌던 파일만 다시 본다 — 크기·수정시각이 그대로여도."""
+        self.write(os.path.join(self.pur, "단가.tsv"), "품목\t단가\n볼트\t1200")
+        self.write(os.path.join(self.pur, "규정.txt"), "수의계약 기준")
+        self.write(os.path.join(self.pur, "옛한글.hwp"), "x")
+        ix.refresh(self.con, self.docs, self.folders)
+        with self.con:      # 옛 판(i1.0)이 tsv 를 형식 때문에 뺐던 상태를 흉내 낸다
+            self.con.execute("delete from chunk where file_id in (select id from file where name = '단가.tsv')")
+            self.con.execute("update file set status = 'skipped', reason = ?, n_chunks = 0 where name = '단가.tsv'", (ix.REASON_UNREADABLE,))
+            self.con.execute("delete from meta where k = 'index_version'")
+        r = ix.refresh(self.con, self.docs, self.folders)
+        self.assertEqual(r["changed"], 2, "tsv 와 hwp 만 다시 본다(txt 는 그대로)")
+        self.assertEqual(self.con.execute("select status from file where name = '단가.tsv'").fetchone()[0], "ok")
+        self.assertEqual(ix.refresh(self.con, self.docs, self.folders)["changed"], 0, "판이 기록된 뒤에는 다시 읽지 않는다")
+
+
+class TestFileStatus(Base):
+    def test_status_lists_reasons_without_content(self):
+        os.makedirs(os.path.join(self.pur, "AI저장", "2026"))
+        self.write(os.path.join(self.pur, "AI저장", "2026", "견적.txt"), "볼트 단가 1200")
+        self.write(os.path.join(self.pur, "AI저장", "2026", "스캔.hwp"), "x")
+        self.write(os.path.join(self.pur, "양식", "발주서.txt"), "발주서 양식")
+        self.write(os.path.join(self.hr, "인사.txt"), "인사 문서")
+        ix.refresh(self.con, self.docs, self.folders + [{"key": "hr", "rel_path": "부서/6100_인사팀", "label": "인사팀"}])
+        res, n = ix.file_status(self.con, ["pur"], under="AI저장")
+        self.assertEqual(n, 2)
+        self.assertEqual(res["요약"], {"전체": 2, "읽힘": 1, "못읽음": {ix.REASON_UNREADABLE: 1}})
+        by = {r["이름"]: r for r in res["목록"]}
+        self.assertEqual((by["견적.txt"]["상태"], by["스캔.hwp"]["상태"], by["스캔.hwp"]["사유"]), ("읽힘", "못 읽음", ix.REASON_UNREADABLE))
+        self.assertEqual(by["견적.txt"]["경로"], "AI저장/2026/견적.txt")
+        import json
+        self.assertNotIn("1200", json.dumps(res, ensure_ascii=False), "판독 상태에는 내용이 실리지 않는다")
+        self.assertEqual(ix.file_status(self.con, ["pur"])[1], 3, "폴더를 좁히지 않으면 그 부서 폴더 전체")
+        self.assertNotIn("인사.txt", [r["이름"] for r in ix.file_status(self.con, ["pur", "common"])[0]["목록"]])
+        with self.assertRaises(ValueError):
+            ix.file_status(self.con, ["pur"], under="../6100_인사팀")
+        with self.assertRaises(ValueError):
+            ix.file_status(self.con, [])
+
+
+class TestReadTable(Base):
+    def book(self):
+        p = os.path.join(self.pur, "견적비교.xlsx")
+        rows = [["견적 비교표", None, None, None],
+                [None, None, None, None],
+                ["품목", "규격", "단가", "납기"],
+                ["볼트", "M8", 1200, 45931],          # 45931 = 2025-10-01
+                ["너트", None, 300.5, 45931.5],
+                ["와셔", "M8", 50, 45962]]
+        make_book(p, [("요약", [["메모"], ["첫 시트"]]), ("견적", rows)], date_cols=(4,))
+        return p
+
+    def test_keeps_sheet_header_columns_and_dates(self):
+        res, n = ix.read_table(self.book(), sheet="견적")
+        self.assertEqual([s["이름"] for s in res["시트목록"]], ["요약", "견적"], "시트 이름은 workbook.xml 순서로")
+        self.assertEqual(res["시트"], {"번호": 2, "이름": "견적"})
+        self.assertEqual(res["머리글행"], 3)
+        self.assertEqual(res["머리글"], {"A": "품목", "B": "규격", "C": "단가", "D": "납기"})
+        self.assertEqual(res["열"], ["A", "B", "C", "D"])
+        self.assertEqual(res["행"][0], [4, "볼트", "M8", "1200", "2025-10-01"])
+        self.assertEqual(res["행"][1], [5, "너트", "", "300.5", "2025-10-01 12:00"], "빈 칸이 있어도 열이 밀리지 않는다")
+        self.assertEqual((n, res["행범위"], res["다음행"], res["마지막행"]), (3, [4, 6], None, 6))
+        self.assertEqual(res["병합"], ["A9:B9"])
+        self.assertEqual(res["머리글위"], [{"행": 1, "값": {"A": "견적 비교표"}}], "머리글 위 제목 줄은 칸 주소째로 따로 준다")
+        self.assertEqual(ix.read_table(self.book(), sheet="견적", start=4)[0]["머리글위"], [], "시작 행을 직접 주면 싣지 않는다")
+        one, n1 = ix.read_table(self.book(), sheet="요약")
+        self.assertEqual((one["머리글행"], [r[1] for r in one["행"]]), (None, ["메모", "첫 시트"]), "한 열짜리 시트는 머리글 없이 전부 내용")
+
+    def test_sheet_by_number_paging_and_limits(self):
+        p = self.book()
+        self.assertEqual(ix.read_table(p, sheet=1)[0]["시트"]["이름"], "요약")
+        two = os.path.join(self.pur, "조건.csv")
+        self.write(two, "결제조건,익월말")
+        t, nt = ix.read_table(two)
+        self.assertEqual((t["머리글행"], t["행"]), (None, [[1, "결제조건", "익월말"]]), "머리글로 보인 줄 아래가 비면 내용으로 돌려준다")
+        res, n = ix.read_table(p, sheet="2", start=5, max_rows=1)
+        self.assertEqual((n, res["행"][0][0], res["다음행"]), (1, 5, 6))
+        with self.assertRaises(ValueError):
+            ix.read_table(p, sheet="없는시트")
+        big = os.path.join(self.pur, "큰표.xlsx")
+        make_book(big, [("목록", [["번호", "품목", "비고"]] + [[i, f"품목{i}", "가" * 300] for i in range(1, 400)])])
+        res, n = ix.read_table(big, max_rows=200)
+        self.assertLess(n, 60, "글자 예산을 넘기지 않는다")
+        self.assertTrue(res["행"][0][3].endswith("…"), "긴 셀은 자른다")
+        self.assertEqual(res["다음행"], res["행범위"][1] + 1)
+        nxt, m = ix.read_table(big, start=350, max_rows=5)
+        self.assertEqual([r[0] for r in nxt["행"]], [350, 351, 352, 353, 354], "머리글 추정 구간 뒤쪽도 시작 행으로 읽는다")
+        self.assertEqual(nxt["머리글"]["B"], "품목")
+
+    def test_csv_and_plain_xlsx_without_workbook(self):
+        self.write(os.path.join(self.pur, "단가.csv"), "품목,단가,비고\n볼트,1200,\n너트,300,재고")
+        res, n = ix.read_table(os.path.join(self.pur, "단가.csv"))
+        self.assertEqual((res["머리글행"], res["행"]), (1, [[2, "볼트", "1200", ""], [3, "너트", "300", "재고"]]))
+        make_xlsx(os.path.join(self.pur, "옛꼴.xlsx"), [["품목", "단가"], ["볼트", 1200]])
+        res, n = ix.read_table(os.path.join(self.pur, "옛꼴.xlsx"))
+        self.assertEqual((res["시트"]["이름"], res["행"]), ("시트 1", [[2, "볼트", "1200"]]), "셀 주소·workbook.xml 이 없어도 읽는다")
+
+    def test_refuses_sensitive_and_wrong_types(self):
+        p = os.path.join(self.pur, "명부.csv")
+        self.write(p, "이름,번호\n홍길동,900101-1234567")
+        with self.assertRaisesRegex(ValueError, "주민등록번호"):
+            ix.read_table(p)
+        self.write(os.path.join(self.pur, "급여대장.csv"), "a,b\n1,2")
+        with self.assertRaisesRegex(ValueError, "민감 파일 이름"):
+            ix.read_table(os.path.join(self.pur, "급여대장.csv"))
+        self.write(os.path.join(self.pur, "글.txt"), "표가 아니다")
+        with self.assertRaisesRegex(ValueError, "표로 읽을 수 있는 형식"):
+            ix.read_table(os.path.join(self.pur, "글.txt"))
+        self.write(os.path.join(self.pur, "깨짐.xlsx"), "zip 아님")
+        with self.assertRaisesRegex(ValueError, "깨졌거나"):
+            ix.read_table(os.path.join(self.pur, "깨짐.xlsx"))
+
+    def test_date1904_and_locate_scope(self):
+        p = os.path.join(self.pur, "맥.xlsx")
+        make_book(p, [("표", [["품목", "납기"], ["볼트", 0]])], date_cols=(2,), date1904=True)
+        self.assertEqual(ix.read_table(p)[0]["행"][0], [2, "볼트", "00:00"])
+        self.write(os.path.join(self.hr, "인사.csv"), "a,b\n1,2")
+        self.write(os.path.join(self.pur, "명부.txt"), "홍길동 900101-1234567")
+        ix.refresh(self.con, self.docs, self.folders + [{"key": "hr", "rel_path": "부서/6100_인사팀", "label": "인사팀"}])
+        hr_id = self.con.execute("select id from file where folder_key = 'hr'").fetchone()[0]
+        with self.assertRaisesRegex(ValueError, "볼 수 없는"):
+            ix.locate(self.con, f"hr:{hr_id}", ["pur", "common"])
+        rrn_id = self.con.execute("select id from file where name = '명부.txt'").fetchone()[0]
+        with self.assertRaisesRegex(ValueError, "민감"):
+            ix.locate(self.con, f"pur:{rrn_id}", ["pur"])
+        ok_id = self.con.execute("select id from file where name = '맥.xlsx'").fetchone()[0]
+        self.assertEqual(ix.locate(self.con, f"pur:{ok_id}", ["pur"])[:3], ("pur", "맥.xlsx", "맥.xlsx"))
+
+
 if __name__ == "__main__":
     unittest.main()

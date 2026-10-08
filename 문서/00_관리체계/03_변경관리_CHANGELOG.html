@@ -110,6 +110,13 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <tbody>
 <tr>
 <td>2026-10-08</td>
+<td>에이전트·NAS</td>
+<td>정본 SQL 97(<code>97_nas_doc_table_status.sql</code> + rollback · 라이브 적용) · <code>nas_index.py</code>(i1.1)·<code>nas_worker.py</code>(n1.9)·회귀 2종 · <code>jeil-chat-lab</code> v27(<code>modules/nas/read_company_table.ts</code>·<code>_nas_query.ts</code>·<code>extra.ts</code>·<code>agent_api.ts</code>) · <code>pages/구매_AI에이전트_2026.html</code> · <code>deploy/nas/README</code> §9.3·<code>compose.yaml</code> · 12/00·03 · 13 README · 이관 00·03 · CLAUDE.md §17.4</td>
+<td><strong>NAS 자료 읽기 기반(REQ-0117 S1)</strong> — 엑셀·CSV 를 표 구조(시트·머리글·열·행 번호·날짜)로 읽는 도구 <code>read_company_table</code>, 보관함 「판독」 열(읽힘 / 못 읽음·사유), 보관 파일을 대화에 붙이는 「💬 대화에」, 색인이 읽는 형식 7종 추가. 값은 쌓지 않는다(D-95 유지 — 쌓는 것은 S2). <strong>NAS 컨테이너 n1.9 재빌드 전에는 「확인 불가」</strong>. 회귀 169 → 180건</td>
+<td>최동혁</td>
+</tr>
+<tr>
+<td>2026-10-08</td>
 <td>에이전트·NAS · 의사결정</td>
 <td><code>문서/12_에이전트관리/10</code>(§2·§5-6·§7·§9) · <code>CLAUDE.md</code> §19-5 · 총괄 대시보드 D-144·D-147</td>
 <td><strong>관리자 결정 2건(REQ-0117)</strong> — <strong>D-144</strong> 추출 필드 값은 포털 DB 전용 구역에 둔다(본문·색인은 사내 NAS 유지 — D-95 범위 명확화 · 권고안 채택). <strong>D-147</strong> 대상 범위는 권고안을 고쳐 「부서 NAS 폴더 안의 <strong>기본 적용 폴더</strong>는 항상 읽고, 그 밖은 사용자가 지시하거나 폴더를 골라 진행」. 기본 적용 폴더는 DB 등록표가 정하고 자동 처리 결과는 초안까지. D-145·146·148 은 대기. 코드·DB 무변경</td>
@@ -141,6 +148,13 @@ body{font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif;c
 <td>ERP DB 연계 · 보안</td>
 <td>정본 SQL 96 ⑤(<code>96_pur_board7_slip_trace.sql</code> 보강 절 · 마이그레이션 <code>pur_definer_guard_req0116</code>) · <code>문서/10_ERP_DB연계</code> 00(v0.86 §6)·02 · 이관 00</td>
 <td><strong>구매 추적 definer 함수 2종에 사내 판정·anon 회수 보강.</strong> ERP 관제 에이전트가 짚은 대로 <code>pur_proposal_links()</code>·<code>pur_slip_trace()</code> 가 Supabase 기본 권한 때문에 anon 실행권을 갖고 있었고(실측 참) 협력사 세션도 부를 수 있었다 — 본문에 <code>is_internal()</code>·서비스 권한 판정, <code>revoke … from public, anon</code>. 역할 3종 트랜잭션 실측 뒤 적용: 협력사·anon 빈 결과, 사내·서비스 권한 변동 없음. 유출된 것은 없음(번호만 내보내는 함수) · 교훈 「definer 는 revoke public, anon + 본문 판정을 함께」</td>
+<td>최동혁</td>
+</tr>
+<tr>
+<td>2026-10-08</td>
+<td>ERP DB 연계</td>
+<td>정본 SQL 96 ⑥(마이그레이션 <code>pur_slip_trace_dept_5250_req0116</code>) · 14/03 결정 17 · <code>문서/10_ERP_DB연계</code> 00·02</td>
+<td><strong>전표 추적 대상 부서에 프로젝트구매TF(5250) 추가</strong>(관리자 지시) — <code>pur_slip_trace</code> 부서 상수 '{5200}' → '{5200,5250}'. 2026년 중간DB 에 5250 전표 0건이라 결과 변동 없음(앞으로를 위해)</td>
 <td>최동혁</td>
 </tr>
 <tr>

@@ -268,6 +268,31 @@ export async function handleAgent(c: AgentCtx, body: Record<string, unknown>): P
       if (data?.status !== "ok") { const [m, c] = why[data?.status] || ["폴더를 지우지 못했습니다.", 500]; return json({ error: m }, c); }
       return json({ ok: true });
     }
+    case "nas_saved_status": {
+      // 보관함 파일의 판독 상태(읽힘 / 못 읽음·사유) — REQ-0117 S1 · 정본 SQL 97. 내용은 오지 않는다.
+      // 목록(nas_saved_list)과 따로 둔다 — 사내 보관소가 늦거나 꺼져 있어도 목록은 바로 떠야 한다. 실패는 조용히 「확인 불가」로.
+      if (!agent.dept_nm) return json({ ok: false, why: "no_folder" });
+      const { data: fs } = await admin.rpc("nas_save_list", { p_dept: agent.dept_nm, p_limit: 1 });
+      if (!fs?.folder) return json({ ok: false, why: "no_folder" });
+      const { data: sub, error } = await admin.rpc("nas_query_submit", { p_upn: scope.upn, p_kind: "index_status",
+        p_params: { under: "AI저장", limit: 500 }, p_depts: [agent.dept_nm], p_is_admin: false });
+      if (error || sub?.status !== "queued") return json({ ok: false, why: error ? "error" : String(sub?.status || "error") });
+      const until = Date.now() + 8000;
+      while (Date.now() < until) {
+        await new Promise((r) => setTimeout(r, 300));
+        const { data: st } = await admin.rpc("nas_query_poll", { p_query_id: sub.query_id });
+        const s = st?.status;
+        if (s === "failed" || s === "expired" || s === "missing") return json({ ok: false, why: String(s) });
+        if (s === "done") {
+          // deno-lint-ignore no-explicit-any
+          const rows = (Array.isArray(st.result?.["목록"]) ? st.result["목록"] : []) as any[];
+          const items = rows.filter((x) => x["폴더"] === fs.folder).map((x) => ({
+            rel_path: x["경로"], read: x["상태"] === "읽힘", why: x["사유"] || null, table: x["표"] === true }));
+          return json({ ok: true, as_of: st.result?.["색인기준"] || null, items, cut: st.result?.["잘림"] === true });
+        }
+      }
+      return json({ ok: false, why: "timeout" });
+    }
     case "nas_saved_download": {
       // NAS → 임시 버킷(워커가 올림) → 2분짜리 주소. 다 쓴 임시 사본(10분 지난 것)은 여기서 치운다.
       try {

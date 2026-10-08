@@ -389,6 +389,61 @@ class TestQuery(Base):
 
 
 # ─────────────────────────── 내보내기 정합 ───────────────────────────
+
+    # ── REQ-0117 S1 — 표 구조 판독·판독 상태가 워커 경로로 이어지고, 범위 밖은 끝까지 안 보인다 ──
+    def prep(self):
+        db = os.path.join(_tmp(self), "ix.sqlite")
+        self.patch(w, "index_db_path", lambda: db)
+        pur = os.path.join(self.root, "부서", "5200_구매팀")
+        os.makedirs(os.path.join(pur, "AI저장", "2026"), exist_ok=True)
+        with io.open(os.path.join(pur, "AI저장", "2026", "단가.csv"), "w", encoding="utf-8") as fh:
+            fh.write("품목,단가,납기\n볼트,1200,2026-10-01\n너트,300,2026-10-02")
+        with io.open(os.path.join(pur, "AI저장", "2026", "옛한글.hwp"), "w", encoding="utf-8") as fh:
+            fh.write("x")
+        with io.open(os.path.join(self.root, "부서", "6100_인사팀", "인원.csv"), "w", encoding="utf-8") as fh:
+            fh.write("이름,부서\n가,나")
+        f = self.use({"nas_index_folders": [[{"key": "pur", "rel_path": "부서/5200_구매팀", "label": "구매팀"},
+                                             {"key": "hr", "rel_path": "부서/6100_인사팀", "label": "인사팀"}]]})
+        self.patch(w, "nas_docs_root", lambda: self.root)
+        w.index_loop("u", "k", rounds=1)
+        return f
+
+    def test_index_status_scope_and_reasons(self):
+        f = self.prep()
+        res, n = w.query_index_status({"under": "AI저장"}, self.scope)
+        by = {r["이름"]: r for r in res["목록"]}
+        self.assertEqual(set(by), {"단가.csv", "옛한글.hwp"})
+        self.assertEqual((by["단가.csv"]["상태"], by["단가.csv"]["표"], by["옛한글.hwp"]["사유"]), ("읽힘", True, "읽지 못하는 형식"))
+        self.assertEqual(by["단가.csv"]["폴더"], "구매팀")
+        self.assertNotIn("1200", json.dumps(res, ensure_ascii=False))
+        self.assertNotIn("인원.csv", json.dumps(w.query_index_status({}, self.scope)[0], ensure_ascii=False))
+        self.assertEqual(w.query_index_status({"under": "../x"}, self.scope)[1], 0)
+        self.assertEqual(w.handle_query("u", "k", {"query_id": "s1", "kind": "index_status", "params": {}, "scope": self.scope}, self.root, self.root), "done")
+        self.assertNoErpRpc(f)
+
+    def test_doc_table_reads_structure_within_scope_only(self):
+        f = self.prep()
+        st = w.query_index_status({}, self.scope)[0]["목록"]
+        doc = next(r["문서"] for r in st if r["이름"] == "단가.csv")
+        res, n = w.query_doc_table({"doc": doc}, self.scope, self.root)
+        self.assertEqual((res["이름"], res["경로"], res["머리글"], res["행"]),
+                         ("단가.csv", "AI저장/2026", {"A": "품목", "B": "단가", "C": "납기"},
+                          [[2, "볼트", "1200", "2026-10-01"], [3, "너트", "300", "2026-10-02"]]))
+        hr_scope = {"folders": [{"key": "hr", "rel_path": "부서/6100_인사팀", "label": "인사팀"}]}
+        hr_doc = w.query_index_status({}, hr_scope)[0]["목록"][0]["문서"]
+        denied, m = w.query_doc_table({"doc": hr_doc}, self.scope, self.root)
+        self.assertEqual((denied["행"], m), ([], 0), "남의 폴더 문서 번호를 알아도 표를 못 읽는다")
+        hwp = next(r["문서"] for r in st if r["이름"] == "옛한글.hwp")
+        self.assertIn("표로 읽을 수 있는 형식", w.query_doc_table({"doc": hwp}, self.scope, self.root)[0]["사유"])
+        # scope 의 폴더 경로가 조작돼도 문서 폴더 밖으로 나가지 못한다
+        bad = {"folders": [{"key": "pur", "rel_path": "../밖", "label": "구매팀"}]}
+        self.assertEqual(w.query_doc_table({"doc": doc}, bad, self.root)[1], 0)
+        self.assertEqual(w.handle_query("u", "k", {"query_id": "t1", "kind": "doc_table", "params": {"doc": doc, "rows": 1}, "scope": self.scope}, self.root, self.root), "done")
+        self.assertEqual(f.last("nas_query_finish")["p_rows"], 1)
+        self.assertEqual(w.handle_query("u", "k", {"query_id": "t2", "kind": "doc_table", "params": {"doc": doc}, "scope": self.scope}, self.root, None), "failed")
+        self.assertNoErpRpc(f)
+
+
 class TestExport(Base):
     def test_pages_appended_and_sha256_matches_file(self):
         rows = [[{"id": i, "q": "질문%d" % i} for i in (1, 2)],

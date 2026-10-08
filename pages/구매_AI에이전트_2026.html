@@ -593,7 +593,8 @@ $("inp").addEventListener("paste", (e) => {
 
 /* ===== 부서 NAS 보관함 관리 창(REQ-0108) — 탐색기처럼 추가·삭제 =====
    화면은 요청·표시만 한다. 어디에 쓰는지(부서 폴더의 AI저장/연도)·누가 지울 수 있는지·보존 기간은 서버(SQL 89)가 정한다. */
-const NX = { items: [], folders: [], dir: "all", q: "", sort: "date", desc: true, sel: new Set(), busy: false, can: false, timer: null, tries: 0, naming: false };
+const NX = { items: [], folders: [], dir: "all", q: "", sort: "date", desc: true, sel: new Set(), busy: false, can: false, timer: null, tries: 0, naming: false,
+  read: null, readWhy: "", readAsOf: "" };   // read: 판독 상태(REQ-0117 S1) — rel_path → {read, why, table}. null 이면 아직 못 받음
 // 파일이 든 곳 — 사용자 폴더면 "d:이름", 아니면 연도 폴더 "y:2026"
 const nxDir = (x) => x.subdir ? "d:" + x.subdir : "y:" + String(x.created_at || "").slice(0, 4);
 const nxDirLabel = (d) => d === "all" ? "" : d.slice(2);
@@ -631,18 +632,27 @@ function nxRender() {
   const st = (x) => x.status === "done" ? '<span class="nasst ok">보관됨</span>'
     : x.status === "failed" ? `<span class="nasst bad" title="${escHtml(x.error_msg || "")}">실패</span>`
     : x.status === "purge" ? '<span class="nasst wait">삭제 대기</span>' : '<span class="nasst wait">저장 중</span>';
+  // 판독 상태 — 에이전트가 이 파일의 내용을 읽을 수 있는가(사내 색인 기준). 값은 서버가 준 것만 쓴다
+  const rd = (x) => {
+    if (x.status !== "done") return "";
+    if (!NX.read) return `<span class="nasst wait" title="${escHtml(NX.readWhy || "사내 보관소에서 판독 상태를 받는 중입니다")}">${NX.readWhy ? "확인 불가" : "확인 중"}</span>`;
+    const r = NX.read.get(x.rel_path);
+    if (!r) return '<span class="nasst wait" title="아직 색인에 들어가지 않았습니다(저장 직후에는 잠시 걸립니다)">색인 대기</span>';
+    return r.read ? `<span class="nasst ok" title="에이전트가 내용을 검색·읽기 할 수 있습니다${r.table ? " · 표로도 읽습니다" : ""}">읽힘${r.table ? " · 표" : ""}</span>`
+      : `<span class="nasst bad" title="${escHtml(r.why || "")}">못 읽음</span>`;
+  };
   const selectable = rows.filter(nxCanDel);
   $("nxMain").innerHTML = rows.length ? `<table class="nx-tbl"><thead><tr>
       <th class="nos" style="width:28px"><input type="checkbox" id="nxAll" ${selectable.length && selectable.every((x) => NX.sel.has(x.save_id)) ? "checked" : ""} ${selectable.length ? "" : "disabled"} title="모두 선택"></th>
       <th data-s="name">이름${arrow("name")}</th><th class="nos">폴더 · 종류</th><th data-s="size" style="text-align:right">크기${arrow("size")}</th>
-      <th data-s="who">저장한 사람${arrow("who")}</th><th data-s="date">저장일${arrow("date")}</th><th data-s="keep">보존 기한${arrow("keep")}</th><th class="nos">상태</th><th class="nos"></th></tr></thead><tbody>`
+      <th data-s="who">저장한 사람${arrow("who")}</th><th data-s="date">저장일${arrow("date")}</th><th data-s="keep">보존 기한${arrow("keep")}</th><th class="nos">상태</th><th class="nos" title="에이전트가 이 파일의 내용을 읽을 수 있는지(사내 색인 기준${NX.readAsOf ? " · " + escHtml(NX.readAsOf) : ""})">판독</th><th class="nos"></th></tr></thead><tbody>`
     + rows.map((x) => `<tr data-id="${escHtml(x.save_id)}" class="${NX.sel.has(x.save_id) ? "sel" : ""}">
       <td>${nxCanDel(x) ? `<input type="checkbox" data-c="1" ${NX.sel.has(x.save_id) ? "checked" : ""}>` : ""}</td>
       <td class="nm" title="${escHtml(x.file_name)}${x.rel_path ? " — " + escHtml(x.rel_path) : ""}">${escHtml(x.file_name)}</td>
       <td class="c">${escHtml(nxDirLabel(nxDir(x)))} · ${nxKind(x)}</td><td class="r">${fmtSize(x.size_bytes)}</td>
       <td class="c">${escHtml(x.saver_name || "")}</td><td class="c">${escHtml(String(x.created_at).slice(0, 10))}</td>
-      <td class="c">${escHtml(String(x.retain_until || ""))}</td><td>${st(x)}</td>
-      <td>${x.status === "done" ? '<button type="button" class="dl" data-dl="1" title="이 파일을 PC 로 내려받습니다">⬇</button>' : ""}</td></tr>`).join("") + "</tbody></table>"
+      <td class="c">${escHtml(String(x.retain_until || ""))}</td><td>${st(x)}</td><td>${rd(x)}</td>
+      <td style="white-space:nowrap">${x.status === "done" ? '<button type="button" class="dl" data-add="1" title="이 파일을 지금 대화에 붙입니다 — 에이전트가 바로 읽습니다">💬 대화에</button> <button type="button" class="dl" data-dl="1" title="이 파일을 PC 로 내려받습니다">⬇</button>' : ""}</td></tr>`).join("") + "</tbody></table>"
     : `<div class="nx-empty">${NX.items.length ? "조건에 맞는 파일이 없습니다." : "아직 보관한 파일이 없습니다.<br><b>＋ 파일 추가</b>를 누르거나 파일을 이 창에 끌어다 놓으세요."}</div>`;
   $("nxCnt").textContent = `${rows.length}건${NX.sel.size ? ` · ${NX.sel.size}건 선택` : ""}`;
   const d = $("nxDel"); d.disabled = !NX.sel.size || NX.busy; d.classList.remove("armed"); d.textContent = NX.sel.size ? `선택 삭제(${NX.sel.size})` : "선택 삭제";
@@ -659,6 +669,7 @@ async function nxLoad(quiet) {
     if (!j.folder) { $("nxMain").innerHTML = '<div class="nx-empty">이 부서의 NAS 폴더가 아직 등록되지 않았습니다(관리자 확인 필요).</div>'; return; }
     nxRender();
     if (!quiet) nxMsg("");
+    if (!quiet || !NX.read) nxStatus();
     // 저장 중·삭제 대기가 있으면 잠깐씩 다시 본다(보통 수 초 안에 끝난다). 삭제 대기는 30초까지만 따라간다
     const moving = NX.items.some((x) => x.status === "queued" || x.status === "running");
     const purging = NX.items.some((x) => x.status === "purge");
@@ -702,6 +713,28 @@ async function nxDelete() {
   await nxLoad(true);
   NX.tries = 0;
   nxMsg(`${ok}개 삭제 접수 — 곧 NAS 에서 지워집니다` + (bad.length ? ` · 실패 ${bad.length}개(${bad[0]})` : ""));
+}
+// 판독 상태 받기 — 목록과 따로 부른다(사내 보관소가 늦어도 목록은 먼저 뜬다). 실패하면 「확인 불가」로만 표시한다
+async function nxStatus() {
+  const WHY = { offline: "사내 보관소(NAS)와 연결이 닿지 않습니다", timeout: "사내 보관소 응답이 늦습니다", busy: "요청이 잦아 잠시 막혔습니다", denied: "이 계정으로 볼 수 있는 폴더가 아닙니다" };
+  try {
+    const j = await op(AGENT, "nas_saved_status");
+    if (j.ok) { NX.read = new Map((j.items || []).map((x) => [x.rel_path, x])); NX.readWhy = ""; NX.readAsOf = j.as_of ? "색인 기준 " + j.as_of : ""; }
+    else { NX.read = null; NX.readWhy = WHY[j.why] || "판독 상태를 받지 못했습니다"; }
+  } catch (e) { NX.read = null; NX.readWhy = "판독 상태를 받지 못했습니다"; }
+  if (!$("nx").hidden) nxRender();
+}
+// 보관함 파일을 지금 대화에 붙인다 — NAS → 임시 주소 → 이 화면이 받아 첨부로(읽는 방식·한도는 PC 에서 붙일 때와 같다)
+async function nxAttach(id, btn) {
+  btn.disabled = true; const old = btn.textContent; btn.textContent = "…";
+  nxMsg("NAS 에서 파일을 가져오는 중…");
+  try {
+    const j = await op(AGENT, "nas_saved_download", { id });
+    const r = await fetch(j.url); if (!r.ok) throw new Error("파일을 받지 못했습니다");
+    const blob = await r.blob();
+    nxClose();
+    await addFiles([new File([blob], j.file_name || "파일", { type: blob.type || "" })]);
+  } catch (e) { nxMsg("대화에 붙이지 못했습니다: " + e.message); btn.disabled = false; btn.textContent = old; }
 }
 async function nxDownload(id, btn) {
   btn.disabled = true; const old = btn.textContent; btn.textContent = "…";
@@ -750,6 +783,7 @@ $("nxMain").addEventListener("click", (e) => {
   if (th) { if (NX.sort === th.dataset.s) NX.desc = !NX.desc; else { NX.sort = th.dataset.s; NX.desc = th.dataset.s === "date"; } nxRender(); return; }
   if (e.target.id === "nxAll") { const on = e.target.checked; nxView().filter(nxCanDel).forEach((x) => on ? NX.sel.add(x.save_id) : NX.sel.delete(x.save_id)); nxRender(); return; }
   const tr = e.target.closest("tr[data-id]"); if (!tr) return;
+  const ad = e.target.closest("button[data-add]"); if (ad) { nxAttach(tr.dataset.id, ad); return; }
   const dl = e.target.closest("button[data-dl]"); if (dl) { nxDownload(tr.dataset.id, dl); return; }
   const x = NX.items.find((i) => i.save_id === tr.dataset.id); if (!x || !nxCanDel(x)) return;
   NX.sel.has(x.save_id) ? NX.sel.delete(x.save_id) : NX.sel.add(x.save_id); nxRender();

@@ -13,7 +13,9 @@
 #
 # 빼는 것(§1.7): 파일 이름에 급여·연봉·인사평가 등이 들어간 파일, 본문에 주민등록번호 꼴이 있는 파일.
 #   빠진 파일은 내용이 색인에 **한 글자도** 들어가지 않는다 — 사유만 남는다.
+import csv
 import datetime
+import html
 import io
 import os
 import re
@@ -22,7 +24,7 @@ import time
 import zipfile
 from xml.etree import ElementTree as ET
 
-INDEX_VERSION = "i1.0"
+INDEX_VERSION = "i1.1"   # i1.1(2026-10-08 · REQ-0117 S1): 읽는 형식 추가(tsv·json·sql·xml·html·xlsm) · 표 구조 판독(read_table) · 판독 상태(file_status)
 
 MAX_FILE_BYTES = 40 * 1024 * 1024      # 이보다 크면 읽지 않는다
 MAX_TEXT_CHARS = 1_500_000             # 한 파일에서 색인하는 글자 상한
@@ -31,10 +33,15 @@ CHUNK_OVERLAP = 80
 SCAN_MAX = 50000
 DEPTH_MAX = 8
 
-TEXT_EXT = {".txt", ".md", ".csv", ".log"}
-ZIP_EXT = {".docx", ".xlsx", ".pptx", ".hwpx"}
+TEXT_EXT = {".txt", ".md", ".csv", ".log", ".tsv", ".json", ".sql"}
+MARKUP_EXT = {".xml", ".html", ".htm"}          # 태그를 걷고 글자만 색인한다
+ZIP_EXT = {".docx", ".xlsx", ".xlsm", ".pptx", ".hwpx"}
 PDF_EXT = {".pdf"}
-READABLE = TEXT_EXT | ZIP_EXT | PDF_EXT
+READABLE = TEXT_EXT | MARKUP_EXT | ZIP_EXT | PDF_EXT
+IMAGE_EXT = {".png", ".jpg", ".jpeg", ".gif", ".webp"}
+TABLE_EXT = {".xlsx", ".xlsm", ".csv", ".tsv"}  # 표 구조를 살려 읽을 수 있는 형식(read_table)
+REASON_UNREADABLE = "읽지 못하는 형식"
+REASON_IMAGE = "이미지 — 글자 색인 없음(대화에 붙이면 모델이 직접 본다)"
 
 _SKIP_NAME = re.compile(r"^(?:[.#@~]|Thumbs\.db$|desktop\.ini$)|\.tmp$", re.I)
 # 이름만으로 빼는 파일 — 폴더를 등록할 때 걸러야 하지만 섞여 들어오는 경우의 2차 방어
@@ -177,11 +184,21 @@ def _read_text(path):
     return raw.decode("utf-8", "replace")
 
 
+def _strip_markup(text):
+    """html·xml 에서 글자만. 스크립트·스타일은 통째로 버린다."""
+    text = re.sub(r"(?is)<(script|style)\b.*?</\1\s*>", " ", text or "")
+    text = re.sub(r"(?s)<!--.*?-->", " ", text)
+    text = re.sub(r"(?i)<\s*(br|/p|/div|/tr|/li|/h[1-6])\b[^>]*>", "\n", text)
+    return html.unescape(re.sub(r"<[^>]+>", " ", text))
+
+
 def extract(path):
     """(글자, 사유). 글자가 None 이면 색인하지 않는다 — 사유가 그 이유다."""
     ext = os.path.splitext(path)[1].lower()
+    if ext in IMAGE_EXT:
+        return None, REASON_IMAGE
     if ext not in READABLE:
-        return None, "읽지 못하는 형식"
+        return None, REASON_UNREADABLE
     if ext in PDF_EXT and not pdf_ready():
         return None, "PDF 읽기 모듈 없음(pypdf)"
     try:
@@ -189,9 +206,11 @@ def extract(path):
             return None, "파일이 너무 큼"
         if ext in TEXT_EXT:
             text = _read_text(path)
+        elif ext in MARKUP_EXT:
+            text = _strip_markup(_read_text(path))
         elif ext == ".docx":
             text = _read_docx(path)
-        elif ext == ".xlsx":
+        elif ext in (".xlsx", ".xlsm"):
             text = _read_xlsx(path)
         elif ext == ".pptx":
             text = _read_pptx(path)
@@ -289,6 +308,10 @@ def refresh(con, docs_root, folders, log=None, budget_sec=None):
     t0 = time.time()
     keep_keys = set()
     changed = removed = 0
+    # 색인 판이 올라가면(읽는 형식이 늘면) 예전에 형식 때문에 빠진 파일을 다시 읽는다 — 크기·수정시각이 같아도
+    old_ver = (con.execute("select v from meta where k = 'index_version'").fetchone() or [None])[0]
+    retry = old_ver != INDEX_VERSION
+    over_budget = False
     for f in folders or []:
         key = str(f.get("key") or "")
         rel = str(f.get("rel_path") or "").replace("\\", "/").strip("/")
@@ -298,7 +321,7 @@ def refresh(con, docs_root, folders, log=None, budget_sec=None):
         if not _inside(docs_root, base) or not os.path.isdir(base) or os.path.islink(base):
             continue
         keep_keys.add(key)
-        have = {r[0]: r[1:] for r in con.execute("select rel, id, size, mtime from file where folder_key = ?", (key,))}
+        have = {r[0]: r[1:] for r in con.execute("select rel, id, size, mtime, status, reason from file where folder_key = ?", (key,))}
         found = set()
         for path, sub in _walk(base):
             found.add(sub)
@@ -307,9 +330,11 @@ def refresh(con, docs_root, folders, log=None, budget_sec=None):
             except OSError:
                 continue
             old = have.get(sub)
-            if old and old[1] == st.st_size and abs((old[2] or 0) - st.st_mtime) < 1:
+            if old and old[1] == st.st_size and abs((old[2] or 0) - st.st_mtime) < 1 \
+                    and not (retry and old[3] != "ok" and old[4] == REASON_UNREADABLE):
                 continue
             if budget_sec and time.time() - t0 > budget_sec:
+                over_budget = True
                 continue                                   # 이번 회차 예산 초과 — 다음 회차에 이어서
             name = os.path.basename(path)
             if _SENSITIVE_NAME.search(name):
@@ -345,6 +370,8 @@ def refresh(con, docs_root, folders, log=None, budget_sec=None):
     stamp = datetime.datetime.now(_KST).strftime("%Y-%m-%d %H:%M")
     with con:
         con.execute("insert into meta (k, v) values ('refreshed_at', ?) on conflict(k) do update set v = excluded.v", (stamp,))
+        if retry and not over_budget:                      # 다 못 돌았으면 판을 올리지 않는다 — 다음 회차가 이어서 본다
+            con.execute("insert into meta (k, v) values ('index_version', ?) on conflict(k) do update set v = excluded.v", (INDEX_VERSION,))
     n_all, n_ok = con.execute("select count(*), sum(status = 'ok') from file").fetchone()
     res = {"files": n_all or 0, "indexed": n_ok or 0, "skipped": (n_all or 0) - (n_ok or 0),
            "removed": removed, "changed": changed, "as_of": stamp}
@@ -438,3 +465,341 @@ def stats(con):
     why = dict(con.execute("select reason, count(*) from file where status != 'ok' group by reason").fetchall())
     as_of = (con.execute("select v from meta where k = 'refreshed_at'").fetchone() or [None])[0]
     return {"files": n_all or 0, "indexed": n_ok or 0, "skipped": why, "as_of": as_of}
+
+
+# ── 판독 상태(REQ-0117 S1) ───────────────────────────────────────────────────
+def file_status(con, folder_keys, under=None, limit=300):
+    """허용 폴더 안 파일의 판독 상태 — 읽혔는지, 못 읽었으면 왜인지. 내용은 한 글자도 싣지 않는다."""
+    keys = [k for k in folder_keys if k]
+    if not keys:
+        raise ValueError("볼 수 있는 폴더가 없습니다")
+    limit = max(1, min(500, int(limit or 300)))
+    ph = ",".join("?" * len(keys))
+    where, args = [f"folder_key in ({ph})"], list(keys)
+    under = str(under or "").replace("\\", "/").strip("/")
+    if under:
+        if any(p in ("", ".", "..") for p in under.split("/")):
+            raise ValueError("폴더 경로가 올바르지 않습니다")
+        where.append("(rel = ? or rel like ? escape '\\')")
+        args += [under, under.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "/%"]
+    w = " and ".join(where)
+    n_all, n_ok = con.execute(f"select count(*), sum(status = 'ok') from file where {w}", args).fetchone()
+    why = dict(con.execute(f"select coalesce(reason, '사유 없음'), count(*) from file where {w} and status != 'ok' group by 1", args).fetchall())
+    rows = con.execute(f"select id, folder_key, rel, name, status, reason, n_chunks, indexed_at from file where {w} "
+                       f"order by mtime desc limit ?", args + [limit]).fetchall()
+    as_of = (con.execute("select v from meta where k = 'refreshed_at'").fetchone() or [None])[0]
+    items = [{"문서": f"{key}:{fid}", "폴더키": key, "경로": rel, "이름": name,
+              "상태": "읽힘" if status == "ok" else "못 읽음", "사유": None if status == "ok" else (reason or "사유 없음"),
+              "토막수": n or 0, "표": os.path.splitext(name)[1].lower() in TABLE_EXT, "색인시각": at}
+             for fid, key, rel, name, status, reason, n, at in rows]
+    return {"색인기준": as_of, "색인판": INDEX_VERSION,
+            "요약": {"전체": n_all or 0, "읽힘": n_ok or 0, "못읽음": why},
+            "반환수": len(items), "잘림": (n_all or 0) > len(items), "목록": items}, len(items)
+
+
+# ── 표 구조 판독(REQ-0117 S1) ────────────────────────────────────────────────
+# 색인용 글자(_read_xlsx)는 셀을 " | " 로 이어 붙여 열 위치·머리글·날짜가 사라진다. 여기서는 그것을 살려 돌려준다.
+# 값은 어디에도 쌓지 않는다 — 요청한 창(행 범위)만 읽어 조회 큐로 한 번 나간다.
+TABLE_MAX_ROWS = 200
+TABLE_MAX_COLS = 40
+TABLE_MAX_CHARS = 8000        # 게이트웨이가 도구 결과를 12,000자에서 자른다 — 그 안에 들어가게
+TABLE_CELL_CHARS = 200
+TABLE_HEAD_ROWS = 30          # 머리글 행을 추정할 때 보는 앞쪽 행 수
+_DATE_FMT_IDS = set(range(14, 23)) | set(range(27, 37)) | set(range(45, 48)) | set(range(50, 59))
+
+
+def locate(con, doc, folder_keys):
+    """문서 번호 → (폴더키, 폴더 안 상대경로, 이름, 수정시각). 허용 폴더 밖·민감 사유로 빠진 파일은 내주지 않는다."""
+    m = re.fullmatch(r"([a-z0-9_]{1,40}):(\d{1,12})", str(doc or ""))
+    if not m:
+        raise ValueError("문서 번호 형식이 올바르지 않습니다")
+    key, fid = m.group(1), int(m.group(2))
+    if key not in set(folder_keys):
+        raise ValueError("볼 수 없는 문서입니다")
+    row = con.execute("select rel, name, mtime, status, reason from file where id = ? and folder_key = ?", (fid, key)).fetchone()
+    if not row:
+        raise ValueError("문서를 찾을 수 없습니다(지워졌거나 색인에서 빠졌습니다)")
+    rel, name, mtime, status, reason = row
+    if status != "ok" and str(reason or "").startswith("민감"):
+        raise ValueError("민감 정보가 들어 있어 읽지 않는 문서입니다")
+    return key, rel, name, mtime
+
+
+def _col_index(ref):
+    n = 0
+    for ch in ref:
+        if not ch.isalpha():
+            break
+        n = n * 26 + (ord(ch.upper()) - 64)
+    return n
+
+
+def _col_name(n):
+    out = ""
+    while n > 0:
+        n, r = divmod(n - 1, 26)
+        out = chr(65 + r) + out
+    return out
+
+
+def _is_date_format(code):
+    c = re.sub(r'"[^"]*"|\[[^\]]*\]|\\.', "", str(code or ""))
+    return bool(re.search(r"[ymdhs]", c, re.I)) and not re.fullmatch(r"general", c.strip(), re.I)
+
+
+def _serial_to_text(v, date1904=False):
+    """엑셀 날짜 일련번호 → 'YYYY-MM-DD'(시각이 있으면 ' HH:MM'). 범위를 벗어나면 원값."""
+    try:
+        f = float(v)
+    except (TypeError, ValueError):
+        return str(v)
+    if not (0 <= f < 2958466):
+        return str(v)
+    base = datetime.datetime(1904, 1, 1) if date1904 else datetime.datetime(1899, 12, 30)
+    dt = base + datetime.timedelta(seconds=round(f * 86400))
+    if f < 1:
+        return dt.strftime("%H:%M")
+    return dt.strftime("%Y-%m-%d") if abs(f - round(f)) < 1e-9 else dt.strftime("%Y-%m-%d %H:%M")
+
+
+def _num_text(v):
+    try:
+        f = float(v)
+    except (TypeError, ValueError):
+        return str(v)
+    if f == int(f) and abs(f) < 1e15:
+        return str(int(f))
+    r = repr(round(f, 10))
+    return r if "e" in r else r.rstrip("0").rstrip(".")
+
+
+def _xlsx_book(z):
+    """(시트 [(이름, 파일)], 날짜 서식인 스타일 번호 집합, 1904 기준 여부)"""
+    names = z.namelist()
+    sheets, date1904 = [], False
+    if "xl/workbook.xml" in names:
+        rels = {}
+        if "xl/_rels/workbook.xml.rels" in names:
+            for el in ET.fromstring(z.read("xl/_rels/workbook.xml.rels")):
+                t = str(el.get("Target") or "").lstrip("/")
+                rels[el.get("Id")] = t if t.startswith("xl/") else "xl/" + t
+        for el in ET.fromstring(z.read("xl/workbook.xml")).iter():
+            tag = el.tag.rsplit("}", 1)[-1]
+            if tag == "workbookPr" and str(el.get("date1904") or "").lower() in ("1", "true"):
+                date1904 = True
+            elif tag == "sheet":
+                rid = next((v for k, v in el.attrib.items() if k.rsplit("}", 1)[-1] == "id"), None)
+                target = rels.get(rid)
+                if target in names:
+                    sheets.append((str(el.get("name") or f"시트 {len(sheets) + 1}"), target))
+    if not sheets:
+        sheets = [(f"시트 {i}", n) for i, n in enumerate(_zip_members(z, r"xl/worksheets/sheet\d+\.xml$"), 1)]
+    date_styles = set()
+    if "xl/styles.xml" in names:
+        custom, xfs = {}, None
+        for el in ET.fromstring(z.read("xl/styles.xml")).iter():
+            tag = el.tag.rsplit("}", 1)[-1]
+            if tag == "numFmt":
+                try:
+                    custom[int(el.get("numFmtId"))] = el.get("formatCode")
+                except (TypeError, ValueError):
+                    pass
+            elif tag == "cellXfs":
+                xfs = el
+        for i, xf in enumerate(list(xfs) if xfs is not None else []):
+            try:
+                fid = int(xf.get("numFmtId") or 0)
+            except ValueError:
+                continue
+            if fid in _DATE_FMT_IDS or (fid in custom and _is_date_format(custom[fid])):
+                date_styles.add(str(i))
+    return sheets, date_styles, date1904
+
+
+def _shared_strings(z):
+    shared = []
+    if "xl/sharedStrings.xml" in z.namelist():
+        cur = []
+        for ev, el in ET.iterparse(io.BytesIO(z.read("xl/sharedStrings.xml")), events=("end",)):
+            tag = el.tag.rsplit("}", 1)[-1]
+            if tag == "t" and el.text:
+                cur.append(el.text)
+            elif tag == "si":
+                shared.append("".join(cur))
+                cur = []
+    return shared
+
+
+def _xlsx_rows(z, member, shared, date_styles, date1904, merges):
+    """(행 번호, {열 번호: 글자}) 를 차례로 낸다. 병합 범위는 merges 목록에 채운다."""
+    auto_r, row = 0, {}
+    for ev, el in ET.iterparse(io.BytesIO(z.read(member)), events=("end",)):
+        tag = el.tag.rsplit("}", 1)[-1]
+        if tag == "c":
+            v, t, formula = None, el.get("t"), False
+            for ch in el:
+                ct = ch.tag.rsplit("}", 1)[-1]
+                if ct == "v" and ch.text is not None:
+                    v = ch.text
+                elif ct == "is":
+                    v = "".join(x.text or "" for x in ch.iter() if x.tag.rsplit("}", 1)[-1] == "t")
+                    t = "inlineStr"
+                elif ct == "f":
+                    formula = True
+            if v in (None, ""):
+                if not formula:
+                    continue
+                v, t = "(수식 — 저장된 값 없음)", "str"     # 계산값이 파일에 없으면 지어내지 않고 그렇게 적는다
+            if t == "s":
+                try:
+                    v = shared[int(v)]
+                except (ValueError, IndexError):
+                    v = ""
+            elif t == "b":
+                v = "TRUE" if v == "1" else "FALSE"
+            elif t in ("str", "inlineStr", "e"):
+                pass
+            elif el.get("s") in date_styles:
+                v = _serial_to_text(v, date1904)
+            else:
+                v = _num_text(v)
+            v = str(v).strip()
+            if v:
+                ci = _col_index(el.get("r") or "") or (max(row) + 1 if row else 1)
+                row[ci] = v
+        elif tag == "row":
+            try:
+                auto_r = int(el.get("r") or auto_r + 1)
+            except ValueError:
+                auto_r += 1
+            if row:
+                yield auto_r, row
+            row = {}
+            el.clear()
+        elif tag == "mergeCell" and el.get("ref"):
+            merges.append(el.get("ref"))
+
+
+def _csv_rows(path, ext):
+    text = _read_text(path)
+    first = text.split("\n", 1)[0]
+    delim = "\t" if ext == ".tsv" else max(",;\t", key=first.count)
+    for i, cells in enumerate(csv.reader(io.StringIO(text), delimiter=delim), 1):
+        row = {j: c.strip() for j, c in enumerate(cells, 1) if c and c.strip()}
+        if row:
+            yield i, row
+
+
+def _header_row(head):
+    """앞쪽 행들에서 머리글 행을 추정한다 — 칸이 충분히 차 있고 숫자보다 글자가 많은 첫 행. 못 찾으면 None."""
+    if not head:
+        return None
+    most = max(len(r) for _, r in head)
+    need = max(2, -(-most * 6 // 10))
+    for no, r in head:
+        if len(r) >= need:
+            texty = sum(1 for v in r.values() if not re.fullmatch(r"[-+]?[\d,.\s%:/-]+", v))
+            if texty * 2 >= len(r):
+                return no
+    return None
+
+
+def read_table(path, sheet=None, start=None, max_rows=None, max_chars=TABLE_MAX_CHARS):
+    """엑셀·CSV 를 표로 읽는다 — 시트 이름 · 머리글(추정) · 열 문자 · 행 번호 · 날짜 복원.
+
+    sheet: 시트 번호(1부터) 또는 이름. start: 시작 행 번호(없으면 머리글 다음 행). 반환 (결과 dict, 행 수).
+    """
+    ext = os.path.splitext(path)[1].lower()
+    if ext not in TABLE_EXT:
+        raise ValueError("표로 읽을 수 있는 형식이 아닙니다(엑셀 xlsx·xlsm, CSV·TSV 만) — 글자는 문서 읽기로 보세요")
+    if _SENSITIVE_NAME.search(os.path.basename(path)):
+        raise ValueError("민감 파일 이름이라 읽지 않습니다")
+    if os.path.getsize(path) > MAX_FILE_BYTES:
+        raise ValueError("파일이 너무 큽니다")
+    max_rows = max(1, min(TABLE_MAX_ROWS, int(max_rows or 60)))
+    begin = max(1, int(start)) if start not in (None, "") else None
+    z, merges = None, []
+    try:
+        if ext in (".csv", ".tsv"):
+            sheets, idx, it = [("(단일 표)", None)], 0, _csv_rows(path, ext)
+        else:
+            try:
+                z = zipfile.ZipFile(path)
+                sheets, date_styles, date1904 = _xlsx_book(z)
+                shared = _shared_strings(z)
+            except (zipfile.BadZipFile, KeyError, ET.ParseError):
+                raise ValueError("파일이 깨졌거나 암호가 걸려 있습니다")
+            if not sheets:
+                raise ValueError("시트가 없습니다")
+            idx = 0
+            if sheet not in (None, ""):
+                want = str(sheet).strip()
+                by_name = [i for i, (n, _) in enumerate(sheets) if n == want]
+                if by_name:
+                    idx = by_name[0]
+                elif want.isdigit() and 1 <= int(want) <= len(sheets):
+                    idx = int(want) - 1
+                else:
+                    raise ValueError("그런 시트가 없습니다 — 시트목록을 확인하세요")
+            it = _xlsx_rows(z, sheets[idx][1], shared, date_styles, date1904, merges)
+
+        # 한 번 훑는다 — 앞 30행은 머리글 추정용으로 쥐고, 창(시작 행부터 max_rows·max_chars)만 담는다
+        head, tail, total, last_no = [], [], 0, 0
+        for no, row in it:
+            if any(_RRN.search(v) for v in row.values()):
+                raise ValueError("민감 정보 꼴(주민등록번호)이 있어 읽지 않습니다")
+            total += 1
+            last_no = max(last_no, no)
+            if len(head) < TABLE_HEAD_ROWS:
+                head.append((no, row))
+            elif len(tail) < TABLE_MAX_ROWS and (begin is None or no >= begin):
+                tail.append((no, row))
+    finally:
+        if z is not None:
+            z.close()
+
+    hdr = _header_row(head)
+    auto = begin is None
+
+    def take(first):
+        out, used = [], 0
+        for no, row in head + tail:
+            if no < first:
+                continue
+            size = sum(min(len(x), TABLE_CELL_CHARS) + 4 for x in row.values()) + 8
+            if len(out) >= max_rows or (used + size > max_chars and out):
+                break
+            out.append((no, row))
+            used += size
+        return out
+
+    if auto:
+        begin = (hdr + 1) if hdr else (head[0][0] if head else 1)
+    window = take(begin)
+    if auto and hdr and not window:                        # 머리글로 본 행 아래가 비었다 — 머리글이 아니라 내용이다
+        hdr, begin = None, (head[0][0] if head else 1)
+        window = take(begin)
+
+    hdr_cells = dict(next((r for n, r in head if n == hdr), {})) if hdr else {}
+    # 머리글 위쪽(제목·업체명·작성일 같은 줄) — 표의 열과 맞지 않으므로 칸 주소째로 따로 준다. 시작 행을 직접 준 경우엔 뺀다
+    above = [{"행": n, "값": {_col_name(c): (v if len(v) <= TABLE_CELL_CHARS else v[:TABLE_CELL_CHARS] + "…") for c, v in sorted(r.items())}}
+             for n, r in head if hdr and auto and n < hdr][:12]
+    cols = sorted(set(hdr_cells) | {c for _, r in window for c in r})
+    cut_cols = len(cols) > TABLE_MAX_COLS
+    cols = cols[:TABLE_MAX_COLS]
+
+    def clip(v):
+        return v if len(v) <= TABLE_CELL_CHARS else v[:TABLE_CELL_CHARS] + "…"
+
+    rows = [[no] + [clip(r.get(c, "")) for c in cols] for no, r in window]
+    last = window[-1][0] if window else None
+    return {"시트목록": [{"번호": i + 1, "이름": n} for i, (n, _) in enumerate(sheets)],
+            "시트": {"번호": idx + 1, "이름": sheets[idx][0]},
+            "값있는행수": total, "마지막행": last_no,
+            "머리글행": hdr, "머리글": {_col_name(c): clip(v) for c, v in sorted(hdr_cells.items()) if c in cols},
+            "머리글위": above,
+            "열": [_col_name(c) for c in cols], "열잘림": cut_cols,
+            "행": rows, "행범위": [window[0][0], last] if window else None,
+            "다음행": (last + 1) if (window and last < last_no) else None,
+            "병합": merges[:20], "병합수": len(merges),
+            "안내": "행의 첫 값은 엑셀 행 번호, 나머지는 「열」 순서의 셀 값이다. 머리글행은 추정이다. 날짜 서식 셀은 날짜로 바꿨다."}, len(rows)
